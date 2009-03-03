@@ -57,7 +57,7 @@ void DlgSetSegmentClearance::DoDataExchange(CDataExchange* pDX)
 		}
 
 		// on exit
-		m_clearance.m_ca_clearance.Set(val);
+		m_clearance.m_ca_clearance = val;
 
 		if( m_check_def_net.GetCheck() )
 		{
@@ -79,7 +79,7 @@ BOOL DlgSetSegmentClearance::OnInitDialog()
 {
 	CDialog::OnInitDialog();
 
-	if( m_mode == 0 ) 
+	if( m_mode == 0 )
 	{
 		// called from segment
 		m_radio2_apply_seg.SetCheck( 1 );
@@ -108,12 +108,15 @@ BOOL DlgSetSegmentClearance::OnInitDialog()
 		m_edit_clearance.EnableWindow(0);
 		m_check_def_net.EnableWindow(0);
 		m_check_def_net.SetCheck( 0 );
+
+		// Just to make sure
+		m_clearance.m_ca_clearance = CInheritableInfo::E_USE_PARENT;
 	}
 	else
 	{
 		// Using segment value
 		m_radio1_set_trace_clearance.SetCheck(1);
-		m_edit_clearance.EnableWindow(1);	
+		m_edit_clearance.EnableWindow(1);
 		m_check_def_net.EnableWindow(1);
 	}
 
@@ -155,13 +158,13 @@ void DlgSetSegmentClearance::OnBnClickedApplyNet()
 
 void DlgSetSegmentClearance::OnBnClickedRadioUseNetClearance()
 {
-	m_edit_clearance.EnableWindow(0);	
+	m_edit_clearance.EnableWindow(0);
 	m_check_def_net.EnableWindow(0);
 	m_check_def_net.SetCheck( 0 );
 }
 
 void DlgSetSegmentClearance::OnBnClickedRadioSetTraceClearance()
 {
-	m_edit_clearance.EnableWindow(1);	
+	m_edit_clearance.EnableWindow(1);
 	m_check_def_net.EnableWindow(1);
 }

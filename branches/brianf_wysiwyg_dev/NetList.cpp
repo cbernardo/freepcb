@@ -4294,7 +4294,7 @@ void CNetList::ReadNets( CStdioFile * pcb_file, double read_version, int * layer
 			CClearanceInfo clearance(CClearanceInfo::E_USE_PARENT);
 			if( np > 9 )
 			{
-				clearance.m_ca_clearance.Set( my_atoi( &p[8] ) );
+				clearance.m_ca_clearance = my_atoi( &p[8] );
 			}
 
 			cnet * net = AddNet( net_name, npins, def_width, def_via_w, def_via_hole_w, clearance );
@@ -4399,7 +4399,7 @@ void CNetList::ReadNets( CStdioFile * pcb_file, double read_version, int * layer
 						CClearanceInfo seg_clearance(CClearanceInfo::E_USE_PARENT);
 						if (np > 6)
                         {
-							seg_clearance.m_ca_clearance.Set( my_atoi( &p[5] ) );
+							seg_clearance.m_ca_clearance = my_atoi( &p[5] );
                         }
 
 						// read following vertex data
@@ -4438,7 +4438,7 @@ void CNetList::ReadNets( CStdioFile * pcb_file, double read_version, int * layer
 							if( np > 9 )
 							{
 								// Clearance info provided
-								vtx_clearance.m_ca_clearance.Set( my_atoi( &p[8] ) );
+								vtx_clearance.m_ca_clearance = my_atoi( &p[8] );
 							}
 
 							if( end_pin != cconnect::NO_END )

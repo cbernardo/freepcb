@@ -164,7 +164,7 @@ CFreePcbDoc::CFreePcbDoc()
 	m_import_flags = IMPORT_PARTS | IMPORT_NETS | KEEP_TRACES | KEEP_STUBS | KEEP_AREAS;
 
 	// Backward compatibility
-	m_clearance.m_ca_clearance.Set(10*NM_PER_MIL);
+	m_clearance.m_ca_clearance = 10*NM_PER_MIL;
 
 	// initialize pseudo-clipboard
 	clip_plist = new CPartList( NULL, m_smfontutil );
@@ -362,7 +362,7 @@ void CFreePcbDoc::OnFileNew()
 		m_num_layers = m_num_copper_layers + LAY_TOP_COPPER;
 		m_ratline_w = dlg.GetRatlineWidth();
 		m_trace_w = dlg.GetTraceWidth();
-		m_clearance.m_ca_clearance.Set(dlg.GetCopperAreaClearance());
+		m_clearance.m_ca_clearance = dlg.GetCopperAreaClearance();
 		m_via_w = dlg.GetViaWidth();
 		m_via_hole_w = dlg.GetViaHoleWidth();
 		m_nlist->SetWidths( m_trace_w, m_via_w, m_via_hole_w, m_clearance );
@@ -1668,7 +1668,7 @@ void CFreePcbDoc::ReadOptions( CStdioFile * pcb_file )
 			else if( np && ( key_str == "fill_clearance" || key_str == "default_ca_clearance" ) )
 			{
 				// Accept both for backward compatibility
-				m_clearance.m_ca_clearance.Set( my_atoi( &p[0] ) );
+				m_clearance.m_ca_clearance = my_atoi( &p[0] );
 				m_nlist->SetWidths( m_trace_w, m_via_w, m_via_hole_w, m_clearance );
 			}
 			else if( np && key_str == "mask_clearance" )
@@ -2362,7 +2362,7 @@ void CFreePcbDoc::InitializeNewProject()
 	m_bSMT_copper_connect = FALSE;
 	m_default_glue_w = 25*NM_PER_MIL;
 	m_trace_w = 10*NM_PER_MIL;
-	m_clearance.m_ca_clearance.Set(10*NM_PER_MIL);
+	m_clearance.m_ca_clearance = 10*NM_PER_MIL;
 	m_via_w = 28*NM_PER_MIL;
 	m_via_hole_w = 14*NM_PER_MIL;
 	m_nlist->SetWidths( m_trace_w, m_via_w, m_via_hole_w, m_clearance );
@@ -3112,7 +3112,7 @@ int CFreePcbDoc::ImportNetlist( CStdioFile * file, UINT flags,
 							(*nl)[inet].v_w = 0;
 							(*nl)[inet].v_h_w = 0;
 							(*nl)[inet].clearance.SetParent(m_nlist->Get_def_clearance());
-							(*nl)[inet].clearance.m_ca_clearance.Set(CClearanceInfo::E_USE_PARENT);
+							(*nl)[inet].clearance.m_ca_clearance = CClearanceInfo::E_USE_PARENT;
 
 							instr = instr.Right( instr.GetLength()-delim_pos-1 );
 							num_pins = 0;
@@ -3425,7 +3425,7 @@ int CFreePcbDoc::ImportPADSPCBNetlist( CStdioFile * file, UINT flags,
 						(*nl)[inet].v_w = -1;
 						(*nl)[inet].v_h_w = -1;
 						(*nl)[inet].clearance.SetParent(m_nlist->Get_def_clearance());
-						(*nl)[inet].clearance.m_ca_clearance.Set(CClearanceInfo::E_USE_PARENT);
+						(*nl)[inet].clearance.m_ca_clearance = CClearanceInfo::E_USE_PARENT;
 
 						npins = 0;
 						state = SIGNAL;
@@ -3790,7 +3790,7 @@ void CFreePcbDoc::OnProjectOptions()
 		SetRatlineWidth(dlg.GetRatlineWidth());
 
 		m_trace_w = dlg.GetTraceWidth();
-		m_clearance.m_ca_clearance.Set(dlg.GetCopperAreaClearance());
+		m_clearance.m_ca_clearance = dlg.GetCopperAreaClearance();
 		m_hole_clearance = dlg.GetHoleClearance();
 		m_via_w = dlg.GetViaWidth();
 		m_via_hole_w = dlg.GetViaHoleWidth();

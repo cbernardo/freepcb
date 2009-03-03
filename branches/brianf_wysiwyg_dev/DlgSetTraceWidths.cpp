@@ -44,7 +44,7 @@ void CDlgSetTraceWidths::DoDataExchange(CDataExchange* pDX)
 	{
 		// incoming
 		CString str;
-		for( int i=0; i<m_w->GetSize(); i++ )  
+		for( int i=0; i<m_w->GetSize(); i++ )
 		{
 			str.Format( "%d", (*m_w)[i]/NM_PER_MIL );
 			m_combo_width.InsertString( i, str );
@@ -75,6 +75,9 @@ void CDlgSetTraceWidths::DoDataExchange(CDataExchange* pDX)
 		{
 			m_radio3_def_clearance.SetCheck(1);
 			m_edit_clearance.EnableWindow(0);
+
+			// Just to make sure
+			m_clearance.m_ca_clearance = CInheritableInfo::E_USE_PARENT;
 		}
 		else
 		{
@@ -85,7 +88,7 @@ void CDlgSetTraceWidths::DoDataExchange(CDataExchange* pDX)
 		str.Format( "%d", m_clearance.m_ca_clearance.m_val / NM_PER_MIL );
 		m_edit_clearance.SetWindowText(str);
 
-		m_check_clearance.SetCheck(1);		
+		m_check_clearance.SetCheck(1);
 
 		SetFields();
 	}
@@ -142,7 +145,7 @@ void CDlgSetTraceWidths::DoDataExchange(CDataExchange* pDX)
 
 				val *= NM_PER_MIL;
 			}
-			m_clearance.m_ca_clearance.Set(val);
+			m_clearance.m_ca_clearance = val;
 		}
 	}
 }
@@ -209,7 +212,7 @@ void CDlgSetTraceWidths::OnCbnSelchangeComboWidth()
 			{
 				for( int i=1; i<n; i++ )
 				{
-					if( new_w > (*m_w)[i-1] && new_w <= (*m_w)[i] ) 
+					if( new_w > (*m_w)[i-1] && new_w <= (*m_w)[i] )
 					{
 						new_v_w = (*m_v_w)[i];
 						new_v_h_w = (*m_v_h_w)[i];
@@ -256,7 +259,7 @@ void CDlgSetTraceWidths::OnCbnEditchangeComboWidth()
 			{
 				for( int i=1; i<n; i++ )
 				{
-					if( new_w > (*m_w)[i-1] && new_w <= (*m_w)[i] ) 
+					if( new_w > (*m_w)[i-1] && new_w <= (*m_w)[i] )
 					{
 						new_v_w = (*m_v_w)[i];
 						new_v_h_w = (*m_v_h_w)[i];
@@ -277,15 +280,15 @@ void CDlgSetTraceWidths::OnBnClickedSetTrace()
 	SetFields();
 }
 
-void CDlgSetTraceWidths::OnBnClickedSetVias() 
+void CDlgSetTraceWidths::OnBnClickedSetVias()
 {
 	SetFields();
 }
 
 void CDlgSetTraceWidths::SetFields()
 {
-	bTraces = m_check_trace.GetCheck();     
-	bRevertTraces = m_radio_revert_traces.GetCheck(); 
+	bTraces = m_check_trace.GetCheck();
+	bRevertTraces = m_radio_revert_traces.GetCheck();
 
 	m_radio_revert_traces.EnableWindow( bTraces );
 	m_radio_set_trace_width.EnableWindow( bTraces );

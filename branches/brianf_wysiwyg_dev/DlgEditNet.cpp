@@ -89,7 +89,7 @@ void CDlgEditNet::DoDataExchange(CDataExchange* pDX)
 
 		if( m_radio2_def_clearance.GetCheck() )
 		{
-			m_clearance.m_ca_clearance.Set(CClearanceInfo::E_USE_PARENT);
+			m_clearance.m_ca_clearance = CClearanceInfo::E_USE_PARENT;
 		}
 		else
 		{
@@ -100,7 +100,7 @@ void CDlgEditNet::DoDataExchange(CDataExchange* pDX)
 				pDX->Fail();
 			}
 
-			m_clearance.m_ca_clearance.Set(i*NM_PER_MIL);
+			m_clearance.m_ca_clearance = i*NM_PER_MIL;
 		}
 
 		// now update netlist_info
@@ -179,7 +179,7 @@ void CDlgEditNet::DoDataExchange(CDataExchange* pDX)
 	}
 }
 
-void CDlgEditNet::Initialize( CNetList const * netlist, 
+void CDlgEditNet::Initialize( CNetList const * netlist,
 							  netlist_info * nl,
 							  int i,
 							  CPartList * plist,
@@ -204,7 +204,7 @@ void CDlgEditNet::Initialize( CNetList const * netlist,
 		m_def_v_w = 0;
 		m_def_v_h_w = 0;
 
-		m_clearance.m_ca_clearance.Set(CClearanceInfo::E_USE_PARENT);
+		m_clearance.m_ca_clearance = CClearanceInfo::E_USE_PARENT;
 		m_clearance.SetParent( netlist->Get_def_clearance() );
 	}
 	else
@@ -399,6 +399,9 @@ BOOL CDlgEditNet::OnInitDialog()
 	{
 		m_radio2_def_clearance.SetCheck(1);
 		m_edit_clearance.EnableWindow(0);
+
+		// Just to make sure
+		m_clearance.m_ca_clearance = CClearanceInfo::E_USE_PARENT;
 	}
 	else
 	{

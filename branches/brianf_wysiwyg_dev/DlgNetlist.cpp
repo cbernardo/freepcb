@@ -242,6 +242,9 @@ void CDlgNetlist::DrawListCtrl()
 			if (::nl[i].clearance.m_ca_clearance.m_status < 0)
 			{
 				str.Format("Default");
+
+				// Just to make sure
+				::nl[i].clearance.m_ca_clearance = CClearanceInfo::E_USE_PARENT;
 			}
 			else
 			{
@@ -427,7 +430,7 @@ void CDlgNetlist::OnBnClickedButtonNLWidth()
 	dlg.m_width = 0;
 	dlg.m_via_width = 0;
 	dlg.m_hole_width = 0;
-	dlg.m_clearance.m_ca_clearance.Set(CClearanceInfo::E_USE_PARENT);
+	dlg.m_clearance.m_ca_clearance = CClearanceInfo::E_USE_PARENT;
 	if( n_sel == 1 )
 	{
 		POSITION pos = m_list_ctrl.GetFirstSelectedItemPosition();
