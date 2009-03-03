@@ -155,6 +155,7 @@ ON_COMMAND(ID_BOARDCORNER_DELETEOUTLINE, OnBoardDeleteOutline)
 ON_COMMAND(ID_BOARDSIDE_INSERTCORNER, OnBoardSideAddCorner)
 ON_COMMAND(ID_BOARDSIDE_DELETEOUTLINE, OnBoardDeleteOutline)
 ON_COMMAND(ID_PAD_STARTSTUBTRACE, OnPadStartStubTrace)
+ON_COMMAND(ID_PAD_SETCLEARANCE, OnPadSetClearance)
 ON_COMMAND(ID_SEGMENT_DELETE, OnSegmentDelete)
 ON_COMMAND(ID_ENDVERTEX_MOVE, OnEndVertexMove)
 ON_COMMAND(ID_ENDVERTEX_ADDSEGMENTS, OnEndVertexAddSegments)
@@ -6199,6 +6200,12 @@ void CFreePcbView::OnPadStartStubTrace()
 	ReleaseDC( pDC );
 	Invalidate( FALSE );
 }
+
+
+void CFreePcbView::OnPadSetClearance()
+{
+}
+
 
 // attach this pad to a net
 //

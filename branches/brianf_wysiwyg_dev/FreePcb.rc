@@ -349,8 +349,10 @@ BEGIN
     BEGIN
         MENUITEM "Attach to Net",               ID_PAD_ADDTONET
         MENUITEM "Detach from Net",             ID_PAD_DETACHFROMNET
+        MENUITEM SEPARATOR
         MENUITEM "Connect to Pin",              ID_PAD_CONNECTTOPIN
         MENUITEM "Start Stub Trace",            ID_PAD_STARTSTUBTRACE
+        MENUITEM "Set Clearance",               ID_PAD_SETCLEARANCE
         MENUITEM "Optimize Ratlines",           ID_PAD_OPTIMIZERATLINES
     END
     POPUP "Segment"
@@ -2308,6 +2310,24 @@ BEGIN
     LTEXT           "Width (mils)",-1,19,16,38,8
 END
 
+IDD_PIN_CLEARANCE DIALOGEX 0, 0, 202, 113
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Set Pin Clearance"
+FONT 8, "MS Shell Dlg", 400, 0, 0x1
+BEGIN
+    CONTROL         "Use net clearance",IDC_RADIO_USE_NET_CLEARANCE,"Button",BS_AUTORADIOBUTTON | WS_GROUP,12,30,73,10
+    CONTROL         "Set clearance (mils)",IDC_RADIO_SET_TRACE_CLEARANCE,
+                    "Button",BS_AUTORADIOBUTTON,12,43,78,10
+    EDITTEXT        IDC_EDIT_CLEARANCE,90,41,40,14,ES_AUTOHSCROLL
+    CONTROL         "Apply to already placed pads for this net",IDC_DEF_NET,
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,12,73,161,10
+    DEFPUSHBUTTON   "OK",IDOK,24,92,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,126,92,50,14
+    GROUPBOX        "Clearance (mils)",-1,6,4,189,59
+    CONTROL         "Auto (clearance = max of attached segments)",IDC_RADIO_USE_NET_CLEARANCE2,
+                    "Button",BS_AUTORADIOBUTTON | WS_GROUP,12,17,164,10
+END
+
 
 /////////////////////////////////////////////////////////////////////////////
 //
@@ -2831,6 +2851,14 @@ BEGIN
         RIGHTMARGIN, 148
         TOPMARGIN, 7
         BOTTOMMARGIN, 59
+    END
+
+    IDD_PIN_CLEARANCE, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 195
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 106
     END
 END
 #endif    // APSTUDIO_INVOKED

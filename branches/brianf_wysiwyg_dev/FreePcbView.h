@@ -581,6 +581,7 @@ public:
 	afx_msg void OnBoardSideAddCorner();
 	afx_msg void OnBoardDeleteOutline();
 	afx_msg void OnPadStartStubTrace();
+	afx_msg void OnPadSetClearance();
 	afx_msg void OnSegmentDelete();
 	afx_msg void OnEndVertexMove();
 	afx_msg void OnEndVertexAddSegments();

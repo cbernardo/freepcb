@@ -1247,7 +1247,7 @@ int CPartList::DrawPart( cpart * part )
 		double x_scale = (double)t->m_font_size/22.0;
 		double y_scale = (double)t->m_font_size/22.0;
 		double y_offset = 9.0*y_scale;
-		//i = 0; BAF - seems like this is wrong
+
 		double xc = 0.0;
 		CPoint si, sf;
 		int w = t->m_stroke_width;
@@ -1301,6 +1301,7 @@ int CPartList::DrawPart( cpart * part )
 			pin_pt.y = ps->y_rel;
 			pad_layer = il + LAY_TOP_COPPER;
 			pin->dl_els[il] = NULL;
+
 			// get appropriate pad
 			padstack * ps = &shape->m_padstack[pin_idx];
 			pad * p = NULL;
@@ -1314,9 +1315,11 @@ int CPartList::DrawPart( cpart * part )
 				p = &ps->top;
 			else if( ps->hole_size )
 				p = &ps->inner;
+
 			int sel_layer = pad_layer;
 			if( ps->hole_size )
 				sel_layer = LAY_SELECTION;
+
 			if( p )
 			{
 				if( p->shape != PAD_NONE )
@@ -1346,7 +1349,7 @@ int CPartList::DrawPart( cpart * part )
 						DL_CIRC, 1,
 						p->size_h,
 						0,
-						0,//BAF CLEARANCE
+						pin->clearance.m_ca_clearance.m_val,
 						x + pin_pt.x, y + pin_pt.y, 0, 0, 0, 0 );
 					if( !pin->dl_sel )
 					{
@@ -1376,7 +1379,7 @@ int CPartList::DrawPart( cpart * part )
 						DL_SQUARE, 1,
 						p->size_h,
 						0,
-						0,//BAF CLEARANCE
+						pin->clearance.m_ca_clearance.m_val,
 						pin->x, pin->y,
 						0, 0,
 						0, 0 );
@@ -1435,7 +1438,7 @@ int CPartList::DrawPart( cpart * part )
 						gtype, 1,
 						0,
 						0,
-						0,//BAF CLEARANCE
+						pin->clearance.m_ca_clearance.m_val,
 						x + pad_pi.x, y + pad_pi.y,
 						x + pad_pf.x, y + pad_pf.y,
 						x + pin_pt.x, y + pin_pt.y,
@@ -1467,7 +1470,7 @@ int CPartList::DrawPart( cpart * part )
 						DL_OCTAGON, 1,
 						p->size_h,
 						0,
-						0,//BAF CLEARANCE
+						pin->clearance.m_ca_clearance.m_val,
 						pin->x, pin->y,
 						0, 0,
 						0, 0 );
@@ -1508,7 +1511,7 @@ int CPartList::DrawPart( cpart * part )
 								DL_HOLE, 1,
 								ps->hole_size,
 								0,
-								0,//BAF CLEARANCE
+								pin->clearance.m_ca_clearance.m_val,
 								pin->x, pin->y, 0, 0, 0, 0 );
 			if( !pin->dl_sel )
 			{

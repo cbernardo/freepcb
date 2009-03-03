@@ -219,6 +219,8 @@
 #define IDD_TAB_PROJ_OPT_SPACING        354
 #define IDD_TAB_PROJ_OPT_THERMAL        355
 #define IDD_RAT_W                       356
+#define IDD_PAD_CLEARANCE               357
+#define IDD_PIN_CLEARANCE               357
 #define IDC_EDIT1                       1002
 #define IDC_PART_REF                    1002
 #define IDC_EDIT_VIA_PAD                1002
@@ -725,6 +727,7 @@
 #define IDC_BUTTON_LAYER_10             1440
 #define IDC_RADIO_USE_NET_CLEARANCE     1440
 #define IDC_BUTTON_LAYER_11             1441
+#define IDC_RADIO_USE_NET_CLEARANCE2    1441
 #define IDC_BUTTON_LAYER_12             1442
 #define IDC_BUTTON_LAYER_13             1443
 #define IDC_BUTTON_LAYER_14             1444
@@ -855,7 +858,6 @@
 #define ID_AREAEDGE_CHANGELAYER         32863
 #define ID_AREACORNER_CHANGELAYER       32864
 #define ID_TOOLS_CHECKTRACES            32865
-//#define ID_AREAEDGE_APPLYCLEARANCES     32866
 #define ID_GROUP_SAVETOFILE             32867
 #define ID_GROUP_PASTEFROMFILE          32868
 #define ID_GROUP_PASTEFROMFILE32870     32870
@@ -923,14 +925,15 @@
 #define ID_RATLINE_SETCLEARANCE         32943
 #define ID_CONNECT_SETCLEARANCE         32944
 #define ID_RATLINE_SETRATLINEWIDTH      32945
+#define ID_PAD_SETCLEARANCE             32946
 
 // Next default values for new objects
-//
+// 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_3D_CONTROLS                     1
 #define _APS_NEXT_RESOURCE_VALUE        355
-#define _APS_NEXT_COMMAND_VALUE         32946
+#define _APS_NEXT_COMMAND_VALUE         32947
 #define _APS_NEXT_CONTROL_VALUE         1441
 #define _APS_NEXT_SYMED_VALUE           106
 #endif
