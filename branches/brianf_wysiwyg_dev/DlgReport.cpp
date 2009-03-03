@@ -394,6 +394,8 @@ void CDlgReport::OnBnClickedOk()
 				::MakeCStringFromDimension( &str1, centroid_pt.y, m_units, FALSE, FALSE, TRUE, dp );
 				c_y[ip] = str1;
 				int index_p1 = part->shape->GetPinIndexByName( "1" );
+				if( index_p1 == -1 )
+					index_p1 = part->shape->GetPinIndexByName( "A1" );
 				if( index_p1 != -1 )
 				{
 					CPoint pt1 = m_pl->GetPinPoint( part, index_p1 );

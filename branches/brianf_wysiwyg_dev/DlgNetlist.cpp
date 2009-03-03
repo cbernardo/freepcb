@@ -389,6 +389,7 @@ void CDlgNetlist::OnBnClickedButtonSelectAll()
 {
 	for( int i=0; i<::nl.GetSize(); i++ )
 		m_list_ctrl.SetItemState( i, LVIS_SELECTED, LVIS_SELECTED );
+	OnNMClickListNet( NULL, NULL );
 }
 
 void CDlgNetlist::OnBnClickedButtonDelete()
@@ -543,7 +544,8 @@ void CDlgNetlist::OnNMClickListNet(NMHDR *pNMHDR, LRESULT *pResult)
 		m_button_nl_width.EnableWindow(TRUE);
 		m_button_delete.EnableWindow(TRUE);
 	}
-	*pResult = 0;
+	if( pResult )
+		*pResult = 0;
 }
 
 

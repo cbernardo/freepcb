@@ -1053,7 +1053,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 						m_sel_net = net;
 						m_sel_id = net->id;
 						m_sel_id.st = ID_ENTIRE_NET;
-						m_Doc->m_nlist->HighlightNet( m_sel_net );
+						m_Doc->m_nlist->HighlightNetConnections( m_sel_net );
 						m_Doc->m_plist->HighlightAllPadsOnNet( m_sel_net );
 						SetCursorMode( CUR_NET_SELECTED );
 					}
@@ -2939,7 +2939,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 				m_sel_net = net;
 				m_sel_id = net->id;
 				m_sel_id.st = ID_ENTIRE_NET;
-				m_Doc->m_nlist->HighlightNet( m_sel_net );
+				m_Doc->m_nlist->HighlightNetConnections( m_sel_net );
 				m_Doc->m_plist->HighlightAllPadsOnNet( m_sel_net );
 				SetCursorMode( CUR_NET_SELECTED );
 			}
@@ -5042,17 +5042,27 @@ int CFreePcbView::ShowSelectStatus()
 				last_y = y;
 			}
 			::MakeCStringFromDimension( &len_str, (int)len, u, TRUE, TRUE, FALSE, u==MIL?1:3 );
-			if( m_sel_con.end_pin == cconnect::NO_END )
+			if( m_sel_con.end_pin == cconnect::NO_END ) 
 			{
-				// stub trace
-				CString tee_flag = "";
+				// stub or branch trace
 				if( int id = m_sel_con.vtx[m_sel_con.nsegs].tee_ID )
+				{
+					CString tee_flag = "";
 					tee_flag.Format( "(T%d)", id );
-				str.Format( "net \"%s\" stub(%d) from %s.%s%s %s len=%s",
-					m_sel_net->name, m_sel_id.i+1,
-					m_sel_start_pin.ref_des,
-					m_sel_start_pin.pin_name,
-					locked_flag, tee_flag, len_str );
+					str.Format( "net \"%s\" branch(%d) from %s.%s%s %s len=%s",
+						m_sel_net->name, m_sel_id.i+1,
+						m_sel_start_pin.ref_des,
+						m_sel_start_pin.pin_name,
+						locked_flag, tee_flag, len_str );
+				}
+				else
+				{
+					str.Format( "net \"%s\" stub(%d) from %s.%s%s len=%s",
+						m_sel_net->name, m_sel_id.i+1,
+						m_sel_start_pin.ref_des,
+						m_sel_start_pin.pin_name,
+						locked_flag, len_str );
+				}
 			}
 			else
 			{
@@ -8687,7 +8697,7 @@ void CFreePcbView::OnNetSetWidth()
 {
 	SetWidth( 2 );
 	m_Doc->m_dlist->CancelHighLight();
-	m_Doc->m_nlist->HighlightNet( m_sel_net );
+	m_Doc->m_nlist->HighlightNetConnections( m_sel_net );
 }
 
 void CFreePcbView::OnNetSetClearance()
@@ -10157,7 +10167,7 @@ void CFreePcbView::ReselectNetItemIfConnectionsChanged( int new_ic )
 		else if( m_cursor_mode == CUR_CONNECT_SELECTED )
 			m_Doc->m_nlist->HighlightConnection( m_sel_net, m_sel_ic );
 		else if( m_cursor_mode == CUR_NET_SELECTED )
-			m_Doc->m_nlist->HighlightNet( m_sel_net );
+			m_Doc->m_nlist->HighlightNetConnections( m_sel_net );
 	}
 	else
 		CancelSelection();

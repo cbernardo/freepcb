@@ -4,12 +4,20 @@ FreePCB release notes: (versions since 1.2)
 1.355
 -----
 - added "00.0000" to drill file header to indicate format
-- when saving a footprint, MM or MIL is used depending on the editor setting
-- after importing footprint, default is to save to same library
-- footprint library fields in dialogs are now read-only, set with browse button
+- when saving a footprint from the editor, MM or MIL is used depending on the editor setting
+- after editing footprint from a library, default is to save to same library (instead of user_created.fpl)
+- "footprint library" field in most dialogs is now read-only (use Browse instead)
 - name of last netlist file loaded is now saved in project file
 - when adding a board outline, copper area, soldermask cutout or text, the layer is made visible
- 
+- bug fixed that caused routing errors when a part was moved or footprint changed from a dialog
+- bug fixed in "Project->Nets" dialog where selecting All Nets didn't enable "multiple nets" options
+- status bar now shows "branch" correctly when branch trace selected
+- pressing "n" now shows entire net correctly, including copper areas
+- if a part doesn't have a pin "1", the report file will use pin "A1" for the pin 1 position
+- fixed bug where default mask or paste rrect pads did not have the correct corner radius
+- reassigning copper layers now handles text on those layers
+- added "User Guide Supplement" to Help menu
+
 1.354
 -----
 - warning added if design rules for annular widths exceed the CAM annular width parameters

@@ -230,6 +230,7 @@ public:
 	int GetValueAngle( cpart * part );
 	CPoint GetRefPoint( cpart * part );
 	CPoint GetValuePoint( cpart * part );
+	CRect GetValueRect( cpart * part );
 	CPoint GetPinPoint(  cpart * part, LPCTSTR pin_name );
 	CPoint GetPinPoint(  cpart * part, int pin_index );
 	CPoint GetCentroidPoint(  cpart * part );

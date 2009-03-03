@@ -41,6 +41,7 @@ BEGIN_MESSAGE_MAP(CFreePcbApp, CWinApp)
 	ON_COMMAND(ID_HELP_FREEROUTINGWEBSITE, OnHelpFreeRoutingWebsite)
 	ON_COMMAND(ID_HELP_USERGUIDE_PDF, OnHelpUserGuidePdf)
 	ON_COMMAND(ID_HELP_FPCROUTE, OnHelpFpcRoute)
+	ON_COMMAND(ID_HELP_USERGUIDESUPPLEMENT_PDF, OnHelpUserGuideSupplementPdf)
 END_MESSAGE_MAP()
 
 /////////////////////////////////////////////////////////////////////////////
@@ -125,7 +126,7 @@ BOOL CFreePcbApp::InitInstance()
 	if( cmdInfo.m_nShellCommand == CCommandLineInfo::FileOpen )
 	{
 		CString fn = cmdInfo.m_strFileName;
-		m_Doc->OnFileAutoOpen( &fn );
+		m_Doc->OnFileAutoOpen( fn );
 	}
 
 	return TRUE;
@@ -177,9 +178,9 @@ void CAboutDlg::DoDataExchange(CDataExchange* pDX)
 	{
 		// incoming
 #ifdef _DEBUG
-		m_edit_build.SetWindowText( "371 Debug: (2008/10/13 00:11:48)" );
+		m_edit_build.SetWindowText( "$WCREV$ Debug: ($WCDATE$)" );
 #else
-		m_edit_build.SetWindowText( "371 Release: (2008/10/13 00:11:48)" );
+		m_edit_build.SetWindowText( "$WCREV$ Release: ($WCDATE$)" );
 #endif
 	}
 }
@@ -366,7 +367,7 @@ void CFreePcbApp::OnFileMruFile1()
 {
 	ASSERT( CWinApp::m_pRecentFileList );
 	CString str = (*CWinApp::m_pRecentFileList)[0];
-	m_Doc->OnFileAutoOpen( &str );
+	m_Doc->OnFileAutoOpen( str );
 	return;
 }
 
@@ -374,7 +375,7 @@ void CFreePcbApp::OnFileMruFile2()
 {
 	ASSERT( CWinApp::m_pRecentFileList );
 	CString str = (*CWinApp::m_pRecentFileList)[1];
-	m_Doc->OnFileAutoOpen( &str );
+	m_Doc->OnFileAutoOpen( str );
 	return;
 }
 
@@ -382,7 +383,7 @@ void CFreePcbApp::OnFileMruFile3()
 {
 	ASSERT( CWinApp::m_pRecentFileList );
 	CString str = (*CWinApp::m_pRecentFileList)[2];
-	m_Doc->OnFileAutoOpen( &str );
+	m_Doc->OnFileAutoOpen( str );
 	return;
 }
 
@@ -390,7 +391,7 @@ void CFreePcbApp::OnFileMruFile4()
 {
 	ASSERT( CWinApp::m_pRecentFileList );
 	CString str = (*CWinApp::m_pRecentFileList)[3];
-	m_Doc->OnFileAutoOpen( &str );
+	m_Doc->OnFileAutoOpen( str );
 	return;
 }
 
@@ -478,6 +479,24 @@ void CFreePcbApp::OnHelpUserGuidePdf()
 	ShellExecuteEx(&ShExecInfo);
 }
 
+void CFreePcbApp::OnHelpUserGuideSupplementPdf()
+{
+    SHELLEXECUTEINFO ShExecInfo;
+	CString fn = m_Doc->m_app_dir + "\\..\\doc\\freepcb_user_guide_supplement.pdf";
+
+	ShExecInfo.cbSize = sizeof(SHELLEXECUTEINFO);
+	ShExecInfo.fMask = NULL;
+	ShExecInfo.hwnd = NULL;
+	ShExecInfo.lpVerb = NULL;
+	ShExecInfo.lpFile = fn;
+	ShExecInfo.lpParameters = NULL;
+	ShExecInfo.lpDirectory = NULL;
+	ShExecInfo.nShow = SW_MAXIMIZE;
+	ShExecInfo.hInstApp = NULL;
+
+	ShellExecuteEx(&ShExecInfo);
+}
+
 void CFreePcbApp::OnHelpFpcRoute()
 {
     SHELLEXECUTEINFO ShExecInfo;
@@ -505,3 +524,4 @@ int CFreePcbApp::DoMessageBox(LPCTSTR lpszPrompt, UINT nType, UINT nIDPrompt)
 	::ShowCursor( FALSE );
 	return ret;
 }
+

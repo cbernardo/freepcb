@@ -115,6 +115,7 @@ public:
 	afx_msg void OnToolsOpenOnlineAutorouter();
 	afx_msg void OnHelpFreeRoutingWebsite();
 	afx_msg void OnHelpUserGuidePdf();
+	afx_msg void OnHelpUserGuideSupplementPdf();
 	afx_msg void OnHelpFpcRoute();
 };
 

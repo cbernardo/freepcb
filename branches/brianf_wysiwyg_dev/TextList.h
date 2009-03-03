@@ -95,6 +95,7 @@ public:
 	int GetNumTexts(){ return text_ptr.GetSize();};
 	BOOL GetTextBoundaries( CRect * r );
 	BOOL GetTextRectOnPCB( CText * t, CRect * r );
+	void ReassignCopperLayers( int n_new_layers, int * layer );
 	undo_text * CreateUndoRecord( CText * text );
 	static void TextUndoCallback( int type, void * ptr, BOOL undo );
 

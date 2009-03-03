@@ -36,6 +36,7 @@
 #include "DlgReport.h"
 #include "DlgNetCombine.h"
 #include "DlgMyMessageBox.h"
+#include "DlgSaveLib.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -96,6 +97,8 @@ BEGIN_MESSAGE_MAP(CFreePcbDoc, CDocument)
 	ON_COMMAND(ID_TOOLS_REPEATDRC, OnRepeatDrc)
 	ON_COMMAND(ID_FILE_GENERATEREPORTFILE, OnFileGenerateReportFile)
 	ON_COMMAND(ID_PROJECT_COMBINENETS, OnProjectCombineNets)
+	ON_COMMAND(ID_FILE_LOADLIBRARYASPROJECT, OnFileLoadLibrary)
+	ON_COMMAND(ID_FILE_SAVEPROJECTASLIBRARY, OnFileSaveLibrary)
 END_MESSAGE_MAP()
 
 /////////////////////////////////////////////////////////////////////////////
@@ -426,10 +429,24 @@ void CFreePcbDoc::OnFileOpen()
 	int err = dlg.DoModal();
 	if( err == IDOK )
 	{
-		// read project file
 		CString pathname = dlg.GetPathName();
 		CString filename = dlg.GetFileName();
-		FileOpen( &pathname );
+		if( filename.Right(4) == ".fpl" )
+		{
+			CString mess = "You are opening a file with extension \".fpl\"\n";
+			mess += "which is usually a FreePCB footprint library.\n\n";
+			mess += "Would you like to load this library as a project?";
+			int ret = AfxMessageBox( mess, MB_YESNOCANCEL );
+			if( ret == IDCANCEL )
+				return;
+			else if( ret == IDYES )
+				FileLoadLibrary( pathname );
+	}
+	else
+	{
+			// read project file
+			FileOpen( pathname );
+		}
 	}
 	else
 	{
@@ -444,18 +461,39 @@ void CFreePcbDoc::OnFileOpen()
 	}
 }
 
-void CFreePcbDoc::OnFileAutoOpen( CString * fn )
+void CFreePcbDoc::OnFileAutoOpen( LPCTSTR fn )
 {
+	CString pathname = fn;
+	if( pathname.Right(4) == ".fpl" )
+	{
+		CString mess = "You are opening a file with extension \".fpl\"\n";
+		mess += "which is usually a FreePCB footprint library.\n\n";
+		mess += "Would you like to load this library as a project?";
+		int ret = AfxMessageBox( mess, MB_YESNOCANCEL );
+		if( ret == IDCANCEL )
+			return;
+		else if( ret == IDYES )
+		{
+			FileLoadLibrary( fn );
+			return;
+		}
+		else
 	FileOpen( fn );
+			return;
+}
+	else
+		FileOpen( fn );
 }
 
 // open project file, fn = full path to file
+// if bLibrary = true, open library file and read footprints
+// return TRUE if success
 //
-void CFreePcbDoc::FileOpen( CString * fn )
+BOOL CFreePcbDoc::FileOpen( LPCTSTR fn, BOOL bLibrary )
 {
 	// if another file open, offer to save before closing
 	if( FileClose() == IDCANCEL )
-		return;		// file close cancelled
+		return FALSE;		// file close cancelled
 
 	// reset before opening new project
 	m_view->CancelSelection();
@@ -463,18 +501,20 @@ void CFreePcbDoc::FileOpen( CString * fn )
 
 	// now open it
 	CStdioFile pcb_file;
-	int err = pcb_file.Open( *fn, CFile::modeRead, NULL );
+	int err = pcb_file.Open( fn, CFile::modeRead, NULL );
 	if( !err )
 	{
 		// error opening project file
 		CString mess;
 		mess.Format( "Unable to open file %s", fn );
 		AfxMessageBox( mess );
-		return;
+		return FALSE;
 	}
 
 	try
 	{
+		if( !bLibrary )
+		{
 		// read project from file
 		CString key_str;
 		CString in_str;
@@ -501,8 +541,13 @@ void CFreePcbDoc::FileOpen( CString * fn )
 			m_full_lib_dir = fullpath;
 		}
 		MakeLibraryMaps( &m_full_lib_dir );
-
-		m_pcb_full_path = *fn;
+		}
+		else
+		{
+			// read library as project
+			ReadFootprints( &pcb_file, NULL, FALSE );
+		}
+		m_pcb_full_path = fn;
 		int fpl = m_pcb_full_path.GetLength();
 		int isep = m_pcb_full_path.ReverseFind( '\\' );
 		if( isep == -1 )
@@ -568,7 +613,7 @@ void CFreePcbDoc::FileOpen( CString * fn )
 		m_view->ReleaseDC( pDC );
 		m_plist->CheckForProblemFootprints();
 		bNoFilesOpened = FALSE;
-		return;
+		return TRUE;
 	}
 	catch( CString * err_str )
 	{
@@ -578,7 +623,7 @@ void CFreePcbDoc::FileOpen( CString * fn )
 		CDC * pDC = m_view->GetDC();
 		m_view->OnDraw( pDC );
 		m_view->ReleaseDC( pDC );
-		return;
+		return FALSE;
 	}
 }
 
@@ -991,7 +1036,8 @@ CShape * CFreePcbDoc::GetFootprintPtr( CString name )
 // read shapes from file
 //
 void CFreePcbDoc::ReadFootprints( CStdioFile * pcb_file,
-								  CMapStringToPtr * cache_map )
+								  CMapStringToPtr * cache_map,
+								  BOOL bFindSection )
 {
 	// set up cache map to use
 	CMapStringToPtr * use_map = cache_map;
@@ -1018,6 +1064,8 @@ void CFreePcbDoc::ReadFootprints( CStdioFile * pcb_file,
 	}
 	use_map->RemoveAll();
 
+	if( bFindSection )
+	{
 	// find beginning of shapes section
 	do
 	{
@@ -1033,6 +1081,7 @@ void CFreePcbDoc::ReadFootprints( CStdioFile * pcb_file,
 		in_str.Trim();
 	}
 	while( in_str != "[shapes]" && in_str != "[footprints]" );
+	}
 
 	// get each shape and add it to the cache
 	while( 1 )
@@ -1041,8 +1090,13 @@ void CFreePcbDoc::ReadFootprints( CStdioFile * pcb_file,
 		err = pcb_file->ReadString( in_str );
 		if( !err )
 		{
+			if( bFindSection )
+			{
 			CString * err_str = new CString( "unexpected EOF in project file" );
 			throw err_str;
+		}
+			else
+				break;
 		}
 		in_str.Trim();
 		if( in_str[0] == '[' )
@@ -3748,16 +3802,18 @@ void CFreePcbDoc::OnProjectOptions()
 		m_bSMT_copper_connect = dlg.Get_bSMT_connect_copper();
 		m_nlist->SetSMTconnect( m_bSMT_copper_connect );
 		m_default_glue_w = dlg.GetGlueWidth();
+		// deal with decreased number of layers
 		if( m_num_copper_layers > dlg.GetNumCopperLayers() )
 		{
-			// decreasing number of layers
+			// decreasing number of layers, offer to reassign them
 			CDlgReassignLayers rel_dlg;
 			rel_dlg.Initialize( m_num_copper_layers, dlg.GetNumCopperLayers() );
 			int ret = rel_dlg.DoModal();
 			if( ret == IDOK )
 			{
-				// reassign copper layers of items in netlist
+				// reassign copper layers
 				m_nlist->ReassignCopperLayers( dlg.GetNumCopperLayers(), rel_dlg.new_layer );
+				m_tlist->ReassignCopperLayers( dlg.GetNumCopperLayers(), rel_dlg.new_layer );
 				m_num_copper_layers = dlg.GetNumCopperLayers();
 				m_num_layers = m_num_copper_layers + LAY_TOP_COPPER;
 			}
@@ -3770,7 +3826,7 @@ void CFreePcbDoc::OnProjectOptions()
 		}
 		else if( m_num_copper_layers < dlg.GetNumCopperLayers() )
 		{
-			// increasing number of layers
+			// increasing number of layers, don't reassign
 			for( int il=m_num_copper_layers; il<dlg.GetNumCopperLayers(); il++ )
 				m_vis[LAY_TOP_COPPER+il] = 1;
 			m_num_copper_layers = dlg.GetNumCopperLayers();
@@ -4342,7 +4398,7 @@ void CFreePcbDoc::OnFileImportSes()
 		}
 		CString old_ses_full_path = m_ses_full_path;
 		m_dlg_log->AddLine( "\r\nLoad: " + dlg.m_routed_pcb_filepath + "\r\n" );
-		OnFileAutoOpen( &dlg.m_routed_pcb_filepath );
+		OnFileAutoOpen( dlg.m_routed_pcb_filepath );
 		m_ses_full_path = old_ses_full_path;
 		m_dlg_log->AddLine( "Re-import: " + m_ses_full_path + "\r\n" );
 		ImportSessionFile( &m_ses_full_path, m_dlg_log, dlg.m_bVerbose );
@@ -4499,6 +4555,146 @@ void CFreePcbDoc::OnProjectCombineNets()
 		m_nlist->RestoreConnectionsAndAreas( old_nlist, m_import_flags, NULL );
 		delete old_nlist;
 	}
+}
+
+void CFreePcbDoc::OnFileLoadLibrary()
+{
+	if( FileClose() == IDCANCEL )
+		return;
+
+	m_view->CancelSelection();
+	InitializeNewProject();		// set defaults
+
+	// get project file name
+	// force old-style file dialog by setting size of OPENFILENAME struct (for Win98)
+	CFileDialog dlg( 1, "fpl", LPCTSTR(m_pcb_filename), 0, 
+		"Library files (*.fpl)|*.fpl|All Files (*.*)|*.*||", 
+		NULL, OPENFILENAME_SIZE_VERSION_400 );
+	dlg.AssertValid();
+
+	// get folder of most-recent file or project folder
+	CString MRFile = theApp.GetMRUFile();
+	CString MRFolder;
+	if( MRFile != "" )
+	{
+		MRFolder = MRFile.Left( MRFile.ReverseFind( '\\' ) ) + "\\";
+		dlg.m_ofn.lpstrInitialDir = MRFolder;
+	}
+	else
+		dlg.m_ofn.lpstrInitialDir = m_parent_folder;
+
+	if( m_full_lib_dir != "" )
+		dlg.m_ofn.lpstrInitialDir = m_lib_dir;
+
+	// now show dialog
+	int err = dlg.DoModal();
+	if( err == IDOK )
+	{
+		// read project file
+		CString pathname = dlg.GetPathName();
+		FileLoadLibrary( pathname );
+	}
+	else
+	{
+		// CANCEL or error
+		DWORD dwError = ::CommDlgExtendedError();
+		if( dwError )
+		{
+			CString str;
+			str.Format( "File Open Dialog error code = %ulx\n", (unsigned long)dwError );
+			AfxMessageBox( str );
+		}
+	}
+}
+void CFreePcbDoc::FileLoadLibrary( LPCTSTR pathname )
+{
+	BOOL bOK = FileOpen( pathname, TRUE );
+	if( bOK )
+	{
+		// now add one instance of each footprint in cache
+		POSITION pos;
+		CString key;
+		void * ptr;
+		LPCSTR p;
+		CShape *shape;
+		CString ref;
+		int i=1, x=0, y=0, max_height=0;
+		for( pos = m_footprint_cache_map.GetStartPosition(); pos != NULL; )
+		{
+			m_footprint_cache_map.GetNextAssoc( pos, key, ptr );
+			p = (LPCSTR)key;
+			shape = (CShape*)ptr;
+			ref.Format( "LIB_%d", i );
+			cpart * part = m_plist->Add( shape, &ref, NULL, x, y, 0, 0, 1, 0 );
+			// get bounding rectangle of pads and outline
+			CRect shape_r = part->shape->GetBounds();
+			int height = shape_r.top - shape_r.bottom;
+			int width = shape_r.right - shape_r.left;
+			// get dimensions of bounding rectangle for value text
+			m_plist->SetValue( part, &shape->m_name, 
+				shape_r.left, shape_r.top + part->m_ref_w, 0, 
+				part->m_ref_size, part->m_ref_w, 1 );
+			CRect vr;
+			vr = m_plist->GetValueRect( part );
+			int value_width = vr.right - vr.left;
+			// see if we can fit part between x and 8 inches
+			int max_width = max( width, value_width );
+			BOOL bFits = (x + max_width) < (8000*NM_PER_MIL);
+			if( !bFits ) 
+			{
+				// start new row
+				x = 0;
+				y -= max_height;
+				max_height = 0;
+			}
+			// move part so upper-left corner is at x,y
+			m_plist->Move( part, x - shape_r.left, 
+				y - shape_r.top - 2*part->m_ref_size, 0, 0 );
+			// make ref invisible
+			m_plist->ResizeRefText( part, part->m_ref_size, part->m_ref_w, 0 );
+			// move value to top of part
+			m_plist->SetValue( part, &shape->m_name, 
+				shape_r.left, shape_r.top + part->m_ref_w, 0, 
+				part->m_ref_size, part->m_ref_w, 1 );
+			m_plist->DrawPart( part );
+			i++;
+			x += max_width + 200*NM_PER_MIL;	// step right .2 inches
+			max_height = max( max_height, height + 2*part->m_ref_size );
+		}
+		if( m_pcb_filename.Right(4) == ".fpl" )
+		{
+			int len = m_pcb_filename.GetLength();
+			m_pcb_filename.SetAt(len-1, 'c');
+			len = m_pcb_full_path.GetLength();
+			m_pcb_full_path.SetAt(len-1, 'c');
+		}
+		else
+		{
+			m_pcb_filename = m_pcb_filename + ".fpc";
+			m_pcb_full_path = *pathname + ".fpc";
+		}
+		m_window_title = "FreePCB library project - " + m_pcb_filename;
+		CWnd* pMain = AfxGetMainWnd();
+		pMain->SetWindowText( m_window_title );
+		m_view->OnViewAllElements();
+		ProjectModified( FALSE );
+	}
+}
+
+void CFreePcbDoc::OnFileSaveLibrary()
+{
+	CDlgSaveLib dlg;
+	CArray<CString> names;
+	cpart * part = m_plist->GetFirstPart();
+	int i = 0;
+	while( part )
+	{
+		names.SetAtGrow( i, part->value );
+		part = m_plist->GetNextPart( part );
+		i++;
+	}
+	dlg.Initialize( &names );
+	int ret = dlg.DoModal();
 }
 
 
