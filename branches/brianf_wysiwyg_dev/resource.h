@@ -213,6 +213,7 @@
 #define IDD_NET_COMBINE                 347
 #define IDD_DIALOG5                     349
 #define IDD_CHOOSE_NET                  349
+#define IDD_SAVE_LIB                    350
 #define IDD_SEGMENT_CLEARANCE           350
 #define IDD_PROJECT_OPTIONS_TABBED      351
 #define IDD_TAB_PROJ_OPT_MAIN           353
@@ -375,11 +376,18 @@
 #define IDC_BUTTON_SAVE_FP_BROWSE       1142
 #define IDC_BUTTON2                     1143
 #define IDC_BUTTON3                     1144
+#define IDC_BUTTON4                     1145
 #define IDC_RADIO_PART                  1145
 #define IDC_RADIO_FOOTPRINT             1146
+#define IDC_BUTTON5                     1146
+#define IDC_BUTTON6                     1147
+#define IDC_BUTTON7                     1148
+#define IDC_BUTTON8                     1149
 #define IDC_RADIO_PARTS                 1149
 #define IDC_RADIO_PARTSANDNETS          1150
+#define IDC_BUTTON9                     1151
 #define IDC_RADIO_FREEPCB               1151
+#define IDC_BUTTON10                    1152
 #define IDC_RADIO_PADSPCB               1152
 #define IDC_RADIO_NETS                  1153
 #define IDD_MYFILEDLG                   1154
@@ -714,6 +722,7 @@
 #define IDC_BUTTON_LAYER_2              1432
 #define IDC_BUTTON_LAYER_3              1433
 #define IDC_PROJECT_OPTIONS_TAB         1433
+#define IDC_LIST_FP2                    1433
 #define IDC_BUTTON_LAYER_4              1434
 #define IDC_BUTTON_LAYER_5              1435
 #define IDC_THERMAL_VIAS                1435
@@ -921,20 +930,23 @@
 #define ID_PROJECT_COMBINENETS          32939
 #define ID_SEGMENT_MOVE                 32940
 #define ID_SEGMENT_SETCLEARANCE         32941
+#define ID_FILE_LOADLIBRARYASPROJECT    32941
 #define ID_NET_SETCLEARANCE             32942
+#define ID_FILE_SAVEPROJECTASLIBRARY    32942
+#define ID_HELP_USERGUIDESUPPLEMENT_PDF 32943
 #define ID_RATLINE_SETCLEARANCE         32943
 #define ID_CONNECT_SETCLEARANCE         32944
 #define ID_RATLINE_SETRATLINEWIDTH      32945
 #define ID_PAD_SETCLEARANCE             32946
 
 // Next default values for new objects
-// 
+//
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_3D_CONTROLS                     1
-#define _APS_NEXT_RESOURCE_VALUE        355
+#define _APS_NEXT_RESOURCE_VALUE        358
 #define _APS_NEXT_COMMAND_VALUE         32947
-#define _APS_NEXT_CONTROL_VALUE         1441
+#define _APS_NEXT_CONTROL_VALUE         1500
 #define _APS_NEXT_SYMED_VALUE           106
 #endif
 #endif
