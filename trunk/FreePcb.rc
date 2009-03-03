@@ -162,6 +162,10 @@ BEGIN
         MENUITEM "Import netlist...",           244
         MENUITEM "Export netlist...",           ID_FILE_EXPORTNETLIST
         MENUITEM SEPARATOR
+        MENUITEM "Load library as project...",  ID_FILE_LOADLIBRARYASPROJECT
+        , GRAYED
+        MENUITEM "Save project as library...",  ID_FILE_SAVEPROJECTASLIBRARY
+        , GRAYED
         MENUITEM "Convert library...",          250
         MENUITEM SEPARATOR
         MENUITEM "Generate CAM files...",       ID_FILE_GENERATECADFILES
@@ -241,7 +245,10 @@ BEGIN
     END
     POPUP "&Help"
     BEGIN
-        MENUITEM "FreePCB User Guide (PDF)",    ID_HELP_USERGUIDE_PDF
+        MENUITEM "FreePCB User Guide (PDF)",    32893
+        MENUITEM "FreePCB User Guide Supplement (PDF)", 
+                                                ID_HELP_USERGUIDESUPPLEMENT_PDF
+
         MENUITEM "FpcROUTE User Guide (PDF)",   ID_HELP_FPCROUTE
         MENUITEM SEPARATOR
         MENUITEM "FreePCB website",             ID_HELP_GOTOWEBSITE
@@ -1074,8 +1081,8 @@ BEGIN
     EDITTEXT        IDC_EDIT_NAME,54,6,126,12,ES_AUTOHSCROLL
     EDITTEXT        IDC_EDIT_FOLDER,54,24,156,12,ES_AUTOHSCROLL
     EDITTEXT        IDC_EDIT_LIBRARY_FOLDER,54,42,156,12,ES_AUTOHSCROLL
-    PUSHBUTTON      "...",IDC_BUTTON_LIB,216,42,18,12
-    EDITTEXT        IDC_EDIT_NUM_LAYERS,90,60,24,12,ES_AUTOHSCROLL
+    PUSHBUTTON      "...",IDC_BUTTON_LIB,215,42,18,12
+    EDITTEXT        IDC_EDIT_NUM_LAYERS,105,60,24,12,ES_AUTOHSCROLL
     CONTROL         "Connect SMT pads to copper areas on same layer",
                     IDC_CHECK1,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,6,78,
                     175,10
@@ -1096,7 +1103,7 @@ BEGIN
     PUSHBUTTON      "Cancel",IDCANCEL,138,326,50,14
     LTEXT           "Name",IDC_STATIC,31,8,19,8
     LTEXT           "Project Folder",IDC_STATIC,6,26,46,8
-    LTEXT           "Number of copper layers",IDC_STATIC,6,62,80,8
+    LTEXT           "Number of copper layers",IDC_STATIC,6,62,93,8
     GROUPBOX        "Default trace and via widths (mils)",IDC_STATIC,6,114,
                     222,30
     LTEXT           "trace",IDC_STATIC,14,127,18,8
@@ -1637,8 +1644,7 @@ BEGIN
     EDITTEXT        IDC_EDIT_AUTHOR,54,36,210,12,ES_AUTOHSCROLL
     EDITTEXT        IDC_EDIT_SOURCE,54,54,210,12,ES_AUTOHSCROLL
     EDITTEXT        IDC_EDIT_DESC,54,72,210,12,ES_AUTOHSCROLL
-    EDITTEXT        IDC_EDIT_FP_SAVE_FOLDER,42,108,164,12,ES_AUTOHSCROLL | 
-                    ES_READONLY
+    EDITTEXT        IDC_EDIT_FP_SAVE_FOLDER,42,108,164,12,ES_AUTOHSCROLL
     PUSHBUTTON      "Browse",IDC_BUTTON_SAVE_FP_BROWSE,216,108,36,12
     COMBOBOX        IDC_COMBO_LIBS,42,126,165,217,CBS_DROPDOWN | CBS_SORT | 
                     WS_VSCROLL | WS_TABSTOP
@@ -1668,7 +1674,7 @@ FONT 8, "MS Shell Dlg", 400, 0, 0x1
 BEGIN
     CONTROL         "Single pin",IDC_RADIO_ADD_PIN,"Button",
                     BS_AUTORADIOBUTTON | WS_GROUP,12,18,46,10
-    EDITTEXT        IDC_EDIT_PIN_NAME,71,29,54,12,ES_AUTOHSCROLL
+    EDITTEXT        IDC_EDIT_PIN_NAME,70,29,54,12,ES_AUTOHSCROLL
     CONTROL         "Row of pins",IDC_RADIO_ADD_ROW,"Button",
                     BS_AUTORADIOBUTTON,143,18,53,10
     EDITTEXT        IDC_EDIT_NUM_PINS,177,29,25,12,ES_AUTOHSCROLL
@@ -1690,7 +1696,7 @@ BEGIN
                     BS_AUTORADIOBUTTON,60,78,59,10
     CONTROL         "Through-hole, diameter",IDC_RADIO_TH,"Button",
                     BS_AUTORADIOBUTTON,129,78,91,10
-    EDITTEXT        IDC_EDIT_HOLE_DIAM,220,76,39,12,ES_AUTOHSCROLL
+    EDITTEXT        IDC_EDIT_HOLE_DIAM,225,76,39,12,ES_AUTOHSCROLL
     COMBOBOX        IDC_COMBO_TOP_PAD_SHAPE,102,114,65,118,CBS_DROPDOWNLIST | 
                     CBS_SORT | WS_VSCROLL | WS_TABSTOP
     EDITTEXT        IDC_EDIT_TOP_PAD_W,180,114,40,12,ES_AUTOHSCROLL
@@ -1767,7 +1773,7 @@ BEGIN
     LISTBOX         IDC_LIST_PINS,362,108,100,221,LBS_SORT | 
                     LBS_NOINTEGRALHEIGHT | LBS_EXTENDEDSEL | WS_VSCROLL | 
                     WS_TABSTOP
-    LTEXT           "Pin name/number",IDC_STATIC,14,31,56,8
+    LTEXT           "Pin name",IDC_STATIC,30,31,36,8
     GROUPBOX        "Add pin(s)",IDC_STATIC,6,6,414,40
     GROUPBOX        "Position",IDC_STATIC,6,348,336,30
     GROUPBOX        "Units",IDC_STATIC,425,6,48,40
@@ -1777,27 +1783,27 @@ BEGIN
     GROUPBOX        "Top copper and mask pads",IDC_STATIC,7,93,336,87
     GROUPBOX        "Inner copper pad -- Shape  ""none"" is recommended -- see User Guide",
                     IDC_STATIC,7,185,335,54
-    LTEXT           "Length",IDC_STATIC,248,196,23,8
+    LTEXT           "Length",IDC_STATIC,242,196,23,8
     LTEXT           "Shape",IDC_STATIC,120,262,21,8
-    LTEXT           "Length",IDC_STATIC,240,262,23,8
-    LTEXT           "Width",IDC_STATIC,186,262,20,8
+    LTEXT           "Length",IDC_STATIC,242,262,23,8
+    LTEXT           "Width",IDC_STATIC,190,262,20,8
     LTEXT           "# of pins",IDC_STATIC,146,31,30,8
     LTEXT           "orientation",IDC_STATIC,270,31,36,8
     LTEXT           "spacing",IDC_STATIC,353,31,25,8
     LTEXT           "Orientation of length axis (rectangular pads only)",
                     IDC_STATIC,170,63,159,8
-    LTEXT           "Width",IDC_STATIC,194,196,20,8
-    LTEXT           "Corner radius",IDC_STATIC,287,105,44,8
-    LTEXT           "Corner radius",IDC_STATIC,289,196,44,8
-    LTEXT           "Corner radius",IDC_STATIC,281,262,44,8
+    LTEXT           "Width",IDC_STATIC,190,196,20,8
+    LTEXT           "Corner radius",IDC_STATIC,285,105,53,8
+    LTEXT           "Corner radius",IDC_STATIC,285,196,51,8
+    LTEXT           "Corner radius",IDC_STATIC,285,262,64,8
     GROUPBOX        "Also apply to pins",IDC_STATIC,352,93,119,246
     LTEXT           "increment",IDC_STATIC,212,31,32,8
     LTEXT           "Copper pad",IDC_STATIC,57,276,38,8
     LTEXT           "Copper pad",IDC_STATIC,57,208,38,8
     LTEXT           "Copper pad",IDC_STATIC,57,116,38,8
     LTEXT           "Shape",IDC_STATIC,120,105,21,8
-    LTEXT           "Length",IDC_STATIC,240,105,23,8
-    LTEXT           "Width",IDC_STATIC,186,105,20,8
+    LTEXT           "Length",IDC_STATIC,242,105,23,8
+    LTEXT           "Width",IDC_STATIC,190,105,20,8
     LTEXT           "Solder mask cutout",IDC_STATIC,33,132,67,8
     LTEXT           "Paste mask cutout",IDC_STATIC,36,147,60,8
     LTEXT           "Solder mask cutout",IDC_STATIC,33,290,66,8
@@ -2250,7 +2256,7 @@ BEGIN
                     BS_AUTORADIOBUTTON | WS_GROUP,12,339,67,10
     CONTROL         "Offset from original position: X",IDC_RADIO_OFFSET,
                     "Button",BS_AUTORADIOBUTTON,12,352,113,10
-    EDITTEXT        IDC_EDIT_GROUP_X,126,351,40,12,ES_AUTOHSCROLL
+    EDITTEXT        IDC_EDIT_GROUP_X,128,351,40,12,ES_AUTOHSCROLL
     EDITTEXT        IDC_EDIT_GROUP_Y,183,351,40,12,ES_AUTOHSCROLL
     COMBOBOX        IDC_COMBO_GROUP_UNITS,252,351,36,44,CBS_DROPDOWNLIST | 
                     CBS_SORT | WS_VSCROLL | WS_TABSTOP
@@ -2261,7 +2267,7 @@ BEGIN
     GROUPBOX        "Group parts",IDC_STATIC,12,30,276,78
     GROUPBOX        "Group nets (pin connections and traces)",IDC_STATIC,12,
                     111,276,222
-    LTEXT           "Y",IDC_STATIC,176,353,8,8
+    LTEXT           "Y",IDC_STATIC,174,353,8,8
     LTEXT           "Units",IDC_STATIC,233,353,17,8
     LTEXT           "You must choose how to handle the parts and nets in the group.",
                     IDC_STATIC,12,18,207,8
@@ -2683,6 +2689,28 @@ BEGIN
                     WS_VSCROLL | WS_TABSTOP
 END
 
+IDD_SAVE_LIB DIALOGEX 0, 0, 280, 294
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | 
+    WS_SYSMENU
+CAPTION "Save footprints to library"
+FONT 8, "MS Shell Dlg", 400, 0, 0x1
+BEGIN
+    DEFPUSHBUTTON   "OK",IDOK,66,276,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,192,276,50,14
+    PUSHBUTTON      "Save As...",IDC_BUTTON2,36,240,54,12
+    PUSHBUTTON      "Top",IDC_BUTTON4,18,54,54,12
+    PUSHBUTTON      "Down",IDC_BUTTON5,18,90,54,12
+    PUSHBUTTON      "Sort...",IDC_BUTTON6,156,216,54,12
+    PUSHBUTTON      "Delete",IDC_BUTTON8,18,126,54,12
+    LISTBOX         IDC_LIST_FP2,96,18,174,192,LBS_NOINTEGRALHEIGHT | 
+                    LBS_EXTENDEDSEL | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "Footprints will be saved in this order",IDC_STATIC,120,
+                    6,116,8
+    GROUPBOX        "Selected item(s)",IDC_STATIC,6,42,78,108
+    PUSHBUTTON      "Up",IDC_BUTTON9,18,72,54,12
+    PUSHBUTTON      "Bottom",IDC_BUTTON10,18,108,54,12
+END
+
 
 /////////////////////////////////////////////////////////////////////////////
 //
@@ -2690,8 +2718,8 @@ END
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 1,3,5,4
- PRODUCTVERSION 1,3,5,4
+ FILEVERSION 1,3,5,5
+ PRODUCTVERSION 1,3,5,5
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -2708,12 +2736,12 @@ BEGIN
         BEGIN
             VALUE "Comments", "alpha"
             VALUE "FileDescription", "FreePcb MFC Application"
-            VALUE "FileVersion", "1, 3, 5, 4"
+            VALUE "FileVersion", "1, 3, 5, 5"
             VALUE "InternalName", "FreePcb"
             VALUE "LegalCopyright", "Copyright (C) 2002-2007"
             VALUE "OriginalFilename", "FreePcb.EXE"
             VALUE "ProductName", "FreePcb Application"
-            VALUE "ProductVersion", "1, 3, 5, 4"
+            VALUE "ProductVersion", "1, 3, 5, 5"
         END
     END
     BLOCK "VarFileInfo"
@@ -3164,6 +3192,14 @@ BEGIN
         RIGHTMARGIN, 189
         TOPMARGIN, 7
         BOTTOMMARGIN, 64
+    END
+
+    IDD_SAVE_LIB, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 273
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 287
     END
 END
 #endif    // APSTUDIO_INVOKED

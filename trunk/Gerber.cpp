@@ -1173,22 +1173,9 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 								{
 									if( pad_connect_status & CPartList::AREA_CONNECT ) 
 									{
-										// pad connects to copper area
+										// pad connects to copper area, make clearance or thermal
 										// see if we need to make a thermal
-										BOOL bMakeThermal = TRUE;
-										if( pad_connect_flag == PAD_CONNECT_THERMAL )
-											bMakeThermal = TRUE;
-										else if( pad_connect_flag == PAD_CONNECT_NOTHERMAL )
-											bMakeThermal = FALSE;
-										else if( pad_connect_flag == PAD_CONNECT_NEVER )
-											ASSERT(0);	// should never happen
-										else if( pad_hole && (flags & GERBER_NO_PIN_THERMALS) 
-												|| !pad_hole && (flags & GERBER_NO_SMT_THERMALS) )
-											bMakeThermal = FALSE;
-										//** for testing
-										if( bMakeThermal != (clearance_type == CLEAR_THERMAL) )
-											ASSERT(0);
-										// make thermal if flag set, make clearance for adjacent areas
+										BOOL bMakeThermal = (clearance_type == CLEAR_THERMAL);
 										if( pad_type == PAD_ROUND )
 										{
 											size1 = max( pad_w + 2*fill_clearance, pad_hole + 2*hole_clearance );

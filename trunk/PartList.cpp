@@ -88,12 +88,14 @@ cpart * CPartList::Add( CShape * shape, CString * ref_des, CString * package,
 	return part;
 }
 
-// Set part data
+// Set part data, draw part if m_dlist != NULL
 //
 int CPartList::SetPartData( cpart * part, CShape * shape, CString * ref_des, CString * package, 
 							int x, int y, int side, int angle, int visible, int glued )
 {
 	UndrawPart( part );
+	CDisplayList * old_dlist = m_dlist;
+	m_dlist = NULL;		// cancel further drawing
 
 	// now copy data into part
 	id id( ID_PART );
@@ -129,6 +131,7 @@ int CPartList::SetPartData( cpart * part, CShape * shape, CString * ref_des, CSt
 	{
 		part->shape = shape;
 		part->pin.SetSize( shape->m_padstack.GetSize() );
+		Move( part, x, y, angle, side );	// force setting pin positions
 		part->m_ref_xi = shape->m_ref_xi;
 		part->m_ref_yi = shape->m_ref_yi;
 		part->m_ref_angle = shape->m_ref_angle;
@@ -140,14 +143,14 @@ int CPartList::SetPartData( cpart * part, CShape * shape, CString * ref_des, CSt
 		part->m_value_size = shape->m_value_size;
 		part->m_value_w = shape->m_value_w;
 	}
-
 	part->m_outline_stroke.SetSize(0);
 	part->ref_text_stroke.SetSize(0);
 	part->value_stroke.SetSize(0);
 	m_size++;
 
-	// now draw part instance into display list
-	if( part->shape && m_dlist )
+	// now draw part into display list
+	m_dlist = old_dlist;
+	if( part->shape )
 		DrawPart( part );
 
 	return 0;
@@ -334,6 +337,16 @@ int CPartList::Move( cpart * part, int x, int y, int angle, int side )
 	part->y = y;
 	part->angle = angle % 360;
 	part->side = side;
+	// calculate new pin positions
+	if( part->shape )
+	{
+		for( int ip=0; ip<part->pin.GetSize(); ip++ )
+		{
+			CPoint pt = GetPinPoint( part, ip );
+			part->pin[ip].x = pt.x;
+			part->pin[ip].y = pt.y;
+		}
+	}
 	// now redraw it
 	DrawPart( part );
 	return PL_NOERR;
@@ -545,6 +558,9 @@ CPoint CPartList::GetPinPoint( cpart * part, LPCTSTR pin_name )
 //
 CPoint CPartList::GetPinPoint( cpart * part, int pin_index )
 {
+	if( !part->shape )
+		ASSERT(0);
+
 	// get pin coords relative to part origin
 	CPoint pp;
 	if( pin_index == -1 )
@@ -893,7 +909,7 @@ void CPartList::MarkAllParts( int mark )
 //	side = side of PCB that part is on
 //	strokes = pointer to CArray of strokes to receive data
 //	br = pointer to CRect to receive bounding rectangle
-//	dlist = pointer to display list to use for drawing
+//	dlist = pointer to display list to use for drawing (not used)
 //	sm = pointer to SMFontUtil for character data	
 // returns number of strokes generated
 //
@@ -903,7 +919,7 @@ int GenerateStrokesForPartString( CString * str,
 								  CArray<stroke> * strokes, CRect * br,
 								  CDisplayList * dlist, SMFontUtil * sm )
 {
-	strokes->SetSize( 1000 );
+	strokes->SetSize( 10000 );
 	double x_scale = (double)size/22.0;
 	double y_scale = (double)size/22.0;
 	double y_offset = 9.0*y_scale;
@@ -991,6 +1007,21 @@ int GenerateStrokesForPartString( CString * str,
 	br->top = ymax + w/2;
 	return i;
 }
+
+// get bounding rect of value text relative to part origin 
+// works even if part isn't drawn
+//
+CRect CPartList::GetValueRect( cpart * part )
+{
+	CArray<stroke> m_stroke;
+	CRect br;
+	int nstrokes = ::GenerateStrokesForPartString( &part->value, part->m_value_size,
+		part->m_value_angle, part->m_value_xi, part->m_value_yi, part->m_value_w,
+		part->x, part->y, part->angle, part->side,
+		&m_stroke, &br, NULL, m_fontutil );
+	return br;
+}
+
 
 // Draw part into display list
 //
@@ -1605,8 +1636,19 @@ int CPartList::UndrawPart( cpart * part )
 void CPartList::PartFootprintChanged( cpart * part, CShape * new_shape )
 {
 	UndrawPart( part );
+	// new footprint
 	part->shape = new_shape;
 	part->pin.SetSize( new_shape->GetNumPins() );
+	// calculate new pin positions
+	if( part->shape )
+	{
+		for( int ip=0; ip<part->pin.GetSize(); ip++ )
+		{
+			CPoint pt = GetPinPoint( part, ip );
+			part->pin[ip].x = pt.x;
+			part->pin[ip].y = pt.y;
+		}
+	}
 	DrawPart( part );
 	m_nlist->PartFootprintChanged( part );
 }
@@ -2079,6 +2121,10 @@ cpart * CPartList::AddFromString( CString * str )
 	int glued;
 	cpart * part = Add();
 
+	// so we only draw once
+	CDisplayList * old_dlist = m_dlist;
+	m_dlist = NULL;
+
 	in_str = str->Tokenize( "\n", pos );
 	while( in_str != "" )
 	{
@@ -2182,6 +2228,8 @@ cpart * CPartList::AddFromString( CString * str )
 		part->m_ref_angle = ref_angle;
 		ResizeRefText( part, ref_size, ref_width, ref_vis );
 	}
+	m_dlist = old_dlist;
+	DrawPart( part );
 	return part;
 }
 
@@ -2505,8 +2553,8 @@ void CPartList::ImportPartListInfo( partlist_info * pl, int flags, CDlgLog * log
 {
 	CString mess; 
 
-	// undraw all parts
-	CDisplayList * dlist = m_dlist;
+	// undraw all parts and disable further drawing
+	CDisplayList * old_dlist = m_dlist;
 	if( m_dlist )
 	{
 		cpart * part = GetFirstPart();
@@ -2516,7 +2564,7 @@ void CPartList::ImportPartListInfo( partlist_info * pl, int flags, CDlgLog * log
 			part = GetNextPart( part );
 		}
 	}
-	m_dlist = NULL;		// prevent any redrawing
+	m_dlist = NULL;		
 
 	// grid for positioning parts off-board
 	int pos_x = 0;
@@ -2836,6 +2884,8 @@ void CPartList::ImportPartListInfo( partlist_info * pl, int flags, CDlgLog * log
 					// change footprint to new one
 					PartFootprintChanged( pi->part, pi->shape );
 					ResizeRefText( pi->part, pi->ref_size, pi->ref_width );
+					m_nlist->PartFootprintChanged( part );
+					m_nlist->PartMoved( pi->part );
 				}
 			}
 			if( pi->x != pi->part->x 
@@ -2851,8 +2901,9 @@ void CPartList::ImportPartListInfo( partlist_info * pl, int flags, CDlgLog * log
 	}
 	// PurgeFootprintCache();
 	free( grid );
-	// redraw
-	m_dlist = dlist;
+
+	// redraw partlist
+	m_dlist = old_dlist;
 	part = GetFirstPart();
 	while( part )
 	{
@@ -2874,16 +2925,18 @@ void CPartList::PartUndoCallback( int type, void * ptr, BOOL undo )
 		CString new_ref_des = upart->new_ref_des;
 		CString old_ref_des = upart->ref_des;
 		CPartList * pl = upart->m_plist;
+		CDisplayList * old_dlist = pl->m_dlist;
 		cpart * part = pl->GetPart( new_ref_des );
 		if( type == UNDO_PART_ADD )
 		{
-			// part was added
+			// part was added, just delete it
 			pl->m_nlist->PartDeleted( part );
 			pl->Remove( part );
 		}
 		else if( type == UNDO_PART_DELETE )
 		{
-			// part was deleted, lookup shape in cache
+			// part was deleted, lookup shape in cache and add part
+			pl->m_dlist = NULL;		// prevent drawing
 			CShape * s;
 			void * s_ptr;
 			int err = pl->m_footprint_cache_map->Lookup( upart->shape_name, s_ptr );
@@ -2898,7 +2951,6 @@ void CPartList::PartUndoCallback( int type, void * ptr, BOOL undo )
 			CString package = upart->package;
 			part = pl->Add( s, &ref_des, &package, upart->x, upart->y,
 				upart->side, upart->angle, upart->visible, upart->glued );
-			pl->UndrawPart( part );
 			part->m_ref_vis = upart->m_ref_vis;
 			part->m_ref_xi = upart->m_ref_xi;
 			part->m_ref_yi = upart->m_ref_yi;
@@ -2912,6 +2964,7 @@ void CPartList::PartUndoCallback( int type, void * ptr, BOOL undo )
 			part->m_value_angle = upart->m_value_angle;
 			part->m_value_size = upart->m_value_size;
 			part->m_value_w = upart->m_value_w;
+			pl->m_dlist = old_dlist;	// turn drawing back on;
 			pl->DrawPart( part );
 			pl->m_nlist->PartAdded( part );
 		}
@@ -2919,6 +2972,7 @@ void CPartList::PartUndoCallback( int type, void * ptr, BOOL undo )
 		{
 			// part was moved or modified
 			pl->UndrawPart( part );
+			pl->m_dlist = NULL;		// prevent further drawing
 			if( upart->shape != part->shape )
 			{
 				// footprint was changed
@@ -2966,6 +3020,7 @@ void CPartList::PartUndoCallback( int type, void * ptr, BOOL undo )
 				pl->m_nlist->PartRefChanged( &new_ref_des, &old_ref_des );
 				part->ref_des = old_ref_des;
 			}
+			pl->m_dlist = old_dlist;	// turn drawing back on
 			pl->DrawPart( part );
 		}
 		else
@@ -3217,6 +3272,7 @@ int CPartList::GetPadDrawInfo( cpart * part, int ipin, int layer,
 	{
 		ww += 2*solder_mask_swell;
 		ll += 2*solder_mask_swell;
+		rr += solder_mask_swell;
 	}
 	else if( (layer == LAY_PASTE_TOP || layer == LAY_PASTE_BOTTOM) && bUseDefault )
 	{
@@ -3224,6 +3280,9 @@ int CPartList::GetPadDrawInfo( cpart * part, int ipin, int layer,
 		{
 			ww -= 2*paste_mask_shrink;
 			ll -= 2*paste_mask_shrink;
+			rr -= paste_mask_shrink;
+			if( rr < 0 )
+				rr = 0;
 		}
 		else
 		{
