@@ -554,10 +554,8 @@ void CDlgReport::OnBnClickedOk()
 		CString str_n_y; 
 		CString str_space_x; 
 		CString str_space_y;
-		::MakeCStringFromDimension( &str_fill_clearance, m_doc->m_fill_clearance,
-			m_units, TRUE, FALSE, TRUE, dp );
-		::MakeCStringFromDimension( &str_mask_clearance, m_doc->m_mask_clearance,
-			m_units, TRUE, FALSE, TRUE, dp );
+		//BAF ::MakeCStringFromDimension( &str_fill_clearance, m_doc->m_fill_clearance,	m_units, TRUE, FALSE, TRUE, dp );
+		::MakeCStringFromDimension( &str_mask_clearance, m_doc->m_mask_clearance,	m_units, TRUE, FALSE, TRUE, dp );
 		::MakeCStringFromDimension( &str_paste_shrink, m_doc->m_paste_shrink,
 			m_units, TRUE, FALSE, TRUE, dp );
 		::MakeCStringFromDimension( &str_thermal_width, m_doc->m_thermal_width,

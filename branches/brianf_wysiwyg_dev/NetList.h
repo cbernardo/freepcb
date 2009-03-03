@@ -5,19 +5,19 @@
 //	- each cnet is mapped by its name
 //	- each cnet contains arrays of pins, connections between pins, and copper areas
 //	- each pin is represented by a cpin object
-//	- each connection is represented by a cconnect object 
-//  - each cconnect contains arrays of segments and vertices between segments 
+//	- each connection is represented by a cconnect object
+//  - each cconnect contains arrays of segments and vertices between segments
 //	- each segment is represented by a cseg object
 //	- each vertex is represented by a cvertex object
 //	- each copper area is represented by a carea object
 //
-// Since most of these objects are responsible for drawing themselves into a CDisplayList, 
+// Since most of these objects are responsible for drawing themselves into a CDisplayList,
 // a global pointer to the CDisplayList is set when the netlist is constructed.
 // In the future, this might be changed to a member variable,
-// which would be passed to each object. 
+// which would be passed to each object.
 //
 //
-////////////////////////////////////////////////////////////////////// 
+//////////////////////////////////////////////////////////////////////
 
 #pragma once
 #include <afxcoll.h>
@@ -27,6 +27,7 @@
 #include "PartList.h"
 #include "PolyLine.h"
 #include "UndoList.h"
+#include "clearance.h"
 
 extern int m_layer_by_file_layer[MAX_LAYERS];
 
@@ -58,12 +59,12 @@ typedef class {
 public:
 	// return inode at end of path
 	int GetInode( int iend )
-	{ 
+	{
 		int last_pt = pt.GetSize()-1;
 		if(iend)
-			return pt[last_pt].inode; 
-		else 
-			return pt[0].inode; 
+			return pt[last_pt].inode;
+		else
+			return pt[0].inode;
 	};
 	// member variables
 	int layer, width;
@@ -73,7 +74,7 @@ public:
 //
 // end definitions for ImportSessionFile()
 
-// these structures are used for undoing 
+// these structures are used for undoing
 struct undo_pin {
 	char ref_des[MAX_REF_DES_SIZE+1];
 	char pin_name[CShape::MAX_PIN_NAME_SIZE+1];
@@ -98,8 +99,11 @@ struct undo_area {
 
 struct undo_seg {
 	int layer;				// copper layer
+
 	int width;				// width
 	int via_w, via_hole_w;	// via width and hole width
+
+	CClearanceInfo clearance;
 };
 
 struct undo_vtx {
@@ -132,6 +136,7 @@ struct undo_net {
 	// array of undo_pin structs start here
 };
 
+
 // net_info structure
 // used as a temporary copy of net info for editing in dialogs
 // or importing/exporting netlists
@@ -142,8 +147,10 @@ struct net_info {
 	int w;
 	int v_w;
 	int v_h_w;
+	CClearanceInfo clearance;
 	BOOL apply_trace_width;
 	BOOL apply_via_width;
+	BOOL apply_clearance;
 	BOOL deleted;
 	BOOL modified;
 	CArray<CString> ref_des;
@@ -165,11 +172,9 @@ public:
 	CPolyLine * poly;	// outline
 	int npins;			// number of thru-hole pins within area on same net
 	CArray<int> pin;	// array of thru-hole pins
-	CArray<dl_element*> dl_thermal;	// graphics for thermals on pins
 	int nvias;			// number of via connections to area
-	CArray<int> vcon;	// connections 
+	CArray<int> vcon;	// connections
 	CArray<int> vtx;	// vertices
-	CArray<dl_element*> dl_via_thermal; // graphics for thermals on stubs
 	CDisplayList * m_dlist;
 	int utility, utility2;
 };
@@ -205,21 +210,32 @@ public:
 	~cseg()
 	{
 		// destructor
-		if( m_dlist )
-		{
-			if( dl_el )
-				m_dlist->Remove( dl_el );
-			if( dl_sel )
-				m_dlist->Remove( dl_sel );
-		}
+		RemoveFromDL();
 	}
+
+	void RemoveFromDL()
+	{
+    	if (dl_el)
+    	{
+    	    dl_el->Remove();
+    	    dl_el = 0;
+        }
+
+    	if (dl_sel)
+    	{
+    	    dl_sel->Remove();
+    	    dl_sel = 0;
+        }
+	}
+
 	void Initialize( CDisplayList * dlist ){m_dlist = dlist;}
-	int layer;				// copper layer
-	int width;				// width
-//	int via_w, via_hole_w;	// via width and hole width
-	int selected;			// 1 if selected for editing
-	dl_element * dl_el;		// display element for segment
-	dl_element * dl_sel;	// selection line
+	int layer;				  // copper layer
+	int width;				  // width
+	CClearanceInfo clearance; // clearances
+//	int via_w, via_hole_w;	  // via width and hole width
+	int selected;			  // 1 if selected for editing
+	dl_element * dl_el;		  // display element for segment
+	dl_element * dl_sel;	  // selection line
 	CDisplayList * m_dlist;
 	int utility;
 };
@@ -233,9 +249,9 @@ public:
 		// constructor
 		m_dlist = 0;	// this must set with Initialize()
 		x = 0; y = 0;
-		pad_layer = 0;	// only for first or last 
+		pad_layer = 0;	// only for first or last
 		force_via_flag = 0;		// only used for end of stub trace
-		via_w = 0; 
+		via_w = 0;
 		via_hole_w = 0;
 		dl_sel = 0;
 		dl_hole = 0;
@@ -249,11 +265,12 @@ public:
 		if( m_dlist )
 		{
 			for( int il=0; il<dl_el.GetSize(); il++ )
-				m_dlist->Remove( dl_el[il] );
+				dl_el[il]->Remove();
+
 			if( dl_sel )
-				m_dlist->Remove( dl_sel );
+				dl_sel->Remove();
 			if( dl_hole )
-				m_dlist->Remove( dl_hole );
+				dl_hole->Remove();
 		}
 	}
 	cvertex &operator=( cvertex &v )	// assignment operator
@@ -269,22 +286,27 @@ public:
 		tee_ID = v.tee_ID;
 		utility = v.utility;
 		utility2 = v.utility2;
+
 		// copy dl_elements and remove from source
 		// they still need to be renumbered
 		if( dl_hole )
 			m_dlist->Remove( dl_hole );
 		dl_hole = v.dl_hole;
 		v.dl_hole = NULL;
+
 		if( dl_sel )
 			m_dlist->Remove( dl_sel );
 		dl_sel = v.dl_sel;
 		v.dl_sel = NULL;
+
 		for( int il=0; il<dl_el.GetSize(); il++ )
 			m_dlist->Remove( dl_el[il] );
 		dl_el.RemoveAll();
+
 		for( int il=0; il<v.dl_el.GetSize(); il++ )
 			dl_el.Add( v.dl_el[il] );
 		v.dl_el.RemoveAll();
+
 		return *this;
 	};
 	void Initialize( CDisplayList * dlist ){m_dlist = dlist;}
@@ -292,6 +314,7 @@ public:
 	int pad_layer;				// layer of pad if this is first or last vertex, otherwise 0
 	int force_via_flag;			// force a via even if no layer change
 	int via_w, via_hole_w;		// via width and hole width (via_w==0 means no via)
+	CClearanceInfo clearance;   // clearances
 	CArray<dl_element*> dl_el;	// array of display elements for each layer
 	dl_element * dl_sel;		// selection box
 	dl_element * dl_hole;		// hole in via
@@ -333,7 +356,12 @@ public:
 class cnet
 {
 public:
-	cnet( CDisplayList * dlist ){ m_dlist = dlist; }
+	cnet( CDisplayList * dlist ) :
+		def_clearance(CClearanceInfo::E_USE_PARENT)
+	{
+		m_dlist = dlist;
+	}
+
 	id id;				// net id
 	CString name;		// net name
 	int nconnects;		// number of connections
@@ -345,13 +373,14 @@ public:
 	int def_w;			// default trace width
 	int def_via_w;		// default via width
 	int def_via_hole_w;	// default via hole width
+	CClearanceInfo def_clearance;  // default clearances
 	BOOL visible;		// FALSE to hide ratlines and make unselectable
 	int utility;		// used to keep track of which nets have been optimized
 	CDisplayList * m_dlist;
 };
 
 // CNetlist
-class CNetList  
+class CNetList
 {
 public:
 	enum{ MAX_ITERATORS=10 };
@@ -365,7 +394,7 @@ public:
 		UNDO_AREA_CLEAR_ALL,	// flag to remove all areas
 		UNDO_AREA_ADD,			// undo add area (i.e. delete area)
 		UNDO_AREA_MODIFY,		// undo modify area
-		UNDO_AREA_DELETE,		// undo delete area (i.e. add area) 
+		UNDO_AREA_DELETE,		// undo delete area (i.e. add area)
 		UNDO_NET_ADD,			// undo add net (i.e delete net)
 		UNDO_NET_MODIFY,		// undo modify net
 		UNDO_NET_OPTIMIZE		// flag to optimize net on undo
@@ -374,7 +403,7 @@ public:
 	CNetList( CDisplayList * dlist, CPartList * plist );
 	~CNetList();
 	void SetNumCopperLayers( int layers ){ m_layers = layers;};
-	void SetWidths( int w, int via_w, int via_hole_w );
+	void SetWidths( int trace_w, int via_w, int via_hole_w, CClearanceInfo const &clearance );
 	void SetViaAnnularRing( int ring ){ m_annular_ring = ring; };
 	void SetSMTconnect( BOOL bSMTconnect ){ m_bSMT_connect = bSMTconnect; };
 
@@ -382,7 +411,7 @@ public:
 	void MarkAllNets( int utility );
 	void MoveOrigin( int x_off, int y_off );
 	cnet * GetNetPtrByName( CString * name );
-	cnet * AddNet( CString name, int max_pins, int def_width, int def_via_w, int def_via_hole_w );
+	cnet * AddNet( CString name, int max_pins, int def_width, int def_via_w, int def_via_hole_w, CClearanceInfo const &clearance );
 	void RemoveNet( cnet * net );
 	void RemoveAllNets();
 	void AddNetPin( cnet * net, CString * ref_des, CString * pin_name, BOOL set_areas=TRUE );
@@ -393,6 +422,8 @@ public:
 	void DisconnectNetPin( cnet * net, CString * ref_des, CString * pin_name );
 	int GetNetPinIndex( cnet * net, CString * ref_des, CString * pin_name );
 	int SetNetWidth( cnet * net, int w, int via_w, int via_hole_w );
+	int SetNetClearance( cnet * net, CClearanceInfo const &clearance );
+	int UpdateNetAttributes( cnet * net );
 	void SetNetVisibility( cnet * net, BOOL visible );
 	BOOL GetNetVisibility( cnet * net );
 	int CheckNetlist( CString * logstr );
@@ -410,6 +441,7 @@ public:
 	int RemoveNetConnect( cnet * net, int ic, BOOL set_areas=TRUE );
 	int UnrouteNetConnect( cnet * net, int ic );
 	int SetConnectionWidth( cnet * net, int ic, int w, int via_w, int via_hole_w );
+	int SetConnectionClearance( cnet * net, int ic, CClearanceInfo const &clearance );
 	void OptimizeConnections();
 	int OptimizeConnections( cnet * net, int ic=-1 );
 	void OptimizeConnections( cpart * part );
@@ -417,7 +449,7 @@ public:
 	void RenumberConnections( cnet * net );
 	BOOL TestHitOnConnectionEndPad( int x, int y, cnet * net, int ic, int layer, int dir );
 	int TestHitOnAnyPadInNet( int x, int y, int layer, cnet * net );
-	void ChangeConnectionPin( cnet * net, int ic, int end_flag, 
+	void ChangeConnectionPin( cnet * net, int ic, int end_flag,
 		cpart * part, CString * pin_name );
 	void HighlightConnection( cnet * net, int ic );
 	void UndrawConnection( cnet * net, int ic );
@@ -426,21 +458,41 @@ public:
 	void CleanUpAllConnections( CString * logstr=NULL );
 
 	// functions for segments
-	int AppendSegment( cnet * net, int ic, int x, int y, int layer, int width );
-	int InsertSegment( cnet * net, int ic, int iseg, int x, int y, int layer, int width,
-						int via_width, int via_hole_width, int dir );
+	int AppendSegment( cnet * net, int ic, int x, int y, int layer, int width, CClearanceInfo const &clearance );
+	int AppendSegment( cnet * net, int ic, int x, int y, int layer, int width )
+	{
+		return AppendSegment( net, ic, x, y, layer, width, CClearanceInfo() );
+	}
+
+	int InsertSegment( cnet * net, int ic, int iseg, int x, int y, int layer,
+						int width, int via_width, int via_hole_width,
+						CClearanceInfo const &clearance,
+						int dir );
+	int InsertSegment( cnet * net, int ic, int iseg, int x, int y, int layer,
+						int width, int via_width, int via_hole_width,
+						int dir )
+	{
+		return InsertSegment( net, ic, iseg, x, y, layer, width, via_width, via_hole_width, CClearanceInfo(), dir );
+	}
+
+	int RouteSegment( cnet * net, int ic, int iseg, int layer, int width, CClearanceInfo const &clearance );
+	int RouteSegment( cnet * net, int ic, int iseg, int layer, int width)
+	{
+		return RouteSegment( net, ic, iseg, layer, width, CClearanceInfo() );
+	}
+
 	id  UnrouteSegment( cnet * net, int ic, int iseg );
 	void UnrouteSegmentWithoutMerge( cnet * net, int ic, int iseg );
 	id MergeUnroutedSegments( cnet * net, int ic );
-	int RouteSegment( cnet * net, int ic, int iseg, int layer, int width );
-	void RemoveSegment( cnet * net, int ic, int iseg, BOOL bHandleTees=FALSE );							 
-	int ChangeSegmentLayer( cnet * net, int ic, int iseg, int layer );							 
+	void RemoveSegment( cnet * net, int ic, int iseg, BOOL bHandleTees=FALSE );
+	int ChangeSegmentLayer( cnet * net, int ic, int iseg, int layer );
 	int SetSegmentWidth( cnet * net, int ic, int is, int w, int via_w, int via_hole_w );
+	int SetSegmentClearance( cnet * net, int ic, int is, CClearanceInfo const &clearance );
 	void HighlightSegment( cnet * net, int ic, int iseg );
 	int StartMovingSegment( CDC * pDC, cnet * net, int ic, int ivtx,
 								   int x, int y, int crosshair, int use_third_segment );
 	int StartDraggingSegment( CDC * pDC, cnet * net, int ic, int iseg,
-						int x, int y, int layer1, int layer2, int w, 
+						int x, int y, int layer1, int layer2, int w,
 						int layer_no_via, int via_w, int via_hole_w, int dir,
 						int crosshair = 1 );
 	int CancelDraggingSegment( cnet * net, int ic, int iseg );
@@ -448,8 +500,8 @@ public:
 								   int x, int y, int layer, int w, int crosshair );
 	int CancelDraggingSegmentNewVertex( cnet * net, int ic, int iseg );
 	void StartDraggingStub( CDC * pDC, cnet * net, int ic, int iseg,
-						int x, int y, int layer1, int w, 
-						int layer_no_via, int via_w, int via_hole_w, 
+						int x, int y, int layer1, int w,
+						int layer_no_via, int via_w, int via_hole_w,
 						int crosshair, int inflection_mode );
 	void CancelDraggingStub( cnet * net, int ic, int iseg );
 	int CancelMovingSegment( cnet * net, int ic, int ivtx );
@@ -467,7 +519,7 @@ public:
 	int StartDraggingVertex( CDC * pDC, cnet * net, int ic, int iseg,
 						int x, int y, int cosshair = 1 );
 	int CancelDraggingVertex( cnet * net, int ic, int ivtx );
-	void StartDraggingEndVertex( CDC * pDC, cnet * net, int ic, 
+	void StartDraggingEndVertex( CDC * pDC, cnet * net, int ic,
 		int ivtx, int crosshair = 1 );
 	void CancelDraggingEndVertex( cnet * net, int ic, int ivtx );
 	void MoveEndVertex( cnet * net, int ic, int ivtx, int x, int y );
@@ -475,7 +527,7 @@ public:
 	int GetViaConnectionStatus( cnet * net, int ic, int iv, int layer );
 	void GetViaPadInfo( cnet * net, int ic, int iv, int layer,
 		int * pad_w, int * hole_w, int * connect_status );
-	BOOL TestForHitOnVertex( cnet * net, int layer, int x, int y, 
+	BOOL TestForHitOnVertex( cnet * net, int layer, int x, int y,
 		cnet ** hit_net, int * hit_ic, int * hit_iv );
 
 	// functions related to parts
@@ -493,7 +545,7 @@ public:
 	int AddArea( cnet * net, int layer, int x, int y, int hatch );
 	void InsertArea( cnet * net, int iarea, int layer, int x, int y, int hatch );
 	int AppendAreaCorner( cnet * net, int iarea, int x, int y, int style, BOOL bDraw=TRUE );
-	int InsertAreaCorner( cnet * net, int iarea, int icorner, 
+	int InsertAreaCorner( cnet * net, int iarea, int icorner,
 		int x, int y, int style );
 	void MoveAreaCorner( cnet * net, int iarea, int icorner, int x, int y );
 	void HighlightAreaCorner( cnet * net, int iarea, int icorner );
@@ -514,7 +566,7 @@ public:
 	int CancelDraggingInsertedAreaCorner( cnet * net, int iarea, int icorner );
 	void RenumberAreas( cnet * net );
 	int TestAreaPolygon( cnet * net, int iarea );
-	int ClipAreaPolygon( cnet * net, int iarea, 
+	int ClipAreaPolygon( cnet * net, int iarea,
 		BOOL bMessageBoxArc, BOOL bMessageBoxInt, BOOL bRetainArcs=TRUE );
 	int AreaPolygonModified( cnet * net, int iarea, BOOL bMessageBoxArc, BOOL bMessageBoxInt );
 	int CombineAllAreasInNet( cnet * net, BOOL bMessageBox, BOOL bUseUtility );
@@ -522,7 +574,7 @@ public:
 	int TestAreaIntersection( cnet * net, int ia1, int ia2 );
 	int CombineAreas( cnet * net, int ia1, int ia2 );
 	void ApplyClearancesToArea( cnet * net, int ia, int flags,
-			int fill_clearance, int min_silkscreen_stroke_wid, 
+			int fill_clearance, int min_silkscreen_stroke_wid,
 			int thermal_wid, int hole_clearance );
 
 	// I/O  functions
@@ -534,7 +586,7 @@ public:
 	void Copy( CNetList * nl );
 	void RestoreConnectionsAndAreas( CNetList * old_nl, int flags, CDlgLog * log=NULL );
 	void ReassignCopperLayers( int n_new_layers, int * layer );
-	void ImportNetRouting( CString * name, CArray<cnode> * nodes, 
+	void ImportNetRouting( CString * name, CArray<cnode> * nodes,
 		CArray<cpath> * paths, int tolerance, CDlgLog * log=NULL, BOOL bVerbose=TRUE );
 
 	// undo functions
@@ -565,6 +617,7 @@ private:
 	CPartList * m_plist;
 	int m_layers;	// number of copper layers
 	int m_def_w, m_def_via_w, m_def_via_hole_w;
+	CClearanceInfo m_def_clearance;
 	int m_pos_i;	// index for iterators
 	POSITION m_pos[MAX_ITERATORS];	// iterators for nets
 	CArray<int> m_tee;
@@ -572,5 +625,6 @@ private:
 
 public:
 	int m_annular_ring;
-};
 
+	CClearanceInfo const &Get_def_clearance() const { return m_def_clearance; }
+};

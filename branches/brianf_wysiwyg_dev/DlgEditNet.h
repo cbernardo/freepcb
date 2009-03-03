@@ -10,17 +10,19 @@ class CDlgEditNet : public CDialog
 	DECLARE_DYNAMIC(CDlgEditNet)
 
 public:
-	CDlgEditNet(CWnd* pParent = NULL); 
+	CDlgEditNet(CWnd* pParent = NULL);
 	virtual ~CDlgEditNet();
-	void Initialize( netlist_info * nl,	// netlist_info struct
-				int i,					// index into nl (ignored if new net)
-				CPartList * plist,		// partlist
-				BOOL new_net,			// flag for new net
-				BOOL visible,			// visibility flag
-				int units,				// MIL or MM
-				CArray<int> * w,		// array of default trace widths
-				CArray<int> * v_w,		// array of default via widths
-				CArray<int> * v_h_w );	// array of default via hole widths
+	void Initialize(
+				CNetList const * netlist, // For parent info for widths/clearance
+				netlist_info * nl,	 	  // netlist_info struct
+				int i,					  // index into nl (ignored if new net)
+				CPartList * plist,		  // partlist
+				BOOL new_net,			  // flag for new net
+				BOOL visible,			  // visibility flag
+				int units,				  // MIL or MM
+				CArray<int> * w,          // array of default trace widths
+				CArray<int> * v_w,        // array of default via widths
+				CArray<int> * v_h_w );    // array of default via hole widths
 	void SetFields();
 	void GetFields();
 // Dialog Data
@@ -35,12 +37,13 @@ protected:
 	CPartList * m_plist;
 	int m_in;
 	BOOL m_visible;
+	CClearanceInfo m_clearance;
 	int m_def_w;
 	int m_def_v_w;
 	int m_def_v_h_w;
 	// pointers to arrays of default trace and via widths
 	CArray<int> *m_w;
-	CArray<int> *m_v_w;	
+	CArray<int> *m_v_w;
 	CArray<int> *m_v_h_w;
 protected:
 	int m_units;
@@ -63,10 +66,18 @@ protected:
 	afx_msg void OnCbnEditchangeComboWidth();
 	CComboBox m_combo_width;
 	CEdit m_edit_addpin;
-public:
-	CButton m_check_apply;
+	CButton m_check_widths_apply;
+
 	afx_msg void OnEnUpdateEditAddPin();
 	CButton m_button_add_pin;
+
+	CButton m_radio2_def_clearance;
+	CButton m_radio2_set_clearance;
+	CEdit m_edit_clearance;
+	afx_msg void OnBnClickedRadioDefClearance();
+	afx_msg void OnBnClickedRadioSetClearance();
+	CButton m_check_clearances_apply;
+
 	CButton m_button_OK;
 	afx_msg void OnBnClickedOk();
 };

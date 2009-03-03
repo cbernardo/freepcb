@@ -58,4 +58,5 @@ private:
 	afx_msg void OnBnClickedCancel();
 	afx_msg void OnBnClickedDeleteNetsWithNoPins();
 	afx_msg void OnNMClickListNet(NMHDR *pNMHDR, LRESULT *pResult);
+	afx_msg void OnNMDblclkListNet(NMHDR *pNMHDR, LRESULT *pResult);
 };

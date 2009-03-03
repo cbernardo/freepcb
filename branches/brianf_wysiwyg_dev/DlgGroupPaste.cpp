@@ -12,7 +12,8 @@ enum {
 	COL_PINS,
 	COL_WIDTH,
 	COL_VIA_W,
-	COL_HOLE_W
+	COL_HOLE_W,
+	COL_CLEARANCE
 };
 
 // sort types
@@ -26,16 +27,18 @@ enum {
 	SORT_UP_VIA_W,
 	SORT_DOWN_VIA_W,
 	SORT_UP_HOLE_W,
-	SORT_DOWN_HOLE_W
+	SORT_DOWN_HOLE_W,
+	SORT_UP_CLEARANCE,
+	SORT_DOWN_CLEARANCE
 };
 
 // global so that it is available to ListCompare() for sorting list control items
-netlist_info gnl;
+static netlist_info gnl;
 
 // global callback function for sorting
 // lp1, lp2 are indexes to global arrays above
-//		
-int CALLBACK ListCompare( LPARAM lp1, LPARAM lp2, LPARAM type )
+//
+static int CALLBACK ListCompare( LPARAM lp1, LPARAM lp2, LPARAM type )
 {
 	int ret = 0;
 	switch( type )
@@ -76,6 +79,14 @@ int CALLBACK ListCompare( LPARAM lp1, LPARAM lp2, LPARAM type )
 			else if( ::gnl[lp1].ref_des.GetSize() < ::gnl[lp2].ref_des.GetSize() )
 				ret = -1;
 			break;
+
+		case SORT_UP_CLEARANCE:
+		case SORT_DOWN_CLEARANCE:
+			if( ::gnl[lp1].clearance.m_ca_clearance > ::gnl[lp2].clearance.m_ca_clearance )
+				ret = 1;
+			else if( ::gnl[lp1].clearance.m_ca_clearance < ::gnl[lp2].clearance.m_ca_clearance )
+				ret = -1;
+			break;
 	}
 	switch( type )
 	{
@@ -84,6 +95,7 @@ int CALLBACK ListCompare( LPARAM lp1, LPARAM lp2, LPARAM type )
 		case SORT_DOWN_VIA_W:
 		case SORT_DOWN_HOLE_W:
 		case SORT_DOWN_PINS:
+		case SORT_DOWN_CLEARANCE:
 			ret = -ret;
 			break;
 	}
@@ -129,7 +141,7 @@ void CDlgGroupPaste::DoDataExchange(CDataExchange* pDX)
 	{
 		// incoming
 		m_sort_type = 0;
-		m_radio_use_next_ref.SetCheck(1); 
+		m_radio_use_next_ref.SetCheck(1);
 		m_radio_use_selected_nets.SetCheck(1);
 		m_radio_use_suffix.SetCheck(1);
 		m_radio_drag.SetCheck(1);
@@ -144,12 +156,13 @@ void CDlgGroupPaste::DoDataExchange(CDataExchange* pDX)
 		CString str;
 		DWORD old_style = m_list_ctrl.GetExtendedStyle();
 		m_list_ctrl.SetExtendedStyle( LVS_EX_FULLROWSELECT | LVS_EX_FLATSB | LVS_EX_CHECKBOXES | old_style );
-		m_list_ctrl.InsertColumn( COL_VIS, "Sel", LVCFMT_LEFT, 30 ); 
+		m_list_ctrl.InsertColumn( COL_VIS, "Sel", LVCFMT_LEFT, 30 );
 		m_list_ctrl.InsertColumn( COL_NAME, "Name", LVCFMT_LEFT, 140 );
 		m_list_ctrl.InsertColumn( COL_PINS, "Pins", LVCFMT_LEFT, 40 );
 		m_list_ctrl.InsertColumn( COL_WIDTH, "Width", LVCFMT_LEFT, 40 );
-		m_list_ctrl.InsertColumn( COL_VIA_W, "Via W", LVCFMT_LEFT, 40 );   
+		m_list_ctrl.InsertColumn( COL_VIA_W, "Via W", LVCFMT_LEFT, 40 );
 		m_list_ctrl.InsertColumn( COL_HOLE_W, "Hole", LVCFMT_LEFT, 40 );
+    	m_list_ctrl.InsertColumn( COL_CLEARANCE, "Clearance", LVCFMT_LEFT, 70 );
 		for( int i=0; i<gnl.GetSize(); i++ )
 		{
 			lvitem.mask = LVIF_TEXT | LVIF_PARAM;
@@ -166,6 +179,17 @@ void CDlgGroupPaste::DoDataExchange(CDataExchange* pDX)
 			m_list_ctrl.SetItem( i, COL_VIA_W, LVIF_TEXT, str, 0, 0, 0, 0 );
 			str.Format( "%d", ::gnl[i].v_h_w/NM_PER_MIL );
 			m_list_ctrl.SetItem( i, COL_HOLE_W, LVIF_TEXT, str, 0, 0, 0, 0 );
+
+			if (::gnl[i].clearance.m_ca_clearance.m_status < 0)
+			{
+				str.Format("Default");
+			}
+			else
+			{
+				str.Format( "%d", ::gnl[i].clearance.m_ca_clearance.m_val / NM_PER_MIL );
+			}
+			m_list_ctrl.SetItem( i, COL_CLEARANCE, LVIF_TEXT, str, 0, 0, 0, 0 );
+
 			ListView_SetCheckState( m_list_ctrl, nItem, 0 );
 		}
 	}
@@ -188,7 +212,7 @@ void CDlgGroupPaste::DoDataExchange(CDataExchange* pDX)
 		// export data into netlist
 		for( int iItem=0; iItem<m_list_ctrl.GetItemCount(); iItem++ )
 		{
-			int i = m_list_ctrl.GetItemData( iItem ); 
+			int i = m_list_ctrl.GetItemData( iItem );
 			CString * net_name = &::gnl[i].name;
 			cnet * grp_net = m_grp_nlist->GetNetPtrByName( net_name );
 			if( grp_net == NULL )
@@ -386,6 +410,14 @@ void CDlgGroupPaste::OnLvnColumnClickListSelectGroupNets(NMHDR *pNMHDR, LRESULT 
 			m_sort_type = SORT_DOWN_HOLE_W;
 		else
 			m_sort_type = SORT_UP_HOLE_W;
+		m_list_ctrl.SortItems( ::ListCompare, m_sort_type );
+	}
+	else if( column == COL_CLEARANCE )
+	{
+		if( m_sort_type == SORT_UP_CLEARANCE )
+			m_sort_type = SORT_DOWN_CLEARANCE;
+		else
+			m_sort_type = SORT_UP_CLEARANCE;
 		m_list_ctrl.SortItems( ::ListCompare, m_sort_type );
 	}
 	else if( column == COL_PINS )

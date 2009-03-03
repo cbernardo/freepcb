@@ -54,6 +54,10 @@ enum {
 	WM_BY_STRING
 };
 
+// Limits
+#define MAX_CLEARANCE_MIL	2000
+#define MAX_RATLINE_W_MIL	100		
+
 /////////////////////////////////////////////////////////////////////////////
 // CFreePcbApp:
 // See FreePcb.cpp for the implementation of this class

@@ -22,6 +22,7 @@ CDlgSetTraceWidths::~CDlgSetTraceWidths()
 void CDlgSetTraceWidths::DoDataExchange(CDataExchange* pDX)
 {
 	CDialog::DoDataExchange(pDX);
+
 	DDX_Control(pDX, IDC_COMBO_WIDTH, m_combo_width);
 	DDX_Control(pDX, IDC_RADIO_DEF, m_radio_default_via_for_trace);
 	DDX_Control(pDX, IDC_RADIO_SET, m_radio_set_via_width);
@@ -33,6 +34,12 @@ void CDlgSetTraceWidths::DoDataExchange(CDataExchange* pDX)
 	DDX_Control(pDX, IDC_RADIO_REVERT_TRACES, m_radio_revert_traces);
 	DDX_Control(pDX, IDC_RADIO_REVERT_VIAS, m_radio_revert_vias);
 	DDX_Control(pDX, IDC_RADIO_SET_TRACE_WIDTH, m_radio_set_trace_width);
+
+	DDX_Control(pDX, IDC_RADIO_DEF_CLEARANCE, m_radio3_def_clearance);
+	DDX_Control(pDX, IDC_RADIO_SET_CLEARANCE, m_radio3_set_clearance);
+	DDX_Control(pDX, IDC_EDIT_CLEARANCE, m_edit_clearance);
+	DDX_Control(pDX, IDC_MOD_CLEARANCE, m_check_clearance);
+
 	if( !pDX->m_bSaveAndValidate )
 	{
 		// incoming
@@ -62,6 +69,24 @@ void CDlgSetTraceWidths::DoDataExchange(CDataExchange* pDX)
 		else
 			m_radio_default_via_for_trace.SetCheck( 1 );
 		m_check_apply.SetCheck(1);
+
+		// Clearance section
+		if( m_clearance.m_ca_clearance.m_status < 0 )
+		{
+			m_radio3_def_clearance.SetCheck(1);
+			m_edit_clearance.EnableWindow(0);
+		}
+		else
+		{
+			m_radio3_set_clearance.SetCheck(0);
+			m_edit_clearance.EnableWindow(1);
+		}
+
+		str.Format( "%d", m_clearance.m_ca_clearance.m_val / NM_PER_MIL );
+		m_edit_clearance.SetWindowText(str);
+
+		m_check_clearance.SetCheck(1);		
+
 		SetFields();
 	}
 	else
@@ -92,7 +117,33 @@ void CDlgSetTraceWidths::DoDataExchange(CDataExchange* pDX)
 			m_hole_width *= NM_PER_MIL;
 		}
 		else
+		{
 			m_via_width = -1;
+		}
+
+		if( m_apply_clearance )
+		{
+			int val;
+			if( m_radio3_def_clearance.GetCheck() )
+			{
+				val = CClearanceInfo::E_USE_PARENT;
+			}
+			else
+			{
+				CString str;
+				m_edit_clearance.GetWindowText(str);
+				if ( (sscanf(str, "%d", &val) != 1) || (val < 0) || (val > MAX_CLEARANCE_MIL) )
+				{
+					str.Format("Invalid clearance value (0-%d)", MAX_CLEARANCE_MIL);
+					AfxMessageBox( str );
+					pDX->Fail();
+					return;
+				}
+
+				val *= NM_PER_MIL;
+			}
+			m_clearance.m_ca_clearance.Set(val);
+		}
 	}
 }
 
@@ -107,6 +158,9 @@ BEGIN_MESSAGE_MAP(CDlgSetTraceWidths, CDialog)
 	ON_BN_CLICKED(IDC_RADIO_REVERT_TRACES, OnBnClickedRadioRevertTraces)
 	ON_BN_CLICKED(IDC_RADIO_REVERT_VIAS, OnBnClickedRadioRevertVias)
 	ON_BN_CLICKED(IDC_RADIO_SET_TRACE_WIDTH, OnBnClickedRadioSetTraceWidth)
+	ON_BN_CLICKED(IDC_RADIO_DEF_CLEARANCE, &CDlgSetTraceWidths::OnBnClickedRadioRevertTraceClearance)
+	ON_BN_CLICKED(IDC_RADIO_SET_CLEARANCE, &CDlgSetTraceWidths::OnBnClickedRadioSetTraceClearance)
+	ON_BN_CLICKED(IDC_MOD_CLEARANCE, &CDlgSetTraceWidths::OnBnClickedModClearance)
 END_MESSAGE_MAP()
 
 
@@ -232,6 +286,7 @@ void CDlgSetTraceWidths::SetFields()
 {
 	bTraces = m_check_trace.GetCheck();     
 	bRevertTraces = m_radio_revert_traces.GetCheck(); 
+
 	m_radio_revert_traces.EnableWindow( bTraces );
 	m_radio_set_trace_width.EnableWindow( bTraces );
 	m_combo_width.EnableWindow( bTraces && !bRevertTraces );
@@ -244,13 +299,33 @@ void CDlgSetTraceWidths::SetFields()
 	}
 	bDefaultVias = m_radio_default_via_for_trace.GetCheck();
 	bRevertVias = m_radio_revert_vias.GetCheck();
+
+	m_radio_revert_vias.EnableWindow( bVias );
 	m_radio_default_via_for_trace.EnableWindow( bVias && bTraces );
 	m_radio_set_via_width.EnableWindow( bVias );
 	m_edit_via_pad.EnableWindow( bVias && !bDefaultVias && !bRevertVias );
 	m_edit_via_hole.EnableWindow( bVias && !bDefaultVias && !bRevertVias  );
 
-	m_apply_trace = m_check_apply.GetCheck() && bTraces;
-	m_apply_via = m_check_apply.GetCheck() && bVias;
+	m_apply_trace = bTraces;
+	m_apply_via = bVias;
+
+	// Section: Clearance
+	m_apply_clearance = m_check_clearance.GetCheck();
+
+	m_radio3_def_clearance.EnableWindow(m_apply_clearance);
+	m_radio3_set_clearance.EnableWindow(m_apply_clearance);
+
+	if( m_apply_clearance && m_radio3_set_clearance.GetCheck() )
+	{
+		m_edit_clearance.EnableWindow(1);
+	}
+	else
+	{
+		m_edit_clearance.EnableWindow(0);
+	}
+
+	// Section: Apply to already routed traces
+	m_apply_to_routed = m_check_apply.GetCheck();
 }
 
 void CDlgSetTraceWidths::OnBnClickedRadioRevertTraces()
@@ -264,6 +339,21 @@ void CDlgSetTraceWidths::OnBnClickedRadioRevertVias()
 }
 
 void CDlgSetTraceWidths::OnBnClickedRadioSetTraceWidth()
+{
+	SetFields();
+}
+
+void CDlgSetTraceWidths::OnBnClickedRadioRevertTraceClearance()
+{
+	SetFields();
+}
+
+void CDlgSetTraceWidths::OnBnClickedRadioSetTraceClearance()
+{
+	SetFields();
+}
+
+void CDlgSetTraceWidths::OnBnClickedModClearance()
 {
 	SetFields();
 }

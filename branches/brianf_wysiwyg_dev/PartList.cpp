@@ -7,14 +7,14 @@
 #include "DisplayList.h"
 #include "DlgMyMessageBox.h"
 
-#define PL_MAX_SIZE		5000		// default max. size 
+#define PL_MAX_SIZE		5000		// default max. size
 
 // globals
-BOOL g_bShow_header_28mil_hole_warning = TRUE;	
-BOOL g_bShow_SIP_28mil_hole_warning = TRUE;	
+BOOL g_bShow_header_28mil_hole_warning = TRUE;
+BOOL g_bShow_SIP_28mil_hole_warning = TRUE;
 
 //******** constructors and destructors *********
- 
+
 cpart::cpart()
 {
 	// zero out pointers
@@ -28,7 +28,7 @@ cpart::~cpart()
 {
 }
 
-CPartList::CPartList( CDisplayList * dlist, SMFontUtil * fontutil ) 
+CPartList::CPartList( CDisplayList * dlist, SMFontUtil * fontutil )
 {
 	m_start.prev = 0;		// dummy first element in list
 	m_start.next = &m_end;
@@ -69,10 +69,10 @@ cpart * CPartList::Add()
 	return part;
 }
 
-// Create new part, add to end of list, set part data 
+// Create new part, add to end of list, set part data
 // return pointer to element created.
 //
-cpart * CPartList::Add( CShape * shape, CString * ref_des, CString * package, 
+cpart * CPartList::Add( CShape * shape, CString * ref_des, CString * package,
 							int x, int y, int side, int angle, int visible, int glued )
 {
 	if(m_size >= m_max_size )
@@ -90,7 +90,7 @@ cpart * CPartList::Add( CShape * shape, CString * ref_des, CString * package,
 
 // Set part data
 //
-int CPartList::SetPartData( cpart * part, CShape * shape, CString * ref_des, CString * package, 
+int CPartList::SetPartData( cpart * part, CShape * shape, CString * ref_des, CString * package,
 							int x, int y, int side, int angle, int visible, int glued )
 {
 	UndrawPart( part );
@@ -99,10 +99,12 @@ int CPartList::SetPartData( cpart * part, CShape * shape, CString * ref_des, CSt
 	id id( ID_PART );
 	part->visible = visible;
 	part->ref_des = *ref_des;
+
 	if( package )
 		part->package = *package;
 	else
 		part->package = "";
+
 	part->m_id = id;
 	part->x = x;
 	part->y = y;
@@ -158,10 +160,10 @@ int CPartList::SetPartData( cpart * part, CShape * shape, CString * ref_des, CSt
 int CPartList::HighlightPart( cpart * part )
 {
 	// highlight it by making its selection rectangle visible
-	m_dlist->HighLight( DL_HOLLOW_RECT, 
-				m_dlist->Get_x( part->dl_sel) , 
+	m_dlist->HighLight( DL_HOLLOW_RECT,
+				m_dlist->Get_x( part->dl_sel) ,
 				m_dlist->Get_y( part->dl_sel),
-				m_dlist->Get_xf(part->dl_sel), 
+				m_dlist->Get_xf(part->dl_sel),
 				m_dlist->Get_yf(part->dl_sel), 1 );
 	return 0;
 }
@@ -184,10 +186,10 @@ int CPartList::SelectRefText( cpart * part )
 	// highlight it by making its selection rectangle visible
 	if( part->dl_ref_sel )
 	{
-		m_dlist->HighLight( DL_HOLLOW_RECT, 
-			m_dlist->Get_x(part->dl_ref_sel), 
+		m_dlist->HighLight( DL_HOLLOW_RECT,
+			m_dlist->Get_x(part->dl_ref_sel),
 			m_dlist->Get_y(part->dl_ref_sel),
-			m_dlist->Get_xf(part->dl_ref_sel), 
+			m_dlist->Get_xf(part->dl_ref_sel),
 			m_dlist->Get_yf(part->dl_ref_sel), 1 );
 	}
 	return 0;
@@ -200,10 +202,10 @@ int CPartList::SelectValueText( cpart * part )
 	// highlight it by making its selection rectangle visible
 	if( part->dl_value_sel )
 	{
-		m_dlist->HighLight( DL_HOLLOW_RECT, 
-			m_dlist->Get_x(part->dl_value_sel), 
+		m_dlist->HighLight( DL_HOLLOW_RECT,
+			m_dlist->Get_x(part->dl_value_sel),
 			m_dlist->Get_y(part->dl_value_sel),
-			m_dlist->Get_xf(part->dl_value_sel), 
+			m_dlist->Get_xf(part->dl_value_sel),
 			m_dlist->Get_yf(part->dl_value_sel), 1 );
 	}
 	return 0;
@@ -233,11 +235,11 @@ int CPartList::SelectPad( cpart * part, int i )
 	// select it by making its selection rectangle visible
 	if( part->pin[i].dl_sel )
 	{
-		m_dlist->HighLight( DL_RECT_X, 
-			m_dlist->Get_x(part->pin[i].dl_sel), 
+		m_dlist->HighLight( DL_RECT_X,
+			m_dlist->Get_x(part->pin[i].dl_sel),
 			m_dlist->Get_y(part->pin[i].dl_sel),
-			m_dlist->Get_xf(part->pin[i].dl_sel), 
-			m_dlist->Get_yf(part->pin[i].dl_sel), 
+			m_dlist->Get_xf(part->pin[i].dl_sel),
+			m_dlist->Get_yf(part->pin[i].dl_sel),
 			1, GetPinLayer( part, i ) );
 	}
 	return 0;
@@ -290,11 +292,11 @@ BOOL CPartList::TestHitOnPad( cpart * part, CString * pin_name, int x, int y, in
 		return TRUE;
 	switch( p->shape )
 	{
-	case PAD_NONE: 
+	case PAD_NONE:
 		break;
-	case PAD_ROUND: 
-		if( dist < (p->size_h/2) ) 
-			return TRUE; 
+	case PAD_ROUND:
+		if( dist < (p->size_h/2) )
+			return TRUE;
 		break;
 	case PAD_SQUARE:
 		if( dx < (p->size_h/2) && dy < (p->size_h/2) )
@@ -347,26 +349,26 @@ int CPartList::MoveRefText( cpart * part, int x, int y, int angle, int size, int
 {
 	// remove all display list elements
 	UndrawPart( part );
-	
+
 	// get position of new text box origin relative to part
 	CPoint part_org, tb_org;
 	tb_org.x = x - part->x;
 	tb_org.y = y - part->y;
-	
+
 	// correct for rotation of part
 	RotatePoint( &tb_org, 360-part->angle, zero );
-	
+
 	// correct for part on bottom of board (reverse relative x-axis)
 	if( part->side == 1 )
 		tb_org.x = -tb_org.x;
-	
+
 	// reset ref text position
 	part->m_ref_xi = tb_org.x;
 	part->m_ref_yi = tb_org.y;
 	part->m_ref_angle = angle % 360;
 	part->m_ref_size = size;
 	part->m_ref_w = w;
-	
+
 	// now redraw part
 	DrawPart( part );
 	return PL_NOERR;
@@ -382,7 +384,7 @@ void CPartList::ResizeRefText( cpart * part, int size, int width, BOOL vis )
 		UndrawPart( part );
 		// change ref text size
 		part->m_ref_size = size;
-		part->m_ref_w = width;	
+		part->m_ref_w = width;
 		part->m_ref_vis = vis;
 		// now redraw part
 		DrawPart( part );
@@ -397,26 +399,26 @@ int CPartList::MoveValueText( cpart * part, int x, int y, int angle, int size, i
 {
 	// remove all display list elements
 	UndrawPart( part );
-	
+
 	// get position of new text box origin relative to part
 	CPoint part_org, tb_org;
 	tb_org.x = x - part->x;
 	tb_org.y = y - part->y;
-	
+
 	// correct for rotation of part
 	RotatePoint( &tb_org, 360-part->angle, zero );
-	
+
 	// correct for part on bottom of board (reverse relative x-axis)
 	if( part->side == 1 )
 		tb_org.x = -tb_org.x;
-	
+
 	// reset value text position
 	part->m_value_xi = tb_org.x;
 	part->m_value_yi = tb_org.y;
 	part->m_value_angle = angle % 360;
 	part->m_value_size = size;
 	part->m_value_w = w;
-	
+
 	// now redraw part
 	DrawPart( part );
 	return PL_NOERR;
@@ -441,7 +443,7 @@ void CPartList::ResizeValueText( cpart * part, int size, int width, BOOL vis )
 
 // Set part value
 //
-void CPartList::SetValue( cpart * part, CString * value, 
+void CPartList::SetValue( cpart * part, CString * value,
 						 int x, int y, int angle, int size, int w, BOOL vis )
 {
 	part->value = *value;
@@ -649,7 +651,7 @@ int CPartList::GetPinLayer( cpart * part, int pin_index )
 {
 	if( part->shape->m_padstack[pin_index].hole_size )
 		return LAY_PAD_THRU;
-	else if( part->side == 0 && part->shape->m_padstack[pin_index].top.shape != PAD_NONE 
+	else if( part->side == 0 && part->shape->m_padstack[pin_index].top.shape != PAD_NONE
 		|| part->side == 1 && part->shape->m_padstack[pin_index].bottom.shape != PAD_NONE )
 		return LAY_TOP_COPPER;
 	else
@@ -894,11 +896,11 @@ void CPartList::MarkAllParts( int mark )
 //	strokes = pointer to CArray of strokes to receive data
 //	br = pointer to CRect to receive bounding rectangle
 //	dlist = pointer to display list to use for drawing
-//	sm = pointer to SMFontUtil for character data	
+//	sm = pointer to SMFontUtil for character data
 // returns number of strokes generated
 //
-int GenerateStrokesForPartString( CString * str, 
-								  int size, int rel_angle, int rel_xi, int rel_yi, int w, 
+int GenerateStrokesForPartString( CString * str,
+								  int size, int rel_angle, int rel_xi, int rel_yi, int w,
 								  int x, int y, int angle, int side,
 								  CArray<stroke> * strokes, CRect * br,
 								  CDisplayList * dlist, SMFontUtil * sm )
@@ -920,7 +922,7 @@ int GenerateStrokesForPartString( CString * str,
 		int xi, yi, xf, yf;
 		double coord[64][4];
 		double min_x, min_y, max_x, max_y;
-		int nstrokes = sm->GetCharStrokes( str->GetAt(ic), SIMPLEX, 
+		int nstrokes = sm->GetCharStrokes( str->GetAt(ic), SIMPLEX,
 			&min_x, &min_y, &max_x, &max_y, coord, 64 );
 		for( int is=0; is<nstrokes; is++ )
 		{
@@ -996,8 +998,6 @@ int GenerateStrokesForPartString( CString * str,
 //
 int CPartList::DrawPart( cpart * part )
 {
-	int i;
-
 	if( !m_dlist )
 		return PL_NO_DLIST;
 	if( !part->shape )
@@ -1018,7 +1018,7 @@ int CPartList::DrawPart( cpart * part )
 	if( !part->side )
 	{
 		// part on top
-		sel.left = shape->m_sel_xi; 
+		sel.left = shape->m_sel_xi;
 		sel.right = shape->m_sel_xf;
 		sel.bottom = shape->m_sel_yi;
 		sel.top = shape->m_sel_yf;
@@ -1064,16 +1064,15 @@ int CPartList::DrawPart( cpart * part )
 			int xmax = br.right;
 			int ymin = br.bottom;
 			int ymax = br.top;
-			id.type = ID_PART;
 			id.st = ID_REF_TXT;
 			id.sst = ID_STROKE;
 			part->ref_text_stroke.SetSize( nstrokes );
 			for( int is=0; is<nstrokes; is++ )
 			{
 				id.ii = is;
-				m_stroke[is].dl_el = m_dlist->Add( id, this, 
-					silk_lay, DL_LINE, 1, m_stroke[is].w, 0, 
-					m_stroke[is].xi, m_stroke[is].yi, 
+				m_stroke[is].dl_el = m_dlist->Add( id, this,
+					silk_lay, DL_LINE, 1, m_stroke[is].w, 0, 0,
+					m_stroke[is].xi, m_stroke[is].yi,
 					m_stroke[is].xf, m_stroke[is].yf, 0, 0 );
 				part->ref_text_stroke[is] = m_stroke[is];
 			}
@@ -1128,16 +1127,16 @@ int CPartList::DrawPart( cpart * part )
 			int xmax = br.right;
 			int ymin = br.bottom;
 			int ymax = br.top;
-			id.type = ID_PART;
-			id.st = ID_VALUE_TXT;
-			id.sst = ID_STROKE;
+
+			id.st   = ID_VALUE_TXT;
+			id.sst  = ID_STROKE;
 			part->value_stroke.SetSize( nstrokes );
 			for( int is=0; is<nstrokes; is++ )
 			{
 				id.ii = is;
-				m_stroke[is].dl_el = m_dlist->Add( id, this, 
-					silk_lay, DL_LINE, 1, m_stroke[is].w, 0, 
-					m_stroke[is].xi, m_stroke[is].yi, 
+				m_stroke[is].dl_el = m_dlist->Add( id, this,
+					silk_lay, DL_LINE, 1, m_stroke[is].w, 0, 0,
+					m_stroke[is].xi, m_stroke[is].yi,
 					m_stroke[is].xf, m_stroke[is].yf, 0, 0 );
 				part->value_stroke[is] = m_stroke[is];
 			}
@@ -1190,26 +1189,27 @@ int CPartList::DrawPart( cpart * part )
 			nsides = shape->m_outline_poly[ip].GetNumCorners() - 1;
 		part->m_outline_stroke.SetSize( pos + nsides );
 		int w = shape->m_outline_poly[ip].GetW();
-		for( i=0; i<nsides; i++ )
+        int side_idx;
+		for( side_idx=0; side_idx<nsides; side_idx++ )
 		{
 			int g_type;
-			if( shape->m_outline_poly[ip].GetSideStyle( i ) == CPolyLine::STRAIGHT )
+			if( shape->m_outline_poly[ip].GetSideStyle( side_idx ) == CPolyLine::STRAIGHT )
 				g_type = DL_LINE;
-			else if( shape->m_outline_poly[ip].GetSideStyle( i ) == CPolyLine::ARC_CW )
+			else if( shape->m_outline_poly[ip].GetSideStyle( side_idx ) == CPolyLine::ARC_CW )
 				g_type = DL_ARC_CW;
-			else if( shape->m_outline_poly[ip].GetSideStyle( i ) == CPolyLine::ARC_CCW )
+			else if( shape->m_outline_poly[ip].GetSideStyle( side_idx ) == CPolyLine::ARC_CCW )
 				g_type = DL_ARC_CCW;
-			si.x = shape->m_outline_poly[ip].GetX( i );
-			si.y = shape->m_outline_poly[ip].GetY( i );
-			if( i == (nsides-1) && shape->m_outline_poly[ip].GetClosed() )
+			si.x = shape->m_outline_poly[ip].GetX( side_idx );
+			si.y = shape->m_outline_poly[ip].GetY( side_idx );
+			if( side_idx == (nsides-1) && shape->m_outline_poly[ip].GetClosed() )
 			{
 				sf.x = shape->m_outline_poly[ip].GetX( 0 );
 				sf.y = shape->m_outline_poly[ip].GetY( 0 );
 			}
 			else
 			{
-				sf.x = shape->m_outline_poly[ip].GetX( i+1 );
-				sf.y = shape->m_outline_poly[ip].GetY( i+1 );
+				sf.x = shape->m_outline_poly[ip].GetX( side_idx+1 );
+				sf.y = shape->m_outline_poly[ip].GetY( side_idx+1 );
 			}
 			// flip if part on bottom
 			if( part->side )
@@ -1224,14 +1224,14 @@ int CPartList::DrawPart( cpart * part )
 			// rotate with part and draw
 			RotatePoint( &si, angle, zero );
 			RotatePoint( &sf, angle, zero );
-			part->m_outline_stroke[i+pos].xi = x+si.x;
-			part->m_outline_stroke[i+pos].xf = x+sf.x;
-			part->m_outline_stroke[i+pos].yi = y+si.y;
-			part->m_outline_stroke[i+pos].yf = y+sf.y;
-			part->m_outline_stroke[i+pos].type = g_type;
-			part->m_outline_stroke[i+pos].w = w;
-			part->m_outline_stroke[i+pos].dl_el = m_dlist->Add( part->m_id, part, silk_lay, 
-				g_type, 1, w, 0, x+si.x, y+si.y, x+sf.x, y+sf.y, 0, 0 );
+			part->m_outline_stroke[side_idx+pos].xi = x+si.x;
+			part->m_outline_stroke[side_idx+pos].xf = x+sf.x;
+			part->m_outline_stroke[side_idx+pos].yi = y+si.y;
+			part->m_outline_stroke[side_idx+pos].yf = y+sf.y;
+			part->m_outline_stroke[side_idx+pos].type = g_type;
+			part->m_outline_stroke[side_idx+pos].w = w;
+			part->m_outline_stroke[side_idx+pos].dl_el = m_dlist->Add( id, part, silk_lay,
+				g_type, 1, w, 0, 0, x+si.x, y+si.y, x+sf.x, y+sf.y, 0, 0 );
 		}
 	}
 
@@ -1247,7 +1247,7 @@ int CPartList::DrawPart( cpart * part )
 		double x_scale = (double)t->m_font_size/22.0;
 		double y_scale = (double)t->m_font_size/22.0;
 		double y_offset = 9.0*y_scale;
-		i = 0;
+		//i = 0; BAF - seems like this is wrong
 		double xc = 0.0;
 		CPoint si, sf;
 		int w = t->m_stroke_width;
@@ -1265,36 +1265,35 @@ int CPartList::DrawPart( cpart * part )
 		xmax = max( xmax, br.right );
 		ymin = min( ymin, br.bottom );
 		ymax = max( ymax, br.top );
-		id.type = ID_PART;
-		id.st = ID_FP_TXT;
-		id.i = it;
-		id.sst = ID_STROKE;
+
+		id.st   = ID_FP_TXT;
+		id.i    = it;
+		id.sst  = ID_STROKE;
 		for( int is=0; is<nstrokes; is++ )
 		{
 			id.ii = is;
-			m_stroke[is].dl_el = m_dlist->Add( id, this, 
-				silk_lay, DL_LINE, 1, m_stroke[is].w, 0, 
-				m_stroke[is].xi, m_stroke[is].yi, 
+			m_stroke[is].dl_el = m_dlist->Add( id, this,
+				silk_lay, DL_LINE, 1, m_stroke[is].w, 0, 0,
+				m_stroke[is].xi, m_stroke[is].yi,
 				m_stroke[is].xf, m_stroke[is].yf, 0, 0 );
 			part->m_outline_stroke.Add( m_stroke[is] );
 		}
-
-
 	}
 
 	// draw padstacks and save absolute position of pins
 	CPoint pin_pt;
 	CPoint pad_pi;
 	CPoint pad_pf;
-	for( i=0; i<shape->GetNumPins(); i++ ) 
+    int pin_idx;
+	for( pin_idx=0; pin_idx<shape->GetNumPins(); pin_idx++ )
 	{
 		// set layer for pads
-		padstack * ps = &shape->m_padstack[i];
-		part_pin * pin = &part->pin[i];
+		padstack * ps = &shape->m_padstack[pin_idx];
+		part_pin * pin = &part->pin[pin_idx];
 		pin->dl_els.SetSize(m_layers);
 		pad * p;
 		int pad_layer;
-		// iterate through all copper layers 
+		// iterate through all copper layers
 		pad * any_pad = NULL;
 		for( int il=0; il<m_layers; il++ )
 		{
@@ -1303,7 +1302,7 @@ int CPartList::DrawPart( cpart * part )
 			pad_layer = il + LAY_TOP_COPPER;
 			pin->dl_els[il] = NULL;
 			// get appropriate pad
-			padstack * ps = &shape->m_padstack[i];
+			padstack * ps = &shape->m_padstack[pin_idx];
 			pad * p = NULL;
 			if( pad_layer == LAY_TOP_COPPER && part->side == 0 )
 				p = &ps->top;
@@ -1325,6 +1324,10 @@ int CPartList::DrawPart( cpart * part )
 
 				// draw pad
 				dl_element * pad_el = NULL;
+
+				id.st = ID_PAD;
+				id.i  = pin_idx;
+
 				if( p->shape == PAD_NONE )
 				{
 				}
@@ -1337,23 +1340,22 @@ int CPartList::DrawPart( cpart * part )
 					if( angle > 0 )
 						RotatePoint( &pin_pt, angle, zero );
 					// add to display list
-					id.st = ID_PAD;
-					id.i = i;
 					pin->x = x + pin_pt.x;
 					pin->y = y + pin_pt.y;
-					pad_el = m_dlist->Add( id, part, pad_layer, 
-						DL_CIRC, 1, 
+					pad_el = m_dlist->Add( id, part, pad_layer,
+						DL_CIRC, 1,
 						p->size_h,
-						0, 
+						0,
+						0,//BAF CLEARANCE
 						x + pin_pt.x, y + pin_pt.y, 0, 0, 0, 0 );
 					if( !pin->dl_sel )
 					{
 						id.st = ID_SEL_PAD;
-						pin->dl_sel = m_dlist->AddSelector( id, part, sel_layer, 
+						pin->dl_sel = m_dlist->AddSelector( id, part, sel_layer,
 							DL_HOLLOW_RECT, 1, 1, 0,
-							pin->x-p->size_h/2,  
-							pin->y-p->size_h/2, 
-							pin->x+p->size_h/2, 
+							pin->x-p->size_h/2,
+							pin->y-p->size_h/2,
+							pin->x+p->size_h/2,
 							pin->y+p->size_h/2, 0, 0 );
 					}
 				}
@@ -1367,30 +1369,30 @@ int CPartList::DrawPart( cpart * part )
 					// rotate
 					if( angle > 0 )
 						RotatePoint( &pin_pt, angle, zero );
-					id.st = ID_PAD;
-					id.i = i;
+
 					pin->x = x + pin_pt.x;
 					pin->y = y + pin_pt.y;
-					pad_el = m_dlist->Add( part->m_id, part, pad_layer, 
-						DL_SQUARE, 1, 
+					pad_el = m_dlist->Add( id, part, pad_layer,
+						DL_SQUARE, 1,
 						p->size_h,
-						0, 
-						pin->x, pin->y, 
-						0, 0, 
+						0,
+						0,//BAF CLEARANCE
+						pin->x, pin->y,
+						0, 0,
 						0, 0 );
 					if( !pin->dl_sel )
 					{
 						id.st = ID_SEL_PAD;
-						pin->dl_sel = m_dlist->AddSelector( id, part, sel_layer, 
+						pin->dl_sel = m_dlist->AddSelector( id, part, sel_layer,
 							DL_HOLLOW_RECT, 1, 1, 0,
-							pin->x-p->size_h/2,  
-							pin->y-p->size_h/2, 
-							pin->x+p->size_h/2, 
+							pin->x-p->size_h/2,
+							pin->y-p->size_h/2,
+							pin->x+p->size_h/2,
 							pin->y+p->size_h/2, 0, 0 );
 					}
 				}
-				else if( p->shape == PAD_RECT 
-					|| p->shape == PAD_RRECT 
+				else if( p->shape == PAD_RECT
+					|| p->shape == PAD_RRECT
 					|| p->shape == PAD_OVAL )
 				{
 					int gtype;
@@ -1405,7 +1407,7 @@ int CPartList::DrawPart( cpart * part )
 					pad_pf.x = pin_pt.x + p->size_r;
 					pad_pf.y = pin_pt.y + p->size_h/2;
 					// rotate pad about pin if necessary
-					if( shape->m_padstack[i].angle > 0 )
+					if( shape->m_padstack[pin_idx].angle > 0 )
 					{
 						RotatePoint( &pad_pi, ps->angle, pin_pt );
 						RotatePoint( &pad_pf, ps->angle, pin_pt );
@@ -1418,32 +1420,32 @@ int CPartList::DrawPart( cpart * part )
 						pad_pi.x = -pad_pi.x;
 						pad_pf.x = -pad_pf.x;
 					}
-					// rotate part about 
+					// rotate part about
 					if( angle > 0 )
 					{
 						RotatePoint( &pin_pt, angle, zero );
 						RotatePoint( &pad_pi, angle, zero );
 						RotatePoint( &pad_pf, angle, zero );
 					}
-					id.st = ID_PAD;
-					id.i = i;
+
 					int radius = p->radius;
 					pin->x = x + pin_pt.x;
 					pin->y = y + pin_pt.y;
-					pad_el = m_dlist->Add( part->m_id, part, pad_layer, 
-						gtype, 1, 
+					pad_el = m_dlist->Add( id, part, pad_layer,
+						gtype, 1,
 						0,
-						0, 
-						x + pad_pi.x, y + pad_pi.y, 
-						x + pad_pf.x, y + pad_pf.y, 
-						x + pin_pt.x, y + pin_pt.y, 
+						0,
+						0,//BAF CLEARANCE
+						x + pad_pi.x, y + pad_pi.y,
+						x + pad_pf.x, y + pad_pf.y,
+						x + pin_pt.x, y + pin_pt.y,
 						p->radius );
 					if( !pin->dl_sel )
 					{
 						id.st = ID_SEL_PAD;
-						pin->dl_sel = m_dlist->AddSelector( id, part, sel_layer, 
+						pin->dl_sel = m_dlist->AddSelector( id, part, sel_layer,
 							DL_HOLLOW_RECT, 1, 1, 0,
-							x + pad_pi.x, y + pad_pi.y, 
+							x + pad_pi.x, y + pad_pi.y,
 							x + pad_pf.x, y + pad_pf.y,
 							0, 0 );
 					}
@@ -1458,25 +1460,25 @@ int CPartList::DrawPart( cpart * part )
 					// rotate
 					if( angle > 0 )
 						RotatePoint( &pin_pt, angle, zero );
-					id.st = ID_PAD;
-					id.i = i;
+
 					pin->x = x + pin_pt.x;
 					pin->y = y + pin_pt.y;
-					pad_el = m_dlist->Add( part->m_id, part, pad_layer, 
-						DL_OCTAGON, 1, 
+					pad_el = m_dlist->Add( id, part, pad_layer,
+						DL_OCTAGON, 1,
 						p->size_h,
-						0, 
-						pin->x, pin->y, 
-						0, 0, 
+						0,
+						0,//BAF CLEARANCE
+						pin->x, pin->y,
+						0, 0,
 						0, 0 );
 					if( !pin->dl_sel )
 					{
 						id.st = ID_SEL_PAD;
-						pin->dl_sel = m_dlist->AddSelector( id, part, sel_layer, 
+						pin->dl_sel = m_dlist->AddSelector( id, part, sel_layer,
 							DL_HOLLOW_RECT, 1, 1, 0,
-							pin->x-p->size_h/2,  
-							pin->y-p->size_h/2, 
-							pin->x+p->size_h/2, 
+							pin->x-p->size_h/2,
+							pin->y-p->size_h/2,
+							pin->x+p->size_h/2,
 							pin->y+p->size_h/2, 0, 0 );
 					}
 				}
@@ -1499,24 +1501,25 @@ int CPartList::DrawPart( cpart * part )
 				RotatePoint( &pin_pt, angle, zero );
 			// add to display list
 			id.st = ID_PAD;
-			id.i = i;
+			id.i = pin_idx;
 			pin->x = x + pin_pt.x;
 			pin->y = y + pin_pt.y;
-			pin->dl_hole = m_dlist->Add( id, part, LAY_PAD_THRU, 
-								DL_HOLE, 1, 
+			pin->dl_hole = m_dlist->Add( id, part, LAY_PAD_THRU,
+								DL_HOLE, 1,
 								ps->hole_size,
-								0, 
-								pin->x, pin->y, 0, 0, 0, 0 );  
+								0,
+								0,//BAF CLEARANCE
+								pin->x, pin->y, 0, 0, 0, 0 );
 			if( !pin->dl_sel )
 			{
 				// make selector for pin with hole only
 				id.st = ID_SEL_PAD;
-				pin->dl_sel = m_dlist->AddSelector( id, part, sel_layer, 
+				pin->dl_sel = m_dlist->AddSelector( id, part, sel_layer,
 					DL_HOLLOW_RECT, 1, 1, 0,
-					pin->x-ps->hole_size/2,  
-					pin->y-ps->hole_size/2,  
-					pin->x+ps->hole_size/2,  
-					pin->y+ps->hole_size/2,  
+					pin->x-ps->hole_size/2,
+					pin->y-ps->hole_size/2,
+					pin->x+ps->hole_size/2,
+					pin->y+ps->hole_size/2,
 					0, 0 );
 			}
 		}
@@ -1669,21 +1672,6 @@ void CPartList::MakePartVisible( cpart * part, BOOL bVisible )
 			if( part->pin[ip].dl_els[i] )
 				part->pin[ip].dl_els[i]->visible = bVisible;
 		}
-		// pin copper area connections
-		cnet * net = (cnet*)part->pin[ip].net;
-		if( net )
-		{
-			for( int ia=0; ia<net->nareas; ia++ )
-			{
-				for( int i=0; i<net->area[ia].npins; i++ )
-				{
-					if( net->pin[net->area[ia].pin[i]].part == part )
-					{
-						m_dlist->Set_visible( net->area[ia].dl_thermal[i], bVisible );
-					}
-				}
-			}
-		}
 	}
 	// ref text strokes
 	for( int is=0; is<part->ref_text_stroke.GetSize(); is++ )
@@ -1731,10 +1719,10 @@ int CPartList::StartDraggingPart( CDC * pDC, cpart * part, BOOL bRatlines )
 	RotatePoint( &p2, part->angle, zero );
 	RotatePoint( &p3, part->angle, zero );
 	RotatePoint( &p4, part->angle, zero );
-	m_dlist->AddDragLine( p1, p2 ); 
-	m_dlist->AddDragLine( p2, p3 ); 
-	m_dlist->AddDragLine( p3, p4 ); 
-	m_dlist->AddDragLine( p4, p1 ); 
+	m_dlist->AddDragLine( p1, p2 );
+	m_dlist->AddDragLine( p2, p3 );
+	m_dlist->AddDragLine( p3, p4 );
+	m_dlist->AddDragLine( p4, p1 );
 	for( int ip=0; ip<part->shape->m_padstack.GetSize(); ip++ )
 	{
 		// make X for each pin
@@ -1770,11 +1758,11 @@ int CPartList::StartDraggingPart( CDC * pDC, cpart * part, BOOL bRatlines )
 		pin_points[ip].x = p.x;
 		pin_points[ip].y = p.y;
 		// draw X
-		m_dlist->AddDragLine( p1, p3 ); 
+		m_dlist->AddDragLine( p1, p3 );
 		m_dlist->AddDragLine( p2, p4 );
 	}
 	// create drag lines for ratlines connected to pins
-	if( bRatlines ) 
+	if( bRatlines )
 	{
 		m_dlist->MakeDragRatlineArray( 2*part->shape->m_padstack.GetSize(), 1 );
 		// zero utility flags for all nets
@@ -1817,7 +1805,7 @@ int CPartList::StartDraggingPart( CDC * pDC, cpart * part, BOOL bRatlines )
 						if( pin1_part != part && pin2_part != part )
 							continue;	// no
 
-						// OK, this connection is attached to our part 
+						// OK, this connection is attached to our part
 						if( pin1_part == part )
 						{
 							int pin1_index = pin1_part->shape->GetPinIndexByName( n->pin[pin1].pin_name );
@@ -1921,16 +1909,16 @@ int CPartList::StartDraggingRefText( CDC * pDC, cpart * part )
 		dl_element * el = (dl_element*)ptr;
 		el->visible = 0;
 	}
-	// cancel selection 
+	// cancel selection
 	m_dlist->CancelHighLight();
 	// drag
-	m_dlist->StartDraggingRectangle( pDC, 
-						m_dlist->Get_x(part->dl_ref_sel), 
+	m_dlist->StartDraggingRectangle( pDC,
+						m_dlist->Get_x(part->dl_ref_sel),
 						m_dlist->Get_y(part->dl_ref_sel),
 						m_dlist->Get_x(part->dl_ref_sel) - m_dlist->Get_x_org(part->dl_ref_sel),
 						m_dlist->Get_y(part->dl_ref_sel) - m_dlist->Get_y_org(part->dl_ref_sel),
 						m_dlist->Get_xf(part->dl_ref_sel) - m_dlist->Get_x_org(part->dl_ref_sel),
-						m_dlist->Get_yf(part->dl_ref_sel) - m_dlist->Get_y_org(part->dl_ref_sel), 
+						m_dlist->Get_yf(part->dl_ref_sel) - m_dlist->Get_y_org(part->dl_ref_sel),
 						0, LAY_SELECTION );
 	return 0;
 }
@@ -1946,16 +1934,16 @@ int CPartList::StartDraggingValue( CDC * pDC, cpart * part )
 		dl_element * el = (dl_element*)ptr;
 		el->visible = 0;
 	}
-	// cancel selection 
+	// cancel selection
 	m_dlist->CancelHighLight();
 	// drag
-	m_dlist->StartDraggingRectangle( pDC, 
-						m_dlist->Get_x(part->dl_value_sel), 
+	m_dlist->StartDraggingRectangle( pDC,
+						m_dlist->Get_x(part->dl_value_sel),
 						m_dlist->Get_y(part->dl_value_sel),
 						m_dlist->Get_x(part->dl_value_sel) - m_dlist->Get_x_org(part->dl_value_sel),
 						m_dlist->Get_y(part->dl_value_sel) - m_dlist->Get_y_org(part->dl_value_sel),
 						m_dlist->Get_xf(part->dl_value_sel) - m_dlist->Get_x_org(part->dl_value_sel),
-						m_dlist->Get_yf(part->dl_value_sel) - m_dlist->Get_y_org(part->dl_value_sel), 
+						m_dlist->Get_yf(part->dl_value_sel) - m_dlist->Get_y_org(part->dl_value_sel),
 						0, LAY_SELECTION );
 	return 0;
 }
@@ -2149,7 +2137,7 @@ cpart * CPartList::AddFromString( CString * str )
 			if( err )
 			{
 				// found in cache
-				s = (CShape*)ptr; 
+				s = (CShape*)ptr;
 			}
 		}
 		else if( key_str == "pos" )
@@ -2175,7 +2163,7 @@ cpart * CPartList::AddFromString( CString * str )
 	}
 	SetPartData( part, s, &ref_des, &package, x, y, side, angle, 1, glued );
 	SetValue( part, &value, value_xi, value_yi, value_angle, value_size, value_width, value_vis );
-	if( part->shape ) 
+	if( part->shape )
 	{
 		part->m_ref_xi = ref_xi;
 		part->m_ref_yi = ref_yi;
@@ -2257,10 +2245,10 @@ int CPartList::SetPartString( cpart * part, CString * str )
 {
 	CString line;
 
-	line.Format( "part: %s\n", part->ref_des );  
+	line.Format( "part: %s\n", part->ref_des );
 	*str = line;
 	if( part->shape )
-		line.Format( "  ref_text: %d %d %d %d %d %d\n", 
+		line.Format( "  ref_text: %d %d %d %d %d %d\n",
 					part->m_ref_size, part->m_ref_w, part->m_ref_angle%360,
 					part->m_ref_xi, part->m_ref_yi, part->m_ref_vis );
 	else
@@ -2268,11 +2256,11 @@ int CPartList::SetPartString( cpart * part, CString * str )
 	str->Append( line );
 	line.Format( "  package: \"%s\"\n", part->package );
 	str->Append( line );
-	if( part->value != "" ) 
+	if( part->value != "" )
 	{
 		if( part->shape )
-			line.Format( "  value: \"%s\" %d %d %d %d %d %d\n", 
-			part->value, part->m_value_size, 
+			line.Format( "  value: \"%s\" %d %d %d %d %d %d\n",
+			part->value, part->m_value_size,
 			part->m_value_w, part->m_value_angle%360,
 			part->m_value_xi, part->m_value_yi,
 			part->m_value_vis );
@@ -2388,7 +2376,7 @@ int CPartList::WriteParts( CStdioFile * file )
 			file->WriteString( test );
 			el = el->next;
 		}
-		
+
 	}
 	catch( CFileException * e )
 	{
@@ -2503,7 +2491,7 @@ int CPartList::ExportPartListInfo( partlist_info * pl, cpart * test_part )
 //
 void CPartList::ImportPartListInfo( partlist_info * pl, int flags, CDlgLog * log )
 {
-	CString mess; 
+	CString mess;
 
 	// undraw all parts
 	CDisplayList * dlist = m_dlist;
@@ -2627,11 +2615,11 @@ void CPartList::ImportPartListInfo( partlist_info * pl, int flags, CDlgLog * log
 					{
 						// replace new part with old
 						pi->part = old_part;
-						pi->ref_size = old_part->m_ref_size; 
+						pi->ref_size = old_part->m_ref_size;
 						pi->ref_width = old_part->m_ref_w;
 						pi->value = old_part->value;
 						pi->value_vis = old_part->m_value_vis;
-						pi->x = old_part->x; 
+						pi->x = old_part->x;
 						pi->y = old_part->y;
 						pi->angle = old_part->angle;
 						pi->side = old_part->side;
@@ -2640,11 +2628,11 @@ void CPartList::ImportPartListInfo( partlist_info * pl, int flags, CDlgLog * log
 					else if( pi->shape )
 					{
 						// use new footprint, but preserve position
-						pi->ref_size = old_part->m_ref_size; 
+						pi->ref_size = old_part->m_ref_size;
 						pi->ref_width = old_part->m_ref_w;
 						pi->value = old_part->value;
 						pi->value_vis = old_part->m_value_vis;
-						pi->x = old_part->x; 
+						pi->x = old_part->x;
 						pi->y = old_part->y;
 						pi->angle = old_part->angle;
 						pi->side = old_part->side;
@@ -2653,7 +2641,7 @@ void CPartList::ImportPartListInfo( partlist_info * pl, int flags, CDlgLog * log
 						//** TODO should this be pi->shape->m_name ?
 						if( log && old_part->shape->m_name != pi->package )
 						{
-							mess.Format( "  Changing footprint of part %s from \"%s\" to \"%s\"\r\n", 
+							mess.Format( "  Changing footprint of part %s from \"%s\" to \"%s\"\r\n",
 								old_part->ref_des, old_part->shape->m_name, pi->shape->m_name );
 							log->AddLine( mess );
 						}
@@ -2664,7 +2652,7 @@ void CPartList::ImportPartListInfo( partlist_info * pl, int flags, CDlgLog * log
 						//** TODO should this be pi->shape->m_name ?
 						if( log && old_part->shape->m_name != pi->package )
 						{
-							mess.Format( "  Changing footprint of part %s from \"%s\" to \"%s\" (not found)\r\n", 
+							mess.Format( "  Changing footprint of part %s from \"%s\" to \"%s\" (not found)\r\n",
 								old_part->ref_des, old_part->shape->m_name, pi->package );
 							log->AddLine( mess );
 						}
@@ -2677,7 +2665,7 @@ void CPartList::ImportPartListInfo( partlist_info * pl, int flags, CDlgLog * log
 					// remove old part (which did not have a footprint)
 					if( log && old_part->package != pi->package )
 					{
-						mess.Format( "  Changing footprint of part %s from \"%s\" to \"%s\"\r\n", 
+						mess.Format( "  Changing footprint of part %s from \"%s\" to \"%s\"\r\n",
 							old_part->ref_des, old_part->package, pi->package );
 						log->AddLine( mess );
 					}
@@ -2708,7 +2696,7 @@ void CPartList::ImportPartListInfo( partlist_info * pl, int flags, CDlgLog * log
 			// new part is being imported (with or without footprint)
 			if( pi->shape && pi->bOffBoard )
 			{
-				// place new part offboard, using grid 
+				// place new part offboard, using grid
 				int ix, iy;	// grid indices
 				// find size of part in 100 mil units
 				BOOL OK = FALSE;
@@ -2788,11 +2776,11 @@ void CPartList::ImportPartListInfo( partlist_info * pl, int flags, CDlgLog * log
 			if( part->shape )
 			{
 				ResizeRefText( part, pi->ref_size, pi->ref_width );
-				SetValue( part, &pi->value, 
-					part->shape->m_value_xi, 
+				SetValue( part, &pi->value,
+					part->shape->m_value_xi,
 					part->shape->m_value_yi,
-					part->shape->m_value_angle, 
-					part->shape->m_value_size, 
+					part->shape->m_value_angle,
+					part->shape->m_value_size,
 					part->shape->m_value_w,
 					pi->value_vis );
 			}
@@ -2811,11 +2799,11 @@ void CPartList::ImportPartListInfo( partlist_info * pl, int flags, CDlgLog * log
 			if( pi->part->value != pi->value )
 			{
 				// value changed, keep size and position
-				SetValue( pi->part, &pi->value, 
-					pi->part->shape->m_value_xi, 
+				SetValue( pi->part, &pi->value,
+					pi->part->shape->m_value_xi,
 					pi->part->shape->m_value_yi,
-					pi->part->shape->m_value_angle, 
-					pi->part->shape->m_value_size, 
+					pi->part->shape->m_value_angle,
+					pi->part->shape->m_value_size,
 					pi->part->shape->m_value_w );
 
 			}
@@ -2838,7 +2826,7 @@ void CPartList::ImportPartListInfo( partlist_info * pl, int flags, CDlgLog * log
 					ResizeRefText( pi->part, pi->ref_size, pi->ref_width );
 				}
 			}
-			if( pi->x != pi->part->x 
+			if( pi->x != pi->part->x
 				|| pi->y != pi->part->y
 				|| pi->angle != pi->part->angle
 				|| pi->side != pi->part->side )
@@ -2890,7 +2878,7 @@ void CPartList::PartUndoCallback( int type, void * ptr, BOOL undo )
 			if( err )
 			{
 				// found in cache
-				s = (CShape*)s_ptr; 
+				s = (CShape*)s_ptr;
 			}
 			else
 				ASSERT(0);	// shape not found
@@ -2926,14 +2914,14 @@ void CPartList::PartUndoCallback( int type, void * ptr, BOOL undo )
 				pl->m_nlist->PartFootprintChanged( part );
 			}
 			if( upart->x != part->x
-				|| upart->y != part->y 
-				|| upart->angle != part->angle 
+				|| upart->y != part->y
+				|| upart->angle != part->angle
 				|| upart->side != part->side )
 			{
 				pl->Move( part, upart->x, upart->y, upart->angle, upart->side );
 				pl->m_nlist->PartMoved( part );
 			}
-			part->glued = upart->glued; 
+			part->glued = upart->glued;
 			part->m_ref_vis = upart->m_ref_vis;
 			part->m_ref_xi = upart->m_ref_xi;
 			part->m_ref_yi = upart->m_ref_yi;
@@ -3025,7 +3013,7 @@ int CPartList::GetPinConnectionStatus( cpart * part, CString * pin_name, int lay
 		for( int ip=0; ip<a->npins; ip++ )
 		{
 			cpin * pin = &net->pin[a->pin[ip]];
-			if( pin->part == part 
+			if( pin->part == part
 				&& pin->pin_name == *pin_name
 				&& a->poly->GetLayer() == layer )
 			{
@@ -3038,28 +3026,28 @@ int CPartList::GetPinConnectionStatus( cpart * part, CString * pin_name, int lay
 }
 
 // Function to provide info to draw pad in Gerber file (also used by DRC routines)
-// On return: 
+// On return:
 //	if no footprint for part, or no pad and no hole on this layer, returns 0
 //	else returns 1 with:
 //		*type = pad shape
-//		*x = pin x, 
-//		*y = pin y, 
-//		*w = pad width, 
-//		*l = pad length, 
-//		*r = pad corner radius, 
-//		*hole = pin hole diameter, 
-//		*angle = pad angle, 
-//		**net = pin net, 
+//		*x = pin x,
+//		*y = pin y,
+//		*w = pad width,
+//		*l = pad length,
+//		*r = pad corner radius,
+//		*hole = pin hole diameter,
+//		*angle = pad angle,
+//		**net = pin net,
 //		*connection_status = ON_NET | TRACE_CONNECT | AREA_CONNECT, where:
 //			ON_NET = 1 if pin is on a net
 //			TRACE_CONNECT = 2 if pin connects to a trace on this layer
 //			AREA_CONNECT = 4 if pin connects to copper area on this layer
-//		*pad_connect_flag = 
+//		*pad_connect_flag =
 //			PAD_CONNECT_DEFAULT if pad uses default from project
 //			PAD_CONNECT_NEVER if pad never connects to copper area
 //			PAD_CONNECT_THERMAL if pad connects to copper area with thermal
 //			PAD_CONNECT_NOTHERMAL if pad connects to copper area without thermal
-//		*clearance_type = 
+//		*clearance_type =
 //			CLEAR_NORMAL if clearance from copper area required
 //			CLEAR_THERMAL if thermal connection to copper area
 //			CLEAR_NONE if no clearance from copper area
@@ -3068,12 +3056,12 @@ int CPartList::GetPinConnectionStatus( cpart * part, CString * pin_name, int lay
 //	Uses GetPinConnectionStatus() to determine connections, this uses the area
 //	connection info from the netlist
 //
-int CPartList::GetPadDrawInfo( cpart * part, int ipin, int layer, 
+int CPartList::GetPadDrawInfo( cpart * part, int ipin, int layer,
 							  BOOL bUse_TH_thermals, BOOL bUse_SMT_thermals,
 							  int solder_mask_swell, int paste_mask_shrink,
 							  int * type, int * x, int * y, int * w, int * l, int * r, int * hole,
-							  int * angle, cnet ** net, 
-							  int * connection_status, int * pad_connect_flag, 
+							  int * angle, cnet ** net,
+							  int * connection_status, int * pad_connect_flag,
 							  int * clearance_type )
 {
 	// get footprint
@@ -3098,21 +3086,21 @@ int CPartList::GetPadDrawInfo( cpart * part, int ipin, int layer,
 	aangle = aangle%180;
 	int hole_size = s->m_padstack[ipin].hole_size;
 	cnet * nnet = part->pin[ipin].net;
-	int clear_type = CLEAR_NORMAL;	
+	int clear_type = CLEAR_NORMAL;
 	int connect_flag = PAD_CONNECT_DEFAULT;
 
 	// get pad info
 	pad * p = NULL;
 	if( (layer == LAY_TOP_COPPER && part->side == 0 )
-		|| (layer == LAY_BOTTOM_COPPER && part->side == 1 ) ) 
+		|| (layer == LAY_BOTTOM_COPPER && part->side == 1 ) )
 	{
-		// top copper pad is on this layer 
+		// top copper pad is on this layer
 		p = &ps->top;
 	}
 	else if( (layer == LAY_MASK_TOP && part->side == 0 )
-		|| (layer == LAY_MASK_BOTTOM && part->side == 1 ) ) 
+		|| (layer == LAY_MASK_BOTTOM && part->side == 1 ) )
 	{
-		// top mask pad is on this layer 
+		// top mask pad is on this layer
 		if( ps->top_mask.shape != PAD_DEFAULT )
 			p = &ps->top_mask;
 		else
@@ -3122,9 +3110,9 @@ int CPartList::GetPadDrawInfo( cpart * part, int ipin, int layer,
 		}
 	}
 	else if( (layer == LAY_PASTE_TOP && part->side == 0 )
-		|| (layer == LAY_PASTE_BOTTOM && part->side == 1 ) ) 
+		|| (layer == LAY_PASTE_BOTTOM && part->side == 1 ) )
 	{
-		// top paste pad is on this layer 
+		// top paste pad is on this layer
 		if( ps->top_paste.shape != PAD_DEFAULT )
 			p = &ps->top_paste;
 		else
@@ -3134,15 +3122,15 @@ int CPartList::GetPadDrawInfo( cpart * part, int ipin, int layer,
 		}
 	}
 	else if( (layer == LAY_TOP_COPPER && part->side == 1 )
-			|| (layer == LAY_BOTTOM_COPPER && part->side == 0 ) ) 
+			|| (layer == LAY_BOTTOM_COPPER && part->side == 0 ) )
 	{
 		// bottom copper pad is on this layer
 		p = &ps->bottom;
 	}
 	else if( (layer == LAY_MASK_TOP && part->side == 1 )
-		|| (layer == LAY_MASK_BOTTOM && part->side == 0 ) ) 
+		|| (layer == LAY_MASK_BOTTOM && part->side == 0 ) )
 	{
-		// bottom mask pad is on this layer 
+		// bottom mask pad is on this layer
 		if( ps->bottom_mask.shape != PAD_DEFAULT )
 			p = &ps->bottom_mask;
 		else
@@ -3152,9 +3140,9 @@ int CPartList::GetPadDrawInfo( cpart * part, int ipin, int layer,
 		}
 	}
 	else if( (layer == LAY_PASTE_TOP && part->side == 1 )
-		|| (layer == LAY_PASTE_BOTTOM && part->side == 0 ) ) 
+		|| (layer == LAY_PASTE_BOTTOM && part->side == 0 ) )
 	{
-		// bottom paste pad is on this layer 
+		// bottom paste pad is on this layer
 		if( ps->bottom_paste.shape != PAD_DEFAULT )
 			p = &ps->bottom_paste;
 		else
@@ -3282,7 +3270,7 @@ int CPartList::GetPadDrawInfo( cpart * part, int ipin, int layer,
 
 // Design rule check
 //
-void CPartList::DRC( CDlgLog * log, int copper_layers, 
+void CPartList::DRC( CDlgLog * log, int copper_layers,
 					int units, BOOL check_unrouted,
 					CArray<CPolyLine> * board_outline,
 					DesignRules * dr, DRErrorList * drelist )
@@ -3380,7 +3368,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 											::MakeCStringFromDimension( &d_str, d, units, TRUE, TRUE, TRUE, 1 );
 											::MakeCStringFromDimension( &x_str, x, units, FALSE, TRUE, TRUE, 1 );
 											::MakeCStringFromDimension( &y_str, y, units, FALSE, TRUE, TRUE, 1 );
-											str.Format( "%ld: %s.%s pad hole to board edge = %s, x=%s, y=%s\r\n",  
+											str.Format( "%ld: %s.%s pad hole to board edge = %s, x=%s, y=%s\r\n",
 												nerrors+1, part->ref_des, s->m_padstack[ip].name, d_str, x_str, y_str );
 											DRError * dre = drelist->Add( nerrors, DRError::BOARDEDGE_PADHOLE, &str,
 												&part->ref_des, NULL, id1, id1, x, y, 0, 0, w+20*NM_PER_MIL, 0 );
@@ -3429,7 +3417,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 									::MakeCStringFromDimension( &d_str, d, units, TRUE, TRUE, TRUE, 1 );
 									::MakeCStringFromDimension( &x_str, x, units, FALSE, TRUE, TRUE, 1 );
 									::MakeCStringFromDimension( &y_str, y, units, FALSE, TRUE, TRUE, 1 );
-									str.Format( "%ld: %s.%s annular ring = %s, x=%s, y=%s\r\n",  
+									str.Format( "%ld: %s.%s annular ring = %s, x=%s, y=%s\r\n",
 										nerrors+1, part->ref_des, s->m_padstack[ip].name, d_str, x_str, y_str );
 									DRError * dre = drelist->Add( nerrors, DRError::RING_PAD, &str,
 										&part->ref_des, NULL, id1, id1, x, y, 0, 0, w+20*NM_PER_MIL, 0 );
@@ -3467,7 +3455,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 											::MakeCStringFromDimension( &d_str, d, units, TRUE, TRUE, TRUE, 1 );
 											::MakeCStringFromDimension( &x_str, x, units, FALSE, TRUE, TRUE, 1 );
 											::MakeCStringFromDimension( &y_str, y, units, FALSE, TRUE, TRUE, 1 );
-											str.Format( "%ld: %s.%s pad to board edge = %s, x=%s, y=%s\r\n",  
+											str.Format( "%ld: %s.%s pad to board edge = %s, x=%s, y=%s\r\n",
 												nerrors+1, part->ref_des, s->m_padstack[ip].name, d_str, x_str, y_str );
 											DRError * dre = drelist->Add( nerrors, DRError::BOARDEDGE_PAD, &str,
 												&part->ref_des, NULL, id1, id1, x, y, 0, 0, w+20*NM_PER_MIL, 0 );
@@ -3509,7 +3497,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 					if( !(part->layers & t_part->layers) )
 					{
 						// no pads on same layers,check for holes
-						if( !part->hole_flag && !t_part->hole_flag ) 
+						if( !part->hole_flag && !t_part->hole_flag )
 							continue;	// no, go to next part
 					}
 
@@ -3556,12 +3544,12 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 									::MakeCStringFromDimension( &d_str, h_h, units, TRUE, TRUE, TRUE, 1 );
 									::MakeCStringFromDimension( &x_str, pin->x, units, FALSE, TRUE, TRUE, 1 );
 									::MakeCStringFromDimension( &y_str, pin->y, units, FALSE, TRUE, TRUE, 1 );
-									str.Format( "%ld: %s.%s pad hole to %s.%s pad hole = %s, x=%s, y=%s\r\n",  
+									str.Format( "%ld: %s.%s pad hole to %s.%s pad hole = %s, x=%s, y=%s\r\n",
 										nerrors+1, part->ref_des, s->m_padstack[ip].name,
 										t_part->ref_des, t_s->m_padstack[t_ip].name,
 										d_str, x_str, y_str );
 									DRError * dre = drelist->Add( nerrors, DRError::PADHOLE_PADHOLE, &str,
-										&t_part->ref_des, &part->ref_des, id1, id2, 
+										&t_part->ref_des, &part->ref_des, id1, id2,
 										pin->x, pin->y, t_pin->x, t_pin->y, 0, 0 );
 									if( dre )
 									{
@@ -3605,7 +3593,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 
 								// test for pad-pad violation
 								BOOL t_bPad = GetPadDrawInfo( t_part, t_ip, layer, 0, 0, 0, 0,
-									&t_pad_type, &t_pad_x, &t_pad_y, &t_pad_w, &t_pad_l, &t_pad_r, 
+									&t_pad_type, &t_pad_x, &t_pad_y, &t_pad_w, &t_pad_l, &t_pad_r,
 									&t_pad_hole, &t_pad_angle,
 									&t_pad_net, &t_pad_connect );
 								if( t_bPad )
@@ -3614,29 +3602,29 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 									int pad_x, pad_y, pad_w, pad_l, pad_r;
 									int pad_type, pad_hole, pad_connect, pad_angle;
 									cnet * pad_net;
-									BOOL bPad = GetPadDrawInfo( part, ip, layer, 0, 0, 0, 0, 
-										&pad_type, &pad_x, &pad_y, &pad_w, &pad_l, &pad_r, 
+									BOOL bPad = GetPadDrawInfo( part, ip, layer, 0, 0, 0, 0,
+										&pad_type, &pad_x, &pad_y, &pad_w, &pad_l, &pad_r,
 										&pad_hole, &pad_angle, &pad_net, &pad_connect );
 									if( bPad )
 									{
 										if( pad_hole )
 										{
 											// test for pad-padhole violation
-											int dist = GetClearanceBetweenPads( t_pad_type, t_pad_x, t_pad_y, 
+											int dist = GetClearanceBetweenPads( t_pad_type, t_pad_x, t_pad_y,
 												t_pad_w, t_pad_l, t_pad_r, t_pad_angle,
 												PAD_ROUND, pad_x, pad_y, pad_hole, 0, 0, 0 );
 											if( dist < dr->hole_copper )
 											{
-												// PAD_PADHOLE 
+												// PAD_PADHOLE
 												::MakeCStringFromDimension( &d_str, dist, units, TRUE, TRUE, TRUE, 1 );
 												::MakeCStringFromDimension( &x_str, pad_x, units, FALSE, TRUE, TRUE, 1 );
 												::MakeCStringFromDimension( &y_str, pad_y, units, FALSE, TRUE, TRUE, 1 );
-												str.Format( "%ld: %s.%s pad hole to %s.%s pad = %s, x=%s, y=%s\r\n",  
+												str.Format( "%ld: %s.%s pad hole to %s.%s pad = %s, x=%s, y=%s\r\n",
 													nerrors+1, part->ref_des, s->m_padstack[ip].name,
 													t_part->ref_des, t_s->m_padstack[t_ip].name,
 													d_str, x_str, y_str );
-												DRError * dre = drelist->Add( nerrors, DRError::PAD_PADHOLE, &str, 
-													&t_part->ref_des, &part->ref_des, id1, id2, 
+												DRError * dre = drelist->Add( nerrors, DRError::PAD_PADHOLE, &str,
+													&t_part->ref_des, &part->ref_des, id1, id2,
 													pad_x, pad_y, t_pad_x, t_pad_y, 0, layer );
 												if( dre )
 												{
@@ -3648,21 +3636,21 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 											}
 										}
 										// test for pad-pad violation
-										int dist = GetClearanceBetweenPads( t_pad_type, t_pad_x, t_pad_y, 
+										int dist = GetClearanceBetweenPads( t_pad_type, t_pad_x, t_pad_y,
 											t_pad_w, t_pad_l, t_pad_r, t_pad_angle,
 											pad_type, pad_x, pad_y, pad_w, pad_l, pad_r, pad_angle );
 										if( dist < dr->pad_pad )
 										{
-											// PAD_PAD 
+											// PAD_PAD
 											::MakeCStringFromDimension( &d_str, dist, units, TRUE, TRUE, TRUE, 1 );
 											::MakeCStringFromDimension( &x_str, pad_x, units, FALSE, TRUE, TRUE, 1 );
 											::MakeCStringFromDimension( &y_str, pad_y, units, FALSE, TRUE, TRUE, 1 );
-											str.Format( "%ld: %s.%s pad to %s.%s pad = %s, x=%s, y=%s\r\n",  
+											str.Format( "%ld: %s.%s pad to %s.%s pad = %s, x=%s, y=%s\r\n",
 												nerrors+1, part->ref_des, s->m_padstack[ip].name,
 												t_part->ref_des, t_s->m_padstack[t_ip].name,
 												d_str, x_str, y_str );
-											DRError * dre = drelist->Add( nerrors, DRError::PAD_PAD, &str, 
-												&t_part->ref_des, &part->ref_des, id1, id2, 
+											DRError * dre = drelist->Add( nerrors, DRError::PAD_PAD, &str,
+												&t_part->ref_des, &part->ref_des, id1, id2,
 												pad_x, pad_y, t_pad_x, t_pad_y, 0, layer );
 											if( dre )
 											{
@@ -3739,7 +3727,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 							::MakeCStringFromDimension( &d_str, d, units, TRUE, TRUE, TRUE, 1 );
 							::MakeCStringFromDimension( &x_str, x, units, FALSE, TRUE, TRUE, 1 );
 							::MakeCStringFromDimension( &y_str, y, units, FALSE, TRUE, TRUE, 1 );
-							str.Format( "%ld: \"%s\" copper area to board edge = %s, x=%s, y=%s\r\n",  
+							str.Format( "%ld: \"%s\" copper area to board edge = %s, x=%s, y=%s\r\n",
 								nerrors+1, net->name, d_str, x_str, y_str );
 							DRError * dre = drelist->Add( nerrors, DRError::BOARDEDGE_COPPERAREA, &str,
 								&net->name, NULL, id_a, id_a, x, y, 0, 0, 0, 0 );
@@ -3803,9 +3791,9 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 					::MakeCStringFromDimension( &d_str, w, units, TRUE, TRUE, TRUE, 1 );
 					::MakeCStringFromDimension( &x_str, x, units, FALSE, TRUE, TRUE, 1 );
 					::MakeCStringFromDimension( &y_str, y, units, FALSE, TRUE, TRUE, 1 );
-					str.Format( "%ld: \"%s\" trace width = %s, x=%s, y=%s\r\n", 
+					str.Format( "%ld: \"%s\" trace width = %s, x=%s, y=%s\r\n",
 						nerrors+1, net->name, d_str, x_str, y_str );
-					DRError * dre = drelist->Add( nerrors, DRError::TRACE_WIDTH, &str, 
+					DRError * dre = drelist->Add( nerrors, DRError::TRACE_WIDTH, &str,
 						&net->name, NULL, id_seg, id_seg, x, y, 0, 0, 0, layer );
 					if( dre )
 					{
@@ -3841,7 +3829,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 								::MakeCStringFromDimension( &d_str, d, units, TRUE, TRUE, TRUE, 1 );
 								::MakeCStringFromDimension( &x_str, x, units, FALSE, TRUE, TRUE, 1 );
 								::MakeCStringFromDimension( &y_str, y, units, FALSE, TRUE, TRUE, 1 );
-								str.Format( "%ld: \"%s\" trace to board edge = %s, x=%s, y=%s\r\n",  
+								str.Format( "%ld: \"%s\" trace to board edge = %s, x=%s, y=%s\r\n",
 									nerrors+1, net->name, d_str, x_str, y_str );
 								DRError * dre = drelist->Add( nerrors, DRError::BOARDEDGE_TRACE, &str,
 									&net->name, NULL, id_seg, id_seg, x, y, 0, 0, 0, layer );
@@ -3876,7 +3864,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 						int test;
 						int pad_w;
 						int hole_w;
-						m_nlist->GetViaPadInfo( net, ic, iv, layer, 
+						m_nlist->GetViaPadInfo( net, ic, iv, layer,
 							&pad_w, &hole_w, &test );
 						if( pad_w > 0 )
 							min_via_w = min( min_via_w, pad_w );
@@ -3895,9 +3883,9 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 						::MakeCStringFromDimension( &d_str, d, units, TRUE, TRUE, TRUE, 1 );
 						::MakeCStringFromDimension( &x_str, vtx->x, units, FALSE, TRUE, TRUE, 1 );
 						::MakeCStringFromDimension( &y_str, vtx->y, units, FALSE, TRUE, TRUE, 1 );
-						str.Format( "%ld: \"%s\" via annular ring = %s, x=%s, y=%s\r\n", 
+						str.Format( "%ld: \"%s\" via annular ring = %s, x=%s, y=%s\r\n",
 							nerrors+1, net->name, d_str, x_str, y_str );
-						DRError * dre = drelist->Add( nerrors, DRError::RING_VIA, &str, 
+						DRError * dre = drelist->Add( nerrors, DRError::RING_VIA, &str,
 							&net->name, NULL, id_via, id_via, vtx->x, vtx->y, 0, 0, vtx->via_w+20*NM_PER_MIL, 0 );
 						if( dre )
 						{
@@ -3932,7 +3920,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 									::MakeCStringFromDimension( &d_str, d, units, TRUE, TRUE, TRUE, 1 );
 									::MakeCStringFromDimension( &x_str, vtx->x, units, FALSE, TRUE, TRUE, 1 );
 									::MakeCStringFromDimension( &y_str, vtx->y, units, FALSE, TRUE, TRUE, 1 );
-									str.Format( "%ld: \"%s\" via to board edge = %s, x=%s, y=%s\r\n",  
+									str.Format( "%ld: \"%s\" via to board edge = %s, x=%s, y=%s\r\n",
 										nerrors+1, net->name, d_str, x_str, y_str );
 									DRError * dre = drelist->Add( nerrors, DRError::BOARDEDGE_VIA, &str,
 										&net->name, NULL, id_via, id_via, vtx->x, vtx->y, 0, 0, vtx->via_w+20*NM_PER_MIL, 0 );
@@ -3951,7 +3939,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 									::MakeCStringFromDimension( &d_str, d, units, TRUE, TRUE, TRUE, 1 );
 									::MakeCStringFromDimension( &x_str, vtx->x, units, FALSE, TRUE, TRUE, 1 );
 									::MakeCStringFromDimension( &y_str, vtx->y, units, FALSE, TRUE, TRUE, 1 );
-									str.Format( "%ld: \"%s\" via hole to board edge = %s, x=%s, y=%s\r\n",  
+									str.Format( "%ld: \"%s\" via hole to board edge = %s, x=%s, y=%s\r\n",
 										nerrors+1, net->name, d_str, x_str, y_str );
 									DRError * dre = drelist->Add( nerrors, DRError::BOARDEDGE_VIAHOLE, &str,
 										&net->name, NULL, id_via, id_via, vtx->x, vtx->y, 0, 0, vtx->via_w+20*NM_PER_MIL, 0 );
@@ -4058,24 +4046,24 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 									if( !(pin_info_valid && layer == pin_info_layer) )
 									{
 										bPad = GetPadDrawInfo( part, ip, layer, 0, 0, 0, 0,
-											&pad_type, &pad_x, &pad_y, &pad_w, &pad_l, &pad_r, 
+											&pad_type, &pad_x, &pad_y, &pad_w, &pad_l, &pad_r,
 											&pad_hole, &pad_angle, &pad_net, &pad_connect );
 										pin_info_valid = TRUE;
 										pin_info_layer = layer;
 									}
 									int d = GetClearanceBetweenSegmentAndPad( xi, yi, xf, yf, w,
 										PAD_ROUND, pad_x, pad_y, pad_hole, 0, 0, 0 );
-									if( d < dr->hole_copper ) 
+									if( d < dr->hole_copper )
 									{
 										// SEG_PADHOLE
 										::MakeCStringFromDimension( &d_str, d, units, TRUE, TRUE, TRUE, 1 );
 										::MakeCStringFromDimension( &x_str, pad_x, units, FALSE, TRUE, TRUE, 1 );
 										::MakeCStringFromDimension( &y_str, pad_y, units, FALSE, TRUE, TRUE, 1 );
-										str.Format( "%ld: \"%s\" trace to %s.%s pad hole = %s, x=%s, y=%s\r\n", 
+										str.Format( "%ld: \"%s\" trace to %s.%s pad hole = %s, x=%s, y=%s\r\n",
 											nerrors+1, net->name, part->ref_des, ps->name,
 											d_str, x_str, y_str );
-										DRError * dre = drelist->Add( nerrors, DRError::SEG_PAD, &str, 
-											&net->name, &part->ref_des, id_seg, id_pad, pad_x, pad_y, pad_x, pad_y, 
+										DRError * dre = drelist->Add( nerrors, DRError::SEG_PAD, &str,
+											&net->name, &part->ref_des, id_seg, id_pad, pad_x, pad_y, pad_x, pad_y,
 											max(pad_w,pad_l)+20*NM_PER_MIL, layer );
 										if( dre )
 										{
@@ -4091,7 +4079,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 									// get pad info for pin if necessary
 									if( !(pin_info_valid && layer == pin_info_layer) )
 									{
-										bPad = GetPadDrawInfo( part, ip, layer, 0, 0, 0, 0, 
+										bPad = GetPadDrawInfo( part, ip, layer, 0, 0, 0, 0,
 											&pad_type, &pad_x, &pad_y, &pad_w, &pad_l, &pad_r,
 											&pad_hole, &pad_angle, &pad_net, &pad_connect );
 										pin_info_valid = TRUE;
@@ -4102,17 +4090,17 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 										// check segment to pad clearance
 										int d = GetClearanceBetweenSegmentAndPad( xi, yi, xf, yf, w,
 											pad_type, pad_x, pad_y, pad_w, pad_l, pad_r, pad_angle );
-										if( d < dr->pad_trace ) 
+										if( d < dr->pad_trace )
 										{
 											// SEG_PAD
 											::MakeCStringFromDimension( &d_str, d, units, TRUE, TRUE, TRUE, 1 );
 											::MakeCStringFromDimension( &x_str, pad_x, units, FALSE, TRUE, TRUE, 1 );
 											::MakeCStringFromDimension( &y_str, pad_y, units, FALSE, TRUE, TRUE, 1 );
-											str.Format( "%ld: \"%s\" trace to %s.%s pad = %s, x=%s, y=%s\r\n", 
+											str.Format( "%ld: \"%s\" trace to %s.%s pad = %s, x=%s, y=%s\r\n",
 												nerrors+1, net->name, part->ref_des, ps->name,
 												d_str, x_str, y_str );
-											DRError * dre = drelist->Add( nerrors, DRError::SEG_PAD, &str, 
-												&net->name, &part->ref_des, id_seg, id_pad, pad_x, pad_y, pad_x, pad_y, 
+											DRError * dre = drelist->Add( nerrors, DRError::SEG_PAD, &str,
+												&net->name, &part->ref_des, id_seg, id_pad, pad_x, pad_y, pad_x, pad_y,
 												max(pad_w,pad_l)+20*NM_PER_MIL, layer );
 											if( dre )
 											{
@@ -4131,7 +4119,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 								int test;
 								int via_w;
 								int via_hole_w;
-								m_nlist->GetViaPadInfo( net, ic, is+1, layer, 
+								m_nlist->GetViaPadInfo( net, ic, is+1, layer,
 									&via_w, &via_hole_w, &test );
 								int w = 0;
 								if( via_w )
@@ -4139,8 +4127,8 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 									// check via_pad to pin_pad clearance
 									if( !(pin_info_valid && layer == pin_info_layer) )
 									{
-										bPad = GetPadDrawInfo( part, ip, layer, 0, 0, 0, 0, 
-											&pad_type, &pad_x, &pad_y, &pad_w, &pad_l, &pad_r, 
+										bPad = GetPadDrawInfo( part, ip, layer, 0, 0, 0, 0,
+											&pad_type, &pad_x, &pad_y, &pad_w, &pad_l, &pad_r,
 											&pad_hole, &pad_angle, &pad_net, &pad_connect );
 										pin_info_valid = TRUE;
 										pin_info_layer = layer;
@@ -4155,10 +4143,10 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 											::MakeCStringFromDimension( &d_str, d, units, TRUE, TRUE, TRUE, 1 );
 											::MakeCStringFromDimension( &x_str, pad_x, units, FALSE, TRUE, TRUE, 1 );
 											::MakeCStringFromDimension( &y_str, pad_y, units, FALSE, TRUE, TRUE, 1 );
-											str.Format( "%ld: \"%s\" via pad to %s.%s pad = %s, x=%s, y=%s\r\n", 
+											str.Format( "%ld: \"%s\" via pad to %s.%s pad = %s, x=%s, y=%s\r\n",
 												nerrors+1, net->name, part->ref_des, ps->name,
 												d_str, x_str, y_str );
-											DRError * dre = drelist->Add( nerrors, DRError::VIA_PAD, &str, 
+											DRError * dre = drelist->Add( nerrors, DRError::VIA_PAD, &str,
 												&net->name, &part->ref_des, id_via, id_pad, xf, yf, pad_x, pad_y, 0, layer );
 											if( dre )
 											{
@@ -4180,10 +4168,10 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 											::MakeCStringFromDimension( &d_str, d, units, TRUE, TRUE, TRUE, 1 );
 											::MakeCStringFromDimension( &x_str, pad_x, units, FALSE, TRUE, TRUE, 1 );
 											::MakeCStringFromDimension( &y_str, pad_y, units, FALSE, TRUE, TRUE, 1 );
-											str.Format( "%ld: \"%s\" via pad to %s.%s pad hole = %s, x=%s, y=%s\r\n", 
+											str.Format( "%ld: \"%s\" via pad to %s.%s pad hole = %s, x=%s, y=%s\r\n",
 												nerrors+1, net->name, part->ref_des, ps->name,
 												d_str, x_str, y_str );
-											DRError * dre = drelist->Add( nerrors, DRError::VIA_PAD, &str, 
+											DRError * dre = drelist->Add( nerrors, DRError::VIA_PAD, &str,
 												&net->name, &part->ref_des, id_via, id_pad, xf, yf, pad_x, pad_y, 0, layer );
 											if( dre )
 											{
@@ -4214,10 +4202,10 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 										::MakeCStringFromDimension( &d_str, d, units, TRUE, TRUE, TRUE, 1 );
 										::MakeCStringFromDimension( &x_str, pad_x, units, FALSE, TRUE, TRUE, 1 );
 										::MakeCStringFromDimension( &y_str, pad_y, units, FALSE, TRUE, TRUE, 1 );
-										str.Format( "%ld: \"%s\" via hole to %s.%s pad = %s, x=%s, y=%s\r\n", 
+										str.Format( "%ld: \"%s\" via hole to %s.%s pad = %s, x=%s, y=%s\r\n",
 											nerrors+1, net->name, part->ref_des, ps->name,
 											d_str, x_str, y_str );
-										DRError * dre = drelist->Add( nerrors, DRError::VIA_PAD, &str, 
+										DRError * dre = drelist->Add( nerrors, DRError::VIA_PAD, &str,
 											&net->name, &part->ref_des, id_via, id_pad, xf, yf, pad_x, pad_y, 0, layer );
 										if( dre )
 										{
@@ -4239,10 +4227,10 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 										::MakeCStringFromDimension( &d_str, d, units, TRUE, TRUE, TRUE, 1 );
 										::MakeCStringFromDimension( &x_str, pad_x, units, FALSE, TRUE, TRUE, 1 );
 										::MakeCStringFromDimension( &y_str, pad_y, units, FALSE, TRUE, TRUE, 1 );
-										str.Format( "%ld: \"%s\" via hole to %s.%s pad hole = %s, x=%s, y=%s\r\n", 
+										str.Format( "%ld: \"%s\" via hole to %s.%s pad hole = %s, x=%s, y=%s\r\n",
 											nerrors+1, net->name, part->ref_des, ps->name,
 											d_str, x_str, y_str );
-										DRError * dre = drelist->Add( nerrors, DRError::VIA_PAD, &str, 
+										DRError * dre = drelist->Add( nerrors, DRError::VIA_PAD, &str,
 											&net->name, &part->ref_des, id_via, id_pad, xf, yf, pad_x, pad_y, 0, layer );
 										if( dre )
 										{
@@ -4357,11 +4345,11 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 								continue;
 
 							// check if segments on same layer
-							if( s->layer == s2->layer && s->layer >= LAY_TOP_COPPER ) 
+							if( s->layer == s2->layer && s->layer >= LAY_TOP_COPPER )
 							{
 								// yes, test clearances between segments
-								int xx, yy; 
-								int d = ::GetClearanceBetweenSegments( xi, yi, xf, yf, CPolyLine::STRAIGHT, seg_w, 
+								int xx, yy;
+								int d = ::GetClearanceBetweenSegments( xi, yi, xf, yf, CPolyLine::STRAIGHT, seg_w,
 									xi2, yi2, xf2, yf2, CPolyLine::STRAIGHT, seg_w2, dr->trace_trace, &xx, &yy );
 								if( d < dr->trace_trace )
 								{
@@ -4369,10 +4357,10 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 									::MakeCStringFromDimension( &d_str, d, units, TRUE, TRUE, TRUE, 1 );
 									::MakeCStringFromDimension( &x_str, xx, units, FALSE, TRUE, TRUE, 1 );
 									::MakeCStringFromDimension( &y_str, yy, units, FALSE, TRUE, TRUE, 1 );
-									str.Format( "%ld: \"%s\" trace to \"%s\" trace = %s, x=%s, y=%s\r\n", 
+									str.Format( "%ld: \"%s\" trace to \"%s\" trace = %s, x=%s, y=%s\r\n",
 										nerrors+1, net->name, net2->name,
 										d_str, x_str, y_str );
-									DRError * dre = drelist->Add( nerrors, DRError::SEG_SEG, &str, 
+									DRError * dre = drelist->Add( nerrors, DRError::SEG_SEG, &str,
 										&net->name, &net2->name, id_seg1, id_seg2, xx, yy, xx, yy, 0, s->layer );
 									if( dre )
 									{
@@ -4411,10 +4399,10 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 										::MakeCStringFromDimension( &d_str, d, units, TRUE, TRUE, TRUE, 1 );
 										::MakeCStringFromDimension( &x_str, post_vtx2->x, units, FALSE, TRUE, TRUE, 1 );
 										::MakeCStringFromDimension( &y_str, post_vtx2->y, units, FALSE, TRUE, TRUE, 1 );
-										str.Format( "%ld: \"%s\" trace to \"%s\" via pad = %s, x=%s, y=%s\r\n", 
+										str.Format( "%ld: \"%s\" trace to \"%s\" via pad = %s, x=%s, y=%s\r\n",
 											nerrors+1, net->name, net2->name,
 											d_str, x_str, y_str );
-										DRError * dre = drelist->Add( nerrors, DRError::SEG_VIA, &str, 
+										DRError * dre = drelist->Add( nerrors, DRError::SEG_VIA, &str,
 											&net->name, &net2->name, id_seg1, id_via2, xf2, yf2, xf2, yf2, 0, s->layer );
 										if( dre )
 										{
@@ -4433,10 +4421,10 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 									::MakeCStringFromDimension( &d_str, d, units, TRUE, TRUE, TRUE, 1 );
 									::MakeCStringFromDimension( &x_str, post_vtx2->x, units, FALSE, TRUE, TRUE, 1 );
 									::MakeCStringFromDimension( &y_str, post_vtx2->y, units, FALSE, TRUE, TRUE, 1 );
-									str.Format( "%ld: \"%s\" trace to \"%s\" via hole = %s, x=%s, y=%s\r\n", 
+									str.Format( "%ld: \"%s\" trace to \"%s\" via hole = %s, x=%s, y=%s\r\n",
 										nerrors+1, net->name, net2->name,
 										d_str, x_str, y_str );
-									DRError * dre = drelist->Add( nerrors, DRError::SEG_VIAHOLE, &str, 
+									DRError * dre = drelist->Add( nerrors, DRError::SEG_VIAHOLE, &str,
 										&net->name, &net2->name, id_seg1, id_via2, xf2, yf2, xf2, yf2, 0, s->layer );
 									if( dre )
 									{
@@ -4477,11 +4465,11 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 											::MakeCStringFromDimension( &d_str, d, units, TRUE, TRUE, TRUE, 1 );
 											::MakeCStringFromDimension( &x_str, post_vtx->x, units, FALSE, TRUE, TRUE, 1 );
 											::MakeCStringFromDimension( &y_str, post_vtx->y, units, FALSE, TRUE, TRUE, 1 );
-											str.Format( "%ld: \"%s\" via pad to \"%s\" trace = %s, x=%s, y=%s\r\n", 
+											str.Format( "%ld: \"%s\" via pad to \"%s\" trace = %s, x=%s, y=%s\r\n",
 												nerrors+1, net->name, net2->name,
 												d_str, x_str, y_str );
-											DRError * dre = drelist->Add( nerrors, DRError::SEG_VIA, &str, 
-												&net2->name, &net->name, id_seg2, id_via1, xf, yf, xf, yf, 
+											DRError * dre = drelist->Add( nerrors, DRError::SEG_VIA, &str,
+												&net2->name, &net->name, id_seg2, id_via1, xf, yf, xf, yf,
 												post_vtx->via_w+20*NM_PER_MIL, 0 );
 											if( dre )
 											{
@@ -4503,11 +4491,11 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 										::MakeCStringFromDimension( &d_str, d, units, TRUE, TRUE, TRUE, 1 );
 										::MakeCStringFromDimension( &x_str, post_vtx->x, units, FALSE, TRUE, TRUE, 1 );
 										::MakeCStringFromDimension( &y_str, post_vtx->y, units, FALSE, TRUE, TRUE, 1 );
-										str.Format( "%ld: \"%s\" trace to \"%s\" via hole = %s, x=%s, y=%s\r\n", 
+										str.Format( "%ld: \"%s\" trace to \"%s\" via hole = %s, x=%s, y=%s\r\n",
 											nerrors+1, net2->name, net->name,
 											d_str, x_str, y_str );
-										DRError * dre = drelist->Add( nerrors, DRError::SEG_VIAHOLE, &str, 
-											&net2->name, &net->name, id_seg2, id_via1, xf, yf, xf, yf, 
+										DRError * dre = drelist->Add( nerrors, DRError::SEG_VIAHOLE, &str,
+											&net2->name, &net->name, id_seg2, id_via1, xf, yf, xf, yf,
 											post_vtx->via_w+20*NM_PER_MIL, 0 );
 										if( dre )
 										{
@@ -4551,7 +4539,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 										if( via_w && via_w2 )
 										{
 											//check net->via_pad to net2->via_pad clearance
-											int d = GetClearanceBetweenPads( PAD_ROUND, post_vtx->x, post_vtx->y, post_vtx->via_w, 0, 0, 0, 
+											int d = GetClearanceBetweenPads( PAD_ROUND, post_vtx->x, post_vtx->y, post_vtx->via_w, 0, 0, 0,
 												PAD_ROUND, post_vtx2->x, post_vtx2->y, post_vtx2->via_w, 0, 0, 0 );
 											if( d < dr->trace_trace )
 											{
@@ -4559,10 +4547,10 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 												::MakeCStringFromDimension( &d_str, d, units, TRUE, TRUE, TRUE, 1 );
 												::MakeCStringFromDimension( &x_str, post_vtx->x, units, FALSE, TRUE, TRUE, 1 );
 												::MakeCStringFromDimension( &y_str, post_vtx->y, units, FALSE, TRUE, TRUE, 1 );
-												str.Format( "%ld: \"%s\" via pad to \"%s\" via pad = %s, x=%s, y=%s\r\n", 
+												str.Format( "%ld: \"%s\" via pad to \"%s\" via pad = %s, x=%s, y=%s\r\n",
 													nerrors+1, net->name, net2->name,
 													d_str, x_str, y_str );
-												DRError * dre = drelist->Add( nerrors, DRError::VIA_VIA, &str, 
+												DRError * dre = drelist->Add( nerrors, DRError::VIA_VIA, &str,
 													&net->name, &net2->name, id_via1, id_via2, xf, yf, xf2, yf2, 0, layer );
 												if( dre )
 												{
@@ -4580,10 +4568,10 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 												::MakeCStringFromDimension( &d_str, d, units, TRUE, TRUE, TRUE, 1 );
 												::MakeCStringFromDimension( &x_str, post_vtx->x, units, FALSE, TRUE, TRUE, 1 );
 												::MakeCStringFromDimension( &y_str, post_vtx->y, units, FALSE, TRUE, TRUE, 1 );
-												str.Format( "%ld: \"%s\" via pad to \"%s\" via hole = %s, x=%s, y=%s\r\n", 
+												str.Format( "%ld: \"%s\" via pad to \"%s\" via hole = %s, x=%s, y=%s\r\n",
 													nerrors+1, net->name, net2->name,
 													d_str, x_str, y_str );
-												DRError * dre = drelist->Add( nerrors, DRError::VIA_VIAHOLE, &str, 
+												DRError * dre = drelist->Add( nerrors, DRError::VIA_VIAHOLE, &str,
 													&net->name, &net2->name, id_via1, id_via2, xf, yf, xf2, yf2, 0, layer );
 												if( dre )
 												{
@@ -4601,10 +4589,10 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 												::MakeCStringFromDimension( &d_str, d, units, TRUE, TRUE, TRUE, 1 );
 												::MakeCStringFromDimension( &x_str, post_vtx->x, units, FALSE, TRUE, TRUE, 1 );
 												::MakeCStringFromDimension( &y_str, post_vtx->y, units, FALSE, TRUE, TRUE, 1 );
-												str.Format( "%ld: \"%s\" via pad to \"%s\" via hole = %s, x=%s, y=%s\r\n", 
+												str.Format( "%ld: \"%s\" via pad to \"%s\" via hole = %s, x=%s, y=%s\r\n",
 													nerrors+1, net2->name, net->name,
 													d_str, x_str, y_str );
-												DRError * dre = drelist->Add( nerrors, DRError::VIA_VIAHOLE, &str, 
+												DRError * dre = drelist->Add( nerrors, DRError::VIA_VIAHOLE, &str,
 													&net2->name, &net->name, id_via2, id_via1, xf, yf, xf2, yf2, 0, layer );
 												if( dre )
 												{
@@ -4624,10 +4612,10 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 										::MakeCStringFromDimension( &d_str, d, units, TRUE, TRUE, TRUE, 1 );
 										::MakeCStringFromDimension( &x_str, post_vtx->x, units, FALSE, TRUE, TRUE, 1 );
 										::MakeCStringFromDimension( &y_str, post_vtx->y, units, FALSE, TRUE, TRUE, 1 );
-										str.Format( "%ld: \"%s\" via hole to \"%s\" via hole = %s, x=%s, y=%s\r\n", 
+										str.Format( "%ld: \"%s\" via hole to \"%s\" via hole = %s, x=%s, y=%s\r\n",
 											nerrors+1, net2->name, net->name,
 											d_str, x_str, y_str );
-										DRError * dre = drelist->Add( nerrors, DRError::VIAHOLE_VIAHOLE, &str, 
+										DRError * dre = drelist->Add( nerrors, DRError::VIAHOLE_VIAHOLE, &str,
 											&net->name, &net2->name, id_via1, id_via2, xf, yf, xf2, yf2, 0, 0 );
 										if( dre )
 										{
@@ -4659,7 +4647,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 				{
 					carea * a2 = &net2->area[ia2];
 					// test for same layer
-					if( a->poly->GetLayer() == a2->poly->GetLayer() ) 
+					if( a->poly->GetLayer() == a2->poly->GetLayer() )
 					{
 						// test for points inside one another
 						for( int ic=0; ic<a->poly->GetNumCorners(); ic++ )
@@ -4674,7 +4662,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 								id_a.i = ia;
 								id_a.sst = ID_SEL_CORNER;
 								id_a.ii = ic;
-								str.Format( "%ld: \"%s\" copper area inside \"%s\" inside copper area\r\n",  
+								str.Format( "%ld: \"%s\" copper area inside \"%s\" inside copper area\r\n",
 									nerrors+1, net->name, net2->name );
 								DRError * dre = drelist->Add( nerrors, DRError::COPPERAREA_INSIDE_COPPERAREA, &str,
 									&net->name, &net2->name, id_a, id_a, x, y, x, y, 0, 0 );
@@ -4698,7 +4686,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 								id_a.i = ia2;
 								id_a.sst = ID_SEL_CORNER;
 								id_a.ii = ic2;
-								str.Format( "%ld: \"%s\" copper area inside \"%s\" copper area\r\n",  
+								str.Format( "%ld: \"%s\" copper area inside \"%s\" copper area\r\n",
 									nerrors+1, net2->name, net->name );
 								DRError * dre = drelist->Add( nerrors, DRError::COPPERAREA_INSIDE_COPPERAREA, &str,
 									&net2->name, &net->name, id_a, id_a, x, y, x, y, 0, 0 );
@@ -4715,7 +4703,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 						{
 							int ic_start = a->poly->GetContourStart( icont );
 							int ic_end = a->poly->GetContourEnd( icont );
-							for( int ic=ic_start; ic<=ic_end; ic++ ) 
+							for( int ic=ic_start; ic<=ic_end; ic++ )
 							{
 								id id_a = net->id;
 								id_a.st = ID_AREA;
@@ -4770,7 +4758,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 											::MakeCStringFromDimension( &d_str, d, units, TRUE, TRUE, TRUE, 1 );
 											::MakeCStringFromDimension( &x_str, x, units, FALSE, TRUE, TRUE, 1 );
 											::MakeCStringFromDimension( &y_str, y, units, FALSE, TRUE, TRUE, 1 );
-											str.Format( "%ld: \"%s\" copper area to \"%s\" copper area = %s, x=%s, y=%s\r\n",  
+											str.Format( "%ld: \"%s\" copper area to \"%s\" copper area = %s, x=%s, y=%s\r\n",
 												nerrors+1, net->name, net2->name, d_str, x_str, y_str );
 											DRError * dre = drelist->Add( nerrors, DRError::COPPERAREA_COPPERAREA, &str,
 												&net->name, &net2->name, id_a, id_b, x, y, x, y, 0, 0 );
@@ -5013,13 +5001,13 @@ void CPartList::MoveOrigin( int x_off, int y_off )
 
 BOOL CPartList::CheckForProblemFootprints()
 {
-	BOOL bHeaders_28mil_holes = FALSE;   
+	BOOL bHeaders_28mil_holes = FALSE;
 	cpart * part = GetFirstPart();
 	while( part )
 	{
 		if( part->shape)
 		{
-			if( part->shape->m_name.Right(7) == "HDR-100" 
+			if( part->shape->m_name.Right(7) == "HDR-100"
 				&& part->shape->m_padstack[0].hole_size == 28*NM_PER_MIL )
 			{
 				bHeaders_28mil_holes = TRUE;
@@ -5027,7 +5015,7 @@ BOOL CPartList::CheckForProblemFootprints()
 		}
 		part = GetNextPart( part );
 	}
-	if( g_bShow_header_28mil_hole_warning && bHeaders_28mil_holes )   
+	if( g_bShow_header_28mil_hole_warning && bHeaders_28mil_holes )
 	{
 		CDlgMyMessageBox dlg;
 		dlg.Initialize( "WARNING: You are loading footprint(s) for through-hole headers with 100 mil pin spacing and 28 mil holes.\n\nThese may be from an obsolete version of the library \"th_header.fpl\" with holes that are too small for standard parts. Please check your design." );
@@ -5036,5 +5024,3 @@ BOOL CPartList::CheckForProblemFootprints()
 	}
 	return bHeaders_28mil_holes;
 }
-
-

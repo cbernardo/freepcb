@@ -12,13 +12,13 @@
 #include "DlgEditNet.h"
 #include "DlgAssignNet.h"
 #include "DlgNetlist.h"
-#include "DlgProjectOptions.h"
-#include "DlgImportOptions.h" 
+#include "DlgProjectOptionsTabbed.h"
+#include "DlgImportOptions.h"
 #include "freepcbdoc.h"
 #include "DlgLayers.h"
 #include "DlgPartlist.h"
 #include "MyFileDialog.h"
-#include "MyFileDialogExport.h" 
+#include "MyFileDialogExport.h"
 #include "DlgIvex.h"
 #include "DlgIndexing.h"
 #include "UndoBuffer.h"
@@ -116,7 +116,7 @@ CFreePcbDoc::CFreePcbDoc()
 	CString app_dir = cmdline.Tokenize( delim, token_start );
 	int pos = app_dir.ReverseFind( '\\' );
 	if( pos == -1 )
-		pos = app_dir.ReverseFind( ':' ); 
+		pos = app_dir.ReverseFind( ':' );
 	if( pos == -1 )
 		ASSERT(0);	// failed to find application folder
 	app_dir = app_dir.Left( pos );
@@ -162,6 +162,9 @@ CFreePcbDoc::CFreePcbDoc()
 	m_dlg_log = new CDlgLog;
 	m_dlg_log->Create( IDD_LOG );
 	m_import_flags = IMPORT_PARTS | IMPORT_NETS | KEEP_TRACES | KEEP_STUBS | KEEP_AREAS;
+
+	// Backward compatibility
+	m_clearance.m_ca_clearance.Set(10*NM_PER_MIL);
 
 	// initialize pseudo-clipboard
 	clip_plist = new CPartList( NULL, m_smfontutil );
@@ -256,7 +259,7 @@ void CFreePcbDoc::Dump(CDumpContext& dc) const
 // CFreePcbDoc commands
 
 
-BOOL CFreePcbDoc::OnSaveDocument(LPCTSTR lpszPathName) 
+BOOL CFreePcbDoc::OnSaveDocument(LPCTSTR lpszPathName)
 {
 	return CDocument::OnSaveDocument(lpszPathName);
 }
@@ -276,11 +279,12 @@ void CFreePcbDoc::OnFileNew()
 
 	// now set default project options
 	InitializeNewProject();
-	CDlgProjectOptions dlg;
+	CDlgProjectOptionsTabbed dlg;
 	dlg.Init( TRUE, &m_name, &m_parent_folder, &m_lib_dir,
-		m_num_copper_layers, m_bSMT_copper_connect, m_default_glue_w,
-		m_trace_w, m_via_w, m_via_hole_w,
-		m_auto_interval, &m_w, &m_v_w, &m_v_h_w );
+		m_num_copper_layers, m_ratline_w, m_bSMT_copper_connect, m_default_glue_w,
+		m_trace_w, m_clearance.m_ca_clearance.m_val, m_hole_clearance, m_via_w, m_via_hole_w,
+		m_auto_interval, m_thermal_width, m_thermal_clearance, &m_w, &m_v_w, &m_v_h_w );
+
 	int ret = dlg.DoModal();
 	if( ret == IDOK )
 	{
@@ -322,32 +326,32 @@ void CFreePcbDoc::OnFileNew()
 		// make path to library folder and index libraries
 		m_lib_dir = dlg.GetLibFolder();
 		fullpath = _fullpath( full, (LPCSTR)m_lib_dir, MAX_PATH );
-		if( fullpath[fullpath.GetLength()-1] == '\\' )	
+		if( fullpath[fullpath.GetLength()-1] == '\\' )
 			fullpath = fullpath.Left(fullpath.GetLength()-1);
 		m_full_lib_dir = fullpath;
 		MakeLibraryMaps( &m_full_lib_dir );
 		CMenu* pMenu = pMain->GetMenu();
-		pMenu->EnableMenuItem( 1, MF_BYPOSITION | MF_ENABLED ); 
-		pMenu->EnableMenuItem( 2, MF_BYPOSITION | MF_ENABLED ); 
-		pMenu->EnableMenuItem( 3, MF_BYPOSITION | MF_ENABLED ); 
-		pMenu->EnableMenuItem( 4, MF_BYPOSITION | MF_ENABLED ); 
-		pMenu->EnableMenuItem( 5, MF_BYPOSITION | MF_ENABLED ); 
+		pMenu->EnableMenuItem( 1, MF_BYPOSITION | MF_ENABLED );
+		pMenu->EnableMenuItem( 2, MF_BYPOSITION | MF_ENABLED );
+		pMenu->EnableMenuItem( 3, MF_BYPOSITION | MF_ENABLED );
+		pMenu->EnableMenuItem( 4, MF_BYPOSITION | MF_ENABLED );
+		pMenu->EnableMenuItem( 5, MF_BYPOSITION | MF_ENABLED );
 		CMenu* submenu = pMenu->GetSubMenu(0);	// "File" submenu
-		submenu->EnableMenuItem( ID_FILE_SAVE, MF_BYCOMMAND | MF_ENABLED );	
-		submenu->EnableMenuItem( ID_FILE_SAVE_AS, MF_BYCOMMAND | MF_ENABLED );	
-		submenu->EnableMenuItem( ID_FILE_CLOSE, MF_BYCOMMAND | MF_ENABLED );	
-		submenu->EnableMenuItem( ID_FILE_IMPORT, MF_BYCOMMAND | MF_ENABLED );	
-		submenu->EnableMenuItem( ID_FILE_EXPORTNETLIST, MF_BYCOMMAND | MF_ENABLED );	
-		submenu->EnableMenuItem( ID_FILE_GENERATECADFILES, MF_BYCOMMAND | MF_ENABLED );	
-		submenu->EnableMenuItem( ID_FILE_GENERATEREPORTFILE, MF_BYCOMMAND | MF_ENABLED );	
-		submenu->EnableMenuItem( ID_DSN_FILE_EXPORT, MF_BYCOMMAND | MF_ENABLED );	
-		submenu->EnableMenuItem( ID_SES_FILE_IMPORT, MF_BYCOMMAND | MF_ENABLED );	
+		submenu->EnableMenuItem( ID_FILE_SAVE, MF_BYCOMMAND | MF_ENABLED );
+		submenu->EnableMenuItem( ID_FILE_SAVE_AS, MF_BYCOMMAND | MF_ENABLED );
+		submenu->EnableMenuItem( ID_FILE_CLOSE, MF_BYCOMMAND | MF_ENABLED );
+		submenu->EnableMenuItem( ID_FILE_IMPORT, MF_BYCOMMAND | MF_ENABLED );
+		submenu->EnableMenuItem( ID_FILE_EXPORTNETLIST, MF_BYCOMMAND | MF_ENABLED );
+		submenu->EnableMenuItem( ID_FILE_GENERATECADFILES, MF_BYCOMMAND | MF_ENABLED );
+		submenu->EnableMenuItem( ID_FILE_GENERATEREPORTFILE, MF_BYCOMMAND | MF_ENABLED );
+		submenu->EnableMenuItem( ID_DSN_FILE_EXPORT, MF_BYCOMMAND | MF_ENABLED );
+		submenu->EnableMenuItem( ID_SES_FILE_IMPORT, MF_BYCOMMAND | MF_ENABLED );
 		submenu = pMenu->GetSubMenu(1);	// "Edit" submenu
-		submenu->EnableMenuItem( ID_EDIT_COPY, MF_BYCOMMAND | MF_DISABLED | MF_GRAYED );	
-		submenu->EnableMenuItem( ID_EDIT_CUT, MF_BYCOMMAND | MF_DISABLED | MF_GRAYED );	
-		submenu->EnableMenuItem( ID_EDIT_PASTE, MF_BYCOMMAND | MF_DISABLED | MF_GRAYED );	
-		submenu->EnableMenuItem( ID_EDIT_UNDO, MF_BYCOMMAND | MF_DISABLED | MF_GRAYED );	
-		submenu->EnableMenuItem( ID_EDIT_REDO, MF_BYCOMMAND | MF_DISABLED | MF_GRAYED );	
+		submenu->EnableMenuItem( ID_EDIT_COPY, MF_BYCOMMAND | MF_DISABLED | MF_GRAYED );
+		submenu->EnableMenuItem( ID_EDIT_CUT, MF_BYCOMMAND | MF_DISABLED | MF_GRAYED );
+		submenu->EnableMenuItem( ID_EDIT_PASTE, MF_BYCOMMAND | MF_DISABLED | MF_GRAYED );
+		submenu->EnableMenuItem( ID_EDIT_UNDO, MF_BYCOMMAND | MF_DISABLED | MF_GRAYED );
+		submenu->EnableMenuItem( ID_EDIT_REDO, MF_BYCOMMAND | MF_DISABLED | MF_GRAYED );
 		pMain->DrawMenuBar();
 
 		// set options from dialog
@@ -356,10 +360,12 @@ void CFreePcbDoc::OnFileNew()
 		m_nlist->SetNumCopperLayers( m_num_copper_layers );
 		m_nlist->SetSMTconnect( m_bSMT_copper_connect );
 		m_num_layers = m_num_copper_layers + LAY_TOP_COPPER;
+		m_ratline_w = dlg.GetRatlineWidth();
 		m_trace_w = dlg.GetTraceWidth();
+		m_clearance.m_ca_clearance.Set(dlg.GetCopperAreaClearance());
 		m_via_w = dlg.GetViaWidth();
 		m_via_hole_w = dlg.GetViaHoleWidth();
-		m_nlist->SetWidths( m_trace_w, m_via_w, m_via_hole_w );
+		m_nlist->SetWidths( m_trace_w, m_via_w, m_via_hole_w, m_clearance );
 		for( int i=0; i<m_num_layers; i++ )
 		{
 			m_vis[i] = 1;
@@ -401,8 +407,8 @@ void CFreePcbDoc::OnFileOpen()
 
 	// get project file name
 	// force old-style file dialog by setting size of OPENFILENAME struct (for Win98)
-	CFileDialog dlg( 1, "fpc", LPCTSTR(m_pcb_filename), 0, 
-		"PCB files (*.fpc)|*.fpc|All Files (*.*)|*.*||", 
+	CFileDialog dlg( 1, "fpc", LPCTSTR(m_pcb_filename), 0,
+		"PCB files (*.fpc)|*.fpc|All Files (*.*)|*.*||",
 		NULL, OPENFILENAME_SIZE_VERSION_400 );
 	dlg.AssertValid();
 
@@ -450,7 +456,7 @@ void CFreePcbDoc::FileOpen( CString * fn )
 	// if another file open, offer to save before closing
 	if( FileClose() == IDCANCEL )
 		return;		// file close cancelled
-	
+
 	// reset before opening new project
 	m_view->CancelSelection();
 	InitializeNewProject();		// set defaults
@@ -490,7 +496,7 @@ void CFreePcbDoc::FileOpen( CString * fn )
 			CString fullpath;
 			char full[MAX_PATH];
 			fullpath = _fullpath( full, (LPCSTR)m_lib_dir, MAX_PATH );
-			if( fullpath[fullpath.GetLength()-1] == '\\' )	
+			if( fullpath[fullpath.GetLength()-1] == '\\' )
 				fullpath = fullpath.Left(fullpath.GetLength()-1);
 			m_full_lib_dir = fullpath;
 		}
@@ -518,27 +524,27 @@ void CFreePcbDoc::FileOpen( CString * fn )
 		if (pMain != NULL)
 		{
 			CMenu* pMenu = pMain->GetMenu();
-			pMenu->EnableMenuItem( 1, MF_BYPOSITION | MF_ENABLED ); 
-			pMenu->EnableMenuItem( 2, MF_BYPOSITION | MF_ENABLED ); 
-			pMenu->EnableMenuItem( 3, MF_BYPOSITION | MF_ENABLED ); 
-			pMenu->EnableMenuItem( 4, MF_BYPOSITION | MF_ENABLED ); 
-			pMenu->EnableMenuItem( 5, MF_BYPOSITION | MF_ENABLED ); 
+			pMenu->EnableMenuItem( 1, MF_BYPOSITION | MF_ENABLED );
+			pMenu->EnableMenuItem( 2, MF_BYPOSITION | MF_ENABLED );
+			pMenu->EnableMenuItem( 3, MF_BYPOSITION | MF_ENABLED );
+			pMenu->EnableMenuItem( 4, MF_BYPOSITION | MF_ENABLED );
+			pMenu->EnableMenuItem( 5, MF_BYPOSITION | MF_ENABLED );
 			CMenu* submenu = pMenu->GetSubMenu(0);	// "File" submenu
-			submenu->EnableMenuItem( ID_FILE_SAVE, MF_BYCOMMAND | MF_ENABLED );	
-			submenu->EnableMenuItem( ID_FILE_SAVE_AS, MF_BYCOMMAND | MF_ENABLED );	
-			submenu->EnableMenuItem( ID_FILE_CLOSE, MF_BYCOMMAND | MF_ENABLED );	
-			submenu->EnableMenuItem( ID_FILE_IMPORT, MF_BYCOMMAND | MF_ENABLED );	
-			submenu->EnableMenuItem( ID_FILE_EXPORTNETLIST, MF_BYCOMMAND | MF_ENABLED );	
-			submenu->EnableMenuItem( ID_FILE_GENERATECADFILES, MF_BYCOMMAND | MF_ENABLED );	
-			submenu->EnableMenuItem( ID_FILE_GENERATEREPORTFILE, MF_BYCOMMAND | MF_ENABLED );	
-			submenu->EnableMenuItem( ID_DSN_FILE_EXPORT, MF_BYCOMMAND | MF_ENABLED );	
-			submenu->EnableMenuItem( ID_SES_FILE_IMPORT, MF_BYCOMMAND | MF_ENABLED );	
+			submenu->EnableMenuItem( ID_FILE_SAVE, MF_BYCOMMAND | MF_ENABLED );
+			submenu->EnableMenuItem( ID_FILE_SAVE_AS, MF_BYCOMMAND | MF_ENABLED );
+			submenu->EnableMenuItem( ID_FILE_CLOSE, MF_BYCOMMAND | MF_ENABLED );
+			submenu->EnableMenuItem( ID_FILE_IMPORT, MF_BYCOMMAND | MF_ENABLED );
+			submenu->EnableMenuItem( ID_FILE_EXPORTNETLIST, MF_BYCOMMAND | MF_ENABLED );
+			submenu->EnableMenuItem( ID_FILE_GENERATECADFILES, MF_BYCOMMAND | MF_ENABLED );
+			submenu->EnableMenuItem( ID_FILE_GENERATEREPORTFILE, MF_BYCOMMAND | MF_ENABLED );
+			submenu->EnableMenuItem( ID_DSN_FILE_EXPORT, MF_BYCOMMAND | MF_ENABLED );
+			submenu->EnableMenuItem( ID_SES_FILE_IMPORT, MF_BYCOMMAND | MF_ENABLED );
 			submenu = pMenu->GetSubMenu(1);	// "Edit" submenu
-			submenu->EnableMenuItem( ID_EDIT_COPY, MF_BYCOMMAND | MF_DISABLED | MF_GRAYED );	
-			submenu->EnableMenuItem( ID_EDIT_CUT, MF_BYCOMMAND | MF_DISABLED | MF_GRAYED );	
-			submenu->EnableMenuItem( ID_EDIT_PASTE, MF_BYCOMMAND | MF_DISABLED | MF_GRAYED );	
-			submenu->EnableMenuItem( ID_EDIT_UNDO, MF_BYCOMMAND | MF_DISABLED | MF_GRAYED );	
-			submenu->EnableMenuItem( ID_EDIT_REDO, MF_BYCOMMAND | MF_DISABLED | MF_GRAYED );	
+			submenu->EnableMenuItem( ID_EDIT_COPY, MF_BYCOMMAND | MF_DISABLED | MF_GRAYED );
+			submenu->EnableMenuItem( ID_EDIT_CUT, MF_BYCOMMAND | MF_DISABLED | MF_GRAYED );
+			submenu->EnableMenuItem( ID_EDIT_PASTE, MF_BYCOMMAND | MF_DISABLED | MF_GRAYED );
+			submenu->EnableMenuItem( ID_EDIT_UNDO, MF_BYCOMMAND | MF_DISABLED | MF_GRAYED );
+			submenu->EnableMenuItem( ID_EDIT_REDO, MF_BYCOMMAND | MF_DISABLED | MF_GRAYED );
 			pMain->DrawMenuBar();
 		}
 		m_project_open = TRUE;
@@ -628,27 +634,27 @@ int CFreePcbDoc::FileClose()
 	if (pMain != NULL)
 	{
 		CMenu* pMenu = pMain->GetMenu();
-		pMenu->EnableMenuItem( 1, MF_BYPOSITION | MF_DISABLED | MF_GRAYED ); 
-		pMenu->EnableMenuItem( 2, MF_BYPOSITION | MF_DISABLED | MF_GRAYED ); 
-		pMenu->EnableMenuItem( 3, MF_BYPOSITION | MF_DISABLED | MF_GRAYED ); 
-		pMenu->EnableMenuItem( 4, MF_BYPOSITION | MF_DISABLED | MF_GRAYED ); 
-		pMenu->EnableMenuItem( 5, MF_BYPOSITION | MF_DISABLED | MF_GRAYED ); 
+		pMenu->EnableMenuItem( 1, MF_BYPOSITION | MF_DISABLED | MF_GRAYED );
+		pMenu->EnableMenuItem( 2, MF_BYPOSITION | MF_DISABLED | MF_GRAYED );
+		pMenu->EnableMenuItem( 3, MF_BYPOSITION | MF_DISABLED | MF_GRAYED );
+		pMenu->EnableMenuItem( 4, MF_BYPOSITION | MF_DISABLED | MF_GRAYED );
+		pMenu->EnableMenuItem( 5, MF_BYPOSITION | MF_DISABLED | MF_GRAYED );
 		CMenu* submenu = pMenu->GetSubMenu(0);	// "File" submenu
-		submenu->EnableMenuItem( ID_FILE_SAVE, MF_BYCOMMAND | MF_DISABLED | MF_GRAYED );	
-		submenu->EnableMenuItem( ID_FILE_SAVE_AS, MF_BYCOMMAND | MF_DISABLED | MF_GRAYED );	
-		submenu->EnableMenuItem( ID_FILE_CLOSE, MF_BYCOMMAND | MF_DISABLED | MF_GRAYED );	
-		submenu->EnableMenuItem( ID_FILE_IMPORT, MF_BYCOMMAND | MF_DISABLED | MF_GRAYED );	
-		submenu->EnableMenuItem( ID_FILE_EXPORTNETLIST, MF_BYCOMMAND | MF_DISABLED | MF_GRAYED );	
-		submenu->EnableMenuItem( ID_FILE_GENERATECADFILES, MF_BYCOMMAND | MF_DISABLED | MF_GRAYED );	
-		submenu->EnableMenuItem( ID_FILE_GENERATEREPORTFILE, MF_BYCOMMAND | MF_DISABLED | MF_GRAYED );	
-		submenu->EnableMenuItem( ID_DSN_FILE_EXPORT, MF_BYCOMMAND | MF_DISABLED | MF_GRAYED );	
-		submenu->EnableMenuItem( ID_SES_FILE_IMPORT, MF_BYCOMMAND | MF_DISABLED | MF_GRAYED );	
+		submenu->EnableMenuItem( ID_FILE_SAVE, MF_BYCOMMAND | MF_DISABLED | MF_GRAYED );
+		submenu->EnableMenuItem( ID_FILE_SAVE_AS, MF_BYCOMMAND | MF_DISABLED | MF_GRAYED );
+		submenu->EnableMenuItem( ID_FILE_CLOSE, MF_BYCOMMAND | MF_DISABLED | MF_GRAYED );
+		submenu->EnableMenuItem( ID_FILE_IMPORT, MF_BYCOMMAND | MF_DISABLED | MF_GRAYED );
+		submenu->EnableMenuItem( ID_FILE_EXPORTNETLIST, MF_BYCOMMAND | MF_DISABLED | MF_GRAYED );
+		submenu->EnableMenuItem( ID_FILE_GENERATECADFILES, MF_BYCOMMAND | MF_DISABLED | MF_GRAYED );
+		submenu->EnableMenuItem( ID_FILE_GENERATEREPORTFILE, MF_BYCOMMAND | MF_DISABLED | MF_GRAYED );
+		submenu->EnableMenuItem( ID_DSN_FILE_EXPORT, MF_BYCOMMAND | MF_DISABLED | MF_GRAYED );
+		submenu->EnableMenuItem( ID_SES_FILE_IMPORT, MF_BYCOMMAND | MF_DISABLED | MF_GRAYED );
 		submenu = pMenu->GetSubMenu(1);	// "Edit" submenu
-		submenu->EnableMenuItem( ID_EDIT_COPY, MF_BYCOMMAND | MF_DISABLED | MF_GRAYED );	
-		submenu->EnableMenuItem( ID_EDIT_CUT, MF_BYCOMMAND | MF_DISABLED | MF_GRAYED );	
-		submenu->EnableMenuItem( ID_EDIT_PASTE, MF_BYCOMMAND | MF_DISABLED | MF_GRAYED );	
-		submenu->EnableMenuItem( ID_EDIT_UNDO, MF_BYCOMMAND | MF_DISABLED | MF_GRAYED );	
-		submenu->EnableMenuItem( ID_EDIT_REDO, MF_BYCOMMAND | MF_DISABLED | MF_GRAYED );	
+		submenu->EnableMenuItem( ID_EDIT_COPY, MF_BYCOMMAND | MF_DISABLED | MF_GRAYED );
+		submenu->EnableMenuItem( ID_EDIT_CUT, MF_BYCOMMAND | MF_DISABLED | MF_GRAYED );
+		submenu->EnableMenuItem( ID_EDIT_PASTE, MF_BYCOMMAND | MF_DISABLED | MF_GRAYED );
+		submenu->EnableMenuItem( ID_EDIT_UNDO, MF_BYCOMMAND | MF_DISABLED | MF_GRAYED );
+		submenu->EnableMenuItem( ID_EDIT_REDO, MF_BYCOMMAND | MF_DISABLED | MF_GRAYED );
 		pMain->DrawMenuBar();
 	}
 
@@ -667,7 +673,7 @@ int CFreePcbDoc::FileClose()
 	return IDOK;
 }
 
-void CFreePcbDoc::OnFileSave() 
+void CFreePcbDoc::OnFileSave()
 {
 	if( theApp.m_view_mode == CFreePcbApp::FOOTPRINT )
 	{
@@ -751,9 +757,9 @@ BOOL CFreePcbDoc::AutoSave()
 // make backup if the new file has the same path and filename as the old file
 // returns TRUE if successful, FALSE if fails
 //
-BOOL CFreePcbDoc::FileSave( CString * folder, CString * filename, 
+BOOL CFreePcbDoc::FileSave( CString * folder, CString * filename,
 						   CString * old_folder, CString * old_filename,
-						   BOOL bBackup ) 
+						   BOOL bBackup )
 {
 	if( !m_project_open )
 		return FALSE;
@@ -777,7 +783,7 @@ BOOL CFreePcbDoc::FileSave( CString * folder, CString * filename,
 	{
 		// error opening file
 		CString mess;
-		mess.Format( "Unable to open file \"%s\"", full_path ); 
+		mess.Format( "Unable to open file \"%s\"", full_path );
 		AfxMessageBox( mess );
 		return FALSE;
 	}
@@ -813,10 +819,10 @@ BOOL CFreePcbDoc::FileSave( CString * folder, CString * filename,
 	return TRUE;
 }
 
-void CFreePcbDoc::OnFileSaveAs() 
+void CFreePcbDoc::OnFileSaveAs()
 {
 	// force old-style file dialog by setting size of OPENFILENAME struct
-	CFileDialog dlg( 0, "fpc", LPCTSTR(m_pcb_filename), 0, 
+	CFileDialog dlg( 0, "fpc", LPCTSTR(m_pcb_filename), 0,
 		"PCB files (*.fpc)|*.fpc|All Files (*.*)|*.*||",
 		NULL, OPENFILENAME_SIZE_VERSION_400 );
 	OPENFILENAME  * myOFN = dlg.m_pOFN;
@@ -866,7 +872,7 @@ void CFreePcbDoc::OnAddPart()
 	CDlgAddPart dlg;
 	partlist_info pl;
 	m_plist->ExportPartListInfo( &pl, NULL );
-	dlg.Initialize( &pl, -1, TRUE, TRUE, FALSE, 0, &m_footprint_cache_map, 
+	dlg.Initialize( &pl, -1, TRUE, TRUE, FALSE, 0, &m_footprint_cache_map,
 		&m_footlibfoldermap, m_units, m_dlg_log );
 	int ret = dlg.DoModal();
 	if( ret == IDOK )
@@ -876,7 +882,7 @@ void CFreePcbDoc::OnAddPart()
 		int n_parts = pl.GetSize();
 		cpart * part = m_plist->GetPart( pl[n_parts-1].ref_des );
 		ProjectModified( TRUE );
-		m_view->SaveUndoInfoForPart( part, 
+		m_view->SaveUndoInfoForPart( part,
 			CPartList::UNDO_PART_ADD, &part->ref_des, TRUE, m_undo_list );
 		m_view->SelectPart( part );
 		if( dlg.GetDragFlag() )
@@ -939,7 +945,7 @@ CShape * CFreePcbDoc::GetFootprintPtr( CString name )
 	if( err )
 	{
 		// found in cache
-		return (CShape*)ptr; 
+		return (CShape*)ptr;
 	}
 	else
 	{
@@ -961,7 +967,7 @@ CShape * CFreePcbDoc::GetFootprintPtr( CString name )
 			// make shape from library file and put into cache
 			CShape * shape = new CShape;
 			CString lib_name = *project_footlibfolder->GetFullPath();
-			err = shape->MakeFromFile( NULL, name, file_name, offset ); 
+			err = shape->MakeFromFile( NULL, name, file_name, offset );
 			if( err )
 			{
 				// failed
@@ -984,7 +990,7 @@ CShape * CFreePcbDoc::GetFootprintPtr( CString name )
 
 // read shapes from file
 //
-void CFreePcbDoc::ReadFootprints( CStdioFile * pcb_file, 
+void CFreePcbDoc::ReadFootprints( CStdioFile * pcb_file,
 								  CMapStringToPtr * cache_map )
 {
 	// set up cache map to use
@@ -1102,7 +1108,7 @@ void CFreePcbDoc::WriteBoardOutline( CStdioFile * file, CArray<CPolyLine> * bbd 
 		if( e->m_lOsError == -1 )
 			err_str->Format( "File error: %d\n", e->m_cause );
 		else
-			err_str->Format( "File error: %d %ld (%s)\n", 
+			err_str->Format( "File error: %d %ld (%s)\n",
 				e->m_cause, e->m_lOsError, _sys_errlist[e->m_lOsError] );
 		*err_str = "CFreePcbDoc::WriteBoardOutline()\n" + *err_str;
 		throw err_str;
@@ -1144,7 +1150,7 @@ void CFreePcbDoc::WriteSolderMaskCutouts( CStdioFile * file, CArray<CPolyLine> *
 		if( e->m_lOsError == -1 )
 			err_str->Format( "File error: %d\n", e->m_cause );
 		else
-			err_str->Format( "File error: %d %ld (%s)\n", 
+			err_str->Format( "File error: %d %ld (%s)\n",
 				e->m_cause, e->m_lOsError, _sys_errlist[e->m_lOsError] );
 		*err_str = "CFreePcbDoc::WriteSolderMaskCutouts()\n" + *err_str;
 		throw err_str;
@@ -1243,7 +1249,7 @@ void CFreePcbDoc::ReadBoardOutline( CStdioFile * pcb_file, CArray<CPolyLine> * b
 						else
 							(*bd)[ib].SetDisplayList( m_dlist );
 						id bid( ID_BOARD, ID_BOARD_OUTLINE, ib );
-						(*bd)[ib].Start( LAY_BOARD_OUTLINE, 1, 20*NM_PER_MIL, x, y, 
+						(*bd)[ib].Start( LAY_BOARD_OUTLINE, 1, 20*NM_PER_MIL, x, y,
 							0, &bid, NULL );
 					}
 					else
@@ -1264,7 +1270,7 @@ void CFreePcbDoc::ReadBoardOutline( CStdioFile * pcb_file, CArray<CPolyLine> * b
 		if( e->m_lOsError == -1 )
 			err_str->Format( "File error: %d\n", e->m_cause );
 		else
-			err_str->Format( "File error: %d %ld (%s)\n", 
+			err_str->Format( "File error: %d %ld (%s)\n",
 				e->m_cause, e->m_lOsError, _sys_errlist[e->m_lOsError] );
 		*err_str = "CFreePcbDoc::WriteBoardOutline()\n" + *err_str;
 		throw err_str;
@@ -1330,7 +1336,7 @@ void CFreePcbDoc::ReadSolderMaskCutouts( CStdioFile * pcb_file, CArray<CPolyLine
 			np = ParseKeyString( &in_str, &key_str, &p );
 			if( np && key_str == "sm_cutout" )
 			{
-				if( np < 4 ) 
+				if( np < 4 )
 				{
 					CString * err_str = new CString( "error parsing [solder_mask_cutouts] section of project file" );
 					throw err_str;
@@ -1365,7 +1371,7 @@ void CFreePcbDoc::ReadSolderMaskCutouts( CStdioFile * pcb_file, CArray<CPolyLine
 					id id_sm( ID_SM_CUTOUT, ID_SM_CUTOUT, ic );
 					if( icor == 0 )
 					{
-						// make new cutout 
+						// make new cutout
 						(*sm)[ic].Start( lay, 0, 10*NM_PER_MIL, x, y, hatch, &id_sm, NULL );
 						if( ssm )
 							(*sm)[ic].SetDisplayList( NULL );
@@ -1390,7 +1396,7 @@ void CFreePcbDoc::ReadSolderMaskCutouts( CStdioFile * pcb_file, CArray<CPolyLine
 		if( e->m_lOsError == -1 )
 			err_str->Format( "File error: %d\n", e->m_cause );
 		else
-			err_str->Format( "File error: %d %ld (%s)\n", 
+			err_str->Format( "File error: %d %ld (%s)\n",
 				e->m_cause, e->m_lOsError, _sys_errlist[e->m_lOsError] );
 		*err_str = "CFreePcbDoc::ReadSolderMaskCutouts()\n" + *err_str;
 		throw err_str;
@@ -1422,6 +1428,11 @@ void CFreePcbDoc::ReadOptions( CStdioFile * pcb_file )
 	m_bSMT_copper_connect = FALSE;
 	m_default_glue_w = 25*NM_PER_MIL;
 	m_report_flags = 0;
+
+	for( int layer=(MAX_LAYERS-1); layer>=0; layer-- )
+	{
+		m_vis[layer] = 0;
+	}
 
 	try
 	{
@@ -1473,7 +1484,7 @@ void CFreePcbDoc::ReadOptions( CStdioFile * pcb_file )
 				if( file_version > m_version )
 				{
 					CString mess;
-					mess.Format( "Warning: the file version is %5.3f\n\nYou are running an earlier FreePCB version %5.3f", 
+					mess.Format( "Warning: the file version is %5.3f\n\nYou are running an earlier FreePCB version %5.3f",
 						file_version, m_version );
 					mess += "\n\nErrors may occur\n\nClick on OK to continue reading or CANCEL to cancel";
 					int ret = AfxMessageBox( mess, MB_OKCANCEL );
@@ -1535,6 +1546,10 @@ void CFreePcbDoc::ReadOptions( CStdioFile * pcb_file )
 				m_plist->SetNumCopperLayers( m_num_copper_layers );
 				m_nlist->SetNumCopperLayers( m_num_copper_layers );
 				m_num_layers = m_num_copper_layers + LAY_TOP_COPPER;
+			}
+			else if( np && key_str == "ratline_width" )
+			{
+				SetRatlineWidth( my_atoi( &p[0] ), TRUE );
 			}
 			else if( np && key_str == "autosave_interval" )
 			{
@@ -1650,9 +1665,11 @@ void CFreePcbDoc::ReadOptions( CStdioFile * pcb_file )
 				m_fp_snap_angle = my_atof( &p[0] );
 			}
 			// CAM stuff
-			else if( np && key_str == "fill_clearance" )
+			else if( np && ( key_str == "fill_clearance" || key_str == "default_ca_clearance" ) )
 			{
-				m_fill_clearance = my_atoi( &p[0] );
+				// Accept both for backward compatibility
+				m_clearance.m_ca_clearance.Set( my_atoi( &p[0] ) );
+				m_nlist->SetWidths( m_trace_w, m_via_w, m_via_hole_w, m_clearance );
 			}
 			else if( np && key_str == "mask_clearance" )
 			{
@@ -1661,6 +1678,10 @@ void CFreePcbDoc::ReadOptions( CStdioFile * pcb_file )
 			else if( np && key_str == "thermal_width" )
 			{
 				m_thermal_width = my_atoi( &p[0] );
+			}
+			else if( np && key_str == "thermal_clearance" )
+			{
+				m_thermal_clearance = my_atoi( &p[0] );
 			}
 			else if( np && key_str == "min_silkscreen_width" )
 			{
@@ -1778,17 +1799,17 @@ void CFreePcbDoc::ReadOptions( CStdioFile * pcb_file )
 			else if( np && key_str == "default_trace_width" )
 			{
 				m_trace_w = my_atoi( &p[0] );
-				m_nlist->SetWidths( m_trace_w, m_via_w, m_via_hole_w );
+				m_nlist->SetWidths( m_trace_w, m_via_w, m_via_hole_w, m_clearance );
 			}
 			else if( np && key_str == "default_via_pad_width" )
 			{
 				m_via_w = my_atoi( &p[0] );
-				m_nlist->SetWidths( m_trace_w, m_via_w, m_via_hole_w );
+				m_nlist->SetWidths( m_trace_w, m_via_w, m_via_hole_w, m_clearance );
 			}
 			else if( np && key_str == "default_via_hole_width" )
 			{
 				m_via_hole_w = my_atoi( &p[0] );
-				m_nlist->SetWidths( m_trace_w, m_via_w, m_via_hole_w );
+				m_nlist->SetWidths( m_trace_w, m_via_w, m_via_hole_w, m_clearance );
 			}
 			else if( np && key_str == "n_width_menu" )
 			{
@@ -1876,7 +1897,7 @@ void CFreePcbDoc::ReadOptions( CStdioFile * pcb_file )
 		if( e->m_lOsError == -1 )
 			err_str->Format( "File error: %d\n", e->m_cause );
 		else
-			err_str->Format( "File error: %d %ld (%s)\n", 
+			err_str->Format( "File error: %d %ld (%s)\n",
 				e->m_cause, e->m_lOsError, _sys_errlist[e->m_lOsError] );
 		*err_str = "CFreePcbDoc::WriteOptions()\n" + *err_str;
 		throw err_str;
@@ -1990,11 +2011,15 @@ void CFreePcbDoc::WriteOptions( CStdioFile * file )
 		line.Format( "fp_snap_angle: %d\n", m_fp_snap_angle );
 		file->WriteString( line );
 		file->WriteString( "\n" );
-		line.Format( "fill_clearance: %d\n", m_fill_clearance );
+
+		// Write "fill_clearance" for backwards compatibility
+		line.Format( "fill_clearance: %d\n", m_clearance.m_ca_clearance.m_val );
 		file->WriteString( line );
 		line.Format( "mask_clearance: %d\n", m_mask_clearance );
 		file->WriteString( line );
 		line.Format( "thermal_width: %d\n", m_thermal_width );
+		file->WriteString( line );
+		line.Format( "thermal_clearance: %d\n", (int)m_thermal_clearance ); //must cast here
 		file->WriteString( line );
 		line.Format( "min_silkscreen_width: %d\n", m_min_silkscreen_stroke_wid );
 		file->WriteString( line );
@@ -2063,6 +2088,10 @@ void CFreePcbDoc::WriteOptions( CStdioFile * file )
 		file->WriteString( line );
 		line.Format( "default_via_hole_width: %d\n", m_via_hole_w );
 		file->WriteString( line );
+		line.Format( "default_ca_clearance: %d\n", m_clearance.m_ca_clearance.m_val );
+		file->WriteString( line );
+		file->WriteString( "\n" );
+
 		line.Format( "n_width_menu: %d\n", m_w.GetSize() );
 		file->WriteString( line );
 		for( int i=0; i<m_w.GetSize(); i++ )
@@ -2071,6 +2100,7 @@ void CFreePcbDoc::WriteOptions( CStdioFile * file )
 			file->WriteString( line );
 		}
 		file->WriteString( "\n" );
+
 		line.Format( "n_copper_layers: %d\n", m_num_copper_layers );
 		file->WriteString( line );
 		for( int i=0; i<(LAY_TOP_COPPER+m_num_copper_layers); i++ )
@@ -2081,6 +2111,11 @@ void CFreePcbDoc::WriteOptions( CStdioFile * file )
 			file->WriteString( line );
 		}
 		file->WriteString( "\n" );
+
+		line.Format( "ratline_width: %d\n", m_ratline_w );
+		file->WriteString( line );
+		file->WriteString( "\n\n" );
+
 		return;
 	}
 	catch( CFileException * e )
@@ -2089,7 +2124,7 @@ void CFreePcbDoc::WriteOptions( CStdioFile * file )
 		if( e->m_lOsError == -1 )
 			err_str->Format( "File error: %d\n", e->m_cause );
 		else
-			err_str->Format( "File error: %d %ld (%s)\n", 
+			err_str->Format( "File error: %d %ld (%s)\n",
 				e->m_cause, e->m_lOsError, _sys_errlist[e->m_lOsError] );
 		*err_str = "CFreePcbDoc::WriteBoardOutline()\n" + *err_str;
 		throw err_str;
@@ -2118,74 +2153,77 @@ void CFreePcbDoc::InitializeNewProject()
 	m_auto_interval = 0;
 	m_sm_cutout.RemoveAll();
 
+	// Ratline width
+	SetRatlineWidth( 10 * NM_PER_MIL, TRUE );
+
 	// colors for layers
 	for( int i=0; i<MAX_LAYERS; i++ )
 	{
 		m_vis[i] = 0;
-		m_rgb[i][0] = 127; 
-		m_rgb[i][1] = 127; 
+		m_rgb[i][0] = 127;
+		m_rgb[i][1] = 127;
 		m_rgb[i][2] = 127;			// default grey
 	}
-	m_rgb[LAY_BACKGND][0] = 0; 
-	m_rgb[LAY_BACKGND][1] = 0; 
+	m_rgb[LAY_BACKGND][0] = 0;
+	m_rgb[LAY_BACKGND][1] = 0;
 	m_rgb[LAY_BACKGND][2] = 0;			// background BLACK
-	m_rgb[LAY_VISIBLE_GRID][0] = 255; 
-	m_rgb[LAY_VISIBLE_GRID][1] = 255; 
-	m_rgb[LAY_VISIBLE_GRID][2] = 255;	// visible grid WHITE 
-	m_rgb[LAY_HILITE][0] = 255; 
-	m_rgb[LAY_HILITE][1] = 255; 
+	m_rgb[LAY_VISIBLE_GRID][0] = 255;
+	m_rgb[LAY_VISIBLE_GRID][1] = 255;
+	m_rgb[LAY_VISIBLE_GRID][2] = 255;	// visible grid WHITE
+	m_rgb[LAY_HILITE][0] = 255;
+	m_rgb[LAY_HILITE][1] = 255;
 	m_rgb[LAY_HILITE][2] = 255;			//highlight WHITE
-	m_rgb[LAY_DRC_ERROR][0] = 255; 
-	m_rgb[LAY_DRC_ERROR][1] = 128; 
+	m_rgb[LAY_DRC_ERROR][0] = 255;
+	m_rgb[LAY_DRC_ERROR][1] = 128;
 	m_rgb[LAY_DRC_ERROR][2] = 64;		// DRC error ORANGE
-	m_rgb[LAY_BOARD_OUTLINE][0] = 0; 
-	m_rgb[LAY_BOARD_OUTLINE][1] = 0; 
+	m_rgb[LAY_BOARD_OUTLINE][0] = 0;
+	m_rgb[LAY_BOARD_OUTLINE][1] = 0;
 	m_rgb[LAY_BOARD_OUTLINE][2] = 255;	//board outline BLUE
-	m_rgb[LAY_SELECTION][0] = 255; 
-	m_rgb[LAY_SELECTION][1] = 255; 
+	m_rgb[LAY_SELECTION][0] = 255;
+	m_rgb[LAY_SELECTION][1] = 255;
 	m_rgb[LAY_SELECTION][2] = 255;		//selection WHITE
-	m_rgb[LAY_SILK_TOP][0] = 255; 
-	m_rgb[LAY_SILK_TOP][1] = 255; 
+	m_rgb[LAY_SILK_TOP][0] = 255;
+	m_rgb[LAY_SILK_TOP][1] = 255;
 	m_rgb[LAY_SILK_TOP][2] =   0;		//top silk YELLOW
-	m_rgb[LAY_SILK_BOTTOM][0] = 255; 
-	m_rgb[LAY_SILK_BOTTOM][1] = 192; 
+	m_rgb[LAY_SILK_BOTTOM][0] = 255;
+	m_rgb[LAY_SILK_BOTTOM][1] = 192;
 	m_rgb[LAY_SILK_BOTTOM][2] = 192;	//bottom silk PINK
-	m_rgb[LAY_SM_TOP][0] =   160; 
-	m_rgb[LAY_SM_TOP][1] =   160; 
+	m_rgb[LAY_SM_TOP][0] =   160;
+	m_rgb[LAY_SM_TOP][1] =   160;
 	m_rgb[LAY_SM_TOP][2] =   160;		//top solder mask cutouts LIGHT GREY
-	m_rgb[LAY_SM_BOTTOM][0] = 95; 
-	m_rgb[LAY_SM_BOTTOM][1] = 95; 
+	m_rgb[LAY_SM_BOTTOM][0] = 95;
+	m_rgb[LAY_SM_BOTTOM][1] = 95;
 	m_rgb[LAY_SM_BOTTOM][2] = 95;	//bottom solder mask cutouts DARK GREY
-	m_rgb[LAY_PAD_THRU][0] =   0; 
-	m_rgb[LAY_PAD_THRU][1] =   0; 
+	m_rgb[LAY_PAD_THRU][0] =   0;
+	m_rgb[LAY_PAD_THRU][1] =   0;
 	m_rgb[LAY_PAD_THRU][2] = 255;		//thru-hole pads BLUE
-	m_rgb[LAY_RAT_LINE][0] = 255; 
-	m_rgb[LAY_RAT_LINE][1] = 0; 
+	m_rgb[LAY_RAT_LINE][0] = 255;
+	m_rgb[LAY_RAT_LINE][1] = 0;
 	m_rgb[LAY_RAT_LINE][2] = 255;		//ratlines VIOLET
-	m_rgb[LAY_TOP_COPPER][0] =   0; 
-	m_rgb[LAY_TOP_COPPER][1] = 255; 
+	m_rgb[LAY_TOP_COPPER][0] =   0;
+	m_rgb[LAY_TOP_COPPER][1] = 255;
 	m_rgb[LAY_TOP_COPPER][2] =   0;		//top copper GREEN
-	m_rgb[LAY_BOTTOM_COPPER][0] = 255; 
-	m_rgb[LAY_BOTTOM_COPPER][1] =   0; 
+	m_rgb[LAY_BOTTOM_COPPER][0] = 255;
+	m_rgb[LAY_BOTTOM_COPPER][1] =   0;
 	m_rgb[LAY_BOTTOM_COPPER][2] =   0;	//bottom copper RED
-	m_rgb[LAY_BOTTOM_COPPER+1][0] = 64; 
-	m_rgb[LAY_BOTTOM_COPPER+1][1] = 128; 
-	m_rgb[LAY_BOTTOM_COPPER+1][2] = 64;	
-	m_rgb[LAY_BOTTOM_COPPER+2][0] = 128; // inner 1 
-	m_rgb[LAY_BOTTOM_COPPER+2][1] = 64; 
-	m_rgb[LAY_BOTTOM_COPPER+2][2] = 64;	
+	m_rgb[LAY_BOTTOM_COPPER+1][0] = 64;
+	m_rgb[LAY_BOTTOM_COPPER+1][1] = 128;
+	m_rgb[LAY_BOTTOM_COPPER+1][2] = 64;
+	m_rgb[LAY_BOTTOM_COPPER+2][0] = 128; // inner 1
+	m_rgb[LAY_BOTTOM_COPPER+2][1] = 64;
+	m_rgb[LAY_BOTTOM_COPPER+2][2] = 64;
 	m_rgb[LAY_BOTTOM_COPPER+3][0] = 64; // inner 2
-	m_rgb[LAY_BOTTOM_COPPER+3][1] = 64; 
-	m_rgb[LAY_BOTTOM_COPPER+3][2] = 128;	
+	m_rgb[LAY_BOTTOM_COPPER+3][1] = 64;
+	m_rgb[LAY_BOTTOM_COPPER+3][2] = 128;
 	m_rgb[LAY_BOTTOM_COPPER+4][0] = 64; // inner 3
-	m_rgb[LAY_BOTTOM_COPPER+4][1] = 64; 
-	m_rgb[LAY_BOTTOM_COPPER+4][2] = 64;	
+	m_rgb[LAY_BOTTOM_COPPER+4][1] = 64;
+	m_rgb[LAY_BOTTOM_COPPER+4][2] = 64;
 	m_rgb[LAY_BOTTOM_COPPER+5][0] = 64; // inner 5
-	m_rgb[LAY_BOTTOM_COPPER+5][1] = 64; 
-	m_rgb[LAY_BOTTOM_COPPER+5][2] = 64;	
-	m_rgb[LAY_BOTTOM_COPPER+6][0] = 64; // inner 6 
-	m_rgb[LAY_BOTTOM_COPPER+6][1] = 64; 
-	m_rgb[LAY_BOTTOM_COPPER+6][2] = 64;	
+	m_rgb[LAY_BOTTOM_COPPER+5][1] = 64;
+	m_rgb[LAY_BOTTOM_COPPER+5][2] = 64;
+	m_rgb[LAY_BOTTOM_COPPER+6][0] = 64; // inner 6
+	m_rgb[LAY_BOTTOM_COPPER+6][1] = 64;
+	m_rgb[LAY_BOTTOM_COPPER+6][2] = 64;
 
 	// now set layer colors and visibility
 	for( int i=0; i<m_num_layers; i++ )
@@ -2197,50 +2235,50 @@ void CFreePcbDoc::InitializeNewProject()
 
 	// colors for footprint editor layers
 	m_fp_num_layers = NUM_FP_LAYERS;
-	m_fp_rgb[LAY_FP_SELECTION][0] = 255; 
-	m_fp_rgb[LAY_FP_SELECTION][1] = 255; 
+	m_fp_rgb[LAY_FP_SELECTION][0] = 255;
+	m_fp_rgb[LAY_FP_SELECTION][1] = 255;
 	m_fp_rgb[LAY_FP_SELECTION][2] = 255;		//selection WHITE
-	m_fp_rgb[LAY_FP_BACKGND][0] = 0; 
-	m_fp_rgb[LAY_FP_BACKGND][1] = 0; 
+	m_fp_rgb[LAY_FP_BACKGND][0] = 0;
+	m_fp_rgb[LAY_FP_BACKGND][1] = 0;
 	m_fp_rgb[LAY_FP_BACKGND][2] = 0;			// background BLACK
-	m_fp_rgb[LAY_FP_VISIBLE_GRID][0] = 255; 
-	m_fp_rgb[LAY_FP_VISIBLE_GRID][1] = 255; 
-	m_fp_rgb[LAY_FP_VISIBLE_GRID][2] = 255;	// visible grid WHITE 
-	m_fp_rgb[LAY_FP_HILITE][0] = 255; 
-	m_fp_rgb[LAY_FP_HILITE][1] = 255; 
+	m_fp_rgb[LAY_FP_VISIBLE_GRID][0] = 255;
+	m_fp_rgb[LAY_FP_VISIBLE_GRID][1] = 255;
+	m_fp_rgb[LAY_FP_VISIBLE_GRID][2] = 255;	// visible grid WHITE
+	m_fp_rgb[LAY_FP_HILITE][0] = 255;
+	m_fp_rgb[LAY_FP_HILITE][1] = 255;
 	m_fp_rgb[LAY_FP_HILITE][2] = 255;		//highlight WHITE
-	m_fp_rgb[LAY_FP_SILK_TOP][0] = 255; 
-	m_fp_rgb[LAY_FP_SILK_TOP][1] = 255; 
+	m_fp_rgb[LAY_FP_SILK_TOP][0] = 255;
+	m_fp_rgb[LAY_FP_SILK_TOP][1] = 255;
 	m_fp_rgb[LAY_FP_SILK_TOP][2] =   0;		//top silk YELLOW
-	m_fp_rgb[LAY_FP_CENTROID][0] = 255; 
-	m_fp_rgb[LAY_FP_CENTROID][1] = 255; 
+	m_fp_rgb[LAY_FP_CENTROID][0] = 255;
+	m_fp_rgb[LAY_FP_CENTROID][1] = 255;
 	m_fp_rgb[LAY_FP_CENTROID][2] = 255;		//centroid WHITE
-	m_fp_rgb[LAY_FP_DOT][0] = 255; 
-	m_fp_rgb[LAY_FP_DOT][1] = 128; 
+	m_fp_rgb[LAY_FP_DOT][0] = 255;
+	m_fp_rgb[LAY_FP_DOT][1] = 128;
 	m_fp_rgb[LAY_FP_DOT][2] =  64;			//adhesive dot ORANGE
-	m_fp_rgb[LAY_FP_PAD_THRU][0] =   0; 
-	m_fp_rgb[LAY_FP_PAD_THRU][1] =   0; 
+	m_fp_rgb[LAY_FP_PAD_THRU][0] =   0;
+	m_fp_rgb[LAY_FP_PAD_THRU][1] =   0;
 	m_fp_rgb[LAY_FP_PAD_THRU][2] = 255;		//thru-hole pads BLUE
-	m_fp_rgb[LAY_FP_TOP_COPPER][0] =   0; 
-	m_fp_rgb[LAY_FP_TOP_COPPER][1] = 255; 
+	m_fp_rgb[LAY_FP_TOP_COPPER][0] =   0;
+	m_fp_rgb[LAY_FP_TOP_COPPER][1] = 255;
 	m_fp_rgb[LAY_FP_TOP_COPPER][2] =   0;		//top copper GREEN
-	m_fp_rgb[LAY_FP_INNER_COPPER][0] =  128; 
-	m_fp_rgb[LAY_FP_INNER_COPPER][1] = 128; 
+	m_fp_rgb[LAY_FP_INNER_COPPER][0] =  128;
+	m_fp_rgb[LAY_FP_INNER_COPPER][1] = 128;
 	m_fp_rgb[LAY_FP_INNER_COPPER][2] =  128;		//inner copper GREY
-	m_fp_rgb[LAY_FP_BOTTOM_COPPER][0] = 255; 
-	m_fp_rgb[LAY_FP_BOTTOM_COPPER][1] = 0; 
+	m_fp_rgb[LAY_FP_BOTTOM_COPPER][0] = 255;
+	m_fp_rgb[LAY_FP_BOTTOM_COPPER][1] = 0;
 	m_fp_rgb[LAY_FP_BOTTOM_COPPER][2] = 0;		//bottom copper RED
-	m_fp_rgb[LAY_FP_TOP_MASK][0] = 0; 
-	m_fp_rgb[LAY_FP_TOP_MASK][1] = 127; 
+	m_fp_rgb[LAY_FP_TOP_MASK][0] = 0;
+	m_fp_rgb[LAY_FP_TOP_MASK][1] = 127;
 	m_fp_rgb[LAY_FP_TOP_MASK][2] = 0;		//top mask DARK GREEN
-	m_fp_rgb[LAY_FP_TOP_PASTE][0] = 0; 
-	m_fp_rgb[LAY_FP_TOP_PASTE][1] = 127; 
+	m_fp_rgb[LAY_FP_TOP_PASTE][0] = 0;
+	m_fp_rgb[LAY_FP_TOP_PASTE][1] = 127;
 	m_fp_rgb[LAY_FP_TOP_PASTE][2] = 0;		//top paste DARK GREEN
-	m_fp_rgb[LAY_FP_BOTTOM_MASK][0] = 127; 
-	m_fp_rgb[LAY_FP_BOTTOM_MASK][1] = 0; 
+	m_fp_rgb[LAY_FP_BOTTOM_MASK][0] = 127;
+	m_fp_rgb[LAY_FP_BOTTOM_MASK][1] = 0;
 	m_fp_rgb[LAY_FP_BOTTOM_MASK][2] = 0;		//bottom mask DARK RED
-	m_fp_rgb[LAY_FP_BOTTOM_PASTE][0] = 127; 
-	m_fp_rgb[LAY_FP_BOTTOM_PASTE][1] = 0; 
+	m_fp_rgb[LAY_FP_BOTTOM_PASTE][0] = 127;
+	m_fp_rgb[LAY_FP_BOTTOM_PASTE][1] = 0;
 	m_fp_rgb[LAY_FP_BOTTOM_PASTE][2] = 0;		//bottom paste DARK RED
 
 	// default visible grid spacing menu values (in NM)
@@ -2296,7 +2334,7 @@ void CFreePcbDoc::InitializeNewProject()
 	m_fp_visible_grid.RemoveAll();
 	m_fp_visible_grid.Add( 100*NM_PER_MIL );
 	m_fp_visible_grid.Add( 125*NM_PER_MIL );
-	m_fp_visible_grid.Add( 200*NM_PER_MIL );	
+	m_fp_visible_grid.Add( 200*NM_PER_MIL );
 	m_fp_visible_grid.Add( 250*NM_PER_MIL );
 	m_fp_visible_grid.Add( 400*NM_PER_MIL );
 	m_fp_visual_grid_spacing = 200*NM_PER_MIL;
@@ -2324,9 +2362,10 @@ void CFreePcbDoc::InitializeNewProject()
 	m_bSMT_copper_connect = FALSE;
 	m_default_glue_w = 25*NM_PER_MIL;
 	m_trace_w = 10*NM_PER_MIL;
+	m_clearance.m_ca_clearance.Set(10*NM_PER_MIL);
 	m_via_w = 28*NM_PER_MIL;
 	m_via_hole_w = 14*NM_PER_MIL;
-	m_nlist->SetWidths( m_trace_w, m_via_w, m_via_hole_w );
+	m_nlist->SetWidths( m_trace_w, m_via_w, m_via_hole_w, m_clearance );
 
 	// default cam parameters
 	m_dsn_flags = 0;
@@ -2334,9 +2373,9 @@ void CFreePcbDoc::InitializeNewProject()
 	m_dsn_signals_poly = 0;
 	m_cam_full_path = "";
 	m_ses_full_path = "";
-	m_fill_clearance = 10*NM_PER_MIL;
 	m_mask_clearance = 8*NM_PER_MIL;
 	m_thermal_width = 10*NM_PER_MIL;
+	m_thermal_clearance = 10*NM_PER_MIL;
 	m_min_silkscreen_stroke_wid = 5*NM_PER_MIL;
 	m_pilot_diameter = 10*NM_PER_MIL;
 	m_cam_flags = GERBER_BOARD_OUTLINE | GERBER_NO_CLEARANCE_SMCUTOUTS;
@@ -2355,11 +2394,11 @@ void CFreePcbDoc::InitializeNewProject()
 
 	// default DRC limits
 	m_dr.bCheckUnrouted = FALSE;
-	m_dr.trace_width = 10*NM_PER_MIL; 
-	m_dr.pad_pad = 10*NM_PER_MIL; 
+	m_dr.trace_width = 10*NM_PER_MIL;
+	m_dr.pad_pad = 10*NM_PER_MIL;
 	m_dr.pad_trace = 10*NM_PER_MIL;
-	m_dr.trace_trace = 10*NM_PER_MIL; 
-	m_dr.hole_copper = 15*NM_PER_MIL; 
+	m_dr.trace_trace = 10*NM_PER_MIL;
+	m_dr.hole_copper = 15*NM_PER_MIL;
 	m_dr.annular_ring_pins = 7*NM_PER_MIL;
 	m_dr.annular_ring_vias = 5*NM_PER_MIL;
 	m_dr.board_edge_copper = 25*NM_PER_MIL;
@@ -2417,7 +2456,7 @@ void CFreePcbDoc::InitializeNewProject()
 			// make path to library folder and index libraries
 			char full[_MAX_PATH];
 			CString fullpath = _fullpath( full, (LPCSTR)m_lib_dir, MAX_PATH );
-			if( fullpath[fullpath.GetLength()-1] == '\\' )	
+			if( fullpath[fullpath.GetLength()-1] == '\\' )
 				fullpath = fullpath.Left(fullpath.GetLength()-1);
 			m_full_lib_dir = fullpath;
 		}
@@ -2480,13 +2519,13 @@ void CFreePcbDoc::ProjectModified( BOOL flag, BOOL b_clear_redo )
 	CMenu* pMenu = pMain->GetMenu();
 	CMenu* submenu = pMenu->GetSubMenu(1);	// "Edit" submenu
 	if( m_undo_list->m_num_items == 0 )
-		submenu->EnableMenuItem( ID_EDIT_UNDO, MF_BYCOMMAND | MF_DISABLED | MF_GRAYED );	
+		submenu->EnableMenuItem( ID_EDIT_UNDO, MF_BYCOMMAND | MF_DISABLED | MF_GRAYED );
 	else
-		submenu->EnableMenuItem( ID_EDIT_UNDO, MF_BYCOMMAND | MF_ENABLED );	
+		submenu->EnableMenuItem( ID_EDIT_UNDO, MF_BYCOMMAND | MF_ENABLED );
 	if( m_redo_list->m_num_items == 0 )
-		submenu->EnableMenuItem( ID_EDIT_REDO, MF_BYCOMMAND | MF_DISABLED | MF_GRAYED );	
+		submenu->EnableMenuItem( ID_EDIT_REDO, MF_BYCOMMAND | MF_DISABLED | MF_GRAYED );
 	else
-		submenu->EnableMenuItem( ID_EDIT_REDO, MF_BYCOMMAND | MF_ENABLED );	
+		submenu->EnableMenuItem( ID_EDIT_REDO, MF_BYCOMMAND | MF_ENABLED );
 	pMain->DrawMenuBar();
 }
 
@@ -2494,7 +2533,7 @@ void CFreePcbDoc::OnViewLayers()
 {
 	CDlgLayers dlg;
 	CFreePcbView * view = (CFreePcbView*)m_view;
-	dlg.Initialize( m_num_layers, m_vis, m_rgb );
+	dlg.Initialize( m_num_layers, m_ratline_w, m_vis, m_rgb );
 	int ret = dlg.DoModal();
 	if( ret == IDOK )
 	{
@@ -2503,6 +2542,9 @@ void CFreePcbDoc::OnViewLayers()
 			m_dlist->SetLayerRGB( i, m_rgb[i][0], m_rgb[i][1], m_rgb[i][2] );
 			m_dlist->SetLayerVisible( i, m_vis[i] );
 		}
+
+		SetRatlineWidth(dlg.m_ratline_w);
+
 		view->m_left_pane_invalid = TRUE;	// force erase of left pane
 		view->CancelSelection();
 		ProjectModified( TRUE );
@@ -2513,7 +2555,7 @@ void CFreePcbDoc::OnViewLayers()
 void CFreePcbDoc::OnProjectPartlist()
 {
 	CDlgPartlist dlg;
-	dlg.Initialize( m_plist, &m_footprint_cache_map, &m_footlibfoldermap, 
+	dlg.Initialize( m_plist, &m_footprint_cache_map, &m_footlibfoldermap,
 		m_units, m_dlg_log );
 	int ret = dlg.DoModal();
 	if( ret == IDOK )
@@ -2532,7 +2574,7 @@ void CFreePcbDoc::OnPartProperties()
 	partlist_info pl;
 	int ip = m_plist->ExportPartListInfo( &pl, m_view->m_sel_part );
 	CDlgAddPart dlg;
-	dlg.Initialize( &pl, ip, TRUE, FALSE, FALSE, 0, &m_footprint_cache_map, 
+	dlg.Initialize( &pl, ip, TRUE, FALSE, FALSE, 0, &m_footprint_cache_map,
 		&m_footlibfoldermap, m_units, m_dlg_log );
 	int ret = dlg.DoModal();
 	if( ret == IDOK )
@@ -2543,7 +2585,7 @@ void CFreePcbDoc::OnPartProperties()
 		CString old_ref_des = part->ref_des;
 		// see if ref_des has changed
 		CString new_ref_des = pl[ip].ref_des;
-		m_view->SaveUndoInfoForPartAndNets( part, 
+		m_view->SaveUndoInfoForPartAndNets( part,
 			CPartList::UNDO_PART_MODIFY, &new_ref_des, TRUE, m_undo_list );
 		m_plist->ImportPartListInfo( &pl, 0 );
 		m_view->SelectPart( part );
@@ -2561,8 +2603,8 @@ void CFreePcbDoc::OnPartProperties()
 void CFreePcbDoc::OnFileExport()
 {
 	// force old-style file dialog by setting size of OPENFILENAME struct
-	CMyFileDialogExport dlg( FALSE, NULL, NULL, 
-		OFN_HIDEREADONLY | OFN_EXPLORER | OFN_OVERWRITEPROMPT, 
+	CMyFileDialogExport dlg( FALSE, NULL, NULL,
+		OFN_HIDEREADONLY | OFN_EXPLORER | OFN_OVERWRITEPROMPT,
 		"All Files (*.*)|*.*||", NULL, OPENFILENAME_SIZE_VERSION_400 );
 	dlg.SetTemplate( IDD_EXPORT, IDD_EXPORT );
 	dlg.Initialize( EXPORT_PARTS | EXPORT_NETS );
@@ -2592,15 +2634,15 @@ void CFreePcbDoc::OnFileExport()
 void CFreePcbDoc::OnFileImport()
 {
 	// force old-style file dialog by setting size of OPENFILENAME struct
-	CMyFileDialog dlg( TRUE, NULL, (LPCTSTR)m_netlist_full_path, OFN_HIDEREADONLY | OFN_EXPLORER, 
+	CMyFileDialog dlg( TRUE, NULL, (LPCTSTR)m_netlist_full_path, OFN_HIDEREADONLY | OFN_EXPLORER,
 		"All Files (*.*)|*.*||", NULL, OPENFILENAME_SIZE_VERSION_400 );
 	dlg.SetTemplate( IDD_IMPORT, IDD_IMPORT );
 	dlg.m_ofn.lpstrTitle = "Import netlist file";
 	dlg.Initialize( m_import_flags );
 	int ret = dlg.DoModal();
 	if( ret == IDOK )
-	{ 
-		CString str = dlg.GetPathName(); 
+	{
+		CString str = dlg.GetPathName();
 		CStdioFile file;
 		if( !file.Open( str, CFile::modeRead ) )
 		{
@@ -2608,7 +2650,7 @@ void CFreePcbDoc::OnFileImport()
 		}
 		else
 		{
-			ResetUndoState();	
+			ResetUndoState();
 			partlist_info pl;
 			netlist_info nl;
 			m_netlist_full_path = str;	// save path for next time
@@ -2618,7 +2660,7 @@ void CFreePcbDoc::OnFileImport()
 
 			if( m_plist->GetFirstPart() != NULL || m_nlist->m_map.GetCount() != 0 )
 			{
-				// there are parts and/or nets in project 
+				// there are parts and/or nets in project
 				CDlgImportOptions dlg_options;
 				dlg_options.Initialize( m_import_flags );
 				int ret = dlg_options.DoModal();
@@ -2639,7 +2681,7 @@ void CFreePcbDoc::OnFileImport()
 			CString line;
 			if( dlg.m_format == CMyFileDialog::PADSPCB )
 			{
-				line.Format( "Reading netlist file \"%s\":\r\n", str ); 
+				line.Format( "Reading netlist file \"%s\":\r\n", str );
 				m_dlg_log->AddLine( line );
 				int err = ImportPADSPCBNetlist( &file, m_import_flags, &pl, &nl );
 				if( err == NOT_PADSPCB_FILE )
@@ -2663,7 +2705,7 @@ void CFreePcbDoc::OnFileImport()
 			{
 				line = "\r\nImporting nets into project:\r\n";
 				m_dlg_log->AddLine( line );
-				CNetList * old_nlist = new CNetList( NULL, m_plist ); 
+				CNetList * old_nlist = new CNetList( NULL, m_plist );
 				old_nlist->Copy( m_nlist );
 				m_nlist->ImportNetListInfo( &nl, m_import_flags, m_dlg_log, 0, 0, 0 );
 				line = "\r\nMoving traces and copper areas whose nets have changed:\r\n";
@@ -2955,10 +2997,10 @@ void CFreePcbDoc::ImportSessionFile( CString * filepath, CDlgLog * log, BOOL bVe
 	file.Close();
 }
 
-// import netlist 
+// import netlist
 // enter with file already open
 //
-int CFreePcbDoc::ImportNetlist( CStdioFile * file, UINT flags, 
+int CFreePcbDoc::ImportNetlist( CStdioFile * file, UINT flags,
 							   partlist_info * pl, netlist_info * nl )
 {
 	CString instr;
@@ -3069,6 +3111,9 @@ int CFreePcbDoc::ImportNetlist( CStdioFile * file, UINT flags,
 							(*nl)[inet].w = 0;
 							(*nl)[inet].v_w = 0;
 							(*nl)[inet].v_h_w = 0;
+							(*nl)[inet].clearance.SetParent(m_nlist->Get_def_clearance());
+							(*nl)[inet].clearance.m_ca_clearance.Set(CClearanceInfo::E_USE_PARENT);
+
 							instr = instr.Right( instr.GetLength()-delim_pos-1 );
 							num_pins = 0;
 						}
@@ -3092,7 +3137,7 @@ int CFreePcbDoc::ImportNetlist( CStdioFile * file, UINT flags,
 									{
 										// illegal pin number for part
 										CString mess;
-										mess.Format( "Error in line %d of netlist file\nIllegal pin number \"%s\"", 
+										mess.Format( "Error in line %d of netlist file\nIllegal pin number \"%s\"",
 											line, pin_cstr );
 										AfxMessageBox( mess );
 										break;
@@ -3109,7 +3154,7 @@ int CFreePcbDoc::ImportNetlist( CStdioFile * file, UINT flags,
 							{
 								// illegal pin identifier
 								CString mess;
-								mess.Format( "Error in line %d of netlist file\nIllegal pin identifier \"%s\"", 
+								mess.Format( "Error in line %d of netlist file\nIllegal pin identifier \"%s\"",
 									line, pin_cstr );
 								AfxMessageBox( mess );
 							}
@@ -3147,7 +3192,7 @@ int CFreePcbDoc::ImportNetlist( CStdioFile * file, UINT flags,
 //	IMPORT_NETS = include nets in file
 //	IMPORT_AT = use "value@footprint" format for parts
 //
-int CFreePcbDoc::ExportPADSPCBNetlist( CStdioFile * file, UINT flags, 
+int CFreePcbDoc::ExportPADSPCBNetlist( CStdioFile * file, UINT flags,
 							   partlist_info * pl, netlist_info * nl )
 {
 	CString str, str2;
@@ -3204,7 +3249,7 @@ int CFreePcbDoc::ExportPADSPCBNetlist( CStdioFile * file, UINT flags,
 // import netlist in PADS-PCB format
 // enter with file already open
 //
-int CFreePcbDoc::ImportPADSPCBNetlist( CStdioFile * file, UINT flags, 
+int CFreePcbDoc::ImportPADSPCBNetlist( CStdioFile * file, UINT flags,
 							   partlist_info * pl, netlist_info * nl )
 {
 	CString instr, net_name, mess;
@@ -3263,7 +3308,7 @@ int CFreePcbDoc::ImportPADSPCBNetlist( CStdioFile * file, UINT flags,
 				// check for legal ref_designator
 				if( ref_str.FindOneOf( ". " ) != -1 )
 				{
-					mess.Format( "  line %d: Part \"%s\" illegal reference designator, ignored\r\n", 
+					mess.Format( "  line %d: Part \"%s\" illegal reference designator, ignored\r\n",
 						line, ref_str );
 					m_dlg_log->AddLine( mess );
 					continue;
@@ -3271,7 +3316,7 @@ int CFreePcbDoc::ImportPADSPCBNetlist( CStdioFile * file, UINT flags,
 				// check for duplicate part
 				if( part_map.Lookup( ref_str, ptr ) )
 				{
-					mess.Format( "  line %d: Part \"%s\" is duplicate, ignored\r\n", 
+					mess.Format( "  line %d: Part \"%s\" is duplicate, ignored\r\n",
 						line, ref_str );
 					m_dlg_log->AddLine( mess );
 					continue;
@@ -3300,7 +3345,7 @@ int CFreePcbDoc::ImportPADSPCBNetlist( CStdioFile * file, UINT flags,
 				CShape * s = GetFootprintPtr( shape_str );
 				if( s == NULL )
 				{
-					mess.Format( "  line %d: Part \"%s\" footprint \"%s\" not found\r\n", 
+					mess.Format( "  line %d: Part \"%s\" footprint \"%s\" not found\r\n",
 						line, ref_str, shape_str );
 					m_dlg_log->AddLine( mess );
 				}
@@ -3342,14 +3387,14 @@ int CFreePcbDoc::ImportPADSPCBNetlist( CStdioFile * file, UINT flags,
 			{
 				if( net_name.GetLength() > MAX_NET_NAME_SIZE )
 				{
-					mess.Format( "  line %d: Net name \"%s\" too long, truncated\r\n                    truncated to \"%s\"\r\n", 
+					mess.Format( "  line %d: Net name \"%s\" too long, truncated\r\n                    truncated to \"%s\"\r\n",
 						line, net_name, net_name.Left(MAX_NET_NAME_SIZE) );
 					m_dlg_log->AddLine( mess );
 					net_name = net_name.Left(MAX_NET_NAME_SIZE);
 				}
 				if( net_name.FindOneOf( " \"" ) != -1 )
 				{
-					mess.Format( "  line %d: Net name \"%s\" illegal, ignored\r\n", 
+					mess.Format( "  line %d: Net name \"%s\" illegal, ignored\r\n",
 						line, net_name );
 					m_dlg_log->AddLine( mess );
 				}
@@ -3357,7 +3402,7 @@ int CFreePcbDoc::ImportPADSPCBNetlist( CStdioFile * file, UINT flags,
 				{
 					if( net_map.Lookup( net_name, ptr ) )
 					{
-						mess.Format( "  line %d: Net name \"%s\" is duplicate, ignored\r\n", 
+						mess.Format( "  line %d: Net name \"%s\" is duplicate, ignored\r\n",
 							line, net_name );
 						m_dlg_log->AddLine( mess );
 					}
@@ -3371,6 +3416,7 @@ int CFreePcbDoc::ImportPADSPCBNetlist( CStdioFile * file, UINT flags,
 						(*nl)[inet].net = NULL;
 						(*nl)[inet].apply_trace_width = FALSE;
 						(*nl)[inet].apply_via_width = FALSE;
+						(*nl)[inet].apply_clearance = FALSE;
 						(*nl)[inet].modified = TRUE;
 						(*nl)[inet].deleted = FALSE;
 						(*nl)[inet].visible = TRUE;
@@ -3378,6 +3424,9 @@ int CFreePcbDoc::ImportPADSPCBNetlist( CStdioFile * file, UINT flags,
 						(*nl)[inet].w = -1;
 						(*nl)[inet].v_w = -1;
 						(*nl)[inet].v_h_w = -1;
+						(*nl)[inet].clearance.SetParent(m_nlist->Get_def_clearance());
+						(*nl)[inet].clearance.m_ca_clearance.Set(CClearanceInfo::E_USE_PARENT);
+
 						npins = 0;
 						state = SIGNAL;
 					}
@@ -3398,7 +3447,7 @@ int CFreePcbDoc::ImportPADSPCBNetlist( CStdioFile * file, UINT flags,
 					{
 						if( pin_map.Lookup( pin_cstr, ptr ) )
 						{
-							mess.Format( "  line %d: Net \"%s\" pin \"%s\" is duplicate, ignored\r\n", 
+							mess.Format( "  line %d: Net \"%s\" pin \"%s\" is duplicate, ignored\r\n",
 								line, net_name, pin_cstr );
 							m_dlg_log->AddLine( mess );
 						}
@@ -3422,7 +3471,7 @@ int CFreePcbDoc::ImportPADSPCBNetlist( CStdioFile * file, UINT flags,
 					else
 					{
 						// illegal pin identifier
-						mess.Format( "  line %d: Pin identifier \"%s\" illegal, ignored\r\n", 
+						mess.Format( "  line %d: Pin identifier \"%s\" illegal, ignored\r\n",
 							line, pin_cstr );
 						m_dlg_log->AddLine( mess );
 					}
@@ -3430,7 +3479,7 @@ int CFreePcbDoc::ImportPADSPCBNetlist( CStdioFile * file, UINT flags,
 				else
 				{
 					// illegal pin identifier
-					mess.Format( "  line %d: Pin identifier \"%s\" illegal, ignored\r\n", 
+					mess.Format( "  line %d: Pin identifier \"%s\" illegal, ignored\r\n",
 						line, pin_cstr );
 					m_dlg_log->AddLine( mess );
 				}
@@ -3459,7 +3508,7 @@ void CFreePcbDoc::OnFileConvert()
 //
 undo_move_origin * CFreePcbDoc::CreateMoveOriginUndoRecord( int x_off, int y_off )
 {
-	// create undo record 
+	// create undo record
 	undo_move_origin * undo = new undo_move_origin;
 	undo->x_off = x_off;
 	undo->y_off = y_off;
@@ -3505,9 +3554,9 @@ undo_board_outline * CFreePcbDoc::CreateBoardOutlineUndoRecord( CPolyLine * poly
 //
 void CFreePcbDoc::BoardOutlineUndoCallback( int type, void * ptr, BOOL undo )
 {
-	if( undo ) 
+	if( undo )
 	{
-		if( type == CFreePcbView::UNDO_BOARD_OUTLINE_CLEAR_ALL ) 
+		if( type == CFreePcbView::UNDO_BOARD_OUTLINE_CLEAR_ALL )
 		{
 			// remove all cutouts
 			this_Doc->m_board_outline.RemoveAll();
@@ -3522,7 +3571,7 @@ void CFreePcbDoc::BoardOutlineUndoCallback( int type, void * ptr, BOOL undo )
 			CPolyLine * poly = &this_Doc->m_board_outline[i];
 			poly->SetDisplayList( this_Doc->m_dlist );
 			id bd_id( ID_BOARD, ID_BOARD, i );
-			poly->Start( LAY_BOARD_OUTLINE, 1, 10*NM_PER_MIL, 
+			poly->Start( LAY_BOARD_OUTLINE, 1, 10*NM_PER_MIL,
 				corner[0].x, corner[0].y, 0, &bd_id, NULL );
 			for( int ic=1; ic<un_bd->ncorners; ic++ )
 				poly->AppendCorner( corner[ic].x, corner[ic].y, corner[ic-1].style );
@@ -3558,9 +3607,9 @@ undo_sm_cutout * CFreePcbDoc::CreateSMCutoutUndoRecord( CPolyLine * poly )
 //
 void CFreePcbDoc::SMCutoutUndoCallback( int type, void * ptr, BOOL undo )
 {
-	if( undo ) 
+	if( undo )
 	{
-		if( type == CFreePcbView::UNDO_SM_CUTOUT_CLEAR_ALL ) 
+		if( type == CFreePcbView::UNDO_SM_CUTOUT_CLEAR_ALL )
 		{
 			// remove all cutouts
 			this_Doc->m_sm_cutout.RemoveAll();
@@ -3575,7 +3624,7 @@ void CFreePcbDoc::SMCutoutUndoCallback( int type, void * ptr, BOOL undo )
 			CPolyLine * poly = &this_Doc->m_sm_cutout[i];
 			poly->SetDisplayList( this_Doc->m_dlist );
 			id sm_id( ID_SM_CUTOUT, ID_SM_CUTOUT, i );
-			poly->Start( un_sm->layer, 1, 10*NM_PER_MIL, 
+			poly->Start( un_sm->layer, 1, 10*NM_PER_MIL,
 				corner[0].x, corner[0].y, un_sm->hatch_style, &sm_id, NULL );
 			for( int ic=1; ic<un_sm->ncorners; ic++ )
 				poly->AppendCorner( corner[ic].x, corner[ic].y, corner[ic-1].style );
@@ -3593,23 +3642,21 @@ void CFreePcbDoc::OnFileGenerateCadFiles()
 		AfxMessageBox( "A board outline must be present for CAM file generation" );
 		return;
 	}
+
 	CDlgCAD dlg;
 	if( m_cam_full_path == "" )
 		m_cam_full_path = m_path_to_folder + "\\CAM";
+
 	dlg.Initialize( m_version,
-		&m_cam_full_path, 
+		&m_cam_full_path,
 		&m_path_to_folder,
 		&m_app_dir,
-		m_num_copper_layers, 
+		m_num_copper_layers,
 		m_cam_units,
-		m_bSMT_copper_connect,
-		m_fill_clearance, 
 		m_mask_clearance,
-		m_thermal_width,
 		m_pilot_diameter,
 		m_min_silkscreen_stroke_wid,
 		m_outline_width,
-		m_hole_clearance,
 		m_annular_ring_pins,
 		m_annular_ring_vias,
 		m_paste_shrink,
@@ -3617,12 +3664,11 @@ void CFreePcbDoc::OnFileGenerateCadFiles()
 		m_cam_flags,
 		m_cam_layers,
 		m_cam_drill_file,
-		&m_board_outline, 
+		&m_board_outline,
 		&m_sm_cutout,
-		&m_bShowMessageForClearance,
-		m_plist, 
-		m_nlist, 
-		m_tlist, 
+		m_plist,
+		m_nlist,
+		m_tlist,
 		m_dlist,
 		m_dlg_log );
 	m_nlist->OptimizeConnections();
@@ -3632,13 +3678,10 @@ void CFreePcbDoc::OnFileGenerateCadFiles()
 		// update parameters
 		if( m_cam_full_path != dlg.m_folder
 			|| m_cam_units != dlg.m_units
-			|| m_fill_clearance != dlg.m_fill_clearance
 			|| m_mask_clearance != dlg.m_mask_clearance
-			|| m_thermal_width != dlg.m_thermal_width
 			|| m_min_silkscreen_stroke_wid != dlg.m_min_silkscreen_width
 			|| m_pilot_diameter != dlg.m_pilot_diameter
 			|| m_outline_width != dlg.m_outline_width
-			|| m_hole_clearance != dlg.m_hole_clearance
 			|| m_annular_ring_pins != dlg.m_annular_ring_pins
 			|| m_annular_ring_vias != dlg.m_annular_ring_vias
 			|| m_cam_flags != dlg.m_flags
@@ -3649,13 +3692,10 @@ void CFreePcbDoc::OnFileGenerateCadFiles()
 		}
 		m_cam_full_path = dlg.m_folder;
 		m_cam_units = dlg.m_units;
-		m_fill_clearance = dlg.m_fill_clearance;
 		m_mask_clearance = dlg.m_mask_clearance;
-		m_thermal_width = dlg.m_thermal_width;
 		m_min_silkscreen_stroke_wid = dlg.m_min_silkscreen_width;
 		m_pilot_diameter = dlg.m_pilot_diameter;
 		m_outline_width = dlg.m_outline_width;
-		m_hole_clearance = dlg.m_hole_clearance;
 		m_annular_ring_pins = dlg.m_annular_ring_pins;
 		m_annular_ring_vias = dlg.m_annular_ring_vias;
 		m_plist->SetPinAnnularRing( m_annular_ring_pins );
@@ -3668,7 +3708,6 @@ void CFreePcbDoc::OnFileGenerateCadFiles()
 		m_n_y = dlg.m_n_y;
 		m_space_x = dlg.m_space_x;
 		m_space_y = dlg.m_space_y;
-		m_bShowMessageForClearance = dlg.m_bShowMessageForClearance;
 	}
 }
 
@@ -3687,7 +3726,7 @@ void CFreePcbDoc::MakeLibraryMaps( CString * fullpath )
 
 void CFreePcbDoc::OnProjectOptions()
 {
-	CDlgProjectOptions dlg;
+	CDlgProjectOptionsTabbed dlg;
 	if( m_name == "" )
 	{
 		m_name = m_pcb_filename;
@@ -3695,15 +3734,18 @@ void CFreePcbDoc::OnProjectOptions()
 			m_name = m_name.Left( m_name.GetLength()-4 );
 	}
 	dlg.Init( FALSE, &m_name, &m_path_to_folder, &m_full_lib_dir,
-		m_num_copper_layers, m_bSMT_copper_connect, m_default_glue_w,
-		m_trace_w, m_via_w, m_via_hole_w,
-		m_auto_interval, &m_w, &m_v_w, &m_v_h_w );
+		m_num_copper_layers, m_ratline_w, m_bSMT_copper_connect, m_default_glue_w,
+		m_trace_w, m_clearance.m_ca_clearance.m_val, m_hole_clearance, m_via_w, m_via_hole_w,
+		m_auto_interval, m_thermal_width, m_thermal_clearance, &m_w, &m_v_w, &m_v_h_w );
+
 	int ret = dlg.DoModal();
-	if( ret == IDOK )  
+	if( ret == IDOK )
 	{
+		//BAF = m_bShowMessageForClearance = dlg.m_bShowMessageForClearance;
+
 		// set options from dialog
-		BOOL bResetAreaConnections = m_bSMT_copper_connect != dlg.m_bSMT_connect_copper;
-		m_bSMT_copper_connect = dlg.m_bSMT_connect_copper;
+		BOOL bResetAreaConnections = m_bSMT_copper_connect != dlg.Get_bSMT_connect_copper();
+		m_bSMT_copper_connect = dlg.Get_bSMT_connect_copper();
 		m_nlist->SetSMTconnect( m_bSMT_copper_connect );
 		m_default_glue_w = dlg.GetGlueWidth();
 		if( m_num_copper_layers > dlg.GetNumCopperLayers() )
@@ -3741,14 +3783,21 @@ void CFreePcbDoc::OnProjectOptions()
 		if( m_full_lib_dir != dlg.GetLibFolder() )
 		{
 			m_full_lib_dir = dlg.GetLibFolder();
-			m_footlibfoldermap.SetDefaultFolder( &m_full_lib_dir );		
-			m_footlibfoldermap.SetLastFolder( &m_full_lib_dir );		
+			m_footlibfoldermap.SetDefaultFolder( &m_full_lib_dir );
+			m_footlibfoldermap.SetLastFolder( &m_full_lib_dir );
 		}
+
+		SetRatlineWidth(dlg.GetRatlineWidth());
+
 		m_trace_w = dlg.GetTraceWidth();
+		m_clearance.m_ca_clearance.Set(dlg.GetCopperAreaClearance());
+		m_hole_clearance = dlg.GetHoleClearance();
 		m_via_w = dlg.GetViaWidth();
 		m_via_hole_w = dlg.GetViaHoleWidth();
-		m_nlist->SetWidths( m_trace_w, m_via_w, m_via_hole_w );
+		m_nlist->SetWidths( m_trace_w, m_via_w, m_via_hole_w, m_clearance );
 		m_auto_interval = dlg.GetAutoInterval();
+		m_thermal_width = dlg.GetThermalWidth();
+		m_thermal_clearance = dlg.GetThermalClearance();
 
 		m_nlist->OptimizeConnections();
 		m_view->InvalidateLeftPane();
@@ -3800,7 +3849,7 @@ void CFreePcbDoc::OnToolsDrc()
 	DlgDRC dlg;
 	m_nlist->OptimizeConnections();
 	m_drelist->Clear();
-	dlg.Initialize( m_units, 
+	dlg.Initialize( m_units,
 					&m_dr,
 					m_plist,
 					m_nlist,
@@ -3868,22 +3917,22 @@ void CFreePcbDoc::OnViewLog()
 void CFreePcbDoc::OnToolsCheckCopperAreas()
 {
 	CString str;
- 
-	m_dlg_log->ShowWindow( SW_SHOW );   
+
+	m_dlg_log->ShowWindow( SW_SHOW );
 	m_dlg_log->UpdateWindow();
 	m_dlg_log->BringWindowToTop();
 	m_dlg_log->Clear();
 	m_dlg_log->UpdateWindow();
 	m_view->CancelSelection();
-	cnet * net = m_nlist->GetFirstNet(); 
-	BOOL new_event = TRUE; 
-	while( net ) 
+	cnet * net = m_nlist->GetFirstNet();
+	BOOL new_event = TRUE;
+	while( net )
 	{
 		if( net->nareas > 0 )
 		{
-			str.Format( "net \"%s\": %d areas\r\n", net->name, net->nareas ); 
+			str.Format( "net \"%s\": %d areas\r\n", net->name, net->nareas );
 			m_dlg_log->AddLine( str );
-			m_view->SaveUndoInfoForAllAreasInNet( net, new_event, m_undo_list ); 
+			m_view->SaveUndoInfoForAllAreasInNet( net, new_event, m_undo_list );
 			new_event = FALSE;
 			// check for minimum number of corners and closed contours
 			for( int ia=0; ia<net->nareas; ia++ )
@@ -3926,29 +3975,29 @@ void CFreePcbDoc::OnToolsCheckCopperAreas()
 			// check all areas in net for intersection
 			if( net->nareas > 1 )
 			{
-				for( int ia1=0; ia1<net->nareas-1; ia1++ ) 
+				for( int ia1=0; ia1<net->nareas-1; ia1++ )
 				{
 					BOOL mod_ia1 = FALSE;
 					for( int ia2=net->nareas-1; ia2 > ia1; ia2-- )
 					{
 						if( net->area[ia1].poly->GetLayer() == net->area[ia2].poly->GetLayer() )
 						{
-							// check ia2 against 1a1 
+							// check ia2 against 1a1
 							int ret = m_nlist->TestAreaIntersection( net, ia1, ia2 );
-							if( ret == 2 ) 
+							if( ret == 2 )
 							{
 								str.Format( "    areas %d and %d have an intersecting arc, can't be combined\r\n", ia1+1, ia2+1 );
 								m_dlg_log->AddLine( str );
 							}
 							else if( ret == 1 && net->area[ia1].utility2 == -1 )
 							{
-								str.Format( "    areas %d and %d intersect but can't be combined due to self-intersecting arcs in area %d\r\n", 
+								str.Format( "    areas %d and %d intersect but can't be combined due to self-intersecting arcs in area %d\r\n",
 									ia1+1, ia2+1, ia1+1 );
 								m_dlg_log->AddLine( str );
 							}
 							else if( ret == 1 && net->area[ia2].utility2 == -1 )
 							{
-								str.Format( "    areas %d and %d intersect but can't be combined due to self-intersecting arcs in area %d\r\n", 
+								str.Format( "    areas %d and %d intersect but can't be combined due to self-intersecting arcs in area %d\r\n",
 									ia1+1, ia2+1, ia2+1 );
 								m_dlg_log->AddLine( str );
 							}
@@ -3971,7 +4020,7 @@ void CFreePcbDoc::OnToolsCheckCopperAreas()
 		}
 		net = m_nlist->GetNextNet();
 	}
-	str.Format( "*******  DONE *******\r\n" ); 
+	str.Format( "*******  DONE *******\r\n" );
 	m_dlg_log->AddLine( str );
 	m_nlist->OptimizeConnections();
 	ProjectModified( TRUE );
@@ -3983,7 +4032,7 @@ void CFreePcbDoc::OnToolsCheckTraces()
 	CString str;
 	ResetUndoState();
 	m_view->CancelSelection();
-	m_dlg_log->ShowWindow( SW_SHOW );   
+	m_dlg_log->ShowWindow( SW_SHOW );
 	m_dlg_log->UpdateWindow();
 	m_dlg_log->BringWindowToTop();
 	m_dlg_log->Clear();
@@ -3997,12 +4046,12 @@ void CFreePcbDoc::OnToolsCheckTraces()
 void CFreePcbDoc::OnEditPasteFromFile()
 {
 	// force old-style file dialog by setting size of OPENFILENAME struct
-	CFileDialog dlg( TRUE, NULL, NULL, OFN_HIDEREADONLY | OFN_EXPLORER, 
+	CFileDialog dlg( TRUE, NULL, NULL, OFN_HIDEREADONLY | OFN_EXPLORER,
 		"All Files (*.*)|*.*||", NULL, OPENFILENAME_SIZE_VERSION_400 );
 	dlg.m_ofn.lpstrTitle = "Paste group from file";
 	int ret = dlg.DoModal();
 	if( ret == IDOK )
-	{ 
+	{
 		// read project file
 		ResetUndoState();
 		CString pathname = dlg.GetPathName();
@@ -4151,23 +4200,23 @@ void CFreePcbDoc::OnFileExportDsn()
 		m_dsn_signals_poly = 0;
 	if( m_dsn_bounds_poly >= num_polys )
 		m_dsn_bounds_poly = 0;
-	dlg.Initialize( &dsn_filepath, m_board_outline.GetSize(), 
+	dlg.Initialize( &dsn_filepath, m_board_outline.GetSize(),
 						m_dsn_bounds_poly, m_dsn_signals_poly, m_dsn_flags );
 	int ret = dlg.DoModal();
 	if( ret == IDOK )
 	{
-		m_dlg_log->ShowWindow( SW_SHOW );   
+		m_dlg_log->ShowWindow( SW_SHOW );
 		m_dlg_log->UpdateWindow();
 		m_dlg_log->BringWindowToTop();
 		m_dlg_log->Clear();
-		m_dlg_log->UpdateWindow(); 
+		m_dlg_log->UpdateWindow();
 
 		m_dsn_flags = dlg.m_flags;
 		m_dsn_bounds_poly = dlg.m_bounds_poly;
 		m_dsn_signals_poly = dlg.m_signals_poly;
 		OnFileSave();
-		m_dlg_log->AddLine( "Saving project file: \"" + m_pcb_full_path + "\"\r\n" );  
-		m_dlg_log->AddLine( "Creating .dsn file: \"" + dsn_filepath + "\"\r\n" );  
+		m_dlg_log->AddLine( "Saving project file: \"" + m_pcb_full_path + "\"\r\n" );
+		m_dlg_log->AddLine( "Creating .dsn file: \"" + dsn_filepath + "\"\r\n" );
 		CString commandLine = "\"" + m_app_dir + "\\fpcroute.exe\"";
 		int from_to = m_dsn_flags & CDlgExportDsn::DSN_FROM_TO_MASK;
 		if( from_to == CDlgExportDsn::DSN_FROM_TO_ALL )
@@ -4177,10 +4226,10 @@ void CFreePcbDoc::OnFileExportDsn()
 		else if( from_to == CDlgExportDsn::DSN_FROM_TO_NET_LOCKED )
 			commandLine += " -F2";
 		if( m_dsn_flags & CDlgExportDsn::DSN_VERBOSE )
-			commandLine += " -V"; 
+			commandLine += " -V";
 		if( m_dsn_flags & CDlgExportDsn::DSN_INFO_ONLY )
 			commandLine += " -I";
-		if( m_dsn_bounds_poly != 0 || m_dsn_signals_poly != 0 ) 
+		if( m_dsn_bounds_poly != 0 || m_dsn_signals_poly != 0 )
 		{
 			CString str;
 			str.Format( " -U%d,%d", m_dsn_bounds_poly+1, m_dsn_signals_poly+1 );
@@ -4188,12 +4237,12 @@ void CFreePcbDoc::OnFileExportDsn()
 		}
 		commandLine += " \"" + m_pcb_full_path + "\"";
 //		CString commandLine = "C:/freepcb/bin/RTconsole.exe  C:/freepcb/bin/fpcroute.exe -V C:/freepcb/bin/test";
-		m_dlg_log->AddLine( "Run: " + commandLine + "\r\n" );  
+		m_dlg_log->AddLine( "Run: " + commandLine + "\r\n" );
 		RunConsoleProcess( commandLine, m_dlg_log );
 #if 0
 		HANDLE hOutput, hProcess;
-		hProcess = SpawnAndRedirect(commandLine, &hOutput, NULL); 
-		if (!hProcess) 
+		hProcess = SpawnAndRedirect(commandLine, &hOutput, NULL);
+		if (!hProcess)
 		{
 			m_dlg_log->AddLine( "Failed!\r\n" );
 			return;
@@ -4219,14 +4268,14 @@ void CFreePcbDoc::OnFileImportSes()
 {
 	CDlgImportSes dlg;
 	dlg.Initialize( &m_ses_full_path, &m_pcb_full_path );
-	int ret = dlg.DoModal(); 
+	int ret = dlg.DoModal();
 	if( ret == IDOK )
 	{
-		m_dlg_log->ShowWindow( SW_SHOW );   
+		m_dlg_log->ShowWindow( SW_SHOW );
 		m_dlg_log->UpdateWindow();
-		m_dlg_log->BringWindowToTop(); 
+		m_dlg_log->BringWindowToTop();
 		m_dlg_log->Clear();
-		m_dlg_log->UpdateWindow(); 
+		m_dlg_log->UpdateWindow();
 		// save current project if modified (including dialog parameters)
 		if( dlg.m_ses_filepath != m_ses_full_path )
 		{
@@ -4243,7 +4292,7 @@ void CFreePcbDoc::OnFileImportSes()
 			else
 				ProjectModified( FALSE );
 		}
-		CString temp_file_name = "~temp$$$.fpc";   
+		CString temp_file_name = "~temp$$$.fpc";
 		CString temp_routed_file_name = "~temp$$$_routed.fpc";
 		CString temp_file_path = m_path_to_folder + "\\" + temp_file_name;
 		CString temp_routed_file_path = m_path_to_folder + "\\" + temp_routed_file_name;
@@ -4251,13 +4300,13 @@ void CFreePcbDoc::OnFileImportSes()
 		int err = _stat( temp_file_path, &buf );
 		if( !err )
 		{
-			m_dlg_log->AddLine( "Delete: " + temp_file_path + "\r\n" );  
+			m_dlg_log->AddLine( "Delete: " + temp_file_path + "\r\n" );
 			remove( temp_file_path );
 		}
 		err = _stat( dlg.m_routed_pcb_filepath, &buf );
 		if( !err )
 		{
-			m_dlg_log->AddLine( "Delete: " + dlg.m_routed_pcb_filepath + "\r\n" );  
+			m_dlg_log->AddLine( "Delete: " + dlg.m_routed_pcb_filepath + "\r\n" );
 			remove( dlg.m_routed_pcb_filepath );
 		}
 		m_ses_full_path = dlg.m_ses_filepath;
@@ -4275,29 +4324,29 @@ void CFreePcbDoc::OnFileImportSes()
 		if( dlg.m_bVerbose )
 			verbose = "-V ";
 		CString commandLine = "\"" + m_app_dir + "\\fpcroute.exe\" -B " + verbose + "\"" +
-			temp_file_path + "\" \"" + m_ses_full_path + "\""; 
+			temp_file_path + "\" \"" + m_ses_full_path + "\"";
 		m_dlg_log->AddLine( "Run: " + commandLine + "\r\n" );
 		RunConsoleProcess( commandLine, m_dlg_log );
 		err = _stat( temp_routed_file_path, &buf );
 		if( err )
 		{
-			m_dlg_log->AddLine( "\r\nFpcROUTE failed to create routed project file: \"" + temp_routed_file_path + "\"\r\n" );  
+			m_dlg_log->AddLine( "\r\nFpcROUTE failed to create routed project file: \"" + temp_routed_file_path + "\"\r\n" );
 			return;
 		}
-		m_dlg_log->AddLine( "\r\nRename: \"" + temp_routed_file_path + "\" to \"" + dlg.m_routed_pcb_filepath + "\"\r\n" );  
-		err = rename( temp_routed_file_path, dlg.m_routed_pcb_filepath ); 
+		m_dlg_log->AddLine( "\r\nRename: \"" + temp_routed_file_path + "\" to \"" + dlg.m_routed_pcb_filepath + "\"\r\n" );
+		err = rename( temp_routed_file_path, dlg.m_routed_pcb_filepath );
 		if( err )
 		{
 			m_dlg_log->AddLine( "\r\nRenaming project file from " + temp_routed_file_path
 				+ " to " + dlg.m_routed_pcb_filepath + " failed:\r\n" );
 		}
 		CString old_ses_full_path = m_ses_full_path;
-		m_dlg_log->AddLine( "\r\nLoad: " + dlg.m_routed_pcb_filepath + "\r\n" );  
+		m_dlg_log->AddLine( "\r\nLoad: " + dlg.m_routed_pcb_filepath + "\r\n" );
 		OnFileAutoOpen( &dlg.m_routed_pcb_filepath );
 		m_ses_full_path = old_ses_full_path;
-		m_dlg_log->AddLine( "Re-import: " + m_ses_full_path + "\r\n" );  
+		m_dlg_log->AddLine( "Re-import: " + m_ses_full_path + "\r\n" );
 		ImportSessionFile( &m_ses_full_path, m_dlg_log, dlg.m_bVerbose );
-		m_dlg_log->AddLine( "\r\n*********** Done ***********\r\n" );  
+		m_dlg_log->AddLine( "\r\n*********** Done ***********\r\n" );
 		ProjectModified( TRUE );
 	}
 }
@@ -4353,12 +4402,12 @@ void CFreePcbDoc::OnRepeatDrc()
 {
 	m_nlist->OptimizeConnections();
 	m_drelist->Clear();
-	m_dlg_log->ShowWindow( SW_SHOW );   
+	m_dlg_log->ShowWindow( SW_SHOW );
 	m_dlg_log->UpdateWindow();
-	m_dlg_log->BringWindowToTop(); 
+	m_dlg_log->BringWindowToTop();
 	m_dlg_log->Clear();
-	m_dlg_log->UpdateWindow(); 
-	m_plist->DRC( m_dlg_log, m_num_copper_layers, m_units, 
+	m_dlg_log->UpdateWindow();
+	m_plist->DRC( m_dlg_log, m_num_copper_layers, m_units,
 		m_dr.bCheckUnrouted, &m_board_outline, &m_dr, m_drelist );
 	m_view->Invalidate( FALSE );
 }
@@ -4366,7 +4415,7 @@ void CFreePcbDoc::OnRepeatDrc()
 void CFreePcbDoc::OnFileGenerateReportFile()
 {
 	CDlgReport dlg;
-	dlg.Initialize( this ); 
+	dlg.Initialize( this );
 	int ret = dlg.DoModal();
 	if( ret = IDOK )
 	{
@@ -4449,5 +4498,17 @@ void CFreePcbDoc::OnProjectCombineNets()
 		m_import_flags = KEEP_TRACES | KEEP_STUBS | KEEP_AREAS	| KEEP_PARTS_AND_CON;
 		m_nlist->RestoreConnectionsAndAreas( old_nlist, m_import_flags, NULL );
 		delete old_nlist;
+	}
+}
+
+
+void CFreePcbDoc::SetRatlineWidth(int width, int bForce)
+{
+	if( width != m_ratline_w || bForce)
+	{
+		m_ratline_w = width;
+		m_dlist->UpdateRatlineWidth(m_ratline_w);
+
+		if (!bForce) ProjectModified( TRUE );
 	}
 }

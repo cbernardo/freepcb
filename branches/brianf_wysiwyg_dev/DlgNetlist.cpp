@@ -6,7 +6,6 @@
 #include "DlgNetlist.h"
 #include "DlgEditNet.h"
 #include "DlgSetTraceWidths.h"
-#include ".\dlgnetlist.h"
 
 extern CFreePcbApp theApp;
 
@@ -17,7 +16,8 @@ enum {
 	COL_PINS,
 	COL_WIDTH,
 	COL_VIA_W,
-	COL_HOLE_W
+	COL_HOLE_W,
+	COL_CLEARANCE
 };
 
 // sort types
@@ -31,15 +31,17 @@ enum {
 	SORT_UP_VIA_W,
 	SORT_DOWN_VIA_W,
 	SORT_UP_HOLE_W,
-	SORT_DOWN_HOLE_W
+	SORT_DOWN_HOLE_W,
+	SORT_UP_CLEARANCE,
+	SORT_DOWN_CLEARANCE
 };
 
 // global so that it is available to Compare() for sorting list control items
-netlist_info nl;
+static netlist_info nl;
 
 // global callback function for sorting
 // lp1, lp2 are indexes to global arrays above
-//		
+//
 int CALLBACK CompareNetlist( LPARAM lp1, LPARAM lp2, LPARAM type )
 {
 	int ret = 0;
@@ -81,6 +83,14 @@ int CALLBACK CompareNetlist( LPARAM lp1, LPARAM lp2, LPARAM type )
 			else if( ::nl[lp1].ref_des.GetSize() < ::nl[lp2].ref_des.GetSize() )
 				ret = -1;
 			break;
+
+		case SORT_UP_CLEARANCE:
+		case SORT_DOWN_CLEARANCE:
+			if( ::nl[lp1].clearance.m_ca_clearance > ::nl[lp2].clearance.m_ca_clearance )
+				ret = 1;
+			else if( ::nl[lp1].clearance.m_ca_clearance < ::nl[lp2].clearance.m_ca_clearance )
+				ret = -1;
+			break;
 	}
 	switch( type )
 	{
@@ -89,6 +99,7 @@ int CALLBACK CompareNetlist( LPARAM lp1, LPARAM lp2, LPARAM type )
 		case SORT_DOWN_VIA_W:
 		case SORT_DOWN_HOLE_W:
 		case SORT_DOWN_PINS:
+		case SORT_DOWN_CLEARANCE:
 			ret = -ret;
 			break;
 	}
@@ -152,6 +163,7 @@ BEGIN_MESSAGE_MAP(CDlgNetlist, CDialog)
 	ON_BN_CLICKED(IDCANCEL, OnBnClickedCancel)
 	ON_BN_CLICKED(IDC_BUTTON_DELETE_NOPINS, OnBnClickedDeleteNetsWithNoPins)
 	ON_NOTIFY(NM_CLICK, IDC_LIST_NET, OnNMClickListNet)
+	ON_NOTIFY(NM_DBLCLK, IDC_LIST_NET, &CDlgNetlist::OnNMDblclkListNet)
 END_MESSAGE_MAP()
 
 
@@ -176,6 +188,14 @@ BOOL CDlgNetlist::OnInitDialog()
 	m_nl = &::nl;
 	m_nlist->ExportNetListInfo( &::nl );
 
+	m_list_ctrl.InsertColumn( COL_VIS, "Vis", LVCFMT_LEFT, 25 );
+	m_list_ctrl.InsertColumn( COL_NAME, "Name", LVCFMT_LEFT, 140 );
+	m_list_ctrl.InsertColumn( COL_PINS, "Pins", LVCFMT_LEFT, 40 );
+	m_list_ctrl.InsertColumn( COL_WIDTH, "Width", LVCFMT_LEFT, 40 );
+	m_list_ctrl.InsertColumn( COL_VIA_W, "Via W", LVCFMT_LEFT, 40 );
+	m_list_ctrl.InsertColumn( COL_HOLE_W, "Hole", LVCFMT_LEFT, 40 );
+	m_list_ctrl.InsertColumn( COL_CLEARANCE, "Clearance", LVCFMT_LEFT, 70 );
+
 	// initialize netlist control
 	m_item_selected = -1;
 	m_sort_type = 0;
@@ -187,7 +207,8 @@ BOOL CDlgNetlist::OnInitDialog()
 	m_button_delete_single.EnableWindow(FALSE);
 	m_button_nl_width.EnableWindow(FALSE);
 	m_button_delete.EnableWindow(FALSE);
-	return TRUE;  
+
+	return TRUE;
 }
 
 // draw listview control and sort according to m_sort_type
@@ -199,12 +220,7 @@ void CDlgNetlist::DrawListCtrl()
 	DWORD old_style = m_list_ctrl.GetExtendedStyle();
 	m_list_ctrl.SetExtendedStyle( LVS_EX_FULLROWSELECT | LVS_EX_FLATSB | LVS_EX_CHECKBOXES | old_style );
 	m_list_ctrl.DeleteAllItems();
-	m_list_ctrl.InsertColumn( COL_VIS, "Vis", LVCFMT_LEFT, 25 );
-	m_list_ctrl.InsertColumn( COL_NAME, "Name", LVCFMT_LEFT, 140 );
-	m_list_ctrl.InsertColumn( COL_PINS, "Pins", LVCFMT_LEFT, 40 );
-	m_list_ctrl.InsertColumn( COL_WIDTH, "Width", LVCFMT_LEFT, 40 );
-	m_list_ctrl.InsertColumn( COL_VIA_W, "Via W", LVCFMT_LEFT, 40 );   
-	m_list_ctrl.InsertColumn( COL_HOLE_W, "Hole", LVCFMT_LEFT, 40 );
+
 	int iItem = 0;
 	for( int i=0; i<::nl.GetSize(); i++ )
 	{
@@ -212,6 +228,7 @@ void CDlgNetlist::DrawListCtrl()
 		{
 			nItem = m_list_ctrl.InsertItem( iItem, "" );
 			m_list_ctrl.SetItemData( iItem, (LPARAM)i );
+
 			m_list_ctrl.SetItem( iItem, COL_NAME, LVIF_TEXT, ::nl[i].name, 0, 0, 0, 0 );
 			str.Format( "%d", ::nl[i].ref_des.GetSize() );
 			m_list_ctrl.SetItem( iItem, COL_PINS, LVIF_TEXT, str, 0, 0, 0, 0 );
@@ -221,6 +238,17 @@ void CDlgNetlist::DrawListCtrl()
 			m_list_ctrl.SetItem( iItem, COL_VIA_W, LVIF_TEXT, str, 0, 0, 0, 0 );
 			str.Format( "%d", ::nl[i].v_h_w/NM_PER_MIL );
 			m_list_ctrl.SetItem( iItem, COL_HOLE_W, LVIF_TEXT, str, 0, 0, 0, 0 );
+
+			if (::nl[i].clearance.m_ca_clearance.m_status < 0)
+			{
+				str.Format("Default");
+			}
+			else
+			{
+				str.Format( "%d", ::nl[i].clearance.m_ca_clearance.m_val / NM_PER_MIL );
+			}
+			m_list_ctrl.SetItem( iItem, COL_CLEARANCE, LVIF_TEXT, str, 0, 0, 0, 0 );
+
 			ListView_SetCheckState( m_list_ctrl, nItem, ::nl[i].visible );
 		}
 	}
@@ -261,6 +289,14 @@ void CDlgNetlist::OnLvnColumnclickListNet(NMHDR *pNMHDR, LRESULT *pResult)
 			m_sort_type = SORT_DOWN_HOLE_W;
 		else
 			m_sort_type = SORT_UP_HOLE_W;
+		m_list_ctrl.SortItems( ::CompareNetlist, m_sort_type );
+	}
+	else if( column == COL_CLEARANCE )
+	{
+		if( m_sort_type == SORT_UP_CLEARANCE )
+			m_sort_type = SORT_DOWN_CLEARANCE;
+		else
+			m_sort_type = SORT_UP_CLEARANCE;
 		m_list_ctrl.SortItems( ::CompareNetlist, m_sort_type );
 	}
 	else if( column == COL_PINS )
@@ -307,7 +343,7 @@ void CDlgNetlist::OnBnClickedButtonEdit()
 		CFreePcbView * view = theApp.m_View;
 		CFreePcbDoc * doc = theApp.m_Doc;
 		CDlgEditNet dlg;
-		dlg.Initialize( &nl, i, m_plist, FALSE, ListView_GetCheckState( m_list_ctrl, nItem ),
+		dlg.Initialize( doc->m_nlist, &nl, i, m_plist, FALSE, ListView_GetCheckState( m_list_ctrl, nItem ),
 						MIL, &(doc->m_w), &(doc->m_v_w), &(doc->m_v_h_w) );
 		int ret = dlg.DoModal();
 		if( ret == IDOK )
@@ -324,8 +360,8 @@ void CDlgNetlist::OnBnClickedButtonAdd()
 	CFreePcbView * view = theApp.m_View;
 	CFreePcbDoc * doc = theApp.m_Doc;
 	CDlgEditNet dlg;
-	dlg.Initialize( &nl, -1, m_plist, TRUE, TRUE,
-						MIL, &doc->m_w, &doc->m_v_w, &doc->m_v_h_w );
+	dlg.Initialize( doc->m_nlist, &nl, -1, m_plist, TRUE, TRUE,
+					MIL, &doc->m_w, &doc->m_v_w, &doc->m_v_h_w );
 	// invoke dialog
 	int ret = dlg.DoModal();
 	if( ret == IDOK )
@@ -382,7 +418,7 @@ void CDlgNetlist::OnBnClickedButtonNLWidth()
 		AfxMessageBox( "You have no net(s) selected" );
 		return;
 	}
-	CFreePcbView * view = theApp.m_View; 
+	CFreePcbView * view = theApp.m_View;
 	CFreePcbDoc * doc = theApp.m_Doc;
 	CDlgSetTraceWidths dlg;
 	dlg.m_w = &doc->m_w;
@@ -391,15 +427,27 @@ void CDlgNetlist::OnBnClickedButtonNLWidth()
 	dlg.m_width = 0;
 	dlg.m_via_width = 0;
 	dlg.m_hole_width = 0;
+	dlg.m_clearance.m_ca_clearance.Set(CClearanceInfo::E_USE_PARENT);
 	if( n_sel == 1 )
 	{
 		POSITION pos = m_list_ctrl.GetFirstSelectedItemPosition();
 		int iItem = m_list_ctrl.GetNextSelectedItem( pos );
 		int i = m_list_ctrl.GetItemData( iItem );
+
 		dlg.m_width = ::nl[i].w;
 		dlg.m_via_width = ::nl[i].v_w;
 		dlg.m_hole_width = ::nl[i].v_h_w;
+
+        dlg.m_clearance = ::nl[i].clearance;
 	}
+	else
+	{
+		// Assign the project clearance (in doc) as the parent to the clearance
+		dlg.m_clearance.SetParent(doc->m_clearance);
+	}
+
+	dlg.m_clearance.Update_ca_clearance();
+
 	int ret = dlg.DoModal();
 	if( ret == IDOK )
 	{
@@ -408,21 +456,47 @@ void CDlgNetlist::OnBnClickedButtonNLWidth()
 		{
 			int iItem = m_list_ctrl.GetNextSelectedItem( pos );
 			int i = m_list_ctrl.GetItemData( iItem );
-			if( dlg.m_width != -1 )
-				::nl[i].w = dlg.m_width;
-			if( dlg.m_via_width != -1 )
+
+			if( dlg.m_apply_trace )
 			{
-				::nl[i].v_w = dlg.m_via_width;
-				::nl[i].v_h_w = dlg.m_hole_width;
+				if( dlg.m_width != -1 )
+					::nl[i].w = dlg.m_width;
 			}
-			::nl[i].apply_trace_width = dlg.m_apply_trace;
-			::nl[i].apply_via_width = dlg.m_apply_via;
+
+			if( dlg.m_apply_via )
+			{
+				if( dlg.m_via_width != -1 )
+				{
+					::nl[i].v_w = dlg.m_via_width;
+					::nl[i].v_h_w = dlg.m_hole_width;
+				}
+			}
+
+			if( dlg.m_apply_clearance )
+			{
+				::nl[i].clearance = dlg.m_clearance;
+			}
+
+			::nl[i].apply_trace_width = dlg.m_apply_to_routed && dlg.m_apply_trace;
+			::nl[i].apply_via_width   = dlg.m_apply_to_routed && dlg.m_apply_via;
+    		::nl[i].apply_clearance   = dlg.m_apply_to_routed && dlg.m_apply_clearance;
+
 			str.Format( "%d", ::nl[i].w/NM_PER_MIL );
 			m_list_ctrl.SetItem( iItem, COL_WIDTH, LVIF_TEXT, str, 0, 0, 0, 0 );
 			str.Format( "%d", ::nl[i].v_w/NM_PER_MIL );
 			m_list_ctrl.SetItem( iItem, COL_VIA_W, LVIF_TEXT, str, 0, 0, 0, 0 );
 			str.Format( "%d", ::nl[i].v_h_w/NM_PER_MIL );
 			m_list_ctrl.SetItem( iItem, COL_HOLE_W, LVIF_TEXT, str, 0, 0, 0, 0 );
+
+			if (::nl[i].clearance.m_ca_clearance.m_status < 0)
+			{
+				str.Format("Default");
+			}
+			else
+			{
+				str.Format( "%d", ::nl[i].clearance.m_ca_clearance.m_val / NM_PER_MIL );
+			}
+			m_list_ctrl.SetItem( iItem, COL_CLEARANCE, LVIF_TEXT, str, 0, 0, 0, 0 );
 		}
 	}
 }
@@ -469,3 +543,10 @@ void CDlgNetlist::OnNMClickListNet(NMHDR *pNMHDR, LRESULT *pResult)
 	*pResult = 0;
 }
 
+
+void CDlgNetlist::OnNMDblclkListNet(NMHDR *pNMHDR, LRESULT *pResult)
+{
+	OnBnClickedButtonEdit();
+
+	*pResult = 0;
+}

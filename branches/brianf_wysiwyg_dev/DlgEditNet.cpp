@@ -23,6 +23,7 @@ CDlgEditNet::~CDlgEditNet()
 void CDlgEditNet::DoDataExchange(CDataExchange* pDX)
 {
 	CDialog::DoDataExchange(pDX);
+
 	DDX_Control(pDX, IDC_RADIO_DEF_WIDTH, m_button_def_width);
 	DDX_Control(pDX, IDC_RADIO_SET_WIDTH, m_button_set_width);
 	DDX_Control(pDX, IDC_EDIT_VIA_PAD_W, m_edit_pad_w);
@@ -32,9 +33,14 @@ void CDlgEditNet::DoDataExchange(CDataExchange* pDX)
 	DDX_Control(pDX, IDC_CHECK_VISIBLE, m_check_visible);
 	DDX_Control(pDX, IDC_COMBO_WIDTH, m_combo_width);
 	DDX_Control(pDX, IDC_EDIT_ADD_PIN, m_edit_addpin);
-	DDX_Control(pDX, IDC_CHECK1, m_check_apply);
+	DDX_Control(pDX, IDC_CHECK1, m_check_widths_apply);
+	DDX_Control(pDX, IDC_RADIO_DEF_CLEARANCE, m_radio2_def_clearance);
+	DDX_Control(pDX, IDC_RADIO_SET_CLEARANCE, m_radio2_set_clearance);
+	DDX_Control(pDX, IDC_EDIT_CLEARANCE, m_edit_clearance);
+	DDX_Control(pDX, IDC_CHECK_CLEARANCE, m_check_clearances_apply);
 	DDX_Control(pDX, IDC_BUTTON_ADD, m_button_add_pin);
 	DDX_Control(pDX, ID_MY_OK, m_button_OK);
+
 	if( pDX->m_bSaveAndValidate )
 	{
 		// now implement edits into netlist_info
@@ -42,7 +48,7 @@ void CDlgEditNet::DoDataExchange(CDataExchange* pDX)
 		if( m_name.GetLength() > MAX_NET_NAME_SIZE )
 		{
 			CString mess;
-			mess.Format( "Max length of net name is %d characters", MAX_NET_NAME_SIZE ); 
+			mess.Format( "Max length of net name is %d characters", MAX_NET_NAME_SIZE );
 			AfxMessageBox( mess );
 			pDX->Fail();
 		}
@@ -54,7 +60,7 @@ void CDlgEditNet::DoDataExchange(CDataExchange* pDX)
 			AfxMessageBox( "illegal trace width" );
 			pDX->Fail();
 		}
-		m_def_w = i*NM_PER_MIL; 
+		m_def_w = i*NM_PER_MIL;
 
 		DDX_Text( pDX, IDC_EDIT_VIA_PAD_W, i );
 		if( i<0 )
@@ -62,7 +68,7 @@ void CDlgEditNet::DoDataExchange(CDataExchange* pDX)
 			AfxMessageBox( "illegal via width" );
 			pDX->Fail();
 		}
-		m_def_v_w = i*NM_PER_MIL; 
+		m_def_v_w = i*NM_PER_MIL;
 
 		DDX_Text( pDX, IDC_EDIT_VIA_HOLE_W, i );
 		if( i<0 )
@@ -70,7 +76,7 @@ void CDlgEditNet::DoDataExchange(CDataExchange* pDX)
 			AfxMessageBox( "illegal via hole width" );
 			pDX->Fail();
 		}
-		m_def_v_h_w = i*NM_PER_MIL; 
+		m_def_v_h_w = i*NM_PER_MIL;
 		m_visible = m_check_visible.GetState();
 		for( int in=0; in<m_nl->GetSize(); in++ )
 		{
@@ -79,6 +85,22 @@ void CDlgEditNet::DoDataExchange(CDataExchange* pDX)
 				AfxMessageBox( "duplicate net name" );
 				pDX->Fail();
 			}
+		}
+
+		if( m_radio2_def_clearance.GetCheck() )
+		{
+			m_clearance.m_ca_clearance.Set(CClearanceInfo::E_USE_PARENT);
+		}
+		else
+		{
+			DDX_Text( pDX, IDC_EDIT_CLEARANCE, i );
+			if( i<0 ||  i>2000 )
+			{
+				AfxMessageBox( "Invalid clearance (0-2000)" );
+				pDX->Fail();
+			}
+
+			m_clearance.m_ca_clearance.Set(i*NM_PER_MIL);
 		}
 
 		// now update netlist_info
@@ -90,14 +112,18 @@ void CDlgEditNet::DoDataExchange(CDataExchange* pDX)
 			m_in = num_nets;
 			(*m_nl)[m_in].net = NULL;
 		}
-		(*m_nl)[m_in].apply_trace_width = m_check_apply.GetCheck();
-		(*m_nl)[m_in].apply_via_width = m_check_apply.GetCheck();
+
+		(*m_nl)[m_in].apply_trace_width = m_check_widths_apply.GetCheck();
+		(*m_nl)[m_in].apply_via_width = m_check_widths_apply.GetCheck();
+		(*m_nl)[m_in].apply_clearance = m_check_clearances_apply.GetCheck();
 		(*m_nl)[m_in].modified = TRUE;
 		(*m_nl)[m_in].name = m_name;
 		(*m_nl)[m_in].visible = m_visible;
 		(*m_nl)[m_in].w = m_def_w;
 		(*m_nl)[m_in].v_w = m_def_v_w;
 		(*m_nl)[m_in].v_h_w = m_def_v_h_w;
+		(*m_nl)[m_in].clearance = m_clearance;
+
 		if( m_pins_edited )
 		{
 			int npins = m_list_pins.GetCount();
@@ -143,23 +169,26 @@ void CDlgEditNet::DoDataExchange(CDataExchange* pDX)
 	else
 	{
 		// convert units
-		m_def_w = m_def_w/NM_PER_MIL;
-		m_def_v_w = m_def_v_w/NM_PER_MIL;
-		m_def_v_h_w = m_def_v_h_w/NM_PER_MIL;
-		// default is to apply new trace width
-		m_check_apply.SetCheck(1);
+		m_def_w     /= NM_PER_MIL;
+		m_def_v_w   /= NM_PER_MIL;
+		m_def_v_h_w /= NM_PER_MIL;
+
+		// default is to apply new trace width & clearances
+		m_check_widths_apply.SetCheck(1);
+		m_check_clearances_apply.SetCheck(1);
 	}
 }
 
-void CDlgEditNet::Initialize( netlist_info * nl,
-							 int i,
-							 CPartList * plist,
-							 BOOL new_net,
-							 BOOL visible,
-							 int units,
-							 CArray<int> * w,
-							 CArray<int> * v_w,
-							 CArray<int> * v_h_w )
+void CDlgEditNet::Initialize( CNetList const * netlist, 
+							  netlist_info * nl,
+							  int i,
+							  CPartList * plist,
+							  BOOL new_net,
+							  BOOL visible,
+							  int units,
+							  CArray<int> * w,
+							  CArray<int> * v_w,
+							  CArray<int> * v_h_w )
 {
 	m_units = units;
 	m_nl = nl;
@@ -170,9 +199,13 @@ void CDlgEditNet::Initialize( netlist_info * nl,
 	if( new_net )
 	{
 		m_name = "";
+
 		m_def_w = 0;
 		m_def_v_w = 0;
 		m_def_v_h_w = 0;
+
+		m_clearance.m_ca_clearance.Set(CClearanceInfo::E_USE_PARENT);
+		m_clearance.SetParent( netlist->Get_def_clearance() );
 	}
 	else
 	{
@@ -180,6 +213,7 @@ void CDlgEditNet::Initialize( netlist_info * nl,
 		m_def_w = (*nl)[i].w;
 		m_def_v_w = (*nl)[i].v_w;
 		m_def_v_h_w = (*nl)[i].v_h_w;
+		m_clearance = (*nl)[i].clearance;
 	}
 	m_w = w;
 	m_v_w = v_w;
@@ -197,6 +231,8 @@ BEGIN_MESSAGE_MAP(CDlgEditNet, CDialog)
 //	ON_WM_NCPAINT()
 ON_EN_UPDATE(IDC_EDIT_ADD_PIN, OnEnUpdateEditAddPin)
 ON_BN_CLICKED(ID_MY_OK, OnBnClickedOk)
+ON_BN_CLICKED(IDC_RADIO_DEF_CLEARANCE, &CDlgEditNet::OnBnClickedRadioDefClearance)
+ON_BN_CLICKED(IDC_RADIO_SET_CLEARANCE, &CDlgEditNet::OnBnClickedRadioSetClearance)
 END_MESSAGE_MAP()
 
 
@@ -220,7 +256,7 @@ void CDlgEditNet::OnBnClickedButtonDelete()
 	int nCount = m_list_pins.GetSelCount();
 	CArray<int,int> aryListBoxSel;
 	aryListBoxSel.SetSize(nCount);
-	m_list_pins.GetSelItems(nCount, aryListBoxSel.GetData()); 
+	m_list_pins.GetSelItems(nCount, aryListBoxSel.GetData());
 	for( int j=(nCount-1); j>=0; j-- )
 	{
 		int iItem = aryListBoxSel[j];
@@ -279,7 +315,7 @@ void CDlgEditNet::OnBnClickedButtonAdd()
 			int pin_index = part->shape->GetPinIndexByName( pinstr );
 			if( pin_index == -1 )
 			{
-				str.Format( "Pin \"%s\" not found in footprint \"%s\"", pinstr, 
+				str.Format( "Pin \"%s\" not found in footprint \"%s\"", pinstr,
 					part->shape->m_name );
 				AfxMessageBox( str );
 				return;
@@ -332,7 +368,7 @@ void CDlgEditNet::OnBnClickedButtonAdd()
 //	m_new_net = TRUE to add net, FALSE to edit net
 //	m_name = pointer to CString with net name (or "" if adding new net)
 //  m_use_nl_not_nlist = TRUE to use m_nl, FALSE to use m_nlist for net info
-//	m_nl = pointer to net_info array 
+//	m_nl = pointer to net_info array
 //	m_in = index into m_nl for this net
 //	m_plist = pointer to partlist
 //	m_w = pointer to CArray of trace widths
@@ -356,6 +392,22 @@ BOOL CDlgEditNet::OnInitDialog()
 	m_button_def_width.SetCheck( 1 );
 	m_button_set_width.SetCheck( 0 );
 	m_check_visible.SetCheck( m_visible );
+
+	m_clearance.Update_ca_clearance();
+
+	if (m_clearance.m_ca_clearance.m_status < 0)
+	{
+		m_radio2_def_clearance.SetCheck(1);
+		m_edit_clearance.EnableWindow(0);
+	}
+	else
+	{
+		m_radio2_set_clearance.SetCheck(1);
+		m_edit_clearance.EnableWindow(1);
+	}
+	str.Format("%d", m_clearance.m_ca_clearance.m_val / NM_PER_MIL);
+	m_edit_clearance.SetWindowText(str);
+
 	// set up combo box for trace widths
 	int n = m_w->GetSize();
 	for( int i=0; i<n; i++ )
@@ -369,7 +421,7 @@ BOOL CDlgEditNet::OnInitDialog()
 		int npins = (*m_nl)[m_in].ref_des.GetSize();
 		for( int i=0; i<npins; i++ )
 		{
-			str.Format( "%s.%s", (*m_nl)[m_in].ref_des[i], (*m_nl)[m_in].pin_name[i] ); 
+			str.Format( "%s.%s", (*m_nl)[m_in].ref_des[i], (*m_nl)[m_in].pin_name[i] );
 			m_list_pins.InsertString( i, str );
 		}
 	}
@@ -423,7 +475,7 @@ void CDlgEditNet::ChangeTraceWidth( CString test )
 			{
 				for( int i=1; i<n; i++ )
 				{
-					if( new_w > (*m_w)[i-1] && new_w <= (*m_w)[i] ) 
+					if( new_w > (*m_w)[i-1] && new_w <= (*m_w)[i] )
 					{
 						new_v_w = (*m_v_w)[i];
 						new_v_h_w = (*m_v_h_w)[i];
@@ -468,4 +520,14 @@ void CDlgEditNet::OnBnClickedOk()
 		OnBnClickedButtonAdd();
 	else
 		OnOK();
+}
+
+void CDlgEditNet::OnBnClickedRadioDefClearance()
+{
+	m_edit_clearance.EnableWindow(0);
+}
+
+void CDlgEditNet::OnBnClickedRadioSetClearance()
+{
+	m_edit_clearance.EnableWindow(1);
 }

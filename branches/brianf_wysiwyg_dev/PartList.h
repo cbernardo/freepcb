@@ -8,6 +8,8 @@
 #include "smfontutil.h"
 #include "DlgLog.h"
 #include "UndoList.h"
+#include "linklist.h"
+#include "clearance.h"
 
 #define MAX_REF_DES_SIZE 39
 
@@ -31,7 +33,7 @@ struct undo_part {
 	int size;				// size of this instance of the struct
 	id m_id;				// instance id for this part
 	BOOL visible;			// FALSE=hide part
-	int x,y;				// position of part origin on board 
+	int x,y;				// position of part origin on board
 	int side;				// 0=top, 1=bottom
 	int angle;				// orientation (degrees)
 	BOOL glued;				// TRUE=glued in place
@@ -45,11 +47,11 @@ struct undo_part {
 	char value[CShape::MAX_VALUE_SIZE+1];		// package
 	char shape_name[CShape::MAX_NAME_SIZE+1];	// name of shape
 	CShape * shape;			// pointer to the footprint of the part, may be NULL
-	CPartList * m_plist;	// parent cpartlist	
+	CPartList * m_plist;	// parent cpartlist
 	// here goes array of char[npins][40] for attached net names
 };
 
-// partlist_info is used to hold digest of CPartList 
+// partlist_info is used to hold digest of CPartList
 // for editing in dialogs, or importing from netlist file
 // notes:
 //	package may be "" if no package assigned
@@ -96,19 +98,20 @@ struct drc_pin {
 // class part_pin represents a pin on a part
 // note that pin numbers start at 1,
 // so index to pin array is (pin_num-1)
-class part_pin 
+class part_pin
 {
 public:
-	int x, y;				// position on PCB
-	cnet * net;				// pointer to net, or NULL if not assigned
-	drc_pin drc;			// drc info
-	dl_element * dl_sel;	// pointer to graphic element for selection shape
-	dl_element * dl_hole;	// pointer to graphic element for hole
+	int x, y;				  // position on PCB
+	cnet * net;				  // pointer to net, or NULL if not assigned
+    CClearanceInfo clearance; // Copper clearance
+	drc_pin drc;			  // drc info
+	dl_element * dl_sel;	  // pointer to graphic element for selection shape
+	dl_element * dl_hole;	  // pointer to graphic element for hole
 	CArray<dl_element*> dl_els;	// array of pointers to graphic elements for pads
 };
 
 // class cpart represents a part
-class cpart
+class cpart //: public CDLinkList
 {
 public:
 	cpart();
@@ -124,21 +127,21 @@ public:
 	BOOL glued;			// 1=glued in place
 	BOOL m_ref_vis;		// TRUE = ref shown
 	int m_ref_xi;		// reference text (relative to part)
-	int m_ref_yi;	
-	int m_ref_angle; 
+	int m_ref_yi;
+	int m_ref_angle;
 	int m_ref_size;
 	int m_ref_w;
 	BOOL m_value_vis;	// TRUE = value shown
 	int m_value_xi;		// value text
-	int m_value_yi; 
-	int m_value_angle; 
-	int m_value_size; 
-	int m_value_w;		
+	int m_value_yi;
+	int m_value_angle;
+	int m_value_size;
+	int m_value_w;
 	dl_element * dl_sel;		// pointer to display list element for selection rect
 	CString ref_des;			// ref designator such as "U3"
-	dl_element * dl_ref_sel;	// pointer to selection rect for ref text 
+	dl_element * dl_ref_sel;	// pointer to selection rect for ref text
 	CString value;				// "value" string
-	dl_element * dl_value_sel;	// pointer to selection rect for value 
+	dl_element * dl_value_sel;	// pointer to selection rect for value
 	CString package;			// package (from original imported netlist, may be "")
 	CShape * shape;				// pointer to the footprint of the part, may be NULL
 	CArray<stroke> ref_text_stroke;		// strokes for ref. text
@@ -179,9 +182,9 @@ private:
 	CMapStringToPtr * m_footprint_cache_map;
 
 public:
-	enum { 
-		UNDO_PART_DELETE=1, 
-		UNDO_PART_MODIFY, 
+	enum {
+		UNDO_PART_DELETE=1,
+		UNDO_PART_MODIFY,
 		UNDO_PART_ADD };	// undo types
 	CPartList( CDisplayList * dlist, SMFontUtil * fontutil );
 	~CPartList();
@@ -189,13 +192,13 @@ public:
 	void SetShapeCacheMap( CMapStringToPtr * shape_cache_map )
 	{ m_footprint_cache_map = shape_cache_map; };
 	int GetNumParts(){ return m_size; };
-	cpart * Add(); 
-	cpart * Add( CShape * shape, CString * ref_des, CString * package, 
-					int x, int y, int side, int angle, int visible, int glued ); 
+	cpart * Add();
+	cpart * Add( CShape * shape, CString * ref_des, CString * package,
+					int x, int y, int side, int angle, int visible, int glued );
 	cpart * AddFromString( CString * str );
 	void SetNumCopperLayers( int nlayers ){ m_layers = nlayers;};
-	int SetPartData( cpart * part, CShape * shape, CString * ref_des, CString * package, 
-					int x, int y, int side, int angle, int visible, int glued ); 
+	int SetPartData( cpart * part, CShape * shape, CString * ref_des, CString * package,
+					int x, int y, int side, int angle, int visible, int glued );
 	void MarkAllParts( int mark );
 	int Remove( cpart * element );
 	void RemoveAllParts();
@@ -240,12 +243,12 @@ public:
 	int GetPartBoundingRect( cpart * part, CRect * part_r );
 	int GetPartBoundaries( CRect * part_r );
 	int GetPinConnectionStatus( cpart * part, CString * pin_name, int layer );
-	int CPartList::GetPadDrawInfo( cpart * part, int ipin, int layer, 
+	int CPartList::GetPadDrawInfo( cpart * part, int ipin, int layer,
 							  BOOL bUse_TH_thermals, BOOL bUse_SMT_thermals,
 							  int mask_clearance, int paste_mask_shrink,
 							  int * type=0, int * x=0, int * y=0, int * w=0, int * l=0, int * r=0, int * hole=0,
-							  int * angle=0, cnet ** net=0, 
-							  int * connection_status=0, int * pad_connect_flag=0, 
+							  int * angle=0, cnet ** net=0,
+							  int * connection_status=0, int * pad_connect_flag=0,
 							  int * clearance_type=0 );
 	cpart * GetPart( LPCTSTR ref_des );
 	cpart * GetFirstPart();
@@ -266,11 +269,11 @@ public:
 	int SetPartString( cpart * part, CString * str );
 	int CheckPartlist( CString * logstr );
 	BOOL CheckForProblemFootprints();
-	void DRC( CDlgLog * log, int copper_layers, 
+	void DRC( CDlgLog * log, int copper_layers,
 		int units, BOOL check_unrouted,
 		CArray<CPolyLine> * board_outline,
 		DesignRules * dr, DRErrorList * DRElist );
 	undo_part * CreatePartUndoRecord( cpart * part, CString * new_ref_des );
 	static void PartUndoCallback( int type, void * ptr, BOOL undo );
 };
- 
+
