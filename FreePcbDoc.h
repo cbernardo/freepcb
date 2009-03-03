@@ -67,12 +67,15 @@ public:
 public:
 	virtual ~CFreePcbDoc();
 	void OnTimer();
-	void FileOpen( CString * fn );
+	BOOL FileOpen( LPCTSTR fn, BOOL bLibrary=FALSE );
 	int FileClose();
+	void FileLoadLibrary( LPCTSTR pathname );
 	void ProjectModified( BOOL flag, BOOL b_clear_redo=TRUE );
 	void InitializeNewProject();
 	void CFreePcbDoc::SendInitialUpdate();
-	void ReadFootprints( CStdioFile * pcb_file, CMapStringToPtr * cache_map=NULL );
+	void ReadFootprints( CStdioFile * pcb_file, 
+		CMapStringToPtr * cache_map=NULL,
+		BOOL bFindSection=TRUE );
 	int WriteFootprints( CStdioFile * file, CMapStringToPtr * cache_map=NULL );
 	CShape * GetFootprintPtr( CString name );
 	void MakeLibraryMaps( CString * fullpath );
@@ -95,7 +98,7 @@ public:
 	static void BoardOutlineUndoCallback( int type, void * ptr, BOOL undo );
 	undo_sm_cutout * CreateSMCutoutUndoRecord( CPolyLine * poly );
 	static void SMCutoutUndoCallback( int last_flag, void * ptr, BOOL undo );
-	void OnFileAutoOpen( CString * fn );
+	void OnFileAutoOpen( LPCTSTR fn );
 	BOOL FileSave( CString * folder, CString * filename, 
 		CString * old_folder, CString * old_filename,
 		BOOL bBackup=TRUE );
@@ -282,6 +285,8 @@ public:
 	afx_msg void OnRepeatDrc();
 	afx_msg void OnFileGenerateReportFile();
 	afx_msg void OnProjectCombineNets();
+	afx_msg void OnFileLoadLibrary();
+	afx_msg void OnFileSaveLibrary();
 };
 
 /////////////////////////////////////////////////////////////////////////////

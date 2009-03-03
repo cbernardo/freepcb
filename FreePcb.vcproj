@@ -297,6 +297,9 @@
 				RelativePath="DlgSaveFootprint.cpp">
 			</File>
 			<File
+				RelativePath=".\DlgSaveLib.cpp">
+			</File>
+			<File
 				RelativePath="DlgSetAreaHatch.cpp">
 			</File>
 			<File
@@ -560,6 +563,9 @@
 			</File>
 			<File
 				RelativePath="DlgSaveFootprint.h">
+			</File>
+			<File
+				RelativePath=".\DlgSaveLib.h">
 			</File>
 			<File
 				RelativePath="DlgSetAreaHatch.h">

@@ -597,4 +597,38 @@ BOOL CTextList::GetTextRectOnPCB( CText * t, CRect * r )
 	return bValid;
 }
 
+// reassign copper text to new layers
+// enter with layer[] = table of new copper layers for each old copper layer
+//
+void CTextList::ReassignCopperLayers( int n_new_layers, int * layer )
+{
+	CText * t = GetFirstText();
+	while( t )
+	{
+		int old_layer = t->m_layer;
+		if( old_layer >= LAY_TOP_COPPER )
+		{
+					int index = old_layer - LAY_TOP_COPPER;
+					int new_layer = layer[index];
+					if( new_layer == old_layer )
+					{
+						// do nothing
+					}
+					else if( new_layer == -1 )
+					{
+						// delete this text
+						t->Undraw();
+						RemoveText( t );
+					}
+					else
+					{
+						// move to new layer
+						t->Undraw();
+						t->m_layer = new_layer + LAY_TOP_COPPER;
+						t->Draw( m_dlist, m_smfontutil ); 
+					}
+		}
+		t = GetNextText();
+	}
+}
 

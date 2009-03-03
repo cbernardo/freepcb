@@ -397,6 +397,7 @@ public:
 	BOOL GetNetVisibility( cnet * net );
 	int CheckNetlist( CString * logstr );
 	int CheckConnectivity( CString * logstr );
+	void HighlightNetConnections( cnet * net );
 	void HighlightNet( cnet * net );
 	cnet * GetFirstNet();
 	cnet * GetNextNet();
@@ -497,6 +498,7 @@ public:
 		int x, int y, int style );
 	void MoveAreaCorner( cnet * net, int iarea, int icorner, int x, int y );
 	void HighlightAreaCorner( cnet * net, int iarea, int icorner );
+	void HighlightAreaSides( cnet * net, int ia );
 	CPoint GetAreaCorner( cnet * net, int iarea, int icorner );
 	int CompleteArea( cnet * net, int iarea, int style );
 	void SetAreaConnections();
