@@ -357,7 +357,7 @@ void CNetList::DrawConnection( cnet * net, int ic )
 
 // Add new pin to net
 //
-void CNetList::AddNetPin( cnet * net, CString * ref_des, CString * pin_name, BOOL set_areas )
+void CNetList::AddNetPin( cnet * net, CString * ref_des, CString * pin_name, CClearanceInfo const &clearance, BOOL set_areas )
 {
 	// set size of pin array
 	net->pin.SetSize( net->npins + 1 );
@@ -380,6 +380,7 @@ void CNetList::AddNetPin( cnet * net, CString * ref_des, CString * pin_name, BOO
 			{
 				// hook net to part
 				part->pin[pin_index].net = net;
+				part->pin[pin_index].clearance = clearance;
 			}
 		}
 	}
@@ -4158,8 +4159,25 @@ int CNetList::WriteNets( CStdioFile * file )
 
 			for( int ip=0; ip<net->npins; ip++ )
 			{
-				line.Format( "  pin: %d %s.%s\n", ip+1,
-					net->pin[ip].ref_des, net->pin[ip].pin_name );
+                int pin_index = net->pin[ip].part->shape->GetPinIndexByName( net->pin[ip].pin_name );
+                int clearance;
+
+			    if( pin_index >= 0 )
+                {
+                    clearance = net->pin[ip].part->pin[pin_index].clearance.m_ca_clearance.Get_item_as_int();
+                }
+                else
+                {
+                    clearance = CClearanceInfo::E_UNDEF;
+                }
+
+
+				line.Format( "  pin: %d %s.%s %d\n", ip+1,
+							net->pin[ip].ref_des,
+							net->pin[ip].pin_name,
+							clearance
+							);
+
 				file->WriteString( line );
 			}
 			for( int ic=0; ic<net->nconnects; ic++ )
@@ -4183,7 +4201,6 @@ int CNetList::WriteNets( CStdioFile * file )
 						s = &(c->seg[is]);
 						line.Format( "    seg: %d %d %d 0 0 %d\n",
 							is+1, s->layer, s->width, s->clearance.m_ca_clearance.Get_item_as_int() );
-						file->WriteString( line );
 					}
 					else
 					{
@@ -4191,8 +4208,8 @@ int CNetList::WriteNets( CStdioFile * file )
 							is+1, v->x, v->y, v->pad_layer, v->force_via_flag,
 							v->via_w, v->via_hole_w, v->tee_ID,
 							v->clearance.m_ca_clearance.Get_item_as_int() );
-						file->WriteString( line );
 					}
+					file->WriteString( line );
 				}
 			}
 			for( int ia=0; ia<net->nareas; ia++ )
@@ -4313,11 +4330,20 @@ void CNetList::ReadNets( CStdioFile * pcb_file, double read_version, int * layer
 					CString * err_str = new CString( "error parsing [nets] section of project file" );
 					throw err_str;
 				}
+
 				CString pin_str = p[1].Left(CShape::MAX_PIN_NAME_SIZE);
 				int dot_pos = pin_str.FindOneOf( "." );
 				CString ref_str = pin_str.Left( dot_pos );
 				CString pin_num_str = pin_str.Right( pin_str.GetLength()-dot_pos-1 );
-				AddNetPin( net, &ref_str, &pin_num_str );
+
+                CClearanceInfo pin_clearance(CClearanceInfo::E_AUTO_CALC);
+                if (np > 3)
+                {
+                    // Pin clearance included
+					pin_clearance.m_ca_clearance = my_atoi( &p[2] );
+                }
+
+				AddNetPin( net, &ref_str, &pin_num_str, pin_clearance );
 			}
 			for( int ic=0; ic<nconnects; ic++ )
 			{

@@ -253,6 +253,7 @@ public:
 		force_via_flag = 0;		// only used for end of stub trace
 		via_w = 0;
 		via_hole_w = 0;
+		clearance.m_ca_clearance = CClearanceInfo::E_AUTO_CALC;
 		dl_sel = 0;
 		dl_hole = 0;
 		tee_ID = 0;
@@ -314,7 +315,7 @@ public:
 	int pad_layer;				// layer of pad if this is first or last vertex, otherwise 0
 	int force_via_flag;			// force a via even if no layer change
 	int via_w, via_hole_w;		// via width and hole width (via_w==0 means no via)
-	CClearanceInfo clearance;   // clearances
+	CClearanceInfo clearance;   // via clearance
 	CArray<dl_element*> dl_el;	// array of display elements for each layer
 	dl_element * dl_sel;		// selection box
 	dl_element * dl_hole;		// hole in via
@@ -414,7 +415,8 @@ public:
 	cnet * AddNet( CString name, int max_pins, int def_width, int def_via_w, int def_via_hole_w, CClearanceInfo const &clearance );
 	void RemoveNet( cnet * net );
 	void RemoveAllNets();
-	void AddNetPin( cnet * net, CString * ref_des, CString * pin_name, BOOL set_areas=TRUE );
+	void AddNetPin( cnet * net, CString * ref_des, CString * pin_name, CClearanceInfo const &clearance, BOOL set_areas=TRUE );
+	void AddNetPin( cnet * net, CString * ref_des, CString * pin_name, BOOL set_areas=TRUE ) { AddNetPin(net,ref_des,pin_name, CClearanceInfo(CClearanceInfo::E_AUTO_CALC), set_areas); }
 	void RemoveNetPin( cpart * part, CString * pin_name );
 	void RemoveNetPin( cnet * net, CString * ref_des, CString * pin_name );
 	void RemoveNetPin( cnet * net, int pin_index );
