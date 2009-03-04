@@ -564,6 +564,7 @@ public:
 	afx_msg void OnVertexMove();
 	afx_msg void OnVertexConnectToPin();
 	afx_msg void OnVertexSize();
+	afx_msg void OnVertexClearance();
 	afx_msg void OnVertexDelete();
 	afx_msg void OnRatlineComplete();
 	afx_msg void OnRatlineSetWidth();

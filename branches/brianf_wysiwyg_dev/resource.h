@@ -937,14 +937,17 @@
 #define ID_CONNECT_SETCLEARANCE         32944
 #define ID_RATLINE_SETRATLINEWIDTH      32945
 #define ID_PAD_SETCLEARANCE             32946
+#define ID_VERTEX_SETVIACLEARANCE       32947
+#define ID_VERTEX_CLEARANCE             32948
+#define ID_VERTEX_SETCLEARANCE          32949
 
 // Next default values for new objects
-//
+// 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_3D_CONTROLS                     1
 #define _APS_NEXT_RESOURCE_VALUE        358
-#define _APS_NEXT_COMMAND_VALUE         32947
+#define _APS_NEXT_COMMAND_VALUE         32950
 #define _APS_NEXT_CONTROL_VALUE         1500
 #define _APS_NEXT_SYMED_VALUE           106
 #endif

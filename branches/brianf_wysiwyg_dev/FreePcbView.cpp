@@ -141,6 +141,7 @@ ON_COMMAND(ID_RATLINE_OPTIMIZE, OnRatlineOptimize)
 ON_COMMAND(ID_VERTEX_MOVE, OnVertexMove)
 ON_COMMAND(ID_VERTEX_DELETE, OnVertexDelete)
 ON_COMMAND(ID_VERTEX_SETSIZE, OnVertexSize)
+ON_COMMAND(ID_VERTEX_SETCLEARANCE, OnVertexClearance)
 ON_COMMAND(ID_RATLINE_COMPLETE, OnRatlineComplete)
 ON_COMMAND(ID_RATLINE_SETWIDTH, OnRatlineSetWidth)
 ON_COMMAND(ID_RATLINE_SETRATLINEWIDTH, OnRatlineSetRatlineWidth)
@@ -5765,8 +5766,13 @@ void CFreePcbView::OnContextMenu(CWnd* pWnd, CPoint point )
 	case CUR_VTX_SELECTED:
 		pPopup = menu.GetSubMenu(CONTEXT_VERTEX);
 		ASSERT(pPopup != NULL);
+
 		if( m_sel_vtx.via_w == 0 )
-			pPopup->EnableMenuItem( ID_VERTEX_SETSIZE, MF_GRAYED );
+		{
+			pPopup->EnableMenuItem( ID_VERTEX_SETSIZE,      MF_GRAYED );
+			pPopup->EnableMenuItem( ID_VERTEX_SETCLEARANCE, MF_GRAYED );
+		}
+
 		if( m_sel_con.end_pin == cconnect::NO_END
 			&& m_sel_con.vtx[m_sel_con.nsegs].tee_ID == 0
 			&& m_sel_con.vtx[m_sel_con.nsegs].force_via_flag == 0
@@ -6215,17 +6221,6 @@ void CFreePcbView::OnPadStartStubTrace()
 }
 
 
-void CFreePcbView::OnPadSetClearance()
-{
-	CDlgSetPinClearance dlg;
-
-	int ret = dlg.DoModal();
-	if( ret == IDOK )
-	{
-	}
-}
-
-
 // attach this pad to a net
 //
 void CFreePcbView::OnPadAddToNet()
@@ -6540,6 +6535,28 @@ void CFreePcbView::OnVertexSize()
 	}
 	Invalidate( FALSE );
 }
+
+
+void CFreePcbView::OnPadSetClearance()
+{
+	CDlgSetPinClearance dlg;
+
+	int ret = dlg.DoModal();
+	if( ret == IDOK )
+	{
+	}
+}
+
+void CFreePcbView::OnVertexClearance()
+{
+	CDlgSetPinClearance dlg;
+
+	int ret = dlg.DoModal();
+	if( ret == IDOK )
+	{
+	}
+}
+
 
 // move this vertex
 //

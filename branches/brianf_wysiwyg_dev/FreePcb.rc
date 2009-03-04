@@ -391,6 +391,7 @@ BEGIN
         MENUITEM "Move",                        ID_VERTEX_MOVE
         MENUITEM "Set Position",                ID_VERTEX_PROPERITES
         MENUITEM "Set Via Size",                ID_VERTEX_SETSIZE
+        MENUITEM "Set Via Clearance",           ID_VERTEX_SETCLEARANCE
         MENUITEM SEPARATOR
         MENUITEM "Connect To Pin",              ID_VERTEX_CONNECTTOPIN
         MENUITEM SEPARATOR
