@@ -27,18 +27,18 @@ LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
 // TEXTINCLUDE
 //
 
-1 TEXTINCLUDE
+1 TEXTINCLUDE 
 BEGIN
     "resource.h\0"
 END
 
-2 TEXTINCLUDE
+2 TEXTINCLUDE 
 BEGIN
     "#include ""afxres.h""\r\n"
     "\0"
 END
 
-3 TEXTINCLUDE
+3 TEXTINCLUDE 
 BEGIN
     "#define _AFX_NO_SPLITTER_RESOURCES\r\n"
     "#define _AFX_NO_OLE_RESOURCES\r\n"
@@ -149,7 +149,7 @@ END
 // Menu
 //
 
-IDR_MAINFRAME MENU
+IDR_MAINFRAME MENU 
 BEGIN
     POPUP "&File"
     BEGIN
@@ -242,9 +242,7 @@ BEGIN
     POPUP "&Help"
     BEGIN
         MENUITEM "FreePCB User Guide (PDF)",    32893
-        MENUITEM "FreePCB User Guide Supplement (PDF)",
-                                                ID_HELP_USERGUIDESUPPLEMENT_PDF
-
+        MENUITEM "FreePCB User Guide Supplement (PDF)", ID_HELP_USERGUIDESUPPLEMENT_PDF
         MENUITEM "FpcROUTE User Guide (PDF)",   ID_HELP_FPCROUTE
         MENUITEM SEPARATOR
         MENUITEM "FreePCB website",             ID_HELP_GOTOWEBSITE
@@ -255,7 +253,7 @@ BEGIN
     END
 END
 
-IDR_FOOTPRINT MENU
+IDR_FOOTPRINT MENU 
 BEGIN
     POPUP "&File"
     BEGIN
@@ -306,7 +304,7 @@ BEGIN
     END
 END
 
-IDR_CONTEXT MENU
+IDR_CONTEXT MENU 
 BEGIN
     POPUP "None"
     BEGIN
@@ -523,7 +521,7 @@ BEGIN
     END
 END
 
-IDR_FP_CONTEXT MENU
+IDR_FP_CONTEXT MENU 
 BEGIN
     POPUP "None"
     BEGIN
@@ -591,7 +589,7 @@ BEGIN
     END
 END
 
-IDR_MAINFRAME_DRAG MENU
+IDR_MAINFRAME_DRAG MENU 
 BEGIN
     POPUP "&File", GRAYED
     BEGIN
@@ -689,7 +687,7 @@ BEGIN
     END
 END
 
-IDR_FOOTPRINT_DRAG MENU
+IDR_FOOTPRINT_DRAG MENU 
 BEGIN
     POPUP "&File", GRAYED
     BEGIN
@@ -747,7 +745,7 @@ END
 // Accelerator
 //
 
-IDR_MAINFRAME ACCELERATORS
+IDR_MAINFRAME ACCELERATORS 
 BEGIN
     "C",            ID_EDIT_COPY,           VIRTKEY, CONTROL, NOINVERT
     VK_INSERT,      ID_EDIT_COPY,           VIRTKEY, CONTROL, NOINVERT
@@ -1005,7 +1003,6 @@ BEGIN
     LTEXT           "Layer",IDC_STATIC,12,66,19,8
     GROUPBOX        "Hatch pattern",IDC_STATIC,12,6,180,24
 END
-
 
 IDD_ADD_WIDTH_MENU_ITEM DIALOGEX 0, 0, 148, 95
 STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
@@ -2212,8 +2209,7 @@ BEGIN
 END
 
 IDD_SAVE_LIB DIALOGEX 0, 0, 280, 294
-STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION |
-    WS_SYSMENU
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Save footprints to library"
 FONT 8, "MS Shell Dlg", 400, 0, 0x1
 BEGIN
@@ -2224,15 +2220,12 @@ BEGIN
     PUSHBUTTON      "Down",IDC_BUTTON5,18,90,54,12
     PUSHBUTTON      "Sort...",IDC_BUTTON6,156,216,54,12
     PUSHBUTTON      "Delete",IDC_BUTTON8,18,126,54,12
-    LISTBOX         IDC_LIST_FP2,96,18,174,192,LBS_NOINTEGRALHEIGHT |
-                    LBS_EXTENDEDSEL | WS_VSCROLL | WS_TABSTOP
-    LTEXT           "Footprints will be saved in this order",IDC_STATIC,120,
-                    6,116,8
+    LISTBOX         IDC_LIST_FP2,96,18,174,192,LBS_NOINTEGRALHEIGHT | LBS_EXTENDEDSEL | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "Footprints will be saved in this order",IDC_STATIC,120,6,116,8
     GROUPBOX        "Selected item(s)",IDC_STATIC,6,42,78,108
     PUSHBUTTON      "Up",IDC_BUTTON9,18,72,54,12
     PUSHBUTTON      "Bottom",IDC_BUTTON10,18,108,54,12
 END
-
 
 IDD_SEGMENT_CLEARANCE DIALOGEX 0, 0, 202, 174
 STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
@@ -2344,7 +2337,7 @@ STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSM
 CAPTION "Set Pin/Via Clearance"
 FONT 8, "MS Shell Dlg", 400, 0, 0x1
 BEGIN
-    CONTROL         "Use net clearance",IDC_RADIO_USE_NET_CLEARANCE,"Button",BS_AUTORADIOBUTTON | WS_GROUP,12,30,73,10
+    CONTROL         "Use net clearance",IDC_RADIO_USE_NET_CLEARANCE,"Button",BS_AUTORADIOBUTTON,12,30,73,10
     CONTROL         "Set clearance (mils)",IDC_RADIO_SET_TRACE_CLEARANCE,
                     "Button",BS_AUTORADIOBUTTON,12,43,78,10
     EDITTEXT        IDC_EDIT_CLEARANCE,90,41,40,14,ES_AUTOHSCROLL
@@ -2403,7 +2396,7 @@ END
 //
 
 #ifdef APSTUDIO_INVOKED
-GUIDELINES DESIGNINFO
+GUIDELINES DESIGNINFO 
 BEGIN
     IDD_ABOUTBOX, DIALOG
     BEGIN
@@ -2906,19 +2899,19 @@ END
 // String Table
 //
 
-STRINGTABLE
+STRINGTABLE 
 BEGIN
     IDR_MAINFRAME           "FreePcb\n\nFreePc\n\n\nFreePcb.Document\nFreePc Document"
     ID_ADD_PART             "Add Part to PCB"
 END
 
-STRINGTABLE
+STRINGTABLE 
 BEGIN
     AFX_IDS_APP_TITLE       "FreePcb"
     AFX_IDS_IDLEMESSAGE     "Ready"
 END
 
-STRINGTABLE
+STRINGTABLE 
 BEGIN
     ID_INDICATOR_EXT        "EXT"
     ID_INDICATOR_CAPS       "CAP"
@@ -2928,12 +2921,12 @@ BEGIN
     ID_INDICATOR_REC        "REC"
 END
 
-STRINGTABLE
+STRINGTABLE 
 BEGIN
     ID_FOOTPRINT_FILE_NEW   "Create a new document\nNew"
 END
 
-STRINGTABLE
+STRINGTABLE 
 BEGIN
     ID_FILE_OPEN            "Open an existing document\nOpen"
     ID_FILE_CLOSE           "Close the active document\nClose"
@@ -2945,13 +2938,13 @@ BEGIN
     ID_FILE_PRINT_PREVIEW   "Display full pages\nPrint Preview"
 END
 
-STRINGTABLE
+STRINGTABLE 
 BEGIN
     ID_APP_ABOUT            "Display program information, version number and copyright\nAbout"
     ID_APP_EXIT             "Quit the application; prompts to save documents\nExit"
 END
 
-STRINGTABLE
+STRINGTABLE 
 BEGIN
     ID_FILE_MRU_FILE1       "Open this document"
     ID_FILE_MRU_FILE2       "Open this document"
@@ -2971,18 +2964,18 @@ BEGIN
     ID_FILE_MRU_FILE16      "Open this document"
 END
 
-STRINGTABLE
+STRINGTABLE 
 BEGIN
     ID_NEXT_PANE            "Switch to the next window pane\nNext Pane"
     ID_PREV_PANE            "Switch back to the previous window pane\nPrevious Pane"
 END
 
-STRINGTABLE
+STRINGTABLE 
 BEGIN
     ID_WINDOW_SPLIT         "Split the active window into panes\nSplit"
 END
 
-STRINGTABLE
+STRINGTABLE 
 BEGIN
     ID_EDIT_CLEAR           "Erase the selection\nErase"
     ID_EDIT_CLEAR_ALL       "Erase everything\nErase All"
@@ -2997,13 +2990,13 @@ BEGIN
     ID_EDIT_REDO            "Redo the previously undone action\nRedo"
 END
 
-STRINGTABLE
+STRINGTABLE 
 BEGIN
     ID_VIEW_TOOLBAR         "Show or hide the toolbar\nToggle ToolBar"
     ID_VIEW_STATUS_BAR      "Show or hide the status bar\nToggle StatusBar"
 END
 
-STRINGTABLE
+STRINGTABLE 
 BEGIN
     AFX_IDS_SCSIZE          "Change the window size"
     AFX_IDS_SCMOVE          "Change the window position"
@@ -3014,13 +3007,13 @@ BEGIN
     AFX_IDS_SCCLOSE         "Close the active window and prompts to save the documents"
 END
 
-STRINGTABLE
+STRINGTABLE 
 BEGIN
     AFX_IDS_SCRESTORE       "Restore the window to normal size"
     AFX_IDS_SCTASKLIST      "Activate Task List"
 END
 
-STRINGTABLE
+STRINGTABLE 
 BEGIN
     AFX_IDS_PREVIEW_CLOSE   "Close print preview mode\nCancel Preview"
 END
@@ -3052,3 +3045,4 @@ LANGUAGE 9, 1
 
 /////////////////////////////////////////////////////////////////////////////
 #endif    // not APSTUDIO_INVOKED
+

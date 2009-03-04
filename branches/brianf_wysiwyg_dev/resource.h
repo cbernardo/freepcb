@@ -214,13 +214,12 @@
 #define IDD_DIALOG5                     349
 #define IDD_CHOOSE_NET                  349
 #define IDD_SAVE_LIB                    350
-#define IDD_SEGMENT_CLEARANCE           350
-#define IDD_PROJECT_OPTIONS_TABBED      351
+#define IDD_SEGMENT_CLEARANCE           351
+#define IDD_PROJECT_OPTIONS_TABBED      352
 #define IDD_TAB_PROJ_OPT_MAIN           353
 #define IDD_TAB_PROJ_OPT_SPACING        354
 #define IDD_TAB_PROJ_OPT_THERMAL        355
 #define IDD_RAT_W                       356
-#define IDD_PAD_CLEARANCE               357
 #define IDD_PIN_CLEARANCE               357
 #define IDC_EDIT1                       1002
 #define IDC_PART_REF                    1002

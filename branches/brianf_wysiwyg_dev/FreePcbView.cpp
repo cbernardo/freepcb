@@ -30,11 +30,14 @@
 #include "DlgSideStyle.h"
 #include "DlgValueText.h"
 #include "DlgRatWidth.h"
+#include "DlgRatWidth.h"
+#include "DlgSetPinClearance.h"
+
 
 // globals
 extern CFreePcbApp theApp;
-BOOL t_pressed = FALSE;
-BOOL n_pressed = FALSE;
+//BOOL t_pressed = FALSE;
+//BOOL n_pressed = FALSE;
 BOOL gLastKeyWasArrow = FALSE;
 int gTotalArrowMoveX = 0;
 int gTotalArrowMoveY = 0;
@@ -499,24 +502,24 @@ void CFreePcbView::OnDraw(CDC* pDC)
 		r.top = i*VSTEP+y_off;
 		r.bottom = i*VSTEP+12+y_off;
 
-    {
-  		CBrush green_brush( RGB(0, 255, 0) );
-  		CBrush red_brush( RGB(255, 0, 0) );
-      CBrush * old_brush;
+		{
+			CBrush green_brush( RGB(0, 255, 0) );
+			CBrush red_brush( RGB(255, 0, 0) );
+			CBrush * old_brush;
 
-  		if( m_sel_mask & (1<<i) )
-  		{
-  			// if mask is selected is visible, draw green rectangle
-  			old_brush = pDC->SelectObject( &green_brush );
-  		}
-  		else
-  		{
-  			// if mask not selected, draw red
-  			old_brush = pDC->SelectObject( &red_brush );
-  		}
-  		pDC->Rectangle( &r );
-  		pDC->SelectObject( old_brush );
-    }
+			if( m_sel_mask & (1<<i) )
+			{
+				// if mask is selected is visible, draw green rectangle
+				old_brush = pDC->SelectObject( &green_brush );
+			}
+			else
+			{
+				// if mask not selected, draw red
+				old_brush = pDC->SelectObject( &red_brush );
+			}
+			pDC->Rectangle( &r );
+			pDC->SelectObject( old_brush );
+		}
 
 		r.left += 20;
 		r.right += 120;
@@ -780,16 +783,16 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 					{
 						switch( i )
 						{
-						case LAY_TOP_COPPER: HandleKeyPress( '1', 0, 0 ); Invalidate( FALSE ); break;
-						case LAY_TOP_COPPER+1: HandleKeyPress( '2', 0, 0 ); Invalidate( FALSE ); break;
-						case LAY_TOP_COPPER+2: HandleKeyPress( '3', 0, 0 ); Invalidate( FALSE ); break;
-						case LAY_TOP_COPPER+3: HandleKeyPress( '4', 0, 0 ); Invalidate( FALSE ); break;
-						case LAY_TOP_COPPER+4: HandleKeyPress( '5', 0, 0 ); Invalidate( FALSE ); break;
-						case LAY_TOP_COPPER+5: HandleKeyPress( '6', 0, 0 ); Invalidate( FALSE ); break;
-						case LAY_TOP_COPPER+6: HandleKeyPress( '7', 0, 0 ); Invalidate( FALSE ); break;
-						case LAY_TOP_COPPER+7: HandleKeyPress( '8', 0, 0 ); Invalidate( FALSE ); break;
-						case LAY_TOP_COPPER+8: HandleKeyPress( 'Q', 0, 0 ); Invalidate( FALSE ); break;
-						case LAY_TOP_COPPER+9: HandleKeyPress( 'W', 0, 0 ); Invalidate( FALSE ); break;
+						case LAY_TOP_COPPER:    HandleKeyPress( '1', 0, 0 ); Invalidate( FALSE ); break;
+						case LAY_TOP_COPPER+1:  HandleKeyPress( '2', 0, 0 ); Invalidate( FALSE ); break;
+						case LAY_TOP_COPPER+2:  HandleKeyPress( '3', 0, 0 ); Invalidate( FALSE ); break;
+						case LAY_TOP_COPPER+3:  HandleKeyPress( '4', 0, 0 ); Invalidate( FALSE ); break;
+						case LAY_TOP_COPPER+4:  HandleKeyPress( '5', 0, 0 ); Invalidate( FALSE ); break;
+						case LAY_TOP_COPPER+5:  HandleKeyPress( '6', 0, 0 ); Invalidate( FALSE ); break;
+						case LAY_TOP_COPPER+6:  HandleKeyPress( '7', 0, 0 ); Invalidate( FALSE ); break;
+						case LAY_TOP_COPPER+7:  HandleKeyPress( '8', 0, 0 ); Invalidate( FALSE ); break;
+						case LAY_TOP_COPPER+8:  HandleKeyPress( 'Q', 0, 0 ); Invalidate( FALSE ); break;
+						case LAY_TOP_COPPER+9:  HandleKeyPress( 'W', 0, 0 ); Invalidate( FALSE ); break;
 						case LAY_TOP_COPPER+10: HandleKeyPress( 'E', 0, 0 ); Invalidate( FALSE ); break;
 						case LAY_TOP_COPPER+11: HandleKeyPress( 'R', 0, 0 ); Invalidate( FALSE ); break;
 						case LAY_TOP_COPPER+12: HandleKeyPress( 'T', 0, 0 ); Invalidate( FALSE ); break;
@@ -5042,7 +5045,7 @@ int CFreePcbView::ShowSelectStatus()
 				last_y = y;
 			}
 			::MakeCStringFromDimension( &len_str, (int)len, u, TRUE, TRUE, FALSE, u==MIL?1:3 );
-			if( m_sel_con.end_pin == cconnect::NO_END ) 
+			if( m_sel_con.end_pin == cconnect::NO_END )
 			{
 				// stub or branch trace
 				if( int id = m_sel_con.vtx[m_sel_con.nsegs].tee_ID )
@@ -6214,6 +6217,12 @@ void CFreePcbView::OnPadStartStubTrace()
 
 void CFreePcbView::OnPadSetClearance()
 {
+	CDlgSetPinClearance dlg;
+
+	int ret = dlg.DoModal();
+	if( ret == IDOK )
+	{
+	}
 }
 
 

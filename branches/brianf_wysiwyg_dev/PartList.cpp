@@ -53,7 +53,7 @@ CPartList::~CPartList()
 //
 cpart * CPartList::Add()
 {
-	if(m_size >= m_max_size )
+	if( m_size >= m_max_size )
 	{
 		AfxMessageBox( "Maximum number of parts exceeded" );
 		return 0;
@@ -1010,7 +1010,7 @@ int GenerateStrokesForPartString( CString * str,
 	return i;
 }
 
-// get bounding rect of value text relative to part origin 
+// get bounding rect of value text relative to part origin
 // works even if part isn't drawn
 //
 CRect CPartList::GetValueRect( cpart * part )
@@ -2555,7 +2555,7 @@ void CPartList::ImportPartListInfo( partlist_info * pl, int flags, CDlgLog * log
 			part = GetNextPart( part );
 		}
 	}
-	m_dlist = NULL;		
+	m_dlist = NULL;
 
 	// grid for positioning parts off-board
 	int pos_x = 0;

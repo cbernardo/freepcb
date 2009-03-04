@@ -76,15 +76,15 @@ BOOL CDlgProjectOptionsTabbed::OnInitDialog () {
 
 	m_tabs.m_Tab_Main.Create (IDD_TAB_PROJ_OPT_MAIN, this);
 	m_tabs.m_Tab_Main.EnableRouteCommand(); // Enable ESC from within a tab page
-	m_tabs.AddSSLPage (_T("Main"), nPageID++, &m_tabs.m_Tab_Main);
+	m_tabs.AddSSLPage( _T("Main"), nPageID++, &m_tabs.m_Tab_Main );
 
 	m_tabs.m_Tab_Spacing.Create (IDD_TAB_PROJ_OPT_SPACING, this);
 	m_tabs.m_Tab_Spacing.EnableRouteCommand(); // Enable ESC from within a tab page
-	m_tabs.AddSSLPage (_T("Spacing"), nPageID++, &m_tabs.m_Tab_Spacing);
+	m_tabs.AddSSLPage(_T("Spacing"), nPageID++, &m_tabs.m_Tab_Spacing);
 
 	m_tabs.m_Tab_Thermal.Create (IDD_TAB_PROJ_OPT_THERMAL, this);
 	m_tabs.m_Tab_Thermal.EnableRouteCommand(); // Enable ESC from within a tab page
-	m_tabs.AddSSLPage (_T("Thermals"), nPageID++, &m_tabs.m_Tab_Thermal);
+	m_tabs.AddSSLPage(_T("Thermals"), nPageID++, &m_tabs.m_Tab_Thermal);
 
    return TRUE; // return TRUE unless you set the focus to a control
 }
