@@ -4650,13 +4650,15 @@ void CNetList::UndrawVia( cnet * net, int ic, int iv )
 	{
 		for( int i=0; i<v->dl_el.GetSize(); i++ )
 		{
-			m_dlist->Remove( v->dl_el[i] );
+			v->dl_el[i]->Remove();
 //			v->dl_el[i] = NULL;
 		}
 		v->dl_el.RemoveAll();
 	}
-	m_dlist->Remove( v->dl_sel );
-	m_dlist->Remove( v->dl_hole );
+
+	v->dl_sel->Remove();
+	v->dl_hole->Remove();
+
 	v->dl_sel = NULL;
 	v->dl_hole = NULL;
 }
@@ -4682,7 +4684,6 @@ int CNetList::DrawVia( cnet * net, int ic, int iv )
 	if( v->via_w )
 	{
 		// draw via
-		vid.sst = ID_VERTEX;
 		v->dl_el.SetSize( m_layers );
 		for( int il=0; il<m_layers; il++ )
 		{
@@ -4706,14 +4707,30 @@ int CNetList::DrawVia( cnet * net, int ic, int iv )
 	{
 		// draw selection box for vertex, using LAY_THRU_PAD if via or layer of adjacent
 		// segments if no via
-		vid.sst = ID_SEL_VERTEX;
+		CRect sel_rect;
 		int sel_layer;
 		if( v->via_w )
+		{
 			sel_layer = LAY_SELECTION;
+
+			sel_rect.left   = v->x - v->via_w/2;
+			sel_rect.bottom = v->y - v->via_w/2;
+			sel_rect.right  = v->x + v->via_w/2;
+			sel_rect.top    = v->y + v->via_w/2;
+		}
 		else
+		{
 			sel_layer = c->seg[iv-1].layer;
+
+			sel_rect.left   = v->x - 10*PCBU_PER_MIL;
+			sel_rect.bottom = v->y - 10*PCBU_PER_MIL;
+			sel_rect.right  = v->x + 10*PCBU_PER_MIL;
+			sel_rect.top    = v->y + 10*PCBU_PER_MIL;
+		}
+
+		vid.sst = ID_SEL_VERTEX;
 		v->dl_sel = m_dlist->AddSelector( vid, net, sel_layer, DL_HOLLOW_RECT,
-			1, 0, 0, v->x-10*PCBU_PER_MIL, v->y-10*PCBU_PER_MIL, v->x+10*PCBU_PER_MIL, v->y+10*PCBU_PER_MIL, 0, 0 );
+			1, 0, 0, sel_rect.left, sel_rect.bottom, sel_rect.right, sel_rect.top, 0, 0 );
 	}
 	return 0;
 }

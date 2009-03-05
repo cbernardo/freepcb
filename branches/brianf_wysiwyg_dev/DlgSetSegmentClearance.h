@@ -31,17 +31,24 @@ public:
 	CClearanceInfo m_clearance; // clearance
 
 	// these variables will be set on exit
-	int m_def;		 // set default clearance (1=con, 2=net)
-	int m_apply;	 // apply clearance (1=seg, 2=con, 3=net)
+	int m_def;		    // set default clearance (1=con, 2=net)
+	int m_apply;	    // apply clearance (1=seg, 2=con, 3=net)
+	int m_apply_pinvia; // apply clearance to pin/via (1=no, 2=auto, 3=use selected clearance)
 
 protected:
 	CButton m_radio1_use_net_default;
 	CButton m_radio1_set_trace_clearance;
 	CEdit m_edit_clearance;
+
 	CButton m_check_def_net;
+
 	CButton m_radio2_apply_seg;
 	CButton m_radio2_apply_con;
 	CButton m_radio2_apply_net;
+
+	CButton m_radio3_no;
+	CButton m_radio3_auto;
+	CButton m_radio3_as_sel;
 
 	afx_msg void OnBnClickedRadioUseNetClearance();
 	afx_msg void OnBnClickedRadioSetTraceClearance();

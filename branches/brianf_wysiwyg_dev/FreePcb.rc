@@ -2228,7 +2228,7 @@ BEGIN
     PUSHBUTTON      "Bottom",IDC_BUTTON10,18,108,54,12
 END
 
-IDD_SEGMENT_CLEARANCE DIALOGEX 0, 0, 202, 174
+IDD_SEGMENT_CLEARANCE DIALOGEX 0, 0, 202, 238
 STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Set Trace Clearance"
 FONT 8, "MS Shell Dlg", 400, 0, 0x1
@@ -2238,14 +2238,19 @@ BEGIN
                     "Button",BS_AUTORADIOBUTTON,12,31,78,10
     EDITTEXT        IDC_EDIT_CLEARANCE,90,29,40,14,ES_AUTOHSCROLL
     CONTROL         "for this net",IDC_DEF_NET,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,12,67,123,10
-    CONTROL         "for this segment",IDC_APPLY_SEG,"Button",BS_AUTORADIOBUTTON | WS_GROUP,12,103,68,10
+    CONTROL         "for this segment only",IDC_APPLY_SEG,"Button",BS_AUTORADIOBUTTON | WS_GROUP,12,103,83,10
     CONTROL         "for this trace",IDC_APPLY_CON,"Button",BS_AUTORADIOBUTTON,12,115,57,10
     CONTROL         "for this net",IDC_APPLY_NET,"Button",BS_AUTORADIOBUTTON,12,127,51,10
-    DEFPUSHBUTTON   "OK",IDOK,24,151,50,14
-    PUSHBUTTON      "Cancel",IDCANCEL,126,151,50,14
+    DEFPUSHBUTTON   "OK",IDOK,24,217,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,126,217,50,14
     GROUPBOX        "Clearance (mils)",IDC_STATIC,6,4,189,44
     GROUPBOX        "Set as default",IDC_STATIC,6,55,189,30
     GROUPBOX        "Apply to already routed traces",IDC_STATIC,6,91,189,54
+    CONTROL         "Do not apply",IDC_APPLY_PINVIA_NO,"Button",BS_AUTORADIOBUTTON | WS_GROUP,12,163,57,10
+    CONTROL         "Set to Auto mode",IDC_APPLY_PINVIA_AUTO,"Button",BS_AUTORADIOBUTTON,12,176,72,10
+    CONTROL         "Set to clearance specified above",IDC_APPLY_PINVIA_AS_SEL,
+                    "Button",BS_AUTORADIOBUTTON,12,188,120,10
+    GROUPBOX        "Apply to pins/vias on affected segments",IDC_STATIC,6,152,189,54
 END
 
 IDD_PROJECT_OPTIONS_TABBED DIALOGEX 0, 0, 283, 305
@@ -2333,22 +2338,24 @@ BEGIN
     LTEXT           "Width (mils)",-1,19,16,38,8
 END
 
-IDD_PIN_CLEARANCE DIALOGEX 0, 0, 202, 113
+IDD_PIN_CLEARANCE DIALOGEX 0, 0, 202, 155
 STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Set Pin/Via Clearance"
 FONT 8, "MS Shell Dlg", 400, 0, 0x1
 BEGIN
-    CONTROL         "Use net clearance",IDC_RADIO_USE_NET_CLEARANCE,"Button",BS_AUTORADIOBUTTON,12,30,73,10
-    CONTROL         "Set clearance (mils)",IDC_RADIO_SET_TRACE_CLEARANCE,
-                    "Button",BS_AUTORADIOBUTTON,12,43,78,10
     EDITTEXT        IDC_EDIT_CLEARANCE,90,41,40,14,ES_AUTOHSCROLL
-    CONTROL         "Apply to already placed pads/vias for this net",IDC_DEF_NET,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,12,73,161,10
-    DEFPUSHBUTTON   "OK",IDOK,24,92,50,14
-    PUSHBUTTON      "Cancel",IDCANCEL,126,92,50,14
-    GROUPBOX        "Clearance (mils)",-1,6,4,189,59
-    CONTROL         "Auto (clearance = max of attached segments)",IDC_RADIO_USE_NET_CLEARANCE2,
+    DEFPUSHBUTTON   "OK",IDOK,24,134,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,126,134,50,14
+    GROUPBOX        "Clearance (mils)",IDC_STATIC,6,4,189,59
+    CONTROL         "Auto (clearance = max of attached segments)",IDC_RADIO_PIN_AUTO_CLEARANCE,
                     "Button",BS_AUTORADIOBUTTON | WS_GROUP,12,17,164,10
+    CONTROL         "Use net clearance",IDC_RADIO_PIN_NET_CLEARANCE,"Button",BS_AUTORADIOBUTTON,12,30,73,10
+    CONTROL         "Set clearance (mils)",IDC_RADIO_PIN_SET_CLEARANCE,
+                    "Button",BS_AUTORADIOBUTTON,12,43,78,10
+    GROUPBOX        "Apply to already placed pins/vias",IDC_STATIC,6,71,189,54
+    CONTROL         "for this pin/via only",IDC_APPLY_PIN,"Button",BS_AUTORADIOBUTTON | WS_GROUP,12,82,77,10
+    CONTROL         "for this trace",IDC_APPLY_CON,"Button",BS_AUTORADIOBUTTON,12,95,57,10
+    CONTROL         "for this net",IDC_APPLY_NET,"Button",BS_AUTORADIOBUTTON,12,107,51,10
 END
 
 
@@ -2841,7 +2848,7 @@ BEGIN
         LEFTMARGIN, 7
         RIGHTMARGIN, 195
         TOPMARGIN, 7
-        BOTTOMMARGIN, 167
+        BOTTOMMARGIN, 231
     END
 
     IDD_PROJECT_OPTIONS_TABBED, DIALOG
@@ -2889,7 +2896,7 @@ BEGIN
         LEFTMARGIN, 7
         RIGHTMARGIN, 195
         TOPMARGIN, 7
-        BOTTOMMARGIN, 106
+        BOTTOMMARGIN, 148
     END
 END
 #endif    // APSTUDIO_INVOKED

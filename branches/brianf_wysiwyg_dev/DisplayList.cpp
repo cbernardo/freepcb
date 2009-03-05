@@ -941,10 +941,9 @@ void * CDisplayList::TestSelect( int x, int y, id * sel_id, int * sel_layer,
 								id * include_id, int n_include_ids )
 {
 	// Get the traces job (last in job list)
-	CDLinkList *pElement = m_LIST_job[LAY_SELECTION].prev;
-	if ( (pElement != &m_LIST_job[LAY_SELECTION]) && m_vis[LAY_SELECTION])
+	if( m_vis[LAY_SELECTION] )
 	{
-        CDL_job *pJob = static_cast<CDL_job*>(pElement);
+		CDL_job_traces *pJob = GetJob_traces(LAY_SELECTION);
 
 		CPoint point(x/m_pcbu_per_wu, y/m_pcbu_per_wu);
 
@@ -980,10 +979,10 @@ void * CDisplayList::TestSelect( int x, int y, id * sel_id, int * sel_layer,
 					{
 						id * inc_id = &include_id[inc];
 						if( inc_id->type == hit_info[i].ID.type
-							&& ( inc_id->st == 0 || inc_id->st == hit_info[i].ID.st )
-							&& ( inc_id->i == 0 || inc_id->i == hit_info[i].ID.i )
+							&& ( inc_id->st  == 0 || inc_id->st  == hit_info[i].ID.st )
+							&& ( inc_id->i   == 0 || inc_id->i   == hit_info[i].ID.i )
 							&& ( inc_id->sst == 0 || inc_id->sst == hit_info[i].ID.sst )
-							&& ( inc_id->ii == 0 || inc_id->ii == hit_info[i].ID.ii ) )
+							&& ( inc_id->ii  == 0 || inc_id->ii  == hit_info[i].ID.ii ) )
 						{
 							included_hit = TRUE;
 							break;

@@ -34,6 +34,10 @@ void DlgSetSegmentClearance::DoDataExchange(CDataExchange* pDX)
 	DDX_Control(pDX, IDC_APPLY_CON, m_radio2_apply_con);
 	DDX_Control(pDX, IDC_APPLY_NET, m_radio2_apply_net);
 
+	DDX_Control(pDX, IDC_APPLY_PINVIA_NO,     m_radio3_no);
+	DDX_Control(pDX, IDC_APPLY_PINVIA_AUTO,   m_radio3_auto);
+	DDX_Control(pDX, IDC_APPLY_PINVIA_AS_SEL, m_radio3_as_sel);
+
 	if (pDX->m_bSaveAndValidate)
 	{
 		int val;
@@ -71,7 +75,12 @@ void DlgSetSegmentClearance::DoDataExchange(CDataExchange* pDX)
 		if(      m_radio2_apply_seg.GetCheck() ) m_apply = 1;
 		else if( m_radio2_apply_con.GetCheck() ) m_apply = 2;
 		else if( m_radio2_apply_net.GetCheck() ) m_apply = 3;
-		else m_apply = 0;
+		else                                     m_apply = 1;
+
+		if(      m_radio3_no    .GetCheck() ) m_apply_pinvia = 1;
+		else if( m_radio3_auto  .GetCheck() ) m_apply_pinvia = 2;
+		else if( m_radio3_as_sel.GetCheck() ) m_apply_pinvia = 3;
+		else                                  m_apply_pinvia = 2;
 	}
 }
 
@@ -125,6 +134,8 @@ BOOL DlgSetSegmentClearance::OnInitDialog()
 	m_clearance.Update_ca_clearance();
 	str.Format("%d", m_clearance.m_ca_clearance.m_val / NM_PER_MIL);
 	m_edit_clearance.SetWindowText(str);
+
+	m_radio3_auto.SetCheck( 1 );
 
 	return TRUE;
 }
