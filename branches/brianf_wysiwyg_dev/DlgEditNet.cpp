@@ -397,11 +397,11 @@ BOOL CDlgEditNet::OnInitDialog()
 
 	if (m_clearance.m_ca_clearance.m_status < 0)
 	{
+		// Just to make sure
+		m_clearance.m_ca_clearance.m_status = CClearanceInfo::E_USE_PARENT;
+
 		m_radio2_def_clearance.SetCheck(1);
 		m_edit_clearance.EnableWindow(0);
-
-		// Just to make sure
-		m_clearance.m_ca_clearance = CClearanceInfo::E_USE_PARENT;
 	}
 	else
 	{

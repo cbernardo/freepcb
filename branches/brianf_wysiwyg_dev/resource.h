@@ -294,7 +294,6 @@
 #define IDC_EDIT_LAYER_12               1014
 #define IDC_APPLY_PINVIA_AUTO           1014
 #define IDC_EDIT_LAYER_13               1015
-#define IDC_APPLY_NET2                  1015
 #define IDC_APPLY_PINVIA_AS_SEL         1015
 #define IDC_EDIT_LAYER_14               1016
 #define IDC_PART_LIB_TREE               1017
@@ -949,6 +948,7 @@
 #define ID_VERTEX_SETVIACLEARANCE       32947
 #define ID_VERTEX_CLEARANCE             32948
 #define ID_VERTEX_SETCLEARANCE          32949
+#define ID_ENDVERTEX_SETVIACLEARANCE    32950
 
 // Next default values for new objects
 // 
@@ -956,7 +956,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_3D_CONTROLS                     1
 #define _APS_NEXT_RESOURCE_VALUE        358
-#define _APS_NEXT_COMMAND_VALUE         32950
+#define _APS_NEXT_COMMAND_VALUE         32951
 #define _APS_NEXT_CONTROL_VALUE         1503
 #define _APS_NEXT_SYMED_VALUE           106
 #endif

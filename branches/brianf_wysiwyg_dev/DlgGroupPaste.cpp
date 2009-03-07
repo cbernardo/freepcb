@@ -182,10 +182,10 @@ void CDlgGroupPaste::DoDataExchange(CDataExchange* pDX)
 
 			if (::gnl[i].clearance.m_ca_clearance.m_status < 0)
 			{
-				str.Format("Default");
-
 				// Just to make sure
-				::gnl[i].clearance.m_ca_clearance = CClearanceInfo::E_USE_PARENT;
+				::gnl[i].clearance.m_ca_clearance.m_status = CClearanceInfo::E_USE_PARENT;
+
+				str.Format("Default");
 			}
 			else
 			{

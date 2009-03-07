@@ -77,10 +77,9 @@ void DlgSetSegmentClearance::DoDataExchange(CDataExchange* pDX)
 		else if( m_radio2_apply_net.GetCheck() ) m_apply = 3;
 		else                                     m_apply = 1;
 
-		if(      m_radio3_no    .GetCheck() ) m_apply_pinvia = 1;
-		else if( m_radio3_auto  .GetCheck() ) m_apply_pinvia = 2;
-		else if( m_radio3_as_sel.GetCheck() ) m_apply_pinvia = 3;
-		else                                  m_apply_pinvia = 2;
+		if(      m_radio3_no    .GetCheck() ) { /* Do nothing - leave m_clearance_pinvia undefined */ }
+		else if( m_radio3_as_sel.GetCheck() ) { m_clearance_pinvia = m_clearance; }
+		else                                  { m_clearance_pinvia.m_ca_clearance = CClearanceInfo::E_AUTO_CALC; }
 	}
 }
 
@@ -112,14 +111,14 @@ BOOL DlgSetSegmentClearance::OnInitDialog()
 	// Must come after mode selection
 	if (m_clearance.m_ca_clearance.m_status < 0)
 	{
+		// Just to make sure
+		m_clearance.m_ca_clearance.m_status = CInheritableInfo::E_USE_PARENT;
+
 		// Using net default
 		m_radio1_use_net_default.SetCheck(1);
 		m_edit_clearance.EnableWindow(0);
 		m_check_def_net.EnableWindow(0);
 		m_check_def_net.SetCheck( 0 );
-
-		// Just to make sure
-		m_clearance.m_ca_clearance = CInheritableInfo::E_USE_PARENT;
 	}
 	else
 	{

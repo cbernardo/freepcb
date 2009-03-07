@@ -454,6 +454,7 @@ BEGIN
         MENUITEM "Remove Via",                  ID_ENDVERTEX_REMOVEVIA
         MENUITEM "Set Position",                ID_ENDVERTEX_EDIT
         MENUITEM "Set Via Size",                ID_ENDVERTEX_SETSIZE
+        MENUITEM "Set Via Clearance",           ID_ENDVERTEX_SETVIACLEARANCE
         MENUITEM SEPARATOR
         MENUITEM "Add Segments",                ID_ENDVERTEX_ADDSEGMENTS
         MENUITEM SEPARATOR

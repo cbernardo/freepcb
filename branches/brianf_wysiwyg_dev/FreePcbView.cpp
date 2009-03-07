@@ -178,6 +178,7 @@ ON_COMMAND(ID_NONE_ADDCOPPERAREA, OnAddArea)
 ON_COMMAND(ID_ENDVERTEX_ADDVIA, OnEndVertexAddVia)
 ON_COMMAND(ID_ENDVERTEX_REMOVEVIA, OnEndVertexRemoveVia)
 ON_COMMAND(ID_ENDVERTEX_SETSIZE, OnVertexSize)
+ON_COMMAND(ID_ENDVERTEX_SETVIACLEARANCE, OnVertexClearance)
 ON_MESSAGE( WM_USER_VISIBLE_GRID, OnChangeVisibleGrid )
 ON_COMMAND(ID_ADD_TEXT, OnTextAdd)
 ON_COMMAND(ID_SEGMENT_DELETETRACE, OnSegmentDeleteTrace)
@@ -5787,11 +5788,15 @@ void CFreePcbView::OnContextMenu(CWnd* pWnd, CPoint point )
 		pPopup = menu.GetSubMenu(CONTEXT_END_VERTEX);
 		ASSERT(pPopup != NULL);
 		if( m_sel_vtx.via_w )
+		{
 			pPopup->EnableMenuItem( ID_ENDVERTEX_ADDVIA, MF_GRAYED );
+		}
 		else
 		{
-			pPopup->EnableMenuItem( ID_ENDVERTEX_SETSIZE, MF_GRAYED );
 			pPopup->EnableMenuItem( ID_ENDVERTEX_REMOVEVIA, MF_GRAYED );
+
+			pPopup->EnableMenuItem( ID_ENDVERTEX_SETSIZE, MF_GRAYED );
+			pPopup->EnableMenuItem( ID_ENDVERTEX_SETVIACLEARANCE, MF_GRAYED );
 		}
 		pPopup->TrackPopupMenu(TPM_LEFTALIGN | TPM_RIGHTBUTTON, point.x, point.y, pWnd );
 		break;

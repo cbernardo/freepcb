@@ -32,7 +32,6 @@ enum
 	DL_HOLLOW_OVAL,		// oval outline
 	DL_HOLLOW_OCTAGON,	// octagon outline
 	DL_RECT_X,			// rectangle outline with X
-	DL_POINT,			// shape to highlight a point
 	DL_ARC_CW,			// arc with clockwise curve
 	DL_ARC_CCW,			// arc with counter-clockwise curve
 	DL_CENTROID,		// circle and X

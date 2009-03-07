@@ -200,10 +200,10 @@ void CDlgNetCombine::DrawListCtrl()
 
 			if (::nl_combine[i].clearance.m_ca_clearance.m_status < 0)
 			{
-				str.Format("Default");
-
 				// Just to make sure
-				::nl_combine[i].clearance.m_ca_clearance = CClearanceInfo::E_USE_PARENT;
+				::nl_combine[i].clearance.m_ca_clearance.m_status = CClearanceInfo::E_USE_PARENT;
+
+				str.Format("Default");
 			}
 			else
 			{

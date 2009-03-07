@@ -6,7 +6,21 @@
 //
 #include "stdafx.h"
 #include <math.h>
+
 #include "memdc.h"
+
+#include "dle_arc.h"
+#include "dle_centroid.h"
+#include "dle_circle.h"
+#include "dle_donut.h"
+#include "dle_hole.h"
+#include "dle_line.h"
+#include "dle_octagon.h"
+#include "dle_oval.h"
+#include "dle_rect.h"
+#include "dle_rect_rounded.h"
+#include "dle_square.h"
+#include "dle_x.h"
 
 // dimensions passed to DisplayList from the application are in PCBU (i.e. nm)
 // since the Win95/98 GDI uses 16-bit arithmetic, PCBU must be scaled to DU (i.e. mils)
@@ -250,7 +264,6 @@ dl_element * CDisplayList::CreateDLE( int gtype )
 		case DL_HOLLOW_OVAL:    new_element = new CDLE_HOLLOW_OVAL;    break;
 		case DL_HOLLOW_OCTAGON: new_element = new CDLE_HOLLOW_OCTAGON; break;
 		case DL_RECT_X:         new_element = new CDLE_RECT_X;         break;
-		case DL_POINT:          new_element = new CDLE_POINT;          break;
 		case DL_ARC_CW:         new_element = new CDLE_ARC_CW;         break;
 		case DL_ARC_CCW:        new_element = new CDLE_ARC_CCW;        break;
 		case DL_CENTROID:       new_element = new CDLE_CENTROID;       break;

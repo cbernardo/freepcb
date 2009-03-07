@@ -64,20 +64,22 @@ void CDlgSetTraceWidths::DoDataExchange(CDataExchange* pDX)
 		m_check_trace.SetCheck(1);
 		m_radio_set_trace_width.SetCheck(1);
 		m_check_vias.SetCheck(1);
+
 		if( m_width > 0 )
 			m_radio_set_via_width.SetCheck( 1 );
 		else
 			m_radio_default_via_for_trace.SetCheck( 1 );
+
 		m_check_apply.SetCheck(1);
 
 		// Clearance section
 		if( m_clearance.m_ca_clearance.m_status < 0 )
 		{
+			// Just to make sure
+			m_clearance.m_ca_clearance.m_status = CInheritableInfo::E_USE_PARENT;
+
 			m_radio3_def_clearance.SetCheck(1);
 			m_edit_clearance.EnableWindow(0);
-
-			// Just to make sure
-			m_clearance.m_ca_clearance = CInheritableInfo::E_USE_PARENT;
 		}
 		else
 		{

@@ -33,7 +33,8 @@ public:
 	// these variables will be set on exit
 	int m_def;		    // set default clearance (1=con, 2=net)
 	int m_apply;	    // apply clearance (1=seg, 2=con, 3=net)
-	int m_apply_pinvia; // apply clearance to pin/via (1=no, 2=auto, 3=use selected clearance)
+
+	CClearanceInfo m_clearance_pinvia; // pin/via clearance
 
 protected:
 	CButton m_radio1_use_net_default;
