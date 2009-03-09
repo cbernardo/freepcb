@@ -27,7 +27,7 @@ BOOL CDlgSetPinClearance::OnInitDialog()
 
 	CString str;
 
-	m_clearance.Update_ca_clearance();
+	m_clearance.Update();
 	str.Format("%d", m_clearance.m_ca_clearance.m_val / NM_PER_MIL);
 	m_edit_clearance.SetWindowText(str);
 
@@ -37,7 +37,7 @@ BOOL CDlgSetPinClearance::OnInitDialog()
 	case CClearanceInfo::E_AUTO_CALC:
 		m_clearance_auto.SetCheck( 1 );
 		break;
-	
+
 	case CClearanceInfo::E_USE_PARENT:
 		m_clearance_net.SetCheck( 1 );
 		break;
@@ -73,11 +73,11 @@ void CDlgSetPinClearance::DoDataExchange(CDataExchange* pDX)
 		int val;
 		if( m_clearance_auto.GetCheck() )
 		{
-			val = CClearanceInfo::E_AUTO_CALC;
+			m_clearance.m_ca_clearance.m_status = CClearanceInfo::E_AUTO_CALC;
 		}
 		else if( m_clearance_net.GetCheck() )
 		{
-			val = CClearanceInfo::E_USE_PARENT;
+			m_clearance.m_ca_clearance.m_status = CClearanceInfo::E_USE_PARENT;
 		}
 		else
 		{
@@ -92,8 +92,8 @@ void CDlgSetPinClearance::DoDataExchange(CDataExchange* pDX)
 			}
 
 			val *= NM_PER_MIL;
+			m_clearance.m_ca_clearance = val;
 		}
-		m_clearance.m_ca_clearance = val;
 
 		if(      m_apply_this_only.GetCheck() ) m_apply = 1;
 		else if( m_apply_con      .GetCheck() ) m_apply = 2;
@@ -111,7 +111,7 @@ END_MESSAGE_MAP()
 
 void CDlgSetPinClearance::OnUpdateClearanceType()
 {
-	m_edit_clearance.EnableWindow( m_clearance_set.GetCheck() );			
+	m_edit_clearance.EnableWindow( m_clearance_set.GetCheck() );
 }
 
 // CDlgSetPinClearance message handlers

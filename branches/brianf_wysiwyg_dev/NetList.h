@@ -27,7 +27,8 @@
 #include "PartList.h"
 #include "PolyLine.h"
 #include "UndoList.h"
-#include "clearance.h"
+#include "ii_clearance.h"
+#include "ii_seg_width.h"
 
 extern int m_layer_by_file_layer[MAX_LAYERS];
 
@@ -357,8 +358,7 @@ public:
 class cnet
 {
 public:
-	cnet( CDisplayList * dlist ) :
-		def_clearance(CClearanceInfo::E_USE_PARENT)
+	cnet( CDisplayList * dlist )
 	{
 		m_dlist = dlist;
 	}
@@ -371,6 +371,7 @@ public:
 	CArray<cpin> pin;	// array of pins
 	int nareas;			// number of copper areas
 	CArray<carea,carea> area;	// array of copper areas
+//	CSegWidthInfo def_width;
 	int def_w;			// default trace width
 	int def_via_w;		// default via width
 	int def_via_hole_w;	// default via hole width

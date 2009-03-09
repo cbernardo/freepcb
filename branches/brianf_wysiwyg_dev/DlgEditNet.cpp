@@ -393,7 +393,7 @@ BOOL CDlgEditNet::OnInitDialog()
 	m_button_set_width.SetCheck( 0 );
 	m_check_visible.SetCheck( m_visible );
 
-	m_clearance.Update_ca_clearance();
+	m_clearance.Update();
 
 	if (m_clearance.m_ca_clearance.m_status < 0)
 	{

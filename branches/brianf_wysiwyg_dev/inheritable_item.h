@@ -10,22 +10,37 @@ class CInheritableInfo
 public:
 	enum EStatus
 	{
-		E_USE_VAL = 0,
-		E_UNDEF = -1,
+		E_USE_VAL    =  0,
+		E_UNDEF      = -1,
 		E_USE_PARENT = -2,
 
 		// First available status for derived class
 		E__STATUS_USER = -3
 	};
 
-public:
 	struct Item
 	{
 		short int m_status;
 		int m_val;
 
-		Item() : m_status(E_UNDEF), m_val(0)
+		Item()
 		{
+			undef();
+		}
+
+		Item(int val_status)
+		{
+			// Must clear before set in case val_status
+			// is undef (no assignment is done)
+			undef();
+
+			Set_item_from_int(val_status);
+		}
+
+		void undef(void)
+		{
+			m_status = E_UNDEF;
+			m_val    = 0;
 		}
 
 	public: // operators
@@ -61,6 +76,9 @@ public:
 		{
 			return (m_status == E_USE_VAL) ? m_val : m_status;
 		}
+
+	public: // UNDEF item
+		static const Item UNDEF;
 	};
 
 public:
@@ -89,15 +107,14 @@ public:
 		m_pParent = pParent ? pParent : this;
 	}
 
+	Item const *GetItem(int item_id, Item &item) const;
+
 protected:
 	int hasParent(void) const { return m_pParent != this; }
 
-	// Return 1 to stop, 0 to continue to parent
-	virtual int GetExtendedItem(Item &item, Item const &src) const;
-
-	void GetItem(Item &item) const;
-
-	Item const *GetItem(int offset) const { return reinterpret_cast<Item const *>(reinterpret_cast<char const *>(this) + offset); }
+	virtual Item const &_GetItem(int item_id) const;
+	virtual void _GetItemExt(Item &item, Item const &src) const;
 };
+
 
 #endif /* !_INHERITABLE_ITEM_H ] */

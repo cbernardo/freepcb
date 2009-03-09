@@ -102,7 +102,7 @@ cnet * CNetList::AddNet( CString name, int max_pins, int def_w, int def_via_w, i
 
 	new_net->def_clearance = clearance;
 	new_net->def_clearance.SetParent(m_def_clearance);
-	new_net->def_clearance.Update_ca_clearance();
+	new_net->def_clearance.Update();
 
 	// create id and set name
 	id id( ID_NET, 0 );
@@ -1568,7 +1568,7 @@ int CNetList::RouteSegment( cnet * net, int ic, int iseg, int layer, int width, 
 
 	c->seg[iseg].clearance = clearance;
 	c->seg[iseg].clearance.SetParent(net->def_clearance);
-	c->seg[iseg].clearance.Update_ca_clearance();
+	c->seg[iseg].clearance.Update();
 
 	c->seg[iseg].selected  = 0;
 
@@ -1623,7 +1623,7 @@ int CNetList::AppendSegment( cnet * net, int ic, int x, int y, int layer, int wi
 
 	c->seg[iseg].clearance = clearance;
 	c->seg[iseg].clearance.SetParent(net->def_clearance);
-	c->seg[iseg].clearance.Update_ca_clearance();
+	c->seg[iseg].clearance.Update();
 
 	c->seg[iseg].selected  = 0;
 
@@ -1779,7 +1779,7 @@ int CNetList::InsertSegment( cnet * net, int ic, int iseg, int x, int y, int lay
 			c->seg[iseg].width     = width;
 			c->seg[iseg].clearance = clearance;
 			c->seg[iseg].clearance.SetParent(net->def_clearance);
-			c->seg[iseg].clearance.Update_ca_clearance();
+			c->seg[iseg].clearance.Update();
 			c->seg[iseg].selected  = 0;
 
 			int xi = c->vtx[iseg].x;
@@ -1804,7 +1804,7 @@ int CNetList::InsertSegment( cnet * net, int ic, int iseg, int x, int y, int lay
 			c->seg[iseg+1].width     = width;
 			c->seg[iseg+1].clearance = clearance;
 			c->seg[iseg+1].clearance.SetParent(net->def_clearance);
-			c->seg[iseg+1].clearance.Update_ca_clearance();
+			c->seg[iseg+1].clearance.Update();
 			c->seg[iseg+1].selected  = 0;
 
 			int xf = c->vtx[iseg+2].x;
@@ -1865,7 +1865,7 @@ int CNetList::InsertSegment( cnet * net, int ic, int iseg, int x, int y, int lay
 		c->seg[iseg].layer     = layer;
 		c->seg[iseg].clearance = clearance;
 		c->seg[iseg].clearance.SetParent(net->def_clearance);
-		c->seg[iseg].clearance.Update_ca_clearance();
+		c->seg[iseg].clearance.Update();
 		c->seg[iseg].width     = width;
 
 		if( m_dlist )
@@ -1930,7 +1930,7 @@ int CNetList::SetSegmentClearance( cnet * net, int ic, int is, CClearanceInfo co
 	{
 		c->seg[is].clearance = clearance;
 		c->seg[is].clearance.SetParent(net->def_clearance);
-		c->seg[is].clearance.Update_ca_clearance();
+		c->seg[is].clearance.Update();
 
 		m_dlist->Set_clearance( c->seg[is].dl_el, c->seg[is].clearance.m_ca_clearance.m_val );
 	}
@@ -2001,7 +2001,7 @@ int CNetList::UpdateNetAttributes( cnet * net )
 
 				c->seg[is].clearance = net->def_clearance;
 				c->seg[is].clearance.SetParent(net->def_clearance);
-				c->seg[is].clearance.Update_ca_clearance();
+				c->seg[is].clearance.Update();
 			}
 		}
 	}
@@ -4689,7 +4689,7 @@ int CNetList::DrawVia( cnet * net, int ic, int iv )
 		{
 			int layer = LAY_TOP_COPPER + il;
 			v->dl_el[il] = m_dlist->Add( vid, net, layer, DL_CIRC, 1,
-				v->via_w, 0, 0,//BAF clearance
+				v->via_w, 0, v->clearance.m_ca_clearance.m_val,
 				v->x, v->y, 0, 0, 0, 0 );
 		}
 		v->dl_hole = m_dlist->Add( vid, net, LAY_PAD_THRU, DL_HOLE, 1,
@@ -4738,7 +4738,9 @@ int CNetList::DrawVia( cnet * net, int ic, int iv )
 void CNetList::SetNetVisibility( cnet * net, BOOL visible )
 {
 	if( net->visible == visible )
+	{
 		return;
+	}
 	else if( visible )
 	{
 		// make segments visible and enable selection items
@@ -4799,7 +4801,7 @@ void CNetList::ExportNetListInfo( netlist_info * nl )
 		(*nl)[i].v_w = net->def_via_w;
 		(*nl)[i].v_h_w = net->def_via_hole_w;
 		(*nl)[i].clearance = net->def_clearance;
-		(*nl)[i].clearance.Update_ca_clearance();
+		(*nl)[i].clearance.Update();
 		(*nl)[i].apply_trace_width = FALSE;
 		(*nl)[i].apply_via_width = FALSE;
 		(*nl)[i].apply_clearance = FALSE;
@@ -4948,7 +4950,7 @@ void CNetList::ImportNetListInfo( netlist_info * nl, int flags, CDlgLog * log,
 
 			net->def_clearance = (*nl)[i].clearance;
 			net->def_clearance.SetParent(m_def_clearance);
-			net->def_clearance.Update_ca_clearance();
+			net->def_clearance.Update();
 
 			UpdateNetAttributes( net );
 		}
@@ -4967,7 +4969,7 @@ void CNetList::ImportNetListInfo( netlist_info * nl, int flags, CDlgLog * log,
 
 			net->def_clearance = (*nl)[i].clearance;
 			net->def_clearance.SetParent(m_def_clearance);
-			net->def_clearance.Update_ca_clearance();
+			net->def_clearance.Update();
 
 			UpdateNetAttributes( net );
 		}

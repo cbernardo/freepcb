@@ -43,7 +43,7 @@ void DlgSetSegmentClearance::DoDataExchange(CDataExchange* pDX)
 		int val;
 		if( m_radio1_use_net_default.GetCheck() )
 		{
-			val = CClearanceInfo::E_USE_PARENT;
+			m_clearance.m_ca_clearance.m_status = CClearanceInfo::E_USE_PARENT;
 		}
 		else
 		{
@@ -58,10 +58,8 @@ void DlgSetSegmentClearance::DoDataExchange(CDataExchange* pDX)
 			}
 
 			val *= NM_PER_MIL;
+			m_clearance.m_ca_clearance = val;
 		}
-
-		// on exit
-		m_clearance.m_ca_clearance = val;
 
 		if( m_check_def_net.GetCheck() )
 		{
@@ -77,7 +75,7 @@ void DlgSetSegmentClearance::DoDataExchange(CDataExchange* pDX)
 		else if( m_radio2_apply_net.GetCheck() ) m_apply = 3;
 		else                                     m_apply = 1;
 
-		if(      m_radio3_no    .GetCheck() ) { /* Do nothing - leave m_clearance_pinvia undefined */ }
+		if(      m_radio3_no    .GetCheck() ) { m_clearance_pinvia.m_ca_clearance.undef(); }
 		else if( m_radio3_as_sel.GetCheck() ) { m_clearance_pinvia = m_clearance; }
 		else                                  { m_clearance_pinvia.m_ca_clearance = CClearanceInfo::E_AUTO_CALC; }
 	}
@@ -130,7 +128,7 @@ BOOL DlgSetSegmentClearance::OnInitDialog()
 
 	CString str;
 
-	m_clearance.Update_ca_clearance();
+	m_clearance.Update();
 	str.Format("%d", m_clearance.m_ca_clearance.m_val / NM_PER_MIL);
 	m_edit_clearance.SetWindowText(str);
 

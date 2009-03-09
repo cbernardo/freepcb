@@ -8,8 +8,8 @@
 #include "smfontutil.h"
 #include "DlgLog.h"
 #include "UndoList.h"
-#include "linklist.h"
-#include "clearance.h"
+#include "LinkList.h"
+#include "ii_clearance.h"
 
 #define MAX_REF_DES_SIZE 39
 
@@ -277,4 +277,3 @@ public:
 	undo_part * CreatePartUndoRecord( cpart * part, CString * new_ref_des );
 	static void PartUndoCallback( int type, void * ptr, BOOL undo );
 };
-

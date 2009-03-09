@@ -14,6 +14,7 @@
 #include "stdafx.h"
 #include "resource.h"       // main symbols
 #include "FootprintView.h"
+#include "inheritable_item.h"
 
 // units for length
 enum
@@ -56,7 +57,18 @@ enum {
 
 // Limits
 #define MAX_CLEARANCE_MIL	2000
-#define MAX_RATLINE_W_MIL	100		
+#define MAX_RATLINE_W_MIL	100
+#define MAX_TEXT_SZ_MIL		1000
+
+
+// This is a list of all inheritable item IDs used in the project
+enum EInheritableItemIds
+{
+	E_II_TRACE_WIDTH,
+	E_II_VIA_WIDTH,
+	E_II_VIA_HOLE,
+	E_II_CA_CLEARANCE
+};
 
 /////////////////////////////////////////////////////////////////////////////
 // CFreePcbApp:

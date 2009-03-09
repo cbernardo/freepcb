@@ -450,7 +450,7 @@ void CDlgNetlist::OnBnClickedButtonNLWidth()
 		dlg.m_clearance.SetParent(doc->m_clearance);
 	}
 
-	dlg.m_clearance.Update_ca_clearance();
+	dlg.m_clearance.Update();
 
 	int ret = dlg.DoModal();
 	if( ret == IDOK )

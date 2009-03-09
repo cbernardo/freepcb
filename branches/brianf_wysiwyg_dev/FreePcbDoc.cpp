@@ -1337,7 +1337,7 @@ void CFreePcbDoc::ReadBoardOutline( CStdioFile * pcb_file, CArray<CPolyLine> * b
 //
 void CFreePcbDoc::ReadSolderMaskCutouts( CStdioFile * pcb_file, CArray<CPolyLine> * ssm )
 {
-	int err, pos, np;
+	int err, np;
 	CArray<CString> p;
 	CString in_str, key_str;
 	int last_side_style = CPolyLine::STRAIGHT;

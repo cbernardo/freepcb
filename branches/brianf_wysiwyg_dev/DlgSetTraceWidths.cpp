@@ -131,7 +131,7 @@ void CDlgSetTraceWidths::DoDataExchange(CDataExchange* pDX)
 			int val;
 			if( m_radio3_def_clearance.GetCheck() )
 			{
-				val = CClearanceInfo::E_USE_PARENT;
+				m_clearance.m_ca_clearance.m_status = CClearanceInfo::E_USE_PARENT;
 			}
 			else
 			{
@@ -146,8 +146,8 @@ void CDlgSetTraceWidths::DoDataExchange(CDataExchange* pDX)
 				}
 
 				val *= NM_PER_MIL;
+				m_clearance.m_ca_clearance = val;
 			}
-			m_clearance.m_ca_clearance = val;
 		}
 	}
 }
