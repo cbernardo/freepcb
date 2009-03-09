@@ -4,7 +4,7 @@
 #include "linklist.h"
 
 //=============================================================================
-// Generic publisher and subscriber classes 
+// Generic publisher and subscriber classes
 
 class CSubscriber;
 
@@ -95,12 +95,16 @@ public:
     {
         m_data = from;
         Update();
+
+		return *this;
     }
 
     CPublishedData &operator = (CPublishedData const &from)
 	{
 		m_data = from.m_data;
         Update();
+
+		return *this;
     }
 
     void AddSub   (CDataSubscriber<DT> &sub) { _Add(sub);    }
