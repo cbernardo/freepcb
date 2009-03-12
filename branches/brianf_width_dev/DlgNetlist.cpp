@@ -437,8 +437,8 @@ void CDlgNetlist::OnBnClickedButtonNLWidth()
 	else
 	{
 		// Assign the project clearance (in doc) as the parent
-		dlg.m_clearance.SetParent(doc->m_def_clearance);
-		dlg.m_width.SetParent(doc->m_def_width);
+		dlg.m_clearance.SetParent(doc->m_def_size_attrib);
+		dlg.m_width    .SetParent(doc->m_def_size_attrib);
 	}
 
 	dlg.m_width.Update();

@@ -29,8 +29,7 @@ void CDlgProjectOptionsTabbed::Init( BOOL new_project,
 									 int ratline_w,
                                      BOOL bSMT_connect_copper,
                                      int glue_w,
-                                     CConnectionWidthInfo const &width,
-                                     int ca_clearance,
+                                     CNetWidthInfo const &width_attrib,
 									 int hole_clearance,
                                      int auto_interval,
 									 int thermal_width,
@@ -51,13 +50,12 @@ void CDlgProjectOptionsTabbed::Init( BOOL new_project,
 	m_tabs.m_Tab_Main.m_glue_w = glue_w;
 	m_tabs.m_Tab_Main.m_auto_interval = auto_interval;
 
-	m_tabs.m_Tab_Spacing.m_trace_w = width.m_seg_width.m_val;
-	m_tabs.m_Tab_Spacing.m_via_w   = width.m_via_width.m_val;
-	m_tabs.m_Tab_Spacing.m_hole_w  = width.m_via_hole.m_val;
+	m_tabs.m_Tab_Spacing.m_trace_w            = width_attrib.m_seg_width.m_val;
+	m_tabs.m_Tab_Spacing.m_via_w              = width_attrib.m_via_width.m_val;
+	m_tabs.m_Tab_Spacing.m_hole_w             = width_attrib.m_via_hole.m_val;
+	m_tabs.m_Tab_Spacing.m_ca_clearance_trace = width_attrib.m_ca_clearance.m_val;
 
-	m_tabs.m_Tab_Spacing.m_ca_clearance_trace = ca_clearance;
 	m_tabs.m_Tab_Spacing.m_ca_clearance_hole = hole_clearance;
-
 	m_tabs.m_Tab_Spacing.m_w = w;
 	m_tabs.m_Tab_Spacing.m_v_w = v_w;
 	m_tabs.m_Tab_Spacing.m_v_h_w = v_h_w;

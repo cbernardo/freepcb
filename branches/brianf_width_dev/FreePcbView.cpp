@@ -8986,7 +8986,7 @@ void CFreePcbView::OnNetEditnet()
 	{
 		m_Doc->ResetUndoState();
 		CancelSelection();
-		m_Doc->m_nlist->ImportNetListInfo( &nl, 0, NULL, m_Doc->m_def_width );
+		m_Doc->m_nlist->ImportNetListInfo( &nl, 0, NULL );
 		Invalidate( FALSE );
 	}
 }

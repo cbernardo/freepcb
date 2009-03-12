@@ -72,3 +72,35 @@ CInheritableInfo::Item const &CConnectionWidthInfo::GetItem(int item_id) const
 
 	return CSegWidthInfo::GetItem(item_id);
 }
+
+
+
+CNetWidthInfo &CNetWidthInfo::operator = (CInheritableInfo const &from)
+{
+	CConnectionWidthInfo::operator = (from);
+
+	// Copy Data (only if present in 'from')
+	m_ca_clearance = from.GetItem(E_II_CA_CLEARANCE);
+
+	return *this;
+}
+
+
+void CNetWidthInfo::Update_ca_clearance()
+{
+	UpdateItem(E_II_CA_CLEARANCE, m_ca_clearance);
+}
+
+
+CInheritableInfo::Item const &CNetWidthInfo::GetItem(int item_id) const
+{
+	switch( item_id )
+	{
+		case E_II_CA_CLEARANCE: return m_ca_clearance;
+
+		default:
+			break;
+	}
+
+	return CConnectionWidthInfo::GetItem(item_id);
+}

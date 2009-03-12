@@ -421,7 +421,7 @@ public:
 	CNetList( CDisplayList * dlist, CPartList * plist );
 	~CNetList();
 	void SetNumCopperLayers( int layers ){ m_layers = layers;};
-	void SetWidths( CConnectionWidthInfo const &width, CClearanceInfo const &clearance );
+	void SetWidths( CNetWidthInfo const &width );
 	void SetViaAnnularRing( int ring ){ m_annular_ring = ring; };
 	void SetSMTconnect( BOOL bSMTconnect ){ m_bSMT_connect = bSMTconnect; };
 
@@ -608,7 +608,7 @@ public:
 	int WriteNets( CStdioFile * file );
 	void ReadNets( CStdioFile * pcb_file, double read_version, int * layers=NULL );
 	void ExportNetListInfo( netlist_info * nl );
-	void ImportNetListInfo( netlist_info * nl, int flags, CDlgLog * log, CConnectionWidthInfo const &def_width );
+	void ImportNetListInfo( netlist_info * nl, int flags, CDlgLog * log );
 	void Copy( CNetList * nl );
 	void RestoreConnectionsAndAreas( CNetList * old_nl, int flags, CDlgLog * log=NULL );
 	void ReassignCopperLayers( int n_new_layers, int * layer );

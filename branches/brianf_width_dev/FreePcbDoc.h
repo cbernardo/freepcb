@@ -215,8 +215,7 @@ public:
 	int m_fp_vis[MAX_LAYERS];
 
 	// default trace and via widths for routing
-	CConnectionWidthInfo  m_def_width;
-	CClearanceInfo m_def_clearance;
+	CNetWidthInfo m_def_size_attrib;
 
 	CArray<int> m_w;		// array of trace widths
 	CArray<int> m_v_w;		// array of via widths

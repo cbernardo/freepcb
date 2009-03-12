@@ -4879,7 +4879,7 @@ void CNetList::ExportNetListInfo( netlist_info * nl )
 
 // import netlist_info data back into netlist
 //
-void CNetList::ImportNetListInfo( netlist_info * nl, int flags, CDlgLog * log, CConnectionWidthInfo const &def_width )
+void CNetList::ImportNetListInfo( netlist_info * nl, int flags, CDlgLog * log )
 {
 	CString mess;
 
@@ -6802,12 +6802,12 @@ int CNetList::CombineAreas( cnet * net, int ia1, int ia2 )
 	return 1;
 }
 
-void CNetList::SetWidths( CConnectionWidthInfo const &width, CClearanceInfo const &clearance )
+void CNetList::SetWidths( CNetWidthInfo const &width_attrib )
 {
-	m_def_width = width;
+	m_def_width = width_attrib;
 	m_def_width.SetParent();
 
-	m_def_clearance = clearance;
+	m_def_clearance = width_attrib;
 	m_def_clearance.SetParent();
 }
 

@@ -167,7 +167,7 @@ CFreePcbDoc::CFreePcbDoc()
 	m_import_flags = IMPORT_PARTS | IMPORT_NETS | KEEP_TRACES | KEEP_STUBS | KEEP_AREAS;
 
 	// Backward compatibility
-	m_def_clearance.m_ca_clearance = 10*NM_PER_MIL;
+	m_def_size_attrib.m_ca_clearance = 10*NM_PER_MIL;
 
 	// initialize pseudo-clipboard
 	clip_plist = new CPartList( NULL, m_smfontutil );
@@ -291,8 +291,7 @@ void CFreePcbDoc::OnFileNew()
 		m_ratline_w,
 		m_bSMT_copper_connect,
 		m_default_glue_w,
-		m_def_width,
-		m_def_clearance.m_ca_clearance.m_val,
+		m_def_size_attrib,
 		m_hole_clearance,
 		m_auto_interval,
 		m_thermal_width,
@@ -376,12 +375,12 @@ void CFreePcbDoc::OnFileNew()
 		m_num_layers = m_num_copper_layers + LAY_TOP_COPPER;
 		m_ratline_w = dlg.GetRatlineWidth();
 
-		m_def_clearance.m_ca_clearance = dlg.GetCopperAreaClearance();
-		m_def_width.m_seg_width = dlg.GetTraceWidth();
-		m_def_width.m_via_width = dlg.GetViaWidth();
-		m_def_width.m_via_hole  = dlg.GetViaHoleWidth();
+		m_def_size_attrib.m_ca_clearance = dlg.GetCopperAreaClearance();
+		m_def_size_attrib.m_seg_width    = dlg.GetTraceWidth();
+		m_def_size_attrib.m_via_width    = dlg.GetViaWidth();
+		m_def_size_attrib.m_via_hole     = dlg.GetViaHoleWidth();
 
-		m_nlist->SetWidths( m_def_width, m_def_clearance );
+		m_nlist->SetWidths( m_def_size_attrib );
 		for( int i=0; i<m_num_layers; i++ )
 		{
 			m_vis[i] = 1;
@@ -960,7 +959,7 @@ void CFreePcbDoc::OnProjectNetlist()
 	if( ret == IDOK )
 	{
 		ResetUndoState();
-		m_nlist->ImportNetListInfo( dlg.m_nl, 0, NULL, m_def_width );
+		m_nlist->ImportNetListInfo( dlg.m_nl, 0, NULL );
 		ProjectModified( TRUE );
 		view->CancelSelection();
 		m_nlist->OptimizeConnections();
@@ -1735,8 +1734,8 @@ void CFreePcbDoc::ReadOptions( CStdioFile * pcb_file )
 			else if( np && ( key_str == "fill_clearance" || key_str == "default_ca_clearance" ) )
 			{
 				// Accept both for backward compatibility
-				m_def_clearance.m_ca_clearance = my_atoi( &p[0] );
-				m_nlist->SetWidths( m_def_width, m_def_clearance );
+				m_def_size_attrib.m_ca_clearance = my_atoi( &p[0] );
+				m_nlist->SetWidths( m_def_size_attrib );
 			}
 			else if( np && key_str == "mask_clearance" )
 			{
@@ -1865,18 +1864,18 @@ void CFreePcbDoc::ReadOptions( CStdioFile * pcb_file )
 			}
 			else if( np && key_str == "default_trace_width" )
 			{
-				CSegWidthInfo::FileToItem( my_atoi( &p[0] ), m_def_width.m_seg_width );
-				m_nlist->SetWidths( m_def_width, m_def_clearance );
+				CSegWidthInfo::FileToItem( my_atoi( &p[0] ), m_def_size_attrib.m_seg_width );
+				m_nlist->SetWidths( m_def_size_attrib );
 			}
 			else if( np && key_str == "default_via_pad_width" )
 			{
-				CSegWidthInfo::FileToItem( my_atoi( &p[0] ), m_def_width.m_via_width );
-				m_nlist->SetWidths( m_def_width, m_def_clearance );
+				CSegWidthInfo::FileToItem( my_atoi( &p[0] ), m_def_size_attrib.m_via_width );
+				m_nlist->SetWidths( m_def_size_attrib );
 			}
 			else if( np && key_str == "default_via_hole_width" )
 			{
-				CSegWidthInfo::FileToItem( my_atoi( &p[0] ), m_def_width.m_via_hole );
-				m_nlist->SetWidths( m_def_width, m_def_clearance );
+				CSegWidthInfo::FileToItem( my_atoi( &p[0] ), m_def_size_attrib.m_via_hole );
+				m_nlist->SetWidths( m_def_size_attrib );
 			}
 			else if( np && key_str == "n_width_menu" )
 			{
@@ -2080,7 +2079,7 @@ void CFreePcbDoc::WriteOptions( CStdioFile * file )
 		file->WriteString( "\n" );
 
 		// Write "fill_clearance" for backwards compatibility
-		line.Format( "fill_clearance: %d\n", m_def_clearance.m_ca_clearance.m_val );
+		line.Format( "fill_clearance: %d\n", m_def_size_attrib.m_ca_clearance.m_val );
 		file->WriteString( line );
 		line.Format( "mask_clearance: %d\n", m_mask_clearance );
 		file->WriteString( line );
@@ -2149,13 +2148,13 @@ void CFreePcbDoc::WriteOptions( CStdioFile * file )
 		file->WriteString( line );
 		file->WriteString( "\n" );
 
-		line.Format( "default_trace_width: %d\n", CSegWidthInfo::ItemToFile( m_def_width.m_seg_width ) );
+		line.Format( "default_trace_width: %d\n", CSegWidthInfo::ItemToFile( m_def_size_attrib.m_seg_width ) );
 		file->WriteString( line );
-		line.Format( "default_via_pad_width: %d\n", CSegWidthInfo::ItemToFile( m_def_width.m_via_width ) );
+		line.Format( "default_via_pad_width: %d\n", CSegWidthInfo::ItemToFile( m_def_size_attrib.m_via_width ) );
 		file->WriteString( line );
-		line.Format( "default_via_hole_width: %d\n", CSegWidthInfo::ItemToFile( m_def_width.m_via_hole ) );
+		line.Format( "default_via_hole_width: %d\n", CSegWidthInfo::ItemToFile( m_def_size_attrib.m_via_hole ) );
 		file->WriteString( line );
-		line.Format( "default_ca_clearance: %d\n", m_def_clearance.m_ca_clearance.GetItemAsInt() );
+		line.Format( "default_ca_clearance: %d\n", m_def_size_attrib.m_ca_clearance.GetItemAsInt() );
 		file->WriteString( line );
 		file->WriteString( "\n" );
 
@@ -2429,11 +2428,11 @@ void CFreePcbDoc::InitializeNewProject()
 	m_bSMT_copper_connect = FALSE;
 	m_default_glue_w = 25*NM_PER_MIL;
 
-	m_def_width.m_seg_width = 10*NM_PER_MIL;
-	m_def_width.m_via_width = 28*NM_PER_MIL;
-	m_def_width.m_via_hole  = 14*NM_PER_MIL;
-	m_def_clearance.m_ca_clearance = 10*NM_PER_MIL;
-	m_nlist->SetWidths( m_def_width, m_def_clearance );
+	m_def_size_attrib.m_seg_width    = 10*NM_PER_MIL;
+	m_def_size_attrib.m_via_width    = 28*NM_PER_MIL;
+	m_def_size_attrib.m_via_hole     = 14*NM_PER_MIL;
+	m_def_size_attrib.m_ca_clearance = 10*NM_PER_MIL;
+	m_nlist->SetWidths( m_def_size_attrib );
 
 	// default cam parameters
 	m_dsn_flags = 0;
@@ -2775,7 +2774,7 @@ void CFreePcbDoc::OnFileImport()
 				m_dlg_log->AddLine( line );
 				CNetList * old_nlist = new CNetList( NULL, m_plist );
 				old_nlist->Copy( m_nlist );
-				m_nlist->ImportNetListInfo( &nl, m_import_flags, m_dlg_log, CConnectionWidthInfo(0, 0, 0) );
+				m_nlist->ImportNetListInfo( &nl, m_import_flags, m_dlg_log );
 				line = "\r\nMoving traces and copper areas whose nets have changed:\r\n";
 				m_dlg_log->AddLine( line );
 				m_nlist->RestoreConnectionsAndAreas( old_nlist, m_import_flags, m_dlg_log );
@@ -3490,10 +3489,10 @@ int CFreePcbDoc::ImportPADSPCBNetlist( CStdioFile * file, UINT flags,
 
 						// mark widths as undefined
 						(*nl)[inet].width = CConnectionWidthInfo(CInheritableInfo::E_UNDEF, CInheritableInfo::E_UNDEF, CInheritableInfo::E_UNDEF);
-						(*nl)[inet].width.SetParent(m_nlist->Get_def_width());
+						(*nl)[inet].width.SetParent( m_nlist->Get_def_width() );
 
 						(*nl)[inet].clearance.m_ca_clearance = CClearanceInfo::E_USE_PARENT;
-						(*nl)[inet].clearance.SetParent(m_nlist->Get_def_clearance());
+						(*nl)[inet].clearance.SetParent( m_nlist->Get_def_clearance() );
 
 						npins = 0;
 						state = SIGNAL;
@@ -3809,9 +3808,8 @@ void CFreePcbDoc::OnProjectOptions()
 		m_ratline_w,
 		m_bSMT_copper_connect,
 		m_default_glue_w,
-		m_def_width,
-		m_def_clearance.m_ca_clearance.m_val,
-		m_hole_clearance, //BAF Add hole clearance to m_def_clearance
+		m_def_size_attrib,
+		m_hole_clearance, //BAF Add hole clearance to m_def_size_attrib
 		m_auto_interval,
 		m_thermal_width,
 		m_thermal_clearance,
@@ -3870,17 +3868,15 @@ void CFreePcbDoc::OnProjectOptions()
 
 		SetRatlineWidth(dlg.GetRatlineWidth());
 
-		m_def_width.m_seg_width = dlg.GetTraceWidth();
-		m_def_width.m_via_width = dlg.GetViaWidth();
-		m_def_width.m_via_hole  = dlg.GetViaHoleWidth();
+		m_def_size_attrib.m_seg_width    = dlg.GetTraceWidth();
+		m_def_size_attrib.m_via_width    = dlg.GetViaWidth();
+		m_def_size_attrib.m_via_hole     = dlg.GetViaHoleWidth();
+		m_def_size_attrib.m_ca_clearance = dlg.GetCopperAreaClearance();
+		m_nlist->SetWidths( m_def_size_attrib );
 
-		m_def_clearance.m_ca_clearance = dlg.GetCopperAreaClearance();
-		m_hole_clearance = dlg.GetHoleClearance();
-
-		m_nlist->SetWidths( m_def_width, m_def_clearance );
-
-		m_auto_interval = dlg.GetAutoInterval();
-		m_thermal_width = dlg.GetThermalWidth();
+		m_hole_clearance    = dlg.GetHoleClearance();
+		m_auto_interval     = dlg.GetAutoInterval();
+		m_thermal_width     = dlg.GetThermalWidth();
 		m_thermal_clearance = dlg.GetThermalClearance();
 
 		m_nlist->OptimizeConnections();
@@ -4578,7 +4574,7 @@ void CFreePcbDoc::OnProjectCombineNets()
 		m_dlg_log->Clear();
 		m_dlg_log->UpdateWindow();
 
-		m_nlist->ImportNetListInfo( &nl_info, 0, m_dlg_log, CConnectionWidthInfo(0, 0, 0) );
+		m_nlist->ImportNetListInfo( &nl_info, 0, m_dlg_log );
 		m_import_flags = KEEP_TRACES | KEEP_STUBS | KEEP_AREAS	| KEEP_PARTS_AND_CON;
 		m_nlist->RestoreConnectionsAndAreas( old_nlist, m_import_flags, NULL );
 		delete old_nlist;

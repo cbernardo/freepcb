@@ -52,7 +52,7 @@ public:
 	}
 
 	CConnectionWidthInfo( CInheritableInfo const &from ) :
-		CSegWidthInfo(from)
+		CSegWidthInfo( from )
 	{
 		*this = from;
 	}
@@ -87,5 +87,42 @@ public:
 
 	virtual Item const &GetItem( int item_id ) const;
 };
+
+
+class CNetWidthInfo : public CConnectionWidthInfo
+{
+public:
+	CNetWidthInfo() : 
+		m_ca_clearance(E_USE_PARENT)
+	{
+	}
+
+	CNetWidthInfo( CInheritableInfo const &from ) :
+		CConnectionWidthInfo( from )	
+	{
+		*this = from;
+	}
+
+	CNetWidthInfo &operator = ( CInheritableInfo const &from );
+	CNetWidthInfo &operator = ( CNetWidthInfo const &from ) { operator = (static_cast<CInheritableInfo const &>(from)); return *this; }
+
+public:
+	// Direct for non-updating version
+	Item m_ca_clearance;
+
+    // Update the current value of ...
+	void Update_ca_clearance();
+
+	// Update all
+	void Update()
+	{
+		CConnectionWidthInfo::Update();
+
+		Update_ca_clearance();
+	}
+
+	virtual Item const &GetItem( int item_id ) const;
+};
+
 
 #endif /* !_II_SEG_WIDTH_H ] */

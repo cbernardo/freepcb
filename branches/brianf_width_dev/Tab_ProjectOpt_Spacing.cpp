@@ -8,6 +8,19 @@
 #include "Tab_ProjectOpt_Spacing.h"
 
 
+// global callback function for sorting
+//
+static int CALLBACK WidthCompare( LPARAM lp1, LPARAM lp2, LPARAM type )
+{
+	if( lp1 == lp2 )
+		return 0;
+	else if( lp1 > lp2 )
+		return 1;
+	else
+		return -1;
+}
+
+
 // CTab_ProjectOpt_Spacing dialog
 int CTab_ProjectOpt_Spacing::m_bShowMessageForClearance = 1;
 
@@ -48,29 +61,21 @@ void CTab_ProjectOpt_Spacing::DoDataExchange(CDataExchange* pDX)
 
 BOOL CTab_ProjectOpt_Spacing::OnInitPage(int nPageID)
 {
-	// convert NM to MILS
-	m_trace_w            /= NM_PER_MIL;
-	m_ca_clearance_trace /= NM_PER_MIL;
-	m_ca_clearance_hole  /= NM_PER_MIL;
-	m_via_w              /= NM_PER_MIL;
-	m_hole_w             /= NM_PER_MIL;
-
-
 	CString str;
 
-	str.Format("%d", m_trace_w);
+	str.Format("%d", m_trace_w / NM_PER_MIL);
 	m_edit_def_tracew.SetWindowText(str);
 
-	str.Format("%d", m_via_w);
+	str.Format("%d", m_via_w / NM_PER_MIL);
 	m_edit_def_viapad.SetWindowText(str);
 
-	str.Format("%d", m_hole_w);
+	str.Format("%d", m_hole_w / NM_PER_MIL);
 	m_edit_def_viahole.SetWindowText(str);
 
-	str.Format("%d", m_ca_clearance_trace);
+	str.Format("%d", m_ca_clearance_trace / NM_PER_MIL);
 	m_edit_def_cac_trace.SetWindowText(str);
 
-	str.Format("%d", m_ca_clearance_hole);
+	str.Format("%d", m_ca_clearance_hole / NM_PER_MIL);
 	m_edit_def_cac_holeedge.SetWindowText(str);
 
 	// set up list control
@@ -95,6 +100,8 @@ BOOL CTab_ProjectOpt_Spacing::OnInitPage(int nPageID)
 		str.Format( "%d", m_v_h_w->GetAt(i)/NM_PER_MIL );
 		m_list_menu.SetItem( i, 2, LVIF_TEXT, str, 0, 0, 0, 0 );
 	}
+
+	m_list_menu.SortItems( ::WidthCompare, 0 );
 
 	return TRUE;
 }
@@ -211,18 +218,6 @@ void CTab_ProjectOpt_Spacing::DDX_out()
 }
 
 // CTab_ProjectOpt_Spacing message handlers
-
-// global callback function for sorting
-//
-static int CALLBACK WidthCompare( LPARAM lp1, LPARAM lp2, LPARAM type )
-{
-	if( lp1 == lp2 )
-		return 0;
-	else if( lp1 > lp2 )
-		return 1;
-	else
-		return -1;
-}
 
 void CTab_ProjectOpt_Spacing::OnBnClickedButtonAdd()
 {
