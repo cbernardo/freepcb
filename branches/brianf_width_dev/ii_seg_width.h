@@ -26,8 +26,8 @@ public:
 	Item m_seg_width;
 
 	// For backwards compatibility with .fpc files, value of 0 means "use_parent".
-	static int  ItemToFile(Item const &from)   { int to = from.Get_item_as_int(); if (to == E_USE_PARENT) to = 0; return to; }
-	static void FileToItem(int from, Item &to) { if (from == 0) from = E_USE_PARENT; to.Set_item_from_int(from); }
+	static int  ItemToFile(Item const &from)   { int to = from.GetItemAsInt(); if (to == E_USE_PARENT) to = 0; return to; }
+	static void FileToItem(int from, Item &to) { if (from == 0) from = E_USE_PARENT; to.SetItemFromInt(from); }
 
     // Update the current value of ...
 	void Update_seg_width();

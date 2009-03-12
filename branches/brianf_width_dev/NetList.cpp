@@ -1815,10 +1815,10 @@ int CNetList::InsertSegment( cnet * net, int ic, int iseg, int x, int y, int lay
 				id.sst = ID_SEL_VERTEX;
 				id.ii = iseg+1;
 				c->vtx[iseg+1].dl_sel = m_dlist->AddSelector( id, net, layer, DL_HOLLOW_RECT,
-					1, 1, 0, 
+					1, 1, 0,
 					x-10*PCBU_PER_MIL, y-10*PCBU_PER_MIL,
 					x+10*PCBU_PER_MIL, y+10*PCBU_PER_MIL,
-					0, 0 
+					0, 0
 				);
 			}
 		}
@@ -1848,10 +1848,10 @@ int CNetList::InsertSegment( cnet * net, int ic, int iseg, int x, int y, int lay
 				id.sst = ID_SEL_VERTEX;
 				id.ii = iseg+1;
 				c->vtx[iseg+1].dl_sel = m_dlist->AddSelector( id, net, layer, DL_HOLLOW_RECT,
-					1, 0, 0, 
-					x-10*PCBU_PER_MIL, y-10*PCBU_PER_MIL, 
-					x+10*PCBU_PER_MIL, y+10*PCBU_PER_MIL, 
-					0, 0 
+					1, 0, 0,
+					x-10*PCBU_PER_MIL, y-10*PCBU_PER_MIL,
+					x+10*PCBU_PER_MIL, y+10*PCBU_PER_MIL,
+					0, 0
 				);
 			}
 		}
@@ -3411,8 +3411,8 @@ int CNetList::StartMovingSegment( CDC * pDC, cnet * net, int ic, int ivtx,
 //
 int CNetList::StartDraggingSegment( CDC * pDC, cnet * net, int ic, int iseg,
 								   int x, int y, int layer1, int layer2,
-								   int layer_no_via, int dir,
-								   int crosshair )
+								   int layer_no_via, CConnectionWidthInfo const &width, 
+								   int dir, int crosshair )
 {
 	// cancel previous selection and make segment invisible
 	cconnect * c =&net->connect[ic];
@@ -3426,10 +3426,10 @@ int CNetList::StartDraggingSegment( CDC * pDC, cnet * net, int ic, int iseg,
 	int yf = c->vtx[iseg+1].y;
 
 	m_dlist->StartDraggingLineVertex( pDC, x, y, xi, yi, xf, yf, layer1,
-		layer2, net->def_width.m_seg_width.m_val, 1, DSS_STRAIGHT, DSS_STRAIGHT,
+		layer2, width.m_seg_width.m_val, 1, DSS_STRAIGHT, DSS_STRAIGHT,
 		layer_no_via,
-		net->def_width.m_via_width.m_val,
-		net->def_width.m_via_hole.m_val, dir, crosshair );
+		width.m_via_width.m_val,
+		width.m_via_hole.m_val, dir, crosshair );
 
 	return 0;
 }
@@ -4252,7 +4252,7 @@ int CNetList::WriteNets( CStdioFile * file )
 							CSegWidthInfo::ItemToFile( net->def_width.m_via_width ),
 							CSegWidthInfo::ItemToFile( net->def_width.m_via_hole  ),
 							net->visible,
-							net->def_clearance.m_ca_clearance.Get_item_as_int() );
+							net->def_clearance.m_ca_clearance.GetItemAsInt() );
 			file->WriteString( line );
 
 			for( int ip=0; ip<net->npins; ip++ )
@@ -4297,7 +4297,7 @@ int CNetList::WriteNets( CStdioFile * file )
 						CSegWidthInfo::ItemToFile( v->via_width.m_via_width ),
 						CSegWidthInfo::ItemToFile( v->via_width.m_via_hole  ),
 						v->tee_ID,
-						v->vtx_clearance.m_ca_clearance.Get_item_as_int()
+						v->vtx_clearance.m_ca_clearance.GetItemAsInt()
 					);
 					file->WriteString( line );
 
@@ -4309,7 +4309,7 @@ int CNetList::WriteNets( CStdioFile * file )
 							is+1,
 							s->layer,
 							CSegWidthInfo::ItemToFile( s->seg_width.m_seg_width ),
-							s->seg_clearance.m_ca_clearance.Get_item_as_int()
+							s->seg_clearance.m_ca_clearance.GetItemAsInt()
 						);
 						file->WriteString( line );
 					}
@@ -4413,7 +4413,7 @@ void CNetList::ReadNets( CStdioFile * pcb_file, double read_version, int * layer
 			if( np > 8 )
 				visible = my_atoi( &p[7] );
 
-			CClearanceInfo clearance(CClearanceInfo::E_USE_PARENT);
+			CClearanceInfo clearance( CClearanceInfo::E_USE_PARENT );
 			if( np > 9 )
 			{
 				clearance.m_ca_clearance = my_atoi( &p[8] );
@@ -4558,7 +4558,7 @@ void CNetList::ReadNets( CStdioFile * pcb_file, double read_version, int * layer
 							int force_via_flag = my_atoi( &p[4] );
 
 							CSegWidthInfo::FileToItem( my_atoi( &p[5] ), width.m_via_width );
-							CSegWidthInfo::FileToItem( my_atoi( &p[5] ), width.m_via_hole  );
+							CSegWidthInfo::FileToItem( my_atoi( &p[6] ), width.m_via_hole  );
 
 							int tee_ID = 0;
 							if( np > 8 )
@@ -4977,15 +4977,15 @@ void CNetList::ImportNetListInfo( netlist_info * nl, int flags, CDlgLog * log, C
 		if( net == NULL && old_net == NULL )
 		{
 			// no existing net, add to netlist
-			if( !(*nl)[i].width.m_seg_width.is_defined() )
+			if( !(*nl)[i].width.m_seg_width.isDefined() )
 			{
 				(*nl)[i].width.m_seg_width = CInheritableInfo::E_USE_PARENT;
 			}
-			if( !(*nl)[i].width.m_via_width.is_defined() )
+			if( !(*nl)[i].width.m_via_width.isDefined() )
 			{
 				(*nl)[i].width.m_via_width = CInheritableInfo::E_USE_PARENT;
 			}
-			if( !(*nl)[i].width.m_via_hole.is_defined() )
+			if( !(*nl)[i].width.m_via_hole.isDefined() )
 			{
 				(*nl)[i].width.m_via_hole = CInheritableInfo::E_USE_PARENT;
 			}
@@ -7116,7 +7116,7 @@ BOOL CNetList::RemoveOrphanBranches( cnet * net, int id, BOOL bRemoveSegs )
 										int test = InsertSegment( net, ic, c->nsegs-1,
 											tc->vtx[tis].x, tc->vtx[tis].y,
 											tc->seg[tis].layer,
-											tc->seg[tis].seg_width, 
+											tc->seg[tis].seg_width,
 											tc->seg[tis].seg_clearance,
 											0 );
 
@@ -7392,7 +7392,7 @@ void CNetList::ApplyClearancesToArea( cnet *net, int ia, int flags,
 	// clip polygon, creating new areas if necessary
 	ClipAreaPolygon( net, ia, FALSE, FALSE, FALSE );
 }
-#endif // ] 
+#endif // ]
 
 // recursive function for routing
 //
@@ -7697,20 +7697,21 @@ void CNetList::ImportNetRouting( CString * name,
 								int y = path->pt[next_pt].y;
 								int layer = path->layer;
 								int width = path->width;
+
 								if( ipass == 0 || ipass == 2 )
-									AppendSegment( net, ic, x, y, layer, width );
+									AppendSegment( net, ic, x, y, layer, CSegWidthInfo(width) );
 								else if( ipass == 1 )
-									InsertSegment( net, ic, is, x, y, layer, width, 0, 0, 0 );
+									InsertSegment( net, ic, is, x, y, layer, CConnectionWidthInfo( width, CInheritableInfo::E_USE_PARENT, CInheritableInfo::E_USE_PARENT ), 0 );
+
 								is++;
 							}
 							// force all vias
 							if( next_node->type == NVIA )
 							{
 								// use via width from node and default hole width
-								int w, via_w, via_hole_w;
-								GetWidths( net, &w, &via_w, &via_hole_w );
-								c->vtx[is].via_w = next_node->via_w;
-								c->vtx[is].via_hole_w = via_hole_w;
+								c->vtx[is].via_width.m_via_width = next_node->via_w;
+								c->vtx[is].via_width.Update();
+								
 								ForceVia( net, ic, is, FALSE );
 							}
 							str.Format( "-n%d", next_inode );
@@ -7764,17 +7765,19 @@ void CNetList::ImportNetRouting( CString * name,
 						cvertex * trace_v = &trace_c->vtx[iv];
 						cseg * trace_seg = &trace_c->seg[iv-1];
 						if( trace_v->x == end_v->x && trace_v->y == end_v->y
-							&& ( trace_v->via_w || end_v->via_w
+							&& ( trace_v->via_w() || end_v->via_w()
 							|| end_seg->layer == trace_seg->layer ) )
 						{
 							// make a tee-vertex and connect branch
 							if( trace_v->tee_ID )
 								tee_id = trace_v->tee_ID;
+
 							trace_v->tee_ID = tee_id;
 							end_v->tee_ID = tee_id;
+
 							end_v->force_via_flag = FALSE;
-							end_v->via_w = 0;
-							end_v->via_hole_w = 0;
+							end_v->SetNoVia();
+
 							ReconcileVia( net, icc, iv );
 						}
 					}
@@ -7794,25 +7797,30 @@ void CNetList::ImportNetRouting( CString * name,
 				CString str;
 				mess.Format( "error: path %d failed to route", ipath );
 				cnode * node = &(*nodes)[path->GetInode(0)];
+
 				CString type_str = "pin";
 				if( node->type == NVIA )
 					type_str = "via";
 				else if( node->type == NJUNCTION )
 					type_str = "junction";
+
 				cnode * node_end = &(*nodes)[path->GetInode(1)];
 				str.Format( ", %s at x=%d y=%d",
 					type_str, node->x/NM_PER_MIL, node->y/NM_PER_MIL );
 				mess += str;
 				node = &(*nodes)[path->GetInode(1)];
+
 				type_str = "pin";
 				if( node->type == NVIA )
 					type_str = "via";
 				else if( node->type == NJUNCTION )
 					type_str = "junction";
+
 				str.Format( " to %s at x=%d y=%d, layer %d\r\n",
 					type_str, node->x/NM_PER_MIL, node->y/NM_PER_MIL,
 					path->layer );
 				mess += str;
+
 				log->AddLine( mess );
 			}
 			bFailed = TRUE;

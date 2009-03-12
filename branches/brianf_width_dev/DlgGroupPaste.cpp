@@ -50,25 +50,25 @@ static int CALLBACK ListCompare( LPARAM lp1, LPARAM lp2, LPARAM type )
 
 		case SORT_UP_WIDTH:
 		case SORT_DOWN_WIDTH:
-			if( ::gnl[lp1].w > ::gnl[lp2].w )
+			if( ::gnl[lp1].width.m_seg_width > ::gnl[lp2].width.m_seg_width )
 				ret = 1;
-			else if( ::gnl[lp1].w < ::gnl[lp2].w )
+			else if( ::gnl[lp1].width.m_seg_width < ::gnl[lp2].width.m_seg_width )
 				ret = -1;
 			break;
 
 		case SORT_UP_VIA_W:
 		case SORT_DOWN_VIA_W:
-			if( ::gnl[lp1].v_w > ::gnl[lp2].v_w )
+			if( ::gnl[lp1].width.m_via_width > ::gnl[lp2].width.m_via_width )
 				ret = 1;
-			else if( ::gnl[lp1].v_w < ::gnl[lp2].v_w )
+			else if( ::gnl[lp1].width.m_via_width < ::gnl[lp2].width.m_via_width )
 				ret = -1;
 			break;
 
 		case SORT_UP_HOLE_W:
 		case SORT_DOWN_HOLE_W:
-			if( ::gnl[lp1].v_h_w > ::gnl[lp2].v_h_w )
+			if( ::gnl[lp1].width.m_via_hole > ::gnl[lp2].width.m_via_hole )
 				ret = 1;
-			else if( ::gnl[lp1].v_h_w < ::gnl[lp2].v_h_w )
+			else if( ::gnl[lp1].width.m_via_hole < ::gnl[lp2].width.m_via_hole )
 				ret = -1;
 			break;
 
@@ -173,24 +173,17 @@ void CDlgGroupPaste::DoDataExchange(CDataExchange* pDX)
 			m_list_ctrl.SetItem( i, COL_NAME, LVIF_TEXT, ::gnl[i].name, 0, 0, 0, 0 );
 			str.Format( "%d", ::gnl[i].ref_des.GetSize() );
 			m_list_ctrl.SetItem( i, COL_PINS, LVIF_TEXT, str, 0, 0, 0, 0 );
-			str.Format( "%d", ::gnl[i].w/NM_PER_MIL );
+
+			str = CInheritableInfo::GetItemText( ::gnl[i].width.m_seg_width );
 			m_list_ctrl.SetItem( i, COL_WIDTH, LVIF_TEXT, str, 0, 0, 0, 0 );
-			str.Format( "%d", ::gnl[i].v_w/NM_PER_MIL );
+
+			str = CInheritableInfo::GetItemText( ::gnl[i].width.m_via_width );
 			m_list_ctrl.SetItem( i, COL_VIA_W, LVIF_TEXT, str, 0, 0, 0, 0 );
-			str.Format( "%d", ::gnl[i].v_h_w/NM_PER_MIL );
+
+			str = CInheritableInfo::GetItemText( ::gnl[i].width.m_via_hole );
 			m_list_ctrl.SetItem( i, COL_HOLE_W, LVIF_TEXT, str, 0, 0, 0, 0 );
 
-			if( ::gnl[i].clearance.m_ca_clearance.m_status < 0 )
-			{
-				// Just to make sure
-				::gnl[i].clearance.m_ca_clearance.m_status = CClearanceInfo::E_USE_PARENT;
-
-				str.Format("Default");
-			}
-			else
-			{
-				str.Format( "%d", ::gnl[i].clearance.m_ca_clearance.m_val / NM_PER_MIL );
-			}
+			str = CInheritableInfo::GetItemText( ::gnl[i].clearance.m_ca_clearance );
 			m_list_ctrl.SetItem( i, COL_CLEARANCE, LVIF_TEXT, str, 0, 0, 0, 0 );
 
 			ListView_SetCheckState( m_list_ctrl, nItem, 0 );
@@ -225,7 +218,6 @@ void CDlgGroupPaste::DoDataExchange(CDataExchange* pDX)
 		::gnl.SetSize(0);
 	}
 }
-
 
 
 BEGIN_MESSAGE_MAP(CDlgGroupPaste, CDialog)

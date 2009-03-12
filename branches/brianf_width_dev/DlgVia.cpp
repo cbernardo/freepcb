@@ -27,36 +27,56 @@ void CDlgVia::DoDataExchange(CDataExchange* pDX)
 	{
 		// incoming
 		CString str;
-		str.Format( "%d", m_via_w/NM_PER_MIL );
+
+		str = CInheritableInfo::GetItemText( m_via_width.m_via_width );
 		m_edit_via_w.SetWindowText( str );
-		str.Format( "%d", m_via_hole_w/NM_PER_MIL );
+
+		str = CInheritableInfo::GetItemText( m_via_width.m_via_hole );
 		m_edit_hole_w.SetWindowText( str );
 	}
 	else
 	{
 		// outgoing
 		CString str;
+		int i;
+
 		m_edit_via_w.GetWindowText( str );
-		m_via_w = GetDimensionFromString( &str );
-		if( m_via_w <= 0 )
+		if( str == "Default" )
 		{
-			AfxMessageBox( "Illegal via width" );
-			pDX->Fail();
+			m_via_width.m_via_width = CInheritableInfo::E_USE_PARENT;
 		}
-		m_edit_hole_w.GetWindowText( str );
-		m_via_hole_w = GetDimensionFromString( &str );
-		if( m_via_hole_w <= 0 )
+		else
 		{
-			AfxMessageBox( "Illegal via hole width" );
-			pDX->Fail();
+			i = GetDimensionFromString( &str );
+			if( i <= 0 )
+			{
+				AfxMessageBox( "Illegal via width" );
+				pDX->Fail();
+			}
+			m_via_width.m_via_width = i;
+		}
+
+		m_edit_hole_w.GetWindowText( str );
+		if( str == "Default" )
+		{
+			m_via_width.m_via_width = CInheritableInfo::E_USE_PARENT;
+		}
+		else
+		{
+			i = GetDimensionFromString( &str );
+			if( i <= 0 )
+			{
+				AfxMessageBox( "Illegal via width" );
+				pDX->Fail();
+			}
+			m_via_width.m_via_hole = i;
 		}
 	}
 }
 
-void CDlgVia::Initialize( int via_w, int via_hole_w )
+void CDlgVia::Initialize( CConnectionWidthInfo const &via_width )
 {
-	m_via_w = via_w;
-	m_via_hole_w = via_hole_w;
+	m_via_width = via_width;
 }
 
 BEGIN_MESSAGE_MAP(CDlgVia, CDialog)

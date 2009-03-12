@@ -23,7 +23,7 @@ public:
 
 	explicit CClearanceInfo(int ca_clearance = E_USE_PARENT)
 	{
-		m_ca_clearance.Set_item_from_int(ca_clearance);
+		m_ca_clearance.SetItemFromInt(ca_clearance);
 	}
 
 	CClearanceInfo &operator = (CInheritableInfo const &from);

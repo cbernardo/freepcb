@@ -55,25 +55,25 @@ static int CALLBACK CompareNetlistCombine( LPARAM lp1, LPARAM lp2, LPARAM type )
 
 		case SORT_UP_WIDTH:
 		case SORT_DOWN_WIDTH:
-			if( ::nl_combine[lp1].w > ::nl_combine[lp2].w )
+			if( ::nl_combine[lp1].width.m_seg_width > ::nl_combine[lp2].width.m_seg_width )
 				ret = 1;
-			else if( ::nl_combine[lp1].w < ::nl_combine[lp2].w )
+			else if( ::nl_combine[lp1].width.m_seg_width < ::nl_combine[lp2].width.m_seg_width )
 				ret = -1;
 			break;
 
 		case SORT_UP_VIA_W:
 		case SORT_DOWN_VIA_W:
-			if( ::nl_combine[lp1].v_w > ::nl_combine[lp2].v_w )
+			if( ::nl_combine[lp1].width.m_via_width > ::nl_combine[lp2].width.m_via_width )
 				ret = 1;
-			else if( ::nl_combine[lp1].v_w < ::nl_combine[lp2].v_w )
+			else if( ::nl_combine[lp1].width.m_via_width < ::nl_combine[lp2].width.m_via_width )
 				ret = -1;
 			break;
 
 		case SORT_UP_HOLE_W:
 		case SORT_DOWN_HOLE_W:
-			if( ::nl_combine[lp1].v_h_w > ::nl_combine[lp2].v_h_w )
+			if( ::nl_combine[lp1].width.m_via_hole > ::nl_combine[lp2].width.m_via_hole )
 				ret = 1;
-			else if( ::nl_combine[lp1].v_h_w < ::nl_combine[lp2].v_h_w )
+			else if( ::nl_combine[lp1].width.m_via_hole < ::nl_combine[lp2].width.m_via_hole )
 				ret = -1;
 			break;
 
@@ -186,32 +186,25 @@ void CDlgNetCombine::DrawListCtrl()
 	int iItem = 0;
 	for( int i=0; i<::nl_combine.GetSize(); i++ )
 	{
-			nItem = m_list_ctrl.InsertItem( iItem, "" );
-			m_list_ctrl.SetItemData( iItem, (LPARAM)i );
-			m_list_ctrl.SetItem( iItem, COL_NAME, LVIF_TEXT, ::nl_combine[i].name, 0, 0, 0, 0 );
-			str.Format( "%d", ::nl_combine[i].ref_des.GetSize() );
-			m_list_ctrl.SetItem( iItem, COL_PINS, LVIF_TEXT, str, 0, 0, 0, 0 );
-			str.Format( "%d", ::nl_combine[i].w/NM_PER_MIL );
-			m_list_ctrl.SetItem( iItem, COL_WIDTH, LVIF_TEXT, str, 0, 0, 0, 0 );
-			str.Format( "%d", ::nl_combine[i].v_w/NM_PER_MIL );
-			m_list_ctrl.SetItem( iItem, COL_VIA_W, LVIF_TEXT, str, 0, 0, 0, 0 );
-			str.Format( "%d", ::nl_combine[i].v_h_w/NM_PER_MIL );
-			m_list_ctrl.SetItem( iItem, COL_HOLE_W, LVIF_TEXT, str, 0, 0, 0, 0 );
+		nItem = m_list_ctrl.InsertItem( iItem, "" );
+		m_list_ctrl.SetItemData( iItem, (LPARAM)i );
+		m_list_ctrl.SetItem( iItem, COL_NAME, LVIF_TEXT, ::nl_combine[i].name, 0, 0, 0, 0 );
+		str.Format( "%d", ::nl_combine[i].ref_des.GetSize() );
+		m_list_ctrl.SetItem( iItem, COL_PINS, LVIF_TEXT, str, 0, 0, 0, 0 );
 
-			if (::nl_combine[i].clearance.m_ca_clearance.m_status < 0)
-			{
-				// Just to make sure
-				::nl_combine[i].clearance.m_ca_clearance.m_status = CClearanceInfo::E_USE_PARENT;
+		str = CInheritableInfo::GetItemText( ::nl_combine[i].width.m_seg_width );
+		m_list_ctrl.SetItem( iItem, COL_WIDTH, LVIF_TEXT, str, 0, 0, 0, 0 );
 
-				str.Format("Default");
-			}
-			else
-			{
-				str.Format( "%d", ::nl_combine[i].clearance.m_ca_clearance.m_val / NM_PER_MIL );
-			}
-			m_list_ctrl.SetItem( iItem, COL_CLEARANCE, LVIF_TEXT, str, 0, 0, 0, 0 );
+		str = CInheritableInfo::GetItemText( ::nl_combine[i].width.m_via_width );
+		m_list_ctrl.SetItem( iItem, COL_VIA_W, LVIF_TEXT, str, 0, 0, 0, 0 );
 
-			ListView_SetCheckState( m_list_ctrl, nItem, ::nl_combine[i].visible );
+		str = CInheritableInfo::GetItemText( ::nl_combine[i].width.m_via_hole );
+		m_list_ctrl.SetItem( iItem, COL_HOLE_W, LVIF_TEXT, str, 0, 0, 0, 0 );
+
+		str = CInheritableInfo::GetItemText( ::nl_combine[i].clearance.m_ca_clearance );
+		m_list_ctrl.SetItem( iItem, COL_CLEARANCE, LVIF_TEXT, str, 0, 0, 0, 0 );
+
+		ListView_SetCheckState( m_list_ctrl, nItem, ::nl_combine[i].visible );
 	}
 	m_list_ctrl.SortItems( ::CompareNetlistCombine, m_sort_type );
 }

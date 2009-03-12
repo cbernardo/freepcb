@@ -55,28 +55,29 @@ void CDlgEditNet::DoDataExchange(CDataExchange* pDX)
 
 		int i;
 		DDX_Text( pDX, IDC_COMBO_WIDTH, i );
-		if( i<0 )
+		if( i<=0 || i > MAX_TRACE_W_MIL)
 		{
 			AfxMessageBox( "illegal trace width" );
 			pDX->Fail();
 		}
-		m_def_w = i*NM_PER_MIL;
+		m_width.m_seg_width = i*NM_PER_MIL;
 
 		DDX_Text( pDX, IDC_EDIT_VIA_PAD_W, i );
-		if( i<0 )
+		if( i<=0 || i > MAX_VIA_W_MIL)
 		{
 			AfxMessageBox( "illegal via width" );
 			pDX->Fail();
 		}
-		m_def_v_w = i*NM_PER_MIL;
+		m_width.m_via_width = i*NM_PER_MIL;
 
 		DDX_Text( pDX, IDC_EDIT_VIA_HOLE_W, i );
-		if( i<0 )
+		if( i<=0 || i > MAX_VIA_HOLE_MIL)
 		{
 			AfxMessageBox( "illegal via hole width" );
 			pDX->Fail();
 		}
-		m_def_v_h_w = i*NM_PER_MIL;
+		m_width.m_via_hole = i*NM_PER_MIL;
+
 		m_visible = m_check_visible.GetState();
 		for( int in=0; in<m_nl->GetSize(); in++ )
 		{
@@ -119,9 +120,7 @@ void CDlgEditNet::DoDataExchange(CDataExchange* pDX)
 		(*m_nl)[m_in].modified = TRUE;
 		(*m_nl)[m_in].name = m_name;
 		(*m_nl)[m_in].visible = m_visible;
-		(*m_nl)[m_in].w = m_def_w;
-		(*m_nl)[m_in].v_w = m_def_v_w;
-		(*m_nl)[m_in].v_h_w = m_def_v_h_w;
+		(*m_nl)[m_in].width = m_width;
 		(*m_nl)[m_in].clearance = m_clearance;
 
 		if( m_pins_edited )
@@ -168,11 +167,6 @@ void CDlgEditNet::DoDataExchange(CDataExchange* pDX)
 	}
 	else
 	{
-		// convert units
-		m_def_w     /= NM_PER_MIL;
-		m_def_v_w   /= NM_PER_MIL;
-		m_def_v_h_w /= NM_PER_MIL;
-
 		// default is to apply new trace width & clearances
 		m_check_widths_apply.SetCheck(1);
 		m_check_clearances_apply.SetCheck(1);
@@ -200,19 +194,16 @@ void CDlgEditNet::Initialize( CNetList const * netlist,
 	{
 		m_name = "";
 
-		m_def_w = 0;
-		m_def_v_w = 0;
-		m_def_v_h_w = 0;
+		m_width = CConnectionWidthInfo( CClearanceInfo::E_USE_PARENT, CClearanceInfo::E_USE_PARENT, CClearanceInfo::E_USE_PARENT);
+		m_width.SetParent( netlist->Get_def_width() );
 
 		m_clearance.m_ca_clearance = CClearanceInfo::E_USE_PARENT;
 		m_clearance.SetParent( netlist->Get_def_clearance() );
 	}
 	else
 	{
-		m_name = (*nl)[i].name;
-		m_def_w = (*nl)[i].w;
-		m_def_v_w = (*nl)[i].v_w;
-		m_def_v_h_w = (*nl)[i].v_h_w;
+		m_name      = (*nl)[i].name;
+		m_width     = (*nl)[i].width;
 		m_clearance = (*nl)[i].clearance;
 	}
 	m_w = w;
@@ -381,25 +372,25 @@ BOOL CDlgEditNet::OnInitDialog()
 	CDialog::OnInitDialog();
 	CString str;
 	m_edit_name.SetWindowText( m_name );
-	str.Format( "%d", m_def_w );
+
+	m_clearance.Update();
+	m_width.Update();
+
+	str = CInheritableInfo::GetItemText( m_width.m_seg_width );
 	m_combo_width.SetWindowText( str );
-	str.Format( "%d", m_def_v_w );
+	str = CInheritableInfo::GetItemText( m_width.m_via_width );
 	m_edit_pad_w.SetWindowText( str );
-	str.Format( "%d", m_def_v_h_w );
+	str = CInheritableInfo::GetItemText( m_width.m_via_hole );
 	m_edit_hole_w.SetWindowText( str );
+
 	m_edit_pad_w.EnableWindow( 0 );
 	m_edit_hole_w.EnableWindow( 0 );
 	m_button_def_width.SetCheck( 1 );
 	m_button_set_width.SetCheck( 0 );
 	m_check_visible.SetCheck( m_visible );
 
-	m_clearance.Update();
-
 	if( m_clearance.m_ca_clearance.m_status < 0 )
 	{
-		// Just to make sure
-		m_clearance.m_ca_clearance.m_status = CClearanceInfo::E_USE_PARENT;
-
 		m_radio2_def_clearance.SetCheck(1);
 		m_edit_clearance.EnableWindow(0);
 	}

@@ -44,31 +44,46 @@ void CDlgSetTraceWidths::DoDataExchange(CDataExchange* pDX)
 	{
 		// incoming
 		CString str;
+
+		m_width.Update();
+
 		for( int i=0; i<m_w->GetSize(); i++ )
 		{
 			str.Format( "%d", (*m_w)[i]/NM_PER_MIL );
 			m_combo_width.InsertString( i, str );
 		}
-		if( m_width.m_seg_width.is_defined() )
+		if( m_width.m_seg_width.m_status < 0 )
 		{
-			str.Format( "%d", m_width/NM_PER_MIL );
-			m_combo_width.SetWindowText( str );
+			m_radio_default_via_for_trace.SetCheck( 1 );
 		}
-		if( m_width.m_via_width.is_defined() && m_width.m_via_hole.is_defined() )
+		else
 		{
-			str.Format( "%d", m_via_width/NM_PER_MIL );
+			m_width.m_seg_width.m_status = CInheritableInfo::E_USE_PARENT;
+			m_radio_set_via_width.SetCheck( 1 );
+		}
+		str.Format( "%d", m_width.m_seg_width.m_val/NM_PER_MIL );
+		m_combo_width.SetWindowText( str );
+
+		if( m_width.m_via_width.m_status < 0 )
+		{
+			m_width.m_via_width.m_status = CInheritableInfo::E_USE_PARENT;
+			m_width.m_via_hole .m_status = CInheritableInfo::E_USE_PARENT;
+
+			str.Format( "Default" );
 			m_edit_via_pad.SetWindowText( str );
-			str.Format( "%d", m_hole_width/NM_PER_MIL );
 			m_edit_via_hole.SetWindowText( str );
 		}
+		else
+		{
+			str.Format( "%d", m_width.m_via_width/NM_PER_MIL );
+			m_edit_via_pad.SetWindowText( str );
+			str.Format( "%d", m_width.m_via_hole/NM_PER_MIL );
+			m_edit_via_hole.SetWindowText( str );
+		}
+
 		m_check_trace.SetCheck(1);
 		m_radio_set_trace_width.SetCheck(1);
 		m_check_vias.SetCheck(1);
-
-		if( m_width > 0 )
-			m_radio_set_via_width.SetCheck( 1 );
-		else
-			m_radio_default_via_for_trace.SetCheck( 1 );
 
 		m_check_apply.SetCheck(1);
 
@@ -100,30 +115,35 @@ void CDlgSetTraceWidths::DoDataExchange(CDataExchange* pDX)
 		SetFields();
 		if( bTraces && bRevertTraces )
 		{
-			m_width = 0;
+			m_width.m_seg_width.m_status = CInheritableInfo::E_USE_PARENT;
 		}
 		else if( bTraces )
 		{
-			DDX_Text( pDX, IDC_COMBO_WIDTH, m_width );
-			m_width *= NM_PER_MIL;
+			DDX_Text( pDX, IDC_COMBO_WIDTH, m_width.m_seg_width.m_val );
+			m_width.m_seg_width.m_val *= NM_PER_MIL;
 		}
 		else
-			m_width = -1;
+		{
+			m_width.m_seg_width.undef();
+		}
+
 		if( bVias && bRevertVias )
 		{
-			m_via_width = 0;
-			m_hole_width = 0;
+			m_width.m_via_width = CInheritableInfo::E_USE_PARENT;
+			m_width.m_via_hole  = CInheritableInfo::E_USE_PARENT;
 		}
 		else if( bVias )
 		{
-			DDX_Text( pDX, IDC_EDIT_VIA_W, m_via_width );
-			DDX_Text( pDX, IDC_EDIT_HOLE_W, m_hole_width );
-			m_via_width *= NM_PER_MIL;
-			m_hole_width *= NM_PER_MIL;
+			DDX_Text( pDX, IDC_EDIT_VIA_W,  m_width.m_via_width.m_val );
+			DDX_Text( pDX, IDC_EDIT_HOLE_W, m_width.m_via_hole.m_val );
+
+			m_width.m_via_width.m_val *= NM_PER_MIL;
+			m_width.m_via_hole.m_val  *= NM_PER_MIL;
 		}
 		else
 		{
-			m_via_width = -1;
+			m_width.m_via_width.undef();
+			m_width.m_via_hole .undef();
 		}
 
 		if( m_apply_clearance )
@@ -148,6 +168,10 @@ void CDlgSetTraceWidths::DoDataExchange(CDataExchange* pDX)
 				val *= NM_PER_MIL;
 				m_clearance.m_ca_clearance = val;
 			}
+		}
+		else
+		{
+			m_clearance.m_ca_clearance.undef();
 		}
 	}
 }

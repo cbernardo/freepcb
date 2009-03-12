@@ -510,10 +510,17 @@ public:
 	void HighlightSegment( cnet * net, int ic, int iseg );
 	int StartMovingSegment( CDC * pDC, cnet * net, int ic, int ivtx,
 								   int x, int y, int crosshair, int use_third_segment );
-	int StartDraggingSegment( CDC * pDC, cnet * net, int ic, int iseg,
-						int x, int y, int layer1, int layer2,
-						int layer_no_via, int dir,
-						int crosshair = 1 );
+	int StartDraggingSegment(
+		CDC * pDC,
+		cnet * net,
+		int ic, int iseg,
+		int x, int y,
+		int layer1, int layer2,
+		int layer_no_via,
+		CConnectionWidthInfo const &width,
+		int dir,
+		int crosshair = 1 );
+
 	int CancelDraggingSegment( cnet * net, int ic, int iseg );
 	int StartDraggingSegmentNewVertex( CDC * pDC, cnet * net, int ic, int iseg,
 								   int x, int y, int layer, int w, int crosshair );
@@ -645,5 +652,6 @@ private:
 public:
 	int m_annular_ring;
 
+	CConnectionWidthInfo const &Get_def_width() const { return m_def_width; }
 	CClearanceInfo const &Get_def_clearance() const { return m_def_clearance; }
 };

@@ -1433,7 +1433,7 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 								// segment is on this layer and there is a single copper area
 								// on this layer not on the same net, draw clearance
 								int type = CAperture::AP_CIRCLE;
-								int size1 = s->width + 2*fill_clearance;
+								int size1 = s->width() + 2*fill_clearance;
 								CAperture seg_ap( type, size1, 0 );
 								ChangeAperture( &seg_ap, &current_ap, &ap_array, PASS0, f );
 								if( PASS1 )
@@ -1474,7 +1474,7 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 											int x2f = poly->GetX(ic2);
 											int y2f = poly->GetY(ic2);
 											int style2 = poly->GetSideStyle( is );
-											int d = ::GetClearanceBetweenSegments( xi, yi, xf, yf, CPolyLine::STRAIGHT, s->width,
+											int d = ::GetClearanceBetweenSegments( xi, yi, xf, yf, CPolyLine::STRAIGHT, s->width(),
 												x2i, y2i, x2f, y2f, style2, 0, fill_clearance, 0, 0 );
 											if( d < fill_clearance )
 											{
@@ -1503,7 +1503,7 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 										ChangeAperture( &pad_ap, &current_ap, &ap_array, PASS0, f );
 										if( PASS1 ) 
 										{
-											DrawClearanceInForeignAreas( net, -1, s->width, xi, yi, xf, yf,
+											DrawClearanceInForeignAreas( net, -1, s->width(), xi, yi, xf, yf,
 												0, 0, 0, 0, f, flags, layer, fill_clearance, 
 												&area_net_list, &area_list );
 										}
@@ -1512,7 +1512,7 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 								else
 								{
 									// segment does not intersect area on own net, just make clearance
-									int w = s->width + 2*fill_clearance;
+									int w = s->width() + 2*fill_clearance;
 									CAperture seg_ap( CAperture::AP_CIRCLE, w, 0 );
 									ChangeAperture( &seg_ap, &current_ap, &ap_array, PASS0, f );
 									if( PASS1 )
@@ -1764,7 +1764,7 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 						if( s->layer == layer )
 						{
 							// segment is on this layer, draw it
-							int w = s->width;
+							int w = s->width();
 							CAperture seg_ap( CAperture::AP_CIRCLE, w, 0 );
 							ChangeAperture( &seg_ap, &current_ap, &ap_array, PASS0, f );
 							if( PASS1 )
@@ -1972,7 +1972,7 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 							// get segment
 							cseg * s = &(net->connect[ic].seg[is]);
 							cvertex * post_vtx = &(net->connect[ic].vtx[is+1]);
-							if( post_vtx->via_w )
+							if( post_vtx->viaExists() )
 							{
 								// via exists
 								CAperture via_ap( CAperture::AP_CIRCLE, pilot_diameter, 0 );
@@ -2055,11 +2055,11 @@ int WriteDrillFile( CStdioFile * file, CPartList * pl, CNetList * nl, CArray<CPo
 				for( int is=0; is<nsegs; is++ )
 				{
 					cvertex * v = &(net->connect[ic].vtx[is+1]);
-					if( v->via_w )
+					if( v->viaExists() )
 					{
 						// via
-						int w = v->via_w;
-						int h_w = v->via_hole_w;
+						int w = v->via_w();
+						int h_w = v->via_hole_w();
 						if( w && h_w )
 							::AddToArray( h_w/NM_PER_MIL, &diameter );
 					}
@@ -2173,11 +2173,11 @@ int WriteDrillFile( CStdioFile * file, CPartList * pl, CNetList * nl, CArray<CPo
 							for( int is=0; is<nsegs; is++ )
 							{
 								cvertex * v = &(net->connect[ic].vtx[is+1]);
-								if( v->via_w )
+								if( v->viaExists() )
 								{
 									// via
-									int h_w = v->via_hole_w;
-									if( h_w )
+									int h_w = v->via_hole_w();
+									if( h_w > 0 )
 									{
 										if( d == h_w/NM_PER_MIL )
 										{

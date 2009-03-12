@@ -23,20 +23,19 @@ protected:
 public:
 	// these variables should be set on entry
 	int m_mode;		// 0=segment, 1=connection, 2=net
-	int m_init_w;	// initial value for width
-	int m_init_via_w;	// initial value for via_w
-	int m_init_via_hole_w;	// initial value for via_hole_w
+	CConnectionWidthInfo m_init_width;
 	CArray<int> *m_w;	// array of default widths
 	CArray<int> *m_v_w;	// array of via widths (matching m_w[] entries)
 	CArray<int> *m_v_h_w;	// array of via hole widths
 
 	// these variables will be set on exit
-	int m_tv;		// 1=traces and vias, 2=traces only, 3=vias only
 	int m_def;		// set default width (1=con, 2=net)
 	int m_apply;	// apply width (1=seg, 2=con, 3=net)
-	int m_width;	// trace width
-	int m_via_width;	// trace width
-	int m_hole_width;	// trace width
+	CConnectionWidthInfo m_width;	// trace width info
+
+protected:
+	// 1=traces and vias, 2=traces only, 3=vias only
+	int m_tv;	
 
 	afx_msg void OnBnClickedDefNet();
 	afx_msg void OnBnClickedApplyNet();

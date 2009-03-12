@@ -37,10 +37,10 @@ protected:
 	CPartList * m_plist;
 	int m_in;
 	BOOL m_visible;
-	CClearanceInfo m_clearance;
-	int m_def_w;
-	int m_def_v_w;
-	int m_def_v_h_w;
+
+	CClearanceInfo       m_clearance;
+	CConnectionWidthInfo m_width;
+
 	// pointers to arrays of default trace and via widths
 	CArray<int> *m_w;
 	CArray<int> *m_v_w;

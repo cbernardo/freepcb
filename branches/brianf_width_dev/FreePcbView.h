@@ -474,7 +474,6 @@ public:
 	void CancelSelection();
 	int SetWidth( int mode );
 	int SetClearance( int mode );
-	int GetWidthsForSegment( int * w, int * via_w, int * via_hole_w );
 	void ChangeTraceLayer( int mode, int old_layer=0 );
 	void MoveOrigin( int x_off, int y_off );
 	void SelectItemsInRect( CRect r, BOOL bAddToGroup );

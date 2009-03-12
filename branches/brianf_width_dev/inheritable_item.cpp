@@ -38,7 +38,7 @@ int CInheritableInfo::Item::operator == (Item const &comp) const
 // Set item from int:
 //   negative values map to EStatus
 //   zero & positive values count as values
-void CInheritableInfo::Item::Set_item_from_int(int val_status)
+void CInheritableInfo::Item::SetItemFromInt(int val_status)
 {
 	if (val_status < 0)
 	{
@@ -118,6 +118,29 @@ Item_OK:
 }
 
 
+CString CInheritableInfo::GetItemText(CInheritableInfo::Item const &item)
+{
+	CString str;
+
+	switch( item.m_status )
+	{
+	case E_USE_VAL:
+		str.Format( "%d", item.m_val / NM_PER_MIL );
+		break;
+
+	case E_USE_PARENT:
+		str.Format( "Default" );
+		break;
+
+	default:
+		str.Format( "Undefined" );
+		break;
+	}
+
+	return str;
+}
+
+
 // ----------------------------------------------------------------------------
 // Default GetItem function
 //
@@ -136,6 +159,5 @@ CInheritableInfo::Item const &CInheritableInfo::GetItem(int item_id) const
 //
 void CInheritableInfo::GetItemExt(Item &item, Item const &src) const
 {
-	item.m_status = E_UNDEF;
-	item.m_val    = 0;
+	item.undef();
 }
