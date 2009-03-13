@@ -93,7 +93,7 @@ class CNetWidthInfo : public CConnectionWidthInfo
 {
 public:
 	CNetWidthInfo() : 
-		m_ca_clearance(E_USE_PARENT)
+		m_ca_clearance( E_USE_PARENT )
 	{
 	}
 

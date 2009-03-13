@@ -38,45 +38,55 @@ protected:
 	int m_in;
 	BOOL m_visible;
 
-	CClearanceInfo       m_clearance;
-	CConnectionWidthInfo m_width;
+	CNetWidthInfo m_width_attrib;
 
 	// pointers to arrays of default trace and via widths
 	CArray<int> *m_w;
 	CArray<int> *m_v_w;
 	CArray<int> *m_v_h_w;
+
 protected:
 	int m_units;
 	BOOL m_pins_edited;
-	CButton m_button_def_width;
-	CButton m_button_set_width;
-	CEdit m_edit_pad_w;
-	CEdit m_edit_hole_w;
-	CListBox m_list_pins;
-	afx_msg void OnBnClickedButtonDelete();
-	afx_msg void OnBnClickedButtonAdd();
-	afx_msg void OnBnClickedRadioDefWidth();
-	afx_msg void OnBnClickedRadioSetWidth();
 	afx_msg void OnEnChangeEditWidth();
-	void ChangeTraceWidth( CString str );
 	virtual BOOL OnInitDialog();
+
 	CEdit m_edit_name;
 	CButton m_check_visible;
+
+	CButton m_radio1_default;
+	CButton m_radio1_set;
+	CComboBox m_combo_width;
+	CButton m_check_widths_apply;
 	afx_msg void OnCbnSelchangeComboWidth();
 	afx_msg void OnCbnEditchangeComboWidth();
-	CComboBox m_combo_width;
-	CEdit m_edit_addpin;
-	CButton m_check_widths_apply;
+	afx_msg void OnBnClickedRadio1ProjDef();
+	afx_msg void OnBnClickedRadio1SetTo();
+	void ChangeTraceWidth( int new_w );
 
-	afx_msg void OnEnUpdateEditAddPin();
-	CButton m_button_add_pin;
+	CButton m_radio2_default;
+	CButton m_radio2_def_for_width;
+	CButton m_radio2_set;
+	CEdit m_edit_pad_w;
+	CEdit m_edit_hole_w;
+	CButton m_check_vias_apply;
+	afx_msg void OnBnClickedRadio2DefWidth();
+	afx_msg void OnBnClickedRadio2DefForTrace();
+	afx_msg void OnBnClickedRadio2SetWidth();
 
-	CButton m_radio2_def_clearance;
-	CButton m_radio2_set_clearance;
+	CButton m_radio3_default;
+	CButton m_radio3_set;
 	CEdit m_edit_clearance;
+	CButton m_check_clearances_apply;
 	afx_msg void OnBnClickedRadioDefClearance();
 	afx_msg void OnBnClickedRadioSetClearance();
-	CButton m_check_clearances_apply;
+
+	CListBox m_list_pins;
+	CButton m_button_add_pin;
+	CEdit m_edit_addpin;
+	afx_msg void OnEnUpdateEditAddPin();
+	afx_msg void OnBnClickedButtonDelete();
+	afx_msg void OnBnClickedButtonAdd();
 
 	CButton m_button_OK;
 	afx_msg void OnBnClickedOk();

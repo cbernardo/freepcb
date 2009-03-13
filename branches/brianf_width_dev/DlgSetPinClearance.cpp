@@ -38,7 +38,7 @@ BOOL CDlgSetPinClearance::OnInitDialog()
 		m_clearance_auto.SetCheck( 1 );
 		break;
 
-	case CClearanceInfo::E_USE_PARENT:
+	case CInheritableInfo::E_USE_PARENT:
 		m_clearance_net.SetCheck( 1 );
 		break;
 
@@ -77,7 +77,7 @@ void CDlgSetPinClearance::DoDataExchange(CDataExchange* pDX)
 		}
 		else if( m_clearance_net.GetCheck() )
 		{
-			m_clearance.m_ca_clearance.m_status = CClearanceInfo::E_USE_PARENT;
+			m_clearance.m_ca_clearance.m_status = CInheritableInfo::E_USE_PARENT;
 		}
 		else
 		{

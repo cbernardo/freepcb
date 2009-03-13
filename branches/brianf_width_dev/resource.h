@@ -333,12 +333,18 @@
 #define IDC_RADIO_DEF_WIDTH             1042
 #define IDC_BUTTON_DELETE_NOPINS        1042
 #define IDC_BUTTON_VAL_VIS              1042
+#define IDC_RADIO2_PROJ_DEF             1042
 #define IDC_BUTTON_NL_WIDTH             1043
 #define IDC_BUTTON_VAL_INVIS            1043
+#define IDC_RADIO1_PROJ_DEF             1043
 #define IDC_RADIO_SET_WIDTH             1044
+#define IDC_RADIO2_SET_TO               1044
 #define IDC_BUTTON_DELETE2              1045
 #define IDC_RADIO_DEF_CLEARANCE         1045
 #define IDC_RADIO_SET_CLEARANCE         1046
+#define IDC_RADIO1_SET_TO               1047
+#define IDC_RADIO_DEF_WIDTH4            1048
+#define IDC_RADIO2_DEF_FOR_TRACE        1048
 #define IDC_RADIO_DEF                   1049
 #define IDC_RADIO_SET                   1050
 #define IDC_BUTTON_VISIBLE              1051
@@ -791,6 +797,11 @@
 #define IDC_RADIO_PIN_SET_CLEARANCE     1500
 #define IDC_RADIO_PIN_NET_CLEARANCE     1501
 #define IDC_APPLY_PIN                   1502
+#define IDC_RADIO3_PROJ_DEF             1503
+#define IDC_RADIO3_SET_TO               1504
+#define IDC_CHECK_VIA                   1505
+#define IDC_CHECK_VIA2                  1506
+#define IDC_CHECK_TRACE                 1506
 #define ID_BUTTON32771                  32771
 #define ID_FP_MOVE                      32772
 #define ID_FP_EDITPROPERTIES            32773
@@ -957,7 +968,7 @@
 #define _APS_3D_CONTROLS                     1
 #define _APS_NEXT_RESOURCE_VALUE        358
 #define _APS_NEXT_COMMAND_VALUE         32951
-#define _APS_NEXT_CONTROL_VALUE         1503
+#define _APS_NEXT_CONTROL_VALUE         1506
 #define _APS_NEXT_SYMED_VALUE           106
 #endif
 #endif

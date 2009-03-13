@@ -50,25 +50,25 @@ static int CALLBACK ListCompare( LPARAM lp1, LPARAM lp2, LPARAM type )
 
 		case SORT_UP_WIDTH:
 		case SORT_DOWN_WIDTH:
-			if( ::gnl[lp1].width.m_seg_width > ::gnl[lp2].width.m_seg_width )
+			if( ::gnl[lp1].width_attrib.m_seg_width > ::gnl[lp2].width_attrib.m_seg_width )
 				ret = 1;
-			else if( ::gnl[lp1].width.m_seg_width < ::gnl[lp2].width.m_seg_width )
+			else if( ::gnl[lp1].width_attrib.m_seg_width < ::gnl[lp2].width_attrib.m_seg_width )
 				ret = -1;
 			break;
 
 		case SORT_UP_VIA_W:
 		case SORT_DOWN_VIA_W:
-			if( ::gnl[lp1].width.m_via_width > ::gnl[lp2].width.m_via_width )
+			if( ::gnl[lp1].width_attrib.m_via_width > ::gnl[lp2].width_attrib.m_via_width )
 				ret = 1;
-			else if( ::gnl[lp1].width.m_via_width < ::gnl[lp2].width.m_via_width )
+			else if( ::gnl[lp1].width_attrib.m_via_width < ::gnl[lp2].width_attrib.m_via_width )
 				ret = -1;
 			break;
 
 		case SORT_UP_HOLE_W:
 		case SORT_DOWN_HOLE_W:
-			if( ::gnl[lp1].width.m_via_hole > ::gnl[lp2].width.m_via_hole )
+			if( ::gnl[lp1].width_attrib.m_via_hole > ::gnl[lp2].width_attrib.m_via_hole )
 				ret = 1;
-			else if( ::gnl[lp1].width.m_via_hole < ::gnl[lp2].width.m_via_hole )
+			else if( ::gnl[lp1].width_attrib.m_via_hole < ::gnl[lp2].width_attrib.m_via_hole )
 				ret = -1;
 			break;
 
@@ -82,9 +82,9 @@ static int CALLBACK ListCompare( LPARAM lp1, LPARAM lp2, LPARAM type )
 
 		case SORT_UP_CLEARANCE:
 		case SORT_DOWN_CLEARANCE:
-			if( ::gnl[lp1].clearance.m_ca_clearance > ::gnl[lp2].clearance.m_ca_clearance )
+			if( ::gnl[lp1].width_attrib.m_ca_clearance > ::gnl[lp2].width_attrib.m_ca_clearance )
 				ret = 1;
-			else if( ::gnl[lp1].clearance.m_ca_clearance < ::gnl[lp2].clearance.m_ca_clearance )
+			else if( ::gnl[lp1].width_attrib.m_ca_clearance < ::gnl[lp2].width_attrib.m_ca_clearance )
 				ret = -1;
 			break;
 	}
@@ -174,16 +174,16 @@ void CDlgGroupPaste::DoDataExchange(CDataExchange* pDX)
 			str.Format( "%d", ::gnl[i].ref_des.GetSize() );
 			m_list_ctrl.SetItem( i, COL_PINS, LVIF_TEXT, str, 0, 0, 0, 0 );
 
-			str = CInheritableInfo::GetItemText( ::gnl[i].width.m_seg_width );
+			str = CInheritableInfo::GetItemText( ::gnl[i].width_attrib.m_seg_width );
 			m_list_ctrl.SetItem( i, COL_WIDTH, LVIF_TEXT, str, 0, 0, 0, 0 );
 
-			str = CInheritableInfo::GetItemText( ::gnl[i].width.m_via_width );
+			str = CInheritableInfo::GetItemText( ::gnl[i].width_attrib.m_via_width );
 			m_list_ctrl.SetItem( i, COL_VIA_W, LVIF_TEXT, str, 0, 0, 0, 0 );
 
-			str = CInheritableInfo::GetItemText( ::gnl[i].width.m_via_hole );
+			str = CInheritableInfo::GetItemText( ::gnl[i].width_attrib.m_via_hole );
 			m_list_ctrl.SetItem( i, COL_HOLE_W, LVIF_TEXT, str, 0, 0, 0, 0 );
 
-			str = CInheritableInfo::GetItemText( ::gnl[i].clearance.m_ca_clearance );
+			str = CInheritableInfo::GetItemText( ::gnl[i].width_attrib.m_ca_clearance );
 			m_list_ctrl.SetItem( i, COL_CLEARANCE, LVIF_TEXT, str, 0, 0, 0, 0 );
 
 			ListView_SetCheckState( m_list_ctrl, nItem, 0 );

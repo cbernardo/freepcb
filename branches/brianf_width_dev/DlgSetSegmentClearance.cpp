@@ -43,7 +43,7 @@ void DlgSetSegmentClearance::DoDataExchange(CDataExchange* pDX)
 		int val;
 		if( m_radio1_use_net_default.GetCheck() )
 		{
-			m_clearance.m_ca_clearance.m_status = CClearanceInfo::E_USE_PARENT;
+			m_clearance.m_ca_clearance.m_status = CInheritableInfo::E_USE_PARENT;
 		}
 		else
 		{

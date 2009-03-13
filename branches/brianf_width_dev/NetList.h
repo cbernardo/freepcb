@@ -154,8 +154,7 @@ struct net_info {
 	CString name;
 	cnet * net;
 	BOOL visible;
-	CConnectionWidthInfo width;
-	CClearanceInfo clearance;
+	CNetWidthInfo width_attrib;
 	BOOL apply_trace_width;
 	BOOL apply_via_width;
 	BOOL apply_clearance;
@@ -390,8 +389,7 @@ public:
 	CArray<cpin> pin;	// array of pins
 	int nareas;			// number of copper areas
 	CArray<carea,carea> area;	// array of copper areas
-	CConnectionWidthInfo  def_width;      // default widths
-	CClearanceInfo def_clearance;  // default clearances
+	CNetWidthInfo  def_width_attrib;      // default widths
 	BOOL visible;		// FALSE to hide ratlines and make unselectable
 	int utility;		// used to keep track of which nets have been optimized
 	CDisplayList * m_dlist;
@@ -429,7 +427,7 @@ public:
 	void MarkAllNets( int utility );
 	void MoveOrigin( int x_off, int y_off );
 	cnet * GetNetPtrByName( CString * name );
-	cnet * AddNet( CString name, int max_pins, CConnectionWidthInfo const &def_width, CClearanceInfo const &def_clearance );
+	cnet * AddNet( CString name, int max_pins, CNetWidthInfo const &def_width_attrib );
 	void RemoveNet( cnet * net );
 	void RemoveAllNets();
 	void AddNetPin( cnet * net, CString * ref_des, CString * pin_name, CClearanceInfo const &clearance, BOOL set_areas=TRUE );
@@ -642,8 +640,7 @@ private:
 	CDisplayList * m_dlist;
 	CPartList * m_plist;
 	int m_layers;	// number of copper layers
-	CConnectionWidthInfo  m_def_width;
-	CClearanceInfo m_def_clearance;
+	CNetWidthInfo  m_def_width_attrib;
 	int m_pos_i;	// index for iterators
 	POSITION m_pos[MAX_ITERATORS];	// iterators for nets
 	CArray<int> m_tee;
@@ -652,6 +649,5 @@ private:
 public:
 	int m_annular_ring;
 
-	CConnectionWidthInfo const &Get_def_width() const { return m_def_width; }
-	CClearanceInfo const &Get_def_clearance() const { return m_def_clearance; }
+	CNetWidthInfo const &Get_def_width_attrib() const { return m_def_width_attrib; }
 };

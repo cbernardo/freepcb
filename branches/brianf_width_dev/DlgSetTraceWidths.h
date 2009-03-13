@@ -22,8 +22,7 @@ protected:
 	DECLARE_MESSAGE_MAP()
 
 public:
-	CConnectionWidthInfo m_width;
-	CClearanceInfo       m_clearance;
+	CNetWidthInfo m_width_attrib;
 
 	BOOL m_apply_trace;
 	BOOL m_apply_via;

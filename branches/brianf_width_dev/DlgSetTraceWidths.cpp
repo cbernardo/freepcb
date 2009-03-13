@@ -45,29 +45,29 @@ void CDlgSetTraceWidths::DoDataExchange(CDataExchange* pDX)
 		// incoming
 		CString str;
 
-		m_width.Update();
+		m_width_attrib.Update();
 
 		for( int i=0; i<m_w->GetSize(); i++ )
 		{
 			str.Format( "%d", (*m_w)[i]/NM_PER_MIL );
 			m_combo_width.InsertString( i, str );
 		}
-		if( m_width.m_seg_width.m_status < 0 )
+		if( m_width_attrib.m_seg_width.m_status < 0 )
 		{
+			m_width_attrib.m_seg_width.m_status = CInheritableInfo::E_USE_PARENT;
 			m_radio_default_via_for_trace.SetCheck( 1 );
 		}
 		else
 		{
-			m_width.m_seg_width.m_status = CInheritableInfo::E_USE_PARENT;
 			m_radio_set_via_width.SetCheck( 1 );
 		}
-		str.Format( "%d", m_width.m_seg_width.m_val/NM_PER_MIL );
+		str.Format( "%d", m_width_attrib.m_seg_width.m_val/NM_PER_MIL );
 		m_combo_width.SetWindowText( str );
 
-		if( m_width.m_via_width.m_status < 0 )
+		if( m_width_attrib.m_via_width.m_status < 0 )
 		{
-			m_width.m_via_width.m_status = CInheritableInfo::E_USE_PARENT;
-			m_width.m_via_hole .m_status = CInheritableInfo::E_USE_PARENT;
+			m_width_attrib.m_via_width.m_status = CInheritableInfo::E_USE_PARENT;
+			m_width_attrib.m_via_hole .m_status = CInheritableInfo::E_USE_PARENT;
 
 			str.Format( "Default" );
 			m_edit_via_pad.SetWindowText( str );
@@ -75,9 +75,9 @@ void CDlgSetTraceWidths::DoDataExchange(CDataExchange* pDX)
 		}
 		else
 		{
-			str.Format( "%d", m_width.m_via_width/NM_PER_MIL );
+			str.Format( "%d", m_width_attrib.m_via_width.m_val/NM_PER_MIL );
 			m_edit_via_pad.SetWindowText( str );
-			str.Format( "%d", m_width.m_via_hole/NM_PER_MIL );
+			str.Format( "%d", m_width_attrib.m_via_hole.m_val/NM_PER_MIL );
 			m_edit_via_hole.SetWindowText( str );
 		}
 
@@ -88,10 +88,10 @@ void CDlgSetTraceWidths::DoDataExchange(CDataExchange* pDX)
 		m_check_apply.SetCheck(1);
 
 		// Clearance section
-		if( m_clearance.m_ca_clearance.m_status < 0 )
+		if( m_width_attrib.m_ca_clearance.m_status < 0 )
 		{
 			// Just to make sure
-			m_clearance.m_ca_clearance.m_status = CInheritableInfo::E_USE_PARENT;
+			m_width_attrib.m_ca_clearance.m_status = CInheritableInfo::E_USE_PARENT;
 
 			m_radio3_def_clearance.SetCheck(1);
 			m_edit_clearance.EnableWindow(0);
@@ -102,7 +102,7 @@ void CDlgSetTraceWidths::DoDataExchange(CDataExchange* pDX)
 			m_edit_clearance.EnableWindow(1);
 		}
 
-		str.Format( "%d", m_clearance.m_ca_clearance.m_val / NM_PER_MIL );
+		str.Format( "%d", m_width_attrib.m_ca_clearance.m_val / NM_PER_MIL );
 		m_edit_clearance.SetWindowText(str);
 
 		m_check_clearance.SetCheck(1);
@@ -115,35 +115,37 @@ void CDlgSetTraceWidths::DoDataExchange(CDataExchange* pDX)
 		SetFields();
 		if( bTraces && bRevertTraces )
 		{
-			m_width.m_seg_width.m_status = CInheritableInfo::E_USE_PARENT;
+			m_width_attrib.m_seg_width.m_status = CInheritableInfo::E_USE_PARENT;
 		}
 		else if( bTraces )
 		{
-			DDX_Text( pDX, IDC_COMBO_WIDTH, m_width.m_seg_width.m_val );
-			m_width.m_seg_width.m_val *= NM_PER_MIL;
+			int i;
+			DDX_Text( pDX, IDC_COMBO_WIDTH, i );
+			m_width_attrib.m_seg_width = i * NM_PER_MIL;
 		}
 		else
 		{
-			m_width.m_seg_width.undef();
+			m_width_attrib.m_seg_width.undef();
 		}
 
 		if( bVias && bRevertVias )
 		{
-			m_width.m_via_width = CInheritableInfo::E_USE_PARENT;
-			m_width.m_via_hole  = CInheritableInfo::E_USE_PARENT;
+			m_width_attrib.m_via_width.m_status = CInheritableInfo::E_USE_PARENT;
+			m_width_attrib.m_via_hole.m_status  = CInheritableInfo::E_USE_PARENT;
 		}
 		else if( bVias )
 		{
-			DDX_Text( pDX, IDC_EDIT_VIA_W,  m_width.m_via_width.m_val );
-			DDX_Text( pDX, IDC_EDIT_HOLE_W, m_width.m_via_hole.m_val );
+			int via_w, via_h;
+			DDX_Text( pDX, IDC_EDIT_VIA_W, via_w );
+			DDX_Text( pDX, IDC_EDIT_HOLE_W, via_h );
 
-			m_width.m_via_width.m_val *= NM_PER_MIL;
-			m_width.m_via_hole.m_val  *= NM_PER_MIL;
+			m_width_attrib.m_via_width = via_w * NM_PER_MIL;
+			m_width_attrib.m_via_hole  = via_h * NM_PER_MIL;
 		}
 		else
 		{
-			m_width.m_via_width.undef();
-			m_width.m_via_hole .undef();
+			m_width_attrib.m_via_width.undef();
+			m_width_attrib.m_via_hole .undef();
 		}
 
 		if( m_apply_clearance )
@@ -151,7 +153,7 @@ void CDlgSetTraceWidths::DoDataExchange(CDataExchange* pDX)
 			int val;
 			if( m_radio3_def_clearance.GetCheck() )
 			{
-				m_clearance.m_ca_clearance.m_status = CClearanceInfo::E_USE_PARENT;
+				m_width_attrib.m_ca_clearance.m_status = CInheritableInfo::E_USE_PARENT;
 			}
 			else
 			{
@@ -165,13 +167,12 @@ void CDlgSetTraceWidths::DoDataExchange(CDataExchange* pDX)
 					return;
 				}
 
-				val *= NM_PER_MIL;
-				m_clearance.m_ca_clearance = val;
+				m_width_attrib.m_ca_clearance = val * NM_PER_MIL;
 			}
 		}
 		else
 		{
-			m_clearance.m_ca_clearance.undef();
+			m_width_attrib.m_ca_clearance.undef();
 		}
 	}
 }

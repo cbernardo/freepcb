@@ -3175,10 +3175,8 @@ int CFreePcbDoc::ImportNetlist( CStdioFile * file, UINT flags,
 							(*nl)[inet].modified = TRUE;
 							(*nl)[inet].deleted = FALSE;
 							(*nl)[inet].visible = TRUE;
-							(*nl)[inet].width.SetParent(m_nlist->Get_def_width());
-							(*nl)[inet].width = CConnectionWidthInfo(CInheritableInfo::E_USE_PARENT, CInheritableInfo::E_USE_PARENT, CInheritableInfo::E_USE_PARENT);
-							(*nl)[inet].clearance.SetParent(m_nlist->Get_def_clearance());
-							(*nl)[inet].clearance.m_ca_clearance = CClearanceInfo::E_USE_PARENT;
+							(*nl)[inet].width_attrib.SetParent(m_nlist->Get_def_width_attrib());
+							(*nl)[inet].width_attrib = CNetWidthInfo();
 
 							instr = instr.Right( instr.GetLength()-delim_pos-1 );
 							num_pins = 0;
@@ -3488,12 +3486,12 @@ int CFreePcbDoc::ImportPADSPCBNetlist( CStdioFile * file, UINT flags,
 						(*nl)[inet].visible = TRUE;
 
 						// mark widths as undefined
-						(*nl)[inet].width = CConnectionWidthInfo(CInheritableInfo::E_UNDEF, CInheritableInfo::E_UNDEF, CInheritableInfo::E_UNDEF);
-						(*nl)[inet].width.SetParent( m_nlist->Get_def_width() );
-
-						(*nl)[inet].clearance.m_ca_clearance = CClearanceInfo::E_USE_PARENT;
-						(*nl)[inet].clearance.SetParent( m_nlist->Get_def_clearance() );
-
+						(*nl)[inet].width_attrib.SetParent( m_nlist->Get_def_width_attrib() );
+						(*nl)[inet].width_attrib.m_seg_width.undef();
+						(*nl)[inet].width_attrib.m_via_width.undef();
+						(*nl)[inet].width_attrib.m_via_hole.undef();
+						(*nl)[inet].width_attrib.m_ca_clearance.undef();
+							
 						npins = 0;
 						state = SIGNAL;
 					}

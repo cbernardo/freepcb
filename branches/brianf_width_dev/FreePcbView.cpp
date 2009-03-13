@@ -1543,7 +1543,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 				m_active_layer,
 				LAY_SELECTION,
 				m_active_layer,
-				m_sel_net->def_width,
+				m_sel_net->def_width_attrib,
 				m_dir,
 				2
 			);
@@ -2206,7 +2206,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 								else
 								{
 									// make new net
-									new_sel_net = m_Doc->m_nlist->AddNet( (char*)(LPCTSTR)name, 10, CConnectionWidthInfo(), CClearanceInfo() );
+									new_sel_net = m_Doc->m_nlist->AddNet( (char*)(LPCTSTR)name, 10, CNetWidthInfo() );
 									SaveUndoInfoForNetAndConnections( new_sel_net,
 										CNetList::UNDO_NET_ADD, FALSE, m_Doc->m_undo_list );
 									CString pin_name1 = m_sel_part->shape->GetPinNameByIndex( m_sel_id.i );
@@ -2514,10 +2514,10 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 				m_sel_ic, m_sel_is,
 				m_last_cursor_point.x, m_last_cursor_point.y,
 				m_active_layer,
-				m_sel_net->def_width.m_seg_width.m_val,
+				m_sel_net->def_width_attrib.m_seg_width.m_val,
 				m_active_layer,
-				m_sel_net->def_width.m_via_width.m_val,
-				m_sel_net->def_width.m_via_hole.m_val,
+				m_sel_net->def_width_attrib.m_via_width.m_val,
+				m_sel_net->def_width_attrib.m_via_hole.m_val,
 				2,
 				m_inflection_mode
 			);
@@ -5216,7 +5216,7 @@ int CFreePcbView::ShowSelectStatus()
 		break;
 
 	case CUR_NET_SELECTED:
-		str.Format( "net \"%s\": clearance %d", m_sel_net->name, m_sel_net->def_clearance.m_ca_clearance.m_val/NM_PER_MIL );
+		str.Format( "net \"%s\": clearance %d", m_sel_net->name, m_sel_net->def_width_attrib.m_ca_clearance.m_val/NM_PER_MIL );
 		break;
 
 	case CUR_TEXT_SELECTED:
@@ -5580,7 +5580,7 @@ int CFreePcbView::SetWidth( int mode )
 	}
 	else
 	{
-		dlg.m_init_width = m_sel_net->def_width;
+		dlg.m_init_width = m_sel_net->def_width_attrib;
 	}
 	dlg.m_init_width.Update();
 
@@ -5596,7 +5596,7 @@ int CFreePcbView::SetWidth( int mode )
 		if( dlg.m_def == 2 )
 		{
 			// set default for net
-			m_sel_net->def_width = dlg.m_width;
+			m_sel_net->def_width_attrib = dlg.m_width;
 
 			m_Doc->m_nlist->UpdateNetAttributes( m_sel_net );
 		}
@@ -5642,13 +5642,13 @@ int CFreePcbView::SetClearance( int mode )
 	}
 	else
 	{
-		dlg.m_clearance = m_sel_net->def_clearance;
+		dlg.m_clearance = m_sel_net->def_width_attrib;
 
 		// Since dlg.m_clearance is supposed to be a segment clearance,
 		// make sure dlg.m_clearance's parent is the net's clearance,
 		// not the net's parent - which results from the assignment
 		// statement above.
-		dlg.m_clearance.SetParent(m_sel_net->def_clearance);
+		dlg.m_clearance.SetParent( m_sel_net->def_width_attrib );
 	}
 
 	// launch dialog
@@ -5666,13 +5666,13 @@ int CFreePcbView::SetClearance( int mode )
 		if( dlg.m_def == 2 )
 		{
 			// set default for net
-			m_sel_net->def_clearance = clearance;
+			m_sel_net->def_width_attrib = clearance;
 
 			m_Doc->m_nlist->UpdateNetAttributes( m_sel_net );
 
 			// Now if the "default for net" clearance is applied below
 			// to a net/trace/segment, apply the "use parent" clearance.
-			clearance = CClearanceInfo(CClearanceInfo::E_USE_PARENT);
+			clearance = CClearanceInfo( CInheritableInfo::E_USE_PARENT );
 		}
 
 		// apply new widths to net, connection or segment
@@ -6296,10 +6296,10 @@ void CFreePcbView::OnPadStartStubTrace()
 		m_sel_id.i, m_sel_id.ii,
 		pi.x, pi.y,
 		m_active_layer,
-		net->def_width.m_seg_width.m_val,
+		net->def_width_attrib.m_seg_width.m_val,
 		m_active_layer,
-		net->def_width.m_via_width.m_val,
-		net->def_width.m_via_hole.m_val,
+		net->def_width_attrib.m_via_width.m_val,
+		net->def_width_attrib.m_via_hole.m_val,
 		2,
 		m_inflection_mode
 	);
@@ -6336,7 +6336,7 @@ void CFreePcbView::OnPadAddToNet()
 			name.Trim();
 			if( name.GetLength() )
 			{
-				new_net = m_Doc->m_nlist->AddNet( (char*)(LPCTSTR)name, 10, CConnectionWidthInfo(), CClearanceInfo() );
+				new_net = m_Doc->m_nlist->AddNet( (char*)(LPCTSTR)name, 10, CNetWidthInfo() );
 				SaveUndoInfoForNetAndConnections( new_net, CNetList::UNDO_NET_ADD, TRUE, m_Doc->m_undo_list );
 			}
 			else
@@ -6571,7 +6571,7 @@ void CFreePcbView::OnRatlineRoute()
 		m_active_layer,
 		LAY_SELECTION,
 		last_seg_layer,
-		m_sel_net->def_width,
+		m_sel_net->def_width_attrib,
 		m_dir,
 		2
 	);
@@ -6883,10 +6883,10 @@ void CFreePcbView::OnEndVertexAddSegments()
 		m_sel_ic, m_sel_is,
 		p.x, p.y, 
 		m_active_layer, 
-		m_sel_net->def_width.m_seg_width.m_val, 
+		m_sel_net->def_width_attrib.m_seg_width.m_val, 
 		m_active_layer, 
-		m_sel_net->def_width.m_via_width.m_val, 
-		m_sel_net->def_width.m_via_hole.m_val,
+		m_sel_net->def_width_attrib.m_via_width.m_val, 
+		m_sel_net->def_width_attrib.m_via_hole.m_val,
 		2, 
 		m_inflection_mode 
 	);
@@ -10347,7 +10347,7 @@ void CFreePcbView::OnGroupCopy()
 					cnet * g_net = g_nl->GetNetPtrByName( &net->name );
 					if( g_net == NULL )
 					{
-						g_net = g_nl->AddNet( net->name, net->npins, net->def_width, net->def_clearance );
+						g_net = g_nl->AddNet( net->name, net->npins, net->def_width_attrib );
 					}
 					// add pin to net
 					CString pin_name = shape->GetPinNameByIndex( ip );
@@ -10390,7 +10390,7 @@ void CFreePcbView::OnGroupCopy()
 				cnet * g_net = g_nl->GetNetPtrByName( &net->name );
 				if( g_net == NULL )
 				{
-					g_net = g_nl->AddNet( net->name, net->npins, net->def_width, net->def_clearance );
+					g_net = g_nl->AddNet( net->name, net->npins, net->def_width_attrib );
 				}
 				// test start and end pins
 				BOOL bStartPinInGroup = FALSE;
@@ -10678,7 +10678,7 @@ void CFreePcbView::OnGroupCopy()
 					cnet * g_net = g_nl->GetNetPtrByName( &net->name );
 					if( g_net == NULL )
 					{
-						g_net = g_nl->AddNet( net->name, net->npins, net->def_width, net->def_clearance );
+						g_net = g_nl->AddNet( net->name, net->npins, net->def_width_attrib );
 					}
 					int g_ia = g_nl->AddArea( g_net, p->GetLayer(), p->GetX(0), p->GetY(0),
 						p->GetHatch() );
@@ -11350,7 +11350,7 @@ void CFreePcbView::OnGroupPaste()
 						new_name = g_net->name + g_suffix;
 					}
 					// add new net
-					prj_net = nl->AddNet( new_name, g_net->npins, g_net->def_width, g_net->def_clearance );
+					prj_net = nl->AddNet( new_name, g_net->npins, g_net->def_width_attrib );
 					SaveUndoInfoForNet( prj_net, CNetList::UNDO_NET_ADD, FALSE, m_Doc->m_undo_list );
 					prj_net->utility = 1;	// mark as saved
 				}
@@ -11361,7 +11361,7 @@ void CFreePcbView::OnGroupPaste()
 					if( !prj_net )
 					{
 						// no project net with the same name
-						prj_net = nl->AddNet( g_net->name, g_net->npins, g_net->def_width, g_net->def_clearance );
+						prj_net = nl->AddNet( g_net->name, g_net->npins, g_net->def_width_attrib );
 						SaveUndoInfoForNet( prj_net, CNetList::UNDO_NET_ADD, FALSE, m_Doc->m_undo_list );
 						prj_net->utility = 1;	// mark as saved
 					}
