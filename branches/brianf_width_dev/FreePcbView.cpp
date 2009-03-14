@@ -3369,6 +3369,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 		// function key pressed
 		fk = m_fkey_option[nChar-112];
 	}
+
 	if( nChar >= 37 && nChar <= 40 )
 	{
 		// arrow key
@@ -3388,6 +3389,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 			d = m_Doc->m_routing_grid_spacing;
 		else
 			d = m_Doc->m_part_grid_spacing;
+
 		if( nChar == 37 )
 			dx -= d;
 		else if( nChar == 39 )
@@ -3398,7 +3400,9 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 			dy -= d;
 	}
 	else
+	{
 		gLastKeyWasArrow = FALSE;
+	}
 
 	switch( m_cursor_mode )
 	{
@@ -3699,62 +3703,57 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 		break;
 
 	case  CUR_VTX_SELECTED:
-		if( fk == FK_ARROW )
-		{
-			if( !gLastKeyWasArrow )
-			{
-				SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_Doc->m_undo_list );
-				gTotalArrowMoveX = 0;
-				gTotalArrowMoveY = 0;
-				gLastKeyWasArrow = TRUE;
-			}
-			m_dlist->CancelHighLight();
-			m_Doc->m_nlist->MoveVertex( m_sel_net, m_sel_ic, m_sel_is,
-										m_sel_vtx.x + dx, m_sel_vtx.y + dy );
-			gTotalArrowMoveX += dx;
-			gTotalArrowMoveY += dy;
-			ShowRelativeDistance( m_sel_vtx.x, m_sel_vtx.y, gTotalArrowMoveX, gTotalArrowMoveY );
-			m_Doc->m_nlist->HighlightVertex( m_sel_net, m_sel_ic, m_sel_is );
-			m_Doc->ProjectModified( TRUE );
-			Invalidate( FALSE );
-		}
-		else if( fk == FK_SET_POSITION )
-			OnVertexProperties();
-		else if( fk == FK_VIA_SIZE )
+		if( fk == FK_VIA_SIZE )
 			OnVertexSize();
 		else if( fk == FK_MOVE_VERTEX )
 			OnVertexMove();
-		else if( fk == FK_ADD_CONNECT )
-			OnVertexConnectToPin();
-		else if( fk == FK_DELETE_VERTEX )
-			OnVertexDelete();
 		else if( fk == FK_UNROUTE_TRACE )
 			OnUnrouteTrace();
-		else if( fk == FK_DELETE_CONNECT || nChar == 46 )
-			OnSegmentDeleteTrace();
-		else if( fk == FK_REDO_RATLINES )
-			OnRatlineOptimize();
-		break;
+		else
+			goto VTX_SELECTED_COMMON;
 
 	case  CUR_END_VTX_SELECTED:
-		if( fk == FK_SET_POSITION )
-			OnVertexProperties();
-		else if( fk == FK_ADD_CONNECT )
-			OnVertexConnectToPin();
-		else if( fk == FK_MOVE_VERTEX )
+		if( fk == FK_MOVE_VERTEX )
 			OnEndVertexMove();
-		else if( fk == FK_DELETE_VERTEX )
-			OnVertexDelete();
 		else if( fk == FK_ADD_SEGMENT )
 			OnEndVertexAddSegments();
 		else if( fk == FK_ADD_VIA )
 			OnEndVertexAddVia();
 		else if( fk == FK_DELETE_VIA )
 			OnEndVertexRemoveVia();
-		else if( fk == FK_DELETE_CONNECT || nChar == 46 )
-			OnSegmentDeleteTrace();
-		else if( fk == FK_REDO_RATLINES )
-			OnRatlineOptimize();
+		else
+		{
+	VTX_SELECTED_COMMON:
+			if( fk == FK_ARROW )
+			{
+				if( !gLastKeyWasArrow )
+				{
+					SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_Doc->m_undo_list );
+					gTotalArrowMoveX = 0;
+					gTotalArrowMoveY = 0;
+					gLastKeyWasArrow = TRUE;
+				}
+				m_dlist->CancelHighLight();
+				m_Doc->m_nlist->MoveVertex( m_sel_net, m_sel_ic, m_sel_is,
+											m_sel_vtx.x + dx, m_sel_vtx.y + dy );
+				gTotalArrowMoveX += dx;
+				gTotalArrowMoveY += dy;
+				ShowRelativeDistance( m_sel_vtx.x, m_sel_vtx.y, gTotalArrowMoveX, gTotalArrowMoveY );
+				m_Doc->m_nlist->HighlightVertex( m_sel_net, m_sel_ic, m_sel_is );
+				m_Doc->ProjectModified( TRUE );
+				Invalidate( FALSE );
+			}
+			else if( fk == FK_SET_POSITION )
+				OnVertexProperties();
+			else if( fk == FK_ADD_CONNECT )
+				OnVertexConnectToPin();
+			else if( fk == FK_REDO_RATLINES )
+				OnRatlineOptimize();
+			else if( fk == FK_DELETE_VERTEX )
+				OnVertexDelete();
+			else if( fk == FK_DELETE_CONNECT || nChar == 46 )
+				OnSegmentDeleteTrace();
+		}
 		break;
 
 	case  CUR_CONNECT_SELECTED:
@@ -6877,18 +6876,18 @@ void CFreePcbView::OnEndVertexAddSegments()
 	m_snap_angle_ref.x = m_sel_vtx.x;
 	m_snap_angle_ref.y = m_sel_vtx.y;
 
-	m_Doc->m_nlist->StartDraggingStub( 
-		pDC, 
-		m_sel_net, 
+	m_Doc->m_nlist->StartDraggingStub(
+		pDC,
+		m_sel_net,
 		m_sel_ic, m_sel_is,
-		p.x, p.y, 
-		m_active_layer, 
-		m_sel_net->def_width_attrib.m_seg_width.m_val, 
-		m_active_layer, 
-		m_sel_net->def_width_attrib.m_via_width.m_val, 
+		p.x, p.y,
+		m_active_layer,
+		m_sel_net->def_width_attrib.m_seg_width.m_val,
+		m_active_layer,
+		m_sel_net->def_width_attrib.m_via_width.m_val,
 		m_sel_net->def_width_attrib.m_via_hole.m_val,
-		2, 
-		m_inflection_mode 
+		2,
+		m_inflection_mode
 	);
 
 	SetCursorMode( CUR_DRAG_STUB );
