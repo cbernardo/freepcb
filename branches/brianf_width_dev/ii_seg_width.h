@@ -1,14 +1,14 @@
 #ifndef _II_SEG_WIDTH_H /* [ */
 #define _II_SEG_WIDTH_H
 
-#include "inheritable_item.h"
+#include "ii_FreePcb.h"
 
 // Width information for segments
-class CSegWidthInfo : public CInheritableInfo
+class CSegWidthInfo : public CII_FreePcb
 {
 public:
 	CSegWidthInfo( CInheritableInfo const &from ) :
-		CInheritableInfo(from)
+		CII_FreePcb(from)
 	{
 		*this = from;
 	}

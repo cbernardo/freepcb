@@ -14,7 +14,7 @@
 #include "stdafx.h"
 #include "resource.h"       // main symbols
 #include "FootprintView.h"
-#include "inheritable_item.h"
+#include "ii_FreePcb.h"
 
 // units for length
 enum
@@ -66,15 +66,6 @@ enum {
 #define MAX_THERMAL_LINE_W  	50
 #define MAX_THERMAL_CLEARANCE	50
 
-
-// This is a list of all inheritable item IDs used in the project
-enum EInheritableItemIds
-{
-	E_II_TRACE_WIDTH,
-	E_II_VIA_WIDTH,
-	E_II_VIA_HOLE,
-	E_II_CA_CLEARANCE
-};
 
 /////////////////////////////////////////////////////////////////////////////
 // CFreePcbApp:

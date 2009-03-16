@@ -1,22 +1,14 @@
 #ifndef _II_CLEARANCE_H /* [ */
 #define _II_CLEARANCE_H
 
-#include "inheritable_item.h"
+#include "ii_FreePcb.h"
 
 // Information for clearances
-class CClearanceInfo : public CInheritableInfo
+class CClearanceInfo : public CII_FreePcb
 {
 public:
-	enum EStatus
-	{
-        // Remember, these are negative so normal enum
-        // counting order won't work here.
-		E_AUTO_CALC = CInheritableInfo::E__STATUS_USER
-	};
-
-public:
 	explicit CClearanceInfo(CInheritableInfo const &from) :
-		CInheritableInfo(from)
+		CII_FreePcb(from)
 	{
 		*this = from;
 	}
