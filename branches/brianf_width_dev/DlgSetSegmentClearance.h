@@ -4,7 +4,7 @@
 
 // DlgSetSegmentClearance dialog
 
-class DlgSetSegmentClearance :	
+class DlgSetSegmentClearance :
 	public CDialog
 	, public CSubDlg_Clearance
 {
@@ -34,7 +34,7 @@ public:
 	CClearanceInfo m_clearance; // clearance
 
 	// these variables will be set on exit
-	int m_def;		    // set default clearance (1=con, 2=net)
+	int m_def;		    // set default clearance (0=none, 2=net)
 	int m_apply;	    // apply clearance (1=seg, 2=con, 3=net)
 
 	CClearanceInfo m_clearance_pinvia; // pin/via clearance

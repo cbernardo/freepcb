@@ -430,12 +430,8 @@ void CDlgNetlist::OnBnClickedButtonNLWidth()
 	//
 	// These two steps don't interfere with each other since they
 	// set orthogonal parts of m_width_attrib
-	dlg.m_width_attrib = CConnectionWidthInfo( 
-		CInheritableInfo::E_USE_PARENT, 
-		CInheritableInfo::E_USE_PARENT, 
-		CInheritableInfo::E_USE_PARENT 
-	);
-	dlg.m_width_attrib = CClearanceInfo( CInheritableInfo::E_USE_PARENT );
+	dlg.m_width_attrib = CConnectionWidthInfo();
+	dlg.m_width_attrib = CClearanceInfo();
 
 	if( n_sel == 1 )
 	{
@@ -462,25 +458,12 @@ void CDlgNetlist::OnBnClickedButtonNLWidth()
 			int iItem = m_list_ctrl.GetNextSelectedItem( pos );
 			int i = m_list_ctrl.GetItemData( iItem );
 
-			if( dlg.m_apply_trace )
-			{
-				::nl[i].width_attrib.m_seg_width = dlg.m_width_attrib.m_seg_width;
-			}
+			::nl[i].width_attrib = dlg.m_width_attrib;
+			::nl[i].width_attrib.Update();
 
-			if( dlg.m_apply_via )
-			{
-				::nl[i].width_attrib.m_via_width = dlg.m_width_attrib.m_via_width;
-				::nl[i].width_attrib.m_via_hole  = dlg.m_width_attrib.m_via_hole;
-			}
-
-			if( dlg.m_apply_clearance )
-			{
-				::nl[i].width_attrib.m_ca_clearance = dlg.m_width_attrib.m_ca_clearance;
-			}
-
-			::nl[i].apply_trace_width = dlg.m_apply_to_routed && dlg.m_apply_trace;
-			::nl[i].apply_via_width   = dlg.m_apply_to_routed && dlg.m_apply_via;
-    		::nl[i].apply_clearance   = dlg.m_apply_to_routed && dlg.m_apply_clearance;
+			::nl[i].apply_trace_width = dlg.m_apply_trace;
+			::nl[i].apply_via_width   = dlg.m_apply_via;
+    		::nl[i].apply_clearance   = dlg.m_apply_clearance;
 
 			str = CInheritableInfo::GetItemText( ::nl[i].width_attrib.m_seg_width );
 			m_list_ctrl.SetItem( iItem, COL_WIDTH, LVIF_TEXT, str, 0, 0, 0, 0 );

@@ -12,6 +12,8 @@
 IMPLEMENT_DYNAMIC(CDlgEditNet, CDialog)
 CDlgEditNet::CDlgEditNet(CWnd* pParent /*=NULL*/)
 	: CDialog(CDlgEditNet::IDD, pParent)
+	, CSubDlg_ViaWidth(static_cast<CSubDlg_TraceWidth*>(this))
+	, CSubDlg_Clearance( E_NO_AUTO_MODE )
 {
 	m_pins_edited = FALSE;
 }
@@ -43,12 +45,8 @@ void CDlgEditNet::Initialize( CNetList const * netlist,
 		m_name = "";
 
 		// Set all attib to use parent
-		m_width_attrib = CConnectionWidthInfo(
-			CInheritableInfo::E_USE_PARENT,
-			CInheritableInfo::E_USE_PARENT,
-			CInheritableInfo::E_USE_PARENT
-		);
-		m_width_attrib = CClearanceInfo( CInheritableInfo::E_USE_PARENT );
+		m_width_attrib = CConnectionWidthInfo();
+		m_width_attrib = CClearanceInfo();
 
 		m_width_attrib.SetParent( netlist->Get_def_width_attrib() );
 	}
@@ -85,67 +83,6 @@ BOOL CDlgEditNet::OnInitDialog()
 	m_edit_name.SetWindowText( m_name );
 	m_check_visible.SetCheck( m_visible );
 
-	if( m_width_attrib.m_seg_width.m_status < 0 )
-	{
-		m_width_attrib.m_seg_width.m_status = CInheritableInfo::E_USE_PARENT;
-
-		m_radio1_default.SetCheck(1);
-		m_combo_width.EnableWindow(0);
-	}
-	else
-	{
-		m_radio1_set.SetCheck(1);
-		m_combo_width.EnableWindow(1);
-	}
-	str.Format("%d", m_width_attrib.m_seg_width.m_val / NM_PER_MIL);
-	m_combo_width.SetWindowText( str );
-
-	//BAF add E_USE_DEF_FROM_WIDTH to item types
-	if( m_width_attrib.m_via_width.m_status < 0 )
-	{
-		m_width_attrib.m_via_width.m_status = CInheritableInfo::E_USE_PARENT;
-		m_width_attrib.m_via_hole .m_status = CInheritableInfo::E_USE_PARENT;
-
-		m_radio2_default.SetCheck(1);
-
-		m_edit_pad_w.EnableWindow( 0 );
-		m_edit_hole_w.EnableWindow( 0 );
-	}
-	else
-	{
-		m_radio2_set.SetCheck(1);
-
-		m_edit_pad_w.EnableWindow( 1 );
-		m_edit_hole_w.EnableWindow( 1 );
-	}
-	str.Format("%d", m_width_attrib.m_via_width.m_val / NM_PER_MIL );
-	m_edit_pad_w.SetWindowText( str );
-	str.Format("%d", m_width_attrib.m_via_hole.m_val / NM_PER_MIL );
-	m_edit_hole_w.SetWindowText( str );
-
-
-	if( m_width_attrib.m_ca_clearance.m_status < 0 )
-	{
-		m_width_attrib.m_ca_clearance.m_status = CInheritableInfo::E_USE_PARENT;
-
-		m_radio3_default.SetCheck(1);
-		m_edit_clearance.EnableWindow(0);
-	}
-	else
-	{
-		m_radio3_set.SetCheck(1);
-		m_edit_clearance.EnableWindow(1);
-	}
-	str.Format("%d", m_width_attrib.m_ca_clearance.m_val / NM_PER_MIL);
-	m_edit_clearance.SetWindowText(str);
-
-	// set up combo box for trace widths
-	int n = m_w->GetSize();
-	for( int i=0; i<n; i++ )
-	{
-		str.Format( "%d", (*m_w)[i]/NM_PER_MIL );
-		m_combo_width.InsertString( i, str );
-	}
 	// set up list box for pins
 	if( !m_new_net )
 	{
@@ -157,10 +94,20 @@ BOOL CDlgEditNet::OnInitDialog()
 		}
 	}
 
+	// Enable Modification of Traces, Vias, and Clearance
+	m_check_t_modify.SetCheck(1);
+	m_check_v_modify.SetCheck(1);
+	m_check_c_modify.SetCheck(1);
+
 	// default is to apply new trace width & clearances
-	m_check_width_apply.SetCheck(1);
-	m_check_via_apply.SetCheck(1);
-	m_check_clearance_apply.SetCheck(1);
+	m_check_t_apply.SetCheck(1);
+	m_check_v_apply.SetCheck(1);
+	m_check_c_apply.SetCheck(1);
+
+	// Do these last after other dialog items are setup
+	CSubDlg_TraceWidth::OnInitDialog(m_width_attrib);
+	CSubDlg_ViaWidth  ::OnInitDialog(m_width_attrib);
+	CSubDlg_Clearance ::OnInitDialog(m_width_attrib);
 
 	return TRUE;  // return TRUE unless you set the focus to a control
 	// EXCEPTION: OCX Property Pages should return FALSE
@@ -173,26 +120,32 @@ void CDlgEditNet::DoDataExchange(CDataExchange* pDX)
 	DDX_Control(pDX, IDC_EDIT_NAME, m_edit_name);
 	DDX_Control(pDX, IDC_CHECK_VISIBLE, m_check_visible);
 
-	DDX_Control(pDX, IDC_RADIO1_PROJ_DEF, m_radio1_default);
-	DDX_Control(pDX, IDC_RADIO1_SET_TO, m_radio1_set);
-	DDX_Control(pDX, IDC_COMBO_WIDTH, m_combo_width);
-	DDX_Control(pDX, IDC_CHECK_TRACE, m_check_width_apply);
+	DDX_Control(pDX, IDC_RADIO1_PROJ_DEF, m_rb_t_default);
+	DDX_Control(pDX, IDC_RADIO1_SET_TO,   m_rb_t_set);
+	DDX_Control(pDX, IDC_COMBO_WIDTH,     m_combo_t_width);
+	DDX_Control(pDX, IDC_CHECK_TRACE,     m_check_t_apply);
+	DDX_Control(pDX, IDC_CHECK_TRACE_MOD, m_check_t_modify);
 
-	DDX_Control(pDX, IDC_RADIO2_PROJ_DEF, m_radio2_default);
-	DDX_Control(pDX, IDC_RADIO2_DEF_FOR_TRACE, m_radio2_def_for_width);
-	DDX_Control(pDX, IDC_RADIO2_SET_TO, m_radio2_set);
-	DDX_Control(pDX, IDC_EDIT_VIA_PAD_W, m_edit_pad_w);
-	DDX_Control(pDX, IDC_EDIT_VIA_HOLE_W, m_edit_hole_w);
-	DDX_Control(pDX, IDC_CHECK_VIA, m_check_via_apply);
+	DDX_Control(pDX, IDC_RADIO2_PROJ_DEF,      m_rb_v_default);
+	DDX_Control(pDX, IDC_RADIO2_DEF_FOR_TRACE, m_rb_v_def_for_width);
+	DDX_Control(pDX, IDC_RADIO2_SET_TO,        m_rb_v_set);
+	DDX_Control(pDX, IDC_TEXT_PAD,             m_text_v_pad_w);
+	DDX_Control(pDX, IDC_EDIT_VIA_PAD_W,       m_edit_v_pad_w);
+	DDX_Control(pDX, IDC_TEXT_HOLE,            m_text_v_hole_w);
+	DDX_Control(pDX, IDC_EDIT_VIA_HOLE_W,      m_edit_v_hole_w);
+	DDX_Control(pDX, IDC_CHECK_VIA,            m_check_v_apply);
+	DDX_Control(pDX, IDC_CHECK_VIA_MOD,        m_check_v_modify);
 
-	DDX_Control(pDX, IDC_RADIO3_PROJ_DEF, m_radio3_default);
-	DDX_Control(pDX, IDC_RADIO3_SET_TO, m_radio3_set);
-	DDX_Control(pDX, IDC_EDIT_CLEARANCE, m_edit_clearance);
-	DDX_Control(pDX, IDC_CHECK_CLEARANCE, m_check_clearance_apply);
+	DDX_Control(pDX, IDC_RADIO3_PROJ_DEF,     m_rb_c_default);
+	DDX_Control(pDX, IDC_RADIO3_SET_TO,       m_rb_c_set);
+	DDX_Control(pDX, IDC_EDIT_CLEARANCE,      m_edit_c_clearance);
+	DDX_Control(pDX, IDC_CHECK_CLEARANCE,     m_check_c_apply);
+	DDX_Control(pDX, IDC_CHECK_CLEARANCE_MOD, m_check_c_modify);
 
 	DDX_Control(pDX, IDC_LIST_PIN, m_list_pins);
 	DDX_Control(pDX, IDC_EDIT_ADD_PIN, m_edit_addpin);
 	DDX_Control(pDX, IDC_BUTTON_ADD, m_button_add_pin);
+
 	DDX_Control(pDX, ID_MY_OK, m_button_OK);
 
 	if( pDX->m_bSaveAndValidate )
@@ -209,43 +162,20 @@ void CDlgEditNet::DoDataExchange(CDataExchange* pDX)
 
 		int i;
 
-		if( m_radio1_default.GetCheck() )
+		if( !CSubDlg_TraceWidth::OnDDXOut() ||
+		    !CSubDlg_ViaWidth::OnDDXOut()   ||
+		    !CSubDlg_Clearance::OnDDXOut() )
 		{
-			m_width_attrib.m_seg_width.m_status = CInheritableInfo::E_USE_PARENT;
+			pDX->Fail();
+			return;
 		}
 		else
 		{
-			DDX_Text( pDX, IDC_COMBO_WIDTH, i );
-			if( i<=0 || i > MAX_TRACE_W_MIL)
-			{
-				AfxMessageBox( "illegal trace width" );
-				pDX->Fail();
-			}
-			m_width_attrib.m_seg_width = i*NM_PER_MIL;
-		}
+			m_width_attrib.Undef();
 
-		if( m_radio2_default.GetCheck() )
-		{
-			m_width_attrib.m_via_width.m_status = CInheritableInfo::E_USE_PARENT;
-			m_width_attrib.m_via_hole .m_status = CInheritableInfo::E_USE_PARENT;
-		}
-		else
-		{
-			DDX_Text( pDX, IDC_EDIT_VIA_PAD_W, i );
-			if( i<=0 || i > MAX_VIA_W_MIL)
-			{
-				AfxMessageBox( "illegal via width" );
-				pDX->Fail();
-			}
-			m_width_attrib.m_via_width = i*NM_PER_MIL;
-
-			DDX_Text( pDX, IDC_EDIT_VIA_HOLE_W, i );
-			if( i<=0 || i > MAX_VIA_HOLE_MIL)
-			{
-				AfxMessageBox( "illegal via hole width" );
-				pDX->Fail();
-			}
-			m_width_attrib.m_via_hole = i*NM_PER_MIL;
+			m_width_attrib = CSubDlg_TraceWidth::m_attrib.get_data();
+			m_width_attrib = CSubDlg_ViaWidth::m_attrib;
+			m_width_attrib = CSubDlg_Clearance::m_attrib;
 		}
 
 		m_visible = m_check_visible.GetState();
@@ -258,24 +188,6 @@ void CDlgEditNet::DoDataExchange(CDataExchange* pDX)
 			}
 		}
 
-		if( m_radio3_default.GetCheck() )
-		{
-			m_width_attrib.m_ca_clearance.m_status = CInheritableInfo::E_USE_PARENT;
-		}
-		else
-		{
-			DDX_Text( pDX, IDC_EDIT_CLEARANCE, i );
-			if( i<0 ||  i>MAX_CLEARANCE_MIL )
-			{
-				CString str;
-				str.Format( "Invalid clearance (0-%d)", MAX_CLEARANCE_MIL );
-				AfxMessageBox( str );
-				pDX->Fail();
-			}
-
-			m_width_attrib.m_ca_clearance = i*NM_PER_MIL;
-		}
-
 		// now update netlist_info
 		if( m_new_net )
 		{
@@ -286,9 +198,9 @@ void CDlgEditNet::DoDataExchange(CDataExchange* pDX)
 			(*m_nl)[m_in].net = NULL;
 		}
 
-		(*m_nl)[m_in].apply_trace_width = m_check_width_apply.GetCheck();
-		(*m_nl)[m_in].apply_via_width   = m_check_via_apply.GetCheck();
-		(*m_nl)[m_in].apply_clearance   = m_check_clearance_apply.GetCheck();
+		(*m_nl)[m_in].apply_trace_width = m_check_t_apply.GetCheck();
+		(*m_nl)[m_in].apply_via_width   = m_check_v_apply.GetCheck();
+		(*m_nl)[m_in].apply_clearance   = m_check_c_apply.GetCheck();
 		(*m_nl)[m_in].modified = TRUE;
 		(*m_nl)[m_in].name = m_name;
 		(*m_nl)[m_in].visible = m_visible;
@@ -340,19 +252,23 @@ void CDlgEditNet::DoDataExchange(CDataExchange* pDX)
 
 
 BEGIN_MESSAGE_MAP(CDlgEditNet, CDialog)
-	ON_BN_CLICKED(IDC_RADIO1_PROJ_DEF, &CDlgEditNet::OnBnClickedRadio1ProjDef)
-	ON_BN_CLICKED(IDC_RADIO1_SET_TO, &CDlgEditNet::OnBnClickedRadio1SetTo)
-	ON_BN_CLICKED(IDC_RADIO2_PROJ_DEF, OnBnClickedRadio2DefWidth)
-	ON_BN_CLICKED(IDC_RADIO2_SET_TO, OnBnClickedRadio2SetWidth)
-	ON_BN_CLICKED(IDC_RADIO2_DEF_FOR_TRACE, OnBnClickedRadio2DefForTrace)
+	ON_BN_CLICKED(IDC_RADIO1_PROJ_DEF, OnBnClicked_t_Default)
+	ON_BN_CLICKED(IDC_RADIO1_SET_TO,   OnBnClicked_t_Set)
+	ON_CBN_SELCHANGE(IDC_COMBO_WIDTH,  OnCbnSelchange_t_width)
+	ON_CBN_EDITCHANGE(IDC_COMBO_WIDTH, OnCbnEditchange_t_width)
+
+	ON_BN_CLICKED(IDC_RADIO2_PROJ_DEF,      OnBnClicked_v_Default)
+	ON_BN_CLICKED(IDC_RADIO2_DEF_FOR_TRACE, OnBnClicked_v_DefForTrace)
+	ON_BN_CLICKED(IDC_RADIO2_SET_TO,        OnBnClicked_v_Set)
+
+	ON_BN_CLICKED(IDC_RADIO3_PROJ_DEF, OnBnClicked_c_Default)
+	ON_BN_CLICKED(IDC_RADIO3_SET_TO,   OnBnClicked_c_Set)
+
 	ON_BN_CLICKED(IDC_BUTTON_DELETE, OnBnClickedButtonDelete)
 	ON_BN_CLICKED(IDC_BUTTON_ADD, OnBnClickedButtonAdd)
-	ON_CBN_SELCHANGE(IDC_COMBO_WIDTH, OnCbnSelchangeComboWidth)
-	ON_CBN_EDITCHANGE(IDC_COMBO_WIDTH, OnCbnEditchangeComboWidth)
 	ON_EN_UPDATE(IDC_EDIT_ADD_PIN, OnEnUpdateEditAddPin)
+
 	ON_BN_CLICKED(ID_MY_OK, OnBnClickedOk)
-	ON_BN_CLICKED(IDC_RADIO3_PROJ_DEF, &CDlgEditNet::OnBnClickedRadioDefClearance)
-	ON_BN_CLICKED(IDC_RADIO3_SET_TO, &CDlgEditNet::OnBnClickedRadioSetClearance)
 END_MESSAGE_MAP()
 
 
@@ -472,77 +388,6 @@ void CDlgEditNet::OnBnClickedButtonAdd()
 
 }
 
-void CDlgEditNet::OnCbnSelchangeComboWidth()
-{
-	int i = m_combo_width.GetCurSel();
-
-	CString text;
-	m_combo_width.GetLBText( i, text );
-	ChangeTraceWidth( atoi( (LPCSTR)text ) );
-}
-
-void CDlgEditNet::OnCbnEditchangeComboWidth()
-{
-	CString text;
-	m_combo_width.GetWindowText( text );
-	ChangeTraceWidth( atoi( (LPCSTR)text ) );
-}
-
-
-void CDlgEditNet::ChangeTraceWidth( int new_w )
-{
-	CString text;
-
-	int n = m_w->GetSize();
-	if( m_radio2_def_for_width.GetCheck() )
-	{
-		new_w *= NM_PER_MIL;
-		int new_v_w = 0;
-		int new_v_h_w = 0;
-		if( new_w >= 0 )
-		{
-			if( new_w == 0 )
-			{
-				new_v_w = 0;
-				new_v_h_w = 0;
-			}
-			else if( new_w <= (*m_w)[0] )
-			{
-				new_v_w = (*m_v_w)[0];
-				new_v_h_w = (*m_v_h_w)[0];
-			}
-			else if( new_w >= (*m_w)[n-1] )
-			{
-				new_v_w = (*m_v_w)[n-1];
-				new_v_h_w = (*m_v_h_w)[n-1];
-			}
-			else
-			{
-				for( int i=1; i<n; i++ )
-				{
-					if( new_w > (*m_w)[i-1] && new_w <= (*m_w)[i] )
-					{
-						new_v_w = (*m_v_w)[i];
-						new_v_h_w = (*m_v_h_w)[i];
-						break;
-					}
-				}
-			}
-			text.Format( "%d", new_v_w/NM_PER_MIL );
-			m_edit_pad_w.SetWindowText( text );
-			text.Format( "%d", new_v_h_w/NM_PER_MIL );
-			m_edit_hole_w.SetWindowText( text );
-		}
-	}
-}
-
-void CDlgEditNet::SetFields()
-{
-}
-
-void CDlgEditNet::GetFields()
-{
-}
 
 void CDlgEditNet::OnEnUpdateEditAddPin()
 {
@@ -565,77 +410,4 @@ void CDlgEditNet::OnBnClickedOk()
 		OnBnClickedButtonAdd();
 	else
 		OnOK();
-}
-
-
-void CDlgEditNet::OnBnClickedRadio1ProjDef()
-{
-	m_combo_width.EnableWindow( 0 );
-
-	m_width_attrib.m_seg_width.m_status = CInheritableInfo::E_USE_PARENT;
-	m_width_attrib.Update_seg_width();
-
-	CString str;
-	int val = m_width_attrib.m_seg_width.m_val / NM_PER_MIL;
-	str.Format("%d", val);
-	m_combo_width.SetWindowText( str );
-
-	ChangeTraceWidth( val );
-}
-
-void CDlgEditNet::OnBnClickedRadio1SetTo()
-{
-	m_combo_width.EnableWindow( 1 );
-}
-
-
-void CDlgEditNet::OnBnClickedRadio2DefWidth()
-{
-	m_edit_pad_w.EnableWindow( 0 );
-	m_edit_hole_w.EnableWindow( 0 );
-
-	m_width_attrib.m_via_width = CInheritableInfo::E_USE_PARENT;
-	m_width_attrib.m_via_hole  = CInheritableInfo::E_USE_PARENT;
-	m_width_attrib.Update_via_width();
-	m_width_attrib.Update_via_hole();
-
-	CString str;
-	str.Format( "%d", m_width_attrib.m_via_width.m_val / NM_PER_MIL );
-	m_edit_pad_w.SetWindowText( str );
-	str.Format( "%d", m_width_attrib.m_via_hole.m_val / NM_PER_MIL );
-	m_edit_hole_w.SetWindowText( str );
-}
-
-void CDlgEditNet::OnBnClickedRadio2DefForTrace()
-{
-	m_edit_pad_w.EnableWindow( 0 );
-	m_edit_hole_w.EnableWindow( 0 );
-
-	CString text;
-	m_combo_width.GetWindowText( text );
-	ChangeTraceWidth( atoi( (LPCSTR)text ) );
-}
-
-void CDlgEditNet::OnBnClickedRadio2SetWidth()
-{
-	m_edit_pad_w.EnableWindow( 1 );
-	m_edit_hole_w.EnableWindow( 1 );
-}
-
-
-void CDlgEditNet::OnBnClickedRadioDefClearance()
-{
-	m_edit_clearance.EnableWindow(0);
-
-	m_width_attrib.m_ca_clearance = CInheritableInfo::E_USE_PARENT;
-	m_width_attrib.Update_ca_clearance();
-
-	CString str;
-	str.Format( "%d", m_width_attrib.m_ca_clearance.m_val / NM_PER_MIL );
-	m_edit_clearance.SetWindowText( str );
-}
-
-void CDlgEditNet::OnBnClickedRadioSetClearance()
-{
-	m_edit_clearance.EnableWindow(1);
 }

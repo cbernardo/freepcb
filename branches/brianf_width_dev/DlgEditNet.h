@@ -1,11 +1,18 @@
 #pragma once
 #include "afxwin.h"
 #include "NetList.h"
+#include "SubdlgTraceWidth.h"
+#include "SubdlgViaWidth.h"
+#include "SubdlgClearance.h"
 
 
 // CDlgEditNet dialog
 
-class CDlgEditNet : public CDialog
+class CDlgEditNet
+	: public CDialog
+	, public CSubDlg_TraceWidth
+	, public CSubDlg_ViaWidth
+	, public CSubDlg_Clearance
 {
 	DECLARE_DYNAMIC(CDlgEditNet)
 
@@ -23,14 +30,30 @@ public:
 				CArray<int> * w,          // array of default trace widths
 				CArray<int> * v_w,        // array of default via widths
 				CArray<int> * v_h_w );    // array of default via hole widths
-	void SetFields();
-	void GetFields();
+
 // Dialog Data
 	enum { IDD = IDD_EDIT_NET };
 
 protected:
 	virtual void DoDataExchange(CDataExchange* pDX);    // DDX/DDV support
+	virtual BOOL OnInitDialog();
+
 	DECLARE_MESSAGE_MAP()
+
+	// Mapping functions to mix-in classes CSubDlg...
+	afx_msg void OnBnClicked_t_Default()     { CSubDlg_TraceWidth::OnBnClicked_t_Default();	  }
+	afx_msg void OnBnClicked_t_Set()	     { CSubDlg_TraceWidth::OnBnClicked_t_Set();		  }
+	afx_msg void OnCbnSelchange_t_width()    { CSubDlg_TraceWidth::OnCbnSelchange_t_width();  }
+	afx_msg void OnCbnEditchange_t_width()   { CSubDlg_TraceWidth::OnCbnEditchange_t_width(); }
+
+	afx_msg void OnBnClicked_v_Default()	 { CSubDlg_ViaWidth::OnBnClicked_v_Default();	  }
+	afx_msg void OnBnClicked_v_DefForTrace() { CSubDlg_ViaWidth::OnBnClicked_v_DefForTrace(); }
+	afx_msg void OnBnClicked_v_Set()		 { CSubDlg_ViaWidth::OnBnClicked_v_Set();		  }
+
+	afx_msg void OnBnClicked_c_Default()     { CSubDlg_Clearance::OnBnClicked_c_Default();    }
+	afx_msg void OnBnClicked_c_Set()         { CSubDlg_Clearance::OnBnClicked_c_Set();        }
+
+protected:
 	CString m_name;
 	BOOL m_new_net;
 	CArray<net_info> *m_nl;
@@ -40,50 +63,17 @@ protected:
 
 	CNetWidthInfo m_width_attrib;
 
-	// pointers to arrays of default trace and via widths
-	CArray<int> *m_w;
-	CArray<int> *m_v_w;
-	CArray<int> *m_v_h_w;
-
 protected:
 	int m_units;
 	BOOL m_pins_edited;
-	afx_msg void OnEnChangeEditWidth();
-	virtual BOOL OnInitDialog();
 
 	CEdit m_edit_name;
 	CButton m_check_visible;
 
-	CButton m_radio1_default;
-	CButton m_radio1_set;
-	CComboBox m_combo_width;
-	CButton m_check_width_apply;
-	afx_msg void OnCbnSelchangeComboWidth();
-	afx_msg void OnCbnEditchangeComboWidth();
-	afx_msg void OnBnClickedRadio1ProjDef();
-	afx_msg void OnBnClickedRadio1SetTo();
-	void ChangeTraceWidth( int new_w );
-
-	CButton m_radio2_default;
-	CButton m_radio2_def_for_width;
-	CButton m_radio2_set;
-	CEdit m_edit_pad_w;
-	CEdit m_edit_hole_w;
-	CButton m_check_via_apply;
-	afx_msg void OnBnClickedRadio2DefWidth();
-	afx_msg void OnBnClickedRadio2DefForTrace();
-	afx_msg void OnBnClickedRadio2SetWidth();
-
-	CButton m_radio3_default;
-	CButton m_radio3_set;
-	CEdit m_edit_clearance;
-	CButton m_check_clearance_apply;
-	afx_msg void OnBnClickedRadioDefClearance();
-	afx_msg void OnBnClickedRadioSetClearance();
-
 	CListBox m_list_pins;
 	CButton m_button_add_pin;
 	CEdit m_edit_addpin;
+
 	afx_msg void OnEnUpdateEditAddPin();
 	afx_msg void OnBnClickedButtonDelete();
 	afx_msg void OnBnClickedButtonAdd();

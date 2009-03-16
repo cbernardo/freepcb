@@ -9,8 +9,8 @@
 
 IMPLEMENT_DYNAMIC(DlgSetSegmentWidth, CDialog)
 
-DlgSetSegmentWidth::DlgSetSegmentWidth(CWnd* pParent /*=NULL*/) :
-	CDialog(DlgSetSegmentWidth::IDD, pParent)
+DlgSetSegmentWidth::DlgSetSegmentWidth(CWnd* pParent /*=NULL*/)
+	: CDialog(DlgSetSegmentWidth::IDD, pParent)
 	, CSubDlg_ViaWidth(static_cast<CSubDlg_TraceWidth*>(this))
 {
 	m_mode = 0;
@@ -69,19 +69,21 @@ void DlgSetSegmentWidth::DoDataExchange(CDataExchange* pDX)
 {
 	CDialog::DoDataExchange(pDX);
 
-	DDX_Control(pDX, IDC_CHECK_TRACE, m_check_t_modify);
+	DDX_Control(pDX, IDC_CHECK_TRACE,     m_check_t_modify);
 	DDX_Control(pDX, IDC_RADIO1_PROJ_DEF, m_rb_t_default);
-	DDX_Control(pDX, IDC_RADIO1_SET_TO, m_rb_t_set);
-	DDX_Control(pDX, IDC_COMBO_WIDTH, m_combo_t_width);
+	DDX_Control(pDX, IDC_RADIO1_SET_TO,   m_rb_t_set);
+	DDX_Control(pDX, IDC_COMBO_WIDTH,     m_combo_t_width);
 
-	DDX_Control(pDX, IDC_CHECK_VIA, m_check_v_modify);
-	DDX_Control(pDX, IDC_RADIO2_PROJ_DEF, m_rb_v_default);
+	DDX_Control(pDX, IDC_CHECK_VIA,            m_check_v_modify);
+	DDX_Control(pDX, IDC_RADIO2_PROJ_DEF,      m_rb_v_default);
 	DDX_Control(pDX, IDC_RADIO2_DEF_FOR_TRACE, m_rb_v_def_for_width);
-	DDX_Control(pDX, IDC_RADIO2_SET_TO, m_rb_v_set);
-	DDX_Control(pDX, IDC_TEXT_PAD, m_text_v_pad_w);
-	DDX_Control(pDX, IDC_EDIT_VIA_PAD_W, m_edit_v_pad_w);
-	DDX_Control(pDX, IDC_TEXT_HOLE, m_text_v_hole_w);
-	DDX_Control(pDX, IDC_EDIT_VIA_HOLE_W, m_edit_v_hole_w);
+	DDX_Control(pDX, IDC_RADIO2_SET_TO,        m_rb_v_set);
+	DDX_Control(pDX, IDC_TEXT_PAD,             m_text_v_pad_w);
+	DDX_Control(pDX, IDC_EDIT_VIA_PAD_W,       m_edit_v_pad_w);
+	DDX_Control(pDX, IDC_TEXT_HOLE,            m_text_v_hole_w);
+	DDX_Control(pDX, IDC_EDIT_VIA_HOLE_W,      m_edit_v_hole_w);
+
+	DDX_Control(pDX, IDC_DEF_NET, m_set_net_default);
 
 	DDX_Control(pDX, IDC_APPLY_NET, m_apply_net);
 	DDX_Control(pDX, IDC_APPLY_CON, m_apply_con);
@@ -95,11 +97,13 @@ void DlgSetSegmentWidth::DoDataExchange(CDataExchange* pDX)
 			pDX->Fail();
 			return;
 		}
+		else
+		{
+			m_width_attrib.Undef();
 
-		m_width_attrib.Undef();
-
-		m_width_attrib = CSubDlg_TraceWidth::m_attrib;
-		m_width_attrib = CSubDlg_ViaWidth::m_attrib;
+			m_width_attrib = CSubDlg_TraceWidth::m_attrib;
+			m_width_attrib = CSubDlg_ViaWidth::m_attrib;
+		}
 
 		// decode buttons
 		if( m_set_net_default.GetCheck() )
@@ -131,4 +135,3 @@ BEGIN_MESSAGE_MAP(DlgSetSegmentWidth, CDialog)
 	ON_BN_CLICKED(IDC_RADIO2_DEF_FOR_TRACE, OnBnClicked_v_DefForTrace)
 	ON_BN_CLICKED(IDC_RADIO2_SET_TO,        OnBnClicked_v_Set)
 END_MESSAGE_MAP()
-

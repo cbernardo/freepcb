@@ -115,8 +115,8 @@ public:	// construction and copying/assignment
 	CInheritableInfo &operator = (CInheritableInfo const &from)
 	{
 		// Copy parent only if current parent is uninitialized and from's parent is initialized
-		//if( !hasParent() && from.hasParent() ) m_pParent = from.m_pParent;
-		m_pParent = from.hasParent() ? from.m_pParent : this;
+		if( !hasParent() && from.hasParent() ) m_pParent = from.m_pParent;
+		//don't use this - m_pParent = from.hasParent() ? from.m_pParent : this;
 
 		return *this;
 	}

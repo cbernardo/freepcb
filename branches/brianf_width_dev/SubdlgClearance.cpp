@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #include "SubdlgClearance.h"
 
-CSubDlg_Clearance::CSubDlg_Clearance(int AutoMode) : 
+CSubDlg_Clearance::CSubDlg_Clearance(int AutoMode) :
 	m_AutoMode(AutoMode)
 {
 }
@@ -69,6 +69,8 @@ int CSubDlg_Clearance::OnDDXOut()
 	else
 	{
 		m_attrib.m_ca_clearance.Undef();
+
+		m_check_c_apply.SetCheck( 0 );
 	}
 
 	return 1;
@@ -107,6 +109,8 @@ void CSubDlg_Clearance::OnBnClicked_c_modify()
 		m_rb_c_auto.EnableWindow( 0 );
 		m_rb_c_set.EnableWindow( 0 );
 
+		m_check_c_apply.EnableWindow( 0 );
+
 		m_edit_c_clearance.EnableWindow( 0 );
 	}
 	else
@@ -114,6 +118,8 @@ void CSubDlg_Clearance::OnBnClicked_c_modify()
 		m_rb_c_default.EnableWindow( 1 );
 		m_rb_c_auto.EnableWindow( 1 );
 		m_rb_c_set.EnableWindow( 1 );
+
+		m_check_c_apply.EnableWindow( 1 );
 
 		OnChangeClearanceType();
 	}

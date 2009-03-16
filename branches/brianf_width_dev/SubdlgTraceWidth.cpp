@@ -68,6 +68,8 @@ int CSubDlg_TraceWidth::OnDDXOut()
 	else
 	{
 		m_attrib.get_data().m_seg_width.Undef();
+
+		m_check_t_apply.SetCheck( 0 );
 	}
 
 	// Undef any non-trace items
@@ -134,13 +136,17 @@ void CSubDlg_TraceWidth::OnBnClicked_t_modify()
 		m_rb_t_default.EnableWindow( 0 );
 		m_rb_t_set.EnableWindow( 0 );
 
+		m_check_t_apply.EnableWindow( 0 );
+
 		m_combo_t_width.EnableWindow( 0 );
 	}
 	else
 	{
 		m_rb_t_default.EnableWindow( 1 );
 		m_rb_t_set.EnableWindow( 1 );
-	
+
+		m_check_t_apply.EnableWindow( 1 );
+
 		OnChangeWidthType();
 	}
 }

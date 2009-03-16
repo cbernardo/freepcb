@@ -6,10 +6,10 @@
 
 // DlgSetSegmentWidth dialog
 
-class DlgSetSegmentWidth :
-	public CDialog,
-	public CSubDlg_TraceWidth,
-	public CSubDlg_ViaWidth
+class DlgSetSegmentWidth
+	: public CDialog
+	, public CSubDlg_TraceWidth
+	, public CSubDlg_ViaWidth
 {
 	DECLARE_DYNAMIC(DlgSetSegmentWidth)
 
@@ -43,7 +43,7 @@ public:
 	int m_mode;		// 0=segment, 1=connection, 2=net
 
 	// these variables will be set on exit
-	int m_def;		// set default width for (1=con, 2=net)
+	int m_def;		// set default width for (0=none, 2=net)
 	int m_apply;	// apply width to (1=seg, 2=con, 3=net)
 
 	CConnectionWidthInfo m_width_attrib; // trace width info
@@ -57,5 +57,3 @@ protected:
 	CButton m_apply_con;
 	CButton m_apply_seg;
 };
-
-

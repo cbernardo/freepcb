@@ -54,6 +54,7 @@ BOOL DlgSetSegmentClearance::OnInitDialog()
 
 	m_check_c_modify.SetCheck( 1 );
 
+	// Do this last after other dialog items are setup
 	CSubDlg_Clearance::OnInitDialog(m_clearance);
 
 	return TRUE;
@@ -63,7 +64,7 @@ void DlgSetSegmentClearance::DoDataExchange(CDataExchange* pDX)
 {
 	CDialog::DoDataExchange(pDX);
 
-	DDX_Control(pDX, IDC_CHECK_CLEARANCE, m_check_c_modify); 
+	DDX_Control(pDX, IDC_CHECK_CLEARANCE_MOD, m_check_c_modify);
 	DDX_Control(pDX, IDC_RADIO_USE_NET_CLEARANCE, m_rb_c_default);
 	DDX_Control(pDX, IDC_RADIO_SET_TRACE_CLEARANCE, m_rb_c_set);
 	DDX_Control(pDX, IDC_EDIT_CLEARANCE, m_edit_c_clearance);
@@ -85,9 +86,11 @@ void DlgSetSegmentClearance::DoDataExchange(CDataExchange* pDX)
 			pDX->Fail();
 			return;
 		}
-
-		m_clearance.Undef();
-		m_clearance = CSubDlg_Clearance::m_attrib;
+		else
+		{
+			m_clearance.Undef();
+			m_clearance = CSubDlg_Clearance::m_attrib;
+		}
 
 		if( m_set_net_default.GetCheck() )
 		{

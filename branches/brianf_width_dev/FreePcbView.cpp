@@ -5590,30 +5590,47 @@ int CFreePcbView::SetWidth( int mode )
 		// returned with "OK"
 		SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_Doc->m_undo_list );
 
+		CConnectionWidthInfo width_attrib = dlg.m_width_attrib;
+		width_attrib.Update();
+
 		// set default values for net or connection
 		if( dlg.m_def == 2 )
 		{
 			// set default for net
-			m_sel_net->def_width_attrib = dlg.m_width_attrib;
+
+			// Check for any "use-parent" attributes.  These need to be changed to "undef" 
+			// so that the net level is not changed.  Since the segments are getting set 
+			// to "use-parent", any "use-parent" attribute is not making changes to the net.
+			if( width_attrib.m_seg_width.m_status == CInheritableInfo::E_USE_PARENT ) width_attrib.m_seg_width.Undef();
+			if( width_attrib.m_via_width.m_status == CInheritableInfo::E_USE_PARENT ) width_attrib.m_via_width.Undef();
+			if( width_attrib.m_via_hole .m_status == CInheritableInfo::E_USE_PARENT ) width_attrib.m_via_hole .Undef();
+
+			m_sel_net->def_width_attrib = width_attrib;
 
 			m_Doc->m_nlist->UpdateNetAttributes( m_sel_net );
+
+			// Now if the "default for net" clearance is applied below
+			// to a net/trace/segment, apply the "use parent" clearance.
+			width_attrib = CConnectionWidthInfo();
+			width_attrib.SetParent(m_sel_net->def_width_attrib);
+			width_attrib.Update();
 		}
 
 		// apply new widths to net, connection or segment
 		if( dlg.m_apply == 3 )
 		{
 			// apply to net
-			m_Doc->m_nlist->SetNetWidth( m_sel_net, dlg.m_width_attrib );
+			m_Doc->m_nlist->SetNetWidth( m_sel_net, width_attrib );
 		}
 		else if( dlg.m_apply == 2 )
 		{
 			// apply to connection
-			m_Doc->m_nlist->SetConnectionWidth( m_sel_net, m_sel_ic, dlg.m_width_attrib );
+			m_Doc->m_nlist->SetConnectionWidth( m_sel_net, m_sel_ic, width_attrib );
 		}
 		else if( dlg.m_apply == 1 )
 		{
 			// apply to segment
-			m_Doc->m_nlist->SetSegmentWidth( m_sel_net, m_sel_ic, m_sel_id.ii, dlg.m_width_attrib );
+			m_Doc->m_nlist->SetSegmentWidth( m_sel_net, m_sel_ic, m_sel_id.ii, width_attrib );
 		}
 	}
 	m_Doc->ProjectModified( TRUE );
@@ -5656,21 +5673,28 @@ int CFreePcbView::SetClearance( int mode )
 	{
 		SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_Doc->m_undo_list );
 
-		CClearanceInfo clearance;
-
-		clearance = dlg.m_clearance;
+		CClearanceInfo clearance = dlg.m_clearance;
+		clearance.Update();
 
 		// set default values for net or connection
 		if( dlg.m_def == 2 )
 		{
 			// set default for net
+
+			// Check for any "use-parent" attributes.  These need to be changed to "undef" 
+			// so that the net level is not changed.  Since the segments are getting set 
+			// to "use-parent", any "use-parent" attribute is not making changes to the net.
+			if( clearance.m_ca_clearance.m_status == CInheritableInfo::E_USE_PARENT ) clearance.m_ca_clearance.Undef();
+
 			m_sel_net->def_width_attrib = clearance;
 
 			m_Doc->m_nlist->UpdateNetAttributes( m_sel_net );
 
 			// Now if the "default for net" clearance is applied below
 			// to a net/trace/segment, apply the "use parent" clearance.
-			clearance = CClearanceInfo( CInheritableInfo::E_USE_PARENT );
+			clearance = CClearanceInfo();
+			clearance.SetParent(m_sel_net->def_width_attrib);
+			clearance.Update();
 		}
 
 		// apply new widths to net, connection or segment
@@ -6627,6 +6651,7 @@ void CFreePcbView::OnVertexSize()
 	int ret = dlg.DoModal();
 	if( ret == IDOK )
 	{
+		dlg.m_via_width.Update();
 		m_sel_vtx.via_width = dlg.m_via_width;
 
 		m_dlist->CancelHighLight();

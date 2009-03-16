@@ -79,6 +79,8 @@ int CSubDlg_ViaWidth::OnDDXOut()
 	{
 		m_attrib.m_via_width.Undef();
 		m_attrib.m_via_hole.Undef();
+
+		m_check_v_apply.SetCheck( 0 );
 	}
 
 	// Undef any non-via items in m_attrib
@@ -183,12 +185,16 @@ void CSubDlg_ViaWidth::OnBnClicked_v_modify()
 
 		m_edit_v_pad_w .EnableWindow( 0 );
 		m_edit_v_hole_w.EnableWindow( 0 );
+
+		m_check_v_apply.EnableWindow( 0 );
 	}
 	else
 	{
 		m_rb_v_default.EnableWindow( 1 );
 		m_rb_v_def_for_width.EnableWindow( my_SubDlg_TraceWidth != NULL ? 1 : 0 );
 		m_rb_v_set.EnableWindow( 1 );
+
+		m_check_v_apply.EnableWindow( 1 );
 
 		OnChangeWidthType();
 	}

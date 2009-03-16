@@ -802,11 +802,10 @@
 #define IDC_CHECK_VIA                   1505
 #define IDC_CHECK_TRACE                 1506
 #define IDC_TEXT_PAD                    1507
-#define IDC_CHECK_TRACE_MOD             1507
-#define IDC_TEXT_HOLE                   1508
-#define IDC_CHECK_VIA_MOD               1508
-#define IDC_CHECK_VIA_MOD2              1509
-#define IDC_CHECK_CLEARANCE_MOD         1509
+#define IDC_CHECK_TRACE_MOD             1508
+#define IDC_TEXT_HOLE                   1509
+#define IDC_CHECK_VIA_MOD               1510
+#define IDC_CHECK_CLEARANCE_MOD         1511
 #define ID_BUTTON32771                  32771
 #define ID_FP_MOVE                      32772
 #define ID_FP_EDITPROPERTIES            32773
@@ -973,7 +972,7 @@
 #define _APS_3D_CONTROLS                     1
 #define _APS_NEXT_RESOURCE_VALUE        358
 #define _APS_NEXT_COMMAND_VALUE         32951
-#define _APS_NEXT_CONTROL_VALUE         1509
+#define _APS_NEXT_CONTROL_VALUE         1512
 #define _APS_NEXT_SYMED_VALUE           106
 #endif
 #endif
