@@ -858,32 +858,34 @@ BEGIN
     LTEXT           "Select or enter net name",IDC_STATIC,17,12,80,8
 END
 
-IDD_SEGMENT_WIDTH DIALOGEX 0, 0, 202, 250
+IDD_SEGMENT_WIDTH DIALOGEX 0, 0, 200, 262
 STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Set Trace and/or Via Widths"
 FONT 8, "MS Shell Dlg", 400, 0, 0x1
 BEGIN
-    CONTROL         "Modify trace and via widths",IDC_RADIO_MOD_TV,"Button",BS_AUTORADIOBUTTON | WS_GROUP,12,6,104,10
-    CONTROL         "Modify trace width only",IDC_RADIO_MOD_T,"Button",BS_AUTORADIOBUTTON,12,18,91,10
-    CONTROL         "Modify via widths only",IDC_RADIO_MOD_V,"Button",BS_AUTORADIOBUTTON,12,30,87,10
-    COMBOBOX        IDC_COMBO_WIDTH,84,58,48,118,CBS_DROPDOWN | CBS_SORT | WS_VSCROLL | WS_TABSTOP
-    CONTROL         "Use default via for this trace width",IDC_RADIO_DEF_VIA,
-                    "Button",BS_AUTORADIOBUTTON | WS_GROUP,12,93,127,10
-    CONTROL         "Set via widths (mils)",IDC_RADIO_SET_VIA,"Button",BS_AUTORADIOBUTTON,12,108,79,10
-    EDITTEXT        IDC_EDIT_VIA_PAD,118,106,24,12,ES_AUTOHSCROLL
-    EDITTEXT        IDC_EDIT_VIA_HOLE,166,106,24,12,ES_AUTOHSCROLL
-    CONTROL         "for this net",IDC_DEF_NET,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,12,144,123,10
-    CONTROL         "for this segment",IDC_APPLY_SEG,"Button",BS_AUTORADIOBUTTON | WS_GROUP,12,180,68,10
-    CONTROL         "for this trace",IDC_APPLY_CON,"Button",BS_AUTORADIOBUTTON,12,192,57,10
-    CONTROL         "for this net",IDC_APPLY_NET,"Button",BS_AUTORADIOBUTTON,12,204,51,10
-    DEFPUSHBUTTON   "OK",IDOK,24,228,50,14
-    PUSHBUTTON      "Cancel",IDCANCEL,126,228,50,14
-    GROUPBOX        "Set as default",IDC_STATIC,6,132,192,30
-    GROUPBOX        "Apply to already routed traces",IDC_STATIC,6,168,192,54
-    GROUPBOX        "Via widths",IDC_STATIC,6,84,192,40
-    LTEXT           "pad",IDC_STATIC,100,108,13,8
-    LTEXT           "hole",IDC_STATIC,148,108,14,8
-    GROUPBOX        "Trace width (mils)",IDC_STATIC,6,48,192,30
+    CONTROL         "for this net",IDC_DEF_NET,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,13,156,68,10
+    CONTROL         "for this segment",IDC_APPLY_SEG,"Button",BS_AUTORADIOBUTTON | WS_GROUP,12,192,68,10
+    CONTROL         "for this trace",IDC_APPLY_CON,"Button",BS_AUTORADIOBUTTON,12,204,57,10
+    CONTROL         "for this net",IDC_APPLY_NET,"Button",BS_AUTORADIOBUTTON,12,216,51,10
+    DEFPUSHBUTTON   "OK",IDOK,24,240,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,126,240,50,14
+    GROUPBOX        "Set as default",IDC_STATIC,7,144,186,30
+    GROUPBOX        "Apply to already routed traces",IDC_STATIC,7,180,186,54
+    COMBOBOX        IDC_COMBO_WIDTH,58,43,48,142,CBS_DROPDOWN | CBS_SORT | WS_VSCROLL | WS_TABSTOP
+    EDITTEXT        IDC_EDIT_VIA_PAD_W,78,119,33,12,ES_AUTOHSCROLL
+    EDITTEXT        IDC_EDIT_VIA_HOLE_W,137,119,34,12,ES_AUTOHSCROLL
+    CONTROL         "Modify:",IDC_CHECK_VIA,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,7,71,40,10
+    GROUPBOX        "Trace width",IDC_STATIC,17,17,169,45
+    CONTROL         "Use net default",IDC_RADIO1_PROJ_DEF,"Button",BS_AUTORADIOBUTTON | WS_GROUP,23,31,65,10
+    CONTROL         "Set to",IDC_RADIO1_SET_TO,"Button",BS_AUTORADIOBUTTON,23,44,33,10
+    CONTROL         "Use net default",IDC_RADIO2_PROJ_DEF,"Button",BS_AUTORADIOBUTTON | WS_GROUP,23,94,65,10
+    CONTROL         "Set to:",IDC_RADIO2_SET_TO,"Button",BS_AUTORADIOBUTTON,23,120,38,10
+    CONTROL         "Use default via for trace width above",IDC_RADIO2_DEF_FOR_TRACE,
+                    "Button",BS_AUTORADIOBUTTON,23,107,135,10
+    LTEXT           "pad",IDC_TEXT_PAD,63,121,13,8
+    LTEXT           "hole",IDC_TEXT_HOLE,121,121,14,8
+    GROUPBOX        "Via width",IDC_STATIC,17,81,169,57
+    CONTROL         "Modify:",IDC_CHECK_TRACE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,7,7,40,10
 END
 
 IDD_ADD_TEXT DIALOGEX 0, 0, 177, 298
@@ -957,10 +959,10 @@ BEGIN
     DEFPUSHBUTTON   "OK",ID_MY_OK,30,346,50,14
     PUSHBUTTON      "Cancel",IDCANCEL,138,346,50,14
     LTEXT           "Net name",IDC_STATIC,12,10,32,8
-    GROUPBOX        "Default trace width",IDC_STATIC,6,24,210,59
+    GROUPBOX        "Default net trace width",IDC_STATIC,6,24,210,59
     CONTROL         "Use project default",IDC_RADIO1_PROJ_DEF,"Button",BS_AUTORADIOBUTTON | WS_GROUP,12,38,77,10
     CONTROL         "Set to",IDC_RADIO1_SET_TO,"Button",BS_AUTORADIOBUTTON,12,51,33,10
-    CONTROL         "Use project default",IDC_RADIO2_PROJ_DEF,"Button",BS_AUTORADIOBUTTON | WS_GROUP,12,103,77,10
+    CONTROL         "Use project default",IDC_RADIO2_PROJ_DEF,"Button",BS_AUTORADIOBUTTON | WS_GROUP,12,102,77,10
     CONTROL         "Set to:",IDC_RADIO2_SET_TO,"Button",BS_AUTORADIOBUTTON,12,128,38,10
     CONTROL         "Use default via for trace width above",IDC_RADIO2_DEF_FOR_TRACE,
                     "Button",BS_AUTORADIOBUTTON,12,115,135,10
@@ -969,12 +971,15 @@ BEGIN
     GROUPBOX        "Pin list",IDC_STATIC,6,226,210,114
     CONTROL         "Apply to already routed traces",IDC_CHECK_CLEARANCE,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,12,204,114,10
-    GROUPBOX        "Default clearance",IDC_STATIC,6,163,210,56
+    GROUPBOX        "Default net clearance",IDC_STATIC,6,163,210,56
     CONTROL         "Use project default",IDC_RADIO3_PROJ_DEF,"Button",BS_AUTORADIOBUTTON | WS_GROUP,12,175,77,10
     CONTROL         "Set to",IDC_RADIO3_SET_TO,"Button",BS_AUTORADIOBUTTON,12,187,35,10
     EDITTEXT        IDC_EDIT_CLEARANCE,49,186,33,12,ES_AUTOHSCROLL
-    GROUPBOX        "Default via widths",IDC_STATIC,6,89,210,68
+    GROUPBOX        "Default net via width",IDC_STATIC,6,89,210,68
     CONTROL         "Apply to already routed traces",IDC_CHECK_TRACE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,12,68,114,10
+    CONTROL         "modify (invisible)",IDC_CHECK_TRACE_MOD,"Button",BS_AUTOCHECKBOX | NOT WS_VISIBLE | WS_TABSTOP,138,52,69,10
+    CONTROL         "modify (invisible)",IDC_CHECK_VIA_MOD,"Button",BS_AUTOCHECKBOX | NOT WS_VISIBLE | WS_TABSTOP,135,98,69,10
+    CONTROL         "modify (invisible)",IDC_CHECK_CLEARANCE_MOD,"Button",BS_AUTOCHECKBOX | NOT WS_VISIBLE | WS_TABSTOP,133,173,69,10
 END
 
 IDD_EDIT_BOARD_CORNER DIALOGEX 0, 0, 119, 90
@@ -2243,7 +2248,7 @@ BEGIN
     CONTROL         "Set clearance (mils)",IDC_RADIO_SET_TRACE_CLEARANCE,
                     "Button",BS_AUTORADIOBUTTON,12,31,78,10
     EDITTEXT        IDC_EDIT_CLEARANCE,90,29,40,14,ES_AUTOHSCROLL
-    CONTROL         "for this net",IDC_DEF_NET,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,12,67,123,10
+    CONTROL         "for this net",IDC_DEF_NET,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,12,67,54,10
     CONTROL         "for this segment only",IDC_APPLY_SEG,"Button",BS_AUTORADIOBUTTON | WS_GROUP,12,103,83,10
     CONTROL         "for this trace",IDC_APPLY_CON,"Button",BS_AUTORADIOBUTTON,12,115,57,10
     CONTROL         "for this net",IDC_APPLY_NET,"Button",BS_AUTORADIOBUTTON,12,127,51,10
@@ -2257,6 +2262,7 @@ BEGIN
     CONTROL         "Set to clearance specified above",IDC_APPLY_PINVIA_AS_SEL,
                     "Button",BS_AUTORADIOBUTTON,12,188,120,10
     GROUPBOX        "Apply to pins/vias on affected segments",IDC_STATIC,6,152,189,54
+    CONTROL         "modify (non-visible)",IDC_CHECK_CLEARANCE,"Button",BS_AUTOCHECKBOX | NOT WS_VISIBLE | WS_TABSTOP,82,16,103,10
 END
 
 IDD_PROJECT_OPTIONS_TABBED DIALOGEX 0, 0, 283, 305
@@ -2446,9 +2452,9 @@ BEGIN
     IDD_SEGMENT_WIDTH, DIALOG
     BEGIN
         LEFTMARGIN, 7
-        RIGHTMARGIN, 195
+        RIGHTMARGIN, 193
         TOPMARGIN, 7
-        BOTTOMMARGIN, 243
+        BOTTOMMARGIN, 255
     END
 
     IDD_ADD_TEXT, DIALOG

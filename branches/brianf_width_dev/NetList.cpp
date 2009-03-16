@@ -5152,8 +5152,8 @@ void CNetList::ImportNetListInfo( netlist_info * nl, int flags, CDlgLog * log )
 			{
 				CConnectionWidthInfo width( (*nl)[i].width_attrib );
 
-				width.m_via_width.undef();
-				width.m_via_hole.undef();
+				width.m_via_width.Undef();
+				width.m_via_hole.Undef();
 
 				SetNetWidth( net, width );
 			}
@@ -5162,7 +5162,7 @@ void CNetList::ImportNetListInfo( netlist_info * nl, int flags, CDlgLog * log )
 			{
 				CConnectionWidthInfo width( (*nl)[i].width_attrib );
 
-				width.m_seg_width.undef();
+				width.m_seg_width.Undef();
 
 				SetNetWidth( net, width );
 			}

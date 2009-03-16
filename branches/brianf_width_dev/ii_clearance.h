@@ -42,6 +42,12 @@ public:
 		Update_ca_clearance();
 	}
 
+	// Undef all
+	void Undef()
+	{
+		m_ca_clearance.Undef();
+	}
+
 	virtual Item const &GetItem(int item_id) const;
 
 protected:

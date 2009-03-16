@@ -111,7 +111,7 @@ CInheritableInfo::Item const *CInheritableInfo::UpdateItem(int item_id, Item &it
 	while( ci != NULL );
 
 	// Any bad/illegal info detected - mark item as undefined
-	item.undef();
+	item.Undef();
 
 Item_OK:
 	return pSrcItem;
@@ -159,5 +159,5 @@ CInheritableInfo::Item const &CInheritableInfo::GetItem(int item_id) const
 //
 void CInheritableInfo::GetItemExt(Item &item, Item const &src) const
 {
-	item.undef();
+	item.Undef();
 }

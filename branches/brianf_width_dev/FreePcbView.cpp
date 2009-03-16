@@ -5575,13 +5575,12 @@ int CFreePcbView::SetWidth( int mode )
 
 	if( mode == 0 )
 	{
-		dlg.m_init_width = m_sel_seg.seg_width;
+		dlg.m_width_attrib = m_sel_seg.seg_width;
 	}
 	else
 	{
-		dlg.m_init_width = m_sel_net->def_width_attrib;
+		dlg.m_width_attrib = m_sel_net->def_width_attrib;
 	}
-	dlg.m_init_width.Update();
 
 	// launch dialog
 	dlg.m_mode = mode;
@@ -5595,7 +5594,7 @@ int CFreePcbView::SetWidth( int mode )
 		if( dlg.m_def == 2 )
 		{
 			// set default for net
-			m_sel_net->def_width_attrib = dlg.m_width;
+			m_sel_net->def_width_attrib = dlg.m_width_attrib;
 
 			m_Doc->m_nlist->UpdateNetAttributes( m_sel_net );
 		}
@@ -5604,17 +5603,17 @@ int CFreePcbView::SetWidth( int mode )
 		if( dlg.m_apply == 3 )
 		{
 			// apply to net
-			m_Doc->m_nlist->SetNetWidth( m_sel_net, dlg.m_width );
+			m_Doc->m_nlist->SetNetWidth( m_sel_net, dlg.m_width_attrib );
 		}
 		else if( dlg.m_apply == 2 )
 		{
 			// apply to connection
-			m_Doc->m_nlist->SetConnectionWidth( m_sel_net, m_sel_ic, dlg.m_width );
+			m_Doc->m_nlist->SetConnectionWidth( m_sel_net, m_sel_ic, dlg.m_width_attrib );
 		}
 		else if( dlg.m_apply == 1 )
 		{
 			// apply to segment
-			m_Doc->m_nlist->SetSegmentWidth( m_sel_net, m_sel_ic, m_sel_id.ii, dlg.m_width );
+			m_Doc->m_nlist->SetSegmentWidth( m_sel_net, m_sel_ic, m_sel_id.ii, dlg.m_width_attrib );
 		}
 	}
 	m_Doc->ProjectModified( TRUE );

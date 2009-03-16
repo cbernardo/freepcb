@@ -1,10 +1,12 @@
 #pragma once
 #include "afxwin.h"
-
+#include "SubdlgClearance.h"
 
 // DlgSetSegmentClearance dialog
 
-class DlgSetSegmentClearance : public CDialog
+class DlgSetSegmentClearance :	
+	public CDialog
+	, public CSubDlg_Clearance
 {
 	DECLARE_DYNAMIC(DlgSetSegmentClearance)
 
@@ -21,9 +23,10 @@ protected:
 
 	DECLARE_MESSAGE_MAP()
 
-	afx_msg void OnBnClickedApplySeg();
-	afx_msg void OnBnClickedApplyCon();
-	afx_msg void OnBnClickedApplyNet();
+	// Mapping functions to mix-in classes CSubDlg...
+	afx_msg void OnBnClicked_c_Default() { CSubDlg_Clearance::OnBnClicked_c_Default(); }
+	afx_msg void OnBnClicked_c_Set()     { CSubDlg_Clearance::OnBnClicked_c_Set();     }
+
 
 public:
 	// these variables should be set on entry
@@ -37,11 +40,7 @@ public:
 	CClearanceInfo m_clearance_pinvia; // pin/via clearance
 
 protected:
-	CButton m_radio1_use_net_default;
-	CButton m_radio1_set_trace_clearance;
-	CEdit m_edit_clearance;
-
-	CButton m_check_def_net;
+	CButton m_set_net_default;
 
 	CButton m_radio2_apply_seg;
 	CButton m_radio2_apply_con;
@@ -51,6 +50,7 @@ protected:
 	CButton m_radio3_auto;
 	CButton m_radio3_as_sel;
 
-	afx_msg void OnBnClickedRadioUseNetClearance();
-	afx_msg void OnBnClickedRadioSetTraceClearance();
+	afx_msg void OnBnClickedApplySeg();
+	afx_msg void OnBnClickedApplyCon();
+	afx_msg void OnBnClickedApplyNet();
 };

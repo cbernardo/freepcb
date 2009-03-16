@@ -158,9 +158,9 @@ BOOL CDlgEditNet::OnInitDialog()
 	}
 
 	// default is to apply new trace width & clearances
-	m_check_widths_apply.SetCheck(1);
-	m_check_vias_apply.SetCheck(1);
-	m_check_clearances_apply.SetCheck(1);
+	m_check_width_apply.SetCheck(1);
+	m_check_via_apply.SetCheck(1);
+	m_check_clearance_apply.SetCheck(1);
 
 	return TRUE;  // return TRUE unless you set the focus to a control
 	// EXCEPTION: OCX Property Pages should return FALSE
@@ -176,19 +176,19 @@ void CDlgEditNet::DoDataExchange(CDataExchange* pDX)
 	DDX_Control(pDX, IDC_RADIO1_PROJ_DEF, m_radio1_default);
 	DDX_Control(pDX, IDC_RADIO1_SET_TO, m_radio1_set);
 	DDX_Control(pDX, IDC_COMBO_WIDTH, m_combo_width);
-	DDX_Control(pDX, IDC_CHECK_TRACE, m_check_widths_apply);
+	DDX_Control(pDX, IDC_CHECK_TRACE, m_check_width_apply);
 
 	DDX_Control(pDX, IDC_RADIO2_PROJ_DEF, m_radio2_default);
 	DDX_Control(pDX, IDC_RADIO2_DEF_FOR_TRACE, m_radio2_def_for_width);
 	DDX_Control(pDX, IDC_RADIO2_SET_TO, m_radio2_set);
 	DDX_Control(pDX, IDC_EDIT_VIA_PAD_W, m_edit_pad_w);
 	DDX_Control(pDX, IDC_EDIT_VIA_HOLE_W, m_edit_hole_w);
-	DDX_Control(pDX, IDC_CHECK_VIA, m_check_vias_apply);
+	DDX_Control(pDX, IDC_CHECK_VIA, m_check_via_apply);
 
 	DDX_Control(pDX, IDC_RADIO3_PROJ_DEF, m_radio3_default);
 	DDX_Control(pDX, IDC_RADIO3_SET_TO, m_radio3_set);
 	DDX_Control(pDX, IDC_EDIT_CLEARANCE, m_edit_clearance);
-	DDX_Control(pDX, IDC_CHECK_CLEARANCE, m_check_clearances_apply);
+	DDX_Control(pDX, IDC_CHECK_CLEARANCE, m_check_clearance_apply);
 
 	DDX_Control(pDX, IDC_LIST_PIN, m_list_pins);
 	DDX_Control(pDX, IDC_EDIT_ADD_PIN, m_edit_addpin);
@@ -286,9 +286,9 @@ void CDlgEditNet::DoDataExchange(CDataExchange* pDX)
 			(*m_nl)[m_in].net = NULL;
 		}
 
-		(*m_nl)[m_in].apply_trace_width = m_check_widths_apply.GetCheck();
-		(*m_nl)[m_in].apply_via_width   = m_check_vias_apply.GetCheck();
-		(*m_nl)[m_in].apply_clearance   = m_check_clearances_apply.GetCheck();
+		(*m_nl)[m_in].apply_trace_width = m_check_width_apply.GetCheck();
+		(*m_nl)[m_in].apply_via_width   = m_check_via_apply.GetCheck();
+		(*m_nl)[m_in].apply_clearance   = m_check_clearance_apply.GetCheck();
 		(*m_nl)[m_in].modified = TRUE;
 		(*m_nl)[m_in].name = m_name;
 		(*m_nl)[m_in].visible = m_visible;

@@ -125,7 +125,7 @@ void CDlgSetTraceWidths::DoDataExchange(CDataExchange* pDX)
 		}
 		else
 		{
-			m_width_attrib.m_seg_width.undef();
+			m_width_attrib.m_seg_width.Undef();
 		}
 
 		if( bVias && bRevertVias )
@@ -144,8 +144,8 @@ void CDlgSetTraceWidths::DoDataExchange(CDataExchange* pDX)
 		}
 		else
 		{
-			m_width_attrib.m_via_width.undef();
-			m_width_attrib.m_via_hole .undef();
+			m_width_attrib.m_via_width.Undef();
+			m_width_attrib.m_via_hole .Undef();
 		}
 
 		if( m_apply_clearance )
@@ -172,7 +172,7 @@ void CDlgSetTraceWidths::DoDataExchange(CDataExchange* pDX)
 		}
 		else
 		{
-			m_width_attrib.m_ca_clearance.undef();
+			m_width_attrib.m_ca_clearance.Undef();
 		}
 	}
 }

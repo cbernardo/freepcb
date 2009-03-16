@@ -38,6 +38,12 @@ public:
 		Update_seg_width();
 	}
 
+	// Undef all
+	void Undef()
+	{
+		m_seg_width.Undef();
+	}
+
 	virtual Item const &GetItem( int item_id ) const;
 };
 
@@ -85,6 +91,15 @@ public:
 		Update_via_hole();
 	}
 
+	// Undef all
+	void Undef()
+	{
+		CSegWidthInfo::Undef();
+
+		m_via_width.Undef();
+		m_via_hole.Undef();
+	}
+
 	virtual Item const &GetItem( int item_id ) const;
 };
 
@@ -119,6 +134,14 @@ public:
 		CConnectionWidthInfo::Update();
 
 		Update_ca_clearance();
+	}
+
+	// Undef all
+	void Undef()
+	{
+		CConnectionWidthInfo::Undef();
+
+		m_ca_clearance.Undef();
 	}
 
 	virtual Item const &GetItem( int item_id ) const;

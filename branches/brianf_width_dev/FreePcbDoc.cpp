@@ -3487,10 +3487,10 @@ int CFreePcbDoc::ImportPADSPCBNetlist( CStdioFile * file, UINT flags,
 
 						// mark widths as undefined
 						(*nl)[inet].width_attrib.SetParent( m_nlist->Get_def_width_attrib() );
-						(*nl)[inet].width_attrib.m_seg_width.undef();
-						(*nl)[inet].width_attrib.m_via_width.undef();
-						(*nl)[inet].width_attrib.m_via_hole.undef();
-						(*nl)[inet].width_attrib.m_ca_clearance.undef();
+						(*nl)[inet].width_attrib.m_seg_width.Undef();
+						(*nl)[inet].width_attrib.m_via_width.Undef();
+						(*nl)[inet].width_attrib.m_via_hole.Undef();
+						(*nl)[inet].width_attrib.m_ca_clearance.Undef();
 							
 						npins = 0;
 						state = SIGNAL;

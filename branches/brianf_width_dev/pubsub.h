@@ -41,6 +41,17 @@ class CSubscriber : private CDLinkList
 // Published data and data subscriber class templates
 
 // Data subscriber --------------------
+
+// When the data subscriber is a member of a composition,
+// use this macro to get a pointer to the composition object.
+#define CDataSubscriber_GET_COMPOSITION(comp_t, comp_var_name) \
+    reinterpret_cast<comp_t *> (                               \
+        const_cast<char *>(                                    \
+            reinterpret_cast<char const *>(this) - offsetof(comp_t, comp_var_name) \
+        )                                                      \
+    )
+
+// Subscriber template class
 template <typename DT>
 class CDataSubscriber : public CSubscriber
 {
@@ -48,15 +59,16 @@ public:
     typedef typename DT pub_t;
 
     virtual void Update(pub_t const &data) {}
+};
 
-    // When the data subscriber is a member of a composition,
-    // use this macro to get a pointer to the composition object.
-    #define CDataSubscriber_GET_COMPOSITION(comp_t, comp_var_name) \
-        reinterpret_cast<comp_t *> (                               \
-            const_cast<char *>(                                    \
-                reinterpret_cast<char const *>(this) - offsetof(comp_t, comp_var_name) \
-            )                                                      \
-        )
+// void version
+template <>
+class CDataSubscriber<void> : public CSubscriber
+{
+public:
+    typedef void pub_t;
+
+    virtual void Update(void) {}
 };
 
 
@@ -90,6 +102,9 @@ public:
     // Get
     operator pub_t() const { return m_data; }
 
+	pub_t       &get_data()       { return m_data; }
+	pub_t const &get_data() const { return m_data; }
+
     // Set
     CPublishedData &operator = (pub_t const &from)
     {
@@ -116,6 +131,34 @@ protected:
     virtual void _Update(CSubscriber *pSub)
     {
         static_cast< CDataSubscriber<DT> * >(pSub)->Update(m_data);
+    }
+};
+
+// void version
+template <>
+class CPublishedData<void> : public CPublisher
+{
+public:
+    typedef CDataSubscriber<void>::pub_t pub_t;
+
+    // Ctor
+    CPublishedData() {}
+    CPublishedData(CPublishedData const &from) {}
+
+    CPublishedData &operator = (CPublishedData const &from)
+	{
+        Update();
+
+		return *this;
+    }
+
+    void AddSub   (CDataSubscriber<void> &sub) { _Add(sub);    }
+    void RemoveSub(CDataSubscriber<void> &sub) { _Remove(sub); }
+
+protected:
+    virtual void _Update(CSubscriber *pSub)
+    {
+        static_cast< CDataSubscriber<void> * >(pSub)->Update();
     }
 };
 

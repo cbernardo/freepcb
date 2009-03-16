@@ -57,7 +57,7 @@ protected:
 	CButton m_radio1_default;
 	CButton m_radio1_set;
 	CComboBox m_combo_width;
-	CButton m_check_widths_apply;
+	CButton m_check_width_apply;
 	afx_msg void OnCbnSelchangeComboWidth();
 	afx_msg void OnCbnEditchangeComboWidth();
 	afx_msg void OnBnClickedRadio1ProjDef();
@@ -69,7 +69,7 @@ protected:
 	CButton m_radio2_set;
 	CEdit m_edit_pad_w;
 	CEdit m_edit_hole_w;
-	CButton m_check_vias_apply;
+	CButton m_check_via_apply;
 	afx_msg void OnBnClickedRadio2DefWidth();
 	afx_msg void OnBnClickedRadio2DefForTrace();
 	afx_msg void OnBnClickedRadio2SetWidth();
@@ -77,7 +77,7 @@ protected:
 	CButton m_radio3_default;
 	CButton m_radio3_set;
 	CEdit m_edit_clearance;
-	CButton m_check_clearances_apply;
+	CButton m_check_clearance_apply;
 	afx_msg void OnBnClickedRadioDefClearance();
 	afx_msg void OnBnClickedRadioSetClearance();
 

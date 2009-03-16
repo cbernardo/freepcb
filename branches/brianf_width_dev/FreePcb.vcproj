@@ -387,10 +387,6 @@
 				>
 			</File>
 			<File
-				RelativePath=".\inheritable_item.h"
-				>
-			</File>
-			<File
 				RelativePath="ivex_mod_file.cpp"
 				>
 			</File>
@@ -487,18 +483,6 @@
 				</FileConfiguration>
 			</File>
 			<File
-				RelativePath=".\Tab_ProjectOpt_Main.cpp"
-				>
-			</File>
-			<File
-				RelativePath=".\Tab_ProjectOpt_Spacing.cpp"
-				>
-			</File>
-			<File
-				RelativePath=".\Tab_ProjectOpt_Thermal.cpp"
-				>
-			</File>
-			<File
 				RelativePath=".\TabCtrlSSL.cpp"
 				>
 			</File>
@@ -581,6 +565,18 @@
 			</File>
 			<File
 				RelativePath=".\ids.h"
+				>
+			</File>
+			<File
+				RelativePath=".\ii_clearance.h"
+				>
+			</File>
+			<File
+				RelativePath=".\ii_seg_width.h"
+				>
+			</File>
+			<File
+				RelativePath=".\inheritable_item.h"
 				>
 			</File>
 			<File
@@ -673,18 +669,6 @@
 			</File>
 			<File
 				RelativePath=".\StdAfx.h"
-				>
-			</File>
-			<File
-				RelativePath=".\Tab_ProjectOpt_Main.h"
-				>
-			</File>
-			<File
-				RelativePath=".\Tab_ProjectOpt_Spacing.h"
-				>
-			</File>
-			<File
-				RelativePath=".\Tab_ProjectOpt_Thermal.h"
 				>
 			</File>
 			<File
@@ -1234,6 +1218,54 @@
 			</File>
 			<File
 				RelativePath="DlgWizQuad.h"
+				>
+			</File>
+			<File
+				RelativePath=".\SubdlgClearance.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\SubdlgClearance.h"
+				>
+			</File>
+			<File
+				RelativePath=".\SubdlgTraceWidth.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\SubdlgTraceWidth.h"
+				>
+			</File>
+			<File
+				RelativePath=".\SubdlgViaWidth.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\SubdlgViaWidth.h"
+				>
+			</File>
+			<File
+				RelativePath=".\Tab_ProjectOpt_Main.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\Tab_ProjectOpt_Main.h"
+				>
+			</File>
+			<File
+				RelativePath=".\Tab_ProjectOpt_Spacing.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\Tab_ProjectOpt_Spacing.h"
+				>
+			</File>
+			<File
+				RelativePath=".\Tab_ProjectOpt_Thermal.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\Tab_ProjectOpt_Thermal.h"
 				>
 			</File>
 		</Filter>

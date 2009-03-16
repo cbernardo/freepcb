@@ -28,21 +28,21 @@ public:
 	public: // Constructor/Destructor
 		Item()
 		{
-			undef();
+			Undef();
 		}
 
 		explicit Item(int val_status)
 		{
 			// Must clear before set in case val_status
 			// is undef (no assignment is done)
-			undef();
+			Undef();
 
 			SetItemFromInt(val_status);
 		}
 
 		~Item()
 		{
-			undef();
+			Undef();
 		}
 
 	public: // operators
@@ -92,7 +92,7 @@ public:
 			return m_status != E_UNDEF;
 		}
 
-		void undef(void)
+		void Undef(void)
 		{
 			m_status = E_UNDEF;
 			m_val    = 0;
