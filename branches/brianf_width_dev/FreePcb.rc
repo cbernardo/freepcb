@@ -2375,6 +2375,7 @@ BEGIN
     CONTROL         "for this pin/via only",IDC_APPLY_PIN,"Button",BS_AUTORADIOBUTTON | WS_GROUP,12,82,77,10
     CONTROL         "for this trace",IDC_APPLY_CON,"Button",BS_AUTORADIOBUTTON,12,95,57,10
     CONTROL         "for this net",IDC_APPLY_NET,"Button",BS_AUTORADIOBUTTON,12,107,51,10
+    CONTROL         "modify (non-visible)",IDC_CHECK_CLEARANCE_MOD,"Button",BS_AUTOCHECKBOX | NOT WS_VISIBLE | WS_TABSTOP,117,7,78,10
 END
 
 
