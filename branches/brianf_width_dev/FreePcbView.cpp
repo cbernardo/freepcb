@@ -5704,9 +5704,10 @@ int CFreePcbView::SetClearance( int mode )
 			// apply to segment
 			m_Doc->m_nlist->SetSegmentClearance( m_sel_net, m_sel_ic, m_sel_id.ii, clearance );
 		}
+
+		m_Doc->ProjectModified( TRUE );
 	}
 
-	m_Doc->ProjectModified( TRUE );
 	Invalidate( FALSE );
 	return 0;
 }
@@ -6660,6 +6661,8 @@ void CFreePcbView::OnPadSetClearance()
 	int ret = dlg.DoModal();
 	if( ret == IDOK )
 	{
+		m_Doc->ProjectModified( TRUE );
+		Invalidate( FALSE );
 	}
 }
 
@@ -6670,6 +6673,8 @@ void CFreePcbView::OnVertexClearance()
 	int ret = dlg.DoModal();
 	if( ret == IDOK )
 	{
+		m_Doc->ProjectModified( TRUE );
+		Invalidate( FALSE );
 	}
 }
 
@@ -6943,8 +6948,8 @@ void CFreePcbView::OnEndVertexEdit()
 	if( ret == IDOK )
 	{
 		SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_Doc->m_undo_list );
-		m_Doc->m_nlist->MoveEndVertex( m_sel_net, m_sel_ic, m_sel_is,
-			dlg.GetX(), dlg.GetY() );
+		m_Doc->m_nlist->MoveEndVertex( m_sel_net, m_sel_ic, m_sel_is, dlg.GetX(), dlg.GetY() );
+
 		m_Doc->ProjectModified( TRUE );
 		m_Doc->m_nlist->HighlightVertex( m_sel_net, m_sel_ic, m_sel_is );
 		Invalidate( FALSE );
@@ -7146,9 +7151,10 @@ void CFreePcbView::OnBoardCornerEdit()
 	if( ret == IDOK )
 	{
 		SaveUndoInfoForBoardOutlines( TRUE, m_Doc->m_undo_list );
-		m_Doc->m_board_outline[m_sel_id.i].MoveCorner( m_sel_id.ii,
-			dlg.GetX(), dlg.GetY() );
+		m_Doc->m_board_outline[m_sel_id.i].MoveCorner( m_sel_id.ii, dlg.GetX(), dlg.GetY() );
+
 		CancelSelection();
+
 		m_Doc->ProjectModified( TRUE );
 		Invalidate( FALSE );
 	}
@@ -7878,7 +7884,9 @@ void CFreePcbView::OnAreaCornerProperties()
 		m_Doc->m_nlist->SetAreaConnections( m_sel_net, m_sel_ia );
 		m_Doc->m_nlist->OptimizeConnections( m_sel_net );
 		m_Doc->m_nlist->HighlightAreaCorner( m_sel_net, m_sel_ia, m_sel_is );
+
 		SetCursorMode( CUR_AREA_CORNER_SELECTED );
+
 		m_Doc->ProjectModified( TRUE );
 		Invalidate( FALSE );
 	}
@@ -12966,8 +12974,9 @@ void CFreePcbView::OnAreaSideStyle()
 		m_Doc->m_nlist->SelectAreaSide( m_sel_net, m_sel_ia, m_sel_id.ii );
 		m_Doc->m_nlist->SetAreaConnections( m_sel_net, m_sel_ia );
 		m_Doc->m_nlist->OptimizeConnections( m_sel_net );
+
+		m_Doc->ProjectModified( TRUE );
 	}
-	m_Doc->ProjectModified( TRUE );
 	Invalidate( FALSE );
 }
 
@@ -13011,6 +13020,7 @@ void CFreePcbView::OnValueProperties()
 			m_Doc->m_plist->SelectValueText( m_sel_part );
 		else
 			CancelSelection();
+
 		Invalidate( FALSE );
 	}
 }
