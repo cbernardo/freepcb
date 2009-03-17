@@ -76,8 +76,8 @@ void CDlgSetTraceWidths::DoDataExchange(CDataExchange* pDX)
 	{
 		// outgoing
 		if( !CSubDlg_TraceWidth::OnDDXOut() ||
-		    !CSubDlg_ViaWidth::OnDDXOut()   ||
-		    !CSubDlg_Clearance::OnDDXOut() )
+		    !CSubDlg_ViaWidth  ::OnDDXOut() ||
+		    !CSubDlg_Clearance ::OnDDXOut() )
 		{
 			pDX->Fail();
 			return;
@@ -114,4 +114,3 @@ BEGIN_MESSAGE_MAP(CDlgSetTraceWidths, CDialog)
 	ON_BN_CLICKED(IDC_RADIO3_PROJ_DEF,     OnBnClicked_c_Default)
 	ON_BN_CLICKED(IDC_RADIO3_SET_TO,       OnBnClicked_c_Set)
 END_MESSAGE_MAP()
-

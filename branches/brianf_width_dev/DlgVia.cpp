@@ -11,6 +11,7 @@
 IMPLEMENT_DYNAMIC(CDlgVia, CDialog)
 CDlgVia::CDlgVia(CWnd* pParent /*=NULL*/)
 	: CDialog(CDlgVia::IDD, pParent)
+	, CSubDlg_ViaWidth()
 {
 }
 
@@ -29,105 +30,44 @@ BOOL CDlgVia::OnInitDialog()
 
 	m_via_width.Update();
 
-	CString str;
+	// Enable Modification of Vias
+	m_check_v_modify.SetCheck(1);
 
-	if( m_via_width.m_via_width.m_status < 0 )
-	{
-		m_via_width.m_via_width.m_status = CInheritableInfo::E_USE_PARENT;
-		m_via_width.m_via_hole.m_status = CInheritableInfo::E_USE_PARENT;
-
-		m_radio_proj_def.SetCheck( 1 );
-
-		m_edit_via_w.EnableWindow( 0 );
-		m_edit_hole_w.EnableWindow( 0 );
-	}
-	else
-	{
-		m_radio_set_to.SetCheck( 1 );
-
-		m_edit_via_w.EnableWindow( 1 );
-		m_edit_hole_w.EnableWindow( 1 );
-	}
-
-	str.Format( "%d", m_via_width.m_via_width.m_val / NM_PER_MIL );
-	m_edit_via_w.SetWindowText( str );
-
-	str.Format( "%d", m_via_width.m_via_hole.m_val / NM_PER_MIL );
-	m_edit_hole_w.SetWindowText( str );
+	CSubDlg_ViaWidth::OnInitDialog(m_via_width);
 
 	return TRUE;
 }
 
 BEGIN_MESSAGE_MAP(CDlgVia, CDialog)
-	ON_BN_CLICKED(IDC_RADIO1_PROJ_DEF, &CDlgVia::OnBnClickedRadio1ProjDef)
-	ON_BN_CLICKED(IDC_RADIO1_SET_TO, &CDlgVia::OnBnClickedRadio1SetTo)
+	ON_BN_CLICKED(IDC_RADIO1_PROJ_DEF, OnBnClicked_v_Default)
+	ON_BN_CLICKED(IDC_RADIO1_SET_TO,   OnBnClicked_v_Set)
 END_MESSAGE_MAP()
 
 void CDlgVia::DoDataExchange(CDataExchange* pDX)
 {
 	CDialog::DoDataExchange(pDX);
 
-	DDX_Control(pDX, IDC_VIA_WIDTH, m_edit_via_w);
-	DDX_Control(pDX, IDC_VIA_HOLE_WIDTH, m_edit_hole_w);
-	DDX_Control(pDX, IDC_RADIO1_PROJ_DEF, m_radio_proj_def);
-	DDX_Control(pDX, IDC_RADIO1_SET_TO, m_radio_set_to);
+	DDX_Control(pDX, IDC_RADIO1_PROJ_DEF,      m_rb_v_default);
+	DDX_Control(pDX, IDC_RADIO1_SET_TO,        m_rb_v_set);
+	DDX_Control(pDX, IDC_TEXT_PAD,             m_text_v_pad_w);
+	DDX_Control(pDX, IDC_VIA_WIDTH,            m_edit_v_pad_w);
+	DDX_Control(pDX, IDC_TEXT_HOLE,            m_text_v_hole_w);
+	DDX_Control(pDX, IDC_VIA_HOLE_WIDTH,       m_edit_v_hole_w);
+	DDX_Control(pDX, IDC_CHECK_VIA_MOD,        m_check_v_modify);
 
 	if( pDX->m_bSaveAndValidate )
 	{
 		// outgoing
-		CString str;
-		int i;
-
-		if( m_radio_proj_def.GetCheck() )
+		if( !CSubDlg_ViaWidth  ::OnDDXOut() )
 		{
-			m_via_width.m_via_width.m_status = CInheritableInfo::E_USE_PARENT;
-			m_via_width.m_via_hole.m_status = CInheritableInfo::E_USE_PARENT;
+			pDX->Fail();
+			return;
 		}
 		else
 		{
-			m_edit_via_w.GetWindowText( str );
-			i = GetDimensionFromString( &str );
-			if( i <= 0 )
-			{
-				AfxMessageBox( "Illegal via width" );
-				pDX->Fail();
-			}
-			m_via_width.m_via_width = i;
+			m_via_width.Undef();
 
-			m_edit_hole_w.GetWindowText( str );
-			i = GetDimensionFromString( &str );
-			if( i <= 0 )
-			{
-				AfxMessageBox( "Illegal via width" );
-				pDX->Fail();
-			}
-			m_via_width.m_via_hole = i;
+			m_via_width = CSubDlg_ViaWidth::m_attrib;
 		}
 	}
-}
-
-// CDlgVia message handlers
-
-void CDlgVia::OnBnClickedRadio1ProjDef()
-{
-	m_edit_via_w.EnableWindow( 0 );
-	m_edit_hole_w.EnableWindow( 0 );
-
-	m_via_width.m_via_width.m_status = CInheritableInfo::E_USE_PARENT;
-	m_via_width.m_via_hole.m_status = CInheritableInfo::E_USE_PARENT;
-	m_via_width.Update();
-
-	CString str;
-
-	str.Format( "%d", m_via_width.m_via_width.m_val / NM_PER_MIL );
-	m_edit_via_w.SetWindowText( str );
-
-	str.Format( "%d", m_via_width.m_via_hole.m_val / NM_PER_MIL );
-	m_edit_hole_w.SetWindowText( str );
-}
-
-void CDlgVia::OnBnClickedRadio1SetTo()
-{
-	m_edit_via_w.EnableWindow( 1 );
-	m_edit_hole_w.EnableWindow( 1 );
 }

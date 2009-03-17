@@ -13,16 +13,16 @@ class CSubDlg_ViaWidth
 
 	class CTraceWidthUpdate : public CDataSubscriber<CConnectionWidthInfo>
 	{
-		void Update(CConnectionWidthInfo const &width_attrib);
+		void Update( CConnectionWidthInfo const &width_attrib );
 	} m_TraceWidthUpdate;
 	friend class CTraceWidthUpdate;
 
-	void TraceWidthUpdate(CConnectionWidthInfo const &width_attrib);
+	void TraceWidthUpdate( CConnectionWidthInfo const &width_attrib );
 
 	void OnChangeWidthType();
 
 protected:
-	void OnInitDialog(CInheritableInfo const &width_attrib);
+	void OnInitDialog( CInheritableInfo const &width_attrib );
 	int  OnDDXOut();
 
 protected:
@@ -45,7 +45,7 @@ protected:
 	afx_msg void OnBnClicked_v_modify();
 
 public:
-	explicit CSubDlg_ViaWidth(CSubDlg_TraceWidth *pSubDlg_TraceWidth);
+	explicit CSubDlg_ViaWidth( CSubDlg_TraceWidth *pSubDlg_TraceWidth = NULL );
 
 	CConnectionWidthInfo m_attrib;
 };

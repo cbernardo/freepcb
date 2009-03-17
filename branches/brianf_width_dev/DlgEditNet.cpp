@@ -40,6 +40,7 @@ void CDlgEditNet::Initialize( CNetList const * netlist,
 	m_plist = plist;
 	m_visible = visible;
 	m_new_net = new_net;
+
 	if( new_net )
 	{
 		m_name = "";
@@ -47,14 +48,14 @@ void CDlgEditNet::Initialize( CNetList const * netlist,
 		// Set all attib to use parent
 		m_width_attrib = CConnectionWidthInfo();
 		m_width_attrib = CClearanceInfo();
-
-		m_width_attrib.SetParent( netlist->Get_def_width_attrib() );
 	}
 	else
 	{
 		m_name         = (*nl)[i].name;
 		m_width_attrib = (*nl)[i].width_attrib;
 	}
+	m_width_attrib.SetParent( netlist->Get_def_width_attrib() );
+
 	m_w = w;
 	m_v_w = v_w;
 	m_v_h_w = v_h_w;
@@ -163,8 +164,8 @@ void CDlgEditNet::DoDataExchange(CDataExchange* pDX)
 		int i;
 
 		if( !CSubDlg_TraceWidth::OnDDXOut() ||
-		    !CSubDlg_ViaWidth::OnDDXOut()   ||
-		    !CSubDlg_Clearance::OnDDXOut() )
+		    !CSubDlg_ViaWidth  ::OnDDXOut() ||
+		    !CSubDlg_Clearance ::OnDDXOut() )
 		{
 			pDX->Fail();
 			return;

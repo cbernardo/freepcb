@@ -118,29 +118,6 @@ Item_OK:
 }
 
 
-CString CInheritableInfo::GetItemText(CInheritableInfo::Item const &item)
-{
-	CString str;
-
-	switch( item.m_status )
-	{
-	case E_USE_VAL:
-		str.Format( "%d", item.m_val / NM_PER_MIL );
-		break;
-
-	case E_USE_PARENT:
-		str.Format( "Default" );
-		break;
-
-	default:
-		str.Format( "Undefined" );
-		break;
-	}
-
-	return str;
-}
-
-
 // ----------------------------------------------------------------------------
 // Default GetItem function
 //

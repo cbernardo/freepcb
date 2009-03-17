@@ -1,10 +1,13 @@
 #pragma once
 #include "afxwin.h"
+#include "SubdlgViaWidth.h"
 
 
 // CDlgVia dialog
 
-class CDlgVia : public CDialog
+class CDlgVia 
+	: public CDialog
+	, public CSubDlg_ViaWidth
 {
 	DECLARE_DYNAMIC(CDlgVia)
 
@@ -24,12 +27,6 @@ protected:
 
 	DECLARE_MESSAGE_MAP()
 
-	CEdit m_edit_via_w;
-	CEdit m_edit_hole_w;
-
-	CButton m_radio_proj_def;
-	CButton m_radio_set_to;
-
-	afx_msg void OnBnClickedRadio1ProjDef();
-	afx_msg void OnBnClickedRadio1SetTo();
+	afx_msg void OnBnClicked_v_Default()	 { CSubDlg_ViaWidth::OnBnClicked_v_Default();	  }
+	afx_msg void OnBnClicked_v_Set()		 { CSubDlg_ViaWidth::OnBnClicked_v_Set();		  }
 };

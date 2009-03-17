@@ -32,11 +32,21 @@ CInheritableInfo::Item const &CClearanceInfo::GetItem(int item_id) const
 			break;
 	}
 
-	return CInheritableInfo::GetItem(item_id);
+	return CII_FreePcb::GetItem(item_id);
 }
 
 
 void CClearanceInfo::GetItemExt(Item &item, Item const &src) const
 {
-    // Handles E_AUTO_CALC
+	switch( src.m_status )
+	{
+	case E_AUTO_CALC:
+		item.m_val = src.m_val;
+		return;
+
+	default:
+		break;
+	}
+
+	CII_FreePcb::GetItemExt( item, src );
 }

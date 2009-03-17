@@ -73,6 +73,22 @@ CInheritableInfo::Item const &CConnectionWidthInfo::GetItem(int item_id) const
 	return CSegWidthInfo::GetItem(item_id);
 }
 
+void CConnectionWidthInfo::GetItemExt(Item &item, Item const &src) const
+{
+	switch( src.m_status )
+	{
+	case E_USE_DEF_FROM_WIDTH:
+		item.m_val = src.m_val;
+		return;
+
+	default:
+		break;
+	}
+
+	CSegWidthInfo::GetItemExt( item, src );
+}
+
+
 
 
 CNetWidthInfo &CNetWidthInfo::operator = (CInheritableInfo const &from)

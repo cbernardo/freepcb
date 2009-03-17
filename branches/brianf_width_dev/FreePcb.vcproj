@@ -379,6 +379,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\ii_FreePcb.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\ii_seg_width.cpp"
 				>
 			</File>
@@ -569,6 +573,10 @@
 			</File>
 			<File
 				RelativePath=".\ii_clearance.h"
+				>
+			</File>
+			<File
+				RelativePath=".\ii_FreePcb.h"
 				>
 			</File>
 			<File

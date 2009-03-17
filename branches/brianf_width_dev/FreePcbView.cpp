@@ -5030,108 +5030,84 @@ int CFreePcbView::ShowSelectStatus()
 			CString locked_flag = "";
 			if( m_sel_con.locked )
 				locked_flag = " (L)";
+
 			CString tee_flag = "";
 			if( int id = m_sel_vtx.tee_ID )
 				tee_flag.Format( " (T%d)", id );
 			if( m_sel_vtx.force_via_flag )
 				tee_flag = "(F)" + tee_flag;
+
 			int via_w = m_sel_vtx.via_w();
 			::MakeCStringFromDimension( &x_str, m_sel_vtx.x, u, FALSE, FALSE, FALSE, u==MIL?1:3 );
 			::MakeCStringFromDimension( &y_str, m_sel_vtx.y, u, FALSE, FALSE, FALSE, u==MIL?1:3 );
-			::MakeCStringFromDimension( &via_w_str, m_sel_vtx.via_w(), u, FALSE, FALSE, FALSE, u==MIL?1:3 );
+			::MakeCStringFromDimension( &via_w_str, via_w, u, FALSE, FALSE, FALSE, u==MIL?1:3 );
 			::MakeCStringFromDimension( &via_hole_str, m_sel_vtx.via_hole_w(), u, FALSE, FALSE, FALSE, u==MIL?1:3 );
 			if( m_sel_con.end_pin == cconnect::NO_END )
 			{
 				// vertex of stub trace
-				if( via_w )
+				if( m_sel_con.vtx[m_sel_con.nsegs].tee_ID )
 				{
-					// via
-					if( m_sel_con.vtx[m_sel_con.nsegs].tee_ID )
-						str.Format( "net \"%s\" branch(%d) to %s.%s, vertex %d, x %s, y %s, via %s/%s %s",
-							m_sel_net->name, m_sel_id.i+1,
-							m_sel_start_pin.ref_des,
-							m_sel_start_pin.pin_name,
-							m_sel_id.ii,
-							x_str,
-							y_str,
-							via_w_str,
-							via_hole_str,
-							tee_flag
-							);
-					else
-						str.Format( "net \"%s\" stub(%d) from %s.%s, vertex %d, x %s, y %s, via %s/%s %s",
-							m_sel_net->name, m_sel_id.i+1,
-							m_sel_start_pin.ref_des,
-							m_sel_start_pin.pin_name,
-							m_sel_id.ii,
-							x_str,
-							y_str,
-							via_w_str,
-							via_hole_str,
-							tee_flag
-							);
+					str.Format( "net \"%s\" branch(%d) to %s.%s, vertex %d, x %s, y %s",
+						m_sel_net->name, m_sel_id.i+1,
+						m_sel_start_pin.ref_des,
+						m_sel_start_pin.pin_name,
+						m_sel_id.ii,
+						x_str,
+						y_str
+					);
 				}
 				else
 				{
-					// no via
-					if( m_sel_con.vtx[m_sel_con.nsegs].tee_ID )
-						str.Format( "net \"%s\" branch(%d) to %s.%s, vertex %d, x %s, y %s %s",
-							m_sel_net->name, m_sel_id.i+1,
-							m_sel_start_pin.ref_des,
-							m_sel_start_pin.pin_name,
-							m_sel_id.ii,
-							x_str,
-							y_str,
-							tee_flag
-							);
-					else
-						str.Format( "net \"%s\" stub(%d) from %s.%s, vertex %d, x %s, y %s %s",
-							m_sel_net->name, m_sel_id.i+1,
-							m_sel_start_pin.ref_des,
-							m_sel_start_pin.pin_name,
-							m_sel_id.ii,
-							x_str,
-							y_str,
-							tee_flag
-							);
+					str.Format( "net \"%s\" stub(%d) from %s.%s, vertex %d, x %s, y %s",
+						m_sel_net->name, m_sel_id.i+1,
+						m_sel_start_pin.ref_des,
+						m_sel_start_pin.pin_name,
+						m_sel_id.ii,
+						x_str,
+						y_str
+					);
 				}
+
+				{
+					CString add_text;
+					if( via_w )
+					{
+						// with via
+						add_text.Format( ", via %s/%s", via_w_str, via_hole_str );
+						str += add_text;
+					}
+
+					add_text.Format( " %s", tee_flag );
+					str += add_text;
+				}
+
 			}
 			else
 			{
 				// vertex of normal connected trace
-				if( via_w )
+				str.Format( "net \"%s\" trace(%d) %s.%s-%s.%s%s, vertex %d, x %s, y %s",
+					m_sel_net->name, m_sel_id.i+1,
+					m_sel_start_pin.ref_des,
+					m_sel_start_pin.pin_name,
+					m_sel_end_pin.ref_des,
+					m_sel_end_pin.pin_name,
+					locked_flag,
+					m_sel_id.ii,
+					x_str,
+					y_str
+				);
+
 				{
-					// with via
-					str.Format( "net \"%s\" trace(%d) %s.%s-%s.%s%s, vertex %d, x %s, y %s, via %s/%s %s",
-						m_sel_net->name, m_sel_id.i+1,
-						m_sel_start_pin.ref_des,
-						m_sel_start_pin.pin_name,
-						m_sel_end_pin.ref_des,
-						m_sel_end_pin.pin_name,
-						locked_flag,
-						m_sel_id.ii,
-						x_str,
-						y_str,
-						via_w_str,
-						via_hole_str,
-						tee_flag
-						);
-				}
-				else
-				{
-					// no via
-					str.Format( "net \"%s\" trace(%d) %s.%s-%s.%s%s, vertex %d, x %s, y %s %s",
-						m_sel_net->name, m_sel_id.i+1,
-						m_sel_start_pin.ref_des,
-						m_sel_start_pin.pin_name,
-						m_sel_end_pin.ref_des,
-						m_sel_end_pin.pin_name,
-						locked_flag,
-						m_sel_id.ii,
-						x_str,
-						y_str,
-						tee_flag
-						);
+					CString add_text;
+					if( via_w )
+					{
+						// with via
+						add_text.Format( ", via %s/%s", via_w_str, via_hole_str );
+						str += add_text;
+					}
+
+					add_text.Format( " %s", tee_flag );
+					str += add_text;
 				}
 			}
 		}
@@ -5144,18 +5120,32 @@ int CFreePcbView::ShowSelectStatus()
 				tee_flag.Format( " (T%d)", id );
 			if( m_sel_vtx.force_via_flag )
 				tee_flag = "(F)" + tee_flag;
+
+			int via_w = m_sel_vtx.via_w();
+
 			::MakeCStringFromDimension( &x_str, m_sel_vtx.x, u, FALSE, FALSE, FALSE, u==MIL?1:3 );
 			::MakeCStringFromDimension( &y_str, m_sel_vtx.y, u, FALSE, FALSE, FALSE, u==MIL?1:3 );
-			::MakeCStringFromDimension( &via_w_str, m_sel_vtx.via_w(), u, FALSE, FALSE, FALSE, u==MIL?1:3 );
+			::MakeCStringFromDimension( &via_w_str, via_w, u, FALSE, FALSE, FALSE, u==MIL?1:3 );
 			::MakeCStringFromDimension( &via_hole_str, m_sel_vtx.via_hole_w(), u, FALSE, FALSE, FALSE, u==MIL?1:3 );
-			str.Format( "net \"%s\" stub(%d) end, x %s, y %s, via %s/%s %s",
+
+			str.Format( "net \"%s\" stub(%d) end, x %s, y %s",
 				m_sel_net->name, m_sel_id.i+1,
 				x_str,
-				y_str,
-				via_w_str,
-				via_hole_str,
-				tee_flag
-				);
+				y_str
+			);
+
+			{
+				CString add_text;
+				if( via_w )
+				{
+					// with via
+					add_text.Format( ", via %s/%s", via_w_str, via_hole_str );
+					str += add_text;
+				}
+
+				add_text.Format( " %s", tee_flag );
+				str += add_text;
+			}
 		}
 		break;
 
@@ -5598,8 +5588,8 @@ int CFreePcbView::SetWidth( int mode )
 		{
 			// set default for net
 
-			// Check for any "use-parent" attributes.  These need to be changed to "undef" 
-			// so that the net level is not changed.  Since the segments are getting set 
+			// Check for any "use-parent" attributes.  These need to be changed to "undef"
+			// so that the net level is not changed.  Since the segments are getting set
 			// to "use-parent", any "use-parent" attribute is not making changes to the net.
 			if( width_attrib.m_seg_width.m_status == CInheritableInfo::E_USE_PARENT ) width_attrib.m_seg_width.Undef();
 			if( width_attrib.m_via_width.m_status == CInheritableInfo::E_USE_PARENT ) width_attrib.m_via_width.Undef();
@@ -5632,8 +5622,9 @@ int CFreePcbView::SetWidth( int mode )
 			// apply to segment
 			m_Doc->m_nlist->SetSegmentWidth( m_sel_net, m_sel_ic, m_sel_id.ii, width_attrib );
 		}
+
+		m_Doc->ProjectModified( TRUE );
 	}
-	m_Doc->ProjectModified( TRUE );
 	Invalidate( FALSE );
 	return 0;
 }
@@ -5681,8 +5672,8 @@ int CFreePcbView::SetClearance( int mode )
 		{
 			// set default for net
 
-			// Check for any "use-parent" attributes.  These need to be changed to "undef" 
-			// so that the net level is not changed.  Since the segments are getting set 
+			// Check for any "use-parent" attributes.  These need to be changed to "undef"
+			// so that the net level is not changed.  Since the segments are getting set
 			// to "use-parent", any "use-parent" attribute is not making changes to the net.
 			if( clearance.m_ca_clearance.m_status == CInheritableInfo::E_USE_PARENT ) clearance.m_ca_clearance.Undef();
 

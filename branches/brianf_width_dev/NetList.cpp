@@ -1932,27 +1932,48 @@ int CNetList::SetSegmentWidth( cnet * net, int ic, int is, CConnectionWidthInfo 
 {
 //	id id;
 	cconnect * c = &net->connect[ic];
-	if( c->seg[is].layer != LAY_RAT_LINE && width.m_seg_width.m_val != 0 )
+
+	cseg *pSeg = &c->seg[is];
+
+	if( pSeg->layer != LAY_RAT_LINE && width.m_seg_width.m_val != 0 )
 	{
-		c->seg[is].seg_width.m_seg_width = width.m_seg_width;
-		m_dlist->Set_w( c->seg[is].dl_el,  c->seg[is].width() );
-		m_dlist->Set_w( c->seg[is].dl_sel, c->seg[is].width() );
+		pSeg->seg_width.m_seg_width = width.m_seg_width;
+		pSeg->seg_width.SetParent( net->def_width_attrib );
+		pSeg->seg_width.Update();
+
+		m_dlist->Set_w( pSeg->dl_el,  pSeg->width() );
+		m_dlist->Set_w( pSeg->dl_sel, pSeg->width() );
 	}
 
-	if( c->vtx[is].viaExists() && width.m_via_width.m_val != 0 )
-	{
-		c->vtx[is].via_width.m_via_width = width.m_via_width;
-		c->vtx[is].via_width.m_via_hole  = width.m_via_hole;
-		DrawVia( net, ic, is );
-	}
-	if( c->vtx[is+1].viaExists() && width.m_via_width.m_val != 0 )
-	{
-		c->vtx[is+1].via_width.m_via_width = width.m_via_width;
-		c->vtx[is+1].via_width.m_via_hole  = width.m_via_hole;
-		DrawVia( net, ic, is+1 );
-	}
+	SetViaSize( net, ic, is,   width );
+	SetViaSize( net, ic, is+1, width );
 
 	return 0;
+}
+
+
+void CNetList::SetViaSize( cnet * net, int ic, int ivtx, CConnectionWidthInfo const &width )
+{
+	cconnect *c = &net->connect[ic];
+	cvertex *pVtx = &c->vtx[ivtx];
+
+	if( pVtx->viaExists() && width.m_via_width.m_val != 0 )
+	{
+		pVtx->via_width.m_via_width = width.m_via_width;
+		pVtx->via_width.m_via_hole  = width.m_via_hole;
+
+		pVtx->via_width.SetParent( net->def_width_attrib );
+
+		// Do not allow E_USE_DEF_FROM_WIDTH to get into pVtx
+		// as no trace width info is present in the vertex
+		// to resolve the size.
+		if( pVtx->via_width.m_via_width.m_status == CII_FreePcb::E_USE_DEF_FROM_WIDTH ) pVtx->via_width.m_via_width.m_status = CII_FreePcb::E_USE_VAL;
+		if( pVtx->via_width.m_via_hole .m_status == CII_FreePcb::E_USE_DEF_FROM_WIDTH ) pVtx->via_width.m_via_hole .m_status = CII_FreePcb::E_USE_VAL;
+
+		pVtx->via_width.Update();
+
+		DrawVia( net, ic, ivtx );
+	}
 }
 
 
@@ -1962,13 +1983,15 @@ int CNetList::SetSegmentClearance( cnet * net, int ic, int is, CClearanceInfo co
 {
 //	id id;
 	cconnect * c = &net->connect[ic];
-	if( c->seg[is].layer != LAY_RAT_LINE )
-	{
-		c->seg[is].seg_clearance = clearance;
-		c->seg[is].seg_clearance.SetParent( net->def_width_attrib );
-		c->seg[is].seg_clearance.Update();
+	cseg *pSeg = &c->seg[is];
 
-		m_dlist->Set_clearance( c->seg[is].dl_el, c->seg[is].clearance() );
+	if( pSeg->layer != LAY_RAT_LINE )
+	{
+		pSeg->seg_clearance = clearance;
+		pSeg->seg_clearance.SetParent( net->def_width_attrib );
+		pSeg->seg_clearance.Update();
+
+		m_dlist->Set_clearance( pSeg->dl_el, pSeg->clearance() );
 	}
 
 	return 0;
@@ -4593,8 +4616,9 @@ void CNetList::ReadNets( CStdioFile * pcb_file, double read_version, int * layer
 							else
 							{
 								AppendSegment( net, ic, x, y, layer, width, seg_clearance );
+
 								// set widths of following vertex
-								net->connect[ic].vtx[is+1].via_width = width;
+								SetViaSize( net, ic, is+1, width );
 							}
 							//** this code is for bug in versions before 1.313
 							if( force_via_flag )
@@ -4608,7 +4632,8 @@ void CNetList::ReadNets( CStdioFile * pcb_file, double read_version, int * layer
 							if( is != 0 )
 							{
 								// set widths of preceding vertex
-								net->connect[ic].vtx[is].via_width = pre_width;
+								SetViaSize( net, ic, is, pre_width );
+
 								if( m_dlist )
 									DrawVia( net, ic, is );
 							}
@@ -5150,26 +5175,37 @@ void CNetList::ImportNetListInfo( netlist_info * nl, int flags, CDlgLog * log )
 			SetNetVisibility( net, (*nl)[i].visible );
 			if( (*nl)[i].apply_trace_width )
 			{
-				CConnectionWidthInfo width( (*nl)[i].width_attrib );
+				CConnectionWidthInfo width;
 
 				width.m_via_width.Undef();
 				width.m_via_hole.Undef();
+
+				width.SetParent( (*nl)[i].width_attrib );
+				width.Update();
 
 				SetNetWidth( net, width );
 			}
 
 			if( (*nl)[i].apply_via_width )
 			{
-				CConnectionWidthInfo width( (*nl)[i].width_attrib );
+				CConnectionWidthInfo width;
 
 				width.m_seg_width.Undef();
+
+				width.SetParent( (*nl)[i].width_attrib );
+				width.Update();
 
 				SetNetWidth( net, width );
 			}
 
 			if( (*nl)[i].apply_clearance )
 			{
-				SetNetClearance( net, CClearanceInfo(CInheritableInfo::E_USE_PARENT) );
+				CClearanceInfo clearance;
+
+				clearance.SetParent( (*nl)[i].width_attrib );
+				clearance.Update();
+
+				SetNetClearance( net, clearance );
             }
 		}
 	}

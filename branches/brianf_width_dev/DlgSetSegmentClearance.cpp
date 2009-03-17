@@ -116,25 +116,4 @@ void DlgSetSegmentClearance::DoDataExchange(CDataExchange* pDX)
 BEGIN_MESSAGE_MAP(DlgSetSegmentClearance, CDialog)
 	ON_BN_CLICKED(IDC_RADIO_USE_NET_CLEARANCE, &DlgSetSegmentClearance::OnBnClicked_c_Default)
 	ON_BN_CLICKED(IDC_RADIO_SET_TRACE_CLEARANCE, &DlgSetSegmentClearance::OnBnClicked_c_Set)
-	ON_BN_CLICKED(IDC_APPLY_SEG, &DlgSetSegmentClearance::OnBnClickedApplySeg)
-	ON_BN_CLICKED(IDC_APPLY_CON, &DlgSetSegmentClearance::OnBnClickedApplyCon)
-	ON_BN_CLICKED(IDC_APPLY_NET, &DlgSetSegmentClearance::OnBnClickedApplyNet)
 END_MESSAGE_MAP()
-
-
-// DlgSetSegmentClearance message handlers
-
-void DlgSetSegmentClearance::OnBnClickedApplySeg()
-{
-	m_apply = 1;
-}
-
-void DlgSetSegmentClearance::OnBnClickedApplyCon()
-{
-	m_apply = 2;
-}
-
-void DlgSetSegmentClearance::OnBnClickedApplyNet()
-{
-	m_apply = 3;
-}

@@ -49,8 +49,4 @@ protected:
 	CButton m_radio3_no;
 	CButton m_radio3_auto;
 	CButton m_radio3_as_sel;
-
-	afx_msg void OnBnClickedApplySeg();
-	afx_msg void OnBnClickedApplyCon();
-	afx_msg void OnBnClickedApplyNet();
 };

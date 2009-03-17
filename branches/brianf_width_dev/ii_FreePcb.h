@@ -26,4 +26,7 @@ public:
 	CII_FreePcb() {}
 	CII_FreePcb(CInheritableInfo const &from) : CInheritableInfo(from) {}
 	CII_FreePcb(CII_FreePcb const &from) : CInheritableInfo(from) {}
+
+public:
+	static CString GetItemText(Item const &item);
 };

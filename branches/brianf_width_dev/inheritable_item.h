@@ -137,8 +137,6 @@ public:
 
 	int hasParent(void) const { return m_pParent != this; }
 
-	static CString GetItemText(Item const &item);
-
 protected:
 	virtual void GetItemExt(Item &item, Item const &src) const;
 };

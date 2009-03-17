@@ -19,14 +19,24 @@ void CSubDlg_ViaWidth::OnInitDialog(CInheritableInfo const &width_attrib)
 	//BAF add E_USE_DEF_FROM_WIDTH to item types
 	if( m_attrib.m_via_width.m_status < 0 )
 	{
-		m_attrib.m_via_width.m_status = CInheritableInfo::E_USE_PARENT;
-		m_attrib.m_via_hole .m_status = CInheritableInfo::E_USE_PARENT;
+		if( m_attrib.m_via_width.m_status == CII_FreePcb::E_USE_DEF_FROM_WIDTH )
+		{
+			m_attrib.m_via_width.m_status = CII_FreePcb::E_USE_DEF_FROM_WIDTH;
+			m_attrib.m_via_hole .m_status = CII_FreePcb::E_USE_DEF_FROM_WIDTH;
 
-		m_rb_v_default.SetCheck(1);
+			m_rb_v_def_for_width.SetCheck( 1 );
+		}
+		else
+		{
+			m_attrib.m_via_width.m_status = CInheritableInfo::E_USE_PARENT;
+			m_attrib.m_via_hole .m_status = CInheritableInfo::E_USE_PARENT;
+
+			m_rb_v_default.SetCheck( 1 );
+		}
 	}
 	else
 	{
-		m_rb_v_set.SetCheck(1);
+		m_rb_v_set.SetCheck( 1 );
 	}
 	OnChangeWidthType();
 
@@ -48,6 +58,11 @@ int CSubDlg_ViaWidth::OnDDXOut()
 		{
 			m_attrib.m_via_width.m_status = CInheritableInfo::E_USE_PARENT;
 			m_attrib.m_via_hole .m_status = CInheritableInfo::E_USE_PARENT;
+		}
+		else if ( m_rb_v_def_for_width.GetCheck() )
+		{
+			m_attrib.m_via_width.m_status = CII_FreePcb::E_USE_DEF_FROM_WIDTH;
+			m_attrib.m_via_hole .m_status = CII_FreePcb::E_USE_DEF_FROM_WIDTH;
 		}
 		else
 		{
@@ -158,12 +173,6 @@ void CSubDlg_ViaWidth::OnBnClicked_v_Default()
 void CSubDlg_ViaWidth::OnBnClicked_v_DefForTrace()
 {
 	OnChangeWidthType();
-
-	if( my_SubDlg_TraceWidth != NULL )
-	{
-		// Force update from publisher
-		my_SubDlg_TraceWidth->m_attrib.Update();
-	}
 }
 
 void CSubDlg_ViaWidth::OnBnClicked_v_Set()
@@ -180,13 +189,13 @@ void CSubDlg_ViaWidth::OnBnClicked_v_modify()
 		m_rb_v_def_for_width.EnableWindow( 0 );
 		m_rb_v_set.EnableWindow( 0 );
 
+		m_check_v_apply.EnableWindow( 0 );
+
 		m_text_v_pad_w.EnableWindow( 0 );
 		m_text_v_hole_w.EnableWindow( 0 );
 
 		m_edit_v_pad_w .EnableWindow( 0 );
 		m_edit_v_hole_w.EnableWindow( 0 );
-
-		m_check_v_apply.EnableWindow( 0 );
 	}
 	else
 	{
@@ -210,4 +219,10 @@ void CSubDlg_ViaWidth::OnChangeWidthType()
 
 	m_edit_v_pad_w .EnableWindow( enable );
 	m_edit_v_hole_w.EnableWindow( enable );
+
+	if( m_rb_v_def_for_width.GetCheck() && my_SubDlg_TraceWidth != NULL )
+	{
+		// Force update from publisher
+		my_SubDlg_TraceWidth->m_attrib.Update();
+	}
 }

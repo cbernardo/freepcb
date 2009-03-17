@@ -161,8 +161,8 @@ BOOL CDlgNetCombine::OnInitDialog()
 	m_list_ctrl.InsertColumn( COL_NAME,      "Name",      LVCFMT_LEFT, 140 );
 	m_list_ctrl.InsertColumn( COL_PINS,      "Pins",      LVCFMT_LEFT, 40 );
 	m_list_ctrl.InsertColumn( COL_WIDTH,     "Width",     LVCFMT_LEFT, 50 );
-	m_list_ctrl.InsertColumn( COL_VIA_W,     "Via W",     LVCFMT_LEFT, 50 );
-	m_list_ctrl.InsertColumn( COL_HOLE_W,    "Hole",      LVCFMT_LEFT, 50 );
+	m_list_ctrl.InsertColumn( COL_VIA_W,     "Via W",     LVCFMT_LEFT, 53 );
+	m_list_ctrl.InsertColumn( COL_HOLE_W,    "Hole",      LVCFMT_LEFT, 53 );
 	m_list_ctrl.InsertColumn( COL_CLEARANCE, "Clearance", LVCFMT_LEFT, 60 );
 
 	// initialize netlist control
@@ -192,16 +192,16 @@ void CDlgNetCombine::DrawListCtrl()
 		str.Format( "%d", ::nl_combine[i].ref_des.GetSize() );
 		m_list_ctrl.SetItem( iItem, COL_PINS, LVIF_TEXT, str, 0, 0, 0, 0 );
 
-		str = CInheritableInfo::GetItemText( ::nl_combine[i].width_attrib.m_seg_width );
+		str = CII_FreePcb::GetItemText( ::nl_combine[i].width_attrib.m_seg_width );
 		m_list_ctrl.SetItem( iItem, COL_WIDTH, LVIF_TEXT, str, 0, 0, 0, 0 );
 
-		str = CInheritableInfo::GetItemText( ::nl_combine[i].width_attrib.m_via_width );
+		str = CII_FreePcb::GetItemText( ::nl_combine[i].width_attrib.m_via_width );
 		m_list_ctrl.SetItem( iItem, COL_VIA_W, LVIF_TEXT, str, 0, 0, 0, 0 );
 
-		str = CInheritableInfo::GetItemText( ::nl_combine[i].width_attrib.m_via_hole );
+		str = CII_FreePcb::GetItemText( ::nl_combine[i].width_attrib.m_via_hole );
 		m_list_ctrl.SetItem( iItem, COL_HOLE_W, LVIF_TEXT, str, 0, 0, 0, 0 );
 
-		str = CInheritableInfo::GetItemText( ::nl_combine[i].width_attrib.m_ca_clearance );
+		str = CII_FreePcb::GetItemText( ::nl_combine[i].width_attrib.m_ca_clearance );
 		m_list_ctrl.SetItem( iItem, COL_CLEARANCE, LVIF_TEXT, str, 0, 0, 0, 0 );
 
 		ListView_SetCheckState( m_list_ctrl, nItem, ::nl_combine[i].visible );

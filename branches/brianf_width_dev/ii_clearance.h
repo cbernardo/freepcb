@@ -6,6 +6,9 @@
 // Information for clearances
 class CClearanceInfo : public CII_FreePcb
 {
+protected:
+    virtual void GetItemExt(Item &item, Item const &src) const;
+
 public:
 	explicit CClearanceInfo(CInheritableInfo const &from) :
 		CII_FreePcb(from)
@@ -41,9 +44,6 @@ public:
 	}
 
 	virtual Item const &GetItem(int item_id) const;
-
-protected:
-    virtual void GetItemExt(Item &item, Item const &src) const;
 };
 
 #endif /* !_II_CLEARANCE_H ] */

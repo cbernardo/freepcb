@@ -50,6 +50,9 @@ public:
 
 class CConnectionWidthInfo : public CSegWidthInfo
 {
+protected:
+    virtual void GetItemExt(Item &item, Item const &src) const;
+
 public:
 	CConnectionWidthInfo() :
 		m_via_width(E_USE_PARENT),
@@ -107,13 +110,13 @@ public:
 class CNetWidthInfo : public CConnectionWidthInfo
 {
 public:
-	CNetWidthInfo() : 
+	CNetWidthInfo() :
 		m_ca_clearance( E_USE_PARENT )
 	{
 	}
 
 	CNetWidthInfo( CInheritableInfo const &from ) :
-		CConnectionWidthInfo( from )	
+		CConnectionWidthInfo( from )
 	{
 		*this = from;
 	}
