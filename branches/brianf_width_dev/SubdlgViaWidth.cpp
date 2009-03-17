@@ -144,10 +144,16 @@ void CSubDlg_ViaWidth::TraceWidthUpdate(CConnectionWidthInfo const &width_attrib
 			}
 		}
 
-		text.Format( "%d", new_v_w/NM_PER_MIL );
+		m_attrib.m_via_width.m_status = CII_FreePcb::E_USE_DEF_FROM_WIDTH;
+		m_attrib.m_via_width.m_val    = new_v_w;
+
+		m_attrib.m_via_hole.m_status = CInheritableInfo::E_USE_PARENT;
+		m_attrib.m_via_hole.m_val    = new_v_h_w;
+
+		text.Format( "%d", new_v_w / NM_PER_MIL );
 		m_edit_v_pad_w.SetWindowText( text );
 
-		text.Format( "%d", new_v_h_w/NM_PER_MIL );
+		text.Format( "%d", new_v_h_w / NM_PER_MIL );
 		m_edit_v_hole_w.SetWindowText( text );
 	}
 }
@@ -166,6 +172,7 @@ void CSubDlg_ViaWidth::OnBnClicked_v_Default()
 
 	str.Format( "%d", m_attrib.m_via_width.m_val / NM_PER_MIL );
 	m_edit_v_pad_w.SetWindowText( str );
+
 	str.Format( "%d", m_attrib.m_via_hole.m_val / NM_PER_MIL );
 	m_edit_v_hole_w.SetWindowText( str );
 }
