@@ -16,15 +16,27 @@ void CSubDlg_ViaWidth::OnInitDialog(CInheritableInfo const &width_attrib)
 {
 	m_attrib = width_attrib;
 
-	//BAF add E_USE_DEF_FROM_WIDTH to item types
+	int n = ( my_SubDlg_TraceWidth == NULL ) ? -1 : my_SubDlg_TraceWidth->m_w->GetSize();
+
 	if( m_attrib.m_via_width.m_status < 0 )
 	{
 		if( m_attrib.m_via_width.m_status == CII_FreePcb::E_USE_DEF_FROM_WIDTH )
 		{
-			m_attrib.m_via_width.m_status = CII_FreePcb::E_USE_DEF_FROM_WIDTH;
-			m_attrib.m_via_hole .m_status = CII_FreePcb::E_USE_DEF_FROM_WIDTH;
+			if( n > 0 )
+			{
+				m_attrib.m_via_width.m_status = CII_FreePcb::E_USE_DEF_FROM_WIDTH;
+				m_attrib.m_via_hole .m_status = CII_FreePcb::E_USE_DEF_FROM_WIDTH;
 
-			m_rb_v_def_for_width.SetCheck( 1 );
+				m_rb_v_def_for_width.SetCheck( 1 );
+			}
+			else
+			{
+				// Default width menu has no entries
+				m_attrib.m_via_width.m_status = CII_FreePcb::E_USE_VAL;
+				m_attrib.m_via_hole .m_status = CII_FreePcb::E_USE_VAL;
+
+				m_rb_v_set.SetCheck( 1 );
+			}
 		}
 		else
 		{
@@ -112,7 +124,8 @@ void CSubDlg_ViaWidth::CTraceWidthUpdate::Update(CConnectionWidthInfo const &wid
 
 void CSubDlg_ViaWidth::TraceWidthUpdate(CConnectionWidthInfo const &width_attrib)
 {
-	if( m_rb_v_def_for_width.GetCheck() )
+	int n = ( my_SubDlg_TraceWidth->m_w == NULL ) ? -1 : my_SubDlg_TraceWidth->m_w->GetSize();
+	if( m_rb_v_def_for_width.GetCheck() && (n > 0) )
 	{
 		CString text;
 
@@ -232,4 +245,8 @@ void CSubDlg_ViaWidth::OnChangeWidthType()
 		// Force update from publisher
 		my_SubDlg_TraceWidth->m_attrib.Update();
 	}
+
+	// Only enable "default for width" if defaults exist
+	int n = ( my_SubDlg_TraceWidth == NULL ) ? -1 : my_SubDlg_TraceWidth->m_w->GetSize();
+	m_rb_v_def_for_width.EnableWindow( ( n > 0 ) ? 1 : 0 );
 }

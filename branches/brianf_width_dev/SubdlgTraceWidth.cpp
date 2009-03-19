@@ -3,7 +3,7 @@
 
 CSubDlg_TraceWidth::CSubDlg_TraceWidth()
 {
-	m_w = 0;
+	m_w = NULL;
 }
 
 void CSubDlg_TraceWidth::OnInitDialog(CInheritableInfo const &width_attrib)
@@ -14,7 +14,7 @@ void CSubDlg_TraceWidth::OnInitDialog(CInheritableInfo const &width_attrib)
 
 	if( m_w )
 	{
-		for( int iw=0; iw<m_w->GetSize(); iw++ )
+		for( int iw=0; iw < m_w->GetSize(); iw++ )
 		{
 			int w = (*m_w)[iw];
 			str.Format( "%d", w/NM_PER_MIL );
