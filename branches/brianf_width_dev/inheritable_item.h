@@ -31,16 +31,26 @@ public:
 			Undef();
 		}
 
+		Item(Item const &from)
+		{
+			// Direct assignment
+			// Can't use virtual assignment in ctor
+			m_status = from.m_status;
+			m_val    = from.m_val;
+		}
+
 		explicit Item(int val_status)
 		{
 			// Must clear before set in case val_status
 			// is undef (no assignment is done)
 			Undef();
 
-			SetItemFromInt(val_status);
+			// Direct assignment
+			// Can't use virtual assignment in ctor
+			_SetItemFromInt(val_status);
 		}
 
-		~Item()
+		virtual ~Item()
 		{
 			Undef();
 		}
@@ -48,20 +58,17 @@ public:
 	public: // operators
 		Item &operator = (Item const &from)
 		{
-			// only assign if the source status is DEFINED
-			if( from.isDefined() )
-			{
-				m_status = from.m_status;
-				m_val    = from.m_val;
-			}
-
+			assign_from(from);
 			return *this;
 		}
 
 		// To/From int
 		Item &operator = (int val_status)
 		{
-			SetItemFromInt(val_status);
+			Item temp(val_status);
+
+			// Invoke the virtual assignment operator
+			assign_from(temp);
 
 			return *this;
 		}
@@ -80,7 +87,13 @@ public:
 		// Set/Get as int:
 		//   negative values map to EStatus
 		//   zero & positive values count as values - i.e. actual values must be >= 0
-		void SetItemFromInt(int val_status);
+		void SetItemFromInt(int val_status)
+		{
+			Item temp(val_status);
+
+			// Use virtual assignment operator
+			assign_from(temp);
+		}
 
 		int GetItemAsInt(void) const
 		{
@@ -100,6 +113,12 @@ public:
 
 	public: // UNDEF item
 		static Item const UNDEF;
+
+	protected:
+		// Directly set item from int - do not use virtual assignment
+		void _SetItemFromInt(int val_status);
+
+		virtual void assign_from(Item const &from);
 	};
 
 public:	// construction and copying/assignment

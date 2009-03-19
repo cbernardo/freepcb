@@ -117,8 +117,7 @@ struct undo_vtx {
 	int force_via_flag;		// force a via even if no layer change
 	int tee_ID;				// identifier for t-connection
 
-	CConnectionWidthInfo width; // via width and hole width  BAF FIX
-	CClearanceInfo       clearance;
+	CViaWidthInfo width_attrib; // via width/hole/clearance
 
 	// Placement new
 	static void *operator new(size_t size, void *pMem) { return pMem; }
@@ -191,7 +190,12 @@ class cpin
 {
 public:
 	cpin(){ part = NULL; };
-	CString ref_des;	// reference designator such as 'U1'
+
+	// BAF Check with Allan if OK
+	// reference designator such as 'U1'
+	CString const ref_des() const { return part == NULL ? CString("") : part->ref_des; }
+	void set_ref_des(CString const &name) {}
+
 	CString pin_name;	// pin name such as "1" or "A23"
 	cpart * part;		// pointer to part containing the pin
 	int utility;
@@ -255,9 +259,7 @@ public:
 class cvertex
 {
 public:
-	cvertex() :
-		via_width( 0,0,0 ),
-		vtx_clearance( CClearanceInfo::E_AUTO_CALC )
+	cvertex()
 	{
 		// constructor
 		m_dlist = 0;	// this must set with Initialize()
@@ -289,8 +291,7 @@ public:
 		y = v.y;
 		pad_layer = v.pad_layer;
 		force_via_flag = v.force_via_flag;
-		via_width = v.via_width;
-		vtx_clearance = v.vtx_clearance;
+		via_width_attrib = v.via_width_attrib;
 		m_dlist = v.m_dlist;
 		tee_ID = v.tee_ID;
 		utility = v.utility;
@@ -326,8 +327,7 @@ public:
 	int x, y;					// coords
 	int pad_layer;				// layer of pad if this is first or last vertex, otherwise 0
 	int force_via_flag;			// force a via even if no layer change
-	CConnectionWidthInfo via_width; // via width and hole width (via_w==0 means no via) BAF-use CViaWidthInfo when complete
-	CClearanceInfo vtx_clearance; // via clearance
+	CViaWidthInfo via_width_attrib; // via attributes (via_w==0 means no via)
 	CArray<dl_element*> dl_el;	// array of display elements for each layer
 	dl_element * dl_sel;		// selection box
 	dl_element * dl_hole;		// hole in via
@@ -335,12 +335,12 @@ public:
 	int tee_ID;					// used to flag a t-connection point
 	int utility, utility2;		// used for various functions
 
-	int via_w()         const { return via_width.m_via_width.m_val; }
-	int via_hole_w()    const { return via_width.m_via_hole.m_val; }
-	int via_clearance() const { return vtx_clearance.m_ca_clearance.m_val; }
+	int via_w()         const { return via_width_attrib.m_via_width.m_val; }
+	int via_hole_w()    const { return via_width_attrib.m_via_hole.m_val; }
+	int via_clearance() const { return via_width_attrib.m_ca_clearance.m_val; }
 
 	int viaExists() const { return via_w(); }
-	void SetNoVia() { via_width.m_via_width = via_width.m_via_hole = 0; }
+	void SetNoVia() { via_width_attrib.m_via_width = via_width_attrib.m_via_hole = 0; }
 };
 
 // cconnect: describes a connection between two pins or a stub trace with no end pin
@@ -430,14 +430,14 @@ public:
 	cnet * AddNet( CString name, int max_pins, CNetWidthInfo const &def_width_attrib );
 	void RemoveNet( cnet * net );
 	void RemoveAllNets();
-	void AddNetPin( cnet * net, CString * ref_des, CString * pin_name, CClearanceInfo const &clearance, BOOL set_areas=TRUE );
-	void AddNetPin( cnet * net, CString * ref_des, CString * pin_name, BOOL set_areas=TRUE ) { AddNetPin(net,ref_des,pin_name, CClearanceInfo(CClearanceInfo::E_AUTO_CALC), set_areas); }
+	void AddNetPin( cnet * net, CString const &ref_des, CString const &pin_name, CClearanceInfo const &clearance, BOOL set_areas=TRUE );
+	void AddNetPin( cnet * net, CString const &ref_des, CString const &pin_name, BOOL set_areas=TRUE ) { AddNetPin(net,ref_des,pin_name, CClearanceInfo(CClearanceInfo::E_AUTO_CALC), set_areas); }
 	void RemoveNetPin( cpart * part, CString * pin_name );
-	void RemoveNetPin( cnet * net, CString * ref_des, CString * pin_name );
+	void RemoveNetPin( cnet * net, CString const &ref_des, CString const &pin_name );
 	void RemoveNetPin( cnet * net, int pin_index );
-	void DisconnectNetPin( cpart * part, CString * pin_name );
-	void DisconnectNetPin( cnet * net, CString * ref_des, CString * pin_name );
-	int GetNetPinIndex( cnet * net, CString * ref_des, CString * pin_name );
+	void DisconnectNetPin( cpart * part, CString const &pin_name );
+	void DisconnectNetPin( cnet * net, CString const &ref_des, CString const &pin_name );
+	int GetNetPinIndex( cnet * net, CString const &ref_des, CString const &pin_name );
 	int SetNetWidth( cnet * net, CConnectionWidthInfo const &width );
 	int SetNetClearance( cnet * net, CClearanceInfo const &clearance );
 	int UpdateNetAttributes( cnet * net );
@@ -482,11 +482,11 @@ public:
 	}
 
 	int InsertSegment( cnet * net, int ic, int iseg, int x, int y, int layer,
-						CConnectionWidthInfo const &width,
+						CSegWidthInfo const &width,
 						CClearanceInfo const &clearance,
 						int dir );
 	int InsertSegment( cnet * net, int ic, int iseg, int x, int y, int layer,
-						CConnectionWidthInfo const &width,
+						CSegWidthInfo const &width,
 						int dir )
 	{
 		return InsertSegment( net, ic, iseg, x, y, layer, width, CClearanceInfo(), dir );
@@ -531,6 +531,7 @@ public:
 	int CancelMovingSegment( cnet * net, int ic, int ivtx );
 
 	// functions for vias
+	void InsertVia( cnet * net, int ic, int ivtx, CConnectionWidthInfo const &width );
 	void SetViaSize( cnet * net, int ic, int ivtx, CConnectionWidthInfo const &width );
 	int ReconcileVia( cnet * net, int ic, int ivtx );
 	int ForceVia( cnet * net, int ic, int ivtx, BOOL set_areas=TRUE );

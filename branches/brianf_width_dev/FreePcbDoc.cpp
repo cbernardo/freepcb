@@ -125,7 +125,7 @@ CFreePcbDoc::CFreePcbDoc()
 	app_dir = app_dir.Left( pos );
 	m_app_dir = app_dir;
 	m_app_dir.Trim();
-	int err = _chdir( m_app_dir );	// change to application folder
+	int err = CHDIR( m_app_dir );	// change to application folder
 	if( err )
 		ASSERT(0);	// failed to switch to application folder
 
@@ -774,7 +774,7 @@ BOOL CFreePcbDoc::AutoSave()
 	time_t bin_time;
 	time_t max_time = 0;
 	int max_suffix = 0;
-	if( chdir( auto_folder ) != 0 )
+	if( CHDIR( auto_folder ) != 0 )
 	{
 		CString mess;
 		mess.Format( "Unable to open autosave folder \"%s\"", auto_folder );
@@ -3491,7 +3491,7 @@ int CFreePcbDoc::ImportPADSPCBNetlist( CStdioFile * file, UINT flags,
 						(*nl)[inet].width_attrib.m_via_width.Undef();
 						(*nl)[inet].width_attrib.m_via_hole.Undef();
 						(*nl)[inet].width_attrib.m_ca_clearance.Undef();
-							
+
 						npins = 0;
 						state = SIGNAL;
 					}

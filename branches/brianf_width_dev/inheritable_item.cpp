@@ -4,6 +4,16 @@
 
 CInheritableInfo::Item const CInheritableInfo::Item::UNDEF;
 
+void CInheritableInfo::Item::assign_from(Item const &from)
+{
+	// only assign if the source status is DEFINED
+	if( from.isDefined() )
+	{
+		m_status = from.m_status;
+		m_val    = from.m_val;
+	}
+}
+
 // Comparison operators -------------------------------------------------------
 int CInheritableInfo::Item::operator > (Item const &comp) const
 {
@@ -35,10 +45,10 @@ int CInheritableInfo::Item::operator == (Item const &comp) const
 
 
 // ----------------------------------------------------------------------------
-// Set item from int:
+// Directly (not via assignment operator) set item from int:
 //   negative values map to EStatus
 //   zero & positive values count as values
-void CInheritableInfo::Item::SetItemFromInt(int val_status)
+void CInheritableInfo::Item::_SetItemFromInt(int val_status)
 {
 	if (val_status < 0)
 	{
@@ -64,12 +74,11 @@ void CInheritableInfo::Item::SetItemFromInt(int val_status)
 // ----------------------------------------------------------------------------
 // Update val/status of item with the item specified by item_id.
 //
-CInheritableInfo::Item const *CInheritableInfo::UpdateItem(int item_id, Item &item) const
+CInheritableInfo::Item const *CInheritableInfo::UpdateItem(int item_id, Item &result) const
 {
 	CInheritableInfo const *ci = this;
 	Item const *pSrcItem = &ci->GetItem(item_id);
-
-	item.m_status = pSrcItem->m_status;
+	Item item(*pSrcItem);
 
 	do
 	{
@@ -86,7 +95,7 @@ CInheritableInfo::Item const *CInheritableInfo::UpdateItem(int item_id, Item &it
 		case E_USE_PARENT:
 		{
 			CInheritableInfo const *next_ci = ci->m_pParent;
-			if (next_ci != ci)
+			if( ci != next_ci )
 			{
 				// Got a valid parent - loop to handle parent
 				ci = next_ci;
@@ -114,6 +123,9 @@ CInheritableInfo::Item const *CInheritableInfo::UpdateItem(int item_id, Item &it
 	item.Undef();
 
 Item_OK:
+	// Use virtual assignment to the resulting item
+	result = item;
+
 	return pSrcItem;
 }
 

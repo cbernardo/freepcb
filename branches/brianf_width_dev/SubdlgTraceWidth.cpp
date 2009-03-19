@@ -10,7 +10,7 @@ void CSubDlg_TraceWidth::OnInitDialog(CInheritableInfo const &width_attrib)
 {
 	CString str;
 
-	m_attrib = width_attrib;
+	m_attrib.get_data() = width_attrib;
 
 	if( m_w )
 	{

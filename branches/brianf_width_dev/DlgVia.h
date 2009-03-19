@@ -14,12 +14,12 @@ class CDlgVia
 public:
 	CDlgVia(CWnd* pParent = NULL);   // standard constructor
 	virtual ~CDlgVia();
-	void Initialize( CConnectionWidthInfo const &via_width );
+	void Initialize( CViaWidthInfo const &via_width );
 
 // Dialog Data
 	enum { IDD = IDD_VIA };
 
-	CConnectionWidthInfo m_via_width;
+	CViaWidthInfo m_via_width;
 
 protected:
 	virtual void DoDataExchange(CDataExchange* pDX);    // DDX/DDV support

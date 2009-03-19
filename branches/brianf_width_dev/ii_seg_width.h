@@ -60,7 +60,7 @@ public:
 	{
 	}
 
-	CConnectionWidthInfo( CInheritableInfo const &from ) :
+	explicit CConnectionWidthInfo( CInheritableInfo const &from ) :
 		CSegWidthInfo( from )
 	{
 		*this = from;
@@ -115,7 +115,7 @@ public:
 	{
 	}
 
-	CNetWidthInfo( CInheritableInfo const &from ) :
+	explicit CNetWidthInfo( CInheritableInfo const &from ) :
 		CConnectionWidthInfo( from )
 	{
 		*this = from;

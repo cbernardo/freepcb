@@ -19,7 +19,7 @@ CDlgVia::~CDlgVia()
 {
 }
 
-void CDlgVia::Initialize( CConnectionWidthInfo const &via_width )
+void CDlgVia::Initialize( CViaWidthInfo const &via_width )
 {
 	m_via_width = via_width;
 }

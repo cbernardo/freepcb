@@ -3029,9 +3029,9 @@ void CPartList::PartUndoCallback( int type, void * ptr, BOOL undo )
 //		TRACE_CONNECT = 2 if pin connects to a trace
 //		AREA_CONNECT = 4 if pin connects to copper area
 //
-int CPartList::GetPinConnectionStatus( cpart * part, CString * pin_name, int layer )
+int CPartList::GetPinConnectionStatus( cpart * part, CString const &pin_name, int layer )
 {
-	int pin_index = part->shape->GetPinIndexByName( *pin_name );
+	int pin_index = part->shape->GetPinIndexByName( pin_name );
 	cnet * net = part->pin[pin_index].net;
 	if( !net )
 		return NOT_CONNECTED;
@@ -3131,7 +3131,7 @@ int CPartList::GetPadDrawInfo( cpart * part, int ipin, int layer,
 	padstack * ps = &s->m_padstack[ipin];
 	BOOL bUseDefault = FALSE; // if TRUE, use copper pad for mask
 	CString pin_name = s->GetPinNameByIndex( ipin );
-	int connect_status = GetPinConnectionStatus( part, &pin_name, layer );
+	int connect_status = GetPinConnectionStatus( part, pin_name, layer );
 	// set default return values for no pad and no hole
 	int ret_code = 0;
 	int ttype = PAD_NONE;
@@ -4866,7 +4866,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 					CString start_pin, end_pin;
 					int istart = net->connect[ic].start_pin;
 					cpart * start_part = net->pin[istart].part;
-					start_pin = net->pin[istart].ref_des + "." + net->pin[istart].pin_name;
+					start_pin = net->pin[istart].ref_des() + "." + net->pin[istart].pin_name;
 					int iend = net->connect[ic].end_pin;
 					if( iend == cconnect::NO_END )
 					{
@@ -4885,7 +4885,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 					}
 					else
 					{
-						end_pin = net->pin[iend].ref_des + "." + net->pin[iend].pin_name;
+						end_pin = net->pin[iend].ref_des() + "." + net->pin[iend].pin_name;
 						if( net->connect[ic].nsegs > 1 )
 						{
 							str.Format( "%ld: \"%s\": partially routed connection from %s to %s\r\n",

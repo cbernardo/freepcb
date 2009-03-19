@@ -55,6 +55,8 @@ enum {
 	WM_BY_STRING
 };
 
+
+/////////////////////////////////////////////////////////////////////////////
 // Limits
 #define MAX_TRACE_W_MIL			1000
 #define MAX_VIA_W_MIL			1000
@@ -65,6 +67,19 @@ enum {
 #define MIN_THERMAL_LINE_W  	5
 #define MAX_THERMAL_LINE_W  	50
 #define MAX_THERMAL_CLEARANCE	50
+
+
+/////////////////////////////////////////////////////////////////////////////
+// Handle depricated functions
+#define CHDIR	_chdir
+
+#ifdef _AFXDLL
+	// Call this when using MFC in a shared DLL
+	#define ENABLE_3D_CONTROLS  Enable3dControls		
+#else
+	// Call this when linking to MFC statically
+	#define ENABLE_3D_CONTROLS  Enable3dControlsStatic	
+#endif
 
 
 /////////////////////////////////////////////////////////////////////////////

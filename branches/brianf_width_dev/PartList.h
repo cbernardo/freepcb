@@ -243,7 +243,7 @@ public:
 	void SetPinAnnularRing( int ring ){ m_annular_ring = ring; };
 	int GetPartBoundingRect( cpart * part, CRect * part_r );
 	int GetPartBoundaries( CRect * part_r );
-	int GetPinConnectionStatus( cpart * part, CString * pin_name, int layer );
+	int GetPinConnectionStatus( cpart * part, CString const &pin_name, int layer );
 	int CPartList::GetPadDrawInfo( cpart * part, int ipin, int layer,
 							  BOOL bUse_TH_thermals, BOOL bUse_SMT_thermals,
 							  int mask_clearance, int paste_mask_shrink,
