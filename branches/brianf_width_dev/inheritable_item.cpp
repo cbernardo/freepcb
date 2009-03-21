@@ -169,8 +169,3 @@ void CInheritableInfo::SetParent( CInheritableInfo const *pParent )
 		m_pParent = pParent;
 	}
 }
-
-
-void CInheritableInfo::OnRemoveParent( CInheritableInfo *pParent )
-{
-}

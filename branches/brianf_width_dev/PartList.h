@@ -108,7 +108,11 @@ public:
 	dl_element * dl_sel;	  // pointer to graphic element for selection shape
 	dl_element * dl_hole;	  // pointer to graphic element for hole
 	CArray<dl_element*> dl_els;	// array of pointers to graphic elements for pads
+
+public:
+	void set_net(cnet *net = NULL);
 };
+
 
 // class cpart represents a part
 class cpart //: public CDLinkList
@@ -235,7 +239,7 @@ public:
 	CPoint GetPinPoint(  cpart * part, int pin_index );
 	CPoint GetCentroidPoint(  cpart * part );
 	CPoint GetGluePoint(  cpart * part, int iglue );
-	int GetPinLayer( cpart * part, CString * pin_name );
+	int GetPinLayer( cpart * part, CString const &pin_name );
 	int GetPinLayer( cpart * part, int pin_index );
 	cnet * GetPinNet( cpart * part, CString * pin_name );
 	cnet * GetPinNet( cpart * part, int pin_index );

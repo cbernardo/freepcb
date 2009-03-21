@@ -44,10 +44,13 @@ protected:
 
 	afx_msg void OnBnClicked_v_modify();
 
-public:
+protected:
 	explicit CSubDlg_ViaWidth( CSubDlg_TraceWidth *pSubDlg_TraceWidth = NULL );
 
 	CConnectionWidthInfo m_attrib;
+
+public:
+	CConnectionWidthInfo const &get_attrib() const { return m_attrib; }
 };
 
 #endif /* !_SUBDLGVIAWIDTH_H ] */

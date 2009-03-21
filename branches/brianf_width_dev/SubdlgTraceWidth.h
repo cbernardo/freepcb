@@ -32,14 +32,22 @@ protected:
 
 	afx_msg void OnBnClicked_t_modify();
 
-public:
+protected:
 	CSubDlg_TraceWidth();
 
 	CPublishedData<CConnectionWidthInfo> m_attrib;
 
+public:
 	CArray<int> *m_w;      // array of default widths
 	CArray<int> *m_v_w;    // array of via widths (matching m_w[] entries)
 	CArray<int> *m_v_h_w;  // array of via hole widths
+
+	CConnectionWidthInfo const &get_attrib() const { return m_attrib.get_data(); }
+
+	void AddSub_TraceWidth   (CDataSubscriber<CConnectionWidthInfo> &sub) { m_attrib.AddSub(sub); }
+    void RemoveSub_TraceWidth(CDataSubscriber<CConnectionWidthInfo> &sub) { m_attrib.RemoveSub(sub); }
+
+	void Update_TraceWidth() const { m_attrib.Update(); }
 };
 
 #endif /* !_SUBDLGTRACEWIDTH_H ] */

@@ -145,6 +145,14 @@ public:
 			m_val    = 0;
 		}
 
+		void OnRemoveParent(void)
+		{
+			if( m_status == E_USE_PARENT )
+			{
+				m_status = E_USE_VAL;
+			}
+		}
+
 	public: // UNDEF item
 		static Item const UNDEF;
 	};
@@ -175,8 +183,7 @@ public:
 	void SetParent(CInheritableInfo const &pParent) { SetParent(&pParent); }
 	void SetParent(CInheritableInfo const *pParent = NULL);
 
-	CInheritableInfo       &GetParent()       { return *pParent; }
-	CInheritableInfo const &GetParent() const { return *pParent; }
+	CInheritableInfo const *GetParent() const { return m_pParent; }
 
 	// Acual item is returned. "item" is updated with the status
 	// of the initial item_id and value of the most derived item_id.
@@ -194,7 +201,7 @@ protected:
 	// Called when parent is removed.  A derived class can
 	// use this function to cleanup Items which may have
 	// a E_USE_PARENT status.
-	virtual void OnRemoveParent( CInheritableInfo *pOldParent );
+	virtual void OnRemoveParent( CInheritableInfo const *pOldParent ) {}
 };
 
 #endif /* !_INHERITABLE_ITEM_H ] */

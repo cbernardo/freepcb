@@ -14,7 +14,7 @@ CPublisher::~CPublisher()
     }
 }
 
-void CPublisher::Update()
+void CPublisher::Update() const
 {
     for( m_curSub = m_LIST_Sub.next; m_curSub != &m_LIST_Sub; m_curSub = m_curSub->next )
     {

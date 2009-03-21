@@ -31,7 +31,7 @@ protected:
 
 	afx_msg void OnBnClicked_c_modify();
 
-public:
+protected:
 	explicit CSubDlg_Clearance(int AutoMode);
 
 	CClearanceInfo m_attrib;
@@ -41,6 +41,9 @@ public:
 		E_NO_AUTO_MODE,
 		E_USE_AUTO_MODE		
 	};
+
+public:
+	CClearanceInfo const &get_attrib() const { return m_attrib; }
 };
 
 #endif /* !_SUBDLGCLEARANCE_H ] */

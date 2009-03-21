@@ -8,7 +8,7 @@ CSubDlg_ViaWidth::CSubDlg_ViaWidth(CSubDlg_TraceWidth *pSubDlg_TraceWidth)
 
 	if( my_SubDlg_TraceWidth != NULL )
 	{
-		my_SubDlg_TraceWidth->m_attrib.AddSub(m_TraceWidthUpdate);
+		my_SubDlg_TraceWidth->AddSub_TraceWidth(m_TraceWidthUpdate);
 	}
 }
 
@@ -220,7 +220,6 @@ void CSubDlg_ViaWidth::OnBnClicked_v_modify()
 	else
 	{
 		m_rb_v_default.EnableWindow( 1 );
-		m_rb_v_def_for_width.EnableWindow( my_SubDlg_TraceWidth != NULL ? 1 : 0 );
 		m_rb_v_set.EnableWindow( 1 );
 
 		m_check_v_apply.EnableWindow( 1 );
@@ -240,13 +239,21 @@ void CSubDlg_ViaWidth::OnChangeWidthType()
 	m_edit_v_pad_w .EnableWindow( enable );
 	m_edit_v_hole_w.EnableWindow( enable );
 
-	if( m_rb_v_def_for_width.GetCheck() && my_SubDlg_TraceWidth != NULL )
-	{
-		// Force update from publisher
-		my_SubDlg_TraceWidth->m_attrib.Update();
-	}
-
-	// Only enable "default for width" if defaults exist
+	// Only enable & process "default for width" if defaults exist
 	int n = ( my_SubDlg_TraceWidth == NULL ) ? -1 : my_SubDlg_TraceWidth->m_w->GetSize();
-	m_rb_v_def_for_width.EnableWindow( ( n > 0 ) ? 1 : 0 );
+
+	if( n > 0 )
+	{
+		if( m_rb_v_def_for_width.GetCheck() )
+		{
+			// Force update from publisher
+			my_SubDlg_TraceWidth->Update_TraceWidth();
+		}
+
+		m_rb_v_def_for_width.EnableWindow( 1 );
+	}
+	else
+	{
+		m_rb_v_def_for_width.EnableWindow( 0 );
+	}
 }

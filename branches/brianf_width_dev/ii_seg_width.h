@@ -7,9 +7,9 @@
 class CSegWidthInfo : public CII_FreePcb
 {
 protected:
-	virtual void OnRemoveParent(CInheritableInfo *pOldParent)
+	virtual void OnRemoveParent(CInheritableInfo const *pOldParent)
 	{
-		m_seg_width.m_status = E_USE_VAL;
+		m_seg_width.OnRemoveParent();
 
 		CII_FreePcb::OnRemoveParent(pOldParent);
 	}
@@ -59,13 +59,14 @@ public:
 class CConnectionWidthInfo : public CSegWidthInfo
 {
 protected:
-    virtual void GetItemExt(Item &item, Item const &src) const;
+    virtual void GetItemExt( Item &item, Item const &src ) const;
 
-	virtual void OnRemoveParent(CInheritableInfo *pOldParent)
+	virtual void OnRemoveParent( CInheritableInfo const *pOldParent )
 	{
-		m_via_width.m_status = E_USE_VAL;
-		m_via_hole .m_status = E_USE_VAL;
-		CSegWidthInfo::OnRemoveParent(pOldParent);
+		m_via_width.OnRemoveParent();
+		m_via_hole .OnRemoveParent();
+
+		CSegWidthInfo::OnRemoveParent( pOldParent );
 	}
 
 public:
@@ -125,11 +126,11 @@ public:
 class CNetWidthInfo : public CConnectionWidthInfo
 {
 protected:
-	virtual void OnRemoveParent(CInheritableInfo *pOldParent)
+	virtual void OnRemoveParent( CInheritableInfo const *pOldParent )
 	{
-		m_ca_clearance.m_status = E_USE_VAL;
+		m_ca_clearance.OnRemoveParent();
 
-		CConnectionWidthInfo::OnRemoveParent(pOldParent);
+		CConnectionWidthInfo::OnRemoveParent( pOldParent );
 	}
 
 public:

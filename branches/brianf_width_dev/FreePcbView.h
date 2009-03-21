@@ -522,9 +522,11 @@ public:
 	static void UndoGroupCallback( int type, void * ptr, BOOL undo );
 	void OnExternalChangeFootprint( CShape * fp );
 	void HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags);
-	void CFreePcbView::TryToReselectAreaCorner( int x, int y );
+	void TryToReselectAreaCorner( int x, int y );
 	void ReselectNetItemIfConnectionsChanged( int new_ic );
+
 protected:
+	CString GetViaText( cvertex const &Vtx );
 
 // Generated message map functions
 protected:

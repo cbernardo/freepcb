@@ -8,9 +8,9 @@ class CClearanceInfo : public CII_FreePcb
 {
 protected:
     virtual void GetItemExt(Item &item, Item const &src) const;
-	virtual void OnRemoveParent(CInheritableInfo *pOldParent)
+	virtual void OnRemoveParent(CInheritableInfo const *pOldParent)
 	{
-		m_ca_clearance.m_status = E_USE_VAL;
+		m_ca_clearance.OnRemoveParent();
 
 		CII_FreePcb::OnRemoveParent(pOldParent);
 	}
@@ -56,10 +56,10 @@ public:
 class CViaWidthInfo : public CClearanceInfo
 {
 protected:
-	virtual void OnRemoveParent(CInheritableInfo *pOldParent)
+	virtual void OnRemoveParent(CInheritableInfo const *pOldParent)
 	{
-		m_via_width.m_status = E_USE_VAL;
-		m_via_hole .m_status = E_USE_VAL;
+		m_via_width.OnRemoveParent();
+		m_via_hole .OnRemoveParent();
 
 		CClearanceInfo::OnRemoveParent(pOldParent);
 	}
@@ -87,6 +87,11 @@ public:
 		, m_via_width(0)
 		, m_via_hole(0)
 	{
+	}
+
+	explicit CViaWidthInfo( CInheritableInfo const &from )
+	{
+		*this = from;
 	}
 
 	CViaWidthInfo &operator = (CInheritableInfo const &from);

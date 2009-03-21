@@ -531,8 +531,8 @@ public:
 	int CancelMovingSegment( cnet * net, int ic, int ivtx );
 
 	// functions for vias
-	void InsertVia( cnet * net, int ic, int ivtx, CConnectionWidthInfo const &width );
-	void SetViaSize( cnet * net, int ic, int ivtx, CConnectionWidthInfo const &width );
+	void InsertVia( cnet * net, int ic, int ivtx, CViaWidthInfo const &width );
+	void SetViaSizeAttrib( cnet * net, int ic, int ivtx, CInheritableInfo const &width );
 	int ReconcileVia( cnet * net, int ic, int ivtx );
 	int ForceVia( cnet * net, int ic, int ivtx, BOOL set_areas=TRUE );
 	int UnforceVia( cnet * net, int ic, int ivtx, BOOL set_areas=TRUE );

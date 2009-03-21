@@ -28,6 +28,27 @@ cpart::~cpart()
 {
 }
 
+
+void part_pin::set_net(cnet *_net)
+{
+	net = _net;
+	if( _net == NULL )
+	{
+		// Removing net association
+
+        // Since the net is going away, any pins which have
+        // clearances set to 'use parent' must be converted
+        // to 'use value' at this time.  This is done by
+		// removing the parent (see inheritable_item class).
+		clearance.SetParent();
+	}
+	else
+	{
+		clearance.SetParent( _net->def_width_attrib );
+	}
+}
+
+
 CPartList::CPartList( CDisplayList * dlist, SMFontUtil * fontutil )
 {
 	m_start.prev = 0;		// dummy first element in list
@@ -654,9 +675,9 @@ CPoint CPartList::GetGluePoint( cpart * part, int iglue )
 // Get pin layer
 // returns LAY_TOP_COPPER, LAY_BOTTOM_COPPER or LAY_PAD_THRU
 //
-int CPartList::GetPinLayer( cpart * part, CString * pin_name )
+int CPartList::GetPinLayer( cpart * part, CString const &pin_name )
 {
-	int pin_index = part->shape->GetPinIndexByName( *pin_name );
+	int pin_index = part->shape->GetPinIndexByName( pin_name );
 	return GetPinLayer( part, pin_index );
 }
 
@@ -1823,7 +1844,7 @@ int CPartList::StartDraggingPart( CDC * pDC, cpart * part, BOOL bRatlines )
 		{
 			CPoint p(part->shape->m_padstack[ip].x_rel,part->shape->m_padstack[ip].y_rel);
 			// get endpoints for any connection segments
-			n = (cnet*)part->pin[ip].net;
+			n = part->pin[ip].net;
 			if( n )
 			{
 				if( n->visible )
@@ -2999,10 +3020,11 @@ void CPartList::PartUndoCallback( int type, void * ptr, BOOL undo )
 				{
 					CString net_name = chptr;
 					cnet * net = pl->m_nlist->GetNetPtrByName( &net_name );
-					part->pin[ip].net = net;
+					part->pin[ip].set_net( net );
 				}
 				else
-					part->pin[ip].net = NULL;
+					part->pin[ip].set_net();
+
 				chptr += MAX_NET_NAME_SIZE + 1;
 			}
 			// if part was renamed

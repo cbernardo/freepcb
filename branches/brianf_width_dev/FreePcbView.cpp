@@ -4817,7 +4817,7 @@ void CFreePcbView::ShowRelativeDistance( int x, int y, int dx, int dy )
 //
 int CFreePcbView::ShowSelectStatus()
 {
-	CString x_str, y_str, w_str, hole_str, via_w_str, via_hole_str;
+	CString x_str, y_str, w_str, hole_str;
 	int u = m_Doc->m_units;
 
 	CMainFrame * pMain = (CMainFrame*) AfxGetApp()->m_pMainWnd;
@@ -5001,8 +5001,8 @@ int CFreePcbView::ShowSelectStatus()
 						m_sel_end_pin.ref_des(),
 						m_sel_end_pin.pin_name,
 						locked_flag, m_sel_id.ii+1,
-						m_sel_net.def_width_attrib.m_seg_width.m_val/NM_PER_MIL,
-						m_sel_net.def_width_attrib.m_ca_clearance.m_val/NM_PER_MIL
+						m_sel_net->def_width_attrib.m_seg_width.m_val/NM_PER_MIL,
+						m_sel_net->def_width_attrib.m_ca_clearance.m_val/NM_PER_MIL
 					);
 				}
 				else
@@ -5024,21 +5024,11 @@ int CFreePcbView::ShowSelectStatus()
 
 	case CUR_VTX_SELECTED:
 		{
-			CString locked_flag = "";
-			if( m_sel_con.locked )
-				locked_flag = " (L)";
+			CString locked_flag = m_sel_con.locked ? " (L)" : "";
 
-			CString tee_flag = "";
-			if( int id = m_sel_vtx.tee_ID )
-				tee_flag.Format( " (T%d)", id );
-			if( m_sel_vtx.force_via_flag )
-				tee_flag = "(F)" + tee_flag;
-
-			int via_w = m_sel_vtx.via_w();
 			::MakeCStringFromDimension( &x_str, m_sel_vtx.x, u, FALSE, FALSE, FALSE, u==MIL?1:3 );
 			::MakeCStringFromDimension( &y_str, m_sel_vtx.y, u, FALSE, FALSE, FALSE, u==MIL?1:3 );
-			::MakeCStringFromDimension( &via_w_str, via_w, u, FALSE, FALSE, FALSE, u==MIL?1:3 );
-			::MakeCStringFromDimension( &via_hole_str, m_sel_vtx.via_hole_w(), u, FALSE, FALSE, FALSE, u==MIL?1:3 );
+
 			if( m_sel_con.end_pin == cconnect::NO_END )
 			{
 				// vertex of stub trace
@@ -5065,19 +5055,7 @@ int CFreePcbView::ShowSelectStatus()
 					);
 				}
 
-				{
-					CString add_text;
-					if( via_w )
-					{
-						// with via
-						add_text.Format( ", via %s/%s/%s", via_w_str, via_hole_str, "CLR" );
-						str += add_text;
-					}
-
-					add_text.Format( " %s", tee_flag );
-					str += add_text;
-				}
-
+				str += GetViaText( m_sel_vtx );
 			}
 			else
 			{
@@ -5094,36 +5072,15 @@ int CFreePcbView::ShowSelectStatus()
 					y_str
 				);
 
-				{
-					CString add_text;
-					if( via_w )
-					{
-						// with via
-						add_text.Format( ", via %s/%s/%s", via_w_str, via_hole_str, "CLR" );
-						str += add_text;
-					}
-
-					add_text.Format( " %s", tee_flag );
-					str += add_text;
-				}
+				str += GetViaText( m_sel_vtx );
 			}
 		}
 		break;
 
 	case CUR_END_VTX_SELECTED:
 		{
-			CString tee_flag = "";
-			if( int id = m_sel_vtx.tee_ID )
-				tee_flag.Format( " (T%d)", id );
-			if( m_sel_vtx.force_via_flag )
-				tee_flag = "(F)" + tee_flag;
-
-			int via_w = m_sel_vtx.via_w();
-
 			::MakeCStringFromDimension( &x_str, m_sel_vtx.x, u, FALSE, FALSE, FALSE, u==MIL?1:3 );
 			::MakeCStringFromDimension( &y_str, m_sel_vtx.y, u, FALSE, FALSE, FALSE, u==MIL?1:3 );
-			::MakeCStringFromDimension( &via_w_str, via_w, u, FALSE, FALSE, FALSE, u==MIL?1:3 );
-			::MakeCStringFromDimension( &via_hole_str, m_sel_vtx.via_hole_w(), u, FALSE, FALSE, FALSE, u==MIL?1:3 );
 
 			str.Format( "net \"%s\" stub(%d) end, x %s, y %s",
 				m_sel_net->name, m_sel_id.i+1,
@@ -5131,26 +5088,14 @@ int CFreePcbView::ShowSelectStatus()
 				y_str
 			);
 
-			{
-				CString add_text;
-				if( via_w )
-				{
-					// with via
-					add_text.Format( ", via %s/%s/%s", via_w_str, via_hole_str, "CLR" );
-					str += add_text;
-				}
-
-				add_text.Format( " %s", tee_flag );
-				str += add_text;
-			}
+			str += GetViaText( m_sel_vtx );
 		}
 		break;
 
 	case CUR_CONNECT_SELECTED:
 		{
-			CString locked_flag = "";
-			if( m_sel_con.locked )
-				locked_flag = " (L)";
+			CString locked_flag = m_sel_con.locked ? " (L)" : "";
+
 			// get length of trace
 			CString len_str;
 			double len = 0;
@@ -5210,7 +5155,7 @@ int CFreePcbView::ShowSelectStatus()
 
 	case CUR_TEXT_SELECTED:
 		{
-			CString neg_str = m_sel_text->m_bNegative ? "(NEG)" ? "";
+			CString neg_str = m_sel_text->m_bNegative ? "(NEG)" : "";
 
 			str.Format( "Text \"%s\" %s", m_sel_text->m_str, neg_str );
 			break;
@@ -5326,6 +5271,40 @@ int CFreePcbView::ShowSelectStatus()
 
 	return 0;
 }
+
+
+CString CFreePcbView::GetViaText( cvertex const &Vtx )
+{
+	CString ret, str;
+	int u = m_Doc->m_units;
+
+	if( Vtx.via_w() )
+	{
+		// with via
+		CString via_w_str, via_hole_str, via_clearance_str;
+
+		::MakeCStringFromDimension( &via_w_str,         Vtx.via_w(),         u, FALSE, FALSE, FALSE, (u==MIL) ?1:3 );
+		::MakeCStringFromDimension( &via_hole_str,      Vtx.via_hole_w(),    u, FALSE, FALSE, FALSE, (u==MIL) ?1:3 );
+		::MakeCStringFromDimension( &via_clearance_str, Vtx.via_clearance(), u, FALSE, FALSE, FALSE, (u==MIL) ?1:3 );
+
+		str.Format( ", via %s/%s/%s", via_w_str, via_hole_str, via_clearance_str );
+		ret += str;
+	}
+
+	{
+		if( Vtx.force_via_flag ) 
+			ret += " (F)";
+
+		if( Vtx.tee_ID )
+		{
+			str.Format( " (T%d)", Vtx.tee_ID );
+			ret += str;
+		}
+	}
+
+	return ret;
+}
+
 
 // display cursor coords in status bar
 //
@@ -6260,7 +6239,7 @@ void CFreePcbView::OnPadOptimize()
 //
 void CFreePcbView::OnPadStartStubTrace()
 {
-	cnet * net = (cnet*)m_sel_part->pin[m_sel_id.i].net;
+	cnet * net = m_sel_part->pin[m_sel_id.i].net;
 	if( net == NULL )
 	{
 		AfxMessageBox( "Pad must be assigned to a net before adding trace", MB_OK );
@@ -6276,7 +6255,7 @@ void CFreePcbView::OnPadStartStubTrace()
 	// force to layer of pad if SMT
 	if( m_sel_part->shape->m_padstack[m_sel_id.i].hole_size == 0 )
 	{
-		m_active_layer = m_Doc->m_plist->GetPinLayer( m_sel_part, &pin_name );
+		m_active_layer = m_Doc->m_plist->GetPinLayer( m_sel_part, pin_name );
 		ShowActiveLayer();
 	}
 
@@ -6549,7 +6528,7 @@ void CFreePcbView::OnRatlineRoute()
 		int pin_index = p->shape->GetPinIndexByName( pin_name );
 		if( p->shape->m_padstack[pin_index].hole_size == 0)
 		{
-			m_active_layer = m_Doc->m_plist->GetPinLayer( p, &pin_name );
+			m_active_layer = m_Doc->m_plist->GetPinLayer( p, pin_name );
 			ShowActiveLayer();
 		}
 	}
@@ -6566,7 +6545,7 @@ void CFreePcbView::OnRatlineRoute()
 			{
 				if( p->shape->m_padstack[pin_index].hole_size == 0)
 				{
-					m_active_layer = m_Doc->m_plist->GetPinLayer( p, &pin_name );
+					m_active_layer = m_Doc->m_plist->GetPinLayer( p, pin_name );
 					ShowActiveLayer();
 				}
 			}
@@ -6648,6 +6627,8 @@ void CFreePcbView::OnVertexSize()
 		m_dlist->CancelHighLight();
 		m_Doc->m_nlist->DrawVia( m_sel_net, m_sel_ic, m_sel_is );
 		m_Doc->m_nlist->HighlightVertex( m_sel_net, m_sel_ic, m_sel_is );
+
+		m_Doc->ProjectModified( TRUE );
 	}
 	Invalidate( FALSE );
 }
@@ -6657,6 +6638,8 @@ void CFreePcbView::OnPadSetClearance()
 {
 	CDlgSetPinClearance dlg;
 
+	//dlg.m_clearance = m_sel_vtx.via_width_attrib;
+	
 	int ret = dlg.DoModal();
 	if( ret == IDOK )
 	{
@@ -6667,11 +6650,19 @@ void CFreePcbView::OnPadSetClearance()
 
 void CFreePcbView::OnVertexClearance()
 {
+	SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_Doc->m_undo_list );
+
 	CDlgSetPinClearance dlg;
+
+	dlg.m_clearance = m_sel_vtx.via_width_attrib;
 
 	int ret = dlg.DoModal();
 	if( ret == IDOK )
 	{
+		m_dlist->CancelHighLight();
+		m_Doc->m_nlist->SetViaSizeAttrib( m_sel_net, m_sel_ic, m_sel_is, dlg.m_clearance );
+		m_Doc->m_nlist->HighlightVertex( m_sel_net, m_sel_ic, m_sel_is );
+
 		m_Doc->ProjectModified( TRUE );
 		Invalidate( FALSE );
 	}

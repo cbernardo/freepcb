@@ -11,20 +11,20 @@ class CSubscriber;
 // Publisher --------------------------
 class CPublisher
 {
-    CDLinkList *m_curSub;
+    mutable CDLinkList *m_curSub;
     CDLinkList m_LIST_Sub;
 
 public:
     CPublisher();
     virtual ~CPublisher();
 
-    void Update();
+    void Update() const;
 
 protected: // Generic code which requires template wrapper
     void _Add   (CSubscriber &sub);
     void _Remove(CSubscriber &sub);
 
-    virtual void _Update(CSubscriber *pSub) = 0;
+    virtual void _Update(CSubscriber *pSub) const = 0;
 };
 
 
@@ -128,7 +128,7 @@ public:
 protected:
     pub_t m_data;
 
-    virtual void _Update(CSubscriber *pSub)
+    virtual void _Update(CSubscriber *pSub)	const
     {
         static_cast< CDataSubscriber<DT> * >(pSub)->Update(m_data);
     }
@@ -156,7 +156,7 @@ public:
     void RemoveSub(CDataSubscriber<void> &sub) { _Remove(sub); }
 
 protected:
-    virtual void _Update(CSubscriber *pSub)
+    virtual void _Update(CSubscriber *pSub)	const
     {
         static_cast< CDataSubscriber<void> * >(pSub)->Update();
     }

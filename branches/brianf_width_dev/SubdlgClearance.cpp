@@ -18,20 +18,31 @@ void CSubDlg_Clearance::OnInitDialog(CInheritableInfo const &width_attrib)
 
 	if( m_attrib.m_ca_clearance.m_status < 0 )
 	{
-		m_attrib.m_ca_clearance.m_status = CInheritableInfo::E_USE_PARENT;
-
-		m_rb_c_default.SetCheck(1);
-	}
-	else
-	{
-		if( m_AutoMode == E_NO_AUTO_MODE )
+		if( m_attrib.m_ca_clearance.m_status == CII_FreePcb::E_AUTO_CALC )
 		{
-			m_rb_c_set.SetCheck(1);
+			if( m_AutoMode == E_NO_AUTO_MODE )
+			{
+				m_attrib.m_ca_clearance.m_status = CInheritableInfo::E_USE_PARENT;
+				m_attrib.Update_ca_clearance();
+
+				m_rb_c_default.SetCheck(1);
+			}
+			else
+			{
+				m_rb_c_auto.SetCheck(1);
+			}
 		}
 		else
 		{
-			m_rb_c_auto.SetCheck(1);
+			m_attrib.m_ca_clearance.m_status = CInheritableInfo::E_USE_PARENT;
+			m_attrib.Update_ca_clearance();
+
+			m_rb_c_default.SetCheck(1);
 		}
+	}
+	else
+	{
+		m_rb_c_set.SetCheck(1);
 	}
 	OnChangeClearanceType();
 
@@ -48,6 +59,10 @@ int CSubDlg_Clearance::OnDDXOut()
 		if( m_rb_c_default.GetCheck() )
 		{
 			m_attrib.m_ca_clearance.m_status = CInheritableInfo::E_USE_PARENT;
+		}
+		else if( m_rb_c_auto.GetCheck() )
+		{
+			m_attrib.m_ca_clearance.m_status = CII_FreePcb::E_AUTO_CALC;
 		}
 		else
 		{
