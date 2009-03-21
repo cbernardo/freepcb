@@ -389,7 +389,7 @@ public:
 	CArray<cpin> pin;	// array of pins
 	int nareas;			// number of copper areas
 	CArray<carea,carea> area;	// array of copper areas
-	CNetWidthInfo  def_width_attrib;      // default widths
+	CNetWidthInfo  def_width_attrib;      // default width attributes (seg, via, clearance)
 	BOOL visible;		// FALSE to hide ratlines and make unselectable
 	int utility;		// used to keep track of which nets have been optimized
 	CDisplayList * m_dlist;

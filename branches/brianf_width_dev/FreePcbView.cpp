@@ -4967,14 +4967,14 @@ int CFreePcbView::ShowSelectStatus()
 				{
 					// stub trace segment
 					if( m_sel_con.vtx[m_sel_con.nsegs].tee_ID )
-						str.Format( "net \"%s\" branch(%d) to %s.%s, seg %d, width %d (T%d), clearance %d",
+						str.Format( "net \"%s\" branch(%d) to %s.%s, seg %d, width %d, clearance %d (T%d)",
 							m_sel_net->name, m_sel_id.i+1,
 							m_sel_start_pin.ref_des(),
 							m_sel_start_pin.pin_name,
 							m_sel_id.ii+1,
 							m_sel_seg.width()/NM_PER_MIL,
-							m_sel_con.vtx[m_sel_con.nsegs].tee_ID,
-							m_sel_seg.clearance()/NM_PER_MIL
+							m_sel_seg.clearance()/NM_PER_MIL,
+							m_sel_con.vtx[m_sel_con.nsegs].tee_ID
 						);
 					else
 						str.Format( "net \"%s\" stub(%d) from %s.%s, seg %d, width %d, clearance %d",
@@ -4990,9 +4990,8 @@ int CFreePcbView::ShowSelectStatus()
 			else
 			{
 				// normal connected trace segment
-				CString locked_flag = "";
-				if( m_sel_con.locked )
-					locked_flag = " (L)";
+				CString locked_flag = m_sel_con.locked ? " (L)" : "";
+
 				if( m_sel_con.nsegs == 1 && m_sel_seg.layer == LAY_RAT_LINE )
 				{
 					str.Format( "net \"%s\" connection(%d) %s.%s-%s.%s%s, seg %d, width %d, clearance %d",
@@ -5002,8 +5001,8 @@ int CFreePcbView::ShowSelectStatus()
 						m_sel_end_pin.ref_des(),
 						m_sel_end_pin.pin_name,
 						locked_flag, m_sel_id.ii+1,
-						m_sel_seg.width()/NM_PER_MIL,
-						m_sel_seg.clearance()/NM_PER_MIL
+						m_sel_net.def_width_attrib.m_seg_width.m_val/NM_PER_MIL,
+						m_sel_net.def_width_attrib.m_ca_clearance.m_val/NM_PER_MIL
 					);
 				}
 				else
@@ -5071,7 +5070,7 @@ int CFreePcbView::ShowSelectStatus()
 					if( via_w )
 					{
 						// with via
-						add_text.Format( ", via %s/%s", via_w_str, via_hole_str );
+						add_text.Format( ", via %s/%s/%s", via_w_str, via_hole_str, "CLR" );
 						str += add_text;
 					}
 
@@ -5100,7 +5099,7 @@ int CFreePcbView::ShowSelectStatus()
 					if( via_w )
 					{
 						// with via
-						add_text.Format( ", via %s/%s", via_w_str, via_hole_str );
+						add_text.Format( ", via %s/%s/%s", via_w_str, via_hole_str, "CLR" );
 						str += add_text;
 					}
 
@@ -5137,7 +5136,7 @@ int CFreePcbView::ShowSelectStatus()
 				if( via_w )
 				{
 					// with via
-					add_text.Format( ", via %s/%s", via_w_str, via_hole_str );
+					add_text.Format( ", via %s/%s/%s", via_w_str, via_hole_str, "CLR" );
 					str += add_text;
 				}
 
@@ -5203,14 +5202,16 @@ int CFreePcbView::ShowSelectStatus()
 		break;
 
 	case CUR_NET_SELECTED:
-		str.Format( "net \"%s\": clearance %d", m_sel_net->name, m_sel_net->def_width_attrib.m_ca_clearance.m_val/NM_PER_MIL );
+		str.Format( "net \"%s\": width %d, clearance %d",
+			m_sel_net->name,
+			m_sel_net->def_width_attrib.m_seg_width.m_val/NM_PER_MIL,
+			m_sel_net->def_width_attrib.m_ca_clearance.m_val/NM_PER_MIL );
 		break;
 
 	case CUR_TEXT_SELECTED:
 		{
-			CString neg_str = "";
-			if( m_sel_text->m_bNegative )
-				neg_str = "(NEG)";
+			CString neg_str = m_sel_text->m_bNegative ? "(NEG)" ? "";
+
 			str.Format( "Text \"%s\" %s", m_sel_text->m_str, neg_str );
 			break;
 		}
@@ -5320,9 +5321,9 @@ int CFreePcbView::ShowSelectStatus()
 	case CUR_DRAG_MEASURE_1:
 		str = "Measurement mode: left-click to start";
 		break;
-
 	}
 	pMain->DrawStatus( 3, &str );
+
 	return 0;
 }
 

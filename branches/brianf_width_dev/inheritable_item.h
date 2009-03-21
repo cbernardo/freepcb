@@ -20,8 +20,38 @@ public:
 		E__STATUS_USER = -3
 	};
 
+	//-------------------------------------------------------------------------
+	//
+	// Data item - value with status
+	//
+	// Status allows items to have special behavior.  The base behaviors
+	// are found in EStatus:
+	//
+	// 1) E_UNDEF      - Undefined
+	//                      Assignment A = UNDEF results in A being
+	//                      unchanged, not being set to UNDEF (use Undef()
+	//                      for this purpose).  This is done to allow
+	//                      piecemeal assignment of a set of Items:
+	//                          A contains four Items: a,b,c,d
+	//                          A = B; B contains defined Items a,b,c
+	//                          A = C; C contains defined Items a,d
+	//
+	//                          Resulting A contains C.a, B.b, B.c, C.d
+	//
+	// 2) E_USE_VAL    - Simply use the value in m_val
+	//
+	// 3) E_USE_PARENT - Use the value contained in the parent CInheritableInfo
 	struct Item
 	{
+	protected:
+		// Directly set item from int - does not use virtual assignment
+		void _SetItemFromInt(int val_status);
+
+		// Virtual assignment operator.  Allows enhanced behavior
+		// on assignment (e.g. protection against illegal modes).
+		virtual void assign_from(Item const &from);
+
+	public: // Data
 		short int m_status;
 		int       m_val;
 
@@ -56,13 +86,14 @@ public:
 		}
 
 	public: // operators
+		// Assignment
 		Item &operator = (Item const &from)
 		{
 			assign_from(from);
 			return *this;
 		}
 
-		// To/From int
+		// To/From int --------------------------
 		Item &operator = (int val_status)
 		{
 			Item temp(val_status);
@@ -78,7 +109,7 @@ public:
 			return GetItemAsInt();
 		}
 
-		// Comparison
+		// Comparison ---------------------------
 		int operator >  (Item const &comp) const;
 		int operator == (Item const &comp) const;
 		int operator <  (Item const &comp) const { return !operator >(comp) && !operator ==(comp); }
@@ -100,11 +131,14 @@ public:
 			return (m_status == E_USE_VAL) ? m_val : m_status;
 		}
 
+	public: // Functions
+		// is Item defined?
 		int isDefined(void) const
 		{
 			return m_status != E_UNDEF;
 		}
 
+		// Force Item to UNDEF
 		void Undef(void)
 		{
 			m_status = E_UNDEF;
@@ -113,12 +147,6 @@ public:
 
 	public: // UNDEF item
 		static Item const UNDEF;
-
-	protected:
-		// Directly set item from int - do not use virtual assignment
-		void _SetItemFromInt(int val_status);
-
-		virtual void assign_from(Item const &from);
 	};
 
 public:	// construction and copying/assignment
@@ -133,19 +161,22 @@ public:	// construction and copying/assignment
 
 	CInheritableInfo &operator = (CInheritableInfo const &from)
 	{
-		// Copy parent only if current parent is uninitialized and from's parent is initialized
+		// Copy parent only if current parent is uninitialized
+		// and from's parent is initialized.
 		if( !hasParent() && from.hasParent() ) m_pParent = from.m_pParent;
+
 		//don't use this - m_pParent = from.hasParent() ? from.m_pParent : this;
+		//It assigns the parent too freely.
 
 		return *this;
 	}
 
 public:
 	void SetParent(CInheritableInfo const &pParent) { SetParent(&pParent); }
-	void SetParent(CInheritableInfo const *pParent = NULL)
-	{
-		m_pParent = (pParent != NULL) ? pParent : this;
-	}
+	void SetParent(CInheritableInfo const *pParent = NULL);
+
+	CInheritableInfo       &GetParent()       { return *pParent; }
+	CInheritableInfo const &GetParent() const { return *pParent; }
 
 	// Acual item is returned. "item" is updated with the status
 	// of the initial item_id and value of the most derived item_id.
@@ -154,10 +185,16 @@ public:
 	// Returns the item specified
 	virtual Item const &GetItem(int item_id) const;
 
+	// Do I have a parent?
 	int hasParent(void) const { return m_pParent != this; }
 
 protected:
 	virtual void GetItemExt(Item &item, Item const &src) const;
+
+	// Called when parent is removed.  A derived class can
+	// use this function to cleanup Items which may have
+	// a E_USE_PARENT status.
+	virtual void OnRemoveParent( CInheritableInfo *pOldParent );
 };
 
 #endif /* !_INHERITABLE_ITEM_H ] */

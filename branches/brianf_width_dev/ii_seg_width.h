@@ -6,6 +6,14 @@
 // Width information for segments
 class CSegWidthInfo : public CII_FreePcb
 {
+protected:
+	virtual void OnRemoveParent(CInheritableInfo *pOldParent)
+	{
+		m_seg_width.m_status = E_USE_VAL;
+
+		CII_FreePcb::OnRemoveParent(pOldParent);
+	}
+
 public:
 	CSegWidthInfo( CInheritableInfo const &from ) :
 		CII_FreePcb(from)
@@ -52,6 +60,13 @@ class CConnectionWidthInfo : public CSegWidthInfo
 {
 protected:
     virtual void GetItemExt(Item &item, Item const &src) const;
+
+	virtual void OnRemoveParent(CInheritableInfo *pOldParent)
+	{
+		m_via_width.m_status = E_USE_VAL;
+		m_via_hole .m_status = E_USE_VAL;
+		CSegWidthInfo::OnRemoveParent(pOldParent);
+	}
 
 public:
 	CConnectionWidthInfo() :
@@ -109,6 +124,14 @@ public:
 
 class CNetWidthInfo : public CConnectionWidthInfo
 {
+protected:
+	virtual void OnRemoveParent(CInheritableInfo *pOldParent)
+	{
+		m_ca_clearance.m_status = E_USE_VAL;
+
+		CConnectionWidthInfo::OnRemoveParent(pOldParent);
+	}
+
 public:
 	CNetWidthInfo() :
 		m_ca_clearance( E_USE_PARENT )

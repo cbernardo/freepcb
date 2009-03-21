@@ -132,7 +132,16 @@ void CNetList::RemoveNet( cnet * net )
 				{
 					int pin_index = s->GetPinIndexByName( net->pin[ip].pin_name );
 					if( pin_index >= 0 )
+                    {
+                        // Since the net is going away, any pins which have
+                        // clearances set to 'use parent' must be converted
+                        // to 'use value' at this time.  This is done by
+						// removing the parent (see inheritable_item class).
+						pin_part->pin[pin_index].clearance.SetParent();
+
+                        // Remove association
 						pin_part->pin[pin_index].net = NULL;
+                    }
 				}
 			}
 		}
@@ -327,6 +336,7 @@ void CNetList::DrawConnection( cnet * net, int ic )
 			s_id.i = ic;
 			s_id.sst = ID_SEG;
 			s_id.ii = is;
+
 			int v = 1;
 			if( s->layer == LAY_RAT_LINE )
 				v = net->visible;
@@ -4206,7 +4216,9 @@ int CNetList::ReconcileVia( cnet * net, int ic, int ivtx )
 		else if( v->tee_ID )
 		{
 			if( TeeViaNeeded( net, v->tee_ID ) )
+			{
 				via_needed = TRUE;
+			}
 		}
 		else
 		{

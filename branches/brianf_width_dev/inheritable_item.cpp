@@ -4,7 +4,7 @@
 
 CInheritableInfo::Item const CInheritableInfo::Item::UNDEF;
 
-void CInheritableInfo::Item::assign_from(Item const &from)
+void CInheritableInfo::Item::assign_from( Item const &from )
 {
 	// only assign if the source status is DEFINED
 	if( from.isDefined() )
@@ -15,7 +15,7 @@ void CInheritableInfo::Item::assign_from(Item const &from)
 }
 
 // Comparison operators -------------------------------------------------------
-int CInheritableInfo::Item::operator > (Item const &comp) const
+int CInheritableInfo::Item::operator > ( Item const &comp ) const
 {
 	if (m_status != E_USE_VAL)
 	{
@@ -29,7 +29,7 @@ int CInheritableInfo::Item::operator > (Item const &comp) const
 	}
 }
 
-int CInheritableInfo::Item::operator == (Item const &comp) const
+int CInheritableInfo::Item::operator == ( Item const &comp ) const
 {
 	if (m_status != E_USE_VAL)
 	{
@@ -48,7 +48,7 @@ int CInheritableInfo::Item::operator == (Item const &comp) const
 // Directly (not via assignment operator) set item from int:
 //   negative values map to EStatus
 //   zero & positive values count as values
-void CInheritableInfo::Item::_SetItemFromInt(int val_status)
+void CInheritableInfo::Item::_SetItemFromInt( int val_status )
 {
 	if (val_status < 0)
 	{
@@ -74,7 +74,7 @@ void CInheritableInfo::Item::_SetItemFromInt(int val_status)
 // ----------------------------------------------------------------------------
 // Update val/status of item with the item specified by item_id.
 //
-CInheritableInfo::Item const *CInheritableInfo::UpdateItem(int item_id, Item &result) const
+CInheritableInfo::Item const *CInheritableInfo::UpdateItem( int item_id, Item &result ) const
 {
 	CInheritableInfo const *ci = this;
 	Item const *pSrcItem = &ci->GetItem(item_id);
@@ -135,7 +135,7 @@ Item_OK:
 //
 // Returns: UNDEFINED item
 //
-CInheritableInfo::Item const &CInheritableInfo::GetItem(int item_id) const
+CInheritableInfo::Item const &CInheritableInfo::GetItem( int item_id ) const
 {
 	return Item::UNDEF;
 }
@@ -146,7 +146,31 @@ CInheritableInfo::Item const &CInheritableInfo::GetItem(int item_id) const
 //
 // Sets item to UNDEFINED.
 //
-void CInheritableInfo::GetItemExt(Item &item, Item const &src) const
+void CInheritableInfo::GetItemExt( Item &item, Item const &src ) const
 {
 	item.Undef();
+}
+
+
+// ----------------------------------------------------------------------------
+// Access to parent
+//
+void CInheritableInfo::SetParent( CInheritableInfo const *pParent )
+{
+	if( pParent == NULL )
+	{
+		// Removing parent
+		if( hasParent() ) OnRemoveParent( m_pParent );
+
+		m_pParent = this;
+	}
+	else
+	{
+		m_pParent = pParent;
+	}
+}
+
+
+void CInheritableInfo::OnRemoveParent( CInheritableInfo *pParent )
+{
 }
