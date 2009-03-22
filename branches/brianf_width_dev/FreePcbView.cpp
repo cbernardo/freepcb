@@ -6621,11 +6621,8 @@ void CFreePcbView::OnVertexSize()
 	int ret = dlg.DoModal();
 	if( ret == IDOK )
 	{
-		dlg.m_via_width.Update();
-		m_sel_vtx.via_width_attrib = dlg.m_via_width;
-
 		m_dlist->CancelHighLight();
-		m_Doc->m_nlist->DrawVia( m_sel_net, m_sel_ic, m_sel_is );
+		m_Doc->m_nlist->SetViaSizeAttrib( m_sel_net, m_sel_ic, m_sel_is, dlg.m_via_width );
 		m_Doc->m_nlist->HighlightVertex( m_sel_net, m_sel_ic, m_sel_is );
 
 		m_Doc->ProjectModified( TRUE );

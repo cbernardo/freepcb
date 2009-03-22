@@ -65,6 +65,93 @@ carea &carea::operator=( carea &a )
 	return *this;
 }
 
+
+CVertexIterator::CVertexIterator( cnet * net, int ic, int ivtx ) 
+	: m_net(net)
+	, m_ic(ic)
+	, m_ivtx(ivtx)
+	, m_tee_ID(0)
+	, m_idx(-1)
+	, m_icc(ic)
+	, m_icvtx(ivtx)
+{
+	ASSERT( m_ic < m_net->nconnects );
+
+	cconnect * c = &m_net->connect[m_ic];
+
+	ASSERT( m_ivtx <= c->nsegs );
+}
+
+cconnect       *CVertexIterator::getcur_connect()       { return &m_net->connect[m_icc]; }
+cconnect const *CVertexIterator::getcur_connect() const { return &m_net->connect[m_icc]; }
+
+cvertex *CVertexIterator::GetFirst()
+{
+	m_idx = -1;
+	return GetNext();
+}
+
+cvertex *CVertexIterator::GetNext()
+{
+	if ( m_net == NULL ) return NULL;
+
+	cconnect * c;
+	cvertex * vtx;
+
+	if( m_idx < 0 ) 
+	{
+		// First return vertex defined by is & ivtx
+		if( m_ic >= m_net->nconnects ) return NULL;
+
+		c = &m_net->connect[m_ic];
+		if( m_ivtx > c->nsegs ) return NULL; // > is OK, >= not OK
+
+		m_idx = 0;
+
+		m_icc   = m_ic;
+		m_icvtx = m_ivtx;
+
+		vtx = &c->vtx[m_icvtx];
+
+		m_tee_ID = vtx->tee_ID;
+	}
+	else
+	{
+		// Next, return other vertexes with matching tee ID
+
+		// Check for no T's
+		if( m_tee_ID == 0) return NULL;
+
+		while( m_idx < m_net->nconnects )
+		{
+			m_icc = m_idx++;
+			c = &m_net->connect[m_icc];
+
+			if( c->end_pin == cconnect::NO_END )
+			{
+				// test last vertex
+				vtx = &c->vtx[c->nsegs];
+				if( vtx->tee_ID == m_tee_ID )
+				{
+					// Found matching vertex
+
+					// Update vertex info
+					m_icvtx = c->nsegs;
+
+					return vtx;
+				}
+			}
+		}
+
+		// No vertexes matching m_tee_ID found
+		vtx = NULL;
+	}
+
+	return vtx;
+}
+
+
+
 CNetList::CNetList( CDisplayList * dlist, CPartList * plist )
 {
 	m_dlist = dlist;			// attach display list
@@ -1981,23 +2068,32 @@ void CNetList::InsertVia( cnet * net, int ic, int ivtx, CViaWidthInfo const &wid
 
 void CNetList::SetViaSizeAttrib( cnet * net, int ic, int ivtx, CInheritableInfo const &width )
 {
-	cconnect *c = &net->connect[ic];
-	cvertex *pVtx = &c->vtx[ivtx];
+	cvertex *pVtx;
 
-	pVtx->via_width_attrib.SetParent( net->def_width_attrib );
+	CVertexIterator vi( net, ic, ivtx );
 
-	// Get orig attrib
-	CViaWidthInfo via_width(pVtx->via_width_attrib);
+	int bViaExists = ViaExists( net, ic, ivtx );
 
-	// Update based on 'width'
-	via_width = width;
-	via_width.Update();
-
-	if( pVtx->viaExists() && via_width.m_via_width.m_val != 0 )
+	for( pVtx = vi.GetFirst(); pVtx != NULL; pVtx = vi.GetNext() )
 	{
-		pVtx->via_width_attrib = via_width;
+		pVtx->via_width_attrib.SetParent( net->def_width_attrib );
 
-		DrawVia( net, ic, ivtx );
+		ivtx = vi.getcur_ivtx();
+		ic   = vi.getcur_ic();
+
+		// Get orig attrib
+		CViaWidthInfo via_width( pVtx->via_width_attrib );
+
+		// Update based on 'width'
+		via_width = width;
+		via_width.Update();
+
+		if( bViaExists )
+		{
+			pVtx->via_width_attrib = via_width;
+
+			DrawVia( net, ic, ivtx );
+		}
 	}
 }
 
@@ -3274,65 +3370,63 @@ void CNetList::MoveEndVertex( cnet * net, int ic, int ivtx, int x, int y )
 //
 void CNetList::MoveVertex( cnet * net, int ic, int ivtx, int x, int y )
 {
-	cconnect * c = &net->connect[ic];
-	if( ivtx > c->nsegs )
-		ASSERT(0);
-	cvertex * v = &c->vtx[ivtx];
+	cvertex * v;
+	cconnect * c;
+
 	m_dlist->StopDragging();
-	v->x = x;
-	v->y = y;
-	if( ivtx > 0 )
+
+	CVertexIterator vi(net, ic, ivtx);
+	for( v = vi.GetFirst(); v != NULL; v = vi.GetNext() )
 	{
-		if( c->seg[ivtx-1].dl_el )
+		v->x = x;
+		v->y = y;
+
+		// Remove selector from stub/branch traces
+		if( vi.get_index() > 0 )
 		{
-			m_dlist->Set_xf( c->seg[ivtx-1].dl_el, x );
-			m_dlist->Set_yf( c->seg[ivtx-1].dl_el, y );
-			m_dlist->Set_visible( c->seg[ivtx-1].dl_el, 1 );
-		}
-		if( c->seg[ivtx-1].dl_sel )
-		{
-			m_dlist->Set_xf( c->seg[ivtx-1].dl_sel, x );
-			m_dlist->Set_yf( c->seg[ivtx-1].dl_sel, y );
-		}
-	}
-	if( ivtx < c->nsegs )
-	{
-		if( c->seg[ivtx].dl_el )
-		{
-			m_dlist->Set_x( c->seg[ivtx].dl_el, x );
-			m_dlist->Set_y( c->seg[ivtx].dl_el, y );
-			m_dlist->Set_visible( c->seg[ivtx].dl_el, 1 );
-		}
-		if( c->seg[ivtx].dl_sel )
-		{
-			m_dlist->Set_x( c->seg[ivtx].dl_sel, x );
-			m_dlist->Set_y( c->seg[ivtx].dl_sel, y );
-		}
-	}
-	ReconcileVia( net, ic, ivtx );
-	if( v->tee_ID && ivtx < c->nsegs )
-	{
-		// this is a tee-point in a trace
-		// move other vertices connected to it
-		int id = v->tee_ID;
-		for( int icc=0; icc<net->nconnects; icc++ )
-		{
-			cconnect * cc = &net->connect[icc];
-			if( cc->end_pin == cconnect::NO_END )
+			if( v->dl_sel )
 			{
-				// test last vertex
-				cvertex * vv = &cc->vtx[cc->nsegs];
-				if( vv->tee_ID == id )
-				{
-					MoveVertex( net, icc, cc->nsegs, x, y );
-					if( vv->dl_sel )
-						m_dlist->Remove( vv->dl_sel );
-					vv->dl_sel = NULL;
-				}
+				m_dlist->Remove( v->dl_sel );
+				v->dl_sel = NULL;
 			}
 		}
+
+		c = vi.getcur_connect();
+		ivtx = vi.getcur_ivtx();
+		ic   = vi.getcur_ic();
+
+		if( ivtx > 0 )
+		{
+			if( c->seg[ivtx-1].dl_el )
+			{
+				m_dlist->Set_xf( c->seg[ivtx-1].dl_el, x );
+				m_dlist->Set_yf( c->seg[ivtx-1].dl_el, y );
+				m_dlist->Set_visible( c->seg[ivtx-1].dl_el, 1 );
+			}
+			if( c->seg[ivtx-1].dl_sel )
+			{
+				m_dlist->Set_xf( c->seg[ivtx-1].dl_sel, x );
+				m_dlist->Set_yf( c->seg[ivtx-1].dl_sel, y );
+			}
+		}
+		if( ivtx < c->nsegs )
+		{
+			if( c->seg[ivtx].dl_el )
+			{
+				m_dlist->Set_x( c->seg[ivtx].dl_el, x );
+				m_dlist->Set_y( c->seg[ivtx].dl_el, y );
+				m_dlist->Set_visible( c->seg[ivtx].dl_el, 1 );
+			}
+			if( c->seg[ivtx].dl_sel )
+			{
+				m_dlist->Set_x( c->seg[ivtx].dl_sel, x );
+				m_dlist->Set_y( c->seg[ivtx].dl_sel, y );
+			}
+		}
+		ReconcileVia( net, ic, ivtx );
 	}
 }
+
 
 // Start dragging trace vertex
 //
@@ -4256,7 +4350,7 @@ int CNetList::ReconcileVia( cnet * net, int ic, int ivtx )
 	if( via_needed )
 	{
 		// via needed, make sure it exists or create it
-		if( !v->viaExists() )
+		if( !ViaExists(net, ic, ivtx) )
 		{
 			InsertVia( net, ic, ivtx, CViaWidthInfo(net->def_width_attrib) );
 		}
@@ -4272,6 +4366,24 @@ int CNetList::ReconcileVia( cnet * net, int ic, int ivtx )
 
 	return 0;
 }
+
+
+int CNetList::ViaExists( cnet * net, int ic, int ivtx )
+{
+	CVertexIterator vi( net, ic, ivtx );
+	cvertex * v;
+
+	for( v = vi.GetFirst(); v != NULL; v = vi.GetNext() )
+	{
+		if( v->viaExists() )
+		{
+			return 1;
+		}
+	}
+
+	return 0;
+}
+
 
 // write nets to file
 //
@@ -4674,7 +4786,10 @@ void CNetList::ReadNets( CStdioFile * pcb_file, double read_version, int * layer
 								AppendSegment( net, ic, x, y, layer, width, seg_clearance );
 
 								// set widths of following vertex
-								SetViaSizeAttrib( net, ic, is+1, via_width_attrib );
+								// Always insert via - reconcile later.  Otherwise size info
+								// can get lost if the via isn't initially created since a branch 
+								// or stub may not exist.
+								InsertVia( net, ic, is+1, via_width_attrib );
 							}
 							//** this code is for bug in versions before 1.313
 							if( force_via_flag )
@@ -4688,14 +4803,20 @@ void CNetList::ReadNets( CStdioFile * pcb_file, double read_version, int * layer
 							if( is != 0 )
 							{
 								// set widths of preceding vertex
-								SetViaSizeAttrib( net, ic, is, pre_width );
+								// Always insert via - reconcile later.  Otherwise size info
+								// can get lost if the via isn't initially created since a branch 
+								// or stub may not exist.
+								InsertVia( net, ic, is, pre_width );
 							}
 							pre_width = via_width_attrib;
 						}
 					}
 
 					// set widths of preceding vertex
-					SetViaSizeAttrib( net, ic, is, pre_width );
+					// Always insert via - reconcile later.  Otherwise size info
+					// can get lost if the via isn't initially created since a branch 
+					// or stub may not exist.
+					InsertVia( net, ic, is, pre_width );
 				}
 			}
 			for( int ia=0; ia<nareas; ia++ )
@@ -4775,6 +4896,7 @@ void CNetList::ReadNets( CStdioFile * pcb_file, double read_version, int * layer
 				//** we will hit this if FpcROUTE fails, so disabled
 //				ASSERT(0);
 			}
+			UpdateNetAttributes( net );
 		}
 	}
 }

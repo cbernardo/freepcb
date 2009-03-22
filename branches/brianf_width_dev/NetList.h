@@ -343,6 +343,34 @@ public:
 	void SetNoVia() { via_width_attrib.m_via_width = via_width_attrib.m_via_hole = 0; }
 };
 
+class cconnect;
+class CVertexIterator
+{
+	cnet * m_net;
+	int    m_ic;
+	int    m_ivtx;
+
+	int    m_tee_ID;
+	int    m_idx;
+	int    m_icc;
+	int    m_icvtx;
+
+public:
+	CVertexIterator( cnet * net, int ic, int ivtx );
+
+	cvertex *GetFirst();
+	cvertex *GetNext();
+
+	int get_index() const { return m_idx; }
+
+	cconnect       *getcur_connect();
+	cconnect const *getcur_connect() const;
+
+	int getcur_ic()   const { return m_icc;   }
+	int getcur_ivtx() const { return m_icvtx; }
+};
+
+
 // cconnect: describes a connection between two pins or a stub trace with no end pin
 class cconnect
 {
@@ -534,6 +562,7 @@ public:
 	void InsertVia( cnet * net, int ic, int ivtx, CViaWidthInfo const &width );
 	void SetViaSizeAttrib( cnet * net, int ic, int ivtx, CInheritableInfo const &width );
 	int ReconcileVia( cnet * net, int ic, int ivtx );
+	int ViaExists( cnet * net, int ic, int ivtx );
 	int ForceVia( cnet * net, int ic, int ivtx, BOOL set_areas=TRUE );
 	int UnforceVia( cnet * net, int ic, int ivtx, BOOL set_areas=TRUE );
 	int DrawVia( cnet * net, int ic, int iv );
