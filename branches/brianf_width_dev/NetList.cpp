@@ -2033,7 +2033,9 @@ int CNetList::SetSegmentWidth( cnet * net, int ic, int is, CConnectionWidthInfo 
 	}
 
 	{
+		// Only set the via width/hole, not the clearance
 		CViaWidthInfo ViaInfo(width);
+		ViaInfo.m_ca_clearance.Undef();
 
 		SetViaSizeAttrib( net, ic, is,   ViaInfo );
 		SetViaSizeAttrib( net, ic, is+1, ViaInfo );
@@ -2068,28 +2070,23 @@ void CNetList::InsertVia( cnet * net, int ic, int ivtx, CViaWidthInfo const &wid
 
 void CNetList::SetViaSizeAttrib( cnet * net, int ic, int ivtx, CInheritableInfo const &width )
 {
-	cvertex *pVtx;
-
-	CVertexIterator vi( net, ic, ivtx );
-
-	int bViaExists = ViaExists( net, ic, ivtx );
-
-	for( pVtx = vi.GetFirst(); pVtx != NULL; pVtx = vi.GetNext() )
+	if( ViaExists( net, ic, ivtx ) )
 	{
-		pVtx->via_width_attrib.SetParent( net->def_width_attrib );
-
-		ivtx = vi.getcur_ivtx();
-		ic   = vi.getcur_ic();
-
-		// Get orig attrib
-		CViaWidthInfo via_width( pVtx->via_width_attrib );
-
-		// Update based on 'width'
-		via_width = width;
-		via_width.Update();
-
-		if( bViaExists )
+		CVertexIterator vi( net, ic, ivtx );
+		for( cvertex * pVtx = vi.GetFirst(); pVtx != NULL; pVtx = vi.GetNext() )
 		{
+			ic   = vi.getcur_ic();
+			ivtx = vi.getcur_ivtx();
+
+			pVtx->via_width_attrib.SetParent( net->def_width_attrib );
+
+			// Get orig attrib
+			CViaWidthInfo via_width( pVtx->via_width_attrib );
+
+			// Update based on 'width'
+			via_width = width;
+			via_width.Update();
+
 			pVtx->via_width_attrib = via_width;
 
 			DrawVia( net, ic, ivtx );
@@ -4296,9 +4293,10 @@ int CNetList::UnforceVia( cnet * net, int ic, int ivtx, BOOL set_areas )
 }
 
 // Reconcile via with preceding and following segments
-// if a via is needed, use defaults for adjacent segments
+// if a via needs to be created, use the attrib passed in 'new_via_attrib'
 //
-int CNetList::ReconcileVia( cnet * net, int ic, int ivtx )
+// Returns: Boolean:,is a via needed for this vertex?
+int CNetList::ReconcileVia( cnet * net, int ic, int ivtx, CViaWidthInfo const &new_via_attrib )
 {
 	cconnect * c = &net->connect[ic];
 	cvertex * v = &c->vtx[ivtx];
@@ -4320,7 +4318,9 @@ int CNetList::ReconcileVia( cnet * net, int ic, int ivtx )
 				int tee_iv;
 				BOOL bFound = FindTeeVertexInNet( net, v->tee_ID, &tee_ic, &tee_iv );
 				if( bFound )
-					ReconcileVia( net, tee_ic, tee_iv );
+				{
+					via_needed = ReconcileVia( net, tee_ic, tee_iv, new_via_attrib );
+				}
 			}
 		}
 		else if( ivtx == 0 || ivtx == c->nsegs )
@@ -4350,9 +4350,44 @@ int CNetList::ReconcileVia( cnet * net, int ic, int ivtx )
 	if( via_needed )
 	{
 		// via needed, make sure it exists or create it
-		if( !ViaExists(net, ic, ivtx) )
+		if( !v->viaExists() )
 		{
-			InsertVia( net, ic, ivtx, CViaWidthInfo(net->def_width_attrib) );
+			// This via (on this connection) doesn't exist.  Check if any via exists 
+			// on any connection.  If so, insert the via using the other via's attributes,
+			// otherwise, create a new via using the net's default attributes.
+			CVertexIterator vi( net, ic, ivtx );
+			cvertex * vfound = NULL;
+
+			for( cvertex * v = vi.GetFirst(); v != NULL; v = vi.GetNext() )
+			{
+				if( v->viaExists() )
+				{
+					vfound = v;
+					break;
+				}
+			}
+
+			// Start with the passed-in via attrib.
+			CViaWidthInfo via_attrib(new_via_attrib);
+
+			// If another via was found, use its attrib instead
+			if( vfound != NULL )
+			{
+				via_attrib = vfound->via_width_attrib;
+			}
+
+			if( via_attrib.m_via_width.m_val == 0 )
+			{
+				// Via attrib. in have bad width value.  Reset to 'use_parent"
+				via_attrib.m_via_width = CII_FreePcb::E_USE_PARENT;
+				via_attrib.m_via_hole  = CII_FreePcb::E_USE_PARENT;
+			}
+
+			// Insert the via
+			InsertVia( net, ic, ivtx, via_attrib );
+
+			// Make sure all shared vias have the same attributes
+			SetViaSizeAttrib( net, ic, ivtx, via_attrib );
 		}
 	}
 	else
@@ -4364,7 +4399,7 @@ int CNetList::ReconcileVia( cnet * net, int ic, int ivtx )
 	if( m_dlist )
 		DrawVia( net, ic, ivtx );
 
-	return 0;
+	return via_needed;
 }
 
 
@@ -5879,7 +5914,7 @@ void CNetList::ConnectUndoCallback( int type, void * ptr, BOOL undo )
 							seg[is].layer, seg[is].width, seg[is].clearance );
 					}
 				}
-				for( int is=0; is<con->nsegs; is++ )
+				for( int is=0; is < con->nsegs; is++ )
 				{
 					c->vtx[is+1].via_width_attrib = vtx[is+1].width_attrib;
 
@@ -5890,7 +5925,7 @@ void CNetList::ConnectUndoCallback( int type, void * ptr, BOOL undo )
 					if( vtx[is+1].tee_ID )
 						nl->AddTeeID( vtx[is+1].tee_ID );
 
-					nl->ReconcileVia( net, nc, is+1 );
+					nl->ReconcileVia( net, nc, is+1, c->vtx[is+1].via_width_attrib );
 				}
 				// other parameters
 				net->connect[nc].locked = con->locked;

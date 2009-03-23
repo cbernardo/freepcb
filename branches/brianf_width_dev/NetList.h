@@ -558,10 +558,22 @@ public:
 	void CancelDraggingStub( cnet * net, int ic, int iseg );
 	int CancelMovingSegment( cnet * net, int ic, int ivtx );
 
-	// functions for vias
+	// functions for vias -----------------------------------------------------
 	void InsertVia( cnet * net, int ic, int ivtx, CViaWidthInfo const &width );
 	void SetViaSizeAttrib( cnet * net, int ic, int ivtx, CInheritableInfo const &width );
-	int ReconcileVia( cnet * net, int ic, int ivtx );
+
+	int ReconcileVia( cnet * net, int ic, int ivtx )
+	{
+		CViaWidthInfo via_attrib;
+		via_attrib.m_via_width = CII_FreePcb::E_USE_PARENT;
+		via_attrib.m_via_hole  = CII_FreePcb::E_USE_PARENT;
+
+		return ReconcileVia(net, ic, ivtx, via_attrib);
+	}
+	// The variant of ReconcileVia() is used for file load and undo where 
+	// the any newly created via needs to be assigned to a particular size.
+	int ReconcileVia( cnet * net, int ic, int ivtx, CViaWidthInfo const &width );
+
 	int ViaExists( cnet * net, int ic, int ivtx );
 	int ForceVia( cnet * net, int ic, int ivtx, BOOL set_areas=TRUE );
 	int UnforceVia( cnet * net, int ic, int ivtx, BOOL set_areas=TRUE );
@@ -569,7 +581,7 @@ public:
 	void UndrawVia( cnet * net, int ic, int iv );
 	void SetViaVisible( cnet * net, int ic, int iv, BOOL visible );
 
-	// functions for vertices
+	// functions for vertices -------------------------------------------------
 	void HighlightVertex( cnet * net, int ic, int ivtx );
 	int StartDraggingVertex( CDC * pDC, cnet * net, int ic, int iseg,
 						int x, int y, int cosshair = 1 );

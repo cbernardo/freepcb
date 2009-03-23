@@ -90,6 +90,7 @@ public:
 		Item &operator = (Item const &from)
 		{
 			assign_from(from);
+
 			return *this;
 		}
 

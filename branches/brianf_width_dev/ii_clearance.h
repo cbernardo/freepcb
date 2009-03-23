@@ -16,8 +16,7 @@ protected:
 	}
 
 public:
-	explicit CClearanceInfo(CInheritableInfo const &from) :
-		CII_FreePcb(from)
+	explicit CClearanceInfo(CInheritableInfo const &from)
 	{
 		*this = from;
 	}
@@ -72,16 +71,19 @@ public:
 
 	public:
 		CViaItem() {}
-		CViaItem(Item const &from) : Item(from) {}
+		CViaItem(Item const &from)        : Item(from) {}
 		explicit CViaItem(int val_status) : Item(val_status) {}
 
 	public:
 		CViaItem &operator = (int val_status)       { Item::operator = (val_status); return *this; }
-		CViaItem &operator = (Item const &from)     { assign_from(from); return *this; }
-		CViaItem &operator = (CViaItem const &from) { assign_from(from); return *this; }
+		CViaItem &operator = (Item const &from)     { Item::operator = (from);       return *this; }
+		CViaItem &operator = (CViaItem const &from) { Item::operator = (from);       return *this; }
 	};
 
 public:
+	// Initial values:
+	// 1) No via (size = 0)
+	// 2) Auto calc the clearance
 	CViaWidthInfo()
 		: CClearanceInfo( CClearanceInfo::E_AUTO_CALC )
 		, m_via_width(0)
