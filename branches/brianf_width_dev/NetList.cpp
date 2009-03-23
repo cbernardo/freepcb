@@ -66,7 +66,7 @@ carea &carea::operator=( carea &a )
 }
 
 
-CVertexIterator::CVertexIterator( cnet * net, int ic, int ivtx ) 
+CVertexIterator::CVertexIterator( cnet * net, int ic, int ivtx )
 	: m_net(net)
 	, m_ic(ic)
 	, m_ivtx(ivtx)
@@ -98,22 +98,23 @@ cvertex *CVertexIterator::GetNext()
 	cconnect * c;
 	cvertex * vtx;
 
-	if( m_idx < 0 ) 
+	if( m_idx < 0 )
 	{
 		// First return vertex defined by is & ivtx
-		if( m_ic >= m_net->nconnects ) return NULL;
-
-		c = &m_net->connect[m_ic];
-		if( m_ivtx > c->nsegs ) return NULL; // > is OK, >= not OK
-
-		m_idx = 0;
-
 		m_icc   = m_ic;
 		m_icvtx = m_ivtx;
+
+		if( m_icc >= m_net->nconnects ) return NULL;
+
+		c = &m_net->connect[m_icc];
+		if( m_icvtx > c->nsegs ) return NULL; // > is OK, >= not OK
 
 		vtx = &c->vtx[m_icvtx];
 
 		m_tee_ID = vtx->tee_ID;
+
+		// Next state
+		m_idx = 0;
 	}
 	else
 	{
@@ -127,16 +128,27 @@ cvertex *CVertexIterator::GetNext()
 			m_icc = m_idx++;
 			c = &m_net->connect[m_icc];
 
+			int i;
 			if( c->end_pin == cconnect::NO_END )
 			{
-				// test last vertex
-				vtx = &c->vtx[c->nsegs];
+				// Stub/branch - test last vertex
+				i = c->nsegs;
+			}
+			else
+			{
+				// Regular connection - test all vertexes
+				i = 1;
+			}
+
+			for ( ; i <= c->nsegs ; i++ )
+			{
+				vtx = &c->vtx[i];
 				if( vtx->tee_ID == m_tee_ID )
 				{
 					// Found matching vertex
 
 					// Update vertex info
-					m_icvtx = c->nsegs;
+					m_icvtx = i;
 
 					return vtx;
 				}
@@ -388,7 +400,7 @@ void CNetList::UndrawConnection( cnet * net, int ic )
 		{
 			cseg * s = &c->seg[is];
 
-			s->RemoveFromDL();
+			s->Undraw();
 		}
 		for( int iv=0; iv<nvtx; iv++ )
 		{
@@ -446,7 +458,8 @@ void CNetList::DrawConnection( cnet * net, int ic )
 		// if tee stub, reconcile via of tee vertex
 		if( c->end_pin == cconnect::NO_END )
 		{
-			if( int id = c->vtx[c->nsegs].tee_ID )
+			int id = c->vtx[c->nsegs].tee_ID;
+			if( id )
 			{
 				int tee_ic;
 				int tee_iv;
@@ -1185,7 +1198,8 @@ void CNetList::CleanUpAllConnections( CString * logstr )
 			{
 				for( int iv=1; iv<c->nsegs; iv++ )
 				{
-					if( int id=c->vtx[iv].tee_ID )
+					int id = c->vtx[iv].tee_ID;
+					if( id )
 					{
 						// tee-vertex, check array
 						if( FindTeeID(id) == -1 && logstr )
@@ -1377,7 +1391,7 @@ void CNetList::UnrouteSegmentWithoutMerge( cnet * net, int ic, int is )
 			id seg_id = c->seg[is].dl_el->id;
 			id sel_id = c->seg[is].dl_sel->id;
 
-			c->seg[is].RemoveFromDL();
+			c->seg[is].Undraw();
 
 			c->seg[is].dl_el  = m_dlist->Add        ( seg_id, net, LAY_RAT_LINE, DL_LINE, net->visible, 1, 0, 0, xi, yi, xf, yf, 0, 0 );
 			c->seg[is].dl_sel = m_dlist->AddSelector( sel_id, net, LAY_RAT_LINE, DL_LINE, net->visible, 1, 0,    xi, yi, xf, yf, 0, 0 );
@@ -1579,7 +1593,7 @@ int CNetList::ChangeSegmentLayer( cnet * net, int ic, int iseg, int layer )
 		post_v->x, post_v->y, 0, 0, 0 );
 
 	// remove old graphic elements
-	c->seg[iseg].RemoveFromDL();
+	c->seg[iseg].Undraw();
 
 	// add new graphics
 	c->seg[iseg].dl_el  = new_el;
@@ -1639,7 +1653,7 @@ int CNetList::RouteSegment( cnet * net, int ic, int iseg, int layer, CSegWidthIn
 	}
 
 	// remove old graphic elements
-	c->seg[iseg].RemoveFromDL();
+	c->seg[iseg].Undraw();
 
 	// modify segment parameters
 	c->seg[iseg].layer = layer;
@@ -4330,10 +4344,7 @@ int CNetList::ReconcileVia( cnet * net, int ic, int ivtx, CViaWidthInfo const &n
 		}
 		else if( v->tee_ID )
 		{
-			if( TeeViaNeeded( net, v->tee_ID ) )
-			{
-				via_needed = TRUE;
-			}
+			via_needed = TeeViaNeeded( net, v->tee_ID );
 		}
 		else
 		{
@@ -4352,7 +4363,7 @@ int CNetList::ReconcileVia( cnet * net, int ic, int ivtx, CViaWidthInfo const &n
 		// via needed, make sure it exists or create it
 		if( !v->viaExists() )
 		{
-			// This via (on this connection) doesn't exist.  Check if any via exists 
+			// This via (on this connection) doesn't exist.  Check if any via exists
 			// on any connection.  If so, insert the via using the other via's attributes,
 			// otherwise, create a new via using the net's default attributes.
 			CVertexIterator vi( net, ic, ivtx );
@@ -4400,6 +4411,23 @@ int CNetList::ReconcileVia( cnet * net, int ic, int ivtx, CViaWidthInfo const &n
 		DrawVia( net, ic, ivtx );
 
 	return via_needed;
+}
+
+
+void CNetList::MakeTeeConnection( cnet *net, cvertex *from_vtx, int to_ic, int to_ivtx)
+{
+	int id = from_vtx->tee_ID;
+	if( id == 0 )
+	{
+		// No tee-ID assigned yet, get a new one now
+		id = GetNewTeeID();
+		from_vtx->tee_ID = id;
+	}
+
+	net->connect[to_ic].vtx[to_ivtx].tee_ID = id;
+
+	// Reconcile the new tee via
+	ReconcileVia( net, to_ic, to_ivtx );
 }
 
 
@@ -4822,7 +4850,7 @@ void CNetList::ReadNets( CStdioFile * pcb_file, double read_version, int * layer
 
 								// set widths of following vertex
 								// Always insert via - reconcile later.  Otherwise size info
-								// can get lost if the via isn't initially created since a branch 
+								// can get lost if the via isn't initially created since a branch
 								// or stub may not exist.
 								InsertVia( net, ic, is+1, via_width_attrib );
 							}
@@ -4839,7 +4867,7 @@ void CNetList::ReadNets( CStdioFile * pcb_file, double read_version, int * layer
 							{
 								// set widths of preceding vertex
 								// Always insert via - reconcile later.  Otherwise size info
-								// can get lost if the via isn't initially created since a branch 
+								// can get lost if the via isn't initially created since a branch
 								// or stub may not exist.
 								InsertVia( net, ic, is, pre_width );
 							}
@@ -4849,7 +4877,7 @@ void CNetList::ReadNets( CStdioFile * pcb_file, double read_version, int * layer
 
 					// set widths of preceding vertex
 					// Always insert via - reconcile later.  Otherwise size info
-					// can get lost if the via isn't initially created since a branch 
+					// can get lost if the via isn't initially created since a branch
 					// or stub may not exist.
 					InsertVia( net, ic, is, pre_width );
 				}

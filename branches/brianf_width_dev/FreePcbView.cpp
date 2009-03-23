@@ -2104,13 +2104,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 							int p1 = m_Doc->m_nlist->GetNetPinIndex( m_sel_net, new_sel_part->ref_des, pin_name );
 							int ic = m_Doc->m_nlist->AddNetStub( m_sel_net, p1 );
 							m_Doc->m_nlist->AppendSegment( m_sel_net, ic, m_sel_vtx.x, m_sel_vtx.y, LAY_RAT_LINE, CConnectionWidthInfo() );
-							int id = m_sel_vtx.tee_ID;
-							if( id == 0 )
-							{
-								id = m_Doc->m_nlist->GetNewTeeID();
-								m_sel_vtx.tee_ID = id;
-							}
-							m_sel_net->connect[ic].vtx[1].tee_ID = m_sel_vtx.tee_ID;
+							m_Doc->m_nlist->MakeTeeConnection( m_sel_net, &m_sel_vtx, ic, 1 );
 							m_Doc->m_nlist->DrawConnection( m_sel_net, ic );
 							m_Doc->m_nlist->OptimizeConnections( m_sel_net );
 							CancelSelection();
@@ -2419,20 +2413,8 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 				hit_c = &m_sel_net->connect[hit_ic];
 				hit_v = &hit_c->vtx[hit_iv];
 				int ret = AfxMessageBox( "Branch created" );
-				// first, see if already a tee
-				int id;
-				if( hit_v->tee_ID )
-				{
-					// yes
-					id = hit_v->tee_ID;
-				}
-				else
-				{
-					// no
-					id = m_Doc->m_nlist->GetNewTeeID();
-					hit_v->tee_ID = id;
-				}
-				// now connect it (no via)
+
+				// connect it (no via)
 				CPoint pi = m_snap_angle_ref;
 				CPoint pf = m_last_cursor_point;
 				CPoint pp = GetInflectionPoint( pi, pf, m_inflection_mode );
@@ -2463,10 +2445,8 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 						CConnectionWidthInfo()
 					);
 				}
-				// set tee_ID for end-vertex and remove selector
-				m_sel_con.vtx[m_sel_iv+1].tee_ID = id;
 
-				m_Doc->m_nlist->ReconcileVia( m_sel_net, m_sel_ic, m_sel_iv+1 );
+				m_Doc->m_nlist->MakeTeeConnection( m_sel_net, hit_v, m_sel_ic, m_sel_iv+1 );
 
 				m_dlist->StopDragging();
 
@@ -5292,7 +5272,7 @@ CString CFreePcbView::GetViaText( cvertex const &Vtx )
 	}
 
 	{
-		if( Vtx.force_via_flag ) 
+		if( Vtx.force_via_flag )
 			ret += " (F)";
 
 		if( Vtx.tee_ID )
@@ -6636,7 +6616,7 @@ void CFreePcbView::OnPadSetClearance()
 	CDlgSetPinClearance dlg;
 
 	//dlg.m_clearance = m_sel_vtx.via_width_attrib;
-	
+
 	int ret = dlg.DoModal();
 	if( ret == IDOK )
 	{
@@ -9120,7 +9100,7 @@ void CFreePcbView::SelectItemsInRect( CRect r, BOOL bAddToGroup )
 							m_sel_ptrs.Add( net );
 						}
 					}
-					if( bPreV && ( pre_v->tee_ID || pre_v->via_w() ) )
+					if( bPreV && ( pre_v->tee_ID || pre_v->viaExists() ) )
 					{
 						id vid( ID_NET, ID_CONNECT, ic, ID_SEL_VERTEX, is );
 						if( FindItemInGroup( net, &vid ) == -1 )
@@ -9129,7 +9109,7 @@ void CFreePcbView::SelectItemsInRect( CRect r, BOOL bAddToGroup )
 							m_sel_ptrs.Add( net );
 						}
 					}
-					if( bPostV && ( post_v->tee_ID || post_v->via_w() ) )
+					if( bPostV && ( post_v->tee_ID || post_v->viaExists() ) )
 					{
 						id vid( ID_NET, ID_CONNECT, ic, ID_SEL_VERTEX, is+1 );
 						if( FindItemInGroup( net, &vid ) == -1 )
@@ -10616,7 +10596,8 @@ void CFreePcbView::OnGroupCopy()
 				for( int iv=1; iv<c->nsegs; iv++ )
 				{
 					cvertex * vtx = &c->vtx[iv];
-					if( int id = vtx->tee_ID )
+					int id = vtx->tee_ID;
+					if( id )
 					{
 						// tee-vertex, see if we need to add any unselected branches
 						cnet * net = m_Doc->m_nlist->GetNetPtrByName( &g_net->name );
@@ -11234,22 +11215,7 @@ void CFreePcbView::OnGroupPaste()
 				AfxMessageBox( mess );
 				bConflict = TRUE;
 			}
-			// now change part refs in group netlist
-			net = g_nl->GetFirstNet();
-			while( net )
-			{
-				for( int ip=0; ip<net->npins; ip++ )
-				{
-					cpin * pin = &net->pin[ip];
-					if( pin->utility == 0 && pin->ref_des() == g_part->ref_des )
-					{
-						pin->set_ref_des( new_ref );
-						pin->part = NULL;
-						pin->utility = 1;	// only change it once
-					}
-				}
-				net = g_nl->GetNextNet();
-			}
+
 			// add new part
 			cpart * prj_part = pl->Add( g_part->shape, &new_ref, &g_part->package,
 				g_part->x + dlg.m_dx, g_part->y + dlg.m_dy,
@@ -11257,6 +11223,21 @@ void CFreePcbView::OnGroupPaste()
 			ref_des_map.SetAt( new_ref, NULL );
 			SaveUndoInfoForPart( prj_part,
 				CPartList::UNDO_PART_ADD, &prj_part->ref_des, FALSE, m_Doc->m_undo_list );
+
+			// now change part refs in group netlist
+			for( net = g_nl->GetFirstNet(); net != NULL; net = g_nl->GetNextNet() )
+			{
+				for( int ip=0; ip<net->npins; ip++ )
+				{
+					cpin * pin = &net->pin[ip];
+					if( pin->utility == 0 && pin->part == g_part )
+					{
+						pin->part = prj_part;
+						pin->utility = 1;	// only change it once
+					}
+				}
+			}
+
 			// set ref text parameters
 			pl->UndrawPart( prj_part );
 			prj_part->m_ref_angle = g_part->m_ref_angle;
@@ -11360,6 +11341,7 @@ void CFreePcbView::OnGroupPaste()
 					}
 					// add new net
 					prj_net = nl->AddNet( new_name, g_net->npins, g_net->def_width_attrib );
+
 					SaveUndoInfoForNet( prj_net, CNetList::UNDO_NET_ADD, FALSE, m_Doc->m_undo_list );
 					prj_net->utility = 1;	// mark as saved
 				}
@@ -11371,6 +11353,7 @@ void CFreePcbView::OnGroupPaste()
 					{
 						// no project net with the same name
 						prj_net = nl->AddNet( g_net->name, g_net->npins, g_net->def_width_attrib );
+
 						SaveUndoInfoForNet( prj_net, CNetList::UNDO_NET_ADD, FALSE, m_Doc->m_undo_list );
 						prj_net->utility = 1;	// mark as saved
 					}
@@ -11380,10 +11363,13 @@ void CFreePcbView::OnGroupPaste()
 						prj_net->utility = 1;	// mark as saved
 					}
 				}
+
 				if( !prj_net )
 					ASSERT(0);
+
 				// now create map for renaming tees
 				CMap<int,int,int,int> tee_map;
+
 				// connect group part pins to project net
 				for( int ip=0; ip<g_net->npins; ip++ )
 				{
@@ -11444,13 +11430,17 @@ void CFreePcbView::OnGroupPaste()
 						{
 							ic = nl->AddNetStub( prj_net, new_start_pin );
 						}
-						nl->UndrawConnection( prj_net, ic );
+
 						// copy it and draw it
 						if( ic < 0 )
+						{
 							ASSERT(0);
+						}
 						else
 						{
 							// copy connection
+							nl->UndrawConnection( prj_net, ic );
+
 							cconnect * c = &prj_net->connect[ic];
 							c->nsegs = g_c->nsegs;
 							c->seg.SetSize( g_c->nsegs );
@@ -11488,7 +11478,9 @@ void CFreePcbView::OnGroupPaste()
 							{
 								c->vtx[iv].x += dlg.m_dx;
 								c->vtx[iv].y += dlg.m_dy;
-								if( int g_id = c->vtx[iv].tee_ID )
+
+								int g_id = c->vtx[iv].tee_ID;
+								if( g_id )
 								{
 									// assign new tee_ID
 									int new_id;
@@ -11500,6 +11492,7 @@ void CFreePcbView::OnGroupPaste()
 									}
 									c->vtx[iv].tee_ID = new_id;
 								}
+
 								// update lower-left corner
 								double d = c->vtx[iv].x + c->vtx[iv].y;
 								if( d < min_d )
@@ -12190,7 +12183,8 @@ void CFreePcbView::RotateGroup()
 				{
 					cvertex * end_vtx = &c->vtx[c->nsegs];
 					cseg * end_seg = &c->seg[c->nsegs-1];
-					if( int id = end_vtx->tee_ID )
+					int id = end_vtx->tee_ID;
+					if( id )
 					{
 						// stub tee
 						int tee_ic;
