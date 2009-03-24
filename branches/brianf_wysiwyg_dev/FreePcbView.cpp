@@ -5847,7 +5847,6 @@ void CFreePcbView::OnContextMenu(CWnd* pWnd, CPoint point )
 		ASSERT(pPopup != NULL);
 		if( m_sel_vtx.viaExists() )
 		{
-		{
 			pPopup->EnableMenuItem( ID_ENDVERTEX_ADDVIA, MF_GRAYED );
 		}
 		else
