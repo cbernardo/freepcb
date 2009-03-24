@@ -71,19 +71,21 @@ int CTab_ProjectOpt_Thermal::Verify()
 	int val;
 
 	m_edit_TR_line_w.GetWindowText(str);
-	if ( (sscanf(str, "%d", &val) != 1) || (val < 10) || (val > 50))
+	if ( (sscanf(str, "%d", &val) != 1) || (val < MIN_THERMAL_LINE_W) || (val > MAX_THERMAL_LINE_W))
 	{
 		MakePageActive();
-		AfxMessageBox( "Invalid Thermal Relief Line Width (10-50)" );
+		str.Format( "Invalid Thermal Relief Line Width (%d-%d)", MIN_THERMAL_LINE_W, MAX_THERMAL_LINE_W);
+		AfxMessageBox( str );
 		return 0;
 	}
 	m_TR_line_w = val;
 
 	m_edit_TR_clearance.GetWindowText(str);
-	if ( (sscanf(str, "%d", &val) != 1) || (val < 0) || (val > 50))
+	if ( (sscanf(str, "%d", &val) != 1) || (val < 0) || (val > MAX_THERMAL_CLEARANCE))
 	{
 		MakePageActive();
-		AfxMessageBox( "Invalid Thermal Relief Clearance (0-50)" );
+		str.Format( "Invalid Thermal Relief Clearance (0-%d)", MAX_THERMAL_CLEARANCE );
+		AfxMessageBox( str );
 		return 0;
 	}
 	m_TR_clearance = val;
@@ -94,7 +96,7 @@ int CTab_ProjectOpt_Thermal::Verify()
 void CTab_ProjectOpt_Thermal::DDX_out()
 {
 	CDlgProjectOptionsTabbed::CTabs *pParent = static_cast<CDlgProjectOptionsTabbed::CTabs*>(GetParent());
-	if (pParent->m_Tab_Main.m_bSMT_connect_copper)
+	if( pParent->m_Tab_Main.m_bSMT_connect_copper )
 	{
 		m_b_TR_for_SMT_pads = m_check_TR_for_SMT_pads.GetCheck();
 	}
@@ -110,5 +112,4 @@ void CTab_ProjectOpt_Thermal::DDX_out()
 	m_TR_line_w    *= NM_PER_MIL;
 	m_TR_clearance *= NM_PER_MIL;
 }
-
 

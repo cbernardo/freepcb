@@ -1,10 +1,12 @@
 #pragma once
 #include "afxwin.h"
-
+#include "SubdlgClearance.h"
 
 // CDlgSetPinClearance dialog
 
-class CDlgSetPinClearance : public CDialog
+class CDlgSetPinClearance
+	: public CDialog
+	, public CSubDlg_Clearance
 {
 	DECLARE_DYNAMIC(CDlgSetPinClearance)
 
@@ -21,25 +23,19 @@ protected:
 
 	DECLARE_MESSAGE_MAP()
 
-	CButton m_clearance_auto;
-	CButton m_clearance_net;
-	CButton m_clearance_set;
-	CEdit m_edit_clearance;
+	// Mapping functions to mix-in classes CSubDlg...
+	afx_msg void OnBnClicked_c_Default() { CSubDlg_Clearance::OnBnClicked_c_Default(); }
+	afx_msg void OnBnClicked_c_Auto()    { CSubDlg_Clearance::OnBnClicked_c_Auto();    }
+	afx_msg void OnBnClicked_c_Set()     { CSubDlg_Clearance::OnBnClicked_c_Set();     }
 
 	CButton m_apply_this_only;
 	CButton m_apply_con;
 	CButton m_apply_net;
-
-	afx_msg void OnBnClickedRadioPinAutoClearance();
-	afx_msg void OnBnClickedRadioPinNetClearance();
-	afx_msg void OnBnClickedRadioPinSetClearance();
-
-	void OnUpdateClearanceType();
 
 public:
 	// these variables should be set on entry
 	CClearanceInfo m_clearance; // clearance
 
 	// these variables will be set on exit
-	int m_apply;	 // apply clearance (1=pin/via, 2=con, 3=net)
+	int m_apply;	 // apply clearance to (1=pin/via, 2=con, 3=net)
 };

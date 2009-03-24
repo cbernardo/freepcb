@@ -108,7 +108,11 @@ public:
 	dl_element * dl_sel;	  // pointer to graphic element for selection shape
 	dl_element * dl_hole;	  // pointer to graphic element for hole
 	CArray<dl_element*> dl_els;	// array of pointers to graphic elements for pads
+
+public:
+	void set_net(cnet *net = NULL);
 };
+
 
 // class cpart represents a part
 class cpart //: public CDLinkList
@@ -235,7 +239,7 @@ public:
 	CPoint GetPinPoint(  cpart * part, int pin_index );
 	CPoint GetCentroidPoint(  cpart * part );
 	CPoint GetGluePoint(  cpart * part, int iglue );
-	int GetPinLayer( cpart * part, CString * pin_name );
+	int GetPinLayer( cpart * part, CString const &pin_name );
 	int GetPinLayer( cpart * part, int pin_index );
 	cnet * GetPinNet( cpart * part, CString * pin_name );
 	cnet * GetPinNet( cpart * part, int pin_index );
@@ -243,7 +247,7 @@ public:
 	void SetPinAnnularRing( int ring ){ m_annular_ring = ring; };
 	int GetPartBoundingRect( cpart * part, CRect * part_r );
 	int GetPartBoundaries( CRect * part_r );
-	int GetPinConnectionStatus( cpart * part, CString * pin_name, int layer );
+	int GetPinConnectionStatus( cpart * part, CString const &pin_name, int layer );
 	int CPartList::GetPadDrawInfo( cpart * part, int ipin, int layer,
 							  BOOL bUse_TH_thermals, BOOL bUse_SMT_thermals,
 							  int mask_clearance, int paste_mask_shrink,

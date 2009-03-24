@@ -74,7 +74,7 @@ public:
 	void ProjectModified( BOOL flag, BOOL b_clear_redo=TRUE );
 	void InitializeNewProject();
 	void CFreePcbDoc::SendInitialUpdate();
-	void ReadFootprints( CStdioFile * pcb_file, 
+	void ReadFootprints( CStdioFile * pcb_file,
 		CMapStringToPtr * cache_map=NULL,
 		BOOL bFindSection=TRUE );
 	int WriteFootprints( CStdioFile * file, CMapStringToPtr * cache_map=NULL );
@@ -215,10 +215,7 @@ public:
 	int m_fp_vis[MAX_LAYERS];
 
 	// default trace and via widths for routing
-	int m_trace_w;			// default trace width
-	int m_via_w;			// default via pad width
-	int m_via_hole_w;		// default via hole diameter
-	CClearanceInfo m_clearance; // default trace clearances
+	CNetWidthInfo m_def_size_attrib;
 
 	CArray<int> m_w;		// array of trace widths
 	CArray<int> m_v_w;		// array of via widths

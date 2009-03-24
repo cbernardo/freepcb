@@ -50,25 +50,25 @@ static int CALLBACK ListCompare( LPARAM lp1, LPARAM lp2, LPARAM type )
 
 		case SORT_UP_WIDTH:
 		case SORT_DOWN_WIDTH:
-			if( ::gnl[lp1].w > ::gnl[lp2].w )
+			if( ::gnl[lp1].width_attrib.m_seg_width > ::gnl[lp2].width_attrib.m_seg_width )
 				ret = 1;
-			else if( ::gnl[lp1].w < ::gnl[lp2].w )
+			else if( ::gnl[lp1].width_attrib.m_seg_width < ::gnl[lp2].width_attrib.m_seg_width )
 				ret = -1;
 			break;
 
 		case SORT_UP_VIA_W:
 		case SORT_DOWN_VIA_W:
-			if( ::gnl[lp1].v_w > ::gnl[lp2].v_w )
+			if( ::gnl[lp1].width_attrib.m_via_width > ::gnl[lp2].width_attrib.m_via_width )
 				ret = 1;
-			else if( ::gnl[lp1].v_w < ::gnl[lp2].v_w )
+			else if( ::gnl[lp1].width_attrib.m_via_width < ::gnl[lp2].width_attrib.m_via_width )
 				ret = -1;
 			break;
 
 		case SORT_UP_HOLE_W:
 		case SORT_DOWN_HOLE_W:
-			if( ::gnl[lp1].v_h_w > ::gnl[lp2].v_h_w )
+			if( ::gnl[lp1].width_attrib.m_via_hole > ::gnl[lp2].width_attrib.m_via_hole )
 				ret = 1;
-			else if( ::gnl[lp1].v_h_w < ::gnl[lp2].v_h_w )
+			else if( ::gnl[lp1].width_attrib.m_via_hole < ::gnl[lp2].width_attrib.m_via_hole )
 				ret = -1;
 			break;
 
@@ -82,9 +82,9 @@ static int CALLBACK ListCompare( LPARAM lp1, LPARAM lp2, LPARAM type )
 
 		case SORT_UP_CLEARANCE:
 		case SORT_DOWN_CLEARANCE:
-			if( ::gnl[lp1].clearance.m_ca_clearance > ::gnl[lp2].clearance.m_ca_clearance )
+			if( ::gnl[lp1].width_attrib.m_ca_clearance > ::gnl[lp2].width_attrib.m_ca_clearance )
 				ret = 1;
-			else if( ::gnl[lp1].clearance.m_ca_clearance < ::gnl[lp2].clearance.m_ca_clearance )
+			else if( ::gnl[lp1].width_attrib.m_ca_clearance < ::gnl[lp2].width_attrib.m_ca_clearance )
 				ret = -1;
 			break;
 	}
@@ -156,13 +156,13 @@ void CDlgGroupPaste::DoDataExchange(CDataExchange* pDX)
 		CString str;
 		DWORD old_style = m_list_ctrl.GetExtendedStyle();
 		m_list_ctrl.SetExtendedStyle( LVS_EX_FULLROWSELECT | LVS_EX_FLATSB | LVS_EX_CHECKBOXES | old_style );
-		m_list_ctrl.InsertColumn( COL_VIS, "Sel", LVCFMT_LEFT, 30 );
-		m_list_ctrl.InsertColumn( COL_NAME, "Name", LVCFMT_LEFT, 140 );
-		m_list_ctrl.InsertColumn( COL_PINS, "Pins", LVCFMT_LEFT, 40 );
-		m_list_ctrl.InsertColumn( COL_WIDTH, "Width", LVCFMT_LEFT, 40 );
-		m_list_ctrl.InsertColumn( COL_VIA_W, "Via W", LVCFMT_LEFT, 40 );
-		m_list_ctrl.InsertColumn( COL_HOLE_W, "Hole", LVCFMT_LEFT, 40 );
-    	m_list_ctrl.InsertColumn( COL_CLEARANCE, "Clearance", LVCFMT_LEFT, 70 );
+		m_list_ctrl.InsertColumn( COL_VIS,       "Sel",       LVCFMT_LEFT, 30 );
+		m_list_ctrl.InsertColumn( COL_NAME,      "Name",      LVCFMT_LEFT, 140 );
+		m_list_ctrl.InsertColumn( COL_PINS,      "Pins",      LVCFMT_LEFT, 40 );
+		m_list_ctrl.InsertColumn( COL_WIDTH,     "Width",     LVCFMT_LEFT, 50 );
+		m_list_ctrl.InsertColumn( COL_VIA_W,     "Via W",     LVCFMT_LEFT, 53 );
+		m_list_ctrl.InsertColumn( COL_HOLE_W,    "Hole",      LVCFMT_LEFT, 53 );
+		m_list_ctrl.InsertColumn( COL_CLEARANCE, "Clearance", LVCFMT_LEFT, 60 );
 		for( int i=0; i<gnl.GetSize(); i++ )
 		{
 			lvitem.mask = LVIF_TEXT | LVIF_PARAM;
@@ -173,24 +173,17 @@ void CDlgGroupPaste::DoDataExchange(CDataExchange* pDX)
 			m_list_ctrl.SetItem( i, COL_NAME, LVIF_TEXT, ::gnl[i].name, 0, 0, 0, 0 );
 			str.Format( "%d", ::gnl[i].ref_des.GetSize() );
 			m_list_ctrl.SetItem( i, COL_PINS, LVIF_TEXT, str, 0, 0, 0, 0 );
-			str.Format( "%d", ::gnl[i].w/NM_PER_MIL );
+
+			str = CII_FreePcb::GetItemText( ::gnl[i].width_attrib.m_seg_width );
 			m_list_ctrl.SetItem( i, COL_WIDTH, LVIF_TEXT, str, 0, 0, 0, 0 );
-			str.Format( "%d", ::gnl[i].v_w/NM_PER_MIL );
+
+			str = CII_FreePcb::GetItemText( ::gnl[i].width_attrib.m_via_width );
 			m_list_ctrl.SetItem( i, COL_VIA_W, LVIF_TEXT, str, 0, 0, 0, 0 );
-			str.Format( "%d", ::gnl[i].v_h_w/NM_PER_MIL );
+
+			str = CII_FreePcb::GetItemText( ::gnl[i].width_attrib.m_via_hole );
 			m_list_ctrl.SetItem( i, COL_HOLE_W, LVIF_TEXT, str, 0, 0, 0, 0 );
 
-			if (::gnl[i].clearance.m_ca_clearance.m_status < 0)
-			{
-				// Just to make sure
-				::gnl[i].clearance.m_ca_clearance.m_status = CClearanceInfo::E_USE_PARENT;
-
-				str.Format("Default");
-			}
-			else
-			{
-				str.Format( "%d", ::gnl[i].clearance.m_ca_clearance.m_val / NM_PER_MIL );
-			}
+			str = CII_FreePcb::GetItemText( ::gnl[i].width_attrib.m_ca_clearance );
 			m_list_ctrl.SetItem( i, COL_CLEARANCE, LVIF_TEXT, str, 0, 0, 0, 0 );
 
 			ListView_SetCheckState( m_list_ctrl, nItem, 0 );
@@ -225,7 +218,6 @@ void CDlgGroupPaste::DoDataExchange(CDataExchange* pDX)
 		::gnl.SetSize(0);
 	}
 }
-
 
 
 BEGIN_MESSAGE_MAP(CDlgGroupPaste, CDialog)

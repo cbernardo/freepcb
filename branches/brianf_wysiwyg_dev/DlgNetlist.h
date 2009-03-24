@@ -37,7 +37,8 @@ private:
 	int m_sort_type;
 	CListCtrl m_list_ctrl;
 	virtual BOOL OnInitDialog();
-	void CDlgNetlist::DrawListCtrl();
+	void DrawListCtrl();
+	CString CDlgNetlist::GetItemText(CInheritableInfo::Item &item) const;
 	afx_msg void OnLvnColumnclickListNet(NMHDR *pNMHDR, LRESULT *pResult);
 	CButton m_button_visible;
 	CButton m_button_delete_single;

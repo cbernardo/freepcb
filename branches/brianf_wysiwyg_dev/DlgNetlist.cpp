@@ -54,25 +54,25 @@ int CALLBACK CompareNetlist( LPARAM lp1, LPARAM lp2, LPARAM type )
 
 		case SORT_UP_WIDTH:
 		case SORT_DOWN_WIDTH:
-			if( ::nl[lp1].w > ::nl[lp2].w )
+			if( ::nl[lp1].width_attrib.m_seg_width > ::nl[lp2].width_attrib.m_seg_width )
 				ret = 1;
-			else if( ::nl[lp1].w < ::nl[lp2].w )
+			else if( ::nl[lp1].width_attrib.m_seg_width < ::nl[lp2].width_attrib.m_seg_width )
 				ret = -1;
 			break;
 
 		case SORT_UP_VIA_W:
 		case SORT_DOWN_VIA_W:
-			if( ::nl[lp1].v_w > ::nl[lp2].v_w )
+			if( ::nl[lp1].width_attrib.m_via_width > ::nl[lp2].width_attrib.m_via_width )
 				ret = 1;
-			else if( ::nl[lp1].v_w < ::nl[lp2].v_w )
+			else if( ::nl[lp1].width_attrib.m_via_width < ::nl[lp2].width_attrib.m_via_width )
 				ret = -1;
 			break;
 
 		case SORT_UP_HOLE_W:
 		case SORT_DOWN_HOLE_W:
-			if( ::nl[lp1].v_h_w > ::nl[lp2].v_h_w )
+			if( ::nl[lp1].width_attrib.m_via_hole > ::nl[lp2].width_attrib.m_via_hole )
 				ret = 1;
-			else if( ::nl[lp1].v_h_w < ::nl[lp2].v_h_w )
+			else if( ::nl[lp1].width_attrib.m_via_hole < ::nl[lp2].width_attrib.m_via_hole )
 				ret = -1;
 			break;
 
@@ -86,9 +86,9 @@ int CALLBACK CompareNetlist( LPARAM lp1, LPARAM lp2, LPARAM type )
 
 		case SORT_UP_CLEARANCE:
 		case SORT_DOWN_CLEARANCE:
-			if( ::nl[lp1].clearance.m_ca_clearance > ::nl[lp2].clearance.m_ca_clearance )
+			if( ::nl[lp1].width_attrib.m_ca_clearance > ::nl[lp2].width_attrib.m_ca_clearance )
 				ret = 1;
-			else if( ::nl[lp1].clearance.m_ca_clearance < ::nl[lp2].clearance.m_ca_clearance )
+			else if( ::nl[lp1].width_attrib.m_ca_clearance < ::nl[lp2].width_attrib.m_ca_clearance )
 				ret = -1;
 			break;
 	}
@@ -188,13 +188,13 @@ BOOL CDlgNetlist::OnInitDialog()
 	m_nl = &::nl;
 	m_nlist->ExportNetListInfo( &::nl );
 
-	m_list_ctrl.InsertColumn( COL_VIS, "Vis", LVCFMT_LEFT, 25 );
-	m_list_ctrl.InsertColumn( COL_NAME, "Name", LVCFMT_LEFT, 140 );
-	m_list_ctrl.InsertColumn( COL_PINS, "Pins", LVCFMT_LEFT, 40 );
-	m_list_ctrl.InsertColumn( COL_WIDTH, "Width", LVCFMT_LEFT, 40 );
-	m_list_ctrl.InsertColumn( COL_VIA_W, "Via W", LVCFMT_LEFT, 40 );
-	m_list_ctrl.InsertColumn( COL_HOLE_W, "Hole", LVCFMT_LEFT, 40 );
-	m_list_ctrl.InsertColumn( COL_CLEARANCE, "Clearance", LVCFMT_LEFT, 70 );
+	m_list_ctrl.InsertColumn( COL_VIS,       "Vis",       LVCFMT_LEFT, 25 );
+	m_list_ctrl.InsertColumn( COL_NAME,      "Name",      LVCFMT_LEFT, 140 );
+	m_list_ctrl.InsertColumn( COL_PINS,      "Pins",      LVCFMT_LEFT, 40 );
+	m_list_ctrl.InsertColumn( COL_WIDTH,     "Width",     LVCFMT_LEFT, 50 );
+	m_list_ctrl.InsertColumn( COL_VIA_W,     "Via W",     LVCFMT_LEFT, 53 );
+	m_list_ctrl.InsertColumn( COL_HOLE_W,    "Hole",      LVCFMT_LEFT, 53 );
+	m_list_ctrl.InsertColumn( COL_CLEARANCE, "Clearance", LVCFMT_LEFT, 60 );
 
 	// initialize netlist control
 	m_item_selected = -1;
@@ -210,6 +210,7 @@ BOOL CDlgNetlist::OnInitDialog()
 
 	return TRUE;
 }
+
 
 // draw listview control and sort according to m_sort_type
 //
@@ -232,24 +233,17 @@ void CDlgNetlist::DrawListCtrl()
 			m_list_ctrl.SetItem( iItem, COL_NAME, LVIF_TEXT, ::nl[i].name, 0, 0, 0, 0 );
 			str.Format( "%d", ::nl[i].ref_des.GetSize() );
 			m_list_ctrl.SetItem( iItem, COL_PINS, LVIF_TEXT, str, 0, 0, 0, 0 );
-			str.Format( "%d", ::nl[i].w/NM_PER_MIL );
+
+			str = CII_FreePcb::GetItemText( ::nl[i].width_attrib.m_seg_width );
 			m_list_ctrl.SetItem( iItem, COL_WIDTH, LVIF_TEXT, str, 0, 0, 0, 0 );
-			str.Format( "%d", ::nl[i].v_w/NM_PER_MIL );
+
+			str = CII_FreePcb::GetItemText( ::nl[i].width_attrib.m_via_width );
 			m_list_ctrl.SetItem( iItem, COL_VIA_W, LVIF_TEXT, str, 0, 0, 0, 0 );
-			str.Format( "%d", ::nl[i].v_h_w/NM_PER_MIL );
+
+			str = CII_FreePcb::GetItemText( ::nl[i].width_attrib.m_via_hole );
 			m_list_ctrl.SetItem( iItem, COL_HOLE_W, LVIF_TEXT, str, 0, 0, 0, 0 );
 
-			if (::nl[i].clearance.m_ca_clearance.m_status < 0)
-			{
-				// Just to make sure
-				::nl[i].clearance.m_ca_clearance.m_status = CClearanceInfo::E_USE_PARENT;
-
-				str.Format("Default");
-			}
-			else
-			{
-				str.Format( "%d", ::nl[i].clearance.m_ca_clearance.m_val / NM_PER_MIL );
-			}
+			str = CII_FreePcb::GetItemText( ::nl[i].width_attrib.m_ca_clearance );
 			m_list_ctrl.SetItem( iItem, COL_CLEARANCE, LVIF_TEXT, str, 0, 0, 0, 0 );
 
 			ListView_SetCheckState( m_list_ctrl, nItem, ::nl[i].visible );
@@ -337,8 +331,9 @@ void CDlgNetlist::OnBnClickedButtonEdit()
 	else
 	{
 		POSITION pos = m_list_ctrl.GetFirstSelectedItemPosition();
-		if (pos == NULL)
+		if( pos == NULL )
 			ASSERT(0);
+
 		int nItem = m_list_ctrl.GetNextSelectedItem(pos);
 		int i = m_list_ctrl.GetItemData( nItem );
 
@@ -428,29 +423,31 @@ void CDlgNetlist::OnBnClickedButtonNLWidth()
 	dlg.m_w = &doc->m_w;
 	dlg.m_v_w = &doc->m_v_w;
 	dlg.m_v_h_w = &doc->m_v_h_w;
-	dlg.m_width = 0;
-	dlg.m_via_width = 0;
-	dlg.m_hole_width = 0;
-	dlg.m_clearance.m_ca_clearance = CClearanceInfo::E_USE_PARENT;
+
+	// Set width attrib in two steps:
+	// 1) Connection attrib
+	// 2) Clearance attrib
+	//
+	// These two steps don't interfere with each other since they
+	// set orthogonal parts of m_width_attrib
+	dlg.m_width_attrib = CConnectionWidthInfo();
+	dlg.m_width_attrib = CClearanceInfo();
+
 	if( n_sel == 1 )
 	{
 		POSITION pos = m_list_ctrl.GetFirstSelectedItemPosition();
 		int iItem = m_list_ctrl.GetNextSelectedItem( pos );
 		int i = m_list_ctrl.GetItemData( iItem );
 
-		dlg.m_width = ::nl[i].w;
-		dlg.m_via_width = ::nl[i].v_w;
-		dlg.m_hole_width = ::nl[i].v_h_w;
-
-        dlg.m_clearance = ::nl[i].clearance;
+		dlg.m_width_attrib = ::nl[i].width_attrib;
 	}
 	else
 	{
-		// Assign the project clearance (in doc) as the parent to the clearance
-		dlg.m_clearance.SetParent(doc->m_clearance);
+		// Assign the project width attrib (in doc) as the parent
+		dlg.m_width_attrib.SetParent(doc->m_def_size_attrib);
 	}
 
-	dlg.m_clearance.Update();
+	dlg.m_width_attrib.Update();
 
 	int ret = dlg.DoModal();
 	if( ret == IDOK )
@@ -461,45 +458,23 @@ void CDlgNetlist::OnBnClickedButtonNLWidth()
 			int iItem = m_list_ctrl.GetNextSelectedItem( pos );
 			int i = m_list_ctrl.GetItemData( iItem );
 
-			if( dlg.m_apply_trace )
-			{
-				if( dlg.m_width != -1 )
-					::nl[i].w = dlg.m_width;
-			}
+			::nl[i].width_attrib = dlg.m_width_attrib;
+			::nl[i].width_attrib.Update();
 
-			if( dlg.m_apply_via )
-			{
-				if( dlg.m_via_width != -1 )
-				{
-					::nl[i].v_w = dlg.m_via_width;
-					::nl[i].v_h_w = dlg.m_hole_width;
-				}
-			}
+			::nl[i].apply_trace_width = dlg.m_apply_trace;
+			::nl[i].apply_via_width   = dlg.m_apply_via;
+    		::nl[i].apply_clearance   = dlg.m_apply_clearance;
 
-			if( dlg.m_apply_clearance )
-			{
-				::nl[i].clearance = dlg.m_clearance;
-			}
-
-			::nl[i].apply_trace_width = dlg.m_apply_to_routed && dlg.m_apply_trace;
-			::nl[i].apply_via_width   = dlg.m_apply_to_routed && dlg.m_apply_via;
-    		::nl[i].apply_clearance   = dlg.m_apply_to_routed && dlg.m_apply_clearance;
-
-			str.Format( "%d", ::nl[i].w/NM_PER_MIL );
+			str = CII_FreePcb::GetItemText( ::nl[i].width_attrib.m_seg_width );
 			m_list_ctrl.SetItem( iItem, COL_WIDTH, LVIF_TEXT, str, 0, 0, 0, 0 );
-			str.Format( "%d", ::nl[i].v_w/NM_PER_MIL );
+
+			str = CII_FreePcb::GetItemText( ::nl[i].width_attrib.m_via_width );
 			m_list_ctrl.SetItem( iItem, COL_VIA_W, LVIF_TEXT, str, 0, 0, 0, 0 );
-			str.Format( "%d", ::nl[i].v_h_w/NM_PER_MIL );
+
+			str = CII_FreePcb::GetItemText( ::nl[i].width_attrib.m_via_hole );
 			m_list_ctrl.SetItem( iItem, COL_HOLE_W, LVIF_TEXT, str, 0, 0, 0, 0 );
 
-			if (::nl[i].clearance.m_ca_clearance.m_status < 0)
-			{
-				str.Format("Default");
-			}
-			else
-			{
-				str.Format( "%d", ::nl[i].clearance.m_ca_clearance.m_val / NM_PER_MIL );
-			}
+			str = CII_FreePcb::GetItemText( ::nl[i].width_attrib.m_ca_clearance );
 			m_list_ctrl.SetItem( iItem, COL_CLEARANCE, LVIF_TEXT, str, 0, 0, 0, 0 );
 		}
 	}

@@ -1,11 +1,17 @@
 #pragma once
 #include "afxwin.h"
 #include "resource.h"
-
+#include "SubdlgTraceWidth.h"
+#include "SubdlgViaWidth.h"
+#include "SubdlgClearance.h"
 
 // CDlgSetTraceWidths dialog
 
-class CDlgSetTraceWidths : public CDialog
+class CDlgSetTraceWidths
+	: public CDialog
+	, public CSubDlg_TraceWidth
+	, public CSubDlg_ViaWidth
+	, public CSubDlg_Clearance
 {
 	DECLARE_DYNAMIC(CDlgSetTraceWidths)
 
@@ -18,58 +24,30 @@ public:
 
 protected:
 	virtual void DoDataExchange(CDataExchange* pDX);    // DDX/DDV support
+	virtual BOOL OnInitDialog();
 
 	DECLARE_MESSAGE_MAP()
 
+	// Mapping functions to mix-in classes CSubDlg...
+	afx_msg void OnBnClicked_t_modify()      { CSubDlg_TraceWidth::OnBnClicked_t_modify();    }
+	afx_msg void OnBnClicked_t_Default()     { CSubDlg_TraceWidth::OnBnClicked_t_Default();	  }
+	afx_msg void OnBnClicked_t_Set()	     { CSubDlg_TraceWidth::OnBnClicked_t_Set();		  }
+	afx_msg void OnCbnSelchange_t_width()    { CSubDlg_TraceWidth::OnCbnSelchange_t_width();  }
+	afx_msg void OnCbnEditchange_t_width()   { CSubDlg_TraceWidth::OnCbnEditchange_t_width(); }
+
+	afx_msg void OnBnClicked_v_modify()      { CSubDlg_ViaWidth::OnBnClicked_v_modify();      }
+	afx_msg void OnBnClicked_v_Default()	 { CSubDlg_ViaWidth::OnBnClicked_v_Default();	  }
+	afx_msg void OnBnClicked_v_DefForTrace() { CSubDlg_ViaWidth::OnBnClicked_v_DefForTrace(); }
+	afx_msg void OnBnClicked_v_Set()		 { CSubDlg_ViaWidth::OnBnClicked_v_Set();		  }
+
+	afx_msg void OnBnClicked_c_modify()      { CSubDlg_Clearance::OnBnClicked_c_modify();     }
+	afx_msg void OnBnClicked_c_Default()     { CSubDlg_Clearance::OnBnClicked_c_Default();    }
+	afx_msg void OnBnClicked_c_Set()         { CSubDlg_Clearance::OnBnClicked_c_Set();        }
+
 public:
-	int m_width;
-	int m_via_width;
-	int m_hole_width;
-	CClearanceInfo m_clearance;
-	BOOL m_apply_trace;
-	BOOL m_apply_via;
-	BOOL m_apply_clearance;
-	BOOL m_apply_to_routed;
-	CArray<int> *m_w;
-	CArray<int> *m_v_w;
-	CArray<int> *m_v_h_w;
+	CNetWidthInfo m_width_attrib;
 
-private:
-	BOOL bTraces;
-	BOOL bRevertTraces;
-	BOOL bVias;
-	BOOL bDefaultVias;
-	BOOL bRevertVias;
-
-protected:
-	CComboBox m_combo_width;
-	CButton m_radio_default_via_for_trace;
-	CEdit m_edit_via_pad;
-	CEdit m_edit_via_hole;
-	afx_msg void OnBnClickedRadioDef();
-	afx_msg void OnBnClickedRadioSet();
-	afx_msg void OnCbnSelchangeComboWidth();
-	afx_msg void OnCbnEditchangeComboWidth();
-	CButton m_check_apply;
-	CButton m_check_trace;
-	CButton m_check_vias;
-	afx_msg void OnBnClickedSetTrace();
-	afx_msg void OnBnClickedSetVias();
-	void SetFields();
-	CButton m_radio_set_via_width;
-	CButton m_radio_revert_traces;
-	afx_msg void OnBnClickedRadioRevertTraces();
-	CButton m_radio_revert_vias;
-	afx_msg void OnBnClickedRadioRevertVias();
-	afx_msg void OnBnClickedRadioSetTraceWidth();
-	CButton m_radio_set_trace_width;
-
-	// Clearance
-	CButton m_check_clearance;
-	CButton m_radio3_def_clearance;
-	CButton m_radio3_set_clearance;
-	CEdit m_edit_clearance;
-	afx_msg void OnBnClickedRadioRevertTraceClearance();
-	afx_msg void OnBnClickedRadioSetTraceClearance();
-	afx_msg void OnBnClickedModClearance();
+	int m_apply_trace;
+	int m_apply_via;
+    int m_apply_clearance;
 };

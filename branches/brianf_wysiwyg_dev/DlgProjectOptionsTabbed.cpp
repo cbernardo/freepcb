@@ -29,11 +29,8 @@ void CDlgProjectOptionsTabbed::Init( BOOL new_project,
 									 int ratline_w,
                                      BOOL bSMT_connect_copper,
                                      int glue_w,
-                                     int trace_w,
-                                     int ca_clearance,
+                                     CNetWidthInfo const &width_attrib,
 									 int hole_clearance,
-                                     int via_w,
-                                     int hole_w,
                                      int auto_interval,
 									 int thermal_width,
                                      int thermal_clearance,
@@ -53,12 +50,12 @@ void CDlgProjectOptionsTabbed::Init( BOOL new_project,
 	m_tabs.m_Tab_Main.m_glue_w = glue_w;
 	m_tabs.m_Tab_Main.m_auto_interval = auto_interval;
 
-	m_tabs.m_Tab_Spacing.m_trace_w = trace_w;
-	m_tabs.m_Tab_Spacing.m_ca_clearance_trace = ca_clearance;
-	m_tabs.m_Tab_Spacing.m_ca_clearance_hole = hole_clearance;
-	m_tabs.m_Tab_Spacing.m_via_w = via_w;
-	m_tabs.m_Tab_Spacing.m_hole_w = hole_w;
+	m_tabs.m_Tab_Spacing.m_trace_w            = width_attrib.m_seg_width.m_val;
+	m_tabs.m_Tab_Spacing.m_via_w              = width_attrib.m_via_width.m_val;
+	m_tabs.m_Tab_Spacing.m_hole_w             = width_attrib.m_via_hole.m_val;
+	m_tabs.m_Tab_Spacing.m_ca_clearance_trace = width_attrib.m_ca_clearance.m_val;
 
+	m_tabs.m_Tab_Spacing.m_ca_clearance_hole = hole_clearance;
 	m_tabs.m_Tab_Spacing.m_w = w;
 	m_tabs.m_Tab_Spacing.m_v_w = v_w;
 	m_tabs.m_Tab_Spacing.m_v_h_w = v_h_w;
@@ -95,17 +92,17 @@ void CDlgProjectOptionsTabbed::DoDataExchange(CDataExchange* pDX)
 
 	DDX_Control(pDX, IDC_PROJECT_OPTIONS_TAB, m_tabs);
 
-	if (pDX->m_bSaveAndValidate)
+	if( pDX->m_bSaveAndValidate )
 	{
-		if (!m_tabs.m_Tab_Main.Verify() ||
-			!m_tabs.m_Tab_Spacing.Verify() ||
-			!m_tabs.m_Tab_Thermal.Verify())
+		if ( !m_tabs.m_Tab_Main   .Verify() ||
+			 !m_tabs.m_Tab_Spacing.Verify() ||
+			 !m_tabs.m_Tab_Thermal.Verify() )
 		{
 			pDX->Fail();
 		}
 		else
 		{
-			m_tabs.m_Tab_Main.DDX_out();
+			m_tabs.m_Tab_Main   .DDX_out();
 			m_tabs.m_Tab_Spacing.DDX_out();
 			m_tabs.m_Tab_Thermal.DDX_out();
 		}

@@ -119,7 +119,7 @@ void CDisplayList::RemoveAllFromLayer( int layer )
 	CDLinkList *pLIST = &m_LIST_job[layer];
 	for (;;)
 	{
-		if (pLIST->next == pLIST) break;
+		if( pLIST->next == pLIST ) break;
 
 		delete static_cast<CDL_job*>(pLIST->next);
 	}
@@ -289,7 +289,7 @@ dl_element * CDisplayList::CreateDLE( id id, void * ptr, int layer, int gtype, i
 	// create new element
 	dl_element * new_element = CreateDLE( gtype );
 
-	if (layer == LAY_RAT_LINE)
+	if( layer == LAY_RAT_LINE )
 	{
 		new_element->w = m_ratline_w;
 	}
@@ -350,7 +350,7 @@ CDL_job_traces * CDisplayList::GetJob_traces( int layer )
 	CDL_job_traces *pJob;
 	CDLinkList *pElement = m_LIST_job[layer].next;
 
-	if ( pElement == &m_LIST_job[layer] )
+	if( pElement == &m_LIST_job[layer] )
 	{
 		pJob = new CDL_job_traces(this);
         m_LIST_job[layer].insert_after(pJob);
@@ -618,7 +618,7 @@ void CDisplayList::Draw( CDC * dDC )
 		  continue;
 		}
 
-		if (layer > LAY_BOARD_OUTLINE)
+		if( layer > LAY_BOARD_OUTLINE )
 		{
 			// Use transparent DC in dcMemory
 			di.DC = &dcMemory;
@@ -645,7 +645,7 @@ void CDisplayList::Draw( CDC * dDC )
 			pJob->Draw(di);
 		}
 
-		if (di.DC != di.DC_Master)
+		if( di.DC != di.DC_Master )
 		{
 			// di.DC is a monochrome mask
 

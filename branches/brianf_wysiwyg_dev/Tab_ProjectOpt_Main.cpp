@@ -129,7 +129,7 @@ int CTab_ProjectOpt_Main::Verify()
 		AfxMessageBox( "Please enter project folder" );
 		return 0;
 	}
-	
+
 	if( lib_folder.GetLength() == 0 )
 	{
 		MakePageActive();
@@ -141,7 +141,7 @@ int CTab_ProjectOpt_Main::Verify()
 	int val;
 
 	m_edit_layers.GetWindowText(str);
-	if ( (sscanf(str, "%d", &val) != 1) || (val < 1) || (val > 16))
+	if( (sscanf(str, "%d", &val) != 1) || (val < 1) || (val > 16) )
 	{
 		MakePageActive();
 		AfxMessageBox( "Invalid number of layers (1-16)" );
@@ -150,7 +150,7 @@ int CTab_ProjectOpt_Main::Verify()
 	m_layers = val;
 
 	m_edit_ratline_w.GetWindowText(str);
-	if ( (sscanf(str, "%d", &val) != 1) || (val < 0) || (val > MAX_RATLINE_W_MIL))
+	if( (sscanf(str, "%d", &val) != 1) || (val < 0) || (val > MAX_RATLINE_W_MIL) )
 	{
 		MakePageActive();
 		str.Format( "Invalid Ratline Width (0-%d)", MAX_RATLINE_W_MIL );
@@ -160,7 +160,7 @@ int CTab_ProjectOpt_Main::Verify()
 	m_ratline_w = val;
 
 	m_edit_glue_w.GetWindowText(str);
-	if ( (sscanf(str, "%d", &val) != 1) || (val < 1) || (val > 1000))
+	if( (sscanf(str, "%d", &val) != 1) || (val < 1) || (val > MAX_ADHESIVE_SZ_MIL) )
 	{
 		MakePageActive();
 		AfxMessageBox( "Invalid Adhesive size" );
@@ -169,7 +169,7 @@ int CTab_ProjectOpt_Main::Verify()
 	m_glue_w = val;
 
 	m_edit_autosave_interval.GetWindowText(str);
-	if (sscanf(str, "%d", &val) != 1)
+	if( sscanf(str, "%d", &val) != 1 )
 	{
 		MakePageActive();
 		AfxMessageBox( "Invalid Autosave interval" );

@@ -221,7 +221,7 @@ void CDlgReport::OnBnClickedOk()
 			for( int iv=0; iv<net->connect[ic].vtx.GetSize(); iv++ )
 			{
 				cvertex * v = &net->connect[ic].vtx[iv];
-				int hole_size = v->via_hole_w; 
+				int hole_size = v->via_hole_w(); 
 				if( hole_size > 0 )
 				{
 					int num_holes;

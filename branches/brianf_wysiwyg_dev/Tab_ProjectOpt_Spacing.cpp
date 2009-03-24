@@ -8,6 +8,19 @@
 #include "Tab_ProjectOpt_Spacing.h"
 
 
+// global callback function for sorting
+//
+static int CALLBACK WidthCompare( LPARAM lp1, LPARAM lp2, LPARAM type )
+{
+	if( lp1 == lp2 )
+		return 0;
+	else if( lp1 > lp2 )
+		return 1;
+	else
+		return -1;
+}
+
+
 // CTab_ProjectOpt_Spacing dialog
 int CTab_ProjectOpt_Spacing::m_bShowMessageForClearance = 1;
 
@@ -48,29 +61,21 @@ void CTab_ProjectOpt_Spacing::DoDataExchange(CDataExchange* pDX)
 
 BOOL CTab_ProjectOpt_Spacing::OnInitPage(int nPageID)
 {
-	// convert NM to MILS
-	m_trace_w            /= NM_PER_MIL;
-	m_ca_clearance_trace /= NM_PER_MIL;
-	m_ca_clearance_hole  /= NM_PER_MIL;
-	m_via_w              /= NM_PER_MIL;
-	m_hole_w             /= NM_PER_MIL;
-
-
 	CString str;
 
-	str.Format("%d", m_trace_w);
+	str.Format("%d", m_trace_w / NM_PER_MIL);
 	m_edit_def_tracew.SetWindowText(str);
 
-	str.Format("%d", m_via_w);
+	str.Format("%d", m_via_w / NM_PER_MIL);
 	m_edit_def_viapad.SetWindowText(str);
 
-	str.Format("%d", m_hole_w);
+	str.Format("%d", m_hole_w / NM_PER_MIL);
 	m_edit_def_viahole.SetWindowText(str);
 
-	str.Format("%d", m_ca_clearance_trace);
+	str.Format("%d", m_ca_clearance_trace / NM_PER_MIL);
 	m_edit_def_cac_trace.SetWindowText(str);
 
-	str.Format("%d", m_ca_clearance_hole);
+	str.Format("%d", m_ca_clearance_hole / NM_PER_MIL);
 	m_edit_def_cac_holeedge.SetWindowText(str);
 
 	// set up list control
@@ -96,6 +101,8 @@ BOOL CTab_ProjectOpt_Spacing::OnInitPage(int nPageID)
 		m_list_menu.SetItem( i, 2, LVIF_TEXT, str, 0, 0, 0, 0 );
 	}
 
+	m_list_menu.SortItems( ::WidthCompare, 0 );
+
 	return TRUE;
 }
 
@@ -105,41 +112,45 @@ int CTab_ProjectOpt_Spacing::Verify()
 
 	int trace_w;
 	m_edit_def_tracew.GetWindowText(str);
-	if ( (sscanf(str, "%d", &trace_w) != 1) || (trace_w < 1) || (trace_w > 1000))
+	if( (sscanf(str, "%d", &trace_w) != 1) || (trace_w < 1) || (trace_w > MAX_TRACE_W_MIL) )
 	{
 		MakePageActive();
-		AfxMessageBox( "Invalid default trace width (1-1000)" );
+		str.Format( "Invalid default trace width (1-%d)", MAX_TRACE_W_MIL );
+		AfxMessageBox( str );
 		return 0;
 	}
 
 	int via_w;
 	m_edit_def_viapad.GetWindowText(str);
-	if ( (sscanf(str, "%d", &via_w) != 1) || (via_w < 1) || (via_w > 1000))
+	if( (sscanf(str, "%d", &via_w) != 1) || (via_w < 1) || (via_w > MAX_VIA_W_MIL) )
 	{
 		MakePageActive();
-		AfxMessageBox( "Invalid default via width (1-1000)" );
+		str.Format( "Invalid default via width (1-%d)", MAX_VIA_W_MIL );
+		AfxMessageBox( str );
 		return 0;
 	}
 
 	int hole_w;
 	m_edit_def_viahole.GetWindowText(str);
-	if ( (sscanf(str, "%d", &hole_w) != 1) || (hole_w < 1) || (hole_w > 1000))
+	if( (sscanf(str, "%d", &hole_w) != 1) || (hole_w < 1) || (hole_w > MAX_VIA_HOLE_MIL) )
 	{
 		MakePageActive();
-		AfxMessageBox( "Invalid default via hole width (1-1000)" );
+		str.Format( "Invalid default via hole width (1-%d)", MAX_VIA_HOLE_MIL );
+		AfxMessageBox( str );
 		return 0;
 	}
 
 	int ca_clearance_trace;
 	m_edit_def_cac_trace.GetWindowText(str);
-	if ( (sscanf(str, "%d", &ca_clearance_trace) != 1) || (ca_clearance_trace < 0) || (ca_clearance_trace > 1000))
+	if( (sscanf(str, "%d", &ca_clearance_trace) != 1) || (ca_clearance_trace < 0) || (ca_clearance_trace > MAX_CLEARANCE_MIL))
 	{
 		MakePageActive();
-		AfxMessageBox( "Invalid default copper area to trace clearance (0-1000)" );
+		str.Format( "Invalid default copper area to trace clearance (0-%d)", MAX_CLEARANCE_MIL );
+		AfxMessageBox( str );
 		return 0;
 	}
 
-	if( ca_clearance_trace == 0 && m_bShowMessageForClearance)
+	if( ca_clearance_trace == 0 && m_bShowMessageForClearance )
 	{
 		// warn about copper-copper clearance
 		CDlgMyMessageBox2 dlg;
@@ -163,10 +174,11 @@ int CTab_ProjectOpt_Spacing::Verify()
 
 	int ca_clearance_hole;
 	m_edit_def_cac_holeedge.GetWindowText(str);
-	if ( (sscanf(str, "%d", &ca_clearance_hole) != 1) || (ca_clearance_hole < 0) || (ca_clearance_hole > 1000))
+	if( (sscanf(str, "%d", &ca_clearance_hole) != 1) || (ca_clearance_hole < 0) || (ca_clearance_hole > MAX_CLEARANCE_MIL))
 	{
 		MakePageActive();
-		AfxMessageBox( "Invalid default copper area to hole clearance (0-1000)" );
+		str.Format( "Invalid default copper area to hole clearance (0-%d)", MAX_CLEARANCE_MIL );
+		AfxMessageBox( str );
 		return 0;
 	}
 
@@ -206,18 +218,6 @@ void CTab_ProjectOpt_Spacing::DDX_out()
 }
 
 // CTab_ProjectOpt_Spacing message handlers
-
-// global callback function for sorting
-//
-static int CALLBACK WidthCompare( LPARAM lp1, LPARAM lp2, LPARAM type )
-{
-	if( lp1 == lp2 )
-		return 0;
-	else if( lp1 > lp2 )
-		return 1;
-	else
-		return -1;
-}
 
 void CTab_ProjectOpt_Spacing::OnBnClickedButtonAdd()
 {

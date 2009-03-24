@@ -287,7 +287,6 @@ public:
 	void SetWindowTitle( CString * str );
 	void CancelSelection();
 	int SetWidth( int mode );
-	int GetWidthsForSegment( int * w, int * via_w, int * via_hole_w );
 	BOOL CurNone();
 	BOOL CurSelected();
 	BOOL CurDragging();

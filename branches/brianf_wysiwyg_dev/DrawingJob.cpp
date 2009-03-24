@@ -9,7 +9,7 @@ CDL_job::~CDL_job()
 	for (;;)
 	{
 	    pElement = m_LIST_DLE.next;
-	    if (pElement == &m_LIST_DLE) break;
+	    if( pElement == &m_LIST_DLE ) break;
 
         m_dlist->Remove(static_cast<dl_element*>(pElement));
     }
@@ -42,7 +42,7 @@ int CDL_job::TestForHit( CPoint const &point, SHitInfo hitInfo[], int max_hits )
 	{
 		dl_element * el = static_cast<dl_element*>(pElement);
 
-		if (el->isHit(point))
+		if( el->isHit(point) )
 		{
 			// OK, hit
 			hitInfo->layer = el->layer;
@@ -104,7 +104,7 @@ void CDL_job_traces::UpdateLineWidths( int width, int layer )
 	{
 		dl_element * el = static_cast<dl_element*>(pElement);
 
-		if ( el->gtype == DL_LINE )
+		if( el->gtype == DL_LINE )
 		{
 			if( el->layer == layer )
 			{
@@ -230,13 +230,13 @@ void CDL_job_copper_area::ScratchClearances(CDrawInfo &di, int layer, CRect cons
 		dl_element * el = static_cast<dl_element*>(pElement);
 
 		CRect el_bounds;
-		if (!el->getBoundingRect(el_bounds)) continue;
+		if( !el->getBoundingRect(el_bounds) ) continue;
 		el_bounds.NormalizeRect();
 
 		CRect test_intersect;
 		test_intersect.IntersectRect(area_bounds, el_bounds);
 
-		if (!test_intersect.IsRectEmpty())
+		if( !test_intersect.IsRectEmpty() )
 		{
 			void *net;
 
@@ -277,13 +277,13 @@ void CDL_job_copper_area::ScratchClearances(CDrawInfo &di, int layer, CRect cons
 
 			chk_net:
 			{
-				if (area_net != net)
+				if( area_net != net )
                 {
 					el->DrawClearance(di);
 				}
                 else
                 {
-					if (my_poly->TestPointInside( m_dlist->Get_x(el), m_dlist->Get_y(el) ))
+					if( my_poly->TestPointInside( m_dlist->Get_x(el), m_dlist->Get_y(el) ) )
 					{
                         el->DrawThermalRelief(di);
 					}

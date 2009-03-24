@@ -189,10 +189,10 @@ END_MESSAGE_MAP()
 
 void CDlgCAD::Initialize( double version, CString * folder, CString * project_folder,
 						 CString * app_folder,
-						 int num_copper_layers, int units, 
-						 int mask_clearance, 
+						 int num_copper_layers, int units,
+						 int mask_clearance,
 						 int pilot_diameter, int min_silkscreen_wid,
-						 int outline_width, 
+						 int outline_width,
 						 int annular_ring_pins, int annular_ring_vias, int shrink_paste,
 						 int n_x, int n_y, int space_x, int space_y,
 						 int flags, int layers, int drill_file,
@@ -406,11 +406,11 @@ void CDlgCAD::OnBnClickedGo()
 				f.WriteString( line );
 				::WriteGerberFile( &f, m_flags, layer,
 					m_dlg_log, m_paste_shrink,
-					100000 /* BAF fill clearance */, 
+					100000 /* BAF fill clearance */,
 					m_mask_clearance, m_pilot_diameter,
-					m_min_silkscreen_width, 
+					m_min_silkscreen_width,
 					100000 /*BAF -m_thermal_width */,
-					m_outline_width, 
+					m_outline_width,
 					100000 /* BAF-m_hole_clearance*/,
 					m_n_x, m_n_y, m_space_x, m_space_y,
 					m_bd, m_sm, m_pl, m_nl, m_tl, m_dl );
@@ -444,7 +444,7 @@ void CDlgCAD::OnBnClickedGo()
 		m_dlg_log->AddLine( "************ ALL GERBERS CREATED SUCCESSFULLY **********\r\n" );
 	if( commands.GetSize() != 0 )
 	{
-		_chdir( m_folder );		// change current working directory to CAM folder
+		CHDIR( m_folder );		// change current working directory to CAM folder
 		m_dlg_log->AddLine( "*********** RENDERING .PNG FILES FOR LAYERS ************\r\n" );
 		for( int i=0; i<commands.GetSize(); i++ )
 		{
@@ -453,7 +453,7 @@ void CDlgCAD::OnBnClickedGo()
 			m_dlg_log->AddLine( "\r\n" );
 		}
 		m_dlg_log->AddLine( "************************* DONE *************************\r\n" );
-		_chdir( m_app_folder );	// change back
+		CHDIR( m_app_folder );	// change back
 	}
 }
 

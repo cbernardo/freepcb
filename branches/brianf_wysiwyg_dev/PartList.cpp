@@ -28,6 +28,27 @@ cpart::~cpart()
 {
 }
 
+
+void part_pin::set_net(cnet *_net)
+{
+	net = _net;
+	if( _net == NULL )
+	{
+		// Removing net association
+
+        // Since the net is going away, any pins which have
+        // clearances set to 'use parent' must be converted
+        // to 'use value' at this time.  This is done by
+		// removing the parent (see inheritable_item class).
+		clearance.SetParent();
+	}
+	else
+	{
+		clearance.SetParent( _net->def_width_attrib );
+	}
+}
+
+
 CPartList::CPartList( CDisplayList * dlist, SMFontUtil * fontutil )
 {
 	m_start.prev = 0;		// dummy first element in list
@@ -654,9 +675,9 @@ CPoint CPartList::GetGluePoint( cpart * part, int iglue )
 // Get pin layer
 // returns LAY_TOP_COPPER, LAY_BOTTOM_COPPER or LAY_PAD_THRU
 //
-int CPartList::GetPinLayer( cpart * part, CString * pin_name )
+int CPartList::GetPinLayer( cpart * part, CString const &pin_name )
 {
-	int pin_index = part->shape->GetPinIndexByName( *pin_name );
+	int pin_index = part->shape->GetPinIndexByName( pin_name );
 	return GetPinLayer( part, pin_index );
 }
 
@@ -1823,7 +1844,7 @@ int CPartList::StartDraggingPart( CDC * pDC, cpart * part, BOOL bRatlines )
 		{
 			CPoint p(part->shape->m_padstack[ip].x_rel,part->shape->m_padstack[ip].y_rel);
 			// get endpoints for any connection segments
-			n = (cnet*)part->pin[ip].net;
+			n = part->pin[ip].net;
 			if( n )
 			{
 				if( n->visible )
@@ -2999,10 +3020,11 @@ void CPartList::PartUndoCallback( int type, void * ptr, BOOL undo )
 				{
 					CString net_name = chptr;
 					cnet * net = pl->m_nlist->GetNetPtrByName( &net_name );
-					part->pin[ip].net = net;
+					part->pin[ip].set_net( net );
 				}
 				else
-					part->pin[ip].net = NULL;
+					part->pin[ip].set_net();
+
 				chptr += MAX_NET_NAME_SIZE + 1;
 			}
 			// if part was renamed
@@ -3029,9 +3051,9 @@ void CPartList::PartUndoCallback( int type, void * ptr, BOOL undo )
 //		TRACE_CONNECT = 2 if pin connects to a trace
 //		AREA_CONNECT = 4 if pin connects to copper area
 //
-int CPartList::GetPinConnectionStatus( cpart * part, CString * pin_name, int layer )
+int CPartList::GetPinConnectionStatus( cpart * part, CString const &pin_name, int layer )
 {
-	int pin_index = part->shape->GetPinIndexByName( *pin_name );
+	int pin_index = part->shape->GetPinIndexByName( pin_name );
 	cnet * net = part->pin[pin_index].net;
 	if( !net )
 		return NOT_CONNECTED;
@@ -3131,7 +3153,7 @@ int CPartList::GetPadDrawInfo( cpart * part, int ipin, int layer,
 	padstack * ps = &s->m_padstack[ipin];
 	BOOL bUseDefault = FALSE; // if TRUE, use copper pad for mask
 	CString pin_name = s->GetPinNameByIndex( ipin );
-	int connect_status = GetPinConnectionStatus( part, &pin_name, layer );
+	int connect_status = GetPinConnectionStatus( part, pin_name, layer );
 	// set default return values for no pad and no hole
 	int ret_code = 0;
 	int ttype = PAD_NONE;
@@ -3828,7 +3850,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 				int y1 = c->vtx[is].y;
 				int x2 = c->vtx[is+1].x;
 				int y2 = c->vtx[is+1].y;
-				int w = c->seg[is].width;
+				int w = c->seg[is].width();
 				int layer = c->seg[is].layer;
 				if( c->seg[is].layer >= LAY_TOP_COPPER )
 				{
@@ -3909,7 +3931,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 			for( int iv=0; iv<c->nsegs+1; iv++ )
 			{
 				cvertex * vtx = &c->vtx[iv];
-				if( vtx->via_w )
+				if( vtx->viaExists() )
 				{
 					// via present
 					id id_via = net->id;
@@ -3938,7 +3960,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 					c->max_x = max( c->max_x, vtx->x + max_via_w/2 );
 					c->min_y = min( c->min_y, vtx->y - max_via_w/2 );
 					c->max_y = max( c->max_y, vtx->y + max_via_w/2 );
-					int d = (min_via_w - vtx->via_hole_w)/2;
+					int d = (min_via_w - vtx->via_hole_w())/2;
 					if( d < dr->annular_ring_vias )
 					{
 						// RING_VIA
@@ -3948,7 +3970,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 						str.Format( "%ld: \"%s\" via annular ring = %s, x=%s, y=%s\r\n",
 							nerrors+1, net->name, d_str, x_str, y_str );
 						DRError * dre = drelist->Add( nerrors, DRError::RING_VIA, &str,
-							&net->name, NULL, id_via, id_via, vtx->x, vtx->y, 0, 0, vtx->via_w+20*NM_PER_MIL, 0 );
+							&net->name, NULL, id_via, id_via, vtx->x, vtx->y, 0, 0, vtx->via_w()+20*NM_PER_MIL, 0 );
 						if( dre )
 						{
 							nerrors++;
@@ -3985,7 +4007,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 									str.Format( "%ld: \"%s\" via to board edge = %s, x=%s, y=%s\r\n",
 										nerrors+1, net->name, d_str, x_str, y_str );
 									DRError * dre = drelist->Add( nerrors, DRError::BOARDEDGE_VIA, &str,
-										&net->name, NULL, id_via, id_via, vtx->x, vtx->y, 0, 0, vtx->via_w+20*NM_PER_MIL, 0 );
+										&net->name, NULL, id_via, id_via, vtx->x, vtx->y, 0, 0, vtx->via_w()+20*NM_PER_MIL, 0 );
 									if( dre )
 									{
 										nerrors++;
@@ -3994,7 +4016,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 									}
 								}
 								int dh = ::GetClearanceBetweenSegmentAndPad( bx1, by1, bx2, by2, 0,
-									PAD_ROUND, vtx->x, vtx->y, vtx->via_hole_w, 0, 0, 0 );
+									PAD_ROUND, vtx->x, vtx->y, vtx->via_hole_w(), 0, 0, 0 );
 								if( dh < dr->board_edge_hole )
 								{
 									// BOARDEDGE_VIAHOLE error
@@ -4004,7 +4026,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 									str.Format( "%ld: \"%s\" via hole to board edge = %s, x=%s, y=%s\r\n",
 										nerrors+1, net->name, d_str, x_str, y_str );
 									DRError * dre = drelist->Add( nerrors, DRError::BOARDEDGE_VIAHOLE, &str,
-										&net->name, NULL, id_via, id_via, vtx->x, vtx->y, 0, 0, vtx->via_w+20*NM_PER_MIL, 0 );
+										&net->name, NULL, id_via, id_via, vtx->x, vtx->y, 0, 0, vtx->via_w()+20*NM_PER_MIL, 0 );
 									if( dre )
 									{
 										nerrors++;
@@ -4071,7 +4093,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 						cseg * s = &(net->connect[ic].seg[is]);
 						cvertex * pre_vtx = &(net->connect[ic].vtx[is]);
 						cvertex * post_vtx = &(net->connect[ic].vtx[is+1]);
-						int w = s->width;
+						int w = s->width();
 						int xi = pre_vtx->x;
 						int yi = pre_vtx->y;
 						int xf = post_vtx->x;
@@ -4175,16 +4197,15 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 								}
 							}
 							// get next via
-							if( post_vtx->via_w )
+							if( post_vtx->viaExists() )
 							{
 								// via exists
 								int test;
 								int via_w;
 								int via_hole_w;
-								m_nlist->GetViaPadInfo( net, ic, is+1, layer,
-									&via_w, &via_hole_w, &test );
+								m_nlist->GetViaPadInfo( net, ic, is+1, layer, &via_w, &via_hole_w, &test );
 								int w = 0;
-								if( via_w )
+								if( via_w ) //BAF FIX
 								{
 									// check via_pad to pin_pad clearance
 									if( !(pin_info_valid && layer == pin_info_layer) )
@@ -4256,7 +4277,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 								if( bPad && pad_type != PAD_NONE && pad_net != net )
 								{
 									// check via_hole to pin_pad clearance
-									int d = GetClearanceBetweenPads( PAD_ROUND, xf, yf, post_vtx->via_hole_w, 0, 0, 0,
+									int d = GetClearanceBetweenPads( PAD_ROUND, xf, yf, post_vtx->via_hole_w(), 0, 0, 0,
 										pad_type, pad_x, pad_y, pad_w, pad_l, pad_r, pad_angle );
 									if( d < dr->hole_copper )
 									{
@@ -4282,7 +4303,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 								{
 									// pin has a hole, check via_hole to pin_hole clearance
 									int d = Distance( xf, yf, pin->x, pin->y );
-									d = max( 0, d - drp->hole_size/2 - post_vtx->via_hole_w/2 );
+									d = max( 0, d - drp->hole_size/2 - post_vtx->via_hole_w()/2 );
 									if( d < dr->hole_hole )
 									{
 										// VIAHOLE_PADHOLE
@@ -4357,8 +4378,8 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 						cseg * s = &c->seg[is];
 						cvertex * pre_vtx = &c->vtx[is];
 						cvertex * post_vtx = &c->vtx[is+1];
-						int seg_w = s->width;
-						int vw = post_vtx->via_w;
+						int seg_w = s->width();
+						int vw = post_vtx->via_w();
 						int max_w = max( seg_w, vw );
 						int xi = pre_vtx->x;
 						int yi = pre_vtx->y;
@@ -4380,8 +4401,8 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 							cseg * s2 = &c2->seg[is2];
 							cvertex * pre_vtx2 = &c2->vtx[is2];
 							cvertex * post_vtx2 = &c2->vtx[is2+1];
-							int seg_w2 = s2->width;
-							int vw2 = post_vtx2->via_w;
+							int seg_w2 = s2->width();
+							int vw2 = post_vtx2->via_w();
 							int max_w2 = max( seg_w2, vw2 );
 							int xi2 = pre_vtx2->x;
 							int yi2 = pre_vtx2->y;
@@ -4434,11 +4455,11 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 							}
 							// test clearances between net->segment and net2->via
 							int layer = s->layer;
-							if( layer >= LAY_TOP_COPPER && post_vtx2->via_w )
+							if( layer >= LAY_TOP_COPPER && post_vtx2->viaExists() )
 							{
 								// via exists
 								int test = m_nlist->GetViaConnectionStatus( net2, ic2, is2+1, layer );
-								int via_w2 = post_vtx2->via_w;	// normal via pad
+								int via_w2 = post_vtx2->via_w();	// normal via pad
 								if( layer > LAY_BOTTOM_COPPER && test == CNetList::VIA_NO_CONNECT )
 								{
 									// inner layer and no trace or thermal, so no via pad
@@ -4447,14 +4468,14 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 								else if( layer > LAY_BOTTOM_COPPER && (test & CNetList::VIA_AREA) && !(test & CNetList::VIA_TRACE) )
 								{
 									// inner layer with small thermal, use annular ring
-									via_w2 = post_vtx2->via_hole_w + 2*dr->annular_ring_vias;
+									via_w2 = post_vtx2->via_hole_w() + 2*dr->annular_ring_vias;
 								}
 								// check clearance
-								if( via_w2 )
+								if( via_w2 ) //BAF FIX
 								{
 									// check clearance between segment and via pad
 									int d = GetClearanceBetweenSegmentAndPad( xi, yi, xf, yf, seg_w,
-										PAD_ROUND, post_vtx2->x, post_vtx2->y, post_vtx2->via_w, 0, 0, 0 );
+										PAD_ROUND, post_vtx2->x, post_vtx2->y, post_vtx2->via_w(), 0, 0, 0 );
 									if( d < dr->trace_trace )
 									{
 										// SEG_VIA
@@ -4476,7 +4497,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 								}
 								// check clearance between segment and via hole
 								int d = GetClearanceBetweenSegmentAndPad( xi, yi, xf, yf, seg_w,
-									PAD_ROUND, post_vtx2->x, post_vtx2->y, post_vtx2->via_hole_w, 0, 0, 0 );
+									PAD_ROUND, post_vtx2->x, post_vtx2->y, post_vtx2->via_hole_w(), 0, 0, 0 );
 								if( d < dr->hole_copper )
 								{
 									// SEG_VIAHOLE
@@ -4498,11 +4519,11 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 							}
 							// test clearances between net2->segment and net->via
 							layer = s2->layer;
-							if( post_vtx->via_w )
+							if( post_vtx->viaExists() )
 							{
 								// via exists
 								int test = m_nlist->GetViaConnectionStatus( net, ic, is+1, layer );
-								int via_w = post_vtx->via_w;	// normal via pad
+								int via_w = post_vtx->via_w();	// normal via pad
 								if( layer > LAY_BOTTOM_COPPER && test == CNetList::VIA_NO_CONNECT )
 								{
 									// inner layer and no trace or thermal, so no via pad
@@ -4511,16 +4532,16 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 								else if( layer > LAY_BOTTOM_COPPER && (test & CNetList::VIA_AREA) && !(test & CNetList::VIA_TRACE) )
 								{
 									// inner layer with small thermal, use annular ring
-									via_w = post_vtx->via_hole_w + 2*dr->annular_ring_vias;
+									via_w = post_vtx->via_hole_w() + 2*dr->annular_ring_vias;
 								}
 								// check clearance
-								if( via_w )
+								if( via_w ) //BAF FIX
 								{
 									// check clearance between net2->segment and net->via_pad
 									if( layer >= LAY_TOP_COPPER )
 									{
 										int d = GetClearanceBetweenSegmentAndPad( xi2, yi2, xf2, yf2, seg_w2,
-											PAD_ROUND, post_vtx->x, post_vtx->y, post_vtx->via_w, 0, 0, 0 );
+											PAD_ROUND, post_vtx->x, post_vtx->y, post_vtx->via_w(), 0, 0, 0 );
 										if( d < dr->trace_trace )
 										{
 											// SEG_VIA
@@ -4532,7 +4553,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 												d_str, x_str, y_str );
 											DRError * dre = drelist->Add( nerrors, DRError::SEG_VIA, &str,
 												&net2->name, &net->name, id_seg2, id_via1, xf, yf, xf, yf,
-												post_vtx->via_w+20*NM_PER_MIL, 0 );
+												post_vtx->via_w()+20*NM_PER_MIL, 0 );
 											if( dre )
 											{
 												nerrors++;
@@ -4546,7 +4567,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 								if( layer >= LAY_TOP_COPPER )
 								{
 									int d = GetClearanceBetweenSegmentAndPad( xi2, yi2, xf2, yf2, seg_w2,
-										PAD_ROUND, post_vtx->x, post_vtx->y, post_vtx->via_hole_w, 0, 0, 0 );
+										PAD_ROUND, post_vtx->x, post_vtx->y, post_vtx->via_hole_w(), 0, 0, 0 );
 									if( d < dr->hole_copper )
 									{
 										// SEG_VIAHOLE
@@ -4558,7 +4579,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 											d_str, x_str, y_str );
 										DRError * dre = drelist->Add( nerrors, DRError::SEG_VIAHOLE, &str,
 											&net2->name, &net->name, id_seg2, id_via1, xf, yf, xf, yf,
-											post_vtx->via_w+20*NM_PER_MIL, 0 );
+											post_vtx->via_w()+20*NM_PER_MIL, 0 );
 										if( dre )
 										{
 											nerrors++;
@@ -4568,13 +4589,13 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 									}
 								}
 								// test clearances between net->via and net2->via
-								if( post_vtx->via_w && post_vtx2->via_w )
+								if( post_vtx->viaExists() && post_vtx2->viaExists() )
 								{
 									for( int layer=LAY_TOP_COPPER; layer<(LAY_TOP_COPPER+copper_layers); layer++ )
 									{
 										// get size of net->via_pad
 										int test = m_nlist->GetViaConnectionStatus( net, ic, is+1, layer );
-										int via_w = post_vtx->via_w;	// normal via pad
+										int via_w = post_vtx->via_w();	// normal via pad
 										if( layer > LAY_BOTTOM_COPPER && test == CNetList::VIA_NO_CONNECT )
 										{
 											// inner layer and no trace or thermal, so no via pad
@@ -4583,11 +4604,11 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 										else if( layer > LAY_BOTTOM_COPPER && (test & CNetList::VIA_AREA) && !(test & CNetList::VIA_TRACE) )
 										{
 											// inner layer with small thermal, use annular ring
-											via_w = post_vtx->via_hole_w + 2*dr->annular_ring_vias;
+											via_w = post_vtx->via_hole_w() + 2*dr->annular_ring_vias;
 										}
 										// get size of net2->via_pad
 										test = m_nlist->GetViaConnectionStatus( net2, ic2, is2+1, layer );
-										int via_w2 = post_vtx2->via_w;	// normal via pad
+										int via_w2 = post_vtx2->via_w();	// normal via pad
 										if( layer > LAY_BOTTOM_COPPER && test == CNetList::VIA_NO_CONNECT )
 										{
 											// inner layer and no trace or thermal, so no via pad
@@ -4596,13 +4617,13 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 										else if( layer > LAY_BOTTOM_COPPER && (test & CNetList::VIA_AREA) && !(test & CNetList::VIA_TRACE) )
 										{
 											// inner layer with small thermal, use annular ring
-											via_w2 = post_vtx2->via_hole_w + 2*dr->annular_ring_vias;
+											via_w2 = post_vtx2->via_hole_w() + 2*dr->annular_ring_vias;
 										}
-										if( via_w && via_w2 )
+										if( via_w && via_w2 ) //BAF FIX
 										{
 											//check net->via_pad to net2->via_pad clearance
-											int d = GetClearanceBetweenPads( PAD_ROUND, post_vtx->x, post_vtx->y, post_vtx->via_w, 0, 0, 0,
-												PAD_ROUND, post_vtx2->x, post_vtx2->y, post_vtx2->via_w, 0, 0, 0 );
+											int d = GetClearanceBetweenPads( PAD_ROUND, post_vtx->x, post_vtx->y, post_vtx->via_w(), 0, 0, 0,
+												PAD_ROUND, post_vtx2->x, post_vtx2->y, post_vtx2->via_w(), 0, 0, 0 );
 											if( d < dr->trace_trace )
 											{
 												// VIA_VIA
@@ -4622,8 +4643,8 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 												}
 											}
 											// check net->via to net2->via_hole clearance
-											d = GetClearanceBetweenPads( PAD_ROUND, post_vtx->x, post_vtx->y, post_vtx->via_w, 0, 0, 0,
-												PAD_ROUND, post_vtx2->x, post_vtx2->y, post_vtx2->via_hole_w, 0, 0, 0 );
+											d = GetClearanceBetweenPads( PAD_ROUND, post_vtx->x, post_vtx->y, post_vtx->via_w(), 0, 0, 0,
+												PAD_ROUND, post_vtx2->x, post_vtx2->y, post_vtx2->via_hole_w(), 0, 0, 0 );
 											if( d < dr->hole_copper )
 											{
 												// VIA_VIAHOLE
@@ -4643,8 +4664,8 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 												}
 											}
 											// check net2->via to net->via_hole clearance
-											d = GetClearanceBetweenPads( PAD_ROUND, post_vtx->x, post_vtx->y, post_vtx->via_hole_w, 0, 0, 0,
-												PAD_ROUND, post_vtx2->x, post_vtx2->y, post_vtx2->via_w, 0, 0, 0 );
+											d = GetClearanceBetweenPads( PAD_ROUND, post_vtx->x, post_vtx->y, post_vtx->via_hole_w(), 0, 0, 0,
+												PAD_ROUND, post_vtx2->x, post_vtx2->y, post_vtx2->via_w(), 0, 0, 0 );
 											if( d < dr->hole_copper )
 											{
 												// VIA_VIAHOLE
@@ -4666,8 +4687,8 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 										}
 									}
 									// check net->via_hole to net2->via_hole clearance
-									int d = GetClearanceBetweenPads( PAD_ROUND, post_vtx->x, post_vtx->y, post_vtx->via_hole_w, 0, 0, 0,
-										PAD_ROUND, post_vtx2->x, post_vtx2->y, post_vtx2->via_hole_w, 0, 0,0  );
+									int d = GetClearanceBetweenPads( PAD_ROUND, post_vtx->x, post_vtx->y, post_vtx->via_hole_w(), 0, 0, 0,
+										PAD_ROUND, post_vtx2->x, post_vtx2->y, post_vtx2->via_hole_w(), 0, 0,0  );
 									if( d < dr->hole_hole )
 									{
 										// VIA_VIAHOLE
@@ -4867,7 +4888,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 					CString start_pin, end_pin;
 					int istart = net->connect[ic].start_pin;
 					cpart * start_part = net->pin[istart].part;
-					start_pin = net->pin[istart].ref_des + "." + net->pin[istart].pin_name;
+					start_pin = net->pin[istart].ref_des() + "." + net->pin[istart].pin_name;
 					int iend = net->connect[ic].end_pin;
 					if( iend == cconnect::NO_END )
 					{
@@ -4886,7 +4907,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 					}
 					else
 					{
-						end_pin = net->pin[iend].ref_des + "." + net->pin[iend].pin_name;
+						end_pin = net->pin[iend].ref_des() + "." + net->pin[iend].pin_name;
 						if( net->connect[ic].nsegs > 1 )
 						{
 							str.Format( "%ld: \"%s\": partially routed connection from %s to %s\r\n",

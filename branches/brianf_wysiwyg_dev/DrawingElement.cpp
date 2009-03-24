@@ -24,7 +24,7 @@ int dl_element::isHit(CPoint const &point) const
 
 void dl_element::Remove(void)
 {
-	if (this == NULL) return;
+	if( this == NULL ) return;
 
 	dlist->Remove(this);
 }

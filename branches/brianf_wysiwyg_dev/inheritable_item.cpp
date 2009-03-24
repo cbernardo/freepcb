@@ -4,7 +4,18 @@
 
 CInheritableInfo::Item const CInheritableInfo::Item::UNDEF;
 
-int CInheritableInfo::Item::operator > (Item const &comp) const
+void CInheritableInfo::Item::assign_from( Item const &from )
+{
+	// only assign if the source status is DEFINED
+	if( from.isDefined() )
+	{
+		m_status = from.m_status;
+		m_val    = from.m_val;
+	}
+}
+
+// Comparison operators -------------------------------------------------------
+int CInheritableInfo::Item::operator > ( Item const &comp ) const
 {
 	if (m_status != E_USE_VAL)
 	{
@@ -18,25 +29,26 @@ int CInheritableInfo::Item::operator > (Item const &comp) const
 	}
 }
 
-int CInheritableInfo::Item::operator < (Item const &comp) const
+int CInheritableInfo::Item::operator == ( Item const &comp ) const
 {
 	if (m_status != E_USE_VAL)
 	{
-		if (comp.m_status != E_USE_VAL) return m_status < comp.m_status;
-		else                            return 1;
+		if (comp.m_status != E_USE_VAL) return m_status == comp.m_status;
+		else                            return 0;
 	}
 	else
 	{
 		if (comp.m_status != E_USE_VAL) return 0;
-		else                            return m_val < comp.m_val;
+		else                            return m_val == comp.m_val;
 	}
 }
 
 
-// Set item from int:
+// ----------------------------------------------------------------------------
+// Directly (not via assignment operator) set item from int:
 //   negative values map to EStatus
 //   zero & positive values count as values
-void CInheritableInfo::Item::Set_item_from_int(int val_status)
+void CInheritableInfo::Item::_SetItemFromInt( int val_status )
 {
 	if (val_status < 0)
 	{
@@ -59,12 +71,14 @@ void CInheritableInfo::Item::Set_item_from_int(int val_status)
 }
 
 
-CInheritableInfo::Item const *CInheritableInfo::GetItem(int item_id, Item &item) const
+// ----------------------------------------------------------------------------
+// Update val/status of item with the item specified by item_id.
+//
+CInheritableInfo::Item const *CInheritableInfo::UpdateItem( int item_id, Item &result ) const
 {
 	CInheritableInfo const *ci = this;
-	Item const *pSrcItem = &ci->_GetItem(item_id);
-
-	item.m_status = pSrcItem->m_status;
+	Item const *pSrcItem = &ci->GetItem(item_id);
+	Item item(*pSrcItem);
 
 	do
 	{
@@ -75,18 +89,18 @@ CInheritableInfo::Item const *CInheritableInfo::GetItem(int item_id, Item &item)
 			goto Item_OK;
 
 		default:
-			_GetItemExt(item, *pSrcItem);
+			GetItemExt(item, *pSrcItem);
 			goto Item_OK;
 
 		case E_USE_PARENT:
 		{
 			CInheritableInfo const *next_ci = ci->m_pParent;
-			if (next_ci != ci)
+			if( ci != next_ci )
 			{
 				// Got a valid parent - loop to handle parent
 				ci = next_ci;
 
-				pSrcItem = &ci->_GetItem(item_id);
+				pSrcItem = &ci->GetItem(item_id);
 			}
 			else
 			{
@@ -106,22 +120,52 @@ CInheritableInfo::Item const *CInheritableInfo::GetItem(int item_id, Item &item)
 	while( ci != NULL );
 
 	// Any bad/illegal info detected - mark item as undefined
-	item.undef();
+	item.Undef();
 
 Item_OK:
+	// Use virtual assignment to the resulting item
+	result = item;
+
 	return pSrcItem;
 }
 
 
-CInheritableInfo::Item const &CInheritableInfo::_GetItem(int item_id) const
+// ----------------------------------------------------------------------------
+// Default GetItem function
+//
+// Returns: UNDEFINED item
+//
+CInheritableInfo::Item const &CInheritableInfo::GetItem( int item_id ) const
 {
 	return Item::UNDEF;
 }
 
 
-void CInheritableInfo::_GetItemExt(Item &item, Item const &src) const
+// ----------------------------------------------------------------------------
+// Default Extended item type function
+//
+// Sets item to UNDEFINED.
+//
+void CInheritableInfo::GetItemExt( Item &item, Item const &src ) const
 {
-	item.m_status = E_UNDEF;
-	item.m_val    = 0;
+	item.Undef();
 }
 
+
+// ----------------------------------------------------------------------------
+// Access to parent
+//
+void CInheritableInfo::SetParent( CInheritableInfo const *pParent )
+{
+	if( pParent == NULL )
+	{
+		// Removing parent
+		if( hasParent() ) OnRemoveParent( m_pParent );
+
+		m_pParent = this;
+	}
+	else
+	{
+		m_pParent = pParent;
+	}
+}

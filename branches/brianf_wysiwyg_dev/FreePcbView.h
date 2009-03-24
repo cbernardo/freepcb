@@ -474,7 +474,6 @@ public:
 	void CancelSelection();
 	int SetWidth( int mode );
 	int SetClearance( int mode );
-	int GetWidthsForSegment( int * w, int * via_w, int * via_hole_w );
 	void ChangeTraceLayer( int mode, int old_layer=0 );
 	void MoveOrigin( int x_off, int y_off );
 	void SelectItemsInRect( CRect r, BOOL bAddToGroup );
@@ -523,9 +522,11 @@ public:
 	static void UndoGroupCallback( int type, void * ptr, BOOL undo );
 	void OnExternalChangeFootprint( CShape * fp );
 	void HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags);
-	void CFreePcbView::TryToReselectAreaCorner( int x, int y );
+	void TryToReselectAreaCorner( int x, int y );
 	void ReselectNetItemIfConnectionsChanged( int new_ic );
+
 protected:
+	CString GetViaText( cvertex const &Vtx );
 
 // Generated message map functions
 protected:
@@ -652,7 +653,6 @@ public:
 	LONG OnChangeSnapAngle( UINT wp, LONG lp );
 	LONG OnChangeUnits( UINT wp, LONG lp );
 	afx_msg void OnAreaEdit();
-	afx_msg void OnAreaEdgeApplyClearances();
 	afx_msg void OnGroupSaveToFile();
 	afx_msg void OnGroupCopy();
 	afx_msg void OnGroupCut();
