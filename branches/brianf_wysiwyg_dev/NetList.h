@@ -79,6 +79,11 @@ public:
 struct undo_pin {
 	char ref_des[MAX_REF_DES_SIZE+1];
 	char pin_name[CShape::MAX_PIN_NAME_SIZE+1];
+
+	CClearanceInfo clearance;
+
+	// Placement new
+	static void *operator new(size_t size, void *pMem) { return pMem; }
 };
 
 struct undo_corner {
@@ -101,11 +106,7 @@ struct undo_area {
 struct undo_seg {
 	int layer;				// copper layer
 
-	CSegWidthInfo width;
-	//int width;				// width
-	//int via_w, via_hole_w;	// via width and hole width
-
-	CClearanceInfo clearance;
+	CNetWidthInfo width_attrib;
 
 	// Placement new
 	static void *operator new(size_t size, void *pMem) { return pMem; }

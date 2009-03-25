@@ -36,6 +36,9 @@ public:
 	// these variables should be set on entry
 	CClearanceInfo m_clearance; // clearance
 
+	// Set the following on entry
+	int m_allow_automode;
+
 	// these variables will be set on exit
 	int m_apply;	 // apply clearance to (1=pin/via, 2=con, 3=net)
 };

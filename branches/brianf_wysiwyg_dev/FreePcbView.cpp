@@ -2042,7 +2042,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 				{
 					// hit on pin
 					cpart * new_sel_part = (cpart*)ptr;
-					cnet * new_sel_net = (cnet*)new_sel_part->pin[sel_id.i].net;
+					cnet * new_sel_net = new_sel_part->pin[sel_id.i].net;
 					if( m_sel_id.type == ID_NET  && m_sel_id.st == ID_CONNECT
 						&& m_sel_id.sst == ID_SEL_VERTEX )
 					{
@@ -2116,7 +2116,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 					else if( m_sel_id.type == ID_PART  && m_sel_id.st == ID_SEL_PAD )
 					{
 						// connecting pin to pin
-						cnet * from_sel_net = (cnet*)m_sel_part->pin[m_sel_id.i].net;
+						cnet * from_sel_net = m_sel_part->pin[m_sel_id.i].net;
 						if( new_sel_net && from_sel_net && (new_sel_net != from_sel_net) )
 						{
 							// pins assigned to different nets, can't connect them
@@ -2264,7 +2264,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 					{
 						// see if we can connect to this pin
 						cpart * new_sel_part = (cpart*)ptr;
-						cnet * new_sel_net = (cnet*)new_sel_part->pin[sel_id.i].net;
+						cnet * new_sel_net = new_sel_part->pin[sel_id.i].net;
 						CString pin_name = new_sel_part->shape->GetPinNameByIndex( sel_id.i );
 
 						if( new_sel_net && (new_sel_net != m_sel_net) )
@@ -2321,7 +2321,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 			{
 				// see if we can connect to this pin
 				cpart * new_sel_part = (cpart*)ptr;
-				cnet * new_sel_net = (cnet*)new_sel_part->pin[sel_id.i].net;
+				cnet * new_sel_net = new_sel_part->pin[sel_id.i].net;
 				CString pin_name = new_sel_part->shape->GetPinNameByIndex( sel_id.i );
 				if( m_Doc->m_plist->TestHitOnPad( new_sel_part, &pin_name, p.x, p.y, m_active_layer ) )
 				{
@@ -4904,7 +4904,7 @@ int CFreePcbView::ShowSelectStatus()
 
 	case CUR_PAD_SELECTED:
 		{
-			cnet * pin_net = (cnet*)m_sel_part->pin[m_sel_id.i].net;
+			cnet * pin_net = m_sel_part->pin[m_sel_id.i].net;
 			::MakeCStringFromDimension( &x_str, m_sel_part->pin[m_sel_id.i].x, u, FALSE, FALSE, FALSE, u==MIL?1:3 );
 			::MakeCStringFromDimension( &y_str, m_sel_part->pin[m_sel_id.i].y, u, FALSE, FALSE, FALSE, u==MIL?1:3 );
 			if( pin_net )
@@ -6206,7 +6206,7 @@ void CFreePcbView::OnRefMove()
 //
 void CFreePcbView::OnPadOptimize()
 {
-	cnet * pin_net = (cnet*)m_sel_part->pin[m_sel_id.i].net;
+	cnet * pin_net = m_sel_part->pin[m_sel_id.i].net;
 	if( pin_net )
 	{
 		m_Doc->m_nlist->OptimizeConnections( pin_net );
@@ -6344,9 +6344,10 @@ void CFreePcbView::OnPadAddToNet()
 //
 void CFreePcbView::OnPadDetachFromNet()
 {
-	cnet * pin_net = (cnet*)m_sel_part->pin[m_sel_id.i].net;
-	SaveUndoInfoForPartAndNets( m_sel_part,
-		CPartList::UNDO_PART_MODIFY, NULL, TRUE, m_Doc->m_undo_list );
+	cnet * pin_net = m_sel_part->pin[m_sel_id.i].net;
+
+	SaveUndoInfoForPartAndNets( m_sel_part, CPartList::UNDO_PART_MODIFY, NULL, TRUE, m_Doc->m_undo_list );
+
 	CString pin_name = m_sel_part->shape->GetPinNameByIndex(m_sel_id.i);
 	cnet * net = m_Doc->m_plist->GetPinNet( m_sel_part, m_sel_id.i );
 	m_Doc->m_nlist->RemoveNetPin( m_sel_part, &pin_name );
@@ -6615,11 +6616,24 @@ void CFreePcbView::OnPadSetClearance()
 {
 	CDlgSetPinClearance dlg;
 
-	//dlg.m_clearance = m_sel_vtx.via_width_attrib;
+	part_pin *pin = &m_sel_part->pin[m_sel_id.i];
+	m_sel_net = pin->net;
+
+	dlg.m_allow_automode = ( m_sel_net != NULL );
+	dlg.m_clearance = pin->clearance;
 
 	int ret = dlg.DoModal();
 	if( ret == IDOK )
 	{
+		SaveUndoInfoForPartAndNets( m_sel_part, CPartList::UNDO_PART_MODIFY, NULL, TRUE, m_Doc->m_undo_list );
+
+		pin->set_clearance( dlg.m_clearance );
+
+		if( m_sel_net != NULL )
+		{
+			// Update AUTO clearance on net pin
+		}
+
 		m_Doc->ProjectModified( TRUE );
 		Invalidate( FALSE );
 	}
@@ -6627,8 +6641,6 @@ void CFreePcbView::OnPadSetClearance()
 
 void CFreePcbView::OnVertexClearance()
 {
-	SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_Doc->m_undo_list );
-
 	CDlgSetPinClearance dlg;
 
 	dlg.m_clearance = m_sel_vtx.via_width_attrib;
@@ -6636,6 +6648,8 @@ void CFreePcbView::OnVertexClearance()
 	int ret = dlg.DoModal();
 	if( ret == IDOK )
 	{
+		SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_Doc->m_undo_list );
+
 		m_dlist->CancelHighLight();
 		m_Doc->m_nlist->SetViaSizeAttrib( m_sel_net, m_sel_ic, m_sel_is, dlg.m_clearance );
 		m_Doc->m_nlist->HighlightVertex( m_sel_net, m_sel_ic, m_sel_is );
@@ -7984,7 +7998,7 @@ void CFreePcbView::SaveUndoInfoForGroup( int type, CArray<void*> * ptrs, CArray<
 			cpart * part = (cpart*)(*ptrs)[i];
 			for( int ip=0; ip<part->pin.GetSize(); ip++ )
 			{
-				cnet * net = (cnet*)part->pin[ip].net;
+				cnet * net = part->pin[ip].net;
 				if( net )
 				{
 					if( net->utility == FALSE )
@@ -8057,13 +8071,13 @@ void CFreePcbView::SaveUndoInfoFor2PartsAndNets( cpart * part1, cpart * part2, B
 			part = part2;
 		for( int ip=0; ip<part->pin.GetSize(); ip++ )
 		{
-			cnet * net = (cnet*)part->pin[ip].net;
+			cnet * net = part->pin[ip].net;
 			if( net )
 				net->utility = 0;
 		}
 		for( int ip=0; ip<part->pin.GetSize(); ip++ )
 		{
-			cnet * net = (cnet*)part->pin[ip].net;
+			cnet * net = part->pin[ip].net;
 			if( net )
 			{
 				if( net->utility == 0 )
@@ -9775,7 +9789,7 @@ void CFreePcbView::MoveGroup( int dx, int dy )
 			cnet * net;
 			for( int ip=0; ip<part->shape->m_padstack.GetSize(); ip++ )
 			{
-				net = (cnet*)part->pin[ip].net;
+				net = part->pin[ip].net;
 				if( net )
 				{
 					for( int ic=0; ic<net->nconnects; ic++ )
@@ -11981,7 +11995,7 @@ void CFreePcbView::RotateGroup()
 			cnet * net;
 			for( int ip=0; ip<part->shape->m_padstack.GetSize(); ip++ )
 			{
-				net = (cnet*)part->pin[ip].net;
+				net = part->pin[ip].net;
 				if( net )
 				{
 					for( int ic=0; ic<net->nconnects; ic++ )
@@ -12561,14 +12575,14 @@ void CFreePcbView::SaveUndoInfoForPartAndNets( cpart * part, int type, CString *
 	// set utility = 0 for all nets affected
 	for( int ip=0; ip<part->pin.GetSize(); ip++ )
 	{
-		cnet * net = (cnet*)part->pin[ip].net;
+		cnet * net = part->pin[ip].net;
 		if( net )
 			net->utility = 0;
 	}
 	// save undo info for all nets affected
 	for( int ip=0; ip<part->pin.GetSize(); ip++ )
 	{
-		cnet * net = (cnet*)part->pin[ip].net;
+		cnet * net = part->pin[ip].net;
 		if( net )
 		{
 			if( net->utility == 0 )

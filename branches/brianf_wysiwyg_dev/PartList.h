@@ -111,6 +111,7 @@ public:
 
 public:
 	void set_net(cnet *net = NULL);
+	void set_clearance(CClearanceInfo const &clearance);
 };
 
 

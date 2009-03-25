@@ -49,6 +49,22 @@ void part_pin::set_net(cnet *_net)
 }
 
 
+void part_pin::set_clearance(CClearanceInfo const &_clearance)
+{
+	clearance = _clearance;
+	clearance.Update();
+
+	int i;
+	for( i = 0; i < dl_els.GetSize(); i++ )
+	{
+		dl_element *el = dl_els[i];
+		if( el == NULL ) continue;
+
+		el->get_dlist()->Set_clearance( el, clearance.m_ca_clearance.m_val );
+	}
+}
+
+
 CPartList::CPartList( CDisplayList * dlist, SMFontUtil * fontutil )
 {
 	m_start.prev = 0;		// dummy first element in list

@@ -499,7 +499,7 @@ void CNetList::AddNetPin( cnet * net, CString const &ref_des, CString const &pin
 			{
 				// hook net to part
 				part->pin[pin_index].set_net( net );
-				part->pin[pin_index].clearance = clearance;
+				part->pin[pin_index].set_clearance( clearance );
 			}
 		}
 	}
@@ -2059,6 +2059,28 @@ int CNetList::SetSegmentWidth( cnet * net, int ic, int is, CConnectionWidthInfo 
 }
 
 
+// Set trace clearance for routed segment (ignores unrouted segs)
+// Does not set via clearances
+//
+int CNetList::SetSegmentClearance( cnet * net, int ic, int is, CClearanceInfo const &clearance )
+{
+//	id id;
+	cconnect * c = &net->connect[ic];
+	cseg *pSeg = &c->seg[is];
+
+	if( pSeg->layer != LAY_RAT_LINE )
+	{
+		pSeg->seg_clearance = clearance;
+		pSeg->seg_clearance.SetParent( net->def_width_attrib );
+		pSeg->seg_clearance.Update();
+
+		m_dlist->Set_clearance( pSeg->dl_el, pSeg->clearance() );
+	}
+
+	return 0;
+}
+
+
 void CNetList::InsertVia( cnet * net, int ic, int ivtx, CViaWidthInfo const &width )
 {
 	cconnect *c = &net->connect[ic];
@@ -2084,8 +2106,32 @@ void CNetList::InsertVia( cnet * net, int ic, int ivtx, CViaWidthInfo const &wid
 
 void CNetList::SetViaSizeAttrib( cnet * net, int ic, int ivtx, CInheritableInfo const &width )
 {
-	if( ViaExists( net, ic, ivtx ) )
+	cconnect *c = &net->connect[ic];
+	cvertex *pVtx = &c->vtx[ivtx];
+
+	if( ( ivtx == 0 ) || ( ( ivtx == c->nsegs ) && ( c->end_pin != cconnect::NO_END ) ) )
 	{
+		// PIN
+		int ip = ( ivtx == 0 ) ? c->start_pin : c->end_pin;
+
+		cpin *pin = &net->pin[ip];
+		cpart *part = pin->part;
+		CShape *shape = part->shape;
+
+		// Shape may not assigned (==NULL) if the part
+		// hasn't been assigned to a shape yet.
+		if( shape != NULL )
+		{
+			int pin_index = shape->GetPinIndexByName( pin->pin_name );
+			if( pin_index >= 0 )
+			{
+				part->pin[pin_index].set_clearance( CClearanceInfo( width ) );
+			}
+		}
+	}
+	else if( ViaExists( net, ic, ivtx ) )
+	{
+		// VIA
 		CVertexIterator vi( net, ic, ivtx );
 		for( cvertex * pVtx = vi.GetFirst(); pVtx != NULL; pVtx = vi.GetNext() )
 		{
@@ -2106,27 +2152,6 @@ void CNetList::SetViaSizeAttrib( cnet * net, int ic, int ivtx, CInheritableInfo 
 			DrawVia( net, ic, ivtx );
 		}
 	}
-}
-
-
-// Set trace clearance for routed segment (ignores unrouted segs)
-//
-int CNetList::SetSegmentClearance( cnet * net, int ic, int is, CClearanceInfo const &clearance )
-{
-//	id id;
-	cconnect * c = &net->connect[ic];
-	cseg *pSeg = &c->seg[is];
-
-	if( pSeg->layer != LAY_RAT_LINE )
-	{
-		pSeg->seg_clearance = clearance;
-		pSeg->seg_clearance.SetParent( net->def_width_attrib );
-		pSeg->seg_clearance.Update();
-
-		m_dlist->Set_clearance( pSeg->dl_el, pSeg->clearance() );
-	}
-
-	return 0;
 }
 
 
@@ -4066,26 +4091,29 @@ void CNetList::SetAreaConnections( cnet * net, int iarea )
 					// see if pad allowed to connect
 					padstack * ps = &part->shape->m_padstack[pin_index];
 					pad * ppad = &ps->inner;
+
 					if( part->side == 0 && area_layer == LAY_TOP_COPPER
 						|| part->side == 1 && area_layer == LAY_BOTTOM_COPPER )
 						ppad = &ps->top;
 					else if( part->side == 1 && area_layer == LAY_TOP_COPPER
 						|| part->side == 0 && area_layer == LAY_BOTTOM_COPPER )
 						ppad = &ps->bottom;
+
 					if( ppad->connect_flag == PAD_CONNECT_NEVER )
 						continue;	// pad never allowed to connect
 					if( ppad->connect_flag == PAD_CONNECT_DEFAULT && !ps->hole_size && !m_bSMT_connect )
 						continue;	// pad uses project option not to connect SMT pads
 					if( pin_layer != LAY_PAD_THRU && ppad->shape == PAD_NONE )
 						continue;	// no SMT pad defined (this should not happen)
+
 					// see if pad is inside copper area
 					CPoint p = m_plist->GetPinPoint( part, part_pin_name );
 					if( area->poly->TestPointInside( p.x, p.y ) )
 					{
 						// pin is inside copper area
 						cnet * part_pin_net = part->pin[pin_index].net;
-						if( part_pin_net != net )
-							ASSERT(0);	// inconsistency between part->pin->net and net->pin->part
+						ASSERT(part_pin_net == net);	// inconsistency between part->pin->net and net->pin->part
+
 						area->pin.SetSize( area->npins+1 );
 						area->pin[area->npins] = ip;
 						id.ii = ip;
@@ -4309,7 +4337,7 @@ int CNetList::UnforceVia( cnet * net, int ic, int ivtx, BOOL set_areas )
 // Reconcile via with preceding and following segments
 // if a via needs to be created, use the attrib passed in 'new_via_attrib'
 //
-// Returns: Boolean:,is a via needed for this vertex?
+// Returns: Boolean: "is a via needed for this vertex?"
 int CNetList::ReconcileVia( cnet * net, int ic, int ivtx, CViaWidthInfo const &new_via_attrib )
 {
 	cconnect * c = &net->connect[ic];
@@ -4499,10 +4527,6 @@ int CNetList::WriteNets( CStdioFile * file )
 						clearance = part->pin[pin_index].clearance.m_ca_clearance;
 					}
 				}
-                else
-                {
-                    clearance = CClearanceInfo::E_UNDEF;
-                }
 
 				line.Format( "  pin: %d %s.%s %d\n", ip+1,
 							net->pin[ip].ref_des(),
@@ -4724,11 +4748,13 @@ void CNetList::ReadNets( CStdioFile * pcb_file, double read_version, int * layer
 				int end_pin = my_atoi( &p[2] );
 				int nsegs = my_atoi( &p[3] );
 				int locked = my_atoi( &p[4] );
+
 				int nc;
 				if( end_pin != cconnect::NO_END )
 					nc = AddNetConnect( net, start_pin, end_pin );
 				else
 					nc = AddNetStub( net, start_pin );
+
 				if( nc == -1 )
 				{
 					// invalid connection, remove it with this ugly code
@@ -4875,11 +4901,14 @@ void CNetList::ReadNets( CStdioFile * pcb_file, double read_version, int * layer
 						}
 					}
 
-					// set widths of preceding vertex
+					// set widths of last vertex if not a pin
 					// Always insert via - reconcile later.  Otherwise size info
 					// can get lost if the via isn't initially created since a branch
 					// or stub may not exist.
-					InsertVia( net, ic, is, pre_width );
+					if( end_pin == cconnect::NO_END ) 
+					{
+						InsertVia( net, ic, is, pre_width );
+					}
 				}
 			}
 			for( int ia=0; ia<nareas; ia++ )
@@ -5880,9 +5909,11 @@ undo_con * CNetList::CreateConnectUndoRecord( cnet * net, int icon, BOOL set_are
 		// Use placement new to call ctor for each segment
 		undo_seg *pSeg = new(&seg[is]) undo_seg;
 
-		pSeg->layer     = c->seg[is].layer;
-		pSeg->width     = c->seg[is].seg_width;
-		pSeg->clearance = c->seg[is].seg_clearance;
+		pSeg->layer = c->seg[is].layer;
+
+		// Save the width attrib in two steps
+		pSeg->width_attrib = c->seg[is].seg_width;
+		pSeg->width_attrib = c->seg[is].seg_clearance;
 	}
 
 	for( int iv=0; iv<=con->nsegs; iv++ )
@@ -5929,17 +5960,19 @@ void CNetList::ConnectUndoCallback( int type, void * ptr, BOOL undo )
 				cconnect * c = &net->connect[nc];
 				for( int is=0; is<con->nsegs; is++ )
 				{
+					CClearanceInfo clearance(seg[is].width_attrib);
+
 					if( con->end_pin != cconnect::NO_END )
 					{
 						// pin-pin trace
 						nl->InsertSegment( net, nc, is, vtx[is+1].x, vtx[is+1].y,
-							seg[is].layer, seg[is].width, seg[is].clearance, 0 );
+							seg[is].layer, seg[is].width_attrib, clearance, 0 );
 					}
 					else
 					{
 						// stub trace
 						nl->AppendSegment( net, nc, vtx[is+1].x, vtx[is+1].y,
-							seg[is].layer, seg[is].width, seg[is].clearance );
+							seg[is].layer, seg[is].width_attrib, clearance );
 					}
 				}
 				for( int is=0; is < con->nsegs; is++ )
@@ -5977,11 +6010,31 @@ undo_net * CNetList::CreateNetUndoRecord( cnet * net )
 	undo_net * undo = (undo_net*)malloc( size );
 	strcpy( undo->name, net->name );
 	undo->npins = net->npins;
-	undo_pin * un_pin = (undo_pin*)((UINT)undo + sizeof(undo_net));
-	for( int ip=0; ip<net->npins; ip++ )
+	undo_pin * pin_mem = (undo_pin*)((UINT)undo + sizeof(undo_net));
+	for( int ip=0; ip<net->npins; ip++, pin_mem++ )
 	{
-		strcpy( un_pin[ip].ref_des,  net->pin[ip].ref_des() );
-		strcpy( un_pin[ip].pin_name, net->pin[ip].pin_name );
+		// Construct un_pin in place
+		undo_pin * un_pin = new(pin_mem) undo_pin;
+
+		strcpy( un_pin->ref_des,  net->pin[ip].ref_des() );
+		strcpy( un_pin->pin_name, net->pin[ip].pin_name );
+
+		un_pin->clearance.Undef();
+
+		cpin *pin = &net->pin[ip];
+		cpart *part = pin->part;
+		CShape *shape = part->shape;
+
+		// Shape may not assigned (==NULL) if the part
+		// hasn't been assigned to a shape yet.
+		if( shape != NULL )
+		{
+			int pin_index = shape->GetPinIndexByName( pin->pin_name );
+			if( pin_index >= 0 )
+			{
+				un_pin->clearance = part->pin[pin_index].clearance;
+			}
+		}
 	}
 	undo->nlist = this;
 	undo->size = size;
@@ -6030,7 +6083,7 @@ void CNetList::NetUndoCallback( int type, void * ptr, BOOL undo )
 			{
 				CString ref_str( un_pin[ip].ref_des );
 				CString pin_name( un_pin[ip].pin_name );
-				nl->AddNetPin( net, ref_str, pin_name, FALSE );
+				nl->AddNetPin( net, ref_str, pin_name, un_pin[ip].clearance, FALSE );
 			}
 			nl->RehookPartsToNet( net );
 		}
