@@ -32,6 +32,8 @@ public:
 
 	void Remove(void);
 
+	CDisplayList *get_dlist() { return dlist; }
+
 protected:
 	virtual void _Draw             (CDrawInfo const &di) const {}
 	virtual void _DrawClearance    (CDrawInfo const &di) const {}

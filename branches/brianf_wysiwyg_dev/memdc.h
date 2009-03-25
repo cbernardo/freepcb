@@ -61,21 +61,14 @@ public:
              // Create a Memory DC
              CreateCompatibleDC(pDC);
 
-             pDC->LPtoDP(&m_rect); 
-			 m_rect.NormalizeRect();
+			 //m_rect.NormalizeRect();
 
              SetBkColor( pDC->GetBkColor() );
 
-             m_bitmap.CreateCompatibleBitmap(pDC, m_rect.Width(), m_rect.Height());
-
-             m_oldBitmap = SelectObject(&m_bitmap);
- 
              SetMapMode(pDC->GetMapMode());
- 
              SetWindowExt(pDC->GetWindowExt());
              SetViewportExt(pDC->GetViewportExt());
  
-             pDC->DPtoLP(&m_rect);
              SetWindowOrg(m_rect.left, m_rect.top);
         } 
         else 
@@ -87,10 +80,6 @@ public:
              m_hDC       = pDC->m_hDC;
              m_hAttribDC = pDC->m_hAttribDC;
         }
- 
-        // Fill background 
-        //FillSolidRect(m_rect, pDC->GetBkColor());
-        //FillSolidRect(m_rect, RGB(16,0,16));
     }
 
     void mono()
@@ -103,16 +92,38 @@ public:
 
 			m_bitmap1.CreateBitmap(DP.Width(), DP.Height(), 1,1, NULL);
 		}
-		SelectObject(&m_bitmap1);
+
+		CBitmap *bm = SelectObject(&m_bitmap1);
+		if (m_oldBitmap == NULL) m_oldBitmap = bm;
+
+        // Fill background 
 		FillSolidRect(m_rect, RGB(0,0,0));
     }
+
+	void compatible()
+	{
+		if (m_bitmap.m_hObject == NULL)
+		{
+			CRect DP = m_rect;
+			LPtoDP(&DP); 
+			DP.NormalizeRect();
+
+			m_bitmap.CreateCompatibleBitmap(this, m_rect.Width(), m_rect.Height());
+		}
+
+		CBitmap *bm = SelectObject(&m_bitmap);
+		if (m_oldBitmap == NULL) m_oldBitmap = bm;
+
+        // Fill background 
+        //FillSolidRect(m_rect, GetBkColor());
+	}
     
     ~CMemDC()      
     {          
         if (m_bMemDC) 
         {
              //Swap back the original bitmap.
-             SelectObject(m_oldBitmap);        
+             if (m_oldBitmap != NULL) SelectObject(m_oldBitmap);        
         } 
         else 
         {

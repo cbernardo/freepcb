@@ -160,6 +160,7 @@ void CDL_job_copper_area::Draw(CDrawInfo &di) const
 	CDC *pDC_Save = di.DC;
 	CRect bitmap_area(0,0, area_size.cx, area_size.cy);
 	CMemDC dcMemory(pDC_Save, &bitmap_area);
+	dcMemory.compatible();
 	di.DC = &dcMemory;
 	{
 		CPen * old_pen;
