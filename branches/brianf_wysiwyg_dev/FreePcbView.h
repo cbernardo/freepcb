@@ -527,6 +527,7 @@ public:
 
 protected:
 	CString GetViaText( cvertex const &Vtx );
+	CString GetItemText( CII_FreePcb::Item const &item );
 
 // Generated message map functions
 protected:

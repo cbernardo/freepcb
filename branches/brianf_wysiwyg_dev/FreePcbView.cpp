@@ -1569,7 +1569,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 				m_sel_ic, m_sel_is,
 				m_last_cursor_point.x, m_last_cursor_point.y,
 				layer,
-				m_sel_net->connect[m_sel_ic].seg[m_sel_is].seg_width,
+				m_sel_net->connect[m_sel_ic].seg[m_sel_is].width_attrib,
 				m_dir
 			);
 
@@ -4797,7 +4797,7 @@ void CFreePcbView::ShowRelativeDistance( int x, int y, int dx, int dy )
 //
 int CFreePcbView::ShowSelectStatus()
 {
-	CString x_str, y_str, w_str, hole_str;
+	CString x_str, y_str;
 	int u = m_Doc->m_units;
 
 	CMainFrame * pMain = (CMainFrame*) AfxGetApp()->m_pMainWnd;
@@ -4907,7 +4907,7 @@ int CFreePcbView::ShowSelectStatus()
 			cnet * pin_net = m_sel_part->pin[m_sel_id.i].net;
 			::MakeCStringFromDimension( &x_str, m_sel_part->pin[m_sel_id.i].x, u, FALSE, FALSE, FALSE, u==MIL?1:3 );
 			::MakeCStringFromDimension( &y_str, m_sel_part->pin[m_sel_id.i].y, u, FALSE, FALSE, FALSE, u==MIL?1:3 );
-			if( pin_net )
+			if( pin_net != NULL )
 			{
 				// pad attached to net
 				str.Format( "pin %s.%s on net \"%s\", x %s, y %s",
@@ -4922,6 +4922,16 @@ int CFreePcbView::ShowSelectStatus()
 					m_sel_part->ref_des,
 					m_sel_part->shape->GetPinNameByIndex(m_sel_id.i),
 					x_str, y_str );
+			}
+
+			{
+				CString txt;
+
+				part_pin *pin = &m_sel_part->pin[m_sel_id.i];
+
+				txt.Format( " , clearance %s", GetItemText( pin->clearance.m_ca_clearance ) );
+
+				str += txt;
 			}
 		}
 		break;
@@ -4947,23 +4957,23 @@ int CFreePcbView::ShowSelectStatus()
 				{
 					// stub trace segment
 					if( m_sel_con.vtx[m_sel_con.nsegs].tee_ID )
-						str.Format( "net \"%s\" branch(%d) to %s.%s, seg %d, width %d, clearance %d (T%d)",
+						str.Format( "net \"%s\" branch(%d) to %s.%s, seg %d, width %s, clearance %s (T%d)",
 							m_sel_net->name, m_sel_id.i+1,
 							m_sel_start_pin.ref_des(),
 							m_sel_start_pin.pin_name,
 							m_sel_id.ii+1,
-							m_sel_seg.width()/NM_PER_MIL,
-							m_sel_seg.clearance()/NM_PER_MIL,
+							GetItemText( m_sel_seg.width_attrib.m_seg_width ),
+							GetItemText( m_sel_seg.width_attrib.m_ca_clearance ),
 							m_sel_con.vtx[m_sel_con.nsegs].tee_ID
 						);
 					else
-						str.Format( "net \"%s\" stub(%d) from %s.%s, seg %d, width %d, clearance %d",
+						str.Format( "net \"%s\" stub(%d) from %s.%s, seg %d, width %s, clearance %s",
 							m_sel_net->name, m_sel_id.i+1,
 							m_sel_start_pin.ref_des(),
 							m_sel_start_pin.pin_name,
 							m_sel_id.ii+1,
-							m_sel_seg.width()/NM_PER_MIL,
-							m_sel_seg.clearance()/NM_PER_MIL
+							GetItemText( m_sel_seg.width_attrib.m_seg_width ),
+							GetItemText( m_sel_seg.width_attrib.m_ca_clearance )
 						);
 				}
 			}
@@ -4974,28 +4984,28 @@ int CFreePcbView::ShowSelectStatus()
 
 				if( m_sel_con.nsegs == 1 && m_sel_seg.layer == LAY_RAT_LINE )
 				{
-					str.Format( "net \"%s\" connection(%d) %s.%s-%s.%s%s, seg %d, width %d, clearance %d",
+					str.Format( "net \"%s\" connection(%d) %s.%s-%s.%s%s, seg %d, width %s, clearance %s",
 						m_sel_net->name, m_sel_id.i+1,
 						m_sel_start_pin.ref_des(),
 						m_sel_start_pin.pin_name,
 						m_sel_end_pin.ref_des(),
 						m_sel_end_pin.pin_name,
 						locked_flag, m_sel_id.ii+1,
-						m_sel_net->def_width_attrib.m_seg_width.m_val/NM_PER_MIL,
-						m_sel_net->def_width_attrib.m_ca_clearance.m_val/NM_PER_MIL
+						GetItemText( m_sel_net->def_width_attrib.m_seg_width ),
+						GetItemText( m_sel_net->def_width_attrib.m_ca_clearance )
 					);
 				}
 				else
 				{
-					str.Format( "net \"%s\" trace(%d) %s.%s-%s.%s%s, seg %d, width %d, clearance %d",
+					str.Format( "net \"%s\" trace(%d) %s.%s-%s.%s%s, seg %d, width %s, clearance %s",
 						m_sel_net->name,  m_sel_id.i+1,
 						m_sel_start_pin.ref_des(),
 						m_sel_start_pin.pin_name,
 						m_sel_end_pin.ref_des(),
 						m_sel_end_pin.pin_name,
 						locked_flag, m_sel_id.ii+1,
-						m_sel_seg.width()/NM_PER_MIL,
-                        m_sel_seg.clearance()/NM_PER_MIL
+						GetItemText( m_sel_seg.width_attrib.m_seg_width ),
+						GetItemText( m_sel_seg.width_attrib.m_ca_clearance )
 					);
 				}
 			}
@@ -5127,10 +5137,11 @@ int CFreePcbView::ShowSelectStatus()
 		break;
 
 	case CUR_NET_SELECTED:
-		str.Format( "net \"%s\": width %d, clearance %d",
+		str.Format( "net \"%s\": width %s, clearance %s",
 			m_sel_net->name,
-			m_sel_net->def_width_attrib.m_seg_width.m_val/NM_PER_MIL,
-			m_sel_net->def_width_attrib.m_ca_clearance.m_val/NM_PER_MIL );
+			GetItemText( m_sel_net->def_width_attrib.m_seg_width ),
+			GetItemText( m_sel_net->def_width_attrib.m_ca_clearance )
+		);
 		break;
 
 	case CUR_TEXT_SELECTED:
@@ -5252,6 +5263,25 @@ int CFreePcbView::ShowSelectStatus()
 	return 0;
 }
 
+CString CFreePcbView::GetItemText( CII_FreePcb::Item const &item )
+{
+	CString str;
+	int u = m_Doc->m_units;
+
+	::MakeCStringFromDimension( &str, item.m_val, u, FALSE, FALSE, FALSE, (u==MIL) ? 1:3 );
+
+	switch( item.m_status )
+	{
+	case CII_FreePcb::E_USE_VAL:                        break;
+	case CII_FreePcb::E_AUTO_CALC:          str += "A"; break;
+	case CII_FreePcb::E_USE_DEF_FROM_WIDTH: str += "W"; break;
+	case CII_FreePcb::E_USE_PARENT:         str += "N"; break;
+	default:                                str += "*"; break;
+	}
+
+	return str;
+}
+
 
 CString CFreePcbView::GetViaText( cvertex const &Vtx )
 {
@@ -5261,13 +5291,12 @@ CString CFreePcbView::GetViaText( cvertex const &Vtx )
 	if( Vtx.via_w() )
 	{
 		// with via
-		CString via_w_str, via_hole_str, via_clearance_str;
+		str.Format( ", via %s/%s/%s", 
+			GetItemText( Vtx.via_width_attrib.m_via_width ), 
+			GetItemText( Vtx.via_width_attrib.m_via_hole ), 
+			GetItemText( Vtx.via_width_attrib.m_ca_clearance )
+		);
 
-		::MakeCStringFromDimension( &via_w_str,         Vtx.via_w(),         u, FALSE, FALSE, FALSE, (u==MIL) ?1:3 );
-		::MakeCStringFromDimension( &via_hole_str,      Vtx.via_hole_w(),    u, FALSE, FALSE, FALSE, (u==MIL) ?1:3 );
-		::MakeCStringFromDimension( &via_clearance_str, Vtx.via_clearance(), u, FALSE, FALSE, FALSE, (u==MIL) ?1:3 );
-
-		str.Format( ", via %s/%s/%s", via_w_str, via_hole_str, via_clearance_str );
 		ret += str;
 	}
 
@@ -5523,7 +5552,7 @@ int CFreePcbView::SetWidth( int mode )
 
 	if( mode == 0 )
 	{
-		dlg.m_width_attrib = m_sel_seg.seg_width;
+		dlg.m_width_attrib = m_sel_seg.width_attrib;
 	}
 	else
 	{
@@ -5602,7 +5631,7 @@ int CFreePcbView::SetClearance( int mode )
 	if( mode == 0 )
 	{
 		cseg *s = &m_sel_seg;
-		dlg.m_clearance = s->seg_clearance;
+		dlg.m_clearance = s->width_attrib;
 	}
 	else
 	{
@@ -6744,7 +6773,7 @@ void CFreePcbView::OnVertexDelete()
 			pre_pre_layer = c->seg[iv-2].layer;
 			pre_pre_width = c->seg[iv-2].width();
 			c->seg[iv-2].layer = LAY_TOP_COPPER-1;
-			c->seg[iv-2].seg_width.m_seg_width = 1;
+			c->seg[iv-2].width_attrib.m_seg_width = 1;
 		}
 		if( iv < c->nsegs-1 )
 		{
@@ -6752,7 +6781,7 @@ void CFreePcbView::OnVertexDelete()
 			post_post_layer = c->seg[iv+1].layer;
 			post_post_width = c->seg[iv+1].width();
 			c->seg[iv+1].layer = LAY_TOP_COPPER-1;
-			c->seg[iv+1].seg_width.m_seg_width = 1;
+			c->seg[iv+1].width_attrib.m_seg_width = 1;
 		}
 
 		// save preceding vertex parameters
@@ -6792,12 +6821,12 @@ void CFreePcbView::OnVertexDelete()
 		if( pre_pre_layer != -1 )
 		{
 			c->seg[iv-2].layer = pre_pre_layer;
-			c->seg[iv-2].seg_width.m_seg_width = pre_pre_width;
+			c->seg[iv-2].width_attrib.m_seg_width = pre_pre_width;
 		}
 		if( post_post_layer != -1 )
 		{
 			c->seg[iv].layer = post_post_layer;
-			c->seg[iv].seg_width.m_seg_width = post_post_width;
+			c->seg[iv].width_attrib.m_seg_width = post_post_width;
 		}
 		m_Doc->m_nlist->MergeUnroutedSegments( m_sel_net, ic );
 	}
@@ -9957,11 +9986,11 @@ void CFreePcbView::MoveGroup( int dx, int dy )
 								if( part2->utility == FALSE && is == c->nsegs-1 )
 								{
 									// insert ratline as new last segment
-									CConnectionWidthInfo old_width( c->seg[c->nsegs-1].seg_width );
+									CConnectionWidthInfo old_width( c->seg[c->nsegs-1].width_attrib );
 									old_width.m_via_width = c->vtx[c->nsegs-1].via_width_attrib.m_via_width;
 									old_width.m_via_hole  = c->vtx[c->nsegs-1].via_width_attrib.m_via_hole;
 
-									CClearanceInfo old_clearance( c->seg[c->nsegs-1].seg_clearance );
+									CClearanceInfo old_clearance( c->seg[c->nsegs-1].width_attrib );
 									int old_layer = c->seg[c->nsegs-1].layer;
 
 									m_Doc->m_nlist->UnrouteSegmentWithoutMerge( net, ic, c->nsegs-1 );
@@ -12164,11 +12193,11 @@ void CFreePcbView::RotateGroup()
 								if( part2->utility == FALSE && is == c->nsegs-1 )
 								{
 									// insert ratline as new last segment
-									CConnectionWidthInfo old_width( c->seg[c->nsegs-1].seg_width );
+									CConnectionWidthInfo old_width( c->seg[c->nsegs-1].width_attrib );
 									old_width.m_via_width = c->vtx[c->nsegs-1].via_width_attrib.m_via_width;
 									old_width.m_via_hole  = c->vtx[c->nsegs-1].via_width_attrib.m_via_hole;
 
-									CClearanceInfo old_clearance( c->seg[c->nsegs-1].seg_clearance );
+									CClearanceInfo old_clearance( c->seg[c->nsegs-1].width_attrib );
 									int old_layer = c->seg[c->nsegs-1].layer;
 
 									m_Doc->m_nlist->UnrouteSegmentWithoutMerge( net, ic, c->nsegs-1 );

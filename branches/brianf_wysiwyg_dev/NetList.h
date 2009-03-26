@@ -206,12 +206,11 @@ public:
 class cseg
 {
 public:
-	int layer;				  // copper layer
-	CSegWidthInfo  seg_width; // width
-	CClearanceInfo seg_clearance; // clearances
-	int selected;			  // 1 if selected for editing
-	dl_element * dl_el;		  // display element for segment
-	dl_element * dl_sel;	  // selection line
+	int layer;				    // copper layer
+	CNetWidthInfo width_attrib; // width/clearance BAF - create segment attrib class
+	int selected;			    // 1 if selected for editing
+	dl_element * dl_el;		    // display element for segment
+	dl_element * dl_sel;	    // selection line
 	CDisplayList * m_dlist;
 	int utility;
 
@@ -234,6 +233,11 @@ public:
 		Undraw();
 	}
 
+	void Unroute(void)
+	{
+		layer = LAY_RAT_LINE;
+		width_attrib.m_seg_width = 0;
+	}
 
 	void Undraw()
 	{
@@ -252,8 +256,8 @@ public:
 
 	void Initialize( CDisplayList * dlist ) { m_dlist = dlist; }
 
-	int width()     const { return seg_width.m_seg_width.m_val; }
-	int clearance() const { return seg_clearance.m_ca_clearance.m_val; }
+	int width()     const { return width_attrib.m_seg_width.m_val; }
+	int clearance() const { return width_attrib.m_ca_clearance.m_val; }
 };
 
 // cvertex: describes a vertex between segments
@@ -599,7 +603,7 @@ public:
 	BOOL TestForHitOnVertex( cnet * net, int layer, int x, int y,
 		cnet ** hit_net, int * hit_ic, int * hit_iv );
 
-	// functions related to parts
+	// functions related to parts ---------------------------------------------
 	int RehookPartsToNet( cnet * net );
 	void PartAdded( cpart * part );
 	int PartMoved( cpart * part );
@@ -610,12 +614,11 @@ public:
 						cpart * part2, CString * pin_name2 );
 	void PartRefChanged( CString * old_ref_des, CString * new_ref_des );
 
-	// functions for copper areas
+	// functions for copper areas ---------------------------------------------
 	int AddArea( cnet * net, int layer, int x, int y, int hatch );
 	void InsertArea( cnet * net, int iarea, int layer, int x, int y, int hatch );
 	int AppendAreaCorner( cnet * net, int iarea, int x, int y, int style, BOOL bDraw=TRUE );
-	int InsertAreaCorner( cnet * net, int iarea, int icorner,
-		int x, int y, int style );
+	int InsertAreaCorner( cnet * net, int iarea, int icorner, int x, int y, int style );
 	void MoveAreaCorner( cnet * net, int iarea, int icorner, int x, int y );
 	void HighlightAreaCorner( cnet * net, int iarea, int icorner );
 	void HighlightAreaSides( cnet * net, int ia );
@@ -647,7 +650,7 @@ public:
 			int fill_clearance, int min_silkscreen_stroke_wid,
 			int thermal_wid, int hole_clearance );
 
-	// I/O  functions
+	// I/O functions ----------------------------------------------------------
 	int WriteNets( CStdioFile * file );
 	void ReadNets( CStdioFile * pcb_file, double read_version, int * layers=NULL );
 	void ExportNetListInfo( netlist_info * nl );
@@ -658,7 +661,7 @@ public:
 	void ImportNetRouting( CString * name, CArray<cnode> * nodes,
 		CArray<cpath> * paths, int tolerance, CDlgLog * log=NULL, BOOL bVerbose=TRUE );
 
-	// undo functions
+	// undo functions ---------------------------------------------------------
 	undo_con * CreateConnectUndoRecord( cnet * net, int icon, BOOL set_areas=TRUE );
 	undo_area * CreateAreaUndoRecord( cnet * net, int iarea, int type );
 	undo_net * CreateNetUndoRecord( cnet * net );
@@ -666,13 +669,14 @@ public:
 	static void AreaUndoCallback( int type, void * ptr, BOOL undo );
 	static void NetUndoCallback( int type, void * ptr, BOOL undo );
 
-	// functions for tee_IDs
+	// functions for tee_IDs --------------------------------------------------
 	void ClearTeeIDs();
 	int GetNewTeeID();
 	int FindTeeID( int id );
 	void RemoveTeeID( int id );
 	void AddTeeID( int id );
-	// functions for tees and branches
+
+	// functions for tees and branches ----------------------------------------
 	BOOL FindTeeVertexInNet( cnet * net, int id, int * ic=NULL, int * iv=NULL );
 	BOOL FindTeeVertex( int id, cnet ** net, int * ic=NULL, int * iv=NULL );
 	int RemoveTee( cnet * net, int id );

@@ -142,7 +142,7 @@ void CSubDlg_TraceWidth::OnBnClicked_t_modify()
 	}
 	else
 	{
-		m_rb_t_default.EnableWindow( 1 );
+		m_rb_t_default.EnableWindow( m_attrib.get_data().hasParent() );
 		m_rb_t_set.EnableWindow( 1 );
 
 		m_check_t_apply.EnableWindow( 1 );

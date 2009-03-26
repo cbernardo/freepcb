@@ -28,6 +28,9 @@ cpart::~cpart()
 {
 }
 
+part_pin::part_pin() : clearance( theApp.m_Doc->m_def_size_attrib )
+{
+}
 
 void part_pin::set_net(cnet *_net)
 {
@@ -41,6 +44,12 @@ void part_pin::set_net(cnet *_net)
         // to 'use value' at this time.  This is done by
 		// removing the parent (see inheritable_item class).
 		clearance.SetParent();
+
+		// BAF move to pin clearance class
+		if( clearance.m_ca_clearance.m_status != CClearanceInfo::E_USE_VAL )
+		{
+			clearance.m_ca_clearance.m_status = CClearanceInfo::E_USE_VAL;
+		}
 	}
 	else
 	{
@@ -49,7 +58,7 @@ void part_pin::set_net(cnet *_net)
 }
 
 
-void part_pin::set_clearance(CClearanceInfo const &_clearance)
+void part_pin::set_clearance(CInheritableInfo const &_clearance)
 {
 	clearance = _clearance;
 	clearance.Update();

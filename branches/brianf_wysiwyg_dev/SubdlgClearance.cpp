@@ -130,7 +130,7 @@ void CSubDlg_Clearance::OnBnClicked_c_modify()
 	}
 	else
 	{
-		m_rb_c_default.EnableWindow( 1 );
+		m_rb_c_default.EnableWindow( m_attrib.hasParent() );
 		m_rb_c_auto.EnableWindow( 1 );
 		m_rb_c_set.EnableWindow( 1 );
 

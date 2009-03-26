@@ -2593,7 +2593,9 @@ void CFreePcbDoc::ProjectModified( BOOL flag, BOOL b_clear_redo )
 		submenu->EnableMenuItem( ID_EDIT_REDO, MF_BYCOMMAND | MF_DISABLED | MF_GRAYED );
 	else
 		submenu->EnableMenuItem( ID_EDIT_REDO, MF_BYCOMMAND | MF_ENABLED );
+
 	pMain->DrawMenuBar();
+	m_view->ShowSelectStatus();
 }
 
 void CFreePcbDoc::OnViewLayers()

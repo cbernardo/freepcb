@@ -110,8 +110,10 @@ public:
 	CArray<dl_element*> dl_els;	// array of pointers to graphic elements for pads
 
 public:
+	part_pin();
+
 	void set_net(cnet *net = NULL);
-	void set_clearance(CClearanceInfo const &clearance);
+	void set_clearance(CInheritableInfo const &clearance);
 };
 
 

@@ -219,7 +219,7 @@ void CSubDlg_ViaWidth::OnBnClicked_v_modify()
 	}
 	else
 	{
-		m_rb_v_default.EnableWindow( 1 );
+		m_rb_v_default.EnableWindow( m_attrib.hasParent() );
 		m_rb_v_set.EnableWindow( 1 );
 
 		m_check_v_apply.EnableWindow( 1 );
