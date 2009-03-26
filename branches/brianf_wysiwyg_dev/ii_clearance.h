@@ -17,6 +17,7 @@ protected:
 
 public:
 	explicit CClearanceInfo(CInheritableInfo const &from)
+		: CII_FreePcb(from)
 	{
 		*this = from;
 	}
@@ -92,6 +93,7 @@ public:
 	}
 
 	explicit CViaWidthInfo( CInheritableInfo const &from )
+		: CClearanceInfo(from)
 	{
 		*this = from;
 	}

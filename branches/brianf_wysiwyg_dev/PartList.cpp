@@ -55,11 +55,19 @@ void part_pin::set_net(cnet *_net)
 	{
 		clearance.SetParent( _net->def_width_attrib );
 	}
+
+	set_clearance( clearance );
 }
 
 
-void part_pin::set_clearance(CInheritableInfo const &_clearance)
+void part_pin::set_clearance(CInheritableInfo const &__clearance)
 {
+	// Retrieve the clearance passed in.  
+	// If it's undef, don't make any updates.
+	CClearanceInfo _clearance( __clearance );
+	if( !_clearance.m_ca_clearance.isDefined() )
+		return;
+
 	clearance = _clearance;
 	clearance.Update();
 
@@ -2133,6 +2141,7 @@ cpart * CPartList::AddFromString( CString * str )
 	CShape * s = NULL;
 	CString in_str, key_str;
 	CArray<CString> p;
+	CArray<CClearanceInfo> clearance;
 	int pos = 0;
 	int len = str->GetLength();
 	int np;
@@ -2156,6 +2165,7 @@ cpart * CPartList::AddFromString( CString * str )
 	int side;
 	int angle;
 	int glued;
+	int pin_number;
 	cpart * part = Add();
 
 	// so we only draw once
@@ -2219,6 +2229,7 @@ cpart * CPartList::AddFromString( CString * str )
 				package = p[0];
 			else
 				package = "";
+
 			package = package.Left(CShape::MAX_NAME_SIZE);
 		}
 		else if( np >= 2 && key_str == "shape" )
@@ -2233,6 +2244,16 @@ cpart * CPartList::AddFromString( CString * str )
 			{
 				// found in cache
 				s = (CShape*)ptr;
+				clearance.SetSize( s->m_padstack.GetSize() );
+			}
+
+			pin_number = 0;
+		}
+		else if( np >= 3 && key_str == "pin" )
+		{
+			if( s != NULL )
+			{
+				clearance[pin_number++].m_ca_clearance = my_atoi( &p[1] );
 			}
 		}
 		else if( key_str == "pos" )
@@ -2264,6 +2285,12 @@ cpart * CPartList::AddFromString( CString * str )
 		part->m_ref_yi = ref_yi;
 		part->m_ref_angle = ref_angle;
 		ResizeRefText( part, ref_size, ref_width, ref_vis );
+
+		// Assign pin attributes
+		while( pin_number-- > 0 )
+		{
+			part->pin[pin_number].set_clearance( clearance[pin_number] );
+		}
 	}
 	m_dlist = old_dlist;
 	DrawPart( part );
@@ -2365,11 +2392,26 @@ int CPartList::SetPartString( cpart * part, CString * str )
 			line.Format( "  value: \"%s\"\n", part->value );
 		str->Append( line );
 	}
+
 	if( part->shape )
+	{
 		line.Format( "  shape: \"%s\"\n", part->shape->m_name );
+		str->Append( line );
+
+		for( int i = 0; i < part->pin.GetSize(); i++)
+		{
+			part_pin *pin = &part->pin[i];
+
+			line.Format( "    pin: %d %d\n", i+1, pin->clearance.m_ca_clearance.GetItemAsInt() );
+			str->Append( line );
+		}	
+	}
 	else
+	{
 		line.Format( "  shape: \n" );
-	str->Append( line );
+		str->Append( line );
+	}
+
 	line.Format( "  pos: %d %d %d %d %d\n", part->x, part->y, part->side, part->angle%360, part->glued );
 	str->Append( line );
 

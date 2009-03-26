@@ -463,8 +463,7 @@ public:
 	cnet * AddNet( CString name, int max_pins, CNetWidthInfo const &def_width_attrib );
 	void RemoveNet( cnet * net );
 	void RemoveAllNets();
-	void AddNetPin( cnet * net, CString const &ref_des, CString const &pin_name, CClearanceInfo const &clearance, BOOL set_areas=TRUE );
-	void AddNetPin( cnet * net, CString const &ref_des, CString const &pin_name, BOOL set_areas=TRUE ) { AddNetPin(net,ref_des,pin_name, CClearanceInfo(CClearanceInfo::E_AUTO_CALC), set_areas); }
+	part_pin * AddNetPin( cnet * net, CString const &ref_des, CString const &pin_name, BOOL set_areas=TRUE );
 	void RemoveNetPin( cpart * part, CString * pin_name );
 	void RemoveNetPin( cnet * net, CString const &ref_des, CString const &pin_name );
 	void RemoveNetPin( cnet * net, int pin_index );

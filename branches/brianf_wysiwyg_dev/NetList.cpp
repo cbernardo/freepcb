@@ -474,7 +474,7 @@ void CNetList::DrawConnection( cnet * net, int ic )
 
 // Add new pin to net
 //
-void CNetList::AddNetPin( cnet * net, CString const &ref_des, CString const &pin_name, CClearanceInfo const &clearance, BOOL set_areas )
+part_pin * CNetList::AddNetPin( cnet * net, CString const &ref_des, CString const &pin_name, BOOL set_areas )
 {
 	// set size of pin array
 	net->pin.SetSize( net->npins + 1 );
@@ -489,6 +489,8 @@ void CNetList::AddNetPin( cnet * net, CString const &ref_des, CString const &pin
 	cpart *part = m_plist->GetPart( ref_des );
 	pin->part = part;
 
+	part_pin *part_pin = NULL;
+
 	if( part )
 	{
 		// hook part to net
@@ -497,17 +499,23 @@ void CNetList::AddNetPin( cnet * net, CString const &ref_des, CString const &pin
 			int pin_index = part->shape->GetPinIndexByName( pin_name );
 			if( pin_index >= 0 )
 			{
+				part_pin = &part->pin[pin_index];
+
 				// hook net to part
-				part->pin[pin_index].set_net( net );
-				part->pin[pin_index].set_clearance( clearance );
+				part_pin->set_net( net );
 			}
 		}
 	}
 
 	net->npins++;
+
 	// adjust connections to areas
 	if( net->nareas && set_areas )
+	{
 		SetAreaConnections( net );
+	}
+
+	return part_pin;
 }
 
 // Remove pin from net (by reference designator and pin number)
@@ -2020,21 +2028,25 @@ int CNetList::SetSegmentWidth( cnet * net, int ic, int is, CConnectionWidthInfo 
 	{
 		cseg *pSeg = &c->seg[is];
 
+		// Ensure parent is correct
 		pSeg->width_attrib.SetParent( net->def_width_attrib );
 
-		// Get original data
-		CSegWidthInfo seg_width( pSeg->width_attrib );
-
-		// Update from 'width'
-		seg_width = width;
-		seg_width.Update();
-
-		if( pSeg->layer != LAY_RAT_LINE && width.m_seg_width.m_val != 0 )
+		if( width.m_seg_width.isDefined() )
 		{
-			pSeg->width_attrib = seg_width;
+			// Get original data
+			CSegWidthInfo seg_width( pSeg->width_attrib );
 
-			m_dlist->Set_w( pSeg->dl_el,  pSeg->width() );
-			m_dlist->Set_w( pSeg->dl_sel, pSeg->width() );
+			// Update from 'width'
+			seg_width = width;
+			seg_width.Update();
+
+			if( pSeg->layer != LAY_RAT_LINE && width.m_seg_width.m_val != 0 )
+			{
+				pSeg->width_attrib = seg_width;
+
+				m_dlist->Set_w( pSeg->dl_el,  pSeg->width() );
+				m_dlist->Set_w( pSeg->dl_sel, pSeg->width() );
+			}
 		}
 	}
 
@@ -2056,7 +2068,11 @@ int CNetList::SetSegmentWidth( cnet * net, int ic, int is, CConnectionWidthInfo 
 //
 int CNetList::SetSegmentClearance( cnet * net, int ic, int is, CClearanceInfo const &clearance )
 {
-//	id id;
+	// Retrieve the clearance passed in.  
+	// If it's undef, don't make any updates.
+	if( !clearance.m_ca_clearance.isDefined() )
+		return 0;
+
 	cconnect * c = &net->connect[ic];
 	cseg *pSeg = &c->seg[is];
 
@@ -2130,16 +2146,24 @@ void CNetList::SetViaSizeAttrib( cnet * net, int ic, int ivtx, CInheritableInfo 
 			ic   = vi.getcur_ic();
 			ivtx = vi.getcur_ivtx();
 
+			// Ensure parent is correct
 			pVtx->via_width_attrib.SetParent( net->def_width_attrib );
 
 			// Get orig attrib
-			CViaWidthInfo via_width( pVtx->via_width_attrib );
-
-			// Update based on 'width'
-			via_width = width;
-			via_width.Update();
+			CViaWidthInfo via_width( width );
 
 			pVtx->via_width_attrib = via_width;
+
+			// Update only if src is defined
+			if( via_width.m_via_width.isDefined() ) 
+			{
+				pVtx->via_width_attrib.Update_via_width();
+				pVtx->via_width_attrib.Update_via_hole();
+			}
+			if( via_width.m_ca_clearance.isDefined() ) 
+			{
+				pVtx->via_width_attrib.Update_ca_clearance();
+			}
 
 			DrawVia( net, ic, ivtx );
 		}
@@ -4504,26 +4528,10 @@ int CNetList::WriteNets( CStdioFile * file )
 			for( int ip=0; ip<net->npins; ip++ )
 			{
 				cpin *pin = &net->pin[ip];
-				cpart *part = pin->part;
-				CShape *shape = part->shape;
 
-                int clearance = CClearanceInfo::E_UNDEF;
-
-				// Shape may not assigned (==NULL) if the part
-				// hasn't been assigned to a shape yet.
-				if( shape != NULL )
-				{
-					int pin_index = shape->GetPinIndexByName( pin->pin_name );
-					if( pin_index >= 0 )
-					{
-						clearance = part->pin[pin_index].clearance.m_ca_clearance;
-					}
-				}
-
-				line.Format( "  pin: %d %s.%s %d\n", ip+1,
-							net->pin[ip].ref_des(),
-							net->pin[ip].pin_name,
-							clearance
+				line.Format( "  pin: %d %s.%s\n", ip+1,
+							pin->ref_des(),
+							pin->pin_name
 							);
 
 				file->WriteString( line );
@@ -4709,14 +4717,7 @@ void CNetList::ReadNets( CStdioFile * pcb_file, double read_version, int * layer
 				CString ref_str = pin_str.Left( dot_pos );
 				CString pin_num_str = pin_str.Right( pin_str.GetLength()-dot_pos-1 );
 
-                CClearanceInfo pin_clearance(CClearanceInfo::E_AUTO_CALC);
-                if (np > 3)
-                {
-                    // Pin clearance included
-					pin_clearance.m_ca_clearance = my_atoi( &p[2] );
-                }
-
-				AddNetPin( net, ref_str, pin_num_str, pin_clearance );
+				AddNetPin( net, ref_str, pin_num_str );
 			}
 			for( int ic=0; ic<nconnects; ic++ )
 			{
@@ -6105,7 +6106,11 @@ void CNetList::NetUndoCallback( int type, void * ptr, BOOL undo )
 			{
 				CString ref_str( un_pin[ip].ref_des );
 				CString pin_name( un_pin[ip].pin_name );
-				nl->AddNetPin( net, ref_str, pin_name, un_pin[ip].clearance, FALSE );
+				part_pin *pin = nl->AddNetPin( net, ref_str, pin_name, FALSE );
+				if( pin != NULL )
+				{
+					pin->set_clearance( un_pin[ip].clearance );
+				}
 			}
 			nl->RehookPartsToNet( net );
 		}

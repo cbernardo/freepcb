@@ -123,9 +123,9 @@ void CSubDlg_TraceWidth::ChangeTraceWidth( int new_w )
 	new_w *= NM_PER_MIL;
 
 	m_attrib.get_data().m_seg_width = new_w;
-
 	m_attrib.get_data().Update_seg_width();
 
+	// Publish the changes
 	m_attrib.Update();
 }
 
