@@ -470,8 +470,7 @@ public:
 	void DisconnectNetPin( cpart * part, CString const &pin_name );
 	void DisconnectNetPin( cnet * net, CString const &ref_des, CString const &pin_name );
 	int GetNetPinIndex( cnet * net, CString const &ref_des, CString const &pin_name );
-	int SetNetWidth( cnet * net, CConnectionWidthInfo const &width );
-	int SetNetClearance( cnet * net, CClearanceInfo const &clearance );
+	int SetNetWidth( cnet * net, CInheritableInfo const &width_attrib );
 	int UpdateNetAttributes( cnet * net );
 	void SetNetVisibility( cnet * net, BOOL visible );
 	BOOL GetNetVisibility( cnet * net );
@@ -489,8 +488,7 @@ public:
 	int AddNetStub( cnet * net, int p1 );
 	int RemoveNetConnect( cnet * net, int ic, BOOL set_areas=TRUE );
 	int UnrouteNetConnect( cnet * net, int ic );
-	int SetConnectionWidth( cnet * net, int ic, CConnectionWidthInfo const &width );
-	int SetConnectionClearance( cnet * net, int ic, CClearanceInfo const &clearance );
+	int SetConnectionWidth( cnet * net, int ic, CInheritableInfo const &width_attrib );
 	void OptimizeConnections();
 	int OptimizeConnections( cnet * net, int ic=-1 );
 	void OptimizeConnections( cpart * part );
@@ -507,36 +505,20 @@ public:
 	void CleanUpAllConnections( CString * logstr=NULL );
 
 	// functions for segments
-	int AppendSegment( cnet * net, int ic, int x, int y, int layer, CSegWidthInfo const &width, CClearanceInfo const &clearance );
-	int AppendSegment( cnet * net, int ic, int x, int y, int layer, CSegWidthInfo const &width )
-	{
-		return AppendSegment( net, ic, x, y, layer, width, CClearanceInfo() );
-	}
+	int AppendSegment( cnet * net, int ic, int x, int y, int layer, CSegWidthInfo const &width );
 
 	int InsertSegment( cnet * net, int ic, int iseg, int x, int y, int layer,
 						CSegWidthInfo const &width,
-						CClearanceInfo const &clearance,
 						int dir );
-	int InsertSegment( cnet * net, int ic, int iseg, int x, int y, int layer,
-						CSegWidthInfo const &width,
-						int dir )
-	{
-		return InsertSegment( net, ic, iseg, x, y, layer, width, CClearanceInfo(), dir );
-	}
 
-	int RouteSegment( cnet * net, int ic, int iseg, int layer, CSegWidthInfo const &width, CClearanceInfo const &clearance );
-	int RouteSegment( cnet * net, int ic, int iseg, int layer, CSegWidthInfo const &width )
-	{
-		return RouteSegment( net, ic, iseg, layer, width, CClearanceInfo() );
-	}
+	int RouteSegment( cnet * net, int ic, int iseg, int layer, CSegWidthInfo const &width );
 
 	id  UnrouteSegment( cnet * net, int ic, int iseg );
 	void UnrouteSegmentWithoutMerge( cnet * net, int ic, int iseg );
 	id MergeUnroutedSegments( cnet * net, int ic );
 	void RemoveSegment( cnet * net, int ic, int iseg, BOOL bHandleTees=FALSE );
 	int ChangeSegmentLayer( cnet * net, int ic, int iseg, int layer );
-	int SetSegmentWidth( cnet * net, int ic, int is, CConnectionWidthInfo const &width );
-	int SetSegmentClearance( cnet * net, int ic, int is, CClearanceInfo const &clearance );
+	int SetSegmentWidth( cnet * net, int ic, int is, CInheritableInfo const &width_attrib );
 	void HighlightSegment( cnet * net, int ic, int iseg );
 	int StartMovingSegment( CDC * pDC, cnet * net, int ic, int ivtx,
 								   int x, int y, int crosshair, int use_third_segment );
@@ -645,9 +627,6 @@ public:
 	int TestAreaIntersections( cnet * net, int ia );
 	int TestAreaIntersection( cnet * net, int ia1, int ia2 );
 	int CombineAreas( cnet * net, int ia1, int ia2 );
-	void ApplyClearancesToArea( cnet * net, int ia, int flags,
-			int fill_clearance, int min_silkscreen_stroke_wid,
-			int thermal_wid, int hole_clearance );
 
 	// I/O functions ----------------------------------------------------------
 	int WriteNets( CStdioFile * file );

@@ -1394,8 +1394,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 						m_sel_ic, m_sel_is,
 						m_last_cursor_point.x, m_last_cursor_point.y,
 						m_active_layer,
-						CConnectionWidthInfo(),
-						CClearanceInfo(),
+						CSegWidthInfo(),
 						m_dir );
 
 					if( !insert_flag )
@@ -5593,6 +5592,9 @@ int CFreePcbView::SetWidth( int mode )
 			width_attrib.Update();
 		}
 
+		// Make sure clearances are not updated.
+		width_attrib.m_ca_clearance.Undef();
+
 		// apply new widths to net, connection or segment
 		if( dlg.m_apply == 3 )
 		{
@@ -5679,17 +5681,17 @@ int CFreePcbView::SetClearance( int mode )
 		if( dlg.m_apply == 3 )
 		{
 			// apply to net
-			m_Doc->m_nlist->SetNetClearance( m_sel_net, clearance );
+			m_Doc->m_nlist->SetNetWidth( m_sel_net, clearance );
 		}
 		else if( dlg.m_apply == 2 )
 		{
 			// apply to connection
-			m_Doc->m_nlist->SetConnectionClearance( m_sel_net, m_sel_ic, clearance );
+			m_Doc->m_nlist->SetConnectionWidth( m_sel_net, m_sel_ic, clearance );
 		}
 		else if( dlg.m_apply == 1 )
 		{
 			// apply to segment
-			m_Doc->m_nlist->SetSegmentClearance( m_sel_net, m_sel_ic, m_sel_id.ii, clearance );
+			m_Doc->m_nlist->SetSegmentWidth( m_sel_net, m_sel_ic, m_sel_id.ii, clearance );
 		}
 
 		m_Doc->ProjectModified( TRUE );
@@ -9018,7 +9020,10 @@ void CFreePcbView::OnNetEditnet()
 	{
 		m_Doc->ResetUndoState();
 		CancelSelection();
+
 		m_Doc->m_nlist->ImportNetListInfo( &nl, 0, NULL );
+
+		m_Doc->ProjectModified( TRUE );
 		Invalidate( FALSE );
 	}
 }
@@ -9986,11 +9991,10 @@ void CFreePcbView::MoveGroup( int dx, int dy )
 								if( part2->utility == FALSE && is == c->nsegs-1 )
 								{
 									// insert ratline as new last segment
-									CConnectionWidthInfo old_width( c->seg[c->nsegs-1].width_attrib );
+									CNetWidthInfo old_width( c->seg[c->nsegs-1].width_attrib );
 									old_width.m_via_width = c->vtx[c->nsegs-1].via_width_attrib.m_via_width;
 									old_width.m_via_hole  = c->vtx[c->nsegs-1].via_width_attrib.m_via_hole;
 
-									CClearanceInfo old_clearance( c->seg[c->nsegs-1].width_attrib );
 									int old_layer = c->seg[c->nsegs-1].layer;
 
 									m_Doc->m_nlist->UnrouteSegmentWithoutMerge( net, ic, c->nsegs-1 );
@@ -9999,7 +10003,7 @@ void CFreePcbView::MoveGroup( int dx, int dy )
 									m_Doc->m_nlist->MoveVertex( net, ic, c->nsegs, old_v_pt.x, old_v_pt.y );
 
 									BOOL bInserted = m_Doc->m_nlist->InsertSegment( net, ic, c->nsegs-1,
-										new_v_pt.x, new_v_pt.y, old_layer, old_width, old_clearance, 0 );
+										new_v_pt.x, new_v_pt.y, old_layer, old_width, 0 );
 
 									c->seg[c->nsegs-2].utility = 1;
 									c->seg[c->nsegs-1].utility = 0;
@@ -12193,11 +12197,10 @@ void CFreePcbView::RotateGroup()
 								if( part2->utility == FALSE && is == c->nsegs-1 )
 								{
 									// insert ratline as new last segment
-									CConnectionWidthInfo old_width( c->seg[c->nsegs-1].width_attrib );
+									CNetWidthInfo old_width( c->seg[c->nsegs-1].width_attrib );
 									old_width.m_via_width = c->vtx[c->nsegs-1].via_width_attrib.m_via_width;
 									old_width.m_via_hole  = c->vtx[c->nsegs-1].via_width_attrib.m_via_hole;
 
-									CClearanceInfo old_clearance( c->seg[c->nsegs-1].width_attrib );
 									int old_layer = c->seg[c->nsegs-1].layer;
 
 									m_Doc->m_nlist->UnrouteSegmentWithoutMerge( net, ic, c->nsegs-1 );
@@ -12205,7 +12208,7 @@ void CFreePcbView::RotateGroup()
 									CPoint old_v_pt = m_Doc->m_plist->GetPinPoint( part2, net->pin[c->end_pin].pin_name );
 									m_Doc->m_nlist->MoveVertex( net, ic, c->nsegs, old_v_pt.x, old_v_pt.y );
 									BOOL bInserted = m_Doc->m_nlist->InsertSegment( net, ic, c->nsegs-1,
-										new_v_pt.x, new_v_pt.y, old_layer, old_width, old_clearance, 0 );
+										new_v_pt.x, new_v_pt.y, old_layer, old_width, 0 );
 									c->seg[c->nsegs-2].utility = 1;
 									c->seg[c->nsegs-1].utility = 0;
 								}

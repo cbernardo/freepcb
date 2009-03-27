@@ -1629,14 +1629,8 @@ int CNetList::ChangeSegmentLayer( cnet * net, int ic, int iseg, int layer )
 // returns 1 if segment can't be routed on given layer due to connection to SMT pad
 // Adds/removes vias as necessary
 //
-int CNetList::RouteSegment( cnet * net, int ic, int iseg, int layer, CSegWidthInfo const &_width, CClearanceInfo const &_clearance )
+int CNetList::RouteSegment( cnet * net, int ic, int iseg, int layer, CSegWidthInfo const &width )
 {
-	CSegWidthInfo width(CInheritableInfo::E_USE_PARENT);
-	width = _width;
-
-	CClearanceInfo clearance(CInheritableInfo::E_USE_PARENT);
-	clearance = _clearance;
-
 	// check layer settings of adjacent vertices to make sure this is legal
 	cconnect * c = &net->connect[ic];
 	if( iseg == 0 )
@@ -1668,7 +1662,6 @@ int CNetList::RouteSegment( cnet * net, int ic, int iseg, int layer, CSegWidthIn
 
 	// Set width attrib in two steps
 	c->seg[iseg].width_attrib = width;
-	c->seg[iseg].width_attrib = clearance;
 	c->seg[iseg].width_attrib.SetParent( net->def_width_attrib );
 	c->seg[iseg].width_attrib.Update();
 
@@ -1691,6 +1684,7 @@ int CNetList::RouteSegment( cnet * net, int ic, int iseg, int layer, CSegWidthIn
 	// now adjust vias
 	ReconcileVia( net, ic, iseg );
 	ReconcileVia( net, ic, iseg+1 );
+
 	return 0;
 }
 
@@ -1699,14 +1693,8 @@ int CNetList::RouteSegment( cnet * net, int ic, int iseg, int layer, CSegWidthIn
 // this is mainly used for stub traces
 // returns index to new segment
 //
-int CNetList::AppendSegment( cnet * net, int ic, int x, int y, int layer, CSegWidthInfo const &_width, CClearanceInfo const &_clearance )
+int CNetList::AppendSegment( cnet * net, int ic, int x, int y, int layer, CSegWidthInfo const &width )
 {
-	CSegWidthInfo width(CInheritableInfo::E_USE_PARENT);
-	width = _width;
-
-	CClearanceInfo clearance(CInheritableInfo::E_USE_PARENT);
-	clearance = _clearance;
-
 	// add new vertex and segment
 	cconnect * c =&net->connect[ic];
 	c->seg.SetSize( c->nsegs + 1 );
@@ -1727,7 +1715,6 @@ int CNetList::AppendSegment( cnet * net, int ic, int x, int y, int layer, CSegWi
 
 	// Set width attrib in two steps
 	c->seg[iseg].width_attrib = width;
-	c->seg[iseg].width_attrib = clearance;
 	c->seg[iseg].width_attrib.SetParent( net->def_width_attrib );
 	c->seg[iseg].width_attrib.Update();
 
@@ -1764,16 +1751,9 @@ int CNetList::AppendSegment( cnet * net, int ic, int x, int y, int layer, CSegWi
 // tests position within +/- 10 nm.
 //
 int CNetList::InsertSegment( cnet * net, int ic, int iseg, int x, int y, int layer,
-								CSegWidthInfo  const &_width,
-								CClearanceInfo const &_clearance,
+								CSegWidthInfo const &width,
 								int dir )
 {
-	CConnectionWidthInfo width;
-	width = _width;
-
-	CClearanceInfo clearance;
-	clearance = _clearance;
-
 	const int TOL = 10;
 
 	// see whether we need to insert new segment or just modify old segment
@@ -1889,7 +1869,6 @@ int CNetList::InsertSegment( cnet * net, int ic, int iseg, int x, int y, int lay
 
 		// Set width attrib in two steps
 		seg->width_attrib = width;
-		seg->width_attrib = clearance;
 		seg->width_attrib.SetParent( net->def_width_attrib );
 		seg->width_attrib.Update();
 
@@ -1991,7 +1970,6 @@ int CNetList::InsertSegment( cnet * net, int ic, int iseg, int x, int y, int lay
 
 		// Set width attrib in two steps
 		seg->width_attrib = width;
-		seg->width_attrib = clearance;
 		seg->width_attrib.SetParent( net->def_width_attrib );
 		seg->width_attrib.Update();
 
@@ -2016,43 +1994,43 @@ int CNetList::InsertSegment( cnet * net, int ic, int iseg, int x, int y, int lay
 	return insert_flag;
 }
 
-// Set trace width for routed segment (ignores unrouted segs)
-// If w = 0, ignore it
-// If via_w == 0 (no via), ignore via_w and via_hole_w
-//
-int CNetList::SetSegmentWidth( cnet * net, int ic, int is, CConnectionWidthInfo const &width )
+// Set trace size attributes for routed segment (ignores unrouted segs)
+// Does not set via clearances
+int CNetList::SetSegmentWidth( cnet * net, int ic, int is, CInheritableInfo const &attrib )
 {
-//	id id;
-	cconnect * c = &net->connect[ic];
-
 	{
+		cconnect * c = &net->connect[ic];
 		cseg *pSeg = &c->seg[is];
 
 		// Ensure parent is correct
 		pSeg->width_attrib.SetParent( net->def_width_attrib );
 
-		if( width.m_seg_width.isDefined() )
+		if( pSeg->layer != LAY_RAT_LINE )
 		{
-			// Get original data
-			CSegWidthInfo seg_width( pSeg->width_attrib );
+			// Set new attributes.
+			// Existing attributes are first assigned to attrib, then updated.  
+			// The resulting behavior is such that if an item relies on its 
+			// parent, that item is always updated at this point, regardless 
+			// of whether the item was defined in 'attrib'.  This is consistent
+			// with how items are stored in the .fpc file.
+			CSegWidthInfo seg_attrib( pSeg->width_attrib );
+			seg_attrib = attrib;
+			seg_attrib.Update();
 
-			// Update from 'width'
-			seg_width = width;
-			seg_width.Update();
+			// Update from 'width_attrib', no need to update()
+			pSeg->width_attrib = seg_attrib;
 
-			if( pSeg->layer != LAY_RAT_LINE && width.m_seg_width.m_val != 0 )
-			{
-				pSeg->width_attrib = seg_width;
+			// Update display
+			m_dlist->Set_w( pSeg->dl_el,  pSeg->width() );
+			m_dlist->Set_w( pSeg->dl_sel, pSeg->width() );
 
-				m_dlist->Set_w( pSeg->dl_el,  pSeg->width() );
-				m_dlist->Set_w( pSeg->dl_sel, pSeg->width() );
-			}
-		}
+			m_dlist->Set_clearance( pSeg->dl_el, pSeg->clearance() );
+	  	}
 	}
 
 	{
 		// Only set the via width/hole, not the clearance
-		CViaWidthInfo ViaInfo(width);
+		CViaWidthInfo ViaInfo( attrib );
 		ViaInfo.m_ca_clearance.Undef();
 
 		SetViaSizeAttrib( net, ic, is,   ViaInfo );
@@ -2062,31 +2040,6 @@ int CNetList::SetSegmentWidth( cnet * net, int ic, int is, CConnectionWidthInfo 
 	return 0;
 }
 
-
-// Set trace clearance for routed segment (ignores unrouted segs)
-// Does not set via clearances
-//
-int CNetList::SetSegmentClearance( cnet * net, int ic, int is, CClearanceInfo const &clearance )
-{
-	// Retrieve the clearance passed in.  
-	// If it's undef, don't make any updates.
-	if( !clearance.m_ca_clearance.isDefined() )
-		return 0;
-
-	cconnect * c = &net->connect[ic];
-	cseg *pSeg = &c->seg[is];
-
-	if( pSeg->layer != LAY_RAT_LINE )
-	{
-		pSeg->width_attrib = clearance;
-		pSeg->width_attrib.SetParent( net->def_width_attrib );
-		pSeg->width_attrib.Update_ca_clearance();
-
-		m_dlist->Set_clearance( pSeg->dl_el, pSeg->clearance() );
-	}
-
-	return 0;
-}
 
 
 void CNetList::InsertVia( cnet * net, int ic, int ivtx, CViaWidthInfo const &width )
@@ -2149,21 +2102,18 @@ void CNetList::SetViaSizeAttrib( cnet * net, int ic, int ivtx, CInheritableInfo 
 			// Ensure parent is correct
 			pVtx->via_width_attrib.SetParent( net->def_width_attrib );
 
-			// Get orig attrib
-			CViaWidthInfo via_width( width );
+			// Set new attributes.
+			// Existing attributes are first assigned to attrib, then updated.  
+			// The resulting behavior is such that if an item relies on its 
+			// parent, that item is always updated at this point, regardless 
+			// of whether the item was defined in 'attrib'.  This is consistent
+			// with how items are stored in the .fpc file.
+			CViaWidthInfo via_attrib( pVtx->via_width_attrib );
+			via_attrib = width;
+			via_attrib.Update();
 
-			pVtx->via_width_attrib = via_width;
-
-			// Update only if src is defined
-			if( via_width.m_via_width.isDefined() ) 
-			{
-				pVtx->via_width_attrib.Update_via_width();
-				pVtx->via_width_attrib.Update_via_hole();
-			}
-			if( via_width.m_ca_clearance.isDefined() ) 
-			{
-				pVtx->via_width_attrib.Update_ca_clearance();
-			}
+			// Update from 'width_attrib', no need to update()
+			pVtx->via_width_attrib = via_attrib;
 
 			DrawVia( net, ic, ivtx );
 		}
@@ -2171,7 +2121,7 @@ void CNetList::SetViaSizeAttrib( cnet * net, int ic, int ivtx, CInheritableInfo 
 }
 
 
-int CNetList::SetConnectionWidth( cnet * net, int ic, CConnectionWidthInfo const &width )
+int CNetList::SetConnectionWidth( cnet * net, int ic, CInheritableInfo const &width )
 {
 	cconnect * c = &net->connect[ic];
 	for( int is=0; is<c->nsegs; is++ )
@@ -2181,18 +2131,8 @@ int CNetList::SetConnectionWidth( cnet * net, int ic, CConnectionWidthInfo const
 	return 0;
 }
 
-int CNetList::SetConnectionClearance( cnet * net, int ic, CClearanceInfo const &clearance )
-{
-	cconnect * c = &net->connect[ic];
-	for( int is=0; is<c->nsegs; is++ )
-	{
-		SetSegmentClearance( net, ic, is, clearance );
-	}
-	return 0;
-}
 
-
-int CNetList::SetNetWidth( cnet * net, CConnectionWidthInfo const &width )
+int CNetList::SetNetWidth( cnet * net, CInheritableInfo const &width )
 {
 	for( int ic=0; ic<net->nconnects; ic++ )
 	{
@@ -2205,18 +2145,6 @@ int CNetList::SetNetWidth( cnet * net, CConnectionWidthInfo const &width )
 	return 0;
 }
 
-int CNetList::SetNetClearance( cnet * net, CClearanceInfo const &clearance )
-{
-	for( int ic=0; ic<net->nconnects; ic++ )
-	{
-		cconnect * c = &net->connect[ic];
-		for( int is=0; is<c->nsegs; is++ )
-		{
-			SetSegmentClearance( net, ic, is, clearance );
-		}
-	}
-	return 0;
-}
 
 
 // Applies attributes to unrouted segments
@@ -2268,7 +2196,7 @@ void CNetList::PartAdded( cpart * part )
 					if( pin_index != -1 )
 					{
 						part_pin *pp = &part->pin[pin_index];
-							
+
 						// hook it up
 						pp->set_net( net );		// set part->pin->net
 						pp->set_clearance( net->def_width_attrib );
@@ -4696,7 +4624,10 @@ void CNetList::ReadNets( CStdioFile * pcb_file, double read_version, int * layer
 			}
 
 			cnet * net = AddNet( net_name, npins, def_width_attrib );
+
+			// Set visibility flag AFTER adding
 			net->visible = visible;
+
 			for( int ip=0; ip<npins; ip++ )
 			{
 				err = pcb_file->ReadString( in_str );
@@ -4797,19 +4728,20 @@ void CNetList::ReadNets( CStdioFile * pcb_file, double read_version, int * layer
 						}
 						int file_layer = my_atoi( &p[1] );
 						int layer = in_layer[file_layer];
-						CConnectionWidthInfo width;
+
+						CSegWidthInfo width;
 
 						width.m_seg_width = my_atoi( &p[2] );
 
-						CClearanceInfo seg_clearance(CInheritableInfo::E_USE_PARENT);
 						if (np > 6)
                         {
-							seg_clearance.m_ca_clearance = my_atoi( &p[5] );
+							// Segment clearance given
+							width.m_ca_clearance = my_atoi( &p[5] );
                         }
 
 						if( np > 7 )
 						{
-							// Segment width status info provided
+							// Segment width status given
 							width.m_seg_width.m_status = my_atoi( &p[6] );
 						}
 						else
@@ -4842,8 +4774,10 @@ void CNetList::ReadNets( CStdioFile * pcb_file, double read_version, int * layer
 							int pad_layer = in_layer[file_layer];
 							int force_via_flag = my_atoi( &p[4] );
 
-							width.m_via_width = my_atoi( &p[5] );
-							width.m_via_hole  = my_atoi( &p[6] );
+							CViaWidthInfo via_width_attrib( width );
+
+							via_width_attrib.m_via_width = my_atoi( &p[5] );
+							via_width_attrib.m_via_hole  = my_atoi( &p[6] );
 
 							int tee_ID = 0;
 							if( np > 8 )
@@ -4853,7 +4787,6 @@ void CNetList::ReadNets( CStdioFile * pcb_file, double read_version, int * layer
 									AddTeeID( tee_ID );
 							}
 
-							CViaWidthInfo via_width_attrib(width);
 							if( np > 9 )
 							{
 								// Clearance info provided
@@ -4864,21 +4797,15 @@ void CNetList::ReadNets( CStdioFile * pcb_file, double read_version, int * layer
 								via_width_attrib.m_ca_clearance = CII_FreePcb::E_AUTO_CALC;
 							}
 
-							{ // Via status
-								int via_status;
-								if( np > 10 )
-								{
-									// Via width status info provided
-									via_status = my_atoi( &p[9] );
-								}
-								else
-								{
-									via_status = CInheritableInfo::E_USE_PARENT;
-								}
-								width.m_via_width.m_status = via_status;
-								width.m_via_hole .m_status = via_status;
-							}
+							// Via status
+							if( np > 10 )
+							{
+								// Via width status info provided
+								int via_status = my_atoi( &p[9] );
 
+								via_width_attrib.m_via_width.m_status = via_status;
+								via_width_attrib.m_via_hole .m_status = via_status;
+							}
 
 							if( end_pin != cconnect::NO_END )
 							{
@@ -4892,11 +4819,11 @@ void CNetList::ReadNets( CStdioFile * pcb_file, double read_version, int * layer
 									x = end_pt.x;
 									y = end_pt.y;
 								}
-								test_not_done = InsertSegment( net, ic, is, x, y, layer, width, seg_clearance, 0 );
+								test_not_done = InsertSegment( net, ic, is, x, y, layer, width, 0 );
 							}
 							else
 							{
-								AppendSegment( net, ic, x, y, layer, width, seg_clearance );
+								AppendSegment( net, ic, x, y, layer, width );
 
 								// set widths of following vertex
 								// Always insert via - reconcile later.  Otherwise size info
@@ -5463,44 +5390,70 @@ void CNetList::ImportNetListInfo( netlist_info * nl, int flags, CDlgLog * log )
 	// now set visibility and apply new widths, if requested
 	for( int i=0; i<n_info_nets; i++ )
 	{
+		if( !(*nl)[i].modified )
+			continue;
+
 		cnet * net = (*nl)[i].net;
 		if( net )
 		{
 			SetNetVisibility( net, (*nl)[i].visible );
-			if( (*nl)[i].apply_trace_width )
+
 			{
 				CConnectionWidthInfo width;
 
-				width.m_via_width.Undef();
-				width.m_via_hole.Undef();
+				if( (*nl)[i].apply_trace_width )
+				{
+					width.m_via_width.Undef();
+					width.m_via_hole.Undef();
+					width.m_ca_clearance.Undef();
 
-				width.SetParent( (*nl)[i].width_attrib );
-				width.Update();
-
+					width.SetParent( (*nl)[i].width_attrib );
+					width.Update();
+				}
+				else
+				{
+					// Only modify net items marked as 'use parent'
+					width.Undef();
+				}
 				SetNetWidth( net, width );
 			}
 
-			if( (*nl)[i].apply_via_width )
 			{
 				CConnectionWidthInfo width;
 
-				width.m_seg_width.Undef();
+				if( (*nl)[i].apply_via_width )
+				{
+					width.m_seg_width.Undef();
+					width.m_ca_clearance.Undef();
 
-				width.SetParent( (*nl)[i].width_attrib );
-				width.Update();
+					width.SetParent( (*nl)[i].width_attrib );
+					width.Update();
 
+					SetNetWidth( net, width );
+				}
+				else
+				{
+					// Only modify net items marked as 'use parent'
+					width.Undef();
+				}
 				SetNetWidth( net, width );
 			}
 
-			if( (*nl)[i].apply_clearance )
 			{
 				CClearanceInfo clearance;
 
-				clearance.SetParent( (*nl)[i].width_attrib );
-				clearance.Update();
-
-				SetNetClearance( net, clearance );
-            }
+				if( (*nl)[i].apply_clearance )
+				{
+					clearance.SetParent( (*nl)[i].width_attrib );
+					clearance.Update();
+				}
+				else
+				{
+					// Only modify net items marked as 'use parent'
+					clearance.Undef();
+				}
+				SetNetWidth( net, clearance );
+			}
 		}
 	}
 }
@@ -5983,19 +5936,17 @@ void CNetList::ConnectUndoCallback( int type, void * ptr, BOOL undo )
 				cconnect * c = &net->connect[nc];
 				for( int is=0; is<con->nsegs; is++ )
 				{
-					CClearanceInfo clearance(seg[is].width_attrib);
-
 					if( con->end_pin != cconnect::NO_END )
 					{
 						// pin-pin trace
 						nl->InsertSegment( net, nc, is, vtx[is+1].x, vtx[is+1].y,
-							seg[is].layer, seg[is].width_attrib, clearance, 0 );
+							seg[is].layer, seg[is].width_attrib, 0 );
 					}
 					else
 					{
 						// stub trace
 						nl->AppendSegment( net, nc, vtx[is+1].x, vtx[is+1].y,
-							seg[is].layer, seg[is].width_attrib, clearance );
+							seg[is].layer, seg[is].width_attrib );
 					}
 				}
 				for( int is=0; is < con->nsegs; is++ )
@@ -7455,15 +7406,14 @@ BOOL CNetList::RemoveOrphanBranches( cnet * net, int id, BOOL bRemoveSegs )
 								c->vtx[c->nsegs].pad_layer = tc->vtx[0].pad_layer;
 								for( int tis=tc->nsegs-1; tis>=0; tis-- )
 								{
-									CClearanceInfo clearance( tc->seg[tis].width_attrib );
 									if( tis > 0 )
 									{
 										int test = InsertSegment( net, ic, c->nsegs-1,
 											tc->vtx[tis].x, tc->vtx[tis].y,
 											tc->seg[tis].layer,
 											tc->seg[tis].width_attrib,
-											clearance,
-											0 );
+											0 
+										);
 
 										if( !test )
 											ASSERT(0);
@@ -7475,8 +7425,8 @@ BOOL CNetList::RemoveOrphanBranches( cnet * net, int id, BOOL bRemoveSegs )
 									{
 										RouteSegment( net, ic, c->nsegs-1,
 											tc->seg[0].layer,
-											tc->seg[tis].width_attrib,
-											clearance );
+											tc->seg[tis].width_attrib
+										);
 									}
 								}
 								// add tee_ID back into tee array

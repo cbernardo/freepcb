@@ -10,6 +10,7 @@ protected:
 	virtual void OnRemoveParent(CInheritableInfo const *pOldParent)
 	{
 		m_seg_width.OnRemoveParent();
+		m_ca_clearance.OnRemoveParent();
 
 		CII_FreePcb::OnRemoveParent(pOldParent);
 	}
@@ -21,9 +22,12 @@ public:
 		*this = from;
 	}
 
-	explicit CSegWidthInfo( int seg_width = E_USE_PARENT )
+	explicit CSegWidthInfo( int seg_width = E_USE_PARENT, int clearance = E_USE_PARENT )
 	{
 		FileToItem(seg_width, m_seg_width);
+
+		// Don't need to use FileToItem() for clearance
+		m_ca_clearance = clearance;
 	}
 
 	CSegWidthInfo &operator = ( CInheritableInfo const &from );
@@ -32,6 +36,7 @@ public:
 public:
 	// Direct for non-updating version
 	Item m_seg_width;
+	Item m_ca_clearance;
 
 	// For backwards compatibility with .fpc files, value of 0 means "use_parent".
 	static int  ItemToFile(Item const &from)   { int to = from.GetItemAsInt(); if (to == E_USE_PARENT) to = 0; return to; }
@@ -39,17 +44,20 @@ public:
 
     // Update the current value of ...
 	void Update_seg_width();
+	void Update_ca_clearance();
 
 	// Update all
 	void Update()
 	{
 		Update_seg_width();
+		Update_ca_clearance();
 	}
 
 	// Undef all
 	void Undef()
 	{
 		m_seg_width.Undef();
+		m_ca_clearance.Undef();
 	}
 
 	virtual Item const &GetItem( int item_id ) const;
@@ -122,57 +130,7 @@ public:
 	virtual Item const &GetItem( int item_id ) const;
 };
 
-
-class CNetWidthInfo : public CConnectionWidthInfo
-{
-protected:
-	virtual void OnRemoveParent( CInheritableInfo const *pOldParent )
-	{
-		m_ca_clearance.OnRemoveParent();
-
-		CConnectionWidthInfo::OnRemoveParent( pOldParent );
-	}
-
-public:
-	CNetWidthInfo() :
-		m_ca_clearance( E_USE_PARENT )
-	{
-	}
-
-	explicit CNetWidthInfo( CInheritableInfo const &from ) :
-		CConnectionWidthInfo( from )
-	{
-		*this = from;
-	}
-
-	CNetWidthInfo &operator = ( CInheritableInfo const &from );
-	CNetWidthInfo &operator = ( CNetWidthInfo const &from ) { operator = (static_cast<CInheritableInfo const &>(from)); return *this; }
-
-public:
-	// Direct for non-updating version
-	Item m_ca_clearance;
-
-    // Update the current value of ...
-	void Update_ca_clearance();
-
-	// Update all
-	void Update()
-	{
-		CConnectionWidthInfo::Update();
-
-		Update_ca_clearance();
-	}
-
-	// Undef all
-	void Undef()
-	{
-		CConnectionWidthInfo::Undef();
-
-		m_ca_clearance.Undef();
-	}
-
-	virtual Item const &GetItem( int item_id ) const;
-};
+typedef CConnectionWidthInfo CNetWidthInfo;
 
 
 #endif /* !_II_SEG_WIDTH_H ] */

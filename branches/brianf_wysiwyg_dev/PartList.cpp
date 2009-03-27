@@ -60,16 +60,20 @@ void part_pin::set_net(cnet *_net)
 }
 
 
-void part_pin::set_clearance(CInheritableInfo const &__clearance)
+void part_pin::set_clearance(CInheritableInfo const &_clearance)
 {
-	// Retrieve the clearance passed in.  
-	// If it's undef, don't make any updates.
-	CClearanceInfo _clearance( __clearance );
-	if( !_clearance.m_ca_clearance.isDefined() )
-		return;
+	// Set new attributes.
+	// Existing attributes are first assigned to attrib, then updated.  
+	// The resulting behavior is such that if an item relies on its 
+	// parent, that item is always updated at this point, regardless 
+	// of whether the item was defined in 'attrib'.  This is consistent
+	// with how items are stored in the .fpc file.
+	CClearanceInfo pin_attrib( clearance );
+	pin_attrib = _clearance;
+	pin_attrib.Update();
 
-	clearance = _clearance;
-	clearance.Update();
+	// Update from 'width_attrib', no need to update()
+	clearance = pin_attrib;
 
 	int i;
 	for( i = 0; i < dl_els.GetSize(); i++ )
