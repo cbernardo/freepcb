@@ -5,7 +5,6 @@
 #include "DlgAddText.h"
 #include "DlgAssignNet.h"
 #include "DlgSetSegmentWidth.h"
-#include "DlgSetSegmentClearance.h"
 #include "DlgEditBoardCorner.h"
 #include "DlgAddArea.h"
 #include "DlgRefText.h"
@@ -31,7 +30,6 @@
 #include "DlgValueText.h"
 #include "DlgRatWidth.h"
 #include "DlgRatWidth.h"
-#include "DlgSetPinClearance.h"
 
 
 // globals
@@ -133,19 +131,16 @@ ON_COMMAND(ID_PAD_OPTIMIZERATLINES, OnPadOptimize)
 ON_COMMAND(ID_PAD_ADDTONET, OnPadAddToNet)
 ON_COMMAND(ID_PAD_DETACHFROMNET, OnPadDetachFromNet)
 ON_COMMAND(ID_PAD_CONNECTTOPIN, OnPadConnectToPin)
-ON_COMMAND(ID_SEGMENT_SETWIDTH, OnSegmentSetWidth)
-ON_COMMAND(ID_SEGMENT_SETCLEARANCE, OnSegmentSetClearance)
+ON_COMMAND(ID_SEGMENT_SETWIDTH, OnSegmentSetSizeAttrib)
 ON_COMMAND(ID_SEGMENT_UNROUTE, OnSegmentUnroute)
 ON_COMMAND(ID_RATLINE_ROUTE, OnRatlineRoute)
 ON_COMMAND(ID_RATLINE_OPTIMIZE, OnRatlineOptimize)
 ON_COMMAND(ID_VERTEX_MOVE, OnVertexMove)
 ON_COMMAND(ID_VERTEX_DELETE, OnVertexDelete)
-ON_COMMAND(ID_VERTEX_SETSIZE, OnVertexSize)
-ON_COMMAND(ID_VERTEX_SETCLEARANCE, OnVertexClearance)
+ON_COMMAND(ID_VERTEX_SETSIZE, OnVertexSizeAttrib)
 ON_COMMAND(ID_RATLINE_COMPLETE, OnRatlineComplete)
-ON_COMMAND(ID_RATLINE_SETWIDTH, OnRatlineSetWidth)
+ON_COMMAND(ID_RATLINE_SETWIDTH, OnRatlineSetSizeAttrib)
 ON_COMMAND(ID_RATLINE_SETRATLINEWIDTH, OnRatlineSetRatlineWidth)
-ON_COMMAND(ID_RATLINE_SETCLEARANCE, OnRatlineSetClearance)
 ON_COMMAND(ID_RATLINE_DELETECONNECTION, OnRatlineDeleteConnection)
 ON_COMMAND(ID_RATLINE_LOCKCONNECTION, OnRatlineLockConnection)
 ON_COMMAND(ID_RATLINE_UNLOCKCONNECTION, OnRatlineUnlockConnection)
@@ -177,8 +172,7 @@ ON_COMMAND(ID_ADD_AREA, OnAddArea)
 ON_COMMAND(ID_NONE_ADDCOPPERAREA, OnAddArea)
 ON_COMMAND(ID_ENDVERTEX_ADDVIA, OnEndVertexAddVia)
 ON_COMMAND(ID_ENDVERTEX_REMOVEVIA, OnEndVertexRemoveVia)
-ON_COMMAND(ID_ENDVERTEX_SETSIZE, OnVertexSize)
-ON_COMMAND(ID_ENDVERTEX_SETVIACLEARANCE, OnVertexClearance)
+ON_COMMAND(ID_ENDVERTEX_SETSIZE, OnVertexSizeAttrib)
 ON_MESSAGE( WM_USER_VISIBLE_GRID, OnChangeVisibleGrid )
 ON_COMMAND(ID_ADD_TEXT, OnTextAdd)
 ON_COMMAND(ID_SEGMENT_DELETETRACE, OnSegmentDeleteTrace)
@@ -217,10 +211,8 @@ ON_COMMAND(ID_PART_CHANGESIDE, OnPartChangeSide)
 ON_COMMAND(ID_PART_ROTATE, OnPartRotate)
 ON_COMMAND(ID_AREAEDGE_ADDCUTOUT, OnAreaAddCutout)
 ON_COMMAND(ID_AREACORNER_ADDCUTOUT, OnAreaAddCutout)
-ON_COMMAND(ID_NET_SETWIDTH, OnNetSetWidth)
-ON_COMMAND(ID_NET_SETCLEARANCE, OnNetSetClearance)
-ON_COMMAND(ID_CONNECT_SETWIDTH, OnConnectSetWidth)
-ON_COMMAND(ID_CONNECT_SETCLEARANCE, OnConnectSetClearance)
+ON_COMMAND(ID_NET_SETWIDTH, OnNetSetSizeAttrib)
+ON_COMMAND(ID_CONNECT_SETWIDTH, OnConnectSetSizeAttrib)
 ON_COMMAND(ID_CONNECT_UNROUTETRACE, OnConnectUnroutetrace)
 ON_COMMAND(ID_CONNECT_DELETETRACE, OnConnectDeletetrace)
 ON_COMMAND(ID_SEGMENT_CHANGELAYER, OnSegmentChangeLayer)
@@ -3532,7 +3524,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 
 	case CUR_RAT_SELECTED:
 		if( fk == FK_SET_WIDTH )
-			OnRatlineSetWidth();
+			OnRatlineSetSizeAttrib();
 		else if( fk == FK_LOCK_CONNECT )
 			OnRatlineLockConnection();
 		else if( fk == FK_UNLOCK_CONNECT )
@@ -3660,7 +3652,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 			Invalidate( FALSE );
 		}
 		if( fk == FK_SET_WIDTH )
-			OnSegmentSetWidth();
+			OnSegmentSetSizeAttrib();
 		else if( fk == FK_CHANGE_LAYER )
 			OnSegmentChangeLayer();
 		else if( fk == FK_ADD_VERTEX )
@@ -3681,7 +3673,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 
 	case  CUR_VTX_SELECTED:
 		if( fk == FK_VIA_SIZE )
-			OnVertexSize();
+			OnVertexSizeAttrib();
 		else if( fk == FK_MOVE_VERTEX )
 			OnVertexMove();
 		else if( fk == FK_UNROUTE_TRACE )
@@ -3735,7 +3727,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 
 	case  CUR_CONNECT_SELECTED:
 		if( fk == FK_SET_WIDTH )
-			OnConnectSetWidth();
+			OnConnectSetSizeAttrib();
 		else if( fk == FK_CHANGE_LAYER )
 			OnConnectChangeLayer();
 		else if( fk == FK_UNROUTE_TRACE )
@@ -3748,7 +3740,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 
 	case  CUR_NET_SELECTED:
 		if( fk == FK_SET_WIDTH )
-			OnNetSetWidth();
+			OnNetSetSizeAttrib();
 		else if( fk == FK_CHANGE_LAYER )
 			OnNetChangeLayer();
 		else if( fk == FK_EDIT_NET )
@@ -5290,9 +5282,9 @@ CString CFreePcbView::GetViaText( cvertex const &Vtx )
 	if( Vtx.via_w() )
 	{
 		// with via
-		str.Format( ", via %s/%s/%s", 
-			GetItemText( Vtx.via_width_attrib.m_via_width ), 
-			GetItemText( Vtx.via_width_attrib.m_via_hole ), 
+		str.Format( ", via %s/%s/%s",
+			GetItemText( Vtx.via_width_attrib.m_via_width ),
+			GetItemText( Vtx.via_width_attrib.m_via_hole ),
 			GetItemText( Vtx.via_width_attrib.m_ca_clearance )
 		);
 
@@ -5540,7 +5532,7 @@ void CFreePcbView::TryToReselectAreaCorner( int x, int y )
 //	mode = 1 if called with connection selected
 //	mode = 2 if called with net selected
 //
-int CFreePcbView::SetWidth( int mode )
+int CFreePcbView::SetSizeAttrib( int mode )
 {
 	// set parameters for dialog
 	DlgSetSegmentWidth dlg;
@@ -5555,8 +5547,10 @@ int CFreePcbView::SetWidth( int mode )
 	}
 	else
 	{
-		dlg.m_width_attrib = m_sel_net->def_width_attrib;
+		dlg.m_width_attrib = CNetWidthInfo();
 	}
+
+	dlg.m_width_attrib.SetParent( m_sel_net->def_width_attrib );
 
 	// launch dialog
 	dlg.m_mode = mode;
@@ -5566,7 +5560,7 @@ int CFreePcbView::SetWidth( int mode )
 		// returned with "OK"
 		SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_Doc->m_undo_list );
 
-		CConnectionWidthInfo width_attrib = dlg.m_width_attrib;
+		CNetWidthInfo width_attrib = dlg.m_width_attrib;
 		width_attrib.Update();
 
 		// set default values for net or connection
@@ -5577,23 +5571,26 @@ int CFreePcbView::SetWidth( int mode )
 			// Check for any "use-parent" attributes.  These need to be changed to "undef"
 			// so that the net level is not changed.  Since the segments are getting set
 			// to "use-parent", any "use-parent" attribute is not making changes to the net.
-			if( width_attrib.m_seg_width.m_status == CInheritableInfo::E_USE_PARENT ) width_attrib.m_seg_width.Undef();
-			if( width_attrib.m_via_width.m_status == CInheritableInfo::E_USE_PARENT ) width_attrib.m_via_width.Undef();
-			if( width_attrib.m_via_hole .m_status == CInheritableInfo::E_USE_PARENT ) width_attrib.m_via_hole .Undef();
+			if( width_attrib.m_seg_width   .m_status == CInheritableInfo::E_USE_PARENT ) width_attrib.m_seg_width   .Undef();
+			if( width_attrib.m_via_width   .m_status == CInheritableInfo::E_USE_PARENT ) width_attrib.m_via_width   .Undef();
+			if( width_attrib.m_via_hole    .m_status == CInheritableInfo::E_USE_PARENT ) width_attrib.m_via_hole    .Undef();
+			if( width_attrib.m_ca_clearance.m_status == CInheritableInfo::E_USE_PARENT ) width_attrib.m_ca_clearance.Undef();
 
 			m_sel_net->def_width_attrib = width_attrib;
 
-			m_Doc->m_nlist->UpdateNetAttributes( m_sel_net );
+			// Force an update of the net size attributes using undefined 
+			// items.  This causes an update of only those items marked as
+			// "use parent" (as opposed to set & update of ALL items).  
+			// This is needed to maintain consisency with the .fpc file format.
+			width_attrib.Undef();
+			m_Doc->m_nlist->SetNetWidth( m_sel_net, width_attrib );
 
 			// Now if the "default for net" clearance is applied below
 			// to a net/trace/segment, apply the "use parent" clearance.
-			width_attrib = CConnectionWidthInfo();
-			width_attrib.SetParent(m_sel_net->def_width_attrib);
+			width_attrib = CNetWidthInfo();
+			width_attrib.SetParent( m_sel_net->def_width_attrib );
 			width_attrib.Update();
 		}
-
-		// Make sure clearances are not updated.
-		width_attrib.m_ca_clearance.Undef();
 
 		// apply new widths to net, connection or segment
 		if( dlg.m_apply == 3 )
@@ -5618,88 +5615,6 @@ int CFreePcbView::SetWidth( int mode )
 	return 0;
 }
 
-
-// set trace width using dialog
-// enter with:
-//	mode = 0 if called with segment selected
-//	mode = 1 if called with connection selected
-//	mode = 2 if called with net selected
-//
-int CFreePcbView::SetClearance( int mode )
-{
-	// set parameters for dialog
-	DlgSetSegmentClearance dlg;
-
-	if( mode == 0 )
-	{
-		cseg *s = &m_sel_seg;
-		dlg.m_clearance = s->width_attrib;
-	}
-	else
-	{
-		dlg.m_clearance = m_sel_net->def_width_attrib;
-
-		// Since dlg.m_clearance is supposed to be a segment clearance,
-		// make sure dlg.m_clearance's parent is the net's clearance,
-		// not the net's parent - which results from the assignment
-		// statement above.
-		dlg.m_clearance.SetParent( m_sel_net->def_width_attrib );
-	}
-
-	// launch dialog
-	dlg.m_mode = mode;
-	int ret = dlg.DoModal();
-	if( ret == IDOK )
-	{
-		SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_Doc->m_undo_list );
-
-		CClearanceInfo clearance = dlg.m_clearance;
-		clearance.Update();
-
-		// set default values for net or connection
-		if( dlg.m_def == 2 )
-		{
-			// set default for net
-
-			// Check for any "use-parent" attributes.  These need to be changed to "undef"
-			// so that the net level is not changed.  Since the segments are getting set
-			// to "use-parent", any "use-parent" attribute is not making changes to the net.
-			if( clearance.m_ca_clearance.m_status == CInheritableInfo::E_USE_PARENT ) clearance.m_ca_clearance.Undef();
-
-			m_sel_net->def_width_attrib = clearance;
-
-			m_Doc->m_nlist->UpdateNetAttributes( m_sel_net );
-
-			// Now if the "default for net" clearance is applied below
-			// to a net/trace/segment, apply the "use parent" clearance.
-			clearance = CClearanceInfo();
-			clearance.SetParent(m_sel_net->def_width_attrib);
-			clearance.Update();
-		}
-
-		// apply new widths to net, connection or segment
-		if( dlg.m_apply == 3 )
-		{
-			// apply to net
-			m_Doc->m_nlist->SetNetWidth( m_sel_net, clearance );
-		}
-		else if( dlg.m_apply == 2 )
-		{
-			// apply to connection
-			m_Doc->m_nlist->SetConnectionWidth( m_sel_net, m_sel_ic, clearance );
-		}
-		else if( dlg.m_apply == 1 )
-		{
-			// apply to segment
-			m_Doc->m_nlist->SetSegmentWidth( m_sel_net, m_sel_ic, m_sel_id.ii, clearance );
-		}
-
-		m_Doc->ProjectModified( TRUE );
-	}
-
-	Invalidate( FALSE );
-	return 0;
-}
 
 // context-sensitive menu invoked by right-click
 //
@@ -6420,23 +6335,14 @@ void CFreePcbView::OnVertexConnectToPin()
 
 // set width for this segment (not a ratline)
 //
-void CFreePcbView::OnSegmentSetWidth()
+void CFreePcbView::OnSegmentSetSizeAttrib()
 {
-	SetWidth( 0 );
+	SetSizeAttrib( 0 );
 	m_dlist->CancelHighLight();
 	m_Doc->m_nlist->HighlightSegment( m_sel_net, m_sel_ic, m_sel_is );
 	Invalidate( FALSE );
 }
 
-// set clearance for this segment (not a ratline)
-//
-void CFreePcbView::OnSegmentSetClearance()
-{
-	SetClearance( 0 );
-	m_dlist->CancelHighLight();
-	m_Doc->m_nlist->HighlightSegment( m_sel_net, m_sel_ic, m_sel_is );
-	Invalidate( FALSE );
-}
 
 // unroute this segment, convert to a ratline
 //
@@ -6625,14 +6531,15 @@ void CFreePcbView::OnRatlineChangeEndPin()
 
 // change vertex size vertex
 //
-void CFreePcbView::OnVertexSize()
+void CFreePcbView::OnVertexSizeAttrib()
 {
-	SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_Doc->m_undo_list );
-	CDlgVia dlg = new CDlgVia;
+	CDlgViaPinSize dlg;
 	dlg.Initialize( m_sel_vtx.via_width_attrib );
 	int ret = dlg.DoModal();
 	if( ret == IDOK )
 	{
+		SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_Doc->m_undo_list );
+
 		m_dlist->CancelHighLight();
 		m_Doc->m_nlist->SetViaSizeAttrib( m_sel_net, m_sel_ic, m_sel_is, dlg.m_via_width );
 		m_Doc->m_nlist->HighlightVertex( m_sel_net, m_sel_ic, m_sel_is );
@@ -6642,34 +6549,7 @@ void CFreePcbView::OnVertexSize()
 	Invalidate( FALSE );
 }
 
-
-void CFreePcbView::OnPadSetClearance()
-{
-	CDlgSetPinClearance dlg;
-
-	part_pin *pin = &m_sel_part->pin[m_sel_id.i];
-	m_sel_net = pin->net;
-
-	dlg.m_allow_automode = ( m_sel_net != NULL );
-	dlg.m_clearance = pin->clearance;
-
-	int ret = dlg.DoModal();
-	if( ret == IDOK )
-	{
-		SaveUndoInfoForPartAndNets( m_sel_part, CPartList::UNDO_PART_MODIFY, NULL, TRUE, m_Doc->m_undo_list );
-
-		pin->set_clearance( dlg.m_clearance );
-
-		if( m_sel_net != NULL )
-		{
-			// Update AUTO clearance on net pin
-		}
-
-		m_Doc->ProjectModified( TRUE );
-		Invalidate( FALSE );
-	}
-}
-
+#if 0
 void CFreePcbView::OnVertexClearance()
 {
 	CDlgSetPinClearance dlg;
@@ -6684,6 +6564,28 @@ void CFreePcbView::OnVertexClearance()
 		m_dlist->CancelHighLight();
 		m_Doc->m_nlist->SetViaSizeAttrib( m_sel_net, m_sel_ic, m_sel_is, dlg.m_clearance );
 		m_Doc->m_nlist->HighlightVertex( m_sel_net, m_sel_ic, m_sel_is );
+
+		m_Doc->ProjectModified( TRUE );
+		Invalidate( FALSE );
+	}
+}
+#endif
+
+void CFreePcbView::OnPadSetClearance()
+{
+	CDlgViaPinSize dlg;
+
+	part_pin *pin = &m_sel_part->pin[m_sel_id.i];
+	m_sel_net = pin->net;
+
+	dlg.Initialize( pin->clearance );
+
+	int ret = dlg.DoModal();
+	if( ret == IDOK )
+	{
+		SaveUndoInfoForPartAndNets( m_sel_part, CPartList::UNDO_PART_MODIFY, NULL, TRUE, m_Doc->m_undo_list );
+
+		pin->set_clearance( dlg.m_via_width );
 
 		m_Doc->ProjectModified( TRUE );
 		Invalidate( FALSE );
@@ -6992,27 +6894,16 @@ void CFreePcbView::OnRatlineComplete()
 
 // set width of a connection
 //
-void CFreePcbView::OnRatlineSetWidth()
+void CFreePcbView::OnRatlineSetSizeAttrib()
 {
 	if( m_sel_con.nsegs == 1 )
-		SetWidth( 2 );
+		SetSizeAttrib( 2 );
 	else
-		SetWidth( 1 );
+		SetSizeAttrib( 1 );
 
 	Invalidate( FALSE );
 }
 
-// set clearance of a connection
-//
-void CFreePcbView::OnRatlineSetClearance()
-{
-	if( m_sel_con.nsegs == 1 )
-		SetClearance( 2 );
-	else
-		SetClearance( 1 );
-
-	Invalidate( FALSE );
-}
 
 // delete a connection
 //
@@ -8862,31 +8753,16 @@ void CFreePcbView::OnPartRotateCCW()
 }
 
 
-void CFreePcbView::OnNetSetWidth()
+void CFreePcbView::OnNetSetSizeAttrib()
 {
-	SetWidth( 2 );
+	SetSizeAttrib( 2 );
 	m_Doc->m_dlist->CancelHighLight();
 	m_Doc->m_nlist->HighlightNetConnections( m_sel_net );
 }
 
-void CFreePcbView::OnNetSetClearance()
+void CFreePcbView::OnConnectSetSizeAttrib()
 {
-	SetClearance( 2 );
-	m_Doc->m_dlist->CancelHighLight();
-	m_Doc->m_nlist->HighlightNet( m_sel_net );
-}
-
-
-void CFreePcbView::OnConnectSetWidth()
-{
-	SetWidth( 1 );
-	m_Doc->m_dlist->CancelHighLight();
-	m_Doc->m_nlist->HighlightConnection( m_sel_net, m_sel_ic );
-}
-
-void CFreePcbView::OnConnectSetClearance()
-{
-	SetClearance( 1 );
+	SetSizeAttrib( 1 );
 	m_Doc->m_dlist->CancelHighLight();
 	m_Doc->m_nlist->HighlightConnection( m_sel_net, m_sel_ic );
 }

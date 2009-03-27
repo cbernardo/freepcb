@@ -10,7 +10,9 @@ void CSubDlg_TraceWidth::OnInitDialog(CInheritableInfo const &width_attrib)
 {
 	CString str;
 
+	m_attrib.get_data().Undef();
 	m_attrib.get_data() = width_attrib;
+	m_attrib.get_data().Update();
 
 	if( m_w )
 	{
@@ -22,21 +24,30 @@ void CSubDlg_TraceWidth::OnInitDialog(CInheritableInfo const &width_attrib)
 		}
 	}
 
-	if( m_attrib.get_data().m_seg_width.m_status < 0 )
+	if( !m_attrib.get_data().m_seg_width.isDefined() )
 	{
-		m_attrib.get_data().m_seg_width.m_status = CInheritableInfo::E_USE_PARENT;
+		m_text_t_group.EnableWindow( 0 );
+		m_check_t_modify.SetCheck( 0 );
+		m_check_t_modify.EnableWindow( 0 );
+	}
+	else 
+	{
+		if( m_attrib.get_data().m_seg_width.m_status < 0 )
+		{
+			m_attrib.get_data().m_seg_width.m_status = CInheritableInfo::E_USE_PARENT;
 
-		m_rb_t_default.SetCheck(1);
+			m_rb_t_default.SetCheck(1);
+		}
+		else
+		{
+			m_rb_t_set.SetCheck(1);
+		}
+
+		str.Format("%d", m_attrib.get_data().m_seg_width.m_val / NM_PER_MIL);
+		m_combo_t_width.SetWindowText( str );
 	}
-	else
-	{
-		m_rb_t_set.SetCheck(1);
-	}
+
 	OnChangeWidthType();
-
-	str.Format("%d", m_attrib.get_data().m_seg_width.m_val / NM_PER_MIL);
-	m_combo_t_width.SetWindowText( str );
-
 	OnBnClicked_t_modify();
 }
 

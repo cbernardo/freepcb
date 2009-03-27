@@ -16,13 +16,14 @@ protected:
 	void OnChangeClearanceType();
 
 protected:
-	CButton m_rb_c_default;
-	CButton m_rb_c_auto;
-	CButton m_rb_c_set;
-		CEdit m_edit_c_clearance;
+	CStatic m_text_c_group;
+		CButton m_rb_c_default;
+		CButton m_rb_c_auto;
+		CButton m_rb_c_set;
+			CEdit m_edit_c_clearance;
 
-	CButton m_check_c_modify;
-	CButton m_check_c_apply;
+		CButton m_check_c_modify;
+		CButton m_check_c_apply;
 
 protected:
 	afx_msg void OnBnClicked_c_Default();

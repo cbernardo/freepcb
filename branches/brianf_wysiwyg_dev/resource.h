@@ -194,7 +194,7 @@
 #define IDD_SHORTCUTS                   327
 #define IDD_DIALOG4                     328
 #define IDD_MY_MESSAGE                  328
-#define IDD_VIA                         329
+#define IDD_VIA_PIN_SIZE                329
 #define IDD_AREA_LAYER                  331
 #define IDD_MY_MESSAGE2                 332
 #define IDD_GROUP_PASTE                 333
@@ -214,13 +214,11 @@
 #define IDD_DIALOG5                     349
 #define IDD_CHOOSE_NET                  349
 #define IDD_SAVE_LIB                    350
-#define IDD_SEGMENT_CLEARANCE           351
 #define IDD_PROJECT_OPTIONS_TABBED      352
 #define IDD_TAB_PROJ_OPT_MAIN           353
 #define IDD_TAB_PROJ_OPT_SPACING        354
 #define IDD_TAB_PROJ_OPT_THERMAL        355
 #define IDD_RAT_W                       356
-#define IDD_PIN_CLEARANCE               357
 #define IDC_EDIT1                       1002
 #define IDC_PART_REF                    1002
 #define IDC_EDIT_VIA_PAD                1002
@@ -289,12 +287,9 @@
 #define IDC_APPLY_SEG                   1012
 #define IDC_EDIT_LAYER_11               1012
 #define IDC_RADIO_DEF_VIA               1013
-#define IDC_APPLY_PINVIA_NO             1013
 #define IDC_RADIO_SET_VIA               1014
 #define IDC_EDIT_LAYER_12               1014
-#define IDC_APPLY_PINVIA_AUTO           1014
 #define IDC_EDIT_LAYER_13               1015
-#define IDC_APPLY_PINVIA_AS_SEL         1015
 #define IDC_EDIT_LAYER_14               1016
 #define IDC_PART_LIB_TREE               1017
 #define IDC_EDIT_LAYER_15               1017
@@ -794,8 +789,6 @@
 #define IDC_STATIC_LAYER_28             1498
 #define ID_HELP_FPCROUTE                1499
 #define IDC_RADIO_SET_PIN_CLEARANCE     1500
-#define IDC_RADIO_PIN_SET_CLEARANCE     1500
-#define IDC_RADIO_PIN_NET_CLEARANCE     1501
 #define IDC_APPLY_PIN                   1502
 #define IDC_RADIO3_PROJ_DEF             1503
 #define IDC_RADIO3_SET_TO               1504
@@ -806,6 +799,7 @@
 #define IDC_TEXT_HOLE                   1509
 #define IDC_CHECK_VIA_MOD               1510
 #define IDC_CHECK_CLEARANCE_MOD         1511
+#define IDC_STATIC_GROUP_WIDTH          1513
 #define ID_BUTTON32771                  32771
 #define ID_FP_MOVE                      32772
 #define ID_FP_EDITPROPERTIES            32773
@@ -972,7 +966,7 @@
 #define _APS_3D_CONTROLS                     1
 #define _APS_NEXT_RESOURCE_VALUE        358
 #define _APS_NEXT_COMMAND_VALUE         32951
-#define _APS_NEXT_CONTROL_VALUE         1513
+#define _APS_NEXT_CONTROL_VALUE         1514
 #define _APS_NEXT_SYMED_VALUE           106
 #endif
 #endif

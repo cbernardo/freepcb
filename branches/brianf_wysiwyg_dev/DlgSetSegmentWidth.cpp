@@ -12,6 +12,7 @@ IMPLEMENT_DYNAMIC(DlgSetSegmentWidth, CDialog)
 DlgSetSegmentWidth::DlgSetSegmentWidth(CWnd* pParent /*=NULL*/)
 	: CDialog(DlgSetSegmentWidth::IDD, pParent)
 	, CSubDlg_ViaWidth(static_cast<CSubDlg_TraceWidth*>(this))
+	, CSubDlg_Clearance( E_NO_AUTO_MODE )
 {
 	m_mode = 0;
 	m_def = 0;
@@ -56,10 +57,12 @@ BOOL DlgSetSegmentWidth::OnInitDialog()
 
 	m_check_t_modify.SetCheck( 1 );
 	m_check_v_modify.SetCheck( 1 );
+	m_check_c_modify.SetCheck( 1 );
 
 	// Do these last after other dialog items are setup
 	CSubDlg_TraceWidth::OnInitDialog(m_width_attrib);
 	CSubDlg_ViaWidth  ::OnInitDialog(m_width_attrib);
+	CSubDlg_Clearance ::OnInitDialog(m_width_attrib);
 
 	return TRUE;
 }
@@ -83,6 +86,11 @@ void DlgSetSegmentWidth::DoDataExchange(CDataExchange* pDX)
 	DDX_Control(pDX, IDC_TEXT_HOLE,            m_text_v_hole_w);
 	DDX_Control(pDX, IDC_EDIT_VIA_HOLE_W,      m_edit_v_hole_w);
 
+	DDX_Control(pDX, IDC_CHECK_CLEARANCE, m_check_c_modify);
+	DDX_Control(pDX, IDC_RADIO_USE_NET_CLEARANCE, m_rb_c_default);
+	DDX_Control(pDX, IDC_RADIO_SET_TRACE_CLEARANCE, m_rb_c_set);
+	DDX_Control(pDX, IDC_EDIT_CLEARANCE, m_edit_c_clearance);
+
 	DDX_Control(pDX, IDC_DEF_NET, m_set_net_default);
 
 	DDX_Control(pDX, IDC_APPLY_NET, m_apply_net);
@@ -92,7 +100,9 @@ void DlgSetSegmentWidth::DoDataExchange(CDataExchange* pDX)
 	if( pDX->m_bSaveAndValidate )
 	{
 		// exiting dialog
-		if( !CSubDlg_TraceWidth::OnDDXOut() || !CSubDlg_ViaWidth::OnDDXOut() )
+		if( !CSubDlg_TraceWidth::OnDDXOut() || 
+			!CSubDlg_ViaWidth  ::OnDDXOut() || 
+			!CSubDlg_Clearance ::OnDDXOut() )
 		{
 			pDX->Fail();
 			return;
@@ -102,7 +112,8 @@ void DlgSetSegmentWidth::DoDataExchange(CDataExchange* pDX)
 			m_width_attrib.Undef();
 
 			m_width_attrib = CSubDlg_TraceWidth::m_attrib;
-			m_width_attrib = CSubDlg_ViaWidth::m_attrib;
+			m_width_attrib = CSubDlg_ViaWidth  ::m_attrib;
+			m_width_attrib = CSubDlg_Clearance ::m_attrib;
 		}
 
 		// decode buttons
@@ -134,4 +145,8 @@ BEGIN_MESSAGE_MAP(DlgSetSegmentWidth, CDialog)
 	ON_BN_CLICKED(IDC_RADIO2_PROJ_DEF,      OnBnClicked_v_Default)
 	ON_BN_CLICKED(IDC_RADIO2_DEF_FOR_TRACE, OnBnClicked_v_DefForTrace)
 	ON_BN_CLICKED(IDC_RADIO2_SET_TO,        OnBnClicked_v_Set)
+
+	ON_BN_CLICKED(IDC_CHECK_CLEARANCE,           OnBnClicked_c_modify)
+	ON_BN_CLICKED(IDC_RADIO_USE_NET_CLEARANCE,   OnBnClicked_c_Default)
+	ON_BN_CLICKED(IDC_RADIO_SET_TRACE_CLEARANCE, OnBnClicked_c_Set)
 END_MESSAGE_MAP()

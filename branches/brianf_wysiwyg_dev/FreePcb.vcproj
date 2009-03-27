@@ -1149,22 +1149,6 @@
 				>
 			</File>
 			<File
-				RelativePath=".\DlgSetPinClearance.cpp"
-				>
-			</File>
-			<File
-				RelativePath=".\DlgSetPinClearance.h"
-				>
-			</File>
-			<File
-				RelativePath=".\DlgSetSegmentClearance.cpp"
-				>
-			</File>
-			<File
-				RelativePath=".\DlgSetSegmentClearance.h"
-				>
-			</File>
-			<File
 				RelativePath="DlgSetSegmentWidth.cpp"
 				>
 			</File>

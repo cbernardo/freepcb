@@ -2008,9 +2008,9 @@ int CNetList::SetSegmentWidth( cnet * net, int ic, int is, CInheritableInfo cons
 		if( pSeg->layer != LAY_RAT_LINE )
 		{
 			// Set new attributes.
-			// Existing attributes are first assigned to attrib, then updated.  
-			// The resulting behavior is such that if an item relies on its 
-			// parent, that item is always updated at this point, regardless 
+			// Existing attributes are first assigned to attrib, then updated.
+			// The resulting behavior is such that if an item relies on its
+			// parent, that item is always updated at this point, regardless
 			// of whether the item was defined in 'attrib'.  This is consistent
 			// with how items are stored in the .fpc file.
 			CSegWidthInfo seg_attrib( pSeg->width_attrib );
@@ -2029,9 +2029,7 @@ int CNetList::SetSegmentWidth( cnet * net, int ic, int is, CInheritableInfo cons
 	}
 
 	{
-		// Only set the via width/hole, not the clearance
 		CViaWidthInfo ViaInfo( attrib );
-		ViaInfo.m_ca_clearance.Undef();
 
 		SetViaSizeAttrib( net, ic, is,   ViaInfo );
 		SetViaSizeAttrib( net, ic, is+1, ViaInfo );
@@ -2103,9 +2101,9 @@ void CNetList::SetViaSizeAttrib( cnet * net, int ic, int ivtx, CInheritableInfo 
 			pVtx->via_width_attrib.SetParent( net->def_width_attrib );
 
 			// Set new attributes.
-			// Existing attributes are first assigned to attrib, then updated.  
-			// The resulting behavior is such that if an item relies on its 
-			// parent, that item is always updated at this point, regardless 
+			// Existing attributes are first assigned to attrib, then updated.
+			// The resulting behavior is such that if an item relies on its
+			// parent, that item is always updated at this point, regardless
 			// of whether the item was defined in 'attrib'.  This is consistent
 			// with how items are stored in the .fpc file.
 			CViaWidthInfo via_attrib( pVtx->via_width_attrib );
@@ -5981,8 +5979,12 @@ void CNetList::ConnectUndoCallback( int type, void * ptr, BOOL undo )
 undo_net * CNetList::CreateNetUndoRecord( cnet * net )
 {
 	int size = sizeof(undo_net) + net->npins*sizeof(undo_pin);
-	undo_net * undo = (undo_net*)malloc( size );
+	undo_net * undo = new( malloc( size ) ) undo_net;
+
 	strcpy( undo->name, net->name );
+
+	undo->width_attrib = net->def_width_attrib;
+
 	undo->npins = net->npins;
 	undo_pin * pin_mem = (undo_pin*)((UINT)undo + sizeof(undo_net));
 	for( int ip=0; ip<net->npins; ip++, pin_mem++ )
@@ -6049,6 +6051,11 @@ void CNetList::NetUndoCallback( int type, void * ptr, BOOL undo )
 				ASSERT(0);
 			for( int ic=(net->nconnects-1); ic>=0; ic-- )
 				nl->RemoveNetConnect( net, ic, FALSE );
+
+			// Reset size attributes
+			net->def_width_attrib = undo->width_attrib;
+			net->def_width_attrib.SetParent( nl->m_def_width_attrib );
+			net->def_width_attrib.Update();
 
 			// replace pin data
 			net->pin.SetSize(0);
@@ -7412,7 +7419,7 @@ BOOL CNetList::RemoveOrphanBranches( cnet * net, int id, BOOL bRemoveSegs )
 											tc->vtx[tis].x, tc->vtx[tis].y,
 											tc->seg[tis].layer,
 											tc->seg[tis].width_attrib,
-											0 
+											0
 										);
 
 										if( !test )

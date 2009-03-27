@@ -14,51 +14,65 @@ CSubDlg_ViaWidth::CSubDlg_ViaWidth(CSubDlg_TraceWidth *pSubDlg_TraceWidth)
 
 void CSubDlg_ViaWidth::OnInitDialog(CInheritableInfo const &width_attrib)
 {
+	m_attrib.Undef();
 	m_attrib = width_attrib;
+	m_attrib.Update();
 
 	int n = ( my_SubDlg_TraceWidth == NULL ) ? -1 : my_SubDlg_TraceWidth->m_w->GetSize();
 
-	if( m_attrib.m_via_width.m_status < 0 )
+	if( !m_attrib.m_via_width.isDefined() ||
+		!m_attrib.m_via_hole.isDefined() )
 	{
-		if( m_attrib.m_via_width.m_status == CII_FreePcb::E_USE_DEF_FROM_WIDTH )
-		{
-			if( n > 0 )
-			{
-				m_attrib.m_via_width.m_status = CII_FreePcb::E_USE_DEF_FROM_WIDTH;
-				m_attrib.m_via_hole .m_status = CII_FreePcb::E_USE_DEF_FROM_WIDTH;
+		m_text_v_group.EnableWindow( 0 );
+		m_check_v_modify.SetCheck( 0 );
+		m_check_v_modify.EnableWindow( 0 );
+	}
+	else 
+	{
+		m_text_v_group.EnableWindow( 1 );
 
-				m_rb_v_def_for_width.SetCheck( 1 );
+		if( m_attrib.m_via_width.m_status < 0 )
+		{
+			if( m_attrib.m_via_width.m_status == CII_FreePcb::E_USE_DEF_FROM_WIDTH )
+			{
+				if( n > 0 )
+				{
+					m_attrib.m_via_width.m_status = CII_FreePcb::E_USE_DEF_FROM_WIDTH;
+					m_attrib.m_via_hole .m_status = CII_FreePcb::E_USE_DEF_FROM_WIDTH;
+
+					m_rb_v_def_for_width.SetCheck( 1 );
+				}
+				else
+				{
+					// Default width menu has no entries
+					m_attrib.m_via_width.m_status = CII_FreePcb::E_USE_VAL;
+					m_attrib.m_via_hole .m_status = CII_FreePcb::E_USE_VAL;
+
+					m_rb_v_set.SetCheck( 1 );
+				}
 			}
 			else
 			{
-				// Default width menu has no entries
-				m_attrib.m_via_width.m_status = CII_FreePcb::E_USE_VAL;
-				m_attrib.m_via_hole .m_status = CII_FreePcb::E_USE_VAL;
+				m_attrib.m_via_width.m_status = CInheritableInfo::E_USE_PARENT;
+				m_attrib.m_via_hole .m_status = CInheritableInfo::E_USE_PARENT;
 
-				m_rb_v_set.SetCheck( 1 );
+				m_rb_v_default.SetCheck( 1 );
 			}
 		}
 		else
 		{
-			m_attrib.m_via_width.m_status = CInheritableInfo::E_USE_PARENT;
-			m_attrib.m_via_hole .m_status = CInheritableInfo::E_USE_PARENT;
-
-			m_rb_v_default.SetCheck( 1 );
+			m_rb_v_set.SetCheck( 1 );
 		}
+
+		CString str;
+
+		str.Format("%d", m_attrib.m_via_width.m_val / NM_PER_MIL );
+		m_edit_v_pad_w.SetWindowText( str );
+		str.Format("%d", m_attrib.m_via_hole.m_val / NM_PER_MIL );
+		m_edit_v_hole_w.SetWindowText( str );
 	}
-	else
-	{
-		m_rb_v_set.SetCheck( 1 );
-	}
+
 	OnChangeWidthType();
-
-	CString str;
-
-	str.Format("%d", m_attrib.m_via_width.m_val / NM_PER_MIL );
-	m_edit_v_pad_w.SetWindowText( str );
-	str.Format("%d", m_attrib.m_via_hole.m_val / NM_PER_MIL );
-	m_edit_v_hole_w.SetWindowText( str );
-
 	OnBnClicked_v_modify();
 }
 

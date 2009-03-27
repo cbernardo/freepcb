@@ -142,8 +142,12 @@ struct undo_net {
 	int size;
 	CNetList * nlist;
 	char name[MAX_NET_NAME_SIZE+1];
+	CNetWidthInfo width_attrib;
 	int npins;
 	// array of undo_pin structs start here
+
+	// Placement new
+	static void *operator new(size_t size, void *pMem) { return pMem; }
 };
 
 

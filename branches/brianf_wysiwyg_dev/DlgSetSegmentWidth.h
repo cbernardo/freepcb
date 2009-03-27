@@ -3,6 +3,7 @@
 #include "afxtempl.h"
 #include "SubdlgTraceWidth.h"
 #include "SubdlgViaWidth.h"
+#include "SubdlgClearance.h"
 
 // DlgSetSegmentWidth dialog
 
@@ -10,6 +11,7 @@ class DlgSetSegmentWidth
 	: public CDialog
 	, public CSubDlg_TraceWidth
 	, public CSubDlg_ViaWidth
+	, public CSubDlg_Clearance
 {
 	DECLARE_DYNAMIC(DlgSetSegmentWidth)
 
@@ -37,6 +39,10 @@ protected:
 	afx_msg void OnBnClicked_v_DefForTrace() { CSubDlg_ViaWidth::OnBnClicked_v_DefForTrace(); }
 	afx_msg void OnBnClicked_v_Set()		 { CSubDlg_ViaWidth::OnBnClicked_v_Set();		  }
 
+	afx_msg void OnBnClicked_c_modify()		 { CSubDlg_Clearance::OnBnClicked_c_modify();  }
+	afx_msg void OnBnClicked_c_Default()     { CSubDlg_Clearance::OnBnClicked_c_Default(); }
+	afx_msg void OnBnClicked_c_Set()         { CSubDlg_Clearance::OnBnClicked_c_Set();     }
+
 
 public:
 	// these variables should be set on entry
@@ -46,7 +52,7 @@ public:
 	int m_def;		// set default width for (0=none, 2=net)
 	int m_apply;	// apply width to (1=seg, 2=con, 3=net)
 
-	CConnectionWidthInfo m_width_attrib; // trace width info
+	CNetWidthInfo m_width_attrib; // trace width info
 
 protected:
 	virtual BOOL OnInitDialog();

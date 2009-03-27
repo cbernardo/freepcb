@@ -16,12 +16,13 @@ protected:
 	void OnChangeWidthType();
 
 protected:
-	CButton   m_rb_t_default;
-	CButton   m_rb_t_set;
-		CComboBox m_combo_t_width;
+	CStatic m_text_t_group;
+		CButton   m_rb_t_default;
+		CButton   m_rb_t_set;
+			CComboBox m_combo_t_width;
 
-	CButton   m_check_t_modify;
-	CButton   m_check_t_apply;
+		CButton   m_check_t_modify;
+		CButton   m_check_t_apply;
 
 protected:
 	afx_msg void OnBnClicked_t_Default();

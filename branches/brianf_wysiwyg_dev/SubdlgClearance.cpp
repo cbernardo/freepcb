@@ -10,45 +10,54 @@ void CSubDlg_Clearance::OnInitDialog(CInheritableInfo const &width_attrib)
 {
 	CString str;
 
+	m_attrib.Undef();
 	m_attrib = width_attrib;
-
 	m_attrib.Update();
 
 	m_rb_c_auto.ShowWindow( m_AutoMode == E_NO_AUTO_MODE ? 0 : 1 );
 
-	if( m_attrib.m_ca_clearance.m_status < 0 )
+	if( !m_attrib.m_ca_clearance.isDefined() )
 	{
-		if( m_attrib.m_ca_clearance.m_status == CII_FreePcb::E_AUTO_CALC )
+		m_text_c_group.EnableWindow( 0 );
+		m_check_c_modify.SetCheck( 0 );
+		m_check_c_modify.EnableWindow( 0 );
+	}
+	else 
+	{
+		if( m_attrib.m_ca_clearance.m_status < 0 )
 		{
-			if( m_AutoMode == E_NO_AUTO_MODE )
+			if( m_attrib.m_ca_clearance.m_status == CII_FreePcb::E_AUTO_CALC )
+			{
+				if( m_AutoMode == E_NO_AUTO_MODE )
+				{
+					m_attrib.m_ca_clearance.m_status = CInheritableInfo::E_USE_PARENT;
+					m_attrib.Update_ca_clearance();
+
+					m_rb_c_default.SetCheck(1);
+				}
+				else
+				{
+					m_rb_c_auto.SetCheck(1);
+				}
+			}
+			else
 			{
 				m_attrib.m_ca_clearance.m_status = CInheritableInfo::E_USE_PARENT;
 				m_attrib.Update_ca_clearance();
 
 				m_rb_c_default.SetCheck(1);
 			}
-			else
-			{
-				m_rb_c_auto.SetCheck(1);
-			}
 		}
 		else
 		{
-			m_attrib.m_ca_clearance.m_status = CInheritableInfo::E_USE_PARENT;
-			m_attrib.Update_ca_clearance();
-
-			m_rb_c_default.SetCheck(1);
+			m_rb_c_set.SetCheck(1);
 		}
+
+		str.Format("%d", m_attrib.m_ca_clearance.m_val / NM_PER_MIL);
+		m_edit_c_clearance.SetWindowText(str);
 	}
-	else
-	{
-		m_rb_c_set.SetCheck(1);
-	}
+
 	OnChangeClearanceType();
-
-	str.Format("%d", m_attrib.m_ca_clearance.m_val / NM_PER_MIL);
-	m_edit_c_clearance.SetWindowText(str);
-
 	OnBnClicked_c_modify();
 }
 
