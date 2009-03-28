@@ -48,7 +48,11 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
+<<<<<<< .mine
+				AdditionalIncludeDirectories="./include;./;./drawing_element/"
+=======
 				AdditionalIncludeDirectories="./;./include/;./drawing_element/"
+>>>>>>> .r58
 				PreprocessorDefinitions="WIN32;_DEBUG;_WINDOWS;_CRT_SECURE_NO_DEPRECATE"
 				BasicRuntimeChecks="3"
 				RuntimeLibrary="1"
@@ -149,7 +153,11 @@
 				Name="VCCLCompilerTool"
 				Optimization="2"
 				InlineFunctionExpansion="1"
+<<<<<<< .mine
+				AdditionalIncludeDirectories="./include;./;./drawing_element/"
+=======
 				AdditionalIncludeDirectories="./;./include/;./drawing_element/"
+>>>>>>> .r58
 				PreprocessorDefinitions="WIN32;NDEBUG;_WINDOWS;_CRT_SECURE_NO_DEPRECATE"
 				StringPooling="true"
 				RuntimeLibrary="2"
@@ -247,7 +255,11 @@
 				Optimization="0"
 				InlineFunctionExpansion="1"
 				FavorSizeOrSpeed="1"
+<<<<<<< .mine
+				AdditionalIncludeDirectories="./include;./;./drawing_element/"
+=======
 				AdditionalIncludeDirectories="./;./include/;./drawing_element/"
+>>>>>>> .r58
 				PreprocessorDefinitions="WIN32;NDEBUG;_WINDOWS;_CRT_SECURE_NO_DEPRECATE"
 				StringPooling="true"
 				RuntimeLibrary="2"

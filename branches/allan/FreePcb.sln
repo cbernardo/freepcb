@@ -8,11 +8,23 @@ Global
 		Debug = Debug
 		Release = Release
 	EndGlobalSection
+<<<<<<< .mine
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{48B16142-FBCE-4203-996C-8DEC8AAE6546}.DBG Release|Win32.ActiveCfg = DBG Release|Win32
+		{48B16142-FBCE-4203-996C-8DEC8AAE6546}.DBG Release|Win32.Build.0 = DBG Release|Win32
+		{48B16142-FBCE-4203-996C-8DEC8AAE6546}.DBGable Release|Win32.ActiveCfg = Release|Win32
+		{48B16142-FBCE-4203-996C-8DEC8AAE6546}.DBGable Release|Win32.Build.0 = Release|Win32
+		{48B16142-FBCE-4203-996C-8DEC8AAE6546}.Debug|Win32.ActiveCfg = Debug|Win32
+		{48B16142-FBCE-4203-996C-8DEC8AAE6546}.Debug|Win32.Build.0 = Debug|Win32
+		{48B16142-FBCE-4203-996C-8DEC8AAE6546}.Release|Win32.ActiveCfg = Release|Win32
+		{48B16142-FBCE-4203-996C-8DEC8AAE6546}.Release|Win32.Build.0 = Release|Win32
+=======
 	GlobalSection(ProjectConfiguration) = postSolution
 		{48B16142-FBCE-4203-996C-8DEC8AAE6546}.Debug.ActiveCfg = Debug|Win32
 		{48B16142-FBCE-4203-996C-8DEC8AAE6546}.Debug.Build.0 = Debug|Win32
 		{48B16142-FBCE-4203-996C-8DEC8AAE6546}.Release.ActiveCfg = Release|Win32
 		{48B16142-FBCE-4203-996C-8DEC8AAE6546}.Release.Build.0 = Release|Win32
+>>>>>>> .r58
 	EndGlobalSection
 	GlobalSection(SolutionItems) = postSolution
 		MyFileOpen.Dlg = MyFileOpen.Dlg
