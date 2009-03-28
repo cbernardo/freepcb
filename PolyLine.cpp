@@ -20,18 +20,7 @@
 CPolyLine::CPolyLine( CDisplayList * dl )
 {
 	m_dlist = dl;
-	m_ncorners = 0;
-	m_ptr = 0;
-	m_hatch = 0;
-	m_sel_box = 0;
-	m_gpc_poly = new gpc_polygon;
-	m_gpc_poly->num_contours = 0;
-	m_php_poly = new polygon;
-}
-
-CPolyLine::CPolyLine()
-{ 
-	m_dlist = NULL;
+    m_dl_job = NULL;
 	m_ncorners = 0;
 	m_ptr = 0;
 	m_hatch = 0;
@@ -117,7 +106,7 @@ int CPolyLine::NormalizeWithGpc( CArray<CPolyLine*> * pa, BOOL bRetainArcs )
 
 
 	// now add cutouts to the CPolyLine(s)
-	for( int ic=0; ic<m_gpc_poly->num_contours; ic++ ) 
+	for( int ic=0; ic<m_gpc_poly->num_contours; ic++ )
 	{
 		if( (m_gpc_poly->hole)[ic] )
 		{
@@ -345,7 +334,7 @@ int CPolyLine::MakeGpcPoly( int icontour, CArray<CArc> * arc_array )
 					if( x2 > x1 && y2 > y1 )
 					{
 						// first quadrant, draw second quadrant of ellipse
-						xo = x2;	
+						xo = x2;
 						yo = y1;
 						theta1 = pi;
 						theta2 = pi/2.0;
@@ -353,15 +342,15 @@ int CPolyLine::MakeGpcPoly( int icontour, CArray<CArc> * arc_array )
 					else if( x2 < x1 && y2 > y1 )
 					{
 						// second quadrant, draw third quadrant of ellipse
-						xo = x1;	
+						xo = x1;
 						yo = y2;
 						theta1 = 3.0*pi/2.0;
 						theta2 = pi;
 					}
-					else if( x2 < x1 && y2 < y1 )	
+					else if( x2 < x1 && y2 < y1 )
 					{
 						// third quadrant, draw fourth quadrant of ellipse
-						xo = x2;	
+						xo = x2;
 						yo = y1;
 						theta1 = 2.0*pi;
 						theta2 = 3.0*pi/2.0;
@@ -392,7 +381,7 @@ int CPolyLine::MakeGpcPoly( int icontour, CArray<CArc> * arc_array )
 						theta1 = 0.0;
 						theta2 = pi/2.0;
 					}
-					else if( x2 < x1 && y2 < y1 )	
+					else if( x2 < x1 && y2 < y1 )
 					{
 						xo = x1;	// third quadrant
 						yo = y2;
@@ -552,7 +541,7 @@ int CPolyLine::RestoreArcs( CArray<CArc> * arc_array, CArray<CPolyLine*> * pa )
 								if( xf == arc_xf && yf == arc_yf )
 								{
 									// arc from ic2 to ic
-									bFound = TRUE; 
+									bFound = TRUE;
 									arc_start = ic2;
 									arc_end = ic;
 									style = 3 - style;
@@ -620,8 +609,7 @@ int CPolyLine::RestoreArcs( CArray<CArc> * arc_array, CArray<CPolyLine*> * pa )
 //	id.i = index to area
 //	ptr = pointer to net
 //
-void CPolyLine::Start( int layer, int w, int sel_box, int x, int y, 
-					  int hatch, id * id, void * ptr )
+void CPolyLine::Start( int layer, int w, int sel_box, int x, int y, int hatch, id * id, void * ptr )
 {
 	m_layer = layer;
 	m_w = w;
@@ -643,8 +631,8 @@ void CPolyLine::Start( int layer, int w, int sel_box, int x, int y,
 		dl_corner_sel.SetSize( 1 );
 		m_id.sst = ID_SEL_CORNER;
 		m_id.ii = 0;
-		dl_corner_sel[0] = m_dlist->AddSelector( m_id, m_ptr, m_layer, DL_HOLLOW_RECT, 
-			1, 0, 0, x-m_sel_box, y-m_sel_box, 
+		dl_corner_sel[0] = m_dlist->AddSelector( m_id, m_ptr, m_layer, DL_HOLLOW_RECT,
+			1, 0, 0, x-m_sel_box, y-m_sel_box,
 			x+m_sel_box, y+m_sel_box, 0, 0 );
 	}
 }
@@ -719,7 +707,7 @@ void CPolyLine::DeleteCorner( int ic, BOOL bDraw )
 	if( !bClosed )
 	{
 		// open contour, must be last contour
-		corner.RemoveAt( ic ); 
+		corner.RemoveAt( ic );
 		if( ic != istart )
 			side_style.RemoveAt( ic-1 );
 		m_ncorners--;
@@ -727,7 +715,7 @@ void CPolyLine::DeleteCorner( int ic, BOOL bDraw )
 	else
 	{
 		// closed contour
-		corner.RemoveAt( ic ); 
+		corner.RemoveAt( ic );
 		side_style.RemoveAt( ic );
 		if( ic == iend )
 			corner[ic-1].end_contour = TRUE;
@@ -814,6 +802,9 @@ void CPolyLine::Undraw()
 		dl_corner_sel.RemoveAll();
 		dl_hatch.RemoveAll();
 
+        delete m_dl_job;
+        m_dl_job = NULL;
+
 		m_nhatch = 0;
 	}
 	bDrawn = FALSE;
@@ -829,7 +820,7 @@ void CPolyLine::Draw(  CDisplayList * dl )
 
 	// first, undraw if necessary
 	if( bDrawn )
-		Undraw(); 
+		Undraw();
 
 	// use new display list if provided
 	if( dl )
@@ -849,6 +840,22 @@ void CPolyLine::Draw(  CDisplayList * dl )
 			dl_side_sel.RemoveAll();
 			dl_corner_sel.RemoveAll();
 		}
+
+		CDL_job *pDL_job;
+
+		if (m_layer >= LAY_TOP_COPPER)
+		{
+			CDL_job_copper_area *pDL_job_ca = new CDL_job_copper_area(m_dlist, this);
+
+			m_dl_job = pDL_job = pDL_job_ca;
+		}
+		else
+		{
+			pDL_job = m_dlist->GetJob_traces(m_layer);
+
+            m_dl_job = NULL;
+		}
+
 		// now draw elements
 		for( int ic=0; ic<m_ncorners; ic++ )
 		{
@@ -871,8 +878,8 @@ void CPolyLine::Draw(  CDisplayList * dl )
 			if( m_sel_box )
 			{
 				m_id.sst = ID_SEL_CORNER;
-				dl_corner_sel[ic] = m_dlist->AddSelector( m_id, m_ptr, m_layer, DL_HOLLOW_RECT, 
-					1, 0, 0, xi-m_sel_box, yi-m_sel_box, 
+				dl_corner_sel[ic] = m_dlist->AddSelector( m_id, m_ptr, m_layer, DL_HOLLOW_RECT,
+					1, 0, 0, xi-m_sel_box, yi-m_sel_box,
 					xi+m_sel_box, yi+m_sel_box, 0, 0 );
 			}
 			if( ic<(m_ncorners-1) || corner[ic].end_contour )
@@ -883,6 +890,7 @@ void CPolyLine::Draw(  CDisplayList * dl )
 					// if endpoints not angled, make side STRAIGHT
 					side_style[ic] = STRAIGHT;
 				}
+
 				int g_type = DL_LINE;
 				if( side_style[ic] == STRAIGHT )
 					g_type = DL_LINE;
@@ -890,19 +898,63 @@ void CPolyLine::Draw(  CDisplayList * dl )
 					g_type = DL_ARC_CW;
 				else if( side_style[ic] == ARC_CCW )
 					g_type = DL_ARC_CCW;
+
 				m_id.sst = ID_SIDE;
-				dl_side[ic] = m_dlist->Add( m_id, m_ptr, m_layer, g_type, 
-					1, m_w, 0, xi, yi, xf, yf, 0, 0 );
+
+				int dx = xf - xi;
+				int dy = yf - yi;
+
+#if 0 // BAF attempt to move borders in by w [
+				int w = 10 * PCBU_PER_MIL;
+
+				if (abs(dx) == 0)
+				{
+					// Vertical
+					if (dy<0) w = -w;
+					dl_side[ic] = m_dlist->Add( pDL_job, m_id, m_ptr, m_layer, g_type, 1, m_w+5*PCBU_PER_MIL, 0, 0, xi+w, yi, xf+w, yf, 0, 0 );
+				}
+				else if (abs(dy) == 0)
+				{
+					if (dx<0) w = -w;
+					dl_side[ic] = m_dlist->Add( pDL_job, m_id, m_ptr, m_layer, g_type, 1, m_w+5*PCBU_PER_MIL, 0, 0, xi, yi-w, xf, yf-w, 0, 0 );
+				}
+				else
+				{
+					double s, l;
+
+					if (abs(dy) > abs(dx))
+					{
+						s = double(dx)/dy;
+						l = double(w) / sqrt(1 + s*s);
+						if (dy<0) l = -l;
+
+						dl_side[ic] = m_dlist->Add( pDL_job, m_id, m_ptr, m_layer, g_type, 1, m_w+5*PCBU_PER_MIL, 0, 0, xi+l, yi-s*l, xf+l, yf-s*l, 0, 0 );
+					}
+					else
+					{
+						s = double(dy)/dx;
+						l = double(w) / sqrt(1 + s*s);
+						if (dx<0) l = -l;
+
+						dl_side[ic] = m_dlist->Add( pDL_job, m_id, m_ptr, m_layer, g_type, 1, m_w+5*PCBU_PER_MIL, 0, 0, xi+s*l, yi-l, xf+s*l, yf-l, 0, 0 );
+					}
+				}
+#endif // ]
+
+				dl_side[ic] = m_dlist->Add( pDL_job, m_id, m_ptr, m_layer, g_type, 1, m_w+0*PCBU_PER_MIL, 0, 0, xi, yi, xf, yf, 0, 0 );
+
 				if( m_sel_box )
 				{
 					m_id.sst = ID_SEL_SIDE;
-					dl_side_sel[ic] = m_dlist->AddSelector( m_id, m_ptr, m_layer, g_type, 
-						1, m_w, 0, xi, yi, xf, yf, 0, 0 );
+					dl_side_sel[ic] = m_dlist->AddSelector( m_id, m_ptr, m_layer, g_type, 1, m_w, 0, xi, yi, xf, yf, 0, 0 );
 				}
 			}
 		}
+
 		if( m_hatch )
-			Hatch();
+			Hatch(pDL_job);
+
+        m_dlist->Add(pDL_job, m_layer);
 	}
 	bDrawn = TRUE;
 }
@@ -935,7 +987,7 @@ void CPolyLine::StartDraggingToInsertCorner( CDC * pDC, int ic, int x, int y, in
 	int yi = corner[ic].y;
 	int xf = corner[post_c].x;
 	int yf = corner[post_c].y;
-	m_dlist->StartDraggingLineVertex( pDC, x, y, xi, yi, xf, yf, 
+	m_dlist->StartDraggingLineVertex( pDC, x, y, xi, yi, xf, yf,
 		LAY_SELECTION, LAY_SELECTION, 1, 1, DSS_STRAIGHT, DSS_STRAIGHT,
 		0, 0, 0, 0, crosshair );
 	m_dlist->CancelHighLight();
@@ -999,7 +1051,7 @@ void CPolyLine::StartDraggingToMoveCorner( CDC * pDC, int ic, int x, int y, int 
 			xi = GetX( ic-1 );
 			yi = GetY( ic-1);
 			style = GetSideStyle( iside );
-		}		
+		}
 		m_dlist->StartDraggingArc( pDC, style, GetX(ic), GetY(ic), xi, yi, LAY_SELECTION, 1, crosshair );
 		m_dlist->CancelHighLight();
 		m_dlist->Set_visible( dl_side[iside], 0 );
@@ -1051,8 +1103,8 @@ void CPolyLine::StartDraggingToMoveCorner( CDC * pDC, int ic, int x, int y, int 
 		int yi = corner[pre_c].y;
 		int xf = corner[post_c].x;
 		int yf = corner[post_c].y;
-		m_dlist->StartDraggingLineVertex( pDC, x, y, xi, yi, xf, yf, 
-			LAY_SELECTION, LAY_SELECTION, 1, 1, style1, style2, 
+		m_dlist->StartDraggingLineVertex( pDC, x, y, xi, yi, xf, yf,
+			LAY_SELECTION, LAY_SELECTION, 1, 1, style1, style2,
 			0, 0, 0, 0, crosshair );
 		m_dlist->CancelHighLight();
 		m_dlist->Set_visible( dl_side[pre_c], 0 );
@@ -1105,7 +1157,7 @@ void CPolyLine::HighlightSide( int is )
 		style = DL_ARC_CW;
 	else if( side_style[is] == CPolyLine::ARC_CCW )
 		style = DL_ARC_CCW;
-	m_dlist->HighLight( style, 
+	m_dlist->HighLight( style,
 		m_dlist->Get_x( dl_side_sel[is] ),
 		m_dlist->Get_y( dl_side_sel[is] ),
 		m_dlist->Get_xf( dl_side_sel[is] ),
@@ -1121,7 +1173,7 @@ void CPolyLine::HighlightCorner( int ic )
 	if( !m_dlist )
 		ASSERT(0);
 
-	m_dlist->HighLight( DL_HOLLOW_RECT, 
+	m_dlist->HighLight( DL_HOLLOW_RECT,
 		m_dlist->Get_x( dl_corner_sel[ic] ),
 		m_dlist->Get_y( dl_corner_sel[ic] ),
 		m_dlist->Get_xf( dl_corner_sel[ic] ),
@@ -1129,34 +1181,34 @@ void CPolyLine::HighlightCorner( int ic )
 		m_dlist->Get_w( dl_corner_sel[ic]) );
 }
 
-int CPolyLine::GetX( int ic ) 
-{	
-	return corner[ic].x; 
+int CPolyLine::GetX( int ic )
+{
+	return corner[ic].x;
 }
 
-int CPolyLine::GetY( int ic ) 
-{	
-	return corner[ic].y; 
+int CPolyLine::GetY( int ic )
+{
+	return corner[ic].y;
 }
 
-int CPolyLine::GetEndContour( int ic ) 
-{	
-	return corner[ic].end_contour; 
+int CPolyLine::GetEndContour( int ic )
+{
+	return corner[ic].end_contour;
 }
 
-void CPolyLine::MakeVisible( BOOL visible ) 
-{	
+void CPolyLine::MakeVisible( BOOL visible )
+{
 	if( m_dlist )
 	{
 		int ns = m_ncorners-1;
 		if( GetClosed() )
 			ns = m_ncorners;
 		for( int is=0; is<ns; is++ )
-			m_dlist->Set_visible( dl_side[is], visible ); 
+			m_dlist->Set_visible( dl_side[is], visible );
 		for( int ih=0; ih<m_nhatch; ih++ )
-			m_dlist->Set_visible( dl_hatch[ih], visible ); 
+			m_dlist->Set_visible( dl_hatch[ih], visible );
 	}
-} 
+}
 
 CRect CPolyLine::GetBounds()
 {
@@ -1200,32 +1252,32 @@ CRect CPolyLine::GetCornerBounds( int icont )
 	return r;
 }
 
-int CPolyLine::GetNumCorners() 
-{	
-	return m_ncorners;	
+int CPolyLine::GetNumCorners()
+{
+	return m_ncorners;
 }
 
-int CPolyLine::GetNumSides() 
-{	
+int CPolyLine::GetNumSides()
+{
 	if( GetClosed() )
-		return m_ncorners;	
+		return m_ncorners;
 	else
-		return m_ncorners-1;	
+		return m_ncorners-1;
 }
 
-int CPolyLine::GetLayer() 
-{	
-	return m_layer;	
+int CPolyLine::GetLayer()
+{
+	return m_layer;
 }
 
-int CPolyLine::GetW() 
-{	
-	return m_w;	
+int CPolyLine::GetW()
+{
+	return m_w;
 }
 
-int CPolyLine::GetSelBoxSize() 
-{	
-	return m_sel_box;	
+int CPolyLine::GetSelBoxSize()
+{
+	return m_sel_box;
 }
 
 int CPolyLine::GetNumContours()
@@ -1300,8 +1352,8 @@ int CPolyLine::GetContourSize( int icont )
 }
 
 
-void CPolyLine::SetSideStyle( int is, int style ) 
-{	
+void CPolyLine::SetSideStyle( int is, int style )
+{
 	Undraw();
 	CPoint p1, p2;
 	if( is == (m_ncorners-1) )
@@ -1321,13 +1373,13 @@ void CPolyLine::SetSideStyle( int is, int style )
 	if( p1.x == p2.x || p1.y == p2.y )
 		side_style[is] = STRAIGHT;
 	else
-		side_style[is] = style;	
+		side_style[is] = style;
 	Draw();
 }
 
-int CPolyLine::GetSideStyle( int is ) 
-{	
-	return side_style[is];	
+int CPolyLine::GetSideStyle( int is )
+{
+	return side_style[is];
 }
 
 // renumber ids
@@ -1359,7 +1411,7 @@ void CPolyLine::SetId( id * id )
 		for( int ih=0; ih<dl_hatch.GetSize(); ih++ )
 		{
 			m_id.ii = ih;
-			m_dlist->Set_id( dl_hatch[ih], &m_id ); 
+			m_dlist->Set_id( dl_hatch[ih], &m_id );
 		}
 	}
 }
@@ -1371,17 +1423,17 @@ id CPolyLine::GetId()
 	return m_id;
 }
 
-int CPolyLine::GetClosed() 
-{	
+int CPolyLine::GetClosed()
+{
 	if( m_ncorners == 0 )
 		return 0;
 	else
-		return corner[m_ncorners-1].end_contour; 
+		return corner[m_ncorners-1].end_contour;
 }
 
 // draw hatch lines
 //
-void CPolyLine::Hatch()
+void CPolyLine::Hatch(CDL_job *pDL_job)
 {
 	if( m_hatch == NO_HATCH )
 	{
@@ -1416,11 +1468,14 @@ void CPolyLine::Hatch()
 		}
 		int slope_flag = 1 - 2*(m_layer%2);	// 1 or -1
 		double slope = 0.707106*slope_flag;
+		//slope=0;
+
 		int spacing;
 		if( m_hatch == DIAGONAL_EDGE )
 			spacing = 10*PCBU_PER_MIL;
 		else
-			spacing = 50*PCBU_PER_MIL;
+			spacing = 6*PCBU_PER_MIL;
+
 		int max_a, min_a;
 		if( slope_flag == 1 )
 		{
@@ -1474,17 +1529,17 @@ void CPolyLine::Hatch()
 					int ok;
 					if( corner[ic].end_contour )
 					{
-						ok = FindLineSegmentIntersection( a, slope, 
+						ok = FindLineSegmentIntersection( a, slope,
 								corner[ic].x, corner[ic].y,
-								corner[i_start_contour].x, corner[i_start_contour].y, 
+								corner[i_start_contour].x, corner[i_start_contour].y,
 								side_style[ic],
 								&x, &y, &x2, &y2 );
 						i_start_contour = ic + 1;
 					}
 					else
 					{
-						ok = FindLineSegmentIntersection( a, slope, 
-								corner[ic].x, corner[ic].y, 
+						ok = FindLineSegmentIntersection( a, slope,
+								corner[ic].x, corner[ic].y,
 								corner[ic+1].x, corner[ic+1].y,
 								side_style[ic],
 								&x, &y, &x2, &y2 );
@@ -1524,9 +1579,11 @@ void CPolyLine::Hatch()
 							imax = i;
 						}
 					}
+
 					int temp = xx[istart];
 					xx[istart] = xx[imax];
 					xx[imax] = temp;
+
 					temp = yy[istart];
 					yy[istart] = yy[imax];
 					yy[imax] = temp;
@@ -1534,41 +1591,51 @@ void CPolyLine::Hatch()
 			}
 
 			// draw lines
+            int width = spacing/3;
 			for( int ip=0; ip<npts; ip+=2 )
 			{
 				id hatch_id = m_id;
 				hatch_id.sst = ID_HATCH;
 				hatch_id.ii = nhatch;
-				double dx = xx[ip+1] - xx[ip];
-				if( m_hatch == DIAGONAL_FULL || fabs(dx) < 40*NM_PER_MIL )
+
+				int dx = xx[ip+1] - xx[ip];
+
+				const int edge_width = 20;
+
+				if( m_hatch == DIAGONAL_FULL || abs(dx) < edge_width*2*NM_PER_MIL )
 				{
-					dl_element * dl = m_dlist->Add( hatch_id, 0, m_layer, DL_LINE, 1, 0, 0, 
-						xx[ip], yy[ip], xx[ip+1], yy[ip+1], 0, 0 );
+					dl_element * dl = m_dlist->Add( pDL_job, hatch_id, 0, m_layer, DL_LINE, 1, width, 0, 0, xx[ip], yy[ip], xx[ip+1], yy[ip+1], 0, 0 );
+
 					dl_hatch.SetAtGrow(nhatch, dl);
 					nhatch++;
 				}
 				else
 				{
-					double dy = yy[ip+1] - yy[ip];	
-					double slope = dy/dx;
+					int dy = yy[ip+1] - yy[ip];
+					double slope = double(dy)/dx;
+
 					if( dx > 0 )
-						dx = 20*NM_PER_MIL;
+						dx = edge_width*NM_PER_MIL;
 					else
-						dx = -20*NM_PER_MIL;
-					double x1 = xx[ip] + dx;
-					double x2 = xx[ip+1] - dx;
-					double y1 = yy[ip] + dx*slope;
-					double y2 = yy[ip+1] - dx*slope;
-					dl_element * dl = m_dlist->Add( hatch_id, 0, m_layer, DL_LINE, 1, 0, 0, 
-						xx[ip], yy[ip], x1, y1, 0, 0 );
+						dx = -edge_width*NM_PER_MIL;
+
+					int x1 = xx[ip] + dx;
+					int x2 = xx[ip+1] - dx;
+					int y1 = yy[ip] + dx*slope;
+					int y2 = yy[ip+1] - dx*slope;
+
+					dl_element * dl;
+
+					dl = m_dlist->Add( pDL_job, hatch_id, 0, m_layer, DL_LINE, 1, width, 0, 0, xx[ip], yy[ip], x1, y1, 0, 0 );
 					dl_hatch.SetAtGrow(nhatch, dl);
-					dl = m_dlist->Add( hatch_id, 0, m_layer, DL_LINE, 1, 0, 0, 
-						xx[ip+1], yy[ip+1], x2, y2, 0, 0 );
+
+					dl = m_dlist->Add( pDL_job, hatch_id, 0, m_layer, DL_LINE, 1, width, 0, 0, xx[ip+1], yy[ip+1], x2, y2, 0, 0 );
 					dl_hatch.SetAtGrow(nhatch+1, dl);
+
 					nhatch += 2;
 				}
 			}
-		} // end for 
+		} // end for
 		m_nhatch = nhatch;
 		dl_hatch.SetSize( m_nhatch );
 	}
@@ -1603,14 +1670,14 @@ BOOL CPolyLine::TestPointInside( int x, int y )
 				double x, y, x2, y2;
 				int ok;
 				if( ic == istart )
-					ok = FindLineSegmentIntersection( a, slope, 
+					ok = FindLineSegmentIntersection( a, slope,
 					corner[iend].x, corner[iend].y,
-					corner[istart].x, corner[istart].y, 
+					corner[istart].x, corner[istart].y,
 					side_style[m_ncorners-1],
 					&x, &y, &x2, &y2 );
 				else
-					ok = FindLineSegmentIntersection( a, slope, 
-					corner[ic-1].x, corner[ic-1].y, 
+					ok = FindLineSegmentIntersection( a, slope,
+					corner[ic-1].x, corner[ic-1].y,
 					corner[ic].x, corner[ic].y,
 					side_style[ic-1],
 					&x, &y, &x2, &y2 );
@@ -1680,14 +1747,14 @@ BOOL CPolyLine::TestPointInsideContour( int icont, int x, int y )
 			double x, y, x2, y2;
 			int ok;
 			if( ic == istart )
-				ok = FindLineSegmentIntersection( a, slope, 
+				ok = FindLineSegmentIntersection( a, slope,
 				corner[iend].x, corner[iend].y,
-				corner[istart].x, corner[istart].y, 
+				corner[istart].x, corner[istart].y,
 				side_style[m_ncorners-1],
 				&x, &y, &x2, &y2 );
 			else
-				ok = FindLineSegmentIntersection( a, slope, 
-				corner[ic-1].x, corner[ic-1].y, 
+				ok = FindLineSegmentIntersection( a, slope,
+				corner[ic-1].x, corner[ic-1].y,
 				corner[ic].x, corner[ic].y,
 				side_style[ic-1],
 				&x, &y, &x2, &y2 );
@@ -1782,7 +1849,7 @@ int CPolyLine::TestIntersection( CPolyLine * poly )
 	return 0;
 }
 
-// set selection box size 
+// set selection box size
 //
 void CPolyLine::SetSelBoxSize( int sel_box )
 {
@@ -1878,7 +1945,7 @@ CPolyLine * CPolyLine::MakePolylineForPad( int type, int x, int y, int w, int l,
 // Convert arcs to multiple straight lines
 // Do NOT draw or undraw
 //
-void CPolyLine::AddContourForPadClearance( int type, int x, int y, int w, 
+void CPolyLine::AddContourForPadClearance( int type, int x, int y, int w,
 						int l, int r, int angle, int fill_clearance,
 						int hole_w, int hole_clearance, BOOL bThermal, int spoke_w )
 {
@@ -1889,7 +1956,7 @@ void CPolyLine::AddContourForPadClearance( int type, int x, int y, int w,
 		dx = w/2;
 		dy = l/2;
 	}
-	int x_clearance = max( fill_clearance, hole_clearance+hole_w/2-dx);		
+	int x_clearance = max( fill_clearance, hole_clearance+hole_w/2-dx);
 	int y_clearance = max( fill_clearance, hole_clearance+hole_w/2-dy);
 	dx += x_clearance;
 	dy += y_clearance;
@@ -1902,16 +1969,16 @@ void CPolyLine::AddContourForPadClearance( int type, int x, int y, int w,
 			AppendCorner( x, y+dy, ARC_CW, 0 );
 			AppendCorner( x+dx, y, ARC_CW, 0 );
 			AppendCorner( x, y-dy, ARC_CW, 0 );
-			Close( ARC_CW ); 
+			Close( ARC_CW );
 		}
-		else if( type == PAD_SQUARE || type == PAD_RECT 
+		else if( type == PAD_SQUARE || type == PAD_RECT
 			|| type == PAD_RRECT || type == PAD_OVAL )
 		{
 			AppendCorner( x-dx, y-dy, STRAIGHT, 0 );
 			AppendCorner( x+dx, y-dy, STRAIGHT, 0 );
 			AppendCorner( x+dx, y+dy, STRAIGHT, 0 );
 			AppendCorner( x-dx, y+dy, STRAIGHT, 0 );
-			Close( STRAIGHT ); 
+			Close( STRAIGHT );
 		}
 	}
 	else
@@ -1959,7 +2026,7 @@ void CPolyLine::AddContourForPadClearance( int type, int x, int y, int w,
 				Close( STRAIGHT );
 			}
 		}
-		else if( type == PAD_SQUARE || type == PAD_RECT 
+		else if( type == PAD_SQUARE || type == PAD_RECT
 			|| type == PAD_RRECT || type == PAD_OVAL )
 		{
 			// draw 4 rectangles
@@ -1971,14 +2038,14 @@ void CPolyLine::AddContourForPadClearance( int type, int x, int y, int w,
 			AppendCorner( xR, yB, STRAIGHT, 0 );
 			AppendCorner( xR, yT, STRAIGHT, 0 );
 			AppendCorner( xL, yT, STRAIGHT, 0 );
-			Close( STRAIGHT ); 
+			Close( STRAIGHT );
 			xL = x + spoke_w/2;
 			xR = x + dx;
 			AppendCorner( xL, yB, STRAIGHT, 0 );
 			AppendCorner( xR, yB, STRAIGHT, 0 );
 			AppendCorner( xR, yT, STRAIGHT, 0 );
 			AppendCorner( xL, yT, STRAIGHT, 0 );
-			Close( STRAIGHT ); 
+			Close( STRAIGHT );
 			xL = x - dx;
 			xR = x - spoke_w/2;
 			yB = y + spoke_w/2;
@@ -1987,14 +2054,14 @@ void CPolyLine::AddContourForPadClearance( int type, int x, int y, int w,
 			AppendCorner( xR, yB, STRAIGHT, 0 );
 			AppendCorner( xR, yT, STRAIGHT, 0 );
 			AppendCorner( xL, yT, STRAIGHT, 0 );
-			Close( STRAIGHT ); 
+			Close( STRAIGHT );
 			xL = x + spoke_w/2;
 			xR = x + dx;
 			AppendCorner( xL, yB, STRAIGHT, 0 );
 			AppendCorner( xR, yB, STRAIGHT, 0 );
 			AppendCorner( xR, yT, STRAIGHT, 0 );
 			AppendCorner( xL, yT, STRAIGHT, 0 );
-			Close( STRAIGHT ); 
+			Close( STRAIGHT );
 		}
 	}
 	return;
@@ -2029,4 +2096,3 @@ void CPolyLine::ClipGpcPolygon( gpc_op op, CPolyLine * clip_poly )
 	delete m_gpc_poly;
 	m_gpc_poly = result;
 }
-

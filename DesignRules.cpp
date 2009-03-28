@@ -18,8 +18,8 @@ DRError::~DRError()
 {
 	if( dl_el )
 	{
-		dl_el->dlist->Remove( dl_el );
-		dl_sel->dlist->Remove( dl_sel );
+		dl_el->Remove();
+		dl_sel->Remove();
 	}
 }
 
@@ -77,11 +77,11 @@ void DRErrorList::Remove( DRError * dre )
 
 // Add error to list
 //
-DRError * DRErrorList::Add( long index, int type, CString * str, 
+DRError * DRErrorList::Add( long index, int type, CString * str,
 						   CString * name1, CString * name2, id id1, id id2,
 						   int x1, int y1, int x2, int y2, int w, int layer )
 {
-#define DRE_MIN_SIZE 50*NM_PER_MIL  
+#define DRE_MIN_SIZE 50*NM_PER_MIL
 
 	POSITION pos;
 	void * ptr;
@@ -112,25 +112,25 @@ DRError * DRErrorList::Add( long index, int type, CString * str,
 			{
 				if( id1.type == ID_NET && id1.st == ID_CONNECT
 					&& dre->id1.type == ID_NET && dre->id1.st == ID_CONNECT
-					&& id1.i == dre->id1.i 
+					&& id1.i == dre->id1.i
 					&& id2.type == ID_NET && id2.st == ID_CONNECT
 					&& dre->id2.type == ID_NET && dre->id2.st == ID_CONNECT
-					&& id2.i == dre->id2.i 
+					&& id2.i == dre->id2.i
 					&& x == dre->x && y == dre->y )
 					return NULL;
 				if( id2.type == ID_NET && id2.st == ID_CONNECT
 					&& dre->id1.type == ID_NET && dre->id1.st == ID_CONNECT
-					&& id2.i == dre->id1.i 
+					&& id2.i == dre->id1.i
 					&& id1.type == ID_NET && id1.st == ID_CONNECT
 					&& dre->id2.type == ID_NET && dre->id2.st == ID_CONNECT
-					&& id1.i == dre->id2.i 
+					&& id1.i == dre->id2.i
 					&& x == dre->x && y == dre->y )
 					return NULL;
 			}
 			// if RING_PAD error on same pad, don't add it
 			if( type == DRError::RING_PAD && dre->m_id.sst == DRError::RING_PAD )
 			{
-				if( *name1 == dre->name1 
+				if( *name1 == dre->name1
 					&& id1.i == dre->id1.i )
 				{
 					// same pad, ignore it
@@ -141,7 +141,7 @@ DRError * DRErrorList::Add( long index, int type, CString * str,
 			if( (type == DRError::BOARDEDGE_PAD || type == DRError::BOARDEDGE_PADHOLE)
 				&& (dre->m_id.sst == DRError::BOARDEDGE_PAD || dre->m_id.sst == DRError::BOARDEDGE_PADHOLE) )
 			{
-				if( *name1 == dre->name1 
+				if( *name1 == dre->name1
 					&& id1.i == dre->id1.i )
 				{
 					// same pad, ignore it
@@ -151,8 +151,8 @@ DRError * DRErrorList::Add( long index, int type, CString * str,
 			// if RING_VIA error on same via, don't add it
 			if( type == DRError::RING_VIA && dre->m_id.sst == DRError::RING_VIA )
 			{
-				if( *name1 == dre->name1 
-					&& id1.i == dre->id1.i 
+				if( *name1 == dre->name1
+					&& id1.i == dre->id1.i
 					&& id1.ii == dre->id1.ii )
 				{
 					// same via, ignore it
@@ -163,8 +163,8 @@ DRError * DRErrorList::Add( long index, int type, CString * str,
 			if( (type == DRError::BOARDEDGE_VIA || type == DRError::BOARDEDGE_VIAHOLE)
 				&& (dre->m_id.sst == DRError::BOARDEDGE_VIA || dre->m_id.sst == DRError::BOARDEDGE_VIAHOLE) )
 			{
-				if( *name1 == dre->name1 
-					&& id1.i == dre->id1.i 
+				if( *name1 == dre->name1
+					&& id1.i == dre->id1.i
 					&& id1.ii == dre->id1.ii )
 				{
 					// same via, ignore it
@@ -174,33 +174,33 @@ DRError * DRErrorList::Add( long index, int type, CString * str,
 			// if BOARDEDGE_TRACE on same trace at same point, don't add it
 			if( type == DRError::BOARDEDGE_TRACE && dre->m_id.sst == DRError::BOARDEDGE_TRACE )
 			{
-				if( *name1 == dre->name1 
-					&& x == dre->x 
-					&& y == dre->y ) 
+				if( *name1 == dre->name1
+					&& x == dre->x
+					&& y == dre->y )
 				{
 					return NULL;
 				}
 			}
 			// if BOARDEDGE_COPPERAREA on same area at same point, don't add it
-			if( type == DRError::BOARDEDGE_COPPERAREA 
+			if( type == DRError::BOARDEDGE_COPPERAREA
 				&& dre->m_id.sst == DRError::BOARDEDGE_COPPERAREA )
 			{
-				if( *name1 == dre->name1 
-					&& id1.i == dre->id1.i 
-					&& x == dre->x  
-					&& y == dre->y ) 
+				if( *name1 == dre->name1
+					&& id1.i == dre->id1.i
+					&& x == dre->x
+					&& y == dre->y )
 				{
 					return NULL;
 				}
 			}
-			if( type == DRError::COPPERAREA_COPPERAREA 
-				&& dre->m_id.sst == DRError::COPPERAREA_COPPERAREA )		
+			if( type == DRError::COPPERAREA_COPPERAREA
+				&& dre->m_id.sst == DRError::COPPERAREA_COPPERAREA )
 			{
-				if( *name1 == dre->name1 
+				if( *name1 == dre->name1
 					&& *name2 == dre->name2
-					&& id1.i == dre->id1.i 
-					&& id2.i == dre->id2.i 
-					&& x == dre->x 
+					&& id1.i == dre->id1.i
+					&& id2.i == dre->id2.i
+					&& x == dre->x
 					&& y == dre->y )
 					return NULL;
 			}
@@ -233,11 +233,11 @@ DRError * DRErrorList::Add( long index, int type, CString * str,
 		if( w )
 			d = max( d, w/2 );
 		int ww = 2*d;
-		dre->dl_el = m_dlist->Add( dre->m_id, (void*)dre, LAY_DRC_ERROR, 
-			DL_HOLLOW_CIRC, 1, ww, 0, x, y, 0, 0, x, y ); 
+		dre->dl_el = m_dlist->Add( dre->m_id, (void*)dre, LAY_DRC_ERROR,
+			DL_HOLLOW_CIRC, 1, ww, 0, 0, x, y, 0, 0, x, y );
 		dre->m_id.st = ID_SEL_DRE;
-		dre->dl_sel = m_dlist->AddSelector( dre->m_id, (void*)dre, LAY_DRC_ERROR, 
-			DL_HOLLOW_CIRC, 1, ww, 0, x, y, 0, 0, x, y ); 
+		dre->dl_sel = m_dlist->AddSelector( dre->m_id, (void*)dre, LAY_DRC_ERROR,
+			DL_HOLLOW_CIRC, 1, ww, 0, x, y, 0, 0, x, y );
 	}
 	list.AddTail( dre );
 	return dre;
@@ -265,6 +265,7 @@ void DRErrorList::HighLight( DRError * dre )
 	m_dlist->Add( dre->m_id, dre, LAY_HILITE, dre->dl_el->gtype, 1,
 		m_dlist->Get_w( dre->dl_el ),
 		m_dlist->Get_holew( dre->dl_el ),
+		0, // no clearance needed
 		m_dlist->Get_x( dre->dl_el ),
 		m_dlist->Get_y( dre->dl_el ),
 		m_dlist->Get_xf( dre->dl_el ),
@@ -272,32 +273,32 @@ void DRErrorList::HighLight( DRError * dre )
 		m_dlist->Get_x_org( dre->dl_el ),
 		m_dlist->Get_y_org( dre->dl_el ) );
 
-	dl_element * dl1 = NULL; 
+	dl_element * dl1 = NULL;
 	dl_element * dl2 = NULL;
 
-	if(    dre->m_id.sst == DRError::PAD_PAD 
+	if(    dre->m_id.sst == DRError::PAD_PAD
 		|| dre->m_id.sst == DRError::PAD_PADHOLE
-		|| dre->m_id.sst == DRError::PADHOLE_PADHOLE 
+		|| dre->m_id.sst == DRError::PADHOLE_PADHOLE
 		)
 	{
 		// add highlights for pads
 		cpart * part1 = m_plist->GetPart( dre->name1 );
 		if( part1 && dre->id1.i < part1->pin.GetSize() )
-//			dl1 = part1->pin[dre->id1.i].dl_el; 
-			dl1 = GetPadElement( &part1->pin[dre->id1.i], dre->layer ); 
+//			dl1 = part1->pin[dre->id1.i].dl_el;
+			dl1 = GetPadElement( &part1->pin[dre->id1.i], dre->layer );
 		cpart * part2 = m_plist->GetPart( dre->name2 );
 		if( part2 && dre->id2.i < part2->pin.GetSize() )
 //			dl2 = part2->pin[dre->id2.i].dl_el;
 			dl2 = GetPadElement( &part2->pin[dre->id2.i], dre->layer );
 	}
-	else if(    dre->m_id.sst == DRError::SEG_PAD 
+	else if(    dre->m_id.sst == DRError::SEG_PAD
 			 || dre->m_id.sst == DRError::SEG_PADHOLE
 			 )
 	{
 		// add highlights for trace and pad
 		cnet * net = m_nlist->GetNetPtrByName( &dre->name1 );
 		if( net && dre->id1.i < net->nconnects && dre->id1.ii < net->connect[dre->id1.i].nsegs )
-			dl1 = net->connect[dre->id1.i].seg[dre->id1.ii].dl_el; 
+			dl1 = net->connect[dre->id1.i].seg[dre->id1.ii].dl_el;
 		cpart * part = m_plist->GetPart( dre->name2 );
 		if( part && dre->id2.i < part->pin.GetSize() )
 			dl2 = GetPadElement( &part->pin[dre->id2.i], dre->layer );
@@ -311,7 +312,7 @@ void DRErrorList::HighLight( DRError * dre )
 		// add highlights for via and pad
 		cnet * net = m_nlist->GetNetPtrByName( &dre->name1 );
 		if( net && dre->id1.i < net->nconnects && dre->id1.ii <= net->connect[dre->id1.i].nsegs )
-			dl1 = net->connect[dre->id1.i].vtx[dre->id1.ii].dl_el[0]; 
+			dl1 = net->connect[dre->id1.i].vtx[dre->id1.ii].dl_el[0];
 		cpart * part = m_plist->GetPart( dre->name2 );
 		if( part && dre->id2.i < part->pin.GetSize() )
 			dl2 = GetPadElement( &part->pin[dre->id2.i], dre->layer );
@@ -321,10 +322,10 @@ void DRErrorList::HighLight( DRError * dre )
 		// add highlights for traces
 		cnet * net1 = m_nlist->GetNetPtrByName( &dre->name1 );
 		if( net1 && dre->id1.i < net1->nconnects && dre->id1.ii < net1->connect[dre->id1.i].nsegs )
-			dl1 = net1->connect[dre->id1.i].seg[dre->id1.ii].dl_el; 
+			dl1 = net1->connect[dre->id1.i].seg[dre->id1.ii].dl_el;
 		cnet * net2 = m_nlist->GetNetPtrByName( &dre->name2 );
 		if( net2 && dre->id1.i < net2->nconnects && dre->id2.ii < net2->connect[dre->id2.i].nsegs )
-			dl2 = net2->connect[dre->id2.i].seg[dre->id2.ii].dl_el; 
+			dl2 = net2->connect[dre->id2.i].seg[dre->id2.ii].dl_el;
 	}
 	else if(    dre->m_id.sst == DRError::SEG_VIA
 			 || dre->m_id.sst == DRError::SEG_VIAHOLE
@@ -333,10 +334,10 @@ void DRErrorList::HighLight( DRError * dre )
 		// add highlights for trace and via
 		cnet * net1 = m_nlist->GetNetPtrByName( &dre->name1 );
 		if( net1 && dre->id1.i < net1->nconnects && dre->id1.ii < net1->connect[dre->id1.i].nsegs )
-			dl1 = net1->connect[dre->id1.i].seg[dre->id1.ii].dl_el; 
+			dl1 = net1->connect[dre->id1.i].seg[dre->id1.ii].dl_el;
 		cnet * net2 = m_nlist->GetNetPtrByName( &dre->name2 );
 		if( net2 && dre->id2.i < net2->nconnects && dre->id2.ii <= net2->connect[dre->id2.i].nsegs )
-			dl2 = net2->connect[dre->id2.i].vtx[dre->id2.ii].dl_el[0]; 
+			dl2 = net2->connect[dre->id2.i].vtx[dre->id2.ii].dl_el[0];
 	}
 	else if(    dre->m_id.sst == DRError::VIA_VIA
 			 || dre->m_id.sst == DRError::VIA_VIAHOLE
@@ -346,21 +347,21 @@ void DRErrorList::HighLight( DRError * dre )
 		// add highlights for vias
 		cnet * net1 = m_nlist->GetNetPtrByName( &dre->name1 );
 		if( net1 && dre->id1.i < net1->nconnects && dre->id1.ii <= net1->connect[dre->id1.i].nsegs )
-			dl1 = net1->connect[dre->id1.i].vtx[dre->id1.ii].dl_el[0]; 
+			dl1 = net1->connect[dre->id1.i].vtx[dre->id1.ii].dl_el[0];
 		cnet * net2 = m_nlist->GetNetPtrByName( &dre->name2 );
 		if( net2 && dre->id1.i < net2->nconnects && dre->id2.ii <= net2->connect[dre->id2.i].nsegs )
-			dl2 = net2->connect[dre->id2.i].vtx[dre->id2.ii].dl_el[0]; 
+			dl2 = net2->connect[dre->id2.i].vtx[dre->id2.ii].dl_el[0];
 	}
-	else if( dre->m_id.sst == DRError::TRACE_WIDTH 
+	else if( dre->m_id.sst == DRError::TRACE_WIDTH
 		|| dre->m_id.sst == DRError::BOARDEDGE_TRACE )
 	{
 		// add highlight for trace segment
 		cnet * net1 = m_nlist->GetNetPtrByName( &dre->name1 );
 		if( net1 && dre->id1.i < net1->nconnects && dre->id1.ii < net1->connect[dre->id1.i].nsegs )
-			dl1 = net1->connect[dre->id1.i].seg[dre->id1.ii].dl_el; 
+			dl1 = net1->connect[dre->id1.i].seg[dre->id1.ii].dl_el;
 	}
-	else if( dre->m_id.sst == DRError::RING_PAD 
-		|| dre->m_id.sst == DRError::BOARDEDGE_PAD 
+	else if( dre->m_id.sst == DRError::RING_PAD
+		|| dre->m_id.sst == DRError::BOARDEDGE_PAD
 		|| dre->m_id.sst == DRError::BOARDEDGE_PADHOLE )
 	{
 		// add highlight for pad
@@ -369,30 +370,30 @@ void DRErrorList::HighLight( DRError * dre )
 			dl1 = GetPadElement( &part->pin[dre->id1.i], dre->layer );
 	}
 	else if( dre->m_id.sst == DRError::RING_VIA
-		|| dre->m_id.sst == DRError::BOARDEDGE_VIA 
+		|| dre->m_id.sst == DRError::BOARDEDGE_VIA
 		|| dre->m_id.sst == DRError::BOARDEDGE_VIAHOLE )
 	{
 		// add highlight for via
 		cnet * net1 = m_nlist->GetNetPtrByName( &dre->name1 );
 		if( net1 && dre->id1.i < net1->nconnects && dre->id1.ii <= net1->connect[dre->id1.i].nsegs )
-			dl1 = net1->connect[dre->id1.i].vtx[dre->id1.ii].dl_el[0]; 
+			dl1 = net1->connect[dre->id1.i].vtx[dre->id1.ii].dl_el[0];
 	}
 	else if( dre->m_id.sst == DRError::BOARDEDGE_COPPERAREA )
 	{
 		// add highlight for copper area side
 		cnet * net1 = m_nlist->GetNetPtrByName( &dre->name1 );
 		if( net1 && dre->id1.i < net1->nareas )
-			net1->area[dre->id1.i].poly->HighlightSide(dre->id1.ii); 
+			net1->area[dre->id1.i].poly->HighlightSide(dre->id1.ii);
 	}
 	else if( dre->m_id.sst == DRError::COPPERAREA_COPPERAREA )
 	{
 		// add highlights for copper area sides
 		cnet * net1 = m_nlist->GetNetPtrByName( &dre->name1 );
 		if( net1 && dre->id1.i < net1->nareas )
-			net1->area[dre->id1.i].poly->HighlightSide(dre->id1.ii); 
+			net1->area[dre->id1.i].poly->HighlightSide(dre->id1.ii);
 		cnet * net2 = m_nlist->GetNetPtrByName( &dre->name2 );
 		if( net2 && dre->id2.i < net2->nareas )
-			net2->area[dre->id2.i].poly->HighlightSide(dre->id2.ii); 
+			net2->area[dre->id2.i].poly->HighlightSide(dre->id2.ii);
 	}
 	else if( dre->m_id.sst == DRError::COPPERAREA_INSIDE_COPPERAREA )
 	{
@@ -409,11 +410,13 @@ void DRErrorList::HighLight( DRError * dre )
 	}
 	else
 		ASSERT(0);
+
 	if( dl1 )
 	{
 		m_dlist->Add( dre->m_id, dre, LAY_HILITE, dl1->gtype, 1,
 			m_dlist->Get_w( dl1 ),
 			m_dlist->Get_holew( dl1 ),
+			0, // no clearance needed
 			m_dlist->Get_x( dl1 ),
 			m_dlist->Get_y( dl1 ),
 			m_dlist->Get_xf( dl1 ),
@@ -427,6 +430,7 @@ void DRErrorList::HighLight( DRError * dre )
 		m_dlist->Add( dre->m_id, dre, LAY_HILITE, dl2->gtype, 1,
 			m_dlist->Get_w( dl2 ),
 			m_dlist->Get_holew( dl2 ),
+			0, // no clearance needed
 			m_dlist->Get_x( dl2 ),
 			m_dlist->Get_y( dl2 ),
 			m_dlist->Get_xf( dl2 ),
@@ -454,16 +458,26 @@ void DRErrorList::MakeSolidCircles()
 			{
 				if( dre->dl_el->gtype == DL_HOLLOW_CIRC )
 				{
-					m_dlist->Set_gtype( dre->dl_el, DL_CIRC );
-					m_dlist->Set_holew( dre->dl_el, m_dlist->Get_w( dre->dl_el ) );
-					m_dlist->Set_w( dre->dl_el, 250*NM_PER_MIL );
+					dl_element *old_element = dre->dl_el;
+					dl_element *old_sel     = dre->dl_sel;
+
+					dre->dl_el = m_dlist->MorphDLE(old_element, DL_CIRC);
+					m_dlist->Set_holew( dre->dl_el, m_dlist->Get_w( old_element ) );
+					m_dlist->Set_w    ( dre->dl_el, 250*NM_PER_MIL );
+
+                    dre->dl_sel = m_dlist->MorphDLE(old_sel, DL_CIRC);
+					m_dlist->Set_holew( dre->dl_sel, m_dlist->Get_w( old_sel ) );
+					m_dlist->Set_w    ( dre->dl_sel, 250*NM_PER_MIL );
+
+					old_element->Remove();
+                    old_sel->Remove();
 				}
 			}
 		}
 	}
 }
 
-// Make symbol for error a ring 
+// Make symbol for error a ring
 //
 void DRErrorList::MakeHollowCircles()
 {
@@ -480,9 +494,19 @@ void DRErrorList::MakeHollowCircles()
 			{
 				if( dre->dl_el->gtype == DL_CIRC )
 				{
-					m_dlist->Set_gtype( dre->dl_el, DL_HOLLOW_CIRC );
-					m_dlist->Set_w( dre->dl_el, m_dlist->Get_holew( dre->dl_el ) );
+					dl_element *old_element = dre->dl_el;
+					dl_element *old_sel     = dre->dl_sel;
+
+					dre->dl_el = m_dlist->MorphDLE(old_element, DL_HOLLOW_CIRC);
+					m_dlist->Set_w    ( dre->dl_el, m_dlist->Get_holew( old_element ) );
 					m_dlist->Set_holew( dre->dl_el, 0 );
+
+                    dre->dl_sel = m_dlist->MorphDLE(old_sel, DL_HOLLOW_CIRC);
+					m_dlist->Set_w    ( dre->dl_sel, m_dlist->Get_holew( old_sel ) );
+					m_dlist->Set_holew( dre->dl_sel, 0 );
+
+					old_element->Remove();
+                    old_sel->Remove();
 				}
 			}
 		}

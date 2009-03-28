@@ -63,4 +63,6 @@ public:
 	afx_msg void OnBnClickedRadioRetainAll();
 	afx_msg void OnBnClickedRadioRetainTraces();
 	afx_msg void OnLvnColumnClickListSelectGroupNets(NMHDR *pNMHDR, LRESULT *pResult);
+public:
+	afx_msg void OnLvnItemchangedListSelectGroupNets(NMHDR *pNMHDR, LRESULT *pResult);
 };

@@ -5,13 +5,13 @@
 // There may be multiple contours in a polyline.
 // The last contour may be open or closed, any others must be closed.
 // All of the corners and side-styles are concatenated into 2 arrays,
-// separated by setting the end_contour flag of the last corner of 
+// separated by setting the end_contour flag of the last corner of
 // each contour.
 //
-// When used for copper areas, the first contour is the outer edge 
+// When used for copper areas, the first contour is the outer edge
 // of the area, subsequent ones are "holes" in the copper.
 //
-// If a CDisplayList pointer is provided, the polyline can draw itself 
+// If a CDisplayList pointer is provided, the polyline can draw itself
 
 #pragma once
 #include <afxcoll.h>
@@ -22,22 +22,21 @@
 class polygon;
 
 class CArc {
-public: 
+public:
 	enum{ MAX_STEP = 50*25400 };	// max step is 20 mils
 	enum{ MIN_STEPS = 18 };		// min step is 5 degrees
 	int style;
 	int xi, yi, xf, yf;
-	int n_steps;	// number of straight-line segments in gpc_poly 
+	int n_steps;	// number of straight-line segments in gpc_poly
 	BOOL bFound;
 };
 
-class CPolyPt
+class CPolyPt : public CPoint
 {
 public:
 	CPolyPt( int qx=0, int qy=0, BOOL qf=FALSE )
 	{ x=qx; y=qy; end_contour=qf; utility = 0; };
-	int x;
-	int y;
+
 	BOOL end_contour;
 	int utility;
 };
@@ -50,8 +49,7 @@ public:
 	enum { DEF_SIZE = 50, DEF_ADD = 50 };	// number of array elements to add at a time
 
 	// constructors/destructor
-	CPolyLine( CDisplayList * dl );
-	CPolyLine();
+	CPolyLine( CDisplayList * dl = NULL );
 	~CPolyLine();
 
 	// functions for modifying polyline
@@ -73,7 +71,7 @@ public:
 	void CancelDraggingToMoveCorner( int ic );
 	void Undraw();
 	void Draw( CDisplayList * dl = NULL );
-	void Hatch();
+	void Hatch( CDL_job *pDL_job );
 	void MakeVisible( BOOL visible = TRUE );
 	void MoveOrigin( int x_off, int y_off );
 	void SetSideVisible( int is, int visible );
@@ -132,7 +130,7 @@ public:
 	int NormalizeWithGpc( CArray<CPolyLine*> * pa=NULL, BOOL bRetainArcs=FALSE );
 	int RestoreArcs( CArray<CArc> * arc_array, CArray<CPolyLine*> * pa=NULL );
 	CPolyLine * MakePolylineForPad( int type, int x, int y, int w, int l, int r, int angle );
-	void AddContourForPadClearance( int type, int x, int y, int w, 
+	void AddContourForPadClearance( int type, int x, int y, int w,
 						int l, int r, int angle, int fill_clearance,
 						int hole_w, int hole_clearance, BOOL bThermal=FALSE, int spoke_w=0 );
 	void ClipGpcPolygon( gpc_op op, CPolyLine * poly );
@@ -143,7 +141,7 @@ public:
 	void ClipPhpPolygon( int php_op, CPolyLine * poly );
 
 private:
-	CDisplayList * m_dlist;		// display list 
+	CDisplayList * m_dlist;		// display list
 	id m_id;		// root id
 	void * m_ptr;	// pointer to parent object (or NULL)
 	int m_layer;	// layer to draw on
@@ -158,8 +156,9 @@ private:
 	CArray <dl_element*> dl_corner_sel;
 	int m_hatch;	// hatch style, see enum above
 	int m_nhatch;	// number of hatch lines
-	CArray <dl_element*>  dl_hatch;	// hatch lines	
+	CArray <dl_element*>  dl_hatch;	// hatch lines
 	gpc_polygon * m_gpc_poly;	// polygon in gpc format
 	polygon * m_php_poly;
+    CDL_job * m_dl_job;  // drawing job
 	BOOL bDrawn;
-};
+};
