@@ -100,7 +100,7 @@ struct undo_area {
 	int w;
 	int sel_box_w;
 	int ncorners;
-	// array of undo_corners starts here
+	// array of undo_corners starts here 
 };
 
 struct undo_seg {
@@ -109,7 +109,7 @@ struct undo_seg {
 	CNetWidthInfo width_attrib;
 
 	// Placement new
-	static void *operator new(size_t size, void *pMem) { return pMem; }
+	static void *operator new(size_t size, void *pMem) { return pMem; } 
 };
 
 struct undo_vtx {
