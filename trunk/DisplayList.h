@@ -1,22 +1,23 @@
 // DisplayList.h : header file for CDisplayList class
 //
-#pragma once 
+#pragma once
 #include <afxcoll.h>
 #include <afxtempl.h>
 #include "afxwin.h"
 #include "ids.h"
 #include "layers.h"
+#include "LinkList.h"
 
 //#define DL_MAX_LAYERS 32
 #define DL_MAGIC		2674
 
-#define PCBU_PER_WU		25400	// conversion from PCB units to world units 
+#define PCBU_PER_WU		25400	// conversion from PCB units to world units
 
 // graphics element types
-enum 
+enum
 {
 	DL_NONE = 0,
-	DL_LINE,			// line segment with round end-caps  
+	DL_LINE,			// line segment with round end-caps
 	DL_CIRC,			// filled circle
 	DL_DONUT,			// annulus
 	DL_SQUARE,			// filled square
@@ -31,7 +32,6 @@ enum
 	DL_HOLLOW_OVAL,		// oval outline
 	DL_HOLLOW_OCTAGON,	// octagon outline
 	DL_RECT_X,			// rectangle outline with X
-	DL_POINT,			// shape to highlight a point
 	DL_ARC_CW,			// arc with clockwise curve
 	DL_ARC_CCW,			// arc with counter-clockwise curve
 	DL_CENTROID,		// circle and X
@@ -63,50 +63,47 @@ enum
 enum
 {
 	IM_NONE = 0,
-	IM_90_45,		 
+	IM_90_45,
 	IM_45_90,
 	IM_90
 };
 
 
-class CDisplayList;
-
-// this structure contains an element of the display list
-class dl_element
+struct CDrawInfo
 {
-	friend class CDisplayList;
-public:
-	CDisplayList * dlist;
-	int magic;
-	dl_element * prev;
-	dl_element * next;
-	id id;			// identifier (see ids.h)
-	void * ptr;		// pointer to object drawing this element
-	int gtype;		// type of primitive
-	int visible;	// 0 to hide
-private:
-	int sel_vert;	// for selection rectangles, 1 if part is vertical
-	int w;			// width (for round or square shapes)
-	int holew;			// hole width (for round holes) 
-	int x_org, y_org;	// x origin (for rotation, reflection, etc.)
-	int x, y;			// starting or center position of element
-	int xf, yf;			// opposite corner (for rectangle or line)
-	int radius;			// radius of corners for DL_RRECT
-	int layer;			// layer to draw on
-	int orig_layer;		// for elements on highlight layer, 
-						// the original layer, the highlight will
-						// only be drawn if this layer is visible
+	CDC      *DC;
+	CDC      *DC_Master;
+
+	CPen      erase_pen;
+	CBrush    erase_brush;
+
+	CPen      line_pen;
+	CBrush    fill_brush;
+
+    COLORREF  layer_color[2];
+    int       size_of_2_pixels;
+
+    mutable int nlines;
+
+    CDrawInfo() : nlines(0) {}
 };
+
+
+#include "DrawingElement.h"
+#include "DrawingJob.h"
+
 
 class CDisplayList
 {
 private:
+    friend dl_element;
+
 	// display-list parameters for each layer
-	dl_element m_start[MAX_LAYERS], m_end[MAX_LAYERS];
+	CDLinkList m_LIST_job[MAX_LAYERS];
+
 	int m_rgb[MAX_LAYERS][3];	// layer colors
-	BOOL m_vis[MAX_LAYERS];		// layer visibility flags
 	int m_layer_in_order[MAX_LAYERS];	// array of layers in draw order
-	int m_order_for_layer[MAX_LAYERS];	// draw order for each layer 
+	int m_order_for_layer[MAX_LAYERS];	// draw order for each layer
 
 	// window parameters
 	int m_pcbu_per_wu;	// i.e. nm per world unit
@@ -117,18 +114,24 @@ private:
 	int m_bottom_pane_h;	// height of bottom pane
 	CDC * memDC;		// pointer to memory DC
 
+public:
+	BOOL m_vis[MAX_LAYERS];		// layer visibility flags
+
 	double m_scale;		// world units per pixel
 	int m_org_x;		// world x-coord of left side of screen (world units)
 	int m_org_y;		// world y-coord of bottom of screen (world units)
 	int m_max_x;		// world x_coord of right side of screen (world units)
 	int m_max_y;		// world y_coord of top of screen (world units)
 
+private:
 	int w_ext_x, w_ext_y;	// window extents (world units)
 	int v_ext_x, v_ext_y;	// viewport extents (pixels)
 	double m_wu_per_pixel_x;	// ratio w_ext_x/v_ext_x (world units per pixel)
 	double m_wu_per_pixel_y;	// ratio w_ext_y/v_ext_y (world units per pixel)
 	double m_pcbu_per_pixel_x;
 	double m_pcbu_per_pixel_y;
+
+	int m_ratline_w;
 
 	// general dragging parameters
 	int m_drag_angle;	// angle of rotation of selection rectangle (starts at 0)
@@ -138,18 +141,18 @@ private:
 	// parameters for dragging polyline sides and trace segments
 	// that can be modified while dragging
 	int m_drag_flag;		// 1 if dragging something
-	int m_drag_shape;		// shape 
+	int m_drag_shape;		// shape
 	int m_last_drag_shape;	// last shape drawn
 	int m_drag_x;			// last cursor position for dragged shape
-	int m_drag_y;		  
+	int m_drag_y;
 	int m_drag_xb;			// start of rubberband drag line "before" selected line
-	int m_drag_yb;		
+	int m_drag_yb;
 	int m_drag_xi;			// start of rubberband drag line
-	int m_drag_yi;		
+	int m_drag_yi;
 	int m_drag_xf;			// end of rubberband drag line
-	int m_drag_yf;		 
+	int m_drag_yf;
 	int m_drag_xe;			// start of rubberband drag line at end of trio
-	int m_drag_ye;		
+	int m_drag_ye;
 	int m_drag_layer_0;		// line layer
 	int m_drag_w0;			// line width
 	int m_drag_style0;		// line style
@@ -159,14 +162,14 @@ private:
 	int m_inflection_mode;	// inflection mode
 	int m_last_inflection_mode;	// last mode drawn
 	// extra parameters when dragging vertex between 2 line segments
-	int m_drag_style2;	
-	int m_drag_layer_2;	
+	int m_drag_style2;
+	int m_drag_layer_2;
 	int m_drag_w2;
 	// parameters used to draw leading via if necessary
-	int m_drag_layer_no_via;	
-	int m_drag_via_w;		
-	int m_drag_via_holew;	
-	int m_drag_via_drawn;	
+	int m_drag_layer_no_via;
+	int m_drag_via_w;
+	int m_drag_via_holew;
+	int m_drag_via_drawn;
 
 	// arrays of lines and ratlines being dragged
 	// these can be rotated and flipped while being dragged
@@ -176,7 +179,7 @@ private:
 	CPoint * m_drag_line_pt;		// array of relative coords for line endpoints
 	int m_drag_max_ratlines;		// max size of ratline array
 	int m_drag_num_ratlines;		// number of ratlines to drag
-	CPoint * m_drag_ratline_start_pt;	// absolute coords for ratline start points 
+	CPoint * m_drag_ratline_start_pt;	// absolute coords for ratline start points
 	CPoint * m_drag_ratline_end_pt;		// relative coords for ratline endpoints
 	int m_drag_ratline_width;
 
@@ -189,9 +192,12 @@ private:
 	int m_visual_grid_on;
 	double m_visual_grid_spacing;	// in world units
 
+    dl_element * CreateDLE( int gtype );
+
 public:
 	CDisplayList( int pcbu_per_wu );
 	~CDisplayList();
+
 	void SetVisibleGrid( BOOL on, double grid );
 	void SetMapping( CRect *client_r, CRect *screen_r, int pane_org_x, int pane_bottom_h, double scale, int org_x, int org_y );
 	void SetDCToWorldCoords( CDC * pDC, CDC * mDC, int pcbu_org_x, int pcbu_org_y );
@@ -199,22 +205,56 @@ public:
 	void SetLayerVisible( int layer, BOOL vis );
 	void SetLayerDrawOrder( int layer, int order )
 			{ m_layer_in_order[order] = layer; m_order_for_layer[layer] = order; };
+
+	void Scale_pcbu_to_wu(CRect &rect);
+	void Scale_wu_to_pixels(CRect &rect);
+
+	dl_element * CreateDLE( id id, void * ptr, int layer, int gtype, int visible,
+	                        int w, int holew, int clearancew,
+	                        int x, int y, int xf, int yf, int xo, int yo, int radius,
+	                        int orig_layer );
+
+    dl_element * MorphDLE( dl_element *pFrom, int to_gtype );
+
+	// Get traces job
+	CDL_job_traces * GetJob_traces( int layer );
+
+	// Add a job
+	void Add( CDL_job *pDL_job, int layer );
+
+    // Create and add elements
 	dl_element * Add( id id, void * ptr, int glayer, int gtype, int visible,
-						int w, int holew, int x, int y, int xf, int yf, int xo, int yo, 
-						int radius=0, int orig_layer=LAY_SELECTION );
+						int w, int holew, int clearancew,
+						int x, int y, int xf, int yf, int xo, int yo,
+						int radius=0,
+						int orig_layer=LAY_SELECTION );
+
+	dl_element * Add( CDL_job *pDL_job, id id, void * ptr, int glayer, int gtype, int visible,
+						int w, int holew, int clearancew,
+						int x, int y, int xf, int yf, int xo, int yo,
+						int radius=0 );
+
 	dl_element * AddSelector( id id, void * ptr, int glayer, int gtype, int visible,
-						int w, int holew, int x, int y, int xf, int yf, int xo, int yo, int radius=0 );
+								int w, int holew,
+								int x, int y, int xf, int yf, int xo, int yo,
+								int radius=0 );
+
+    // Add elements
+	void Add( dl_element * element );
+
+    // Remove elements
 	void RemoveAll();
 	void RemoveAllFromLayer( int layer );
 	id Remove( dl_element * element );
+
 	void Draw( CDC * pDC );
 	int HighLight( int gtype, int x, int y, int xf, int yf, int w, int orig_layer=LAY_SELECTION );
 	int CancelHighLight();
-	void * TestSelect( int x, int y, id * sel_id, int * layer, 
+	void * TestSelect( int x, int y, id * sel_id, int * layer,
 		id * exclude_id = NULL, void * exclude_ptr = NULL, id * include_id = NULL,
 		int n_include_ids=1 );
 	int StartDraggingArray( CDC * pDC, int x, int y, int vert, int layer, int crosshair = 1 );
-	int StartDraggingRatLine( CDC * pDC, int x, int y, int xf, int yf, int layer, 
+	int StartDraggingRatLine( CDC * pDC, int x, int y, int xf, int yf, int layer,
 		int w, int crosshair = 1 );
 	int StartDraggingRectangle( CDC * pDC, int x, int y, int xi, int yi,
 										int xf, int yf, int vert, int layer );
@@ -226,18 +266,18 @@ public:
 									int crosshair );
 	int StartDraggingLineSegment( CDC * pDC, int x, int y,
 									int xb, int yb,
-									int xi, int yi, 
+									int xi, int yi,
 									int xf, int yf,
 									int xe, int ye,
 									int layer0, int layer1, int layer2,
 									int w0,		int w1,		int w2,
 									int style0, int style1, int style2,
-									int layer_no_via, int via_w, int via_holew, 
+									int layer_no_via, int via_w, int via_holew,
 									int crosshair );
 	int StartDraggingLine( CDC * pDC, int x, int y, int xi, int yi, int layer1, int w,
 									int layer_no_via, int via_w, int via_holew,
 									int crosshair, int style, int inflection_mode );
-	int StartDraggingArc( CDC * pDC, int style, int x, int y, int xi, int yi, 
+	int StartDraggingArc( CDC * pDC, int style, int x, int y, int xi, int yi,
 									int layer, int w, int crosshair );
 	void SetDragArcStyle( int style );
 	void Drag( CDC * pDC, int x, int y );
@@ -258,21 +298,25 @@ public:
 	CPoint PCBToScreen( CPoint point );
 	CPoint WindowToPCB( CPoint point );
 
+	void UpdateRatlineWidth( int width );
+
 	// set element parameters
-	void Set_gtype( dl_element * el, int gtype );
 	void Set_visible( dl_element * el, int visible );
 	void Set_sel_vert( dl_element * el, int sel_vert );
 	void Set_w( dl_element * el, int w );
+	void Set_clearance( dl_element * el, int clearance );
 	void Set_holew( dl_element * el, int holew );
-	void Set_x_org( dl_element * el, int x_org ); 
+	void Set_x_org( dl_element * el, int x_org );
 	void Set_y_org( dl_element * el, int y_org );
 	void Set_x( dl_element * el, int x );
-	void Set_y( dl_element * el, int y );	
+	void Set_y( dl_element * el, int y );
 	void Set_xf( dl_element * el, int xf );
 	void Set_yf( dl_element * el, int yf );
 	void Set_id( dl_element * el, id * id );
 	void Set_layer( dl_element * el, int layer );
 	void Set_radius( dl_element * el, int radius );
+	void Set_mode( dl_element * el, int mode );
+	void Set_pass( dl_element * el, int pass );
 	void Move( dl_element * el, int dx, int dy );
 
 	// get element parameters
@@ -282,15 +326,16 @@ public:
 	int Get_sel_vert( dl_element * el );
 	int Get_w( dl_element * el );
 	int Get_holew( dl_element * el );
-	int Get_x_org( dl_element * el ); 
+	int Get_x_org( dl_element * el );
 	int Get_y_org( dl_element * el );
 	int Get_x( dl_element * el );
-	int Get_y( dl_element * el );	
+	int Get_y( dl_element * el );
 	int Get_xf( dl_element * el );
 	int Get_yf( dl_element * el );
 	int Get_radius( dl_element * el );
 	int Get_layer( dl_element * el );
+	int Get_mode( dl_element * el );
+	int Get_pass( dl_element * el );
 	void Get_Endpoints(CPoint *cpi, CPoint *cpf);
 	id Get_id( dl_element * el );
 };
-

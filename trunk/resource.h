@@ -103,7 +103,6 @@
 #define IDD_ADD_AREA                    224
 #define ID_ENDVERTEX_ADDVIA             225
 #define ID_ENDVERTEX_REMOVEVIA          226
-#define IDD_PROJECT_OPTIONS             227
 #define IDD_ADD_WIDTH_MENU_ITEM         228
 #define IDR_MYTOOLBAR                   229
 #define ID_FILE_CLOSE231                231
@@ -195,7 +194,7 @@
 #define IDD_SHORTCUTS                   327
 #define IDD_DIALOG4                     328
 #define IDD_MY_MESSAGE                  328
-#define IDD_VIA                         329
+#define IDD_VIA_PIN_SIZE                329
 #define IDD_AREA_LAYER                  331
 #define IDD_MY_MESSAGE2                 332
 #define IDD_GROUP_PASTE                 333
@@ -215,6 +214,11 @@
 #define IDD_DIALOG5                     349
 #define IDD_CHOOSE_NET                  349
 #define IDD_SAVE_LIB                    350
+#define IDD_PROJECT_OPTIONS_TABBED      352
+#define IDD_TAB_PROJ_OPT_MAIN           353
+#define IDD_TAB_PROJ_OPT_SPACING        354
+#define IDD_TAB_PROJ_OPT_THERMAL        355
+#define IDD_RAT_W                       356
 #define IDC_EDIT1                       1002
 #define IDC_PART_REF                    1002
 #define IDC_EDIT_VIA_PAD                1002
@@ -324,10 +328,18 @@
 #define IDC_RADIO_DEF_WIDTH             1042
 #define IDC_BUTTON_DELETE_NOPINS        1042
 #define IDC_BUTTON_VAL_VIS              1042
+#define IDC_RADIO2_PROJ_DEF             1042
 #define IDC_BUTTON_NL_WIDTH             1043
 #define IDC_BUTTON_VAL_INVIS            1043
+#define IDC_RADIO1_PROJ_DEF             1043
 #define IDC_RADIO_SET_WIDTH             1044
+#define IDC_RADIO2_SET_TO               1044
 #define IDC_BUTTON_DELETE2              1045
+#define IDC_RADIO_DEF_CLEARANCE         1045
+#define IDC_RADIO_SET_CLEARANCE         1046
+#define IDC_RADIO1_SET_TO               1047
+#define IDC_RADIO_DEF_WIDTH4            1048
+#define IDC_RADIO2_DEF_FOR_TRACE        1048
 #define IDC_RADIO_DEF                   1049
 #define IDC_RADIO_SET                   1050
 #define IDC_BUTTON_VISIBLE              1051
@@ -337,9 +349,11 @@
 #define IDC_BUTTON_SELECT_ALL           1055
 #define IDC_EDIT_NUM_LAYERS             1061
 #define IDC_EDIT_DEF_TRACE_W            1062
+#define IDC_EDIT_RATLINE_WIDTH          1062
 #define IDC_EDIT_DEF_VIA_W              1063
 #define IDC_EDIT_DEF_VIA_HOLE           1064
 #define IDC_LIST_WIDTH_MENU             1065
+#define IDC_EDIT_DEF_CA_CLEARANCE       1066
 #define IDC_CHECK_OVERIDE               1069
 #define IDC_EDIT_OVERIDE                1070
 #define IDC_EDIT_MASK                   1071
@@ -365,19 +379,19 @@
 #define IDC_BUTTON_SAVE_FP_BROWSE       1142
 #define IDC_BUTTON2                     1143
 #define IDC_BUTTON3                     1144
-#define IDC_RADIO_PART                  1145
 #define IDC_BUTTON4                     1145
+#define IDC_RADIO_PART                  1145
 #define IDC_RADIO_FOOTPRINT             1146
 #define IDC_BUTTON5                     1146
 #define IDC_BUTTON6                     1147
 #define IDC_BUTTON7                     1148
-#define IDC_RADIO_PARTS                 1149
 #define IDC_BUTTON8                     1149
+#define IDC_RADIO_PARTS                 1149
 #define IDC_RADIO_PARTSANDNETS          1150
-#define IDC_RADIO_FREEPCB               1151
 #define IDC_BUTTON9                     1151
-#define IDC_RADIO_PADSPCB               1152
+#define IDC_RADIO_FREEPCB               1151
 #define IDC_BUTTON10                    1152
+#define IDC_RADIO_PADSPCB               1152
 #define IDC_RADIO_NETS                  1153
 #define IDD_MYFILEDLG                   1154
 #define ID_VIEW_FOOTPRINT               1155
@@ -523,6 +537,7 @@
 #define IDC_EDIT_CAD_THERMALWID         1289
 #define IDC_RADIO_OFFBOARD              1290
 #define IDC_EDIT_CAD_HOLE_CLEARANCE     1290
+#define IDC_EDIT_CAD_THERMAL_CLEARANCE  1290
 #define IDC_EDIT_CAD_THERMALWID2        1291
 #define IDC_EDIT_CAD_OUTLINE_WID        1291
 #define IDC_EDIT3                       1291
@@ -571,6 +586,7 @@
 #define IDC_COMBO15                     1308
 #define IDC_LIST_PINS                   1309
 #define IDC_COMBO16                     1309
+#define IDC_MOD_CLEARANCE               1309
 #define IDC_STATIC_MYMESSAGE            1310
 #define IDC_VIA_WIDTH                   1311
 #define IDC_VIA_HOLE_WIDTH              1312
@@ -580,6 +596,7 @@
 #define IDC_RADIO_REVERT_VIAS           1316
 #define IDC_RADIO_REVERT_TRACES         1317
 #define IDC_RADIO_SET_TRACE_WIDTH       1318
+#define IDC_RADIO_SET_TRACE_CLEARANCE   1320
 #define IDC_STATIC_MYMESSAGE_2          1321
 #define IDC_RADIO_USE_SELECTED_NETS     1324
 #define IDC_RADIO_USE_GROUP_REF         1325
@@ -707,15 +724,23 @@
 #define IDC_BUTTON_LAYER_1              1431
 #define IDC_BUTTON_LAYER_2              1432
 #define IDC_BUTTON_LAYER_3              1433
+#define IDC_PROJECT_OPTIONS_TAB         1433
 #define IDC_LIST_FP2                    1433
 #define IDC_BUTTON_LAYER_4              1434
 #define IDC_BUTTON_LAYER_5              1435
+#define IDC_THERMAL_VIAS                1435
 #define IDC_BUTTON_LAYER_6              1436
+#define IDC_THERMAL_PINS                1436
 #define IDC_BUTTON_LAYER_7              1437
+#define IDC_RAT_W                       1437
 #define IDC_BUTTON_LAYER_8              1438
 #define IDC_BUTTON_LAYER_9              1439
+#define IDC_CHECK_CLEARANCE             1439
 #define IDC_BUTTON_LAYER_10             1440
+#define IDC_RADIO_USE_NET_CLEARANCE     1440
 #define IDC_BUTTON_LAYER_11             1441
+#define IDC_RADIO_USE_NET_CLEARANCE2    1441
+#define IDC_RADIO_PIN_AUTO_CLEARANCE    1441
 #define IDC_BUTTON_LAYER_12             1442
 #define IDC_BUTTON_LAYER_13             1443
 #define IDC_BUTTON_LAYER_14             1444
@@ -733,6 +758,7 @@
 #define IDC_BUTTON_LAYER_26             1456
 #define IDC_BUTTON_LAYER_27             1457
 #define IDC_BUTTON_LAYER_28             1458
+#define IDC_BUTTON_LAYER_7W             1459
 #define IDC_STATIC_LAYER_1              1471
 #define IDC_STATIC_LAYER_2              1472
 #define IDC_STATIC_LAYER_3              1473
@@ -762,6 +788,18 @@
 #define IDC_STATIC_LAYER_27             1497
 #define IDC_STATIC_LAYER_28             1498
 #define ID_HELP_FPCROUTE                1499
+#define IDC_RADIO_SET_PIN_CLEARANCE     1500
+#define IDC_APPLY_PIN                   1502
+#define IDC_RADIO3_PROJ_DEF             1503
+#define IDC_RADIO3_SET_TO               1504
+#define IDC_CHECK_VIA                   1505
+#define IDC_CHECK_TRACE                 1506
+#define IDC_TEXT_PAD                    1507
+#define IDC_CHECK_TRACE_MOD             1508
+#define IDC_TEXT_HOLE                   1509
+#define IDC_CHECK_VIA_MOD               1510
+#define IDC_CHECK_CLEARANCE_MOD         1511
+#define IDC_STATIC_GROUP_WIDTH          1513
 #define ID_BUTTON32771                  32771
 #define ID_FP_MOVE                      32772
 #define ID_FP_EDITPROPERTIES            32773
@@ -845,7 +883,6 @@
 #define ID_AREAEDGE_CHANGELAYER         32863
 #define ID_AREACORNER_CHANGELAYER       32864
 #define ID_TOOLS_CHECKTRACES            32865
-#define ID_AREAEDGE_APPLYCLEARANCES     32866
 #define ID_GROUP_SAVETOFILE             32867
 #define ID_GROUP_PASTEFROMFILE          32868
 #define ID_GROUP_PASTEFROMFILE32870     32870
@@ -908,18 +945,28 @@
 #define ID_VALUE_ROTATECCW              32938
 #define ID_PROJECT_COMBINENETS          32939
 #define ID_SEGMENT_MOVE                 32940
+#define ID_SEGMENT_SETCLEARANCE         32941
 #define ID_FILE_LOADLIBRARYASPROJECT    32941
+#define ID_NET_SETCLEARANCE             32942
 #define ID_FILE_SAVEPROJECTASLIBRARY    32942
 #define ID_HELP_USERGUIDESUPPLEMENT_PDF 32943
+#define ID_RATLINE_SETCLEARANCE         32943
+#define ID_CONNECT_SETCLEARANCE         32944
+#define ID_RATLINE_SETRATLINEWIDTH      32945
+#define ID_PAD_SETCLEARANCE             32946
+#define ID_VERTEX_SETVIACLEARANCE       32947
+#define ID_VERTEX_CLEARANCE             32948
+#define ID_VERTEX_SETCLEARANCE          32949
+#define ID_ENDVERTEX_SETVIACLEARANCE    32950
 
 // Next default values for new objects
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_3D_CONTROLS                     1
-#define _APS_NEXT_RESOURCE_VALUE        351
-#define _APS_NEXT_COMMAND_VALUE         32944
-#define _APS_NEXT_CONTROL_VALUE         1434
+#define _APS_NEXT_RESOURCE_VALUE        358
+#define _APS_NEXT_COMMAND_VALUE         32951
+#define _APS_NEXT_CONTROL_VALUE         1514
 #define _APS_NEXT_SYMED_VALUE           106
 #endif
 #endif

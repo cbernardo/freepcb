@@ -14,15 +14,14 @@ public:
 	virtual ~CDlgCAD();
 	void Initialize( double version, CString * folder, CString * project_folder,
 		CString * app_folder,
-		int num_copper_layers, int units, BOOL bSMTconnect,
-		int fill_clearance, int mask_clearance, int thermal_width,
+		int num_copper_layers, int units,
+		int mask_clearance,
 		int pilot_diameter, int min_silkscreen_wid,
-		int outline_width, int hole_clearance,
+		int outline_width, 
 		int annular_ring_pins, int annular_ring_vias, int shrink_paste,
 		int n_x, int n_y, int space_x, int space_y,
 		int flags, int layers, int drill_file,
-		CArray<CPolyLine> * bd, CArray<CPolyLine> * sm, 
-		BOOL * bShowMessageForClearance,
+		CArray<CPolyLine> * bd, CArray<CPolyLine> * sm,
 		CPartList * pl, CNetList * nl, CTextList * tl, CDisplayList * dl,
 		CDlgLog * log );
 	void SetFields();
@@ -35,12 +34,9 @@ protected:
 
 	DECLARE_MESSAGE_MAP()
 public:
-	BOOL m_bShowMessageForClearance;
-	BOOL m_bSMT_connect;
 	double m_version;
 	double m_file_version;
 	CEdit m_edit_folder;
-	CEdit m_edit_fill;
 	CEdit m_edit_mask;
 	CButton m_check_drill;
 	CButton m_check_top_silk;
@@ -67,10 +63,7 @@ public:
 	CButton m_check_moires;
 	CButton m_check_layer_text;
 	int m_num_copper_layers;
-	int m_fill_clearance;
-	int m_hole_clearance;
 	int m_mask_clearance;
-	int m_thermal_width;
 	int m_pilot_diameter;
 	int m_min_silkscreen_width;
 	int m_outline_width;
@@ -82,9 +75,9 @@ public:
 	int m_drill_file;
 	CArray<CPolyLine> * m_bd;
 	CArray<CPolyLine> * m_sm;
-	CPartList * m_pl; 
-	CNetList * m_nl; 
-	CTextList * m_tl; 
+	CPartList * m_pl;
+	CNetList * m_nl;
+	CTextList * m_tl;
 	CDisplayList * m_dl;
 	CDlgLog * m_dlg_log;
 	CString m_folder;
@@ -98,13 +91,9 @@ public:
 	afx_msg void OnBnClickedCheckCadPilot();
 	afx_msg void OnBnClickedCancel();
 	CEdit m_edit_min_ss_w;
-	CEdit m_edit_thermal_width;
 	CEdit m_edit_outline_width;
-	CEdit m_edit_hole_clearance;
 	CEdit m_edit_ann_pins;
 	CEdit m_edit_ann_vias;
-	CButton m_check_thermal_pins;
-	CButton m_check_thermal_vias;
 	CButton m_check_mask_vias;
 	afx_msg void OnBnClickedButtonDef();
 	afx_msg void OnBnClickedButtonFolder();
@@ -120,13 +109,9 @@ public:
 	int m_space_x, m_space_y;
 	CEdit m_edit_shrink_paste;
 	int m_paste_shrink;
-	CButton m_check_90;
-	afx_msg void OnBnClickedThermalPins();
-	afx_msg void OnBnClickedThermalVias();
 	CButton m_check_render_all;
 	CButton m_check_mirror_bottom;
 	afx_msg void OnBnClickedRenderAllGerbers();
-	CButton m_check_smt_thermals;
 	CButton m_check_sm_clearance_for_cutouts;
 	afx_msg void OnBnClickedButtonDone();
 };

@@ -17,7 +17,8 @@ enum {
 	COL_PINS,
 	COL_WIDTH,
 	COL_VIA_W,
-	COL_HOLE_W
+	COL_HOLE_W,
+	COL_CLEARANCE
 };
 
 // sort types
@@ -31,16 +32,18 @@ enum {
 	SORT_UP_VIA_W,
 	SORT_DOWN_VIA_W,
 	SORT_UP_HOLE_W,
-	SORT_DOWN_HOLE_W
+	SORT_DOWN_HOLE_W,
+	SORT_UP_CLEARANCE,
+	SORT_DOWN_CLEARANCE
 };
 
 // global so that it is available to Compare() for sorting list control items
-netlist_info nl_combine;
+static netlist_info nl_combine;
 
 // global callback function for sorting
 // lp1, lp2 are indexes to global arrays above
-//		
-int CALLBACK CompareNetlistCombine( LPARAM lp1, LPARAM lp2, LPARAM type )
+//
+static int CALLBACK CompareNetlistCombine( LPARAM lp1, LPARAM lp2, LPARAM type )
 {
 	int ret = 0;
 	switch( type )
@@ -52,25 +55,25 @@ int CALLBACK CompareNetlistCombine( LPARAM lp1, LPARAM lp2, LPARAM type )
 
 		case SORT_UP_WIDTH:
 		case SORT_DOWN_WIDTH:
-			if( ::nl_combine[lp1].w > ::nl_combine[lp2].w )
+			if( ::nl_combine[lp1].width_attrib.m_seg_width > ::nl_combine[lp2].width_attrib.m_seg_width )
 				ret = 1;
-			else if( ::nl_combine[lp1].w < ::nl_combine[lp2].w )
+			else if( ::nl_combine[lp1].width_attrib.m_seg_width < ::nl_combine[lp2].width_attrib.m_seg_width )
 				ret = -1;
 			break;
 
 		case SORT_UP_VIA_W:
 		case SORT_DOWN_VIA_W:
-			if( ::nl_combine[lp1].v_w > ::nl_combine[lp2].v_w )
+			if( ::nl_combine[lp1].width_attrib.m_via_width > ::nl_combine[lp2].width_attrib.m_via_width )
 				ret = 1;
-			else if( ::nl_combine[lp1].v_w < ::nl_combine[lp2].v_w )
+			else if( ::nl_combine[lp1].width_attrib.m_via_width < ::nl_combine[lp2].width_attrib.m_via_width )
 				ret = -1;
 			break;
 
 		case SORT_UP_HOLE_W:
 		case SORT_DOWN_HOLE_W:
-			if( ::nl_combine[lp1].v_h_w > ::nl_combine[lp2].v_h_w )
+			if( ::nl_combine[lp1].width_attrib.m_via_hole > ::nl_combine[lp2].width_attrib.m_via_hole )
 				ret = 1;
-			else if( ::nl_combine[lp1].v_h_w < ::nl_combine[lp2].v_h_w )
+			else if( ::nl_combine[lp1].width_attrib.m_via_hole < ::nl_combine[lp2].width_attrib.m_via_hole )
 				ret = -1;
 			break;
 
@@ -81,6 +84,14 @@ int CALLBACK CompareNetlistCombine( LPARAM lp1, LPARAM lp2, LPARAM type )
 			else if( ::nl_combine[lp1].ref_des.GetSize() < ::nl_combine[lp2].ref_des.GetSize() )
 				ret = -1;
 			break;
+
+		case SORT_UP_CLEARANCE:
+		case SORT_DOWN_CLEARANCE:
+			if( ::nl_combine[lp1].width_attrib.m_ca_clearance > ::nl_combine[lp2].width_attrib.m_ca_clearance )
+				ret = 1;
+			else if( ::nl_combine[lp1].width_attrib.m_ca_clearance < ::nl_combine[lp2].width_attrib.m_ca_clearance )
+				ret = -1;
+			break;
 	}
 	switch( type )
 	{
@@ -89,6 +100,7 @@ int CALLBACK CompareNetlistCombine( LPARAM lp1, LPARAM lp2, LPARAM type )
 		case SORT_DOWN_VIA_W:
 		case SORT_DOWN_HOLE_W:
 		case SORT_DOWN_PINS:
+		case SORT_DOWN_CLEARANCE:
 			ret = -ret;
 			break;
 	}
@@ -146,12 +158,19 @@ BOOL CDlgNetCombine::OnInitDialog()
 	m_nl = &::nl_combine;
 	m_nlist->ExportNetListInfo( m_nl );
 
+	m_list_ctrl.InsertColumn( COL_NAME,      "Name",      LVCFMT_LEFT, 140 );
+	m_list_ctrl.InsertColumn( COL_PINS,      "Pins",      LVCFMT_LEFT, 40 );
+	m_list_ctrl.InsertColumn( COL_WIDTH,     "Width",     LVCFMT_LEFT, 50 );
+	m_list_ctrl.InsertColumn( COL_VIA_W,     "Via W",     LVCFMT_LEFT, 53 );
+	m_list_ctrl.InsertColumn( COL_HOLE_W,    "Hole",      LVCFMT_LEFT, 53 );
+	m_list_ctrl.InsertColumn( COL_CLEARANCE, "Clearance", LVCFMT_LEFT, 60 );
+
 	// initialize netlist control
 	m_item_selected = -1;
 	m_sort_type = 0;
 	m_visible_state = 1;
 	DrawListCtrl();
-	return TRUE;  
+	return TRUE;
 }
 
 // draw listview control and sort according to m_sort_type
@@ -160,29 +179,32 @@ void CDlgNetCombine::DrawListCtrl()
 {
 	int nItem;
 	CString str;
-	DWORD old_style = m_list_ctrl.GetExtendedStyle(); 
+	DWORD old_style = m_list_ctrl.GetExtendedStyle();
 	m_list_ctrl.SetExtendedStyle( LVS_EX_FULLROWSELECT | LVS_EX_FLATSB | old_style );
 	m_list_ctrl.DeleteAllItems();
-	m_list_ctrl.InsertColumn( COL_NAME, "Name", LVCFMT_LEFT, 140 );
-	m_list_ctrl.InsertColumn( COL_PINS, "Pins", LVCFMT_LEFT, 40 );
-	m_list_ctrl.InsertColumn( COL_WIDTH, "Width", LVCFMT_LEFT, 40 );
-	m_list_ctrl.InsertColumn( COL_VIA_W, "Via W", LVCFMT_LEFT, 40 );   
-	m_list_ctrl.InsertColumn( COL_HOLE_W, "Hole", LVCFMT_LEFT, 40 );
+
 	int iItem = 0;
 	for( int i=0; i<::nl_combine.GetSize(); i++ )
 	{
-			nItem = m_list_ctrl.InsertItem( iItem, "" );
-			m_list_ctrl.SetItemData( iItem, (LPARAM)i );
-			m_list_ctrl.SetItem( iItem, COL_NAME, LVIF_TEXT, ::nl_combine[i].name, 0, 0, 0, 0 );
-			str.Format( "%d", ::nl_combine[i].ref_des.GetSize() );
-			m_list_ctrl.SetItem( iItem, COL_PINS, LVIF_TEXT, str, 0, 0, 0, 0 );
-			str.Format( "%d", ::nl_combine[i].w/NM_PER_MIL );
-			m_list_ctrl.SetItem( iItem, COL_WIDTH, LVIF_TEXT, str, 0, 0, 0, 0 );
-			str.Format( "%d", ::nl_combine[i].v_w/NM_PER_MIL );
-			m_list_ctrl.SetItem( iItem, COL_VIA_W, LVIF_TEXT, str, 0, 0, 0, 0 );
-			str.Format( "%d", ::nl_combine[i].v_h_w/NM_PER_MIL );
-			m_list_ctrl.SetItem( iItem, COL_HOLE_W, LVIF_TEXT, str, 0, 0, 0, 0 );
-			ListView_SetCheckState( m_list_ctrl, nItem, ::nl_combine[i].visible );
+		nItem = m_list_ctrl.InsertItem( iItem, "" );
+		m_list_ctrl.SetItemData( iItem, (LPARAM)i );
+		m_list_ctrl.SetItem( iItem, COL_NAME, LVIF_TEXT, ::nl_combine[i].name, 0, 0, 0, 0 );
+		str.Format( "%d", ::nl_combine[i].ref_des.GetSize() );
+		m_list_ctrl.SetItem( iItem, COL_PINS, LVIF_TEXT, str, 0, 0, 0, 0 );
+
+		str = CII_FreePcb::GetItemText( ::nl_combine[i].width_attrib.m_seg_width );
+		m_list_ctrl.SetItem( iItem, COL_WIDTH, LVIF_TEXT, str, 0, 0, 0, 0 );
+
+		str = CII_FreePcb::GetItemText( ::nl_combine[i].width_attrib.m_via_width );
+		m_list_ctrl.SetItem( iItem, COL_VIA_W, LVIF_TEXT, str, 0, 0, 0, 0 );
+
+		str = CII_FreePcb::GetItemText( ::nl_combine[i].width_attrib.m_via_hole );
+		m_list_ctrl.SetItem( iItem, COL_HOLE_W, LVIF_TEXT, str, 0, 0, 0, 0 );
+
+		str = CII_FreePcb::GetItemText( ::nl_combine[i].width_attrib.m_ca_clearance );
+		m_list_ctrl.SetItem( iItem, COL_CLEARANCE, LVIF_TEXT, str, 0, 0, 0, 0 );
+
+		ListView_SetCheckState( m_list_ctrl, nItem, ::nl_combine[i].visible );
 	}
 	m_list_ctrl.SortItems( ::CompareNetlistCombine, m_sort_type );
 }
@@ -221,6 +243,14 @@ void CDlgNetCombine::OnLvnColumnclickListNet(NMHDR *pNMHDR, LRESULT *pResult)
 			m_sort_type = SORT_DOWN_HOLE_W;
 		else
 			m_sort_type = SORT_UP_HOLE_W;
+		m_list_ctrl.SortItems( ::CompareNetlistCombine, m_sort_type );
+	}
+	else if( column == COL_CLEARANCE )
+	{
+		if( m_sort_type == SORT_UP_CLEARANCE )
+			m_sort_type = SORT_DOWN_CLEARANCE;
+		else
+			m_sort_type = SORT_UP_CLEARANCE;
 		m_list_ctrl.SortItems( ::CompareNetlistCombine, m_sort_type );
 	}
 	else if( column == COL_PINS )
@@ -273,4 +303,3 @@ void CDlgNetCombine::OnBnClickedCancel()
 	// TODO: Add your control notification handler code here
 	OnCancel();
 }
-

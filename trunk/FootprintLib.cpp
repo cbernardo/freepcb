@@ -98,7 +98,7 @@ void CFootLibFolder::IndexAllLibs( CString * full_path, CDlgLog * dlg_log )
 
 	// start looking for library files
 	CFileFind finder;
-	if( chdir( m_full_path_to_folder ) != 0 )
+	if( CHDIR( m_full_path_to_folder ) != 0 )
 	{
 		CString mess;
 		mess.Format( "Unable to open library folder \"%s\"", m_full_path_to_folder );
