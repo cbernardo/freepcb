@@ -1660,7 +1660,7 @@ int CNetList::RouteSegment( cnet * net, int ic, int iseg, int layer, CSegWidthIn
 	// modify segment parameters
 	c->seg[iseg].layer = layer;
 
-	// Set width attrib in two steps
+	// Set width attrib
 	c->seg[iseg].width_attrib = width;
 	c->seg[iseg].width_attrib.SetParent( net->def_width_attrib );
 	c->seg[iseg].width_attrib.Update();
@@ -1713,7 +1713,7 @@ int CNetList::AppendSegment( cnet * net, int ic, int x, int y, int layer, CSegWi
 	// create new segment
 	c->seg[iseg].layer = layer;
 
-	// Set width attrib in two steps
+	// Set width attrib
 	c->seg[iseg].width_attrib = width;
 	c->seg[iseg].width_attrib.SetParent( net->def_width_attrib );
 	c->seg[iseg].width_attrib.Update();
@@ -1867,7 +1867,7 @@ int CNetList::InsertSegment( cnet * net, int ic, int iseg, int x, int y, int lay
 		seg->layer     = layer;
 		seg->selected  = 0;
 
-		// Set width attrib in two steps
+		// Set width attrib
 		seg->width_attrib = width;
 		seg->width_attrib.SetParent( net->def_width_attrib );
 		seg->width_attrib.Update();
@@ -1968,7 +1968,7 @@ int CNetList::InsertSegment( cnet * net, int ic, int iseg, int x, int y, int lay
 		seg->selected  = 0;
 		seg->layer     = layer;
 
-		// Set width attrib in two steps
+		// Set width attrib
 		seg->width_attrib = width;
 		seg->width_attrib.SetParent( net->def_width_attrib );
 		seg->width_attrib.Update();
@@ -1982,7 +1982,7 @@ int CNetList::InsertSegment( cnet * net, int ic, int iseg, int x, int y, int lay
 			id id  = seg->dl_el->id;
 
 			seg->dl_el->Remove();
-			c->seg[iseg].dl_el = m_dlist->Add( id, net, layer, DL_LINE, 1, c->seg[iseg].width(), 0, c->seg[iseg].clearance(), x, y, xf, yf, 0, 0 );
+			seg->dl_el = m_dlist->Add( id, net, layer, DL_LINE, 1, seg->width(), 0, seg->clearance(), x, y, xf, yf, 0, 0 );
 		}
 	}
 
@@ -1991,6 +1991,7 @@ int CNetList::InsertSegment( cnet * net, int ic, int iseg, int x, int y, int lay
 	ReconcileVia( net, ic, iseg+1 );
 	if( (iseg+1) < c->nsegs )
 		ReconcileVia( net, ic, iseg+2 );
+
 	return insert_flag;
 }
 
@@ -7111,6 +7112,16 @@ void CNetList::SetWidths( CNetWidthInfo const &width_attrib )
 
 	// This is the top level - make sure there is no parent
 	m_def_width_attrib.SetParent();
+
+	//  Update all elements marked with "use default" (ie. "use parent")
+	CNetWidthInfo update_use_parent_only;
+	update_use_parent_only.Undef();
+
+	for( cnet * net = GetFirstNet(); net != NULL; net = GetNextNet() )
+	{
+		net->def_width_attrib.Update();
+		SetNetWidth( net, update_use_parent_only );
+	}
 }
 
 
