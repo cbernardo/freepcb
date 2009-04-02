@@ -26,11 +26,9 @@ protected:
 
 	DECLARE_MESSAGE_MAP()
 
-public:
-	int Verify();
-	void DDX_out();
+	BOOL Verify();
+	void OnDDXOut();
 
-protected:
 	afx_msg void OnBnClickedButtonDelete();
 	afx_msg void OnBnClickedButtonEdit();
 	afx_msg void OnBnClickedButtonAdd();

@@ -22,9 +22,8 @@ protected:
 
 	DECLARE_MESSAGE_MAP()
 
-public:
-	int Verify();
-	void DDX_out();
+	BOOL Verify();
+	void OnDDXOut();
 
 protected:
 	friend class CTab_ProjectOpt_Main;

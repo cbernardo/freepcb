@@ -512,3 +512,30 @@ int CTabCtrlSSL::AddPage (LPCTSTR pszTitle, int nPageID, TabDelete tabDelete) {
 	}
 	return nIndex;
 }
+
+
+BOOL CTabCtrlSSL::OnDDXOut(void)
+{
+	int i, nCount = m_tabs.GetSize();
+
+	// Verify each page.  If all pages verify OK, 
+	// go ahead and finish by calling OnDDXOut()
+	// for each page.
+	for (i=0; i < nCount; i++)
+	{
+        TabDelete tabDelete = m_tabs[i];
+        CTabPageSSL *pDialog = tabDelete.pTabPage;
+
+		if (!pDialog->Verify()) return 0;
+	}
+
+	for (i=0; i < nCount; i++)
+	{
+        TabDelete tabDelete = m_tabs[i];
+        CTabPageSSL *pDialog = tabDelete.pTabPage;
+
+		pDialog->OnDDXOut();
+	}
+
+	return 1;
+}

@@ -24,16 +24,15 @@ public:
 	// Dialog Data
 	enum { IDD = IDD_TAB_PROJ_OPT_MAIN };
 
-	int Verify();
-	void DDX_out();
-
 protected:
 	virtual void DoDataExchange(CDataExchange* pDX);    // DDX/DDV support
 	virtual BOOL OnInitPage(int nPageID);
 
 	DECLARE_MESSAGE_MAP()
 
-protected:
+	BOOL Verify();
+	void OnDDXOut();
+
 	afx_msg void OnEnChangeEditName();
 	afx_msg void OnEnChangeEditFolder();
 	afx_msg void OnEnKillfocusEditFolder();

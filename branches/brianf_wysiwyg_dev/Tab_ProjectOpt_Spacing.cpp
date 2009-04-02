@@ -106,7 +106,7 @@ BOOL CTab_ProjectOpt_Spacing::OnInitPage(int nPageID)
 	return TRUE;
 }
 
-int CTab_ProjectOpt_Spacing::Verify()
+BOOL CTab_ProjectOpt_Spacing::Verify()
 {
 	CString str;
 
@@ -191,7 +191,7 @@ int CTab_ProjectOpt_Spacing::Verify()
 	return 1;
 }
 
-void CTab_ProjectOpt_Spacing::DDX_out()
+void CTab_ProjectOpt_Spacing::OnDDXOut()
 {
 	// convert NM to MILS
 	m_trace_w            *= NM_PER_MIL;
