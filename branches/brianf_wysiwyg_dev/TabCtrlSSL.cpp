@@ -523,18 +523,12 @@ BOOL CTabCtrlSSL::OnDDXOut(void)
 	// for each page.
 	for (i=0; i < nCount; i++)
 	{
-        TabDelete tabDelete = m_tabs[i];
-        CTabPageSSL *pDialog = tabDelete.pTabPage;
-
-		if (!pDialog->Verify()) return 0;
+		if (!m_tabs[i].pTabPage->Verify()) return 0;
 	}
 
 	for (i=0; i < nCount; i++)
 	{
-        TabDelete tabDelete = m_tabs[i];
-        CTabPageSSL *pDialog = tabDelete.pTabPage;
-
-		pDialog->OnDDXOut();
+		m_tabs[i].pTabPage->OnDDXOut();
 	}
 
 	return 1;

@@ -6000,16 +6000,20 @@ undo_net * CNetList::CreateNetUndoRecord( cnet * net )
 
 		cpin *pin = &net->pin[ip];
 		cpart *part = pin->part;
-		CShape *shape = part->shape;
 
-		// Shape may not assigned (==NULL) if the part
-		// hasn't been assigned to a shape yet.
-		if( shape != NULL )
+		if( part != NULL )
 		{
-			int pin_index = shape->GetPinIndexByName( pin->pin_name );
-			if( pin_index >= 0 )
+			CShape *shape = part->shape;
+
+			// Shape may not assigned (==NULL) if the part
+			// hasn't been assigned to a shape yet.
+			if( shape != NULL )
 			{
-				un_pin->clearance = part->pin[pin_index].clearance;
+				int pin_index = shape->GetPinIndexByName( pin->pin_name );
+				if( pin_index >= 0 )
+				{
+					un_pin->clearance = part->pin[pin_index].clearance;
+				}
 			}
 		}
 	}
