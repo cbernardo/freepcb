@@ -61,8 +61,6 @@ public:
              // Create a Memory DC
              CreateCompatibleDC(pDC);
 
-			 //m_rect.NormalizeRect();
-
              SetBkColor( pDC->GetBkColor() );
 
              SetMapMode(pDC->GetMapMode());
@@ -108,14 +106,14 @@ public:
 			LPtoDP(&DP); 
 			DP.NormalizeRect();
 
-			m_bitmap.CreateCompatibleBitmap(this, m_rect.Width(), m_rect.Height());
+			m_bitmap.CreateCompatibleBitmap(this, DP.Width(), DP.Height());
 		}
 
 		CBitmap *bm = SelectObject(&m_bitmap);
 		if (m_oldBitmap == NULL) m_oldBitmap = bm;
 
         // Fill background 
-        //FillSolidRect(m_rect, GetBkColor());
+        FillSolidRect(m_rect, GetBkColor());
 	}
     
     ~CMemDC()      

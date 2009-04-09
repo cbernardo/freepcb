@@ -107,7 +107,7 @@ BOOL CTab_ProjectOpt_Main::OnInitPage(int nPageID)
 }
 
 
-int CTab_ProjectOpt_Main::Verify()
+BOOL CTab_ProjectOpt_Main::Verify()
 {
 	// leaving dialog
 	if( m_name.GetLength() == 0 )
@@ -180,7 +180,7 @@ int CTab_ProjectOpt_Main::Verify()
 	return 1;
 }
 
-void CTab_ProjectOpt_Main::DDX_out()
+void CTab_ProjectOpt_Main::OnDDXOut()
 {
 	m_edit_folder.GetWindowText(m_path_to_folder);
 	m_edit_lib_folder.GetWindowText(m_lib_folder);

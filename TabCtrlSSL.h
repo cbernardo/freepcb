@@ -98,6 +98,8 @@ public:
 	afx_msg void OnSelChange (NMHDR* pNMHDR, LRESULT* pResult);
 	//}}AFX_MSG
 
+	BOOL OnDDXOut(void);
+
 	DECLARE_MESSAGE_MAP()
 };
 

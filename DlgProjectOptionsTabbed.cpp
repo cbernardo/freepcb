@@ -94,17 +94,9 @@ void CDlgProjectOptionsTabbed::DoDataExchange(CDataExchange* pDX)
 
 	if( pDX->m_bSaveAndValidate )
 	{
-		if ( !m_tabs.m_Tab_Main   .Verify() ||
-			 !m_tabs.m_Tab_Spacing.Verify() ||
-			 !m_tabs.m_Tab_Thermal.Verify() )
+		if ( !m_tabs.OnDDXOut() )
 		{
 			pDX->Fail();
-		}
-		else
-		{
-			m_tabs.m_Tab_Main   .DDX_out();
-			m_tabs.m_Tab_Spacing.DDX_out();
-			m_tabs.m_Tab_Thermal.DDX_out();
 		}
 	}
 }
