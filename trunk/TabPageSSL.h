@@ -48,6 +48,10 @@ protected:
 	virtual void OnCancel (void);
 	virtual BOOL OnCmdMsg (UINT nID, int nCode, void* pExtra, AFX_CMDHANDLERINFO* pHandlerInfo);
 
+// Final data verify & exchange on main window close
+	virtual BOOL Verify()   { return 1; }
+	virtual void OnDDXOut() {}
+
 // Routing flags
 	bool m_bRouteCommand;
 	bool m_bRouteCmdMsg;

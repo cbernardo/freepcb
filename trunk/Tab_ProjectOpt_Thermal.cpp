@@ -65,7 +65,7 @@ BOOL CTab_ProjectOpt_Thermal::OnInitPage(int nPageID)
 }
 
 
-int CTab_ProjectOpt_Thermal::Verify()
+BOOL CTab_ProjectOpt_Thermal::Verify()
 {
 	CString str;
 	int val;
@@ -93,7 +93,7 @@ int CTab_ProjectOpt_Thermal::Verify()
 	return 1;
 }
 
-void CTab_ProjectOpt_Thermal::DDX_out()
+void CTab_ProjectOpt_Thermal::OnDDXOut()
 {
 	CDlgProjectOptionsTabbed::CTabs *pParent = static_cast<CDlgProjectOptionsTabbed::CTabs*>(GetParent());
 	if( pParent->m_Tab_Main.m_bSMT_connect_copper )

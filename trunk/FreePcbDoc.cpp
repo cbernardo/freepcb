@@ -2735,9 +2735,12 @@ void CFreePcbDoc::OnFileImport()
 				int ret = dlg_options.DoModal();
 				if( ret == IDCANCEL )
 					return;
-				else
-					m_import_flags = dlg_options.m_flags;
+
+				m_import_flags = dlg_options.m_flags;
 			}
+
+			// Need to cancel section in case the selected item changes or is deleted
+			m_view->CancelSelection();
 
 			// show log dialog
 			m_dlg_log->ShowWindow( SW_SHOW );
