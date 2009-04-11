@@ -3225,6 +3225,8 @@ int CPartList::GetPadDrawInfo( cpart * part, int ipin, int layer,
 	BOOL bUseDefault = FALSE; // if TRUE, use copper pad for mask
 	CString pin_name = s->GetPinNameByIndex( ipin );
 	int connect_status = GetPinConnectionStatus( part, pin_name, layer );
+	CClearanceInfo clearance = part->pin[ipin].clearance;
+
 	// set default return values for no pad and no hole
 	int ret_code = 0;
 	int ttype = PAD_NONE;
