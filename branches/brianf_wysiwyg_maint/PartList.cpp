@@ -2967,7 +2967,7 @@ void CPartList::ImportPartListInfo( partlist_info * pl, int flags, CDlgLog * log
 					// change footprint to new one
 					PartFootprintChanged( pi->part, pi->shape );
 					ResizeRefText( pi->part, pi->ref_size, pi->ref_width );
-					m_nlist->PartFootprintChanged( part );
+					m_nlist->PartFootprintChanged( pi->part );
 					m_nlist->PartMoved( pi->part );
 				}
 			}
