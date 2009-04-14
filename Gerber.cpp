@@ -1096,8 +1096,9 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 				{
 					f->WriteString( "\nG04 Draw clearances for pads*\n" );
 				}
-				cpart * part = pl->m_start.next;
-				while( part->next != 0 ) 
+
+				CIterator_cpart iter(pl);
+				for( cpart *part = iter.GetFirst(); part != NULL; part = iter.GetNext() )
 				{
 					CShape * s = part->shape;
 					if( s )
@@ -1329,7 +1330,6 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 							}
 						}
 					}
-					part = part->next;
 				}
 			} // end if pl
 			if( nl ) 
@@ -1569,8 +1569,8 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 		if( pl )
 		{
 			// iterate through all parts and draw pads
-			cpart * part = pl->m_start.next;
-			while( part->next != 0 )
+			CIterator_cpart iter(pl);
+			for( cpart *part = iter.GetFirst(); part != NULL; part = iter.GetNext() )
 			{
 				CShape * s = part->shape;
 				if( s )
@@ -1729,8 +1729,6 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 						}
 					}
 				}
-				// go to next part
-				part = part->next;
 			}
 		}
 		// draw vias and traces
@@ -1916,8 +1914,8 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 			if( pl )
 			{
 				// iterate through all parts
-				cpart * part = pl->m_start.next;
-				while( part->next != 0 )
+				CIterator_cpart iter(pl);
+				for( cpart *part = iter.GetFirst(); part != NULL; part = iter.GetNext() )
 				{
 					CShape * s = part->shape;
 					if( s )
@@ -1945,8 +1943,6 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 							}
 						}
 					}
-					// go to next part
-					part = part->next;
 				}
 			}
 			// draw pilot holes for vias
@@ -2019,8 +2015,8 @@ int WriteDrillFile( CStdioFile * file, CPartList * pl, CNetList * nl, CArray<CPo
 	if( pl )
 	{
 		// iterate through all parts
-		cpart * part = pl->m_start.next;
-		while( part->next != 0 )
+		CIterator_cpart iter(pl);
+		for( cpart *part = iter.GetFirst(); part != NULL; part = iter.GetNext() )
 		{
 			CShape * s = part->shape;
 			if( s )
@@ -2033,8 +2029,6 @@ int WriteDrillFile( CStdioFile * file, CPartList * pl, CNetList * nl, CArray<CPo
 						::AddToArray( ps->hole_size/NM_PER_MIL, &diameter );
 				}
 			}
-			// go to next part
-			part = part->next;
 		}
 	}
 	// now find hole diameters for vias
@@ -2128,8 +2122,8 @@ int WriteDrillFile( CStdioFile * file, CPartList * pl, CNetList * nl, CArray<CPo
 				if( pl )
 				{
 					// iterate through all parts
-					cpart * part = pl->m_start.next;
-					while( part->next != 0 )
+					CIterator_cpart iter(pl);
+					for( cpart *part = iter.GetFirst(); part != NULL; part = iter.GetNext() )
 					{
 						CShape * s = part->shape;
 						if( s )
@@ -2151,8 +2145,6 @@ int WriteDrillFile( CStdioFile * file, CPartList * pl, CNetList * nl, CArray<CPo
 								}
 							}
 						}
-						// go to next part
-						part = part->next;
 					}
 				}
 				// now find hole diameters for vias
