@@ -1,24 +1,30 @@
-Microsoft Visual Studio Solution File, Format Version 8.00
+Microsoft Visual Studio Solution File, Format Version 9.00
+# Visual Studio 2005
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "FreePcb", "FreePcb.vcproj", "{48B16142-FBCE-4203-996C-8DEC8AAE6546}"
-	ProjectSection(ProjectDependencies) = postProject
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{F5BD119C-D4DF-402B-BCDD-F503DA323FCA}"
+	ProjectSection(SolutionItems) = preProject
+		MyFileOpen.Dlg = MyFileOpen.Dlg
 	EndProjectSection
 EndProject
 Global
-	GlobalSection(SolutionConfiguration) = preSolution
-		Debug = Debug
-		Release = Release
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		DBG Release|Win32 = DBG Release|Win32
+		DBGable Release|Win32 = DBGable Release|Win32
+		Debug|Win32 = Debug|Win32
+		Release|Win32 = Release|Win32
 	EndGlobalSection
-	GlobalSection(ProjectConfiguration) = postSolution
-		{48B16142-FBCE-4203-996C-8DEC8AAE6546}.Debug.ActiveCfg = Debug|Win32
-		{48B16142-FBCE-4203-996C-8DEC8AAE6546}.Debug.Build.0 = Debug|Win32
-		{48B16142-FBCE-4203-996C-8DEC8AAE6546}.Release.ActiveCfg = Release|Win32
-		{48B16142-FBCE-4203-996C-8DEC8AAE6546}.Release.Build.0 = Release|Win32
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{48B16142-FBCE-4203-996C-8DEC8AAE6546}.DBG Release|Win32.ActiveCfg = DBG Release|Win32
+		{48B16142-FBCE-4203-996C-8DEC8AAE6546}.DBG Release|Win32.Build.0 = DBG Release|Win32
+		{48B16142-FBCE-4203-996C-8DEC8AAE6546}.DBGable Release|Win32.ActiveCfg = Release|Win32
+		{48B16142-FBCE-4203-996C-8DEC8AAE6546}.DBGable Release|Win32.Build.0 = Release|Win32
+		{48B16142-FBCE-4203-996C-8DEC8AAE6546}.Debug|Win32.ActiveCfg = Release|Win32
+		{48B16142-FBCE-4203-996C-8DEC8AAE6546}.Debug|Win32.Build.0 = Release|Win32
+		{48B16142-FBCE-4203-996C-8DEC8AAE6546}.Release|Win32.ActiveCfg = Release|Win32
+		{48B16142-FBCE-4203-996C-8DEC8AAE6546}.Release|Win32.Build.0 = Release|Win32
 	EndGlobalSection
-	GlobalSection(SolutionItems) = postSolution
-		MyFileOpen.Dlg = MyFileOpen.Dlg
-	EndGlobalSection
-	GlobalSection(ExtensibilityGlobals) = postSolution
-	EndGlobalSection
-	GlobalSection(ExtensibilityAddIns) = postSolution
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
 	EndGlobalSection
 EndGlobal
