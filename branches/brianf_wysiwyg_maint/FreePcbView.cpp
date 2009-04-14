@@ -8969,8 +8969,8 @@ void CFreePcbView::SelectItemsInRect( CRect r, BOOL bAddToGroup )
 	// find parts in rect
 	if( m_sel_mask & (1<<SEL_MASK_PARTS ) )
 	{
-		cpart * part = m_Doc->m_plist->GetFirstPart();
-		while( part )
+		CIterator_cpart iter(m_Doc->m_plist);
+		for( cpart *part = iter.GetFirst(); part != NULL; part = iter.GetNext() )
 		{
 			CRect p_r;
 			if( m_Doc->m_plist->GetPartBoundingRect( part, &p_r ) )
@@ -8990,7 +8990,6 @@ void CFreePcbView::SelectItemsInRect( CRect r, BOOL bAddToGroup )
 					}
 				}
 			}
-			part = m_Doc->m_plist->GetNextPart( part );
 		}
 	}
 
@@ -9688,8 +9687,9 @@ void CFreePcbView::MoveGroup( int dx, int dy )
 	// nets, connections, segments and vertices
 
 	// move parts in group
-	cpart * part = m_Doc->m_plist->GetFirstPart();
-	while( part != NULL )
+	CIterator_cpart iter(m_Doc->m_plist);
+	cpart *part;
+	for( part = iter.GetFirst(); part != NULL; part = iter.GetNext() )
 	{
 		if( part->utility )
 		{
@@ -9758,7 +9758,6 @@ void CFreePcbView::MoveGroup( int dx, int dy )
 				}
 			}
 		}
-		part = m_Doc->m_plist->GetNextPart( part );
 	}
 
 	// get selected segments
@@ -10320,16 +10319,16 @@ void CFreePcbView::OnGroupCopy()
 					part2 = pin2->part;
 				}
 				// loop through all group parts
-				cpart * g_part = g_pl->GetFirstPart();
-				while( g_part )
+				CIterator_cpart iter(g_pl);
+				for( cpart *g_part = iter.GetFirst(); g_part != NULL; g_part = iter.GetNext() )
 				{
 					if( part1->ref_des == g_part->ref_des )
 						bStartPinInGroup = TRUE;
 					if( !bStubTrace )
 						if( part2->ref_des == g_part->ref_des )
 							bEndPinInGroup = TRUE;
-					g_part = g_pl->GetNextPart( g_part );
 				}
+
 				if( bStartPinInGroup && (bEndPinInGroup || bStubTrace) )
 				{
 					// add connection to group net, and copy all segments and vertices
@@ -10700,7 +10699,7 @@ void CFreePcbView::OnGroupCopy()
 	}
 
 	// see if anything copied
-	if( !g_nl->GetFirstNet() && !g_pl->GetFirstPart() && !g_sm->GetSize()
+	if( !g_nl->GetFirstNet() && !g_pl->GetNumParts() && !g_sm->GetSize()
 		&& !g_bd->GetSize() && !g_tl->GetNumTexts() )
 	{
 		AfxMessageBox( "Nothing copied !\nRemember that traces must be connected\nto a part in the group to be copied" );
@@ -10780,8 +10779,12 @@ void CFreePcbView::DeleteGroup( CArray<void*> * grp_ptr, CArray<id> * grp_id )
 
 	// mark all parts and nets as unmodified
 	nl->MarkAllNets( 0 );
-	for( part=pl->GetFirstPart(); part; part=pl->GetNextPart(part) )
+
+	CIterator_cpart iter(pl);
+	for( cpart *part = iter.GetFirst(); part != NULL; part = iter.GetNext() )
+	{
 		part->utility = 0;
+	}
 
 	// loop through selected items and mark parts and nets that need to be saved
 	// for undoing
@@ -10814,11 +10817,12 @@ void CFreePcbView::DeleteGroup( CArray<void*> * grp_ptr, CArray<id> * grp_id )
 	for( net=nl->GetFirstNet(); net; net=nl->GetNextNet() )
 		if( net->utility )
 			SaveUndoInfoForNetAndConnections( net, CNetList::UNDO_NET_MODIFY, FALSE, m_Doc->m_undo_list );
-	for( part=pl->GetFirstPart(); part; part=pl->GetNextPart(part) )
-		if( part->utility )
-			SaveUndoInfoForPart( part,
-			CPartList::UNDO_PART_DELETE, NULL, FALSE, m_Doc->m_undo_list );
 
+	for( cpart *part = iter.GetFirst(); part != NULL; part = iter.GetNext() )
+	{
+		if( part->utility )
+			SaveUndoInfoForPart( part, CPartList::UNDO_PART_DELETE, NULL, FALSE, m_Doc->m_undo_list );
+	}
 	// mark all nets as unmodified (again)
 	nl->MarkAllNets( 0 );
 	// mark all sm_cutout sides as unselected
@@ -11069,11 +11073,10 @@ void CFreePcbView::OnGroupPaste()
 		// make a map of all reference designators in project, including
 		// refs in the netlist that don't exist in the partlist
 		CMapStringToPtr ref_des_map;
-		cpart * part = pl->GetFirstPart();
-		while( part )
+		CIterator_cpart iter(pl);
+		for( cpart *part = iter.GetFirst(); part != NULL; part = iter.GetNext() )
 		{
 			ref_des_map.SetAt( part->ref_des, NULL );
-			part = pl->GetNextPart( part );
 		}
 		cnet * net = nl->GetFirstNet();
 		while( net )
@@ -11090,8 +11093,8 @@ void CFreePcbView::OnGroupPaste()
 		}
 
 		// add parts from group, renaming if necessary
-		cpart * g_part = g_pl->GetFirstPart();
-		while( g_part )
+		CIterator_cpart g_iter(g_pl);
+		for( cpart *g_part = g_iter.GetFirst(); g_part != NULL; g_part = g_iter.GetNext() )
 		{
 			CString conflicted_ref;
 			CString g_prefix;
@@ -11181,8 +11184,6 @@ void CFreePcbView::OnGroupPaste()
 			m_sel_ptrs.Add( prj_part );
 			INT_PTR i = m_sel_ids.Add( prj_part->m_id );
 			m_sel_ids[i].st = ID_SEL_RECT;
-			// end of loop, get next group part
-			g_part = g_pl->GetNextPart( g_part );
 		}
 
 		// add nets from group
@@ -11625,14 +11626,14 @@ void CFreePcbView::OnGroupSaveToFile()
 			{
 				// make map of all footprints used by group
 				CMapStringToPtr clip_cache_map;
-				cpart * part = m_Doc->clip_plist->GetFirstPart();
-				while( part )
+
+				CIterator_cpart iter(m_Doc->clip_plist);
+				for( cpart *part = iter.GetFirst(); part != NULL; part = iter.GetNext() )
 				{
 					void * vp;
 					if( part->shape )
 						if( !clip_cache_map.Lookup( part->shape->m_name, vp ) )
 							clip_cache_map.SetAt( part->shape->m_name, part->shape );
-					part = m_Doc->clip_plist->GetNextPart( part );
 				}
 				m_Doc->WriteOptions( &pcb_file );
 				m_Doc->WriteFootprints( &pcb_file, &clip_cache_map );
@@ -11892,8 +11893,8 @@ void CFreePcbView::RotateGroup()
 	// nets, connections, segments and vertices
 
 	// move parts in group
-	cpart * part = m_Doc->m_plist->GetFirstPart();
-	while( part != NULL )
+	CIterator_cpart iter(m_Doc->m_plist);
+	for( cpart *part = iter.GetFirst(); part != NULL; part = iter.GetNext() )
 	{
 		if( part->utility )
 		{
@@ -11963,7 +11964,6 @@ void CFreePcbView::RotateGroup()
 				}
 			}
 		}
-		part = m_Doc->m_plist->GetNextPart( part );
 	}
 
 	// get selected segments
@@ -12233,8 +12233,8 @@ void CFreePcbView::FindGroupCenter()
 	// find parts
 	if( m_sel_mask & (1<<SEL_MASK_PARTS ) )  // may not be necessary??
 	{
-		cpart * part = m_Doc->m_plist->GetFirstPart();
-		while( part )
+		CIterator_cpart iter(m_Doc->m_plist);
+		for( cpart *part = iter.GetFirst(); part != NULL; part = iter.GetNext() )
 		{
 			id pid( ID_PART, ID_SEL_RECT, 0, 0, 0 );
 			if( FindItemInGroup( part, &pid ) != -1 )
@@ -12243,7 +12243,6 @@ void CFreePcbView::FindGroupCenter()
 				groupAverageY+=part->y;
 				groupNumberItems++;
 			}
-			part = m_Doc->m_plist->GetNextPart( part );
 		}
 	}
 

@@ -2727,7 +2727,7 @@ void CFreePcbDoc::OnFileImport()
 			// update flags
 			m_import_flags = dlg.m_flags;
 
-			if( m_plist->GetFirstPart() != NULL || m_nlist->m_map.GetCount() != 0 )
+			if( m_plist->GetNumParts() != 0 || m_nlist->m_map.GetCount() != 0 )
 			{
 				// there are parts and/or nets in project
 				CDlgImportOptions dlg_options;
@@ -4712,12 +4712,12 @@ void CFreePcbDoc::OnFileSaveLibrary()
 {
 	CDlgSaveLib dlg;
 	CArray<CString> names;
-	cpart * part = m_plist->GetFirstPart();
+
 	int i = 0;
-	while( part )
+	CIterator_cpart iter(m_plist);
+	for( cpart *part = iter.GetFirst(); part != NULL; part = iter.GetNext() )
 	{
 		names.SetAtGrow( i, part->value );
-		part = m_plist->GetNextPart( part );
 		i++;
 	}
 	dlg.Initialize( &names );

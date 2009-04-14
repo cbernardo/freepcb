@@ -174,8 +174,9 @@ void CDlgReport::OnBnClickedOk()
 	int num_th_pins = 0;
 	int num_nets = 0;
 	int num_vias = 0;
-	cpart * part = m_pl->GetFirstPart();
-	while( part )
+
+	CIterator_cpart iter(m_pl);
+	for( cpart *part = iter.GetFirst(); part != NULL; part = iter.GetNext() )
 	{
 		num_parts++;
 		if( part->shape )
@@ -198,7 +199,6 @@ void CDlgReport::OnBnClickedOk()
 				}
 			}
 		}
-		part = m_pl->GetNextPart( part );
 	}
 	if( !(m_flags & NO_PCB_STATS) )
 	{
@@ -275,13 +275,13 @@ void CDlgReport::OnBnClickedOk()
 		// make array of pointers to ref_des strings, used for sorting
 		int nparts = m_pl->GetNumParts();
 		CString ** ref_ptr = (CString**)malloc( nparts * sizeof(CString*) );
-		cpart * part = m_pl->GetFirstPart();
+
 		int ip = 0;
-		while( part )
+		cpart *part;
+		for( part = iter.GetFirst(); part != NULL; part = iter.GetNext() )
 		{
 			ref_ptr[ip] = &part->ref_des;
 			ip++;
-			part = m_pl->GetNextPart( part );
 		}
 		// quicksort
 		qsort( ref_ptr, nparts, sizeof(CString*), mycompare );
