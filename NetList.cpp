@@ -2197,8 +2197,8 @@ void CNetList::PartAdded( cpart * part )
 						part_pin *pp = &part->pin[pin_index];
 
 						// hook it up
-						pp->set_net( net );		// set part->pin->net
-						pp->set_clearance( net->def_width_attrib );
+						pp->set_net( net );
+						pp->set_clearance( CClearanceInfo() );
 					}
 				}
 			}
@@ -3274,7 +3274,11 @@ int CNetList::RehookPartsToNet( cnet * net )
 			{
 				int pin_index = part->shape->GetPinIndexByName( pin_name );
 				if( pin_index != -1 )
-					part->pin[pin_index].set_net( net );
+				{
+					part_pin *pp = &part->pin[pin_index];
+					
+					pp->set_net( net );
+				}
 			}
 		}
 	}
@@ -4443,13 +4447,18 @@ int CNetList::WriteNets( CStdioFile * file )
 			net = (cnet*)ptr;
 
 
-			line.Format( "net: \"%s\" %d %d %d %d %d %d %d %d\n",
-							net->name, net->npins, net->nconnects, net->nareas,
+			line.Format( "net: \"%s\" %d %d %d %d %d %d %d %d %d\n", net->name, 
+							net->npins, 
+							net->nconnects, 
+							net->nareas,
 							CSegWidthInfo::ItemToFile( net->def_width_attrib.m_seg_width ),
 							CSegWidthInfo::ItemToFile( net->def_width_attrib.m_via_width ),
 							CSegWidthInfo::ItemToFile( net->def_width_attrib.m_via_hole  ),
 							net->visible,
-							net->def_width_attrib.m_ca_clearance.GetItemAsInt() );
+							net->def_width_attrib.m_ca_clearance.m_val,
+							net->def_width_attrib.m_ca_clearance.m_status
+			);
+
 			file->WriteString( line );
 
 			for( int ip=0; ip<net->npins; ip++ )
@@ -4468,14 +4477,15 @@ int CNetList::WriteNets( CStdioFile * file )
 				cconnect * c = &net->connect[ic];
 				line.Format( "  connect: %d %d %d %d %d\n", ic+1,
 					c->start_pin,
-					c->end_pin, c->nsegs, c->locked );
+					c->end_pin, c->nsegs, c->locked
+				);
 				file->WriteString( line );
 				int nsegs = c->nsegs;
 				for( int is=0; is<=nsegs; is++ )
 				{
 					v = &(c->vtx[is]);
 
-					line.Format( "    vtx: %d %d %d %d %d %d %d %d %d %d\n",
+					line.Format( "    vtx: %d %d %d %d %d %d %d %d %d %d %d\n",
 						is+1,
 						v->x, v->y,
 						v->pad_layer,
@@ -4483,8 +4493,9 @@ int CNetList::WriteNets( CStdioFile * file )
 						v->via_width_attrib.m_via_width.m_val,
 						v->via_width_attrib.m_via_hole.m_val,
 						v->tee_ID,
-						v->via_width_attrib.m_ca_clearance.GetItemAsInt(),
-						v->via_width_attrib.m_via_width.m_status
+						v->via_width_attrib.m_via_width.m_status,
+						v->via_width_attrib.m_ca_clearance.m_val,
+						v->via_width_attrib.m_ca_clearance.m_status
 					);
 					file->WriteString( line );
 
@@ -4492,12 +4503,13 @@ int CNetList::WriteNets( CStdioFile * file )
 					{
 
 						s = &(c->seg[is]);
-						line.Format( "    seg: %d %d %d 0 0 %d %d\n",
+						line.Format( "    seg: %d %d %d 0 0 %d %d %d\n",
 							is+1,
 							s->layer,
 							(s->layer == LAY_RAT_LINE) ? 0 : s->width_attrib.m_seg_width.m_val,
-							s->width_attrib.m_ca_clearance.GetItemAsInt(),
-							s->width_attrib.m_seg_width.m_status
+							s->width_attrib.m_seg_width.m_status,
+							s->width_attrib.m_ca_clearance.m_val,
+							s->width_attrib.m_ca_clearance.m_status
 						);
 						file->WriteString( line );
 					}
@@ -4596,15 +4608,12 @@ void CNetList::ReadNets( CStdioFile * pcb_file, double read_version, int * layer
 			int sz;
 
 			sz = my_atoi( &p[4] );
-			if( sz < 0 ) sz = 0;
 			CSegWidthInfo::FileToItem( (sz < 0) ? 0 : sz, def_width_attrib.m_seg_width );
 
 			sz = my_atoi( &p[5] );
-			if( sz < 0 ) sz = 0;
 			CSegWidthInfo::FileToItem( (sz < 0) ? 0 : sz, def_width_attrib.m_via_width );
 
 			sz = my_atoi( &p[6] );
-			if( sz < 0 ) sz = 0;
 			CSegWidthInfo::FileToItem( (sz < 0) ? 0 : sz, def_width_attrib.m_via_hole  );
 
 			int visible = 1;
@@ -4616,6 +4625,15 @@ void CNetList::ReadNets( CStdioFile * pcb_file, double read_version, int * layer
 			if( np > 9 )
 			{
 				def_width_attrib.m_ca_clearance = my_atoi( &p[8] );
+				if( np > 10 )
+				{
+					// VAL & STATUS format
+					def_width_attrib.m_ca_clearance.m_status = my_atoi( &p[9] );
+				}
+				else
+				{
+					// VAL_STATUS format (only present in intermediate development versions)
+				}
 			}
 			else
 			{
@@ -4624,7 +4642,7 @@ void CNetList::ReadNets( CStdioFile * pcb_file, double read_version, int * layer
 
 			cnet * net = AddNet( net_name, npins, def_width_attrib );
 
-			// Set visibility flag AFTER adding
+			// Set visibility flag AFTER adding net
 			net->visible = visible;
 
 			for( int ip=0; ip<npins; ip++ )
@@ -4699,6 +4717,7 @@ void CNetList::ReadNets( CStdioFile * pcb_file, double read_version, int * layer
 				else
 				{
 					net->connect[ic].locked = locked;
+
 					// skip first vertex
 					err = pcb_file->ReadString( in_str );
 					if( !err )
@@ -4729,26 +4748,40 @@ void CNetList::ReadNets( CStdioFile * pcb_file, double read_version, int * layer
 						int layer = in_layer[file_layer];
 
 						CSegWidthInfo width;
-
 						width.m_seg_width = my_atoi( &p[2] );
-
 						if (np > 6)
                         {
 							// Segment clearance given
-							width.m_ca_clearance = my_atoi( &p[5] );
+							if( np > 8 )
+							{
+								// VAL & STATUS format for clearance
+								// p5 = seg width status
+								// p6 = clearance val
+								// p7 = clearance status
+								width.m_seg_width.m_status = my_atoi( &p[5] );
+
+								width.m_ca_clearance          = my_atoi( &p[6] );
+								width.m_ca_clearance.m_status = my_atoi( &p[7] );
+							}
+							else
+							{
+								// VAL_STATUS format for clearance (only present in intermediate development versions)
+								// p5 = clearance
+								// p6 = seg width status (if present)
+								width.m_ca_clearance = my_atoi( &p[5] );
+
+								if( np > 7 )
+								{
+									// Segment width status given
+									width.m_seg_width.m_status = my_atoi( &p[6] );
+								}
+							}
                         }
 
-						if( np > 7 )
+						// Convert any zero-width segs to "use parent"
+						if( ( width.m_seg_width.m_val == 0 ) && ( layer != LAY_RAT_LINE ) )
 						{
-							// Segment width status given
-							width.m_seg_width.m_status = my_atoi( &p[6] );
-						}
-						else
-						{
-							if( ( width.m_seg_width.m_val == 0 ) && ( layer != LAY_RAT_LINE ) )
-							{
-								width.m_seg_width = CInheritableInfo::E_USE_PARENT;
-							}
+							width.m_seg_width = CInheritableInfo::E_USE_PARENT;
 						}
 
 						// read following vertex data
@@ -4789,21 +4822,45 @@ void CNetList::ReadNets( CStdioFile * pcb_file, double read_version, int * layer
 							if( np > 9 )
 							{
 								// Clearance info provided
-								via_width_attrib.m_ca_clearance = my_atoi( &p[8] );
+								if( np > 11 )
+								{
+									// VAL & STATUS format for clearance
+									// p8  = via width status
+									// p9  = clearance val
+									// p10 = clearance status
+
+									// Clearance
+									via_width_attrib.m_ca_clearance          = my_atoi( &p[9] );
+									via_width_attrib.m_ca_clearance.m_status = my_atoi( &p[10] );
+
+									// Via width status info 
+									int via_status = my_atoi( &p[8] );
+
+									via_width_attrib.m_via_width.m_status = via_status;
+									via_width_attrib.m_via_hole .m_status = via_status;
+								}
+								else
+								{
+									// VAL_STATUS format for clearance (only present in intermediate development versions)
+									// p8 = clearance
+									// p9 = via status (if present)
+
+									// Clearance
+									via_width_attrib.m_ca_clearance = my_atoi( &p[8] );
+
+									if( np > 10 )
+									{
+										// Via width status info provided
+										int via_status = my_atoi( &p[9] );
+
+										via_width_attrib.m_via_width.m_status = via_status;
+										via_width_attrib.m_via_hole .m_status = via_status;
+									}
+								}
 							}
 							else
 							{
-								via_width_attrib.m_ca_clearance = CII_FreePcb::E_AUTO_CALC;
-							}
-
-							// Via status
-							if( np > 10 )
-							{
-								// Via width status info provided
-								int via_status = my_atoi( &p[9] );
-
-								via_width_attrib.m_via_width.m_status = via_status;
-								via_width_attrib.m_via_hole .m_status = via_status;
+								via_width_attrib.m_ca_clearance = CII_FreePcb::E_USE_PARENT;
 							}
 
 							if( end_pin != cconnect::NO_END )

@@ -2300,7 +2300,18 @@ cpart * CPartList::AddFromString( CString * str )
 		{
 			if( s != NULL )
 			{
-				clearance[pin_number++].m_ca_clearance = my_atoi( &p[1] );
+				clearance[pin_number].m_ca_clearance = my_atoi( &p[1] );
+
+				if( np >= 4 )
+				{
+					// VAL & STATUS format
+					clearance[pin_number].m_ca_clearance.m_status = my_atoi( &p[2] );
+				}
+				else
+				{
+					// VAL_STATUS format (only present in intermediate development versions)
+				}
+				pin_number++;
 			}
 		}
 		else if( key_str == "pos" )
@@ -2449,7 +2460,10 @@ int CPartList::SetPartString( cpart * part, CString * str )
 		{
 			part_pin *pin = &part->pin[i];
 
-			line.Format( "    pin: %d %d\n", i+1, pin->clearance.m_ca_clearance.GetItemAsInt() );
+			line.Format( "    pin: %d %d %d\n", i+1, 
+				pin->clearance.m_ca_clearance.m_val,
+				pin->clearance.m_ca_clearance.m_status
+			);
 			str->Append( line );
 		}	
 	}
@@ -2969,7 +2983,9 @@ void CPartList::ImportPartListInfo( partlist_info * pl, int flags, CDlgLog * log
 					pi->value_vis );
 			}
 			else
+			{
 				SetValue( part, &pi->value, 0, 0, 0, 0, 0 );
+			}
 			m_nlist->PartAdded( part );
 		}
 		else
