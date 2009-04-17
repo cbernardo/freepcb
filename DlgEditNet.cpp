@@ -101,9 +101,9 @@ BOOL CDlgEditNet::OnInitDialog()
 	m_check_c_modify.SetCheck(1);
 
 	// default is to apply new trace width & clearances
-	m_check_t_apply.SetCheck(1);
-	m_check_v_apply.SetCheck(1);
-	m_check_c_apply.SetCheck(1);
+	m_check_t_apply.SetCheck(0);
+	m_check_v_apply.SetCheck(0);
+	m_check_c_apply.SetCheck(0);
 
 	// Do these last after other dialog items are setup
 	CSubDlg_TraceWidth::OnInitDialog(m_width_attrib);

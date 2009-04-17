@@ -951,19 +951,21 @@ BEGIN
     CONTROL         "Use project default",IDC_RADIO1_PROJ_DEF,"Button",BS_AUTORADIOBUTTON | WS_GROUP,12,38,77,10
     CONTROL         "Set to",IDC_RADIO1_SET_TO,"Button",BS_AUTORADIOBUTTON,12,51,33,10
     COMBOBOX        IDC_COMBO_WIDTH,47,50,48,142,CBS_DROPDOWN | CBS_SORT | WS_VSCROLL | WS_TABSTOP
-    CONTROL         "Apply to already routed traces",IDC_CHECK_TRACE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,12,68,114,10
+    CONTROL         "Apply inheritance to all routed traces",IDC_CHECK_TRACE,
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,12,68,134,10
     CONTROL         "Use project default",IDC_RADIO2_PROJ_DEF,"Button",BS_AUTORADIOBUTTON | WS_GROUP,12,102,77,10
     CONTROL         "Use default via for trace width above",IDC_RADIO2_DEF_FOR_TRACE,
                     "Button",BS_AUTORADIOBUTTON,12,115,135,10
     CONTROL         "Set to:",IDC_RADIO2_SET_TO,"Button",BS_AUTORADIOBUTTON,12,128,38,10
     EDITTEXT        IDC_EDIT_VIA_PAD_W,67,127,33,12,ES_AUTOHSCROLL
     EDITTEXT        IDC_EDIT_VIA_HOLE_W,126,127,34,12,ES_AUTOHSCROLL
-    CONTROL         "Apply to already routed traces",IDC_CHECK_VIA,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,12,144,114,10
+    CONTROL         "Apply inheritance to all routed vias",IDC_CHECK_VIA,
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,12,144,127,10
     CONTROL         "Use project default",IDC_RADIO3_PROJ_DEF,"Button",BS_AUTORADIOBUTTON | WS_GROUP,12,175,77,10
     CONTROL         "Set to",IDC_RADIO3_SET_TO,"Button",BS_AUTORADIOBUTTON,12,187,35,10
     EDITTEXT        IDC_EDIT_CLEARANCE,49,186,33,12,ES_AUTOHSCROLL
-    CONTROL         "Apply to already routed traces",IDC_CHECK_CLEARANCE,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,12,204,114,10
+    CONTROL         "Apply inheritance to all routed traces/vias/pins",IDC_CHECK_CLEARANCE,
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,12,204,165,10
     LISTBOX         IDC_LIST_PIN,12,238,90,96,LBS_SORT | LBS_MULTIPLESEL | LBS_NOINTEGRALHEIGHT | WS_VSCROLL | WS_TABSTOP
     PUSHBUTTON      "Delete Pin(s)",IDC_BUTTON_DELETE,120,262,53,12
     PUSHBUTTON      "Add Pin",IDC_BUTTON_ADD,120,291,37,12
