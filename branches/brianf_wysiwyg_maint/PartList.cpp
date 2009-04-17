@@ -279,12 +279,15 @@ int CPartList::SetPartData( cpart * part, CShape * shape, CString * ref_des, CSt
 //
 int CPartList::HighlightPart( cpart * part )
 {
-	// highlight it by making its selection rectangle visible
-	m_dlist->HighLight( DL_HOLLOW_RECT,
-				m_dlist->Get_x( part->dl_sel) ,
-				m_dlist->Get_y( part->dl_sel),
-				m_dlist->Get_xf(part->dl_sel),
-				m_dlist->Get_yf(part->dl_sel), 1 );
+	if( part->dl_sel )
+	{
+		// highlight it by making its selection rectangle visible
+		m_dlist->HighLight( DL_HOLLOW_RECT,
+					m_dlist->Get_x( part->dl_sel) ,
+					m_dlist->Get_y( part->dl_sel),
+					m_dlist->Get_xf(part->dl_sel),
+					m_dlist->Get_yf(part->dl_sel), 1 );
+	}
 	return 0;
 }
 
@@ -1807,16 +1810,19 @@ void CPartList::MakePartVisible( cpart * part, BOOL bVisible )
 		el->visible = bVisible;
 	}
 	// pins
-	for( int ip=0; ip<part->shape->m_padstack.GetSize(); ip++ )
+	if( part->shape )
 	{
-		// pin pads
-		dl_element * el = part->pin[ip].dl_hole;
-		if( el )
-			el->visible = bVisible;
-		for( int i=0; i<part->pin[ip].dl_els.GetSize(); i++ )
+		for( int ip=0; ip<part->shape->m_padstack.GetSize(); ip++ )
 		{
-			if( part->pin[ip].dl_els[i] )
-				part->pin[ip].dl_els[i]->visible = bVisible;
+			// pin pads
+			dl_element * el = part->pin[ip].dl_hole;
+			if( el )
+				el->visible = bVisible;
+			for( int i=0; i<part->pin[ip].dl_els.GetSize(); i++ )
+			{
+				if( part->pin[ip].dl_els[i] )
+					part->pin[ip].dl_els[i]->visible = bVisible;
+			}
 		}
 	}
 	// ref text strokes

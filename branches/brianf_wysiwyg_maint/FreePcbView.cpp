@@ -9304,35 +9304,39 @@ void CFreePcbView::StartDraggingGroup( BOOL bAdd, int x, int y )
 		if( sid.type == ID_PART )
 		{
 			cpart * part = (cpart*)m_sel_ptrs[i];
-			int xi = part->shape->m_sel_xi;
-			int xf = part->shape->m_sel_xf;
-			if( part->side )
+			
+			if( part->shape )
 			{
-				xi = -xi;
-				xf = -xf;
+				int xi = part->shape->m_sel_xi;
+				int xf = part->shape->m_sel_xf;
+				if( part->side )
+				{
+					xi = -xi;
+					xf = -xf;
+				}
+				int yi = part->shape->m_sel_yi;
+				int yf = part->shape->m_sel_yf;
+				CPoint p1( xi, yi );
+				CPoint p2( xf, yi );
+				CPoint p3( xf, yf );
+				CPoint p4( xi, yf );
+				RotatePoint( &p1, part->angle, zero );
+				RotatePoint( &p2, part->angle, zero );
+				RotatePoint( &p3, part->angle, zero );
+				RotatePoint( &p4, part->angle, zero );
+				p1.x += part->x - m_from_pt.x;
+				p2.x += part->x - m_from_pt.x;
+				p3.x += part->x - m_from_pt.x;
+				p4.x += part->x - m_from_pt.x;
+				p1.y += part->y - m_from_pt.y;
+				p2.y += part->y - m_from_pt.y;
+				p3.y += part->y - m_from_pt.y;
+				p4.y += part->y - m_from_pt.y;
+				m_dlist->AddDragLine( p1, p2 );
+				m_dlist->AddDragLine( p2, p3 );
+				m_dlist->AddDragLine( p3, p4 );
+				m_dlist->AddDragLine( p4, p1 );
 			}
-			int yi = part->shape->m_sel_yi;
-			int yf = part->shape->m_sel_yf;
-			CPoint p1( xi, yi );
-			CPoint p2( xf, yi );
-			CPoint p3( xf, yf );
-			CPoint p4( xi, yf );
-			RotatePoint( &p1, part->angle, zero );
-			RotatePoint( &p2, part->angle, zero );
-			RotatePoint( &p3, part->angle, zero );
-			RotatePoint( &p4, part->angle, zero );
-			p1.x += part->x - m_from_pt.x;
-			p2.x += part->x - m_from_pt.x;
-			p3.x += part->x - m_from_pt.x;
-			p4.x += part->x - m_from_pt.x;
-			p1.y += part->y - m_from_pt.y;
-			p2.y += part->y - m_from_pt.y;
-			p3.y += part->y - m_from_pt.y;
-			p4.y += part->y - m_from_pt.y;
-			m_dlist->AddDragLine( p1, p2 );
-			m_dlist->AddDragLine( p2, p3 );
-			m_dlist->AddDragLine( p3, p4 );
-			m_dlist->AddDragLine( p4, p1 );
 		}
 		else if( sid.type == ID_NET && sid.st == ID_CONNECT
 			&& sid.sst == ID_SEL_SEG )
@@ -9697,59 +9701,62 @@ void CFreePcbView::MoveGroup( int dx, int dy )
 			m_Doc->m_plist->Move( part, part->x+dx, part->y+dy, part->angle, part->side );
 			// find segments which connect to this part and move them
 			cnet * net;
-			for( int ip=0; ip<part->shape->m_padstack.GetSize(); ip++ )
+			if( part->shape )
 			{
-				net = part->pin[ip].net;
-				if( net )
+				for( int ip=0; ip<part->shape->m_padstack.GetSize(); ip++ )
 				{
-					for( int ic=0; ic<net->nconnects; ic++ )
+					net = part->pin[ip].net;
+					if( net )
 					{
-						cconnect * c = &net->connect[ic];
-						int nsegs = c->nsegs;
-						if( nsegs )
+						for( int ic=0; ic<net->nconnects; ic++ )
 						{
-							int p1 = c->start_pin;
-							CString pin_name1 = net->pin[p1].pin_name;
-							int pin_index1 = part->shape->GetPinIndexByName( pin_name1 );
-							int p2 = c->end_pin;
-							if( net->pin[p1].part == part )
+							cconnect * c = &net->connect[ic];
+							int nsegs = c->nsegs;
+							if( nsegs )
 							{
-								// starting pin is on part
-								if( !c->seg[0].utility && c->seg[0].layer != LAY_RAT_LINE )
+								int p1 = c->start_pin;
+								CString pin_name1 = net->pin[p1].pin_name;
+								int pin_index1 = part->shape->GetPinIndexByName( pin_name1 );
+								int p2 = c->end_pin;
+								if( net->pin[p1].part == part )
 								{
-									// first segment is not selected, unroute it
-									if( !c->seg[0].utility )
-										m_Doc->m_nlist->UnrouteSegmentWithoutMerge( net, ic, 0 );
-								}
-								// move vertex if not selected
-								if( !c->vtx[0].utility )
-								{
-									m_Doc->m_nlist->MoveVertex( net, ic, 0,
-										part->pin[pin_index1].x, part->pin[pin_index1].y );
-									c->vtx[0].utility2 = 1; // moved
-								}
-							}
-							if( p2 != cconnect::NO_END )
-							{
-								if( net->pin[p2].part == part )
-								{
-									// ending pin is on part
-									if( c->seg[nsegs-1].layer != LAY_RAT_LINE )
+									// starting pin is on part
+									if( !c->seg[0].utility && c->seg[0].layer != LAY_RAT_LINE )
 									{
-										// unroute it if not selected
-										if( !c->seg[nsegs-1].utility )
-											m_Doc->m_nlist->UnrouteSegmentWithoutMerge( net, ic, nsegs-1 );
+										// first segment is not selected, unroute it
+										if( !c->seg[0].utility )
+											m_Doc->m_nlist->UnrouteSegmentWithoutMerge( net, ic, 0 );
 									}
-									// modify vertex position if necessary
-									if( !c->vtx[nsegs].utility )
+									// move vertex if not selected
+									if( !c->vtx[0].utility )
 									{
-										// move vertex if unselected
-										CString pin_name2 = net->pin[p2].pin_name;
-										int pin_index2 = part->shape->GetPinIndexByName( pin_name2 );
-										m_Doc->m_nlist->MoveVertex( net, ic, nsegs,
-											part->pin[pin_index2].x, part->pin[pin_index2].y );
-										c->vtx[nsegs].utility2 =  1;	// moved
+										m_Doc->m_nlist->MoveVertex( net, ic, 0,
+											part->pin[pin_index1].x, part->pin[pin_index1].y );
+										c->vtx[0].utility2 = 1; // moved
+									}
+								}
+								if( p2 != cconnect::NO_END )
+								{
+									if( net->pin[p2].part == part )
+									{
+										// ending pin is on part
+										if( c->seg[nsegs-1].layer != LAY_RAT_LINE )
+										{
+											// unroute it if not selected
+											if( !c->seg[nsegs-1].utility )
+												m_Doc->m_nlist->UnrouteSegmentWithoutMerge( net, ic, nsegs-1 );
+										}
+										// modify vertex position if necessary
+										if( !c->vtx[nsegs].utility )
+										{
+											// move vertex if unselected
+											CString pin_name2 = net->pin[p2].pin_name;
+											int pin_index2 = part->shape->GetPinIndexByName( pin_name2 );
+											m_Doc->m_nlist->MoveVertex( net, ic, nsegs,
+												part->pin[pin_index2].x, part->pin[pin_index2].y );
+											c->vtx[nsegs].utility2 =  1;	// moved
 
+										}
 									}
 								}
 							}
