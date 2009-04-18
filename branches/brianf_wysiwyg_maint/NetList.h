@@ -418,6 +418,8 @@ public:
 		m_dlist = dlist;
 	}
 
+	~cnet();
+
 	id id;				// net id
 	CString name;		// net name
 	int nconnects;		// number of connections
@@ -436,7 +438,6 @@ public:
 class CNetList
 {
 public:
-	enum{ MAX_ITERATORS=10 };
 	enum {
 		VIA_NO_CONNECT = 0,
 		VIA_TRACE = 1,
@@ -482,10 +483,8 @@ public:
 	int CheckConnectivity( CString * logstr );
 	void HighlightNetConnections( cnet * net );
 	void HighlightNet( cnet * net );
-	cnet * GetFirstNet();
-	cnet * GetNextNet();
-	void CancelNextNet();
 	BOOL GetNetBoundaries( CRect * r );
+	int GetNumNets() const { return m_map.GetSize(); }
 
 	// functions for connections
 	int AddNetConnect( cnet * net, int p1, int p2 );
@@ -672,8 +671,6 @@ private:
 	CPartList * m_plist;
 	int m_layers;	// number of copper layers
 	CNetWidthInfo  m_def_width_attrib;
-	int m_pos_i;	// index for iterators
-	POSITION m_pos[MAX_ITERATORS];	// iterators for nets
 	CArray<int> m_tee;
 	BOOL m_bSMT_connect;
 
@@ -681,4 +678,26 @@ public:
 	int m_annular_ring;
 
 	CNetWidthInfo const &Get_def_width_attrib() const { return m_def_width_attrib; }
+};
+
+
+class CIterator_cnet : protected CDLinkList
+{
+	// List of all active iterators
+	static CDLinkList m_LIST_Iterator;
+
+	CNetList const * m_NetList;
+
+	POSITION m_CurrentPos;
+	cnet * m_pCurrentNet;
+
+public:
+	explicit CIterator_cnet( CNetList const * netlist );
+	~CIterator_cnet() {}
+
+	cnet *GetFirst();
+	cnet *GetNext();
+
+public:
+	static void OnRemove( cnet const * net );
 };

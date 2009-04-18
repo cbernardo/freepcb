@@ -66,109 +66,16 @@ carea &carea::operator=( carea &a )
 }
 
 
-CVertexIterator::CVertexIterator( cnet * net, int ic, int ivtx )
-	: m_net(net)
-	, m_ic(ic)
-	, m_ivtx(ivtx)
-	, m_tee_ID(0)
-	, m_idx(-1)
-	, m_icc(ic)
-	, m_icvtx(ivtx)
+cnet::~cnet()
 {
-	ASSERT( m_ic < m_net->nconnects );
-
-	cconnect * c = &m_net->connect[m_ic];
-
-	ASSERT( m_ivtx <= c->nsegs );
+	CIterator_cnet::OnRemove(this);
 }
-
-cconnect       *CVertexIterator::getcur_connect()       { return &m_net->connect[m_icc]; }
-cconnect const *CVertexIterator::getcur_connect() const { return &m_net->connect[m_icc]; }
-
-cvertex *CVertexIterator::GetFirst()
-{
-	m_idx = -1;
-	return GetNext();
-}
-
-cvertex *CVertexIterator::GetNext()
-{
-	if ( m_net == NULL ) return NULL;
-
-	cconnect * c;
-	cvertex * vtx;
-
-	if( m_idx < 0 )
-	{
-		// First return vertex defined by is & ivtx
-		m_icc   = m_ic;
-		m_icvtx = m_ivtx;
-
-		if( m_icc >= m_net->nconnects ) return NULL;
-
-		c = &m_net->connect[m_icc];
-		if( m_icvtx > c->nsegs ) return NULL; // > is OK, >= not OK
-
-		vtx = &c->vtx[m_icvtx];
-
-		m_tee_ID = vtx->tee_ID;
-
-		// Next state
-		m_idx = 0;
-	}
-	else
-	{
-		// Next, return other vertexes with matching tee ID
-
-		// Check for no T's
-		if( m_tee_ID == 0) return NULL;
-
-		while( m_idx < m_net->nconnects )
-		{
-			m_icc = m_idx++;
-			c = &m_net->connect[m_icc];
-
-			int i;
-			if( c->end_pin == cconnect::NO_END )
-			{
-				// Stub/branch - test last vertex
-				i = c->nsegs;
-			}
-			else
-			{
-				// Regular connection - test all vertexes
-				i = 1;
-			}
-
-			for ( ; i <= c->nsegs ; i++ )
-			{
-				vtx = &c->vtx[i];
-				if( vtx->tee_ID == m_tee_ID )
-				{
-					// Found matching vertex
-
-					// Update vertex info
-					m_icvtx = i;
-
-					return vtx;
-				}
-			}
-		}
-
-		// No vertexes matching m_tee_ID found
-		vtx = NULL;
-	}
-
-	return vtx;
-}
-
 
 
 CNetList::CNetList( CDisplayList * dlist, CPartList * plist )
 {
 	m_dlist = dlist;			// attach display list
 	m_plist = plist;			// attach part list
-	m_pos_i = -1;				// intialize index to iterators
 	m_bSMT_connect = FALSE;
 }
 
@@ -264,67 +171,13 @@ void CNetList::RemoveAllNets()
    m_map.RemoveAll();
 }
 
-// Get first net in list, or NULL if no nets
-//
-cnet * CNetList::GetFirstNet()
-{
-	CString name;
-	void * ptr;
-	// test for no nets
-	if( m_map.GetSize() == 0 )
-		return NULL;
-	// increment iterator and get first net
-	m_pos_i++;
-	if( m_pos_i >= MAX_ITERATORS )
-		ASSERT(0);	// fatal overflow
-	m_pos[m_pos_i] = m_map.GetStartPosition();
-	if( m_pos != NULL )
-	{
-		m_map.GetNextAssoc( m_pos[m_pos_i], name, ptr );
-		cnet * net = (cnet*)ptr;
-		if( net == NULL )
-			ASSERT(0);
-		return net;
-	}
-	else
-		return NULL;
-}
-
-// Get next net in list
-//
-cnet * CNetList::GetNextNet()
-{
-	CString name;
-	void * ptr;
-
-	if( m_pos[m_pos_i] == NULL )
-	{
-		m_pos_i--;
-		return NULL;
-	}
-	else
-	{
-		m_map.GetNextAssoc( m_pos[m_pos_i], name, ptr );
-		cnet * net = (cnet*)ptr;
-		if( net == NULL )
-			ASSERT(0);
-		return net;
-	}
-}
-
-// Cancel loop on next net
-//
-void CNetList::CancelNextNet()
-{
-		m_pos_i--;
-}
 
 // set utility parameter of all nets
 //
 void CNetList::MarkAllNets( int utility )
 {
-	cnet * net = GetFirstNet();
-	while( net != NULL )
+	CIterator_cnet net_iter(this);
+	for( cnet * net = net_iter.GetFirst(); net != NULL; net = net_iter.GetNext() )
 	{
 		net->utility = utility;
 		for( int ip=0; ip<net->npins; ip++ )
@@ -349,7 +202,6 @@ void CNetList::MarkAllNets( int utility )
 				a->poly->SetUtility( is, utility );
 			}
 		}
-		net = GetNextNet();
 	}
 }
 
@@ -1117,9 +969,9 @@ void CNetList::CleanUpConnections( cnet * net, CString * logstr )
 							str.Format( "net %s: stub traces from %s.%s and %s.%s: same end-point\r\n",
 									net->name,
 									net->pin[c->start_pin].ref_des(), net->pin[c->start_pin].pin_name,
-									net->pin[cc->start_pin].ref_des(), net->pin[cc->start_pin].pin_name );
+									net->pin[cc->start_pin].ref_des(), net->pin[cc->start_pin].pin_name 
+							);
 							*logstr += str;
-
 						}
 					}
 				}
@@ -1135,12 +987,13 @@ void CNetList::CleanUpAllConnections( CString * logstr )
 {
 	CString str;
 
-	cnet * net = GetFirstNet();
-	while( net )
+	cnet * net;
+	CIterator_cnet net_iter(this);
+	for( net = net_iter.GetFirst(); net != NULL; net = net_iter.GetNext() )
 	{
 		CleanUpConnections( net, logstr );
-		net = GetNextNet();
 	}
+
 	// check tee_IDs in array
 	if( logstr )
 		*logstr += "\r\nChecking tees and branches:\r\n";
@@ -1167,8 +1020,7 @@ void CNetList::CleanUpAllConnections( CString * logstr )
 		}
 	}
 	// now check tee_IDs in project
-	net = GetFirstNet();
-	while( net )
+	for( net = net_iter.GetFirst(); net != NULL; net = net_iter.GetNext() )
 	{
 		for( int ic=net->nconnects-1; ic>=0; ic-- )
 		{
@@ -1219,7 +1071,6 @@ void CNetList::CleanUpAllConnections( CString * logstr )
 				}
 			}
 		}
-		net = GetNextNet();
 	}
 }
 
@@ -2556,14 +2407,16 @@ int CNetList::PartMoved( cpart * part )
 {
 	// first, mark all nets and connections unmodified
 	cnet * net;
-	net = GetFirstNet();
-	while( net )
+	CIterator_cnet net_iter(this);
+	for( net = net_iter.GetFirst(); net != NULL; net = net_iter.GetNext() )
 	{
 		net->utility = 0;
 		for( int ic=0; ic<net->nconnects; ic++ )
+		{
 			net->connect[ic].utility = 0;
-		net = GetNextNet();
+		}
 	}
+
 	// disable drawing/undrawing
 	CDisplayList * old_dlist = m_dlist;
 	m_dlist = 0;
@@ -2659,9 +2512,8 @@ int CNetList::PartMoved( cpart * part )
 	m_dlist = old_dlist;
 	if( m_dlist )
 	{
-		cnet * net;
-		net = GetFirstNet();
-		while( net )
+		CIterator_cnet net_iter(this);
+		for( cnet * net = net_iter.GetFirst(); net != NULL; net = net_iter.GetNext() )
 		{
 			if( net->utility )
 			{
@@ -2671,7 +2523,6 @@ int CNetList::PartMoved( cpart * part )
 						DrawConnection( net, ic );
 				}
 			}
-			net = GetNextNet();
 		}
 	}
 	return 0;
@@ -2692,8 +2543,8 @@ int CNetList::PartFootprintChanged( cpart * part )
 		part->pin[ip].set_net();
 
 	// find nets which connect to this part
-	cnet * net = GetFirstNet();
-	while( net )
+	CIterator_cnet net_iter(this);
+	for( cnet * net = net_iter.GetFirst(); net != NULL; net = net_iter.GetNext() )
 	{
 		// check each connection in net
 		for( int ic=net->nconnects-1; ic>=0; ic-- )
@@ -2831,7 +2682,6 @@ int CNetList::PartFootprintChanged( cpart * part )
 			}
 		}
 		RemoveOrphanBranches( net, 0, TRUE );
-		net = GetNextNet();
 	}
 	return 0;
 }
@@ -3276,7 +3126,7 @@ int CNetList::RehookPartsToNet( cnet * net )
 				if( pin_index != -1 )
 				{
 					part_pin *pp = &part->pin[pin_index];
-					
+
 					pp->set_net( net );
 				}
 			}
@@ -4447,9 +4297,9 @@ int CNetList::WriteNets( CStdioFile * file )
 			net = (cnet*)ptr;
 
 
-			line.Format( "net: \"%s\" %d %d %d %d %d %d %d %d %d\n", net->name, 
-							net->npins, 
-							net->nconnects, 
+			line.Format( "net: \"%s\" %d %d %d %d %d %d %d %d %d\n", net->name,
+							net->npins,
+							net->nconnects,
 							net->nareas,
 							CSegWidthInfo::ItemToFile( net->def_width_attrib.m_seg_width ),
 							CSegWidthInfo::ItemToFile( net->def_width_attrib.m_via_width ),
@@ -4833,7 +4683,7 @@ void CNetList::ReadNets( CStdioFile * pcb_file, double read_version, int * layer
 									via_width_attrib.m_ca_clearance          = my_atoi( &p[9] );
 									via_width_attrib.m_ca_clearance.m_status = my_atoi( &p[10] );
 
-									// Via width status info 
+									// Via width status info
 									int via_status = my_atoi( &p[8] );
 
 									via_width_attrib.m_via_width.m_status = via_status;
@@ -5222,8 +5072,8 @@ void CNetList::ImportNetListInfo( netlist_info * nl, int flags, CDlgLog * log )
 
 	// now check for existing nets that are not in netlist_info
 	CArray<cnet*> delete_these;
-	cnet * net = GetFirstNet();
-	while( net )
+	CIterator_cnet net_iter(this);
+	for( cnet * net = net_iter.GetFirst(); net != NULL; net = net_iter.GetNext() )
 	{
 		// check if in netlist_info
 		BOOL bFound = FALSE;
@@ -5256,7 +5106,6 @@ void CNetList::ImportNetListInfo( netlist_info * nl, int flags, CDlgLog * log )
 				delete_these.Add( net );	// flag for deletion
 			}
 		}
-		net = GetNextNet();
 	}
 	// delete them
 	for( int i=0; i<delete_these.GetSize(); i++ )
@@ -5389,8 +5238,8 @@ void CNetList::ImportNetListInfo( netlist_info * nl, int flags, CDlgLog * log )
 			for( int ipl=0; ipl<n_local_pins; ipl++ )
 			{
 				// delete this pin from any other nets
-				cnet * test_net = GetFirstNet();
-				while( test_net )
+				CIterator_cnet net_iter(this);
+				for( cnet * test_net = net_iter.GetFirst(); test_net != NULL; test_net = net_iter.GetNext() )
 				{
 					if( test_net != net )
 					{
@@ -5412,7 +5261,6 @@ void CNetList::ImportNetListInfo( netlist_info * nl, int flags, CDlgLog * log )
 							}
 						}
 					}
-					test_net = GetNextNet();
 				}
 				// now test for pin already present in net
 				BOOL pin_present = FALSE;
@@ -5519,8 +5367,9 @@ void CNetList::ImportNetListInfo( netlist_info * nl, int flags, CDlgLog * log )
 void CNetList::Copy( CNetList * src_nl )
 {
 	RemoveAllNets();
-	cnet * src_net = src_nl->GetFirstNet();
-	while( src_net )
+
+	CIterator_cnet net_iter(src_nl);
+	for( cnet * src_net = net_iter.GetFirst(); src_net != NULL; src_net = net_iter.GetNext() )
 	{
 		cnet * net = AddNet( src_net->name, src_net->npins, src_net->def_width_attrib );
 		net->pin.SetSize( src_net->npins );
@@ -5585,7 +5434,6 @@ void CNetList::Copy( CNetList * src_nl )
 			}
 		}
 		net->utility = src_net->utility;
-		src_net = src_nl->GetNextNet();
 	}
 }
 
@@ -5596,8 +5444,9 @@ void CNetList::ReassignCopperLayers( int n_new_layers, int * layer )
 {
 	if( m_layers < 1 || m_layers > 16 )
 		ASSERT(0);
-	cnet * net = GetFirstNet();
-	while( net )
+
+	CIterator_cnet net_iter(this);
+	for( cnet * net = net_iter.GetFirst(); net != NULL; net = net_iter.GetNext() )
 	{
 		for( int ic=0; ic<net->nconnects; ic++ )
 		{
@@ -5652,7 +5501,6 @@ void CNetList::ReassignCopperLayers( int n_new_layers, int * layer )
 			}
 		}
 		CombineAllAreasInNet( net, TRUE, FALSE );
-		net = GetNextNet();
 	}
 	m_layers = n_new_layers;
 }
@@ -5662,9 +5510,8 @@ void CNetList::ReassignCopperLayers( int n_new_layers, int * layer )
 void CNetList::RestoreConnectionsAndAreas( CNetList * old_nl, int flags, CDlgLog * log )
 {
 	// loop through old nets
-	old_nl->MarkAllNets( 0 );
-	cnet * old_net = old_nl->GetFirstNet();
-	while( old_net )
+	CIterator_cnet net_iter(old_nl);
+	for( cnet * old_net = net_iter.GetFirst(); old_net != NULL; old_net = net_iter.GetNext() )
 	{
 		if( flags & (KEEP_TRACES | KEEP_STUBS) )
 		{
@@ -5909,7 +5756,6 @@ void CNetList::RestoreConnectionsAndAreas( CNetList * old_nl, int flags, CDlgLog
 				}
 			}
 		}
-		old_net = old_nl->GetNextNet();
 	}
 }
 
@@ -7178,7 +7024,8 @@ void CNetList::SetWidths( CNetWidthInfo const &width_attrib )
 	CNetWidthInfo update_use_parent_only;
 	update_use_parent_only.Undef();
 
-	for( cnet * net = GetFirstNet(); net != NULL; net = GetNextNet() )
+	CIterator_cnet net_iter(this);
+	for( cnet * net = net_iter.GetFirst(); net != NULL; net = net_iter.GetNext() )
 	{
 		net->def_width_attrib.Update();
 		SetNetWidth( net, update_use_parent_only );
@@ -7191,13 +7038,13 @@ void CNetList::SetWidths( CNetWidthInfo const &width_attrib )
 BOOL CNetList::GetNetBoundaries( CRect * r )
 {
 	BOOL bValid = FALSE;
-	cnet * net = GetFirstNet();
 	CRect br;
 	br.bottom = INT_MAX;
 	br.left = INT_MAX;
 	br.top = INT_MIN;
 	br.right = INT_MIN;
-	while( net )
+	CIterator_cnet net_iter(this);
+	for( cnet * net = net_iter.GetFirst(); net != NULL; net = net_iter.GetNext() )
 	{
 		for( int ic=0; ic<net->nconnects; ic++ )
 		{
@@ -7220,7 +7067,6 @@ BOOL CNetList::GetNetBoundaries( CRect * r )
 			br.right = max( br.right, r.right );
 			bValid = TRUE;
 		}
-		net = GetNextNet();
 	}
 	*r = br;
 	return bValid;
@@ -7305,17 +7151,15 @@ BOOL CNetList::FindTeeVertexInNet( cnet * net, int id, int * ic, int * iv )
 //
 BOOL CNetList::FindTeeVertex( int id, cnet ** net, int * ic, int * iv )
 {
-	cnet * tnet = GetFirstNet();
-	while( tnet )
+	CIterator_cnet net_iter(this);
+	for( cnet * tnet = net_iter.GetFirst(); tnet != NULL; tnet = net_iter.GetNext() )
 	{
 		BOOL bFound = FindTeeVertexInNet( tnet, id, ic, iv );
 		if( bFound )
 		{
-			CancelNextNet();
 			*net = tnet;
 			return TRUE;
 		}
-		tnet = GetNextNet();
 	}
 	return FALSE;
 }

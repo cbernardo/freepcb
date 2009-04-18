@@ -411,7 +411,15 @@
 				>
 			</File>
 			<File
+				RelativePath=".\Net_iter.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\NetList.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\Part_iter.cpp"
 				>
 			</File>
 			<File
@@ -504,6 +512,10 @@
 			</File>
 			<File
 				RelativePath=".\utility.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\Vertex_iter.cpp"
 				>
 			</File>
 		</Filter>

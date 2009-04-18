@@ -2783,10 +2783,15 @@ void CFreePcbDoc::OnFileImport()
 				line = "\r\nMoving traces and copper areas whose nets have changed:\r\n";
 				m_dlg_log->AddLine( line );
 				m_nlist->RestoreConnectionsAndAreas( old_nlist, m_import_flags, m_dlg_log );
+
 				delete old_nlist;
+
 				// rehook all parts to nets after destroying old_nlist
-				for( cnet * net=m_nlist->GetFirstNet(); net; net=m_nlist->GetNextNet() )
+				CIterator_cnet iter(m_nlist);
+				for( cnet * net = iter.GetFirst(); net != NULL; net = iter.GetNext() )
+				{
 					m_nlist->RehookPartsToNet( net );
+				}
 			}
 			// clean up
 			CString str = "\r\n";
@@ -4007,9 +4012,10 @@ void CFreePcbDoc::OnToolsCheckCopperAreas()
 	m_dlg_log->Clear();
 	m_dlg_log->UpdateWindow();
 	m_view->CancelSelection();
-	cnet * net = m_nlist->GetFirstNet();
 	BOOL new_event = TRUE;
-	while( net )
+
+	CIterator_cnet iter(m_nlist);
+	for( cnet * net = iter.GetFirst(); net != NULL; net = iter.GetNext() )
 	{
 		if( net->nareas > 0 )
 		{
@@ -4101,7 +4107,6 @@ void CFreePcbDoc::OnToolsCheckCopperAreas()
 				}
 			}
 		}
-		net = m_nlist->GetNextNet();
 	}
 	str.Format( "*******  DONE *******\r\n" );
 	m_dlg_log->AddLine( str );

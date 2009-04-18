@@ -288,10 +288,11 @@ public:
 
 class CIterator_cpart : protected CDLinkList
 {
+	// List of all active iterators
 	static CDLinkList m_LIST_Iterator;
 
-	CPartList const *m_PartList;
-	CDLinkList *m_pCurrentPart;
+	CPartList const * m_PartList;
+	CDLinkList * m_pCurrentPart;
 
 public:
 	explicit CIterator_cpart( CPartList const * partlist );
