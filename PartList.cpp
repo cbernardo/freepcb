@@ -14,69 +14,6 @@ BOOL g_bShow_header_28mil_hole_warning = TRUE;
 BOOL g_bShow_SIP_28mil_hole_warning = TRUE;
 
 
-//******** *terator for cpart (CIterator_cpart) *********
-CDLinkList CIterator_cpart::m_LIST_Iterator;
-
-// Constructor
-CIterator_cpart::CIterator_cpart( CPartList const * partlist )
-{
-	m_PartList = partlist;
-
-	// Set the current part to the placeholder node in partlist.
-	// The const cast is ok since this element will never be
-	// changed.
-	m_pCurrentPart = const_cast<CDLinkList *>(&m_PartList->m_LIST_part);
-
-	m_LIST_Iterator.insert_after(this);
-}
-
-// Iterator operators: First/Next
-cpart *CIterator_cpart::GetFirst()
-{
-	// Set the current part to the placeholder node in partlist.
-	// The const cast is ok since this element will never be
-	// changed.
-	m_pCurrentPart = const_cast<CDLinkList *>(&m_PartList->m_LIST_part);
-
-	return GetNext();
-}
-
-cpart *CIterator_cpart::GetNext()
-{
-	if( m_pCurrentPart->next == &m_PartList->m_LIST_part )
-	{
-		// Done
-		return NULL;
-	}
-	else
-	{
-		m_pCurrentPart = m_pCurrentPart->next;
-
-		return static_cast<cpart *>( m_pCurrentPart );
-	}
-}
-
-
-// OnRemove() must be called when removing/deleting parts
-// to update any active iterators.
-void CIterator_cpart::OnRemove( cpart const *part )
-{
-	// For every iterator, adjust the "current part" if that part
-	// is the one being removed.
-	for( CDLinkList *pElement = m_LIST_Iterator.next; pElement != &m_LIST_Iterator; pElement = pElement->next )
-	{
-		CIterator_cpart *pIterator = static_cast<CIterator_cpart *>(pElement);
-
-		if( part == pIterator->m_pCurrentPart )
-		{
-			// Make adjustment to previous part so that the next
-			// GetNext() moves to the part after the one removed.
-			pIterator->m_pCurrentPart = part->prev;
-		}
-	}
-}
-
-
 //******** constructors and destructors *********
 
 cpart::cpart()
@@ -128,9 +65,9 @@ void part_pin::set_net(cnet *_net)
 void part_pin::set_clearance(CInheritableInfo const &_clearance)
 {
 	// Set new attributes.
-	// Existing attributes are first assigned to attrib, then updated.  
-	// The resulting behavior is such that if an item relies on its 
-	// parent, that item is always updated at this point, regardless 
+	// Existing attributes are first assigned to attrib, then updated.
+	// The resulting behavior is such that if an item relies on its
+	// parent, that item is always updated at this point, regardless
 	// of whether the item was defined in 'attrib'.  This is consistent
 	// with how items are stored in the .fpc file.
 	CClearanceInfo pin_attrib( clearance );
@@ -1918,11 +1855,11 @@ int CPartList::StartDraggingPart( CDC * pDC, cpart * part, BOOL bRatlines )
 	{
 		m_dlist->MakeDragRatlineArray( 2*part->shape->m_padstack.GetSize(), 1 );
 		// zero utility flags for all nets
-		cnet * n = m_nlist->GetFirstNet();
-		while( n )
+		CIterator_cnet net_iter(m_nlist);
+		cnet * n;
+		for (n = net_iter.GetFirst(); n != NULL; n = net_iter.GetNext() )
 		{
 			n->utility = 0;
-			n = m_nlist->GetNextNet();
 		}
 
 		// now loop through all pins in part
@@ -2466,12 +2403,12 @@ int CPartList::SetPartString( cpart * part, CString * str )
 		{
 			part_pin *pin = &part->pin[i];
 
-			line.Format( "    pin: %d %d %d\n", i+1, 
+			line.Format( "    pin: %d %d %d\n", i+1,
 				pin->clearance.m_ca_clearance.m_val,
 				pin->clearance.m_ca_clearance.m_status
 			);
 			str->Append( line );
-		}	
+		}
 	}
 	else
 	{

@@ -175,8 +175,8 @@ void CDlgReport::OnBnClickedOk()
 	int num_nets = 0;
 	int num_vias = 0;
 
-	CIterator_cpart iter(m_pl);
-	for( cpart *part = iter.GetFirst(); part != NULL; part = iter.GetNext() )
+	CIterator_cpart part_iter(m_pl);
+	for( cpart *part = part_iter.GetFirst(); part != NULL; part = part_iter.GetNext() )
 	{
 		num_parts++;
 		if( part->shape )
@@ -212,8 +212,10 @@ void CDlgReport::OnBnClickedOk()
 			num_pins, num_th_pins, num_pins-num_th_pins );
 		file.WriteString( line );
 	}
-	cnet * net = m_nl->GetFirstNet();
-	while( net )
+
+	CIterator_cnet net_iter(m_nl);
+
+	for( cnet * net = net_iter.GetFirst(); net != NULL; net = net_iter.GetNext() )
 	{
 		num_nets++;
 		for( int ic=0; ic<net->nconnects; ic++ )
@@ -234,8 +236,8 @@ void CDlgReport::OnBnClickedOk()
 				}
 			}
 		}
-		net = m_nl->GetNextNet();
 	}
+
 	if( !(m_flags & NO_PCB_STATS) )
 	{
 		line.Format( "Number of vias: %d\n", num_vias );
@@ -278,7 +280,7 @@ void CDlgReport::OnBnClickedOk()
 
 		int ip = 0;
 		cpart *part;
-		for( part = iter.GetFirst(); part != NULL; part = iter.GetNext() )
+		for( part = part_iter.GetFirst(); part != NULL; part = part_iter.GetNext() )
 		{
 			ref_ptr[ip] = &part->ref_des;
 			ip++;
