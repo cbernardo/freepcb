@@ -262,6 +262,8 @@ public:
 
 	int width()     const { return width_attrib.m_seg_width.m_val; }
 	int clearance() const { return width_attrib.m_ca_clearance.m_val; }
+
+	void UpdateIndex(int is);
 };
 
 // cvertex: describes a vertex between segments
@@ -332,7 +334,7 @@ public:
 
 		return *this;
 	};
-	void Initialize( CDisplayList * dlist ){m_dlist = dlist;}
+	void Initialize( CDisplayList * dlist ){ m_dlist = dlist; }
 	int x, y;					// coords
 	int pad_layer;				// layer of pad if this is first or last vertex, otherwise 0
 	int force_via_flag;			// force a via even if no layer change
@@ -350,6 +352,9 @@ public:
 
 	int viaExists() const { return via_w(); }
 	void SetNoVia() { via_width_attrib.m_via_width = via_width_attrib.m_via_hole = 0; }
+
+	// Update index in connection array
+	void UpdateIndex(int iv);
 };
 
 class cconnect;

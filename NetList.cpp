@@ -23,6 +23,26 @@ BOOL bDontShowSelfIntersectionArcsWarning = FALSE;
 BOOL bDontShowIntersectionWarning = FALSE;
 BOOL bDontShowIntersectionArcsWarning = FALSE;
 
+
+void cseg::UpdateIndex(int is)
+{
+	if( dl_el )  dl_el ->id.ii = is;
+	if( dl_sel ) dl_sel->id.ii = is;
+}
+
+
+void cvertex::UpdateIndex(int iv)
+{
+	if( dl_sel )  dl_sel ->id.ii = iv;
+	if( dl_hole ) dl_hole->id.ii = iv;
+
+	for( int il=0; il < dl_el.GetSize(); il++ )
+	{
+		if( dl_el[il] ) dl_el[il]->id.ii = iv;
+	}
+}
+
+
 //////////////////////////////////////////////////////////////////////
 // Construction/Destruction
 //////////////////////////////////////////////////////////////////////
@@ -1671,6 +1691,40 @@ int CNetList::InsertSegment( cnet * net, int ic, int iseg, int x, int y, int lay
 	}
 
 	cseg *seg;
+	if( !insert_flag )
+	{
+		// don't insert, just modify old segment
+		seg = &c->seg[ iseg ];
+
+		if ( seg->dl_el )
+		{
+			seg->selected  = 0;
+			seg->layer     = layer;
+
+			// Set width attrib
+			seg->width_attrib = width;
+			seg->width_attrib.SetParent( net->def_width_attrib );
+			seg->width_attrib.Update();
+
+			if( m_dlist )
+			{
+				int x = m_dlist->Get_x(seg->dl_el);
+				int y = m_dlist->Get_y(seg->dl_el);
+				int xf = m_dlist->Get_xf(seg->dl_el);
+				int yf = m_dlist->Get_yf(seg->dl_el);
+				id id  = seg->dl_el->id;
+
+				seg->dl_el->Remove();
+				seg->dl_el = m_dlist->Add( id, net, layer, DL_LINE, 1, seg->width(), 0, seg->clearance(), x, y, xf, yf, 0, 0 );
+			}
+		}
+		else
+		{
+			// Can't modify old segment, just insert new wegment
+			insert_flag = 1;
+		}
+	}
+
 	if( insert_flag )
 	{
 		// insert new vertex and segment
@@ -1684,24 +1738,13 @@ int CNetList::InsertSegment( cnet * net, int ic, int iseg, int x, int y, int lay
 		for( int i=c->nsegs; i>iseg; i-- )
 		{
 			c->seg[i] = c->seg[i-1];
-			if( c->seg[i].dl_el )
-				c->seg[i].dl_el->id.ii = i;
-			if( c->seg[i].dl_sel )
-				c->seg[i].dl_sel->id.ii = i;
+			c->seg[i].UpdateIndex(i);
+
 			c->vtx[i+1] = c->vtx[i];
+			c->vtx[i+1].UpdateIndex(i+i);
+
 			c->vtx[i].tee_ID = 0;
 			c->vtx[i].force_via_flag = FALSE;
-			if( c->vtx[i+1].dl_sel )
-				c->vtx[i+1].dl_sel->id.ii = i+1;
-			if( c->vtx[i+1].dl_hole )
-				c->vtx[i+1].dl_hole->id.ii = i+1;
-			for( int il=0; il<c->vtx[i+1].dl_el.GetSize(); il++ )
-			{
-				if( c->vtx[i+1].dl_el[il] )
-					c->vtx[i+1].dl_el[il]->id.ii = i+1;
-			}
-			if( c->vtx[i+1].dl_hole )
-				c->vtx[i+1].dl_hole->id.ii = i+1;
 		}
 		// note that seg[iseg+1] now duplicates seg[iseg], vtx[iseg+2] duplicates vtx[iseg+1]
 		// we must replace or zero the dl_element pointers for seg[iseg+1]
@@ -1735,7 +1778,7 @@ int CNetList::InsertSegment( cnet * net, int ic, int iseg, int x, int y, int lay
 				seg->dl_el  = m_dlist->Add        ( id, net, layer, DL_LINE, 1, seg->width(), 0, seg->clearance(), xi, yi, x, y, 0, 0 );
 
 				id.sst = ID_SEL_SEG;
-				seg->dl_sel = m_dlist->AddSelector( id, net, layer, DL_LINE, 1, seg->width(), 0, xi, yi, x, y, 0, 0 );
+				seg->dl_sel = m_dlist->AddSelector( id, net, layer, DL_LINE, 1, seg->width(), 0,                   xi, yi, x, y, 0, 0 );
 
 				id.sst = ID_SEL_VERTEX;
 				id.ii = iseg+1;
@@ -1759,7 +1802,7 @@ int CNetList::InsertSegment( cnet * net, int ic, int iseg, int x, int y, int lay
 				seg->dl_el  = m_dlist->Add        ( id, net, layer, DL_LINE, 1, seg->width(), 0, seg->clearance(), x, y, xf, yf, 0, 0 );
 
 				id.sst = ID_SEL_SEG;
-				seg->dl_sel = m_dlist->AddSelector( id, net, layer, DL_LINE, 1, seg->width(), 0, x, y, xf, yf, 0, 0 );
+				seg->dl_sel = m_dlist->AddSelector( id, net, layer, DL_LINE, 1, seg->width(), 0,                   x, y, xf, yf, 0, 0 );
 
 				id.sst = ID_SEL_VERTEX;
 				id.ii = iseg+1;
@@ -1810,31 +1853,6 @@ int CNetList::InsertSegment( cnet * net, int ic, int iseg, int x, int y, int lay
 
 		// done
 		c->nsegs++;
-	}
-	else
-	{
-		// don't insert, just modify old segment
-		seg = &c->seg[ iseg ];
-
-		seg->selected  = 0;
-		seg->layer     = layer;
-
-		// Set width attrib
-		seg->width_attrib = width;
-		seg->width_attrib.SetParent( net->def_width_attrib );
-		seg->width_attrib.Update();
-
-		if( m_dlist )
-		{
-			int x = m_dlist->Get_x(seg->dl_el);
-			int y = m_dlist->Get_y(seg->dl_el);
-			int xf = m_dlist->Get_xf(seg->dl_el);
-			int yf = m_dlist->Get_yf(seg->dl_el);
-			id id  = seg->dl_el->id;
-
-			seg->dl_el->Remove();
-			seg->dl_el = m_dlist->Add( id, net, layer, DL_LINE, 1, seg->width(), 0, seg->clearance(), x, y, xf, yf, 0, 0 );
-		}
 	}
 
 	// clean up vias
