@@ -47,7 +47,7 @@ enum CENTROID_TYPE
 	CENTROID_DEFINED		// defined by user
 };
 
-// glue spot position types 
+// glue spot position types
 enum GLUE_POS_TYPE
 {
 	GLUE_POS_CENTROID,	// at centroid
@@ -116,6 +116,28 @@ public:
 //
 class CShape
 {
+public: // class used to represent a CShape for std::sort()
+	class CSortElement
+	{
+	public:
+		CShape * shape;
+
+		int operator<(CSortElement const &to) const
+		{
+			return shape->m_name < to.shape->m_name;
+		}
+
+		CSortElement &operator = (CShape * _shape)
+		{
+			shape = _shape;
+		}
+
+		operator CShape * ()
+		{
+			return shape;
+		}
+	};
+
 	// if variables are added, remember to modify Copy!
 public:
 	enum { MAX_NAME_SIZE = 59 };	// max. characters
@@ -195,10 +217,10 @@ public:
 
 public:
 	CDisplayList * m_dlist;
-	CArray<dl_element*> m_hole_el;		// hole display element 
-	CArray<dl_element*> m_pad_top_el;		// top pad display element 
-	CArray<dl_element*> m_pad_inner_el;		// inner pad display element 
-	CArray<dl_element*> m_pad_bottom_el;	// bottom pad display element 
+	CArray<dl_element*> m_hole_el;		// hole display element
+	CArray<dl_element*> m_pad_top_el;		// top pad display element
+	CArray<dl_element*> m_pad_inner_el;		// inner pad display element
+	CArray<dl_element*> m_pad_bottom_el;	// bottom pad display element
 	CArray<dl_element*> m_pad_top_mask_el;
 	CArray<dl_element*> m_pad_top_paste_el;
 	CArray<dl_element*> m_pad_bottom_mask_el;

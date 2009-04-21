@@ -4,6 +4,7 @@
 #include "stdafx.h"
 #include <math.h>
 #include <stdlib.h>
+#include <algorithm>
 #include "DlgMyMessageBox.h"
 #include "gerber.h"
 #include "utility.h"
@@ -4280,12 +4281,26 @@ int CNetList::WriteNets( CStdioFile * file )
 		line.Format( "[nets]\n\n" );
 		file->WriteString( line );
 
-		// traverse map
-		// BAF - sort this list by name for more consistent output to file
-		//       when nets are added (better for textual diffs).
+		// Sort the nets by name for more consistent output to file
+		// when nets are added (better for textual diffs).
+		int i;
+		cnet * net;
+		CArray<cnet::CSortElement> nets;
+		nets.SetSize( GetNumNets() );
+	
+		// Get the unsorted net names
 		CIterator_cnet net_iter(this);
-		for( cnet * net = net_iter.GetFirst(); net != NULL; net = net_iter.GetNext() )
+		for( i = 0, net = net_iter.GetFirst(); net != NULL; net = net_iter.GetNext(), i++ )
 		{
+			nets[i] = net;
+		}
+
+		std::sort( nets.GetData(), nets.GetData() + nets.GetSize() );
+
+		for( i = 0; i < nets.GetSize(); i++ )
+		{
+			net = nets[i];
+
 			line.Format( "net: \"%s\" %d %d %d %d %d %d %d %d %d\n", net->name,
 							net->npins,
 							net->nconnects,

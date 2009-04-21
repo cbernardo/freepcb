@@ -417,6 +417,28 @@ public:
 // cnet: describes a net
 class cnet
 {
+public: // class used to represent a net for std::sort()
+	class CSortElement
+	{
+	public:
+		cnet * net;
+
+		int operator<(CSortElement const &to) const 
+		{
+			return net->name < to.net->name;
+		}
+
+		CSortElement &operator = (cnet * _net) 
+		{
+			net = _net;
+		}
+
+		operator cnet * ()
+		{
+			return net;
+		}
+	};
+
 public:
 	cnet( CDisplayList * dlist );
 	~cnet();

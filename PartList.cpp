@@ -4,6 +4,7 @@
 //
 #include "stdafx.h"
 #include <math.h>
+#include <algorithm>
 #include "DisplayList.h"
 #include "DlgMyMessageBox.h"
 
@@ -2512,8 +2513,25 @@ int CPartList::WriteParts( CStdioFile * file )
 		line.Format( "[parts]\n\n" );
 		file->WriteString( line );
 
-		for( cpart *part = iter.GetFirst(); part != NULL; part = iter.GetNext() )
+		// Sort the parts by name for more consistent output to file
+		// when parts are added (better for textual diffs).
+		int i;
+		cpart * part;
+		CArray<cpart::CSortElement_ref_des> parts;
+		parts.SetSize( GetNumParts() );
+	
+		// Get the unsorted part names
+		for( i = 0, part = iter.GetFirst(); part != NULL; part = iter.GetNext(), i++ )
 		{
+			parts[i] = part;
+		}
+
+		std::sort( parts.GetData(), parts.GetData() + parts.GetSize() );
+
+		for( i = 0; i < parts.GetSize(); i++ )
+		{
+			part = parts[i];
+
 			// test
 			CString test;
 			SetPartString( part, &test );
