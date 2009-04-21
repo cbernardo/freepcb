@@ -120,6 +120,28 @@ public:
 // class cpart represents a part
 class cpart : public CDLinkList
 {
+public: // class used to represent a part for std::sort()
+	class CSortElement_ref_des
+	{
+	public:
+		cpart * part;
+
+		int operator<(CSortElement_ref_des const &to) const 
+		{
+			return part->ref_des < to.part->ref_des;
+		}
+
+		CSortElement_ref_des &operator = (cpart * _part) 
+		{
+			part = _part;
+		}
+
+		operator cpart * ()
+		{
+			return part;
+		}
+	};
+
 public:
 	cpart();
 	~cpart();

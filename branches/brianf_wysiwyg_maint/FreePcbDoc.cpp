@@ -7,6 +7,7 @@
 #include <shlwapi.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <algorithm>
 #include "PcbFont.h"
 #include "DlgAddPart.h"
 #include "DlgEditNet.h"
@@ -976,16 +977,33 @@ int CFreePcbDoc::WriteFootprints( CStdioFile * file, CMapStringToPtr * cache_map
 		use_map = &m_footprint_cache_map;
 
 	void * ptr;
-	CShape * s;
+	CShape * shape;
 	POSITION pos;
 	CString key;
 
 	file->WriteString( "[footprints]\n\n" );
-	for( pos = use_map->GetStartPosition(); pos != NULL; )
+
+	// Sort the footprints by name for more consistent output to file
+	// when parts are added (better for textual diffs).
+	int i;
+	CArray<CShape::CSortElement> footprints;
+	footprints.SetSize( use_map->GetSize() );
+
+	// Get the unsorted part names
+	for( i = 0, pos = use_map->GetStartPosition(); pos != NULL; i++)
 	{
 		use_map->GetNextAssoc( pos, key, ptr );
-		s = (CShape*)ptr;
-		s->WriteFootprint( file );
+
+		footprints[i] = (CShape*)ptr;
+	}
+
+	std::sort( footprints.GetData(), footprints.GetData() + footprints.GetSize() );
+
+	for( i = 0; i < footprints.GetSize(); i++ )
+	{
+		shape = footprints[i];
+
+		shape->WriteFootprint( file );
 	}
 	return 0;
 }
