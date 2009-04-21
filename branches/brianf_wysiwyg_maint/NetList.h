@@ -263,7 +263,7 @@ public:
 	int width()     const { return width_attrib.m_seg_width.m_val; }
 	int clearance() const { return width_attrib.m_ca_clearance.m_val; }
 
-	void UpdateIndex(int is);
+	void UpdateIndex(int ic, int is);
 };
 
 // cvertex: describes a vertex between segments
@@ -354,7 +354,7 @@ public:
 	void SetNoVia() { via_width_attrib.m_via_width = via_width_attrib.m_via_hole = 0; }
 
 	// Update index in connection array
-	void UpdateIndex(int iv);
+	void UpdateIndex(int ic, int iv);
 };
 
 class cconnect;
@@ -418,11 +418,7 @@ public:
 class cnet
 {
 public:
-	cnet( CDisplayList * dlist )
-	{
-		m_dlist = dlist;
-	}
-
+	cnet( CDisplayList * dlist );
 	~cnet();
 
 	id id;				// net id
