@@ -118,13 +118,34 @@ public:
 
 
 // class cpart represents a part
-class cpart //: public CDLinkList
+class cpart : public CDLinkList
 {
+public: // class used to represent a part for std::sort()
+	class CSortElement_ref_des
+	{
+	public:
+		cpart * part;
+
+		int operator < (CSortElement_ref_des const &to) const
+		{
+			return part->ref_des < to.part->ref_des;
+		}
+
+		CSortElement_ref_des &operator = (cpart * _part)
+		{
+			part = _part;
+			return *this;
+		}
+
+		operator cpart * ()
+		{
+			return part;
+		}
+	};
+
 public:
 	cpart();
 	~cpart();
-	cpart * prev;		// link backward
-	cpart * next;		// link forward
 	id m_id;			// instance id for this part
 	BOOL drawn;			// TRUE if part has been drawn to display list
 	BOOL visible;		// 0 to hide part
@@ -168,6 +189,7 @@ public:
 	BOOL bPreserve;	// preserve connections to this part
 };
 
+
 // this is the partlist class
 class CPartList
 {
@@ -178,8 +200,11 @@ public:
 		TRACE_CONNECT = 2,		// pin connects to trace on this layer
 		AREA_CONNECT = 4		// pin connects to copper area on this layer
 	};
-	cpart m_start, m_end;
+
 private:
+	CDLinkList m_LIST_part;
+	friend class CIterator_cpart;
+
 	int m_size, m_max_size;
 	int m_layers;
 	int m_annular_ring;
@@ -259,8 +284,6 @@ public:
 							  int * connection_status=0, int * pad_connect_flag=0,
 							  int * clearance_type=0 );
 	cpart * GetPart( LPCTSTR ref_des );
-	cpart * GetFirstPart();
-	cpart * GetNextPart( cpart * part );
 	int StartDraggingPart( CDC * pDC, cpart * part, BOOL bRatlines=TRUE );
 	int StartDraggingRefText( CDC * pDC, cpart * part );
 	int StartDraggingValue( CDC * pDC, cpart * part );
@@ -283,4 +306,24 @@ public:
 		DesignRules * dr, DRErrorList * DRElist );
 	undo_part * CreatePartUndoRecord( cpart * part, CString * new_ref_des );
 	static void PartUndoCallback( int type, void * ptr, BOOL undo );
+};
+
+
+class CIterator_cpart : protected CDLinkList
+{
+	// List of all active iterators
+	static CDLinkList m_LIST_Iterator;
+
+	CPartList const * m_PartList;
+	CDLinkList * m_pCurrentPart;
+
+public:
+	explicit CIterator_cpart( CPartList const * partlist );
+	~CIterator_cpart() {}
+
+	cpart *GetFirst();
+	cpart *GetNext();
+
+public:
+	static void OnRemove( cpart const * part );
 };
