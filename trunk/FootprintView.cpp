@@ -13,7 +13,7 @@
 #include <sys/timeb.h>
 #include <time.h>
 #include <math.h>
-#include "FootprintView.h" 
+#include "FootprintView.h"
 #include "DlgAddPart.h"
 #include "DlgAddPin.h"
 #include "DlgSaveFootprint.h"
@@ -21,7 +21,7 @@
 #include "DlgImportFootprint.h"
 #include "DlgWizQuad.h"
 #include "FootprintView.h"
-#include "DlgLibraryManager.h" 
+#include "DlgLibraryManager.h"
 #include "DlgMoveOrigin.h"
 #include "DlgCentroid.h"
 #include "DlgGlue.h"
@@ -143,11 +143,11 @@ END_MESSAGE_MAP()
 CFootprintView::CFootprintView()
 {
 	m_small_font.CreateFont( 14, 0, 0, 0, FW_NORMAL, 0, 0, 0, DEFAULT_CHARSET,
-		OUT_CHARACTER_PRECIS, CLIP_CHARACTER_PRECIS, DEFAULT_QUALITY, 
+		OUT_CHARACTER_PRECIS, CLIP_CHARACTER_PRECIS, DEFAULT_QUALITY,
 		DEFAULT_PITCH | FF_DONTCARE, "Arial" );
 #if 0
 	m_small_font.CreateFont( 10, 0, 0, 0, FW_NORMAL, 0, 0, 0, DEFAULT_CHARSET,
-		OUT_CHARACTER_PRECIS, CLIP_CHARACTER_PRECIS, DEFAULT_QUALITY, 
+		OUT_CHARACTER_PRECIS, CLIP_CHARACTER_PRECIS, DEFAULT_QUALITY,
 		DEFAULT_PITCH | FF_DONTCARE, "MS Sans Serif" );
 #endif
 	m_Doc = NULL;
@@ -177,7 +177,7 @@ void CFootprintView::InitInstance( CShape * fp )
 	InitializeView();
 	CRect screen_r;
 	GetWindowRect( &screen_r );
-	m_dlist->SetMapping( &m_client_r, &screen_r, m_left_pane_w, m_bottom_pane_h, 
+	m_dlist->SetMapping( &m_client_r, &screen_r, m_left_pane_w, m_bottom_pane_h,
 		m_pcbu_per_pixel, m_org_x, m_org_y );
 	for(int i=0; i<m_Doc->m_fp_num_layers; i++ )
 	{
@@ -303,7 +303,7 @@ void CFootprintView::OnDraw(CDC* pDC)
 	int y_off = 10;
 	int x_off = 10;
 
-	for( int i=0; i<m_Doc->m_fp_num_layers; i++ ) 
+	for( int i=0; i<m_Doc->m_fp_num_layers; i++ )
 	{
 		// i = position index
 		CRect r( x_off, i*VSTEP+y_off, x_off+12, i*VSTEP+12+y_off );
@@ -327,13 +327,13 @@ void CFootprintView::OnDraw(CDC* pDC)
 		r.left += 20;
 		r.right += 120;
 		r.bottom += 5;
-		if( i == LAY_FP_PAD_THRU ) 
-			pDC->DrawText( "drilled hole", -1, &r, 0 ); 
+		if( i == LAY_FP_PAD_THRU )
+			pDC->DrawText( "drilled hole", -1, &r, 0 );
 		else
-			pDC->DrawText( &fp_layer_str[i][0], -1, &r, 0 ); 
-		if( i >= LAY_FP_TOP_COPPER && i <= LAY_FP_BOTTOM_COPPER ) 
+			pDC->DrawText( &fp_layer_str[i][0], -1, &r, 0 );
+		if( i >= LAY_FP_TOP_COPPER && i <= LAY_FP_BOTTOM_COPPER )
 		{
-			CString num_str; 
+			CString num_str;
 			num_str.Format( "[%d*]", i-LAY_FP_TOP_COPPER+1 );
 			CRect nr = r;
 			nr.left = nr.right - 55;
@@ -354,7 +354,7 @@ void CFootprintView::OnDraw(CDC* pDC)
 		else
 		{
 			// erase arrowhead
-			pDC->FillSolidRect( &ar, RGB(255,255,255) ); 
+			pDC->FillSolidRect( &ar, RGB(255,255,255) );
 		}
 	}
 	CRect r( x_off, NUM_FP_LAYERS*VSTEP+y_off, x_off+120, NUM_FP_LAYERS*VSTEP+12+y_off );
@@ -422,7 +422,7 @@ CFreePcbDoc* CFootprintView::GetDocument() // non-debug version is inline
 
 // Window was resized
 //
-void CFootprintView::OnSize(UINT nType, int cx, int cy) 
+void CFootprintView::OnSize(UINT nType, int cx, int cy)
 {
 
 	CView::OnSize(nType, cx, cy);
@@ -438,10 +438,10 @@ void CFootprintView::OnSize(UINT nType, int cx, int cy)
 	{
 		CRect screen_r;
 		GetWindowRect( &screen_r );
-		m_dlist->SetMapping( &m_client_r, &screen_r, m_left_pane_w, m_bottom_pane_h, m_pcbu_per_pixel, 
+		m_dlist->SetMapping( &m_client_r, &screen_r, m_left_pane_w, m_bottom_pane_h, m_pcbu_per_pixel,
 					m_org_x, m_org_y );
 	}
-	
+
 	// create memory DC and DDB
 	if( !m_memDC_created && m_client_r.right != 0 )
 	{
@@ -467,7 +467,7 @@ void CFootprintView::OnSize(UINT nType, int cx, int cy)
 
 // Left mouse button pressed down, we should probably do something
 //
-void CFootprintView::OnLButtonDown(UINT nFlags, CPoint point) 
+void CFootprintView::OnLButtonDown(UINT nFlags, CPoint point)
 {
 	CDC * pDC = NULL;	// !! remember to ReleaseDC() at end, if necessary
 	CPoint tp = WindowToPCB( point );
@@ -476,8 +476,8 @@ void CFootprintView::OnLButtonDown(UINT nFlags, CPoint point)
 		// clicked in bottom pane, test for hit on function key rectangle
 		for( int i=0; i<8; i++ )
 		{
-			CRect r( FKEY_OFFSET_X+i*FKEY_STEP+(i/4)*FKEY_GAP, 
-				m_client_r.bottom-FKEY_OFFSET_Y-FKEY_R_H, 
+			CRect r( FKEY_OFFSET_X+i*FKEY_STEP+(i/4)*FKEY_GAP,
+				m_client_r.bottom-FKEY_OFFSET_Y-FKEY_R_H,
 				FKEY_OFFSET_X+i*FKEY_STEP+(i/4)*FKEY_GAP+FKEY_R_W,
 				m_client_r.bottom-FKEY_OFFSET_Y );
 			if( r.PtInRect( point ) )
@@ -538,80 +538,88 @@ void CFootprintView::OnLButtonDown(UINT nFlags, CPoint point)
 		{
 			// we are not dragging anything, see if new item selected
 			CPoint p = WindowToPCB( point );
-			id id;
-			void * sel_ptr = NULL;
-			void * ptr = m_dlist->TestSelect( p.x, p.y, &id, &m_sel_layer, &m_sel_id, sel_ptr );
+
+			enum { MAX_HITS = 500 };
+			CDL_job::HitInfo hit_info[MAX_HITS];
+			int num_hits;
+
+			int idx = m_dlist->TestSelect( p.x, p.y, hit_info, MAX_HITS, num_hits, &m_sel_id );
 
 			// deselect previously selected item
 			CancelSelection();
 
-			// now check for new selection
-			if( id.type == ID_PART )
+			if( idx >= 0 )
 			{
-				// something was selected
-				m_sel_id = id;
-				if( id.st == ID_SEL_PAD )
+				id id = hit_info[idx].ID;
+
+				// now check for new selection
+				if( id.type == ID_PART )
 				{
-					// pad selected
-					m_fp.SelectPad( id.i );
-					SetCursorMode( CUR_FP_PAD_SELECTED );
+					// something was selected
+					m_sel_id = id;
+					if( id.st == ID_SEL_PAD )
+					{
+						// pad selected
+						m_fp.SelectPad( id.i );
+						SetCursorMode( CUR_FP_PAD_SELECTED );
+						Invalidate( FALSE );
+					}
+					else if( id.st == ID_SEL_REF_TXT )
+					{
+						// ref text selected
+						m_fp.SelectRef();
+						SetCursorMode( CUR_FP_REF_SELECTED );
+					}
+					else if( id.st == ID_SEL_VALUE_TXT )
+					{
+						// value text selected
+						m_fp.SelectValue();
+						SetCursorMode( CUR_FP_VALUE_SELECTED );
+					}
+					else if( id.st == ID_OUTLINE )
+					{
+						// outline polyline selected
+						int i = m_sel_id.i;
+						if( id.sst == ID_SEL_CORNER )
+						{
+							// corner selected
+							int ic = m_sel_id.ii;
+							m_fp.m_outline_poly[i].HighlightCorner( ic );
+							SetCursorMode( CUR_FP_POLY_CORNER_SELECTED );
+						}
+						else if( id.sst == ID_SEL_SIDE )
+						{
+							// side selected
+							int is = m_sel_id.ii;
+							m_fp.m_outline_poly[i].HighlightSide( is );
+							SetCursorMode( CUR_FP_POLY_SIDE_SELECTED );
+						}
+					}
+				}
+				else if( id.type == ID_TEXT )
+				{
+					// text selected
+					m_sel_id = id;
+					m_sel_text = (CText*)hit_info[idx].ptr;
+					SetCursorMode( CUR_FP_TEXT_SELECTED );
+					m_fp.m_tl->HighlightText( m_sel_text );
+				}
+				else if( id.type == ID_CENTROID )
+				{
+					// centroid selected
+					m_sel_id = id;
+					SetCursorMode( CUR_FP_CENTROID_SELECTED );
+					m_fp.SelectCentroid();
 					Invalidate( FALSE );
 				}
-				else if( id.st == ID_SEL_REF_TXT )
+				else if( id.type == ID_GLUE )
 				{
-					// ref text selected
-					m_fp.SelectRef();
-					SetCursorMode( CUR_FP_REF_SELECTED );
+					// glue spot selected
+					m_sel_id = id;
+					SetCursorMode( CUR_FP_ADHESIVE_SELECTED );
+					m_fp.SelectAdhesive( id.i );
+					Invalidate( FALSE );
 				}
-				else if( id.st == ID_SEL_VALUE_TXT )
-				{
-					// value text selected
-					m_fp.SelectValue();
-					SetCursorMode( CUR_FP_VALUE_SELECTED );
-				}
-				else if( id.st == ID_OUTLINE )
-				{
-					// outline polyline selected
-					int i = m_sel_id.i;
-					if( id.sst == ID_SEL_CORNER )
-					{
-						// corner selected
-						int ic = m_sel_id.ii;
-						m_fp.m_outline_poly[i].HighlightCorner( ic );
-						SetCursorMode( CUR_FP_POLY_CORNER_SELECTED );
-					}
-					else if( id.sst == ID_SEL_SIDE )
-					{
-						// side selected
-						int is = m_sel_id.ii;
-						m_fp.m_outline_poly[i].HighlightSide( is );
-						SetCursorMode( CUR_FP_POLY_SIDE_SELECTED );
-					}
-				}
-			}
-			else if( id.type == ID_TEXT )
-			{
-				// text selected
-				m_sel_id = id;
-				m_sel_text = (CText*)ptr;
-				SetCursorMode( CUR_FP_TEXT_SELECTED );
-				m_fp.m_tl->HighlightText( m_sel_text );
-			}
-			else if( id.type == ID_CENTROID )
-			{
-				// centroid selected
-				m_sel_id = id;
-				SetCursorMode( CUR_FP_CENTROID_SELECTED );
-				m_fp.SelectCentroid();
-				Invalidate( FALSE );
-			}
-			else if( id.type == ID_GLUE )
-			{
-				// glue spot selected
-				m_sel_id = id;
-				SetCursorMode( CUR_FP_ADHESIVE_SELECTED );
-				m_fp.SelectAdhesive( id.i );
-				Invalidate( FALSE );
 			}
 			else
 			{
@@ -731,7 +739,7 @@ void CFootprintView::OnLButtonDown(UINT nFlags, CPoint point)
 			int ip = m_fp.m_outline_poly.GetSize();
 			m_sel_id.Set( ID_PART, ID_OUTLINE, ip, ID_SEL_CORNER, 0 );
 			m_fp.m_outline_poly.SetSize( ip+1 );
-			m_fp.m_outline_poly[ip].Start( LAY_FP_SILK_TOP, m_polyline_width, 
+			m_fp.m_outline_poly[ip].Start( LAY_FP_SILK_TOP, m_polyline_width,
 				20*NM_PER_MIL, p.x, p.y, 0, &m_sel_id, NULL );
 			m_dlist->StartDraggingArc( pDC, m_polyline_style, p.x, p.y, p.x, p.y, LAY_FP_SELECTION, 1, 1 );
 			SetCursorMode( CUR_FP_DRAG_POLY_1 );
@@ -797,7 +805,7 @@ void CFootprintView::OnLButtonDown(UINT nFlags, CPoint point)
 			BOOL negative = m_sel_text->m_bNegative;
 			int mirror = (old_mirror + m_dlist->GetDragSide())%2;
 			int layer = m_sel_text->m_layer;
-			m_fp.m_tl->MoveText( m_sel_text, p.x, p.y, 
+			m_fp.m_tl->MoveText( m_sel_text, p.x, p.y,
 									angle, mirror, negative, layer );
 			m_dragging_new_item = FALSE;
 			SetCursorMode( CUR_FP_TEXT_SELECTED );
@@ -865,7 +873,7 @@ void CFootprintView::OnLButtonDown(UINT nFlags, CPoint point)
 
 // left double-click
 //
-void CFootprintView::OnLButtonDblClk(UINT nFlags, CPoint point) 
+void CFootprintView::OnLButtonDblClk(UINT nFlags, CPoint point)
 {
 #if 0
 	if( m_cursor_mode == CUR_PART_SELECTED )
@@ -892,10 +900,10 @@ void CFootprintView::OnLButtonDblClk(UINT nFlags, CPoint point)
 
 // right mouse button
 //
-void CFootprintView::OnRButtonDown(UINT nFlags, CPoint point) 
+void CFootprintView::OnRButtonDown(UINT nFlags, CPoint point)
 {
 	m_disable_context_menu = 1;
-	if( m_cursor_mode == CUR_FP_DRAG_PAD )	
+	if( m_cursor_mode == CUR_FP_DRAG_PAD )
 	{
 		m_fp.CancelDraggingPad( m_sel_id.i );
 		if( m_dragging_new_item )
@@ -933,11 +941,11 @@ void CFootprintView::OnRButtonDown(UINT nFlags, CPoint point)
 		m_dlist->StopDragging();
 		OnPolylineDelete();
 	}
-	else if( ( m_cursor_mode == CUR_FP_DRAG_POLY 
-				&& m_fp.m_outline_poly[m_sel_id.i].GetNumCorners()<3 
+	else if( ( m_cursor_mode == CUR_FP_DRAG_POLY
+				&& m_fp.m_outline_poly[m_sel_id.i].GetNumCorners()<3
 				&& m_polyline_closed_flag )
-		  || ( m_cursor_mode == CUR_FP_DRAG_POLY 
-				&& m_fp.m_outline_poly[m_sel_id.i].GetNumCorners()<2 
+		  || ( m_cursor_mode == CUR_FP_DRAG_POLY
+				&& m_fp.m_outline_poly[m_sel_id.i].GetNumCorners()<2
 				&& !m_polyline_closed_flag ) )
 	{
 		m_dlist->StopDragging();
@@ -1020,7 +1028,7 @@ void CFootprintView::OnRButtonDown(UINT nFlags, CPoint point)
 
 // System Key on keyboard pressed down
 //
-void CFootprintView::OnSysKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags) 
+void CFootprintView::OnSysKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags)
 {
 	if( nChar == 121 )
 		OnKeyDown( nChar, nRepCnt, nFlags);
@@ -1030,7 +1038,7 @@ void CFootprintView::OnSysKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags)
 
 // System Key on keyboard pressed down
 //
-void CFootprintView::OnSysKeyUp(UINT nChar, UINT nRepCnt, UINT nFlags) 
+void CFootprintView::OnSysKeyUp(UINT nChar, UINT nRepCnt, UINT nFlags)
 {
 	if( nChar != 121 )
 		CView::OnSysKeyUp(nChar, nRepCnt, nFlags);
@@ -1038,7 +1046,7 @@ void CFootprintView::OnSysKeyUp(UINT nChar, UINT nRepCnt, UINT nFlags)
 
 // Key on keyboard pressed down
 //
-void CFootprintView::OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags) 
+void CFootprintView::OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags)
 {
 	HandleKeyPress( nChar, nRepCnt, nFlags );
 
@@ -1049,10 +1057,10 @@ void CFootprintView::OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags)
 
 // Key on keyboard pressed down
 //
-void CFootprintView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags) 
+void CFootprintView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 {
 	int fk = FK_FP_NONE;
-	if( nChar >= 112 && nChar <= 123 )		// Function key 
+	if( nChar >= 112 && nChar <= 123 )		// Function key
 	{
 		fk = m_fkey_option[nChar-112];
 	}
@@ -1183,12 +1191,12 @@ void CFootprintView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 			m_dlist->IncrementDragAngle( pDC );
 		break;
 
-	case  CUR_FP_DRAG_VALUE: 
+	case  CUR_FP_DRAG_VALUE:
 		if( fk == FK_FP_ROTATE_VALUE )
 			m_dlist->IncrementDragAngle( pDC );
 		break;
 
-	case  CUR_FP_DRAG_REF: 
+	case  CUR_FP_DRAG_REF:
 		if( fk == FK_FP_ROTATE_REF )
 			m_dlist->IncrementDragAngle( pDC );
 		break;
@@ -1220,7 +1228,7 @@ void CFootprintView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 			m_dlist->IncrementDragAngle( pDC );
 		break;
 
-	default: 
+	default:
 		break;
 	}	// end switch
 
@@ -1236,7 +1244,7 @@ void CFootprintView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 		m_org_y = p.y - ((m_client_r.bottom-m_bottom_pane_h)*m_pcbu_per_pixel)/2;
 		CRect screen_r;
 		GetWindowRect( &screen_r );
-		m_dlist->SetMapping( &m_client_r, &screen_r, m_left_pane_w, m_bottom_pane_h, m_pcbu_per_pixel, 
+		m_dlist->SetMapping( &m_client_r, &screen_r, m_left_pane_w, m_bottom_pane_h, m_pcbu_per_pixel,
 			m_org_x, m_org_y );
 		Invalidate( FALSE );
 		p = PCBToScreen( p );
@@ -1252,7 +1260,7 @@ void CFootprintView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 			m_org_y = p.y - ((m_client_r.bottom-m_bottom_pane_h)*m_pcbu_per_pixel)/2;
 			CRect screen_r;
 			GetWindowRect( &screen_r );
-			m_dlist->SetMapping( &m_client_r, &screen_r, m_left_pane_w, m_bottom_pane_h, m_pcbu_per_pixel, 
+			m_dlist->SetMapping( &m_client_r, &screen_r, m_left_pane_w, m_bottom_pane_h, m_pcbu_per_pixel,
 				m_org_x, m_org_y );
 			Invalidate( FALSE );
 			p = PCBToScreen( p );
@@ -1276,7 +1284,7 @@ void CFootprintView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 			m_pcbu_per_pixel = m_pcbu_per_pixel*ZOOM_RATIO;
 			CRect screen_r;
 			GetWindowRect( &screen_r );
-			m_dlist->SetMapping( &m_client_r, &screen_r, m_left_pane_w, m_bottom_pane_h, m_pcbu_per_pixel, 
+			m_dlist->SetMapping( &m_client_r, &screen_r, m_left_pane_w, m_bottom_pane_h, m_pcbu_per_pixel,
 				m_org_x, m_org_y );
 			Invalidate( FALSE );
 			p = PCBToScreen( p );
@@ -1294,7 +1302,7 @@ void CFootprintView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 
 // Mouse moved
 //
-void CFootprintView::OnMouseMove(UINT nFlags, CPoint point) 
+void CFootprintView::OnMouseMove(UINT nFlags, CPoint point)
 {
 	m_last_mouse_point = WindowToPCB( point );
 	SnapCursorPoint( m_last_mouse_point );
@@ -1487,8 +1495,8 @@ void CFootprintView::DrawBottomPane()
 	{
 		for( int i=0; i<4; i++ )
 		{
-			CRect r( FKEY_OFFSET_X+(j*4+i)*FKEY_STEP+j*FKEY_GAP, 
-						m_client_r.bottom-FKEY_OFFSET_Y-FKEY_R_H, 
+			CRect r( FKEY_OFFSET_X+(j*4+i)*FKEY_STEP+j*FKEY_GAP,
+						m_client_r.bottom-FKEY_OFFSET_Y-FKEY_R_H,
 						FKEY_OFFSET_X+(j*4+i)*FKEY_STEP+j*FKEY_GAP+FKEY_R_W,
 						m_client_r.bottom-FKEY_OFFSET_Y );
 			pDC->Rectangle( &r );
@@ -1514,7 +1522,7 @@ void CFootprintView::DrawBottomPane()
 	ReleaseDC( pDC );
 }
 
-// display selected item in status bar 
+// display selected item in status bar
 //
 int CFootprintView::ShowSelectStatus()
 {
@@ -1526,11 +1534,11 @@ int CFootprintView::ShowSelectStatus()
 
 	switch( m_cursor_mode )
 	{
-	case CUR_FP_NONE_SELECTED: 
+	case CUR_FP_NONE_SELECTED:
 		str.Format( "No selection" );
 		break;
 
-	case CUR_FP_PAD_SELECTED: 
+	case CUR_FP_PAD_SELECTED:
 		str.Format( "Pin %s", m_fp.GetPinNameByIndex( m_sel_id.i ) );
 		break;
 
@@ -1538,12 +1546,12 @@ int CFootprintView::ShowSelectStatus()
 		str.Format( "Moving pin %s", m_fp.GetPinNameByIndex( m_sel_id.i ) );
 		break;
 
-	case CUR_FP_POLY_CORNER_SELECTED: 
+	case CUR_FP_POLY_CORNER_SELECTED:
 		str.Format( "Polyline %d, corner %d", m_sel_id.i+1, m_sel_id.ii+1 );
 		break;
 
 
-	case CUR_FP_POLY_SIDE_SELECTED: 
+	case CUR_FP_POLY_SIDE_SELECTED:
 		{
 			CString style_str;
 			if( m_fp.m_outline_poly[m_sel_id.i].GetSideStyle( m_sel_id.ii ) == CPolyLine::STRAIGHT )
@@ -1552,21 +1560,21 @@ int CFootprintView::ShowSelectStatus()
 				style_str = "arc(cw)";
 			else if( m_fp.m_outline_poly[m_sel_id.i].GetSideStyle( m_sel_id.ii ) == CPolyLine::ARC_CCW )
 				style_str = "arc(ccw)";
-			str.Format( "Polyline %d, side %d, style = %s", m_sel_id.i+1, m_sel_id.ii+1, 
+			str.Format( "Polyline %d, side %d, style = %s", m_sel_id.i+1, m_sel_id.ii+1,
 				style_str );
-		} 
+		}
 		break;
 
 	case CUR_FP_CENTROID_SELECTED:
 		{
 			CString type_str, x_str, y_str;
 			if( m_fp.m_centroid_type == CENTROID_DEFAULT )
-				type_str = "default position"; 
+				type_str = "default position";
 			else
 				type_str =  "defined";
 			::MakeCStringFromDimension( &x_str, m_fp.m_centroid_x, m_units, TRUE, TRUE, TRUE, 3 );
 			::MakeCStringFromDimension( &y_str, m_fp.m_centroid_y, m_units, TRUE, TRUE, TRUE, 3 );
-			str.Format( "Centroid (%s), x %s, y %s, angle %d", 
+			str.Format( "Centroid (%s), x %s, y %s, angle %d",
 				type_str, x_str, y_str, m_fp.m_centroid_angle );
 		}
 		break;
@@ -1586,7 +1594,7 @@ int CFootprintView::ShowSelectStatus()
 			::MakeCStringFromDimension( &x_str, m_fp.m_glue[idot].x_rel, m_units, TRUE, TRUE, TRUE, 3 );
 			::MakeCStringFromDimension( &y_str, m_fp.m_glue[idot].y_rel, m_units, TRUE, TRUE, TRUE, 3 );
 			if( m_fp.m_glue[idot].type == GLUE_POS_DEFINED )
-				str.Format( "Adhesive spot %d: w %s, x %s, y %s", 
+				str.Format( "Adhesive spot %d: w %s, x %s, y %s",
 					idot+1, w_str, x_str, y_str );
 			else
 				str.Format( "Adhesive spot %d: w %s at <centroid>",
@@ -1595,7 +1603,7 @@ int CFootprintView::ShowSelectStatus()
 		break;
 
 	case CUR_FP_DRAG_POLY_MOVE:
-		str.Format( "Moving corner %d of polyline %d", 
+		str.Format( "Moving corner %d of polyline %d",
 						m_sel_id.ii+1, m_sel_id.i+1 );
 		break;
 
@@ -1605,7 +1613,7 @@ int CFootprintView::ShowSelectStatus()
 	return 0;
 }
 
-// display cursor coords in status bar 
+// display cursor coords in status bar
 //
 int CFootprintView::ShowCursor()
 {
@@ -1636,7 +1644,7 @@ int CFootprintView::ShowCursor()
 
 // handle mouse scroll wheel
 //
-BOOL CFootprintView::OnMouseWheel(UINT nFlags, short zDelta, CPoint pt) 
+BOOL CFootprintView::OnMouseWheel(UINT nFlags, short zDelta, CPoint pt)
 {
 #define MIN_WHEEL_DELAY 1.0
 
@@ -1647,7 +1655,7 @@ BOOL CFootprintView::OnMouseWheel(UINT nFlags, short zDelta, CPoint pt)
 
 	// get current time
 	_ftime( &current_time );
-	
+
 	if( first_time )
 	{
 		diff = 999.0;
@@ -1992,7 +2000,7 @@ void CFootprintView::OnPolylineCornerEdit()
 	if( ret == IDOK )
 	{
 		PushUndo();
-		m_fp.m_outline_poly[m_sel_id.i].MoveCorner( m_sel_id.ii, 
+		m_fp.m_outline_poly[m_sel_id.i].MoveCorner( m_sel_id.ii,
 			dlg.GetX(), dlg.GetY() );
 		CancelSelection();
 		Invalidate( FALSE );
@@ -2044,7 +2052,7 @@ BOOL CFootprintView::CurNone()
 // detect any selected state
 //
 BOOL CFootprintView::CurSelected()
-{	
+{
 	return( m_cursor_mode > CUR_FP_NONE_SELECTED && m_cursor_mode < CUR_FP_NUM_SELECTED_MODES );
 }
 
@@ -2052,7 +2060,7 @@ BOOL CFootprintView::CurSelected()
 //
 BOOL CFootprintView::CurDragging()
 {
-	return( m_cursor_mode > CUR_FP_NUM_SELECTED_MODES );	
+	return( m_cursor_mode > CUR_FP_NUM_SELECTED_MODES );
 }
 
 // detect states using placement grid
@@ -2060,11 +2068,11 @@ BOOL CFootprintView::CurDragging()
 BOOL CFootprintView::CurDraggingPlacement()
 {
 	return( m_cursor_mode == CUR_FP_DRAG_PAD
-		|| m_cursor_mode == CUR_FP_DRAG_REF 
-		|| m_cursor_mode == CUR_FP_DRAG_POLY_1 
-		|| m_cursor_mode == CUR_FP_DRAG_POLY 
-		|| m_cursor_mode == CUR_FP_DRAG_POLY_MOVE 
-		|| m_cursor_mode == CUR_FP_DRAG_POLY_INSERT 
+		|| m_cursor_mode == CUR_FP_DRAG_REF
+		|| m_cursor_mode == CUR_FP_DRAG_POLY_1
+		|| m_cursor_mode == CUR_FP_DRAG_POLY
+		|| m_cursor_mode == CUR_FP_DRAG_POLY_MOVE
+		|| m_cursor_mode == CUR_FP_DRAG_POLY_INSERT
 		);
 }
 
@@ -2073,13 +2081,13 @@ BOOL CFootprintView::CurDraggingPlacement()
 void CFootprintView::SnapCursorPoint( CPoint wp )
 {
 	if( CurDragging() )
-	{	
+	{
 		int grid_spacing;
 		grid_spacing = m_Doc->m_fp_part_grid_spacing;
 
 		// snap angle if needed
-		if( m_Doc->m_fp_snap_angle && (wp != m_snap_angle_ref) 
-			&& ( m_cursor_mode == CUR_FP_DRAG_POLY_1 
+		if( m_Doc->m_fp_snap_angle && (wp != m_snap_angle_ref)
+			&& ( m_cursor_mode == CUR_FP_DRAG_POLY_1
 			|| m_cursor_mode == CUR_FP_DRAG_POLY ) )
 		{
 			// snap to angle only if the starting point is on-grid
@@ -2089,7 +2097,7 @@ void CFootprintView::SnapCursorPoint( CPoint wp )
 			{
 				// starting point is on-grid, snap to angle
 				// snap to n*45 degree angle
-				const double pi = 3.14159265359;		
+				const double pi = 3.14159265359;
 				double dx = wp.x - m_snap_angle_ref.x;
 				double dy = wp.y - m_snap_angle_ref.y;
 				double dist = sqrt( dx*dx + dy*dy );
@@ -2344,7 +2352,7 @@ void CFootprintView::OnPolylineSideConvertToArcCw()
 
 void CFootprintView::OnPolylineSideConvertToArcCcw()
 {
-	PushUndo(); 
+	PushUndo();
 	m_dlist->CancelHighLight();
 	m_fp.m_outline_poly[m_sel_id.i].SetSideStyle( m_sel_id.ii, CPolyLine::ARC_CCW );
 	m_fp.m_outline_poly[m_sel_id.i].HighlightSide( m_sel_id.ii );
@@ -2411,9 +2419,9 @@ void CFootprintView::OnFootprintFileSaveAs()
 	// now save it
 	CDlgSaveFootprint dlg;
 	dlg.Initialize( &str_name, &m_fp, m_units, "",
-		&m_Doc->m_footprint_cache_map, &m_Doc->m_footlibfoldermap, m_Doc->m_dlg_log );	
+		&m_Doc->m_footprint_cache_map, &m_Doc->m_footlibfoldermap, m_Doc->m_dlg_log );
 	int ret = dlg.DoModal();
-	if( ret == IDOK )	
+	if( ret == IDOK )
 	{
 		FootprintModified( FALSE );
 		ClearUndo();
@@ -2435,7 +2443,7 @@ void CFootprintView::OnAddPolyline()
 		SetDCToWorldCoords( pDC );
 		CPoint p = m_last_mouse_point;
 		m_dlist->CancelHighLight();
-		m_sel_id.Set( ID_PART, ID_OUTLINE, 
+		m_sel_id.Set( ID_PART, ID_OUTLINE,
 			m_fp.m_outline_poly.GetSize(), ID_SEL_CORNER, 0 );
 		m_polyline_closed_flag = dlg.GetClosedFlag();
 		m_polyline_style = CPolyLine::STRAIGHT;
@@ -2486,18 +2494,18 @@ void CFootprintView::OnFootprintFileClose()
 	for( int ip=0; ip<m_fp.GetNumPins(); ip++ )
 	{
 		CRect padr = m_fp.GetPadBounds( ip );
-		br.left = min( br.left, padr.left ); 
-		br.bottom = min( br.bottom, padr.bottom ); 
-		br.right = max( br.right, padr.right ); 
-		br.top = max( br.top, padr.top ); 
+		br.left = min( br.left, padr.left );
+		br.bottom = min( br.bottom, padr.bottom );
+		br.right = max( br.right, padr.right );
+		br.top = max( br.top, padr.top );
 	}
 	for( int ip=0; ip<m_fp.m_outline_poly.GetSize(); ip++ )
 	{
 		CRect polyr = m_fp.m_outline_poly[ip].GetBounds();
-		br.left = min( br.left, polyr.left ); 
-		br.bottom = min( br.bottom, polyr.bottom ); 
-		br.right = max( br.right, polyr.right ); 
-		br.top = max( br.top, polyr.top ); 
+		br.left = min( br.left, polyr.left );
+		br.bottom = min( br.bottom, polyr.bottom );
+		br.right = max( br.right, polyr.right );
+		br.top = max( br.top, polyr.top );
 	}
 	m_fp.m_sel_xi = br.left - 10*NM_PER_MIL;
 	m_fp.m_sel_xf = br.right + 10*NM_PER_MIL;
@@ -2521,7 +2529,7 @@ void CFootprintView::OnFootprintFileClose()
 
 void CFootprintView::OnFootprintFileNew()
 {
-	if( m_Doc->m_footprint_modified ) 
+	if( m_Doc->m_footprint_modified )
 	{
 		int ret = AfxMessageBox( "Save footprint ?", MB_YESNOCANCEL );
 		if( ret == IDCANCEL )
@@ -2586,7 +2594,7 @@ void CFootprintView::OnViewEntireFootprint()
 	double win_x = m_client_r.right - m_left_pane_w;
 	double win_y = m_client_r.bottom - m_bottom_pane_h;
 	// reset window to enclose footprint
-	double x_pcbu_per_pixel = (double)(max_x - min_x)/win_x; 
+	double x_pcbu_per_pixel = (double)(max_x - min_x)/win_x;
 	double y_pcbu_per_pixel = (double)(max_y - min_y)/win_y;
 	if( x_pcbu_per_pixel > y_pcbu_per_pixel )
 		m_pcbu_per_pixel = x_pcbu_per_pixel;
@@ -2596,7 +2604,7 @@ void CFootprintView::OnViewEntireFootprint()
 	m_org_y = (max_y + min_y)/2 - win_y*m_pcbu_per_pixel/2;
 	CRect screen_r;
 	GetWindowRect( &screen_r );
-	m_dlist->SetMapping( &m_client_r, &screen_r, m_left_pane_w, m_bottom_pane_h, m_pcbu_per_pixel, 
+	m_dlist->SetMapping( &m_client_r, &screen_r, m_left_pane_w, m_bottom_pane_h, m_pcbu_per_pixel,
 		m_org_x, m_org_y );
 	Invalidate( FALSE );
 }
@@ -2733,7 +2741,7 @@ void CFootprintView::OnFpToolsFootprintwizard()
 
 	// OK, launch wizard
 	CDlgWizQuad dlg;
-	dlg.Initialize( &m_Doc->m_footprint_cache_map, &m_Doc->m_footlibfoldermap, 
+	dlg.Initialize( &m_Doc->m_footprint_cache_map, &m_Doc->m_footlibfoldermap,
 		FALSE, m_Doc->m_dlg_log );
 	int ret = dlg.DoModal();
 	if( ret == IDOK )
@@ -2794,7 +2802,7 @@ void CFootprintView::OnAddText()
 		SetDCToWorldCoords( pDC );
 		if( dlg.m_bDrag )
 		{
-			m_sel_text = m_fp.m_tl->AddText( p.x, p.y, angle, FALSE, FALSE, 
+			m_sel_text = m_fp.m_tl->AddText( p.x, p.y, angle, FALSE, FALSE,
 				LAY_FP_SILK_TOP, font_size, stroke_width, &str );
 			m_dragging_new_item = 1;
 			m_fp.m_tl->StartDraggingText( pDC, m_sel_text );
@@ -2802,8 +2810,8 @@ void CFootprintView::OnAddText()
 		}
 		else
 		{
-			m_sel_text = m_fp.m_tl->AddText( x, y, angle, FALSE, FALSE, 
-				LAY_FP_SILK_TOP, font_size,  stroke_width, &str ); 
+			m_sel_text = m_fp.m_tl->AddText( x, y, angle, FALSE, FALSE,
+				LAY_FP_SILK_TOP, font_size,  stroke_width, &str );
 			m_fp.m_tl->HighlightText( m_sel_text );
 		}
 	}
@@ -2815,7 +2823,7 @@ void CFootprintView::OnFpTextEdit()
 	CDlgFpText dlg;
 	CString test_str = m_sel_text->m_str;
 	dlg.Initialize( FALSE, FALSE, &test_str, m_units,
-		m_sel_text->m_angle, m_sel_text->m_font_size, 
+		m_sel_text->m_angle, m_sel_text->m_font_size,
 		m_sel_text->m_stroke_width, m_sel_text->m_x, m_sel_text->m_y );
 	int ret = dlg.DoModal();
 	if( ret == IDCANCEL )
@@ -2866,7 +2874,7 @@ void CFootprintView::OnFpTextMove()
 
 void CFootprintView::OnFpTextDelete()
 {
-	PushUndo(); 
+	PushUndo();
 	m_fp.m_tl->RemoveText( m_sel_text );
 	m_dlist->CancelHighLight();
 	SetCursorMode( CUR_FP_NONE_SELECTED );
@@ -2883,7 +2891,7 @@ int CFootprintView::ShowActiveLayer()
 		return 1;
 
 	CString str;
-	if( m_active_layer == LAY_FP_TOP_COPPER ) 
+	if( m_active_layer == LAY_FP_TOP_COPPER )
 	{
 		str.Format( "Top" );
 		m_dlist->SetLayerDrawOrder( LAY_FP_TOP_MASK, LAY_FP_TOP_MASK );
@@ -2936,7 +2944,7 @@ void CFootprintView::OnToolsMoveOriginFP()
 			SetDCToWorldCoords( pDC );
 			m_dlist->CancelHighLight();
 			SetCursorMode( CUR_FP_MOVE_ORIGIN );
-			m_dlist->StartDraggingArray( pDC, m_last_cursor_point.x, 
+			m_dlist->StartDraggingArray( pDC, m_last_cursor_point.x,
 				m_last_cursor_point.y, 0, LAY_SELECTION, 2 );
 			Invalidate( FALSE );
 			ReleaseDC( pDC );
@@ -2953,7 +2961,7 @@ void CFootprintView::OnToolsMoveOriginFP()
 
 void CFootprintView::MoveOrigin( int x, int y )
 {
-	m_fp.Undraw(); 
+	m_fp.Undraw();
 	m_fp.m_sel_xi -= x;
 	m_fp.m_sel_xf -= x;
 	m_fp.m_sel_yi -= y;
@@ -2962,7 +2970,7 @@ void CFootprintView::MoveOrigin( int x, int y )
 	m_fp.m_ref_yi -= y;
 	m_fp.m_value_xi -= x;
 	m_fp.m_value_yi -= y;
-	m_fp.m_centroid_x -= x; 
+	m_fp.m_centroid_x -= x;
 	m_fp.m_centroid_y -= y;
 	for( int ip=0; ip<m_fp.m_padstack.GetSize(); ip++ )
 	{
@@ -2970,7 +2978,7 @@ void CFootprintView::MoveOrigin( int x, int y )
 		ps->x_rel -= x;
 		ps->y_rel -= y;
 	}
-	for( int ip=0; ip<m_fp.m_outline_poly.GetSize(); ip++ ) 
+	for( int ip=0; ip<m_fp.m_outline_poly.GetSize(); ip++ )
 	{
 		CPolyLine * poly = &m_fp.m_outline_poly[ip];
 		poly->MoveOrigin( -x, -y );
@@ -3013,7 +3021,7 @@ void CFootprintView::EnableRedo( BOOL bEnable )
 void CFootprintView::OnCentroidEdit()
 {
 	CDlgCentroid dlg;
-	dlg.Initialize( m_fp.m_centroid_type, m_units, 
+	dlg.Initialize( m_fp.m_centroid_type, m_units,
 		m_fp.m_centroid_x, m_fp.m_centroid_y, m_fp.m_centroid_angle );
 	int ret = dlg.DoModal();
 	if( ret == IDOK )
@@ -3021,16 +3029,16 @@ void CFootprintView::OnCentroidEdit()
 		PushUndo();
 		m_dlist->CancelHighLight();
 		m_fp.Undraw();
-		m_fp.m_centroid_type = dlg.m_type; 
+		m_fp.m_centroid_type = dlg.m_type;
 		if( m_fp.m_centroid_type == CENTROID_DEFAULT )
 		{
 			CPoint c = m_fp.GetDefaultCentroid();
-			m_fp.m_centroid_x = c.x; 
+			m_fp.m_centroid_x = c.x;
 			m_fp.m_centroid_y = c.y;
 		}
 		else
 		{
-			m_fp.m_centroid_x = dlg.m_x; 
+			m_fp.m_centroid_x = dlg.m_x;
 			m_fp.m_centroid_y = dlg.m_y;
 		}
 		m_fp.m_centroid_angle = dlg.m_angle;
@@ -3089,7 +3097,7 @@ void CFootprintView::OnAddValueText()
 			m_dragging_new_item = TRUE;
 			OnValueMove();
 		}
-		Invalidate( FALSE );		
+		Invalidate( FALSE );
 	}
 }
 
@@ -3105,8 +3113,8 @@ void CFootprintView::OnValueEdit()
 	CString str = "";
 	CDlgFpText dlg;
 	CString value_str = "VALUE";
-	dlg.Initialize( FALSE, TRUE, &value_str, m_units, 
-		m_fp.m_value_angle, m_fp.m_value_size, m_fp.m_value_w, 
+	dlg.Initialize( FALSE, TRUE, &value_str, m_units,
+		m_fp.m_value_angle, m_fp.m_value_size, m_fp.m_value_w,
 		m_fp.m_value_xi, m_fp.m_value_yi );
 	int ret = dlg.DoModal();
 	if( ret == IDOK )
@@ -3134,7 +3142,7 @@ void CFootprintView::OnValueEdit()
 			else
 				CancelSelection();
 		}
-		Invalidate( FALSE );		
+		Invalidate( FALSE );
 	}
 }
 
@@ -3190,7 +3198,7 @@ void CFootprintView::OnAddAdhesive()
 		}
 		else
 			FootprintModified( TRUE );
-		Invalidate( FALSE );		
+		Invalidate( FALSE );
 	}
 }
 
@@ -3206,7 +3214,7 @@ void CFootprintView::OnAdhesiveEdit()
 	{
 		PushUndo();
 		g->w = dlg.m_w;		// 0 to use project default
-		g->type = dlg.m_pos_type;	// position flag 
+		g->type = dlg.m_pos_type;	// position flag
 		if( g->type == GLUE_POS_CENTROID )
 		{
 			// use centroid position
@@ -3240,7 +3248,7 @@ void CFootprintView::OnAdhesiveEdit()
 //
 void CFootprintView::OnAdhesiveMove()
 {
-	PushUndo(); 
+	PushUndo();
 	m_dragging_new_item = FALSE;
 	OnAdhesiveDrag();
 }

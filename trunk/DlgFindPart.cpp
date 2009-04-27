@@ -26,11 +26,10 @@ void CDlgFindPart::DoDataExchange(CDataExchange* pDX)
 	if( !pDX->m_bSaveAndValidate )
 	{
 		// incoming
-		cpart * part = m_pl->GetFirstPart();
-		while( part )
+		CIterator_cpart iter(m_pl);
+		for( cpart *part = iter.GetFirst(); part != NULL; part = iter.GetNext() )
 		{
 			m_combo_ref_des.AddString( part->ref_des );
-			part = m_pl->GetNextPart( part );
 		}
 	}
 	else

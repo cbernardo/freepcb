@@ -41,11 +41,10 @@ void CDlgSaveFootprint::DoDataExchange(CDataExchange* pDX)
 		CDC * pDC = this->GetDC();
 		CRect rw;
 		m_preview.GetClientRect( &rw );
-		int x_size = rw.right - rw.left;
-		int y_size = rw.bottom - rw.top;
-		HENHMETAFILE hMF = m_footprint->CreateMetafile( &m_mfDC, pDC, x_size, y_size );
+		HENHMETAFILE hMF = m_footprint->CreateMetafile( &m_mfDC, pDC, rw );
 		m_preview.SetEnhMetaFile( hMF );
 		ReleaseDC( pDC );
+		DeleteEnhMetaFile( hMF );
 		// initialize other fields
 		if( m_units == MM )
 			m_static_units.SetWindowText( " mm" );

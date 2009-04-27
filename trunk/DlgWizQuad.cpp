@@ -22,7 +22,7 @@ extern CString gLastFileName;		// last file name imported
 // CDlgWizQuad dialog
 
 IMPLEMENT_DYNAMIC(CDlgWizQuad, CDialog)
-CDlgWizQuad::CDlgWizQuad(CWnd* pParent /*=NULL*/) 
+CDlgWizQuad::CDlgWizQuad(CWnd* pParent /*=NULL*/)
 	: CDialog(CDlgWizQuad::IDD, pParent)
 {
 }
@@ -82,7 +82,7 @@ void CDlgWizQuad::DoDataExchange(CDataExchange* pDX)
 		m_edit_Z2.EnableWindow(0);
 		m_combo_shape.InsertString( -1, "Round" );
 		m_combo_shape.InsertString( -1, "Square" );
-		m_combo_shape.InsertString( -1, "Pin 1 square, others round" ); 
+		m_combo_shape.InsertString( -1, "Pin 1 square, others round" );
 		m_combo_shape.InsertString( -1, "Octagon" );
 		m_combo_shape.InsertString( -1, "Rectangular" );
 		m_combo_shape.InsertString( -1, "Rounded Rect" );
@@ -135,7 +135,7 @@ void CDlgWizQuad::DoDataExchange(CDataExchange* pDX)
 
 
 void CDlgWizQuad::Initialize( CMapStringToPtr * shape_cache_map,
-							CFootLibFolderMap * footlibfoldermap, 
+							CFootLibFolderMap * footlibfoldermap,
 							BOOL enable_save,
 							CDlgLog * log )
 {
@@ -339,7 +339,7 @@ void CDlgWizQuad::OnEnChangeEditWizX()
 	CString str;
 	m_edit_x.GetWindowText( str );
 	m_x = atof( str ) * m_mult;
-	if( m_shape != RECT && m_shape != RRECT && m_shape != OVAL ) 
+	if( m_shape != RECT && m_shape != RRECT && m_shape != OVAL )
 	{
 		m_edit_y.SetWindowText( str );
 		m_y = m_x;
@@ -605,7 +605,7 @@ void CDlgWizQuad::OnCbnSelchangeComboWizType()
 		m_radio_C1.EnableWindow(0);
 		m_radio_G1.EnableWindow(0);
 		m_radio_Z1.EnableWindow(0);
-		m_radio_C2.EnableWindow(0); 
+		m_radio_C2.EnableWindow(0);
 		m_radio_G2.EnableWindow(0);
 		m_radio_Z2.EnableWindow(0);
 		m_edit_C1.EnableWindow(0);
@@ -722,8 +722,8 @@ void CDlgWizQuad::OnBnClickedButtonSave()
 	{
 		// if saving is enabled, do it
 		CDlgSaveFootprint dlg;
-		dlg.Initialize( &m_str_name, &m_footprint, m_units, "", 
-			m_footprint_cache_map, m_footlibfoldermap, m_dlg_log );	
+		dlg.Initialize( &m_str_name, &m_footprint, m_units, "",
+			m_footprint_cache_map, m_footlibfoldermap, m_dlg_log );
 		int test = dlg.DoModal();
 	}
 	else
@@ -760,12 +760,10 @@ void CDlgWizQuad::OnBnClickedButton2()
 	CDC * pDC = this->GetDC();
 	CRect rw;
 	m_preview.GetClientRect( &rw );
-	int x_size = rw.right - rw.left;
-	int y_size = rw.bottom - rw.top;
-	HENHMETAFILE hMF = m_footprint.CreateMetafile( &m_mfDC, pDC, x_size, y_size );
+	HENHMETAFILE hMF = m_footprint.CreateMetafile( &m_mfDC, pDC, rw );
 	m_preview.SetEnhMetaFile( hMF );
 	ReleaseDC( pDC );
-
+	DeleteEnhMetaFile( hMF );
 }
 
 BOOL CDlgWizQuad::MakeFootprint()
@@ -829,14 +827,14 @@ BOOL CDlgWizQuad::MakeFootprint()
 		AfxMessageBox( "Too many rows" );
 		return FALSE;
 	}
-	if( m_x <= 0 && m_shape != NONE ) 
+	if( m_x <= 0 && m_shape != NONE )
 	{
 		AfxMessageBox( "Illegal pad width (X)" );
 		return FALSE;
 	}
 	if( m_y <= 0  && (m_shape == RECT || m_shape == RRECT || m_shape == OVAL ) )
 	{
-		AfxMessageBox( "Illegal pad length (Y)" ); 
+		AfxMessageBox( "Illegal pad length (Y)" );
 		return FALSE;
 	}
 	if( m_r <= 0  && m_shape == RRECT )
@@ -888,18 +886,18 @@ BOOL CDlgWizQuad::MakeFootprint()
 
 		// make footprint directly
 		m_footprint.Clear();
-		m_footprint.m_name = m_str_name; 
+		m_footprint.m_name = m_str_name;
 		m_footprint.m_units = m_units;
-		m_footprint.m_ref_size = 50*NM_PER_MIL; 
-		m_footprint.m_ref_xi = 0; 
-		m_footprint.m_ref_yi = m_y/2 + 10*NM_PER_MIL; 
-		m_footprint.m_ref_angle = 0;	
+		m_footprint.m_ref_size = 50*NM_PER_MIL;
+		m_footprint.m_ref_xi = 0;
+		m_footprint.m_ref_yi = m_y/2 + 10*NM_PER_MIL;
+		m_footprint.m_ref_angle = 0;
 		m_footprint.m_ref_w = 7*NM_PER_MIL;
 		m_footprint.m_sel_xi = -m_x;
 		m_footprint.m_sel_yi = -m_y/2 - 10*NM_PER_MIL;
-		m_footprint.m_sel_xf = m_e * (m_hpins-1) + m_x; 
+		m_footprint.m_sel_xf = m_e * (m_hpins-1) + m_x;
 		m_footprint.m_sel_yf = m_y/2 + 10*NM_PER_MIL;
-		m_footprint.m_padstack.SetSize( m_npins ); 
+		m_footprint.m_padstack.SetSize( m_npins );
 		for( int i=0; i<m_npins; i++ )
 		{
 			padstack * ps = &m_footprint.m_padstack[i];
@@ -957,9 +955,9 @@ BOOL CDlgWizQuad::MakeFootprint()
 				str += "P1TC_";
 			else if( m_pin1 == BOTTOM_LEFT )
 				str += "P1BL_";
-			else if( m_pin1 == TOP_LEFT ) 
+			else if( m_pin1 == TOP_LEFT )
 				str += "P1TL_";
-			else 
+			else
 				ASSERT(0);
 			str += "RL" + str_RL + "_";
 			str += "RB" + str_RB + "_";
@@ -993,7 +991,7 @@ BOOL CDlgWizQuad::MakeFootprint()
 			str += "UMIL_";
 
 		// set pad shape and dimensions
-		if( m_shape == RECT ) 
+		if( m_shape == RECT )
 			str += "RECT_";
 		else if( m_shape == SQ1 )
 			str += "RNDSQ1_";

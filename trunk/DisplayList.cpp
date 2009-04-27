@@ -949,10 +949,15 @@ void CDisplayList::SetLayerVisible( int layer, BOOL vis )
 // where n_include_ids is size of array, and
 // where 0's in include_id[] fields are treated as wildcards
 //
-void * CDisplayList::TestSelect( int x, int y, id * sel_id, int * sel_layer,
-								id * exclude_id, void * exclude_ptr,
-								id * include_id, int n_include_ids )
+// Returns: Index into hit_info[] if hit, -1 if no hit
+int CDisplayList::TestSelect(
+	int x, int y,
+	CDL_job::HitInfo hit_info[], int max_hits, int &num_hits,
+	id * exclude_id, void * exclude_ptr,
+	id * include_id, int n_include_ids )
 {
+	int best_hit = -1;
+
 	// Get the traces job (last in job list)
 	if( m_vis[LAY_SELECTION] )
 	{
@@ -960,23 +965,20 @@ void * CDisplayList::TestSelect( int x, int y, id * sel_id, int * sel_layer,
 
 		CPoint point(x/m_pcbu_per_wu, y/m_pcbu_per_wu);
 
-		enum { MAX_HITS = 3000 };
-
-		CDL_job::SHitInfo hit_info[MAX_HITS];
-
-		int nhits = pJob->TestForHit(point, hit_info, MAX_HITS);
+		num_hits = pJob->TestForHit(point, hit_info, max_hits-1);
 
 		// now return highest priority hit
-		if( nhits == 0 )
+		if( num_hits == 0 )
 		{
 			goto no_hit;
 		}
 		else
 		{
+			// Mark the end of the hit array with invalid layer.
+
 			// assign priority to each hit, track maximum, exclude exclude_id item
-			int best_hit = -1;
 			int best_hit_priority = 0;
-			for( int i=0; i<nhits; i++ )
+			for( int i=0; i<num_hits; i++ )
 			{
 				BOOL excluded_hit = FALSE;
 				BOOL included_hit = TRUE;
@@ -1017,6 +1019,8 @@ void * CDisplayList::TestSelect( int x, int y, id * sel_id, int * sel_layer,
 						priority++;
 					else if( hit_info[i].ID.type == ID_NET && hit_info[i].ID.st == ID_AREA && hit_info[i].ID.sst == ID_SEL_CORNER )
 						priority++;
+					else if( hit_info[i].ID.type == ID_NET && hit_info[i].ID.st == ID_CONNECT && hit_info[i].ID.sst == ID_SEL_VERTEX )
+						priority++;
 					hit_info[i].priority = priority;
 					if( priority >= best_hit_priority )
 					{
@@ -1024,27 +1028,17 @@ void * CDisplayList::TestSelect( int x, int y, id * sel_id, int * sel_layer,
 						best_hit = i;
 					}
 				}
+				else
+				{
+					// Not valid hit, set priority < zero
+					hit_info[i].priority = -1;
+				}
 			}
-			if( best_hit == -1 )
-			{
-				goto no_hit;
-			}
-
-			*sel_id = hit_info[best_hit].ID;
-			*sel_layer = hit_info[best_hit].layer;
-			return hit_info[best_hit].ptr;
 		}
+	}
 
-	}
-	else
-	{
-		// no hit
 no_hit:
-		id no_id;
-		*sel_id = no_id;
-		*sel_layer = 0;
-		return NULL;
-	}
+	return best_hit;
 }
 
 

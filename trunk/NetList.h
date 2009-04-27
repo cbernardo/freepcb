@@ -262,6 +262,8 @@ public:
 
 	int width()     const { return width_attrib.m_seg_width.m_val; }
 	int clearance() const { return width_attrib.m_ca_clearance.m_val; }
+
+	void UpdateIndex(int ic, int is);
 };
 
 // cvertex: describes a vertex between segments
@@ -332,7 +334,7 @@ public:
 
 		return *this;
 	};
-	void Initialize( CDisplayList * dlist ){m_dlist = dlist;}
+	void Initialize( CDisplayList * dlist ){ m_dlist = dlist; }
 	int x, y;					// coords
 	int pad_layer;				// layer of pad if this is first or last vertex, otherwise 0
 	int force_via_flag;			// force a via even if no layer change
@@ -350,6 +352,9 @@ public:
 
 	int viaExists() const { return via_w(); }
 	void SetNoVia() { via_width_attrib.m_via_width = via_width_attrib.m_via_hole = 0; }
+
+	// Update index in connection array
+	void UpdateIndex(int ic, int iv);
 };
 
 class cconnect;
@@ -412,11 +417,32 @@ public:
 // cnet: describes a net
 class cnet
 {
-public:
-	cnet( CDisplayList * dlist )
+public: // class used to represent a net for std::sort()
+	class CSortElement
 	{
-		m_dlist = dlist;
-	}
+	public:
+		cnet * net;
+
+		int operator < (CSortElement const &to) const
+		{
+			return net->name < to.net->name;
+		}
+
+		CSortElement &operator = (cnet * _net)
+		{
+			net = _net;
+			return *this;
+		}
+
+		operator cnet * ()
+		{
+			return net;
+		}
+	};
+
+public:
+	cnet( CDisplayList * dlist );
+	~cnet();
 
 	id id;				// net id
 	CString name;		// net name
@@ -436,7 +462,6 @@ public:
 class CNetList
 {
 public:
-	enum{ MAX_ITERATORS=10 };
 	enum {
 		VIA_NO_CONNECT = 0,
 		VIA_TRACE = 1,
@@ -482,10 +507,8 @@ public:
 	int CheckConnectivity( CString * logstr );
 	void HighlightNetConnections( cnet * net );
 	void HighlightNet( cnet * net );
-	cnet * GetFirstNet();
-	cnet * GetNextNet();
-	void CancelNextNet();
 	BOOL GetNetBoundaries( CRect * r );
+	int GetNumNets() const { return m_map.GetSize(); }
 
 	// functions for connections
 	int AddNetConnect( cnet * net, int p1, int p2 );
@@ -672,8 +695,6 @@ private:
 	CPartList * m_plist;
 	int m_layers;	// number of copper layers
 	CNetWidthInfo  m_def_width_attrib;
-	int m_pos_i;	// index for iterators
-	POSITION m_pos[MAX_ITERATORS];	// iterators for nets
 	CArray<int> m_tee;
 	BOOL m_bSMT_connect;
 
@@ -681,4 +702,26 @@ public:
 	int m_annular_ring;
 
 	CNetWidthInfo const &Get_def_width_attrib() const { return m_def_width_attrib; }
+};
+
+
+class CIterator_cnet : protected CDLinkList
+{
+	// List of all active iterators
+	static CDLinkList m_LIST_Iterator;
+
+	CNetList const * m_NetList;
+
+	POSITION m_CurrentPos;
+	cnet * m_pCurrentNet;
+
+public:
+	explicit CIterator_cnet( CNetList const * netlist );
+	~CIterator_cnet() {}
+
+	cnet *GetFirst();
+	cnet *GetNext();
+
+public:
+	static void OnRemove( cnet const * net );
 };

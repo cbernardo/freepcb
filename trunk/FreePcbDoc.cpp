@@ -7,6 +7,7 @@
 #include <shlwapi.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <algorithm>
 #include "PcbFont.h"
 #include "DlgAddPart.h"
 #include "DlgEditNet.h"
@@ -976,16 +977,33 @@ int CFreePcbDoc::WriteFootprints( CStdioFile * file, CMapStringToPtr * cache_map
 		use_map = &m_footprint_cache_map;
 
 	void * ptr;
-	CShape * s;
+	CShape * shape;
 	POSITION pos;
 	CString key;
 
 	file->WriteString( "[footprints]\n\n" );
-	for( pos = use_map->GetStartPosition(); pos != NULL; )
+
+	// Sort the footprints by name for more consistent output to file
+	// when parts are added (better for textual diffs).
+	int i;
+	CArray<CShape::CSortElement> footprints;
+	footprints.SetSize( use_map->GetSize() );
+
+	// Get the unsorted part names
+	for( i = 0, pos = use_map->GetStartPosition(); pos != NULL; i++)
 	{
 		use_map->GetNextAssoc( pos, key, ptr );
-		s = (CShape*)ptr;
-		s->WriteFootprint( file );
+
+		footprints[i] = (CShape*)ptr;
+	}
+
+	std::sort( footprints.GetData(), footprints.GetData() + footprints.GetSize() );
+
+	for( i = 0; i < footprints.GetSize(); i++ )
+	{
+		shape = footprints[i];
+
+		shape->WriteFootprint( file );
 	}
 	return 0;
 }
@@ -2727,7 +2745,7 @@ void CFreePcbDoc::OnFileImport()
 			// update flags
 			m_import_flags = dlg.m_flags;
 
-			if( m_plist->GetFirstPart() != NULL || m_nlist->m_map.GetCount() != 0 )
+			if( m_plist->GetNumParts() != 0 || m_nlist->m_map.GetCount() != 0 )
 			{
 				// there are parts and/or nets in project
 				CDlgImportOptions dlg_options;
@@ -2783,10 +2801,15 @@ void CFreePcbDoc::OnFileImport()
 				line = "\r\nMoving traces and copper areas whose nets have changed:\r\n";
 				m_dlg_log->AddLine( line );
 				m_nlist->RestoreConnectionsAndAreas( old_nlist, m_import_flags, m_dlg_log );
+
 				delete old_nlist;
+
 				// rehook all parts to nets after destroying old_nlist
-				for( cnet * net=m_nlist->GetFirstNet(); net; net=m_nlist->GetNextNet() )
+				CIterator_cnet iter(m_nlist);
+				for( cnet * net = iter.GetFirst(); net != NULL; net = iter.GetNext() )
+				{
 					m_nlist->RehookPartsToNet( net );
+				}
 			}
 			// clean up
 			CString str = "\r\n";
@@ -4007,9 +4030,10 @@ void CFreePcbDoc::OnToolsCheckCopperAreas()
 	m_dlg_log->Clear();
 	m_dlg_log->UpdateWindow();
 	m_view->CancelSelection();
-	cnet * net = m_nlist->GetFirstNet();
 	BOOL new_event = TRUE;
-	while( net )
+
+	CIterator_cnet iter(m_nlist);
+	for( cnet * net = iter.GetFirst(); net != NULL; net = iter.GetNext() )
 	{
 		if( net->nareas > 0 )
 		{
@@ -4101,7 +4125,6 @@ void CFreePcbDoc::OnToolsCheckCopperAreas()
 				}
 			}
 		}
-		net = m_nlist->GetNextNet();
 	}
 	str.Format( "*******  DONE *******\r\n" );
 	m_dlg_log->AddLine( str );
@@ -4712,12 +4735,12 @@ void CFreePcbDoc::OnFileSaveLibrary()
 {
 	CDlgSaveLib dlg;
 	CArray<CString> names;
-	cpart * part = m_plist->GetFirstPart();
+
 	int i = 0;
-	while( part )
+	CIterator_cpart iter(m_plist);
+	for( cpart *part = iter.GetFirst(); part != NULL; part = iter.GetNext() )
 	{
 		names.SetAtGrow( i, part->value );
-		part = m_plist->GetNextPart( part );
 		i++;
 	}
 	dlg.Initialize( &names );
