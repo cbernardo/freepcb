@@ -22,7 +22,7 @@ public:
 	void Add(dl_element *pDLE);
 
 public:
-	struct SHitInfo
+	struct HitInfo
 	{
 		int layer;
 		id  ID;
@@ -31,7 +31,7 @@ public:
 	};
 
 	// returns # hits
-	int TestForHit( CPoint const &point, SHitInfo hitInfo[], int max_hits ) const;
+	int TestForHit( CPoint const &point, HitInfo hitInfo[], int max_hits ) const;
 
 	virtual void Draw(CDrawInfo &di) const {}
 };

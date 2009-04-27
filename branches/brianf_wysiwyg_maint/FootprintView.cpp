@@ -538,80 +538,87 @@ void CFootprintView::OnLButtonDown(UINT nFlags, CPoint point)
 		{
 			// we are not dragging anything, see if new item selected
 			CPoint p = WindowToPCB( point );
-			id id;
-			void * sel_ptr = NULL;
-			void * ptr = m_dlist->TestSelect( p.x, p.y, &id, &m_sel_layer, &m_sel_id, sel_ptr );
+
+			enum { MAX_HITS = 500 };
+			CDL_job::HitInfo hit_info[MAX_HITS];
+
+			int idx = m_dlist->TestSelect( p.x, p.y, hit_info, MAX_HITS, &m_sel_id );
 
 			// deselect previously selected item
 			CancelSelection();
 
-			// now check for new selection
-			if( id.type == ID_PART )
+			if( idx >= 0 )
 			{
-				// something was selected
-				m_sel_id = id;
-				if( id.st == ID_SEL_PAD )
+				id id = hit_info[idx].ID;
+
+				// now check for new selection
+				if( id.type == ID_PART )
 				{
-					// pad selected
-					m_fp.SelectPad( id.i );
-					SetCursorMode( CUR_FP_PAD_SELECTED );
+					// something was selected
+					m_sel_id = id;
+					if( id.st == ID_SEL_PAD )
+					{
+						// pad selected
+						m_fp.SelectPad( id.i );
+						SetCursorMode( CUR_FP_PAD_SELECTED );
+						Invalidate( FALSE );
+					}
+					else if( id.st == ID_SEL_REF_TXT )
+					{
+						// ref text selected
+						m_fp.SelectRef();
+						SetCursorMode( CUR_FP_REF_SELECTED );
+					}
+					else if( id.st == ID_SEL_VALUE_TXT )
+					{
+						// value text selected
+						m_fp.SelectValue();
+						SetCursorMode( CUR_FP_VALUE_SELECTED );
+					}
+					else if( id.st == ID_OUTLINE )
+					{
+						// outline polyline selected
+						int i = m_sel_id.i;
+						if( id.sst == ID_SEL_CORNER )
+						{
+							// corner selected
+							int ic = m_sel_id.ii;
+							m_fp.m_outline_poly[i].HighlightCorner( ic );
+							SetCursorMode( CUR_FP_POLY_CORNER_SELECTED );
+						}
+						else if( id.sst == ID_SEL_SIDE )
+						{
+							// side selected
+							int is = m_sel_id.ii;
+							m_fp.m_outline_poly[i].HighlightSide( is );
+							SetCursorMode( CUR_FP_POLY_SIDE_SELECTED );
+						}
+					}
+				}
+				else if( id.type == ID_TEXT )
+				{
+					// text selected
+					m_sel_id = id;
+					m_sel_text = (CText*)hit_info[idx].ptr;
+					SetCursorMode( CUR_FP_TEXT_SELECTED );
+					m_fp.m_tl->HighlightText( m_sel_text );
+				}
+				else if( id.type == ID_CENTROID )
+				{
+					// centroid selected
+					m_sel_id = id;
+					SetCursorMode( CUR_FP_CENTROID_SELECTED );
+					m_fp.SelectCentroid();
 					Invalidate( FALSE );
 				}
-				else if( id.st == ID_SEL_REF_TXT )
+				else if( id.type == ID_GLUE )
 				{
-					// ref text selected
-					m_fp.SelectRef();
-					SetCursorMode( CUR_FP_REF_SELECTED );
+					// glue spot selected
+					m_sel_id = id;
+					SetCursorMode( CUR_FP_ADHESIVE_SELECTED );
+					m_fp.SelectAdhesive( id.i );
+					Invalidate( FALSE );
 				}
-				else if( id.st == ID_SEL_VALUE_TXT )
-				{
-					// value text selected
-					m_fp.SelectValue();
-					SetCursorMode( CUR_FP_VALUE_SELECTED );
-				}
-				else if( id.st == ID_OUTLINE )
-				{
-					// outline polyline selected
-					int i = m_sel_id.i;
-					if( id.sst == ID_SEL_CORNER )
-					{
-						// corner selected
-						int ic = m_sel_id.ii;
-						m_fp.m_outline_poly[i].HighlightCorner( ic );
-						SetCursorMode( CUR_FP_POLY_CORNER_SELECTED );
-					}
-					else if( id.sst == ID_SEL_SIDE )
-					{
-						// side selected
-						int is = m_sel_id.ii;
-						m_fp.m_outline_poly[i].HighlightSide( is );
-						SetCursorMode( CUR_FP_POLY_SIDE_SELECTED );
-					}
-				}
-			}
-			else if( id.type == ID_TEXT )
-			{
-				// text selected
-				m_sel_id = id;
-				m_sel_text = (CText*)ptr;
-				SetCursorMode( CUR_FP_TEXT_SELECTED );
-				m_fp.m_tl->HighlightText( m_sel_text );
-			}
-			else if( id.type == ID_CENTROID )
-			{
-				// centroid selected
-				m_sel_id = id;
-				SetCursorMode( CUR_FP_CENTROID_SELECTED );
-				m_fp.SelectCentroid();
-				Invalidate( FALSE );
-			}
-			else if( id.type == ID_GLUE )
-			{
-				// glue spot selected
-				m_sel_id = id;
-				SetCursorMode( CUR_FP_ADHESIVE_SELECTED );
-				m_fp.SelectAdhesive( id.i );
-				Invalidate( FALSE );
 			}
 			else
 			{

@@ -32,7 +32,7 @@ void CDL_job::Add(dl_element *pDLE)
 // where n_include_ids is size of array, and
 // where 0's in include_id[] fields are treated as wildcards
 //
-int CDL_job::TestForHit( CPoint const &point, SHitInfo hitInfo[], int max_hits ) const
+int CDL_job::TestForHit( CPoint const &point, HitInfo hitInfo[], int max_hits ) const
 {
 	int  nhits = 0;
 
