@@ -122,7 +122,7 @@ public: // class used to represent a CShape for std::sort()
 	public:
 		CShape * shape;
 
-		int operator<(CSortElement const &to) const
+		int operator < (CSortElement const &to) const
 		{
 			return shape->m_name < to.shape->m_name;
 		}
@@ -130,6 +130,7 @@ public: // class used to represent a CShape for std::sort()
 		CSortElement &operator = (CShape * _shape)
 		{
 			shape = _shape;
+			return *this;
 		}
 
 		operator CShape * ()
