@@ -423,14 +423,15 @@ public: // class used to represent a net for std::sort()
 	public:
 		cnet * net;
 
-		int operator<(CSortElement const &to) const 
+		int operator < (CSortElement const &to) const
 		{
 			return net->name < to.net->name;
 		}
 
-		CSortElement &operator = (cnet * _net) 
+		CSortElement &operator = (cnet * _net)
 		{
 			net = _net;
+			return *this;
 		}
 
 		operator cnet * ()

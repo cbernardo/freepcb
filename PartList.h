@@ -126,14 +126,15 @@ public: // class used to represent a part for std::sort()
 	public:
 		cpart * part;
 
-		int operator<(CSortElement_ref_des const &to) const 
+		int operator < (CSortElement_ref_des const &to) const
 		{
 			return part->ref_des < to.part->ref_des;
 		}
 
-		CSortElement_ref_des &operator = (cpart * _part) 
+		CSortElement_ref_des &operator = (cpart * _part)
 		{
 			part = _part;
+			return *this;
 		}
 
 		operator cpart * ()
@@ -326,4 +327,3 @@ public:
 public:
 	static void OnRemove( cpart const * part );
 };
-
