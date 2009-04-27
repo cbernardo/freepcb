@@ -116,7 +116,7 @@ int CMainFrame::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	m_wndStatusBar.GetPaneInfo( 3, uID, uStyle, nWidth );
 	pDC = m_wndStatusBar.GetDC();
 	pDC->SelectObject( m_wndStatusBar.GetFont() );
-	pDC->DrawText( _T("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"), 
+	pDC->DrawText( _T("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"), 
 						-1, rectArea, DT_SINGLELINE | DT_CALCRECT );
 	m_wndStatusBar.ReleaseDC( pDC );
 	pane_width = rectArea.Width();
