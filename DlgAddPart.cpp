@@ -126,14 +126,14 @@ void CDlgAddPart::DoDataExchange(CDataExchange* pDX)
 				if( m_in_cache || bFootprintUnchanged || m_shape.m_name == "EMPTY_SHAPE" )
 				{
 					// the new footprint is already in the cache, because:
-					//	it was selected from the cache, 
+					//	it was selected from the cache,
 					//	or the new footprint is identical to the cached version,
 					//	or a new footprint was never selected from the library tree
 					// therefore, do nothing
 				}
 				else
 				{
-					// load new footprint into cache, 
+					// load new footprint into cache,
 					// replacing the previous one with the same name
 					int num_other_instances = 0;
 					for( int i=0; i<m_pl->GetSize(); i++ )
@@ -177,7 +177,7 @@ void CDlgAddPart::DoDataExchange(CDataExchange* pDX)
 								// assign new name to footprint and put in cache
 								CShape * shape = new CShape;
 								shape->Copy( &m_shape );
-								shape->m_name = *dlg.GetNewName();	
+								shape->m_name = *dlg.GetNewName();
 								m_footprint_cache_map->SetAt( shape->m_name, shape );
 								ptr = shape;
 							}
@@ -281,9 +281,9 @@ void CDlgAddPart::DoDataExchange(CDataExchange* pDX)
 		}
 
 		// see if footprints for other parts need to be changed
-		if( !m_standalone 
-			//			&& !m_multiple 
-			&& ( bPackageChanged || bFootprintChanged ) 
+		if( !m_standalone
+			//			&& !m_multiple
+			&& ( bPackageChanged || bFootprintChanged )
 			&& package_str != "" )
 		{
 			CString str;
@@ -305,7 +305,7 @@ void CDlgAddPart::DoDataExchange(CDataExchange* pDX)
 		}
 
 		// update partlist_info
-		if( !m_multiple ) 
+		if( !m_multiple )
 		{
 			// update all fields for part
 			GetFields();
@@ -317,7 +317,7 @@ void CDlgAddPart::DoDataExchange(CDataExchange* pDX)
 			int cent_angle = 0;
 			if( (*m_pl)[m_ip].shape )
 				cent_angle = (*m_pl)[m_ip].shape->m_centroid_angle;
-			(*m_pl)[m_ip].angle = ::GetPartAngleForReportedAngle( m_combo_angle.GetCurSel()*90, 
+			(*m_pl)[m_ip].angle = ::GetPartAngleForReportedAngle( m_combo_angle.GetCurSel()*90,
 				cent_angle, side );
 			(*m_pl)[m_ip].deleted = FALSE;
 			if( m_radio_offboard.GetCheck() )
@@ -352,9 +352,9 @@ END_MESSAGE_MAP()
 //**************** public methods ********************
 
 // initialize dialog
-//	
-void CDlgAddPart::Initialize( partlist_info * pl, 
-							 int i, 
+//
+void CDlgAddPart::Initialize( partlist_info * pl,
+							 int i,
 							 BOOL standalone,
 							 BOOL new_part,
 							 BOOL multiple,
@@ -364,7 +364,7 @@ void CDlgAddPart::Initialize( partlist_info * pl,
 							 int units,
 							 CDlgLog * log )
 {
-	m_units = units;  
+	m_units = units;
 	m_pl = pl;
 	m_ip = i;
 	m_standalone = standalone;
@@ -523,8 +523,8 @@ BOOL CDlgAddPart::OnInitDialog()
 	}
 	else
 	{
-		part_info * pi = &(*m_pl)[m_ip]; 
-		m_edit_ref_des.SetWindowText( pi->ref_des ); 
+		part_info * pi = &(*m_pl)[m_ip];
+		m_edit_ref_des.SetWindowText( pi->ref_des );
 		m_edit_package.SetWindowText( pi->package );
 		m_edit_value.SetWindowText( pi->value );
 		m_check_value_visible.SetCheck( pi->value_vis );
@@ -541,7 +541,7 @@ BOOL CDlgAddPart::OnInitDialog()
 		int cent_angle = 0;
 		if( pi->shape )
 			cent_angle = pi->shape->m_centroid_angle;
-		int angle = GetReportedAngleForPart( (*m_pl)[m_ip].angle, 
+		int angle = GetReportedAngleForPart( (*m_pl)[m_ip].angle,
 			cent_angle, (*m_pl)[m_ip].side );
 		m_combo_angle.SetCurSel( angle/90 );
 		m_radio_drag.SetCheck( 0 );
@@ -571,7 +571,7 @@ void CDlgAddPart::InitPartLibTree()
 	CTreeCtrl * pCtrl = &part_tree;
 	pCtrl->DeleteAllItems();
 	int i_exp = 0;
-	
+
 	// allow vertical scroll
 	long style = ::GetWindowLong( part_tree, GWL_STYLE );
 	style = style & ~TVS_NOSCROLL;
@@ -699,7 +699,7 @@ void CDlgAddPart::OnTvnSelchangedPartLibTree(NMHDR *pNMHDR, LRESULT *pResult)
 			CString * lib_file_name = m_folder->GetLibraryFullPath( m_ilib );
 			int offset = m_folder->GetFootprintOffset( m_ilib, m_ifoot );
 			// make shape from library file
-			int err = m_shape.MakeFromFile( NULL, m_footprint_name, *lib_file_name, offset ); 
+			int err = m_shape.MakeFromFile( NULL, m_footprint_name, *lib_file_name, offset );
 			if( err )
 			{
 				// unable to make shape
@@ -711,11 +711,11 @@ void CDlgAddPart::OnTvnSelchangedPartLibTree(NMHDR *pNMHDR, LRESULT *pResult)
 		CDC * pDC = this->GetDC();
 		CRect rw;
 		m_preview.GetClientRect( &rw );
-		int x_size = rw.right - rw.left;
-		int y_size = rw.bottom - rw.top;
-		HENHMETAFILE hMF = m_shape.CreateMetafile( &m_mfDC, pDC, x_size, y_size );
+		HENHMETAFILE hMF = m_shape.CreateMetafile( &m_mfDC, pDC, rw );
 		m_preview.SetEnhMetaFile( hMF );
 		ReleaseDC( pDC );
+		DeleteEnhMetaFile( hMF );
+
 		// update text strings
 		m_edit_author.SetWindowText( m_shape.m_author );
 		m_edit_source.SetWindowText( m_shape.m_source );
@@ -859,11 +859,11 @@ void CDlgAddPart::OnBnClickedButtonBrowse()
 		if( !m_footlibfoldermap->FolderIndexed( &path_str ) )
 		{
 			// if library folder not indexed, pop up log
-			m_dlg_log->ShowWindow( SW_SHOW );   
+			m_dlg_log->ShowWindow( SW_SHOW );
 			m_dlg_log->UpdateWindow();
 			m_dlg_log->BringWindowToTop();
 			m_dlg_log->Clear();
-			m_dlg_log->UpdateWindow(); 
+			m_dlg_log->UpdateWindow();
 		}
 		m_folder = m_footlibfoldermap->GetFolder( &path_str, m_dlg_log );
 		if( !m_folder )
@@ -874,4 +874,3 @@ void CDlgAddPart::OnBnClickedButtonBrowse()
 		m_footlibfoldermap->SetLastFolder( &path_str );
 	}
 }
-

@@ -28,6 +28,13 @@ public:
 		id  ID;
 		void *ptr;
 		int priority;
+
+		// To support sorting
+		int operator < ( HitInfo const &to) const
+		{
+			// Use > so that sort order is highest to lowest priority
+			return priority > to.priority;
+		}
 	};
 
 	// returns # hits

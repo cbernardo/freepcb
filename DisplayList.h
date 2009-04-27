@@ -250,9 +250,9 @@ public:
 	void Draw( CDC * pDC );
 	int HighLight( int gtype, int x, int y, int xf, int yf, int w, int orig_layer=LAY_SELECTION );
 	int CancelHighLight();
-	int TestSelect( int x, int y, 
-					CDL_job::HitInfo hit_info[], int max_hits,
-					id * exclude_id = NULL, void * exclude_ptr = NULL, 
+	int TestSelect( int x, int y,
+					CDL_job::HitInfo hit_info[], int max_hits, int &num_hits,
+					id * exclude_id = NULL, void * exclude_ptr = NULL,
 					id * include_id = NULL, int n_include_ids=0 );
 	int StartDraggingArray( CDC * pDC, int x, int y, int vert, int layer, int crosshair = 1 );
 	int StartDraggingRatLine( CDC * pDC, int x, int y, int xf, int yf, int layer,

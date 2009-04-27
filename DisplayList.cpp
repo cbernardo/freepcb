@@ -950,9 +950,9 @@ void CDisplayList::SetLayerVisible( int layer, BOOL vis )
 // where 0's in include_id[] fields are treated as wildcards
 //
 // Returns: Index into hit_info[] if hit, -1 if no hit
-int CDisplayList::TestSelect( 
+int CDisplayList::TestSelect(
 	int x, int y,
-	CDL_job::HitInfo hit_info[], int max_hits,
+	CDL_job::HitInfo hit_info[], int max_hits, int &num_hits,
 	id * exclude_id, void * exclude_ptr,
 	id * include_id, int n_include_ids )
 {
@@ -965,21 +965,20 @@ int CDisplayList::TestSelect(
 
 		CPoint point(x/m_pcbu_per_wu, y/m_pcbu_per_wu);
 
-		int nhits = pJob->TestForHit(point, hit_info, max_hits-1);
+		num_hits = pJob->TestForHit(point, hit_info, max_hits-1);
 
 		// now return highest priority hit
-		if( nhits == 0 )
+		if( num_hits == 0 )
 		{
 			goto no_hit;
 		}
 		else
 		{
 			// Mark the end of the hit array with invalid layer.
-			hit_info[nhits].layer = -1;
 
 			// assign priority to each hit, track maximum, exclude exclude_id item
 			int best_hit_priority = 0;
-			for( int i=0; i<nhits; i++ )
+			for( int i=0; i<num_hits; i++ )
 			{
 				BOOL excluded_hit = FALSE;
 				BOOL included_hit = TRUE;

@@ -13,6 +13,7 @@
 #include <sys/timeb.h>
 #include <time.h>
 #include <math.h>
+#include <algorithm>
 #include "freepcbview.h"
 #include "DlgAddPart.h"
 #include "DlgSetAreaHatch.h"
@@ -649,76 +650,54 @@ void CFreePcbView::OnSize(UINT nType, int cx, int cy)
 	}
 }
 
-int CFreePcbView::SelectObjPopup( CPoint const &point, CDL_job::HitInfo hit_info[], int hit )
+int CFreePcbView::SelectObjPopup( CPoint const &point, CDL_job::HitInfo hit_info[], int num_hits )
 {
-	CRect r(0,0, 139,24);
-
 	CDC *winDC = GetDC();
 
 	CDC dc;
 	dc.CreateCompatibleDC(winDC);
 	dc.SetMapMode(MM_TEXT);
-	dc.SetWindowExt( r.Width(), r.Height() );
+	dc.SetWindowExt( 1,1 );
 	dc.SetWindowOrg( 0,0 );
-	dc.SetViewportExt( r.Width(), r.Height() );
+	dc.SetViewportExt( 1,1 );
 	dc.SetViewportOrg( 0,0 );
 
 	CDL_job::HitInfo *pInfo;
 
 	int idx;
 
-	// Get hit_info size
-	for( idx = 0, pInfo = &hit_info[0]; pInfo->layer >= 0; pInfo++, idx++ )
-	{
-	}
-
 	// Create bitmap array
 	CArray<CBitmap> bitmaps;
-	bitmaps.SetSize(idx);
+	bitmaps.SetSize(num_hits);
 
 	int sel;
-
 	{
+		CString str;
 		CMenu file_menu;
 		file_menu.CreatePopupMenu();
 
-		for( idx = 0, pInfo = &hit_info[0]; pInfo->layer >= 0; pInfo++, idx++ )
+		for( idx = 0, pInfo = &hit_info[0]; idx < num_hits; idx++, pInfo++ )
 		{
+			CRect r(0,0, 139,23);
 			CBitmap *pBitmap = &bitmaps[idx];
 
 			pBitmap->CreateCompatibleBitmap(winDC, r.Width()+1, r.Height()+1);
 
 			CBitmap *pOldBitmap = dc.SelectObject(pBitmap);
 			{
-				COLORREF layer_color = RGB(	
-					m_Doc->m_rgb[ pInfo->layer ][0], 
-					m_Doc->m_rgb[ pInfo->layer ][1], 
+				COLORREF layer_color = RGB(
+					m_Doc->m_rgb[ pInfo->layer ][0],
+					m_Doc->m_rgb[ pInfo->layer ][1],
 					m_Doc->m_rgb[ pInfo->layer ][2]
 				);
 
-				COLORREF text_color = RGB(	
-					m_Doc->m_rgb[ LAY_BACKGND ][0], 
-					m_Doc->m_rgb[ LAY_BACKGND ][1], 
+				COLORREF text_color = RGB(
+					m_Doc->m_rgb[ LAY_BACKGND ][0],
+					m_Doc->m_rgb[ LAY_BACKGND ][1],
 					m_Doc->m_rgb[ LAY_BACKGND ][2]
 				);
 
 				dc.FillSolidRect(r, layer_color);
-
-				dc.MoveTo(r.left,r.top);
-				dc.LineTo(r.right,r.top);
-				dc.LineTo(r.right,r.bottom);
-				dc.LineTo(r.left,r.bottom);
-				dc.LineTo(r.left,r.top);
-
-				if( idx == hit )
-				{
-					dc.MoveTo(r.left+2,  r.top+2);
-					dc.LineTo(r.right-2, r.top+2);
-					dc.LineTo(r.right-2, r.bottom-2);
-					dc.LineTo(r.left+2,  r.bottom-2);
-					dc.LineTo(r.left+2,  r.top+2);
-				}
-
 				dc.SetTextColor(text_color);
 
 				if( pInfo->ID.type == ID_BOARD )
@@ -727,25 +706,52 @@ int CFreePcbView::SelectObjPopup( CPoint const &point, CDL_job::HitInfo hit_info
 				}
 				else if( pInfo->ID.type == ID_PART )
 				{
+					cpart *part = (cpart*)pInfo->ptr;
+
 					if( pInfo->ID.st == ID_SEL_PAD )
 					{
-						dc.TextOut(10,3, CString("PIN"));
+						str.Format("PIN: %s.%s", part->ref_des, part->shape->GetPinNameByIndex(pInfo->ID.i));
+
+						dc.TextOut(10,3, str);
 					}
 					else if( pInfo->ID.st == ID_SEL_RECT )
 					{
-						dc.TextOut(10,3, CString("PART"));
+						if( part->shape )
+						{
+							CMetaFileDC m_mfDC;
+
+							// Increase part bitmap height
+							r.bottom = 64;
+
+							dc.SelectObject(pOldBitmap);
+							pBitmap->DeleteObject();
+
+							pBitmap->CreateCompatibleBitmap(winDC, r.Width()+1, r.Height()+1);
+							dc.SelectObject(pBitmap);
+
+							dc.FillSolidRect(r, layer_color);
+
+							HENHMETAFILE hMF = part->shape->CreateMetafile( &m_mfDC, winDC, r, part->ref_des );
+							dc.PlayMetaFile( hMF, r );
+
+							DeleteEnhMetaFile( hMF );
+						}
 					}
 					else if( pInfo->ID.st == ID_SEL_REF_TXT )
 					{
-						dc.TextOut(10,3, CString("PART REF."));
+						str.Format("PART REF: %s", part->ref_des);
+						dc.TextOut(10,3, str);
 					}
 					else if( pInfo->ID.st == ID_SEL_VALUE_TXT )
 					{
-						dc.TextOut(10,3, CString("PART VALUE"));
+						str.Format("PART VALUE: %s", part->value);
+						dc.TextOut(10,3, str);
 					}
 				}
 				else if( pInfo->ID.type == ID_NET )
 				{
+					cnet *net = (cnet*)pInfo->ptr;
+
 					if( pInfo->ID.st == ID_CONNECT )
 					{
 						if( pInfo->ID.sst == ID_SEL_SEG )
@@ -754,7 +760,15 @@ int CFreePcbView::SelectObjPopup( CPoint const &point, CDL_job::HitInfo hit_info
 						}
 						else if( pInfo->ID.sst == ID_SEL_VERTEX )
 						{
-							dc.TextOut(10,3, CString("VERTEX"));
+							if( net->connect[pInfo->ID.i].vtx[pInfo->ID.ii].viaExists() )
+							{
+								str = "VIA";
+							}
+							else
+							{
+								str = "VERTEX";
+							}
+							dc.TextOut(10,3, str);
 						}
 						else if( pInfo->ID.sst == ID_VIA )
 						{
@@ -790,12 +804,19 @@ int CFreePcbView::SelectObjPopup( CPoint const &point, CDL_job::HitInfo hit_info
 				{
 					dc.TextOut(10,3, CString("Unknown"));
 				}
+
+				dc.MoveTo(r.left,r.top);
+				dc.LineTo(r.right,r.top);
+				dc.LineTo(r.right,r.bottom);
+				dc.LineTo(r.left,r.bottom);
+				dc.LineTo(r.left,r.top);
 			}
 			dc.SelectObject(pOldBitmap);
 
 			file_menu.AppendMenu( MF_STRING, idx + 1, pBitmap );
 		}
 
+		CRect r;
 		GetWindowRect(r);
 		sel = file_menu.TrackPopupMenu(TPM_LEFTALIGN | TPM_RIGHTBUTTON | TPM_RETURNCMD, point.x + r.left + 10, point.y + r.top + 10, this);
 	}
@@ -805,17 +826,7 @@ int CFreePcbView::SelectObjPopup( CPoint const &point, CDL_job::HitInfo hit_info
 	ReleaseDC(&dc);
 	ReleaseDC(winDC);
 
-
-	if( sel == 0 )
-	{
-		hit = -1;
-	}
-	else
-	{
-		hit = sel - 1;
-	}
-
-	return hit;
+	return sel - 1;
 }
 
 // Left mouse button released, we should probably do something
@@ -1006,6 +1017,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 				sel_ptr = m_sel_dre;
 
 			int idx;
+			int num_hits;
 			CDL_job::HitInfo hit_info[MAX_HITS];
 			{
 				// save masks in case they are changed
@@ -1020,11 +1032,11 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 
 				if( nFlags & MK_SHIFT )
 				{
-					idx = m_dlist->TestSelect( p.x, p.y, hit_info, MAX_HITS, NULL, NULL, m_mask_id, NUM_SEL_MASKS );
+					idx = m_dlist->TestSelect( p.x, p.y, hit_info, 25, num_hits, NULL, NULL, m_mask_id, NUM_SEL_MASKS );
 				}
 				else
 				{
-					idx = m_dlist->TestSelect( p.x, p.y, hit_info, MAX_HITS, &m_sel_id, sel_ptr, m_mask_id, NUM_SEL_MASKS );
+					idx = m_dlist->TestSelect( p.x, p.y, hit_info, MAX_HITS, num_hits, &m_sel_id, sel_ptr, m_mask_id, NUM_SEL_MASKS );
 				}
 
 				// restore mask
@@ -1036,7 +1048,9 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 			{
 				if( nFlags & MK_SHIFT )
 				{
-					idx = SelectObjPopup( point, hit_info, idx );
+					std::sort( &hit_info[0], &hit_info[num_hits] );
+
+					idx = SelectObjPopup( point, hit_info, num_hits );
 				}
 			}
 
@@ -2228,8 +2242,9 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 			id pad_id( ID_PART, ID_SEL_PAD, 0, 0, 0 );	// force selection of pad
 
 			CDL_job::HitInfo hit_info[MAX_HITS];
+			int num_hits;
 
-			int idx = m_dlist->TestSelect( p.x, p.y, hit_info, MAX_HITS, NULL, NULL, &pad_id );
+			int idx = m_dlist->TestSelect( p.x, p.y, hit_info, MAX_HITS, num_hits, NULL, NULL, &pad_id );
 			if( idx >= 0 )
 			{
 				void * ptr = hit_info[idx].ptr;
@@ -2455,8 +2470,9 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 			id pad_id( ID_PART, ID_SEL_PAD, 0, 0, 0 );	// force selection of pad
 
 			CDL_job::HitInfo hit_info[MAX_HITS];
+			int num_hits;
 
-			int idx = m_dlist->TestSelect( p.x, p.y, hit_info, MAX_HITS, NULL, NULL, &pad_id );
+			int idx = m_dlist->TestSelect( p.x, p.y, hit_info, MAX_HITS, num_hits, NULL, NULL, &pad_id );
 			if( idx >= 0 )
 			{
 				void * ptr = hit_info[idx].ptr;
@@ -2523,8 +2539,9 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 			id pad_id( ID_PART, ID_SEL_PAD, 0, 0, 0 );	// test for hit on pad
 
 			CDL_job::HitInfo hit_info[MAX_HITS];
+			int num_hits;
 
-			int idx = m_dlist->TestSelect( p.x, p.y, hit_info, MAX_HITS, NULL, NULL, &pad_id );
+			int idx = m_dlist->TestSelect( p.x, p.y, hit_info, MAX_HITS, num_hits, NULL, NULL, &pad_id );
 			if( idx >= 0 && sel_id.type == ID_PART && sel_id.st == ID_SEL_PAD )
 			{
 				void * ptr = hit_info[idx].ptr;

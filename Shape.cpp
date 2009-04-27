@@ -1843,8 +1843,11 @@ int CShape::WriteFootprint( CStdioFile * file )
 
 // create metafile and draw footprint into it
 //
-HENHMETAFILE CShape::CreateMetafile( CMetaFileDC * mfDC, CDC * pDC, int x_size, int y_size )
+HENHMETAFILE CShape::CreateMetafile( CMetaFileDC * mfDC, CDC * pDC, CRect const &window, CString ref )
 {
+	int x_size = window.Width();
+	int y_size = window.Height();
+
 	// get bounds of shape
 	int x_min = INT_MAX;
 	int x_max = INT_MIN;
@@ -2263,7 +2266,6 @@ HENHMETAFILE CShape::CreateMetafile( CMetaFileDC * mfDC, CDC * pDC, int x_size, 
 	CPen ref_pen( PS_SOLID, thickness, RGB(255,255,0) );
 	mfDC->SelectObject( &ref_pen );
 	SMFontUtil * smfontutil = ((CFreePcbApp*)AfxGetApp())->m_Doc->m_smfontutil;
-	CString ref = "REF";
 	x_scale = (double)m_ref_size/22.0;
 	y_scale = (double)m_ref_size/22.0;
 	double y_offset = 9.0*y_scale;
@@ -2392,13 +2394,12 @@ HENHMETAFILE CShape::CreateMetafile( CMetaFileDC * mfDC, CDC * pDC, int x_size, 
 	return hMF;
 }
 
-HENHMETAFILE CShape::CreateWarningMetafile( CMetaFileDC * mfDC, CDC * pDC, int x_size, int y_size )
+HENHMETAFILE CShape::CreateWarningMetafile( CMetaFileDC * mfDC, CDC * pDC, CRect const &window )
 {
-	CRect rNM;
-	rNM.left = 0;
-	rNM.right = x_size;
-	rNM.top = 0;		// notice Y flipped
-	rNM.bottom = y_size;
+	int x_size = window.Width();
+	int y_size = window.Height();
+
+	CRect rNM = window;
 	mfDC->CreateEnhanced( NULL, NULL, rNM, NULL );
 	mfDC->SetAttribDC( *pDC );
 
@@ -2703,7 +2704,7 @@ void CEditShape::Draw( CDisplayList * dlist, SMFontUtil * fontutil )
 				else
 				{
 					*pad_el = dlist->Add( p_id, NULL, pad_lay,
-						DL_HOLLOW_RECT, 1, 
+						DL_HOLLOW_RECT, 1,
 						1, 0, 0,
 						pin.x-p->size_h/2,
 						pin.y-p->size_h/2,
@@ -2783,8 +2784,8 @@ void CEditShape::Draw( CDisplayList * dlist, SMFontUtil * fontutil )
 			m_hole_el[i] = dlist->Add( p_id, NULL, LAY_FP_PAD_THRU,
 				DL_HOLE, 1,
 				ps->hole_size, 0, 0,
-				pin.x, pin.y, 
-				0, 0, 
+				pin.x, pin.y,
+				0, 0,
 				pin.x, pin.y );
 			sel_x = max( sel_x, ps->hole_size );
 			sel_y = max( sel_y, ps->hole_size );
@@ -2794,7 +2795,7 @@ void CEditShape::Draw( CDisplayList * dlist, SMFontUtil * fontutil )
 			// add selector
 			p_id.st = ID_SEL_PAD;
 			m_pad_sel[i] = dlist->AddSelector( p_id, NULL, LAY_FP_PAD_THRU,
-				DL_HOLLOW_RECT, 1, 
+				DL_HOLLOW_RECT, 1,
 				1, 0,
 				pin.x-sel_x/2,
 				pin.y-sel_y/2,
