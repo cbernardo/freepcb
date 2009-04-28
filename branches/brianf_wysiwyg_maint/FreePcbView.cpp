@@ -650,6 +650,13 @@ void CFreePcbView::OnSize(UINT nType, int cx, int cy)
 	}
 }
 
+
+// Displays a popup menu for the mouse hits in hit_info
+//
+// Param:
+//	point    - current mouse position (relative to client window)
+//	hit_info - Drawing objects hit by mouse
+//	num_hits - # objects in hit_info array
 int CFreePcbView::SelectObjPopup( CPoint const &point, CDL_job::HitInfo hit_info[], int num_hits )
 {
 	CDC *winDC = GetDC();
@@ -680,6 +687,7 @@ int CFreePcbView::SelectObjPopup( CPoint const &point, CDL_job::HitInfo hit_info
 		{
 			CRect r(0,0, 139,23);
 			CBitmap *pBitmap = &bitmaps[idx];
+			str = "";
 
 			pBitmap->CreateCompatibleBitmap(winDC, r.Width()+1, r.Height()+1);
 
@@ -702,7 +710,16 @@ int CFreePcbView::SelectObjPopup( CPoint const &point, CDL_job::HitInfo hit_info
 
 				if( pInfo->ID.type == ID_BOARD )
 				{
-					dc.TextOut(10,3, CString("BOARD"));
+					str = "BOARD";
+
+					if( pInfo->ID.sst == ID_SEL_SIDE )
+					{
+						str += " SIDE";
+					}
+					else if( pInfo->ID.sst == ID_SEL_CORNER )
+					{
+						str += " CORNER";
+					}
 				}
 				else if( pInfo->ID.type == ID_PART )
 				{
@@ -710,42 +727,42 @@ int CFreePcbView::SelectObjPopup( CPoint const &point, CDL_job::HitInfo hit_info
 
 					if( pInfo->ID.st == ID_SEL_PAD )
 					{
-						str.Format("PIN: %s.%s", part->ref_des, part->shape->GetPinNameByIndex(pInfo->ID.i));
-
-						dc.TextOut(10,3, str);
+						str.Format( "PIN: %s.%s", part->ref_des, part->shape->GetPinNameByIndex(pInfo->ID.i) );
 					}
 					else if( pInfo->ID.st == ID_SEL_RECT )
 					{
-						if( part->shape )
+						CShape *shape = part->shape;
+
+						if( shape )
 						{
 							CMetaFileDC m_mfDC;
 
-							// Increase part bitmap height
-							r.bottom = 64;
+							CRect shape_bounds = shape->GetBounds();
+							int dx = -shape_bounds.Height() / NM_PER_MIL;
 
+							// Scale part bitmap height between 40 and 128 for better readability
+							r.bottom = 32 + dx / 11;
+							if( r.bottom > 128 ) r.bottom = 128;
+
+							// Trade in the default bitmap for the new one
 							dc.SelectObject(pOldBitmap);
 							pBitmap->DeleteObject();
-
 							pBitmap->CreateCompatibleBitmap(winDC, r.Width()+1, r.Height()+1);
 							dc.SelectObject(pBitmap);
 
-							dc.FillSolidRect(r, layer_color);
-
-							HENHMETAFILE hMF = part->shape->CreateMetafile( &m_mfDC, winDC, r, part->ref_des );
+							// Draw the shape with actual ref_des & no selection rectangle
+							HENHMETAFILE hMF = shape->CreateMetafile( &m_mfDC, winDC, r, part->ref_des, FALSE );
 							dc.PlayMetaFile( hMF, r );
-
 							DeleteEnhMetaFile( hMF );
 						}
 					}
 					else if( pInfo->ID.st == ID_SEL_REF_TXT )
 					{
-						str.Format("PART REF: %s", part->ref_des);
-						dc.TextOut(10,3, str);
+						str.Format("REF: %s", part->ref_des);
 					}
 					else if( pInfo->ID.st == ID_SEL_VALUE_TXT )
 					{
-						str.Format("PART VALUE: %s", part->value);
-						dc.TextOut(10,3, str);
+						str.Format("VALUE: %s", part->value);
 					}
 				}
 				else if( pInfo->ID.type == ID_NET )
@@ -756,7 +773,7 @@ int CFreePcbView::SelectObjPopup( CPoint const &point, CDL_job::HitInfo hit_info
 					{
 						if( pInfo->ID.sst == ID_SEL_SEG )
 						{
-							dc.TextOut(10,3, CString("SEGMENT"));
+							str = "SEGMENT";
 						}
 						else if( pInfo->ID.sst == ID_SEL_VERTEX )
 						{
@@ -768,43 +785,53 @@ int CFreePcbView::SelectObjPopup( CPoint const &point, CDL_job::HitInfo hit_info
 							{
 								str = "VERTEX";
 							}
-							dc.TextOut(10,3, str);
-						}
-						else if( pInfo->ID.sst == ID_VIA )
-						{
-							dc.TextOut(10,3, CString("VIA"));
 						}
 					}
 					else if( pInfo->ID.st == ID_AREA )
 					{
-						dc.TextOut(10,3, CString("COPPER AREA"));
+						str = "COPPER";
+
+						if( pInfo->ID.sst == ID_SEL_SIDE )
+						{
+							str += " SIDE";
+						}
+						else if( pInfo->ID.sst == ID_SEL_CORNER )
+						{
+							str += " CORNER";
+						}
 					}
 				}
 				else if( pInfo->ID.type == ID_TEXT )
 				{
-					dc.TextOut(10,3, CString("TEXT"));
+					str = "TEXT";
 				}
 				else if( pInfo->ID.type == ID_DRC )
 				{
-					dc.TextOut(10,3, CString("DRC"));
+					str = "DRC";
 				}
 				else if( pInfo->ID.type == ID_SM_CUTOUT )
 				{
-					dc.TextOut(10,3, CString("CUTOUT"));
+					str = "CUTOUT";
 				}
 				else if( pInfo->ID.type == ID_CENTROID )
 				{
-					dc.TextOut(10,3, CString("CENTROID"));
+					str = "CENTROID";
 				}
 				else if( pInfo->ID.type == ID_GLUE )
 				{
-					dc.TextOut(10,3, CString("GLUE SPOT"));
+					str = "GLUE SPOT";
 				}
 				else
 				{
-					dc.TextOut(10,3, CString("Unknown"));
+					str = "Unknown";
 				}
 
+				if( str.GetLength() > 0 )
+				{
+					dc.TextOut( 10,3, str );
+				}
+
+				// Draw bounding box around the bitmap
 				dc.MoveTo(r.left,r.top);
 				dc.LineTo(r.right,r.top);
 				dc.LineTo(r.right,r.bottom);
@@ -818,7 +845,7 @@ int CFreePcbView::SelectObjPopup( CPoint const &point, CDL_job::HitInfo hit_info
 
 		CRect r;
 		GetWindowRect(r);
-		sel = file_menu.TrackPopupMenu(TPM_LEFTALIGN | TPM_RIGHTBUTTON | TPM_RETURNCMD, point.x + r.left + 10, point.y + r.top + 10, this);
+		sel = file_menu.TrackPopupMenu(TPM_LEFTALIGN | TPM_RIGHTBUTTON | TPM_RETURNCMD, point.x + r.left + 5, point.y + r.top + 5, this);
 	}
 
 	// Release GDI objects
@@ -826,7 +853,7 @@ int CFreePcbView::SelectObjPopup( CPoint const &point, CDL_job::HitInfo hit_info
 	ReleaseDC(&dc);
 	ReleaseDC(winDC);
 
-	return sel - 1;
+	return (sel - 1);
 }
 
 // Left mouse button released, we should probably do something
