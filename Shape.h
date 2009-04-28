@@ -180,7 +180,7 @@ public:
 	CRect GetAllPadBounds();
 	int Copy( CShape * shape );	// copy all data from shape
 	BOOL Compare( CShape * shape );	// compare shapes, return true if same
-	HENHMETAFILE CreateMetafile( CMetaFileDC * mfDC, CDC * pDC, CRect const &window, CString ref = "ref" );
+	HENHMETAFILE CreateMetafile( CMetaFileDC * mfDC, CDC * pDC, CRect const &window, CString ref = "ref", int bDrawSelectionRect=1 );
 	HENHMETAFILE CreateWarningMetafile( CMetaFileDC * mfDC, CDC * pDC, CRect const &window );
 };
 
