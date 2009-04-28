@@ -40,7 +40,6 @@ extern CFreePcbApp theApp;
 BOOL gLastKeyWasArrow = FALSE;
 int gTotalArrowMoveX = 0;
 int gTotalArrowMoveY = 0;
-BOOL gShiftKeyDown = FALSE;
 
 BOOL gLastKeyWasGroupRotate = FALSE;
 long long groupAverageX=0, groupAverageY=0;
@@ -856,6 +855,7 @@ int CFreePcbView::SelectObjPopup( CPoint const &point, CDL_job::HitInfo hit_info
 	return (sel - 1);
 }
 
+
 // Left mouse button released, we should probably do something
 //
 void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
@@ -1059,7 +1059,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 
 				if( nFlags & MK_SHIFT )
 				{
-					idx = m_dlist->TestSelect( p.x, p.y, hit_info, 25, num_hits, NULL, NULL, m_mask_id, NUM_SEL_MASKS );
+					idx = m_dlist->TestSelect( p.x, p.y, hit_info, 25, num_hits );
 				}
 				else
 				{
@@ -3173,12 +3173,12 @@ void CFreePcbView::OnSysKeyUp(UINT nChar, UINT nRepCnt, UINT nFlags)
 
 // Key pressed up
 //
+// One should get the shift/ctrl key state by polling.  Maintaining the
+// state in OnKey-Up/Down() doesn't work when menus are displayed since
+// the menus capture the keystrokes while present on the screen.
+//
 void CFreePcbView::OnKeyUp(UINT nChar, UINT nRepCnt, UINT nFlags)
 {
-	if( nChar == 16 )
-	{
-		gShiftKeyDown = FALSE;
-	}
 	if( nChar == 'D' )
 	{
 		// 'd'
@@ -3194,6 +3194,7 @@ void CFreePcbView::OnKeyUp(UINT nChar, UINT nRepCnt, UINT nFlags)
 				m_snap_mode = SM_GRID_POINTS;
 			if( nChar == 16 && m_Doc->m_snap_angle == 45 )
 				m_inflection_mode = IM_90_45;
+
 			m_dlist->SetInflectionMode( m_inflection_mode );
 			Invalidate( FALSE );
 		}
@@ -3203,10 +3204,12 @@ void CFreePcbView::OnKeyUp(UINT nChar, UINT nRepCnt, UINT nFlags)
 
 // Key pressed down
 //
+// One should get the shift/ctrl key state by polling.  Maintaining the
+// state in OnKey-Up/Down() doesn't work when menus are displayed since
+// the menus capture the keystrokes while present on the screen.
+//
 void CFreePcbView::OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags)
 {
-	if( nChar == 16 )
-		gShiftKeyDown = TRUE;
 	if( nChar == 'D' )
 	{
 		// 'd'
@@ -3222,6 +3225,7 @@ void CFreePcbView::OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags)
 				m_snap_mode = SM_GRID_LINES;
 			if( nChar == 16 && m_Doc->m_snap_angle == 45 )	// shift
 				m_inflection_mode = IM_45_90;
+
 			m_dlist->SetInflectionMode( m_inflection_mode );
 			Invalidate( FALSE );
 		}
@@ -3236,7 +3240,8 @@ void CFreePcbView::OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags)
 		CView::OnKeyDown(nChar, nRepCnt, nFlags);
 }
 
-// Key on keyboard pressed down
+
+// Key on keyboard event
 //
 void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 {
@@ -3485,7 +3490,12 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 				new_active_layer = LAY_BOTTOM_COPPER;
 			else if( new_active_layer > LAY_TOP_COPPER )
 				new_active_layer++;
-			if( !gShiftKeyDown )
+
+			// Get the shift key state by polling.  Maintaining the state in
+			// OnKey-Up/Down() doesn't work when menus are displayed since the
+			// menus capture the keystrokes while present on the screen.
+			SHORT status = GetKeyState( VK_SHIFT );
+			if( (status & (1<<(sizeof(status)*8-1))) == 0 )
 			{
 				// shift key not held down, change active layer for routing
 				if( !m_Doc->m_vis[new_active_layer] )
