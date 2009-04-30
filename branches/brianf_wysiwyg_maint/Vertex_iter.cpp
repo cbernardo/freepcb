@@ -80,7 +80,7 @@ cvertex *CVertexIterator::GetNext()
 				vtx = &c->vtx[i];
 				if( vtx->tee_ID == m_tee_ID )
 				{
-					// Found matching vertex, 
+					// Found matching vertex,
 					// Check that we don't repeat the first one.
 					// If not a repeat, return it.
 					if( ( m_icc != m_ic ) || ( i != m_ivtx ) )
@@ -89,10 +89,6 @@ cvertex *CVertexIterator::GetNext()
 						m_icvtx = i;
 
 						return vtx;
-					}
-					else
-					{
-						m_icvtx = i+1;
 					}
 				}
 			}
