@@ -3957,6 +3957,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 			OnUnrouteTrace();
 		else
 			goto VTX_SELECTED_COMMON;
+		break;
 
 	case  CUR_END_VTX_SELECTED:
 		if( fk == FK_MOVE_VERTEX )
