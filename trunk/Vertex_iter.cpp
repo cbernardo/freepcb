@@ -35,7 +35,7 @@ cvertex *CVertexIterator::GetNext()
 
 	if( m_idx < 0 )
 	{
-		// First return vertex defined by is & ivtx
+		// First return vertex defined by ic & ivtx
 		m_icc   = m_ic;
 		m_icvtx = m_ivtx;
 
@@ -71,7 +71,7 @@ cvertex *CVertexIterator::GetNext()
 			}
 			else
 			{
-				// Regular connection - test all vertexes
+				// Regular connection - test all non-pin vertexes
 				i = 1;
 			}
 
@@ -80,12 +80,16 @@ cvertex *CVertexIterator::GetNext()
 				vtx = &c->vtx[i];
 				if( vtx->tee_ID == m_tee_ID )
 				{
-					// Found matching vertex
+					// Found matching vertex,
+					// Check that we don't repeat the first one.
+					// If not a repeat, return it.
+					if( ( m_icc != m_ic ) || ( i != m_ivtx ) )
+					{
+						// Update vertex info
+						m_icvtx = i;
 
-					// Update vertex info
-					m_icvtx = i;
-
-					return vtx;
+						return vtx;
+					}
 				}
 			}
 		}

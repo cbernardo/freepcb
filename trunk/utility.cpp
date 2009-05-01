@@ -157,20 +157,39 @@ void RotateRect( CRect *r, int angle, CPoint org )
 int TestLineHit( int xi, int yi, int xf, int yf, int x, int y, double dist )
 {
 	double dd;
+	double end_ext = dist;
 
 	// test for vertical or horizontal segment
 	if( xf==xi )
 	{
 		// vertical segment
-		dd = fabs( (double)(x-xi) );
-		if( dd<dist && ( (yf>yi && y<yf && y>yi) || (yf<yi && y>yf && y<yi) ) )
+
+		// Force yf > yi
+		if( yi>yf )
+		{
+			int t = yi;
+			yi = yf;
+			yf = t;
+		}
+
+		dd = abs( x-xi );
+		if( dd<dist && ( (y-end_ext) < yf && (y+end_ext) > yi) )
 			return 1;
 	}
 	else if( yf==yi )
 	{
 		// horizontal segment
-		dd = fabs( (double)(y-yi) );
-		if( dd<dist && ( (xf>xi && x<xf && x>xi) || (xf<xi && x>xf && x<xi) ) )
+
+		// Force xf > xi
+		if( xi>xf )
+		{
+			int t = xi;
+			xi = xf;
+			xf = t;
+		}
+
+		dd = abs( y-yi );
+		if( dd<dist && ((x-end_ext) < xf && (x+end_ext) > xi) )
 			return 1;
 	}
 	else
@@ -183,20 +202,45 @@ int TestLineHit( int xi, int yi, int xf, int yf, int x, int y, double dist )
 		double d = -1.0/b;
 		double c = (double)y-d*x;
 		// find nearest point to (x,y) on line segment (xi,yi) to (xf,yf)
-		double xp = (a-c)/(d-b);
-		double yp = a + b*xp;
+		int xp = (a-c)/(d-b);
+		int yp = a + b*xp;
+
 		// find distance
-		dd = sqrt((x-xp)*(x-xp)+(y-yp)*(y-yp));
-		if( fabs(b)>0.7 )
+		int lx = (x-xp);
+		int ly = (y-yp);
+
+		dd = sqrt((double)lx*lx + (double)ly*ly );
+
+		end_ext = (end_ext - end_ext * 0.5 / fabs(d-b)); // * ((dist-dd) / dist);
+
+		if( fabs(b) > 1.0 )
 		{
 			// line segment more vertical than horizontal
-			if( dd<dist && ( (yf>yi && yp<yf && yp>yi) || (yf<yi && yp>yf && yp<yi) ) )
+
+			// Force yf > yi
+			if( yi>yf )
+			{
+				int t = yi;
+				yi = yf;
+				yf = t;
+			}
+
+			if( dd<dist && ( (yp-end_ext)<yf && (yp+end_ext)>yi) )
 				return 1;
 		}
 		else
 		{
 			// line segment more horizontal than vertical
-			if( dd<dist && ( (xf>xi && xp<xf && xp>xi) || (xf<xi && xp>xf && xp<xi) ) )
+
+			// Force xf > xi
+			if( xi>xf )
+			{
+				int t = xi;
+				xi = xf;
+				xf = t;
+			}
+
+			if( dd<dist && ( (xp-end_ext)<xf && (xp+end_ext)>xi) )
 				return 1;
 		}
 	}	
