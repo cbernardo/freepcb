@@ -543,7 +543,11 @@ void CFootprintView::OnLButtonDown(UINT nFlags, CPoint point)
 			CDL_job::HitInfo hit_info[MAX_HITS];
 			int num_hits;
 
-			int idx = m_dlist->TestSelect( p.x, p.y, hit_info, MAX_HITS, num_hits, &m_sel_id );
+			int idx = m_dlist->TestSelect(
+				p.x, p.y,					  // Point
+				hit_info, MAX_HITS, num_hits, // Hit Information
+				&m_sel_id					  // Exclusions
+			);
 
 			// deselect previously selected item
 			CancelSelection();
