@@ -1059,11 +1059,19 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 
 				if( nFlags & MK_SHIFT )
 				{
-					idx = m_dlist->TestSelect( p.x, p.y, hit_info, 25, num_hits );
+					idx = m_dlist->TestSelect(
+						p.x, p.y,                     // Point
+						hit_info, 25, num_hits        // Hit Information
+					);
 				}
 				else
 				{
-					idx = m_dlist->TestSelect( p.x, p.y, hit_info, MAX_HITS, num_hits, &m_sel_id, sel_ptr, m_mask_id, NUM_SEL_MASKS );
+					idx = m_dlist->TestSelect(
+						p.x, p.y,					  // Point
+						hit_info, MAX_HITS, num_hits, // Hit Information
+						&m_sel_id, sel_ptr,			  // Exclusions
+						m_mask_id, NUM_SEL_MASKS	  // Inclusions
+					);
 				}
 
 				// restore mask
@@ -2271,7 +2279,13 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 			CDL_job::HitInfo hit_info[MAX_HITS];
 			int num_hits;
 
-			int idx = m_dlist->TestSelect( p.x, p.y, hit_info, MAX_HITS, num_hits, NULL, NULL, &pad_id );
+			int idx = m_dlist->TestSelect(
+				p.x, p.y,				      // Point
+				hit_info, MAX_HITS, num_hits, // Hit Information
+				NULL, NULL,					  // Exclusions
+				&pad_id, 1					  // Inclusions
+			);
+
 			if( idx >= 0 )
 			{
 				void * ptr = hit_info[idx].ptr;
@@ -2499,7 +2513,13 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 			CDL_job::HitInfo hit_info[MAX_HITS];
 			int num_hits;
 
-			int idx = m_dlist->TestSelect( p.x, p.y, hit_info, MAX_HITS, num_hits, NULL, NULL, &pad_id );
+			int idx = m_dlist->TestSelect(
+				p.x, p.y,					  // Point
+				hit_info, MAX_HITS, num_hits, // Hit Information
+				NULL, NULL,					  // Exclusions
+				&pad_id, 1					  // Inclusions
+			);
+
 			if( idx >= 0 )
 			{
 				void * ptr = hit_info[idx].ptr;
@@ -2568,7 +2588,13 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 			CDL_job::HitInfo hit_info[MAX_HITS];
 			int num_hits;
 
-			int idx = m_dlist->TestSelect( p.x, p.y, hit_info, MAX_HITS, num_hits, NULL, NULL, &pad_id );
+			int idx = m_dlist->TestSelect(
+				p.x, p.y,					  // Point
+				hit_info, MAX_HITS, num_hits, // Hit Information
+				NULL, NULL,					  // Exclusions
+				&pad_id, 1					  // Inclusions
+			);
+
 			if( idx >= 0 && sel_id.type == ID_PART && sel_id.st == ID_SEL_PAD )
 			{
 				void * ptr = hit_info[idx].ptr;
