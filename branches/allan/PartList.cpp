@@ -4,7 +4,6 @@
 //
 #include "stdafx.h"
 #include <math.h>
-#include <algorithm>
 #include "DisplayList.h"
 #include "DlgMyMessageBox.h"
 
@@ -13,7 +12,6 @@
 // globals
 BOOL g_bShow_header_28mil_hole_warning = TRUE;
 BOOL g_bShow_SIP_28mil_hole_warning = TRUE;
-
 
 //******** constructors and destructors *********
 
@@ -28,7 +26,6 @@ cpart::cpart()
 
 cpart::~cpart()
 {
-	CIterator_cpart::OnRemove(this);
 }
 
 part_pin::part_pin() : clearance( theApp.m_Doc->m_def_size_attrib )
@@ -66,9 +63,9 @@ void part_pin::set_net(cnet *_net)
 void part_pin::set_clearance(CInheritableInfo const &_clearance)
 {
 	// Set new attributes.
-	// Existing attributes are first assigned to attrib, then updated.
-	// The resulting behavior is such that if an item relies on its
-	// parent, that item is always updated at this point, regardless
+	// Existing attributes are first assigned to attrib, then updated.  
+	// The resulting behavior is such that if an item relies on its 
+	// parent, that item is always updated at this point, regardless 
 	// of whether the item was defined in 'attrib'.  This is consistent
 	// with how items are stored in the .fpc file.
 	CClearanceInfo pin_attrib( clearance );
@@ -91,6 +88,10 @@ void part_pin::set_clearance(CInheritableInfo const &_clearance)
 
 CPartList::CPartList( CDisplayList * dlist, SMFontUtil * fontutil )
 {
+	m_start.prev = 0;		// dummy first element in list
+	m_start.next = &m_end;
+	m_end.next = 0;			// dummy last element in list
+	m_end.prev = &m_start;
 	m_max_size = PL_MAX_SIZE;	// size limit
 	m_size = 0;					// current size
 	m_dlist = dlist;
@@ -100,7 +101,9 @@ CPartList::CPartList( CDisplayList * dlist, SMFontUtil * fontutil )
 
 CPartList::~CPartList()
 {
-	RemoveAllParts();
+	// traverse list, removing all parts
+	while( m_end.prev != &m_start )
+		Remove( m_end.prev );
 }
 
 // Create new empty part and add to end of list
@@ -116,8 +119,10 @@ cpart * CPartList::Add()
 
 	// create new instance and link into list
 	cpart * part = new cpart;
-
-	m_LIST_part.insert_after( part );
+	part->prev = m_end.prev;
+	part->next = &m_end;
+	part->prev->next = part;
+	part->next->prev = part;
 
 	return part;
 }
@@ -136,10 +141,8 @@ cpart * CPartList::Add( CShape * shape, CString * ref_des, CString * package,
 
 	// create new instance and link into list
 	cpart * part = Add();
-
 	// set data
 	SetPartData( part, shape, ref_des, package, x, y, side, angle, visible, glued );
-
 	return part;
 }
 
@@ -217,15 +220,12 @@ int CPartList::SetPartData( cpart * part, CShape * shape, CString * ref_des, CSt
 //
 int CPartList::HighlightPart( cpart * part )
 {
-	if( part->dl_sel )
-	{
-		// highlight it by making its selection rectangle visible
-		m_dlist->HighLight( DL_HOLLOW_RECT,
-					m_dlist->Get_x( part->dl_sel) ,
-					m_dlist->Get_y( part->dl_sel),
-					m_dlist->Get_xf(part->dl_sel),
-					m_dlist->Get_yf(part->dl_sel), 1 );
-	}
+	// highlight it by making its selection rectangle visible
+	m_dlist->HighLight( DL_HOLLOW_RECT,
+				m_dlist->Get_x( part->dl_sel) ,
+				m_dlist->Get_y( part->dl_sel),
+				m_dlist->Get_xf(part->dl_sel),
+				m_dlist->Get_yf(part->dl_sel), 1 );
 	return 0;
 }
 
@@ -274,9 +274,8 @@ int CPartList::SelectValueText( cpart * part )
 
 void CPartList:: HighlightAllPadsOnNet( cnet * net )
 {
-	CIterator_cpart iter(this);
-
-	for( cpart *part = iter.GetFirst(); part != NULL; part = iter.GetNext() )
+	cpart * part = GetFirstPart();
+	while( part )
 	{
 		if( part->shape )
 		{
@@ -286,6 +285,7 @@ void CPartList:: HighlightAllPadsOnNet( cnet * net )
 					SelectPad( part, ip );
 			}
 		}
+		part = GetNextPart( part );
 	}
 }
 
@@ -797,10 +797,9 @@ int CPartList::GetPartBoundaries( CRect * part_r )
 	int min_y = INT_MAX;
 	int max_y = INT_MIN;
 	int parts_found = 0;
-
-	CIterator_cpart iter(this);
-
-	for( cpart *part = iter.GetFirst(); part != NULL; part = iter.GetNext() )
+	// iterate
+	cpart * part = m_start.next;
+	while( part->next != 0 )
 	{
 		if( part->dl_sel )
 		{
@@ -834,13 +833,12 @@ int CPartList::GetPartBoundaries( CRect * part_r )
 			min_y = min( y, min_y);
 			parts_found = 1;
 		}
+		part = part->next;
 	}
-
 	part_r->left = min_x;
 	part_r->right = max_x;
 	part_r->bottom = min_y;
 	part_r->top = max_y;
-
 	return parts_found;
 }
 
@@ -849,16 +847,37 @@ int CPartList::GetPartBoundaries( CRect * part_r )
 cpart * CPartList::GetPart( LPCTSTR ref_des )
 {
 	// find element with given ref_des, return pointer to element
-	CIterator_cpart iter(this);
-
-	for( cpart *part = iter.GetFirst(); part != NULL; part = iter.GetNext() )
+	cpart * part = m_start.next;
+	while( part->next != 0 )
 	{
-		if( part->ref_des == ref_des ) return part;
+		if(  part->ref_des == ref_des  )
+			return part;
+		part = part->next;
 	}
-
 	return NULL;	// if unable to find part
 }
 
+// Iterate through parts
+//
+cpart * CPartList::GetFirstPart()
+{
+	cpart * p = m_start.next;
+	if( p->next )
+		return p;
+	else
+		return NULL;
+}
+
+cpart * CPartList::GetNextPart( cpart * part )
+{
+	cpart * p = part->next;
+	if( !p )
+		return NULL;
+	if( !p->next )
+		return NULL;
+	else
+		return p;
+}
 
 // get number of times a particular shape is used
 //
@@ -866,13 +885,13 @@ int CPartList::GetNumFootprintInstances( CShape * shape )
 {
 	int n = 0;
 
-	CIterator_cpart iter(this);
-
-	for( cpart *part = iter.GetFirst(); part != NULL; part = iter.GetNext() )
+	cpart * part = m_start.next;
+	while( part->next != 0 )
 	{
-		if( part->shape == shape ) n++;
+		if(  part->shape == shape  )
+			n++;
+		part = part->next;
 	}
-
 	return n;
 }
 
@@ -907,11 +926,11 @@ int CPartList::Remove( cpart * part )
 	// delete all entries in display list
 	UndrawPart( part );
 
+	// remove links to this element
+	part->next->prev = part->prev;
+	part->prev->next = part->next;
+	// destroy part
 	m_size--;
-
-	// Destroy part,  This includes:
-	//	- Remove links to this element
-	//  - Handle iterator updates
 	delete( part );
 
 	return 0;
@@ -921,23 +940,20 @@ int CPartList::Remove( cpart * part )
 //
 void CPartList::RemoveAllParts()
 {
-	CIterator_cpart iter(this);
-
-	for( cpart *part = iter.GetFirst(); part != NULL; part = iter.GetNext() )
-	{
-		Remove( part );
-	}
+	// traverse list, removing all parts
+	while( m_end.prev != &m_start )
+		Remove( m_end.prev );
 }
 
 // Set utility flag for all parts
 //
 void CPartList::MarkAllParts( int mark )
 {
-	CIterator_cpart iter(this);
-
-	for( cpart *part = iter.GetFirst(); part != NULL; part = iter.GetNext() )
+	cpart * part = GetFirstPart();
+	while( part )
 	{
 		part->utility = mark;
+		part = GetNextPart( part );
 	}
 }
 
@@ -1706,9 +1722,8 @@ void CPartList::PartFootprintChanged( cpart * part, CShape * new_shape )
 void CPartList::FootprintChanged( CShape * shape )
 {
 	// find all parts with given shape and update them
-	CIterator_cpart iter(this);
-
-	for( cpart *part = iter.GetFirst(); part != NULL; part = iter.GetNext() )
+	cpart * part = m_start.next;
+	while( part->next != 0 )
 	{
 		if( part->shape )
 		{
@@ -1717,6 +1732,7 @@ void CPartList::FootprintChanged( CShape * shape )
 				PartFootprintChanged( part, shape );
 			}
 		}
+		part = part->next;
 	}
 }
 
@@ -1725,14 +1741,14 @@ void CPartList::FootprintChanged( CShape * shape )
 void CPartList::RefTextSizeChanged( CShape * shape )
 {
 	// find all parts with given shape and update them
-	CIterator_cpart iter(this);
-
-	for( cpart *part = iter.GetFirst(); part != NULL; part = iter.GetNext() )
+	cpart * part = m_start.next;
+	while( part->next != 0 )
 	{
 		if(  part->shape->m_name == shape->m_name  )
 		{
 			ResizeRefText( part, shape->m_ref_size, shape->m_ref_w );
 		}
+		part = part->next;
 	}
 }
 
@@ -1748,19 +1764,16 @@ void CPartList::MakePartVisible( cpart * part, BOOL bVisible )
 		el->visible = bVisible;
 	}
 	// pins
-	if( part->shape )
+	for( int ip=0; ip<part->shape->m_padstack.GetSize(); ip++ )
 	{
-		for( int ip=0; ip<part->shape->m_padstack.GetSize(); ip++ )
+		// pin pads
+		dl_element * el = part->pin[ip].dl_hole;
+		if( el )
+			el->visible = bVisible;
+		for( int i=0; i<part->pin[ip].dl_els.GetSize(); i++ )
 		{
-			// pin pads
-			dl_element * el = part->pin[ip].dl_hole;
-			if( el )
-				el->visible = bVisible;
-			for( int i=0; i<part->pin[ip].dl_els.GetSize(); i++ )
-			{
-				if( part->pin[ip].dl_els[i] )
-					part->pin[ip].dl_els[i]->visible = bVisible;
-			}
+			if( part->pin[ip].dl_els[i] )
+				part->pin[ip].dl_els[i]->visible = bVisible;
 		}
 	}
 	// ref text strokes
@@ -1856,11 +1869,11 @@ int CPartList::StartDraggingPart( CDC * pDC, cpart * part, BOOL bRatlines )
 	{
 		m_dlist->MakeDragRatlineArray( 2*part->shape->m_padstack.GetSize(), 1 );
 		// zero utility flags for all nets
-		CIterator_cnet net_iter(m_nlist);
-		cnet * n;
-		for (n = net_iter.GetFirst(); n != NULL; n = net_iter.GetNext() )
+		cnet * n = m_nlist->GetFirstNet();
+		while( n )
 		{
 			n->utility = 0;
+			n = m_nlist->GetNextNet();
 		}
 
 		// now loop through all pins in part
@@ -2244,18 +2257,7 @@ cpart * CPartList::AddFromString( CString * str )
 		{
 			if( s != NULL )
 			{
-				clearance[pin_number].m_ca_clearance = my_atoi( &p[1] );
-
-				if( np >= 4 )
-				{
-					// VAL & STATUS format
-					clearance[pin_number].m_ca_clearance.m_status = my_atoi( &p[2] );
-				}
-				else
-				{
-					// VAL_STATUS format (only present in intermediate development versions)
-				}
-				pin_number++;
+				clearance[pin_number++].m_ca_clearance = my_atoi( &p[1] );
 			}
 		}
 		else if( key_str == "pos" )
@@ -2404,12 +2406,9 @@ int CPartList::SetPartString( cpart * part, CString * str )
 		{
 			part_pin *pin = &part->pin[i];
 
-			line.Format( "    pin: %d %d %d\n", i+1,
-				pin->clearance.m_ca_clearance.m_val,
-				pin->clearance.m_ca_clearance.m_status
-			);
+			line.Format( "    pin: %d %d\n", i+1, pin->clearance.m_ca_clearance.GetItemAsInt() );
 			str->Append( line );
-		}
+		}	
 	}
 	else
 	{
@@ -2503,8 +2502,7 @@ void * CPartList::CreatePartUndoRecordForRename( cpart * part, CString * old_ref
 int CPartList::WriteParts( CStdioFile * file )
 {
 	CMapStringToPtr shape_map;
-	CIterator_cpart iter(this);
-
+	cpart * el = m_start.next;
 	CString line;
 	CString key;
 	try
@@ -2512,31 +2510,16 @@ int CPartList::WriteParts( CStdioFile * file )
 		// now write all parts
 		line.Format( "[parts]\n\n" );
 		file->WriteString( line );
-
-		// Sort the parts by name for more consistent output to file
-		// when parts are added (better for textual diffs).
-		int i;
-		cpart * part;
-		CArray<cpart::CSortElement_ref_des> parts;
-		parts.SetSize( GetNumParts() );
-	
-		// Get the unsorted part names
-		for( i = 0, part = iter.GetFirst(); part != NULL; part = iter.GetNext(), i++ )
+		el = m_start.next;
+		while( el->next != 0 )
 		{
-			parts[i] = part;
-		}
-
-		std::sort( parts.GetData(), parts.GetData() + parts.GetSize() );
-
-		for( i = 0; i < parts.GetSize(); i++ )
-		{
-			part = parts[i];
-
 			// test
 			CString test;
-			SetPartString( part, &test );
+			SetPartString( el, &test );
 			file->WriteString( test );
+			el = el->next;
 		}
+
 	}
 	catch( CFileException * e )
 	{
@@ -2603,19 +2586,18 @@ int CPartList::ExportPartListInfo( partlist_info * pl, cpart * test_part )
 {
 	// traverse part list to find number of parts
 	int ipart = -1;
-
 	int nparts = 0;
-	CIterator_cpart iter(this);
-	for( cpart *part = iter.GetFirst(); part != NULL; part = iter.GetNext() )
+	cpart * part = m_start.next;
+	while( part->next != 0 )
 	{
 		nparts++;
+		part = part->next;
 	}
-
 	// now make struct
 	pl->SetSize( nparts );
 	int i = 0;
-
-	for( cpart *part = iter.GetFirst(); part != NULL; part = iter.GetNext() )
+	part = m_start.next;
+	while( part->next != 0 )
 	{
 		if( part == test_part )
 			ipart = i;
@@ -2643,8 +2625,8 @@ int CPartList::ExportPartListInfo( partlist_info * pl, cpart * test_part )
 		(*pl)[i].deleted = FALSE;
 		(*pl)[i].bOffBoard = FALSE;
 		i++;
+		part = part->next;
 	}
-
 	return ipart;
 }
 
@@ -2654,15 +2636,15 @@ void CPartList::ImportPartListInfo( partlist_info * pl, int flags, CDlgLog * log
 {
 	CString mess;
 
-	CIterator_cpart iter(this);
-
 	// undraw all parts and disable further drawing
 	CDisplayList * old_dlist = m_dlist;
 	if( m_dlist )
 	{
-		for( cpart *part = iter.GetFirst(); part != NULL; part = iter.GetNext() )
+		cpart * part = GetFirstPart();
+		while( part )
 		{
 			UndrawPart( part );
+			part = GetNextPart( part );
 		}
 	}
 	m_dlist = NULL;
@@ -2690,7 +2672,8 @@ void CPartList::ImportPartListInfo( partlist_info * pl, int flags, CDlgLog * log
 
 	// now find parts in project that are not in partlist_info
 	// loop through all parts
-	for( cpart *part = iter.GetFirst(); part != NULL; part = iter.GetNext() )
+	cpart * part = m_start.next;
+	while( part->next != 0 )
 	{
 		// loop through the partlist_info array
 		BOOL bFound = FALSE;
@@ -2705,7 +2688,7 @@ void CPartList::ImportPartListInfo( partlist_info * pl, int flags, CDlgLog * log
 				break;
 			}
 		}
-
+		cpart * next_part = part->next;
 		if( !bFound )
 		{
 			// part in project but not in partlist_info
@@ -2741,6 +2724,7 @@ void CPartList::ImportPartListInfo( partlist_info * pl, int flags, CDlgLog * log
 				Remove( part );
 			}
 		}
+		part = next_part;
 	}
 
 	// loop through partlist_info array, changing partlist as necessary
@@ -2944,9 +2928,7 @@ void CPartList::ImportPartListInfo( partlist_info * pl, int flags, CDlgLog * log
 					pi->value_vis );
 			}
 			else
-			{
 				SetValue( part, &pi->value, 0, 0, 0, 0, 0 );
-			}
 			m_nlist->PartAdded( part );
 		}
 		else
@@ -2985,7 +2967,7 @@ void CPartList::ImportPartListInfo( partlist_info * pl, int flags, CDlgLog * log
 					// change footprint to new one
 					PartFootprintChanged( pi->part, pi->shape );
 					ResizeRefText( pi->part, pi->ref_size, pi->ref_width );
-					m_nlist->PartFootprintChanged( pi->part );
+					m_nlist->PartFootprintChanged( part );
 					m_nlist->PartMoved( pi->part );
 				}
 			}
@@ -3005,9 +2987,11 @@ void CPartList::ImportPartListInfo( partlist_info * pl, int flags, CDlgLog * log
 
 	// redraw partlist
 	m_dlist = old_dlist;
-	for( cpart *part = iter.GetFirst(); part != NULL; part = iter.GetNext() )
+	part = GetFirstPart();
+	while( part )
 	{
 		DrawPart( part );
+		part = GetNextPart( part );
 	}
 }
 
@@ -3229,7 +3213,7 @@ int CPartList::GetPadDrawInfo( cpart * part, int ipin, int layer,
 							  int * type, int * x, int * y, int * w, int * l, int * r, int * hole,
 							  int * angle, cnet ** net,
 							  int * connection_status, int * pad_connect_flag,
-							  int * clearance_type )
+							  int * clearance_type, int * clearance )
 {
 	// get footprint
 	CShape * s = part->shape;
@@ -3241,6 +3225,10 @@ int CPartList::GetPadDrawInfo( cpart * part, int ipin, int layer,
 	BOOL bUseDefault = FALSE; // if TRUE, use copper pad for mask
 	CString pin_name = s->GetPinNameByIndex( ipin );
 	int connect_status = GetPinConnectionStatus( part, pin_name, layer );
+	CClearanceInfo i_clearance = part->pin[ipin].clearance;
+	if( clearance )
+		*clearance = i_clearance.m_ca_clearance.m_val;
+
 	// set default return values for no pad and no hole
 	int ret_code = 0;
 	int ttype = PAD_NONE;
@@ -3446,7 +3434,6 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 					CArray<CPolyLine> * board_outline,
 					DesignRules * dr, DRErrorList * drelist )
 {
-	CIterator_cpart iter(this);
 	CString d_str, x_str, y_str;
 	CString str;
 	CString str2;
@@ -3456,8 +3443,8 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 	str.Format( "Checking parts:\r\n" );
 	if( log )
 		log->AddLine( str );
-
-	for( cpart *part = iter.GetFirst(); part != NULL; part = iter.GetNext() )
+	cpart * part = GetFirstPart();
+	while( part )
 	{
 		CShape * s = part->shape;
 		if( s )
@@ -3646,16 +3633,17 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 				}
 			}
 		}
+		part = GetNextPart( part );
 	}
 
 	// iterate through parts again, checking against all other parts
-	for( cpart * t_part = iter.GetFirst(); t_part != NULL; t_part = iter.GetNext() )
+	for( cpart * t_part=GetFirstPart(); t_part; t_part=GetNextPart(t_part) )
 	{
 		CShape * t_s = t_part->shape;
 		if( t_s )
 		{
 			// now iterate through parts that follow in the partlist
-			for( cpart * part=iter.GetNext(); part != NULL; part=iter.GetNext() )
+			for( cpart * part=GetNextPart(t_part); part; part=GetNextPart(part) )
 			{
 				CShape * s = part->shape;
 				if( s )
@@ -4126,9 +4114,9 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 					}
 				}
 			}
-
 			// iterate through all parts
-			for( cpart *part = iter.GetFirst(); part != NULL; part = iter.GetNext() )
+			cpart * part = GetFirstPart();
+			for( ; part; part = GetNextPart( part ) )
 			{
 				CShape * s = part->shape;
 
@@ -5037,9 +5025,9 @@ int CPartList::CheckPartlist( CString * logstr )
 
 	*logstr += "***** Checking Parts *****\r\n";
 
-	CIterator_cpart iter(this);
-
-	for( cpart *part = iter.GetFirst(); part != NULL; part = iter.GetNext() )
+	// first, check for duplicate parts
+	cpart * part = m_start.next;
+	while( part->next != 0 )
 	{
 		CString ref_des = part->ref_des;
 		BOOL test = map.Lookup( ref_des, ptr );
@@ -5051,13 +5039,15 @@ int CPartList::CheckPartlist( CString * logstr )
 			nerrors++;
 		}
 		else
-		{
 			map.SetAt( ref_des, NULL );
-		}
+
+		// next part
+		part = part->next;
 	}
 
 	// now check all parts
-	for( cpart *part = iter.GetFirst(); part != NULL; part = iter.GetNext() )
+	part = m_start.next;
+	while( part->next != 0 )
 	{
 		// check this part
 		str = "";
@@ -5135,6 +5125,9 @@ int CPartList::CheckPartlist( CString * logstr )
 			}
 		}
 		*logstr += str;
+
+		// next part
+		part = part->next;
 	}
 	str.Format( "***** %d ERROR(S), %d WARNING(S) *****\r\n", nerrors, nwarnings );
 	*logstr += str;
@@ -5144,9 +5137,8 @@ int CPartList::CheckPartlist( CString * logstr )
 
 void CPartList::MoveOrigin( int x_off, int y_off )
 {
-	CIterator_cpart iter(this);
-
-	for( cpart *part = iter.GetFirst(); part != NULL; part = iter.GetNext() )
+	cpart * part = GetFirstPart();
+	while( part )
 	{
 		if( part->shape )
 		{
@@ -5161,16 +5153,15 @@ void CPartList::MoveOrigin( int x_off, int y_off )
 			}
 			DrawPart( part );
 		}
+		part = GetNextPart(part);
 	}
 }
-
 
 BOOL CPartList::CheckForProblemFootprints()
 {
 	BOOL bHeaders_28mil_holes = FALSE;
-	CIterator_cpart iter(this);
-
-	for( cpart *part = iter.GetFirst(); part != NULL; part = iter.GetNext() )
+	cpart * part = GetFirstPart();
+	while( part )
 	{
 		if( part->shape)
 		{
@@ -5180,6 +5171,7 @@ BOOL CPartList::CheckForProblemFootprints()
 				bHeaders_28mil_holes = TRUE;
 			}
 		}
+		part = GetNextPart( part );
 	}
 	if( g_bShow_header_28mil_hole_warning && bHeaders_28mil_holes )
 	{
