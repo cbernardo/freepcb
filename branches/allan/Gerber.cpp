@@ -1103,13 +1103,13 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 							// get pad info
 							int pad_type, pad_x, pad_y, pad_w, pad_l, pad_r, pad_hole, pad_angle;
 							cnet * pad_net;
-							int pad_connect_status, pad_connect_flag, clearance_type ;
+							int pad_connect_status, pad_connect_flag, clearance_type, clearance ;
 							BOOL bPad = pl->GetPadDrawInfo( part, ip, layer,
 								!(flags & GERBER_NO_PIN_THERMALS),
 								!(flags & GERBER_NO_SMT_THERMALS),
 								mask_clearance, paste_mask_shrink,
 								&pad_type, &pad_x, &pad_y, &pad_w, &pad_l, &pad_r, &pad_hole, &pad_angle,
-								&pad_net, &pad_connect_status, &pad_connect_flag, &clearance_type );
+								&pad_net, &pad_connect_status, &pad_connect_flag, &clearance_type, &clearance );
 
 							if( bPad )
 							{
@@ -1158,7 +1158,7 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 									{
 										// no area connection, just make clearance for annular ring and hole
 										type = CAperture::AP_CIRCLE;
-										size1 = max( pad_w + 2*fill_clearance, pad_hole + 2*hole_clearance );
+										size1 = max( pad_w + 2*clearance, pad_hole + 2*hole_clearance );
 										// testing
 										if( clearance_type != CLEAR_NORMAL )
 											ASSERT(0);
@@ -1173,11 +1173,12 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 										BOOL bMakeThermal = (clearance_type == CLEAR_THERMAL);
 										if( pad_type == PAD_ROUND )
 										{
-											size1 = max( pad_w + 2*fill_clearance, pad_hole + 2*hole_clearance );
+											size1 = max( pad_w + 2*clearance, pad_hole + 2*hole_clearance );
 											if( bMakeThermal )
 											{
 												// make thermal for pad
 												type = CAperture::AP_THERMAL;
+												size1 = max( pad_w + 2*fill_clearance, pad_hole + 2*hole_clearance );
 												size2 = pad_w;	// inner diameter
 											}
 											// make clearance for adjacent areas
@@ -1186,11 +1187,12 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 										}
 										else if( pad_type == PAD_OCTAGON )
 										{
-											size1 = (max( pad_w + 2*fill_clearance, pad_hole + 2*hole_clearance ))/cos_oct;
+											size1 = (max( pad_w + 2*clearance, pad_hole + 2*hole_clearance ))/cos_oct;
 											if( bMakeThermal )
 											{
 												// make thermal for pad
 												type = CAperture::AP_THERMAL;
+												size1 = (max( pad_w + 2*fill_clearance, pad_hole + 2*hole_clearance ))/cos_oct;
 												size2 = pad_w;	// inner diameter
 											}
 											area_pad_type = pad_type;
@@ -1236,8 +1238,8 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 												if( pad_hole )
 												{
 													// if necessary, adjust for hole clearance
-													x_clearance = max( fill_clearance, hole_clearance+pad_hole/2-((x2-x1)/2));
-													y_clearance = max( fill_clearance, hole_clearance+pad_hole/2-((y2-y1)/2));
+													x_clearance = max( x_clearance, hole_clearance+pad_hole/2-((x2-x1)/2));
+													y_clearance = max( y_clearance, hole_clearance+pad_hole/2-((y2-y1)/2));
 												}
 												// add clearance
 												x1 -= x_clearance;
@@ -1254,13 +1256,13 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 											area_pad_wid = pad_w;
 											area_pad_len = pad_l;
 											area_pad_angle = pad_angle;
-											area_pad_clearance = fill_clearance;
+											area_pad_clearance = clearance;
 										}
 									}
 									else
 									{
 										// pad doesn't connect to area, make clearance for pad and hole
-										size1 = max ( pad_w + 2*fill_clearance, pad_hole + 2*hole_clearance );
+										size1 = max ( pad_w + 2*clearance, pad_hole + 2*hole_clearance );
 										size2 = 0;
 										if( pad_type == PAD_ROUND )
 										{
@@ -1282,9 +1284,9 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 												type = CAperture::AP_RECT;
 											if( pad_type == PAD_RRECT )
 												type = CAperture::AP_RRECT;
-											size2 = max ( pad_l + 2*fill_clearance, pad_hole + 2*hole_clearance );
+											size2 = max ( pad_l + 2*clearance, pad_hole + 2*hole_clearance );
 											if( pad_type == PAD_RRECT )
-												size3 = pad_r + fill_clearance;
+												size3 = pad_r + clearance;
 											if( pad_angle == 90 )
 											{
 												int temp = size1;
@@ -1350,18 +1352,17 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 							double yi = pre_vtx->y;
 							double xf = post_vtx->x;
 							double yf = post_vtx->y;
-							int test;
-							int pad_w;
-							int hole_w;
+							int test, pad_w, hole_w, via_clearance;
+							int seg_clearance = s->clearance();
 							nl->GetViaPadInfo( net, ic, is+1, layer,
-								&pad_w, &hole_w, &test );
+								&pad_w, &hole_w, &test, &via_clearance );
 							// flash the via clearance if necessary
 							if( hole_w > 0 && layer >= LAY_TOP_COPPER )
 							{
 								// this is a copper layer
 								// set aperture to draw normal via clearance
 								int type = CAperture::AP_CIRCLE;
-								int size1 = max( pad_w + 2*fill_clearance, hole_w + 2*hole_clearance );
+								int size1 = max( pad_w + 2*via_clearance, hole_w + 2*hole_clearance );
 								int size2 = 0;
 								// set parameters for no foreign area clearance
 								int area_pad_type = PAD_NONE;
@@ -1385,11 +1386,11 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 										type = CAperture::AP_NONE;
 										// except on adjacent foreign nets
 										area_pad_type = PAD_ROUND;
-										area_pad_wid = max( pad_w + 2*fill_clearance, hole_w + 2*hole_clearance );
+										area_pad_wid = max( pad_w + 2*via_clearance, hole_w + 2*hole_clearance );
 									}
 									else
 									{
-										// thermal
+										// thermal, use fill_clearance
 										type = CAperture::AP_THERMAL;
 										size1 = max( pad_w + 2*fill_clearance, hole_w + 2*hole_clearance );
 										size2 = pad_w;
@@ -1427,7 +1428,7 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 								// segment is on this layer and there is a single copper area
 								// on this layer not on the same net, draw clearance
 								int type = CAperture::AP_CIRCLE;
-								int size1 = s->width() + 2*fill_clearance;
+								int size1 = s->width() + 2*seg_clearance;
 								CAperture seg_ap( type, size1, 0 );
 								ChangeAperture( &seg_ap, &current_ap, &ap_array, PASS0, f );
 								if( PASS1 )
@@ -1469,7 +1470,7 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 											int y2f = poly->GetY(ic2);
 											int style2 = poly->GetSideStyle( is );
 											int d = ::GetClearanceBetweenSegments( xi, yi, xf, yf, CPolyLine::STRAIGHT, s->width(),
-												x2i, y2i, x2f, y2f, style2, 0, fill_clearance, 0, 0 );
+												x2i, y2i, x2f, y2f, style2, 0, seg_clearance, 0, 0 );
 											if( d < fill_clearance )
 											{
 												bIntOwnNet = TRUE;
@@ -1498,7 +1499,7 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 										if( PASS1 )
 										{
 											DrawClearanceInForeignAreas( net, -1, s->width(), xi, yi, xf, yf,
-												0, 0, 0, 0, f, flags, layer, fill_clearance,
+												0, 0, 0, 0, f, flags, layer, seg_clearance,
 												&area_net_list, &area_list );
 										}
 									}
@@ -1506,7 +1507,7 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 								else
 								{
 									// segment does not intersect area on own net, just make clearance
-									int w = s->width() + 2*fill_clearance;
+									int w = s->width() + 2*seg_clearance;
 									CAperture seg_ap( CAperture::AP_CIRCLE, w, 0 );
 									ChangeAperture( &seg_ap, &current_ap, &ap_array, PASS0, f );
 									if( PASS1 )
