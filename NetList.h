@@ -607,7 +607,7 @@ public:
 	void MoveVertex( cnet * net, int ic, int ivtx, int x, int y );
 	int GetViaConnectionStatus( cnet * net, int ic, int iv, int layer );
 	void GetViaPadInfo( cnet * net, int ic, int iv, int layer,
-		int * pad_w, int * hole_w, int * connect_status );
+		int * pad_w, int * hole_w, int * connect_status, int * clearance=0 );
 	BOOL TestForHitOnVertex( cnet * net, int layer, int x, int y,
 		cnet ** hit_net, int * hit_ic, int * hit_iv );
 

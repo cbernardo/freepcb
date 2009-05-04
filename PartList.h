@@ -282,7 +282,7 @@ public:
 							  int * type=0, int * x=0, int * y=0, int * w=0, int * l=0, int * r=0, int * hole=0,
 							  int * angle=0, cnet ** net=0,
 							  int * connection_status=0, int * pad_connect_flag=0,
-							  int * clearance_type=0 );
+							  int * clearance_type=0, int * clearance=0 );
 	cpart * GetPart( LPCTSTR ref_des );
 	int StartDraggingPart( CDC * pDC, cpart * part, BOOL bRatlines=TRUE );
 	int StartDraggingRefText( CDC * pDC, cpart * part );

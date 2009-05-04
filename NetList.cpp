@@ -3630,7 +3630,7 @@ int CNetList::GetViaConnectionStatus( cnet * net, int ic, int iv, int layer )
 // will be taken from the tee-vertex that the branch connects to
 //
 void CNetList::GetViaPadInfo( cnet * net, int ic, int iv, int layer,
-		int * pad_w, int * pad_hole_w, int * connect_status )
+		int * pad_w, int * pad_hole_w, int * connect_status, int * clearance )
 {
 	int con_status = GetViaConnectionStatus( net, ic, iv, layer );
 	cconnect * c = &net->connect[ic];
