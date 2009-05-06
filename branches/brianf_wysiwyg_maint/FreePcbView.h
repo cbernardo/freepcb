@@ -264,6 +264,22 @@ const char sel_mask_str[NUM_SEL_MASKS][32] =
 	"DRC errors"
 };
 
+#define KB_KEY_BACKSPACE	VK_BACK
+#define KB_KEY_SHIFT		VK_SHIFT
+#define KB_KEY_CTRL			VK_CONTROL
+#define KB_KEY_ESC			VK_ESCAPE
+#define KB_KEY_PG_UP		VK_PRIOR
+#define KB_KEY_PG_DOWN		VK_NEXT
+#define KB_KEY_DELETE		VK_DELETE
+#define KB_KEY_FUNC(x)		( VK_F1 - 1 + (x) )
+
+#define KB_KEY_ARROW_LOWEST		VK_LEFT
+#define KB_KEY_ARROW_HIGHEST	VK_DOWN
+	#define KB_KEY_ARROW_LEFT		VK_LEFT
+	#define KB_KEY_ARROW_RIGHT		VK_RIGHT
+	#define KB_KEY_ARROW_UP			VK_UP
+	#define KB_KEY_ARROW_DOWN		VK_DOWN
+
 // descriptor for undo/redo
 struct undo_descriptor {
 	CFreePcbView * view;	// the view class

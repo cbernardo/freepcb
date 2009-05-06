@@ -483,7 +483,7 @@ void CFootprintView::OnLButtonDown(UINT nFlags, CPoint point)
 			if( r.PtInRect( point ) )
 			{
 				// fake function key pressed
-				int nChar = i + 112;
+				int nChar = KB_KEY_FUNC(i+1);
 				HandleKeyPress( nChar, 0, 0 );
 				if( i == 7 )
 					return;
@@ -1034,7 +1034,7 @@ void CFootprintView::OnRButtonDown(UINT nFlags, CPoint point)
 //
 void CFootprintView::OnSysKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags)
 {
-	if( nChar == 121 )
+	if( nChar == KB_KEY_FUNC(10) )
 		OnKeyDown( nChar, nRepCnt, nFlags);
 	else
 		CView::OnSysKeyDown(nChar, nRepCnt, nFlags);
@@ -1044,7 +1044,7 @@ void CFootprintView::OnSysKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags)
 //
 void CFootprintView::OnSysKeyUp(UINT nChar, UINT nRepCnt, UINT nFlags)
 {
-	if( nChar != 121 )
+	if( nChar != KB_KEY_FUNC(10) )
 		CView::OnSysKeyUp(nChar, nRepCnt, nFlags);
 }
 
@@ -1055,7 +1055,7 @@ void CFootprintView::OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags)
 	HandleKeyPress( nChar, nRepCnt, nFlags );
 
 	// don't pass through SysKey F10
-	if( nChar != 121 )
+	if( nChar != KB_KEY_FUNC(10) )
 		CView::OnKeyDown(nChar, nRepCnt, nFlags);
 }
 
@@ -1064,9 +1064,9 @@ void CFootprintView::OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags)
 void CFootprintView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 {
 	int fk = FK_FP_NONE;
-	if( nChar >= 112 && nChar <= 123 )		// Function key
+	if( nChar >= KB_KEY_FUNC(1) && nChar <= 123 )		// Function key
 	{
-		fk = m_fkey_option[nChar-112];
+		fk = m_fkey_option[nChar-KB_KEY_FUNC(1)];
 	}
 	if( nChar == '1' || nChar == '2' || nChar == '3' )
 	{
@@ -1110,7 +1110,7 @@ void CFootprintView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 		break;
 
 	case CUR_FP_PAD_SELECTED:
-		if( fk == FK_FP_DELETE_PAD || nChar == 46 )
+		if( fk == FK_FP_DELETE_PAD || nChar == KB_KEY_DELETE )
 			OnPadDelete( m_sel_id.i );
 		else if( fk == FK_FP_EDIT_PAD )
 			OnPadEdit( m_sel_id.i );
@@ -1137,7 +1137,7 @@ void CFootprintView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 			OnPolylineCornerEdit();
 		else if( fk == FK_FP_MOVE_CORNER )
 			OnPolylineCornerMove();
-		else if( fk == FK_FP_DELETE_CORNER || nChar == 46 )
+		else if( fk == FK_FP_DELETE_CORNER || nChar == KB_KEY_DELETE )
 		{
 			OnPolylineCornerDelete();
 			FootprintModified( TRUE );
@@ -1158,7 +1158,7 @@ void CFootprintView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 			OnPolylineSideConvertToArcCcw();
 		else if( fk == FK_FP_ADD_CORNER )
 			OnPolylineSideAddCorner();
-		else if( fk == FK_FP_DELETE_POLYLINE || nChar == 46 )
+		else if( fk == FK_FP_DELETE_POLYLINE || nChar == KB_KEY_DELETE )
 			OnPolylineDelete();
 		FootprintModified( TRUE );
 		break;
@@ -1168,7 +1168,7 @@ void CFootprintView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 			OnFpTextEdit();
 		else if( fk == FK_FP_MOVE_TEXT )
 			OnFpTextMove();
-		else if( fk == FK_FP_DELETE_TEXT || nChar == 46 )
+		else if( fk == FK_FP_DELETE_TEXT || nChar == KB_KEY_DELETE )
 			OnFpTextDelete();
 		break;
 
@@ -1186,7 +1186,7 @@ void CFootprintView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 			OnAdhesiveEdit();
 		else if( fk == FK_FP_MOVE_ADHESIVE )
 			OnAdhesiveMove();
-		else if( fk == FK_FP_DELETE_ADHESIVE || nChar == 46 )
+		else if( fk == FK_FP_DELETE_ADHESIVE || nChar == KB_KEY_DELETE )
 			OnAdhesiveDelete();
 		break;
 
@@ -1254,7 +1254,7 @@ void CFootprintView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 		p = PCBToScreen( p );
 		SetCursorPos( p.x, p.y - 4 );
 	}
-	else if( nChar == 33 )
+	else if( nChar == KB_KEY_PG_UP )
 	{
 		// PgUp pressed, zoom in
 		if( m_pcbu_per_pixel > 254 )
@@ -1271,7 +1271,7 @@ void CFootprintView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 			SetCursorPos( p.x, p.y - 4 );
 		}
 	}
-	else if( nChar == 34 )
+	else if( nChar == KB_KEY_PG_DOWN )
 	{
 		// PgDn pressed, zoom out
 		// first, make sure that window boundaries will be OK
@@ -1295,7 +1295,7 @@ void CFootprintView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 			SetCursorPos( p.x, p.y - 4 );
 		}
 	}
-	else if( nChar == 27 )
+	else if( nChar == KB_KEY_ESC )
 	{
 		// ESC key, simulate a right-click
 		OnRButtonDown( 0, NULL );
