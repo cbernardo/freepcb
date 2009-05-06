@@ -21,6 +21,7 @@
 #include "dle_rect_rounded.h"
 #include "dle_square.h"
 #include "dle_x.h"
+#include "dle_polyline.h"
 
 // dimensions passed to DisplayList from the application are in PCBU (i.e. nm)
 // since the Win95/98 GDI uses 16-bit arithmetic, PCBU must be scaled to DU (i.e. mils)
@@ -268,6 +269,7 @@ dl_element * CDisplayList::CreateDLE( int gtype )
 		case DL_ARC_CCW:        new_element = new CDLE_ARC_CCW;        break;
 		case DL_CENTROID:       new_element = new CDLE_CENTROID;       break;
 		case DL_X:              new_element = new CDLE_X;              break;
+		case DL_POLYLINE:       new_element = new CDLE_POLYLINE;       break;
 
 		default:                new_element = new dl_element;          break;
 	}

@@ -1338,6 +1338,14 @@
 				>
 			</File>
 			<File
+				RelativePath=".\drawing_element\dle_polyline.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\drawing_element\dle_polyline.h"
+				>
+			</File>
+			<File
 				RelativePath=".\drawing_element\dle_rect.cpp"
 				>
 			</File>

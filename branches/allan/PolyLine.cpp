@@ -8,6 +8,7 @@
 #include "layers.h"
 #include "php_polygon.h"
 #include "php_polygon_vertex.h"
+#include "dle_polyline.h"
 
 #define pi  3.14159265359
 #define DENOM 25400	// to use mils for php clipping
@@ -28,6 +29,7 @@ CPolyLine::CPolyLine( CDisplayList * dl )
 	m_gpc_poly = new gpc_polygon;
 	m_gpc_poly->num_contours = 0;
 	m_php_poly = new polygon;
+	dl_GDI_polygon = NULL;
 }
 
 // destructor, removes display elements
@@ -806,6 +808,13 @@ void CPolyLine::Undraw()
         m_dl_job = NULL;
 
 		m_nhatch = 0;
+
+		//** AMW
+		if( dl_GDI_polygon )
+		{
+			m_dlist->Remove( dl_GDI_polygon );
+			dl_GDI_polygon = NULL;
+		}
 	}
 	bDrawn = FALSE;
 }
@@ -856,6 +865,7 @@ void CPolyLine::Draw(  CDisplayList * dl )
             m_dl_job = NULL;
 		}
 
+#if 0	//** AMW
 		// now draw elements
 		for( int ic=0; ic<m_ncorners; ic++ )
 		{
@@ -955,6 +965,12 @@ void CPolyLine::Draw(  CDisplayList * dl )
 			Hatch(pDL_job);
 
         m_dlist->Add(pDL_job, m_layer);
+
+#endif		//** AMW for testing
+		dl_GDI_polygon = m_dlist->Add( pDL_job, m_id, this, m_layer, DL_POLYLINE, 
+						1, 0, 0, 0, 0, 0, 0, 0, 0, 0 );
+        m_dlist->Add(pDL_job, m_layer);
+		//**
 	}
 	bDrawn = TRUE;
 }

@@ -35,7 +35,8 @@ enum
 	DL_ARC_CW,			// arc with clockwise curve
 	DL_ARC_CCW,			// arc with counter-clockwise curve
 	DL_CENTROID,		// circle and X
-	DL_X				// X
+	DL_X,				// X
+	DL_POLYLINE			// polyline or polygon
 };
 
 // dragging line shapes
@@ -337,6 +338,7 @@ public:
 	int Get_layer( dl_element * el );
 	int Get_mode( dl_element * el );
 	int Get_pass( dl_element * el );
+	int Get_pcbu_per_wu() { return m_pcbu_per_wu; };
 	void Get_Endpoints(CPoint *cpi, CPoint *cpf);
 	id Get_id( dl_element * el );
 };
