@@ -161,4 +161,5 @@ private:
 	polygon * m_php_poly;
     CDL_job * m_dl_job;  // drawing job
 	BOOL bDrawn;
+	dl_element * dl_GDI_polygon;	//** AMW testing
 };
