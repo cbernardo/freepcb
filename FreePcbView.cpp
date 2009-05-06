@@ -936,7 +936,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 			if( r.PtInRect( point ) )
 			{
 				// fake function key pressed
-				int nChar = i + 112;
+				int nChar = i + KB_KEY_FUNC(1);
 				HandleKeyPress( nChar, 0, 0 );
 			}
 		}
@@ -3183,7 +3183,7 @@ void CFreePcbView::OnRButtonDown(UINT nFlags, CPoint point)
 //
 void CFreePcbView::OnSysKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags)
 {
-	if( nChar == 121 )
+	if( nChar == KB_KEY_FUNC(10) )
 		OnKeyDown( nChar, nRepCnt, nFlags);
 	else
 		CView::OnSysKeyDown(nChar, nRepCnt, nFlags);
@@ -3193,7 +3193,7 @@ void CFreePcbView::OnSysKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags)
 //
 void CFreePcbView::OnSysKeyUp(UINT nChar, UINT nRepCnt, UINT nFlags)
 {
-	if( nChar != 121 )
+	if( nChar != KB_KEY_FUNC(10) )
 		CView::OnSysKeyUp(nChar, nRepCnt, nFlags);
 }
 
@@ -3211,14 +3211,14 @@ void CFreePcbView::OnKeyUp(UINT nChar, UINT nRepCnt, UINT nFlags)
 		m_Doc->m_drelist->MakeHollowCircles();
 		Invalidate( FALSE );
 	}
-	else if( nChar == 16 || nChar == 17 )
+	else if( nChar == KB_KEY_SHIFT || nChar == KB_KEY_CTRL )
 	{
 		if( m_cursor_mode == CUR_DRAG_RAT || m_cursor_mode == CUR_DRAG_STUB )
 		{
 			// routing a trace segment, set mode
-			if( nChar == 17 )
+			if( nChar == KB_KEY_CTRL )
 				m_snap_mode = SM_GRID_POINTS;
-			if( nChar == 16 && m_Doc->m_snap_angle == 45 )
+			if( nChar == KB_KEY_SHIFT && m_Doc->m_snap_angle == 45 )
 				m_inflection_mode = IM_90_45;
 
 			m_dlist->SetInflectionMode( m_inflection_mode );
@@ -3242,14 +3242,14 @@ void CFreePcbView::OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags)
 		m_Doc->m_drelist->MakeSolidCircles();
 		Invalidate( FALSE );
 	}
-	else if( nChar == 16 || nChar == 17 )
+	else if( nChar == KB_KEY_SHIFT || nChar == KB_KEY_CTRL )
 	{
 		if( m_cursor_mode == CUR_DRAG_RAT || m_cursor_mode == CUR_DRAG_STUB )
 		{
 			// routing a trace segment, set mode
-			if( nChar == 17 )	// ctrl
+			if( nChar == KB_KEY_CTRL )	// ctrl
 				m_snap_mode = SM_GRID_LINES;
-			if( nChar == 16 && m_Doc->m_snap_angle == 45 )	// shift
+			if( nChar == KB_KEY_SHIFT && m_Doc->m_snap_angle == 45 )	// shift
 				m_inflection_mode = IM_45_90;
 
 			m_dlist->SetInflectionMode( m_inflection_mode );
@@ -3262,7 +3262,7 @@ void CFreePcbView::OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags)
 	}
 
 	// don't pass through SysKey F10
-	if( nChar != 121 )
+	if( nChar != KB_KEY_FUNC(10) )
 		CView::OnKeyDown(nChar, nRepCnt, nFlags);
 }
 
@@ -3320,12 +3320,12 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 	if( nChar == 'N' )
 	{
 		// "n" pressed, select net
-		if( m_cursor_mode == CUR_VTX_SELECTED
+		if(    m_cursor_mode == CUR_VTX_SELECTED
 			|| m_cursor_mode == CUR_SEG_SELECTED
 			|| m_cursor_mode == CUR_CONNECT_SELECTED
 			|| m_cursor_mode == CUR_AREA_CORNER_SELECTED
 			|| m_cursor_mode == CUR_AREA_SIDE_SELECTED
-			|| m_cursor_mode == CUR_RAT_SELECTED)
+			|| m_cursor_mode == CUR_RAT_SELECTED )
 		{
 			m_sel_id.st = ID_ENTIRE_NET;
 			m_Doc->m_nlist->HighlightNet( m_sel_net );
@@ -3349,7 +3349,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 		}
 	}
 
-	if( nChar == 27 )
+	if( nChar == KB_KEY_ESC )
 	{
 		// ESC key, if something selected, cancel it
 		// otherwise, fake a right-click
@@ -3379,7 +3379,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 		}
 	}
 
-	if( nChar == 8 )
+	if( nChar == KB_KEY_BACKSPACE )
 	{
 		// backspace, see if we are routing
 		if( m_cursor_mode == CUR_DRAG_RAT )
@@ -3636,13 +3636,13 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 	}
 
 	// continue
-	if( nChar >= 112 && nChar <= 123 )
+	if( nChar >= KB_KEY_FUNC(1) && nChar <= KB_KEY_FUNC(12) )
 	{
 		// function key pressed
-		fk = m_fkey_option[nChar-112];
+		fk = m_fkey_option[nChar-KB_KEY_FUNC(1)];
 	}
 
-	if( nChar >= 37 && nChar <= 40 )
+	if( nChar >= KB_KEY_ARROW_LOWEST && nChar <= KB_KEY_ARROW_HIGHEST )
 	{
 		// arrow key
 		BOOL bShift;
@@ -3662,13 +3662,13 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 		else
 			d = m_Doc->m_part_grid_spacing;
 
-		if( nChar == 37 )
+		if( nChar == KB_KEY_ARROW_LEFT )
 			dx -= d;
-		else if( nChar == 39 )
+		else if( nChar == KB_KEY_ARROW_RIGHT )
 			dx += d;
-		else if( nChar == 38 )
+		else if( nChar == KB_KEY_ARROW_UP )
 			dy += d;
-		else if( nChar == 40 )
+		else if( nChar == KB_KEY_ARROW_DOWN )
 			dy -= d;
 	}
 	else
@@ -3730,7 +3730,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 			m_Doc->ProjectModified( TRUE );
 			Invalidate( FALSE );
 		}
-		else if( fk == FK_DELETE_PART || nChar == 46 )
+		else if( fk == FK_DELETE_PART || nChar == KB_KEY_DELETE )
 			OnPartDelete();
 		else if( fk == FK_EDIT_PART )
 			m_Doc->OnPartProperties();
@@ -3840,7 +3840,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 			OnUnrouteTrace();
 		else if( fk == FK_DELETE_SEGMENT )
 			OnSegmentDelete();
-		else if( fk == FK_DELETE_CONNECT || nChar == 46 )
+		else if( fk == FK_DELETE_CONNECT || nChar == KB_KEY_DELETE )
 			OnSegmentDeleteTrace();
 		else if( fk == FK_REDO_RATLINES )
 			OnRatlineOptimize();
@@ -3968,7 +3968,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 			OnSegmentDelete();
 		else if( fk == FK_UNROUTE_TRACE )
 			OnUnrouteTrace();
-		else if( fk == FK_DELETE_CONNECT || nChar == 46 )
+		else if( fk == FK_DELETE_CONNECT || nChar == KB_KEY_DELETE )
 			OnSegmentDeleteTrace();
 		else if( fk == FK_REDO_RATLINES )
 			OnRatlineOptimize();	//**
@@ -4022,9 +4022,9 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 				OnVertexConnectToPin();
 			else if( fk == FK_REDO_RATLINES )
 				OnRatlineOptimize();
-			else if( fk == FK_DELETE_VERTEX )
+			else if( fk == FK_DELETE_VERTEX || nChar == KB_KEY_DELETE )
 				OnVertexDelete();
-			else if( fk == FK_DELETE_CONNECT || nChar == 46 )
+			else if( fk == FK_DELETE_CONNECT )
 				OnSegmentDeleteTrace();
 		}
 		break;
@@ -4038,7 +4038,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 			OnUnrouteTrace();
 		else if( fk == FK_REDO_RATLINES )
 			OnRatlineOptimize();	//**
-		else if( fk == FK_DELETE_CONNECT || nChar == 46 )
+		else if( fk == FK_DELETE_CONNECT || nChar == KB_KEY_DELETE )
 			OnSegmentDeleteTrace();
 		break;
 
@@ -4093,7 +4093,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 			OnTextEdit();
 		else if( fk == FK_MOVE_TEXT )
 			OnTextMove();
-		else if( fk == FK_DELETE_TEXT || nChar == 46 )
+		else if( fk == FK_DELETE_TEXT || nChar == KB_KEY_DELETE )
 			OnTextDelete();
 		break;
 
@@ -4126,7 +4126,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 			OnBoardCornerMove();
 		else if( fk == FK_DELETE_CORNER )
 			OnBoardCornerDelete();
-		else if( fk == FK_DELETE_OUTLINE || nChar == 46 )
+		else if( fk == FK_DELETE_OUTLINE || nChar == KB_KEY_DELETE )
 			OnBoardDeleteOutline();
 		break;
 
@@ -4139,7 +4139,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 			OnBoardSideConvertToArcCcw();
 		else if( fk == FK_ADD_CORNER )
 			OnBoardSideAddCorner();
-		else if( fk == FK_DELETE_OUTLINE || nChar == 46 )
+		else if( fk == FK_DELETE_OUTLINE || nChar == KB_KEY_DELETE )
 			OnBoardDeleteOutline();
 		break;
 
@@ -4172,7 +4172,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 			OnSmCornerMove();
 		else if( fk == FK_DELETE_CORNER )
 			OnSmCornerDeleteCorner();
-		else if( fk == FK_DELETE_CUTOUT || nChar == 46 )
+		else if( fk == FK_DELETE_CUTOUT || nChar == KB_KEY_DELETE )
 			OnSmCornerDeleteCutout();
 		break;
 
@@ -4211,7 +4211,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 			}
 			else if( fk == FK_ADD_CORNER )
 				OnSmSideInsertCorner();
-			else if( fk == FK_DELETE_CUTOUT || nChar == 46 )
+			else if( fk == FK_DELETE_CUTOUT || nChar == KB_KEY_DELETE )
 				OnSmSideDeleteCutout();
 		}
 		break;
@@ -4263,7 +4263,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 			OnAreaAddCutout();
 		else if( fk == FK_DELETE_CUTOUT )
 			OnAreaDeleteCutout();
-		else if( nChar == 46 )
+		else if( nChar == KB_KEY_DELETE )
 			OnAreaCornerDelete();
 		break;
 
@@ -4292,7 +4292,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 			OnAreaAddCutout();
 		else if( fk == FK_DELETE_CUTOUT )
 			OnAreaDeleteCutout();
-		else if( nChar == 46 )
+		else if( nChar == KB_KEY_DELETE )
 		{
 			CPolyLine * poly = m_sel_net->area[m_sel_ia].poly;
 			if( poly->GetContour( m_sel_id.ii ) > 0 )
@@ -4303,7 +4303,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 		break;
 
 	case CUR_DRE_SELECTED:
-		if( nChar == 46 )
+		if( nChar == KB_KEY_DELETE )
 		{
 			CancelSelection();
 			m_Doc->m_drelist->Remove( m_sel_dre );
@@ -4340,7 +4340,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 		{
 			OnGroupMove();
 		}
-		else if( fk == FK_DELETE_GROUP || nChar == 46 )
+		else if( fk == FK_DELETE_GROUP || nChar == KB_KEY_DELETE )
 		{
 			OnGroupDelete();
 		}
@@ -4492,7 +4492,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 		// home key pressed, ViewAllElements
 		OnViewAllElements();
 	}
-	else if( nChar == 33 )
+	else if( nChar == KB_KEY_PG_UP )
 	{
 		// PgUp pressed, zoom in
 		if( m_pcbu_per_pixel > 254 )
@@ -4509,7 +4509,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 			SetCursorPos( p.x, p.y );
 		}
 	}
-	else if( nChar == 34 )
+	else if( nChar == KB_KEY_PG_DOWN )
 	{
 		// PgDn pressed, zoom out
 		// first, make sure that window boundaries will be OK
@@ -7442,11 +7442,13 @@ void CFreePcbView::OnAreaCornerDelete()
 		SaveUndoInfoForArea( m_sel_net, m_sel_ia, CNetList::UNDO_AREA_MODIFY, TRUE, m_Doc->m_undo_list );
 //		SaveUndoInfoForNetAndConnectionsAndArea( m_sel_net, m_sel_ia, CNetList::UNDO_AREA_MODIFY, TRUE, m_Doc->m_undo_list );
 		area->poly->DeleteCorner( m_sel_id.ii );
-		m_dlist->CancelHighLight();
+
 		m_Doc->m_nlist->SetAreaConnections( m_sel_net, m_sel_ia );
 		m_Doc->m_nlist->OptimizeConnections( m_sel_net );
+
+		// Must come BEFORE ProjectModified() as item was deleted
+		CancelSelection();
 		m_Doc->ProjectModified( TRUE );
-		SetCursorMode( CUR_NONE_SELECTED );
 		Invalidate( FALSE );
 	}
 	else

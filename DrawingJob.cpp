@@ -190,13 +190,11 @@ void CDL_job_copper_area::Draw(CDrawInfo &di) const
 		// Scratch the clearances
 		void *area_net = my_poly->GetPtr();
 
+		// Scratch the trace/pin clearances
 		ScratchClearances(di, my_poly->GetLayer(), area_bounds, area_net);
 
-		if( (my_poly->GetLayer() != LAY_TOP_COPPER) &&
-		    (my_poly->GetLayer() != LAY_BOTTOM_COPPER) )
-		{
-			ScratchClearances(di, LAY_PAD_THRU, area_bounds, area_net);
-		}
+		// Scratch the hole clearances
+		ScratchClearances(di, LAY_PAD_THRU, area_bounds, area_net);
 
 		// Restore original drawing objects
 		{

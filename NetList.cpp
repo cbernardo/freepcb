@@ -4923,24 +4923,41 @@ int CNetList::DrawVia( cnet * net, int ic, int iv )
 		// segments if no via
 		CRect sel_rect;
 		int sel_layer;
+		int w = 0;
 		if( v->viaExists() )
 		{
 			sel_layer = LAY_SELECTION;
-
-			sel_rect.left   = v->x - v->via_w()/2;
-			sel_rect.bottom = v->y - v->via_w()/2;
-			sel_rect.right  = v->x + v->via_w()/2;
-			sel_rect.top    = v->y + v->via_w()/2;
+			w = v->via_w()/2;
 		}
 		else
 		{
 			sel_layer = c->seg[iv-1].layer;
-
-			sel_rect.left   = v->x - 10*PCBU_PER_MIL;
-			sel_rect.bottom = v->y - 10*PCBU_PER_MIL;
-			sel_rect.right  = v->x + 10*PCBU_PER_MIL;
-			sel_rect.top    = v->y + 10*PCBU_PER_MIL;
 		}
+
+		// Selection width is the max of the attached segments
+		int w_comp;
+		CVertexIterator vi( net, ic, iv );
+		for( cvertex * vtx_comp = vi.GetFirst(); vtx_comp != NULL; vtx_comp = vi.GetNext() )
+		{
+			cconnect * via_c = &net->connect[ vi.getcur_ic() ];
+
+			// Compare segment before via
+			w_comp = via_c->seg[ vi.getcur_ivtx()-1 ].width();
+			if( w_comp > w ) w = w_comp;
+
+			// Check if there exists a segment after the via
+			if( vi.getcur_ivtx() < via_c->nsegs )
+			{
+				// Compare segment after via
+				w_comp = via_c->seg[ vi.getcur_ivtx() ].width();
+				if( w_comp > w ) w = w_comp;
+			}
+		}
+
+		sel_rect.left   = v->x - w/2;
+		sel_rect.bottom = v->y - w/2;
+		sel_rect.right  = v->x + w/2;
+		sel_rect.top    = v->y + w/2;
 
 		vid.sst = ID_SEL_VERTEX;
 		v->dl_sel = m_dlist->AddSelector( vid, net, sel_layer, DL_HOLLOW_RECT,
