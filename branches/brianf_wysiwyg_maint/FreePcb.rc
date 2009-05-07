@@ -391,7 +391,7 @@ BEGIN
         MENUITEM "Set Size Attributes",         ID_VERTEX_SETSIZE
         MENUITEM "Connect To Pin",              ID_VERTEX_CONNECTTOPIN
         MENUITEM SEPARATOR
-        MENUITEM "Delete Vertex",               ID_VERTEX_DELETE
+        MENUITEM "Delete",                      ID_VERTEX_DELETE
         MENUITEM "Unroute Trace",               ID_VERTEX_UNROUTETRACE
     END
     POPUP "Text"
@@ -449,14 +449,11 @@ BEGIN
         MENUITEM "Add Via",                     ID_ENDVERTEX_ADDVIA
         MENUITEM "Remove Via",                  ID_ENDVERTEX_REMOVEVIA
         MENUITEM "Set Position",                ID_ENDVERTEX_EDIT
-        MENUITEM "Set Via Size",                ID_ENDVERTEX_SETSIZE
-        MENUITEM "Set Via Clearance",           ID_ENDVERTEX_SETVIACLEARANCE
-        MENUITEM SEPARATOR
-        MENUITEM "Add Segments",                ID_ENDVERTEX_ADDSEGMENTS
-        MENUITEM SEPARATOR
+        MENUITEM "Set Size Attributes",         ID_ENDVERTEX_SETSIZE
         MENUITEM "Connect to Pin",              ID_ENDVERTEX_ADDCONNECTION
         MENUITEM SEPARATOR
         MENUITEM "Delete",                      ID_ENDVERTEX_DELETE
+        MENUITEM "Add Segments",                ID_ENDVERTEX_ADDSEGMENTS
     END
     POPUP "FP_pad"
     BEGIN

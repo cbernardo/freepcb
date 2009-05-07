@@ -51,8 +51,6 @@ CConnectionWidthInfo &CConnectionWidthInfo::operator = (CInheritableInfo const &
 	m_via_width = from.GetItem(E_II_VIA_WIDTH);
 	m_via_hole  = from.GetItem(E_II_VIA_HOLE);
 
-	ApplyDefWidths(&m_via_width, &m_via_hole);
-
 	return *this;
 }
 
@@ -70,6 +68,19 @@ void CConnectionWidthInfo::Update_via_hole()
 
 	ApplyDefWidths(NULL, &m_via_hole);
 }
+
+
+void CConnectionWidthInfo::Update()
+{
+	CSegWidthInfo::Update();
+
+	// Must update via AFTER segment width
+	UpdateItem(E_II_VIA_WIDTH, m_via_width);
+	UpdateItem(E_II_VIA_HOLE,  m_via_hole);
+
+	ApplyDefWidths( &m_via_width, &m_via_hole );
+}
+
 
 void CConnectionWidthInfo::ApplyDefWidths(Item *p_via_width, Item *p_via_hole)
 {
