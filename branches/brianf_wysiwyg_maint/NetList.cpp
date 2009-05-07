@@ -4462,13 +4462,13 @@ void CNetList::ReadNets( CStdioFile * pcb_file, double read_version, int * layer
 			int sz;
 
 			sz = my_atoi( &p[4] );
-			CSegWidthInfo::FileToItem( (sz < 0) ? 0 : sz, def_width_attrib.m_seg_width );
+			CSegWidthInfo::FileToItem( sz, def_width_attrib.m_seg_width );
 
 			sz = my_atoi( &p[5] );
-			CSegWidthInfo::FileToItem( (sz < 0) ? 0 : sz, def_width_attrib.m_via_width );
+			CSegWidthInfo::FileToItem( sz, def_width_attrib.m_via_width );
 
 			sz = my_atoi( &p[6] );
-			CSegWidthInfo::FileToItem( (sz < 0) ? 0 : sz, def_width_attrib.m_via_hole  );
+			CSegWidthInfo::FileToItem( sz, def_width_attrib.m_via_hole  );
 
 			int visible = 1;
 			if( np > 8 )

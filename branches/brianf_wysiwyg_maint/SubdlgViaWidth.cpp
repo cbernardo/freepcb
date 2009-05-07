@@ -27,7 +27,7 @@ void CSubDlg_ViaWidth::OnInitDialog(CInheritableInfo const &width_attrib)
 		m_check_v_modify.SetCheck( 0 );
 		m_check_v_modify.EnableWindow( 0 );
 	}
-	else 
+	else
 	{
 		m_text_v_group.EnableWindow( 1 );
 
@@ -138,49 +138,21 @@ void CSubDlg_ViaWidth::CTraceWidthUpdate::Update(CConnectionWidthInfo const &wid
 
 void CSubDlg_ViaWidth::TraceWidthUpdate(CConnectionWidthInfo const &width_attrib)
 {
-	int n = ( my_SubDlg_TraceWidth->m_w == NULL ) ? -1 : my_SubDlg_TraceWidth->m_w->GetSize();
-	if( m_rb_v_def_for_width.GetCheck() && (n > 0) )
+	if( m_rb_v_def_for_width.GetCheck() && (my_SubDlg_TraceWidth != NULL) )
 	{
+		// Set the segment width and force an update of
+		// the via width/hole from this width.
+		m_attrib.m_seg_width = width_attrib.m_seg_width;
+		m_attrib.m_via_width.m_status = CII_FreePcb::E_USE_DEF_FROM_WIDTH;
+		m_attrib.m_via_hole .m_status = CII_FreePcb::E_USE_DEF_FROM_WIDTH;
+		m_attrib.Update();
+
 		CString text;
 
-		int new_w = width_attrib.m_seg_width.m_val;
-
-		int new_v_w = 0;
-		int new_v_h_w = 0;
-
-		if( new_w >= 0 )
-		{
-			if( new_w == 0 )
-			{
-				new_v_w = 0;
-				new_v_h_w = 0;
-			}
-			else
-			{
-				int n = my_SubDlg_TraceWidth->m_w->GetSize();
-				int i;
-				for( i=0; i < n-1; i++ )
-				{
-					if( new_w <= (*my_SubDlg_TraceWidth->m_w)[i] )
-					{
-						break;
-					}
-				}
-				new_v_w   = (*my_SubDlg_TraceWidth->m_v_w  )[i];
-				new_v_h_w = (*my_SubDlg_TraceWidth->m_v_h_w)[i];
-			}
-		}
-
-		m_attrib.m_via_width.m_status = CII_FreePcb::E_USE_DEF_FROM_WIDTH;
-		m_attrib.m_via_width.m_val    = new_v_w;
-
-		m_attrib.m_via_hole.m_status = CInheritableInfo::E_USE_PARENT;
-		m_attrib.m_via_hole.m_val    = new_v_h_w;
-
-		text.Format( "%d", new_v_w / NM_PER_MIL );
+		text.Format( "%d", m_attrib.m_via_width.m_val / NM_PER_MIL );
 		m_edit_v_pad_w.SetWindowText( text );
 
-		text.Format( "%d", new_v_h_w / NM_PER_MIL );
+		text.Format( "%d", m_attrib.m_via_hole.m_val / NM_PER_MIL );
 		m_edit_v_hole_w.SetWindowText( text );
 	}
 }
