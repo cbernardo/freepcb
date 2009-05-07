@@ -114,13 +114,7 @@ public:
 	void Update_via_hole();
 
 	// Update all
-	void Update()
-	{
-		CSegWidthInfo::Update();
-
-		Update_via_width();
-		Update_via_hole();
-	}
+	void Update();
 
 	// Undef all
 	void Undef()
