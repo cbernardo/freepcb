@@ -620,7 +620,8 @@ void CDisplayList::Draw( CDC * dDC )
 		  continue;
 		}
 
-		if( layer > LAY_BOARD_OUTLINE )
+//**		if( layer > LAY_BOARD_OUTLINE )
+		if( layer > LAY_BOTTOM_COPPER )
 		{
 			// Use transparent DC in dcMemory
 			di.DC = &dcMemory;
@@ -651,6 +652,29 @@ void CDisplayList::Draw( CDC * dDC )
 		{
 			// di.DC is a monochrome mask
 
+			//** AMW the first ROP3 in RPN is: DSna
+			// to use a brush, it should be DPSana = 0x002A0CC9
+			// the second ROP3 is: DSo
+			// to use a brush, it should be DPSao = 0x00EA02E9
+
+			unsigned short dith_1[] = { 
+				0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff };
+			unsigned short dith_2[] = { 
+				0xaa,0x55,0xaa,0x55,0xaa,0x55,0xaa,0x55,
+				0x55,0xaa,0x55,0xaa,0x55,0xaa,0x55,0xaa };
+			unsigned short dith_4[] = { 
+				0xaa,0x00,0xaa,0x00,0xaa,0x00,0xaa,0x00,
+				0x55,0x00,0x55,0x00,0x55,0x00,0x55,0x00,
+				0x00,0xaa,0x00,0xaa,0x00,0xaa,0x00,0xaa,
+				0x00,0x55,0x00,0x55,0x00,0x55,0x00,0x55 };
+
+			CBitmap patternBmap;
+			int dith_offset = (layer - LAY_TOP_COPPER)*8; 
+			patternBmap.CreateBitmap( 8, 8, 1, 1, dith_4+dith_offset );
+			CBrush patternBrush( &patternBmap );
+			if( layer > LAY_BOTTOM_COPPER )
+				CBrush * old_brush = di.DC_Master->SelectObject( &patternBrush );
+
 			// DC_Master &= ~mask
 			//   0 = transparent (AND with ~RGB(0,0,0) -> no effect, D AND 1 = D)
 			//   1 = solid       (AND with ~RGB(255,255,255) -> clear the masked area to RGB(0,0,0)
@@ -658,8 +682,9 @@ void CDisplayList::Draw( CDC * dDC )
 			di.DC_Master->SetBkColor(RGB(255,255,255));
 
 			di.DC_Master->BitBlt(m_org_x, m_org_y, m_max_x-m_org_x, m_max_y-m_org_y,
-			                     di.DC,
-			                     m_org_x, m_org_y, 0x00220326);
+		                     di.DC,
+//		                     m_org_x, m_org_y, 0x00220326);
+		                     m_org_x, m_org_y, 0x002A0CC9);
 
 			// DC_Master |= mask
 			//   0 = transparent (OR with RBG(0,0,0) -> no effect D OR 0 = D)
@@ -668,7 +693,11 @@ void CDisplayList::Draw( CDC * dDC )
 
 			di.DC_Master->BitBlt(m_org_x, m_org_y, m_max_x-m_org_x, m_max_y-m_org_y,
 			                     di.DC,
-			                     m_org_x, m_org_y, SRCPAINT);
+//			                     m_org_x, m_org_y, SRCPAINT);
+			                     m_org_x, m_org_y, 0x00EA02E9);
+
+			if( layer > LAY_BOTTOM_COPPER )
+				di.DC_Master->SelectObject( &old_brush );
 		}
 	}
 
@@ -2200,11 +2229,23 @@ CPoint CDisplayList::ScreenToPCB( CPoint point )
 CPoint CDisplayList::PCBToScreen( CPoint point )
 {
 	CPoint p;
+	double x = (point.x - (double)m_org_x*m_pcbu_per_wu)/m_pcbu_per_pixel_x+m_pane_org_x+m_screen_r.left;
 	p.x = (point.x - m_org_x*m_pcbu_per_wu)/m_pcbu_per_pixel_x+m_pane_org_x+m_screen_r.left;
 	p.y = (point.y - m_org_y*m_pcbu_per_wu)/m_pcbu_per_pixel_y-m_bottom_pane_h+m_screen_r.bottom;
 	return p;
 }
 
+// alternate function that uses the GDI
+//
+CPoint CDisplayList::PCBToScreen( CDC *pDC, CPoint point )
+{
+	POINT test;
+	test.x = point.x;
+	test.y = point.y;
+	pDC->LPtoDP( &test );
+	CPoint p( test.x, test.y );
+	return p;
+}
 
 void CDisplayList::UpdateRatlineWidth( int width )
 {

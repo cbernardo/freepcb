@@ -5452,9 +5452,12 @@ int CFreePcbView::ShowSelectStatus()
 			CPoint p = m_Doc->m_nlist->GetAreaCorner( m_sel_net, m_sel_ia, m_sel_is );
 			::MakeCStringFromDimension( &x_str, p.x, u, FALSE, FALSE, FALSE, u==MIL?1:3 );
 			::MakeCStringFromDimension( &y_str, p.y, u, FALSE, FALSE, FALSE, u==MIL?1:3 );
-			str.Format( "\"%s\" copper area %d corner %d, x %s, y %s",
+			CPoint pix = m_Doc->m_dlist->PCBToScreen( p );
+//			str.Format( "\"%s\" copper area %d corner %d, x %s, y %s",
+			str.Format( "\"%s\" copper area %d corner %d, x %s, y %s, pix x %d, pix y %d",
 				m_sel_net->name, m_sel_id.i+1, m_sel_id.ii+1,
-				x_str, y_str );
+				x_str, y_str,
+				pix.x, pix.y );
 		}
 		break;
 
@@ -8712,6 +8715,7 @@ void CFreePcbView::OnAreaEdgeHatchStyle()
 	{
 		int hatch = dlg.GetHatch();
 		m_sel_net->area[m_sel_id.i].poly->SetHatch( hatch );
+		m_sel_net->area[m_sel_id.i].poly->Draw();
 		m_Doc->ProjectModified( TRUE );
 		Invalidate( FALSE );
 	}
@@ -8996,6 +9000,7 @@ void CFreePcbView::OnSmSideHatchStyle()
 		SaveUndoInfoForSMCutouts( TRUE, m_Doc->m_undo_list );
 		int hatch = dlg.GetHatch();
 		poly->SetHatch( hatch );
+		poly->Draw();
 		m_Doc->ProjectModified( TRUE );
 		Invalidate( FALSE );
 	}

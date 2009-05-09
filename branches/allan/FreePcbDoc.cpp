@@ -370,6 +370,7 @@ void CFreePcbDoc::OnFileNew()
 
 		// set options from dialog
 		m_num_copper_layers = dlg.GetNumCopperLayers();
+		m_dlist->SetNumCopperLayers( m_num_copper_layers );
 		m_plist->SetNumCopperLayers( m_num_copper_layers );
 		m_nlist->SetNumCopperLayers( m_num_copper_layers );
 		m_nlist->SetSMTconnect( m_bSMT_copper_connect );
@@ -1627,6 +1628,7 @@ void CFreePcbDoc::ReadOptions( CStdioFile * pcb_file )
 			else if( np && key_str == "n_copper_layers" )
 			{
 				m_num_copper_layers = my_atoi( &p[0] );
+				m_dlist->SetNumCopperLayers( m_num_copper_layers );
 				m_plist->SetNumCopperLayers( m_num_copper_layers );
 				m_nlist->SetNumCopperLayers( m_num_copper_layers );
 				m_num_layers = m_num_copper_layers + LAY_TOP_COPPER;
@@ -2230,6 +2232,7 @@ void CFreePcbDoc::InitializeNewProject()
 	m_board_outline.RemoveAll();
 	m_units = MIL;
 	m_num_copper_layers = 4;
+	m_dlist->SetNumCopperLayers( m_num_copper_layers );
 	m_plist->SetNumCopperLayers( m_num_copper_layers );
 	m_nlist->SetNumCopperLayers( m_num_copper_layers );
 	m_nlist->SetSMTconnect( m_bSMT_copper_connect );
@@ -3881,6 +3884,7 @@ void CFreePcbDoc::OnProjectOptions()
 			m_num_copper_layers = dlg.GetNumCopperLayers();
 			m_num_layers = m_num_copper_layers + LAY_TOP_COPPER;
 		}
+		m_dlist->SetNumCopperLayers( m_num_copper_layers );
 		m_nlist->SetNumCopperLayers( m_num_copper_layers );
 		m_plist->SetNumCopperLayers( m_num_copper_layers );
 
