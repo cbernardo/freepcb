@@ -626,15 +626,8 @@ void CPolyLine::Start( int layer, int w, int sel_box, int x, int y, int hatch, i
 	corner[0].x = x;
 	corner[0].y = y;
 	corner[0].end_contour = FALSE;
-	if( m_sel_box && m_dlist )
-	{
-		dl_corner_sel.SetSize( 1 );
-		m_id.sst = ID_SEL_CORNER;
-		m_id.ii = 0;
-		dl_corner_sel[0] = m_dlist->AddSelector( m_id, m_ptr, m_layer, DL_HOLLOW_RECT,
-			1, 0, 0, x-m_sel_box, y-m_sel_box,
-			x+m_sel_box, y+m_sel_box, 0, 0 );
-	}
+
+	Draw();
 }
 
 // add a corner to unclosed polyline
@@ -788,14 +781,11 @@ void CPolyLine::Undraw()
 	if( m_dlist && bDrawn )
 	{
 		// remove display elements, if present
-		for( int i=0; i<dl_side.GetSize(); i++ )
-			m_dlist->Remove( dl_side[i] );
-		for( int i=0; i<dl_side_sel.GetSize(); i++ )
-			m_dlist->Remove( dl_side_sel[i] );
-		for( int i=0; i<dl_corner_sel.GetSize(); i++ )
-			m_dlist->Remove( dl_corner_sel[i] );
-		for( int i=0; i<dl_hatch.GetSize(); i++ )
-			m_dlist->Remove( dl_hatch[i] );
+		int i;
+		for( i=0; i<dl_side      .GetSize(); i++ ) dl_side[i]->Remove();
+		for( i=0; i<dl_side_sel  .GetSize(); i++ ) dl_side_sel[i]->Remove();
+		for( i=0; i<dl_corner_sel.GetSize(); i++ ) dl_corner_sel[i]->Remove();
+		for( i=0; i<dl_hatch     .GetSize(); i++ ) dl_hatch[i]->Remove();
 
 		// remove pointers
 		dl_side.RemoveAll();
