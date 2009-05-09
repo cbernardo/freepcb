@@ -773,8 +773,9 @@ void CPolyLine::InsertCorner( int ic, int x, int y )
 	{
 		if( corner[ic-1].end_contour )
 		{
-			corner[ic].end_contour = TRUE;
+			// Extend to the new corner
 			corner[ic-1].end_contour = FALSE;
+			corner[ic].end_contour = TRUE;
 		}
 	}
 	Draw();
