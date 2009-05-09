@@ -2270,6 +2270,18 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		}
 		else if( m_cursor_mode == CUR_DRAG_CONNECT )
 		{
+			m_dlist->CancelHighLight();
+			if( m_sel_id.type == ID_PART )
+			{
+				// Reselect the pad
+				m_Doc->m_plist->SelectPad( m_sel_part, m_sel_id.i );
+			}
+			else
+			{
+				// Reselect the vertex
+				m_Doc->m_nlist->HighlightVertex( m_sel_net, m_sel_ic, m_sel_is );
+			}
+
 			// dragging ratline to make a new connection
 			// test for hit on pin
 			CPoint p = m_dlist->WindowToPCB( point );
@@ -2950,10 +2962,23 @@ void CFreePcbView::OnRButtonDown(UINT nFlags, CPoint point)
 	else if( m_cursor_mode == CUR_DRAG_CONNECT )
 	{
 		m_Doc->m_dlist->StopDragging();
+		m_dlist->CancelHighLight();
+
 		if( m_sel_id.type == ID_PART )
+		{
+			// Reselect the pad
+			m_Doc->m_plist->SelectPad( m_sel_part, m_sel_id.i );
+
 			SetCursorMode( CUR_PAD_SELECTED );
+		}
 		else
+		{
+			// Reselect the vertex
+			m_Doc->m_nlist->HighlightVertex( m_sel_net, m_sel_ic, m_sel_is );
+
 			SetCursorMode( CUR_VTX_SELECTED );
+		}
+
 		Invalidate( FALSE );
 	}
 	else if( m_cursor_mode == CUR_DRAG_TEXT )
@@ -6618,6 +6643,10 @@ void CFreePcbView::OnPadConnectToPin()
 	CPoint p = m_Doc->m_plist->GetPinPoint( m_sel_part, pin_name );
 	m_dragging_new_item = 0;
 	m_dlist->StartDraggingRatLine( pDC, 0, 0, p.x, p.y, LAY_RAT_LINE, 1, 1 );
+
+	// Highlight all the possible pads to connect to
+	m_Doc->m_plist->HighlightAllPadsOnNet( m_sel_part->pin[ m_sel_id.i ].net );
+
 	SetCursorMode( CUR_DRAG_CONNECT );
 	ReleaseDC( pDC );
 	Invalidate( FALSE );
@@ -6632,6 +6661,10 @@ void CFreePcbView::OnVertexConnectToPin()
 	SetDCToWorldCoords( pDC );
 	m_dragging_new_item = 0;
 	m_dlist->StartDraggingRatLine( pDC, 0, 0, m_sel_vtx.x, m_sel_vtx.y, LAY_RAT_LINE, 1, 1 );
+
+	// Highlight all the possible pads to connect to
+	m_Doc->m_plist->HighlightAllPadsOnNet( m_sel_net );
+
 	SetCursorMode( CUR_DRAG_CONNECT );
 	ReleaseDC( pDC );
 	Invalidate( FALSE );
