@@ -620,8 +620,7 @@ void CDisplayList::Draw( CDC * dDC )
 		  continue;
 		}
 
-//**		if( layer > LAY_BOARD_OUTLINE )
-		if( layer > LAY_BOTTOM_COPPER )
+		if( layer >= LAY_TOP_COPPER )
 		{
 			// Use transparent DC in dcMemory
 			di.DC = &dcMemory;
@@ -630,6 +629,10 @@ void CDisplayList::Draw( CDC * dDC )
 
 			di.layer_color[0] = RGB(0,0,0);
 			di.layer_color[1] = RGB(255,255,255);
+
+			//** AMW
+			di.Master_layer_color[0] = RGB( m_rgb[LAY_BACKGND][0], m_rgb[LAY_BACKGND][1], m_rgb[LAY_BACKGND][2] );
+			di.Master_layer_color[1] = RGB( m_rgb[layer][0],       m_rgb[layer][1],       m_rgb[layer][2] );
 		}
 		else
 		{
@@ -638,6 +641,11 @@ void CDisplayList::Draw( CDC * dDC )
 
 			di.layer_color[0] = RGB( m_rgb[LAY_BACKGND][0], m_rgb[LAY_BACKGND][1], m_rgb[LAY_BACKGND][2] );
 			di.layer_color[1] = RGB( m_rgb[layer][0],       m_rgb[layer][1],       m_rgb[layer][2] );
+
+			//** AMW
+			di.Master_layer_color[0] = RGB( m_rgb[LAY_BACKGND][0], m_rgb[LAY_BACKGND][1], m_rgb[LAY_BACKGND][2] );
+			di.Master_layer_color[1] = RGB( m_rgb[layer][0],       m_rgb[layer][1],       m_rgb[layer][2] );
+
 		}
 
 		// Run drawing jobs for this layer
@@ -672,8 +680,7 @@ void CDisplayList::Draw( CDC * dDC )
 			int dith_offset = (layer - LAY_TOP_COPPER)*8; 
 			patternBmap.CreateBitmap( 8, 8, 1, 1, dith_4+dith_offset );
 			CBrush patternBrush( &patternBmap );
-			if( layer > LAY_BOTTOM_COPPER )
-				CBrush * old_brush = di.DC_Master->SelectObject( &patternBrush );
+			CBrush * old_brush = di.DC_Master->SelectObject( &patternBrush );
 
 			// DC_Master &= ~mask
 			//   0 = transparent (AND with ~RGB(0,0,0) -> no effect, D AND 1 = D)
@@ -696,8 +703,7 @@ void CDisplayList::Draw( CDC * dDC )
 //			                     m_org_x, m_org_y, SRCPAINT);
 			                     m_org_x, m_org_y, 0x00EA02E9);
 
-			if( layer > LAY_BOTTOM_COPPER )
-				di.DC_Master->SelectObject( &old_brush );
+			di.DC_Master->SelectObject( &old_brush );
 		}
 	}
 
