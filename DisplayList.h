@@ -105,6 +105,7 @@ private:
 	int m_rgb[MAX_LAYERS][3];	// layer colors
 	int m_layer_in_order[MAX_LAYERS];	// array of layers in draw order
 	int m_order_for_layer[MAX_LAYERS];	// draw order for each layer
+	int m_num_copper_layers;	// needed for dithering
 
 	// window parameters
 	int m_pcbu_per_wu;	// i.e. nm per world unit
@@ -298,6 +299,7 @@ public:
 	void SetInflectionMode( int mode ){ m_inflection_mode = mode; };
 	CPoint ScreenToPCB( CPoint point );
 	CPoint PCBToScreen( CPoint point );
+	CPoint PCBToScreen( CDC *pDC, CPoint point );
 	CPoint WindowToPCB( CPoint point );
 
 	void UpdateRatlineWidth( int width );
@@ -320,6 +322,7 @@ public:
 	void Set_mode( dl_element * el, int mode );
 	void Set_pass( dl_element * el, int pass );
 	void Move( dl_element * el, int dx, int dy );
+	void SetNumCopperLayers( int n ) { m_num_copper_layers = n; };
 
 	// get element parameters
 	void * Get_ptr( dl_element * el );
@@ -339,6 +342,9 @@ public:
 	int Get_mode( dl_element * el );
 	int Get_pass( dl_element * el );
 	int Get_pcbu_per_wu() { return m_pcbu_per_wu; };
+	double Get_pcbu_per_pixel_x() { return m_pcbu_per_pixel_x; };
+	double Get_pcbu_per_pixel_y() { return m_pcbu_per_pixel_y; };
 	void Get_Endpoints(CPoint *cpi, CPoint *cpf);
+	int GetNumCopperLayers() { return m_num_copper_layers; };
 	id Get_id( dl_element * el );
 };

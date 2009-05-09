@@ -25,6 +25,8 @@ CPolyLine::CPolyLine( CDisplayList * dl )
 	m_ncorners = 0;
 	m_ptr = 0;
 	m_hatch = 0;
+	m_dith_factor = 0;
+	m_dith_offset = 0;
 	m_sel_box = 0;
 	m_gpc_poly = new gpc_polygon;
 	m_gpc_poly->num_contours = 0;
@@ -865,8 +867,7 @@ void CPolyLine::Draw(  CDisplayList * dl )
             m_dl_job = NULL;
 		}
 
-#if 0	//** AMW
-		// now draw elements
+		// now draw sides
 		for( int ic=0; ic<m_ncorners; ic++ )
 		{
 			m_id.ii = ic;
@@ -962,15 +963,12 @@ void CPolyLine::Draw(  CDisplayList * dl )
 		}
 
 		if( m_hatch )
-			Hatch(pDL_job);
-
-        m_dlist->Add(pDL_job, m_layer);
-
-#endif		//** AMW for testing
-		dl_GDI_polygon = m_dlist->Add( pDL_job, m_id, this, m_layer, DL_POLYLINE, 
+		{
+			dl_GDI_polygon = m_dlist->Add( pDL_job, m_id, this, m_layer, DL_POLYLINE, 
 						1, 0, 0, 0, 0, 0, 0, 0, 0, 0 );
+		}
+
         m_dlist->Add(pDL_job, m_layer);
-		//**
 	}
 	bDrawn = TRUE;
 }
@@ -1366,6 +1364,53 @@ int CPolyLine::GetContourSize( int icont )
 {
 	return GetContourEnd(icont) - GetContourStart(icont) + 1;
 }
+
+// get hatching style
+int CPolyLine::GetHatch()
+{ 
+	return m_hatch; 
+}
+
+// get dither factor, 
+// if 0, supply default for this layer
+int CPolyLine::GetDitherFactor()
+{ 
+	if( m_dith_factor )
+		return m_dith_factor; 
+	if( m_layer >= LAY_TOP_COPPER )
+	{
+		int n_copper_layers = m_dlist->GetNumCopperLayers();
+		if( n_copper_layers == 1 )
+			return 1;
+		else if( n_copper_layers == 2 )
+			return 2;
+		else if( n_copper_layers <= 4 )
+			return 4;
+		else if( n_copper_layers <= 8 )
+			return 8;
+		else 
+			return 16;
+	}
+	else if( m_layer == LAY_SM_TOP || m_layer == LAY_SM_BOTTOM )
+		return 2;
+	else
+		return 1;
+}
+
+// get dither offset, 
+// if dither_factor is 0, supply default for this layer
+int CPolyLine::GetDitherOffset()
+{ 
+	if( m_dith_factor )
+		return m_dith_offset; 
+	if( m_layer >= LAY_TOP_COPPER )
+		return m_layer - LAY_TOP_COPPER;
+	if( m_layer == LAY_SM_TOP )
+		return 0;
+	if( m_layer == LAY_SM_BOTTOM )
+		return 1;
+	return 0;
+};
 
 
 void CPolyLine::SetSideStyle( int is, int style )
@@ -1933,6 +1978,14 @@ void CPolyLine::SetY( int ic, int y ) { corner[ic].y = y; }
 void CPolyLine::SetEndContour( int ic, BOOL end_contour ) { corner[ic].end_contour = end_contour; }
 void CPolyLine::SetLayer( int layer ) { m_layer = layer; }
 void CPolyLine::SetW( int w ) { m_w = w; }
+void CPolyLine::SetDitherFactor( int n ){ m_dith_factor = n; };
+void CPolyLine::SetDitherOffset( int n ){ m_dith_offset = n; };
+void CPolyLine::SetHatch( int hatch, int dith_factor, int dith_offset )
+{
+	m_hatch = hatch;
+	m_dith_factor = dith_factor;
+	m_dith_offset = dith_offset;
+}
 
 // Create CPolyLine for a pad
 //

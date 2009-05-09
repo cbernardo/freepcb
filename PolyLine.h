@@ -44,8 +44,15 @@ public:
 class CPolyLine
 {
 public:
-	enum { STRAIGHT, ARC_CW, ARC_CCW };	// side styles
-	enum { NO_HATCH, DIAGONAL_FULL, DIAGONAL_EDGE }; // hatch styles
+	// side styles
+	enum { STRAIGHT, ARC_CW, ARC_CCW };	
+	// hatch styles
+	enum { 
+		NO_HATCH,		
+		DIAGONAL_FULL, 
+		DIAGONAL_EDGE,
+		DITHER_FULL
+	}; 
 	enum { DEF_SIZE = 50, DEF_ADD = 50 };	// number of array elements to add at a time
 
 	// constructors/destructor
@@ -108,7 +115,9 @@ public:
 	void * GetPtr(){ return m_ptr; };
 	int GetSelBoxSize();
 	CDisplayList * GetDisplayList(){ return m_dlist; };
-	int GetHatch(){ return m_hatch; }
+	int GetHatch();
+	int GetDitherFactor();
+	int GetDitherOffset();
 	void SetX( int ic, int x );
 	void SetY( int ic, int y );
 	void SetEndContour( int ic, BOOL end_contour );
@@ -120,7 +129,9 @@ public:
 	void SetId( id * id );
 	void SetPtr( void * ptr ){ m_ptr = ptr; };
 	void SetSelBoxSize( int sel_box );
-	void SetHatch( int hatch ){ Undraw(); m_hatch = hatch; Draw(); };
+	void SetHatch( int hatch, int dith_factor=0, int dith_offset=0 );
+	void SetDitherFactor( int n );
+	void SetDitherOffset( int n );
 	void SetDisplayList( CDisplayList * dl );
 
 	// GPC functions
@@ -156,6 +167,8 @@ private:
 	CArray <dl_element*> dl_corner_sel;
 	int m_hatch;	// hatch style, see enum above
 	int m_nhatch;	// number of hatch lines
+	int m_dith_factor;	// dither factor (1,2,4,8,16)
+	int m_dith_offset;	// 0 to 15
 	CArray <dl_element*>  dl_hatch;	// hatch lines
 	gpc_polygon * m_gpc_poly;	// polygon in gpc format
 	polygon * m_php_poly;
