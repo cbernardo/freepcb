@@ -67,12 +67,27 @@ void CDL_job_traces::Draw(CDrawInfo &di) const
 	CPen * old_pen;
 	CBrush * old_brush;
 
+	//** AMW modifed so traces always draw on DC_Master
+	CDC * pDC_Save = di.DC;
+	int di_layer_color_0_save = di.layer_color[0];
+	int di_layer_color_1_save = di.layer_color[1];
+	di.DC = di.DC_Master;
+	di.layer_color[0] = di.Master_layer_color[0];
+	di.layer_color[1] = di.Master_layer_color[1];
+
 	// Create drawing objects
 	{
+#if 0
 		di.erase_pen.CreatePen( PS_SOLID, 1, di.layer_color[0] );
 		di.erase_brush.CreateSolidBrush( di.layer_color[0] );
 		di.line_pen.CreatePen( PS_SOLID, 1, di.layer_color[1] );
 		di.fill_brush.CreateSolidBrush( di.layer_color[1] );
+#endif
+		//** AMW see above
+		di.erase_pen.CreatePen( PS_SOLID, 1, di.Master_layer_color[0] );
+		di.erase_brush.CreateSolidBrush( di.Master_layer_color[0] );
+		di.line_pen.CreatePen( PS_SOLID, 1, di.Master_layer_color[1] );
+		di.fill_brush.CreateSolidBrush( di.Master_layer_color[1] );
 
 		old_pen   = di.DC->SelectObject( &di.line_pen );
 		old_brush = di.DC->SelectObject( &di.fill_brush );
@@ -94,6 +109,11 @@ void CDL_job_traces::Draw(CDrawInfo &di) const
 		di.line_pen.DeleteObject();
 		di.fill_brush.DeleteObject();
 	}
+
+	//** AMW modifed so traces always draw on DC_Master
+	di.DC = pDC_Save;
+	di.layer_color[0] = di_layer_color_0_save;
+	di.layer_color[1] = di_layer_color_1_save;
 }
 
 

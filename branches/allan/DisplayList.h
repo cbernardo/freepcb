@@ -82,6 +82,7 @@ struct CDrawInfo
 	CBrush    fill_brush;
 
     COLORREF  layer_color[2];
+    COLORREF  Master_layer_color[2];	//** AMW
     int       size_of_2_pixels;
 
     mutable int nlines;
