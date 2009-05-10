@@ -4958,7 +4958,7 @@ int CNetList::DrawVia( cnet * net, int ic, int iv )
 		if( v->viaExists() )
 		{
 			sel_layer = LAY_SELECTION;
-			w = v->via_w()/2;
+			w = v->via_w();
 		}
 		else
 		{
@@ -4989,7 +4989,7 @@ int CNetList::DrawVia( cnet * net, int ic, int iv )
 		}
 
 		// Enlarge 10mil past border
-		w += 10*PCBU_PER_MIL;
+		w += 10*2*PCBU_PER_MIL;
 
 		sel_rect.left   = v->x - w/2;
 		sel_rect.bottom = v->y - w/2;
