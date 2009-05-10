@@ -524,6 +524,10 @@
 			Filter="h;hpp;hxx;hm;inl"
 			>
 			<File
+				RelativePath=".\array_mngidx.h"
+				>
+			</File>
+			<File
 				RelativePath=".\DdlgNetCombine.h"
 				>
 			</File>
