@@ -1928,6 +1928,12 @@ void CNetList::InsertVia( cnet * net, int ic, int ivtx, CViaWidthInfo const &wid
 	cconnect *c = &net->connect[ic];
 	cvertex *pVtx = &c->vtx[ivtx];
 
+	if( ( ivtx == 0 ) || ( ( ivtx == c->nsegs ) && ( c->end_pin != cconnect::NO_END ) ) )
+	{
+		// PIN
+		return;
+	}
+
 	pVtx->via_width_attrib.SetParent( net->def_width_attrib );
 
 	// Get orig attrib
@@ -3230,12 +3236,11 @@ void CNetList::MoveVertex( cnet * net, int ic, int ivtx, int x, int y )
 		}
 
 		c = vi.getcur_connect();
-		ivtx = vi.getcur_ivtx();
-		ic   = vi.getcur_ic();
+		int ivtx_cur = vi.getcur_ivtx();
 
-		if( ivtx > 0 )
+		if( ivtx_cur > 0 )
 		{
-			cseg *seg = &c->seg[ivtx-1];
+			cseg *seg = &c->seg[ivtx_cur-1];
 			if( seg->dl_el )
 			{
 				m_dlist->Set_xf( seg->dl_el, x );
@@ -3248,9 +3253,9 @@ void CNetList::MoveVertex( cnet * net, int ic, int ivtx, int x, int y )
 				m_dlist->Set_yf( seg->dl_sel, y );
 			}
 		}
-		if( ivtx < c->nsegs )
+		if( ivtx_cur < c->nsegs )
 		{
-			cseg *seg = &c->seg[ivtx];
+			cseg *seg = &c->seg[ivtx_cur];
 			if( seg->dl_el )
 			{
 				m_dlist->Set_x( seg->dl_el, x );
@@ -4140,11 +4145,13 @@ int CNetList::UnforceVia( cnet * net, int ic, int ivtx, BOOL set_areas )
 // if a via needs to be created, use the attrib passed in 'new_via_attrib'
 //
 // Returns: Boolean: "is a via needed for this vertex?"
-int CNetList::ReconcileVia( cnet * net, int ic, int ivtx, CViaWidthInfo const &new_via_attrib )
+void CNetList::ReconcileVia( cnet * net, int ic, int ivtx, CViaWidthInfo const &new_via_attrib )
 {
+	CVertexIterator vi( net, ic, ivtx );
 	cconnect * c = &net->connect[ic];
 	cvertex * v = &c->vtx[ivtx];
 	BOOL via_needed = FALSE;
+
 	// see if via needed
 	if( v->force_via_flag )
 	{
@@ -4152,44 +4159,51 @@ int CNetList::ReconcileVia( cnet * net, int ic, int ivtx, CViaWidthInfo const &n
 	}
 	else
 	{
-		if( c->end_pin == cconnect::NO_END && ivtx == c->nsegs )
+		int layer = 0;
+		int l_comp;
+		for( cvertex * vtx_comp = vi.GetFirst(); vtx_comp != NULL; vtx_comp = vi.GetNext() )
 		{
-			// end vertex of a stub trace
-			if( v->tee_ID )
+			cconnect * via_c = &net->connect[ vi.getcur_ic() ];
+
+			// Compare segment before via (if exists)
+			if( vi.getcur_ivtx() > 0 )
 			{
-				// this is a branch, reconcile the main tee
-				int tee_ic;
-				int tee_iv;
-				BOOL bFound = FindTeeVertexInNet( net, v->tee_ID, &tee_ic, &tee_iv );
-				if( bFound )
+				l_comp = via_c->seg[ vi.getcur_ivtx()-1 ].layer;
+				if( layer == 0 )
 				{
-					via_needed = ReconcileVia( net, tee_ic, tee_iv, new_via_attrib );
+					layer = l_comp;
+				}
+				else
+				{
+					if( ( l_comp != LAY_RAT_LINE ) && ( l_comp != layer ) )
+					{
+						via_needed = 1;
+						break;
+					}
 				}
 			}
-		}
-		else if( ivtx == 0 || ivtx == c->nsegs )
-		{
-			// first and last vertex are part pads
-			return 0;
-		}
-		else if( v->tee_ID )
-		{
-			via_needed = TeeViaNeeded( net, v->tee_ID );
-		}
-		else
-		{
-			c->vtx[ivtx].pad_layer = 0;
-			if( ivtx < c->nsegs )
+
+			// Compare segment after via (if exists)
+			if( vi.getcur_ivtx() < via_c->nsegs )
 			{
-				cseg * s1 = &c->seg[ivtx-1];
-				cseg * s2 = &c->seg[ivtx];
-				if( s1->layer != s2->layer && s1->layer != LAY_RAT_LINE && s2->layer != LAY_RAT_LINE )
+				l_comp = via_c->seg[ vi.getcur_ivtx() ].layer;
+				if( layer == 0 )
 				{
-					via_needed = TRUE;
+					layer = l_comp;
+				}
+				else
+				{
+					if( ( l_comp != LAY_RAT_LINE ) && ( l_comp != layer ) )
+					{
+						via_needed = 1;
+						break;
+					}
 				}
 			}
 		}
 	}
+
+	CViaWidthInfo via_attrib;
 
 	if( via_needed )
 	{
@@ -4199,7 +4213,6 @@ int CNetList::ReconcileVia( cnet * net, int ic, int ivtx, CViaWidthInfo const &n
 			// This via (on this connection) doesn't exist.  Check if any via exists
 			// on any connection.  If so, insert the via using the other via's attributes,
 			// otherwise, create a new via using the net's default attributes.
-			CVertexIterator vi( net, ic, ivtx );
 			cvertex * vfound = NULL;
 
 			for( cvertex * v = vi.GetFirst(); v != NULL; v = vi.GetNext() )
@@ -4211,13 +4224,13 @@ int CNetList::ReconcileVia( cnet * net, int ic, int ivtx, CViaWidthInfo const &n
 				}
 			}
 
-			// Start with the passed-in via attrib.
-			CViaWidthInfo via_attrib(new_via_attrib);
-
-			// If another via was found, use its attrib instead
 			if( vfound != NULL )
 			{
 				via_attrib = vfound->via_width_attrib;
+			}
+			else
+			{
+				via_attrib = new_via_attrib;
 			}
 
 			if( via_attrib.m_via_width.m_val == 0 )
@@ -4229,21 +4242,25 @@ int CNetList::ReconcileVia( cnet * net, int ic, int ivtx, CViaWidthInfo const &n
 
 			// Insert the via
 			InsertVia( net, ic, ivtx, via_attrib );
-
-			// Make sure all shared vias have the same attributes
-			SetViaSizeAttrib( net, ic, ivtx, via_attrib );
+		}
+		else
+		{
+			via_attrib = v->via_width_attrib;
 		}
 	}
 	else
 	{
 		// via not needed
-		v->SetNoVia();
+		via_attrib.SetNoVia();
 	}
 
-	if( m_dlist )
-		DrawVia( net, ic, ivtx );
+	// Make sure all shared vias have the same attributes
+	SetViaSizeAttrib( net, ic, ivtx, via_attrib );
 
-	return via_needed;
+	if( m_dlist )
+	{
+		DrawVia( net, ic, ivtx );
+	}
 }
 
 
@@ -4907,7 +4924,7 @@ int CNetList::DrawVia( cnet * net, int ic, int iv )
 	// undraw previous via and selection box
 	UndrawVia( net, ic, iv );
 
-	// draw via if (v->via_w) > 0
+	// draw via if viaExists
 	id vid( ID_NET, ID_CONNECT, ic, ID_VERTEX, iv );
 	if( v->viaExists() )
 	{
@@ -4945,7 +4962,8 @@ int CNetList::DrawVia( cnet * net, int ic, int iv )
 		}
 		else
 		{
-			sel_layer = c->seg[iv-1].layer;
+			// Handle iv == start/end pin cases as well (just in case)
+			sel_layer = c->seg[ iv == 0 ? 0 : iv-1 ].layer;
 		}
 
 		// Selection width is the max of the attached segments
@@ -4955,14 +4973,16 @@ int CNetList::DrawVia( cnet * net, int ic, int iv )
 		{
 			cconnect * via_c = &net->connect[ vi.getcur_ic() ];
 
-			// Compare segment before via
-			w_comp = via_c->seg[ vi.getcur_ivtx()-1 ].width();
-			if( w_comp > w ) w = w_comp;
+			// Compare segment before via (if exists)
+			if( vi.getcur_ivtx() > 0 )
+			{
+				w_comp = via_c->seg[ vi.getcur_ivtx()-1 ].width();
+				if( w_comp > w ) w = w_comp;
+			}
 
-			// Check if there exists a segment after the via
+			// Compare segment after via (if exists)
 			if( vi.getcur_ivtx() < via_c->nsegs )
 			{
-				// Compare segment after via
 				w_comp = via_c->seg[ vi.getcur_ivtx() ].width();
 				if( w_comp > w ) w = w_comp;
 			}

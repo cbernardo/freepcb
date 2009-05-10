@@ -292,18 +292,19 @@ public:
 		utility = 0;
 		utility2 = 0;
 	}
+
 	~cvertex()
 	{
 		// destructor
-		if( m_dlist )
+		for( int il=0; il<dl_el.GetSize(); il++ )
 		{
-			for( int il=0; il<dl_el.GetSize(); il++ )
-				dl_el[il]->Remove();
-
-			if( dl_sel )  dl_sel->Remove();
-			if( dl_hole ) dl_hole->Remove();
+			dl_el[il]->Remove();
 		}
+
+		if( dl_sel )  dl_sel->Remove();
+		if( dl_hole ) dl_hole->Remove();
 	}
+
 	cvertex &operator=( cvertex &v )	// assignment operator BAF FIX to be const
 	{
 		// copy all params
@@ -343,6 +344,8 @@ public:
 
 		return *this;
 	};
+
+public:
 	void Initialize( CDisplayList * dlist ){ m_dlist = dlist; }
 	int x, y;					// coords
 	int pad_layer;				// layer of pad if this is first or last vertex, otherwise 0
@@ -360,7 +363,7 @@ public:
 	int via_clearance() const { return via_width_attrib.m_ca_clearance.m_val; }
 
 	int viaExists() const { return via_w(); }
-	void SetNoVia() { via_width_attrib.m_via_width = via_width_attrib.m_via_hole = 0; }
+	void SetNoVia() { via_width_attrib.SetNoVia(); }
 
 	// Update index in connection array
 	void UpdateIndex(int ic, int iv);
@@ -586,17 +589,17 @@ public:
 	void InsertVia( cnet * net, int ic, int ivtx, CViaWidthInfo const &width );
 	void SetViaSizeAttrib( cnet * net, int ic, int ivtx, CInheritableInfo const &width );
 
-	int ReconcileVia( cnet * net, int ic, int ivtx )
+	void ReconcileVia( cnet * net, int ic, int ivtx )
 	{
 		CViaWidthInfo via_attrib;
 		via_attrib.m_via_width = CII_FreePcb::E_USE_PARENT;
 		via_attrib.m_via_hole  = CII_FreePcb::E_USE_PARENT;
 
-		return ReconcileVia(net, ic, ivtx, via_attrib);
+		ReconcileVia(net, ic, ivtx, via_attrib);
 	}
 	// The variant of ReconcileVia() is used for file load and undo where
 	// the any newly created via needs to be assigned to a particular size.
-	int ReconcileVia( cnet * net, int ic, int ivtx, CViaWidthInfo const &width );
+	void ReconcileVia( cnet * net, int ic, int ivtx, CViaWidthInfo const &width );
 
 	void MakeTeeConnection( cnet * net, cvertex * vtx, int ic, int ivtx);
 	int ViaExists( cnet * net, int ic, int ivtx );

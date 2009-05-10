@@ -127,6 +127,11 @@ public:
 		m_via_hole.Undef();
 	}
 
+	void SetNoVia()
+	{ 
+		m_via_width = m_via_hole = 0; 
+	}
+
 protected:
 	virtual Item const &GetItem(int item_id) const;
 };
