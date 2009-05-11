@@ -540,6 +540,8 @@ public:
 	void TryToReselectAreaCorner( int x, int y );
 	void ReselectNetItemIfConnectionsChanged( int new_ic );
 	int SelectObjPopup( CPoint const &point, CDL_job::HitInfo hit_info[], int num_hits );
+	void SetActiveLayer(int layer);
+	void MakeLayerVisible(int layer);
 
 protected:
 	CString GetViaText( cvertex const &Vtx );
