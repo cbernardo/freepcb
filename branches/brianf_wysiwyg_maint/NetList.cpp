@@ -4159,7 +4159,7 @@ void CNetList::ReconcileVia( cnet * net, int ic, int ivtx, CViaWidthInfo const &
 	}
 	else
 	{
-		int layer = 0;
+		int layer = -1;
 		int l_comp;
 		for( cvertex * vtx_comp = vi.GetFirst(); vtx_comp != NULL; vtx_comp = vi.GetNext() )
 		{
@@ -4169,16 +4169,19 @@ void CNetList::ReconcileVia( cnet * net, int ic, int ivtx, CViaWidthInfo const &
 			if( vi.getcur_ivtx() > 0 )
 			{
 				l_comp = via_c->seg[ vi.getcur_ivtx()-1 ].layer;
-				if( layer == 0 )
+				if( l_comp != LAY_RAT_LINE )
 				{
-					layer = l_comp;
-				}
-				else
-				{
-					if( ( l_comp != LAY_RAT_LINE ) && ( l_comp != layer ) )
+					if( layer == -1 )
 					{
-						via_needed = 1;
-						break;
+						layer = l_comp;
+					}
+					else
+					{
+						if( l_comp != layer )
+						{
+							via_needed = 1;
+							break;
+						}
 					}
 				}
 			}
@@ -4187,16 +4190,19 @@ void CNetList::ReconcileVia( cnet * net, int ic, int ivtx, CViaWidthInfo const &
 			if( vi.getcur_ivtx() < via_c->nsegs )
 			{
 				l_comp = via_c->seg[ vi.getcur_ivtx() ].layer;
-				if( layer == 0 )
+				if( l_comp != LAY_RAT_LINE )
 				{
-					layer = l_comp;
-				}
-				else
-				{
-					if( ( l_comp != LAY_RAT_LINE ) && ( l_comp != layer ) )
+					if( layer == -1 )
 					{
-						via_needed = 1;
-						break;
+						layer = l_comp;
+					}
+					else
+					{
+						if( l_comp != layer )
+						{
+							via_needed = 1;
+							break;
+						}
 					}
 				}
 			}
