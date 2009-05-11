@@ -162,8 +162,8 @@ BEGIN
         MENUITEM "Import netlist...",           244
         MENUITEM "Export netlist...",           ID_FILE_EXPORTNETLIST
         MENUITEM SEPARATOR
-        MENUITEM "Load library as project...",  ID_FILE_LOADLIBRARYASPROJECT, GRAYED
-        MENUITEM "Save project as library...",  ID_FILE_SAVEPROJECTASLIBRARY, GRAYED
+        MENUITEM "Load library as project...",  ID_FILE_LOADLIBRARYASPROJECT
+        MENUITEM "Save project as library...",  ID_FILE_SAVEPROJECTASLIBRARY
         MENUITEM "Convert library...",          250
         MENUITEM SEPARATOR
         MENUITEM "Generate CAM files...",       ID_FILE_GENERATECADFILES
@@ -174,11 +174,11 @@ BEGIN
         MENUITEM "Export .dsn file...",         32886
         MENUITEM "Import .ses file...",         ID_SES_FILE_IMPORT
         MENUITEM SEPARATOR
-        MENUITEM "&Print...\tCtrl+P",           ID_FILE_PRINT, GRAYED
-        MENUITEM "Print Pre&view",              ID_FILE_PRINT_PREVIEW, GRAYED
-        MENUITEM "P&rint Setup...",             ID_FILE_PRINT_SETUP, GRAYED
+        MENUITEM "&Print...\tCtrl+P",           ID_FILE_PRINT
+        MENUITEM "Print Pre&view",              ID_FILE_PRINT_PREVIEW
+        MENUITEM "P&rint Setup...",             ID_FILE_PRINT_SETUP
         MENUITEM SEPARATOR
-        MENUITEM "Recent File",                 ID_FILE_MRU_FILE1, GRAYED
+        MENUITEM "Recent File",                 ID_FILE_MRU_FILE1
         MENUITEM SEPARATOR
         MENUITEM "E&xit",                       ID_APP_EXIT
         MENUITEM SEPARATOR
@@ -310,10 +310,15 @@ BEGIN
     BEGIN
         MENUITEM "View All",                    ID_NONE_VIEWALL
         MENUITEM SEPARATOR
-        MENUITEM "Add Part",                    ID_NONE_ADDPART
-        MENUITEM "Add Text",                    ID_NONE_ADDTEXT
-        MENUITEM "Add Copper Area",             ID_NONE_ADDCOPPERAREA
-        MENUITEM "Add Board Outline",           ID_NONE_ADDBOARDOUTLINE
+        POPUP "Add"
+        BEGIN
+            MENUITEM "Board Outline",               ID_ADD_BOARDOUTLINE
+            MENUITEM "Part",                        ID_ADD_PART
+            MENUITEM "Net",                         ID_ADD_NET
+            MENUITEM "Copper Area",                 ID_ADD_AREA
+            MENUITEM "Text",                        ID_ADD_TEXT
+            MENUITEM "Solder Mask Cutout",          ID_ADD_SOLDERMASKCUTOUT
+        END
         MENUITEM SEPARATOR
         MENUITEM "Footprint Wizard",            ID_NONE_FOOTPRINTWIZARD
         MENUITEM "Footprint Editor",            ID_NONE_FOOTPRINTEDITOR

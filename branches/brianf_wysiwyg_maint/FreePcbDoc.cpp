@@ -1096,21 +1096,21 @@ void CFreePcbDoc::ReadFootprints( CStdioFile * pcb_file,
 
 	if( bFindSection )
 	{
-	// find beginning of shapes section
-	do
-	{
-		err = pcb_file->ReadString( in_str );
-		if( !err )
+		// find beginning of shapes section
+		do
 		{
-			// error reading pcb file
-			CString mess;
-			mess.Format( "Unable to find [footprints] section in file" );
-			AfxMessageBox( mess );
-			return;
+			err = pcb_file->ReadString( in_str );
+			if( !err )
+			{
+				// error reading pcb file
+				CString mess;
+				mess.Format( "Unable to find [footprints] section in file" );
+				AfxMessageBox( mess );
+				return;
+			}
+			in_str.Trim();
 		}
-		in_str.Trim();
-	}
-	while( in_str != "[shapes]" && in_str != "[footprints]" );
+		while( in_str != "[shapes]" && in_str != "[footprints]" );
 	}
 
 	// get each shape and add it to the cache
@@ -1954,6 +1954,10 @@ void CFreePcbDoc::ReadOptions( CStdioFile * pcb_file )
 					m_vis[layer] = my_atoi( &p[5] );
 				}
 			}
+			else if ( np && key_str == "active_layer" )
+			{
+				m_view->SetActiveLayer( my_atoi( &p[0] ) );
+			}
 		}
 		if( m_fp_visible_grid.GetSize() == 0 )
 		{
@@ -2191,10 +2195,12 @@ void CFreePcbDoc::WriteOptions( CStdioFile * file )
 		{
 			line.Format( "  layer_info: \"%s\" %d %d %d %d %d\n",
 				&layer_str[i][0], i,
-				m_rgb[i][0], m_rgb[i][1], m_rgb[i][2], m_vis[i] );
+				m_rgb[i][0], m_rgb[i][1], m_rgb[i][2], m_vis[i]
+			);
 			file->WriteString( line );
 		}
-		file->WriteString( "\n" );
+		line.Format( "  active_layer: %d\n\n", m_view->m_active_layer );
+		file->WriteString( line );
 
 		line.Format( "ratline_width: %d\n", m_ratline_w );
 		file->WriteString( line );

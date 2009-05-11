@@ -1098,7 +1098,7 @@ int CDisplayList::StartDraggingRatLine( CDC * pDC, int x, int y, int xi, int yi,
 	// create drag line
 	CPoint p1(xi,yi);
 	CPoint p2(x,y);
-	MakeDragRatlineArray( 1, w );
+	MakeDragRatlineArray( 1, 1 );
 	AddDragRatline( p1, p2 );
 
 	StartDraggingArray( pDC, xi, yi, 0, layer, crosshair );
@@ -1328,8 +1328,7 @@ void CDisplayList::Drag( CDC * pDC, int x, int y )
 	// drag array of lines, used to make complex graphics like a part
 	if( m_drag_num_lines )
 	{
-		CPen drag_pen( PS_SOLID, 1, RGB( m_rgb[m_drag_layer][0],
-			m_rgb[m_drag_layer][1], m_rgb[m_drag_layer][2] ) );
+		CPen drag_pen( PS_SOLID, 1, RGB( m_rgb[m_drag_layer][0], m_rgb[m_drag_layer][1], m_rgb[m_drag_layer][2] ) );
 		CPen * old_pen = pDC->SelectObject( &drag_pen );
 		for( int il=0; il<m_drag_num_lines; il++ )
 		{
@@ -1346,8 +1345,7 @@ void CDisplayList::Drag( CDC * pDC, int x, int y )
 	// drag array of rubberband lines, used for ratlines to dragged part
 	if( m_drag_num_ratlines )
 	{
-		CPen drag_pen( PS_SOLID, 1, RGB( m_rgb[m_drag_layer][0],
-			m_rgb[m_drag_layer][1], m_rgb[m_drag_layer][2] ) );
+		CPen drag_pen( PS_SOLID, m_drag_ratline_width, RGB( m_rgb[m_drag_layer][0], m_rgb[m_drag_layer][1], m_rgb[m_drag_layer][2] ) );
 		CPen * old_pen = pDC->SelectObject( &drag_pen );
 		for( int il=0; il<m_drag_num_ratlines; il++ )
 		{
