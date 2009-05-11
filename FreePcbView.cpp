@@ -5840,6 +5840,18 @@ void CFreePcbView::CancelSelection()
 	SetCursorMode( CUR_NONE_SELECTED );
 }
 
+
+void CFreePcbView::OnDeleteAny()
+{
+	// MUST cancel FIRST since the selected items may
+	// have been deleted.
+	CancelSelection();
+
+	m_Doc->ProjectModified( TRUE );
+	Invalidate( FALSE );
+}
+
+
 // attempt to reselect area corner based on position
 // should be used after areas are modified
 void CFreePcbView::TryToReselectAreaCorner( int x, int y )
@@ -6281,10 +6293,11 @@ void CFreePcbView::OnAreaDeleteCutout()
 		ASSERT(0);
 	SaveUndoInfoForArea( m_sel_net, m_sel_ia, CNetList::UNDO_AREA_MODIFY, TRUE, m_Doc->m_undo_list );
 	poly->RemoveContour( icont );
-	CancelSelection();
+
 	m_Doc->m_nlist->SetAreaConnections( m_sel_net, m_sel_ia );
 	m_Doc->m_nlist->OptimizeConnections( m_sel_net );
-	Invalidate( FALSE );
+
+	OnDeleteAny();
 }
 
 // move part
@@ -6379,9 +6392,7 @@ void CFreePcbView::OnTextDelete()
 {
 	SaveUndoInfoForText( m_sel_text, CTextList::UNDO_TEXT_DELETE, TRUE, m_Doc->m_undo_list );
 	m_Doc->m_tlist->RemoveText( m_sel_text );
-	CancelSelection();
-	m_Doc->ProjectModified( TRUE );
-	Invalidate( FALSE );
+	OnDeleteAny();
 }
 
 // move text, enter with text selected
@@ -6448,9 +6459,8 @@ void CFreePcbView::OnPartDelete()
 	else if( ret == IDNO )
 		m_Doc->m_nlist->PartDisconnected( m_sel_part );
 	m_Doc->m_plist->Remove( m_sel_part );
-	CancelSelection();
-	m_Doc->ProjectModified( TRUE );
-	Invalidate( FALSE );
+
+	OnDeleteAny();
 }
 
 // optimize all nets to part
@@ -6758,10 +6768,8 @@ void CFreePcbView::OnSegmentDelete()
 		m_Doc->m_nlist->DisconnectBranch( m_sel_net, m_sel_ic );
 	m_Doc->m_nlist->RemoveSegment( m_sel_net, m_sel_ic, m_sel_is, TRUE );
 	m_Doc->m_nlist->SetAreaConnections( m_sel_net );
-	CancelSelection();
-	ShowSelectStatus();
-	m_Doc->ProjectModified( TRUE );
-	Invalidate( FALSE );
+
+	OnDeleteAny();
 }
 
 // route this ratline
@@ -7101,9 +7109,8 @@ void CFreePcbView::OnVertexDelete()
 		m_Doc->m_nlist->RemoveOrphanBranches( m_sel_net, tee_id, TRUE );
 	}
 	m_Doc->m_nlist->OptimizeConnections( m_sel_net );
-	CancelSelection();
-	m_Doc->ProjectModified( TRUE );
-	Invalidate( FALSE );
+
+	OnDeleteAny();
 }
 
 // move the end vertex of a stub trace
@@ -7204,9 +7211,8 @@ void CFreePcbView::OnEndVertexDelete()
 	m_Doc->m_nlist->SetNetVisibility( m_sel_net, TRUE );
 	m_Doc->m_nlist->RemoveSegment( m_sel_net, m_sel_ic, m_sel_is-1, TRUE );
 	m_Doc->m_nlist->OptimizeConnections( m_sel_net );
-	CancelSelection();
-	m_Doc->ProjectModified( TRUE );
-	Invalidate( FALSE );
+
+	OnDeleteAny();
 }
 
 // edit the position of an end vertex
@@ -7280,9 +7286,8 @@ void CFreePcbView::OnRatlineDeleteConnection()
 	m_Doc->m_nlist->RemoveNetConnect( m_sel_net, m_sel_ic, FALSE );
 	m_Doc->m_nlist->RemoveOrphanBranches( m_sel_net, 0, TRUE );
 	m_Doc->m_nlist->SetAreaConnections( m_sel_net );
-	CancelSelection();
-	m_Doc->ProjectModified( TRUE );
-	Invalidate( FALSE );
+
+	OnDeleteAny();
 }
 
 // Set the width of the ratlines themselves
@@ -7434,9 +7439,8 @@ void CFreePcbView::OnBoardCornerDelete()
 	}
 	SaveUndoInfoForBoardOutlines( TRUE, m_Doc->m_undo_list );
 	m_Doc->m_board_outline[m_sel_id.i].DeleteCorner( m_sel_id.ii );
-	CancelSelection();
-	m_Doc->ProjectModified( TRUE );
-	Invalidate( FALSE );
+
+	OnDeleteAny();
 }
 
 // insert a new corner in a side of a board outline
@@ -7466,9 +7470,8 @@ void CFreePcbView::OnBoardDeleteOutline()
 		new_id.i = i;
 		poly->SetId( &new_id );
 	}
-	m_Doc->ProjectModified( TRUE );
-	CancelSelection();
-	Invalidate( FALSE );
+
+	OnDeleteAny();
 }
 
 // move a copper area corner
@@ -7502,13 +7505,12 @@ void CFreePcbView::OnAreaCornerDelete()
 		m_Doc->m_nlist->SetAreaConnections( m_sel_net, m_sel_ia );
 		m_Doc->m_nlist->OptimizeConnections( m_sel_net );
 
-		// Must come BEFORE ProjectModified() as item was deleted
-		CancelSelection();
-		m_Doc->ProjectModified( TRUE );
-		Invalidate( FALSE );
+		OnDeleteAny();		
 	}
 	else
+	{
 		OnAreaCornerDeleteArea();
+	}
 }
 
 // delete entire area
@@ -7516,7 +7518,6 @@ void CFreePcbView::OnAreaCornerDelete()
 void CFreePcbView::OnAreaCornerDeleteArea()
 {
 	OnAreaSideDeleteArea();
-	m_Doc->ProjectModified( TRUE );
 }
 
 //insert a new corner in a side of a copper area
@@ -7541,9 +7542,8 @@ void CFreePcbView::OnAreaSideDeleteArea()
 //	SaveUndoInfoForNetAndConnectionsAndArea( m_sel_net, m_sel_ia, CNetList::UNDO_AREA_DELETE, TRUE, m_Doc->m_undo_list );
 	m_Doc->m_nlist->RemoveArea( m_sel_net, m_sel_ia );
 	m_Doc->m_nlist->OptimizeConnections( m_sel_net );
-	CancelSelection();
-	m_Doc->ProjectModified( TRUE );
-	Invalidate( FALSE );
+
+	OnDeleteAny();
 }
 
 // detect state where nothing is selected or being dragged
@@ -9006,9 +9006,8 @@ void CFreePcbView::OnSmCornerDeleteCorner()
 	}
 	SaveUndoInfoForSMCutouts( TRUE, m_Doc->m_undo_list );
 	poly->DeleteCorner( m_sel_id.ii );
-	CancelSelection();
-	m_Doc->ProjectModified( TRUE );
-	Invalidate( FALSE );
+
+	OnDeleteAny();
 }
 
 void CFreePcbView::OnSmCornerDeleteCutout()
@@ -9022,9 +9021,8 @@ void CFreePcbView::OnSmCornerDeleteCutout()
 		new_id.i = i;
 		poly->SetId( &new_id );
 	}
-	m_Doc->ProjectModified( TRUE );
-	CancelSelection();
-	Invalidate( FALSE );
+
+	OnDeleteAny();
 }
 
 // insert corner into solder mask cutout side and start dragging
@@ -11127,8 +11125,8 @@ void CFreePcbView::OnGroupCut()
 void CFreePcbView::OnGroupDelete()
 {
 	DeleteGroup( &m_sel_ptrs, &m_sel_ids );
-	CancelSelection();
-	m_Doc->ProjectModified( TRUE );
+
+	OnDeleteAny();
 }
 
 void CFreePcbView::DeleteGroup( CArray<void*> * grp_ptr, CArray<id> * grp_id )
@@ -13404,3 +13402,5 @@ void CFreePcbView::MakeLayerVisible(int layer)
 	m_dlist->SetLayerVisible( layer, TRUE );
 	SetActiveLayer( layer );
 }
+
+
