@@ -304,20 +304,20 @@ void CFreePcbView::InitInstance()
 	CRect screen_r;
 	GetWindowRect( &screen_r );
 
-	m_dlist->SetMapping( 
-		&m_client_r, 
-		&screen_r, 
-		m_left_pane_w, 
+	m_dlist->SetMapping(
+		&m_client_r,
+		&screen_r,
+		m_left_pane_w,
 		m_bottom_pane_h,
-		m_pcbu_per_pixel, 
-		m_org_x, m_org_y 
+		m_pcbu_per_pixel,
+		m_org_x, m_org_y
 	);
 
 	for(int i=0; i<m_Doc->m_num_layers; i++ )
 	{
-		m_dlist->SetLayerRGB( i, m_Doc->m_rgb[i][0], m_Doc->m_rgb[i][1], m_Doc->m_rgb[i][2] );
+		m_dlist->SetLayerRGB( i, m_Doc->m_rgb[i] );
 	}
-	
+
 	ShowSelectStatus();
 	ShowActiveLayer();
 	m_Doc->m_view = this;
@@ -395,12 +395,12 @@ void CFreePcbView::OnDraw(CDC* pDC)
 	// clear screen to black if no project open
 	if( !m_Doc )
 	{
-		pDC->FillSolidRect( m_client_r, RGB(0,0,0) );
+		pDC->FillSolidRect( m_client_r, C_RGB::black );
 		return;
 	}
 	if( !m_Doc->m_project_open )
 	{
-		pDC->FillSolidRect( m_client_r, RGB(0,0,0) );
+		pDC->FillSolidRect( m_client_r, C_RGB::black );
 		return;
 	}
 
@@ -411,8 +411,8 @@ void CFreePcbView::OnDraw(CDC* pDC)
 	if( m_left_pane_invalid )
 	{
 		// erase previous contents if changed
-		CBrush brush( RGB(255, 255, 255) );
-		CPen pen( PS_SOLID, 1, RGB(255, 255, 255) );
+		CBrush brush( C_RGB::white );
+		CPen pen( PS_SOLID, 1, C_RGB::white );
 		CBrush * old_brush = pDC->SelectObject( &brush );
 		CPen * old_pen = pDC->SelectObject( &pen );
 		// erase left pane
@@ -444,7 +444,7 @@ void CFreePcbView::OnDraw(CDC* pDC)
 		else if( i > LAY_TOP_COPPER )
 			il = i+1;
 
-		CBrush brush( RGB(m_Doc->m_rgb[il][0], m_Doc->m_rgb[il][1], m_Doc->m_rgb[il][2]) );
+		CBrush brush( m_Doc->m_rgb[il] );
 		if( m_Doc->m_vis[il] )
 		{
 			// if layer is visible, draw colored rectangle
@@ -495,7 +495,7 @@ void CFreePcbView::OnDraw(CDC* pDC)
 		else
 		{
 			// erase arrowhead
-			pDC->FillSolidRect( &ar, RGB(255,255,255) );
+			pDC->FillSolidRect( &ar, C_RGB::white );
 		}
 	}
 	r.left = x_off;
@@ -512,8 +512,8 @@ void CFreePcbView::OnDraw(CDC* pDC)
 		r.bottom = i*VSTEP+12+y_off;
 
 		{
-			CBrush green_brush( RGB(0, 255, 0) );
-			CBrush red_brush( RGB(255, 0, 0) );
+			CBrush green_brush( C_RGB::green );
+			CBrush red_brush( C_RGB::red );
 			CBrush * old_brush;
 
 			if( m_sel_mask & (1<<i) )
@@ -704,17 +704,8 @@ int CFreePcbView::SelectObjPopup( CPoint const &point, CDL_job::HitInfo hit_info
 
 			CBitmap *pOldBitmap = dc.SelectObject(pBitmap);
 			{
-				COLORREF layer_color = RGB(
-					m_Doc->m_rgb[ pInfo->layer ][0],
-					m_Doc->m_rgb[ pInfo->layer ][1],
-					m_Doc->m_rgb[ pInfo->layer ][2]
-				);
-
-				COLORREF text_color = RGB(
-					m_Doc->m_rgb[ LAY_BACKGND ][0],
-					m_Doc->m_rgb[ LAY_BACKGND ][1],
-					m_Doc->m_rgb[ LAY_BACKGND ][2]
-				);
+				COLORREF layer_color = m_Doc->m_rgb[ pInfo->layer ];
+				COLORREF text_color  = m_Doc->m_rgb[ LAY_BACKGND ];
 
 				dc.FillSolidRect(r, layer_color);
 				dc.SetTextColor(text_color);
@@ -7523,7 +7514,7 @@ void CFreePcbView::OnAreaCornerDelete()
 		m_Doc->m_nlist->SetAreaConnections( m_sel_net, m_sel_ia );
 		m_Doc->m_nlist->OptimizeConnections( m_sel_net );
 
-		OnDeleteAny();		
+		OnDeleteAny();
 	}
 	else
 	{
@@ -13420,5 +13411,3 @@ void CFreePcbView::MakeLayerVisible(int layer)
 	m_dlist->SetLayerVisible( layer, TRUE );
 	SetActiveLayer( layer );
 }
-
-
