@@ -135,7 +135,10 @@ CFreePcbDoc::CFreePcbDoc()
 	DWORD dwVersion = ::GetVersion();
 	DWORD dwWindowsMajorVersion =  (DWORD)(LOBYTE(LOWORD(dwVersion)));
 	if( dwWindowsMajorVersion > 4 )
+	{
 		m_pcbu_per_wu = 2540;		// if Win2000 or XP or vista
+	}
+
 	m_dlist = new CDisplayList( m_pcbu_per_wu );
 	m_dlist_fp = new CDisplayList( m_pcbu_per_wu );
 	m_plist = new CPartList( m_dlist, m_smfontutil );
@@ -166,6 +169,9 @@ CFreePcbDoc::CFreePcbDoc()
 	m_dlg_log = new CDlgLog;
 	m_dlg_log->Create( IDD_LOG );
 	m_import_flags = IMPORT_PARTS | IMPORT_NETS | KEEP_TRACES | KEEP_STUBS | KEEP_AREAS;
+
+	m_num_copper_layers = 1;
+	m_num_layers = m_num_copper_layers + LAY_TOP_COPPER;
 
 	// Backward compatibility
 	m_def_size_attrib.m_ca_clearance = 10*NM_PER_MIL;
