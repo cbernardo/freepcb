@@ -4,7 +4,8 @@
 
 void dl_element::Draw(CDrawInfo const &di) const
 {
-	if( visible && dlist->m_vis[ orig_layer ] ) _Draw(di);
+	if( visible && dlist->m_vis[ orig_layer ] ) 
+		_Draw(di);
 }
 
 
