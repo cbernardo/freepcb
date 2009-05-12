@@ -280,6 +280,7 @@ CFreePcbView::CFreePcbView()
 	m_dragging_new_item = FALSE;
 	m_bDraggingRect = FALSE;
 	m_bLButtonDown = FALSE;
+	m_active_layer = LAY_TOP_COPPER;
 	CalibrateTimer();
  }
 
@@ -294,15 +295,29 @@ void CFreePcbView::InitInstance()
 	// after the document is created
 	m_Doc = GetDocument();
 	ASSERT_VALID(m_Doc);
+
 	m_Doc->m_edit_footprint = FALSE;
+
 	m_dlist = m_Doc->m_dlist;
 	InitializeView();
+
 	CRect screen_r;
 	GetWindowRect( &screen_r );
-	m_dlist->SetMapping( &m_client_r, &screen_r, m_left_pane_w, m_bottom_pane_h,
-		m_pcbu_per_pixel, m_org_x, m_org_y );
+
+	m_dlist->SetMapping( 
+		&m_client_r, 
+		&screen_r, 
+		m_left_pane_w, 
+		m_bottom_pane_h,
+		m_pcbu_per_pixel, 
+		m_org_x, m_org_y 
+	);
+
 	for(int i=0; i<m_Doc->m_num_layers; i++ )
+	{
 		m_dlist->SetLayerRGB( i, m_Doc->m_rgb[i][0], m_Doc->m_rgb[i][1], m_Doc->m_rgb[i][2] );
+	}
+	
 	ShowSelectStatus();
 	ShowActiveLayer();
 	m_Doc->m_view = this;
@@ -5681,13 +5696,16 @@ int CFreePcbView::ShowActiveLayer()
 		return 1;
 
 	CString str;
+
 	if( m_active_layer == LAY_TOP_COPPER )
 		str.Format( "Top" );
 	else if( m_active_layer == LAY_BOTTOM_COPPER )
 		str.Format( "Bottom" );
 	else if( m_active_layer > LAY_BOTTOM_COPPER )
 		str.Format( "Inner %d", m_active_layer - LAY_BOTTOM_COPPER );
+
 	pMain->DrawStatus( 4, &str );
+
 	for( int order=LAY_TOP_COPPER; order<LAY_TOP_COPPER+m_Doc->m_num_copper_layers; order++ )
 	{
 		if( order == LAY_TOP_COPPER )
