@@ -40,9 +40,7 @@ void CDlgLayers::DoDataExchange(CDataExchange* pDX)
 		// on OK
 		for( int i=0; i<NUM_DLG_LAYERS; i++ )
 		{
-			m_rgb_ptr[i*3] = m_rgb[i][0];
-			m_rgb_ptr[i*3+1] = m_rgb[i][1];
-			m_rgb_ptr[i*3+2] = m_rgb[i][2];
+			m_rgb_ptr[i] = m_rgb[i];
 		}
 	}
 }
@@ -80,17 +78,15 @@ BEGIN_MESSAGE_MAP(CDlgLayers, CDialog)
 	ON_BN_CLICKED(IDC_BUTTON_LAYER_7W, &CDlgLayers::OnBnClickedButtonLayer7W)
 END_MESSAGE_MAP()
 
-void CDlgLayers::Initialize( int nlayers, int ratlineWidth, int vis[], int rgb[][3] )
+void CDlgLayers::Initialize( int nlayers, int ratlineWidth, int vis[], C_RGB rgb[] )
 {
 	m_nlayers = nlayers;
 	m_ratline_w = ratlineWidth;
 	m_vis = vis;
-	m_rgb_ptr = (int*)rgb;
+	m_rgb_ptr = (C_RGB*)rgb;
 	for( int i=0; i<NUM_DLG_LAYERS; i++ )
 	{
-		m_rgb[i][0] = m_rgb_ptr[i*3];
-		m_rgb[i][1] = m_rgb_ptr[i*3+1];
-		m_rgb[i][2] = m_rgb_ptr[i*3+2];
+		m_rgb[i] = m_rgb_ptr[i];
 	}
 }
 
@@ -109,10 +105,10 @@ HBRUSH CDlgLayers::OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor)
 	{
 		int i = pWnd->GetDlgCtrlID() - IDC_STATIC_LAYER_1;
 		// Set layer color
-		pDC->SetTextColor(RGB(m_rgb[i][0], m_rgb[i][1], m_rgb[i][2]));
+		pDC->SetTextColor( m_rgb[i] );
 		pDC->SetBkMode(TRANSPARENT);
 		m_brush.DeleteObject();
-		m_brush.CreateSolidBrush( RGB(m_rgb[i][0], m_rgb[i][1], m_rgb[i][2]) );
+		m_brush.CreateSolidBrush( m_rgb[i] );
 		hbr = m_brush;
 	}
 	return hbr;
@@ -153,15 +149,11 @@ void CDlgLayers::OnBnClickedButtonLayer28() { EditColor( 27 ); }
 //
 void CDlgLayers::EditColor( int layer )
 {
-	CColorDialog dlg( RGB(m_rgb[layer][0], m_rgb[layer][1], m_rgb[layer][2]),
-		CC_FULLOPEN | CC_ANYCOLOR );
+	CColorDialog dlg( m_rgb[layer], CC_FULLOPEN | CC_ANYCOLOR );
 	int ret = dlg.DoModal();
 	if( ret == IDOK )
 	{
-		COLORREF color = dlg.GetColor();
-		m_rgb[layer][0] = GetRValue( color );
-		m_rgb[layer][1] = GetGValue( color );
-		m_rgb[layer][2] = GetBValue( color );
+		m_rgb[layer] = dlg.GetColor();
 		Invalidate( FALSE );
 	}
 }

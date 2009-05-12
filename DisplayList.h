@@ -7,6 +7,7 @@
 #include "ids.h"
 #include "layers.h"
 #include "LinkList.h"
+#include "rgb.h"
 
 //#define DL_MAX_LAYERS 32
 #define DL_MAGIC		2674
@@ -101,7 +102,7 @@ private:
 	// display-list parameters for each layer
 	CDLinkList m_LIST_job[MAX_LAYERS];
 
-	int m_rgb[MAX_LAYERS][3];	// layer colors
+	C_RGB m_rgb[MAX_LAYERS];            // layer colors
 	int m_layer_in_order[MAX_LAYERS];	// array of layers in draw order
 	int m_order_for_layer[MAX_LAYERS];	// draw order for each layer
 
@@ -201,7 +202,7 @@ public:
 	void SetVisibleGrid( BOOL on, double grid );
 	void SetMapping( CRect *client_r, CRect *screen_r, int pane_org_x, int pane_bottom_h, double scale, int org_x, int org_y );
 	void SetDCToWorldCoords( CDC * pDC, CDC * mDC, int pcbu_org_x, int pcbu_org_y );
-	void SetLayerRGB( int layer, int r, int g, int b );
+	void SetLayerRGB( int layer, C_RGB color );
 	void SetLayerVisible( int layer, BOOL vis );
 	void SetLayerDrawOrder( int layer, int order )
 			{ m_layer_in_order[order] = layer; m_order_for_layer[layer] = order; };

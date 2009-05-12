@@ -2023,14 +2023,14 @@ HENHMETAFILE CShape::CreateMetafile( CMetaFileDC * mfDC, CDC * pDC, CRect const 
 	// flip Y since metafile likes top < bottom
 	CPen * old_pen;
 	CBrush * old_brush;
-	CPen backgnd_pen( PS_SOLID, 1, RGB(0,0,0) );
-	CBrush backgnd_brush( RGB(0,0,0) );
-	CPen SMT_pad_pen( PS_SOLID, 1, RGB(0,255,0) );
-	CBrush SMT_pad_brush( RGB(0,255,0) );
-	CPen SMT_B_pad_pen( PS_SOLID, 1, RGB(255,0,0) );
-	CBrush SMT_B_pad_brush( RGB(255,0,0) );
-	CPen TH_pad_pen( PS_SOLID, 1, RGB(0,0,255) );
-	CBrush TH_pad_brush( RGB(0,0,255) );
+	CPen backgnd_pen( PS_SOLID, 1, C_RGB::black );
+	CBrush backgnd_brush( C_RGB::black );
+	CPen SMT_pad_pen( PS_SOLID, 1, C_RGB::green );
+	CBrush SMT_pad_brush( C_RGB::green );
+	CPen SMT_B_pad_pen( PS_SOLID, 1, C_RGB::red );
+	CBrush SMT_B_pad_brush( C_RGB::red );
+	CPen TH_pad_pen( PS_SOLID, 1, C_RGB::blue );
+	CBrush TH_pad_brush( C_RGB::blue );
 
 	// draw background
 	old_pen = mfDC->SelectObject( &backgnd_pen );
@@ -2220,7 +2220,7 @@ HENHMETAFILE CShape::CreateMetafile( CMetaFileDC * mfDC, CDC * pDC, CRect const 
 	{
 		CPolyLine * p = &m_outline_poly[ip];
 		int thickness = p->GetW()/NM_PER_MIL;
-		CPen silk_pen( PS_SOLID, thickness, RGB(255,255,0) );
+		CPen silk_pen( PS_SOLID, thickness, C_RGB::yellow );
 		mfDC->SelectObject( &silk_pen );
 		int x = p->GetX(0)/NM_PER_MIL;
 		int y = p->GetY(0)/NM_PER_MIL;
@@ -2263,7 +2263,7 @@ HENHMETAFILE CShape::CreateMetafile( CMetaFileDC * mfDC, CDC * pDC, CRect const 
 
 	// draw ref text placeholder
 	int thickness = m_ref_w/NM_PER_MIL;
-	CPen ref_pen( PS_SOLID, thickness, RGB(255,255,0) );
+	CPen ref_pen( PS_SOLID, thickness, C_RGB::yellow );
 	mfDC->SelectObject( &ref_pen );
 	SMFontUtil * smfontutil = ((CFreePcbApp*)AfxGetApp())->m_Doc->m_smfontutil;
 	x_scale = (double)m_ref_size/22.0;
@@ -2322,7 +2322,7 @@ HENHMETAFILE CShape::CreateMetafile( CMetaFileDC * mfDC, CDC * pDC, CRect const 
 	{
 		CText * t = m_tl->text_ptr[it];
 		int thickness = t->m_stroke_width/NM_PER_MIL;
-		CPen text_pen( PS_SOLID, thickness, RGB(255,255,0) );
+		CPen text_pen( PS_SOLID, thickness, C_RGB::yellow );
 		mfDC->SelectObject( &text_pen );
 		SMFontUtil * smfontutil = ((CFreePcbApp*)AfxGetApp())->m_Doc->m_smfontutil;
 		CString t_str = t->m_str;
@@ -2381,7 +2381,7 @@ HENHMETAFILE CShape::CreateMetafile( CMetaFileDC * mfDC, CDC * pDC, CRect const 
 	// draw selection rectangle
 	if( bDrawSelectionRect )
 	{
-		CPen sel_pen( PS_SOLID, 1, RGB(255,255,255) );
+		CPen sel_pen( PS_SOLID, 1, C_RGB::white );
 		mfDC->SelectObject( &sel_pen );
 		mfDC->MoveTo( m_sel_xi/NM_PER_MIL+xoffset, -m_sel_yi/NM_PER_MIL+yoffset );
 		mfDC->LineTo( m_sel_xf/NM_PER_MIL+xoffset, -m_sel_yi/NM_PER_MIL+yoffset );
@@ -2409,8 +2409,8 @@ HENHMETAFILE CShape::CreateWarningMetafile( CMetaFileDC * mfDC, CDC * pDC, CRect
 
 	CPen * old_pen;
 	CBrush * old_brush;
-	CPen backgnd_pen( PS_SOLID, 1, RGB(0,0,0) );
-	CBrush backgnd_brush( RGB(0,0,0) );
+	CPen backgnd_pen( PS_SOLID, 1, C_RGB::black );
+	CBrush backgnd_brush( C_RGB::black );
 
 	// draw background
 	old_pen = mfDC->SelectObject( &backgnd_pen );

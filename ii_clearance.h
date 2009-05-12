@@ -86,7 +86,7 @@ public:
 	// 1) No via (size = 0)
 	// 2) Auto calc the clearance
 	CViaWidthInfo()
-		: CClearanceInfo( CClearanceInfo::E_AUTO_CALC )
+		: CClearanceInfo( CClearanceInfo::E_USE_PARENT )
 		, m_via_width(0)
 		, m_via_hole(0)
 	{
@@ -125,6 +125,11 @@ public:
 
 		m_via_width.Undef();
 		m_via_hole.Undef();
+	}
+
+	void SetNoVia()
+	{ 
+		m_via_width = m_via_hole = 0; 
 	}
 
 protected:
