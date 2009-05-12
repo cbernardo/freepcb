@@ -672,6 +672,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\rgb.h"
+				>
+			</File>
+			<File
 				RelativePath=".\RTcall.h"
 				>
 			</File>

@@ -181,7 +181,7 @@ void CFootprintView::InitInstance( CShape * fp )
 		m_pcbu_per_pixel, m_org_x, m_org_y );
 	for(int i=0; i<m_Doc->m_fp_num_layers; i++ )
 	{
-		m_dlist->SetLayerRGB( i, m_Doc->m_fp_rgb[i][0], m_Doc->m_fp_rgb[i][1], m_Doc->m_fp_rgb[i][2] );
+		m_dlist->SetLayerRGB( i, m_Doc->m_fp_rgb[i] );
 		m_dlist->SetLayerVisible( i, 1 );
 	}
 
@@ -282,8 +282,8 @@ void CFootprintView::OnDraw(CDC* pDC)
 	if( m_left_pane_invalid )
 	{
 		// erase previous contents if changed
-		CBrush brush( RGB(255, 255, 255) );
-		CPen pen( PS_SOLID, 1, RGB(255, 255, 255) );
+		CBrush brush( C_RGB::white );
+		CPen pen( PS_SOLID, 1, C_RGB::white );
 		CBrush * old_brush = pDC->SelectObject( &brush );
 		CPen * old_pen = pDC->SelectObject( &pen );
 		// erase left pane
@@ -307,7 +307,7 @@ void CFootprintView::OnDraw(CDC* pDC)
 	{
 		// i = position index
 		CRect r( x_off, i*VSTEP+y_off, x_off+12, i*VSTEP+12+y_off );
-		CBrush brush( RGB(m_Doc->m_fp_rgb[i][0], m_Doc->m_fp_rgb[i][1], m_Doc->m_fp_rgb[i][2]) );
+		CBrush brush( m_Doc->m_fp_rgb[i] );
 		if( m_Doc->m_fp_vis[i] )
 		{
 			// draw colored rectangle
@@ -354,7 +354,7 @@ void CFootprintView::OnDraw(CDC* pDC)
 		else
 		{
 			// erase arrowhead
-			pDC->FillSolidRect( &ar, RGB(255,255,255) );
+			pDC->FillSolidRect( &ar, C_RGB::white );
 		}
 	}
 	CRect r( x_off, NUM_FP_LAYERS*VSTEP+y_off, x_off+120, NUM_FP_LAYERS*VSTEP+12+y_off );

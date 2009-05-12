@@ -18,6 +18,7 @@
 #include "DlgDRC.h"
 #include "DesignRules.h"
 #include "pubsub.h"
+#include "rgb.h"
 //#include "QAFDebug.h"
 
 class CFreePcbDoc;
@@ -206,12 +207,12 @@ public:
 	// layers
 	int m_num_layers;			// number of drawing layers (note: different than copper layers)
 	int m_num_copper_layers;	// number of copper layers
-	int m_rgb[MAX_LAYERS][3];	// array of RGB values for each drawing layer
+	C_RGB m_rgb[MAX_LAYERS];	// array of RGB values for each drawing layer
 	int m_vis[MAX_LAYERS];		// array of visible flags
 
 	// layers for footprint editor
 	int m_fp_num_layers;
-	int m_fp_rgb[MAX_LAYERS][3];
+	C_RGB m_fp_rgb[MAX_LAYERS];
 	int m_fp_vis[MAX_LAYERS];
 
 	// default trace and via widths for routing
