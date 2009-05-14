@@ -1352,8 +1352,8 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 							double yi = pre_vtx->y;
 							double xf = post_vtx->x;
 							double yf = post_vtx->y;
-							int test, pad_w, hole_w, via_clearance;
 							int seg_clearance = s->clearance();
+							int test, pad_w, hole_w, via_clearance;
 							nl->GetViaPadInfo( net, ic, is+1, layer,
 								&pad_w, &hole_w, &test, &via_clearance );
 							// flash the via clearance if necessary
