@@ -3635,6 +3635,7 @@ void CNetList::GetViaPadInfo( cnet * net, int ic, int iv, int layer,
 	int con_status = GetViaConnectionStatus( net, ic, iv, layer );
 	cconnect * c = &net->connect[ic];
 	cvertex * v = &c->vtx[iv];
+	int via_clearance = v->via_clearance();
 	int w = v->via_w();
 	int hole_w = v->via_hole_w();
 	if( layer > LAY_BOTTOM_COPPER )
@@ -3665,6 +3666,8 @@ void CNetList::GetViaPadInfo( cnet * net, int ic, int iv, int layer,
 		*pad_hole_w = hole_w;
 	if( connect_status )
 		*connect_status = con_status;
+	if( clearance )
+		*clearance = via_clearance;
 }
 
 // Test for a hit on a vertex in a routed or partially-routed trace
