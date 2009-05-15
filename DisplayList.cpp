@@ -699,8 +699,8 @@ void CDisplayList::Draw( CDC * dDC )
 		if( di.DC != di.DC_Master )
 		{
 			// di.DC is a monochrome mask
-// #define DITHERING
-#define ALPHA
+#define DITHERING
+//#define ALPHA
 # ifdef DITHERING
 			//** AMW dither the copper areas with a pattern brush
 			// in the original code, the first ROP3 in RPN was: DSna
