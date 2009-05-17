@@ -1817,13 +1817,13 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 			// make undo record
 			SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_Doc->m_undo_list );
 
-			int layer = m_sel_net->connect[m_sel_ic].seg[m_sel_is].layer;
+			cseg *seg = &m_sel_net->connect[m_sel_ic].seg[m_sel_is];
 			int insert_flag = m_Doc->m_nlist->InsertSegment(
 				m_sel_net,
 				m_sel_ic, m_sel_is,
 				m_last_cursor_point.x, m_last_cursor_point.y,
-				layer,
-				m_sel_net->connect[m_sel_ic].seg[m_sel_is].width_attrib,
+				seg->layer,
+				seg->width_attrib,
 				m_dir
 			);
 

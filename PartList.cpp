@@ -3218,6 +3218,7 @@ int CPartList::GetPinConnectionStatus( cpart * part, CString const &pin_name, in
 //			CLEAR_NORMAL if clearance from copper area required
 //			CLEAR_THERMAL if thermal connection to copper area
 //			CLEAR_NONE if no clearance from copper area
+//		*clearance = clearance required around pad
 // For copper layers:
 //	if no pad, uses annular ring if connected
 //	Uses GetPinConnectionStatus() to determine connections, this uses the area
