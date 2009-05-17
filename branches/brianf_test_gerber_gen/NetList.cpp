@@ -1593,8 +1593,14 @@ int CNetList::RouteSegment( cnet * net, int ic, int iseg, int layer, CSegWidthIn
 //
 int CNetList::AppendSegment( cnet * net, int ic, int x, int y, int layer, CSegWidthInfo const &width )
 {
+	// MUST make a copy of 'width' since the 'width' may be 
+	// referencing something inside of the current connection 
+	// which is about to be destroyed by SetSize().
+	CSegWidthInfo new_width(width);
+
 	// add new vertex and segment
 	cconnect * c =&net->connect[ic];
+
 	c->seg.SetSize( c->nsegs + 1 );
 	c->seg[c->nsegs].Initialize( m_dlist );
 	c->vtx.SetSize( c->nsegs + 2 );
@@ -1615,7 +1621,7 @@ int CNetList::AppendSegment( cnet * net, int ic, int x, int y, int layer, CSegWi
 	seg->layer = layer;
 
 	// Set width attrib
-	seg->width_attrib = width;
+	seg->width_attrib = new_width;
 	seg->width_attrib.SetParent( net->def_width_attrib );
 	seg->width_attrib.Update();
 
@@ -1749,8 +1755,14 @@ int CNetList::InsertSegment( cnet * net, int ic, int iseg, int x, int y, int lay
 		}
 	}
 
+	// Recheck insert_flag since it may be modified above
 	if( insert_flag )
 	{
+		// MUST make a copy of 'width' since the 'width' may be 
+		// referencing something inside of the current connection 
+		// which is about to be destroyed by SetSize().
+		CSegWidthInfo new_width(width);
+
 		// insert new vertex and segment
 		c->seg.SetSize( c->nsegs + 1 );
 		c->seg[c->nsegs].Initialize( m_dlist );
@@ -1787,7 +1799,7 @@ int CNetList::InsertSegment( cnet * net, int ic, int iseg, int x, int y, int lay
 		seg->selected  = 0;
 
 		// Set width attrib
-		seg->width_attrib = width;
+		seg->width_attrib = new_width;
 		seg->width_attrib.SetParent( net->def_width_attrib );
 		seg->width_attrib.Update();
 
@@ -1871,8 +1883,7 @@ int CNetList::InsertSegment( cnet * net, int ic, int iseg, int x, int y, int lay
 	// clean up vias
 	ReconcileVia( net, ic, iseg );
 	ReconcileVia( net, ic, iseg+1 );
-	if( (iseg+1) < c->nsegs )
-		ReconcileVia( net, ic, iseg+2 );
+	ReconcileVia( net, ic, iseg+2 );
 
 	return insert_flag;
 }
@@ -3650,6 +3661,7 @@ void CNetList::GetViaPadInfo( cnet * net, int ic, int iv, int layer,
 	int con_status = GetViaConnectionStatus( net, ic, iv, layer );
 	cconnect * c = &net->connect[ic];
 	cvertex * v = &c->vtx[iv];
+	int via_clearance = v->via_clearance();
 	int w = v->via_w();
 	int hole_w = v->via_hole_w();
 	if( layer > LAY_BOTTOM_COPPER )
@@ -3680,6 +3692,8 @@ void CNetList::GetViaPadInfo( cnet * net, int ic, int iv, int layer,
 		*pad_hole_w = hole_w;
 	if( connect_status )
 		*connect_status = con_status;
+	if( clearance )
+		*clearance = via_clearance;
 }
 
 // Test for a hit on a vertex in a routed or partially-routed trace
@@ -4148,6 +4162,13 @@ int CNetList::UnforceVia( cnet * net, int ic, int ivtx, BOOL set_areas )
 void CNetList::ReconcileVia( cnet * net, int ic, int ivtx, CViaWidthInfo const &new_via_attrib )
 {
 	CVertexIterator vi( net, ic, ivtx );
+	cvertex * vtx_comp = vi.GetFirst();
+	if( vtx_comp == NULL )
+	{
+		// Bad vertex
+		return;
+	}
+
 	cconnect * c = &net->connect[ic];
 	cvertex * v = &c->vtx[ivtx];
 	BOOL via_needed = FALSE;
@@ -4161,7 +4182,7 @@ void CNetList::ReconcileVia( cnet * net, int ic, int ivtx, CViaWidthInfo const &
 	{
 		int layer = -1;
 		int l_comp;
-		for( cvertex * vtx_comp = vi.GetFirst(); vtx_comp != NULL; vtx_comp = vi.GetNext() )
+		for( ; vtx_comp != NULL; vtx_comp = vi.GetNext() )
 		{
 			cconnect * via_c = &net->connect[ vi.getcur_ic() ];
 
