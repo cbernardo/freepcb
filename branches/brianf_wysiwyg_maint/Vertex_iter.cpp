@@ -10,11 +10,6 @@ CVertexIterator::CVertexIterator( cnet * net, int ic, int ivtx )
 	, m_icc(ic)
 	, m_icvtx(ivtx)
 {
-	ASSERT( m_ic < m_net->nconnects );
-
-	cconnect * c = &m_net->connect[m_ic];
-
-	ASSERT( m_ivtx <= c->nsegs );
 }
 
 cconnect       *CVertexIterator::getcur_connect()       { return &m_net->connect[m_icc]; }
