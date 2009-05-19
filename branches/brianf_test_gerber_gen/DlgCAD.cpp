@@ -406,12 +406,12 @@ void CDlgCAD::OnBnClickedGo()
 				f.WriteString( line );
 				::WriteGerberFile( &f, m_flags, layer,
 					m_dlg_log, m_paste_shrink,
-					100000 /* BAF fill clearance */,
+					theApp.m_Doc->m_thermal_clearance,
 					m_mask_clearance, m_pilot_diameter,
 					m_min_silkscreen_width,
-					100000 /*BAF -m_thermal_width */,
+					theApp.m_Doc->m_thermal_width,
 					m_outline_width,
-					100000 /* BAF-m_hole_clearance*/,
+					theApp.m_Doc->m_hole_clearance,
 					m_n_x, m_n_y, m_space_x, m_space_y,
 					m_bd, m_sm, m_pl, m_nl, m_tl, m_dl );
 				f.WriteString( "M02*\n" );	// end of job
