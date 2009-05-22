@@ -234,23 +234,21 @@ void CDL_job_copper_area::ScratchClearances(CDrawInfo &di, int layer, CRect cons
 
 		CRect test_intersect;
 		test_intersect.IntersectRect(area_bounds, el_bounds);
-
 		if( !test_intersect.IsRectEmpty() )
 		{
-			void *net;
-
 #if 0 // enable to show element bounds
-		{
-			CPen *op, pen( PS_SOLID, m_dlist->m_scale, RGB(244, 122, 12) );
-			op = di.DC_Master->SelectObject( &pen );
-			di.DC_Master->MoveTo( el_bounds.TopLeft() );
-			di.DC_Master->LineTo( el_bounds.right, el_bounds.top );
-			di.DC_Master->LineTo( el_bounds.right, el_bounds.bottom );
-			di.DC_Master->LineTo( el_bounds.left,  el_bounds.bottom );
-			di.DC_Master->LineTo( el_bounds.left,  el_bounds.top );
-			di.DC_Master->SelectObject( op );
-		}
+			{
+				CPen *op, pen( PS_SOLID, m_dlist->m_scale, RGB(244, 122, 12) );
+				op = di.DC_Master->SelectObject( &pen );
+				di.DC_Master->MoveTo( el_bounds.TopLeft() );
+				di.DC_Master->LineTo( el_bounds.right, el_bounds.top );
+				di.DC_Master->LineTo( el_bounds.right, el_bounds.bottom );
+				di.DC_Master->LineTo( el_bounds.left,  el_bounds.bottom );
+				di.DC_Master->LineTo( el_bounds.left,  el_bounds.top );
+				di.DC_Master->SelectObject( op );
+			}
 #endif
+			void *net;
 
 			switch (el->id.type)
 			{

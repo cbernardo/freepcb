@@ -4169,6 +4169,7 @@ void CNetList::ReconcileVia( cnet * net, int ic, int ivtx, CViaWidthInfo const &
 	cconnect * c = &net->connect[ic];
 	cvertex * v = &c->vtx[ivtx];
 	BOOL via_needed = FALSE;
+	cvertex * via_found = NULL;
 
 	// see if via needed
 	if( v->force_via_flag )
@@ -4181,6 +4182,12 @@ void CNetList::ReconcileVia( cnet * net, int ic, int ivtx, CViaWidthInfo const &
 		int l_comp;
 		for( ; vtx_comp != NULL; vtx_comp = vi.GetNext() )
 		{
+			// Check if any vertex already has a via
+			if( vtx_comp->viaExists() && !via_found )
+			{
+				via_found = vtx_comp;
+			}
+
 			cconnect * via_c = &net->connect[ vi.getcur_ic() ];
 
 			// Compare segment before via (if exists)
@@ -4197,8 +4204,7 @@ void CNetList::ReconcileVia( cnet * net, int ic, int ivtx, CViaWidthInfo const &
 					{
 						if( l_comp != layer )
 						{
-							via_needed = 1;
-							break;
+							goto reconcile_need_via;
 						}
 					}
 				}
@@ -4218,6 +4224,10 @@ void CNetList::ReconcileVia( cnet * net, int ic, int ivtx, CViaWidthInfo const &
 					{
 						if( l_comp != layer )
 						{
+reconcile_need_via:
+							// Iterate to the next vertex since we've already checked this one
+							vtx_comp = vi.GetNext();
+
 							via_needed = 1;
 							break;
 						}
@@ -4237,20 +4247,23 @@ void CNetList::ReconcileVia( cnet * net, int ic, int ivtx, CViaWidthInfo const &
 			// This via (on this connection) doesn't exist.  Check if any via exists
 			// on any connection.  If so, insert the via using the other via's attributes,
 			// otherwise, create a new via using the net's default attributes.
-			cvertex * vfound = NULL;
 
-			for( cvertex * v = vi.GetFirst(); v != NULL; v = vi.GetNext() )
+			// Continue the search for a via which was started above
+			if ( !via_found )
 			{
-				if( v->viaExists() )
+				for( ; vtx_comp != NULL; vtx_comp = vi.GetNext() )
 				{
-					vfound = v;
-					break;
+					if( vtx_comp->viaExists() )
+					{
+						via_found = vtx_comp;
+						break;
+					}
 				}
 			}
 
-			if( vfound != NULL )
+			if( via_found )
 			{
-				via_attrib = vfound->via_width_attrib;
+				via_attrib = via_found->via_width_attrib;
 			}
 			else
 			{
@@ -4962,7 +4975,7 @@ int CNetList::DrawVia( cnet * net, int ic, int iv )
 				v->x, v->y, 0, 0, 0, 0 );
 		}
 		v->dl_hole = m_dlist->Add( vid, net, LAY_PAD_THRU, DL_HOLE, 1,
-				v->via_hole_w(), 0, 0,
+				v->via_hole_w(), 0, v->via_clearance(),
 				v->x, v->y, 0, 0, 0, 0 );
 	}
 
