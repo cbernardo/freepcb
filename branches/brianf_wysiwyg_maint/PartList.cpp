@@ -86,6 +86,11 @@ void part_pin::set_clearance(CInheritableInfo const &_clearance)
 
 		el->get_dlist()->Set_clearance( el, clearance.m_ca_clearance.m_val );
 	}
+
+	if (dl_hole)
+	{
+		dl_hole->get_dlist()->Set_clearance( dl_hole, clearance.m_ca_clearance.m_val );
+	}
 }
 
 
@@ -1665,13 +1670,17 @@ int CPartList::UndrawPart( cpart * part )
 				for( int il=0; il<pin->dl_els.GetSize(); il++ )
 				{
 					if( pin->dl_els[il] != pin->dl_hole )
-						m_dlist->Remove( pin->dl_els[il] );
+					{
+						pin->dl_els[il]->Remove();
+					}
 				}
 				pin->dl_els.RemoveAll();
 			}
-			m_dlist->Remove( pin->dl_hole );
-			m_dlist->Remove( pin->dl_sel );
+
+			pin->dl_hole->Remove();
 			pin->dl_hole = NULL;
+
+			pin->dl_sel->Remove();
 			pin->dl_sel = NULL;
 		}
 	}
