@@ -89,7 +89,7 @@ CInheritableInfo::Item const *CInheritableInfo::UpdateItem( int item_id, Item &r
 			goto Item_OK;
 
 		default:
-			GetItemExt(item, *pSrcItem);
+			ci->GetItemExt(item, *pSrcItem);
 			goto Item_OK;
 
 		case E_USE_PARENT:

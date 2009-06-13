@@ -135,7 +135,10 @@ CFreePcbDoc::CFreePcbDoc()
 	DWORD dwVersion = ::GetVersion();
 	DWORD dwWindowsMajorVersion =  (DWORD)(LOBYTE(LOWORD(dwVersion)));
 	if( dwWindowsMajorVersion > 4 )
+	{
 		m_pcbu_per_wu = 2540;		// if Win2000 or XP or vista
+	}
+
 	m_dlist = new CDisplayList( m_pcbu_per_wu );
 	m_dlist_fp = new CDisplayList( m_pcbu_per_wu );
 	m_plist = new CPartList( m_dlist, m_smfontutil );
@@ -166,6 +169,9 @@ CFreePcbDoc::CFreePcbDoc()
 	m_dlg_log = new CDlgLog;
 	m_dlg_log->Create( IDD_LOG );
 	m_import_flags = IMPORT_PARTS | IMPORT_NETS | KEEP_TRACES | KEEP_STUBS | KEEP_AREAS;
+
+	m_num_copper_layers = 1;
+	m_num_layers = m_num_copper_layers + LAY_TOP_COPPER;
 
 	// Backward compatibility
 	m_def_size_attrib.m_ca_clearance = 10*NM_PER_MIL;
@@ -385,7 +391,7 @@ void CFreePcbDoc::OnFileNew()
 		for( int i=0; i<m_num_layers; i++ )
 		{
 			m_vis[i] = 1;
-			m_dlist->SetLayerRGB( i, m_rgb[i][0], m_rgb[i][1], m_rgb[i][2] );
+			m_dlist->SetLayerRGB( i, m_rgb[i] );
 		}
 
 		// force redraw of left pane
@@ -610,7 +616,7 @@ BOOL CFreePcbDoc::FileOpen( LPCTSTR fn, BOOL bLibrary )
 		// now set layer visibility
 		for( int i=0; i<m_num_layers; i++ )
 		{
-			m_dlist->SetLayerRGB( i, m_rgb[i][0], m_rgb[i][1], m_rgb[i][2] );
+			m_dlist->SetLayerRGB( i, m_rgb[i] );
 			m_dlist->SetLayerVisible( i, m_vis[i] );
 		}
 		// force redraw of function key text
@@ -1096,21 +1102,21 @@ void CFreePcbDoc::ReadFootprints( CStdioFile * pcb_file,
 
 	if( bFindSection )
 	{
-	// find beginning of shapes section
-	do
-	{
-		err = pcb_file->ReadString( in_str );
-		if( !err )
+		// find beginning of shapes section
+		do
 		{
-			// error reading pcb file
-			CString mess;
-			mess.Format( "Unable to find [footprints] section in file" );
-			AfxMessageBox( mess );
-			return;
+			err = pcb_file->ReadString( in_str );
+			if( !err )
+			{
+				// error reading pcb file
+				CString mess;
+				mess.Format( "Unable to find [footprints] section in file" );
+				AfxMessageBox( mess );
+				return;
+			}
+			in_str.Trim();
 		}
-		in_str.Trim();
-	}
-	while( in_str != "[shapes]" && in_str != "[footprints]" );
+		while( in_str != "[shapes]" && in_str != "[footprints]" );
 	}
 
 	// get each shape and add it to the cache
@@ -1948,11 +1954,13 @@ void CFreePcbDoc::ReadOptions( CStdioFile * pcb_file )
 				}
 				else
 				{
-					m_rgb[layer][0] = my_atoi( &p[2] );
-					m_rgb[layer][1] = my_atoi( &p[3] );
-					m_rgb[layer][2] = my_atoi( &p[4] );
+					m_rgb[layer].Set( my_atoi( &p[2] ), my_atoi( &p[3] ), my_atoi( &p[4] ) );
 					m_vis[layer] = my_atoi( &p[5] );
 				}
+			}
+			else if ( np && key_str == "active_layer" )
+			{
+				m_view->SetActiveLayer( my_atoi( &p[0] ) );
 			}
 		}
 		if( m_fp_visible_grid.GetSize() == 0 )
@@ -2191,10 +2199,12 @@ void CFreePcbDoc::WriteOptions( CStdioFile * file )
 		{
 			line.Format( "  layer_info: \"%s\" %d %d %d %d %d\n",
 				&layer_str[i][0], i,
-				m_rgb[i][0], m_rgb[i][1], m_rgb[i][2], m_vis[i] );
+				m_rgb[i].r, m_rgb[i].g, m_rgb[i].b, m_vis[i]
+			);
 			file->WriteString( line );
 		}
-		file->WriteString( "\n" );
+		line.Format( "  active_layer: %d\n\n", m_view->m_active_layer );
+		file->WriteString( line );
 
 		line.Format( "ratline_width: %d\n", m_ratline_w );
 		file->WriteString( line );
@@ -2244,126 +2254,54 @@ void CFreePcbDoc::InitializeNewProject()
 	for( int i=0; i<MAX_LAYERS; i++ )
 	{
 		m_vis[i] = 0;
-		m_rgb[i][0] = 127;
-		m_rgb[i][1] = 127;
-		m_rgb[i][2] = 127;			// default grey
+		m_rgb[i].Set(127,127,127);
 	}
-	m_rgb[LAY_BACKGND][0] = 0;
-	m_rgb[LAY_BACKGND][1] = 0;
-	m_rgb[LAY_BACKGND][2] = 0;			// background BLACK
-	m_rgb[LAY_VISIBLE_GRID][0] = 255;
-	m_rgb[LAY_VISIBLE_GRID][1] = 255;
-	m_rgb[LAY_VISIBLE_GRID][2] = 255;	// visible grid WHITE
-	m_rgb[LAY_HILITE][0] = 255;
-	m_rgb[LAY_HILITE][1] = 255;
-	m_rgb[LAY_HILITE][2] = 255;			//highlight WHITE
-	m_rgb[LAY_DRC_ERROR][0] = 255;
-	m_rgb[LAY_DRC_ERROR][1] = 128;
-	m_rgb[LAY_DRC_ERROR][2] = 64;		// DRC error ORANGE
-	m_rgb[LAY_BOARD_OUTLINE][0] = 0;
-	m_rgb[LAY_BOARD_OUTLINE][1] = 0;
-	m_rgb[LAY_BOARD_OUTLINE][2] = 255;	//board outline BLUE
-	m_rgb[LAY_SELECTION][0] = 255;
-	m_rgb[LAY_SELECTION][1] = 255;
-	m_rgb[LAY_SELECTION][2] = 255;		//selection WHITE
-	m_rgb[LAY_SILK_TOP][0] = 255;
-	m_rgb[LAY_SILK_TOP][1] = 255;
-	m_rgb[LAY_SILK_TOP][2] =   0;		//top silk YELLOW
-	m_rgb[LAY_SILK_BOTTOM][0] = 255;
-	m_rgb[LAY_SILK_BOTTOM][1] = 192;
-	m_rgb[LAY_SILK_BOTTOM][2] = 192;	//bottom silk PINK
-	m_rgb[LAY_SM_TOP][0] =   160;
-	m_rgb[LAY_SM_TOP][1] =   160;
-	m_rgb[LAY_SM_TOP][2] =   160;		//top solder mask cutouts LIGHT GREY
-	m_rgb[LAY_SM_BOTTOM][0] = 95;
-	m_rgb[LAY_SM_BOTTOM][1] = 95;
-	m_rgb[LAY_SM_BOTTOM][2] = 95;	//bottom solder mask cutouts DARK GREY
-	m_rgb[LAY_PAD_THRU][0] =   0;
-	m_rgb[LAY_PAD_THRU][1] =   0;
-	m_rgb[LAY_PAD_THRU][2] = 255;		//thru-hole pads BLUE
-	m_rgb[LAY_RAT_LINE][0] = 255;
-	m_rgb[LAY_RAT_LINE][1] = 0;
-	m_rgb[LAY_RAT_LINE][2] = 255;		//ratlines VIOLET
-	m_rgb[LAY_TOP_COPPER][0] =   0;
-	m_rgb[LAY_TOP_COPPER][1] = 255;
-	m_rgb[LAY_TOP_COPPER][2] =   0;		//top copper GREEN
-	m_rgb[LAY_BOTTOM_COPPER][0] = 255;
-	m_rgb[LAY_BOTTOM_COPPER][1] =   0;
-	m_rgb[LAY_BOTTOM_COPPER][2] =   0;	//bottom copper RED
-	m_rgb[LAY_BOTTOM_COPPER+1][0] = 64;
-	m_rgb[LAY_BOTTOM_COPPER+1][1] = 128;
-	m_rgb[LAY_BOTTOM_COPPER+1][2] = 64;
-	m_rgb[LAY_BOTTOM_COPPER+2][0] = 128; // inner 1
-	m_rgb[LAY_BOTTOM_COPPER+2][1] = 64;
-	m_rgb[LAY_BOTTOM_COPPER+2][2] = 64;
-	m_rgb[LAY_BOTTOM_COPPER+3][0] = 64; // inner 2
-	m_rgb[LAY_BOTTOM_COPPER+3][1] = 64;
-	m_rgb[LAY_BOTTOM_COPPER+3][2] = 128;
-	m_rgb[LAY_BOTTOM_COPPER+4][0] = 64; // inner 3
-	m_rgb[LAY_BOTTOM_COPPER+4][1] = 64;
-	m_rgb[LAY_BOTTOM_COPPER+4][2] = 64;
-	m_rgb[LAY_BOTTOM_COPPER+5][0] = 64; // inner 5
-	m_rgb[LAY_BOTTOM_COPPER+5][1] = 64;
-	m_rgb[LAY_BOTTOM_COPPER+5][2] = 64;
-	m_rgb[LAY_BOTTOM_COPPER+6][0] = 64; // inner 6
-	m_rgb[LAY_BOTTOM_COPPER+6][1] = 64;
-	m_rgb[LAY_BOTTOM_COPPER+6][2] = 64;
+	m_rgb[LAY_BACKGND]       = C_RGB::black;    // background BLACK
+	m_rgb[LAY_VISIBLE_GRID]  = C_RGB::white;	// visible grid WHITE
+	m_rgb[LAY_HILITE]        = C_RGB::white;	// highlight WHITE
+	m_rgb[LAY_DRC_ERROR]     = C_RGB::orange;	// DRC error ORANGE
+	m_rgb[LAY_BOARD_OUTLINE] = C_RGB::blue;     //board outline BLUE
+	m_rgb[LAY_SELECTION]     = C_RGB::white;	//selection WHITE
+	m_rgb[LAY_SILK_TOP]      = C_RGB::yellow;   //top silk YELLOW
+	m_rgb[LAY_SILK_BOTTOM]   .Set(255,192,192); //bottom silk PINK
+	m_rgb[LAY_SM_TOP]        .Set(160,160,160); //top solder mask cutouts LIGHT GREY
+	m_rgb[LAY_SM_BOTTOM]     .Set( 95, 95, 95); //bottom solder mask cutouts DARK GREY
+	m_rgb[LAY_PAD_THRU]      = C_RGB::blue;
+	m_rgb[LAY_RAT_LINE]      = C_RGB::violet;
+	m_rgb[LAY_TOP_COPPER]    = C_RGB::green;    //top copper GREEN
+	m_rgb[LAY_BOTTOM_COPPER] = C_RGB::red;      //bottom copper RED
+	m_rgb[LAY_BOTTOM_COPPER+1].Set( 64,128, 64);
+	m_rgb[LAY_BOTTOM_COPPER+2].Set(128, 64, 64); // inner 1
+	m_rgb[LAY_BOTTOM_COPPER+3].Set( 64, 64,128); // inner 2
+	m_rgb[LAY_BOTTOM_COPPER+4].Set( 64, 64, 64);  // inner 3
+	m_rgb[LAY_BOTTOM_COPPER+5].Set( 64, 64, 64);  // inner 3
+	m_rgb[LAY_BOTTOM_COPPER+6].Set( 64, 64, 64);  // inner 3
 
 	// now set layer colors and visibility
 	for( int i=0; i<m_num_layers; i++ )
 	{
 		m_vis[i] = 1;
-		m_dlist->SetLayerRGB( i, m_rgb[i][0], m_rgb[i][1], m_rgb[i][2] );
+		m_dlist->SetLayerRGB( i, m_rgb[i] );
 		m_dlist->SetLayerVisible( i, m_vis[i] );
 	}
 
 	// colors for footprint editor layers
 	m_fp_num_layers = NUM_FP_LAYERS;
-	m_fp_rgb[LAY_FP_SELECTION][0] = 255;
-	m_fp_rgb[LAY_FP_SELECTION][1] = 255;
-	m_fp_rgb[LAY_FP_SELECTION][2] = 255;		//selection WHITE
-	m_fp_rgb[LAY_FP_BACKGND][0] = 0;
-	m_fp_rgb[LAY_FP_BACKGND][1] = 0;
-	m_fp_rgb[LAY_FP_BACKGND][2] = 0;			// background BLACK
-	m_fp_rgb[LAY_FP_VISIBLE_GRID][0] = 255;
-	m_fp_rgb[LAY_FP_VISIBLE_GRID][1] = 255;
-	m_fp_rgb[LAY_FP_VISIBLE_GRID][2] = 255;	// visible grid WHITE
-	m_fp_rgb[LAY_FP_HILITE][0] = 255;
-	m_fp_rgb[LAY_FP_HILITE][1] = 255;
-	m_fp_rgb[LAY_FP_HILITE][2] = 255;		//highlight WHITE
-	m_fp_rgb[LAY_FP_SILK_TOP][0] = 255;
-	m_fp_rgb[LAY_FP_SILK_TOP][1] = 255;
-	m_fp_rgb[LAY_FP_SILK_TOP][2] =   0;		//top silk YELLOW
-	m_fp_rgb[LAY_FP_CENTROID][0] = 255;
-	m_fp_rgb[LAY_FP_CENTROID][1] = 255;
-	m_fp_rgb[LAY_FP_CENTROID][2] = 255;		//centroid WHITE
-	m_fp_rgb[LAY_FP_DOT][0] = 255;
-	m_fp_rgb[LAY_FP_DOT][1] = 128;
-	m_fp_rgb[LAY_FP_DOT][2] =  64;			//adhesive dot ORANGE
-	m_fp_rgb[LAY_FP_PAD_THRU][0] =   0;
-	m_fp_rgb[LAY_FP_PAD_THRU][1] =   0;
-	m_fp_rgb[LAY_FP_PAD_THRU][2] = 255;		//thru-hole pads BLUE
-	m_fp_rgb[LAY_FP_TOP_COPPER][0] =   0;
-	m_fp_rgb[LAY_FP_TOP_COPPER][1] = 255;
-	m_fp_rgb[LAY_FP_TOP_COPPER][2] =   0;		//top copper GREEN
-	m_fp_rgb[LAY_FP_INNER_COPPER][0] =  128;
-	m_fp_rgb[LAY_FP_INNER_COPPER][1] = 128;
-	m_fp_rgb[LAY_FP_INNER_COPPER][2] =  128;		//inner copper GREY
-	m_fp_rgb[LAY_FP_BOTTOM_COPPER][0] = 255;
-	m_fp_rgb[LAY_FP_BOTTOM_COPPER][1] = 0;
-	m_fp_rgb[LAY_FP_BOTTOM_COPPER][2] = 0;		//bottom copper RED
-	m_fp_rgb[LAY_FP_TOP_MASK][0] = 0;
-	m_fp_rgb[LAY_FP_TOP_MASK][1] = 127;
-	m_fp_rgb[LAY_FP_TOP_MASK][2] = 0;		//top mask DARK GREEN
-	m_fp_rgb[LAY_FP_TOP_PASTE][0] = 0;
-	m_fp_rgb[LAY_FP_TOP_PASTE][1] = 127;
-	m_fp_rgb[LAY_FP_TOP_PASTE][2] = 0;		//top paste DARK GREEN
-	m_fp_rgb[LAY_FP_BOTTOM_MASK][0] = 127;
-	m_fp_rgb[LAY_FP_BOTTOM_MASK][1] = 0;
-	m_fp_rgb[LAY_FP_BOTTOM_MASK][2] = 0;		//bottom mask DARK RED
-	m_fp_rgb[LAY_FP_BOTTOM_PASTE][0] = 127;
-	m_fp_rgb[LAY_FP_BOTTOM_PASTE][1] = 0;
-	m_fp_rgb[LAY_FP_BOTTOM_PASTE][2] = 0;		//bottom paste DARK RED
+	m_fp_rgb[LAY_FP_SELECTION]     = C_RGB::white;     // selection WHITE
+	m_fp_rgb[LAY_FP_BACKGND]       = C_RGB::black;     // background BLACK
+	m_fp_rgb[LAY_FP_VISIBLE_GRID]  = C_RGB::white;     // visible grid WHITE
+	m_fp_rgb[LAY_FP_HILITE]        = C_RGB::white;     // highlight WHITE
+	m_fp_rgb[LAY_FP_SILK_TOP]      = C_RGB::yellow;    // top silk YELLOW
+	m_fp_rgb[LAY_FP_CENTROID]      = C_RGB::white;     // centroid WHITE
+	m_fp_rgb[LAY_FP_DOT]           = C_RGB::orange;    // adhesive dot ORANGE
+	m_fp_rgb[LAY_FP_PAD_THRU]      = C_RGB::blue;      // thru-hole pads BLUE
+	m_fp_rgb[LAY_FP_TOP_COPPER]    = C_RGB::green;     // top copper GREEN
+	m_fp_rgb[LAY_FP_INNER_COPPER]  = C_RGB::grey;      // inner copper GREY
+	m_fp_rgb[LAY_FP_BOTTOM_COPPER] = C_RGB::red;       // bottom copper RED
+	m_fp_rgb[LAY_FP_TOP_MASK]      = C_RGB::dark_green;// top mask DARK GREEN
+	m_fp_rgb[LAY_FP_TOP_PASTE]     = C_RGB::dark_green;// top paste DARK GREEN
+	m_fp_rgb[LAY_FP_BOTTOM_MASK]   = C_RGB::dark_red;  // bottom mask DARK RED
+	m_fp_rgb[LAY_FP_BOTTOM_PASTE]  = C_RGB::dark_red;  // bottom paste DARK RED
 
 	// default visible grid spacing menu values (in NM)
 	m_visible_grid.RemoveAll();
@@ -2626,7 +2564,7 @@ void CFreePcbDoc::OnViewLayers()
 	{
 		for( int i=0; i<m_num_layers; i++ )
 		{
-			m_dlist->SetLayerRGB( i, m_rgb[i][0], m_rgb[i][1], m_rgb[i][2] );
+			m_dlist->SetLayerRGB( i, m_rgb[i] );
 			m_dlist->SetLayerVisible( i, m_vis[i] );
 		}
 

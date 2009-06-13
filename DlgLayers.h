@@ -1,5 +1,6 @@
 #pragma once
 #include "layers.h"
+#include "rgb.h"
 
 #define NUM_DLG_LAYERS (LAY_TOP_COPPER + 16)
 
@@ -22,8 +23,8 @@ protected:
 private:
 	int m_nlayers;
 	int * m_vis;
-	int m_rgb[MAX_LAYERS][3];
-	int * m_rgb_ptr;
+	C_RGB m_rgb[MAX_LAYERS];
+	C_RGB * m_rgb_ptr;
 	CBrush m_brush;
 	CColorDialog * m_cdlg;
 
@@ -33,7 +34,7 @@ public:
 	int m_check[NUM_DLG_LAYERS];
 	int m_ratline_w;
 
-	void Initialize( int nlayers, int ratlineWidth, int vis[], int rgb[][3] );
+	void Initialize( int nlayers, int ratlineWidth, int vis[], C_RGB rgb[] );
 
 protected:
 	void EditColor( int layer );
