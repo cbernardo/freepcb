@@ -190,13 +190,11 @@ void CDL_job_copper_area::Draw(CDrawInfo &di) const
 		// Scratch the clearances
 		void *area_net = my_poly->GetPtr();
 
+		// Scratch the trace/pin clearances
 		ScratchClearances(di, my_poly->GetLayer(), area_bounds, area_net);
 
-		if( (my_poly->GetLayer() != LAY_TOP_COPPER) &&
-		    (my_poly->GetLayer() != LAY_BOTTOM_COPPER) )
-		{
-			ScratchClearances(di, LAY_PAD_THRU, area_bounds, area_net);
-		}
+		// Scratch the hole clearances
+		ScratchClearances(di, LAY_PAD_THRU, area_bounds, area_net);
 
 		// Restore original drawing objects
 		{
@@ -236,23 +234,21 @@ void CDL_job_copper_area::ScratchClearances(CDrawInfo &di, int layer, CRect cons
 
 		CRect test_intersect;
 		test_intersect.IntersectRect(area_bounds, el_bounds);
-
 		if( !test_intersect.IsRectEmpty() )
 		{
-			void *net;
-
 #if 0 // enable to show element bounds
-		{
-			CPen *op, pen( PS_SOLID, m_dlist->m_scale, RGB(244, 122, 12) );
-			op = di.DC_Master->SelectObject( &pen );
-			di.DC_Master->MoveTo( el_bounds.TopLeft() );
-			di.DC_Master->LineTo( el_bounds.right, el_bounds.top );
-			di.DC_Master->LineTo( el_bounds.right, el_bounds.bottom );
-			di.DC_Master->LineTo( el_bounds.left,  el_bounds.bottom );
-			di.DC_Master->LineTo( el_bounds.left,  el_bounds.top );
-			di.DC_Master->SelectObject( op );
-		}
+			{
+				CPen *op, pen( PS_SOLID, m_dlist->m_scale, RGB(244, 122, 12) );
+				op = di.DC_Master->SelectObject( &pen );
+				di.DC_Master->MoveTo( el_bounds.TopLeft() );
+				di.DC_Master->LineTo( el_bounds.right, el_bounds.top );
+				di.DC_Master->LineTo( el_bounds.right, el_bounds.bottom );
+				di.DC_Master->LineTo( el_bounds.left,  el_bounds.bottom );
+				di.DC_Master->LineTo( el_bounds.left,  el_bounds.top );
+				di.DC_Master->SelectObject( op );
+			}
 #endif
+			void *net;
 
 			switch (el->id.type)
 			{
