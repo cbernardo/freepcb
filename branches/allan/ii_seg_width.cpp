@@ -4,7 +4,7 @@
 #include "ii_seg_width.h"
 
 
-CSegWidthInfo &CSegWidthInfo::operator = (CInheritableInfo const &from)
+CSegWidthInfo &CSegWidthInfo::operator = (CInheritableInfo const &from)  
 {
 	CInheritableInfo::operator = (from);
 
