@@ -10614,14 +10614,10 @@ void CFreePcbView::OnGroupCopy()
 			// add part to group partlist
 			cpart * part = (cpart*)m_sel_ptrs[i];
 			CShape * shape = part->shape;
-			cpart * g_part = g_pl->Add( part->shape, &part->ref_des, &part->package, part->x, part->y,
-				part->side, part->angle, 1, 0 );
-			// set ref text parameters
-			g_part->m_ref_angle = part->m_ref_angle;
-			g_part->m_ref_size = part->m_ref_size;
-			g_part->m_ref_w = part->m_ref_w;
-			g_part->m_ref_xi = part->m_ref_xi;
-			g_part->m_ref_yi = part->m_ref_yi;
+			cpart * g_part = g_pl->Add( part->shape, &part->ref_des, &part->package, part->x, part->y, part->side, part->angle, 1, 0 );
+
+			g_part->copy_attrib_from( *part );
+
 			// add pin nets to group netlist
 			for( int ip=0; ip<part->shape->GetNumPins(); ip++ )
 			{
@@ -11517,6 +11513,9 @@ void CFreePcbView::OnGroupPaste()
 			cpart * prj_part = pl->Add( g_part->shape, &new_ref, &g_part->package,
 				g_part->x + dlg.m_dx, g_part->y + dlg.m_dy,
 				g_part->side, g_part->angle, 1, 0 );
+
+			prj_part->copy_attrib_from( *g_part );
+
 			ref_des_map.SetAt( new_ref, NULL );
 			SaveUndoInfoForPart( prj_part,
 				CPartList::UNDO_PART_ADD, &prj_part->ref_des, FALSE, m_Doc->m_undo_list );
