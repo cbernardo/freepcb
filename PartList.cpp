@@ -31,6 +31,36 @@ cpart::~cpart()
 	CIterator_cpart::OnRemove(this);
 }
 
+void cpart::copy_attrib_from(cpart const &from)
+{
+	visible     = from.visible;
+	side        = from.side;
+	angle       = from.angle;
+	glued       = from.glued;
+
+	// set ref text parameters
+	m_ref_vis   = from.m_ref_vis;
+	m_ref_xi    = from.m_ref_xi;
+	m_ref_yi    = from.m_ref_yi;
+	m_ref_angle = from.m_ref_angle;
+	m_ref_size  = from.m_ref_size;
+	m_ref_w     = from.m_ref_w;
+
+	// Don't copy ref_des.  That is handled elsewhere since the
+	// reference designator determines attached nets and so forth.
+
+	// set value text parameters
+	m_value_vis   = from.m_value_vis;
+	m_value_xi    = from.m_value_xi;
+	m_value_yi    = from.m_value_yi;
+	m_value_angle = from.m_value_angle;
+	m_value_size  = from.m_value_size;
+	m_value_w     = from.m_value_w;
+	value         = from.value;
+}
+
+
+
 part_pin::part_pin() : clearance( theApp.m_Doc->m_def_size_attrib )
 {
 }
@@ -2528,7 +2558,7 @@ int CPartList::WriteParts( CStdioFile * file )
 		cpart * part;
 		CArray<cpart::CSortElement_ref_des> parts;
 		parts.SetSize( GetNumParts() );
-	
+
 		// Get the unsorted part names
 		for( i = 0, part = iter.GetFirst(); part != NULL; part = iter.GetNext(), i++ )
 		{

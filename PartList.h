@@ -123,9 +123,9 @@ class cpart : public CDLinkList
 public: // class used to represent a part for std::sort()
 	class CSortElement_ref_des
 	{
-	public:
 		cpart * part;
 
+	public:
 		int operator < (CSortElement_ref_des const &to) const
 		{
 			return part->ref_des < to.part->ref_des;
@@ -146,6 +146,7 @@ public: // class used to represent a part for std::sort()
 public:
 	cpart();
 	~cpart();
+
 	id m_id;			// instance id for this part
 	BOOL drawn;			// TRUE if part has been drawn to display list
 	BOOL visible;		// 0 to hide part
@@ -187,6 +188,8 @@ public:
 	int layers;		// bit mask for layers with pads
 	// flag used for importing
 	BOOL bPreserve;	// preserve connections to this part
+
+  void copy_attrib_from(cpart const &from);
 };
 
 
