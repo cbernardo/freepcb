@@ -30,7 +30,7 @@
 #include "DlgSideStyle.h"
 #include "DlgValueText.h"
 #include "DlgRatWidth.h"
-#include "DlgRatWidth.h"
+#include "DlgChooseNetName.h"
 
 
 // globals
@@ -219,6 +219,7 @@ ON_COMMAND(ID_SEGMENT_CHANGELAYER, OnSegmentChangeLayer)
 ON_COMMAND(ID_SEGMENT_ADDVERTEX, OnSegmentAddVertex)
 ON_COMMAND(ID_CONNECT_CHANGELAYER, OnConnectChangeLayer)
 ON_COMMAND(ID_NET_CHANGELAYER, OnNetChangeLayer)
+ON_COMMAND(ID_NET_COMBINEWITH, OnNetCombineWith)
 ON_COMMAND(ID_NET_EDITNET, OnNetEditnet)
 ON_COMMAND(ID_TOOLS_MOVEORIGIN, OnToolsMoveOrigin)
 ON_WM_LBUTTONUP()
@@ -666,7 +667,7 @@ void CFreePcbView::OnSize(UINT nType, int cx, int cy)
 //
 // Param:
 //	point    - current mouse position (relative to client window)
-//	hit_info - Drawing objects hit by mouse
+//	hit_info - Drawing objects hit by mouse (must be sorted - priority order)
 //	num_hits - # objects in hit_info array
 int CFreePcbView::SelectObjPopup( CPoint const &point, CDL_job::HitInfo hit_info[], int num_hits )
 {
@@ -688,7 +689,7 @@ int CFreePcbView::SelectObjPopup( CPoint const &point, CDL_job::HitInfo hit_info
 	CArray<CBitmap> bitmaps;
 	bitmaps.SetSize(num_hits);
 
-	int sel;
+	int sel = 0;
 	{
 		CString str;
 		CMenu file_menu;
@@ -696,6 +697,12 @@ int CFreePcbView::SelectObjPopup( CPoint const &point, CDL_job::HitInfo hit_info
 
 		for( idx = 0, pInfo = &hit_info[0]; idx < num_hits; idx++, pInfo++ )
 		{
+			// Don't display masked items
+			if( pInfo->priority < 0 )
+			{
+				break;
+			}
+
 			CRect r(0,0, 139,23);
 			CBitmap *pBitmap = &bitmaps[idx];
 			str = "";
@@ -856,9 +863,12 @@ int CFreePcbView::SelectObjPopup( CPoint const &point, CDL_job::HitInfo hit_info
 			file_menu.AppendMenu( MF_STRING, idx + 1, pBitmap );
 		}
 
-		CRect r;
-		GetWindowRect(r);
-		sel = file_menu.TrackPopupMenu(TPM_LEFTALIGN | TPM_RIGHTBUTTON | TPM_RETURNCMD, point.x + r.left + 5, point.y + r.top + 5, this);
+		if (idx > 0)
+		{
+			CRect r;
+			GetWindowRect(r);
+			sel = file_menu.TrackPopupMenu(TPM_LEFTALIGN | TPM_RIGHTBUTTON | TPM_RETURNCMD, point.x + r.left + 5, point.y + r.top + 5, this);
+		}
 	}
 
 	// Release GDI objects
@@ -1042,7 +1052,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 	else
 	{
 		// clicked in PCB pane
-		if(	CurNone() || CurSelected() )
+		if( CurNone() || CurSelected() )
 		{
 			// see if new item selected
 			CPoint p = m_dlist->WindowToPCB( point );
@@ -1063,19 +1073,49 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 			{
 				// save masks in case they are changed
 				id old_mask_pins = m_mask_id[SEL_MASK_PINS];
-				id old_mask_ref = m_mask_id[SEL_MASK_REF];
-				if( nFlags & MK_CONTROL && m_mask_id[SEL_MASK_PARTS].ii == 0xfffe )
+				id old_mask_ref  = m_mask_id[SEL_MASK_REF];
+
+				if( ( nFlags & MK_CONTROL ) && m_mask_id[SEL_MASK_PARTS].ii == 0xfffe )
 				{
 					// if control key pressed and parts masked, also mask pins and ref
 					m_mask_id[SEL_MASK_PINS].ii = 0xfffe;
-					m_mask_id[SEL_MASK_REF].ii = 0xfffe;
+					m_mask_id[SEL_MASK_REF].ii  = 0xfffe;
+				}
+
+				// Default selection mask is to use the global selection mask
+				id *pMask_id = m_mask_id;
+				int num_incl_masks = NUM_SEL_MASKS;
+
+				id mask_id[4];
+
+				if( m_cursor_mode == CUR_SEL_NET_COMBINE )
+				{
+					// Only select things on nets
+					mask_id[0].Set( ID_PART, ID_SEL_PAD );
+					mask_id[1].Set( ID_NET, ID_CONNECT, 0, ID_SEL_SEG );
+					mask_id[2].Set( ID_NET, ID_CONNECT, 0, ID_SEL_VERTEX );
+					mask_id[3].Set( ID_NET, ID_AREA );
+
+					pMask_id = mask_id;
+					num_incl_masks = sizeof(mask_id) / sizeof(mask_id[0]);
+				}
+				else
+				{
+					if( nFlags & MK_SHIFT )
+					{
+						// Allow all items to be selected
+						pMask_id = NULL;
+						num_incl_masks = 0;
+					}
 				}
 
 				if( nFlags & MK_SHIFT )
 				{
 					idx = m_dlist->TestSelect(
 						p.x, p.y,                     // Point
-						hit_info, 25, num_hits        // Hit Information
+						hit_info, 25, num_hits,       // Hit Information
+						NULL, NULL,                   // No exclusions
+						pMask_id, num_incl_masks      // Inclusions
 					);
 				}
 				else
@@ -1084,13 +1124,13 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 						p.x, p.y,					  // Point
 						hit_info, MAX_HITS, num_hits, // Hit Information
 						&m_sel_id, sel_ptr,			  // Exclusions
-						m_mask_id, NUM_SEL_MASKS	  // Inclusions
+						pMask_id, num_incl_masks      // Inclusions
 					);
 				}
 
 				// restore mask
 				m_mask_id[SEL_MASK_PINS] = old_mask_pins;
-				m_mask_id[SEL_MASK_REF] = old_mask_ref;
+				m_mask_id[SEL_MASK_REF]  = old_mask_ref;
 			}
 
 			if( idx >= 0 )
@@ -1103,10 +1143,67 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 				}
 			}
 
-			if( idx >= 0 )
+			if( m_cursor_mode == CUR_SEL_NET_COMBINE )
 			{
-				void * ptr = hit_info[idx].ptr;
-				id     sid = hit_info[idx].ID;
+				if( idx >= 0 )
+				{
+					// First net is in m_sel_net
+					// Get second net
+					void *ptr = hit_info[idx].ptr;
+					sid = hit_info[idx].ID;
+
+					cnet *net1 = m_sel_net;
+					cnet *net2 = NULL;
+
+					if( sid.type == ID_PART && sid.st == ID_SEL_PAD )
+					{
+						cpart *part = (cpart*)ptr;
+						net2 = m_Doc->m_plist->GetPinNet( part, sid.i );
+					}
+					else if( sid.type == ID_NET )
+					{
+						net2 = (cnet*)ptr;
+					}
+
+					if( m_sel_net != net2 )
+					{
+						if( net2 != NULL )
+						{
+							CombineTwoNets(m_sel_net, net2);
+							SetCursorMode( CUR_NET_SELECTED );
+						}
+						else
+						{
+							// Current selection better be an unassigned pad.  Double check to be sure,
+							if( sid.type == ID_PART && sid.st == ID_SEL_PAD )
+							{
+								// Add the pad to the net
+								cpart *part = (cpart*)ptr;
+
+								SaveUndoInfoForNetAndConnections( net1, CNetList::UNDO_NET_MODIFY,         TRUE,  m_Doc->m_undo_list );
+								SaveUndoInfoForPart             ( part, CPartList::UNDO_PART_MODIFY, NULL, FALSE, m_Doc->m_undo_list );
+
+								CString pin_name = part->shape->GetPinNameByIndex( sid.i );
+								m_Doc->m_nlist->AddNetPin( net1, part->ref_des, pin_name );
+								m_Doc->m_nlist->OptimizeConnections( net1 );
+
+								m_Doc->m_dlist->CancelHighLight();
+								m_Doc->m_nlist->HighlightNet( net1 );
+								m_Doc->m_plist->HighlightAllPadsOnNet( net1 );
+
+								m_Doc->ProjectModified( TRUE );
+								Invalidate( FALSE );
+
+								SetCursorMode( CUR_NET_SELECTED );
+							}
+						}
+					}
+				}
+			}
+			else if( idx >= 0 )
+			{
+				void   *ptr = hit_info[idx].ptr;
+ 				        sid = hit_info[idx].ID;
 				m_sel_layer = hit_info[idx].layer;
 
 				// check for second pad selected while holding down 's'
@@ -5592,6 +5689,10 @@ int CFreePcbView::ShowSelectStatus()
 	case CUR_DRAG_MEASURE_1:
 		str = "Measurement mode: left-click to start";
 		break;
+
+	case CUR_SEL_NET_COMBINE:
+		str = "Select nets to combine: left-click to combine with current net, esc to cancel";
+		break;
 	}
 	pMain->DrawStatus( 3, &str );
 
@@ -6901,6 +7002,11 @@ void CFreePcbView::OnRatlineChangeEndPin()
 		y = c->vtx[m_sel_id.ii].y;
 	}
 	m_dlist->StartDraggingRatLine( pDC, 0, 0, x, y, LAY_RAT_LINE, 1, 1 );
+
+	// Highlight all the possible pads to connect to
+	m_Doc->m_plist->HighlightAllPadsOnNet( m_sel_net ); // On net
+	m_Doc->m_plist->HighlightAllPadsOnNet( NULL );      // Yet unconnected
+
 	SetCursorMode( CUR_DRAG_RAT_PIN );
 	ReleaseDC( pDC );
 	Invalidate( FALSE );
@@ -9178,6 +9284,35 @@ void CFreePcbView::OnNetChangeLayer()
 {
 	ChangeTraceLayer( 2 );
 }
+
+void CFreePcbView::OnNetCombineWith()
+{
+	SetCursorMode( CUR_SEL_NET_COMBINE );
+	Invalidate( FALSE );
+}
+
+// Combines net1 and net2.
+// net2 is always assimilated into net1
+void CFreePcbView::CombineTwoNets(cnet *net1, cnet *net2)
+{
+	SaveUndoInfoForAllNets( TRUE, m_Doc->m_undo_list );
+
+	CArray<CString> net_names;
+	net_names.SetSize(2);
+
+	net_names[0] = net1->name;
+	net_names[1] = net2->name;
+
+	m_Doc->CombineNets( net_names, net_names[0], FALSE );
+
+	m_Doc->m_dlist->CancelHighLight();
+	m_Doc->m_nlist->HighlightNet( net1 );
+	m_Doc->m_plist->HighlightAllPadsOnNet( net1 );
+
+	m_Doc->ProjectModified( TRUE );
+	Invalidate( FALSE );
+}
+
 
 // change layer of routed trace segments
 // if mode = 0, current segment

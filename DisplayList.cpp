@@ -1005,6 +1005,7 @@ int CDisplayList::TestSelect(
 						priority++;
 					else if( hit_info[i].ID.type == ID_NET && hit_info[i].ID.st == ID_CONNECT && hit_info[i].ID.sst == ID_SEL_VERTEX )
 						priority++;
+
 					hit_info[i].priority = priority;
 					if( priority >= best_hit_priority )
 					{

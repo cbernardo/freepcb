@@ -16,6 +16,8 @@ class CFreePcbView;
 // cursor modes
 enum {
 	CUR_NONE_SELECTED = 0,		// nothing selected
+
+	// Selected Modes
 	CUR_SMCUTOUT_CORNER_SELECTED,	// corner of board outline sel.
 	CUR_SMCUTOUT_SIDE_SELECTED,	// edge of board outline sel.
 	CUR_BOARD_CORNER_SELECTED,	// corner of board outline sel.
@@ -35,7 +37,10 @@ enum {
 	CUR_AREA_SIDE_SELECTED,		// edge of copper area selected
 	CUR_DRE_SELECTED,			// DRC error selected
 	CUR_GROUP_SELECTED,			// multiple parts selected
-	CUR_NUM_SELECTED_MODES,		// number of SELECTED modes
+	CUR_SEL_NET_COMBINE,        // Selecting a target net in "net combine with" command
+	CUR_NUM_SELECTED_MODES,		// number of SELECTED modes - MUST be last of the selected modes
+
+	// Dragging Modes
 	CUR_ADD_BOARD,		// dragging starting point of board outline
 	CUR_DRAG_BOARD_1,	// dragging first corner of board outline
 	CUR_DRAG_BOARD,		// dragging next corner of board outline
@@ -543,6 +548,7 @@ public:
 	void SetActiveLayer(int layer);
 	void MakeLayerVisible(int layer);
 	void OnDeleteAny();
+	void CombineTwoNets(cnet *net1, cnet *net2);
 
 protected:
 	CString GetViaText( cvertex const &Vtx );
@@ -656,6 +662,7 @@ public:
 	afx_msg void OnSegmentChangeLayer();
 	afx_msg void OnConnectChangeLayer();
 	afx_msg void OnNetChangeLayer();
+	afx_msg void OnNetCombineWith();
 	afx_msg void OnNetEditnet();
 	afx_msg void OnToolsMoveOrigin();
 	afx_msg void OnLButtonUp(UINT nFlags, CPoint point);

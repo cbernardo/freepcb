@@ -4474,75 +4474,106 @@ void CFreePcbDoc::OnProjectCombineNets()
 	int ret = dlg.DoModal();
 	if( ret == IDOK )
 	{
-		// copy existing netlist
-		CNetList * old_nlist = new CNetList( NULL, NULL );	// save to fix traces
-		old_nlist->Copy( m_nlist );
-		// combine nets under new name
-		CString c_name = dlg.m_new_name;
-		if( c_name == "" )
-			ASSERT(0);
-		CArray<CString> * names = &dlg.m_names;
-		netlist_info nl_info;
-		m_nlist->ExportNetListInfo( &nl_info );
-		// now combine the nets
-		// first, find the net and index for the combined net
-		int c_index = -1;
-		cnet * c_net = NULL;
-		for( int in=0; in<nl_info.GetSize(); in++ )
+		CombineNets( dlg.m_names, dlg.m_new_name, TRUE );
+	}
+}
+
+
+void CFreePcbDoc::CombineNets(CArray<CString> const &nets_to_combine, CString const &c_name, int bDelete)
+{
+	if( c_name == "" )
+	{
+		ASSERT(0);
+		return;
+	}
+
+	// copy existing netlist
+	CNetList * old_nlist = new CNetList( NULL, NULL );	// save to fix traces
+	old_nlist->Copy( m_nlist );
+
+	// combine nets under new name
+	netlist_info nl_info;
+	m_nlist->ExportNetListInfo( &nl_info );
+
+	// now combine the nets
+
+	// first, find the net and index for the combined net
+	int c_index = -1;
+	cnet * c_net = NULL;
+	for( int in=0; in<nl_info.GetSize(); in++ )
+	{
+		if( nl_info[in].name == c_name )
 		{
-			CString nl_name = nl_info[in].name;
-			if( nl_name == c_name )
-			{
-				c_index = in;
-				c_net = nl_info[in].net;
-				break;
-			}
+			c_index = in;
+			c_net = nl_info[in].net;
+			break;
 		}
-		if( c_index == -1 )
-			ASSERT(0);
-		// now, combine the other nets
-		for( int i=0; i<names->GetSize(); i++ )
+	}
+	if( c_index == -1 )
+	{
+		ASSERT(0);
+		return;
+	}
+
+	// now, combine the other nets
+	for( int i=0; i < nets_to_combine.GetSize(); i++ )
+	{
+		CString name = nets_to_combine[i];		// net name to combine
+		int nl_index = -1;
+		if( name != c_name )
 		{
-			CString name = (*names)[i];		// net name to combine
-			int nl_index = -1;
-			if( name != c_name )
+			// combine this net
+			for( int in=0; in < nl_info.GetSize(); in++ )
 			{
-				// combine this net
-				for( int in=0; in<nl_info.GetSize(); in++ )
+				if( nl_info[in].name == name )
 				{
-					CString nl_name = nl_info[in].name;
-					if( nl_name == name )
-					{
-						nl_index = in;
-						break;
-					}
+					nl_index = in;
+					break;
 				}
-				if( nl_index == -1 )
-					ASSERT(0);
-				for( int ip=0; ip<nl_info[nl_index].pin_name.GetSize(); ip++ )
-				{
-					CString * pname = &nl_info[nl_index].pin_name[ip];
-					CString * pref = &nl_info[nl_index].ref_des[ip];
-					int ipp = nl_info[c_index].pin_name.GetSize();
-					nl_info[c_index].pin_name.SetAtGrow( ipp, *pname );
-					nl_info[c_index].ref_des.SetAtGrow( ipp, *pref );
-					nl_info[c_index].modified = TRUE;
-				}
+			}
+			if( nl_index == -1 )
+			{
+				ASSERT(0);
+				continue;
+			}
+
+			for( int ip=0; ip < nl_info[nl_index].pin_name.GetSize(); ip++ )
+			{
+				CString * pname = &nl_info[nl_index].pin_name[ip];
+				CString * pref  = &nl_info[nl_index].ref_des[ip];
+
+				int ipp = nl_info[c_index].pin_name.GetSize();
+
+				nl_info[c_index].pin_name.SetAtGrow( ipp, *pname );
+				nl_info[c_index].ref_des. SetAtGrow( ipp, *pref );
+
+				nl_info[c_index].modified = TRUE;
+			}
+
+			if( bDelete )
+			{
 				nl_info[nl_index].deleted = TRUE;
 			}
+			else
+			{
+				nl_info[nl_index].modified = TRUE;
+				
+				nl_info[nl_index].pin_name.RemoveAll();
+				nl_info[nl_index].ref_des.RemoveAll();
+			}
 		}
-		// show log dialog
-		m_dlg_log->ShowWindow( SW_SHOW );
-		m_dlg_log->UpdateWindow();
-		m_dlg_log->BringWindowToTop();
-		m_dlg_log->Clear();
-		m_dlg_log->UpdateWindow();
-
-		m_nlist->ImportNetListInfo( &nl_info, 0, m_dlg_log );
-		m_import_flags = KEEP_TRACES | KEEP_STUBS | KEEP_AREAS	| KEEP_PARTS_AND_CON;
-		m_nlist->RestoreConnectionsAndAreas( old_nlist, m_import_flags, NULL );
-		delete old_nlist;
 	}
+	// show log dialog
+	m_dlg_log->ShowWindow( SW_SHOW );
+	m_dlg_log->UpdateWindow();
+	m_dlg_log->BringWindowToTop();
+	m_dlg_log->Clear();
+	m_dlg_log->UpdateWindow();
+
+	m_nlist->ImportNetListInfo( &nl_info, 0, m_dlg_log );
+	m_import_flags = KEEP_TRACES | KEEP_STUBS | KEEP_AREAS | KEEP_PARTS_AND_CON;
+	m_nlist->RestoreConnectionsAndAreas( old_nlist, m_import_flags, NULL );
+	delete old_nlist;
 }
 
 void CFreePcbDoc::OnFileLoadLibrary()
