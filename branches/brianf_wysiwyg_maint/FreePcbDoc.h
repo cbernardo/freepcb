@@ -109,6 +109,7 @@ public:
 	void PurgeFootprintCache();
 	void ResetUndoState();
 	void SetRatlineWidth(int width, int bForce = FALSE);
+	void CombineNets(CArray<CString> const &nets_to_combine, CString const &c_name, int bDelete);
 
 #ifdef _DEBUG
 	virtual void AssertValid() const;

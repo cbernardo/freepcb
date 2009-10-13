@@ -495,6 +495,7 @@ BEGIN
     BEGIN
         MENUITEM "Set Size Attributes",         ID_NET_SETWIDTH
         MENUITEM "Change Layer",                ID_NET_CHANGELAYER
+        MENUITEM "Combine With...",             ID_NET_COMBINEWITH
         MENUITEM SEPARATOR
         MENUITEM "Edit Net",                    ID_NET_EDITNET
     END

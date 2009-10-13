@@ -958,6 +958,7 @@
 #define ID_VERTEX_CLEARANCE             32948
 #define ID_VERTEX_SETCLEARANCE          32949
 #define ID_ENDVERTEX_SETVIACLEARANCE    32950
+#define ID_NET_COMBINEWITH              32951
 
 // Next default values for new objects
 // 
@@ -965,7 +966,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_3D_CONTROLS                     1
 #define _APS_NEXT_RESOURCE_VALUE        358
-#define _APS_NEXT_COMMAND_VALUE         32951
+#define _APS_NEXT_COMMAND_VALUE         32952
 #define _APS_NEXT_CONTROL_VALUE         1514
 #define _APS_NEXT_SYMED_VALUE           106
 #endif
