@@ -1593,8 +1593,8 @@ int CNetList::RouteSegment( cnet * net, int ic, int iseg, int layer, CSegWidthIn
 //
 int CNetList::AppendSegment( cnet * net, int ic, int x, int y, int layer, CSegWidthInfo const &width )
 {
-	// MUST make a copy of 'width' since the 'width' may be 
-	// referencing something inside of the current connection 
+	// MUST make a copy of 'width' since the 'width' may be
+	// referencing something inside of the current connection
 	// which is about to be destroyed by SetSize().
 	CSegWidthInfo new_width(width);
 
@@ -1758,8 +1758,8 @@ int CNetList::InsertSegment( cnet * net, int ic, int iseg, int x, int y, int lay
 	// Recheck insert_flag since it may be modified above
 	if( insert_flag )
 	{
-		// MUST make a copy of 'width' since the 'width' may be 
-		// referencing something inside of the current connection 
+		// MUST make a copy of 'width' since the 'width' may be
+		// referencing something inside of the current connection
 		// which is about to be destroyed by SetSize().
 		CSegWidthInfo new_width(width);
 
@@ -4166,10 +4166,10 @@ void CNetList::ReconcileVia( cnet * net, int ic, int ivtx, CViaWidthInfo const &
 		return;
 	}
 
-	cconnect * c = &net->connect[ic];
-	cvertex * v = &c->vtx[ivtx];
-	BOOL via_needed = FALSE;
-	cvertex * via_found = NULL;
+	cconnect *c          = &net->connect[ic];
+	cvertex  *v          = &c->vtx[ivtx];
+	cvertex  *via_found  = NULL;
+	BOOL      via_needed = FALSE;
 
 	// see if via needed
 	if( v->force_via_flag )
@@ -4291,8 +4291,17 @@ reconcile_need_via:
 		via_attrib.SetNoVia();
 	}
 
-	// Make sure all shared vias have the same attributes
-	SetViaSizeAttrib( net, ic, ivtx, via_attrib );
+	// Only set size attributes if not a pin
+	if( 
+		( ivtx > 0 ) && 
+	    ( 
+			( ivtx < c->nsegs ) || ( c->end_pin == cconnect::NO_END ) 
+		)
+	  )
+	{
+		// Make sure all shared vias have the same attributes
+		SetViaSizeAttrib( net, ic, ivtx, via_attrib );
+	}
 
 	if( m_dlist )
 	{
