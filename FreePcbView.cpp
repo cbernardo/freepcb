@@ -931,12 +931,15 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 				m_sel_ptrs.Add( m_sel_net );
 				SetCursorMode( CUR_GROUP_SELECTED );
 			}
+
 			if( m_cursor_mode == CUR_GROUP_SELECTED )
 			{
 				SelectItemsInRect( m_sel_rect, TRUE );
 			}
 			else
+			{
 				SelectItemsInRect( m_sel_rect, FALSE );
+			}
 		}
 		else
 		{
@@ -4743,36 +4746,49 @@ void CFreePcbView::SetCursorMode( int mode )
 		SetFKText( mode );
 		m_cursor_mode = mode;
 		ShowSelectStatus();
-		if( mode == CUR_GROUP_SELECTED )
+
+		CWnd* pMain = AfxGetMainWnd();
+		if( pMain != NULL )
 		{
-			CWnd* pMain = AfxGetMainWnd();
-			if (pMain != NULL)
+			CMenu* pMenu = pMain->GetMenu();
+			CMenu* submenu = pMenu->GetSubMenu(1);	// "Edit" submenu
+
+			if(
+				( mode == CUR_GROUP_SELECTED ) ||
+				( mode == CUR_PART_SELECTED  ) ||
+				( mode == CUR_TEXT_SELECTED  )
+			  )
 			{
-				CMenu* pMenu = pMain->GetMenu();
-				CMenu* submenu = pMenu->GetSubMenu(1);	// "Edit" submenu
 				submenu->EnableMenuItem( ID_EDIT_COPY, MF_BYCOMMAND | MF_ENABLED );
-				submenu->EnableMenuItem( ID_EDIT_CUT, MF_BYCOMMAND | MF_ENABLED );
-				submenu->EnableMenuItem( ID_EDIT_SAVEGROUPTOFILE, MF_BYCOMMAND | MF_ENABLED );
-				pMain->DrawMenuBar();
+				submenu->EnableMenuItem( ID_EDIT_CUT,  MF_BYCOMMAND | MF_ENABLED );
 			}
-		}
-		else
-		{
-			CWnd* pMain = AfxGetMainWnd();
-			if (pMain != NULL)
+			else
 			{
-				CMenu* pMenu = pMain->GetMenu();
-				CMenu* submenu = pMenu->GetSubMenu(1);	// "Edit" submenu
 				submenu->EnableMenuItem( ID_EDIT_COPY, MF_BYCOMMAND | MF_DISABLED | MF_GRAYED );
-				submenu->EnableMenuItem( ID_EDIT_CUT, MF_BYCOMMAND | MF_DISABLED | MF_GRAYED );
-				submenu->EnableMenuItem( ID_EDIT_SAVEGROUPTOFILE, MF_BYCOMMAND | MF_DISABLED | MF_GRAYED );
-				pMain->DrawMenuBar();
+				submenu->EnableMenuItem( ID_EDIT_CUT,  MF_BYCOMMAND | MF_DISABLED | MF_GRAYED );
 			}
+
+			// Group only menu items
+			if( mode == CUR_GROUP_SELECTED )
+			{
+				submenu->EnableMenuItem( ID_EDIT_SAVEGROUPTOFILE, MF_BYCOMMAND | MF_ENABLED );
+			}
+			else
+			{
+				submenu->EnableMenuItem( ID_EDIT_SAVEGROUPTOFILE, MF_BYCOMMAND | MF_DISABLED | MF_GRAYED );
+			}
+
+			pMain->DrawMenuBar();
 		}
+
 		if( CurDragging() )
+		{
 			SetMainMenu( FALSE );
+		}
 		else if( m_Doc->m_project_open )
+		{
 			SetMainMenu( TRUE );
+		}
 	}
 }
 
@@ -12163,12 +12179,61 @@ void CFreePcbView::OnGroupSaveToFile()
 	}
 }
 
+
+void CFreePcbView::OnEditCut()
+{
+	OnEditCutCopy(TRUE);
+}
+
 void CFreePcbView::OnEditCopy()
 {
-	if( !m_Doc->m_project_open )
+	OnEditCutCopy(FALSE);
+}
+
+void CFreePcbView::OnEditCutCopy(int bDelete)
+{
+	if( !m_Doc->m_project_open ) 
+	{
 		return;
-	if( m_cursor_mode == CUR_GROUP_SELECTED )
+	}
+
+	// If single copy-able items are highlighted, 
+	// convert to a group.and copy.
+	int bDoit = 0;
+	if( m_cursor_mode == CUR_PART_SELECTED )
+	{
+		if( m_sel_id.type != ID_PART && m_sel_id.st != ID_SEL_RECT )
+			ASSERT(0);
+
+		m_sel_ids.Add( m_sel_id );
+		m_sel_ptrs.Add( m_sel_part );
+
+		bDoit = 1;
+	}
+	else if( m_cursor_mode == CUR_TEXT_SELECTED )
+	{
+		if( m_sel_id.type != ID_TEXT )
+			ASSERT(0);
+
+		m_sel_ids.Add( m_sel_id );
+		m_sel_ptrs.Add( m_sel_text );
+
+		bDoit = 1;
+	}
+	else if( m_cursor_mode == CUR_GROUP_SELECTED )
+	{
+		bDoit = 1;
+	}
+
+	if( bDoit )
+	{
 		OnGroupCopy();
+
+		if( bDelete )
+		{
+			OnGroupDelete();
+		}
+	}
 }
 
 void CFreePcbView::OnEditPaste()
@@ -12178,17 +12243,6 @@ void CFreePcbView::OnEditPaste()
 	OnGroupPaste();
 }
 
-
-void CFreePcbView::OnEditCut()
-{
-	if( !m_Doc->m_project_open )
-		return;
-	if( m_cursor_mode == CUR_GROUP_SELECTED )
-	{
-		OnGroupCopy();
-		OnGroupDelete();
-	}
-}
 
 void CFreePcbView::RotateGroup()
 {

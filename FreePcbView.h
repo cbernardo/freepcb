@@ -554,6 +554,9 @@ protected:
 	CString GetViaText( cvertex const &Vtx );
 	CString GetItemText( CII_FreePcb::Item const &item );
 
+	void OnEditCutCopy(int bDelete);
+
+
 // Generated message map functions
 protected:
 	//{{AFX_MSG(CFreePcbView)
@@ -680,9 +683,9 @@ public:
 	afx_msg void OnGroupCut();
 	afx_msg void OnGroupDelete();
 	afx_msg void OnGroupPaste();
+	afx_msg void OnEditCut();
 	afx_msg void OnEditCopy();
 	afx_msg void OnEditPaste();
-	afx_msg void OnEditCut();
 	afx_msg void OnGroupRotate();
 	afx_msg void OnRefShowPart();
 	afx_msg void OnAreaSideStyle();
