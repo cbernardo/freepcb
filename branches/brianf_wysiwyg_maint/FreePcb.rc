@@ -188,8 +188,8 @@ BEGIN
         MENUITEM "&Undo\tCtrl+Z",               ID_EDIT_UNDO
         MENUITEM "&Redo\tCtrl+Y",               ID_EDIT_REDO
         MENUITEM SEPARATOR
-        MENUITEM "Cu&t\tCtrl+X",                ID_EDIT_CUT
-        MENUITEM "&Copy\tCtrl+C",               ID_EDIT_COPY
+        MENUITEM "Cu&t\tCtrl+X",                ID_EDIT_CUT, GRAYED
+        MENUITEM "&Copy\tCtrl+C",               ID_EDIT_COPY, GRAYED
         MENUITEM "&Paste\tCtrl+V",              ID_EDIT_PASTE
         MENUITEM SEPARATOR
         MENUITEM "Save group to file...",       ID_EDIT_SAVEGROUPTOFILE
