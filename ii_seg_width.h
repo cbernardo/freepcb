@@ -77,6 +77,8 @@ protected:
 		CSegWidthInfo::OnRemoveParent( pOldParent );
 	}
 
+	void ApplyDefWidths(Item *p_via_width, Item *p_via_hole);
+
 public:
 	CConnectionWidthInfo() :
 		m_via_width(E_USE_PARENT),
@@ -95,6 +97,8 @@ public:
 	{
 		FileToItem(via_width, m_via_width);
 		FileToItem(via_hole,  m_via_hole);
+
+		ApplyDefWidths( &m_via_width, &m_via_hole );
 	}
 
 	CConnectionWidthInfo &operator = ( CInheritableInfo const &from );
@@ -110,13 +114,7 @@ public:
 	void Update_via_hole();
 
 	// Update all
-	void Update()
-	{
-		CSegWidthInfo::Update();
-
-		Update_via_width();
-		Update_via_hole();
-	}
+	void Update();
 
 	// Undef all
 	void Undef()
