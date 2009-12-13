@@ -162,8 +162,8 @@ BEGIN
         MENUITEM "Import netlist...",           244
         MENUITEM "Export netlist...",           ID_FILE_EXPORTNETLIST
         MENUITEM SEPARATOR
-        MENUITEM "Load library as project...",  ID_FILE_LOADLIBRARYASPROJECT, GRAYED
-        MENUITEM "Save project as library...",  ID_FILE_SAVEPROJECTASLIBRARY, GRAYED
+        MENUITEM "Load library as project...",  ID_FILE_LOADLIBRARYASPROJECT
+        MENUITEM "Save project as library...",  ID_FILE_SAVEPROJECTASLIBRARY
         MENUITEM "Convert library...",          250
         MENUITEM SEPARATOR
         MENUITEM "Generate CAM files...",       ID_FILE_GENERATECADFILES
@@ -174,11 +174,11 @@ BEGIN
         MENUITEM "Export .dsn file...",         32886
         MENUITEM "Import .ses file...",         ID_SES_FILE_IMPORT
         MENUITEM SEPARATOR
-        MENUITEM "&Print...\tCtrl+P",           ID_FILE_PRINT, GRAYED
-        MENUITEM "Print Pre&view",              ID_FILE_PRINT_PREVIEW, GRAYED
-        MENUITEM "P&rint Setup...",             ID_FILE_PRINT_SETUP, GRAYED
+        MENUITEM "&Print...\tCtrl+P",           ID_FILE_PRINT
+        MENUITEM "Print Pre&view",              ID_FILE_PRINT_PREVIEW
+        MENUITEM "P&rint Setup...",             ID_FILE_PRINT_SETUP
         MENUITEM SEPARATOR
-        MENUITEM "Recent File",                 ID_FILE_MRU_FILE1, GRAYED
+        MENUITEM "Recent File",                 ID_FILE_MRU_FILE1
         MENUITEM SEPARATOR
         MENUITEM "E&xit",                       ID_APP_EXIT
         MENUITEM SEPARATOR
@@ -310,10 +310,15 @@ BEGIN
     BEGIN
         MENUITEM "View All",                    ID_NONE_VIEWALL
         MENUITEM SEPARATOR
-        MENUITEM "Add Part",                    ID_NONE_ADDPART
-        MENUITEM "Add Text",                    ID_NONE_ADDTEXT
-        MENUITEM "Add Copper Area",             ID_NONE_ADDCOPPERAREA
-        MENUITEM "Add Board Outline",           ID_NONE_ADDBOARDOUTLINE
+        POPUP "Add"
+        BEGIN
+            MENUITEM "Board Outline",               ID_ADD_BOARDOUTLINE
+            MENUITEM "Part",                        ID_ADD_PART
+            MENUITEM "Net",                         ID_ADD_NET
+            MENUITEM "Copper Area",                 ID_ADD_AREA
+            MENUITEM "Text",                        ID_ADD_TEXT
+            MENUITEM "Solder Mask Cutout",          ID_ADD_SOLDERMASKCUTOUT
+        END
         MENUITEM SEPARATOR
         MENUITEM "Footprint Wizard",            ID_NONE_FOOTPRINTWIZARD
         MENUITEM "Footprint Editor",            ID_NONE_FOOTPRINTEDITOR
@@ -391,7 +396,7 @@ BEGIN
         MENUITEM "Set Size Attributes",         ID_VERTEX_SETSIZE
         MENUITEM "Connect To Pin",              ID_VERTEX_CONNECTTOPIN
         MENUITEM SEPARATOR
-        MENUITEM "Delete Vertex",               ID_VERTEX_DELETE
+        MENUITEM "Delete",                      ID_VERTEX_DELETE
         MENUITEM "Unroute Trace",               ID_VERTEX_UNROUTETRACE
     END
     POPUP "Text"
@@ -449,14 +454,11 @@ BEGIN
         MENUITEM "Add Via",                     ID_ENDVERTEX_ADDVIA
         MENUITEM "Remove Via",                  ID_ENDVERTEX_REMOVEVIA
         MENUITEM "Set Position",                ID_ENDVERTEX_EDIT
-        MENUITEM "Set Via Size",                ID_ENDVERTEX_SETSIZE
-        MENUITEM "Set Via Clearance",           ID_ENDVERTEX_SETVIACLEARANCE
-        MENUITEM SEPARATOR
-        MENUITEM "Add Segments",                ID_ENDVERTEX_ADDSEGMENTS
-        MENUITEM SEPARATOR
+        MENUITEM "Set Size Attributes",         ID_ENDVERTEX_SETSIZE
         MENUITEM "Connect to Pin",              ID_ENDVERTEX_ADDCONNECTION
         MENUITEM SEPARATOR
         MENUITEM "Delete",                      ID_ENDVERTEX_DELETE
+        MENUITEM "Add Segments",                ID_ENDVERTEX_ADDSEGMENTS
     END
     POPUP "FP_pad"
     BEGIN

@@ -58,11 +58,87 @@ CConnectionWidthInfo &CConnectionWidthInfo::operator = (CInheritableInfo const &
 void CConnectionWidthInfo::Update_via_width()
 {
 	UpdateItem(E_II_VIA_WIDTH, m_via_width);
+
+	ApplyDefWidths(&m_via_width, NULL);
 }
 
 void CConnectionWidthInfo::Update_via_hole()
 {
 	UpdateItem(E_II_VIA_HOLE, m_via_hole);
+
+	ApplyDefWidths(NULL, &m_via_hole);
+}
+
+
+void CConnectionWidthInfo::Update()
+{
+	CSegWidthInfo::Update();
+
+	// Must update via AFTER segment width
+	UpdateItem(E_II_VIA_WIDTH, m_via_width);
+	UpdateItem(E_II_VIA_HOLE,  m_via_hole);
+
+	ApplyDefWidths( &m_via_width, &m_via_hole );
+}
+
+
+void CConnectionWidthInfo::ApplyDefWidths(Item *p_via_width, Item *p_via_hole)
+{
+	// Only apply updates if the items have a status of E_USE_DEF_FROM_WIDTH
+	if( p_via_width != NULL )
+	{
+		if( p_via_width->m_status != E_USE_DEF_FROM_WIDTH )
+		{
+			p_via_width = NULL;
+		}
+	}
+	if( p_via_hole != NULL )
+	{
+		if( p_via_hole->m_status != E_USE_DEF_FROM_WIDTH )
+		{
+			p_via_hole = NULL;
+		}
+	}
+
+	if( ( p_via_width != NULL ) || ( p_via_hole != NULL ) )
+	{
+		int new_w = m_seg_width.m_val;
+
+		int new_v_w = 0;
+		int new_v_h_w = 0;
+
+		if( new_w >= 0 )
+		{
+			if( new_w == 0 )
+			{
+				new_v_w = 0;
+				new_v_h_w = 0;
+			}
+			else
+			{
+				int n = theApp.m_Doc->m_w.GetSize();
+				int i;
+				for( i=0; i < n-1; i++ )
+				{
+					if( new_w <= theApp.m_Doc->m_w[i] )
+					{
+						break;
+					}
+				}
+				new_v_w   = theApp.m_Doc->m_v_w[i];
+				new_v_h_w = theApp.m_Doc->m_v_h_w[i];
+			}
+		}
+
+		if( p_via_width != NULL )
+		{
+			p_via_width->m_val = new_v_w;
+		}
+		if( p_via_hole != NULL )
+		{
+			p_via_hole->m_val = new_v_h_w;
+		}
+	}
 }
 
 

@@ -21,7 +21,7 @@
 
 #pragma once
 #include <afxcoll.h>
-#include <afxtempl.h>
+#include "array_mngidx.h"
 #include "ids.h"
 #include "DisplayList.h"
 #include "PartList.h"
@@ -172,8 +172,11 @@ struct net_info {
 typedef CArray<net_info> netlist_info;
 
 // carea: describes a copper area
-class carea
+class carea : public CArrayMngIdx<carea>::CElement
 {
+public: // Automatically keep indexes in sync
+	void CArrayMngIdx_UpdateIndex(INT_PTR index);
+
 public:
 	carea();
 	carea( const carea& source );	// dummy copy constructor
@@ -207,8 +210,11 @@ public:
 };
 
 // cseg: describes a segment of a connection
-class cseg
+class cseg : public CArrayMngIdx<cseg>::CElement
 {
+public: // Automatically keep indexes in sync
+	void CArrayMngIdx_UpdateIndex(INT_PTR index);
+
 public:
 	int layer;				    // copper layer
 	CNetWidthInfo width_attrib; // width/clearance BAF - create segment attrib class
@@ -267,8 +273,11 @@ public:
 };
 
 // cvertex: describes a vertex between segments
-class cvertex
+class cvertex : public CArrayMngIdx<cvertex>::CElement
 {
+public: // Automatically keep indexes in sync
+	void CArrayMngIdx_UpdateIndex(INT_PTR index);
+
 public:
 	cvertex()
 	{
@@ -283,18 +292,19 @@ public:
 		utility = 0;
 		utility2 = 0;
 	}
+
 	~cvertex()
 	{
 		// destructor
-		if( m_dlist )
+		for( int il=0; il<dl_el.GetSize(); il++ )
 		{
-			for( int il=0; il<dl_el.GetSize(); il++ )
-				dl_el[il]->Remove();
-
-			if( dl_sel )  dl_sel->Remove();
-			if( dl_hole ) dl_hole->Remove();
+			dl_el[il]->Remove();
 		}
+
+		if( dl_sel )  dl_sel->Remove();
+		if( dl_hole ) dl_hole->Remove();
 	}
+
 	cvertex &operator=( cvertex &v )	// assignment operator BAF FIX to be const
 	{
 		// copy all params
@@ -334,6 +344,8 @@ public:
 
 		return *this;
 	};
+
+public:
 	void Initialize( CDisplayList * dlist ){ m_dlist = dlist; }
 	int x, y;					// coords
 	int pad_layer;				// layer of pad if this is first or last vertex, otherwise 0
@@ -351,7 +363,7 @@ public:
 	int via_clearance() const { return via_width_attrib.m_ca_clearance.m_val; }
 
 	int viaExists() const { return via_w(); }
-	void SetNoVia() { via_width_attrib.m_via_width = via_width_attrib.m_via_hole = 0; }
+	void SetNoVia() { via_width_attrib.SetNoVia(); }
 
 	// Update index in connection array
 	void UpdateIndex(int ic, int iv);
@@ -386,8 +398,11 @@ public:
 
 
 // cconnect: describes a connection between two pins or a stub trace with no end pin
-class cconnect
+class cconnect : public CArrayMngIdx<cconnect>::CElement
 {
+public: // Automatically keep indexes in sync
+	void CArrayMngIdx_UpdateIndex(INT_PTR index);
+
 public:
 	enum {
 		NO_END = -1		// used for end_pin if stub trace
@@ -404,8 +419,8 @@ public:
 	int start_pin, end_pin;		// indexes into net.pin array
 	int nsegs;					// # elements in seg array
 	int locked;					// 1 if locked (will not be optimized away)
-	CArray<cseg> seg;			// array of segments
-	CArray<cvertex> vtx;		// array of vertices, size = nsegs + 1
+	CArrayMngIdx<cseg> seg;		// array of segments
+	CArrayMngIdx<cvertex> vtx;	// array of vertices, size = nsegs + 1
 	int utility;				// used for various temporary ops
 	// these params used only by DRC
 	int min_x, max_x;			// bounding rect
@@ -447,11 +462,11 @@ public:
 	id id;				// net id
 	CString name;		// net name
 	int nconnects;		// number of connections
-	CArray<cconnect> connect; // array of connections (size = max_pins-1)
+	CArrayMngIdx<cconnect> connect; // array of connections (size = max_pins-1)
 	int npins;			// number of pins
 	CArray<cpin> pin;	// array of pins
 	int nareas;			// number of copper areas
-	CArray<carea,carea> area;	// array of copper areas
+	CArrayMngIdx<carea,carea> area;	// array of copper areas
 	CNetWidthInfo  def_width_attrib;      // default width attributes (seg, via, clearance)
 	BOOL visible;		// FALSE to hide ratlines and make unselectable
 	int utility;		// used to keep track of which nets have been optimized
@@ -519,7 +534,6 @@ public:
 	void OptimizeConnections();
 	int OptimizeConnections( cnet * net, int ic=-1 );
 	void OptimizeConnections( cpart * part );
-	void RenumberConnection( cnet * net, int ic );
 	void RenumberConnections( cnet * net );
 	BOOL TestHitOnConnectionEndPad( int x, int y, cnet * net, int ic, int layer, int dir );
 	int TestHitOnAnyPadInNet( int x, int y, int layer, cnet * net );
@@ -575,17 +589,17 @@ public:
 	void InsertVia( cnet * net, int ic, int ivtx, CViaWidthInfo const &width );
 	void SetViaSizeAttrib( cnet * net, int ic, int ivtx, CInheritableInfo const &width );
 
-	int ReconcileVia( cnet * net, int ic, int ivtx )
+	void ReconcileVia( cnet * net, int ic, int ivtx )
 	{
 		CViaWidthInfo via_attrib;
 		via_attrib.m_via_width = CII_FreePcb::E_USE_PARENT;
 		via_attrib.m_via_hole  = CII_FreePcb::E_USE_PARENT;
 
-		return ReconcileVia(net, ic, ivtx, via_attrib);
+		ReconcileVia(net, ic, ivtx, via_attrib);
 	}
 	// The variant of ReconcileVia() is used for file load and undo where
 	// the any newly created via needs to be assigned to a particular size.
-	int ReconcileVia( cnet * net, int ic, int ivtx, CViaWidthInfo const &width );
+	void ReconcileVia( cnet * net, int ic, int ivtx, CViaWidthInfo const &width );
 
 	void MakeTeeConnection( cnet * net, cvertex * vtx, int ic, int ivtx);
 	int ViaExists( cnet * net, int ic, int ivtx );
@@ -645,7 +659,6 @@ public:
 	int CancelDraggingAreaCorner( cnet * net, int iarea, int icorner );
 	int StartDraggingInsertedAreaCorner( CDC *pDC, cnet * net, int iarea, int icorner, int x, int y, int crosshair = 1 );
 	int CancelDraggingInsertedAreaCorner( cnet * net, int iarea, int icorner );
-	void RenumberAreas( cnet * net );
 	int TestAreaPolygon( cnet * net, int iarea );
 	int ClipAreaPolygon( cnet * net, int iarea,
 		BOOL bMessageBoxArc, BOOL bMessageBoxInt, BOOL bRetainArcs=TRUE );

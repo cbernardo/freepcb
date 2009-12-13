@@ -8,8 +8,10 @@ void CDLE_HOLE::_Draw(CDrawInfo const &di) const
 
 	if( onScreen() )
     {
-    	if( w>size_of_2_pixels )
+    	if( w > size_of_2_pixels )
+		{
     		di.DC->Ellipse( i.x - w/2, i.y - w/2, i.x + w/2, i.y + w/2 );
+		}
     }
 }
 
@@ -17,7 +19,11 @@ void CDLE_HOLE::_DrawClearance(CDrawInfo const &di) const
 {
 	CFreePcbDoc * doc = theApp.m_Doc;
 
-	int sz = w/2 + doc->m_hole_clearance / 2540;
+	// Pick the larger of the two clearances
+	int sz = doc->m_hole_clearance / 2540;
+	if (clearancew > sz) sz = clearancew;
+
+	sz += w/2;	// Add hole width
 
 	di.DC->SelectObject( di.erase_brush );
 	di.DC->SelectObject( di.erase_pen );
@@ -30,7 +36,13 @@ void CDLE_HOLE::_DrawClearance(CDrawInfo const &di) const
 
 int CDLE_HOLE::_getBoundingRect(CRect &rect) const
 {
-	int sz = w/2 + clearancew;
+	CFreePcbDoc * doc = theApp.m_Doc;
+
+	// Pick the larger of the two clearances
+	int sz = doc->m_hole_clearance / 2540;
+	if (clearancew > sz) sz = clearancew;
+
+	sz += w/2;	// Add hole width
 
 	rect.left   = i.x - sz;
 	rect.right  = i.x + sz;
