@@ -1,7 +1,7 @@
 // FreePcbView.cpp : implementation of the CFreePcbView class
 //
 
-#include "stdafx.h"
+#include "stdafx.h" 
 #include "DlgAddText.h"
 #include "DlgAssignNet.h"
 #include "DlgSetSegmentWidth.h"
