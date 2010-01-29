@@ -5217,316 +5217,316 @@ void net_info::CalcPrimaryNet( CMapCurToImportedNets &db_cur_to_imported_net )
 
 void CNetList::ImportNetListInfo( netlist_info * nl, int flags, CDlgLog * log )
 {
-  CString msg;
+	CString msg;
 	int n_info_nets = nl->GetSize();
 
-  if( log )
-  {
-    msg.Format( "\r\nImporting nets into project:\r\n" );
-    log->AddLine( msg );
-  }
+	if( log )
+	{
+		msg.Format( "\r\nImporting nets into project:\r\n" );
+		log->AddLine( msg );
+	}
 
-  // Build the following databases which are used to map the current netlist
-  // to the imported netlist:
-  //  1) pin->current_net database 
-  //        Pins are removed from the db when they are found in the imported
-  //        netlist.  At the end of PASS 1, pins remaining in this db 
-  //        represent deleted pins.
-  //
-  //  2) Current nets database
-  //        In PASS 2, nets in this database will be mapped to imported
-  //        nets.  Each net may be mapped to only one imported net.
-  //        As the mappings are made, the nets are removed from this
-  //        db to "check them off" the list of available nets.  
-  //        Each one-to-one mapping attempts to represent the remnant
-  //        of the current net in the imported net.  Nets remaining in
-  //        this db at the end of PASS 2 represent deleted nets.
-  net_info::CMapCurToImportedNets db_cur_to_imported_net;
-  CMapStringToPtr db_pin_to_net;
-  {
-    cnet * net;
-	  CIterator_cnet net_iter(this);
-	  for( net = net_iter.GetFirst(); net != NULL; net = net_iter.GetNext() )
-	  {
-      // utility value stores the # pins of the net that were
-      // found in the imported net(s).
-  		net->utility = 0;
-
-      // All nets are added to the cur->imported net map with an initial
-      // mapping of net --> <no imported nets>
-      db_cur_to_imported_net.Add(net);
-
-		  for( int ip=0; ip<net->npins; ip++ )
-		  {
-        net_info::CPinDesc pin(net->pin[ip].ref_des(), net->pin[ip].pin_name);
-        db_pin_to_net.SetAt(pin.full_name(), net);
-		  }
-    }
-  }
-
-  // PASS 1 -------------------------------------------------------------------
-  //    1) Delete nets marked for deletion
-  //    2) Create new nets for those imported nets which do not currently exist 
-  //    3) Record new pins in the imported netlist
-  //    4) Determine mapping of current nets to imported nets 
-  if( log )
-  {
-    msg.Format( LOG_TAB "\r\nEvaluating Imported Nets:\r\n" );
-	  log->AddLine( msg );
-  }
-	for( int i=0; i<n_info_nets; i++ )
-  {
-    net_info &net_info = (*nl)[i];
-
-    if( log )
-    {
-  	  msg.Format( LOG_TAB "Net '%s'\r\n", net_info.name );
-	    log->AddLine( msg );
-    }
-
-    if( net_info.net != NULL )
-    {
-      // Handle local net modifications
-		  if( net_info.deleted )
-		  {
-			  // net was deleted, remove it
-			  if( log )
-			  {
-				  msg.Format( LOG_TAB LOG_TAB "Removing net\r\n\r\n" );
-				  log->AddLine( msg );
-			  }
-
-			  RemoveNet( net_info.net );
-
-        // Remove from further processing
-        nl->RemoveAt(i);
-        n_info_nets--;
-
-        i--;
-        continue;
-		  }
-
-      // Done handling the local modifications.  Set the net
-      // pointer to NULL to prepare for the processing below.
-      net_info.net = NULL;
-    }
-
-    // Compare to current netlist
-    for( int ip=0; ip < net_info.pin_name.GetSize(); ip++ )
+	// Build the following databases which are used to map the current netlist
+	// to the imported netlist:
+	//  1) pin->current_net database 
+	//        Pins are removed from the db when they are found in the imported
+	//        netlist.  At the end of PASS 1, pins remaining in this db 
+	//        represent deleted pins.
+	//
+	//  2) Current nets database
+	//        In PASS 2, nets in this database will be mapped to imported
+	//        nets.  Each net may be mapped to only one imported net.
+	//        As the mappings are made, the nets are removed from this
+	//        db to "check them off" the list of available nets.  
+	//        Each one-to-one mapping attempts to represent the remnant
+	//        of the current net in the imported net.  Nets remaining in
+	//        this db at the end of PASS 2 represent deleted nets.
+	net_info::CMapCurToImportedNets db_cur_to_imported_net;
+	CMapStringToPtr db_pin_to_net;
+	{
+		cnet * net;
+		CIterator_cnet net_iter(this);
+		for( net = net_iter.GetFirst(); net != NULL; net = net_iter.GetNext() )
 		{
-      net_info::CPinDesc pin(net_info.ref_des[ip], net_info.pin_name[ip]);
+			// utility value stores the # pins of the net that were
+			// found in the imported net(s).
+			net->utility = 0;
 
-      CString pin_name = pin.full_name();
+			// All nets are added to the cur->imported net map with an initial
+			// mapping of net --> <no imported nets>
+			db_cur_to_imported_net.Add(net);
 
-      if( log )
-      {
-  		  msg.Format( LOG_TAB LOG_TAB "Pin '%s' ", pin_name );
-	  	  log->AddLine( msg );
-      }
-
-      cnet *found_in_net;
-      if( db_pin_to_net.Lookup( pin_name, (void *&)found_in_net ) )
-      {
-        if( log )
-        {
-          msg.Format(LOG_TAB LOG_TAB LOG_TAB "Found in existing net: '%s'\r\n", found_in_net->name);
-          log->AddLine( msg );
-        }
-
-        // Add mappings to the net_info pin database and to
-        // the original-net to new-net(info) database.
-        net_info.db_found_nets.Add(found_in_net, pin_name);
-        db_cur_to_imported_net.Add(found_in_net, &net_info);
-
-        // Update found pin count for the net
-        found_in_net->utility++;
-
-        // Remove the pin from the pin database.
-        //
-        // At the end of PASS 1, any pins still in the db_pin_to_net 
-        // database have been removed in the imported netlist.
-        db_pin_to_net.RemoveKey( pin_name );
-      }
-      else
-      {
-        if( log )
-        {
-          msg.Format( LOG_TAB LOG_TAB LOG_TAB "New Pin\r\n" );
-    		  log->AddLine( msg );
-        }
-
-        net_info.addedPins.Add( pin );
-      }
+			for( int ip=0; ip<net->npins; ip++ )
+			{
+				net_info::CPinDesc pin(net->pin[ip].ref_des(), net->pin[ip].pin_name);
+				db_pin_to_net.SetAt(pin.full_name(), net);
+			}
 		}
-    if( log && (net_info.pin_name.GetSize() != 0) )
-    {
-	    log->AddLine( "\r\n" );
-    }
-  }
-  if( log )
-  {
-    msg.Format( "\r\n" );
-	  log->AddLine( msg );
-  }
+	}
 
-  // PASS 2 - Map current to imported nets
-  if( log )
-  {
-    msg.Format( LOG_TAB "\r\nCreating Net Mappings.  Nets marked with * will be renamed.\r\n" );
-	  log->AddLine( msg );
-  }
+	// PASS 1 -------------------------------------------------------------------
+	//    1) Delete nets marked for deletion
+	//    2) Create new nets for those imported nets which do not currently exist 
+	//    3) Record new pins in the imported netlist
+	//    4) Determine mapping of current nets to imported nets 
+	if( log )
+	{
+		msg.Format( LOG_TAB "\r\nEvaluating Imported Nets:\r\n" );
+		log->AddLine( msg );
+	}
+	for( int i=0; i<n_info_nets; i++ )
+	{
+		net_info &net_info = (*nl)[i];
 
-  // The sorted_nets array contains (ptrs to) the imported nets, sorted 
-  // in order from best to worst matching nets.  Initially, the array
-  // is unsorted.
-  CArray<net_info::CSortElement> sorted_nets;
-  sorted_nets.SetSize( n_info_nets );
-  for( int i=0; i < n_info_nets; i++ )
-  {
-    sorted_nets[i] = &(*nl)[i];
-  }
+		if( log )
+		{
+			msg.Format( LOG_TAB "Net '%s'\r\n", net_info.name );
+			log->AddLine( msg );
+		}
 
- 	for( int sorted_net_idx=0; sorted_net_idx < n_info_nets; sorted_net_idx++ )
-  {
-    // Calculate the primary nets for all of the remaining imported nets.
-    // Nets 0 to [sorted_net_idx-1] have already been evaluated and don't 
-    // need further processing.
- 	  for( int i=sorted_net_idx; i < n_info_nets; i++ )
-    {
-      net_info *net_info = sorted_nets[i];
+		if( net_info.net != NULL )
+		{
+			// Handle local net modifications
+			if( net_info.deleted )
+			{
+				// net was deleted, remove it
+				if( log )
+				{
+					msg.Format( LOG_TAB LOG_TAB "Removing net\r\n\r\n" );
+					log->AddLine( msg );
+				}
 
-      // Find the primary matching net.  This becomes the current 
-      // net which matches to the imported net.
-      net_info->CalcPrimaryNet( db_cur_to_imported_net );
-    }
+				RemoveNet( net_info.net );
 
-    // (Re)sort the newly calculated part of the (sorted) imported nets
-	  std::sort( sorted_nets.GetData() + sorted_net_idx, sorted_nets.GetData() + sorted_nets.GetSize() - sorted_net_idx );
+				// Remove from further processing
+				nl->RemoveAt(i);
+				n_info_nets--;
 
-    // Process the imported nets 
- 	  for( ; sorted_net_idx < n_info_nets; sorted_net_idx++ )
-    {
-      net_info *net_info = sorted_nets[sorted_net_idx];
-      net_info::CMapCurToImportedNets::imported_net_array_t *net_mapping;
+				i--;
+				continue;
+			}
 
-      if( !db_cur_to_imported_net.Lookup(net_info->net, net_mapping) )
-      {
-        // No primary net found, try to map to a net of the same name.
-        // Search the remaining nets in db_cur_to_imported_net to try
-        // to find a match.
-        cnet * net = NULL;
-        int bFound = 0;
-        for( POSITION pos = db_cur_to_imported_net.GetStartPosition(); pos != NULL; )
-        {
-          db_cur_to_imported_net.GetNextAssoc(pos, net, net_mapping);
+			// Done handling the local modifications.  Set the net
+			// pointer to NULL to prepare for the processing below.
+			net_info.net = NULL;
+		}
 
-          if( net->name == net_info->name )
-          {
-            net_info->net = net;
-            bFound = 1;
-            break;
-          }
-        }
+		// Compare to current netlist
+		for( int ip=0; ip < net_info.pin_name.GetSize(); ip++ )
+		{
+			net_info::CPinDesc pin(net_info.ref_des[ip], net_info.pin_name[ip]);
 
-        if( !bFound )
-        {
-          // No net, create new net
-          if( log )
-          {
-            msg.Format( LOG_TAB "Imported Net: '%s' as new net\r\n", net_info->name );
-            log->AddLine( msg );
-          }
+			CString pin_name = pin.full_name();
 
-		      if( !net_info->width_attrib.m_seg_width.isDefined() ) net_info->width_attrib.m_seg_width = CInheritableInfo::E_USE_PARENT;
-		      if( !net_info->width_attrib.m_via_width.isDefined() ) net_info->width_attrib.m_via_width = CInheritableInfo::E_USE_PARENT;
-		      if( !net_info->width_attrib.m_via_hole .isDefined() ) net_info->width_attrib.m_via_hole  = CInheritableInfo::E_USE_PARENT;
+			if( log )
+			{
+				msg.Format( LOG_TAB LOG_TAB "Pin '%s' ", pin_name );
+				log->AddLine( msg );
+			}
 
-          net_info->net = AddNet( net_info->name, 0, net_info->width_attrib );
+			cnet *found_in_net;
+			if( db_pin_to_net.Lookup( pin_name, (void *&)found_in_net ) )
+			{
+				if( log )
+				{
+					msg.Format(LOG_TAB LOG_TAB LOG_TAB "Found in existing net: '%s'\r\n", found_in_net->name);
+					log->AddLine( msg );
+				}
 
-          // Don't need to add to db_cur_to_imported_net since the mapping b/t current 
-          // and imported net is already done (since the net was just created).
-          continue;
-        }
-        else
-        {
-          // Fall through to handle the net
-        }
-      }
+				// Add mappings to the net_info pin database and to
+				// the original-net to new-net(info) database.
+				net_info.db_found_nets.Add(found_in_net, pin_name);
+				db_cur_to_imported_net.Add(found_in_net, &net_info);
 
-      // Handle the net
-      {
-        if( log )
-        {
-          msg.Format( 
-            LOG_TAB "Imported Net: '%s' maps to existing net '%s' (%d) %s\r\n", 
-            net_info->name, 
-            net_info->net->name, 
-            net_info->primary_net_score, 
-            net_info->name == net_info->net->name ? "" : "*"
-          );
-          log->AddLine( msg );
-        }
+				// Update found pin count for the net
+				found_in_net->utility++;
 
-        if( net_mapping->GetSize() > 1 )
-        {
-          if( log )
-          {
-            for( int i = 0; i < net_mapping->GetSize(); i++ )
-            {
-              if( net_info != (*net_mapping)[i] )
-              {
-                msg.Format( LOG_TAB LOG_TAB "Existing net also referenced in '%s'\r\n", (*net_mapping)[i]->name );
-                log->AddLine( msg );
-              }
-            }
-          }
+				// Remove the pin from the pin database.
+				//
+				// At the end of PASS 1, any pins still in the db_pin_to_net 
+				// database have been removed in the imported netlist.
+				db_pin_to_net.RemoveKey( pin_name );
+			}
+			else
+			{
+				if( log )
+				{
+					msg.Format( LOG_TAB LOG_TAB LOG_TAB "New Pin\r\n" );
+					log->AddLine( msg );
+				}
 
-          db_cur_to_imported_net.RemoveKey( net_info->net );
+				net_info.addedPins.Add( pin );
+			}
+		}
+		if( log && (net_info.pin_name.GetSize() != 0) )
+		{
+			log->AddLine( "\r\n" );
+		}
+	}
+	if( log )
+	{
+		msg.Format( "\r\n" );
+		log->AddLine( msg );
+	}
 
-          // Since other nets exist in the mapping, need to recalculate the
-          // net mapping scores.  Therefore, break out of the loop.
-          break;
-        }
-        else
-        {
-          // Single mapping from net_info->net back to net_info
-          assert( net_mapping->GetSize() == 1 );
-          assert( (*net_mapping)[0] == net_info );
+	// PASS 2 - Map current to imported nets
+	if( log )
+	{
+		msg.Format( LOG_TAB "\r\nCreating Net Mappings.  Nets marked with * will be renamed.\r\n" );
+		log->AddLine( msg );
+	}
 
-          db_cur_to_imported_net.RemoveKey( net_info->net );
+	// The sorted_nets array contains (ptrs to) the imported nets, sorted 
+	// in order from best to worst matching nets.  Initially, the array
+	// is unsorted.
+	CArray<net_info::CSortElement> sorted_nets;
+	sorted_nets.SetSize( n_info_nets );
+	for( int i=0; i < n_info_nets; i++ )
+	{
+		sorted_nets[i] = &(*nl)[i];
+	}
 
-          // Because of the single mapping, no other net matching score
-          // will be affected by removing the net from db_cur_to_imported_net.
-          // Continue looping.
-        }
-      }
-    }
-  }
+	for( int sorted_net_idx=0; sorted_net_idx < n_info_nets; sorted_net_idx++ )
+	{
+		// Calculate the primary nets for all of the remaining imported nets.
+		// Nets 0 to [sorted_net_idx-1] have already been evaluated and don't 
+		// need further processing.
+		for( int i=sorted_net_idx; i < n_info_nets; i++ )
+		{
+			net_info *net_info = sorted_nets[i];
 
-  if( log )
-  {
-    msg.Format( LOG_TAB "\r\n\r\nHandle Deleted Items:\r\n" );
-    log->AddLine( msg );
-  }
-  { // PINS
-    cnet *net;
-    CString pin;
-    for( POSITION pos = db_pin_to_net.GetStartPosition(); pos != NULL; )
-    {
-      db_pin_to_net.GetNextAssoc(pos, pin, (void*&)net );
+			// Find the primary matching net.  This becomes the current 
+			// net which matches to the imported net.
+			net_info->CalcPrimaryNet( db_cur_to_imported_net );
+		}
 
-      int dot_pos = pin.Find('.');
-      CString ref_des  = pin.Left( dot_pos );
-      CString pin_name = pin.Right( pin.GetLength() - (dot_pos+1) );
+		// (Re)sort the newly calculated part of the (sorted) imported nets
+		std::sort( sorted_nets.GetData() + sorted_net_idx, sorted_nets.GetData() + sorted_nets.GetSize() - sorted_net_idx );
+
+		// Process the imported nets 
+		for( ; sorted_net_idx < n_info_nets; sorted_net_idx++ )
+		{
+			net_info *net_info = sorted_nets[sorted_net_idx];
+			net_info::CMapCurToImportedNets::imported_net_array_t *net_mapping;
+
+			if( !db_cur_to_imported_net.Lookup(net_info->net, net_mapping) )
+			{
+				// No primary net found, try to map to a net of the same name.
+				// Search the remaining nets in db_cur_to_imported_net to try
+				// to find a match.
+				cnet * net = NULL;
+				int bFound = 0;
+				for( POSITION pos = db_cur_to_imported_net.GetStartPosition(); pos != NULL; )
+				{
+					db_cur_to_imported_net.GetNextAssoc(pos, net, net_mapping);
+
+					if( net->name == net_info->name )
+					{
+						net_info->net = net;
+						bFound = 1;
+						break;
+					}
+				}
+
+				if( !bFound )
+				{
+					// No net, create new net
+					if( log )
+					{
+						msg.Format( LOG_TAB "Imported Net: '%s' as new net\r\n", net_info->name );
+						log->AddLine( msg );
+					}
+
+					if( !net_info->width_attrib.m_seg_width.isDefined() ) net_info->width_attrib.m_seg_width = CInheritableInfo::E_USE_PARENT;
+					if( !net_info->width_attrib.m_via_width.isDefined() ) net_info->width_attrib.m_via_width = CInheritableInfo::E_USE_PARENT;
+					if( !net_info->width_attrib.m_via_hole .isDefined() ) net_info->width_attrib.m_via_hole  = CInheritableInfo::E_USE_PARENT;
+
+					net_info->net = AddNet( net_info->name, 0, net_info->width_attrib );
+
+					// Don't need to add to db_cur_to_imported_net since the mapping b/t current 
+					// and imported net is already done (since the net was just created).
+					continue;
+				}
+				else
+				{
+					// Fall through to handle the net
+				}
+			}
+
+			// Handle the net
+			{
+				if( log )
+				{
+					msg.Format( 
+						LOG_TAB "Imported Net: '%s' maps to existing net '%s' (%d) %s\r\n", 
+						net_info->name, 
+						net_info->net->name, 
+						net_info->primary_net_score, 
+						net_info->name == net_info->net->name ? "" : "*"
+					);
+					log->AddLine( msg );
+				}
+
+				if( net_mapping->GetSize() > 1 )
+				{
+					if( log )
+					{
+						for( int i = 0; i < net_mapping->GetSize(); i++ )
+						{
+							if( net_info != (*net_mapping)[i] )
+							{
+								msg.Format( LOG_TAB LOG_TAB "Existing net also referenced in '%s'\r\n", (*net_mapping)[i]->name );
+								log->AddLine( msg );
+							}
+						}
+					}
+
+					db_cur_to_imported_net.RemoveKey( net_info->net );
+
+					// Since other nets exist in the mapping, need to recalculate the
+					// net mapping scores.  Therefore, break out of the loop.
+					break;
+				}
+				else
+				{
+					// Single mapping from net_info->net back to net_info
+					assert( net_mapping->GetSize() == 1 );
+					assert( (*net_mapping)[0] == net_info );
+
+					db_cur_to_imported_net.RemoveKey( net_info->net );
+
+					// Because of the single mapping, no other net matching score
+					// will be affected by removing the net from db_cur_to_imported_net.
+					// Continue looping.
+				}
+			}
+		}
+	}
+
+	if( log )
+	{
+		msg.Format( LOG_TAB "\r\n\r\nHandle Deleted Items:\r\n" );
+		log->AddLine( msg );
+	}
+	{ // PINS
+		cnet *net;
+		CString pin;
+		for( POSITION pos = db_pin_to_net.GetStartPosition(); pos != NULL; )
+		{
+			db_pin_to_net.GetNextAssoc(pos, pin, (void*&)net );
+
+			int dot_pos = pin.Find('.');
+			CString ref_des  = pin.Left( dot_pos );
+			CString pin_name = pin.Right( pin.GetLength() - (dot_pos+1) );
 
 			if( flags & KEEP_PARTS_AND_CON )
 			{
 				// we may want to preserve this pin
 				cpart * part = m_plist->GetPart( ref_des );
 				if( !part || !part->bPreserve )
-        {
+				{
 					RemoveNetPin( net, ref_des, pin_name );
-        }
+				}
 				else
 				{
 					// preserve the pin
@@ -5543,15 +5543,15 @@ void CNetList::ImportNetListInfo( netlist_info * nl, int flags, CDlgLog * log )
 
 				RemoveNetPin( net, ref_des, pin_name );
 			}
-    }
-  }
-  if( log ) log->AddLine( "\r\n" );
+		}
+	}
+	if( log ) log->AddLine( "\r\n" );
 
-  { // NETS
-    cnet * net = NULL;
-    for( POSITION pos = db_cur_to_imported_net.GetStartPosition(); pos != NULL; )
-    {
-      db_cur_to_imported_net.GetNextAssoc(pos, net);
+	{ // NETS
+		cnet * net = NULL;
+		for( POSITION pos = db_cur_to_imported_net.GetStartPosition(); pos != NULL; )
+		{
+			db_cur_to_imported_net.GetNextAssoc(pos, net);
 
 			if( flags & KEEP_NETS )
 			{
@@ -5568,98 +5568,128 @@ void CNetList::ImportNetListInfo( netlist_info * nl, int flags, CDlgLog * log )
 					msg.Format( LOG_TAB "Removing net '%s'\r\n", net->name );
 					log->AddLine( msg );
 				}
-			  RemoveNet( net );
+				RemoveNet( net );
 			}
-    }
-  }
+		}
+	}
 
-  if( log )
-  {
-    msg.Format( LOG_TAB "\r\n\r\nHandle Added/Moved Pins:\r\n" );
-    log->AddLine( msg );
-  }
+	if( log )
+	{
+		msg.Format( LOG_TAB "\r\n\r\nHandle Added/Moved Pins:\r\n" );
+		log->AddLine( msg );
+	}
 	for( int i=0; i<n_info_nets; i++ )
-  {
-    int pin_idx;
-    net_info &net_info = (*nl)[i];
+	{
+		int pin_idx;
+		net_info &net_info = (*nl)[i];
 
-    for( pin_idx = 0; pin_idx < net_info.addedPins.GetSize(); pin_idx++ )
-    {
+		for( pin_idx = 0; pin_idx < net_info.addedPins.GetSize(); pin_idx++ )
+		{
 			if( log )
 			{
-				msg.Format( LOG_TAB "Adding pin %s to net '%s'\r\n", 
-          net_info.addedPins[ pin_idx ].full_name(),
-          net_info.net->name
-        );
+				msg.Format( 
+					LOG_TAB "Adding pin %s to net '%s'\r\n", 
+					net_info.addedPins[ pin_idx ].full_name(),
+					net_info.net->name
+				);
 				log->AddLine( msg );
 			}
 
 			// pin not in net, add it
 			AddNetPin( 
-        net_info.net, 
-        net_info.addedPins[ pin_idx ].ref_des(), 
-        net_info.addedPins[ pin_idx ].pin_name() 
-      );
-    }
+				net_info.net, 
+				net_info.addedPins[ pin_idx ].ref_des(), 
+				net_info.addedPins[ pin_idx ].pin_name() 
+			);
+		}
 
-    cnet * net = NULL;
-    net_info::CMapNetToPins::pin_array_t * pins;
-    for( POSITION pos = net_info.db_found_nets.GetStartPosition(); pos != NULL; )
-    {
-      net_info.db_found_nets.GetNextAssoc(pos, net, pins);
+		cnet * net = NULL;
+		net_info::CMapNetToPins::pin_array_t * pins;
+		for( POSITION pos = net_info.db_found_nets.GetStartPosition(); pos != NULL; )
+		{
+			net_info.db_found_nets.GetNextAssoc(pos, net, pins);
 
-      if( net_info.net != net )
-      {
-        for( pin_idx = 0; pin_idx < pins->GetSize(); pin_idx++ )
-        {
-          CString &pin = (*pins)[ pin_idx ];
+			if( net_info.net != net )
+			{
+				for( pin_idx = 0; pin_idx < pins->GetSize(); pin_idx++ )
+				{
+					CString &pin = (*pins)[ pin_idx ];
 
-          int dot_pos = pin.Find('.');
-          CString ref_des  = pin.Left( dot_pos );
-          CString pin_name = pin.Right( pin.GetLength() - (dot_pos+1) );
+					int dot_pos = pin.Find('.');
+					CString ref_des  = pin.Left( dot_pos );
+					CString pin_name = pin.Right( pin.GetLength() - (dot_pos+1) );
 
-			    if( log )
-			    {
-				    msg.Format( LOG_TAB "Moving pin %s from net '%s' to net '%s'\r\n", 
-              pin,
-              net->name,
-              net_info.net->name
-            );
-				    log->AddLine( msg );
-			    }
+					if( log )
+					{
+						msg.Format( 
+							LOG_TAB "Moving pin %s from net '%s' to net '%s'\r\n", 
+							pin,
+							net->name,
+							net_info.net->name
+						);
+						log->AddLine( msg );
+					}
 
-  				RemoveNetPin( net,          ref_des, pin_name );
-  				AddNetPin   ( net_info.net, ref_des, pin_name );
-        }
-      }
-    }
-  }
+					RemoveNetPin( net,          ref_des, pin_name );
+					AddNetPin   ( net_info.net, ref_des, pin_name );
+				}
+			}
+		}
+	}
 
-  // PASS 3 - Rename the nets
-  // Assumes that the new name is not a duplicate
-  if( log )
-  {
-    msg.Format( LOG_TAB "\r\n\r\nRenaming nets:\r\n" );
-    log->AddLine( msg );
-  }
-	for( int i=0; i<n_info_nets; i++ )
-  {
-    net_info &net_info = (*nl)[i];
+	{	// PASS 3 - Rename the nets
+		// The new name(s) may be duplicates of existing nets - Example:
+		//	  Net 1 renamed to Net 2
+		//    Net 2 renamed to Net 1
+		//
+		// To handle this, remove all the old names first, then 
+		// replace with the new names.
+		if( log )
+		{
+			msg.Format( LOG_TAB "\r\n\r\nRenaming nets:\r\n" );
+			log->AddLine( msg );
+		}
 
-    if( net_info.net != NULL )
-    {
-      if( net_info.net->name != net_info.name )
-      {
-        if( log )
-        {
-          msg.Format( LOG_TAB "Renaming net '%s' to '%s'\r\n", net_info.net->name, net_info.name );
-          log->AddLine( msg );
-        }
+		// Delete old names
+		for( int i=0; i<n_info_nets; i++ )
+		{
+			net_info &net_info = (*nl)[i];
 
-        net_info.net->Rename( net_info.name );
-      }
-    }
-  }
+			if( net_info.net != NULL )
+			{
+				if( net_info.net->name != net_info.name )
+				{
+					if( log )
+					{
+						msg.Format( LOG_TAB "Renaming net '%s' to '%s'\r\n", net_info.net->name, net_info.name );
+						log->AddLine( msg );
+					}
+
+					m_map.RemoveKey( net_info.name );
+					net_info.net->Rename( net_info.name );
+				}
+				else
+				{
+					// For the next pass (adding new names), use net_info.net != NULL 
+					// to determine if the nets need to be added back in rather than
+					// compare the names again.
+					net_info.net = NULL;
+				}
+			}
+		}
+
+		// Assign new names
+		for( int i=0; i<n_info_nets; i++ )
+		{
+			net_info &net_info = (*nl)[i];
+
+			if( net_info.net != NULL )
+			{
+				m_map.SetAt( net_info.name, net_info.net );
+				net_info.net->name = net_info.name;	
+			}
+		}
+	}
 }
 
 
@@ -5900,6 +5930,11 @@ void CNetList::Copy( CNetList * src_nl )
 {
 	RemoveAllNets();
 
+	m_layers           = src_nl->m_layers;
+	m_def_width_attrib = src_nl->m_def_width_attrib;
+	m_bSMT_connect     = src_nl->m_bSMT_connect;
+	m_annular_ring     = src_nl->m_annular_ring;
+
 	CIterator_cnet net_iter(src_nl);
 	for( cnet * src_net = net_iter.GetFirst(); src_net != NULL; src_net = net_iter.GetNext() )
 	{
@@ -6041,6 +6076,7 @@ void CNetList::ReassignCopperLayers( int n_new_layers, int * layer )
 //
 void CNetList::RestoreConnectionsAndAreas( CNetList * old_nl, int flags, CDlgLog * log )
 {
+	return;
 	// loop through old nets
 	CIterator_cnet net_iter(old_nl);
 	for( cnet * old_net = net_iter.GetFirst(); old_net != NULL; old_net = net_iter.GetNext() )
