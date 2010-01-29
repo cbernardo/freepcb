@@ -154,7 +154,192 @@ struct undo_net {
 // net_info structure
 // used as a temporary copy of net info for editing in dialogs
 // or importing/exporting netlists
-struct net_info {
+struct net_info 
+{
+public: // class used to represent a net_info for std::sort()
+	class CSortElement
+	{
+	public:
+		net_info * m_info;
+
+		int operator < (CSortElement const &to) const;
+
+		CSortElement &operator = (net_info * info)
+		{
+			m_info = info;
+			return *this;
+		}
+
+		operator net_info * ()
+		{
+			return m_info;
+		}
+
+    CSortElement() : m_info(NULL) {}
+	};
+
+  class CPinDesc
+  {
+    CString m_ref_des;
+    CString m_pin_name;
+
+  public:
+    CPinDesc() {}
+
+    CPinDesc(CString const &ref_des, CString const &pin_name) :
+      m_ref_des(ref_des),
+      m_pin_name(pin_name)
+    {
+    }
+
+    CString const &ref_des() const
+    {
+      return m_ref_des;
+    }
+    CString const &pin_name() const
+    {
+      return m_pin_name;
+    }
+    CString full_name() const
+    {
+      CString name;
+      name.Format("%s.%s", m_ref_des, m_pin_name);
+
+      return name;
+    }
+
+    CPinDesc &operator = (CPinDesc const &from)
+    {
+      m_ref_des  = from.m_ref_des;
+      m_pin_name = from.m_pin_name;
+
+      return *this;
+    }
+  };
+
+  class CMapNetToPins : public CMapPtrToPtr
+  {
+    BOOL RemoveKey(void* key) {}
+    void RemoveAll() {}
+
+  public:
+    typedef CArray<CString> pin_array_t;
+
+	  BOOL Lookup(cnet const * key, pin_array_t*& rValue) const
+    {
+      return CMapPtrToPtr::Lookup( (void *)key, (void *&)rValue);
+    }
+
+    void GetNextAssoc(POSITION & pos, cnet *& net, pin_array_t *& rPins) const
+    {
+      CMapPtrToPtr::GetNextAssoc(pos, (void *&)net, (void *&)rPins);
+    }
+
+
+    void Add(cnet const * net, CString const &pin_name)
+    {
+      pin_array_t *p_pins_on_net;
+
+      if( !Lookup(net, p_pins_on_net) )
+      {
+        p_pins_on_net = new pin_array_t;
+
+        SetAt(const_cast<cnet *>(net), p_pins_on_net);
+      }
+
+      p_pins_on_net->Add( pin_name );
+    }
+
+    ~CMapNetToPins()
+    {
+      cnet *key = NULL;
+      pin_array_t *value;
+
+      for( POSITION pos = GetStartPosition(); pos != NULL; )
+      {
+        GetNextAssoc(pos, key, value);
+
+        delete value;
+      }
+    }
+  };
+
+  class CMapCurToImportedNets : public CMapPtrToPtr
+  {
+    void RemoveAll() {}
+
+  public:
+    typedef CArray<net_info *> imported_net_array_t;
+
+    BOOL RemoveKey(cnet const * key)
+    {
+      imported_net_array_t *imported_nets;
+      if( Lookup(key, imported_nets) )
+      {
+        delete imported_nets;
+      }
+      return CMapPtrToPtr::RemoveKey( (void*)key );
+    }
+
+	  BOOL Lookup(cnet const * key, imported_net_array_t*& rValue) const
+    {
+      return CMapPtrToPtr::Lookup( (void *)key, (void *&)rValue);
+    }
+	  BOOL Lookup(cnet const * key) const
+    {
+      imported_net_array_t *dummy;
+      return Lookup( key, dummy );
+    }
+
+    void GetNextAssoc(POSITION & pos, cnet *& net, imported_net_array_t *& rImportedNets) const
+    {
+      CMapPtrToPtr::GetNextAssoc(pos, (void *&)net, (void *&)rImportedNets);
+    }
+    void GetNextAssoc(POSITION & pos, cnet *& net) const
+    {
+      imported_net_array_t *dummy;
+      GetNextAssoc(pos, net, dummy);
+    }
+
+
+    void Add(cnet const * net, net_info * imported_net = NULL )
+    {
+      imported_net_array_t *p_imported_nets;
+
+      if( !Lookup(net, p_imported_nets) )
+      {
+        p_imported_nets = new imported_net_array_t;
+
+        SetAt(const_cast<cnet *>(net), p_imported_nets);
+      }
+
+      // If the imported_net is NULL, this means to simply
+      // create a mapping with an empty array.
+      if( imported_net == NULL ) return;
+
+      // Only insert if the mapping isn't already there.
+      for( int i = 0; i < p_imported_nets->GetSize(); i++)
+      {
+        if( (*p_imported_nets)[i] == imported_net ) return;
+      }
+
+      p_imported_nets->Add( imported_net );
+    }
+
+    ~CMapCurToImportedNets()
+    {
+      cnet *key = NULL;
+      imported_net_array_t *value;
+
+      for( POSITION pos = GetStartPosition(); pos != NULL; )
+      {
+        GetNextAssoc(pos, key, value);
+
+        delete value;
+      }
+    }
+  };
+
 	CString name;
 	cnet * net;
 	BOOL visible;
@@ -164,8 +349,15 @@ struct net_info {
 	BOOL apply_clearance;
 	BOOL deleted;
 	BOOL modified;
+
 	CArray<CString> ref_des;
 	CArray<CString> pin_name;
+
+  CArray<CPinDesc> addedPins;
+  CMapNetToPins db_found_nets;
+  int primary_net_score;
+
+  void CalcPrimaryNet( CMapCurToImportedNets &db_cur_to_imported_net );
 };
 
 // netlist_info is an array of net_info for each net
@@ -456,8 +648,11 @@ public: // class used to represent a net for std::sort()
 	};
 
 public:
-	cnet( CDisplayList * dlist );
+	cnet( CNetList * nlist, CDisplayList * dlist );
 	~cnet();
+
+  CNetList     * my_netlist;
+	CDisplayList * m_dlist;
 
 	id id;				// net id
 	CString name;		// net name
@@ -470,7 +665,9 @@ public:
 	CNetWidthInfo  def_width_attrib;      // default width attributes (seg, via, clearance)
 	BOOL visible;		// FALSE to hide ratlines and make unselectable
 	int utility;		// used to keep track of which nets have been optimized
-	CDisplayList * m_dlist;
+
+public:
+  void Rename(CString const &new_name);
 };
 
 // CNetlist
@@ -503,8 +700,8 @@ public:
 	// functions for nets and pins
 	void MarkAllNets( int utility );
 	void MoveOrigin( int x_off, int y_off );
-	cnet * GetNetPtrByName( CString * name );
-	cnet * AddNet( CString name, int max_pins, CNetWidthInfo const &def_width_attrib );
+	cnet * GetNetPtrByName( CString const &name );
+	cnet * AddNet( CString const &name, int initial_pin_count, CNetWidthInfo const &def_width_attrib );
 	void RemoveNet( cnet * net );
 	void RemoveAllNets();
 	part_pin * AddNetPin( cnet * net, CString const &ref_des, CString const &pin_name, BOOL set_areas=TRUE );
