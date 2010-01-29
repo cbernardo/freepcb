@@ -3145,7 +3145,7 @@ void CPartList::PartUndoCallback( int type, void * ptr, BOOL undo )
 				if( *chptr != 0 )
 				{
 					CString net_name = chptr;
-					cnet * net = pl->m_nlist->GetNetPtrByName( &net_name );
+					cnet * net = pl->m_nlist->GetNetPtrByName( net_name );
 					part->pin[ip].set_net( net );
 				}
 				else
@@ -5124,7 +5124,7 @@ int CPartList::CheckPartlist( CString * logstr )
 				}
 				else
 				{
-					cnet * netlist_net = m_nlist->GetNetPtrByName( &net->name );
+					cnet * netlist_net = m_nlist->GetNetPtrByName( net->name );
 					if( !netlist_net )
 					{
 						// part->pin->net->name doesn't exist in netlist

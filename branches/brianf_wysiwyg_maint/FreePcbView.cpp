@@ -10778,7 +10778,7 @@ void CFreePcbView::OnGroupCopy()
 				if( net )
 				{
 					// add net to group netlist if not already added
-					cnet * g_net = g_nl->GetNetPtrByName( &net->name );
+					cnet * g_net = g_nl->GetNetPtrByName( net->name );
 					if( g_net == NULL )
 					{
 						g_net = g_nl->AddNet( net->name, net->npins, net->def_width_attrib );
@@ -10820,7 +10820,7 @@ void CFreePcbView::OnGroupCopy()
 			cconnect * c = &net->connect[sid.i];
 			if( c->utility == FALSE )
 			{
-				cnet * g_net = g_nl->GetNetPtrByName( &net->name );
+				cnet * g_net = g_nl->GetNetPtrByName( net->name );
 				if( g_net == NULL )
 				{
 					g_net = g_nl->AddNet( net->name, net->npins, net->def_width_attrib );
@@ -11042,7 +11042,7 @@ void CFreePcbView::OnGroupCopy()
 					if( id )
 					{
 						// tee-vertex, see if we need to add any unselected branches
-						cnet * net = m_Doc->m_nlist->GetNetPtrByName( &g_net->name );
+						cnet * net = m_Doc->m_nlist->GetNetPtrByName( g_net->name );
 						if( net )
 						{
 							for( int bic=0; bic<net->nconnects; bic++ )
@@ -11106,7 +11106,7 @@ void CFreePcbView::OnGroupCopy()
 				if( bAllSides )
 				{
 					// add area to group
-					cnet * g_net = g_nl->GetNetPtrByName( &net->name );
+					cnet * g_net = g_nl->GetNetPtrByName( net->name );
 					if( g_net == NULL )
 					{
 						g_net = g_nl->AddNet( net->name, net->npins, net->def_width_attrib );
@@ -11793,7 +11793,7 @@ void CFreePcbView::OnGroupPaste()
 				else
 				{
 					// merge group net with project net of same name
-					prj_net = nl->GetNetPtrByName( &g_net->name );
+					prj_net = nl->GetNetPtrByName( g_net->name );
 					if( !prj_net )
 					{
 						// no project net with the same name
@@ -13179,12 +13179,12 @@ void CFreePcbView::UndoCallback( int type, void * ptr, BOOL undo )
 		}
 		else if( type == UNDO_NET_AND_CONNECTIONS )
 		{
-			cnet * net = view->m_Doc->m_nlist->GetNetPtrByName( &u_d->name1 );
+			cnet * net = view->m_Doc->m_nlist->GetNetPtrByName( u_d->name1 );
 			view->SaveUndoInfoForNetAndConnections( net, CNetList::UNDO_NET_MODIFY, TRUE, redo_list );
 		}
 		else if( type == UNDO_AREA )
 		{
-			cnet * net = view->m_Doc->m_nlist->GetNetPtrByName( &u_d->name1 );
+			cnet * net = view->m_Doc->m_nlist->GetNetPtrByName( u_d->name1 );
 			if( u_d->type == CNetList::UNDO_AREA_ADD )
 				view->SaveUndoInfoForArea( net, u_d->int1, CNetList::UNDO_AREA_DELETE, TRUE, redo_list );
 			else if( u_d->type == CNetList::UNDO_AREA_DELETE )
@@ -13194,13 +13194,13 @@ void CFreePcbView::UndoCallback( int type, void * ptr, BOOL undo )
 		}
 		else if( type == UNDO_ALL_AREAS_IN_NET )
 		{
-			cnet * net = view->m_Doc->m_nlist->GetNetPtrByName( &u_d->name1 );
+			cnet * net = view->m_Doc->m_nlist->GetNetPtrByName( u_d->name1 );
 			view->SaveUndoInfoForAllAreasInNet( net, TRUE, redo_list );
 		}
 		else if( type == UNDO_ALL_AREAS_IN_2_NETS )
 		{
-			cnet * net1 = view->m_Doc->m_nlist->GetNetPtrByName( &u_d->name1 );
-			cnet * net2 = view->m_Doc->m_nlist->GetNetPtrByName( &u_d->name2 );
+			cnet * net1 = view->m_Doc->m_nlist->GetNetPtrByName( u_d->name1 );
+			cnet * net2 = view->m_Doc->m_nlist->GetNetPtrByName( u_d->name2 );
 			view->SaveUndoInfoForAllAreasIn2Nets( net1, net2, TRUE, redo_list );
 		}
 		else if( type == UNDO_ALL_BOARD_OUTLINES )
@@ -13277,7 +13277,7 @@ void CFreePcbView::UndoGroupCallback( int type, void * ptr, BOOL undo )
 				}
 				else if( this_id.type == ID_NET )
 				{
-					cnet * net = doc->m_nlist->GetNetPtrByName( str_ptr );
+					cnet * net = doc->m_nlist->GetNetPtrByName( *str_ptr );
 					if( net )
 						ptrs[i] = (void*)net;
 					else

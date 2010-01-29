@@ -209,8 +209,7 @@ void CDlgGroupPaste::DoDataExchange(CDataExchange* pDX)
 		for( int iItem=0; iItem<m_list_ctrl.GetItemCount(); iItem++ )
 		{
 			int i = m_list_ctrl.GetItemData( iItem );
-			CString * net_name = &::gnl[i].name;
-			cnet * grp_net = m_grp_nlist->GetNetPtrByName( net_name );
+			cnet * grp_net = m_grp_nlist->GetNetPtrByName( ::gnl[i].name );
 			if( grp_net == NULL )
 				ASSERT(0);
 			grp_net->utility = ListView_GetCheckState( m_list_ctrl, iItem );
