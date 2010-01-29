@@ -75,7 +75,7 @@ void CDlgAddArea::DoDataExchange(CDataExchange* pDX)
 		POSITION pos;
 		CString name;
 		void * ptr;
-		m_net = m_nlist->GetNetPtrByName( &m_net_name );
+		m_net = m_nlist->GetNetPtrByName( m_net_name );
 		if( !m_net )
 		{
 			AfxMessageBox( "Illegal net name" );

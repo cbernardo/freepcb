@@ -157,10 +157,10 @@ BEGIN
         MENUITEM "&Open...\tCtrl+O",            ID_FILE_OPEN
         MENUITEM "&Save\tCtrl+S",               ID_FILE_SAVE
         MENUITEM "Save &As...",                 ID_FILE_SAVE_AS
-        MENUITEM "Close",                       57602
+        MENUITEM "&Close",                      57602
         MENUITEM SEPARATOR
-        MENUITEM "Import netlist...",           244
-        MENUITEM "Export netlist...",           ID_FILE_EXPORTNETLIST
+        MENUITEM "&Import netlist...",          244
+        MENUITEM "&Export netlist...",          ID_FILE_EXPORTNETLIST
         MENUITEM SEPARATOR
         MENUITEM "Load library as project...",  ID_FILE_LOADLIBRARYASPROJECT
         MENUITEM "Save project as library...",  ID_FILE_SAVEPROJECTASLIBRARY
@@ -169,7 +169,7 @@ BEGIN
         MENUITEM "Generate CAM files...",       ID_FILE_GENERATECADFILES
         MENUITEM "Generate report file...",     ID_FILE_GENERATEREPORTFILE
         MENUITEM SEPARATOR
-        MENUITEM "Open Footprint Editor...",    ID_FILE_OPENFOOTPRINTEDITOR
+        MENUITEM "Open &Footprint Editor...",   ID_FILE_OPENFOOTPRINTEDITOR
         MENUITEM SEPARATOR
         MENUITEM "Export .dsn file...",         32886
         MENUITEM "Import .ses file...",         ID_SES_FILE_IMPORT
