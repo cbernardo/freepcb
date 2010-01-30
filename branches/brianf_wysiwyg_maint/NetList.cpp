@@ -5125,11 +5125,11 @@ void CNetList::ExportNetListInfo( netlist_info * nl )
 	nl->SetSize( m_map.GetSize() );
 
 	int i;
-  cnet * net;
+	cnet * net;
 	CIterator_cnet net_iter(this);
 	for( net = net_iter.GetFirst(), i = 0; net != NULL; net = net_iter.GetNext(), i++ )
 	{
-    net_info &net_info = (*nl)[i];
+		net_info &net_info = (*nl)[i];
 
 		net_info.net     = net;
 		net_info.name    = net->name;
@@ -5218,7 +5218,6 @@ void net_info::CalcPrimaryNet( CMapCurToImportedNets &db_cur_to_imported_net )
 void CNetList::ImportNetListInfo( netlist_info * nl, int flags, CDlgLog * log )
 {
 	CString msg;
-	int n_info_nets = nl->GetSize();
 
 	if( log )
 	{
@@ -5226,14 +5225,47 @@ void CNetList::ImportNetListInfo( netlist_info * nl, int flags, CDlgLog * log )
 		log->AddLine( msg );
 	}
 
+	// Handle local net modifications first before creating the mappings
+	int n_info_nets = nl->GetSize();
+	for( int i=0; i<n_info_nets; i++ )
+	{
+		net_info &net_info = (*nl)[i];
+
+		if( net_info.net != NULL )
+		{
+			if( net_info.deleted )
+			{
+				// net was deleted, remove it
+				if( log )
+				{
+					msg.Format( LOG_TAB "Removing net '%s'\r\n", net_info.net->name );
+					log->AddLine( msg );
+				}
+
+				RemoveNet( net_info.net );
+
+				// Remove from further processing
+				nl->RemoveAt(i);
+				n_info_nets--;
+
+				i--;
+				continue;
+			}
+
+			if( net_info.modified )
+			{
+				// TODO
+			}
+
+			// Done handling the local modifications.  Set the net
+			// pointer to NULL to prepare for the processing below.
+			net_info.net = NULL;
+		}
+	}
+
 	// Build the following databases which are used to map the current netlist
 	// to the imported netlist:
-	//  1) pin->current_net database 
-	//        Pins are removed from the db when they are found in the imported
-	//        netlist.  At the end of PASS 1, pins remaining in this db 
-	//        represent deleted pins.
-	//
-	//  2) Current nets database
+	//  1) Current nets database
 	//        In PASS 2, nets in this database will be mapped to imported
 	//        nets.  Each net may be mapped to only one imported net.
 	//        As the mappings are made, the nets are removed from this
@@ -5242,6 +5274,11 @@ void CNetList::ImportNetListInfo( netlist_info * nl, int flags, CDlgLog * log )
 	//        of the current net in the imported net.  Nets remaining in
 	//        this db at the end of PASS 2 represent deleted nets.
 	net_info::CMapCurToImportedNets db_cur_to_imported_net;
+	//
+	//  2) pin->current_net database 
+	//        Pins are removed from the db when they are found in the imported
+	//        netlist.  At the end of PASS 1, pins remaining in this db 
+	//        represent deleted pins.
 	CMapStringToPtr db_pin_to_net;
 	{
 		cnet * net;
@@ -5282,33 +5319,6 @@ void CNetList::ImportNetListInfo( netlist_info * nl, int flags, CDlgLog * log )
 		{
 			msg.Format( LOG_TAB "Net '%s'\r\n", net_info.name );
 			log->AddLine( msg );
-		}
-
-		if( net_info.net != NULL )
-		{
-			// Handle local net modifications
-			if( net_info.deleted )
-			{
-				// net was deleted, remove it
-				if( log )
-				{
-					msg.Format( LOG_TAB LOG_TAB "Removing net\r\n\r\n" );
-					log->AddLine( msg );
-				}
-
-				RemoveNet( net_info.net );
-
-				// Remove from further processing
-				nl->RemoveAt(i);
-				n_info_nets--;
-
-				i--;
-				continue;
-			}
-
-			// Done handling the local modifications.  Set the net
-			// pointer to NULL to prepare for the processing below.
-			net_info.net = NULL;
 		}
 
 		// Compare to current netlist
@@ -5547,32 +5557,6 @@ void CNetList::ImportNetListInfo( netlist_info * nl, int flags, CDlgLog * log )
 	}
 	if( log ) log->AddLine( "\r\n" );
 
-	{ // NETS
-		cnet * net = NULL;
-		for( POSITION pos = db_cur_to_imported_net.GetStartPosition(); pos != NULL; )
-		{
-			db_cur_to_imported_net.GetNextAssoc(pos, net);
-
-			if( flags & KEEP_NETS )
-			{
-				if( log )
-				{
-					msg.Format( LOG_TAB "Keeping net '%s' not in imported netlist\r\n", net->name );
-					log->AddLine( msg );
-				}
-			}
-			else
-			{
-				if( log )
-				{
-					msg.Format( LOG_TAB "Removing net '%s'\r\n", net->name );
-					log->AddLine( msg );
-				}
-				RemoveNet( net );
-			}
-		}
-	}
-
 	if( log )
 	{
 		msg.Format( LOG_TAB "\r\n\r\nHandle Added/Moved Pins:\r\n" );
@@ -5633,6 +5617,32 @@ void CNetList::ImportNetListInfo( netlist_info * nl, int flags, CDlgLog * log )
 					RemoveNetPin( net,          ref_des, pin_name );
 					AddNetPin   ( net_info.net, ref_des, pin_name );
 				}
+			}
+		}
+	}
+
+	{ // Remove NETS after pins
+		cnet * net = NULL;
+		for( POSITION pos = db_cur_to_imported_net.GetStartPosition(); pos != NULL; )
+		{
+			db_cur_to_imported_net.GetNextAssoc(pos, net);
+
+			if( flags & KEEP_NETS )
+			{
+				if( log )
+				{
+					msg.Format( LOG_TAB "Keeping net '%s' not in imported netlist\r\n", net->name );
+					log->AddLine( msg );
+				}
+			}
+			else
+			{
+				if( log )
+				{
+					msg.Format( LOG_TAB "Removing net '%s'\r\n", net->name );
+					log->AddLine( msg );
+				}
+				RemoveNet( net );
 			}
 		}
 	}
