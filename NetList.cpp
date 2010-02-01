@@ -5218,20 +5218,30 @@ void net_info::CalcPrimaryNet( CMapCurToImportedNets &db_cur_to_imported_net )
 void CNetList::ImportNetListInfo( netlist_info * nl, int flags, CDlgLog * log )
 {
 	CString msg;
+	int bDisplayedSomething = false;
 
 	if( log )
 	{
-		msg.Format( "\r\nImporting nets into project:\r\n" );
+		msg.Format( "Importing nets into project:\r\n\r\n" );
 		log->AddLine( msg );
 	}
 
-	// Handle local net modifications first before creating the mappings
+	// PASS 1 -------------------------------------------------------------------
+	//  1) Handle local net modifications first before creating the mappings:
+	//      A) Deletions
+	//		B) Modifications
+	if( log )
+	{
+		msg.Format( "Removing nets:'\r\n" );
+		log->AddLine( msg );
+	}
 	int n_info_nets = nl->GetSize();
 	for( int i=0; i<n_info_nets; i++ )
 	{
 		net_info &net_info = (*nl)[i];
 
-		if( net_info.net != NULL )
+		cnet * net = net_info.net;
+		if( net != NULL )
 		{
 			if( net_info.deleted )
 			{
@@ -5240,9 +5250,10 @@ void CNetList::ImportNetListInfo( netlist_info * nl, int flags, CDlgLog * log )
 				{
 					msg.Format( LOG_TAB "Removing net '%s'\r\n", net_info.net->name );
 					log->AddLine( msg );
+					bDisplayedSomething = true;
 				}
 
-				RemoveNet( net_info.net );
+				RemoveNet( net );
 
 				// Remove from further processing
 				nl->RemoveAt(i);
@@ -5254,7 +5265,11 @@ void CNetList::ImportNetListInfo( netlist_info * nl, int flags, CDlgLog * log )
 
 			if( net_info.modified )
 			{
-				// TODO
+			  net->def_width_attrib = net_info.width_attrib;
+			  net->def_width_attrib.SetParent( m_def_width_attrib );
+			  net->def_width_attrib.Update();
+
+			  UpdateNetAttributes( net );
 			}
 
 			// Done handling the local modifications.  Set the net
@@ -5301,14 +5316,16 @@ void CNetList::ImportNetListInfo( netlist_info * nl, int flags, CDlgLog * log )
 		}
 	}
 
-	// PASS 1 -------------------------------------------------------------------
-	//    1) Delete nets marked for deletion
-	//    2) Create new nets for those imported nets which do not currently exist 
-	//    3) Record new pins in the imported netlist
-	//    4) Determine mapping of current nets to imported nets 
+	// PASS 2 -------------------------------------------------------------------
+	//    1) Create new nets for those imported nets which do not currently exist 
+	//    2) Record new pins in the imported netlist
+	//    3) Determine mapping of current nets to imported nets 
 	if( log )
 	{
-		msg.Format( LOG_TAB "\r\nEvaluating Imported Nets:\r\n" );
+		if( bDisplayedSomething ) log->AddLine( "\r\n" );
+		bDisplayedSomething = false;
+
+		msg.Format( "Evaluating Imported Nets:\r\n" );
 		log->AddLine( msg );
 	}
 	for( int i=0; i<n_info_nets; i++ )
@@ -5319,6 +5336,7 @@ void CNetList::ImportNetListInfo( netlist_info * nl, int flags, CDlgLog * log )
 		{
 			msg.Format( LOG_TAB "Net '%s'\r\n", net_info.name );
 			log->AddLine( msg );
+			bDisplayedSomething = true;
 		}
 
 		// Compare to current netlist
@@ -5373,16 +5391,14 @@ void CNetList::ImportNetListInfo( netlist_info * nl, int flags, CDlgLog * log )
 			log->AddLine( "\r\n" );
 		}
 	}
-	if( log )
-	{
-		msg.Format( "\r\n" );
-		log->AddLine( msg );
-	}
 
-	// PASS 2 - Map current to imported nets
+	// PASS 3 - Map current to imported nets
 	if( log )
 	{
-		msg.Format( LOG_TAB "\r\nCreating Net Mappings.  Nets marked with * will be renamed.\r\n" );
+		if( bDisplayedSomething ) log->AddLine( "\r\n" );
+		bDisplayedSomething = false;
+
+		msg.Format( "Creating Net Mappings.  Nets marked with * will be renamed.\r\n" );
 		log->AddLine( msg );
 	}
 
@@ -5411,7 +5427,10 @@ void CNetList::ImportNetListInfo( netlist_info * nl, int flags, CDlgLog * log )
 		}
 
 		// (Re)sort the newly calculated part of the (sorted) imported nets
-		std::sort( sorted_nets.GetData() + sorted_net_idx, sorted_nets.GetData() + sorted_nets.GetSize() - sorted_net_idx );
+		std::sort( 
+			sorted_nets.GetData() + sorted_net_idx, 
+			sorted_nets.GetData() + sorted_nets.GetSize() - sorted_net_idx 
+		);
 
 		// Process the imported nets 
 		for( ; sorted_net_idx < n_info_nets; sorted_net_idx++ )
@@ -5515,7 +5534,10 @@ void CNetList::ImportNetListInfo( netlist_info * nl, int flags, CDlgLog * log )
 
 	if( log )
 	{
-		msg.Format( LOG_TAB "\r\n\r\nHandle Deleted Items:\r\n" );
+		if( bDisplayedSomething ) log->AddLine( "\r\n" );
+		bDisplayedSomething = false;
+
+		msg.Format( "Handle Deleted/Modified Items:\r\n" );
 		log->AddLine( msg );
 	}
 	{ // PINS
@@ -5549,19 +5571,23 @@ void CNetList::ImportNetListInfo( netlist_info * nl, int flags, CDlgLog * log )
 				{
 					msg.Format( LOG_TAB "Removing pin %s from net '%s'\r\n", pin, net->name );
 					log->AddLine( msg );
+					bDisplayedSomething = true;
 				}
 
 				RemoveNetPin( net, ref_des, pin_name );
 			}
 		}
 	}
-	if( log ) log->AddLine( "\r\n" );
 
 	if( log )
 	{
-		msg.Format( LOG_TAB "\r\n\r\nHandle Added/Moved Pins:\r\n" );
+		if( bDisplayedSomething ) log->AddLine( "\r\n" );
+		bDisplayedSomething = false;
+
+		msg.Format( "Handle Added/Moved Pins:\r\n" );
 		log->AddLine( msg );
 	}
+
 	for( int i=0; i<n_info_nets; i++ )
 	{
 		int pin_idx;
@@ -5577,6 +5603,7 @@ void CNetList::ImportNetListInfo( netlist_info * nl, int flags, CDlgLog * log )
 					net_info.net->name
 				);
 				log->AddLine( msg );
+				bDisplayedSomething = true;
 			}
 
 			// pin not in net, add it
@@ -5612,6 +5639,7 @@ void CNetList::ImportNetListInfo( netlist_info * nl, int flags, CDlgLog * log )
 							net_info.net->name
 						);
 						log->AddLine( msg );
+						bDisplayedSomething = true;
 					}
 
 					RemoveNetPin( net,          ref_des, pin_name );
@@ -5621,6 +5649,14 @@ void CNetList::ImportNetListInfo( netlist_info * nl, int flags, CDlgLog * log )
 		}
 	}
 
+	if( log )
+	{
+		if( bDisplayedSomething ) log->AddLine( "\r\n" );
+		bDisplayedSomething = false;
+
+		msg.Format( "Handle Removed Nets:\r\n" );
+		log->AddLine( msg );
+	}
 	{ // Remove NETS after pins
 		cnet * net = NULL;
 		for( POSITION pos = db_cur_to_imported_net.GetStartPosition(); pos != NULL; )
@@ -5656,7 +5692,10 @@ void CNetList::ImportNetListInfo( netlist_info * nl, int flags, CDlgLog * log )
 		// replace with the new names.
 		if( log )
 		{
-			msg.Format( LOG_TAB "\r\n\r\nRenaming nets:\r\n" );
+			if( bDisplayedSomething ) log->AddLine( "\r\n" );
+			bDisplayedSomething = false;
+
+			msg.Format( "Renaming nets:\r\n" );
 			log->AddLine( msg );
 		}
 
@@ -6086,7 +6125,6 @@ void CNetList::ReassignCopperLayers( int n_new_layers, int * layer )
 //
 void CNetList::RestoreConnectionsAndAreas( CNetList * old_nl, int flags, CDlgLog * log )
 {
-	return;
 	// loop through old nets
 	CIterator_cnet net_iter(old_nl);
 	for( cnet * old_net = net_iter.GetFirst(); old_net != NULL; old_net = net_iter.GetNext() )
