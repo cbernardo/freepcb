@@ -2731,8 +2731,6 @@ void CFreePcbDoc::OnFileImport()
 			}
 			if( m_import_flags & IMPORT_NETS )
 			{
-				line = "\r\nImporting nets into project:\r\n";
-				m_dlg_log->AddLine( line );
 				CNetList * old_nlist = new CNetList( NULL, m_plist );
 				old_nlist->Copy( m_nlist );
 				m_nlist->ImportNetListInfo( &nl, m_import_flags, m_dlg_log );
@@ -4499,17 +4497,17 @@ void CFreePcbDoc::CombineNets(CArray<CString> const &nets_to_combine, CString co
 
 	// first, find the net and index for the combined net
 	int c_index = -1;
-	cnet * c_net = NULL;
+	net_info * dst_net = NULL;
 	for( int in=0; in<nl_info.GetSize(); in++ )
 	{
 		if( nl_info[in].name == c_name )
 		{
 			c_index = in;
-			c_net = nl_info[in].net;
+			dst_net = &nl_info[in];
 			break;
 		}
 	}
-	if( c_index == -1 )
+	if( dst_net == NULL )
 	{
 		ASSERT(0);
 		return;
@@ -4537,30 +4535,18 @@ void CFreePcbDoc::CombineNets(CArray<CString> const &nets_to_combine, CString co
 				continue;
 			}
 
-			for( int ip=0; ip < nl_info[nl_index].pin_name.GetSize(); ip++ )
+			net_info &src_net = nl_info[nl_index];
+			for( int ip=0; ip < src_net.pin_name.GetSize(); ip++ )
 			{
-				CString * pname = &nl_info[nl_index].pin_name[ip];
-				CString * pref  = &nl_info[nl_index].ref_des[ip];
+				//int ipp = nl_info[c_index].pin_name.GetSize();
 
-				int ipp = nl_info[c_index].pin_name.GetSize();
-
-				nl_info[c_index].pin_name.SetAtGrow( ipp, *pname );
-				nl_info[c_index].ref_des. SetAtGrow( ipp, *pref );
-
-				nl_info[c_index].modified = TRUE;
+				dst_net->pin_name.Add( src_net.pin_name[ip] );
+				dst_net->ref_des. Add( src_net.ref_des[ip]  );
 			}
 
-			if( bDelete )
-			{
-				nl_info[nl_index].deleted = TRUE;
-			}
-			else
-			{
-				nl_info[nl_index].modified = TRUE;
-				
-				nl_info[nl_index].pin_name.RemoveAll();
-				nl_info[nl_index].ref_des.RemoveAll();
-			}
+			// Delete the src net so that the import algorithm moves the pins
+			// to the dst net.
+			src_net.deleted = TRUE;
 		}
 	}
 	// show log dialog
