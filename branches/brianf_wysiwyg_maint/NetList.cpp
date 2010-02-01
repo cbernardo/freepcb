@@ -5218,7 +5218,7 @@ void net_info::CalcPrimaryNet( CMapCurToImportedNets &db_cur_to_imported_net )
 void CNetList::ImportNetListInfo( netlist_info * nl, int flags, CDlgLog * log )
 {
 	CString msg;
-	int bDisplayedSomething = false;
+	int bDisplayedSomething;
 
 	if( log )
 	{
@@ -5232,7 +5232,8 @@ void CNetList::ImportNetListInfo( netlist_info * nl, int flags, CDlgLog * log )
 	//		B) Modifications
 	if( log )
 	{
-		msg.Format( "Removing nets:'\r\n" );
+		bDisplayedSomething = false;
+		msg.Format( "Handle Deleted Nets:\r\n" );
 		log->AddLine( msg );
 	}
 	int n_info_nets = nl->GetSize();
@@ -5392,7 +5393,12 @@ void CNetList::ImportNetListInfo( netlist_info * nl, int flags, CDlgLog * log )
 		}
 	}
 
-	// PASS 3 - Map current to imported nets
+	// PASS 3 --------------------------------------------------------------------
+	//	1) Map current to imported nets
+	//  2) Build list of renamed nets
+	//
+	CMapPtrToPtr db_nets_to_rename;
+
 	if( log )
 	{
 		if( bDisplayedSomething ) log->AddLine( "\r\n" );
@@ -5464,6 +5470,7 @@ void CNetList::ImportNetListInfo( netlist_info * nl, int flags, CDlgLog * log )
 					{
 						msg.Format( LOG_TAB "Imported Net: '%s' as new net\r\n", net_info->name );
 						log->AddLine( msg );
+						bDisplayedSomething = true;
 					}
 
 					if( !net_info->width_attrib.m_seg_width.isDefined() ) net_info->width_attrib.m_seg_width = CInheritableInfo::E_USE_PARENT;
@@ -5484,6 +5491,12 @@ void CNetList::ImportNetListInfo( netlist_info * nl, int flags, CDlgLog * log )
 
 			// Handle the net
 			{
+				int bRenameNet = (net_info->name != net_info->net->name);
+				if ( bRenameNet )
+				{
+					db_nets_to_rename[net_info] = NULL;
+				}
+
 				if( log )
 				{
 					msg.Format( 
@@ -5491,9 +5504,10 @@ void CNetList::ImportNetListInfo( netlist_info * nl, int flags, CDlgLog * log )
 						net_info->name, 
 						net_info->net->name, 
 						net_info->primary_net_score, 
-						net_info->name == net_info->net->name ? "" : "*"
+						bRenameNet ? "*" : ""
 					);
 					log->AddLine( msg );
+					bDisplayedSomething = true;
 				}
 
 				if( net_mapping->GetSize() > 1 )
@@ -5537,7 +5551,7 @@ void CNetList::ImportNetListInfo( netlist_info * nl, int flags, CDlgLog * log )
 		if( bDisplayedSomething ) log->AddLine( "\r\n" );
 		bDisplayedSomething = false;
 
-		msg.Format( "Handle Deleted/Modified Items:\r\n" );
+		msg.Format( "Handle Deleted Pins:\r\n" );
 		log->AddLine( msg );
 	}
 	{ // PINS
@@ -5663,6 +5677,8 @@ void CNetList::ImportNetListInfo( netlist_info * nl, int flags, CDlgLog * log )
 		{
 			db_cur_to_imported_net.GetNextAssoc(pos, net);
 
+			bDisplayedSomething = true;
+
 			if( flags & KEEP_NETS )
 			{
 				if( log )
@@ -5670,6 +5686,9 @@ void CNetList::ImportNetListInfo( netlist_info * nl, int flags, CDlgLog * log )
 					msg.Format( LOG_TAB "Keeping net '%s' not in imported netlist\r\n", net->name );
 					log->AddLine( msg );
 				}
+
+				// Need to rename the net if an imported net has the same 
+				// name - i.e. the imported net name takes precidence.
 			}
 			else
 			{
@@ -5700,42 +5719,60 @@ void CNetList::ImportNetListInfo( netlist_info * nl, int flags, CDlgLog * log )
 		}
 
 		// Delete old names
-		for( int i=0; i<n_info_nets; i++ )
+		for( POSITION pos = db_nets_to_rename.GetStartPosition(); pos != NULL; )
 		{
-			net_info &net_info = (*nl)[i];
+			void *dummy;
+			net_info *p_net_info;
+			db_nets_to_rename.GetNextAssoc(pos, (void*&)p_net_info, dummy );
 
-			if( net_info.net != NULL )
+			if( p_net_info->net != NULL )
 			{
-				if( net_info.net->name != net_info.name )
-				{
-					if( log )
-					{
-						msg.Format( LOG_TAB "Renaming net '%s' to '%s'\r\n", net_info.net->name, net_info.name );
-						log->AddLine( msg );
-					}
-
-					m_map.RemoveKey( net_info.name );
-					net_info.net->Rename( net_info.name );
-				}
-				else
-				{
-					// For the next pass (adding new names), use net_info.net != NULL 
-					// to determine if the nets need to be added back in rather than
-					// compare the names again.
-					net_info.net = NULL;
-				}
+				// Remove the old name
+				m_map.RemoveKey( p_net_info->net->name );
 			}
 		}
 
 		// Assign new names
-		for( int i=0; i<n_info_nets; i++ )
+		for( POSITION pos = db_nets_to_rename.GetStartPosition(); pos != NULL; )
 		{
-			net_info &net_info = (*nl)[i];
+			void *dummy;
+			net_info *p_net_info;
+			db_nets_to_rename.GetNextAssoc(pos, (void*&)p_net_info, dummy );
 
-			if( net_info.net != NULL )
+			if( p_net_info->net != NULL )
 			{
-				m_map.SetAt( net_info.name, net_info.net );
-				net_info.net->name = net_info.name;	
+				if( log )
+				{
+					msg.Format( LOG_TAB "Renaming net '%s' to '%s'\r\n", p_net_info->net->name, p_net_info->name );
+					log->AddLine( msg );
+					bDisplayedSomething = true;
+				}
+
+				cnet * squatter_net;
+				if( m_map.Lookup( p_net_info->name, (void *&)squatter_net ) )
+				{
+					// A net already exists with that name due to the KEEP_NETS flag
+					// Must rename the existing net
+					CString new_name = p_net_info->name + "_@";
+
+					while( m_map.Lookup( new_name, dummy ) )
+					{
+						new_name += "@";
+					}
+
+					squatter_net->Rename( new_name );
+
+					if( log )
+					{
+						msg.Format( LOG_TAB LOG_TAB "Not-deleted existing net '%s' renamed to '%s'\r\n", p_net_info->name, new_name );
+						log->AddLine( msg );
+						bDisplayedSomething = true;
+					}
+				}
+
+				// Assign the new name to the netlist map and the net itself
+				m_map[p_net_info->name] = p_net_info->net;
+				p_net_info->net->name   = p_net_info->name;	
 			}
 		}
 	}
