@@ -160,11 +160,11 @@ CFreePcbDoc::CFreePcbDoc()
 	m_auto_elapsed = 0;
 	m_dlg_log = NULL;
 	bNoFilesOpened = TRUE;
-	m_version = 1.355;
+	m_version = 1.356;
 	m_file_version = 1.344;
 	m_dlg_log = new CDlgLog;
 	m_dlg_log->Create( IDD_LOG );
-	m_import_flags = IMPORT_PARTS | IMPORT_NETS | KEEP_TRACES | KEEP_STUBS | KEEP_AREAS;
+	m_import_flags = IMPORT_PARTS | IMPORT_NETS | KEEP_FP | KEEP_NETS | KEEP_TRACES | KEEP_STUBS | KEEP_AREAS;
 
 	// initialize pseudo-clipboard
 	clip_plist = new CPartList( NULL, m_smfontutil );
@@ -283,7 +283,8 @@ void CFreePcbDoc::OnFileNew()
 	dlg.Init( TRUE, &m_name, &m_parent_folder, &m_lib_dir,
 		m_num_copper_layers, m_bSMT_copper_connect, m_default_glue_w,
 		m_trace_w, m_via_w, m_via_hole_w,
-		m_auto_interval, &m_w, &m_v_w, &m_v_h_w );
+		m_auto_interval, m_auto_ratline_disable, m_auto_ratline_min_pins,
+		&m_w, &m_v_w, &m_v_h_w );
 	int ret = dlg.DoModal();
 	if( ret == IDOK )
 	{
@@ -354,6 +355,8 @@ void CFreePcbDoc::OnFileNew()
 		pMain->DrawMenuBar();
 
 		// set options from dialog
+		m_auto_ratline_disable = dlg.GetAutoRatlineDisable();
+		m_auto_ratline_min_pins = dlg.GetAutoRatlineMinPins();
 		m_num_copper_layers = dlg.GetNumCopperLayers();
 		m_plist->SetNumCopperLayers( m_num_copper_layers );
 		m_nlist->SetNumCopperLayers( m_num_copper_layers );
@@ -944,7 +947,8 @@ void CFreePcbDoc::OnProjectNetlist()
 		m_nlist->ImportNetListInfo( dlg.m_nl, 0, NULL, m_trace_w, m_via_w, m_via_hole_w );
 		ProjectModified( TRUE );
 		view->CancelSelection();
-		m_nlist->OptimizeConnections();
+		if( m_vis[LAY_RAT_LINE] && !m_auto_ratline_disable )
+			m_nlist->OptimizeConnections();
 		view->Invalidate( FALSE );
 	}
 }
@@ -1594,6 +1598,15 @@ void CFreePcbDoc::ReadOptions( CStdioFile * pcb_file )
 			{
 				m_auto_interval = my_atoi( &p[0] );
 			}
+			else if( np && key_str == "auto_ratline_disable" )
+			{
+				m_auto_ratline_disable = my_atoi( &p[0] );
+			}
+
+			else if( np && key_str == "auto_ratline_disable_min_pins" )
+			{
+				m_auto_ratline_min_pins = my_atoi( &p[0] );
+			}
 			else if( np && key_str == "netlist_import_flags" )
 			{
 				m_import_flags = my_atoi( &p[0] );
@@ -1977,6 +1990,10 @@ void CFreePcbDoc::WriteOptions( CStdioFile * file )
 		file->WriteString( line );
 		line.Format( "autosave_interval: %d\n", m_auto_interval );
 		file->WriteString( line );
+		line.Format( "auto_ratline_disable: \"%d\"\n", m_auto_ratline_disable );
+		file->WriteString( line );
+		line.Format( "auto_ratline_disable_min_pins: \"%d\"\n", m_auto_ratline_min_pins );
+		file->WriteString( line );
 		line.Format( "netlist_import_flags: %d\n", m_import_flags );
 		file->WriteString( line );
 		if( m_units == MIL )
@@ -2169,6 +2186,8 @@ void CFreePcbDoc::InitializeNewProject()
 	m_nlist->SetNumCopperLayers( m_num_copper_layers );
 	m_nlist->SetSMTconnect( m_bSMT_copper_connect );
 	m_num_layers = m_num_copper_layers + LAY_TOP_COPPER;
+	m_auto_ratline_disable = FALSE;
+	m_auto_ratline_min_pins = 100;
 	m_auto_interval = 0;
 	m_sm_cutout.RemoveAll();
 
@@ -2575,7 +2594,8 @@ void CFreePcbDoc::OnProjectPartlist()
 		ResetUndoState();
 		CFreePcbView * view = (CFreePcbView*)m_view;
 		view->CancelSelection();
-		m_nlist->OptimizeConnections();
+		if( m_vis[LAY_RAT_LINE] && !m_auto_ratline_disable )
+			m_nlist->OptimizeConnections();
 		ProjectModified( TRUE );
 		view->Invalidate( FALSE );
 	}
@@ -2605,7 +2625,8 @@ void CFreePcbDoc::OnPartProperties()
 			ASSERT(0);	// not allowed
 		else
 		{
-			m_nlist->OptimizeConnections();
+			if( m_vis[LAY_RAT_LINE] && !m_auto_ratline_disable )
+				m_nlist->OptimizeConnections();
 			m_view->Invalidate( FALSE );
 			ProjectModified( TRUE );
 		}
@@ -2679,7 +2700,7 @@ void CFreePcbDoc::OnFileImport()
 				if( ret == IDCANCEL )
 					return;
 				else
-					m_import_flags = dlg_options.m_flags;
+					m_import_flags = IMPORT_FROM_NETLIST_FILE | dlg_options.m_flags;
 			}
 
 			// show log dialog
@@ -2735,7 +2756,7 @@ void CFreePcbDoc::OnFileImport()
 			line = "\r\n************** DONE ****************\r\n";
 			m_dlg_log->AddLine( line );
 			// finish up
-			m_nlist->OptimizeConnections();
+			m_nlist->OptimizeConnections( FALSE );
 			m_view->OnViewAllElements();
 			ProjectModified( TRUE );
 			m_view->Invalidate( FALSE );
@@ -3679,7 +3700,7 @@ void CFreePcbDoc::OnFileGenerateCadFiles()
 		m_tlist, 
 		m_dlist,
 		m_dlg_log );
-	m_nlist->OptimizeConnections();
+	m_nlist->OptimizeConnections( FALSE );
 	int ret = dlg.DoModal();
 	if( ret == IDOK )
 	{
@@ -3751,11 +3772,14 @@ void CFreePcbDoc::OnProjectOptions()
 	dlg.Init( FALSE, &m_name, &m_path_to_folder, &m_full_lib_dir,
 		m_num_copper_layers, m_bSMT_copper_connect, m_default_glue_w,
 		m_trace_w, m_via_w, m_via_hole_w,
-		m_auto_interval, &m_w, &m_v_w, &m_v_h_w );
+		m_auto_interval, m_auto_ratline_disable, m_auto_ratline_min_pins,
+		&m_w, &m_v_w, &m_v_h_w );
 	int ret = dlg.DoModal();
 	if( ret == IDOK )  
 	{
 		// set options from dialog
+		m_auto_ratline_disable = dlg.GetAutoRatlineDisable();
+		m_auto_ratline_min_pins = dlg.GetAutoRatlineMinPins();
 		BOOL bResetAreaConnections = m_bSMT_copper_connect != dlg.m_bSMT_connect_copper;
 		m_bSMT_copper_connect = dlg.m_bSMT_connect_copper;
 		m_nlist->SetSMTconnect( m_bSMT_copper_connect );
@@ -3805,8 +3829,10 @@ void CFreePcbDoc::OnProjectOptions()
 		m_via_hole_w = dlg.GetViaHoleWidth();
 		m_nlist->SetWidths( m_trace_w, m_via_w, m_via_hole_w );
 		m_auto_interval = dlg.GetAutoInterval();
+		m_auto_ratline_disable = dlg.GetAutoRatlineDisable();
 
-		m_nlist->OptimizeConnections();
+		if( m_vis[LAY_RAT_LINE] && !m_auto_ratline_disable )
+			m_nlist->OptimizeConnections();
 		m_view->InvalidateLeftPane();
 		m_view->Invalidate( FALSE );
 		m_project_open = TRUE;
@@ -3854,7 +3880,8 @@ void CFreePcbDoc::OnToolsCheckPartsAndNets()
 void CFreePcbDoc::OnToolsDrc()
 {
 	DlgDRC dlg;
-	m_nlist->OptimizeConnections();
+	if( m_vis[LAY_RAT_LINE] && !m_auto_ratline_disable )
+		m_nlist->OptimizeConnections();
 	m_drelist->Clear();
 	dlg.Initialize( m_units, 
 					&m_dr,
@@ -4029,7 +4056,8 @@ void CFreePcbDoc::OnToolsCheckCopperAreas()
 	}
 	str.Format( "*******  DONE *******\r\n" ); 
 	m_dlg_log->AddLine( str );
-	m_nlist->OptimizeConnections();
+	if( m_vis[LAY_RAT_LINE] && !m_auto_ratline_disable )
+		m_nlist->OptimizeConnections();
 	ProjectModified( TRUE );
 	m_view->Invalidate( FALSE );
 }
@@ -4407,7 +4435,8 @@ void CFreePcbDoc::ResetUndoState()
 
 void CFreePcbDoc::OnRepeatDrc()
 {
-	m_nlist->OptimizeConnections();
+	if( m_vis[LAY_RAT_LINE] && !m_auto_ratline_disable )
+		m_nlist->OptimizeConnections();
 	m_drelist->Clear();
 	m_dlg_log->ShowWindow( SW_SHOW );   
 	m_dlg_log->UpdateWindow();

@@ -4,6 +4,9 @@
 #include "FootprintLib.h"
 #include "DlgLog.h"
 #include "DlgAddPart.h"
+#include "DlgMyMessageBox.h"
+
+BOOL bDisableMessageIfFileNotFound = FALSE;
 
 // index one library file
 // file_name is just the file name, not the complete path
@@ -41,9 +44,15 @@ void CFootLibFolder::IndexLib( CString * file_name, CDlgLog * dlog )
 	int n_footprints = 0;
 
 	CStdioFile file;
-	int err = file.Open( m_footlib[nlib].m_full_path, CFile::modeRead );
-	if( !err )
-		ASSERT(0);
+	int OK = file.Open( m_footlib[nlib].m_full_path, CFile::modeRead );
+	if( !OK && !bDisableMessageIfFileNotFound )     
+	{
+		CDlgMyMessageBox dlg;
+		CString mess = "Unable to open library file\n\n \"" + m_footlib[nlib].m_full_path + "\"";
+		dlg.Initialize( mess );
+		dlg.DoModal();
+		bDisableMessageIfFileNotFound = dlg.bDontShowBoxState;
+	}
 
 	CString instr;
 	int pos = 0;

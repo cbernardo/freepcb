@@ -325,8 +325,9 @@ BOOL CPartList::TestHitOnPad( cpart * part, CString * pin_name, int x, int y, in
 }
 
 
-// Move element with given id to new position, angle and side
+// Move part to new position, angle and side
 // x and y are in world coords
+// Does not adjust connections to pins
 //
 int CPartList::Move( cpart * part, int x, int y, int angle, int side )
 {
@@ -1632,6 +1633,7 @@ int CPartList::UndrawPart( cpart * part )
 }
 
 // the footprint was changed for a particular part
+// note that this function also updates the netlist
 //
 void CPartList::PartFootprintChanged( cpart * part, CShape * new_shape )
 {
@@ -1657,7 +1659,7 @@ void CPartList::PartFootprintChanged( cpart * part, CShape * new_shape )
 //
 void CPartList::FootprintChanged( CShape * shape )
 {
-	// find all parts with given shape and update them
+	// find all parts with given footprint and update them
 	cpart * part = m_start.next;
 	while( part->next != 0 )
 	{
@@ -1744,8 +1746,11 @@ void CPartList::MakePartVisible( cpart * part, BOOL bVisible )
 }
 
 // Start dragging part by setting up display list
+// if bRatlines == FALSE, no rubber-band ratlines
+// else if bBelowPinCount == TRUE, only use ratlines for nets with less than pin_count pins
 //
-int CPartList::StartDraggingPart( CDC * pDC, cpart * part, BOOL bRatlines )
+int CPartList::StartDraggingPart( CDC * pDC, cpart * part, BOOL bRatlines, 
+								 BOOL bBelowPinCount, int pin_count )
 {
 	// make part invisible
 	MakePartVisible( part, FALSE );
@@ -1843,6 +1848,8 @@ int CPartList::StartDraggingPart( CDC * pDC, cpart * part, BOOL bRatlines )
 						for( int ic=0; ic<n->nconnects; ic++ )
 							n->connect[ic].utility = 0;
 					}
+
+					// now make existing ratlines invisible
 					for( int ic=0; ic<n->nconnects; ic++ )
 					{
 						cconnect * c = &n->connect[ic];
@@ -1865,37 +1872,6 @@ int CPartList::StartDraggingPart( CDC * pDC, cpart * part, BOOL bRatlines )
 							int pin1_index = pin1_part->shape->GetPinIndexByName( n->pin[pin1].pin_name );
 							if( pin1_index == ip )
 							{
-								// ip is the start pin for the connection
-								int xi = n->connect[ic].vtx[0].x;
-								int yi = n->connect[ic].vtx[0].y;
-								CPoint vp( xi, yi );
-								// OK, get next vertex, add ratline and hide segment
-								BOOL bDraw = FALSE;
-								if( pin2_part == part )
-								{
-									// connection starts and ends on this part,
-									// only drag if 3 or more segments
-									if( c->nsegs > 2 )
-										bDraw = TRUE;
-								}
-								else if( pin2_part == NULL )
-								{
-									// stub trace starts on this part,
-									// drag if more than 1 segment or next vertex is a tee
-									if( c->nsegs > 1 || c->vtx[1].tee_ID )
-										bDraw = TRUE;
-								}
-//								else if( pin2_part && c->nsegs > 1 )
-								else if( pin2_part )
-								{
-									// connection ends on another part
-									bDraw = TRUE;
-								}
-								if( bDraw )
-								{
-									CPoint vx( n->connect[ic].vtx[1].x, n->connect[ic].vtx[1].y );
-									m_dlist->AddDragRatline( vx, pin_points[ip] );
-								}
 								m_dlist->Set_visible( c->seg[0].dl_el, 0 );
 								for( int i=0; i<c->vtx[1].dl_el.GetSize(); i++ )
 									m_dlist->Set_visible( c->vtx[1].dl_el[i], 0 );
@@ -1905,32 +1881,6 @@ int CPartList::StartDraggingPart( CDC * pDC, cpart * part, BOOL bRatlines )
 						}
 						if( pin2_part == part )
 						{
-							int pin2_index = -1;
-							if( pin2 != cconnect::NO_END )
-								pin2_index = pin2_part->shape->GetPinIndexByName( n->pin[pin2].pin_name );
-							if( pin2_index == ip )
-							{
-								// ip is the end pin for the connection
-								int xi = n->connect[ic].vtx[c->nsegs].x;
-								int yi = n->connect[ic].vtx[c->nsegs].y;
-								CPoint vp( xi, yi );
-								// OK, get prev vertex, add ratline and hide segment
-								BOOL bDraw = FALSE;
-								if( pin1_part == part )
-								{
-									// starts and ends on part
-									if( c->nsegs > 2 )
-										bDraw = TRUE;
-								}
-//								else if( c->nsegs > 1 )
-								else
-									bDraw = TRUE;
-								if( bDraw )
-								{
-									CPoint vx( n->connect[ic].vtx[c->nsegs-1].x, n->connect[ic].vtx[c->nsegs-1].y );
-									m_dlist->AddDragRatline( vx, pin_points[ip] );
-								}
-							}
 							m_dlist->Set_visible( n->connect[ic].seg[c->nsegs-1].dl_el, 0 );
 							if( c->vtx[c->nsegs-1].dl_el.GetSize() )
 								for( int i=0; i<c->vtx[c->nsegs-1].dl_el.GetSize(); i++ )
@@ -1938,7 +1888,108 @@ int CPartList::StartDraggingPart( CDC * pDC, cpart * part, BOOL bRatlines )
 							if( c->vtx[c->nsegs-1].dl_hole )
 								m_dlist->Set_visible( c->vtx[c->nsegs-1].dl_hole, 0 );
 						}
-						c->utility = 1;	// this connection has been checked
+					}
+
+					// now see if we need to make a rubberband ratline for dragging
+					if( !bBelowPinCount || n->npins <= pin_count )
+					{
+						for( int ic=0; ic<n->nconnects; ic++ )
+						{
+							cconnect * c = &n->connect[ic];
+							if( n->utility && !c->utility )
+								continue;	// skip this connection
+
+							// check for connection to part
+							int pin1 = n->connect[ic].start_pin;
+							int pin2 = n->connect[ic].end_pin;
+							cpart * pin1_part = n->pin[pin1].part;
+							cpart * pin2_part = NULL;
+							if( pin2 != cconnect::NO_END )
+								pin2_part = n->pin[pin2].part;
+							if( pin1_part != part && pin2_part != part )
+								continue;	// no
+
+							// OK, this connection is attached to our part 
+							if( pin1_part == part )
+							{
+								int pin1_index = pin1_part->shape->GetPinIndexByName( n->pin[pin1].pin_name );
+								if( pin1_index == ip )
+								{
+									// ip is the start pin for the connection
+									int xi = n->connect[ic].vtx[0].x;
+									int yi = n->connect[ic].vtx[0].y;
+									CPoint vp( xi, yi );
+									// OK, get next vertex, add ratline and hide segment
+									BOOL bDraw = FALSE;
+									if( pin2_part == part )
+									{
+										// connection starts and ends on this part,
+										// only drag if 3 or more segments
+										if( c->nsegs > 2 )
+											bDraw = TRUE;
+									}
+									else if( pin2_part == NULL )
+									{
+										// stub trace starts on this part,
+										// drag if more than 1 segment or next vertex is a tee
+										if( c->nsegs > 1 || c->vtx[1].tee_ID )
+											bDraw = TRUE;
+									}
+									//								else if( pin2_part && c->nsegs > 1 )
+									else if( pin2_part )
+									{
+										// connection ends on another part
+										bDraw = TRUE;
+									}
+									if( bDraw )
+									{
+										CPoint vx( n->connect[ic].vtx[1].x, n->connect[ic].vtx[1].y );
+										m_dlist->AddDragRatline( vx, pin_points[ip] );
+									}
+									m_dlist->Set_visible( c->seg[0].dl_el, 0 );
+									for( int i=0; i<c->vtx[1].dl_el.GetSize(); i++ )
+										m_dlist->Set_visible( c->vtx[1].dl_el[i], 0 );
+									if( c->vtx[1].dl_hole )
+										m_dlist->Set_visible( c->vtx[1].dl_hole, 0 );
+								}
+							}
+							if( pin2_part == part )
+							{
+								int pin2_index = -1;
+								if( pin2 != cconnect::NO_END )
+									pin2_index = pin2_part->shape->GetPinIndexByName( n->pin[pin2].pin_name );
+								if( pin2_index == ip )
+								{
+									// ip is the end pin for the connection
+									int xi = n->connect[ic].vtx[c->nsegs].x;
+									int yi = n->connect[ic].vtx[c->nsegs].y;
+									CPoint vp( xi, yi );
+									// OK, get prev vertex, add ratline and hide segment
+									BOOL bDraw = FALSE;
+									if( pin1_part == part )
+									{
+										// starts and ends on part
+										if( c->nsegs > 2 )
+											bDraw = TRUE;
+									}
+									//								else if( c->nsegs > 1 )
+									else
+										bDraw = TRUE;
+									if( bDraw )
+									{
+										CPoint vx( n->connect[ic].vtx[c->nsegs-1].x, n->connect[ic].vtx[c->nsegs-1].y );
+										m_dlist->AddDragRatline( vx, pin_points[ip] );
+									}
+								}
+								m_dlist->Set_visible( n->connect[ic].seg[c->nsegs-1].dl_el, 0 );
+								if( c->vtx[c->nsegs-1].dl_el.GetSize() )
+									for( int i=0; i<c->vtx[c->nsegs-1].dl_el.GetSize(); i++ )
+										m_dlist->Set_visible( c->vtx[c->nsegs-1].dl_el[i], 0 );
+								if( c->vtx[c->nsegs-1].dl_hole )
+									m_dlist->Set_visible( c->vtx[c->nsegs-1].dl_hole, 0 );
+							}
+							c->utility = 1;	// this connection has been checked
+						}
 					}
 					n->utility = 1;	// all connections for this net have been checked
 				}
@@ -2588,7 +2639,7 @@ void CPartList::ImportPartListInfo( partlist_info * pl, int flags, CDlgLog * log
 	}
 
 	// now find parts in project that are not in partlist_info
-	// loop through all parts
+	// loop through all parts in project
 	cpart * part = m_start.next;
 	while( part->next != 0 )
 	{
@@ -2663,17 +2714,22 @@ void CPartList::ImportPartListInfo( partlist_info * pl, int flags, CDlgLog * log
 
 		if( pi->part == 0 )
 		{
-			// new part is being imported
+			// the partlist_info does not include a pointer to an existing part
+			// the part might not exist in the project, or we are importing a netlist file
 			cpart * old_part = GetPart( pi->ref_des );
 			if( old_part )
 			{
-				// new part has the same refdes as an existing part
+				// an existing part has the same ref_des as the new part
 				if( old_part->shape )
 				{
-					// existing part has a footprint
-					if( flags & KEEP_FP )
+					// the existing part has a footprint
+					// see if the incoming package name matches the old package or footprint
+					if( (flags & KEEP_FP) 
+						|| (pi->package == "") 
+						|| (pi->package == old_part->package)
+						|| (pi->package == old_part->shape->m_name) )
 					{
-						// replace new part with old
+						// use footprint and parameters from existing part
 						pi->part = old_part;
 						pi->ref_size = old_part->m_ref_size; 
 						pi->ref_width = old_part->m_ref_w;
@@ -2698,7 +2754,6 @@ void CPartList::ImportPartListInfo( partlist_info * pl, int flags, CDlgLog * log
 						pi->side = old_part->side;
 						pi->part = old_part;
 						pi->bShapeChanged = TRUE;
-						//** TODO should this be pi->shape->m_name ?
 						if( log && old_part->shape->m_name != pi->package )
 						{
 							mess.Format( "  Changing footprint of part %s from \"%s\" to \"%s\"\r\n", 
@@ -2709,7 +2764,6 @@ void CPartList::ImportPartListInfo( partlist_info * pl, int flags, CDlgLog * log
 					else
 					{
 						// new part does not have footprint, remove old part
-						//** TODO should this be pi->shape->m_name ?
 						if( log && old_part->shape->m_name != pi->package )
 						{
 							mess.Format( "  Changing footprint of part %s from \"%s\" to \"%s\" (not found)\r\n", 
@@ -2884,8 +2938,8 @@ void CPartList::ImportPartListInfo( partlist_info * pl, int flags, CDlgLog * log
 					// change footprint to new one
 					PartFootprintChanged( pi->part, pi->shape );
 					ResizeRefText( pi->part, pi->ref_size, pi->ref_width );
-					m_nlist->PartFootprintChanged( part );
-					m_nlist->PartMoved( pi->part );
+//** 420					m_nlist->PartFootprintChanged( part );
+//** 420					m_nlist->PartMoved( pi->part );
 				}
 			}
 			if( pi->x != pi->part->x 
@@ -3752,61 +3806,75 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 	{
 		m_nlist->m_map.GetNextAssoc( pos, name, ptr );
 		cnet * net = (cnet*)ptr;
+		// iterate through copper areas
 		for( int ia=0; ia<net->nareas; ia++ )
 		{
-			// iterate through copper areas
 			carea * a = &net->area[ia];
-			for( int ic=0; ic<a->poly->GetNumCorners(); ic++ )
+			// iterate through contours
+			for( int icont=0; icont<a->poly->GetNumContours(); icont++ )
 			{
-				id id_a = net->id;
-				id_a.st = ID_AREA;
-				id_a.i = ia;
-				id_a.sst = ID_SIDE;
-				id_a.ii = ic;
-				int x1 = a->poly->GetX(ic);
-				int y1 = a->poly->GetY(ic);
-				int x2 = a->poly->GetX(0);
-				int y2 = a->poly->GetY(0);
-				if( ic != a->poly->GetNumCorners()-1 )
+				// iterate through corners and sides
+				int istart = a->poly->GetContourStart(icont);
+				int iend = a->poly->GetContourEnd(icont);
+				for( int ic=istart; ic<=iend; ic++ )
 				{
-					x2 = a->poly->GetX(ic+1);
-					y2 = a->poly->GetY(ic+1);
-				}
-				int style = a->poly->GetSideStyle(ic);
-				// test clearance to board edge
-				for( int ib=0; ib<board_outline->GetSize(); ib++ )
-				{
-					CPolyLine * b = &(*board_outline)[ib];
-					for( int ibc=0; ibc<b->GetNumCorners(); ibc++ )
+					id id_a = net->id;
+					id_a.st = ID_AREA;
+					id_a.i = ia;
+					id_a.sst = ID_SIDE;
+					id_a.ii = ic;
+					int x1 = a->poly->GetX(ic);
+					int y1 = a->poly->GetY(ic);
+					int x2, y2;
+					if( ic < iend )
 					{
-						int bx1 = b->GetX(ibc);
-						int by1 = b->GetY(ibc);
-						int bx2 = b->GetX(0);
-						int by2 = b->GetY(0);
-						if( ibc != b->GetNumCorners()-1 )
+						x2 = a->poly->GetX(ic+1);
+						y2 = a->poly->GetY(ic+1);
+					}
+					else
+					{
+						x2 = a->poly->GetX(istart);
+						y2 = a->poly->GetY(istart);
+					}
+					int style = a->poly->GetSideStyle(ic);
+
+					// test clearance to board edge
+					// iterate through board outlines
+					for( int ib=0; ib<board_outline->GetSize(); ib++ )
+					{
+						CPolyLine * b = &(*board_outline)[ib];
+						// iterate through sides
+						for( int ibc=0; ibc<b->GetNumCorners(); ibc++ )
 						{
-							bx2 = b->GetX(ibc+1);
-							by2 = b->GetY(ibc+1);
-						}
-						int bstyle = b->GetSideStyle(ibc);
-						int x, y;
-						int d = ::GetClearanceBetweenSegments( bx1, by1, bx2, by2, bstyle, 0,
-							x1, y1, x2, y2, style, 0, dr->board_edge_copper, &x, &y );
-						if( d < dr->board_edge_copper )
-						{
-							// BOARDEDGE_COPPERAREA error
-							::MakeCStringFromDimension( &d_str, d, units, TRUE, TRUE, TRUE, 1 );
-							::MakeCStringFromDimension( &x_str, x, units, FALSE, TRUE, TRUE, 1 );
-							::MakeCStringFromDimension( &y_str, y, units, FALSE, TRUE, TRUE, 1 );
-							str.Format( "%ld: \"%s\" copper area to board edge = %s, x=%s, y=%s\r\n",  
-								nerrors+1, net->name, d_str, x_str, y_str );
-							DRError * dre = drelist->Add( nerrors, DRError::BOARDEDGE_COPPERAREA, &str,
-								&net->name, NULL, id_a, id_a, x, y, 0, 0, 0, 0 );
-							if( dre )
+							int bx1 = b->GetX(ibc);
+							int by1 = b->GetY(ibc);
+							int bx2 = b->GetX(0);
+							int by2 = b->GetY(0);
+							if( ibc != b->GetNumCorners()-1 )
 							{
-								nerrors++;
-								if( log )
-									log->AddLine( str );
+								bx2 = b->GetX(ibc+1);
+								by2 = b->GetY(ibc+1);
+							}
+							int bstyle = b->GetSideStyle(ibc);
+							int x, y;
+							int d = ::GetClearanceBetweenSegments( bx1, by1, bx2, by2, bstyle, 0,
+								x1, y1, x2, y2, style, 0, dr->board_edge_copper, &x, &y );
+							if( d < dr->board_edge_copper )
+							{
+								// BOARDEDGE_COPPERAREA error
+								::MakeCStringFromDimension( &d_str, d, units, TRUE, TRUE, TRUE, 1 );
+								::MakeCStringFromDimension( &x_str, x, units, FALSE, TRUE, TRUE, 1 );
+								::MakeCStringFromDimension( &y_str, y, units, FALSE, TRUE, TRUE, 1 );
+								str.Format( "%ld: \"%s\" copper area to board edge = %s, x=%s, y=%s\r\n",  
+									nerrors+1, net->name, d_str, x_str, y_str );
+								DRError * dre = drelist->Add( nerrors, DRError::BOARDEDGE_COPPERAREA, &str,
+									&net->name, NULL, id_a, id_a, x, y, 0, 0, 0, 0 );
+								if( dre )
+								{
+									nerrors++;
+									if( log )
+										log->AddLine( str );
+								}
 							}
 						}
 					}

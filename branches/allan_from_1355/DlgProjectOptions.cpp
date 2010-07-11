@@ -6,6 +6,7 @@
 #include "DlgProjectOptions.h"
 #include "DlgAddWidth.h"
 #include "PathDialog.h"
+#include ".\dlgprojectoptions.h"
 
 // global callback function for sorting
 //		
@@ -72,6 +73,11 @@ void CDlgProjectOptions::DoDataExchange(CDataExchange* pDX)
 	DDX_Control(pDX, IDC_EDIT_AUTO_INTERVAL, m_edit_auto_interval);
 	DDX_Text(pDX, IDC_EDIT_AUTO_INTERVAL, m_auto_interval );
 	DDX_Control(pDX, IDC_CHECK1, m_check_SMT_connect);
+	DDX_Control(pDX, IDC_CHECK_AUTORAT_DISABLE, m_check_disable_auto_rats);
+	DDX_Control(pDX, IDC_EDIT_MIN_PINS, m_edit_min_pins);
+	DDX_Text(pDX, IDC_EDIT_MIN_PINS, m_auto_ratline_min_pins );
+	DDV_MinMaxInt(pDX, m_auto_ratline_min_pins, 0, 10000 );
+
 	if( pDX->m_bSaveAndValidate )
 	{
 		// leaving dialog
@@ -97,6 +103,7 @@ void CDlgProjectOptions::DoDataExchange(CDataExchange* pDX)
 		{
 			// save options
 			m_bSMT_connect_copper = m_check_SMT_connect.GetCheck();
+			m_bAuto_Ratline_Disable = m_check_disable_auto_rats.GetCheck();
 
 			// convert minutes to seconds
 			m_auto_interval *= 60;
@@ -137,6 +144,7 @@ BEGIN_MESSAGE_MAP(CDlgProjectOptions, CDialog)
 	ON_EN_KILLFOCUS(IDC_EDIT_FOLDER, OnEnKillfocusEditFolder)
 	ON_BN_CLICKED(IDC_CHECK_AUTOSAVE, OnBnClickedCheckAutosave)
 	ON_BN_CLICKED(IDC_BUTTON_LIB, OnBnClickedButtonLib)
+	ON_BN_CLICKED(IDC_CHECK_AUTORAT_DISABLE, OnBnClickedCheckAutoRatDisable)
 END_MESSAGE_MAP()
 
 // initialize data
@@ -152,6 +160,8 @@ void CDlgProjectOptions::Init( BOOL new_project,
 							  int via_w,
 							  int hole_w,
 							  int auto_interval,
+							  BOOL bAuto_Ratline_Disable,
+							  int auto_ratline_min_pins,
 							  CArray<int> * w,
 							  CArray<int> * v_w,
 							  CArray<int> * v_h_w )
@@ -167,6 +177,8 @@ void CDlgProjectOptions::Init( BOOL new_project,
 	m_via_w = via_w;
 	m_hole_w = hole_w;
 	m_auto_interval = auto_interval;
+	m_bAuto_Ratline_Disable = bAuto_Ratline_Disable;
+	m_auto_ratline_min_pins = auto_ratline_min_pins;
 	m_w = w;
 	m_v_w = v_w;
 	m_v_h_w = v_h_w;
@@ -209,6 +221,9 @@ BOOL CDlgProjectOptions::OnInitDialog()
 	}
 	else
 		m_check_autosave.SetCheck(1);
+
+	m_check_disable_auto_rats.SetCheck( m_bAuto_Ratline_Disable );
+	m_edit_min_pins.EnableWindow( m_bAuto_Ratline_Disable );
 	m_check_SMT_connect.SetCheck( m_bSMT_connect_copper );
 	return TRUE;
 }
@@ -327,4 +342,9 @@ void CDlgProjectOptions::OnBnClickedButtonLib()
 		m_lib_folder = dlg.GetPathName();
 		m_edit_lib_folder.SetWindowText( m_lib_folder );
 	}
+}
+
+void CDlgProjectOptions::OnBnClickedCheckAutoRatDisable()
+{
+	m_edit_min_pins.EnableWindow( m_check_disable_auto_rats.GetCheck() );
 }

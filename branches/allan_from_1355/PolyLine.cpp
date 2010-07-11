@@ -1304,17 +1304,18 @@ void CPolyLine::SetSideStyle( int is, int style )
 {	
 	Undraw();
 	CPoint p1, p2;
-	if( is == (m_ncorners-1) )
+	int icont = GetContour( is );
+	int istart = GetContourStart( icont );
+	int iend = GetContourEnd( icont );
+	p1.x = corner[is].x;
+	p1.y = corner[is].y;
+	if( is == iend )
 	{
-		p1.x = corner[m_ncorners-1].x;
-		p1.y = corner[m_ncorners-1].y;
-		p2.x = corner[0].x;
-		p2.y = corner[0].y;
+		p2.x = corner[istart].x;
+		p2.y = corner[istart].y;
 	}
 	else
 	{
-		p1.x = corner[is].x;
-		p1.y = corner[is].y;
 		p2.x = corner[is+1].x;
 		p2.y = corner[is+1].y;
 	}
@@ -1605,8 +1606,8 @@ BOOL CPolyLine::TestPointInside( int x, int y )
 				if( ic == istart )
 					ok = FindLineSegmentIntersection( a, slope, 
 					corner[iend].x, corner[iend].y,
-					corner[istart].x, corner[istart].y, 
-					side_style[m_ncorners-1],
+					corner[ic].x, corner[ic].y, 
+					side_style[iend],
 					&x, &y, &x2, &y2 );
 				else
 					ok = FindLineSegmentIntersection( a, slope, 
