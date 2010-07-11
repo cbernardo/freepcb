@@ -170,6 +170,8 @@ public:
 	// project options
 	BOOL m_bSMT_copper_connect;
 	int m_default_glue_w;
+	BOOL m_auto_ratline_disable;
+	int m_auto_ratline_min_pins;
 
 	// pseudo-clipboard
 	CPartList * clip_plist;

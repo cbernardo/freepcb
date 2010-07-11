@@ -411,9 +411,9 @@ public:
 	int RemoveNetConnect( cnet * net, int ic, BOOL set_areas=TRUE );
 	int UnrouteNetConnect( cnet * net, int ic );
 	int SetConnectionWidth( cnet * net, int ic, int w, int via_w, int via_hole_w );
-	void OptimizeConnections();
-	int OptimizeConnections( cnet * net, int ic=-1 );
-	void OptimizeConnections( cpart * part );
+	void OptimizeConnections( BOOL bBelowPinCount=FALSE, int pin_count=0, BOOL bVisibleNetsOnly=TRUE );
+	int OptimizeConnections( cnet * net, int ic, BOOL bBelowPinCount, int pin_count, BOOL bVisibleNetsOnly=TRUE );
+	void OptimizeConnections( cpart * part, BOOL bBelowPinCount, int pin_count, BOOL bVisibleNetsOnly=TRUE );
 	void RenumberConnection( cnet * net, int ic );
 	void RenumberConnections( cnet * net );
 	BOOL TestHitOnConnectionEndPad( int x, int y, cnet * net, int ic, int layer, int dir );

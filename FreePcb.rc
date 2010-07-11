@@ -790,9 +790,9 @@ CAPTION "About FreePcb"
 FONT 8, "MS Sans Serif", 0, 0, 0x0
 BEGIN
     ICON            IDR_MAINFRAME,IDC_STATIC,11,12,20,20
-    LTEXT           "FreePcb Version 1.355",IDC_STATIC,42,12,119,8,
+    LTEXT           "FreePcb Version 1.356",IDC_STATIC,42,12,119,8,
                     SS_NOPREFIX
-    LTEXT           "(c) Allan Wright 2003 - 2008",IDC_STATIC,42,24,142,8
+    LTEXT           "(c) Allan Wright 2003 - 2010",IDC_STATIC,42,24,142,8
     DEFPUSHBUTTON   "OK",IDOK,178,7,50,14,WS_GROUP
     LTEXT           "Source libraries:",IDC_STATIC,19,66,51,8
     LTEXT           "(c) Advanced Interfaces Group, University of Manchester",
@@ -1072,7 +1072,7 @@ BEGIN
     GROUPBOX        "Hatch pattern",IDC_STATIC,12,6,180,24
 END
 
-IDD_PROJECT_OPTIONS DIALOGEX 0, 0, 238, 346
+IDD_PROJECT_OPTIONS DIALOGEX 0, 0, 238, 379
 STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | 
     WS_SYSMENU
 CAPTION "Project Options"
@@ -1097,10 +1097,10 @@ BEGIN
     PUSHBUTTON      "Edit",IDC_BUTTON_EDIT,108,270,24,12
     PUSHBUTTON      "Delete",IDC_BUTTON_DELETE,175,270,29,12
     CONTROL         "Enable",IDC_CHECK_AUTOSAVE,"Button",BS_AUTOCHECKBOX | 
-                    WS_TABSTOP,18,304,37,10
-    EDITTEXT        IDC_EDIT_AUTO_INTERVAL,135,302,24,12,ES_AUTOHSCROLL
-    DEFPUSHBUTTON   "OK",IDOK,54,326,50,14
-    PUSHBUTTON      "Cancel",IDCANCEL,138,326,50,14
+                    WS_TABSTOP,18,337,37,10
+    EDITTEXT        IDC_EDIT_AUTO_INTERVAL,135,336,24,12,ES_AUTOHSCROLL
+    DEFPUSHBUTTON   "OK",IDOK,54,359,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,138,359,50,14
     LTEXT           "Name",IDC_STATIC,31,8,19,8
     LTEXT           "Project Folder",IDC_STATIC,6,26,46,8
     LTEXT           "Number of copper layers",IDC_STATIC,6,62,93,8
@@ -1111,10 +1111,17 @@ BEGIN
     LTEXT           "via hole",IDC_STATIC,138,127,26,8
     GROUPBOX        "Menu of trace and via widths",IDC_STATIC,6,149,222,140
     LTEXT           "Library folder",IDC_STATIC,6,44,44,8
-    LTEXT           "Interval (minutes)",IDC_STATIC,72,304,58,8
-    GROUPBOX        "Autosave",IDC_STATIC,6,293,222,27
+    LTEXT           "Interval (minutes)",IDC_STATIC,72,337,58,8
+    GROUPBOX        "Autosave",IDC_STATIC,6,326,222,27
     LTEXT           "Default adhesive dot diameter for SMT parts (mils)",
                     IDC_STATIC,6,96,162,8
+    GROUPBOX        "Automatic recalculation of ratlines after edits",
+                    IDC_STATIC,6,294,222,27
+    CONTROL         "Disable for nets with more than ",
+                    IDC_CHECK_AUTORAT_DISABLE,"Button",BS_AUTOCHECKBOX | 
+                    WS_TABSTOP,18,306,118,10
+    EDITTEXT        IDC_EDIT_MIN_PINS,135,305,29,12,ES_AUTOHSCROLL
+    LTEXT           "pins",IDC_STATIC,168,307,14,8
 END
 
 IDD_ADD_WIDTH_MENU_ITEM DIALOGEX 0, 0, 148, 95
@@ -2047,7 +2054,7 @@ BEGIN
                     IDC_STATIC,6,6,268,8
     GROUPBOX        "For parts in project but not in netlist file",
                     IDC_STATIC,6,24,276,54
-    GROUPBOX        "For parts with different footprints in project and netlist file",
+    GROUPBOX        "For parts in project whose package or footprint doesn't match netlist file",
                     IDC_STATIC,6,84,276,42
     GROUPBOX        "For nets in project that are not in netlist file",
                     IDC_STATIC,6,132,276,42
@@ -2718,8 +2725,8 @@ END
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 1,3,5,5
- PRODUCTVERSION 1,3,5,5
+ FILEVERSION 1,3,5,6
+ PRODUCTVERSION 1,3,5,6
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -2736,12 +2743,12 @@ BEGIN
         BEGIN
             VALUE "Comments", "alpha"
             VALUE "FileDescription", "FreePcb MFC Application"
-            VALUE "FileVersion", "1, 3, 5, 5"
+            VALUE "FileVersion", "1, 3, 5, 6"
             VALUE "InternalName", "FreePcb"
             VALUE "LegalCopyright", "Copyright (C) 2002-2007"
             VALUE "OriginalFilename", "FreePcb.EXE"
             VALUE "ProductName", "FreePcb Application"
-            VALUE "ProductVersion", "1, 3, 5, 5"
+            VALUE "ProductVersion", "1, 3, 5, 6"
         END
     END
     BLOCK "VarFileInfo"

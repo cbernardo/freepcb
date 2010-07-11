@@ -251,7 +251,8 @@ public:
 	cpart * GetPart( LPCTSTR ref_des );
 	cpart * GetFirstPart();
 	cpart * GetNextPart( cpart * part );
-	int StartDraggingPart( CDC * pDC, cpart * part, BOOL bRatlines=TRUE );
+	int StartDraggingPart( CDC * pDC, cpart * part, BOOL bRatlines, 
+								 BOOL bBelowPinCount, int pin_count );
 	int StartDraggingRefText( CDC * pDC, cpart * part );
 	int StartDraggingValue( CDC * pDC, cpart * part );
 	int CancelDraggingPart( cpart * part );

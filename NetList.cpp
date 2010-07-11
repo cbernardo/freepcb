@@ -938,7 +938,6 @@ void CNetList::CleanUpConnections( cnet * net, CString * logstr )
 			// no, remove connection
 			net->connect.RemoveAt(ic);
 			net->nconnects--;
-//			return;
 		}
 		else
 		{
@@ -987,47 +986,24 @@ void CNetList::CleanUpConnections( cnet * net, CString * logstr )
 				DrawConnection( net, ic );
 		}
 	}
-	// now look for malformed traces due to autorouter
-	// check for stubs ending at same point on same layer
-	for( int ic=net->nconnects-2; ic>=0; ic-- )   
+
+	// now check for non-branch stubs with a single unrouted segment and no end-via
+	for( int ic=net->nconnects-1; ic>=0; ic-- )   
 	{
 		cconnect * c = &net->connect[ic];
 		cvertex * end_v = &c->vtx[c->nsegs];
-		if( c->end_pin == cconnect::NO_END && end_v->tee_ID == 0 )
+		if( c->end_pin == cconnect::NO_END && end_v->tee_ID == 0 && end_v->via_w == 0 )
 		{
-			// stub
-			int x = end_v->x;
-			int y = end_v->y;
-			int layer = LAY_PAD_THRU;
-			if( end_v->via_w == 0 )
-				layer = c->seg[c->nsegs-1].layer;
-			// now loop through other stubs to see if a match
-			for( int icc=net->nconnects-1; icc>ic; icc-- ) 
+			if( logstr )
 			{
-				cconnect * cc = &net->connect[icc];
-				cvertex * end_vv = &cc->vtx[cc->nsegs];
-				if( cc->end_pin == cconnect::NO_END && end_vv->tee_ID == 0 )
-				{
-					int xx = end_vv->x;
-					int yy = end_vv->y;
-					int llayer = LAY_PAD_THRU;
-					if( end_vv->via_w == 0 )
-						llayer = cc->seg[cc->nsegs-1].layer;
-					if( x==xx && y==yy && (layer==llayer || layer==LAY_PAD_THRU || llayer==LAY_PAD_THRU ) )
-					{
-						if( logstr )
-						{
-							CString str;
-							str.Format( "net %s: stub traces from %s.%s and %s.%s: same end-point\r\n",
-									net->name, 
-									net->pin[c->start_pin].ref_des, net->pin[c->start_pin].pin_name,
-									net->pin[cc->start_pin].ref_des, net->pin[cc->start_pin].pin_name ); 
-							*logstr += str;
-
-						}
-					}
-				}
+				CString str;
+				str.Format( "net %s: stub trace from %s.%s: single unrouted segment and no end via, removed\r\n",
+					net->name, 
+					net->pin[c->start_pin].ref_des, net->pin[c->start_pin].pin_name ); 
+				*logstr += str;
 			}
+			net->connect.RemoveAt(ic);
+			net->nconnects--;
 		}
 	}
 	// 
@@ -1074,49 +1050,58 @@ void CNetList::CleanUpAllConnections( CString * logstr )
 	net = GetFirstNet();
 	while( net )
 	{
-		for( int ic=net->nconnects-1; ic>=0; ic-- )
+		// may have to iterate until no connections removed
+		int n_removed = 999;
+		while( n_removed != 0 )
 		{
-			cconnect * c = &net->connect[ic];
-			if( c->end_pin == cconnect::NO_END )
+			n_removed = 0;
+			for( int ic=net->nconnects-1; ic>=0; ic-- )
 			{
-				// branch, check for tee
-				int end_id = c->vtx[c->nsegs].tee_ID;
-				if( end_id )
+				cconnect * c = &net->connect[ic];
+				if( c->end_pin == cconnect::NO_END )
 				{
-					BOOL bError = FALSE;
-					CString no_tee_str = "";
-					CString no_ID_str = "";
-					if( !FindTeeVertexInNet( net, end_id, 0, 0 ) )
+					// branch, check for tee
+					int end_id = c->vtx[c->nsegs].tee_ID;
+					if( end_id )
 					{
-						no_tee_str = ", not in trace";
-						bError = TRUE;
-					}
-					if( FindTeeID( end_id ) == -1 )
-					{
-						no_ID_str = ", not in ID array";
-						bError = TRUE;
-					}
-					if( bError && logstr )
-					{
-						str.Format( "  tee_id %d found in branch%s%s, branch removed\r\n", 
-							end_id, no_tee_str, no_ID_str );
-						*logstr += str;
-					}
-					if( bError )
-						RemoveNetConnect( net, ic, FALSE );
-				}
-			}
-			else
-			{
-				for( int iv=1; iv<c->nsegs; iv++ )
-				{
-					if( int id=c->vtx[iv].tee_ID )
-					{
-						// tee-vertex, check array
-						if( FindTeeID(id) == -1 && logstr )
+						BOOL bError = FALSE;
+						CString no_tee_str = "";
+						CString no_ID_str = "";
+						if( !FindTeeVertexInNet( net, end_id, 0, 0 ) )
 						{
-							str.Format( "  tee_id %d found in trace, not in ID array\r\n", id );
+							no_tee_str = ", not in trace";
+							bError = TRUE;
+						}
+						if( FindTeeID( end_id ) == -1 )
+						{
+							no_ID_str = ", not in ID array";
+							bError = TRUE;
+						}
+						if( bError && logstr )
+						{
+							str.Format( "  tee_id %d found in branch%s%s, branch removed\r\n", 
+								end_id, no_tee_str, no_ID_str );
 							*logstr += str;
+						}
+						if( bError )
+						{
+							RemoveNetConnect( net, ic, FALSE );
+							n_removed++;
+						}
+					}
+				}
+				else
+				{
+					for( int iv=1; iv<c->nsegs; iv++ )
+					{
+						if( int id=c->vtx[iv].tee_ID )
+						{
+							// tee-vertex, check array
+							if( FindTeeID(id) == -1 && logstr )
+							{
+								str.Format( "  tee_id %d found in trace, not in ID array\r\n", id );
+								*logstr += str;
+							}
 						}
 					}
 				}
@@ -2315,7 +2300,7 @@ int CNetList::PartMoved( cpart * part )
 	for( int ip=0; ip<part->shape->m_padstack.GetSize(); ip++ ) 
 	{
 		net = (cnet*)part->pin[ip].net;
-		if( net )
+		if( net && net->utility == 0 )
 		{
 			for( int ic=0; ic<net->nconnects; ic++ )
 			{
@@ -2675,7 +2660,7 @@ void AddPinsToGrid( char * grid, int p1, int p2, int npins )
 
 // optimize all unrouted connections
 //
-void CNetList::OptimizeConnections()
+void CNetList::OptimizeConnections( BOOL bBelowPinCount, int pin_count, BOOL bVisibleNetsOnly )
 {
 	// traverse map
 	POSITION pos;
@@ -2685,13 +2670,14 @@ void CNetList::OptimizeConnections()
 	{
 		m_map.GetNextAssoc( pos, name, ptr );
 		cnet * net = (cnet*)ptr;
-		OptimizeConnections( net );
+		if( !bVisibleNetsOnly || net->visible )
+			OptimizeConnections( net, -1, bBelowPinCount, pin_count, bVisibleNetsOnly );
 	}
 }
 
 // optimize all unrouted connections for a part
 //
-void CNetList::OptimizeConnections( cpart * part )
+void CNetList::OptimizeConnections( cpart * part, BOOL bBelowPinCount, int pin_count, BOOL bVisibleNetsOnly )
 {
 	// find nets which connect to this part
 	cnet * net;
@@ -2712,7 +2698,7 @@ void CNetList::OptimizeConnections( cpart * part )
 			{
 				if( net->utility == 0 )
 				{
-					OptimizeConnections( net );
+					OptimizeConnections( net, -1, bBelowPinCount, pin_count, bVisibleNetsOnly );
 					net->utility = 1;
 				}
 			}
@@ -2723,11 +2709,18 @@ void CNetList::OptimizeConnections( cpart * part )
 // optimize the unrouted connections for a net
 // if ic_track >= 0, returns new ic corresponding to old ic or -1 if unable
 //
-int CNetList::OptimizeConnections( cnet * net, int ic_track )
+int CNetList::OptimizeConnections( cnet * net, int ic_track, BOOL bBelowPinCount, 
+								  int pin_count, BOOL bVisibleNetsOnly )
 {
 #ifdef PROFILE
 	StartTimer();	//****
 #endif
+
+	// see if we need to do this
+	if( bVisibleNetsOnly && net->visible == 0 )
+		return ic_track;
+	if( bBelowPinCount && net->npins >= pin_count )
+		return ic_track;
 
 	// get number of pins N and make grid[NxN] array and pair[N*2] array
 	int npins = net->npins;
@@ -4343,14 +4336,39 @@ void CNetList::ReadNets( CStdioFile * pcb_file, double read_version, int * layer
 					CString * err_str = new CString( "error parsing [nets] section of project file" );
 					throw err_str;
 				}
-//				int nc = my_atoi( &p[0] );
-//				if( (nc-1) != ic )
-//				{
-//					CString * err_str = new CString( "error parsing [nets] section of project file" );
-//					throw err_str;
-//				}
 				int start_pin = my_atoi( &p[1] );
 				int end_pin = my_atoi( &p[2] );
+				// check for fatal errors
+				CString test_ref_des = net->pin[start_pin].ref_des;
+				cpart * test_part = net->pin[start_pin].part;
+				if( !test_part )
+				{
+					CString * err_str = new CString( "fatal error in net \"" );
+					*err_str += net_name + "\"";
+					*err_str += "\r\n\rpart \"" + test_ref_des + "\" doesn't exist";
+					throw err_str;
+				}
+				else if( !test_part->shape )
+				{
+					CString * err_str = new CString( "fatal error in net \"" );
+					*err_str += net_name + "\"";
+					*err_str += "\r\n\rpart \"" + test_ref_des + "\" doesn't haved a footprint";
+					throw err_str;
+				}
+				else
+				{
+					CString test_pin_name = net->pin[start_pin].pin_name;
+					int pin_index = test_part->shape->GetPinIndexByName( test_pin_name );
+					if( pin_index == -1 )
+					{
+						CString * err_str = new CString( "fatal error in net \"" );
+						*err_str += net_name + "\"";
+						*err_str += "\r\n\r\npin \"" + test_pin_name + "\"";
+						*err_str += " doesn't exist in footprint \"" + test_part->shape->m_name + "\"";
+						*err_str += " for part \"" + test_ref_des + "\"";
+						throw err_str;
+					}
+				}
 				int nsegs = my_atoi( &p[3] );
 				int locked = my_atoi( &p[4] );
 				int nc;
@@ -5021,6 +5039,7 @@ void CNetList::ImportNetListInfo( netlist_info * nl, int flags, CDlgLog * log,
 			}
 		}
 	}
+	CleanUpAllConnections();
 }
 
 // Copy all data from another netlist (except display elements)
@@ -5568,7 +5587,7 @@ void CNetList::NetUndoCallback( int type, void * ptr, BOOL undo )
 		if( type == UNDO_NET_OPTIMIZE )
 		{
 			// re-optimize the net
-			nl->OptimizeConnections( net );
+			nl->OptimizeConnections( net, -1, FALSE, -1, FALSE );
 		}
 		else if( type == UNDO_NET_ADD )
 		{

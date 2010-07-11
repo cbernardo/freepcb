@@ -709,7 +709,9 @@
 #define IDC_BUTTON_LAYER_3              1433
 #define IDC_LIST_FP2                    1433
 #define IDC_BUTTON_LAYER_4              1434
+#define IDC_CHECK_AUTORAT_DISABLE       1434
 #define IDC_BUTTON_LAYER_5              1435
+#define IDC_EDIT_MIN_PINS               1435
 #define IDC_BUTTON_LAYER_6              1436
 #define IDC_BUTTON_LAYER_7              1437
 #define IDC_BUTTON_LAYER_8              1438
@@ -919,7 +921,7 @@
 #define _APS_3D_CONTROLS                     1
 #define _APS_NEXT_RESOURCE_VALUE        351
 #define _APS_NEXT_COMMAND_VALUE         32944
-#define _APS_NEXT_CONTROL_VALUE         1434
+#define _APS_NEXT_CONTROL_VALUE         1436
 #define _APS_NEXT_SYMED_VALUE           106
 #endif
 #endif
