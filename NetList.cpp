@@ -410,7 +410,7 @@ void CNetList::AddNetPin( cnet * net, CString * ref_des, CString * pin_name, BOO
 // Use this if the part may not actually exist in the partlist,
 // or the pin may not exist in the part 
 //
-void CNetList::RemoveNetPin( cnet * net, CString * ref_des, CString * pin_name )
+void CNetList::RemoveNetPin( cnet * net, CString * ref_des, CString * pin_name, BOOL bSetAreas )
 {
 	// find pin in pin list for net
 	int net_pin = -1;
@@ -427,14 +427,14 @@ void CNetList::RemoveNetPin( cnet * net, CString * ref_des, CString * pin_name )
 		// pin not found
 		ASSERT(0);
 	}
-	RemoveNetPin( net, net_pin );
+	RemoveNetPin( net, net_pin, bSetAreas );
 }
 
 // Remove pin from net (by pin index)
 // Use this if the part may not actually exist in the partlist,
 // or the pin may not exist in the part 
 //
-void CNetList::RemoveNetPin( cnet * net, int net_pin_index )
+void CNetList::RemoveNetPin( cnet * net, int net_pin_index, BOOL bSetAreas )
 {
 	// now remove all connections to/from this pin
 	int ic = 0;
@@ -470,13 +470,13 @@ void CNetList::RemoveNetPin( cnet * net, int net_pin_index )
 			c->end_pin--;
 	}
 	// adjust connections to areas
-	if( net->nareas )
+	if( net->nareas && bSetAreas )
 		SetAreaConnections( net );
 }
 
 // Remove pin from net (by part and pin_name), including all connections to pin
 //
-void CNetList::RemoveNetPin( cpart * part, CString * pin_name )
+void CNetList::RemoveNetPin( cpart * part, CString * pin_name, BOOL bSetAreas )
 {
 	if( !part )
 		ASSERT(0);
@@ -509,13 +509,13 @@ void CNetList::RemoveNetPin( cpart * part, CString * pin_name )
 		// pin not found
 		ASSERT(0);
 	}
-	RemoveNetPin( net, net_pin );
+	RemoveNetPin( net, net_pin, bSetAreas );
 }
 
 // Remove connections to part->pin from part->pin->net
 // set part->pin->net pointer and net->pin->part pointer to NULL
 //
-void CNetList::DisconnectNetPin( cpart * part, CString * pin_name )
+void CNetList::DisconnectNetPin( cpart * part, CString * pin_name, BOOL bSetAreas )
 {
 	if( !part )
 		ASSERT(0);
@@ -562,7 +562,7 @@ void CNetList::DisconnectNetPin( cpart * part, CString * pin_name )
 	// now remove link to part from net
 	net->pin[net_pin].part = NULL;
 	// adjust connections to areas
-	if( net->nareas )
+	if( net->nareas && bSetAreas )
 		SetAreaConnections( net );
 }
 
@@ -571,7 +571,7 @@ void CNetList::DisconnectNetPin( cpart * part, CString * pin_name )
 // Use this if the part may not actually exist in the partlist,
 // or the pin may not exist in the part 
 //
-void CNetList::DisconnectNetPin( cnet * net, CString * ref_des, CString * pin_name )
+void CNetList::DisconnectNetPin( cnet * net, CString * ref_des, CString * pin_name, BOOL bSetAreas )
 {
 	// find pin in pin list for net
 	int net_pin = -1;
@@ -611,7 +611,7 @@ void CNetList::DisconnectNetPin( cnet * net, CString * ref_des, CString * pin_na
 	}
 	net->pin[net_pin].part = NULL;
 	// adjust connections to areas
-	if( net->nareas )
+	if( net->nareas && bSetAreas )
 		SetAreaConnections( net );
 }
 
@@ -1304,7 +1304,7 @@ void CNetList::UnrouteSegmentWithoutMerge( cnet * net, int ic, int is )
 // NB: May change connect[] array
 // If stub trace and bHandleTee == FALSE, will only alter connections >= ic
 //
-void CNetList::RemoveSegment( cnet * net, int ic, int is, BOOL bHandleTee )
+void CNetList::RemoveSegment( cnet * net, int ic, int is, BOOL bHandleTee, BOOL bSetAreaConnections )
 {
 	int id = 0;
 	cconnect * c = &net->connect[ic];
@@ -1378,7 +1378,7 @@ void CNetList::RemoveSegment( cnet * net, int ic, int is, BOOL bHandleTee )
 		}
 	}
 	// adjust connections to areas
-	if( net->nareas )
+	if( bSetAreaConnections && net->nareas )
 		SetAreaConnections( net );
 }
 
@@ -2563,7 +2563,7 @@ int CNetList::PartFootprintChanged( cpart * part )
 // Part deleted, so unroute and remove all connections to this part
 // and remove all references from netlist
 // 
-int CNetList::PartDeleted( cpart * part )
+int CNetList::PartDeleted( cpart * part, BOOL bSetAreas )
 {
 	// find nets which connect to this part, remove pins and adjust areas
 	POSITION pos;
@@ -2579,7 +2579,7 @@ int CNetList::PartDeleted( cpart * part )
 		{
 			if( net->pin[ip].ref_des == part->ref_des )
 			{
-				RemoveNetPin( net, &net->pin[ip].ref_des, &net->pin[ip].pin_name );
+				RemoveNetPin( net, &net->pin[ip].ref_des, &net->pin[ip].pin_name, bSetAreas );
 			}
 			else
 				ip++;
@@ -5361,9 +5361,10 @@ void CNetList::RestoreConnectionsAndAreas( CNetList * old_nl, int flags, CDlgLog
 				}
 			}
 		}
+
 		if( flags & KEEP_AREAS )
 		{
-			// see if copper areas can be moved
+			// see if copper areas can be moved because all pins are on the same new net
 			for( int ia=0; ia<old_net->nareas; ia++ )
 			{
 				BOOL bMoveIt = TRUE;
@@ -5388,6 +5389,7 @@ void CNetList::RestoreConnectionsAndAreas( CNetList * old_nl, int flags, CDlgLog
 				}
 				if( bMoveIt )
 				{
+					// now look at stubs that connect to the area
 					for( int ic=0; ic<old_a->nvias; ic++ )
 					{
 						cconnect * old_con = &old_net->connect[old_a->vcon[ic]];

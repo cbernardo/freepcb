@@ -1832,28 +1832,24 @@ int CPartList::StartDraggingPart( CDC * pDC, cpart * part, BOOL bRatlines,
 			n = m_nlist->GetNextNet();
 		}
 
-		// now loop through all pins in part
-		for( int ip=0; ip<part->shape->m_padstack.GetSize(); ip++ )
+		// now loop through all pins in part to find nets that connect
+		for( int ipp=0; ipp<part->shape->m_padstack.GetSize(); ipp++ )
 		{
-			CPoint p(part->shape->m_padstack[ip].x_rel,part->shape->m_padstack[ip].y_rel);
-			// get endpoints for any connection segments
-			n = (cnet*)part->pin[ip].net;
+			n = (cnet*)part->pin[ipp].net;
 			if( n )
 			{
-				if( n->visible )
+				// only look at visible nets, only look at each net once
+				if( n->visible && n->utility == 0 )
 				{
-					if( !n->utility )
+					// zero utility flags for all connections
+					for( int ic=0; ic<n->nconnects; ic++ )
 					{
-						// first time for this net, zero utility flags for all connections
-						for( int ic=0; ic<n->nconnects; ic++ )
-							n->connect[ic].utility = 0;
+						n->connect[ic].utility = 0;
 					}
-
-					// now make existing ratlines invisible
 					for( int ic=0; ic<n->nconnects; ic++ )
 					{
 						cconnect * c = &n->connect[ic];
-						if( n->utility && !c->utility )
+						if( c->utility )
 							continue;	// skip this connection
 
 						// check for connection to part
@@ -1869,57 +1865,19 @@ int CPartList::StartDraggingPart( CDC * pDC, cpart * part, BOOL bRatlines,
 						// OK, this connection is attached to our part 
 						if( pin1_part == part )
 						{
-							int pin1_index = pin1_part->shape->GetPinIndexByName( n->pin[pin1].pin_name );
-							if( pin1_index == ip )
+							int ip = pin1_part->shape->GetPinIndexByName( n->pin[pin1].pin_name );
+							if( ip != -1 )
 							{
+								// ip is the start pin for the connection
+								// hide segment
 								m_dlist->Set_visible( c->seg[0].dl_el, 0 );
 								for( int i=0; i<c->vtx[1].dl_el.GetSize(); i++ )
 									m_dlist->Set_visible( c->vtx[1].dl_el[i], 0 );
 								if( c->vtx[1].dl_hole )
 									m_dlist->Set_visible( c->vtx[1].dl_hole, 0 );
-							}
-						}
-						if( pin2_part == part )
-						{
-							m_dlist->Set_visible( n->connect[ic].seg[c->nsegs-1].dl_el, 0 );
-							if( c->vtx[c->nsegs-1].dl_el.GetSize() )
-								for( int i=0; i<c->vtx[c->nsegs-1].dl_el.GetSize(); i++ )
-									m_dlist->Set_visible( c->vtx[c->nsegs-1].dl_el[i], 0 );
-							if( c->vtx[c->nsegs-1].dl_hole )
-								m_dlist->Set_visible( c->vtx[c->nsegs-1].dl_hole, 0 );
-						}
-					}
-
-					// now see if we need to make a rubberband ratline for dragging
-					if( !bBelowPinCount || n->npins <= pin_count )
-					{
-						for( int ic=0; ic<n->nconnects; ic++ )
-						{
-							cconnect * c = &n->connect[ic];
-							if( n->utility && !c->utility )
-								continue;	// skip this connection
-
-							// check for connection to part
-							int pin1 = n->connect[ic].start_pin;
-							int pin2 = n->connect[ic].end_pin;
-							cpart * pin1_part = n->pin[pin1].part;
-							cpart * pin2_part = NULL;
-							if( pin2 != cconnect::NO_END )
-								pin2_part = n->pin[pin2].part;
-							if( pin1_part != part && pin2_part != part )
-								continue;	// no
-
-							// OK, this connection is attached to our part 
-							if( pin1_part == part )
-							{
-								int pin1_index = pin1_part->shape->GetPinIndexByName( n->pin[pin1].pin_name );
-								if( pin1_index == ip )
+								// add ratline
+//**								if( !bBelowPinCount || n->npins <= pin_count )
 								{
-									// ip is the start pin for the connection
-									int xi = n->connect[ic].vtx[0].x;
-									int yi = n->connect[ic].vtx[0].y;
-									CPoint vp( xi, yi );
-									// OK, get next vertex, add ratline and hide segment
 									BOOL bDraw = FALSE;
 									if( pin2_part == part )
 									{
@@ -1935,7 +1893,6 @@ int CPartList::StartDraggingPart( CDC * pDC, cpart * part, BOOL bRatlines,
 										if( c->nsegs > 1 || c->vtx[1].tee_ID )
 											bDraw = TRUE;
 									}
-									//								else if( pin2_part && c->nsegs > 1 )
 									else if( pin2_part )
 									{
 										// connection ends on another part
@@ -1943,28 +1900,30 @@ int CPartList::StartDraggingPart( CDC * pDC, cpart * part, BOOL bRatlines,
 									}
 									if( bDraw )
 									{
-										CPoint vx( n->connect[ic].vtx[1].x, n->connect[ic].vtx[1].y );
+										// add dragline from pin to second vertex
+										CPoint vx( c->vtx[1].x, c->vtx[1].y );
 										m_dlist->AddDragRatline( vx, pin_points[ip] );
 									}
-									m_dlist->Set_visible( c->seg[0].dl_el, 0 );
-									for( int i=0; i<c->vtx[1].dl_el.GetSize(); i++ )
-										m_dlist->Set_visible( c->vtx[1].dl_el[i], 0 );
-									if( c->vtx[1].dl_hole )
-										m_dlist->Set_visible( c->vtx[1].dl_hole, 0 );
 								}
 							}
-							if( pin2_part == part )
+						}
+						if( pin2_part == part )
+						{
+							int ip = -1;
+							if( pin2 != cconnect::NO_END )
+								ip = pin2_part->shape->GetPinIndexByName( n->pin[pin2].pin_name );
+							if( ip != -1 )
 							{
-								int pin2_index = -1;
-								if( pin2 != cconnect::NO_END )
-									pin2_index = pin2_part->shape->GetPinIndexByName( n->pin[pin2].pin_name );
-								if( pin2_index == ip )
+								// ip is the end pin for the connection
+								m_dlist->Set_visible( n->connect[ic].seg[c->nsegs-1].dl_el, 0 );
+								if( c->vtx[c->nsegs-1].dl_el.GetSize() )
+									for( int i=0; i<c->vtx[c->nsegs-1].dl_el.GetSize(); i++ )
+										m_dlist->Set_visible( c->vtx[c->nsegs-1].dl_el[i], 0 );
+								if( c->vtx[c->nsegs-1].dl_hole )
+									m_dlist->Set_visible( c->vtx[c->nsegs-1].dl_hole, 0 );
+								// OK, get prev vertex, add ratline and hide segment
+//**								if( !bBelowPinCount || n->npins <= pin_count )
 								{
-									// ip is the end pin for the connection
-									int xi = n->connect[ic].vtx[c->nsegs].x;
-									int yi = n->connect[ic].vtx[c->nsegs].y;
-									CPoint vp( xi, yi );
-									// OK, get prev vertex, add ratline and hide segment
 									BOOL bDraw = FALSE;
 									if( pin1_part == part )
 									{
@@ -1972,7 +1931,6 @@ int CPartList::StartDraggingPart( CDC * pDC, cpart * part, BOOL bRatlines,
 										if( c->nsegs > 2 )
 											bDraw = TRUE;
 									}
-									//								else if( c->nsegs > 1 )
 									else
 										bDraw = TRUE;
 									if( bDraw )
@@ -1981,18 +1939,12 @@ int CPartList::StartDraggingPart( CDC * pDC, cpart * part, BOOL bRatlines,
 										m_dlist->AddDragRatline( vx, pin_points[ip] );
 									}
 								}
-								m_dlist->Set_visible( n->connect[ic].seg[c->nsegs-1].dl_el, 0 );
-								if( c->vtx[c->nsegs-1].dl_el.GetSize() )
-									for( int i=0; i<c->vtx[c->nsegs-1].dl_el.GetSize(); i++ )
-										m_dlist->Set_visible( c->vtx[c->nsegs-1].dl_el[i], 0 );
-								if( c->vtx[c->nsegs-1].dl_hole )
-									m_dlist->Set_visible( c->vtx[c->nsegs-1].dl_hole, 0 );
 							}
-							c->utility = 1;	// this connection has been checked
 						}
+						c->utility = 1;	// this connection has been checked
 					}
-					n->utility = 1;	// all connections for this net have been checked
 				}
+				n->utility = 1;	// all connections for this net have been checked
 			}
 		}
 	}

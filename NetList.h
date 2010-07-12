@@ -386,11 +386,11 @@ public:
 	void RemoveNet( cnet * net );
 	void RemoveAllNets();
 	void AddNetPin( cnet * net, CString * ref_des, CString * pin_name, BOOL set_areas=TRUE );
-	void RemoveNetPin( cpart * part, CString * pin_name );
-	void RemoveNetPin( cnet * net, CString * ref_des, CString * pin_name );
-	void RemoveNetPin( cnet * net, int pin_index );
-	void DisconnectNetPin( cpart * part, CString * pin_name );
-	void DisconnectNetPin( cnet * net, CString * ref_des, CString * pin_name );
+	void RemoveNetPin( cpart * part, CString * pin_name, BOOL bSetAreas=TRUE );
+	void RemoveNetPin( cnet * net, CString * ref_des, CString * pin_name, BOOL bSetAreas=TRUE );
+	void RemoveNetPin( cnet * net, int pin_index, BOOL bSetAreas=TRUE );
+	void DisconnectNetPin( cpart * part, CString * pin_name, BOOL bSetAreas=TRUE );
+	void DisconnectNetPin( cnet * net, CString * ref_des, CString * pin_name, BOOL bSetAreas=TRUE );
 	int GetNetPinIndex( cnet * net, CString * ref_des, CString * pin_name );
 	int SetNetWidth( cnet * net, int w, int via_w, int via_hole_w );
 	void SetNetVisibility( cnet * net, BOOL visible );
@@ -434,7 +434,7 @@ public:
 	void UnrouteSegmentWithoutMerge( cnet * net, int ic, int iseg );
 	id MergeUnroutedSegments( cnet * net, int ic );
 	int RouteSegment( cnet * net, int ic, int iseg, int layer, int width );
-	void RemoveSegment( cnet * net, int ic, int iseg, BOOL bHandleTees=FALSE );							 
+	void RemoveSegment( cnet * net, int ic, int iseg, BOOL bHandleTees=FALSE, BOOL bSetAreaConnections=TRUE );							 
 	int ChangeSegmentLayer( cnet * net, int ic, int iseg, int layer );							 
 	int SetSegmentWidth( cnet * net, int ic, int is, int w, int via_w, int via_hole_w );
 	void HighlightSegment( cnet * net, int ic, int iseg );
@@ -484,7 +484,7 @@ public:
 	void PartAdded( cpart * part );
 	int PartMoved( cpart * part );
 	int PartFootprintChanged( cpart * part );
-	int PartDeleted( cpart * part );
+	int PartDeleted( cpart * part, BOOL bSetAreas=TRUE );
 	int PartDisconnected( cpart * part );
 	void SwapPins( cpart * part1, CString * pin_name1,
 						cpart * part2, CString * pin_name2 );
