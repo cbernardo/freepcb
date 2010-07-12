@@ -6273,7 +6273,7 @@ void CFreePcbView::OnSegmentUnroute()
 	SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_Doc->m_undo_list );
 
 	// edit connection segment
-	m_Doc->m_nlist->SetNetVisibility( m_sel_net, TRUE );
+//	m_Doc->m_nlist->SetNetVisibility( m_sel_net, TRUE );
 	// see if segments to pin also need to be unrouted
 	// see if start vertex of this segment is in start pad of connection
 	int x = m_sel_vtx.x;
@@ -6468,7 +6468,7 @@ void CFreePcbView::OnVertexSize()
 //
 void CFreePcbView::OnVertexMove()
 {
-	m_Doc->m_nlist->SetNetVisibility( m_sel_net, TRUE );
+//	m_Doc->m_nlist->SetNetVisibility( m_sel_net, TRUE );
 	CDC *pDC = GetDC();
 	pDC->SelectClipRgn( &m_pcb_rgn );
 	SetDCToWorldCoords( pDC );
@@ -6510,7 +6510,7 @@ void CFreePcbView::OnVertexDelete()
 	SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_Doc->m_undo_list );
 	v->tee_ID = 0;
 	v->force_via_flag = 0;
-	m_Doc->m_nlist->SetNetVisibility( m_sel_net, TRUE );
+//	m_Doc->m_nlist->SetNetVisibility( m_sel_net, TRUE );
 
 	if( c->end_pin == cconnect::NO_END && iv == c->nsegs )
 	{
@@ -6622,7 +6622,7 @@ void CFreePcbView::OnVertexDelete()
 //
 void CFreePcbView::OnEndVertexMove()
 {
-	m_Doc->m_nlist->SetNetVisibility( m_sel_net, TRUE );
+//	m_Doc->m_nlist->SetNetVisibility( m_sel_net, TRUE );
 	CDC * pDC = GetDC();
 	SetDCToWorldCoords( pDC );
 	pDC->SelectClipRgn( &m_pcb_rgn );
@@ -6639,7 +6639,7 @@ void CFreePcbView::OnEndVertexMove()
 //
 void CFreePcbView::OnEndVertexAddVia()
 {
-	m_Doc->m_nlist->SetNetVisibility( m_sel_net, TRUE );
+//	m_Doc->m_nlist->SetNetVisibility( m_sel_net, TRUE );
 	SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_Doc->m_undo_list );
 	m_Doc->m_nlist->ForceVia( m_sel_net, m_sel_ic, m_sel_is );
 	SetFKText( m_cursor_mode );
@@ -6657,7 +6657,7 @@ void CFreePcbView::OnEndVertexAddVia()
 //
 void CFreePcbView::OnEndVertexRemoveVia()
 {
-	m_Doc->m_nlist->SetNetVisibility( m_sel_net, TRUE );
+//	m_Doc->m_nlist->SetNetVisibility( m_sel_net, TRUE );
 	SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_Doc->m_undo_list );
 	m_Doc->m_nlist->UnforceVia( m_sel_net, m_sel_ic, m_sel_is, FALSE );
 	if( m_sel_con.seg[m_sel_is-1].layer == LAY_RAT_LINE )
@@ -6680,7 +6680,7 @@ void CFreePcbView::OnEndVertexRemoveVia()
 //
 void CFreePcbView::OnEndVertexAddSegments()
 {
-	m_Doc->m_nlist->SetNetVisibility( m_sel_net, TRUE );
+//	m_Doc->m_nlist->SetNetVisibility( m_sel_net, TRUE );
 	CDC * pDC = GetDC();
 	SetDCToWorldCoords( pDC );
 	pDC->SelectClipRgn( &m_pcb_rgn );
@@ -6711,7 +6711,7 @@ void CFreePcbView::OnEndVertexAddConnection()
 void CFreePcbView::OnEndVertexDelete()
 {
 	SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_Doc->m_undo_list );
-	m_Doc->m_nlist->SetNetVisibility( m_sel_net, TRUE );
+//	m_Doc->m_nlist->SetNetVisibility( m_sel_net, TRUE );
 	m_Doc->m_nlist->RemoveSegment( m_sel_net, m_sel_ic, m_sel_is-1, TRUE );
 	if( m_Doc->m_vis[LAY_RAT_LINE] )
 		m_Doc->m_nlist->OptimizeConnections(  m_sel_net, -1, m_Doc->m_auto_ratline_disable,
@@ -10669,6 +10669,7 @@ void CFreePcbView::DeleteGroup( CArray<void*> * grp_ptr, CArray<id> * grp_id )
 			}
 		}
 	}
+
 	// find non-branch stub traces with no end via and remove trailing unrouted segments
 	net = nl->GetFirstNet();
 	while( net )
@@ -10683,16 +10684,14 @@ void CFreePcbView::DeleteGroup( CArray<void*> * grp_ptr, CArray<id> * grp_id )
 					cvertex * end_v = &c->vtx[c->nsegs];
 					if( c->end_pin == cconnect::NO_END )
 					{
-						for( int is=c->nsegs-1; is>=0; is-- )
+						int is=c->nsegs-1;
+						cseg * s = &c->seg[is];
+						cvertex * next_v = &c->vtx[is+1];
+						if( s->layer == LAY_RAT_LINE && next_v->force_via_flag == 0 && next_v->tee_ID == 0 )
 						{
-							cseg * s = &c->seg[is];
-							cvertex * next_v = &c->vtx[is+1];
-							if( s->layer == LAY_RAT_LINE && next_v->force_via_flag == 0 && next_v->tee_ID == 0 )
-							{
-								nl->RemoveSegment( net, ic, is, TRUE );
-							}
-							else
-								break;
+							nl->RemoveSegment( net, ic, is, FALSE, FALSE );	// remove
+							if( c->nsegs == 0 )
+								c->utility = 2;		// mark for deletion
 						}
 					}
 				}
@@ -10700,6 +10699,7 @@ void CFreePcbView::DeleteGroup( CArray<void*> * grp_ptr, CArray<id> * grp_id )
 		}
 		net = nl->GetNextNet();
 	}
+
 	// remove connections marked for deletion and merge unrouted segments
 	net = nl->GetFirstNet();
 	while( net )
@@ -10732,7 +10732,7 @@ void CFreePcbView::DeleteGroup( CArray<void*> * grp_ptr, CArray<id> * grp_id )
 		if( this_id.type == ID_PART && this_id.st == ID_SEL_RECT )
 		{
 			cpart * part = (cpart *) (*grp_ptr)[i];
-			nl->PartDeleted( part );
+			nl->PartDeleted( part, FALSE );
 			pl->Remove( part );
 		}
 		else if( this_id.type == ID_TEXT )
@@ -12785,7 +12785,7 @@ void CFreePcbView::OnValueRotateCCW()
 
 void CFreePcbView::OnSegmentMove()
 {
-	m_Doc->m_nlist->SetNetVisibility( m_sel_net, TRUE );
+//	m_Doc->m_nlist->SetNetVisibility( m_sel_net, TRUE );
 	CDC *pDC = GetDC();
 	pDC->SelectClipRgn( &m_pcb_rgn );
 	SetDCToWorldCoords( pDC );
