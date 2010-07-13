@@ -2675,6 +2675,7 @@ void CFreePcbDoc::OnFileImport()
 	int ret = dlg.DoModal();
 	if( ret == IDOK )
 	{ 
+		m_import_flags = dlg.m_flags;	// get updated flags
 		CString str = dlg.GetPathName(); 
 		CStdioFile file;
 		if( !file.Open( str, CFile::modeRead ) )
@@ -2687,10 +2688,6 @@ void CFreePcbDoc::OnFileImport()
 			partlist_info pl;
 			netlist_info nl;
 			m_netlist_full_path = str;	// save path for next time
-
-			// update flags
-			m_import_flags = dlg.m_flags;
-
 			if( m_plist->GetFirstPart() != NULL || m_nlist->m_map.GetCount() != 0 )
 			{
 				// there are parts and/or nets in project 
@@ -2702,7 +2699,11 @@ void CFreePcbDoc::OnFileImport()
 				else
 					m_import_flags = IMPORT_FROM_NETLIST_FILE | dlg_options.m_flags;
 			}
-
+			if( m_import_flags & SAVE_BEFORE_IMPORT )
+			{
+				// save project
+				OnFileSave();
+			}
 			// show log dialog
 			m_dlg_log->ShowWindow( SW_SHOW );
 			m_dlg_log->UpdateWindow();

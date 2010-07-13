@@ -2026,6 +2026,14 @@ STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION |
 CAPTION "Import Options"
 FONT 8, "MS Shell Dlg", 400, 0, 0x1
 BEGIN
+    DEFPUSHBUTTON   "Import",IDOK,12,246,50,14
+    PUSHBUTTON      "Save project with these settings then import",
+                    ID_SAVE_AND_IMPORT,72,246,150,14
+    PUSHBUTTON      "Cancel",IDCANCEL,234,246,50,14
+    LTEXT           "You are importing a netlist file into a project that already contains parts and/or nets",
+                    IDC_STATIC,6,6,268,8
+    GROUPBOX        "For parts in project but not in netlist file",
+                    IDC_STATIC,6,24,276,54
     CONTROL         "Remove parts",IDC_RADIO_REMOVE_PARTS,"Button",
                     BS_AUTORADIOBUTTON | WS_GROUP,12,36,61,10
     CONTROL         "Keep parts but remove connections to nets",
@@ -2034,32 +2042,26 @@ BEGIN
     CONTROL         "Keep parts and connections to nets",
                     IDC_RADIO_KEEP_PARTS_AND_CONNECTIONS,"Button",
                     BS_AUTORADIOBUTTON,12,60,129,10
+    GROUPBOX        "For parts in project whose package or footprint doesn't match netlist file",
+                    IDC_STATIC,6,84,276,42
     CONTROL         "Change footprints",IDC_RADIO4,"Button",
                     BS_AUTORADIOBUTTON | WS_GROUP,12,96,74,10
     CONTROL         "Keep footprints",IDC_RADIO3,"Button",BS_AUTORADIOBUTTON,
                     12,108,65,10
+    GROUPBOX        "For nets in project that are not in netlist file",
+                    IDC_STATIC,6,132,276,42
     CONTROL         "Remove nets",IDC_RADIO6,"Button",BS_AUTORADIOBUTTON | 
                     WS_GROUP,12,144,58,10
     CONTROL         "Keep nets",IDC_RADIO5,"Button",BS_AUTORADIOBUTTON,12,
                     156,48,10
+    GROUPBOX        "For traces and copper areas connected to pins whose nets have changed",
+                    IDC_STATIC,6,180,276,54
     CONTROL         "Retain traces",IDC_CHECK_KEEP_TRACES,"Button",
                     BS_AUTOCHECKBOX | WS_TABSTOP,12,192,59,10
     CONTROL         "Retain stubs",IDC_CHECK_KEEP_STUBS,"Button",
                     BS_AUTOCHECKBOX | WS_TABSTOP,12,204,56,10
     CONTROL         "Retain areas if possible",IDC_CHECK_KEEP_AREAS,"Button",
                     BS_AUTOCHECKBOX | WS_TABSTOP,12,216,90,10
-    DEFPUSHBUTTON   "OK",IDOK,54,246,50,14
-    PUSHBUTTON      "Cancel",IDCANCEL,192,246,50,14
-    LTEXT           "You are importing a netlist file into a project that already contains parts and/or nets",
-                    IDC_STATIC,6,6,268,8
-    GROUPBOX        "For parts in project but not in netlist file",
-                    IDC_STATIC,6,24,276,54
-    GROUPBOX        "For parts in project whose package or footprint doesn't match netlist file",
-                    IDC_STATIC,6,84,276,42
-    GROUPBOX        "For nets in project that are not in netlist file",
-                    IDC_STATIC,6,132,276,42
-    GROUPBOX        "For traces and copper areas connected to pins whose nets have changed",
-                    IDC_STATIC,6,180,276,54
 END
 
 IDD_ADD_MASK_CUTOUT DIALOGEX 0, 0, 172, 95

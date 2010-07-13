@@ -17,6 +17,7 @@ FreePCB release notes: (versions since 1.2)
     - ratline layer is not visible
     - ratline visibility is turned off for a particular net
     - number of pins in net is above threshold set in Project Options
+- added option to save project with import settings before importing netlist
     
 1.355
 -----

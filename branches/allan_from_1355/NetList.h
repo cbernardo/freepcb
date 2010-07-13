@@ -11,12 +11,6 @@
 //	- each vertex is represented by a cvertex object
 //	- each copper area is represented by a carea object
 //
-// Since most of these objects are responsible for drawing themselves into a CDisplayList, 
-// a global pointer to the CDisplayList is set when the netlist is constructed.
-// In the future, this might be changed to a member variable,
-// which would be passed to each object. 
-//
-//
 ////////////////////////////////////////////////////////////////////// 
 
 #pragma once
@@ -195,8 +189,6 @@ public:
 		m_dlist = 0;  // this must be filled in with Initialize()
 		layer = 0;
 		width = 0;
-//		via_w = 0;
-//		via_hole_w = 0;
 		selected = 0;
 		dl_el = 0;
 		dl_sel = 0;
@@ -216,7 +208,6 @@ public:
 	void Initialize( CDisplayList * dlist ){m_dlist = dlist;}
 	int layer;				// copper layer
 	int width;				// width
-//	int via_w, via_hole_w;	// via width and hole width
 	int selected;			// 1 if selected for editing
 	dl_element * dl_el;		// display element for segment
 	dl_element * dl_sel;	// selection line
@@ -306,7 +297,6 @@ class cconnect
 public:
 	enum {
 		NO_END = -1		// used for end_pin if stub trace
-//		T_END = -2		// used for t-connection to another trace
 	};
 	cconnect()
 	{	// constructor

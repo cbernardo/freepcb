@@ -4,6 +4,7 @@
 //
 #define ID_GO                           3
 #define IDCANCEL2                       3
+#define ID_SAVE_AND_IMPORT              3
 #define IDD_ABOUTBOX                    100
 #define IDR_HTML_DLGPARTLIST            103
 #define IDR_HTML_CDlgSetAreaHatch       104
