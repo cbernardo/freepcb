@@ -13,10 +13,10 @@ FreePCB release notes: (versions since 1.2)
 - fixed bug where changes to Project->Nets did not clean up tee_IDs
 - fixed bug where Group->Delete did not handle vias properly
 - fixed bug that slowed down handling of traces when part moved
-- disabled automatic recalculation of ratlines after edits when:
+- to speed up working with large nets, automatic recalculation of ratlines is disabled if:
     - ratline layer is not visible
     - ratline visibility is turned off for a particular net
-    - new Project Option to disable automatic recalculation of ratlines is set
+    - number of pins in net is above threshold set in Project Options
     
 1.355
 -----

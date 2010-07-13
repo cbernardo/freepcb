@@ -231,6 +231,7 @@ void CNetList::MarkAllNets( int utility )
 	while( net != NULL )
 	{
 		net->utility = utility;
+		net->utility2 = utility;
 		for( int ip=0; ip<net->npins; ip++ )
 			net->pin[ip].utility = utility;
 		for( int ic=0; ic<net->nconnects; ic++ )
@@ -242,6 +243,7 @@ void CNetList::MarkAllNets( int utility )
 				if( is < c->nsegs )
 					c->seg[is].utility = utility;
 				c->vtx[is].utility = utility;
+				c->vtx[is].utility2 = utility;
 			}
 		}
 		for( int ia=0; ia<net->nareas; ia++ )
@@ -2570,6 +2572,10 @@ int CNetList::PartDeleted( cpart * part, BOOL bSetAreas )
 	CString name;
 	void * ptr;
 
+	for( cnet * net=GetFirstNet(); net; net=GetNextNet() )
+		net->utility = 0;
+
+
 	// find nets which connect to this part
 	for( pos = m_map.GetStartPosition(); pos != NULL; )
 	{
@@ -2579,12 +2585,19 @@ int CNetList::PartDeleted( cpart * part, BOOL bSetAreas )
 		{
 			if( net->pin[ip].ref_des == part->ref_des )
 			{
-				RemoveNetPin( net, &net->pin[ip].ref_des, &net->pin[ip].pin_name, bSetAreas );
+				RemoveNetPin( net, &net->pin[ip].ref_des, &net->pin[ip].pin_name, FALSE );
+				net->utility = 1;	// mark for SetAreaConnections
 			}
 			else
 				ip++;
 		}
 		RemoveOrphanBranches( net, 0, TRUE );
+	}
+	if( bSetAreas )
+	{
+		for( cnet * net=GetFirstNet(); net; net=GetNextNet() )
+			if( net->utility )
+				SetAreaConnections( net );
 	}
 	return 0;
 }
@@ -2617,14 +2630,16 @@ void CNetList::PartRefChanged( CString * old_ref_des, CString * new_ref_des )
 // and part pointer from net->pins
 // Do not remove pins from netlist, however
 // 
-int CNetList::PartDisconnected( cpart * part )
+int CNetList::PartDisconnected( cpart * part, BOOL bSetAreas )
 {
 	// find nets which connect to this part, remove pins and adjust areas
 	POSITION pos;
 	CString name;
 	void * ptr;
 
-	// find nets which connect to this part
+	for( cnet * net=GetFirstNet(); net; net=GetNextNet() )
+		net->utility = 0;
+
 	for( pos = m_map.GetStartPosition(); pos != NULL; )
 	{
 		m_map.GetNextAssoc( pos, name, ptr );
@@ -2633,10 +2648,17 @@ int CNetList::PartDisconnected( cpart * part )
 		{
 			if( net->pin[ip].ref_des == part->ref_des )
 			{
-				DisconnectNetPin( net, &net->pin[ip].ref_des, &net->pin[ip].pin_name );
+				DisconnectNetPin( net, &net->pin[ip].ref_des, &net->pin[ip].pin_name, FALSE );
+				net->utility = 1;
 			}
 		}
 		RemoveOrphanBranches( net, 0, TRUE );
+	}
+	if( bSetAreas )
+	{
+		for( cnet * net=GetFirstNet(); net; net=GetNextNet() )
+			if( net->utility )
+				SetAreaConnections( net );
 	}
 	return 0;
 }

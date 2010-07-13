@@ -31,6 +31,7 @@
 #include ".\freepcbview.h"
 
 // globals
+BOOL g_bShow_Ratline_Warning = TRUE;	
 extern CFreePcbApp theApp;
 BOOL t_pressed = FALSE;
 BOOL n_pressed = FALSE;
@@ -749,6 +750,13 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 				// clicked in color square
 				m_Doc->m_vis[il] = !m_Doc->m_vis[il];
 				m_dlist->SetLayerVisible( il, m_Doc->m_vis[il] );
+				if( il == LAY_RAT_LINE && m_Doc->m_vis[il] && g_bShow_Ratline_Warning )
+				{
+					CDlgMyMessageBox dlg;
+					dlg.Initialize( "Ratlines turned back on, but may not be up to date.\n\nPress F9 to recalculate." );
+					dlg.DoModal();
+					g_bShow_Ratline_Warning = !dlg.bDontShowBoxState;
+				}
 				Invalidate( FALSE );
 			}
 			else
@@ -1191,6 +1199,9 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 				FindGroupCenter();
 			SetCursorMode( CUR_GROUP_SELECTED );
 			m_dlist->SetLayerVisible( LAY_RAT_LINE, m_Doc->m_vis[LAY_RAT_LINE] );
+			if( m_Doc->m_vis[LAY_RAT_LINE] )
+				m_Doc->m_nlist->OptimizeConnections( m_Doc->m_auto_ratline_disable, 
+										m_Doc->m_auto_ratline_min_pins );
 			m_Doc->ProjectModified( TRUE );
 			Invalidate( FALSE );
 		}
@@ -6036,9 +6047,9 @@ void CFreePcbView::OnPartDelete()
 		CPartList::UNDO_PART_DELETE, NULL, TRUE, m_Doc->m_undo_list );
 	// now do it
 	if( ret == IDYES )
-		m_Doc->m_nlist->PartDeleted( m_sel_part );
+		m_Doc->m_nlist->PartDeleted( m_sel_part, TRUE );
 	else if( ret == IDNO )
-		m_Doc->m_nlist->PartDisconnected( m_sel_part );
+		m_Doc->m_nlist->PartDisconnected( m_sel_part, TRUE );
 	m_Doc->m_plist->Remove( m_sel_part );
 	CancelSelection();
 	m_Doc->ProjectModified( TRUE );
@@ -6200,7 +6211,7 @@ void CFreePcbView::OnPadAddToNet()
 				&m_sel_part->ref_des,
 				&pin_name );
 			if( m_Doc->m_vis[LAY_RAT_LINE] )
-				m_Doc->m_nlist->OptimizeConnections(  m_sel_net, -1, m_Doc->m_auto_ratline_disable,
+				m_Doc->m_nlist->OptimizeConnections(  new_net, -1, m_Doc->m_auto_ratline_disable,
 														m_Doc->m_auto_ratline_min_pins, TRUE  );
 			SetFKText( m_cursor_mode );
 		}
@@ -9358,42 +9369,17 @@ void CFreePcbView::MoveGroup( int dx, int dy )
 	m_Doc->m_nlist->MarkAllNets(0);
 	m_Doc->m_plist->MarkAllParts(0);
 
-	// mark connections, segments and vertices of selected nets as unselected
-	// and vertices and area corners as unmoved
+	// mark nets of ID_NET items as selected
 	for( int i=0; i<m_sel_ids.GetSize(); i++ )
 	{
 		id sid = m_sel_ids[i];
 		if( sid.type == ID_NET )
 		{
 			cnet * net = (cnet*)m_sel_ptrs[i];
-			if( net->utility == FALSE )
-			{
-				// first time for this net,
-				net->utility = TRUE;	// mark as selected
-				// mark all connections, segments and vertices as unselected
-				for( int ic=0; ic<net->nconnects; ic++ )
-				{
-					net->connect[ic].utility = FALSE;
-					for( int is=0; is<net->connect[ic].nsegs; is++ )
-					{
-						net->connect[ic].seg[is].utility = FALSE;
-						net->connect[ic].vtx[is].utility = FALSE;
-						net->connect[ic].vtx[is].utility2 = FALSE;
-						net->connect[ic].vtx[is+1].utility = FALSE;
-						net->connect[ic].vtx[is+1].utility2 = FALSE;
-					}
-				}
-				// mark all area corners as unmoved
-				for( int ia=0; ia<net->nareas; ia++ )
-				{
-					for( int is=0; is<net->area[ia].poly->GetNumCorners(); is++ )
-					{
-						net->area[ia].poly->SetUtility( is, 0 );	// unmoved
-					}
-				}
-			}
+			net->utility = TRUE;
 		}
 	}
+
 	// mark all corners of solder mask cutouts as unmoved
 	for( int im=0; im<m_Doc->m_sm_cutout.GetSize(); im++ )
 	{
@@ -9556,12 +9542,16 @@ void CFreePcbView::MoveGroup( int dx, int dy )
 			// move part
 			m_Doc->m_plist->Move( part, part->x+dx, part->y+dy, part->angle, part->side );
 			// find segments which connect to this part and move them
+			// use net->utility2 to avoid repeats
 			cnet * net;
+			for( net=m_Doc->m_nlist->GetFirstNet(); net; net=m_Doc->m_nlist->GetNextNet() )
+				net->utility2 = 0;
 			for( int ip=0; ip<part->shape->m_padstack.GetSize(); ip++ )
 			{
-				net = (cnet*)part->pin[ip].net;
-				if( net )
+				net = (cnet*)part->pin[ip].net; 
+				if( net && net->utility2 == 0 )
 				{
+					net->utility2 = 1;
 					for( int ic=0; ic<net->nconnects; ic++ )
 					{
 						cconnect * c = &net->connect[ic];
@@ -9874,7 +9864,6 @@ void CFreePcbView::MoveGroup( int dx, int dy )
 		}
 		net = m_Doc->m_nlist->GetNextNet();
 	}
-
 	groupAverageX+=dx;
 	groupAverageY+=dy;
 }
@@ -10014,9 +10003,6 @@ void CFreePcbView::OnAreaEdit()
 			new_id.i = ia;
 			net->area[ia].poly->SetId( &new_id );
 			m_Doc->m_nlist->RemoveArea( m_sel_net, m_sel_ia ); 
-			if( m_Doc->m_vis[LAY_RAT_LINE] )
-				m_Doc->m_nlist->OptimizeConnections(  m_sel_net, -1, m_Doc->m_auto_ratline_disable,
-														m_Doc->m_auto_ratline_min_pins, TRUE );
 			m_Doc->m_nlist->SetAreaConnections( net, ia );
 			if( m_Doc->m_vis[LAY_RAT_LINE] )
 				m_Doc->m_nlist->OptimizeConnections(  net, -1, m_Doc->m_auto_ratline_disable,
@@ -11378,7 +11364,17 @@ void CFreePcbView::OnGroupPaste()
 				StartDraggingGroup( TRUE, min_x, min_y );
 		}
 		else
+		{
 			FindGroupCenter();
+			if( m_Doc->m_vis[LAY_RAT_LINE] )
+			{
+				for( net=m_Doc->m_nlist->GetFirstNet(); net; net=m_Doc->m_nlist->GetNextNet() )
+				{
+					m_Doc->m_nlist->OptimizeConnections( net, -1, m_Doc->m_auto_ratline_disable,
+						m_Doc->m_auto_ratline_min_pins, TRUE ); 
+				}
+			}
+		}
 		m_Doc->ProjectModified( TRUE );
 	}
 }
