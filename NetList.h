@@ -347,6 +347,7 @@ public:
 	int def_via_hole_w;	// default via hole width
 	BOOL visible;		// FALSE to hide ratlines and make unselectable
 	int utility;		// used to keep track of which nets have been optimized
+	int utility2;		// used to keep track of which nets have been optimized
 	CDisplayList * m_dlist;
 };
 
@@ -485,7 +486,7 @@ public:
 	int PartMoved( cpart * part );
 	int PartFootprintChanged( cpart * part );
 	int PartDeleted( cpart * part, BOOL bSetAreas=TRUE );
-	int PartDisconnected( cpart * part );
+	int PartDisconnected( cpart * part, BOOL bSetAreas=TRUE );
 	void SwapPins( cpart * part1, CString * pin_name1,
 						cpart * part2, CString * pin_name2 );
 	void PartRefChanged( CString * old_ref_des, CString * new_ref_des );
