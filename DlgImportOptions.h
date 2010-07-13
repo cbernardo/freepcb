@@ -32,4 +32,7 @@ public:
 	CButton m_check_keep_traces;
 	CButton m_check_keep_stubs;
 	CButton m_check_keep_areas;
+	CButton m_button_save_and_import;
+	afx_msg void OnBnClickedSaveAndImport();
+	afx_msg void OnBnClickedOk();
 };

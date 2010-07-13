@@ -10,7 +10,8 @@ enum {
 	KEEP_NETS					= 0x40,
 	KEEP_TRACES					= 0x80,
 	KEEP_STUBS					= 0x100,
-	KEEP_AREAS					= 0x200
+	KEEP_AREAS					= 0x200,
+	SAVE_BEFORE_IMPORT			= 0x400
 };
 
 enum {
