@@ -9,7 +9,6 @@
 #include "PcbFont.h"
 #include "smfontutil.h"
 #include "UndoList.h"
-#include "pubsub.h"
 
 class CTextList;
 struct stroke;
@@ -30,13 +29,6 @@ struct undo_text {
 
 class CText
 {
-	class C_DS_ThermalClearance : public CDataSubscriber<int> 
-	{
-	    virtual void Update(pub_t const &data);		
-	} m_DS_ThermalClearance;
-	friend class C_DS_ThermalClearance;
-	void Update_ThermalClearance(int clearance);
-
 public:
 	// member functions
 	CText( CDisplayList * dlist, int x, int y, int angle, 
