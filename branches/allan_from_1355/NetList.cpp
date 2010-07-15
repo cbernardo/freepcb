@@ -993,19 +993,23 @@ void CNetList::CleanUpConnections( cnet * net, CString * logstr )
 	for( int ic=net->nconnects-1; ic>=0; ic-- )   
 	{
 		cconnect * c = &net->connect[ic];
-		cvertex * end_v = &c->vtx[c->nsegs];
-		if( c->end_pin == cconnect::NO_END && end_v->tee_ID == 0 && end_v->via_w == 0 )
+		if( c->end_pin == cconnect::NO_END && c->nsegs == 1 )
 		{
-			if( logstr )
+			cvertex * end_v = &c->vtx[c->nsegs];
+			cseg * end_s = &c->seg[c->nsegs-1];
+			if( end_v->tee_ID == 0 && end_v->via_w == 0 && end_s->layer == LAY_RAT_LINE )
 			{
-				CString str;
-				str.Format( "net %s: stub trace from %s.%s: single unrouted segment and no end via, removed\r\n",
-					net->name, 
-					net->pin[c->start_pin].ref_des, net->pin[c->start_pin].pin_name ); 
-				*logstr += str;
+				if( logstr )
+				{
+					CString str;
+					str.Format( "net %s: stub trace from %s.%s: single unrouted segment and no end via, removed\r\n",
+						net->name, 
+						net->pin[c->start_pin].ref_des, net->pin[c->start_pin].pin_name ); 
+					*logstr += str;
+				}
+				net->connect.RemoveAt(ic);
+				net->nconnects--;
 			}
-			net->connect.RemoveAt(ic);
-			net->nconnects--;
 		}
 	}
 	// 

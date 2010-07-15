@@ -1,6 +1,10 @@
 FreePCB release notes: (versions since 1.2) 
 -------------------------------------------
 
+1.357
+-----
+- fixed bug where non-branch stubs without end-vias could be removed
+
 1.356
 -----
 - replaced ASSERT with error dialog when unable to open library file to save footprint
