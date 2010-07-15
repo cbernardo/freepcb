@@ -822,6 +822,7 @@ void CNetList::CleanUpConnections( cnet * net, CString * logstr )
 {
 	for( int ic=net->nconnects-1; ic>=0; ic-- )   
 	{
+		BOOL bConnectionRemoved = FALSE;
 		UndrawConnection( net, ic );
 		cconnect * c = &net->connect[ic];
 		for( int is=c->nsegs-1; is>=0; is-- )
@@ -938,6 +939,7 @@ void CNetList::CleanUpConnections( cnet * net, CString * logstr )
 		if( c->nsegs == 0 )
 		{
 			// no, remove connection
+			bConnectionRemoved = TRUE;
 			net->connect.RemoveAt(ic);
 			net->nconnects--;
 		}
@@ -984,34 +986,31 @@ void CNetList::CleanUpConnections( cnet * net, CString * logstr )
 					}
 				}
 			}
-			if( m_dlist )
+			// now check for non-branch stubs with a single unrouted segment and no end-via
+			if( c->end_pin == cconnect::NO_END && c->nsegs == 1 )
+			{
+				cvertex * end_v = &c->vtx[c->nsegs];
+				cseg * end_s = &c->seg[c->nsegs-1];
+				if( end_v->tee_ID == 0 && end_v->via_w == 0 && end_s->layer == LAY_RAT_LINE )
+				{
+					if( logstr )
+					{
+						CString str;
+						str.Format( "net %s: stub trace from %s.%s: single unrouted segment and no end via, removed\r\n",
+							net->name, 
+							net->pin[c->start_pin].ref_des, net->pin[c->start_pin].pin_name ); 
+						*logstr += str;
+					}
+					bConnectionRemoved = TRUE;
+					net->connect.RemoveAt(ic);
+					net->nconnects--;
+				}
+			}
+			if( !bConnectionRemoved && m_dlist )
 				DrawConnection( net, ic );
 		}
 	}
 
-	// now check for non-branch stubs with a single unrouted segment and no end-via
-	for( int ic=net->nconnects-1; ic>=0; ic-- )   
-	{
-		cconnect * c = &net->connect[ic];
-		if( c->end_pin == cconnect::NO_END && c->nsegs == 1 )
-		{
-			cvertex * end_v = &c->vtx[c->nsegs];
-			cseg * end_s = &c->seg[c->nsegs-1];
-			if( end_v->tee_ID == 0 && end_v->via_w == 0 && end_s->layer == LAY_RAT_LINE )
-			{
-				if( logstr )
-				{
-					CString str;
-					str.Format( "net %s: stub trace from %s.%s: single unrouted segment and no end via, removed\r\n",
-						net->name, 
-						net->pin[c->start_pin].ref_des, net->pin[c->start_pin].pin_name ); 
-					*logstr += str;
-				}
-				net->connect.RemoveAt(ic);
-				net->nconnects--;
-			}
-		}
-	}
 	// 
 	RenumberConnections( net );
 }
