@@ -1,0 +1,23 @@
+LIBRARY	clibpdf
+DESCRIPTION "PDF Library"
+
+EXPORTS
+	cpdf_open
+	cpdf_enableCompression
+	cpdf_init
+	cpdf_pageInit
+	cpdf_translate
+	cpdf_lineto
+	cpdf_moveto
+	cpdf_closepath
+	cpdf_setrgbcolorFill
+	cpdf_setrgbcolorStroke
+	cpdf_eofillAndStroke
+	cpdf_setgrayFill
+	cpdf_beginText
+	cpdf_setFont
+	cpdf_text
+	cpdf_endText
+	cpdf_finalizeAll
+	cpdf_savePDFmemoryStreamToFile
+	cpdf_close

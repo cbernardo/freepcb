@@ -1,0 +1,52 @@
+<html>
+<head>
+<META HTTP-EQUIV="Content-Type" content="text/html; charset=Windows-1252">
+</head>
+<body>
+<pre>
+<table width=100% bgcolor=#CFCFE5><tr> <td> <font face=arial size=+3>
+Build Log
+</font></table><table width=* cellspacing=0 cellpadding=0><tr><td width=0 bgcolor=#EDEDF5>&nbsp;</td><td width=0 bgcolor=#FFFFFF>&nbsp;</td><td width=*><pre>
+<h3>------- Build started: Project: testpdf, Configuration: Release|Win32 -------
+</h3>
+</pre></table><table width=100% bgcolor=#DFDFE5><tr><td><font face=arial size=+2>
+Command Lines
+</font></table><table width=* cellspacing=0 cellpadding=0><tr><td width=0 bgcolor=#EDEDF5>&nbsp;</td><td width=0 bgcolor=#FFFFFF>&nbsp;</td><td width=*><pre>This edition of Visual C++ does not support the optimizing compiler.
+Creating temporary file "e:\allan\cvswork\clibpdf\testpdf\Release\RSP00000D.rsp" with contents
+[
+/D "WIN32" /D "NDEBUG" /D "_CONSOLE" /D "_MBCS" /FD /EHsc /MT /GS /Fo"Release/" /Fd"Release/vc70.pdb" /W3 /c /Wp64 /Zi /TC
+\allan\cvswork\clibpdf\source\testpdf.c
+]
+Creating command line "cl.exe @e:\allan\cvswork\clibpdf\testpdf\Release\RSP00000D.rsp /nologo"
+Creating temporary file "e:\allan\cvswork\clibpdf\testpdf\Release\RSP00000E.rsp" with contents
+[
+/OUT:"Release/testpdf.exe" /INCREMENTAL:NO /NOLOGO /LIBPATH:"..\Release" /DEBUG /PDB:"Release/testpdf.pdb" /SUBSYSTEM:CONSOLE /OPT:REF /OPT:ICF /MACHINE:X86 clibpdf.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib
+.\Release\testpdf.obj
+]
+Creating command line "link.exe @e:\allan\cvswork\clibpdf\testpdf\Release\RSP00000E.rsp"
+</pre></table><table width=100% bgcolor=#DFDFE5><tr><td><font face=arial size=+2>
+Output Window
+</font></table><table width=* cellspacing=0 cellpadding=0><tr><td width=0 bgcolor=#EDEDF5>&nbsp;</td><td width=0 bgcolor=#FFFFFF>&nbsp;</td><td width=*><pre>Compiling...
+testpdf.c
+\allan\cvswork\clibpdf\source\testpdf.c(133) : warning C4013: 'cpdf_launchPreview' undefined; assuming extern returning int
+Linking...
+MSVCRT.lib(MSVCR71.dll) : error LNK2005: _malloc already defined in LIBCMT.lib(malloc.obj)
+MSVCRT.lib(MSVCR71.dll) : error LNK2005: _free already defined in LIBCMT.lib(free.obj)
+MSVCRT.lib(MSVCR71.dll) : error LNK2005: _strncpy already defined in LIBCMT.lib(strncpy.obj)
+MSVCRT.lib(MSVCR71.dll) : error LNK2005: _fclose already defined in LIBCMT.lib(fclose.obj)
+MSVCRT.lib(MSVCR71.dll) : error LNK2005: _exit already defined in LIBCMT.lib(crt0dat.obj)
+MSVCRT.lib(MSVCR71.dll) : error LNK2005: _strncmp already defined in LIBCMT.lib(strncmp.obj)
+MSVCRT.lib(MSVCR71.dll) : error LNK2005: _strchr already defined in LIBCMT.lib(strchr.obj)
+MSVCRT.lib(MSVCR71.dll) : error LNK2005: _time already defined in LIBCMT.lib(time.obj)
+MSVCRT.lib(MSVCR71.dll) : error LNK2005: _printf already defined in LIBCMT.lib(printf.obj)
+MSVCRT.lib(MSVCR71.dll) : error LNK2005: _realloc already defined in LIBCMT.lib(realloc.obj)
+MSVCRT.lib(MSVCR71.dll) : error LNK2005: _calloc already defined in LIBCMT.lib(calloc.obj)
+LINK : warning LNK4098: defaultlib 'MSVCRT' conflicts with use of other libs; use /NODEFAULTLIB:library
+testpdf.obj : error LNK2019: unresolved external symbol _cpdf_launchPreview referenced in function _main
+Release/testpdf.exe : fatal error LNK1120: 1 unresolved externals
+</pre></table><table width=100% bgcolor=#DFDFE5><tr><td><font face=arial size=+2>
+Results
+</font></table><table width=* cellspacing=0 cellpadding=0><tr><td width=0 bgcolor=#EDEDF5>&nbsp;</td><td width=0 bgcolor=#FFFFFF>&nbsp;</td><td width=*><pre>
+Build log was saved at "file://e:\allan\cvswork\clibpdf\testpdf\Release\BuildLog.htm"
+testpdf - 13 error(s), 2 warning(s)</pre></table><table   width=100% height=20 bgcolor=#CFCFE5><tr><td><font face=arial size=+2>
+</font></table></body></html>
