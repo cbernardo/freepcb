@@ -68,7 +68,7 @@ void CDlgLibraryManager::OnBnClickedButtonMakePdf()
 	AfxMessageBox( "Sorry, this function is currently disabled" );
 	return;
 #endif
-
+//#if 0
 	// set page size
 	double PageWidth;	
 	double PageHeight;	
@@ -969,6 +969,7 @@ void CDlgLibraryManager::OnBnClickedButtonMakePdf()
 		}
 		cpdf_close(pdf);			/* shut down */
 	}
+//#endif
 }
 
 void CDlgLibraryManager::Initialize( CFootLibFolderMap * foldermap, CDlgLog * log )
