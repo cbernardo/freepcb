@@ -224,6 +224,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\Cuid.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\DesignRules.cpp"
 				>
 			</File>
@@ -588,6 +592,10 @@
 			Name="Header Files"
 			Filter="h;hpp;hxx;hm;inl"
 			>
+			<File
+				RelativePath=".\Cuid.h"
+				>
+			</File>
 			<File
 				RelativePath=".\DdlgNetCombine.h"
 				>
