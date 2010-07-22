@@ -1,4 +1,4 @@
-#summary FreePCB Wiki start page
+#summary Wiki start page
 
 <wiki:toc max_depth="2" />
 
