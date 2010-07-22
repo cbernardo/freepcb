@@ -47,6 +47,7 @@
 			/>
 			<Tool
 				Name="VCCLCompilerTool"
+				AdditionalOptions="/D &quot;_CRT_SECURE_NO_DEPRECATE&quot;"
 				Optimization="0"
 				AdditionalIncludeDirectories="./include"
 				PreprocessorDefinitions="WIN32;_DEBUG;_WINDOWS"
@@ -149,6 +150,7 @@
 			/>
 			<Tool
 				Name="VCCLCompilerTool"
+				AdditionalOptions="/D &quot;_CRT_SECURE_NO_DEPRECATE&quot;"
 				InlineFunctionExpansion="1"
 				AdditionalIncludeDirectories="./include"
 				PreprocessorDefinitions="WIN32;NDEBUG;_WINDOWS"
@@ -221,6 +223,10 @@
 			>
 			<File
 				RelativePath=".\afxasert.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\CArrayIterator.cpp"
 				>
 			</File>
 			<File
@@ -592,6 +598,10 @@
 			Name="Header Files"
 			Filter="h;hpp;hxx;hm;inl"
 			>
+			<File
+				RelativePath=".\CArrayIterator.h"
+				>
+			</File>
 			<File
 				RelativePath=".\Cuid.h"
 				>

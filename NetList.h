@@ -21,6 +21,7 @@
 #include "PartList.h"
 #include "PolyLine.h"
 #include "UndoList.h"
+#include "CArrayIterator.h"
 
 extern int m_layer_by_file_layer[MAX_LAYERS];
 
@@ -317,8 +318,8 @@ public:
 	// these params used only by DRC
 	int min_x, max_x;			// bounding rect
 	int min_y, max_y;
-	BOOL vias_present;
-	int seg_layers;
+	BOOL vias_present;			// flag to indicate that vias are pesent
+	int seg_layers;				// mask for all layers used by segments
 };
 
 // cnet: describes a net
@@ -422,7 +423,7 @@ public:
 	// functions for segments
 	int AppendSegment( cnet * net, int ic, int x, int y, int layer, int width );
 	int InsertSegment( cnet * net, int ic, int iseg, int x, int y, int layer, int width,
-						int via_width, int via_hole_width, int dir );
+						int via_width, int via_hole_width, int dir, BOOL bDrawConnection=TRUE );
 	id  UnrouteSegment( cnet * net, int ic, int iseg );
 	void UnrouteSegmentWithoutMerge( cnet * net, int ic, int iseg );
 	id MergeUnroutedSegments( cnet * net, int ic );
@@ -449,7 +450,7 @@ public:
 	int CancelMovingSegment( cnet * net, int ic, int ivtx );
 
 	// functions for vias
-	int ReconcileVia( cnet * net, int ic, int ivtx );
+	int ReconcileVia( cnet * net, int ic, int ivtx, BOOL bDrawVia=TRUE );
 	int ForceVia( cnet * net, int ic, int ivtx, BOOL set_areas=TRUE );
 	int UnforceVia( cnet * net, int ic, int ivtx, BOOL set_areas=TRUE );
 	int DrawVia( cnet * net, int ic, int iv );
