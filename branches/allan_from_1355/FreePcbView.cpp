@@ -1919,6 +1919,8 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 														m_Doc->m_auto_ratline_min_pins, TRUE  );
 				ReselectNetItemIfConnectionsChanged( new_ic );
 			}
+			else
+				SetCursorMode( CUR_VTX_SELECTED );
 			m_Doc->ProjectModified( TRUE );
 			Invalidate( FALSE );
 		}
@@ -2770,6 +2772,7 @@ void CFreePcbView::OnRButtonDown(UINT nFlags, CPoint point)
 														m_Doc->m_auto_ratline_min_pins, TRUE  );
 					ReselectNetItemIfConnectionsChanged( new_ic );
 				}
+				SetCursorMode( CUR_END_VTX_SELECTED );
 			}
 		}
 		else
