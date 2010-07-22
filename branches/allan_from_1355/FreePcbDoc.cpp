@@ -759,7 +759,7 @@ BOOL CFreePcbDoc::AutoSave()
 	time_t bin_time;
 	time_t max_time = 0;
 	int max_suffix = 0;
-	if( chdir( auto_folder ) != 0 )
+	if( _chdir( auto_folder ) != 0 )
 	{
 		CString mess;
 		mess.Format( "Unable to open autosave folder \"%s\"", auto_folder );

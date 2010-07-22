@@ -110,7 +110,7 @@ void CDlgSaveFootprint::OnBnClickedOk()
 	if( *m_folder->GetFullPath() != m_folder_name )
 	{
 		// folder was changed without browsing, regenerate library
-		int ret = chdir( m_folder_name );
+		int ret = _chdir( m_folder_name );
 		if( ret == -1 )
 		{
 			// folder doesn't exist
@@ -120,7 +120,7 @@ void CDlgSaveFootprint::OnBnClickedOk()
 			if( ret == IDNO )
 				return;
 			// create it
-			ret = mkdir( m_folder_name );
+			ret = _mkdir( m_folder_name );
 			if( ret == -1 )
 			{
 				// can't create folder

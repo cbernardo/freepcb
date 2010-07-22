@@ -23,6 +23,7 @@ BOOL bDontShowSelfIntersectionArcsWarning = FALSE;
 BOOL bDontShowIntersectionWarning = FALSE;
 BOOL bDontShowIntersectionArcsWarning = FALSE;
 
+
 // carea constructor
 carea::carea()
 {
@@ -1125,7 +1126,7 @@ int CNetList::RemoveNetConnect( cnet * net, int ic, BOOL set_areas )
 		// stub
 		if( c->vtx[c->nsegs].tee_ID )
 		{
-			// stub trace ending on tee, remove tee
+			// branch ending on tee, remove tee
 			DisconnectBranch( net, ic );
 		}
 	}
@@ -1643,10 +1644,16 @@ int CNetList::AppendSegment( cnet * net, int ic, int x, int y, int layer, int wi
 // return 1 if segment inserted, 0 if replaced 
 // tests position within +/- 10 nm.
 //
+
 int CNetList::InsertSegment( cnet * net, int ic, int iseg, int x, int y, int layer, int width,
-						 int via_width, int via_hole_width, int dir )
+						 int via_width, int via_hole_width, int dir, BOOL bDrawConnection )
 {
+#define TRY_SIMPLIFY
 	const int TOL = 10;
+
+#ifdef TRY_SIMPLIFY
+	UndrawConnection( net, ic );
+#endif
 
 	// see whether we need to insert new segment or just modify old segment
 	cconnect * c = &net->connect[ic];
@@ -1724,13 +1731,16 @@ int CNetList::InsertSegment( cnet * net, int ic, int iseg, int x, int y, int lay
 		for( int i=c->nsegs; i>iseg; i-- )
 		{
 			c->seg[i] = c->seg[i-1];
+#ifndef TRY_SIMPLIFY
 			if( c->seg[i].dl_el )
 				c->seg[i].dl_el->id.ii = i;
 			if( c->seg[i].dl_sel )
 				c->seg[i].dl_sel->id.ii = i;
+#endif
 			c->vtx[i+1] = c->vtx[i];
 			c->vtx[i].tee_ID = 0;
 			c->vtx[i].force_via_flag = FALSE;
+#ifndef TRY_SIMPLIFY
 			if( c->vtx[i+1].dl_sel )
 				c->vtx[i+1].dl_sel->id.ii = i+1;
 			if( c->vtx[i+1].dl_hole )
@@ -1742,6 +1752,7 @@ int CNetList::InsertSegment( cnet * net, int ic, int iseg, int x, int y, int lay
 			}
 			if( c->vtx[i+1].dl_hole )
 				c->vtx[i+1].dl_hole->id.ii = i+1;
+#endif
 		}
 		// note that seg[iseg+1] now duplicates seg[iseg], vtx[iseg+2] duplicates vtx[iseg+1]
 		// we must replace or zero the dl_element pointers for seg[iseg+1]
@@ -1749,9 +1760,10 @@ int CNetList::InsertSegment( cnet * net, int ic, int iseg, int x, int y, int lay
 		// set position for new vertex, zero dl_element pointers
 		c->vtx[iseg+1].x = x;
 		c->vtx[iseg+1].y = y;
+#ifndef TRY_SIMPLIFY
 		if( m_dlist )
 			UndrawVia( net, ic, iseg+1 );
-		
+#endif		
 		// fill in data for new seg[iseg] or seg[is+1] (depending on dir)
 		if( dir == 0 )
 		{
@@ -1761,6 +1773,7 @@ int CNetList::InsertSegment( cnet * net, int ic, int iseg, int x, int y, int lay
 			c->seg[iseg].selected = 0;
 			int xi = c->vtx[iseg].x;
 			int yi = c->vtx[iseg].y;
+#ifndef TRY_SIMPLIFY
 			if( m_dlist )
 			{
 				id id( ID_NET, ID_CONNECT, ic, ID_SEG, iseg );
@@ -1775,6 +1788,7 @@ int CNetList::InsertSegment( cnet * net, int ic, int iseg, int x, int y, int lay
 					1, 1, 0, x-10*PCBU_PER_MIL, y-10*PCBU_PER_MIL, 
 					x+10*PCBU_PER_MIL, y+10*PCBU_PER_MIL, 0, 0 ); 
 			}
+#endif
 		}
 		else
 		{
@@ -1784,6 +1798,7 @@ int CNetList::InsertSegment( cnet * net, int ic, int iseg, int x, int y, int lay
 			c->seg[iseg+1].selected = 0;
 			int xf = c->vtx[iseg+2].x;
 			int yf = c->vtx[iseg+2].y;
+#ifndef TRY_SIMPLIFY
 			if( m_dlist )
 			{
 				id id( ID_NET, ID_CONNECT, ic, ID_SEG, iseg+1 );
@@ -1797,8 +1812,9 @@ int CNetList::InsertSegment( cnet * net, int ic, int iseg, int x, int y, int lay
 				c->vtx[iseg+1].dl_sel = m_dlist->AddSelector( id, net, layer, DL_HOLLOW_RECT, 
 					1, 0, 0, x-10*PCBU_PER_MIL, y-10*PCBU_PER_MIL, x+10*PCBU_PER_MIL, y+10*PCBU_PER_MIL, 0, 0 ); 
 			}
+#endif
 		}
-
+#ifndef TRY_SIMPLIFY
 		// modify adjacent old segment for new endpoint
 		if( m_dlist )
 		{
@@ -1830,12 +1846,14 @@ int CNetList::InsertSegment( cnet * net, int ic, int iseg, int x, int y, int lay
 				m_dlist->Set_visible(c->seg[iseg].dl_sel, 1);
 			}
 		}
+#endif
 		// done
 		c->nsegs++;
 	}
 	else
 	{
 		// don't insert, just modify old segment
+#ifndef TRY_SIMPLIFY
 		if( m_dlist )
 		{
 			int x = m_dlist->Get_x(c->seg[iseg].dl_el);
@@ -1850,16 +1868,21 @@ int CNetList::InsertSegment( cnet * net, int ic, int iseg, int x, int y, int lay
 			m_dlist->Set_visible(c->seg[iseg].dl_sel, 1); 
 			m_dlist->Set_layer(c->seg[iseg].dl_sel, layer); 
 		}
+#endif
 		c->seg[iseg].selected = 0;
 		c->seg[iseg].layer = layer;
 		c->seg[iseg].width = width;
 	}
 
 	// clean up vias
-	ReconcileVia( net, ic, iseg );
-	ReconcileVia( net, ic, iseg+1 );
+	ReconcileVia( net, ic, iseg, FALSE );
+	ReconcileVia( net, ic, iseg+1, FALSE );
 	if( (iseg+1) < c->nsegs )
-		ReconcileVia( net, ic, iseg+2 );
+		ReconcileVia( net, ic, iseg+2, FALSE );
+
+	// redraw connection
+	if( bDrawConnection )
+		DrawConnection( net, ic );
 	return insert_flag;
 }
 
@@ -4092,7 +4115,7 @@ int CNetList::UnforceVia( cnet * net, int ic, int ivtx, BOOL set_areas )
 // Reconcile via with preceding and following segments
 // if a via is needed, use defaults for adjacent segments 
 //
-int CNetList::ReconcileVia( cnet * net, int ic, int ivtx )
+int CNetList::ReconcileVia( cnet * net, int ic, int ivtx, BOOL bDrawVia )
 {
 	cconnect * c = &net->connect[ic];
 	cvertex * v = &c->vtx[ivtx];
@@ -4145,6 +4168,7 @@ int CNetList::ReconcileVia( cnet * net, int ic, int ivtx )
 		if( v->via_w == 0 || v->via_hole_w == 0 )
 		{
 			// via doesn't already exist, set via width and hole width
+			// using project or net defaults
 			int w, via_w, via_hole_w;
 			GetWidths( net, &w, &via_w, &via_hole_w );
 			// set parameters for via
@@ -4158,7 +4182,7 @@ int CNetList::ReconcileVia( cnet * net, int ic, int ivtx )
 		v->via_w = 0;
 		v->via_hole_w = 0;
 	}
-	if( m_dlist )
+	if( m_dlist && bDrawVia )
 		DrawVia( net, ic, ivtx );
 	return 0;
 }
@@ -6960,7 +6984,7 @@ BOOL CNetList::RemoveOrphanBranches( cnet * net, int id, BOOL bRemoveSegs )
 	if( test_id && FindTeeVertexInNet( net, test_id ) )
 		return FALSE;	// not an orphan
 
-	// check all connections
+	// check all connections 
 	while( bRemoved )
 	{
 		for( int ic=net->nconnects-1; ic>=0; ic-- )
