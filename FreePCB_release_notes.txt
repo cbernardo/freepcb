@@ -1,6 +1,10 @@
 FreePCB release notes: (versions since 1.2) 
 -------------------------------------------
 
+1.358
+-----
+- fixed bug where moving a vertex with ratlines invisible could make cursor disappear
+
 1.357
 -----
 - fixed bug where non-branch stubs without end-vias could be removed
