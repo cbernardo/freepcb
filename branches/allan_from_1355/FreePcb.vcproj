@@ -226,10 +226,6 @@
 				>
 			</File>
 			<File
-				RelativePath=".\CArrayIterator.cpp"
-				>
-			</File>
-			<File
 				RelativePath=".\Cuid.cpp"
 				>
 			</File>
@@ -518,6 +514,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\Net_iter.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\NetList.cpp"
 				>
 			</File>
@@ -598,10 +598,6 @@
 			Name="Header Files"
 			Filter="h;hpp;hxx;hm;inl"
 			>
-			<File
-				RelativePath=".\CArrayIterator.h"
-				>
-			</File>
 			<File
 				RelativePath=".\Cuid.h"
 				>
@@ -868,6 +864,10 @@
 			</File>
 			<File
 				RelativePath=".\layers.h"
+				>
+			</File>
+			<File
+				RelativePath=".\LinkList.h"
 				>
 			</File>
 			<File

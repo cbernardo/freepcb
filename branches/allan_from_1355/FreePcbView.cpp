@@ -4871,21 +4871,23 @@ int CFreePcbView::ShowSelectStatus()
 				{
 					// stub trace segment
 					if( m_sel_con.vtx[m_sel_con.nsegs].tee_ID )
-						str.Format( "net \"%s\" branch(%d) to %s.%s, seg %d, width %d (T%d)",
+						str.Format( "net \"%s\" branch(%d) to %s.%s, seg %d, width %d (T%d) uid %d",
 							m_sel_net->name, m_sel_id.i+1,
 							m_sel_start_pin.ref_des,
 							m_sel_start_pin.pin_name,
 							m_sel_id.ii+1,
 							m_sel_seg.width/NM_PER_MIL,
-							m_sel_con.vtx[m_sel_con.nsegs].tee_ID
+							m_sel_con.vtx[m_sel_con.nsegs].tee_ID,
+							m_sel_seg.m_uid
 						);
 					else
-						str.Format( "net \"%s\" stub(%d) from %s.%s, seg %d, width %d",
+						str.Format( "net \"%s\" stub(%d) from %s.%s, seg %d, width %d uid %d",
 							m_sel_net->name, m_sel_id.i+1,
 							m_sel_start_pin.ref_des,
 							m_sel_start_pin.pin_name,
 							m_sel_id.ii+1,
-							m_sel_seg.width/NM_PER_MIL
+							m_sel_seg.width/NM_PER_MIL,
+							m_sel_seg.m_uid
 						);
 				}
 			}
@@ -4897,26 +4899,28 @@ int CFreePcbView::ShowSelectStatus()
 					locked_flag = " (L)";
 				if( m_sel_con.nsegs == 1 && m_sel_seg.layer == LAY_RAT_LINE )
 				{
-					str.Format( "net \"%s\" connection(%d) %s.%s-%s.%s%s, seg %d, width %d",
+					str.Format( "net \"%s\" connection(%d) %s.%s-%s.%s%s, seg %d, width %d uid %d",
 						m_sel_net->name, m_sel_id.i+1,
 						m_sel_start_pin.ref_des,
 						m_sel_start_pin.pin_name,
 						m_sel_end_pin.ref_des,
 						m_sel_end_pin.pin_name,
 						locked_flag, m_sel_id.ii+1,
-						m_sel_seg.width/NM_PER_MIL
+						m_sel_seg.width/NM_PER_MIL,
+						m_sel_seg.m_uid
 						);
 				}
 				else
 				{
-					str.Format( "net \"%s\" trace(%d) %s.%s-%s.%s%s, seg %d, width %d",
+					str.Format( "net \"%s\" trace(%d) %s.%s-%s.%s%s, seg %d, width %d uid %d",
 						m_sel_net->name,  m_sel_id.i+1,
 						m_sel_start_pin.ref_des,
 						m_sel_start_pin.pin_name,
 						m_sel_end_pin.ref_des,
 						m_sel_end_pin.pin_name,
 						locked_flag, m_sel_id.ii+1,
-						m_sel_seg.width/NM_PER_MIL
+						m_sel_seg.width/NM_PER_MIL,
+							m_sel_seg.m_uid
 						);
 				}
 			}
@@ -4934,6 +4938,7 @@ int CFreePcbView::ShowSelectStatus()
 			if( m_sel_vtx.force_via_flag )
 				tee_flag = "(F)" + tee_flag;
 			int via_w = m_sel_vtx.via_w;
+			int uid = m_sel_vtx.m_uid;
 			::MakeCStringFromDimension( &x_str, m_sel_vtx.x, u, FALSE, FALSE, FALSE, u==MIL?1:3 );
 			::MakeCStringFromDimension( &y_str, m_sel_vtx.y, u, FALSE, FALSE, FALSE, u==MIL?1:3 );
 			::MakeCStringFromDimension( &via_w_str, m_sel_vtx.via_w, u, FALSE, FALSE, FALSE, u==MIL?1:3 );
@@ -4945,7 +4950,7 @@ int CFreePcbView::ShowSelectStatus()
 				{
 					// via
 					if( m_sel_con.vtx[m_sel_con.nsegs].tee_ID )
-						str.Format( "net \"%s\" branch(%d) to %s.%s, vertex %d, x %s, y %s, via %s/%s %s",
+						str.Format( "net \"%s\" branch(%d) to %s.%s, vertex %d, x %s, y %s, via %s/%s %s uid %d",
 							m_sel_net->name, m_sel_id.i+1,
 							m_sel_start_pin.ref_des,
 							m_sel_start_pin.pin_name,
@@ -4954,10 +4959,11 @@ int CFreePcbView::ShowSelectStatus()
 							y_str,
 							via_w_str,
 							via_hole_str,
-							tee_flag
+							tee_flag,
+							uid
 							);
 					else
-						str.Format( "net \"%s\" stub(%d) from %s.%s, vertex %d, x %s, y %s, via %s/%s %s",
+						str.Format( "net \"%s\" stub(%d) from %s.%s, vertex %d, x %s, y %s, via %s/%s %s uid %d",
 							m_sel_net->name, m_sel_id.i+1,
 							m_sel_start_pin.ref_des,
 							m_sel_start_pin.pin_name,
@@ -4966,31 +4972,34 @@ int CFreePcbView::ShowSelectStatus()
 							y_str,
 							via_w_str,
 							via_hole_str,
-							tee_flag
+							tee_flag,
+							uid
 							);
 				}
 				else
 				{
 					// no via
 					if( m_sel_con.vtx[m_sel_con.nsegs].tee_ID )
-						str.Format( "net \"%s\" branch(%d) to %s.%s, vertex %d, x %s, y %s %s",
+						str.Format( "net \"%s\" branch(%d) to %s.%s, vertex %d, x %s, y %s %s uid %d",
 							m_sel_net->name, m_sel_id.i+1,
 							m_sel_start_pin.ref_des,
 							m_sel_start_pin.pin_name,
 							m_sel_id.ii,
 							x_str,
 							y_str,
-							tee_flag
+							tee_flag,
+							uid
 							);
 					else
-						str.Format( "net \"%s\" stub(%d) from %s.%s, vertex %d, x %s, y %s %s",
+						str.Format( "net \"%s\" stub(%d) from %s.%s, vertex %d, x %s, y %s %s uid %d",
 							m_sel_net->name, m_sel_id.i+1,
 							m_sel_start_pin.ref_des,
 							m_sel_start_pin.pin_name,
 							m_sel_id.ii,
 							x_str,
 							y_str,
-							tee_flag
+							tee_flag,
+							uid
 							);
 				}
 			}
@@ -5000,7 +5009,7 @@ int CFreePcbView::ShowSelectStatus()
 				if( via_w )
 				{
 					// with via
-					str.Format( "net \"%s\" trace(%d) %s.%s-%s.%s%s, vertex %d, x %s, y %s, via %s/%s %s",
+					str.Format( "net \"%s\" trace(%d) %s.%s-%s.%s%s, vertex %d, x %s, y %s, via %s/%s %s uid %d",
 						m_sel_net->name, m_sel_id.i+1,
 						m_sel_start_pin.ref_des,
 						m_sel_start_pin.pin_name,
@@ -5012,13 +5021,14 @@ int CFreePcbView::ShowSelectStatus()
 						y_str,
 						via_w_str,
 						via_hole_str,
-						tee_flag
+						tee_flag,
+						uid
 						);
 				}
 				else
 				{
 					// no via
-					str.Format( "net \"%s\" trace(%d) %s.%s-%s.%s%s, vertex %d, x %s, y %s %s",
+					str.Format( "net \"%s\" trace(%d) %s.%s-%s.%s%s, vertex %d, x %s, y %s %s uid %d",
 						m_sel_net->name, m_sel_id.i+1,
 						m_sel_start_pin.ref_des,
 						m_sel_start_pin.pin_name,
@@ -5028,7 +5038,8 @@ int CFreePcbView::ShowSelectStatus()
 						m_sel_id.ii,
 						x_str,
 						y_str,
-						tee_flag
+						tee_flag,
+						uid
 						);
 				}
 			}
@@ -5042,17 +5053,19 @@ int CFreePcbView::ShowSelectStatus()
 				tee_flag.Format( " (T%d)", id );
 			if( m_sel_vtx.force_via_flag )
 				tee_flag = "(F)" + tee_flag;
+			int uid = m_sel_vtx.m_uid;
 			::MakeCStringFromDimension( &x_str, m_sel_vtx.x, u, FALSE, FALSE, FALSE, u==MIL?1:3 );
 			::MakeCStringFromDimension( &y_str, m_sel_vtx.y, u, FALSE, FALSE, FALSE, u==MIL?1:3 );
 			::MakeCStringFromDimension( &via_w_str, m_sel_vtx.via_w, u, FALSE, FALSE, FALSE, u==MIL?1:3 );
 			::MakeCStringFromDimension( &via_hole_str, m_sel_vtx.via_hole_w, u, FALSE, FALSE, FALSE, u==MIL?1:3 );
-			str.Format( "net \"%s\" stub(%d) end, x %s, y %s, via %s/%s %s",
+			str.Format( "net \"%s\" stub(%d) end, x %s, y %s, via %s/%s %s uid %d",
 				m_sel_net->name, m_sel_id.i+1,
 				x_str,
 				y_str,
 				via_w_str,
 				via_hole_str,
-				tee_flag
+				tee_flag,
+				uid
 				);
 		}
 		break;

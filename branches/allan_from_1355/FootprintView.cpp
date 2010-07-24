@@ -741,7 +741,6 @@ void CFootprintView::OnLButtonDown(UINT nFlags, CPoint point)
 		else if( m_cursor_mode == CUR_FP_DRAG_POLY_1 )
 		{
 			// place second corner of polyline
-//			PushUndo();
 			pDC = GetDC();
 			SetDCToWorldCoords( pDC );
 			pDC->SelectClipRgn( &m_pcb_rgn );

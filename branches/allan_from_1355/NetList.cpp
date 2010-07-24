@@ -8,6 +8,7 @@
 #include "gerber.h"
 #include "utility.h"
 #include "php_polygon.h"
+#include "Cuid.h"
 
 
 #ifdef _DEBUG
@@ -17,7 +18,6 @@ static char THIS_FILE[]=__FILE__;
 #endif
 
 //#define PROFILE		// profiles calls to OptimizeConnections() for "GND"  
-
 BOOL bDontShowSelfIntersectionWarning = FALSE;
 BOOL bDontShowSelfIntersectionArcsWarning = FALSE;
 BOOL bDontShowIntersectionWarning = FALSE;
@@ -641,11 +641,12 @@ int CNetList::AddNetConnect( cnet * net, int p1, int p2 )
 		ASSERT(0);
 
 	net->connect.SetSize( net->nconnects + 1 );
+	net->connect[net->nconnects].Initialize( this );
 	net->connect[net->nconnects].seg.SetSize( 1 );
-	net->connect[net->nconnects].seg[0].Initialize( m_dlist );
+	net->connect[net->nconnects].seg[0].Initialize( m_dlist, this );
 	net->connect[net->nconnects].vtx.SetSize( 2 );
-	net->connect[net->nconnects].vtx[0].Initialize( m_dlist );
-	net->connect[net->nconnects].vtx[1].Initialize( m_dlist );
+	net->connect[net->nconnects].vtx[0].Initialize( m_dlist, this );
+	net->connect[net->nconnects].vtx[1].Initialize( m_dlist, this );
 	net->connect[net->nconnects].nsegs = 1;
 	net->connect[net->nconnects].locked = 0;
 	net->connect[net->nconnects].start_pin = p1;
@@ -729,9 +730,10 @@ int CNetList::AddNetStub( cnet * net, int p1 )
 		return -1;
 
 	net->connect.SetSize( net->nconnects + 1 );
+	net->connect[net->nconnects].Initialize( this );
 	net->connect[net->nconnects].seg.SetSize( 0 );
 	net->connect[net->nconnects].vtx.SetSize( 1 );
-	net->connect[net->nconnects].vtx[0].Initialize( m_dlist );
+	net->connect[net->nconnects].vtx[0].Initialize( m_dlist, this );
 	net->connect[net->nconnects].nsegs = 0;
 	net->connect[net->nconnects].locked = 0;
 	net->connect[net->nconnects].start_pin = p1;
@@ -1596,10 +1598,10 @@ int CNetList::AppendSegment( cnet * net, int ic, int x, int y, int layer, int wi
 	// add new vertex and segment
 	cconnect * c =&net->connect[ic];
 	c->seg.SetSize( c->nsegs + 1 );
-	c->seg[c->nsegs].Initialize( m_dlist );
+	c->seg[c->nsegs].Initialize( m_dlist, this );
 	c->vtx.SetSize( c->nsegs + 2 );
-	c->vtx[c->nsegs].Initialize( m_dlist );
-	c->vtx[c->nsegs+1].Initialize( m_dlist );
+	c->vtx[c->nsegs].Initialize( m_dlist, this );
+	c->vtx[c->nsegs+1].Initialize( m_dlist, this );
 	int iseg = c->nsegs;
 
 	// set position for new vertex, zero dl_element pointers
@@ -1648,12 +1650,9 @@ int CNetList::AppendSegment( cnet * net, int ic, int x, int y, int layer, int wi
 int CNetList::InsertSegment( cnet * net, int ic, int iseg, int x, int y, int layer, int width,
 						 int via_width, int via_hole_width, int dir, BOOL bDrawConnection )
 {
-#define TRY_SIMPLIFY
 	const int TOL = 10;
 
-#ifdef TRY_SIMPLIFY
 	UndrawConnection( net, ic );
-#endif
 
 	// see whether we need to insert new segment or just modify old segment
 	cconnect * c = &net->connect[ic];
@@ -1720,50 +1719,26 @@ int CNetList::InsertSegment( cnet * net, int ic, int iseg, int x, int y, int lay
 
 	if( insert_flag )
 	{
-		// insert new vertex and segment
-		c->seg.SetSize( c->nsegs + 1 );
-		c->seg[c->nsegs].Initialize( m_dlist );
-		c->vtx.SetSize( c->nsegs + 2 );
-		c->vtx[c->nsegs].Initialize( m_dlist );
-		c->vtx[c->nsegs+1].Initialize( m_dlist );
+		// insert new segment and new vertex
+		c->seg.SetSize( c->nsegs + 1 );	// add new segment to array
+		c->seg[c->nsegs].Initialize( m_dlist, this );
+		c->vtx.SetSize( c->nsegs + 2 );	
+		c->vtx[c->nsegs+1].Initialize( m_dlist, this );	// add new vertex to array
 
 		// shift higher segments and vertices up to make room
 		for( int i=c->nsegs; i>iseg; i-- )
 		{
 			c->seg[i] = c->seg[i-1];
-#ifndef TRY_SIMPLIFY
-			if( c->seg[i].dl_el )
-				c->seg[i].dl_el->id.ii = i;
-			if( c->seg[i].dl_sel )
-				c->seg[i].dl_sel->id.ii = i;
-#endif
 			c->vtx[i+1] = c->vtx[i];
+			c->vtx[i].m_uid = nl_cuid.GetNewUID();
 			c->vtx[i].tee_ID = 0;
 			c->vtx[i].force_via_flag = FALSE;
-#ifndef TRY_SIMPLIFY
-			if( c->vtx[i+1].dl_sel )
-				c->vtx[i+1].dl_sel->id.ii = i+1;
-			if( c->vtx[i+1].dl_hole )
-				c->vtx[i+1].dl_hole->id.ii = i+1;
-			for( int il=0; il<c->vtx[i+1].dl_el.GetSize(); il++ )
-			{
-				if( c->vtx[i+1].dl_el[il] )
-					c->vtx[i+1].dl_el[il]->id.ii = i+1;
-			}
-			if( c->vtx[i+1].dl_hole )
-				c->vtx[i+1].dl_hole->id.ii = i+1;
-#endif
 		}
 		// note that seg[iseg+1] now duplicates seg[iseg], vtx[iseg+2] duplicates vtx[iseg+1]
-		// we must replace or zero the dl_element pointers for seg[iseg+1]
 		// 
-		// set position for new vertex, zero dl_element pointers
+		// set position for new vertex
 		c->vtx[iseg+1].x = x;
 		c->vtx[iseg+1].y = y;
-#ifndef TRY_SIMPLIFY
-		if( m_dlist )
-			UndrawVia( net, ic, iseg+1 );
-#endif		
 		// fill in data for new seg[iseg] or seg[is+1] (depending on dir)
 		if( dir == 0 )
 		{
@@ -1771,24 +1746,9 @@ int CNetList::InsertSegment( cnet * net, int ic, int iseg, int x, int y, int lay
 			c->seg[iseg].layer = layer;
 			c->seg[iseg].width = width;
 			c->seg[iseg].selected = 0;
+			c->seg[iseg].m_uid = nl_cuid.GetNewUID();
 			int xi = c->vtx[iseg].x;
 			int yi = c->vtx[iseg].y;
-#ifndef TRY_SIMPLIFY
-			if( m_dlist )
-			{
-				id id( ID_NET, ID_CONNECT, ic, ID_SEG, iseg );
-				c->seg[iseg].dl_el = m_dlist->Add( id, net, layer, DL_LINE, 
-					1, width, 0, xi, yi, x, y, 0, 0 );
-				id.sst = ID_SEL_SEG;
-				c->seg[iseg].dl_sel = m_dlist->AddSelector( id, net, layer, DL_LINE, 
-					1, width, 0, xi, yi, x, y, 0, 0 ); 
-				id.sst = ID_SEL_VERTEX;
-				id.ii = iseg+1;
-				c->vtx[iseg+1].dl_sel = m_dlist->AddSelector( id, net, layer, DL_HOLLOW_RECT, 
-					1, 1, 0, x-10*PCBU_PER_MIL, y-10*PCBU_PER_MIL, 
-					x+10*PCBU_PER_MIL, y+10*PCBU_PER_MIL, 0, 0 ); 
-			}
-#endif
 		}
 		else
 		{
@@ -1796,79 +1756,16 @@ int CNetList::InsertSegment( cnet * net, int ic, int iseg, int x, int y, int lay
 			c->seg[iseg+1].layer = layer;
 			c->seg[iseg+1].width = width;
 			c->seg[iseg+1].selected = 0;
+			c->seg[iseg+1].m_uid = nl_cuid.GetNewUID();
 			int xf = c->vtx[iseg+2].x;
 			int yf = c->vtx[iseg+2].y;
-#ifndef TRY_SIMPLIFY
-			if( m_dlist )
-			{
-				id id( ID_NET, ID_CONNECT, ic, ID_SEG, iseg+1 );
-				c->seg[iseg+1].dl_el = m_dlist->Add( id, net, layer, DL_LINE, 
-					1, width, 0, x, y, xf, yf, 0, 0 );
-				id.sst = ID_SEL_SEG;
-				c->seg[iseg+1].dl_sel = m_dlist->AddSelector( id, net, layer, DL_LINE, 
-					1, width, 0, x, y, xf, yf, 0, 0 ); 
-				id.sst = ID_SEL_VERTEX;
-				id.ii = iseg+1;
-				c->vtx[iseg+1].dl_sel = m_dlist->AddSelector( id, net, layer, DL_HOLLOW_RECT, 
-					1, 0, 0, x-10*PCBU_PER_MIL, y-10*PCBU_PER_MIL, x+10*PCBU_PER_MIL, y+10*PCBU_PER_MIL, 0, 0 ); 
-			}
-#endif
 		}
-#ifndef TRY_SIMPLIFY
-		// modify adjacent old segment for new endpoint
-		if( m_dlist )
-		{
-			if( dir == 0 ) 
-			{
-				// adjust next segment for new starting position, and make visible
-				m_dlist->Set_x(c->seg[iseg+1].dl_el, x);
-				m_dlist->Set_y(c->seg[iseg+1].dl_el, y);
-				if( c->seg[iseg+1].dl_el )
-					c->seg[iseg+1].dl_el->id.ii = iseg+1;
-				m_dlist->Set_visible(c->seg[iseg+1].dl_el, 1);
-				m_dlist->Set_x(c->seg[iseg+1].dl_sel, x);
-				m_dlist->Set_y(c->seg[iseg+1].dl_sel, y);
-				if( c->seg[iseg+1].dl_sel )
-					m_dlist->Set_visible(c->seg[iseg+1].dl_sel, 1);
-			}
-			if( dir == 1 ) 
-			{
-				// adjust previous segment for new ending position, and make visible
-				m_dlist->Set_xf(c->seg[iseg].dl_el, x);
-				m_dlist->Set_yf(c->seg[iseg].dl_el, y);
-				if( c->seg[iseg].dl_el )
-					c->seg[iseg].dl_el->id.ii = iseg;
-				m_dlist->Set_visible(c->seg[iseg].dl_el, 1);
-				m_dlist->Set_xf(c->seg[iseg].dl_sel, x);
-				m_dlist->Set_yf(c->seg[iseg].dl_sel, y);
-				if( c->seg[iseg].dl_sel )
-					c->seg[iseg].dl_sel->id.ii = iseg;
-				m_dlist->Set_visible(c->seg[iseg].dl_sel, 1);
-			}
-		}
-#endif
 		// done
 		c->nsegs++;
 	}
 	else
 	{
 		// don't insert, just modify old segment
-#ifndef TRY_SIMPLIFY
-		if( m_dlist )
-		{
-			int x = m_dlist->Get_x(c->seg[iseg].dl_el);
-			int y = m_dlist->Get_y(c->seg[iseg].dl_el);
-			int xf = m_dlist->Get_xf(c->seg[iseg].dl_el);
-			int yf = m_dlist->Get_yf(c->seg[iseg].dl_el);
-			id id  = c->seg[iseg].dl_el->id;
-			m_dlist->Remove( c->seg[iseg].dl_el );
-			c->seg[iseg].dl_el = m_dlist->Add( id, net, layer, DL_LINE, 
-				1, width, 0, x, y, xf, yf, 0, 0 );
-			m_dlist->Set_w(c->seg[iseg].dl_sel, width); 
-			m_dlist->Set_visible(c->seg[iseg].dl_sel, 1); 
-			m_dlist->Set_layer(c->seg[iseg].dl_sel, layer); 
-		}
-#endif
 		c->seg[iseg].selected = 0;
 		c->seg[iseg].layer = layer;
 		c->seg[iseg].width = width;
@@ -5501,6 +5398,7 @@ undo_con * CNetList::CreateConnectUndoRecord( cnet * net, int icon, BOOL set_are
 	undo_con * con = (undo_con*)ptr;
 	undo_seg * seg = (undo_seg*)(seg_offset+(UINT)ptr);
 	undo_vtx * vtx = (undo_vtx*)(vtx_offset+(UINT)ptr);
+	con->uid = c->m_uid;
 	con->size = size;
 	strcpy( con->net_name, net->name );
 	con->start_pin = c->start_pin;
@@ -5512,11 +5410,13 @@ undo_con * CNetList::CreateConnectUndoRecord( cnet * net, int icon, BOOL set_are
 	con->vtx_offset = vtx_offset;
 	for( int is=0; is<c->nsegs; is++ )
 	{
+		seg[is].uid = c->seg[is].m_uid;
 		seg[is].layer = c->seg[is].layer;
 		seg[is].width = c->seg[is].width;
 	}
 	for( int iv=0; iv<=con->nsegs; iv++ )
 	{
+		vtx[iv].uid = c->vtx[iv].m_uid;
 		vtx[iv].x = c->vtx[iv].x;
 		vtx[iv].y = c->vtx[iv].y;
 		vtx[iv].pad_layer = c->vtx[iv].pad_layer;
@@ -5555,6 +5455,7 @@ void CNetList::ConnectUndoCallback( int type, void * ptr, BOOL undo )
 				else
 					nc = nl->AddNetStub( net, con->start_pin );
 				cconnect * c = &net->connect[nc];
+				c->m_uid = con->uid;
 				for( int is=0; is<con->nsegs; is++ )
 				{
 					if( con->end_pin != cconnect::NO_END )
@@ -5572,6 +5473,8 @@ void CNetList::ConnectUndoCallback( int type, void * ptr, BOOL undo )
 				}
 				for( int is=0; is<con->nsegs; is++ )
 				{
+					c->seg[is].m_uid = seg[is].uid;
+					c->vtx[is+1].m_uid = vtx[is+1].uid;
 					c->vtx[is+1].via_w = vtx[is+1].via_w;
 					c->vtx[is+1].via_hole_w = vtx[is+1].via_hole_w;
 					if( vtx[is+1].force_via_flag )

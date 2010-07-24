@@ -40,6 +40,8 @@ int Cuid::GetNewUID()
 		{
 			bits[i] |= mask_table[npos];		// set bit flag 1
 			n_uids++;
+			if( n_uids > MAX_VALUE/2 )
+				ASSERT(0);
 			return i<<5 + npos;
 		}
 	}

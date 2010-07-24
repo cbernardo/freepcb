@@ -366,6 +366,7 @@ public:
 
 	// selected items
 	id m_sel_id;			// id of selected item
+	id m_sel_uid;			// uid of selected item
 	cpart * m_sel_part;		// pointer to part, if selected
 	cnet * m_sel_net;		// pointer to net, if selected
 	CText * m_sel_text;		// pointer to text, if selected

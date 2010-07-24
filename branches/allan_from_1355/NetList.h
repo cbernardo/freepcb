@@ -21,7 +21,11 @@
 #include "PartList.h"
 #include "PolyLine.h"
 #include "UndoList.h"
-#include "CArrayIterator.h"
+#include "LinkList.h"
+#include "Cuid.h"
+
+// global Cuid for netlist classes
+static Cuid nl_cuid;
 
 extern int m_layer_by_file_layer[MAX_LAYERS];
 
@@ -93,12 +97,14 @@ struct undo_area {
 };
 
 struct undo_seg {
+	int uid;
 	int layer;				// copper layer
 	int width;				// width
 	int via_w, via_hole_w;	// via width and hole width
 };
 
 struct undo_vtx {
+	int uid;
 	int x, y;				// coords
 	int pad_layer;			// layer of pad if this is first or last vertex
 	int force_via_flag;		// force a via even if no layer change
@@ -107,6 +113,7 @@ struct undo_vtx {
 };
 
 struct undo_con {
+	int uid;
 	int size;
 	CNetList * nlist;
 	char net_name[MAX_NET_NAME_SIZE+1];
@@ -188,7 +195,9 @@ public:
 	cseg()
 	{
 		// constructor
+		m_uid = nl_cuid.GetNewUID();
 		m_dlist = 0;  // this must be filled in with Initialize()
+		m_nlist = 0;  // this must be filled in with Initialize()
 		layer = 0;
 		width = 0;
 		selected = 0;
@@ -199,6 +208,7 @@ public:
 	~cseg()
 	{
 		// destructor
+		nl_cuid.ReleaseUID( m_uid );
 		if( m_dlist )
 		{
 			if( dl_el )
@@ -207,13 +217,19 @@ public:
 				m_dlist->Remove( dl_sel );
 		}
 	}
-	void Initialize( CDisplayList * dlist ){m_dlist = dlist;}
+	void Initialize( CDisplayList * dlist, CNetList * nlist )
+	{
+		m_dlist = dlist;
+		m_nlist = nlist;
+	}
+	int m_uid;				// unique id
 	int layer;				// copper layer
 	int width;				// width
 	int selected;			// 1 if selected for editing
 	dl_element * dl_el;		// display element for segment
 	dl_element * dl_sel;	// selection line
 	CDisplayList * m_dlist;
+	CNetList* m_nlist;
 	int utility;
 };
 
@@ -224,7 +240,9 @@ public:
 	cvertex()
 	{
 		// constructor
+		m_uid = nl_cuid.GetNewUID();
 		m_dlist = 0;	// this must set with Initialize()
+		m_nlist = 0;	// this must set with Initialize()
 		x = 0; y = 0;
 		pad_layer = 0;	// only for first or last 
 		force_via_flag = 0;		// only used for end of stub trace
@@ -239,6 +257,7 @@ public:
 	~cvertex()
 	{
 		// destructor
+		nl_cuid.ReleaseUID( m_uid );
 		if( m_dlist )
 		{
 			for( int il=0; il<dl_el.GetSize(); il++ )
@@ -252,6 +271,7 @@ public:
 	cvertex &operator=( cvertex &v )	// assignment operator
 	{
 		// copy all params
+		m_uid = v.m_uid;
 		x = v.x;
 		y = v.y;
 		pad_layer = v.pad_layer;
@@ -262,7 +282,7 @@ public:
 		tee_ID = v.tee_ID;
 		utility = v.utility;
 		utility2 = v.utility2;
-		// copy dl_elements and remove from source
+		// copy dl_elements and and remove from source
 		// they still need to be renumbered
 		if( dl_hole )
 			m_dlist->Remove( dl_hole );
@@ -280,7 +300,12 @@ public:
 		v.dl_el.RemoveAll();
 		return *this;
 	};
-	void Initialize( CDisplayList * dlist ){m_dlist = dlist;}
+	void Initialize( CDisplayList * dlist, CNetList * nlist )
+	{
+		m_dlist = dlist;	// this must be filled in with Initialize()
+		m_nlist = nlist;	// this must be filled in with Initialize()
+	}
+	int m_uid;					// unique id
 	int x, y;					// coords
 	int pad_layer;				// layer of pad if this is first or last vertex, otherwise 0
 	int force_via_flag;			// force a via even if no layer change
@@ -289,6 +314,7 @@ public:
 	dl_element * dl_sel;		// selection box
 	dl_element * dl_hole;		// hole in via
 	CDisplayList * m_dlist;
+	CNetList * m_nlist;
 	int tee_ID;					// used to flag a t-connection point
 	int utility, utility2;		// used for various functions
 };
@@ -301,14 +327,23 @@ public:
 		NO_END = -1		// used for end_pin if stub trace
 	};
 	cconnect()
-	{	// constructor
+	{ 
+		m_uid = nl_cuid.GetNewUID();
+		m_nlist = NULL;
 		locked = 0;
 		nsegs = 0;
 		seg.SetSize( 0 );
 		vtx.SetSize( 0 );
 		utility = 0;
-	};
-	~cconnect(){};
+	}
+	~cconnect()
+	{
+		nl_cuid.ReleaseUID( m_uid );
+	}
+	void Initialize( CNetList * nlist )
+	{
+		m_nlist = nlist;
+	}
 	int start_pin, end_pin;		// indexes into net.pin array
 	int nsegs;					// # elements in seg array
 	int locked;					// 1 if locked (will not be optimized away)
@@ -320,6 +355,8 @@ public:
 	int min_y, max_y;
 	BOOL vias_present;			// flag to indicate that vias are pesent
 	int seg_layers;				// mask for all layers used by segments
+	CNetList * m_nlist;
+	int m_uid;					// unique id
 };
 
 // cnet: describes a net
@@ -568,5 +605,94 @@ private:
 
 public:
 	int m_annular_ring;
+};
+
+// definitions of Iterators for nets, connections, segments and vertices
+
+class CIterator_cnet : protected CDLinkList
+{
+	// List of all active iterators
+	static CDLinkList m_LIST_Iterator;
+
+	CNetList const * m_NetList;
+
+	POSITION m_CurrentPos;
+	cnet * m_pCurrentNet;
+
+public:
+	explicit CIterator_cnet( CNetList const * netlist );
+	~CIterator_cnet() {}
+
+	cnet *GetFirst();
+	cnet *GetNext();
+
+public:
+	static void OnRemove( cnet const * net );
+};
+
+class CIterator_cconnect : protected CDLinkList
+{
+	// List of all active iterators
+	static CDLinkList m_LIST_Iterator;
+
+	cnet * m_net;
+
+	int m_CurrentPos;
+	cconnect * m_pCurrentConnection;
+
+public:
+	explicit CIterator_cconnect( cnet * net );
+	~CIterator_cconnect() {}
+
+	cconnect *GetFirst();
+	cconnect *GetNext();
+
+public:
+	void OnRemove( int ic );
+	void OnRemove( cconnect * con );
+};
+
+class CIterator_cseg : protected CDLinkList
+{
+	// List of all active iterators
+	static CDLinkList m_LIST_Iterator;
+
+	cconnect * m_cconnect;
+
+	int m_CurrentPos;
+	cseg * m_pCurrentSegment;
+
+public:
+	explicit CIterator_cseg( cconnect * con );
+	~CIterator_cseg() {}
+
+	cseg *GetFirst();
+	cseg *GetNext();
+
+public:
+	void OnRemove( int is );
+	void OnRemove( cseg * seg );
+};
+
+class CIterator_cvertex : protected CDLinkList
+{
+	// List of all active iterators
+	static CDLinkList m_LIST_Iterator;
+
+	cconnect * m_cconnect;
+
+	int m_CurrentPos;
+	cvertex * m_pCurrentVertex;
+
+public:
+	explicit CIterator_cvertex( cconnect * con );
+	~CIterator_cvertex() {}
+
+	cvertex *GetFirst();
+	cvertex *GetNext();
+
+public:
+	void OnRemove( int iv );
+	void OnRemove( cvertex * vtx );
 };
 
