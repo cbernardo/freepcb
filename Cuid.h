@@ -13,7 +13,7 @@ private:
 
 public:
 	Cuid();
-	~Cuid();
+	~Cuid(){};
 
 	int GetNewUID();
 	void ReleaseUID( UINT32 uid ); 
