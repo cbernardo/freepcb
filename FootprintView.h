@@ -102,8 +102,8 @@ enum {
 };
 
 // function key menu strings
-static char fk_fp_str[FK_FP_NUM_OPTIONS*2+2][32] =
-{
+static char fk_fp_str[FK_FP_NUM_OPTIONS*2+2][32] = 
+{ 
 	"",			"",
 	" Move",	" Pad",
 	" Move",	" Ref Text",
@@ -287,6 +287,7 @@ public:
 	void SetWindowTitle( CString * str );
 	void CancelSelection();
 	int SetWidth( int mode );
+	int GetWidthsForSegment( int * w, int * via_w, int * via_hole_w );
 	BOOL CurNone();
 	BOOL CurSelected();
 	BOOL CurDragging();
@@ -296,8 +297,6 @@ public:
 	void FootprintModified( BOOL flag, BOOL force = FALSE, BOOL clear_redo=TRUE );
 	void FootprintNameChanged( CString * str );
 	void MoveOrigin( int x, int y );
-	void SetActiveLayer(int layer);
-
 	void ClearUndo();
 	void ClearRedo();
 	void PushUndo();
@@ -307,7 +306,7 @@ public:
 	void Redo();
 	void EnableUndo( BOOL bEnable );
 	void EnableRedo( BOOL bEnable );
-
+	
 protected:
 
 // Generated message map functions
