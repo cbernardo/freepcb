@@ -30,6 +30,12 @@
 #include "ii_clearance.h"
 #include "ii_seg_width.h"
 
+#ifdef new
+	#define _NEW_REDEFINED
+	#pragma push_macro("new")
+	#undef new
+#endif
+
 extern int m_layer_by_file_layer[MAX_LAYERS];
 
 class cnet;
@@ -802,7 +808,7 @@ public:
 	int ViaExists( cnet * net, int ic, int ivtx );
 	int ForceVia( cnet * net, int ic, int ivtx, BOOL set_areas=TRUE );
 	int UnforceVia( cnet * net, int ic, int ivtx, BOOL set_areas=TRUE );
-	int DrawVia( cnet * net, int ic, int iv );
+	void DrawVia  ( cnet * net, int ic, int iv );
 	void UndrawVia( cnet * net, int ic, int iv );
 	void SetViaVisible( cnet * net, int ic, int iv, BOOL visible );
 
@@ -935,3 +941,8 @@ public:
 public:
 	static void OnRemove( cnet const * net );
 };
+
+#ifdef _NEW_REDEFINED
+	#undef _NEW_REDEFINED
+	#pragma pop_macro("new")
+#endif
