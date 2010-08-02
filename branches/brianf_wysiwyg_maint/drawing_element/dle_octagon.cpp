@@ -1,4 +1,5 @@
 #include "stdafx.h"
+#include "math.h"
 #include "dle_octagon.h"
 
 static const double pi = 3.14159265359;
