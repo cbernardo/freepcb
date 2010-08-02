@@ -1828,29 +1828,26 @@ int CNetList::InsertSegment( cnet * net, int ic, int iseg, int x, int y, int lay
 		seg->width_attrib.SetParent( net->def_width_attrib );
 		seg->width_attrib.Update();
 
-		if( dir == 0 )
+		if( m_dlist )
 		{
-			// route forward
-			int xi = c->vtx[iseg].x;
-			int yi = c->vtx[iseg].y;
-
-			if( m_dlist )
+			if( dir == 0 )
 			{
+				// route forward
+				int xi = c->vtx[iseg].x;
+				int yi = c->vtx[iseg].y;
+
 				id id( ID_NET, ID_CONNECT, ic, ID_SEG, iseg );
 				seg->dl_el  = m_dlist->Add        ( id, net, layer, DL_LINE, 1, seg->width(), 0, seg->clearance(), xi, yi, x, y, 0, 0 );
 
 				id.sst = ID_SEL_SEG;
 				seg->dl_sel = m_dlist->AddSelector( id, net, layer, DL_LINE, 1, seg->width(), 0,                   xi, yi, x, y, 0, 0 );
 			}
-		}
-		else
-		{
-			// route backward
-			int xf = c->vtx[iseg+2].x;
-			int yf = c->vtx[iseg+2].y;
-
-			if( m_dlist )
+			else
 			{
+				// route backward
+				int xf = c->vtx[iseg+2].x;
+				int yf = c->vtx[iseg+2].y;
+
 				id id( ID_NET, ID_CONNECT, ic, ID_SEG, iseg+1 );
 				seg->dl_el  = m_dlist->Add        ( id, net, layer, DL_LINE, 1, seg->width(), 0, seg->clearance(), x, y, xf, yf, 0, 0 );
 				id.sst = ID_SEL_SEG;
@@ -1859,43 +1856,45 @@ int CNetList::InsertSegment( cnet * net, int ic, int iseg, int x, int y, int lay
 		}
 
 		// modify adjacent old segment for new endpoint
-		if( m_dlist )
 		{
 			int is = (dir == 0) ? iseg+1 : iseg;
 			seg = &c->seg[ is ];
 
-			if( dir == 0 )
+			if( m_dlist )
 			{
-				// adjust next segment for new starting position, and make visible
-				if( seg->dl_el )
+				if( dir == 0 )
 				{
-					m_dlist->Set_x(seg->dl_el, x);
-					m_dlist->Set_y(seg->dl_el, y);
-					m_dlist->Set_visible(seg->dl_el, 1);
-				}
+					// adjust next segment for new starting position, and make visible
+					if( seg->dl_el )
+					{
+						m_dlist->Set_x(seg->dl_el, x);
+						m_dlist->Set_y(seg->dl_el, y);
+						m_dlist->Set_visible(seg->dl_el, 1);
+					}
 
-				if( seg->dl_sel )
-				{
-					m_dlist->Set_x(seg->dl_sel, x);
-					m_dlist->Set_y(seg->dl_sel, y);
-					m_dlist->Set_visible(seg->dl_sel, 1);
+					if( seg->dl_sel )
+					{
+						m_dlist->Set_x(seg->dl_sel, x);
+						m_dlist->Set_y(seg->dl_sel, y);
+						m_dlist->Set_visible(seg->dl_sel, 1);
+					}
 				}
-			}
-			else
-			{
-				// adjust previous segment for new ending position, and make visible
-				if( seg->dl_el )
+				else
 				{
-					m_dlist->Set_xf(seg->dl_el, x);
-					m_dlist->Set_yf(seg->dl_el, y);
-					m_dlist->Set_visible(seg->dl_el, 1);
-				}
+					// adjust previous segment for new ending position, and make visible
+					if( seg->dl_el )
+					{
+						m_dlist->Set_xf(seg->dl_el, x);
+						m_dlist->Set_yf(seg->dl_el, y);
+						m_dlist->Set_visible(seg->dl_el, 1);
+					}
 
-				if( seg->dl_sel )
-				{
-					m_dlist->Set_xf(seg->dl_sel, x);
-					m_dlist->Set_yf(seg->dl_sel, y);
-					m_dlist->Set_visible(seg->dl_sel, 1);
+					if( seg->dl_sel )
+					{
+						m_dlist->Set_xf(seg->dl_sel, x);
+						m_dlist->Set_yf(seg->dl_sel, y);
+						m_dlist->Set_visible(seg->dl_sel, 1);
+					}
 				}
 			}
 			seg->UpdateIndex(ic, is);
@@ -3306,6 +3305,7 @@ void CNetList::MoveVertex( cnet * net, int ic, int ivtx, int x, int y )
 		}
 	}
 	ReconcileVia( net, ic, ivtx );
+	SetAreaConnections( net );
 }
 
 
@@ -3863,7 +3863,7 @@ void CNetList::SetAreaConnections()
 
 // set connections for all areas
 //
-void CNetList::SetAreaConnections( cnet * net)
+void CNetList::SetAreaConnections( cnet * net )
 {
 	if( net )
 	{
@@ -4981,14 +4981,13 @@ void CNetList::UndrawVia( cnet * net, int ic, int iv )
 // draw vertex
 //	i.e. draw selection box, draw via if needed
 //
-int CNetList::DrawVia( cnet * net, int ic, int iv )
+void CNetList::DrawVia( cnet * net, int ic, int iv )
 {
 	cconnect * c = &net->connect[ic];
 	cvertex * v = &c->vtx[iv];
 	if( v->m_dlist == NULL )
 	{
-		ASSERT(0);
-		v->m_dlist = m_dlist;
+		return;
 	}
 
 	// undraw previous via and selection box
@@ -5070,7 +5069,6 @@ int CNetList::DrawVia( cnet * net, int ic, int iv )
 		v->dl_sel = m_dlist->AddSelector( vid, net, sel_layer, DL_HOLLOW_RECT,
 			1, 0, 0, sel_rect.left, sel_rect.bottom, sel_rect.right, sel_rect.top, 0, 0 );
 	}
-	return 0;
 }
 
 void CNetList::SetNetVisibility( cnet * net, BOOL visible )
@@ -5771,6 +5769,8 @@ void CNetList::ImportNetListInfo( netlist_info * nl, int flags, CDlgLog * log )
 				}
 
 				// Assign the new name to the netlist map and the net itself
+				// Don't need to call Rename() here since we have already
+				// removed p_net_info->name from m_map.
 				m_map[p_net_info->name] = p_net_info->net;
 				p_net_info->net->name   = p_net_info->name;	
 			}
@@ -6162,6 +6162,7 @@ void CNetList::ReassignCopperLayers( int n_new_layers, int * layer )
 //
 void CNetList::RestoreConnectionsAndAreas( CNetList * old_nl, int flags, CDlgLog * log )
 {
+return;
 	// loop through old nets
 	CIterator_cnet net_iter(old_nl);
 	for( cnet * old_net = net_iter.GetFirst(); old_net != NULL; old_net = net_iter.GetNext() )
@@ -6439,7 +6440,10 @@ undo_con * CNetList::CreateConnectUndoRecord( cnet * net, int icon, BOOL set_are
 	for( int is=0; is<c->nsegs; is++ )
 	{
 		// Use placement new to call ctor for each segment
+#pragma push_macro("new")
+#undef new
 		undo_seg *pSeg = new(&seg[is]) undo_seg;
+#pragma pop_macro("new")
 
 		pSeg->layer = c->seg[is].layer;
 
@@ -6450,7 +6454,10 @@ undo_con * CNetList::CreateConnectUndoRecord( cnet * net, int icon, BOOL set_are
 	for( int iv=0; iv<=con->nsegs; iv++ )
 	{
 		// Use placement new to call ctor for each vertex
+#pragma push_macro("new")
+#undef new
 		undo_vtx *pVtx = new(&vtx[iv]) undo_vtx;
+#pragma pop_macro("new")
 
 		pVtx->x              = c->vtx[iv].x;
 		pVtx->y              = c->vtx[iv].y;
@@ -6536,7 +6543,10 @@ void CNetList::ConnectUndoCallback( int type, void * ptr, BOOL undo )
 undo_net * CNetList::CreateNetUndoRecord( cnet * net )
 {
 	int size = sizeof(undo_net) + net->npins*sizeof(undo_pin);
+#pragma push_macro("new")
+#undef new
 	undo_net * undo = new( malloc( size ) ) undo_net;
+#pragma pop_macro("new")
 
 	strcpy( undo->name, net->name );
 
@@ -6547,7 +6557,10 @@ undo_net * CNetList::CreateNetUndoRecord( cnet * net )
 	for( int ip=0; ip<net->npins; ip++, pin_mem++ )
 	{
 		// Construct un_pin in place
+#pragma push_macro("new")
+#undef new
 		undo_pin * un_pin = new(pin_mem) undo_pin;
+#pragma pop_macro("new")
 
 		strcpy( un_pin->ref_des,  net->pin[ip].ref_des() );
 		strcpy( un_pin->pin_name, net->pin[ip].pin_name );

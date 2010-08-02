@@ -121,7 +121,6 @@ void CDL_job_copper_area::Draw(CDrawInfo &di) const
 
 	CRect area_bounds;
 	CSize area_size;
-
 	{
 		area_bounds = my_poly->GetBounds();
 		m_dlist->Scale_pcbu_to_wu(area_bounds);
@@ -223,16 +222,16 @@ void CDL_job_copper_area::ScratchClearances(CDrawInfo &di, int layer, CRect cons
 {
 	CDL_job_traces *pJT = m_dlist->GetJob_traces(layer);
 
+	CRect el_bounds;
+	CRect test_intersect;
 	CDLinkList *pElement;
 	for( pElement = pJT->m_LIST_DLE.next; pElement != &pJT->m_LIST_DLE; pElement = pElement->next)
 	{
 		dl_element * el = static_cast<dl_element*>(pElement);
 
-		CRect el_bounds;
 		if( !el->getBoundingRect(el_bounds) ) continue;
 		el_bounds.NormalizeRect();
 
-		CRect test_intersect;
 		test_intersect.IntersectRect(area_bounds, el_bounds);
 		if( !test_intersect.IsRectEmpty() )
 		{
@@ -261,30 +260,68 @@ void CDL_job_copper_area::ScratchClearances(CDrawInfo &di, int layer, CRect cons
 			case ID_NET:
 			{
 				net = el->ptr;
+
+				if( area_net == net )
+                {
+					cnet *net = (cnet*)area_net;
+					carea *area = &net->area[my_poly->GetId().i];
+
+					ASSERT(area->poly == my_poly);
+
+					CArray<int> &a_vtx = area->vtx;
+					for (int i = 0; i < a_vtx.GetSize(); i++)
+					{
+						if ( a_vtx[i] == el->id.ii )
+						{
+	                        el->DrawThermalRelief(di);
+							break;
+						}
+					}
+                }
+                else
+                {
+					el->DrawClearance(di);
+				}
 			}
-			goto chk_net;
+			break;
 
 			case ID_PART:
 			{
 				cpart *part = (cpart *)el->ptr;
+				part_pin *pPartPin = &part->pin[ el->id.i ];
 
-                net = part->pin[el->id.i].net;
-			}
-			// fall thru to chk_net
+                net = pPartPin->net;
+				if( area_net == net )
+	            {
+					cnet *net = (cnet*)area_net;
+					carea *area = &net->area[ my_poly->GetId().i ];
 
-			chk_net:
-			{
-				if( area_net != net )
+					ASSERT(area->poly == my_poly);
+
+					// Find the pin in the net
+					CArray<int> &a_pin = area->pin;
+					for (int i = 0; i < a_pin.GetSize(); i++)
+					{
+						cpin *pin = &net->pin[ a_pin[i] ]; 
+
+						if ( part == pin->part )
+						{
+							if( part->shape )
+							{
+								int pin_index = part->shape->GetPinIndexByName( pin->pin_name );
+								if( ( pin_index != -1 ) && ( pin_index == el->id.i ) )
+								{
+									el->DrawThermalRelief(di);
+									break;
+								}
+							}
+						}
+					}
+                }
+                else
                 {
 					el->DrawClearance(di);
 				}
-                else
-                {
-					if( my_poly->TestPointInside( m_dlist->Get_x(el), m_dlist->Get_y(el) ) )
-					{
-                        el->DrawThermalRelief(di);
-					}
-                }
 			}
 			break;
 
