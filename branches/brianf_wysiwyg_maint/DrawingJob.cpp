@@ -265,13 +265,13 @@ void CDL_job_copper_area::ScratchClearances(CDrawInfo &di, int layer, CRect cons
                 {
 					cnet *net = (cnet*)area_net;
 					carea *area = &net->area[my_poly->GetId().i];
-
 					ASSERT(area->poly == my_poly);
 
 					CArray<int> &a_vtx = area->vtx;
+					CArray<int> &a_con = area->vcon;
 					for (int i = 0; i < a_vtx.GetSize(); i++)
 					{
-						if ( a_vtx[i] == el->id.ii )
+						if (( a_vtx[i] == el->id.ii ) && ( a_con[i] == el->id.i ) )
 						{
 	                        el->DrawThermalRelief(di);
 							break;
@@ -295,7 +295,6 @@ void CDL_job_copper_area::ScratchClearances(CDrawInfo &di, int layer, CRect cons
 	            {
 					cnet *net = (cnet*)area_net;
 					carea *area = &net->area[ my_poly->GetId().i ];
-
 					ASSERT(area->poly == my_poly);
 
 					// Find the pin in the net
