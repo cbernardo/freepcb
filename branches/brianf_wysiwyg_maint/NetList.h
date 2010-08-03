@@ -181,170 +181,170 @@ public: // class used to represent a net_info for std::sort()
 			return m_info;
 		}
 
-    CSortElement() : m_info(NULL) {}
+		CSortElement() : m_info(NULL) {}
 	};
 
-  class CPinDesc
-  {
-    CString m_ref_des;
-    CString m_pin_name;
+	class CPinDesc
+	{
+		CString m_ref_des;
+		CString m_pin_name;
 
-  public:
-    CPinDesc() {}
+	public:
+		CPinDesc() {}
 
-    CPinDesc(CString const &ref_des, CString const &pin_name) :
-      m_ref_des(ref_des),
-      m_pin_name(pin_name)
-    {
-    }
+		CPinDesc(CString const &ref_des, CString const &pin_name) :
+			m_ref_des(ref_des),
+			m_pin_name(pin_name)
+		{
+		}
 
-    CString const &ref_des() const
-    {
-      return m_ref_des;
-    }
-    CString const &pin_name() const
-    {
-      return m_pin_name;
-    }
-    CString full_name() const
-    {
-      CString name;
-      name.Format("%s.%s", m_ref_des, m_pin_name);
+		CString const &ref_des() const
+		{
+			return m_ref_des;
+		}
+		CString const &pin_name() const
+		{
+			return m_pin_name;
+		}
+		CString full_name() const
+		{
+			CString name;
+			name.Format("%s.%s", m_ref_des, m_pin_name);
 
-      return name;
-    }
+			return name;
+		}
 
-    CPinDesc &operator = (CPinDesc const &from)
-    {
-      m_ref_des  = from.m_ref_des;
-      m_pin_name = from.m_pin_name;
+		CPinDesc &operator = (CPinDesc const &from)
+		{
+			m_ref_des  = from.m_ref_des;
+			m_pin_name = from.m_pin_name;
 
-      return *this;
-    }
-  };
+			return *this;
+		}
+	};
 
-  class CMapNetToPins : public CMapPtrToPtr
-  {
-    BOOL RemoveKey(void* key) {}
-    void RemoveAll() {}
+	class CMapNetToPins : public CMapPtrToPtr
+	{
+		BOOL RemoveKey(void* key) {}
+		void RemoveAll() {}
 
-  public:
-    typedef CArray<CString> pin_array_t;
+	public:
+		typedef CArray<CString> pin_array_t;
 
-	  BOOL Lookup(cnet const * key, pin_array_t*& rValue) const
-    {
-      return CMapPtrToPtr::Lookup( (void *)key, (void *&)rValue);
-    }
+		BOOL Lookup(cnet const * key, pin_array_t*& rValue) const
+		{
+			return CMapPtrToPtr::Lookup( (void *)key, (void *&)rValue);
+		}
 
-    void GetNextAssoc(POSITION & pos, cnet *& net, pin_array_t *& rPins) const
-    {
-      CMapPtrToPtr::GetNextAssoc(pos, (void *&)net, (void *&)rPins);
-    }
-
-
-    void Add(cnet const * net, CString const &pin_name)
-    {
-      pin_array_t *p_pins_on_net;
-
-      if( !Lookup(net, p_pins_on_net) )
-      {
-        p_pins_on_net = new pin_array_t;
-
-        SetAt(const_cast<cnet *>(net), p_pins_on_net);
-      }
-
-      p_pins_on_net->Add( pin_name );
-    }
-
-    ~CMapNetToPins()
-    {
-      cnet *key = NULL;
-      pin_array_t *value;
-
-      for( POSITION pos = GetStartPosition(); pos != NULL; )
-      {
-        GetNextAssoc(pos, key, value);
-
-        delete value;
-      }
-    }
-  };
-
-  class CMapCurToImportedNets : public CMapPtrToPtr
-  {
-    void RemoveAll() {}
-
-  public:
-    typedef CArray<net_info *> imported_net_array_t;
-
-    BOOL RemoveKey(cnet const * key)
-    {
-      imported_net_array_t *imported_nets;
-      if( Lookup(key, imported_nets) )
-      {
-        delete imported_nets;
-      }
-      return CMapPtrToPtr::RemoveKey( (void*)key );
-    }
-
-	  BOOL Lookup(cnet const * key, imported_net_array_t*& rValue) const
-    {
-      return CMapPtrToPtr::Lookup( (void *)key, (void *&)rValue);
-    }
-	  BOOL Lookup(cnet const * key) const
-    {
-      imported_net_array_t *dummy;
-      return Lookup( key, dummy );
-    }
-
-    void GetNextAssoc(POSITION & pos, cnet *& net, imported_net_array_t *& rImportedNets) const
-    {
-      CMapPtrToPtr::GetNextAssoc(pos, (void *&)net, (void *&)rImportedNets);
-    }
-    void GetNextAssoc(POSITION & pos, cnet *& net) const
-    {
-      imported_net_array_t *dummy;
-      GetNextAssoc(pos, net, dummy);
-    }
+		void GetNextAssoc(POSITION & pos, cnet *& net, pin_array_t *& rPins) const
+		{
+			CMapPtrToPtr::GetNextAssoc(pos, (void *&)net, (void *&)rPins);
+		}
 
 
-    void Add(cnet const * net, net_info * imported_net = NULL )
-    {
-      imported_net_array_t *p_imported_nets;
+		void Add(cnet const * net, CString const &pin_name)
+		{
+			pin_array_t *p_pins_on_net;
 
-      if( !Lookup(net, p_imported_nets) )
-      {
-        p_imported_nets = new imported_net_array_t;
+			if( !Lookup(net, p_pins_on_net) )
+			{
+				p_pins_on_net = new pin_array_t;
 
-        SetAt(const_cast<cnet *>(net), p_imported_nets);
-      }
+				SetAt(const_cast<cnet *>(net), p_pins_on_net);
+			}
 
-      // If the imported_net is NULL, this means to simply
-      // create a mapping with an empty array.
-      if( imported_net == NULL ) return;
+			p_pins_on_net->Add( pin_name );
+		}
 
-      // Only insert if the mapping isn't already there.
-      for( int i = 0; i < p_imported_nets->GetSize(); i++)
-      {
-        if( (*p_imported_nets)[i] == imported_net ) return;
-      }
+		~CMapNetToPins()
+		{
+			cnet *key = NULL;
+			pin_array_t *pin_array;
 
-      p_imported_nets->Add( imported_net );
-    }
+			for( POSITION pos = GetStartPosition(); pos != NULL; )
+			{
+				GetNextAssoc(pos, key, pin_array);
 
-    ~CMapCurToImportedNets()
-    {
-      cnet *key = NULL;
-      imported_net_array_t *value;
+				delete pin_array;
+			}
+		}
+	};
 
-      for( POSITION pos = GetStartPosition(); pos != NULL; )
-      {
-        GetNextAssoc(pos, key, value);
+	class CMapCurToImportedNets : public CMapPtrToPtr
+	{
+		void RemoveAll() {}
 
-        delete value;
-      }
-    }
-  };
+	public:
+		typedef CArray<net_info *> imported_net_array_t;
+
+		BOOL RemoveKey(cnet const * key)
+		{
+			imported_net_array_t *imported_nets;
+			if( Lookup(key, imported_nets) )
+			{
+				delete imported_nets;
+			}
+			return CMapPtrToPtr::RemoveKey( (void*)key );
+		}
+
+		BOOL Lookup(cnet const * key, imported_net_array_t*& rValue) const
+		{
+			return CMapPtrToPtr::Lookup( (void *)key, (void *&)rValue);
+		}
+		BOOL Lookup(cnet const * key) const
+		{
+			imported_net_array_t *dummy;
+			return Lookup( key, dummy );
+		}
+
+		void GetNextAssoc(POSITION & pos, cnet *& net, imported_net_array_t *& rImportedNets) const
+		{
+			CMapPtrToPtr::GetNextAssoc(pos, (void *&)net, (void *&)rImportedNets);
+		}
+		void GetNextAssoc(POSITION & pos, cnet *& net) const
+		{
+			imported_net_array_t *dummy;
+			GetNextAssoc(pos, net, dummy);
+		}
+
+
+		void Add(cnet const * net, net_info * imported_net = NULL )
+		{
+			imported_net_array_t *p_imported_nets;
+
+			if( !Lookup(net, p_imported_nets) )
+			{
+				p_imported_nets = new imported_net_array_t;
+
+				SetAt(const_cast<cnet *>(net), p_imported_nets);
+			}
+
+			// If the imported_net is NULL, this means to simply
+			// create a mapping with an empty array.
+			if( imported_net == NULL ) return;
+
+			// Only insert if the mapping isn't already there.
+			for( int i = 0; i < p_imported_nets->GetSize(); i++)
+			{
+				if( (*p_imported_nets)[i] == imported_net ) return;
+			}
+
+			p_imported_nets->Add( imported_net );
+		}
+
+		~CMapCurToImportedNets()
+		{
+			cnet *key = NULL;
+			imported_net_array_t *imported_net_array;
+
+			for( POSITION pos = GetStartPosition(); pos != NULL; )
+			{
+				GetNextAssoc(pos, key, imported_net_array);
+
+				delete imported_net_array;
+			}
+		}
+	};
 
 	CString name;
 	cnet * net;

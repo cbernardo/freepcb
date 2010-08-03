@@ -5370,7 +5370,7 @@ void CNetList::ImportNetListInfo( netlist_info * nl, int flags, CDlgLog * log )
 
 				// Remove the pin from the pin database.
 				//
-				// At the end of PASS 1, any pins still in the db_pin_to_net 
+				// At the end of PASS 2, any pins still in the db_pin_to_net 
 				// database have been removed in the imported netlist.
 				db_pin_to_net.RemoveKey( pin_name );
 			}
@@ -5449,6 +5449,8 @@ void CNetList::ImportNetListInfo( netlist_info * nl, int flags, CDlgLog * log )
 				// to find a match.
 				cnet * net = NULL;
 				int bFound = 0;
+
+#ifdef ENABLE_NAME_MATCHING
 				for( POSITION pos = db_cur_to_imported_net.GetStartPosition(); pos != NULL; )
 				{
 					db_cur_to_imported_net.GetNextAssoc(pos, net, net_mapping);
@@ -5460,13 +5462,14 @@ void CNetList::ImportNetListInfo( netlist_info * nl, int flags, CDlgLog * log )
 						break;
 					}
 				}
+#endif
 
 				if( !bFound )
 				{
 					// No net, create new net
 					if( log )
 					{
-						msg.Format( LOG_TAB "Imported Net: '%s' as new net\r\n", net_info->name );
+						msg.Format( LOG_TAB "Imported Net: '%s' as new net", net_info->name );
 						log->AddLine( msg );
 						bDisplayedSomething = true;
 					}
@@ -5475,7 +5478,37 @@ void CNetList::ImportNetListInfo( netlist_info * nl, int flags, CDlgLog * log )
 					if( !net_info->width_attrib.m_via_width.isDefined() ) net_info->width_attrib.m_via_width = CInheritableInfo::E_USE_PARENT;
 					if( !net_info->width_attrib.m_via_hole .isDefined() ) net_info->width_attrib.m_via_hole  = CInheritableInfo::E_USE_PARENT;
 
+					// The new net may have the same name as an existing net.  This can occur if the 
+					// new net contains none of the pins contained in the original net and net-name
+					// mapping is disabled.
+					cnet * squatter_net;
+					if( m_map.Lookup( net_info->name, (void *&)squatter_net ) )
+					{
+						CString new_name = net_info->name + "_@";
+
+						void *dummy;
+						while( m_map.Lookup( new_name, dummy ) )
+						{
+							new_name += "@";
+						}
+
+						if( log )
+						{
+							msg.Format( ", renaming existing net to '%s'", new_name );
+							log->AddLine( msg );
+							bDisplayedSomething = true;
+						}
+
+						squatter_net->Rename( new_name );
+					}
+
+					if( log )
+					{
+						log->AddLine( "\r\n" );
+					}
+
 					net_info->net = AddNet( net_info->name, 0, net_info->width_attrib );
+
 
 					// Don't need to add to db_cur_to_imported_net since the mapping b/t current 
 					// and imported net is already done (since the net was just created).
@@ -5744,28 +5777,6 @@ void CNetList::ImportNetListInfo( netlist_info * nl, int flags, CDlgLog * log )
 					msg.Format( LOG_TAB "Renaming net '%s' to '%s'\r\n", p_net_info->net->name, p_net_info->name );
 					log->AddLine( msg );
 					bDisplayedSomething = true;
-				}
-
-				cnet * squatter_net;
-				if( m_map.Lookup( p_net_info->name, (void *&)squatter_net ) )
-				{
-					// A net already exists with that name due to the KEEP_NETS flag
-					// Must rename the existing net
-					CString new_name = p_net_info->name + "_@";
-
-					while( m_map.Lookup( new_name, dummy ) )
-					{
-						new_name += "@";
-					}
-
-					squatter_net->Rename( new_name );
-
-					if( log )
-					{
-						msg.Format( LOG_TAB LOG_TAB "Not-deleted existing net '%s' renamed to '%s'\r\n", p_net_info->name, new_name );
-						log->AddLine( msg );
-						bDisplayedSomething = true;
-					}
 				}
 
 				// Assign the new name to the netlist map and the net itself
