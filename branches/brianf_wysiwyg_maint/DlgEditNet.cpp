@@ -224,11 +224,12 @@ void CDlgEditNet::DoDataExchange(CDataExchange* pDX)
 				int dot_pos = str.FindOneOf( "." );
 				if( dot_pos < 2 || dot_pos >= (len-1) )
 					ASSERT(0);
+
 				CString refstr = str.Left(dot_pos);
 				CString pinstr = str.Right( len - dot_pos - 1 );
-				int pin = atoi( pinstr );
 				(*m_nl)[m_in].ref_des[i] = refstr;
 				(*m_nl)[m_in].pin_name[i] = pinstr;
+
 				// now remove pin from other net, if necessary
 				for( int in=0; in<m_nl->GetSize(); in++ )
 				{
