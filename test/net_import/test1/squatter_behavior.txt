@@ -1,0 +1,5 @@
+When a net is detected that has NO remaining pins from the old net, assume that the OLD net is removed, 
+and that the new connections belong to a NEW net.
+
+If the settings prohibit removing the old net, 
+then treat the old net as a squatter and rename it to NET_@ and create the new net.
