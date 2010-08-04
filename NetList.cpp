@@ -5280,18 +5280,18 @@ void CNetList::ImportNetListInfo( netlist_info * nl, int flags, CDlgLog * log )
 	// Build the following databases which are used to map the current netlist
 	// to the imported netlist:
 	//  1) Current nets database
-	//        In PASS 2, nets in this database will be mapped to imported
+	//        In PASS 3, nets in this database will be mapped to imported
 	//        nets.  Each net may be mapped to only one imported net.
 	//        As the mappings are made, the nets are removed from this
 	//        db to "check them off" the list of available nets.  
 	//        Each one-to-one mapping attempts to represent the remnant
 	//        of the current net in the imported net.  Nets remaining in
-	//        this db at the end of PASS 2 represent deleted nets.
+	//        this db at the end of PASS 3 represent deleted nets.
 	net_info::CMapCurToImportedNets db_cur_to_imported_net;
 	//
 	//  2) pin->current_net database 
 	//        Pins are removed from the db when they are found in the imported
-	//        netlist.  At the end of PASS 1, pins remaining in this db 
+	//        netlist.  At the end of PASS 2, pins remaining in this db 
 	//        represent deleted pins.
 	CMapStringToPtr db_pin_to_net;
 	{
@@ -5549,7 +5549,7 @@ void CNetList::ImportNetListInfo( netlist_info * nl, int flags, CDlgLog * log )
 						{
 							if( net_info != (*net_mapping)[i] )
 							{
-								msg.Format( LOG_TAB LOG_TAB "Existing net also referenced in '%s'\r\n", (*net_mapping)[i]->name );
+								msg.Format( LOG_TAB LOG_TAB "Existing net also referenced in imported net '%s'\r\n", (*net_mapping)[i]->name );
 								log->AddLine( msg );
 							}
 						}
