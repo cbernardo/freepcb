@@ -160,7 +160,7 @@ CFreePcbDoc::CFreePcbDoc()
 	m_auto_elapsed = 0;
 	m_dlg_log = NULL;
 	bNoFilesOpened = TRUE;
-	m_version = 1.358;
+	m_version = 1.359;
 	m_file_version = 1.344;
 	m_dlg_log = new CDlgLog;
 	m_dlg_log->Create( IDD_LOG );
@@ -2316,6 +2316,14 @@ void CFreePcbDoc::InitializeNewProject()
 	m_fp_rgb[LAY_FP_BOTTOM_PASTE][1] = 0; 
 	m_fp_rgb[LAY_FP_BOTTOM_PASTE][2] = 0;		//bottom paste DARK RED
 
+	// now set footprint editor layer colors and visibility
+	for( int i=0; i<m_fp_num_layers; i++ )
+	{
+		m_fp_vis[i] = 1;
+		m_dlist_fp->SetLayerRGB( i, m_fp_rgb[i][0], m_fp_rgb[i][1], m_fp_rgb[i][2] );
+		m_dlist_fp->SetLayerVisible( i, 1 );
+	}
+
 	// default visible grid spacing menu values (in NM)
 	m_visible_grid.RemoveAll();
 	m_visible_grid.Add( 100*NM_PER_MIL );
@@ -2362,7 +2370,7 @@ void CFreePcbDoc::InitializeNewProject()
 	m_routing_grid.Add( 100*NM_PER_MIL );
 	m_routing_grid_spacing = 10*NM_PER_MIL;
 
-	// footprint editor parameters
+	// footprint editor parameters 
 	m_fp_units = MIL;
 
 	// default footprint editor visible grid spacing menu values (in NM)

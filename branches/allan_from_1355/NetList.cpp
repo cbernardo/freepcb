@@ -340,6 +340,7 @@ void CNetList::DrawConnection( cnet * net, int ic )
 			if( s->layer == LAY_RAT_LINE )
 				v = net->visible;
 			s->dl_el = m_dlist->Add( s_id, net, s->layer, DL_LINE, v, 
+//** testing 			s->dl_el = m_dlist->Add( s_id, net, s->layer, DL_CURVE_CCW, v, 
 				s->width, 0, pre_v->x, pre_v->y, post_v->x, post_v->y,
 				0, 0 );
 			s_id.sst = ID_SEL_SEG;

@@ -1,6 +1,7 @@
 // utility routines
 //
 #include "stdafx.h"
+#define _USE_MATH_DEFINES
 #include <math.h>
 #include <time.h>
 #include "DisplayList.h" 
@@ -1294,6 +1295,37 @@ int ccw( int angle )
 	return (720-angle)%360;
 }
 
+// rotate point representing vector between ends of 45-degree curve
+// so that it's long axis points along y
+// use -octant to reverse the transform
+//
+CPoint t_octant( int octant, CPoint& pt )
+{
+	CPoint p;
+	switch( octant )
+	{
+	case 0: p.x =  pt.x;  p.y =  pt.y;  break; 
+
+	case 1: p.x =  pt.y;  p.y = -pt.x;  break; 
+	case 2: p.x =  pt.y;  p.y = -pt.x;  break;
+	case 3: p.x = -pt.x;  p.y = -pt.y;  break;
+	case 4: p.x = -pt.x;  p.y = -pt.y;  break;
+	case 5: p.x = -pt.y;  p.y =  pt.x;  break;
+	case 6: p.x = -pt.y;  p.y =  pt.x;  break;
+	case 7: p.x =  pt.x;  p.y =  pt.y;  break;
+
+	case -1: p.x = -pt.y;  p.y =  pt.x;  break; 
+	case -2: p.x = -pt.y;  p.y =  pt.x;  break;
+	case -3: p.x = -pt.x;  p.y = -pt.y;  break;
+	case -4: p.x = -pt.x;  p.y = -pt.y;  break;
+	case -5: p.x =  pt.y;  p.y = -pt.x;  break;
+	case -6: p.x =  pt.y;  p.y = -pt.x;  break;
+	case -7: p.x =  pt.x;  p.y =  pt.y;  break;
+	}
+	return p;
+}
+
+
 // solves quadratic equation
 // i.e.   ax**2 + bx + c = 0
 // returns TRUE if solution exist, with solutions in x1 and x2
@@ -1420,6 +1452,156 @@ void DrawArc( CDC * pDC, int shape, int xxi, int yyi, int xxf, int yyf, BOOL bMe
 	}
 	else
 		ASSERT(0);	// oops
+}
+
+// Draw a straight line or a curve between xi,yi and xf,yf
+// The type of curve depends on the angle between the endpoints
+// If a multiple of 90 degrees, draw a straight line,
+// else if a multiple of 45 degrees, draw a quadrant of a circle,
+// else draw a compound curve consisting of an octant of a circle 
+// extended by a straight line at one end or the other
+// shape can be DL_LINE, DL_CURVE_CW or DL_CURVE_CCW
+//
+void DrawCurve( CDC * pDC, int shape, int xxi, int yyi, int xxf, int yyf, BOOL bMeta )
+{
+	CPoint pt_start(xxi,yyi), pt_end(xxf,yyf);
+	if( shape == DL_LINE || xxi == xxf || yyi == yyf || abs(xxf-xxi) == abs(yyf-yyi) )
+	{
+		// for straight line or 90-degree arc, use DrawArc()
+		if( shape == DL_LINE )
+			DrawArc( pDC, DL_LINE, xxi, yyi, xxf, yyf, bMeta );
+		else if( shape == DL_CURVE_CW )
+			DrawArc( pDC, DL_ARC_CW, xxi, yyi, xxf, yyf, bMeta );
+		else if( shape == DL_CURVE_CCW )
+			DrawArc( pDC, DL_ARC_CCW, xxi, yyi, xxf, yyf, bMeta );
+	}
+	else if( shape == DL_CURVE_CW || shape == DL_CURVE_CCW ) 
+	{
+		// for the compound curve, there are 8 possible octants,
+		// the straight line can be either vert/horizontal or at 45 degrees 
+		// (depending on dy/dx ratio)
+		// and the curve can be CW or CCW for a total of 32 different cases
+		// to simplify, set endpoints so we can always draw a counter-clockwise arc
+		if( shape == DL_CURVE_CW )
+		{
+			CPoint temp = pt_start;
+			pt_start = pt_end;
+			pt_end = temp;
+		}
+		pDC->MoveTo( pt_start );
+		// now get the vector from the start to end of curve
+		// to simplify further, rotate the vector so dy > 0 and dy > |dx|
+		// now there are only 4 cases
+		// we'll reverse the rotation at the end
+		CPoint d = pt_end - pt_start;	// vector	
+		double angle = atan2( (double)d.y, (double)d.x );
+		angle -= M_PI_2;
+		if( angle < 0.0 )
+			angle = 2.0 * M_PI + angle;
+		int octant = angle/M_PI_4;
+		if ( octant < 0 )
+			octant = 0;
+		else if( octant > 7 ) 
+			octant = 7;
+		// rotate vector
+		d = t_octant( octant, d );
+		double tdx = d.x;	// width of bounding rect for compound curve 
+		double tdy = d.y;	// height of bounding rect for compound curve
+		double sin_45 = sin(M_PI_4);
+		double arc_ratio = abs(sin_45/(1.0 - sin_45)); // dy/dx for octant arc in quadrant 0
+		CPoint pt_arc_start, pt_arc_end, pt_line_start, pt_line_end, pt_circle_center;
+		int circle_radius;
+		if( abs(tdy/tdx) > arc_ratio )
+		{
+			// height/width ratio of rect is greater than arc, add vertical line to arc
+			if( tdx > 0 )
+			{
+				pt_arc_start.x = 0;
+				pt_arc_start.y = 0;
+				pt_arc_end.x = tdx;
+				pt_arc_end.y = tdx*arc_ratio;
+				pt_line_start = pt_arc_end;
+				pt_line_end.x = tdx;
+				pt_line_end.y = tdy;
+				pt_circle_center.y = pt_arc_end.y;
+				pt_circle_center.x = - tdx*arc_ratio;
+				circle_radius = tdx - pt_circle_center.x;
+			}
+			else
+			{
+				pt_arc_start.x = 0;
+				pt_arc_start.y = tdy + tdx*arc_ratio;
+				pt_arc_end.x = tdx;
+				pt_arc_end.y = tdy;
+				pt_line_start.x = 0;
+				pt_line_start.y = 0;
+				pt_line_end = pt_arc_start;
+				pt_circle_center.y = pt_arc_start.y;
+				pt_circle_center.x = tdx - (tdy - pt_arc_start.y);
+				circle_radius = -pt_circle_center.x;
+			}
+		}
+		else
+		{
+			// height/width ratio of rect is less than arc, add 45-degree line to arc
+			if( tdx > 0 )
+			{
+				double ax = (-tdx+tdy)/(1.0-arc_ratio);
+				double ay = -arc_ratio*ax;	
+				pt_line_start.x = 0;
+				pt_line_start.y = 0;
+				pt_line_end.x = tdx + ax;
+				pt_line_end.y = tdy - ay;
+				pt_arc_start = pt_line_end;
+				pt_arc_end.x = tdx;
+				pt_arc_end.y = tdy;
+				pt_circle_center.x = tdx + ax - ay;
+				pt_circle_center.y = tdy;
+				circle_radius = ay - ax;
+			}
+			else
+			{
+				double ax = (tdx+tdy)/(1.0-arc_ratio);
+				double ay = -arc_ratio*ax;	
+				pt_arc_start.x = 0;
+				pt_arc_start.y = 0;
+				pt_arc_end.x = ax;
+				pt_arc_end.y = ay;
+				pt_line_start = pt_arc_end;
+				pt_line_end.x = tdx;
+				pt_line_end.y = tdy;
+				pt_circle_center.x = pt_arc_end.x - pt_arc_end.y;
+				pt_circle_center.y = 0;
+				circle_radius = -pt_circle_center.x;
+			}
+
+		}
+		// now transform points back to original octant
+		pt_arc_start = t_octant( -octant, pt_arc_start );
+		pt_arc_end = t_octant( -octant, pt_arc_end );
+		pt_line_start = t_octant( -octant, pt_line_start );
+		pt_line_end = t_octant( -octant, pt_line_end );
+		pt_circle_center = t_octant( -octant, pt_circle_center );
+		// and offset back to starting point
+		CPoint pt_offset = pt_start;
+		pt_arc_start += pt_offset;
+		pt_arc_end += pt_offset;
+		pt_line_start += pt_offset;
+		pt_line_end += pt_offset;
+		pt_circle_center += pt_offset;
+		CRect br;
+		br.left = pt_circle_center.x - circle_radius;
+		br.right = pt_circle_center.x + circle_radius;
+		br.top = pt_circle_center.y - circle_radius;
+		br.bottom = pt_circle_center.y + circle_radius;
+		// draw arc and line
+		pDC->Arc( br, pt_arc_start, pt_arc_end );
+		pDC->MoveTo( pt_line_start );
+		pDC->LineTo( pt_line_end );
+	}
+	else
+		ASSERT(0);	// illegal shape
+	pDC->MoveTo( xxf, yyf );
 }
 
 // Get arrays of circles, rects and line segments to represent pad
