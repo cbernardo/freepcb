@@ -28,6 +28,7 @@
 #include "DlgHole.h"
 #include "DlgSlot.h"
 #include ".\footprintview.h"
+#include "afx.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -137,7 +138,7 @@ END_MESSAGE_MAP()
 /////////////////////////////////////////////////////////////////////////////
 // CFootprintView construction/destruction
 
-// GetDocument() is not available at this point, so actual initialization
+// GetDocument() is not available at this point, so initialization of the document
 // is in InitInstance()
 //
 CFootprintView::CFootprintView()
@@ -151,7 +152,7 @@ CFootprintView::CFootprintView()
 		DEFAULT_PITCH | FF_DONTCARE, "MS Sans Serif" );
 #endif
 	m_Doc = NULL;
-	m_dlist = 0;
+	m_dlist = NULL;
 	m_last_mouse_point.x = 0;
 	m_last_mouse_point.y = 0;
 	m_last_cursor_point.x = 0;
@@ -167,13 +168,15 @@ CFootprintView::CFootprintView()
 // Initialize data for view
 // Should only be called after the document is created
 // Don't try to draw window until this function has been called
-// Enter with fp = pointer to footprint to be edited, or NULL
+// Enter with fp = pointer to footprint to be edited, or NULL 
 //
 void CFootprintView::InitInstance( CShape * fp )
 {
 	m_Doc = GetDocument();
-	ASSERT_VALID(m_Doc);
 	m_dlist = m_Doc->m_dlist_fp;
+	if( m_Doc == NULL || m_dlist == NULL )
+		ASSERT(0);
+
 	InitializeView();
 	CRect screen_r;
 	GetWindowRect( &screen_r );
@@ -228,8 +231,7 @@ void CFootprintView::InitializeView()
 		ASSERT(0);
 
 	// set defaults
-	SetCursorMode( CUR_FP_NONE_SELECTED );
-	m_sel_id.Clear();
+	CancelSelection();
 	m_debug_flag = 0;
 	m_dragging_new_item = 0;
 
@@ -242,12 +244,15 @@ void CFootprintView::InitializeView()
 	m_Doc->m_fp_snap_angle = 45;
 	CancelSelection();
 	m_left_pane_invalid = TRUE;
-//	CDC * pDC = GetDC();
-//	OnDraw( pDC );
-//	ReleaseDC( pDC );
 	EnableUndo( FALSE );
 	EnableRedo( FALSE );
 	Invalidate( FALSE );
+
+#if 0
+	// visibility
+	for( int il=0; il<m_Doc->m_num_layers; il++ )
+		m_Doc->m_fp_vis[il] = 1;
+#endif
 }
 
 CFootprintView::~CFootprintView()
@@ -295,7 +300,7 @@ void CFootprintView::OnDraw(CDC* pDC)
 		r = m_client_r;
 		r.top = r.bottom - m_bottom_pane_h;
 		pDC->Rectangle( &r );
-		pDC->SelectObject( old_brush );
+		pDC->SelectObject( old_brush ); 
 		pDC->SelectObject( old_pen );
 		m_left_pane_invalid = FALSE;
 	}
@@ -303,7 +308,7 @@ void CFootprintView::OnDraw(CDC* pDC)
 	int y_off = 10;
 	int x_off = 10;
 
-	for( int i=0; i<m_Doc->m_fp_num_layers; i++ ) 
+	for( int i=0; i<m_Doc->m_fp_num_layers; i++ )  
 	{
 		// i = position index
 		CRect r( x_off, i*VSTEP+y_off, x_off+12, i*VSTEP+12+y_off );

@@ -2273,8 +2273,8 @@ END
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 1,3,5,8
- PRODUCTVERSION 1,3,5,8
+ FILEVERSION 1,3,5,9
+ PRODUCTVERSION 1,3,5,9
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -2291,12 +2291,12 @@ BEGIN
         BEGIN
             VALUE "Comments", "alpha"
             VALUE "FileDescription", "FreePcb MFC Application"
-            VALUE "FileVersion", "1, 3, 5, 8"
+            VALUE "FileVersion", "1, 3, 5, 9"
             VALUE "InternalName", "FreePcb"
             VALUE "LegalCopyright", "Copyright (C) 2002-2007"
             VALUE "OriginalFilename", "FreePcb.EXE"
             VALUE "ProductName", "FreePcb Application"
-            VALUE "ProductVersion", "1, 3, 5, 8"
+            VALUE "ProductVersion", "1, 3, 5, 9"
         END
     END
     BLOCK "VarFileInfo"

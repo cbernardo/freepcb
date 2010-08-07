@@ -5,6 +5,22 @@
 #include "FreePcb.h"
 #include "DlgAddPin.h"
 
+int ConvertMaskCurSelToShape( int cur_sel )
+{
+	if( cur_sel == 0 )
+		return 99;
+	else
+		return cur_sel - 1;
+}
+
+int ConvertMaskShapeToCurSel( int shape )
+{
+	if( shape == 99 )
+		return 0;
+	else
+		return shape + 1;
+}
+
 double GetNameValue( CString * name )
 {
 	double value = 0.0;
@@ -106,7 +122,7 @@ CDlgAddPin::~CDlgAddPin()
 
 void CDlgAddPin::DoDataExchange(CDataExchange* pDX)
 {
-	CDialog::DoDataExchange(pDX);
+	CDialog::DoDataExchange(pDX); 
 	DDX_Control(pDX, IDC_RADIO_ADD_PIN, m_radio_add_pin);
 	DDX_Control(pDX, IDC_RADIO_ADD_ROW, m_radio_add_row);
 	DDX_Control(pDX, IDC_COMBO_PIN_UNITS, m_combo_units);
@@ -312,15 +328,11 @@ void CDlgAddPin::DoDataExchange(CDataExchange* pDX)
 			m_top_length = ps->top.size_l*2;
 			m_top_radius = ps->top.radius;
 			m_top_flags = ps->top.connect_flag;
-			m_top_mask_shape = ps->top_mask.shape+1;
-			if( m_top_mask_shape == 100 )
-				m_top_mask_shape = 0;
+			m_top_mask_shape = ps->top_mask.shape;
 			m_top_mask_width = ps->top_mask.size_h;
 			m_top_mask_length = ps->top_mask.size_l*2;
 			m_top_mask_radius = ps->top_mask.radius;
-			m_top_paste_shape = ps->top_paste.shape+1;
-			if( m_top_paste_shape == 100 )
-				m_top_paste_shape = 0;
+			m_top_paste_shape = ps->top_paste.shape;
 			m_top_paste_width = ps->top_paste.size_h;
 			m_top_paste_length = ps->top_paste.size_l*2;
 			m_top_paste_radius = ps->top_paste.radius;
@@ -334,15 +346,11 @@ void CDlgAddPin::DoDataExchange(CDataExchange* pDX)
 			m_bottom_length = ps->bottom.size_l*2;
 			m_bottom_radius = ps->bottom.radius;
 			m_bottom_flags = ps->bottom.connect_flag;
-			m_bottom_mask_shape = ps->bottom_mask.shape+1;
-			if( m_bottom_mask_shape == 100 )
-				m_bottom_mask_shape = 0;
+			m_bottom_mask_shape = ps->bottom_mask.shape;
 			m_bottom_mask_width = ps->bottom_mask.size_h;
 			m_bottom_mask_length = ps->bottom_mask.size_l*2;
 			m_bottom_mask_radius = ps->bottom_mask.radius;
-			m_bottom_paste_shape = ps->bottom_paste.shape+1;
-			if( m_bottom_paste_shape == 100 )
-				m_bottom_paste_shape = 0;
+			m_bottom_paste_shape = ps->bottom_paste.shape;
 			m_bottom_paste_width = ps->bottom_paste.size_h;
 			m_bottom_paste_length = ps->bottom_paste.size_l*2;
 			m_bottom_paste_radius = ps->bottom_paste.radius;
@@ -511,18 +519,12 @@ void CDlgAddPin::DoDataExchange(CDataExchange* pDX)
 		ps.top.size_r = m_top_length/2;
 		ps.top.radius = m_top_radius;
 		ps.top.connect_flag = m_top_flags;
-		if( m_top_mask_shape == 0 )
-			ps.top_mask.shape = 99;
-		else
-			ps.top_mask.shape = m_top_mask_shape-1;
+		ps.top_mask.shape = m_top_mask_shape;
 		ps.top_mask.size_h = m_top_mask_width;
 		ps.top_mask.size_l = m_top_mask_length/2; 
 		ps.top_mask.size_r = m_top_mask_length/2;
 		ps.top_mask.radius = m_top_mask_radius;
-		if( m_top_paste_shape == 0 )
-			ps.top_paste.shape = 99;
-		else
-			ps.top_paste.shape = m_top_paste_shape-1;
+		ps.top_paste.shape = m_top_paste_shape;
 		ps.top_paste.size_h = m_top_paste_width;
 		ps.top_paste.size_l = m_top_paste_length/2; 
 		ps.top_paste.size_r = m_top_paste_length/2;
@@ -539,18 +541,12 @@ void CDlgAddPin::DoDataExchange(CDataExchange* pDX)
 		ps.bottom.size_r = m_bottom_length/2;
 		ps.bottom.radius = m_bottom_radius;
 		ps.bottom.connect_flag = m_bottom_flags;
-		if( m_bottom_mask_shape == 0 )
-			ps.bottom_mask.shape = 99;
-		else
-			ps.bottom_mask.shape = m_bottom_mask_shape-1;
+		ps.bottom_mask.shape = m_bottom_mask_shape;
 		ps.bottom_mask.size_h = m_bottom_mask_width;
 		ps.bottom_mask.size_l = m_bottom_mask_length/2; 
 		ps.bottom_mask.size_r = m_bottom_mask_length/2;
 		ps.bottom_mask.radius = m_bottom_mask_radius;
-		if( m_bottom_paste_shape == 0 )
-			ps.bottom_paste.shape = 99;
-		else
-			ps.bottom_paste.shape = m_bottom_paste_shape-1;
+		ps.bottom_paste.shape = m_bottom_paste_shape;
 		ps.bottom_paste.size_h = m_bottom_paste_width;
 		ps.bottom_paste.size_l = m_bottom_paste_length/2; 
 		ps.bottom_paste.size_r = m_bottom_paste_length/2;
@@ -859,22 +855,20 @@ void CDlgAddPin::SetFields()
 	m_edit_top_length3.EnableWindow( bTopEnable );
 	m_edit_top_radius3.EnableWindow( bTopEnable );
 	m_combo_top_shape.SetCurSel( m_top_shape ); 
-	m_combo_top_shape2.SetCurSel( m_top_mask_shape ); 
-	m_combo_top_shape3.SetCurSel( m_top_paste_shape ); 
+	m_combo_top_shape2.SetCurSel( ConvertMaskShapeToCurSel(m_top_mask_shape) ); 
+	m_combo_top_shape3.SetCurSel( ConvertMaskShapeToCurSel(m_top_paste_shape) ); 
 	::MakeCStringFromDimension( &str, m_top_width, m_units, FALSE, FALSE, FALSE, max_dp );
 	m_edit_top_width.SetWindowText( str );
 	::MakeCStringFromDimension( &str, m_top_length, m_units, FALSE, FALSE, FALSE, max_dp );
 	m_edit_top_length.SetWindowText( str );
 	::MakeCStringFromDimension( &str, m_top_radius, m_units, FALSE, FALSE, FALSE, max_dp );
 	m_edit_top_radius.SetWindowText( str );
-	m_combo_top_shape2.SetCurSel( m_top_mask_shape ); 
 	::MakeCStringFromDimension( &str, m_top_mask_width, m_units, FALSE, FALSE, FALSE, max_dp );
 	m_edit_top_width2.SetWindowText( str );
 	::MakeCStringFromDimension( &str, m_top_mask_length, m_units, FALSE, FALSE, FALSE, max_dp );
 	m_edit_top_length2.SetWindowText( str );
 	::MakeCStringFromDimension( &str, m_top_mask_radius, m_units, FALSE, FALSE, FALSE, max_dp );
 	m_edit_top_radius2.SetWindowText( str );
-	m_combo_top_shape3.SetCurSel( m_top_paste_shape ); 
 	::MakeCStringFromDimension( &str, m_top_paste_width, m_units, FALSE, FALSE, FALSE, max_dp );
 	m_edit_top_width3.SetWindowText( str );
 	::MakeCStringFromDimension( &str, m_top_paste_length, m_units, FALSE, FALSE, FALSE, max_dp );
@@ -945,22 +939,20 @@ void CDlgAddPin::SetFields()
 	m_edit_bottom_length3.EnableWindow( bBottomEnable );
 	m_edit_bottom_radius3.EnableWindow( bBottomEnable );
 	m_combo_bottom_shape.SetCurSel( m_bottom_shape ); 
-	m_combo_bottom_shape2.SetCurSel( m_bottom_mask_shape ); 
-	m_combo_bottom_shape3.SetCurSel( m_bottom_paste_shape ); 
+	m_combo_bottom_shape2.SetCurSel( ConvertMaskShapeToCurSel(m_bottom_mask_shape) ); 
+	m_combo_bottom_shape3.SetCurSel( ConvertMaskShapeToCurSel(m_bottom_paste_shape) ); 
 	::MakeCStringFromDimension( &str, m_bottom_width, m_units, FALSE, FALSE, FALSE, max_dp );
 	m_edit_bottom_width.SetWindowText( str );
 	::MakeCStringFromDimension( &str, m_bottom_length, m_units, FALSE, FALSE, FALSE, max_dp );
 	m_edit_bottom_length.SetWindowText( str );
 	::MakeCStringFromDimension( &str, m_bottom_radius, m_units, FALSE, FALSE, FALSE, max_dp );
 	m_edit_bottom_radius.SetWindowText( str );
-	m_combo_bottom_shape2.SetCurSel( m_bottom_mask_shape ); 
 	::MakeCStringFromDimension( &str, m_bottom_mask_width, m_units, FALSE, FALSE, FALSE, max_dp );
 	m_edit_bottom_width2.SetWindowText( str );
 	::MakeCStringFromDimension( &str, m_bottom_mask_length, m_units, FALSE, FALSE, FALSE, max_dp );
 	m_edit_bottom_length2.SetWindowText( str );
 	::MakeCStringFromDimension( &str, m_bottom_mask_radius, m_units, FALSE, FALSE, FALSE, max_dp );
 	m_edit_bottom_radius2.SetWindowText( str );
-	m_combo_bottom_shape3.SetCurSel( m_bottom_paste_shape ); 
 	::MakeCStringFromDimension( &str, m_bottom_paste_width, m_units, FALSE, FALSE, FALSE, max_dp );
 	m_edit_bottom_width3.SetWindowText( str );
 	::MakeCStringFromDimension( &str, m_bottom_paste_length, m_units, FALSE, FALSE, FALSE, max_dp );
@@ -1037,6 +1029,8 @@ void CDlgAddPin::GetFields()
 			m_padstack_type = 2;
 		if( copy_ps->angle == 90 || copy_ps->angle == 270 )
 			m_pad_orient = 1;
+		else
+			m_pad_orient = 0;
 		m_hole_diam = copy_ps->hole_size;
 		m_top_shape = copy_ps->top.shape;
 		m_top_width = copy_ps->top.size_h;
@@ -1080,6 +1074,7 @@ void CDlgAddPin::GetFields()
 			m_padstack_type = 1;
 		else
 			m_padstack_type = 2;
+		m_pad_orient = m_combo_pad_orient.GetCurSel();
 
 		// top pad
 		m_top_shape = m_combo_top_shape.GetCurSel();
@@ -1089,14 +1084,14 @@ void CDlgAddPin::GetFields()
 		m_top_length = mult*atof( str );
 		m_edit_top_radius.GetWindowText( str );
 		m_top_radius = mult*atof( str );
-		m_top_mask_shape = m_combo_top_shape2.GetCurSel();
+		m_top_mask_shape = ConvertMaskCurSelToShape( m_combo_top_shape2.GetCurSel() );
 		m_edit_top_width2.GetWindowText( str );
 		m_top_mask_width = mult*atof( str );
 		m_edit_top_length2.GetWindowText( str );
 		m_top_mask_length = mult*atof( str );
 		m_edit_top_radius2.GetWindowText( str );
 		m_top_mask_radius = mult*atof( str );
-		m_top_paste_shape = m_combo_top_shape3.GetCurSel();
+		m_top_paste_shape = ConvertMaskCurSelToShape( m_combo_top_shape3.GetCurSel() );
 		m_edit_top_width3.GetWindowText( str );
 		m_top_paste_width = mult*atof( str );
 		m_edit_top_length3.GetWindowText( str );
@@ -1152,14 +1147,14 @@ void CDlgAddPin::GetFields()
 			m_bottom_length = mult*atof( str );
 			m_edit_bottom_radius.GetWindowText( str );
 			m_bottom_radius = mult*atof( str );
-			m_bottom_mask_shape = m_combo_bottom_shape2.GetCurSel();
+			m_bottom_mask_shape = ConvertMaskCurSelToShape( m_combo_bottom_shape2.GetCurSel() );
 			m_edit_bottom_width2.GetWindowText( str );
 			m_bottom_mask_width = mult*atof( str );
 			m_edit_bottom_length2.GetWindowText( str );
 			m_bottom_mask_length = mult*atof( str );
 			m_edit_bottom_radius2.GetWindowText( str );
 			m_bottom_mask_radius = mult*atof( str );
-			m_bottom_paste_shape = m_combo_bottom_shape3.GetCurSel();
+			m_bottom_paste_shape = ConvertMaskCurSelToShape( m_combo_bottom_shape3.GetCurSel() );
 			m_edit_bottom_width3.GetWindowText( str );
 			m_bottom_paste_width = mult*atof( str );
 			m_edit_bottom_length3.GetWindowText( str );
@@ -1197,8 +1192,7 @@ void CDlgAddPin::GetFields()
 		m_increment = atoi( str );
 	}
 
-	// pad and row orientation
-	m_pad_orient = m_combo_pad_orient.GetCurSel();
+	// row orientation
 	m_row_orient = m_combo_row_orient.GetCurSel();
 }
 

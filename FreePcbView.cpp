@@ -12,6 +12,7 @@
 #include <Mmsystem.h>
 #include <sys/timeb.h>
 #include <time.h>
+#define _USE_MATH_DEFINES
 #include <math.h>
 #include "freepcbview.h"
 #include "DlgAddPart.h"
@@ -371,7 +372,6 @@ BOOL CFreePcbView::PreCreateWindow(CREATESTRUCT& cs)
 
 void CFreePcbView::OnDraw(CDC* pDC)
 {
-
 	// get client rectangle
 	GetClientRect( &m_client_r );
 
@@ -4920,7 +4920,7 @@ int CFreePcbView::ShowSelectStatus()
 						m_sel_end_pin.pin_name,
 						locked_flag, m_sel_id.ii+1,
 						m_sel_seg.width/NM_PER_MIL,
-							m_sel_seg.m_uid
+						m_sel_seg.m_uid
 						);
 				}
 			}

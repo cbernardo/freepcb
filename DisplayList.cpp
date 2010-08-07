@@ -740,6 +740,32 @@ void CDisplayList::Draw( CDC * dDC )
 						pDC->SelectObject( line_pen );
 					}
 				}
+				else if( el->gtype == DL_CURVE_CW )
+				{
+					if( ( (el->xf >= el->x && el->x < m_max_x && el->xf > m_org_x)
+						|| (el->xf < el->x && el->xf < m_max_x && el->x > m_org_x) )
+						&& ( (el->yf >= el->y && el->y < m_max_y && el->yf > m_org_y)
+						|| (el->yf < el->y && el->yf < m_max_y && el->y > m_org_y) ) )
+					{
+						CPen pen( PS_SOLID, el->w, RGB( m_rgb[layer][0], m_rgb[layer][1], m_rgb[layer][2] ) );
+						pDC->SelectObject( &pen );
+						DrawCurve( pDC, DL_CURVE_CW, el->x, el->y, el->xf, el->yf );
+						pDC->SelectObject( line_pen );
+					}
+				}
+				else if( el->gtype == DL_CURVE_CCW )
+				{
+					if( ( (el->xf >= el->x && el->x < m_max_x && el->xf > m_org_x)
+						|| (el->xf < el->x && el->xf < m_max_x && el->x > m_org_x) )
+						&& ( (el->yf >= el->y && el->y < m_max_y && el->yf > m_org_y)
+						|| (el->yf < el->y && el->yf < m_max_y && el->y > m_org_y) ) )
+					{
+						CPen pen( PS_SOLID, el->w, RGB( m_rgb[layer][0], m_rgb[layer][1], m_rgb[layer][2] ) );
+						pDC->SelectObject( &pen );
+						DrawCurve( pDC, DL_CURVE_CCW, el->x, el->y, el->xf, el->yf );
+						pDC->SelectObject( line_pen );
+					}
+				}
 				else if( el->gtype == DL_X )
 				{
 					xi = el->x - el->w/2;
@@ -964,6 +990,10 @@ void CDisplayList::Draw( CDC * dDC )
 				DrawArc( pDC, DL_ARC_CW, m_drag_xi, m_drag_yi, m_drag_x, m_drag_y );
 			else if( m_drag_style1 == DSS_ARC_CCW )
 				DrawArc( pDC, DL_ARC_CCW, m_drag_xi, m_drag_yi, m_drag_x, m_drag_y );
+			else if( m_drag_style1 == DSS_CURVE_CW )
+				DrawCurve( pDC, DL_CURVE_CW, m_drag_xi, m_drag_yi, m_drag_x, m_drag_y );
+			else if( m_drag_style1 == DSS_CURVE_CCW )
+				DrawCurve( pDC, DL_CURVE_CCW, m_drag_xi, m_drag_yi, m_drag_x, m_drag_y );
 			else
 				ASSERT(0);
 			if( m_drag_shape == DS_LINE_VERTEX )
@@ -977,6 +1007,10 @@ void CDisplayList::Draw( CDC * dDC )
 					DrawArc( pDC, DL_ARC_CW, m_drag_x, m_drag_y, m_drag_xf, m_drag_yf );
 				else if( m_drag_style2 == DSS_ARC_CCW )
 					DrawArc( pDC, DL_ARC_CCW, m_drag_x, m_drag_y, m_drag_xf, m_drag_yf );
+				else if( m_drag_style2 == DSS_CURVE_CW )
+					DrawCurve( pDC, DL_CURVE_CW, m_drag_x, m_drag_y, m_drag_xf, m_drag_yf );
+				else if( m_drag_style2 == DSS_CURVE_CCW )
+					DrawCurve( pDC, DL_CURVE_CCW, m_drag_x, m_drag_y, m_drag_xf, m_drag_yf );
 				else
 					ASSERT(0);
 				pDC->SelectObject( old_pen );
@@ -1001,7 +1035,10 @@ void CDisplayList::Draw( CDC * dDC )
 			}
 
 		}
-		else if( m_drag_shape == DS_ARC_STRAIGHT || m_drag_shape == DS_ARC_CW || m_drag_shape == DS_ARC_CCW )
+		else if( m_drag_shape == DS_ARC_STRAIGHT 
+			|| m_drag_shape == DS_ARC_CW || m_drag_shape == DS_ARC_CCW 
+			|| m_drag_shape == DS_CURVE_CW || m_drag_shape == DS_CURVE_CCW 
+			)
 		{
 			CPen pen_w( PS_SOLID, m_drag_w1, RGB( m_rgb[m_drag_layer_1][0], 
 				m_rgb[m_drag_layer_1][1], m_rgb[m_drag_layer_1][2] ) );
@@ -1013,6 +1050,10 @@ void CDisplayList::Draw( CDC * dDC )
 				DrawArc( pDC, DL_ARC_CW, m_drag_xi, m_drag_yi, m_drag_x, m_drag_y );
 			else if( m_drag_shape == DS_ARC_CCW )
 				DrawArc( pDC, DL_ARC_CCW, m_drag_xi, m_drag_yi, m_drag_x, m_drag_y );
+			else if( m_drag_shape == DS_CURVE_CW )
+				DrawCurve( pDC, DL_CURVE_CW, m_drag_xi, m_drag_yi, m_drag_x, m_drag_y );
+			else if( m_drag_shape == DS_CURVE_CCW )
+				DrawCurve( pDC, DL_CURVE_CCW, m_drag_xi, m_drag_yi, m_drag_x, m_drag_y );
 			pDC->SelectObject( old_pen );	
 			m_last_drag_shape = m_drag_shape;
 		}
@@ -1214,6 +1255,21 @@ void * CDisplayList::TestSelect( int x, int y, id * sel_id, int * sel_layer,
 			}
 		}
 		else if( el->gtype == DL_ARC_CW || el->gtype == DL_ARC_CCW )
+		{
+			// found selection rectangle, test for hit
+			if( ( (xx>el->x && xx<el->xf) || (xx<el->x && xx>el->xf) )
+				&& ( (yy>el->y && yy<el->yf) || (yy<el->y && yy>el->yf) ) )
+			{
+				// OK, hit
+				hit_layer[nhits] = el->layer;
+				hit_id[nhits] = el->id;
+				hit_ptr[nhits] = el->ptr;
+				nhits++;
+				if( nhits >= MAX_HITS )
+					ASSERT(0);
+			}
+		}
+		else if( el->gtype == DL_CURVE_CW || el->gtype == DL_CURVE_CCW )
 		{
 			// found selection rectangle, test for hit
 			if( ( (xx>el->x && xx<el->xf) || (xx<el->x && xx>el->xf) )
@@ -1663,6 +1719,10 @@ void CDisplayList::Drag( CDC * pDC, int x, int y )
 				DrawArc( pDC, DL_ARC_CW, m_drag_xi, m_drag_yi, m_drag_x, m_drag_y );
 			else if( m_drag_style1 == DSS_ARC_CCW )
 				DrawArc( pDC, DL_ARC_CCW, m_drag_xi, m_drag_yi, m_drag_x, m_drag_y );
+			else if( m_drag_style1 == DSS_CURVE_CW )
+				DrawCurve( pDC, DL_CURVE_CW, m_drag_xi, m_drag_yi, m_drag_x, m_drag_y );
+			else if( m_drag_style1 == DSS_CURVE_CCW )
+				DrawCurve( pDC, DL_CURVE_CCW, m_drag_xi, m_drag_yi, m_drag_x, m_drag_y );
 			else 
 				ASSERT(0);
 			if( m_drag_shape == DS_LINE_VERTEX )
@@ -1677,6 +1737,10 @@ void CDisplayList::Drag( CDC * pDC, int x, int y )
 					DrawArc( pDC, DL_ARC_CW, m_drag_x, m_drag_y, m_drag_xf, m_drag_yf );
 				else if( m_drag_style2 == DSS_ARC_CCW )
 					DrawArc( pDC, DL_ARC_CCW, m_drag_x, m_drag_y, m_drag_xf, m_drag_yf );
+				else if( m_drag_style2 == DSS_CURVE_CW )
+					DrawCurve( pDC, DL_CURVE_CW, m_drag_x, m_drag_y, m_drag_xf, m_drag_yf );
+				else if( m_drag_style2 == DSS_CURVE_CCW )
+					DrawCurve( pDC, DL_CURVE_CCW, m_drag_x, m_drag_y, m_drag_xf, m_drag_yf );
 				else
 					ASSERT(0);
 				pDC->SelectObject( old_pen );
@@ -1706,6 +1770,10 @@ void CDisplayList::Drag( CDC * pDC, int x, int y )
 				DrawArc( pDC, DL_ARC_CW, m_drag_xi, m_drag_yi, xx, yy );
 			else if( m_drag_style1 == DSS_ARC_CCW )
 				DrawArc( pDC, DL_ARC_CCW, m_drag_xi, m_drag_yi, xx, yy );
+			else if( m_drag_style1 == DSS_CURVE_CW )
+				DrawCurve( pDC, DL_CURVE_CW, m_drag_xi, m_drag_yi, xx, yy );
+			else if( m_drag_style1 == DSS_CURVE_CCW )
+				DrawCurve( pDC, DL_CURVE_CCW, m_drag_xi, m_drag_yi, xx, yy );
 			else
 				ASSERT(0);
 			if( m_drag_shape == DS_LINE_VERTEX )
@@ -1719,6 +1787,10 @@ void CDisplayList::Drag( CDC * pDC, int x, int y )
 				else if( m_drag_style2 == DSS_ARC_CW )
 					DrawArc( pDC, DL_ARC_CW, xx, yy, m_drag_xf, m_drag_yf );
 				else if( m_drag_style2 == DSS_ARC_CCW )
+					DrawArc( pDC, DL_ARC_CCW, xx, yy, m_drag_xf, m_drag_yf );
+				else if( m_drag_style2 == DSS_CURVE_CW )
+					DrawArc( pDC, DL_ARC_CW, xx, yy, m_drag_xf, m_drag_yf );
+				else if( m_drag_style2 == DSS_CURVE_CCW )
 					DrawArc( pDC, DL_ARC_CCW, xx, yy, m_drag_xf, m_drag_yf );
 				else
 					ASSERT(0);
@@ -1872,7 +1944,10 @@ void CDisplayList::Drag( CDC * pDC, int x, int y )
 		}
 
 	}
-	else if( m_drag_flag && (m_drag_shape == DS_ARC_STRAIGHT || m_drag_shape == DS_ARC_CW || m_drag_shape == DS_ARC_CCW) )
+	else if( m_drag_flag && (m_drag_shape == DS_ARC_STRAIGHT 
+		|| m_drag_shape == DS_ARC_CW || m_drag_shape == DS_ARC_CCW
+		|| m_drag_shape == DS_CURVE_CW || m_drag_shape == DS_CURVE_CCW
+		) )
 	{
 		CPen pen_w( PS_SOLID, m_drag_w1, RGB( m_rgb[m_drag_layer_1][0], 
 			m_rgb[m_drag_layer_1][1], m_rgb[m_drag_layer_1][2] ) );
@@ -1886,6 +1961,10 @@ void CDisplayList::Drag( CDC * pDC, int x, int y )
 				DrawArc( pDC, DL_ARC_CW, m_drag_xi, m_drag_yi, m_drag_x, m_drag_y );
 			else if( m_last_drag_shape == DS_ARC_CCW )
 				DrawArc( pDC, DL_ARC_CCW, m_drag_xi, m_drag_yi, m_drag_x, m_drag_y );
+			else if( m_last_drag_shape == DS_CURVE_CW )
+				DrawCurve( pDC, DL_CURVE_CW, m_drag_xi, m_drag_yi, m_drag_x, m_drag_y );
+			else if( m_last_drag_shape == DS_CURVE_CCW )
+				DrawCurve( pDC, DL_CURVE_CCW, m_drag_xi, m_drag_yi, m_drag_x, m_drag_y );
 
 			// draw new arc
 			if( m_drag_shape == DS_ARC_STRAIGHT )
@@ -1894,6 +1973,10 @@ void CDisplayList::Drag( CDC * pDC, int x, int y )
 				DrawArc( pDC, DL_ARC_CW, m_drag_xi, m_drag_yi, xx, yy );
 			else if( m_drag_shape == DS_ARC_CCW )
 				DrawArc( pDC, DL_ARC_CCW, m_drag_xi, m_drag_yi, xx, yy );
+			else if( m_drag_shape == DS_CURVE_CW )
+				DrawCurve( pDC, DL_CURVE_CW, m_drag_xi, m_drag_yi, xx, yy );
+			else if( m_drag_shape == DS_CURVE_CCW )
+				DrawCurve( pDC, DL_CURVE_CCW, m_drag_xi, m_drag_yi, xx, yy );
 			m_last_drag_shape = m_drag_shape;	// used only for polylines
 		}
 		pDC->SelectObject( old_pen );

@@ -1,6 +1,13 @@
 FreePCB release notes: (versions since 1.2) 
 -------------------------------------------
 
+1.359
+-----
+- fixed bug where pad orientation in footprint editpr was not always copied correctly
+- fixed bug where all layers were invisible on opening the Footprint Editor
+- defined my own ASSERT macro so that it will work in release versions with VC++ 2005
+- removes NDEBUG definition from release version properties so that ASSERT will work
+
 1.358
 -----
 - fixed bug where moving a vertex with ratlines invisible could make cursor disappear

@@ -34,6 +34,8 @@ enum
 	DL_POINT,			// shape to highlight a point
 	DL_ARC_CW,			// arc with clockwise curve
 	DL_ARC_CCW,			// arc with counter-clockwise curve
+	DL_CURVE_CW,		// circular clockwise curve
+	DL_CURVE_CCW,		// circular counter-clockwise curve
 	DL_CENTROID,		// circle and X
 	DL_X				// X
 };
@@ -46,7 +48,9 @@ enum
 	DS_LINE,				// line
 	DS_ARC_STRAIGHT,		// straight line (used when drawing polylines)
 	DS_ARC_CW,				// clockwise arc (used when drawing polylines)
-	DS_ARC_CCW,				// counterclockwise arc (used when drawing polylines)
+	DS_ARC_CCW,				// counterclockwise arc 
+	DS_CURVE_CW,			// clockwise curve
+	DS_CURVE_CCW,			// counterclockwise curve 
 	DS_SEGMENT				// line segment (with rubber banding of linking segments)
 };
 
@@ -56,6 +60,8 @@ enum
 	DSS_STRAIGHT = 100,		// straight line
 	DSS_ARC_CW,				// clockwise arc
 	DSS_ARC_CCW,			// counterclockwise arc
+	DSS_CURVE_CW,			// clockwise curve
+	DSS_CURVE_CCW,			// counterclockwise curve
 	DSS_NONE				// piece is missing (used in Move Segment for missing final segment)
 };
 
