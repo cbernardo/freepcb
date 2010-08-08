@@ -2896,6 +2896,36 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 	if( m_bDraggingRect )
 		return;
 
+	if( nChar == 'C' && m_cursor_mode == CUR_SEG_SELECTED )
+	{
+		// toggle segment through straight and curved shapes
+		cconnect * c = &m_sel_net->connect[m_sel_ic];
+		cseg * s = &c->seg[m_sel_is];
+		cvertex * pre_v = &m_sel_net->connect[m_sel_ic].vtx[m_sel_iv];
+		cvertex * post_v = &m_sel_net->connect[m_sel_ic].vtx[m_sel_iv+1];
+		int dx = post_v->x - pre_v->x;
+		int dy = post_v->y - pre_v->y;
+		if( dx == 0 || dy == 0 || s->layer == LAY_RAT_LINE )
+		{
+			// ratline or vertical or horizontal segment, must be straight
+			if( s->curve != cseg::STRAIGHT )
+				ASSERT(0);
+		}
+		else
+		{
+			// toggle through straight or curved options
+			SaveUndoInfoForConnection( m_sel_net, m_sel_ic, TRUE, m_Doc->m_undo_list );
+			m_Doc->m_nlist->UndrawConnection( m_sel_net, m_sel_ic );
+			s->curve++;
+			if( s->curve > cseg::CW )
+				s->curve = cseg::STRAIGHT;
+			m_Doc->m_nlist->DrawConnection( m_sel_net, m_sel_ic );
+			ShowSelectStatus();
+			m_Doc->ProjectModified( TRUE );
+			Invalidate( FALSE );
+		}
+		return;
+	}
 	if( nChar == 'F' && ( m_cursor_mode == CUR_VTX_SELECTED || m_cursor_mode == CUR_END_VTX_SELECTED ) )
 	{
 		SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_Doc->m_undo_list );

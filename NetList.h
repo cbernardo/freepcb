@@ -192,12 +192,17 @@ public:
 class cseg
 {
 public:
+	enum Curve { STRAIGHT = 0,
+			CCW,
+			CW
+	};
 	cseg()
 	{
 		// constructor
 		m_uid = nl_cuid.GetNewUID();
 		m_dlist = 0;  // this must be filled in with Initialize()
 		m_nlist = 0;  // this must be filled in with Initialize()
+		curve = STRAIGHT;
 		layer = 0;
 		width = 0;
 		selected = 0;
@@ -225,6 +230,7 @@ public:
 	int m_uid;				// unique id
 	int layer;				// copper layer
 	int width;				// width
+	int curve;
 	int selected;			// 1 if selected for editing
 	dl_element * dl_el;		// display element for segment
 	dl_element * dl_sel;	// selection line

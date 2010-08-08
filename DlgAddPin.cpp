@@ -880,12 +880,12 @@ void CDlgAddPin::SetFields()
 		m_edit_top_width.EnableWindow( m_top_shape > PAD_NONE ); 
 		m_edit_top_length.EnableWindow( m_top_shape >= PAD_RECT && m_top_shape <= PAD_OVAL );
 		m_edit_top_radius.EnableWindow( m_top_shape == PAD_RRECT );
-		m_edit_top_width2.EnableWindow( m_top_mask_shape-1 > PAD_NONE ); 
-		m_edit_top_length2.EnableWindow( m_top_mask_shape-1 >= PAD_RECT && m_top_mask_shape-1 <= PAD_OVAL );
-		m_edit_top_radius2.EnableWindow( m_top_mask_shape-1 == PAD_RRECT );
-		m_edit_top_width3.EnableWindow( m_top_paste_shape-1 > PAD_NONE ); 
-		m_edit_top_length3.EnableWindow( m_top_paste_shape-1 >= PAD_RECT && m_top_paste_shape-1 <= PAD_OVAL );
-		m_edit_top_radius3.EnableWindow( m_top_paste_shape-1 == PAD_RRECT );
+		m_edit_top_width2.EnableWindow( m_top_mask_shape != PAD_DEFAULT && m_top_mask_shape > PAD_NONE ); 
+		m_edit_top_length2.EnableWindow( m_top_mask_shape >= PAD_RECT && m_top_mask_shape <= PAD_OVAL );
+		m_edit_top_radius2.EnableWindow( m_top_mask_shape == PAD_RRECT );
+		m_edit_top_width3.EnableWindow( m_top_paste_shape != PAD_DEFAULT && m_top_paste_shape > PAD_NONE ); 
+		m_edit_top_length3.EnableWindow( m_top_paste_shape >= PAD_RECT && m_top_paste_shape <= PAD_OVAL );
+		m_edit_top_radius3.EnableWindow( m_top_paste_shape == PAD_RRECT );
 	}
 	for( int i=0; i<4; i++ )
 	{
@@ -961,15 +961,15 @@ void CDlgAddPin::SetFields()
 	m_edit_bottom_radius3.SetWindowText( str );
 	if( bBottomEnable )
 	{
-		m_edit_bottom_width.EnableWindow( m_bottom_shape > PAD_NONE ); 
+		m_edit_bottom_width.EnableWindow( m_bottom_shape != PAD_DEFAULT && m_bottom_shape > PAD_NONE ); 
 		m_edit_bottom_length.EnableWindow( m_bottom_shape >= PAD_RECT && m_bottom_shape <= PAD_OVAL );
 		m_edit_bottom_radius.EnableWindow( m_bottom_shape == PAD_RRECT );
-		m_edit_bottom_width2.EnableWindow( m_bottom_mask_shape-1 > PAD_NONE ); 
-		m_edit_bottom_length2.EnableWindow( m_bottom_mask_shape-1 >= PAD_RECT && m_bottom_mask_shape-1 <= PAD_OVAL );
-		m_edit_bottom_radius2.EnableWindow( m_bottom_mask_shape-1 == PAD_RRECT );
-		m_edit_bottom_width3.EnableWindow( m_bottom_paste_shape-1 > PAD_NONE ); 
-		m_edit_bottom_length3.EnableWindow( m_bottom_paste_shape-1 >= PAD_RECT && m_bottom_paste_shape-1 <= PAD_OVAL );
-		m_edit_bottom_radius3.EnableWindow( m_bottom_paste_shape-1 == PAD_RRECT );
+		m_edit_bottom_width2.EnableWindow( m_bottom_mask_shape != PAD_DEFAULT && m_bottom_mask_shape > PAD_NONE ); 
+		m_edit_bottom_length2.EnableWindow( m_bottom_mask_shape >= PAD_RECT && m_bottom_mask_shape <= PAD_OVAL );
+		m_edit_bottom_radius2.EnableWindow( m_bottom_mask_shape == PAD_RRECT );
+		m_edit_bottom_width3.EnableWindow( m_bottom_paste_shape != PAD_DEFAULT && m_bottom_paste_shape > PAD_NONE ); 
+		m_edit_bottom_length3.EnableWindow( m_bottom_paste_shape >= PAD_RECT && m_bottom_paste_shape <= PAD_OVAL );
+		m_edit_bottom_radius3.EnableWindow( m_bottom_paste_shape == PAD_RRECT );
 	}
 	for( int i=0; i<4; i++ )
 	{
