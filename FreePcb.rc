@@ -769,7 +769,7 @@ CAPTION "About FreePcb"
 FONT 8, "MS Sans Serif", 0, 0, 0x0
 BEGIN
     ICON            IDR_MAINFRAME,IDC_STATIC,11,12,20,20
-    LTEXT           "FreePcb Version 1.358",IDC_STATIC,42,12,119,8,SS_NOPREFIX
+    LTEXT           "FreePcb Version 1.359",IDC_STATIC,42,12,119,8,SS_NOPREFIX
     LTEXT           "(c) Allan Wright 2003 - 2010",IDC_STATIC,42,24,142,8
     DEFPUSHBUTTON   "OK",IDOK,178,7,50,14,WS_GROUP
     LTEXT           "Source libraries:",IDC_STATIC,19,66,51,8

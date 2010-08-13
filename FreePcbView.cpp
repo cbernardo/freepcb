@@ -29,7 +29,6 @@
 #include "DlgGroupPaste.h"
 #include "DlgSideStyle.h"
 #include "DlgValueText.h"
-#include ".\freepcbview.h"
 
 // globals
 BOOL g_bShow_Ratline_Warning = TRUE;	
@@ -9415,21 +9414,11 @@ void CFreePcbView::MoveGroup( int dx, int dy )
 	m_Doc->m_nlist->MarkAllNets(0);
 	m_Doc->m_plist->MarkAllParts(0);
 
-	// mark nets of ID_NET items as selected
-	for( int i=0; i<m_sel_ids.GetSize(); i++ )
-	{
-		id sid = m_sel_ids[i];
-		if( sid.type == ID_NET )
-		{
-			cnet * net = (cnet*)m_sel_ptrs[i];
-			net->utility = TRUE;
-		}
-	}
-
 	// mark all corners of solder mask cutouts as unmoved
 	for( int im=0; im<m_Doc->m_sm_cutout.GetSize(); im++ )
 	{
 		CPolyLine * poly = &m_Doc->m_sm_cutout[im];
+		poly->SetUtility(0);
 		for( int ic=0; ic<poly->GetNumCorners(); ic++ )
 			poly->SetUtility( ic, 0 );	// unmoved
 	}
@@ -9437,11 +9426,48 @@ void CFreePcbView::MoveGroup( int dx, int dy )
 	for( int im=0; im<m_Doc->m_board_outline.GetSize(); im++ )
 	{
 		CPolyLine * poly = &m_Doc->m_board_outline[im];
+		poly->SetUtility(0);
 		for( int ic=0; ic<poly->GetNumCorners(); ic++ )
 			poly->SetUtility( ic, 0 );	// unmoved
 	}
 
-	// mark all relevant parts, nets, connections and segments as selected
+	// mark nets of ID_NET items as selected
+	// mark areas as selected and undraw them
+	// mark solder mask cutouts as selected and undraw them
+	// mark board outlines as selected and undraw them
+	for( int i=0; i<m_sel_ids.GetSize(); i++ )
+	{
+		id sid = m_sel_ids[i];
+		if( sid.type == ID_NET )
+		{
+			cnet * net = (cnet*)m_sel_ptrs[i];
+			net->utility = TRUE;
+			if( sid.st == ID_AREA )
+			{
+				cnet * net = (cnet*)m_sel_ptrs[i];
+				carea * a = &net->area[sid.i];
+				a->utility = TRUE;
+				CPolyLine * poly = a->poly;
+				poly->SetUtility(1);
+				poly->Undraw();
+			}
+		}
+		else if( sid.type == ID_SM_CUTOUT && sid.st == ID_SM_CUTOUT && sid.sst == ID_SEL_SIDE )
+		{
+			CPolyLine * poly = &m_Doc->m_sm_cutout[sid.i];
+			poly->SetUtility(1);
+			poly->Undraw();
+		}
+		else if( sid.type == ID_BOARD && sid.st == ID_BOARD_OUTLINE && sid.sst == ID_SEL_SIDE )
+		{
+			CPolyLine * poly = &m_Doc->m_board_outline[sid.i];
+			poly->SetUtility(1);
+			poly->Undraw();
+		}
+	}
+
+	// mark all relevant parts, nets, connections, segments, vertices 
+	// and areas as selected
 	// and move text and copper area corners
 	for( int i=0; i<m_sel_ids.GetSize(); i++ )
 	{
@@ -9499,7 +9525,6 @@ void CFreePcbView::MoveGroup( int dx, int dy )
 			int ic2 = ic1+1;
 			if( ic2 > iend )
 				ic2 = istart;
-			poly->Undraw();
 			if( !poly->GetUtility(ic1) )
 			{
 				// unmoved, move it
@@ -9514,7 +9539,6 @@ void CFreePcbView::MoveGroup( int dx, int dy )
 				poly->SetY( ic2, poly->GetY(ic2) + dy );
 				poly->SetUtility(ic2,1);
 			}
-			poly->Draw();
 		}
 		// sm_cutout side
 		else if( sid.type == ID_SM_CUTOUT && sid.st == ID_SM_CUTOUT && sid.sst == ID_SEL_SIDE )
@@ -9527,7 +9551,6 @@ void CFreePcbView::MoveGroup( int dx, int dy )
 			int ic2 = ic1+1;
 			if( ic2 > iend )
 				ic2 = istart;
-			poly->Undraw();
 			if( !poly->GetUtility(ic1) )
 			{
 				// unmoved, move it
@@ -9542,7 +9565,6 @@ void CFreePcbView::MoveGroup( int dx, int dy )
 				poly->SetY( ic2, poly->GetY(ic2) + dy );
 				poly->SetUtility(ic2,1);
 			}
-			poly->Draw();
 		}
 		// board outline side
 		else if( sid.type == ID_BOARD && sid.st == ID_BOARD && sid.sst == ID_SEL_SIDE )
@@ -9555,7 +9577,6 @@ void CFreePcbView::MoveGroup( int dx, int dy )
 			int ic2 = ic1+1;
 			if( ic2 > iend )
 				ic2 = istart;
-			poly->Undraw();
 			if( !poly->GetUtility(ic1) )
 			{
 				// unmoved, move it
@@ -9570,10 +9591,49 @@ void CFreePcbView::MoveGroup( int dx, int dy )
 				poly->SetY( ic2, poly->GetY(ic2) + dy );
 				poly->SetUtility(ic2,1);
 			}
-			poly->Draw();
 		}
 		else
 			ASSERT(0);
+	}
+
+	// now redraw areas, solder mask cutouts and board outlines
+	for( int i=0; i<m_sel_ids.GetSize(); i++ )
+	{
+		id sid = m_sel_ids[i];
+		if( sid.type == ID_NET )
+		{
+			cnet * net = (cnet*)m_sel_ptrs[i];
+			net->utility = TRUE;
+			if( sid.st == ID_AREA )
+			{
+				cnet * net = (cnet*)m_sel_ptrs[i];
+				carea * a = &net->area[sid.i];
+				CPolyLine * poly = a->poly;
+				if( poly->GetUtility() )
+				{
+					poly->Draw();
+					poly->SetUtility(0);	// clear flag so only redraw once
+				}
+			}
+		}
+		else if( sid.type == ID_SM_CUTOUT && sid.st == ID_SM_CUTOUT && sid.sst == ID_SEL_SIDE )
+		{
+			CPolyLine * poly = &m_Doc->m_sm_cutout[sid.i];
+			if( poly->GetUtility() )
+			{
+				poly->Draw();
+				poly->SetUtility(0);	// clear flag so only redraw once
+			}
+		}
+		else if( sid.type == ID_BOARD && sid.st == ID_BOARD_OUTLINE && sid.sst == ID_SEL_SIDE )
+		{
+			CPolyLine * poly = &m_Doc->m_board_outline[sid.i];
+			if( poly->GetUtility() )
+			{
+				poly->Draw();
+				poly->SetUtility(0);	// clear flag so only redraw once
+			}
+		}
 	}
 
 	// assume utility flags have been set on selected parts,
@@ -11533,55 +11593,53 @@ void CFreePcbView::RotateGroup()
 	m_Doc->m_nlist->MarkAllNets(0);
 	m_Doc->m_plist->MarkAllParts(0);
 
-	// mark connections, segments and vertices of selected nets as unselected
-	// and vertices and area corners as unmoved
+	// mark all corners of solder mask cutouts as unmoved
+	for( int im=0; im<m_Doc->m_sm_cutout.GetSize(); im++ )
+	{
+		CPolyLine * poly = &m_Doc->m_sm_cutout[im];
+		poly->SetUtility(0);
+		for( int ic=0; ic<poly->GetNumCorners(); ic++ )
+			poly->SetUtility( ic, 0 );	// unmoved
+	}
+
+	// mark all corners of board outlines as unmoved
+	for( int im=0; im<m_Doc->m_board_outline.GetSize(); im++ )
+	{
+		CPolyLine * poly = &m_Doc->m_board_outline[im];
+		poly->SetUtility(0);
+		for( int ic=0; ic<poly->GetNumCorners(); ic++ )
+			poly->SetUtility( ic, 0 );	// unmoved
+	}
+
+	// mark selected nets, mark and undraw areas, mask cutouts and board outlines
 	for( int i=0; i<m_sel_ids.GetSize(); i++ )
 	{
 		id sid = m_sel_ids[i];
 		if( sid.type == ID_NET )
 		{
 			cnet * net = (cnet*)m_sel_ptrs[i];
-			if( net->utility == FALSE )
+			net->utility = TRUE;	// mark as selected
+			if( sid.st == ID_AREA )
 			{
-				// first time for this net,
-				net->utility = TRUE;	// mark as selected
-				// mark all connections, segments and vertices as unselected
-				for( int ic=0; ic<net->nconnects; ic++ )
-				{
-					net->connect[ic].utility = FALSE;
-					for( int is=0; is<net->connect[ic].nsegs; is++ )
-					{
-						net->connect[ic].seg[is].utility = FALSE;
-						net->connect[ic].vtx[is].utility = FALSE;
-						net->connect[ic].vtx[is].utility2 = FALSE;
-						net->connect[ic].vtx[is+1].utility = FALSE;
-						net->connect[ic].vtx[is+1].utility2 = FALSE;
-					}
-				}
-				// mark all area corners as unmoved
-				for( int ia=0; ia<net->nareas; ia++ )
-				{
-					for( int is=0; is<net->area[ia].poly->GetNumCorners(); is++ )
-					{
-						net->area[ia].poly->SetUtility( is, 0 );	// unmoved
-					}
-				}
+				carea * a = &net->area[sid.i];
+				a->utility = TRUE;
+				CPolyLine * poly = a->poly;
+				poly->SetUtility(1);
+				poly->Undraw();
 			}
 		}
-	}
-	// mark all corners of solder mask cutouts as unmoved
-	for( int im=0; im<m_Doc->m_sm_cutout.GetSize(); im++ )
-	{
-		CPolyLine * poly = &m_Doc->m_sm_cutout[im];
-		for( int ic=0; ic<poly->GetNumCorners(); ic++ )
-			poly->SetUtility( ic, 0 );	// unmoved
-	}
-	// mark all corners of board outlines as unmoved
-	for( int im=0; im<m_Doc->m_board_outline.GetSize(); im++ )
-	{
-		CPolyLine * poly = &m_Doc->m_board_outline[im];
-		for( int ic=0; ic<poly->GetNumCorners(); ic++ )
-			poly->SetUtility( ic, 0 );	// unmoved
+		else if( sid.type == ID_SM_CUTOUT && sid.st == ID_SM_CUTOUT && sid.sst == ID_SEL_SIDE )
+		{
+			CPolyLine * poly = &m_Doc->m_sm_cutout[sid.i];
+			poly->SetUtility(1);
+			poly->Undraw();
+		}
+		else if( sid.type == ID_BOARD && sid.st == ID_BOARD_OUTLINE && sid.sst == ID_SEL_SIDE )
+		{
+			CPolyLine * poly = &m_Doc->m_board_outline[sid.i];
+			poly->SetUtility(1);
+			poly->Undraw();
+		}
 	}
 
 	int tempx;
@@ -11644,7 +11702,6 @@ void CFreePcbView::RotateGroup()
 			int ic2 = ic1+1;
 			if( ic2 > iend )
 				ic2 = istart;
-			poly->Undraw();
 			if( !poly->GetUtility(ic1) )
 			{
 				// unmoved, move it
@@ -11658,10 +11715,9 @@ void CFreePcbView::RotateGroup()
 				// unmoved, move it
 				tempx=poly->GetX(ic2);
 				poly->SetX( ic2, groupAverageX + poly->GetY(ic2)- groupAverageY );
-				poly->SetY( ic2, groupAverageY -tempx + groupAverageX );
+				poly->SetY( ic2, groupAverageY - tempx + groupAverageX );
 				poly->SetUtility(ic2,1);
 			}
-			poly->Draw();
 		}
 		// sm_cutout side
 		else if( sid.type == ID_SM_CUTOUT && sid.st == ID_SM_CUTOUT && sid.sst == ID_SEL_SIDE )
@@ -11674,13 +11730,12 @@ void CFreePcbView::RotateGroup()
 			int ic2 = ic1+1;
 			if( ic2 > iend )
 				ic2 = istart;
-			poly->Undraw();
 			if( !poly->GetUtility(ic1) )
 			{
 				// unmoved, move it
 				tempx=poly->GetX(ic1);
 				poly->SetX( ic1, groupAverageX + poly->GetY(ic1)- groupAverageY );
-				poly->SetY( ic1, groupAverageY -tempx + groupAverageX );
+				poly->SetY( ic1, groupAverageY - tempx + groupAverageX );
 				poly->SetUtility(ic1,1);
 			}
 			if( !poly->GetUtility(ic2) )
@@ -11688,10 +11743,9 @@ void CFreePcbView::RotateGroup()
 				// unmoved, move it
 				tempx=poly->GetX(ic2);
 				poly->SetX( ic2, groupAverageX + poly->GetY(ic2)- groupAverageY );
-				poly->SetY( ic2, groupAverageY -tempx + groupAverageX );
+				poly->SetY( ic2, groupAverageY - tempx + groupAverageX );
 				poly->SetUtility(ic2,1);
 			}
-			poly->Draw();
 		}
 		// board outline side
 		else if( sid.type == ID_BOARD && sid.st == ID_BOARD && sid.sst == ID_SEL_SIDE )
@@ -11704,14 +11758,13 @@ void CFreePcbView::RotateGroup()
 			int ic2 = ic1+1;
 			if( ic2 > iend )
 				ic2 = istart;
-			poly->Undraw();
 			if( !poly->GetUtility(ic1) )
 			{
 				// unmoved, move it
 				tempx=poly->GetX(ic1);
 				tempx=poly->GetX(ic1);
 				poly->SetX( ic1, groupAverageX + poly->GetY(ic1)- groupAverageY );
-				poly->SetY( ic1, groupAverageY -tempx + groupAverageX );
+				poly->SetY( ic1, groupAverageY - tempx + groupAverageX );
 				poly->SetUtility(ic1,1);
 			}
 			if( !poly->GetUtility(ic2) )
@@ -11719,17 +11772,53 @@ void CFreePcbView::RotateGroup()
 				// unmoved, move it
 				tempx=poly->GetX(ic2);
 				poly->SetX( ic2, groupAverageX + poly->GetY(ic2)- groupAverageY );
-				poly->SetY( ic2, groupAverageY -tempx + groupAverageX );
+				poly->SetY( ic2, groupAverageY - tempx + groupAverageX );
 				poly->SetUtility(ic2,1);
 			}
-			poly->Draw();
 		}
 		else
 			ASSERT(0);
 	}
 
-	// assume utility flags have been set on selected parts,
-	// nets, connections, segments and vertices
+	// now redraw areas, solder mask cutouts and board outlines
+	for( int i=0; i<m_sel_ids.GetSize(); i++ )
+	{
+		id sid = m_sel_ids[i];
+		if( sid.type == ID_NET )
+		{
+			cnet * net = (cnet*)m_sel_ptrs[i];
+			net->utility = TRUE;
+			if( sid.st == ID_AREA )
+			{
+				cnet * net = (cnet*)m_sel_ptrs[i];
+				carea * a = &net->area[sid.i];
+				CPolyLine * poly = a->poly;
+				if( poly->GetUtility() )
+				{
+					poly->Draw();
+					poly->SetUtility(0);	// clear flag so only redraw once
+				}
+			}
+		}
+		else if( sid.type == ID_SM_CUTOUT && sid.st == ID_SM_CUTOUT && sid.sst == ID_SEL_SIDE )
+		{
+			CPolyLine * poly = &m_Doc->m_sm_cutout[sid.i];
+			if( poly->GetUtility() )
+			{
+				poly->Draw();
+				poly->SetUtility(0);	// clear flag so only redraw once
+			}
+		}
+		else if( sid.type == ID_BOARD && sid.st == ID_BOARD_OUTLINE && sid.sst == ID_SEL_SIDE )
+		{
+			CPolyLine * poly = &m_Doc->m_board_outline[sid.i];
+			if( poly->GetUtility() )
+			{
+				poly->Draw();
+				poly->SetUtility(0);	// clear flag so only redraw once
+			}
+		}
+	}
 
 	// move parts in group
 	cpart * part = m_Doc->m_plist->GetFirstPart();
@@ -11739,7 +11828,7 @@ void CFreePcbView::RotateGroup()
 		{
 			// move part
 			m_Doc->m_plist->Move( part, groupAverageX + part->y - groupAverageY,
-				groupAverageY -part->x + groupAverageX, (part->angle+90)%360, part->side );
+				groupAverageY - part->x + groupAverageX, (part->angle+90)%360, part->side );
 			// find segments which connect to this part and move them
 			cnet * net;
 			for( int ip=0; ip<part->shape->m_padstack.GetSize(); ip++ )

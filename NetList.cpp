@@ -247,6 +247,7 @@ void CNetList::MarkAllNets( int utility )
 		{
 			carea * a = &net->area[ia];
 			a->utility = utility;
+			a->poly->SetUtility( utility );
 			for( int is=0; is<a->poly->GetNumSides(); is++ )
 			{
 				a->poly->SetUtility( is, utility );
