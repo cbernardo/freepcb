@@ -7,6 +7,7 @@ FreePCB release notes: (versions since 1.2)
 - fixed bug where all layers were invisible on opening the Footprint Editor
 - defined my own ASSERT macro so that it will work in release versions with VC++ 2005
 - removes NDEBUG definition from release version properties so that ASSERT will work
+- fixed bug that changed side styles when moving a group with polylines
 
 1.358
 -----

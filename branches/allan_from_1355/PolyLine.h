@@ -162,4 +162,4 @@ private:
 	gpc_polygon * m_gpc_poly;	// polygon in gpc format
 	polygon * m_php_poly;
 	BOOL bDrawn;
-};
+};
