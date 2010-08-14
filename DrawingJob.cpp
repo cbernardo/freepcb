@@ -230,14 +230,24 @@ void CDL_job_copper_area::ScratchClearances(CDrawInfo &di, int layer, CRect cons
 		dl_element * el = static_cast<dl_element*>(pElement);
 
 		if( !el->getBoundingRect(el_bounds) ) continue;
+
+		// Normalized:
+		//   top < bottom
+		//   left < right
 		el_bounds.NormalizeRect();
 
-		test_intersect.IntersectRect(area_bounds, el_bounds);
-		if( !test_intersect.IsRectEmpty() )
+		{ // Check for intersection
+			if (el_bounds.bottom < area_bounds.top)    continue;
+			if (el_bounds.top    > area_bounds.bottom) continue;
+
+			if (el_bounds.right  < area_bounds.left)   continue;
+			if (el_bounds.left   > area_bounds.right)  continue;
+		}
+
 		{
 #if 0 // enable to show element bounds
 			{
-				CPen *op, pen( PS_SOLID, m_dlist->m_scale, RGB(244, 122, 12) );
+				CPen *op, pen( PS_SOLID, m_dlist->m_scale, RGB(144, 122, 12) );
 				op = di.DC_Master->SelectObject( &pen );
 				di.DC_Master->MoveTo( el_bounds.TopLeft() );
 				di.DC_Master->LineTo( el_bounds.right, el_bounds.top );
