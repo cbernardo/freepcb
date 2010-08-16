@@ -1,0 +1,21 @@
+*PADS-PCB*
+*PART*
+P4 Conn-Wire Term 3.5 6pos
+J3 Conn-Wire Term 3.5 6pos
+J2 Conn-Wire Term 3.5 6pos
+J1 Conn-Wire Term 3.5 6pos
+
+*NET*
+*SIGNAL* IBN
+J1.5 J2.5 P4.1 P4.4
+*SIGNAL* IAN
+J1.1 J2.1
+*SIGNAL* IAP
+J1.3 J2.3
+*SIGNAL* IA-n
+J1.2 J2.2
+*SIGNAL* IB-n
+J1.6 J2.6 J3.1 J3.2 J3.3 J3.4
+*SIGNAL* IA-p
+J1.4 J2.4
+*END*
