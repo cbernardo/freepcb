@@ -38,7 +38,7 @@ public:
 	};
 
 	// returns # hits
-	int TestForHit( CPoint const &point, HitInfo hitInfo[], int max_hits ) const;
+	virtual int TestForHit( CPoint const &point, HitInfo hitInfo[], int max_hits ) const { return 0; }
 
 	virtual void Draw(CDrawInfo &di) const {}
 };
@@ -55,6 +55,7 @@ public:
 	{
 	}
 
+	virtual int TestForHit( CPoint const &point, HitInfo hitInfo[], int max_hits ) const;
 	virtual void Draw(CDrawInfo &di) const;
 };
 
@@ -64,6 +65,8 @@ class CDL_job_traces : public CDL_job
 
 public:
 	CDL_job_traces(CDisplayList * dlist) : CDL_job(dlist) {}
+
+	virtual int TestForHit( CPoint const &point, HitInfo hitInfo[], int max_hits ) const;
 
 	virtual void Draw(CDrawInfo &di) const;
 

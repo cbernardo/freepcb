@@ -855,6 +855,7 @@ public:
 	void SetAreaConnections( cpart * part );
 	BOOL TestPointInArea( cnet * net, int x, int y, int layer, int * iarea );
 	int RemoveArea( cnet * net, int iarea );
+	void SelectArea( cnet * net, int iarea );
 	void SelectAreaSide( cnet * net, int iarea, int iside );
 	void SelectAreaCorner( cnet * net, int iarea, int icorner );
 	void SetAreaSideStyle( cnet * net, int iarea, int iside, int style );

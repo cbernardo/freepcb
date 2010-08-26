@@ -4044,6 +4044,19 @@ cnet * CNetList::GetNetPtrByName( CString const &name )
 	return NULL;
 }
 
+// Select entire copper area
+//
+void CNetList::SelectArea( cnet * net, int iarea )
+{
+	m_dlist->CancelHighLight();
+
+	int n_sides = net->area[iarea].poly->GetNumSides();
+	for (int i = 0; i < n_sides; i++)
+	{
+		net->area[ iarea ].poly->HighlightSide( i );
+	}
+}
+
 // Select copper area side
 //
 void CNetList::SelectAreaSide( cnet * net, int iarea, int iside )
@@ -5591,7 +5604,7 @@ void CNetList::ImportNetListInfo( netlist_info * nl, int flags, CDlgLog * log )
 		for( POSITION pos = db_pin_to_net.GetStartPosition(); pos != NULL; )
 		{
 			db_pin_to_net.GetNextAssoc(pos, pin, (void*&)net );
-
+		
 			int dot_pos = pin.Find('.');
 			CString ref_des  = pin.Left( dot_pos );
 			CString pin_name = pin.Right( pin.GetLength() - (dot_pos+1) );
@@ -5689,10 +5702,10 @@ void CNetList::ImportNetListInfo( netlist_info * nl, int flags, CDlgLog * log )
 
 					RemoveNetPin( net,          ref_des, pin_name );
 					AddNetPin   ( net_info.net, ref_des, pin_name );
+					}
+					}
 				}
 			}
-		}
-	}
 
 	if( log )
 	{
@@ -6680,7 +6693,8 @@ undo_area * CNetList::CreateAreaUndoRecord( cnet * net, int iarea, int type )
 		un_a->iarea = iarea;
 		return un_a;
 	}
-	CPolyLine * p = net->area[iarea].poly;
+	carea * area = &net->area[iarea];
+	CPolyLine * p = area->poly;
 	int n_cont = p->GetNumContours();
 	if( !p->GetClosed() )
 		n_cont--;
