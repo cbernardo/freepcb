@@ -35,6 +35,7 @@ enum {
 	CUR_TEXT_SELECTED,			// free text selected
 	CUR_AREA_CORNER_SELECTED,	// corner of copper area selected
 	CUR_AREA_SIDE_SELECTED,		// edge of copper area selected
+	CUR_AREA_SELECTED,			// entire copper area selected
 	CUR_DRE_SELECTED,			// DRC error selected
 	CUR_GROUP_SELECTED,			// multiple parts selected
 	CUR_SEL_NET_COMBINE,        // Selecting a target net in "net combine with" command

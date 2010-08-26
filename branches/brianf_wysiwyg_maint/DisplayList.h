@@ -207,8 +207,16 @@ public:
 	void SetLayerDrawOrder( int layer, int order )
 			{ m_layer_in_order[order] = layer; m_order_for_layer[layer] = order; };
 
-	void Scale_pcbu_to_wu(CRect &rect);
-	void Scale_wu_to_pixels(CRect &rect);
+	void Scale_pcbu_to_wu(CPoint &pt) const;
+	void Scale_pcbu_to_wu(CRect &rect) const
+	{
+		Scale_pcbu_to_wu(rect.TopLeft());
+		Scale_pcbu_to_wu(rect.BottomRight());
+	}
+
+	void Scale_wu_to_pcbu(CPoint &pt) const;
+
+	//void Scale_wu_to_pixels(CRect &rect);
 
 	dl_element * CreateDLE( id id, void * ptr, int layer, int gtype, int visible,
 	                        int w, int holew, int clearancew,

@@ -800,7 +800,11 @@ int CFreePcbView::SelectObjPopup( CPoint const &point, CDL_job::HitInfo hit_info
 					{
 						str = "COPPER";
 
-						if( pInfo->ID.sst == ID_SEL_SIDE )
+						if( pInfo->ID.sst == ID_ENTIRE_AREA )
+						{
+							str += " AREA";
+						}
+						else if( pInfo->ID.sst == ID_SEL_SIDE )
 						{
 							str += " SIDE";
 						}
@@ -1265,7 +1269,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 							&& (((cnet*)ptr)->connect[sid.i].vtx[sid.ii].tee_ID
 								|| ((cnet*)ptr)->connect[sid.i].vtx[sid.ii].force_via_flag )
 							&& m_mask_id[SEL_MASK_VIA].ii != 0xfffe
-						|| sid.type == ID_NET && sid.st == ID_AREA && sid.sst == ID_SEL_SIDE
+						|| sid.type == ID_NET && sid.st == ID_AREA && (sid.sst == ID_SEL_SIDE || sid.sst == ID_ENTIRE_AREA)
 							&& m_mask_id[SEL_MASK_AREAS].ii != 0xfffe
 						|| sid.type == ID_SM_CUTOUT && sid.st == ID_SM_CUTOUT && sid.sst == ID_SEL_SIDE
 							&& m_mask_id[SEL_MASK_SM].ii != 0xfffe
@@ -1289,14 +1293,9 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 							SetCursorMode( CUR_GROUP_SELECTED );
 							m_sel_id.type = ID_MULTI;
 						}
-						else if( m_cursor_mode == CUR_SEG_SELECTED )
-						{
-							m_sel_ids.Add( m_sel_id );
-							m_sel_ptrs.Add( m_sel_net );
-							SetCursorMode( CUR_GROUP_SELECTED );
-							m_sel_id.type = ID_MULTI;
-						}
-						else if( m_cursor_mode == CUR_AREA_SIDE_SELECTED )
+						else if(    (m_cursor_mode == CUR_SEG_SELECTED)
+								 || (m_cursor_mode == CUR_AREA_SELECTED)
+								 || (m_cursor_mode == CUR_AREA_SIDE_SELECTED) )
 						{
 							m_sel_ids.Add( m_sel_id );
 							m_sel_ptrs.Add( m_sel_net );
@@ -1472,6 +1471,12 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 						else
 							SetCursorMode( CUR_VTX_SELECTED );
 						m_Doc->m_nlist->HighlightVertex( m_sel_net, sid.i, sid.ii );
+						Invalidate( FALSE );
+					}
+					else if( sid.st == ID_AREA && sid.sst == ID_ENTIRE_AREA )
+					{
+						m_Doc->m_nlist->SelectArea( m_sel_net, sid.i );
+						SetCursorMode( CUR_AREA_SELECTED );
 						Invalidate( FALSE );
 					}
 					else if( sid.st == ID_AREA && sid.sst == ID_SEL_SIDE )
@@ -3464,6 +3469,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 			|| m_cursor_mode == CUR_CONNECT_SELECTED
 			|| m_cursor_mode == CUR_AREA_CORNER_SELECTED
 			|| m_cursor_mode == CUR_AREA_SIDE_SELECTED
+			|| m_cursor_mode == CUR_AREA_SELECTED
 			|| m_cursor_mode == CUR_RAT_SELECTED )
 		{
 			m_sel_id.st = ID_ENTIRE_NET;
@@ -3741,8 +3747,9 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 					m_Doc->ProjectModified( TRUE );
 					Invalidate( FALSE );
 				}
-				else if( m_cursor_mode == CUR_AREA_CORNER_SELECTED
-					|| m_cursor_mode == CUR_AREA_SIDE_SELECTED )
+				else if(   m_cursor_mode == CUR_AREA_CORNER_SELECTED
+				        || m_cursor_mode == CUR_AREA_SIDE_SELECTED 
+				        || m_cursor_mode == CUR_AREA_SELECTED )
 				{
 					SaveUndoInfoForAllAreasInNet( m_sel_net, TRUE, m_Doc->m_undo_list );
 					carea * a = &m_sel_net->area[m_sel_ia];
@@ -4404,8 +4411,6 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 	case CUR_AREA_SIDE_SELECTED:
 		if( fk == FK_SIDE_STYLE )
 			OnAreaSideStyle();
-		else if( fk == FK_EDIT_AREA )
-			OnAreaEdit();
 		else if( fk == FK_POLY_ARC_CCW )
 		{
 			SaveUndoInfoForArea( m_sel_net, m_sel_ia, CNetList::UNDO_AREA_MODIFY, TRUE, m_Doc->m_undo_list );
@@ -4420,12 +4425,18 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 		}
 		else if( fk == FK_ADD_CORNER )
 			OnAreaSideAddCorner();
-		else if( fk == FK_DELETE_AREA )
-			OnAreaSideDeleteArea();
 		else if( fk == FK_AREA_CUTOUT )
 			OnAreaAddCutout();
 		else if( fk == FK_DELETE_CUTOUT )
 			OnAreaDeleteCutout();
+		
+		// Fall thru to CUR_AREA_SELECTED
+
+	case CUR_AREA_SELECTED:
+		if( fk == FK_EDIT_AREA )
+			OnAreaEdit();
+		else if( fk == FK_DELETE_AREA )
+			OnAreaSideDeleteArea();
 		else if( nChar == KB_KEY_DELETE )
 		{
 			CPolyLine * poly = m_sel_net->area[m_sel_ia].poly;
@@ -4756,7 +4767,8 @@ void CFreePcbView::SetCursorMode( int mode )
 			if(
 				( mode == CUR_GROUP_SELECTED ) ||
 				( mode == CUR_PART_SELECTED  ) ||
-				( mode == CUR_TEXT_SELECTED  )
+				( mode == CUR_TEXT_SELECTED  ) ||
+				( mode == CUR_AREA_SELECTED  )
 			  )
 			{
 				submenu->EnableMenuItem( ID_EDIT_COPY, MF_BYCOMMAND | MF_ENABLED );
@@ -4910,8 +4922,8 @@ void CFreePcbView::SetFKText( int mode )
 		break;
 
 	case CUR_AREA_SIDE_SELECTED:
+	{
 		m_fkey_option[0] = FK_SIDE_STYLE;
-		m_fkey_option[1] = FK_EDIT_AREA;
 		{
 			int style = m_sel_net->area[m_sel_id.i].poly->GetSideStyle(m_sel_id.ii);
 			if( style == CPolyLine::STRAIGHT )
@@ -4920,12 +4932,23 @@ void CFreePcbView::SetFKText( int mode )
 		{
 			CPolyLine * poly = m_sel_net->area[m_sel_ia].poly;
 			if( poly->GetContour( m_sel_id.ii ) > 0 )
+			{
 				m_fkey_option[6] = FK_DELETE_CUTOUT;
+			}
 			else
+			{
 				m_fkey_option[6] = FK_AREA_CUTOUT;
+			}
 		}
+	}
+	// Fall thru to CUR_AREA_SELECTED
+
+	case CUR_AREA_SELECTED:
+	{
+		m_fkey_option[1] = FK_EDIT_AREA;
 		m_fkey_option[7] = FK_DELETE_AREA;
-		break;
+	}
+	break;
 
 	case CUR_SEG_SELECTED:
 		m_fkey_option[0] = FK_SET_WIDTH;
@@ -5618,6 +5641,14 @@ int CFreePcbView::ShowSelectStatus()
 				str.Format( "\"%s\" copper area %d cutout %d edge %d",
 					m_sel_net->name, ia+1, ncont, ic+1-p->GetContourStart(ncont) );
 			}
+		}
+		break;
+
+	case CUR_AREA_SELECTED:
+		{
+			int ia = m_sel_id.i;
+			CPolyLine * p = m_sel_net->area[ia].poly;
+			str.Format( "\"%s\" copper area %d", m_sel_net->name, ia+1 );
 		}
 		break;
 
@@ -10662,8 +10693,11 @@ void CFreePcbView::OnAddSimilarArea()
 void CFreePcbView::OnAreaEdit()
 {
 	CDlgAddArea dlg;
-	int layer = m_sel_net->area[m_sel_id.i].poly->GetLayer();
-	int hatch = m_sel_net->area[m_sel_id.i].poly->GetHatch();
+	carea &area = m_sel_net->area[m_sel_id.i];
+
+	int layer = area.poly->GetLayer();
+	int hatch = area.poly->GetHatch();
+
 	dlg.Initialize( m_Doc->m_nlist, m_Doc->m_num_layers, m_sel_net, layer, hatch );
 	int ret = dlg.DoModal();
 	if( ret == IDOK )
@@ -10691,10 +10725,14 @@ void CFreePcbView::OnAreaEdit()
 			m_sel_net = net;
 			m_sel_ia = ia;
 		}
-		m_sel_net->area[m_sel_ia].poly->Undraw();
-		m_sel_net->area[m_sel_ia].poly->SetLayer( dlg.m_layer );
-		m_sel_net->area[m_sel_ia].poly->SetHatch( dlg.m_hatch );
-		m_sel_net->area[m_sel_ia].poly->Draw();
+
+		area = m_sel_net->area[m_sel_ia];
+
+		area.poly->Undraw();
+		area.poly->SetLayer( dlg.m_layer );
+		area.poly->SetHatch( dlg.m_hatch );
+		area.poly->Draw();
+
 		int ret = m_Doc->m_nlist->AreaPolygonModified( m_sel_net, m_sel_ia, FALSE, TRUE );
 		if( ret == -1 )
 		{
@@ -10962,8 +11000,7 @@ void CFreePcbView::OnGroupCopy()
 			}
 			c->utility = TRUE;	// mark as checked
 		}
-		else if( sid.type == ID_NET && sid.st == ID_AREA
-			&& sid.sst == ID_SEL_SIDE )
+		else if( sid.type == ID_NET && sid.st == ID_AREA && sid.sst == ID_SEL_SIDE )
 		{
 			// area side selected
 			cnet * net = (cnet*)m_sel_ptrs[i];
@@ -10974,10 +11011,29 @@ void CFreePcbView::OnGroupCopy()
 				// first area side found, mark area as selected and
 				// all other sides as unselected
 				for( int is=0; is<p->GetNumSides(); is++ )
+				{
 					p->SetUtility( is, 0 );
+				}
 				a->utility = 1;
 			}
 			p->SetUtility( sid.ii, 1 );	// mark this side as selected
+		}
+		else if( sid.type == ID_NET && sid.st == ID_AREA && sid.sst == ID_ENTIRE_AREA )
+		{
+			// Entire area selected
+			cnet * net = (cnet*)m_sel_ptrs[i];
+			carea * a = &net->area[sid.i];
+			CPolyLine * p = a->poly;
+			if( a->utility == 0 )
+			{
+				// first area side found, mark area as selected and
+				// all sides as selected
+				for( int is=0; is<p->GetNumSides(); is++ )
+				{
+					p->SetUtility( is, 1 );
+				}
+				a->utility = 1;
+			}
 		}
 	}
 
@@ -12198,7 +12254,7 @@ void CFreePcbView::OnEditCutCopy(int bDelete)
 	}
 
 	// If single copy-able items are highlighted, 
-	// convert to a group.and copy.
+	// convert to a group and copy.
 	int bDoit = 0;
 	if( m_cursor_mode == CUR_PART_SELECTED )
 	{
@@ -12217,6 +12273,16 @@ void CFreePcbView::OnEditCutCopy(int bDelete)
 
 		m_sel_ids.Add( m_sel_id );
 		m_sel_ptrs.Add( m_sel_text );
+
+		bDoit = 1;
+	}
+	else if( m_cursor_mode == CUR_AREA_SELECTED )
+	{
+		if( m_sel_id.type != ID_NET )
+			ASSERT(0);
+
+		m_sel_ids.Add( m_sel_id );
+		m_sel_ptrs.Add( m_sel_net );
 
 		bDoit = 1;
 	}

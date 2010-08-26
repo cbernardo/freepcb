@@ -32,31 +32,32 @@ void CDL_job::Add(dl_element *pDLE)
 // where n_include_ids is size of array, and
 // where 0's in include_id[] fields are treated as wildcards
 //
-int CDL_job::TestForHit( CPoint const &point, HitInfo hitInfo[], int max_hits ) const
+int CDL_job_traces::TestForHit( CPoint const &point, HitInfo hitInfo[], int max_hits ) const
 {
-	int  nhits = 0;
+	int nhits = 0;
 
-	// traverse the list, looking for selection shapes
-	CDLinkList *pElement;
-	for (pElement = m_LIST_DLE.next; pElement != &m_LIST_DLE; pElement = pElement->next )
+	if( max_hits > 0 )
 	{
-		dl_element * el = static_cast<dl_element*>(pElement);
-
-		if( el->isHit(point) )
+		// traverse the list, looking for selection shapes
+		CDLinkList *pElement;
+		for (pElement = m_LIST_DLE.next; pElement != &m_LIST_DLE; pElement = pElement->next )
 		{
-			// OK, hit
-			hitInfo->layer = el->layer;
-			hitInfo->ID    = el->id;
-			hitInfo->ptr   = el->ptr;
+			dl_element * el = static_cast<dl_element*>(pElement);
 
-			hitInfo++;
-			nhits++;
+			if( el->isHit(point) )
+			{
+				// OK, hit
+				hitInfo->layer = el->layer;
+				hitInfo->ID    = el->id;
+				hitInfo->ptr   = el->ptr;
 
-			if( nhits >= max_hits )
-				break;
+				hitInfo++;
+				nhits++;
+
+				if( nhits >= max_hits ) break;
+			}
 		}
 	}
-
 	return nhits;
 }
 
@@ -112,6 +113,31 @@ void CDL_job_traces::UpdateLineWidths( int width, int layer )
 			}
 		}
 	}
+}
+
+
+int CDL_job_copper_area::TestForHit( CPoint const &_point, HitInfo hitInfo[], int max_hits ) const
+{
+	int nHits = 0;
+
+	CPoint point(_point);
+
+	m_dlist->Scale_wu_to_pcbu(point);
+
+	if( my_poly->TestPointInside( point.x, point.y ) )
+	{
+		nHits++;
+
+		cnet *net = reinterpret_cast<cnet*>( my_poly->GetPtr() );
+
+		hitInfo->layer = my_poly->GetLayer();
+		hitInfo->ptr   = net;
+
+		hitInfo->ID     = my_poly->GetId();
+		hitInfo->ID.sst = ID_ENTIRE_AREA;
+	}
+
+	return nHits;
 }
 
 

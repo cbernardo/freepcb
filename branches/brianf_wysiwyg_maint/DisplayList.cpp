@@ -211,17 +211,21 @@ void CDisplayList::SetMapping( CRect *client_r, CRect *screen_r, int pane_org_x,
 	m_wu_per_pixel_y = (double)w_ext_y/v_ext_y;
 	m_pcbu_per_pixel_x = m_wu_per_pixel_x * m_pcbu_per_wu;
 	m_pcbu_per_pixel_y = m_wu_per_pixel_y * m_pcbu_per_wu;
-	m_max_x = m_org_x + m_wu_per_pixel_x*(client_r->right-pane_org_x) + 2;	// world units
-	m_max_y = m_org_y - m_wu_per_pixel_y*client_r->bottom + 2;				// world units
+	m_max_x = m_org_x + m_wu_per_pixel_x*(client_r->right  - pane_org_x   ) + 2;	// world units
+	m_max_y = m_org_y - m_wu_per_pixel_y*(client_r->bottom - pane_bottom_h) + 2;	// world units
 }
 
 
-void CDisplayList::Scale_pcbu_to_wu(CRect &rect)
+void CDisplayList::Scale_pcbu_to_wu(CPoint &pt) const
 {
-	rect.top    /= m_pcbu_per_wu;
-	rect.bottom /= m_pcbu_per_wu;
-	rect.left   /= m_pcbu_per_wu;
-	rect.right  /= m_pcbu_per_wu;
+	pt.x /= m_pcbu_per_wu;
+	pt.y /= m_pcbu_per_wu;
+}
+
+void CDisplayList::Scale_wu_to_pcbu(CPoint &pt) const
+{
+	pt.x *= m_pcbu_per_wu;
+	pt.y *= m_pcbu_per_wu;
 }
 
 
@@ -620,11 +624,11 @@ void CDisplayList::Draw( CDC * dDC )
 		}
 		else
 		{
-			// Draw directly on main DC (di.DC_Master) for speed
-			di.DC = di.DC_Master;
+		// Draw directly on main DC (di.DC_Master) for speed
+		di.DC = di.DC_Master;
 
-			di.layer_color[0] = m_rgb[LAY_BACKGND];
-			di.layer_color[1] = m_rgb[layer];
+		di.layer_color[0] = m_rgb[LAY_BACKGND];
+		di.layer_color[1] = m_rgb[layer];
 		}
 
 		// Run drawing jobs for this layer
@@ -657,7 +661,7 @@ void CDisplayList::Draw( CDC * dDC )
 			di.DC_Master->BitBlt(m_org_x, m_org_y, m_max_x-m_org_x, m_max_y-m_org_y,
 			                     di.DC,
 			                     m_org_x, m_org_y, SRCPAINT);
-		}
+	}
 	}
 
 	dcMemory.DeleteDC();
@@ -945,11 +949,36 @@ int CDisplayList::TestSelect(
 	// Get the traces job (last in job list)
 	if( m_vis[LAY_SELECTION] )
 	{
-		CDL_job_traces *pJob = GetJob_traces(LAY_SELECTION);
-
 		CPoint point(x/m_pcbu_per_wu, y/m_pcbu_per_wu);
+	
+		CDL_job::HitInfo *p_hits = hit_info;
 
-		num_hits = pJob->TestForHit(point, hit_info, max_hits-1);
+		CDL_job *pJob = GetJob_traces(LAY_SELECTION);
+		num_hits = pJob->TestForHit(point, p_hits, max_hits-1);
+		p_hits   += num_hits;
+		max_hits -= num_hits;
+
+		for( int order=(MAX_LAYERS-1); order>=0; order-- )
+		{
+			int layer = m_layer_in_order[order];
+
+			if( !m_vis[layer] || layer == LAY_SELECTION )
+			{
+			  continue;
+			}
+
+			CDLinkList *pElement;
+			CDL_job *pJobTraces = GetJob_traces(layer);
+			for( pElement = m_LIST_job[layer].prev; pElement != pJobTraces; pElement = pElement->prev )
+			{
+				pJob = static_cast<CDL_job*>(pElement);
+
+				num_hits = pJob->TestForHit(point, p_hits, max_hits-1);
+				p_hits   += num_hits;
+				max_hits -= num_hits;
+			}
+		}
+		num_hits = p_hits - hit_info;
 
 		// now return highest priority hit
 		if( num_hits == 0 )
@@ -995,16 +1024,39 @@ int CDisplayList::TestSelect(
 					// i.e. last drawn = highest priority
 					int priority = (MAX_LAYERS - m_order_for_layer[hit_info[i].layer])*10;
 					// bump priority for small items which may be overlapped by larger items on same layer
-					if( hit_info[i].ID.type == ID_PART && hit_info[i].ID.st == ID_SEL_REF_TXT )
-						priority++;
-					else if( hit_info[i].ID.type == ID_PART && hit_info[i].ID.st == ID_SEL_VALUE_TXT )
-						priority++;
+					if( hit_info[i].ID.type == ID_PART )
+					{
+						if( hit_info[i].ID.st == ID_SEL_REF_TXT )
+						{
+							priority++;
+						}
+						else if( hit_info[i].ID.st == ID_SEL_VALUE_TXT )
+						{
+							priority++;
+						}
+					}
 					else if( hit_info[i].ID.type == ID_BOARD && hit_info[i].ID.st == ID_BOARD_OUTLINE && hit_info[i].ID.sst == ID_SEL_CORNER )
+					{
 						priority++;
-					else if( hit_info[i].ID.type == ID_NET && hit_info[i].ID.st == ID_AREA && hit_info[i].ID.sst == ID_SEL_CORNER )
-						priority++;
-					else if( hit_info[i].ID.type == ID_NET && hit_info[i].ID.st == ID_CONNECT && hit_info[i].ID.sst == ID_SEL_VERTEX )
-						priority++;
+					}
+					else if( hit_info[i].ID.type == ID_NET)
+					{
+						if( hit_info[i].ID.st == ID_AREA)
+						{
+							if( hit_info[i].ID.sst == ID_SEL_CORNER )
+							{
+								priority++;
+							}
+							else if( hit_info[i].ID.sst == ID_ENTIRE_AREA )
+							{
+								priority -= 2;
+							}
+						}
+						else if( hit_info[i].ID.st == ID_CONNECT && hit_info[i].ID.sst == ID_SEL_VERTEX )
+						{
+							priority++;
+						}
+					}
 
 					hit_info[i].priority = priority;
 					if( priority >= best_hit_priority )
