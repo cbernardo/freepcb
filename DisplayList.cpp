@@ -612,56 +612,19 @@ void CDisplayList::Draw( CDC * dDC )
 		  continue;
 		}
 
-		if( layer > LAY_BOARD_OUTLINE )
-		{
-			// Use transparent DC in dcMemory
-			di.DC = &dcMemory;
-
-			dcMemory.mono();
-
-			di.layer_color[0] = C_RGB::mono_off;
-			di.layer_color[1] = C_RGB::mono_on;
-		}
-		else
-		{
 		// Draw directly on main DC (di.DC_Master) for speed
 		di.DC = di.DC_Master;
 
 		di.layer_color[0] = m_rgb[LAY_BACKGND];
 		di.layer_color[1] = m_rgb[layer];
-		}
 
 		// Run drawing jobs for this layer
 		CDLinkList *pElement;
-		for( pElement = m_LIST_job[layer].next; pElement != &m_LIST_job[layer]; pElement = pElement->next )
+		for( pElement = m_LIST_job[layer].prev; pElement != &m_LIST_job[layer]; pElement = pElement->prev )
 		{
 			CDL_job *pJob = static_cast<CDL_job*>(pElement);
 			pJob->Draw(di);
 		}
-
-		if( di.DC != di.DC_Master )
-		{
-			// di.DC is a monochrome mask
-
-			// DC_Master &= ~mask
-			//   0 = transparent (AND with ~RGB(0,0,0) -> no effect, D AND 1 = D)
-			//   1 = solid       (AND with ~RGB(255,255,255) -> clear the masked area to RGB(0,0,0)
-			di.DC_Master->SetTextColor(RGB(0,0,0));
-			di.DC_Master->SetBkColor(RGB(255,255,255));
-
-			di.DC_Master->BitBlt(m_org_x, m_org_y, m_max_x-m_org_x, m_max_y-m_org_y,
-			                     di.DC,
-			                     m_org_x, m_org_y, 0x00220326);
-
-			// DC_Master |= mask
-			//   0 = transparent (OR with RBG(0,0,0) -> no effect D OR 0 = D)
-			//   1 = solid       (OR the masked area with layer color -> 0 OR C = C)
-			di.DC_Master->SetBkColor( m_rgb[layer] );
-
-			di.DC_Master->BitBlt(m_org_x, m_org_y, m_max_x-m_org_x, m_max_y-m_org_y,
-			                     di.DC,
-			                     m_org_x, m_org_y, SRCPAINT);
-	}
 	}
 
 	dcMemory.DeleteDC();
