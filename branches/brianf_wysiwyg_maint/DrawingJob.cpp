@@ -75,8 +75,8 @@ void CDL_job_traces::Draw(CDrawInfo &di) const
 		di.line_pen.CreatePen( PS_SOLID, 1, di.layer_color[1] );
 		di.fill_brush.CreateSolidBrush( di.layer_color[1] );
 
-		old_pen   = di.DC->SelectObject( &di.line_pen );
-		old_brush = di.DC->SelectObject( &di.fill_brush );
+		old_pen   = di.DC_Master->SelectObject( &di.line_pen );
+		old_brush = di.DC_Master->SelectObject( &di.fill_brush );
 	}
 
 	CDLinkList *pElement;
@@ -87,8 +87,8 @@ void CDL_job_traces::Draw(CDrawInfo &di) const
 
 	// Restore original drawing objects
 	{
-		di.DC->SelectObject( old_pen );
-		di.DC->SelectObject( old_brush );
+		di.DC_Master->SelectObject( old_pen );
+		di.DC_Master->SelectObject( old_brush );
 
 		di.erase_pen.DeleteObject();
 		di.erase_brush.DeleteObject();
@@ -161,15 +161,19 @@ void CDL_job_copper_area::Draw(CDrawInfo &di) const
 		// Adjust so that the area_bounds map to the actual pixels in the area bitmap
 		{
 			di.DC->LPtoDP(area_bounds);
-			// Allow for 1 extra pixel on the outer edge
-			area_bounds.top++;
-			area_bounds.right++;
+
+			// Allow for extra pixels on the outer edge
+			area_bounds.bottom -= 2;
+			area_bounds.left   -= 2;
+			area_bounds.top    += 1;
+			area_bounds.right  += 1;
+
 			di.DC->DPtoLP(area_bounds);
 		}
 
 #if 0 // enable to show area bounds
 		{
-			CPen *op, pen( PS_SOLID, m_dlist->m_scale, RGB(244, 122, 12) );
+			CPen *op, pen( PS_SOLID, m_dlist->m_scale*0, RGB(244, 122, 12) );
 			op = di.DC_Master->SelectObject( &pen );
 			di.DC_Master->MoveTo( area_bounds.left,  area_bounds.top );
 			di.DC_Master->LineTo( area_bounds.right, area_bounds.top );
@@ -185,16 +189,65 @@ void CDL_job_copper_area::Draw(CDrawInfo &di) const
 	CDC *pDC_Save = di.DC;
 	CRect bitmap_area(0,0, area_size.cx, area_size.cy);
 	CMemDC dcMemory(pDC_Save, &bitmap_area);
-	dcMemory.compatible();
+
+	dcMemory.LPtoDP(&bitmap_area);
+	bitmap_area.NormalizeRect();
+
+	BITMAPINFO bmi;
+	ZeroMemory(&bmi, sizeof(BITMAPINFO));
+    bmi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+    bmi.bmiHeader.biWidth = bitmap_area.Width()+1; // To simplify the X edge detection
+    bmi.bmiHeader.biHeight = bitmap_area.Height();
+    bmi.bmiHeader.biPlanes = 1;
+    bmi.bmiHeader.biBitCount = 32;
+    bmi.bmiHeader.biCompression = BI_RGB;
+    bmi.bmiHeader.biSizeImage = bmi.bmiHeader.biWidth * bmi.bmiHeader.biHeight * 4;
+
+	C_RGBA *pPixels;
+
+	HBITMAP hAreaBitmap = ::CreateDIBSection(dcMemory.m_hDC, &bmi, DIB_RGB_COLORS, reinterpret_cast<void**>(&pPixels), 0,0);
+	HGDIOBJ hOldObject = dcMemory.SelectObject(hAreaBitmap);
+
+	void *area_net = my_poly->GetPtr();
+	cnet *net = reinterpret_cast<cnet*>(area_net);
+	carea *area = &net->area[my_poly->GetId().i];
+
+	BYTE area_alpha;
+	if (area->opacity < 0.0f)
+	{
+		area_alpha = 0;
+	}
+	else if (area->opacity > 1.0f)
+	{
+		area_alpha = 255;
+	}
+	else
+	{
+		area_alpha = (BYTE)(area->opacity * 255.0f);
+	}
+
 	di.DC = &dcMemory;
+	C_RGBA save_lc_0 = di.layer_color[0];  
+	C_RGBA save_lc_1 = di.layer_color[1];  
 	{
 		CPen * old_pen;
 		CBrush * old_brush;
 
 		// Create drawing objects
 		{
+			di.layer_color[0] = RGB(0,0,0);
+
 			di.erase_pen.CreatePen( PS_SOLID, 1, di.layer_color[0] );
 			di.erase_brush.CreateSolidBrush( di.layer_color[0] );
+
+			C_RGBA alpha_precalc = di.layer_color[1];
+
+			alpha_precalc.r = alpha_precalc.r * area_alpha / 255;
+			alpha_precalc.g = alpha_precalc.g * area_alpha / 255;
+			alpha_precalc.b = alpha_precalc.b * area_alpha / 255;
+
+			di.layer_color[1] = alpha_precalc;
+
 			di.line_pen.CreatePen( PS_SOLID, 1, di.layer_color[1] );
 			di.fill_brush.CreateSolidBrush( di.layer_color[1] );
 
@@ -205,15 +258,12 @@ void CDL_job_copper_area::Draw(CDrawInfo &di) const
 		CPoint org = di.DC->SetWindowOrg(area_bounds.left, area_bounds.bottom);
 
 		// Draw the area
-		for( pElement = m_LIST_DLE.next; pElement != &m_LIST_DLE; pElement = pElement->next)
-		{
-			static_cast<dl_element*>(pElement)->Draw(di);
-		}
-		di.DC->SelectObject( old_pen );
-		di.DC->SelectObject( old_brush );
+		di.DC->BeginPath();
+		RenderPoly(di);
+		di.DC->EndPath();
+		di.DC->FillPath();
 
 		// Scratch the clearances
-		void *area_net = my_poly->GetPtr();
 
 		// Scratch the trace/pin clearances
 		ScratchClearances(di, my_poly->GetLayer(), area_bounds, area_net);
@@ -230,17 +280,257 @@ void CDL_job_copper_area::Draw(CDrawInfo &di) const
 			di.erase_brush.DeleteObject();
 			di.line_pen.DeleteObject();
 			di.fill_brush.DeleteObject();
+
+			di.layer_color[1] = save_lc_1;
 		}
 	}
 
+	// Futz with the pixels
+	C_RGBA pix_alpha(0);
+	pix_alpha.a = area_alpha;
+	save_lc_1.a = 0xff;
+
+	C_RGBA *pPixel = &pPixels[0];
+	register DWORD cpixel;
+	register DWORD ppixel;
+
+	// Y = 0
+	for (int x = 0; x < bmi.bmiHeader.biWidth; x++, pPixel++)
+	{
+		cpixel = pPixel->rgba;
+
+		if (cpixel)
+		{
+			pPixel->rgba = save_lc_1.rgba;
+		}
+	}
+
+	// Y > 0
+	for (int y = 1; y < bmi.bmiHeader.biHeight-1; y++, pPixel++)
+	{
+		// X = 0
+		cpixel = pPixel->rgba;
+		if (cpixel)
+		{
+			pPixel->rgba = save_lc_1.rgba;
+		}
+
+		// X > 0
+		for (int x = 1; x < bmi.bmiHeader.biWidth; x++)
+		{
+			pPixel++;
+
+			ppixel = cpixel;
+			cpixel = pPixel->rgba;
+
+			if (cpixel)
+			{
+				if (ppixel == 0)
+				{
+					pPixel->rgba = save_lc_1.rgba;
+				}
+				else
+				{
+					if( pPixel[-bmi.bmiHeader.biWidth] == 0 )
+					{
+						pPixel->rgba = save_lc_1.rgba;
+					}
+					else
+					{
+						pPixel->rgba = cpixel | pix_alpha.rgba;
+					}
+				}
+			}
+			else
+			{
+				if (ppixel != 0)
+				{
+					(pPixel-1)->rgba = save_lc_1.rgba;
+				}
+				else if ( pPixel[-bmi.bmiHeader.biWidth] != 0 )
+				{
+					(pPixel-bmi.bmiHeader.biWidth)->rgba = save_lc_1.rgba;
+				}
+			}
+		}
+	}
+
+	// Y = last
+	for (int x = 0; x < bmi.bmiHeader.biWidth; x++, pPixel++)
+	{
+		cpixel = pPixel->rgba;
+
+		if (cpixel)
+		{
+			pPixel->rgba = save_lc_1.rgba;
+		}
+	}
+
+	{
+		CDC DC_src;
+		DC_src.CreateCompatibleDC(di.DC);
+		CDC DC_dst;
+		DC_dst.CreateCompatibleDC(pDC_Save);
+
+		CBitmap bm_src;
+		bm_src.CreateCompatibleBitmap(di.DC,1,1);
+		CBitmap bm_dst;
+		bm_dst.CreateCompatibleBitmap(di.DC_Master,1,1);
+
+		CBitmap *bmp_src = di.DC->SelectObject(&bm_src);
+		CBitmap *old_src = DC_src.SelectObject(bmp_src);
+		CBitmap *bmp_dst = di.DC_Master->SelectObject(&bm_dst);
+		CBitmap *old_dst = DC_dst.SelectObject(bmp_dst);
+
+		BITMAP bmi;
+		bmp_dst->GetBitmap(&bmi);	
+		bmp_src->GetBitmap(&bmi);	
+
+		BLENDFUNCTION bf;
+		bf.BlendFlags = 0;
+		bf.AlphaFormat = AC_SRC_ALPHA;
+		bf.BlendOp = AC_SRC_OVER;
+
+		//bf.AlphaFormat = 0;
+
+		bf.SourceConstantAlpha = 255;
+
+		DC_src.SetTextColor(di.layer_color[0]);
+		DC_src.SetBkColor(di.layer_color[1]);
+
+		pDC_Save->LPtoDP(area_bounds);
+
+		int s = DC_dst.AlphaBlend(
+			area_bounds.left, area_bounds.bottom, bmi.bmWidth, bmi.bmHeight,
+			&DC_src,
+			0,0, bmi.bmWidth, bmi.bmHeight,
+			bf
+		);
+
+		DC_src.SelectObject(old_src);
+		DC_dst.SelectObject(old_dst);
+		di.DC       ->SelectObject(bmp_src);
+		di.DC_Master->SelectObject(bmp_dst);
+
+		DC_src.DeleteDC();
+		DC_dst.DeleteDC();
+	}
+
+#if 0
 	pDC_Save->BitBlt(area_bounds.left, area_bounds.top,
 	                 area_size.cx, area_size.cy,
 	                 di.DC,
 	                 area_bounds.left, area_bounds.top,
 	                 SRCPAINT);
+#endif
+
+	di.layer_color[0] = save_lc_0;
+
+	di.DC->SelectObject(hOldObject);
+	::DeleteObject(hAreaBitmap);
 
 	di.DC->DeleteDC();
 	di.DC = pDC_Save;
+}
+
+
+void CDL_job_copper_area::RenderPoly(CDrawInfo &di) const
+{
+	CDisplayList *pDL = my_poly->GetDisplayList();
+	CRect r;
+
+	int n_contours = my_poly->GetNumContours();
+
+	for (int contour = 0; contour < n_contours; contour++)
+	{
+		int start = my_poly->GetContourStart(contour);
+		int end   = my_poly->GetContourEnd(contour) + 1;
+
+		r.right  = my_poly->GetX(start);
+		r.bottom = my_poly->GetY(start);
+		pDL->Scale_pcbu_to_wu(r.BottomRight());
+		di.DC->MoveTo( r.BottomRight() );
+
+		int i = start;
+		do
+		{
+			i++;
+
+			r.TopLeft() = r.BottomRight();
+
+			// Before setting i to zero
+			int style = my_poly->GetSideStyle(i-1);
+
+			if (i >= end)
+			{
+				i = start;
+			}
+
+			r.right  = my_poly->GetX(i);
+			r.bottom = my_poly->GetY(i);
+			pDL->Scale_pcbu_to_wu(r.BottomRight());
+
+			switch( style )
+			{
+				case CPolyLine::STRAIGHT:
+				{
+					di.DC->LineTo( r.BottomRight() ); 
+				}
+				break;
+
+				case CPolyLine::ARC_CW:	  
+				{
+					CRect ar;
+					int i = (r.right > r.left) ^ (r.top > r.bottom);
+					if ( !i )
+					{
+						ar.left = r.left - r.Width();
+						ar.top  = r.top;
+
+						ar.right  = r.right; 
+						ar.bottom = r.bottom + r.Height();
+					}
+					else
+					{
+						ar.left = r.right + r.Width();
+						ar.top  = r.top - r.Height();
+
+						ar.right  = r.left; 
+						ar.bottom = r.bottom;
+					}
+
+					di.DC->SetArcDirection(AD_CLOCKWISE);
+					di.DC->ArcTo( &ar, r.TopLeft(), r.BottomRight() ); 
+				}
+				break;
+
+				case CPolyLine::ARC_CCW:
+				{
+					CRect ar;
+					int i = (r.right > r.left) ^ (r.top > r.bottom);
+					if ( i )
+					{
+						ar.left = r.left - r.Width();
+						ar.top  = r.top;
+
+						ar.right  = r.right; 
+						ar.bottom = r.bottom + r.Height();
+					}
+					else
+					{
+						ar.left = r.right + r.Width();
+						ar.top  = r.top - r.Height();
+
+						ar.right  = r.left; 
+						ar.bottom = r.bottom;
+					}
+					di.DC->SetArcDirection(AD_COUNTERCLOCKWISE);
+					di.DC->ArcTo( &ar, r.TopLeft(), r.BottomRight() ); 
+				}
+				break;
+			}
+		} while (i != start);
+	}
 }
 
 

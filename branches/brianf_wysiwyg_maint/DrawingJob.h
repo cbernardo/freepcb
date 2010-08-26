@@ -48,6 +48,8 @@ class CDL_job_copper_area : public CDL_job
 	void ScratchClearances(CDrawInfo &di, int layer, CRect const &area_bounds, void * area_net) const;
 	CPolyLine * my_poly;
 
+	void RenderPoly(CDrawInfo &di) const;
+
 public:
 	CDL_job_copper_area(CDisplayList * dlist, CPolyLine * poly) : 
 	  CDL_job(dlist),
