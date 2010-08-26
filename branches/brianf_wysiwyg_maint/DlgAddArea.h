@@ -1,7 +1,7 @@
 #pragma once
 #include "afxwin.h"
 #include "Netlist.h"
-
+#include "afxcmn.h"
 
 // CDlgAddArea dialog
 
@@ -12,14 +12,14 @@ class CDlgAddArea : public CDialog
 public:
 	CDlgAddArea(CWnd* pParent = NULL);   // standard constructor
 	virtual ~CDlgAddArea();
-	void Initialize( CNetList * nl, int nlayers, 
-		cnet * net, int layer, int hatch );
+	void Initialize( CNetList * nl, int nlayers, cnet * net, int layer, int hatch, int opacity );
 
 // Dialog Data
 	enum { IDD = IDD_ADD_AREA };
 
 protected:
 	virtual void DoDataExchange(CDataExchange* pDX);    // DDX/DDV support
+	BOOL CDlgAddArea::OnInitDialog();
 
 	DECLARE_MESSAGE_MAP()
 public:
@@ -28,6 +28,8 @@ public:
 	int m_layer;	// set to selected layer on return
 	int m_num_layers;
 	int m_hatch;
+	int m_opacity; 
+
 	BOOL bNewArea;
 	CNetList * m_nlist;
 	CComboBox m_combo_net;
@@ -35,4 +37,5 @@ public:
 	CButton m_radio_none;
 	CButton m_radio_full;
 	CButton m_radio_edge;
+	CSliderCtrl m_slider_opacity;
 };

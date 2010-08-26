@@ -800,6 +800,7 @@
 #define IDC_CHECK_VIA_MOD               1510
 #define IDC_CHECK_CLEARANCE_MOD         1511
 #define IDC_STATIC_GROUP_WIDTH          1513
+#define IDC_SLIDER1                     1514
 #define ID_BUTTON32771                  32771
 #define ID_FP_MOVE                      32772
 #define ID_FP_EDITPROPERTIES            32773
@@ -967,7 +968,7 @@
 #define _APS_3D_CONTROLS                     1
 #define _APS_NEXT_RESOURCE_VALUE        358
 #define _APS_NEXT_COMMAND_VALUE         32952
-#define _APS_NEXT_CONTROL_VALUE         1514
+#define _APS_NEXT_CONTROL_VALUE         1515
 #define _APS_NEXT_SYMED_VALUE           106
 #endif
 #endif

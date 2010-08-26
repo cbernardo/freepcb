@@ -143,6 +143,7 @@ carea::carea()
 	nvias = 0;
 	poly = 0;
 	utility = 0;
+	opacity = 0.375f;
 }
 
 void carea::Initialize( CDisplayList * dlist )
@@ -164,6 +165,7 @@ carea::carea( const carea& s )
 	npins = 0;
 	nvias = 0;
 	poly = new CPolyLine( m_dlist );
+	opacity = 0.375f;
 }
 
 // carea assignment operator
@@ -690,6 +692,50 @@ void CNetList::DisconnectNetPin( cnet * net, CString const &ref_des, CString con
 	if( net->nareas )
 		SetAreaConnections( net );
 }
+
+
+part_pin * CNetList::getPartPin( cnet * net, int pin_id )
+{
+	if (pin_id < 0) return NULL;
+
+	cpin & net_pin = net->pin[ pin_id ];
+	cpart * part = net_pin.part;
+
+	if( part )
+	{
+		if( part->shape )
+		{
+			int part_pin_index = part->shape->GetPinIndexByName( net_pin.pin_name );
+			if( part_pin_index >= 0 )
+			{
+				return &part->pin[ part_pin_index ];
+			}
+		}
+	}
+
+	return NULL;
+}
+
+
+part_pin * CNetList::getPartPin( CString const &full_pin_name )
+{
+	CPinDesc pin_desc(full_pin_name);
+
+	cnet * net;
+	CIterator_cnet net_iter(this);
+	for( net = net_iter.GetFirst(); net != NULL; net = net_iter.GetNext() )
+	{
+		int idx = GetNetPinIndex( net, pin_desc.ref_des(), pin_desc.pin_name() );
+
+		if (idx >= 0)
+		{
+			return getPartPin( net, idx );
+		}
+	}
+
+	return NULL;
+}
+
 
 // return pin index or -1 if not found
 //
@@ -6714,6 +6760,7 @@ undo_area * CNetList::CreateAreaUndoRecord( cnet * net, int iarea, int type )
 	un_a->hatch = p->GetHatch();
 	un_a->w = p->GetW();
 	un_a->sel_box_w = p->GetSelBoxSize();
+	un_a->opacity = area->opacity;
 	undo_corner * un_c = (undo_corner*)((UINT)un_a + sizeof(undo_area));
 	for( int ic=0; ic<nc; ic++ )
 	{
@@ -6761,6 +6808,8 @@ void CNetList::AreaUndoCallback( int type, void * ptr, BOOL undo )
 			}
 			// now recreate area at its original iarea in net->area[iarea]
 			nl->InsertArea( net, a->iarea, a->layer, c[0].x, c[0].y, a->hatch );
+			net->area[a->iarea].opacity = a->opacity;
+
 			for( int ic=1; ic<a->ncorners; ic++ )
 			{
 				nl->AppendAreaCorner( net, a->iarea,

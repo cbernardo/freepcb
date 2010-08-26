@@ -21,14 +21,26 @@ CDlgAddArea::~CDlgAddArea()
 {
 }
 
+BOOL CDlgAddArea::OnInitDialog() 
+{
+	CDialog::OnInitDialog();
+
+	m_slider_opacity.SetRange(0,100);
+	m_slider_opacity.SetTicFreq(10);
+
+	return TRUE; // return TRUE unless you set the focus to a control
+}
+
 void CDlgAddArea::DoDataExchange(CDataExchange* pDX)
 {
 	CDialog::DoDataExchange(pDX);
-	DDX_Control(pDX, IDC_COMBO_NET, m_combo_net);
+	DDX_Control(pDX, IDC_COMBO_NET,  m_combo_net);
 	DDX_Control(pDX, IDC_LIST_LAYER, m_list_layer);
 	DDX_Control(pDX, IDC_RADIO_NONE, m_radio_none);
 	DDX_Control(pDX, IDC_RADIO_FULL, m_radio_full);
 	DDX_Control(pDX, IDC_RADIO_EDGE, m_radio_edge);
+	DDX_Control(pDX, IDC_SLIDER1,    m_slider_opacity);
+
 	if( !pDX->m_bSaveAndValidate )
 	{
 		// incoming, initialize net list
@@ -65,6 +77,8 @@ void CDlgAddArea::DoDataExchange(CDataExchange* pDX)
 			m_radio_edge.SetCheck( 1 );
 		else if( m_hatch == CPolyLine::DIAGONAL_FULL )
 			m_radio_full.SetCheck( 1 );
+
+		m_slider_opacity.SetPos(m_opacity);
 	}
 	else
 	{
@@ -91,6 +105,8 @@ void CDlgAddArea::DoDataExchange(CDataExchange* pDX)
 			ASSERT(0);
 		if( bNewArea )
 			gHatch = m_hatch;
+
+		m_opacity = m_slider_opacity.GetPos();
 	}
 }
 
@@ -102,11 +118,12 @@ END_MESSAGE_MAP()
 // CDlgAddArea message handlers
 
 void CDlgAddArea::Initialize( CNetList * nl, int nlayers, 
-							 cnet * net, int layer, int hatch )
+					 		  cnet * net, int layer, int hatch, int opacity )
 {
 	m_nlist = nl;
 	m_num_layers = nlayers;
 	m_net = net;
 	m_layer = layer;
 	m_hatch = hatch;
+	m_opacity = opacity;
 }

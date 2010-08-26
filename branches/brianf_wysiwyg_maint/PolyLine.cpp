@@ -1405,6 +1405,7 @@ void CPolyLine::SetId( id * id )
 			m_dlist->Set_id( dl_hatch[ih], &m_id );
 		}
 	}
+	m_id.sst = ID_ENTIRE_AREA;
 }
 
 // get root id
