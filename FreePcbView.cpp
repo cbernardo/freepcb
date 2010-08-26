@@ -6388,7 +6388,7 @@ void CFreePcbView::OnContextMenu(CWnd* pWnd, CPoint point )
 void CFreePcbView::OnAddArea()
 {
 	CDlgAddArea dlg;
-	dlg.Initialize( m_Doc->m_nlist, m_Doc->m_num_layers, NULL, m_active_layer, -1 );
+	dlg.Initialize( m_Doc->m_nlist, m_Doc->m_num_layers, NULL, m_active_layer, -1, 100 );
 	int ret = dlg.DoModal();
 	if( ret == IDOK )
 	{
@@ -10698,7 +10698,7 @@ void CFreePcbView::OnAreaEdit()
 	int layer = area.poly->GetLayer();
 	int hatch = area.poly->GetHatch();
 
-	dlg.Initialize( m_Doc->m_nlist, m_Doc->m_num_layers, m_sel_net, layer, hatch );
+	dlg.Initialize( m_Doc->m_nlist, m_Doc->m_num_layers, m_sel_net, layer, hatch, (int)(area.opacity * 100.0f) );
 	int ret = dlg.DoModal();
 	if( ret == IDOK )
 	{
@@ -10729,6 +10729,7 @@ void CFreePcbView::OnAreaEdit()
 		area = m_sel_net->area[m_sel_ia];
 
 		area.poly->Undraw();
+		area.opacity = dlg.m_opacity / 100.0f;
 		area.poly->SetLayer( dlg.m_layer );
 		area.poly->SetHatch( dlg.m_hatch );
 		area.poly->Draw();

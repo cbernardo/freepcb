@@ -106,6 +106,7 @@ struct undo_area {
 	int w;
 	int sel_box_w;
 	int ncorners;
+	float opacity;
 	// array of undo_corners starts here
 };
 
@@ -184,44 +185,44 @@ public: // class used to represent a net_info for std::sort()
 		CSortElement() : m_info(NULL) {}
 	};
 
-	class CPinDesc
+class CPinDesc
+{
+	CString m_ref_des;
+	CString m_pin_name;
+
+public:
+	CPinDesc() {}
+
+	CPinDesc(CString const &ref_des, CString const &pin_name) :
+		m_ref_des(ref_des),
+		m_pin_name(pin_name)
 	{
-		CString m_ref_des;
-		CString m_pin_name;
+	}
 
-	public:
-		CPinDesc() {}
+	CString const &ref_des() const
+	{
+		return m_ref_des;
+	}
+	CString const &pin_name() const
+	{
+		return m_pin_name;
+	}
+	CString full_name() const
+	{
+		CString name;
+		name.Format("%s.%s", m_ref_des, m_pin_name);
 
-		CPinDesc(CString const &ref_des, CString const &pin_name) :
-			m_ref_des(ref_des),
-			m_pin_name(pin_name)
-		{
-		}
+		return name;
+	}
 
-		CString const &ref_des() const
-		{
-			return m_ref_des;
-		}
-		CString const &pin_name() const
-		{
-			return m_pin_name;
-		}
-		CString full_name() const
-		{
-			CString name;
-			name.Format("%s.%s", m_ref_des, m_pin_name);
+	CPinDesc &operator = (CPinDesc const &from)
+	{
+		m_ref_des  = from.m_ref_des;
+		m_pin_name = from.m_pin_name;
 
-			return name;
-		}
-
-		CPinDesc &operator = (CPinDesc const &from)
-		{
-			m_ref_des  = from.m_ref_des;
-			m_pin_name = from.m_pin_name;
-
-			return *this;
-		}
-	};
+		return *this;
+	}
+};
 
 	class CMapNetToPins : public CMapPtrToPtr
 	{
@@ -388,6 +389,7 @@ public:
 	CArray<int> vcon;	// connections
 	CArray<int> vtx;	// vertices
 	CDisplayList * m_dlist;
+	float opacity;		// 0 - 1
 	int utility, utility2;
 };
 
@@ -706,16 +708,24 @@ public:
 	// functions for nets and pins
 	void MarkAllNets( int utility );
 	void MoveOrigin( int x_off, int y_off );
+	
 	cnet * GetNetPtrByName( CString const &name );
+
 	cnet * AddNet( CString const &name, int initial_pin_count, CNetWidthInfo const &def_width_attrib );
 	void RemoveNet( cnet * net );
 	void RemoveAllNets();
+
 	part_pin * AddNetPin( cnet * net, CString const &ref_des, CString const &pin_name, BOOL set_areas=TRUE );
 	void RemoveNetPin( cpart * part, CString * pin_name );
 	void RemoveNetPin( cnet * net, CString const &ref_des, CString const &pin_name );
 	void RemoveNetPin( cnet * net, int pin_index );
+
 	void DisconnectNetPin( cpart * part, CString const &pin_name );
 	void DisconnectNetPin( cnet * net, CString const &ref_des, CString const &pin_name );
+
+	part_pin * getPartPin( CString const &full_pin_name );
+	part_pin * getPartPin( cnet * net, int pin_id );
+
 	int GetNetPinIndex( cnet * net, CString const &ref_des, CString const &pin_name );
 	int SetNetWidth( cnet * net, CInheritableInfo const &width_attrib );
 	int UpdateNetAttributes( cnet * net );
