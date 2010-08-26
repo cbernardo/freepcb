@@ -2044,6 +2044,10 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 			CPoint p;
 			p = m_last_cursor_point;
 			int iarea = m_Doc->m_nlist->AddArea( m_sel_net, m_active_layer, p.x, p.y, m_polyline_hatch );
+
+			// BAF FIX -> add to AddArea
+			m_sel_net->area[iarea].opacity = m_area_opacity;
+
 			m_sel_id.Set( m_sel_net->id.type, ID_AREA, iarea, ID_SEL_CORNER, 1 );
 			m_dlist->StartDraggingArc( pDC, m_polyline_style, p.x, p.y, p.x, p.y, LAY_SELECTION, 1, 2 );
 			SetCursorMode( CUR_DRAG_AREA_1 );
@@ -6409,10 +6413,17 @@ void CFreePcbView::OnAddArea()
 			MakeLayerVisible( dlg.m_layer );
 
 			m_sel_net = dlg.m_net;
-			m_dlist->StartDraggingArray( pDC, m_last_cursor_point.x,
-				m_last_cursor_point.y, 0, m_active_layer, 2 );
+			m_dlist->StartDraggingArray( 
+				pDC, 
+				m_last_cursor_point.x, m_last_cursor_point.y, 
+				0, 
+				m_active_layer, 
+				2 
+			);
 			m_polyline_style = CPolyLine::STRAIGHT;
 			m_polyline_hatch = dlg.m_hatch;
+			m_area_opacity   = dlg.m_opacity / 100.0f;
+
 			Invalidate( FALSE );
 			ReleaseDC( pDC );
 		}

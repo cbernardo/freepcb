@@ -377,6 +377,7 @@ public:
 	int m_polyline_style;	// STRAIGHT, ARC_CW or ARC_CCW
 	int m_polyline_hatch;	// NONE, DIAGONAL_FULL or DIAGONAL_EDGE
 	int m_polyline_layer;	// layer being drawn
+	float m_area_opacity;   // Copper area opacity
 
 	// flag to disable context menu on right-click,
 	// if right-click handled some other way
