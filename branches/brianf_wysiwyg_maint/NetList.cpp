@@ -5368,7 +5368,7 @@ void CNetList::ImportNetListInfo( netlist_info * nl, int flags, CDlgLog * log )
 
 			for( int ip=0; ip<net->npins; ip++ )
 			{
-				net_info::CPinDesc pin(net->pin[ip].ref_des(), net->pin[ip].pin_name);
+				CPinDesc pin(net->pin[ip].ref_des(), net->pin[ip].pin_name);
 				db_pin_to_net.SetAt(pin.full_name(), net);
 			}
 		}
@@ -5400,7 +5400,7 @@ void CNetList::ImportNetListInfo( netlist_info * nl, int flags, CDlgLog * log )
 		// Compare to current netlist
 		for( int ip=0; ip < net_info.pin_name.GetSize(); ip++ )
 		{
-			net_info::CPinDesc pin(net_info.ref_des[ip], net_info.pin_name[ip]);
+			CPinDesc pin(net_info.ref_des[ip], net_info.pin_name[ip]);
 
 			CString pin_name = pin.full_name();
 
@@ -5651,17 +5651,15 @@ void CNetList::ImportNetListInfo( netlist_info * nl, int flags, CDlgLog * log )
 		{
 			db_pin_to_net.GetNextAssoc(pos, pin, (void*&)net );
 		
-			int dot_pos = pin.Find('.');
-			CString ref_des  = pin.Left( dot_pos );
-			CString pin_name = pin.Right( pin.GetLength() - (dot_pos+1) );
+			CPinDesc pin_desc(pin);
 
 			if( flags & KEEP_PARTS_AND_CON )
 			{
 				// we may want to preserve this pin
-				cpart * part = m_plist->GetPart( ref_des );
+				cpart * part = m_plist->GetPart( pin_desc.ref_des() );
 				if( !part || !part->bPreserve )
 				{
-					RemoveNetPin( net, ref_des, pin_name );
+					RemoveNetPin( net, pin_desc.ref_des(), pin_desc.pin_name() );
 				}
 				else
 				{
@@ -5678,7 +5676,7 @@ void CNetList::ImportNetListInfo( netlist_info * nl, int flags, CDlgLog * log )
 					bDisplayedSomething = true;
 				}
 
-				RemoveNetPin( net, ref_des, pin_name );
+				RemoveNetPin( net, pin_desc.ref_des(), pin_desc.pin_name() );
 			}
 		}
 	}
@@ -5729,10 +5727,7 @@ void CNetList::ImportNetListInfo( netlist_info * nl, int flags, CDlgLog * log )
 				for( pin_idx = 0; pin_idx < pins->GetSize(); pin_idx++ )
 				{
 					CString &pin = (*pins)[ pin_idx ];
-
-					int dot_pos = pin.Find('.');
-					CString ref_des  = pin.Left( dot_pos );
-					CString pin_name = pin.Right( pin.GetLength() - (dot_pos+1) );
+					CPinDesc pin_desc(pin);
 
 					if( log )
 					{
@@ -5746,12 +5741,12 @@ void CNetList::ImportNetListInfo( netlist_info * nl, int flags, CDlgLog * log )
 						bDisplayedSomething = true;
 					}
 
-					RemoveNetPin( net,          ref_des, pin_name );
-					AddNetPin   ( net_info.net, ref_des, pin_name );
-					}
-					}
+					RemoveNetPin( net,          pin_desc.ref_des(), pin_desc.pin_name() );
+					AddNetPin   ( net_info.net, pin_desc.ref_des(), pin_desc.pin_name() );
 				}
 			}
+		}
+	}
 
 	if( log )
 	{
