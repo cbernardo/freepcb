@@ -158,6 +158,66 @@ struct undo_net {
 };
 
 
+class CPinDesc
+{
+	CString m_ref_des;
+	CString m_pin_name;
+
+public:
+	CPinDesc() {}
+
+	CPinDesc(CString const &full_name)
+	{
+		set_full_name(full_name);
+	}
+
+	CPinDesc(CString const &ref_des, CString const &pin_name) :
+		m_ref_des(ref_des),
+		m_pin_name(pin_name)
+	{
+	}
+
+	CString const &ref_des() const
+	{
+		return m_ref_des;
+	}
+	CString const &pin_name() const
+	{
+		return m_pin_name;
+	}
+	CString full_name() const
+	{
+		CString name;
+		name.Format("%s.%s", m_ref_des, m_pin_name);
+
+		return name;
+	}
+
+	void set_ref_des(CString const &name)
+	{
+		m_ref_des = name;
+	}
+	void set_pin_name(CString const &name)
+	{
+		m_pin_name = name;
+	}
+	void set_full_name(CString const &full_name)
+	{
+		int dot_pos = full_name.Find('.');
+		m_ref_des  = full_name.Left( dot_pos );
+		m_pin_name = full_name.Right( full_name.GetLength() - (dot_pos+1) );
+	}
+
+	CPinDesc &operator = (CPinDesc const &from)
+	{
+		m_ref_des  = from.m_ref_des;
+		m_pin_name = from.m_pin_name;
+
+		return *this;
+	}
+};
+
+
 // net_info structure
 // used as a temporary copy of net info for editing in dialogs
 // or importing/exporting netlists
@@ -184,45 +244,6 @@ public: // class used to represent a net_info for std::sort()
 
 		CSortElement() : m_info(NULL) {}
 	};
-
-class CPinDesc
-{
-	CString m_ref_des;
-	CString m_pin_name;
-
-public:
-	CPinDesc() {}
-
-	CPinDesc(CString const &ref_des, CString const &pin_name) :
-		m_ref_des(ref_des),
-		m_pin_name(pin_name)
-	{
-	}
-
-	CString const &ref_des() const
-	{
-		return m_ref_des;
-	}
-	CString const &pin_name() const
-	{
-		return m_pin_name;
-	}
-	CString full_name() const
-	{
-		CString name;
-		name.Format("%s.%s", m_ref_des, m_pin_name);
-
-		return name;
-	}
-
-	CPinDesc &operator = (CPinDesc const &from)
-	{
-		m_ref_des  = from.m_ref_des;
-		m_pin_name = from.m_pin_name;
-
-		return *this;
-	}
-};
 
 	class CMapNetToPins : public CMapPtrToPtr
 	{
