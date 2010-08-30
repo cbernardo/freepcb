@@ -1,6 +1,10 @@
 #include "stdafx.h"
 #include "DrawingElement.h"
 
+dl_element::CHilitePen::CHilitePen(dl_element const *element, CDrawInfo const &di) :
+	CPen( PS_SOLID, element->w + PCBU_PER_WU / 256 + 3*(int)element->dlist->m_scale, di.layer_color[0] )
+{
+}
 
 void dl_element::Draw(CDrawInfo const &di) const
 {

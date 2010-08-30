@@ -25,7 +25,7 @@ void CDLE_ARC_CW::_Draw(CDrawInfo const &di) const
 	{
 		if( layer == LAY_HILITE )
 		{
-			CPen pen( PS_SOLID, w + PCBU_PER_WU / 256 + 3*(int)dlist->m_scale, di.layer_color[0] );
+			CHilitePen pen( this, di );
 			CPen *old_pen = di.DC_Master->SelectObject( &pen );
 			DrawArc( di.DC_Master, DL_ARC_CW, i.x, i.y, f.x, f.y );
 			di.DC_Master->SelectObject( old_pen );
