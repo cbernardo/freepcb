@@ -14,6 +14,14 @@ class dl_element : public CDLinkList
 {
 	friend class CDisplayList;
 
+protected:
+	class CHilitePen : public CPen
+	{
+	public:
+		explicit CHilitePen(dl_element const *element, CDrawInfo const &di);
+	};
+	friend class CHilitePen;
+
 public:
 	int magic;
 	id id;			// identifier (see ids.h)
@@ -61,6 +69,7 @@ protected:
 	                  // the original layer, the highlight will
 	                  // only be drawn if this layer is visible
 };
+
 
 // n-sided with equal length sides
 class CDLE_Symmetric : public dl_element
