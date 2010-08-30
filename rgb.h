@@ -85,7 +85,8 @@ class C_RGBA
 		_C_CONV_COLOR_REF ccr(c); 
 		r=ccr.r; 
 		g=ccr.g; 
-		b=ccr.b; 
+		b=ccr.b;
+		a=0;
 	}
 
 public:

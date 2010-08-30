@@ -23,6 +23,14 @@ void CDLE_ARC_CW::_Draw(CDrawInfo const &di) const
 {
 	if( onScreen() )
 	{
+		if( layer == LAY_HILITE )
+		{
+			CPen pen( PS_SOLID, w + PCBU_PER_WU / 256 + 3*(int)dlist->m_scale, di.layer_color[0] );
+			CPen *old_pen = di.DC_Master->SelectObject( &pen );
+			DrawArc( di.DC_Master, DL_ARC_CW, i.x, i.y, f.x, f.y );
+			di.DC_Master->SelectObject( old_pen );
+		}
+
 		CPen pen( PS_SOLID, w, di.layer_color[1] );
 		di.DC->SelectObject( &pen );
 		DrawArc( di.DC, DL_ARC_CW, i.x, i.y, f.x, f.y );
@@ -36,6 +44,14 @@ void CDLE_ARC_CCW::_Draw(CDrawInfo const &di) const
 {
 	if( onScreen() )
 	{
+		if( layer == LAY_HILITE )
+		{
+			CPen pen( PS_SOLID, w + PCBU_PER_WU / 256 + 3*(int)dlist->m_scale, di.layer_color[0] );
+			CPen *old_pen = di.DC_Master->SelectObject( &pen );
+			DrawArc( di.DC_Master, DL_ARC_CCW, i.x, i.y, f.x, f.y );
+			di.DC_Master->SelectObject( old_pen );
+		}
+
 		CPen pen( PS_SOLID, w, di.layer_color[1] );
 		di.DC->SelectObject( &pen );
 		DrawArc( di.DC, DL_ARC_CCW, i.x, i.y, f.x, f.y );
