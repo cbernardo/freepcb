@@ -5974,7 +5974,7 @@ void CFreePcbView::OnTextAdd()
 	add_text_dlg.Initialize( 0, m_Doc->m_num_layers, 1, &str, m_Doc->m_units,
 			LAY_SILK_TOP, 0, 0, 0, 0, 0, 0, 0 );
 	add_text_dlg.m_num_layers = m_Doc->m_num_layers;
-	add_text_dlg.m_drag_flag = 1;
+	add_text_dlg.m_bDrag = 1;
 	// defaults for dialog
 	int ret = add_text_dlg.DoModal();
 	if( ret == IDCANCEL )
@@ -5983,7 +5983,7 @@ void CFreePcbView::OnTextAdd()
 	{
 		int x = add_text_dlg.m_x;
 		int y = add_text_dlg.m_y;
-		int mirror = add_text_dlg.m_mirror;
+		int mirror = add_text_dlg.m_bMirror;
 		BOOL bNegative = add_text_dlg.m_bNegative;
 		int angle = add_text_dlg.m_angle;
 		int font_size = add_text_dlg.m_height;
@@ -6001,7 +6001,7 @@ void CFreePcbView::OnTextAdd()
 		CDC *pDC = GetDC();
 		pDC->SelectClipRgn( &m_pcb_rgn );
 		SetDCToWorldCoords( pDC );
-		if( add_text_dlg.m_drag_flag )
+		if( add_text_dlg.m_bDrag )
 		{
 			m_sel_text = m_Doc->m_tlist->AddText( p.x, p.y, angle, mirror, bNegative,
 				layer, font_size, stroke_width, &str );
@@ -6896,7 +6896,7 @@ void CFreePcbView::OnTextEdit()
 	SaveUndoInfoForText( m_sel_text, CTextList::UNDO_TEXT_MODIFY, TRUE, m_Doc->m_undo_list );
 	int x = add_text_dlg.m_x;
 	int y = add_text_dlg.m_y;
-	int mirror = add_text_dlg.m_mirror;
+	int mirror = add_text_dlg.m_bMirror;
 	BOOL bNegative = add_text_dlg.m_bNegative;
 	int angle = add_text_dlg.m_angle;
 	int font_size = add_text_dlg.m_height;
@@ -6912,7 +6912,7 @@ void CFreePcbView::OnTextEdit()
 	m_Doc->m_tlist->HighlightText( m_sel_text );
 
 	// start dragging if requested in dialog
-	if( add_text_dlg.m_drag_flag )
+	if( add_text_dlg.m_bDrag )
 		OnTextMove();
 	else
 		Invalidate( FALSE );
