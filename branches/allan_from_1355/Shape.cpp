@@ -1358,7 +1358,6 @@ int CShape::MakeFromFile( CStdioFile * in_file, CString name,
 			}
 			else if( key_str == "top_pad" && np >= 5 )
 			{
-				// testing
 				pad * test_pad = &m_padstack[ipin].top;
 				if( test_pad->connect_flag != 0 )
 					ASSERT(0);
@@ -1367,7 +1366,11 @@ int CShape::MakeFromFile( CStdioFile * in_file, CString name,
 				m_padstack[ipin].top.size_l = GetDimensionFromString( &p[2], m_units); 
 				m_padstack[ipin].top.size_r = GetDimensionFromString( &p[3], m_units);
 				if( np >= 6 )
+				{
 					m_padstack[ipin].top.radius = GetDimensionFromString( &p[4], m_units);
+					int rad_min = min( m_padstack[ipin].top.size_h/2, m_padstack[ipin].top.size_l );
+					m_padstack[ipin].top.radius = min( m_padstack[ipin].top.radius, rad_min );
+				}
 				if( np >= 7 )
 					m_padstack[ipin].top.connect_flag = my_atoi( &p[5] );
 			}
@@ -1380,6 +1383,8 @@ int CShape::MakeFromFile( CStdioFile * in_file, CString name,
 				m_padstack[ipin].top_mask.size_l = GetDimensionFromString( &p[2], m_units); 
 				m_padstack[ipin].top_mask.size_r = GetDimensionFromString( &p[3], m_units);
 				m_padstack[ipin].top_mask.radius = GetDimensionFromString( &p[4], m_units);
+				int rad_min = min( m_padstack[ipin].top_mask.size_h/2, m_padstack[ipin].top_mask.size_l );
+				m_padstack[ipin].top_mask.radius = min( m_padstack[ipin].top_mask.radius, rad_min );
 			}
 			else if( key_str == "top_paste" && np >= 6 )
 			{
@@ -1390,18 +1395,19 @@ int CShape::MakeFromFile( CStdioFile * in_file, CString name,
 				m_padstack[ipin].top_paste.size_l = GetDimensionFromString( &p[2], m_units); 
 				m_padstack[ipin].top_paste.size_r = GetDimensionFromString( &p[3], m_units);
 				m_padstack[ipin].top_paste.radius = GetDimensionFromString( &p[4], m_units);
+				int rad_min = min( m_padstack[ipin].top_paste.size_h/2, m_padstack[ipin].top_paste.size_l );
+				m_padstack[ipin].top_paste.radius = min( m_padstack[ipin].top_paste.radius, rad_min );
 			}
-			//			else if( key_str == "inner_pad" && np >= 5 )
 			else if( key_str == "inner_pad" && np >= 7 )
 			{
 				m_padstack[ipin].inner.shape = my_atoi( &p[0] ); 
 				m_padstack[ipin].inner.size_h = GetDimensionFromString( &p[1], m_units); 
 				m_padstack[ipin].inner.size_l = GetDimensionFromString( &p[2], m_units); 
 				m_padstack[ipin].inner.size_r = GetDimensionFromString( &p[3], m_units);
-				if( np >= 6 )
-					m_padstack[ipin].inner.radius = GetDimensionFromString( &p[4], m_units);
-				if( np >= 7 )
-					m_padstack[ipin].inner.connect_flag = my_atoi( &p[5] );
+				m_padstack[ipin].inner.radius = GetDimensionFromString( &p[4], m_units);
+				int rad_min = min( m_padstack[ipin].inner.size_h/2, m_padstack[ipin].inner.size_l );
+				m_padstack[ipin].inner.radius = min( m_padstack[ipin].inner.radius, rad_min );
+				m_padstack[ipin].inner.connect_flag = my_atoi( &p[5] );
 			}
 			else if( key_str == "bottom_pad" && np >= 5 )
 			{
@@ -1410,7 +1416,11 @@ int CShape::MakeFromFile( CStdioFile * in_file, CString name,
 				m_padstack[ipin].bottom.size_l = GetDimensionFromString( &p[2], m_units); 
 				m_padstack[ipin].bottom.size_r = GetDimensionFromString( &p[3], m_units);
 				if( np >= 6 )
+				{
 					m_padstack[ipin].bottom.radius = GetDimensionFromString( &p[4], m_units);
+					int rad_min = min( m_padstack[ipin].bottom.size_h/2, m_padstack[ipin].bottom.size_l );
+					m_padstack[ipin].bottom.radius = min( m_padstack[ipin].bottom.radius, rad_min );
+				}
 				if( np >= 7 )
 					m_padstack[ipin].bottom.connect_flag = my_atoi( &p[5] );
 			}
@@ -1423,6 +1433,8 @@ int CShape::MakeFromFile( CStdioFile * in_file, CString name,
 				m_padstack[ipin].bottom_mask.size_l = GetDimensionFromString( &p[2], m_units); 
 				m_padstack[ipin].bottom_mask.size_r = GetDimensionFromString( &p[3], m_units);
 				m_padstack[ipin].bottom_mask.radius = GetDimensionFromString( &p[4], m_units);
+				int rad_min = min( m_padstack[ipin].bottom_mask.size_h/2, m_padstack[ipin].bottom_mask.size_l );
+				m_padstack[ipin].bottom_mask.radius = min( m_padstack[ipin].bottom_mask.radius, rad_min );
 			}
 			else if( key_str == "bottom_paste" && np >= 6 )
 			{
@@ -1433,6 +1445,8 @@ int CShape::MakeFromFile( CStdioFile * in_file, CString name,
 				m_padstack[ipin].bottom_paste.size_l = GetDimensionFromString( &p[2], m_units); 
 				m_padstack[ipin].bottom_paste.size_r = GetDimensionFromString( &p[3], m_units);
 				m_padstack[ipin].bottom_paste.radius = GetDimensionFromString( &p[4], m_units);
+				int rad_min = min( m_padstack[ipin].bottom_paste.size_h/2, m_padstack[ipin].bottom_paste.size_l );
+				m_padstack[ipin].bottom_paste.radius = min( m_padstack[ipin].bottom_paste.radius, rad_min );
 			}
 			else
 			{
@@ -1614,7 +1628,6 @@ BOOL CShape::Compare( CShape * shape )
 		if (m_outline_poly[ip].GetClosed() != shape->m_outline_poly[ip].GetClosed() ) return FALSE;
 		if (m_outline_poly[ip].GetHatch() != shape->m_outline_poly[ip].GetHatch() ) return FALSE;
 		if (m_outline_poly[ip].GetW() != shape->m_outline_poly[ip].GetW() ) return FALSE;
-//		if (m_outline_poly[ip].GetSelBoxSize() != shape->m_outline_poly[ip].GetSelBoxSize() ) return FALSE;
 		if (m_outline_poly[ip].GetNumCorners() != shape->m_outline_poly[ip].GetNumCorners() ) return FALSE;
 		for( int ic=0; ic<m_outline_poly[ip].GetNumCorners(); ic++ )
 		{

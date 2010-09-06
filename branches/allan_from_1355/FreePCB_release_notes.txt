@@ -9,6 +9,8 @@ FreePCB release notes: (versions since 1.2)
 - removes NDEBUG definition from release version properties so that ASSERT will work
 - fixed bug that changed side styles when moving a group with polylines
 - fixed Add Text dialog so it remembers last values used and preserves width if layer changed
+- fixed Add Pin dialog so rrect pad radius can't be > length/2 or width/2
+- on reading footprint from a file, rrect pad radius forced to a legal value (see above)
 
 1.358
 -----

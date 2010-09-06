@@ -430,6 +430,64 @@ void CDlgAddPin::DoDataExchange(CDataExchange* pDX)
 			AfxMessageBox( "SMT pad shape can't be \"none\"" );
 			pDX->Fail();
 		}
+		if( m_padstack_type == 0 || m_padstack_type == 1 )
+		{
+			if( m_top_shape == PAD_RRECT && 
+				( m_top_radius > m_top_length/2 )
+				|| ( m_top_radius > m_top_width/2 ) )
+			{
+				AfxMessageBox( "Radius of top rounded-rect pad > length/2 or width/2" );
+				pDX->Fail();
+			}
+			if( m_top_mask_shape == PAD_RRECT && 
+				( m_top_mask_radius > m_top_mask_length/2 )
+				|| ( m_top_mask_radius > m_top_mask_width/2 ) )
+			{
+				AfxMessageBox( "Radius of top mask rounded-rect pad > length/2 or width/2" );
+				pDX->Fail();
+			}
+			if( m_top_paste_shape == PAD_RRECT && 
+				( m_top_paste_radius > m_top_paste_length/2 )
+				|| ( m_top_paste_radius > m_top_paste_width/2 ) )
+			{
+				AfxMessageBox( "Radius of top paste rounded-rect pad > length/2 or width/2" );
+				pDX->Fail();
+			}
+		}
+		if( m_padstack_type == 1 )
+		{
+			if( m_inner_shape == PAD_RRECT && 
+				( m_inner_radius > m_inner_length/2 )
+				|| ( m_inner_radius > m_inner_width/2 ) )
+			{
+				AfxMessageBox( "Radius of inner rounded-rect pad > length/2 or width/2" );
+				pDX->Fail();
+			}
+		}
+		if( m_padstack_type == 1 || m_padstack_type == 2 )
+		{
+			if( m_bottom_shape == PAD_RRECT && 
+				( m_bottom_radius > m_bottom_length/2 )
+				|| ( m_bottom_radius > m_bottom_width/2 ) )
+			{
+				AfxMessageBox( "Radius of bottom rounded-rect pad > length/2 or width/2" );
+				pDX->Fail();
+			}
+			if( m_bottom_mask_shape == PAD_RRECT && 
+				( m_bottom_mask_radius > m_bottom_mask_length/2 )
+				|| ( m_bottom_mask_radius > m_bottom_mask_width/2 ) )
+			{
+				AfxMessageBox( "Radius of bottom mask rounded-rect pad > length/2 or width/2" );
+				pDX->Fail();
+			}
+			if( m_bottom_paste_shape == PAD_RRECT && 
+				( m_bottom_paste_radius > m_bottom_paste_length/2 )
+				|| ( m_bottom_paste_radius > m_bottom_paste_width/2 ) )
+			{
+				AfxMessageBox( "Radius of bottom paste rounded-rect pad > length/2 or width/2" );
+				pDX->Fail();
+			}
+		}
 		// now check for conflicts
 		if( nstr == "" )
 		{
