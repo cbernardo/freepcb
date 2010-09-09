@@ -3289,10 +3289,17 @@ int CPartList::GetPadDrawInfo( cpart * part, int ipin, int layer,
 			rr -= paste_mask_shrink;
 			if( rr < 0 )
 				rr = 0;
+			if( ww <= 0 || ll <= 0 )
+			{
+				ww = 0;
+				ll = 0;
+				ret_code = 0;
+			}
 		}
 		else
 		{
 			ww = ll = 0;	// no paste for through-hole pins
+			ret_code = 0;
 		}
 	}
 

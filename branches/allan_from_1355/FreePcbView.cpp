@@ -620,7 +620,6 @@ void CFreePcbView::OnSize(UINT nType, int cx, int cy)
 		m_memDC.CreateCompatibleDC( pDC );
 		m_memDC_created = TRUE;
 		m_bitmap.CreateCompatibleBitmap( pDC, m_client_r.right, m_client_r.bottom );
-//		m_old_bitmap = m_memDC.SelectObject( &m_bitmap );
 		m_old_bitmap = (HBITMAP)::SelectObject( m_memDC.m_hDC, m_bitmap.m_hObject );		
 		m_bitmap_rect = m_client_r;
 		ReleaseDC( pDC );
@@ -628,11 +627,9 @@ void CFreePcbView::OnSize(UINT nType, int cx, int cy)
 	else if( m_memDC_created && (m_bitmap_rect != m_client_r) )
 	{
 		CDC * pDC = GetDC();
-//		m_memDC.SelectObject( m_old_bitmap );
 		::SelectObject(m_memDC.m_hDC, m_old_bitmap );
 		m_bitmap.DeleteObject();
 		m_bitmap.CreateCompatibleBitmap( pDC, m_client_r.right, m_client_r.bottom );
-//		m_old_bitmap = m_memDC.SelectObject( &m_bitmap );
 		m_old_bitmap = (HBITMAP)::SelectObject( m_memDC.m_hDC, m_bitmap.m_hObject );		
 		m_bitmap_rect = m_client_r;
 		ReleaseDC( pDC );
@@ -2913,7 +2910,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 		else
 		{
 			// toggle through straight or curved options
-			SaveUndoInfoForConnection( m_sel_net, m_sel_ic, TRUE, m_Doc->m_undo_list );
+			SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_Doc->m_undo_list );
 			m_Doc->m_nlist->UndrawConnection( m_sel_net, m_sel_ic );
 			s->curve++;
 			if( s->curve > cseg::CW )
@@ -3237,7 +3234,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 				// shift key held down, change layer if item selected 
 				if( m_cursor_mode == CUR_SEG_SELECTED )
 				{
-					SaveUndoInfoForConnection( m_sel_net, m_sel_ic, TRUE, m_Doc->m_undo_list );
+					SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_Doc->m_undo_list );
 					m_Doc->m_nlist->UndrawConnection( m_sel_net, m_sel_ic );
 					cconnect * c = &m_sel_net->connect[m_sel_ic];
 					cseg * seg = &c->seg[m_sel_is];
@@ -3248,7 +3245,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 				}
 				else if( m_cursor_mode == CUR_CONNECT_SELECTED )
 				{
-					SaveUndoInfoForConnection( m_sel_net, m_sel_ic, TRUE, m_Doc->m_undo_list );
+					SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_Doc->m_undo_list );
 					m_Doc->m_nlist->UndrawConnection( m_sel_net, m_sel_ic );
 					cconnect * c = &m_sel_net->connect[m_sel_ic];
 					for( int is=0; is<c->nsegs; is++ )
@@ -4750,6 +4747,8 @@ void CFreePcbView::ShowRelativeDistance( int x, int y, int dx, int dy )
 //
 int CFreePcbView::ShowSelectStatus()
 {
+//#define SHOW_UIDS
+
 	CString x_str, y_str, w_str, hole_str, via_w_str, via_hole_str;
 	int u = m_Doc->m_units;
 
@@ -4899,6 +4898,7 @@ int CFreePcbView::ShowSelectStatus()
 				else
 				{
 					// stub trace segment
+#ifdef SHOW_UIDS
 					if( m_sel_con.vtx[m_sel_con.nsegs].tee_ID )
 						str.Format( "net \"%s\" branch(%d) to %s.%s, seg %d, width %d (T%d) uid %d",
 							m_sel_net->name, m_sel_id.i+1,
@@ -4918,6 +4918,25 @@ int CFreePcbView::ShowSelectStatus()
 							m_sel_seg.width/NM_PER_MIL,
 							m_sel_seg.m_uid
 						);
+#else
+					if( m_sel_con.vtx[m_sel_con.nsegs].tee_ID )
+						str.Format( "net \"%s\" branch(%d) to %s.%s, seg %d, width %d (T%d)",
+							m_sel_net->name, m_sel_id.i+1,
+							m_sel_start_pin.ref_des,
+							m_sel_start_pin.pin_name,
+							m_sel_id.ii+1,
+							m_sel_seg.width/NM_PER_MIL,
+							m_sel_con.vtx[m_sel_con.nsegs].tee_ID
+						);
+					else
+						str.Format( "net \"%s\" stub(%d) from %s.%s, seg %d, width %d",
+							m_sel_net->name, m_sel_id.i+1,
+							m_sel_start_pin.ref_des,
+							m_sel_start_pin.pin_name,
+							m_sel_id.ii+1,
+							m_sel_seg.width/NM_PER_MIL
+						);
+#endif
 				}
 			}
 			else
@@ -4926,6 +4945,7 @@ int CFreePcbView::ShowSelectStatus()
 				CString locked_flag = "";
 				if( m_sel_con.locked )
 					locked_flag = " (L)";
+#ifdef SHOW_UIDS
 				if( m_sel_con.nsegs == 1 && m_sel_seg.layer == LAY_RAT_LINE )
 				{
 					str.Format( "net \"%s\" connection(%d) %s.%s-%s.%s%s, seg %d, width %d uid %d",
@@ -4952,6 +4972,32 @@ int CFreePcbView::ShowSelectStatus()
 						m_sel_seg.m_uid
 						);
 				}
+#else
+				if( m_sel_con.nsegs == 1 && m_sel_seg.layer == LAY_RAT_LINE )
+				{
+					str.Format( "net \"%s\" connection(%d) %s.%s-%s.%s%s, seg %d, width %d",
+						m_sel_net->name, m_sel_id.i+1,
+						m_sel_start_pin.ref_des,
+						m_sel_start_pin.pin_name,
+						m_sel_end_pin.ref_des,
+						m_sel_end_pin.pin_name,
+						locked_flag, m_sel_id.ii+1,
+						m_sel_seg.width/NM_PER_MIL
+						);
+				}
+				else
+				{
+					str.Format( "net \"%s\" trace(%d) %s.%s-%s.%s%s, seg %d, width %d",
+						m_sel_net->name,  m_sel_id.i+1,
+						m_sel_start_pin.ref_des,
+						m_sel_start_pin.pin_name,
+						m_sel_end_pin.ref_des,
+						m_sel_end_pin.pin_name,
+						locked_flag, m_sel_id.ii+1,
+						m_sel_seg.width/NM_PER_MIL
+						);
+				}
+#endif
 			}
 		}
 		break;
@@ -4972,6 +5018,7 @@ int CFreePcbView::ShowSelectStatus()
 			::MakeCStringFromDimension( &y_str, m_sel_vtx.y, u, FALSE, FALSE, FALSE, u==MIL?1:3 );
 			::MakeCStringFromDimension( &via_w_str, m_sel_vtx.via_w, u, FALSE, FALSE, FALSE, u==MIL?1:3 );
 			::MakeCStringFromDimension( &via_hole_str, m_sel_vtx.via_hole_w, u, FALSE, FALSE, FALSE, u==MIL?1:3 );
+#ifdef SHOW_UIDS
 			if( m_sel_con.end_pin == cconnect::NO_END )
 			{
 				// vertex of stub trace
@@ -5072,6 +5119,102 @@ int CFreePcbView::ShowSelectStatus()
 						);
 				}
 			}
+#else
+			if( m_sel_con.end_pin == cconnect::NO_END )
+			{
+				// vertex of stub trace
+				if( via_w )
+				{
+					// via
+					if( m_sel_con.vtx[m_sel_con.nsegs].tee_ID )
+						str.Format( "net \"%s\" branch(%d) to %s.%s, vertex %d, x %s, y %s, via %s/%s %s",
+							m_sel_net->name, m_sel_id.i+1,
+							m_sel_start_pin.ref_des,
+							m_sel_start_pin.pin_name,
+							m_sel_id.ii,
+							x_str,
+							y_str,
+							via_w_str,
+							via_hole_str,
+							tee_flag
+							);
+					else
+						str.Format( "net \"%s\" stub(%d) from %s.%s, vertex %d, x %s, y %s, via %s/%s %s",
+							m_sel_net->name, m_sel_id.i+1,
+							m_sel_start_pin.ref_des,
+							m_sel_start_pin.pin_name,
+							m_sel_id.ii,
+							x_str,
+							y_str,
+							via_w_str,
+							via_hole_str,
+							tee_flag
+							);
+				}
+				else
+				{
+					// no via
+					if( m_sel_con.vtx[m_sel_con.nsegs].tee_ID )
+						str.Format( "net \"%s\" branch(%d) to %s.%s, vertex %d, x %s, y %s %s",
+							m_sel_net->name, m_sel_id.i+1,
+							m_sel_start_pin.ref_des,
+							m_sel_start_pin.pin_name,
+							m_sel_id.ii,
+							x_str,
+							y_str,
+							tee_flag
+							);
+					else
+						str.Format( "net \"%s\" stub(%d) from %s.%s, vertex %d, x %s, y %s %s",
+							m_sel_net->name, m_sel_id.i+1,
+							m_sel_start_pin.ref_des,
+							m_sel_start_pin.pin_name,
+							m_sel_id.ii,
+							x_str,
+							y_str,
+							tee_flag
+							);
+				}
+			}
+			else
+			{
+				// vertex of normal connected trace
+				if( via_w )
+				{
+					// with via
+					str.Format( "net \"%s\" trace(%d) %s.%s-%s.%s%s, vertex %d, x %s, y %s, via %s/%s %s",
+						m_sel_net->name, m_sel_id.i+1,
+						m_sel_start_pin.ref_des,
+						m_sel_start_pin.pin_name,
+						m_sel_end_pin.ref_des,
+						m_sel_end_pin.pin_name,
+						locked_flag,
+						m_sel_id.ii,
+						x_str,
+						y_str,
+						via_w_str,
+						via_hole_str,
+						tee_flag
+						);
+				}
+				else
+				{
+					// no via
+					str.Format( "net \"%s\" trace(%d) %s.%s-%s.%s%s, vertex %d, x %s, y %s %s",
+						m_sel_net->name, m_sel_id.i+1,
+						m_sel_start_pin.ref_des,
+						m_sel_start_pin.pin_name,
+						m_sel_end_pin.ref_des,
+						m_sel_end_pin.pin_name,
+						locked_flag,
+						m_sel_id.ii,
+						x_str,
+						y_str,
+						tee_flag
+						);
+				}
+			}
+#endif
 		}
 		break;
 
@@ -5087,6 +5230,7 @@ int CFreePcbView::ShowSelectStatus()
 			::MakeCStringFromDimension( &y_str, m_sel_vtx.y, u, FALSE, FALSE, FALSE, u==MIL?1:3 );
 			::MakeCStringFromDimension( &via_w_str, m_sel_vtx.via_w, u, FALSE, FALSE, FALSE, u==MIL?1:3 );
 			::MakeCStringFromDimension( &via_hole_str, m_sel_vtx.via_hole_w, u, FALSE, FALSE, FALSE, u==MIL?1:3 );
+#ifdef SHOW_UIDS
 			str.Format( "net \"%s\" stub(%d) end, x %s, y %s, via %s/%s %s uid %d",
 				m_sel_net->name, m_sel_id.i+1,
 				x_str,
@@ -5096,6 +5240,16 @@ int CFreePcbView::ShowSelectStatus()
 				tee_flag,
 				uid
 				);
+#else
+			str.Format( "net \"%s\" stub(%d) end, x %s, y %s, via %s/%s %s",
+				m_sel_net->name, m_sel_id.i+1,
+				x_str,
+				y_str,
+				via_w_str,
+				via_hole_str,
+				tee_flag
+				);
+#endif
 		}
 		break;
 
@@ -12473,6 +12627,7 @@ void CFreePcbView::SaveUndoInfoForNetAndConnections( cnet * net, int type, BOOL 
 }
 
 // save undo info for a connection
+// Note: this is now ONLY called from other Undo functions, it should never be used on its own
 //
 void CFreePcbView::SaveUndoInfoForConnection( cnet * net, int ic, BOOL new_event, CUndoList * list )
 {
