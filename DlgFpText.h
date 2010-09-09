@@ -25,9 +25,10 @@ protected:
 public:
 	void SetFields();
 	void GetFields();
-	BOOL m_bFixedString;
+	BOOL m_bNewText;
+	BOOL m_bFixedString;	// if TRUE, can't edit string
 	BOOL m_bDrag;		// 1 if dragging to position
-	int m_x, m_y;			// set on entry if editing
+	int m_x, m_y;		// set on entry if editing
 	int m_width;
 	int m_height;
 	int m_angle;

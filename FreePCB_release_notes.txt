@@ -10,7 +10,9 @@ FreePCB release notes: (versions since 1.2)
 - fixed bug that changed side styles when moving a group with polylines
 - fixed Add Text dialog so it remembers last values used and preserves width if layer changed
 - fixed Add Pin dialog so rrect pad radius can't be > length/2 or width/2
-- on reading footprint from a file, rrect pad radius forced to a legal value (see above)
+- on reading footprint from a file, rrect pad radius is forced to a legal value (see above)
+- fixed bug where pad shrink for paste mask could create negative widths or lengths
+- fixed bug where undoing certain operations on connections could duplicate connections
 
 1.358
 -----

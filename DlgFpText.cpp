@@ -8,6 +8,7 @@
 
 int gFpLastHeight = 100*NM_PER_MIL;
 int gFpLastWidth = 10*NM_PER_MIL;
+int gFpUseDefaultWidth = TRUE;
 
 // CDlgFpText dialog
 
@@ -54,6 +55,12 @@ void CDlgFpText::DoDataExchange(CDataExchange* pDX)
 		GetFields();
 		int ia = m_list_angle.GetCurSel();
 		m_angle = ia*90;
+		if( m_bNewText )
+		{
+			gFpLastHeight = m_height;
+			gFpLastWidth = m_width;
+			gFpUseDefaultWidth = m_button_def_width.GetCheck();
+		}
 	}
 }
 
@@ -77,6 +84,7 @@ void CDlgFpText::Initialize( BOOL bDrag, BOOL bFixedString,
 {
 	m_bDrag = bDrag;
 	m_bFixedString = bFixedString;
+	m_bNewText = (bDrag && !bFixedString && !str);
 	if( str )
 		m_str = *str;
 	else
@@ -110,7 +118,7 @@ BOOL CDlgFpText::OnInitDialog()
 	}
 
 	// height and width
-	if( m_height == 0 )
+	if( m_bNewText )
 	{
 		m_height = gFpLastHeight;
 		m_width = gFpLastWidth;
@@ -129,7 +137,7 @@ BOOL CDlgFpText::OnInitDialog()
 		m_list_angle.SetCurSel( 2 );
 	else
 		m_list_angle.SetCurSel( 3 );
-	if( !m_bDrag )
+	if( !m_bNewText )
 	{
 		// editing, so set from variables
 		m_button_set_position.SetCheck( 1 );
@@ -145,12 +153,12 @@ BOOL CDlgFpText::OnInitDialog()
 		// adding new text
 		m_button_drag.SetCheck( 1 );
 		m_list_angle.SetCurSel( 0 );
-		m_button_set_width.SetCheck( 0 );
-		m_button_def_width.SetCheck( 1 );
+		m_button_def_width.SetCheck( gFpUseDefaultWidth );
+		m_button_set_width.SetCheck( !gFpUseDefaultWidth );
 		m_edit_x.EnableWindow( 0 );
 		m_edit_y.EnableWindow( 0 );
 		m_list_angle.EnableWindow( 0 );
-		m_edit_width.EnableWindow( 0 );
+		m_edit_width.EnableWindow( !gFpUseDefaultWidth );
 	}
 	if( m_bFixedString )
 		m_text.EnableWindow( FALSE );
@@ -197,8 +205,6 @@ void CDlgFpText::OnEnChangeEditHeight()
 
 void CDlgFpText::OnBnClickedOk()
 {
-	gFpLastHeight = m_height;
-	gFpLastWidth = m_width;
 	OnOK();
 }
 
