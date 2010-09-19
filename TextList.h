@@ -31,14 +31,19 @@ class CText
 {
 public:
 	// member functions
-	CText( CDisplayList * dlist, int x, int y, int angle, 
+	CText();
+	CText( CDisplayList * dlist, id tid, int x, int y, int angle, 
 		int mirror, BOOL bNegative, int layer, int font_size, 
 		int stroke_width, SMFontUtil * smfontutil, CString * str_ptr );
 	~CText();
+	void Init( CDisplayList * dlist, id tid, int x, int y, int angle, 
+		int mirror, BOOL bNegative, int layer, int font_size, 
+		int stroke_width, SMFontUtil * smfontutil, CString * str_ptr );
 	void Draw( CDisplayList * dlist, SMFontUtil * smfontutil );
 	void Undraw();
 	// member variables
 	GUID m_guid;
+	id m_id;		// describes use of text
 	int m_x, m_y;
 	int m_layer;
 	int m_angle;

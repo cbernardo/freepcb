@@ -118,17 +118,19 @@ class CShape
 {
 	// if variables are added, remember to modify Copy!
 public:
-	enum { MAX_NAME_SIZE = 59 };	// max. characters
+	enum { MAX_NAME_SIZE = 59 };		// max. characters
 	enum { MAX_PIN_NAME_SIZE = 39 };
 	enum { MAX_VALUE_SIZE = 39 };
-	CString m_name;		// name of shape (e.g. "DIP20")
+	CString m_name;						// name of shape (e.g. "DIP20")
 	CString m_author;
 	CString m_source;
 	CString m_desc;
-	int m_units;		// units used for original definition (MM, NM or MIL)
+	int m_units;						// units used for original definition (MM, NM or MIL)
 	int m_sel_xi, m_sel_yi, m_sel_xf, m_sel_yf;			// selection rectangle
+	int m_ref_layer;				// 0 for top, 1 for bottom
 	int m_ref_size, m_ref_xi, m_ref_yi, m_ref_angle;	// ref text
 	int m_ref_w;						// thickness of stroke for ref text
+	int m_value_layer;			// 0 for top, 1 for bottom
 	int m_value_size, m_value_xi, m_value_yi, m_value_angle;	// value text
 	int m_value_w;						// thickness of stroke for value text
 	CENTROID_TYPE m_centroid_type;		// type of centroid
@@ -137,7 +139,7 @@ public:
 	CArray<padstack> m_padstack;		// array of padstacks for shape
 	CArray<CPolyLine> m_outline_poly;	// array of polylines for part outline
 	CTextList * m_tl;					// list of text strings
-	CArray<glue> m_glue;		// array of adhesive dots
+	CArray<glue> m_glue;				// array of adhesive dots
 
 public:
 	CShape();
@@ -195,7 +197,7 @@ public:
 
 public:
 	CDisplayList * m_dlist;
-	CArray<dl_element*> m_hole_el;		// hole display element 
+	CArray<dl_element*> m_hole_el;			// hole display element 
 	CArray<dl_element*> m_pad_top_el;		// top pad display element 
 	CArray<dl_element*> m_pad_inner_el;		// inner pad display element 
 	CArray<dl_element*> m_pad_bottom_el;	// bottom pad display element 
@@ -206,6 +208,7 @@ public:
 	CArray<dl_element*> m_pad_sel;		// pad selector
 	CArray<dl_element*> m_ref_el;		// strokes for "REF"
 	dl_element * m_ref_sel;				// ref selector
+	CText m_value_text;
 	CArray<dl_element*> m_value_el;		// strokes for "VALUE"
 	dl_element * m_value_sel;			// value selector
 	dl_element * m_centroid_el;			// centroid

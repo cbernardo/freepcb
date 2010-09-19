@@ -90,11 +90,13 @@ void CShape::Clear()
 	m_units = MIL;
 	m_sel_xi = m_sel_yi = 0;
 	m_sel_xf = m_sel_yf = 500*NM_PER_MIL;
+	m_ref_layer = LAY_FP_SILK_TOP;
 	m_ref_size = 100*NM_PER_MIL;
 	m_ref_xi = 100*NM_PER_MIL;
 	m_ref_yi = 200*NM_PER_MIL;
 	m_ref_angle = 0;
 	m_ref_w = 10*NM_PER_MIL;
+	m_value_layer = LAY_FP_SILK_TOP;
 	m_value_size = 100*NM_PER_MIL;		
 	m_value_xi = 100*NM_PER_MIL;
 	m_value_yi = 0;
@@ -1542,12 +1544,14 @@ int CShape::Copy( CShape * shape )
 	m_sel_xf = shape->m_sel_xf;
 	m_sel_yf = shape->m_sel_yf;
 	// reference designator text
+	m_ref_layer = shape->m_ref_layer;
 	m_ref_size = shape->m_ref_size;
 	m_ref_w = shape->m_ref_w;
 	m_ref_xi = shape->m_ref_xi;
 	m_ref_yi = shape->m_ref_yi;
 	m_ref_angle = shape->m_ref_angle;
 	// value text
+	m_value_layer = shape->m_value_layer;
 	m_value_size = shape->m_value_size;
 	m_value_w = shape->m_value_w;
 	m_value_xi = shape->m_value_xi;
@@ -1576,7 +1580,7 @@ int CShape::Copy( CShape * shape )
 	{
 		CText * t = shape->m_tl->text_ptr[it];
 		m_tl->AddText( t->m_x, t->m_y, t->m_angle, t->m_mirror, t->m_bNegative, 
-			LAY_FP_SILK_TOP, t->m_font_size, t->m_stroke_width, &t->m_str, FALSE ); 
+			t->m_layer, t->m_font_size, t->m_stroke_width, &t->m_str, FALSE ); 
 	}
 	// glue spots
 	int nd = shape->m_glue.GetSize();
@@ -2817,7 +2821,7 @@ void CEditShape::Draw( CDisplayList * dlist, SMFontUtil * fontutil )
 	}
 
 	// draw ref designator text
-	int silk_lay = LAY_FP_SILK_TOP;
+	int silk_lay = m_ref_layer;
 	int nstrokes = 0;
 	m_ref_el.SetSize(0);
 	p_id.st = ID_STROKE;
@@ -2946,7 +2950,7 @@ void CEditShape::Draw( CDisplayList * dlist, SMFontUtil * fontutil )
 				p_id.i = i_el;
 				m_value_el.SetSize(i_el+1);
 				m_value_el[i_el] = dlist->Add( p_id, this, 
-					silk_lay, DL_LINE, 1, m_value_w, 0, 
+					m_value_layer, DL_LINE, 1, m_value_w, 0, 
 					si.x, si.y, sf.x, sf.y, 0, 0 );
 				i_el++;
 			}

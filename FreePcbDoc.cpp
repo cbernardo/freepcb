@@ -165,6 +165,8 @@ CFreePcbDoc::CFreePcbDoc()
 	m_dlg_log = new CDlgLog;
 	m_dlg_log->Create( IDD_LOG );
 	m_import_flags = IMPORT_PARTS | IMPORT_NETS | KEEP_FP | KEEP_NETS | KEEP_TRACES | KEEP_STUBS | KEEP_AREAS;
+	m_num_copper_layers = 1;
+	m_num_layers = m_num_copper_layers + LAY_TOP_COPPER;
 
 	// initialize pseudo-clipboard
 	clip_plist = new CPartList( NULL, m_smfontutil );
@@ -2285,6 +2287,9 @@ void CFreePcbDoc::InitializeNewProject()
 	m_fp_rgb[LAY_FP_SILK_TOP][0] = 255; 
 	m_fp_rgb[LAY_FP_SILK_TOP][1] = 255; 
 	m_fp_rgb[LAY_FP_SILK_TOP][2] =   0;		//top silk YELLOW
+	m_fp_rgb[LAY_FP_SILK_BOTTOM][0] = 255; 
+	m_fp_rgb[LAY_FP_SILK_BOTTOM][1] = 192; 
+	m_fp_rgb[LAY_FP_SILK_BOTTOM][2] = 192;	//bottom silk PINK
 	m_fp_rgb[LAY_FP_CENTROID][0] = 255; 
 	m_fp_rgb[LAY_FP_CENTROID][1] = 255; 
 	m_fp_rgb[LAY_FP_CENTROID][2] = 255;		//centroid WHITE
