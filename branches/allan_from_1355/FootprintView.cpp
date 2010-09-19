@@ -2776,7 +2776,7 @@ void CFootprintView::OnAddText()
 {
 	CString str = "";
 	CDlgFpText dlg;
-	dlg.Initialize( TRUE, FALSE, NULL, m_units, 0, 0, 0, 0, 0 );
+	dlg.Initialize( TRUE, FALSE, NULL, m_units, LAY_FP_SILK_TOP, 0, 0, 0, 0, 0 );
 	int ret = dlg.DoModal();
 	if( ret == IDOK )
 	{
@@ -2785,6 +2785,8 @@ void CFootprintView::OnAddText()
 		int angle = dlg.m_angle;
 		int font_size = dlg.m_height;
 		int stroke_width = dlg.m_width;
+		int layer = dlg.m_layer;
+		BOOL mirror = (layer == LAY_FP_SILK_BOTTOM);
 		CString str = dlg.m_str;
 
 		// get cursor position and convert to PCB coords
@@ -2798,16 +2800,16 @@ void CFootprintView::OnAddText()
 		SetDCToWorldCoords( pDC );
 		if( dlg.m_bDrag )
 		{
-			m_sel_text = m_fp.m_tl->AddText( p.x, p.y, angle, FALSE, FALSE, 
-				LAY_FP_SILK_TOP, font_size, stroke_width, &str );
+			m_sel_text = m_fp.m_tl->AddText( p.x, p.y, angle, mirror, FALSE, 
+				layer, font_size, stroke_width, &str );
 			m_dragging_new_item = 1;
 			m_fp.m_tl->StartDraggingText( pDC, m_sel_text );
 			SetCursorMode( CUR_FP_DRAG_TEXT );
 		}
 		else
 		{
-			m_sel_text = m_fp.m_tl->AddText( x, y, angle, FALSE, FALSE, 
-				LAY_FP_SILK_TOP, font_size,  stroke_width, &str ); 
+			m_sel_text = m_fp.m_tl->AddText( x, y, angle, mirror, FALSE, 
+				layer, font_size, stroke_width, &str ); 
 			m_fp.m_tl->HighlightText( m_sel_text );
 		}
 	}
@@ -2818,7 +2820,7 @@ void CFootprintView::OnFpTextEdit()
 	// create dialog and pass parameters
 	CDlgFpText dlg;
 	CString test_str = m_sel_text->m_str;
-	dlg.Initialize( FALSE, FALSE, &test_str, m_units,
+	dlg.Initialize( FALSE, FALSE, &test_str, m_sel_text->m_layer, m_units,
 		m_sel_text->m_angle, m_sel_text->m_font_size, 
 		m_sel_text->m_stroke_width, m_sel_text->m_x, m_sel_text->m_y );
 	int ret = dlg.DoModal();
@@ -2832,11 +2834,13 @@ void CFootprintView::OnFpTextEdit()
 	int angle = dlg.m_angle;
 	int font_size = dlg.m_height;
 	int stroke_width = dlg.m_width;
+	int layer = dlg.m_layer;
+	BOOL mirror = (layer == LAY_FP_SILK_BOTTOM);
 	CString str = dlg.m_str;
 	m_dlist->CancelHighLight();
 	m_fp.m_tl->RemoveText( m_sel_text );
-	CText * new_text = m_fp.m_tl->AddText( x, y, angle, FALSE, FALSE,
-		LAY_FP_SILK_TOP, font_size, stroke_width, &str );
+	CText * new_text = m_fp.m_tl->AddText( x, y, angle, mirror, FALSE,
+		layer, font_size, stroke_width, &str );
 	m_sel_text = new_text;
 	m_fp.m_tl->HighlightText( m_sel_text );
 
@@ -3077,7 +3081,7 @@ void CFootprintView::OnAddValueText()
 	CString str = "";
 	CDlgFpText dlg;
 	CString value_str = "VALUE";
-	dlg.Initialize( TRUE, TRUE, &value_str, m_units, 0, 0, 0, 0, 0 );
+	dlg.Initialize( TRUE, TRUE, &value_str, 0, m_units, 0, 0, 0, 0, 0 );
 	int ret = dlg.DoModal();
 	if( ret == IDOK )
 	{
@@ -3087,6 +3091,7 @@ void CFootprintView::OnAddValueText()
 		m_fp.m_value_angle = dlg.m_angle;
 		m_fp.m_value_size = dlg.m_height;
 		m_fp.m_value_w = dlg.m_width;
+		m_fp.m_value_layer = dlg.m_layer;
 		m_fp.Draw( m_dlist, m_Doc->m_smfontutil );
 		if( dlg.m_bDrag )
 		{
@@ -3109,7 +3114,7 @@ void CFootprintView::OnValueEdit()
 	CString str = "";
 	CDlgFpText dlg;
 	CString value_str = "VALUE";
-	dlg.Initialize( FALSE, TRUE, &value_str, m_units, 
+	dlg.Initialize( FALSE, TRUE, &value_str, m_fp.m_value_layer, m_units, 
 		m_fp.m_value_angle, m_fp.m_value_size, m_fp.m_value_w, 
 		m_fp.m_value_xi, m_fp.m_value_yi );
 	int ret = dlg.DoModal();
@@ -3124,6 +3129,7 @@ void CFootprintView::OnValueEdit()
 		{
 			PushUndo();
 			m_fp.Undraw();
+			m_fp.m_value_layer = dlg.m_layer;
 			m_fp.m_value_xi = dlg.m_x;
 			m_fp.m_value_yi = dlg.m_y;
 			m_fp.m_value_angle = dlg.m_angle;
