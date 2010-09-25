@@ -123,17 +123,21 @@ public:
 	int angle;			// orientation
 	BOOL glued;			// 1=glued in place
 	BOOL m_ref_vis;		// TRUE = ref shown
-	int m_ref_xi;		// reference text (relative to part)
+	int m_ref_xi;		// ref text params (relative to part)
 	int m_ref_yi;	
 	int m_ref_angle; 
 	int m_ref_size;
 	int m_ref_w;
+	int m_ref_layer_flag;	// 0 for top, 1 for bottom
+	CText ref_text;
 	BOOL m_value_vis;	// TRUE = value shown
-	int m_value_xi;		// value text
+	int m_value_xi;		// value text params (relative to part)
 	int m_value_yi; 
 	int m_value_angle; 
 	int m_value_size; 
-	int m_value_w;		
+	int m_value_w;
+	int m_value_layer_flag;	// 0 for top, 1 for bottom
+	CText value_text;
 	dl_element * dl_sel;		// pointer to display list element for selection rect
 	CString ref_des;			// ref designator such as "U3"
 	dl_element * dl_ref_sel;	// pointer to selection rect for ref text 

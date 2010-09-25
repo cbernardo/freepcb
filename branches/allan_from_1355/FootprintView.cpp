@@ -565,13 +565,13 @@ void CFootprintView::OnLButtonDown(UINT nFlags, CPoint point)
 				else if( id.st == ID_SEL_REF_TXT )
 				{
 					// ref text selected
-					m_fp.SelectRef();
+					m_fp.m_ref_text.Highlight();
 					SetCursorMode( CUR_FP_REF_SELECTED );
 				}
 				else if( id.st == ID_SEL_VALUE_TXT )
 				{
 					// value text selected
-					m_fp.SelectValue();
+					m_fp.m_value_text.Highlight();
 					SetCursorMode( CUR_FP_VALUE_SELECTED );
 				}
 				else if( id.st == ID_OUTLINE )
@@ -670,7 +670,7 @@ void CFootprintView::OnLButtonDown(UINT nFlags, CPoint point)
 			m_fp.m_ref_angle = angle;
 			m_fp.Draw( m_dlist, m_Doc->m_smfontutil );
 			SetCursorMode( CUR_FP_REF_SELECTED );
-			m_fp.SelectRef();
+			m_fp.m_ref_text.Highlight();
 			FootprintModified( TRUE );
 		}
 		else if( m_cursor_mode == CUR_FP_DRAG_VALUE )
@@ -688,7 +688,7 @@ void CFootprintView::OnLButtonDown(UINT nFlags, CPoint point)
 			m_fp.m_value_angle = angle;
 			m_fp.Draw( m_dlist, m_Doc->m_smfontutil );
 			SetCursorMode( CUR_FP_VALUE_SELECTED );
-			m_fp.SelectValue();
+			m_fp.m_value_text.Highlight();
 			FootprintModified( TRUE );
 		}
 		else if( m_cursor_mode == CUR_FP_DRAG_POLY_MOVE )
@@ -916,14 +916,14 @@ void CFootprintView::OnRButtonDown(UINT nFlags, CPoint point)
 	}
 	else if( m_cursor_mode == CUR_FP_DRAG_REF )
 	{
-		m_fp.CancelDraggingRef();
-		m_fp.SelectRef();
+		m_fp.m_ref_text.CancelDragging();
+		m_fp.m_ref_text.Highlight();
 		SetCursorMode( CUR_FP_REF_SELECTED );
 	}
 	else if( m_cursor_mode == CUR_FP_DRAG_VALUE )
 	{
-		m_fp.CancelDraggingValue();
-		m_fp.SelectValue();
+		m_fp.m_value_text.CancelDragging();
+		m_fp.m_value_text.Highlight();
 		SetCursorMode( CUR_FP_VALUE_SELECTED );
 		Invalidate( FALSE );
 	}
@@ -1948,7 +1948,7 @@ void CFootprintView::OnRefMove()
 	SetCursorPos( cur_p.x, cur_p.y );
 	// start dragging
 	m_dragging_new_item = 0;
-	m_fp.StartDraggingRef( pDC );
+	m_fp.m_ref_text.StartDragging( pDC );
 	SetCursorMode( CUR_FP_DRAG_REF );
 	ReleaseDC( pDC );
 	Invalidate( FALSE );
@@ -2301,19 +2301,46 @@ LONG CFootprintView::OnChangeUnits( UINT wp, LONG lp )
 
 void CFootprintView::OnRefProperties()
 {
-	CDlgFpRefText dlg;
-	dlg.Initialize( m_fp.m_ref_size, m_fp.m_ref_w, m_units );
+
+	CString str = "";
+	CDlgFpText dlg;
+	CString ref_str = "REF";
+	int layer = LAY_FP_SILK_TOP;
+	if( m_fp.m_ref_layer_flag )
+		layer = LAY_FP_SILK_BOTTOM;
+	dlg.Initialize( FALSE, TRUE, &ref_str, layer, m_units, 
+		m_fp.m_ref_angle, m_fp.m_ref_size, m_fp.m_ref_w, 
+		m_fp.m_ref_xi, m_fp.m_ref_yi );
 	int ret = dlg.DoModal();
 	if( ret == IDOK )
 	{
-		PushUndo();
-		m_dlist->CancelHighLight();
-		m_fp.m_ref_w = dlg.GetWidth();
-		m_fp.m_ref_size = dlg.GetHeight();
-		m_fp.Draw( m_dlist, m_Doc->m_smfontutil );
-		m_fp.SelectRef();
-		FootprintModified( TRUE );
-		Invalidate( FALSE );
+		CancelSelection();
+		if( dlg.m_bDrag )
+		{
+			OnRefMove();
+		}
+		else
+		{
+			PushUndo();
+			m_fp.Undraw();
+			m_fp.m_ref_layer_flag = 0;
+			if( dlg.m_layer == LAY_FP_SILK_BOTTOM )
+				m_fp.m_ref_layer_flag = 1;
+			m_fp.m_ref_xi = dlg.m_x;
+			m_fp.m_ref_yi = dlg.m_y;
+			m_fp.m_ref_angle = dlg.m_angle;
+			m_fp.m_ref_size = dlg.m_height;
+			m_fp.m_ref_w = dlg.m_width;
+			m_fp.Draw( m_dlist, m_Doc->m_smfontutil );
+			if( m_fp.m_ref_size )
+			{
+				m_fp.m_ref_text.Highlight();
+				SetCursorMode( CUR_FP_REF_SELECTED );
+			}
+			else
+				CancelSelection();
+		}
+		Invalidate( FALSE );		
 	}
 }
 
@@ -3091,7 +3118,9 @@ void CFootprintView::OnAddValueText()
 		m_fp.m_value_angle = dlg.m_angle;
 		m_fp.m_value_size = dlg.m_height;
 		m_fp.m_value_w = dlg.m_width;
-		m_fp.m_value_layer = dlg.m_layer;
+		m_fp.m_value_layer_flag = 0;
+		if( dlg.m_layer == LAY_FP_SILK_BOTTOM )
+			m_fp.m_value_layer_flag = 1;
 		m_fp.Draw( m_dlist, m_Doc->m_smfontutil );
 		if( dlg.m_bDrag )
 		{
@@ -3114,7 +3143,10 @@ void CFootprintView::OnValueEdit()
 	CString str = "";
 	CDlgFpText dlg;
 	CString value_str = "VALUE";
-	dlg.Initialize( FALSE, TRUE, &value_str, m_fp.m_value_layer, m_units, 
+	int layer = LAY_FP_SILK_TOP;
+	if( m_fp.m_value_layer_flag != 0 )
+		layer = LAY_FP_SILK_BOTTOM;
+	dlg.Initialize( FALSE, TRUE, &value_str, layer, m_units, 
 		m_fp.m_value_angle, m_fp.m_value_size, m_fp.m_value_w, 
 		m_fp.m_value_xi, m_fp.m_value_yi );
 	int ret = dlg.DoModal();
@@ -3129,7 +3161,9 @@ void CFootprintView::OnValueEdit()
 		{
 			PushUndo();
 			m_fp.Undraw();
-			m_fp.m_value_layer = dlg.m_layer;
+			m_fp.m_value_layer_flag = 0;
+			if( dlg.m_layer != LAY_FP_SILK_TOP )
+				m_fp.m_value_layer_flag = 1;
 			m_fp.m_value_xi = dlg.m_x;
 			m_fp.m_value_yi = dlg.m_y;
 			m_fp.m_value_angle = dlg.m_angle;
@@ -3138,7 +3172,7 @@ void CFootprintView::OnValueEdit()
 			m_fp.Draw( m_dlist, m_Doc->m_smfontutil );
 			if( m_fp.m_value_size )
 			{
-				m_fp.SelectValue();
+				m_fp.m_value_text.Highlight();
 				SetCursorMode( CUR_FP_VALUE_SELECTED );
 			}
 			else
@@ -3162,7 +3196,7 @@ void CFootprintView::OnValueMove()
 	// start dragging
 	CancelSelection();
 	m_dragging_new_item = 0;
-	m_fp.StartDraggingValue( pDC );
+	m_fp.m_value_text.StartDragging( pDC );
 	SetCursorMode( CUR_FP_DRAG_VALUE );
 	ReleaseDC( pDC );
 	Invalidate( FALSE );
