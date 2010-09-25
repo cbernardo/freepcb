@@ -41,6 +41,12 @@ public:
 		int stroke_width, SMFontUtil * smfontutil, CString * str_ptr );
 	void Draw( CDisplayList * dlist, SMFontUtil * smfontutil );
 	void Undraw();
+	void Highlight();
+	void StartDragging( CDC * pDC );
+	void CancelDragging();
+	void Move( int x, int y, int angle, 
+		BOOL mirror, BOOL negative, int layer );
+
 	// member variables
 	GUID m_guid;
 	id m_id;		// describes use of text

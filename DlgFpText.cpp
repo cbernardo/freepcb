@@ -174,6 +174,11 @@ BOOL CDlgFpText::OnInitDialog()
 	if( m_bFixedString )
 		m_text.EnableWindow( FALSE );
 	SetFields();
+	if( m_bFixedString )
+	{
+		CString title = m_str + " String";
+		this->SetWindowTextA( title );
+	}
 	return TRUE;  // return TRUE unless you set the focus to a control
 }
 
