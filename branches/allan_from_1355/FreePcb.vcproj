@@ -262,10 +262,6 @@
 				>
 			</File>
 			<File
-				RelativePath="DlgAddPoly.h"
-				>
-			</File>
-			<File
 				RelativePath="DlgAddText.cpp"
 				>
 			</File>
@@ -632,6 +628,10 @@
 			</File>
 			<File
 				RelativePath="DlgAddPin.h"
+				>
+			</File>
+			<File
+				RelativePath="DlgAddPoly.h"
 				>
 			</File>
 			<File
