@@ -38,7 +38,7 @@ public:
 	{ x=qx; y=qy; end_contour=qf; utility = 0; };
 	int x;
 	int y;
-	BOOL end_contour;
+	BOOL end_contour;	// flags the end of a closed contour
 	int utility;
 };
 
@@ -111,6 +111,7 @@ public:
 	int GetSelBoxSize();
 	CDisplayList * GetDisplayList(){ return m_dlist; };
 	int GetHatch(){ return m_hatch; }
+	void SetClosed( BOOL bClosed ){ corner[m_ncorners-1].end_contour = bClosed; };
 	void SetX( int ic, int x );
 	void SetY( int ic, int y );
 	void SetEndContour( int ic, BOOL end_contour );

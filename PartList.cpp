@@ -121,11 +121,13 @@ int CPartList::SetPartData( cpart * part, CShape * shape, CString * ref_des, CSt
 		part->m_ref_angle = 0;
 		part->m_ref_size = 0;
 		part->m_ref_w = 0;
+		part->m_ref_layer_index = 0;
 		part->m_value_xi = 0;
 		part->m_value_yi = 0;
 		part->m_value_angle = 0;
 		part->m_value_size = 0;
 		part->m_value_w = 0;
+		part->m_value_layer_index = 0;
 	}
 	else
 	{
@@ -137,11 +139,13 @@ int CPartList::SetPartData( cpart * part, CShape * shape, CString * ref_des, CSt
 		part->m_ref_angle = shape->m_ref_angle;
 		part->m_ref_size = shape->m_ref_size;
 		part->m_ref_w = shape->m_ref_w;
+		part->m_ref_layer_index = shape->m_ref_layer_index;
 		part->m_value_xi = shape->m_value_xi;
 		part->m_value_yi = shape->m_value_yi;
 		part->m_value_angle = shape->m_value_angle;
 		part->m_value_size = shape->m_value_size;
 		part->m_value_w = shape->m_value_w;
+		part->m_value_layer_index = shape->m_value_layer_index;
 	}
 	part->m_outline_stroke.SetSize(0);
 	part->ref_text_stroke.SetSize(0);
@@ -456,7 +460,8 @@ void CPartList::ResizeValueText( cpart * part, int size, int width, BOOL vis )
 // Set part value
 //
 void CPartList::SetValue( cpart * part, CString * value, 
-						 int x, int y, int angle, int size, int w, BOOL vis )
+						 int x, int y, int angle, int size, int w, 
+						 BOOL vis, int layer_index )
 {
 	part->value = *value;
 	part->m_value_xi = x;
@@ -465,6 +470,7 @@ void CPartList::SetValue( cpart * part, CString * value,
 	part->m_value_size = size;
 	part->m_value_w = w;
 	part->m_value_vis = vis;
+	part->m_value_layer_index = layer_index;
 	if( part->shape && m_dlist )
 	{
 		UndrawPart( part );
@@ -1038,7 +1044,7 @@ CRect CPartList::GetValueRect( cpart * part )
 	CArray<stroke> m_stroke;
 	CRect br;
 	int nstrokes = ::GenerateStrokesForPartString( &part->value, 
-		part->m_value_layer_flag, part->m_value_size,
+		part->m_value_layer_index, part->m_value_size,
 		part->m_value_angle, part->m_value_xi, part->m_value_yi, part->m_value_w,
 		part->x, part->y, part->angle, part->side,
 		&m_stroke, &br, NULL, m_fontutil );
@@ -1106,14 +1112,14 @@ int CPartList::DrawPart( cpart * part )
 	if( part->m_ref_vis && part->m_ref_size )
 	{
 		int nstrokes = ::GenerateStrokesForPartString( &part->ref_des, 
-			part->m_ref_layer_flag, part->m_ref_size,
+			part->m_ref_layer_index, part->m_ref_size,
 			part->m_ref_angle, part->m_ref_xi, part->m_ref_yi, part->m_ref_w,
 			part->x, part->y, part->angle, part->side,
 			&m_stroke, &br, m_dlist, m_fontutil );
 		if( nstrokes )
 		{
 			silk_layer = LAY_SILK_TOP;
-			if( part->m_ref_layer_flag != part->side )
+			if( part->m_ref_layer_index != part->side )
 				silk_layer = LAY_SILK_BOTTOM;
 			int xmin = br.left;
 			int xmax = br.right;
@@ -1173,7 +1179,7 @@ int CPartList::DrawPart( cpart * part )
 	if( part->m_value_vis && part->m_value_size )
 	{
 		int nstrokes = ::GenerateStrokesForPartString( &part->value, 
-			part->m_value_layer_flag, part->m_value_size,
+			part->m_value_layer_index, part->m_value_size,
 			part->m_value_angle, part->m_value_xi, part->m_value_yi, part->m_value_w,
 			part->x, part->y, part->angle, part->side,
 			&m_stroke, &br, m_dlist, m_fontutil );
@@ -1181,7 +1187,7 @@ int CPartList::DrawPart( cpart * part )
 		if( nstrokes )
 		{
 			silk_layer = LAY_SILK_TOP;
-			if( part->m_value_layer_flag != part->side )
+			if( part->m_value_layer_index != part->side )
 				silk_layer = LAY_SILK_BOTTOM;
 			int xmin = br.left;
 			int xmax = br.right;
@@ -1238,40 +1244,40 @@ int CPartList::DrawPart( cpart * part )
 	}
 
 	// draw part outline
-	silk_layer = LAY_SILK_TOP;
-	if( part->side )
-		silk_layer = LAY_SILK_BOTTOM;
 	part->m_outline_stroke.SetSize(0);
 	for( int ip=0; ip<shape->m_outline_poly.GetSize(); ip++ )
 	{
+		CPolyLine * poly = &shape->m_outline_poly[ip];
+		int shape_layer = poly->GetLayer();
+		silk_layer = LAY_SILK_TOP;
 		int pos = part->m_outline_stroke.GetSize();
 		int nsides;
-		if( shape->m_outline_poly[ip].GetClosed() )
-			nsides = shape->m_outline_poly[ip].GetNumCorners();
+		if( poly->GetClosed() )
+			nsides = poly->GetNumCorners();
 		else
-			nsides = shape->m_outline_poly[ip].GetNumCorners() - 1;
+			nsides = poly->GetNumCorners() - 1;
 		part->m_outline_stroke.SetSize( pos + nsides );
-		int w = shape->m_outline_poly[ip].GetW();
+		int w = poly->GetW();
 		for( i=0; i<nsides; i++ )
 		{
 			int g_type;
-			if( shape->m_outline_poly[ip].GetSideStyle( i ) == CPolyLine::STRAIGHT )
+			if( poly->GetSideStyle( i ) == CPolyLine::STRAIGHT )
 				g_type = DL_LINE;
-			else if( shape->m_outline_poly[ip].GetSideStyle( i ) == CPolyLine::ARC_CW )
+			else if( poly->GetSideStyle( i ) == CPolyLine::ARC_CW )
 				g_type = DL_ARC_CW;
-			else if( shape->m_outline_poly[ip].GetSideStyle( i ) == CPolyLine::ARC_CCW )
+			else if( poly->GetSideStyle( i ) == CPolyLine::ARC_CCW )
 				g_type = DL_ARC_CCW;
-			si.x = shape->m_outline_poly[ip].GetX( i );
-			si.y = shape->m_outline_poly[ip].GetY( i );
+			si.x = poly->GetX( i );
+			si.y = poly->GetY( i );
 			if( i == (nsides-1) && shape->m_outline_poly[ip].GetClosed() )
 			{
-				sf.x = shape->m_outline_poly[ip].GetX( 0 );
-				sf.y = shape->m_outline_poly[ip].GetY( 0 );
+				sf.x = poly->GetX( 0 );
+				sf.y = poly->GetY( 0 );
 			}
 			else
 			{
-				sf.x = shape->m_outline_poly[ip].GetX( i+1 );
-				sf.y = shape->m_outline_poly[ip].GetY( i+1 );
+				sf.x = poly->GetX( i+1 );
+				sf.y = poly->GetY( i+1 );
 			}
 			// flip if part on bottom
 			if( part->side )
@@ -2143,6 +2149,7 @@ cpart * CPartList::AddFromString( CString * str )
 	int ref_angle = 0;
 	int ref_xi = 0;
 	int ref_yi = 0;
+	int ref_layer_index = 0;
 	CString value;
 	BOOL value_vis = FALSE;
 	int value_size = 0;
@@ -2150,6 +2157,7 @@ cpart * CPartList::AddFromString( CString * str )
 	int value_angle = 0;
 	int value_xi = 0;
 	int value_yi = 0;
+	int value_layer_index = 0;
 	CString package;
 	int x;
 	int y;
@@ -2194,6 +2202,8 @@ cpart * CPartList::AddFromString( CString * str )
 				else
 					ref_vis = FALSE;
 			}
+			if( np > 7 )
+				ref_layer_index = my_atoi( &p[5] );
 		}
 		else if( np >= 7 && key_str == "value" )
 		{
@@ -2212,6 +2222,8 @@ cpart * CPartList::AddFromString( CString * str )
 				else
 					value_vis = FALSE;
 			}
+			if( np > 8 )
+				value_layer_index = my_atoi( &p[6] );
 		}
 		else if( key_str == "package" )
 		{
@@ -2263,6 +2275,7 @@ cpart * CPartList::AddFromString( CString * str )
 		part->m_ref_xi = ref_xi;
 		part->m_ref_yi = ref_yi;
 		part->m_ref_angle = ref_angle;
+		part->m_ref_layer_index = ref_layer_index;
 		ResizeRefText( part, ref_size, ref_width, ref_vis );
 	}
 	m_dlist = old_dlist;
@@ -2345,9 +2358,9 @@ int CPartList::SetPartString( cpart * part, CString * str )
 	line.Format( "part: %s\n", part->ref_des );  
 	*str = line;
 	if( part->shape )
-		line.Format( "  ref_text: %d %d %d %d %d %d\n", 
+		line.Format( "  ref_text: %d %d %d %d %d %d %d\n", 
 					part->m_ref_size, part->m_ref_w, part->m_ref_angle%360,
-					part->m_ref_xi, part->m_ref_yi, part->m_ref_vis );
+					part->m_ref_xi, part->m_ref_yi, part->m_ref_vis, part->m_ref_layer_index );
 	else
 		line.Format( "  ref_text: \n" );
 	str->Append( line );
@@ -2356,11 +2369,11 @@ int CPartList::SetPartString( cpart * part, CString * str )
 	if( part->value != "" ) 
 	{
 		if( part->shape )
-			line.Format( "  value: \"%s\" %d %d %d %d %d %d\n", 
+			line.Format( "  value: \"%s\" %d %d %d %d %d %d %d\n", 
 			part->value, part->m_value_size, 
 			part->m_value_w, part->m_value_angle%360,
 			part->m_value_xi, part->m_value_yi,
-			part->m_value_vis );
+			part->m_value_vis, part->m_value_layer_index );
 		else
 			line.Format( "  value: \"%s\"\n", part->value );
 		str->Append( line );
@@ -2882,7 +2895,7 @@ void CPartList::ImportPartListInfo( partlist_info * pl, int flags, CDlgLog * log
 					part->shape->m_value_angle, 
 					part->shape->m_value_size, 
 					part->shape->m_value_w,
-					pi->value_vis );
+					pi->value_vis, part->shape->m_value_layer_index );
 			}
 			else
 				SetValue( part, &pi->value, 0, 0, 0, 0, 0 );

@@ -128,7 +128,7 @@ public:
 	int m_ref_angle; 
 	int m_ref_size;
 	int m_ref_w;
-	int m_ref_layer_flag;	// 0 for top, 1 for bottom
+	int m_ref_layer_index;	// 0 for top, 1 for bottom
 	CText ref_text;
 	BOOL m_value_vis;	// TRUE = value shown
 	int m_value_xi;		// value text params (relative to part)
@@ -136,7 +136,7 @@ public:
 	int m_value_angle; 
 	int m_value_size; 
 	int m_value_w;
-	int m_value_layer_flag;	// 0 for top, 1 for bottom
+	int m_value_layer_index;	// 0 for top, 1 for bottom
 	CText value_text;
 	dl_element * dl_sel;		// pointer to display list element for selection rect
 	CString ref_des;			// ref designator such as "U3"
@@ -217,7 +217,8 @@ public:
 	int MoveValueText( cpart * part, int x, int y, int angle, int size, int w );
 	void ResizeRefText( cpart * part, int size, int width, BOOL vis=TRUE );
 	void ResizeValueText( cpart * part, int size, int width, BOOL vis=TRUE );
-	void SetValue( cpart * part, CString * value, int x, int y, int angle, int size, int w, BOOL vis=TRUE );
+	void SetValue( cpart * part, CString * value, int x, int y, int angle, int size, 
+		int w, BOOL vis=TRUE, int layer_index=0 );
 	int DrawPart( cpart * el );
 	int UndrawPart( cpart * el );
 	void PartFootprintChanged( cpart * part, CShape * shape );

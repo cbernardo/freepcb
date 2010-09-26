@@ -106,6 +106,7 @@ ON_COMMAND(ID_FP_MOVE32780, OnPolylineCornerMove)
 ON_COMMAND(ID_FP_SETPOSITION, OnPolylineCornerEdit)
 ON_COMMAND(ID_FP_DELETECORNER, OnPolylineCornerDelete)
 ON_COMMAND(ID_FP_DELETEPOLYLINE, OnPolylineDelete)
+ON_COMMAND(ID_FP_POLYLINEPROPERTIES, OnEditPolyline)
 ON_COMMAND(ID_FP_MOVE_REF, OnRefMove)
 ON_COMMAND(ID_FP_CHANGESIZE_REF, OnRefProperties)
 ON_COMMAND(ID_FP_TOOLS_RETURN, OnFootprintFileClose)
@@ -736,7 +737,7 @@ void CFootprintView::OnLButtonDown(UINT nFlags, CPoint point)
 			int ip = m_fp.m_outline_poly.GetSize();
 			m_sel_id.Set( ID_PART, ID_OUTLINE, ip, ID_SEL_CORNER, 0 );
 			m_fp.m_outline_poly.SetSize( ip+1 );
-			m_fp.m_outline_poly[ip].Start( LAY_FP_SILK_TOP, m_polyline_width, 
+			m_fp.m_outline_poly[ip].Start( m_polyline_layer, m_polyline_width, 
 				20*NM_PER_MIL, p.x, p.y, 0, &m_sel_id, NULL );
 			m_dlist->StartDraggingArc( pDC, m_polyline_style, p.x, p.y, p.x, p.y, LAY_FP_SELECTION, 1, 1 );
 			SetCursorMode( CUR_FP_DRAG_POLY_1 );
@@ -2306,7 +2307,7 @@ void CFootprintView::OnRefProperties()
 	CDlgFpText dlg;
 	CString ref_str = "REF";
 	int layer = LAY_FP_SILK_TOP;
-	if( m_fp.m_ref_layer_flag )
+	if( m_fp.m_ref_layer_index )
 		layer = LAY_FP_SILK_BOTTOM;
 	dlg.Initialize( FALSE, TRUE, &ref_str, layer, m_units, 
 		m_fp.m_ref_angle, m_fp.m_ref_size, m_fp.m_ref_w, 
@@ -2323,9 +2324,9 @@ void CFootprintView::OnRefProperties()
 		{
 			PushUndo();
 			m_fp.Undraw();
-			m_fp.m_ref_layer_flag = 0;
+			m_fp.m_ref_layer_index = 0;
 			if( dlg.m_layer == LAY_FP_SILK_BOTTOM )
-				m_fp.m_ref_layer_flag = 1;
+				m_fp.m_ref_layer_index = 1;
 			m_fp.m_ref_xi = dlg.m_x;
 			m_fp.m_ref_yi = dlg.m_y;
 			m_fp.m_ref_angle = dlg.m_angle;
@@ -2456,7 +2457,7 @@ void CFootprintView::OnFootprintFileSaveAs()
 void CFootprintView::OnAddPolyline()
 {
 	CDlgAddPoly dlg;
-	dlg.Initialize( m_units );
+	dlg.Initialize( TRUE, -1, m_units, -1, TRUE );
 	int ret = dlg.DoModal();
 	if( ret == IDOK )
 	{
@@ -2471,9 +2472,37 @@ void CFootprintView::OnAddPolyline()
 		m_polyline_closed_flag = dlg.GetClosedFlag();
 		m_polyline_style = CPolyLine::STRAIGHT;
 		m_polyline_width = dlg.GetWidth();
+		m_polyline_layer = LAY_FP_SILK_TOP + dlg.GetLayerIndex();
 		m_dlist->StartDraggingArray( pDC, p.x, p.y, 0, LAY_FP_SELECTION );
 		SetCursorMode( CUR_FP_ADD_POLY );
 		ReleaseDC( pDC );
+		Invalidate( FALSE );
+	}
+}
+
+void CFootprintView::OnEditPolyline()
+{
+	CPolyLine * poly = &m_fp.m_outline_poly[m_sel_id.i];
+	int layer_index = 0;
+	if( poly->GetLayer() == LAY_FP_SILK_BOTTOM )
+		layer_index = 1;
+	CDlgAddPoly dlg;
+	dlg.Initialize( FALSE, layer_index, m_units, poly->GetW(), poly->GetClosed() );
+	int ret = dlg.DoModal();
+	if( ret == IDOK )
+	{
+		// change polyline properties
+		PushUndo();
+		int layer = LAY_FP_SILK_TOP;
+		if( dlg.GetLayerIndex() == 1 )
+			layer = LAY_FP_SILK_BOTTOM;
+		poly->Undraw();
+		poly->SetW( dlg.GetWidth() );
+		poly->SetLayer( layer );
+		poly->SetClosed( dlg.GetClosedFlag() );
+		poly->Draw();
+		FootprintModified( TRUE );
+		CancelSelection();
 		Invalidate( FALSE );
 	}
 }
@@ -3118,9 +3147,9 @@ void CFootprintView::OnAddValueText()
 		m_fp.m_value_angle = dlg.m_angle;
 		m_fp.m_value_size = dlg.m_height;
 		m_fp.m_value_w = dlg.m_width;
-		m_fp.m_value_layer_flag = 0;
+		m_fp.m_value_layer_index = 0;
 		if( dlg.m_layer == LAY_FP_SILK_BOTTOM )
-			m_fp.m_value_layer_flag = 1;
+			m_fp.m_value_layer_index = 1;
 		m_fp.Draw( m_dlist, m_Doc->m_smfontutil );
 		if( dlg.m_bDrag )
 		{
@@ -3144,7 +3173,7 @@ void CFootprintView::OnValueEdit()
 	CDlgFpText dlg;
 	CString value_str = "VALUE";
 	int layer = LAY_FP_SILK_TOP;
-	if( m_fp.m_value_layer_flag != 0 )
+	if( m_fp.m_value_layer_index != 0 )
 		layer = LAY_FP_SILK_BOTTOM;
 	dlg.Initialize( FALSE, TRUE, &value_str, layer, m_units, 
 		m_fp.m_value_angle, m_fp.m_value_size, m_fp.m_value_w, 
@@ -3161,9 +3190,9 @@ void CFootprintView::OnValueEdit()
 		{
 			PushUndo();
 			m_fp.Undraw();
-			m_fp.m_value_layer_flag = 0;
+			m_fp.m_value_layer_index = 0;
 			if( dlg.m_layer != LAY_FP_SILK_TOP )
-				m_fp.m_value_layer_flag = 1;
+				m_fp.m_value_layer_index = 1;
 			m_fp.m_value_xi = dlg.m_x;
 			m_fp.m_value_yi = dlg.m_y;
 			m_fp.m_value_angle = dlg.m_angle;
