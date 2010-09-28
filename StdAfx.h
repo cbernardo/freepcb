@@ -55,6 +55,8 @@
 #include "flags.h" 
 #include "DlgLog.h" 
 
+#define ASSERT(f) assert(f)	//changed ASSERT() to work in release versions if NDEBUG undefined
+
 //{{AFX_INSERT_LOCATION}}
 // Microsoft Visual C++ will insert additional declarations immediately before the previous line.
 
