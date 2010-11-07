@@ -318,10 +318,6 @@
 				>
 			</File>
 			<File
-				RelativePath=".\DlgFpRefText.cpp"
-				>
-			</File>
-			<File
 				RelativePath=".\DlgFpText.cpp"
 				>
 			</File>
@@ -491,6 +487,10 @@
 			</File>
 			<File
 				RelativePath="ivex_mod_file.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\layers.cpp"
 				>
 			</File>
 			<File
@@ -688,10 +688,6 @@
 			</File>
 			<File
 				RelativePath=".\DlgFindPart.h"
-				>
-			</File>
-			<File
-				RelativePath=".\DlgFpRefText.h"
 				>
 			</File>
 			<File

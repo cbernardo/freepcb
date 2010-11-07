@@ -1,6 +1,14 @@
 FreePCB release notes: (versions since 1.2) 
 -------------------------------------------
 
+1.360
+-----
+- fixed bug where the Footprint Editor would import a footprint from the local cache,
+  instead of the library file
+- fixed bug where part value not set when group copied and pasted
+- in footprints, the part outline may be on any silkscreen layer
+- in footprints, part text strings may be on any silkscreen or suface copper layer
+  
 1.359
 -----
 - fixed bug where pad orientation in footprint editor was not always copied correctly

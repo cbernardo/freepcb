@@ -24,6 +24,34 @@ CDlgFpText::~CDlgFpText()
 {
 }
 
+int CDlgFpText::Layer2LayerIndex( int layer)
+{
+	int li;
+	switch( layer ) 
+	{
+	case LAY_FP_SILK_TOP: li = 0; break;
+	case LAY_FP_SILK_BOTTOM: li = 1; break;
+	case LAY_FP_TOP_COPPER: li = 2; break;
+	case LAY_FP_BOTTOM_COPPER: li = 3; break;
+	default: ASSERT(0); return -1;
+	}
+	return li;
+}
+
+int CDlgFpText::LayerIndex2Layer( int layer_index )
+{
+	int layer;
+	switch( layer_index ) 
+	{
+	case 0: layer = LAY_FP_SILK_TOP; break;
+	case 1: layer = LAY_FP_SILK_BOTTOM; break;
+	case 2: layer = LAY_FP_TOP_COPPER; break;
+	case 3: layer = LAY_FP_BOTTOM_COPPER; break;
+	default: ASSERT(0); return -1;
+	}
+	return layer;
+}
+
 void CDlgFpText::DoDataExchange(CDataExchange* pDX)
 {
 	CDialog::DoDataExchange(pDX);
@@ -54,15 +82,13 @@ void CDlgFpText::DoDataExchange(CDataExchange* pDX)
 			pDX->Fail();
 		}
 		GetFields();
-		int ia = m_list_angle.GetCurSel();
-		m_angle = ia*90;
 		if( m_bNewText )
 		{
+			// remember values to be defaults for next time
 			gFpLastHeight = m_height;
 			gFpLastWidth = m_width;
 			gFpUseDefaultWidth = m_button_def_width.GetCheck();
 		}
-		m_layer = LAY_FP_SILK_TOP + m_combo_layer.GetCurSel();
 	}
 }
 
@@ -97,10 +123,7 @@ void CDlgFpText::Initialize( BOOL bDrag, BOOL bFixedString,
 	m_width = width;
 	m_x = x;
 	m_y = y;
-	if( layer >= LAY_FP_SILK_TOP && layer >= LAY_FP_SILK_BOTTOM )
-		m_layer = layer;
-	else
-		m_layer = LAY_FP_SILK_TOP;
+	m_layer = layer;
 }
 
 // CDlgFpText message handlers
@@ -110,9 +133,11 @@ BOOL CDlgFpText::OnInitDialog()
 	CDialog::OnInitDialog();
 
 	// layers
-	m_combo_layer.InsertString( 0, "TOP_SILK" );
-	m_combo_layer.InsertString( 1, "BOTTOM_SILK" );
-	m_combo_layer.SetCurSel( m_layer - LAY_FP_SILK_TOP );
+	m_combo_layer.InsertString( 0, "TOP SILK" );
+	m_combo_layer.InsertString( 1, "BOTTOM SILK" );
+	m_combo_layer.InsertString( 2, "TOP COPPER" );
+	m_combo_layer.InsertString( 3, "BOTTOM COPPER" );
+	m_combo_layer.SetCurSel( Layer2LayerIndex( m_layer ) );
 
 	// units
 	m_combo_units.InsertString(	0, "MIL" );
@@ -272,6 +297,8 @@ void CDlgFpText::GetFields()
 	m_x = atof( str ) * mult;
 	m_edit_y.GetWindowText( str );
 	m_y = atof( str ) * mult;
+	m_angle = 90*m_list_angle.GetCurSel();
+	m_layer = LayerIndex2Layer( m_combo_layer.GetCurSel() );
 }
 
 void CDlgFpText::SetFields()
@@ -290,6 +317,8 @@ void CDlgFpText::SetFields()
 	m_edit_x.SetWindowText( str );
 	MakeCStringFromDouble( &str, m_y/mult );
 	m_edit_y.SetWindowText( str );
+	m_list_angle.SetCurSel( m_angle/90 );
+	m_combo_layer.SetCurSel( Layer2LayerIndex( m_layer ) );
 }
 
 

@@ -29,6 +29,7 @@
 #include "DlgGroupPaste.h"
 #include "DlgSideStyle.h"
 #include "DlgValueText.h"
+#include "layers.h"
 
 // globals
 BOOL g_bShow_Ratline_Warning = TRUE;	
@@ -2892,6 +2893,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 	if( m_bDraggingRect )
 		return;
 
+#ifdef ALLOW_CURVED_SEGMENTS
 	if( nChar == 'C' && m_cursor_mode == CUR_SEG_SELECTED )
 	{
 		// toggle segment through straight and curved shapes
@@ -2922,6 +2924,8 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 		}
 		return;
 	}
+#endif
+
 	if( nChar == 'F' && ( m_cursor_mode == CUR_VTX_SELECTED || m_cursor_mode == CUR_END_VTX_SELECTED ) )
 	{
 		SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_Doc->m_undo_list );
@@ -7876,6 +7880,7 @@ void CFreePcbView::OnRefProperties()
 		// edit this part
 		SaveUndoInfoForPart( m_sel_part,
 			CPartList::UNDO_PART_MODIFY, NULL, TRUE, m_Doc->m_undo_list );
+		m_sel_part->m_ref_layer = FlipLayer( m_sel_part->side, dlg.m_layer );
 		m_Doc->m_plist->ResizeRefText( m_sel_part, dlg.m_height, dlg.m_width, dlg.m_vis );
 		m_Doc->ProjectModified( TRUE );
 		m_dlist->CancelHighLight();
@@ -7969,7 +7974,6 @@ void CFreePcbView::OnUnrouteTrace()
 }
 
 // save undo info for a group, for UNDO_GROUP_MODIFY or UNDO_GROUP_DELETE
-// creates
 //
 void CFreePcbView::SaveUndoInfoForGroup( int type, CArray<void*> * ptrs, CArray<id> * ids, CUndoList * list )
 {
@@ -9121,8 +9125,8 @@ void CFreePcbView::SelectItemsInRect( CRect r, BOOL bAddToGroup )
 	// find texts in rect
 	if( m_sel_mask & (1<<SEL_MASK_TEXT ) )
 	{
-		CText * t = m_Doc->m_tlist->GetFirstText();
-		while( t )
+		CIterator_CText iter_t( m_Doc->m_tlist );
+		for( CText * t = iter_t.GetFirst(); t != NULL; t = iter_t.GetNext() )		
 		{
 			if( InRange( m_dlist->Get_x( t->dl_sel ), r.left, r.right )
 				&& InRange( m_dlist->Get_xf( t->dl_sel ), r.left, r.right )
@@ -9138,7 +9142,6 @@ void CFreePcbView::SelectItemsInRect( CRect r, BOOL bAddToGroup )
 					m_sel_ptrs.Add( t );
 				}
 			}
-			t = m_Doc->m_tlist->GetNextText();
 		}
 	}
 
@@ -10367,6 +10370,17 @@ void CFreePcbView::OnGroupCopy()
 			g_part->m_ref_w = part->m_ref_w;
 			g_part->m_ref_xi = part->m_ref_xi;
 			g_part->m_ref_yi = part->m_ref_yi;
+			g_part->m_ref_layer = part->m_ref_layer;
+			g_part->m_ref_vis = part->m_ref_vis;
+			// set value parameters
+			g_part->value = part->value;
+			g_part->m_value_angle = part->m_value_angle;
+			g_part->m_value_size = part->m_value_size;
+			g_part->m_value_w = part->m_value_w;
+			g_part->m_value_xi = part->m_value_xi;
+			g_part->m_value_yi = part->m_value_yi;
+			g_part->m_value_layer = part->m_value_layer;
+			g_part->m_value_vis = part->m_value_vis;
 			// add pin nets to group netlist
 			for( int ip=0; ip<part->shape->GetNumPins(); ip++ )
 			{
@@ -11215,13 +11229,25 @@ void CFreePcbView::OnGroupPaste()
 			ref_des_map.SetAt( new_ref, NULL );
 			SaveUndoInfoForPart( prj_part,
 				CPartList::UNDO_PART_ADD, &prj_part->ref_des, FALSE, m_Doc->m_undo_list );
-			// set ref text parameters
 			pl->UndrawPart( prj_part );
+
+			// set ref text parameters
 			prj_part->m_ref_angle = g_part->m_ref_angle;
 			prj_part->m_ref_size = g_part->m_ref_size;
 			prj_part->m_ref_w = g_part->m_ref_w;
 			prj_part->m_ref_xi = g_part->m_ref_xi;
 			prj_part->m_ref_yi = g_part->m_ref_yi;
+			prj_part->m_ref_vis = g_part->m_ref_vis;
+			prj_part->m_ref_layer = g_part->m_ref_layer;
+			// set value parameters
+			prj_part->value = g_part->value;
+			prj_part->m_value_angle = g_part->m_value_angle;
+			prj_part->m_value_size = g_part->m_value_size;
+			prj_part->m_value_w = g_part->m_value_w;
+			prj_part->m_value_xi = g_part->m_value_xi;
+			prj_part->m_value_yi = g_part->m_value_yi;
+			prj_part->m_value_vis = g_part->m_value_vis;
+			prj_part->m_value_layer = g_part->m_value_layer;
 			pl->DrawPart( prj_part );
 			// find closest part to lower left corner
 			double d = prj_part->x + prj_part->y;
@@ -11593,8 +11619,8 @@ void CFreePcbView::OnGroupPaste()
 		}
 
 		// add text
-		CText * t = g_tl->GetFirstText();
-		while( t )
+		CIterator_CText iter_t( g_tl );
+		for( CText * t = iter_t.GetFirst(); t != NULL; t = iter_t.GetNext() )		
 		{
 			CText * new_text = m_Doc->m_tlist->AddText( t->m_x+dlg.m_dx, t->m_y+dlg.m_dy, t->m_angle,
 				t->m_mirror, t->m_bNegative, t->m_layer, t->m_font_size, t->m_stroke_width,
@@ -11612,7 +11638,6 @@ void CFreePcbView::OnGroupPaste()
 				min_x = text_bounds.left;
 				min_y = text_bounds.bottom;
 			}
-			t = g_tl->GetNextText();
 		}
 
 		HighlightGroup();
@@ -12362,8 +12387,8 @@ void CFreePcbView::FindGroupCenter()
 	// find texts in group
 	if( m_sel_mask & (1<<SEL_MASK_TEXT ) )
 	{
-		CText * t = m_Doc->m_tlist->GetFirstText();
-		while( t )
+		CIterator_CText iter_t( m_Doc->m_tlist );
+		for( CText * t = iter_t.GetFirst(); t != NULL; t = iter_t.GetNext() )		
 		{
 			if( m_Doc->m_vis[t->m_layer] )
 			{
@@ -12376,7 +12401,6 @@ void CFreePcbView::FindGroupCenter()
 					groupNumberItems++;
 				}
 			}
-			t = m_Doc->m_tlist->GetNextText();
 		}
 	}
 
@@ -12745,11 +12769,7 @@ void CFreePcbView::UndoCallback( int type, void * ptr, BOOL undo )
 			else if( u_d->type == CTextList::UNDO_TEXT_MODIFY )
 			{
 				GUID guid = u_text->m_guid;
-				CText * text = view->m_Doc->m_tlist->GetFirstText();
-				while( text && text->m_guid != guid )
-				{
-					text = view->m_Doc->m_tlist->GetNextText();
-				}
+				CText * text = view->m_Doc->m_tlist->GetText( &guid );
 				if( !text )
 					ASSERT(0);	// guid not found
 				view->SaveUndoInfoForText( text, CTextList::UNDO_TEXT_MODIFY, TRUE, redo_list );
@@ -12992,10 +13012,12 @@ void CFreePcbView::OnValueProperties()
 		// edit this part
 		SaveUndoInfoForPart( m_sel_part,
 			CPartList::UNDO_PART_MODIFY, NULL, TRUE, m_Doc->m_undo_list ); 
+		int value_layer = dlg.m_layer;
+		value_layer = FlipLayer( m_sel_part->side, value_layer );
 		m_Doc->m_plist->SetValue( m_sel_part, &m_sel_part->value, 
 			m_sel_part->m_value_xi, m_sel_part->m_value_yi, 
 			m_sel_part->m_value_angle,
-			dlg.m_height, dlg.m_width, dlg.m_vis );
+			dlg.m_height, dlg.m_width, dlg.m_vis, value_layer );
 		m_Doc->ProjectModified( TRUE );
 		m_dlist->CancelHighLight();
 		if( m_cursor_mode == CUR_PART_SELECTED )

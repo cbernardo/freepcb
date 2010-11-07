@@ -1,7 +1,7 @@
-// This is a class to generate fast, simple unique IDs within an application
+// This is a class to generate simple unique IDs within an application
 // The UIDs are integers with values from 0 to 0x1fffff, so there are about 
 // 2 million possible values which should be enough for FreePCB
-// A value of -1 can be used by the app to indicate an invalid uid
+// A value of -1 indicates an invalid uid
 //
 #include "stdafx.h"
 #include "Cuid.h"
@@ -46,6 +46,27 @@ int Cuid::GetNewUID()
 		}
 	}
 	return -1;	// failed
+}
+
+// Request a particular uid
+// returns TRUE if OK, FALSE if unavailable
+BOOL Cuid::RequestUID( int uid )
+{
+	if( uid < 0 || uid > MAX_VALUE )
+		ASSERT(0);
+	int i = uid>>5;			// index into bits[]
+	int npos = uid & 0x1f;	// bit number
+	if( bits[i] & mask_table[npos] )
+	{
+		// uid already taken
+		return FALSE;
+	}
+	// assign uid
+	bits[i] |= mask_table[npos];
+	n_uids++;
+	if( n_uids > MAX_VALUE/2 )
+		ASSERT(0);
+	return TRUE;
 }
 
 // Release uid by clearing bit in bits[]
