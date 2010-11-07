@@ -115,7 +115,7 @@ void CIterator_cconnect::OnRemove( int ic )
 		{
 			// Make adjustment so that the next GetNext() moves to 
 			// the connection after the one removed.
-			pIterator->m_pCurrentConnection--;
+			pIterator->m_CurrentPos--;
 		}
 	}
 }

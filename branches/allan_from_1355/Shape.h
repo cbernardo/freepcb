@@ -71,6 +71,7 @@ struct glue
 // structure describing stroke (ie. line segment)
 struct stroke
 {
+	int layer;				// PCB or footprint layer (if known)
 	int w, xi, yi, xf, yf;	// thickness + endpoints
 	int type;				// CDisplayList g_type
 	dl_element * dl_el;		// pointer to graphic element for stroke;
@@ -129,10 +130,10 @@ public:
 	int m_sel_xi, m_sel_yi, m_sel_xf, m_sel_yf;			// selection rectangle
 	int m_ref_size, m_ref_xi, m_ref_yi, m_ref_angle;	// ref text
 	int m_ref_w;						// thickness of stroke for ref text
-	int m_ref_layer_index;					// 0=top, 1=bottom silk
+	int m_ref_layer;					
 	int m_value_size, m_value_xi, m_value_yi, m_value_angle;	// value text
 	int m_value_w;						// thickness of stroke for value text
-	int m_value_layer_index;				// 0=top, 1=bottom silk
+	int m_value_layer;				
 	CENTROID_TYPE m_centroid_type;		// type of centroid
 	int m_centroid_x, m_centroid_y;		// position of centroid
 	int m_centroid_angle;				// angle of centroid (CCW)
