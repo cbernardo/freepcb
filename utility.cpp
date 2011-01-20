@@ -1722,7 +1722,7 @@ void GetPadElements( int type, int x, int y, int wid, int len, int radius, int a
 	ASSERT(0);
 }
 
-// Find distance from a staright line segment to a pad
+// Find distance from a straight line segment to a pad
 //
 int GetClearanceBetweenSegmentAndPad( int x1, int y1, int x2, int y2, int w,
 								  int type, int x, int y, int wid, int len, int radius, int angle )
