@@ -10,10 +10,9 @@ typedef struct PointTag
 typedef struct EllipseTag
 {
 	Point Center;			/* ellipse center	 */
-//	double MaxRad,MinRad;	/* major and minor axis */
-//	double Phi;				/* major axis rotation  */
 	double xrad, yrad;		// radii on x and y
-	double theta1, theta2;	// start and end angle for arc 
+	double theta1, theta2;	// start and end angle for cw arc
+	// NOTE: theta1 > theta2, between pi and -pi 
 } EllipseKH;
 
 const CPoint zero(0,0);
@@ -107,14 +106,18 @@ void GetPadElements( int type, int x, int y, int wid, int len, int radius, int a
 					int * nr, my_rect r[], int * nc, my_circle c[], int * ns, my_seg s[] );
 int GetClearanceBetweenPads( int type1, int x1, int y1, int w1, int l1, int r1, int angle1,
 							 int type2, int x2, int y2, int w2, int l2, int r2, int angle2 );
-int GetClearanceBetweenSegmentAndPad( int x1, int y1, int x2, int y2, int w,
+int GetClearanceBetweenLineSegmentAndPad( int x1, int y1, int x2, int y2, int w,
 								  int type, int x, int y, int wid, int len, 
 								  int radius, int angle );
 int GetClearanceBetweenSegments( int x1i, int y1i, int x1f, int y1f, int style1, int w1,
 								   int x2i, int y2i, int x2f, int y2f, int style2, int w2,
-								   int max_cl, int * x, int * y );
-double GetPointToLineSegmentDistance( int xi, int yi, int xf, int yf, int x, int y );
+								   int min_cl, int * x, int * y );
+double GetPointToLineSegmentDistance( int x, int y, int xi, int yi, int xf, int yf );
 double GetPointToLineDistance( double a, double b, int x, int y, double * xp=NULL, double * yp=NULL );
+int GetPointToSegmentDistance( CPoint p,
+				int xi, int yi, int xf, int yf, int w, int style );
+double GetPointToPadDistance( CPoint p, 
+						   int type, int x, int y, int w, int l, int rad, int angle );
 BOOL InRange( double x, double xi, double xf );
 double Distance( int x1, int y1, int x2, int y2 );
 int GetArcIntersections( EllipseKH * el1, EllipseKH * el2, 

@@ -3510,7 +3510,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 									// for now, only works for straight board edge segments
 									if( b->GetSideStyle(ibc) == CPolyLine::STRAIGHT )
 									{
-										int d = ::GetClearanceBetweenSegmentAndPad( x1, y1, x2, y2, 0,
+										int d = ::GetClearanceBetweenLineSegmentAndPad( x1, y1, x2, y2, 0,
 											PAD_ROUND, x, y, hole, 0, 0, 0 );
 										if( d < dr->board_edge_copper )
 										{
@@ -3538,7 +3538,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 								stroke * stk = &part->m_outline_stroke[igr];
 								if( stk->layer == layer )
 								{
-									int d = ::GetClearanceBetweenSegmentAndPad( stk->xi, stk->yi, stk->xf, stk->yf, stk->w,
+									int d = ::GetClearanceBetweenLineSegmentAndPad( stk->xi, stk->yi, stk->xf, stk->yf, stk->w,
 										PAD_ROUND, x, y, hole, 0, 0, 0 );
 									if( d <= dr->hole_copper )
 									{
@@ -3625,7 +3625,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 									// for now, only works for straight board edge segments
 									if( b->GetSideStyle(ibc) == CPolyLine::STRAIGHT )
 									{
-										int d = ::GetClearanceBetweenSegmentAndPad( x1, y1, x2, y2, 0,
+										int d = ::GetClearanceBetweenLineSegmentAndPad( x1, y1, x2, y2, 0,
 											type, x, y, w, l, r, angle );
 										if( d < dr->board_edge_copper )
 										{
@@ -3653,7 +3653,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 								stroke * stk = &part->m_outline_stroke[igr];
 								if( stk->layer == layer )
 								{
-									int d = ::GetClearanceBetweenSegmentAndPad( stk->xi, stk->yi, stk->xf, stk->yf, stk->w,
+									int d = ::GetClearanceBetweenLineSegmentAndPad( stk->xi, stk->yi, stk->xf, stk->yf, stk->w,
 										type, x, y, w, l, r, angle );
 									if( d <= dr->copper_copper )
 									{
@@ -4206,7 +4206,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 							//** for now, only works for straight board edge segments
 							if( b->GetSideStyle(ibc) == CPolyLine::STRAIGHT )
 							{
-								int d = ::GetClearanceBetweenSegmentAndPad( bx1, by1, bx2, by2, 0,
+								int d = ::GetClearanceBetweenLineSegmentAndPad( bx1, by1, bx2, by2, 0,
 									PAD_ROUND, vtx->x, vtx->y, max_via_w, 0, 0, 0 );
 								if( d < dr->board_edge_copper )
 								{
@@ -4225,7 +4225,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 											log->AddLine( str );
 									}
 								}
-								int dh = ::GetClearanceBetweenSegmentAndPad( bx1, by1, bx2, by2, 0,
+								int dh = ::GetClearanceBetweenLineSegmentAndPad( bx1, by1, bx2, by2, 0,
 									PAD_ROUND, vtx->x, vtx->y, vtx->via_hole_w, 0, 0, 0 );
 								if( dh < dr->board_edge_hole )
 								{
@@ -4346,7 +4346,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 										pin_info_valid = TRUE;
 										pin_info_layer = layer;
 									}
-									int d = GetClearanceBetweenSegmentAndPad( xi, yi, xf, yf, w,
+									int d = GetClearanceBetweenLineSegmentAndPad( xi, yi, xf, yf, w,
 										PAD_ROUND, pad_x, pad_y, pad_hole, 0, 0, 0 );
 									if( d < dr->hole_copper ) 
 									{
@@ -4383,7 +4383,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 									if( bPad && pad_type != PAD_NONE && net != pad_net )
 									{
 										// check segment to pad clearance
-										int d = GetClearanceBetweenSegmentAndPad( xi, yi, xf, yf, w,
+										int d = GetClearanceBetweenLineSegmentAndPad( xi, yi, xf, yf, w,
 											pad_type, pad_x, pad_y, pad_w, pad_l, pad_r, pad_angle );
 										if( d < dr->pad_trace ) 
 										{
@@ -4638,7 +4638,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 							if( via_w )
 							{
 								// check via
-								int d = GetClearanceBetweenSegmentAndPad( cgxi, cgyi, cgxf, cgyf, w,
+								int d = GetClearanceBetweenLineSegmentAndPad( cgxi, cgyi, cgxf, cgyf, w,
 									PAD_ROUND, x, y, via_w, 0, 0, 0 );
 								if( d < dr->copper_copper )
 								{
@@ -4662,7 +4662,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 							if( via_hole_w )
 							{
 								// check via hole
-								int d = GetClearanceBetweenSegmentAndPad( cgxi, cgyi, cgxf, cgyf, w,
+								int d = GetClearanceBetweenLineSegmentAndPad( cgxi, cgyi, cgxf, cgyf, w,
 									PAD_ROUND, x, y, via_hole_w, 0, 0, 0 );
 								if( d < dr->hole_copper )
 								{
@@ -4841,7 +4841,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 								if( via_w2 )
 								{
 									// check clearance between segment and via pad
-									int d = GetClearanceBetweenSegmentAndPad( xi, yi, xf, yf, seg_w,
+									int d = GetClearanceBetweenLineSegmentAndPad( xi, yi, xf, yf, seg_w,
 										PAD_ROUND, post_vtx2->x, post_vtx2->y, post_vtx2->via_w, 0, 0, 0 );
 									if( d < dr->trace_trace )
 									{
@@ -4863,7 +4863,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 									}
 								}
 								// check clearance between segment and via hole
-								int d = GetClearanceBetweenSegmentAndPad( xi, yi, xf, yf, seg_w,
+								int d = GetClearanceBetweenLineSegmentAndPad( xi, yi, xf, yf, seg_w,
 									PAD_ROUND, post_vtx2->x, post_vtx2->y, post_vtx2->via_hole_w, 0, 0, 0 );
 								if( d < dr->hole_copper )
 								{
@@ -4907,7 +4907,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 									// check clearance between net2->segment and net->via_pad
 									if( layer >= LAY_TOP_COPPER )
 									{
-										int d = GetClearanceBetweenSegmentAndPad( xi2, yi2, xf2, yf2, seg_w2,
+										int d = GetClearanceBetweenLineSegmentAndPad( xi2, yi2, xf2, yf2, seg_w2,
 											PAD_ROUND, post_vtx->x, post_vtx->y, post_vtx->via_w, 0, 0, 0 );
 										if( d < dr->trace_trace )
 										{
@@ -4933,7 +4933,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 								// check clearance between net2->segment and net->via_hole
 								if( layer >= LAY_TOP_COPPER )
 								{
-									int d = GetClearanceBetweenSegmentAndPad( xi2, yi2, xf2, yf2, seg_w2,
+									int d = GetClearanceBetweenLineSegmentAndPad( xi2, yi2, xf2, yf2, seg_w2,
 										PAD_ROUND, post_vtx->x, post_vtx->y, post_vtx->via_hole_w, 0, 0, 0 );
 									if( d < dr->hole_copper )
 									{
