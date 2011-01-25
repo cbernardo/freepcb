@@ -3,6 +3,7 @@ FreePCB release notes: (versions since 1.2)
 
 1.360
 -----
+- fixed bug where a pad entirely within another pad might not generate a DRC error
 - fixed bug where the Footprint Editor would import a footprint from the local cache,
   instead of the library file
 - fixed bug where part value not set when group copied and pasted

@@ -450,6 +450,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\ellipse_newton.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\file_io.cpp"
 				>
 			</File>
