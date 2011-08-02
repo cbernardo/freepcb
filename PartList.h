@@ -8,6 +8,7 @@
 #include "smfontutil.h"
 #include "DlgLog.h"
 #include "UndoList.h"
+#include "Cuid.h"
 
 #define MAX_REF_DES_SIZE 39
 
@@ -24,6 +25,9 @@ enum {
 	CLEAR_THERMAL,
 	CLEAR_NONE
 };
+
+// global Cuid for partlist classes
+static Cuid pl_cuid;
 
 // struct to hold data to undo an operation on a part
 //
@@ -182,7 +186,6 @@ private:
 	int m_annular_ring;
 	CNetList * m_nlist;
 	CDisplayList * m_dlist;
-	SMFontUtil * m_fontutil;	// class for Hershey font
 	CMapStringToPtr * m_footprint_cache_map;
 
 public:
@@ -190,7 +193,7 @@ public:
 		UNDO_PART_DELETE=1, 
 		UNDO_PART_MODIFY, 
 		UNDO_PART_ADD };	// undo types
-	CPartList( CDisplayList * dlist, SMFontUtil * fontutil );
+	CPartList( CDisplayList * dlist );
 	~CPartList();
 	void UseNetList( CNetList * nlist ){ m_nlist = nlist; };
 	void SetShapeCacheMap( CMapStringToPtr * shape_cache_map )

@@ -112,7 +112,7 @@ int GetClearanceBetweenLineSegmentAndPad( int x1, int y1, int x2, int y2, int w,
 int GetClearanceBetweenSegments( int x1i, int y1i, int x1f, int y1f, int style1, int w1,
 								   int x2i, int y2i, int x2f, int y2f, int style2, int w2,
 								   int min_cl, int * x, int * y );
-double GetPointToLineSegmentDistance( int x, int y, int xi, int yi, int xf, int yf );
+double GetPointToLineSegmentDistance( int x, int y, int xi, int yi, int xf, int yf, double * xp=NULL, double * yp=NULL );
 double GetPointToLineDistance( double a, double b, int x, int y, double * xp=NULL, double * yp=NULL );
 int GetPointToSegmentDistance( CPoint p,
 				int xi, int yi, int xf, int yf, int w, int style );

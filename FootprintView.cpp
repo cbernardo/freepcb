@@ -700,8 +700,18 @@ void CFootprintView::OnLButtonDown(UINT nFlags, CPoint point)
 			CPoint p;
 			p = m_last_cursor_point;
 			m_dlist->StopDragging();
-			m_fp.m_outline_poly[m_sel_id.i].MoveCorner( m_sel_id.ii, p.x, p.y );
+			BOOL bEnforceCircularArcs = FALSE;
+			if( m_fp.m_outline_poly[m_sel_id.i].GetLayer() >= LAY_FP_TOP_COPPER
+				&& m_fp.m_outline_poly[m_sel_id.i].GetLayer() <= LAY_FP_BOTTOM_COPPER )
+			{
+				bEnforceCircularArcs = TRUE;
+			}
+			BOOL bMod = m_fp.m_outline_poly[m_sel_id.i].MoveCorner( m_sel_id.ii, p.x, p.y, bEnforceCircularArcs );
 			m_fp.m_outline_poly[m_sel_id.i].HighlightCorner( m_sel_id.ii );
+			if( bMod )
+			{
+				AfxMessageBox( "Arcs with endpoints not at 45 degree angles converted to straight lines" );
+			}
 			SetCursorMode( CUR_FP_POLY_CORNER_SELECTED );
 			FootprintModified( TRUE );
 		}
@@ -2450,7 +2460,7 @@ void CFootprintView::OnFootprintFileSaveAs()
 void CFootprintView::OnAddPolyline()
 {
 	CDlgAddPoly dlg;
-	dlg.Initialize( TRUE, -1, m_units, -1, TRUE );
+	dlg.Initialize( TRUE, -1, m_units, -1, TRUE, &m_fp.m_padstack );
 	int ret = dlg.DoModal();
 	if( ret == IDOK )
 	{
@@ -2465,7 +2475,14 @@ void CFootprintView::OnAddPolyline()
 		m_polyline_closed_flag = dlg.GetClosedFlag();
 		m_polyline_style = CPolyLine::STRAIGHT;
 		m_polyline_width = dlg.GetWidth();
-		m_polyline_layer = LAY_FP_SILK_TOP + dlg.GetLayerIndex();
+		if( dlg.GetLayerIndex() < 2 )
+		{
+			m_polyline_layer = LAY_FP_SILK_TOP + dlg.GetLayerIndex();
+		}
+		else
+		{
+			m_polyline_layer = LAY_FP_TOP_COPPER + dlg.GetLayerIndex() - 2;
+		}
 		m_dlist->StartDraggingArray( pDC, p.x, p.y, 0, LAY_FP_SELECTION );
 		SetCursorMode( CUR_FP_ADD_POLY );
 		ReleaseDC( pDC );
@@ -2480,7 +2497,7 @@ void CFootprintView::OnEditPolyline()
 	if( poly->GetLayer() == LAY_FP_SILK_BOTTOM )
 		layer_index = 1;
 	CDlgAddPoly dlg;
-	dlg.Initialize( FALSE, layer_index, m_units, poly->GetW(), poly->GetClosed() );
+	dlg.Initialize( FALSE, layer_index, m_units, poly->GetW(), poly->GetClosed(), &m_fp.m_padstack );
 	int ret = dlg.DoModal();
 	if( ret == IDOK )
 	{
