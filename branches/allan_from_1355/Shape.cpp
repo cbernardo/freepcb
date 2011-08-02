@@ -1253,6 +1253,8 @@ int CShape::MakeFromFile( CStdioFile * in_file, CString name,
 				m_ref_w = GetDimensionFromString( &p[4], m_units);
 				if( np >= 7 )
 					m_ref_layer = my_atoi( &p[5] );
+				if( m_ref_layer < 4 )
+					m_ref_layer = 4;
 				bRef = TRUE;
 			}
 			else if( key_str == "value_text" && np >= 6 )
@@ -1264,6 +1266,8 @@ int CShape::MakeFromFile( CStdioFile * in_file, CString name,
 				m_value_w = GetDimensionFromString( &p[4], m_units);
 				if( np >= 7 )
 					m_value_layer = my_atoi( &p[5] );
+				if( m_value_layer < 4 )
+					m_value_layer = 4;
 				bValue = TRUE;
 			}
 			else if( key_str == "centroid" && np >= 4 )
@@ -1307,15 +1311,17 @@ int CShape::MakeFromFile( CStdioFile * in_file, CString name,
 			else if( (key_str == "outline_polygon" || key_str == "outline_polyline")
 				&& np >= 4 )
 			{
-				int layer_index = 0;
+				int poly_layer = LAY_FP_SILK_TOP;
 				int w = GetDimensionFromString( &p[0], m_units);
 				int x = GetDimensionFromString( &p[1], m_units);
 				int y = GetDimensionFromString( &p[2], m_units);
 				if( np >= 5 )
-					layer_index = my_atoi( &p[3] );
+					poly_layer = my_atoi( &p[3] );
+				if( poly_layer < LAY_FP_SILK_TOP )
+					poly_layer = LAY_FP_SILK_TOP;
 				int npolys = m_outline_poly.GetSize();
 				m_outline_poly.SetSize(npolys+1);
-				m_outline_poly[npolys].Start( LAY_FP_SILK_TOP+layer_index, w, 0, x, y, 0, NULL, NULL );
+				m_outline_poly[npolys].Start( poly_layer, w, 0, x, y, 0, NULL, NULL );
 			}
 			else if( key_str == "next_corner" && np >= 3 )
 			{
@@ -1760,12 +1766,9 @@ int CShape::WriteFootprint( CStdioFile * file )
 		}
 		for( int ip=0; ip<m_outline_poly.GetSize(); ip++ )
 		{
-			int layer_index = 0;
-			if( m_outline_poly[ip].GetLayer() == LAY_FP_SILK_BOTTOM )
-				layer_index = 1;
 			line.Format( "  outline_polyline: %s %s %s %d\n", ws(m_outline_poly[ip].GetW(),m_units),
 				ws(m_outline_poly[ip].GetX(0),m_units), ws(m_outline_poly[ip].GetY(0),m_units),
-				layer_index );
+				m_outline_poly[ip].GetLayer() );
 			file->WriteString( line );
 			int nc = m_outline_poly[ip].GetNumCorners();
 			for( int ic=1; ic<nc; ic++ )

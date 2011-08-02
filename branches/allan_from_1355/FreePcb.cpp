@@ -6,7 +6,7 @@
 #include "resource.h"
 #include "DlgShortcuts.h"
 #include "afxwin.h"
-#include ".\freepcb.h"
+#include "freepcb.h"
 //#include "QAFDebug.h"
 
 #ifdef _DEBUG

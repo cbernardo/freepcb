@@ -24,9 +24,6 @@
 #include "LinkList.h"
 #include "Cuid.h"
 
-// global Cuid for netlist classes
-static Cuid nl_cuid;
-
 extern int m_layer_by_file_layer[MAX_LAYERS];
 
 class cnet;
@@ -165,6 +162,7 @@ public:
 	~carea();						// destructor
 	carea &operator=( carea &a );	// dummy assignment operator
 	void Initialize( CDisplayList * dlist );
+	int m_uid;
 	CPolyLine * poly;	// outline
 	int npins;			// number of thru-hole pins within area on same net
 	CArray<int> pin;	// array of thru-hole pins
@@ -199,7 +197,7 @@ public:
 	cseg()
 	{
 		// constructor
-		m_uid = nl_cuid.GetNewUID();
+		m_uid = pcb_cuid.GetNewUID();
 		m_dlist = 0;  // this must be filled in with Initialize()
 		m_nlist = 0;  // this must be filled in with Initialize()
 		curve = STRAIGHT;
@@ -213,7 +211,7 @@ public:
 	~cseg()
 	{
 		// destructor
-		nl_cuid.ReleaseUID( m_uid );
+		pcb_cuid.ReleaseUID( m_uid );
 		if( m_dlist )
 		{
 			if( dl_el )
@@ -246,7 +244,7 @@ public:
 	cvertex()
 	{
 		// constructor
-		m_uid = nl_cuid.GetNewUID();
+		m_uid = pcb_cuid.GetNewUID();
 		m_dlist = 0;	// this must set with Initialize()
 		m_nlist = 0;	// this must set with Initialize()
 		x = 0; y = 0;
@@ -263,7 +261,7 @@ public:
 	~cvertex()
 	{
 		// destructor
-		nl_cuid.ReleaseUID( m_uid );
+		pcb_cuid.ReleaseUID( m_uid );
 		if( m_dlist )
 		{
 			for( int il=0; il<dl_el.GetSize(); il++ )
@@ -334,7 +332,7 @@ public:
 	};
 	cconnect()
 	{ 
-		m_uid = nl_cuid.GetNewUID();
+		m_uid = pcb_cuid.GetNewUID();
 		m_nlist = NULL;
 		locked = 0;
 		nsegs = 0;
@@ -344,12 +342,13 @@ public:
 	}
 	~cconnect()
 	{
-		nl_cuid.ReleaseUID( m_uid );
+		pcb_cuid.ReleaseUID( m_uid );
 	}
 	void Initialize( CNetList * nlist )
 	{
 		m_nlist = nlist;
 	}
+	int m_uid;					// unique id
 	int start_pin, end_pin;		// indexes into net.pin array
 	int nsegs;					// # elements in seg array
 	int locked;					// 1 if locked (will not be optimized away)
@@ -362,14 +361,23 @@ public:
 	BOOL vias_present;			// flag to indicate that vias are pesent
 	int seg_layers;				// mask for all layers used by segments
 	CNetList * m_nlist;
-	int m_uid;					// unique id
 };
 
 // cnet: describes a net
 class cnet
 {
 public:
-	cnet( CDisplayList * dlist ){ m_dlist = dlist; }
+	cnet( CDisplayList * dlist )
+	{ 
+		m_dlist = dlist;
+		id.Clear();
+		id.type = ID_NET;
+		id.uid = pcb_cuid.GetNewUID();
+	}
+	~cnet()
+	{
+		pcb_cuid.ReleaseUID( id.uid );
+	}
 	id id;				// net id
 	CString name;		// net name
 	int nconnects;		// number of connections
