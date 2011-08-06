@@ -212,7 +212,8 @@ void CDlgReport::OnBnClickedOk()
 			num_pins, num_th_pins, num_pins-num_th_pins );
 		file.WriteString( line );
 	}
-	cnet * net = m_nl->GetFirstNet();
+	CIterator_cnet iter_net(m_nl);
+	cnet * net = iter_net.GetFirst();
 	while( net )
 	{
 		num_nets++;
@@ -234,7 +235,7 @@ void CDlgReport::OnBnClickedOk()
 				}
 			}
 		}
-		net = m_nl->GetNextNet();
+		net = iter_net.GetNext();
 	}
 	if( !(m_flags & NO_PCB_STATS) )
 	{

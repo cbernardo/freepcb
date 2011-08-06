@@ -2760,7 +2760,9 @@ void CFreePcbDoc::OnFileImport()
 				m_nlist->RestoreConnectionsAndAreas( old_nlist, m_import_flags, m_dlg_log );
 				delete old_nlist;
 				// rehook all parts to nets after destroying old_nlist
-				for( cnet * net=m_nlist->GetFirstNet(); net; net=m_nlist->GetNextNet() )
+				CIterator_cnet iter_net(m_nlist);
+				cnet * net = iter_net.GetFirst();
+				for( cnet * net=iter_net.GetFirst(); net; net=iter_net.GetNext() )
 					m_nlist->RehookPartsToNet( net );
 			}
 			// clean up
@@ -3972,7 +3974,8 @@ void CFreePcbDoc::OnToolsCheckCopperAreas()
 	m_dlg_log->Clear();
 	m_dlg_log->UpdateWindow();
 	m_view->CancelSelection();
-	cnet * net = m_nlist->GetFirstNet(); 
+	CIterator_cnet iter_net(m_nlist);
+	cnet * net = iter_net.GetFirst(); 
 	BOOL new_event = TRUE; 
 	while( net ) 
 	{
@@ -4066,7 +4069,7 @@ void CFreePcbDoc::OnToolsCheckCopperAreas()
 				}
 			}
 		}
-		net = m_nlist->GetNextNet();
+		net = iter_net.GetNext();
 	}
 	str.Format( "*******  DONE *******\r\n" ); 
 	m_dlg_log->AddLine( str );

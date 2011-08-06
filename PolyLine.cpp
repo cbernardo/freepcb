@@ -920,7 +920,7 @@ void CPolyLine::Draw(  CDisplayList * dl )
 			// draw
 			if( m_sel_box )
 			{
-				m_id.sst = ID_SEL_CORNER;	// selection rect for corner
+				sel_id.sst = ID_SEL_CORNER;	// selection rect for corner
 				dl_corner_sel[ic] = m_dlist->AddSelector( sel_id, m_ptr, m_layer, DL_HOLLOW_RECT, 
 					1, 0, 0, xi-m_sel_box, yi-m_sel_box, 
 					xi+m_sel_box, yi+m_sel_box, 0, 0 );
@@ -945,7 +945,7 @@ void CPolyLine::Draw(  CDisplayList * dl )
 					1, m_w, 0, xi, yi, xf, yf, 0, 0 );
 				if( m_sel_box )
 				{
-					m_id.sst = ID_SEL_SIDE;
+					sel_id.sst = ID_SEL_SIDE;
 					dl_side_sel[ic] = m_dlist->AddSelector( sel_id, m_ptr, m_layer, g_type, 
 						1, m_w, 0, xi, yi, xf, yf, 0, 0 );
 				}

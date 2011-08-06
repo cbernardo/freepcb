@@ -8906,7 +8906,8 @@ void CFreePcbView::SelectItemsInRect( CRect r, BOOL bAddToGroup )
 	// find trace segments and vertices contained in rect
 	if( m_sel_mask & (1<<SEL_MASK_CON ) )
 	{
-		cnet * net = m_Doc->m_nlist->GetFirstNet();
+		CIterator_cnet iter_net(m_Doc->m_nlist);
+		cnet * net = iter_net.GetFirst();
 		while( net )
 		{
 			for( int ic=0; ic<net->nconnects; ic++ )
@@ -8953,7 +8954,7 @@ void CFreePcbView::SelectItemsInRect( CRect r, BOOL bAddToGroup )
 					}
 				}
 			}
-			net = m_Doc->m_nlist->GetNextNet();
+			net = iter_net.GetNext();
 		}
 	}
 
@@ -8983,7 +8984,8 @@ void CFreePcbView::SelectItemsInRect( CRect r, BOOL bAddToGroup )
 	// find copper area sides in rect
 	if( m_sel_mask & (1<<SEL_MASK_AREAS ) )
 	{
-		cnet * net = m_Doc->m_nlist->GetFirstNet();
+		CIterator_cnet iter_net(m_Doc->m_nlist);
+		cnet * net = iter_net.GetFirst();
 		while( net )
 		{
 			if( net->nareas )
@@ -9025,7 +9027,7 @@ void CFreePcbView::SelectItemsInRect( CRect r, BOOL bAddToGroup )
 					}
 				}
 			}
-			net = m_Doc->m_nlist->GetNextNet();
+			net = iter_net.GetNext();
 		}
 	}
 
@@ -9641,8 +9643,9 @@ void CFreePcbView::MoveGroup( int dx, int dy )
 			m_Doc->m_plist->Move( part, part->x+dx, part->y+dy, part->angle, part->side );
 			// find segments which connect to this part and move them
 			// use net->utility2 to avoid repeats
+			CIterator_cnet iter_net(m_Doc->m_nlist);
 			cnet * net;
-			for( net=m_Doc->m_nlist->GetFirstNet(); net; net=m_Doc->m_nlist->GetNextNet() )
+			for( net=iter_net.GetFirst(); net; net=iter_net.GetNext() )
 				net->utility2 = 0;
 			for( int ip=0; ip<part->shape->m_padstack.GetSize(); ip++ )
 			{
@@ -9710,7 +9713,8 @@ void CFreePcbView::MoveGroup( int dx, int dy )
 	}
 
 	// get selected segments
-	cnet * net = m_Doc->m_nlist->GetFirstNet();
+	CIterator_cnet iter_net(m_Doc->m_nlist);
+	cnet * net = iter_net.GetFirst();
 	while( net != NULL )
 	{
 		if( net->utility )
@@ -9877,7 +9881,7 @@ void CFreePcbView::MoveGroup( int dx, int dy )
 				}
 			}
 		}
-		net = m_Doc->m_nlist->GetNextNet();
+		net = iter_net.GetNext();
 	}
 
 	// merge unrouted segments for all traces
@@ -9895,7 +9899,7 @@ void CFreePcbView::MoveGroup( int dx, int dy )
 
 	//** this shouldn't be necessary
 	CNetList * nl = m_Doc->m_nlist;
-	for( cnet * n=nl->GetFirstNet(); n; n=nl->GetNextNet() )
+	for( cnet * n=iter_net.GetFirst(); n; n=iter_net.GetNext() )
 		nl->RehookPartsToNet( n );
 	//**
 	m_Doc->m_nlist->SetAreaConnections();
@@ -9917,7 +9921,7 @@ void CFreePcbView::MoveGroup( int dx, int dy )
 		}
 	}
 	// add segments and vertices back into group
-	net = m_Doc->m_nlist->GetFirstNet();
+	net = iter_net.GetFirst();
 	while( net )
 	{
 		if( net->utility )
@@ -9960,7 +9964,7 @@ void CFreePcbView::MoveGroup( int dx, int dy )
 				}
 			}
 		}
-		net = m_Doc->m_nlist->GetNextNet();
+		net = iter_net.GetNext();
 	}
 	groupAverageX+=dx;
 	groupAverageY+=dy;
@@ -10246,14 +10250,15 @@ void CFreePcbView::OnGroupCopy()
 	}
 
 	// mark all connections and areas as unchecked
-	cnet * net = m_Doc->m_nlist->GetFirstNet();
+	CIterator_cnet iter_net(m_Doc->m_nlist);
+	cnet * net = iter_net.GetFirst();
 	while( net )
 	{
 		for( int ic=0; ic<net->nconnects; ic++ )
 			net->connect[ic].utility = FALSE;
 		for( int ia=0; ia<net->nareas; ia++ )
 			net->area[ia].utility = FALSE;
-		net = m_Doc->m_nlist->GetNextNet();
+		net = iter_net.GetNext();
 	}
 
 	// check all selected areas and connections
@@ -10432,7 +10437,7 @@ void CFreePcbView::OnGroupCopy()
 	g_nl->CleanUpAllConnections();
 
 	// now check areas, only copy areas if all sides are selected
-	net = m_Doc->m_nlist->GetFirstNet();
+	net = iter_net.GetFirst();
 	while( net )
 	{
 		for( int ia=0; ia<net->nareas; ia++ )
@@ -10469,17 +10474,17 @@ void CFreePcbView::OnGroupCopy()
 				}
 			}
 		}
-		net = m_Doc->m_nlist->GetNextNet();
+		net = iter_net.GetNext();
 	}
 
 	// now remove any nets with zero pins, connections and areas
-	net = g_nl->GetFirstNet();
+	CIterator_cnet iter_net_g(g_nl);
+	net = iter_net_g.GetFirst();
 	while( net )
 	{
-		cnet * next_net = g_nl->GetNextNet();
 		if( net->npins == 0 && net->nconnects == 0 && net->nareas == 0 )
 			g_nl->RemoveNet( net );
-		net = next_net;
+		net = iter_net_g.GetNext();
 	}
 
 	// mark all sm_cutouts as unselected
@@ -10565,7 +10570,7 @@ void CFreePcbView::OnGroupCopy()
 	}
 
 	// see if anything copied
-	if( !g_nl->GetFirstNet() && !g_pl->GetFirstPart() && !g_sm->GetSize() 
+	if( !iter_net_g.GetFirst() && !g_pl->GetFirstPart() && !g_sm->GetSize() 
 		&& !g_bd->GetSize() && !g_tl->GetNumTexts() )
 	{
 		AfxMessageBox( "Nothing copied !\nRemember that traces must be connected\nto a part in the group to be copied" );
@@ -10680,7 +10685,8 @@ void CFreePcbView::DeleteGroup( CArray<void*> * grp_ptr, CArray<id> * grp_id )
 	}
 	// save undo info
 	m_Doc->m_undo_list->NewEvent();
-	for( net=nl->GetFirstNet(); net; net=nl->GetNextNet() )
+	CIterator_cnet iter_net(nl);
+	for( net=iter_net.GetFirst(); net; net=iter_net.GetNext() )
 		if( net->utility )
 			SaveUndoInfoForNetAndConnections( net, CNetList::UNDO_NET_MODIFY, FALSE, m_Doc->m_undo_list );
 	for( part=pl->GetFirstPart(); part; part=pl->GetNextPart(part) )
@@ -10766,7 +10772,7 @@ void CFreePcbView::DeleteGroup( CArray<void*> * grp_ptr, CArray<id> * grp_id )
 	}
 
 	// find non-branch stub traces with no end via and remove trailing unrouted segments
-	net = nl->GetFirstNet();
+	net = iter_net.GetFirst();
 	while( net )
 	{
 		if( net->utility )
@@ -10792,11 +10798,11 @@ void CFreePcbView::DeleteGroup( CArray<void*> * grp_ptr, CArray<id> * grp_id )
 				}
 			}
 		}
-		net = nl->GetNextNet();
+		net = iter_net.GetNext();
 	}
 
 	// remove connections marked for deletion and merge unrouted segments
-	net = nl->GetFirstNet();
+	net = iter_net.GetFirst();
 	while( net )
 	{
 		if( net->utility )
@@ -10810,7 +10816,7 @@ void CFreePcbView::DeleteGroup( CArray<void*> * grp_ptr, CArray<id> * grp_id )
 					nl->MergeUnroutedSegments( net, ic );
 			}
 		}
-		net = nl->GetNextNet();
+		net = iter_net.GetNext();
 	}
 	// remove board outlines, copper areas, parts, texts and sm_cutouts
 	for( int i=0; i<(*grp_id).GetSize(); i++ )
@@ -10886,7 +10892,7 @@ void CFreePcbView::DeleteGroup( CArray<void*> * grp_ptr, CArray<id> * grp_id )
 			m_Doc->m_board_outline[ibd].SetId( &new_id );
 	}
 	// delete copper areas or cutouts if all sides are in group
-	net = nl->GetFirstNet();
+	net = iter_net.GetFirst();
 	while( net )
 	{
 		for( int ia=net->nareas-1; ia>=0; ia-- )
@@ -10928,7 +10934,7 @@ void CFreePcbView::DeleteGroup( CArray<void*> * grp_ptr, CArray<id> * grp_id )
 			}
 		}
 		nl->SetAreaConnections( net );
-		net = nl->GetNextNet();
+		net = iter_net.GetNext();
 	}
 	// clean up
 	m_Doc->m_undo_list->Push( UNDO_GROUP, (void*)undo, &UndoGroupCallback );
@@ -10978,7 +10984,8 @@ void CFreePcbView::OnGroupPaste()
 			ref_des_map.SetAt( part->ref_des, NULL );
 			part = pl->GetNextPart( part );
 		}
-		cnet * net = nl->GetFirstNet();
+		CIterator_cnet iter_net(nl);
+		cnet * net = iter_net.GetFirst();
 		while( net )
 		{
 			for( int ip=0; ip<net->npins; ip++ )
@@ -10989,7 +10996,7 @@ void CFreePcbView::OnGroupPaste()
 					ref_des_map.SetAt( p->ref_des, NULL );
 				}
 			}
-			net = nl->GetNextNet();
+			net = iter_net.GetNext();
 		}
 
 		// add parts from group, renaming if necessary
@@ -11042,7 +11049,8 @@ void CFreePcbView::OnGroupPaste()
 				bConflict = TRUE;
 			}
 			// now change part refs in group netlist
-			net = g_nl->GetFirstNet();
+			CIterator_cnet iter_net_g(g_nl);
+			net = iter_net_g.GetFirst();
 			while( net )
 			{
 				for( int ip=0; ip<net->npins; ip++ )
@@ -11055,7 +11063,7 @@ void CFreePcbView::OnGroupPaste()
 						pin->utility = 1;	// only change it once
 					}
 				}
-				net = g_nl->GetNextNet();
+				net = iter_net_g.GetNext();
 			}
 			// add new part
 			cpart * prj_part = pl->Add( g_part->shape, &new_ref, &g_part->package,
@@ -11107,7 +11115,7 @@ void CFreePcbView::OnGroupPaste()
 		{
 			// get highest group suffix already in project
 			int max_g_num = 0;
-			cnet * net = nl->GetFirstNet();
+			cnet * net = iter_net.GetFirst();
 			while( net )
 			{
 				int n = net->name.ReverseFind( '_' );
@@ -11119,13 +11127,14 @@ void CFreePcbView::OnGroupPaste()
 					if( prefix == "$G" )
 						max_g_num = max( g_num, max_g_num );
 				}
-				net = nl->GetNextNet();
+				net = iter_net.GetNext();
 			}
 			g_suffix.Format( "_$G%d", max_g_num + 1 );
 		}
 		// now loop through all nets in group and add or merge with project
 		cnet * prj_net = NULL;	// project net
-		cnet * g_net = g_nl->GetFirstNet();	// group net
+		CIterator_cnet iter_net_g(g_nl);
+		cnet * g_net = iter_net_g.GetFirst();	// group net
 		while( g_net )
 		{
 			// see if there are routed segments in this net
@@ -11160,7 +11169,7 @@ void CFreePcbView::OnGroupPaste()
 					if( dlg.m_net_rename_option == 1 )
 					{
 						// get next "Nnnnnn" net name
-						cnet * net = nl->GetFirstNet();
+						cnet * net = iter_net.GetFirst();
 						int max_num = 0;
 						CString prefix;
 						while( net )
@@ -11168,7 +11177,7 @@ void CFreePcbView::OnGroupPaste()
 							int num = ParseRef( &net->name, &prefix );
 							if( prefix == "N" && num > max_num )
 								max_num = num;
-							net = nl->GetNextNet();
+							net = iter_net.GetNext();
 						}
 						new_name.Format( "N%05d", max_num+1 );
 					}
@@ -11369,7 +11378,7 @@ void CFreePcbView::OnGroupPaste()
 					p->Draw( prj_net->m_dlist );
 				}
 			}
-			g_net = g_nl->GetNextNet();
+			g_net = iter_net_g.GetNext();
 		}
 		// now destroy modified g_nl and restore links in g_pl
 		delete g_nl;
@@ -11488,7 +11497,7 @@ void CFreePcbView::OnGroupPaste()
 			FindGroupCenter();
 			if( m_Doc->m_vis[LAY_RAT_LINE] )
 			{
-				for( net=m_Doc->m_nlist->GetFirstNet(); net; net=m_Doc->m_nlist->GetNextNet() )
+				for( net=iter_net.GetFirst(); net; net=iter_net.GetNext() )
 				{
 					m_Doc->m_nlist->OptimizeConnections( net, -1, m_Doc->m_auto_ratline_disable,
 						m_Doc->m_auto_ratline_min_pins, TRUE ); 
@@ -11910,7 +11919,8 @@ void CFreePcbView::RotateGroup()
 	}
 
 	// get selected segments
-	cnet * net = m_Doc->m_nlist->GetFirstNet();
+	CIterator_cnet iter_net(m_Doc->m_nlist);
+	cnet * net = iter_net.GetFirst();
 	while( net != NULL )
 	{
 		if( net->utility )
@@ -12078,7 +12088,7 @@ void CFreePcbView::RotateGroup()
 				}
 			}
 		}
-		net = m_Doc->m_nlist->GetNextNet();
+		net = iter_net.GetNext();
 	}
 
 	// merge unrouted segments for all traces
@@ -12096,7 +12106,7 @@ void CFreePcbView::RotateGroup()
 
 	//** this shouldn't be necessary
 	CNetList * nl = m_Doc->m_nlist;
-	for( cnet * n=nl->GetFirstNet(); n; n=nl->GetNextNet() )
+	for( cnet * n=iter_net.GetFirst(); n; n=iter_net.GetNext() )
 		nl->RehookPartsToNet( n );
 	//**
 	m_Doc->m_nlist->SetAreaConnections();
@@ -12118,7 +12128,7 @@ void CFreePcbView::RotateGroup()
 		}
 	}
 	// add segments and vertices back into group
-	net = m_Doc->m_nlist->GetFirstNet();
+	net = iter_net.GetFirst();
 	while( net )
 	{
 		if( net->utility )
@@ -12161,7 +12171,7 @@ void CFreePcbView::RotateGroup()
 				}
 			}
 		}
-		net = m_Doc->m_nlist->GetNextNet();
+		net = iter_net.GetNext();
 	}
 }
 
@@ -12188,9 +12198,10 @@ void CFreePcbView::FindGroupCenter()
 	}
 
 	// find trace segments and vertices contained in rect
+	CIterator_cnet iter_net(m_Doc->m_nlist);
 	if( m_sel_mask & (1<<SEL_MASK_CON ) )
 	{
-		cnet * net = m_Doc->m_nlist->GetFirstNet();
+		cnet * net = iter_net.GetFirst();
 		while( net )
 		{
 			for( int ic=0; ic<net->nconnects; ic++ )
@@ -12215,7 +12226,7 @@ void CFreePcbView::FindGroupCenter()
 					}
 				}
 			}
-			net = m_Doc->m_nlist->GetNextNet();
+			net = iter_net.GetNext();
 		}
 	}
 
@@ -12242,7 +12253,7 @@ void CFreePcbView::FindGroupCenter()
 	// find copper area sides in rect
 	if( m_sel_mask & (1<<SEL_MASK_AREAS ) )
 	{
-		cnet * net = m_Doc->m_nlist->GetFirstNet();
+		cnet * net = iter_net.GetFirst();
 		while( net )
 		{
 			if( net->nareas )
@@ -12281,7 +12292,7 @@ void CFreePcbView::FindGroupCenter()
 					}
 				}
 			}
-			net = m_Doc->m_nlist->GetNextNet();
+			net = iter_net.GetNext();
 		}
 	}
 
