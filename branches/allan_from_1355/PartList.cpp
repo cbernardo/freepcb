@@ -1850,11 +1850,12 @@ int CPartList::StartDraggingPart( CDC * pDC, cpart * part, BOOL bRatlines,
 	{
 		m_dlist->MakeDragRatlineArray( 2*part->shape->m_padstack.GetSize(), 1 );
 		// zero utility flags for all nets
-		cnet * n = m_nlist->GetFirstNet();
+		CIterator_cnet iter_net(m_nlist);
+		cnet * n = iter_net.GetFirst();
 		while( n )
 		{
 			n->utility = 0;
-			n = m_nlist->GetNextNet();
+			n = iter_net.GetNext();
 		}
 
 		// now loop through all pins in part to find nets that connect

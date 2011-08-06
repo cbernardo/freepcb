@@ -26,8 +26,11 @@
 
 extern int m_layer_by_file_layer[MAX_LAYERS];
 
-class cnet;
 class CNetList;
+class cvertex;
+class CVertex;
+class cconnect;
+class cnet;
 
 #define MAX_NET_NAME_SIZE 39
 
@@ -197,7 +200,7 @@ public:
 	cseg()
 	{
 		// constructor
-		m_uid = pcb_cuid.GetNewUID();
+//		m_uid = pcb_cuid.GetNewUID();
 		m_dlist = 0;  // this must be filled in with Initialize()
 		m_nlist = 0;  // this must be filled in with Initialize()
 		curve = STRAIGHT;
@@ -211,7 +214,7 @@ public:
 	~cseg()
 	{
 		// destructor
-		pcb_cuid.ReleaseUID( m_uid );
+//		pcb_cuid.ReleaseUID( m_uid );
 		if( m_dlist )
 		{
 			if( dl_el )
@@ -237,6 +240,110 @@ public:
 	int utility;
 };
 
+// CVertex: new class for vertices
+class CVertex
+{
+	enum { V_PIN, V_TRACE, V_END };	// types of vertices
+public:
+	CVertex( CDisplayList * dlist, cnet * net )
+	{
+//		m_uid = pcb_cuid.GetNewUID();
+		m_net = net;
+	}
+	~CVertex()
+	{
+//		pcb_cuid.ReleaseUID( m_uid );
+	}
+	CDisplayList * m_dlist;		// CDisplayList for drawing
+	cnet * m_net;				// parent net
+	int m_uid;					// UID
+};
+
+// cnet: describes a net
+class cnet
+{
+public:
+	cnet( CDisplayList * dlist, CNetList * nlist )
+	{ 
+		m_dlist = dlist;
+		m_nlist = nlist;
+		id.Clear();
+		id.type = ID_NET;
+//		id.uid = pcb_cuid.GetNewUID();
+	}
+	~cnet()
+	{
+//		pcb_cuid.ReleaseUID( id.uid );
+		connect.RemoveAll();
+		area.RemoveAll();
+		pin.RemoveAll();
+	}
+	id id;				// net id
+	CString name;		// net name
+	int nconnects;		// number of connections
+	CArray<cconnect> connect; // array of connections (size = max_pins-1)
+	int npins;			// number of pins
+	CArray<cpin> pin;	// array of pins
+	int nareas;			// number of copper areas
+	CArray<carea,carea> area;	// array of copper areas
+	int def_w;			// default trace width
+	int def_via_w;		// default via width
+	int def_via_hole_w;	// default via hole width
+	BOOL visible;		// FALSE to hide ratlines and make unselectable
+	int utility;		// used to keep track of which nets have been optimized
+	int utility2;		// used to keep track of which nets have been optimized
+	CDisplayList * m_dlist;		// CDisplayList to use
+	CNetList * m_nlist;	// parent netlist
+	// new stuff, for testing
+	CMap<int,int,CVertex*,CVertex*> m_vertex_map;
+};
+
+// cconnect: describes a connection between two pins or a stub trace with no end pin
+class cconnect
+{
+public:
+	enum {
+		NO_END = -1		// used for end_pin if stub trace
+	};
+	cconnect()
+	{ 
+//		m_uid = pcb_cuid.GetNewUID();
+		m_nlist = NULL;
+		locked = 0;
+		nsegs = 0;
+		seg.SetSize( 0 );
+		vtx.SetSize( 0 );
+		utility = 0;
+	}
+	~cconnect()
+	{
+//		pcb_cuid.ReleaseUID( m_uid );
+		vtx.RemoveAll();
+		seg.RemoveAll();
+	}
+	void Initialize( CNetList * nlist, cnet * net )
+	{
+		m_nlist = nlist;
+		m_net = net;
+	}
+
+	CNetList * m_nlist;			// parent NetList 
+	int start_pin, end_pin;		// indexes into net.pin array
+	int nsegs;					// # elements in seg array
+	int locked;					// 1 if locked (will not be optimized away)
+	CArray<cseg> seg;			// array of segments
+	CArray<cvertex> vtx;		// array of vertices, size = nsegs + 1
+	int utility;				// used for various temporary ops
+	// these params used only by DRC
+	int min_x, max_x;			// bounding rect
+	int min_y, max_y;
+	BOOL vias_present;			// flag to indicate that vias are pesent
+	int seg_layers;				// mask for all layers used by segments
+	// new stuff
+	int m_uid;					// unique id
+	cnet * m_net;				// parent net
+};
+
 // cvertex: describes a vertex between segments
 class cvertex
 {
@@ -244,11 +351,12 @@ public:
 	cvertex()
 	{
 		// constructor
-		m_uid = pcb_cuid.GetNewUID();
+//		m_uid = pcb_cuid.GetNewUID();
 		m_dlist = 0;	// this must set with Initialize()
 		m_nlist = 0;	// this must set with Initialize()
+		m_con = 0;		// this must set with Initialize()
 		x = 0; y = 0;
-		pad_layer = 0;	// only for first or last 
+		pad_layer = 0;			// only for first or last 
 		force_via_flag = 0;		// only used for end of stub trace
 		via_w = 0; 
 		via_hole_w = 0;
@@ -261,7 +369,7 @@ public:
 	~cvertex()
 	{
 		// destructor
-		pcb_cuid.ReleaseUID( m_uid );
+//		pcb_cuid.ReleaseUID( m_uid );
 		if( m_dlist )
 		{
 			for( int il=0; il<dl_el.GetSize(); il++ )
@@ -271,11 +379,15 @@ public:
 			if( dl_hole )
 				m_dlist->Remove( dl_hole );
 		}
+		// for testing
+		CVertex * v;
+		BOOL bOK = m_net->m_vertex_map.Lookup( m_uid, v );
+		m_net->m_vertex_map.RemoveKey( m_uid );
 	}
 	cvertex &operator=( cvertex &v )	// assignment operator
 	{
 		// copy all params
-		m_uid = v.m_uid;
+		m_uid = v.m_uid;	// one of these should be changed after copy
 		x = v.x;
 		y = v.y;
 		pad_layer = v.pad_layer;
@@ -304,10 +416,20 @@ public:
 		v.dl_el.RemoveAll();
 		return *this;
 	};
-	void Initialize( CDisplayList * dlist, CNetList * nlist )
+	void Initialize( CDisplayList * dlist, CNetList * nlist, cconnect * c )
 	{
-		m_dlist = dlist;	// this must be filled in with Initialize()
-		m_nlist = nlist;	// this must be filled in with Initialize()
+		m_dlist = dlist;	
+		m_nlist = nlist;	
+		m_con = c;
+		m_net = c->m_net;
+		// for testing
+		CVertex * v = new CVertex( m_dlist, m_con->m_net );
+		v->m_uid = m_uid;
+		m_net->m_vertex_map.SetAt( v->m_uid, v );
+		CVertex * v_check;
+		BOOL bOK = m_net->m_vertex_map.Lookup( m_uid, v_check );
+		if( !bOK )
+			ASSERT(0);
 	}
 	int m_uid;					// unique id
 	int x, y;					// coords
@@ -317,82 +439,12 @@ public:
 	CArray<dl_element*> dl_el;	// array of display elements for each layer
 	dl_element * dl_sel;		// selection box
 	dl_element * dl_hole;		// hole in via
-	CDisplayList * m_dlist;
-	CNetList * m_nlist;
 	int tee_ID;					// used to flag a t-connection point
 	int utility, utility2;		// used for various functions
-};
-
-// cconnect: describes a connection between two pins or a stub trace with no end pin
-class cconnect
-{
-public:
-	enum {
-		NO_END = -1		// used for end_pin if stub trace
-	};
-	cconnect()
-	{ 
-		m_uid = pcb_cuid.GetNewUID();
-		m_nlist = NULL;
-		locked = 0;
-		nsegs = 0;
-		seg.SetSize( 0 );
-		vtx.SetSize( 0 );
-		utility = 0;
-	}
-	~cconnect()
-	{
-		pcb_cuid.ReleaseUID( m_uid );
-	}
-	void Initialize( CNetList * nlist )
-	{
-		m_nlist = nlist;
-	}
-	int m_uid;					// unique id
-	int start_pin, end_pin;		// indexes into net.pin array
-	int nsegs;					// # elements in seg array
-	int locked;					// 1 if locked (will not be optimized away)
-	CArray<cseg> seg;			// array of segments
-	CArray<cvertex> vtx;		// array of vertices, size = nsegs + 1
-	int utility;				// used for various temporary ops
-	// these params used only by DRC
-	int min_x, max_x;			// bounding rect
-	int min_y, max_y;
-	BOOL vias_present;			// flag to indicate that vias are pesent
-	int seg_layers;				// mask for all layers used by segments
-	CNetList * m_nlist;
-};
-
-// cnet: describes a net
-class cnet
-{
-public:
-	cnet( CDisplayList * dlist )
-	{ 
-		m_dlist = dlist;
-		id.Clear();
-		id.type = ID_NET;
-		id.uid = pcb_cuid.GetNewUID();
-	}
-	~cnet()
-	{
-		pcb_cuid.ReleaseUID( id.uid );
-	}
-	id id;				// net id
-	CString name;		// net name
-	int nconnects;		// number of connections
-	CArray<cconnect> connect; // array of connections (size = max_pins-1)
-	int npins;			// number of pins
-	CArray<cpin> pin;	// array of pins
-	int nareas;			// number of copper areas
-	CArray<carea,carea> area;	// array of copper areas
-	int def_w;			// default trace width
-	int def_via_w;		// default via width
-	int def_via_hole_w;	// default via hole width
-	BOOL visible;		// FALSE to hide ratlines and make unselectable
-	int utility;		// used to keep track of which nets have been optimized
-	int utility2;		// used to keep track of which nets have been optimized
-	CDisplayList * m_dlist;
+	CDisplayList * m_dlist;		// 
+	CNetList * m_nlist;			// parent NetList
+	cnet * m_net;				// parent net
+	cconnect * m_con;			// parent connection
 };
 
 // CNetlist
@@ -415,7 +467,6 @@ public:
 		UNDO_NET_MODIFY,		// undo modify net
 		UNDO_NET_OPTIMIZE		// flag to optimize net on undo
 	};
-	CMapStringToPtr m_map;	// map net names to pointers
 	CNetList( CDisplayList * dlist, CPartList * plist );
 	~CNetList();
 	void SetNumCopperLayers( int layers ){ m_layers = layers;};
@@ -444,8 +495,6 @@ public:
 	int CheckConnectivity( CString * logstr );
 	void HighlightNetConnections( cnet * net );
 	void HighlightNet( cnet * net );
-	cnet * GetFirstNet();
-	cnet * GetNextNet();
 	void CancelNextNet();
 	void GetWidths( cnet * net, int * w, int * via_w, int * via_hole_w );
 	BOOL GetNetBoundaries( CRect * r );
@@ -618,6 +667,8 @@ private:
 	BOOL m_bSMT_connect;
 
 public:
+	CMapStringToPtr m_map;	// map net names to pointers
+	CMap<int,int,cnet*,cnet*> m_uid_map;
 	int m_annular_ring;
 };
 

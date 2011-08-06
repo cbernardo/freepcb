@@ -821,7 +821,8 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 		cnet * first_area_net = NULL;
 		CArray<cnet*> area_net_list;
 		CArray<carea*> area_list;
-		cnet * net = nl->GetFirstNet();
+		CIterator_cnet iter_net(nl);
+		cnet * net = iter_net.GetFirst();
 		while( net )
 		{
 			// loop through all areas
@@ -845,13 +846,13 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 						num_area_nets = 2;
 				}
 			}
-			net = nl->GetNextNet();
+			net = iter_net.GetNext();
 		}
 
 		if( PASS1 )
 		{
 			CArray< c_area > ca;
-			cnet * net = nl->GetFirstNet();
+			cnet * net = iter_net.GetFirst();
 			while( net ) 
 			{
 				// loop through all areas
@@ -882,7 +883,8 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 						ca[ica].ia = ia;
 						carea * a = &net->area[ia];
 						// loop through all nets to find cutouts
-						cnet * cutout_net = nl->GetFirstNet();
+						CIterator_cnet iter_net_cutout(nl);
+						cnet * cutout_net = iter_net_cutout.GetFirst();
 						while( cutout_net )
 						{
 							// loop through all areas to find cutouts
@@ -911,11 +913,11 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 									}
 								}
 							}
-							cutout_net = nl->GetNextNet();
+							cutout_net = iter_net_cutout.GetNext();
 						}
 					}
 				}
-				net = nl->GetNextNet();
+				net = iter_net.GetNext();
 			}
 
 			// set order for drawing areas, save in net->area[ia].utility
@@ -966,7 +968,7 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 				area_pass++;
 				// draw areas
 				current_ap.m_type = CAperture::AP_NONE;	// force selection of aperture
-				net = nl->GetFirstNet();
+				net = iter_net.GetFirst();
 				while( net )
 				{
 					for( int ia=0; ia<net->nareas; ia++ )
@@ -1012,11 +1014,11 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 								n_undrawn++;
 						}
 					}
-					net = nl->GetNextNet();
+					net = iter_net.GetNext();
 				}
 				// draw area cutouts
 				current_ap.m_type = CAperture::AP_NONE;	// force selection of aperture
-				net = nl->GetFirstNet();
+				net = iter_net.GetFirst();
 				while( net )
 				{
 					for( int ia=0; ia<net->nareas; ia++ )
@@ -1063,7 +1065,7 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 							}
 						}
 					}
-					net = nl->GetNextNet();
+					net = iter_net.GetNext();
 				}
 			}
 		}
@@ -1072,7 +1074,7 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 		{
 			// ********** draw pad, trace, and via clearances and thermals ***********
 			// first, remove all GpcPolys
-			net = nl->GetFirstNet();
+			net = iter_net.GetFirst();
 			while( net )
 			{
 				for( int ia=0; ia<net->nareas; ia++ )
@@ -1081,7 +1083,7 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 					CPolyLine * p = a->poly;
 					p->FreeGpcPoly();
 				}
-				net = nl->GetNextNet();
+				net = iter_net.GetNext();
 			}
 			if( PASS1 ) 
 			{
@@ -1339,7 +1341,7 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 				{
 					f->WriteString( "\nG04 Draw clearances for traces*\n" );
 				}
-				net = nl->GetFirstNet();
+				net = iter_net.GetFirst();
 				while( net )
 				{
 					for( int ic=0; ic<net->nconnects; ic++ )
@@ -1524,7 +1526,7 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 							}
 						}
 					}
-					net = nl->GetNextNet();
+					net = iter_net.GetNext();
 				}
 			}		
 			if( tl )
@@ -1756,10 +1758,9 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 			POSITION pos;
 			CString name;
 			void * ptr;
-			for( pos = nl->m_map.GetStartPosition(); pos != NULL; )
+			net = iter_net.GetFirst();
+			while( net )
 			{
-				nl->m_map.GetNextAssoc( pos, name, ptr );
-				cnet * net = (cnet*)ptr;
 				for( int ic=0; ic<net->nconnects; ic++ )
 				{
 					int nsegs = net->connect[ic].nsegs;
@@ -1816,6 +1817,7 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 						}
 					}
 				}
+				net = iter_net.GetNext();
 			}
 		}
 		// draw text
@@ -1972,10 +1974,9 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 				POSITION pos;
 				CString name;
 				void * ptr;
-				for( pos = nl->m_map.GetStartPosition(); pos != NULL; )
+				net = iter_net.GetFirst();
+				while( net )
 				{
-					nl->m_map.GetNextAssoc( pos, name, ptr );
-					cnet * net = (cnet*)ptr;
 					for( int ic=0; ic<net->nconnects; ic++ )
 					{
 						int nsegs = net->connect[ic].nsegs;
@@ -1995,6 +1996,7 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 							}
 						}
 					}
+					net = iter_net.GetNext();
 				}
 			}
 		}

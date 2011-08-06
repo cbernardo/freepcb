@@ -26,9 +26,6 @@ enum {
 	CLEAR_NONE
 };
 
-// global Cuid for partlist classes
-static Cuid pl_cuid;
-
 // struct to hold data to undo an operation on a part
 //
 struct undo_part {
