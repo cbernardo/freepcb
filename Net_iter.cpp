@@ -76,7 +76,7 @@ cconnect *CIterator_cconnect::GetFirst()
 	m_pCurrentConnection = NULL;
 
 	// test for no connections
-	if( m_net->nconnects != 0 )
+	if( m_net->NumCons() != 0 )
 	{
 		// increment iterator and get first net
 		GetNext();
@@ -88,7 +88,7 @@ cconnect *CIterator_cconnect::GetFirst()
 cconnect *CIterator_cconnect::GetNext()
 {
 	m_CurrentPos++;
-	if( m_CurrentPos < m_net->nconnects )
+	if( m_CurrentPos < m_net->NumCons() )
 	{
 		m_pCurrentConnection = &m_net->connect[m_CurrentPos];
 	}
@@ -123,7 +123,7 @@ void CIterator_cconnect::OnRemove( cconnect * con )
 {
 	// get index of connection being removed
 	int remove_ic = -1;
-	for( int ic=0; ic<m_net->nconnects; ic++ )
+	for( int ic=0; ic<m_net->NumCons(); ic++ )
 	{
 		if( con == &m_net->connect[ic] )
 		{

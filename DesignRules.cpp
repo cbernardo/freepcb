@@ -298,8 +298,9 @@ void DRErrorList::HighLight( DRError * dre )
 	{
 		// add highlights for trace and pad
 		cnet * net = m_nlist->GetNetPtrByName( &dre->name1 );
-		if( net && dre->id1.i < net->nconnects && dre->id1.ii < net->connect[dre->id1.i].nsegs )
-			dl1 = net->connect[dre->id1.i].seg[dre->id1.ii].dl_el; 
+		if( net && dre->id1.i < net->NumCons() 
+			&& dre->id1.ii < net->GetConnectByIndex(dre->id1.i)->NumSegs() )
+			dl1 = net->GetConnectByIndex(dre->id1.i)->seg[dre->id1.ii].dl_el; 
 		cpart * part = m_plist->GetPart( dre->name2 );
 		if( part && dre->id2.i < part->pin.GetSize() )
 			dl2 = GetPadElement( &part->pin[dre->id2.i], dre->layer );
@@ -312,8 +313,9 @@ void DRErrorList::HighLight( DRError * dre )
 	{
 		// add highlights for via and pad
 		cnet * net = m_nlist->GetNetPtrByName( &dre->name1 );
-		if( net && dre->id1.i < net->nconnects && dre->id1.ii <= net->connect[dre->id1.i].nsegs )
-			dl1 = net->connect[dre->id1.i].vtx[dre->id1.ii].dl_el[0]; 
+		if( net && dre->id1.i < net->NumCons() 
+			&& dre->id1.ii <= net->GetConnectByIndex(dre->id1.i)->NumSegs() )
+			dl1 = net->GetConnectByIndex(dre->id1.i)->vtx[dre->id1.ii].dl_el[0]; 
 		cpart * part = m_plist->GetPart( dre->name2 );
 		if( part && dre->id2.i < part->pin.GetSize() )
 			dl2 = GetPadElement( &part->pin[dre->id2.i], dre->layer );
@@ -322,11 +324,13 @@ void DRErrorList::HighLight( DRError * dre )
 	{
 		// add highlights for traces
 		cnet * net1 = m_nlist->GetNetPtrByName( &dre->name1 );
-		if( net1 && dre->id1.i < net1->nconnects && dre->id1.ii < net1->connect[dre->id1.i].nsegs )
-			dl1 = net1->connect[dre->id1.i].seg[dre->id1.ii].dl_el; 
+		if( net1 && dre->id1.i < net1->NumCons() 
+			&& dre->id1.ii < net1->GetConnectByIndex(dre->id1.i)->nsegs )
+			dl1 = net1->GetConnectByIndex(dre->id1.i)->seg[dre->id1.ii].dl_el; 
 		cnet * net2 = m_nlist->GetNetPtrByName( &dre->name2 );
-		if( net2 && dre->id1.i < net2->nconnects && dre->id2.ii < net2->connect[dre->id2.i].nsegs )
-			dl2 = net2->connect[dre->id2.i].seg[dre->id2.ii].dl_el; 
+		if( net2 && dre->id1.i < net2->NumCons() 
+			&& dre->id2.ii < net2->GetConnectByIndex(dre->id2.i)->NumSegs() )
+			dl2 = net2->GetConnectByIndex(dre->id2.i)->seg[dre->id2.ii].dl_el; 
 	}
 	else if(    dre->m_id.sst == DRError::SEG_VIA
 			 || dre->m_id.sst == DRError::SEG_VIAHOLE
@@ -334,11 +338,13 @@ void DRErrorList::HighLight( DRError * dre )
 	{
 		// add highlights for trace and via
 		cnet * net1 = m_nlist->GetNetPtrByName( &dre->name1 );
-		if( net1 && dre->id1.i < net1->nconnects && dre->id1.ii < net1->connect[dre->id1.i].nsegs )
-			dl1 = net1->connect[dre->id1.i].seg[dre->id1.ii].dl_el; 
+		if( net1 && dre->id1.i < net1->NumCons() 
+			&& dre->id1.ii < net1->GetConnectByIndex(dre->id1.i)->NumSegs() )
+			dl1 = net1->GetConnectByIndex(dre->id1.i)->seg[dre->id1.ii].dl_el; 
 		cnet * net2 = m_nlist->GetNetPtrByName( &dre->name2 );
-		if( net2 && dre->id2.i < net2->nconnects && dre->id2.ii <= net2->connect[dre->id2.i].nsegs )
-			dl2 = net2->connect[dre->id2.i].vtx[dre->id2.ii].dl_el[0]; 
+		if( net2 && dre->id2.i < net2->NumCons() 
+			&& dre->id2.ii <= net2->GetConnectByIndex(dre->id2.i)->NumSegs() )
+			dl2 = net2->GetConnectByIndex(dre->id2.i)->vtx[dre->id2.ii].dl_el[0]; 
 	}
 	else if(    dre->m_id.sst == DRError::VIA_VIA
 			 || dre->m_id.sst == DRError::VIA_VIAHOLE
@@ -347,19 +353,22 @@ void DRErrorList::HighLight( DRError * dre )
 	{
 		// add highlights for vias
 		cnet * net1 = m_nlist->GetNetPtrByName( &dre->name1 );
-		if( net1 && dre->id1.i < net1->nconnects && dre->id1.ii <= net1->connect[dre->id1.i].nsegs )
-			dl1 = net1->connect[dre->id1.i].vtx[dre->id1.ii].dl_el[0]; 
+		if( net1 && dre->id1.i < net1->NumCons() 
+			&& dre->id1.ii <= net1->GetConnectByIndex(dre->id1.i)->NumSegs() )
+			dl1 = net1->GetConnectByIndex(dre->id1.i)->vtx[dre->id1.ii].dl_el[0]; 
 		cnet * net2 = m_nlist->GetNetPtrByName( &dre->name2 );
-		if( net2 && dre->id1.i < net2->nconnects && dre->id2.ii <= net2->connect[dre->id2.i].nsegs )
-			dl2 = net2->connect[dre->id2.i].vtx[dre->id2.ii].dl_el[0]; 
+		if( net2 && dre->id1.i < net2->NumCons() 
+			&& dre->id2.ii <= net2->GetConnectByIndex(dre->id2.i)->NumSegs() )
+			dl2 = net2->GetConnectByIndex(dre->id2.i)->vtx[dre->id2.ii].dl_el[0]; 
 	}
 	else if( dre->m_id.sst == DRError::TRACE_WIDTH 
 		|| dre->m_id.sst == DRError::BOARDEDGE_SEG )
 	{
 		// add highlight for trace segment
 		cnet * net1 = m_nlist->GetNetPtrByName( &dre->name1 );
-		if( net1 && dre->id1.i < net1->nconnects && dre->id1.ii < net1->connect[dre->id1.i].nsegs )
-			dl1 = net1->connect[dre->id1.i].seg[dre->id1.ii].dl_el; 
+		if( net1 && dre->id1.i < net1->NumCons() 
+			&& dre->id1.ii < net1->GetConnectByIndex(dre->id1.i)->NumSegs() )
+			dl1 = net1->GetConnectByIndex(dre->id1.i)->seg[dre->id1.ii].dl_el; 
 	}
 	else if( dre->m_id.sst == DRError::RING_PAD 
 		|| dre->m_id.sst == DRError::BOARDEDGE_PAD 
@@ -376,24 +385,25 @@ void DRErrorList::HighLight( DRError * dre )
 	{
 		// add highlight for via
 		cnet * net1 = m_nlist->GetNetPtrByName( &dre->name1 );
-		if( net1 && dre->id1.i < net1->nconnects && dre->id1.ii <= net1->connect[dre->id1.i].nsegs )
-			dl1 = net1->connect[dre->id1.i].vtx[dre->id1.ii].dl_el[0]; 
+		if( net1 && dre->id1.i < net1->NumCons() 
+			&& dre->id1.ii <= net1->GetConnectByIndex(dre->id1.i)->NumSegs() )
+			dl1 = net1->GetConnectByIndex(dre->id1.i)->vtx[dre->id1.ii].dl_el[0]; 
 	}
 	else if( dre->m_id.sst == DRError::BOARDEDGE_COPPERAREA )
 	{
 		// add highlight for copper area side
 		cnet * net1 = m_nlist->GetNetPtrByName( &dre->name1 );
-		if( net1 && dre->id1.i < net1->nareas )
+		if( net1 && dre->id1.i < net1->NumAreas() )
 			net1->area[dre->id1.i].poly->HighlightSide(dre->id1.ii); 
 	}
 	else if( dre->m_id.sst == DRError::COPPERAREA_COPPERAREA )
 	{
 		// add highlights for copper area sides
 		cnet * net1 = m_nlist->GetNetPtrByName( &dre->name1 );
-		if( net1 && dre->id1.i < net1->nareas )
+		if( net1 && dre->id1.i < net1->NumAreas() )
 			net1->area[dre->id1.i].poly->HighlightSide(dre->id1.ii); 
 		cnet * net2 = m_nlist->GetNetPtrByName( &dre->name2 );
-		if( net2 && dre->id2.i < net2->nareas )
+		if( net2 && dre->id2.i < net2->NumAreas() )
 			net2->area[dre->id2.i].poly->HighlightSide(dre->id2.ii); 
 	}
 	else if( dre->m_id.sst == DRError::COPPERAREA_INSIDE_COPPERAREA )

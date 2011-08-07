@@ -1742,7 +1742,7 @@ void CPartList::MakePartVisible( cpart * part, BOOL bVisible )
 		cnet * net = (cnet*)part->pin[ip].net;
 		if( net )
 		{
-			for( int ia=0; ia<net->nareas; ia++ )
+			for( int ia=0; ia<net->NumAreas(); ia++ )
 			{
 				for( int i=0; i<net->area[ia].npins; i++ )
 				{
@@ -1868,19 +1868,18 @@ int CPartList::StartDraggingPart( CDC * pDC, cpart * part, BOOL bRatlines,
 				if( n->visible && n->utility == 0 )
 				{
 					// zero utility flags for all connections
-					for( int ic=0; ic<n->nconnects; ic++ )
+					CIterator_cconnect iter_con(n);
+					for( cconnect * c=iter_con.GetFirst(); c; c=iter_con.GetNext() )
+						c->utility = 0;
+					// now iterate through all connections in this net
+					for( cconnect * c=iter_con.GetFirst(); c; c=iter_con.GetNext() )
 					{
-						n->connect[ic].utility = 0;
-					}
-					for( int ic=0; ic<n->nconnects; ic++ )
-					{
-						cconnect * c = &n->connect[ic];
 						if( c->utility )
 							continue;	// skip this connection
 
 						// check for connection to part
-						int pin1 = n->connect[ic].start_pin;
-						int pin2 = n->connect[ic].end_pin;
+						int pin1 = c->start_pin;
+						int pin2 = c->end_pin;
 						cpart * pin1_part = n->pin[pin1].part;
 						cpart * pin2_part = NULL;
 						if( pin2 != cconnect::NO_END )
@@ -1941,7 +1940,7 @@ int CPartList::StartDraggingPart( CDC * pDC, cpart * part, BOOL bRatlines,
 							if( ip != -1 )
 							{
 								// ip is the end pin for the connection
-								m_dlist->Set_visible( n->connect[ic].seg[c->nsegs-1].dl_el, 0 );
+								m_dlist->Set_visible( c->seg[c->nsegs-1].dl_el, 0 );
 								if( c->vtx[c->nsegs-1].dl_el.GetSize() )
 									for( int i=0; i<c->vtx[c->nsegs-1].dl_el.GetSize(); i++ )
 										m_dlist->Set_visible( c->vtx[c->nsegs-1].dl_el[i], 0 );
@@ -1961,7 +1960,7 @@ int CPartList::StartDraggingPart( CDC * pDC, cpart * part, BOOL bRatlines,
 										bDraw = TRUE;
 									if( bDraw )
 									{
-										CPoint vx( n->connect[ic].vtx[c->nsegs-1].x, n->connect[ic].vtx[c->nsegs-1].y );
+										CPoint vx( c->vtx[c->nsegs-1].x, c->vtx[c->nsegs-1].y );
 										m_dlist->AddDragRatline( vx, pin_points[ip] );
 									}
 								}
@@ -2046,9 +2045,9 @@ int CPartList::CancelDraggingPart( cpart * part )
 		{
 			if( net->visible )
 			{
-				for( int ic=0; ic<net->nconnects; ic++ )
+				CIterator_cconnect iter_con(net);
+				for( cconnect * c=iter_con.GetFirst(); c; c=iter_con.GetNext() )
 				{
-					cconnect * c = &net->connect[ic];
 					int pin1 = c->start_pin;
 					int pin2 = c->end_pin;
 					int nsegs = c->nsegs;
@@ -3096,14 +3095,15 @@ int CPartList::GetPinConnectionStatus( cpart * part, CString * pin_name, int lay
 	int status = ON_NET;
 
 	// now check for traces
-	for( int ic=0; ic<net->nconnects; ic++ )
+	CIterator_cconnect iter_con(net);
+	for( cconnect * c=iter_con.GetFirst(); c; c=iter_con.GetNext() )
 	{
-		int nsegs = net->connect[ic].nsegs;
-		int p1 = net->connect[ic].start_pin;
-		int p2 = net->connect[ic].end_pin;
+		int nsegs = c->nsegs;
+		int p1 = c->start_pin;
+		int p2 = c->end_pin;
 		if( net->pin[p1].part == part &&
 			net->pin[p1].pin_name == *pin_name &&
-			net->connect[ic].seg[0].layer == layer )
+			c->seg[0].layer == layer )
 		{
 			// first segment connects to pin on this layer
 			status |= TRACE_CONNECT;
@@ -3114,7 +3114,7 @@ int CPartList::GetPinConnectionStatus( cpart * part, CString * pin_name, int lay
 		}
 		else if( net->pin[p2].part == part &&
 			net->pin[p2].pin_name == *pin_name &&
-			net->connect[ic].seg[nsegs-1].layer == layer )
+			c->seg[nsegs-1].layer == layer )
 		{
 			// last segment connects to pin on this layer
 			status |= TRACE_CONNECT;
@@ -3122,7 +3122,7 @@ int CPartList::GetPinConnectionStatus( cpart * part, CString * pin_name, int lay
 		}
 	}
 	// now check for connection to copper area
-	for( int ia=0; ia<net->nareas; ia++ )
+	for( int ia=0; ia<net->NumAreas(); ia++ )
 	{
 		carea * a = &net->area[ia];
 		for( int ip=0; ip<a->npins; ip++ )
@@ -3965,7 +3965,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 		m_nlist->m_map.GetNextAssoc( pos, name, ptr );
 		cnet * net = (cnet*)ptr;
 		// iterate through copper areas, checking for BOARDEDGE_COPPERAREA errors
-		for( int ia=0; ia<net->nareas; ia++ )
+		for( int ia=0; ia<net->NumAreas(); ia++ )
 		{
 			carea * a = &net->area[ia];
 			// iterate through contours
@@ -4040,9 +4040,10 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 			}
 		}
 		// iterate through all connections
-		for( int ic=0; ic<net->nconnects; ic++ )
+		CIterator_cconnect iter_con(net);
+		for( cconnect * c=iter_con.GetFirst(); c; c=iter_con.GetNext() )
 		{
-			cconnect * c = &net->connect[ic];
+			int ic = iter_con.GetIndex();
 			// get DRC info for this connection
 			// iterate through all segments and vertices
 			c->min_x = INT_MAX;		// bounding box for connection
@@ -4304,9 +4305,9 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 					for( int is=0; is<c->nsegs; is++ )
 					{
 						// get next segment
-						cseg * s = &(net->connect[ic].seg[is]);
-						cvertex * pre_vtx = &(net->connect[ic].vtx[is]);
-						cvertex * post_vtx = &(net->connect[ic].vtx[is+1]);
+						cseg * s = &c->seg[is];
+						cvertex * pre_vtx = &c->vtx[is];
+						cvertex * post_vtx = &c->vtx[is+1];
 						int w = s->width;
 						int xi = pre_vtx->x;
 						int yi = pre_vtx->y;
@@ -4578,9 +4579,9 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 					for( int is=0; is<c->nsegs; is++ )
 					{
 						// get next segment
-						cseg * s = &(net->connect[ic].seg[is]);
-						cvertex * pre_vtx = &(net->connect[ic].vtx[is]);
-						cvertex * post_vtx = &(net->connect[ic].vtx[is+1]);
+						cseg * s = &c->seg[is];
+						cvertex * pre_vtx = &c->vtx[is];
+						cvertex * post_vtx = &c->vtx[is+1];
 						int w = s->width;
 						int xi = pre_vtx->x;
 						int yi = pre_vtx->y;
@@ -4715,9 +4716,10 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 		m_nlist->m_map.GetNextAssoc( pos, name, ptr );
 		cnet * net = (cnet*)ptr;
 		// iterate through all connections
-		for( int ic=0; ic<net->nconnects; ic++ )
+		CIterator_cconnect iter_con(net);
+		for( cconnect * c=iter_con.GetFirst(); c; c=iter_con.GetNext() )
 		{
-			cconnect * c = &net->connect[ic];
+			int ic = iter_con.GetIndex();
 
 			// iterate through all nets again
 			POSITION pos2 = pos;
@@ -4728,9 +4730,11 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 				m_nlist->m_map.GetNextAssoc( pos2, name2, ptr2 );
 				cnet * net2 = (cnet*)ptr2;
 				// iterate through all connections
-				for( int ic2=0; ic2<net2->nconnects; ic2++ )
+				CIterator_cconnect iter_con2(net2);
+				for( cconnect * c2=iter_con2.GetFirst(); c2; c2=iter_con2.GetNext() )
 				{
-					cconnect * c2 = &net2->connect[ic2];
+					int ic2 = iter_con2.GetIndex();
+
 					// look for possible clearance violations between c and c2
 					if( c->min_x - c2->max_x > cl )
 						continue;	// no, next connection
@@ -5085,7 +5089,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 			}
 		}
 		// now iterate through all areas
-		for( int ia=0; ia<net->nareas; ia++ )
+		for( int ia=0; ia<net->NumAreas(); ia++ )
 		{
 			carea * a = &net->area[ia];
 			// iterate through all nets again
@@ -5096,7 +5100,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 			{
 				m_nlist->m_map.GetNextAssoc( pos2, name2, ptr2 );
 				cnet * net2 = (cnet*)ptr2;
-				for( int ia2=0; ia2<net2->nareas; ia2++ )
+				for( int ia2=0; ia2<net2->NumAreas(); ia2++ )
 				{
 					carea * a2 = &net2->area[ia2];
 					// test for same layer
@@ -5240,13 +5244,16 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 			cnet * net = (cnet*)ptr;
 			// iterate through all connections
 			// now check connections
-			for( int ic=0; ic<net->connect.GetSize(); ic++ )
+			CIterator_cconnect iter_con(net);
+			for( cconnect * c=iter_con.GetFirst(); c; c=iter_con.GetNext() )
 			{
+				int ic = iter_con.GetIndex();
+
 				// check for unrouted or partially routed connection
 				BOOL bUnrouted = FALSE;
-				for( int is=0; is<net->connect[ic].nsegs; is++ )
+				for( int is=0; is<c->nsegs; is++ )
 				{
-					if( net->connect[ic].seg[is].layer == LAY_RAT_LINE )
+					if( c->seg[is].layer == LAY_RAT_LINE )
 					{
 						bUnrouted = TRUE;
 						break;
@@ -5256,10 +5263,10 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 				{
 					// unrouted or partially routed connection
 					CString start_pin, end_pin;
-					int istart = net->connect[ic].start_pin;
+					int istart = c->start_pin;
 					cpart * start_part = net->pin[istart].part;
 					start_pin = net->pin[istart].ref_des + "." + net->pin[istart].pin_name;
-					int iend = net->connect[ic].end_pin;
+					int iend = c->end_pin;
 					if( iend == cconnect::NO_END )
 					{
 						str.Format( "%ld: \"%s\": partially routed stub trace from %s\r\n",
@@ -5278,7 +5285,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 					else
 					{
 						end_pin = net->pin[iend].ref_des + "." + net->pin[iend].pin_name;
-						if( net->connect[ic].nsegs > 1 )
+						if( c->nsegs > 1 )
 						{
 							str.Format( "%ld: \"%s\": partially routed connection from %s to %s\r\n",
 								nerrors+1, net->name, start_pin, end_pin );
@@ -5391,7 +5398,7 @@ int CPartList::CheckPartlist( CString * logstr )
 						{
 							// try to find pin in pin list for net
 							int net_pin = -1;
-							for( int ip=0; ip<net->npins; ip++ )
+							for( int ip=0; ip<net->NumPins(); ip++ )
 							{
 								if( net->pin[ip].part == part )
 								{
