@@ -379,7 +379,7 @@ public:
 #define m_sel_ia m_sel_id.i							// index of selected area
 #define m_sel_is m_sel_id.ii						// index of selected side, segment, or corner
 #define m_sel_iv m_sel_id.ii						// index of selected vertex
-#define m_sel_con m_sel_net->connect[m_sel_ic]		// selected connection
+#define m_sel_con (*m_sel_net->GetConnectByIndex(m_sel_ic))	// selected connection
 #define m_sel_seg m_sel_con.seg[m_sel_is]			// selected side or segment
 #define m_sel_last_vtx m_sel_con.vtx[m_sel_is-1]	// last vertex
 #define m_sel_vtx m_sel_con.vtx[m_sel_is]			// selected vertex

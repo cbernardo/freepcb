@@ -826,7 +826,7 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 		while( net )
 		{
 			// loop through all areas
-			for( int ia=0; ia<net->nareas; ia++ )
+			for( int ia=0; ia<net->NumAreas(); ia++ )
 			{
 				CPolyLine * p = net->area[ia].poly;
 				if( p->GetLayer() == layer )
@@ -856,7 +856,7 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 			while( net ) 
 			{
 				// loop through all areas
-				for( int ia=0; ia<net->nareas; ia++ )
+				for( int ia=0; ia<net->NumAreas(); ia++ )
 				{
 					net->area[ia].utility = INT_MAX;		// mark as undrawn
 					CPolyLine * p = net->area[ia].poly;
@@ -888,7 +888,7 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 						while( cutout_net )
 						{
 							// loop through all areas to find cutouts
-							for( int cutout_ia=0; cutout_ia<cutout_net->nareas; cutout_ia++ )
+							for( int cutout_ia=0; cutout_ia<cutout_net->NumAreas(); cutout_ia++ )
 							{
 								carea * cutout_a = &cutout_net->area[cutout_ia];
 								CPolyLine * cutout_p = cutout_a->poly;
@@ -971,7 +971,7 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 				net = iter_net.GetFirst();
 				while( net )
 				{
-					for( int ia=0; ia<net->nareas; ia++ )
+					for( int ia=0; ia<net->NumAreas(); ia++ )
 					{
 						carea * a = &net->area[ia];
 						if( a->poly->GetLayer() == layer )
@@ -1021,7 +1021,7 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 				net = iter_net.GetFirst();
 				while( net )
 				{
-					for( int ia=0; ia<net->nareas; ia++ )
+					for( int ia=0; ia<net->NumAreas(); ia++ )
 					{
 						carea * a = &net->area[ia];
 						if ( a->utility == area_pass && a->poly->GetLayer() == layer )
@@ -1077,7 +1077,7 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 			net = iter_net.GetFirst();
 			while( net )
 			{
-				for( int ia=0; ia<net->nareas; ia++ )
+				for( int ia=0; ia<net->NumAreas(); ia++ )
 				{
 					carea * a = &net->area[ia];
 					CPolyLine * p = a->poly;
@@ -1344,10 +1344,11 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 				net = iter_net.GetFirst();
 				while( net )
 				{
-					for( int ic=0; ic<net->nconnects; ic++ )
+					CIterator_cconnect iter_con(net);
+					for( cconnect * c=iter_con.GetFirst(); c; c=iter_con.GetNext() )
 					{
-						int nsegs = net->connect[ic].nsegs;
-						cconnect * c = &net->connect[ic]; 
+						int ic = iter_con.GetIndex();
+						int nsegs = c->nsegs;
 						for( int is=0; is<nsegs; is++ )
 						{
 							// get segment and vertices
@@ -1448,7 +1449,7 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 							{
 								// test for segment intersection with area on own net
 								BOOL bIntOwnNet = FALSE;
-								for( int ia=0; ia<net->nareas; ia++ )
+								for( int ia=0; ia<net->NumAreas(); ia++ )
 								{
 									CPolyLine * poly = net->area[ia].poly; 
 									if( poly->TestPointInside( xi, yi ) )
@@ -1761,15 +1762,17 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 			net = iter_net.GetFirst();
 			while( net )
 			{
-				for( int ic=0; ic<net->nconnects; ic++ )
+				CIterator_cconnect iter_con(net);
+				for( cconnect * c=iter_con.GetFirst(); c; c=iter_con.GetNext() )
 				{
-					int nsegs = net->connect[ic].nsegs;
+					int ic = iter_con.GetIndex();
+					int nsegs = c->nsegs;
 					for( int is=0; is<nsegs; is++ )
 					{
 						// get segment info
-						cseg * s = &(net->connect[ic].seg[is]);
-						cvertex * pre_vtx = &(net->connect[ic].vtx[is]);
-						cvertex * post_vtx = &(net->connect[ic].vtx[is+1]);
+						cseg * s = &c->seg[is];
+						cvertex * pre_vtx = &c->vtx[is];
+						cvertex * post_vtx = &c->vtx[is+1];
 						// get following via info
 						int test, pad_w, hole_w;
 						nl->GetViaPadInfo( net, ic, is+1, layer,
@@ -1977,14 +1980,16 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 				net = iter_net.GetFirst();
 				while( net )
 				{
-					for( int ic=0; ic<net->nconnects; ic++ )
+					CIterator_cconnect iter_con(net);
+					for( cconnect * c=iter_con.GetFirst(); c; c=iter_con.GetNext() )
 					{
-						int nsegs = net->connect[ic].nsegs;
+//						int ic = iter_con.GetIndex();
+						int nsegs = c->nsegs;
 						for( int is=0; is<nsegs; is++ )
 						{
 							// get segment
-							cseg * s = &(net->connect[ic].seg[is]);
-							cvertex * post_vtx = &(net->connect[ic].vtx[is+1]);
+							cseg * s = &c->seg[is];
+							cvertex * post_vtx = &c->vtx[is+1];
 							if( post_vtx->via_w )
 							{
 								// via exists
@@ -2063,12 +2068,13 @@ int WriteDrillFile( CStdioFile * file, CPartList * pl, CNetList * nl, CArray<CPo
 		{
 			nl->m_map.GetNextAssoc( pos, name, ptr );
 			cnet * net = (cnet*)ptr;
-			for( int ic=0; ic<net->nconnects; ic++ )
+			CIterator_cconnect iter_con(net);
+			for( cconnect * c=iter_con.GetFirst(); c; c=iter_con.GetNext() )
 			{
-				int nsegs = net->connect[ic].nsegs;
+				int nsegs = c->nsegs;
 				for( int is=0; is<nsegs; is++ )
 				{
-					cvertex * v = &(net->connect[ic].vtx[is+1]);
+					cvertex * v = &c->vtx[is+1];
 					if( v->via_w )
 					{
 						// via
@@ -2177,16 +2183,16 @@ int WriteDrillFile( CStdioFile * file, CPartList * pl, CNetList * nl, CArray<CPo
 					POSITION pos;
 					CString name;
 					void * ptr;
-					for( pos = nl->m_map.GetStartPosition(); pos != NULL; )
+					CIterator_cnet iter_net(nl);
+					for( cnet * net=iter_net.GetFirst(); net; net=iter_net.GetNext() )
 					{
-						nl->m_map.GetNextAssoc( pos, name, ptr );
-						cnet * net = (cnet*)ptr;
-						for( int ic=0; ic<net->nconnects; ic++ )
+						CIterator_cconnect iter_con(net);
+						for( cconnect * c=iter_con.GetFirst(); c; c=iter_con.GetNext() )
 						{
-							int nsegs = net->connect[ic].nsegs;
+							int nsegs = c->nsegs;
 							for( int is=0; is<nsegs; is++ )
 							{
-								cvertex * v = &(net->connect[ic].vtx[is+1]);
+								cvertex * v = &(c->vtx[is+1]);
 								if( v->via_w )
 								{
 									// via

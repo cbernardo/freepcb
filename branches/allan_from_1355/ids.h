@@ -27,8 +27,18 @@ static Cuid pcb_cuid;	// global UID generator
 class id {
 public:
 	// constructor
-	id( int qt=0, int qst=0, int qis=0, int qsst=0, int qiis=0 ) 
-	{ type=qt; st=qst; i=qis; sst=qsst; ii=qiis; } 
+	id( int qtype=0, int qst=0, int qi=0, int qsst=0, int qii=0,
+		int quid=-1, int qst_uid=-1, int qsst_uid=-1 ) 
+	{ 
+		type = qtype; 
+		st = qst; 
+		i = qi; 
+		sst = qsst; 
+		ii = qii; 
+		uid = quid;
+		st_uid = qst_uid;
+		sst_uid = qsst_uid;
+	} 
 	// operators
 	friend int operator ==(id id1, id id2)
 	{ return (id1.type==id2.type 
@@ -40,11 +50,22 @@ public:
 	// member functions
 	void Clear() 
 	{ 
-		type=0; st=0; i=0; sst=0; ii=0; uid=0; st_uid=0; sst_uid=0; 
+		type = 0; st = 0; i = 0; sst = 0; ii = 0; 
+		uid=-1; st_uid=-1; sst_uid=-1;
 	} 
-	void Set( int qt, int qst=0, int qis=0, int qsst=0, int qiis=0 ) 
+	void Set(int qtype=0, int qst=0, int qi=0, int qsst=0, int qii=0,
+		int quid=-1, int qst_uid=-1, int qsst_uid=-1 ) 
 	{ 
-		type=qt; st=qst; i=qis; sst=qsst; ii=qiis; 
+	{ 
+		type = qtype; 
+		st = qst; 
+		i = qi; 
+		sst = qsst; 
+		ii = qii; 
+		uid = quid;
+		st_uid = qst_uid;
+		sst_uid = qsst_uid;
+	} 
 	} 
 	// member variables
 	unsigned int type;	// type of element

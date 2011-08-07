@@ -213,15 +213,15 @@ void CDlgReport::OnBnClickedOk()
 		file.WriteString( line );
 	}
 	CIterator_cnet iter_net(m_nl);
-	cnet * net = iter_net.GetFirst();
-	while( net )
+	for( cnet * net = iter_net.GetFirst(); net; net=iter_net.GetNext() )
 	{
 		num_nets++;
-		for( int ic=0; ic<net->nconnects; ic++ )
+		CIterator_cconnect iter_con(net);
+		for( cconnect * c=iter_con.GetFirst(); c; c=iter_con.GetNext() )
 		{
-			for( int iv=0; iv<net->connect[ic].vtx.GetSize(); iv++ )
+			for( int iv=0; iv<c->vtx.GetSize(); iv++ )
 			{
-				cvertex * v = &net->connect[ic].vtx[iv];
+				cvertex * v = &c->vtx[iv];
 				int hole_size = v->via_hole_w; 
 				if( hole_size > 0 )
 				{
@@ -235,7 +235,6 @@ void CDlgReport::OnBnClickedOk()
 				}
 			}
 		}
-		net = iter_net.GetNext();
 	}
 	if( !(m_flags & NO_PCB_STATS) )
 	{
