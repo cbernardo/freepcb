@@ -325,7 +325,7 @@ void DRErrorList::HighLight( DRError * dre )
 		// add highlights for traces
 		cnet * net1 = m_nlist->GetNetPtrByName( &dre->name1 );
 		if( net1 && dre->id1.i < net1->NumCons() 
-			&& dre->id1.ii < net1->GetConnectByIndex(dre->id1.i)->nsegs )
+			&& dre->id1.ii < net1->GetConnectByIndex(dre->id1.i)->NumSegs() )
 			dl1 = net1->GetConnectByIndex(dre->id1.i)->seg[dre->id1.ii].dl_el; 
 		cnet * net2 = m_nlist->GetNetPtrByName( &dre->name2 );
 		if( net2 && dre->id1.i < net2->NumCons() 

@@ -1348,7 +1348,7 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 					for( cconnect * c=iter_con.GetFirst(); c; c=iter_con.GetNext() )
 					{
 						int ic = iter_con.GetIndex();
-						int nsegs = c->nsegs;
+						int nsegs = c->NumSegs();
 						for( int is=0; is<nsegs; is++ )
 						{
 							// get segment and vertices
@@ -1766,7 +1766,7 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 				for( cconnect * c=iter_con.GetFirst(); c; c=iter_con.GetNext() )
 				{
 					int ic = iter_con.GetIndex();
-					int nsegs = c->nsegs;
+					int nsegs = c->NumSegs();
 					for( int is=0; is<nsegs; is++ )
 					{
 						// get segment info
@@ -1984,7 +1984,7 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 					for( cconnect * c=iter_con.GetFirst(); c; c=iter_con.GetNext() )
 					{
 //						int ic = iter_con.GetIndex();
-						int nsegs = c->nsegs;
+						int nsegs = c->NumSegs();
 						for( int is=0; is<nsegs; is++ )
 						{
 							// get segment
@@ -2071,7 +2071,7 @@ int WriteDrillFile( CStdioFile * file, CPartList * pl, CNetList * nl, CArray<CPo
 			CIterator_cconnect iter_con(net);
 			for( cconnect * c=iter_con.GetFirst(); c; c=iter_con.GetNext() )
 			{
-				int nsegs = c->nsegs;
+				int nsegs = c->NumSegs();
 				for( int is=0; is<nsegs; is++ )
 				{
 					cvertex * v = &c->vtx[is+1];
@@ -2189,7 +2189,7 @@ int WriteDrillFile( CStdioFile * file, CPartList * pl, CNetList * nl, CArray<CPo
 						CIterator_cconnect iter_con(net);
 						for( cconnect * c=iter_con.GetFirst(); c; c=iter_con.GetNext() )
 						{
-							int nsegs = c->nsegs;
+							int nsegs = c->NumSegs();
 							for( int is=0; is<nsegs; is++ )
 							{
 								cvertex * v = &(c->vtx[is+1]);
