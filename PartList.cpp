@@ -1908,14 +1908,14 @@ int CPartList::StartDraggingPart( CDC * pDC, cpart * part, BOOL bRatlines,
 									{
 										// connection starts and ends on this part,
 										// only drag if 3 or more segments
-										if( c->nsegs > 2 )
+										if( c->NumSegs() > 2 )
 											bDraw = TRUE;
 									}
 									else if( pin2_part == NULL )
 									{
 										// stub trace starts on this part,
 										// drag if more than 1 segment or next vertex is a tee
-										if( c->nsegs > 1 || c->vtx[1].tee_ID )
+										if( c->NumSegs() > 1 || c->vtx[1].tee_ID )
 											bDraw = TRUE;
 									}
 									else if( pin2_part )
@@ -1940,12 +1940,12 @@ int CPartList::StartDraggingPart( CDC * pDC, cpart * part, BOOL bRatlines,
 							if( ip != -1 )
 							{
 								// ip is the end pin for the connection
-								m_dlist->Set_visible( c->seg[c->nsegs-1].dl_el, 0 );
-								if( c->vtx[c->nsegs-1].dl_el.GetSize() )
-									for( int i=0; i<c->vtx[c->nsegs-1].dl_el.GetSize(); i++ )
-										m_dlist->Set_visible( c->vtx[c->nsegs-1].dl_el[i], 0 );
-								if( c->vtx[c->nsegs-1].dl_hole )
-									m_dlist->Set_visible( c->vtx[c->nsegs-1].dl_hole, 0 );
+								m_dlist->Set_visible( c->seg[c->NumSegs()-1].dl_el, 0 );
+								if( c->vtx[c->NumSegs()-1].dl_el.GetSize() )
+									for( int i=0; i<c->vtx[c->NumSegs()-1].dl_el.GetSize(); i++ )
+										m_dlist->Set_visible( c->vtx[c->NumSegs()-1].dl_el[i], 0 );
+								if( c->vtx[c->NumSegs()-1].dl_hole )
+									m_dlist->Set_visible( c->vtx[c->NumSegs()-1].dl_hole, 0 );
 								// OK, get prev vertex, add ratline and hide segment
 //**								if( !bBelowPinCount || n->npins <= pin_count )
 								{
@@ -1953,14 +1953,14 @@ int CPartList::StartDraggingPart( CDC * pDC, cpart * part, BOOL bRatlines,
 									if( pin1_part == part )
 									{
 										// starts and ends on part
-										if( c->nsegs > 2 )
+										if( c->NumSegs() > 2 )
 											bDraw = TRUE;
 									}
 									else
 										bDraw = TRUE;
 									if( bDraw )
 									{
-										CPoint vx( c->vtx[c->nsegs-1].x, c->vtx[c->nsegs-1].y );
+										CPoint vx( c->vtx[c->NumSegs()-1].x, c->vtx[c->NumSegs()-1].y );
 										m_dlist->AddDragRatline( vx, pin_points[ip] );
 									}
 								}
@@ -2050,7 +2050,7 @@ int CPartList::CancelDraggingPart( cpart * part )
 				{
 					int pin1 = c->start_pin;
 					int pin2 = c->end_pin;
-					int nsegs = c->nsegs;
+					int nsegs = c->NumSegs();
 					if( net->pin[pin1].part == part )
 					{
 						// start pin
@@ -2066,11 +2066,11 @@ int CPartList::CancelDraggingPart( cpart * part )
 						{
 							// end pin
 							m_dlist->Set_visible( c->seg[nsegs-1].dl_el, 1 );
-							if( c->vtx[c->nsegs-1].dl_el.GetSize() )
-								for( int i=0; i<c->vtx[c->nsegs-1].dl_el.GetSize(); i++ )
-									m_dlist->Set_visible( c->vtx[c->nsegs-1].dl_el[i], 1 );
-							if( c->vtx[c->nsegs-1].dl_hole )
-								m_dlist->Set_visible( c->vtx[c->nsegs-1].dl_hole, 1 );
+							if( c->vtx[c->NumSegs()-1].dl_el.GetSize() )
+								for( int i=0; i<c->vtx[c->NumSegs()-1].dl_el.GetSize(); i++ )
+									m_dlist->Set_visible( c->vtx[c->NumSegs()-1].dl_el[i], 1 );
+							if( c->vtx[c->NumSegs()-1].dl_hole )
+								m_dlist->Set_visible( c->vtx[c->NumSegs()-1].dl_hole, 1 );
 						}
 					}
 				}
@@ -3098,7 +3098,7 @@ int CPartList::GetPinConnectionStatus( cpart * part, CString * pin_name, int lay
 	CIterator_cconnect iter_con(net);
 	for( cconnect * c=iter_con.GetFirst(); c; c=iter_con.GetNext() )
 	{
-		int nsegs = c->nsegs;
+		int nsegs = c->NumSegs();
 		int p1 = c->start_pin;
 		int p2 = c->end_pin;
 		if( net->pin[p1].part == part &&
@@ -4053,7 +4053,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 			c->vias_present = FALSE;
 			c->seg_layers = 0;
 			int max_trace_w = 0;	// maximum trace width for connection
-			for( int is=0; is<c->nsegs; is++ )
+			for( int is=0; is<c->NumSegs(); is++ )
 			{
 				id id_seg = net->id;
 				id_seg.st = ID_CONNECT;
@@ -4142,7 +4142,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 					}
 				}
 			}
-			for( int iv=0; iv<c->nsegs+1; iv++ )
+			for( int iv=0; iv<c->NumSegs()+1; iv++ )
 			{
 				cvertex * vtx = &c->vtx[iv];
 				if( vtx->via_w )
@@ -4302,7 +4302,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 					BOOL pin_info_valid = FALSE;
 					int pin_info_layer = 0;
 
-					for( int is=0; is<c->nsegs; is++ )
+					for( int is=0; is<c->NumSegs(); is++ )
 					{
 						// get next segment
 						cseg * s = &c->seg[is];
@@ -4576,7 +4576,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 						ASSERT(0);
 
 					// test against each segment in connection
-					for( int is=0; is<c->nsegs; is++ )
+					for( int is=0; is<c->NumSegs(); is++ )
 					{
 						// get next segment
 						cseg * s = &c->seg[is];
@@ -4746,7 +4746,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 						continue;	// no, next connection
 
 					// now we have to test all segments and vias in c
-					for( int is=0; is<c->nsegs; is++ )
+					for( int is=0; is<c->NumSegs(); is++ )
 					{
 						// get next segment and via
 						cseg * s = &c->seg[is];
@@ -4769,7 +4769,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 						id id_via1( ID_NET, ID_CONNECT, ic, ID_VIA, is+1 );
 
 						// iterate through all segments and vias in c2
-						for( int is2=0; is2<c2->nsegs; is2++ )
+						for( int is2=0; is2<c2->NumSegs(); is2++ )
 						{
 							// get next segment and via
 							cseg * s2 = &c2->seg[is2];
@@ -5251,7 +5251,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 
 				// check for unrouted or partially routed connection
 				BOOL bUnrouted = FALSE;
-				for( int is=0; is<c->nsegs; is++ )
+				for( int is=0; is<c->NumSegs(); is++ )
 				{
 					if( c->seg[is].layer == LAY_RAT_LINE )
 					{
@@ -5285,7 +5285,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 					else
 					{
 						end_pin = net->pin[iend].ref_des + "." + net->pin[iend].pin_name;
-						if( c->nsegs > 1 )
+						if( c->NumSegs() > 1 )
 						{
 							str.Format( "%ld: \"%s\": partially routed connection from %s to %s\r\n",
 								nerrors+1, net->name, start_pin, end_pin );

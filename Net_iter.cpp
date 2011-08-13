@@ -66,7 +66,14 @@ CIterator_cconnect::CIterator_cconnect( cnet * net )
 //	, m_pCurrentNet(NULL)
 {
 	m_net = net;
+//**	int n = m_LIST_Iterator.GetListSize();
 	m_LIST_Iterator.insert_after(this);
+}
+
+// Destructor
+CIterator_cconnect::~CIterator_cconnect()
+{
+//**	int n = m_LIST_Iterator.GetListSize();
 }
 
 // Iterator operators: First/Next
@@ -156,7 +163,7 @@ cseg *CIterator_cseg::GetFirst()
 	m_pCurrentSegment = NULL;
 
 	// test for no vertices
-	if( m_cconnect->nsegs != 0 )
+	if( m_cconnect->NumSegs() != 0 )
 	{
 		// increment iterator and get first net
 		GetNext();
@@ -168,7 +175,7 @@ cseg *CIterator_cseg::GetFirst()
 cseg *CIterator_cseg::GetNext()
 {
 	m_CurrentPos++;
-	if( m_CurrentPos <= m_cconnect->nsegs )
+	if( m_CurrentPos < m_cconnect->NumSegs() )
 	{
 		m_pCurrentSegment = &m_cconnect->seg[m_CurrentPos];
 	}
@@ -205,7 +212,7 @@ void CIterator_cseg::OnRemove( cseg * seg )
 {
 	// get index of segion being removed
 	int remove_is = -1;
-	for( int is=0; is<m_cconnect->nsegs; is++ )
+	for( int is=0; is<m_cconnect->NumSegs(); is++ )
 	{
 		if( seg == &m_cconnect->seg[is] )
 		{
@@ -239,7 +246,7 @@ cvertex *CIterator_cvertex::GetFirst()
 	m_pCurrentVertex = NULL;
 
 	// test for no vertices
-	if( m_cconnect->nsegs != 0 )
+	if( m_cconnect->NumSegs() != 0 )
 	{
 		// increment iterator and get first net
 		GetNext();
@@ -251,7 +258,7 @@ cvertex *CIterator_cvertex::GetFirst()
 cvertex *CIterator_cvertex::GetNext()
 {
 	m_CurrentPos++;
-	if( m_CurrentPos <= m_cconnect->nsegs )
+	if( m_CurrentPos <= m_cconnect->NumSegs() )
 	{
 		m_pCurrentVertex = &m_cconnect->vtx[m_CurrentPos];
 	}
@@ -288,7 +295,7 @@ void CIterator_cvertex::OnRemove( cvertex * vtx )
 {
 	// get index of vertex being removed
 	int remove_iv = -1;
-	for( int iv=0; iv<=m_cconnect->nsegs; iv++ )
+	for( int iv=0; iv<=m_cconnect->NumSegs(); iv++ )
 	{
 		if( vtx == &m_cconnect->vtx[iv] )
 		{
@@ -300,6 +307,178 @@ void CIterator_cvertex::OnRemove( cvertex * vtx )
 		ASSERT(0);
 
 	OnRemove( remove_iv );
-
 }
 
+//******** Iterator for cpin (CIterator_cpin) *********
+CDLinkList CIterator_cpin::m_LIST_Iterator;
+
+// Constructor
+CIterator_cpin::CIterator_cpin( cnet * net )
+//	: m_NetList(netlist)
+//	, m_pCurrentNet(NULL)
+{
+	m_net = net;
+//**	int n = m_LIST_Iterator.GetListSize();
+	m_LIST_Iterator.insert_after(this);
+}
+
+// Destructor
+CIterator_cpin::~CIterator_cpin()
+{
+//**	int n = m_LIST_Iterator.GetListSize();
+}
+
+// Iterator operators: First/Next
+cpin *CIterator_cpin::GetFirst()
+{
+	m_CurrentPos = -1;	// -1 = position before first connection
+	m_pCurrentConnection = NULL;
+
+	// test for no connections
+	if( m_net->NumPins() != 0 )
+	{
+		// increment iterator and get first net
+		GetNext();
+	}
+
+	return m_pCurrentConnection;
+}
+
+cpin *CIterator_cpin::GetNext()
+{
+	m_CurrentPos++;
+	if( m_CurrentPos < m_net->NumPins() )
+	{
+		m_pCurrentConnection = &m_net->pin[m_CurrentPos];
+	}
+	else
+	{
+		m_pCurrentConnection = NULL;
+	}
+
+	return m_pCurrentConnection;
+}
+
+// OnRemove() must be called before removing/deleting cpin
+// to update any active iterators.
+void CIterator_cpin::OnRemove( int ip )
+{
+	// For every iterator, adjust the "current connection" if that 
+	// connection or earlier is being removed
+	for( CDLinkList *pElement = m_LIST_Iterator.next; pElement != &m_LIST_Iterator; pElement = pElement->next )
+	{
+		CIterator_cpin *pIterator = static_cast<CIterator_cpin *>(pElement);
+
+		if( ip <= pIterator->m_CurrentPos )
+		{
+			// Make adjustment so that the next GetNext() moves to 
+			// the connection after the one removed.
+			pIterator->m_CurrentPos--;
+		}
+	}
+}
+
+void CIterator_cpin::OnRemove( cpin * pin )
+{
+	// get index of connection being removed
+	int remove_ip = -1;
+	for( int ip=0; ip<m_net->NumPins(); ip++ )
+	{
+		if( pin == &m_net->pin[ip] )
+		{
+			remove_ip = ip;
+			break;
+		}
+	}
+	if( remove_ip == -1 )
+		ASSERT(0);
+
+	OnRemove( remove_ip );
+}
+
+//******** Iterator for carea (CIterator_carea) *********
+CDLinkList CIterator_carea::m_LIST_Iterator;
+
+// Constructor
+CIterator_carea::CIterator_carea( cnet * net )
+//	: m_NetList(netlist)
+//	, m_pCurrentNet(NULL)
+{
+	m_net = net;
+//**	int n = m_LIST_Iterator.GetListSize();
+	m_LIST_Iterator.insert_after(this);
+}
+
+// Destructor
+CIterator_carea::~CIterator_carea()
+{
+//**	int n = m_LIST_Iterator.GetListSize();
+}
+
+// Iterator operators: First/Next
+carea *CIterator_carea::GetFirst()
+{
+	m_CurrentPos = -1;	// -1 = position before first connection
+	m_pCurrentConnection = NULL;
+
+	// test for no connections
+	if( m_net->NumAreas() != 0 )
+	{
+		// increment iterator and get first net
+		GetNext();
+	}
+
+	return m_pCurrentConnection;
+}
+
+carea *CIterator_carea::GetNext()
+{
+	m_CurrentPos++;
+	if( m_CurrentPos < m_net->NumAreas() )
+	{
+		m_pCurrentConnection = &m_net->area[m_CurrentPos];
+	}
+	else
+	{
+		m_pCurrentConnection = NULL;
+	}
+
+	return m_pCurrentConnection;
+}
+
+// OnRemove() must be called before removing/deleting carea
+// to update any active iterators.
+void CIterator_carea::OnRemove( int ia )
+{
+	// For every iterator, adjust the "current connection" if that 
+	// connection or earlier is being removed
+	for( CDLinkList *pElement = m_LIST_Iterator.next; pElement != &m_LIST_Iterator; pElement = pElement->next )
+	{
+		CIterator_carea *pIterator = static_cast<CIterator_carea *>(pElement);
+
+		if( ia <= pIterator->m_CurrentPos )
+		{
+			// Make adjustment so that the next GetNext() moves to 
+			// the connection after the one removed.
+			pIterator->m_CurrentPos--;
+		}
+	}
+}
+
+void CIterator_carea::OnRemove( carea * area )
+{
+	// get index of connection being removed
+	int remove_ia = -1;
+	for( int ia=0; ia<m_net->NumAreas(); ia++ )
+	{
+		if( area == &m_net->area[ia] )
+		{
+			remove_ia = ia;
+			break;
+		}
+	}
+	if( remove_ia == -1 )
+		ASSERT(0);
+
+	OnRemove( remove_ia );
+}
