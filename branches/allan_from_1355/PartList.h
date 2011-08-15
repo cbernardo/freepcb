@@ -102,6 +102,9 @@ struct drc_pin {
 class part_pin 
 {
 public:
+	part_pin();
+	~part_pin();
+	int m_uid;
 	int x, y;				// position on PCB
 	cnet * net;				// pointer to net, or NULL if not assigned
 	drc_pin drc;			// drc info
@@ -119,6 +122,7 @@ public:
 	int GetNumRefStrokes(){ return ref_text_stroke.GetSize(); };
 	int GetNumValueStrokes(){ return value_stroke.GetSize(); };
 	int GetNumOutlineStrokes(){ return m_outline_stroke.GetSize(); };
+
 	cpart * prev;		// link backward
 	cpart * next;		// link forward
 	id m_id;			// instance id for this part
@@ -196,9 +200,9 @@ public:
 	void SetShapeCacheMap( CMapStringToPtr * shape_cache_map )
 	{ m_footprint_cache_map = shape_cache_map; };
 	int GetNumParts(){ return m_size; };
-	cpart * Add(); 
+	cpart * Add( int uid=-1 ); 
 	cpart * Add( CShape * shape, CString * ref_des, CString * package, 
-					int x, int y, int side, int angle, int visible, int glued ); 
+					int x, int y, int side, int angle, int visible, int glued, int uid=-1 ); 
 	cpart * AddFromString( CString * str );
 	void SetNumCopperLayers( int nlayers ){ m_layers = nlayers;};
 	int SetPartData( cpart * part, CShape * shape, CString * ref_des, CString * package, 

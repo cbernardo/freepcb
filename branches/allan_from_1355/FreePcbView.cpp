@@ -1093,7 +1093,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 				{
 					// select segment
 					m_Doc->m_nlist->HighlightSegment( m_sel_net, sid.i, sid.ii );
-					if( m_sel_net->GetConnectByIndex(sid.i)->seg[sid.ii].layer != LAY_RAT_LINE )
+					if( m_sel_seg->layer != LAY_RAT_LINE )
 						SetCursorMode( CUR_SEG_SELECTED );
 					else
 						SetCursorMode( CUR_RAT_SELECTED );
@@ -1102,7 +1102,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 				else if( sid.st == ID_CONNECT && sid.sst == ID_SEL_VERTEX )
 				{
 					// select vertex
-					cconnect * c = m_sel_net->GetConnectByIndex(sid.i);
+					cconnect * c = m_sel_con;
 					if( c->end_pin == cconnect::NO_END && sid.ii == c->NumSegs() )
 						SetCursorMode( CUR_END_VTX_SELECTED );
 					else
@@ -1176,12 +1176,6 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 			SetFKText( m_cursor_mode );
 			m_Doc->ProjectModified( TRUE );
 			Invalidate( FALSE );
-#if 0
-			//** for testing only
-			CRect test_rect( 0, 0, 100, 100 );
-			InvalidateRect( test_rect, FALSE );
-			OnDraw( GetDC() );
-#endif
 		}
 		else if( m_cursor_mode == CUR_DRAG_GROUP || m_cursor_mode == CUR_DRAG_GROUP_ADD )
 		{
@@ -1377,12 +1371,12 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 				int ip = m_Doc->m_nlist->TestHitOnAnyPadInNet( m_last_cursor_point.x,
 					m_last_cursor_point.y,
 					m_active_layer, m_sel_net );
-				int ns = m_sel_con.NumSegs();
+				int ns = m_sel_con->NumSegs();
 				if( ip != -1 )
 				{
 					// hit on pad in net, see if this is our starting pad
-					if( ns < 3 && (m_dir == 0 && ip == m_sel_con.start_pin
-						|| m_dir == 1 && ip == m_sel_con.end_pin) )
+					if( ns < 3 && (m_dir == 0 && ip == m_sel_con->start_pin
+						|| m_dir == 1 && ip == m_sel_con->end_pin) )
 					{
 						// starting pin with too few segments, don't route to pin
 					}
@@ -1390,8 +1384,8 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 					{
 						// route to pin
 						// see if this is our destination
-						if( !(m_dir == 0 && ip == m_sel_con.end_pin
-							|| m_dir == 1 && ip == m_sel_con.start_pin) )
+						if( !(m_dir == 0 && ip == m_sel_con->end_pin
+							|| m_dir == 1 && ip == m_sel_con->start_pin) )
 						{
 							// no, change connection to this pin unless it is the starting pin
 							cpart * hit_part = m_sel_net->pin[ip].part;
@@ -1480,8 +1474,8 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 
 			// make undo record
 			SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_Doc->m_undo_list );
-			int layer = m_sel_con.seg[m_sel_is].layer;
-			int w = m_sel_con.seg[m_sel_is].width;
+			int layer = m_sel_con->seg[m_sel_is].layer;
+			int w = m_sel_con->seg[m_sel_is].width;
 			int insert_flag = m_Doc->m_nlist->InsertSegment( m_sel_net, m_sel_ic, m_sel_is,
 				m_last_cursor_point.x, m_last_cursor_point.y,
 				layer, w, 0, 0, m_dir );
@@ -1984,20 +1978,20 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 							mess.Format( "You are trying to connect a trace to a pin on a different net\nYou must detach the pin from the net first" );
 							AfxMessageBox( mess );
 						}
-						else if( m_sel_con.end_pin == cconnect::NO_END
-							&& m_sel_iv == m_sel_con.NumSegs() )
+						else if( m_sel_con->end_pin == cconnect::NO_END
+							&& m_sel_iv == m_sel_con->NumSegs() )
 						{
 							// dragging ratline from end of stub trace
 							CString pin_name = new_sel_part->shape->GetPinNameByIndex( sel_id.i );
 							CPoint p = m_Doc->m_plist->GetPinPoint( new_sel_part, pin_name );
 							int pin = m_Doc->m_nlist->GetNetPinIndex( m_sel_net, &new_sel_part->ref_des, &pin_name );
-							if( pin == m_sel_con.start_pin )
+							if( pin == m_sel_con->start_pin )
 							{
 								// trying to connect pin to itself
 								goto goodbye;
 							}
 							// convert to regular pin-pin trace
-							if(  m_sel_con.vtx[m_sel_iv].tee_ID )
+							if(  m_sel_con->vtx[m_sel_iv].tee_ID )
 								ASSERT(0);	// error, should not be a branch end or a tee-vertex
 							SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_Doc->m_undo_list );
 							SaveUndoInfoForPart( new_sel_part,
@@ -2009,12 +2003,12 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 							}
 							m_Doc->m_nlist->AppendSegment( m_sel_net, m_sel_ic, p.x, p.y,
 								LAY_RAT_LINE, 0 );
-							m_Doc->m_nlist->UndrawConnection( m_sel_net, m_sel_ic );
-							m_sel_con.vtx[m_sel_iv].force_via_flag = 0;
-							m_sel_con.end_pin = pin;
-							cvertex * end_v = &m_sel_con.vtx[m_sel_con.NumSegs()];
+							m_sel_con->Undraw();
+							m_sel_con->vtx[m_sel_iv].force_via_flag = 0;
+							m_sel_con->end_pin = pin;
+							cvertex * end_v = &m_sel_con->vtx[m_sel_con->NumSegs()];
 							end_v->pad_layer = m_Doc->m_plist->GetPinLayer( new_sel_part, sel_id.i );
-							m_Doc->m_nlist->DrawConnection( m_sel_net, m_sel_ic );
+							m_sel_con->Draw();
 							if( m_Doc->m_vis[LAY_RAT_LINE] )
 								m_Doc->m_nlist->OptimizeConnections(  m_sel_net, -1, m_Doc->m_auto_ratline_disable,
 														m_Doc->m_auto_ratline_min_pins, TRUE  );
@@ -2038,16 +2032,17 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 							}
 							int p1 = m_Doc->m_nlist->GetNetPinIndex( m_sel_net, &new_sel_part->ref_des, &pin_name );
 							int ic = m_Doc->m_nlist->AddNetStub( m_sel_net, p1 );
-							m_Doc->m_nlist->AppendSegment( m_sel_net, ic, m_sel_vtx.x, m_sel_vtx.y, LAY_RAT_LINE,
+							m_Doc->m_nlist->AppendSegment( m_sel_net, ic, m_sel_vtx->x, m_sel_vtx->y, LAY_RAT_LINE,
 								1 );
-							int id = m_sel_vtx.tee_ID;
+							int id = m_sel_vtx->tee_ID;
 							if( id == 0 )
 							{
 								id = m_Doc->m_nlist->GetNewTeeID();
-								m_sel_vtx.tee_ID = id;
+								m_sel_vtx->tee_ID = id;
 							}
-							m_sel_net->GetConnectByIndex(ic)->vtx[1].tee_ID = m_sel_vtx.tee_ID;
-							m_Doc->m_nlist->DrawConnection( m_sel_net, ic );
+							cconnect * c = m_sel_net->GetConnectByIndex(ic);
+							c->vtx[1].tee_ID = m_sel_vtx->tee_ID;
+							c->Draw();;
 							if( m_Doc->m_vis[LAY_RAT_LINE] )
 								m_Doc->m_nlist->OptimizeConnections(  m_sel_net, -1, m_Doc->m_auto_ratline_disable,
 														m_Doc->m_auto_ratline_min_pins, TRUE  );
@@ -2236,7 +2231,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 						}
 						m_Doc->m_nlist->ChangeConnectionPin( m_sel_net, m_sel_ic, m_sel_is,
 							new_sel_part, &pin_name );
-						m_dlist->Set_visible( m_sel_seg.dl_el, TRUE );
+						m_dlist->Set_visible( m_sel_seg->dl_el, TRUE );
 						m_dlist->StopDragging();
 						m_dlist->CancelHighLight();
 						SetCursorMode( CUR_RAT_SELECTED );
@@ -2273,8 +2268,8 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 				if( m_Doc->m_plist->TestHitOnPad( new_sel_part, &pin_name, p.x, p.y, m_active_layer ) )
 				{
 					// check for starting pad of stub trace
-					cpart * origin_part = m_sel_start_pin.part;
-					CString * origin_pin_name = &m_sel_start_pin.pin_name;
+					cpart * origin_part = m_sel_start_pin->part;
+					CString * origin_pin_name = &m_sel_start_pin->pin_name;
 					if( origin_part != new_sel_part || *origin_pin_name != *pin_name )
 					{
 						// not starting pad
@@ -2368,7 +2363,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 						hit_v->x, hit_v->y, m_active_layer, w );
 				}
 				// set tee_ID for end-vertex and remove selector
-				m_sel_con.vtx[m_sel_iv+1].tee_ID = id;
+				m_sel_con->vtx[m_sel_iv+1].tee_ID = id;
 				m_Doc->m_nlist->ReconcileVia( m_sel_net, m_sel_ic, m_sel_iv+1 );
 				m_dlist->StopDragging();
 				if( m_Doc->m_vis[LAY_RAT_LINE] )
@@ -2384,7 +2379,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 			pDC = GetDC();
 			SetDCToWorldCoords( pDC );
 			pDC->SelectClipRgn( &m_pcb_rgn );
-			m_sel_vtx.force_via_flag = 0;
+			m_sel_vtx->force_via_flag = 0;
 			CPoint pi = m_snap_angle_ref;
 			CPoint pf = m_last_cursor_point;
 			CPoint pp = GetInflectionPoint( pi, pf, m_inflection_mode );
@@ -2531,7 +2526,7 @@ void CFreePcbView::OnRButtonDown(UINT nFlags, CPoint point)
 	else if( m_cursor_mode == CUR_DRAG_RAT_PIN )
 	{
 		m_dlist->StopDragging();
-		m_dlist->Set_visible( m_sel_seg.dl_el, TRUE );
+		m_dlist->Set_visible( m_sel_seg->dl_el, TRUE );
 		m_Doc->m_nlist->HighlightSegment( m_sel_net, m_sel_ic, m_sel_is );
 		SetCursorMode( CUR_RAT_SELECTED );
 		Invalidate( FALSE );
@@ -2751,8 +2746,8 @@ void CFreePcbView::OnRButtonDown(UINT nFlags, CPoint point)
 		if( m_sel_id.ii > 0 )
 		{
 			m_Doc->m_nlist->CancelDraggingStub( m_sel_net, m_sel_ic, m_sel_is );
-			int x = m_sel_con.vtx[m_sel_iv].x;
-			int y = m_sel_con.vtx[m_sel_iv].y;
+			int x = m_sel_con->vtx[m_sel_iv].x;
+			int y = m_sel_con->vtx[m_sel_iv].y;
 			BOOL test = m_Doc->m_nlist->TestPointInArea( m_sel_net, x, y, m_active_layer, NULL );
 			if( !test )
 			{
@@ -2946,8 +2941,8 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 		SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_Doc->m_undo_list );
 		m_Doc->m_nlist->UnforceVia( m_sel_net, m_sel_ic, m_sel_iv );
 		if( m_cursor_mode == CUR_END_VTX_SELECTED
-			&& m_sel_con.seg[m_sel_iv-1].layer == LAY_RAT_LINE
-			&& m_sel_vtx.tee_ID == 0 )
+			&& m_sel_con->seg[m_sel_iv-1].layer == LAY_RAT_LINE
+			&& m_sel_vtx->tee_ID == 0 )
 		{
 			m_Doc->m_nlist->RemoveSegment( m_sel_net, m_sel_ic, m_sel_iv-1, TRUE );
 			CancelSelection();
@@ -3047,19 +3042,19 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 			if( m_dir == 0 && m_sel_is > 0 )
 			{
 				// routing forward
-				if( m_sel_con.vtx[m_sel_is].tee_ID )
+				if( m_sel_con->vtx[m_sel_is].tee_ID )
 				{
 					AfxMessageBox( "tee-vertex reached" );
 				}
 				else
 				{
 					SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_Doc->m_undo_list );
-					int new_active_layer = m_sel_con.seg[m_sel_is-1].layer;
+					int new_active_layer = m_sel_con->seg[m_sel_is-1].layer;
 					m_Doc->m_nlist->UnrouteSegment( m_sel_net, m_sel_ic, m_sel_is-1 );
 					m_sel_is--;
 					ShowSelectStatus();
-					m_last_mouse_point.x = m_sel_con.vtx[m_sel_is].x;
-					m_last_mouse_point.y = m_sel_con.vtx[m_sel_is].y;
+					m_last_mouse_point.x = m_sel_con->vtx[m_sel_is].x;
+					m_last_mouse_point.y = m_sel_con->vtx[m_sel_is].y;
 					CPoint p = m_dlist->PCBToScreen( m_last_mouse_point );
 					SetCursorPos( p.x, p.y );
 					OnRatlineRoute();
@@ -3068,12 +3063,12 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 					ShowActiveLayer();
 				}
 			}
-			else if( m_dir == 1 && m_sel_is < m_sel_con.NumSegs()-1
-				&& !(m_sel_is == m_sel_con.NumSegs()-2
-				&& m_sel_con.end_pin == cconnect::NO_END ) )
+			else if( m_dir == 1 && m_sel_is < m_sel_con->NumSegs()-1
+				&& !(m_sel_is == m_sel_con->NumSegs()-2
+				&& m_sel_con->end_pin == cconnect::NO_END ) )
 			{
 				// routing backward, not at end of stub trace
-				if( m_sel_con.vtx[m_sel_is+1].tee_ID )
+				if( m_sel_con->vtx[m_sel_is+1].tee_ID )
 				{
 					AfxMessageBox( "tee-vertex reached" );
 				}
@@ -3081,11 +3076,11 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 				{
 					SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_Doc->m_undo_list );
 					m_Doc->m_nlist->CancelDraggingSegment( m_sel_net, m_sel_ic, m_sel_is );
-					int new_active_layer = m_sel_con.seg[m_sel_is+1].layer;
+					int new_active_layer = m_sel_con->seg[m_sel_is+1].layer;
 					m_Doc->m_nlist->UnrouteSegment( m_sel_net, m_sel_ic, m_sel_is+1 );
 					ShowSelectStatus();
-					m_last_mouse_point.x = m_sel_con.vtx[m_sel_is+1].x;
-					m_last_mouse_point.y = m_sel_con.vtx[m_sel_is+1].y;
+					m_last_mouse_point.x = m_sel_con->vtx[m_sel_is+1].x;
+					m_last_mouse_point.y = m_sel_con->vtx[m_sel_is+1].y;
 					CPoint p = m_dlist->PCBToScreen( m_last_mouse_point );
 					SetCursorPos( p.x, p.y );
 					OnRatlineRoute();
@@ -3100,7 +3095,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 			// routing stub trace
 			if( m_sel_is > 1 )
 			{
-				if( m_sel_con.vtx[m_sel_is].tee_ID )
+				if( m_sel_con->vtx[m_sel_is].tee_ID )
 				{
 					AfxMessageBox( "tee-vertex reached" );
 				}
@@ -3108,15 +3103,15 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 				{
 					SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_Doc->m_undo_list );
 					m_Doc->m_nlist->RemoveSegment( m_sel_net, m_sel_ic, m_sel_is-1, FALSE );
-					int ns = m_sel_con.NumSegs();
+					int ns = m_sel_con->NumSegs();
 					m_sel_is = ns;
 					ShowSelectStatus();
-					m_last_mouse_point.x = m_sel_con.vtx[m_sel_is].x;
-					m_last_mouse_point.y = m_sel_con.vtx[m_sel_is].y;
+					m_last_mouse_point.x = m_sel_con->vtx[m_sel_is].x;
+					m_last_mouse_point.y = m_sel_con->vtx[m_sel_is].y;
 					CPoint p = m_dlist->PCBToScreen( m_last_mouse_point );
 					SetCursorPos( p.x, p.y );
 					OnEndVertexAddSegments();
-					int new_active_layer = m_sel_con.seg[m_sel_is-1].layer;
+					int new_active_layer = m_sel_con->seg[m_sel_is-1].layer;
 					m_dlist->ChangeRoutingLayer( pDC, new_active_layer, LAY_SELECTION, 0 );
 					m_active_layer = new_active_layer;
 					ShowActiveLayer();
@@ -3124,7 +3119,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 			}
 			else
 			{
-				if( m_sel_con.vtx[m_sel_is].tee_ID )
+				if( m_sel_con->vtx[m_sel_is].tee_ID )
 				{
 					AfxMessageBox( "tee-vertex reached" );
 				}
@@ -3132,9 +3127,9 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 				{
 					m_Doc->m_nlist->CancelDraggingStub( m_sel_net, m_sel_ic, m_sel_is );
 					SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_Doc->m_undo_list );
-					cpart * sel_part = m_Doc->m_plist->GetPart( m_sel_start_pin.ref_des );
-					int i = sel_part->shape->GetPinIndexByName( m_sel_start_pin.pin_name );
-					m_Doc->m_nlist->UndrawConnection( m_sel_net, m_sel_ic );
+					cpart * sel_part = m_Doc->m_plist->GetPart( m_sel_start_pin->ref_des );
+					int i = sel_part->shape->GetPinIndexByName( m_sel_start_pin->pin_name );
+					m_sel_con->Undraw();
 					m_Doc->m_nlist->RemoveNetConnect( m_sel_net, m_sel_ic );
 					CancelSelection();
 					m_sel_net = NULL;
@@ -3193,7 +3188,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 					if( m_sel_id.ii == 0 && m_dir == 0 )
 					{
 						// we are trying to change first segment from pad
-						int p1 = m_sel_con.start_pin;
+						int p1 = m_sel_con->start_pin;
 						CString pin_name = m_sel_net->pin[p1].pin_name;
 						int pin_index = m_sel_net->pin[p1].part->shape->GetPinIndexByName( pin_name );
 						if( m_sel_net->pin[p1].part->shape->m_padstack[pin_index].hole_size == 0)
@@ -3203,10 +3198,10 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 							PlaySound( TEXT("CriticalStop"), 0, 0 );
 						}
 					}
-					else if( m_sel_id.ii == (m_sel_con.NumSegs()-1) && m_dir == 1 )
+					else if( m_sel_id.ii == (m_sel_con->NumSegs()-1) && m_dir == 1 )
 					{
 						// we are trying to change last segment to pad
-						int p2 = m_sel_con.end_pin;
+						int p2 = m_sel_con->end_pin;
 						if( p2 != -1 )
 						{
 							CString pin_name = m_sel_net->pin[p2].pin_name;
@@ -3239,25 +3234,25 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 				if( m_cursor_mode == CUR_SEG_SELECTED )
 				{
 					SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_Doc->m_undo_list );
-					m_Doc->m_nlist->UndrawConnection( m_sel_net, m_sel_ic );
-					cconnect * c = &m_sel_con;
+					m_sel_con->Undraw();
+					cconnect * c = m_sel_con;
 					cseg * seg = &c->seg[m_sel_is];
 					seg->layer = new_active_layer;
-					m_Doc->m_nlist->DrawConnection( m_sel_net, m_sel_ic );
+					m_sel_con->Draw();
 					m_Doc->ProjectModified( TRUE );
 					Invalidate( FALSE );
 				}
 				else if( m_cursor_mode == CUR_CONNECT_SELECTED )
 				{
 					SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_Doc->m_undo_list );
-					m_Doc->m_nlist->UndrawConnection( m_sel_net, m_sel_ic );
-					cconnect * c = &m_sel_con;
+					cconnect * c = m_sel_con;
+					c->Undraw();
 					for( int is=0; is<c->NumSegs(); is++ )
 					{
 						cseg * seg = &c->seg[is];
 						seg->layer = new_active_layer;
 					}
-					m_Doc->m_nlist->DrawConnection( m_sel_net, m_sel_ic );
+					m_sel_con->Draw();
 					m_Doc->ProjectModified( TRUE );
 					Invalidate( FALSE );
 				}
@@ -3519,21 +3514,21 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 			m_dlist->CancelHighLight();
 
 			// 1. Move the line defined by the segment
-			m_last_pt.x = m_sel_last_vtx.x;
-			m_last_pt.y = m_sel_last_vtx.y;
+			m_last_pt.x = m_sel_last_vtx->x;
+			m_last_pt.y = m_sel_last_vtx->y;
 
-			m_from_pt.x = m_sel_vtx.x;
-			m_from_pt.y = m_sel_vtx.y;
+			m_from_pt.x = m_sel_vtx->x;
+			m_from_pt.y = m_sel_vtx->y;
 
-			m_to_pt.x = m_sel_next_vtx.x;
-			m_to_pt.y = m_sel_next_vtx.y;
+			m_to_pt.x = m_sel_next_vtx->x;
+			m_to_pt.y = m_sel_next_vtx->y;
 
-			int nsegs = m_sel_con.NumSegs();
+			int nsegs = m_sel_con->NumSegs();
 			int use_third_segment = m_sel_is < nsegs - 1;
 			if(use_third_segment)
 			{
-				m_next_pt.x = m_sel_next_next_vtx.x;	// Shouldn't really do this if we're off the edge?
-				m_next_pt.y = m_sel_next_next_vtx.y;
+				m_next_pt.x = m_sel_next_next_vtx->x;	// Shouldn't really do this if we're off the edge?
+				m_next_pt.y = m_sel_next_next_vtx->y;
 			} else {
 				m_next_pt.x = 0;
 				m_next_pt.y = 0;
@@ -3603,7 +3598,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 
 			gTotalArrowMoveX += dx;
 			gTotalArrowMoveY += dy;
-			ShowRelativeDistance( m_sel_vtx.x, m_sel_vtx.y, gTotalArrowMoveX, gTotalArrowMoveY );
+			ShowRelativeDistance( m_sel_vtx->x, m_sel_vtx->y, gTotalArrowMoveX, gTotalArrowMoveY );
 			m_Doc->m_nlist->HighlightSegment( m_sel_net, m_sel_ic, m_sel_is );
 			m_Doc->ProjectModified( TRUE );
 			Invalidate( FALSE );
@@ -3640,10 +3635,10 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 			}
 			m_dlist->CancelHighLight();
 			m_Doc->m_nlist->MoveVertex( m_sel_net, m_sel_ic, m_sel_is,
-										m_sel_vtx.x + dx, m_sel_vtx.y + dy );
+										m_sel_vtx->x + dx, m_sel_vtx->y + dy );
 			gTotalArrowMoveX += dx;
 			gTotalArrowMoveY += dy;
-			ShowRelativeDistance( m_sel_vtx.x, m_sel_vtx.y, gTotalArrowMoveX, gTotalArrowMoveY );
+			ShowRelativeDistance( m_sel_vtx->x, m_sel_vtx->y, gTotalArrowMoveX, gTotalArrowMoveY );
 			m_Doc->m_nlist->HighlightVertex( m_sel_net, m_sel_ic, m_sel_is );
 			m_Doc->ProjectModified( TRUE );
 			Invalidate( FALSE );
@@ -4442,19 +4437,19 @@ void CFreePcbView::SetFKText( int mode )
 	case CUR_SEG_SELECTED:
 		m_fkey_option[0] = FK_SET_WIDTH;
 		m_fkey_option[1] = FK_CHANGE_LAYER;
-		if( m_sel_con.end_pin == cconnect::NO_END )
+		if( m_sel_con->end_pin == cconnect::NO_END )
 		{
 			// stub trace
-			if( m_sel_con.vtx[m_sel_con.NumSegs()].force_via_flag
-				|| m_sel_con.vtx[m_sel_con.NumSegs()].tee_ID )
+			if( m_sel_con->vtx[m_sel_con->NumSegs()].force_via_flag
+				|| m_sel_con->vtx[m_sel_con->NumSegs()].tee_ID )
 			{
 				m_fkey_option[5] = FK_UNROUTE_TRACE;
 			}
-			if( m_sel_con.NumSegs() == (m_sel_id.ii+1) )
+			if( m_sel_con->NumSegs() == (m_sel_id.ii+1) )
 			{
 				// end segment of stub trace
-				if( m_sel_con.vtx[m_sel_con.NumSegs()].force_via_flag
-					|| m_sel_con.vtx[m_sel_con.NumSegs()].tee_ID )
+				if( m_sel_con->vtx[m_sel_con->NumSegs()].force_via_flag
+					|| m_sel_con->vtx[m_sel_con->NumSegs()].tee_ID )
 					m_fkey_option[4] = FK_UNROUTE;
 				m_fkey_option[6] = FK_DELETE_SEGMENT;
 			}
@@ -4479,23 +4474,23 @@ void CFreePcbView::SetFKText( int mode )
 
 	case CUR_RAT_SELECTED:
 		m_fkey_option[0] = FK_SET_WIDTH;
-		if( m_sel_con.locked )
+		if( m_sel_con->locked )
 			m_fkey_option[2] = FK_UNLOCK_CONNECT;
 		else
 			m_fkey_option[2] = FK_LOCK_CONNECT;
 		m_fkey_option[3] = FK_ROUTE;
 		m_fkey_option[5] = FK_UNROUTE_TRACE;
-		if( m_sel_con.end_pin == cconnect::NO_END )
+		if( m_sel_con->end_pin == cconnect::NO_END )
 		{
 			// stub trace
-			if( m_sel_con.NumSegs() == (m_sel_id.ii+1) )
+			if( m_sel_con->NumSegs() == (m_sel_id.ii+1) )
 			{
 				// end segment of stub trace
 				m_fkey_option[6] = FK_DELETE_SEGMENT;
 			}
 		}
-		else if( m_sel_con.NumSegs() > 1
-			&& ( m_sel_id.ii == 0 || m_sel_id.ii == (m_sel_con.NumSegs()-1) ) )
+		else if( m_sel_con->NumSegs() > 1
+			&& ( m_sel_id.ii == 0 || m_sel_id.ii == (m_sel_con->NumSegs()-1) ) )
 		{
 			// pin-pin connection
 			m_fkey_option[4] = FK_CHANGE_PIN;
@@ -4506,13 +4501,13 @@ void CFreePcbView::SetFKText( int mode )
 
 	case CUR_VTX_SELECTED:
 		m_fkey_option[0] = FK_SET_POSITION;
-		if( m_sel_vtx.via_w != 0 )
+		if( m_sel_vtx->via_w != 0 )
 			m_fkey_option[1] = FK_VIA_SIZE;
 		m_fkey_option[2] = FK_ADD_CONNECT;
 		m_fkey_option[3] = FK_MOVE_VERTEX;
-		if( m_sel_con.end_pin != cconnect::NO_END 
-			|| m_sel_con.vtx[m_sel_con.NumSegs()].via_w
-			|| m_sel_con.vtx[m_sel_con.NumSegs()].tee_ID )
+		if( m_sel_con->end_pin != cconnect::NO_END 
+			|| m_sel_con->vtx[m_sel_con->NumSegs()].via_w
+			|| m_sel_con->vtx[m_sel_con->NumSegs()].tee_ID )
 			m_fkey_option[5] = FK_UNROUTE_TRACE;
 		m_fkey_option[6] = FK_DELETE_VERTEX;
 		m_fkey_option[7] = FK_DELETE_CONNECT;
@@ -4522,13 +4517,13 @@ void CFreePcbView::SetFKText( int mode )
 	case CUR_END_VTX_SELECTED:
 		m_fkey_option[0] = FK_SET_POSITION;
 		m_fkey_option[1] = FK_ADD_SEGMENT;
-		if( m_sel_vtx.via_w )
+		if( m_sel_vtx->via_w )
 			m_fkey_option[4] = FK_DELETE_VIA;
 		else
 			m_fkey_option[4] = FK_ADD_VIA;
 		m_fkey_option[2] = FK_ADD_CONNECT;
 		m_fkey_option[3] = FK_MOVE_VERTEX;
-		if( m_sel_vtx.via_w )
+		if( m_sel_vtx->via_w )
 			m_fkey_option[5] = FK_UNROUTE_TRACE;
 		m_fkey_option[6] = FK_DELETE_VERTEX;
 		m_fkey_option[7] = FK_DELETE_CONNECT;
@@ -4647,12 +4642,12 @@ int CFreePcbView::SegmentMovable(void)
 {
 	// see if this is the end of the road, if so, can't move it:
 	{
-		int x = m_sel_vtx.x;
-		int y = m_sel_vtx.y;
-		int layer = m_sel_seg.layer;
+		int x = m_sel_vtx->x;
+		int y = m_sel_vtx->y;
+		int layer = m_sel_seg->layer;
 		BOOL test = m_Doc->m_nlist->TestHitOnConnectionEndPad( x, y, m_sel_net,
 			m_sel_id.i, layer, 1 );
-		if( test || m_sel_vtx.tee_ID )
+		if( test || m_sel_vtx->tee_ID )
 		{
 			return FALSE;
 		}
@@ -4660,12 +4655,12 @@ int CFreePcbView::SegmentMovable(void)
 
 	// see if end vertex of this segment is in end pad of connection
 	{
-		int x = m_sel_next_vtx.x;
-		int y = m_sel_next_vtx.y;
-		int layer = m_sel_seg.layer;
+		int x = m_sel_next_vtx->x;
+		int y = m_sel_next_vtx->y;
+		int layer = m_sel_seg->layer;
 		BOOL test = m_Doc->m_nlist->TestHitOnConnectionEndPad( x, y, m_sel_net,
 			m_sel_id.i, layer, 0 );
-		if( test || m_sel_next_vtx.tee_ID)
+		if( test || m_sel_next_vtx->tee_ID)
 		{
 			return FALSE;
 		}
@@ -4887,15 +4882,15 @@ int CFreePcbView::ShowSelectStatus()
 	case CUR_DRAG_STUB:
 	case CUR_DRAG_RAT:
 		{
-			if( m_sel_con.end_pin == cconnect::NO_END )
+			if( m_sel_con->end_pin == cconnect::NO_END )
 			{
 				if( m_cursor_mode == CUR_DRAG_STUB )
 				{
 					// stub trace segment
 					str.Format( "net \"%s\" stub(%d) from %s.%s, seg %d%s",
 						m_sel_net->name, m_sel_id.i+1,
-						m_sel_start_pin.ref_des,
-						m_sel_start_pin.pin_name,
+						m_sel_start_pin->ref_des,
+						m_sel_start_pin->pin_name,
 						m_sel_id.ii+1,
 						uid_str
 						);
@@ -4905,10 +4900,10 @@ int CFreePcbView::ShowSelectStatus()
 					// stub trace segment
 					str.Format( "net \"%s\" stub(%d) from %s.%s, seg %d, width %d%s",
 						m_sel_net->name, m_sel_id.i+1,
-						m_sel_start_pin.ref_des,
-						m_sel_start_pin.pin_name,
+						m_sel_start_pin->ref_des,
+						m_sel_start_pin->pin_name,
 						m_sel_id.ii+1,
-						m_sel_seg.width/NM_PER_MIL,
+						m_sel_seg->width/NM_PER_MIL,
 						uid_str
 					);
 				}
@@ -4917,18 +4912,18 @@ int CFreePcbView::ShowSelectStatus()
 			{
 				// normal connected trace segment
 				CString locked_flag = "";
-				if( m_sel_con.locked )
+				if( m_sel_con->locked )
 					locked_flag = " (L)";
-				if( m_sel_con.NumSegs() == 1 && m_sel_seg.layer == LAY_RAT_LINE )
+				if( m_sel_con->NumSegs() == 1 && m_sel_seg->layer == LAY_RAT_LINE )
 				{
 					str.Format( "net \"%s\" connection(%d) %s.%s-%s.%s%s, seg %d, width %d%s",
 						m_sel_net->name, m_sel_id.i+1,
-						m_sel_start_pin.ref_des,
-						m_sel_start_pin.pin_name,
-						m_sel_end_pin.ref_des,
-						m_sel_end_pin.pin_name,
+						m_sel_start_pin->ref_des,
+						m_sel_start_pin->pin_name,
+						m_sel_end_pin->ref_des,
+						m_sel_end_pin->pin_name,
 						locked_flag, m_sel_id.ii+1,
-						m_sel_seg.width/NM_PER_MIL,
+						m_sel_seg->width/NM_PER_MIL,
 						uid_str
 						);
 				}
@@ -4936,12 +4931,12 @@ int CFreePcbView::ShowSelectStatus()
 				{
 					str.Format( "net \"%s\" trace(%d) %s.%s-%s.%s%s, seg %d, width %d%s",
 						m_sel_net->name,  m_sel_id.i+1,
-						m_sel_start_pin.ref_des,
-						m_sel_start_pin.pin_name,
-						m_sel_end_pin.ref_des,
-						m_sel_end_pin.pin_name,
+						m_sel_start_pin->ref_des,
+						m_sel_start_pin->pin_name,
+						m_sel_end_pin->ref_des,
+						m_sel_end_pin->pin_name,
 						locked_flag, m_sel_id.ii+1,
-						m_sel_seg.width/NM_PER_MIL,
+						m_sel_seg->width/NM_PER_MIL,
 						uid_str
 						);
 				}
@@ -4952,30 +4947,30 @@ int CFreePcbView::ShowSelectStatus()
 	case CUR_VTX_SELECTED:
 		{
 			CString locked_flag = "";
-			if( m_sel_con.locked )
+			if( m_sel_con->locked )
 				locked_flag = " (L)";
 			CString tee_flag = "";
-			if( int id = m_sel_vtx.tee_ID )
+			if( int id = m_sel_vtx->tee_ID )
 				tee_flag.Format( " (T%d)", id );
-			if( m_sel_vtx.force_via_flag )
+			if( m_sel_vtx->force_via_flag )
 				tee_flag = "(F)" + tee_flag;
-			int via_w = m_sel_vtx.via_w;
-			int uid = m_sel_vtx.m_uid;
-			::MakeCStringFromDimension( &x_str, m_sel_vtx.x, u, FALSE, FALSE, FALSE, u==MIL?1:3 );
-			::MakeCStringFromDimension( &y_str, m_sel_vtx.y, u, FALSE, FALSE, FALSE, u==MIL?1:3 );
-			::MakeCStringFromDimension( &via_w_str, m_sel_vtx.via_w, u, FALSE, FALSE, FALSE, u==MIL?1:3 );
-			::MakeCStringFromDimension( &via_hole_str, m_sel_vtx.via_hole_w, u, FALSE, FALSE, FALSE, u==MIL?1:3 );
-			if( m_sel_con.end_pin == cconnect::NO_END )
+			int via_w = m_sel_vtx->via_w;
+			int uid = m_sel_vtx->m_uid;
+			::MakeCStringFromDimension( &x_str, m_sel_vtx->x, u, FALSE, FALSE, FALSE, u==MIL?1:3 );
+			::MakeCStringFromDimension( &y_str, m_sel_vtx->y, u, FALSE, FALSE, FALSE, u==MIL?1:3 );
+			::MakeCStringFromDimension( &via_w_str, m_sel_vtx->via_w, u, FALSE, FALSE, FALSE, u==MIL?1:3 );
+			::MakeCStringFromDimension( &via_hole_str, m_sel_vtx->via_hole_w, u, FALSE, FALSE, FALSE, u==MIL?1:3 );
+			if( m_sel_con->end_pin == cconnect::NO_END )
 			{
 				// vertex of stub trace
 				if( via_w )
 				{
 					// via
-					if( m_sel_con.vtx[m_sel_con.NumSegs()].tee_ID )
+					if( m_sel_con->vtx[m_sel_con->NumSegs()].tee_ID )
 						str.Format( "net \"%s\" branch(%d) to %s.%s, vertex %d, x %s, y %s, via %s/%s %s%s",
 							m_sel_net->name, m_sel_id.i+1,
-							m_sel_start_pin.ref_des,
-							m_sel_start_pin.pin_name,
+							m_sel_start_pin->ref_des,
+							m_sel_start_pin->pin_name,
 							m_sel_id.ii,
 							x_str,
 							y_str,
@@ -4987,8 +4982,8 @@ int CFreePcbView::ShowSelectStatus()
 					else
 						str.Format( "net \"%s\" stub(%d) from %s.%s, vertex %d, x %s, y %s, via %s/%s %s%s",
 							m_sel_net->name, m_sel_id.i+1,
-							m_sel_start_pin.ref_des,
-							m_sel_start_pin.pin_name,
+							m_sel_start_pin->ref_des,
+							m_sel_start_pin->pin_name,
 							m_sel_id.ii,
 							x_str,
 							y_str,
@@ -5001,11 +4996,11 @@ int CFreePcbView::ShowSelectStatus()
 				else
 				{
 					// no via
-					if( m_sel_con.vtx[m_sel_con.NumSegs()].tee_ID )
+					if( m_sel_con->vtx[m_sel_con->NumSegs()].tee_ID )
 						str.Format( "net \"%s\" branch(%d) to %s.%s, vertex %d, x %s, y %s %s%s",
 							m_sel_net->name, m_sel_id.i+1,
-							m_sel_start_pin.ref_des,
-							m_sel_start_pin.pin_name,
+							m_sel_start_pin->ref_des,
+							m_sel_start_pin->pin_name,
 							m_sel_id.ii,
 							x_str,
 							y_str,
@@ -5015,8 +5010,8 @@ int CFreePcbView::ShowSelectStatus()
 					else
 						str.Format( "net \"%s\" stub(%d) from %s.%s, vertex %d, x %s, y %s %s%s",
 							m_sel_net->name, m_sel_id.i+1,
-							m_sel_start_pin.ref_des,
-							m_sel_start_pin.pin_name,
+							m_sel_start_pin->ref_des,
+							m_sel_start_pin->pin_name,
 							m_sel_id.ii,
 							x_str,
 							y_str,
@@ -5033,10 +5028,10 @@ int CFreePcbView::ShowSelectStatus()
 					// with via
 					str.Format( "net \"%s\" trace(%d) %s.%s-%s.%s%s, vertex %d, x %s, y %s, via %s/%s %s%s",
 						m_sel_net->name, m_sel_id.i+1,
-						m_sel_start_pin.ref_des,
-						m_sel_start_pin.pin_name,
-						m_sel_end_pin.ref_des,
-						m_sel_end_pin.pin_name,
+						m_sel_start_pin->ref_des,
+						m_sel_start_pin->pin_name,
+						m_sel_end_pin->ref_des,
+						m_sel_end_pin->pin_name,
 						locked_flag,
 						m_sel_id.ii,
 						x_str,
@@ -5052,10 +5047,10 @@ int CFreePcbView::ShowSelectStatus()
 					// no via
 					str.Format( "net \"%s\" trace(%d) %s.%s-%s.%s%s, vertex %d, x %s, y %s %s%s",
 						m_sel_net->name, m_sel_id.i+1,
-						m_sel_start_pin.ref_des,
-						m_sel_start_pin.pin_name,
-						m_sel_end_pin.ref_des,
-						m_sel_end_pin.pin_name,
+						m_sel_start_pin->ref_des,
+						m_sel_start_pin->pin_name,
+						m_sel_end_pin->ref_des,
+						m_sel_end_pin->pin_name,
 						locked_flag,
 						m_sel_id.ii,
 						x_str,
@@ -5071,15 +5066,15 @@ int CFreePcbView::ShowSelectStatus()
 	case CUR_END_VTX_SELECTED:
 		{
 			CString tee_flag = "";
-			if( int id = m_sel_vtx.tee_ID )
+			if( int id = m_sel_vtx->tee_ID )
 				tee_flag.Format( " (T%d)", id );
-			if( m_sel_vtx.force_via_flag )
+			if( m_sel_vtx->force_via_flag )
 				tee_flag = "(F)" + tee_flag;
-			int uid = m_sel_vtx.m_uid;
-			::MakeCStringFromDimension( &x_str, m_sel_vtx.x, u, FALSE, FALSE, FALSE, u==MIL?1:3 );
-			::MakeCStringFromDimension( &y_str, m_sel_vtx.y, u, FALSE, FALSE, FALSE, u==MIL?1:3 );
-			::MakeCStringFromDimension( &via_w_str, m_sel_vtx.via_w, u, FALSE, FALSE, FALSE, u==MIL?1:3 );
-			::MakeCStringFromDimension( &via_hole_str, m_sel_vtx.via_hole_w, u, FALSE, FALSE, FALSE, u==MIL?1:3 );
+			int uid = m_sel_vtx->m_uid;
+			::MakeCStringFromDimension( &x_str, m_sel_vtx->x, u, FALSE, FALSE, FALSE, u==MIL?1:3 );
+			::MakeCStringFromDimension( &y_str, m_sel_vtx->y, u, FALSE, FALSE, FALSE, u==MIL?1:3 );
+			::MakeCStringFromDimension( &via_w_str, m_sel_vtx->via_w, u, FALSE, FALSE, FALSE, u==MIL?1:3 );
+			::MakeCStringFromDimension( &via_hole_str, m_sel_vtx->via_hole_w, u, FALSE, FALSE, FALSE, u==MIL?1:3 );
 			str.Format( "net \"%s\" stub(%d) end, x %s, y %s, via %s/%s %s%s",
 				m_sel_net->name, m_sel_id.i+1,
 				x_str,
@@ -5095,41 +5090,41 @@ int CFreePcbView::ShowSelectStatus()
 	case CUR_CONNECT_SELECTED:
 		{
 			CString locked_flag = "";
-			if( m_sel_con.locked )
+			if( m_sel_con->locked )
 				locked_flag = " (L)";
 			// get length of trace
 			CString len_str;
 			double len = 0;
-			double last_x = m_sel_con.vtx[0].x;
-			double last_y = m_sel_con.vtx[0].y;
-			for( int iv=0; iv<=m_sel_con.NumSegs(); iv++ )
+			double last_x = m_sel_con->vtx[0].x;
+			double last_y = m_sel_con->vtx[0].y;
+			for( int iv=0; iv<=m_sel_con->NumSegs(); iv++ )
 			{
-				double x = m_sel_con.vtx[iv].x;
-				double y = m_sel_con.vtx[iv].y;
+				double x = m_sel_con->vtx[iv].x;
+				double y = m_sel_con->vtx[iv].y;
 				len += sqrt( (x-last_x)*(x-last_x) + (y-last_y)*(y-last_y) );
 				last_x = x;
 				last_y = y;
 			}
 			::MakeCStringFromDimension( &len_str, (int)len, u, TRUE, TRUE, FALSE, u==MIL?1:3 );
-			if( m_sel_con.end_pin == cconnect::NO_END ) 
+			if( m_sel_con->end_pin == cconnect::NO_END ) 
 			{
 				// stub or branch trace
-				if( int id = m_sel_con.vtx[m_sel_con.NumSegs()].tee_ID )
+				if( int id = m_sel_con->vtx[m_sel_con->NumSegs()].tee_ID )
 				{
 					CString tee_flag = "";
 					tee_flag.Format( "(T%d)", id );
 					str.Format( "net \"%s\" branch(%d) from %s.%s%s %s len=%s",
 						m_sel_net->name, m_sel_id.i+1,
-						m_sel_start_pin.ref_des,
-						m_sel_start_pin.pin_name,
+						m_sel_start_pin->ref_des,
+						m_sel_start_pin->pin_name,
 						locked_flag, tee_flag, len_str );
 				}
 				else
 				{
 					str.Format( "net \"%s\" stub(%d) from %s.%s%s len=%s",
 						m_sel_net->name, m_sel_id.i+1,
-						m_sel_start_pin.ref_des,
-						m_sel_start_pin.pin_name,
+						m_sel_start_pin->ref_des,
+						m_sel_start_pin->pin_name,
 						locked_flag, len_str );
 				}
 			}
@@ -5138,10 +5133,10 @@ int CFreePcbView::ShowSelectStatus()
 				// normal trace
 				str.Format( "net \"%s\" trace(%d) %s.%s-%s.%s%s len=%s",
 					m_sel_net->name, m_sel_id.i+1,
-					m_sel_start_pin.ref_des,
-					m_sel_start_pin.pin_name,
-					m_sel_end_pin.ref_des,
-					m_sel_end_pin.pin_name,
+					m_sel_start_pin->ref_des,
+					m_sel_start_pin->pin_name,
+					m_sel_end_pin->ref_des,
+					m_sel_end_pin->pin_name,
 					locked_flag, len_str );
 			}
 		}
@@ -5156,7 +5151,7 @@ int CFreePcbView::ShowSelectStatus()
 			CString neg_str = "";
 			if( m_sel_text->m_bNegative )
 				neg_str = "(NEG)";
-			str.Format( "Text \"%s\" %s", m_sel_text->m_str, neg_str ); 
+			str.Format( "Text \"%s\" %s,%s", m_sel_text->m_str, neg_str, uid_str ); 
 			break;
 		}
 
@@ -5509,8 +5504,8 @@ int CFreePcbView::SetWidth( int mode )
 	dlg.m_init_via_hole_w = m_Doc->m_via_hole_w;
 	if( mode == 0 )
 	{
-		cseg * seg = &m_sel_seg;
-		cconnect * con = &m_sel_con;
+		cseg * seg = m_sel_seg;
+		cconnect * con = m_sel_con;
 		int seg_w = seg->width;
 		if( seg_w )
 			dlg.m_init_w = seg_w;
@@ -5708,24 +5703,24 @@ void CFreePcbView::OnContextMenu(CWnd* pWnd, CPoint point )
 		if(!SegmentMovable())
 				pPopup->EnableMenuItem( ID_SEGMENT_MOVE, MF_GRAYED );
 
-		if( m_sel_con.end_pin == cconnect::NO_END
-			&& m_sel_con.vtx[m_sel_con.NumSegs()].tee_ID == 0
-			&& m_sel_con.vtx[m_sel_con.NumSegs()].force_via_flag == 0
+		if( m_sel_con->end_pin == cconnect::NO_END
+			&& m_sel_con->vtx[m_sel_con->NumSegs()].tee_ID == 0
+			&& m_sel_con->vtx[m_sel_con->NumSegs()].force_via_flag == 0
 			)
 		{
 			pPopup->EnableMenuItem( ID_SEGMENT_UNROUTETRACE, MF_GRAYED );
 		}
-		if( m_sel_con.end_pin == cconnect::NO_END
-			&& m_sel_con.NumSegs() == (m_sel_id.ii+1)
-			&& m_sel_con.vtx[m_sel_con.NumSegs()].tee_ID == 0
-			&& m_sel_con.vtx[m_sel_con.NumSegs()].force_via_flag == 0
+		if( m_sel_con->end_pin == cconnect::NO_END
+			&& m_sel_con->NumSegs() == (m_sel_id.ii+1)
+			&& m_sel_con->vtx[m_sel_con->NumSegs()].tee_ID == 0
+			&& m_sel_con->vtx[m_sel_con->NumSegs()].force_via_flag == 0
 			)
 		{
 			// last segment of stub trace unless a tee or via
 			pPopup->EnableMenuItem( ID_SEGMENT_UNROUTE, MF_GRAYED );
 		}
-		if( m_sel_con.end_pin != cconnect::NO_END
-			|| m_sel_con.NumSegs() > (m_sel_id.ii+1)
+		if( m_sel_con->end_pin != cconnect::NO_END
+			|| m_sel_con->NumSegs() > (m_sel_id.ii+1)
 			)
 		{
 			pPopup->EnableMenuItem( ID_SEGMENT_DELETE, MF_GRAYED );
@@ -5736,14 +5731,14 @@ void CFreePcbView::OnContextMenu(CWnd* pWnd, CPoint point )
 	case CUR_RAT_SELECTED:
 		pPopup = menu.GetSubMenu(CONTEXT_RATLINE);
 		ASSERT(pPopup != NULL);
-		if( m_sel_con.locked )
+		if( m_sel_con->locked )
 			pPopup->EnableMenuItem( ID_RATLINE_LOCKCONNECTION, MF_GRAYED );
 		else
 			pPopup->EnableMenuItem( ID_RATLINE_UNLOCKCONNECTION, MF_GRAYED );
-		if( m_sel_con.end_pin == cconnect::NO_END )
+		if( m_sel_con->end_pin == cconnect::NO_END )
 			pPopup->EnableMenuItem( ID_SEGMENT_UNROUTETRACE, MF_GRAYED );
-		if( m_sel_con.NumSegs() == 1
-			|| !(m_sel_id.ii == 0 || m_sel_id.ii == (m_sel_con.NumSegs()-1) ) )
+		if( m_sel_con->NumSegs() == 1
+			|| !(m_sel_id.ii == 0 || m_sel_id.ii == (m_sel_con->NumSegs()-1) ) )
 			pPopup->EnableMenuItem( ID_RATLINE_CHANGEPIN, MF_GRAYED );
 		pPopup->TrackPopupMenu(TPM_LEFTALIGN | TPM_RIGHTBUTTON, point.x, point.y, pWnd );
 		break;
@@ -5751,11 +5746,11 @@ void CFreePcbView::OnContextMenu(CWnd* pWnd, CPoint point )
 	case CUR_VTX_SELECTED:
 		pPopup = menu.GetSubMenu(CONTEXT_VERTEX);
 		ASSERT(pPopup != NULL);
-		if( m_sel_vtx.via_w == 0 )
+		if( m_sel_vtx->via_w == 0 )
 			pPopup->EnableMenuItem( ID_VERTEX_SETSIZE, MF_GRAYED );
-		if( m_sel_con.end_pin == cconnect::NO_END
-			&& m_sel_con.vtx[m_sel_con.NumSegs()].tee_ID == 0
-			&& m_sel_con.vtx[m_sel_con.NumSegs()].force_via_flag == 0
+		if( m_sel_con->end_pin == cconnect::NO_END
+			&& m_sel_con->vtx[m_sel_con->NumSegs()].tee_ID == 0
+			&& m_sel_con->vtx[m_sel_con->NumSegs()].force_via_flag == 0
 			)
 		{
 			pPopup->EnableMenuItem( ID_VERTEX_UNROUTETRACE, MF_GRAYED );
@@ -5766,7 +5761,7 @@ void CFreePcbView::OnContextMenu(CWnd* pWnd, CPoint point )
 	case CUR_END_VTX_SELECTED:
 		pPopup = menu.GetSubMenu(CONTEXT_END_VERTEX);
 		ASSERT(pPopup != NULL);
-		if( m_sel_vtx.via_w )
+		if( m_sel_vtx->via_w )
 			pPopup->EnableMenuItem( ID_ENDVERTEX_ADDVIA, MF_GRAYED );
 		else
 		{
@@ -5779,7 +5774,7 @@ void CFreePcbView::OnContextMenu(CWnd* pWnd, CPoint point )
 	case CUR_CONNECT_SELECTED:
 		pPopup = menu.GetSubMenu(CONTEXT_CONNECT);
 		ASSERT(pPopup != NULL);
-		if( m_sel_con.end_pin == cconnect::NO_END )
+		if( m_sel_con->end_pin == cconnect::NO_END )
 			pPopup->EnableMenuItem( ID_CONNECT_UNROUTETRACE, MF_GRAYED );
 		pPopup->TrackPopupMenu(TPM_LEFTALIGN | TPM_RIGHTBUTTON, point.x, point.y, pWnd );
 		break;
@@ -6298,7 +6293,7 @@ void CFreePcbView::OnVertexConnectToPin()
 	pDC->SelectClipRgn( &m_pcb_rgn );
 	SetDCToWorldCoords( pDC );
 	m_dragging_new_item = 0;
-	m_dlist->StartDraggingRatLine( pDC, 0, 0, m_sel_vtx.x, m_sel_vtx.y, LAY_RAT_LINE, 1, 1 );
+	m_dlist->StartDraggingRatLine( pDC, 0, 0, m_sel_vtx->x, m_sel_vtx->y, LAY_RAT_LINE, 1, 1 );
 	SetCursorMode( CUR_DRAG_CONNECT );
 	ReleaseDC( pDC );
 	Invalidate( FALSE );
@@ -6325,9 +6320,9 @@ void CFreePcbView::OnSegmentUnroute()
 //	m_Doc->m_nlist->SetNetVisibility( m_sel_net, TRUE );
 	// see if segments to pin also need to be unrouted
 	// see if start vertex of this segment is in start pad of connection
-	int x = m_sel_vtx.x;
-	int y = m_sel_vtx.y;
-	int layer = m_sel_seg.layer;
+	int x = m_sel_vtx->x;
+	int y = m_sel_vtx->y;
+	int layer = m_sel_seg->layer;
 	BOOL test = m_Doc->m_nlist->TestHitOnConnectionEndPad( x, y, m_sel_net,
 		m_sel_id.i, layer, 1 );
 	if( test )
@@ -6336,14 +6331,14 @@ void CFreePcbView::OnSegmentUnroute()
 		for( int is=m_sel_id.ii-1; is>=0; is-- )
 			m_Doc->m_nlist->UnrouteSegmentWithoutMerge( m_sel_net, m_sel_ic, is );	}
 	// see if end vertex of this segment is in end pad of connection
-	x = m_sel_next_vtx.x;
-	y = m_sel_next_vtx.y;
+	x = m_sel_next_vtx->x;
+	y = m_sel_next_vtx->y;
 	test = m_Doc->m_nlist->TestHitOnConnectionEndPad( x, y, m_sel_net,
 		m_sel_id.i, layer, 0 );
 	if( test )
 	{
 		// unroute following segments
-		for( int is=m_sel_con.NumSegs()-1; is>m_sel_id.ii; is-- )
+		for( int is=m_sel_con->NumSegs()-1; is>m_sel_id.ii; is-- )
 			m_Doc->m_nlist->UnrouteSegmentWithoutMerge( m_sel_net, m_sel_ic, is );
 	}
 
@@ -6362,7 +6357,7 @@ void CFreePcbView::OnSegmentUnroute()
 //
 void CFreePcbView::OnSegmentDelete()
 {
-	int id = m_sel_con.vtx[m_sel_con.NumSegs()].tee_ID;
+	int id = m_sel_con->vtx[m_sel_con->NumSegs()].tee_ID;
 	SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_Doc->m_undo_list );
 	if( id )
 		m_Doc->m_nlist->DisconnectBranch( m_sel_net, m_sel_ic );
@@ -6383,12 +6378,12 @@ void CFreePcbView::OnRatlineRoute()
 	SetDCToWorldCoords( pDC );
 	CPoint p = m_last_mouse_point;
 	int last_seg_layer = 0;
-	int n_segs = m_sel_con.NumSegs();
+	int n_segs = m_sel_con->NumSegs();
 	// get direction for routing, based on closest end of selected segment to cursor
-	double d1x = p.x - m_sel_vtx.x;
-	double d1y = p.y - m_sel_vtx.y;
-	double d2x = p.x - m_sel_next_vtx.x;
-	double d2y = p.y - m_sel_next_vtx.y;
+	double d1x = p.x - m_sel_vtx->x;
+	double d1y = p.y - m_sel_vtx->y;
+	double d2x = p.x - m_sel_next_vtx->x;
+	double d2y = p.y - m_sel_next_vtx->y;
 	double d1 = d1x*d1x + d1y*d1y;
 	double d2 = d2x*d2x + d2y*d2y;
 	if( d1<d2 )
@@ -6396,23 +6391,23 @@ void CFreePcbView::OnRatlineRoute()
 		// route forward
 		m_dir = 0;
 		if( m_sel_id.ii > 0 )
-			last_seg_layer = m_sel_con.seg[m_sel_id.ii-1].layer;
-		m_snap_angle_ref.x = m_sel_vtx.x;
-		m_snap_angle_ref.y = m_sel_vtx.y;
+			last_seg_layer = m_sel_con->seg[m_sel_id.ii-1].layer;
+		m_snap_angle_ref.x = m_sel_vtx->x;
+		m_snap_angle_ref.y = m_sel_vtx->y;
 	}
 	else
 	{
 		// route backward
 		m_dir = 1;
-		if( m_sel_id.ii < (m_sel_con.NumSegs()-1) )
-			last_seg_layer = m_sel_con.seg[m_sel_id.ii+1].layer;
-		m_snap_angle_ref.x = m_sel_next_vtx.x;
-		m_snap_angle_ref.y = m_sel_next_vtx.y;
+		if( m_sel_id.ii < (m_sel_con->NumSegs()-1) )
+			last_seg_layer = m_sel_con->seg[m_sel_id.ii+1].layer;
+		m_snap_angle_ref.x = m_sel_next_vtx->x;
+		m_snap_angle_ref.y = m_sel_next_vtx->y;
 	}
 	if( m_sel_id.ii == 0 && m_dir == 0)
 	{
 		// first segment, force to layer of starting pad if SMT
-		int p1 = m_sel_con.start_pin;
+		int p1 = m_sel_con->start_pin;
 		cpart * p = m_sel_net->pin[p1].part;
 		CString pin_name = m_sel_net->pin[p1].pin_name;
 		int pin_index = p->shape->GetPinIndexByName( pin_name );
@@ -6425,7 +6420,7 @@ void CFreePcbView::OnRatlineRoute()
 	else if( m_sel_id.ii == (n_segs-1) && m_dir == 1 )
 	{
 		// last segment, force to layer of starting pad if SMT
-		int p1 = m_sel_con.end_pin;
+		int p1 = m_sel_con->end_pin;
 		if( p1 != cconnect::NO_END )
 		{
 			cpart * p = m_sel_net->pin[p1].part;
@@ -6473,7 +6468,7 @@ void CFreePcbView::OnRatlineChangeEndPin()
 	pDC->SelectClipRgn( &m_pcb_rgn );
 	SetDCToWorldCoords( pDC );
 	m_dlist->CancelHighLight();
-	cconnect * c = &m_sel_con;
+	cconnect * c = m_sel_con;
 	m_dlist->Set_visible( c->seg[m_sel_id.ii].dl_el, FALSE );
 	int x, y;
 	if( m_sel_id.ii == 0 )
@@ -6500,12 +6495,12 @@ void CFreePcbView::OnVertexSize()
 {
 	SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_Doc->m_undo_list );
 	CDlgVia dlg = new CDlgVia;
-	dlg.Initialize( m_sel_vtx.via_w, m_sel_vtx.via_hole_w );
+	dlg.Initialize( m_sel_vtx->via_w, m_sel_vtx->via_hole_w );
 	int ret = dlg.DoModal();
 	if( ret == IDOK )
 	{
-		m_sel_vtx.via_w = dlg.m_via_w;
-		m_sel_vtx.via_hole_w = dlg.m_via_hole_w;
+		m_sel_vtx->via_w = dlg.m_via_w;
+		m_sel_vtx->via_hole_w = dlg.m_via_hole_w;
 		m_dlist->CancelHighLight();
 		m_Doc->m_nlist->DrawVia( m_sel_net, m_sel_ic, m_sel_is );
 		m_Doc->m_nlist->HighlightVertex( m_sel_net, m_sel_ic, m_sel_is );
@@ -6526,8 +6521,8 @@ void CFreePcbView::OnVertexMove()
 	int ic = m_sel_id.i;
 	int ivtx = m_sel_id.ii;
 	m_dragging_new_item = 0;
-	m_from_pt.x = m_sel_vtx.x;
-	m_from_pt.y = m_sel_vtx.y;
+	m_from_pt.x = m_sel_vtx->x;
+	m_from_pt.y = m_sel_vtx->y;
 	m_Doc->m_nlist->StartDraggingVertex( pDC, m_sel_net, ic, ivtx, p.x, p.y, 2 );
 	SetCursorMode( CUR_DRAG_VTX );
 	ReleaseDC( pDC );
@@ -6709,7 +6704,7 @@ void CFreePcbView::OnEndVertexRemoveVia()
 //	m_Doc->m_nlist->SetNetVisibility( m_sel_net, TRUE );
 	SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_Doc->m_undo_list );
 	m_Doc->m_nlist->UnforceVia( m_sel_net, m_sel_ic, m_sel_is, FALSE );
-	if( m_sel_con.seg[m_sel_is-1].layer == LAY_RAT_LINE )
+	if( m_sel_con->seg[m_sel_is-1].layer == LAY_RAT_LINE )
 	{
 		m_Doc->m_nlist->RemoveSegment( m_sel_net, m_sel_ic, m_sel_is-1, TRUE );
 		CancelSelection();
@@ -6737,8 +6732,8 @@ void CFreePcbView::OnEndVertexAddSegments()
 	p = m_last_cursor_point;
 	m_sel_id.sst = ID_SEL_SEG;
 	int w, via_w, via_hole_w;
-	m_snap_angle_ref.x = m_sel_vtx.x;
-	m_snap_angle_ref.y = m_sel_vtx.y;
+	m_snap_angle_ref.x = m_sel_vtx->x;
+	m_snap_angle_ref.y = m_sel_vtx->y;
 	GetWidthsForSegment( &w, &via_w, &via_hole_w );
 	m_Doc->m_nlist->StartDraggingStub( pDC, m_sel_net, m_sel_ic, m_sel_is,
 		p.x, p.y, m_active_layer, w, m_active_layer, via_w, via_hole_w,
@@ -6776,8 +6771,8 @@ void CFreePcbView::OnEndVertexEdit()
 {
 	DlgEditBoardCorner dlg;
 	CString str = "Edit End Vertex Position";
-	int x = m_sel_vtx.x;
-	int y = m_sel_vtx.y;
+	int x = m_sel_vtx->x;
+	int y = m_sel_vtx->y;
 	dlg.Init( &str, m_Doc->m_units, x, y );
 	int ret = dlg.DoModal();
 	if( ret == IDOK )
@@ -6821,7 +6816,7 @@ void CFreePcbView::OnRatlineComplete()
 //
 void CFreePcbView::OnRatlineSetWidth()
 {
-	if( m_sel_con.NumSegs() == 1 )
+	if( m_sel_con->NumSegs() == 1 )
 		SetWidth( 2 );
 	else
 		SetWidth( 1 );
@@ -6832,7 +6827,7 @@ void CFreePcbView::OnRatlineSetWidth()
 //
 void CFreePcbView::OnRatlineDeleteConnection()
 {
-	if( m_sel_con.locked )
+	if( m_sel_con->locked )
 	{
 		int ret = AfxMessageBox( "You are trying to delete a locked connection.\nAre you sure ? ",
 			MB_YESNO );
@@ -6853,7 +6848,7 @@ void CFreePcbView::OnRatlineDeleteConnection()
 void CFreePcbView::OnRatlineLockConnection()
 {
 	SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_Doc->m_undo_list );
-	m_sel_con.locked = 1;
+	m_sel_con->locked = 1;
 	ShowSelectStatus();
 	SetFKText( m_cursor_mode );
 	m_Doc->ProjectModified( TRUE );
@@ -6864,7 +6859,7 @@ void CFreePcbView::OnRatlineLockConnection()
 void CFreePcbView::OnRatlineUnlockConnection()
 {
 	SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_Doc->m_undo_list );
-	m_sel_con.locked = 0;
+	m_sel_con->locked = 0;
 	ShowSelectStatus();
 	SetFKText( m_cursor_mode );
 	Invalidate( FALSE );
@@ -6899,7 +6894,7 @@ void CFreePcbView::OnTextEdit()
 	m_dlist->CancelHighLight();
 	CText * new_text = m_Doc->m_tlist->AddText( x, y, angle, mirror, bNegative,
 		layer, font_size, stroke_width, &test_str );
-	new_text->m_guid = m_sel_text->m_guid;
+	new_text->m_uid = m_sel_text->m_uid;
 	m_Doc->m_tlist->RemoveText( m_sel_text );
 	m_sel_text = new_text;
 	m_Doc->m_tlist->HighlightText( m_sel_text );
@@ -7734,8 +7729,8 @@ void CFreePcbView::OnVertexProperties()
 {
 	DlgEditBoardCorner dlg;
 	CString str = "Vertex Position";
-	int x = m_sel_vtx.x;
-	int y = m_sel_vtx.y;
+	int x = m_sel_vtx->x;
+	int y = m_sel_vtx->y;
 	dlg.Init( &str, m_Doc->m_units, x, y );
 	int ret = dlg.DoModal();
 	if( ret == IDOK )
@@ -7794,7 +7789,7 @@ void CFreePcbView::OnBoardSideConvertToArcCcw()
 void CFreePcbView::OnUnrouteTrace()
 {
 	SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_Doc->m_undo_list );
-	cconnect * c = &m_sel_con;
+	cconnect * c = m_sel_con;
 	for( int is=0; is<c->NumSegs(); is++ )
 		m_Doc->m_nlist->UnrouteSegmentWithoutMerge( m_sel_net, m_sel_ic, is );
 	m_Doc->m_nlist->MergeUnroutedSegments( m_sel_net, m_sel_ic );
@@ -8692,8 +8687,8 @@ void CFreePcbView::OnSegmentAddVertex()
 	CPoint p = m_last_mouse_point;
 	SetCursorMode( CUR_DRAG_VTX_INSERT );
 	m_Doc->m_nlist->StartDraggingSegmentNewVertex( pDC, m_sel_net, m_sel_ic, m_sel_is,
-		p.x, p.y, m_sel_con.seg[m_sel_is].layer,
-		m_sel_con.seg[m_sel_is].width, 2 );
+		p.x, p.y, m_sel_con->seg[m_sel_is].layer,
+		m_sel_con->seg[m_sel_is].width, 2 );
 }
 
 void CFreePcbView::OnConnectUnroutetrace()
@@ -8708,7 +8703,7 @@ void CFreePcbView::OnConnectDeletetrace()
 
 void CFreePcbView::OnSegmentChangeLayer()
 {
-	ChangeTraceLayer( 0, m_sel_seg.layer );
+	ChangeTraceLayer( 0, m_sel_seg->layer );
 }
 
 void CFreePcbView::OnConnectChangeLayer()
@@ -8735,7 +8730,7 @@ void CFreePcbView::ChangeTraceLayer( int mode, int old_layer )
 	{
 		int err = 0;
 		SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_Doc->m_undo_list );
-		cconnect * c = &m_sel_con;
+		cconnect * c = m_sel_con;
 		if( dlg.m_apply_to == 0 )
 		{
 			err = m_Doc->m_nlist->ChangeSegmentLayer( m_sel_net,
@@ -9725,7 +9720,7 @@ void CFreePcbView::MoveGroup( int dx, int dy )
 				if( c->utility )
 				{
 					// undraw entire trace
-					m_Doc->m_nlist->UndrawConnection( net, ic );
+					c->Undraw();
 					for( int is=0; is<c->NumSegs(); is++ )
 					{
 						if( c->seg[is].utility )
@@ -9871,9 +9866,9 @@ void CFreePcbView::MoveGroup( int dx, int dy )
 								if( !end_seg->utility )
 								{
 									// attached segment not selected
-									m_Doc->m_nlist->UndrawConnection( net, ic );
+									c->Undraw();
 									m_Doc->m_nlist->UnrouteSegmentWithoutMerge( net, ic, c->NumSegs()-1 );
-									m_Doc->m_nlist->DrawConnection( net, ic );
+									c->Draw();
 								}
 							}
 						}
@@ -10329,10 +10324,10 @@ void CFreePcbView::OnGroupCopy()
 						g_c->seg[is].dl_sel = NULL;
 						g_c->vtx[is] = c->vtx[is];	// this zeros graphics elements
 						c->vtx[is] = g_c->vtx[is];	// this restores them
-						g_c->vtx[is].m_bDrawingEnabled = FALSE;
+//						g_c->vtx[is].m_bDrawingEnabled = FALSE;
 						g_nl->AddTeeID( g_c->vtx[is].tee_ID );
 					}
-					g_c->vtx[c->NumSegs()].m_bDrawingEnabled = FALSE;
+//					g_c->vtx[c->NumSegs()].m_bDrawingEnabled = FALSE;
 					g_nl->AddTeeID( g_c->vtx[c->NumSegs()].tee_ID );
 					// remove any routed segments that are not in group
 					for( int is=0; is<c->NumSegs(); is++ )
@@ -11271,7 +11266,6 @@ void CFreePcbView::OnGroupPaste()
 						{
 							ic = nl->AddNetStub( prj_net, new_start_pin );
 						}
-						nl->UndrawConnection( prj_net, ic );
 						// copy it and draw it
 						if( ic < 0 )
 							ASSERT(0);
@@ -11279,6 +11273,7 @@ void CFreePcbView::OnGroupPaste()
 						{
 							// copy connection
 							cconnect * c = prj_net->GetConnectByIndex(ic);
+							c->Undraw();
 							c->seg.SetSize( g_c->NumSegs() );
 							c->vtx.SetSize( g_c->NumSegs() + 1 );
 							for( int is=0; is<c->NumSegs(); is++ )
@@ -11333,7 +11328,7 @@ void CFreePcbView::OnGroupPaste()
 									min_y = c->vtx[iv].y;
 								}
 							}
-							nl->DrawConnection( prj_net, ic );
+							c->Draw();
 						}
 					}
 				}
@@ -11925,7 +11920,7 @@ void CFreePcbView::RotateGroup()
 				if( c->utility )
 				{
 					// undraw entire trace
-					m_Doc->m_nlist->UndrawConnection( net, ic );
+					c->Undraw();
 					for( int is=0; is<c->NumSegs(); is++ )
 					{
 						if( c->seg[is].utility )
@@ -12072,9 +12067,9 @@ void CFreePcbView::RotateGroup()
 								if( !end_seg->utility )
 								{
 									// attached segment not selected
-									m_Doc->m_nlist->UndrawConnection( net, ic );
+									c->Undraw();
 									m_Doc->m_nlist->UnrouteSegmentWithoutMerge( net, ic, c->NumSegs()-1 );
-									m_Doc->m_nlist->DrawConnection( net, ic );
+									c->Draw();
 								}
 							}
 						}
@@ -12608,10 +12603,10 @@ void CFreePcbView::UndoCallback( int type, void * ptr, BOOL undo )
 				view->SaveUndoInfoForText( u_text, CTextList::UNDO_TEXT_DELETE, TRUE, redo_list );
 			else if( u_d->type == CTextList::UNDO_TEXT_MODIFY )
 			{
-				GUID guid = u_text->m_guid;
-				CText * text = view->m_Doc->m_tlist->GetText( &guid );
+				int uid = u_text->m_uid;
+				CText * text = view->m_Doc->m_tlist->GetText( uid );
 				if( !text )
-					ASSERT(0);	// guid not found
+					ASSERT(0);	// uid not found
 				view->SaveUndoInfoForText( text, CTextList::UNDO_TEXT_MODIFY, TRUE, redo_list );
 			}
 			else if( u_d->type == CTextList::UNDO_TEXT_DELETE )
@@ -12672,9 +12667,7 @@ void CFreePcbView::UndoGroupCallback( int type, void * ptr, BOOL undo )
 				}
 				else if( this_id.type == ID_TEXT )
 				{
-					GUID guid;
-					::SetGuidFromString( str_ptr, &guid );
-					CText * text = doc->m_tlist->GetText( &guid );
+					CText * text = doc->m_tlist->GetText( this_id.uid );
 					if( text )
 						ptrs[i] = (void*)text;
 					else
@@ -12738,11 +12731,6 @@ void * CFreePcbView::CreateGroupDescriptor( CUndoList * list, CArray<void*> * pt
 		{
 			cnet * net = (cnet*)(*ptrs)[i];
 			undo->str[i] = net->name;
-		}
-		else if( this_id.type == ID_TEXT )
-		{
-			CText * text = (CText*)(*ptrs)[i];
-			::GetStringFromGuid( &text->m_guid, &undo->str[i] );
 		}
 	}
 	return undo;
@@ -12942,21 +12930,21 @@ void CFreePcbView::OnSegmentMove()
 	int ivtx = m_sel_id.ii;
 	m_dragging_new_item = 0;
 	
-	m_last_pt.x = m_sel_last_vtx.x;
-	m_last_pt.y = m_sel_last_vtx.y;
+	m_last_pt.x = m_sel_last_vtx->x;
+	m_last_pt.y = m_sel_last_vtx->y;
 
-	m_from_pt.x = m_sel_vtx.x;
-	m_from_pt.y = m_sel_vtx.y;
+	m_from_pt.x = m_sel_vtx->x;
+	m_from_pt.y = m_sel_vtx->y;
 
-	m_to_pt.x = m_sel_next_vtx.x;
-	m_to_pt.y = m_sel_next_vtx.y;
+	m_to_pt.x = m_sel_next_vtx->x;
+	m_to_pt.y = m_sel_next_vtx->y;
 
-	int nsegs = m_sel_con.NumSegs();
+	int nsegs = m_sel_con->NumSegs();
 	int use_third_segment = ivtx < nsegs - 1;
 	if(use_third_segment)
 	{
-		m_next_pt.x = m_sel_next_next_vtx.x;	// Shouldn't really do this if we're off the edge?
-		m_next_pt.y = m_sel_next_next_vtx.y;
+		m_next_pt.x = m_sel_next_next_vtx->x;	// Shouldn't really do this if we're off the edge?
+		m_next_pt.y = m_sel_next_next_vtx->y;
 	}
 
 	CPoint p;

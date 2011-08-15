@@ -200,7 +200,14 @@ public:
 	};
 	cseg();
 	~cseg();
+	cseg( cseg& src );	// copy constructor
+	cseg& operator=( cseg& rhs );	// assignment
+	cseg& operator=( const cseg& rhs );	// assignment
 	void Initialize( cconnect * c );
+	void ReplaceUID( int uid );
+	int GetIndex();
+	cvertex& GetPreVtx();
+	cvertex& GetPostVtx();
 
 	int m_uid;				// unique id
 	int layer;				// copper layer
@@ -235,23 +242,25 @@ class cvertex
 public:
 	cvertex();
 	~cvertex();
+	cvertex &operator=( const cvertex &v );	
 	cvertex &operator=( cvertex &v );	
 	void Initialize( cconnect * c );
+	void ReplaceUID( int uid );
+	void Undraw();
 
 	int m_uid;					// unique id
 	int x, y;					// coords
 	int pad_layer;				// layer of pad if this is first or last vertex, otherwise 0
 	int force_via_flag;			// force a via even if no layer change
 	int via_w, via_hole_w;		// via width and hole width (via_w==0 means no via)
-	BOOL m_bDrawingEnabled;		// TRUE if may be drawn
-	BOOL m_bDrawn;				// TRUE if drawn into CDisplayList
+//	BOOL m_bDrawingEnabled;		// TRUE if may be drawn
+//	BOOL m_bDrawn;				// TRUE if drawn into CDisplayList
 	CArray<dl_element*> dl_el;	// array of display elements for each layer
 	dl_element * dl_sel;		// selection box
 	dl_element * dl_hole;		// hole in via
 	int tee_ID;					// used to flag a t-connection point
 	int utility, utility2;		// used for various functions
 	CDisplayList * m_dlist;		// 
-//	CNetList * m_nlist;			// parent NetList
 	cnet * m_net;				// parent net
 	cconnect * m_con;			// parent connection
 };
@@ -260,20 +269,42 @@ public:
 // or a stub trace with no end pin
 class cconnect
 {
+	friend class CNetList;
+	friend class cnet;
 public:
 	enum {
 		NO_END = -1		// used for end_pin if stub trace
 	};
+	enum {
+		ROUTE_FORWARD = 0,
+		ROUTE_BACKWARD
+	};
 	cconnect();
 	~cconnect();
 	void Initialize( cnet * net );
-	int NumSegs(){ return seg.GetSize(); };
+	void ReplaceUID( int uid );
+	int NumSegs();
+	cseg& SegByIndex( int is );
+	cvertex& GetVtxByIndex( int iv );
+	void InsertSegAndVtxByIndex(int is, int dir, 
+				const cseg& new_seg, const cvertex& new_vtx );
+	void AppendSegAndVertex( const cseg& new_seg, const cvertex& new_vtx );
+	void PrependSegAndVertex();
+	void RemoveSegAndVertexByIndex( int is );
+	void Draw();
+	void Undraw();
+	void SetUtility( int i ){ utility = i; };
+	int Utility(){ return utility; };
 
 	int start_pin, end_pin;		// indexes into net.pin array
 	int locked;					// 1 if locked (will not be optimized away)
+//private:
 	CArray<cseg> seg;			// array of segments
+public:
 	CArray<cvertex> vtx;		// array of vertices, size = nsegs + 1
-	int utility;				// used for various temporary ops
+public:
+	int utility;
+public:// used for various temporary ops
 	// these params used only by DRC
 	int min_x, max_x;			// bounding rect
 	int min_y, max_y;
@@ -282,6 +313,7 @@ public:
 	// new stuff
 	int m_uid;					// unique id
 	cnet * m_net;				// parent net
+	CDisplayList * m_dlist;		
 };
 
 // cnet: describes a net
@@ -296,13 +328,15 @@ public:
 	int NumPins();
 	int NumAreas();
 	cconnect * GetConnectByIndex( int ic );
-	int GetConnectIndexByUID( int uid );
 	cconnect * GetConnectByUID( int uid );
+	int GetConnectIndexByUID( int uid );
+	int GetConnectIndexByPtr( cconnect * c );
+	void RecreateConnectFromUndo( undo_con * con, undo_seg * seg, undo_vtx * vtx );
 
 	id id;				// net id
 	CString name;		// net name
-private:
-	CArray<cconnect> connect;	// array of connections
+//private:
+	CArray<cconnect*> connect;	// array of pointers to connections
 public:
 	CArray<cpin> pin;			// array of pins
 	CArray<carea,carea> area;	// array of copper areas
@@ -386,8 +420,6 @@ public:
 	void ChangeConnectionPin( cnet * net, int ic, int end_flag, 
 		cpart * part, CString * pin_name );
 	void HighlightConnection( cnet * net, int ic );
-	void UndrawConnection( cnet * net, int ic );
-	void DrawConnection( cnet * net, int ic );
 	void CleanUpConnections( cnet * net, CString * logstr=NULL );
 	void CleanUpAllConnections( CString * logstr=NULL );
 
@@ -609,6 +641,7 @@ public:
 public:
 	void OnRemove( int is );
 	void OnRemove( cseg * seg );
+	int GetIndex(){ return m_CurrentPos; };
 };
 
 class CIterator_cvertex : protected CDLinkList
@@ -631,6 +664,7 @@ public:
 public:
 	void OnRemove( int iv );
 	void OnRemove( cvertex * vtx );
+	int GetIndex(){ return m_CurrentPos; };
 };
 
 class CIterator_cpin : protected CDLinkList

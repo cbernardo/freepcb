@@ -13,7 +13,20 @@
 BOOL g_bShow_header_28mil_hole_warning = TRUE;	
 BOOL g_bShow_SIP_28mil_hole_warning = TRUE;	
 
-//******** constructors and destructors *********
+//********************* part_pin implentation ********************
+
+part_pin::part_pin()
+{
+//	m_uid = pcb_cuid.GetNewUID();
+	m_uid = -1;
+}
+
+part_pin::~part_pin()
+{
+//	pcb_cuid.ReleaseUID( m_uid );
+}
+
+//********************* cpart implementation *********************
  
 cpart::cpart()
 {
@@ -22,7 +35,7 @@ cpart::cpart()
 	dl_ref_sel = 0;
 	shape = 0;
 	drawn = FALSE;
-	// set uid
+	// set uids
 	m_id.Clear();
 	m_id.type = ID_PART;
 	m_id.uid = pcb_cuid.GetNewUID();
@@ -32,6 +45,8 @@ cpart::~cpart()
 {
 	pcb_cuid.ReleaseUID( m_id.uid );
 }
+
+//******************** CPartList implementation *********************
 
 CPartList::CPartList( CDisplayList * dlist ) 
 {
@@ -55,7 +70,7 @@ CPartList::~CPartList()
 // Create new empty part and add to end of list
 // return pointer to element created.
 //
-cpart * CPartList::Add()
+cpart * CPartList::Add( int uid )
 {
 	if(m_size >= m_max_size )
 	{
@@ -65,6 +80,14 @@ cpart * CPartList::Add()
 
 	// create new instance and link into list
 	cpart * part = new cpart;
+	if( uid != -1 )
+	{
+		// set uid
+		pcb_cuid.ReleaseUID( part->m_id.uid );
+		if( !pcb_cuid.RequestUID( uid ) )
+			ASSERT(0);
+		part->m_id.uid = uid;
+	}
 	part->prev = m_end.prev;
 	part->next = &m_end;
 	part->prev->next = part;
@@ -77,7 +100,7 @@ cpart * CPartList::Add()
 // return pointer to element created.
 //
 cpart * CPartList::Add( CShape * shape, CString * ref_des, CString * package, 
-							int x, int y, int side, int angle, int visible, int glued )
+							int x, int y, int side, int angle, int visible, int glued, int uid )
 {
 	if(m_size >= m_max_size )
 	{
@@ -86,7 +109,7 @@ cpart * CPartList::Add( CShape * shape, CString * ref_des, CString * package,
 	}
 
 	// create new instance and link into list
-	cpart * part = Add();
+	cpart * part = Add( uid );
 	// set data
 	SetPartData( part, shape, ref_des, package, x, y, side, angle, visible, glued );
 	return part;
@@ -1396,6 +1419,7 @@ int CPartList::DrawPart( cpart * part )
 					// add to display list
 					id.st = ID_PAD;
 					id.i = i;
+					id.st_uid = pin->m_uid;
 					pin->x = x + pin_pt.x;
 					pin->y = y + pin_pt.y;
 					pad_el = m_dlist->Add( id, part, pad_layer, 
@@ -1426,6 +1450,7 @@ int CPartList::DrawPart( cpart * part )
 						RotatePoint( &pin_pt, angle, zero );
 					id.st = ID_PAD;
 					id.i = i;
+					id.st_uid = pin->m_uid;
 					pin->x = x + pin_pt.x;
 					pin->y = y + pin_pt.y;
 					pad_el = m_dlist->Add( part->m_id, part, pad_layer, 
@@ -1484,6 +1509,7 @@ int CPartList::DrawPart( cpart * part )
 					}
 					id.st = ID_PAD;
 					id.i = i;
+					id.st_uid = pin->m_uid;
 					int radius = p->radius;
 					pin->x = x + pin_pt.x;
 					pin->y = y + pin_pt.y;
@@ -1517,6 +1543,7 @@ int CPartList::DrawPart( cpart * part )
 						RotatePoint( &pin_pt, angle, zero );
 					id.st = ID_PAD;
 					id.i = i;
+					id.st_uid = pin->m_uid;
 					pin->x = x + pin_pt.x;
 					pin->y = y + pin_pt.y;
 					pad_el = m_dlist->Add( part->m_id, part, pad_layer, 
@@ -1557,6 +1584,7 @@ int CPartList::DrawPart( cpart * part )
 			// add to display list
 			id.st = ID_PAD;
 			id.i = i;
+			id.st_uid = pin->m_uid;
 			pin->x = x + pin_pt.x;
 			pin->y = y + pin_pt.y;
 			pin->dl_hole = m_dlist->Add( id, part, LAY_PAD_THRU, 
@@ -1895,7 +1923,7 @@ int CPartList::StartDraggingPart( CDC * pDC, cpart * part, BOOL bRatlines,
 							{
 								// ip is the start pin for the connection
 								// hide segment
-								m_dlist->Set_visible( c->seg[0].dl_el, 0 );
+								m_dlist->Set_visible( c->SegByIndex(0).dl_el, 0 );
 								for( int i=0; i<c->vtx[1].dl_el.GetSize(); i++ )
 									m_dlist->Set_visible( c->vtx[1].dl_el[i], 0 );
 								if( c->vtx[1].dl_hole )
@@ -1940,7 +1968,7 @@ int CPartList::StartDraggingPart( CDC * pDC, cpart * part, BOOL bRatlines,
 							if( ip != -1 )
 							{
 								// ip is the end pin for the connection
-								m_dlist->Set_visible( c->seg[c->NumSegs()-1].dl_el, 0 );
+								m_dlist->Set_visible( c->SegByIndex(c->NumSegs()-1).dl_el, 0 );
 								if( c->vtx[c->NumSegs()-1].dl_el.GetSize() )
 									for( int i=0; i<c->vtx[c->NumSegs()-1].dl_el.GetSize(); i++ )
 										m_dlist->Set_visible( c->vtx[c->NumSegs()-1].dl_el[i], 0 );
@@ -2054,7 +2082,7 @@ int CPartList::CancelDraggingPart( cpart * part )
 					if( net->pin[pin1].part == part )
 					{
 						// start pin
-						m_dlist->Set_visible( c->seg[0].dl_el, 1 );
+						m_dlist->Set_visible( c->SegByIndex(0).dl_el, 1 );
 						for( int i=0; i<c->vtx[1].dl_el.GetSize(); i++ )
 							m_dlist->Set_visible( c->vtx[1].dl_el[i], 1 );
 						if( c->vtx[1].dl_hole )
@@ -2065,7 +2093,7 @@ int CPartList::CancelDraggingPart( cpart * part )
 						if( net->pin[pin2].part == part )
 						{
 							// end pin
-							m_dlist->Set_visible( c->seg[nsegs-1].dl_el, 1 );
+							m_dlist->Set_visible( c->SegByIndex(nsegs-1).dl_el, 1 );
 							if( c->vtx[c->NumSegs()-1].dl_el.GetSize() )
 								for( int i=0; i<c->vtx[c->NumSegs()-1].dl_el.GetSize(); i++ )
 									m_dlist->Set_visible( c->vtx[c->NumSegs()-1].dl_el[i], 1 );
@@ -2995,7 +3023,8 @@ void CPartList::PartUndoCallback( int type, void * ptr, BOOL undo )
 			CString ref_des = upart->ref_des;
 			CString package = upart->package;
 			part = pl->Add( s, &ref_des, &package, upart->x, upart->y,
-				upart->side, upart->angle, upart->visible, upart->glued );
+				upart->side, upart->angle, upart->visible, upart->glued, upart->m_id.uid );
+			part->m_id = upart->m_id;
 			part->m_ref_vis = upart->m_ref_vis;
 			part->m_ref_xi = upart->m_ref_xi;
 			part->m_ref_yi = upart->m_ref_yi;
@@ -3103,7 +3132,7 @@ int CPartList::GetPinConnectionStatus( cpart * part, CString * pin_name, int lay
 		int p2 = c->end_pin;
 		if( net->pin[p1].part == part &&
 			net->pin[p1].pin_name == *pin_name &&
-			c->seg[0].layer == layer )
+			c->SegByIndex(0).layer == layer )
 		{
 			// first segment connects to pin on this layer
 			status |= TRACE_CONNECT;
@@ -3114,7 +3143,7 @@ int CPartList::GetPinConnectionStatus( cpart * part, CString * pin_name, int lay
 		}
 		else if( net->pin[p2].part == part &&
 			net->pin[p2].pin_name == *pin_name &&
-			c->seg[nsegs-1].layer == layer )
+			c->SegByIndex(nsegs-1).layer == layer )
 		{
 			// last segment connects to pin on this layer
 			status |= TRACE_CONNECT;
@@ -4053,8 +4082,10 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 			c->vias_present = FALSE;
 			c->seg_layers = 0;
 			int max_trace_w = 0;	// maximum trace width for connection
-			for( int is=0; is<c->NumSegs(); is++ )
+			CIterator_cseg iter_seg(c);
+			for( cseg * s=iter_seg.GetFirst(); s; s=iter_seg.GetNext() )
 			{
+				int is = iter_seg.GetIndex();
 				id id_seg = net->id;
 				id_seg.st = ID_CONNECT;
 				id_seg.i = ic;
@@ -4064,11 +4095,11 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 				int y1 = c->vtx[is].y;
 				int x2 = c->vtx[is+1].x;
 				int y2 = c->vtx[is+1].y;
-				int w = c->seg[is].width;
-				int layer = c->seg[is].layer;
-				if( c->seg[is].layer >= LAY_TOP_COPPER )
+				int w = s->width;
+				int layer = s->layer;
+				if( s->layer >= LAY_TOP_COPPER )
 				{
-					int layer_bit = c->seg[is].layer - LAY_TOP_COPPER;
+					int layer_bit = s->layer - LAY_TOP_COPPER;
 					c->seg_layers |= 1<<layer_bit;
 				}
 				// add segment to bounding box
@@ -4302,12 +4333,14 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 					BOOL pin_info_valid = FALSE;
 					int pin_info_layer = 0;
 
-					for( int is=0; is<c->NumSegs(); is++ )
+					CIterator_cseg iter_seg(c);
+					for( cseg * s=iter_seg.GetFirst(); s; s=iter_seg.GetNext() )
 					{
-						// get next segment
-						cseg * s = &c->seg[is];
+						int is = iter_seg.GetIndex();
 						cvertex * pre_vtx = &c->vtx[is];
 						cvertex * post_vtx = &c->vtx[is+1];
+						cvertex * pre_vtx_test = &s->GetPreVtx();
+						cvertex * post_vtx_test = &s->GetPostVtx();
 						int w = s->width;
 						int xi = pre_vtx->x;
 						int yi = pre_vtx->y;
@@ -4576,10 +4609,10 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 						ASSERT(0);
 
 					// test against each segment in connection
-					for( int is=0; is<c->NumSegs(); is++ )
+					CIterator_cseg iter_seg(c);
+					for( cseg * s=iter_seg.GetFirst(); s; s=iter_seg.GetNext() )
 					{
-						// get next segment
-						cseg * s = &c->seg[is];
+						int is = iter_seg.GetIndex();
 						cvertex * pre_vtx = &c->vtx[is];
 						cvertex * post_vtx = &c->vtx[is+1];
 						int w = s->width;
@@ -4746,10 +4779,11 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 						continue;	// no, next connection
 
 					// now we have to test all segments and vias in c
-					for( int is=0; is<c->NumSegs(); is++ )
+					CIterator_cseg iter_seg(c);
+					for( cseg * s=iter_seg.GetFirst(); s; s=iter_seg.GetNext() )
 					{
 						// get next segment and via
-						cseg * s = &c->seg[is];
+						int is = iter_seg.GetIndex();
 						cvertex * pre_vtx = &c->vtx[is];
 						cvertex * post_vtx = &c->vtx[is+1];
 						int seg_w = s->width;
@@ -4769,10 +4803,11 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 						id id_via1( ID_NET, ID_CONNECT, ic, ID_VIA, is+1 );
 
 						// iterate through all segments and vias in c2
-						for( int is2=0; is2<c2->NumSegs(); is2++ )
+						CIterator_cseg iter_seg2(c2);
+						for( cseg * s2=iter_seg2.GetFirst(); s2; s2=iter_seg2.GetNext() )
 						{
 							// get next segment and via
-							cseg * s2 = &c2->seg[is2];
+							int is2 = iter_seg2.GetIndex();
 							cvertex * pre_vtx2 = &c2->vtx[is2];
 							cvertex * post_vtx2 = &c2->vtx[is2+1];
 							int seg_w2 = s2->width;
@@ -5253,7 +5288,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 				BOOL bUnrouted = FALSE;
 				for( int is=0; is<c->NumSegs(); is++ )
 				{
-					if( c->seg[is].layer == LAY_RAT_LINE )
+					if( c->SegByIndex(is).layer == LAY_RAT_LINE )
 					{
 						bUnrouted = TRUE;
 						break;
@@ -5354,11 +5389,20 @@ int CPartList::CheckPartlist( CString * logstr )
 		// check this part
 		str = "";
 		CString * ref_des = &part->ref_des;
+		if( pcb_cuid.CheckUID( part->m_id.uid ) )
+		{
+			// uid is not assigned
+			str.Format( "Error: Part \"%s\" has invalid UID\r\n",
+				*ref_des );
+			*logstr += str;
+			nerrors++;
+		}
 		if( !part->shape )
 		{
 			// no footprint
 			str.Format( "Warning: Part \"%s\" has no footprint\r\n",
 				*ref_des );
+			*logstr += str;
 			nwarnings++;
 		}
 		else
@@ -5383,6 +5427,7 @@ int CPartList::CheckPartlist( CString * logstr )
 						// part->pin->net->name doesn't exist in netlist
 						str.Format( "ERROR: Part \"%s\" pin \"%s\" connected to net \"%s\" which doesn't exist in netlist\r\n",
 							*ref_des, *pin_name, net->name );
+						*logstr += str;
 						nerrors++;
 					}
 					else
@@ -5392,6 +5437,7 @@ int CPartList::CheckPartlist( CString * logstr )
 							// part->pin->net doesn't match netlist->net
 							str.Format( "ERROR: Part \"%s\" pin \"%s\" connected to net \"%s\" which doesn't match netlist\r\n",
 								*ref_des, *pin_name, net->name );
+							*logstr += str;
 							nerrors++;
 						}
 						else
@@ -5414,6 +5460,7 @@ int CPartList::CheckPartlist( CString * logstr )
 								// pin not found
 								str.Format( "ERROR: Part \"%s\" pin \"%s\" connected to net \"%\" but pin not in net\r\n",
 									*ref_des, *pin_name, net->name );
+								*logstr += str;
 								nerrors++;
 							}
 							else
@@ -5426,7 +5473,6 @@ int CPartList::CheckPartlist( CString * logstr )
 				}
 			}
 		}
-		*logstr += str;
 
 		// next part
 		part = part->next;

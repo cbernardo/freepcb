@@ -177,7 +177,7 @@ cseg *CIterator_cseg::GetNext()
 	m_CurrentPos++;
 	if( m_CurrentPos < m_cconnect->NumSegs() )
 	{
-		m_pCurrentSegment = &m_cconnect->seg[m_CurrentPos];
+		m_pCurrentSegment = &m_cconnect->SegByIndex(m_CurrentPos);
 	}
 	else
 	{
@@ -214,7 +214,7 @@ void CIterator_cseg::OnRemove( cseg * seg )
 	int remove_is = -1;
 	for( int is=0; is<m_cconnect->NumSegs(); is++ )
 	{
-		if( seg == &m_cconnect->seg[is] )
+		if( seg == &m_cconnect->SegByIndex(is) )
 		{
 			remove_is = is;
 			break;

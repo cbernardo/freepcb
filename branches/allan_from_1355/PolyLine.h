@@ -40,11 +40,11 @@ public:
 		y=qy; 
 		end_contour=qf; 
 		utility = 0; 
-		m_uid = pcb_cuid.GetNewUID();
+//		m_uid = pcb_cuid.GetNewUID();
 	};
 	~CPolyPt()
 	{
-		pcb_cuid.ReleaseUID( m_uid );
+//		pcb_cuid.ReleaseUID( m_uid );
 	};
 	int x;
 	int y;
