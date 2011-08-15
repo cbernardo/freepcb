@@ -17,7 +17,7 @@ struct stroke;
 // All info needed to recreate a modified or deleted CText
 //
 struct undo_text {
-	GUID m_guid;
+	int m_uid;
 	int m_x, m_y;
 	int m_layer;
 	int m_angle;
@@ -51,8 +51,8 @@ public:
 		BOOL mirror, BOOL negative, int layer );
 
 	// member variables
-	GUID m_guid;
-	id m_id;		// describes use of text
+	id m_id;
+	int m_uid;
 	int m_x, m_y;
 	int m_layer;
 	int m_angle;
@@ -60,7 +60,6 @@ public:
 	BOOL m_bNegative;
 	int m_font_size;
 	int m_stroke_width;
-//	CPcbFont * m_font;
 	int m_nchars;
 	CString m_str;
 	CArray<stroke> m_stroke;
@@ -97,7 +96,7 @@ public:
 	void ReadTexts( CStdioFile * file );
 	int WriteTexts( CStdioFile * file );
 	void MoveOrigin( int x_off, int y_off );
-	CText * GetText( GUID * guid );
+	CText * GetText( int uid );
 	int GetNumTexts(){ return text_ptr.GetSize();};
 	BOOL GetTextBoundaries( CRect * r );
 	BOOL GetTextRectOnPCB( CText * t, CRect * r );

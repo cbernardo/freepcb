@@ -23,19 +23,19 @@ CText::CText()
 {
 	m_dlist = NULL;
 	m_smfontutil = NULL;
+	m_uid = pcb_cuid.GetNewUID();
 }
 
 // Initialize text data, create strokes if smfontutil != NULL
-// Draw strokes them into display list if dlist != NULL
+// Draw() strokes them into display list if dlist != NULL
 //
 void CText::Init( CDisplayList * dlist, id tid, int x, int y, int angle, int mirror,
 			BOOL bNegative, int layer, int font_size, int stroke_width, 
 			SMFontUtil * smfontutil, CString * str_ptr )
 {
 	Undraw();
-	m_guid = GUID_NULL;
-	HRESULT hr = ::UuidCreate(&m_guid);
 	m_id = tid;
+	m_id.uid = m_uid;
 	m_x = x;
 	m_y = y;
 	m_angle = angle;
@@ -60,6 +60,7 @@ void CText::Init( CDisplayList * dlist, id tid, int x, int y, int angle, int mir
 CText::~CText()
 {
 	Undraw();
+	pcb_cuid.ReleaseUID( m_uid );
 }
 
 // Draw text as a series of strokes
@@ -72,7 +73,7 @@ void CText::Draw( CDisplayList * dlist, SMFontUtil * smfontutil )
 		m_dlist = dlist;
 
 		// make stroke array
-		id tid = m_id;
+ 		id tid = m_id;
 		if( tid.type == ID_TEXT )
 			tid.st = ID_STROKE;
 		else
@@ -301,7 +302,7 @@ CText * CTextList::AddText( int x, int y, int angle, int mirror, BOOL bNegative,
 						   int font_size, int stroke_width, CString * str_ptr, BOOL draw_flag )
 {
 	// create new CText and put pointer into text_ptr[]
-	id tid(ID_TEXT, 0, 0, 0, 0);
+	id tid(ID_TEXT, 0, 0, 0, 0, -1, -1, -1);
 	if( draw_flag )
 	{
 		CText * text = new CText();
@@ -509,7 +510,7 @@ void CTextList::ReadTexts( CStdioFile * pcb_file )
 undo_text * CTextList::CreateUndoRecord( CText * text )
 {
 	undo_text * undo = new undo_text;
-	undo->m_guid = text->m_guid;
+	undo->m_uid = text->m_uid;
 	undo->m_x = text->m_x;
 	undo->m_y = text->m_y; 
 	undo->m_layer = text->m_layer; 
@@ -540,7 +541,7 @@ void CTextList::TextUndoCallback( int type, void * ptr, BOOL undo )
 			for( int it=0; it<tlist->text_ptr.GetSize(); it++ )
 			{
 				text = tlist->text_ptr[it];
-				if( text->m_guid == un_t->m_guid )
+				if( text->m_uid == un_t->m_uid )
 				{
 					ifound = it;
 					break;
@@ -559,7 +560,7 @@ void CTextList::TextUndoCallback( int type, void * ptr, BOOL undo )
 				CDisplayList * dl = text->m_dlist;
 				SMFontUtil * smf = text->m_smfontutil;
 				text->Undraw();
-				text->m_guid = un_t->m_guid;
+				text->m_uid = un_t->m_uid;
 				text->m_x = un_t->m_x;
 				text->m_y = un_t->m_y;
 				text->m_angle = un_t->m_angle;
@@ -577,8 +578,14 @@ void CTextList::TextUndoCallback( int type, void * ptr, BOOL undo )
 			// add deleted text back into list
 			CText * new_text = tlist->AddText( un_t->m_x, un_t->m_y, un_t->m_angle, 
 				un_t->m_mirror, un_t->m_bNegative,
-				un_t->m_layer, un_t->m_font_size, un_t->m_stroke_width, &un_t->m_str );
-			new_text->m_guid = un_t->m_guid;
+				un_t->m_layer, un_t->m_font_size, un_t->m_stroke_width, &un_t->m_str, FALSE );
+			// release the UID assigned to the new text, and restore the undo value
+			pcb_cuid.ReleaseUID( new_text->m_uid );			
+			if( !pcb_cuid.RequestUID( un_t->m_uid ) )
+				ASSERT(0);
+			new_text->m_uid = un_t->m_uid;
+			new_text->m_id.uid = un_t->m_uid;
+			new_text->Draw( tlist->m_dlist, tlist->m_smfontutil );
 		}
 	}
 	delete un_t;
@@ -600,12 +607,12 @@ void CTextList::MoveOrigin( int x_off, int y_off )
 
 // return text that matches guid
 //
-CText * CTextList::GetText( GUID * guid )
+CText * CTextList::GetText( int uid )
 {
 	CIterator_CText iter_t(this);
 	for( CText * t = iter_t.GetFirst(); t != NULL; t = iter_t.GetNext() )		
 	{
-		if( t->m_guid == *guid )
+		if( t->m_uid == uid )
 			return t;
 	}
 	return NULL;
