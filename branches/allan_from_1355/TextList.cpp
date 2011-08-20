@@ -7,6 +7,8 @@
 #include "smfontutil.h"
 #include "file_io.h"
 
+extern Cuid pcb_cuid;
+
 // Valid id's for CTexts are:
 //	tid.type = ID_TEXT or
 //	tid.type = ID_PART 

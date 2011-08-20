@@ -279,26 +279,27 @@ public:
 		ROUTE_FORWARD = 0,
 		ROUTE_BACKWARD
 	};
-	cconnect();
+	cconnect( cnet * net );
 	~cconnect();
-	void Initialize( cnet * net );
 	void ReplaceUID( int uid );
-	int NumSegs();
 	cseg& SegByIndex( int is );
-	cvertex& GetVtxByIndex( int iv );
+	cvertex& VtxByIndex( int iv );
 	void InsertSegAndVtxByIndex(int is, int dir, 
 				const cseg& new_seg, const cvertex& new_vtx );
 	void AppendSegAndVertex( const cseg& new_seg, const cvertex& new_vtx );
-	void PrependSegAndVertex();
-	void RemoveSegAndVertexByIndex( int is );
+	void PrependVertexAndSeg( const cvertex& new_vtx, const cseg& new_seg );
+	void RemoveSegAndVertexByIndex( int is, int dir );
 	void Draw();
 	void Undraw();
-	void SetUtility( int i ){ utility = i; };
+	void HighLight();
+	int NumSegs();
+	void SetNumSegs( int n );
 	int Utility(){ return utility; };
+	void SetUtility( int i ){ utility = i; };
 
 	int start_pin, end_pin;		// indexes into net.pin array
 	int locked;					// 1 if locked (will not be optimized away)
-//private:
+private:
 	CArray<cseg> seg;			// array of segments
 public:
 	CArray<cvertex> vtx;		// array of vertices, size = nsegs + 1
