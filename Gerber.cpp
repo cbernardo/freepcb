@@ -1352,7 +1352,7 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 						for( int is=0; is<nsegs; is++ )
 						{
 							// get segment and vertices
-							cseg * s = &c->seg[is];
+							cseg * s = &c->SegByIndex(is);
 							cvertex * pre_vtx = &c->vtx[is];
 							cvertex * post_vtx = &c->vtx[is+1];
 							double xi = pre_vtx->x;
@@ -1770,7 +1770,7 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 					for( int is=0; is<nsegs; is++ )
 					{
 						// get segment info
-						cseg * s = &c->seg[is];
+						cseg * s = &c->SegByIndex(is);
 						cvertex * pre_vtx = &c->vtx[is];
 						cvertex * post_vtx = &c->vtx[is+1];
 						// get following via info
@@ -1988,7 +1988,7 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 						for( int is=0; is<nsegs; is++ )
 						{
 							// get segment
-							cseg * s = &c->seg[is];
+							cseg * s = &c->SegByIndex(is);
 							cvertex * post_vtx = &c->vtx[is+1];
 							if( post_vtx->via_w )
 							{

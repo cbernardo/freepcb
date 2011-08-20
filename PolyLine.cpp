@@ -9,6 +9,8 @@
 #include "php_polygon.h"
 #include "php_polygon_vertex.h"
 
+extern Cuid pcb_cuid;
+
 #define pi  3.14159265359
 #define DENOM 25400	// to use mils for php clipping
 //#define DENOM 1			// to use nm for php clipping

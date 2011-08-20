@@ -26,8 +26,6 @@
 //
 #include "Cuid.h"
 
-static Cuid pcb_cuid;	// global UID generator
-
 class id {
 public:
 	// constructor

@@ -9,6 +9,8 @@
 
 #define PL_MAX_SIZE		5000		// default max. size 
 
+extern Cuid pcb_cuid;
+
 // globals
 BOOL g_bShow_header_28mil_hole_warning = TRUE;	
 BOOL g_bShow_SIP_28mil_hole_warning = TRUE;	

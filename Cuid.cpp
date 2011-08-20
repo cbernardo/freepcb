@@ -6,6 +6,8 @@
 #include "stdafx.h"
 #include "Cuid.h"
 
+Cuid pcb_cuid;
+
 Cuid::Cuid()
 {
 	if( MAX_VALUE > 0x1fffff )
@@ -22,6 +24,7 @@ Cuid::Cuid()
 
 Cuid::~Cuid()
 {
+//#if 0
 	// check for all uids released
 	if( n_uids )
 	{
@@ -50,6 +53,7 @@ Cuid::~Cuid()
 		}
 		ASSERT(0);
 	}
+//#endif
 }
 
 // Find available uid and set bit in bits[] to mark it as assigned

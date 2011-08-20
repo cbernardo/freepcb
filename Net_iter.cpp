@@ -97,7 +97,7 @@ cconnect *CIterator_cconnect::GetNext()
 	m_CurrentPos++;
 	if( m_CurrentPos < m_net->NumCons() )
 	{
-		m_pCurrentConnection = &m_net->connect[m_CurrentPos];
+		m_pCurrentConnection = m_net->connect[m_CurrentPos];
 	}
 	else
 	{
@@ -132,7 +132,7 @@ void CIterator_cconnect::OnRemove( cconnect * con )
 	int remove_ic = -1;
 	for( int ic=0; ic<m_net->NumCons(); ic++ )
 	{
-		if( con == &m_net->connect[ic] )
+		if( con == m_net->connect[ic] )
 		{
 			remove_ic = ic;
 			break;
