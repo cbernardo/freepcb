@@ -1348,13 +1348,14 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 					for( cconnect * c=iter_con.GetFirst(); c; c=iter_con.GetNext() )
 					{
 						int ic = iter_con.GetIndex();
-						int nsegs = c->NumSegs();
-						for( int is=0; is<nsegs; is++ )
+//						int nsegs = c->NumSegs();
+						CIterator_cseg iter_seg( c );
+						for( cseg * s=iter_seg.GetFirst(); s; s=iter_seg.GetNext() )
 						{
 							// get segment and vertices
-							cseg * s = &c->SegByIndex(is);
-							cvertex * pre_vtx = &c->vtx[is];
-							cvertex * post_vtx = &c->vtx[is+1];
+							int is = iter_seg.GetIndex();
+							cvertex * pre_vtx = &s->GetPreVtx();
+							cvertex * post_vtx = &s->GetPostVtx();
 							double xi = pre_vtx->x;
 							double yi = pre_vtx->y;
 							double xf = post_vtx->x;
@@ -1766,13 +1767,14 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 				for( cconnect * c=iter_con.GetFirst(); c; c=iter_con.GetNext() )
 				{
 					int ic = iter_con.GetIndex();
-					int nsegs = c->NumSegs();
-					for( int is=0; is<nsegs; is++ )
+//					int nsegs = c->NumSegs();
+					CIterator_cseg iter_seg( c );
+					for( cseg * s=iter_seg.GetFirst(); s; s=iter_seg.GetNext() )
 					{
 						// get segment info
-						cseg * s = &c->SegByIndex(is);
-						cvertex * pre_vtx = &c->vtx[is];
-						cvertex * post_vtx = &c->vtx[is+1];
+						int is = iter_seg.GetIndex();
+						cvertex * pre_vtx = &s->GetPreVtx();
+						cvertex * post_vtx = &s->GetPostVtx();
 						// get following via info
 						int test, pad_w, hole_w;
 						nl->GetViaPadInfo( net, ic, is+1, layer,
@@ -1984,12 +1986,12 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 					for( cconnect * c=iter_con.GetFirst(); c; c=iter_con.GetNext() )
 					{
 //						int ic = iter_con.GetIndex();
-						int nsegs = c->NumSegs();
-						for( int is=0; is<nsegs; is++ )
+//						int nsegs = c->NumSegs();
+						CIterator_cseg iter_seg( c );
+						for( cseg * s=iter_seg.GetFirst(); s; s=iter_seg.GetNext() )
 						{
 							// get segment
-							cseg * s = &c->SegByIndex(is);
-							cvertex * post_vtx = &c->vtx[is+1];
+							cvertex * post_vtx = &s->GetPostVtx();
 							if( post_vtx->via_w )
 							{
 								// via exists
@@ -2071,10 +2073,11 @@ int WriteDrillFile( CStdioFile * file, CPartList * pl, CNetList * nl, CArray<CPo
 			CIterator_cconnect iter_con(net);
 			for( cconnect * c=iter_con.GetFirst(); c; c=iter_con.GetNext() )
 			{
-				int nsegs = c->NumSegs();
-				for( int is=0; is<nsegs; is++ )
+//				int nsegs = c->NumSegs();
+				CIterator_cseg iter_seg( c );
+				for( cseg * s=iter_seg.GetFirst(); s; s=iter_seg.GetNext() )
 				{
-					cvertex * v = &c->vtx[is+1];
+					cvertex * v = &s->GetPostVtx();
 					if( v->via_w )
 					{
 						// via
@@ -2189,10 +2192,11 @@ int WriteDrillFile( CStdioFile * file, CPartList * pl, CNetList * nl, CArray<CPo
 						CIterator_cconnect iter_con(net);
 						for( cconnect * c=iter_con.GetFirst(); c; c=iter_con.GetNext() )
 						{
-							int nsegs = c->NumSegs();
-							for( int is=0; is<nsegs; is++ )
+//							int nsegs = c->NumSegs();
+							CIterator_cseg iter_seg( c );
+							for( cseg * s=iter_seg.GetFirst(); s; s=iter_seg.GetNext() )
 							{
-								cvertex * v = &(c->vtx[is+1]);
+								cvertex * v = &s->GetPostVtx();
 								if( v->via_w )
 								{
 									// via

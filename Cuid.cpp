@@ -47,9 +47,9 @@ Cuid::~Cuid()
 				}
 				test_bits >>= 1;
 				npos++;
-				if( n_u_uids >= 10 )
-					break;
 			}
+			if( n_u_uids >= 10 )
+				break;
 		}
 		ASSERT(0);
 	}

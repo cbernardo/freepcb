@@ -514,6 +514,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\Net.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\Net_iter.cpp"
 				>
 			</File>
@@ -888,6 +892,10 @@
 			</File>
 			<File
 				RelativePath="MyToolBar.h"
+				>
+			</File>
+			<File
+				RelativePath=".\Net.h"
 				>
 			</File>
 			<File

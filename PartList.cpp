@@ -1925,11 +1925,13 @@ int CPartList::StartDraggingPart( CDC * pDC, cpart * part, BOOL bRatlines,
 							{
 								// ip is the start pin for the connection
 								// hide segment
-								m_dlist->Set_visible( c->SegByIndex(0).dl_el, 0 );
-								for( int i=0; i<c->vtx[1].dl_el.GetSize(); i++ )
-									m_dlist->Set_visible( c->vtx[1].dl_el[i], 0 );
-								if( c->vtx[1].dl_hole )
-									m_dlist->Set_visible( c->vtx[1].dl_hole, 0 );
+								cseg * first_seg = &c->SegByIndex(0);
+								cvertex * v = &first_seg->GetPostVtx();
+								m_dlist->Set_visible( first_seg->dl_el, 0 );
+								for( int i=0; i<v->dl_el.GetSize(); i++ )
+									m_dlist->Set_visible( v->dl_el[i], 0 );
+								if( v->dl_hole )
+									m_dlist->Set_visible( v->dl_hole, 0 );
 								// add ratline
 //**								if( !bBelowPinCount || n->npins <= pin_count )
 								{
@@ -1945,7 +1947,7 @@ int CPartList::StartDraggingPart( CDC * pDC, cpart * part, BOOL bRatlines,
 									{
 										// stub trace starts on this part,
 										// drag if more than 1 segment or next vertex is a tee
-										if( c->NumSegs() > 1 || c->vtx[1].tee_ID )
+										if( c->NumSegs() > 1 || v->tee_ID )
 											bDraw = TRUE;
 									}
 									else if( pin2_part )
@@ -1956,7 +1958,7 @@ int CPartList::StartDraggingPart( CDC * pDC, cpart * part, BOOL bRatlines,
 									if( bDraw )
 									{
 										// add dragline from pin to second vertex
-										CPoint vx( c->vtx[1].x, c->vtx[1].y );
+										CPoint vx( v->x, v->y );
 										m_dlist->AddDragRatline( vx, pin_points[ip] );
 									}
 								}
@@ -1970,12 +1972,14 @@ int CPartList::StartDraggingPart( CDC * pDC, cpart * part, BOOL bRatlines,
 							if( ip != -1 )
 							{
 								// ip is the end pin for the connection
+								cseg * last_seg = &c->SegByIndex(c->NumSegs()-1);
+								cvertex * v = &last_seg->GetPreVtx();
 								m_dlist->Set_visible( c->SegByIndex(c->NumSegs()-1).dl_el, 0 );
-								if( c->vtx[c->NumSegs()-1].dl_el.GetSize() )
-									for( int i=0; i<c->vtx[c->NumSegs()-1].dl_el.GetSize(); i++ )
-										m_dlist->Set_visible( c->vtx[c->NumSegs()-1].dl_el[i], 0 );
-								if( c->vtx[c->NumSegs()-1].dl_hole )
-									m_dlist->Set_visible( c->vtx[c->NumSegs()-1].dl_hole, 0 );
+								if( v->dl_el.GetSize() )
+									for( int i=0; i<v->dl_el.GetSize(); i++ )
+										m_dlist->Set_visible( v->dl_el[i], 0 );
+								if( v->dl_hole )
+									m_dlist->Set_visible( v->dl_hole, 0 );
 								// OK, get prev vertex, add ratline and hide segment
 //**								if( !bBelowPinCount || n->npins <= pin_count )
 								{
@@ -1990,7 +1994,7 @@ int CPartList::StartDraggingPart( CDC * pDC, cpart * part, BOOL bRatlines,
 										bDraw = TRUE;
 									if( bDraw )
 									{
-										CPoint vx( c->vtx[c->NumSegs()-1].x, c->vtx[c->NumSegs()-1].y );
+										CPoint vx( v->x, v->y );
 										m_dlist->AddDragRatline( vx, pin_points[ip] );
 									}
 								}
@@ -2084,23 +2088,27 @@ int CPartList::CancelDraggingPart( cpart * part )
 					if( net->pin[pin1].part == part )
 					{
 						// start pin
-						m_dlist->Set_visible( c->SegByIndex(0).dl_el, 1 );
-						for( int i=0; i<c->vtx[1].dl_el.GetSize(); i++ )
-							m_dlist->Set_visible( c->vtx[1].dl_el[i], 1 );
-						if( c->vtx[1].dl_hole )
-							m_dlist->Set_visible( c->vtx[1].dl_hole, 1 );
+						cseg * first_seg = &c->SegByIndex(0);
+						cvertex * v = &first_seg->GetPostVtx();
+						m_dlist->Set_visible( first_seg->dl_el, 1 );
+						for( int i=0; i<v->dl_el.GetSize(); i++ )
+							m_dlist->Set_visible( v->dl_el[i], 1 );
+						if( v->dl_hole )
+							m_dlist->Set_visible( v->dl_hole, 1 );
 					}
 					if( pin2 != cconnect::NO_END )
 					{
 						if( net->pin[pin2].part == part )
 						{
 							// end pin
-							m_dlist->Set_visible( c->SegByIndex(nsegs-1).dl_el, 1 );
-							if( c->vtx[c->NumSegs()-1].dl_el.GetSize() )
-								for( int i=0; i<c->vtx[c->NumSegs()-1].dl_el.GetSize(); i++ )
-									m_dlist->Set_visible( c->vtx[c->NumSegs()-1].dl_el[i], 1 );
-							if( c->vtx[c->NumSegs()-1].dl_hole )
-								m_dlist->Set_visible( c->vtx[c->NumSegs()-1].dl_hole, 1 );
+							cseg * last_seg = &c->SegByIndex(nsegs-1);
+							cvertex * v = &last_seg->GetPreVtx();
+							m_dlist->Set_visible( last_seg->dl_el, 1 );
+							if( v->dl_el.GetSize() )
+								for( int i=0; i<v->dl_el.GetSize(); i++ )
+									m_dlist->Set_visible( v->dl_el[i], 1 );
+							if( v->dl_hole )
+								m_dlist->Set_visible( v->dl_hole, 1 );
 						}
 					}
 				}
@@ -4093,10 +4101,10 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 				id_seg.i = ic;
 				id_seg.sst = ID_SEG;
 				id_seg.ii = is;
-				int x1 = c->vtx[is].x;
-				int y1 = c->vtx[is].y;
-				int x2 = c->vtx[is+1].x;
-				int y2 = c->vtx[is+1].y;
+				int x1 = s->GetPreVtx().x;
+				int y1 = s->GetPreVtx().y;
+				int x2 = s->GetPostVtx().x;
+				int y2 = s->GetPostVtx().y;
 				int w = s->width;
 				int layer = s->layer;
 				if( s->layer >= LAY_TOP_COPPER )
@@ -4177,7 +4185,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 			}
 			for( int iv=0; iv<c->NumSegs()+1; iv++ )
 			{
-				cvertex * vtx = &c->vtx[iv];
+				cvertex * vtx = &c->VtxByIndex(iv);
 				if( vtx->via_w )
 				{
 					// via present
@@ -4339,8 +4347,8 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 					for( cseg * s=iter_seg.GetFirst(); s; s=iter_seg.GetNext() )
 					{
 						int is = iter_seg.GetIndex();
-						cvertex * pre_vtx = &c->vtx[is];
-						cvertex * post_vtx = &c->vtx[is+1];
+						cvertex * pre_vtx = &s->GetPreVtx();
+						cvertex * post_vtx = &s->GetPostVtx();
 						cvertex * pre_vtx_test = &s->GetPreVtx();
 						cvertex * post_vtx_test = &s->GetPostVtx();
 						int w = s->width;
@@ -4615,8 +4623,8 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 					for( cseg * s=iter_seg.GetFirst(); s; s=iter_seg.GetNext() )
 					{
 						int is = iter_seg.GetIndex();
-						cvertex * pre_vtx = &c->vtx[is];
-						cvertex * post_vtx = &c->vtx[is+1];
+						cvertex * pre_vtx = &s->GetPreVtx();
+						cvertex * post_vtx = &s->GetPostVtx();
 						int w = s->width;
 						int xi = pre_vtx->x;
 						int yi = pre_vtx->y;
@@ -4786,8 +4794,8 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 					{
 						// get next segment and via
 						int is = iter_seg.GetIndex();
-						cvertex * pre_vtx = &c->vtx[is];
-						cvertex * post_vtx = &c->vtx[is+1];
+						cvertex * pre_vtx = &s->GetPreVtx();
+						cvertex * post_vtx = &s->GetPostVtx();
 						int seg_w = s->width;
 						int vw = post_vtx->via_w;
 						int max_w = max( seg_w, vw );
@@ -4810,8 +4818,8 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 						{
 							// get next segment and via
 							int is2 = iter_seg2.GetIndex();
-							cvertex * pre_vtx2 = &c2->vtx[is2];
-							cvertex * post_vtx2 = &c2->vtx[is2+1];
+							cvertex * pre_vtx2 = &s2->GetPreVtx();
+							cvertex * post_vtx2 = &s2->GetPostVtx();
 							int seg_w2 = s2->width;
 							int vw2 = post_vtx2->via_w;
 							int max_w2 = max( seg_w2, vw2 );

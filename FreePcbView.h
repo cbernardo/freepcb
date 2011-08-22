@@ -386,10 +386,12 @@ public:
 #define m_sel_prev_seg (&m_sel_con->SegByIndex(m_sel_is-1))			// selected side or segment
 #define m_sel_next_seg (&m_sel_con->SegByIndex(m_sel_is+1))			// selected side or segment
 
-#define m_sel_vtx (&m_sel_con->vtx[m_sel_is])			// selected vertex
-#define m_sel_prev_vtx (&m_sel_con->vtx[m_sel_is-1])	// last vertex
-#define m_sel_next_vtx (&m_sel_con->vtx[m_sel_is+1])	// next vertex
-#define m_sel_next_next_vtx (&m_sel_con->vtx[m_sel_is+2])	// next vertex after that
+#define m_sel_vtx (&m_sel_con->VtxByIndex(m_sel_is))			// selected vertex
+#define m_sel_prev_vtx (&m_sel_con->VtxByIndex(m_sel_is-1))	// last vertex
+#define m_sel_next_vtx (&m_sel_con->VtxByIndex(m_sel_is+1))	// next vertex
+#define m_sel_next_next_vtx (&m_sel_con->VtxByIndex(m_sel_is+2))	// next vertex after that
+
+#define m_sel_con_last_vtx (&m_sel_con->VtxByIndex(m_sel_con->NumSegs()))
 
 #define m_sel_con_start_pin (&m_sel_net->pin[m_sel_con->start_pin])
 #define m_sel_con_end_pin (&m_sel_net->pin[m_sel_con->end_pin])
