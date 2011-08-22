@@ -159,49 +159,102 @@ CIterator_cseg::CIterator_cseg( cconnect * con )
 // Iterator operators: First/Next
 cseg *CIterator_cseg::GetFirst()
 {
+	// initialize position to before first segment
 	m_CurrentPos = -1;	// -1 = position before first seg
-	m_pCurrentSegment = NULL;
-
-	// test for no vertices
-	if( m_cconnect->NumSegs() != 0 )
-	{
-		// increment iterator and get first net
-		GetNext();
-	}
-
-	return m_pCurrentSegment;
+	m_PreviousPos = -1;	// -1 = position before first seg
+	m_NextPos = 0;		// 0 = index of first seg
+	// get first segment
+	return( GetNext() );
 }
 
 cseg *CIterator_cseg::GetNext()
 {
-	m_CurrentPos++;
-	if( m_CurrentPos < m_cconnect->NumSegs() )
+	m_pCurrentSegment = NULL;
+	int ns = m_cconnect->NumSegs();
+	if( ns == 0 )
 	{
-		m_pCurrentSegment = &m_cconnect->SegByIndex(m_CurrentPos);
+		// no segments in array
+		m_CurrentPos = -1;
+		m_PreviousPos = -1;
+		m_NextPos = -1;
+	}
+	else if( m_NextPos == -1 )
+	{
+		// next doesn't exist
+		m_CurrentPos = -1;
+		m_PreviousPos = m_CurrentPos;
+		m_NextPos = -1;
 	}
 	else
 	{
-		m_pCurrentSegment = NULL;
+		// next exists
+		if( m_NextPos >= ns )
+		{
+			// make sure legal
+			ASSERT(0);		// should never happen
+		}
+		else
+		{
+			m_CurrentPos = m_NextPos;
+			m_PreviousPos = m_CurrentPos - 1;
+			m_NextPos = m_CurrentPos + 1;
+		}
 	}
-
-	return m_pCurrentSegment;
+	// make sure m_NextPos is legal
+	if( m_NextPos >= ns )
+	{
+		m_NextPos = -1;
+	}
+	if (m_CurrentPos >= 0 )
+	{
+		// set pointer
+		m_pCurrentSegment = &m_cconnect->SegByIndex( m_CurrentPos );
+	}
+	return m_pCurrentSegment; 
 }
 
 // OnRemove(is) must be called when removing a cseg
 // to update any active iterators.
 void CIterator_cseg::OnRemove( int is )
 {
-	// For every iterator, adjust the "current segment" if that 
-	// segion or earlier is being removed
+	// look at all iterators for this connection 
 	for( CDLinkList *pElement = m_LIST_Iterator.next; pElement != &m_LIST_Iterator; pElement = pElement->next )
 	{
 		CIterator_cseg *pIterator = static_cast<CIterator_cseg *>(pElement);
-
-		if( is <= pIterator->m_CurrentPos && m_cconnect == pIterator->m_cconnect )
+		if( m_cconnect == pIterator->m_cconnect )
 		{
-			// Make adjustment so that the next GetNext() moves to 
-			// the segment after the one removed.
-			pIterator->m_pCurrentSegment--;
+			// same connection
+			int new_num_segs = m_cconnect->NumSegs() - 1;  // number of segments after remove
+			if( new_num_segs <= 0 )
+			{
+				// there will be no segments left, invalidate all
+				pIterator->m_CurrentPos = -1;
+				pIterator->m_NextPos = -1;
+				pIterator->m_PreviousPos = -1;
+			}
+
+			if( is <= pIterator->m_CurrentPos && m_cconnect == pIterator->m_cconnect )
+			{
+				// Make adjustments for removal
+				if( is < pIterator->m_CurrentPos )
+				{
+					// removing previous segment, shift all down
+					pIterator->m_NextPos = pIterator->m_CurrentPos;
+					pIterator->m_CurrentPos = pIterator->m_PreviousPos;
+					pIterator->m_PreviousPos--;
+				}
+				else if( is == pIterator->m_CurrentPos )
+				{
+					// removing current segment, shift next down 
+					pIterator->m_CurrentPos = -1;
+					pIterator->m_NextPos--;
+				}
+			}
+			// make sure next still legal
+			if( pIterator->m_NextPos >= new_num_segs )
+			{
+				pIterator->m_NextPos = -1;
+			}
 		}
 	}
 }
@@ -260,7 +313,7 @@ cvertex *CIterator_cvertex::GetNext()
 	m_CurrentPos++;
 	if( m_CurrentPos <= m_cconnect->NumSegs() )
 	{
-		m_pCurrentVertex = &m_cconnect->vtx[m_CurrentPos];
+		m_pCurrentVertex = &m_cconnect->VtxByIndex(m_CurrentPos);
 	}
 	else
 	{
@@ -297,7 +350,7 @@ void CIterator_cvertex::OnRemove( cvertex * vtx )
 	int remove_iv = -1;
 	for( int iv=0; iv<=m_cconnect->NumSegs(); iv++ )
 	{
-		if( vtx == &m_cconnect->vtx[iv] )
+		if( vtx == &m_cconnect->VtxByIndex(iv) )
 		{
 			remove_iv = iv;
 			break;

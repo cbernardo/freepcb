@@ -23,6 +23,7 @@
 #include "UndoList.h"
 #include "LinkList.h"
 #include "Cuid.h"
+#include "Net.h"
 
 extern int m_layer_by_file_layer[MAX_LAYERS];
 
@@ -30,7 +31,6 @@ class CNetList;
 class cvertex;
 class CVertex;
 class cconnect;
-class cnet;
 class CIterator_cconnect;
 
 #define MAX_NET_NAME_SIZE 39
@@ -161,10 +161,14 @@ typedef CArray<net_info> netlist_info;
 class cpin
 {
 public:
-	cpin(){ part = NULL; };
+	cpin();
+	~cpin();
+	void Initialize( cnet * net );
+	int m_uid;
 	CString ref_des;	// reference designator such as 'U1'
 	CString pin_name;	// pin name such as "1" or "A23"
 	cpart * part;		// pointer to part containing the pin
+	cnet * m_net;		// parent net
 	int utility;
 };
 
@@ -200,7 +204,7 @@ public:
 	};
 	cseg();
 	~cseg();
-	cseg( cseg& src );	// copy constructor
+	cseg( cseg& src );		// copy constructor
 	cseg& operator=( cseg& rhs );	// assignment
 	cseg& operator=( const cseg& rhs );	// assignment
 	void Initialize( cconnect * c );
@@ -225,12 +229,14 @@ public:
 // CVertex: new class for vertices
 class CVertex
 {
-	enum { V_PIN, V_TRACE, V_END };	// types of vertices
+	enum Type { V_PIN, V_TRACE, V_END };	// types of vertices
 public:
 	CVertex( cnet * net );
 	~CVertex();
 
-	int m_uid;					// UID
+	int m_uid;		// UID
+	Type m_type;	// type of vertex
+	int m_pin_uid;	// if type == V_PIN, UID of pin in net
 	cnet * m_net;				// parent net
 	CDisplayList * m_dlist;
 };
@@ -240,6 +246,8 @@ public:
 class cvertex
 {
 public:
+	enum Type { V_PIN, V_TRACE, V_END };	// types of vertices
+
 	cvertex();
 	~cvertex();
 	cvertex &operator=( const cvertex &v );	
@@ -247,8 +255,12 @@ public:
 	void Initialize( cconnect * c );
 	void ReplaceUID( int uid );
 	void Undraw();
+	Type GetType();
+	cpin& Pin();	
 
 	int m_uid;					// unique id
+	Type m_type;				// type of vertex
+	int m_pin_uid;				// if type == V_PIN, UID of pin in net
 	int x, y;					// coords
 	int pad_layer;				// layer of pad if this is first or last vertex, otherwise 0
 	int force_via_flag;			// force a via even if no layer change
@@ -271,6 +283,7 @@ class cconnect
 {
 	friend class CNetList;
 	friend class cnet;
+//	friend class CIterator_cvertex;
 public:
 	enum {
 		NO_END = -1		// used for end_pin if stub trace
@@ -284,7 +297,8 @@ public:
 	void ReplaceUID( int uid );
 	cseg& SegByIndex( int is );
 	cvertex& VtxByIndex( int iv );
-	void InsertSegAndVtxByIndex(int is, int dir, 
+	cvertex& InsertVertexByIndex( int iv, const cvertex& new_vtx );
+	void InsertSegAndVtxByIndex( int is, int dir, 
 				const cseg& new_seg, const cvertex& new_vtx );
 	void AppendSegAndVertex( const cseg& new_seg, const cvertex& new_vtx );
 	void PrependVertexAndSeg( const cvertex& new_vtx, const cseg& new_seg );
@@ -301,7 +315,6 @@ public:
 	int locked;					// 1 if locked (will not be optimized away)
 private:
 	CArray<cseg> seg;			// array of segments
-public:
 	CArray<cvertex> vtx;		// array of vertices, size = nsegs + 1
 public:
 	int utility;
@@ -317,45 +330,11 @@ public:// used for various temporary ops
 	CDisplayList * m_dlist;		
 };
 
-// cnet: describes a net
-class cnet
-{
-	friend class CNetList;
-	friend class CIterator_cconnect;
-public:
-	cnet( CDisplayList * dlist, CNetList * nlist );
-	~cnet();
-	int NumCons();
-	int NumPins();
-	int NumAreas();
-	cconnect * GetConnectByIndex( int ic );
-	cconnect * GetConnectByUID( int uid );
-	int GetConnectIndexByUID( int uid );
-	int GetConnectIndexByPtr( cconnect * c );
-	void RecreateConnectFromUndo( undo_con * con, undo_seg * seg, undo_vtx * vtx );
-
-	id id;				// net id
-	CString name;		// net name
-//private:
-	CArray<cconnect*> connect;	// array of pointers to connections
-public:
-	CArray<cpin> pin;			// array of pins
-	CArray<carea,carea> area;	// array of copper areas
-	int def_w;					// default trace width
-	int def_via_w;				// default via width
-	int def_via_hole_w;			// default via hole width
-	BOOL visible;				// FALSE to hide ratlines and make unselectable
-	int utility;				// used to keep track of which nets have been optimized
-	int utility2;				// used to keep track of which nets have been optimized
-	CDisplayList * m_dlist;		// CDisplayList to use
-	CNetList * m_nlist;			// parent netlist
-	// new stuff, for testing
-	CMap<int,int,CVertex*,CVertex*> m_vertex_map;
-};
 
 // CNetlist
 class CNetList  
 {
+	friend class cnet;
 public:
 	enum{ MAX_ITERATORS=10 };
 	enum {
@@ -387,10 +366,7 @@ public:
 	cnet * AddNet( CString name, int max_pins, int def_width, int def_via_w, int def_via_hole_w );
 	void RemoveNet( cnet * net );
 	void RemoveAllNets();
-	void AddNetPin( cnet * net, CString * ref_des, CString * pin_name, BOOL set_areas=TRUE );
 	void RemoveNetPin( cpart * part, CString * pin_name, BOOL bSetAreas=TRUE );
-	void RemoveNetPin( cnet * net, CString * ref_des, CString * pin_name, BOOL bSetAreas=TRUE );
-	void RemoveNetPin( cnet * net, int pin_index, BOOL bSetAreas=TRUE );
 	void DisconnectNetPin( cpart * part, CString * pin_name, BOOL bSetAreas=TRUE );
 	void DisconnectNetPin( cnet * net, CString * ref_des, CString * pin_name, BOOL bSetAreas=TRUE );
 	int GetNetPinIndex( cnet * net, CString * ref_des, CString * pin_name );
@@ -629,7 +605,7 @@ class CIterator_cseg : protected CDLinkList
 
 	cconnect * m_cconnect;
 
-	int m_CurrentPos;
+	int m_CurrentPos, m_PreviousPos, m_NextPos;
 	cseg * m_pCurrentSegment;
 
 public:

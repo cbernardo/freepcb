@@ -219,9 +219,9 @@ void CDlgReport::OnBnClickedOk()
 		CIterator_cconnect iter_con(net);
 		for( cconnect * c=iter_con.GetFirst(); c; c=iter_con.GetNext() )
 		{
-			for( int iv=0; iv<c->vtx.GetSize(); iv++ )
+			CIterator_cvertex iter_vtx( c );
+			for( cvertex * v=iter_vtx.GetFirst(); v; v=iter_vtx.GetNext() )
 			{
-				cvertex * v = &c->vtx[iv];
 				int hole_size = v->via_hole_w; 
 				if( hole_size > 0 )
 				{
