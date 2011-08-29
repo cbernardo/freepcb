@@ -49,6 +49,7 @@ public:
 	void CancelDragging();
 	void Move( int x, int y, int angle, 
 		BOOL mirror, BOOL negative, int layer );
+	int UID(){ return m_uid; };
 
 	// member variables
 	id m_id;
@@ -96,7 +97,7 @@ public:
 	void ReadTexts( CStdioFile * file );
 	int WriteTexts( CStdioFile * file );
 	void MoveOrigin( int x_off, int y_off );
-	CText * GetText( int uid );
+	CText * GetText( int uid, int * index=NULL );
 	int GetNumTexts(){ return text_ptr.GetSize();};
 	BOOL GetTextBoundaries( CRect * r );
 	BOOL GetTextRectOnPCB( CText * t, CRect * r );
@@ -123,8 +124,10 @@ public:
 	~CIterator_CText();
 	CText * GetFirst();		// reset position, get first CText
 	CText * GetNext();		// get next CText
+	int GetIndex();			// get index of current position
 	void OnRemove( CText * text );	// call when CText removed from CTextList
 	int GetNumIterators();			// number of active iterators
+
 private:
 	CTextList * m_tlist;		// the CTextList
 	int m_CurrentPos;			// current index into array of CTexts

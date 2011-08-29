@@ -1181,7 +1181,7 @@ COLORREF CDisplayList::GetLayerColor( int layer )
 // where 0's in include_id[] fields are treated as wildcards
 //
 void * CDisplayList::TestSelect( int x, int y, id * sel_id, int * sel_layer, 
-								id * exclude_id, void * exclude_ptr, 
+								id * exclude_id, 
 								id * include_id, int n_include_ids )
 {
 	enum {
@@ -1314,7 +1314,7 @@ void * CDisplayList::TestSelect( int x, int y, id * sel_id, int * sel_layer,
 			BOOL included_hit = TRUE;
 			if( exclude_id )
 			{
-				if( hit_id[i] == *exclude_id && hit_ptr[i] == exclude_ptr )
+				if( hit_id[i] == *exclude_id )
 					excluded_hit = TRUE;
 			}
 			if( include_id )
@@ -1323,11 +1323,11 @@ void * CDisplayList::TestSelect( int x, int y, id * sel_id, int * sel_layer,
 				for( int inc=0; inc<n_include_ids; inc++ )
 				{
 					id * inc_id = &include_id[inc];
-					if( inc_id->type == hit_id[i].type
-						&& ( inc_id->st == 0 || inc_id->st == hit_id[i].st )
-						&& ( inc_id->i == 0 || inc_id->i == hit_id[i].i )
-						&& ( inc_id->sst == 0 || inc_id->sst == hit_id[i].sst )
-						&& ( inc_id->ii == 0 || inc_id->ii == hit_id[i].ii ) )
+					if( inc_id->T1() == hit_id[i].T1()
+						&& ( inc_id->T2() == 0  || inc_id->T2() == hit_id[i].T2() )
+						&& ( inc_id->I2() == -1 || inc_id->I2() == hit_id[i].I2() )
+						&& ( inc_id->T3() == 0  || inc_id->T3() == hit_id[i].T3() )
+						&& ( inc_id->I3() == -1 || inc_id->I3() == hit_id[i].I3() ) )
 					{
 						included_hit = TRUE;
 						break;
@@ -1341,13 +1341,13 @@ void * CDisplayList::TestSelect( int x, int y, id * sel_id, int * sel_layer,
 				// i.e. last drawn = highest priority
 				int priority = (MAX_LAYERS - m_order_for_layer[hit_layer[i]])*10;
 				// bump priority for small items which may be overlapped by larger items on same layer
-				if( hit_id[i].type == ID_PART && hit_id[i].st == ID_SEL_REF_TXT )
+				if( hit_id[i].T1() == ID_PART && hit_id[i].T2() == ID_REF_TXT )
 					priority++;
-				else if( hit_id[i].type == ID_PART && hit_id[i].st == ID_SEL_VALUE_TXT )
+				else if( hit_id[i].T1() == ID_PART && hit_id[i].T2() == ID_VALUE_TXT )
 					priority++;
-				else if( hit_id[i].type == ID_BOARD && hit_id[i].st == ID_BOARD_OUTLINE && hit_id[i].sst == ID_SEL_CORNER )
+				else if( hit_id[i].T1() == ID_BOARD && hit_id[i].T2() == ID_BOARD_OUTLINE && hit_id[i].T3() == ID_SEL_CORNER )
 					priority++;
-				else if( hit_id[i].type == ID_NET && hit_id[i].st == ID_AREA && hit_id[i].sst == ID_SEL_CORNER )
+				else if( hit_id[i].T1() == ID_NET && hit_id[i].T2() == ID_AREA && hit_id[i].T3() == ID_SEL_CORNER )
 					priority++;
 				hit_priority[i] = priority;
 				if( priority >= best_hit_priority )

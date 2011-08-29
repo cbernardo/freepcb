@@ -10,6 +10,7 @@
 #include "stdafx.h"
 #include "DisplayList.h"
 #include "FreePcbDoc.h"
+#include "ids.h"
 
 class CFreePcbView; 
 
@@ -281,7 +282,7 @@ struct undo_group_descriptor {
 	CUndoList * list;		// undo or redo list
 	int type;				// type of operation
 	CArray<CString> str;	// array strings with names of items in group
-	CArray<id> m_id;		// array of item ids
+	CArray<id> m_ids;		// array of item ids
 };
 
 class CFreePcbView : public CView
@@ -375,12 +376,12 @@ public:
 	CArray<id> m_sel_ids;	// array of multiple selections
 	CArray<void*> m_sel_ptrs;	// array of pointers to selected items
 
-#define m_sel_ic m_sel_id.i							// index of selected connection
-#define m_sel_ia m_sel_id.i							// index of selected area
-#define m_sel_is m_sel_id.ii						// index of selected side, segment, or corner
-#define m_sel_iv m_sel_id.ii						// index of selected vertex
+#define m_sel_ic m_sel_id.I2()							// index of selected connection
+#define m_sel_ia m_sel_id.I2()							// index of selected area
+#define m_sel_is m_sel_id.I3()						// index of selected side, segment, or corner
+#define m_sel_iv m_sel_id.I3()						// index of selected vertex
 
-#define m_sel_con (m_sel_net->GetConnectByIndex(m_sel_ic))	// selected connection
+#define m_sel_con (m_sel_net->ConByIndex(m_sel_ic))	// selected connection
 
 #define m_sel_seg (&m_sel_con->SegByIndex(m_sel_is))			// selected side or segment
 #define m_sel_prev_seg (&m_sel_con->SegByIndex(m_sel_is-1))			// selected side or segment
@@ -395,6 +396,9 @@ public:
 
 #define m_sel_con_start_pin (&m_sel_net->pin[m_sel_con->start_pin])
 #define m_sel_con_end_pin (&m_sel_net->pin[m_sel_con->end_pin])
+
+	// new selection class
+//**	CSelection ss;
 
 	// direction of routing
 	int m_dir;			// 0 = forward, 1 = back

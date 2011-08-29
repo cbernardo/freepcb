@@ -2,8 +2,8 @@
 //
 // this is a linked-list of parts on a PCB board
 //
-#include "stdafx.h"
 #pragma once
+#include "stdafx.h"
 #include "Shape.h"
 #include "smfontutil.h"
 #include "DlgLog.h"
@@ -50,6 +50,7 @@ struct undo_part {
 	CShape * shape;			// pointer to the footprint of the part, may be NULL
 	CPartList * m_plist;	// parent cpartlist	
 	// here goes array of char[npins][40] for attached net names
+	// followed by array of int[npins] for pin UIDs
 };
 
 // partlist_info is used to hold digest of CPartList 
@@ -111,6 +112,7 @@ public:
 	dl_element * dl_sel;	// pointer to graphic element for selection shape
 	dl_element * dl_hole;	// pointer to graphic element for hole
 	CArray<dl_element*> dl_els;	// array of pointers to graphic elements for pads
+	cpart * m_part;			// parent part
 };
 
 // class cpart represents a part
@@ -118,10 +120,12 @@ class cpart
 {
 public:
 	cpart();
+	cpart( CPartList * pl );
 	~cpart();
-	int GetNumRefStrokes(){ return ref_text_stroke.GetSize(); };
-	int GetNumValueStrokes(){ return value_stroke.GetSize(); };
-	int GetNumOutlineStrokes(){ return m_outline_stroke.GetSize(); };
+	part_pin * PinByUID( int uid ); 
+	int GetNumRefStrokes();
+	int GetNumValueStrokes();
+	int GetNumOutlineStrokes();
 
 	cpart * prev;		// link backward
 	cpart * next;		// link forward
@@ -158,6 +162,8 @@ public:
 	CArray<stroke> m_outline_stroke;	// array of outline strokes
 	CArray<part_pin> pin;				// array of all pins in part
 	int utility;		// used for various temporary purposes
+	CPartList * m_pl;	// parent partlist
+
 	// drc info
 	BOOL hole_flag;	// TRUE if holes present
 	int min_x;		// bounding rect of pads
@@ -180,7 +186,8 @@ public:
 		TRACE_CONNECT = 2,		// pin connects to trace on this layer
 		AREA_CONNECT = 4		// pin connects to copper area on this layer
 	};
-	cpart m_start, m_end;
+	cpart m_start;
+	cpart m_end;
 private:
 	int m_size, m_max_size;
 	int m_layers;
@@ -196,15 +203,21 @@ public:
 		UNDO_PART_ADD };	// undo types
 	CPartList( CDisplayList * dlist );
 	~CPartList();
+
 	void UseNetList( CNetList * nlist ){ m_nlist = nlist; };
 	void SetShapeCacheMap( CMapStringToPtr * shape_cache_map )
 	{ m_footprint_cache_map = shape_cache_map; };
+
 	int GetNumParts(){ return m_size; };
+	cpart * GetPart( LPCTSTR ref_des );
+	cpart * GetFirstPart();
+	cpart * GetNextPart( cpart * part );
+	cpart * GetPartByUID( int uid );
+
 	cpart * Add( int uid=-1 ); 
 	cpart * Add( CShape * shape, CString * ref_des, CString * package, 
 					int x, int y, int side, int angle, int visible, int glued, int uid=-1 ); 
 	cpart * AddFromString( CString * str );
-	void SetNumCopperLayers( int nlayers ){ m_layers = nlayers;};
 	int SetPartData( cpart * part, CShape * shape, CString * ref_des, CString * package, 
 					int x, int y, int side, int angle, int visible, int glued ); 
 	void MarkAllParts( int mark );
@@ -212,6 +225,8 @@ public:
 	void RemoveAllParts();
 	int HighlightPart( cpart * part );
 	void MakePartVisible( cpart * part, BOOL bVisible );
+
+	void SetNumCopperLayers( int nlayers ){ m_layers = nlayers;};
 	int SelectPart( cpart * part );
 	int SelectRefText( cpart * part );
 	int SelectValueText( cpart * part );
@@ -263,9 +278,6 @@ public:
 							  int * angle=0, cnet ** net=0, 
 							  int * connection_status=0, int * pad_connect_flag=0, 
 							  int * clearance_type=0 );
-	cpart * GetPart( LPCTSTR ref_des );
-	cpart * GetFirstPart();
-	cpart * GetNextPart( cpart * part );
 	int StartDraggingPart( CDC * pDC, cpart * part, BOOL bRatlines, 
 								 BOOL bBelowPinCount, int pin_count );
 	int StartDraggingRefText( CDC * pDC, cpart * part );

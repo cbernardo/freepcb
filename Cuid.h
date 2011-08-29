@@ -1,6 +1,8 @@
 // This is a class to generate simple unique IDs within an application
 //
 #pragma once
+#include "stdafx.h"
+//#include <basetsd.h>
 
 class Cuid {
 private:
@@ -21,4 +23,5 @@ public:
 	void ReleaseUID( UINT32 uid );
 	BOOL CheckUID( int uid );
 	BOOL RequestUID( int uid );
+	BOOL ReplaceUID( int old_uid, int new_uid );
 };

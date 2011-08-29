@@ -152,3 +152,12 @@ void Cuid::ReleaseUID( UINT32 uid )
 	bits[i] &= ~mask_table[npos];	// clear bit
 	n_uids--;			// decrement assigned uid counter
 }
+
+// Release old uid, request new uid (used for undoing)
+// returns TRUE is successful
+//
+BOOL Cuid::ReplaceUID( int old_uid, int new_uid )
+{
+	ReleaseUID( old_uid );
+	return( RequestUID( new_uid ) );
+}

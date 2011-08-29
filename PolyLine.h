@@ -14,12 +14,33 @@
 // If a CDisplayList pointer is provided, the polyline can draw itself 
 
 #pragma once
-#include <afxcoll.h>
-#include <afxtempl.h>
 #include "DisplayList.h"
 #include "gpc_232.h"
+#include "Cuid.h"
+#include "ids.h"
 
 class polygon;
+class CPolyLine;
+
+struct undo_poly {
+	CPolyLine * poly;
+	int uid;
+	id root_id;
+	int layer;
+	int width;
+	int sel_box;
+	int hatch;
+	int ncorners;
+	// array of undo_corners starts here
+};
+
+struct undo_corner {
+	int uid;
+	int x, y;
+	int end_contour;
+	int side_uid;
+	int side_style;			// style is for following side
+};
 
 class CArc {
 public: 
@@ -31,26 +52,28 @@ public:
 	BOOL bFound;
 };
 
-class CPolyPt
+class CPolyCorner
 {
 public:
-	CPolyPt( int qx=0, int qy=0, BOOL qf=FALSE )
-	{ 
-		x=qx; 
-		y=qy; 
-		end_contour=qf; 
-		utility = 0; 
-//		m_uid = pcb_cuid.GetNewUID();
-	};
-	~CPolyPt()
-	{
-//		pcb_cuid.ReleaseUID( m_uid );
-	};
+	CPolyCorner();
+	~CPolyCorner();
 	int x;
 	int y;
 	BOOL end_contour;	// flags the end of a closed contour
 	int utility;
 	int m_uid;
+	dl_element * dl_corner_sel;
+};
+
+class CPolySide
+{
+public:
+	CPolySide();
+	~CPolySide();
+	int m_style;
+	int m_uid;
+	dl_element * dl_side;
+	dl_element * dl_side_sel;
 };
 
 class CPolyLine
@@ -61,7 +84,6 @@ public:
 	enum { DEF_SIZE = 50, DEF_ADD = 50 };	// number of array elements to add at a time
 
 	// constructors/destructor
-	CPolyLine( CDisplayList * dl );
 	CPolyLine();
 	~CPolyLine();
 
@@ -76,6 +98,7 @@ public:
 	void RemoveContour( int icont );
 
 	// drawing functions
+	void SetDlist( CDisplayList * dl );
 	void HighlightSide( int is );
 	void HighlightCorner( int ic );
 	void StartDraggingToInsertCorner( CDC * pDC, int ic, int x, int y, int crosshair = 1 );
@@ -99,8 +122,13 @@ public:
 	int TestIntersection( CPolyLine * poly );
 	void AppendArc( int xi, int yi, int xf, int yf, int xc, int yc, int num );
 
+	// undo functions
+	int SizeOfUndoRecord();
+	void SetFromUndo( undo_poly * un_poly );
+	void CreateUndoRecord( undo_poly * un_poly );
 
 	// access functions
+	int GetUID();
 	int GetNumCorners();
 	int GetNumSides();
 	int GetClosed();
@@ -109,6 +137,8 @@ public:
 	int GetContourStart( int icont );
 	int GetContourEnd( int icont );
 	int GetContourSize( int icont );
+	int GetCornerIndexByUID( int uid );
+	int GetSideIndexByUID( int uid );
 	int GetX( int ic );
 	int GetY( int ic );
 	int GetEndContour( int ic );
@@ -116,13 +146,18 @@ public:
 	int GetUtility( int ic ){ return corner[ic].utility; };
 	int GetLayer();
 	int GetW();
+	int GetCornerUID( int ic ){ return corner[ic].m_uid; };
+	int GetSideUID( int is );
 	int GetSideStyle( int is );
 	id  GetId();
 	void * GetPtr(){ return m_ptr; };
 	int GetSelBoxSize();
 	CDisplayList * GetDisplayList(){ return m_dlist; };
 	int GetHatch(){ return m_hatch; }
-	void SetClosed( BOOL bClosed ){ corner[m_ncorners-1].end_contour = bClosed; };
+
+	void SetCornerUID( int ic, int uid );
+	void SetSideUID( int is, int uid );
+	void SetClosed( BOOL bClosed );
 	void SetX( int ic, int x );
 	void SetY( int ic, int y );
 	void SetEndContour( int ic, BOOL end_contour );
@@ -156,19 +191,16 @@ public:
 
 private:
 	CDisplayList * m_dlist;		// display list 
-	id m_id;		// root id
-	int m_uid;
+	id m_root_id;	// root id
+	int m_uid;		// use this uid if root_id doesn't provide one
 	void * m_ptr;	// pointer to parent object (or NULL)
 	int m_layer;	// layer to draw on
 	int m_w;		// line width
 	int m_sel_box;	// corner selection box width/2
 	int m_ncorners;	// number of corners
 	int utility;
-	CArray <CPolyPt> corner;	// array of points for corners
-	CArray <int> side_style;	// array of styles for sides
-	CArray <dl_element*> dl_side;	// graphic elements
-	CArray <dl_element*> dl_side_sel;
-	CArray <dl_element*> dl_corner_sel;
+	CArray <CPolyCorner> corner;	// array of corners
+	CArray <CPolySide> side;	// array of sides
 	int m_hatch;	// hatch style, see enum above
 	int m_nhatch;	// number of hatch lines
 	CArray <dl_element*>  dl_hatch;	// hatch lines	

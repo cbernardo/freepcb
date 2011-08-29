@@ -3,17 +3,16 @@
 #include "textlist.h"
 #include "PcbFont.h"
 #include "shape.h"
-#include "ids.h"
 #include "smfontutil.h"
 #include "file_io.h"
 
 extern Cuid pcb_cuid;
 
 // Valid id's for CTexts are:
-//	tid.type = ID_TEXT or
-//	tid.type = ID_PART 
-//		tid.st = ID_REF_TXT or 
-//		tid.st = ID_VALUE_TXT
+//	tid.t1 = ID_TEXT or
+//	tid.t1 = ID_PART 
+//		tid.SetT2( ID_REF_TXT or 
+//		tid.SetT2( ID_VALUE_TXT
 
 
 //*******************************************************************
@@ -37,7 +36,8 @@ void CText::Init( CDisplayList * dlist, id tid, int x, int y, int angle, int mir
 {
 	Undraw();
 	m_id = tid;
-	m_id.uid = m_uid;
+	m_id.SetU1(m_uid);
+	m_id.SetU2(m_uid);
 	m_x = x;
 	m_y = y;
 	m_angle = angle;
@@ -76,10 +76,7 @@ void CText::Draw( CDisplayList * dlist, SMFontUtil * smfontutil )
 
 		// make stroke array
  		id tid = m_id;
-		if( tid.type == ID_TEXT )
-			tid.st = ID_STROKE;
-		else
-			tid.sst = ID_STROKE;
+		tid.SetT3( ID_STROKE );
 		m_stroke.SetSize( 1000 );
 
 		CPoint si, sf;
@@ -131,7 +128,7 @@ void CText::Draw( CDisplayList * dlist, SMFontUtil * smfontutil )
 				RotatePoint( &si, m_angle, zero );
 				RotatePoint( &sf, m_angle, zero );
 				// add x, y
-				tid.i = i;
+				tid.SetI2( i );
 				m_stroke[i].w = m_stroke_width;
 				m_stroke[i].xi = m_x + si.x;
 				m_stroke[i].yi = m_y + si.y;
@@ -172,13 +169,15 @@ void CText::Draw( CDisplayList * dlist, SMFontUtil * smfontutil )
 			RotatePoint( &si, m_angle, zero );
 			RotatePoint( &sf, m_angle, zero );
 			// draw it
-			if( tid.type == ID_TEXT )
-				tid.st = ID_SEL_TXT;
-			else if( tid.type == ID_PART && tid.st == ID_VALUE_TXT )
-				tid.st = ID_SEL_VALUE_TXT;
-			else if( tid.type == ID_PART && tid.st == ID_REF_TXT )
-				tid.st = ID_SEL_REF_TXT;
-			tid.i = 0;
+			if( tid.IsText() )
+				tid.SetT2( ID_TEXT );
+			else if( tid.IsRefText() )
+				tid.SetT2( ID_VALUE_TXT );
+			else if( tid.IsValueText() )
+				tid.SetT2( ID_REF_TXT );
+			else
+				ASSERT(0);
+			tid.SetT3( ID_SEL_TXT );
 			dl_sel = dlist->AddSelector( tid, this, m_layer, DL_HOLLOW_RECT, 1,
 				0, 0, m_x + si.x, m_y + si.y, m_x + sf.x, m_y + sf.y, m_x + si.x, m_y + si.y );
 			m_dlist = dlist;
@@ -304,7 +303,7 @@ CText * CTextList::AddText( int x, int y, int angle, int mirror, BOOL bNegative,
 						   int font_size, int stroke_width, CString * str_ptr, BOOL draw_flag )
 {
 	// create new CText and put pointer into text_ptr[]
-	id tid(ID_TEXT, 0, 0, 0, 0, -1, -1, -1);
+	id tid(ID_TEXT, -1, ID_TEXT );
 	if( draw_flag )
 	{
 		CText * text = new CText();
@@ -586,7 +585,7 @@ void CTextList::TextUndoCallback( int type, void * ptr, BOOL undo )
 			if( !pcb_cuid.RequestUID( un_t->m_uid ) )
 				ASSERT(0);
 			new_text->m_uid = un_t->m_uid;
-			new_text->m_id.uid = un_t->m_uid;
+			new_text->m_id.SetU1(un_t->m_uid);
 			new_text->Draw( tlist->m_dlist, tlist->m_smfontutil );
 		}
 	}
@@ -607,16 +606,22 @@ void CTextList::MoveOrigin( int x_off, int y_off )
 	}
 }
 
-// return text that matches guid
+// return text that matches uid
 //
-CText * CTextList::GetText( int uid )
+CText * CTextList::GetText( int uid, int * index )
 {
 	CIterator_CText iter_t(this);
 	for( CText * t = iter_t.GetFirst(); t != NULL; t = iter_t.GetNext() )		
 	{
 		if( t->m_uid == uid )
+		{
+			if( index )
+				*index = iter_t.GetIndex();
 			return t;
+		}
 	}
+	if( index )
+		*index = -1;
 	return NULL;
 }
 
@@ -750,6 +755,13 @@ CText * CIterator_CText::GetNext()
 		m_pCurrentText = NULL;
 	}
 	return m_pCurrentText;
+}
+
+// get index of current item
+//
+int CIterator_CText::GetIndex()
+{
+	return m_CurrentPos;
 }
 
 // call this function if a CText is being removed from the CTextList

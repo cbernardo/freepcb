@@ -22,21 +22,25 @@
 #include <afxext.h>         // MFC extensions
 #include <afxdisp.h>        // MFC Automation classes
 #include <afxdtctl.h>		// MFC support for Internet Explorer 4 Common Controls
+
 #ifndef _AFX_NO_AFXCMN_SUPPORT
 #include <afxcmn.h>			// MFC support for Windows Common Controls
 #endif // _AFX_NO_AFXCMN_SUPPORT
 
 #include <afxdhtml.h>
 #include <afxdlgs.h>
+#include <afxcoll.h>
+#include <afxtempl.h>
 #include <direct.h>
 #include <shlwapi.h>
 #include <sys/types.h>
 #include <sys/stat.h>
- 
+
 #include "MainFrm.h"
 #include "FreePcb.h"
-#include "PolyLine.h"
-#include "NetList.h" 
+#include "NetList.h"
+#include "Net.h"
+#include "Net.h"
 #include "DisplayList.h"
 #include "PartList.h"
 #include "FreePcbView.h"
@@ -44,7 +48,6 @@
 #include "FootprintView.h"
 #include "file_io.h"
 #include "utility.h"
-#include "ids.h"
 #include "layers.h"
 #include "Shape.h"
 #include "PcbFont.h"
@@ -54,6 +57,8 @@
 #include "UndoList.h" 
 #include "flags.h" 
 #include "DlgLog.h" 
+#include "PolyLine.h"
+#include "ids.h"
 
 #define ASSERT(f) assert(f)	//changed ASSERT() to work in release versions if NDEBUG undefined
 
