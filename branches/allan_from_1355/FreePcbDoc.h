@@ -23,9 +23,9 @@ class CFreePcbDoc;
 class CFreePcbView;
 
 
+
 struct undo_board_outline {
-	int ncorners;
-	// array of undo_corners starts here 
+	// undo_poly struct starts here 
 };
 
 struct undo_sm_cutout {
@@ -79,6 +79,8 @@ public:
 	int WriteFootprints( CStdioFile * file, CMapStringToPtr * cache_map=NULL );
 	CShape * GetFootprintPtr( CString name );
 	void MakeLibraryMaps( CString * fullpath );
+	CPolyLine * GetBoardOutlineByUID( int uid, int * index=NULL );
+	CPolyLine * GetMaskCutoutByUID( int uid, int * index=NULL );
 	void ReadBoardOutline( CStdioFile * pcb_file, CArray<CPolyLine> * bd=NULL );
 	void WriteBoardOutline( CStdioFile * pcb_file, CArray<CPolyLine> * bd=NULL );
 	void ReadSolderMaskCutouts( CStdioFile * pcb_file, CArray<CPolyLine> * sm=NULL );

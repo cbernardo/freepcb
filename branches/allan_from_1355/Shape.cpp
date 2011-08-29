@@ -1664,15 +1664,15 @@ BOOL CShape::Compare( CShape * shape )
 	for( int it=0; it<m_tl->text_ptr.GetSize(); it++ )
 	{
 		CText * t = m_tl->text_ptr[it];
-		CText * st = shape->m_tl->text_ptr[it];
-		if( t->m_x != st->m_x
-			|| t->m_y != st->m_y
-			|| t->m_layer != st->m_layer
-			|| t->m_angle != st->m_angle
-			|| t->m_mirror != st->m_mirror
-			|| t->m_font_size != st->m_font_size
-			|| t->m_stroke_width != st->m_stroke_width
-			|| t->m_str != st->m_str )
+		CText * t2 = shape->m_tl->text_ptr[it];
+		if( t->m_x != t2->m_x
+			|| t->m_y != t2->m_y
+			|| t->m_layer != t2->m_layer
+			|| t->m_angle != t2->m_angle
+			|| t->m_mirror != t2->m_mirror
+			|| t->m_font_size != t2->m_font_size
+			|| t->m_stroke_width != t2->m_stroke_width
+			|| t->m_str != t2->m_str )
 			return FALSE;
 	}
 	return TRUE;
@@ -2621,14 +2621,14 @@ CEditShape::~CEditShape()
 void CEditShape::Draw( CDisplayList * dlist, SMFontUtil * fontutil )
 {
 	id p_id;
-	p_id.type = ID_PART;
+	p_id.SetT1(ID_PART);
 
 	// first, undraw
 	Undraw();
 
 	// draw pins
 	m_dlist = dlist;  
-	p_id.st = ID_PAD;
+	p_id.SetT2( ID_PAD );
 	int npads = GetNumPins();
 	m_hole_el.SetSize( npads );
 	m_pad_top_el.SetSize( npads );
@@ -2645,7 +2645,7 @@ void CEditShape::Draw( CDisplayList * dlist, SMFontUtil * fontutil )
 		int sel_y = 0;	// height of selection rect
 		padstack * ps = &m_padstack[i];
 		CPoint pin;
-		p_id.i = i;
+		p_id.SetI2( i );
 		pin.x = ps->x_rel;
 		pin.y = ps->y_rel;
 		dl_element * pad_sel;
@@ -2707,7 +2707,7 @@ void CEditShape::Draw( CDisplayList * dlist, SMFontUtil * fontutil )
 					gtype = DL_CIRC;
 				else
 					gtype = DL_HOLLOW_CIRC;
-				p_id.st = ID_PAD;
+				p_id.SetT2( ID_PAD );
 				*pad_el = dlist->Add( p_id, NULL, pad_lay, 
 					gtype, 1, 
 					p->size_h,
@@ -2718,7 +2718,7 @@ void CEditShape::Draw( CDisplayList * dlist, SMFontUtil * fontutil )
 			}
 			else if( p->shape == PAD_SQUARE )
 			{
-				p_id.st = ID_PAD;
+				p_id.SetT2( ID_PAD );
 				if( pad_lay >= LAY_FP_TOP_COPPER && pad_lay <= LAY_FP_BOTTOM_COPPER )
 				{
 					*pad_el = dlist->Add( p_id, NULL, pad_lay, 
@@ -2758,7 +2758,7 @@ void CEditShape::Draw( CDisplayList * dlist, SMFontUtil * fontutil )
 					RotatePoint( &pad_pf, ps->angle, pin );
 				}
 				// add pad to dlist
-				p_id.st = ID_PAD;
+				p_id.SetT2( ID_PAD );
 				gtype = DL_RECT;
 				if( pad_lay >= LAY_FP_TOP_COPPER && pad_lay <= LAY_FP_BOTTOM_COPPER )
 				{
@@ -2787,7 +2787,7 @@ void CEditShape::Draw( CDisplayList * dlist, SMFontUtil * fontutil )
 			}
 			else if( p->shape == PAD_OCTAGON )
 			{
-				p_id.st = ID_PAD;
+				p_id.SetT2( ID_PAD );
 				gtype = DL_OCTAGON;
 				if( pad_lay < LAY_FP_TOP_COPPER || pad_lay > LAY_FP_BOTTOM_COPPER )
 					gtype = DL_HOLLOW_OCTAGON;
@@ -2807,7 +2807,7 @@ void CEditShape::Draw( CDisplayList * dlist, SMFontUtil * fontutil )
 		if( ps->hole_size )
 		{
 			// add to display list
-			p_id.st = ID_PAD;
+			p_id.SetT2( ID_PAD );
 			m_hole_el[i] = dlist->Add( p_id, NULL, LAY_FP_PAD_THRU, 
 				DL_HOLE, 1, 
 				ps->hole_size,
@@ -2819,7 +2819,7 @@ void CEditShape::Draw( CDisplayList * dlist, SMFontUtil * fontutil )
 		if( sel_x && sel_y )
 		{
 			// add selector
-			p_id.st = ID_SEL_PAD;
+			p_id.SetT2( ID_SEL_PAD );
 			m_pad_sel[i] = dlist->AddSelector( p_id, NULL, LAY_FP_PAD_THRU, 
 				DL_HOLLOW_RECT, 1, 1, 0,
 				pin.x-sel_x/2,  
@@ -2831,7 +2831,7 @@ void CEditShape::Draw( CDisplayList * dlist, SMFontUtil * fontutil )
 	}
 
 	// draw ref designator text
-	id rid( ID_PART, ID_REF_TXT );
+	id rid( ID_PART, -1, ID_REF_TXT );
 	BOOL bMirror = (m_ref_layer == LAY_FP_SILK_BOTTOM || m_ref_layer == LAY_FP_BOTTOM_COPPER) ;
 	CString r_str( "REF" );
 	m_ref_text.Init( m_dlist, rid, m_ref_xi, m_ref_yi, m_ref_angle,
@@ -2839,7 +2839,7 @@ void CEditShape::Draw( CDisplayList * dlist, SMFontUtil * fontutil )
 			fontutil, &r_str );
 
 	// draw value text
-	id vid( ID_PART, ID_VALUE_TXT );
+	id vid( ID_PART, -1, ID_VALUE_TXT );
 	bMirror = (m_value_layer == LAY_FP_SILK_BOTTOM || m_value_layer == LAY_FP_BOTTOM_COPPER) ;
 	CString v_str( "VALUE" );
 	m_value_text.Init( m_dlist, vid, m_value_xi, m_value_yi, m_value_angle,
@@ -2847,10 +2847,10 @@ void CEditShape::Draw( CDisplayList * dlist, SMFontUtil * fontutil )
 			fontutil, &v_str );
 
 	// now draw outline polylines
-	p_id.st = ID_OUTLINE;
+	p_id.SetT2( ID_OUTLINE );
 	for( int i=0; i<m_outline_poly.GetSize(); i++ )
 	{
-		p_id.i = i;
+		p_id.SetI2( i );
 		int sel_box_size = m_outline_poly[i].GetW();
 		sel_box_size = max( sel_box_size, 5*NM_PER_MIL );
 		m_outline_poly[i].SetSelBoxSize( sel_box_size );
@@ -2867,7 +2867,7 @@ void CEditShape::Draw( CDisplayList * dlist, SMFontUtil * fontutil )
 	}
 
 	// draw centroid
-	id c_id( ID_CENTROID, ID_CENT );
+	id c_id( ID_CENTROID, -1, ID_CENT );
 	int axis_offset_x = 0;
 	int axis_offset_y = 0;
 	if( m_centroid_angle == 0 )
@@ -2882,7 +2882,7 @@ void CEditShape::Draw( CDisplayList * dlist, SMFontUtil * fontutil )
 		CENTROID_WIDTH, 0, m_centroid_x, m_centroid_y, 
 		m_centroid_x+axis_offset_x, m_centroid_y + axis_offset_y, 
 		0, 0, 0 ); 
-	c_id.st = ID_SEL_CENT; 
+	c_id.SetT2( ID_SEL_CENT ); 
 	m_centroid_sel = m_dlist->AddSelector( c_id, NULL, LAY_FP_CENTROID, DL_HOLLOW_RECT, 
 		TRUE, 0, 0, 
 		m_centroid_x-CENTROID_WIDTH/2, 
@@ -2901,10 +2901,10 @@ void CEditShape::Draw( CDisplayList * dlist, SMFontUtil * fontutil )
 		int w = g->w;
 		if( w == 0 )
 			w = DEFAULT_GLUE_WIDTH;
-		id g_id( ID_GLUE, ID_SPOT, idot );
+		id g_id( ID_GLUE, -1, ID_SPOT, -1, idot );
 		m_dot_el[idot] = m_dlist->Add( g_id, NULL, LAY_FP_DOT, DL_CIRC, TRUE, 
 			w, 0, g->x_rel, g->y_rel, 0, 0, 0, 0, 0 ); 
-		g_id.st = ID_SEL_SPOT;
+		g_id.SetT2( ID_SEL_SPOT );
 		m_dot_sel[idot] = m_dlist->AddSelector( g_id, NULL, LAY_FP_DOT, DL_HOLLOW_RECT, 
 			TRUE, 0, 0, 
 			g->x_rel-w/2, 

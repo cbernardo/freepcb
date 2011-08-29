@@ -490,6 +490,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\ids.cpp"
+				>
+			</File>
+			<File
 				RelativePath="ivex_mod_file.cpp"
 				>
 			</File>

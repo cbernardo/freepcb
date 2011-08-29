@@ -75,7 +75,7 @@ public:
 	~DRErrorList();
 	void SetLists( CPartList * pl, CNetList * nl, CDisplayList * dl );
 	void Clear();
-	DRError * Add( long index, int st, CString * str, 
+	DRError * Add( long index, int t2, CString * str, 
 		CString * name1, CString * name2, id id1, id id2,
 		int x1, int y1, int x2, int y2, int w, int layer );
 	void Remove( DRError * dre );

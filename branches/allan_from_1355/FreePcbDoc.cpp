@@ -45,6 +45,7 @@ static char THIS_FILE[] = __FILE__;
 #endif
 
 extern CFreePcbApp theApp;
+extern Cuid pcb_cuid;
 
 CFreePcbDoc * this_Doc;		// global for callback
 
@@ -1302,7 +1303,7 @@ void CFreePcbDoc::ReadBoardOutline( CStdioFile * pcb_file, CArray<CPolyLine> * b
 							(*bd)[ib].SetDisplayList( NULL );
 						else
 							(*bd)[ib].SetDisplayList( m_dlist );
-						id bid( ID_BOARD, ID_BOARD_OUTLINE, ib );
+						id bid( ID_BOARD, -1, ID_BOARD_OUTLINE, -1, ib );
 						(*bd)[ib].Start( LAY_BOARD_OUTLINE, 1, 20*NM_PER_MIL, x, y, 
 							0, &bid, NULL );
 					}
@@ -1422,7 +1423,7 @@ void CFreePcbDoc::ReadSolderMaskCutouts( CStdioFile * pcb_file, CArray<CPolyLine
 					}
 					int x = my_atoi( &p[1] );
 					int y = my_atoi( &p[2] );
-					id id_sm( ID_SM_CUTOUT, ID_SM_CUTOUT, ic );
+					id id_sm( ID_MASK, -1, ID_MASK, -1, ic );
 					if( icor == 0 )
 					{
 						// make new cutout 
@@ -3579,16 +3580,11 @@ undo_board_outline * CFreePcbDoc::CreateBoardOutlineUndoRecord( CPolyLine * poly
 {
 	// create undo record for board outline
 	undo_board_outline * undo;
-	int ncorners = poly->GetNumCorners();
-	undo = (undo_board_outline*)malloc( sizeof(undo_board_outline)+ncorners*sizeof(undo_corner));
-	undo->ncorners = poly->GetNumCorners();
-	undo_corner * corner = (undo_corner*)((UINT)undo + sizeof(undo_board_outline));
-	for( int ic=0; ic<ncorners; ic++ )
-	{
-		corner[ic].x = poly->GetX( ic );
-		corner[ic].y = poly->GetY( ic );
-		corner[ic].style = poly->GetSideStyle( ic );
-	}
+	int size = poly->SizeOfUndoRecord();
+	undo = (undo_board_outline*)malloc( sizeof(undo_board_outline) + size );
+	//** if there were any variables of undo_board_outline, they would be set here
+	undo_poly * un_poly = (undo_poly*)((UINT)undo + sizeof(undo_board_outline));
+	poly->CreateUndoRecord( un_poly ); 
 	return undo;
 }
 
@@ -3600,24 +3596,41 @@ void CFreePcbDoc::BoardOutlineUndoCallback( int type, void * ptr, BOOL undo )
 	{
 		if( type == CFreePcbView::UNDO_BOARD_OUTLINE_CLEAR_ALL ) 
 		{
-			// remove all cutouts
+			// remove all outlines
 			this_Doc->m_board_outline.RemoveAll();
 		}
 		else
 		{
-			// restore cutout from undo record
+			// add outline from undo record
 			undo_board_outline * un_bd = (undo_board_outline*)ptr;
-			undo_corner * corner = (undo_corner*)((UINT)un_bd + sizeof(undo_board_outline));
+			undo_poly * un_poly = (undo_poly*)((UINT)un_bd + sizeof(undo_board_outline));
+			undo_corner * un_corner = (undo_corner*)((UINT)un_poly + sizeof(undo_poly));
+			// create new outline
 			int i = this_Doc->m_board_outline.GetSize();
 			this_Doc->m_board_outline.SetSize(i+1);
 			CPolyLine * poly = &this_Doc->m_board_outline[i];
 			poly->SetDisplayList( this_Doc->m_dlist );
+			poly->SetFromUndo( un_poly );
+#if 0
 			id bd_id( ID_BOARD, ID_BOARD, i );
-			poly->Start( LAY_BOARD_OUTLINE, 1, 10*NM_PER_MIL, 
-				corner[0].x, corner[0].y, 0, &bd_id, NULL );
-			for( int ic=1; ic<un_bd->ncorners; ic++ )
-				poly->AppendCorner( corner[ic].x, corner[ic].y, corner[ic-1].style );
-			poly->Close( corner[un_bd->ncorners-1].style );
+			poly->Start( un_poly->layer, un_poly->width, un_poly->sel_box, 
+				un_corner[0].x, un_corner[0].y, un_poly->hatch, &bd_id, NULL );
+			pcb_cuid.ReplaceUID( poly->GetUID(0), un_corner[0].uid );
+			poly->SetUID( 0, un_corner[0].uid );
+			int nc = un_poly->ncorners;
+			for( int ic=1; ic<nc; ic++ )
+			{
+				poly->AppendCorner( un_corner[ic].x, un_corner[ic].y, un_corner[ic-1].side_style );
+				pcb_cuid.ReplaceUID( poly->GetUID(ic), un_corner[ic].uid );
+				poly->SetUID( ic, un_corner[ic].uid ); 
+				pcb_cuid.ReplaceUID( poly->GetSideUID(ic-1), un_corner[ic-1].side_uid );
+				poly->SetSideUID( ic-1, un_corner[ic-1].side_uid ); 
+			}
+			poly->Close( un_corner[nc-1].side_style );
+			pcb_cuid.ReplaceUID( poly->GetSideUID(nc-1), un_corner[nc-1].side_uid );
+			poly->SetSideUID( nc-1, un_corner[nc-1].side_uid ); 
+			poly->Draw(); 
+#endif
 		}
 	}
 	delete ptr;
@@ -3638,9 +3651,11 @@ undo_sm_cutout * CFreePcbDoc::CreateSMCutoutUndoRecord( CPolyLine * poly )
 	undo_corner * corner = (undo_corner*)((UINT)undo + sizeof(undo_sm_cutout));
 	for( int ic=0; ic<ncorners; ic++ )
 	{
+		corner[ic].uid = poly->GetCornerUID( ic );
 		corner[ic].x = poly->GetX( ic );
 		corner[ic].y = poly->GetY( ic );
-		corner[ic].style = poly->GetSideStyle( ic );
+		corner[ic].side_uid = poly->GetSideUID( ic );
+		corner[ic].side_style = poly->GetSideStyle( ic );
 	}
 	return undo;
 }
@@ -3665,12 +3680,25 @@ void CFreePcbDoc::SMCutoutUndoCallback( int type, void * ptr, BOOL undo )
 			this_Doc->m_sm_cutout.SetSize(i+1);
 			CPolyLine * poly = &this_Doc->m_sm_cutout[i];
 			poly->SetDisplayList( this_Doc->m_dlist );
-			id sm_id( ID_SM_CUTOUT, ID_SM_CUTOUT, i );
+			id sm_id( ID_MASK, -1, ID_MASK, -1, i );
 			poly->Start( un_sm->layer, 1, 10*NM_PER_MIL, 
 				corner[0].x, corner[0].y, un_sm->hatch_style, &sm_id, NULL );
+			pcb_cuid.ReplaceUID( poly->GetCornerUID(0), corner[0].uid );
+			poly->SetCornerUID( 0, corner[0].uid );
+
 			for( int ic=1; ic<un_sm->ncorners; ic++ )
-				poly->AppendCorner( corner[ic].x, corner[ic].y, corner[ic-1].style );
-			poly->Close( corner[un_sm->ncorners-1].style );
+			{
+				poly->AppendCorner( corner[ic].x, corner[ic].y, corner[ic-1].side_style );
+				pcb_cuid.ReplaceUID( poly->GetCornerUID(ic), corner[ic].uid );
+				poly->SetCornerUID( ic, corner[ic].uid );
+				pcb_cuid.ReplaceUID( poly->GetSideUID(ic-1), corner[ic].side_uid );
+				poly->SetSideUID( ic-1, corner[ic].side_uid );
+			}
+
+			poly->Close( corner[un_sm->ncorners-1].side_style );
+			pcb_cuid.ReplaceUID( poly->GetSideUID(un_sm->ncorners-1), corner[un_sm->ncorners-1].side_uid );
+			poly->SetSideUID(un_sm->ncorners-1, corner[un_sm->ncorners-1].side_uid );
+			poly->Draw();
 		}
 	}
 	delete ptr;
@@ -4221,6 +4249,41 @@ void CFreePcbDoc::PurgeFootprintCache()
 		}
 	}
 }
+
+CPolyLine * CFreePcbDoc::GetBoardOutlineByUID( int uid, int * index )
+{
+	int nb = m_board_outline.GetSize();
+	for( int ib=0; ib<nb; ib++ )
+	{
+		if( uid == m_board_outline[ib].GetUID() )
+		{
+			if( index )
+				*index = ib;
+			return &m_board_outline[ib];
+		}
+	}
+	if( index )
+		*index = -1;
+	return NULL;
+}
+
+CPolyLine * CFreePcbDoc::GetMaskCutoutByUID( int uid, int * index )
+{
+	int nb = m_sm_cutout.GetSize();
+	for( int ib=0; ib<nb; ib++ )
+	{
+		if( uid == m_sm_cutout[ib].GetUID() )
+		{
+			if( index )
+				*index = ib;
+			return &m_sm_cutout[ib];
+		}
+	}
+	if( index )
+		*index = -1;
+	return NULL;
+}
+
 
 
 void CFreePcbDoc::OnFilePrint()
