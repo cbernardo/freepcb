@@ -268,7 +268,7 @@ void DrawClearanceInForeignAreas( cnet * net, int shape,
 			// foreign net, see if possible intersection
 			cnet * area_net = (*area_net_list)[ia];
 			carea * area = (*area_list)[ia];
-			CPolyLine * p = area->poly;
+			CPolyLine * p = area;
 			BOOL bIntersection = FALSE;
 			if( shape == PAD_NONE )
 				ASSERT(0);
@@ -464,9 +464,9 @@ void DrawClearanceInForeignAreas( cnet * net, int shape,
 				gpc_intersection.hole = NULL;
 				gpc_intersection.contour = NULL;
 				// make area GpcPoly if not already made, including cutouts
-				if( area->poly->GetGpcPoly()->num_contours == 0 )
-					area->poly->MakeGpcPoly( -1 );
-				gpc_polygon_clip( GPC_INT, &gpc_seg_poly, area->poly->GetGpcPoly(),
+				if( area->GetGpcPoly()->num_contours == 0 )
+					area->MakeGpcPoly( -1 );
+				gpc_polygon_clip( GPC_INT, &gpc_seg_poly, area->GetGpcPoly(),
 					&gpc_intersection );
 				int ncontours = gpc_intersection.num_contours;
 				for( int ic=0; ic<ncontours; ic++ )
@@ -828,7 +828,7 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 			// loop through all areas
 			for( int ia=0; ia<net->NumAreas(); ia++ )
 			{
-				CPolyLine * p = net->area[ia].poly;
+				CPolyLine * p = &net->area[ia];
 				if( p->GetLayer() == layer )
 				{
 					// area on this layer, add to lists
@@ -859,7 +859,7 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 				for( int ia=0; ia<net->NumAreas(); ia++ )
 				{
 					net->area[ia].utility = INT_MAX;		// mark as undrawn
-					CPolyLine * p = net->area[ia].poly;
+					CPolyLine * p = &net->area[ia];
 					if( p->GetLayer() == layer )
 					{
 						// area on this layer, add to lists
@@ -891,7 +891,7 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 							for( int cutout_ia=0; cutout_ia<cutout_net->NumAreas(); cutout_ia++ )
 							{
 								carea * cutout_a = &cutout_net->area[cutout_ia];
-								CPolyLine * cutout_p = cutout_a->poly;
+								CPolyLine * cutout_p = cutout_a;
 								if( cutout_p->GetLayer() == layer )
 								{
 									// loop through all cutouts
@@ -974,13 +974,13 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 					for( int ia=0; ia<net->NumAreas(); ia++ )
 					{
 						carea * a = &net->area[ia];
-						if( a->poly->GetLayer() == layer )
+						if( a->GetLayer() == layer )
 						{
 							if ( a->utility == area_pass )
 							{
 								// draw outline polygon
 								// make GpcPoly for outer contour of area
-								a->poly->MakeGpcPoly();
+								a->MakeGpcPoly();
 								// draw area
 								areas_present = TRUE;
 								f->WriteString( "\nG04 ----------------------- Draw copper area (positive)*\n" );
@@ -991,22 +991,22 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 								}
 								f->WriteString( "G36*\n" );
 								int x, y, style;
-								int last_x = a->poly->GetX(0);
-								int last_y = a->poly->GetY(0);
+								int last_x = a->GetX(0);
+								int last_y = a->GetY(0);
 								::WriteMoveTo( f, last_x, last_y, LIGHT_OFF );
-								int nc = a->poly->GetContourSize(0);
+								int nc = a->GetContourSize(0);
 								for( int ic=1; ic<nc; ic++ )
 								{
-									x = a->poly->GetX(ic);
-									y = a->poly->GetY(ic);
-									style = a->poly->GetSideStyle(ic-1);
+									x = a->GetX(ic);
+									y = a->GetY(ic);
+									style = a->GetSideStyle(ic-1);
 									::WritePolygonSide( f, last_x, last_y, x, y, style, 10, LIGHT_ON );
 									last_x = x;
 									last_y = y;
 								}
-								x = a->poly->GetX(0);
-								y = a->poly->GetY(0);
-								style = a->poly->GetSideStyle(nc-1);
+								x = a->GetX(0);
+								y = a->GetY(0);
+								style = a->GetSideStyle(nc-1);
 								::WritePolygonSide( f, last_x, last_y, x, y, style, 10, LIGHT_ON );
 								f->WriteString( "G37*\n" );
 							}
@@ -1024,11 +1024,11 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 					for( int ia=0; ia<net->NumAreas(); ia++ )
 					{
 						carea * a = &net->area[ia];
-						if ( a->utility == area_pass && a->poly->GetLayer() == layer )
+						if ( a->utility == area_pass && a->GetLayer() == layer )
 						{
 							// draw cutout polygons
 							// make clearances for area cutouts
-							CPolyLine * p = net->area[ia].poly;
+							CPolyLine * p = &net->area[ia];
 							if( p->GetLayer() == layer )
 							{
 								for( int icont=1; icont<p->GetNumContours(); icont++ )
@@ -1044,21 +1044,21 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 									}
 									f->WriteString( "G36*\n" );
 									int x, y, style;
-									int last_x = net->area[ia].poly->GetX(ic_st);
-									int last_y = net->area[ia].poly->GetY(ic_st);
+									int last_x = net->area[ia].GetX(ic_st);
+									int last_y = net->area[ia].GetY(ic_st);
 									::WriteMoveTo( f, last_x, last_y, LIGHT_OFF );
 									for( int ic=ic_st+1; ic<=ic_end; ic++ )
 									{
-										x = net->area[ia].poly->GetX(ic);
-										y = net->area[ia].poly->GetY(ic);
-										style = net->area[ia].poly->GetSideStyle(ic-1);
+										x = net->area[ia].GetX(ic);
+										y = net->area[ia].GetY(ic);
+										style = net->area[ia].GetSideStyle(ic-1);
 										::WritePolygonSide( f, last_x, last_y, x, y, style, 10, LIGHT_ON );
 										last_x = x;
 										last_y = y;
 									}
-									x = net->area[ia].poly->GetX(ic_st);
-									y = net->area[ia].poly->GetY(ic_st);
-									style = net->area[ia].poly->GetSideStyle(ic_end);
+									x = net->area[ia].GetX(ic_st);
+									y = net->area[ia].GetY(ic_st);
+									style = net->area[ia].GetSideStyle(ic_end);
 									::WritePolygonSide( f, last_x, last_y, x, y, style, 10, LIGHT_ON );
 									f->WriteString( "G37*\n" );
 								}
@@ -1080,7 +1080,7 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 				for( int ia=0; ia<net->NumAreas(); ia++ )
 				{
 					carea * a = &net->area[ia];
-					CPolyLine * p = a->poly;
+					CPolyLine * p = a;
 					p->FreeGpcPoly();
 				}
 				net = iter_net.GetNext();
@@ -1452,7 +1452,7 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 								BOOL bIntOwnNet = FALSE;
 								for( int ia=0; ia<net->NumAreas(); ia++ )
 								{
-									CPolyLine * poly = net->area[ia].poly; 
+									CPolyLine * poly = &net->area[ia]; 
 									if( poly->TestPointInside( xi, yi ) )
 									{
 										bIntOwnNet = TRUE;

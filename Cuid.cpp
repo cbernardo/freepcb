@@ -6,7 +6,11 @@
 #include "stdafx.h"
 #include "Cuid.h"
 
+// global Cuid
 Cuid pcb_cuid;
+
+// global pointer to the document
+extern CFreePcbDoc * pcb;
 
 Cuid::Cuid()
 {
@@ -81,6 +85,21 @@ int Cuid::GetNewUID()
 			if( n_uids > MAX_VALUE/2 )
 				ASSERT(0);				// too many uids assigned
 			int uid = (i<<5) + npos;
+#if 0
+			//** for debugging, break on certain uids
+			if(		uid == 95904
+				 || uid == 286240
+				 || uid == 469760
+				 || uid == 841120
+				 || uid == -1
+				 || uid == -1
+				 || uid == -1
+				 || uid == -1
+				 || uid == -1
+				 || uid == -1 )
+				 ASSERT(0);
+			//**
+#endif
 			return uid;
 		}
 		test_bits >>= 1;	// shift right
@@ -160,4 +179,22 @@ BOOL Cuid::ReplaceUID( int old_uid, int new_uid )
 {
 	ReleaseUID( old_uid );
 	return( RequestUID( new_uid ) );
+}
+
+// If new_uid == -1, get a new one
+// otherwise, check to see if new_uid is already assigned and if not, request it
+// return the new uid
+//
+int Cuid::GetAndReplaceUID( int old_uid, int new_uid )
+{
+	ReleaseUID( old_uid );
+	if( new_uid == -1 )
+	{
+		return GetNewUID();	
+	}
+	if( CheckUID( new_uid ) )
+	{
+			RequestUID( new_uid );
+	}
+	return new_uid;
 }

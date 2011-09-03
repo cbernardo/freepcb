@@ -77,17 +77,17 @@ CPolyLine::CPolyLine()
 	bDrawn = 0;
 }
 
-// destructor, removes display elements
+// destructor, remove all elements
 //
 CPolyLine::~CPolyLine()
 {
 	Undraw();
+	corner.SetSize(0);
+	side.SetSize(0);
 	FreeGpcPoly();
 	delete m_gpc_poly;
 	delete m_php_poly;
 	pcb_cuid.ReleaseUID( m_uid );
-//	if( m_closed )
-//		DeleteObject( m_hrgn );
 }
 
 // must be set for drawing
@@ -128,7 +128,7 @@ void CPolyLine::SetFromUndo( undo_poly * un_poly )
 
 // create undo record for PolyLine;
 //
-void CPolyLine::CreateUndoRecord( undo_poly * un_poly )
+void CPolyLine::CreatePolyUndoRecord( undo_poly * un_poly )
 {
 	int ncorners = GetNumCorners();
 
@@ -167,7 +167,9 @@ int CPolyLine::NormalizeWithGpc( CArray<CPolyLine*> * pa, BOOL bRetainArcs )
 	else
 		MakeGpcPoly( -1, NULL );
 
-	Undraw();
+	BOOL bWasDrawn = bDrawn;
+	if( bDrawn )
+		Undraw();
 
 	// now, recreate poly
 	// first, find outside contours and create new CPolyLines if necessary
@@ -191,7 +193,7 @@ int CPolyLine::NormalizeWithGpc( CArray<CPolyLine*> * pa, BOOL bRetainArcs )
 						if( i==0 )
 							Start( m_layer, m_w, m_sel_box, x, y, m_hatch, &m_root_id, m_ptr );
 						else
-							AppendCorner( x, y, STRAIGHT, FALSE );
+							AppendCorner( x, y, STRAIGHT );
 					}
 					Close();
 					n_ext_cont++;
@@ -208,11 +210,11 @@ int CPolyLine::NormalizeWithGpc( CArray<CPolyLine*> * pa, BOOL bRetainArcs )
 					int x = ((m_gpc_poly->contour)[ic].vertex)[i].x;
 					int y = ((m_gpc_poly->contour)[ic].vertex)[i].y;
 					if( i==0 )
-						poly->Start( m_layer, m_w, m_sel_box, x, y, m_hatch, &m_root_id, m_ptr );
+						poly->Start( m_layer, m_w, m_sel_box, x, y, m_hatch, &m_root_id, m_ptr, FALSE );
 					else
-						poly->AppendCorner( x, y, STRAIGHT, FALSE );
+						poly->AppendCorner( x, y, STRAIGHT );
 				}
-				poly->Close( STRAIGHT, FALSE );
+				poly->Close( STRAIGHT );
 				n_ext_cont++;
 			}
 		}
@@ -259,14 +261,17 @@ int CPolyLine::NormalizeWithGpc( CArray<CPolyLine*> * pa, BOOL bRetainArcs )
 			{
 				int x = ((m_gpc_poly->contour)[ic].vertex)[i].x;
 				int y = ((m_gpc_poly->contour)[ic].vertex)[i].y;
-				ext_poly->AppendCorner( x, y, STRAIGHT, FALSE );
+				ext_poly->AppendCorner( x, y, STRAIGHT );
 			}
-			ext_poly->Close( STRAIGHT, FALSE );
+			ext_poly->Close( STRAIGHT );
 		}
 	}
 	if( bRetainArcs )
 		RestoreArcs( &arc_array, pa );
 	FreeGpcPoly();
+
+	if( bWasDrawn )
+		Draw();
 
 	return n_ext_cont;
 }
@@ -700,7 +705,7 @@ int CPolyLine::RestoreArcs( CArray<CArc> * arc_array, CArray<CPolyLine*> * pa )
 		for( int ic=poly->GetNumCorners()-1; ic>=0; ic-- )
 		{
 			if( poly->GetUtility(ic) )
-				poly->DeleteCorner( ic, FALSE );
+				poly->DeleteCorner( ic );
 		}
 	}
 	return 0;
@@ -724,7 +729,7 @@ int CPolyLine::RestoreArcs( CArray<CArc> * arc_array, CArray<CPolyLine*> * pa )
 //	ptr = pointer to net
 //
 void CPolyLine::Start( int layer, int w, int sel_box, int x, int y, 
-					  int hatch, id * set_id, void * ptr )
+					  int hatch, id * set_id, void * ptr, BOOL bDraw )
 {
 	m_layer = layer;
 	m_w = w;
@@ -747,7 +752,7 @@ void CPolyLine::Start( int layer, int w, int sel_box, int x, int y,
 	corner[0].y = y;
 	corner[0].end_contour = FALSE;
 	corner[0].m_uid = pcb_cuid.GetNewUID();
-	if( m_sel_box && m_dlist )
+	if( m_sel_box && m_dlist && bDraw )
 	{
 		// create id for selection rect
 		id sel_id = m_root_id;
@@ -762,9 +767,12 @@ void CPolyLine::Start( int layer, int w, int sel_box, int x, int y,
 
 // add a corner to unclosed polyline
 //
-void CPolyLine::AppendCorner( int x, int y, int style, BOOL bDraw )
+void CPolyLine::AppendCorner( int x, int y, int style )
 {
-	Undraw();
+	BOOL bWasDrawn = bDrawn;
+	if( bDrawn )
+		Undraw();
+
 	// increase size of arrays
 	if( corner.GetSize() < m_ncorners+1 )
 	{
@@ -793,14 +801,18 @@ void CPolyLine::AppendCorner( int x, int y, int style, BOOL bDraw )
 	else
 		ASSERT(0);
 	m_ncorners++;
-	if( bDraw )
+	if( bWasDrawn )
 		Draw();
 }
 
 // close last polyline contour
 //
-void CPolyLine::Close( int style, BOOL bDraw )
+void CPolyLine::Close( int style )
 {
+	BOOL bWasDrawn = bDrawn;
+	if( bDrawn )
+		Undraw();
+
 	if( GetClosed() )
 		ASSERT(0);
 	Undraw();
@@ -809,7 +821,8 @@ void CPolyLine::Close( int style, BOOL bDraw )
 	corner.SetSize( m_ncorners );
 	side.SetSize( m_ncorners );
 	side[m_ncorners-1].m_uid = pcb_cuid.GetNewUID();
-	if( bDraw )
+
+	if( bWasDrawn )
 		Draw();
 }
 
@@ -865,9 +878,12 @@ BOOL CPolyLine::MoveCorner( int ic, int x, int y, BOOL bEnforceCircularArcs )
 
 // delete corner and adjust arrays
 //
-void CPolyLine::DeleteCorner( int ic, BOOL bDraw )
+void CPolyLine::DeleteCorner( int ic )
 {
-	Undraw();
+	BOOL bWasDrawn = bDrawn;
+	if( bWasDrawn )
+		Undraw();
+
 	int icont = GetContour( ic );
 	int istart = GetContourStart( icont );
 	int iend = GetContourEnd( icont );
@@ -895,7 +911,7 @@ void CPolyLine::DeleteCorner( int ic, BOOL bDraw )
 		// delete the entire contour
 		RemoveContour( icont );
 	}
-	if( bDraw )
+	if( bWasDrawn )
 		Draw();
 }
 
@@ -936,7 +952,10 @@ void CPolyLine::InsertCorner( int ic, int x, int y )
 {
 	if( ic == 0 )
 		ASSERT(0);
-	Undraw();
+	BOOL bWasDrawn = bDrawn;
+	if( bWasDrawn )
+		Undraw();
+
 	CPolySide old_side = side[ic-1];
 	corner.InsertAt( ic, CPolyCorner() );
 	CPolyCorner * c = &corner[ic];
@@ -958,7 +977,8 @@ void CPolyLine::InsertCorner( int ic, int x, int y )
 			corner[ic-1].end_contour = FALSE;
 		}
 	}
-	Draw();
+	if( bWasDrawn )
+		Draw();
 }
 
 // undraw polyline by removing all graphic elements from display list
@@ -968,14 +988,17 @@ void CPolyLine::Undraw()
 	if( m_dlist && bDrawn )
 	{
 		// remove display elements, if present
+		for( int i=0; i<GetNumSides(); i++ )
+		{
+			m_dlist->Remove( side[i].dl_side );
+			m_dlist->Remove( side[i].dl_side_sel );
+			side[i].dl_side = NULL;
+			side[i].dl_side_sel = NULL;
+		}
 		for( int i=0; i<m_ncorners; i++ )
 		{
 			m_dlist->Remove( corner[i].dl_corner_sel );
-			m_dlist->Remove( side[i].dl_side );
-			m_dlist->Remove( side[i].dl_side_sel );
 			corner[i].dl_corner_sel = NULL;
-			side[i].dl_side = NULL;
-			side[i].dl_side_sel = NULL;
 		}
 		for( int i=0; i<dl_hatch.GetSize(); i++ )
 			m_dlist->Remove( dl_hatch[i] );
@@ -1489,7 +1512,7 @@ int CPolyLine::GetContourSize( int icont )
 }
 
 
-void CPolyLine::SetSideStyle( int is, int style ) 
+void CPolyLine::SetSideStyle( int is, int style, BOOL bDraw ) 
 {	
 	Undraw();
 	CPoint p1, p2;
@@ -1976,6 +1999,9 @@ void CPolyLine::SetDisplayList( CDisplayList * dl )
 }
 
 // copy data from another poly, but don't draw it
+// 
+// don't copy the UID
+// generate new uids for corners and sides
 //
 void CPolyLine::Copy( CPolyLine * src )
 {
@@ -1992,12 +2018,18 @@ void CPolyLine::Copy( CPolyLine * src )
 	// copy corners
 	corner.SetSize( m_ncorners );
 	for( int i=0; i<m_ncorners; i++ )
+	{
 		corner[i] = src->corner[i];
+		corner[i].m_uid = pcb_cuid.GetNewUID();
+	}
 	// copy side styles
 	int nsides = src->GetNumSides();
 	side.SetSize(nsides);
 	for( int i=0; i<nsides; i++ )
+	{
 		side[i].m_style = src->side[i].m_style;
+		side[i].m_uid = pcb_cuid.GetNewUID();
+	}
 	// don't copy the Gpc_poly, just clear the old one
 	FreeGpcPoly();
 }
@@ -2027,6 +2059,7 @@ void CPolyLine::SetEndContour( int ic, BOOL end_contour ) { corner[ic].end_conto
 void CPolyLine::SetLayer( int layer ) { m_layer = layer; }
 void CPolyLine::SetW( int w ) { m_w = w; }
 
+#if 0
 // Create CPolyLine for a pad
 //
 CPolyLine * CPolyLine::MakePolylineForPad( int type, int x, int y, int w, int l, int r, int angle )
@@ -2042,9 +2075,9 @@ CPolyLine * CPolyLine::MakePolylineForPad( int type, int x, int y, int w, int l,
 	if( type == PAD_ROUND )
 	{
 		poly->Start( 0, 0, 0, x-dx, y, 0, NULL, NULL );
-		poly->AppendCorner( x, y+dy, ARC_CW, 0 );
-		poly->AppendCorner( x+dx, y, ARC_CW, 0 );
-		poly->AppendCorner( x, y-dy, ARC_CW, 0 );
+		poly->AppendCorner( x, y+dy, ARC_CW );
+		poly->AppendCorner( x+dx, y, ARC_CW );
+		poly->AppendCorner( x, y-dy, ARC_CW );
 		poly->Close( ARC_CW );
 	}
 	return poly;
@@ -2074,10 +2107,10 @@ void CPolyLine::AddContourForPadClearance( int type, int x, int y, int w,
 		// normal clearance
 		if( type == PAD_ROUND || (type == PAD_NONE && hole_w > 0) )
 		{
-			AppendCorner( x-dx, y, ARC_CW, 0 );
-			AppendCorner( x, y+dy, ARC_CW, 0 );
-			AppendCorner( x+dx, y, ARC_CW, 0 );
-			AppendCorner( x, y-dy, ARC_CW, 0 );
+			AppendCorner( x-dx, y, ARC_CW );
+			AppendCorner( x, y+dy, ARC_CW );
+			AppendCorner( x+dx, y, ARC_CW );
+			AppendCorner( x, y-dy, ARC_CW );
 			Close( ARC_CW ); 
 		}
 		else if( type == PAD_SQUARE || type == PAD_RECT 
@@ -2175,6 +2208,7 @@ void CPolyLine::AddContourForPadClearance( int type, int x, int y, int w,
 	}
 	return;
 }
+#endif
 
 void CPolyLine::AppendArc( int xi, int yi, int xf, int yf, int xc, int yc, int num )
 {
@@ -2190,7 +2224,7 @@ void CPolyLine::AppendArc( int xi, int yi, int xf, int yf, int xc, int yc, int n
 	{
 		int x = xc + r*cos(theta);
 		int y = yc + r*sin(theta);
-		AppendCorner( x, y, STRAIGHT, 0 );
+		AppendCorner( x, y, STRAIGHT );
 		theta += th_d;
 	}
 	Close( STRAIGHT );

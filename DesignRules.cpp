@@ -394,17 +394,17 @@ void DRErrorList::HighLight( DRError * dre )
 		// add highlight for copper area side
 		cnet * net1 = m_nlist->GetNetPtrByName( &dre->name1 );
 		if( net1 && dre->id1.I2() < net1->NumAreas() )
-			net1->area[dre->id1.I2()].poly->HighlightSide(dre->id1.I3()); 
+			net1->area[dre->id1.I2()].HighlightSide(dre->id1.I3()); 
 	}
 	else if( dre->m_id.T3() == DRError::COPPERAREA_COPPERAREA )
 	{
 		// add highlights for copper area sides
 		cnet * net1 = m_nlist->GetNetPtrByName( &dre->name1 );
 		if( net1 && dre->id1.I2() < net1->NumAreas() )
-			net1->area[dre->id1.I2()].poly->HighlightSide(dre->id1.I3()); 
+			net1->area[dre->id1.I2()].HighlightSide(dre->id1.I3()); 
 		cnet * net2 = m_nlist->GetNetPtrByName( &dre->name2 );
 		if( net2 && dre->id2.I2() < net2->NumAreas() )
-			net2->area[dre->id2.I2()].poly->HighlightSide(dre->id2.I3()); 
+			net2->area[dre->id2.I2()].HighlightSide(dre->id2.I3()); 
 	}
 	else if( dre->m_id.T3() == DRError::COPPERAREA_INSIDE_COPPERAREA )
 	{

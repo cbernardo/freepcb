@@ -106,6 +106,7 @@ void CShape::Clear()
 	m_centroid_x = 0;
 	m_centroid_y = 0;
 	m_centroid_angle = 0;
+	// remove all subelements
 	m_padstack.SetSize(0);
 	m_outline_poly.SetSize(0);
 	m_tl->RemoveAllTexts();
@@ -1541,7 +1542,8 @@ normal_return:
 	}
 }
 
-// copy another shape into this shape
+// copy another shape into this shape,
+// replacing uids with new ones
 //
 int CShape::Copy( CShape * shape )
 {

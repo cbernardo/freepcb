@@ -153,6 +153,7 @@ enum {
 };
 
 // subtype of ID_TEXT is always ID_TEXT
+
 // subsubtypes of ID_TEXT
 enum {
 	ID_SEL_TXT = 1,		// selection rectangle

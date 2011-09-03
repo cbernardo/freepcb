@@ -293,9 +293,9 @@ public:
 	void PartRefChanged( CString * old_ref_des, CString * new_ref_des );
 
 	// functions for copper areas
-	int AddArea( cnet * net, int layer, int x, int y, int hatch );
-	void InsertArea( cnet * net, int iarea, int layer, int x, int y, int hatch );
-	int AppendAreaCorner( cnet * net, int iarea, int x, int y, int style, BOOL bDraw=TRUE );
+	int AddArea( cnet * net, int layer, int x, int y, int hatch, BOOL bDraw=TRUE );
+	void InsertArea( cnet * net, int iarea, int layer, int x, int y, int hatch, BOOL bDraw=TRUE );
+	int AppendAreaCorner( cnet * net, int iarea, int x, int y, int style );
 	int InsertAreaCorner( cnet * net, int iarea, int icorner, 
 		int x, int y, int style );
 	void MoveAreaCorner( cnet * net, int iarea, int icorner, int x, int y );
