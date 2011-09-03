@@ -83,12 +83,12 @@ void id::SetIndexes()
 	else if( IsAreaCorner() )
 	{
 		carea * a = Net()->AreaByUID( u2, &i2 );
-		i3 = a->poly->GetCornerIndexByUID( u3 );
+		i3 = a->GetCornerIndexByUID( u3 );
 	}
 	else if( IsAreaSide() )
 	{
 		carea * a = Net()->AreaByUID( u2, &i2 );
-		i3 = a->poly->GetSideIndexByUID( u3 );
+		i3 = a->GetSideIndexByUID( u3 );
 	}
 	else if( IsPin() )
 	{
@@ -191,24 +191,24 @@ int id::Type()
 }
 
 // get lowest level type
-BOOL id::IsText(){ return t2 == ID_TEXT && t2 == ID_TEXT; }
+BOOL id::IsText(){ return t1 == ID_TEXT && t2 == ID_TEXT; }
 BOOL id::IsPart(){ return t1 == ID_PART && t2 == ID_NONE; }
-BOOL id::IsRefText(){ return t2 == ID_REF_TXT && t3 == ID_SEL_TXT; }
-BOOL id::IsValueText(){ return t2 == ID_REF_TXT && t3 == ID_SEL_TXT; }
-BOOL id::IsPin(){ return Type() == ID_SEL_PAD; }
+BOOL id::IsRefText(){ return t1 == ID_PART && t2 == ID_REF_TXT; }
+BOOL id::IsValueText(){ return t1 == ID_PART && t2 == ID_VALUE_TXT; }
+BOOL id::IsPin(){ return t1 == ID_PART && t2 == ID_SEL_PAD; }
 BOOL id::IsNet(){ return t1 == ID_NET && t2 == ID_NONE; }
-BOOL id::IsCon(){ return t2 == ID_CONNECT && t3 == ID_NONE; }
-BOOL id::IsSeg(){ return t3 == ID_SEL_SEG; }
-BOOL id::IsVtx(){ return t3 == ID_SEL_SEG; }
-BOOL id::IsArea(){ return t2 == ID_REF_TXT && t3 == ID_NONE; }
-BOOL id::IsAreaCorner(){ return t2 == ID_AREA && t3 == ID_SEL_CORNER; }
-BOOL id::IsAreaSide(){ return t2 == ID_AREA && t3 == ID_SEL_SIDE; }
-BOOL id::IsBoard(){ return ID_BOARD_OUTLINE && t3 == ID_NONE; }
-BOOL id::IsBoardCorner(){ return t2 == ID_BOARD_OUTLINE && t3 == ID_SEL_CORNER; }
-BOOL id::IsBoardSide(){ return  t2 == ID_BOARD_OUTLINE && t3 == ID_SEL_SIDE; }
-BOOL id::IsMask(){ return t2 == ID_MASK_OUTLINE && t3 == ID_NONE; }
-BOOL id::IsMaskCorner(){ return t2 == ID_MASK_OUTLINE && t3 == ID_SEL_CORNER; }
-BOOL id::IsMaskSide(){ return t2 == ID_MASK_OUTLINE && t3 == ID_SEL_SIDE; }
+BOOL id::IsCon(){ return t1 == ID_NET && t2 == ID_CONNECT && t3 == ID_NONE; }
+BOOL id::IsSeg(){ return t1 == ID_NET && t2 == ID_CONNECT && t3 == ID_SEL_SEG; }
+BOOL id::IsVtx(){ return t1 == ID_NET && t2 == ID_CONNECT && t3 == ID_SEL_SEG; }
+BOOL id::IsArea(){ return t1 == ID_NET && t2 == ID_REF_TXT && t3 == ID_NONE; }
+BOOL id::IsAreaCorner(){ return t1 == ID_NET && t2 == ID_AREA && t3 == ID_SEL_CORNER; }
+BOOL id::IsAreaSide(){ return t1 == ID_NET && t2 == ID_AREA && t3 == ID_SEL_SIDE; }
+BOOL id::IsBoard(){ return t1 == ID_BOARD && t2 == ID_BOARD_OUTLINE && t3 == ID_NONE; }
+BOOL id::IsBoardCorner(){ return t1 == ID_BOARD && t2 == ID_BOARD_OUTLINE && t3 == ID_SEL_CORNER; }
+BOOL id::IsBoardSide(){ return  t1 == ID_BOARD && t2 == ID_BOARD_OUTLINE && t3 == ID_SEL_SIDE; }
+BOOL id::IsMask(){ return t1 == ID_MASK && t2 == ID_MASK_OUTLINE && t3 == ID_NONE; }
+BOOL id::IsMaskCorner(){ return t1 == ID_MASK && t2 == ID_MASK_OUTLINE && t3 == ID_SEL_CORNER; }
+BOOL id::IsMaskSide(){ return t1 == ID_MASK && t2 == ID_MASK_OUTLINE && t3 == ID_SEL_SIDE; }
 
 // return pointer to pcb element identified by id
 //

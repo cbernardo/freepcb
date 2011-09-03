@@ -256,6 +256,7 @@ void CFootprintView::InitializeView()
 
 CFootprintView::~CFootprintView()
 {
+	CEditShape * the_fp = &m_fp;
 }
 
 BOOL CFootprintView::PreCreateWindow(CREATESTRUCT& cs)

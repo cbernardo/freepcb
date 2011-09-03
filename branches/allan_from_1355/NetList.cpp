@@ -157,10 +157,10 @@ void CNetList::MarkAllNets( int utility )
 		for( carea * a=iter_area.GetFirst(); a; a=iter_area.GetNext() )
 		{
 			a->utility = utility;
-			a->poly->SetUtility( utility );
-			for( int is=0; is<a->poly->GetNumSides(); is++ )
+			a->SetUtility( utility );
+			for( int is=0; is<a->GetNumSides(); is++ )
 			{
-				a->poly->SetUtility( is, utility );
+				a->SetUtility( is, utility );
 			}
 		}
 	}
@@ -191,7 +191,7 @@ void CNetList::MoveOrigin( int x_off, int y_off )
 		CIterator_carea iter_area( net );
 		for( carea * a=iter_area.GetFirst(); a; a=iter_area.GetNext() )
 		{
-			a->poly->MoveOrigin( x_off, y_off );
+			a->MoveOrigin( x_off, y_off );
 			int ia = iter_area.GetIndex();
 			SetAreaConnections( net, ia );
 		}
@@ -1125,12 +1125,13 @@ void CNetList::RenumberAreas( cnet * net )
 	id a_id;
 	for( int ia=0; ia<net->NumAreas(); ia++ )
 	{
-		a_id = net->area[ia].poly->GetId();
+		a_id = net->area[ia].GetId();
 		a_id.SetI2( ia );
-		net->area[ia].poly->SetId( &a_id );
+		net->area[ia].SetId( &a_id );
 		for( int ip=0; ip<net->area[ia].npins; ip++ )
 		{
-			id a_id = m_dlist->Get_id( net->area[ia].dl_thermal[ip] );
+			carea * a = &net->area[ia];
+			id a_id = m_dlist->Get_id( a->dl_thermal[ip] );
 			a_id.SetI2( ia );
 			m_dlist->Set_id( net->area[ia].dl_thermal[ip], &a_id );
 		}
@@ -2936,7 +2937,7 @@ void CNetList::CancelDraggingStub( cnet * net, int ic, int iseg )
 //
 int CNetList::StartDraggingAreaCorner( CDC *pDC, cnet * net, int iarea, int icorner, int x, int y, int crosshair )
 {
-	net->area[iarea].poly->StartDraggingToMoveCorner( pDC, icorner, x, y, crosshair );
+	net->area[iarea].StartDraggingToMoveCorner( pDC, icorner, x, y, crosshair );
 	return 0;
 }
 
@@ -2944,7 +2945,7 @@ int CNetList::StartDraggingAreaCorner( CDC *pDC, cnet * net, int iarea, int icor
 //
 int CNetList::StartDraggingInsertedAreaCorner( CDC *pDC, cnet * net, int iarea, int icorner, int x, int y, int crosshair )
 {
-	net->area[iarea].poly->StartDraggingToInsertCorner( pDC, icorner, x, y, crosshair );
+	net->area[iarea].StartDraggingToInsertCorner( pDC, icorner, x, y, crosshair );
 	return 0;
 }
 
@@ -2952,7 +2953,7 @@ int CNetList::StartDraggingInsertedAreaCorner( CDC *pDC, cnet * net, int iarea, 
 //
 int CNetList::CancelDraggingInsertedAreaCorner( cnet * net, int iarea, int icorner )
 {
-	net->area[iarea].poly->CancelDraggingToInsertCorner( icorner );
+	net->area[iarea].CancelDraggingToInsertCorner( icorner );
 	return 0;
 }
 
@@ -2960,7 +2961,7 @@ int CNetList::CancelDraggingInsertedAreaCorner( cnet * net, int iarea, int icorn
 //
 int CNetList::CancelDraggingAreaCorner( cnet * net, int iarea, int icorner )
 {
-	net->area[iarea].poly->CancelDraggingToMoveCorner( icorner );
+	net->area[iarea].CancelDraggingToMoveCorner( icorner );
 	return 0;
 }
 
@@ -3094,7 +3095,7 @@ int CNetList::GetViaConnectionStatus( cnet * net, int ic, int iv, int layer )
 	{
 		// next area
 		carea * a = &net->area[ia];
-		if( a->poly->GetLayer() == layer )
+		if( a->GetLayer() == layer )
 		{
 			// area is on this layer, loop through via connections to area
 			for( int ivia=0; ivia<a->nvias; ivia++ )
@@ -3192,22 +3193,23 @@ BOOL CNetList::TestForHitOnVertex( cnet * net, int layer, int x, int y,
 // add empty copper area to net
 // return index to area (zero-based)
 //
-int CNetList::AddArea( cnet * net, int layer, int x, int y, int hatch )
+int CNetList::AddArea( cnet * net, int layer, int x, int y, int hatch, BOOL bDraw )
 {
+	
 	int old_nareas = net->NumAreas();
 	net->area.SetSize( old_nareas+1 );
 	carea * a = &net->area[old_nareas];
 	a->Initialize( m_dlist, net );
 	a->m_id.SetI2( old_nareas );
 	id area_id = a->m_id;
-	net->area[old_nareas].poly->Start( layer, 1, 10*NM_PER_MIL, x, y, 
-		hatch, &area_id, net );
+	net->area[old_nareas].Start( layer, 1, 10*NM_PER_MIL, x, y, 
+		hatch, &area_id, net, bDraw );
 	return old_nareas;
 }
 
 // add empty copper area to net, inserting at net->area[iarea]
 //
-void CNetList::InsertArea( cnet * net, int iarea, int layer, int x, int y, int hatch )
+void CNetList::InsertArea( cnet * net, int iarea, int layer, int x, int y, int hatch, BOOL bDraw )
 {
 	// make new area and insert it into area array
 	carea test;
@@ -3215,15 +3217,16 @@ void CNetList::InsertArea( cnet * net, int iarea, int layer, int x, int y, int h
 	carea * a = &net->area[iarea];
 	a->Initialize( m_dlist, net );
 	id area_id( ID_NET, net->UID(), ID_AREA, a->UID(), iarea );
-	net->area[iarea].poly->Start( layer, 1, 10*NM_PER_MIL, x, y,
-		hatch, &area_id, net );
+	net->area[iarea].Start( layer, 1, 10*NM_PER_MIL, x, y,
+		hatch, &area_id, net, bDraw );
 }
 
 // add corner to copper area, apply style to preceding side
 //
-int CNetList::AppendAreaCorner( cnet * net, int iarea, int x, int y, int style, BOOL bDraw )
+int CNetList::AppendAreaCorner( cnet * net, int iarea, int x, int y, int style )
 {
-	net->area[iarea].poly->AppendCorner( x, y, style, bDraw );
+	carea * a = &net->area[iarea];
+	a->AppendCorner( x, y, style );
 	return 0;
 }
 
@@ -3232,15 +3235,16 @@ int CNetList::AppendAreaCorner( cnet * net, int iarea, int x, int y, int style, 
 int CNetList::InsertAreaCorner( cnet * net, int iarea, int icorner, 
 							int x, int y, int style )
 {
-	if( icorner == net->area[iarea].poly->GetNumCorners() && !net->area[iarea].poly->GetClosed() )
+	carea * a = &net->area[iarea];
+	if( icorner == a->GetNumCorners() && !a->GetClosed() )
 	{
-		net->area[iarea].poly->AppendCorner( x, y, style );
+		a->AppendCorner( x, y, style );
 		ASSERT(0);	// this is now an error, should be using AppendAreaCorner
 	}
 	else
 	{
-		net->area[iarea].poly->InsertCorner( icorner, x, y );
-		net->area[iarea].poly->SetSideStyle( icorner-1, style );
+		a->InsertCorner( icorner, x, y );
+		a->SetSideStyle( icorner-1, style );
 	}
 	return 0;
 }
@@ -3249,14 +3253,14 @@ int CNetList::InsertAreaCorner( cnet * net, int iarea, int icorner,
 //
 void CNetList::MoveAreaCorner( cnet * net, int iarea, int icorner, int x, int y )
 {
-	net->area[iarea].poly->MoveCorner( icorner, x, y );
+	net->area[iarea].MoveCorner( icorner, x, y );
 }
 
 // highlight
 //
 void CNetList::HighlightAreaCorner( cnet * net, int iarea, int icorner )
 {
-	net->area[iarea].poly->HighlightCorner( icorner );
+	net->area[iarea].HighlightCorner( icorner );
 }
 
 // get copper area corner coords
@@ -3264,8 +3268,8 @@ void CNetList::HighlightAreaCorner( cnet * net, int iarea, int icorner )
 CPoint CNetList::GetAreaCorner( cnet * net, int iarea, int icorner )
 {
 	CPoint pt;
-	pt.x = net->area[iarea].poly->GetX( icorner );
-	pt.y = net->area[iarea].poly->GetY( icorner );
+	pt.x = net->area[iarea].GetX( icorner );
+	pt.y = net->area[iarea].GetY( icorner );
 	return pt;
 }
 
@@ -3273,9 +3277,10 @@ CPoint CNetList::GetAreaCorner( cnet * net, int iarea, int icorner )
 //
 int CNetList::CompleteArea( cnet * net, int iarea, int style )
 {
-	if( net->area[iarea].poly->GetNumCorners() > 2 )
+	carea * a = &net->area[iarea];
+	if( a->GetNumCorners() > 2 )
 	{
-		net->area[iarea].poly->Close( style );
+		a->Close( style );
 		SetAreaConnections( net, iarea );
 	}
 	else
@@ -3355,7 +3360,7 @@ void CNetList::SetAreaConnections( cnet * net, int iarea )
 
 	// test all pins in net for being inside copper area 
 	id id( ID_NET, net->UID(), ID_AREA, area->UID(), iarea, ID_PIN_X );
-	int area_layer = area->poly->GetLayer();	// layer of copper area
+	int area_layer = area->GetLayer();	// layer of copper area
 	for( int ip=0; ip<net->NumPins(); ip++ )
 	{
 		cpart * part = net->pin[ip].part;
@@ -3392,7 +3397,7 @@ void CNetList::SetAreaConnections( cnet * net, int iarea )
 						continue;	// no SMT pad defined (this should not happen)
 					// see if pad is inside copper area
 					CPoint p = m_plist->GetPinPoint( part, part_pin_name );
-					if( area->poly->TestPointInside( p.x, p.y ) )
+					if( area->TestPointInside( p.x, p.y ) )
 					{
 						// pin is inside copper area
 						cnet * part_pin_net = part->pin[pin_index].net;
@@ -3427,12 +3432,12 @@ void CNetList::SetAreaConnections( cnet * net, int iarea )
 		for( int iv=1; iv<nvtx; iv++ )
 		{
 			cvertex * v = &c->vtx[iv];
-			if( v->via_w || c->seg[nsegs-1].layer == area->poly->GetLayer() )
+			if( v->via_w || c->seg[nsegs-1].layer == area->GetLayer() )
 			{
 				// via or on same layer as copper area
 				int x = v->x;
 				int y = v->y;
-				if( area->poly->TestPointInside( x, y ) )
+				if( area->TestPointInside( x, y ) )
 				{
 					// end point of trace is inside copper area
 					area->vcon.SetSize( area->nvias+1 );
@@ -3465,7 +3470,7 @@ BOOL CNetList::TestPointInArea( cnet * net, int x, int y, int layer, int * iarea
 	for( int ia=0; ia<net->NumAreas(); ia++ )
 	{
 		carea * a = &net->area[ia];
-		if( (a->poly->GetLayer() == layer || layer == LAY_PAD_THRU)&& a->poly->TestPointInside( x, y ) )
+		if( (a->GetLayer() == layer || layer == LAY_PAD_THRU)&& a->TestPointInside( x, y ) )
 		{
 			if( iarea )
 				*iarea = ia;
@@ -3515,7 +3520,7 @@ cnet * CNetList::GetNetPtrByUID( int uid )
 void CNetList::SelectAreaSide( cnet * net, int iarea, int iside )
 {
 	m_dlist->CancelHighLight();
-	net->area[iarea].poly->HighlightSide( iside );
+	net->area[iarea].HighlightSide( iside );
 }
 
 // Select copper area corner
@@ -3523,7 +3528,7 @@ void CNetList::SelectAreaSide( cnet * net, int iarea, int iside )
 void CNetList::SelectAreaCorner( cnet * net, int iarea, int icorner )
 {
 	m_dlist->CancelHighLight();
-	net->area[iarea].poly->HighlightCorner( icorner );
+	net->area[iarea].HighlightCorner( icorner );
 }
 
 // Set style for area side
@@ -3531,8 +3536,8 @@ void CNetList::SelectAreaCorner( cnet * net, int iarea, int icorner )
 void CNetList::SetAreaSideStyle( cnet * net, int iarea, int iside, int style )
 {
 	m_dlist->CancelHighLight();
-	net->area[iarea].poly->SetSideStyle( iside, style );
-	net->area[iarea].poly->HighlightSide( iside );
+	net->area[iarea].SetSideStyle( iside, style );
+	net->area[iarea].HighlightSide( iside );
 }
 
 
@@ -3601,9 +3606,9 @@ void CNetList::HighlightVertex( cnet * net, int ic, int ivtx )
 void CNetList::HighlightAreaSides( cnet * net, int ia )
 {
 	carea * a = &net->area[ia];
-	int nsides = a->poly->GetNumSides();
+	int nsides = a->GetNumSides();
 	for( int is=0; is<nsides; is++ )
-		a->poly->HighlightSide( is );
+		a->HighlightSide( is );
 }
 
 // Highlight entire net
@@ -3782,18 +3787,18 @@ int CNetList::WriteNets( CStdioFile * file )
 			for( int ia=0; ia<net->NumAreas(); ia++ )
 			{
 				line.Format( "  area: %d %d %d %d\n", ia+1, 
-					net->area[ia].poly->GetNumCorners(),
-					net->area[ia].poly->GetLayer(),
-					net->area[ia].poly->GetHatch()
+					net->area[ia].GetNumCorners(),
+					net->area[ia].GetLayer(),
+					net->area[ia].GetHatch()
 					);
 				file->WriteString( line );
-				for( int icor=0; icor<net->area[ia].poly->GetNumCorners(); icor++ )
+				for( int icor=0; icor<net->area[ia].GetNumCorners(); icor++ )
 				{
 					line.Format( "    corner: %d %d %d %d %d\n", icor+1,
-						net->area[ia].poly->GetX( icor ),
-						net->area[ia].poly->GetY( icor ),
-						net->area[ia].poly->GetSideStyle( icor ),
-						net->area[ia].poly->GetEndContour( icor )
+						net->area[ia].GetX( icor ),
+						net->area[ia].GetY( icor ),
+						net->area[ia].GetSideStyle( icor ),
+						net->area[ia].GetEndContour( icor )
 						);
 					file->WriteString( line );
 				}
@@ -3949,16 +3954,6 @@ void CNetList::ReadNets( CStdioFile * pcb_file, double read_version, int * layer
 					nc = AddNetConnect( net, start_pin, end_pin );
 				else
 					nc = AddNetStub( net, start_pin );
-				//** for debugging ****************
-				if( pcb_cuid.CheckUID( net->id.U1() ) )
-					ASSERT(0);
-				if( pcb_cuid.CheckUID( net->connect[ic]->m_uid ) )
-					ASSERT(0);
-				cconnect * test_c = net->connect[ic];
-				cvertex *test_v = &test_c->vtx[0];
-				if( test_v->m_con != test_c )
-					ASSERT(0);
-				//***************
 				if( nc == -1 )
 				{
 					// invalid connection, remove it with this ugly code
@@ -4048,10 +4043,6 @@ void CNetList::ReadNets( CStdioFile * pcb_file, double read_version, int * layer
 									y = end_pt.y;
 								}
 								test_not_done = InsertSegment( net, ic, is, x, y, layer, seg_width, 0, 0, 0 );
-								//***********
-								int test_uid = net->connect[ic]->seg[is].m_uid;
-								if( pcb_cuid.CheckUID( test_uid ) )
-									ASSERT(0);
 							}
 							else
 							{
@@ -4082,25 +4073,7 @@ void CNetList::ReadNets( CStdioFile * pcb_file, double read_version, int * layer
 						}
 					}
 				}
-				//** for debugging ****************
-				{
-				cconnect * test_c = net->connect[ic];
-				cseg * test_s = &test_c->seg[0];
-				if( test_s->m_con != test_c )
-					ASSERT(0);
-				}
-				//***************
 			} // end for(ic)
-
-			//** for debugging ****************
-			CIterator_cconnect iter_con(net);
-			for( cconnect * c=iter_con.GetFirst(); c; c=iter_con.GetNext() )
-			{
-				cseg * test_s = &c->seg[0];
-				if( test_s->m_con != c )
-					ASSERT(0);
-			}
-			//***************
 
 			for( int ia=0; ia<nareas; ia++ )
 			{
@@ -4151,10 +4124,11 @@ void CNetList::ReadNets( CStdioFile * pcb_file, double read_version, int * layer
 					}
 					int x = my_atoi( &p[1] );
 					int y = my_atoi( &p[2] );
+					int i_new_area;
 					if( icor == 0 )
-						AddArea( net, layer, x, y, hatch );
+						i_new_area = AddArea( net, layer, x, y, hatch, FALSE );
 					else
-						AppendAreaCorner( net, ia, x, y, last_side_style, FALSE );
+						AppendAreaCorner( net, ia, x, y, last_side_style );
 					if( np >= 5 )
 						last_side_style = my_atoi( &p[3] );
 					else
@@ -4168,36 +4142,25 @@ void CNetList::ReadNets( CStdioFile * pcb_file, double read_version, int * layer
 					}
 				}
 			}
-			for(  int ia=nareas-1; ia>=0; ia-- )
+			if( nareas )
 			{
-				if( net->area[ia].poly->GetNumCorners() < 3 )
-					RemoveArea( net, ia );
+				for(  int ia=nareas-1; ia>=0; ia-- )
+				{
+					if( net->area[ia].GetNumCorners() < 3 )
+					{
+						RemoveArea( net, ia );
+						nareas--;
+					}
+					
+				}
+				RenumberAreas( net );
 			}
-
-			//** for debugging ****************
-			for( cconnect * c=iter_con.GetFirst(); c; c=iter_con.GetNext() )
-			{
-				cseg * test_s = &c->seg[0];
-				if( test_s->m_con != c )
-					ASSERT(0);
-			}
-			//***************
-
 			CleanUpConnections( net );
 			if( RemoveOrphanBranches( net, 0 ) )
 			{
 				//** we will hit this if FpcROUTE fails, so disabled				
 //				ASSERT(0);
 			}
-
-			//** for debugging ****************
-			for( cconnect * c=iter_con.GetFirst(); c; c=iter_con.GetNext() )
-			{
-				cseg * test_s = &c->seg[0];
-				if( test_s->m_con != c )
-					ASSERT(0);
-			}
-			//***************
 		}
 	}
 }
@@ -4686,13 +4649,11 @@ void CNetList::Copy( CNetList * src_nl )
 		for( int ia=0; ia<src_net->NumAreas(); ia++ )
 		{
 			carea * src_a = &src_net->area[ia];
-			CPolyLine * src_poly = src_a->poly;
-			AddArea( net, src_poly->GetLayer(), src_poly->GetX(0),
-				src_poly->GetY(0), src_poly->GetHatch() );
+			AddArea( net, src_a->GetLayer(), src_a->GetX(0),
+				src_a->GetY(0), src_a->GetHatch() );
 			carea * a = &net->area[ia];
-			CPolyLine * poly = a->poly;
-			a->poly->Copy( src_poly );
-			a->poly->SetDisplayList( NULL );
+			a->Copy( src_a );
+			a->SetDisplayList( NULL );
 			a->npins = src_a->npins;
 			a->pin.SetSize( a->npins );
 			for( int ip=0; ip<a->npins; ip++ )
@@ -4787,8 +4748,8 @@ void CNetList::ReassignCopperLayers( int n_new_layers, int * layer )
 		CleanUpConnections( net );
 		for( int ia=net->NumAreas()-1; ia>=0; ia-- )
 		{
-			CPolyLine * poly = net->area[ia].poly;
-			int old_layer = poly->GetLayer();
+			carea * a = &net->area[ia];
+			int old_layer = a->GetLayer();
 			int index = old_layer - LAY_TOP_COPPER;
 			int new_layer = layer[index];
 			if( new_layer == -1 )
@@ -4798,8 +4759,8 @@ void CNetList::ReassignCopperLayers( int n_new_layers, int * layer )
 			}
 			else
 			{
-				poly->SetLayer( new_layer + LAY_TOP_COPPER );
-				poly->Draw();
+				a->SetLayer( new_layer + LAY_TOP_COPPER );
+				a->Draw();
 			}
 		}
 		CombineAllAreasInNet( net, TRUE, FALSE );
@@ -5048,17 +5009,15 @@ void CNetList::RestoreConnectionsAndAreas( CNetList * old_nl, int flags, CDlgLog
 				if( bMoveIt )
 				{
 					// move the area onto the new net
-					CPolyLine * old_poly = old_a->poly;
 					cnet * net = new_area_net;
-					int ia = AddArea( net, old_poly->GetLayer(), old_poly->GetX(0),
-						old_poly->GetY(0), old_poly->GetHatch() );
+					int ia = AddArea( net, old_a->GetLayer(), old_a->GetX(0),
+						old_a->GetY(0), old_a->GetHatch() );
 					carea * a = &net->area[ia];
-					CPolyLine * poly = a->poly;
-					poly->Copy( old_poly );
+					a->Copy( old_a );
 					id p_id( ID_NET, net->UID(), ID_AREA, a->UID(), ia );
-					poly->SetId( &p_id );
-					poly->SetPtr( net );
-					poly->Draw( m_dlist );
+					a->SetId( &p_id );
+					a->SetPtr( net );
+					a->Draw( m_dlist );
 				}
 			}
 		}
@@ -5208,8 +5167,8 @@ void CNetList::NetUndoCallback( int type, void * ptr, BOOL undo )
 		else
 			ASSERT(0);
 		// adjust connections to areas
-//**		if( net->NumAreas() )
-//**			nl->SetAreaConnections( net );
+		if( net->NumAreas() )
+			nl->SetAreaConnections( net );
 	}
 	free( ptr );
 }
@@ -5231,7 +5190,7 @@ undo_area * CNetList::CreateAreaUndoRecord( cnet * net, int iarea, int type )
 	}
 
 	carea * a = &net->area[iarea];
-	int nc = a->poly->GetNumCorners();
+	int nc = a->GetNumCorners();
 	un_a = (undo_area*)malloc(sizeof(undo_area)+sizeof(undo_poly)+nc*sizeof(undo_corner));
 	un_a->size = sizeof(undo_area)+sizeof(undo_poly)+nc*sizeof(undo_corner);
 	strcpy( un_a->net_name, net->name );
@@ -5242,40 +5201,8 @@ undo_area * CNetList::CreateAreaUndoRecord( cnet * net, int iarea, int type )
 	if( type == CNetList::UNDO_AREA_ADD || type == CNetList::UNDO_AREA_CLEAR_ALL )
 	{
 	}
-	CPolyLine * p = net->area[iarea].poly;
-#if 0
-	int n_cont = p->GetNumContours();
-	if( !p->GetClosed() )
-		n_cont--;
-	int nc = p->GetContourEnd( n_cont-1 ) + 1;
-#else
-#endif
-
-#if 0
-	un_a = (undo_area*)malloc(sizeof(undo_area)+nc*sizeof(undo_corner));
-	un_a->size = sizeof(undo_area)+nc*sizeof(undo_corner);
-	strcpy( un_a->net_name, net->name );
-	un_a->iarea = iarea;
-	un_a->ncorners = nc;
-	un_a->layer = p->GetLayer();
-	un_a->hatch = p->GetHatch();
-	un_a->w = p->GetW();
-	un_a->sel_box_w = p->GetSelBoxSize();
-	undo_corner * un_c = (undo_corner*)((UINT)un_a + sizeof(undo_area));
-	for( int ic=0; ic<nc; ic++ )
-	{
-		un_c[ic].uid = p->GetUID( ic );
-		un_c[ic].x = p->GetX( ic );
-		un_c[ic].y = p->GetY( ic );
-		un_c[ic].end_contour = p->GetEndContour( ic );
-		un_c[ic].side_uid = p->GetSideStyle( ic );
-		un_c[ic].side_style = p->GetSideStyle( ic );
-	}
-	un_a->nlist = this;
-	return un_a;
-#endif
 	undo_poly * un_poly = (undo_poly*)((UINT)un_a + sizeof(undo_area));
-	p->CreateUndoRecord( un_poly );
+	a->CreatePolyUndoRecord( un_poly );
 	return un_a;
 }
 
@@ -5315,28 +5242,18 @@ void CNetList::AreaUndoCallback( int type, void * ptr, BOOL undo )
 			}
 			// now recreate area at its original iarea in net->area[iarea]
 			nl->InsertArea( net, un_a->iarea, un_poly->layer, 
-				c[0].x, c[0].y, un_poly->hatch );
+				c[0].x, c[0].y, un_poly->hatch, FALSE );
 			carea * a = &net->area[un_a->iarea];
 			pcb_cuid.ReleaseUID( a->m_uid );
 			pcb_cuid.RequestUID( un_a->m_uid );
+			int corner_0_uid = a->GetCornerUID( 0 );
+			pcb_cuid.ReleaseUID( corner_0_uid );
 			a->m_uid = un_a->m_uid;
 			a->m_id = un_a->m_id;
-#if 0
-			for( int ic=1; ic<un_poly->ncorners; ic++ )
-			{
-				nl->AppendAreaCorner( net, un_a->iarea, 
-					c[ic].x, c[ic].y, c[ic-1].side_style, FALSE ); 
-				if( c[ic].end_contour )
-					nl->CompleteArea( net, un_a->iarea, c[ic].side_style );
-			}
-#endif
-			delete a->poly;
-			CPolyLine * new_poly = new CPolyLine;
-			new_poly->SetFromUndo( un_poly );
-			a->poly = new_poly;
-			a->poly->SetPtr( net );
+			a->SetFromUndo( un_poly );
+			a->SetPtr( net );
 			nl->RenumberAreas( net );
-			a->poly->Draw( nl->m_dlist );
+			a->Draw( nl->m_dlist );
 		}
 		else
 			ASSERT(0);
@@ -5769,20 +5686,20 @@ int CNetList::CheckConnectivity( CString * logstr )
 //
 int CNetList::TestAreaPolygon( cnet * net, int iarea )
 {	
-	CPolyLine * p = net->area[iarea].poly;
+	carea * a = &net->area[iarea];
 	// first, check for sides intersecting other sides, especially arcs 
 	BOOL bInt = FALSE;
 	BOOL bArcInt = FALSE;
-	int n_cont = p->GetNumContours();
+	int n_cont = a->GetNumContours();
 	// make bounding rect for each contour
 	CArray<CRect> cr;
 	cr.SetSize( n_cont );
 	for( int icont=0; icont<n_cont; icont++ )
-		cr[icont] = p->GetCornerBounds( icont );
+		cr[icont] = a->GetCornerBounds( icont );
 	for( int icont=0; icont<n_cont; icont++ )
 	{
-		int is_start = p->GetContourStart(icont);
-		int is_end = p->GetContourEnd(icont);
+		int is_start = a->GetContourStart(icont);
+		int is_end = a->GetContourEnd(icont);
 		for( int is=is_start; is<=is_end; is++ )
 		{
 			int is_prev = is - 1;
@@ -5791,11 +5708,11 @@ int CNetList::TestAreaPolygon( cnet * net, int iarea )
 			int is_next = is + 1;
 			if( is_next > is_end )
 				is_next = is_start;
-			int style = p->GetSideStyle( is );
-			int x1i = p->GetX( is );
-			int y1i = p->GetY( is );
-			int x1f = p->GetX( is_next );
-			int y1f = p->GetY( is_next );
+			int style = a->GetSideStyle( is );
+			int x1i = a->GetX( is );
+			int y1i = a->GetY( is );
+			int x1f = a->GetX( is_next );
+			int y1f = a->GetY( is_next );
 			// check for intersection with any other sides
 			for( int icont2=icont; icont2<n_cont; icont2++ )
 			{
@@ -5808,8 +5725,8 @@ int CNetList::TestAreaPolygon( cnet * net, int iarea )
 				}
 				else
 				{
-					int is2_start = p->GetContourStart(icont2);
-					int is2_end = p->GetContourEnd(icont2);
+					int is2_start = a->GetContourStart(icont2);
+					int is2_end = a->GetContourEnd(icont2);
 					for( int is2=is2_start; is2<=is2_end; is2++ )
 					{
 						int is2_prev = is2 - 1;
@@ -5820,11 +5737,11 @@ int CNetList::TestAreaPolygon( cnet * net, int iarea )
 							is2_next = is2_start;
 						if( icont != icont2 || (is2 != is && is2 != is_prev && is2 != is_next && is != is2_prev && is != is2_next ) )
 						{
-							int style2 = p->GetSideStyle( is2 );
-							int x2i = p->GetX( is2 );
-							int y2i = p->GetY( is2 );
-							int x2f = p->GetX( is2_next );
-							int y2f = p->GetY( is2_next );
+							int style2 = a->GetSideStyle( is2 );
+							int x2i = a->GetX( is2 );
+							int y2i = a->GetY( is2 );
+							int x2f = a->GetX( is2_next );
+							int y2f = a->GetY( is2_next );
 							int ret = FindSegmentIntersections( x1i, y1i, x1f, y1f, style, x2i, y2i, x2f, y2f, style2 );
 							if( ret )
 							{
@@ -5849,12 +5766,12 @@ int CNetList::TestAreaPolygon( cnet * net, int iarea )
 			break;
 	}
 	if( bArcInt )
-		net->area[iarea].utility2 = -1;
+		a->utility2 = -1;
 	else if( bInt )
-		net->area[iarea].utility2 = 1;
+		a->utility2 = 1;
 	else 
-		net->area[iarea].utility2 = 0;
-	return net->area[iarea].utility2;
+		a->utility2 = 0;
+	return a->utility2;
 }
 
 // Process an area that has been modified, by clipping its polygon against itself.
@@ -5870,7 +5787,7 @@ int CNetList::TestAreaPolygon( cnet * net, int iarea )
 int CNetList::ClipAreaPolygon( cnet * net, int iarea, 
 							  BOOL bMessageBoxArc, BOOL bMessageBoxInt, BOOL bRetainArcs )
 {	
-	CPolyLine * p = net->area[iarea].poly;
+	carea * a = &net->area[iarea];
 	int test = TestAreaPolygon( net, iarea );	// this sets utility2 flag
 	if( test == -1 && !bRetainArcs )
 		test = 1;
@@ -5918,8 +5835,8 @@ int CNetList::ClipAreaPolygon( cnet * net, int iarea,
 //**	if( test == 1 )
 	{
 		CArray<CPolyLine*> * pa = new CArray<CPolyLine*>;
-		p->Undraw();
-		int n_poly = net->area[iarea].poly->NormalizeWithGpc( pa, bRetainArcs );
+		a->Undraw();
+		int n_poly = a->NormalizeWithGpc( pa, bRetainArcs );
 		if( n_poly > 1 )
 		{
 			for( int ip=1; ip<n_poly; ip++ )
@@ -5930,18 +5847,20 @@ int CNetList::ClipAreaPolygon( cnet * net, int iarea,
 				carea * a = &net->area[ia];
 				// remove the poly that was automatically created for the new area
 				// and replace it with a poly from NormalizeWithGpc
+#if 0	// this will no longer work
 				delete net->area[ia].poly;
 				a->poly = new_p;
-				a->poly->SetDisplayList( net->m_dlist );
-				a->poly->SetHatch( p->GetHatch() );
-				a->poly->SetLayer( p->GetLayer() );
+				a->SetDisplayList( net->m_dlist );
+				a->SetHatch( p->GetHatch() );
+				a->SetLayer( p->GetLayer() );
 				id p_id( ID_NET, net->UID(), ID_AREA, a->UID(), ia );
-				a->poly->SetId( &p_id );
-				a->poly->Draw();
+				a->SetId( &p_id );
+				a->Draw();
 				a->utility = 1;
+#endif
 			}
 		}
-		p->Draw();
+		a->Draw();
 		delete pa;
 	}
 	return test;
@@ -5991,14 +5910,14 @@ int CNetList::CombineAllAreasInNet( cnet * net, BOOL bMessageBox, BOOL bUseUtili
 		for( int ia1=0; ia1<net->NumAreas()-1; ia1++ ) 
 		{
 			// legal polygon
-			CRect b1 = net->area[ia1].poly->GetCornerBounds();
+			CRect b1 = net->area[ia1].GetCornerBounds();
 			BOOL mod_ia1 = FALSE;
 			for( int ia2=net->NumAreas()-1; ia2 > ia1; ia2-- )
 			{
-				if( net->area[ia1].poly->GetLayer() == net->area[ia2].poly->GetLayer() 
+				if( net->area[ia1].GetLayer() == net->area[ia2].GetLayer() 
 					&& net->area[ia1].utility2 != -1 && net->area[ia2].utility2 != -1 )
 				{
-					CRect b2 = net->area[ia2].poly->GetCornerBounds();
+					CRect b2 = net->area[ia2].GetCornerBounds();
 					if( !( b1.left > b2.right || b1.right < b2.left
 						|| b1.bottom > b2.top || b1.top < b2.bottom ) )
 					{
@@ -6052,13 +5971,15 @@ int CNetList::CombineAllAreasInNet( cnet * net, BOOL bMessageBox, BOOL bUseUtili
 //
 BOOL CNetList::TestAreaIntersections( cnet * net, int ia )
 {
-	CPolyLine * poly1 = net->area[ia].poly;
+	carea * a1 = &net->area[ia];
+	CPolyLine * poly1 = a1;
 	for( int ia2=0; ia2<net->NumAreas(); ia2++ )
 	{
 		if( ia != ia2 )
 		{
+			carea * a2 = &net->area[ia2];
 			// see if polygons are on same layer
-			CPolyLine * poly2 = net->area[ia2].poly;
+			CPolyLine * poly2 = a2;
 			if( poly1->GetLayer() != poly2->GetLayer() )
 				continue;
 
@@ -6136,8 +6057,8 @@ BOOL CNetList::TestAreaIntersections( cnet * net, int ia )
 int CNetList::TestAreaIntersection( cnet * net, int ia1, int ia2 )
 {
 	// see if polygons are on same layer
-	CPolyLine * poly1 = net->area[ia1].poly;
-	CPolyLine * poly2 = net->area[ia2].poly;
+	CPolyLine * poly1 = &net->area[ia1];
+	CPolyLine * poly2 = &net->area[ia2];
 	if( poly1->GetLayer() != poly2->GetLayer() )
 		return 0;
 
@@ -6237,8 +6158,8 @@ int CNetList::CombineAreas( cnet * net, int ia1, int ia2 )
 #endif
 
 	// polygons intersect, combine them
-	CPolyLine * poly1 = net->area[ia1].poly;
-	CPolyLine * poly2 = net->area[ia2].poly;
+	CPolyLine * poly1 = &net->area[ia1];
+	CPolyLine * poly2 = &net->area[ia2];
 	CArray<CArc> arc_array1;
 	CArray<CArc> arc_array2;
 	poly1->MakeGpcPoly( -1, &arc_array1 );
@@ -6271,11 +6192,11 @@ int CNetList::CombineAreas( cnet * net, int ia1, int ia2 )
 
 	// intersection, replace ia1 with combined areas and remove ia2
 	RemoveArea( net, ia2 );
-	int hatch = net->area[ia1].poly->GetHatch();
-	id a_id = net->area[ia1].poly->GetId();
-	int layer = net->area[ia1].poly->GetLayer();
-	int w = net->area[ia1].poly->GetW();
-	int sel_box = net->area[ia1].poly->GetSelBoxSize();
+	int hatch = net->area[ia1].GetHatch();
+	id a_id = net->area[ia1].GetId();
+	int layer = net->area[ia1].GetLayer();
+	int w = net->area[ia1].GetW();
+	int sel_box = net->area[ia1].GetSelBoxSize();
 	RemoveArea( net, ia1 );
 	// create area with external contour
 	for( int ic=0; ic<union_gpc->num_contours; ic++ )
@@ -6292,7 +6213,7 @@ int CNetList::CombineAreas( cnet * net, int ia1, int ia2 )
 					InsertArea( net, ia1, layer, x, y, hatch );
 				}
 				else
-					AppendAreaCorner( net, ia1, x, y, CPolyLine::STRAIGHT, FALSE );
+					AppendAreaCorner( net, ia1, x, y, CPolyLine::STRAIGHT );
 			}
 			CompleteArea( net, ia1, CPolyLine::STRAIGHT );
 			RenumberAreas( net );
@@ -6308,15 +6229,15 @@ int CNetList::CombineAreas( cnet * net, int ia1, int ia2 )
 			{
 				int x = ((union_gpc->contour)[ic].vertex)[i].x;
 				int y = ((union_gpc->contour)[ic].vertex)[i].y;
-				AppendAreaCorner( net, ia1, x, y, CPolyLine::STRAIGHT, FALSE );
+				AppendAreaCorner( net, ia1, x, y, CPolyLine::STRAIGHT );
 			}
 			CompleteArea( net, ia1, CPolyLine::STRAIGHT );
 		}
 	}
 	net->area[ia1].utility = 1;
-	net->area[ia1].poly->RestoreArcs( &arc_array1 ); 
-	net->area[ia1].poly->RestoreArcs( &arc_array2 );
-	net->area[ia1].poly->Draw();
+	net->area[ia1].RestoreArcs( &arc_array1 ); 
+	net->area[ia1].RestoreArcs( &arc_array2 );
+	net->area[ia1].Draw();
 	gpc_free_polygon( union_gpc );
 	delete union_gpc;
 	return 1;
@@ -6376,7 +6297,7 @@ BOOL CNetList::GetNetBoundaries( CRect * r )
 		}
 		for( int ia=0; ia<net->NumAreas(); ia++ )
 		{
-			CRect r = net->area[ia].poly->GetBounds();
+			CRect r = net->area[ia].GetBounds();
 			br.bottom = min( br.bottom, r.bottom );
 			br.top = max( br.top, r.top );
 			br.left = min( br.left, r.left );
@@ -6700,15 +6621,15 @@ BOOL CNetList::RemoveOrphanBranches( cnet * net, int id, BOOL bRemoveSegs )
 	return bFound;
 }
 
-
+#if 0
 //
 void CNetList::ApplyClearancesToArea( cnet *net, int ia, int flags, 
 					int fill_clearance, int min_silkscreen_stroke_wid, 
 					int thermal_wid, int hole_clearance )
 {
 	// get area layer
-	int layer = net->area[ia].poly->GetLayer();
-	net->area[ia].poly->Undraw();
+	int layer = net->area[ia].GetLayer();
+	net->area[ia].Undraw();
 
 	// iterate through all parts for pad clearances and thermals
 	cpart * part = m_plist->m_start.next;
@@ -6741,7 +6662,7 @@ void CNetList::ApplyClearancesToArea( cnet *net, int ia, int flags,
 					CPolyLine * pad_poly = NULL;
 					if( pad_type == PAD_NONE && pad_hole > 0 )
 					{
-						net->area[ia].poly->AddContourForPadClearance( PAD_ROUND, pad_x, pad_y, 
+						net->area[ia].AddContourForPadClearance( PAD_ROUND, pad_x, pad_y, 
 							pad_hole, pad_hole, pad_r, pad_angle, fill_clearance, pad_hole, hole_clearance );
 					}
 					else if( pad_type != PAD_NONE )
@@ -6751,7 +6672,7 @@ void CNetList::ApplyClearancesToArea( cnet *net, int ia, int flags,
 							if( !(flags & GERBER_NO_PIN_THERMALS) )
 							{
 								// make thermal for pad
-								net->area[ia].poly->AddContourForPadClearance( pad_type, pad_x, pad_y, 
+								net->area[ia].AddContourForPadClearance( pad_type, pad_x, pad_y, 
 									pad_w, pad_l, pad_r, pad_angle, fill_clearance, pad_hole, hole_clearance, 
 									TRUE, thermal_wid );
 							}
@@ -6759,7 +6680,7 @@ void CNetList::ApplyClearancesToArea( cnet *net, int ia, int flags,
 						else
 						{
 							// make clearance for pad
-							net->area[ia].poly->AddContourForPadClearance( pad_type, pad_x, pad_y, 
+							net->area[ia].AddContourForPadClearance( pad_type, pad_x, pad_y, 
 								pad_w, pad_l, pad_r, pad_angle, fill_clearance, pad_hole, hole_clearance );
 						}
 					}
@@ -6800,13 +6721,13 @@ void CNetList::ApplyClearancesToArea( cnet *net, int ia, int flags,
 					if( layer > LAY_BOTTOM_COPPER && test == CNetList::VIA_NO_CONNECT )
 					{
 						// inner layer and no trace or thermal, just make hole clearance
-						net->area[ia].poly->AddContourForPadClearance( PAD_ROUND, xf, yf, 
+						net->area[ia].AddContourForPadClearance( PAD_ROUND, xf, yf, 
 							0, 0, 0, 0, 0, post_vtx->via_hole_w, hole_clearance );
 					}
 					else if( !(test & VIA_AREA) )
 					{
 						// outer layer and no thermal, make pad clearance
-						net->area[ia].poly->AddContourForPadClearance( PAD_ROUND, xf, yf, 
+						net->area[ia].AddContourForPadClearance( PAD_ROUND, xf, yf, 
 							post_vtx->via_w, post_vtx->via_w, 0, 0, fill_clearance, post_vtx->via_hole_w, hole_clearance );
 					}
 					else if( layer > LAY_BOTTOM_COPPER && test & CNetList::VIA_AREA && !(test & CNetList::VIA_TRACE) )
@@ -6820,7 +6741,7 @@ void CNetList::ApplyClearancesToArea( cnet *net, int ia, int flags,
 						{
 							// small thermal
 							int w = post_vtx->via_hole_w + 2*m_annular_ring;
-							net->area[ia].poly->AddContourForPadClearance( PAD_ROUND, post_vtx->x, post_vtx->y, 
+							net->area[ia].AddContourForPadClearance( PAD_ROUND, post_vtx->x, post_vtx->y, 
 								w, w, 0, 0, fill_clearance, post_vtx->via_hole_w, hole_clearance,
 								TRUE, thermal_wid );
 						}
@@ -6835,7 +6756,7 @@ void CNetList::ApplyClearancesToArea( cnet *net, int ia, int flags,
 						else
 						{
 							// thermal
-							net->area[ia].poly->AddContourForPadClearance( PAD_ROUND, post_vtx->x, post_vtx->y, 
+							net->area[ia].AddContourForPadClearance( PAD_ROUND, post_vtx->x, post_vtx->y, 
 								post_vtx->via_w, post_vtx->via_w, 0, 0, fill_clearance, post_vtx->via_hole_w, hole_clearance,
 								TRUE, thermal_wid );
 						}
@@ -6854,7 +6775,7 @@ void CNetList::ApplyClearancesToArea( cnet *net, int ia, int flags,
 					{
 						x = xi + w*cos(angle);
 						y = yi + w*sin(angle);
-						net->area[ia].poly->AppendCorner( x, y, CPolyLine::STRAIGHT, 0 );
+						net->area[ia].AppendCorner( x, y, CPolyLine::STRAIGHT );
 						angle += angle_step;
 					}
 					// create points around end of segment
@@ -6863,10 +6784,10 @@ void CNetList::ApplyClearancesToArea( cnet *net, int ia, int flags,
 					{
 						x = xf + w*cos(angle);
 						y = yf + w*sin(angle);
-						net->area[ia].poly->AppendCorner( x, y, CPolyLine::STRAIGHT, 0 );
+						net->area[ia].AppendCorner( x, y, CPolyLine::STRAIGHT );
 						angle += angle_step;
 					}
-					net->area[ia].poly->Close( CPolyLine::STRAIGHT );
+					net->area[ia].Close( CPolyLine::STRAIGHT );
 				}
 			}
 		}
@@ -6905,6 +6826,7 @@ void CNetList::ApplyClearancesToArea( cnet *net, int ia, int flags,
 	// clip polygon, creating new areas if necessary
 	ClipAreaPolygon( net, ia, FALSE, FALSE, FALSE );  
 }
+#endif
 
 // recursive function for routing
 //

@@ -23,7 +23,7 @@ public:
 	DRError();
 	~DRError();
 	enum {				// subtypes of errors 
-		PAD_PAD = 0,				
+		PAD_PAD = 1,				
 		PAD_PADHOLE,		
 		PADHOLE_PADHOLE,	
 		SEG_PAD,			

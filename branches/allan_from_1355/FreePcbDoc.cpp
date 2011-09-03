@@ -3584,7 +3584,7 @@ undo_board_outline * CFreePcbDoc::CreateBoardOutlineUndoRecord( CPolyLine * poly
 	undo = (undo_board_outline*)malloc( sizeof(undo_board_outline) + size );
 	//** if there were any variables of undo_board_outline, they would be set here
 	undo_poly * un_poly = (undo_poly*)((UINT)undo + sizeof(undo_board_outline));
-	poly->CreateUndoRecord( un_poly ); 
+	poly->CreatePolyUndoRecord( un_poly ); 
 	return undo;
 }
 
@@ -4016,7 +4016,7 @@ void CFreePcbDoc::OnToolsCheckCopperAreas()
 			// check for minimum number of corners and closed contours
 			for( int ia=0; ia<net->NumAreas(); ia++ )
 			{
-				int nc = net->area[ia].poly->GetNumCorners();
+				int nc = net->area[ia].GetNumCorners();
 				if( nc < 3 )
 				{
 					str.Format( "    area %d has only %d corners\r\n", ia+1, nc );
@@ -4024,7 +4024,7 @@ void CFreePcbDoc::OnToolsCheckCopperAreas()
 				}
 				else
 				{
-					if( !net->area[ia].poly->GetClosed() )
+					if( !net->area[ia].GetClosed() )
 					{
 						str.Format( "    area %d is not closed\r\n", ia+1 );
 						m_dlg_log->AddLine( str );
@@ -4059,7 +4059,7 @@ void CFreePcbDoc::OnToolsCheckCopperAreas()
 					BOOL mod_ia1 = FALSE;
 					for( int ia2=net->NumAreas()-1; ia2 > ia1; ia2-- )
 					{
-						if( net->area[ia1].poly->GetLayer() == net->area[ia2].poly->GetLayer() )
+						if( net->area[ia1].GetLayer() == net->area[ia2].GetLayer() )
 						{
 							// check ia2 against 1a1 
 							int ret = m_nlist->TestAreaIntersection( net, ia1, ia2 );

@@ -30,19 +30,19 @@ extern Cuid pcb_cuid;
 // default constructor, should always be followed by Initialize()
 cpin::cpin()
 {
-	m_uid = -1;
+//**	m_uid = -1;
 	part = NULL; 
 	m_net = NULL;
 }
 
 cpin::~cpin()
 {
-	pcb_cuid.ReleaseUID( m_uid );
+//**	pcb_cuid.ReleaseUID( m_uid );
 }
 
 void cpin::Initialize( cnet * net )
 {
-	m_uid = pcb_cuid.GetNewUID();
+//**	m_uid = pcb_cuid.GetNewUID();
 	m_net = net;
 }
 
@@ -262,6 +262,7 @@ void cconnect::InsertSegAndVtxByIndex(int is, int dir,
 					const cseg& new_seg, const cvertex& new_vtx )
 {
 	cseg old_seg;
+	pcb_cuid.ReleaseUID( old_seg.UID() );	//100
 	if( NumSegs() == 0 )
 		ASSERT(0);
 	old_seg = seg[is];		// copy old seg[is];
@@ -269,15 +270,16 @@ void cconnect::InsertSegAndVtxByIndex(int is, int dir,
 	if( dir == 0 )
 	{
 		// route forward
-		seg.InsertAt(is, new_seg );
-		SegByIndex(is).Initialize(this);
+		seg.InsertAt(is, new_seg );		// insert segment with new params
+		SegByIndex(is).Initialize(this);	// and new uid
 	}
 	else
 	{
 		// route backward
-		seg.InsertAt(is, old_seg );
-		SegByIndex(is).m_uid = old_seg.m_uid;
-		seg[is+1] = new_seg;
+		seg.InsertAt(is, old_seg );	// insert segment with old params
+		seg[is].ReplaceUID( old_seg.m_uid );	//100
+//100		SegByIndex(is).m_uid = old_seg.m_uid;
+		seg[is+1] = new_seg;	// assign new params to next segment
 		SegByIndex(is+1).Initialize(this);
 	}
 	vtx.InsertAt(is+1, new_vtx );
@@ -398,7 +400,8 @@ void cconnect::Draw()
 // normal constructor
 cseg::cseg()
 {
-	m_uid = -1;
+//100	m_uid = -1;
+	m_uid = pcb_cuid.GetNewUID();	//100
 	m_dlist = 0;  // this must be filled in with Initialize()
 	curve = STRAIGHT;
 	layer = 0;
@@ -443,11 +446,12 @@ cseg::cseg( cseg& src )
 #endif
 
 // assignment from const rhs (needed by CArray::InsertAt)
+// does not assign UID
 cseg& cseg::operator=( const cseg& rhs )
 {
 	if( this != &rhs )
 	{
-		m_uid = rhs.m_uid;
+//100		m_uid = rhs.m_uid;
 		layer = rhs.layer;
 		width = rhs.width;
 		curve = rhs.curve;
@@ -490,7 +494,7 @@ void cseg::Initialize( cconnect * c )
 	m_con = c;
 	m_net = c->m_net;
 	m_dlist = m_net->m_dlist;
-	m_uid = pcb_cuid.GetNewUID();
+//100	m_uid = pcb_cuid.GetNewUID();
 }
 
 // replace the UID with a different one
@@ -692,7 +696,6 @@ carea::carea()
 	m_dlist = 0;
 	npins = 0;
 	nvias = 0;
-	poly = 0;
 	utility = 0;
 	m_uid = -1;
 	utility = 0;
@@ -708,7 +711,6 @@ carea::~carea()
 		for( int is=0; is<nvias; is++ )
 			m_dlist->Remove( dl_via_thermal[is] );
 	}
-	delete poly;
 	pcb_cuid.ReleaseUID( m_uid );
 }
 
@@ -720,9 +722,8 @@ void carea::Initialize( CDisplayList * dlist, cnet * net )
 	m_id = net->id;			// level 1 of id is from net
 	m_id.SetT2( ID_AREA );		// level 2 is from area
 	m_id.SetU2( m_uid );
-	poly = new CPolyLine();		// level 3 will be from poly
-	poly->SetDlist( dlist );
-	poly->SetId( &m_id );
+	SetDlist( dlist );
+	SetId( &m_id );
 }
 
 // carea copy constructor 
@@ -732,8 +733,7 @@ carea::carea( const carea& s )
 	m_uid = s.m_uid;
 	npins = 0;
 	nvias = 0;
-	poly = new CPolyLine();
-	poly->SetDlist( m_dlist );
+	SetDlist( m_dlist );
 }
 
 // carea assignment operator
@@ -764,13 +764,6 @@ cnet::~cnet()
 		delete c;
 	}
 	connect.RemoveAll();
-	//** debug
-	int na = NumAreas();
-	for( int ia=0; ia<na; ia++ )
-	{
-		carea * a = &area[ia];
-		int uid = a->m_uid;
-	}
 	area.RemoveAll();
 	pin.RemoveAll();
 	pcb_cuid.ReleaseUID( m_uid );
@@ -824,6 +817,7 @@ cpin * cnet::PinByIndex( int ip )
 		return &pin[ip];
 }
 
+#if 0
 cpin * cnet::PinByUID( int uid )
 {
 	CIterator_cpin iter_pin( this );
@@ -852,6 +846,8 @@ void cnet::RemovePinByUID( int uid, BOOL bSetAreas )
 	}
 	ASSERT(0);
 }
+#endif
+
 
 void cnet::RemovePin( CString * ref_des, CString * pin_name, BOOL bSetAreas )
 {

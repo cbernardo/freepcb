@@ -31,7 +31,7 @@ public:
 	cpin();
 	~cpin();
 	void Initialize( cnet * net );
-	int m_uid;
+//**	int m_uid;
 	CString ref_des;	// reference designator such as 'U1'
 	CString pin_name;	// pin name such as "1" or "A23"
 	cpart * part;		// pointer to part containing the pin
@@ -41,7 +41,7 @@ public:
 
 // carea: describes a copper area in a net
 //class carea : public CPolyLine
-class carea
+class carea : public CPolyLine
 {
 public:
 	carea();
@@ -54,7 +54,6 @@ public:
 	cnet * m_net;		// parent net
 	id m_id;			// id
 	int m_uid;			// UID
-	CPolyLine * poly;	// outline
 	int npins;			// number of thru-hole pins within area on same net
 	CArray<int> pin;	// array of thru-hole pins
 	CArray<dl_element*> dl_thermal;	// graphics for thermals on pins
@@ -62,7 +61,6 @@ public:
 	CArray<int> vcon;	// connections 
 	CArray<int> vtx;	// vertices
 	CArray<dl_element*> dl_via_thermal; // graphics for thermals on stubs
-	CDisplayList * m_dlist;
 	int utility, utility2;
 };
 
@@ -123,7 +121,7 @@ public:
 
 	cvertex();
 	~cvertex();
-	cvertex &operator=( const cvertex &v );	
+	cvertex &operator=( const cvertex &v ); // assignment	
 //	cvertex &operator=( cvertex &v );	
 	void Initialize( cconnect * c );
 	int UID(){ return m_uid; };
@@ -174,9 +172,11 @@ public:
 	int UID(){ return m_uid; };
 	void ReplaceUID( int uid );
 	void ClearArrays();
+
 	// pins
 	cpin * StartPin();
 	cpin * EndPin();
+
 	// trace vertices
 	cvertex * FirstVtx();
 	cvertex * LastVtx();
@@ -185,6 +185,7 @@ public:
 	int VtxIndexByPtr( cvertex * v );
 	int VtxUIDByPtr( cvertex * v );
 	cvertex& InsertVertexByIndex( int iv, const cvertex& new_vtx );
+
 	// trace segments
 	int NumSegs();
 	void SetNumSegs( int n );
@@ -192,16 +193,19 @@ public:
 	cseg& SegByIndex( int is );
 	int SegIndexByPtr( cseg * s );
 	int SegUIDByPtr( cseg * s );
+
 	// segments and vertices
 	void InsertSegAndVtxByIndex( int is, int dir, 
 				const cseg& new_seg, const cvertex& new_vtx );
 	void AppendSegAndVertex( const cseg& new_seg, const cvertex& new_vtx );
 	void PrependVertexAndSeg( const cvertex& new_vtx, const cseg& new_seg );
 	void RemoveSegAndVertexByIndex( int is, int dir );
+
 	// drawing methods
 	void Draw();
 	void Undraw();
 	void HighLight();
+
 	// utilities
 	int Utility(){ return utility; };
 	void SetUtility( int i ){ utility = i; };

@@ -1,26 +1,29 @@
 // PolyLine.h ... definition of CPolyLine class
 //
-// A polyline contains one or more contours, where each contour
-// is defined by a list of corners and side-styles
-// There may be multiple contours in a polyline.
-// The last contour may be open or closed, any others must be closed.
-// All of the corners and side-styles are concatenated into 2 arrays,
-// separated by setting the end_contour flag of the last corner of 
-// each contour.
+// A polyline is an set of connected line segments
+// It may be closed (ie. a polygon) or open
 //
-// When used for copper areas, the first contour is the outer edge 
-// of the area, subsequent ones are "holes" in the copper.
+// The CPolyLine class represents a polyline that contains one 
+// or more contours
+//
+// A single contour is a polyline as defined above
+//
+// If there is more than one contour, then they must all be closed
+// The last contour represents the outer edge of the polyline
+// The other contours are polygons that represent "cutouts" in the outer
+// polygon
+//
+// The corners and sides of all of the contours are concatenated into 2 CArrays,
+// separated by setting the end_contour flag of the last corner of each contour.
 //
 // If a CDisplayList pointer is provided, the polyline can draw itself 
-
+//
 #pragma once
-#include "DisplayList.h"
 #include "gpc_232.h"
-#include "Cuid.h"
-#include "ids.h"
 
 class polygon;
 class CPolyLine;
+class CDisplayList;
 
 struct undo_poly {
 	CPolyLine * poly;
@@ -87,14 +90,14 @@ public:
 	CPolyLine();
 	~CPolyLine();
 
-	// functions for modifying polyline
+	// functions for creating and modifying polyline
 	void Start( int layer, int w, int sel_box, int x, int y,
-		int hatch, id * id, void * ptr );
-	void AppendCorner( int x, int y, int style = STRAIGHT, BOOL bDraw=TRUE );
+		int hatch, id * id, void * ptr, BOOL bDraw=TRUE );
+	void AppendCorner( int x, int y, int style = STRAIGHT );
 	void InsertCorner( int ic, int x, int y );
-	void DeleteCorner( int ic, BOOL bDraw=TRUE );
+	void DeleteCorner( int ic );
 	BOOL MoveCorner( int ic, int x, int y, BOOL bEnforceCircularArcs=FALSE );
-	void Close( int style = STRAIGHT, BOOL bDraw=TRUE );
+	void Close( int style = STRAIGHT );
 	void RemoveContour( int icont );
 
 	// drawing functions
@@ -125,7 +128,7 @@ public:
 	// undo functions
 	int SizeOfUndoRecord();
 	void SetFromUndo( undo_poly * un_poly );
-	void CreateUndoRecord( undo_poly * un_poly );
+	void CreatePolyUndoRecord( undo_poly * un_poly );
 
 	// access functions
 	int GetUID();
@@ -154,6 +157,7 @@ public:
 	int GetSelBoxSize();
 	CDisplayList * GetDisplayList(){ return m_dlist; };
 	int GetHatch(){ return m_hatch; }
+	BOOL GetDrawn(){ return bDrawn; };
 
 	void SetCornerUID( int ic, int uid );
 	void SetSideUID( int is, int uid );
@@ -165,12 +169,13 @@ public:
 	void SetUtility( int ic, int utility ){ corner[ic].utility = utility; };
 	void SetLayer( int layer );
 	void SetW( int w );
-	void SetSideStyle( int is, int style );
+	void SetSideStyle( int is, int style, BOOL bDraw=TRUE );
 	void SetId( id * id );
 	void SetPtr( void * ptr ){ m_ptr = ptr; };
 	void SetSelBoxSize( int sel_box );
 	void SetHatch( int hatch ){ Undraw(); m_hatch = hatch; Draw(); };
 	void SetDisplayList( CDisplayList * dl );
+	void SetDrawn( BOOL drawn ){ bDrawn = drawn; };
 
 	// GPC functions
 	int MakeGpcPoly( int icontour=0, CArray<CArc> * arc_array=NULL );
@@ -189,7 +194,7 @@ public:
 	void FreePhpPoly();
 	void ClipPhpPolygon( int php_op, CPolyLine * poly );
 
-private:
+protected:
 	CDisplayList * m_dlist;		// display list 
 	id m_root_id;	// root id
 	int m_uid;		// use this uid if root_id doesn't provide one
@@ -200,7 +205,7 @@ private:
 	int m_ncorners;	// number of corners
 	int utility;
 	CArray <CPolyCorner> corner;	// array of corners
-	CArray <CPolySide> side;	// array of sides
+	CArray <CPolySide> side;		// array of sides
 	int m_hatch;	// hatch style, see enum above
 	int m_nhatch;	// number of hatch lines
 	CArray <dl_element*>  dl_hatch;	// hatch lines	

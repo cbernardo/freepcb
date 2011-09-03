@@ -18,7 +18,7 @@ extern Cuid pcb_cuid;
 //*******************************************************************
 // Implementation of class CText, representing a text string on a PCB
 
-// Default constructor just clears m_dlist so text can't drawn
+// Default constructor just clears m_dlist so text can't be drawn
 //
 CText::CText()
 {
@@ -29,6 +29,7 @@ CText::CText()
 
 // Initialize text data, create strokes if smfontutil != NULL
 // Draw() strokes them into display list if dlist != NULL
+// Enter with tid = root uid (ie. levels 1 and 2 set)
 //
 void CText::Init( CDisplayList * dlist, id tid, int x, int y, int angle, int mirror,
 			BOOL bNegative, int layer, int font_size, int stroke_width, 
@@ -169,14 +170,6 @@ void CText::Draw( CDisplayList * dlist, SMFontUtil * smfontutil )
 			RotatePoint( &si, m_angle, zero );
 			RotatePoint( &sf, m_angle, zero );
 			// draw it
-			if( tid.IsText() )
-				tid.SetT2( ID_TEXT );
-			else if( tid.IsRefText() )
-				tid.SetT2( ID_VALUE_TXT );
-			else if( tid.IsValueText() )
-				tid.SetT2( ID_REF_TXT );
-			else
-				ASSERT(0);
 			tid.SetT3( ID_SEL_TXT );
 			dl_sel = dlist->AddSelector( tid, this, m_layer, DL_HOLLOW_RECT, 1,
 				0, 0, m_x + si.x, m_y + si.y, m_x + sf.x, m_y + sf.y, m_x + si.x, m_y + si.y );
