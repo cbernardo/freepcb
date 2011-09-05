@@ -701,8 +701,8 @@ void CFootprintView::OnLButtonDown(UINT nFlags, CPoint point)
 			p = m_last_cursor_point;
 			m_dlist->StopDragging();
 			BOOL bEnforceCircularArcs = FALSE;
-			if( m_fp.m_outline_poly[m_sel_id.I2()].GetLayer() >= LAY_FP_TOP_COPPER
-				&& m_fp.m_outline_poly[m_sel_id.I2()].GetLayer() <= LAY_FP_BOTTOM_COPPER )
+			if( m_fp.m_outline_poly[m_sel_id.I2()].Layer() >= LAY_FP_TOP_COPPER
+				&& m_fp.m_outline_poly[m_sel_id.I2()].Layer() <= LAY_FP_BOTTOM_COPPER )
 			{
 				bEnforceCircularArcs = TRUE;
 			}
@@ -777,8 +777,8 @@ void CFootprintView::OnLButtonDown(UINT nFlags, CPoint point)
 			pDC->SelectClipRgn( &m_pcb_rgn );
 			CPoint p;
 			p = m_last_cursor_point;
-			if( p.x == m_fp.m_outline_poly[m_sel_id.I2()].GetX(0)
-				&& p.y == m_fp.m_outline_poly[m_sel_id.I2()].GetY(0) )
+			if( p.x == m_fp.m_outline_poly[m_sel_id.I2()].X(0)
+				&& p.y == m_fp.m_outline_poly[m_sel_id.I2()].Y(0) )
 			{
 				// this point is the start point, close the polyline and quit
 				m_fp.m_outline_poly[m_sel_id.I2()].Close( m_polyline_style );
@@ -947,10 +947,10 @@ void CFootprintView::OnRButtonDown(UINT nFlags, CPoint point)
 		OnPolylineDelete();
 	}
 	else if( ( m_cursor_mode == CUR_FP_DRAG_POLY 
-				&& m_fp.m_outline_poly[m_sel_id.I2()].GetNumCorners()<3 
+				&& m_fp.m_outline_poly[m_sel_id.I2()].NumCorners()<3 
 				&& m_polyline_closed_flag )
 		  || ( m_cursor_mode == CUR_FP_DRAG_POLY 
-				&& m_fp.m_outline_poly[m_sel_id.I2()].GetNumCorners()<2 
+				&& m_fp.m_outline_poly[m_sel_id.I2()].NumCorners()<2 
 				&& !m_polyline_closed_flag ) )
 	{
 		m_dlist->StopDragging();
@@ -1420,7 +1420,7 @@ void CFootprintView::SetFKText( int mode )
 		m_fkey_option[1] = FK_FP_POLY_ARC_CW;
 		m_fkey_option[2] = FK_FP_POLY_ARC_CCW;
 		{
-			int style = m_fp.m_outline_poly[m_sel_id.I2()].GetSideStyle( m_sel_id.I3() );
+			int style = m_fp.m_outline_poly[m_sel_id.I2()].SideStyle( m_sel_id.I3() );
 			if( style == CPolyLine::STRAIGHT )
 				m_fkey_option[3] = FK_FP_ADD_CORNER;
 		}
@@ -1559,11 +1559,11 @@ int CFootprintView::ShowSelectStatus()
 	case CUR_FP_POLY_SIDE_SELECTED: 
 		{
 			CString style_str;
-			if( m_fp.m_outline_poly[m_sel_id.I2()].GetSideStyle( m_sel_id.I3() ) == CPolyLine::STRAIGHT )
+			if( m_fp.m_outline_poly[m_sel_id.I2()].SideStyle( m_sel_id.I3() ) == CPolyLine::STRAIGHT )
 				style_str = "straight";
-			else if( m_fp.m_outline_poly[m_sel_id.I2()].GetSideStyle( m_sel_id.I3() ) == CPolyLine::ARC_CW )
+			else if( m_fp.m_outline_poly[m_sel_id.I2()].SideStyle( m_sel_id.I3() ) == CPolyLine::ARC_CW )
 				style_str = "arc(cw)";
-			else if( m_fp.m_outline_poly[m_sel_id.I2()].GetSideStyle( m_sel_id.I3() ) == CPolyLine::ARC_CCW )
+			else if( m_fp.m_outline_poly[m_sel_id.I2()].SideStyle( m_sel_id.I3() ) == CPolyLine::ARC_CCW )
 				style_str = "arc(ccw)";
 			str.Format( "Polyline %d, side %d, style = %s", m_sel_id.I2()+1, m_sel_id.I3()+1, 
 				style_str );
@@ -1783,21 +1783,21 @@ void CFootprintView::OnContextMenu(CWnd* pWnd, CPoint point )
 	case CUR_FP_POLY_SIDE_SELECTED:
 		pPopup = menu.GetSubMenu(CONTEXT_FP_SIDE);
 		ASSERT(pPopup != NULL);
-		style = m_fp.m_outline_poly[m_sel_id.I2()].GetSideStyle( m_sel_id.I3() );
+		style = m_fp.m_outline_poly[m_sel_id.I2()].SideStyle( m_sel_id.I3() );
 		if( style == CPolyLine::STRAIGHT )
 		{
-			int xi = m_fp.m_outline_poly[m_sel_id.I2()].GetX( m_sel_id.I3() );
-			int yi = m_fp.m_outline_poly[m_sel_id.I2()].GetY( m_sel_id.I3() );
+			int xi = m_fp.m_outline_poly[m_sel_id.I2()].X( m_sel_id.I3() );
+			int yi = m_fp.m_outline_poly[m_sel_id.I2()].Y( m_sel_id.I3() );
 			int xf, yf;
-			if( m_sel_id.I3() != (m_fp.m_outline_poly[m_sel_id.I2()].GetNumCorners()-1) )
+			if( m_sel_id.I3() != (m_fp.m_outline_poly[m_sel_id.I2()].NumCorners()-1) )
 			{
-				xf = m_fp.m_outline_poly[m_sel_id.I2()].GetX( m_sel_id.I3()+1 );
-				yf = m_fp.m_outline_poly[m_sel_id.I2()].GetY( m_sel_id.I3()+1 );
+				xf = m_fp.m_outline_poly[m_sel_id.I2()].X( m_sel_id.I3()+1 );
+				yf = m_fp.m_outline_poly[m_sel_id.I2()].Y( m_sel_id.I3()+1 );
 			}
 			else
 			{
-				xf = m_fp.m_outline_poly[m_sel_id.I2()].GetX( 0 );
-				yf = m_fp.m_outline_poly[m_sel_id.I2()].GetY( 0 );
+				xf = m_fp.m_outline_poly[m_sel_id.I2()].X( 0 );
+				yf = m_fp.m_outline_poly[m_sel_id.I2()].Y( 0 );
 			}
 			if( xi == xf || yi == yf )
 			{
@@ -1823,7 +1823,7 @@ void CFootprintView::OnContextMenu(CWnd* pWnd, CPoint point )
 		pPopup = menu.GetSubMenu(CONTEXT_FP_CORNER);
 		ASSERT(pPopup != NULL);
 		{
-			if( m_fp.m_outline_poly[m_sel_id.I2()].GetNumCorners() < 4 )
+			if( m_fp.m_outline_poly[m_sel_id.I2()].NumCorners() < 4 )
 				pPopup->EnableMenuItem( ID_FP_DELETECORNER, MF_GRAYED );
 		}
 		pPopup->TrackPopupMenu(TPM_LEFTALIGN | TPM_RIGHTBUTTON, point.x, point.y, pWnd );
@@ -1998,15 +1998,15 @@ void CFootprintView::OnPolylineCornerEdit()
 {
 	DlgEditBoardCorner dlg;
 	CString str = "Corner Position";
-	int x = m_fp.m_outline_poly[m_sel_id.I2()].GetX(m_sel_id.I3());
-	int y = m_fp.m_outline_poly[m_sel_id.I2()].GetY(m_sel_id.I3());
+	int x = m_fp.m_outline_poly[m_sel_id.I2()].X(m_sel_id.I3());
+	int y = m_fp.m_outline_poly[m_sel_id.I2()].Y(m_sel_id.I3());
 	dlg.Init( &str, m_units, x, y );
 	int ret = dlg.DoModal();
 	if( ret == IDOK )
 	{
 		PushUndo();
 		m_fp.m_outline_poly[m_sel_id.I2()].MoveCorner( m_sel_id.I3(), 
-			dlg.GetX(), dlg.GetY() );
+			dlg.X(), dlg.Y() );
 		CancelSelection();
 		Invalidate( FALSE );
 		FootprintModified( TRUE );
@@ -2019,8 +2019,8 @@ void CFootprintView::OnPolylineCornerDelete()
 {
 	PushUndo();
 	CPolyLine * poly = &m_fp.m_outline_poly[m_sel_id.I2()];
-	if( poly->GetClosed() && poly->GetNumCorners() < 4
-		|| !poly->GetClosed() && poly->GetNumCorners() < 3 )
+	if( poly->Closed() && poly->NumCorners() < 4
+		|| !poly->Closed() && poly->NumCorners() < 3 )
 	{
 		AfxMessageBox( "Polyline has too few corners" );
 		return;
@@ -2495,10 +2495,10 @@ void CFootprintView::OnEditPolyline()
 {
 	CPolyLine * poly = &m_fp.m_outline_poly[m_sel_id.I2()];
 	int layer_index = 0;
-	if( poly->GetLayer() == LAY_FP_SILK_BOTTOM )
+	if( poly->Layer() == LAY_FP_SILK_BOTTOM )
 		layer_index = 1;
 	CDlgAddPoly dlg;
-	dlg.Initialize( FALSE, layer_index, m_units, poly->GetW(), poly->GetClosed(), &m_fp.m_padstack );
+	dlg.Initialize( FALSE, layer_index, m_units, poly->W(), poly->Closed(), &m_fp.m_padstack );
 	int ret = dlg.DoModal();
 	if( ret == IDOK )
 	{

@@ -262,7 +262,7 @@ void cconnect::InsertSegAndVtxByIndex(int is, int dir,
 					const cseg& new_seg, const cvertex& new_vtx )
 {
 	cseg old_seg;
-	pcb_cuid.ReleaseUID( old_seg.UID() );	//100
+	pcb_cuid.ReleaseUID( old_seg.UID() );
 	if( NumSegs() == 0 )
 		ASSERT(0);
 	old_seg = seg[is];		// copy old seg[is];
@@ -277,8 +277,7 @@ void cconnect::InsertSegAndVtxByIndex(int is, int dir,
 	{
 		// route backward
 		seg.InsertAt(is, old_seg );	// insert segment with old params
-		seg[is].ReplaceUID( old_seg.m_uid );	//100
-//100		SegByIndex(is).m_uid = old_seg.m_uid;
+		seg[is].ReplaceUID( old_seg.m_uid );	
 		seg[is+1] = new_seg;	// assign new params to next segment
 		SegByIndex(is+1).Initialize(this);
 	}
@@ -400,9 +399,7 @@ void cconnect::Draw()
 // normal constructor
 cseg::cseg()
 {
-//100	m_uid = -1;
-	m_uid = pcb_cuid.GetNewUID();	//100
-	m_dlist = 0;  // this must be filled in with Initialize()
+	m_uid = pcb_cuid.GetNewUID();
 	curve = STRAIGHT;
 	layer = 0;
 	width = 0;
@@ -410,8 +407,27 @@ cseg::cseg()
 	dl_el = 0;
 	dl_sel = 0;
 	utility = 0;
+	// these may be filled in after construction with Initialize()
 	m_con = 0;
+	m_dlist = 0;  
 	m_net = 0;
+}
+
+// copy constructor
+// don't copy UID or display elements
+cseg::cseg( cseg& src )
+{
+	m_uid = src.m_uid;
+	layer = src.layer;
+	width = src.width;
+	curve = src.curve;
+	selected = src.selected;
+	utility = src.utility;
+	dl_el = NULL;
+	dl_sel = NULL;
+	m_dlist = src.m_dlist;
+	m_net = src.m_net;
+	m_con = src.m_con;
 }
 
 // destructor
@@ -427,31 +443,12 @@ cseg::~cseg()
 	}
 }
 
-#if 0
-// copy constructor
-cseg::cseg( cseg& src )
-{
-	m_uid = src.m_uid;
-	layer = src.layer;
-	width = src.width;
-	curve = src.curve;
-	selected = src.selected;
-	dl_el = src.dl_el;
-	dl_sel = src.dl_sel;
-	m_dlist = src.m_dlist;
-	m_net = src.m_net;
-	m_con = src.m_con;
-	utility = src.utility;
-}
-#endif
-
 // assignment from const rhs (needed by CArray::InsertAt)
-// does not assign UID
+// copy all variables except m_uid
 cseg& cseg::operator=( const cseg& rhs )
 {
 	if( this != &rhs )
 	{
-//100		m_uid = rhs.m_uid;
 		layer = rhs.layer;
 		width = rhs.width;
 		curve = rhs.curve;
@@ -466,7 +463,6 @@ cseg& cseg::operator=( const cseg& rhs )
 	return *this;
 }
 
-#if 0
 // assignment
 cseg& cseg::operator=( cseg& rhs )
 {
@@ -486,7 +482,6 @@ cseg& cseg::operator=( cseg& rhs )
 	}
 	return *this;
 }
-#endif
 
 // set up pointers and UID
 void cseg::Initialize( cconnect * c )
@@ -494,7 +489,6 @@ void cseg::Initialize( cconnect * c )
 	m_con = c;
 	m_net = c->m_net;
 	m_dlist = m_net->m_dlist;
-//100	m_uid = pcb_cuid.GetNewUID();
 }
 
 // replace the UID with a different one
@@ -504,19 +498,7 @@ void cseg::Initialize( cconnect * c )
 // request assignment of uid if necessary
 void cseg::ReplaceUID( int uid )
 {
-	pcb_cuid.ReleaseUID( m_uid );
-	if( uid < 0 )
-	{
-		m_uid = pcb_cuid.GetNewUID();
-	}
-	else
-	{
-		if( pcb_cuid.CheckUID( uid ) )
-		{
-			pcb_cuid.RequestUID( uid );
-		}
-		m_uid = uid;
-	}
+	m_uid = pcb_cuid.PrepareToReplaceUID( m_uid, -1 );
 }
 
 // get index of this segment in cconnect
@@ -548,23 +530,44 @@ cvertex& cseg::GetPostVtx()
 
 //**************************** cvertex implementation *********************
 cvertex::cvertex()
-	{
-		// constructor
-		m_uid = -1;		// this must set with Initialize()
-		m_dlist = 0;	// this must set with Initialize()
-		m_con = 0;		// this must set with Initialize()
-		m_net = 0;		// this must set with Initialize()
-		x = 0; y = 0;
-		pad_layer = 0;			// only for first or last 
-		force_via_flag = 0;		// only used for end of stub trace
-		via_w = 0; 
-		via_hole_w = 0;
-		dl_sel = 0;
-		dl_hole = 0;
-		tee_ID = 0;
-		utility = 0;
-		utility2 = 0;
-	}
+{
+	// constructor
+	m_uid = pcb_cuid.GetNewUID();
+	m_dlist = 0;	// this must set with Initialize()
+	m_con = 0;		// this must set with Initialize()
+	m_net = 0;		// this must set with Initialize()
+	x = 0; y = 0;
+	pad_layer = 0;			// only for first or last 
+	force_via_flag = 0;		// only used for end of stub trace
+	via_w = 0; 
+	via_hole_w = 0;
+	dl_sel = 0;
+	dl_hole = 0;
+	tee_ID = 0;
+	utility = 0;
+	utility2 = 0;
+}
+
+// copy constructor
+// don't copy UID or display elements
+cvertex::cvertex( cvertex& v )
+{
+	// constructor
+	m_uid = pcb_cuid.GetNewUID();
+	x = v.x;
+	y = v.y;
+	pad_layer = v.pad_layer;
+	force_via_flag = v.force_via_flag;
+	via_w = v.via_w;
+	via_hole_w = v.via_hole_w;
+	tee_ID = v.tee_ID;
+	utility = v.utility;
+	utility2 = v.utility2;
+	m_dlist = v.m_dlist;
+	m_con = v.m_con;	
+	m_net = v.m_net;	
+}
+
 cvertex::~cvertex()
 {
 	// destructor
@@ -578,16 +581,12 @@ cvertex::~cvertex()
 		if( dl_hole )
 			m_dlist->Remove( dl_hole );
 	}
-	// for testing
-//	CVertex * v;
-//	BOOL bOK = m_net->m_vertex_map.Lookup( m_uid, v );
-//	m_net->m_vertex_map.RemoveKey( m_uid );
 }
 
-cvertex & cvertex::operator=( const cvertex &v )	// assignment operator
+// assignment from const
+// don't copy UID or display elements
+cvertex & cvertex::operator=( const cvertex &v )	
 {
-	// copy all params 
-	m_uid = v.m_uid;	// one of these should be changed after copy
 	x = v.x;
 	y = v.y;
 	pad_layer = v.pad_layer;
@@ -597,19 +596,16 @@ cvertex & cvertex::operator=( const cvertex &v )	// assignment operator
 	tee_ID = v.tee_ID;
 	utility = v.utility;
 	utility2 = v.utility2;
-	dl_hole = v.dl_hole;
-	dl_sel = v.dl_sel; 
-	dl_el.SetSize(v.dl_el.GetSize() );
-	for( int i=0; i<v.dl_el.GetSize(); i++ )
-		dl_el[i] = v.dl_el[i];
+	dl_hole = NULL;
+	dl_sel = NULL; 
+	dl_el.SetSize(0);
 	return *this;
 };
 
-#if 0
-cvertex & cvertex::operator=( cvertex &v )	// assignment operator
+// assignment from const
+// don't copy UID or display elements
+cvertex & cvertex::operator=( cvertex &v )	
 {
-	// copy all params 
-	m_uid = v.m_uid;	// one of these should be changed after copy
 	x = v.x;
 	y = v.y;
 	pad_layer = v.pad_layer;
@@ -619,33 +615,17 @@ cvertex & cvertex::operator=( cvertex &v )	// assignment operator
 	tee_ID = v.tee_ID;
 	utility = v.utility;
 	utility2 = v.utility2;
-	dl_hole = v.dl_hole;
-	dl_sel = v.dl_sel; 
-	dl_el.SetSize(v.dl_el.GetSize() );
-	for( int i=0; i<v.dl_el.GetSize(); i++ )
-		dl_el[i] = v.dl_el[i];
+	dl_hole = NULL;
+	dl_sel = NULL; 
+	dl_el.SetSize(0);
 	return *this;
 };
-#endif
 
 void cvertex::Initialize( cconnect * c )
 {
-	m_uid = pcb_cuid.GetNewUID();
 	m_con = c;
 	m_net = c->m_net;
 	m_dlist = m_net->m_dlist;
-//	m_bDrawn = FALSE;
-//	m_bDrawingEnabled = TRUE;
-	// for testing
-#if 0
-	CVertex * v = new CVertex( m_net );
-	v->m_uid = m_uid;
-	m_net->m_vertex_map.SetAt( v->m_uid, v );
-	CVertex * v_check;
-	BOOL bOK = m_net->m_vertex_map.Lookup( m_uid, v_check );
-	if( !bOK )
-		ASSERT(0);
-#endif
 }
 
 // replace the old UID with a different one
@@ -654,19 +634,7 @@ void cvertex::Initialize( cconnect * c )
 //
 void cvertex::ReplaceUID( int uid )
 {
-	pcb_cuid.ReleaseUID( m_uid );
-	if( uid < 0 )
-	{
-		m_uid = pcb_cuid.GetNewUID();
-	}
-	else
-	{
-		if( pcb_cuid.CheckUID( uid ) )
-		{
-			pcb_cuid.RequestUID( uid );
-		}
-		m_uid = uid;
-	}
+	m_uid = pcb_cuid.PrepareToReplaceUID( m_uid, -1 );
 }
 
 void cvertex::Undraw()
@@ -697,9 +665,20 @@ carea::carea()
 	npins = 0;
 	nvias = 0;
 	utility = 0;
-	m_uid = -1;
 	utility = 0;
 	utility2 = 0;
+}
+
+// carea copy constructor 
+// doesn't actually copy but required for CArray<carea,carea>.InsertAt()
+carea::carea( const carea& s )
+{
+	m_net = NULL;
+	m_id.Clear();
+	npins = 0;
+	nvias = 0;
+	npins = 0;
+	SetDlist( m_dlist );
 }
 
 carea::~carea()
@@ -711,37 +690,32 @@ carea::~carea()
 		for( int is=0; is<nvias; is++ )
 			m_dlist->Remove( dl_via_thermal[is] );
 	}
-	pcb_cuid.ReleaseUID( m_uid );
-}
-
-void carea::Initialize( CDisplayList * dlist, cnet * net )
-{
-	m_dlist = dlist;
-	m_net = net;
-	m_uid = pcb_cuid.GetNewUID();
-	m_id = net->id;			// level 1 of id is from net
-	m_id.SetT2( ID_AREA );		// level 2 is from area
-	m_id.SetU2( m_uid );
-	SetDlist( dlist );
-	SetId( &m_id );
-}
-
-// carea copy constructor 
-// doesn't actually copy but required for CArray<carea,carea>.InsertAt()
-carea::carea( const carea& s )
-{
-	m_uid = s.m_uid;
-	npins = 0;
-	nvias = 0;
-	SetDlist( m_dlist );
 }
 
 // carea assignment operator
 // doesn't actually assign but required for CArray<carea,carea>.InsertAt()
 carea &carea::operator=( carea &a )
 {
-	m_uid = a.m_uid;
 	return *this;
+}
+
+// carea assignment operator
+// doesn't actually assign but required for CArray<carea,carea>.InsertAt()
+carea &carea::operator=( const carea &a )
+{
+	return *this;
+}
+
+
+void carea::Initialize( CDisplayList * dlist, cnet * net )
+{
+	m_dlist = dlist;
+	m_net = net;
+	m_id = net->id;			// level 1 of id is from net
+	m_id.SetT2( ID_AREA );		// level 2 is from area
+	m_id.SetU2( m_uid );
+	SetDlist( dlist );
+	SetId( &m_id );
 }
 
 //************************* CNet implementation ***************************
@@ -1044,7 +1018,7 @@ carea * cnet::AreaByUID( int uid, int * index )
 	CIterator_carea iter_area( this );
 	for( carea * a=iter_area.GetFirst(); a; a=iter_area.GetNext() )
 	{
-		if( a->m_uid == uid )
+		if( a->UID() == uid )
 		{
 			*index =iter_area.GetIndex();
 			return a;

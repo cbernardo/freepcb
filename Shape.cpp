@@ -915,10 +915,10 @@ int CShape::MakeFromString( CString name, CString str )
 		}
 		for( int ip=0; ip<m_outline_poly.GetSize(); ip++ )
 		{
-			for( int ic=0; ic<m_outline_poly[0].GetNumCorners(); ic++ )
+			for( int ic=0; ic<m_outline_poly[0].NumCorners(); ic++ )
 			{
-				m_outline_poly[ip].SetX( ic, m_outline_poly[ip].GetX(ic) - m_padstack[0].x_rel );
-				m_outline_poly[ip].SetY( ic, m_outline_poly[ip].GetY(ic) - m_padstack[0].y_rel );
+				m_outline_poly[ip].SetX( ic, m_outline_poly[ip].X(ic) - m_padstack[0].x_rel );
+				m_outline_poly[ip].SetY( ic, m_outline_poly[ip].Y(ic) - m_padstack[0].y_rel );
 			}
 		}
 		m_ref_xi -= m_padstack[0].x_rel;
@@ -1478,7 +1478,7 @@ normal_return:
 		for( int ip=np-1; ip>=0; ip-- )
 		{
 			CPolyLine * p = &m_outline_poly[ip];
-			if( p->GetNumCorners() == 1 )
+			if( p->NumCorners() == 1 )
 				m_outline_poly.RemoveAt(ip);
 		}
 		// NM deprecated
@@ -1646,17 +1646,17 @@ BOOL CShape::Compare( CShape * shape )
 		return FALSE;
 	for( int ip=0; ip<np; ip++ )
 	{
-		if (m_outline_poly[ip].GetLayer() != shape->m_outline_poly[ip].GetLayer() ) return FALSE;
-		if (m_outline_poly[ip].GetClosed() != shape->m_outline_poly[ip].GetClosed() ) return FALSE;
+		if (m_outline_poly[ip].Layer() != shape->m_outline_poly[ip].Layer() ) return FALSE;
+		if (m_outline_poly[ip].Closed() != shape->m_outline_poly[ip].Closed() ) return FALSE;
 		if (m_outline_poly[ip].GetHatch() != shape->m_outline_poly[ip].GetHatch() ) return FALSE;
-		if (m_outline_poly[ip].GetW() != shape->m_outline_poly[ip].GetW() ) return FALSE;
-		if (m_outline_poly[ip].GetNumCorners() != shape->m_outline_poly[ip].GetNumCorners() ) return FALSE;
-		for( int ic=0; ic<m_outline_poly[ip].GetNumCorners(); ic++ )
+		if (m_outline_poly[ip].W() != shape->m_outline_poly[ip].W() ) return FALSE;
+		if (m_outline_poly[ip].NumCorners() != shape->m_outline_poly[ip].NumCorners() ) return FALSE;
+		for( int ic=0; ic<m_outline_poly[ip].NumCorners(); ic++ )
 		{
-			if (m_outline_poly[ip].GetX(ic) != shape->m_outline_poly[ip].GetX(ic) ) return FALSE;
-			if (m_outline_poly[ip].GetY(ic) != shape->m_outline_poly[ip].GetY(ic) ) return FALSE;
-			if( ic<(m_outline_poly[ip].GetNumCorners()-1) || m_outline_poly[ip].GetClosed() )
-				if (m_outline_poly[ip].GetSideStyle(ic) != shape->m_outline_poly[ip].GetSideStyle(ic) ) return FALSE;
+			if (m_outline_poly[ip].X(ic) != shape->m_outline_poly[ip].X(ic) ) return FALSE;
+			if (m_outline_poly[ip].Y(ic) != shape->m_outline_poly[ip].Y(ic) ) return FALSE;
+			if( ic<(m_outline_poly[ip].NumCorners()-1) || m_outline_poly[ip].Closed() )
+				if (m_outline_poly[ip].SideStyle(ic) != shape->m_outline_poly[ip].SideStyle(ic) ) return FALSE;
 		}
 	}
 	// text
@@ -1768,21 +1768,21 @@ int CShape::WriteFootprint( CStdioFile * file )
 		}
 		for( int ip=0; ip<m_outline_poly.GetSize(); ip++ )
 		{
-			line.Format( "  outline_polyline: %s %s %s %d\n", ws(m_outline_poly[ip].GetW(),m_units),
-				ws(m_outline_poly[ip].GetX(0),m_units), ws(m_outline_poly[ip].GetY(0),m_units),
-				m_outline_poly[ip].GetLayer() );
+			line.Format( "  outline_polyline: %s %s %s %d\n", ws(m_outline_poly[ip].W(),m_units),
+				ws(m_outline_poly[ip].X(0),m_units), ws(m_outline_poly[ip].Y(0),m_units),
+				m_outline_poly[ip].Layer() );
 			file->WriteString( line );
-			int nc = m_outline_poly[ip].GetNumCorners();
+			int nc = m_outline_poly[ip].NumCorners();
 			for( int ic=1; ic<nc; ic++ )
 			{
 				line.Format( "    next_corner: %s %s %d\n",
-					ws(m_outline_poly[ip].GetX(ic),m_units), ws(m_outline_poly[ip].GetY(ic),m_units),
-					m_outline_poly[ip].GetSideStyle(ic-1) );
+					ws(m_outline_poly[ip].X(ic),m_units), ws(m_outline_poly[ip].Y(ic),m_units),
+					m_outline_poly[ip].SideStyle(ic-1) );
 				file->WriteString( line );
 			}
-			if( m_outline_poly[ip].GetClosed() )
+			if( m_outline_poly[ip].Closed() )
 			{
-				line.Format( "    close_polyline: %d\n", m_outline_poly[ip].GetSideStyle(nc-1) );
+				line.Format( "    close_polyline: %d\n", m_outline_poly[ip].SideStyle(nc-1) );
 				file->WriteString( line );
 			}
 		}
@@ -1938,10 +1938,10 @@ HENHMETAFILE CShape::CreateMetafile( CMetaFileDC * mfDC, CDC * pDC, int x_size, 
 	for( int ip=0; ip<m_outline_poly.GetSize(); ip++ )
 	{
 		CPolyLine * p = &m_outline_poly[ip];
-		for( int ic=0; ic<p->GetNumCorners(); ic++ )
+		for( int ic=0; ic<p->NumCorners(); ic++ )
 		{
-			int x = p->GetX( ic );
-			int y = p->GetY( ic );
+			int x = p->X( ic );
+			int y = p->Y( ic );
 			x_min = min( x_min, x );
 			x_max = max( x_max, x );
 			y_min = min( y_min, y );
@@ -2263,17 +2263,17 @@ HENHMETAFILE CShape::CreateMetafile( CMetaFileDC * mfDC, CDC * pDC, int x_size, 
 	for( int ip=0; ip<m_outline_poly.GetSize(); ip++ )
 	{
 		CPolyLine * p = &m_outline_poly[ip];
-		int thickness = p->GetW()/NM_PER_MIL;
-		CPen silk_pen( PS_SOLID, thickness, dlist_fp->GetLayerColor( p->GetLayer() ) );
+		int thickness = p->W()/NM_PER_MIL;
+		CPen silk_pen( PS_SOLID, thickness, dlist_fp->GetLayerColor( p->Layer() ) );
 		mfDC->SelectObject( &silk_pen );
-		int x = p->GetX(0)/NM_PER_MIL;
-		int y = p->GetY(0)/NM_PER_MIL;
+		int x = p->X(0)/NM_PER_MIL;
+		int y = p->Y(0)/NM_PER_MIL;
 		mfDC->MoveTo( x+xoffset, -y+yoffset );
-		for( int ic=1; ic<p->GetNumCorners(); ic++ )
+		for( int ic=1; ic<p->NumCorners(); ic++ )
 		{
-			int next_x = p->GetX( ic )/NM_PER_MIL;
-			int next_y = p->GetY( ic )/NM_PER_MIL;
-			int style = p->GetSideStyle(ic-1);
+			int next_x = p->X( ic )/NM_PER_MIL;
+			int next_y = p->Y( ic )/NM_PER_MIL;
+			int style = p->SideStyle(ic-1);
 			int dl_shape;
 			if( style == CPolyLine::STRAIGHT )
 				dl_shape = DL_LINE;
@@ -2287,11 +2287,11 @@ HENHMETAFILE CShape::CreateMetafile( CMetaFileDC * mfDC, CDC * pDC, int x_size, 
 			x = next_x; 
 			y = next_y;
 		}
-		if( p->GetClosed() )
+		if( p->Closed() )
 		{
-			int next_x = p->GetX(0)/NM_PER_MIL;
-			int next_y = p->GetY(0)/NM_PER_MIL;
-			int style = p->GetSideStyle(p->GetNumCorners()-1);
+			int next_x = p->X(0)/NM_PER_MIL;
+			int next_y = p->Y(0)/NM_PER_MIL;
+			int style = p->SideStyle(p->NumCorners()-1);
 			int dl_shape;
 			if( style == CPolyLine::STRAIGHT )
 				dl_shape = DL_LINE;
@@ -2853,7 +2853,7 @@ void CEditShape::Draw( CDisplayList * dlist, SMFontUtil * fontutil )
 	for( int i=0; i<m_outline_poly.GetSize(); i++ )
 	{
 		p_id.SetI2( i );
-		int sel_box_size = m_outline_poly[i].GetW();
+		int sel_box_size = m_outline_poly[i].W();
 		sel_box_size = max( sel_box_size, 5*NM_PER_MIL );
 		m_outline_poly[i].SetSelBoxSize( sel_box_size );
 		m_outline_poly[i].SetId( &p_id );

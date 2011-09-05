@@ -29,7 +29,7 @@ Cuid::Cuid()
 Cuid::~Cuid()
 {
 //#if 0
-	// check for all uids released
+	// for debugging, check for all uids released
 	if( n_uids )
 	{
 		// for debugging, find first 10 unreleased uids
@@ -87,16 +87,16 @@ int Cuid::GetNewUID()
 			int uid = (i<<5) + npos;
 #if 0
 			//** for debugging, break on certain uids
-			if(		uid == 95904
-				 || uid == 286240
-				 || uid == 469760
-				 || uid == 841120
-				 || uid == -1
-				 || uid == -1
-				 || uid == -1
-				 || uid == -1
-				 || uid == -1
-				 || uid == -1 )
+			if(		uid == 12672
+				 || uid == 18688
+				 || uid == 27936
+				 || uid == 29632
+				 || uid == 70816
+				 || uid == 89184
+				 || uid == 133152
+				 || uid == 210624
+				 || uid == 221536
+				 || uid == 255872 )
 				 ASSERT(0);
 			//**
 #endif
@@ -160,6 +160,15 @@ void Cuid::ReleaseUID( UINT32 uid )
 	{
 		return;	
 	}
+//#if 0
+	//** for debugging, trap certain uids
+	if( uid == -1
+		)
+	{
+		ASSERT(0);
+	}
+	//**
+//#endif
 
 	if( uid < 0 || uid > MAX_VALUE )
 		ASSERT(0);
@@ -167,9 +176,14 @@ void Cuid::ReleaseUID( UINT32 uid )
 	int npos = uid & 0x1f;	// bit number to clear
 	int test = bits[i] & mask_table[npos]; 
 	if( !test )			// check to see if uid was assigned
+	{
 		ASSERT(0);		// no
-	bits[i] &= ~mask_table[npos];	// clear bit
-	n_uids--;			// decrement assigned uid counter
+	}
+	else
+	{
+		bits[i] &= ~mask_table[npos];	// clear bit
+		n_uids--;			// decrement assigned uid counter
+	}
 }
 
 // Release old uid, request new uid (used for undoing)
@@ -185,10 +199,10 @@ BOOL Cuid::ReplaceUID( int old_uid, int new_uid )
 // otherwise, check to see if new_uid is already assigned and if not, request it
 // return the new uid
 //
-int Cuid::GetAndReplaceUID( int old_uid, int new_uid )
+int Cuid::PrepareToReplaceUID( int old_uid, int new_uid )
 {
 	ReleaseUID( old_uid );
-	if( new_uid == -1 )
+	if( new_uid < 0 )
 	{
 		return GetNewUID();	
 	}

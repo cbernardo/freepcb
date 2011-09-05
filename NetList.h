@@ -84,16 +84,7 @@ struct undo_area {
 	CNetList * nlist;
 	char net_name[MAX_NET_NAME_SIZE+1];
 	int iarea;
-	int m_uid;
 	id m_id;
-#if 0
-	int layer;
-	int hatch;
-	int w;
-	int sel_box_w;
-	int ncorners;
-	// array of undo_corners starts here
-#endif
 };
 
 struct undo_seg {

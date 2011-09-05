@@ -59,7 +59,11 @@ class CPolyCorner
 {
 public:
 	CPolyCorner();
+	CPolyCorner( CPolyCorner& src );	// copy constructor
 	~CPolyCorner();
+	CPolyCorner& operator=( const CPolyCorner& rhs );	// assignment
+	CPolyCorner& operator=( CPolyCorner& rhs );	// assignment
+
 	int x;
 	int y;
 	BOOL end_contour;	// flags the end of a closed contour
@@ -72,7 +76,10 @@ class CPolySide
 {
 public:
 	CPolySide();
+	CPolySide( CPolySide& src );
 	~CPolySide();
+	CPolySide& operator=( const CPolySide& rhs );	// assignment
+	CPolySide& operator=( CPolySide& rhs );	// assignment
 	int m_style;
 	int m_uid;
 	dl_element * dl_side;
@@ -84,13 +91,14 @@ class CPolyLine
 public:
 	enum { STRAIGHT, ARC_CW, ARC_CCW };	// side styles
 	enum { NO_HATCH, DIAGONAL_FULL, DIAGONAL_EDGE }; // hatch styles
-	enum { DEF_SIZE = 50, DEF_ADD = 50 };	// number of array elements to add at a time
+//	enum { DEF_SIZE = 50, DEF_ADD = 50 };	// number of array elements to add at a time
 
 	// constructors/destructor
 	CPolyLine();
 	~CPolyLine();
 
 	// functions for creating and modifying polyline
+	void Clear();
 	void Start( int layer, int w, int sel_box, int x, int y,
 		int hatch, id * id, void * ptr, BOOL bDraw=TRUE );
 	void AppendCorner( int x, int y, int style = STRAIGHT );
@@ -131,33 +139,34 @@ public:
 	void CreatePolyUndoRecord( undo_poly * un_poly );
 
 	// access functions
-	int GetUID();
-	int GetNumCorners();
-	int GetNumSides();
-	int GetClosed();
-	int GetNumContours();
-	int GetContour( int ic );
-	int GetContourStart( int icont );
-	int GetContourEnd( int icont );
-	int GetContourSize( int icont );
-	int GetCornerIndexByUID( int uid );
-	int GetSideIndexByUID( int uid );
-	int GetX( int ic );
-	int GetY( int ic );
-	int GetEndContour( int ic );
-	int GetUtility(){ return utility; };
-	int GetUtility( int ic ){ return corner[ic].utility; };
-	int GetLayer();
-	int GetW();
-	int GetCornerUID( int ic ){ return corner[ic].m_uid; };
-	int GetSideUID( int is );
-	int GetSideStyle( int is );
-	id  GetId();
-	void * GetPtr(){ return m_ptr; };
-	int GetSelBoxSize();
-	CDisplayList * GetDisplayList(){ return m_dlist; };
+	int UID();
+	int NumCorners();
+	int NumSides();
+	int Closed();
+	int NumContours();
+	int Contour( int ic );
+	int ContourStart( int icont );
+	int ContourEnd( int icont );
+	int ContourSize( int icont );
+	int CornerIndexByUID( int uid );
+	int SideIndexByUID( int uid );
+	int X( int ic );
+	int Y( int ic );
+	int EndContour( int ic );
+	int Utility(){ return utility; };
+	int Utility( int ic ){ return corner[ic].utility; };
+	int Layer();
+	int W();
+	int CornerUID( int ic ){ return corner[ic].m_uid; };
+	int SideUID( int is );
+	int SideStyle( int is );
+	id  Id();
+	void * Ptr(){ return m_ptr; };
+	int SelBoxSize();
+	CDisplayList * DisplayList(){ return m_dlist; };
 	int GetHatch(){ return m_hatch; }
-	BOOL GetDrawn(){ return bDrawn; };
+	BOOL Drawn(){ return bDrawn; };
+	gpc_polygon * GetGpcPoly(){ return m_gpc_poly; };
 
 	void SetCornerUID( int ic, int uid );
 	void SetSideUID( int is, int uid );
@@ -180,13 +189,12 @@ public:
 	// GPC functions
 	int MakeGpcPoly( int icontour=0, CArray<CArc> * arc_array=NULL );
 	int FreeGpcPoly();
-	gpc_polygon * GetGpcPoly(){ return m_gpc_poly; };
 	int NormalizeWithGpc( CArray<CPolyLine*> * pa=NULL, BOOL bRetainArcs=FALSE );
 	int RestoreArcs( CArray<CArc> * arc_array, CArray<CPolyLine*> * pa=NULL );
-	CPolyLine * MakePolylineForPad( int type, int x, int y, int w, int l, int r, int angle );
-	void AddContourForPadClearance( int type, int x, int y, int w, 
-						int l, int r, int angle, int fill_clearance,
-						int hole_w, int hole_clearance, BOOL bThermal=FALSE, int spoke_w=0 );
+//	CPolyLine * MakePolylineForPad( int type, int x, int y, int w, int l, int r, int angle );
+//	void AddContourForPadClearance( int type, int x, int y, int w, 
+//						int l, int r, int angle, int fill_clearance,
+//						int hole_w, int hole_clearance, BOOL bThermal=FALSE, int spoke_w=0 );
 	void ClipGpcPolygon( gpc_op op, CPolyLine * poly );
 
 	// PHP functions
@@ -202,7 +210,6 @@ protected:
 	int m_layer;	// layer to draw on
 	int m_w;		// line width
 	int m_sel_box;	// corner selection box width/2
-	int m_ncorners;	// number of corners
 	int utility;
 	CArray <CPolyCorner> corner;	// array of corners
 	CArray <CPolySide> side;		// array of sides
