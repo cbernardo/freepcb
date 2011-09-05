@@ -283,17 +283,17 @@ void DrawClearanceInForeignAreas( cnet * net, int shape,
 				if( !bIntersection )
 				{
 					int min_d = fill_clearance;
-					for( int icont=0; icont<p->GetNumContours(); icont++ )
+					for( int icont=0; icont<p->NumContours(); icont++ )
 					{
-						int cont_start = p->GetContourStart(icont);
-						int cont_end = p->GetContourEnd(icont);
+						int cont_start = p->ContourStart(icont);
+						int cont_end = p->ContourEnd(icont);
 						for( int is=cont_start; is<=cont_end; is++ )
 						{
 							int ic2 = is+1;
 							if( ic2 > cont_end )
 								ic2 = cont_start;
 							int d = GetClearanceBetweenSegments( xi, yi, xf, yf, CPolyLine::STRAIGHT, w,
-								p->GetX(is), p->GetY(is), p->GetX(ic2), p->GetY(ic2), p->GetSideStyle(is), 0, 
+								p->X(is), p->Y(is), p->X(ic2), p->Y(ic2), p->SideStyle(is), 0, 
 								min_d, NULL, NULL );
 							if( d < min_d )
 							{
@@ -307,17 +307,17 @@ void DrawClearanceInForeignAreas( cnet * net, int shape,
 			else if( shape == PAD_ROUND || shape == PAD_OCTAGON  )
 			{
 				int min_d = wid/2 + fill_clearance;
-				for( int icont=0; icont<p->GetNumContours(); icont++ )
+				for( int icont=0; icont<p->NumContours(); icont++ )
 				{
-					int cont_start = p->GetContourStart(icont);
-					int cont_end = p->GetContourEnd(icont);
+					int cont_start = p->ContourStart(icont);
+					int cont_end = p->ContourEnd(icont);
 					for( int is=cont_start; is<=cont_end; is++ )
 					{
 						int ic2 = is+1;
 						if( ic2 > cont_end )
 							ic2 = cont_start;
 						int d = GetClearanceBetweenSegments( xi, yi, xi+10, yi+10, CPolyLine::STRAIGHT, w,
-							p->GetX(is), p->GetY(is), p->GetX(ic2), p->GetY(ic2), p->GetSideStyle(is), 0, 
+							p->X(is), p->Y(is), p->X(ic2), p->Y(ic2), p->SideStyle(is), 0, 
 							min_d, NULL, NULL );
 						if( d < min_d )
 						{
@@ -336,17 +336,17 @@ void DrawClearanceInForeignAreas( cnet * net, int shape,
 					min_d = sqrt((double)2.0*wid*wid)/2 + fill_clearance;
 				else
 					min_d = sqrt((double)wid*wid +(double)len*len)/2 + fill_clearance;
-				for( int icont=0; icont<p->GetNumContours(); icont++ )
+				for( int icont=0; icont<p->NumContours(); icont++ )
 				{
-					int cont_start = p->GetContourStart(icont);
-					int cont_end = p->GetContourEnd(icont);
+					int cont_start = p->ContourStart(icont);
+					int cont_end = p->ContourEnd(icont);
 					for( int is=cont_start; is<=cont_end; is++ )
 					{
 						int ic2 = is+1;
 						if( ic2 > cont_end )
 							ic2 = cont_start;
 						int d = GetClearanceBetweenSegments( xi, yi, xi+10, yi+10, CPolyLine::STRAIGHT, w,
-							p->GetX(is), p->GetY(is), p->GetX(ic2), p->GetY(ic2), p->GetSideStyle(is), 0, 
+							p->X(is), p->Y(is), p->X(ic2), p->Y(ic2), p->SideStyle(is), 0, 
 							min_d, NULL, NULL );
 						if( d < min_d )
 						{
@@ -565,14 +565,14 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 	// get boundaries of board outline (in nm)
 	for( int ib=0; ib<bd->GetSize(); ib++ ) 
 	{
-		for( int ic=0; ic<(*bd)[ib].GetNumCorners(); ic++ )
+		for( int ic=0; ic<(*bd)[ib].NumCorners(); ic++ )
 		{
-			int x = (*bd)[ib].GetX(ic);
+			int x = (*bd)[ib].X(ic);
 			if( x < bd_min_x )
 				bd_min_x = x;
 			if( x > bd_max_x )
 				bd_max_x = x;
-			int y = (*bd)[ib].GetY(ic);
+			int y = (*bd)[ib].Y(ic);
 			if( y < bd_min_y )
 				bd_min_y = y;
 			if( y > bd_max_y )
@@ -789,21 +789,21 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 				for( int ib=0; ib<bd->GetSize(); ib++ )
 				{
 					CPolyLine * b = &(*bd)[ib];
-					int nc = b->GetNumCorners();
+					int nc = b->NumCorners();
 					// turn on linear interpolation, move to first corner
-					::WriteMoveTo( f, b->GetX(0), b->GetY(0), LIGHT_OFF );
+					::WriteMoveTo( f, b->X(0), b->Y(0), LIGHT_OFF );
 					for( int ic=1; ic<nc; ic++ )
 					{
-						int x = b->GetX(ic);
-						int y = b->GetY(ic);
-						::WritePolygonSide( f, b->GetX(ic-1), b->GetY(ic-1),
-							b->GetX(ic), b->GetY(ic), b->GetSideStyle(ic-1), 10, LIGHT_ON ); 
+						int x = b->X(ic);
+						int y = b->Y(ic);
+						::WritePolygonSide( f, b->X(ic-1), b->Y(ic-1),
+							b->X(ic), b->Y(ic), b->SideStyle(ic-1), 10, LIGHT_ON ); 
 						line.Format( "G04 end of side %d*\n", ic );
 						f->WriteString( line );
 
 					}
-					::WritePolygonSide( f, b->GetX(nc-1), b->GetY(nc-1), 
-						b->GetX(0), b->GetY(0), b->GetSideStyle(nc-1), 10, LIGHT_ON ); 
+					::WritePolygonSide( f, b->X(nc-1), b->Y(nc-1), 
+						b->X(0), b->Y(0), b->SideStyle(nc-1), 10, LIGHT_ON ); 
 				}
 			}
 		}
@@ -829,7 +829,7 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 			for( int ia=0; ia<net->NumAreas(); ia++ )
 			{
 				CPolyLine * p = &net->area[ia];
-				if( p->GetLayer() == layer )
+				if( p->Layer() == layer )
 				{
 					// area on this layer, add to lists
 					areas_present = TRUE;
@@ -860,7 +860,7 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 				{
 					net->area[ia].utility = INT_MAX;		// mark as undrawn
 					CPolyLine * p = &net->area[ia];
-					if( p->GetLayer() == layer )
+					if( p->Layer() == layer )
 					{
 						// area on this layer, add to lists
 						areas_present = TRUE;
@@ -875,8 +875,8 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 						else if( num_area_nets == 1 && net != first_area_net )
 							num_area_nets = 2;
 						// now find any cutouts that contain this area
-						double x = p->GetX(0);
-						double y = p->GetY(0);
+						double x = p->X(0);
+						double y = p->Y(0);
 						int ica = ca.GetSize();
 						ca.SetSize(ica+1);
 						ca[ica].net = net;
@@ -892,10 +892,10 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 							{
 								carea * cutout_a = &cutout_net->area[cutout_ia];
 								CPolyLine * cutout_p = cutout_a;
-								if( cutout_p->GetLayer() == layer )
+								if( cutout_p->Layer() == layer )
 								{
 									// loop through all cutouts
-									for( int cutout_ic=0; cutout_ic<cutout_p->GetNumContours()-1; cutout_ic++ )
+									for( int cutout_ic=0; cutout_ic<cutout_p->NumContours()-1; cutout_ic++ )
 									{
 										// test whether area (net, ia) is contained by
 										// cutout_ic in area (cut_net, cut_ia)
@@ -974,7 +974,7 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 					for( int ia=0; ia<net->NumAreas(); ia++ )
 					{
 						carea * a = &net->area[ia];
-						if( a->GetLayer() == layer )
+						if( a->Layer() == layer )
 						{
 							if ( a->utility == area_pass )
 							{
@@ -991,22 +991,22 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 								}
 								f->WriteString( "G36*\n" );
 								int x, y, style;
-								int last_x = a->GetX(0);
-								int last_y = a->GetY(0);
+								int last_x = a->X(0);
+								int last_y = a->Y(0);
 								::WriteMoveTo( f, last_x, last_y, LIGHT_OFF );
-								int nc = a->GetContourSize(0);
+								int nc = a->ContourSize(0);
 								for( int ic=1; ic<nc; ic++ )
 								{
-									x = a->GetX(ic);
-									y = a->GetY(ic);
-									style = a->GetSideStyle(ic-1);
+									x = a->X(ic);
+									y = a->Y(ic);
+									style = a->SideStyle(ic-1);
 									::WritePolygonSide( f, last_x, last_y, x, y, style, 10, LIGHT_ON );
 									last_x = x;
 									last_y = y;
 								}
-								x = a->GetX(0);
-								y = a->GetY(0);
-								style = a->GetSideStyle(nc-1);
+								x = a->X(0);
+								y = a->Y(0);
+								style = a->SideStyle(nc-1);
 								::WritePolygonSide( f, last_x, last_y, x, y, style, 10, LIGHT_ON );
 								f->WriteString( "G37*\n" );
 							}
@@ -1024,17 +1024,17 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 					for( int ia=0; ia<net->NumAreas(); ia++ )
 					{
 						carea * a = &net->area[ia];
-						if ( a->utility == area_pass && a->GetLayer() == layer )
+						if ( a->utility == area_pass && a->Layer() == layer )
 						{
 							// draw cutout polygons
 							// make clearances for area cutouts
 							CPolyLine * p = &net->area[ia];
-							if( p->GetLayer() == layer )
+							if( p->Layer() == layer )
 							{
-								for( int icont=1; icont<p->GetNumContours(); icont++ )
+								for( int icont=1; icont<p->NumContours(); icont++ )
 								{
-									int ic_st = p->GetContourStart( icont );
-									int ic_end = p->GetContourEnd( icont );
+									int ic_st = p->ContourStart( icont );
+									int ic_end = p->ContourEnd( icont );
 									// draw it
 									f->WriteString( "\nG04 -------------------- Draw copper area cutout (negative)*\n" );
 									if( !bLastLayerNegative )
@@ -1044,21 +1044,21 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 									}
 									f->WriteString( "G36*\n" );
 									int x, y, style;
-									int last_x = net->area[ia].GetX(ic_st);
-									int last_y = net->area[ia].GetY(ic_st);
+									int last_x = net->area[ia].X(ic_st);
+									int last_y = net->area[ia].Y(ic_st);
 									::WriteMoveTo( f, last_x, last_y, LIGHT_OFF );
 									for( int ic=ic_st+1; ic<=ic_end; ic++ )
 									{
-										x = net->area[ia].GetX(ic);
-										y = net->area[ia].GetY(ic);
-										style = net->area[ia].GetSideStyle(ic-1);
+										x = net->area[ia].X(ic);
+										y = net->area[ia].Y(ic);
+										style = net->area[ia].SideStyle(ic-1);
 										::WritePolygonSide( f, last_x, last_y, x, y, style, 10, LIGHT_ON );
 										last_x = x;
 										last_y = y;
 									}
-									x = net->area[ia].GetX(ic_st);
-									y = net->area[ia].GetY(ic_st);
-									style = net->area[ia].GetSideStyle(ic_end);
+									x = net->area[ia].X(ic_st);
+									y = net->area[ia].Y(ic_st);
+									style = net->area[ia].SideStyle(ic_end);
 									::WritePolygonSide( f, last_x, last_y, x, y, style, 10, LIGHT_ON );
 									f->WriteString( "G37*\n" );
 								}
@@ -1463,21 +1463,21 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 										bIntOwnNet = TRUE;
 										break;
 									}
-									for( int icont=0; icont<poly->GetNumContours(); icont++ )
+									for( int icont=0; icont<poly->NumContours(); icont++ )
 									{
-										int cont_start = poly->GetContourStart(icont);
-										int cont_end = poly->GetContourEnd(icont);
+										int cont_start = poly->ContourStart(icont);
+										int cont_end = poly->ContourEnd(icont);
 										for( int is=cont_start; is<=cont_end; is++ )
 										{
 											// test for clearance from area sides < fill_clearance
-											int x2i = poly->GetX(is);
-											int y2i = poly->GetY(is);
+											int x2i = poly->X(is);
+											int y2i = poly->Y(is);
 											int ic2 = is+1;
 											if( ic2 > cont_end )
 												ic2 = cont_start;
-											int x2f = poly->GetX(ic2);
-											int y2f = poly->GetY(ic2);
-											int style2 = poly->GetSideStyle( is );
+											int x2f = poly->X(ic2);
+											int y2f = poly->Y(ic2);
+											int style2 = poly->SideStyle( is );
 											int d = ::GetClearanceBetweenSegments( xi, yi, xf, yf, CPolyLine::STRAIGHT, s->width,
 												x2i, y2i, x2f, y2f, style2, 0, fill_clearance, 0, 0 );
 											if( d < fill_clearance )
@@ -1873,49 +1873,49 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 				for( int i=0; i<sm->GetSize(); i++ )
 				{
 					CPolyLine * poly = &(*sm)[i];
-					if( ( layer == LAY_MASK_TOP && poly->GetLayer() == LAY_SM_TOP  ) 
-						|| ( layer == LAY_MASK_BOTTOM && poly->GetLayer() == LAY_SM_BOTTOM ) )
+					if( ( layer == LAY_MASK_TOP && poly->Layer() == LAY_SM_TOP  ) 
+						|| ( layer == LAY_MASK_BOTTOM && poly->Layer() == LAY_SM_BOTTOM ) )
 					{
 						// draw cutout on this layer
 						f->WriteString( "G36*\n" );
 						int x, y, style;
-						int last_x = poly->GetX(0);
-						int last_y = poly->GetY(0);
+						int last_x = poly->X(0);
+						int last_y = poly->Y(0);
 						::WriteMoveTo( f, last_x, last_y, LIGHT_OFF );
-						int nc = poly->GetContourSize(0);
+						int nc = poly->ContourSize(0);
 						for( int ic=1; ic<nc; ic++ )
 						{
-							x = poly->GetX(ic);
-							y = poly->GetY(ic);
-							style = poly->GetSideStyle(ic-1);
+							x = poly->X(ic);
+							y = poly->Y(ic);
+							style = poly->SideStyle(ic-1);
 							::WritePolygonSide( f, last_x, last_y, x, y, style, 10, LIGHT_ON );
 							last_x = x;
 							last_y = y;
 						}
-						x = poly->GetX(0);
-						y = poly->GetY(0);
-						style = poly->GetSideStyle(nc-1);
+						x = poly->X(0);
+						y = poly->Y(0);
+						style = poly->SideStyle(nc-1);
 						::WritePolygonSide( f, last_x, last_y, x, y, style, 10, LIGHT_ON );
 						f->WriteString( "G37*\n" );
 						if( !(flags & GERBER_NO_CLEARANCE_SMCUTOUTS) )
 						{
 							// stroke outline with aperture to create clearance
-							last_x = poly->GetX(0);
-							last_y = poly->GetY(0);
+							last_x = poly->X(0);
+							last_y = poly->Y(0);
 							::WriteMoveTo( f, last_x, last_y, LIGHT_OFF );
-							nc = poly->GetContourSize(0);
+							nc = poly->ContourSize(0);
 							for( int ic=1; ic<nc; ic++ )
 							{
-								x = poly->GetX(ic);
-								y = poly->GetY(ic);
-								style = poly->GetSideStyle(ic-1);
+								x = poly->X(ic);
+								y = poly->Y(ic);
+								style = poly->SideStyle(ic-1);
 								::WritePolygonSide( f, last_x, last_y, x, y, style, 10, LIGHT_ON );
 								last_x = x;
 								last_y = y;
 							}
-							x = poly->GetX(0);
-							y = poly->GetY(0);
-							style = poly->GetSideStyle(nc-1);
+							x = poly->X(0);
+							y = poly->Y(0);
+							style = poly->SideStyle(nc-1);
 							::WritePolygonSide( f, last_x, last_y, x, y, style, 10, LIGHT_ON );
 						}
 					}
@@ -2119,14 +2119,14 @@ int WriteDrillFile( CStdioFile * file, CPartList * pl, CNetList * nl, CArray<CPo
 	int bd_max_y = INT_MIN;
 	for( int ib=0; ib<bd->GetSize(); ib++ ) 
 	{
-		for( int ic=0; ic<(*bd)[ib].GetNumCorners(); ic++ )
+		for( int ic=0; ic<(*bd)[ib].NumCorners(); ic++ )
 		{
-			int x = (*bd)[ib].GetX(ic);
+			int x = (*bd)[ib].X(ic);
 			if( x < bd_min_x )
 				bd_min_x = x;
 			if( x > bd_max_x )
 				bd_max_x = x;
-			int y = (*bd)[ib].GetY(ic);
+			int y = (*bd)[ib].Y(ic);
 			if( y < bd_min_y )
 				bd_min_y = y;
 			if( y > bd_max_y )

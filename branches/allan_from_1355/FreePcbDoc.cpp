@@ -1142,14 +1142,14 @@ void CFreePcbDoc::WriteBoardOutline( CStdioFile * file, CArray<CPolyLine> * bbd 
 		file->WriteString( line );
 		for( int ib=0; ib<bd->GetSize(); ib++ )
 		{
-			line.Format( "\noutline: %d %d\n", (*bd)[ib].GetNumCorners(), ib );
+			line.Format( "\noutline: %d %d\n", (*bd)[ib].NumCorners(), ib );
 			file->WriteString( line );
-			for( int icor=0; icor<(*bd)[ib].GetNumCorners(); icor++ )
+			for( int icor=0; icor<(*bd)[ib].NumCorners(); icor++ )
 			{
 				line.Format( "  corner: %d %d %d %d\n", icor+1,
-					(*bd)[ib].GetX( icor ),
-					(*bd)[ib].GetY( icor ),
-					(*bd)[ib].GetSideStyle( icor )
+					(*bd)[ib].X( icor ),
+					(*bd)[ib].Y( icor ),
+					(*bd)[ib].SideStyle( icor )
 					);
 				file->WriteString( line );
 			}
@@ -1182,15 +1182,15 @@ void CFreePcbDoc::WriteSolderMaskCutouts( CStdioFile * file, CArray<CPolyLine> *
 		file->WriteString( line );
 		for( int i=0; i<smc->GetSize(); i++ )
 		{
-			line.Format( "sm_cutout: %d %d %d\n", (*smc)[i].GetNumCorners(),
-				(*smc)[i].GetHatch(), m_sm_cutout[i].GetLayer() );
+			line.Format( "sm_cutout: %d %d %d\n", (*smc)[i].NumCorners(),
+				(*smc)[i].GetHatch(), m_sm_cutout[i].Layer() );
 			file->WriteString( line );
-			for( int icor=0; icor<(*smc)[i].GetNumCorners(); icor++ )
+			for( int icor=0; icor<(*smc)[i].NumCorners(); icor++ )
 			{
 				line.Format( "  corner: %d %d %d %d\n", icor+1,
-					(*smc)[i].GetX( icor ),
-					(*smc)[i].GetY( icor ),
-					(*smc)[i].GetSideStyle( icor )
+					(*smc)[i].X( icor ),
+					(*smc)[i].Y( icor ),
+					(*smc)[i].SideStyle( icor )
 					);
 				file->WriteString( line );
 			}
@@ -3623,11 +3623,11 @@ void CFreePcbDoc::BoardOutlineUndoCallback( int type, void * ptr, BOOL undo )
 				poly->AppendCorner( un_corner[ic].x, un_corner[ic].y, un_corner[ic-1].side_style );
 				pcb_cuid.ReplaceUID( poly->GetUID(ic), un_corner[ic].uid );
 				poly->SetUID( ic, un_corner[ic].uid ); 
-				pcb_cuid.ReplaceUID( poly->GetSideUID(ic-1), un_corner[ic-1].side_uid );
+				pcb_cuid.ReplaceUID( poly->SideUID(ic-1), un_corner[ic-1].side_uid );
 				poly->SetSideUID( ic-1, un_corner[ic-1].side_uid ); 
 			}
 			poly->Close( un_corner[nc-1].side_style );
-			pcb_cuid.ReplaceUID( poly->GetSideUID(nc-1), un_corner[nc-1].side_uid );
+			pcb_cuid.ReplaceUID( poly->SideUID(nc-1), un_corner[nc-1].side_uid );
 			poly->SetSideUID( nc-1, un_corner[nc-1].side_uid ); 
 			poly->Draw(); 
 #endif
@@ -3643,19 +3643,19 @@ undo_sm_cutout * CFreePcbDoc::CreateSMCutoutUndoRecord( CPolyLine * poly )
 {
 	// create undo record for sm cutout
 	undo_sm_cutout * undo;
-	int ncorners = poly->GetNumCorners();
+	int ncorners = poly->NumCorners();
 	undo = (undo_sm_cutout*)malloc( sizeof(undo_sm_cutout)+ncorners*sizeof(undo_corner));
-	undo->layer = poly->GetLayer();
+	undo->layer = poly->Layer();
 	undo->hatch_style = poly->GetHatch();
-	undo->ncorners = poly->GetNumCorners();
+	undo->ncorners = poly->NumCorners();
 	undo_corner * corner = (undo_corner*)((UINT)undo + sizeof(undo_sm_cutout));
 	for( int ic=0; ic<ncorners; ic++ )
 	{
-		corner[ic].uid = poly->GetCornerUID( ic );
-		corner[ic].x = poly->GetX( ic );
-		corner[ic].y = poly->GetY( ic );
-		corner[ic].side_uid = poly->GetSideUID( ic );
-		corner[ic].side_style = poly->GetSideStyle( ic );
+		corner[ic].uid = poly->CornerUID( ic );
+		corner[ic].x = poly->X( ic );
+		corner[ic].y = poly->Y( ic );
+		corner[ic].side_uid = poly->SideUID( ic );
+		corner[ic].side_style = poly->SideStyle( ic );
 	}
 	return undo;
 }
@@ -3683,20 +3683,20 @@ void CFreePcbDoc::SMCutoutUndoCallback( int type, void * ptr, BOOL undo )
 			id sm_id( ID_MASK, -1, ID_MASK, -1, i );
 			poly->Start( un_sm->layer, 1, 10*NM_PER_MIL, 
 				corner[0].x, corner[0].y, un_sm->hatch_style, &sm_id, NULL );
-			pcb_cuid.ReplaceUID( poly->GetCornerUID(0), corner[0].uid );
+			pcb_cuid.ReplaceUID( poly->CornerUID(0), corner[0].uid );
 			poly->SetCornerUID( 0, corner[0].uid );
 
 			for( int ic=1; ic<un_sm->ncorners; ic++ )
 			{
 				poly->AppendCorner( corner[ic].x, corner[ic].y, corner[ic-1].side_style );
-				pcb_cuid.ReplaceUID( poly->GetCornerUID(ic), corner[ic].uid );
+				pcb_cuid.ReplaceUID( poly->CornerUID(ic), corner[ic].uid );
 				poly->SetCornerUID( ic, corner[ic].uid );
-				pcb_cuid.ReplaceUID( poly->GetSideUID(ic-1), corner[ic].side_uid );
+				pcb_cuid.ReplaceUID( poly->SideUID(ic-1), corner[ic].side_uid );
 				poly->SetSideUID( ic-1, corner[ic].side_uid );
 			}
 
 			poly->Close( corner[un_sm->ncorners-1].side_style );
-			pcb_cuid.ReplaceUID( poly->GetSideUID(un_sm->ncorners-1), corner[un_sm->ncorners-1].side_uid );
+			pcb_cuid.ReplaceUID( poly->SideUID(un_sm->ncorners-1), corner[un_sm->ncorners-1].side_uid );
 			poly->SetSideUID(un_sm->ncorners-1, corner[un_sm->ncorners-1].side_uid );
 			poly->Draw();
 		}
@@ -4016,7 +4016,7 @@ void CFreePcbDoc::OnToolsCheckCopperAreas()
 			// check for minimum number of corners and closed contours
 			for( int ia=0; ia<net->NumAreas(); ia++ )
 			{
-				int nc = net->area[ia].GetNumCorners();
+				int nc = net->area[ia].NumCorners();
 				if( nc < 3 )
 				{
 					str.Format( "    area %d has only %d corners\r\n", ia+1, nc );
@@ -4024,7 +4024,7 @@ void CFreePcbDoc::OnToolsCheckCopperAreas()
 				}
 				else
 				{
-					if( !net->area[ia].GetClosed() )
+					if( !net->area[ia].Closed() )
 					{
 						str.Format( "    area %d is not closed\r\n", ia+1 );
 						m_dlg_log->AddLine( str );
@@ -4059,7 +4059,7 @@ void CFreePcbDoc::OnToolsCheckCopperAreas()
 					BOOL mod_ia1 = FALSE;
 					for( int ia2=net->NumAreas()-1; ia2 > ia1; ia2-- )
 					{
-						if( net->area[ia1].GetLayer() == net->area[ia2].GetLayer() )
+						if( net->area[ia1].Layer() == net->area[ia2].Layer() )
 						{
 							// check ia2 against 1a1 
 							int ret = m_nlist->TestAreaIntersection( net, ia1, ia2 );
@@ -4255,7 +4255,7 @@ CPolyLine * CFreePcbDoc::GetBoardOutlineByUID( int uid, int * index )
 	int nb = m_board_outline.GetSize();
 	for( int ib=0; ib<nb; ib++ )
 	{
-		if( uid == m_board_outline[ib].GetUID() )
+		if( uid == m_board_outline[ib].UID() )
 		{
 			if( index )
 				*index = ib;
@@ -4272,7 +4272,7 @@ CPolyLine * CFreePcbDoc::GetMaskCutoutByUID( int uid, int * index )
 	int nb = m_sm_cutout.GetSize();
 	for( int ib=0; ib<nb; ib++ )
 	{
-		if( uid == m_sm_cutout[ib].GetUID() )
+		if( uid == m_sm_cutout[ib].UID() )
 		{
 			if( index )
 				*index = ib;

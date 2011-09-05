@@ -83,12 +83,12 @@ void id::SetIndexes()
 	else if( IsAreaCorner() )
 	{
 		carea * a = Net()->AreaByUID( u2, &i2 );
-		i3 = a->GetCornerIndexByUID( u3 );
+		i3 = a->CornerIndexByUID( u3 );
 	}
 	else if( IsAreaSide() )
 	{
 		carea * a = Net()->AreaByUID( u2, &i2 );
-		i3 = a->GetSideIndexByUID( u3 );
+		i3 = a->SideIndexByUID( u3 );
 	}
 	else if( IsPin() )
 	{
@@ -100,12 +100,12 @@ void id::SetIndexes()
 	else if( IsBoardCorner() )
 	{
 		CPolyLine * poly = pcb->GetBoardOutlineByUID( u2, &i2 );
-		i3 = poly->GetCornerIndexByUID( u3 );
+		i3 = poly->CornerIndexByUID( u3 );
 	}
 	else if( IsBoardSide() )
 	{
 		CPolyLine * poly = pcb->GetBoardOutlineByUID( u2, &i2 );
-		i3 = poly->GetSideIndexByUID( u3 );
+		i3 = poly->SideIndexByUID( u3 );
 	}
 	else if( IsMask() )
 	{
@@ -114,12 +114,12 @@ void id::SetIndexes()
 	else if( IsMaskCorner() )
 	{
 		CPolyLine * poly = pcb->GetMaskCutoutByUID( u2, &i2 );
-		i3 = poly->GetCornerIndexByUID( u3 );
+		i3 = poly->CornerIndexByUID( u3 );
 	}
 	else if( IsMaskSide() )
 	{
 		CPolyLine * poly = pcb->GetMaskCutoutByUID( u2, &i2 );
-		i3 = poly->GetSideIndexByUID( u3 );
+		i3 = poly->SideIndexByUID( u3 );
 	}
 }
 

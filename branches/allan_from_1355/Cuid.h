@@ -24,5 +24,5 @@ public:
 	BOOL CheckUID( int uid );
 	BOOL RequestUID( int uid );
 	BOOL ReplaceUID( int old_uid, int new_uid );
-	int GetAndReplaceUID( int old_uid, int new_uid );
+	int PrepareToReplaceUID( int old_uid, int new_uid );
 };

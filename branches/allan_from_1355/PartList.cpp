@@ -1317,37 +1317,37 @@ int CPartList::DrawPart( cpart * part )
 	for( int ip=0; ip<shape->m_outline_poly.GetSize(); ip++ )
 	{
 		CPolyLine * poly = &shape->m_outline_poly[ip];
-		int shape_layer = poly->GetLayer();
+		int shape_layer = poly->Layer();
 		int poly_layer = FootprintLayer2Layer( shape_layer );
 		poly_layer = FlipLayer( part->side, poly_layer );
 		int pos = part->m_outline_stroke.GetSize();
 		int nsides;
-		if( poly->GetClosed() )
-			nsides = poly->GetNumCorners();
+		if( poly->Closed() )
+			nsides = poly->NumCorners();
 		else
-			nsides = poly->GetNumCorners() - 1;
+			nsides = poly->NumCorners() - 1;
 		part->m_outline_stroke.SetSize( pos + nsides );
-		int w = poly->GetW();
+		int w = poly->W();
 		for( i=0; i<nsides; i++ )
 		{
 			int g_type;
-			if( poly->GetSideStyle( i ) == CPolyLine::STRAIGHT )
+			if( poly->SideStyle( i ) == CPolyLine::STRAIGHT )
 				g_type = DL_LINE;
-			else if( poly->GetSideStyle( i ) == CPolyLine::ARC_CW )
+			else if( poly->SideStyle( i ) == CPolyLine::ARC_CW )
 				g_type = DL_ARC_CW;
-			else if( poly->GetSideStyle( i ) == CPolyLine::ARC_CCW )
+			else if( poly->SideStyle( i ) == CPolyLine::ARC_CCW )
 				g_type = DL_ARC_CCW;
-			si.x = poly->GetX( i );
-			si.y = poly->GetY( i );
-			if( i == (nsides-1) && shape->m_outline_poly[ip].GetClosed() )
+			si.x = poly->X( i );
+			si.y = poly->Y( i );
+			if( i == (nsides-1) && shape->m_outline_poly[ip].Closed() )
 			{
-				sf.x = poly->GetX( 0 );
-				sf.y = poly->GetY( 0 );
+				sf.x = poly->X( 0 );
+				sf.y = poly->Y( 0 );
 			}
 			else
 			{
-				sf.x = poly->GetX( i+1 );
-				sf.y = poly->GetY( i+1 );
+				sf.x = poly->X( i+1 );
+				sf.y = poly->Y( i+1 );
 			}
 			// flip if part on bottom
 			if( part->side )
@@ -3277,7 +3277,7 @@ int CPartList::GetPinConnectionStatus( cpart * part, CString * pin_name, int lay
 			cpin * pin = &net->pin[a->pin[ip]];
 			if( pin->part == part 
 				&& pin->pin_name == *pin_name
-				&& a->GetLayer() == layer )
+				&& a->Layer() == layer )
 			{
 				status |= AREA_CONNECT;
 				break;
@@ -3646,19 +3646,19 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 							for( int ib=0; ib<board_outline->GetSize(); ib++ )
 							{
 								CPolyLine * b = &(*board_outline)[ib];
-								for( int ibc=0; ibc<b->GetNumCorners(); ibc++ )
+								for( int ibc=0; ibc<b->NumCorners(); ibc++ )
 								{
-									int x1 = b->GetX(ibc);
-									int y1 = b->GetY(ibc);
-									int x2 = b->GetX(0);
-									int y2 = b->GetY(0);
-									if( ibc != b->GetNumCorners()-1 )
+									int x1 = b->X(ibc);
+									int y1 = b->Y(ibc);
+									int x2 = b->X(0);
+									int y2 = b->Y(0);
+									if( ibc != b->NumCorners()-1 )
 									{
-										x2 = b->GetX(ibc+1);
-										y2 = b->GetY(ibc+1);
+										x2 = b->X(ibc+1);
+										y2 = b->Y(ibc+1);
 									}
 									// for now, only works for straight board edge segments
-									if( b->GetSideStyle(ibc) == CPolyLine::STRAIGHT )
+									if( b->SideStyle(ibc) == CPolyLine::STRAIGHT )
 									{
 										int d = ::GetClearanceBetweenLineSegmentAndPad( x1, y1, x2, y2, 0,
 											PAD_ROUND, x, y, hole, 0, 0, 0 );
@@ -3761,19 +3761,19 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 							for( int ib=0; ib<board_outline->GetSize(); ib++ )
 							{
 								CPolyLine * b = &(*board_outline)[ib];
-								for( int ibc=0; ibc<b->GetNumCorners(); ibc++ )
+								for( int ibc=0; ibc<b->NumCorners(); ibc++ )
 								{
-									int x1 = b->GetX(ibc);
-									int y1 = b->GetY(ibc);
-									int x2 = b->GetX(0);
-									int y2 = b->GetY(0);
-									if( ibc != b->GetNumCorners()-1 )
+									int x1 = b->X(ibc);
+									int y1 = b->Y(ibc);
+									int x2 = b->X(0);
+									int y2 = b->Y(0);
+									if( ibc != b->NumCorners()-1 )
 									{
-										x2 = b->GetX(ibc+1);
-										y2 = b->GetY(ibc+1);
+										x2 = b->X(ibc+1);
+										y2 = b->Y(ibc+1);
 									}
 									// for now, only works for straight board edge segments
-									if( b->GetSideStyle(ibc) == CPolyLine::STRAIGHT )
+									if( b->SideStyle(ibc) == CPolyLine::STRAIGHT )
 									{
 										int d = ::GetClearanceBetweenLineSegmentAndPad( x1, y1, x2, y2, 0,
 											type, x, y, w, l, r, angle );
@@ -4116,11 +4116,11 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 		{
 			carea * a = &net->area[ia];
 			// iterate through contours
-			for( int icont=0; icont<a->GetNumContours(); icont++ )
+			for( int icont=0; icont<a->NumContours(); icont++ )
 			{
 				// iterate through corners and sides
-				int istart = a->GetContourStart(icont);
-				int iend = a->GetContourEnd(icont);
+				int istart = a->ContourStart(icont);
+				int iend = a->ContourEnd(icont);
 				for( int ic=istart; ic<=iend; ic++ )
 				{
 					id id_a = net->id;
@@ -4128,20 +4128,20 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 					id_a.SetI2( ia );
 					id_a.SetT3( ID_SIDE );
 					id_a.SetI3( ic );
-					int x1 = a->GetX(ic);
-					int y1 = a->GetY(ic);
+					int x1 = a->X(ic);
+					int y1 = a->Y(ic);
 					int x2, y2;
 					if( ic < iend )
 					{
-						x2 = a->GetX(ic+1);
-						y2 = a->GetY(ic+1);
+						x2 = a->X(ic+1);
+						y2 = a->Y(ic+1);
 					}
 					else
 					{
-						x2 = a->GetX(istart);
-						y2 = a->GetY(istart);
+						x2 = a->X(istart);
+						y2 = a->Y(istart);
 					}
-					int style = a->GetSideStyle(ic);
+					int style = a->SideStyle(ic);
 
 					// test clearance to board edge
 					// iterate through board outlines
@@ -4149,18 +4149,18 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 					{
 						CPolyLine * b = &(*board_outline)[ib];
 						// iterate through sides
-						for( int ibc=0; ibc<b->GetNumCorners(); ibc++ )
+						for( int ibc=0; ibc<b->NumCorners(); ibc++ )
 						{
-							int bx1 = b->GetX(ibc);
-							int by1 = b->GetY(ibc);
-							int bx2 = b->GetX(0);
-							int by2 = b->GetY(0);
-							if( ibc != b->GetNumCorners()-1 )
+							int bx1 = b->X(ibc);
+							int by1 = b->Y(ibc);
+							int bx2 = b->X(0);
+							int by2 = b->Y(0);
+							if( ibc != b->NumCorners()-1 )
 							{
-								bx2 = b->GetX(ibc+1);
-								by2 = b->GetY(ibc+1);
+								bx2 = b->X(ibc+1);
+								by2 = b->Y(ibc+1);
 							}
-							int bstyle = b->GetSideStyle(ibc);
+							int bstyle = b->SideStyle(ibc);
 							int x, y;
 							int d = ::GetClearanceBetweenSegments( bx1, by1, bx2, by2, bstyle, 0,
 								x1, y1, x2, y2, style, 0, dr->board_edge_copper, &x, &y );
@@ -4255,18 +4255,18 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 					for( int ib=0; ib<board_outline->GetSize(); ib++ )
 					{
 						CPolyLine * b = &(*board_outline)[ib];
-						for( int ibc=0; ibc<b->GetNumCorners(); ibc++ )
+						for( int ibc=0; ibc<b->NumCorners(); ibc++ )
 						{
-							int bx1 = b->GetX(ibc);
-							int by1 = b->GetY(ibc);
-							int bx2 = b->GetX(0);
-							int by2 = b->GetY(0);
-							if( ibc != b->GetNumCorners()-1 )
+							int bx1 = b->X(ibc);
+							int by1 = b->Y(ibc);
+							int bx2 = b->X(0);
+							int by2 = b->Y(0);
+							if( ibc != b->NumCorners()-1 )
 							{
-								bx2 = b->GetX(ibc+1);
-								by2 = b->GetY(ibc+1);
+								bx2 = b->X(ibc+1);
+								by2 = b->Y(ibc+1);
 							}
-							int bstyle = b->GetSideStyle(ibc);
+							int bstyle = b->SideStyle(ibc);
 							int x, y;
 							int d = ::GetClearanceBetweenSegments( bx1, by1, bx2, by2, bstyle, 0,
 								x1, y1, x2, y2, CPolyLine::STRAIGHT, w, dr->board_edge_copper, &x, &y );
@@ -4345,19 +4345,19 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 					for( int ib=0; ib<board_outline->GetSize(); ib++ )
 					{
 						CPolyLine * b = &(*board_outline)[ib];
-						for( int ibc=0; ibc<b->GetNumCorners(); ibc++ )
+						for( int ibc=0; ibc<b->NumCorners(); ibc++ )
 						{
-							int bx1 = b->GetX(ibc);
-							int by1 = b->GetY(ibc);
-							int bx2 = b->GetX(0);
-							int by2 = b->GetY(0);
-							if( ibc != b->GetNumCorners()-1 )
+							int bx1 = b->X(ibc);
+							int by1 = b->Y(ibc);
+							int bx2 = b->X(0);
+							int by2 = b->Y(0);
+							if( ibc != b->NumCorners()-1 )
 							{
-								bx2 = b->GetX(ibc+1);
-								by2 = b->GetY(ibc+1);
+								bx2 = b->X(ibc+1);
+								by2 = b->Y(ibc+1);
 							}
 							//** for now, only works for straight board edge segments
-							if( b->GetSideStyle(ibc) == CPolyLine::STRAIGHT )
+							if( b->SideStyle(ibc) == CPolyLine::STRAIGHT )
 							{
 								int d = ::GetClearanceBetweenLineSegmentAndPad( bx1, by1, bx2, by2, 0,
 									PAD_ROUND, vtx->x, vtx->y, max_via_w, 0, 0, 0 );
@@ -5257,13 +5257,13 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 				{
 					carea * a2 = &net2->area[ia2];
 					// test for same layer
-					if( a->GetLayer() == a2->GetLayer() ) 
+					if( a->Layer() == a2->Layer() ) 
 					{
 						// test for points inside one another
-						for( int ic=0; ic<a->GetNumCorners(); ic++ )
+						for( int ic=0; ic<a->NumCorners(); ic++ )
 						{
-							int x = a->GetX(ic);
-							int y = a->GetY(ic);
+							int x = a->X(ic);
+							int y = a->Y(ic);
 							if( a2->TestPointInside( x, y ) )
 							{
 								// COPPERAREA_COPPERAREA error
@@ -5284,10 +5284,10 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 								}
 							}
 						}
-						for( int ic2=0; ic2<a2->GetNumCorners(); ic2++ )
+						for( int ic2=0; ic2<a2->NumCorners(); ic2++ )
 						{
-							int x = a2->GetX(ic2);
-							int y = a2->GetY(ic2);
+							int x = a2->X(ic2);
+							int y = a2->Y(ic2);
 							if( a->TestPointInside( x, y ) )
 							{
 								// COPPERAREA_COPPERAREA error
@@ -5309,10 +5309,10 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 							}
 						}
 						// now test spacing between areas
-						for( int icont=0; icont<a->GetNumContours(); icont++ )
+						for( int icont=0; icont<a->NumContours(); icont++ )
 						{
-							int ic_start = a->GetContourStart( icont );
-							int ic_end = a->GetContourEnd( icont );
+							int ic_start = a->ContourStart( icont );
+							int ic_end = a->ContourEnd( icont );
 							for( int ic=ic_start; ic<=ic_end; ic++ ) 
 							{
 								id id_a = net->id;
@@ -5320,24 +5320,24 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 								id_a.SetI2( ia );
 								id_a.SetT3( ID_SIDE );
 								id_a.SetI3( ic );
-								int ax1 = a->GetX(ic);
-								int ay1 = a->GetY(ic);
+								int ax1 = a->X(ic);
+								int ay1 = a->Y(ic);
 								int ax2, ay2;
 								if( ic == ic_end )
 								{
-									ax2 = a->GetX(ic_start);
-									ay2 = a->GetY(ic_start);
+									ax2 = a->X(ic_start);
+									ay2 = a->Y(ic_start);
 								}
 								else
 								{
-									ax2 = a->GetX(ic+1);
-									ay2 = a->GetY(ic+1);
+									ax2 = a->X(ic+1);
+									ay2 = a->Y(ic+1);
 								}
-								int astyle = a->GetSideStyle(ic);
-								for( int icont2=0; icont2<a2->GetNumContours(); icont2++ )
+								int astyle = a->SideStyle(ic);
+								for( int icont2=0; icont2<a2->NumContours(); icont2++ )
 								{
-									int ic_start2 = a2->GetContourStart( icont2 );
-									int ic_end2 = a2->GetContourEnd( icont2 );
+									int ic_start2 = a2->ContourStart( icont2 );
+									int ic_end2 = a2->ContourEnd( icont2 );
 									for( int ic2=ic_start2; ic2<=ic_end2; ic2++ )
 									{
 										id id_b = net2->id;
@@ -5345,20 +5345,20 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 										id_b.SetI2( ia2 );
 										id_b.SetT3( ID_SIDE );
 										id_b.SetI3( ic2 );
-										int bx1 = a2->GetX(ic2);
-										int by1 = a2->GetY(ic2);
+										int bx1 = a2->X(ic2);
+										int by1 = a2->Y(ic2);
 										int bx2, by2;
 										if( ic2 == ic_end2 )
 										{
-											bx2 = a2->GetX(ic_start2);
-											by2 = a2->GetY(ic_start2);
+											bx2 = a2->X(ic_start2);
+											by2 = a2->Y(ic_start2);
 										}
 										else
 										{
-											bx2 = a2->GetX(ic2+1);
-											by2 = a2->GetY(ic2+1);
+											bx2 = a2->X(ic2+1);
+											by2 = a2->Y(ic2+1);
 										}
-										int bstyle = a2->GetSideStyle(ic2);
+										int bstyle = a2->SideStyle(ic2);
 										int x, y;
 										int d = ::GetClearanceBetweenSegments( bx1, by1, bx2, by2, bstyle, 0,
 											ax1, ay1, ax2, ay2, astyle, 0, dr->copper_copper, &x, &y );

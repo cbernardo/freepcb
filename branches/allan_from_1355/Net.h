@@ -40,20 +40,20 @@ public:
 };
 
 // carea: describes a copper area in a net
-//class carea : public CPolyLine
 class carea : public CPolyLine
 {
 public:
 	carea();
 	carea( const carea& source );	// dummy copy constructor
-	~carea();						// destructor
+	~carea();						
 	carea &operator=( carea &a );	// dummy assignment operator
+	carea &operator=( const carea &a );	// dummy assignment operator
 	void Initialize( CDisplayList * dlist, cnet * net );
 	int UID(){ return m_uid; };
+	void SetUID( int uid ){ m_uid = uid; };
 
 	cnet * m_net;		// parent net
 	id m_id;			// id
-	int m_uid;			// UID
 	int npins;			// number of thru-hole pins within area on same net
 	CArray<int> pin;	// array of thru-hole pins
 	CArray<dl_element*> dl_thermal;	// graphics for thermals on pins
@@ -74,8 +74,8 @@ public:
 	};
 	cseg();
 	~cseg();
-//	cseg( cseg& src );		// copy constructor
-//	cseg& operator=( cseg& rhs );	// assignment
+	cseg( cseg& src );		// copy constructor
+	cseg& operator=( cseg& rhs );	// assignment
 	cseg& operator=( const cseg& rhs );	// assignment
 	void Initialize( cconnect * c );
 	int UID(){ return m_uid; };
@@ -120,9 +120,10 @@ public:
 	enum Type { V_PIN, V_TRACE, V_END };	// types of vertices
 
 	cvertex();
+	cvertex( cvertex& src );
 	~cvertex();
 	cvertex &operator=( const cvertex &v ); // assignment	
-//	cvertex &operator=( cvertex &v );	
+	cvertex &operator=( cvertex &v );	
 	void Initialize( cconnect * c );
 	int UID(){ return m_uid; };
 	void ReplaceUID( int uid );
