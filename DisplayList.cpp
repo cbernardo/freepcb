@@ -41,9 +41,11 @@ dl_element::dl_element()
 
 // constructor
 //
-CDisplayList::CDisplayList( int pcbu_per_wu )
+CDisplayList::CDisplayList( int pcbu_per_wu, SMFontUtil * fontutil )
 {
 	m_pcbu_per_wu = pcbu_per_wu;
+	m_fontutil = fontutil;
+
 	// create lists for all layers
 	for( int layer=0; layer<MAX_LAYERS; layer++ )
 	{
@@ -292,6 +294,7 @@ dl_element * CDisplayList::CreateDLE( id id, void * ptr, int layer, int gtype, i
 	// create new element
 	dl_element * new_element = CreateDLE( gtype );
 
+#if 0	// code added by Brian, doesn't work in fp_editor
 	if( layer == LAY_RAT_LINE )
 	{
 		new_element->w = m_ratline_w;
@@ -300,11 +303,13 @@ dl_element * CDisplayList::CreateDLE( id id, void * ptr, int layer, int gtype, i
 	{
 		new_element->w = (w < 0) ? w : w / m_pcbu_per_wu;
 	}
+#endif
 
 	// now copy data from entry into element
 	new_element->id         = id;
 	new_element->ptr        = ptr;
 	new_element->visible    = visible;
+	new_element->w			= w			 / m_pcbu_per_wu;
 	new_element->holew      = holew      / m_pcbu_per_wu;
 	new_element->clearancew = clearancew / m_pcbu_per_wu;
 	new_element->i.x        = x          / m_pcbu_per_wu;
@@ -501,6 +506,11 @@ void CDisplayList::Set_id( dl_element * el, id * id )
 	if( el)
 		el->id = *id;
 }
+void CDisplayList::Set_gtype( dl_element * el, int gtype )
+{
+	if( el )
+		el->gtype = gtype;
+}
 
 
 
@@ -597,7 +607,7 @@ void CDisplayList::Draw( CDC * dDC )
 	CDrawInfo di;
 
 	di.DC_Master = pDC;
-	CMemDC dcMemory(pDC);
+//**	CMemDC dcMemory(pDC);
 
 	for( int order=(MAX_LAYERS-1); order>=0; order-- )
 	{
@@ -608,6 +618,7 @@ void CDisplayList::Draw( CDC * dDC )
 		  continue;
 		}
 
+#if 0
 		if( layer > LAY_BOARD_OUTLINE )
 		{
 			// Use transparent DC in dcMemory
@@ -619,6 +630,7 @@ void CDisplayList::Draw( CDC * dDC )
 			di.layer_color[1] = C_RGB::mono_on;
 		}
 		else
+#endif
 		{
 			// Draw directly on main DC (di.DC_Master) for speed
 			di.DC = di.DC_Master;
@@ -660,7 +672,7 @@ void CDisplayList::Draw( CDC * dDC )
 		}
 	}
 
-	dcMemory.DeleteDC();
+//**	dcMemory.DeleteDC();
 
 	// origin
 	CRect r;
@@ -923,17 +935,27 @@ void CDisplayList::SetLayerVisible( int layer, BOOL vis )
 	m_vis[layer] = vis;
 }
 
+COLORREF CDisplayList::GetLayerColor( int layer )
+{
+//	return (m_rgb[layer][0], m_rgb[layer][1], m_rgb[layer][2]) );
+	return m_rgb[layer];
+}
+
 // test x,y for a hit on an item in the selection layer
 // creates arrays with layer and id of each hit item
 // assigns priority based on layer and id
-// then returns pointer to item with highest priority
+// then returns index of item with highest priority
 // If exclude_id != NULL, excludes item with
 // id == exclude_id and ptr == exclude_ptr
 // If include_id != NULL, only include items that match include_id[]
 // where n_include_ids is size of array, and
-// where 0's in include_id[] fields are treated as wildcards
+// where -1's in include_id[] fields are treated as wildcards
 //
-// Returns: Index into hit_info[] if hit, -1 if no hit
+#if 0
+void * CDisplayList::TestSelect( int x, int y, id * sel_id, int * sel_layer, 
+								id * exclude_id, 
+								id * include_id, int n_include_ids )
+#endif
 int CDisplayList::TestSelect(
 	int x, int y,
 	CDL_job::HitInfo hit_info[], int max_hits, int &num_hits,
@@ -977,11 +999,11 @@ int CDisplayList::TestSelect(
 					for( int inc=0; inc<n_include_ids; inc++ )
 					{
 						id * inc_id = &include_id[inc];
-						if( inc_id->type == hit_info[i].ID.type
-							&& ( inc_id->st  == 0 || inc_id->st  == hit_info[i].ID.st )
-							&& ( inc_id->i   == 0 || inc_id->i   == hit_info[i].ID.i )
-							&& ( inc_id->sst == 0 || inc_id->sst == hit_info[i].ID.sst )
-							&& ( inc_id->ii  == 0 || inc_id->ii  == hit_info[i].ID.ii ) )
+						if( inc_id->T1() == hit_info[i].ID.T1()
+							&& ( inc_id->T2() == 0 || inc_id->T2() == hit_info[i].ID.T2() )
+							&& ( inc_id->I2() == -1 || inc_id->I2() == hit_info[i].ID.I2() )
+							&& ( inc_id->T3() == 0 || inc_id->T3() == hit_info[i].ID.T3() )
+							&& ( inc_id->I3() == -1 || inc_id->I3() == hit_info[i].ID.I3() ) )
 						{
 							included_hit = TRUE;
 							break;
@@ -995,16 +1017,17 @@ int CDisplayList::TestSelect(
 					// i.e. last drawn = highest priority
 					int priority = (MAX_LAYERS - m_order_for_layer[hit_info[i].layer])*10;
 					// bump priority for small items which may be overlapped by larger items on same layer
-					if( hit_info[i].ID.type == ID_PART && hit_info[i].ID.st == ID_SEL_REF_TXT )
+					if( hit_info[i].ID.T1() == ID_PART && hit_info[i].ID.T2() == ID_REF_TXT && hit_info[i].ID.T3() == ID_SEL_TXT )
 						priority++;
-					else if( hit_info[i].ID.type == ID_PART && hit_info[i].ID.st == ID_SEL_VALUE_TXT )
+					else if( hit_info[i].ID.T1() == ID_PART && hit_info[i].ID.T2() == ID_VALUE_TXT && hit_info[i].ID.T3() == ID_SEL_TXT )
 						priority++;
-					else if( hit_info[i].ID.type == ID_BOARD && hit_info[i].ID.st == ID_BOARD_OUTLINE && hit_info[i].ID.sst == ID_SEL_CORNER )
+					else if( hit_info[i].ID.T1() == ID_BOARD && hit_info[i].ID.T2() == ID_BOARD_OUTLINE && hit_info[i].ID.T3() == ID_SEL_CORNER )
 						priority++;
-					else if( hit_info[i].ID.type == ID_NET && hit_info[i].ID.st == ID_AREA && hit_info[i].ID.sst == ID_SEL_CORNER )
+					else if( hit_info[i].ID.T1() == ID_NET && hit_info[i].ID.T2() == ID_AREA && hit_info[i].ID.T3() == ID_SEL_CORNER )
 						priority++;
-					else if( hit_info[i].ID.type == ID_NET && hit_info[i].ID.st == ID_CONNECT && hit_info[i].ID.sst == ID_SEL_VERTEX )
+					else if( hit_info[i].ID.T1() == ID_NET && hit_info[i].ID.T2() == ID_CONNECT && hit_info[i].ID.T3() == ID_SEL_VERTEX )
 						priority++;
+
 					hit_info[i].priority = priority;
 					if( priority >= best_hit_priority )
 					{

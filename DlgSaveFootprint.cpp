@@ -46,7 +46,7 @@ void CDlgSaveFootprint::DoDataExchange(CDataExchange* pDX)
 		ReleaseDC( pDC );
 		DeleteEnhMetaFile( hMF );
 		// initialize other fields
-		if( m_units == MM )
+		if( m_units == MM )  
 			m_static_units.SetWindowText( " mm" );
 		else
 			m_static_units.SetWindowText( " mil" );
@@ -64,9 +64,9 @@ void CDlgSaveFootprint::DoDataExchange(CDataExchange* pDX)
 	}
 }
 
-void CDlgSaveFootprint::Initialize( CString * name,
-								    CShape * footprint,
-								    int units,
+void CDlgSaveFootprint::Initialize( CString * name, 
+								    CShape * footprint,							 
+								    int units,	
 									LPCTSTR default_file_name,
 									CMapStringToPtr * shape_cache_map,
 									CFootLibFolderMap * footlibfoldermap,
@@ -109,7 +109,7 @@ void CDlgSaveFootprint::OnBnClickedOk()
 	if( *m_folder->GetFullPath() != m_folder_name )
 	{
 		// folder was changed without browsing, regenerate library
-		int ret = CHDIR( m_folder_name );
+		int ret = _chdir( m_folder_name );
 		if( ret == -1 )
 		{
 			// folder doesn't exist
@@ -412,7 +412,7 @@ void CDlgSaveFootprint::InitFileList()
 		// and select it
 		m_combo_lib.SetCurSel( m_lib_last );
 	}
-	else if( m_lib_last >= 0 )
+	else if( m_lib_last >= 0 ) 
 	{
 		// yes, select last file name
 		m_combo_lib.SetCurSel( m_lib_last );

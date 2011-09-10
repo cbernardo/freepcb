@@ -661,51 +661,51 @@ static void add_intersection(it_node **it, edge_node *edge0, edge_node *edge1,
 }
 
 
-static void add_st_edge(st_node **st, it_node **it, edge_node *edge,
+static void add_st_edge(st_node **t2, it_node **it, edge_node *edge,
                         double dy)
 {
   st_node *existing_node;
   double   den, r, x, y;
 
-  if (!*st)
+  if (!*t2)
   {
     /* Append edge onto the tail end of the ST */
-    MALLOC(*st, sizeof(st_node), "ST insertion", st_node);
-    (*st)->edge= edge;
-    (*st)->xb= edge->xb;
-    (*st)->xt= edge->xt;
-    (*st)->dx= edge->dx;
-    (*st)->prev= NULL;
+    MALLOC(*t2, sizeof(st_node), "ST insertion", st_node);
+    (*t2)->edge= edge;
+    (*t2)->xb= edge->xb;
+    (*t2)->xt= edge->xt;
+    (*t2)->dx= edge->dx;
+    (*t2)->prev= NULL;
   }
   else
   {
-    den= ((*st)->xt - (*st)->xb) - (edge->xt - edge->xb);
+    den= ((*t2)->xt - (*t2)->xb) - (edge->xt - edge->xb);
 
     /* If new edge and ST edge don't cross */
-    if ((edge->xt >= (*st)->xt) || (edge->dx == (*st)->dx) || 
+    if ((edge->xt >= (*t2)->xt) || (edge->dx == (*t2)->dx) || 
         (fabs(den) <= DBL_EPSILON))
     {
       /* No intersection - insert edge here (before the ST edge) */
-      existing_node= *st;
-      MALLOC(*st, sizeof(st_node), "ST insertion", st_node);
-      (*st)->edge= edge;
-      (*st)->xb= edge->xb;
-      (*st)->xt= edge->xt;
-      (*st)->dx= edge->dx;
-      (*st)->prev= existing_node;
+      existing_node= *t2;
+      MALLOC(*t2, sizeof(st_node), "ST insertion", st_node);
+      (*t2)->edge= edge;
+      (*t2)->xb= edge->xb;
+      (*t2)->xt= edge->xt;
+      (*t2)->dx= edge->dx;
+      (*t2)->prev= existing_node;
     }
     else
     {
       /* Compute intersection between new edge and ST edge */
-      r= (edge->xb - (*st)->xb) / den;
-      x= (*st)->xb + r * ((*st)->xt - (*st)->xb);
+      r= (edge->xb - (*t2)->xb) / den;
+      x= (*t2)->xb + r * ((*t2)->xt - (*t2)->xb);
       y= r * dy;
 
       /* Insert the edge pointers and the intersection point in the IT */
-      add_intersection(it, (*st)->edge, edge, x, y);
+      add_intersection(it, (*t2)->edge, edge, x, y);
 
       /* Head further into the ST */
-      add_st_edge(&((*st)->prev), it, edge, dy);
+      add_st_edge(&((*t2)->prev), it, edge, dy);
     }
   }
 }
@@ -713,27 +713,27 @@ static void add_st_edge(st_node **st, it_node **it, edge_node *edge,
 
 static void build_intersection_table(it_node **it, edge_node *aet, double dy)
 {
-  st_node   *st, *stp;
+  st_node   *t2, *stp;
   edge_node *edge;
 
   /* Build intersection table for the current scanbeam */
   reset_it(it);
-  st= NULL;
+  t2= NULL;
 
   /* Process each AET edge */
   for (edge= aet; edge; edge= edge->next)
   {
     if ((edge->bstate[ABOVE] == BUNDLE_HEAD) ||
          edge->bundle[ABOVE][CLIP] || edge->bundle[ABOVE][SUBJ])
-      add_st_edge(&st, it, edge, dy);
+      add_st_edge(&t2, it, edge, dy);
   }
 
   /* Free the sorted edge table */
-  while (st)
+  while (t2)
   {
-    stp= st->prev;
-    FREE(st);
-    st= stp;
+    stp= t2->prev;
+    FREE(t2);
+    t2= stp;
   }
 }
 

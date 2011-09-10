@@ -90,7 +90,7 @@ int ParseKeyString( CString * str, CString * key_str, CArray<CString> * param_st
 	char c = str->GetAt(0);
 	if( str->GetLength() == 0 || c == '/' )
 		return 0;
-	CString keyword = str->Tokenize( " :,\n\t", pos );
+	CString keyword = str->Tokenize( " :\n\t", pos );
 	last_pos = pos;
 	if( keyword == "" )
 		return -1;
@@ -117,7 +117,7 @@ int ParseKeyString( CString * str, CString * key_str, CArray<CString> * param_st
 	}
 	else
 	{
-		param = right_str.Tokenize( " ,\n\t", pos );
+		param = right_str.Tokenize( " \n\t", pos );
 		bQuotedStr = FALSE;
 	}
 	while( param != "" || bQuotedStr )
@@ -127,7 +127,7 @@ int ParseKeyString( CString * str, CString * key_str, CArray<CString> * param_st
 		param_str->SetAtGrow( np, param );
 		// now test for next parameter starting with "
 		last_pos = pos;
-		param = right_str.Tokenize( " ,\n\t", pos );
+		param = right_str.Tokenize( " \n\t", pos );
 		param.Trim();
 		if( param[0] == '\"' )
 		{

@@ -17,17 +17,15 @@
 #include "FootprintLib.h"
 #include "DlgDRC.h"
 #include "DesignRules.h"
-#include "pubsub.h"
-#include "rgb.h"
 //#include "QAFDebug.h"
 
 class CFreePcbDoc;
 class CFreePcbView;
 
 
+
 struct undo_board_outline {
-	int ncorners;
-	// array of undo_corners starts here
+	// undo_poly struct starts here 
 };
 
 struct undo_sm_cutout {
@@ -75,23 +73,25 @@ public:
 	void ProjectModified( BOOL flag, BOOL b_clear_redo=TRUE );
 	void InitializeNewProject();
 	void CFreePcbDoc::SendInitialUpdate();
-	void ReadFootprints( CStdioFile * pcb_file,
+	void ReadFootprints( CStdioFile * pcb_file, 
 		CMapStringToPtr * cache_map=NULL,
 		BOOL bFindSection=TRUE );
 	int WriteFootprints( CStdioFile * file, CMapStringToPtr * cache_map=NULL );
 	CShape * GetFootprintPtr( CString name );
 	void MakeLibraryMaps( CString * fullpath );
+	CPolyLine * GetBoardOutlineByUID( int uid, int * index=NULL );
+	CPolyLine * GetMaskCutoutByUID( int uid, int * index=NULL );
 	void ReadBoardOutline( CStdioFile * pcb_file, CArray<CPolyLine> * bd=NULL );
 	void WriteBoardOutline( CStdioFile * pcb_file, CArray<CPolyLine> * bd=NULL );
 	void ReadSolderMaskCutouts( CStdioFile * pcb_file, CArray<CPolyLine> * sm=NULL );
 	void WriteSolderMaskCutouts( CStdioFile * pcb_file, CArray<CPolyLine> * sm=NULL );
 	void ReadOptions( CStdioFile * pcb_file );
 	void WriteOptions( CStdioFile * pcb_file );
-	int ImportNetlist( CStdioFile * file, UINT flags,
+	int ImportNetlist( CStdioFile * file, UINT flags, 
 						partlist_info * pl, netlist_info * nl );
-	int ImportPADSPCBNetlist( CStdioFile * file, UINT flags,
+	int ImportPADSPCBNetlist( CStdioFile * file, UINT flags, 
 							   partlist_info * pl, netlist_info * nl );
-	int ExportPADSPCBNetlist( CStdioFile * file, UINT flags,
+	int ExportPADSPCBNetlist( CStdioFile * file, UINT flags, 
 							   partlist_info * pl, netlist_info * nl );
 	void ImportSessionFile( CString * filepath, CDlgLog * log=NULL, BOOL bVerbose=TRUE );
 	undo_move_origin * CreateMoveOriginUndoRecord( int x_off, int y_off );
@@ -101,14 +101,13 @@ public:
 	undo_sm_cutout * CreateSMCutoutUndoRecord( CPolyLine * poly );
 	static void SMCutoutUndoCallback( int last_flag, void * ptr, BOOL undo );
 	void OnFileAutoOpen( LPCTSTR fn );
-	BOOL FileSave( CString * folder, CString * filename,
+	BOOL FileSave( CString * folder, CString * filename, 
 		CString * old_folder, CString * old_filename,
 		BOOL bBackup=TRUE );
 	BOOL AutoSave();
 	void SetFileLayerMap( int file_layer, int layer );
 	void PurgeFootprintCache();
 	void ResetUndoState();
-	void SetRatlineWidth(int width, int bForce = FALSE);
 
 #ifdef _DEBUG
 	virtual void AssertValid() const;
@@ -132,7 +131,7 @@ public:
 	CString m_window_title;		// window title for PCB editor
 	CString m_fp_window_title;	// window title for footprint editor
 	CString m_name;				// project name
-	CString m_app_dir;			// application directory (full path)
+	CString m_app_dir;			// application directory (full path) 
 	CString m_lib_dir;			// path to default library folder (may be relative)
 	CString m_full_lib_dir;		// full path to default library folder
 	CString m_parent_folder;	// path to parent of project folders (may be relative)
@@ -149,14 +148,12 @@ public:
 	CNetList * m_nlist;			// net list
 	CTextList * m_tlist;		// text list
 	CMapStringToPtr m_footprint_cache_map;	// map of footprints cached in memory
-	CFreePcbView * m_view;		// pointer to CFreePcbView
+	CFreePcbView * m_view;		// pointer to CFreePcbView 
 	int m_file_close_ret;		// return value from OnFileClose() dialog
 	CFootLibFolderMap m_footlibfoldermap;
 	CDlgLog * m_dlg_log;
 	DRErrorList * m_drelist;
 	CArray<CPolyLine> m_sm_cutout;	// array of soldermask cutouts
-
-    int m_ratline_w;            // Ratline Width
 
 	// undo and redo stacks and state
 	BOOL m_bLastPopRedo;		// flag that last stack op was pop redo
@@ -165,7 +162,7 @@ public:
 
 	// autorouter file parameters
 	int m_dsn_flags;			// options for DSN export
-	BOOL m_dsn_bounds_poly;
+	BOOL m_dsn_bounds_poly;		
 	BOOL m_dsn_signals_poly;
 	CString m_ses_full_path;	// full path to last SES file
 
@@ -175,6 +172,8 @@ public:
 	// project options
 	BOOL m_bSMT_copper_connect;
 	int m_default_glue_w;
+	BOOL m_auto_ratline_disable;
+	int m_auto_ratline_min_pins;
 
 	// pseudo-clipboard
 	CPartList * clip_plist;
@@ -207,28 +206,29 @@ public:
 	// layers
 	int m_num_layers;			// number of drawing layers (note: different than copper layers)
 	int m_num_copper_layers;	// number of copper layers
-	C_RGB m_rgb[MAX_LAYERS];	// array of RGB values for each drawing layer
+	int m_rgb[MAX_LAYERS][3];	// array of RGB values for each drawing layer
 	int m_vis[MAX_LAYERS];		// array of visible flags
 
 	// layers for footprint editor
 	int m_fp_num_layers;
-	C_RGB m_fp_rgb[MAX_LAYERS];
+	int m_fp_rgb[MAX_LAYERS][3];
 	int m_fp_vis[MAX_LAYERS];
 
 	// default trace and via widths for routing
-	CNetWidthInfo m_def_size_attrib;
-
-	CArray<int> m_w;		// array of trace widths
+	int m_trace_w;			// default trace width
+	int m_via_w;			// default via pad width
+	int m_via_hole_w;		// default via hole diameter
+	CArray<int> m_w;		// array of trace widths 
 	CArray<int> m_v_w;		// array of via widths
 	CArray<int> m_v_h_w;	// array of via hole widths
 
 	// CAM flags and parameters
 	int m_cam_flags;
 	int m_cam_units;
+	int m_fill_clearance; 
 	int m_mask_clearance;
 	int m_paste_shrink;
 	int m_thermal_width;
-	CPublishedData<int> m_thermal_clearance;
 	int m_min_silkscreen_stroke_wid;
 	int m_pilot_diameter;
 	int m_outline_width;
@@ -248,6 +248,10 @@ public:
 
 	//DRC limits
 	DesignRules m_dr;
+
+	// Brian's stuff
+	int m_thermal_clearance;
+
 
 // Generated message map functions
 public:

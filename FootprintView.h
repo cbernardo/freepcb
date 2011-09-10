@@ -102,8 +102,8 @@ enum {
 };
 
 // function key menu strings
-static char fk_fp_str[FK_FP_NUM_OPTIONS*2+2][32] =
-{
+static char fk_fp_str[FK_FP_NUM_OPTIONS*2+2][32] = 
+{ 
 	"",			"",
 	" Move",	" Pad",
 	" Move",	" Ref Text",
@@ -195,6 +195,7 @@ public:
 	BOOL m_polyline_closed_flag;
 	int m_polyline_style;	// STRAIGHT, ARC_CW or ARC_CCW
 	int m_polyline_width;
+	int m_polyline_layer;
 
 	// flag to disable context menu on right-click,
 	// if right-click handled some other way
@@ -287,6 +288,7 @@ public:
 	void SetWindowTitle( CString * str );
 	void CancelSelection();
 	int SetWidth( int mode );
+	int GetWidthsForSegment( int * w, int * via_w, int * via_hole_w );
 	BOOL CurNone();
 	BOOL CurSelected();
 	BOOL CurDragging();
@@ -296,8 +298,6 @@ public:
 	void FootprintModified( BOOL flag, BOOL force = FALSE, BOOL clear_redo=TRUE );
 	void FootprintNameChanged( CString * str );
 	void MoveOrigin( int x, int y );
-	void SetActiveLayer(int layer);
-
 	void ClearUndo();
 	void ClearRedo();
 	void PushUndo();
@@ -307,7 +307,7 @@ public:
 	void Redo();
 	void EnableUndo( BOOL bEnable );
 	void EnableRedo( BOOL bEnable );
-
+	
 protected:
 
 // Generated message map functions
@@ -350,6 +350,7 @@ public:
 	afx_msg void OnAddPin();
 	afx_msg void OnFootprintFileSaveAs();
 	afx_msg void OnAddPolyline();
+	afx_msg void OnEditPolyline();
 	afx_msg void OnFootprintFileImport();
 	afx_msg void OnFootprintFileClose();
 	afx_msg void OnFootprintFileNew();
