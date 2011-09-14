@@ -66,7 +66,7 @@ cnet * CNetList::AddNet( CString name, int max_pins, int def_w, int def_via_w, i
 
 	// add name and pointer to map
 	m_map.SetAt( name, (void*)new_net );
-	m_uid_map.SetAt( new_net->id.U1(), new_net );
+	m_uid_map.SetAt( new_net->m_id.U1(), new_net );
 
 	return new_net;
 } 
@@ -104,7 +104,7 @@ void CNetList::RemoveNet( cnet * net )
 //	net->pin.RemoveAll();
 //	net->area.RemoveAll();
 	m_map.RemoveKey( net->name );
-	m_uid_map.RemoveKey( net->id.U1()  );
+	m_uid_map.RemoveKey( net->m_id.U1()  );
 	delete( net );
 }
 
@@ -357,6 +357,7 @@ int CNetList::GetNetPinIndex( cnet * net, CString * ref_des, CString * pin_name 
 	return net_pin;
 }
 
+#if 0
 // Add new connection to net, consisting of one unrouted segment
 // p1 and p2 are indexes into pin array for this net
 // returns index to connection, or -1 if fails
@@ -424,7 +425,7 @@ int CNetList::AddNetStub( cnet * net, int p1 )
 {
 	if( net->pin[p1].part == 0 )
 		return -1;
-	cconnect * c = net->AddNewConnect();
+	cconnect * c = net->AddConnect();
 	c->start_pin = p1;
 	c->end_pin = cconnect::NO_END;
 
@@ -438,6 +439,7 @@ int CNetList::AddNetStub( cnet * net, int p1 )
 	cvertex * v = &c->InsertVertexByIndex( 0, new_vtx );
 	return net->ConIndexByPtr( c );
 }
+#endif
 
 // test for hit on end-pad of connection
 // if dir == 0, check end pad
@@ -1053,7 +1055,7 @@ void CNetList::RemoveSegment( cnet * net, int ic, int is, BOOL bHandleTee, BOOL 
 		// first, make new stub trace from the end
 		if( is < c->NumSegs()-1 )
 		{
-			int new_ic = AddNetStub( net, c->end_pin );
+			int new_ic = net->AddConnectFromPin( c->end_pin );
 			for( int iss=c->NumSegs()-1; iss>is; iss-- )
 			{
 //				AppendSegment( net, new_ic, 
@@ -2532,7 +2534,7 @@ int CNetList::OptimizeConnections( cnet * net, int ic_track, BOOL bBelowPinCount
 		// make new connection with a single unrouted segment
 		int p1 = pair[ic*2];
 		int p2 = pair[ic*2+1];
-		AddNetConnect( net, p1, p2 );
+		net->AddConnectFromPinToPin( p1, p2 );
 	}
 
 	free( grid );
@@ -3509,7 +3511,7 @@ cnet * CNetList::GetNetPtrByUID( int uid )
 	CIterator_cnet iter_net( this );
 	for( cnet * net=iter_net.GetFirst(); net; net=iter_net.GetNext() )
 	{
-		if( net->id.U1() == uid )
+		if( net->m_id.U1() == uid )
 			return net;
 	}
 	return NULL;
@@ -3951,9 +3953,9 @@ void CNetList::ReadNets( CStdioFile * pcb_file, double read_version, int * layer
 				int locked = my_atoi( &p[4] );
 				int nc;
 				if( end_pin != cconnect::NO_END )
-					nc = AddNetConnect( net, start_pin, end_pin );
+					nc = net->AddConnectFromPinToPin( start_pin, end_pin );
 				else
-					nc = AddNetStub( net, start_pin );
+					nc = net->AddConnectFromPin( start_pin );
 				if( nc == -1 )
 				{
 					// invalid connection, remove it with this ugly code
@@ -4198,7 +4200,7 @@ int CNetList::DrawVia( cnet * net, int ic, int iv )
 	UndrawVia( net, ic, iv );
 
 	// draw via if (v->via_w) > 0
-	id vid = net->id;
+	id vid = net->m_id;
 	vid.SetT2( ID_CONNECT );
 	vid.SetI2( ic );
 	vid.SetU2( c->m_uid );
@@ -4671,9 +4673,9 @@ void CNetList::Copy( CNetList * src_nl )
 		{
 			cconnect * src_c = src_net->connect[ic];
 			if( src_c->end_pin == cconnect::NO_END )
-				AddNetStub( net, src_c->start_pin );
+				net->AddConnectFromPin( src_c->start_pin );
 			else
-				AddNetConnect( net, src_c->start_pin, src_c->end_pin );
+				net->AddConnectFromPinToPin( src_c->start_pin, src_c->end_pin );
 			cconnect * c = net->connect[ic];
 			c->seg.SetSize( src_c->NumSegs() );
 			for( int is=0; is<src_c->NumSegs(); is++ )
@@ -4900,12 +4902,12 @@ void CNetList::RestoreConnectionsAndAreas( CNetList * old_nl, int flags, CDlgLog
 					int new_start_pin_index = GetNetPinIndex( net, &old_start_pin->ref_des, &old_start_pin->pin_name );
 					if( old_c->end_pin == cconnect::NO_END )
 					{
-						ic = AddNetStub( net, new_start_pin_index );
+						ic = net->AddConnectFromPin( new_start_pin_index );
 					}
 					else
 					{
 						int new_end_pin_index = GetNetPinIndex( net, &old_end_pin->ref_des, &old_end_pin->pin_name );
-						ic = AddNetConnect( net, new_start_pin_index, new_end_pin_index );
+						ic = net->AddConnectFromPinToPin( new_start_pin_index, new_end_pin_index );
 					}
 					if( ic > -1 )
 					{
@@ -5114,7 +5116,7 @@ undo_net * CNetList::CreateNetUndoRecord( cnet * net )
 	}
 	undo->nlist = this;
 	undo->m_uid = net->m_uid;
-	undo->m_id = net->id;
+	undo->m_id = net->m_id;
 	undo->size = size;
 	return undo;
 }
@@ -5288,7 +5290,7 @@ int CNetList::CheckNetlist( CString * logstr )
 		}
 		else
 			net_map.SetAt( net_name, NULL );
-		if( pcb_cuid.CheckUID( net->id.U1() ) )
+		if( pcb_cuid.CheckUID( net->m_id.U1() ) )
 		{
 			str.Format( "Warning: Net \"%s\": has invalid UID\r\n", net->name );
 			*logstr += str;
@@ -7098,7 +7100,7 @@ void CNetList::ImportNetRouting( CString * name,
 							{
 								// first step, create connection
 								if( ipass == 0 || ipass == 2 )
-									ic = AddNetStub( net, prev_node->pin_index );
+									ic = net->AddConnectFromPin( prev_node->pin_index );
 								else if( ipass == 1 )
 								{
 									int last_path_index = g_best_path_index[0];
@@ -7106,7 +7108,7 @@ void CNetList::ImportNetRouting( CString * name,
 									cpath * last_path = &(*paths)[last_path_index];
 									int last_inode = last_path->GetInode( last_path_end );
 									cnode * last_node = &(*nodes)[last_inode];
-									ic = AddNetConnect( net, prev_node->pin_index, last_node->pin_index );
+									ic = net->AddConnectFromPinToPin( prev_node->pin_index, last_node->pin_index );
 								}
 								str.Format( "n%d", prev_inode );
 								mess += str;

@@ -238,218 +238,6 @@
 				>
 			</File>
 			<File
-				RelativePath="DlgAddArea.cpp"
-				>
-			</File>
-			<File
-				RelativePath=".\DlgAddMaskCutout.cpp"
-				>
-			</File>
-			<File
-				RelativePath="DlgAddNet.cpp"
-				>
-			</File>
-			<File
-				RelativePath="DlgAddPart.cpp"
-				>
-			</File>
-			<File
-				RelativePath="DlgAddPin.cpp"
-				>
-			</File>
-			<File
-				RelativePath="DlgAddPoly.cpp"
-				>
-			</File>
-			<File
-				RelativePath="DlgAddText.cpp"
-				>
-			</File>
-			<File
-				RelativePath="DlgAddWidth.cpp"
-				>
-			</File>
-			<File
-				RelativePath=".\DlgAreaLayer.cpp"
-				>
-			</File>
-			<File
-				RelativePath="DlgAssignNet.cpp"
-				>
-			</File>
-			<File
-				RelativePath="DlgCAD.cpp"
-				>
-			</File>
-			<File
-				RelativePath=".\DlgCentroid.cpp"
-				>
-			</File>
-			<File
-				RelativePath=".\DlgChangeLayer.cpp"
-				>
-			</File>
-			<File
-				RelativePath=".\DlgChooseNetName.cpp"
-				>
-			</File>
-			<File
-				RelativePath=".\DlgDRC.cpp"
-				>
-			</File>
-			<File
-				RelativePath=".\DlgDupFootprintName.cpp"
-				>
-			</File>
-			<File
-				RelativePath="DlgEditBoardCorner.cpp"
-				>
-			</File>
-			<File
-				RelativePath="DlgEditNet.cpp"
-				>
-			</File>
-			<File
-				RelativePath=".\DlgExportDsn.cpp"
-				>
-			</File>
-			<File
-				RelativePath=".\DlgFindPart.cpp"
-				>
-			</File>
-			<File
-				RelativePath=".\DlgFpText.cpp"
-				>
-			</File>
-			<File
-				RelativePath=".\DlgGlue.cpp"
-				>
-			</File>
-			<File
-				RelativePath=".\DlgGroupPaste.cpp"
-				>
-			</File>
-			<File
-				RelativePath=".\DlgHole.cpp"
-				>
-			</File>
-			<File
-				RelativePath="DlgImportFootprint.cpp"
-				>
-			</File>
-			<File
-				RelativePath=".\DlgImportOptions.cpp"
-				>
-			</File>
-			<File
-				RelativePath=".\DlgImportSes.cpp"
-				>
-			</File>
-			<File
-				RelativePath="DlgIndexing.cpp"
-				>
-			</File>
-			<File
-				RelativePath="DlgIvex.cpp"
-				>
-			</File>
-			<File
-				RelativePath="DlgLayers.cpp"
-				>
-			</File>
-			<File
-				RelativePath=".\DlgLibraryManager.cpp"
-				>
-			</File>
-			<File
-				RelativePath="DlgLog.cpp"
-				>
-			</File>
-			<File
-				RelativePath=".\DlgMoveOrigin.cpp"
-				>
-			</File>
-			<File
-				RelativePath=".\DlgMyMessageBox.cpp"
-				>
-			</File>
-			<File
-				RelativePath=".\DlgMyMessageBox2.cpp"
-				>
-			</File>
-			<File
-				RelativePath=".\DlgNetCombine.cpp"
-				>
-			</File>
-			<File
-				RelativePath="DlgNetlist.cpp"
-				>
-			</File>
-			<File
-				RelativePath="DlgPartlist.cpp"
-				>
-			</File>
-			<File
-				RelativePath="DlgProjectOptions.cpp"
-				>
-			</File>
-			<File
-				RelativePath=".\DlgReassignLayers.cpp"
-				>
-			</File>
-			<File
-				RelativePath="DlgRefText.cpp"
-				>
-			</File>
-			<File
-				RelativePath=".\DlgReport.cpp"
-				>
-			</File>
-			<File
-				RelativePath="DlgSaveFootprint.cpp"
-				>
-			</File>
-			<File
-				RelativePath=".\DlgSaveLib.cpp"
-				>
-			</File>
-			<File
-				RelativePath="DlgSetAreaHatch.cpp"
-				>
-			</File>
-			<File
-				RelativePath="DlgSetSegmentWidth.cpp"
-				>
-			</File>
-			<File
-				RelativePath="DlgSetTraceWidths.cpp"
-				>
-			</File>
-			<File
-				RelativePath=".\DlgShortcuts.cpp"
-				>
-			</File>
-			<File
-				RelativePath=".\DlgSideStyle.cpp"
-				>
-			</File>
-			<File
-				RelativePath=".\DlgSlot.cpp"
-				>
-			</File>
-			<File
-				RelativePath=".\DlgValueText.cpp"
-				>
-			</File>
-			<File
-				RelativePath=".\DlgVia.cpp"
-				>
-			</File>
-			<File
-				RelativePath="DlgWizQuad.cpp"
-				>
-			</File>
-			<File
 				RelativePath=".\DrawingElement.cpp"
 				>
 			</File>
@@ -952,7 +740,15 @@
 			Name="Dialogs"
 			>
 			<File
+				RelativePath="DlgAddArea.cpp"
+				>
+			</File>
+			<File
 				RelativePath="DlgAddArea.h"
+				>
+			</File>
+			<File
+				RelativePath=".\DlgAddMaskCutout.cpp"
 				>
 			</File>
 			<File
@@ -960,7 +756,15 @@
 				>
 			</File>
 			<File
+				RelativePath="DlgAddNet.cpp"
+				>
+			</File>
+			<File
 				RelativePath="DlgAddNet.h"
+				>
+			</File>
+			<File
+				RelativePath="DlgAddPart.cpp"
 				>
 			</File>
 			<File
@@ -968,7 +772,15 @@
 				>
 			</File>
 			<File
+				RelativePath="DlgAddPin.cpp"
+				>
+			</File>
+			<File
 				RelativePath="DlgAddPin.h"
+				>
+			</File>
+			<File
+				RelativePath="DlgAddPoly.cpp"
 				>
 			</File>
 			<File
@@ -976,7 +788,15 @@
 				>
 			</File>
 			<File
+				RelativePath="DlgAddText.cpp"
+				>
+			</File>
+			<File
 				RelativePath="DlgAddText.h"
+				>
+			</File>
+			<File
+				RelativePath="DlgAddWidth.cpp"
 				>
 			</File>
 			<File
@@ -984,7 +804,15 @@
 				>
 			</File>
 			<File
+				RelativePath=".\DlgAreaLayer.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\DlgAreaLayer.h"
+				>
+			</File>
+			<File
+				RelativePath="DlgAssignNet.cpp"
 				>
 			</File>
 			<File
@@ -992,7 +820,15 @@
 				>
 			</File>
 			<File
+				RelativePath="DlgCAD.cpp"
+				>
+			</File>
+			<File
 				RelativePath="DlgCAD.h"
+				>
+			</File>
+			<File
+				RelativePath=".\DlgCentroid.cpp"
 				>
 			</File>
 			<File
@@ -1000,7 +836,15 @@
 				>
 			</File>
 			<File
+				RelativePath=".\DlgChangeLayer.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\DlgChangeLayer.h"
+				>
+			</File>
+			<File
+				RelativePath=".\DlgChooseNetName.cpp"
 				>
 			</File>
 			<File
@@ -1008,7 +852,15 @@
 				>
 			</File>
 			<File
+				RelativePath=".\DlgDRC.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\DlgDRC.h"
+				>
+			</File>
+			<File
+				RelativePath=".\DlgDupFootprintName.cpp"
 				>
 			</File>
 			<File
@@ -1016,7 +868,15 @@
 				>
 			</File>
 			<File
+				RelativePath="DlgEditBoardCorner.cpp"
+				>
+			</File>
+			<File
 				RelativePath="DlgEditBoardCorner.h"
+				>
+			</File>
+			<File
+				RelativePath="DlgEditNet.cpp"
 				>
 			</File>
 			<File
@@ -1024,7 +884,15 @@
 				>
 			</File>
 			<File
+				RelativePath=".\DlgExportDsn.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\DlgExportDsn.h"
+				>
+			</File>
+			<File
+				RelativePath=".\DlgFindPart.cpp"
 				>
 			</File>
 			<File
@@ -1032,7 +900,15 @@
 				>
 			</File>
 			<File
+				RelativePath=".\DlgFpText.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\DlgFpText.h"
+				>
+			</File>
+			<File
+				RelativePath=".\DlgGlue.cpp"
 				>
 			</File>
 			<File
@@ -1040,7 +916,19 @@
 				>
 			</File>
 			<File
+				RelativePath=".\DlgGroupPaste.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\DlgGroupPaste.h"
+				>
+			</File>
+			<File
+				RelativePath=".\DlgHole.cpp"
+				>
+			</File>
+			<File
+				RelativePath="DlgImportFootprint.cpp"
 				>
 			</File>
 			<File
@@ -1048,7 +936,15 @@
 				>
 			</File>
 			<File
+				RelativePath=".\DlgImportOptions.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\DlgImportOptions.h"
+				>
+			</File>
+			<File
+				RelativePath=".\DlgImportSes.cpp"
 				>
 			</File>
 			<File
@@ -1056,7 +952,15 @@
 				>
 			</File>
 			<File
+				RelativePath="DlgIndexing.cpp"
+				>
+			</File>
+			<File
 				RelativePath="DlgIndexing.h"
+				>
+			</File>
+			<File
+				RelativePath="DlgIvex.cpp"
 				>
 			</File>
 			<File
@@ -1064,7 +968,15 @@
 				>
 			</File>
 			<File
+				RelativePath="DlgLayers.cpp"
+				>
+			</File>
+			<File
 				RelativePath="DlgLayers.h"
+				>
+			</File>
+			<File
+				RelativePath=".\DlgLibraryManager.cpp"
 				>
 			</File>
 			<File
@@ -1072,7 +984,15 @@
 				>
 			</File>
 			<File
+				RelativePath="DlgLog.cpp"
+				>
+			</File>
+			<File
 				RelativePath="DlgLog.h"
+				>
+			</File>
+			<File
+				RelativePath=".\DlgMoveOrigin.cpp"
 				>
 			</File>
 			<File
@@ -1080,7 +1000,15 @@
 				>
 			</File>
 			<File
+				RelativePath=".\DlgMyMessageBox.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\DlgMyMessageBox.h"
+				>
+			</File>
+			<File
+				RelativePath=".\DlgMyMessageBox2.cpp"
 				>
 			</File>
 			<File
@@ -1088,7 +1016,15 @@
 				>
 			</File>
 			<File
+				RelativePath=".\DlgNetCombine.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\DlgNetCombine.h"
+				>
+			</File>
+			<File
+				RelativePath="DlgNetlist.cpp"
 				>
 			</File>
 			<File
@@ -1096,7 +1032,15 @@
 				>
 			</File>
 			<File
+				RelativePath="DlgPartlist.cpp"
+				>
+			</File>
+			<File
 				RelativePath="DlgPartlist.h"
+				>
+			</File>
+			<File
+				RelativePath="DlgProjectOptions.cpp"
 				>
 			</File>
 			<File
@@ -1104,7 +1048,15 @@
 				>
 			</File>
 			<File
+				RelativePath=".\DlgReassignLayers.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\DlgReassignLayers.h"
+				>
+			</File>
+			<File
+				RelativePath="DlgRefText.cpp"
 				>
 			</File>
 			<File
@@ -1112,7 +1064,15 @@
 				>
 			</File>
 			<File
+				RelativePath=".\DlgReport.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\DlgReport.h"
+				>
+			</File>
+			<File
+				RelativePath="DlgSaveFootprint.cpp"
 				>
 			</File>
 			<File
@@ -1120,7 +1080,15 @@
 				>
 			</File>
 			<File
+				RelativePath=".\DlgSaveLib.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\DlgSaveLib.h"
+				>
+			</File>
+			<File
+				RelativePath="DlgSetAreaHatch.cpp"
 				>
 			</File>
 			<File
@@ -1128,7 +1096,15 @@
 				>
 			</File>
 			<File
+				RelativePath="DlgSetSegmentWidth.cpp"
+				>
+			</File>
+			<File
 				RelativePath="DlgSetSegmentWidth.h"
+				>
+			</File>
+			<File
+				RelativePath="DlgSetTraceWidths.cpp"
 				>
 			</File>
 			<File
@@ -1136,7 +1112,15 @@
 				>
 			</File>
 			<File
+				RelativePath=".\DlgShortcuts.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\DlgShortcuts.h"
+				>
+			</File>
+			<File
+				RelativePath=".\DlgSideStyle.cpp"
 				>
 			</File>
 			<File
@@ -1144,7 +1128,15 @@
 				>
 			</File>
 			<File
+				RelativePath=".\DlgSlot.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\DlgSlot.h"
+				>
+			</File>
+			<File
+				RelativePath=".\DlgValueText.cpp"
 				>
 			</File>
 			<File
@@ -1152,7 +1144,15 @@
 				>
 			</File>
 			<File
+				RelativePath=".\DlgVia.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\DlgVia.h"
+				>
+			</File>
+			<File
+				RelativePath="DlgWizQuad.cpp"
 				>
 			</File>
 			<File

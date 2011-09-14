@@ -1323,7 +1323,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 						if( net )
 						{
 							m_sel_net = net;
-							m_sel_id = net->id;
+							m_sel_id = net->m_id;
 							m_sel_id.SetT2( ID_ENTIRE_NET );
 							m_Doc->m_nlist->HighlightNetConnections( m_sel_net );
 							m_Doc->m_plist->HighlightAllPadsOnNet( m_sel_net );
@@ -1867,7 +1867,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 			CPoint p;
 			p = m_last_cursor_point;
 			int iarea = m_Doc->m_nlist->AddArea( m_sel_net, m_active_layer, p.x, p.y, m_polyline_hatch );
-			m_sel_id.Set( m_sel_net->id.T1(), -1, ID_AREA, -1, iarea, ID_SEL_CORNER, -1, 1 );
+			m_sel_id.Set( m_sel_net->m_id.T1(), -1, ID_AREA, -1, iarea, ID_SEL_CORNER, -1, 1 );
 			m_dlist->StartDraggingArc( pDC, m_polyline_style, p.x, p.y, p.x, p.y, LAY_SELECTION, 1, 2 );
 			SetCursorMode( CUR_DRAG_AREA_1 );
 			m_Doc->ProjectModified( TRUE );
@@ -1987,7 +1987,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 			int ia = m_sel_id.I2();
 			carea * a = &m_sel_net->area[ia];
 			m_Doc->m_nlist->AppendAreaCorner( m_sel_net, ia, p.x, p.y, m_polyline_style );
-			m_sel_id.Set( m_sel_net->id.T1(), -1, ID_AREA, -1, ia, ID_SEL_CORNER, -1, a->NumCorners()-1 );
+			m_sel_id.Set( m_sel_net->m_id.T1(), -1, ID_AREA, -1, ia, ID_SEL_CORNER, -1, a->NumCorners()-1 );
 			m_dlist->StartDraggingArc( pDC, m_polyline_style, p.x, p.y, p.x, p.y, LAY_SELECTION, 1, 2 );
 			SetCursorMode( CUR_DRAG_AREA_CUTOUT_1 );
 			m_Doc->ProjectModified( TRUE );
@@ -2165,7 +2165,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 			int ia = m_sel_id.I2();
 			carea * a = &m_sel_net->area[ia];
 			m_Doc->m_nlist->AppendAreaCorner( m_sel_net, ia, p.x, p.y, m_polyline_style );
-			m_sel_id.Set( m_sel_net->id.T1(), -1, ID_AREA, -1, ia, ID_SEL_CORNER, -1, a->NumCorners()-1 );
+			m_sel_id.Set( m_sel_net->m_id.T1(), -1, ID_AREA, -1, ia, ID_SEL_CORNER, -1, a->NumCorners()-1 );
 			m_dlist->StartDraggingArc( pDC, m_polyline_style, p.x, p.y, p.x, p.y, LAY_SELECTION, 1, 2 );
 			SetCursorMode( CUR_DRAG_AREA_1 );
 			m_Doc->ProjectModified( TRUE );
@@ -2252,7 +2252,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 
 			if( num_hits )
 			{
-				sel_id = hit_info[idx].ID;		// select best hit
+				sel_id = hit_info[idx].ID;		// best hit
 				if( sel_id.T1() == ID_PART && sel_id.T2()  == ID_SEL_PAD )
 				{
 					// hit on pin
@@ -2324,7 +2324,12 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 									&pin_name );
 							}
 							int p1 = m_Doc->m_nlist->GetNetPinIndex( m_sel_net, &new_sel_part->ref_des, &pin_name );
-							int ic = m_Doc->m_nlist->AddNetStub( m_sel_net, p1 );
+							m_sel_con->Undraw();
+							cconnect * new_con = m_sel_net->SplitConnectAtVertex( m_sel_id );
+							m_sel_con->Draw();
+							new_con->Draw();
+#if 0 //100
+							int ic = m_sel_net->AddConnectFromPin( p1 );
 							m_Doc->m_nlist->AppendSegment( m_sel_net, ic, m_sel_vtx->x, m_sel_vtx->y, LAY_RAT_LINE,
 								1 );
 							int id = m_sel_vtx->tee_ID;
@@ -2339,6 +2344,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 							if( m_Doc->m_vis[LAY_RAT_LINE] )
 								m_Doc->m_nlist->OptimizeConnections(  m_sel_net, -1, m_Doc->m_auto_ratline_disable,
 														m_Doc->m_auto_ratline_min_pins, TRUE  );
+#endif //100
 							CancelSelection();
 							m_Doc->m_dlist->StopDragging();
 							Invalidate( FALSE );
@@ -2457,7 +2463,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 								}
 							}
 							if( p1>=0 && p2>=0 )
-								m_Doc->m_nlist->AddNetConnect( new_sel_net, p1, p2 );
+								m_sel_net->AddConnectFromPinToPin( p1, p2 );
 							else
 								ASSERT(0);	// couldn't find pins in net
 							m_dlist->StopDragging();
@@ -3280,7 +3286,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 			if( net )
 			{
 				m_sel_net = net;
-				m_sel_id = net->id;
+				m_sel_id = net->m_id;
 				m_sel_id.SetT2( ID_ENTIRE_NET );
 				m_Doc->m_nlist->HighlightNetConnections( m_sel_net );
 				m_Doc->m_plist->HighlightAllPadsOnNet( m_sel_net );
@@ -6470,7 +6476,7 @@ void CFreePcbView::OnPadStartStubTrace()
 	SaveUndoInfoForNetAndConnections( net, CNetList::UNDO_NET_MODIFY, TRUE, m_Doc->m_undo_list );
 	m_sel_net = net;
 	m_sel_id.Set( ID_NET, net->UID(), ID_CONNECT, -1, 0, ID_SEL_SEG, -1, 0 );
-	m_sel_id.SetI2( m_Doc->m_nlist->AddNetStub( net, p1 ) );
+	m_sel_id.SetI2( net->AddConnectFromPin( p1 ) );
 	cconnect * c = net->ConByIndex( m_sel_id.I2() );
 	m_sel_id.SetU2( c->UID() );
 
@@ -10611,11 +10617,11 @@ void CFreePcbView::OnGroupCopy()
 					if( !bStubTrace )
 					{
 						int p2 = g_nl->GetNetPinIndex( g_net, &pin2->ref_des, &pin2->pin_name );
-						g_ic = g_nl->AddNetConnect( g_net, p1, p2 );
+						g_ic = g_net->AddConnectFromPinToPin( p1, p2 );
 					}
 					else
 					{
-						g_ic = g_nl->AddNetStub( g_net, p1 );
+						g_ic = g_net->AddConnectFromPin( p1 );
 					}
 					cconnect * g_c = g_net->ConByIndex(g_ic);
 					g_c->SetNumSegs( c->NumSegs() );
@@ -11564,11 +11570,11 @@ void CFreePcbView::OnGroupPaste()
 						int ic;
 						if( new_end_pin != cconnect::NO_END )
 						{
-							ic = nl->AddNetConnect( prj_net, new_start_pin, new_end_pin );
+							ic = prj_net->AddConnectFromPinToPin( new_start_pin, new_end_pin );
 						}
 						else
 						{
-							ic = nl->AddNetStub( prj_net, new_start_pin );
+							ic = prj_net->AddConnectFromPin( new_start_pin );
 						}
 						// copy it and draw it
 						if( ic < 0 )

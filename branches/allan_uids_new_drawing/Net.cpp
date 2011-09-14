@@ -310,8 +310,13 @@ void cconnect::PrependVertexAndSeg( const cvertex& new_vtx,
 	VtxByIndex( 0 ).Initialize(this);
 }
 
-void cconnect::RemoveSegAndVertexByIndex( int is, int dir )
+void cconnect::RemoveSegAndVertexByIndex( int is )
 {
+	cvertex * old_v = &vtx[is+1];
+	if( old_v->GetType() == cvertex::V_PIN )
+		end_pin = NO_END;
+	vtx.RemoveAt( is+1 );
+	seg.RemoveAt( is );
 }
 
 void cconnect::Undraw()
@@ -348,7 +353,7 @@ void cconnect::Draw()
 			int is = iter_seg.GetIndex();
 			cvertex *pre_v = &vtx[is];
 			cvertex *post_v = &vtx[is+1];
-			id s_id = m_net->id;
+			id s_id = m_net->m_id;
 			s_id.SetT2( ID_CONNECT );
 			s_id.SetU2( m_uid );
 			s_id.SetI2( ic );
@@ -753,7 +758,7 @@ void carea::Initialize( CDisplayList * dlist, cnet * net )
 {
 	m_dlist = dlist;
 	m_net = net;
-	m_id = net->id;			// level 1 of id is from net
+	m_id = net->m_id;			// level 1 of id is from net
 	m_id.SetT2( ID_AREA );		// level 2 is from area
 	m_id.SetU2( m_uid );
 	SetDlist( dlist );
@@ -766,11 +771,11 @@ cnet::cnet( CDisplayList * dlist, CNetList * nlist )
 { 
 	m_dlist = dlist;
 	m_nlist = nlist;
-	id.Clear();
+	m_id.Clear();
 	m_uid = pcb_cuid.GetNewUID();
-	id.SetT1( ID_NET );
-	id.SetT2( ID_NONE );
-	id.SetU1(m_uid);
+	m_id.SetT1( ID_NET );
+	m_id.SetT2( ID_NONE );
+	m_id.SetU1(m_uid);
 }
 cnet::~cnet()
 {
@@ -924,14 +929,94 @@ void cnet::RemovePin( int net_pin_index, BOOL bSetAreas )
 		m_nlist->SetAreaConnections( this );
 }
 
-// add new connection
+// add new connection with no segments or vertices
 //
-cconnect * cnet::AddNewConnect()
+cconnect * cnet::AddConnect()
 {
 	cconnect  * c = new cconnect( this );
 	connect.Add( c );	
 	return c;
 }
+
+// add connection consisting of one vertex at the starting pin
+//
+int cnet::AddConnectFromPin( int p1 )
+{
+	if( pin[p1].part == 0 )
+		return -1;
+	cconnect * c = AddConnect();
+	c->start_pin = p1;
+	c->end_pin = cconnect::NO_END;
+
+	// add single vertex
+	cvertex new_vtx;
+	CPoint pi;
+	pi = m_nlist->m_plist->GetPinPoint( pin[p1].part, pin[p1].pin_name );
+	new_vtx.x = pi.x;
+	new_vtx.y = pi.y;
+	new_vtx.pad_layer = m_nlist->m_plist->GetPinLayer( pin[p1].part, &pin[p1].pin_name );
+	cvertex * v = &c->InsertVertexByIndex( 0, new_vtx );
+	return ConIndexByPtr( c );
+}
+// Add new connection to net, consisting of one unrouted segment
+// p1 and p2 are indexes into pin array for this net
+// returns index to connection, or -1 if fails
+//
+int cnet::AddConnectFromPinToPin( int p1, int p2 )
+{
+	// check for valid pins
+	cpart * part1 = pin[p1].part;
+	cpart * part2 = pin[p2].part;
+	if( part1 == 0 || part2 == 0 )
+		return -1;
+	CShape * shape1 = part1->shape;
+	CShape * shape2 = part2->shape;
+	if( shape1 == 0 || shape2 == 0 )
+		return -1;
+	int pin_index1 = shape1->GetPinIndexByName( pin[p1].pin_name );
+	int pin_index2 = shape2->GetPinIndexByName( pin[p2].pin_name );
+	if( pin_index1 == -1 || pin_index2 == -1 )
+		return -1;
+
+	// create connection with a single vertex
+	CPoint pi, pf;
+	pi = m_nlist->m_plist->GetPinPoint( pin[p1].part, pin[p1].pin_name );
+	pf = m_nlist->m_plist->GetPinPoint( pin[p2].part, pin[p2].pin_name );
+
+	int ic = AddConnectFromPin( p1 );
+	cconnect * c = ConByIndex( ic );
+
+	// add first segment and second vertex
+	cvertex new_vtx;
+	new_vtx.x = pf.x;
+	new_vtx.y = pf.y;
+	new_vtx.pad_layer = m_nlist->m_plist->GetPinLayer( pin[p2].part, &pin[p2].pin_name );
+
+	cseg new_seg;
+	new_seg.layer = LAY_RAT_LINE;
+	new_seg.width = 0;
+	new_seg.selected = 0;
+
+	c->AppendSegAndVertex( new_seg, new_vtx );
+	c->end_pin = p2;
+	cseg * s = &c->SegByIndex( 0 );
+
+	// create id for this segment
+	id id( ID_NET, this->UID(), ID_CONNECT, c->UID(), ic, ID_SEG, s->UID(), 0 );
+
+	if( m_dlist )
+	{
+		// draw graphic elements for segment
+		s->dl_el = m_dlist->Add( id, this, LAY_RAT_LINE, DL_LINE, 
+			visible, 0, 0, 0, pi.x, pi.y, pf.x, pf.y, 0, 0 ); 
+		id.SetT3( ID_SEL_SEG );
+		s->dl_sel = m_dlist->AddSelector( id, this, LAY_RAT_LINE, DL_LINE,
+			visible, 0, 0, pi.x, pi.y, pf.x, pf.y, 0, 0 ); 
+	}
+
+	return ic;
+}
+
 
 // remove connection
 // if called from an iterated loop, calling function should
@@ -1006,9 +1091,9 @@ void cnet::RecreateConnectFromUndo( undo_con * un_con, undo_seg * un_seg, undo_v
 	{
 		// add new connect
 		if( un_con->end_pin != cconnect::NO_END )
-			nc = m_nlist->AddNetConnect( this, un_con->start_pin, un_con->end_pin );
+			nc = AddConnectFromPinToPin( un_con->start_pin, un_con->end_pin );
 		else
-			nc = m_nlist->AddNetStub( this, un_con->start_pin );
+			nc = AddConnectFromPin( un_con->start_pin );
 		cconnect * c = connect[nc];
 		// now replace all connect parameters from undo record
 		c->ReplaceUID( un_con->uid );
@@ -1055,13 +1140,37 @@ void cnet::RecreateConnectFromUndo( undo_con * un_con, undo_seg * un_seg, undo_v
 }
 
 // Split a connection into two connections sharing a tee-vertex
-void SplitConnectAtVertex( id con_id, id vtx_id )
+// enter with:
+//	con_id - id of connection to be split
+//	vtx_id - id of vertex to be split at, can't already be a tee-vertex
+// return pointer to the new connection
+cconnect * cnet::SplitConnectAtVertex( id vtx_id )
 {
+	cconnect * old_c = ConByUID( vtx_id.U2() );
+	old_c->Undraw();
+	cconnect * new_c = AddConnect();
+	new_c->start_pin = old_c->end_pin;
+	int ivsplit;
+	old_c->VtxByUID( vtx_id.U3(), &ivsplit );
+	for( int iv=old_c->NumSegs(); iv>=ivsplit; iv-- )
+	{
+		if( iv == old_c->NumSegs() )
+			new_c->InsertVertexByIndex( 0, old_c->VtxByIndex(iv) );
+		else
+		{
+			new_c->AppendSegAndVertex( old_c->seg[iv], old_c->vtx[iv] );
+			old_c->RemoveSegAndVertexByIndex( iv );
+		}
+	}
+	m_nlist->GetNewTeeID();
+
+	return new_c;
 }
 
 // Add a new connection from a vertex to a pin
-BOOL AddConnectionFromVertexToPin( id vtx_id, id pin_id )
+BOOL cnet::AddConnectionFromVertexToPin( id vtx_id, id pin_id )
 {
+	SplitConnectAtVertex( vtx_id );
 	return FALSE;
 }
 

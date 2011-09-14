@@ -201,8 +201,8 @@ public:
 	BOOL GetNetBoundaries( CRect * r );
 
 	// functions for connections
-	int AddNetConnect( cnet * net, int p1, int p2 );
-	int AddNetStub( cnet * net, int p1 );
+//	int AddNetConnect( cnet * net, int p1, int p2 );
+//	int AddNetStub( cnet * net, int p1 );
 	int RemoveNetConnect( cnet * net, int ic, BOOL set_areas=TRUE );
 	int UnrouteNetConnect( cnet * net, int ic );
 	int SetConnectionWidth( cnet * net, int ic, int w, int via_w, int via_hole_w );

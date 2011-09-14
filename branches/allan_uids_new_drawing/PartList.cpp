@@ -4123,7 +4123,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 				int iend = a->ContourEnd(icont);
 				for( int ic=istart; ic<=iend; ic++ )
 				{
-					id id_a = net->id;
+					id id_a = net->m_id;
 					id_a.SetT2( ID_AREA );
 					id_a.SetI2( ia );
 					id_a.SetT3( ID_SIDE );
@@ -4204,7 +4204,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 			for( cseg * s=iter_seg.GetFirst(); s; s=iter_seg.GetNext() )
 			{
 				int is = iter_seg.GetIndex();
-				id id_seg = net->id;
+				id id_seg = net->m_id;
 				id_seg.SetT2( ID_CONNECT );
 				id_seg.SetI2( ic );
 				id_seg.SetT3( ID_SEG );
@@ -4297,7 +4297,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 				if( vtx->via_w )
 				{
 					// via present
-					id id_via = net->id;
+					id id_via = net->m_id;
 					id_via.SetT2( ID_CONNECT );
 					id_via.SetI2( ic );
 					id_via.SetT3( ID_VIA );
@@ -4469,12 +4469,12 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 						int min_y = min( yi, yf ) - w/2;
 						int max_y = max( yi, yf ) + w/2;
 						// ids
-						id id_seg = net->id;
+						id id_seg = net->m_id;
 						id_seg.SetT2( ID_CONNECT );
 						id_seg.SetI2( ic );
 						id_seg.SetT3( ID_SEG );
 						id_seg.SetI3( is );
-						id id_via = net->id;
+						id id_via = net->m_id;
 						id_via.SetT2( ID_CONNECT );
 						id_via.SetI2( ic );
 						id_via.SetT3( ID_VIA );
@@ -4743,12 +4743,12 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 						int min_y = min( yi, yf ) - w/2;
 						int max_y = max( yi, yf ) + w/2;
 						// ids
-						id id_seg = net->id;
+						id id_seg = net->m_id;
 						id_seg.SetT2( ID_CONNECT );
 						id_seg.SetI2( ic );
 						id_seg.SetT3( ID_SEG );
 						id_seg.SetI3( is );
-						id id_via = net->id;
+						id id_via = net->m_id;
 						id_via.SetT2( ID_CONNECT );
 						id_via.SetI2( ic );
 						id_via.SetT3( ID_VIA );
@@ -5267,7 +5267,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 							if( a2->TestPointInside( x, y ) )
 							{
 								// COPPERAREA_COPPERAREA error
-								id id_a = net->id;
+								id id_a = net->m_id;
 								id_a.SetT2( ID_AREA );
 								id_a.SetI2( ia );
 								id_a.SetT3( ID_SEL_CORNER );
@@ -5291,7 +5291,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 							if( a->TestPointInside( x, y ) )
 							{
 								// COPPERAREA_COPPERAREA error
-								id id_a = net2->id;
+								id id_a = net2->m_id;
 								id_a.SetT2( ID_AREA );
 								id_a.SetI2( ia2 );
 								id_a.SetT3( ID_SEL_CORNER );
@@ -5315,7 +5315,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 							int ic_end = a->ContourEnd( icont );
 							for( int ic=ic_start; ic<=ic_end; ic++ ) 
 							{
-								id id_a = net->id;
+								id id_a = net->m_id;
 								id_a.SetT2( ID_AREA );
 								id_a.SetI2( ia );
 								id_a.SetT3( ID_SIDE );
@@ -5340,7 +5340,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 									int ic_end2 = a2->ContourEnd( icont2 );
 									for( int ic2=ic_start2; ic2<=ic_end2; ic2++ )
 									{
-										id id_b = net2->id;
+										id id_b = net2->m_id;
 										id_b.SetT2( ID_AREA );
 										id_b.SetI2( ia2 );
 										id_b.SetT3( ID_SIDE );
@@ -5425,7 +5425,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 						str.Format( "%ld: \"%s\": partially routed stub trace from %s\r\n",
 							nerrors+1, net->name, start_pin );
 						CPoint pt = GetPinPoint( start_part, p1->pin_name );
-						id id_a = net->id;
+						id id_a = net->m_id;
 						DRError * dre = drelist->Add( nerrors, DRError::UNROUTED, &str,
 							&net->name, NULL, id_a, id_a, pt.x, pt.y, pt.x, pt.y, 0, 0 );
 						if( dre )
@@ -5449,7 +5449,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 								nerrors+1, net->name, start_pin, end_pin );
 						}
 						CPoint pt = GetPinPoint( start_part, p1->pin_name );
-						id id_a = net->id;
+						id id_a = net->m_id;
 						DRError * dre = drelist->Add( nerrors, DRError::UNROUTED, &str,
 							&net->name, NULL, id_a, id_a, pt.x, pt.y, pt.x, pt.y, 0, 0 );
 						if( dre )
