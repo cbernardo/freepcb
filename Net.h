@@ -182,7 +182,7 @@ public:
 	cpin * StartPin();
 	cpin * EndPin();
 
-	// trace vertices
+	// vertices
 	cvertex * FirstVtx();
 	cvertex * LastVtx();
 	cvertex * VtxByUID( int uid, int * index=NULL );
@@ -191,7 +191,7 @@ public:
 	int VtxUIDByPtr( cvertex * v );
 	cvertex& InsertVertexByIndex( int iv, const cvertex& new_vtx );
 
-	// trace segments
+	// segments
 	int NumSegs();
 	void SetNumSegs( int n );
 	cseg * SegByUID( int uid, int * index=NULL );
@@ -204,7 +204,7 @@ public:
 				const cseg& new_seg, const cvertex& new_vtx );
 	void AppendSegAndVertex( const cseg& new_seg, const cvertex& new_vtx );
 	void PrependVertexAndSeg( const cvertex& new_vtx, const cseg& new_seg );
-	void RemoveSegAndVertexByIndex( int is, int dir );
+	void RemoveSegAndVertexByIndex( int is );
 
 	// drawing methods
 	void Draw();
@@ -269,15 +269,17 @@ public:
 	void RemovePin( CString * ref_des, CString * pin_name, BOOL bSetAreas=TRUE );
 	void RemovePin( int pin_index, BOOL bSetAreas=TRUE );
 	// connections
-	cconnect * AddNewConnect();
+	cconnect * AddConnect();
+	int AddConnectFromPin( int p1 );
+	int AddConnectFromPinToPin( int p1, int p2 );
 	void RemoveConnect( cconnect * c );
-	void SplitConnectAtVertex( id con_id, id vtx_id );
+	cconnect * SplitConnectAtVertex( id vtx_id );
 	void RecreateConnectFromUndo( undo_con * con, undo_seg * seg, undo_vtx * vtx );
 	// both
 	BOOL AddConnectionFromVertexToPin( id vtx_id, id pin_id );
 
 // member variables
-	id id;				// net id
+	id m_id;				// net id
 	int m_uid;
 	CString name;		// net name
 private:
