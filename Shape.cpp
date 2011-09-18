@@ -3408,7 +3408,7 @@ void CEditShape::Draw( CDisplayList * dlist, SMFontUtil * fontutil )
 			fontutil, &v_str );
 
 	// now draw outline polylines
-	p_id.SetT2( ID_OUTLINE );
+	p_id.SetT2( ID_POLYLINE );
 	for( int i=0; i<m_outline_poly.GetSize(); i++ )
 	{
 		p_id.SetI2( i );

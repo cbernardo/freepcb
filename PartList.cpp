@@ -15,7 +15,7 @@ extern Cuid pcb_cuid;
 BOOL g_bShow_header_28mil_hole_warning = TRUE;	
 BOOL g_bShow_SIP_28mil_hole_warning = TRUE;	
 
-//********************* part_pin implentation ********************
+//********************* part_pin implementation ********************
 
 part_pin::part_pin()
 {
@@ -27,6 +27,16 @@ part_pin::~part_pin()
 {
 	pcb_cuid.ReleaseUID( m_uid );
 }
+
+id part_pin::Id()
+{
+	id pp_id = m_part->m_id;
+	pp_id.Set( id::NOP, id::NOP, ID_SEL_PAD, m_uid );
+	pp_id.Resolve();	// get indices and pointer
+	return pp_id;
+}
+
+
 
 //********************* cpart implementation *********************
 
@@ -64,13 +74,15 @@ cpart::~cpart()
 	pcb_cuid.ReleaseUID( m_id.U1()  );
 }
 
-part_pin * cpart::PinByUID( int uid )
+part_pin * cpart::PinByUID( int uid, int * index )
 {
 	for( int ip=0; ip<pin.GetSize(); ip++ )
 	{
 		part_pin * p = &pin[ip];
 		if( p->m_uid == uid )
 		{
+			if( index )
+				*index = ip;
 			return p;
 		}
 	}

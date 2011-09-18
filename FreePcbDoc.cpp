@@ -1303,7 +1303,7 @@ void CFreePcbDoc::ReadBoardOutline( CStdioFile * pcb_file, CArray<CPolyLine> * b
 							(*bd)[ib].SetDisplayList( NULL );
 						else
 							(*bd)[ib].SetDisplayList( m_dlist );
-						id bid( ID_BOARD, -1, ID_BOARD_OUTLINE, -1, ib );
+						id bid( ID_BOARD, -1, ID_OUTLINE, -1, ib );
 						(*bd)[ib].Start( LAY_BOARD_OUTLINE, 1, 20*NM_PER_MIL, x, y, 
 							0, &bid, NULL );
 					}

@@ -773,7 +773,7 @@ int CPolyLine::RestoreArcs( CArray<CArc> * arc_array, CArray<CPolyLine*> * pa )
 //
 // if polyline is board outline, enter with:
 //	id.t1 = ID_BOARD
-//	id.SetT2( ID_BOARD_OUTLINE
+//	id.SetT2( ID_OUTLINE
 //	id.I2() = index to outline
 //	ptr = NULL
 //
@@ -1600,7 +1600,7 @@ void CPolyLine::SetId( id * id )
 
 // get root id
 //
-id CPolyLine::Id()
+id& CPolyLine::Id()
 {
 	return m_root_id;
 }

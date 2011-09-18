@@ -201,8 +201,6 @@ public:
 	BOOL GetNetBoundaries( CRect * r );
 
 	// functions for connections
-//	int AddNetConnect( cnet * net, int p1, int p2 );
-//	int AddNetStub( cnet * net, int p1 );
 	int RemoveNetConnect( cnet * net, int ic, BOOL set_areas=TRUE );
 	int UnrouteNetConnect( cnet * net, int ic );
 	int SetConnectionWidth( cnet * net, int ic, int w, int via_w, int via_hole_w );
@@ -249,10 +247,10 @@ public:
 	int CancelMovingSegment( cnet * net, int ic, int ivtx );
 
 	// functions for vias
-	int ReconcileVia( cnet * net, int ic, int ivtx, BOOL bDrawVia=TRUE );
+	int ReconcileVia( cnet * net, int ic, int ivtx, BOOL bDrawVertex=TRUE );
 	int ForceVia( cnet * net, int ic, int ivtx, BOOL set_areas=TRUE );
 	int UnforceVia( cnet * net, int ic, int ivtx, BOOL set_areas=TRUE );
-	int DrawVia( cnet * net, int ic, int iv );
+	int DrawVertex( cnet * net, int ic, int iv );
 	void UndrawVia( cnet * net, int ic, int iv );
 	void SetViaVisible( cnet * net, int ic, int iv, BOOL visible );
 
@@ -261,10 +259,6 @@ public:
 	int StartDraggingVertex( CDC * pDC, cnet * net, int ic, int iseg,
 						int x, int y, int cosshair = 1 );
 	int CancelDraggingVertex( cnet * net, int ic, int ivtx );
-	void StartDraggingEndVertex( CDC * pDC, cnet * net, int ic, 
-		int ivtx, int crosshair = 1 );
-	void CancelDraggingEndVertex( cnet * net, int ic, int ivtx );
-	void MoveEndVertex( cnet * net, int ic, int ivtx, int x, int y );
 	void MoveVertex( cnet * net, int ic, int ivtx, int x, int y );
 	int GetViaConnectionStatus( cnet * net, int ic, int iv, int layer );
 	void GetViaPadInfo( cnet * net, int ic, int iv, int layer,

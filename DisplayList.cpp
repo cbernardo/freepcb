@@ -1021,7 +1021,7 @@ int CDisplayList::TestSelect(
 						priority++;
 					else if( hit_info[i].ID.T1() == ID_PART && hit_info[i].ID.T2() == ID_VALUE_TXT && hit_info[i].ID.T3() == ID_SEL_TXT )
 						priority++;
-					else if( hit_info[i].ID.T1() == ID_BOARD && hit_info[i].ID.T2() == ID_BOARD_OUTLINE && hit_info[i].ID.T3() == ID_SEL_CORNER )
+					else if( hit_info[i].ID.T1() == ID_BOARD && hit_info[i].ID.T2() == ID_OUTLINE && hit_info[i].ID.T3() == ID_SEL_CORNER )
 						priority++;
 					else if( hit_info[i].ID.T1() == ID_NET && hit_info[i].ID.T2() == ID_AREA && hit_info[i].ID.T3() == ID_SEL_CORNER )
 						priority++;
@@ -1333,6 +1333,7 @@ void CDisplayList::Drag( CDC * pDC, int x, int y )
 	//**** there are three dragging modes, which may be used simultaneously ****//
 
 	// drag array of lines, used to make complex graphics like a part
+	// both endpoints of each line are dragged
 	if( m_drag_num_lines )
 	{
 		CPen drag_pen( PS_SOLID, 1, m_rgb[m_drag_layer] );
@@ -1350,6 +1351,7 @@ void CDisplayList::Drag( CDC * pDC, int x, int y )
 	}
 
 	// drag array of rubberband lines, used for ratlines to dragged part
+	// one endpoint of each line is dragged, the other is fixed
 	if( m_drag_num_ratlines )
 	{
 		CPen drag_pen( PS_SOLID, m_drag_ratline_width, m_rgb[m_drag_layer] );
@@ -1787,7 +1789,6 @@ void CDisplayList::ChangeRoutingLayer( CDC * pDC, int layer1, int layer2, int ww
 			int thick = (m_drag_via_w - m_drag_via_holew)/2;
 			int w = m_drag_via_w - thick;
 			int holew = m_drag_via_holew;
-//			CPen pen( PS_SOLID, thick, m_rgb[LAY_PAD_THRU] );
 			CPen pen( PS_SOLID, thick, m_rgb[m_drag_layer_1] );
 			CPen * old_pen = pDC->SelectObject( &pen );
 			CBrush black_brush( C_RGB::black );
@@ -1826,7 +1827,6 @@ void CDisplayList::ChangeRoutingLayer( CDC * pDC, int layer1, int layer2, int ww
 			int thick = (m_drag_via_w - m_drag_via_holew)/2;
 			int w = m_drag_via_w - thick;
 			int holew = m_drag_via_holew;
-//			CPen pen( PS_SOLID, thick, m_rgb[LAY_PAD_THRU] );
 			CPen pen( PS_SOLID, thick, m_rgb[m_drag_layer_1] );
 			CPen * old_pen = pDC->SelectObject( &pen );
 			CBrush black_brush( C_RGB::black );

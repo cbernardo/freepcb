@@ -29,14 +29,23 @@ class cpin
 {
 public:
 	cpin();
+	cpin( cpin& src );
 	~cpin();
+	cpin& operator=( const cpin& rhs );
+	cpin& operator=( cpin& rhs );
 	void Initialize( cnet * net );
-//**	int m_uid;
+
+	int Index();				// index of pin in array
+	int UID();					
+	part_pin * GetPartPin();	// pointer to this pin on part
+	id GetPartPinId();			// id of part pin
+
+	int m_uid;			// unique identifier
 	CString ref_des;	// reference designator such as 'U1'
 	CString pin_name;	// pin name such as "1" or "A23"
 	cpart * part;		// pointer to part containing the pin
 	cnet * m_net;		// parent net
-	int utility;
+	int utility;		// flag for various purposes
 };
 
 // carea: describes a copper area in a net
@@ -51,9 +60,9 @@ public:
 	void Initialize( CDisplayList * dlist, cnet * net );
 	int UID(){ return m_uid; };
 	void SetUID( int uid ){ m_uid = uid; };
+	id& Id();
 
 	cnet * m_net;		// parent net
-	id m_id;			// id
 	int npins;			// number of thru-hole pins within area on same net
 	CArray<int> pin;	// array of thru-hole pins
 	CArray<dl_element*> dl_thermal;	// graphics for thermals on pins
@@ -78,11 +87,14 @@ public:
 	cseg& operator=( cseg& rhs );	// assignment
 	cseg& operator=( const cseg& rhs );	// assignment
 	void Initialize( cconnect * c );
+	id Id();
 	int UID(){ return m_uid; };
 	void ReplaceUID( int uid );
+
 	int GetIndex();
 	cvertex& GetPreVtx();
 	cvertex& GetPostVtx();
+	void GetStatusStr( CString * str );
 
 	int m_uid;				// unique id
 	int layer;				// copper layer
@@ -97,21 +109,6 @@ public:
 	int utility;
 };
 
-// CVertex: new class for vertices
-class CVertex
-{
-	enum Type { V_PIN, V_TRACE, V_END };	// types of vertices
-public:
-	CVertex( cnet * net );
-	~CVertex();
-
-	int m_uid;		// UID
-	Type m_type;	// type of vertex
-	int m_pin_uid;	// if type == V_PIN, UID of pin in net
-	cnet * m_net;				// parent net
-	CDisplayList * m_dlist;
-};
-
 // cvertex: describes a vertex between segments 
 // in a connection
 class cvertex
@@ -119,11 +116,12 @@ class cvertex
 public:
 	// types of vertices
 	enum Type { 
-		V_ERR,		// unknown
+		V_ERR = 0,	// unknown
 		V_PIN,		// part pin 
-		V_TRACE,	// junction between trace segments
-		V_TEE,		// junction between connected traces
-		V_END		// end of stub trace
+		V_TRACE,	// normal junction between trace segments
+		V_END,		// end of stub trace
+		V_TEE,		// T-vertex at end of stub trace, connected to other stubs
+		V_SLAVE		// end of another stub trace slaved to TEE
 	};	
 
 	cvertex();
@@ -132,23 +130,27 @@ public:
 	cvertex &operator=( const cvertex &v ); // assignment	
 	cvertex &operator=( cvertex &v );		// assignment
 	void Initialize( cconnect * c );
+
 	int UID(){ return m_uid; };
 	void ReplaceUID( int uid );
+	id Id();
 	void Undraw();
 	Type GetType();
 	cpin * NetPin();
 	int NetPinIndex();
+	void GetTypeStatusStr( CString * str );
+	void GetStatusStr( CString * str );
 
 	int m_uid;					// unique id
 	int x, y;					// coords
 	int pad_layer;				// layer of pad if this is first or last vertex, otherwise 0
 	int force_via_flag;			// force a via even if no layer change
 	int via_w, via_hole_w;		// via width and hole width (via_w==0 means no via)
+	int tee_ID;					// used to flag a t-connection point
+	int utility, utility2;		// used for various functions
 	CArray<dl_element*> dl_el;	// array of display elements for each layer
 	dl_element * dl_sel;		// selection box
 	dl_element * dl_hole;		// hole in via
-	int tee_ID;					// used to flag a t-connection point
-	int utility, utility2;		// used for various functions
 	CDisplayList * m_dlist;		// 
 	cnet * m_net;				// parent net
 	cconnect * m_con;			// parent connection
@@ -177,6 +179,8 @@ public:
 	int UID(){ return m_uid; };
 	void ReplaceUID( int uid );
 	void ClearArrays();
+	void GetStatusStr( CString * str );
+	id Id();
 
 	// pins
 	cpin * StartPin();
@@ -247,16 +251,20 @@ public:
 // methods that return data
 	// general
 	int UID(){ return m_uid; };
+	id Id(){ return id(ID_NET, m_uid);};
+	void GetStatusStr( CString * str );
+
 	// pins
 	int NumPins();
 	cpin * PinByIndex( int ip );
-	cpin * PinByUID( int uid );
+	cpin * PinByUID( int uid, int * index );
+
 	// connections
 	int NumCons();
 	cconnect * ConByIndex( int ic );
 	cconnect * ConByUID( int uid, int * index=NULL );
-	int ConIndexByUID( int uid );
 	int ConIndexByPtr( cconnect * c );
+
 	// copper areas
 	int NumAreas();
 	carea * AreaByUID( int uid, int * index=NULL );
@@ -276,7 +284,7 @@ public:
 	cconnect * SplitConnectAtVertex( id vtx_id );
 	void RecreateConnectFromUndo( undo_con * con, undo_seg * seg, undo_vtx * vtx );
 	// both
-	BOOL AddConnectionFromVertexToPin( id vtx_id, id pin_id );
+	cconnect * AddConnectionFromVertexToPin( id vtx_id, int pin_index );
 
 // member variables
 	id m_id;				// net id

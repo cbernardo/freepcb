@@ -54,12 +54,14 @@ public:
 	// member functions
 	// set id elements
 	void Clear();
-	void SetIndexes();
+	BOOL Resolve();
 	void Set(	int t1=0, int u1=-1, 
 				int t2=0, int u2=-1, int i2=-1, 
 				int t3=0, int u3=-1, int i3=-1  );
 	void SetLevel2( int t2, int u2=-1, int i2=-1 );
 	void SetLevel3( int t3, int u3=-1, int i3=-1 );
+	void SetPtr( void * p );
+
 	void SetT1( int t1 );
 	void SetU1( int u1 );
 	void SetT2( int t2 );
@@ -70,6 +72,7 @@ public:
 	void SetI3( int i3 );
 
 	// get id elements
+	void * Ptr();
 	int T1();
 	int U1();
 	int T2();
@@ -80,7 +83,9 @@ public:
 	int I3();
 
 	// what type of item ?
-	int Type();	
+	int Type();			// lowest level type in id
+	// tests for specific types
+	BOOL IsDRC();
 	BOOL IsPart();
 	BOOL IsRefText();
 	BOOL IsValueText();
@@ -114,6 +119,7 @@ public:
 
 	// member variables
 protected:
+	void * ptr;	// pointer to top-level item
 	int t1;		// type of element
 	int u1;		// UID of element
 	int t2;		// type of subelement
@@ -144,7 +150,7 @@ enum {
 enum {
 	ID_PAD = 1,		// pad_stack in a part
 	ID_SEL_PAD,		// selection rectangle for pad_stack in a part
-	ID_OUTLINE,		// part outline
+	ID_POLYLINE,	// part outline
 	ID_REF_TXT,		// text showing ref num for part
 	ID_VALUE_TXT,	// text showing value for part
 	ID_FP_TXT,		// free text in footprint
@@ -167,14 +173,9 @@ enum {
 	ID_AREA			// copper area
 };
 
-// subtypes of ID_BOARD
+// subtypes of ID_BOARD and ID_MASK
 enum {
-	ID_BOARD_OUTLINE = 1,
-};
-
-// subtypes of ID_MASK
-enum {
-	ID_MASK_OUTLINE = 1,
+	ID_OUTLINE = 1,
 };
 
 // subsubtypes of ID_NET.ID_CONNECT
@@ -187,7 +188,7 @@ enum {
 	ID_VIA
 };
 
-// subsubtypes of ID_NET.ID_AREA, ID_BOARD.ID_BOARD_OUTLINE, ID_MASK
+// subsubtypes of ID_NET.ID_AREA, ID_OUTLINE
 enum {
 	ID_SIDE = 1,
 	ID_SEL_SIDE,

@@ -160,7 +160,7 @@ public:
 	int CornerUID( int ic ){ return corner[ic].m_uid; };
 	int SideUID( int is );
 	int SideStyle( int is );
-	id  Id();
+	id&  Id();
 	void * Ptr(){ return m_ptr; };
 	int SelBoxSize();
 	CDisplayList * DisplayList(){ return m_dlist; };
