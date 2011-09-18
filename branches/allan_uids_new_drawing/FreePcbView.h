@@ -478,6 +478,7 @@ public:
 	void SetCursorMode( int mode );
 	void SetFKText( int mode );
 	void DrawBottomPane();
+	BOOL SelectItem( id sid );
 	int ShowCursor();
 	int ShowSelectStatus();
 	void ShowRelativeDistance( int dx, int dy );

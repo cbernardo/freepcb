@@ -105,6 +105,8 @@ class part_pin
 public:
 	part_pin();
 	~part_pin();
+	id Id();		// id of this pin
+
 	int m_uid;
 	int x, y;				// position on PCB
 	cnet * net;				// pointer to net, or NULL if not assigned
@@ -122,7 +124,7 @@ public:
 	cpart();
 	cpart( CPartList * pl );
 	~cpart();
-	part_pin * PinByUID( int uid ); 
+	part_pin * PinByUID( int uid, int * index=NULL ); 
 	int GetNumRefStrokes();
 	int GetNumValueStrokes();
 	int GetNumOutlineStrokes();

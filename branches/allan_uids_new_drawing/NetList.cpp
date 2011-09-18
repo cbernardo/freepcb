@@ -486,10 +486,6 @@ int CNetList::TestHitOnAnyPadInNet( int x, int y, int layer, cnet * net )
 		if( part )
 		{
 			CString pin_name = net->pin[ip].pin_name;
-//			if( !part )
-//				ASSERT(0);
-//			if( !part->shape )
-//				ASSERT(0);
 			if( m_plist->TestHitOnPad( part, &pin_name, x, y, layer ) )
 			{
 				ix = ip;
@@ -1420,13 +1416,13 @@ int CNetList::SetSegmentWidth( cnet * net, int ic, int is, int w, int via_w, int
 	{
 		c->vtx[is].via_w = via_w;
 		c->vtx[is].via_hole_w = via_hole_w;
-		DrawVia( net, ic, is );
+		DrawVertex( net, ic, is );
 	}
 	if( c->vtx[is+1].via_w && via_w )
 	{
 		c->vtx[is+1].via_w = via_w;
 		c->vtx[is+1].via_hole_w = via_hole_w;
-		DrawVia( net, ic, is+1 );
+		DrawVertex( net, ic, is+1 );
 	}
 	return 0;
 }
@@ -2327,11 +2323,13 @@ int CNetList::OptimizeConnections( cnet * net, int ic_track, BOOL bBelowPinCount
 			// if a stub, record connection to tee
 			else
 			{
-				if( int id = c->vtx[c->NumSegs()].tee_ID )
+				int id = c->LastVtx()->tee_ID;
+				if( id < 0 )
 				{
+					// slave tee-vertex
 					int ic;
 					int iv;
-					BOOL bFound = FindTeeVertexInNet( net, id, &ic, &iv );
+					BOOL bFound = FindTeeVertexInNet( net, abs(id), &ic, &iv );
 					if( !bFound )
 						ASSERT(0);
 					// get start of tee trace
@@ -2586,31 +2584,7 @@ void CNetList::SetViaVisible( cnet * net, int ic, int iv, BOOL visible )
 		v->dl_hole->visible = visible;
 }
 
-// start dragging end vertex of a stub trace to move it
-//
-void CNetList::StartDraggingEndVertex( CDC * pDC, cnet * net, int ic, int ivtx, int crosshair )
-{
-	cconnect * c = net->connect[ic];
-	m_dlist->CancelHighLight();
-	c->seg[ivtx-1].dl_el->visible = 0;
-	SetViaVisible( net, ic, ivtx, FALSE );
-	for( int ia=0; ia<net->NumAreas(); ia++ )
-		for( int iv=0; iv<net->area[ia].nvias; iv++ )
-			if( net->area[ia].vcon[iv] == ic )
-				if( net->area[ia].vtx[iv] == ivtx )
-					if( net->area[ia].dl_via_thermal[iv] != 0 )
-						m_dlist->Set_visible( net->area[ia].dl_via_thermal[iv], 0 );
-	m_dlist->StartDraggingLine( pDC,
-		c->vtx[ivtx-1].x,
-		c->vtx[ivtx-1].y,
-		c->vtx[ivtx-1].x,
-		c->vtx[ivtx-1].y,
-		c->seg[ivtx-1].layer, 
-		c->seg[ivtx-1].width,
-		c->seg[ivtx-1].layer,
-		0, 0, crosshair, DSS_STRAIGHT, IM_NONE );
-}
-
+#if 0
 // cancel dragging end vertex of a stub trace
 //
 void CNetList::CancelDraggingEndVertex( cnet * net, int ic, int ivtx )
@@ -2626,26 +2600,7 @@ void CNetList::CancelDraggingEndVertex( cnet * net, int ic, int ivtx )
 					if( net->area[ia].dl_via_thermal[iv] != 0 )
 						m_dlist->Set_visible( net->area[ia].dl_via_thermal[iv], 1 );
 }
-
-// move end vertex of a stub trace
-//
-void CNetList::MoveEndVertex( cnet * net, int ic, int ivtx, int x, int y )
-{
-	cconnect * c = net->connect[ic];
-	m_dlist->StopDragging();
-	c->vtx[ivtx].x = x;
-	c->vtx[ivtx].y = y;
-	m_dlist->Set_xf( c->seg[ivtx-1].dl_el, x );
-	m_dlist->Set_yf( c->seg[ivtx-1].dl_el, y );
-	m_dlist->Set_visible( c->seg[ivtx-1].dl_el, 1 );
-	m_dlist->Set_xf( c->seg[ivtx-1].dl_sel, x );
-	m_dlist->Set_yf( c->seg[ivtx-1].dl_sel, y );
-	c->vtx[ivtx].x = x;
-	c->vtx[ivtx].y = y;
-	ReconcileVia( net, ic, ivtx );
-	for( int ia=0; ia<net->NumAreas(); ia++ )
-		SetAreaConnections( net, ia );
-}
+#endif
 
 // move vertex
 //
@@ -2686,29 +2641,27 @@ void CNetList::MoveVertex( cnet * net, int ic, int ivtx, int x, int y )
 			m_dlist->Set_y( c->seg[ivtx].dl_sel, y );
 		}
 	}
-	ReconcileVia( net, ic, ivtx );
-	if( v->tee_ID && ivtx < c->NumSegs() )
+	if( v->GetType() == cvertex::V_TEE )
 	{
 		// this is a tee-point in a trace
-		// move other vertices connected to it
-		int id = v->tee_ID;
+		// move other slave vertices connected to it
+		int tee_id = v->tee_ID;
 		for( int icc=0; icc<net->NumCons(); icc++ )
 		{
-			cconnect * cc = net->connect[icc];
-			if( cc->end_pin == cconnect::NO_END )
+			cconnect * test_c = net->connect[icc];
+			cvertex * test_v = test_c->LastVtx();
+			if( test_v->GetType() == cvertex::V_SLAVE && test_v->tee_ID == -tee_id )
 			{
-				// test last vertex
-				cvertex * vv = &cc->vtx[cc->NumSegs()];
-				if( vv->tee_ID == id )
-				{
-					MoveVertex( net, icc, cc->NumSegs(), x, y );
-					if( vv->dl_sel )
-						m_dlist->Remove( vv->dl_sel );
-					vv->dl_sel = NULL;
-				}
+				MoveVertex( net, icc, test_c->NumSegs(), x, y );
+				if( test_v->dl_sel )
+					m_dlist->Remove( test_v->dl_sel );
+				test_v->dl_sel = NULL;
 			}
 		}
 	}
+	ReconcileVia( net, ic, ivtx );
+	for( int ia=0; ia<net->NumAreas(); ia++ )
+		SetAreaConnections( net, ia );
 }
 
 // Start dragging trace vertex
@@ -2720,8 +2673,14 @@ int CNetList::StartDraggingVertex( CDC * pDC, cnet * net, int ic, int ivtx,
 	cconnect * c =net->connect[ic];
 	cvertex * v = &c->vtx[ivtx];
 	m_dlist->CancelHighLight();
-	m_dlist->Set_visible(c->seg[ivtx-1].dl_el, 0);
-	m_dlist->Set_visible(c->seg[ivtx].dl_el, 0);
+	if( ivtx > 0 )
+	{
+		m_dlist->Set_visible(c->seg[ivtx-1].dl_el, 0);
+	}
+	if( ivtx < c->NumSegs() )
+	{
+		m_dlist->Set_visible(c->seg[ivtx].dl_el, 0);
+	}
 	SetViaVisible( net, ic, ivtx, FALSE );
 	for( int ia=0; ia<net->NumAreas(); ia++ )
 	{
@@ -2736,7 +2695,7 @@ int CNetList::StartDraggingVertex( CDC * pDC, cnet * net, int ic, int ivtx,
 	}
 
 	// if tee connection, also drag tee segment(s)
-	if( v->tee_ID && ivtx < c->NumSegs() )
+	if( v->tee_ID )
 	{
 		int ntsegs = 0;
 		// find all tee segments
@@ -2746,7 +2705,7 @@ int CNetList::StartDraggingVertex( CDC * pDC, cnet * net, int ic, int ivtx,
 			if( cc != c && cc->end_pin == cconnect::NO_END ) 
 			{
 				cvertex * vv = &cc->vtx[cc->NumSegs()];
-				if( vv->tee_ID == v->tee_ID )
+				if( abs(vv->tee_ID) == abs(v->tee_ID) )
 				{
 					ntsegs++;
 				}
@@ -2760,7 +2719,7 @@ int CNetList::StartDraggingVertex( CDC * pDC, cnet * net, int ic, int ivtx,
 			if( cc != c && cc->end_pin == cconnect::NO_END )
 			{
 				cvertex * vv = &cc->vtx[cc->NumSegs()];
-				if( vv->tee_ID == v->tee_ID )
+				if( abs(vv->tee_ID) == abs(v->tee_ID) )
 				{
 					CPoint pi, pf;
 					pi.x = cc->vtx[cc->NumSegs()-1].x;
@@ -2776,17 +2735,29 @@ int CNetList::StartDraggingVertex( CDC * pDC, cnet * net, int ic, int ivtx,
 	}
 
 	// start dragging
-	int xi = c->vtx[ivtx-1].x;
-	int yi = c->vtx[ivtx-1].y;
-	int xf = c->vtx[ivtx+1].x;
-	int yf = c->vtx[ivtx+1].y;
-	int layer1 = c->seg[ivtx-1].layer;
-	int layer2 = c->seg[ivtx].layer;
-	int w1 = c->seg[ivtx-1].width;
-	int w2 = c->seg[ivtx].width;
-	m_dlist->StartDraggingLineVertex( pDC, x, y, xi, yi, xf, yf, layer1, 
-								layer2, w1, w2, DSS_STRAIGHT, DSS_STRAIGHT, 
-								0, 0, 0, 0, crosshair );
+	if( ivtx < c->NumSegs() )
+	{
+		int xi = c->vtx[ivtx-1].x;
+		int yi = c->vtx[ivtx-1].y;
+		int xf = c->vtx[ivtx+1].x;
+		int yf = c->vtx[ivtx+1].y;
+		int layer1 = c->seg[ivtx-1].layer;
+		int layer2 = c->seg[ivtx].layer;
+		int w1 = c->seg[ivtx-1].width;
+		int w2 = c->seg[ivtx].width;
+		m_dlist->StartDraggingLineVertex( pDC, x, y, xi, yi, xf, yf, layer1, 
+									layer2, w1, w2, DSS_STRAIGHT, DSS_STRAIGHT, 
+									0, 0, 0, 0, crosshair );
+	}
+	else
+	{
+		int xi = c->vtx[ivtx-1].x;
+		int yi = c->vtx[ivtx-1].y;
+		int layer1 = c->seg[ivtx-1].layer;
+		int w1 = c->seg[ivtx-1].width;
+		m_dlist->StartDraggingLine( pDC, x, y, xi, yi, layer1, 
+									w1, layer1, 0, 0, crosshair, DSS_STRAIGHT, 0 );
+	}
 	return 0;
 }
 
@@ -3202,8 +3173,7 @@ int CNetList::AddArea( cnet * net, int layer, int x, int y, int hatch, BOOL bDra
 	net->area.SetSize( old_nareas+1 );
 	carea * a = &net->area[old_nareas];
 	a->Initialize( m_dlist, net );
-	a->m_id.SetI2( old_nareas );
-	id area_id = a->m_id;
+	id area_id = a->Id();
 	net->area[old_nareas].Start( layer, 1, 10*NM_PER_MIL, x, y, 
 		hatch, &area_id, net, bDraw );
 	return old_nareas;
@@ -3650,47 +3620,46 @@ int CNetList::UnforceVia( cnet * net, int ic, int ivtx, BOOL set_areas )
 // Reconcile via with preceding and following segments
 // if a via is needed, use defaults for adjacent segments 
 //
-int CNetList::ReconcileVia( cnet * net, int ic, int ivtx, BOOL bDrawVia )
+int CNetList::ReconcileVia( cnet * net, int ic, int ivtx, BOOL bDrawVertex )
 {
 	cconnect * c = net->connect[ic];
 	cvertex * v = &c->vtx[ivtx];
 	BOOL via_needed = FALSE;
 	// see if via needed
-	if( v->force_via_flag ) 
+	if( v->GetType() == cvertex::V_SLAVE || v->GetType() == cvertex::V_PIN )
 	{
-		via_needed = 1;
+		// never draw a pin or slave vertex
 	}
-	else
+	else if( v->force_via_flag ) 
 	{
-		if( c->end_pin == cconnect::NO_END && ivtx == c->NumSegs() )
+		via_needed = TRUE;
+	}
+	else if( v->GetType() == cvertex::V_TEE )
+	{
+		// tee-vertex must be at end of a trace
+		if( ivtx != 0 && ivtx != c->NumSegs() )
 		{
-			// end vertex of a stub trace
-			if( v->tee_ID )
-			{
-				// this is a branch, reconcile the main tee
-				int tee_ic;
-				int tee_iv;
-				BOOL bFound = FindTeeVertexInNet( net, v->tee_ID, &tee_ic, &tee_iv );
-				if( bFound )
-					ReconcileVia( net, tee_ic, tee_iv );
-			}
+			ASSERT(0);
 		}
-		else if( ivtx == 0 || ivtx == c->NumSegs() )
+		else if( TeeViaNeeded( net, v->tee_ID ) )
 		{
-			// first and last vertex are part pads
-			return 0;
-		}
-		else if( v->tee_ID )
-		{
-			if( TeeViaNeeded( net, v->tee_ID ) )
 				via_needed = TRUE;
+		}
+	}
+	else if( v->GetType() == cvertex::V_TRACE )
+	{
+		if( ivtx == 0 || ivtx == c->NumSegs() )
+		{
+			ASSERT(0);
 		}
 		else
 		{
 			c->vtx[ivtx].pad_layer = 0;
 			cseg * s1 = &c->seg[ivtx-1];
 			cseg * s2 = &c->seg[ivtx];
-			if( s1->layer != s2->layer && s1->layer != LAY_RAT_LINE && s2->layer != LAY_RAT_LINE )
+			if(	   s1->layer != s2->layer 
+				&& s1->layer != LAY_RAT_LINE 
+				&& s2->layer != LAY_RAT_LINE )
 			{
 				via_needed = TRUE;
 			}
@@ -3717,8 +3686,11 @@ int CNetList::ReconcileVia( cnet * net, int ic, int ivtx, BOOL bDrawVia )
 		v->via_w = 0;
 		v->via_hole_w = 0;
 	}
-	if( m_dlist && bDrawVia )
-		DrawVia( net, ic, ivtx );
+
+	if( m_dlist && bDrawVertex && v->GetType() != cvertex::V_SLAVE && v->GetType() != cvertex::V_PIN )
+	{
+		DrawVertex( net, ic, ivtx );
+	}
 	return 0;
 }
 
@@ -4068,7 +4040,7 @@ void CNetList::ReadNets( CStdioFile * pcb_file, double read_version, int * layer
 								net->connect[ic]->vtx[is].via_w = pre_via_w;
 								net->connect[ic]->vtx[is].via_hole_w = pre_via_hole_w;
 								if( m_dlist )
-									DrawVia( net, ic, is );
+									DrawVertex( net, ic, is );
 							}
 							pre_via_w = via_w;
 							pre_via_hole_w = via_hole_w;
@@ -4191,7 +4163,7 @@ void CNetList::UndrawVia( cnet * net, int ic, int iv )
 // draw vertex
 //	i.e. draw selection box, draw via if needed
 //
-int CNetList::DrawVia( cnet * net, int ic, int iv )
+int CNetList::DrawVertex( cnet * net, int ic, int iv )
 {
 	cconnect * c = net->connect[ic];
 	cvertex * v = &c->vtx[iv];
@@ -4224,25 +4196,18 @@ int CNetList::DrawVia( cnet * net, int ic, int iv )
 				v->x, v->y, 0, 0, 0, 0 );
 	}
 
-	// test for tee-connection at end of stub trace
-	if( v->tee_ID && c->end_pin == cconnect::NO_END && iv == c->NumSegs() )
-	{
-		// yes, no selector box
-		v->dl_sel = NULL;
-	}
+	// draw selection box for vertex, using LAY_THRU_PAD if via or layer of adjacent
+	// segments if no via
+	vid.SetT3( ID_SEL_VERTEX );
+	int sel_layer;
+	if( v->via_w )
+		sel_layer = LAY_SELECTION;
+	else if( iv > 0 )
+		sel_layer = c->seg[iv-1].layer;
 	else
-	{
-		// draw selection box for vertex, using LAY_THRU_PAD if via or layer of adjacent
-		// segments if no via
-		vid.SetT3( ID_SEL_VERTEX );
-		int sel_layer;
-		if( v->via_w )
-			sel_layer = LAY_SELECTION;
-		else
-			sel_layer = c->seg[iv-1].layer;
-		v->dl_sel = m_dlist->AddSelector( vid, net, sel_layer, DL_HOLLOW_RECT, 
-			1, 0, 0, v->x-10*PCBU_PER_MIL, v->y-10*PCBU_PER_MIL, v->x+10*PCBU_PER_MIL, v->y+10*PCBU_PER_MIL, 0, 0 );
-	}
+		sel_layer = c->seg[iv].layer;
+	v->dl_sel = m_dlist->AddSelector( vid, net, sel_layer, DL_HOLLOW_RECT, 
+		1, 0, 0, v->x-10*PCBU_PER_MIL, v->y-10*PCBU_PER_MIL, v->x+10*PCBU_PER_MIL, v->y+10*PCBU_PER_MIL, 0, 0 );
 	return 0;
 }
 
@@ -5198,7 +5163,7 @@ undo_area * CNetList::CreateAreaUndoRecord( cnet * net, int iarea, int type )
 	strcpy( un_a->net_name, net->name );
 	un_a->nlist = this;
 	un_a->iarea = iarea;
-	un_a->m_id = a->m_id;
+	un_a->m_id = a->Id();
 	if( type == CNetList::UNDO_AREA_ADD || type == CNetList::UNDO_AREA_CLEAR_ALL )
 	{
 	}
@@ -5245,7 +5210,6 @@ void CNetList::AreaUndoCallback( int type, void * ptr, BOOL undo )
 			nl->InsertArea( net, un_a->iarea, un_poly->layer, 
 				c[0].x, c[0].y, un_poly->hatch, FALSE );
 			carea * a = &net->area[un_a->iarea];
-			a->m_id = un_a->m_id;
 			// recreate CPolyLine
 			a->SetFromUndo( un_poly );
 			a->SetPtr( net );
@@ -6366,7 +6330,7 @@ BOOL CNetList::FindTeeVertexInNet( cnet * net, int id, int * ic, int * iv )
 	for( int icc=0; icc<net->NumCons(); icc++ )
 	{
 		cconnect * c = net->connect[icc];
-		for( int ivv=1; ivv<c->NumSegs(); ivv++ )
+		for( int ivv=0; ivv<=c->NumSegs(); ivv++ )
 		{
 			if( c->vtx[ivv].tee_ID == id )
 			{
@@ -6484,28 +6448,45 @@ BOOL CNetList::TeeViaNeeded( cnet * net, int id )
 	for( int ic=0; ic<net->NumCons(); ic++ )
 	{
 		cconnect * c = net->connect[ic];
-		for( int iv=1; iv<=c->NumSegs(); iv++ )
+		int num_segs = c->NumSegs();
+		for( int iv=0; iv<=num_segs; iv++ )
 		{
 			cvertex * v = &c->vtx[iv];
-			if( v->tee_ID == id )
+			if( abs(v->tee_ID) == id )
 			{
-				int seg_layer = c->seg[iv-1].layer;
-				if( seg_layer >= LAY_TOP_COPPER )
+				if( iv == 0 && c->start_pin != cconnect::NO_END )
 				{
-					if( layer == 0 )
-						layer = seg_layer;
-					else if( layer != seg_layer )
-						return TRUE;
+					ASSERT(0);	// illegal to have a tee on a pin
 				}
-				if( iv < c->NumSegs() )
+				else if( iv == num_segs && c->end_pin != cconnect::NO_END )
 				{
-					seg_layer = c->seg[iv].layer;
-					if( seg_layer >= LAY_TOP_COPPER )
+					ASSERT(0);	// illegal to have a tee on a pin
+				}
+				else
+				{
+					if( iv > 0 )
 					{
-						if( layer == 0 )
-							layer = seg_layer;
-						else if( layer != seg_layer )
-							return TRUE;
+						// test layer of segment pre-via
+						int seg_layer = c->seg[iv-1].layer;	
+						if( seg_layer >= LAY_TOP_COPPER )
+						{
+							if( layer == 0 )
+								layer = seg_layer;
+							else if( layer != seg_layer )
+								return TRUE;
+						}
+					}
+					if( iv < c->NumSegs() )
+					{
+						// test layer of segment post-via
+						int seg_layer = c->seg[iv].layer;	
+						if( seg_layer >= LAY_TOP_COPPER )
+						{
+							if( layer == 0 )
+								layer = seg_layer;
+							else if( layer != seg_layer )
+								return TRUE;
+						}
 					}
 				}
 			}

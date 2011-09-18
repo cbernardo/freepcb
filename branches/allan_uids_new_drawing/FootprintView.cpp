@@ -592,7 +592,7 @@ void CFootprintView::OnLButtonDown(UINT nFlags, CPoint point)
 						m_fp.m_value_text.Highlight();
 						SetCursorMode( CUR_FP_VALUE_SELECTED );
 					}
-					else if( id.T2() == ID_OUTLINE )
+					else if( id.T2() == ID_POLYLINE )
 					{
 						// outline polyline selected
 						int i = m_sel_id.I2();
@@ -748,7 +748,7 @@ void CFootprintView::OnLButtonDown(UINT nFlags, CPoint point)
 			m_fp.m_outline_poly[m_sel_id.I2()].InsertCorner( m_sel_id.I3()+1, p.x, p.y );
 			// now select new corner
 			m_fp.m_outline_poly[m_sel_id.I2()].HighlightCorner( m_sel_id.I3()+1 );
-			m_sel_id.Set( ID_PART, -1, ID_OUTLINE, -1, m_sel_id.I2(), ID_SEL_CORNER, -1, m_sel_id.I3()+1 );
+			m_sel_id.Set( ID_PART, -1, ID_POLYLINE, -1, m_sel_id.I2(), ID_SEL_CORNER, -1, m_sel_id.I3()+1 );
 			SetCursorMode( CUR_FP_POLY_CORNER_SELECTED );
 			FootprintModified( TRUE );
 		}
@@ -763,7 +763,7 @@ void CFootprintView::OnLButtonDown(UINT nFlags, CPoint point)
 			p = m_last_cursor_point;
 			// make new polyline
 			int ip = m_fp.m_outline_poly.GetSize();
-			m_sel_id.Set( ID_PART, -1, ID_OUTLINE, -1, ip, ID_SEL_CORNER, -1, 0 );
+			m_sel_id.Set( ID_PART, -1, ID_POLYLINE, -1, ip, ID_SEL_CORNER, -1, 0 );
 			m_fp.m_outline_poly.SetSize( ip+1 );
 			m_fp.m_outline_poly[ip].Start( m_polyline_layer, m_polyline_width, 
 				20*NM_PER_MIL, p.x, p.y, 0, &m_sel_id, NULL );
@@ -2491,8 +2491,8 @@ void CFootprintView::OnAddPolyline()
 		CPoint p = m_last_mouse_point;
 		m_dlist->CancelHighLight();
 		m_sel_id.Set( ID_PART, -1, 
-							ID_OUTLINE, -1, m_fp.m_outline_poly.GetSize(), 
-							ID_SEL_CORNER, -1, 0 );
+					ID_POLYLINE, -1, m_fp.m_outline_poly.GetSize(), 
+					ID_SEL_CORNER, -1, 0 );
 		m_polyline_closed_flag = dlg.GetClosedFlag();
 		m_polyline_style = CPolyLine::STRAIGHT;
 		m_polyline_width = dlg.GetWidth();
