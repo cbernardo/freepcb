@@ -140,7 +140,7 @@ ON_COMMAND(ID_RATLINE_ROUTE, OnRatlineRoute)
 ON_COMMAND(ID_RATLINE_OPTIMIZE, OnRatlineOptimize)
 ON_COMMAND(ID_VERTEX_MOVE, OnVertexMove)
 ON_COMMAND(ID_VERTEX_DELETE, OnVertexDelete)
-ON_COMMAND(ID_VERTEX_SETSIZE, OnVertexSize)
+ON_COMMAND(ID_VERTEX_SETSIZE, OnVertexProperties)
 ON_COMMAND(ID_RATLINE_COMPLETE, OnRatlineComplete)
 ON_COMMAND(ID_RATLINE_SETWIDTH, OnRatlineSetWidth)
 ON_COMMAND(ID_RATLINE_DELETECONNECTION, OnRatlineDeleteConnection)
@@ -173,7 +173,7 @@ ON_COMMAND(ID_ADD_AREA, OnAddArea)
 ON_COMMAND(ID_NONE_ADDCOPPERAREA, OnAddArea)
 ON_COMMAND(ID_ENDVERTEX_ADDVIA, OnEndVertexAddVia)
 ON_COMMAND(ID_ENDVERTEX_REMOVEVIA, OnEndVertexRemoveVia)
-ON_COMMAND(ID_ENDVERTEX_SETSIZE, OnVertexSize)
+ON_COMMAND(ID_ENDVERTEX_SETSIZE, OnVertexProperties)
 ON_MESSAGE( WM_USER_VISIBLE_GRID, OnChangeVisibleGrid )
 ON_COMMAND(ID_ADD_TEXT, OnTextAdd)
 ON_COMMAND(ID_SEGMENT_DELETETRACE, OnSegmentDeleteTrace)
@@ -2637,7 +2637,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 			CPoint p = m_dlist->WindowToPCB( point );
 			id sel_id;	// id of selected item
 			id pad_id( ID_PART, -1, ID_SEL_PAD );	// force selection of pad
-//**			void * ptr = m_dlist->TestSelect( p.x, p.y, &sel_id, &m_sel_layer, NULL, &pad_id );
+//100			void * ptr = m_dlist->TestSelect( p.x, p.y, &sel_id, &m_sel_layer, NULL, &pad_id );
 			void * ptr = NULL;
 			sel_id.Clear();
 			if( ptr )
@@ -2702,11 +2702,10 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 			// see if cursor on pad
 			CPoint p = m_dlist->WindowToPCB( point );
 			id sel_id;	// id of selected item
-			id pad_id( ID_PART, -1, ID_SEL_PAD );	// test for hit on pad
-//**			void * ptr = m_dlist->TestSelect( p.x, p.y, &sel_id, &m_sel_layer, NULL, &pad_id );
+			id pad_id( ID_PART, -1, ID_SEL_PAD );	// test for hit on any pad
+//100			void * ptr = m_dlist->TestSelect( p.x, p.y, &sel_id, &m_sel_layer, NULL, &pad_id );
 			void * ptr = NULL;
 			sel_id.Clear();
-			//**
 
 			if( ptr && sel_id.T1() == ID_PART && sel_id.T2()  == ID_SEL_PAD )
 			{
@@ -4104,8 +4103,10 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 		}
 		else if( fk == FK_SET_POSITION )
 			OnVertexProperties();
-		else if( fk == FK_VIA_SIZE )
-			OnVertexSize();
+		else if( fk == FK_START_STUB )
+			OnVertexStartStub();
+		else if( fk == FK_VERTEX_PROPERTIES )
+			OnVertexProperties();
 		else if( fk == FK_MOVE_VERTEX )
 			OnVertexMove();
 		else if( fk == FK_ADD_CONNECT )
@@ -4959,9 +4960,8 @@ void CFreePcbView::SetFKText( int mode )
 		break;
 
 	case CUR_VTX_SELECTED:
-		m_fkey_option[0] = FK_SET_POSITION;
-		if( m_sel_vtx->via_w != 0 )
-			m_fkey_option[1] = FK_VIA_SIZE;
+		m_fkey_option[0] = FK_VERTEX_PROPERTIES;
+		m_fkey_option[1] = FK_START_STUB;
 		m_fkey_option[2] = FK_ADD_CONNECT;
 		m_fkey_option[3] = FK_MOVE_VERTEX;
 		if( m_sel_con->end_pin != cconnect::NO_END 
@@ -4974,7 +4974,7 @@ void CFreePcbView::SetFKText( int mode )
 		break;
 
 	case CUR_END_VTX_SELECTED:
-		m_fkey_option[0] = FK_SET_POSITION;
+		m_fkey_option[0] = FK_VERTEX_PROPERTIES;
 		m_fkey_option[1] = FK_ADD_SEGMENT;
 		if( m_sel_vtx->via_w )
 			m_fkey_option[4] = FK_DELETE_VIA;
@@ -6563,6 +6563,28 @@ void CFreePcbView::OnVertexConnectToPin()
 	Invalidate( FALSE );
 }
 
+//100 start stub trace from vertex
+//
+void CFreePcbView::OnVertexStartStub()
+{
+	CDC * pDC = GetDC();
+	SetDCToWorldCoords( pDC );
+	pDC->SelectClipRgn( &m_pcb_rgn );
+	CPoint p;
+	p = m_last_cursor_point;
+	m_sel_id.SetT3( ID_SEL_SEG );
+	int w, via_w, via_hole_w;
+	m_snap_angle_ref.x = m_sel_vtx->x;
+	m_snap_angle_ref.y = m_sel_vtx->y;
+	GetWidthsForSegment( &w, &via_w, &via_hole_w );
+	m_Doc->m_nlist->StartDraggingStub( pDC, m_sel_net, m_sel_ic, m_sel_is,
+		p.x, p.y, m_active_layer, w, m_active_layer, via_w, via_hole_w,
+		2, m_inflection_mode );
+	SetCursorMode( CUR_DRAG_STUB );
+	ReleaseDC( pDC );
+	Invalidate( FALSE );
+}
+
 // set width for this segment (not a ratline)
 //
 void CFreePcbView::OnSegmentSetWidth()
@@ -6760,20 +6782,23 @@ void CFreePcbView::OnRatlineChangeEndPin()
 	Invalidate( FALSE );
 }
 
-// change vertex size vertex
+// change via properties
 //
-void CFreePcbView::OnVertexSize()
+void CFreePcbView::OnVertexProperties()
 {
 	SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_Doc->m_undo_list );
+	CPoint v_pt( m_sel_vtx->x, m_sel_vtx->y );
 	CDlgVia dlg = new CDlgVia;
-	dlg.Initialize( m_sel_vtx->via_w, m_sel_vtx->via_hole_w );
+	dlg.Initialize( m_sel_vtx->via_w, m_sel_vtx->via_hole_w, v_pt, m_Doc->m_units );
 	int ret = dlg.DoModal();
 	if( ret == IDOK )
 	{
 		m_sel_vtx->via_w = dlg.m_via_w;
 		m_sel_vtx->via_hole_w = dlg.m_via_hole_w;
 		m_dlist->CancelHighLight();
-		m_Doc->m_nlist->DrawVertex( m_sel_net, m_sel_ic, m_sel_is );
+		m_Doc->m_nlist->MoveVertex( m_sel_net, m_sel_ic, m_sel_is,
+			dlg.pt().x, dlg.pt().y );
+		m_Doc->ProjectModified( TRUE );
 		m_Doc->m_nlist->HighlightVertex( m_sel_net, m_sel_ic, m_sel_is );
 	}
 	Invalidate( FALSE );
@@ -6944,7 +6969,6 @@ void CFreePcbView::OnEndVertexMove()
 	CPoint p;
 	p = m_last_cursor_point;
 	SetCursorMode( CUR_DRAG_END_VTX );
-//100	m_Doc->m_nlist->StartDraggingEndVertex( pDC, m_sel_net, m_sel_ic, m_sel_is, 2 );
 	m_Doc->m_nlist->StartDraggingVertex( pDC, m_sel_net, m_sel_ic, m_sel_iv, p.x, p.y, 2 );
 	ReleaseDC( pDC );
 	Invalidate( FALSE );
@@ -8003,6 +8027,7 @@ void CFreePcbView::OnRefProperties()
 	}
 }
 
+#if 0
 void CFreePcbView::OnVertexProperties()
 {
 	DlgEditBoardCorner dlg;
@@ -8023,7 +8048,7 @@ void CFreePcbView::OnVertexProperties()
 		Invalidate( FALSE );
 	}
 }
-
+#endif
 
 BOOL CFreePcbView::OnEraseBkgnd(CDC* pDC)
 {

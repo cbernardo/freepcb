@@ -143,7 +143,7 @@ enum {
 	FK_MOVE_GROUP,
 	FK_DELETE_GROUP,
 	FK_ROTATE_GROUP,
-	FK_VIA_SIZE,
+	FK_VERTEX_PROPERTIES,
 	FK_ADD_VERTEX,
 	FK_SIDE_STYLE,
 	FK_EDIT_AREA,
@@ -221,9 +221,9 @@ const char fk_str[FK_NUM_OPTIONS*2+2][32] =
 	" Move",	" Group",
 	" Delete",	" Group",
 	" Rotate",	" Group",
-	" Set",		" Via Size",
+	" Edit Via"," Or Vertex",
 	" Add",		" Vertex",
-	" Set Side",	" Style",
+	" Set Side"," Style",
 	" Edit",	" Area",
 	" Move",	" Segment",
 	" ****",	" ****"
@@ -577,7 +577,7 @@ public:
 	afx_msg void OnRatlineOptimize();
 	afx_msg void OnVertexMove();
 	afx_msg void OnVertexConnectToPin();
-	afx_msg void OnVertexSize();
+	afx_msg void OnVertexStartStub();
 	afx_msg void OnVertexDelete();
 	afx_msg void OnRatlineComplete();
 	afx_msg void OnRatlineSetWidth();
