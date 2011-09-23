@@ -276,13 +276,16 @@ public:
 	void RemovePinByUID( int uid, BOOL bSetAreas=TRUE );
 	void RemovePin( CString * ref_des, CString * pin_name, BOOL bSetAreas=TRUE );
 	void RemovePin( int pin_index, BOOL bSetAreas=TRUE );
+
 	// connections
 	cconnect * AddConnect();
+	cconnect * AddConnectFromVtx( id * vtx_id );
 	int AddConnectFromPin( int p1 );
 	int AddConnectFromPinToPin( int p1, int p2 );
 	void RemoveConnect( cconnect * c );
 	cconnect * SplitConnectAtVertex( id vtx_id );
 	void RecreateConnectFromUndo( undo_con * con, undo_seg * seg, undo_vtx * vtx );
+
 	// both
 	cconnect * AddConnectionFromVertexToPin( id vtx_id, int pin_index );
 

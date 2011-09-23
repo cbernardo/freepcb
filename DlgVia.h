@@ -11,7 +11,11 @@ class CDlgVia : public CDialog
 public:
 	CDlgVia(CWnd* pParent = NULL);   // standard constructor
 	virtual ~CDlgVia();
-	void Initialize( int via_w, int via_hole_w );
+	void Initialize( int via_w, int via_hole_w, 
+		CPoint pt, int units );
+	void GetFields();
+	void SetFields();
+	CPoint pt(){ return m_pt; };
 
 // Dialog Data
 	enum { IDD = IDD_VIA };
@@ -21,8 +25,18 @@ protected:
 
 	DECLARE_MESSAGE_MAP()
 public:
+	CComboBox m_combo_units;
 	CEdit m_edit_via_w;
 	CEdit m_edit_hole_w;
-	int m_via_w;
-	int m_via_hole_w;
+
+	int m_units;
+	int m_via_w, m_via_hole_w;
+	CPoint m_pt;
+
+public:
+	afx_msg void OnCbnSelChangeComboViaUnits();
+public:
+	CEdit m_edit_x;
+public:
+	CEdit m_edit_y;
 };
