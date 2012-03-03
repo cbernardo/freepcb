@@ -755,8 +755,8 @@ BOOL CFreePcbView::SelectItem( id sid )
 		else if( sid.T2()  == ID_CONNECT && sid.T3() == ID_SEL_VERTEX )
 		{
 			// select vertex
-			cconnect * c = m_sel_con;
-			if( c->EndPin() == NULL && sid.I3() == c->NumSegs() )
+			cvertex * v = m_sel_id.Vtx();
+			if( v->GetType() == cvertex::V_END )
 				SetCursorMode( CUR_END_VTX_SELECTED );
 			else
 				SetCursorMode( CUR_VTX_SELECTED );
@@ -2706,6 +2706,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 //100			void * ptr = m_dlist->TestSelect( p.x, p.y, &sel_id, &m_sel_layer, NULL, &pad_id );
 			void * ptr = NULL;
 			sel_id.Clear();
+//100
 
 			if( ptr && sel_id.T1() == ID_PART && sel_id.T2()  == ID_SEL_PAD )
 			{
@@ -6576,8 +6577,11 @@ void CFreePcbView::OnVertexStartStub()
 	int w, via_w, via_hole_w;
 	m_snap_angle_ref.x = m_sel_vtx->x;
 	m_snap_angle_ref.y = m_sel_vtx->y;
+	// now add new connection and select first vertex
+	m_sel_id = m_sel_net->AddConnectFromVtx( m_sel_id );
+	m_sel_id = m_sel_id.Con()->FirstVtx()->Id();
 	GetWidthsForSegment( &w, &via_w, &via_hole_w );
-	m_Doc->m_nlist->StartDraggingStub( pDC, m_sel_net, m_sel_ic, m_sel_is,
+	m_Doc->m_nlist->StartDraggingStub( pDC, m_sel_net, m_sel_ic, m_sel_iv,
 		p.x, p.y, m_active_layer, w, m_active_layer, via_w, via_hole_w,
 		2, m_inflection_mode );
 	SetCursorMode( CUR_DRAG_STUB );
