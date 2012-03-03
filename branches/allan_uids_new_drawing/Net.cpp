@@ -459,7 +459,9 @@ void cvertex::ReplaceUID( int uid )
 id cvertex::Id()
 {
 	id v_id = m_con->Id();
-	v_id.SetLevel3( ID_SEL_VERTEX, m_uid );
+	int iv;
+	m_con->VtxByUID( m_uid, &iv );
+	v_id.SetLevel3( ID_SEL_VERTEX, m_uid, iv );
 	return v_id;
 }
 
@@ -645,7 +647,9 @@ void cconnect::ClearArrays()
 id cconnect::Id()
 {
 	id c_id = m_net->Id();
-	c_id.Set( id::NOP, id::NOP, ID_CONNECT, m_uid ); 
+	int ic;
+	m_net->ConByUID( m_uid, &ic );
+	c_id.Set( id::NOP, id::NOP, ID_CONNECT, m_uid, ic ); 
 	return c_id;
 }
 
@@ -1125,11 +1129,54 @@ void cnet::RemovePin( int net_pin_index, BOOL bSetAreas )
 
 // add new connection with no segments or vertices
 //
-cconnect * cnet::AddConnect()
+cconnect * cnet::AddConnect( int * ic )
 {
 	cconnect  * c = new cconnect( this );
-	connect.Add( c );	
+	connect.Add( c );
+	if( ic )
+		*ic = this->NumCons() - 1;
 	return c;
+}
+
+// add connection consisting of one slave vertex
+//
+id cnet::AddConnectFromVtx( id& vtx_id )
+{
+	// if the vertex to start from is not already a tee-vertex, make it one
+	cconnect * start_c = ConByUID( vtx_id.U2() );
+	cvertex * start_v = &start_c->vtx[vtx_id.I3()];
+	int start_tee_ID = -1;
+	if( start_v->GetType() == cvertex::V_TEE )
+	{
+		// already a tee-vertex
+		start_tee_ID = start_v->tee_ID;
+	}
+	else if( start_v->GetType() == cvertex::V_SLAVE )
+	{
+		// already slaved to a tee-vertex
+		start_tee_ID = -start_v->tee_ID;
+	}
+	else if( start_v->GetType() == cvertex::V_TRACE )
+	{
+		// need to split connection and make this a tee-vertex
+		SplitConnectAtVertex( vtx_id );
+	}
+	else
+	{
+		// should't happen
+		ASSERT(0);
+	}
+
+	// add empty connection
+	int ic;
+	cconnect * c = AddConnect( &ic );
+	// add single slave vertex
+	cvertex new_vtx;
+	new_vtx.x = start_v->x;
+	new_vtx.y = start_v->y;
+	new_vtx.tee_ID = -start_v->tee_ID;
+	cvertex * v = &c->InsertVertexByIndex( 0, new_vtx );
+	return c->Id();
 }
 
 // add connection consisting of one vertex at the starting pin
@@ -1152,6 +1199,7 @@ int cnet::AddConnectFromPin( int p1 )
 	cvertex * v = &c->InsertVertexByIndex( 0, new_vtx );
 	return ConIndexByPtr( c );
 }
+
 // Add new connection to net, consisting of one unrouted segment
 // p1 and p2 are indexes into pin array for this net
 // returns index to connection, or -1 if fails

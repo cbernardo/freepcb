@@ -187,6 +187,7 @@ public:
 	cpin * EndPin();
 
 	// vertices
+	int NumVtxs(){ return vtx.GetSize(); };
 	cvertex * FirstVtx();
 	cvertex * LastVtx();
 	cvertex * VtxByUID( int uid, int * index=NULL );
@@ -278,8 +279,8 @@ public:
 	void RemovePin( int pin_index, BOOL bSetAreas=TRUE );
 
 	// connections
-	cconnect * AddConnect();
-	cconnect * AddConnectFromVtx( id * vtx_id );
+	cconnect * AddConnect( int * ic=NULL );
+	id AddConnectFromVtx( id& vtx_id );
 	int AddConnectFromPin( int p1 );
 	int AddConnectFromPinToPin( int p1, int p2 );
 	void RemoveConnect( cconnect * c );

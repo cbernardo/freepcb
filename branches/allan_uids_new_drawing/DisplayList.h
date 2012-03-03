@@ -189,6 +189,8 @@ private:
 	CPoint * m_drag_ratline_start_pt;	// absolute coords for ratline start points
 	CPoint * m_drag_ratline_end_pt;		// relative coords for ratline endpoints
 	int m_drag_ratline_width;
+	CArray<CPoint> m_drag_ratline_drag_pt;
+	CArray<CPoint> m_drag_ratline_stat_pt;
 
 	// cursor parameters
 	int m_cross_hairs;	// 0 = none, 1 = cross-hairs, 2 = diagonals

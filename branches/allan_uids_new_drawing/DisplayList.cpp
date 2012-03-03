@@ -713,12 +713,12 @@ void CDisplayList::Draw( CDC * dDC )
 
 	if( m_drag_num_ratlines )
 	{
-		// draw ratline array
+		// draw ratline array, dragging endpoint m_drag_ratline_end_pt
 		CPen drag_pen( PS_SOLID, m_drag_ratline_width, m_rgb[m_drag_layer] );
 		CPen * old_pen = pDC->SelectObject( &drag_pen );
 		for( int il=0; il<m_drag_num_ratlines; il++ )
 		{
-			pDC->MoveTo( m_drag_ratline_start_pt[il].x, m_drag_ratline_start_pt[il].y );
+			pDC->MoveTo( m_drag_ratline_start_pt[il] );
 			pDC->LineTo( m_drag_x+m_drag_ratline_end_pt[il].x, m_drag_y+m_drag_ratline_end_pt[il].y );
 		}
 		pDC->SelectObject( old_pen );
@@ -1994,6 +1994,9 @@ int CDisplayList::MakeDragLineArray( int num_lines )
 
 int CDisplayList::MakeDragRatlineArray( int num_ratlines, int width )
 {
+	m_drag_ratline_drag_pt.SetSize(0);
+	m_drag_ratline_stat_pt.SetSize(0);
+
 	if( m_drag_ratline_start_pt )
 		free(m_drag_ratline_start_pt );
 	m_drag_ratline_start_pt = (CPoint*)calloc( num_ratlines, sizeof(CPoint) );
@@ -2025,8 +2028,13 @@ int CDisplayList::AddDragLine( CPoint pi, CPoint pf )
 	return 0;
 }
 
+// CPoint pi is the stationary point, pf is the offset to the cursor for the dragged point
+//
 int CDisplayList::AddDragRatline( CPoint pi, CPoint pf )
 {
+	m_drag_ratline_drag_pt.Add( pi );
+	m_drag_ratline_stat_pt.Add( pf );
+
 	if( m_drag_num_ratlines == m_drag_max_ratlines )
 		return  1;
 

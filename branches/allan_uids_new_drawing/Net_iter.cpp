@@ -299,7 +299,7 @@ cvertex *CIterator_cvertex::GetFirst()
 	m_pCurrentVertex = NULL;
 
 	// test for no vertices
-	if( m_cconnect->NumSegs() != 0 )
+	if( m_cconnect->NumVtxs() != 0 )
 	{
 		// increment iterator and get first net
 		GetNext();

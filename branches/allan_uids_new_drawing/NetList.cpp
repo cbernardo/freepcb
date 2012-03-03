@@ -2699,13 +2699,17 @@ int CNetList::StartDraggingVertex( CDC * pDC, cnet * net, int ic, int ivtx,
 	{
 		int ntsegs = 0;
 		// find all tee segments
+		cvertex * vv, * vv2;
 		for( int icc=0; icc<net->NumCons(); icc++ )
 		{
 			cconnect * cc = net->connect[icc];
-			if( cc != c && cc->end_pin == cconnect::NO_END ) 
+			for( int i=0; i<2; i++ )
 			{
-				cvertex * vv = &cc->vtx[cc->NumSegs()];
-				if( abs(vv->tee_ID) == abs(v->tee_ID) )
+				if( i==0 )
+					vv = cc->FirstVtx();
+				else
+					vv = cc->LastVtx();
+				if( vv->GetType() == cvertex::V_SLAVE && abs(vv->tee_ID) == abs(v->tee_ID) )
 				{
 					ntsegs++;
 				}
@@ -2716,18 +2720,40 @@ int CNetList::StartDraggingVertex( CDC * pDC, cnet * net, int ic, int ivtx,
 		for( int icc=0; icc<net->NumCons(); icc++ )
 		{
 			cconnect * cc = net->connect[icc];
-			if( cc != c && cc->end_pin == cconnect::NO_END )
+			if( cc->NumSegs() > 0 )
 			{
-				cvertex * vv = &cc->vtx[cc->NumSegs()];
-				if( abs(vv->tee_ID) == abs(v->tee_ID) )
+				for( int i=0; i<2; i++ )
 				{
-					CPoint pi, pf;
-					pi.x = cc->vtx[cc->NumSegs()-1].x;
-					pi.y = cc->vtx[cc->NumSegs()-1].y;
-					pf.x = 0;
-					pf.y = 0;
-					m_dlist->AddDragRatline( pi, pf );
-					m_dlist->Set_visible( cc->seg[cc->NumSegs()-1].dl_el, 0 );
+					if( i==0 )
+					{
+						vv = cc->FirstVtx();	// vertex to drag
+						vv2 = &cc->vtx[1];		// other end of segment
+						if( vv->GetType() == cvertex::V_SLAVE && abs(vv->tee_ID) == abs(v->tee_ID) )
+						{
+							CPoint pi, pf;
+							pi.x = vv2->x;
+							pi.y = vv2->y;
+							pf.x = 0;
+							pf.y = 0;
+							m_dlist->AddDragRatline( pi, pf );
+							m_dlist->Set_visible( cc->seg[0].dl_el, 0 );
+						}
+					}
+					else
+					{
+						vv = cc->LastVtx();					// vertex to drag
+						vv2 = &cc->vtx[cc->NumVtxs()-2];	// other end of segment
+						if( vv->GetType() == cvertex::V_SLAVE && abs(vv->tee_ID) == abs(v->tee_ID) )
+						{
+							CPoint pi, pf;
+							pi.x = vv2->x;
+							pi.y = vv2->y;
+							pf.x = 0;
+							pf.y = 0;
+							m_dlist->AddDragRatline( pi, pf );
+							m_dlist->Set_visible( cc->seg[cc->NumSegs()-1].dl_el, 0 );
+						}
+					}
 				}
 			}
 		}
@@ -2737,6 +2763,7 @@ int CNetList::StartDraggingVertex( CDC * pDC, cnet * net, int ic, int ivtx,
 	// start dragging
 	if( ivtx < c->NumSegs() )
 	{
+		// vertex with segments on both sides
 		int xi = c->vtx[ivtx-1].x;
 		int yi = c->vtx[ivtx-1].y;
 		int xf = c->vtx[ivtx+1].x;
@@ -2751,6 +2778,7 @@ int CNetList::StartDraggingVertex( CDC * pDC, cnet * net, int ic, int ivtx,
 	}
 	else
 	{
+		// end-vertex, only drag one segment
 		int xi = c->vtx[ivtx-1].x;
 		int yi = c->vtx[ivtx-1].y;
 		int layer1 = c->seg[ivtx-1].layer;
