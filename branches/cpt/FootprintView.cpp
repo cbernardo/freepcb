@@ -7,7 +7,6 @@
 #include "DlgSetSegmentWidth.h"
 #include "DlgEditBoardCorner.h"
 #include "DlgAddArea.h"
-#include "DlgFpRefText.h"
 #include "MyToolBar.h"
 #include <Mmsystem.h>
 #include <sys/timeb.h>
@@ -27,7 +26,6 @@
 #include "DlgGlue.h"
 #include "DlgHole.h"
 #include "DlgSlot.h"
-#include ".\footprintview.h"
 #include "afx.h"
 
 #ifdef _DEBUG
@@ -2375,10 +2373,7 @@ void CFootprintView::OnRefProperties()
 	CString str = "";
 	CDlgFpText dlg;
 	CString ref_str = "REF";
-	int layer = LAY_FP_SILK_TOP;
-	if( m_fp.m_ref_layer_index )
-		layer = LAY_FP_SILK_BOTTOM;
-	dlg.Initialize( FALSE, TRUE, &ref_str, layer, m_units, 
+	dlg.Initialize( FALSE, TRUE, &ref_str, m_fp.m_ref_layer, m_units, 
 		m_fp.m_ref_angle, m_fp.m_ref_size, m_fp.m_ref_w, 
 		m_fp.m_ref_xi, m_fp.m_ref_yi );
 	int ret = dlg.DoModal();
@@ -2393,9 +2388,7 @@ void CFootprintView::OnRefProperties()
 		{
 			PushUndo();
 			m_fp.Undraw();
-			m_fp.m_ref_layer_index = 0;
-			if( dlg.m_layer == LAY_FP_SILK_BOTTOM )
-				m_fp.m_ref_layer_index = 1;
+			m_fp.m_ref_layer = dlg.m_layer;
 			m_fp.m_ref_xi = dlg.m_x;
 			m_fp.m_ref_yi = dlg.m_y;
 			m_fp.m_ref_angle = dlg.m_angle;
@@ -2906,7 +2899,7 @@ void CFootprintView::OnAddText()
 {
 	CString str = "";
 	CDlgFpText dlg;
-	dlg.Initialize( TRUE, FALSE, NULL, m_units, LAY_FP_SILK_TOP, 0, 0, 0, 0, 0 );
+	dlg.Initialize( TRUE, FALSE, NULL, LAY_FP_SILK_TOP, m_units, 0, 0, 0, 0, 0 );
 	int ret = dlg.DoModal();
 	if( ret == IDOK )
 	{
@@ -2916,7 +2909,7 @@ void CFootprintView::OnAddText()
 		int font_size = dlg.m_height;
 		int stroke_width = dlg.m_width;
 		int layer = dlg.m_layer;
-		BOOL mirror = (layer == LAY_FP_SILK_BOTTOM);
+		BOOL mirror = (layer == LAY_FP_SILK_BOTTOM || layer == LAY_FP_BOTTOM_COPPER);
 		CString str = dlg.m_str;
 
 		// get cursor position and convert to PCB coords
@@ -2965,7 +2958,7 @@ void CFootprintView::OnFpTextEdit()
 	int font_size = dlg.m_height;
 	int stroke_width = dlg.m_width;
 	int layer = dlg.m_layer;
-	BOOL mirror = (layer == LAY_FP_SILK_BOTTOM);
+	BOOL mirror = (layer == LAY_FP_SILK_BOTTOM || layer == LAY_FP_BOTTOM_COPPER);
 	CString str = dlg.m_str;
 	m_dlist->CancelHighLight();
 	m_fp.m_tl->RemoveText( m_sel_text );
@@ -3221,9 +3214,7 @@ void CFootprintView::OnAddValueText()
 		m_fp.m_value_angle = dlg.m_angle;
 		m_fp.m_value_size = dlg.m_height;
 		m_fp.m_value_w = dlg.m_width;
-		m_fp.m_value_layer_index = 0;
-		if( dlg.m_layer == LAY_FP_SILK_BOTTOM )
-			m_fp.m_value_layer_index = 1;
+		m_fp.m_value_layer = dlg.m_layer;
 		m_fp.Draw( m_dlist, m_Doc->m_smfontutil );
 		if( dlg.m_bDrag )
 		{
@@ -3246,10 +3237,7 @@ void CFootprintView::OnValueEdit()
 	CString str = "";
 	CDlgFpText dlg;
 	CString value_str ((LPCSTR) IDS_Value);
-	int layer = LAY_FP_SILK_TOP;
-	if( m_fp.m_value_layer_index != 0 )
-		layer = LAY_FP_SILK_BOTTOM;
-	dlg.Initialize( FALSE, TRUE, &value_str, layer, m_units, 
+	dlg.Initialize( FALSE, TRUE, &value_str, m_fp.m_value_layer, m_units, 
 		m_fp.m_value_angle, m_fp.m_value_size, m_fp.m_value_w, 
 		m_fp.m_value_xi, m_fp.m_value_yi );
 	int ret = dlg.DoModal();
@@ -3264,9 +3252,7 @@ void CFootprintView::OnValueEdit()
 		{
 			PushUndo();
 			m_fp.Undraw();
-			m_fp.m_value_layer_index = 0;
-			if( dlg.m_layer != LAY_FP_SILK_TOP )
-				m_fp.m_value_layer_index = 1;
+			m_fp.m_value_layer = dlg.m_layer;
 			m_fp.m_value_xi = dlg.m_x;
 			m_fp.m_value_yi = dlg.m_y;
 			m_fp.m_value_angle = dlg.m_angle;

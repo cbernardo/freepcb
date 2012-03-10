@@ -16,5 +16,6 @@ public:
 	~Cuid(){};
 
 	int GetNewUID();
-	void ReleaseUID( UINT32 uid ); 
+	void ReleaseUID( UINT32 uid );
+	BOOL RequestUID( int uid );
 };

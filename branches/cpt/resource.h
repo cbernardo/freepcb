@@ -757,7 +757,9 @@
 #define IDC_BUTTON_LAYER_7              1437
 #define IDC_COMBO_LAYER                 1437
 #define IDC_BUTTON_LAYER_8              1438
+#define IDC_COMBO_LAYER_REF             1438
 #define IDC_BUTTON_LAYER_9              1439
+#define IDC_COMBO_LAYER_VALUE           1439
 #define IDC_BUTTON_LAYER_10             1440
 #define IDC_BUTTON_LAYER_11             1441
 #define IDC_BUTTON_LAYER_12             1442
@@ -1834,7 +1836,7 @@
 #define _APS_3D_CONTROLS                     1
 #define _APS_NEXT_RESOURCE_VALUE        351
 #define _APS_NEXT_COMMAND_VALUE         32947
-#define _APS_NEXT_CONTROL_VALUE         1438
+#define _APS_NEXT_CONTROL_VALUE         1440
 #define _APS_NEXT_SYMED_VALUE           106
 #endif
 #endif
