@@ -904,6 +904,7 @@ void CPartList::MarkAllParts( int mark )
 // generate an array of strokes for a string that is attached to a part
 // enter with:
 //  str = pointer to text string
+//	bMirror = TRUE to draw mirror-image
 //	size = height of characters
 //	w = stroke width
 //	rel_angle = angle of string relative to part
@@ -917,7 +918,7 @@ void CPartList::MarkAllParts( int mark )
 //	sm = pointer to SMFontUtil for character data	
 // returns number of strokes generated
 //
-int GenerateStrokesForPartString( CString * str, 
+int GenerateStrokesForPartString( CString * str, BOOL bMirror,
 								  int size, int rel_angle, int rel_xi, int rel_yi, int w, 
 								  int x, int y, int angle, int side,
 								  CArray<stroke> * strokes, CRect * br,
@@ -934,20 +935,40 @@ int GenerateStrokesForPartString( CString * str,
 	int xmax = INT_MIN;
 	int ymin = INT_MAX;
 	int ymax = INT_MIN;
-	for( int ic=0; ic<str->GetLength(); ic++ )
+	int nchars = str->GetLength();
+	for( int ic=0; ic<nchars; ic++ )
 	{
 		// get stroke info for character
 		int xi, yi, xf, yf;
 		double coord[64][4];
 		double min_x, min_y, max_x, max_y;
-		int nstrokes = sm->GetCharStrokes( str->GetAt(ic), SIMPLEX, 
-			&min_x, &min_y, &max_x, &max_y, coord, 64 );
+		int nstrokes;
+		if( !bMirror )
+		{
+			nstrokes = sm->GetCharStrokes( str->GetAt(ic), SIMPLEX, 
+				&min_x, &min_y, &max_x, &max_y, coord, 64 );
+		}
+		else
+		{
+			nstrokes = sm->GetCharStrokes( str->GetAt(nchars-ic-1), SIMPLEX, 
+				&min_x, &min_y, &max_x, &max_y, coord, 64 );
+		}
 		for( int is=0; is<nstrokes; is++ )
 		{
-			xi = (coord[is][0] - min_x)*x_scale + xc;
-			yi = coord[is][1]*y_scale + y_offset;
-			xf = (coord[is][2] - min_x)*x_scale + xc;
-			yf = coord[is][3]*y_scale + y_offset;
+			if( !bMirror )
+			{
+				xi = (coord[is][0] - min_x)*x_scale + xc;
+				yi = coord[is][1]*y_scale + y_offset;
+				xf = (coord[is][2] - min_x)*x_scale + xc;
+				yf = coord[is][3]*y_scale + y_offset;
+			}
+			else
+			{
+				xi = (max_x - coord[is][0])*x_scale + xc;
+				yi = coord[is][1]*y_scale + y_offset;
+				xf = (max_x - coord[is][2])*x_scale + xc;
+				yf = coord[is][3]*y_scale + y_offset;
+			}
 			xmax = max( xi, xmax );
 			xmax = max( xf, xmax );
 			xmin = min( xi, xmin );
@@ -1019,7 +1040,8 @@ CRect CPartList::GetValueRect( cpart * part )
 {
 	CArray<stroke> m_stroke;
 	CRect br;
-	int nstrokes = ::GenerateStrokesForPartString( &part->value, part->m_value_size,
+	int nstrokes = ::GenerateStrokesForPartString( &part->value, 
+		part->m_value_layer_flag, part->m_value_size,
 		part->m_value_angle, part->m_value_xi, part->m_value_yi, part->m_value_w,
 		part->x, part->y, part->angle, part->side,
 		&m_stroke, &br, NULL, m_fontutil );
@@ -1080,21 +1102,22 @@ int CPartList::DrawPart( cpart * part )
 	CArray<stroke> m_stroke;	// used for text
 	CRect br;
 	CPoint si, sf;
-
-	int silk_lay = LAY_SILK_TOP;
-	if( part->side )
-		silk_lay = LAY_SILK_BOTTOM;
+	int silk_layer;		// layer for text
 
 	// draw ref designator text
 	part->dl_ref_sel = NULL;
 	if( part->m_ref_vis && part->m_ref_size )
 	{
-		int nstrokes = ::GenerateStrokesForPartString( &part->ref_des, part->m_ref_size,
+		int nstrokes = ::GenerateStrokesForPartString( &part->ref_des, 
+			part->m_ref_layer_flag, part->m_ref_size,
 			part->m_ref_angle, part->m_ref_xi, part->m_ref_yi, part->m_ref_w,
 			part->x, part->y, part->angle, part->side,
 			&m_stroke, &br, m_dlist, m_fontutil );
 		if( nstrokes )
 		{
+			silk_layer = LAY_SILK_TOP;
+			if( part->m_ref_layer_flag != part->side )
+				silk_layer = LAY_SILK_BOTTOM;
 			int xmin = br.left;
 			int xmax = br.right;
 			int ymin = br.bottom;
@@ -1107,7 +1130,7 @@ int CPartList::DrawPart( cpart * part )
 			{
 				id.ii = is;
 				m_stroke[is].dl_el = m_dlist->Add( id, this, 
-					silk_lay, DL_LINE, 1, m_stroke[is].w, 0, 
+					silk_layer, DL_LINE, 1, m_stroke[is].w, 0, 
 					m_stroke[is].xi, m_stroke[is].yi, 
 					m_stroke[is].xf, m_stroke[is].yf, 0, 0 );
 				part->ref_text_stroke[is] = m_stroke[is];
@@ -1137,7 +1160,7 @@ int CPartList::DrawPart( cpart * part )
 			RotatePoint( &sf, angle, zero );
 			id.st = ID_SEL_REF_TXT;
 			// move to part position and draw
-			part->dl_ref_sel = m_dlist->AddSelector( id, part, silk_lay, DL_HOLLOW_RECT, 1,
+			part->dl_ref_sel = m_dlist->AddSelector( id, part, silk_layer, DL_HOLLOW_RECT, 1,
 				0, 0, x + si.x, y + si.y, x + sf.x, y + sf.y, x + si.x, y + si.y );
 		}
 	}
@@ -1152,13 +1175,17 @@ int CPartList::DrawPart( cpart * part )
 	part->dl_value_sel = NULL;
 	if( part->m_value_vis && part->m_value_size )
 	{
-		int nstrokes = ::GenerateStrokesForPartString( &part->value, part->m_value_size,
+		int nstrokes = ::GenerateStrokesForPartString( &part->value, 
+			part->m_value_layer_flag, part->m_value_size,
 			part->m_value_angle, part->m_value_xi, part->m_value_yi, part->m_value_w,
 			part->x, part->y, part->angle, part->side,
 			&m_stroke, &br, m_dlist, m_fontutil );
 
 		if( nstrokes )
 		{
+			silk_layer = LAY_SILK_TOP;
+			if( part->m_value_layer_flag != part->side )
+				silk_layer = LAY_SILK_BOTTOM;
 			int xmin = br.left;
 			int xmax = br.right;
 			int ymin = br.bottom;
@@ -1171,7 +1198,7 @@ int CPartList::DrawPart( cpart * part )
 			{
 				id.ii = is;
 				m_stroke[is].dl_el = m_dlist->Add( id, this, 
-					silk_lay, DL_LINE, 1, m_stroke[is].w, 0, 
+					silk_layer, DL_LINE, 1, m_stroke[is].w, 0, 
 					m_stroke[is].xi, m_stroke[is].yi, 
 					m_stroke[is].xf, m_stroke[is].yf, 0, 0 );
 				part->value_stroke[is] = m_stroke[is];
@@ -1202,7 +1229,7 @@ int CPartList::DrawPart( cpart * part )
 			RotatePoint( &sf, angle, zero );
 			id.st = ID_SEL_VALUE_TXT;
 			// move to part position and draw
-			part->dl_value_sel = m_dlist->AddSelector( id, part, silk_lay, DL_HOLLOW_RECT, 1,
+			part->dl_value_sel = m_dlist->AddSelector( id, part, silk_layer, DL_HOLLOW_RECT, 1,
 				0, 0, x + si.x, y + si.y, x + sf.x, y + sf.y, x + si.x, y + si.y );
 		}
 	}
@@ -1214,6 +1241,9 @@ int CPartList::DrawPart( cpart * part )
 	}
 
 	// draw part outline
+	silk_layer = LAY_SILK_TOP;
+	if( part->side )
+		silk_layer = LAY_SILK_BOTTOM;
 	part->m_outline_stroke.SetSize(0);
 	for( int ip=0; ip<shape->m_outline_poly.GetSize(); ip++ )
 	{
@@ -1265,7 +1295,7 @@ int CPartList::DrawPart( cpart * part )
 			part->m_outline_stroke[i+pos].yf = y+sf.y;
 			part->m_outline_stroke[i+pos].type = g_type;
 			part->m_outline_stroke[i+pos].w = w;
-			part->m_outline_stroke[i+pos].dl_el = m_dlist->Add( part->m_id, part, silk_lay, 
+			part->m_outline_stroke[i+pos].dl_el = m_dlist->Add( part->m_id, part, silk_layer, 
 				g_type, 1, w, 0, x+si.x, y+si.y, x+sf.x, y+sf.y, 0, 0 );
 		}
 	}
@@ -1277,7 +1307,6 @@ int CPartList::DrawPart( cpart * part )
 		int nstrokes = 0;
 		CArray<stroke> m_stroke;
 		m_stroke.SetSize( 1000 );
-		id.st = ID_STROKE;
 
 		double x_scale = (double)t->m_font_size/22.0;
 		double y_scale = (double)t->m_font_size/22.0;
@@ -1291,10 +1320,15 @@ int CPartList::DrawPart( cpart * part )
 		int ymin = INT_MAX;
 		int ymax = INT_MIN;
 
-		nstrokes = ::GenerateStrokesForPartString( &t->m_str, t->m_font_size,
+		nstrokes = ::GenerateStrokesForPartString( &t->m_str, 
+			t->m_mirror, t->m_font_size,
 			t->m_angle, t->m_x, t->m_y, t->m_stroke_width,
 			part->x, part->y, part->angle, part->side,
 			&m_stroke, &br, m_dlist, m_fontutil );
+
+		silk_layer = LAY_SILK_TOP;
+		if( t->m_mirror && !part->side || !t->m_mirror && part->side )
+			silk_layer = LAY_SILK_BOTTOM;
 
 		xmin = min( xmin, br.left );
 		xmax = max( xmax, br.right );
@@ -1308,7 +1342,7 @@ int CPartList::DrawPart( cpart * part )
 		{
 			id.ii = is;
 			m_stroke[is].dl_el = m_dlist->Add( id, this, 
-				silk_lay, DL_LINE, 1, m_stroke[is].w, 0, 
+				silk_layer, DL_LINE, 1, m_stroke[is].w, 0, 
 				m_stroke[is].xi, m_stroke[is].yi, 
 				m_stroke[is].xf, m_stroke[is].yf, 0, 0 );
 			part->m_outline_stroke.Add( m_stroke[is] );

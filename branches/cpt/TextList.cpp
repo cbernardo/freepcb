@@ -83,6 +83,8 @@ void CText::Draw( CDisplayList * dlist, SMFontUtil * smfontutil )
 		id tid = m_id;
 		if( tid.type == ID_TEXT )
 			tid.st = ID_STROKE;
+		else
+			tid.sst = ID_STROKE;
 		m_stroke.SetSize( 1000 );
 
 		// now draw strokes
@@ -171,7 +173,12 @@ void CText::Draw( CDisplayList * dlist, SMFontUtil * smfontutil )
 			RotatePoint( &si, m_angle, zero );
 			RotatePoint( &sf, m_angle, zero );
 			// draw it
-			tid.st = ID_SEL_TXT;
+			if( tid.type == ID_TEXT )
+				tid.st = ID_SEL_TXT;
+			else if( tid.type == ID_PART && tid.st == ID_VALUE_TXT )
+				tid.st = ID_SEL_VALUE_TXT;
+			else if( tid.type == ID_PART && tid.st == ID_REF_TXT )
+				tid.st = ID_SEL_REF_TXT;
 			tid.i = 0;
 			dl_sel = dlist->AddSelector( tid, this, m_layer, DL_HOLLOW_RECT, 1,
 				0, 0, m_x + si.x, m_y + si.y, m_x + sf.x, m_y + sf.y, m_x + si.x, m_y + si.y );
@@ -199,6 +206,68 @@ void CText::Undraw()
 	}
 	m_smfontutil = NULL;	// indicate that strokes have been removed
 }
+
+// Select text for editing
+//
+void CText::Highlight()
+{
+	m_dlist->HighLight( DL_HOLLOW_RECT, 
+		m_dlist->Get_x(dl_sel), 
+		m_dlist->Get_y(dl_sel),
+		m_dlist->Get_xf(dl_sel), 
+		m_dlist->Get_yf(dl_sel), 
+		1 );
+}
+
+// start dragging a rectangle representing the boundaries of text string
+//
+void CText::StartDragging( CDC * pDC )
+{
+	// make text strokes invisible
+	for( int is=0; is<m_stroke.GetSize(); is++ )
+	{
+		m_stroke[is].dl_el->visible = 0;
+	}
+	// cancel selection 
+	m_dlist->CancelHighLight();
+
+	// drag
+	m_dlist->StartDraggingRectangle( pDC, 
+		m_dlist->Get_x(dl_sel), 
+		m_dlist->Get_y(dl_sel),
+		m_dlist->Get_x(dl_sel) - m_dlist->Get_x_org(dl_sel),
+		m_dlist->Get_y(dl_sel) - m_dlist->Get_y_org(dl_sel),
+		m_dlist->Get_xf(dl_sel) - m_dlist->Get_x_org(dl_sel),
+		m_dlist->Get_yf(dl_sel) - m_dlist->Get_y_org(dl_sel), 
+		0, LAY_SELECTION );
+}
+
+// stop dragging 
+//
+void CText::CancelDragging()
+{
+	m_dlist->StopDragging();
+	for( int is=0; is<m_stroke.GetSize(); is++ )
+	{
+		m_stroke[is].dl_el->visible = 1;
+	}
+}
+
+// move text
+//
+void CText::Move( int x, int y, int angle, 
+					BOOL mirror, BOOL negative, int layer )
+{
+	Undraw();
+	m_x = x;
+	m_y = y;
+	m_angle = angle;
+	m_layer = layer;
+	m_mirror = mirror;
+	m_bNegative = negative;
+	Draw( m_dlist, m_smfontutil );
+}
+
 
 // CTextList constructor/destructors
 //
