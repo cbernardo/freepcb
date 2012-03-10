@@ -14,15 +14,38 @@
 // global index for iterating through texts
 int g_it;
 
-// CText constructor
-// draws strokes into display list if dlist != 0
-//
-CText::CText( CDisplayList * dlist, int x, int y, int angle, int mirror,
+// CText constructors
+//	tid.type = ID_TEXT or
+//	tid.type = ID_PART 
+//		tid.st = ID_REF_TXT or 
+//		tid.st = ID_VALUE_TXT
+
+// tid.st = 
+
+CText::CText()
+{
+	m_dlist = NULL;
+}
+
+CText::CText( CDisplayList * dlist, id tid, int x, int y, int angle, int mirror,
 			BOOL bNegative, int layer, int font_size, int stroke_width, 
 			SMFontUtil * smfontutil, CString * str_ptr )
 {
+	m_dlist = NULL;
+	Init( dlist, tid, x, y, angle, mirror, bNegative, layer, font_size, stroke_width, 
+			smfontutil, str_ptr );
+}
+
+// draws strokes into display list if dlist != 0
+//
+void CText::Init( CDisplayList * dlist, id tid, int x, int y, int angle, int mirror,
+			BOOL bNegative, int layer, int font_size, int stroke_width, 
+			SMFontUtil * smfontutil, CString * str_ptr )
+{
+	Undraw();
 	m_guid = GUID_NULL;
 	HRESULT hr = ::UuidCreate(&m_guid);
+	m_id = tid;
 	m_x = x;
 	m_y = y;
 	m_angle = angle;
@@ -57,7 +80,9 @@ void CText::Draw( CDisplayList * dlist, SMFontUtil * smfontutil )
 	{
 		// draw text
 		m_dlist = dlist;
-		id id( ID_TEXT, ID_STROKE );
+		id tid = m_id;
+		if( tid.type == ID_TEXT )
+			tid.st = ID_STROKE;
 		m_stroke.SetSize( 1000 );
 
 		// now draw strokes
@@ -110,14 +135,14 @@ void CText::Draw( CDisplayList * dlist, SMFontUtil * smfontutil )
 				RotatePoint( &si, m_angle, zero );
 				RotatePoint( &sf, m_angle, zero );
 				// add x, y and draw
-				id.i = i;
+				tid.i = i;
 				m_stroke[i].w = m_stroke_width;
 				m_stroke[i].xi = m_x + si.x;
 				m_stroke[i].yi = m_y + si.y;
 				m_stroke[i].xf = m_x + sf.x;
 				m_stroke[i].yf = m_y + sf.y;
 				if( dlist )
-					m_stroke[i].dl_el = dlist->Add( id, this, 
+					m_stroke[i].dl_el = dlist->Add( tid, this, 
 					m_layer, DL_LINE, 1, m_stroke_width, 0, 
 					m_x+si.x, m_y+si.y, m_x+sf.x, m_y+sf.y, 0, 0 );
 				else
@@ -146,9 +171,9 @@ void CText::Draw( CDisplayList * dlist, SMFontUtil * smfontutil )
 			RotatePoint( &si, m_angle, zero );
 			RotatePoint( &sf, m_angle, zero );
 			// draw it
-			id.st = ID_SEL_TXT;
-			id.i = 0;
-			dl_sel = dlist->AddSelector( id, this, m_layer, DL_HOLLOW_RECT, 1,
+			tid.st = ID_SEL_TXT;
+			tid.i = 0;
+			dl_sel = dlist->AddSelector( tid, this, m_layer, DL_HOLLOW_RECT, 1,
 				0, 0, m_x + si.x, m_y + si.y, m_x + sf.x, m_y + sf.y, m_x + si.x, m_y + si.y );
 			m_dlist = dlist;
 		}
@@ -211,16 +236,17 @@ CText * CTextList::AddText( int x, int y, int angle, int mirror, BOOL bNegative,
 						   int font_size, int stroke_width, CString * str_ptr, BOOL draw_flag )
 {
 	// create new CText and put pointer into text_ptr[]
+	id tid(ID_TEXT, 0, 0, 0, 0);
 	if( draw_flag )
 	{
-		CText * text = new CText( m_dlist, x, y, angle, mirror, bNegative, layer,
-			font_size, stroke_width, m_smfontutil, str_ptr );
+		CText * text = new CText( m_dlist, tid, x, y, angle, mirror, bNegative, 
+			layer, font_size, stroke_width, m_smfontutil, str_ptr );
 		text_ptr.Add( text );
 		return text;
 	}
 	else
 	{
-		CText * text = new CText( NULL, x, y, angle, mirror, bNegative, 
+		CText * text = new CText( NULL, tid, x, y, angle, mirror, bNegative, 
 			layer, font_size, stroke_width, NULL, str_ptr );
 		text_ptr.Add( text );
 		return text;

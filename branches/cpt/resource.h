@@ -753,6 +753,7 @@
 #define IDC_EDIT_MIN_PINS               1435
 #define IDC_BUTTON_LAYER_6              1436
 #define IDC_REVERSE_PGUP_PGDN           1436
+#define IDC_COMBO_FP_TEXT_LAYER         1436
 #define IDC_BUTTON_LAYER_7              1437
 #define IDC_BUTTON_LAYER_8              1438
 #define IDC_BUTTON_LAYER_9              1439

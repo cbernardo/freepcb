@@ -39,6 +39,7 @@ void CDlgFpText::DoDataExchange(CDataExchange* pDX)
 	DDX_Control(pDX, IDC_RADIO1, m_button_drag);
 	DDX_Control(pDX, IDC_RADIO2, m_button_set_position );
 	DDX_Control(pDX, IDC_COMBO_ADD_TEXT_UNITS, m_combo_units);
+	DDX_Control(pDX, IDC_COMBO_FP_TEXT_LAYER, m_combo_layer);
 	if( pDX->m_bSaveAndValidate )
 	{
 		// leaving the dialog
@@ -63,6 +64,7 @@ void CDlgFpText::DoDataExchange(CDataExchange* pDX)
 			gFpLastWidth = m_width;
 			gFpUseDefaultWidth = m_button_def_width.GetCheck();
 		}
+		m_layer = LAY_FP_SILK_TOP + m_combo_layer.GetCurSel();
 	}
 }
 
@@ -80,7 +82,7 @@ END_MESSAGE_MAP()
 // Initialize dialog
 //
 void CDlgFpText::Initialize( BOOL bDrag, BOOL bFixedString, 
-		CString * str, int units, 
+		CString * str, int layer, int units, 
 		int angle, int height, int width, int x, int y )
 
 {
@@ -97,6 +99,10 @@ void CDlgFpText::Initialize( BOOL bDrag, BOOL bFixedString,
 	m_width = width;
 	m_x = x;
 	m_y = y;
+	if( layer >= LAY_FP_SILK_TOP && layer >= LAY_FP_SILK_BOTTOM )
+		m_layer = layer;
+	else
+		m_layer = LAY_FP_SILK_TOP;
 }
 
 // CDlgFpText message handlers
@@ -104,6 +110,11 @@ void CDlgFpText::Initialize( BOOL bDrag, BOOL bFixedString,
 BOOL CDlgFpText::OnInitDialog()
 {
 	CDialog::OnInitDialog();
+
+	// layers
+	m_combo_layer.InsertString( 0, "TOP_SILK" );
+	m_combo_layer.InsertString( 1, "BOTTOM_SILK" );
+	m_combo_layer.SetCurSel( m_layer - LAY_FP_SILK_TOP );
 
 	// units
 	m_combo_units.InsertString(	0, "MIL" );

@@ -12,7 +12,7 @@ public:
 	CDlgFpText(CWnd* pParent = NULL);   // standard constructor
 	virtual ~CDlgFpText();
 	void Initialize( BOOL bDrag, BOOL bFixedString,
-		CString * str, int units, 
+		CString * str, int layer, int units, 
 		int angle, int height, int width, int x, int y );
 
 // Dialog Data
@@ -34,6 +34,7 @@ public:
 	int m_angle;
 	int m_units;
 	int m_unit_mult;
+	int m_layer;
 	CString m_str;
 	virtual BOOL OnInitDialog();
 	CEdit m_edit_height;
@@ -54,4 +55,5 @@ public:
 	afx_msg void OnBnClickedDefWidth();
 	CComboBox m_combo_units;
 	afx_msg void OnCbnSelchangeComboAddTextUnits();
+	CComboBox m_combo_layer;
 };
