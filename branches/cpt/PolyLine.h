@@ -35,11 +35,22 @@ class CPolyPt
 {
 public:
 	CPolyPt( int qx=0, int qy=0, BOOL qf=FALSE )
-	{ x=qx; y=qy; end_contour=qf; utility = 0; };
+	{ 
+		x=qx; 
+		y=qy; 
+		end_contour=qf; 
+		utility = 0; 
+		m_uid = pcb_cuid.GetNewUID();
+	};
+	~CPolyPt()
+	{
+		pcb_cuid.ReleaseUID( m_uid );
+	};
 	int x;
 	int y;
 	BOOL end_contour;	// flags the end of a closed contour
 	int utility;
+	int m_uid;
 };
 
 class CPolyLine
@@ -60,7 +71,7 @@ public:
 	void AppendCorner( int x, int y, int style = STRAIGHT, BOOL bDraw=TRUE );
 	void InsertCorner( int ic, int x, int y );
 	void DeleteCorner( int ic, BOOL bDraw=TRUE );
-	void MoveCorner( int ic, int x, int y );
+	BOOL MoveCorner( int ic, int x, int y, BOOL bEnforceCircularArcs=FALSE );
 	void Close( int style = STRAIGHT, BOOL bDraw=TRUE );
 	void RemoveContour( int icont );
 
@@ -146,6 +157,7 @@ public:
 private:
 	CDisplayList * m_dlist;		// display list 
 	id m_id;		// root id
+	int m_uid;
 	void * m_ptr;	// pointer to parent object (or NULL)
 	int m_layer;	// layer to draw on
 	int m_w;		// line width

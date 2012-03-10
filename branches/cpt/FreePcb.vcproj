@@ -450,6 +450,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\ellipse_newton.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\file_io.cpp"
 				>
 			</File>
@@ -816,6 +820,10 @@
 			</File>
 			<File
 				RelativePath="DlgWizQuad.h"
+				>
+			</File>
+			<File
+				RelativePath=".\ellipse_newton.h"
 				>
 			</File>
 			<File

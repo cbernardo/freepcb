@@ -4945,16 +4945,23 @@ void CFreePcbView::ShowRelativeDistance( int x, int y, int dx, int dy )
 //
 int CFreePcbView::ShowSelectStatus()
 {
-//#define SHOW_UIDS
-
-	CString x_str, y_str, w_str, hole_str, via_w_str, via_hole_str;
-	int u = m_Doc->m_units;
+#define SHOW_UIDS	// show UIDs for selected element
+	CString uid_str;
+#ifdef SHOW_UIDS
+	uid_str.Format( ",uid %d %d %d", m_sel_id.uid, m_sel_id.st_uid, m_sel_id.sst_uid );
+#endif
 
 	CMainFrame * pMain = (CMainFrame*) AfxGetApp()->m_pMainWnd;
 	if( !pMain )
 		return 1;
 
+<<<<<<< .working
 	CString str, s;
+=======
+	int u = m_Doc->m_units;
+	CString x_str, y_str, w_str, hole_str, via_w_str, via_hole_str;
+	CString str;
+>>>>>>> .merge-right.r203
 
 	switch( m_cursor_mode )
 	{
@@ -5002,12 +5009,19 @@ int CFreePcbView::ShowSelectStatus()
 		break;
 
 	case CUR_BOARD_CORNER_SELECTED:
+<<<<<<< .working
 		{
 			::MakeCStringFromDimension( &x_str, m_Doc->m_board_outline[m_sel_id.i].GetX(m_sel_id.ii), u, FALSE, FALSE, FALSE, u==MIL?1:3 );
 			::MakeCStringFromDimension( &y_str, m_Doc->m_board_outline[m_sel_id.i].GetY(m_sel_id.ii), u, FALSE, FALSE, FALSE, u==MIL?1:3 );
 			CString s ((LPCSTR) IDS_BoardOutlineCorner);
 			str.Format( s, m_sel_id.i+1, m_sel_id.ii+1, x_str, y_str );
 		}
+=======
+		::MakeCStringFromDimension( &x_str, m_Doc->m_board_outline[m_sel_id.i].GetX(m_sel_id.ii), u, FALSE, FALSE, FALSE, u==MIL?1:3 );
+		::MakeCStringFromDimension( &y_str, m_Doc->m_board_outline[m_sel_id.i].GetY(m_sel_id.ii), u, FALSE, FALSE, FALSE, u==MIL?1:3 );
+		str.Format( "board outline %d, corner %d, x %s, y %s%d",
+			m_sel_id.i+1, m_sel_id.ii+1, x_str, y_str, uid_str );
+>>>>>>> .merge-right.r203
 		break;
 
 	case CUR_BOARD_SIDE_SELECTED:
@@ -5018,9 +5032,15 @@ int CFreePcbView::ShowSelectStatus()
 			else if( m_Doc->m_board_outline[m_sel_id.i].GetSideStyle( m_sel_id.ii ) == CPolyLine::ARC_CW )
 				style_str.LoadStringA(IDS_ArcCw);
 			else if( m_Doc->m_board_outline[m_sel_id.i].GetSideStyle( m_sel_id.ii ) == CPolyLine::ARC_CCW )
+<<<<<<< .working
 				style_str.LoadStringA(IDS_ArcCcw);
 			CString s ((LPCSTR) IDS_BoardOutlineSide);
 			str.Format( s, m_sel_id.i+1, m_sel_id.ii+1,	m_Doc->m_board_outline[m_sel_id.i].GetNumCorners(), style_str );
+=======
+				style_str = "arc(ccw)";
+			str.Format( "board outline %d, side %d of %d, %s%d", m_sel_id.i+1, m_sel_id.ii+1,
+				m_Doc->m_board_outline[m_sel_id.i].GetNumCorners(), style_str, uid_str );
+>>>>>>> .merge-right.r203
 		}
 		break;
 
@@ -5033,6 +5053,7 @@ int CFreePcbView::ShowSelectStatus()
 			::MakeCStringFromDimension( &y_str, m_sel_part->y, u, FALSE, FALSE, FALSE, u==MIL?1:3 );
 			int rep_angle = ::GetReportedAngleForPart( m_sel_part->angle,
 				m_sel_part->shape->m_centroid_angle, m_sel_part->side );
+<<<<<<< .working
 			CString s ((LPCSTR) IDS_PartXYAngle);
 			str.Format( s, m_sel_part->ref_des, m_sel_part->shape->m_name,
 				x_str, y_str, rep_angle, side );
@@ -5040,6 +5061,14 @@ int CFreePcbView::ShowSelectStatus()
 				m_sel_part->shape->m_centroid_angle, m_sel_part->side );
 			if( a != (m_sel_part->angle) )
 				ASSERT(0);
+=======
+			str.Format( "part %s \"%s\", x %s, y %s, angle %d, %s%s",
+				m_sel_part->ref_des, m_sel_part->shape->m_name, 
+				x_str, y_str, 
+				rep_angle,
+				side,
+				uid_str );
+>>>>>>> .merge-right.r203
 		}
 		break;
 
@@ -5061,18 +5090,28 @@ int CFreePcbView::ShowSelectStatus()
 			if( pin_net )
 			{
 				// pad attached to net
+<<<<<<< .working
 				CString s ((LPCSTR) IDS_PinOnNet);
 				str.Format( s, m_sel_part->ref_des,
+=======
+				str.Format( "pin %s.%s on net \"%s\", x %s, y %s%s",
+					m_sel_part->ref_des,
+>>>>>>> .merge-right.r203
 					m_sel_part->shape->GetPinNameByIndex(m_sel_id.i),
-					pin_net->name, x_str, y_str );
+					pin_net->name, x_str, y_str, uid_str );
 			}
 			else
 			{
 				// pad not attached to a net
+<<<<<<< .working
 				CString s ((LPCSTR) IDS_PinUnconnected);
 				str.Format( s, m_sel_part->ref_des,
+=======
+				str.Format( "pin %s.%s unconnected, x %s, y %s%s",
+					m_sel_part->ref_des,
+>>>>>>> .merge-right.r203
 					m_sel_part->shape->GetPinNameByIndex(m_sel_id.i),
-					x_str, y_str );
+					x_str, y_str, uid_str );
 			}
 		}
 		break;
@@ -5092,17 +5131,29 @@ int CFreePcbView::ShowSelectStatus()
 			{
 				if( m_cursor_mode == CUR_DRAG_STUB )
 				{
+<<<<<<< .working
 					// stub trace segment.  CPT: added width info
 					CString s ((LPCSTR) IDS_NetStub);
 					str.Format( s, m_sel_net->name, m_sel_id.i+1,
+=======
+					// stub trace segment
+					str.Format( "net \"%s\" stub(%d) from %s.%s, seg %d%s",
+						m_sel_net->name, m_sel_id.i+1,
+>>>>>>> .merge-right.r203
 						m_sel_start_pin.ref_des,
 						m_sel_start_pin.pin_name,
+<<<<<<< .working
 						m_sel_id.ii+1, width
+=======
+						m_sel_id.ii+1,
+						uid_str
+>>>>>>> .merge-right.r203
 						);
 				}
 				else
 				{
 					// stub trace segment
+<<<<<<< .working
 #ifdef SHOW_UIDS
 					if( m_sel_con.vtx[m_sel_con.nsegs].tee_ID )
 						str.Format( "net \"%s\" branch(%d) to %s.%s, seg %d, width %d (T%d) uid %d",
@@ -5142,6 +5193,16 @@ int CFreePcbView::ShowSelectStatus()
 							width
 						);
 #endif
+=======
+					str.Format( "net \"%s\" stub(%d) from %s.%s, seg %d, width %d%s",
+						m_sel_net->name, m_sel_id.i+1,
+						m_sel_start_pin.ref_des,
+						m_sel_start_pin.pin_name,
+						m_sel_id.ii+1,
+						m_sel_seg.width/NM_PER_MIL,
+						uid_str
+					);
+>>>>>>> .merge-right.r203
 				}
 			}
 			else
@@ -5150,10 +5211,9 @@ int CFreePcbView::ShowSelectStatus()
 				CString locked_flag = "";
 				if( m_sel_con.locked )
 					locked_flag = " (L)";
-#ifdef SHOW_UIDS
 				if( m_sel_con.nsegs == 1 && m_sel_seg.layer == LAY_RAT_LINE )
 				{
-					str.Format( "net \"%s\" connection(%d) %s.%s-%s.%s%s, seg %d, width %d uid %d",
+					str.Format( "net \"%s\" connection(%d) %s.%s-%s.%s%s, seg %d, width %d%s",
 						m_sel_net->name, m_sel_id.i+1,
 						m_sel_start_pin.ref_des,
 						m_sel_start_pin.pin_name,
@@ -5161,12 +5221,12 @@ int CFreePcbView::ShowSelectStatus()
 						m_sel_end_pin.pin_name,
 						locked_flag, m_sel_id.ii+1,
 						width,
-						m_sel_seg.m_uid
+						uid_str
 						);
 				}
 				else
 				{
-					str.Format( "net \"%s\" trace(%d) %s.%s-%s.%s%s, seg %d, width %d uid %d",
+					str.Format( "net \"%s\" trace(%d) %s.%s-%s.%s%s, seg %d, width %d%s",
 						m_sel_net->name,  m_sel_id.i+1,
 						m_sel_start_pin.ref_des,
 						m_sel_start_pin.pin_name,
@@ -5174,9 +5234,10 @@ int CFreePcbView::ShowSelectStatus()
 						m_sel_end_pin.pin_name,
 						locked_flag, m_sel_id.ii+1,
 						width,
-						m_sel_seg.m_uid
+						uid_str
 						);
 				}
+<<<<<<< .working
 #else
 				if( m_sel_con.nsegs == 1 && m_sel_seg.layer == LAY_RAT_LINE )
 				{
@@ -5203,6 +5264,8 @@ int CFreePcbView::ShowSelectStatus()
 						);
 				}
 #endif
+=======
+>>>>>>> .merge-right.r203
 			}
 		}
 		break;
@@ -5223,7 +5286,6 @@ int CFreePcbView::ShowSelectStatus()
 			::MakeCStringFromDimension( &y_str, m_sel_vtx.y, u, FALSE, FALSE, FALSE, u==MIL?1:3 );
 			::MakeCStringFromDimension( &via_w_str, m_sel_vtx.via_w, u, FALSE, FALSE, FALSE, u==MIL?1:3 );
 			::MakeCStringFromDimension( &via_hole_str, m_sel_vtx.via_hole_w, u, FALSE, FALSE, FALSE, u==MIL?1:3 );
-#ifdef SHOW_UIDS
 			if( m_sel_con.end_pin == cconnect::NO_END )
 			{
 				// vertex of stub trace
@@ -5231,7 +5293,7 @@ int CFreePcbView::ShowSelectStatus()
 				{
 					// via
 					if( m_sel_con.vtx[m_sel_con.nsegs].tee_ID )
-						str.Format( "net \"%s\" branch(%d) to %s.%s, vertex %d, x %s, y %s, via %s/%s %s uid %d",
+						str.Format( "net \"%s\" branch(%d) to %s.%s, vertex %d, x %s, y %s, via %s/%s %s%s",
 							m_sel_net->name, m_sel_id.i+1,
 							m_sel_start_pin.ref_des,
 							m_sel_start_pin.pin_name,
@@ -5241,10 +5303,10 @@ int CFreePcbView::ShowSelectStatus()
 							via_w_str,
 							via_hole_str,
 							tee_flag,
-							uid
+							uid_str
 							);
 					else
-						str.Format( "net \"%s\" stub(%d) from %s.%s, vertex %d, x %s, y %s, via %s/%s %s uid %d",
+						str.Format( "net \"%s\" stub(%d) from %s.%s, vertex %d, x %s, y %s, via %s/%s %s%s",
 							m_sel_net->name, m_sel_id.i+1,
 							m_sel_start_pin.ref_des,
 							m_sel_start_pin.pin_name,
@@ -5254,14 +5316,14 @@ int CFreePcbView::ShowSelectStatus()
 							via_w_str,
 							via_hole_str,
 							tee_flag,
-							uid
+							uid_str
 							);
 				}
 				else
 				{
 					// no via
 					if( m_sel_con.vtx[m_sel_con.nsegs].tee_ID )
-						str.Format( "net \"%s\" branch(%d) to %s.%s, vertex %d, x %s, y %s %s uid %d",
+						str.Format( "net \"%s\" branch(%d) to %s.%s, vertex %d, x %s, y %s %s%s",
 							m_sel_net->name, m_sel_id.i+1,
 							m_sel_start_pin.ref_des,
 							m_sel_start_pin.pin_name,
@@ -5269,10 +5331,10 @@ int CFreePcbView::ShowSelectStatus()
 							x_str,
 							y_str,
 							tee_flag,
-							uid
+							uid_str
 							);
 					else
-						str.Format( "net \"%s\" stub(%d) from %s.%s, vertex %d, x %s, y %s %s uid %d",
+						str.Format( "net \"%s\" stub(%d) from %s.%s, vertex %d, x %s, y %s %s%s",
 							m_sel_net->name, m_sel_id.i+1,
 							m_sel_start_pin.ref_des,
 							m_sel_start_pin.pin_name,
@@ -5280,7 +5342,7 @@ int CFreePcbView::ShowSelectStatus()
 							x_str,
 							y_str,
 							tee_flag,
-							uid
+							uid_str
 							);
 				}
 			}
@@ -5290,7 +5352,7 @@ int CFreePcbView::ShowSelectStatus()
 				if( via_w )
 				{
 					// with via
-					str.Format( "net \"%s\" trace(%d) %s.%s-%s.%s%s, vertex %d, x %s, y %s, via %s/%s %s uid %d",
+					str.Format( "net \"%s\" trace(%d) %s.%s-%s.%s%s, vertex %d, x %s, y %s, via %s/%s %s%s",
 						m_sel_net->name, m_sel_id.i+1,
 						m_sel_start_pin.ref_des,
 						m_sel_start_pin.pin_name,
@@ -5303,13 +5365,13 @@ int CFreePcbView::ShowSelectStatus()
 						via_w_str,
 						via_hole_str,
 						tee_flag,
-						uid
+						uid_str
 						);
 				}
 				else
 				{
 					// no via
-					str.Format( "net \"%s\" trace(%d) %s.%s-%s.%s%s, vertex %d, x %s, y %s %s uid %d",
+					str.Format( "net \"%s\" trace(%d) %s.%s-%s.%s%s, vertex %d, x %s, y %s %s%s",
 						m_sel_net->name, m_sel_id.i+1,
 						m_sel_start_pin.ref_des,
 						m_sel_start_pin.pin_name,
@@ -5320,10 +5382,11 @@ int CFreePcbView::ShowSelectStatus()
 						x_str,
 						y_str,
 						tee_flag,
-						uid
+						uid_str
 						);
 				}
 			}
+<<<<<<< .working
 #else
 			if( m_sel_con.end_pin == cconnect::NO_END )
 			{
@@ -5420,6 +5483,8 @@ int CFreePcbView::ShowSelectStatus()
 				}
 			}
 #endif
+=======
+>>>>>>> .merge-right.r203
 		}
 		break;
 
@@ -5435,16 +5500,16 @@ int CFreePcbView::ShowSelectStatus()
 			::MakeCStringFromDimension( &y_str, m_sel_vtx.y, u, FALSE, FALSE, FALSE, u==MIL?1:3 );
 			::MakeCStringFromDimension( &via_w_str, m_sel_vtx.via_w, u, FALSE, FALSE, FALSE, u==MIL?1:3 );
 			::MakeCStringFromDimension( &via_hole_str, m_sel_vtx.via_hole_w, u, FALSE, FALSE, FALSE, u==MIL?1:3 );
-#ifdef SHOW_UIDS
-			str.Format( "net \"%s\" stub(%d) end, x %s, y %s, via %s/%s %s uid %d",
+			str.Format( "net \"%s\" stub(%d) end, x %s, y %s, via %s/%s %s%s",
 				m_sel_net->name, m_sel_id.i+1,
 				x_str,
 				y_str,
 				via_w_str,
 				via_hole_str,
 				tee_flag,
-				uid
+				uid_str
 				);
+<<<<<<< .working
 #else
 			CString s ((LPCSTR) IDS_NetStubEnd);
 			str.Format( s, m_sel_net->name, m_sel_id.i+1,
@@ -5455,6 +5520,8 @@ int CFreePcbView::ShowSelectStatus()
 				tee_flag
 				);
 #endif
+=======
+>>>>>>> .merge-right.r203
 		}
 		break;
 

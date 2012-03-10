@@ -32,6 +32,7 @@ carea::carea()
 	nvias = 0;
 	poly = 0;
 	utility = 0;
+	m_uid = pcb_cuid.GetNewUID();
 }
 
 void carea::Initialize( CDisplayList * dlist )
@@ -51,6 +52,7 @@ carea::~carea()
 			m_dlist->Remove( dl_via_thermal[is] );
 	}
 	delete poly;
+	pcb_cuid.ReleaseUID( m_uid );
 }
 
 // carea copy constructor
@@ -63,7 +65,7 @@ carea::carea( const carea& s )
 }
 
 // carea assignment operator
-// doesn't actually assign but required for CArray<carea,carea>.InsertAt to work
+// doesn't actually assign but required for CArray<carea,carea>.InsertAt()
 carea &carea::operator=( carea &a )
 {
 	return *this;
@@ -103,9 +105,7 @@ cnet * CNetList::AddNet( CString name, int max_pins, int def_w, int def_via_w, i
 	new_net->def_via_w = def_via_w;
 	new_net->def_via_hole_w = def_via_hole_w;
 
-	// create id and set name
-	id id( ID_NET, 0 );
-	new_net->id = id;
+	// set name
 	new_net->name = name;
 
 	// visible by default
@@ -317,7 +317,7 @@ void CNetList::UndrawConnection( cnet * net, int ic )
 	}
 }
 
-// Draw all of the grelements of a connection
+// Draw all of the elements of a connection
 // If m_dlist == 0, do nothing
 //
 void CNetList::DrawConnection( cnet * net, int ic )
@@ -337,6 +337,8 @@ void CNetList::DrawConnection( cnet * net, int ic )
 			s_id.i = ic;
 			s_id.sst = ID_SEG;
 			s_id.ii = is;
+			s_id.st_uid = c->m_uid;
+			s_id.sst_uid = s->m_uid;
 			int v = 1;
 			if( s->layer == LAY_RAT_LINE )
 				v = net->visible;
@@ -345,8 +347,7 @@ void CNetList::DrawConnection( cnet * net, int ic )
 				shape = DL_CURVE_CW;
 			else if( s->curve == cseg::CCW )
 				shape = DL_CURVE_CCW;
-//			s->dl_el = m_dlist->Add( s_id, net, s->layer, DL_LINE, v,
- 			s->dl_el = m_dlist->Add( s_id, net, s->layer, shape, v,
+ 			s->dl_el = m_dlist->Add( s_id, net, s->layer, shape, v, 
 				s->width, 0, pre_v->x, pre_v->y, post_v->x, post_v->y,
 				0, 0 );
 			s_id.sst = ID_SEL_SEG;
@@ -673,7 +674,7 @@ int CNetList::AddNetConnect( cnet * net, int p1, int p2 )
 	if( pin_index1 == -1 || pin_index2 == -1 )
 		return -1;
 
-	// add a single unrouted segment
+	// add a single unrouted segment between pins
 	CPoint pi, pf;
 	pi = m_plist->GetPinPoint( net->pin[p1].part, net->pin[p1].pin_name );
 	pf = m_plist->GetPinPoint( net->pin[p2].part, net->pin[p2].pin_name );
@@ -1749,7 +1750,7 @@ int CNetList::InsertSegment( cnet * net, int ic, int iseg, int x, int y, int lay
 		{
 			c->seg[i] = c->seg[i-1];
 			c->vtx[i+1] = c->vtx[i];
-			/* c->vtx[i].m_uid = nl_cuid.GetNewUID();
+			c->vtx[i].m_uid = pcb_cuid.GetNewUID();
 			c->vtx[i].tee_ID = 0;
 			c->vtx[i].force_via_flag = FALSE;
                         */
@@ -4575,7 +4576,13 @@ int CNetList::DrawVia( cnet * net, int ic, int iv )
 	UndrawVia( net, ic, iv );
 
 	// draw via if (v->via_w) > 0
-	id vid( ID_NET, ID_CONNECT, ic, ID_VERTEX, iv );
+	id vid = net->id;
+	vid.st = ID_CONNECT;
+	vid.i = ic;
+	vid.st_uid = c->m_uid;
+	vid.sst = ID_VERTEX;
+	vid.ii = iv;
+	vid.sst_uid = v->m_uid;
 	if( v->via_w )
 	{
 		// draw via
