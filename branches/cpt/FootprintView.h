@@ -197,6 +197,7 @@ public:
 	BOOL m_polyline_closed_flag;
 	int m_polyline_style;	// STRAIGHT, ARC_CW or ARC_CCW
 	int m_polyline_width;
+	int m_polyline_layer;
 
 	// flag to disable context menu on right-click,
 	// if right-click handled some other way
@@ -352,6 +353,7 @@ public:
 	afx_msg void OnAddPin();
 	afx_msg void OnFootprintFileSaveAs();
 	afx_msg void OnAddPolyline();
+	afx_msg void OnEditPolyline();
 	afx_msg void OnFootprintFileImport();
 	afx_msg void OnFootprintFileClose();
 	afx_msg void OnFootprintFileNew();

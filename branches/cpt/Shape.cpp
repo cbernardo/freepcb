@@ -90,13 +90,13 @@ void CShape::Clear()
 	m_units = MIL;
 	m_sel_xi = m_sel_yi = 0;
 	m_sel_xf = m_sel_yf = 500*NM_PER_MIL;
-	m_ref_layer_flag = 0;
+	m_ref_layer_index = 0;
 	m_ref_size = 100*NM_PER_MIL;
 	m_ref_xi = 100*NM_PER_MIL;
 	m_ref_yi = 200*NM_PER_MIL;
 	m_ref_angle = 0;
 	m_ref_w = 10*NM_PER_MIL;
-	m_value_layer_flag = 0;
+	m_value_layer_index = 0;
 	m_value_size = 100*NM_PER_MIL;		
 	m_value_xi = 100*NM_PER_MIL;
 	m_value_yi = 0;
@@ -1251,7 +1251,7 @@ int CShape::MakeFromFile( CStdioFile * in_file, CString name,
 				m_ref_angle = my_atoi( &p[3] ); 
 				m_ref_w = GetDimensionFromString( &p[4], m_units);
 				if( np >= 7 )
-					m_ref_layer_flag = my_atoi( &p[5] );
+					m_ref_layer_index = my_atoi( &p[5] );
 				bRef = TRUE;
 			}
 			else if( key_str == "value_text" && np >= 6 )
@@ -1262,7 +1262,7 @@ int CShape::MakeFromFile( CStdioFile * in_file, CString name,
 				m_value_angle = my_atoi( &p[3] ); 
 				m_value_w = GetDimensionFromString( &p[4], m_units);
 				if( np >= 7 )
-					m_value_layer_flag = my_atoi( &p[5] );
+					m_value_layer_index = my_atoi( &p[5] );
 				bValue = TRUE;
 			}
 			else if( key_str == "centroid" && np >= 4 )
@@ -1306,12 +1306,15 @@ int CShape::MakeFromFile( CStdioFile * in_file, CString name,
 			else if( (key_str == "outline_polygon" || key_str == "outline_polyline")
 				&& np >= 4 )
 			{
+				int layer_index = 0;
 				int w = GetDimensionFromString( &p[0], m_units);
 				int x = GetDimensionFromString( &p[1], m_units);
 				int y = GetDimensionFromString( &p[2], m_units);
+				if( np >= 5 )
+					layer_index = my_atoi( &p[3] );
 				int npolys = m_outline_poly.GetSize();
 				m_outline_poly.SetSize(npolys+1);
-				m_outline_poly[npolys].Start( 0, w, 0, x, y, 0, NULL, NULL );
+				m_outline_poly[npolys].Start( LAY_FP_SILK_TOP+layer_index, w, 0, x, y, 0, NULL, NULL );
 			}
 			else if( key_str == "next_corner" && np >= 3 )
 			{
@@ -1547,14 +1550,14 @@ int CShape::Copy( CShape * shape )
 	m_sel_xf = shape->m_sel_xf;
 	m_sel_yf = shape->m_sel_yf;
 	// reference designator text
-	m_ref_layer_flag = shape->m_ref_layer_flag;
+	m_ref_layer_index = shape->m_ref_layer_index;
 	m_ref_size = shape->m_ref_size;
 	m_ref_w = shape->m_ref_w;
 	m_ref_xi = shape->m_ref_xi;
 	m_ref_yi = shape->m_ref_yi;
 	m_ref_angle = shape->m_ref_angle;
 	// value text
-	m_value_layer_flag = shape->m_value_layer_flag;
+	m_value_layer_index = shape->m_value_layer_index;
 	m_value_size = shape->m_value_size;
 	m_value_w = shape->m_value_w;
 	m_value_xi = shape->m_value_xi;
@@ -1725,14 +1728,14 @@ int CShape::WriteFootprint( CStdioFile * file )
 		line.Format( "  sel_rect: %s %s %s %s\n", 
 			ws(m_sel_xi,m_units), ws(m_sel_yi,m_units), ws(m_sel_xf,m_units), ws(m_sel_yf,m_units) );
 		file->WriteString( line );
-		int layer_flag = 0;
+		int layer_index = 0;
 		line.Format( "  ref_text: %s %s %s %d %s %d\n", 
 			ws(m_ref_size,m_units), ws(m_ref_xi,m_units), ws(m_ref_yi,m_units), m_ref_angle, 
-			ws(m_ref_w,m_units), m_ref_layer_flag );
+			ws(m_ref_w,m_units), m_ref_layer_index );
 		file->WriteString( line );
 		line.Format( "  value_text: %s %s %s %d %s %d\n", 
 			ws(m_value_size,m_units), ws(m_value_xi,m_units), ws(m_value_yi,m_units), m_value_angle, 
-			ws(m_value_w,m_units), m_value_layer_flag );
+			ws(m_value_w,m_units), m_value_layer_index );
 		file->WriteString( line );
 		line.Format( "  centroid: %d %s %s %d\n", 
 			m_centroid_type, ws(m_centroid_x,m_units), ws(m_centroid_y,m_units), m_centroid_angle );
@@ -1753,8 +1756,12 @@ int CShape::WriteFootprint( CStdioFile * file )
 		}
 		for( int ip=0; ip<m_outline_poly.GetSize(); ip++ )
 		{
-			line.Format( "  outline_polyline: %s %s %s\n", ws(m_outline_poly[ip].GetW(),m_units),
-				ws(m_outline_poly[ip].GetX(0),m_units), ws(m_outline_poly[ip].GetY(0),m_units) );
+			int layer_index = 0;
+			if( m_outline_poly[ip].GetLayer() == LAY_FP_SILK_BOTTOM )
+				layer_index = 1;
+			line.Format( "  outline_polyline: %s %s %s %d\n", ws(m_outline_poly[ip].GetW(),m_units),
+				ws(m_outline_poly[ip].GetX(0),m_units), ws(m_outline_poly[ip].GetY(0),m_units),
+				layer_index );
 			file->WriteString( line );
 			int nc = m_outline_poly[ip].GetNumCorners();
 			for( int ic=1; ic<nc; ic++ )
@@ -2829,9 +2836,9 @@ void CEditShape::Draw( CDisplayList * dlist, SMFontUtil * fontutil )
 
 	// draw ref designator text
 	id rid( ID_PART, ID_REF_TXT );
-	BOOL bMirror = m_ref_layer_flag;
+	BOOL bMirror = m_ref_layer_index;
 	int layer = LAY_FP_SILK_TOP;
-	if( m_ref_layer_flag )
+	if( m_ref_layer_index )
 		layer = LAY_FP_SILK_BOTTOM;
 	CString r_str( "REF" );
 	m_ref_text.Init( m_dlist, rid, m_ref_xi, m_ref_yi, m_ref_angle,
@@ -2840,9 +2847,9 @@ void CEditShape::Draw( CDisplayList * dlist, SMFontUtil * fontutil )
 
 	// draw value text
 	id vid( ID_PART, ID_VALUE_TXT );
-	bMirror = m_value_layer_flag ;
+	bMirror = m_value_layer_index ;
 	layer = LAY_FP_SILK_TOP;
-	if( m_value_layer_flag )
+	if( m_value_layer_index )
 		layer = LAY_FP_SILK_BOTTOM;
 	CString v_str( "VALUE" );
 	m_value_text.Init( m_dlist, vid, m_value_xi, m_value_yi, m_value_angle,
@@ -2854,7 +2861,6 @@ void CEditShape::Draw( CDisplayList * dlist, SMFontUtil * fontutil )
 	for( int i=0; i<m_outline_poly.GetSize(); i++ )
 	{
 		p_id.i = i;
-		m_outline_poly[i].SetLayer( LAY_FP_SILK_TOP );
 		int sel_box_size = m_outline_poly[i].GetW();
 		sel_box_size = max( sel_box_size, 5*NM_PER_MIL );
 		m_outline_poly[i].SetSelBoxSize( sel_box_size );

@@ -6,6 +6,7 @@
 #include "DlgAddPoly.h"
 #include ".\dlgaddpoly.h"
 
+static int gLastLayerIndex = -1;
 
 // CDlgAddPoly dialog
 
@@ -14,6 +15,7 @@ CDlgAddPoly::CDlgAddPoly(CWnd* pParent /*=NULL*/)
 	: CDialog(CDlgAddPoly::IDD, pParent)
 {
 	m_width = 10*NM_PER_MIL;	// default
+	m_layer_index = 0;
 }
 
 CDlgAddPoly::~CDlgAddPoly()
@@ -27,6 +29,7 @@ void CDlgAddPoly::DoDataExchange(CDataExchange* pDX)
 	DDX_Control(pDX, IDC_RADIO_CLOSED, m_radio_closed);
 	DDX_Control(pDX, IDC_COMBO_ADD_POLY_UNITS, m_combo_units);
 	DDX_Control( pDX, IDC_EDIT_WIDTH, m_edit_width );
+	DDX_Control(pDX, IDC_COMBO_LAYER, m_combo_layer);
 	if( !pDX->m_bSaveAndValidate )
 	{
 		// entry
@@ -37,6 +40,8 @@ void CDlgAddPoly::DoDataExchange(CDataExchange* pDX)
 			m_combo_units.SetCurSel( 0 );
 		else
 			m_combo_units.SetCurSel( 1 );
+		m_combo_layer.InsertString( 0, "TOP SILK" );
+		m_combo_layer.InsertString( 1, "BOTTOM SILK" );
 		SetFields();
 	}
 	else
@@ -51,12 +56,43 @@ void CDlgAddPoly::DoDataExchange(CDataExchange* pDX)
 			AfxMessageBox( s );
 			pDX->Fail();
 		}
+		gLastLayerIndex = m_layer_index;
 	}
 }
 
-void CDlgAddPoly::Initialize( int units )
+// initialize parameters
+// if bNewPoly, this is a new polyline
+// if layer_index == -1, use layer used last time, or 0
+// if width == -1, use width used last time, or 10 mils
+// if bNewPoly, assume closed
+void CDlgAddPoly::Initialize( BOOL bNewPoly, int layer_index, int units, 
+							 int width, BOOL bClosed )
 {
+	m_bNewPoly = bNewPoly;
 	m_units = units;
+	if( layer_index == -1 )
+	{
+		if( gLastLayerIndex == -1 )
+		{
+			m_layer_index = 0;
+		}
+		else
+		{
+			m_layer_index = gLastLayerIndex;
+		}
+	}
+	else
+	{
+		m_layer_index = layer_index;
+	}
+	if( bNewPoly )
+	{
+		m_closed_flag = 1;
+	}
+	else
+	{
+		m_closed_flag = bClosed;
+	}
 }
 
 
@@ -78,6 +114,8 @@ void CDlgAddPoly::GetFields()
 		m_edit_width.GetWindowText( str );
 		m_width = atof( str ) * 1000000.0;
 	}
+	m_layer_index = m_combo_layer.GetCurSel();
+	m_closed_flag = m_radio_closed.GetCheck();
 }
 
 void CDlgAddPoly::SetFields()
@@ -93,7 +131,11 @@ void CDlgAddPoly::SetFields()
 		MakeCStringFromDouble( &str, m_width/1000000.0 );
 		m_edit_width.SetWindowText( str );
 	}
+	m_combo_layer.SetCurSel( m_layer_index );
+	m_radio_open.SetCheck( !m_closed_flag );
+	m_radio_closed.SetCheck( m_closed_flag );
 }
+
 void CDlgAddPoly::OnCbnSelchangeComboAddPolyUnits()
 {
 	GetFields();
