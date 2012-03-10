@@ -31,7 +31,6 @@ void CDlgValueText::DoDataExchange(CDataExchange* pDX)
 	DDX_Control(pDX, IDC_EDIT_WIDTH, m_edit_width);
 	DDX_Control(pDX, IDC_EDIT_DEF_WIDTH, m_edit_def_width);
 	DDX_Control(pDX, IDC_CHECK_VISIBLE, m_check_visible);
-	DDX_Control(pDX, IDC_COMBO_LAYER_VALUE, m_combo_layer);
 	if( !pDX->m_bSaveAndValidate )
 	{
 		// entry
@@ -39,15 +38,12 @@ void CDlgValueText::DoDataExchange(CDataExchange* pDX)
 		m_edit_ref_des.SetWindowText( m_part->ref_des );
 		m_edit_value.EnableWindow( FALSE );
 		m_edit_value.SetWindowText( m_part->value );
-
 		m_combo_units.InsertString( 0, "MIL" );
 		m_combo_units.InsertString( 1, "MM" );
-
-		m_combo_layer.InsertString( 0, "TOP SILK" );
-		m_combo_layer.InsertString( 1, "BOTTOM SILK" );
-		m_combo_layer.InsertString( 2, "TOP COPPER" );
-		m_combo_layer.InsertString( 3, "BOTTOM COPPER" );
-
+		if( m_units == MIL )
+			m_combo_units.SetCurSel( 0 );
+		else
+			m_combo_units.SetCurSel( 1 );
 		if( m_width == m_height/10 )
 		{
 			m_radio_set.SetCheck( FALSE );
@@ -85,7 +81,6 @@ void CDlgValueText::Initialize( CPartList * plist, cpart * part )
 	m_width = m_part->m_value_w;
 	m_height = m_part->m_value_size;
 	m_def_width = m_height/10;
-	m_layer = FlipLayer( part->side, part->m_value_layer );
 }
 
 BEGIN_MESSAGE_MAP(CDlgValueText, CDialog)
@@ -136,14 +131,6 @@ void CDlgValueText::GetFields()
 {
 	CString str;
 	m_vis = m_check_visible.GetCheck();
-	switch( m_combo_layer.GetCurSel() )
-	{
-	case 0: m_layer = LAY_SILK_TOP; break;
-	case 1: m_layer = LAY_SILK_BOTTOM; break;
-	case 2: m_layer = LAY_TOP_COPPER; break;
-	case 3: m_layer = LAY_BOTTOM_COPPER; break;
-	default: ASSERT(0); break;
-	}
 	if( m_units == MIL )
 	{
 		m_edit_height.GetWindowText( str );
@@ -165,17 +152,8 @@ void CDlgValueText::SetFields()
 {
 	CString str;
 	m_check_visible.SetCheck( m_vis );
-	switch( m_layer )
-	{
-	case LAY_SILK_TOP: m_combo_layer.SetCurSel(0); break;
-	case LAY_SILK_BOTTOM: m_combo_layer.SetCurSel(1); break;
-	case LAY_TOP_COPPER: m_combo_layer.SetCurSel(2); break;
-	case LAY_BOTTOM_COPPER: m_combo_layer.SetCurSel(3); break;
-	default: ASSERT(0); break;
-	}
 	if( m_units == MIL )
 	{
-		m_combo_units.SetCurSel( 0 );
 		MakeCStringFromDouble( &str, m_height/NM_PER_MIL );
 		m_edit_height.SetWindowText( str );
 		MakeCStringFromDouble( &str, m_width/NM_PER_MIL );
@@ -185,7 +163,6 @@ void CDlgValueText::SetFields()
 	}
 	else
 	{
-		m_combo_units.SetCurSel( 1 );
 		MakeCStringFromDouble( &str, m_height/1000000.0 );
 		m_edit_height.SetWindowText( str );
 		MakeCStringFromDouble( &str, m_width/1000000.0 );

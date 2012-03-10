@@ -128,7 +128,7 @@ void CDlgImportFootprint::OnTvnSelchangedPartLibTree(NMHDR *pNMHDR, LRESULT *pRe
 		void * ptr;
 		// lookup shape in cache
 		BOOL bInCache = m_footprint_cache_map->Lookup( m_footprint_name, ptr );
-		if( bInCache && m_in_cache )
+		if( bInCache )
 		{
 			// found it, make shape
 			m_shape.Copy( (CShape*)ptr );

@@ -27,7 +27,6 @@ CPolyLine::CPolyLine( CDisplayList * dl )
 	m_gpc_poly = new gpc_polygon;
 	m_gpc_poly->num_contours = 0;
 	m_php_poly = new polygon;
-	m_uid = pcb_cuid.GetNewUID();
 }
 
 CPolyLine::CPolyLine()
@@ -40,7 +39,6 @@ CPolyLine::CPolyLine()
 	m_gpc_poly = new gpc_polygon;
 	m_gpc_poly->num_contours = 0;
 	m_php_poly = new polygon;
-	m_uid = pcb_cuid.GetNewUID();
 }
 
 // destructor, removes display elements
@@ -51,7 +49,6 @@ CPolyLine::~CPolyLine()
 	FreeGpcPoly();
 	delete m_gpc_poly;
 	delete m_php_poly;
-	pcb_cuid.ReleaseUID( m_uid );
 //	if( m_closed )
 //		DeleteObject( m_hrgn );
 }
@@ -614,7 +611,7 @@ int CPolyLine::RestoreArcs( CArray<CArc> * arc_array, CArray<CPolyLine*> * pa )
 // if polyline is board outline, enter with:
 //	id.type = ID_BOARD
 //	id.st = ID_BOARD_OUTLINE
-//	id.i = index to outline
+//	id.i = 0
 //	ptr = NULL
 //
 // if polyline is copper area, enter with:
@@ -624,17 +621,15 @@ int CPolyLine::RestoreArcs( CArray<CArc> * arc_array, CArray<CPolyLine*> * pa )
 //	ptr = pointer to net
 //
 void CPolyLine::Start( int layer, int w, int sel_box, int x, int y, 
-					  int hatch, id * set_id, void * ptr )
+					  int hatch, id * id, void * ptr )
 {
 	m_layer = layer;
 	m_w = w;
 	m_sel_box = sel_box;
-	// set id for polyline
-	if( set_id )
-		m_id = *set_id;
+	if( id )
+		m_id = *id;
 	else
 		m_id.Clear();
-	m_id.st_uid = m_uid;	// insert polyline UID into id
 	m_ptr = ptr;
 	m_ncorners = 1;
 	m_hatch = hatch;
@@ -646,12 +641,9 @@ void CPolyLine::Start( int layer, int w, int sel_box, int x, int y,
 	if( m_sel_box && m_dlist )
 	{
 		dl_corner_sel.SetSize( 1 );
-		// create id for selection rect
-		id sel_id = m_id;
-		sel_id.sst = ID_SEL_CORNER;
-		sel_id.ii = 0;					
-		sel_id.sst_uid = corner[0].m_uid;	
-		dl_corner_sel[0] = m_dlist->AddSelector( sel_id, m_ptr, m_layer, DL_HOLLOW_RECT, 
+		m_id.sst = ID_SEL_CORNER;
+		m_id.ii = 0;
+		dl_corner_sel[0] = m_dlist->AddSelector( m_id, m_ptr, m_layer, DL_HOLLOW_RECT, 
 			1, 0, 0, x-m_sel_box, y-m_sel_box, 
 			x+m_sel_box, y+m_sel_box, 0, 0 );
 	}
@@ -705,53 +697,13 @@ void CPolyLine::Close( int style, BOOL bDraw )
 }
 
 // move corner of polyline
-// if bEnforceCircularArcs == TRUE, convert adjacent sides to STRAIGHT if angle not
-// a multiple of 45 degrees and return TRUE, otherwise return FALSE
 //
-BOOL CPolyLine::MoveCorner( int ic, int x, int y, BOOL bEnforceCircularArcs )
+void CPolyLine::MoveCorner( int ic, int x, int y )
 {
 	Undraw();
 	corner[ic].x = x;
 	corner[ic].y = y;
-	BOOL bReturn = FALSE;
-	if( bEnforceCircularArcs )
-	{
-		int icont = GetContour( ic );
-		int icont_start = GetContourStart( icont );
-		int icont_end = GetContourEnd( icont );
-		int ic_prev, ic_next;
-		if( ic == icont_start )
-		{
-			// ic is first corner in contour
-			ic_next = ic+1;
-			ic_prev = icont_end;
-		}
-		else if( ic == icont_end )
-		{
-			// ic is last corner in contour
-			ic_next = icont_start;
-			ic_prev = ic - 1;
-		}
-		else
-		{
-			ic_next = ic+1;
-			ic_prev = ic-1;
-		}
-		if( abs(GetX(ic)-GetX(ic_next)) != abs(GetY(ic)-GetY(ic_next)) )
-		{
-			// endpoints not at multiple of 45 degree angle
-			SetSideStyle(ic, STRAIGHT );
-			bReturn = TRUE;
-		}
-		if( abs(GetX(ic)-GetX(ic_prev)) != abs(GetY(ic)-GetY(ic_prev)) )
-		{
-			// endpoints not at multiple of 45 degree angle
-			SetSideStyle(ic_prev, STRAIGHT );
-			bReturn = TRUE;
-		}
-	}
 	Draw();
-	return bReturn;
 }
 
 // delete corner and adjust arrays
@@ -900,9 +852,7 @@ void CPolyLine::Draw(  CDisplayList * dl )
 		// now draw elements
 		for( int ic=0; ic<m_ncorners; ic++ )
 		{
-			id sel_id = m_id;	// id for selection rects
-			sel_id.ii = ic;
-			sel_id.sst_uid = corner[ic].m_uid;
+			m_id.ii = ic;
 			int xi = corner[ic].x;
 			int yi = corner[ic].y;
 			int xf, yf;
@@ -920,8 +870,8 @@ void CPolyLine::Draw(  CDisplayList * dl )
 			// draw
 			if( m_sel_box )
 			{
-				m_id.sst = ID_SEL_CORNER;	// selection rect for corner
-				dl_corner_sel[ic] = m_dlist->AddSelector( sel_id, m_ptr, m_layer, DL_HOLLOW_RECT, 
+				m_id.sst = ID_SEL_CORNER;
+				dl_corner_sel[ic] = m_dlist->AddSelector( m_id, m_ptr, m_layer, DL_HOLLOW_RECT, 
 					1, 0, 0, xi-m_sel_box, yi-m_sel_box, 
 					xi+m_sel_box, yi+m_sel_box, 0, 0 );
 			}
@@ -940,13 +890,13 @@ void CPolyLine::Draw(  CDisplayList * dl )
 					g_type = DL_ARC_CW;
 				else if( side_style[ic] == ARC_CCW )
 					g_type = DL_ARC_CCW;
-				sel_id.sst = ID_SIDE;	
-				dl_side[ic] = m_dlist->Add( sel_id, m_ptr, m_layer, g_type, 
+				m_id.sst = ID_SIDE;
+				dl_side[ic] = m_dlist->Add( m_id, m_ptr, m_layer, g_type, 
 					1, m_w, 0, xi, yi, xf, yf, 0, 0 );
 				if( m_sel_box )
 				{
 					m_id.sst = ID_SEL_SIDE;
-					dl_side_sel[ic] = m_dlist->AddSelector( sel_id, m_ptr, m_layer, g_type, 
+					dl_side_sel[ic] = m_dlist->AddSelector( m_id, m_ptr, m_layer, g_type, 
 						1, m_w, 0, xi, yi, xf, yf, 0, 0 );
 				}
 			}

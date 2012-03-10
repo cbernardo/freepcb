@@ -1565,7 +1565,7 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 			f->WriteString( "%LPD*%\n" );
 			current_ap.m_type = CAperture::AP_NONE;	// force selection of aperture
 		}
-		// draw pads, silkscreen items, reference designators and value
+		// draw pads and reference designators
 		if( pl )
 		{
 			// iterate through all parts and draw pads
@@ -1643,101 +1643,89 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 						}
 					}
 				}
-				// draw part outline and text strings if any strokes on this layer
-				BOOL bOnLayer = FALSE;
-				int nstrokes = part->m_outline_stroke.GetSize();
-				for( int ips=0; ips<nstrokes; ips++ )
+				// now draw silkscreen items
+				if( layer == LAY_SILK_TOP && part->side == 0 
+					|| layer == LAY_SILK_BOTTOM && part->side == 1 )
 				{
-					if( part->m_outline_stroke[ips].layer == layer )
-					{
-						bOnLayer = TRUE;
-						break;
-					}
-				}
-				if( bOnLayer )
-				{
+					// draw part outline
 					if( PASS1 )
 					{
-						line.Format( "G04 draw outline and text for part %s*\n", part->ref_des ); 
+						line.Format( "G04 draw part outline for part %s*\n", part->ref_des ); 
 						f->WriteString( line );
 					}
+					int nstrokes = part->m_outline_stroke.GetSize();
 					if( nstrokes )
 					{
 						for( int ips=0; ips<nstrokes; ips++ )
 						{
-							if( part->m_outline_stroke[ips].layer == layer )
+							int s_w = max( part->m_outline_stroke[ips].w, min_silkscreen_stroke_wid );
+							CAperture outline_ap( CAperture::AP_CIRCLE, s_w, 0 );
+							ChangeAperture( &outline_ap, &current_ap, &ap_array, PASS0, f );
+							// move to start of stroke
+							if( PASS1 )
 							{
-								int s_w = max( part->m_outline_stroke[ips].w, min_silkscreen_stroke_wid );
-								CAperture outline_ap( CAperture::AP_CIRCLE, s_w, 0 );
-								ChangeAperture( &outline_ap, &current_ap, &ap_array, PASS0, f );
-								if( PASS1 )
-								{
-									// move to start of stroke
-									::WriteMoveTo( f, part->m_outline_stroke[ips].xi, 
-										part->m_outline_stroke[ips].yi, LIGHT_OFF );
-									int type;
-									if( part->m_outline_stroke[ips].type == DL_LINE )
-										type = CPolyLine::STRAIGHT;
-									else if( part->m_outline_stroke[ips].type == DL_ARC_CW )
-										type = CPolyLine::ARC_CW;
-									else if( part->m_outline_stroke[ips].type == DL_ARC_CCW )
-										type = CPolyLine::ARC_CCW;
-									else
-										ASSERT(0);
-									::WritePolygonSide( f, 
-										part->m_outline_stroke[ips].xi, 
-										part->m_outline_stroke[ips].yi, 
-										part->m_outline_stroke[ips].xf, 
-										part->m_outline_stroke[ips].yf, 
-										type, 10, LIGHT_ON );
-								}
+								::WriteMoveTo( f, part->m_outline_stroke[ips].xi, 
+									part->m_outline_stroke[ips].yi, LIGHT_OFF );
+								int type;
+								if( part->m_outline_stroke[ips].type == DL_LINE )
+									type = CPolyLine::STRAIGHT;
+								else if( part->m_outline_stroke[ips].type == DL_ARC_CW )
+									type = CPolyLine::ARC_CW;
+								else if( part->m_outline_stroke[ips].type == DL_ARC_CCW )
+									type = CPolyLine::ARC_CCW;
+								else
+									ASSERT(0);
+								::WritePolygonSide( f, 
+									part->m_outline_stroke[ips].xi, 
+									part->m_outline_stroke[ips].yi, 
+									part->m_outline_stroke[ips].xf, 
+									part->m_outline_stroke[ips].yf, 
+									type, 10, LIGHT_ON );
 							}
 						}
 					}
-				}
-				// draw reference designator text
-				if( part->m_ref_size && part->m_ref_vis 
-					&& (pl->GetRefPCBLayer( part ) == layer) )
-				{
-					if( PASS1 )
+					// draw reference designator text
+					if( part->m_ref_size && part->m_ref_vis )
 					{
-						line.Format( "G04 draw reference designator for part %s*\n", part->ref_des ); 
-						f->WriteString( line );
-					}
-					int s_w = max( part->m_ref_w, min_silkscreen_stroke_wid );
-					CAperture ref_ap( CAperture::AP_CIRCLE, s_w, 0 );
-					ChangeAperture( &ref_ap, &current_ap, &ap_array, PASS0, f );
-					if( PASS1 )
-					{
-						for( int istroke=0; istroke<part->ref_text_stroke.GetSize(); istroke++ )
+						if( PASS1 )
 						{
-							::WriteMoveTo( f, part->ref_text_stroke[istroke].xi, 
-								part->ref_text_stroke[istroke].yi, LIGHT_OFF );
-							::WriteMoveTo( f, part->ref_text_stroke[istroke].xf, 
-								part->ref_text_stroke[istroke].yf, LIGHT_ON );
+							line.Format( "G04 draw reference designator for part %s*\n", part->ref_des ); 
+							f->WriteString( line );
+						}
+						int s_w = max( part->m_ref_w, min_silkscreen_stroke_wid );
+						CAperture ref_ap( CAperture::AP_CIRCLE, s_w, 0 );
+						ChangeAperture( &ref_ap, &current_ap, &ap_array, PASS0, f );
+						if( PASS1 )
+						{
+							for( int istroke=0; istroke<part->ref_text_stroke.GetSize(); istroke++ )
+							{
+								::WriteMoveTo( f, part->ref_text_stroke[istroke].xi, 
+									part->ref_text_stroke[istroke].yi, LIGHT_OFF );
+								::WriteMoveTo( f, part->ref_text_stroke[istroke].xf, 
+									part->ref_text_stroke[istroke].yf, LIGHT_ON );
+							}
 						}
 					}
-				}
-				// draw value text
-				if( part->m_value_size && part->m_value_vis 
-					&& (pl->GetValuePCBLayer(part) == layer) )
-				{
-					if( PASS1 )
+					// draw value text
+					if( part->m_value_size && part->m_value_vis )
 					{
-						line.Format( "G04 draw value for part %s*\n", part->ref_des ); 
-						f->WriteString( line );
-					}
-					int s_w = max( part->m_ref_w, min_silkscreen_stroke_wid );
-					CAperture value_ap( CAperture::AP_CIRCLE, s_w, 0 );
-					ChangeAperture( &value_ap, &current_ap, &ap_array, PASS0, f );
-					if( PASS1 )
-					{
-						for( int istroke=0; istroke<part->value_stroke.GetSize(); istroke++ )
+						if( PASS1 )
 						{
-							::WriteMoveTo( f, part->value_stroke[istroke].xi, 
-								part->value_stroke[istroke].yi, LIGHT_OFF );
-							::WriteMoveTo( f, part->value_stroke[istroke].xf, 
-								part->value_stroke[istroke].yf, LIGHT_ON );
+							line.Format( "G04 draw value for part %s*\n", part->ref_des ); 
+							f->WriteString( line );
+						}
+						int s_w = max( part->m_ref_w, min_silkscreen_stroke_wid );
+						CAperture value_ap( CAperture::AP_CIRCLE, s_w, 0 );
+						ChangeAperture( &value_ap, &current_ap, &ap_array, PASS0, f );
+						if( PASS1 )
+						{
+							for( int istroke=0; istroke<part->value_stroke.GetSize(); istroke++ )
+							{
+								::WriteMoveTo( f, part->value_stroke[istroke].xi, 
+									part->value_stroke[istroke].yi, LIGHT_OFF );
+								::WriteMoveTo( f, part->value_stroke[istroke].xf, 
+									part->value_stroke[istroke].yf, LIGHT_ON );
+							}
 						}
 					}
 				}

@@ -318,6 +318,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\DlgFpRefText.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\DlgFpText.cpp"
 				>
 			</File>
@@ -450,10 +454,6 @@
 				>
 			</File>
 			<File
-				RelativePath=".\ellipse_newton.cpp"
-				>
-			</File>
-			<File
 				RelativePath=".\file_io.cpp"
 				>
 			</File>
@@ -491,10 +491,6 @@
 			</File>
 			<File
 				RelativePath="ivex_mod_file.cpp"
-				>
-			</File>
-			<File
-				RelativePath=".\layers.cpp"
 				>
 			</File>
 			<File
@@ -695,6 +691,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\DlgFpRefText.h"
+				>
+			</File>
+			<File
 				RelativePath=".\DlgFpText.h"
 				>
 			</File>
@@ -820,10 +820,6 @@
 			</File>
 			<File
 				RelativePath="DlgWizQuad.h"
-				>
-			</File>
-			<File
-				RelativePath=".\ellipse_newton.h"
 				>
 			</File>
 			<File

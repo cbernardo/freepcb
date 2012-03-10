@@ -1,3 +1,7 @@
+// TextList.cpp ... implementation of class CTextList
+//
+// class representing text elements for PCB (except reference designators for parts)
+//
 #include "stdafx.h"
 #include "utility.h"
 #include "textlist.h"
@@ -7,26 +11,32 @@
 #include "smfontutil.h"
 #include "file_io.h"
 
-// Valid id's for CTexts are:
+// global index for iterating through texts
+int g_it;
+
+// CText constructors
 //	tid.type = ID_TEXT or
 //	tid.type = ID_PART 
 //		tid.st = ID_REF_TXT or 
 //		tid.st = ID_VALUE_TXT
 
+// tid.st = 
 
-//*******************************************************************
-// Implementation of class CText, representing a text string on a PCB
-
-// Default constructor just clears m_dlist so text can't drawn
-//
 CText::CText()
 {
 	m_dlist = NULL;
-	m_smfontutil = NULL;
 }
 
-// Initialize text data, create strokes if smfontutil != NULL
-// Draw strokes them into display list if dlist != NULL
+CText::CText( CDisplayList * dlist, id tid, int x, int y, int angle, int mirror,
+			BOOL bNegative, int layer, int font_size, int stroke_width, 
+			SMFontUtil * smfontutil, CString * str_ptr )
+{
+	m_dlist = NULL;
+	Init( dlist, tid, x, y, angle, mirror, bNegative, layer, font_size, stroke_width, 
+			smfontutil, str_ptr );
+}
+
+// draws strokes into display list if dlist != 0
 //
 void CText::Init( CDisplayList * dlist, id tid, int x, int y, int angle, int mirror,
 			BOOL bNegative, int layer, int font_size, int stroke_width, 
@@ -64,14 +74,12 @@ CText::~CText()
 
 // Draw text as a series of strokes
 // If dlist == NULL, generate strokes but don't draw into display list
-//
 void CText::Draw( CDisplayList * dlist, SMFontUtil * smfontutil )
 {
 	if( smfontutil )
 	{
+		// draw text
 		m_dlist = dlist;
-
-		// make stroke array
 		id tid = m_id;
 		if( tid.type == ID_TEXT )
 			tid.st = ID_STROKE;
@@ -79,6 +87,7 @@ void CText::Draw( CDisplayList * dlist, SMFontUtil * smfontutil )
 			tid.sst = ID_STROKE;
 		m_stroke.SetSize( 1000 );
 
+		// now draw strokes
 		CPoint si, sf;
 		double x_scale = (double)m_font_size/22.0;
 		double y_scale = (double)m_font_size/22.0;
@@ -127,24 +136,19 @@ void CText::Draw( CDisplayList * dlist, SMFontUtil * smfontutil )
 				// rotate
 				RotatePoint( &si, m_angle, zero );
 				RotatePoint( &sf, m_angle, zero );
-				// add x, y
+				// add x, y and draw
 				tid.i = i;
 				m_stroke[i].w = m_stroke_width;
 				m_stroke[i].xi = m_x + si.x;
 				m_stroke[i].yi = m_y + si.y;
 				m_stroke[i].xf = m_x + sf.x;
 				m_stroke[i].yf = m_y + sf.y;
-				// draw into display list
 				if( dlist )
-				{
 					m_stroke[i].dl_el = dlist->Add( tid, this, 
 					m_layer, DL_LINE, 1, m_stroke_width, 0, 
 					m_x+si.x, m_y+si.y, m_x+sf.x, m_y+sf.y, 0, 0 );
-				}
 				else
-				{
 					m_stroke[i].dl_el = NULL;
-				}
 				i++;
 				if( i >= m_stroke.GetSize() )
 					m_stroke.SetSize( i + 100 );
@@ -265,8 +269,7 @@ void CText::Move( int x, int y, int angle,
 }
 
 
-//*******************************************************************
-// Implementation of class CTextList, a list of all CTexts on the PCB
+// CTextList constructor/destructors
 //
 
 // default constructor
@@ -289,13 +292,14 @@ CTextList::CTextList( CDisplayList * dlist, SMFontUtil * smfontutil )
 //
 CTextList::~CTextList()
 {
+	// destroy all CTexts
 	for( int i=0; i<text_ptr.GetSize(); i++ )
 	{
 		delete text_ptr[i];
 	}
 }
 
-// AddText ... adds a new entry to TextList, returns pointer to the entry
+// AddText ... adds a new entry to TextList, returns pointer to entry
 //
 CText * CTextList::AddText( int x, int y, int angle, int mirror, BOOL bNegative, int layer, 
 						   int font_size, int stroke_width, CString * str_ptr, BOOL draw_flag )
@@ -304,16 +308,14 @@ CText * CTextList::AddText( int x, int y, int angle, int mirror, BOOL bNegative,
 	id tid(ID_TEXT, 0, 0, 0, 0);
 	if( draw_flag )
 	{
-		CText * text = new CText();
-		text->Init( m_dlist, tid, x, y, angle, mirror, bNegative, 
+		CText * text = new CText( m_dlist, tid, x, y, angle, mirror, bNegative, 
 			layer, font_size, stroke_width, m_smfontutil, str_ptr );
 		text_ptr.Add( text );
 		return text;
 	}
 	else
 	{
-		CText * text = new CText();
-		text->Init( NULL, tid, x, y, angle, mirror, bNegative, 
+		CText * text = new CText( NULL, tid, x, y, angle, mirror, bNegative, 
 			layer, font_size, stroke_width, NULL, str_ptr );
 		text_ptr.Add( text );
 		return text;
@@ -321,7 +323,7 @@ CText * CTextList::AddText( int x, int y, int angle, int mirror, BOOL bNegative,
 }
 
 // RemoveText ... removes an entry and destroys it
-// returns 0 if successful, 1 if unable to find text
+//	returns 0 if successful, 1 if unable to find text
 //
 int CTextList::RemoveText( CText * text )
 {
@@ -338,7 +340,7 @@ int CTextList::RemoveText( CText * text )
 }
 
 // remove all text entries
-// returns 0 if successful, 1 if unable to find text
+//	returns 0 if successful, 1 if unable to find text
 //
 void CTextList::RemoveAllTexts()
 {
@@ -395,6 +397,18 @@ void CTextList::CancelDraggingText( CText * text )
 		((dl_element*)text->m_stroke[is].dl_el)->visible = 1;
 	}
 }
+
+#if 0
+// move text
+//
+CText * CTextList::MoveText( CText * text, int x, int y, int angle, int mirror, int layer )
+{
+	CText * new_text = AddText( x, y, angle, mirror, layer, text->m_font_size, text->m_stroke_width, &(text->m_str) );
+	new_text->m_guid = text->m_guid;
+	RemoveText( text );
+	return new_text;
+}
+#endif
 
 // move text
 //
@@ -522,8 +536,6 @@ undo_text * CTextList::CreateUndoRecord( CText * text )
 	return undo;
 }
 
-// callback function for undoing changes to text
-//
 void CTextList::TextUndoCallback( int type, void * ptr, BOOL undo )
 {
 	int ifound;
@@ -583,8 +595,6 @@ void CTextList::TextUndoCallback( int type, void * ptr, BOOL undo )
 	delete un_t;
 }
 
-// move the origin for all text
-//
 void CTextList::MoveOrigin( int x_off, int y_off )
 {
 	for( int it=0; it<text_ptr.GetSize(); it++ )
@@ -601,13 +611,36 @@ void CTextList::MoveOrigin( int x_off, int y_off )
 //
 CText * CTextList::GetText( GUID * guid )
 {
-	CIterator_CText iter_t(this);
-	for( CText * t = iter_t.GetFirst(); t != NULL; t = iter_t.GetNext() )		
+	CText * text = GetFirstText();
+	while( text )
 	{
-		if( t->m_guid == *guid )
-			return t;
+		if( text->m_guid == *guid )
+			return text;
+		text = GetNextText();
 	}
 	return NULL;
+}
+
+// return first text in CTextList (or NULL if none)
+//
+CText * CTextList::GetFirstText()
+{
+	g_it = 0;
+	if( text_ptr.GetSize() > 0 )
+		return text_ptr[0];
+	else
+		return NULL;
+}
+
+// return next text in CTextList, or NULL if at end of list
+//
+CText * CTextList::GetNextText()
+{
+	g_it++;
+	if( text_ptr.GetSize() > g_it )
+		return text_ptr[g_it];
+	else
+		return NULL;
 }
 
 // get bounding rectangle for all text strings
@@ -621,8 +654,8 @@ BOOL CTextList::GetTextBoundaries( CRect * r )
 	br.left = INT_MAX;
 	br.top = INT_MIN;
 	br.right = INT_MIN;
-	CIterator_CText iter_t(this);
-	for( CText * t = iter_t.GetFirst(); t != NULL; t = iter_t.GetNext() )		
+	CText * t = GetFirstText();
+	while( t )
 	{
 		for( int is=0; is<t->m_stroke.GetSize(); is++ )
 		{
@@ -637,12 +670,13 @@ BOOL CTextList::GetTextBoundaries( CRect * r )
 			br.right = max( br.right, s->xf + s->w );
 			bValid = TRUE;
 		}
+		t = GetNextText();
 	}
 	*r = br;
 	return bValid;
 }
 
-// get bounding rectangle for text string in PCB coords
+// get bounding rectangle for text string
 // return FALSE if no text strings
 //
 BOOL CTextList::GetTextRectOnPCB( CText * t, CRect * r )
@@ -650,7 +684,7 @@ BOOL CTextList::GetTextRectOnPCB( CText * t, CRect * r )
 	BOOL bValid = FALSE;
 	CRect br;
 	br.left = m_dlist->Get_x( t->dl_sel );
-	br.right = m_dlist->Get_xf( t->dl_sel );
+	br.right = m_dlist->Get_xf( t->dl_sel );;
 	br.bottom = m_dlist->Get_y( t->dl_sel );
 	br.top = m_dlist->Get_yf( t->dl_sel );
 	*r = br;
@@ -662,8 +696,8 @@ BOOL CTextList::GetTextRectOnPCB( CText * t, CRect * r )
 //
 void CTextList::ReassignCopperLayers( int n_new_layers, int * layer )
 {
-	CIterator_CText iter_t(this);
-	for( CText * t = iter_t.GetFirst(); t != NULL; t = iter_t.GetNext() )		
+	CText * t = GetFirstText();
+	while( t )
 	{
 		int old_layer = t->m_layer;
 		if( old_layer >= LAY_TOP_COPPER )
@@ -688,97 +722,7 @@ void CTextList::ReassignCopperLayers( int n_new_layers, int * layer )
 						t->Draw( m_dlist, m_smfontutil ); 
 					}
 		}
+		t = GetNextText();
 	}
 }
 
-//*****************************************************************
-// Implementation of class CIterator_CText
-//
-// constructor
-//
-CIterator_CText::CIterator_CText( CTextList * tlist )
-: m_tlist(tlist)
-, m_CurrentPos(-1)
-, m_pCurrentText(NULL)
-{
-	// add this to linked list of iterators in CTextList
-	tlist->m_iterator_list.insert_after(this);
-};
-
-// destructor
-//
-CIterator_CText::~CIterator_CText()
-{
-	// remove from linked list
-	m_tlist->m_iterator_list.DLinkList_remove();
-};
-
-// Get first CText item in CTextList
-//
-CText * CIterator_CText::GetFirst()
-{
-	m_CurrentPos = -1;	// index before first index
-	m_pCurrentText = NULL;
-	if( m_tlist->GetNumTexts() )
-	{
-		GetNext();
-	}
-	return m_pCurrentText;
-}
-
-// Get next CText item
-//
-CText * CIterator_CText::GetNext()
-{
-	m_CurrentPos++;
-	if( m_CurrentPos < m_tlist->GetNumTexts() )
-	{
-		m_pCurrentText = m_tlist->text_ptr[m_CurrentPos];
-	}
-	else
-	{
-		m_pCurrentText = NULL;
-	}
-	return m_pCurrentText;
-}
-
-// call this function if a CText is being removed from the CTextList
-// !! must be called before the CText is actually removed
-//
-void CIterator_CText::OnRemove( CText * text )
-{
-	// get index of CText being removed
-	int remove_it = -1;
-	for( int it=0; it<m_tlist->GetNumTexts(); it++ )
-	{
-		if( text == m_tlist->text_ptr[it] )
-		{
-			remove_it = it;
-			break;
-		}
-	}
-	if( remove_it == -1 )
-		ASSERT(0);
-
-	// For all iterators, adjust the "current position" if current text 
-	// or earlier is being removed
-	CDLinkList *pElement;
-	for( pElement = m_tlist->m_iterator_list.next; 
-		pElement != &m_tlist->m_iterator_list; 
-		pElement = pElement->next )
-	{
-		CIterator_CText *pIterator = static_cast<CIterator_CText *>(pElement);
-
-		if( remove_it <= pIterator->m_CurrentPos )
-		{
-			// Make adjustment so that the next GetNext() moves to 
-			// the text after the one removed.
-			pIterator->m_CurrentPos--;
-		}
-	}
-}
-
-int CIterator_CText::GetNumIterators()
-{
-	return m_tlist->m_iterator_list.GetListSize();
-}

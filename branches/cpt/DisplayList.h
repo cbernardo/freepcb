@@ -6,7 +6,6 @@
 #include "afxwin.h"
 #include "ids.h"
 #include "layers.h"
-#include "smfontutil.h"
 
 //#define DL_MAX_LAYERS 32
 #define DL_MAGIC		2674
@@ -196,13 +195,9 @@ private:
 	int m_visual_grid_on;
 	double m_visual_grid_spacing;	// in world units
 
-	// font
-	SMFontUtil * m_fontutil;	// class for Hershey font
-
 public:
-	CDisplayList( int pcbu_per_wu, SMFontUtil * fontutil );
+	CDisplayList( int pcbu_per_wu );
 	~CDisplayList();
-	SMFontUtil * GetSMFontUtil(){ return m_fontutil; };
 	void SetVisibleGrid( BOOL on, double grid );
 	void SetMapping( CRect *client_r, CRect *screen_r, int pane_org_x, int pane_bottom_h, double scale, int org_x, int org_y );
 	void SetDCToWorldCoords( CDC * pDC, CDC * mDC, int pcbu_org_x, int pcbu_org_y );
@@ -301,7 +296,6 @@ public:
 	int Get_yf( dl_element * el );
 	int Get_radius( dl_element * el );
 	int Get_layer( dl_element * el );
-	COLORREF GetLayerColor( int layer );
 	void Get_Endpoints(CPoint *cpi, CPoint *cpf);
 	id Get_id( dl_element * el );
 };

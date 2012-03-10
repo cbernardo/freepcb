@@ -171,8 +171,8 @@ DRError * DRErrorList::Add( long index, int type, CString * str,
 					return NULL;
 				}
 			}
-			// if BOARDEDGE_SEG on same trace at same point, don't add it
-			if( type == DRError::BOARDEDGE_SEG && dre->m_id.sst == DRError::BOARDEDGE_SEG )
+			// if BOARDEDGE_TRACE on same trace at same point, don't add it
+			if( type == DRError::BOARDEDGE_TRACE && dre->m_id.sst == DRError::BOARDEDGE_TRACE )
 			{
 				if( *name1 == dre->name1 
 					&& x == dre->x 
@@ -278,8 +278,6 @@ void DRErrorList::HighLight( DRError * dre )
 	if(    dre->m_id.sst == DRError::PAD_PAD 
 		|| dre->m_id.sst == DRError::PAD_PADHOLE
 		|| dre->m_id.sst == DRError::PADHOLE_PADHOLE 
-		|| dre->m_id.sst == DRError::COPPERGRAPHIC_PAD
-		|| dre->m_id.sst == DRError::COPPERGRAPHIC_PADHOLE 
 		)
 	{
 		// add highlights for pads
@@ -354,7 +352,7 @@ void DRErrorList::HighLight( DRError * dre )
 			dl2 = net2->connect[dre->id2.i].vtx[dre->id2.ii].dl_el[0]; 
 	}
 	else if( dre->m_id.sst == DRError::TRACE_WIDTH 
-		|| dre->m_id.sst == DRError::BOARDEDGE_SEG )
+		|| dre->m_id.sst == DRError::BOARDEDGE_TRACE )
 	{
 		// add highlight for trace segment
 		cnet * net1 = m_nlist->GetNetPtrByName( &dre->name1 );

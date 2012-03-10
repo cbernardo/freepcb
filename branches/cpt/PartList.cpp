@@ -23,18 +23,13 @@ cpart::cpart()
 	shape = 0;
 	drawn = FALSE;
 	m_ref_vis = TRUE;			// CPT.  Is this the place for setting the default visibility of ref texts?
-	// set uid
-	m_id.Clear();
-	m_id.type = ID_PART;
-	m_id.uid = pcb_cuid.GetNewUID();
 }
 
 cpart::~cpart()
 {
-	pcb_cuid.ReleaseUID( m_id.uid );
 }
 
-CPartList::CPartList( CDisplayList * dlist ) 
+CPartList::CPartList( CDisplayList * dlist, SMFontUtil * fontutil ) 
 {
 	m_start.prev = 0;		// dummy first element in list
 	m_start.next = &m_end;
@@ -43,6 +38,7 @@ CPartList::CPartList( CDisplayList * dlist )
 	m_max_size = PL_MAX_SIZE;	// size limit
 	m_size = 0;					// current size
 	m_dlist = dlist;
+	m_fontutil = fontutil;
 	m_footprint_cache_map = NULL;
 }
 
@@ -105,12 +101,14 @@ int CPartList::SetPartData( cpart * part, CShape * shape, CString * ref_des, CSt
 	m_dlist = NULL;		// cancel further drawing
 
 	// now copy data into part
+	id id( ID_PART );
 	part->visible = visible;
 	part->ref_des = *ref_des;
 	if( package )
 		part->package = *package;
 	else
 		part->package = "";
+	part->m_id = id;
 	part->x = x;
 	part->y = y;
 	part->side = side;
@@ -126,13 +124,13 @@ int CPartList::SetPartData( cpart * part, CShape * shape, CString * ref_des, CSt
 		part->m_ref_angle = 0;
 		part->m_ref_size = 0;
 		part->m_ref_w = 0;
-		part->m_ref_layer = LAY_SILK_TOP;
+		part->m_ref_layer_index = 0;
 		part->m_value_xi = 0;
 		part->m_value_yi = 0;
 		part->m_value_angle = 0;
 		part->m_value_size = 0;
 		part->m_value_w = 0;
-		part->m_value_layer = LAY_SILK_TOP;
+		part->m_value_layer_index = 0;
 	}
 	else
 	{
@@ -144,13 +142,13 @@ int CPartList::SetPartData( cpart * part, CShape * shape, CString * ref_des, CSt
 		part->m_ref_angle = shape->m_ref_angle;
 		part->m_ref_size = shape->m_ref_size;
 		part->m_ref_w = shape->m_ref_w;
-		part->m_ref_layer = FootprintLayer2Layer( shape->m_ref_layer );
+		part->m_ref_layer_index = shape->m_ref_layer_index;
 		part->m_value_xi = shape->m_value_xi;
 		part->m_value_yi = shape->m_value_yi;
 		part->m_value_angle = shape->m_value_angle;
 		part->m_value_size = shape->m_value_size;
 		part->m_value_w = shape->m_value_w;
-		part->m_value_layer = FootprintLayer2Layer( shape->m_value_layer );
+		part->m_value_layer_index = shape->m_value_layer_index;
 	}
 	part->m_outline_stroke.SetSize(0);
 	part->ref_text_stroke.SetSize(0);
@@ -163,22 +161,6 @@ int CPartList::SetPartData( cpart * part, CShape * shape, CString * ref_des, CSt
 		DrawPart( part );
 
 	return 0;
-}
-
-// convert footprint layer to part layer
-//
-int CPartList::FootprintLayer2Layer( int fp_layer )
-{
-	int layer;
-	switch( fp_layer )
-	{
-	case LAY_FP_SILK_TOP: layer = LAY_SILK_TOP; break;
-	case LAY_FP_SILK_BOTTOM: layer = LAY_SILK_BOTTOM; break;
-	case LAY_FP_TOP_COPPER: layer = LAY_TOP_COPPER; break;
-	case LAY_FP_BOTTOM_COPPER: layer = LAY_BOTTOM_COPPER; break;
-	default: ASSERT(0); layer = -1; break;
-	}
-	return layer;
 }
 
 // Highlight part
@@ -399,7 +381,7 @@ int CPartList::MoveRefText( cpart * part, int x, int y, int angle, int size, int
 	if( part->side == 1 )
 		tb_org.x = -tb_org.x;
 	
-	// reset ref text parameters
+	// reset ref text position
 	part->m_ref_xi = tb_org.x;
 	part->m_ref_yi = tb_org.y;
 	part->m_ref_angle = angle % 360;
@@ -482,7 +464,7 @@ void CPartList::ResizeValueText( cpart * part, int size, int width, BOOL vis )
 //
 void CPartList::SetValue( cpart * part, CString * value, 
 						 int x, int y, int angle, int size, int w, 
-						 BOOL vis, int layer )
+						 BOOL vis, int layer_index )
 {
 	part->value = *value;
 	part->m_value_xi = x;
@@ -491,7 +473,7 @@ void CPartList::SetValue( cpart * part, CString * value,
 	part->m_value_size = size;
 	part->m_value_w = w;
 	part->m_value_vis = vis;
-	part->m_value_layer = layer;
+	part->m_value_layer_index = layer_index;
 	if( part->shape && m_dlist )
 	{
 		UndrawPart( part );
@@ -928,7 +910,7 @@ void CPartList::MarkAllParts( int mark )
 // generate an array of strokes for a string that is attached to a part
 // enter with:
 //  str = pointer to text string
-//	bMirror = TRUE to draw mirror-image if part is on top
+//	bMirror = TRUE to draw mirror-image
 //	size = height of characters
 //	w = stroke width
 //	rel_angle = angle of string relative to part
@@ -942,7 +924,7 @@ void CPartList::MarkAllParts( int mark )
 //	sm = pointer to SMFontUtil for character data	
 // returns number of strokes generated
 //
-int GenerateStrokesForPartString( CString * str, int layer, BOOL bMirror,
+int GenerateStrokesForPartString( CString * str, BOOL bMirror,
 								  int size, int rel_angle, int rel_xi, int rel_yi, int w, 
 								  int x, int y, int angle, int side,
 								  CArray<stroke> * strokes, CRect * br,
@@ -993,6 +975,14 @@ int GenerateStrokesForPartString( CString * str, int layer, BOOL bMirror,
 				xf = (max_x - coord[is][2])*x_scale + xc;
 				yf = coord[is][3]*y_scale + y_offset;
 			}
+			xmax = max( xi, xmax );
+			xmax = max( xf, xmax );
+			xmin = min( xi, xmin );
+			xmin = min( xf, xmin );
+			ymax = max( yi, ymax );
+			ymax = max( yf, ymax );
+			ymin = min( yi, ymin );
+			ymin = min( yf, ymin );
 			// get stroke relative to text box
 			if( yi > yf )
 			{
@@ -1026,9 +1016,8 @@ int GenerateStrokesForPartString( CString * str, int layer, BOOL bMirror,
 			RotatePoint( &si, angle, zero );
 			RotatePoint( &sf, angle, zero );
 
-			// add x, y to part origin and add stroke to array
+			// add x, y to part origin and draw
 			stroke st = strokes->GetAt(i);
-			st.layer = layer;
 			st.type = DL_LINE;
 			st.w = w;
 			st.xi = x + si.x;
@@ -1039,14 +1028,6 @@ int GenerateStrokesForPartString( CString * str, int layer, BOOL bMirror,
 			i++;
 			if( strokes->GetSize() <= i )
 				strokes->SetSize( i + 100 );
-			xmax = max( st.xi, xmax );
-			xmax = max( st.xf, xmax );
-			xmin = min( st.xi, xmin );
-			xmin = min( st.xf, xmin );
-			ymax = max( st.yi, ymax );
-			ymax = max( st.yf, ymax );
-			ymin = min( st.yi, ymin );
-			ymin = min( st.yf, ymin );
 		}
 		xc += (max_x - min_x + 8.0)*x_scale;
 	}
@@ -1065,25 +1046,12 @@ CRect CPartList::GetValueRect( cpart * part )
 {
 	CArray<stroke> m_stroke;
 	CRect br;
-	BOOL bMirror = (part->m_value_layer == LAY_SILK_BOTTOM || part->m_value_layer == LAY_BOTTOM_COPPER) ;
 	int nstrokes = ::GenerateStrokesForPartString( &part->value, 
-		0, bMirror, part->m_value_size,
+		part->m_value_layer_index, part->m_value_size,
 		part->m_value_angle, part->m_value_xi, part->m_value_yi, part->m_value_w,
 		part->x, part->y, part->angle, part->side,
-		&m_stroke, &br, NULL, m_dlist->GetSMFontUtil() );
+		&m_stroke, &br, NULL, m_fontutil );
 	return br;
-}
-
-// return the actual PCB layer for part value string
-int CPartList::GetValuePCBLayer( cpart * part )
-{
-	return FlipLayer( part->side, part->m_value_layer );
-}
-
-// return the actual PCB layer for part reference string
-int CPartList::GetRefPCBLayer( cpart * part )
-{
-	return FlipLayer( part->side, part->m_ref_layer );
 }
 
 
@@ -1140,21 +1108,22 @@ int CPartList::DrawPart( cpart * part )
 	CArray<stroke> m_stroke;	// used for text
 	CRect br;
 	CPoint si, sf;
+	int silk_layer;		// layer for text
 
 	// draw ref designator text
 	part->dl_ref_sel = NULL;
 	if( part->m_ref_vis && part->m_ref_size )
 	{
-		int ref_layer = part->m_ref_layer;
-		ref_layer = FlipLayer( part->side, ref_layer );
-		BOOL bMirror = (part->m_ref_layer == LAY_SILK_BOTTOM || part->m_ref_layer == LAY_BOTTOM_COPPER) ;
 		int nstrokes = ::GenerateStrokesForPartString( &part->ref_des, 
-			ref_layer, bMirror, part->m_ref_size,
+			part->m_ref_layer_index, part->m_ref_size,
 			part->m_ref_angle, part->m_ref_xi, part->m_ref_yi, part->m_ref_w,
 			part->x, part->y, part->angle, part->side,
-			&m_stroke, &br, m_dlist, m_dlist->GetSMFontUtil() );
+			&m_stroke, &br, m_dlist, m_fontutil );
 		if( nstrokes )
 		{
+			silk_layer = LAY_SILK_TOP;
+			if( part->m_ref_layer_index != part->side )
+				silk_layer = LAY_SILK_BOTTOM;
 			int xmin = br.left;
 			int xmax = br.right;
 			int ymin = br.bottom;
@@ -1167,15 +1136,38 @@ int CPartList::DrawPart( cpart * part )
 			{
 				id.ii = is;
 				m_stroke[is].dl_el = m_dlist->Add( id, this, 
-					m_stroke[is].layer, DL_LINE, 1, m_stroke[is].w, 0, 
+					silk_layer, DL_LINE, 1, m_stroke[is].w, 0, 
 					m_stroke[is].xi, m_stroke[is].yi, 
 					m_stroke[is].xf, m_stroke[is].yf, 0, 0 );
 				part->ref_text_stroke[is] = m_stroke[is];
 			}
 			// draw selection rectangle for ref text
+			// get text box relative to ref text origin, angle = 0
+			si.x = xmin;
+			sf.x = xmax;
+			si.y = ymin;
+			sf.y = ymax;
+			// rotate to ref text angle
+			RotatePoint( &si, part->m_ref_angle, zero );
+			RotatePoint( &sf, part->m_ref_angle, zero );
+			// move to position relative to part
+			si.x += part->m_ref_xi;
+			sf.x += part->m_ref_xi;
+			si.y += part->m_ref_yi;
+			sf.y += part->m_ref_yi;
+			// flip if part on bottom
+			if( part->side )
+			{
+				si.x = -si.x;
+				sf.x = -sf.x;
+			}
+			// rotate to part angle
+			RotatePoint( &si, angle, zero );
+			RotatePoint( &sf, angle, zero );
 			id.st = ID_SEL_REF_TXT;
-			part->dl_ref_sel = m_dlist->AddSelector( id, part, part->m_ref_layer, DL_HOLLOW_RECT, 1,
-				0, 0, xmin, ymin, xmax, ymax, xmin, ymin );
+			// move to part position and draw
+			part->dl_ref_sel = m_dlist->AddSelector( id, part, silk_layer, DL_HOLLOW_RECT, 1,
+				0, 0, x + si.x, y + si.y, x + sf.x, y + sf.y, x + si.x, y + si.y );
 		}
 	}
 	else
@@ -1189,17 +1181,17 @@ int CPartList::DrawPart( cpart * part )
 	part->dl_value_sel = NULL;
 	if( part->m_value_vis && part->m_value_size )
 	{
-		int value_layer = part->m_value_layer;
-		value_layer = FlipLayer( part->side, value_layer );
-		BOOL bMirror = (part->m_value_layer == LAY_SILK_BOTTOM || part->m_value_layer == LAY_BOTTOM_COPPER) ;
 		int nstrokes = ::GenerateStrokesForPartString( &part->value, 
-			value_layer, bMirror, part->m_value_size,
+			part->m_value_layer_index, part->m_value_size,
 			part->m_value_angle, part->m_value_xi, part->m_value_yi, part->m_value_w,
 			part->x, part->y, part->angle, part->side,
-			&m_stroke, &br, m_dlist, m_dlist->GetSMFontUtil() );
+			&m_stroke, &br, m_dlist, m_fontutil );
 
 		if( nstrokes )
 		{
+			silk_layer = LAY_SILK_TOP;
+			if( part->m_value_layer_index != part->side )
+				silk_layer = LAY_SILK_BOTTOM;
 			int xmin = br.left;
 			int xmax = br.right;
 			int ymin = br.bottom;
@@ -1212,16 +1204,39 @@ int CPartList::DrawPart( cpart * part )
 			{
 				id.ii = is;
 				m_stroke[is].dl_el = m_dlist->Add( id, this, 
-					m_stroke[is].layer, DL_LINE, 1, m_stroke[is].w, 0, 
+					silk_layer, DL_LINE, 1, m_stroke[is].w, 0, 
 					m_stroke[is].xi, m_stroke[is].yi, 
 					m_stroke[is].xf, m_stroke[is].yf, 0, 0 );
 				part->value_stroke[is] = m_stroke[is];
 			}
 
 			// draw selection rectangle for value
+			// get text box relative to value origin, angle = 0
+			si.x = xmin;
+			sf.x = xmax;
+			si.y = ymin;
+			sf.y = ymax;
+			// rotate to value angle
+			RotatePoint( &si, part->m_value_angle, zero );
+			RotatePoint( &sf, part->m_value_angle, zero );
+			// move to position relative to part
+			si.x += part->m_value_xi;
+			sf.x += part->m_value_xi;
+			si.y += part->m_value_yi;
+			sf.y += part->m_value_yi;
+			// flip if part on bottom
+			if( part->side )
+			{
+				si.x = -si.x;
+				sf.x = -sf.x;
+			}
+			// rotate to part angle
+			RotatePoint( &si, angle, zero );
+			RotatePoint( &sf, angle, zero );
 			id.st = ID_SEL_VALUE_TXT;
-			part->dl_value_sel = m_dlist->AddSelector( id, part, part->m_value_layer, DL_HOLLOW_RECT, 1,
-				0, 0, xmin, ymin, xmax, ymax, xmin, ymin );
+			// move to part position and draw
+			part->dl_value_sel = m_dlist->AddSelector( id, part, silk_layer, DL_HOLLOW_RECT, 1,
+				0, 0, x + si.x, y + si.y, x + sf.x, y + sf.y, x + si.x, y + si.y );
 		}
 	}
 	else
@@ -1237,8 +1252,7 @@ int CPartList::DrawPart( cpart * part )
 	{
 		CPolyLine * poly = &shape->m_outline_poly[ip];
 		int shape_layer = poly->GetLayer();
-		int poly_layer = FootprintLayer2Layer( shape_layer );
-		poly_layer = FlipLayer( part->side, poly_layer );
+		silk_layer = LAY_SILK_TOP;
 		int pos = part->m_outline_stroke.GetSize();
 		int nsides;
 		if( poly->GetClosed() )
@@ -1281,14 +1295,13 @@ int CPartList::DrawPart( cpart * part )
 			// rotate with part and draw
 			RotatePoint( &si, angle, zero );
 			RotatePoint( &sf, angle, zero );
-			part->m_outline_stroke[i+pos].layer = poly_layer;
 			part->m_outline_stroke[i+pos].xi = x+si.x;
 			part->m_outline_stroke[i+pos].xf = x+sf.x;
 			part->m_outline_stroke[i+pos].yi = y+si.y;
 			part->m_outline_stroke[i+pos].yf = y+sf.y;
 			part->m_outline_stroke[i+pos].type = g_type;
 			part->m_outline_stroke[i+pos].w = w;
-			part->m_outline_stroke[i+pos].dl_el = m_dlist->Add( part->m_id, part, poly_layer, 
+			part->m_outline_stroke[i+pos].dl_el = m_dlist->Add( part->m_id, part, silk_layer, 
 				g_type, 1, w, 0, x+si.x, y+si.y, x+sf.x, y+sf.y, 0, 0 );
 		}
 	}
@@ -1313,13 +1326,15 @@ int CPartList::DrawPart( cpart * part )
 		int ymin = INT_MAX;
 		int ymax = INT_MIN;
 
-		int text_layer = FootprintLayer2Layer( t->m_layer );
-		text_layer = FlipLayer( part->side, text_layer );
 		nstrokes = ::GenerateStrokesForPartString( &t->m_str, 
-			text_layer, t->m_mirror, t->m_font_size,
+			t->m_mirror, t->m_font_size,
 			t->m_angle, t->m_x, t->m_y, t->m_stroke_width,
 			part->x, part->y, part->angle, part->side,
-			&m_stroke, &br, m_dlist, m_dlist->GetSMFontUtil() );
+			&m_stroke, &br, m_dlist, m_fontutil );
+
+		silk_layer = LAY_SILK_TOP;
+		if( t->m_mirror && !part->side || !t->m_mirror && part->side )
+			silk_layer = LAY_SILK_BOTTOM;
 
 		xmin = min( xmin, br.left );
 		xmax = max( xmax, br.right );
@@ -1333,7 +1348,7 @@ int CPartList::DrawPart( cpart * part )
 		{
 			id.ii = is;
 			m_stroke[is].dl_el = m_dlist->Add( id, this, 
-				text_layer, DL_LINE, 1, m_stroke[is].w, 0, 
+				silk_layer, DL_LINE, 1, m_stroke[is].w, 0, 
 				m_stroke[is].xi, m_stroke[is].yi, 
 				m_stroke[is].xf, m_stroke[is].yf, 0, 0 );
 			part->m_outline_stroke.Add( m_stroke[is] );
@@ -2124,7 +2139,6 @@ int CPartList::StopDragging()
 //
 cpart * CPartList::AddFromString( CString * str )
 {
-	// set defaults
 	CShape * s = NULL;
 	CString in_str, key_str;
 	CArray<CString> p;
@@ -2132,23 +2146,21 @@ cpart * CPartList::AddFromString( CString * str )
 	int len = str->GetLength();
 	int np;
 	CString ref_des;
-	BOOL ref_vis = TRUE;
+	BOOL ref_vis = FALSE;
 	int ref_size = 0;
 	int ref_width = 0;
 	int ref_angle = 0;
 	int ref_xi = 0;
 	int ref_yi = 0;
-	int ref_layer = LAY_SILK_TOP;
+	int ref_layer_index = 0;
 	CString value;
-	BOOL value_vis = TRUE;
+	BOOL value_vis = FALSE;
 	int value_size = 0;
 	int value_width = 0;
 	int value_angle = 0;
 	int value_xi = 0;
 	int value_yi = 0;
-	int value_layer = LAY_SILK_TOP;
-
-	// add part to partlist
+	int value_layer_index = 0;
 	CString package;
 	int x;
 	int y;
@@ -2194,7 +2206,7 @@ cpart * CPartList::AddFromString( CString * str )
 					ref_vis = FALSE;
 			}
 			if( np > 7 )
-				ref_layer = my_atoi( &p[6] );
+				ref_layer_index = my_atoi( &p[5] );
 		}
 		else if( np >= 7 && key_str == "value" )
 		{
@@ -2214,7 +2226,7 @@ cpart * CPartList::AddFromString( CString * str )
 					value_vis = FALSE;
 			}
 			if( np > 8 )
-				value_layer = my_atoi( &p[7] );
+				value_layer_index = my_atoi( &p[6] );
 		}
 		else if( key_str == "package" )
 		{
@@ -2260,14 +2272,13 @@ cpart * CPartList::AddFromString( CString * str )
 		in_str = str->Tokenize( "\n", pos );
 	}
 	SetPartData( part, s, &ref_des, &package, x, y, side, angle, 1, glued );
-	SetValue( part, &value, value_xi, value_yi, value_angle, value_size, value_width, 
-		value_vis, value_layer );
+	SetValue( part, &value, value_xi, value_yi, value_angle, value_size, value_width, value_vis );
 	if( part->shape ) 
 	{
 		part->m_ref_xi = ref_xi;
 		part->m_ref_yi = ref_yi;
 		part->m_ref_angle = ref_angle;
-		part->m_ref_layer = ref_layer;
+		part->m_ref_layer_index = ref_layer_index;
 		ResizeRefText( part, ref_size, ref_width, ref_vis );
 	}
 	m_dlist = old_dlist;
@@ -2351,7 +2362,7 @@ int CPartList::SetPartString( cpart * part, CString * str )
 	if( part->shape )
 		line.Format( "  ref_text: %d %d %d %d %d %d %d\n", 
 					part->m_ref_size, part->m_ref_w, part->m_ref_angle%360,
-					part->m_ref_xi, part->m_ref_yi, part->m_ref_vis, part->m_ref_layer );
+					part->m_ref_xi, part->m_ref_yi, part->m_ref_vis, part->m_ref_layer_index );
 	else
 		line.Format( "  ref_text: \n" );
 	str->Append( line );
@@ -2364,7 +2375,7 @@ int CPartList::SetPartString( cpart * part, CString * str )
 			part->value, part->m_value_size, 
 			part->m_value_w, part->m_value_angle%360,
 			part->m_value_xi, part->m_value_yi,
-			part->m_value_vis, part->m_value_layer );
+			part->m_value_vis, part->m_value_layer_index );
 		else
 			line.Format( "  value: \"%s\"\n", part->value );
 		str->Append( line );
@@ -2410,14 +2421,12 @@ undo_part * CPartList::CreatePartUndoRecord( cpart * part, CString * new_ref_des
 		upart->m_ref_angle = part->m_ref_angle;
 		upart->m_ref_size = part->m_ref_size;
 		upart->m_ref_w = part->m_ref_w;
-		upart->m_ref_layer =part->m_ref_layer;
 		upart->m_value_vis = part->m_value_vis;
 		upart->m_value_xi = part->m_value_xi;
 		upart->m_value_yi = part->m_value_yi;
 		upart->m_value_angle = part->m_value_angle;
 		upart->m_value_size = part->m_value_size;
 		upart->m_value_w = part->m_value_w;
-		upart->m_value_layer =part->m_value_layer;
 		strcpy( upart->ref_des, part->ref_des );
 		strcpy( upart->package , part->package );
 		strcpy( upart->shape_name, part->shape->m_name );
@@ -2580,7 +2589,6 @@ int CPartList::ExportPartListInfo( partlist_info * pl, cpart * test_part )
 		(*pl)[i].value = part->value;
 		(*pl)[i].value_vis = part->m_value_vis;
 		(*pl)[i].ref_vis = part->m_ref_vis;
-		(*pl)[i].value_layer = part->m_value_layer;
 		(*pl)[i].x = part->x;
 		(*pl)[i].y = part->y;
 		(*pl)[i].angle = part->angle;
@@ -2896,12 +2904,10 @@ void CPartList::ImportPartListInfo( partlist_info * pl, int flags, CDlgLog * log
 					part->shape->m_value_angle, 
 					part->shape->m_value_size, 
 					part->shape->m_value_w,
-					pi->value_vis, 
-					FootprintLayer2Layer( part->shape->m_value_layer )
-					);
+					pi->value_vis, part->shape->m_value_layer_index );
 			}
 			else
-				SetValue( part, &pi->value, 0, 0, 0, 0, 0, FALSE, LAY_SILK_TOP );
+				SetValue( part, &pi->value, 0, 0, 0, 0, 0 );
 			m_nlist->PartAdded( part );
 		}
 		else
@@ -2920,10 +2926,7 @@ void CPartList::ImportPartListInfo( partlist_info * pl, int flags, CDlgLog * log
 					pi->part->shape->m_value_yi,
 					pi->part->shape->m_value_angle, 
 					pi->part->shape->m_value_size, 
-					pi->part->shape->m_value_w,
-					pi->value_vis,
-					pi->value_layer
-					);
+					pi->part->shape->m_value_w );
 
 			}
 			if( pi->part->m_value_vis != pi->value_vis )
@@ -3018,7 +3021,6 @@ void CPartList::PartUndoCallback( int type, void * ptr, BOOL undo )
 			part->m_ref_angle = upart->m_ref_angle;
 			part->m_ref_size = upart->m_ref_size;
 			part->m_ref_w = upart->m_ref_w;
-			part->m_ref_layer = upart->m_ref_layer;
 			part->value = upart->value;
 			part->m_value_vis = upart->m_value_vis;
 			part->m_value_xi = upart->m_value_xi;
@@ -3026,7 +3028,6 @@ void CPartList::PartUndoCallback( int type, void * ptr, BOOL undo )
 			part->m_value_angle = upart->m_value_angle;
 			part->m_value_size = upart->m_value_size;
 			part->m_value_w = upart->m_value_w;
-			part->m_value_layer = upart->m_value_layer;
 			pl->m_dlist = old_dlist;	// turn drawing back on;
 			pl->DrawPart( part );
 			pl->m_nlist->PartAdded( part );
@@ -3421,13 +3422,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 	CString str2;
 	long nerrors = 0;
 
-	// iterate through parts, setting DRC params and
-	// checking for following errors:
-	//	RING_PAD	
-	//	BOARDEDGE_PAD
-	//	BOARDEDGE_PADHOLE
-	//	COPPERGRAPHIC_PAD
-	//	COPPERGRAPHIC_PADHOLE
+	// iterate through parts, checking pads and setting DRC params
 	str.LoadString( IDS_CheckingParts );
 	if( log )
 		log->AddLine( str );
@@ -3438,7 +3433,6 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 		if( s )
 		{
 			// set DRC params for part
-			// i.e. bounding rectangle and layer mask
 			part->hole_flag = FALSE;
 			part->min_x = INT_MAX;
 			part->max_x = INT_MIN;
@@ -3446,27 +3440,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 			part->max_y = INT_MIN;
 			part->layers = 0;
 
-			// iterate through copper graphics elements
-			for( int igr=0; igr<part->m_outline_stroke.GetSize(); igr++ )
-			{
-				stroke * stk = &part->m_outline_stroke[igr];
-				int il = stk->layer - LAY_TOP_COPPER;
-				if( il >= 0 )
-				{
-					int layer_bit = 1<<il;
-					part->layers |= layer_bit;
-					part->min_x = min( part->min_x, stk->xi - stk->w/2 );
-					part->max_x = max( part->max_x, stk->xi + stk->w/2 );
-					part->min_x = min( part->min_x, stk->xf - stk->w/2 );
-					part->max_x = max( part->max_x, stk->xf + stk->w/2 );
-					part->min_y = min( part->min_y, stk->yi - stk->w/2 );
-					part->max_y = max( part->max_y, stk->yi + stk->w/2 );
-					part->min_y = min( part->min_y, stk->yf - stk->w/2 );
-					part->max_y = max( part->max_y, stk->yf + stk->w/2 );
-				}
-			}
-
-			// iterate through pins in part, set DRC info for each pin
+			// iterate through pins in test_part
 			for( int ip=0; ip<s->GetNumPins(); ip++ )
 			{
 				drc_pin * drp = &part->pin[ip].drc;
@@ -3528,7 +3502,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 									// for now, only works for straight board edge segments
 									if( b->GetSideStyle(ibc) == CPolyLine::STRAIGHT )
 									{
-										int d = ::GetClearanceBetweenLineSegmentAndPad( x1, y1, x2, y2, 0,
+										int d = ::GetClearanceBetweenSegmentAndPad( x1, y1, x2, y2, 0,
 											PAD_ROUND, x, y, hole, 0, 0, 0 );
 										if( d < dr->board_edge_copper )
 										{
@@ -3546,34 +3520,6 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 												if( log )
 													log->AddLine( str );
 											}
-										}
-									}
-								}
-							}
-							// test clearance from graphic elements
-							for( int igr=0; igr<part->m_outline_stroke.GetSize(); igr++ )
-							{
-								stroke * stk = &part->m_outline_stroke[igr];
-								if( stk->layer == layer )
-								{
-									int d = ::GetClearanceBetweenLineSegmentAndPad( stk->xi, stk->yi, stk->xf, stk->yf, stk->w,
-										PAD_ROUND, x, y, hole, 0, 0, 0 );
-									if( d <= dr->hole_copper )
-									{
-										// COPPERGRAPHIC_PADHOLE error
-										::MakeCStringFromDimension( &d_str, d, units, TRUE, TRUE, TRUE, 1 );
-										::MakeCStringFromDimension( &x_str, x, units, FALSE, TRUE, TRUE, 1 );
-										::MakeCStringFromDimension( &y_str, y, units, FALSE, TRUE, TRUE, 1 );
-										str.Format( "%ld: %s.%s pad hole to %s.%s copper graphics = %s, x=%s, y=%s\r\n",  
-											nerrors+1, part->ref_des, s->m_padstack[ip].name, 
-											part->ref_des, s->m_padstack[ip].name, d_str, x_str, y_str );
-										DRError * dre = drelist->Add( nerrors, DRError::COPPERGRAPHIC_PADHOLE, &str,
-											&part->ref_des, NULL, id1, id1, x, y, 0, 0, w+20*NM_PER_MIL, 0 );
-										if( dre )
-										{
-											nerrors++;
-											if( log )
-												log->AddLine( str );
 										}
 									}
 								}
@@ -3643,7 +3589,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 									// for now, only works for straight board edge segments
 									if( b->GetSideStyle(ibc) == CPolyLine::STRAIGHT )
 									{
-										int d = ::GetClearanceBetweenLineSegmentAndPad( x1, y1, x2, y2, 0,
+										int d = ::GetClearanceBetweenSegmentAndPad( x1, y1, x2, y2, 0,
 											type, x, y, w, l, r, angle );
 										if( d < dr->board_edge_copper )
 										{
@@ -3665,34 +3611,6 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 									}
 								}
 							}
-							// test clearance from graphic elements
-							for( int igr=0; igr<part->m_outline_stroke.GetSize(); igr++ )
-							{
-								stroke * stk = &part->m_outline_stroke[igr];
-								if( stk->layer == layer )
-								{
-									int d = ::GetClearanceBetweenLineSegmentAndPad( stk->xi, stk->yi, stk->xf, stk->yf, stk->w,
-										type, x, y, w, l, r, angle );
-									if( d <= dr->copper_copper )
-									{
-										// COPPERGRAPHIC_PAD error
-										::MakeCStringFromDimension( &d_str, d, units, TRUE, TRUE, TRUE, 1 );
-										::MakeCStringFromDimension( &x_str, x, units, FALSE, TRUE, TRUE, 1 );
-										::MakeCStringFromDimension( &y_str, y, units, FALSE, TRUE, TRUE, 1 );
-										str.Format( "%ld: %s.%s pad to %s.%s copper graphics = %s, x=%s, y=%s\r\n",  
-											nerrors+1, part->ref_des, s->m_padstack[ip].name, 
-											part->ref_des, s->m_padstack[ip].name, d_str, x_str, y_str );
-										DRError * dre = drelist->Add( nerrors, DRError::COPPERGRAPHIC_PAD, &str,
-											&part->ref_des, NULL, id1, id1, x, y, 0, 0, w+20*NM_PER_MIL, 0 );
-										if( dre )
-										{
-											nerrors++;
-											if( log )
-												log->AddLine( str );
-										}
-									}
-								}
-							}
 						}
 					}
 				}
@@ -3702,32 +3620,28 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 	}
 
 	// iterate through parts again, checking against all other parts
-	// check for following errors:
-	//	PADHOLE_PADHOLE
-	//	PAD_PADHOLE
-	//	PAD_PAD
-	//	COPPERGRAPHIC_PAD,			
-	//	COPPERGRAPHIC_PADHOLE,
-	int t_part_index = -1;	// use index to avoid duplicate tests
 	for( cpart * t_part=GetFirstPart(); t_part; t_part=GetNextPart(t_part) )
 	{
-		t_part_index++;		
 		CShape * t_s = t_part->shape;
 		if( t_s )
 		{
 			// now iterate through parts that follow in the partlist
-			int part_index = -1;
-			for( cpart * part=GetFirstPart(); part; part=GetNextPart(part) )
+			for( cpart * part=GetNextPart(t_part); part; part=GetNextPart(part) )
 			{
-				part_index++;
 				CShape * s = part->shape;
 				if( s )
 				{
-					// now see if part and t_part elements might intersect
+					// now see if part and t_part pads might intersect
 					// get max. clearance violation
 					int clr = max( dr->pad_pad, dr->hole_copper );
 					clr = max( clr, dr->hole_hole );
-					clr = max( clr, dr->copper_copper );
+					// see if pads on same layers
+					if( !(part->layers & t_part->layers) )
+					{
+						// no pads on same layers,check for holes
+						if( !part->hole_flag && !t_part->hole_flag ) 
+							continue;	// no, go to next part
+					}
 
 					// now check for clearance of rectangles
 					if( part->min_x - t_part->max_x > clr )
@@ -3739,15 +3653,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 					if( t_part->min_y - part->max_y > clr )
 						continue;	// next part
 
-					// see if elements on same layers
-					if( !(part->layers & t_part->layers) )
-					{
-						// no elements on same layers, check for holes
-						if( !part->hole_flag && !t_part->hole_flag ) 
-							continue;	// no, go to next part
-					}
-
-					// we need to test elements in these parts
+					// no clearance, we need to test pins in these parts
 					// iterate through pins in t_part
 					for( int t_ip=0; t_ip<t_s->GetNumPins(); t_ip++ )
 					{
@@ -3758,26 +3664,23 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 						id1.st = ID_PAD;
 						id1.i = t_ip;
 
-						// iterate through copper graphic elements in part
-						// first, get mask of all copper layers used by elements
-						int graph_lay_mask = 0;
-						for( int igr=0; igr<part->m_outline_stroke.GetSize(); igr++ )
+						// iterate through pins in part
+						for( int ip=0; ip<s->GetNumPins(); ip++ )
 						{
-							stroke * stk = &part->m_outline_stroke[igr];
-							int il = stk->layer - LAY_TOP_COPPER;
-							if( il >= 0 )
+							padstack * ps = &s->m_padstack[ip];
+							part_pin * pin = &part->pin[ip];
+							drc_pin * drp = &pin->drc;
+							id id2 = part->m_id;
+							id2.st = ID_PAD;
+							id2.i = ip;
+
+							// test for hole-hole violation
+							if( drp->hole_size && t_drp->hole_size )
 							{
-								int lay_mask = 1<<il;
-								graph_lay_mask |= lay_mask;
-							}
-						}
-						if( graph_lay_mask != 0 )
-						{
-							// iterate through all copper layers
-							for( int il=0; il<copper_layers; il++ )
-							{
-								int lay_mask = 1<<il;
-								if( lay_mask & graph_lay_mask )
+								// test for hole-to-hole violation
+								int dist = Distance( pin->x, pin->y, t_pin->x, t_pin->y );
+								int h_h = max( 0, dist - (ps->hole_size + t_ps->hole_size)/2 );
+								if( h_h < dr->hole_hole )
 								{
 									// PADHOLE_PADHOLE
 									::MakeCStringFromDimension( &d_str, h_h, units, TRUE, TRUE, TRUE, 1 );
@@ -3791,155 +3694,70 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 										&t_part->ref_des, &part->ref_des, id1, id2, 
 										pin->x, pin->y, t_pin->x, t_pin->y, 0, 0 );
 									if( dre )
-									// there are graphics strokes on this layer
-									int layer = il + LAY_TOP_COPPER;
-									CString lay_str = layer_str[layer];
-									// check pads
-									int t_pad_x, t_pad_y, t_pad_w, t_pad_l, t_pad_r;
-									int t_pad_type, t_pad_hole, t_pad_connect, t_pad_angle;
-									cnet * t_pad_net;
-									BOOL t_bPad = GetPadDrawInfo( t_part, t_ip, layer, 0, 0, 0, 0,
-										&t_pad_type, &t_pad_x, &t_pad_y, &t_pad_w, &t_pad_l, &t_pad_r, 
-										&t_pad_hole, &t_pad_angle,
-										&t_pad_net, &t_pad_connect );
-									if( t_bPad )
 									{
-										for( int igr=0; igr<part->m_outline_stroke.GetSize(); igr++ )
-										{
-											stroke * stk = &part->m_outline_stroke[igr];
-											if( stk->layer == layer )
-											{
-												//** TODO: test for hole-copper violation
-												//** TODO: test for pad-copper violation
-											}
-										}
+										nerrors++;
+										if( log )
+											log->AddLine( str );
 									}
 								}
 							}
-						}
 
-						// if part follows t_part in list, iterate through pins in part
-						if( part_index > t_part_index )
-						{
-							for( int ip=0; ip<s->GetNumPins(); ip++ )
+							// see if pads on same layers
+							if( !(drp->layers & t_drp->layers) )
 							{
-								padstack * ps = &s->m_padstack[ip];
-								part_pin * pin = &part->pin[ip];
-								drc_pin * drp = &pin->drc;
-								id id2 = part->m_id;
-								id2.st = ID_PAD;
-								id2.i = ip;
-
-								// test for hole-hole violation
-								if( drp->hole_size && t_drp->hole_size )
+								// no, see if either has a hole
+								if( !drp->hole_size && !t_drp->hole_size )
 								{
-									// test for hole-to-hole violation
-									int dist = Distance( pin->x, pin->y, t_pin->x, t_pin->y );
-									int h_h = max( 0, dist - (ps->hole_size + t_ps->hole_size)/2 );
-									if( h_h < dr->hole_hole )
-									{
-										// PADHOLE_PADHOLE
-										::MakeCStringFromDimension( &d_str, h_h, units, TRUE, TRUE, TRUE, 1 );
-										::MakeCStringFromDimension( &x_str, pin->x, units, FALSE, TRUE, TRUE, 1 );
-										::MakeCStringFromDimension( &y_str, pin->y, units, FALSE, TRUE, TRUE, 1 );
-										str.Format( "%ld: %s.%s pad hole to %s.%s pad hole = %s, x=%s, y=%s\r\n",  
-											nerrors+1, part->ref_des, s->m_padstack[ip].name,
-											t_part->ref_des, t_s->m_padstack[t_ip].name,
-											d_str, x_str, y_str );
-										DRError * dre = drelist->Add( nerrors, DRError::PADHOLE_PADHOLE, &str,
-											&t_part->ref_des, &part->ref_des, id1, id2, 
-											pin->x, pin->y, t_pin->x, t_pin->y, 0, 0 );
-										if( dre )
-										{
-											nerrors++;
-											if( log )
-												log->AddLine( str );
-										}
-									}
+									// no, go to next pin
+									continue;
 								}
+							}
 
-								// see if pads on same layers
-								if( !(drp->layers & t_drp->layers) )
+							// see if padstacks might intersect
+							if( drp->min_x - t_drp->max_x > clr )
+								continue;	// no, next pin
+							if( t_drp->min_x - drp->max_x > clr )
+								continue;	// no, next pin
+							if( drp->min_y - t_drp->max_y > clr )
+								continue;	// no, next pin
+							if( t_drp->min_y - drp->max_y > clr )
+								continue;	// no, next pin
+
+							// OK, pads might be too close
+							// check for pad clearance violations on each layer
+							for( int il=0; il<copper_layers; il++ )
+							{
+								int layer = il + LAY_TOP_COPPER;
+								CString lay_str = layer_str[layer];
+								int t_pad_x, t_pad_y, t_pad_w, t_pad_l, t_pad_r;
+								int t_pad_type, t_pad_hole, t_pad_connect, t_pad_angle;
+								cnet * t_pad_net;
+
+								// test for pad-pad violation
+								BOOL t_bPad = GetPadDrawInfo( t_part, t_ip, layer, 0, 0, 0, 0,
+									&t_pad_type, &t_pad_x, &t_pad_y, &t_pad_w, &t_pad_l, &t_pad_r, 
+									&t_pad_hole, &t_pad_angle,
+									&t_pad_net, &t_pad_connect );
+								if( t_bPad )
 								{
-									// no, see if either has a hole
-									if( !drp->hole_size && !t_drp->hole_size )
+									// get pad info for pin
+									int pad_x, pad_y, pad_w, pad_l, pad_r;
+									int pad_type, pad_hole, pad_connect, pad_angle;
+									cnet * pad_net;
+									BOOL bPad = GetPadDrawInfo( part, ip, layer, 0, 0, 0, 0, 
+										&pad_type, &pad_x, &pad_y, &pad_w, &pad_l, &pad_r, 
+										&pad_hole, &pad_angle, &pad_net, &pad_connect );
+									if( bPad )
 									{
-										// no, go to next pin
-										continue;
-									}
-								}
-
-								// see if padstacks might intersect
-								if( drp->min_x - t_drp->max_x > clr )
-									continue;	// no, next pin
-								if( t_drp->min_x - drp->max_x > clr )
-									continue;	// no, next pin
-								if( drp->min_y - t_drp->max_y > clr )
-									continue;	// no, next pin
-								if( t_drp->min_y - drp->max_y > clr )
-									continue;	// no, next pin
-
-								// OK, pads might be too close
-								// check for pad clearance violations on each layer
-								for( int il=0; il<copper_layers; il++ )
-								{
-									int layer = il + LAY_TOP_COPPER;
-									CString lay_str = layer_str[layer];
-									int t_pad_x, t_pad_y, t_pad_w, t_pad_l, t_pad_r;
-									int t_pad_type, t_pad_hole, t_pad_connect, t_pad_angle;
-									cnet * t_pad_net;
-
-									// test for pad-pad violation
-									BOOL t_bPad = GetPadDrawInfo( t_part, t_ip, layer, 0, 0, 0, 0,
-										&t_pad_type, &t_pad_x, &t_pad_y, &t_pad_w, &t_pad_l, &t_pad_r, 
-										&t_pad_hole, &t_pad_angle,
-										&t_pad_net, &t_pad_connect );
-									if( t_bPad )
-									{
-										// get pad info for pin
-										int pad_x, pad_y, pad_w, pad_l, pad_r;
-										int pad_type, pad_hole, pad_connect, pad_angle;
-										cnet * pad_net;
-										BOOL bPad = GetPadDrawInfo( part, ip, layer, 0, 0, 0, 0, 
-											&pad_type, &pad_x, &pad_y, &pad_w, &pad_l, &pad_r, 
-											&pad_hole, &pad_angle, &pad_net, &pad_connect );
-										if( bPad )
+										if( pad_hole )
 										{
-											if( pad_hole )
-											{
-												// test for pad-padhole violation
-												int dist = GetClearanceBetweenPads( t_pad_type, t_pad_x, t_pad_y, 
-													t_pad_w, t_pad_l, t_pad_r, t_pad_angle,
-													PAD_ROUND, pad_x, pad_y, pad_hole, 0, 0, 0 );
-												if( dist < dr->hole_copper )
-												{
-													// PAD_PADHOLE 
-													::MakeCStringFromDimension( &d_str, dist, units, TRUE, TRUE, TRUE, 1 );
-													::MakeCStringFromDimension( &x_str, pad_x, units, FALSE, TRUE, TRUE, 1 );
-													::MakeCStringFromDimension( &y_str, pad_y, units, FALSE, TRUE, TRUE, 1 );
-													str.Format( "%ld: %s.%s pad hole to %s.%s pad = %s, x=%s, y=%s\r\n",  
-														nerrors+1, part->ref_des, s->m_padstack[ip].name,
-														t_part->ref_des, t_s->m_padstack[t_ip].name,
-														d_str, x_str, y_str );
-													DRError * dre = drelist->Add( nerrors, DRError::PAD_PADHOLE, &str, 
-														&t_part->ref_des, &part->ref_des, id1, id2, 
-														pad_x, pad_y, t_pad_x, t_pad_y, 0, layer );
-													if( dre )
-													{
-														nerrors++;
-														if( log )
-															log->AddLine( str );
-													}
-													break;		// skip any more layers, go to next pin
-												}
-											}
-											// test for pad-pad violation
+											// test for pad-padhole violation
 											int dist = GetClearanceBetweenPads( t_pad_type, t_pad_x, t_pad_y, 
 												t_pad_w, t_pad_l, t_pad_r, t_pad_angle,
-												pad_type, pad_x, pad_y, pad_w, pad_l, pad_r, pad_angle );
-											if( dist < dr->pad_pad )
+												PAD_ROUND, pad_x, pad_y, pad_hole, 0, 0, 0 );
+											if( dist < dr->hole_copper )
 											{
-												// PAD_PAD 
+												// PAD_PADHOLE 
 												::MakeCStringFromDimension( &d_str, dist, units, TRUE, TRUE, TRUE, 1 );
 												::MakeCStringFromDimension( &x_str, pad_x, units, FALSE, TRUE, TRUE, 1 );
 												::MakeCStringFromDimension( &y_str, pad_y, units, FALSE, TRUE, TRUE, 1 );
@@ -3947,7 +3765,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 												str.Format( s0, nerrors+1, part->ref_des, s->m_padstack[ip].name,
 													t_part->ref_des, t_s->m_padstack[t_ip].name,
 													d_str, x_str, y_str );
-												DRError * dre = drelist->Add( nerrors, DRError::PAD_PAD, &str, 
+												DRError * dre = drelist->Add( nerrors, DRError::PAD_PADHOLE, &str, 
 													&t_part->ref_des, &part->ref_des, id1, id2, 
 													pad_x, pad_y, t_pad_x, t_pad_y, 0, layer );
 												if( dre )
@@ -4006,7 +3824,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 	{
 		m_nlist->m_map.GetNextAssoc( pos, name, ptr );
 		cnet * net = (cnet*)ptr;
-		// iterate through copper areas, checking for BOARDEDGE_COPPERAREA errors
+		// iterate through copper areas
 		for( int ia=0; ia<net->nareas; ia++ )
 		{
 			carea * a = &net->area[ia];
@@ -4164,13 +3982,13 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 								x1, y1, x2, y2, CPolyLine::STRAIGHT, w, dr->board_edge_copper, &x, &y );
 							if( d < dr->board_edge_copper )
 							{
-								// BOARDEDGE_SEG error
+								// BOARDEDGE_TRACE error
 								::MakeCStringFromDimension( &d_str, d, units, TRUE, TRUE, TRUE, 1 );
 								::MakeCStringFromDimension( &x_str, x, units, FALSE, TRUE, TRUE, 1 );
 								::MakeCStringFromDimension( &y_str, y, units, FALSE, TRUE, TRUE, 1 );
 								CString s ((LPCSTR) IDS_TraceToBoardEdgeEquals);
 								str.Format( s, nerrors+1, net->name, d_str, x_str, y_str );
-								DRError * dre = drelist->Add( nerrors, DRError::BOARDEDGE_SEG, &str,
+								DRError * dre = drelist->Add( nerrors, DRError::BOARDEDGE_TRACE, &str,
 									&net->name, NULL, id_seg, id_seg, x, y, 0, 0, 0, layer );
 								if( dre )
 								{
@@ -4251,7 +4069,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 							//** for now, only works for straight board edge segments
 							if( b->GetSideStyle(ibc) == CPolyLine::STRAIGHT )
 							{
-								int d = ::GetClearanceBetweenLineSegmentAndPad( bx1, by1, bx2, by2, 0,
+								int d = ::GetClearanceBetweenSegmentAndPad( bx1, by1, bx2, by2, 0,
 									PAD_ROUND, vtx->x, vtx->y, max_via_w, 0, 0, 0 );
 								if( d < dr->board_edge_copper )
 								{
@@ -4270,7 +4088,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 											log->AddLine( str );
 									}
 								}
-								int dh = ::GetClearanceBetweenLineSegmentAndPad( bx1, by1, bx2, by2, 0,
+								int dh = ::GetClearanceBetweenSegmentAndPad( bx1, by1, bx2, by2, 0,
 									PAD_ROUND, vtx->x, vtx->y, vtx->via_hole_w, 0, 0, 0 );
 								if( dh < dr->board_edge_hole )
 								{
@@ -4294,8 +4112,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 					}
 				}
 			}
-			// iterate through all parts, checking for
-			//	SEG_PAD, VIA_PAD, SEG_COPPERGRAPHIC, VIA_COPPERGRAPHIC errors
+			// iterate through all parts
 			cpart * part = GetFirstPart();
 			for( ; part; part = GetNextPart( part ) )
 			{
@@ -4335,7 +4152,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 					if( c->min_y - drp->max_y > dr->pad_trace )
 						continue;	// no, next pin
 
-					// possible clearance violation, now test pad against each segment and via on each layer
+					// possible clearance violation, now test each segment and via on each layer
 					int pad_x, pad_y, pad_w, pad_l, pad_r;
 					int pad_type, pad_hole, pad_connect, pad_angle;
 					cnet * pad_net;
@@ -4391,7 +4208,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 										pin_info_valid = TRUE;
 										pin_info_layer = layer;
 									}
-									int d = GetClearanceBetweenLineSegmentAndPad( xi, yi, xf, yf, w,
+									int d = GetClearanceBetweenSegmentAndPad( xi, yi, xf, yf, w,
 										PAD_ROUND, pad_x, pad_y, pad_hole, 0, 0, 0 );
 									if( d < dr->hole_copper ) 
 									{
@@ -4428,7 +4245,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 									if( bPad && pad_type != PAD_NONE && net != pad_net )
 									{
 										// check segment to pad clearance
-										int d = GetClearanceBetweenLineSegmentAndPad( xi, yi, xf, yf, w,
+										int d = GetClearanceBetweenSegmentAndPad( xi, yi, xf, yf, w,
 											pad_type, pad_x, pad_y, pad_w, pad_l, pad_r, pad_angle );
 										if( d < dr->pad_trace ) 
 										{
@@ -4585,152 +4402,6 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 						}
 					}
 				}
-
-				// test each copper graphic stroke
-				int n_ref = part->GetNumRefStrokes();
-				int n_value = part->GetNumValueStrokes();
-				int n_outline = part->GetNumOutlineStrokes();
-				int n_total_strokes = n_ref + n_value + n_outline;
-				for( int istk=0; istk<n_total_strokes; istk++ )
-				{
-					// get stroke to test
-					stroke * test_stroke;
-					if( istk < n_ref )
-						test_stroke = &part->ref_text_stroke[istk];
-					else if( istk < (n_ref + n_value) )
-						test_stroke = &part->value_stroke[istk-n_ref];
-					else if( istk < (n_ref + n_value + n_outline) )
-						test_stroke = &part->m_outline_stroke[istk-n_ref-n_value];
-					int cglayer = test_stroke->layer;
-					int cgxi = test_stroke->xi;
-					int cgyi = test_stroke->yi;
-					int cgxf = test_stroke->xf;
-					int cgyf = test_stroke->yf;
-					int cgstyle;
-					if( test_stroke->type == DL_LINE )
-						cgstyle = CPolyLine::STRAIGHT;
-					else if( test_stroke->type == DL_ARC_CW )
-						cgstyle = CPolyLine::ARC_CW;
-					else if( test_stroke->type == DL_ARC_CCW )
-						cgstyle = CPolyLine::ARC_CCW;
-					else
-						ASSERT(0);
-
-					// test against each segment in connection
-					for( int is=0; is<c->nsegs; is++ )
-					{
-						// get next segment
-						cseg * s = &(net->connect[ic].seg[is]);
-						cvertex * pre_vtx = &(net->connect[ic].vtx[is]);
-						cvertex * post_vtx = &(net->connect[ic].vtx[is+1]);
-						int w = s->width;
-						int xi = pre_vtx->x;
-						int yi = pre_vtx->y;
-						int xf = post_vtx->x;
-						int yf = post_vtx->y;
-						int min_x = min( xi, xf ) - w/2;
-						int max_x = max( xi, xf ) + w/2;
-						int min_y = min( yi, yf ) - w/2;
-						int max_y = max( yi, yf ) + w/2;
-						// ids
-						id id_seg = net->id;
-						id_seg.st = ID_CONNECT;
-						id_seg.i = ic;
-						id_seg.sst = ID_SEG;
-						id_seg.ii = is;
-						id id_via = net->id;
-						id_via.st = ID_CONNECT;
-						id_via.i = ic;
-						id_via.sst = ID_VIA;
-						id_via.ii = is+1;
-
-						if( s->layer == test_stroke->layer )
-						{
-							// check segment clearances
-							int x, y;
-							int d = ::GetClearanceBetweenSegments( cgxi, cgyi, cgxf, cgyf, cgstyle, 0,
-								xi, yi, xf, yf, CPolyLine::STRAIGHT, w,
-								dr->board_edge_copper, &x, &y );
-							if( d < dr->copper_copper )
-							{
-								// COPPERGRAPHIC_SEG error
-								::MakeCStringFromDimension( &d_str, d, units, TRUE, TRUE, TRUE, 1 );
-								::MakeCStringFromDimension( &x_str, x, units, FALSE, TRUE, TRUE, 1 );
-								::MakeCStringFromDimension( &y_str, y, units, FALSE, TRUE, TRUE, 1 );
-								str.Format( "%ld: \"%s\" trace to copper graphic = %s, x=%s, y=%s\r\n",  
-									nerrors+1, net->name, d_str, x_str, y_str );
-								DRError * dre = drelist->Add( nerrors, DRError::COPPERGRAPHIC_SEG, &str,
-									&net->name, NULL, id_seg, id_seg, x, y, 0, 0, 0, cglayer );
-								if( dre )
-								{
-									nerrors++;
-									if( log )
-										log->AddLine( str );
-								}
-							}
-						}
-							// get next via
-						if( post_vtx->via_w )
-						{
-							// via exists
-							int x = post_vtx->x;
-							int y = post_vtx->y;
-							int test;
-							int via_w;
-							int via_hole_w;
-							m_nlist->GetViaPadInfo( net, ic, is+1, test_stroke->layer, 
-								&via_w, &via_hole_w, &test );
-							if( via_w )
-							{
-								// check via
-								int d = GetClearanceBetweenLineSegmentAndPad( cgxi, cgyi, cgxf, cgyf, w,
-									PAD_ROUND, x, y, via_w, 0, 0, 0 );
-								if( d < dr->copper_copper )
-								{
-									// COPPERGRAPHIC_SEG error
-									::MakeCStringFromDimension( &d_str, d, units, TRUE, TRUE, TRUE, 1 );
-									::MakeCStringFromDimension( &x_str, x, units, FALSE, TRUE, TRUE, 1 );
-									::MakeCStringFromDimension( &y_str, y, units, FALSE, TRUE, TRUE, 1 );
-									str.Format( "%ld: \"%s\" via to copper graphic = %s, x=%s, y=%s\r\n",  
-										nerrors+1, net->name, d_str, x_str, y_str );
-									DRError * dre = drelist->Add( nerrors, DRError::COPPERGRAPHIC_VIA, &str,
-										&net->name, NULL, id_seg, id_seg, post_vtx->x, post_vtx->y, 
-										0, 0, 0, cglayer );
-									if( dre )
-									{
-										nerrors++;
-										if( log )
-											log->AddLine( str );
-									}
-								}
-							}
-							if( via_hole_w )
-							{
-								// check via hole
-								int d = GetClearanceBetweenLineSegmentAndPad( cgxi, cgyi, cgxf, cgyf, w,
-									PAD_ROUND, x, y, via_hole_w, 0, 0, 0 );
-								if( d < dr->hole_copper )
-								{
-									// COPPERGRAPHIC_VIAHOLE error
-									::MakeCStringFromDimension( &d_str, d, units, TRUE, TRUE, TRUE, 1 );
-									::MakeCStringFromDimension( &x_str, x, units, FALSE, TRUE, TRUE, 1 );
-									::MakeCStringFromDimension( &y_str, y, units, FALSE, TRUE, TRUE, 1 );
-									str.Format( "%ld: \"%s\" via hole to copper graphic = %s, x=%s, y=%s\r\n",  
-										nerrors+1, net->name, d_str, x_str, y_str );
-									DRError * dre = drelist->Add( nerrors, DRError::COPPERGRAPHIC_VIAHOLE, &str,
-										&net->name, NULL, id_seg, id_seg, post_vtx->x, post_vtx->y, 
-										0, 0, 0, cglayer );
-									if( dre )
-									{
-										nerrors++;
-										if( log )
-											log->AddLine( str );
-									}
-								}
-							}
-						}
-					}
-				}
 			}
 		}
 	}
@@ -4877,7 +4548,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 								if( via_w2 )
 								{
 									// check clearance between segment and via pad
-									int d = GetClearanceBetweenLineSegmentAndPad( xi, yi, xf, yf, seg_w,
+									int d = GetClearanceBetweenSegmentAndPad( xi, yi, xf, yf, seg_w,
 										PAD_ROUND, post_vtx2->x, post_vtx2->y, post_vtx2->via_w, 0, 0, 0 );
 									if( d < dr->trace_trace )
 									{
@@ -4899,7 +4570,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 									}
 								}
 								// check clearance between segment and via hole
-								int d = GetClearanceBetweenLineSegmentAndPad( xi, yi, xf, yf, seg_w,
+								int d = GetClearanceBetweenSegmentAndPad( xi, yi, xf, yf, seg_w,
 									PAD_ROUND, post_vtx2->x, post_vtx2->y, post_vtx2->via_hole_w, 0, 0, 0 );
 								if( d < dr->hole_copper )
 								{
@@ -4943,7 +4614,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 									// check clearance between net2->segment and net->via_pad
 									if( layer >= LAY_TOP_COPPER )
 									{
-										int d = GetClearanceBetweenLineSegmentAndPad( xi2, yi2, xf2, yf2, seg_w2,
+										int d = GetClearanceBetweenSegmentAndPad( xi2, yi2, xf2, yf2, seg_w2,
 											PAD_ROUND, post_vtx->x, post_vtx->y, post_vtx->via_w, 0, 0, 0 );
 										if( d < dr->trace_trace )
 										{
@@ -4969,7 +4640,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 								// check clearance between net2->segment and net->via_hole
 								if( layer >= LAY_TOP_COPPER )
 								{
-									int d = GetClearanceBetweenLineSegmentAndPad( xi2, yi2, xf2, yf2, seg_w2,
+									int d = GetClearanceBetweenSegmentAndPad( xi2, yi2, xf2, yf2, seg_w2,
 										PAD_ROUND, post_vtx->x, post_vtx->y, post_vtx->via_hole_w, 0, 0, 0 );
 									if( d < dr->hole_copper )
 									{

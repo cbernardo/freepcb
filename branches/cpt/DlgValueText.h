@@ -26,7 +26,6 @@ protected:
 public:
 	BOOL m_vis;
 	int m_units;
-	int m_layer;
 	int m_height;
 	int m_width;
 	int m_def_width;
@@ -46,5 +45,4 @@ public:
 	CComboBox m_combo_units;
 	afx_msg void OnCbnSelchangeComboRefTextUnits();
 	CButton m_check_visible;
-	CComboBox m_combo_layer;
 };

@@ -19,10 +19,9 @@
 
 // constructor
 //
-CDisplayList::CDisplayList( int pcbu_per_wu, SMFontUtil * fontutil )
+CDisplayList::CDisplayList( int pcbu_per_wu )
 {
 	m_pcbu_per_wu = pcbu_per_wu;
-	m_fontutil = fontutil;
 	// create lists for all layers
 	for( int layer=0; layer<MAX_LAYERS; layer++ )
 	{
@@ -1163,12 +1162,6 @@ void CDisplayList::SetLayerVisible( int layer, BOOL vis )
 {
 	m_vis[layer] = vis;
 }
-
-COLORREF CDisplayList::GetLayerColor( int layer )
-{
-	return RGB( m_rgb[layer][0], m_rgb[layer][1], m_rgb[layer][2] );
-}
-
 
 // test x,y for a hit on an item in the selection layer
 // creates arrays with layer and id of each hit item

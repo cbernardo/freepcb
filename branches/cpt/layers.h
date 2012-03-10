@@ -107,5 +107,3 @@ static char fp_layer_str[NUM_FP_LAYERS][64] =
 };
 
 static char layer_char[17] = "12345678QWERTYUI";
-
-int FlipLayer( int side, int layer );

@@ -139,9 +139,9 @@ CFreePcbDoc::CFreePcbDoc()
 	DWORD dwWindowsMajorVersion =  (DWORD)(LOBYTE(LOWORD(dwVersion)));
 	if( dwWindowsMajorVersion > 4 )
 		m_pcbu_per_wu = 2540;		// if Win2000 or XP or vista
-	m_dlist = new CDisplayList( m_pcbu_per_wu, m_smfontutil );
-	m_dlist_fp = new CDisplayList( m_pcbu_per_wu, m_smfontutil );
-	m_plist = new CPartList( m_dlist );
+	m_dlist = new CDisplayList( m_pcbu_per_wu );
+	m_dlist_fp = new CDisplayList( m_pcbu_per_wu );
+	m_plist = new CPartList( m_dlist, m_smfontutil );
 	m_nlist = new CNetList( m_dlist, m_plist );
 	m_plist->UseNetList( m_nlist );
 	m_plist->SetShapeCacheMap( &m_footprint_cache_map );
@@ -173,7 +173,7 @@ CFreePcbDoc::CFreePcbDoc()
 	m_num_layers = m_num_copper_layers + LAY_TOP_COPPER;
 
 	// initialize pseudo-clipboard
-	clip_plist = new CPartList( NULL );
+	clip_plist = new CPartList( NULL, m_smfontutil );
 	clip_nlist = new CNetList( NULL, clip_plist );
 	clip_plist->UseNetList( clip_nlist );
 	clip_plist->SetShapeCacheMap( &m_footprint_cache_map );
@@ -4718,7 +4718,7 @@ void CFreePcbDoc::FileLoadLibrary( LPCTSTR pathname )
 			// get dimensions of bounding rectangle for value text
 			m_plist->SetValue( part, &shape->m_name, 
 				shape_r.left, shape_r.top + part->m_ref_w, 0, 
-				part->m_ref_size, part->m_ref_w, 1, LAY_SILK_TOP );
+				part->m_ref_size, part->m_ref_w, 1 );
 			CRect vr;
 			vr = m_plist->GetValueRect( part );
 			int value_width = vr.right - vr.left;
@@ -4740,7 +4740,7 @@ void CFreePcbDoc::FileLoadLibrary( LPCTSTR pathname )
 			// move value to top of part
 			m_plist->SetValue( part, &shape->m_name, 
 				shape_r.left, shape_r.top + part->m_ref_w, 0, 
-				part->m_ref_size, part->m_ref_w, 1, part->m_ref_layer );
+				part->m_ref_size, part->m_ref_w, 1 );
 			m_plist->DrawPart( part );
 			i++;
 			x += max_width + 200*NM_PER_MIL;	// step right .2 inches

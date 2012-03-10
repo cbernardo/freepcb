@@ -14,8 +14,6 @@ public:
 	void Initialize( BOOL bDrag, BOOL bFixedString,
 		CString * str, int layer, int units, 
 		int angle, int height, int width, int x, int y );
-	int Layer2LayerIndex( int layer);
-	int LayerIndex2Layer( int layer_index );
 
 // Dialog Data
 	enum { IDD = IDD_FP_TEXT };

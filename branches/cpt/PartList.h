@@ -8,7 +8,6 @@
 #include "smfontutil.h"
 #include "DlgLog.h"
 #include "UndoList.h"
-#include "Cuid.h"
 
 #define MAX_REF_DES_SIZE 39
 
@@ -26,9 +25,6 @@ enum {
 	CLEAR_NONE
 };
 
-// global Cuid for partlist classes
-static Cuid pl_cuid;
-
 // struct to hold data to undo an operation on a part
 //
 struct undo_part {
@@ -41,10 +37,8 @@ struct undo_part {
 	BOOL glued;				// TRUE=glued in place
 	BOOL m_ref_vis;			// TRUE = ref shown
 	int m_ref_xi, m_ref_yi, m_ref_angle, m_ref_size, m_ref_w;	// ref text
-	int m_ref_layer;
 	BOOL m_value_vis;		// TRUE = value shown
 	int m_value_xi, m_value_yi, m_value_angle, m_value_size, m_value_w;	// value text
-	int m_value_layer;
 	char ref_des[MAX_REF_DES_SIZE+1];	// ref designator such as "U3"
 	char new_ref_des[MAX_REF_DES_SIZE+1];	// if ref designator will be changed
 	char package[CShape::MAX_NAME_SIZE+1];		// package
@@ -66,12 +60,10 @@ typedef struct {
 	CString ref_des;	// ref designator string
 	int ref_size;		// size of ref text characters
 	int ref_width;		// stroke width of ref text characters
-	int ref_layer;		// ref layer
 	CString package;	// package (from original imported netlist, don't edit)
 	CString value;		// value (from original imported netlist, don't edit)
 	BOOL value_vis;		// visibility of value
 	BOOL ref_vis;		// CPT: visibility of ref text
-	int value_layer;	// value layer
 	CShape * shape;		// pointer to shape (may be edited)
 	BOOL deleted;		// flag to indicate that part was deleted
 	BOOL bShapeChanged;	// flag to indicate that the shape has changed
@@ -103,6 +95,8 @@ struct drc_pin {
 };
 
 // class part_pin represents a pin on a part
+// note that pin numbers start at 1,
+// so index to pin array is (pin_num-1)
 class part_pin 
 {
 public:
@@ -120,9 +114,6 @@ class cpart
 public:
 	cpart();
 	~cpart();
-	int GetNumRefStrokes(){ return ref_text_stroke.GetSize(); };
-	int GetNumValueStrokes(){ return value_stroke.GetSize(); };
-	int GetNumOutlineStrokes(){ return m_outline_stroke.GetSize(); };
 	cpart * prev;		// link backward
 	cpart * next;		// link forward
 	id m_id;			// instance id for this part
@@ -130,7 +121,7 @@ public:
 	BOOL visible;		// 0 to hide part
 	int x,y;			// position of part origin on board
 	int side;			// 0=top, 1=bottom
-	int angle;			// orientation, degrees CW
+	int angle;			// orientation
 	BOOL glued;			// 1=glued in place
 	BOOL m_ref_vis;		// TRUE = ref shown
 	int m_ref_xi;		// ref text params (relative to part)
@@ -138,14 +129,16 @@ public:
 	int m_ref_angle; 
 	int m_ref_size;
 	int m_ref_w;
-	int m_ref_layer;	// layer if part is on top	
+	int m_ref_layer_index;	// 0 for top, 1 for bottom
+	CText ref_text;
 	BOOL m_value_vis;	// TRUE = value shown
 	int m_value_xi;		// value text params (relative to part)
 	int m_value_yi; 
 	int m_value_angle; 
 	int m_value_size; 
 	int m_value_w;
-	int m_value_layer;	// layer if part is on top
+	int m_value_layer_index;	// 0 for top, 1 for bottom
+	CText value_text;
 	dl_element * dl_sel;		// pointer to display list element for selection rect
 	CString ref_des;			// ref designator such as "U3"
 	dl_element * dl_ref_sel;	// pointer to selection rect for ref text 
@@ -187,6 +180,7 @@ private:
 	int m_annular_ring;
 	CNetList * m_nlist;
 	CDisplayList * m_dlist;
+	SMFontUtil * m_fontutil;	// class for Hershey font
 	CMapStringToPtr * m_footprint_cache_map;
 
 public:
@@ -194,7 +188,7 @@ public:
 		UNDO_PART_DELETE=1, 
 		UNDO_PART_MODIFY, 
 		UNDO_PART_ADD };	// undo types
-	CPartList( CDisplayList * dlist );
+	CPartList( CDisplayList * dlist, SMFontUtil * fontutil );
 	~CPartList();
 	void UseNetList( CNetList * nlist ){ m_nlist = nlist; };
 	void SetShapeCacheMap( CMapStringToPtr * shape_cache_map )
@@ -225,10 +219,9 @@ public:
 	void ResizeRefText( cpart * part, int size, int width, BOOL vis=TRUE );
 	void ResizeValueText( cpart * part, int size, int width, BOOL vis=TRUE );
 	void SetValue( cpart * part, CString * value, int x, int y, int angle, int size, 
-		int w, BOOL vis, int layer );
+		int w, BOOL vis=TRUE, int layer_index=0 );
 	int DrawPart( cpart * el );
 	int UndrawPart( cpart * el );
-	int FootprintLayer2Layer( int fp_layer );
 	void PartFootprintChanged( cpart * part, CShape * shape );
 	void FootprintChanged( CShape * shape );
 	void RefTextSizeChanged( CShape * shape );
@@ -241,8 +234,6 @@ public:
 	CPoint GetRefPoint( cpart * part );
 	CPoint GetValuePoint( cpart * part );
 	CRect GetValueRect( cpart * part );
-	int GetValuePCBLayer( cpart * part );
-	int GetRefPCBLayer( cpart * part );
 	CPoint GetPinPoint(  cpart * part, LPCTSTR pin_name );
 	CPoint GetPinPoint(  cpart * part, int pin_index );
 	CPoint GetCentroidPoint(  cpart * part );

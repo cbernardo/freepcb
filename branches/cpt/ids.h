@@ -1,7 +1,7 @@
-#pragma once
-
 // definition of ID structure used by FreePCB
 //
+#pragma once
+
 // struct id : this structure is used to identify PCB design elements
 // such as instances of parts or nets, and their subelements
 // Each element will have its own id.
@@ -16,14 +16,10 @@
 //		id.sst	= subelement of subelement (e.g. net connection segment)
 //		id.ii	= subsubelement index (zero-based)
 //
-// For example, the id for segment 0 of connection 4 of a net would be
-//	id = { ID_NET, ID_CONNECT, 4, ID_SEG, 0 };
+// For example, the id for segment 0 of connection 4 of net 12 would be
+//	id = { ID_NET, 12, ID_CONNECT, 4, ID_SEG, 0 };
 //
 //
-#include "Cuid.h"
-
-static Cuid pcb_cuid;	// global UID generator
-
 class id {
 public:
 	// constructor
@@ -39,22 +35,15 @@ public:
 	}
 	// member functions
 	void Clear() 
-	{ 
-		type=0; st=0; i=0; sst=0; ii=0; uid=0; st_uid=0; sst_uid=0; 
-	} 
+	{ type=0; st=0; i=0; sst=0; ii=0; } 
 	void Set( int qt, int qst=0, int qis=0, int qsst=0, int qiis=0 ) 
-	{ 
-		type=qt; st=qst; i=qis; sst=qsst; ii=qiis; 
-	} 
+	{ type=qt; st=qst; i=qis; sst=qsst; ii=qiis; } 
 	// member variables
 	unsigned int type;	// type of element
 	unsigned int st;	// type of subelement
 	unsigned int i;		// index of subelement
 	unsigned int sst;	// type of subsubelement
 	unsigned int ii;	// index of subsubelement
-	unsigned int uid;		// UID of element
-	unsigned int st_uid;	// UID of subelement
-	unsigned int sst_uid;	// UID of subsubelement
 };
 
 
@@ -84,8 +73,7 @@ enum {
 	ID_ORIG,		// part origin
 	ID_SEL_RECT,	// selection rectangle for part
 	ID_SEL_REF_TXT,		// selection rectangle for ref text
-	ID_SEL_VALUE_TXT,	// selection rectangle for value text
-	ID_SEL_FP_TEXT		// selection rectangle for text in FP
+	ID_SEL_VALUE_TXT	// selection rectangle for value text
 };
 
 // subtypes of ID_TEXT
