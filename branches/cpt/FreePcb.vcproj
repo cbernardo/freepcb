@@ -823,6 +823,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\ellipse_newton.h"
+				>
+			</File>
+			<File
 				RelativePath=".\file_io.h"
 				>
 			</File>

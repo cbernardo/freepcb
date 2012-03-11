@@ -19,9 +19,10 @@
 
 // constructor
 //
-CDisplayList::CDisplayList( int pcbu_per_wu )
+CDisplayList::CDisplayList( int pcbu_per_wu, SMFontUtil * fontutil )
 {
 	m_pcbu_per_wu = pcbu_per_wu;
+	m_fontutil = fontutil;
 	// create lists for all layers
 	for( int layer=0; layer<MAX_LAYERS; layer++ )
 	{

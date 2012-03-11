@@ -1772,7 +1772,7 @@ int GetPointToSegmentDistance( CPoint p,
 			// same quadrant as arc, need to solve for minimum distance
 			int nIter;
 			double nearX, nearY;
-			DistancePointEllipse( p.x, p.y, el.xrad, el.yrad, 0.1, 1000, nIter, nearX, nearY );
+			double d_test = DistancePointEllipse( p.x, p.y, el.xrad, el.yrad, 0.1, 1000, nIter, nearX, nearY );
 		}
 		else
 		{
@@ -2122,25 +2122,35 @@ double GetPointToLineDistance( double a, double b, int x, int y, double * xpp, d
 // Get distance between line segment and point
 // enter with:	x,y = point
 //				(xi,yi) and (xf,yf) are the end-points of the line segment
+// on return, sets *pNearX and *pNearY to nearest point on line segment
 //
-double GetPointToLineSegmentDistance( int x, int y, int xi, int yi, int xf, int yf )
+double GetPointToLineSegmentDistance( int x, int y, int xi, int yi, int xf, int yf, 
+									 double * xp, double * yp )
 {
-	// test for vertical or horizontal segment
+	BOOL bFound = FALSE;
+	double nearX, nearY, dist;
+	// test for nearest point between ends of line segment
 	if( xf==xi )
 	{
 		// vertical line segment
 		if( InRange( y, yi, yf ) )
-			return abs( x - xi );
-		else
-			return min( Distance( x, y, xi, yi ), Distance( x, y, xf, yf ) );
+		{
+			dist = abs( x - xi );
+			nearX = xi;
+			nearY = y;
+			bFound = TRUE;
+		}
 	}
 	else if( yf==yi )
 	{
 		// horizontal line segment
 		if( InRange( x, xi, xf ) )
-			return abs( y - yi );
-		else
-			return min( Distance( x, y, xi, yi ), Distance( x, y, xf, yf ) );
+		{
+			dist = abs( y - yi );
+			nearX = x;
+			nearY = yi;
+			bFound = TRUE;
+		}
 	}
 	else
 	{
@@ -2156,10 +2166,35 @@ double GetPointToLineSegmentDistance( int x, int y, int xi, int yi, int xf, int 
 		double yp = a + b*xp;
 		// find distance
 		if( InRange( xp, xi, xf ) && InRange( yp, yi, yf ) )
-			return Distance( x, y, xp, yp );
-		else
-			return min( Distance( x, y, xi, yi ), Distance( x, y, xf, yf ) );
+		{
+			dist = Distance( x, y, xp, yp );
+			nearX = xp;
+			nearY = yp;
+			bFound = TRUE;
+		}
 	}
+	if( !bFound )
+	{
+		double dist_i = Distance( x, y, xi, yi );
+		double dist_f = Distance( x, y, xf, yf );
+		if( dist_i < dist_f )
+		{
+			dist = dist_i;
+			nearX = xi;
+			nearY = yi;
+		}
+		else
+		{
+			dist = dist_f;
+			nearX = xf;
+			nearY = yf;
+		}
+	}
+	if( xp )
+		*xp = nearX;
+	if( yp )
+		*yp = nearY;
+	return dist;
 }
 
 // test for value within range

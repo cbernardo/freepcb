@@ -23,13 +23,18 @@ cpart::cpart()
 	shape = 0;
 	drawn = FALSE;
 	m_ref_vis = TRUE;			// CPT.  Is this the place for setting the default visibility of ref texts?
+	// set uid
+	m_id.Clear();
+	m_id.type = ID_PART;
+	m_id.uid = pcb_cuid.GetNewUID();
 }
 
 cpart::~cpart()
 {
+	pcb_cuid.ReleaseUID( m_id.uid );
 }
 
-CPartList::CPartList( CDisplayList * dlist, SMFontUtil * fontutil ) 
+CPartList::CPartList( CDisplayList * dlist ) 
 {
 	m_start.prev = 0;		// dummy first element in list
 	m_start.next = &m_end;
@@ -38,7 +43,6 @@ CPartList::CPartList( CDisplayList * dlist, SMFontUtil * fontutil )
 	m_max_size = PL_MAX_SIZE;	// size limit
 	m_size = 0;					// current size
 	m_dlist = dlist;
-	m_fontutil = fontutil;
 	m_footprint_cache_map = NULL;
 }
 
@@ -101,14 +105,12 @@ int CPartList::SetPartData( cpart * part, CShape * shape, CString * ref_des, CSt
 	m_dlist = NULL;		// cancel further drawing
 
 	// now copy data into part
-	id id( ID_PART );
 	part->visible = visible;
 	part->ref_des = *ref_des;
 	if( package )
 		part->package = *package;
 	else
 		part->package = "";
-	part->m_id = id;
 	part->x = x;
 	part->y = y;
 	part->side = side;
@@ -1068,7 +1070,7 @@ CRect CPartList::GetValueRect( cpart * part )
 		0, bMirror, part->m_value_size,
 		part->m_value_angle, part->m_value_xi, part->m_value_yi, part->m_value_w,
 		part->x, part->y, part->angle, part->side,
-		&m_stroke, &br, NULL, m_fontutil );
+		&m_stroke, &br, NULL, m_dlist->GetSMFontUtil() );
 	return br;
 }
 
@@ -1150,7 +1152,7 @@ int CPartList::DrawPart( cpart * part )
 			ref_layer, bMirror, part->m_ref_size,
 			part->m_ref_angle, part->m_ref_xi, part->m_ref_yi, part->m_ref_w,
 			part->x, part->y, part->angle, part->side,
-			&m_stroke, &br, m_dlist, m_fontutil );
+			&m_stroke, &br, m_dlist, m_dlist->GetSMFontUtil() );
 		if( nstrokes )
 		{
 			int xmin = br.left;
@@ -1194,7 +1196,7 @@ int CPartList::DrawPart( cpart * part )
 			value_layer, bMirror, part->m_value_size,
 			part->m_value_angle, part->m_value_xi, part->m_value_yi, part->m_value_w,
 			part->x, part->y, part->angle, part->side,
-			&m_stroke, &br, m_dlist, m_fontutil );
+			&m_stroke, &br, m_dlist, m_dlist->GetSMFontUtil() );
 
 		if( nstrokes )
 		{
@@ -1317,7 +1319,7 @@ int CPartList::DrawPart( cpart * part )
 			text_layer, t->m_mirror, t->m_font_size,
 			t->m_angle, t->m_x, t->m_y, t->m_stroke_width,
 			part->x, part->y, part->angle, part->side,
-			&m_stroke, &br, m_dlist, m_fontutil );
+			&m_stroke, &br, m_dlist, m_dlist->GetSMFontUtil() );
 
 		xmin = min( xmin, br.left );
 		xmax = max( xmax, br.right );

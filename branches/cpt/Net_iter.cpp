@@ -1,6 +1,5 @@
 #include "stdafx.h"
 #include "LinkList.h"
-//#include "partlist.h"
 
 //******** Iterator for cnet (CIterator_cnet) *********
 CDLinkList CIterator_cnet::m_LIST_Iterator;
@@ -186,16 +185,16 @@ cseg *CIterator_cseg::GetNext()
 // to update any active iterators.
 void CIterator_cseg::OnRemove( int is )
 {
-	// For every iterator, adjust the "current segion" if that 
+	// For every iterator, adjust the "current segment" if that 
 	// segion or earlier is being removed
 	for( CDLinkList *pElement = m_LIST_Iterator.next; pElement != &m_LIST_Iterator; pElement = pElement->next )
 	{
 		CIterator_cseg *pIterator = static_cast<CIterator_cseg *>(pElement);
 
-		if( is <= pIterator->m_CurrentPos )
+		if( is <= pIterator->m_CurrentPos && m_cconnect == pIterator->m_cconnect )
 		{
 			// Make adjustment so that the next GetNext() moves to 
-			// the segion after the one removed.
+			// the segment after the one removed.
 			pIterator->m_pCurrentSegment--;
 		}
 	}
@@ -269,13 +268,13 @@ cvertex *CIterator_cvertex::GetNext()
 // to update any active iterators.
 void CIterator_cvertex::OnRemove( int iv )
 {
-	// For every iterator, adjust the "current vertexion" if that 
+	// For every iterator, adjust the "current vertex" if that 
 	// vertex or earlier is being removed
 	for( CDLinkList *pElement = m_LIST_Iterator.next; pElement != &m_LIST_Iterator; pElement = pElement->next )
 	{
 		CIterator_cvertex *pIterator = static_cast<CIterator_cvertex *>(pElement);
 
-		if( iv <= pIterator->m_CurrentPos )
+		if( iv <= pIterator->m_CurrentPos && m_cconnect == pIterator->m_cconnect )
 		{
 			// Make adjustment so that the next GetNext() moves to 
 			// the vertex after the one removed.
