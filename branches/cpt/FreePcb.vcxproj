@@ -207,6 +207,7 @@
     <ClCompile Include="Gerber.cpp" />
     <ClCompile Include="gpc_232.cpp" />
     <ClCompile Include="ivex_mod_file.cpp" />
+    <ClCompile Include="layers.cpp" />
     <ClCompile Include="MainFrm.cpp" />
     <ClCompile Include="MyToolBar.cpp" />
     <ClCompile Include="Net_iter.cpp" />

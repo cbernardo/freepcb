@@ -2,6 +2,7 @@ Microsoft Visual Studio Solution File, Format Version 11.00
 # Visual Studio 2010
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{71DC9CC4-5882-4F43-93D2-7D8DE57B1621}"
 	ProjectSection(SolutionItems) = preProject
+		layers.cpp = layers.cpp
 		MyFileOpen.Dlg = MyFileOpen.Dlg
 	EndProjectSection
 EndProject

@@ -73,7 +73,8 @@ enum {
 	ID_ORIG,		// part origin
 	ID_SEL_RECT,	// selection rectangle for part
 	ID_SEL_REF_TXT,		// selection rectangle for ref text
-	ID_SEL_VALUE_TXT	// selection rectangle for value text
+	ID_SEL_VALUE_TXT,	// selection rectangle for value text
+	ID_SEL_FP_TEXT		// selection rectangle for text in FP
 };
 
 // subtypes of ID_TEXT

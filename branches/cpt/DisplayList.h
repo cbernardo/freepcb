@@ -296,6 +296,7 @@ public:
 	int Get_yf( dl_element * el );
 	int Get_radius( dl_element * el );
 	int Get_layer( dl_element * el );
+	COLORREF GetLayerColor( int layer );
 	void Get_Endpoints(CPoint *cpi, CPoint *cpf);
 	id Get_id( dl_element * el );
 };
