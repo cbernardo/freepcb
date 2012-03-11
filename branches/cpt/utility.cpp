@@ -5,6 +5,7 @@
 #include <math.h>
 #include <time.h>
 #include "DisplayList.h" 
+#include "ellipse_newton.h"
  
 // globals for timer functions
 LARGE_INTEGER PerfFreq, tStart, tStop; 
@@ -565,17 +566,6 @@ int MakeEllipseFromArc( int xi, int yi, int xf, int yf, int style, EllipseKH * e
 	el->Center.Y = yo;
 	el->xrad = abs(xf-xi);
 	el->yrad = abs(yf-yi);
-#if 0
-	el->Phi = 0.0;
-	el->MaxRad = el->xrad;
-	el->MinRad = el->yrad;
-	if( el->MaxRad < el->MinRad )
-	{
-		el->MaxRad = el->yrad;
-		el->MinRad = el->xrad;
-		el->Phi = M_PI/2.0;
-	}
-#endif
 	return 0;
 }
 
@@ -718,9 +708,9 @@ int FindSegmentIntersections( int xi, int yi, int xf, int yf, int style,
 		MakeEllipseFromArc( xi2, yi2, xf2, yf2, style2, &el2 );
 		int n;
 		if( el1.xrad+el1.yrad > el2.xrad+el2.yrad )
-			n = GetArcIntersections( &el1, &el2 );
+			n = GetArcIntersections( &el1, &el2, &(xr[0]), &(yr[0]), &(xr[1]), &(yr[1]) );
 		else
-			n = GetArcIntersections( &el2, &el1 );
+			n = GetArcIntersections( &el2, &el1, &(xr[0]), &(yr[0]), &(xr[1]), &(yr[1]) );
 		iret = n;
 	}
 	if( x && y )
@@ -1724,64 +1714,113 @@ void GetPadElements( int type, int x, int y, int wid, int len, int radius, int a
 
 // Find distance from a straight line segment to a pad
 //
-int GetClearanceBetweenSegmentAndPad( int x1, int y1, int x2, int y2, int w,
+int GetClearanceBetweenLineSegmentAndPad( int x1, int y1, int x2, int y2, int w,
 								  int type, int x, int y, int wid, int len, int radius, int angle )
 {
 	if( type == PAD_NONE )
 		return INT_MAX;
+
+	// test for segment entirely within pad
+	if( 0 == GetPointToPadDistance( CPoint(x1,y1), type, x, y, wid, len, radius, angle ) )
+		return 0;
+
+	// now get distance from elements of pad outline
+	int nc, nr, ns;
+	my_circle c[4];
+	my_rect r[2];
+	my_seg s[8];
+	GetPadElements( type, x, y, wid, len, radius, angle,
+					&nr, r, &nc, c, &ns, s );
+	int dist = INT_MAX;
+	for( int ic=0; ic<nc; ic++ )
+	{
+		int d = GetPointToLineSegmentDistance( c[ic].x, c[ic].y, x1, y1, x2, y2 ) - c[ic].r - w/2;
+		dist = min(dist,d);
+	}
+	for( int is=0; is<ns; is++ )
+	{
+		double d;
+		TestForIntersectionOfStraightLineSegments( s[is].xi, s[is].yi, s[is].xf, s[is].yf,
+				x1, y1, x2, y2, NULL, NULL, &d );
+		d -= w/2;
+		dist = min(dist,d);
+	}
+	return max(0,dist);
+}
+
+// Returns distance between a point and a segment,
+// also returns coords of closest point on segment
+//
+int GetPointToSegmentDistance( CPoint p,
+				int xi, int yi, int xf, int yf, int w, int style )
+{
+	int dist = INT_MAX, xmin, ymin;
+	if( style == CPolyLine::STRAIGHT )
+	{
+		// segment is a straight line
+		dist = GetPointToLineSegmentDistance( p.x, p.y, xi, yi, xf, yf );
+	}
 	else
 	{
-		int nc, nr, ns;
-		my_circle c[4];
-		my_rect r[2];
-		my_seg s[8];
-		GetPadElements( type, x, y, wid, len, radius, angle,
-						&nr, r, &nc, c, &ns, s );
-		// first test for endpoints of line segment in rectangle
-		for( int ir=0; ir<nr; ir++ )
+		// segment is an arc of an ellipse
+		EllipseKH el;
+		MakeEllipseFromArc( xi, yi, xf, yf, style, &el );
+		// get quadrant of point in ellipse
+		double th_point = atan2( p.y - el.Center.Y, p.x - el.Center.X );
+		if( th_point < el.theta1 && th_point > el.theta2 )
 		{
-			if( x1 >= r[ir].xlo && x1 <= r[ir].xhi && y1 >= r[ir].ylo && y1 <= r[ir].yhi )
-				return 0;
-			if( x2 >= r[ir].xlo && x2 <= r[ir].xhi && y2 >= r[ir].ylo && y2 <= r[ir].yhi )
-				return 0;
+			// same quadrant as arc, need to solve for minimum distance
+			int nIter;
+			double nearX, nearY;
+			DistancePointEllipse( p.x, p.y, el.xrad, el.yrad, 0.1, 1000, nIter, nearX, nearY );
 		}
-		// now get distance from elements of pad outline
-		int dist = INT_MAX;
-		for( int ic=0; ic<nc; ic++ )
+		else
 		{
-			int d = GetPointToLineSegmentDistance( c[ic].x, c[ic].y, x1, y1, x2, y2 ) - c[ic].r - w/2;
-			dist = min(dist,d);
+			// not in same quadrant, just check endpoints
+			double x_test, y_test, dx, dy, d_test;
+			for( int iq=0; iq<4; iq++ )
+			{
+				switch( iq )
+				{
+				case 0: x_test = el.Center.X + el.xrad; y_test = el.Center.Y; break;
+				case 1: x_test = el.Center.X; y_test = el.Center.Y + el.yrad; break;
+				case 2: x_test = el.Center.X - el.xrad; y_test = el.Center.Y; break;
+				case 3: x_test = el.Center.X; y_test = el.Center.Y - el.yrad; break;
+				}
+				dx = p.x - x_test;
+				dy = p.y - y_test;
+				d_test = sqrt( dx*dx + dy*dy );
+				if( d_test < dist )
+				{
+					dist = d_test;
+					xmin = x_test;
+					ymin = y_test;
+				}
+			}
+
 		}
-		for( int is=0; is<ns; is++ )
-		{
-			double d;
-			TestForIntersectionOfStraightLineSegments( s[is].xi, s[is].yi, s[is].xf, s[is].yf,
-					x1, y1, x2, y2, NULL, NULL, &d );
-			d -= w/2;
-			dist = min(dist,d);
-		}
-		return max(0,dist);
 	}
+	return dist - w;
 }
 
 // Get clearance between 2 segments
 // Returns point in segment closest to other segment in x, y
-// in clearance > max_cl, just returns max_cl and doesn't return x,y
+// if clearance > min_cl, just returns min_cl and doesn't return x,y
 //
 int GetClearanceBetweenSegments( int x1i, int y1i, int x1f, int y1f, int style1, int w1,
 								   int x2i, int y2i, int x2f, int y2f, int style2, int w2,
-								   int max_cl, int * x, int * y )
+								   int min_cl, int * x, int * y )
 {
 	// check clearance between bounding rectangles
-	int test = max_cl + w1/2 + w2/2;
+	int test = min_cl + w1/2 + w2/2;
 	if( min(x1i,x1f)-max(x2i,x2f) > test )
-		return max_cl;
+		return min_cl;
 	if( min(x2i,x2f)-max(x1i,x1f) > test )
-		return max_cl;
+		return min_cl;
 	if( min(y1i,y1f)-max(y2i,y2f) > test )
-		return max_cl;
+		return min_cl;
 	if( min(y2i,y2f)-max(y1i,y1f) > test )
-		return max_cl;
+		return min_cl;
 
 	if( style1 == CPolyLine::STRAIGHT && style1 == CPolyLine::STRAIGHT )
 	{
@@ -1944,7 +1983,41 @@ int GetClearanceBetweenSegments( int x1i, int y1i, int x1f, int y1f, int style1,
 	return max(0,dmin-w1/2-w2/2);	// allow for widths
 }
 
+// Get distance from point to pad
+// return 0 if point inside pad
+//
+double GetPointToPadDistance( CPoint p, 
+		int type, int x, int y, int w, int l, int rad, int angle )
+{
+	int dist = INT_MAX;
+	int nr, nc, ns, nrr, ncc, nss;
+	my_rect r[2];
+	my_circle c[4];
+	my_seg s[8];
 
+	if( type == PAD_NONE )
+		return INT_MAX;
+
+	GetPadElements( type, x, y, w, l, rad, angle,
+					&nr, r, &nc, c, &ns, s );
+
+	for( int ic=0; ic<nc; ic++ )
+	{
+		int d = Distance( p.x, p.y, c[ic].x, c[ic].y )- c[ic].r;
+		dist = min(dist,d);
+	}
+	for( int ir=0; ir<nr; ir++ )
+	{
+		if( p.x >= r[ir].xlo && p.x <= r[ir].xhi && p.y >= r[ir].ylo && p.y <= r[ir].yhi )
+			return 0;
+	}
+	for( int is=0; is<ns; is++ )
+	{
+		int d = GetPointToLineSegmentDistance( p.x, p.y, s[is].xi, s[is].yi, s[is].xf, s[is].yf );
+		dist = min(dist,d);
+	}
+	return dist;
+}
 
 // Find clearance between pads
 // For each pad:
@@ -1968,11 +2041,19 @@ int GetClearanceBetweenPads( int type1, int x1, int y1, int w1, int l1, int r1, 
 	my_circle c[4], cc[4];
 	my_seg s[8], ss[8];
 
+	// first, test for one pad entirely within the other
+	if( GetPointToPadDistance( CPoint(x1,y1), 
+				type2, x2, y2, w2, l2, r2, angle2 ) == 0 )
+	return 0;
+	if( GetPointToPadDistance( CPoint(x2,y2), 
+				type1, x1, y1, w1, l1, r1, angle1 ) == 0 )
+	return 0;
+
+	// now find distance from every element of pad1 to every element of pad2
 	GetPadElements( type1, x1, y1, w1, l1, r1, angle1,
 					&nr, r, &nc, c, &ns, s );
 	GetPadElements( type2, x2, y2, w2, l2, r2, angle2,
 					&nrr, rr, &ncc, cc, &nss, ss );
-	// now find distance from every element of pad1 to every element of pad2
 	for( int ic=0; ic<nc; ic++ )
 	{
 		for( int icc=0; icc<ncc; icc++ )

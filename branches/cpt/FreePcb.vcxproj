@@ -198,6 +198,7 @@
     <ClCompile Include="DlgValueText.cpp" />
     <ClCompile Include="DlgVia.cpp" />
     <ClCompile Include="DlgWizQuad.cpp" />
+    <ClCompile Include="ellipse_newton.cpp" />
     <ClCompile Include="file_io.cpp" />
     <ClCompile Include="FootprintLib.cpp" />
     <ClCompile Include="FootprintView.cpp" />
@@ -290,6 +291,7 @@
     <ClInclude Include="DlgValueText.h" />
     <ClInclude Include="DlgVia.h" />
     <ClInclude Include="DlgWizQuad.h" />
+    <ClInclude Include="ellipse_newton.h" />
     <ClInclude Include="file_io.h" />
     <ClInclude Include="FootprintLib.h" />
     <ClInclude Include="FootprintView.h" />

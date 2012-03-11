@@ -279,6 +279,9 @@
     <ClCompile Include="layers.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="ellipse_newton.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DlgAddPoly.h">
@@ -549,6 +552,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="DlgExportOptions.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ellipse_newton.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
