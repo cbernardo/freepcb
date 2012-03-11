@@ -116,6 +116,9 @@ class cpart
 public:
 	cpart();
 	~cpart();
+	int GetNumRefStrokes(){ return ref_text_stroke.GetSize(); };
+	int GetNumValueStrokes(){ return value_stroke.GetSize(); };
+	int GetNumOutlineStrokes(){ return m_outline_stroke.GetSize(); };
 	cpart * prev;		// link backward
 	cpart * next;		// link forward
 	id m_id;			// instance id for this part
