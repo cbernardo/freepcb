@@ -15,9 +15,13 @@
 //		id.i	= subelement index (zero-based)
 //		id.sst	= subelement of subelement (e.g. net connection segment)
 //		id.ii	= subsubelement index (zero-based)
+//		id.uid		= uid for element
+//		id.st_uid	= uid for subelement
+//		id.sst_uid	= uid for subsubelement
 //
 // For example, the id for segment 0 of connection 4 of a net would be
-//	id = { ID_NET, ID_CONNECT, 4, ID_SEG, 0 };
+//	id = { ID_NET, ID_CONNECT, 4, ID_SEG, 0, 
+//			UID of net, UID of connection, UID of segment };
 //
 //
 #include "Cuid.h"
@@ -40,12 +44,16 @@ public:
 		sst_uid = qsst_uid;
 	} 
 	// operators
-	friend int operator ==(id id1, id id2)
+	friend BOOL operator ==(id id1, id id2)
 	{ return (id1.type==id2.type 
 			&& id1.st==id2.st 
 			&& id1.sst==id2.sst 
 			&& id1.i==id2.i 
-			&& id1.ii==id2.ii ); 
+			&& id1.ii==id2.ii 
+			&& id1.uid==id2.uid 
+			&& id1.st_uid==id2.st_uid 
+			&& id1.sst_uid==id2.sst_uid 
+			); 
 	}
 	// member functions
 	void Clear() 
