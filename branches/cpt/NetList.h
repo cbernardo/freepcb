@@ -31,6 +31,7 @@ class cvertex;
 class CVertex;
 class cconnect;
 class cnet;
+class CIterator_cconnect;
 
 #define MAX_NET_NAME_SIZE 39
 
@@ -200,7 +201,7 @@ public:
 	cseg()
 	{
 		// constructor
-//		m_uid = pcb_cuid.GetNewUID();
+		m_uid = -1;
 		m_dlist = 0;  // this must be filled in with Initialize()
 		m_nlist = 0;  // this must be filled in with Initialize()
 		curve = STRAIGHT;
@@ -215,7 +216,7 @@ public:
 	~cseg()
 	{
 		// destructor
-//		pcb_cuid.ReleaseUID( m_uid );
+		pcb_cuid.ReleaseUID( m_uid );
 		if( m_dlist )
 		{
 			if( dl_el )
@@ -228,6 +229,7 @@ public:
 	{
 		m_dlist = dlist;
 		m_nlist = nlist;
+		m_uid = pcb_cuid.GetNewUID();
 	}
 	int m_uid;				// unique id
 	int layer;				// copper layer
@@ -265,38 +267,33 @@ public:
 // cnet: describes a net
 class cnet
 {
+	friend class CNetList;
+	friend class CIterator_cconnect;
 public:
-	cnet( CDisplayList * dlist, CNetList * nlist )
-	{ 
-		m_dlist = dlist;
-		m_nlist = nlist;
-		id.Clear();
-		id.type = ID_NET;
-//		id.uid = pcb_cuid.GetNewUID();
-	}
-	~cnet()
-	{
-//		pcb_cuid.ReleaseUID( id.uid );
-		connect.RemoveAll();
-		area.RemoveAll();
-		pin.RemoveAll();
-	}
+	cnet( CDisplayList * dlist, CNetList * nlist );
+	~cnet();
+	int NumCons();
+	int NumPins();
+	int NumAreas();
+	cconnect * GetConnectByIndex( int ic );
+	int GetConnectIndexByUID( int uid );
+	cconnect * GetConnectByUID( int uid );
+
 	id id;				// net id
 	CString name;		// net name
-	int nconnects;		// number of connections
-	CArray<cconnect> connect; // array of connections (size = max_pins-1)
-	int npins;			// number of pins
-	CArray<cpin> pin;	// array of pins
-	int nareas;			// number of copper areas
+private:
+	CArray<cconnect> connect;	// array of connections
+public:
+	CArray<cpin> pin;			// array of pins
 	CArray<carea,carea> area;	// array of copper areas
-	int def_w;			// default trace width
-	int def_via_w;		// default via width
-	int def_via_hole_w;	// default via hole width
-	BOOL visible;		// FALSE to hide ratlines and make unselectable
-	int utility;		// used to keep track of which nets have been optimized
-	int utility2;		// used to keep track of which nets have been optimized
+	int def_w;					// default trace width
+	int def_via_w;				// default via width
+	int def_via_hole_w;			// default via hole width
+	BOOL visible;				// FALSE to hide ratlines and make unselectable
+	int utility;				// used to keep track of which nets have been optimized
+	int utility2;				// used to keep track of which nets have been optimized
 	CDisplayList * m_dlist;		// CDisplayList to use
-	CNetList * m_nlist;	// parent netlist
+	CNetList * m_nlist;			// parent netlist
 	// new stuff, for testing
 	CMap<int,int,CVertex*,CVertex*> m_vertex_map;
 };
@@ -308,29 +305,10 @@ public:
 	enum {
 		NO_END = -1		// used for end_pin if stub trace
 	};
-	cconnect()
-	{ 
-//		m_uid = pcb_cuid.GetNewUID();
-		m_nlist = NULL;
-		locked = 0;
-		nsegs = 0;
-		seg.SetSize( 0 );
-		vtx.SetSize( 0 );
-		utility = 0;
-	}
-	~cconnect()
-	{
-//		pcb_cuid.ReleaseUID( m_uid );
-		vtx.RemoveAll();
-		seg.RemoveAll();
-	}
-	void Initialize( CNetList * nlist, cnet * net )
-	{
-		m_nlist = nlist;
-		m_net = net;
-	}
-
-	CNetList * m_nlist;			// parent NetList 
+	cconnect();
+	~cconnect();
+	void Initialize( cnet * net );
+	int NumSegs(){ return seg.GetSize(); };
 	int start_pin, end_pin;		// indexes into net.pin array
 	int nsegs;					// # elements in seg array
 	int locked;					// 1 if locked (will not be optimized away)
@@ -720,6 +698,7 @@ public:
 public:
 	void OnRemove( int ic );
 	void OnRemove( cconnect * con );
+	int GetIndex(){ return m_CurrentPos; };
 };
 
 class CIterator_cseg : protected CDLinkList
@@ -766,3 +745,13 @@ public:
 	void OnRemove( cvertex * vtx );
 };
 
+#if 0
+// sample usage
+
+CIterator_cconnect iter_con(?net);
+for( cconnect * c=iter_con.GetFirst(); c; c=iter_con.GetNext() )
+{
+	int ic = iter_con.GetIndex();
+}
+
+#endif

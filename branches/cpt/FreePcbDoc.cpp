@@ -4035,15 +4035,15 @@ void CFreePcbDoc::OnToolsCheckCopperAreas()
 	BOOL new_event = TRUE; 
 	while( net ) 
 	{
-		if( net->nareas > 0 )
+		if( net->NumAreas() > 0 )
 		{
 			CString s ((LPCSTR) IDS_NetAreas);
-			str.Format( s, net->name, net->nareas ); 
+			str.Format( s, net->name, net->NumAreas() ); 
 			m_dlg_log->AddLine( str );
 			m_view->SaveUndoInfoForAllAreasInNet( net, new_event, m_undo_list ); 
 			new_event = FALSE;
 			// check for minimum number of corners and closed contours
-			for( int ia=0; ia<net->nareas; ia++ )
+			for( int ia=0; ia<net->NumAreas(); ia++ )
 			{
 				int nc = net->area[ia].poly->GetNumCorners();
 				if( nc < 3 )
@@ -4063,7 +4063,7 @@ void CFreePcbDoc::OnToolsCheckCopperAreas()
 				}
 			}
 			// check all areas in net for self-intersection
-			for( int ia=0; ia<net->nareas; ia++ )
+			for( int ia=0; ia<net->NumAreas(); ia++ )
 			{
 				int ret = m_nlist->ClipAreaPolygon( net, ia, FALSE, FALSE );
 				if( ret == -1 )
@@ -4086,12 +4086,12 @@ void CFreePcbDoc::OnToolsCheckCopperAreas()
 				}
 			}
 			// check all areas in net for intersection
-			if( net->nareas > 1 )
+			if( net->NumAreas() > 1 )
 			{
-				for( int ia1=0; ia1<net->nareas-1; ia1++ ) 
+				for( int ia1=0; ia1<net->NumAreas()-1; ia1++ ) 
 				{
 					BOOL mod_ia1 = FALSE;
-					for( int ia2=net->nareas-1; ia2 > ia1; ia2-- )
+					for( int ia2=net->NumAreas()-1; ia2 > ia1; ia2-- )
 					{
 						if( net->area[ia1].poly->GetLayer() == net->area[ia2].poly->GetLayer() )
 						{
