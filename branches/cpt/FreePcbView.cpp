@@ -1335,7 +1335,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
             */
             int w = m_active_width, via_w, via_hole_w;
             GetViaWidths(w, &via_w, &via_hole_w);
-			cconnect * c = m_sel_net->GetConnectByUID(m_sel_ic);
+			cconnect * c = m_sel_net->GetConnectByIndex(m_sel_ic);
 
 			// test for termination of trace
 			if( c->end_pin == cconnect::NO_END && m_sel_is == c->NumSegs()-1 && m_dir == 0
