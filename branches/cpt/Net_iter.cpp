@@ -135,7 +135,6 @@ void CIterator_cconnect::OnRemove( cconnect * con )
 		ASSERT(0);
 
 	OnRemove( remove_ic );
-
 }
 
 //******** Iterator for cseg (CIterator_cseg) *********

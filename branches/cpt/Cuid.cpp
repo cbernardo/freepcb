@@ -1,6 +1,6 @@
 // This is a class to generate simple unique IDs within an application
 // The UIDs are integers with values from 0 to 0x1fffff, so there are about 
-// 2 million possible values which should be enough for FreePCB
+// 2 million possible values
 // A value of -1 indicates an invalid uid
 //
 #include "stdafx.h"
