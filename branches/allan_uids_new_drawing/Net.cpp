@@ -50,11 +50,10 @@ cpin::cpin( cpin& src )
 
 cpin::~cpin()
 {
-	pcb_cuid.ReleaseUID( m_uid );
 }
 
 // copy all variables except m_uid
-// needed by CArray.InsertAt()
+// this form needed by CArray.InsertAt()
 cpin& cpin::operator=( const cpin& rhs )
 {
 	ref_des = rhs.ref_des;
@@ -216,7 +215,7 @@ cseg::cseg()
 }
 
 // copy constructor
-// don't copy UID or display elements
+// don't copy display elements
 cseg::cseg( cseg& src )
 {
 	m_uid = src.m_uid;
@@ -235,7 +234,6 @@ cseg::cseg( cseg& src )
 // destructor
 cseg::~cseg()
 {
-	pcb_cuid.ReleaseUID( m_uid );
 	if( m_dlist )
 	{
 		if( dl_el )
@@ -246,11 +244,11 @@ cseg::~cseg()
 }
 
 // assignment from const rhs (needed by CArray::InsertAt)
-// copy all variables except m_uid
 cseg& cseg::operator=( const cseg& rhs )
 {
 	if( this != &rhs )
 	{
+		m_uid = rhs.m_uid;
 		layer = rhs.layer;
 		width = rhs.width;
 		curve = rhs.curve;
@@ -291,16 +289,6 @@ void cseg::Initialize( cconnect * c )
 	m_con = c;
 	m_net = c->m_net;
 	m_dlist = m_net->m_dlist;
-}
-
-// replace the UID with a different one
-// release the old UID
-// if uid = -1, get a new one
-// otherwise, replace with uid provided
-// request assignment of uid if necessary
-void cseg::ReplaceUID( int uid )
-{
-	m_uid = pcb_cuid.PrepareToReplaceUID( m_uid, uid );
 }
 
 // get id
@@ -368,11 +356,11 @@ cvertex::cvertex()
 }
 
 // copy constructor
-// don't copy UID or display elements
+// don't copy display elements
 cvertex::cvertex( cvertex& v )
 {
 	// constructor
-	m_uid = pcb_cuid.GetNewUID();
+	m_uid = v.m_uid;
 	x = v.x;
 	y = v.y;
 	pad_layer = v.pad_layer;
@@ -390,7 +378,6 @@ cvertex::cvertex( cvertex& v )
 cvertex::~cvertex()
 {
 	// destructor
-	pcb_cuid.ReleaseUID( m_uid );
 	if( m_dlist )
 	{
 		for( int il=0; il<dl_el.GetSize(); il++ )
@@ -447,15 +434,6 @@ void cvertex::Initialize( cconnect * c )
 	m_dlist = m_net->m_dlist;
 }
 
-// replace the old UID with a different one
-// if the old UID is valid, release it
-// if uid = -1, get a new one, otherwise use uid
-//
-void cvertex::ReplaceUID( int uid )
-{
-	m_uid = pcb_cuid.PrepareToReplaceUID( m_uid, uid );
-}
-
 id cvertex::Id()
 {
 	id v_id = m_con->Id();
@@ -482,7 +460,7 @@ void cvertex::Undraw()
 }
 
 // return type of vertex
-cvertex::Type cvertex::GetType()
+cvertex::VType cvertex::GetType()
 {
 	if( pad_layer != 0 )
 		return V_PIN;
@@ -499,7 +477,7 @@ cvertex::Type cvertex::GetType()
 }
 
 // if vertex is a pin, return it
-cpin * cvertex::NetPin()
+cpin * cvertex::GetNetPin()
 {
 	if( GetType() == V_PIN )
 	{
@@ -512,7 +490,7 @@ cpin * cvertex::NetPin()
 }
 
 // if vertex is a pin, return index to it
-int cvertex::NetPinIndex()
+int cvertex::GetNetPinIndex()
 {
 	if( GetType() == V_PIN )
 	{
@@ -527,10 +505,10 @@ int cvertex::NetPinIndex()
 // Get string describing vertex type
 void cvertex::GetTypeStatusStr( CString * str )
 {
-	Type type = GetType();
+	VType type = GetType();
 	if( type == V_PIN )
 	{
-		cpin * pin = NetPin();
+		cpin * pin = GetNetPin();
 		str->Format( "%s.%s", pin->ref_des, pin->pin_name );
 	}
 	else if( type == V_TEE || type == V_SLAVE )
@@ -551,14 +529,14 @@ void cvertex::GetStatusStr( CString * str )
 {
 	int u = pcb->m_units;
 	CString type_str, x_str, y_str, via_w_str, via_hole_str;
-	Type type = GetType();
+	VType type = GetType();
 	if( type == V_PIN )
 	{
 		type_str = "pin-vertex";	// should never happen
 	}
 	else if( type == V_TEE || type == V_SLAVE )
 	{
-		type_str = "T-vertex";
+		type_str.Format( "T-vertex(%d)", tee_ID );
 	}
 	else if( type == V_END )
 	{
@@ -611,29 +589,8 @@ cconnect::cconnect( cnet* net )
 // destructor
 cconnect::~cconnect()
 {
-	pcb_cuid.ReleaseUID( m_uid );
 	vtx.RemoveAll();
 	seg.RemoveAll();
-}
-
-// replace the UID with a different one
-// if uid = -1, get a new one, otherwise use uid
-// release the old one and request uid if needed
-void cconnect::ReplaceUID( int uid )
-{
-	pcb_cuid.ReleaseUID( m_uid );
-	if( uid < 0 )
-	{
-		m_uid = pcb_cuid.GetNewUID();
-	}
-	else
-	{
-		if( pcb_cuid.CheckUID( uid ) )
-		{
-			pcb_cuid.RequestUID( uid );
-		}
-		m_uid = uid;
-	}
 }
 
 // clear segment and vertex arrays
@@ -691,6 +648,9 @@ void cconnect::SetNumSegs( int n )
 	seg.SetSize(n); 
 	vtx.SetSize(n+1); 
 }
+
+
+//**************************** cpin implementation **********************
 
 // get start pin, or NULL if doesn't start on a pin
 cpin * cconnect::StartPin()
@@ -821,16 +781,19 @@ cvertex& cconnect::InsertVertexByIndex( int iv, const cvertex& new_vtx )
 }
 
 // insert a new segment and new vertex into connection
-// new vertex is at vtx[is+1], dividing old seg[is] into seg[is] and seg[is+1]
+// new vertex will inserted at vtx[is+1], 
+// dividing old seg[is] into seg[is] and seg[is+1],
+// and shifting following segments and vertices up by one
+//
 // parameters are copied from new_seg and new_vtx
-// if dir = 0, params are copied from new_seg to seg[is+1]
-// if dir = 1, params are copied from seg[is] to seg[is+1], and new_seg to seg[is], and seg[is]->seg[is+1]
+//
+// if dir = 0, params are copied from new_seg->seg[is]
+// if dir = 1, params are copied from seg[is+1]->seg[is] and new_seg to seg[is+1]
 //
 void cconnect::InsertSegAndVtxByIndex(int is, int dir, 
 					const cseg& new_seg, const cvertex& new_vtx )
 {
 	cseg old_seg;
-	pcb_cuid.ReleaseUID( old_seg.UID() );
 	if( NumSegs() == 0 )
 		ASSERT(0);
 	old_seg = seg[is];		// copy old seg[is];
@@ -838,15 +801,14 @@ void cconnect::InsertSegAndVtxByIndex(int is, int dir,
 	if( dir == 0 )
 	{
 		// route forward
-		seg.InsertAt(is, new_seg );		// insert segment with new params
-		SegByIndex(is).Initialize(this);	// and new uid
+		seg.InsertAt(is, new_seg );		
+		SegByIndex(is).Initialize(this);	
 	}
 	else
 	{
 		// route backward
-		seg.InsertAt(is, old_seg );	// insert segment with old params
-		seg[is].ReplaceUID( old_seg.m_uid );	
-		seg[is+1] = new_seg;	// assign new params to next segment
+		seg.InsertAt(is, old_seg );	
+		seg[is+1] = new_seg;	
 		SegByIndex(is+1).Initialize(this);
 	}
 	vtx.InsertAt(is+1, new_vtx );
@@ -955,7 +917,7 @@ void cconnect::Draw()
 }
 
 
-//************************* CNet implementation ***************************
+//************************* cnet implementation ***************************
 
 cnet::cnet( CDisplayList * dlist, CNetList * nlist )
 { 
@@ -977,7 +939,6 @@ cnet::~cnet()
 	connect.RemoveAll();
 	area.RemoveAll();
 	pin.RemoveAll();
-	pcb_cuid.ReleaseUID( m_uid );
 }
 
 // return size of arrays
@@ -1326,7 +1287,7 @@ void cnet::RecreateConnectFromUndo( undo_con * un_con, undo_seg * un_seg, undo_v
 			nc = AddConnectFromPin( un_con->start_pin );
 		cconnect * c = connect[nc];
 		// now replace all connect parameters from undo record
-		c->ReplaceUID( un_con->uid );
+		c->m_uid = un_con->uid;
 		// insert segments and vertices into connection
 		for( int is=0; is<un_con->nsegs; is++ )
 		{
@@ -1346,12 +1307,12 @@ void cnet::RecreateConnectFromUndo( undo_con * un_con, undo_seg * un_seg, undo_v
 		// now finish importing undo data into segments and vertices
 		for( int is=0; is<un_con->nsegs; is++ )
 		{
-			c->seg[is].ReplaceUID( un_seg[is].uid );
+			c->seg[is].m_uid = un_seg[is].uid;
 			if( is == 0 )
 			{
-				c->vtx[is].ReplaceUID( vtx[is].uid );
+				c->vtx[is].m_uid = vtx[is].uid;
 			}
-			c->vtx[is+1].ReplaceUID( vtx[is+1].uid );
+			c->vtx[is+1].m_uid = vtx[is+1].uid;
 			c->vtx[is+1].via_w = vtx[is+1].via_w;
 			c->vtx[is+1].via_hole_w = vtx[is+1].via_hole_w;
 			if( vtx[is+1].force_via_flag )
@@ -1369,11 +1330,20 @@ void cnet::RecreateConnectFromUndo( undo_con * un_con, undo_seg * un_seg, undo_v
 	}
 }
 
+// convert a connection with internal tees to multiple connections
+//
+void cnet::ConvertConnectWithInternalTees( cconnect * c )
+{
+
+}
+
 // Split a connection into two connections sharing a tee-vertex
 // enter with:
 //	con_id - id of connection to be split
-//	vtx_id - id of vertex to be split at, can't already be a tee-vertex
+//	vtx_id - id of vertex to be split at
+// if the vertex is not already a tee-vertex, make a new one
 // return pointer to the new connection
+
 cconnect * cnet::SplitConnectAtVertex( id vtx_id )
 {
 	cconnect * old_c = ConByUID( vtx_id.U2() );
@@ -1381,7 +1351,7 @@ cconnect * cnet::SplitConnectAtVertex( id vtx_id )
 	cconnect * new_c = AddConnect();	// add empty connection
 	new_c->start_pin = old_c->end_pin;	
 	int ivsplit;
-	old_c->VtxByUID( vtx_id.U3(), &ivsplit );
+	cvertex * v_split = old_c->VtxByUID( vtx_id.U3(), &ivsplit );
 	for( int iv=old_c->NumSegs(); iv>=ivsplit; iv-- )
 	{
 		if( iv == old_c->NumSegs() )
@@ -1393,7 +1363,9 @@ cconnect * cnet::SplitConnectAtVertex( id vtx_id )
 		}
 	}
 	// convert both connections to stubs, ending at a shared tee-vertex
-	int tee_ID = m_nlist->GetNewTeeID();
+	int tee_ID = v_split->tee_ID;
+	if( tee_ID == 0 )
+		tee_ID = m_nlist->GetNewTeeID();
 	old_c->LastVtx()->tee_ID = tee_ID;		// master
 	new_c->LastVtx()->tee_ID = -tee_ID;		// slave
 	new_c->Draw();
@@ -1402,7 +1374,7 @@ cconnect * cnet::SplitConnectAtVertex( id vtx_id )
 }
 
 // Add a new connection from a vertex to a pin
-cconnect * cnet::AddConnectionFromVertexToPin( id vtx_id, int pin_index )
+cconnect * cnet::AddConnectFromVertexToPin( id vtx_id, int pin_index )
 {
 	cconnect * split_c = SplitConnectAtVertex( vtx_id );
 	cvertex * tee_v = split_c->LastVtx();

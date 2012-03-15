@@ -25,7 +25,6 @@ part_pin::part_pin()
 
 part_pin::~part_pin()
 {
-	pcb_cuid.ReleaseUID( m_uid );
 }
 
 id part_pin::Id()
@@ -71,7 +70,6 @@ cpart::cpart( CPartList * pl )
 
 cpart::~cpart()
 {
-	pcb_cuid.ReleaseUID( m_id.U1()  );
 }
 
 part_pin * cpart::PinByUID( int uid, int * index )
@@ -138,7 +136,7 @@ cpart * CPartList::GetPartByUID( int uid )
 	return NULL;
 }
 
-	// Create new empty part and add to end of list
+// Create new empty part and add to end of list
 // return pointer to element created.
 //
 cpart * CPartList::Add( int uid )
@@ -154,11 +152,11 @@ cpart * CPartList::Add( int uid )
 	if( uid != -1 )
 	{
 		// set uid
-		pcb_cuid.ReleaseUID( part->m_id.U1()  );
-		if( !pcb_cuid.RequestUID( uid ) )
-			ASSERT(0);
 		part->m_id.SetU1(uid);
 	}
+	else
+		part->m_id.SetU1( pcb_cuid.GetNewUID() );
+
 	part->prev = m_end.prev;
 	part->next = &m_end;
 	part->prev->next = part;
@@ -3145,11 +3143,7 @@ void CPartList::PartUndoCallback( int type, void * ptr, BOOL undo )
 			for( int ip=0; ip<part->shape->GetNumPins(); ip++ )
 			{
 				int * intptr = (int*)chptr;
-				pcb_cuid.ReleaseUID( part->pin[ip].m_uid );
-				if( pcb_cuid.RequestUID( *intptr ) )
-					part->pin[ip].m_uid = *intptr;
-				else
-					ASSERT(0);
+				part->pin[ip].m_uid = *intptr;
 				chptr += sizeof(int);
 			}
 			// if part was renamed
@@ -3213,11 +3207,7 @@ void CPartList::PartUndoCallback( int type, void * ptr, BOOL undo )
 			for( int ip=0; ip<part->shape->GetNumPins(); ip++ )
 			{
 				int * intptr = (int*)chptr;
-				pcb_cuid.ReleaseUID( part->pin[ip].m_uid );
-				if( pcb_cuid.RequestUID( *intptr ) )
-					part->pin[ip].m_uid = *intptr;
-				else
-					ASSERT(0);
+				part->pin[ip].m_uid = *intptr;
 				chptr += sizeof(int);
 			}
 			// if part was renamed
@@ -5519,14 +5509,6 @@ int CPartList::CheckPartlist( CString * logstr )
 		// check this part
 		str = "";
 		CString * ref_des = &part->ref_des;
-		if( pcb_cuid.CheckUID( part->m_id.U1()  ) )
-		{
-			// uid is not assigned
-			str.Format( "Error: Part \"%s\" has invalid UID\r\n",
-				*ref_des );
-			*logstr += str;
-			nerrors++;
-		}
 		if( !part->shape )
 		{
 			// no footprint

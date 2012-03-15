@@ -3683,20 +3683,16 @@ void CFreePcbDoc::SMCutoutUndoCallback( int type, void * ptr, BOOL undo )
 			id sm_id( ID_MASK, -1, ID_MASK, -1, i );
 			poly->Start( un_sm->layer, 1, 10*NM_PER_MIL, 
 				corner[0].x, corner[0].y, un_sm->hatch_style, &sm_id, NULL );
-			pcb_cuid.ReplaceUID( poly->CornerUID(0), corner[0].uid );
 			poly->SetCornerUID( 0, corner[0].uid );
 
 			for( int ic=1; ic<un_sm->ncorners; ic++ )
 			{
 				poly->AppendCorner( corner[ic].x, corner[ic].y, corner[ic-1].side_style );
-				pcb_cuid.ReplaceUID( poly->CornerUID(ic), corner[ic].uid );
 				poly->SetCornerUID( ic, corner[ic].uid );
-				pcb_cuid.ReplaceUID( poly->SideUID(ic-1), corner[ic].side_uid );
 				poly->SetSideUID( ic-1, corner[ic].side_uid );
 			}
 
 			poly->Close( corner[un_sm->ncorners-1].side_style );
-			pcb_cuid.ReplaceUID( poly->SideUID(un_sm->ncorners-1), corner[un_sm->ncorners-1].side_uid );
 			poly->SetSideUID(un_sm->ncorners-1, corner[un_sm->ncorners-1].side_uid );
 			poly->Draw();
 		}

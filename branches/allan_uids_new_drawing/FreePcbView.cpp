@@ -2498,7 +2498,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 							}
 							int p1 = m_Doc->m_nlist->GetNetPinIndex( m_sel_net, &new_sel_part->ref_des, &pin_name );
 							m_sel_con->Undraw();
-							cconnect * new_con = m_sel_net->AddConnectionFromVertexToPin( m_sel_id, p1 );
+							cconnect * new_con = m_sel_net->AddConnectFromVertexToPin( m_sel_id, p1 );
 							m_sel_con->Draw();
 							new_con->Draw();
 							CancelSelection();
@@ -2619,7 +2619,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 								}
 							}
 							if( p1>=0 && p2>=0 )
-								m_sel_net->AddConnectFromPinToPin( p1, p2 );
+								new_sel_net->AddConnectFromPinToPin( p1, p2 );
 							else
 								ASSERT(0);	// couldn't find pins in net
 							m_dlist->StopDragging();
@@ -5359,6 +5359,7 @@ int CFreePcbView::ShowSelectStatus()
 			{
 				str = con_str;
 			}
+			str = str + uid_str;
 		}
 		break;
 
@@ -5369,14 +5370,22 @@ int CFreePcbView::ShowSelectStatus()
 			m_sel_id.Con()->GetStatusStr( &con_str );
 			CString vtx_str;
 			cvertex * v = m_sel_id.Vtx();
-			if( v )
+			if( v == NULL )
+			{
+				str = con_str;
+			}
+#if 0
+			else if( v->tee_ID )
+			{
+				m_sel_id.Net()->GetStatusStr( &str );
+				m_sel_id.Vtx()->GetStatusStr( &vtx_str );
+				str = str + ", " + vtx_str;
+			}
+#endif
+			else
 			{
 				m_sel_id.Vtx()->GetStatusStr( &vtx_str );
 				str = con_str + ", " + vtx_str;
-			}
-			else
-			{
-				str = con_str;
 			}
 		}
 		break;
@@ -6987,6 +6996,7 @@ void CFreePcbView::OnEndVertexAddVia()
 	SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_Doc->m_undo_list );
 	m_Doc->m_nlist->ForceVia( m_sel_net, m_sel_ic, m_sel_is );
 	SetFKText( m_cursor_mode );
+#if 0 //** debugging 
 	if( m_Doc->m_vis[LAY_RAT_LINE] ) 
 	{
 		m_Doc->m_nlist->OptimizeConnections( m_sel_net, m_sel_ic, m_Doc->m_auto_ratline_disable,
@@ -6996,6 +7006,7 @@ void CFreePcbView::OnEndVertexAddVia()
 		else
 			CancelSelection();
 	}
+#endif //** debugging
 	m_Doc->ProjectModified( TRUE );
 	Invalidate( FALSE );
 }

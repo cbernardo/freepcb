@@ -988,11 +988,20 @@ int CDisplayList::TestSelect(
 			{
 				BOOL excluded_hit = FALSE;
 				BOOL included_hit = TRUE;
+				
+				// always exclude hits on slaved tee-vertices 
+				if( hit_info[i].ID.IsVtx() )
+				{
+					if( hit_info[i].ID.Vtx()->tee_ID < 0 )
+						excluded_hit = TRUE;
+				}
+				// test for other exclusions
 				if( exclude_id )
 				{
 					if( hit_info[i].ID == *exclude_id && hit_info[i].ptr == exclude_ptr )
 						excluded_hit = TRUE;
 				}
+				// test for explicit inclusions
 				if( include_id )
 				{
 					included_hit = FALSE;
