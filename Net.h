@@ -1,6 +1,9 @@
-// Net.h: interface for the cnet class.
-//
-// Describes a net
+// Net.h: interface for the the following classes:
+//	cpin - a pin in a net (eg. U1.6)
+//	cconnect - a connection in a net, usually a trace between pins
+//	cseg - a segment of a connection, either copper or a ratline
+//	cvertex - a vertex in a connection (ie. a pin or a point between segments)
+//	carea - a copper area in a net
 //
 
 #pragma once
@@ -36,7 +39,7 @@ public:
 	void Initialize( cnet * net );
 
 	int Index();				// index of pin in array
-	int UID();					
+	int UID();					// unique identifier			
 	part_pin * GetPartPin();	// pointer to this pin on part
 	id GetPartPinId();			// id of part pin
 
@@ -53,11 +56,12 @@ class carea : public CPolyLine
 {
 public:
 	carea();
-	carea( const carea& source );	// dummy copy constructor
+	carea( const carea& source );		// dummy copy constructor
 	~carea();						
-	carea &operator=( carea &a );	// dummy assignment operator
+	carea &operator=( carea &a );		// dummy assignment operator
 	carea &operator=( const carea &a );	// dummy assignment operator
 	void Initialize( CDisplayList * dlist, cnet * net );
+
 	int UID(){ return m_uid; };
 	void SetUID( int uid ){ m_uid = uid; };
 	id& Id();
@@ -89,7 +93,6 @@ public:
 	void Initialize( cconnect * c );
 	id Id();
 	int UID(){ return m_uid; };
-	void ReplaceUID( int uid );
 
 	int GetIndex();
 	cvertex& GetPreVtx();
@@ -115,13 +118,13 @@ class cvertex
 {
 public:
 	// types of vertices
-	enum Type { 
+	enum VType { 
 		V_ERR = 0,	// unknown
-		V_PIN,		// part pin 
-		V_TRACE,	// normal junction between trace segments
-		V_END,		// end of stub trace
-		V_TEE,		// T-vertex at end of stub trace, connected to other stubs
-		V_SLAVE		// end of another stub trace slaved to TEE
+		V_PIN,		// pin at end of trace
+		V_TRACE,	// vertex between trace segments
+		V_END,		// end vertex of stub trace
+		V_TEE,		// T-vertex (defined here)
+		V_SLAVE		// T-vertex (defined in another trace)
 	};	
 
 	cvertex();
@@ -132,12 +135,11 @@ public:
 	void Initialize( cconnect * c );
 
 	int UID(){ return m_uid; };
-	void ReplaceUID( int uid );
 	id Id();
 	void Undraw();
-	Type GetType();
-	cpin * NetPin();
-	int NetPinIndex();
+	VType GetType();
+	cpin * GetNetPin();
+	int GetNetPinIndex();
 	void GetTypeStatusStr( CString * str );
 	void GetStatusStr( CString * str );
 
@@ -177,16 +179,15 @@ public:
 	cconnect( cnet * net );
 	~cconnect();
 	int UID(){ return m_uid; };
-	void ReplaceUID( int uid );
 	void ClearArrays();
 	void GetStatusStr( CString * str );
 	id Id();
 
-	// pins
+	// get info about start/ending pins
 	cpin * StartPin();
 	cpin * EndPin();
 
-	// vertices
+	// get info about vertices
 	int NumVtxs(){ return vtx.GetSize(); };
 	cvertex * FirstVtx();
 	cvertex * LastVtx();
@@ -194,9 +195,8 @@ public:
 	cvertex& VtxByIndex( int iv );
 	int VtxIndexByPtr( cvertex * v );
 	int VtxUIDByPtr( cvertex * v );
-	cvertex& InsertVertexByIndex( int iv, const cvertex& new_vtx );
 
-	// segments
+	// get info about segments
 	int NumSegs();
 	void SetNumSegs( int n );
 	cseg * SegByUID( int uid, int * index=NULL );
@@ -204,7 +204,8 @@ public:
 	int SegIndexByPtr( cseg * s );
 	int SegUIDByPtr( cseg * s );
 
-	// segments and vertices
+	// modify segments and vertices
+	cvertex& InsertVertexByIndex( int iv, const cvertex& new_vtx );
 	void InsertSegAndVtxByIndex( int is, int dir, 
 				const cseg& new_seg, const cvertex& new_vtx );
 	void AppendSegAndVertex( const cseg& new_seg, const cvertex& new_vtx );
@@ -283,12 +284,11 @@ public:
 	id AddConnectFromVtx( id& vtx_id );
 	int AddConnectFromPin( int p1 );
 	int AddConnectFromPinToPin( int p1, int p2 );
+	cconnect * AddConnectFromVertexToPin( id vtx_id, int pin_index );
 	void RemoveConnect( cconnect * c );
 	cconnect * SplitConnectAtVertex( id vtx_id );
 	void RecreateConnectFromUndo( undo_con * con, undo_seg * seg, undo_vtx * vtx );
-
-	// both
-	cconnect * AddConnectionFromVertexToPin( id vtx_id, int pin_index );
+	void ConvertConnectWithInternalTees( cconnect * c );
 
 // member variables
 	id m_id;				// net id

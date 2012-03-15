@@ -63,7 +63,6 @@ void CText::Init( CDisplayList * dlist, id tid, int x, int y, int angle, int mir
 CText::~CText()
 {
 	Undraw();
-	pcb_cuid.ReleaseUID( m_uid );
 }
 
 // Draw text as a series of strokes
@@ -573,12 +572,7 @@ void CTextList::TextUndoCallback( int type, void * ptr, BOOL undo )
 			CText * new_text = tlist->AddText( un_t->m_x, un_t->m_y, un_t->m_angle, 
 				un_t->m_mirror, un_t->m_bNegative,
 				un_t->m_layer, un_t->m_font_size, un_t->m_stroke_width, &un_t->m_str, FALSE );
-			// release the UID assigned to the new text, and restore the undo value
-			pcb_cuid.ReleaseUID( new_text->m_uid );			
-			if( !pcb_cuid.RequestUID( un_t->m_uid ) )
-				ASSERT(0);
 			new_text->m_uid = un_t->m_uid;
-			new_text->m_id.SetU1(un_t->m_uid);
 			new_text->Draw( tlist->m_dlist, tlist->m_smfontutil );
 		}
 	}

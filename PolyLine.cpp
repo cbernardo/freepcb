@@ -39,7 +39,6 @@ CPolyCorner::CPolyCorner( CPolyCorner& src )
 
 CPolyCorner::~CPolyCorner()
 {
-	pcb_cuid.ReleaseUID( m_uid );
 };
 
 // assignment, copy everything except UID and display elements
@@ -80,7 +79,6 @@ CPolySide::CPolySide()
 
 CPolySide::~CPolySide()
 {
-	pcb_cuid.ReleaseUID( m_uid );
 };
 
 // assignment, copy everything except UID and display elements
@@ -126,7 +124,6 @@ CPolyLine::CPolyLine()
 CPolyLine::~CPolyLine()
 {
 	Clear();
-	pcb_cuid.ReleaseUID( m_uid );
 }
 
 void CPolyLine::Clear()
@@ -161,23 +158,18 @@ void CPolyLine::SetFromUndo( undo_poly * un_poly )
 	side.SetSize(0);
 	FreeGpcPoly();
 	// replace poly from undo record
-	m_uid = pcb_cuid.PrepareToReplaceUID( m_uid, un_poly->uid );
 	int nc = un_poly->ncorners;
 	undo_corner * un_corner = (undo_corner*)((UINT)un_poly + sizeof(undo_poly));
 	Start( un_poly->layer, un_poly->width, un_poly->sel_box, 
 		un_corner[0].x, un_corner[0].y, un_poly->hatch, &un_poly->root_id, NULL );
-	pcb_cuid.ReplaceUID( CornerUID(0), un_corner[0].uid );
 	SetCornerUID( 0, un_corner[0].uid ); 
 	for( int ic=1; ic<nc; ic++ )
 	{
 		AppendCorner( un_corner[ic].x, un_corner[ic].y, un_corner[ic-1].side_style );
-		pcb_cuid.ReplaceUID( CornerUID(ic), un_corner[ic].uid );
 		SetCornerUID( ic, un_corner[ic].uid ); 
-		pcb_cuid.ReplaceUID( SideUID(ic-1), un_corner[ic-1].side_uid );
 		SetSideUID( ic-1, un_corner[ic-1].side_uid ); 
 	}
 	Close( un_corner[nc-1].side_style );
-	pcb_cuid.ReplaceUID( SideUID(nc-1), un_corner[nc-1].side_uid );
 	SetSideUID( nc-1, un_corner[nc-1].side_uid ); 
 	Draw(); 
 }

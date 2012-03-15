@@ -280,7 +280,7 @@ int id::Type()
 		return t1;
 }
 
-// test for various types, doesn't verify UIDs
+// tests for various types, doesn't verify UIDs
 //
 BOOL id::IsDRC()		{ return t1 == ID_DRC	&& t2 == ID_SEL_DRE; }
 BOOL id::IsText()		{ return t1 == ID_TEXT	&& t2 == ID_TEXT; }

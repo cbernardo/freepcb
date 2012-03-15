@@ -692,7 +692,8 @@ void CNetList::CleanUpConnections( cnet * net, CString * logstr )
 	RenumberConnections( net );
 }
 
-
+// Clean up all connections, then check tees and branch traces
+//
 void CNetList::CleanUpAllConnections( CString * logstr )
 {
 	CString str;
@@ -2265,6 +2266,7 @@ void CNetList::OptimizeConnections( cpart * part, BOOL bBelowPinCount, int pin_c
 		}
 	}
 }
+
 
 // optimize the unrouted connections for a net
 // if ic_track >= 0, returns new ic corresponding to old ic or -1 if unable
@@ -4062,6 +4064,18 @@ void CNetList::ReadNets( CStdioFile * pcb_file, double read_version, int * layer
 									ForceVia( net, ic, is+1 );
 							}
 							net->connect[ic]->vtx[is+1].tee_ID = tee_ID;
+
+							// if older version of fpc file, negate tee_ID of end_vertex
+							// of stub trace to make compatible with version 1.360 and higher
+							if( end_pin == cconnect::NO_END 
+								&& is == nsegs-1 
+								&& read_version < 1.360 
+								&& tee_ID > 0 )
+							{
+								net->connect[ic]->vtx[is+1].tee_ID = -tee_ID;
+							}
+							//**
+
 							if( is != 0 )
 							{
 								// set widths of preceding vertex
@@ -5282,12 +5296,6 @@ int CNetList::CheckNetlist( CString * logstr )
 		}
 		else
 			net_map.SetAt( net_name, NULL );
-		if( pcb_cuid.CheckUID( net->m_id.U1() ) )
-		{
-			str.Format( "Warning: Net \"%s\": has invalid UID\r\n", net->name );
-			*logstr += str;
-			nerrors++;
-		}
 		int npins = net->pin.GetSize();
 		if( npins == 0 )
 		{
@@ -5492,23 +5500,9 @@ int CNetList::CheckNetlist( CString * logstr )
 		for( int ic=0; ic<net->connect.GetSize(); ic++ )
 		{
 			cconnect * c = net->connect[ic];
-			if( pcb_cuid.CheckUID( c->m_uid ) )
-			{
-				str.Format( "ERROR: Net \"%s\": connection %d with invalid UID\r\n",
-					net->name, ic );
-				*logstr += str;
-				nerrors++;
-			}
 			CIterator_cseg iter_seg( c );
 			for( cseg * s=iter_seg.GetFirst(); s; s=iter_seg.GetNext() )
 			{
-				if( pcb_cuid.CheckUID( s->m_uid ) )
-				{
-					str.Format( "ERROR: Net \"%s\": connection %d segment %d with invalid UID\r\n",
-						net->name, ic, iter_seg.GetIndex() );
-					*logstr += str;
-					nerrors++;
-				}
 				if( s->m_con != c )
 				{
 					str.Format( "ERROR: Net \"%s\": connection %d segment %d with invalid ptr to connect\r\n",
@@ -5520,13 +5514,6 @@ int CNetList::CheckNetlist( CString * logstr )
 			CIterator_cvertex iter_vtx( c );
 			for( cvertex * v=iter_vtx.GetFirst(); v; v=iter_vtx.GetNext() )
 			{
-				if( pcb_cuid.CheckUID( v->m_uid ) )
-				{
-					str.Format( "ERROR: Net \"%s\": connection %d vertex %d with invalid UID\r\n",
-						net->name, ic, iter_vtx.GetIndex() );
-					*logstr += str;
-					nerrors++;
-				}
 				if( v->m_con != c )
 				{
 					str.Format( "ERROR: Net \"%s\": connection %d vertex %d with invalid ptr to connect\r\n",
