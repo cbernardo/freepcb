@@ -162,8 +162,8 @@ BEGIN
         MENUITEM "Import netlist...",           244
         MENUITEM "Export netlist...",           ID_FILE_EXPORTNETLIST
         MENUITEM SEPARATOR
-        MENUITEM "Load library as project...",  ID_FILE_LOADLIBRARYASPROJECT
-        MENUITEM "Save project as library...",  ID_FILE_SAVEPROJECTASLIBRARY
+        MENUITEM "Load library as project...",  ID_FILE_LOADLIBRARYASPROJECT, GRAYED
+        MENUITEM "Save project as library...",  ID_FILE_SAVEPROJECTASLIBRARY, GRAYED
         MENUITEM "Convert library...",          250
         MENUITEM SEPARATOR
         MENUITEM "Generate CAM files...",       ID_FILE_GENERATECADFILES
@@ -174,11 +174,11 @@ BEGIN
         MENUITEM "Export .dsn file...",         32886
         MENUITEM "Import .ses file...",         ID_SES_FILE_IMPORT
         MENUITEM SEPARATOR
-        MENUITEM "&Print...\tCtrl+P",           ID_FILE_PRINT
-        MENUITEM "Print Pre&view",              ID_FILE_PRINT_PREVIEW
-        MENUITEM "P&rint Setup...",             ID_FILE_PRINT_SETUP
+        MENUITEM "&Print...\tCtrl+P",           ID_FILE_PRINT, GRAYED
+        MENUITEM "Print Pre&view",              ID_FILE_PRINT_PREVIEW, GRAYED
+        MENUITEM "P&rint Setup...",             ID_FILE_PRINT_SETUP, GRAYED
         MENUITEM SEPARATOR
-        MENUITEM "Recent File",                 ID_FILE_MRU_FILE1
+        MENUITEM "Recent File",                 ID_FILE_MRU_FILE1, GRAYED
         MENUITEM SEPARATOR
         MENUITEM "E&xit",                       ID_APP_EXIT
         MENUITEM SEPARATOR
@@ -310,15 +310,10 @@ BEGIN
     BEGIN
         MENUITEM "View All",                    ID_NONE_VIEWALL
         MENUITEM SEPARATOR
-        POPUP "Add"
-        BEGIN
-            MENUITEM "Board Outline",               ID_ADD_BOARDOUTLINE
-            MENUITEM "Part",                        ID_ADD_PART
-            MENUITEM "Net",                         ID_ADD_NET
-            MENUITEM "Copper Area",                 ID_ADD_AREA
-            MENUITEM "Text",                        ID_ADD_TEXT
-            MENUITEM "Solder Mask Cutout",          ID_ADD_SOLDERMASKCUTOUT
-        END
+        MENUITEM "Add Part",                    ID_NONE_ADDPART
+        MENUITEM "Add Text",                    ID_NONE_ADDTEXT
+        MENUITEM "Add Copper Area",             ID_NONE_ADDCOPPERAREA
+        MENUITEM "Add Board Outline",           ID_NONE_ADDBOARDOUTLINE
         MENUITEM SEPARATOR
         MENUITEM "Footprint Wizard",            ID_NONE_FOOTPRINTWIZARD
         MENUITEM "Footprint Editor",            ID_NONE_FOOTPRINTEDITOR
@@ -357,16 +352,14 @@ BEGIN
     BEGIN
         MENUITEM "Attach to Net",               ID_PAD_ADDTONET
         MENUITEM "Detach from Net",             ID_PAD_DETACHFROMNET
-        MENUITEM SEPARATOR
         MENUITEM "Connect to Pin",              ID_PAD_CONNECTTOPIN
         MENUITEM "Start Stub Trace",            ID_PAD_STARTSTUBTRACE
-        MENUITEM "Set Clearance",               ID_PAD_SETCLEARANCE
         MENUITEM "Optimize Ratlines",           ID_PAD_OPTIMIZERATLINES
     END
     POPUP "Segment"
     BEGIN
         MENUITEM "Move",                        ID_SEGMENT_MOVE
-        MENUITEM "Set Size Attributes",         ID_SEGMENT_SETWIDTH
+        MENUITEM "Set Width",                   ID_SEGMENT_SETWIDTH
         MENUITEM "Change Layer",                ID_SEGMENT_CHANGELAYER
         MENUITEM "Add Vertex",                  ID_SEGMENT_ADDVERTEX
         MENUITEM SEPARATOR
@@ -383,20 +376,20 @@ BEGIN
         MENUITEM "Lock Connection",             ID_RATLINE_LOCKCONNECTION
         MENUITEM "Unlock Connection",           ID_RATLINE_UNLOCKCONNECTION
         MENUITEM "Optimize Net",                ID_RATLINE_OPTIMIZE
-        MENUITEM "Set Size Attributes",         ID_RATLINE_SETWIDTH
+        MENUITEM "Set Width",                   ID_RATLINE_SETWIDTH
         MENUITEM "Change Pin",                  ID_RATLINE_CHANGEPIN
         MENUITEM SEPARATOR
         MENUITEM "Delete Connection",           ID_RATLINE_DELETECONNECTION
-        MENUITEM "Set Ratline Width",           ID_RATLINE_SETRATLINEWIDTH
     END
     POPUP "Vertex"
     BEGIN
         MENUITEM "Move",                        ID_VERTEX_MOVE
         MENUITEM "Set Position",                ID_VERTEX_PROPERITES
-        MENUITEM "Set Size Attributes",         ID_VERTEX_SETSIZE
+        MENUITEM "Set Via Size",                ID_VERTEX_SETSIZE
+        MENUITEM SEPARATOR
         MENUITEM "Connect To Pin",              ID_VERTEX_CONNECTTOPIN
         MENUITEM SEPARATOR
-        MENUITEM "Delete",                      ID_VERTEX_DELETE
+        MENUITEM "Delete Vertex",               ID_VERTEX_DELETE
         MENUITEM "Unroute Trace",               ID_VERTEX_UNROUTETRACE
     END
     POPUP "Text"
@@ -427,6 +420,7 @@ BEGIN
         MENUITEM "Add Area Cutout",             ID_AREAEDGE_ADDCUTOUT
         MENUITEM "Add Similar Area",            ID_AREAEDGE_ADDNEWAREA
         MENUITEM "Edit Area Params",            ID_AREAEDGE_CHANGELAYER
+        MENUITEM "Apply Clearances",            ID_AREAEDGE_APPLYCLEARANCES, GRAYED
         MENUITEM SEPARATOR
         MENUITEM "Delete Cutout",               ID_AREAEDGE_DELETECUTOUT
         MENUITEM "Delete Area",                 ID_AREAEDGE_DELETE
@@ -454,11 +448,13 @@ BEGIN
         MENUITEM "Add Via",                     ID_ENDVERTEX_ADDVIA
         MENUITEM "Remove Via",                  ID_ENDVERTEX_REMOVEVIA
         MENUITEM "Set Position",                ID_ENDVERTEX_EDIT
-        MENUITEM "Set Size Attributes",         ID_ENDVERTEX_SETSIZE
+        MENUITEM "Set Via Size",                ID_ENDVERTEX_SETSIZE
+        MENUITEM SEPARATOR
+        MENUITEM "Add Segments",                ID_ENDVERTEX_ADDSEGMENTS
+        MENUITEM SEPARATOR
         MENUITEM "Connect to Pin",              ID_ENDVERTEX_ADDCONNECTION
         MENUITEM SEPARATOR
         MENUITEM "Delete",                      ID_ENDVERTEX_DELETE
-        MENUITEM "Add Segments",                ID_ENDVERTEX_ADDSEGMENTS
     END
     POPUP "FP_pad"
     BEGIN
@@ -484,7 +480,7 @@ BEGIN
     END
     POPUP "Connect"
     BEGIN
-        MENUITEM "Set Size Attributes",         ID_CONNECT_SETWIDTH
+        MENUITEM "Set Width",                   ID_CONNECT_SETWIDTH
         MENUITEM "Change layer",                ID_CONNECT_CHANGELAYER
         MENUITEM SEPARATOR
         MENUITEM "Unroute trace",               ID_CONNECT_UNROUTETRACE
@@ -493,7 +489,7 @@ BEGIN
     END
     POPUP "Net"
     BEGIN
-        MENUITEM "Set Size Attributes",         ID_NET_SETWIDTH
+        MENUITEM "Set Width",                   ID_NET_SETWIDTH
         MENUITEM "Change Layer",                ID_NET_CHANGELAYER
         MENUITEM SEPARATOR
         MENUITEM "Edit Net",                    ID_NET_EDITNET
@@ -773,8 +769,8 @@ CAPTION "About FreePcb"
 FONT 8, "MS Sans Serif", 0, 0, 0x0
 BEGIN
     ICON            IDR_MAINFRAME,IDC_STATIC,11,12,20,20
-    LTEXT           "FreePcb Version 1.355",IDC_STATIC,42,12,119,8,SS_NOPREFIX
-    LTEXT           "(c) Allan Wright 2003 - 2008",IDC_STATIC,42,24,142,8
+    LTEXT           "FreePcb Version 1.359",IDC_STATIC,42,12,119,8,SS_NOPREFIX
+    LTEXT           "(c) Allan Wright 2003 - 2010",IDC_STATIC,42,24,142,8
     DEFPUSHBUTTON   "OK",IDOK,178,7,50,14,WS_GROUP
     LTEXT           "Source libraries:",IDC_STATIC,19,66,51,8
     LTEXT           "(c) Advanced Interfaces Group, University of Manchester",IDC_STATIC,42,99,180,8
@@ -854,40 +850,32 @@ BEGIN
     LTEXT           "Select or enter net name",IDC_STATIC,17,12,80,8
 END
 
-IDD_SEGMENT_WIDTH DIALOGEX 0, 0, 200, 329
+IDD_SEGMENT_WIDTH DIALOGEX 0, 0, 202, 250
 STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
-CAPTION "Set Trace/Via Size Attributes"
+CAPTION "Set Trace and/or Via Widths"
 FONT 8, "MS Shell Dlg", 400, 0, 0x1
 BEGIN
-    CONTROL         "Modify:",IDC_CHECK_TRACE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,7,7,40,10
-    CONTROL         "Use net default",IDC_RADIO1_PROJ_DEF,"Button",BS_AUTORADIOBUTTON | WS_GROUP,23,31,65,10
-    CONTROL         "Set to",IDC_RADIO1_SET_TO,"Button",BS_AUTORADIOBUTTON,23,44,33,10
-    COMBOBOX        IDC_COMBO_WIDTH,58,43,48,142,CBS_DROPDOWN | CBS_SORT | WS_VSCROLL | WS_TABSTOP
-    CONTROL         "Modify:",IDC_CHECK_VIA,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,7,72,40,10
-    CONTROL         "Use net default",IDC_RADIO2_PROJ_DEF,"Button",BS_AUTORADIOBUTTON | WS_GROUP,23,95,65,10
-    CONTROL         "Use default via for trace width above",IDC_RADIO2_DEF_FOR_TRACE,
-                    "Button",BS_AUTORADIOBUTTON,23,108,135,10
-    CONTROL         "Set to:",IDC_RADIO2_SET_TO,"Button",BS_AUTORADIOBUTTON,23,121,38,10
-    EDITTEXT        IDC_EDIT_VIA_PAD_W,78,120,33,12,ES_AUTOHSCROLL
-    EDITTEXT        IDC_EDIT_VIA_HOLE_W,137,120,34,12,ES_AUTOHSCROLL
-    CONTROL         "for this net",IDC_DEF_NET,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,13,223,68,10
-    CONTROL         "for this segment",IDC_APPLY_SEG,"Button",BS_AUTORADIOBUTTON | WS_GROUP,12,259,68,10
-    CONTROL         "for this trace",IDC_APPLY_CON,"Button",BS_AUTORADIOBUTTON,12,271,57,10
-    CONTROL         "for this net",IDC_APPLY_NET,"Button",BS_AUTORADIOBUTTON,12,283,51,10
-    DEFPUSHBUTTON   "OK",IDOK,24,307,50,14
-    PUSHBUTTON      "Cancel",IDCANCEL,126,307,50,14
-    GROUPBOX        "Set as default",IDC_STATIC,7,211,186,30
-    GROUPBOX        "Apply to already routed traces",IDC_STATIC,7,247,186,54
-    GROUPBOX        "Trace width",IDC_STATIC,17,17,169,45
-    LTEXT           "pad",IDC_TEXT_PAD,63,122,13,8
-    LTEXT           "hole",IDC_TEXT_HOLE,121,122,14,8
-    GROUPBOX        "Via width",IDC_STATIC,17,82,169,57
-    CONTROL         "Modify:",IDC_CHECK_CLEARANCE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,7,147,40,10
-    CONTROL         "Use net default",IDC_RADIO_USE_NET_CLEARANCE,"Button",BS_AUTORADIOBUTTON | WS_GROUP,23,171,65,10
-    CONTROL         "Set clearance (mils)",IDC_RADIO_SET_TRACE_CLEARANCE,
-                    "Button",BS_AUTORADIOBUTTON,23,184,78,10
-    EDITTEXT        IDC_EDIT_CLEARANCE,101,182,40,14,ES_AUTOHSCROLL
-    GROUPBOX        "Clearance",IDC_STATIC,17,157,169,44
+    CONTROL         "Modify trace and via widths",IDC_RADIO_MOD_TV,"Button",BS_AUTORADIOBUTTON | WS_GROUP,12,6,104,10
+    CONTROL         "Modify trace width only",IDC_RADIO_MOD_T,"Button",BS_AUTORADIOBUTTON,12,18,91,10
+    CONTROL         "Modify via widths only",IDC_RADIO_MOD_V,"Button",BS_AUTORADIOBUTTON,12,30,87,10
+    COMBOBOX        IDC_COMBO_WIDTH,84,58,48,118,CBS_DROPDOWN | CBS_SORT | WS_VSCROLL | WS_TABSTOP
+    CONTROL         "Use default via for this trace width",IDC_RADIO_DEF_VIA,
+                    "Button",BS_AUTORADIOBUTTON | WS_GROUP,12,93,127,10
+    CONTROL         "Set via widths (mils)",IDC_RADIO_SET_VIA,"Button",BS_AUTORADIOBUTTON,12,108,79,10
+    EDITTEXT        IDC_EDIT_VIA_PAD,118,106,24,12,ES_AUTOHSCROLL
+    EDITTEXT        IDC_EDIT_VIA_HOLE,166,106,24,12,ES_AUTOHSCROLL
+    CONTROL         "for this net",IDC_DEF_NET,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,12,144,123,10
+    CONTROL         "for this segment",IDC_APPLY_SEG,"Button",BS_AUTORADIOBUTTON | WS_GROUP,12,180,68,10
+    CONTROL         "for this trace",IDC_APPLY_CON,"Button",BS_AUTORADIOBUTTON,12,192,57,10
+    CONTROL         "for this net",IDC_APPLY_NET,"Button",BS_AUTORADIOBUTTON,12,204,51,10
+    DEFPUSHBUTTON   "OK",IDOK,24,228,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,126,228,50,14
+    GROUPBOX        "Set as default",IDC_STATIC,6,132,192,30
+    GROUPBOX        "Apply to already routed traces",IDC_STATIC,6,168,192,54
+    GROUPBOX        "Via widths",IDC_STATIC,6,84,192,40
+    LTEXT           "pad",IDC_STATIC,100,108,13,8
+    LTEXT           "hole",IDC_STATIC,148,108,14,8
+    GROUPBOX        "Trace width (mils)",IDC_STATIC,6,48,192,30
 END
 
 IDD_ADD_TEXT DIALOGEX 0, 0, 177, 298
@@ -943,47 +931,33 @@ BEGIN
     PUSHBUTTON      "Delete",IDC_BUTTON_DELETE,18,186,60,13
 END
 
-IDD_EDIT_NET DIALOGEX 0, 0, 222, 367
+IDD_EDIT_NET DIALOGEX 0, 0, 226, 242
 STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Add/Edit Net"
 FONT 8, "MS Shell Dlg", 400, 0, 0x1
 BEGIN
     EDITTEXT        IDC_EDIT_NAME,48,8,126,12,ES_AUTOHSCROLL
-    CONTROL         "Visible",IDC_CHECK_VISIBLE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,181,9,35,10
-    CONTROL         "Use project default",IDC_RADIO1_PROJ_DEF,"Button",BS_AUTORADIOBUTTON | WS_GROUP,12,38,77,10
-    CONTROL         "Set to",IDC_RADIO1_SET_TO,"Button",BS_AUTORADIOBUTTON,12,51,33,10
-    COMBOBOX        IDC_COMBO_WIDTH,47,50,48,142,CBS_DROPDOWN | CBS_SORT | WS_VSCROLL | WS_TABSTOP
-    CONTROL         "Apply inheritance to all routed traces",IDC_CHECK_TRACE,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,12,68,134,10
-    CONTROL         "Use project default",IDC_RADIO2_PROJ_DEF,"Button",BS_AUTORADIOBUTTON | WS_GROUP,12,102,77,10
-    CONTROL         "Use default via for trace width above",IDC_RADIO2_DEF_FOR_TRACE,
-                    "Button",BS_AUTORADIOBUTTON,12,115,135,10
-    CONTROL         "Set to:",IDC_RADIO2_SET_TO,"Button",BS_AUTORADIOBUTTON,12,128,38,10
-    EDITTEXT        IDC_EDIT_VIA_PAD_W,67,127,33,12,ES_AUTOHSCROLL
-    EDITTEXT        IDC_EDIT_VIA_HOLE_W,126,127,34,12,ES_AUTOHSCROLL
-    CONTROL         "Apply inheritance to all routed vias",IDC_CHECK_VIA,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,12,144,127,10
-    CONTROL         "Use project default",IDC_RADIO3_PROJ_DEF,"Button",BS_AUTORADIOBUTTON | WS_GROUP,12,175,77,10
-    CONTROL         "Set to",IDC_RADIO3_SET_TO,"Button",BS_AUTORADIOBUTTON,12,187,35,10
-    EDITTEXT        IDC_EDIT_CLEARANCE,49,186,33,12,ES_AUTOHSCROLL
-    CONTROL         "Apply inheritance to all routed traces/vias/pins",IDC_CHECK_CLEARANCE,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,12,204,165,10
-    LISTBOX         IDC_LIST_PIN,12,238,90,96,LBS_SORT | LBS_MULTIPLESEL | LBS_NOINTEGRALHEIGHT | WS_VSCROLL | WS_TABSTOP
-    PUSHBUTTON      "Delete Pin(s)",IDC_BUTTON_DELETE,120,262,53,12
-    PUSHBUTTON      "Add Pin",IDC_BUTTON_ADD,120,291,37,12
-    EDITTEXT        IDC_EDIT_ADD_PIN,166,291,40,12,ES_AUTOHSCROLL
-    DEFPUSHBUTTON   "OK",ID_MY_OK,30,346,50,14
-    PUSHBUTTON      "Cancel",IDCANCEL,138,346,50,14
-    LTEXT           "Net name",IDC_STATIC,12,10,32,8
-    GROUPBOX        "Default net trace width",IDC_STATIC,6,24,210,59
-    GROUPBOX        "Pin list",IDC_STATIC,6,226,210,114
-    GROUPBOX        "Default net clearance",IDC_STATIC,6,163,210,56
-    GROUPBOX        "Default net via width",IDC_STATIC,6,89,210,68
-    CONTROL         "modify (invisible)",IDC_CHECK_TRACE_MOD,"Button",BS_AUTOCHECKBOX | NOT WS_VISIBLE | WS_TABSTOP,138,52,69,10
-    CONTROL         "modify (invisible)",IDC_CHECK_VIA_MOD,"Button",BS_AUTOCHECKBOX | NOT WS_VISIBLE | WS_TABSTOP,135,98,69,10
-    CONTROL         "modify (invisible)",IDC_CHECK_CLEARANCE_MOD,"Button",BS_AUTOCHECKBOX | NOT WS_VISIBLE | WS_TABSTOP,133,173,69,10
-    LTEXT           "pad",IDC_TEXT_PAD,52,128,13,8
-    LTEXT           "hole",IDC_TEXT_HOLE,110,128,14,8
+    CONTROL         "Visible",IDC_CHECK_VISIBLE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,183,9,36,10
+    COMBOBOX        IDC_COMBO_WIDTH,53,36,48,142,CBS_DROPDOWN | CBS_SORT | WS_VSCROLL | WS_TABSTOP
+    CONTROL         "Use default via for this trace width",IDC_RADIO_DEF_WIDTH,
+                    "Button",BS_AUTORADIOBUTTON | WS_GROUP,12,54,127,10
+    CONTROL         "Set via widths",IDC_RADIO_SET_WIDTH,"Button",BS_AUTORADIOBUTTON,12,66,61,10
+    EDITTEXT        IDC_EDIT_VIA_PAD_W,93,65,33,12,ES_AUTOHSCROLL
+    EDITTEXT        IDC_EDIT_VIA_HOLE_W,152,65,34,12,ES_AUTOHSCROLL
+    CONTROL         "Apply to already routed traces",IDC_CHECK1,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,12,81,114,10
+    LISTBOX         IDC_LIST_PIN,12,114,90,96,LBS_SORT | LBS_MULTIPLESEL | LBS_NOINTEGRALHEIGHT | WS_VSCROLL | WS_TABSTOP
+    PUSHBUTTON      "Delete Pin(s)",IDC_BUTTON_DELETE,120,138,53,12
+    PUSHBUTTON      "Add Pin",IDC_BUTTON_ADD,120,167,37,12
+    EDITTEXT        IDC_EDIT_ADD_PIN,165,167,40,12,ES_AUTOHSCROLL
+    DEFPUSHBUTTON   "OK",ID_MY_OK,30,222,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,138,222,50,14
+    LTEXT           "Net name",IDC_STATIC,12,9,32,8
+    LTEXT           "Trace width",IDC_STATIC,12,38,38,8
+    GROUPBOX        "Default trace and via widths",IDC_STATIC,6,24,210,72
+    LTEXT           "pad",IDC_STATIC,78,67,13,8
+    LTEXT           "hole",IDC_STATIC,136,67,14,8
+    GROUPBOX        "Pin list",IDC_STATIC,6,102,210,114
+    LTEXT           "(use ""0"" for project default)",IDC_STATIC,112,38,90,8
 END
 
 IDD_EDIT_BOARD_CORNER DIALOGEX 0, 0, 119, 90
@@ -1018,6 +992,49 @@ BEGIN
     GROUPBOX        "Hatch pattern",IDC_STATIC,12,6,180,24
 END
 
+IDD_PROJECT_OPTIONS DIALOGEX 0, 0, 238, 379
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Project Options"
+FONT 8, "MS Shell Dlg", 400, 0, 0x1
+BEGIN
+    EDITTEXT        IDC_EDIT_NAME,54,6,126,12,ES_AUTOHSCROLL
+    EDITTEXT        IDC_EDIT_FOLDER,54,24,156,12,ES_AUTOHSCROLL
+    EDITTEXT        IDC_EDIT_LIBRARY_FOLDER,54,42,156,12,ES_AUTOHSCROLL
+    PUSHBUTTON      "...",IDC_BUTTON_LIB,215,42,18,12
+    EDITTEXT        IDC_EDIT_NUM_LAYERS,105,60,24,12,ES_AUTOHSCROLL
+    CONTROL         "Connect SMT pads to copper areas on same layer",IDC_CHECK1,
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,6,78,175,10
+    EDITTEXT        IDC_EDIT_GLUE_W,171,94,30,12,ES_AUTOHSCROLL
+    EDITTEXT        IDC_EDIT_DEF_TRACE_W,36,125,24,12,ES_AUTOHSCROLL
+    EDITTEXT        IDC_EDIT_DEF_VIA_W,101,125,24,12,ES_AUTOHSCROLL
+    EDITTEXT        IDC_EDIT_DEF_VIA_HOLE,167,125,24,12,ES_AUTOHSCROLL
+    CONTROL         "",IDC_LIST_WIDTH_MENU,"SysListView32",LVS_REPORT | LVS_SINGLESEL | LVS_SHOWSELALWAYS | LVS_ALIGNLEFT | WS_BORDER | WS_TABSTOP,18,162,198,102
+    PUSHBUTTON      "Add",IDC_BUTTON_ADD,36,270,24,12
+    PUSHBUTTON      "Edit",IDC_BUTTON_EDIT,108,270,24,12
+    PUSHBUTTON      "Delete",IDC_BUTTON_DELETE,175,270,29,12
+    CONTROL         "Enable",IDC_CHECK_AUTOSAVE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,18,337,37,10
+    EDITTEXT        IDC_EDIT_AUTO_INTERVAL,135,336,24,12,ES_AUTOHSCROLL
+    DEFPUSHBUTTON   "OK",IDOK,54,359,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,138,359,50,14
+    LTEXT           "Name",IDC_STATIC,31,8,19,8
+    LTEXT           "Project Folder",IDC_STATIC,6,26,46,8
+    LTEXT           "Number of copper layers",IDC_STATIC,6,62,93,8
+    GROUPBOX        "Default trace and via widths (mils)",IDC_STATIC,6,114,222,30
+    LTEXT           "trace",IDC_STATIC,14,127,18,8
+    LTEXT           "via pad",IDC_STATIC,74,127,24,8
+    LTEXT           "via hole",IDC_STATIC,138,127,26,8
+    GROUPBOX        "Menu of trace and via widths",IDC_STATIC,6,149,222,140
+    LTEXT           "Library folder",IDC_STATIC,6,44,44,8
+    LTEXT           "Interval (minutes)",IDC_STATIC,72,337,58,8
+    GROUPBOX        "Autosave",IDC_STATIC,6,326,222,27
+    LTEXT           "Default adhesive dot diameter for SMT parts (mils)",IDC_STATIC,6,96,162,8
+    GROUPBOX        "Automatic recalculation of ratlines after edits",IDC_STATIC,6,294,222,27
+    CONTROL         "Disable for nets with more than ",IDC_CHECK_AUTORAT_DISABLE,
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,18,306,118,10
+    EDITTEXT        IDC_EDIT_MIN_PINS,135,305,29,12,ES_AUTOHSCROLL
+    LTEXT           "pins",IDC_STATIC,168,307,14,8
+END
+
 IDD_ADD_WIDTH_MENU_ITEM DIALOGEX 0, 0, 148, 95
 STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Add/Edit Trace Width Menu Item"
@@ -1033,37 +1050,27 @@ BEGIN
     LTEXT           "Via hole diameter (mils)",IDC_STATIC,12,48,74,8
 END
 
-IDD_SET_TRACE_WIDTHS DIALOGEX 0, 0, 235, 290
+IDD_SET_TRACE_WIDTHS DIALOGEX 0, 0, 256, 202
 STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Set new trace/via widths for net(s)"
 FONT 8, "MS Shell Dlg", 400, 0, 0x1
 BEGIN
-    CONTROL         "Modify:",IDC_CHECK_TRACE_MOD,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,7,7,40,10
-    CONTROL         "Use project default",IDC_RADIO1_PROJ_DEF,"Button",BS_AUTORADIOBUTTON | WS_GROUP,24,32,77,10
-    CONTROL         "Set to",IDC_RADIO1_SET_TO,"Button",BS_AUTORADIOBUTTON,24,45,33,10
-    COMBOBOX        IDC_COMBO_WIDTH,59,44,48,142,CBS_DROPDOWN | CBS_SORT | WS_VSCROLL | WS_TABSTOP
-    CONTROL         "Apply to already routed traces",IDC_CHECK_TRACE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,24,62,114,10
-    CONTROL         "Modify:",IDC_CHECK_VIA_MOD,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,7,91,40,10
-    CONTROL         "Use project default",IDC_RADIO2_PROJ_DEF,"Button",BS_AUTORADIOBUTTON | WS_GROUP,24,115,77,10
-    CONTROL         "Use default via for trace width above",IDC_RADIO2_DEF_FOR_TRACE,
-                    "Button",BS_AUTORADIOBUTTON,24,128,135,10
-    CONTROL         "Set to:",IDC_RADIO2_SET_TO,"Button",BS_AUTORADIOBUTTON,24,141,38,10
-    EDITTEXT        IDC_EDIT_VIA_PAD_W,79,140,33,12,ES_AUTOHSCROLL
-    EDITTEXT        IDC_EDIT_VIA_HOLE_W,138,140,34,12,ES_AUTOHSCROLL
-    CONTROL         "Apply to already routed traces",IDC_CHECK_VIA,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,24,157,114,10
-    CONTROL         "Modify:",IDC_CHECK_CLEARANCE_MOD,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,7,187,40,10
-    CONTROL         "Use project default",IDC_RADIO3_PROJ_DEF,"Button",BS_AUTORADIOBUTTON | WS_GROUP,24,210,77,10
-    CONTROL         "Set to",IDC_RADIO3_SET_TO,"Button",BS_AUTORADIOBUTTON,24,222,35,10
-    EDITTEXT        IDC_EDIT_CLEARANCE,61,221,33,12,ES_AUTOHSCROLL
-    CONTROL         "Apply to already routed traces",IDC_CHECK_CLEARANCE,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,24,239,114,10
-    DEFPUSHBUTTON   "OK",IDOK,39,266,50,14
-    PUSHBUTTON      "Cancel",IDCANCEL,153,266,50,14
-    GROUPBOX        "Default net trace width",IDC_STATIC,18,18,210,59
-    GROUPBOX        "Default net clearance",IDC_STATIC,18,198,210,56
-    GROUPBOX        "Default net via width",IDC_STATIC,18,102,210,68
-    LTEXT           "pad",IDC_TEXT_PAD,64,141,13,8
-    LTEXT           "hole",IDC_TEXT_HOLE,122,141,14,8
+    CONTROL         "Modify trace widths",IDC_CHECK2,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,18,12,79,10
+    CONTROL         "Use project default",IDC_RADIO_REVERT_TRACES,"Button",BS_AUTORADIOBUTTON | WS_GROUP,66,30,77,10
+    CONTROL         "Set width (mils)",IDC_RADIO_SET_TRACE_WIDTH,"Button",BS_AUTORADIOBUTTON,66,48,65,10
+    COMBOBOX        IDC_COMBO_WIDTH,137,47,48,122,CBS_DROPDOWN | CBS_SORT | WS_VSCROLL | WS_TABSTOP
+    CONTROL         "Modify via widths",IDC_CHECK3,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,18,78,71,10
+    CONTROL         "Use project default",IDC_RADIO_REVERT_VIAS,"Button",BS_AUTORADIOBUTTON | WS_GROUP,66,96,77,10
+    CONTROL         "Use default via for the trace width above",IDC_RADIO_DEF,
+                    "Button",BS_AUTORADIOBUTTON,66,114,148,10
+    CONTROL         "Set via widths (mils)",IDC_RADIO_SET,"Button",BS_AUTORADIOBUTTON,66,132,79,10
+    EDITTEXT        IDC_EDIT_VIA_W,164,131,24,12,ES_AUTOHSCROLL
+    EDITTEXT        IDC_EDIT_HOLE_W,215,131,24,12,ES_AUTOHSCROLL
+    CONTROL         "Apply to already routed traces",IDC_CHECK1,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,18,162,114,10
+    DEFPUSHBUTTON   "OK",IDOK,48,180,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,162,180,50,14
+    LTEXT           "pad",IDC_STATIC,150,132,13,8
+    LTEXT           "hole",IDC_STATIC,200,133,14,8
 END
 
 IDD_LAYERS DIALOGEX 0, 0, 211, 370
@@ -1195,7 +1202,6 @@ BEGIN
     LTEXT           "Inner 12",IDC_STATIC,44,304,28,8
     LTEXT           "Inner 13",IDC_STATIC,44,315,28,8
     LTEXT           "Inner 14",IDC_STATIC,44,326,28,8
-    PUSHBUTTON      "width",IDC_BUTTON_LAYER_7W,112,93,27,9
 END
 
 IDD_PARTLIST DIALOGEX 0, 0, 491, 314
@@ -1311,49 +1317,61 @@ BEGIN
     CONTROL         "Add layer description text",IDC_LAYER_DESC,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,138,42,99,10
     CONTROL         "Add pilot holes to pads and vias",IDC_CHECK_CAD_PILOT,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,138,54,120,10
-    CONTROL         "Make cutouts in solder mask for vias",IDC_CHECK3,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,138,67,131,10
+    CONTROL         "Use thermal reliefs for SMT pads",IDC_CHECK_SMT_THERMALS,
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,138,66,119,10
+    CONTROL         "Use thermal reliefs for through-hole pins",IDC_CHECK1,
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,138,78,145,10
+    CONTROL         "Use thermal reliefs for vias",IDC_CHECK2,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,138,90,101,10
+    CONTROL         "Make cutouts in solder mask for vias",IDC_CHECK3,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,138,102,131,10
+    CONTROL         "90-degree thermals for round pads",IDC_CHECK_90,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,138,114,128,10
     CONTROL         "Render all Gerbers as PNG files",IDC_CHECK_ALL_GERBERS,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,138,80,115,10
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,138,126,115,10
     CONTROL         "mirror bottom layers in PNG files",IDC_CHECK_MIRROR_BOTTOM,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,150,92,118,10
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,150,138,118,10
     CONTROL         "Apply solder mask swell to solder mask",IDC_CHECK4,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,138,106,146,10
-    LTEXT           "cutouts as well as copper pads",IDC_STATIC,150,116,129,8
-    EDITTEXT        IDC_EDIT_N_X,210,159,30,12,ES_AUTOHSCROLL
-    EDITTEXT        IDC_EDIT_N_Y,246,159,30,12,ES_AUTOHSCROLL
-    EDITTEXT        IDC_EDIT_SP_X,210,177,30,12,ES_AUTOHSCROLL
-    EDITTEXT        IDC_EDIT_SP_Y,246,177,30,12,ES_AUTOHSCROLL
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,138,152,146,10
+    LTEXT           "cutouts as well as copper pads",IDC_STATIC,150,162,129,8
+    EDITTEXT        IDC_EDIT_N_X,210,200,30,12,ES_AUTOHSCROLL
+    EDITTEXT        IDC_EDIT_N_Y,246,200,30,12,ES_AUTOHSCROLL
+    EDITTEXT        IDC_EDIT_SP_X,210,218,30,12,ES_AUTOHSCROLL
+    EDITTEXT        IDC_EDIT_SP_Y,246,218,30,12,ES_AUTOHSCROLL
     COMBOBOX        IDC_COMBO_CAD_UNITS,424,22,37,87,CBS_DROPDOWNLIST | CBS_SORT | WS_VSCROLL | WS_TABSTOP
-    EDITTEXT        IDC_EDIT_MASK,424,53,37,12,ES_AUTOHSCROLL
-    EDITTEXT        IDC_EDIT_CAD_PILOT_DIAM,424,69,37,12,ES_AUTOHSCROLL
-    EDITTEXT        IDC_EDIT_CAD_MIN_SSW,424,85,37,12,ES_AUTOHSCROLL
-    EDITTEXT        IDC_EDIT_CAD_OUTLINE_WID,424,101,37,12,ES_AUTOHSCROLL
-    EDITTEXT        IDC_EDIT_CAD_ANN_PINS,424,117,37,12,ES_AUTOHSCROLL
-    EDITTEXT        IDC_EDIT_CAD_ANN_VIAS,424,133,37,12,ES_AUTOHSCROLL
-    EDITTEXT        IDC_EDIT_CAD_SHRINK_PASTE,424,149,37,12,ES_AUTOHSCROLL
-    EDITTEXT        IDC_EDIT_FOLDER,144,242,256,12,ES_AUTOHSCROLL
-    PUSHBUTTON      "...",IDC_BUTTON_FOLDER,405,241,24,14
-    PUSHBUTTON      "Default",IDC_BUTTON_DEF,435,241,30,14
-    PUSHBUTTON      "Create Files",ID_GO,167,290,50,14
-    PUSHBUTTON      "Done",IDC_BUTTON_DONE,278,290,50,14
-    PUSHBUTTON      "Cancel",IDCANCEL,388,290,50,14
+    EDITTEXT        IDC_EDIT_FILL,424,42,37,12,ES_AUTOHSCROLL
+    EDITTEXT        IDC_EDIT_CAD_HOLE_CLEARANCE,424,58,37,12,ES_AUTOHSCROLL
+    EDITTEXT        IDC_EDIT_MASK,424,74,37,12,ES_AUTOHSCROLL
+    EDITTEXT        IDC_EDIT_CAD_PILOT_DIAM,424,90,37,12,ES_AUTOHSCROLL
+    EDITTEXT        IDC_EDIT_CAD_MIN_SSW,424,106,37,12,ES_AUTOHSCROLL
+    EDITTEXT        IDC_EDIT_CAD_THERMALWID,424,122,37,12,ES_AUTOHSCROLL
+    EDITTEXT        IDC_EDIT_CAD_OUTLINE_WID,424,138,37,12,ES_AUTOHSCROLL
+    EDITTEXT        IDC_EDIT_CAD_ANN_PINS,424,154,37,12,ES_AUTOHSCROLL
+    EDITTEXT        IDC_EDIT_CAD_ANN_VIAS,424,170,37,12,ES_AUTOHSCROLL
+    EDITTEXT        IDC_EDIT_CAD_SHRINK_PASTE,424,186,37,12,ES_AUTOHSCROLL
+    EDITTEXT        IDC_EDIT_FOLDER,144,254,240,12,ES_AUTOHSCROLL
+    PUSHBUTTON      "...",IDC_BUTTON_FOLDER,390,252,24,14
+    PUSHBUTTON      "Default",IDC_BUTTON_DEF,420,252,30,14
+    PUSHBUTTON      "Create Files",ID_GO,167,294,50,14
+    PUSHBUTTON      "Done",IDC_BUTTON_DONE,278,294,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,388,294,50,14
     GROUPBOX        "Files",IDC_STATIC,6,6,120,306
-    GROUPBOX        "Gerber file options",IDC_STATIC,132,7,156,129
-    LTEXT           "Swell pads for solder mask",IDC_STATIC,301,55,111,8
+    GROUPBOX        "Gerber file options",IDC_STATIC,132,6,156,169
+    LTEXT           "Swell pads for solder mask",IDC_STATIC,301,76,111,8
     LTEXT           "Units",IDC_STATIC,435,12,17,8
-    LTEXT           "Pilot hole diameter",IDC_STATIC,301,71,60,8
-    LTEXT           "Minimum silkscreen line width",IDC_STATIC,301,87,92,8
-    LTEXT           "Board outline line width",IDC_STATIC,301,103,75,8
-    LTEXT           "Annular ring width (pins)",IDC_STATIC,301,119,79,8
-    LTEXT           "Annular ring width (vias)",IDC_STATIC,301,135,79,8
-    GROUPBOX        "Gerber file dimensions",IDC_STATIC,293,7,180,188
-    GROUPBOX        "Output folder",IDC_STATIC,132,228,341,36
-    LTEXT           "Shrink SMT pads for paste mask",IDC_STATIC,301,151,115,8
-    GROUPBOX        "Panelizing",IDC_STATIC,132,139,156,56
-    LTEXT           "Number of boards",IDC_STATIC,138,160,64,8
-    LTEXT           "Spacing edge-edge",IDC_STATIC,138,177,62,8
-    LTEXT           "X",IDC_STATIC,224,147,8,8
-    LTEXT           "Y",IDC_STATIC,260,148,8,8
+    LTEXT           "Copper to copper-fill clearance",IDC_STATIC,301,44,114,8
+    LTEXT           "Pilot hole diameter",IDC_STATIC,301,92,60,8
+    LTEXT           "Thermal relief line width",IDC_STATIC,300,124,76,8
+    LTEXT           "Minimum silkscreen line width",IDC_STATIC,301,108,92,8
+    LTEXT           "Hole-edge to copper-fill clearance",IDC_STATIC,301,60,118,8
+    LTEXT           "Board outline line width",IDC_STATIC,301,140,75,8
+    LTEXT           "Annular ring width (pins)",IDC_STATIC,301,156,79,8
+    LTEXT           "Annular ring width (vias)",IDC_STATIC,301,172,79,8
+    GROUPBOX        "Gerber file dimensions",IDC_STATIC,293,6,180,230
+    GROUPBOX        "Output folder",IDC_STATIC,132,240,325,36
+    LTEXT           "Shrink SMT pads for paste mask",IDC_STATIC,301,188,115,8
+    GROUPBOX        "Panelizing",IDC_STATIC,132,180,156,56
+    LTEXT           "Number of boards",IDC_STATIC,138,201,64,8
+    LTEXT           "Spacing edge-edge",IDC_STATIC,138,218,62,8
+    LTEXT           "X",IDC_STATIC,224,188,8,8
+    LTEXT           "Y",IDC_STATIC,260,189,8,8
 END
 
 IDD_LOG DIALOGEX 0, 0, 369, 282
@@ -1724,25 +1742,26 @@ STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSM
 CAPTION "Import Options"
 FONT 8, "MS Shell Dlg", 400, 0, 0x1
 BEGIN
+    DEFPUSHBUTTON   "Import",IDOK,12,246,50,14
+    PUSHBUTTON      "Save project with these settings then import",ID_SAVE_AND_IMPORT,72,246,150,14
+    PUSHBUTTON      "Cancel",IDCANCEL,234,246,50,14
+    LTEXT           "You are importing a netlist file into a project that already contains parts and/or nets",IDC_STATIC,6,6,268,8
+    GROUPBOX        "For parts in project but not in netlist file",IDC_STATIC,6,24,276,54
     CONTROL         "Remove parts",IDC_RADIO_REMOVE_PARTS,"Button",BS_AUTORADIOBUTTON | WS_GROUP,12,36,61,10
     CONTROL         "Keep parts but remove connections to nets",IDC_RADIO_KEEP_PARTS_NO_CONNECTIONS,
                     "Button",BS_AUTORADIOBUTTON,12,48,154,10
     CONTROL         "Keep parts and connections to nets",IDC_RADIO_KEEP_PARTS_AND_CONNECTIONS,
                     "Button",BS_AUTORADIOBUTTON,12,60,129,10
+    GROUPBOX        "For parts in project whose package or footprint doesn't match netlist file",IDC_STATIC,6,84,276,42
     CONTROL         "Change footprints",IDC_RADIO4,"Button",BS_AUTORADIOBUTTON | WS_GROUP,12,96,74,10
     CONTROL         "Keep footprints",IDC_RADIO3,"Button",BS_AUTORADIOBUTTON,12,108,65,10
+    GROUPBOX        "For nets in project that are not in netlist file",IDC_STATIC,6,132,276,42
     CONTROL         "Remove nets",IDC_RADIO6,"Button",BS_AUTORADIOBUTTON | WS_GROUP,12,144,58,10
     CONTROL         "Keep nets",IDC_RADIO5,"Button",BS_AUTORADIOBUTTON,12,156,48,10
+    GROUPBOX        "For traces and copper areas connected to pins whose nets have changed",IDC_STATIC,6,180,276,54
     CONTROL         "Retain traces",IDC_CHECK_KEEP_TRACES,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,12,192,59,10
     CONTROL         "Retain stubs",IDC_CHECK_KEEP_STUBS,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,12,204,56,10
     CONTROL         "Retain areas if possible",IDC_CHECK_KEEP_AREAS,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,12,216,90,10
-    DEFPUSHBUTTON   "OK",IDOK,54,246,50,14
-    PUSHBUTTON      "Cancel",IDCANCEL,192,246,50,14
-    LTEXT           "You are importing a netlist file into a project that already contains parts and/or nets",IDC_STATIC,6,6,268,8
-    GROUPBOX        "For parts in project but not in netlist file",IDC_STATIC,6,24,276,54
-    GROUPBOX        "For parts with different footprints in project and netlist file",IDC_STATIC,6,84,276,42
-    GROUPBOX        "For nets in project that are not in netlist file",IDC_STATIC,6,132,276,42
-    GROUPBOX        "For traces and copper areas connected to pins whose nets have changed",IDC_STATIC,6,180,276,54
 END
 
 IDD_ADD_MASK_CUTOUT DIALOGEX 0, 0, 172, 95
@@ -1847,27 +1866,17 @@ BEGIN
     LTEXT           "Static",IDC_STATIC_MYMESSAGE,24,12,198,54
 END
 
-IDD_VIA_PIN_SIZE DIALOGEX 0, 0, 203, 154
+IDD_VIA DIALOGEX 0, 0, 186, 95
 STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
-CAPTION "Via/Pin Size"
+CAPTION "Via Size"
 FONT 8, "MS Shell Dlg", 400, 0, 0x1
 BEGIN
-    DEFPUSHBUTTON   "OK",IDOK,36,133,50,14
-    PUSHBUTTON      "Cancel",IDCANCEL,114,133,50,14
-    CONTROL         "Modify:",IDC_CHECK_VIA,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,7,7,40,10
-    CONTROL         "Use net default",IDC_RADIO2_PROJ_DEF,"Button",BS_AUTORADIOBUTTON | WS_GROUP,23,30,65,10
-    CONTROL         "Set to:",IDC_RADIO2_SET_TO,"Button",BS_AUTORADIOBUTTON,23,44,38,10
-    EDITTEXT        IDC_EDIT_VIA_PAD_W,78,43,33,12,ES_AUTOHSCROLL
-    EDITTEXT        IDC_EDIT_VIA_HOLE_W,137,43,34,12,ES_AUTOHSCROLL
-    LTEXT           "pad",IDC_TEXT_PAD,63,45,13,8
-    LTEXT           "hole",IDC_TEXT_HOLE,121,45,14,8
-    GROUPBOX        "Width",IDC_STATIC_GROUP_WIDTH,17,17,169,44
-    CONTROL         "Modify:",IDC_CHECK_CLEARANCE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,7,70,40,10
-    CONTROL         "Use net default",IDC_RADIO_USE_NET_CLEARANCE,"Button",BS_AUTORADIOBUTTON | WS_GROUP,23,94,65,10
-    CONTROL         "Set clearance (mils)",IDC_RADIO_SET_TRACE_CLEARANCE,
-                    "Button",BS_AUTORADIOBUTTON,23,107,78,10
-    EDITTEXT        IDC_EDIT_CLEARANCE,101,105,40,14,ES_AUTOHSCROLL
-    GROUPBOX        "Clearance",IDC_STATIC,17,80,169,44
+    EDITTEXT        IDC_VIA_WIDTH,104,10,40,12,ES_AUTOHSCROLL
+    EDITTEXT        IDC_VIA_HOLE_WIDTH,104,27,40,12,ES_AUTOHSCROLL
+    DEFPUSHBUTTON   "OK",IDOK,30,72,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,108,72,50,14
+    LTEXT           "Width (mils)",IDC_STATIC,18,12,38,8
+    LTEXT           "Hole diameter (mils)",IDC_STATIC,18,30,64,8
 END
 
 IDD_MY_MESSAGE2 DIALOGEX 0, 0, 310, 106
@@ -2257,91 +2266,6 @@ BEGIN
     PUSHBUTTON      "Bottom",IDC_BUTTON10,18,108,54,12
 END
 
-IDD_PROJECT_OPTIONS_TABBED DIALOGEX 0, 0, 283, 305
-STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
-EXSTYLE WS_EX_CLIENTEDGE
-CAPTION "Project Options"
-FONT 8, "MS Shell Dlg", 400, 0, 0x1
-BEGIN
-    CONTROL         "",IDC_PROJECT_OPTIONS_TAB,"SysTabControl32",0x0,7,7,269,270
-    DEFPUSHBUTTON   "OK",IDOK,71,284,50,14
-    PUSHBUTTON      "Cancel",IDCANCEL,155,284,50,14
-END
-
-IDD_TAB_PROJ_OPT_MAIN DIALOGEX 0, 0, 267, 259
-STYLE DS_SETFONT | DS_FIXEDSYS | WS_CHILD | WS_SYSMENU
-FONT 8, "MS Shell Dlg", 400, 0, 0x1
-BEGIN
-    EDITTEXT        IDC_EDIT_NAME,74,22,126,12,ES_AUTOHSCROLL
-    EDITTEXT        IDC_EDIT_FOLDER,74,40,156,12,ES_AUTOHSCROLL
-    EDITTEXT        IDC_EDIT_LIBRARY_FOLDER,74,58,156,12,ES_AUTOHSCROLL
-    PUSHBUTTON      "...",IDC_BUTTON_LIB,234,58,18,12
-    EDITTEXT        IDC_EDIT_NUM_LAYERS,109,88,24,12,ES_AUTOHSCROLL
-    EDITTEXT        IDC_EDIT_RATLINE_WIDTH,73,104,31,12,ES_AUTOHSCROLL
-    EDITTEXT        IDC_EDIT_GLUE_W,191,130,30,12,ES_AUTOHSCROLL
-    CONTROL         " Connect SMT pads to copper areas on same layer",IDC_CHECK1,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,26,149,177,10
-    CONTROL         "Enable",IDC_CHECK_AUTOSAVE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,34,196,37,10
-    EDITTEXT        IDC_EDIT_AUTO_INTERVAL,152,195,24,12,ES_AUTOHSCROLL
-    LTEXT           "Name",IDC_STATIC,51,24,19,8
-    LTEXT           "Project Folder",IDC_STATIC,25,42,46,8
-    LTEXT           "Library folder",IDC_STATIC,25,60,44,8
-    LTEXT           "Number of copper layers",IDC_STATIC,25,89,80,8
-    LTEXT           "Default adhesive dot diameter for SMT parts (mils)",IDC_STATIC,25,132,162,8
-    LTEXT           "Interval (minutes)",IDC_STATIC,88,196,58,8
-    GROUPBOX        "Autosave",IDC_STATIC,22,186,225,27
-    LTEXT           "Ratline Width",IDC_STATIC,25,106,44,8
-END
-
-IDD_TAB_PROJ_OPT_SPACING DIALOGEX 0, 0, 267, 259
-STYLE DS_SETFONT | DS_FIXEDSYS | WS_CHILD | WS_SYSMENU
-FONT 8, "MS Shell Dlg", 400, 0, 0x1
-BEGIN
-    EDITTEXT        IDC_EDIT_DEF_TRACE_W,57,22,24,12,ES_AUTOHSCROLL
-    EDITTEXT        IDC_EDIT_DEF_VIA_W,144,22,24,12,ES_AUTOHSCROLL
-    EDITTEXT        IDC_EDIT_DEF_VIA_HOLE,209,22,24,12,ES_AUTOHSCROLL
-    EDITTEXT        IDC_EDIT_DEF_CA_CLEARANCE,57,64,24,12,ES_AUTOHSCROLL
-    EDITTEXT        IDC_EDIT_CAD_HOLE_CLEARANCE,144,64,37,12,ES_AUTOHSCROLL
-    CONTROL         "",IDC_LIST_WIDTH_MENU,"SysListView32",LVS_REPORT | LVS_SINGLESEL | LVS_SHOWSELALWAYS | LVS_ALIGNLEFT | WS_BORDER | WS_TABSTOP,33,105,198,113
-    PUSHBUTTON      "Add",IDC_BUTTON_ADD,51,226,24,12
-    PUSHBUTTON      "Edit",IDC_BUTTON_EDIT,123,226,24,12
-    PUSHBUTTON      "Delete",IDC_BUTTON_DELETE,191,226,29,12
-    GROUPBOX        "Menu of trace and via widths",IDC_STATIC,20,91,225,155
-    GROUPBOX        "Default trace and via widths (mils)",IDC_STATIC,19,9,226,34
-    RTEXT           "trace",IDC_STATIC,34,24,18,8
-    RTEXT           "via pad",IDC_STATIC,114,24,24,8
-    RTEXT           "via hole",IDC_STATIC,179,24,26,8
-    RTEXT           "trace",IDC_STATIC,26,66,26,8
-    RTEXT           "hole edge",IDC_STATIC,98,66,41,8
-    GROUPBOX        "Default Copper Area Clearances (mils)",IDC_STATIC,19,50,226,34
-END
-
-IDD_TAB_PROJ_OPT_THERMAL DIALOGEX 0, 0, 267, 259
-STYLE DS_SETFONT | DS_FIXEDSYS | WS_CHILD | WS_SYSMENU
-FONT 8, "MS Shell Dlg", 400, 0, 0x1
-BEGIN
-    CONTROL         "SMT pads",IDC_CHECK_SMT_THERMALS,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,53,42,47,10
-    CONTROL         "Through-hole pins",IDC_THERMAL_PINS,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,53,54,73,10
-    CONTROL         "Vias",IDC_THERMAL_VIAS,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,53,67,29,10
-    CONTROL         "90-degree thermals for round pads",IDC_CHECK_90,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,53,123,128,10
-    EDITTEXT        IDC_EDIT_CAD_THERMALWID,155,170,37,12,ES_AUTOHSCROLL
-    LTEXT           "Thermal relief line width (mils)",IDC_STATIC,53,172,95,8
-    GROUPBOX        "Use thermal reliefs for (unclicked = no thermal)",IDC_STATIC,32,25,191,62
-    LTEXT           "Thermal relief clearance (mils)",IDC_STATIC,53,189,96,8
-    EDITTEXT        IDC_EDIT_CAD_THERMAL_CLEARANCE,155,187,37,12,ES_AUTOHSCROLL
-END
-
-IDD_RAT_W DIALOGEX 0, 0, 155, 66
-STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
-CAPTION "Ratline Width"
-FONT 8, "MS Shell Dlg", 400, 0, 0x1
-BEGIN
-    EDITTEXT        IDC_RAT_W,80,14,40,12,ES_AUTOHSCROLL
-    DEFPUSHBUTTON   "OK",IDOK,14,39,50,14
-    PUSHBUTTON      "Cancel",IDCANCEL,92,39,50,14
-    LTEXT           "Width (mils)",-1,19,16,38,8
-END
-
 
 /////////////////////////////////////////////////////////////////////////////
 //
@@ -2349,8 +2273,8 @@ END
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 1,3,5,5
- PRODUCTVERSION 1,3,5,5
+ FILEVERSION 1,3,5,9
+ PRODUCTVERSION 1,3,5,9
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -2367,12 +2291,12 @@ BEGIN
         BEGIN
             VALUE "Comments", "alpha"
             VALUE "FileDescription", "FreePcb MFC Application"
-            VALUE "FileVersion", "1, 3, 5, 5"
+            VALUE "FileVersion", "1, 3, 5, 9"
             VALUE "InternalName", "FreePcb"
             VALUE "LegalCopyright", "Copyright (C) 2002-2007"
             VALUE "OriginalFilename", "FreePcb.EXE"
             VALUE "ProductName", "FreePcb Application"
-            VALUE "ProductVersion", "1, 3, 5, 5"
+            VALUE "ProductVersion", "1, 3, 5, 9"
         END
     END
     BLOCK "VarFileInfo"
@@ -2424,9 +2348,9 @@ BEGIN
     IDD_SEGMENT_WIDTH, DIALOG
     BEGIN
         LEFTMARGIN, 7
-        RIGHTMARGIN, 193
+        RIGHTMARGIN, 195
         TOPMARGIN, 7
-        BOTTOMMARGIN, 322
+        BOTTOMMARGIN, 243
     END
 
     IDD_ADD_TEXT, DIALOG
@@ -2448,9 +2372,8 @@ BEGIN
     IDD_EDIT_NET, DIALOG
     BEGIN
         LEFTMARGIN, 7
-        RIGHTMARGIN, 216
+        RIGHTMARGIN, 220
         TOPMARGIN, 7
-        BOTTOMMARGIN, 360
     END
 
     IDD_EDIT_BOARD_CORNER, DIALOG
@@ -2469,6 +2392,13 @@ BEGIN
         BOTTOMMARGIN, 225
     END
 
+    IDD_PROJECT_OPTIONS, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 232
+        TOPMARGIN, 7
+    END
+
     IDD_ADD_WIDTH_MENU_ITEM, DIALOG
     BEGIN
         LEFTMARGIN, 7
@@ -2480,9 +2410,9 @@ BEGIN
     IDD_SET_TRACE_WIDTHS, DIALOG
     BEGIN
         LEFTMARGIN, 7
-        RIGHTMARGIN, 228
+        RIGHTMARGIN, 249
         TOPMARGIN, 7
-        BOTTOMMARGIN, 283
+        BOTTOMMARGIN, 195
     END
 
     IDD_LAYERS, DIALOG
@@ -2535,7 +2465,7 @@ BEGIN
         LEFTMARGIN, 7
         RIGHTMARGIN, 473
         TOPMARGIN, 7
-        BOTTOMMARGIN, 312
+        BOTTOMMARGIN, 253
     END
 
     IDD_LOG, DIALOG
@@ -2684,12 +2614,12 @@ BEGIN
         BOTTOMMARGIN, 94
     END
 
-    IDD_VIA_PIN_SIZE, DIALOG
+    IDD_VIA, DIALOG
     BEGIN
         LEFTMARGIN, 7
-        RIGHTMARGIN, 196
+        RIGHTMARGIN, 179
         TOPMARGIN, 7
-        BOTTOMMARGIN, 147
+        BOTTOMMARGIN, 88
     END
 
     IDD_MY_MESSAGE2, DIALOG
@@ -2825,46 +2755,6 @@ BEGIN
         RIGHTMARGIN, 273
         TOPMARGIN, 7
         BOTTOMMARGIN, 287
-    END
-
-    IDD_PROJECT_OPTIONS_TABBED, DIALOG
-    BEGIN
-        LEFTMARGIN, 7
-        RIGHTMARGIN, 276
-        TOPMARGIN, 7
-        BOTTOMMARGIN, 298
-    END
-
-    IDD_TAB_PROJ_OPT_MAIN, DIALOG
-    BEGIN
-        LEFTMARGIN, 7
-        RIGHTMARGIN, 260
-        TOPMARGIN, 7
-        BOTTOMMARGIN, 252
-    END
-
-    IDD_TAB_PROJ_OPT_SPACING, DIALOG
-    BEGIN
-        LEFTMARGIN, 7
-        RIGHTMARGIN, 260
-        TOPMARGIN, 7
-        BOTTOMMARGIN, 252
-    END
-
-    IDD_TAB_PROJ_OPT_THERMAL, DIALOG
-    BEGIN
-        LEFTMARGIN, 7
-        RIGHTMARGIN, 260
-        TOPMARGIN, 7
-        BOTTOMMARGIN, 252
-    END
-
-    IDD_RAT_W, DIALOG
-    BEGIN
-        LEFTMARGIN, 7
-        RIGHTMARGIN, 148
-        TOPMARGIN, 7
-        BOTTOMMARGIN, 59
     END
 END
 #endif    // APSTUDIO_INVOKED

@@ -11,12 +11,12 @@
 #include "DisplayList.h"
 #include "FreePcbDoc.h"
 
-class CFreePcbView;
+class CFreePcbView; 
 
 // cursor modes
 enum {
 	CUR_NONE_SELECTED = 0,		// nothing selected
-	CUR_SMCUTOUT_CORNER_SELECTED,	// corner of board outline sel.
+	CUR_SMCUTOUT_CORNER_SELECTED,	// corner of board outline sel.  
 	CUR_SMCUTOUT_SIDE_SELECTED,	// edge of board outline sel.
 	CUR_BOARD_CORNER_SELECTED,	// corner of board outline sel.
 	CUR_BOARD_SIDE_SELECTED,	// edge of board outline sel.
@@ -152,8 +152,8 @@ enum {
 };
 
 // function key menu strings
-const char fk_str[FK_NUM_OPTIONS*2+2][32] =
-{
+const char fk_str[FK_NUM_OPTIONS*2+2][32] = 
+{ 
 	"",			"",
 	" Move",	" Part",
 	" Move",	" Ref Text",
@@ -249,7 +249,7 @@ enum {	SM_GRID_POINTS,	// snap to grid points
 };
 
 // selection mask menu strings
-const char sel_mask_str[NUM_SEL_MASKS][32] =
+const char sel_mask_str[NUM_SEL_MASKS][32] = 
 {
 	"parts",
 	"ref des",
@@ -263,22 +263,6 @@ const char sel_mask_str[NUM_SEL_MASKS][32] =
 	"board outline",
 	"DRC errors"
 };
-
-#define KB_KEY_BACKSPACE	VK_BACK
-#define KB_KEY_SHIFT		VK_SHIFT
-#define KB_KEY_CTRL			VK_CONTROL
-#define KB_KEY_ESC			VK_ESCAPE
-#define KB_KEY_PG_UP		VK_PRIOR
-#define KB_KEY_PG_DOWN		VK_NEXT
-#define KB_KEY_DELETE		VK_DELETE
-#define KB_KEY_FUNC(x)		( VK_F1 - 1 + (x) )
-
-#define KB_KEY_ARROW_LOWEST		VK_LEFT
-#define KB_KEY_ARROW_HIGHEST	VK_DOWN
-	#define KB_KEY_ARROW_LEFT		VK_LEFT
-	#define KB_KEY_ARROW_RIGHT		VK_RIGHT
-	#define KB_KEY_ARROW_UP			VK_UP
-	#define KB_KEY_ARROW_DOWN		VK_DOWN
 
 // descriptor for undo/redo
 struct undo_descriptor {
@@ -303,7 +287,7 @@ struct undo_group_descriptor {
 class CFreePcbView : public CView
 {
 public:
-	enum {
+	enum {		
 		// undo types
 		UNDO_PART = 1,			// redo for ADD
 		UNDO_PART_AND_NETS,		// redo for DELETE and MODIFY
@@ -324,8 +308,8 @@ public:
 		UNDO_TEXT,					// redo
 		UNDO_GROUP,
 		// lower-level
-		UNDO_BOARD_OUTLINE_CLEAR_ALL,
-		UNDO_BOARD,
+		UNDO_BOARD_OUTLINE_CLEAR_ALL,	
+		UNDO_BOARD,		
 		UNDO_SM_CUTOUT_CLEAR_ALL,
 		UNDO_SM_CUTOUT,
 		UNDO_GROUP_MODIFY,
@@ -382,6 +366,7 @@ public:
 
 	// selected items
 	id m_sel_id;			// id of selected item
+	id m_sel_uid;			// uid of selected item
 	cpart * m_sel_part;		// pointer to part, if selected
 	cnet * m_sel_net;		// pointer to net, if selected
 	CText * m_sel_text;		// pointer to text, if selected
@@ -427,10 +412,10 @@ public:
 	// active layer for routing and placement
 	int m_active_layer;
 
-	// starting point for a new copper area
+	// starting point for a new copper area 
 	int m_area_start_x;
 	int m_area_start_y;
-
+	
 	// mouse
 	CPoint m_last_mouse_point;	// last mouse position
 	CPoint m_last_cursor_point;	// last cursor position (may be different from mouse)
@@ -451,7 +436,7 @@ public:
 //	CBitmap * m_old_bitmap;
 	HBITMAP m_old_bitmap;
 	CRect m_bitmap_rect;
-
+	
 // Operations
 public:
 	void InitInstance();
@@ -488,7 +473,8 @@ public:
 	int ShowActiveLayer();
 	int SelectPart( cpart * part );
 	void CancelSelection();
-	int SetSizeAttrib( int mode );
+	int SetWidth( int mode );
+	int GetWidthsForSegment( int * w, int * via_w, int * via_hole_w );
 	void ChangeTraceLayer( int mode, int old_layer=0 );
 	void MoveOrigin( int x_off, int y_off );
 	void SelectItemsInRect( CRect r, BOOL bAddToGroup );
@@ -500,7 +486,7 @@ public:
 	void DeleteGroup(  CArray<void*> * grp_ptr, CArray<id> * grp_id );
 	void FindGroupCenter();
 	void HighlightGroup();
-	int FindItemInGroup( void * ptr, id * tid );
+	int FindItemInGroup( void * ptr, id * tid );	
 	BOOL GluedPartsInGroup();
 	void UngluePartsInGroup();
 	int SegmentMovable();
@@ -537,16 +523,9 @@ public:
 	static void UndoGroupCallback( int type, void * ptr, BOOL undo );
 	void OnExternalChangeFootprint( CShape * fp );
 	void HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags);
-	void TryToReselectAreaCorner( int x, int y );
+	void CFreePcbView::TryToReselectAreaCorner( int x, int y );
 	void ReselectNetItemIfConnectionsChanged( int new_ic );
-	int SelectObjPopup( CPoint const &point, CDL_job::HitInfo hit_info[], int num_hits );
-	void SetActiveLayer(int layer);
-	void MakeLayerVisible(int layer);
-	void OnDeleteAny();
-
 protected:
-	CString GetViaText( cvertex const &Vtx );
-	CString GetItemText( CII_FreePcb::Item const &item );
 
 // Generated message map functions
 protected:
@@ -577,17 +556,16 @@ public:
 	afx_msg void OnPadAddToNet();
 	afx_msg void OnPadDetachFromNet();
 	afx_msg void OnPadConnectToPin();
-	afx_msg void OnSegmentSetSizeAttrib();
+	afx_msg void OnSegmentSetWidth();
 	afx_msg void OnSegmentUnroute();
 	afx_msg void OnRatlineRoute();
 	afx_msg void OnRatlineOptimize();
 	afx_msg void OnVertexMove();
 	afx_msg void OnVertexConnectToPin();
-	afx_msg void OnVertexSizeAttrib();
+	afx_msg void OnVertexSize();
 	afx_msg void OnVertexDelete();
 	afx_msg void OnRatlineComplete();
-	afx_msg void OnRatlineSetSizeAttrib();
-	afx_msg void OnRatlineSetRatlineWidth();
+	afx_msg void OnRatlineSetWidth();
 	afx_msg void OnRatlineDeleteConnection();
 	afx_msg void OnRatlineLockConnection();
 	afx_msg void OnRatlineUnlockConnection();
@@ -600,7 +578,6 @@ public:
 	afx_msg void OnBoardSideAddCorner();
 	afx_msg void OnBoardDeleteOutline();
 	afx_msg void OnPadStartStubTrace();
-	afx_msg void OnPadSetClearance();
 	afx_msg void OnSegmentDelete();
 	afx_msg void OnEndVertexMove();
 	afx_msg void OnEndVertexAddSegments();
@@ -649,8 +626,8 @@ public:
 	afx_msg void OnSmSideDeleteCutout();
 	afx_msg void OnPartChangeSide();
 	afx_msg void OnPartRotate();
-	afx_msg void OnNetSetSizeAttrib();
-	afx_msg void OnConnectSetSizeAttrib();
+	afx_msg void OnNetSetWidth();
+	afx_msg void OnConnectSetWidth();
 	afx_msg void OnConnectUnroutetrace();
 	afx_msg void OnConnectDeletetrace();
 	afx_msg void OnSegmentChangeLayer();
@@ -668,6 +645,7 @@ public:
 	LONG OnChangeSnapAngle( UINT wp, LONG lp );
 	LONG OnChangeUnits( UINT wp, LONG lp );
 	afx_msg void OnAreaEdit();
+	afx_msg void OnAreaEdgeApplyClearances();
 	afx_msg void OnGroupSaveToFile();
 	afx_msg void OnGroupCopy();
 	afx_msg void OnGroupCut();

@@ -1,6 +1,5 @@
 #pragma once
 #include "layers.h"
-#include "rgb.h"
 
 #define NUM_DLG_LAYERS (LAY_TOP_COPPER + 16)
 
@@ -21,22 +20,17 @@ protected:
 	virtual void DoDataExchange(CDataExchange* pDX);    // DDX/DDV support
 
 private:
-	int m_nlayers;
 	int * m_vis;
-	C_RGB m_rgb[MAX_LAYERS];
-	C_RGB * m_rgb_ptr;
+	int m_rgb[MAX_LAYERS][3];
+	int * m_rgb_ptr;
+	int m_nlayers;
 	CBrush m_brush;
 	CColorDialog * m_cdlg;
 
 	DECLARE_MESSAGE_MAP()
-
 public:
 	int m_check[NUM_DLG_LAYERS];
-	int m_ratline_w;
-
-	void Initialize( int nlayers, int ratlineWidth, int vis[], C_RGB rgb[] );
-
-protected:
+	void Initialize( int nlayers, int vis[], int rgb[][3] );
 	void EditColor( int layer );
 	afx_msg HBRUSH OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor);
 	afx_msg void OnBnClickedButtonLayer1();
@@ -67,5 +61,4 @@ protected:
 	afx_msg void OnBnClickedButtonLayer26();
 	afx_msg void OnBnClickedButtonLayer27();
 	afx_msg void OnBnClickedButtonLayer28();
-	afx_msg void OnBnClickedButtonLayer7W();
 };

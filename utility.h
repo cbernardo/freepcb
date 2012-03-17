@@ -2,9 +2,6 @@
 //
 #pragma once 
 
-#define M_PI 3.14159265359  
-
-
 typedef struct PointTag
 {
 	double X,Y;
@@ -88,6 +85,7 @@ int ccw( int angle );
 int sign(int thing);
 BOOL Quadratic( double a, double b, double c, double *x1, double *x2 );
 void DrawArc( CDC * pDC, int shape, int xxi, int yyi, int xxf, int yyf, BOOL bMeta=FALSE );
+void DrawCurve( CDC * pDC, int shape, int xxi, int yyi, int xxf, int yyf, BOOL bMeta=FALSE );
 void RotatePoint( CPoint *p, int angle, CPoint org );
 void RotateRect( CRect *r, int angle, CPoint org );
 int TestLineHit( int xi, int yi, int xf, int yf, int x, int y, double dist );

@@ -23,17 +23,19 @@ protected:
 
 	DECLARE_MESSAGE_MAP()
 public:
+	BOOL bNewText;
 	void SetFields();
 	void GetFields();
 	BOOL m_fp_flag;
-	int m_drag_flag;		// 1 if dragging to position
 	int m_num_layers;
 	int m_x, m_y;			// set on entry if editing
 	int m_width;
 	int m_height;
 	int m_angle;
-	int m_mirror;
+	BOOL m_bDrag;
+	BOOL m_bMirror;
 	BOOL m_bNegative;
+	BOOL m_bUseDefaultWidth;
 	int m_layer;
 	int m_units;
 	int m_unit_mult;
@@ -59,5 +61,6 @@ public:
 	CComboBox m_combo_units;
 	afx_msg void OnCbnSelchangeComboAddTextUnits();
 	CButton m_check_negative;
+	CButton m_check_mirror;
 	afx_msg void OnLbnSelchangeListLayer();
 };
