@@ -190,3 +190,26 @@ Some examples of information flow:
 			by the graphic element
  
  
+
+CPT revisions:
+1. m_active_width added to CFreePcbView.  Permits adjustment
+    of width during routing.  There are coordinated changes in the system of via widths.  
+2. Got rid of the OPENFILENAME_SIZE_VERSION_400 business in calls to 
+	CFileDialog::CFileDialog().  (Produced "Assertion failed" errors, at least under Visual studio 10.)
+2a. In CUR_END_VTX_SELECTED mode, changed the
+    original assignment of F2 when the vertex is a via (was FK_ADD_SEGMENT, now FK_VIA_SIZE)
+3. Shortcut keys: Ctrl F1..., Ctrl 1..., Alt 1...  NB undo is now ctrl-shift-z (ctrl-y would toggle layer #13 or some such)
+4. Changed shift-key and ctrl-key state detection.
+5. Tools>Preferences.  Starting to move some config elements to the Registry (desirable?)
+6. Since MS broke CFileDialog::SetTemplates(), changed the import netlist and export netlist options dialogs.
+7. Moved strings into Resource string table.
+8. Allowed adaptible widths for items in MyToolBar, the left pane, and the F-key
+	help boxes.  (For use by people doing foreign language adaptations with Resource Hacker)
+9. Added a project folder selection button to DlgProjectOptions
+10.  Altered DlgLayers.  Now allows for control of the colors in the FootprintView (they match the main view colors, 
+	except for the layers that are footprint-specific --- those latter get extra rows in the DlgLayers table).  Allowed
+	for setting a color scheme to be used by default in future projects (vals stored in the registry).
+11. Fixed bugs with the display of new (empty) documents.
+12. Added reference-text-visibility control to DlgAddPart.  Fixed bug where ref text visibility came out randomly when
+	copying and pasting.
+13. "/" key for toggle units.  

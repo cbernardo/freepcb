@@ -41,8 +41,8 @@ void CDlgEditNet::DoDataExchange(CDataExchange* pDX)
 		m_edit_name.GetWindowText( m_name );
 		if( m_name.GetLength() > MAX_NET_NAME_SIZE )
 		{
-			CString mess;
-			mess.Format( "Max length of net name is %d characters", MAX_NET_NAME_SIZE ); 
+			CString mess, s ((LPCSTR) IDS_MaxLengthOfNetName);
+			mess.Format( s, MAX_NET_NAME_SIZE ); 
 			AfxMessageBox( mess );
 			pDX->Fail();
 		}
@@ -51,7 +51,8 @@ void CDlgEditNet::DoDataExchange(CDataExchange* pDX)
 		DDX_Text( pDX, IDC_COMBO_WIDTH, i );
 		if( i<0 )
 		{
-			AfxMessageBox( "illegal trace width" );
+			CString s ((LPCSTR) IDS_IllegalTraceWidth);
+			AfxMessageBox( s );
 			pDX->Fail();
 		}
 		m_def_w = i*NM_PER_MIL; 
@@ -59,7 +60,8 @@ void CDlgEditNet::DoDataExchange(CDataExchange* pDX)
 		DDX_Text( pDX, IDC_EDIT_VIA_PAD_W, i );
 		if( i<0 )
 		{
-			AfxMessageBox( "illegal via width" );
+			CString s ((LPCSTR) IDS_IllegalViaWidth);
+			AfxMessageBox( s );
 			pDX->Fail();
 		}
 		m_def_v_w = i*NM_PER_MIL; 
@@ -67,7 +69,8 @@ void CDlgEditNet::DoDataExchange(CDataExchange* pDX)
 		DDX_Text( pDX, IDC_EDIT_VIA_HOLE_W, i );
 		if( i<0 )
 		{
-			AfxMessageBox( "illegal via hole width" );
+			CString s ((LPCSTR) IDS_IllegalViaHoleWidth);
+			AfxMessageBox( s );
 			pDX->Fail();
 		}
 		m_def_v_h_w = i*NM_PER_MIL; 
@@ -76,7 +79,8 @@ void CDlgEditNet::DoDataExchange(CDataExchange* pDX)
 		{
 			if( m_name == (*m_nl)[in].name && m_in != in && !(*m_nl)[in].deleted )
 			{
-				AfxMessageBox( "duplicate net name" );
+				CString s ((LPCSTR) IDS_DuplicateNetName);
+				AfxMessageBox( s );
 				pDX->Fail();
 			}
 		}
@@ -238,7 +242,8 @@ void CDlgEditNet::OnBnClickedButtonAdd()
 	int len = str.GetLength();
 	if( len < 3 )
 	{
-		AfxMessageBox( "Illegal pin" );
+		CString s ((LPCSTR) IDS_IllegalPin);
+		AfxMessageBox( s );
 		return;
 	}
 	else
@@ -246,7 +251,8 @@ void CDlgEditNet::OnBnClickedButtonAdd()
 		int test = m_list_pins.FindString( 0, str );
 		if( test != -1 )
 		{
-			AfxMessageBox( "Pin already in this net" );
+			CString s ((LPCSTR) IDS_PinAlreadyInThisNet);
+			AfxMessageBox( s );
 			return;
 		}
 		int dot_pos = str.FindOneOf( "." );
@@ -256,31 +262,30 @@ void CDlgEditNet::OnBnClickedButtonAdd()
 			cpart * part = m_plist->GetPart( refstr );
 			if( !part )
 			{
-				str.Format( "Part \"%s\" does not exist", refstr );
+				CString s ((LPCSTR) IDS_PartDoesNotExist);
+				str.Format( s, refstr );
 				AfxMessageBox( str );
 				return;
 			}
 			if( !part->shape )
 			{
-				str.Format( "Part \"%s\" does not have a footprint", refstr );
+				CString s ((LPCSTR) IDS_PartDoesNotHaveAFootprint);
+				str.Format( s, refstr );
 				AfxMessageBox( str );
 				return;
 			}
 			CString pinstr = str.Right( len - dot_pos - 1 );
 			if( !CheckLegalPinName( &pinstr ) )
 			{
-				str = "Pin name must consist of zero or more letters\n";
-				str	+= "Followed by zero or more numbers\n";
-				str	+= "For example: 1, 23, A12, SOURCE are legal\n";
-				str	+= "while 1A, A2B3 are not\n";
-				AfxMessageBox( str );
+				CString s ((LPCSTR) IDS_PinNameMustConsistOf);
+				AfxMessageBox( s );
 				return;
 			}
 			int pin_index = part->shape->GetPinIndexByName( pinstr );
 			if( pin_index == -1 )
 			{
-				str.Format( "Pin \"%s\" not found in footprint \"%s\"", pinstr, 
-					part->shape->m_name );
+				CString s ((LPCSTR) IDS_PinNotFoundInFootprint);
+				str.Format( s, pinstr, part->shape->m_name );
 				AfxMessageBox( str );
 				return;
 			}
@@ -305,14 +310,14 @@ void CDlgEditNet::OnBnClickedButtonAdd()
 			{
 				if( i_found == m_in )
 				{
-					AfxMessageBox( "Pin already in this net" );
+					CString s ((LPCSTR) IDS_PinAlreadyInThisNet);
+					AfxMessageBox( s );
 					return;
 				}
 				else
 				{
-					CString mess;
-					mess.Format( "Pin %s.%s is assigned to net \"%s\"\nRemove it from \"%s\"? ",
-						refstr, pinstr, (*m_nl)[i_found].name, (*m_nl)[i_found].name );
+					CString mess, s ((LPCSTR) IDS_PinIsAssignedToNet);
+					mess.Format( s, refstr, pinstr, (*m_nl)[i_found].name, (*m_nl)[i_found].name );
 					int ret = AfxMessageBox( mess, MB_OKCANCEL );
 					if( ret != IDOK )
 						return;

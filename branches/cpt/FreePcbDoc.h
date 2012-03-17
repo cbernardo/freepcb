@@ -247,6 +247,10 @@ public:
 	//DRC limits
 	DesignRules m_dr;
 
+	// CPT:  new preference values
+	bool fReversePgupPgdn;
+	bool fGridFlags[30];
+
 // Generated message map functions
 public:
 	//{{AFX_MSG(CFreePcbDoc)
@@ -289,6 +293,10 @@ public:
 	afx_msg void OnProjectCombineNets();
 	afx_msg void OnFileLoadLibrary();
 	afx_msg void OnFileSaveLibrary();
+	// CPT
+	afx_msg void OnToolsPreferences();
+	void ReadPrefs();
+	void SavePrefs();
 };
 
 /////////////////////////////////////////////////////////////////////////////

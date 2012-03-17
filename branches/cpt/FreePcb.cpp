@@ -80,7 +80,8 @@ BOOL CFreePcbApp::InitInstance()
 	CWinApp::LoadStdProfileSettings();  // Load standard INI file options (including MRU)
 	if( CWinApp::m_pRecentFileList == NULL)
 	{
-		AfxMessageBox( "NOTE: The recent file list is disabled on your system.\nUse the system policy editor to re-enable." );
+		CString s ((LPCSTR) IDS_NoteTheRecentFileListIsDisabled);
+		AfxMessageBox( s );
 	}
 
 	EnableShellOpen();
@@ -123,6 +124,7 @@ BOOL CFreePcbApp::InitInstance()
 	m_view_mode = PCB;
 
 	m_Doc->InitializeNewProject();
+	m_pMainWnd->SetWindowTextA(m_Doc->m_window_title);
 
 	if( cmdInfo.m_nShellCommand == CCommandLineInfo::FileOpen )
 	{

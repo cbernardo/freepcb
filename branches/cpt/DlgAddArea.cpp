@@ -76,7 +76,8 @@ void CDlgAddArea::DoDataExchange(CDataExchange* pDX)
 		m_net = m_nlist->GetNetPtrByName( &m_net_name );
 		if( !m_net )
 		{
-			AfxMessageBox( "Illegal net name" );
+			CString msg ((LPCSTR) IDS_IllegalNetName);
+			AfxMessageBox( msg );
 			pDX->Fail();
 		}
 		if( m_radio_none.GetCheck() )

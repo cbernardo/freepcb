@@ -11,12 +11,12 @@
 #include "DisplayList.h"
 #include "FreePcbDoc.h"
 
-class CFreePcbView; 
+class CFreePcbView;
 
 // cursor modes
 enum {
 	CUR_NONE_SELECTED = 0,		// nothing selected
-	CUR_SMCUTOUT_CORNER_SELECTED,	// corner of board outline sel.  
+	CUR_SMCUTOUT_CORNER_SELECTED,	// corner of board outline sel.
 	CUR_SMCUTOUT_SIDE_SELECTED,	// edge of board outline sel.
 	CUR_BOARD_CORNER_SELECTED,	// corner of board outline sel.
 	CUR_BOARD_SIDE_SELECTED,	// edge of board outline sel.
@@ -147,13 +147,19 @@ enum {
 	FK_SIDE_STYLE,
 	FK_EDIT_AREA,
 	FK_MOVE_SEGMENT,
+    // CPT
+    FK_ACTIVE_WIDTH_UP,
+    FK_ACTIVE_WIDTH_DOWN,
+	FK_RGRID_UP,
+	FK_RGRID_DOWN,
 	FK_NUM_OPTIONS,
 	FK_ARROW
 };
 
-// function key menu strings
-const char fk_str[FK_NUM_OPTIONS*2+2][32] = 
-{ 
+/*
+// function key menu strings --- CPT:  moved to resource string table
+const char fk_str[FK_NUM_OPTIONS*2+2][32] =
+{
 	"",			"",
 	" Move",	" Part",
 	" Move",	" Ref Text",
@@ -225,8 +231,14 @@ const char fk_str[FK_NUM_OPTIONS*2+2][32] =
 	" Set Side",	" Style",
 	" Edit",	" Area",
 	" Move",	" Segment",
+	// CPT
+    " Increase",    " Width",
+    " Decrease",    " Width",
+	" Increase",    " Grid",
+	" Decrease",    " Grid",
 	" ****",	" ****"
 };
+*/
 
 // selection masks
 enum {	SEL_MASK_PARTS = 0,
@@ -248,8 +260,9 @@ enum {	SM_GRID_POINTS,	// snap to grid points
 		SM_GRID_LINES	// snap to grid lines
 };
 
-// selection mask menu strings
-const char sel_mask_str[NUM_SEL_MASKS][32] = 
+// selection mask menu strings --- CPT:  added to string resource table
+/* 
+const char sel_mask_str[NUM_SEL_MASKS][32] =
 {
 	"parts",
 	"ref des",
@@ -263,6 +276,7 @@ const char sel_mask_str[NUM_SEL_MASKS][32] =
 	"board outline",
 	"DRC errors"
 };
+*/
 
 // descriptor for undo/redo
 struct undo_descriptor {
@@ -287,7 +301,7 @@ struct undo_group_descriptor {
 class CFreePcbView : public CView
 {
 public:
-	enum {		
+	enum {
 		// undo types
 		UNDO_PART = 1,			// redo for ADD
 		UNDO_PART_AND_NETS,		// redo for DELETE and MODIFY
@@ -308,8 +322,8 @@ public:
 		UNDO_TEXT,					// redo
 		UNDO_GROUP,
 		// lower-level
-		UNDO_BOARD_OUTLINE_CLEAR_ALL,	
-		UNDO_BOARD,		
+		UNDO_BOARD_OUTLINE_CLEAR_ALL,
+		UNDO_BOARD,
 		UNDO_SM_CUTOUT_CLEAR_ALL,
 		UNDO_SM_CUTOUT,
 		UNDO_GROUP_MODIFY,
@@ -390,6 +404,8 @@ public:
 
 	// direction of routing
 	int m_dir;			// 0 = forward, 1 = back
+        // CPT
+        int m_active_width;             // Width for upcoming segs during routing mode (in nm)
 
 	// display coordinate mapping
 	double m_pcbu_per_pixel;	// pcb units per pixel
@@ -406,16 +422,17 @@ public:
 	CRect m_client_r;		// in device coords
 	int m_left_pane_w;		// width of pane at left of screen for layer selection, etc.
 	int m_bottom_pane_h;	// height of pane at bottom of screen for key assignments, etc.
+	int m_fkey_w;			// CPT: Width of f-key boxes.
 	CRgn m_pcb_rgn;			// region for the pcb
 	BOOL m_left_pane_invalid;	// flag to erase and redraw left pane
 
 	// active layer for routing and placement
 	int m_active_layer;
 
-	// starting point for a new copper area 
+	// starting point for a new copper area
 	int m_area_start_x;
 	int m_area_start_y;
-	
+
 	// mouse
 	CPoint m_last_mouse_point;	// last mouse position
 	CPoint m_last_cursor_point;	// last cursor position (may be different from mouse)
@@ -427,7 +444,7 @@ public:
 	// function key shortcuts
 	int m_fkey_option[12];
 	int m_fkey_command[12];
-	char m_fkey_str[24][32];
+	int m_fkey_rsrc[24];		// CPT:  used to have a table of char[]'s, now we have a table of string rsrc id's
 
 	// memory DC and bitmap
 	BOOL m_memDC_created;
@@ -436,7 +453,7 @@ public:
 //	CBitmap * m_old_bitmap;
 	HBITMAP m_old_bitmap;
 	CRect m_bitmap_rect;
-	
+
 // Operations
 public:
 	void InitInstance();
@@ -486,7 +503,7 @@ public:
 	void DeleteGroup(  CArray<void*> * grp_ptr, CArray<id> * grp_id );
 	void FindGroupCenter();
 	void HighlightGroup();
-	int FindItemInGroup( void * ptr, id * tid );	
+	int FindItemInGroup( void * ptr, id * tid );
 	BOOL GluedPartsInGroup();
 	void UngluePartsInGroup();
 	int SegmentMovable();
@@ -667,6 +684,16 @@ public:
 	afx_msg void OnValueRotateCW();
 	afx_msg void OnValueRotateCCW();
 	afx_msg void OnSegmentMove();
+
+    // CPT:
+    void ActiveWidthUp(CDC * pDC);
+    void ActiveWidthDown(CDC * pDC);
+    void GetViaWidths(int w, int *via_w, int *via_hole_w);
+	void RoutingGridUp();
+	void RoutingGridDown();
+	void PlacementGridUp();
+	void PlacementGridDown();
+	void UnitToggle(bool fShiftKeyDown);
 };
 
 #ifndef _DEBUG  // debug version in FreePcbView.cpp

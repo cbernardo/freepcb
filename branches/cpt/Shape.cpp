@@ -1156,9 +1156,8 @@ int CShape::MakeFromFile( CStdioFile * in_file, CString name,
 		}
 		if( p[0].GetLength() > MAX_NAME_SIZE )
 		{
-			CString mess;
-			mess.Format( "Footprint name \"%s\" too long\nTruncated to \"%s\"",
-				p[0], p[0].Left(MAX_NAME_SIZE) );
+			CString mess, s ((LPCSTR) IDS_FootprintNameTooLong);
+			mess.Format( s, p[0], p[0].Left(MAX_NAME_SIZE) );
 			AfxMessageBox( mess );
 		}
 		m_name = p[0].Left(MAX_NAME_SIZE);
@@ -1337,8 +1336,8 @@ int CShape::MakeFromFile( CStdioFile * in_file, CString name,
 				if( pin_name.GetLength() > MAX_PIN_NAME_SIZE )
 				{
 					CString mess;
-					mess.Format( "Footprint \"%s\": pin name \"%s\" too long\nTruncated to \"%s\"",
-						m_name, pin_name, pin_name.Left(MAX_PIN_NAME_SIZE) );
+					CString s ((LPCSTR) IDS_FootprintPinNameTooLong);
+					mess.Format( s, m_name, pin_name, pin_name.Left(MAX_PIN_NAME_SIZE) );
 					AfxMessageBox( mess );
 					pin_name = pin_name.Left(MAX_PIN_NAME_SIZE);
 				}
@@ -1775,7 +1774,8 @@ int CShape::WriteFootprint( CStdioFile * file )
 				|| (p->bottom_mask.shape < PAD_DEFAULT && p->bottom_mask.shape > PAD_OCTAGON)
 				|| (p->bottom_paste.shape < PAD_DEFAULT && p->bottom_paste.shape > PAD_OCTAGON) )
 			{
-				AfxMessageBox( "Error: Trying to write bad pad shape in footprint" );
+				CString s ((LPCSTR) IDS_ErrorTryingToWriteBadPadShapeInFootprint);
+				AfxMessageBox( s );
 			}
 			//** end
 			if( p->hole_size || p->top.shape != PAD_NONE )
@@ -1843,11 +1843,11 @@ int CShape::WriteFootprint( CStdioFile * file )
 	}
 	catch( CFileException * e )
 	{
-		CString str;
+		CString str, s ((LPCSTR) IDS_FileError1), s2 = ((LPCSTR) IDS_FileError2);
 		if( e->m_lOsError == -1 )
-			str.Format( "File error: %d\n", e->m_cause );
+			str.Format( s, e->m_cause );
 		else
-			str.Format( "File error: %d %ld (%s)\n", e->m_cause, e->m_lOsError,
+			str.Format( s2, e->m_cause, e->m_lOsError,
 			_sys_errlist[e->m_lOsError] );
 		return 1;
 	}

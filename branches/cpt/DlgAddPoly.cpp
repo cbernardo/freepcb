@@ -47,7 +47,8 @@ void CDlgAddPoly::DoDataExchange(CDataExchange* pDX)
 		if( m_width < 1*NM_PER_MIL || m_width > 999*NM_PER_MIL )
 		{
 			pDX->PrepareEditCtrl( IDC_EDIT_WIDTH );
-			AfxMessageBox( "Width out of range (1 to 999 mils)" );
+			CString s ((LPCSTR) IDS_WidthOutOfRange);
+			AfxMessageBox( s );
 			pDX->Fail();
 		}
 	}

@@ -42,10 +42,10 @@ void CDlgSlot::DoDataExchange(CDataExchange* pDX)
 		// incoming
 		m_combo_units.InsertString( 0, "MIL" );
 		m_combo_units.InsertString( 1, "MM" );
-		m_combo_direction.InsertString( 0, "RIGHT" );
-		m_combo_direction.InsertString( 1, "DOWN" );
-		m_combo_direction.InsertString( 2, "LEFT" );
-		m_combo_direction.InsertString( 3, "UP" );
+		CString s;
+		for (int i=0; i<4; i++)
+			s.LoadStringA(IDS_RightDownLeftUp+i),
+			m_combo_direction.InsertString( i, s );
 		SetFields();
 	}
 	else

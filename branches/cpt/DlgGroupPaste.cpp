@@ -144,12 +144,15 @@ void CDlgGroupPaste::DoDataExchange(CDataExchange* pDX)
 		CString str;
 		DWORD old_style = m_list_ctrl.GetExtendedStyle();
 		m_list_ctrl.SetExtendedStyle( LVS_EX_FULLROWSELECT | LVS_EX_FLATSB | LVS_EX_CHECKBOXES | old_style );
-		m_list_ctrl.InsertColumn( COL_VIS, "Sel", LVCFMT_LEFT, 30 ); 
-		m_list_ctrl.InsertColumn( COL_NAME, "Name", LVCFMT_LEFT, 140 );
-		m_list_ctrl.InsertColumn( COL_PINS, "Pins", LVCFMT_LEFT, 40 );
-		m_list_ctrl.InsertColumn( COL_WIDTH, "Width", LVCFMT_LEFT, 40 );
-		m_list_ctrl.InsertColumn( COL_VIA_W, "Via W", LVCFMT_LEFT, 40 );   
-		m_list_ctrl.InsertColumn( COL_HOLE_W, "Hole", LVCFMT_LEFT, 40 );
+		CString colNames[6];
+		for (int i=0; i<6; i++)
+			colNames[i].LoadStringA(IDS_GroupPasteCols+i);
+		m_list_ctrl.InsertColumn( COL_VIS, colNames[0], LVCFMT_LEFT, 30 ); 
+		m_list_ctrl.InsertColumn( COL_NAME, colNames[1], LVCFMT_LEFT, 140 );
+		m_list_ctrl.InsertColumn( COL_PINS, colNames[2], LVCFMT_LEFT, 40 );
+		m_list_ctrl.InsertColumn( COL_WIDTH, colNames[3], LVCFMT_LEFT, 40 );
+		m_list_ctrl.InsertColumn( COL_VIA_W, colNames[4], LVCFMT_LEFT, 40 );   
+		m_list_ctrl.InsertColumn( COL_HOLE_W, colNames[5], LVCFMT_LEFT, 40 );
 		for( int i=0; i<gnl.GetSize(); i++ )
 		{
 			lvitem.mask = LVIF_TEXT | LVIF_PARAM;

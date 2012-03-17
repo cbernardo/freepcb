@@ -102,6 +102,7 @@ enum {
 };
 
 // function key menu strings
+/*
 static char fk_fp_str[FK_FP_NUM_OPTIONS*2+2][32] = 
 { 
 	"",			"",
@@ -160,6 +161,7 @@ static char fk_fp_str[FK_FP_NUM_OPTIONS*2+2][32] =
 	" Delete",	" Adhesive",
 	" ****",	" ****"
 };
+*/
 
 class CFootprintView : public CView
 {
@@ -217,6 +219,7 @@ public:
 	CRect m_client_r;	// in device coords
 	int m_left_pane_w;		// width of pane at left of screen for layer selection, etc.
 	int m_bottom_pane_h;	// height of pane at bottom of screen for key assignments, etc.
+	int m_fkey_w;			// CPT: Width of f-key boxes.
 	CRgn m_pcb_rgn;		// region for the pcb
 	BOOL m_left_pane_invalid;	// flag to erase and redraw left pane
 
@@ -227,7 +230,7 @@ public:
 	// function key shortcuts
 	int m_fkey_option[12];
 	int m_fkey_command[12];
-	char m_fkey_str[24][32];
+	int m_fkey_rsrc[24];		// CPT:  used to have a table of char[]'s, now we have a table of string rsrc id's
 
 	// memory DC and bitmap
 	BOOL m_memDC_created;
@@ -378,6 +381,10 @@ public:
 	afx_msg void OnAdhesiveDrag();
 	afx_msg void OnAdhesiveDelete();
 	afx_msg void OnCentroidRotateAxis();
+	// CPT
+	void UnitToggle(bool fShiftKeyDown);
+	void PlacementGridUp();
+	void PlacementGridDown();
 };
 
 #ifndef _DEBUG  // debug version
