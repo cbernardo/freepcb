@@ -43,7 +43,7 @@ public:
 	int GetAutoRatlineMinPins(){ return m_auto_ratline_min_pins; };
 
 // Dialog Data
-	enum { IDD = IDD_PROJECT_OPTIONS };
+	enum { IDD = IDD_PROJECT_OPTIONS  };
 
 private:
 	virtual void DoDataExchange(CDataExchange* pDX);    // DDX/DDV support
@@ -78,12 +78,14 @@ private:
 	afx_msg void OnEnKillfocusEditFolder();
 	CEdit m_edit_lib_folder;
 	CEdit m_edit_layers;
+	CButton m_button_proj;
 public:
 	BOOL m_bSMT_connect_copper;
 	afx_msg void OnBnClickedCheckAutosave();
 	CButton m_check_autosave;
 	CEdit m_edit_auto_interval;
 	afx_msg void OnBnClickedButtonLib();
+	afx_msg void OnBnClickedButtonProj();
 	CButton m_check_SMT_connect;
 	CButton m_check_disable_auto_rats;
 	CEdit m_edit_min_pins;

@@ -77,26 +77,31 @@ void CDlgProjectOptions::DoDataExchange(CDataExchange* pDX)
 	DDX_Control(pDX, IDC_EDIT_MIN_PINS, m_edit_min_pins);
 	DDX_Text(pDX, IDC_EDIT_MIN_PINS, m_auto_ratline_min_pins );
 	DDV_MinMaxInt(pDX, m_auto_ratline_min_pins, 0, 10000 );
+	// CPT:
+	DDX_Control(pDX, IDC_BUTTON_PROJ, m_button_proj);
 
 	if( pDX->m_bSaveAndValidate )
 	{
 		// leaving dialog
 		if( m_name.GetLength() == 0 )
 		{
+			CString s ((LPCSTR) IDS_PleaseEnterNameForProject);
 			pDX->PrepareEditCtrl( IDC_EDIT_NAME );
-			AfxMessageBox( "Please enter name for project" );
+			AfxMessageBox( s );
 			pDX->Fail();
 		}
 		else if( m_path_to_folder.GetLength() == 0 )
 		{
+			CString s ((LPCSTR) IDS_PleaseEnterProjectFolder);
 			pDX->PrepareEditCtrl( IDC_EDIT_FOLDER );
-			AfxMessageBox( "Please enter project folder" );
+			AfxMessageBox( s );
 			pDX->Fail();
 		}
 		else if( m_lib_folder.GetLength() == 0 )
 		{
+			CString s ((LPCSTR) IDS_PleaseEnterLibraryFolder);
 			pDX->PrepareEditCtrl( IDC_EDIT_LIBRARY_FOLDER );
-			AfxMessageBox( "Please enter library folder" );
+			AfxMessageBox( s );
 			pDX->Fail();
 		}
 		else
@@ -144,6 +149,7 @@ BEGIN_MESSAGE_MAP(CDlgProjectOptions, CDialog)
 	ON_EN_KILLFOCUS(IDC_EDIT_FOLDER, OnEnKillfocusEditFolder)
 	ON_BN_CLICKED(IDC_CHECK_AUTOSAVE, OnBnClickedCheckAutosave)
 	ON_BN_CLICKED(IDC_BUTTON_LIB, OnBnClickedButtonLib)
+	ON_BN_CLICKED(IDC_BUTTON_PROJ, OnBnClickedButtonProj)
 	ON_BN_CLICKED(IDC_CHECK_AUTORAT_DISABLE, OnBnClickedCheckAutoRatDisable)
 END_MESSAGE_MAP()
 
@@ -193,9 +199,12 @@ BOOL CDlgProjectOptions::OnInitDialog()
 	// set up list control
 	DWORD old_style = m_list_menu.GetExtendedStyle();
 	m_list_menu.SetExtendedStyle( LVS_EX_FULLROWSELECT | LVS_EX_FLATSB | old_style );
-	m_list_menu.InsertColumn( 0, "Trace width", LVCFMT_LEFT, 77 );
-	m_list_menu.InsertColumn( 1, "Via pad width", LVCFMT_LEFT, 77 );
-	m_list_menu.InsertColumn( 2, "Via hole width", LVCFMT_LEFT, 78 );
+	CString colNames[3];
+	for (int i=0; i<3; i++)
+		colNames[i].LoadStringA(IDS_ProjectOptionsCols+i);
+	m_list_menu.InsertColumn( 0, colNames[0], LVCFMT_LEFT, 77 );
+	m_list_menu.InsertColumn( 1, colNames[1], LVCFMT_LEFT, 77 );
+	m_list_menu.InsertColumn( 2, colNames[2], LVCFMT_LEFT, 78 );
 	CString str;
 	int n = m_w->GetSize();
 	for( int i=0; i<n; i++ )
@@ -213,6 +222,7 @@ BOOL CDlgProjectOptions::OnInitDialog()
 	{
 		// disable some fields for existing project
 		m_edit_folder.EnableWindow( FALSE );
+		m_button_proj.EnableWindow(FALSE);
 	}
 	if( !m_auto_interval )
 	{
@@ -258,7 +268,8 @@ void CDlgProjectOptions::OnBnClickedButtonEdit()
 	int i_sel = m_list_menu.GetNextSelectedItem( pos );
 	if( i_sel < 0 )
 	{
-		AfxMessageBox( "no menu item selected" );
+		CString s ((LPCSTR) IDS_NoMenuItemSelected);
+		AfxMessageBox( s );
 	}
 	else
 	{
@@ -291,19 +302,22 @@ void CDlgProjectOptions::OnBnClickedButtonEdit()
 void CDlgProjectOptions::OnBnClickedButtonDelete()
 {
 	POSITION pos = m_list_menu.GetFirstSelectedItemPosition();
+	CString s ((LPCSTR) IDS_NoMenuItemSelected);
 	int i_sel = m_list_menu.GetNextSelectedItem( pos );
 	if( i_sel < 0 )
-		AfxMessageBox( "no menu item selected" );
+		AfxMessageBox( s );
 	else
 		m_list_menu.DeleteItem( i_sel );
 }
 
 void CDlgProjectOptions::OnEnChangeEditName()
 {
+	/* CPT
 	CString str;
 	m_edit_name.GetWindowText( str ); 
 	if( m_new_project == TRUE && m_folder_changed == FALSE )
 		m_edit_folder.SetWindowText( m_path_to_folder + str );
+	*/
 }
 
 void CDlgProjectOptions::OnEnChangeEditFolder()
@@ -335,12 +349,25 @@ void CDlgProjectOptions::OnBnClickedCheckAutosave()
 
 void CDlgProjectOptions::OnBnClickedButtonLib()
 {
-	CPathDialog dlg( "Library Folder", "Select default library folder", m_lib_folder );
+	CString s1 ((LPCSTR) IDS_LibraryFolder), s2 ((LPCSTR) IDS_SelectDefaultLibraryFolder);
+	CPathDialog dlg( s1, s2, m_lib_folder );
 	int ret = dlg.DoModal();
 	if( ret == IDOK )
 	{
 		m_lib_folder = dlg.GetPathName();
 		m_edit_lib_folder.SetWindowText( m_lib_folder );
+	}
+}
+
+void CDlgProjectOptions::OnBnClickedButtonProj()
+{
+	CString s1 ((LPCSTR) IDS_ProjectFolder), s2 ((LPCSTR) IDS_SelectDefaultProjectFolder);
+	CPathDialog dlg( s1, s2, m_path_to_folder );
+	int ret = dlg.DoModal();
+	if( ret == IDOK )
+	{
+		m_path_to_folder = dlg.GetPathName();
+		m_edit_folder.SetWindowText( m_path_to_folder );
 	}
 }
 

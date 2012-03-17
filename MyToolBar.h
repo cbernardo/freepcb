@@ -27,6 +27,15 @@ public:
 	void OnSelectSnapAngle();
 	void OnSelectUnits();
 	void SetUnits( int units );
+	// CPT
+	void RoutingGridUp();
+	void RoutingGridDown();
+	void PlacementGridUp();
+	void PlacementGridDown();
+	void VisibleGridUp();
+	void VisibleGridDown();
+	void UnitToggle(bool fShiftKeyDown, CArray<double> * visible, CArray<double> * placement, CArray<double> * routing);
+	  
 	CStatic m_ctlStaticUnits;
 	CComboBox m_ctlComboUnits;
 	CStatic m_ctlStaticVisibleGrid;

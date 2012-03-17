@@ -199,12 +199,17 @@ void CDlgNetlist::DrawListCtrl()
 	DWORD old_style = m_list_ctrl.GetExtendedStyle();
 	m_list_ctrl.SetExtendedStyle( LVS_EX_FULLROWSELECT | LVS_EX_FLATSB | LVS_EX_CHECKBOXES | old_style );
 	m_list_ctrl.DeleteAllItems();
-	m_list_ctrl.InsertColumn( COL_VIS, "Vis", LVCFMT_LEFT, 25 );
-	m_list_ctrl.InsertColumn( COL_NAME, "Name", LVCFMT_LEFT, 140 );
-	m_list_ctrl.InsertColumn( COL_PINS, "Pins", LVCFMT_LEFT, 40 );
-	m_list_ctrl.InsertColumn( COL_WIDTH, "Width", LVCFMT_LEFT, 40 );
-	m_list_ctrl.InsertColumn( COL_VIA_W, "Via W", LVCFMT_LEFT, 40 );   
-	m_list_ctrl.InsertColumn( COL_HOLE_W, "Hole", LVCFMT_LEFT, 40 );
+	CString colNames[6];
+	colNames[0].LoadStringA(IDS_Vis);
+	for (int i=1; i<6; i++)
+		colNames[i].LoadStringA(IDS_NetCombineCols+i-1);
+
+	m_list_ctrl.InsertColumn( COL_VIS, colNames[0], LVCFMT_LEFT, 25 );
+	m_list_ctrl.InsertColumn( COL_NAME, colNames[1], LVCFMT_LEFT, 140 );
+	m_list_ctrl.InsertColumn( COL_PINS, colNames[2], LVCFMT_LEFT, 40 );
+	m_list_ctrl.InsertColumn( COL_WIDTH, colNames[3], LVCFMT_LEFT, 40 );
+	m_list_ctrl.InsertColumn( COL_VIA_W, colNames[4], LVCFMT_LEFT, 40 );   
+	m_list_ctrl.InsertColumn( COL_HOLE_W, colNames[5], LVCFMT_LEFT, 40 );
 	int iItem = 0;
 	for( int i=0; i<::nl.GetSize(); i++ )
 	{
@@ -291,10 +296,14 @@ void CDlgNetlist::OnBnClickedButtonVisible()
 void CDlgNetlist::OnBnClickedButtonEdit()
 {
 	int n_sel = m_list_ctrl.GetSelectedCount();
-	if( n_sel == 0 )
-		AfxMessageBox( "You have no net selected" );
-	else if( n_sel > 1 )
-		AfxMessageBox( "You have more than one net selected" );
+	if( n_sel == 0 ) {
+		CString s ((LPCSTR) IDS_YouHaveNoNetSelected);
+		AfxMessageBox( s );
+		}
+	else if( n_sel > 1 ) {
+		CString s ((LPCSTR) IDS_YouHaveMoreThanOneNetSelected);
+		AfxMessageBox( s );
+		}
 	else
 	{
 		POSITION pos = m_list_ctrl.GetFirstSelectedItemPosition();
@@ -358,7 +367,8 @@ void CDlgNetlist::OnBnClickedButtonDelete()
 	int n_sel = m_list_ctrl.GetSelectedCount();
 	if( n_sel == 0 )
 	{
-		AfxMessageBox( "You have no net(s) selected" );
+		CString s ((LPCSTR) IDS_YouHaveNoNetSelected);
+		AfxMessageBox( s );
 	}
 	else
 	{
@@ -380,7 +390,8 @@ void CDlgNetlist::OnBnClickedButtonNLWidth()
 	int n_sel = m_list_ctrl.GetSelectedCount();
 	if( n_sel == 0 )
 	{
-		AfxMessageBox( "You have no net(s) selected" );
+		CString s ((LPCSTR) IDS_YouHaveNoNetSelected);
+		AfxMessageBox( s );
 		return;
 	}
 	CFreePcbView * view = theApp.m_View; 

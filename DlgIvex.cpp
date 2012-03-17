@@ -95,7 +95,8 @@ HCURSOR CivexDlg::OnQueryDragIcon()
 void CivexDlg::OnBnClickedButtonInfile()
 {
 	// get project file name
-	CFileDialog dlg( 1, "mod", LPCTSTR(""), 0, "Ivex library files (*.mod)|*.mod|All Files (*.*)|*.*||" );
+	CString s ((LPCSTR) IDS_IvexLibraryFiles);
+	CFileDialog dlg( 1, "mod", LPCTSTR(""), 0, s );
 	int err = (int)dlg.DoModal();
 	if( err == IDOK )
 	{
@@ -144,8 +145,8 @@ void CivexDlg::OnBnClickedConvert()
 	if( !err )
 	{
 		// error opening file
-		CString mess;
-		mess.Format( "Unable to open file %s", in_pathname );
+		CString mess, s ((LPCSTR) IDS_UnableToOpenFile);
+		mess.Format( s, in_pathname );
 		AfxMessageBox( mess );
 		return;
 	}
@@ -153,16 +154,17 @@ void CivexDlg::OnBnClickedConvert()
 	if( !err )
 	{
 		// error opening file
-		CString mess;
-		mess.Format( "Unable to open file %s", out_pathname );
+		CString mess, s ((LPCSTR) IDS_UnableToOpenFile);
+		mess.Format( s, out_pathname );
 		AfxMessageBox( mess );
 		return;
 	}
-	CString str;
-	str.Format( "Converting Ivex file %s...\r\n", in_pathname );
+	CString str, s ((LPCSTR) IDS_ConvertingIvexFile);
+	str.Format( s, in_pathname );
 	m_edit_messages.ReplaceSel( str );
 	err = ConvertIvex( &mod_file, &lib_file, &m_edit_messages );
-	m_edit_messages.ReplaceSel( "done\r\n" );
+	CString s2 ((LPCSTR) IDS_Done2);
+	m_edit_messages.ReplaceSel( s2 );
 	mod_file.Close();
 	lib_file.Close();
 }

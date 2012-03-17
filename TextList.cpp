@@ -354,11 +354,11 @@ int CTextList::WriteTexts( CStdioFile * file )
 	}
 	catch( CFileException * e )
 	{
-		CString str;
+		CString str, s ((LPCSTR) IDS_FileError1), s2 = ((LPCSTR) IDS_FileError2);
 		if( e->m_lOsError == -1 )
-			str.Format( "File error: %d\n", e->m_cause );
+			str.Format( s, e->m_cause );
 		else
-			str.Format( "File error: %d %ld (%s)\n", e->m_cause, e->m_lOsError,
+			str.Format( s2, e->m_cause, e->m_lOsError,
 			_sys_errlist[e->m_lOsError] );
 		return 1;
 	}
@@ -381,8 +381,7 @@ void CTextList::ReadTexts( CStdioFile * pcb_file )
 		if( !err )
 		{
 			// error reading pcb file
-			CString mess;
-			mess.Format( "Unable to find [texts] section in file" );
+			CString mess ((LPCSTR) IDS_UnableToFindTextsSectionInFile);
 			AfxMessageBox( mess );
 			return;
 		}
@@ -397,7 +396,7 @@ void CTextList::ReadTexts( CStdioFile * pcb_file )
 		err = pcb_file->ReadString( in_str );
 		if( !err )
 		{
-			CString * err_str = new CString( "unexpected EOF in project file" );
+			CString * err_str = new CString((LPCSTR) IDS_UnexpectedEOFInProjectFile);
 			throw err_str;
 		}
 		in_str.Trim();

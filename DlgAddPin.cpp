@@ -203,27 +203,30 @@ void CDlgAddPin::DoDataExchange(CDataExchange* pDX)
 				case 5: cbox = &m_combo_bottom_shape2; bMask = TRUE; break;
 				case 6: cbox = &m_combo_bottom_shape3; bMask = TRUE; break;
 			}
+			CString s[8];
+			for (int i=0; i<8; i++)
+				s[i].LoadStringA(IDS_PadShape+i);
 			if( bMask == FALSE )
 			{
-				cbox->InsertString( PAD_NONE, "none" );
-				cbox->InsertString( PAD_ROUND, "round" );
-				cbox->InsertString( PAD_SQUARE, "square" );
-				cbox->InsertString( PAD_RECT, "rect" );
-				cbox->InsertString( PAD_RRECT, "rounded-rect" );
-				cbox->InsertString( PAD_OVAL, "oval" );
-				cbox->InsertString( PAD_OCTAGON, "octagon" );
+				cbox->InsertString( PAD_NONE, s[1] );
+				cbox->InsertString( PAD_ROUND, s[2] );
+				cbox->InsertString( PAD_SQUARE, s[3] );
+				cbox->InsertString( PAD_RECT, s[4] );
+				cbox->InsertString( PAD_RRECT, s[5] );
+				cbox->InsertString( PAD_OVAL, s[6] );
+				cbox->InsertString( PAD_OCTAGON, s[7] );
 				cbox->SetCurSel( 0 );
 			}
 			else
 			{
-				cbox->InsertString( 0, "<default>" );
-				cbox->InsertString( PAD_NONE+1, "none" );
-				cbox->InsertString( PAD_ROUND+1, "round" );
-				cbox->InsertString( PAD_SQUARE+1, "square" );
-				cbox->InsertString( PAD_RECT+1, "rect" );
-				cbox->InsertString( PAD_RRECT+1, "rounded-rect" );
-				cbox->InsertString( PAD_OVAL+1, "oval" );
-				cbox->InsertString( PAD_OCTAGON+1, "octagon" );
+				cbox->InsertString( 0, s[0] );
+				cbox->InsertString( PAD_NONE+1, s[1] );
+				cbox->InsertString( PAD_ROUND+1, s[2] );
+				cbox->InsertString( PAD_SQUARE+1, s[3] );
+				cbox->InsertString( PAD_RECT+1, s[4] );
+				cbox->InsertString( PAD_RRECT+1, s[5] );
+				cbox->InsertString( PAD_OVAL+1, s[6] );
+				cbox->InsertString( PAD_OCTAGON+1, s[7] );
 				cbox->SetCurSel( 0 );
 			}
 		}
@@ -236,21 +239,24 @@ void CDlgAddPin::DoDataExchange(CDataExchange* pDX)
 		else
 			m_combo_units.SetCurSel( 1 );
 
-		m_combo_x_edge.AddString( "left" );
-		m_combo_x_edge.AddString( "center");
-		m_combo_x_edge.AddString( "right");
+		CString s;
+		for (int i=0; i<3; i++)
+			s.LoadStringA(IDS_LeftCenterRight+i),
+			m_combo_x_edge.AddString( s );
 		m_combo_x_edge.SetCurSel(1);
 
-		m_combo_y_edge.AddString( "top" );
-		m_combo_y_edge.AddString( "middle");
-		m_combo_y_edge.AddString( "bottom");
+		for (int i=0; i<3; i++)
+			s.LoadStringA(IDS_TopMiddleBottom+i),
+			m_combo_y_edge.AddString( s );
 		m_combo_y_edge.SetCurSel(1);
 
-		m_combo_row_orient.InsertString( 0, "horiz" );
-		m_combo_row_orient.InsertString( 1, "vert" );
+		for (int i=0; i<2; i++)
+			s.LoadStringA(IDS_HorizVert+i),
+			m_combo_row_orient.InsertString(i, s);
 		m_combo_row_orient.SetCurSel( 0 );
-		m_combo_pad_orient.InsertString( 0, "horiz" );
-		m_combo_pad_orient.InsertString( 1, "vert" );
+		for (int i=0; i<2; i++)
+			s.LoadStringA(IDS_HorizVert+i),
+			m_combo_pad_orient.InsertString(i, s);
 		m_combo_pad_orient.SetCurSel( 0 );
 		if( m_fp->GetNumPins() )
 		{
@@ -383,51 +389,55 @@ void CDlgAddPin::DoDataExchange(CDataExchange* pDX)
 		// check for legal pin name
 		if( !CheckLegalPinName( &m_pin_name, &astr, &nstr, &n ) )
 		{
-			str = "Pin name must consist of zero or more letters\n";
-			str	+= "Followed by zero or more numbers\n";
-			str	+= "The characters \" .,;:/!@#$%^&*(){}[]|<>?\\~\'\" are illegal\n";
-			str	+= "For example: 1, 23, A12, SOURCE are legal\n";
-			str	+= "while 1A, A2B3, A:3 are not\n";
-			AfxMessageBox( str );
+			CString s1 ((LPCSTR) IDS_PinNameMustConsist1);
+			CString s2 ((LPCSTR) IDS_PinNameMustConsist2);
+			AfxMessageBox( s1+s2 );
 			pDX->Fail();
 		}
 		if( m_mode == ADD )
 		{
 			if( m_num_pins > 1 && m_row_spacing == 0 )
 			{
-				AfxMessageBox( "illegal row spacing" );
+				CString s ((LPCSTR) IDS_IllegalRowSpacing);
+				AfxMessageBox( s );
 				pDX->Fail();
 			}
 			if( m_num_pins > 1 && nstr == "" )
 			{
-				AfxMessageBox( "Pin name for a row of pins must end in a number" );
+				CString s ((LPCSTR) IDS_PinNameForARow);
+				AfxMessageBox( s );
 				pDX->Fail();
 			}
 		}
 		if( m_padstack_type == 1 && m_hole_diam <= 0 )
 		{
-			AfxMessageBox( "For through-hole pin, hole diameter must be > 0" );
+			CString s ((LPCSTR) IDS_ForThroughHolePin);
+			AfxMessageBox( s );
 			pDX->Fail();
 		}
 		if(  (m_padstack_type == 0 || m_padstack_type == 1) && m_top_shape != PAD_NONE && m_top_width <= 0 )
 		{
-			AfxMessageBox( "Illegal top pad width" );
+			CString s ((LPCSTR) IDS_IllegalTopPadWidth);
+			AfxMessageBox( s );
 			pDX->Fail();
 		}
 		if( m_padstack_type == 1 && m_inner_shape != PAD_NONE && m_inner_width <= 0 )
 		{
-			AfxMessageBox( "Illegal inner pad width" );
+			CString s ((LPCSTR) IDS_IllegalInnerPadWidth);
+			AfxMessageBox( s );
 			pDX->Fail();
 		}
 		if( (m_padstack_type == 2 || m_padstack_type == 1) && m_bottom_shape != PAD_NONE && m_bottom_width <= 0 )
 		{
-			AfxMessageBox( "Illegal bottom pad width" );
+			CString s ((LPCSTR) IDS_IllegalBottomPadWidth);
+			AfxMessageBox( s );
 			pDX->Fail();
 		}
 		if( (m_padstack_type == 0 && m_top_shape == 0)
 			|| (m_padstack_type == 2 && m_bottom_shape == 0) )
 		{
-			AfxMessageBox( "SMT pad shape can't be \"none\"" );
+			CString s ((LPCSTR) IDS_SMTPadShapeCantBeNone);
+			AfxMessageBox( s );
 			pDX->Fail();
 		}
 		if( m_padstack_type == 0 || m_padstack_type == 1 )
@@ -436,21 +446,24 @@ void CDlgAddPin::DoDataExchange(CDataExchange* pDX)
 				( m_top_radius > m_top_length/2 )
 				|| ( m_top_radius > m_top_width/2 ) )
 			{
-				AfxMessageBox( "Radius of top rounded-rect pad > length/2 or width/2" );
+				CString s ((LPCSTR) IDS_RadiusOfTopRoundedRect);
+				AfxMessageBox( s );
 				pDX->Fail();
 			}
 			if( m_top_mask_shape == PAD_RRECT && 
 				( m_top_mask_radius > m_top_mask_length/2 )
 				|| ( m_top_mask_radius > m_top_mask_width/2 ) )
 			{
-				AfxMessageBox( "Radius of top mask rounded-rect pad > length/2 or width/2" );
+				CString s ((LPCSTR) IDS_RadiusOfTopMask);
+				AfxMessageBox( s );
 				pDX->Fail();
 			}
 			if( m_top_paste_shape == PAD_RRECT && 
 				( m_top_paste_radius > m_top_paste_length/2 )
 				|| ( m_top_paste_radius > m_top_paste_width/2 ) )
 			{
-				AfxMessageBox( "Radius of top paste rounded-rect pad > length/2 or width/2" );
+				CString s ((LPCSTR) IDS_RadiusOfTopPaste);
+				AfxMessageBox( s );
 				pDX->Fail();
 			}
 		}
@@ -460,7 +473,8 @@ void CDlgAddPin::DoDataExchange(CDataExchange* pDX)
 				( m_inner_radius > m_inner_length/2 )
 				|| ( m_inner_radius > m_inner_width/2 ) )
 			{
-				AfxMessageBox( "Radius of inner rounded-rect pad > length/2 or width/2" );
+				CString s ((LPCSTR) IDS_RadiusOfInnerRoundedRect);
+				AfxMessageBox( s );
 				pDX->Fail();
 			}
 		}
@@ -470,21 +484,24 @@ void CDlgAddPin::DoDataExchange(CDataExchange* pDX)
 				( m_bottom_radius > m_bottom_length/2 )
 				|| ( m_bottom_radius > m_bottom_width/2 ) )
 			{
-				AfxMessageBox( "Radius of bottom rounded-rect pad > length/2 or width/2" );
+				CString s ((LPCSTR) IDS_RadiusOfBottomRoundedRect);
+				AfxMessageBox( s );
 				pDX->Fail();
 			}
 			if( m_bottom_mask_shape == PAD_RRECT && 
 				( m_bottom_mask_radius > m_bottom_mask_length/2 )
 				|| ( m_bottom_mask_radius > m_bottom_mask_width/2 ) )
 			{
-				AfxMessageBox( "Radius of bottom mask rounded-rect pad > length/2 or width/2" );
+				CString s ((LPCSTR) IDS_RadiusOfBottomMask);
+				AfxMessageBox( s );
 				pDX->Fail();
 			}
 			if( m_bottom_paste_shape == PAD_RRECT && 
 				( m_bottom_paste_radius > m_bottom_paste_length/2 )
 				|| ( m_bottom_paste_radius > m_bottom_paste_width/2 ) )
 			{
-				AfxMessageBox( "Radius of bottom paste rounded-rect pad > length/2 or width/2" );
+				CString s ((LPCSTR) IDS_RadiusOfBottomPaste);
+				AfxMessageBox( s );
 				pDX->Fail();
 			}
 		}
@@ -495,7 +512,8 @@ void CDlgAddPin::DoDataExchange(CDataExchange* pDX)
 			// can't make row
 			if( m_num_pins > 1 )
 			{
-				AfxMessageBox( "To create a row of pins, the pin name must end in a number" );
+				CString s ((LPCSTR) IDS_ToCreateARowOfPins);
+				AfxMessageBox( s );
 				pDX->Fail();
 			}
 			// check for conflicts
@@ -513,7 +531,8 @@ void CDlgAddPin::DoDataExchange(CDataExchange* pDX)
 			}
 			if( conflict )
 			{
-				str.Format( "Pin name \"%s\" is already in use", m_pin_name );
+				CString s ((LPCSTR) IDS_PinNameIsAlreadyInUse);
+				str.Format( s, m_pin_name );
 				pDX->Fail();
 			}
 		}
@@ -539,11 +558,14 @@ void CDlgAddPin::DoDataExchange(CDataExchange* pDX)
 			}
 			if( conflict )
 			{
-				if( m_num_pins == 1 )
-					str.Format( "Pin name \"%s\" conflicts with an existing pin\nShift the existing pin name up?", m_pin_name );
-				else
-					str.Format( "Pin names \"%s%d\" through \"%s%d\" conflict with existing pins\nShift existing pin names up?", 
-					astr, n, astr, n+(m_num_pins-1)*m_increment );
+				if( m_num_pins == 1 ) {
+					CString s ((LPCSTR) IDS_PinNameConflicts);
+					str.Format( s, m_pin_name );
+					}
+				else {
+					CString s ((LPCSTR) IDS_PinNamesConflict);
+					str.Format( s, astr, n, astr, n+(m_num_pins-1)*m_increment );
+					}
 				int ret = AfxMessageBox( str, MB_OKCANCEL );
 				if( ret != IDOK )
 					pDX->Fail();
@@ -671,10 +693,7 @@ void CDlgAddPin::DoDataExchange(CDataExchange* pDX)
 			}
 			if( bSMTtop && bSMTbottom )
 			{
-				CString mess = "You are applying new pad parameters to SMT pads\n";
-				mess += "on both top and bottom layers.\n\n";
-				mess += "Click YES to preserve the layers of these pads,\n";
-				mess += "or NO to set them all to the layer of the new pad";
+				CString mess ((LPCSTR) IDS_YouAreApplyingNewPadParameters);
 				int ret = AfxMessageBox( mess, MB_YESNO );
 				if( ret == IDYES )
 					bPreserveLayer = TRUE;
@@ -752,7 +771,6 @@ void CDlgAddPin::DoDataExchange(CDataExchange* pDX)
 		}
 	}
 }
-
 
 BEGIN_MESSAGE_MAP(CDlgAddPin, CDialog)
 	ON_BN_CLICKED(IDC_RADIO_ADD_PIN, OnBnClickedRadioAddPin)

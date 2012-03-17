@@ -40,14 +40,16 @@ void CDlgVia::DoDataExchange(CDataExchange* pDX)
 		m_via_w = GetDimensionFromString( &str );
 		if( m_via_w <= 0 )
 		{
-			AfxMessageBox( "Illegal via width" );
+			CString s ((LPCSTR) IDS_IllegalViaWidth);
+			AfxMessageBox( s );
 			pDX->Fail();
 		}
 		m_edit_hole_w.GetWindowText( str );
 		m_via_hole_w = GetDimensionFromString( &str );
 		if( m_via_hole_w <= 0 )
 		{
-			AfxMessageBox( "Illegal via hole width" );
+			CString s ((LPCSTR) IDS_IllegalViaHoleWidth);
+			AfxMessageBox( s );
 			pDX->Fail();
 		}
 	}

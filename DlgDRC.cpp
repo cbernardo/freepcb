@@ -219,14 +219,10 @@ void DlgDRC::CheckDesign()
 	GetFields();
 
 	// warnings
-	CString mess;
 	if( m_dr_local.annular_ring_pins > m_CAM_annular_ring_pins )  
 	{
-		mess = "Warning: Your design rule for minimum annular ring width for pins\n";
-		mess += "exceeds the default annular ring width in the CAM dialog.\n";
-		mess += "This will probably create DRC errors.\n\n";
-		mess += "Do you want to set the CAM parameter to match the design rule?";
-		int ret = AfxMessageBox( mess, MB_YESNOCANCEL );
+		CString s ((LPCSTR) IDS_WarningYourDesignRule);
+		int ret = AfxMessageBox( s, MB_YESNOCANCEL );
 		if( ret == IDCANCEL )
 			return;
 		else if( ret == IDYES )
@@ -237,11 +233,8 @@ void DlgDRC::CheckDesign()
 	}
 	if( m_dr_local.annular_ring_vias > m_CAM_annular_ring_vias )
 	{
-		mess = "Warning: Your design rule for minimum annular ring width for vias\n";
-		mess += "exceeds the default annular ring width in the CAM dialog.\n";
-		mess += "This will probably create DRC errors.\n\n";
-		mess += "Do you want to set the CAM parameter to match the design rule?";
-		int ret = AfxMessageBox( mess, MB_YESNOCANCEL );
+		CString s ((LPCSTR) IDS_WarningYourDesignRuleVias);
+		int ret = AfxMessageBox( s, MB_YESNOCANCEL );
 		if( ret == IDCANCEL )
 			return;
 		else if( ret == IDYES )

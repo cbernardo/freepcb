@@ -163,11 +163,14 @@ void CDlgNetCombine::DrawListCtrl()
 	DWORD old_style = m_list_ctrl.GetExtendedStyle(); 
 	m_list_ctrl.SetExtendedStyle( LVS_EX_FULLROWSELECT | LVS_EX_FLATSB | old_style );
 	m_list_ctrl.DeleteAllItems();
-	m_list_ctrl.InsertColumn( COL_NAME, "Name", LVCFMT_LEFT, 140 );
-	m_list_ctrl.InsertColumn( COL_PINS, "Pins", LVCFMT_LEFT, 40 );
-	m_list_ctrl.InsertColumn( COL_WIDTH, "Width", LVCFMT_LEFT, 40 );
-	m_list_ctrl.InsertColumn( COL_VIA_W, "Via W", LVCFMT_LEFT, 40 );   
-	m_list_ctrl.InsertColumn( COL_HOLE_W, "Hole", LVCFMT_LEFT, 40 );
+	CString colNames[5];
+	for (int i=0; i<5; i++)
+		colNames[i].LoadStringA(IDS_NetCombineCols+i);
+	m_list_ctrl.InsertColumn( COL_NAME, colNames[0], LVCFMT_LEFT, 140 );
+	m_list_ctrl.InsertColumn( COL_PINS, colNames[1], LVCFMT_LEFT, 40 );
+	m_list_ctrl.InsertColumn( COL_WIDTH, colNames[2], LVCFMT_LEFT, 40 );
+	m_list_ctrl.InsertColumn( COL_VIA_W, colNames[3], LVCFMT_LEFT, 40 );   
+	m_list_ctrl.InsertColumn( COL_HOLE_W, colNames[4], LVCFMT_LEFT, 40 );
 	int iItem = 0;
 	for( int i=0; i<::nl_combine.GetSize(); i++ )
 	{
@@ -242,7 +245,8 @@ void CDlgNetCombine::OnBnClickedOk()
 	int n = m_list_ctrl.GetSelectedCount();
 	if( n == 0 )
 	{
-		AfxMessageBox( "No nets selected" );
+		CString s ((LPCSTR) IDS_NoNetsSelected);
+		AfxMessageBox( s );
 		return;
 	}
 	m_names.SetSize(n);

@@ -2,7 +2,9 @@
 //  or project specific include files that are used frequently, but
 //      are changed infrequently
 // 
-#define WINVER 0x400
+// CPT #define WINVER 0x400
+#define WINVER 0x501
+
 #define _WIN32_IE 0x0500 
 #define OPENFILENAME_SIZE_VERSION_400 0
 
@@ -54,6 +56,7 @@
 #include "UndoList.h" 
 #include "flags.h" 
 #include "DlgLog.h" 
+#include <afxcontrolbars.h>
 
 #define ASSERT(f) assert(f)	//changed ASSERT() to work in release versions if NDEBUG undefined
 
