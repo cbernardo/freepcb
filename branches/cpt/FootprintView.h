@@ -385,6 +385,8 @@ public:
 	void UnitToggle(bool fShiftKeyDown);
 	void PlacementGridUp();
 	void PlacementGridDown();
+	afx_msg void OnViewPlacementGrid();
+	afx_msg void OnViewVisibleGrid();
 };
 
 #ifndef _DEBUG  // debug version

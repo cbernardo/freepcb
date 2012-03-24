@@ -181,25 +181,8 @@ void CMyToolBar::SetLists( CArray<double> * visible,
 	{
 		CString str;
 		double val = (*m_v)[i];
-		BOOL is_mm = ( val < 0 );
-		val = fabs( val );
-		if( is_mm )
-			str.Format( "%9.3f", val/1000000.0 );
-		else
-			str.Format( "%9.3f", val/NM_PER_MIL );
-		str.Trim();
-		if( str[str.GetLength()-1] == '0' )
-			str = str.Left( str.GetLength()-1 );
-		if( str[str.GetLength()-1] == '0' )
-			str = str.Left( str.GetLength()-1 );
-		if( str[str.GetLength()-1] == '0' )
-			str = str.Left( str.GetLength()-1 );
-		if( str[str.GetLength()-1] == '.' )
-			str = str.Left( str.GetLength()-1 );
-		if( is_mm )
-			m_ctlComboVisibleGrid.AddString( str + " mm" );	
-		else
-			m_ctlComboVisibleGrid.AddString( str );
+		MakeCStringFromGridVal(&str, val);
+		m_ctlComboVisibleGrid.AddString( str );
 		if (val == vg) sel = i;									// CPT
 	}
 	m_ctlComboVisibleGrid.SetCurSel( sel );
@@ -443,6 +426,7 @@ void CMyToolBar::UnitToggle(bool fShiftKeyDown, CArray<double> * visible, CArray
 			AfxGetMainWnd()->SendMessage( WM_USER_PLACEMENT_GRID, WM_BY_INDEX, best );
 		}
 
+	if (!routing) return;
 	sz = routing->GetSize();
 	double route_sel = (*routing)[m_ctlComboRoutingGrid.GetCurSel()];
 	if (cur_sel==0 && route_sel<0) {

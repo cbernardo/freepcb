@@ -8,6 +8,8 @@
 #include "PathDialog.h"
 #include ".\dlgprojectoptions.h"
 
+// CPT:  moved controls for autosave and auto-ratline-disable into DlgPrefs.
+
 // global callback function for sorting
 //		
 int CALLBACK WidthCompare( LPARAM lp1, LPARAM lp2, LPARAM type )
@@ -48,8 +50,6 @@ void CDlgProjectOptions::DoDataExchange(CDataExchange* pDX)
 		m_trace_w = m_trace_w/NM_PER_MIL;
 		m_via_w = m_via_w/NM_PER_MIL;
 		m_hole_w = m_hole_w/NM_PER_MIL;
-		// convert seconds to minutes
-		m_auto_interval = m_auto_interval/60;
 	}
 	DDX_Control(pDX, IDC_EDIT_NAME, m_edit_name);
 	DDX_Text(pDX, IDC_EDIT_NAME, m_name );
@@ -69,16 +69,10 @@ void CDlgProjectOptions::DoDataExchange(CDataExchange* pDX)
 	DDX_Text(pDX, IDC_EDIT_DEF_VIA_HOLE, m_hole_w );
 	DDV_MinMaxInt(pDX, m_hole_w, 1, 1000 );
 	DDX_Control(pDX, IDC_LIST_WIDTH_MENU, m_list_menu);
-	DDX_Control(pDX, IDC_CHECK_AUTOSAVE, m_check_autosave);
-	DDX_Control(pDX, IDC_EDIT_AUTO_INTERVAL, m_edit_auto_interval);
-	DDX_Text(pDX, IDC_EDIT_AUTO_INTERVAL, m_auto_interval );
 	DDX_Control(pDX, IDC_CHECK1, m_check_SMT_connect);
-	DDX_Control(pDX, IDC_CHECK_AUTORAT_DISABLE, m_check_disable_auto_rats);
-	DDX_Control(pDX, IDC_EDIT_MIN_PINS, m_edit_min_pins);
-	DDX_Text(pDX, IDC_EDIT_MIN_PINS, m_auto_ratline_min_pins );
-	DDV_MinMaxInt(pDX, m_auto_ratline_min_pins, 0, 10000 );
 	// CPT:
 	DDX_Control(pDX, IDC_BUTTON_PROJ, m_button_proj);
+	DDX_Control(pDX, IDC_CHECK_OPTIONS_DEFAULT, m_check_default);
 
 	if( pDX->m_bSaveAndValidate )
 	{
@@ -108,10 +102,6 @@ void CDlgProjectOptions::DoDataExchange(CDataExchange* pDX)
 		{
 			// save options
 			m_bSMT_connect_copper = m_check_SMT_connect.GetCheck();
-			m_bAuto_Ratline_Disable = m_check_disable_auto_rats.GetCheck();
-
-			// convert minutes to seconds
-			m_auto_interval *= 60;
 
 			// convert NM to MILS
 			m_trace_w = m_trace_w*NM_PER_MIL;
@@ -135,6 +125,8 @@ void CDlgProjectOptions::DoDataExchange(CDataExchange* pDX)
 				m_v_h_w->SetAt(i, atoi(str)*NM_PER_MIL);
 			}
 		}
+		// CPT:
+		m_default = m_check_default.GetCheck();
 	}
 }
 
@@ -147,10 +139,8 @@ BEGIN_MESSAGE_MAP(CDlgProjectOptions, CDialog)
 	ON_EN_CHANGE(IDC_EDIT_FOLDER, OnEnChangeEditFolder)
 	ON_EN_SETFOCUS(IDC_EDIT_FOLDER, OnEnSetfocusEditFolder)
 	ON_EN_KILLFOCUS(IDC_EDIT_FOLDER, OnEnKillfocusEditFolder)
-	ON_BN_CLICKED(IDC_CHECK_AUTOSAVE, OnBnClickedCheckAutosave)
 	ON_BN_CLICKED(IDC_BUTTON_LIB, OnBnClickedButtonLib)
 	ON_BN_CLICKED(IDC_BUTTON_PROJ, OnBnClickedButtonProj)
-	ON_BN_CLICKED(IDC_CHECK_AUTORAT_DISABLE, OnBnClickedCheckAutoRatDisable)
 END_MESSAGE_MAP()
 
 // initialize data
@@ -165,9 +155,6 @@ void CDlgProjectOptions::Init( BOOL new_project,
 							  int trace_w,
 							  int via_w,
 							  int hole_w,
-							  int auto_interval,
-							  BOOL bAuto_Ratline_Disable,
-							  int auto_ratline_min_pins,
 							  CArray<int> * w,
 							  CArray<int> * v_w,
 							  CArray<int> * v_h_w )
@@ -182,9 +169,6 @@ void CDlgProjectOptions::Init( BOOL new_project,
 	m_trace_w = trace_w;
 	m_via_w = via_w;
 	m_hole_w = hole_w;
-	m_auto_interval = auto_interval;
-	m_bAuto_Ratline_Disable = bAuto_Ratline_Disable;
-	m_auto_ratline_min_pins = auto_ratline_min_pins;
 	m_w = w;
 	m_v_w = v_w;
 	m_v_h_w = v_h_w;
@@ -224,16 +208,6 @@ BOOL CDlgProjectOptions::OnInitDialog()
 		m_edit_folder.EnableWindow( FALSE );
 		m_button_proj.EnableWindow(FALSE);
 	}
-	if( !m_auto_interval )
-	{
-		m_edit_auto_interval.EnableWindow( FALSE );
-		m_check_autosave.SetCheck(0);
-	}
-	else
-		m_check_autosave.SetCheck(1);
-
-	m_check_disable_auto_rats.SetCheck( m_bAuto_Ratline_Disable );
-	m_edit_min_pins.EnableWindow( m_bAuto_Ratline_Disable );
 	m_check_SMT_connect.SetCheck( m_bSMT_connect_copper );
 	return TRUE;
 }
@@ -251,7 +225,7 @@ void CDlgProjectOptions::OnBnClickedButtonAdd()
 	{
 		CString str;
 		m_list_menu.InsertItem( 0, "" );
-		m_list_menu.SetItemData( 0, (LPARAM)dlg.m_width );
+		m_list_menu.SetItemData( 0, (LPARAM)dlg.m_width * NM_PER_MIL );		// CPT:  bug fix (led to bad sorting)
 		str.Format( "%d", dlg.m_width );
 		m_list_menu.SetItem( 0, 0, LVIF_TEXT, str, 0, 0, 0, 0 );
 		str.Format( "%d", dlg.m_via_w );
@@ -287,7 +261,7 @@ void CDlgProjectOptions::OnBnClickedButtonEdit()
 			m_list_menu.DeleteItem( i_sel );
 			CString str;
 			m_list_menu.InsertItem( 0, "" );
-			m_list_menu.SetItemData( 0, (LPARAM)dlg.m_width );
+			m_list_menu.SetItemData( 0, (LPARAM)dlg.m_width * NM_PER_MIL );			// CPT bug fix (led to bad sorting)
 			str.Format( "%d", dlg.m_width );
 			m_list_menu.SetItem( 0, 0, LVIF_TEXT, str, 0, 0, 0, 0 );
 			str.Format( "%d", dlg.m_via_w );
@@ -336,16 +310,6 @@ void CDlgProjectOptions::OnEnKillfocusEditFolder()
 	m_folder_has_focus = FALSE;
 }
 
-void CDlgProjectOptions::OnBnClickedCheckAutosave()
-{
-	if( m_check_autosave.GetCheck() )
-		m_edit_auto_interval.EnableWindow( TRUE );
-	else
-	{
-		m_edit_auto_interval.EnableWindow( FALSE );
-		m_edit_auto_interval.SetWindowText( "0" );
-	}
-}
 
 void CDlgProjectOptions::OnBnClickedButtonLib()
 {
@@ -371,7 +335,3 @@ void CDlgProjectOptions::OnBnClickedButtonProj()
 	}
 }
 
-void CDlgProjectOptions::OnBnClickedCheckAutoRatDisable()
-{
-	m_edit_min_pins.EnableWindow( m_check_disable_auto_rats.GetCheck() );
-}

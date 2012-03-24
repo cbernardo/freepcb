@@ -269,8 +269,9 @@ char * mystrtok( LPCTSTR str, LPCTSTR delim )
 //					nnnn for default units
 // if bRound10 = TRUE, round return value to nearest 10 nm.
 // returns the dimension in nanometers, or 0.0 if error
+// CPT: if bNegateMm is true, negate the return value if unit "mm" is specified.
 //
-double GetDimensionFromString( CString * str, int def_units, BOOL bRound10 )
+double GetDimensionFromString( CString * str, int def_units, BOOL bRound10, BOOL bNegateMm )
 {
 	double dim;
 	int mult;
@@ -285,11 +286,11 @@ double GetDimensionFromString( CString * str, int def_units, BOOL bRound10 )
 	int len = str->GetLength();
 	if( len > 2 )
 	{
-		if( str->Right(2) == "MM" )
-			mult = NM_PER_MM;
-		else if( str->Right(3) == "MIL" )
+		if( str->Right(2).CompareNoCase("MM") == 0 )				// CPT
+			mult = bNegateMm? -NM_PER_MM: NM_PER_MM;
+		else if( str->Right(3).CompareNoCase("MIL") == 0 )
 			mult = NM_PER_MIL;
-		else if( str->Right(2) == "NM" )
+		else if( str->Right(2).CompareNoCase("NM") == 0 )
 			mult = 1;
 	}
 	dim = mult*atof( (LPCSTR)str->GetBuffer() );
@@ -370,6 +371,39 @@ void MakeCStringFromDimension( CString * str, int dim, int units, BOOL append_un
 	}
 }
 
+void MakeCStringFromGridVal(CString *str, double val) {
+	// CPT.  Utility used for the strings display in the grid-value dropdowns and the grid-val dialogs.  
+	// Translate "val" into a mil-or-mm length string, where as usual val<0 => mm units, val>=0 => mil units.  
+	// Append "mm" if needed, but not "mil"
+	BOOL is_mm = ( val < 0 );
+	val = fabs( val );
+	if( is_mm )
+		str->Format( "%9.3f", val/1000000.0 );
+	else
+		str->Format( "%9.3f", val/NM_PER_MIL );
+	str->Trim();
+	int lgth = str->GetLength();
+	for (int i=1; i<4; i++)
+		if( (*str)[lgth-i] == '0' )
+			str->Delete(lgth-i);
+		else break;
+	if( (*str)[str->GetLength()-1] == '.' )
+		str->Delete( str->GetLength()-1 );
+	if (is_mm) 
+		str->Append(" mm");
+	}
+
+int CompareGridVals(const double *gv1, const double *gv2) {
+	// CPT.  Compare grid vals for the dropdowns and the grid-val dlgs.
+	// Order is like this:  200 mil, 100 mil, 20 mil, 5 mm, 2 mm, 1 mm.
+	if (*gv1==*gv2) return 0;
+	if (*gv1<0)
+		if (*gv2<0) return *gv1<*gv2? -1: 1;
+		else        return 1;
+	else if (*gv2<0) return -1;
+	else return *gv1<*gv2? 1: -1;
+	}
+
 // function to make a CString from a double, stripping trailing zeros and "."
 // allows maximum of 4 decimal places
 //
@@ -420,7 +454,9 @@ int ParseRef( CString * ref, CString * prefix )
 // if astr != NULL, set to alphabetic part
 // if nstr != NULL, set to numeric part
 // if n != NULL, set to value of numeric part
-//
+// CPT changed:  now allowing 1A.  In that sort of case, astr on return will be 1a and nstr will be "".  I.e.
+//  nstr is filled only if pinstr ENDS with a number.
+
 BOOL CheckLegalPinName( CString * pinstr, CString * astr, CString * nstr, int * n )
 {
 	CString aastr;
@@ -431,6 +467,19 @@ BOOL CheckLegalPinName( CString * pinstr, CString * astr, CString * nstr, int * 
 		return FALSE;
 	if( -1 != pinstr->FindOneOf( " .,;:/!@#$%^&*(){}[]|<>?\\~\'\"" ) )
 		return FALSE;
+	int lgth = pinstr->GetLength(), lastNonDigit;
+	for (lastNonDigit=lgth-1; lastNonDigit>=0; lastNonDigit--) 
+	{
+		char c = (*pinstr)[lastNonDigit];
+		if (!isdigit(c)) break;
+	}
+	if (lastNonDigit==lgth-1)
+		aastr = *pinstr;			// Doesn't have trailing digits...
+	else
+		aastr = pinstr->Left(lastNonDigit+1),
+		nnstr = pinstr->Mid(lastNonDigit+1),
+		nn = atoi(nnstr);
+/*
 	int asize = pinstr->FindOneOf( "0123456789" );
 	if( asize == -1 )
 	{
@@ -463,6 +512,7 @@ BOOL CheckLegalPinName( CString * pinstr, CString * astr, CString * nstr, int * 
 			return FALSE;	// numeric substring contains non-number
 		nn = atoi( nnstr );
 	}
+*/
 	if( astr )
 		*astr = aastr;
 	if( nstr )

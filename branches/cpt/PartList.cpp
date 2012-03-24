@@ -3893,7 +3893,8 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 				c->min_y = min( c->min_y, seg_min_y - w/2 );
 				c->max_y = max( c->max_y, seg_max_y + w/2 );
 				// test trace width
-				if( w > 0 && w < dr->trace_width )
+				// CPT: noticed a dre for a ratline with width 1 nm (not sure how that width got set...)  Anyway, no width errors for ratlines:
+				if( w > 0 && w < dr->trace_width && c->seg[is].layer!=LAY_RAT_LINE)		
 				{
 					// TRACE_WIDTH error
 					int x = (x1+x2)/2;

@@ -240,6 +240,21 @@ public:
 	CDisplayList * m_dlist;
 	CNetList* m_nlist;
 	int utility;
+
+	// CPT utility.
+	void Copy(cseg *s) {
+		m_uid = s->m_uid;
+		m_dlist = s->m_dlist;
+		m_nlist = s->m_nlist;
+		curve = s->curve;
+		layer = s->layer;
+		width = s->width;
+        via_w = s->via_w; via_hole_w = s->via_hole_w;
+		selected = s->selected;
+		dl_el = s->dl_el;
+		dl_sel = s->dl_sel;
+		utility = s->utility;
+		}
 };
 
 // cvertex: describes a vertex between segments
@@ -326,6 +341,24 @@ public:
 	CNetList * m_nlist;
 	int tee_ID;					// used to flag a t-connection point
 	int utility, utility2;		// used for various functions
+	
+	// CPT utility
+	void Copy(cvertex *v) {
+		m_uid = v->m_uid;
+		x = v->x; y = v->y;
+		pad_layer = v->pad_layer;
+		force_via_flag = v->force_via_flag;
+        via_w = v->via_w; via_hole_w = v->via_hole_w;
+		dl_el.RemoveAll();
+		for( int il=0; il<v->dl_el.GetSize(); il++ )
+			dl_el.Add( v->dl_el[il] );
+		dl_sel = v->dl_sel;
+		dl_hole = v->dl_hole;
+		m_dlist = v->m_dlist;
+		m_nlist = v->m_nlist;
+		tee_ID = v->tee_ID;
+		utility = v->utility; utility2 = v->utility2;
+		}
 };
 
 // cconnect: describes a connection between two pins or a stub trace with no end pin
@@ -471,8 +504,9 @@ public:
 	int AppendSegment( cnet * net, int ic, int x, int y, int layer, int width, int via_w=0, int via_hole_w=0  );
 	int InsertSegment( cnet * net, int ic, int iseg, int x, int y, int layer, int width,
 						int via_width, int via_hole_width, int dir, BOOL bDrawConnection=TRUE );
-	id  UnrouteSegment( cnet * net, int ic, int iseg );
-	void UnrouteSegmentWithoutMerge( cnet * net, int ic, int iseg );
+	// CPT added params for next 2 functions:
+	id  UnrouteSegment( cnet * net, int ic, int iseg, int dx=1, int dy=1, int end=0 );
+	void UnrouteSegmentWithoutMerge( cnet * net, int ic, int iseg, double dx=1, double dy=1, int end=0 );
 	id MergeUnroutedSegments( cnet * net, int ic );
 	// CPT added params:
 	int RouteSegment( cnet * net, int ic, int iseg, int layer, int width, int via_w=0, int via_hole_w=0 );
@@ -524,7 +558,7 @@ public:
 	// functions related to parts
 	int RehookPartsToNet( cnet * net );
 	void PartAdded( cpart * part );
-	int PartMoved( cpart * part );
+	int PartMoved( cpart * part, int dx = 1, int dy = 1 );			// CPT added optional params
 	int PartFootprintChanged( cpart * part );
 	int PartDeleted( cpart * part, BOOL bSetAreas=TRUE );
 	int PartDisconnected( cpart * part, BOOL bSetAreas=TRUE );
@@ -603,6 +637,10 @@ public:
 	int RemoveTeeIfNoBranches( cnet * net, int id );
 	BOOL TeeViaNeeded( cnet * net, int id );
 	BOOL RemoveOrphanBranches( cnet * net, int id, BOOL bRemoveSegs=FALSE );
+	// CPT:
+	bool IsPinSmt(cnet *net, int pin);
+	bool IsRatlineConnected(cnet *net, int ic, int is);
+	bool RemoveRatline(cnet *net, int ic, int is);
 
 private:
 	CDisplayList * m_dlist;
