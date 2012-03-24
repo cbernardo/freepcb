@@ -29,6 +29,7 @@
 #include "DlgSlot.h"
 #include ".\footprintview.h"
 #include "afx.h"
+#include "DlgGridVals.h"		// CPT
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -134,6 +135,11 @@ ON_COMMAND(ID_ADHESIVE_EDIT, OnAdhesiveEdit)
 ON_COMMAND(ID_ADHESIVE_MOVE, OnAdhesiveMove)
 ON_COMMAND(ID_ADHESIVE_DELETE, OnAdhesiveDelete)
 ON_COMMAND(ID_CENTROID_ROTATEAXIS, OnCentroidRotateAxis)
+ON_COMMAND(ID_TOOLS_MOVEORIGIN_FP, OnToolsMoveOriginFP)
+//CPT
+ON_COMMAND(ID_VIEW_FPVISIBLEGRIDVALUES, OnViewVisibleGrid)
+ON_COMMAND(ID_VIEW_FPPLACEMENTGRIDVALUES, OnViewPlacementGrid)
+
 END_MESSAGE_MAP()
 /////////////////////////////////////////////////////////////////////////////
 // CFootprintView construction/destruction
@@ -1280,7 +1286,7 @@ void CFootprintView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 		OnViewEntireFootprint();
 	}
 
-	if (m_Doc->fReversePgupPgdn)
+	if (m_Doc->bReversePgupPgdn)
 		if (nChar==33) nChar = 34;
 		else if (nChar==34) nChar = 33;
 
@@ -2362,7 +2368,7 @@ LONG CFootprintView::OnChangeUnits( UINT wp, LONG lp )
 	}
 	else
 		ASSERT(0);
-	FootprintModified(TRUE);
+	// CPT: FootprintModified(TRUE);
 	SetFocus();
 	return 0;
 }
@@ -3375,7 +3381,7 @@ void CFootprintView::OnCentroidRotateAxis()
 
 void CFootprintView::UnitToggle(bool fShiftKeyDown) {
 	CMainFrame * frm = (CMainFrame*)AfxGetMainWnd();
-	frm->m_wndMyToolBar.UnitToggle(fShiftKeyDown, &(m_Doc->m_visible_grid), &(m_Doc->m_part_grid), &(m_Doc->m_routing_grid));
+	frm->m_wndMyToolBar.UnitToggle(fShiftKeyDown, &(m_Doc->m_fp_visible_grid), &(m_Doc->m_fp_part_grid), 0);
 	}
 
 void CFootprintView::PlacementGridUp() {
@@ -3386,4 +3392,50 @@ void CFootprintView::PlacementGridUp() {
 void CFootprintView::PlacementGridDown() {
 	CMainFrame * frm = (CMainFrame*)AfxGetMainWnd();
 	frm->m_wndMyToolBar.PlacementGridDown();
+	}
+
+extern void ReadFileLines(CString &fname, CArray<CString> &lines);  // In FreePcbDoc.cpp
+extern void WriteFileLines(CString &fname, CArray<CString> &lines);
+extern void ReplaceLines(CArray<CString> &oldLines, CArray<CString> &newLines, char *key);
+
+void CFootprintView::OnViewVisibleGrid() {
+	CArray<double> &arr = m_Doc->m_fp_visible_grid, &hidden = m_Doc->m_fp_visible_grid_hidden;
+	CDlgGridVals dlg (&arr, &hidden, IDS_EditFootprintVisibleGridValues);
+	int ret = dlg.DoModal();
+	if( ret == IDOK ) {
+		CMainFrame * frm = (CMainFrame*)AfxGetMainWnd();
+		frm->m_wndMyToolBar.SetLists( &m_Doc->m_fp_visible_grid, &m_Doc->m_fp_part_grid, NULL,
+				m_Doc->m_fp_visual_grid_spacing, m_Doc->m_fp_part_grid_spacing, 0, m_Doc->m_fp_snap_angle, -1 );
+		m_Doc->ProjectModified(true);
+		if (dlg.bSetDefault) {
+			CArray<CString> oldLines, newLines;
+			CString fn = m_Doc->m_app_dir + "\\" + "default.cfg";
+			ReadFileLines(fn, oldLines);
+			m_Doc->CollectOptionsStrings(newLines);
+			ReplaceLines(oldLines, newLines, "fp_visible_grid_item");
+			ReplaceLines(oldLines, newLines, "fp_visible_grid_hidden");
+			WriteFileLines(fn, oldLines);
+			}
+		}
+	}
+
+void CFootprintView::OnViewPlacementGrid() {
+	CArray<double> &arr = m_Doc->m_fp_part_grid, &hidden = m_Doc->m_fp_part_grid_hidden;
+	CDlgGridVals dlg (&arr, &hidden, IDS_EditFootprintPlacementGridValues);
+	int ret = dlg.DoModal();
+	if( ret == IDOK ) {
+		CMainFrame * frm = (CMainFrame*)AfxGetMainWnd();
+		frm->m_wndMyToolBar.SetLists( &m_Doc->m_fp_visible_grid, &m_Doc->m_fp_part_grid, NULL,
+				m_Doc->m_fp_visual_grid_spacing, m_Doc->m_fp_part_grid_spacing, 0, m_Doc->m_fp_snap_angle, -1 );
+		m_Doc->ProjectModified(true);
+		if (dlg.bSetDefault) {
+			CArray<CString> oldLines, newLines;
+			CString fn = m_Doc->m_app_dir + "\\" + "default.cfg";
+			ReadFileLines(fn, oldLines);
+			m_Doc->CollectOptionsStrings(newLines);
+			ReplaceLines(oldLines, newLines, "fp_placement_grid_item");
+			ReplaceLines(oldLines, newLines, "fp_placement_grid_hidden");
+			WriteFileLines(fn, oldLines);
+			}
+		}
 	}

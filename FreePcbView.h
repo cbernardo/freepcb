@@ -363,7 +363,8 @@ public:
 	BOOL m_bDraggingRect;
 	CPoint m_start_pt;
 	CRect m_drag_rect, m_last_drag_rect;
-	CRect m_sel_rect;		// rectangle used for selection
+	BOOL m_bDontDrawDragRect;					// CPT true after an autoscroll but before repainting occurs
+	CRect m_sel_rect;		                    // rectangle used for selection
 
 	// mode for drawing new polyline segments
 	int m_polyline_style;	// STRAIGHT, ARC_CW or ARC_CCW
@@ -404,8 +405,9 @@ public:
 
 	// direction of routing
 	int m_dir;			// 0 = forward, 1 = back
-        // CPT
-        int m_active_width;             // Width for upcoming segs during routing mode (in nm)
+    // CPT
+    int m_active_width;             // Width for upcoming segs during routing mode (in nm)
+	DWORD m_last_autoscroll;		// Tick count when an autoscroll last occurred.
 
 	// display coordinate mapping
 	double m_pcbu_per_pixel;	// pcb units per pixel
@@ -693,7 +695,11 @@ public:
 	void RoutingGridDown();
 	void PlacementGridUp();
 	void PlacementGridDown();
-	void UnitToggle(bool fShiftKeyDown);
+	void UnitToggle(bool bShiftKeyDown);
+	bool ConvertSelectionToGroup(bool bChangeMode);
+	void ConvertSelectionToGroupAndMove(int dx, int dy);
+	void ConvertSingletonGroup();
+	void DoSelection(id &sid, void *ptr);
 };
 
 #ifndef _DEBUG  // debug version in FreePcbView.cpp

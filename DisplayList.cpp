@@ -1367,7 +1367,7 @@ void * CDisplayList::TestSelect( int x, int y, id * sel_id, int * sel_layer,
 // Start dragging arrays of drag lines and ratlines
 // Assumes that arrays have already been set up using MakeLineArray, etc.
 // If no arrays, just drags point
-//
+// 
 int CDisplayList::StartDraggingArray( CDC * pDC, int xx, int yy, int vert, int layer, int crosshair )
 {
 	// convert to display units

@@ -219,6 +219,8 @@
 #define IDD_CHOOSE_NET                  349
 #define IDD_SAVE_LIB                    350
 #define IDD_PREFS                       351
+#define IDD_GRIDVALS                    352
+#define IDD_ADD_GRIDVAL                 353
 #define IDC_EDIT1                       1002
 #define IDC_PART_REF                    1002
 #define IDC_EDIT_VIA_PAD                1002
@@ -754,9 +756,13 @@
 #define IDC_BUTTON_LAYER_6              1436
 #define IDC_REVERSE_PGUP_PGDN           1436
 #define IDC_BUTTON_LAYER_7              1437
+#define IDC_LIST_GRIDVALS               1437
 #define IDC_BUTTON_LAYER_8              1438
+#define IDC_CHECK_GRIDVALS_DEFAULT      1438
 #define IDC_BUTTON_LAYER_9              1439
+#define IDC_VALUE                       1439
 #define IDC_BUTTON_LAYER_10             1440
+#define IDC_CHECK_OPTIONS_DEFAULT       1440
 #define IDC_BUTTON_LAYER_11             1441
 #define IDC_BUTTON_LAYER_12             1442
 #define IDC_BUTTON_LAYER_13             1443
@@ -964,6 +970,21 @@
 #define ID_HELP_USERGUIDESUPPLEMENT_PDF 32943
 #define ID_EDIT_PREFERENCES             32944
 #define ID_TOOLS_PREFERENCES            32945
+#define ID_TOOLS_ROUTINGGRIDVALUES      32947
+#define ID_TOOLS_PLACEMENTGRIDVALUES    32948
+#define ID_TOOLS_VISIBLEGRIDVALUES      32949
+#define ID_TOOLS_ROUTINGGRIDVALUES32950 32950
+#define ID_TOOLS_PLACEMENTGRIDVALUES32951 32951
+#define ID_TOOLS_FPVISIBLEGRIDVALUES    32952
+#define ID_TOOLS_FPPLACEMENTGRIDVALUES  32953
+#define ID_PROJECT_VISIBLEGRIDVALUES    32954
+#define ID_PROJECT_PLACEMENTGRIDVALUES  32955
+#define ID_PROJECT_ROUTINGGRIDVALUES    32956
+#define ID_VIEW_FPVISIBLEGRIDVALUES     32957
+#define ID_VIEW_FPPLACEMENTGRIDVALUES   32958
+#define ID_VIEW_VISIBLEGRIDVALUES       32959
+#define ID_VIEW_PLACEMENTGRIDVALUES     32960
+#define ID_VIEW_ROUTINGGRIDVALUES       32961
 #define IDS_AppName                     61999
 #define IDS_IllegalNetName              62000
 #define IDS_TopSolderMask               62001
@@ -985,6 +1006,7 @@
 #define IDS_TopMiddleBottom             62026
 #define IDS_HorizVert                   62029
 #define IDS_PinNameMustConsist1         62031
+#define IDS_PinNameMayNotContainAnyOfTheCharacters 62031
 #define IDS_PinNameMustConsist2         62032
 #define IDS_IllegalRowSpacing           62033
 #define IDS_PinNameForARow              62034
@@ -1494,6 +1516,20 @@
 #define IDS_FootprintPinNameTooLong     62584
 #define IDS_ErrorTryingToWriteBadPadShapeInFootprint 62585
 #define IDS_UnableToFindTextsSectionInFile 62586
+#define IDS_GridValsCols                62587
+#define IDS_STRING62588                 62588
+#define IDS_EditRoutingGridValues       62589
+#define IDS_EditPlacementGridValues     62590
+#define IDS_EditVisibleGridValues       62591
+#define IDS_IllegalValue                62592
+#define IDS_ValueIsAlreadyInTheList     62593
+#define IDS_EditFootprintPlacementGridValues 62594
+#define IDS_EditFootprintVisibleGridValues 62595
+#define IDS_UnableToCopyAnything        62596
+#define IDS_UnableToCutAnything         62597
+#define IDS_ConnectTo                   62598
+#define IDS_ToolbarPlacementCtrlUpDn    62599
+#define IDS_ToolbarRoutingCtrlUpDn      62600
 #define IDS_FkFpStr                     63000
 #define IDS_STRING63001                 63001
 #define IDS_STRING63002                 63002
@@ -1827,9 +1863,9 @@
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_3D_CONTROLS                     1
-#define _APS_NEXT_RESOURCE_VALUE        351
-#define _APS_NEXT_COMMAND_VALUE         32947
-#define _APS_NEXT_CONTROL_VALUE         1437
+#define _APS_NEXT_RESOURCE_VALUE        354
+#define _APS_NEXT_COMMAND_VALUE         32962
+#define _APS_NEXT_CONTROL_VALUE         1441
 #define _APS_NEXT_SYMED_VALUE           106
 #endif
 #endif

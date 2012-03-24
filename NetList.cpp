@@ -1229,12 +1229,12 @@ void CNetList::ChangeConnectionPin( cnet * net, int ic, int end_flag,
 
 // Unroute segment
 // return id of new segment (since seg[] array may change as a result)
-//
-id CNetList::UnrouteSegment( cnet * net, int ic, int is )
+// CPT: added dx/dy/end params which get passed down to UnrouteSegmentWithoutMerge(), q.v.
+id CNetList::UnrouteSegment( cnet * net, int ic, int is, int dx, int dy, int end )
 {
 	cconnect * c = &net->connect[ic];
 	id seg_id = id(ID_NET, ID_CONNECT, ic, ID_SEG, is );
-	UnrouteSegmentWithoutMerge( net, ic, is );
+	UnrouteSegmentWithoutMerge( net, ic, is, dx, dy, end );
 	id mid = MergeUnroutedSegments( net, ic );
 	if( mid.type == 0 )
 		mid = seg_id;
@@ -1280,34 +1280,42 @@ id CNetList::MergeUnroutedSegments( cnet * net, int ic )
 
 // Unroute segment, but don't merge with adjacent unrouted segments
 // Assume that there will be an eventual call to MergeUnroutedSegments() to set vias
-//
-void CNetList::UnrouteSegmentWithoutMerge( cnet * net, int ic, int is )
+// CPT: added dx, dy and end arguments (which are 1/1/0 by default).  If, say, dx==0, dy==100000, end==1, then caller is about
+// to move a group/part to which the segment's end #1 is attached (by distance (0,100000)).  If the segment is itself vertical
+// (or nearly so) then we don't really need to unroute.
+
+void CNetList::UnrouteSegmentWithoutMerge( cnet * net, int ic, int is, double dx, double dy, int end )
 {
 	cconnect * c = &net->connect[ic];
+	bool bUnroute = true;
+	int xi = c->vtx[is].x;
+	int yi = c->vtx[is].y;
+	int xf = c->vtx[is+1].x;
+	int yf = c->vtx[is+1].y;
+	if (dx==0 && abs(xi-xf) < abs(dy/10))
+		// Segment is almost vertical, and one of it's endpoints is going to move vertically
+		// If end 0 is going to move, we will unroute only if it's getting moved to the opposite side of end 1.  Analogously if end 1 is moving.
+		if (end==0) bUnroute = (yf-yi)*(yf-(yi+dy)) <= 0;
+		else        bUnroute = (yf-yi)*((yf+dy)-yi) <= 0;
+	if (dy==0 && abs(yi-yf) < abs(dx/10)) 
+		if (end==0) bUnroute = (xf-xi)*(xf-(xi+dx)) <= 0;
+		else        bUnroute = (xf-xi)*((xf+dx)-xi) <= 0;
+	if (!bUnroute) return;
 
-	// unroute segment
 	c->seg[is].layer = LAY_RAT_LINE;
 	c->seg[is].width = 0;
 
-	// redraw segment
-	if( m_dlist )
+	if( m_dlist && c->seg[is].dl_el )
 	{
-		if( c->seg[is].dl_el )
-		{
-			int xi, yi, xf, yf;
-			xi = c->vtx[is].x;
-			yi = c->vtx[is].y;
-			xf = c->vtx[is+1].x;
-			yf = c->vtx[is+1].y;
-			id seg_id = c->seg[is].dl_el->id;
-			id sel_id = c->seg[is].dl_sel->id;
-			m_dlist->Remove( c->seg[is].dl_el );
-			m_dlist->Remove( c->seg[is].dl_sel );
-			c->seg[is].dl_el = m_dlist->Add( seg_id, net, LAY_RAT_LINE, DL_LINE,
-				net->visible, 1, 0, xi, yi, xf, yf, 0, 0 );
-			c->seg[is].dl_sel = m_dlist->AddSelector( sel_id, net, LAY_RAT_LINE, DL_LINE,
-				net->visible, 1, 0, xi, yi, xf, yf, 0, 0 );
-		}
+		// redraw segment
+		id seg_id = c->seg[is].dl_el->id;
+		id sel_id = c->seg[is].dl_sel->id;
+		m_dlist->Remove( c->seg[is].dl_el );
+		m_dlist->Remove( c->seg[is].dl_sel );
+		c->seg[is].dl_el = m_dlist->Add( seg_id, net, LAY_RAT_LINE, DL_LINE,
+			net->visible, 1, 0, xi, yi, xf, yf, 0, 0 );
+		c->seg[is].dl_sel = m_dlist->AddSelector( sel_id, net, LAY_RAT_LINE, DL_LINE,
+			net->visible, 1, 0, xi, yi, xf, yf, 0, 0 );
 	}
 	ReconcileVia( net, ic, is );
 	ReconcileVia( net, ic, is+1 );
@@ -1628,9 +1636,9 @@ int CNetList::AppendSegment( cnet * net, int ic, int x, int y, int layer, int wi
 	// create new segment
 	c->seg[iseg].layer = layer;
 	c->seg[iseg].width = width;
-        // CPT
-        c->seg[iseg].via_w = via_w;
-        c->seg[iseg].via_hole_w = via_hole_w;
+    // CPT
+    c->seg[iseg].via_w = via_w;
+    c->seg[iseg].via_hole_w = via_hole_w;
 	c->seg[iseg].selected = 0;
 	int xi = c->vtx[iseg].x;
 	int yi = c->vtx[iseg].y;
@@ -2211,8 +2219,10 @@ void CNetList::SwapPins( cpart * part1, CString * pin_name1,
 // Part moved, so unroute starting and ending segments of connections
 // to this part, and update positions of endpoints
 // Undraw and Redraw any changed connections
-//
-int CNetList::PartMoved( cpart * part )
+// CPT:  added dx and dy params indicating how much the part moved (both are 1 by default).  If, say, dx==0
+// and an attached seg is vertical, then we don't have to unroute it.
+
+int CNetList::PartMoved( cpart * part, int dx, int dy )
 {
 	// first, mark all nets and connections unmodified
 	cnet * net;
@@ -2252,7 +2262,7 @@ int CNetList::PartMoved( cpart * part )
 						// start pin is on part, unroute first segment
 						net->utility = 1;	// mark net modified
 						c->utility = 1;		// mark connection modified
-						UnrouteSegment( net, ic, 0 );
+						UnrouteSegment( net, ic, 0, dx, dy, 0 );
 						nsegs = c->nsegs;
 						// modify vertex[0] position and layer
 						v0->x = part->pin[pin_index1].x;
@@ -2283,7 +2293,7 @@ int CNetList::PartMoved( cpart * part )
 							// end pin is on part, unroute last segment
 							net->utility = 1;	// mark net modified
 							c->utility = 1;		// mark connection modified
-							UnrouteSegment( net, ic, nsegs-1 );
+							UnrouteSegment( net, ic, nsegs-1, dx, dy, 1 );
 							nsegs = c->nsegs;
 							// modify vertex position and layer
 							CString pin_name2 = net->pin[p2].pin_name;
@@ -2916,7 +2926,7 @@ int CNetList::OptimizeConnections( cnet * net, int ic_track, BOOL bBelowPinCount
 	free( numbers );
 	free( index );
 
-	// add new optimized connections
+	// add new optimized connections.  
 	for( int ic=0; ic<n_optimized; ic++ )
 	{
 		// make new connection with a single unrouted segment
@@ -2926,6 +2936,17 @@ int CNetList::OptimizeConnections( cnet * net, int ic_track, BOOL bBelowPinCount
 	}
 
 	free( grid );
+
+	// CPT:  cull out ratlines where the two endpts are determined to be already connected in copper
+	 for (int i=0; i<net->nconnects; i++)
+		 for (int j=0; j<net->connect[i].nsegs; j++) {
+			cseg *seg = &net->connect[i].seg[j];
+			if (seg->layer!=LAY_RAT_LINE) continue;
+			if (!IsRatlineConnected(net, i, j)) continue;
+			RemoveRatline(net, i, j);
+			ic_new = -1;									// Unselect all on return if ratlines are culled (seemed safest and simplest)
+			break;											// Assuming (for the time being) that no other ratlines are in the connect to be culled
+			}
 
 #ifdef PROFILE
 	double time2 = GetElapsedTime();
@@ -3254,6 +3275,15 @@ int CNetList::StartDraggingSegment( CDC * pDC, cnet * net, int ic, int iseg,
 	cconnect * c =&net->connect[ic];
 	m_dlist->CancelHighLight();
 	m_dlist->Set_visible(c->seg[iseg].dl_el, 0);
+	// CPT: highlight the far end of the ratline with an X-square
+	int	w2 = 60*PCBU_PER_MIL, ivtx = iseg+1-dir;
+	m_dlist->HighLight( DL_RECT_X,
+		c->vtx[ivtx].x-w2/2,
+		c->vtx[ivtx].y-w2/2,
+		c->vtx[ivtx].x+w2/2,
+		c->vtx[ivtx].y+w2/2,
+		0 );
+
 	// start dragging
 	int xi = c->vtx[iseg].x;
 	int yi = c->vtx[iseg].y;
@@ -4065,7 +4095,7 @@ int CNetList::ReconcileVia( cnet * net, int ic, int ivtx, BOOL bDrawVia )
 			cseg * s2 = &c->seg[ivtx];
 			if( s1->layer != s2->layer && s1->layer != LAY_RAT_LINE && s2->layer != LAY_RAT_LINE )
 			{
-				via_needed = TRUE;
+				via_needed = TRUE; 
 			}
 		}
 	}
@@ -7634,3 +7664,235 @@ void CNetList::ImportNetRouting( CString * name,
 	SetAreaConnections( net );
 }
 
+bool CNetList::IsPinSmt(cnet *net, int pin) {
+	// CPT: utility, check if net's pin # "pin" is smt.  This should really be a member function in cpin (one of these days...)
+	// If classes like cvertex and cpin contained more linking ptrs, we'd be able to get rid of all these index values.
+	if (pin<0) return true;							// I guess...
+	cpart *pin_part = net->pin[pin].part;
+	if (!pin_part) return true;
+	CShape *s = pin_part->shape;
+	if (!s) return true;
+	int index = s->GetPinIndexByName(net->pin[pin].pin_name);
+	if (index < 0) return true;
+	padstack *ps = &s->m_padstack[index];
+	return ps->hole_size==0;
+	}
+
+bool CNetList::IsRatlineConnected(cnet *net, int ic, int is) {
+	// CPT: utility routine to check whether a ratline's two end vertices are already linked by some copper path through connects 
+	// and areas of "net".  "ic"/"is" contains the info to pinpoint the ratline of interest.
+	cconnect * c0 = &net->connect[ic];
+	int ivtx0 = is, ivtx1 = is+1, pin1 = -1;
+	if (ivtx1==0) pin1 = c0->start_pin;
+	else if (ivtx1==c0->nsegs) pin1 = c0->end_pin;
+	// Clear utility flags on net's areas and vertices
+	for (int i=0; i<net->nconnects; i++) {
+		cconnect * c = &net->connect[i];
+		c->utility = 0;
+		for( int is=0; is<c->nsegs+1; is++ ) {
+			if( is < c->nsegs )
+				c->seg[is].utility = 0;
+			c->vtx[is].utility = 0;
+			}
+		}
+	for (int i=0; i<net->nareas; i++)
+		net->area[i].utility = 0;
+	
+	// We'll have a list of areas that need processing, and a list of vertices (which will actually be a list of connects + a list of indices;
+	//  if, one of these days, class cvertex is given a pointer to the vertex's parent connect + an index value, then this ugly hack will be avoidable).
+	// The vertex list will initially contain just c0's vertex #ivtx0, and other vertices connected to ivtx0 via copper will later get added.
+	CArray<carea*> areas;
+	CArray<cconnect*> connects;
+	CArray<int> indices;
+	connects.Add(c0); indices.Add(ivtx0);
+	c0->vtx[ivtx0].utility = 1;					// The vertex at ivtx0 is marked as having been added to the list
+	int pAreas = 0, pVtx = 0;
+	bool bFound = false;						// Have we found c0's vertex #ivtx1?
+
+	while (!bFound) 
+		if (pAreas<areas.GetCount()) {
+			// Process a single area:  look for connect endpoints that lie within it.  If any of these are still unprocessed (clear utility bit),
+			// then add them to the vtx (connects+indices) list.
+			carea *a = areas[pAreas++];
+			int layer = a->poly->GetLayer();
+			for (int i=0; i<net->nconnects; i++) {
+				cconnect *c = &net->connect[i];
+				cvertex *v = &c->vtx[0];
+				if (!v->utility) {
+					bool bHole = v->via_w || !IsPinSmt(net, c->start_pin);
+					if ((c->seg[0].layer==layer || bHole) && a->poly->TestPointInside(v->x, v->y))
+						v->utility = 1, connects.Add(c), indices.Add(0);
+					}
+				int nsegs = c->nsegs;
+				v = &c->vtx[nsegs];
+				if (!v->utility) {
+					bool bHole = v->via_w || !IsPinSmt(net, c->end_pin);
+					if ((c->seg[nsegs-1].layer==layer || bHole) && a->poly->TestPointInside(v->x, v->y))
+						v->utility = 1, connects.Add(c), indices.Add(c->nsegs);
+					}
+				// Also look for intermediate vertices along the connect that touch the appropriate layer and are within a->poly
+				for (int j=1; j<nsegs; j++) {
+					v = &c->vtx[j];
+					if (v->utility) continue;
+					if ((v->via_w || c->seg[j-1].layer==layer || c->seg[j].layer==layer) && a->poly->TestPointInside(v->x, v->y))
+						v->utility = 1, connects.Add(c), indices.Add(j);
+					}
+				}	
+			}
+
+		else if (pVtx<connects.GetCount()) {
+			// Process a single vertex. See if its adjacent segs are non-ratlines, and if so add the opposite vertices to the vtx list.  
+			// Must also allow for the possibility of tee vertices, and for the possibility that the vertex is a pin with multiple
+			// connects attached.  Also scan thru the net's copper areas, and see if vtx touches any of them
+			cconnect *c = connects[pVtx];
+			int i = indices[pVtx++];
+			// First check if we've encountered ivtx1 (or pin1)
+			if (c==c0 && i==ivtx1) 
+				{ bFound = true; break; }
+			if (i==0 && pin1>=0 && pin1==c->start_pin)
+				{ bFound = true; break; }
+			if (i==c->nsegs && pin1>=0 && pin1==c->end_pin)
+				{ bFound = true; break; }
+			cvertex *v = &c->vtx[i];
+			int prelayer = i==0? c->seg[0].layer: c->seg[i-1].layer;
+			int postlayer = i==c->nsegs? prelayer: c->seg[i].layer;
+			if (v->tee_ID) {
+				cconnect *c2 = 0;					// c2/i2 will contain the tee's other connect/index value
+				int i2 = -1;
+				for (int j=0; j<net->nconnects; j++) {
+					c2 = &net->connect[j];
+					if (c2==c) continue;
+					for (int k=0; k<=c2->nsegs; k++)
+						if (c2->vtx[k].tee_ID == v->tee_ID)
+							{ i2 = k; goto teeFound; }
+				    }
+				teeFound:
+				if (i2>=0) {
+					cvertex *v2 = &c2->vtx[i2];
+					if (!v2->utility)
+						v2->utility = 1, connects.Add(c2), indices.Add(i2);
+					}
+				}
+			if (i>0 && prelayer!=LAY_RAT_LINE) {
+				cvertex *v2 = &c->vtx[i-1];
+				if (!v2->utility)
+					v2->utility = 1, connects.Add(c), indices.Add(i-1);
+				}
+			if (i<c->nsegs && postlayer!=LAY_RAT_LINE) {
+				cvertex *v2 = &c->vtx[i+1];
+				if (!v2->utility)
+					v2->utility = 1, connects.Add(c), indices.Add(i+1);
+				}
+			if (i==0)
+				// See if any other connects terminate at this pin
+				for (int j=0; j<net->nconnects; j++) {
+					cconnect *c2 = &net->connect[j];
+					cvertex *first = &c2->vtx[0], *last = &c2->vtx[c2->nsegs];
+					if (c2->start_pin == c->start_pin && !first->utility)
+						first->utility = 1, connects.Add(c2), indices.Add(0);
+					else if (c2->end_pin == c->start_pin && !last->utility)
+						last->utility = 1, connects.Add(c2), indices.Add(c2->nsegs);
+					}
+			else if (i==c->nsegs && c->end_pin>=0)
+				for (int j=0; j<net->nconnects; j++) {
+					cconnect *c2 = &net->connect[j];
+					cvertex *first = &c2->vtx[0], *last = &c2->vtx[c2->nsegs];
+					if (c2->start_pin == c->end_pin && !first->utility)
+						first->utility = 1, connects.Add(c2), indices.Add(0);
+					else if (c2->end_pin == c->end_pin && !last->utility)
+						last->utility = 1, connects.Add(c2), indices.Add(c2->nsegs);
+					}
+
+			for (int j=0; j<net->nareas; j++) {
+				carea *a = &net->area[j];
+				bool bHole = v->via_w>0;
+				if (i==0) bHole |= !IsPinSmt(net, c->start_pin);
+				else if (i==c->nsegs) bHole |= !IsPinSmt(net, c->end_pin);
+				if (!a->utility && (prelayer == a->poly->GetLayer() || bHole) && a->poly->TestPointInside(v->x, v->y))
+					a->utility = 1, areas.Add(a);
+				}
+			}
+
+		else break;
+
+	return bFound;
+	}
+
+bool CNetList::RemoveRatline(cnet *net, int ic, int is) {
+	// CPT: utility for removing a ratline that IsRatlineConnected() determined to be superfluous.  Ratline is within "net", with connect
+	// # "ic" and segment # "is".  If connect is a stub (unlikely), we only allow this procedure if "is" is the connect's last segment
+	// (that way we avoid issues with traces lacking pins at both ends, which currently are illegal).
+	cconnect *c = &net->connect[ic];
+	cseg *s = &c->seg[is];
+	if (c->end_pin == cconnect::NO_END && is!=c->nsegs-1) return false;
+	bool bDeleted = false;
+	if (m_dlist)
+		UndrawConnection( net, ic );
+
+	if (c->nsegs==1) {
+		// Easy case: remove connect entirely
+		net->connect.RemoveAt(ic);
+		net->nconnects--;
+		bDeleted = true;
+		}
+	else if (is==c->nsegs-1) {
+		// Easy case:  change connect to a stub (as needed)
+		c->end_pin = cconnect::NO_END;
+		c->seg.RemoveAt(c->nsegs-1);
+		c->vtx.RemoveAt(c->nsegs);
+		c->nsegs--;
+		}
+	else if (is==0) {
+		// Reverse connect and change it to a stub.  This is a pretty ugly business.  If c->seg contained pointers rather than actual
+		// csegs (and likewise c->vtx), it would be prettier.
+		c->start_pin = c->end_pin;
+		c->end_pin = cconnect::NO_END;
+		int nsegs = c->nsegs;
+		for (int i=0, j=nsegs-1; i<j; i++, j--) {
+			static cseg tmp;							// static so that no stinkin' destructor will get invoked
+			tmp.Copy(&c->seg[i]);
+			c->seg[i].Copy(&c->seg[j]);
+			c->seg[j].Copy(&tmp);
+			}
+		for (int i=0, j=c->nsegs; i<j; i++, j--) {
+			static cvertex tmp;
+			tmp.Copy(&c->vtx[i]);
+			c->vtx[i].Copy(&c->vtx[j]);
+			c->vtx[j].Copy(&tmp);
+			}
+		c->seg.RemoveAt(c->nsegs-1);
+		c->vtx.RemoveAt(c->nsegs);
+		c->nsegs--;
+		}
+	else {
+		// Create a new connect that begins at current connect's far end and continues to vertex is+1.
+		net->connect.SetSize( net->nconnects + 1 );
+		cconnect *c2 = &net->connect[net->nconnects];
+		c2->Initialize( this );
+		c2->nsegs = c->nsegs-1 - is;
+		c2->seg.SetSize(c2->nsegs);
+		c2->vtx.SetSize(c2->nsegs+1);
+		c2->locked = 0;
+		c2->start_pin = c->end_pin;
+		c2->end_pin = cconnect::NO_END;
+		for (int i=0, j=c->nsegs-1; i<c2->nsegs; i++, j--) {
+			c2->seg[i].Initialize( m_dlist, this );
+			c2->seg[i].Copy(&c->seg[j]);
+			}
+		for (int i=0, j=c->nsegs; i<=c2->nsegs; i++, j--) {
+			c2->vtx[i].Initialize( m_dlist, this );
+			c2->vtx[i].Copy(&c->vtx[j]);
+			}
+		DrawConnection(net, net->nconnects);
+		net->nconnects++;
+		// Now truncate the current connect (it becomes a stub with is-1 segs). 
+		c->nsegs = is;
+		c->seg.SetSize(is);
+		c->vtx.SetSize(is+1);
+		c->end_pin = cconnect::NO_END;
+		}
+	if (m_dlist && !bDeleted)
+		DrawConnection( net, ic );
+
+	return true;
+	}

@@ -192,6 +192,11 @@ public:
 	CArray<double> m_visible_grid;	// array of choices for visible grid
 	CArray<double> m_part_grid;		// array of choices for placement grid
 	CArray<double> m_routing_grid;	// array of choices for routing grid
+	// CPT.  Allow for "hidden" grid values (which are seen as unchecked items in the grid-values dialogs)
+	CArray<double> m_visible_grid_hidden;
+	CArray<double> m_part_grid_hidden;	
+	CArray<double> m_routing_grid_hidden;
+
 
 	// grids and units for footprint editor
 	int m_fp_units;						// MM or MIL
@@ -200,6 +205,9 @@ public:
 	int m_fp_snap_angle;				// 0, 45 or 90
 	CArray<double> m_fp_visible_grid;	// array of choices for visible grid
 	CArray<double> m_fp_part_grid;		// array of choices for placement grid
+	// CPT
+	CArray<double> m_fp_visible_grid_hidden;
+	CArray<double> m_fp_part_grid_hidden;
 
 	// layers
 	int m_num_layers;			// number of drawing layers (note: different than copper layers)
@@ -248,8 +256,7 @@ public:
 	DesignRules m_dr;
 
 	// CPT:  new preference values
-	bool fReversePgupPgdn;
-	bool fGridFlags[30];
+	bool bReversePgupPgdn;
 
 // Generated message map functions
 public:
@@ -295,8 +302,12 @@ public:
 	afx_msg void OnFileSaveLibrary();
 	// CPT
 	afx_msg void OnToolsPreferences();
-	void ReadPrefs();
-	void SavePrefs();
+	afx_msg void OnViewRoutingGrid();
+	afx_msg void OnViewVisibleGrid();
+	afx_msg void OnViewPlacementGrid();
+	void SaveOptionsToRegistry();
+	void ReadOptionsFromRegistry();
+	void CollectOptionsStrings(CArray<CString> &arr);
 };
 
 /////////////////////////////////////////////////////////////////////////////

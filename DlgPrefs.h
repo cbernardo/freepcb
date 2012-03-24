@@ -11,47 +11,27 @@ class CDlgPrefs : public CDialogEx
 public:
 	CDlgPrefs(CWnd* pParent = NULL);   // standard constructor
 	virtual ~CDlgPrefs();
+	void Init(bool bReverse, int auto_interval,	BOOL bAuto_Ratline_Disable,	int auto_ratline_min_pins);
 
 // Dialog Data
 	enum { IDD = IDD_PREFS };
 
 protected:
 	virtual void DoDataExchange(CDataExchange* pDX);    // DDX/DDV support
+	virtual BOOL OnInitDialog();
 
 	DECLARE_MESSAGE_MAP()
+	afx_msg void OnBnClickedCheckAutosave();
+	CButton m_check_autosave;
+	CEdit m_edit_auto_interval;
 	CButton m_check_reverse;
-	CButton m_check_grd1;
-	CButton m_check_grd2;
-	CButton m_check_grd3;
-	CButton m_check_grd4;
-	CButton m_check_grd5;
-	CButton m_check_grd6;
-	CButton m_check_grd7;
-	CButton m_check_grd8;
-	CButton m_check_grd9;
-	CButton m_check_grd10;
-	CButton m_check_grd11;
-	CButton m_check_grd12;
-	CButton m_check_grd13;
-	CButton m_check_grd14;
-	CButton m_check_grd15;
-	CButton m_check_grd16;
-	CButton m_check_grd17;
-	CButton m_check_grd18;
-	CButton m_check_grd19;
-	CButton m_check_grd20;
-	CButton m_check_grd21;
-	CButton m_check_grd22;
-	CButton m_check_grd23;
-	CButton m_check_grd24;
-	CButton m_check_grd25;
-	CButton m_check_grd26;
-	CButton m_check_grd27;
-	CButton m_check_grd28;
-	CButton m_check_grd29;
-	CButton m_check_grd30;
-
+	CButton m_check_disable_auto_rats;
+	CEdit m_edit_min_pins;
+	afx_msg void OnBnClickedCheckAutoRatDisable();
 public:
-	bool fReverse, fGridFlags[30];
+	bool m_bReverse;
+	int m_auto_interval;
+	BOOL m_bAuto_Ratline_Disable;
+	int m_auto_ratline_min_pins;
 	CFreePcbDoc *doc;
 };

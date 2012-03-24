@@ -24,9 +24,6 @@ public:
 		int trace_w,
 		int via_w,
 		int hole_w,
-		int auto_interval,
-		BOOL bAuto_Ratline_Disable,
-		int auto_ratline_min_pins,
 		CArray<int> * w,
 		CArray<int> * v_w,
 		CArray<int> * v_h_w );
@@ -37,10 +34,7 @@ public:
 	int GetTraceWidth(){ return m_trace_w; };
 	int GetViaWidth(){ return m_via_w; };
 	int GetViaHoleWidth(){ return m_hole_w; };
-	int GetAutoInterval(){ return m_auto_interval; };
-	int GetAutoRatlineDisable(){ return m_bAuto_Ratline_Disable; };
 	int GetGlueWidth(){ return m_glue_w; };
-	int GetAutoRatlineMinPins(){ return m_auto_ratline_min_pins; };
 
 // Dialog Data
 	enum { IDD = IDD_PROJECT_OPTIONS  };
@@ -58,9 +52,6 @@ private:
 	int m_trace_w;
 	int m_via_w;
 	int m_hole_w;
-	int m_auto_interval;
-	BOOL m_bAuto_Ratline_Disable;
-	int m_auto_ratline_min_pins;
 	DECLARE_MESSAGE_MAP()
 	CListCtrl m_list_menu;
 	CArray<int> *m_w;		
@@ -79,15 +70,11 @@ private:
 	CEdit m_edit_lib_folder;
 	CEdit m_edit_layers;
 	CButton m_button_proj;
+	CButton m_check_default;				// CPT;
 public:
 	BOOL m_bSMT_connect_copper;
-	afx_msg void OnBnClickedCheckAutosave();
-	CButton m_check_autosave;
-	CEdit m_edit_auto_interval;
 	afx_msg void OnBnClickedButtonLib();
 	afx_msg void OnBnClickedButtonProj();
 	CButton m_check_SMT_connect;
-	CButton m_check_disable_auto_rats;
-	CEdit m_edit_min_pins;
-	afx_msg void OnBnClickedCheckAutoRatDisable();
+	BOOL m_default;							// CPT
 };

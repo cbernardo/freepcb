@@ -39,6 +39,7 @@
 #include "DlgSaveLib.h"
 //CPT
 #include "DlgPrefs.h"
+#include "DlgGridVals.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -103,6 +104,9 @@ BEGIN_MESSAGE_MAP(CFreePcbDoc, CDocument)
 	ON_COMMAND(ID_FILE_SAVEPROJECTASLIBRARY, OnFileSaveLibrary)
 	// CPT
 	ON_COMMAND(ID_TOOLS_PREFERENCES, OnToolsPreferences)
+	ON_COMMAND(ID_VIEW_ROUTINGGRIDVALUES, OnViewRoutingGrid)
+	ON_COMMAND(ID_VIEW_PLACEMENTGRIDVALUES, OnViewPlacementGrid)
+	ON_COMMAND(ID_VIEW_VISIBLEGRIDVALUES, OnViewVisibleGrid)
 END_MESSAGE_MAP()
 
 /////////////////////////////////////////////////////////////////////////////
@@ -176,9 +180,6 @@ CFreePcbDoc::CFreePcbDoc()
 	clip_plist->UseNetList( clip_nlist );
 	clip_plist->SetShapeCacheMap( &m_footprint_cache_map );
 	clip_tlist = new CTextList( NULL, m_smfontutil );
-
-	// CPT
-	ReadPrefs();
 }
 
 CFreePcbDoc::~CFreePcbDoc()
@@ -272,6 +273,11 @@ BOOL CFreePcbDoc::OnSaveDocument(LPCTSTR lpszPathName)
 	return CDocument::OnSaveDocument(lpszPathName);
 }
 
+// CPT: helper routines defined further below:
+void ReadFileLines(CString &fname, CArray<CString> &lines); 
+void WriteFileLines(CString &fname, CArray<CString> &lines);
+void ReplaceLines(CArray<CString> &oldLines, CArray<CString> &newLines, char *key);
+
 void CFreePcbDoc::OnFileNew()
 {
 	if( theApp.m_view_mode == CFreePcbApp::FOOTPRINT )
@@ -288,10 +294,10 @@ void CFreePcbDoc::OnFileNew()
 	// now set default project options
 	InitializeNewProject();
 	CDlgProjectOptions dlg;
-	dlg.Init( TRUE, &m_name, &m_parent_folder, &m_lib_dir,
+	// CPT: args have changed.  Including m_path_to_folder instead of m_parent_folder (don't really understand the point of m_parent_folder anyway).
+	dlg.Init( TRUE, &m_name, &m_path_to_folder, &m_lib_dir,
 		m_num_copper_layers, m_bSMT_copper_connect, m_default_glue_w,
 		m_trace_w, m_via_w, m_via_hole_w,
-		m_auto_interval, m_auto_ratline_disable, m_auto_ratline_min_pins,
 		&m_w, &m_v_w, &m_v_h_w );
 	int ret = dlg.DoModal();
 	if( ret == IDOK )
@@ -365,8 +371,6 @@ void CFreePcbDoc::OnFileNew()
 		pMain->DrawMenuBar();
 
 		// set options from dialog
-		m_auto_ratline_disable = dlg.GetAutoRatlineDisable();
-		m_auto_ratline_min_pins = dlg.GetAutoRatlineMinPins();
 		m_num_copper_layers = dlg.GetNumCopperLayers();
 		m_plist->SetNumCopperLayers( m_num_copper_layers );
 		m_nlist->SetNumCopperLayers( m_num_copper_layers );
@@ -381,6 +385,27 @@ void CFreePcbDoc::OnFileNew()
 			m_vis[i] = 1;
 			m_dlist->SetLayerRGB( i, m_rgb[i][0], m_rgb[i][1], m_rgb[i][2] );
 		}
+
+		// CPT: option to save dlg results to default.cfg:
+		if (dlg.m_default) 
+		{
+			CArray<CString> oldLines, newLines;
+			CString fn = m_app_dir + "\\" + "default.cfg";
+			ReadFileLines(fn, oldLines);
+			CollectOptionsStrings(newLines);
+			ReplaceLines(oldLines, newLines, "path_to_folder");
+			ReplaceLines(oldLines, newLines, "library_folder");
+			ReplaceLines(oldLines, newLines, "n_copper_layers");
+			ReplaceLines(oldLines, newLines, "SMT_connect_copper");
+			ReplaceLines(oldLines, newLines, "default_glue_width");
+			ReplaceLines(oldLines, newLines, "default_trace_width");
+			ReplaceLines(oldLines, newLines, "default_via_pad_width");
+			ReplaceLines(oldLines, newLines, "default_via_hole_width");
+			ReplaceLines(oldLines, newLines, "n_width_menu");
+			ReplaceLines(oldLines, newLines, "width_menu_item");
+			WriteFileLines(fn, oldLines);
+		}
+
 
 		// CPT:  fixed bug where m_view->m_dlist->SetMapping() didn't get called, with unpredictable results for the initial
 		// display
@@ -1460,6 +1485,17 @@ void CFreePcbDoc::ReadSolderMaskCutouts( CStdioFile * pcb_file, CArray<CPolyLine
 	}
 }
 
+void AddGridVal(CArray<double> &arr, CArray<CString> &p, int np) {
+	// CPT: helper for ReadOptions() below.  Reads a length value in mm or mils from a line in the options file that has been parsed into p.
+	// Adds the resulting value (positive for mils, negative for mm) to "arr":
+	CString str = np==3? p[1]: p[0];
+	double value = my_atof( &str );
+	if( str.Right(2) == "MM" || str.Right(2) == "mm" )
+		arr.Add( -value );
+	else
+		arr.Add( value );
+	}
+
 // read project options from file
 //
 // throws CString * exception on error
@@ -1473,10 +1509,15 @@ void CFreePcbDoc::ReadOptions( CStdioFile * pcb_file )
 	// initalize
 	CFreePcbView * view = (CFreePcbView*)m_view;
 	m_visible_grid.SetSize( 0 );
+	m_visible_grid_hidden.SetSize( 0 );				// CPT
 	m_part_grid.SetSize( 0 );
-	// CPT: m_routing_grid.SetSize( 0 );
+	m_part_grid_hidden.SetSize( 0 );
+	m_routing_grid.SetSize( 0 );
+	m_routing_grid_hidden.SetSize( 0 );
 	m_fp_visible_grid.SetSize( 0 );
+	m_fp_visible_grid_hidden.SetSize( 0 );
 	m_fp_part_grid.SetSize( 0 );
+	m_fp_part_grid_hidden.SetSize( 0 );
 	m_name = "";
 	m_auto_interval = 0;
 	m_dr.bCheckUnrouted = FALSE;
@@ -1548,6 +1589,9 @@ void CFreePcbDoc::ReadOptions( CStdioFile * pcb_file )
 			{
 				m_parent_folder = p[0];
 			}
+			// CPT.  The parent_folder vs path_to_folder distinction is unclear to me.
+			else if( np && key_str == "path_to_folder" )
+				m_path_to_folder = p[0];
 			else if( np && key_str == "library_folder" )
 			{
 				m_lib_dir = p[0];
@@ -1620,102 +1664,48 @@ void CFreePcbDoc::ReadOptions( CStdioFile * pcb_file )
 				else
 					m_units = MIL;
 			}
+
+			// CPT: factored out shared code.  Allowed for "hidden" grid items. 
 			else if( np && key_str == "visible_grid_spacing" )
-			{
 				m_visual_grid_spacing = my_atof( &p[0] );
-			}
 			else if( np && key_str == "visible_grid_item" )
-			{
-				CString str;
-				double value;
-				if( np == 3 )
-					str = p[1];
-				else
-					str = p[0];
-				value = my_atof( &str );
-				if( str.Right(2) == "MM" || str.Right(2) == "mm" )
-					m_visible_grid.InsertAt( 0, -value );				// CPT: add items in the reverse of the old order
-				else
-					m_visible_grid.InsertAt( 0, value );
-			}
+				AddGridVal(m_visible_grid, p, np);
+			else if( np && key_str == "visible_grid_hidden" )
+				AddGridVal(m_visible_grid_hidden, p, np);
+
 			else if( np && key_str == "placement_grid_spacing" )
-			{
 				m_part_grid_spacing = my_atof( &p[0] );
-			}
 			else if( np && key_str == "placement_grid_item" )
-			{
-				CString str;
-				double value;
-				if( np == 3 )
-					str = p[1];
-				else
-					str = p[0];
-				value = my_atof( &str );
-				if( str.Right(2) == "MM" || str.Right(2) == "mm" )
-					m_part_grid.InsertAt( 0, -value );					// CPT: add items in the reverse of the old order
-				else
-					m_part_grid.InsertAt( 0, value );
-			}
+				AddGridVal(m_part_grid, p, np);
+			else if( np && key_str == "placement_grid_hidden" )
+				AddGridVal(m_part_grid_hidden, p, np);
+
 			else if( np && key_str == "routing_grid_spacing" )
-			{
 				m_routing_grid_spacing = my_atof( &p[0] );
-			}
-/* CPT:  New system involving prefs dialog and global values stored in registry 
 			else if( np && key_str == "routing_grid_item" )
-			{
-				CString str;
-				double value;
-				if( np == 3 )
-					str = p[1];
-				else
-					str = p[0];
-				value = my_atof( &str );
-				if( str.Right(2) == "MM" || str.Right(2) == "mm" )
-					m_routing_grid.Add( -value );
-				else
-					m_routing_grid.Add( value );
-			}
-*/
+				AddGridVal(m_routing_grid, p, np);
+			else if( np && key_str == "routing_grid_hidden" )
+				AddGridVal(m_routing_grid_hidden, p, np);
+
 			else if( np && key_str == "snap_angle" )
 			{
 				m_snap_angle = my_atof( &p[0] );
 			}
+
 			else if( np && key_str == "fp_visible_grid_spacing" )
-			{
 				m_fp_visual_grid_spacing = my_atof( &p[0] );
-			}
 			else if( np && key_str == "fp_visible_grid_item" )
-			{
-				CString str;
-				double value;
-				if( np == 3 )
-					str = p[1];
-				else
-					str = p[0];
-				value = my_atof( &str );
-				if( str.Right(2) == "MM" || str.Right(2) == "mm" )
-					m_fp_visible_grid.InsertAt( 0, -value );			// CPT:  add items in the reverse of the old order
-				else
-					m_fp_visible_grid.InsertAt( 0, value );
-			}
+				AddGridVal(m_fp_visible_grid, p, np);
+			else if( np && key_str == "fp_visible_grid_hidden" )
+				AddGridVal(m_fp_visible_grid_hidden, p, np);
+
 			else if( np && key_str == "fp_placement_grid_spacing" )
-			{
 				m_fp_part_grid_spacing = my_atof( &p[0] );
-			}
 			else if( np && key_str == "fp_placement_grid_item" )
-			{
-				CString str;
-				double value;
-				if( np == 3 )
-					str = p[1];
-				else
-					str = p[0];
-				value = my_atof( &str );
-				if( str.Right(2) == "MM" || str.Right(2) == "mm" )
-					m_fp_part_grid.InsertAt( 0, -value );				// CPT
-				else
-					m_fp_part_grid.InsertAt( 0, value );
-			}
+				AddGridVal(m_fp_part_grid, p, np);
+			else if( np && key_str == "fp_placement_grid_hidden" )
+				AddGridVal(m_fp_part_grid_hidden, p, np);
+
 			else if( np && key_str == "fp_snap_angle" )
 			{
 				m_fp_snap_angle = my_atof( &p[0] );
@@ -1922,6 +1912,32 @@ void CFreePcbDoc::ReadOptions( CStdioFile * pcb_file )
 					m_vis[layer] = my_atoi( &p[5] );
 				}
 			}
+			// CPT.  For footprint layer info, I don't bother with anything like the SetFileLayerMap business (don't see any point)
+			else if( np && key_str == "fp_layer_info" )
+			{
+				CString file_layer_name = p[0];
+				int layer;
+				for( layer=0; layer<NUM_FP_LAYERS; layer++ )
+				{
+					CString layer_string = &fp_layer_str[layer][0];
+					if( file_layer_name == layer_string ) break;
+				}
+				if( layer==NUM_FP_LAYERS )
+				{
+					CString s ((LPCSTR) IDS_WarningLayerNotSupported), mess;
+					mess.Format(s, file_layer_name);
+					AfxMessageBox( mess );
+				}
+				else
+				{
+					m_fp_rgb[layer][0] = my_atoi( &p[2] );
+					m_fp_rgb[layer][1] = my_atoi( &p[3] );
+					m_fp_rgb[layer][2] = my_atoi( &p[4] );
+					m_fp_vis[layer] = my_atoi( &p[5] );
+				}
+			}
+			else if (np && key_str == "reverse_pgup_pgdn")
+				bReversePgupPgdn = my_atoi(&p[0]);
 		}
 		if( m_fp_visible_grid.GetSize() == 0 )
 		{
@@ -1938,6 +1954,12 @@ void CFreePcbDoc::ReadOptions( CStdioFile * pcb_file )
 		if( m_fp_snap_angle != 0 && m_fp_snap_angle != 45 && m_fp_snap_angle != 90 )
 			m_fp_snap_angle = m_snap_angle;
 		CMainFrame * frm = (CMainFrame*)AfxGetMainWnd();
+		// CPT.  I want a particular order for the grid values in the dropdowns (descending values, mils before mms)
+		qsort(m_visible_grid.GetData(), m_visible_grid.GetSize(), sizeof(double), (int (*)(const void*,const void*)) CompareGridVals);
+		qsort(m_part_grid.GetData(), m_part_grid.GetSize(), sizeof(double), (int (*)(const void*,const void*)) CompareGridVals);
+		qsort(m_routing_grid.GetData(), m_routing_grid.GetSize(), sizeof(double), (int (*)(const void*,const void*)) CompareGridVals);
+		qsort(m_fp_visible_grid.GetData(), m_fp_visible_grid.GetSize(), sizeof(double), (int (*)(const void*,const void*)) CompareGridVals);
+		qsort(m_fp_part_grid.GetData(), m_fp_part_grid.GetSize(), sizeof(double), (int (*)(const void*,const void*)) CompareGridVals);
 		frm->m_wndMyToolBar.SetLists( &m_visible_grid, &m_part_grid, &m_routing_grid,
 			m_visual_grid_spacing, m_part_grid_spacing, m_routing_grid_spacing, m_snap_angle, m_units );
 		m_dlist->SetVisibleGrid( TRUE, m_visual_grid_spacing );
@@ -1956,212 +1978,202 @@ void CFreePcbDoc::ReadOptions( CStdioFile * pcb_file )
 
 }
 
+void AddGridVals(CArray<CString> &arr, CArray<double> &grid, CString label) {
+	// CPT: Helper for WriteOptions().  Writes the values in "grid" to "file", labeling each entry with "label"
+	CString str;
+	for( int i=0; i<grid.GetSize(); i++ ) {
+			if( grid[i] > 0 )
+				::MakeCStringFromDimension( &str, grid[i], MIL );
+			else
+				::MakeCStringFromDimension( &str, -grid[i], MM );
+			arr.Add( label + str + "\n" );
+		}
+	arr.Add("\n");
+	}
+
 // write project options to file
 //
 // throws CString * exception on error
-//
+
+void CFreePcbDoc::CollectOptionsStrings(CArray<CString> &arr) {
+	// CPT: extracted from the original WriteOptions().  
+	CString line;
+	arr.RemoveAll();
+	CFreePcbView * view = (CFreePcbView*)m_view;
+	line.Format( "[options]\n\n" );
+	arr.Add( line );
+	line.Format( "version: %5.3f\n", m_version );
+	arr.Add( line );
+	line.Format( "file_version: %5.3f\n", m_file_version );
+	arr.Add( line );
+	line.Format( "project_name: \"%s\"\n", m_name );
+	arr.Add( line );
+	line.Format( "path_to_folder: \"%s\"\n", m_path_to_folder);
+	arr.Add( line );
+	line.Format( "library_folder: \"%s\"\n", m_lib_dir );
+	arr.Add( line );
+	line.Format( "full_library_folder: \"%s\"\n", m_full_lib_dir );
+	arr.Add( line );
+	line.Format( "CAM_folder: \"%s\"\n", m_cam_full_path );
+	arr.Add( line );
+	line.Format( "ses_file_path: \"%s\"\n", m_ses_full_path );
+	arr.Add( line );
+	line.Format( "netlist_file_path: \"%s\"\n", m_netlist_full_path );
+	arr.Add( line );
+	line.Format( "SMT_connect_copper: \"%d\"\n", m_bSMT_copper_connect );
+	arr.Add( line );
+	line.Format( "default_glue_width: \"%d\"\n", m_default_glue_w );
+	arr.Add( line );
+	line.Format( "dsn_flags: \"%d\"\n", m_dsn_flags );
+	arr.Add( line );
+	line.Format( "dsn_bounds_poly: \"%d\"\n", m_dsn_bounds_poly );
+	arr.Add( line );
+	line.Format( "dsn_signals_poly: \"%d\"\n", m_dsn_signals_poly );
+	arr.Add( line );
+	// CPT autosave_interval, auto_ratline_disable, auto_ratline_disable_min_pins, and reverse_pgup_pgdn are now stored in default.cfg ONLY
+
+	line.Format( "netlist_import_flags: %d\n", m_import_flags );
+	arr.Add( line );
+	if( m_units == MIL )
+		arr.Add( "units: MIL\n\n" );
+	else
+		arr.Add( "units: MM\n\n" );
+	line.Format( "visible_grid_spacing: %f\n", m_visual_grid_spacing );
+	arr.Add( line );
+	// CPT: factored out shared code.  Also accounted for hidden grid values:
+	AddGridVals(arr, m_visible_grid, "  visible_grid_item: "); 
+	AddGridVals(arr, m_visible_grid_hidden, "  visible_grid_hidden: "); 
+	line.Format( "placement_grid_spacing: %f\n", m_part_grid_spacing );
+	arr.Add( line );
+	AddGridVals(arr, m_part_grid, "  placement_grid_item: ");
+	AddGridVals(arr, m_part_grid_hidden, "  placement_grid_hidden: ");
+	line.Format( "routing_grid_spacing: %f\n", m_routing_grid_spacing );
+	arr.Add( line );
+	AddGridVals(arr, m_routing_grid, "  routing_grid_item: ");
+	AddGridVals(arr, m_routing_grid_hidden, "  routing_grid_hidden: ");
+	line.Format( "snap_angle: %d\n", m_snap_angle );
+	arr.Add( line );
+	arr.Add( "\n" );
+	line.Format( "fp_visible_grid_spacing: %f\n", m_fp_visual_grid_spacing );
+	arr.Add( line );
+	AddGridVals(arr, m_fp_visible_grid, "  fp_visible_grid_item: ");
+	AddGridVals(arr, m_fp_visible_grid_hidden, "  fp_visible_grid_hidden: ");
+	line.Format( "fp_placement_grid_spacing: %f\n", m_fp_part_grid_spacing );
+	arr.Add( line );
+	AddGridVals(arr, m_fp_part_grid, "  fp_placement_grid_item: ");
+	AddGridVals(arr, m_fp_part_grid_hidden, "  fp_placement_grid_hidden: ");
+	line.Format( "fp_snap_angle: %d\n", m_fp_snap_angle );
+	arr.Add( line );
+	arr.Add( "\n" );
+	line.Format( "fill_clearance: %d\n", m_fill_clearance );
+	arr.Add( line );
+	line.Format( "mask_clearance: %d\n", m_mask_clearance );
+	arr.Add( line );
+	line.Format( "thermal_width: %d\n", m_thermal_width );
+	arr.Add( line );
+	line.Format( "min_silkscreen_width: %d\n", m_min_silkscreen_stroke_wid );
+	arr.Add( line );
+	line.Format( "board_outline_width: %d\n", m_outline_width );
+	arr.Add( line );
+	line.Format( "hole_clearance: %d\n", m_hole_clearance );
+	arr.Add( line );
+	line.Format( "pilot_diameter: %d\n", m_pilot_diameter );
+	arr.Add( line );
+	line.Format( "annular_ring_for_pins: %d\n", m_annular_ring_pins );
+	arr.Add( line );
+	line.Format( "annular_ring_for_vias: %d\n", m_annular_ring_vias );
+	arr.Add( line );
+	line.Format( "shrink_paste_mask: %d\n", m_paste_shrink );
+	arr.Add( line );
+	line.Format( "cam_flags: %d\n", m_cam_flags );
+	arr.Add( line );
+	line.Format( "cam_layers: %d\n", m_cam_layers );
+	arr.Add( line );
+	line.Format( "cam_drill_file: %d\n", m_cam_drill_file );
+	arr.Add( line );
+	line.Format( "cam_units: %d\n", m_cam_units );
+	arr.Add( line );
+	line.Format( "cam_n_x: %d\n", m_n_x );
+	arr.Add( line );
+	line.Format( "cam_n_y: %d\n", m_n_y );
+	arr.Add( line );
+	line.Format( "cam_space_x: %d\n", m_space_x );
+	arr.Add( line );
+	line.Format( "cam_space_y: %d\n", m_space_y );
+	arr.Add( line );
+	arr.Add( "\n" );
+
+	line.Format( "report_options: %d\n", m_report_flags );
+	arr.Add( line );
+
+	line.Format( "drc_check_unrouted: %d\n", m_dr.bCheckUnrouted );
+	arr.Add( line );
+	line.Format( "drc_trace_width: %d\n", m_dr.trace_width );
+	arr.Add( line );
+	line.Format( "drc_pad_pad: %d\n", m_dr.pad_pad );
+	arr.Add( line );
+	line.Format( "drc_pad_trace: %d\n", m_dr.pad_trace );
+	arr.Add( line );
+	line.Format( "drc_trace_trace: %d\n", m_dr.trace_trace );
+	arr.Add( line );
+	line.Format( "drc_hole_copper: %d\n", m_dr.hole_copper );
+	arr.Add( line );
+	line.Format( "drc_annular_ring_pins: %d\n", m_dr.annular_ring_pins );
+	arr.Add( line );
+	line.Format( "drc_annular_ring_vias: %d\n", m_dr.annular_ring_vias );
+	arr.Add( line );
+	line.Format( "drc_board_edge_copper: %d\n", m_dr.board_edge_copper );
+	arr.Add( line );
+	line.Format( "drc_board_edge_hole: %d\n", m_dr.board_edge_hole );
+	arr.Add( line );
+	line.Format( "drc_hole_hole: %d\n", m_dr.hole_hole );
+	arr.Add( line );
+	line.Format( "drc_copper_copper: %d\n", m_dr.copper_copper );
+	arr.Add( line );
+	arr.Add( "\n" );
+
+	line.Format( "default_trace_width: %d\n", m_trace_w );
+	arr.Add( line );
+	line.Format( "default_via_pad_width: %d\n", m_via_w );
+	arr.Add( line );
+	line.Format( "default_via_hole_width: %d\n", m_via_hole_w );
+	arr.Add( line );
+	line.Format( "n_width_menu: %d\n", m_w.GetSize() );
+	arr.Add( line );
+	for( int i=0; i<m_w.GetSize(); i++ )
+	{
+		line.Format( "  width_menu_item: %d %d %d %d\n", i+1, m_w[i], m_v_w[i], m_v_h_w[i]  );
+		arr.Add( line );
+	}
+	arr.Add( "\n" );
+	line.Format( "n_copper_layers: %d\n", m_num_copper_layers );
+	arr.Add( line );
+	for( int i=0; i<(LAY_TOP_COPPER+m_num_copper_layers); i++ )
+	{
+		line.Format( "  layer_info: \"%s\" %d %d %d %d %d\n",
+			&layer_str[i][0], i,
+			m_rgb[i][0], m_rgb[i][1], m_rgb[i][2], m_vis[i] );
+		arr.Add( line );
+	}
+	// CPT:  footprint layer info.
+	for( int i=0; i<NUM_FP_LAYERS; i++ )
+	{
+		line.Format( "  fp_layer_info: \"%s\" %d %d %d %d %d\n",
+			&fp_layer_str[i][0], i,
+			m_fp_rgb[i][0], m_fp_rgb[i][1], m_fp_rgb[i][2], m_fp_vis[i] );
+		arr.Add( line );
+	}
+
+	arr.Add( "\n" );
+}
+
 void CFreePcbDoc::WriteOptions( CStdioFile * file )
 {
-	CString line;
-
-	try
-	{
-		CString str;
-		CFreePcbView * view = (CFreePcbView*)m_view;
-		line.Format( "[options]\n\n" );
-		file->WriteString( line );
-		line.Format( "version: %5.3f\n", m_version );
-		file->WriteString( line );
-		line.Format( "file_version: %5.3f\n", m_file_version );
-		file->WriteString( line );
-		line.Format( "project_name: \"%s\"\n", m_name );
-		file->WriteString( line );
-		line.Format( "full_library_folder: \"%s\"\n", m_full_lib_dir );
-		file->WriteString( line );
-		line.Format( "CAM_folder: \"%s\"\n", m_cam_full_path );
-		file->WriteString( line );
-		line.Format( "ses_file_path: \"%s\"\n", m_ses_full_path );
-		file->WriteString( line );
-		line.Format( "netlist_file_path: \"%s\"\n", m_netlist_full_path );
-		file->WriteString( line );
-		line.Format( "SMT_connect_copper: \"%d\"\n", m_bSMT_copper_connect );
-		file->WriteString( line );
-		line.Format( "default_glue_width: \"%d\"\n", m_default_glue_w );
-		file->WriteString( line );
-		line.Format( "dsn_flags: \"%d\"\n", m_dsn_flags );
-		file->WriteString( line );
-		line.Format( "dsn_bounds_poly: \"%d\"\n", m_dsn_bounds_poly );
-		file->WriteString( line );
-		line.Format( "dsn_signals_poly: \"%d\"\n", m_dsn_signals_poly );
-		file->WriteString( line );
-		line.Format( "autosave_interval: %d\n", m_auto_interval );
-		file->WriteString( line );
-		line.Format( "auto_ratline_disable: \"%d\"\n", m_auto_ratline_disable );
-		file->WriteString( line );
-		line.Format( "auto_ratline_disable_min_pins: \"%d\"\n", m_auto_ratline_min_pins );
-		file->WriteString( line );
-		line.Format( "netlist_import_flags: %d\n", m_import_flags );
-		file->WriteString( line );
-		if( m_units == MIL )
-			file->WriteString( "units: MIL\n\n" );
-		else
-			file->WriteString( "units: MM\n\n" );
-		line.Format( "visible_grid_spacing: %f\n", m_visual_grid_spacing );
-		file->WriteString( line );
-		// CPT: to maintain compatibility with the old file format, output the visible grid vals in reverse (ascending) order.
-		for( int i=m_visible_grid.GetSize()-1; i>=0; i-- )
-		{
-			if( m_visible_grid[i] > 0 )
-				::MakeCStringFromDimension( &str, m_visible_grid[i], MIL );
-			else
-				::MakeCStringFromDimension( &str, -m_visible_grid[i], MM );
-			file->WriteString( "  visible_grid_item: " + str + "\n" );
-		}
-		file->WriteString( "\n" );
-		line.Format( "placement_grid_spacing: %f\n", m_part_grid_spacing );
-		file->WriteString( line );
-		// CPT: output placement grid vals in reverse
-		for( int i=m_part_grid.GetSize()-1; i>=0; i-- )
-		{
-			if( m_part_grid[i] > 0 )
-				::MakeCStringFromDimension( &str, m_part_grid[i], MIL );
-			else
-				::MakeCStringFromDimension( &str, -m_part_grid[i], MM );
-			file->WriteString( "  placement_grid_item: " + str + "\n" );
-		}
-		file->WriteString( "\n" );
-		line.Format( "routing_grid_spacing: %f\n", m_routing_grid_spacing );
-		file->WriteString( line );
-		for( int i=0; i<m_routing_grid.GetSize(); i++ )
-		{
-			if( m_routing_grid[i] > 0 )
-				::MakeCStringFromDimension( &str, m_routing_grid[i], MIL );
-			else
-				::MakeCStringFromDimension( &str, -m_routing_grid[i], MM );
-			file->WriteString( "  routing_grid_item: " + str + "\n" );
-		}
-		file->WriteString( "\n" );
-		line.Format( "snap_angle: %d\n", m_snap_angle );
-		file->WriteString( line );
-		file->WriteString( "\n" );
-		line.Format( "fp_visible_grid_spacing: %f\n", m_fp_visual_grid_spacing );
-		file->WriteString( line );
-		// CPT: output in reverse order...
-		for( int i=m_fp_visible_grid.GetSize()-1; i>=0; i-- )
-		{
-			if( m_fp_visible_grid[i] > 0 )
-				::MakeCStringFromDimension( &str, m_fp_visible_grid[i], MIL );
-			else
-				::MakeCStringFromDimension( &str, -m_fp_visible_grid[i], MM );
-			file->WriteString( "  fp_visible_grid_item: " + str + "\n" );
-		}
-		file->WriteString( "\n" );
-		line.Format( "fp_placement_grid_spacing: %f\n", m_fp_part_grid_spacing );
-		file->WriteString( line );
-		// CPT: output in reverse order
-		for( int i=m_fp_part_grid.GetSize()-1; i>=0; i-- )
-		{
-			if( m_fp_part_grid[i] > 0 )
-				::MakeCStringFromDimension( &str, m_fp_part_grid[i], MIL );
-			else
-				::MakeCStringFromDimension( &str, -m_fp_part_grid[i], MM );
-			file->WriteString( "  fp_placement_grid_item: " + str + "\n" );
-		}
-		file->WriteString( "\n" );
-		line.Format( "fp_snap_angle: %d\n", m_fp_snap_angle );
-		file->WriteString( line );
-		file->WriteString( "\n" );
-		line.Format( "fill_clearance: %d\n", m_fill_clearance );
-		file->WriteString( line );
-		line.Format( "mask_clearance: %d\n", m_mask_clearance );
-		file->WriteString( line );
-		line.Format( "thermal_width: %d\n", m_thermal_width );
-		file->WriteString( line );
-		line.Format( "min_silkscreen_width: %d\n", m_min_silkscreen_stroke_wid );
-		file->WriteString( line );
-		line.Format( "board_outline_width: %d\n", m_outline_width );
-		file->WriteString( line );
-		line.Format( "hole_clearance: %d\n", m_hole_clearance );
-		file->WriteString( line );
-		line.Format( "pilot_diameter: %d\n", m_pilot_diameter );
-		file->WriteString( line );
-		line.Format( "annular_ring_for_pins: %d\n", m_annular_ring_pins );
-		file->WriteString( line );
-		line.Format( "annular_ring_for_vias: %d\n", m_annular_ring_vias );
-		file->WriteString( line );
-		line.Format( "shrink_paste_mask: %d\n", m_paste_shrink );
-		file->WriteString( line );
-		line.Format( "cam_flags: %d\n", m_cam_flags );
-		file->WriteString( line );
-		line.Format( "cam_layers: %d\n", m_cam_layers );
-		file->WriteString( line );
-		line.Format( "cam_drill_file: %d\n", m_cam_drill_file );
-		file->WriteString( line );
-		line.Format( "cam_units: %d\n", m_cam_units );
-		file->WriteString( line );
-		line.Format( "cam_n_x: %d\n", m_n_x );
-		file->WriteString( line );
-		line.Format( "cam_n_y: %d\n", m_n_y );
-		file->WriteString( line );
-		line.Format( "cam_space_x: %d\n", m_space_x );
-		file->WriteString( line );
-		line.Format( "cam_space_y: %d\n", m_space_y );
-		file->WriteString( line );
-		file->WriteString( "\n" );
-
-		line.Format( "report_options: %d\n", m_report_flags );
-		file->WriteString( line );
-
-		line.Format( "drc_check_unrouted: %d\n", m_dr.bCheckUnrouted );
-		file->WriteString( line );
-		line.Format( "drc_trace_width: %d\n", m_dr.trace_width );
-		file->WriteString( line );
-		line.Format( "drc_pad_pad: %d\n", m_dr.pad_pad );
-		file->WriteString( line );
-		line.Format( "drc_pad_trace: %d\n", m_dr.pad_trace );
-		file->WriteString( line );
-		line.Format( "drc_trace_trace: %d\n", m_dr.trace_trace );
-		file->WriteString( line );
-		line.Format( "drc_hole_copper: %d\n", m_dr.hole_copper );
-		file->WriteString( line );
-		line.Format( "drc_annular_ring_pins: %d\n", m_dr.annular_ring_pins );
-		file->WriteString( line );
-		line.Format( "drc_annular_ring_vias: %d\n", m_dr.annular_ring_vias );
-		file->WriteString( line );
-		line.Format( "drc_board_edge_copper: %d\n", m_dr.board_edge_copper );
-		file->WriteString( line );
-		line.Format( "drc_board_edge_hole: %d\n", m_dr.board_edge_hole );
-		file->WriteString( line );
-		line.Format( "drc_hole_hole: %d\n", m_dr.hole_hole );
-		file->WriteString( line );
-		line.Format( "drc_copper_copper: %d\n", m_dr.copper_copper );
-		file->WriteString( line );
-		file->WriteString( "\n" );
-
-		line.Format( "default_trace_width: %d\n", m_trace_w );
-		file->WriteString( line );
-		line.Format( "default_via_pad_width: %d\n", m_via_w );
-		file->WriteString( line );
-		line.Format( "default_via_hole_width: %d\n", m_via_hole_w );
-		file->WriteString( line );
-		line.Format( "n_width_menu: %d\n", m_w.GetSize() );
-		file->WriteString( line );
-		for( int i=0; i<m_w.GetSize(); i++ )
-		{
-			line.Format( "  width_menu_item: %d %d %d %d\n", i+1, m_w[i], m_v_w[i], m_v_h_w[i]  );
-			file->WriteString( line );
-		}
-		file->WriteString( "\n" );
-		line.Format( "n_copper_layers: %d\n", m_num_copper_layers );
-		file->WriteString( line );
-		for( int i=0; i<(LAY_TOP_COPPER+m_num_copper_layers); i++ )
-		{
-			line.Format( "  layer_info: \"%s\" %d %d %d %d %d\n",
-				&layer_str[i][0], i,
-				m_rgb[i][0], m_rgb[i][1], m_rgb[i][2], m_vis[i] );
-			file->WriteString( line );
-		}
-		file->WriteString( "\n" );
+	try {
+		CArray<CString> arr;
+		CollectOptionsStrings(arr);
+		for (int i=0; i<arr.GetSize(); i++)
+			file->WriteString(arr[i]);
 		return;
 	}
 	catch( CFileException * e )
@@ -2171,10 +2183,11 @@ void CFreePcbDoc::WriteOptions( CStdioFile * file )
 			err_str->Format( s, e->m_cause );
 		else
 			err_str->Format( s2, e->m_cause, e->m_lOsError, _sys_errlist[e->m_lOsError] );
-		*err_str = "CFreePcbDoc::WriteBoardOutline()\n" + *err_str;
+		*err_str = "CFreePcbDoc::WriteOptions()\n" + *err_str;									// CPT fixed
 		throw err_str;
 	}
 }
+
 
 // set defaults for a new project
 //
@@ -2216,134 +2229,44 @@ void CFreePcbDoc::InitializeNewProject()
 		m_dlist_fp->SetLayerVisible( i, 1 );
 	}
 
-	/* CPT supplanted by ReadPrefs() below
-	// colors for layers
+	// CPT compacted the code for embedded default layer colors
+	static unsigned int defaultLayerColors[] = {
+		0xffffff, 0x000000, 0xffffff, 0xffffff, // selection WHITE, backgrnd BLACK, vis grid WHITE, highlight WHITE
+		0xff8040, 0x0000ff, 0xff00ff, 0xffff00, // DRE orange, board outline BLUE, ratlines VIOLET, top silk YELLOW
+		0xffc0c0, 0xa0a0a0, 0x5f5f5f, 0x0000ff, // bottom silk PINK, top sm cutout LT GRAY, bottom sm cutout DK GRAY, thru-hole pads BLUE
+		0x00ff00, 0xff0000, 0x408040, 0x804040, // top copper GREEN, bottom copper RED, inner 1, inner 2
+		0x404080
+	};
+
+	static unsigned int defaultFpLayerColors[] = {
+		0xffffff, 0x000000, 0xffffff, 0xffffff, // selection WHITE, backgrnd BLACK, vis grid WHITE, highlight WHITE
+		0xffff00, 0xffffff, 0xff8040, 0x0000ff, // silk top YELLOW, centroid WHITE, dot ORANGE, pad-thru BLUE
+		0x007f00, 0x007f00, 0x7f0000, 0x7f0000, // Top mask+paste DK GREEN, bottom mask+paste DK RED
+		0x00ff00, 0x5f5f5f, 0xff0000            // top copper GREEN, inner copper GRAY, bottom copper RED
+	};
+
 	for( int i=0; i<MAX_LAYERS; i++ )
 	{
-		m_vis[i] = 0;
-		m_rgb[i][0] = 127; 
-		m_rgb[i][1] = 127; 
-		m_rgb[i][2] = 127;			// default grey
+		m_vis[i] = 1;
+		m_rgb[i][0] = m_rgb[i][1] = m_rgb[i][2] = 127;	// Default grey 
 	}
-	m_rgb[LAY_SELECTION][0] = 255; 
-	m_rgb[LAY_SELECTION][1] = 255; 
-	m_rgb[LAY_SELECTION][2] = 255;		//selection WHITE
-	m_rgb[LAY_BACKGND][0] = 0; 
-	m_rgb[LAY_BACKGND][1] = 0; 
-	m_rgb[LAY_BACKGND][2] = 0;			// background BLACK
-	m_rgb[LAY_VISIBLE_GRID][0] = 255; 
-	m_rgb[LAY_VISIBLE_GRID][1] = 255; 
-	m_rgb[LAY_VISIBLE_GRID][2] = 255;	// visible grid WHITE 
-	m_rgb[LAY_HILITE][0] = 255; 
-	m_rgb[LAY_HILITE][1] = 255; 
-	m_rgb[LAY_HILITE][2] = 255;			//highlight WHITE
-	m_rgb[LAY_DRC_ERROR][0] = 255; 
-	m_rgb[LAY_DRC_ERROR][1] = 128; 
-	m_rgb[LAY_DRC_ERROR][2] = 64;		// DRC error ORANGE
-	m_rgb[LAY_BOARD_OUTLINE][0] = 0; 
-	m_rgb[LAY_BOARD_OUTLINE][1] = 0; 
-	m_rgb[LAY_BOARD_OUTLINE][2] = 255;	//board outline BLUE
-	m_rgb[LAY_RAT_LINE][0] = 255; 
-	m_rgb[LAY_RAT_LINE][1] = 0; 
-	m_rgb[LAY_RAT_LINE][2] = 255;		//ratlines VIOLET
-	m_rgb[LAY_SILK_TOP][0] = 255; 
-	m_rgb[LAY_SILK_TOP][1] = 255; 
-	m_rgb[LAY_SILK_TOP][2] =   0;		//top silk YELLOW
-	m_rgb[LAY_SILK_BOTTOM][0] = 255; 
-	m_rgb[LAY_SILK_BOTTOM][1] = 192; 
-	m_rgb[LAY_SILK_BOTTOM][2] = 192;	//bottom silk PINK
-	m_rgb[LAY_SM_TOP][0] =   160; 
-	m_rgb[LAY_SM_TOP][1] =   160; 
-	m_rgb[LAY_SM_TOP][2] =   160;		//top solder mask cutouts LIGHT GREY
-	m_rgb[LAY_SM_BOTTOM][0] = 95; 
-	m_rgb[LAY_SM_BOTTOM][1] = 95; 
-	m_rgb[LAY_SM_BOTTOM][2] = 95;	//bottom solder mask cutouts DARK GREY
-	m_rgb[LAY_PAD_THRU][0] =   0; 
-	m_rgb[LAY_PAD_THRU][1] =   0; 
-	m_rgb[LAY_PAD_THRU][2] = 255;		//thru-hole pads BLUE
-	m_rgb[LAY_TOP_COPPER][0] =   0; 
-	m_rgb[LAY_TOP_COPPER][1] = 255; 
-	m_rgb[LAY_TOP_COPPER][2] =   0;		//top copper GREEN
-	m_rgb[LAY_BOTTOM_COPPER][0] = 255; 
-	m_rgb[LAY_BOTTOM_COPPER][1] =   0; 
-	m_rgb[LAY_BOTTOM_COPPER][2] =   0;	//bottom copper RED
-	m_rgb[LAY_BOTTOM_COPPER+1][0] = 64; 
-	m_rgb[LAY_BOTTOM_COPPER+1][1] = 128; 
-	m_rgb[LAY_BOTTOM_COPPER+1][2] = 64;	
-	m_rgb[LAY_BOTTOM_COPPER+2][0] = 128; // inner 1 
-	m_rgb[LAY_BOTTOM_COPPER+2][1] = 64; 
-	m_rgb[LAY_BOTTOM_COPPER+2][2] = 64;	
-	m_rgb[LAY_BOTTOM_COPPER+3][0] = 64; // inner 2
-	m_rgb[LAY_BOTTOM_COPPER+3][1] = 64; 
-	m_rgb[LAY_BOTTOM_COPPER+3][2] = 128;	
-	m_rgb[LAY_BOTTOM_COPPER+4][0] = 64; // inner 3
-	m_rgb[LAY_BOTTOM_COPPER+4][1] = 64; 
-	m_rgb[LAY_BOTTOM_COPPER+4][2] = 64;	
-	m_rgb[LAY_BOTTOM_COPPER+5][0] = 64; // inner 5
-	m_rgb[LAY_BOTTOM_COPPER+5][1] = 64; 
-	m_rgb[LAY_BOTTOM_COPPER+5][2] = 64;	
-	m_rgb[LAY_BOTTOM_COPPER+6][0] = 64; // inner 6 
-	m_rgb[LAY_BOTTOM_COPPER+6][1] = 64; 
-	m_rgb[LAY_BOTTOM_COPPER+6][2] = 64;	
-
-	
-/*
-	CPT:  new system involving the registry.  See ReadPrefs() below.
-	// colors for footprint editor layers
-	m_fp_rgb[LAY_FP_SELECTION][0] = 255; 
-	m_fp_rgb[LAY_FP_SELECTION][1] = 255; 
-	m_fp_rgb[LAY_FP_SELECTION][2] = 255;		//selection WHITE
-	m_fp_rgb[LAY_FP_BACKGND][0] = 0; 
-	m_fp_rgb[LAY_FP_BACKGND][1] = 0; 
-	m_fp_rgb[LAY_FP_BACKGND][2] = 0;			// background BLACK
-	m_fp_rgb[LAY_FP_VISIBLE_GRID][0] = 255; 
-	m_fp_rgb[LAY_FP_VISIBLE_GRID][1] = 255; 
-	m_fp_rgb[LAY_FP_VISIBLE_GRID][2] = 255;	// visible grid WHITE 
-	m_fp_rgb[LAY_FP_HILITE][0] = 255; 
-	m_fp_rgb[LAY_FP_HILITE][1] = 255; 
-	m_fp_rgb[LAY_FP_HILITE][2] = 255;		//highlight WHITE
-	m_fp_rgb[LAY_FP_SILK_TOP][0] = 255; 
-	m_fp_rgb[LAY_FP_SILK_TOP][1] = 255; 
-	m_fp_rgb[LAY_FP_SILK_TOP][2] =   0;		//top silk YELLOW
-	m_fp_rgb[LAY_FP_CENTROID][0] = 255; 
-	m_fp_rgb[LAY_FP_CENTROID][1] = 255; 
-	m_fp_rgb[LAY_FP_CENTROID][2] = 255;		//centroid WHITE
-	m_fp_rgb[LAY_FP_DOT][0] = 255; 
-	m_fp_rgb[LAY_FP_DOT][1] = 128; 
-	m_fp_rgb[LAY_FP_DOT][2] =  64;			//adhesive dot ORANGE
-	m_fp_rgb[LAY_FP_PAD_THRU][0] =   0; 
-	m_fp_rgb[LAY_FP_PAD_THRU][1] =   0; 
-	m_fp_rgb[LAY_FP_PAD_THRU][2] = 255;		//thru-hole pads BLUE
-	m_fp_rgb[LAY_FP_TOP_COPPER][0] =   0; 
-	m_fp_rgb[LAY_FP_TOP_COPPER][1] = 255; 
-	m_fp_rgb[LAY_FP_TOP_COPPER][2] =   0;		//top copper GREEN
-	m_fp_rgb[LAY_FP_INNER_COPPER][0] =  128; 
-	m_fp_rgb[LAY_FP_INNER_COPPER][1] = 128; 
-	m_fp_rgb[LAY_FP_INNER_COPPER][2] =  128;		//inner copper GREY
-	m_fp_rgb[LAY_FP_BOTTOM_COPPER][0] = 255; 
-	m_fp_rgb[LAY_FP_BOTTOM_COPPER][1] = 0; 
-	m_fp_rgb[LAY_FP_BOTTOM_COPPER][2] = 0;		//bottom copper RED
-	m_fp_rgb[LAY_FP_TOP_MASK][0] = 0; 
-	m_fp_rgb[LAY_FP_TOP_MASK][1] = 127; 
-	m_fp_rgb[LAY_FP_TOP_MASK][2] = 0;		//top mask DARK GREEN
-	m_fp_rgb[LAY_FP_TOP_PASTE][0] = 0; 
-	m_fp_rgb[LAY_FP_TOP_PASTE][1] = 127; 
-	m_fp_rgb[LAY_FP_TOP_PASTE][2] = 0;		//top paste DARK GREEN
-	m_fp_rgb[LAY_FP_BOTTOM_MASK][0] = 127; 
-	m_fp_rgb[LAY_FP_BOTTOM_MASK][1] = 0; 
-	m_fp_rgb[LAY_FP_BOTTOM_MASK][2] = 0;		//bottom mask DARK RED
-	m_fp_rgb[LAY_FP_BOTTOM_PASTE][0] = 127; 
-	m_fp_rgb[LAY_FP_BOTTOM_PASTE][1] = 0; 
-	m_fp_rgb[LAY_FP_BOTTOM_PASTE][2] = 0;		//bottom paste DARK RED
-
-	*/
+	for (int i=0; i<17; i++)
+		m_rgb[i][0] = defaultLayerColors[i]>>16,
+		m_rgb[i][1] = defaultLayerColors[i]>>8 & 0xff,
+		m_rgb[i][2] = defaultLayerColors[i]&0xff;
+	for (int i=0; i<15; i++)
+		m_fp_rgb[i][0] = defaultFpLayerColors[i]>>16,
+		m_fp_rgb[i][1] = defaultFpLayerColors[i]>>8 & 0xff,
+		m_fp_rgb[i][2] = defaultFpLayerColors[i]&0xff;
 
 	// default visible grid spacing menu values (in NM)
-	// CPT:  streamlined and reversed the orders of these lists
+	// CPT:  First, load in the last-ditch default values.  Then see if we can get default vals from the registry
 	static const double vis_grid_vals[] =
-		{ 1000*NM_PER_MIL, 500*NM_PER_MIL, 400*NM_PER_MIL, 250*NM_PER_MIL, 200*NM_PER_MIL, 125*NM_PER_MIL, 100*NM_PER_MIL };
+		{ 1000*NM_PER_MIL, 500*NM_PER_MIL, 400*NM_PER_MIL, 250*NM_PER_MIL, 200*NM_PER_MIL, 125*NM_PER_MIL, 100*NM_PER_MIL 
+		-100*NM_PER_MM, -50*NM_PER_MM, -40*NM_PER_MM, -25*NM_PER_MM, -20*NM_PER_MM, -10*NM_PER_MM, -5*NM_PER_MM, -2*NM_PER_MM };
 	m_visible_grid.RemoveAll();
-	for (int i=0; i<7; i++)
+	m_visible_grid_hidden.RemoveAll();
+	for (int i=0; i<15; i++)
 		m_visible_grid.Add( vis_grid_vals[i] );
 //	int visible_index = 2;
 	m_visual_grid_spacing = 200*NM_PER_MIL;
@@ -2352,47 +2275,43 @@ void CFreePcbDoc::InitializeNewProject()
 	// default placement grid spacing menu values (in NM)
 	static const double part_grid_vals[] = 
 		{ 1000*NM_PER_MIL, 500*NM_PER_MIL, 400*NM_PER_MIL, 250*NM_PER_MIL, 200*NM_PER_MIL, 100*NM_PER_MIL, 
-		  50*NM_PER_MIL, 40*NM_PER_MIL, 25*NM_PER_MIL, 20*NM_PER_MIL, 10*NM_PER_MIL };
+		  50*NM_PER_MIL, 40*NM_PER_MIL, 25*NM_PER_MIL, 20*NM_PER_MIL, 10*NM_PER_MIL,
+		 -10*NM_PER_MM, -5*NM_PER_MM, -4*NM_PER_MM, -2*NM_PER_MM, -1*NM_PER_MM, -.5*NM_PER_MM, -.4*NM_PER_MM, -.2*NM_PER_MM };
 	m_part_grid.RemoveAll();
-	for (int i=0; i<11; i++)
+	m_part_grid_hidden.RemoveAll();
+	for (int i=0; i<19; i++)
 		m_part_grid.Add( part_grid_vals[i] );
 	m_part_grid_spacing = 50*NM_PER_MIL;
 
 	// default routing grid spacing menu values (in NM)
-/* CPT.  New system involving reading from the registry...
+	static const double routing_grid_vals[] = 
+		{ 100*NM_PER_MIL, 50*NM_PER_MIL, 40*NM_PER_MIL, 25*NM_PER_MIL, 20*NM_PER_MIL, 10*NM_PER_MIL, 
+		  5*NM_PER_MIL, 4*NM_PER_MIL, 2.5*NM_PER_MIL, 2*NM_PER_MIL, 1*NM_PER_MIL,
+		 -10*NM_PER_MM, -5*NM_PER_MM, -4*NM_PER_MM, -2*NM_PER_MM, -1*NM_PER_MM, -.5*NM_PER_MM, -.4*NM_PER_MM, -.2*NM_PER_MM,
+ 		 -.1*NM_PER_MM, -.05*NM_PER_MM, -.04*NM_PER_MM, -.02*NM_PER_MM, -.01*NM_PER_MM };
 	m_routing_grid.RemoveAll();
-	m_routing_grid.Add( 1*NM_PER_MIL );
-	m_routing_grid.Add( 2*NM_PER_MIL );
-	m_routing_grid.Add( 2.5*NM_PER_MIL );
-	m_routing_grid.Add( 3.333333333333*NM_PER_MIL );
-	m_routing_grid.Add( 4*NM_PER_MIL );
-	m_routing_grid.Add( 5*NM_PER_MIL );
-	m_routing_grid.Add( 8.333333333333*NM_PER_MIL );
-	m_routing_grid.Add( 10*NM_PER_MIL );	// default
-	m_routing_grid.Add( 16.66666666666*NM_PER_MIL );
-	m_routing_grid.Add( 20*NM_PER_MIL );
-	m_routing_grid.Add( 25*NM_PER_MIL );
-	m_routing_grid.Add( 40*NM_PER_MIL );
-	m_routing_grid.Add( 50*NM_PER_MIL );
-	m_routing_grid.Add( 100*NM_PER_MIL );
-	*/
-
+	m_routing_grid_hidden.RemoveAll();
+	for (int i=0; i<24; i++)
+		m_routing_grid.Add( routing_grid_vals[i] );
 	m_routing_grid_spacing = 10*NM_PER_MIL;
-
+	
 	// footprint editor parameters 
 	m_fp_units = MIL;
 
 	// default footprint editor visible grid spacing menu values (in NM)
 	static const double fp_vis_grid_vals[] =
-		{ 400*NM_PER_MIL, 250*NM_PER_MIL, 200*NM_PER_MIL, 125*NM_PER_MIL, 100*NM_PER_MIL };
+		{ 400*NM_PER_MIL, 250*NM_PER_MIL, 200*NM_PER_MIL, 125*NM_PER_MIL, 100*NM_PER_MIL,
+		-100*NM_PER_MM, -50*NM_PER_MM, -40*NM_PER_MM, -25*NM_PER_MM, -20*NM_PER_MM };
 	m_fp_visible_grid.RemoveAll();
-	for (int i=0; i<5; i++)
+	m_fp_visible_grid_hidden.RemoveAll();
+	for (int i=0; i<10; i++)
 		m_fp_visible_grid.Add( fp_vis_grid_vals[i] );
 	m_fp_visual_grid_spacing = 200*NM_PER_MIL;
 
 	// default footprint editor placement grid spacing menu values (in NM)  (CPT: same as regular placement grid)
 	m_fp_part_grid.RemoveAll();
-	for (int i=0; i<11; i++)
+	m_fp_part_grid_hidden.RemoveAll();
+	for (int i=0; i<19; i++)
 		m_fp_part_grid.Add( part_grid_vals[i] );
 	m_fp_part_grid_spacing = 50*NM_PER_MIL;
 
@@ -2447,32 +2366,18 @@ void CFreePcbDoc::InitializeNewProject()
 	m_dr.hole_hole = 25*NM_PER_MIL;
 	m_dr.copper_copper = 10*NM_PER_MIL;
 
-	// default trace widths (must be in ascending order)
-	m_w.SetAtGrow( 0, 6*NM_PER_MIL );
-	m_w.SetAtGrow( 1, 8*NM_PER_MIL );
-	m_w.SetAtGrow( 2, 10*NM_PER_MIL );
-	m_w.SetAtGrow( 3, 12*NM_PER_MIL );
-	m_w.SetAtGrow( 4, 15*NM_PER_MIL );
-	m_w.SetAtGrow( 5, 20*NM_PER_MIL );
-	m_w.SetAtGrow( 6, 25*NM_PER_MIL );
-
-	// default via widths
-	m_v_w.SetAtGrow( 0, 24*NM_PER_MIL );
-	m_v_w.SetAtGrow( 1, 24*NM_PER_MIL );
-	m_v_w.SetAtGrow( 2, 24*NM_PER_MIL );
-	m_v_w.SetAtGrow( 3, 24*NM_PER_MIL );
-	m_v_w.SetAtGrow( 4, 30*NM_PER_MIL );
-	m_v_w.SetAtGrow( 5, 30*NM_PER_MIL );
-	m_v_w.SetAtGrow( 6, 40*NM_PER_MIL );
-
-	// default via hole widths
-	m_v_h_w.SetAtGrow( 0, 15*NM_PER_MIL );
-	m_v_h_w.SetAtGrow( 1, 15*NM_PER_MIL );
-	m_v_h_w.SetAtGrow( 2, 15*NM_PER_MIL );
-	m_v_h_w.SetAtGrow( 3, 15*NM_PER_MIL );
-	m_v_h_w.SetAtGrow( 4, 18*NM_PER_MIL );
-	m_v_h_w.SetAtGrow( 5, 18*NM_PER_MIL );
-	m_v_h_w.SetAtGrow( 6, 20*NM_PER_MIL );
+	// Embedded default trace widths (must be in ascending order)
+	// CPT streamlined
+	int defaultW[] = { 6*NM_PER_MIL, 8*NM_PER_MIL, 10*NM_PER_MIL, 12*NM_PER_MIL, 15*NM_PER_MIL, 20*NM_PER_MIL, 25*NM_PER_MIL };
+	int defaultVw[] = { 24*NM_PER_MIL, 24*NM_PER_MIL, 24*NM_PER_MIL, 24*NM_PER_MIL, 30*NM_PER_MIL, 30*NM_PER_MIL, 40*NM_PER_MIL };
+	int defaultVhw[] = { 15*NM_PER_MIL, 15*NM_PER_MIL, 15*NM_PER_MIL, 15*NM_PER_MIL, 18*NM_PER_MIL, 18*NM_PER_MIL, 20*NM_PER_MIL };
+	m_w.RemoveAll();
+	m_v_w.RemoveAll();
+	m_v_h_w.RemoveAll();
+	for (int i=0; i<7; i++) 
+		m_w.Add(defaultW[i]),
+		m_v_w.Add(defaultVw[i]),
+		m_v_h_w.Add(defaultVhw[i]);
 
 	// netlist import options
 	m_netlist_full_path = "";
@@ -2481,7 +2386,7 @@ void CFreePcbDoc::InitializeNewProject()
 	CFreePcbView * view = (CFreePcbView*)m_view;
 	view->InitializeView();
 
-	// now try to find global options file
+	// now try to find global options file.
 	CString fn = m_app_dir + "\\" + "default.cfg";
 	CStdioFile file;
 	if( !file.Open( fn, CFile::modeRead | CFile::typeText ) )
@@ -2495,7 +2400,7 @@ void CFreePcbDoc::InitializeNewProject()
 		{
 			// read global default file options
 			ReadOptions( &file );
-			// make path to library folder and index libraries
+			// make path to library folder and index libraries.
 			char full[_MAX_PATH];
 			CString fullpath = _fullpath( full, (LPCSTR)m_lib_dir, MAX_PATH );
 			if( fullpath[fullpath.GetLength()-1] == '\\' )	
@@ -2508,6 +2413,7 @@ void CFreePcbDoc::InitializeNewProject()
 			throw err_str;
 		}
 	}
+
 	m_plist->SetPinAnnularRing( m_annular_ring_pins );
 	m_nlist->SetViaAnnularRing( m_annular_ring_vias );
 }
@@ -2619,20 +2525,13 @@ void CFreePcbDoc::OnViewLayers()
 
 		if (dlg.fColorsDefault) {		
 			// User wants to apply settings to future new projects
-			HKEY hkey;
-			char buf[16], buf2[16];
-			if (RegCreateKey(HKEY_CURRENT_USER, "Software\\FreePCB", &hkey) != ERROR_SUCCESS) return;
-			for( int i=0; i<MAX_LAYERS; i++ ) {
-				sprintf(buf, "layerColor%d", i);
-				sprintf(buf2, "%d", (m_rgb[i][0]<<16) | (m_rgb[i][1]<<8) | m_rgb[i][2]);
-				RegSetValue(hkey, buf, REG_SZ, buf2, strlen(buf2));
-				}
-			for( int i=0; i<NUM_FP_LAYERS; i++ ) {
-				sprintf(buf, "fpLayerColor%d", i);
-				sprintf(buf2, "%d", (m_fp_rgb[i][0]<<16) | (m_fp_rgb[i][1]<<8) | m_fp_rgb[i][2]);
-				RegSetValue(hkey, buf, REG_SZ, buf2, strlen(buf2));
-				}
-			RegCloseKey(hkey);
+			CArray<CString> oldLines, newLines;
+			CString fn = m_app_dir + "\\" + "default.cfg";
+			ReadFileLines(fn, oldLines);
+			CollectOptionsStrings(newLines);
+			ReplaceLines(oldLines, newLines, "layer_info");
+			ReplaceLines(oldLines, newLines, "fp_layer_info");
+			WriteFileLines(fn, oldLines);
 			}
 
 		for( int i=0; i<m_num_layers; i++ )
@@ -3289,15 +3188,44 @@ int CFreePcbDoc::ImportNetlist( CStdioFile * file, UINT flags,
 //	EXPORT_NETS = include nets in file
 //	EXPORT_VALUES = use "value@footprint" format for parts
 //
+// CPT:  added sorting so that results are more readable.
+
+int strcmpNumeric(CString *s1, CString *s2) {
+	// String comparison where IC9 comes before IC10, etc.  Alpha comparison is caseless.
+	int lgth1 = s1->GetLength(), lgth2 = s2->GetLength();
+	for (int i=0; i<lgth1 && i<lgth2; i++) {
+		char c1 = toupper((*s1)[i]), c2 = toupper((*s2)[i]);
+		if (isdigit(c1) && isdigit(c2)) {
+			int val1 = atoi(s1->Mid(i)), val2 = atoi(s2->Mid(i));
+			if (val1<val2) return -1;
+			if (val1>val2) return 1;
+			int i1=i+1, i2=i+1;
+			while (i1<lgth1 && isdigit((*s1)[i1])) i1++;
+			while (i2<lgth2 && isdigit((*s2)[i2])) i2++;
+			if (i1<i2) return -1;									// Fewer leading 0's comes first in this ordering.
+			if (i1>i2) return 1;
+			i = i1-1;
+			continue;												// Numeric segments are identical:  move on to the rest of the string
+			}
+		if (c1<c2) return -1;
+		if (c1>c2) return 1;
+		}
+
+	// One string is a subseg of the other
+	if (lgth1<lgth2) return -1;
+	if (lgth1>lgth2) return 1;
+	return strcmp(*s1,*s2);											// Do cased comparison of strings that are caseless-identical
+	}
+
 int CFreePcbDoc::ExportPADSPCBNetlist( CStdioFile * file, UINT flags, 
 							   partlist_info * pl, netlist_info * nl )
 {
 	CString str, str2;
-
 	file->WriteString( "*PADS-PCB*\n" );
 	if( flags & EXPORT_PARTS )
 	{
 		file->WriteString( "*PART*\n" );
+		CArray<CString> parts;							// Will accumulate part strings in this array, and sort afterwards.
 		for( int i=0; i<pl->GetSize(); i++ )
 		{
 			part_info * pi = &(*pl)[i];
@@ -3309,8 +3237,11 @@ int CFreePcbDoc::ExportPADSPCBNetlist( CStdioFile * file, UINT flags,
 			else
 				str2 += pi->package;
 			str.Format( "%s %s\n", pi->ref_des, str2 );
-			file->WriteString( str );
+			parts.Add( str );
 		}
+		qsort(parts.GetData(), parts.GetSize(), sizeof(CString), (int (*)(const void*,const void*)) strcmpNumeric);			
+		for (int i=0; i<parts.GetSize(); i++) 
+			file->WriteString(parts[i]);
 	}
 
 	if( flags & EXPORT_NETS )
@@ -3318,26 +3249,33 @@ int CFreePcbDoc::ExportPADSPCBNetlist( CStdioFile * file, UINT flags,
 		if( flags & IMPORT_PARTS )
 			file->WriteString( "\n" );
 		file->WriteString( "*NET*\n" );
+
+		CArray<CString> nets;							// Will accumulate net strings in this array, and sort afterwards.
 		for( int i=0; i<nl->GetSize(); i++ )
 		{
 			net_info * ni = &(*nl)[i];
-			str.Format( "*SIGNAL* %s\n", ni->name );
-			file->WriteString( str );
-			str = "";
+			str.Format( "*SIGNAL* %s", ni->name );
+			CArray<CString> pins;
 			int np = ni->pin_name.GetSize();
 			for( int ip=0; ip<np; ip++ )
 			{
 				CString pin_str;
 				pin_str.Format( "%s.%s ", ni->ref_des[ip], ni->pin_name[ip] );
-				str += pin_str;
-				if( !((ip+1)%8) || ip==(np-1) )
-				{
-					str += "\n";
-					file->WriteString( str );
-					str = "";
-				}
+				pins.Add(pin_str);
 			}
+			qsort(pins.GetData(), pins.GetSize(), sizeof(CString), (int (*)(const void*,const void*)) strcmpNumeric);			
+			for (int i=0; i<np; i++) 
+			{
+				if (!(i%8)) str += "\n  ";
+				str += pins[i];
+			}
+			nets.Add(str);
 		}
+
+		qsort(nets.GetData(), nets.GetSize(), sizeof(CString), (int (*)(const void*,const void*)) strcmpNumeric);			
+		for (int i=0; i<nets.GetSize(); i++) 
+			file->WriteString(nets[i]),
+			file->WriteString("\n");
 	}
 	file->WriteString( "*END*\n" );
 	return 0;
@@ -3465,6 +3403,7 @@ int CFreePcbDoc::ImportPADSPCBNetlist( CStdioFile * file, UINT flags,
 				(*pl)[ipart].side = 0;
 				(*pl)[ipart].x = 0;
 				(*pl)[ipart].y = 0;
+				(*pl)[ipart].ref_vis = true;		// CPT
 				ipart++;
 			}
 		}
@@ -3834,17 +3773,15 @@ void CFreePcbDoc::OnProjectOptions()
 		if( m_name.Right(4) == ".fpc" )
 			m_name = m_name.Left( m_name.GetLength()-4 );
 	}
-	dlg.Init( FALSE, &m_name, &m_path_to_folder, &m_full_lib_dir,
+	// CPT: args have changed:
+	dlg.Init( FALSE, &m_name, &m_path_to_folder, &m_lib_dir,
 		m_num_copper_layers, m_bSMT_copper_connect, m_default_glue_w,
 		m_trace_w, m_via_w, m_via_hole_w,
-		m_auto_interval, m_auto_ratline_disable, m_auto_ratline_min_pins,
 		&m_w, &m_v_w, &m_v_h_w );
 	int ret = dlg.DoModal();
 	if( ret == IDOK )  
 	{
 		// set options from dialog
-		m_auto_ratline_disable = dlg.GetAutoRatlineDisable();
-		m_auto_ratline_min_pins = dlg.GetAutoRatlineMinPins();
 		BOOL bResetAreaConnections = m_bSMT_copper_connect != dlg.m_bSMT_connect_copper;
 		m_bSMT_copper_connect = dlg.m_bSMT_connect_copper;
 		m_nlist->SetSMTconnect( m_bSMT_copper_connect );
@@ -3883,6 +3820,7 @@ void CFreePcbDoc::OnProjectOptions()
 		m_plist->SetNumCopperLayers( m_num_copper_layers );
 
 		m_name = dlg.GetName();
+		m_lib_dir = dlg.GetLibFolder();							// CPT added (not sure why it wasn't there before...)
 		if( m_full_lib_dir != dlg.GetLibFolder() )
 		{
 			m_full_lib_dir = dlg.GetLibFolder();
@@ -3893,8 +3831,26 @@ void CFreePcbDoc::OnProjectOptions()
 		m_via_w = dlg.GetViaWidth();
 		m_via_hole_w = dlg.GetViaHoleWidth();
 		m_nlist->SetWidths( m_trace_w, m_via_w, m_via_hole_w );
-		m_auto_interval = dlg.GetAutoInterval();
-		m_auto_ratline_disable = dlg.GetAutoRatlineDisable();
+
+		// CPT: option to save dlg results to default.cfg:
+		if (dlg.m_default) 
+		{
+			CArray<CString> oldLines, newLines;
+			CString fn = m_app_dir + "\\" + "default.cfg";
+			ReadFileLines(fn, oldLines);
+			CollectOptionsStrings(newLines);
+			ReplaceLines(oldLines, newLines, "path_to_folder");
+			ReplaceLines(oldLines, newLines, "library_folder");
+			ReplaceLines(oldLines, newLines, "n_copper_layers");
+			ReplaceLines(oldLines, newLines, "SMT_connect_copper");
+			ReplaceLines(oldLines, newLines, "default_glue_width");
+			ReplaceLines(oldLines, newLines, "default_trace_width");
+			ReplaceLines(oldLines, newLines, "default_via_pad_width");
+			ReplaceLines(oldLines, newLines, "default_via_hole_width");
+			ReplaceLines(oldLines, newLines, "n_width_menu");
+			ReplaceLines(oldLines, newLines, "width_menu_item");
+			WriteFileLines(fn, oldLines);
+		}
 
 		if( m_vis[LAY_RAT_LINE] && !m_auto_ratline_disable )
 			m_nlist->OptimizeConnections();
@@ -4779,122 +4735,362 @@ void CFreePcbDoc::OnFileSaveLibrary()
 }
 
 
-// CPT
+// CPT (all that follows)
 
-static double routingGridVals[] = { 
-		1*NM_PER_MIL,  2*NM_PER_MIL, 2.5*NM_PER_MIL, 3.333333333333*NM_PER_MIL, 4*NM_PER_MIL, 
-		5*NM_PER_MIL,  6.6666666667*NM_PER_MIL, 10*NM_PER_MIL, 12.5*NM_PER_MIL, 16.66666666666*NM_PER_MIL, 
-		20*NM_PER_MIL, 25*NM_PER_MIL, 40*NM_PER_MIL, 50*NM_PER_MIL, 100*NM_PER_MIL, 
-		-10000, -20000, -40000, -50000, -100000,
-		-200000, -250000, -400000, -500000,	-1000000, 
-		-2000000, -2500000, -4000000, -5000000, -10000000
-		};
+void ReadFileLines(CString &fname, CArray<CString> &lines) {
+	// Helper function used when making modifications to default.cfg
+	lines.RemoveAll();
+	CStdioFile file;
+	CString line;
+	int ok = file.Open( LPCSTR(fname), CFile::modeRead | CFile::typeText, NULL );
+	while (ok)	{
+		ok = file.ReadString( line );
+		if (ok) 
+			line.Trim(),
+			lines.Add(line + "\n");
+		}
+	file.Close();
+	}
 
-#define cDefaultLayerColors 17
-static unsigned int defaultLayerColors[] = {
-	0xffffff, 0x000000, 0xffffff, 0xffffff, // selection WHITE, backgrnd BLACK, vis grid WHITE, highlight WHITE
-	0xff8040, 0x0000ff, 0xff00ff, 0xffff00, // DRE orange, board outline BLUE, ratlines VIOLET, top silk YELLOW
-	0xffc0c0, 0xa0a0a0, 0x5f5f5f, 0x0000ff, // bottom silk PINK, top sm cutout LT GRAY, bottom sm cutout DK GRAY, thru-hole pads BLUE
-	0x00ff00, 0xff0000, 0x408040, 0x804040, // top copper GREEN, bottom copper RED, inner 1, inner 2
-	0x404080
-};
+void WriteFileLines(CString &fname, CArray<CString> &lines) {
+	// Helper function used when making modifications to default.cfg
+	CStdioFile file;
+	int ok = file.Open( LPCSTR(fname), CFile::modeCreate | CFile::modeWrite | CFile::typeText, NULL );
+	if (!ok) return;
+	for (int i=0; i<lines.GetSize(); i++)
+		file.WriteString(lines[i]);
+	file.Close();
+	}
 
-static unsigned int defaultFpLayerColors[] = {
-	0xffffff, 0x000000, 0xffffff, 0xffffff, // selection WHITE, backgrnd BLACK, vis grid WHITE, highlight WHITE
-	0xffff00, 0xffffff, 0xff8040, 0x0000ff, // silk top YELLOW, centroid WHITE, dot ORANGE, pad-thru BLUE
-	0x007f00, 0x007f00, 0x7f0000, 0x7f0000, // Top mask+paste DK GREEN, bottom mask+paste DK RED
-	0x00ff00, 0x5f5f5f, 0xff0000            // top copper GREEN, inner copper GRAY, bottom copper RED
-};
+void ReplaceLines(CArray<CString> &oldLines, CArray<CString> &newLines, char *key) {
+	// Another helper for making modifications to default.cfg. Look through "oldLines" and eliminate all entries beginning with "key" (if any).
+	// Then append to oldLines all members of newLines beginning with that key.  Must ensure that the [end] line is still at the end...
+	int keyLgth = strlen(key);
+	for (int i=0; i<oldLines.GetSize(); i++) {
+		CString str = oldLines[i].TrimLeft();
+		if (str.Left(keyLgth) == key || str.Left(5) == "[end]")
+			oldLines.RemoveAt(i),
+			i--;
+		}
+	for (int i=0; i<newLines.GetSize(); i++) {
+		CString str = newLines[i].TrimLeft();
+		if (str.Left(keyLgth) == key)
+			oldLines.Add(str);
+		}
+	oldLines.Add("[end]\n");
+	}
 
+
+void CFreePcbDoc::OnToolsPreferences() {
+	CDlgPrefs dlg;
+	dlg.doc = this;
+	dlg.Init( bReversePgupPgdn, m_auto_interval, m_auto_ratline_disable, m_auto_ratline_min_pins); 
+	int ret = dlg.DoModal();
+	if( ret == IDOK ) {
+		bReversePgupPgdn = dlg.m_bReverse;
+		m_auto_interval = dlg.m_auto_interval;
+		m_auto_ratline_disable = dlg.m_bAuto_Ratline_Disable;
+		m_auto_ratline_min_pins = dlg.m_auto_ratline_min_pins;
+		// Save these values to default.cfg
+		CString line;
+		CArray<CString> oldLines, newLines;
+		line.Format( "autosave_interval: \"%d\"\n", m_auto_interval );
+		newLines.Add( line );
+		line.Format( "auto_ratline_disable: \"%d\"\n", m_auto_ratline_disable );
+		newLines.Add( line );
+		line.Format( "auto_ratline_disable_min_pins: \"%d\"\n", m_auto_ratline_min_pins );
+		newLines.Add( line );
+		line.Format( "reverse_pgup_pgdn: \"%d\"\n", bReversePgupPgdn);
+		newLines.Add( line );
+		CString fn = m_app_dir + "\\" + "default.cfg";
+		ReadFileLines(fn, oldLines);
+		ReplaceLines(oldLines, newLines, "autosave_interval");
+		ReplaceLines(oldLines, newLines, "auto_ratline_disable");
+		ReplaceLines(oldLines, newLines, "auto_ratline_disable_min_pins");
+		ReplaceLines(oldLines, newLines, "reverse_pgup_pgdn");
+		WriteFileLines(fn, oldLines);
+		}
+	}
+
+void CFreePcbDoc::OnViewRoutingGrid() {
+	CDlgGridVals dlg (&m_routing_grid, &m_routing_grid_hidden, IDS_EditRoutingGridValues);
+	int ret = dlg.DoModal();
+	if( ret == IDOK ) {
+		// CDlgGridVals::DoDataExchange() already updated m_routing_grid and m_routing_grid_hidden.  We just need to change the
+		// ToolBar lists:
+		CMainFrame * frm = (CMainFrame*)AfxGetMainWnd();
+		frm->m_wndMyToolBar.SetLists( &m_visible_grid, &m_part_grid, &m_routing_grid,
+			m_visual_grid_spacing, m_part_grid_spacing, m_routing_grid_spacing, m_snap_angle, m_units );
+		ProjectModified(true);
+		if (dlg.bSetDefault) {
+			CArray<CString> oldLines, newLines;
+			CString fn = m_app_dir + "\\" + "default.cfg";
+			ReadFileLines(fn, oldLines);
+			CollectOptionsStrings(newLines);
+			ReplaceLines(oldLines, newLines, "routing_grid_item");
+			ReplaceLines(oldLines, newLines, "routing_grid_hidden");
+			WriteFileLines(fn, oldLines);
+			}
+		}
+	}
+
+void CFreePcbDoc::OnViewPlacementGrid() {
+	CDlgGridVals dlg (&m_part_grid, &m_part_grid_hidden, IDS_EditPlacementGridValues);
+	int ret = dlg.DoModal();
+	if( ret == IDOK ) {
+		CMainFrame * frm = (CMainFrame*)AfxGetMainWnd();
+		frm->m_wndMyToolBar.SetLists( &m_visible_grid, &m_part_grid, &m_routing_grid,
+			m_visual_grid_spacing, m_part_grid_spacing, m_routing_grid_spacing, m_snap_angle, m_units );
+		ProjectModified(true);
+		if (dlg.bSetDefault) {
+			CArray<CString> oldLines, newLines;
+			CString fn = m_app_dir + "\\" + "default.cfg";
+			ReadFileLines(fn, oldLines);
+			CollectOptionsStrings(newLines);
+			ReplaceLines(oldLines, newLines, "placement_grid_item");
+			ReplaceLines(oldLines, newLines, "placement_grid_hidden");
+			WriteFileLines(fn, oldLines);
+			}
+		}
+	}
+
+void CFreePcbDoc::OnViewVisibleGrid() {
+	CDlgGridVals dlg (&m_visible_grid, &m_visible_grid_hidden, IDS_EditVisibleGridValues);
+	int ret = dlg.DoModal();
+	if( ret == IDOK ) {
+		CMainFrame * frm = (CMainFrame*)AfxGetMainWnd();
+		frm->m_wndMyToolBar.SetLists( &m_visible_grid, &m_part_grid, &m_routing_grid,
+			m_visual_grid_spacing, m_part_grid_spacing, m_routing_grid_spacing, m_snap_angle, m_units );
+		ProjectModified(true);
+		if (dlg.bSetDefault) {
+			CArray<CString> oldLines, newLines;
+			CString fn = m_app_dir + "\\" + "default.cfg";
+			ReadFileLines(fn, oldLines);
+			CollectOptionsStrings(newLines);
+			ReplaceLines(oldLines, newLines, "visible_grid_item");
+			ReplaceLines(oldLines, newLines, "visible_grid_hidden");
+			WriteFileLines(fn, oldLines);
+			}
+		}
+	}
+
+
+// OLD REGISTRY STUFF
+
+/*
+void ReadGridDefaults(CArray<double> &arr, CString &key) {
+	// CPT.  Helper for InitializeNewProject:  attempt to read in default grid values from the registry into the given "arr", 
+	// using the registry key-string "key".  Leaves arr unchanged on failure
+	char buf[32], buf2[32];
+	HKEY hkey;
+	LONG cb = 32;
+	if (RegCreateKey(HKEY_CURRENT_USER, "Software\\FreePCB", &hkey) != ERROR_SUCCESS) return;
+	sprintf(buf, "%sCt", key);
+	bool fOK = RegQueryValue(hkey, buf, buf2, &cb) == ERROR_SUCCESS;
+	if (!fOK) return;
+	arr.RemoveAll();
+	int ct = atoi(buf2);
+	for (int i=0; i<ct; i++) {
+		sprintf(buf, "%s%d", key, i);
+		cb = 32;
+		fOK = RegQueryValue(hkey, buf, buf2, &cb) == ERROR_SUCCESS;
+		if (!fOK) continue;
+		double val = atof(buf2);
+		arr.Add(val);
+		}
+	}
+
+
+/*
 void CFreePcbDoc::ReadPrefs() {
-	// Read preferences from the registry (fReversePgupPgDn for reversing page-up/page-down;  preferred routing grid values).
-	// This supersedes the routing grid values in default.cfg, a file I wasn't really aware of when writing this.  Well, perhaps
-	// the ultimate goal should be moving everything into the registry?  Hard to decide.
+	// Read preferences from the registry (bReversePgupPgDn for reversing page-up/page-down; autosave interval; auto-ratline-disable).
+	// This starts to supersede file default.cfg.
 	// Newer:  deal also with default layer colors
 	HKEY hkey;
 	char buf[16], buf2[16];
 	LONG cb = 10, val;
 
-	fReversePgupPgdn = false;
-	memset(fGridFlags, 1, 30);
+	// Last-ditch default values:
+	bReversePgupPgdn = false;
+	m_auto_ratline_disable = false;
+	m_auto_interval = 0;
 
-	if (RegCreateKey(HKEY_CURRENT_USER, "Software\\FreePCB", &hkey) == ERROR_SUCCESS) {
-		bool fOK = RegQueryValue(hkey, "fReversePgupPgdn", buf, &cb) == ERROR_SUCCESS;
-		if (fOK) fReversePgupPgdn = atoi(buf);
-		for (int i=0; i<30; i++) {
-			sprintf(buf2, "fGridFlags%d", i);
-			cb = 10;
-			fOK = RegQueryValue(hkey, buf2, buf, &cb) == ERROR_SUCCESS;
-			if (fOK) fGridFlags[i] = atoi(buf);
-			}
-		for( int i=0; i<MAX_LAYERS; i++ ) {
-			sprintf(buf2, "layerColor%d", i);
-			cb = 10;
-			fOK = RegQueryValue(hkey, buf2, buf, &cb) == ERROR_SUCCESS;
-			if (fOK)
-				val = atoi(buf);
-			else if (i<cDefaultLayerColors)
-				val = defaultLayerColors[i];
-			else
-				val = 0x808080;
-			m_rgb[i][0] = (val>>16) & 0xff;
-			m_rgb[i][1] = (val>>8) & 0xff;
-			m_rgb[i][2] = val & 0xff;
-			}
-		for( int i=0; i<NUM_FP_LAYERS; i++ ) {
-			sprintf(buf2, "fpLayerColor%d", i);
-			cb = 10;
-			fOK = RegQueryValue(hkey, buf2, buf, &cb) == ERROR_SUCCESS;
-			if (fOK)
-				val = atoi(buf);
-			else
-				val = defaultFpLayerColors[i];
-			m_fp_rgb[i][0] = (val>>16) & 0xff;
-			m_fp_rgb[i][1] = (val>>8) & 0xff;
-			m_fp_rgb[i][2] = val & 0xff;
-			}
+	if (RegCreateKey(HKEY_CURRENT_USER, "Software\\FreePCB", &hkey) != ERROR_SUCCESS) return;
+	bool fOK = RegQueryValue(hkey, "bReversePgupPgdn", buf, &cb) == ERROR_SUCCESS;
+	if (fOK) bReversePgupPgdn = atoi(buf);
+	cb = 10;
+	fOK = RegQueryValue(hkey, "autoRatlineDisable", buf, &cb) == ERROR_SUCCESS;
+	if (fOK) m_auto_ratline_disable = atoi(buf);
+	cb = 10;
+	fOK = RegQueryValue(hkey, "autoRatlineMinPins", buf, &cb) == ERROR_SUCCESS;
+	if (fOK) m_auto_ratline_min_pins = atoi(buf);
+	cb = 10;
+	fOK = RegQueryValue(hkey, "autoInterval", buf, &cb) == ERROR_SUCCESS;
+	if (fOK) m_auto_interval = atoi(buf);
 
-		RegCloseKey(hkey);
+	for( int i=0; i<MAX_LAYERS; i++ ) {
+		sprintf(buf2, "layerColor%d", i);
+		cb = 10;
+		fOK = RegQueryValue(hkey, buf2, buf, &cb) == ERROR_SUCCESS;
+		if (fOK)
+			val = atoi(buf);
+		else if (i<cDefaultLayerColors)
+			val = defaultLayerColors[i];
+		else
+			val = 0x808080;
+		m_rgb[i][0] = (val>>16) & 0xff;
+		m_rgb[i][1] = (val>>8) & 0xff;
+		m_rgb[i][2] = val & 0xff;
 		}
-
-	m_routing_grid.RemoveAll();
-	for (int i=0; i<30; i++)
-		if (fGridFlags[i]) 
-			m_routing_grid.InsertAt(0, routingGridVals[i]);		// Reverse the list compared to the old order...
+	for( int i=0; i<NUM_FP_LAYERS; i++ ) {
+		sprintf(buf2, "fpLayerColor%d", i);
+		cb = 10;
+		fOK = RegQueryValue(hkey, buf2, buf, &cb) == ERROR_SUCCESS;
+		if (fOK)
+			val = atoi(buf);
+		else
+			val = defaultFpLayerColors[i];
+		m_fp_rgb[i][0] = (val>>16) & 0xff;
+		m_fp_rgb[i][1] = (val>>8) & 0xff;
+		m_fp_rgb[i][2] = val & 0xff;
+		}
+		
+	RegCloseKey(hkey);
 	}
 
 void CFreePcbDoc::SavePrefs() {
 	// Save preferences to the registry.  Runs after OK is hit in the Prefs Dlg.
 	HKEY hkey;
-	char buf[16], buf2[16];
+	char buf[32], buf2[16];
 
 	if (RegCreateKey(HKEY_CURRENT_USER, "Software\\FreePCB", &hkey) != ERROR_SUCCESS) return;
-	sprintf(buf, "%d", fReversePgupPgdn);
-	RegSetValue(hkey, "fReversePgupPgdn", REG_SZ, buf, strlen(buf));
-	for (int i=0; i<30; i++) {
-		sprintf(buf, "fGridFlags%d", i);
-		sprintf(buf2, "%d", fGridFlags[i]);
+	sprintf(buf, "%d", bReversePgupPgdn);
+	RegSetValue(hkey, "bReversePgupPgdn", REG_SZ, buf, strlen(buf));
+	sprintf(buf, "%d", m_auto_ratline_disable);
+	RegSetValue(hkey, "autoRatlineDisable", REG_SZ, buf, strlen(buf));
+	sprintf(buf, "%d", m_auto_ratline_min_pins);
+	RegSetValue(hkey, "autoRatlineMinPins", REG_SZ, buf, strlen(buf));
+	sprintf(buf, "%d", m_auto_interval);
+	RegSetValue(hkey, "autoInterval", REG_SZ, buf, strlen(buf));
+	RegCloseKey(hkey); 
+	}
+*/
+/*
+void SaveGridDefaults(CArray<double> &arr, CString &key) {
+	// Save grid default values to the registry.  Runs after OK is hit in a gridval dlg, provided user checked the "make default" box.
+	HKEY hkey;
+	char buf[32], buf2[32];
+
+	if (RegCreateKey(HKEY_CURRENT_USER, "Software\\FreePCB", &hkey) != ERROR_SUCCESS) return;
+	sprintf(buf, "%sCt", key);
+	sprintf(buf2, "%d", arr.GetSize());
+	RegSetValue(hkey, buf, REG_SZ, buf2, strlen(buf2));
+	for (int i=0; i<arr.GetSize(); i++)
+		sprintf(buf, "%s%d", key, i),
+		sprintf(buf2, "%lf", arr[i]),
 		RegSetValue(hkey, buf, REG_SZ, buf2, strlen(buf2));
-		}
-	RegCloseKey(hkey);
+	RegCloseKey(hkey); 
+	}
+*/
+
+/* void SaveArrayToRegistry(CArray<int> &arr, CString &key, HKEY hkey) {
+	// Helper for SaveOptionsToRegistry().
+	char buf[32], buf2[32];
+	sprintf(buf, "%sCt", key);
+	sprintf(buf2, "%d", arr.GetSize());
+	RegSetValue(hkey, buf, REG_SZ, buf2, strlen(buf2));
+	for (int i=0; i<arr.GetSize(); i++)
+		sprintf(buf, "%s%d", key, i),
+		sprintf(buf2, "%d", arr[i]),
+		RegSetValue(hkey, buf, REG_SZ, buf2, strlen(buf2));
 	}
 
-void CFreePcbDoc::OnToolsPreferences() {
-	CDlgPrefs dlg;
-	dlg.doc = this;
-	dlg.fReverse = fReversePgupPgdn;
-	memmove(dlg.fGridFlags, fGridFlags, 30);
-	int ret = dlg.DoModal();
-	if( ret == IDOK ) {
-		fReversePgupPgdn = dlg.fReverse;
-		memmove(&fGridFlags, &dlg.fGridFlags, 30); 
-		m_routing_grid.RemoveAll();
-		for (int i=0; i<30; i++) 
-			if (fGridFlags[i]) 
-				m_routing_grid.InsertAt(0, routingGridVals[i]);
-		SavePrefs();
-		CMainFrame * frm = (CMainFrame*)AfxGetMainWnd();
-		frm->m_wndMyToolBar.SetLists( &m_visible_grid, &m_part_grid, &m_routing_grid,
-			m_visual_grid_spacing, m_part_grid_spacing, m_routing_grid_spacing, m_snap_angle, m_units );
+void CFreePcbDoc::SaveOptionsToRegistry() {
+	// Save current project options to registry for use as defaults in future new projects.
+	HKEY hkey;
+	char buf[256], buf2[256];
+	if (RegCreateKey(HKEY_CURRENT_USER, "Software\\FreePCB", &hkey) != ERROR_SUCCESS) return;
+	sprintf(buf, "%s", m_path_to_folder);
+	RegSetValue(hkey, "pathToFolder", REG_SZ, buf, strlen(buf));
+	sprintf(buf, "%s", m_full_lib_dir);
+	RegSetValue(hkey, "fullLibDir", REG_SZ, buf, strlen(buf));
+	sprintf(buf, "%d", m_num_copper_layers);
+	RegSetValue(hkey, "numCopperLayers", REG_SZ, buf, strlen(buf));
+	sprintf(buf, "%d", m_bSMT_copper_connect);
+	RegSetValue(hkey, "bSmtCopperConnect", REG_SZ, buf, strlen(buf));
+	sprintf(buf, "%d", m_default_glue_w);
+	RegSetValue(hkey, "defaultGlueW", REG_SZ, buf, strlen(buf));
+	sprintf(buf, "%d", m_trace_w);
+	RegSetValue(hkey, "traceW", REG_SZ, buf, strlen(buf));
+	sprintf(buf, "%d", m_via_w);
+	RegSetValue(hkey, "viaW", REG_SZ, buf, strlen(buf));
+	sprintf(buf, "%d", m_via_hole_w);
+	RegSetValue(hkey, "viaHoleW", REG_SZ, buf, strlen(buf));
+	CString str ("w");
+	SaveArrayToRegistry(m_w, str, hkey);
+	str.Format("vw");
+	SaveArrayToRegistry(m_v_w, str, hkey);
+	str.Format("vhw");
+	SaveArrayToRegistry(m_v_h_w, str, hkey);
+	RegCloseKey(hkey); 
+	}
+
+void ReadArrayFromRegistry(CArray<int> &arr, CString &key, HKEY hkey) {
+	// Helper for SaveOptionsToRegistry().
+	char buf[32], buf2[32];
+	LONG cb = 32;
+	sprintf(buf, "%sCt", key);
+	bool fOK = RegQueryValue(hkey, buf, buf2, &cb) == ERROR_SUCCESS;
+	if (!fOK) return;
+	arr.RemoveAll();
+	int ct = atoi(buf2);
+	for (int i=0; i<ct; i++) {
+		cb = 32;
+		sprintf(buf, "%s%d", key, i);
+		fOK = RegQueryValue(hkey, buf, buf2, &cb) == ERROR_SUCCESS;
+		if (!fOK) continue;
+		arr.Add(atoi(buf2));
 		}
 	}
+
+void CFreePcbDoc::ReadOptionsFromRegistry() {
+	// Save current project options to registry for use as defaults in future new projects.
+	HKEY hkey;
+	char buf[256], buf2[256];
+	LONG cb = 256;
+	if (RegCreateKey(HKEY_CURRENT_USER, "Software\\FreePCB", &hkey) != ERROR_SUCCESS) return;
+	bool fOK = RegQueryValue(hkey, "pathToFolder", buf, &cb) == ERROR_SUCCESS;
+	if (fOK) m_path_to_folder.Format(buf);
+	cb = 256;
+	fOK = RegQueryValue(hkey, "fullLibDir", buf, &cb) == ERROR_SUCCESS;
+	if (fOK)
+		m_lib_dir.Format(buf),				// ???
+		m_full_lib_dir.Format(buf);
+	cb = 32;
+	fOK = RegQueryValue(hkey, "numCopperLayers", buf, &cb) == ERROR_SUCCESS;
+	if (fOK) m_num_copper_layers = atoi(buf);
+	cb = 32;
+	fOK = RegQueryValue(hkey, "bSmtCopperConnect", buf, &cb) == ERROR_SUCCESS;
+	if (fOK) m_bSMT_copper_connect = atoi(buf);
+	cb = 32;
+	fOK = RegQueryValue(hkey, "defaultGlueW", buf, &cb) == ERROR_SUCCESS;
+	if (fOK) m_default_glue_w = atoi(buf);
+	cb = 32;
+	fOK = RegQueryValue(hkey, "traceW", buf, &cb) == ERROR_SUCCESS;
+	if (fOK) m_trace_w = atoi(buf);
+	cb = 32;
+	fOK = RegQueryValue(hkey, "viaW", buf, &cb) == ERROR_SUCCESS;
+	if (fOK) m_via_w = atoi(buf);
+	cb = 32;
+	fOK = RegQueryValue(hkey, "viaHoleW", buf, &cb) == ERROR_SUCCESS;
+	if (fOK) m_via_hole_w = atoi(buf);
+	CString str ("w");
+	ReadArrayFromRegistry(m_w, str, hkey);
+	str.Format("vw");
+	ReadArrayFromRegistry(m_v_w, str, hkey);
+	str.Format("vhw");
+	ReadArrayFromRegistry(m_v_h_w, str, hkey);
+	RegCloseKey(hkey); 
+	}
+
+*/

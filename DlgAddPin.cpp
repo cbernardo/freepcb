@@ -389,9 +389,8 @@ void CDlgAddPin::DoDataExchange(CDataExchange* pDX)
 		// check for legal pin name
 		if( !CheckLegalPinName( &m_pin_name, &astr, &nstr, &n ) )
 		{
-			CString s1 ((LPCSTR) IDS_PinNameMustConsist1);
-			CString s2 ((LPCSTR) IDS_PinNameMustConsist2);
-			AfxMessageBox( s1+s2 );
+			CString s1 ((LPCSTR) IDS_PinNameMayNotContainAnyOfTheCharacters);
+			AfxMessageBox( s1 );
 			pDX->Fail();
 		}
 		if( m_mode == ADD )
@@ -533,6 +532,7 @@ void CDlgAddPin::DoDataExchange(CDataExchange* pDX)
 			{
 				CString s ((LPCSTR) IDS_PinNameIsAlreadyInUse);
 				str.Format( s, m_pin_name );
+				AfxMessageBox( str );
 				pDX->Fail();
 			}
 		}
@@ -765,7 +765,7 @@ void CDlgAddPin::DoDataExchange(CDataExchange* pDX)
 		}
 		else
 		{
-			ps.name.Format( "%s%s", astr, nstr );
+			ps.name.Format( m_pin_name );						// CPT --- maybe will help with my mystery pin name bug
 			m_fp->ShiftToInsertPadName( &astr, n );
 			m_fp->m_padstack.InsertAt(  m_pin_num, ps );
 		}
