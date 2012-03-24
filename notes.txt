@@ -212,4 +212,29 @@ CPT revisions:
 11. Fixed bugs with the display of new (empty) documents.
 12. Added reference-text-visibility control to DlgAddPart.  Fixed bug where ref text visibility came out randomly when
 	copying and pasting.
-13. "/" key for toggle units.  
+13. "/" key for toggle units.  "?" for toggle units plus change grid units.  Tweaked FreePcbView::OnChangeUnits().
+14. New system for modifying grid values (View>Visible Grid Values, etc.).  Completed conversion over from 
+	default.cfg to the registry for all program-wide prefs (for new projects e.g.).  Added checkbox to Project>Options
+	to make settings default.  Moved some stuff to Tools>Preferences.
+15. Modified group-selection behavior, so that there is no longer a distinction between a group of 1 element and a single selected
+	item.  To prevent any lost functionality, implemented arrow keys for board edges, area edges, sm-cutouts, and end-vertices; implemented
+	ctrl-c/x for single selected items.
+16. Added sorting to export netlist.
+17. Removed restriction on pin names (before, 1A and A1A were illegal)
+18. During connect-to-pin-to-create-ratline mode (CUR_DRAG_CONNECT), the status bar now shows the name of the pin where mouse is hovering.
+19. After creating such a ratline, it is selected by default.
+20. When moving groups/parts, don't unroute an adjacent seg if, say, the group is moving vertically and the seg is vertical (changes in e.g.
+   	CNetList::UnrouteSegment() and CNetList::UnrouteSegmentWithoutMerge())
+21. When routing a ratline provide highlighting for the opposite end of the ratline
+22. Tweaked behavior of ctrl-up/dn (they now change whichever grid is currently relevant --- routing grid if net object is selected, placement
+     grid otherwise).  Alt-up/dn now controls the visible grid.
+23. Made a start towards ratline elimination in case the ratline's two endpoints are already connected by some sort of copper route
+     (including connects and/or areas).  Can't yet create traces where neither end is a pin (see TestC.fpc for an example where this would be
+	 nice).
+24. Suppressed DRC width errors for segments in the ratline layer.
+25. Fixed bug with random ref text visibility after importing netlists.
+
+
+Error: MKACTIVITY of '/svn/!svn/act/61a14b72-91a5-5e4b-a92a-5f77462c753c':  
+Error:  authorization failed: Could not authenticate to server: rejected Basic  
+Error:  challenge (https://freepcb.googlecode.com)  
