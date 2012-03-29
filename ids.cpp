@@ -330,6 +330,10 @@ cnet * id::Net()
 		cnet * net =  pcb->m_nlist->GetNetPtrByUID( u1 );
 		return net;
 	}
+	else if( IsPin() )
+	{
+		return Pin()->net;
+	}
 	return NULL;
 }
 

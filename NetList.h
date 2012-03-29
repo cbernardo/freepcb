@@ -340,11 +340,12 @@ public:
 	int FindTeeID( int id );
 	void RemoveTeeID( int id );
 	void AddTeeID( int id );
+
 	// functions for tees and branches
 	BOOL FindTeeVertexInNet( cnet * net, int id, int * ic=NULL, int * iv=NULL );
 	BOOL FindTeeVertex( int id, cnet ** net, int * ic=NULL, int * iv=NULL );
 	int RemoveTee( cnet * net, int id );
-	BOOL DisconnectBranch( cnet * net, int ic );
+	BOOL DisconnectBranch( cnet * net, int ic, id * del_id_1, id * del_id_2 );
 	int RemoveTeeIfNoBranches( cnet * net, int id );
 	BOOL TeeViaNeeded( cnet * net, int id );
 	BOOL RemoveOrphanBranches( cnet * net, int id, BOOL bRemoveSegs=FALSE );

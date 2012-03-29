@@ -1981,7 +1981,9 @@ int CPartList::StartDraggingPart( CDC * pDC, cpart * part, BOOL bRatlines,
 						// check for connection to part
 						cpin * pin1 = c->StartPin();
 						cpin * pin2 = c->EndPin();
-						cpart * pin1_part = pin1->part;
+						cpart * pin1_part = NULL;
+						if( pin1 != NULL )
+							pin1_part = pin1->part;
 						cpart * pin2_part = NULL;
 						if( pin2 != NULL )
 							pin2_part = pin2->part;

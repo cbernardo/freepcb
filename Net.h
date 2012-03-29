@@ -134,8 +134,9 @@ public:
 	cvertex &operator=( cvertex &v );		// assignment
 	void Initialize( cconnect * c );
 
-	int UID(){ return m_uid; };
+	int UID();
 	id Id();
+	int Index();
 	void Undraw();
 	VType GetType();
 	cpin * GetNetPin();
@@ -153,9 +154,8 @@ public:
 	CArray<dl_element*> dl_el;	// array of display elements for each layer
 	dl_element * dl_sel;		// selection box
 	dl_element * dl_hole;		// hole in via
-	CDisplayList * m_dlist;		// 
-	cnet * m_net;				// parent net
 	cconnect * m_con;			// parent connection
+	CDisplayList * m_dlist;		// NULL if not drawable
 };
 
 // cconnect: describes a connection between two pins 
@@ -211,6 +211,7 @@ public:
 	void AppendSegAndVertex( const cseg& new_seg, const cvertex& new_vtx );
 	void PrependVertexAndSeg( const cvertex& new_vtx, const cseg& new_seg );
 	void RemoveSegAndVertexByIndex( int is );
+	void ReverseDirection();
 
 	// drawing methods
 	void Draw();
@@ -281,14 +282,14 @@ public:
 
 	// connections
 	cconnect * AddConnect( int * ic=NULL );
-	id AddConnectFromVtx( id& vtx_id );
 	int AddConnectFromPin( int p1 );
 	int AddConnectFromPinToPin( int p1, int p2 );
-	cconnect * AddConnectFromVertexToPin( id vtx_id, int pin_index );
+	cconnect * AddConnectFromTraceVtx( id& vtx_id );
+	cconnect * AddConnectFromTraceVtxToPin( id vtx_id, int pin_index );
 	void RemoveConnect( cconnect * c );
-	cconnect * SplitConnectAtVertex( id vtx_id );
+	cconnect * SplitConnectAtVtx( id vtx_id );
+	void ConcatenateConnections( cconnect * c1, cconnect * c2 );
 	void RecreateConnectFromUndo( undo_con * con, undo_seg * seg, undo_vtx * vtx );
-	void ConvertConnectWithInternalTees( cconnect * c );
 
 // member variables
 	id m_id;				// net id

@@ -1283,6 +1283,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 			{
 				void * ptr = hit_info[idx].ptr;
  				id sid = hit_info[idx].ID;
+				sid.Resolve();
 				m_sel_layer = hit_info[idx].layer;
 
 				// check for second pad selected while holding down 's'
@@ -2411,7 +2412,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 			// test for hit on pin
 			CPoint p = m_dlist->WindowToPCB( point );
 			id sel_id;	// id of selected item
-			id pad_id( ID_PART, -1, ID_SEL_PAD );	// force selection of pad
+			id pad_id( ID_PART, -1, ID_SEL_PAD );	// force selection of pin
 			int idx;
 			int num_hits;
 			CDL_job::HitInfo hit_info[MAX_HITS];
@@ -2426,17 +2427,16 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 			if( num_hits )
 			{
 				sel_id = hit_info[idx].ID;		// best hit
-				if( sel_id.T1() == ID_PART && sel_id.T2()  == ID_SEL_PAD )
+				sel_id.Resolve();
+				if( sel_id.IsPin() )
 				{
 					// hit on pin
-					void * ptr = m_Doc->m_plist->GetPartByUID( sel_id.U1() );
-					ASSERT( ptr );
-					cpart * new_sel_part = (cpart*)ptr;
-					cnet * new_sel_net = (cnet*)new_sel_part->pin[sel_id.I2()].net;
-					if( m_sel_id.T1() == ID_NET  && m_sel_id.T2()  == ID_CONNECT
-						&& m_sel_id.T3() == ID_SEL_VERTEX )
+					cpart * new_sel_part = sel_id.Part();
+					cnet * new_sel_net = sel_id.Net();
+					// now see whether connection was from pin or vertex
+					if( m_sel_id.IsVtx() )
 					{
-						// dragging ratline from vertex of a trace
+						// connecting from vertex to pin
 						if( new_sel_net && new_sel_net != m_sel_net )
 						{
 							// pin assigned to different net, can't connect it
@@ -2445,7 +2445,9 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 							AfxMessageBox( mess );
 						}
 						else if( m_sel_con->end_pin == cconnect::NO_END
-							&& m_sel_iv == m_sel_con->NumSegs() )
+							&& m_sel_iv == m_sel_con->NumSegs()
+							&& m_sel_id.Vtx()->tee_ID == 0 
+							)
 						{
 							// dragging ratline from end of stub trace
 							CString pin_name = new_sel_part->shape->GetPinNameByIndex( sel_id.I2() );
@@ -2456,9 +2458,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 								// trying to connect pin to itself
 								goto goodbye;
 							}
-							// convert to regular pin-pin trace
-							if(  m_sel_vtx->tee_ID )
-								ASSERT(0);	// error, should not be a branch end or a tee-vertex
+							// connect trace to pin
 							SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_Doc->m_undo_list );
 							SaveUndoInfoForPart( new_sel_part,
 								CPartList::UNDO_PART_MODIFY, NULL, FALSE, m_Doc->m_undo_list );
@@ -2498,7 +2498,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 							}
 							int p1 = m_Doc->m_nlist->GetNetPinIndex( m_sel_net, &new_sel_part->ref_des, &pin_name );
 							m_sel_con->Undraw();
-							cconnect * new_con = m_sel_net->AddConnectFromVertexToPin( m_sel_id, p1 );
+							cconnect * new_con = m_sel_net->AddConnectFromTraceVtxToPin( m_sel_id, p1 );
 							m_sel_con->Draw();
 							new_con->Draw();
 							CancelSelection();
@@ -2699,29 +2699,34 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 			int via_w = m_Doc->m_via_w;
 			int via_hole_w = m_Doc->m_via_hole_w;
 			GetWidthsForSegment( &w, &via_w, &via_hole_w );
-			// see if cursor on pad
+			// test for hit
 			CPoint p = m_dlist->WindowToPCB( point );
-			id sel_id;	// id of selected item
-			id pad_id( ID_PART, -1, ID_SEL_PAD );	// test for hit on any pad
-//100			void * ptr = m_dlist->TestSelect( p.x, p.y, &sel_id, &m_sel_layer, NULL, &pad_id );
-			void * ptr = NULL;
-			sel_id.Clear();
-//100
-
-			if( ptr && sel_id.T1() == ID_PART && sel_id.T2()  == ID_SEL_PAD )
+			id include_ids[2];
+			include_ids[0].Set( ID_PART, -1, ID_SEL_PAD );	// test for hit on any pin
+			include_ids[1].Set( ID_NET, -1, ID_CONNECT, -1, -1, ID_SEL_VERTEX  );	// test for hit on vertex
+			int idx;
+			int num_hits;
+			CDL_job::HitInfo hit_info[MAX_HITS];
+			idx = m_dlist->TestSelect(
+				p.x, p.y,					  // Point
+				hit_info, MAX_HITS, num_hits, // Hit Information
+				&m_sel_id, NULL,			  // Exclusions
+				include_ids, 2
+				);
+			if( num_hits )
 			{
-				// see if we can connect to this pin
-				cpart * new_sel_part = (cpart*)ptr;
-				cnet * new_sel_net = (cnet*)new_sel_part->pin[sel_id.I2()].net;
-				CString pin_name = new_sel_part->shape->GetPinNameByIndex( sel_id.I2() );
-				if( m_Doc->m_plist->TestHitOnPad( new_sel_part, &pin_name, p.x, p.y, m_active_layer ) )
+				// hit pin or vertex
+ 				id sel_id = hit_info[idx].ID;
+				sel_id.Resolve();
+				if( sel_id.IsPin() )
 				{
-					// check for starting pad of stub trace
-					cpart * origin_part = m_sel_con_start_pin->part;
-					CString * origin_pin_name = &m_sel_con_start_pin->pin_name;
-					if( origin_part != new_sel_part || *origin_pin_name != *pin_name )
+					// pin, see if we can connect to it
+					cpart * new_sel_part = sel_id.Part();
+					cnet * new_sel_net = sel_id.Net();
+					CString pin_name = new_sel_part->shape->GetPinNameByIndex( sel_id.I2() );
+					if( m_Doc->m_plist->TestHitOnPad( new_sel_part, &pin_name, p.x, p.y, m_active_layer ) )
 					{
-						// not starting pad
+						// check net
 						if( new_sel_net && (new_sel_net != m_sel_net) )
 						{
 							// pin assigned to different net, can't connect it
@@ -2730,16 +2735,12 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 							AfxMessageBox( mess );
 							return;
 						}
-						else if( new_sel_net == 0 )
+						if( new_sel_net == NULL )
 						{
 							// unassigned pin, assign it
 							SaveUndoInfoForPart( new_sel_part,
 								CPartList::UNDO_PART_MODIFY, NULL, FALSE, m_Doc->m_undo_list );
-							new_sel_net->AddPin( &new_sel_part->ref_des, &pin_name );
-						}
-						else
-						{
-							// pin already assigned to this net
+							m_sel_net->AddPin( &new_sel_part->ref_des, &pin_name );
 						}
 						CPoint pi = m_snap_angle_ref;
 						CPoint pf = m_last_cursor_point;
@@ -2767,61 +2768,61 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 						return;
 					}
 				}
-			}
-			// test for tee-connection to vertex
-			cnet * hit_net = NULL;
-			int hit_ic, hit_iv;
-			BOOL bHit = m_Doc->m_nlist->TestForHitOnVertex( m_sel_net, m_active_layer,
-				m_last_cursor_point.x, m_last_cursor_point.y,
-				&hit_net, &hit_ic, &hit_iv );
-			if( bHit )
-			{
-				// hit on vertex
-				cconnect * hit_c;
-				cvertex * hit_v;
-				hit_c = m_sel_net->ConByIndex(hit_ic);
-				hit_v = &hit_c->VtxByIndex(hit_iv);
-				int ret = AfxMessageBox( "Branch created" );
-				// first, see if already a tee
-				int id;
-				if( hit_v->tee_ID )
+				// test for vertex
+				cnet * hit_net = NULL;
+				int hit_ic, hit_iv;
+				BOOL bHit = m_Doc->m_nlist->TestForHitOnVertex( m_sel_net, m_active_layer,
+					m_last_cursor_point.x, m_last_cursor_point.y,
+					&hit_net, &hit_ic, &hit_iv );
+				if( bHit )
 				{
-					// yes
-					id = hit_v->tee_ID;
-				}
-				else
-				{
-					// no
-					id = m_Doc->m_nlist->GetNewTeeID();
-					hit_v->tee_ID = id;
-				}
-				// now connect it (no via)
-				CPoint pi = m_snap_angle_ref;
-				CPoint pf = m_last_cursor_point;
-				CPoint pp = GetInflectionPoint( pi, pf, m_inflection_mode );
-				if( pp != pi )
-				{
+					// hit on vertex
+					cconnect * hit_c;
+					cvertex * hit_v;
+					hit_c = m_sel_net->ConByIndex(hit_ic);
+					hit_v = &hit_c->VtxByIndex(hit_iv);
+					int ret = AfxMessageBox( "Branch created" );
+					// first, see if already a tee
+					int id;
+					if( hit_v->tee_ID )
+					{
+						// yes
+						id = hit_v->tee_ID;
+					}
+					else
+					{
+						// no
+						id = m_Doc->m_nlist->GetNewTeeID();
+						hit_v->tee_ID = id;
+					}
+					// now connect it (no via)
+					CPoint pi = m_snap_angle_ref;
+					CPoint pf = m_last_cursor_point;
+					CPoint pp = GetInflectionPoint( pi, pf, m_inflection_mode );
+					if( pp != pi )
+					{
+						m_sel_id.SetI3( m_Doc->m_nlist->AppendSegment( m_sel_net, m_sel_ic,
+							pp.x, pp.y, m_active_layer, w ) );
+					}
 					m_sel_id.SetI3( m_Doc->m_nlist->AppendSegment( m_sel_net, m_sel_ic,
-						pp.x, pp.y, m_active_layer, w ) );
+						m_last_cursor_point.x, m_last_cursor_point.y, m_active_layer, w ) );
+					if( m_last_cursor_point.x != hit_v->x || m_last_cursor_point.y != hit_v->y )
+					{
+						m_sel_id.SetI3( m_Doc->m_nlist->AppendSegment( m_sel_net, m_sel_ic,
+							hit_v->x, hit_v->y, m_active_layer, w ) );
+					}
+					// set tee_ID for end-vertex and remove selector
+					m_sel_con->VtxByIndex(m_sel_iv+1).tee_ID = id;
+					m_Doc->m_nlist->ReconcileVia( m_sel_net, m_sel_ic, m_sel_iv+1 );
+					m_dlist->StopDragging();
+					if( m_Doc->m_vis[LAY_RAT_LINE] )
+						m_Doc->m_nlist->OptimizeConnections(  m_sel_net, -1, m_Doc->m_auto_ratline_disable,
+						m_Doc->m_auto_ratline_min_pins, TRUE  );
+					CancelSelection();
+					m_Doc->ProjectModified( TRUE );
+					Invalidate( FALSE );
+					return;
 				}
-				m_sel_id.SetI3( m_Doc->m_nlist->AppendSegment( m_sel_net, m_sel_ic,
-					m_last_cursor_point.x, m_last_cursor_point.y, m_active_layer, w ) );
-				if( m_last_cursor_point.x != hit_v->x || m_last_cursor_point.y != hit_v->y )
-				{
-					m_sel_id.SetI3( m_Doc->m_nlist->AppendSegment( m_sel_net, m_sel_ic,
-						hit_v->x, hit_v->y, m_active_layer, w ) );
-				}
-				// set tee_ID for end-vertex and remove selector
-				m_sel_con->VtxByIndex(m_sel_iv+1).tee_ID = id;
-				m_Doc->m_nlist->ReconcileVia( m_sel_net, m_sel_ic, m_sel_iv+1 );
-				m_dlist->StopDragging();
-				if( m_Doc->m_vis[LAY_RAT_LINE] )
-					m_Doc->m_nlist->OptimizeConnections(  m_sel_net, -1, m_Doc->m_auto_ratline_disable,
-														m_Doc->m_auto_ratline_min_pins, TRUE  );
-				CancelSelection();
-				m_Doc->ProjectModified( TRUE );
-				Invalidate( FALSE );
-				return;
 			}
 
 			// come here if not connecting to anything
@@ -5206,7 +5207,7 @@ void CFreePcbView::ShowRelativeDistance( int x, int y, int dx, int dy )
 //
 int CFreePcbView::ShowSelectStatus()
 {
-#define SHOW_UIDS	// show UIDs for selected element
+#define SHOW_UIDS	// show UIDs for selected element, mainly for debugging
 	CString uid_str;
 #ifdef SHOW_UIDS
 	if( m_sel_id.U3() != -1 )
@@ -5374,14 +5375,12 @@ int CFreePcbView::ShowSelectStatus()
 			{
 				str = con_str;
 			}
-#if 0
 			else if( v->tee_ID )
 			{
 				m_sel_id.Net()->GetStatusStr( &str );
 				m_sel_id.Vtx()->GetStatusStr( &vtx_str );
 				str = str + ", " + vtx_str;
 			}
-#endif
 			else
 			{
 				m_sel_id.Vtx()->GetStatusStr( &vtx_str );
@@ -6573,7 +6572,7 @@ void CFreePcbView::OnVertexConnectToPin()
 	Invalidate( FALSE );
 }
 
-//100 start stub trace from vertex
+//100 start stub trace from vertex of an existing trace
 //
 void CFreePcbView::OnVertexStartStub()
 {
@@ -6586,9 +6585,10 @@ void CFreePcbView::OnVertexStartStub()
 	int w, via_w, via_hole_w;
 	m_snap_angle_ref.x = m_sel_vtx->x;
 	m_snap_angle_ref.y = m_sel_vtx->y;
-	// now add new connection and select first vertex
-	m_sel_id = m_sel_net->AddConnectFromVtx( m_sel_id );
-	m_sel_id = m_sel_id.Con()->FirstVtx()->Id();
+	// now add new connection and first vertex
+	cconnect * new_c = m_sel_net->AddConnectFromTraceVtx( m_sel_id );
+	// select the vertex
+	m_sel_id = new_c->FirstVtx()->Id();
 	GetWidthsForSegment( &w, &via_w, &via_hole_w );
 	m_Doc->m_nlist->StartDraggingStub( pDC, m_sel_net, m_sel_ic, m_sel_iv,
 		p.x, p.y, m_active_layer, w, m_active_layer, via_w, via_hole_w,
@@ -6666,7 +6666,7 @@ void CFreePcbView::OnSegmentDelete()
 	int id = m_sel_con_last_vtx->tee_ID;
 	SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_Doc->m_undo_list );
 	if( id )
-		m_Doc->m_nlist->DisconnectBranch( m_sel_net, m_sel_ic );
+		m_Doc->m_nlist->DisconnectBranch( m_sel_net, m_sel_ic, NULL, NULL );
 	m_Doc->m_nlist->RemoveSegment( m_sel_net, m_sel_ic, m_sel_is, TRUE );
 	m_Doc->m_nlist->SetAreaConnections( m_sel_net );
 	CancelSelection();
@@ -7153,7 +7153,9 @@ void CFreePcbView::OnRatlineDeleteConnection()
 	}
 	SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_Doc->m_undo_list );
 	m_Doc->m_nlist->RemoveNetConnect( m_sel_net, m_sel_ic, FALSE );
-	m_Doc->m_nlist->RemoveOrphanBranches( m_sel_net, 0, TRUE );
+	m_sel_id.Resolve();
+	m_sel_net = m_sel_id.Net();
+//	m_Doc->m_nlist->RemoveOrphanBranches( m_sel_net, 0, TRUE );
 	m_Doc->m_nlist->SetAreaConnections( m_sel_net );
 	CancelSelection();
 	m_Doc->ProjectModified( TRUE );

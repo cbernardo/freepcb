@@ -203,7 +203,7 @@ const char fk_str[FK_NUM_OPTIONS*2+2][32] =
 	" Undo",	"",
 	" Set",		" Size",
 	" Set",		" Params",
-	" Start",	" Stub",
+	" Start",	" Trace",
 	" Edit",	" Text",
 	" Set",		" Position",
 	" Delete",	" Outline",

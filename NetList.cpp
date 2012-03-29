@@ -744,10 +744,11 @@ void CNetList::CleanUpAllConnections( CString * logstr )
 				cconnect * c = net->connect[ic];
 				if( c->end_pin == cconnect::NO_END )
 				{
-					// branch, check for tee
+					// no end pin, check for tee
 					int end_id = c->vtx[c->NumSegs()].tee_ID;
 					if( end_id )
 					{
+						end_id = abs(end_id);	// make +ve
 						BOOL bError = FALSE;
 						CString no_tee_str = "";
 						CString no_ID_str = "";
@@ -802,28 +803,30 @@ void CNetList::CleanUpAllConnections( CString * logstr )
 //
 int CNetList::RemoveNetConnect( cnet * net, int ic, BOOL set_areas )
 {
+	id del_id_1;
+	id del_id_2;
 	cconnect * c = net->connect[ic];
-	if( c->end_pin == cconnect::NO_END )
+	c->Undraw();
+	if( c->FirstVtx()->tee_ID || c->LastVtx()->tee_ID )
 	{
-		// stub
-		if( c->vtx[c->NumSegs()].tee_ID )
-		{
-			// branch ending on tee, remove tee
-			DisconnectBranch( net, ic );
-		}
+		// starts or ends on a vertex of another trace
+		DisconnectBranch( net, ic, &del_id_1, &del_id_2 );
 	}
-
-	// see if contains tee-vertices
-	for( int iv=1; iv<c->NumSegs(); iv++ )
+	// remove this connection
+	net->RemoveConnect( c );
+	// remove other connections eliminated by merging 
+	if( del_id_1.IsCon() )
 	{
-		int id = c->vtx[iv].tee_ID;
-		if( id )
-			RemoveTee( net, id );	// yes, remove it
+		del_id_2.Resolve();
+		cconnect * c1 = del_id_1.Con();
+		net->RemoveConnect( c1 );
 	}
-
-	// remove connection
-	delete net->connect[ic];
-	net->connect.RemoveAt( ic );
+	if( del_id_2.IsCon() )
+	{
+		del_id_2.Resolve();
+		cconnect * c2 = del_id_2.Con();
+		net->RemoveConnect( c2 );
+	}
 	RenumberConnections( net );
 	// adjust connections to areas
 	if( net->NumAreas() && set_areas )
@@ -1005,7 +1008,7 @@ void CNetList::RemoveSegment( cnet * net, int ic, int is, BOOL bHandleTee, BOOL 
 		// if this is a branch, disconnect it
 		if( c->vtx[c->NumSegs()].tee_ID )
 		{
-			DisconnectBranch( net, ic );
+			DisconnectBranch( net, ic, NULL, NULL );
 		}
 		if( c->vtx[c->NumSegs()-1].tee_ID )
 		{
@@ -2289,7 +2292,7 @@ int CNetList::OptimizeConnections( cnet * net, int ic_track, BOOL bBelowPinCount
 	char * grid = (char*)calloc( npins*npins, sizeof(char) );
 	for( int ip=0; ip<npins; ip++ )
 		grid[ip*npins+ip] = 1;
-	CArray<int> pair;			// use collection class because size is unknown,
+	CArray<int> pair;			// use CArray because size is unknown,
 	pair.SetSize( 2*npins );	// although this should be plenty
 
 	// first, flag ic_track if requested
@@ -2303,13 +2306,17 @@ int CNetList::OptimizeConnections( cnet * net, int ic_track, BOOL bBelowPinCount
 
 	// go through net, deleting unrouted and unlocked connections
 	// and recording pins of routed or locked connections
+	CMap<int, int, int, int> tee_ids_analyzed;	// map of tee_id's analyzed
 	for( int ic=0; ic<net->NumCons(); /* ic++ is deferred */ )
 	{
 		cconnect * c = net->connect[ic];
+		// flag routed or partially routed connections
 		int routed = 0;
-		if( c->NumSegs() > 1 
-			|| c->seg[0].layer != LAY_RAT_LINE 
-			|| c->end_pin == cconnect::NO_END )
+		if( c->NumSegs() > 1						// at least partially routed
+			|| c->seg[0].layer != LAY_RAT_LINE		// first segment routed
+			|| c->end_pin == cconnect::NO_END		// ends on stub or tee-vertex
+			|| c->start_pin == cconnect::NO_END		// starts on stub or tee-vertex
+			)
 			routed = 1;
 		int p1, p2;
 		if( routed || c->locked )
@@ -2318,26 +2325,102 @@ int CNetList::OptimizeConnections( cnet * net, int ic_track, BOOL bBelowPinCount
 			// record pins in pair[] and grid[]
 			p1 = c->start_pin;
 			p2 = c->end_pin;
-			if( p2 != cconnect::NO_END )
+			if( p1 != cconnect::NO_END && p2 != cconnect::NO_END )
 			{
+				// unrouted pin-pin connection, record pins as connected
 				AddPinsToGrid( grid, p1, p2, npins );
 			}
-			// if a stub, record connection to tee
 			else
 			{
-				int id = c->LastVtx()->tee_ID;
-				if( id < 0 )
+				// now find connections between pins and tee-vertices
+				CMap<int, int, int, int> tee_ids_connected;	// list of connected tee_ids
+				CMap<int, int, int, int> pins_connected;	// list of connected pins
+				// check for connection between pin and tee-vertex
+				int tee_id = abs( c->FirstVtx()->tee_ID );
+				int pin_ix = c->LastVtx()->GetNetPinIndex();
+				if( tee_id == 0 || pin_ix == -1 )
 				{
-					// slave tee-vertex
-					int ic;
-					int iv;
-					BOOL bFound = FindTeeVertexInNet( net, abs(id), &ic, &iv );
-					if( !bFound )
-						ASSERT(0);
-					// get start of tee trace
-					cconnect * tee_c = net->connect[ic];
-					int tee_p1 = tee_c->start_pin;
-					AddPinsToGrid( grid, p1, tee_p1, npins );
+					tee_id = abs( c->LastVtx()->tee_ID );
+					pin_ix = c->FirstVtx()->GetNetPinIndex();
+				}
+				if( tee_id > 0 && pin_ix != -1 )
+				{
+					// connection between pin and tee-vertex, see if this tee_id already analyzed
+					int dummy;
+					if( !tee_ids_analyzed.Lookup( tee_id, dummy ) )
+					{
+						// tee_id not found, start analyzing all connections with this tee_id,
+						// record any connected tee_ids and pin_indexes
+						tee_ids_analyzed.SetAt( tee_id, tee_id );
+						tee_ids_connected.SetAt( tee_id, tee_id );
+						pins_connected.SetAt( pin_ix, pin_ix );
+						// start by looking for connected tees
+						for( int icc=0; icc<net->NumCons(); icc++ )
+						{
+							cconnect * test_c = net->connect[icc];
+							// check for tees at both ends
+							int first_tee_id = abs( test_c->FirstVtx()->tee_ID );
+							int last_tee_id = abs( test_c->LastVtx()->tee_ID );
+							if( first_tee_id > 0 && last_tee_id > 0 )
+							{
+								// list the tee_ids as connected and analyzed
+								if( tee_ids_connected.Lookup( first_tee_id, dummy ) )
+								{
+									tee_ids_connected.SetAt( last_tee_id, last_tee_id );
+									tee_ids_analyzed.SetAt( last_tee_id, last_tee_id );
+								}
+								else if( tee_ids_connected.Lookup( last_tee_id, dummy ) )
+								{
+									tee_ids_connected.SetAt( first_tee_id, first_tee_id );
+									tee_ids_analyzed.SetAt( first_tee_id, first_tee_id );
+								}
+							}
+						}
+						// now look for connected pins
+						for( int icc=0; icc<net->NumCons(); icc++ )
+						{
+							cconnect * test_c = net->connect[icc];
+							// see if first vertex is a tee
+							int first_tee_id = abs( test_c->FirstVtx()->tee_ID );
+							if( first_tee_id > 0 && tee_ids_connected.Lookup( first_tee_id, dummy ) )
+							{
+								// first vertex is a connected tee, check last vertex
+								int last_pin_ix = abs( test_c->LastVtx()->GetNetPinIndex() );
+								if( last_pin_ix != -1 )
+								{
+									// last vertex is a pin, add to list of connected pins
+									pins_connected.SetAt( last_pin_ix, last_pin_ix );
+								}
+							}
+							// now repeat for last vertex
+							int last_tee_id = abs( test_c->LastVtx()->tee_ID );
+							if( last_tee_id > 0 && tee_ids_connected.Lookup( last_tee_id, dummy ) )
+							{
+								// last vertex is a connected tee, check first vertex
+								int first_pin_ix = abs( test_c->FirstVtx()->GetNetPinIndex() );
+								if( first_pin_ix != -1 )
+								{
+									// first vertex is a pin, add to list of connected pins
+									pins_connected.SetAt( first_pin_ix, first_pin_ix );
+								}
+							}
+						}
+						// now loop through all pins and mark them as connected to first pin
+						int m_pins = pins_connected.GetCount();
+						if( m_pins > 1 )
+						{
+							POSITION pos = pins_connected.GetStartPosition();
+							int    nKey, nValue;
+							pins_connected.GetNextAssoc( pos, nKey, nValue );
+							int p1 = nValue;
+							while (pos != NULL)
+							{
+								pins_connected.GetNextAssoc( pos, nKey, nValue );
+								int p2 = nValue;
+								AddPinsToGrid( grid, p1, p2, npins );
+							}
+						}
+					}
 				}
 			}
 			// increment counter
@@ -3166,11 +3249,28 @@ BOOL CNetList::TestForHitOnVertex( cnet * net, int layer, int x, int y,
 	for( int ic=0; ic<net->NumCons(); ic++ )
 	{
 		cconnect * c = net->connect[ic];
-		for( int iv=1; iv<c->NumSegs(); iv++ )
+		if( c->NumSegs() > 0 )
+		{
+		for( int iv=0; iv<=c->NumSegs(); iv++ )
 		{
 			cvertex * v = &c->vtx[iv];
-			cseg * pre_s = &c->seg[iv-1];
-			cseg * post_s = &c->seg[iv];
+			cseg * pre_s;
+			cseg * post_s;
+			if( iv == 0 )
+			{
+				post_s = &c->seg[iv];
+				pre_s = post_s;
+			}
+			else if( iv == c->NumSegs() )
+			{
+				pre_s = &c->seg[iv-1];
+				post_s = pre_s;
+			}
+			else
+			{
+				pre_s = &c->seg[iv-1];
+				post_s = &c->seg[iv];
+			}
 			if( v->via_w > 0 || layer == 0 || layer == pre_s->layer || layer == post_s->layer
 				|| (pre_s->layer == LAY_RAT_LINE && post_s->layer == LAY_RAT_LINE) )
 			{
@@ -3188,6 +3288,7 @@ BOOL CNetList::TestForHitOnVertex( cnet * net, int layer, int x, int y,
 					return TRUE;
 				}
 			}
+		}
 		}
 	}
 	return FALSE;
@@ -3565,7 +3666,7 @@ void CNetList::HighlightConnection( cnet * net, int ic )
 void CNetList::HighlightSegment( cnet * net, int ic, int iseg )
 {
 	cconnect * c = net->connect[ic];
-	m_dlist->HighLight( DL_LINE, m_dlist->Get_x(c->seg[iseg].dl_el),
+	m_dlist->HighLight( DL_LINE, m_dlist->Get_x(c->seg[iseg].dl_el), 
 								m_dlist->Get_y(c->seg[iseg].dl_el),
 								m_dlist->Get_xf(c->seg[iseg].dl_el),
 								m_dlist->Get_yf(c->seg[iseg].dl_el),
@@ -3673,7 +3774,7 @@ int CNetList::ReconcileVia( cnet * net, int ic, int ivtx, BOOL bDrawVertex )
 		}
 		else if( TeeViaNeeded( net, v->tee_ID ) )
 		{
-				via_needed = TRUE;
+			via_needed = TRUE;
 		}
 	}
 	else if( v->GetType() == cvertex::V_TRACE )
@@ -3772,7 +3873,7 @@ int CNetList::WriteNets( CStdioFile * file )
 					{
 						line.Format( "    vtx: %d %d %d %d %d %d %d %d\n", 
 							is+1, v->x, v->y, v->pad_layer, v->force_via_flag, 
-							v->via_w, v->via_hole_w, v->tee_ID );
+							v->via_w, v->via_hole_w, abs(v->tee_ID) );
 						file->WriteString( line );
 						s = &(c->seg[is]);
 						line.Format( "    seg: %d %d %d 0 0\n", 
@@ -3781,9 +3882,10 @@ int CNetList::WriteNets( CStdioFile * file )
 					}
 					else
 					{
+						// last vertex
 						line.Format( "    vtx: %d %d %d %d %d %d %d %d\n", 
 							is+1, v->x, v->y, v->pad_layer, v->force_via_flag, 
-							v->via_w, v->via_hole_w, v->tee_ID );
+							v->via_w, v->via_hole_w, abs(v->tee_ID) );
 						file->WriteString( line );
 					}
 				}
@@ -3921,43 +4023,50 @@ void CNetList::ReadNets( CStdioFile * pcb_file, double read_version, int * layer
 				int start_pin = my_atoi( &p[1] );
 				int end_pin = my_atoi( &p[2] );
 				// check for fatal errors
-				CString test_ref_des = net->pin[start_pin].ref_des;
-				cpart * test_part = net->pin[start_pin].part;
-				if( !test_part )
+				for( int ip=0; ip<2; ip++ )
 				{
-					CString * err_str = new CString( "fatal error in net \"" );
-					*err_str += net_name + "\"";
-					*err_str += "\r\n\rpart \"" + test_ref_des + "\" doesn't exist";
-					throw err_str;
-				}
-				else if( !test_part->shape )
-				{
-					CString * err_str = new CString( "fatal error in net \"" );
-					*err_str += net_name + "\"";
-					*err_str += "\r\n\rpart \"" + test_ref_des + "\" doesn't haved a footprint";
-					throw err_str;
-				}
-				else
-				{
-					CString test_pin_name = net->pin[start_pin].pin_name;
-					int pin_index = test_part->shape->GetPinIndexByName( test_pin_name );
-					if( pin_index == -1 )
+					// test start and end pins
+					int ipin = start_pin;
+					if( ip == 1 )
+						ipin = end_pin;
+					if( ipin != cconnect::NO_END )
 					{
-						CString * err_str = new CString( "fatal error in net \"" );
-						*err_str += net_name + "\"";
-						*err_str += "\r\n\r\npin \"" + test_pin_name + "\"";
-						*err_str += " doesn't exist in footprint \"" + test_part->shape->m_name + "\"";
-						*err_str += " for part \"" + test_ref_des + "\"";
-						throw err_str;
+						CString test_ref_des = net->pin[ipin].ref_des;
+						cpart * test_part = net->pin[ipin].part;
+						if( !test_part )
+						{
+							CString * err_str = new CString( "fatal error in net \"" );
+							*err_str += net_name + "\"";
+							*err_str += "\r\n\rpart \"" + test_ref_des + "\" doesn't exist";
+							throw err_str;
+						}
+						else if( !test_part->shape )
+						{
+							CString * err_str = new CString( "fatal error in net \"" );
+							*err_str += net_name + "\"";
+							*err_str += "\r\n\rpart \"" + test_ref_des + "\" doesn't haved a footprint";
+							throw err_str;
+						}
+						else
+						{
+							CString test_pin_name = net->pin[ipin].pin_name;
+							int pin_index = test_part->shape->GetPinIndexByName( test_pin_name );
+							if( pin_index == -1 )
+							{
+								CString * err_str = new CString( "fatal error in net \"" );
+								*err_str += net_name + "\"";
+								*err_str += "\r\n\r\npin \"" + test_pin_name + "\"";
+								*err_str += " doesn't exist in footprint \"" + test_part->shape->m_name + "\"";
+								*err_str += " for part \"" + test_ref_des + "\"";
+								throw err_str;
+							}
+						}
 					}
 				}
+
 				int nsegs = my_atoi( &p[3] );
 				int locked = my_atoi( &p[4] );
-				int nc;
-				if( end_pin != cconnect::NO_END )
-					nc = net->AddConnectFromPinToPin( start_pin, end_pin );
-				else
-					nc = net->AddConnectFromPin( start_pin );
+#if 0
 				if( nc == -1 )
 				{
 					// invalid connection, remove it with this ugly code
@@ -3975,117 +4084,233 @@ void CNetList::ReadNets( CStdioFile * pcb_file, double read_version, int * layer
 				}
 				else
 				{
-					net->connect[ic]->locked = locked;
-					// skip first vertex
+#endif
+				// read first vertex
+				err = pcb_file->ReadString( in_str );
+				if( !err )
+				{
+					CString * err_str = new CString( "unexpected EOF in project file" );
+					throw err_str;
+				}
+				np = ParseKeyString( &in_str, &key_str, &p );
+				if( key_str != "vtx" || np < 8 )
+				{
+					CString * err_str = new CString( "error parsing [nets] section of project file" );
+					throw err_str;
+				}
+				cvertex first_vtx;
+				first_vtx.x = my_atoi( &p[1] ); 
+				first_vtx.y = my_atoi( &p[2] ); 
+				int file_layer = my_atoi( &p[3] ); 
+				first_vtx.pad_layer = in_layer[file_layer];
+				first_vtx.force_via_flag = my_atoi( &p[4] ); 
+				first_vtx.via_w = my_atoi( &p[5] ); 
+				first_vtx.via_hole_w = my_atoi( &p[6] );
+				first_vtx.tee_ID = 0;
+				if( np == 9 )
+				{
+					first_vtx.tee_ID = my_atoi( &p[7] );
+					first_vtx.tee_ID = abs(first_vtx.tee_ID);
+					if( first_vtx.tee_ID )
+					{
+						if( FindTeeID( first_vtx.tee_ID ) == -1 )
+						{
+							// not found, add it
+							AddTeeID( first_vtx.tee_ID );
+						}
+						else
+						{
+							// already used, negate it
+							first_vtx.tee_ID = -first_vtx.tee_ID;						}
+					}
+				}
+				int nc;
+				if( start_pin != cconnect::NO_END && end_pin != cconnect::NO_END )
+				{
+					nc = net->AddConnectFromPinToPin( start_pin, end_pin );
+				}
+				else if( start_pin != cconnect::NO_END && end_pin == cconnect::NO_END )
+				{
+					nc = net->AddConnectFromPin( start_pin );
+				}
+				else if( start_pin == cconnect::NO_END && end_pin != cconnect::NO_END )
+				{
+					// connect from vertex to pin
+					cconnect * c = net->AddConnect( &nc);
+					c->end_pin = end_pin;
+					// add the first vertex
+					cvertex * v = &c->InsertVertexByIndex( 0, first_vtx );
+					// check for valid pin
+					cpart * part = net->pin[end_pin].part;
+					if( part == 0 )
+						ASSERT(0);
+					CShape * shape = part->shape;
+					if( shape == 0 )
+						ASSERT(0);
+					int pin_index = shape->GetPinIndexByName( net->pin[end_pin].pin_name );
+					if( pin_index == -1 )
+						ASSERT(0);
+					// get coords of end_pin
+					CPoint pf;
+					pf = m_plist->GetPinPoint( net->pin[end_pin].part, net->pin[end_pin].pin_name );
+
+					// add first segment and second vertex
+					cvertex new_vtx;
+					new_vtx.x = pf.x;
+					new_vtx.y = pf.y;
+					new_vtx.pad_layer = m_plist->GetPinLayer( net->pin[end_pin].part, &net->pin[end_pin].pin_name );
+
+					cseg new_seg;
+					new_seg.layer = LAY_RAT_LINE;
+					new_seg.width = 0;
+					new_seg.selected = 0;
+
+					c->AppendSegAndVertex( new_seg, new_vtx );
+					c->end_pin = end_pin;
+					cseg * s = &c->SegByIndex( 0 );
+				}
+				else if( start_pin == cconnect::NO_END && end_pin == cconnect::NO_END )
+				{
+					// connect from vertex to vertex
+					cconnect * c = net->AddConnect( &nc);
+					// add the first vertex
+					cvertex * v = &c->InsertVertexByIndex( 0, first_vtx );
+				}
+				net->connect[ic]->locked = locked;
+
+				// now add all segments
+				int test_not_done = 1;
+				int pre_via_w, pre_via_hole_w;
+				for( int is=0; is<nsegs; is++ )
+				{
+					// read segment data
 					err = pcb_file->ReadString( in_str );
 					if( !err )
 					{
 						CString * err_str = new CString( "unexpected EOF in project file" );
 						throw err_str;
 					}
-					// now add all segments
-					int test_not_done = 1;
-					int pre_via_w, pre_via_hole_w;
-					for( int is=0; is<nsegs; is++ )
+					np = ParseKeyString( &in_str, &key_str, &p );
+					if( key_str != "seg" || np < 6 )
 					{
-						// read segment data
-						err = pcb_file->ReadString( in_str );
-						if( !err )
+						CString * err_str = new CString( "error parsing [nets] section of project file" );
+						throw err_str;
+					}
+					int file_layer = my_atoi( &p[1] ); 
+					int layer = in_layer[file_layer]; 
+					int seg_width = my_atoi( &p[2] ); 
+					// read following vertex data
+					err = pcb_file->ReadString( in_str );
+					if( !err )
+					{
+						CString * err_str = new CString( "unexpected EOF in project file" );
+						throw err_str;
+					}
+					np = ParseKeyString( &in_str, &key_str, &p );
+					if( key_str != "vtx" || np < 8 )
+					{
+						CString * err_str = new CString( "error parsing [nets] section of project file" );
+						throw err_str;
+					}
+					if( test_not_done )
+					{
+						// only add segments if we are not done
+						int x = my_atoi( &p[1] ); 
+						int y = my_atoi( &p[2] ); 
+						int file_layer = my_atoi( &p[3] ); 
+						int pad_layer = in_layer[file_layer];
+						int force_via_flag = my_atoi( &p[4] ); 
+						int via_w = my_atoi( &p[5] ); 
+						int via_hole_w = my_atoi( &p[6] );
+						int tee_ID = 0;
+						if( np == 9 )
 						{
-							CString * err_str = new CString( "unexpected EOF in project file" );
-							throw err_str;
-						}
-						np = ParseKeyString( &in_str, &key_str, &p );
-						if( key_str != "seg" || np < 6 )
-						{
-							CString * err_str = new CString( "error parsing [nets] section of project file" );
-							throw err_str;
-						}
-						int file_layer = my_atoi( &p[1] ); 
-						int layer = in_layer[file_layer]; 
-						int seg_width = my_atoi( &p[2] ); 
-						// read following vertex data
-						err = pcb_file->ReadString( in_str );
-						if( !err )
-						{
-							CString * err_str = new CString( "unexpected EOF in project file" );
-							throw err_str;
-						}
-						np = ParseKeyString( &in_str, &key_str, &p );
-						if( key_str != "vtx" || np < 8 )
-						{
-							CString * err_str = new CString( "error parsing [nets] section of project file" );
-							throw err_str;
-						}
-						if( test_not_done )
-						{
-							// only add segments if we are not done
-							int x = my_atoi( &p[1] ); 
-							int y = my_atoi( &p[2] ); 
-							int file_layer = my_atoi( &p[3] ); 
-							int pad_layer = in_layer[file_layer];
-							int force_via_flag = my_atoi( &p[4] ); 
-							int via_w = my_atoi( &p[5] ); 
-							int via_hole_w = my_atoi( &p[6] );
-							int tee_ID = 0;
-							if( np == 9 )
+							tee_ID = abs( my_atoi( &p[7] ) );
+							if( tee_ID )
 							{
-								tee_ID = my_atoi( &p[7] );
-								if( tee_ID )
-									AddTeeID( tee_ID );
-							}
-							if( end_pin != cconnect::NO_END )
-							{
-								CPoint end_pt;
-								if( is == (nsegs-1) )
+								if( FindTeeID( tee_ID ) == -1 )
 								{
-									// last segment of pin-pin connection 
-									// force segment to end on pin
-									cpart * end_part = net->pin[end_pin].part;
-									end_pt = m_plist->GetPinPoint( end_part, net->pin[end_pin].pin_name );
-									x = end_pt.x;
-									y = end_pt.y;
+									// not found, add it
+									AddTeeID( tee_ID );
 								}
-								test_not_done = InsertSegment( net, ic, is, x, y, layer, seg_width, 0, 0, 0 );
+								else
+								{
+									// already used, negate it
+									tee_ID = -tee_ID;						}
 							}
-							else
+						}
+						if( end_pin != cconnect::NO_END )
+						{
+							CPoint end_pt;
+							if( is == (nsegs-1) )
 							{
-								AppendSegment( net, ic, x, y, layer, seg_width );
-								// set widths of following vertex
-								net->connect[ic]->vtx[is+1].via_w = via_w;
-								net->connect[ic]->vtx[is+1].via_hole_w = via_hole_w;
+								// last segment of pin-pin connection 
+								// force segment to end on pin
+								cpart * end_part = net->pin[end_pin].part;
+								end_pt = m_plist->GetPinPoint( end_part, net->pin[end_pin].pin_name );
+								x = end_pt.x;
+								y = end_pt.y;
 							}
-							//** this code is for bug in versions before 1.313
-							if( force_via_flag )
-							{
-								if( end_pin == cconnect::NO_END && is == nsegs-1 )
-									ForceVia( net, ic, is+1 );
-								else if( read_version > 1.312001 )	// i.e. 1.313 or greater
-									ForceVia( net, ic, is+1 );
-							}
-							net->connect[ic]->vtx[is+1].tee_ID = tee_ID;
+							test_not_done = InsertSegment( net, ic, is, x, y, layer, seg_width, 0, 0, 0 );
+						}
+						else
+						{
+							AppendSegment( net, ic, x, y, layer, seg_width );
+							// set widths of following vertex
+							net->connect[ic]->vtx[is+1].via_w = via_w;
+							net->connect[ic]->vtx[is+1].via_hole_w = via_hole_w;
+						}
+						//** this code is for bug in versions before 1.313
+						if( force_via_flag )
+						{
+							if( end_pin == cconnect::NO_END && is == nsegs-1 )
+								ForceVia( net, ic, is+1 );
+							else if( read_version > 1.312001 )	// i.e. 1.313 or greater
+								ForceVia( net, ic, is+1 );
+						}
+						net->connect[ic]->vtx[is+1].tee_ID = tee_ID;
 
-							// if older version of fpc file, negate tee_ID of end_vertex
-							// of stub trace to make compatible with version 1.360 and higher
-							if( end_pin == cconnect::NO_END 
-								&& is == nsegs-1 
-								&& read_version < 1.360 
-								&& tee_ID > 0 )
-							{
-								net->connect[ic]->vtx[is+1].tee_ID = -tee_ID;
-							}
-							//**
+						// if older version of fpc file, negate tee_ID of end_vertex
+						// of stub trace to make compatible with version 1.360 and higher
+						if( end_pin == cconnect::NO_END 
+							&& is == nsegs-1 
+							&& read_version < 1.360 
+							&& tee_ID > 0 )
+						{
+							net->connect[ic]->vtx[is+1].tee_ID = -tee_ID;
+						}
+						//**
 
-							if( is != 0 )
-							{
-								// set widths of preceding vertex
-								net->connect[ic]->vtx[is].via_w = pre_via_w;
-								net->connect[ic]->vtx[is].via_hole_w = pre_via_hole_w;
-								if( m_dlist )
-									DrawVertex( net, ic, is );
-							}
-							pre_via_w = via_w;
-							pre_via_hole_w = via_hole_w;
+						if( is != 0 )
+						{
+							// set widths of preceding vertex
+							net->connect[ic]->vtx[is].via_w = pre_via_w;
+							net->connect[ic]->vtx[is].via_hole_w = pre_via_hole_w;
+							if( m_dlist )
+								DrawVertex( net, ic, is );
+						}
+						pre_via_w = via_w;
+						pre_via_hole_w = via_hole_w;
+					}
+				}
+#if 0
+				}
+#endif
+				// connection created
+				// if older version of fpc file, split at tees if needed
+				if( read_version < 1.360 )
+				{
+					cconnect * c = net->ConByIndex( ic );
+					// iterate through vertices in reverse
+					for( int iv=c->NumVtxs()-2; iv>0; iv-- )
+					{
+						cvertex * v = &c->VtxByIndex( iv );
+						if( v->tee_ID )
+						{
+							// split into 2 connections
+							net->SplitConnectAtVtx( v->Id() );
+							nconnects++;
+							ic++;
 						}
 					}
 				}
@@ -5152,7 +5377,7 @@ void CNetList::NetUndoCallback( int type, void * ptr, BOOL undo )
 		}
 		else if( type == UNDO_NET_ADD )
 		{
-			// just delete the net
+			// just delete the net that was added
 			nl->RemoveNet( net );
 		}
 		else if( type == UNDO_NET_MODIFY )
@@ -5161,8 +5386,10 @@ void CNetList::NetUndoCallback( int type, void * ptr, BOOL undo )
 			if( !net )
 				ASSERT(0);
 			for( int ic=(net->NumCons()-1); ic>=0; ic-- )
-				nl->RemoveNetConnect( net, ic, FALSE );
-
+			{
+				cconnect * c = net->ConByIndex( ic );
+				net->RemoveConnect( c );
+			}
 			// replace pin data
 			net->pin.SetSize(0);
 			for( int ip=0; ip<undo->npins; ip++ )
@@ -5525,18 +5752,6 @@ int CNetList::CheckNetlist( CString * logstr )
 			if( c->NumSegs() == 0 )
 			{
 				str.Format( "ERROR: Net \"%s\": connection with no segments\r\n",
-					net->name );
-				*logstr += str;
-				RemoveNetConnect( net, ic, FALSE );
-				str.Format( "              Fixed: Connection removed\r\n",
-					net->name );
-				*logstr += str;
-				nerrors++;
-				nfixed++;
-			}
-			else if( c->start_pin == c->end_pin )
-			{
-				str.Format( "ERROR: Net \"%s\": connection from pin to itself\r\n",
 					net->name );
 				*logstr += str;
 				RemoveNetConnect( net, ic, FALSE );
@@ -6402,29 +6617,90 @@ BOOL CNetList::RemoveTeeIfNoBranches( cnet * net, int id )
 	return TRUE;
 }
 
-// Disconnect branch from tee, remove tee if no more branches
-// Returns TRUE if tee still exists, FALSE if destroyed
+// Disconnect branch with tee(s) from other branches, 
+// remove tee(s) if no more branches that need them
+// This may result in merging two connections into one
+// If so, returns TRUE and sets xic1, xic2 to the indices of the connections that should be deleted
 //
-BOOL CNetList::DisconnectBranch( cnet * net, int ic )
+BOOL CNetList::DisconnectBranch( cnet * net, int icon, id * del_id_1, id * del_id_2 )
 {
-	cconnect * c = net->connect[ic];
-	int id = c->vtx[c->NumSegs()].tee_ID;
-	if( !id )
+	cconnect * con = net->connect[icon];
+	for( int i=0; i<2; i++ )
 	{
-		ASSERT(0);
-		return FALSE;
-	}
-	else
-	{
-		c->vtx[c->NumSegs()].tee_ID = 0;
-		ReconcileVia( net, ic, c->NumSegs() );
-		int ic, iv;
-		if( FindTeeVertexInNet( net, id, &ic, &iv ) )
+		int ivtx = 0;
+		if( i == 1 )
+			ivtx = con->NumSegs();
+		int tee_id = abs( con->vtx[ivtx].tee_ID );
+		con->vtx[ivtx].tee_ID = 0;
+		ReconcileVia( net, icon, ivtx );
+		if( tee_id )
 		{
-			ReconcileVia( net, ic, iv );
+			// loop through all other connections and repair or remove tees
+			int num_ids = 0;
+			int first_ic = -1;
+			int first_iv = -1;
+			int last_ic = -1;
+			int last_iv = -1;
+			BOOL bMasterFound = FALSE;
+			for( int ic=0; ic<net->NumCons(); ic++ )
+			{
+				if( ic  != icon )
+				{
+					cconnect * c = net->connect[ic];
+					// test first and last vertices for tee_id
+					for( int ii=0; ii<2; ii++ )
+					{
+						int iv = 0;
+						if( ii == 1 )
+							iv = c->NumVtxs() - 1;
+						cvertex * v = &c->vtx[iv];
+						if( v->tee_ID == tee_id )
+							bMasterFound = TRUE;
+						if( abs(v->tee_ID) == tee_id )
+						{
+							num_ids++;
+							if( first_ic == -1 )
+							{
+								first_ic = ic;
+								first_iv = iv;
+							}
+							last_ic = ic;
+							last_iv = iv;
+						}
+					}
+				}
+			}
+			if( num_ids < 2 )
+			{
+				// shouldn't happen
+				ASSERT(0);
+			}
+			if( num_ids > 2 && bMasterFound == FALSE )
+			{
+				// still need the tee, make new master
+				net->connect[last_ic]->vtx[last_iv].tee_ID = tee_id;
+			}
+			else if( num_ids == 2 )
+			{
+				// remove the tee and merge the remaining two connections
+				cconnect * c1 = net->connect[first_ic];
+				c1->Undraw();
+				cconnect * c2 = net->connect[last_ic];
+				c2->Undraw();
+				if( abs(c1->vtx[0].tee_ID) == tee_id )
+					c1->ReverseDirection();
+				if( abs(c2->vtx[0].tee_ID) != tee_id )
+					c2->ReverseDirection();
+				net->ConcatenateConnections( c1, c2 );
+				c1->Draw();
+				if( i == 0 && del_id_1 )
+					*del_id_1 = c2->Id();
+				else if( i == 1 && del_id_2 )
+					*del_id_2 = c2->Id();
+			}
 		}
-		return RemoveTeeIfNoBranches( net, id );
 	}
+	return FALSE;
 }
 
 // Remove tee-vertex from net
@@ -6464,20 +6740,15 @@ BOOL CNetList::TeeViaNeeded( cnet * net, int id )
 	{
 		cconnect * c = net->connect[ic];
 		int num_segs = c->NumSegs();
-		for( int iv=0; iv<=num_segs; iv++ )
+		if( num_segs > 0 )
 		{
-			cvertex * v = &c->vtx[iv];
-			if( abs(v->tee_ID) == id )
+			for( int i=0; i<2; i++ )
 			{
-				if( iv == 0 && c->start_pin != cconnect::NO_END )
-				{
-					ASSERT(0);	// illegal to have a tee on a pin
-				}
-				else if( iv == num_segs && c->end_pin != cconnect::NO_END )
-				{
-					ASSERT(0);	// illegal to have a tee on a pin
-				}
-				else
+				int iv = 0;
+				if( i == 1 )
+					iv = c->NumSegs();
+				cvertex * v = &c->vtx[iv];
+				if( abs(v->tee_ID) == id )
 				{
 					if( iv > 0 )
 					{
@@ -6491,7 +6762,7 @@ BOOL CNetList::TeeViaNeeded( cnet * net, int id )
 								return TRUE;
 						}
 					}
-					if( iv < c->NumSegs() )
+					if( iv == 0 )
 					{
 						// test layer of segment post-via
 						int seg_layer = c->seg[iv].layer;	
