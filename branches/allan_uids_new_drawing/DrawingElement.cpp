@@ -18,8 +18,14 @@ void dl_element::DrawThermalRelief(CDrawInfo const &di) const
 int dl_element::isHit(CPoint const &point) const
 {
 	// don't select anything on an invisible layer or element
-	if( visible && dlist->m_vis[layer] ) return _isHit(point);
-	else return 0;
+	if( visible && dlist->m_vis[layer] )
+	{
+		return _isHit(point);
+	}
+	else 
+	{
+		return 0;
+	}
 }
 
 
