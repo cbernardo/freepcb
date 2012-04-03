@@ -10,6 +10,7 @@
 #include "stdafx.h"
 #include "DisplayList.h"
 #include "FreePcbDoc.h"
+#include "CommonView.h"
 
 class CFreePcbView;
 
@@ -240,21 +241,6 @@ const char fk_str[FK_NUM_OPTIONS*2+2][32] =
 };
 */
 
-// selection masks
-enum {	SEL_MASK_PARTS = 0,
-		SEL_MASK_REF,
-		SEL_MASK_VALUE,
-		SEL_MASK_PINS,
-		SEL_MASK_CON,
-		SEL_MASK_VIA,
-		SEL_MASK_AREAS,
-		SEL_MASK_TEXT,
-		SEL_MASK_SM,
-		SEL_MASK_BOARD,
-		SEL_MASK_DRC,
-		NUM_SEL_MASKS
-};
-
 // snap modes
 enum {	SM_GRID_POINTS,	// snap to grid points
 		SM_GRID_LINES	// snap to grid lines
@@ -298,7 +284,7 @@ struct undo_group_descriptor {
 	CArray<id> m_id;		// array of item ids
 };
 
-class CFreePcbView : public CView
+class CFreePcbView : public CCommonView
 {
 public:
 	enum {
@@ -335,29 +321,8 @@ public: // create from serialization only
 	CFreePcbView();
 	DECLARE_DYNCREATE(CFreePcbView)
 
-// Attributes
-public:
-	CFreePcbDoc* GetDocument();
-
 // member variables
 public:
-	CFreePcbDoc * m_Doc;	// the document
-	CDisplayList * m_dlist;	// the display list
-
-	// Windows fonts
-	CFont m_small_font;
-
-	// cursor mode
-	int m_cursor_mode;		// see enum above
-
-	// debug flag
-	int m_debug_flag;
-
-	// flag to indicate that a newly-created item is being dragged,
-	// as opposed to an existing item
-	// if so, right-clicking or ESC will delete item not restore it
-	BOOL m_dragging_new_item;
-
 	// parameters for dragging selection rectangle
 	BOOL m_bLButtonDown;
 	BOOL m_bDraggingRect;
@@ -375,18 +340,11 @@ public:
 	// if right-click handled some other way
 	int m_disable_context_menu;
 
-	// selection mask
-	int m_sel_mask;
-	id m_mask_id[NUM_SEL_MASKS];
-
-	// selected items
-	id m_sel_id;			// id of selected item
 	id m_sel_uid;			// uid of selected item
 	cpart * m_sel_part;		// pointer to part, if selected
 	cnet * m_sel_net;		// pointer to net, if selected
 	CText * m_sel_text;		// pointer to text, if selected
 	DRError * m_sel_dre;	// pointer to DRC error, if selected
-	int m_sel_layer;		// layer of selected item
 	CArray<id> m_sel_ids;	// array of multiple selections
 	CArray<void*> m_sel_ptrs;	// array of pointers to selected items
 
@@ -409,54 +367,20 @@ public:
     int m_active_width;             // Width for upcoming segs during routing mode (in nm)
 	DWORD m_last_autoscroll;		// Tick count when an autoscroll last occurred.
 
-	// display coordinate mapping
-	double m_pcbu_per_pixel;	// pcb units per pixel
-	double m_org_x;				// x-coord of left side of screen in pcb units
-	double m_org_y;				// y-coord of bottom of screen in pcb units
-
 	// grid stuff
-	CPoint m_snap_angle_ref;	// reference point for snap angle
 	int m_snap_mode;			// snap mode
 	int m_inflection_mode;		// inflection mode for routing
-
-	// window parameters
-	CPoint m_client_origin;	// coordinates of (0,0) in screen coords
-	CRect m_client_r;		// in device coords
-	int m_left_pane_w;		// width of pane at left of screen for layer selection, etc.
-	int m_bottom_pane_h;	// height of pane at bottom of screen for key assignments, etc.
-	int m_fkey_w;			// CPT: Width of f-key boxes.
-	CRgn m_pcb_rgn;			// region for the pcb
-	BOOL m_left_pane_invalid;	// flag to erase and redraw left pane
-
-	// active layer for routing and placement
-	int m_active_layer;
 
 	// starting point for a new copper area
 	int m_area_start_x;
 	int m_area_start_y;
 
 	// mouse
-	CPoint m_last_mouse_point;	// last mouse position
-	CPoint m_last_cursor_point;	// last cursor position (may be different from mouse)
-	CPoint m_from_pt;			// for dragging rect, origin
 	CPoint m_to_pt;				// for dragging segment, endpoint of this segment
 	CPoint m_last_pt;			// for dragging segment
 	CPoint m_next_pt;			// for dragging segment
 
-	// function key shortcuts
-	int m_fkey_option[12];
-	int m_fkey_command[12];
-	int m_fkey_rsrc[24];		// CPT:  used to have a table of char[]'s, now we have a table of string rsrc id's
-
-	// memory DC and bitmap
-	BOOL m_memDC_created;
-	CDC m_memDC;
-	CBitmap m_bitmap;
-//	CBitmap * m_old_bitmap;
-	HBITMAP m_old_bitmap;
-	CRect m_bitmap_rect;
-
-// Operations
+	// Operations
 public:
 	void InitInstance();
 
@@ -465,7 +389,6 @@ public:
 	//{{AFX_VIRTUAL(CFreePcbView)
 	public:
 	virtual void OnDraw(CDC* pDC);  // overridden to draw this view
-	virtual BOOL PreCreateWindow(CREATESTRUCT& cs);
 	protected:
 	virtual BOOL OnPreparePrinting(CPrintInfo* pInfo);
 	virtual void OnBeginPrinting(CDC* pDC, CPrintInfo* pInfo);
@@ -475,20 +398,11 @@ public:
 // Implementation
 public:
 	virtual ~CFreePcbView();
-	void InitializeView();
-#ifdef _DEBUG
-	virtual void AssertValid() const;
-	virtual void Dump(CDumpContext& dc) const;
-#endif
+	void OnNewProject();
 	void SetMainMenu( BOOL bAll );
-	int SetDCToWorldCoords( CDC * pDC );
 	void SetCursorMode( int mode );
 	void SetFKText( int mode );
-	void DrawBottomPane();
-	int ShowCursor();
 	int ShowSelectStatus();
-	void ShowRelativeDistance( int dx, int dy );
-	void ShowRelativeDistance( int x, int y, int dx, int dy );
 	int ShowActiveLayer();
 	int SelectPart( cpart * part );
 	void CancelSelection();
@@ -497,7 +411,6 @@ public:
 	void ChangeTraceLayer( int mode, int old_layer=0 );
 	void MoveOrigin( int x_off, int y_off );
 	void SelectItemsInRect( CRect r, BOOL bAddToGroup );
-	void SetSelMaskArray( int mask );
 	void StartDraggingGroup( BOOL bAdd=FALSE, int x=0, int y=0 );
 	void CancelDraggingGroup();
 	void MoveGroup( int dx, int dy );
@@ -515,7 +428,6 @@ public:
 	BOOL CurDraggingRouting();
 	BOOL CurDraggingPlacement();
 	void SnapCursorPoint( CPoint wp, UINT nFlags );
-	void InvalidateLeftPane(){ m_left_pane_invalid = TRUE; }
 	void SaveUndoInfoForPart( cpart * part, int type, CString * new_ref_des, BOOL new_event, CUndoList * list );
 	void SaveUndoInfoForPartAndNets( cpart * part, int type, CString * new_ref_des, BOOL new_event, CUndoList * list );
 	void SaveUndoInfoFor2PartsAndNets( cpart * part1, cpart * part2, BOOL new_event, CUndoList * list );
@@ -542,21 +454,18 @@ public:
 	static void UndoGroupCallback( int type, void * ptr, BOOL undo );
 	void OnExternalChangeFootprint( CShape * fp );
 	void HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags);
-	void CFreePcbView::TryToReselectAreaCorner( int x, int y );
+	void TryToReselectAreaCorner( int x, int y );
 	void ReselectNetItemIfConnectionsChanged( int new_ic );
 protected:
 
 // Generated message map functions
 protected:
 	//{{AFX_MSG(CFreePcbView)
-	afx_msg void OnSize(UINT nType, int cx, int cy);
 	afx_msg void OnLButtonDown(UINT nFlags, CPoint point);
 	afx_msg void OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags);
 	afx_msg void OnMouseMove(UINT nFlags, CPoint point);
 	afx_msg void OnRButtonDown(UINT nFlags, CPoint point);
 	afx_msg void OnLButtonDblClk(UINT nFlags, CPoint point);
-	afx_msg void OnSysKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags);
-	afx_msg void OnSysKeyUp(UINT nChar, UINT nRepCnt, UINT nFlags);
 	afx_msg BOOL OnMouseWheel(UINT nFlags, short zDelta, CPoint pt);
 	//}}AFX_MSG
 	DECLARE_MESSAGE_MAP()
@@ -693,19 +602,63 @@ public:
     void GetViaWidths(int w, int *via_w, int *via_hole_w);
 	void RoutingGridUp();
 	void RoutingGridDown();
-	void PlacementGridUp();
-	void PlacementGridDown();
 	void UnitToggle(bool bShiftKeyDown);
 	bool ConvertSelectionToGroup(bool bChangeMode);
 	void ConvertSelectionToGroupAndMove(int dx, int dy);
 	void ConvertSingletonGroup();
 	void DoSelection(id &sid, void *ptr);
-};
 
-#ifndef _DEBUG  // debug version in FreePcbView.cpp
-inline CFreePcbDoc* CFreePcbView::GetDocument()
-   { return (CFreePcbDoc*)m_pDocument; }
-#endif
+	// CPT:  virtual functions from CCommonView:
+	bool IsFreePcbView() { return true; }
+	void SetDList()
+		{ m_dlist = m_Doc->m_dlist; }
+	int GetNLayers()
+		{ return m_Doc->m_num_layers; }
+	int GetTopCopperLayer() 
+		{ return LAY_FP_TOP_COPPER; }
+	int GetLayerRGB(int layer, int i) 
+		{ return m_Doc->m_rgb[layer][i]; }
+	int GetLayerVis(int layer)
+		{ return m_Doc->m_vis[layer]; }
+	int GetLayerNum(int i) {
+		// Given a line-number within the left pane, return the actual layer num
+		// (may differ for copper layers)
+		if( i == GetNLayers()-1 && m_Doc->m_num_copper_layers > 1 )
+			return LAY_BOTTOM_COPPER;
+		if( i > LAY_TOP_COPPER )
+			return i+1;
+		return i;
+		}
+	void GetLayerLabel(int i, CString &label) {
+		// Get the layer label for the i-th line in the left pane display
+		CString s;
+		char lc = layer_char[i-LAY_TOP_COPPER];
+		if (i==LAY_TOP_COPPER)
+			s.LoadStringA(IDS_TopCopper),
+			label.Format(s, lc, lc);
+		else if (i==GetNLayers()-1)
+			s.LoadStringA(IDS_Bottom3),
+			label.Format(s, lc, lc);
+		else if (i==LAY_PAD_THRU)
+			label.LoadStringA(IDS_DrilledHole2);
+		else if (i>LAY_TOP_COPPER)
+			s.LoadStringA(IDS_LayerStr+i+1),
+			label.Format("%s. %c,C%c", s, lc, lc);
+		else if (i>1)
+			s.LoadStringA(IDS_LayerStr+i),
+			label.Format("%s. CF%d", s, i-1);
+		else
+			label.LoadStringA(IDS_LayerStr+i);
+		}
+	int ToggleLayerVis(int i)
+		{ return m_Doc->m_vis[i] = !m_Doc->m_vis[i]; }
+	int GetLeftPaneKeyID() { return IDS_LeftPaneKey; }
+	int GetNMasks() { return NUM_SEL_MASKS; }
+	int GetMaskNamesID() { return IDS_SelMaskStr; }
+
+	void HandleShiftLayerKey(int layer, CDC *pDC);
+	void HandleNoShiftLayerKey(int layer, CDC *pDC);
+};
 
 /////////////////////////////////////////////////////////////////////////////
 

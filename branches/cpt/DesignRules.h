@@ -49,6 +49,7 @@ public:
 		BOARDEDGE_COPPERAREA,	
 		COPPERAREA_COPPERAREA,
 		COPPERAREA_INSIDE_COPPERAREA,
+		COPPERAREA_BROKEN,							// CPT
 		UNROUTED
 	};
 	int layer;				// layer (if pad error)

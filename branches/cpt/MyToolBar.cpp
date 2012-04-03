@@ -183,7 +183,7 @@ void CMyToolBar::SetLists( CArray<double> * visible,
 		double val = (*m_v)[i];
 		MakeCStringFromGridVal(&str, val);
 		m_ctlComboVisibleGrid.AddString( str );
-		if (val == vg) sel = i;									// CPT
+		if (fabs(val) == vg) sel = i;									// CPT
 	}
 	m_ctlComboVisibleGrid.SetCurSel( sel );
 	
@@ -192,26 +192,9 @@ void CMyToolBar::SetLists( CArray<double> * visible,
 	{
 		CString str;
 		double val = (*m_p)[i];
-		BOOL is_mm = ( val < 0 );
-		val = fabs( val );
-		if( is_mm )
-			str.Format( "%9.3f", val/1000000.0 );
-		else
-			str.Format( "%9.3f", val/NM_PER_MIL );
-		str.Trim();
-		if( str[str.GetLength()-1] == '0' )
-			str = str.Left( str.GetLength()-1 );
-		if( str[str.GetLength()-1] == '0' )
-			str = str.Left( str.GetLength()-1 );
-		if( str[str.GetLength()-1] == '0' )
-			str = str.Left( str.GetLength()-1 );
-		if( str[str.GetLength()-1] == '.' )
-			str = str.Left( str.GetLength()-1 );
-		if( is_mm )
-			m_ctlComboPlacementGrid.AddString(str + " mm" ); 
-		else
-			m_ctlComboPlacementGrid.AddString(str );
-		if (val == pg) sel = i;
+		MakeCStringFromGridVal(&str, val); // CPT streamlined
+		m_ctlComboPlacementGrid.AddString(str); 
+		if (fabs(val) == pg) sel = i;
 	}
 	m_ctlComboPlacementGrid.SetCurSel( sel );
 
@@ -222,26 +205,9 @@ void CMyToolBar::SetLists( CArray<double> * visible,
 		{
 			CString str;
 			double val = (*m_r)[i];
-			BOOL is_mm = ( val < 0 );
-			val = fabs( val );
-			if( is_mm )
-				str.Format( "%9.3f", val/1000000.0 );
-			else
-				str.Format( "%9.3f", val/NM_PER_MIL );
-			str.Trim();
-			if( str[str.GetLength()-1] == '0' )
-				str = str.Left( str.GetLength()-1 );
-			if( str[str.GetLength()-1] == '0' )
-				str = str.Left( str.GetLength()-1 );
-			if( str[str.GetLength()-1] == '0' )
-				str = str.Left( str.GetLength()-1 );
-			if( str[str.GetLength()-1] == '.' )
-				str = str.Left( str.GetLength()-1 );
-			if( is_mm )
-				m_ctlComboRoutingGrid.AddString(str + " mm" );	// CPT, as above
-			else
-				m_ctlComboRoutingGrid.AddString(str );
-			if( val == rg) sel = i;
+			MakeCStringFromGridVal(&str, val); // CPT streamlined
+			m_ctlComboRoutingGrid.AddString(str); 
+			if (fabs(val) == rg) sel = i;
 		}
 		m_ctlComboRoutingGrid.SetCurSel( sel );
 	}
@@ -370,12 +336,12 @@ void CMyToolBar::VisibleGridUp() {
 	AfxGetMainWnd()->SendMessage( WM_USER_VISIBLE_GRID, WM_BY_INDEX, cur_sel );
 	}
  
-void CMyToolBar::UnitToggle(bool fShiftKeyDown, CArray<double> * visible, CArray<double> * placement, CArray<double> * routing) {
+void CMyToolBar::UnitToggle(bool bShiftKeyDown, CArray<double> * visible, CArray<double> * placement, CArray<double> * routing) {
 	int cur_sel = m_ctlComboUnits.GetCurSel();
 	cur_sel = !cur_sel;
 	m_ctlComboUnits.SetCurSel(cur_sel);
 	AfxGetMainWnd()->SendMessage( WM_USER_UNITS, WM_BY_INDEX, cur_sel );
-	if (!fShiftKeyDown) return;
+	if (!bShiftKeyDown) return;
 	// In the following code we switch the three grid combo-boxes (provided shift-key was down) 
 	int sz = visible->GetSize();
 	double vis_sel = (*visible)[m_ctlComboVisibleGrid.GetCurSel()];

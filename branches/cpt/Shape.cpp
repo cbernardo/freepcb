@@ -71,6 +71,7 @@ CShape::CShape()
 {
 	m_tl = new CTextList;	
 	Clear();
+	m_ref = m_value = NULL;		// CPT
 } 
 
 // destructor
@@ -79,6 +80,8 @@ CShape::~CShape()
 {
 	Clear();
 	delete m_tl;
+	if (m_ref) delete m_ref;
+	if (m_value) delete m_value; // CPT
 }
 
 void CShape::Clear()
@@ -2529,7 +2532,7 @@ CRect CShape::GetPadRowBounds( int i, int num )
 //
 CRect CShape::GetBounds( BOOL bIncludeLineWidths )
 {
-	CRect br;
+	CRect br, br0;
 
 	br.left = br.bottom = INT_MAX;
 	br.right = br.top = INT_MIN;
@@ -2816,156 +2819,19 @@ void CEditShape::Draw( CDisplayList * dlist, SMFontUtil * fontutil )
 		}
 	}
 
-	// draw ref designator text
-	int silk_lay = LAY_FP_SILK_TOP;
-	int nstrokes = 0;
-	m_ref_el.SetSize(0);
-	p_id.st = ID_STROKE;
-	double x_scale = (double)m_ref_size/22.0;
-	double y_scale = (double)m_ref_size/22.0;
-	double y_offset = 9.0*y_scale;
-	int i_el = 0;
-	double xc = 0.0;
-	CPoint si, sf, tb_org;
-	char ref_str[] = "REF";
-	for( int ic=0; ic<3; ic++ )
-	{
-		// get stroke info for character
-		int xi, yi, xf, yf;
-		double coord[64][4];
-		double min_x, min_y, max_x, max_y;
-		int nstrokes = fontutil->GetCharStrokes( ref_str[ic], SIMPLEX, 
-			&min_x, &min_y, &max_x, &max_y, coord, 64 );
-		for( int is=0; is<nstrokes; is++ )
-		{
-			xi = (coord[is][0] - min_x)*x_scale + xc;
-			yi = coord[is][1]*y_scale + y_offset;
-			xf = (coord[is][2] - min_x)*x_scale + xc;
-			yf = coord[is][3]*y_scale + y_offset;
-			// get stroke relative to text box
-			if( yi > yf )
-			{
-				si.x = xi;
-				sf.x = xf;
-				si.y = yi;
-				sf.y = yf;
-			}
-			else
-			{
-				si.x = xf;
-				sf.x = xi;
-				si.y = yf;
-				sf.y = yi;
-			}
-			// rotate with text box
-			tb_org.x = m_ref_xi;
-			tb_org.y = m_ref_yi;
-			RotatePoint( &si, m_ref_angle, zero );
-			RotatePoint( &sf, m_ref_angle, zero );
-			// move to origin of text box
-			si.x += tb_org.x;
-			sf.x += tb_org.x;
-			si.y += tb_org.y;
-			sf.y += tb_org.y;
-			// draw
-			p_id.i = i_el;
-			m_ref_el.SetSize(i_el+1);
-			m_ref_el[i_el] = dlist->Add( p_id, this, 
-				silk_lay, DL_LINE, 1, m_ref_w, 0, 
-				si.x, si.y, sf.x, sf.y, 0, 0 );
-			i_el++;
-		}
-		xc += (max_x - min_x + 8.0)*x_scale;
-	}
-	// draw selection rectangle for ref text
-	p_id.st = ID_SEL_REF_TXT;
-	p_id.i = 0;
-	int width = xc - 3.0*x_scale;
-	si.x = m_ref_xi;
-	sf.x = m_ref_xi + width;
-	si.y = m_ref_yi;
-	sf.y = m_ref_yi + m_ref_size;
-	// rotate rectangle relative to part
-	RotatePoint( &sf, m_ref_angle, si );
-	// draw
-	m_ref_sel = dlist->AddSelector( p_id, NULL, silk_lay, DL_HOLLOW_RECT, 1,
-		0, 0, si.x, si.y, sf.x, sf.y, si.x, si.y );
-
+	// draw ref designator text.  CPT:  new simpler system makes use of the CText machinery
+	CString strRef ("REF");
+	if (!m_ref)
+		m_ref = new CText(dlist, m_ref_xi, m_ref_yi, m_ref_angle, 0, false, 
+						  LAY_FP_SILK_TOP, m_ref_size, m_ref_w, 0, &strRef, ID_PART, ID_SEL_REF_TXT);
+	m_ref->Draw(dlist, fontutil);
 	// draw value text
-	nstrokes = 0;
-	m_value_el.SetSize(0);
-	if( m_value_size )
-	{
-		p_id.st = ID_STROKE;
-		x_scale = (double)m_value_size/22.0;
-		y_scale = (double)m_value_size/22.0;
-		y_offset = 9.0*y_scale;
-		i_el = 0;
-		xc = 0.0;
-		char value_str[] = "VALUE";
-		for( int ic=0; ic<5; ic++ )
-		{
-			// get stroke info for character
-			int xi, yi, xf, yf;
-			double coord[64][4];
-			double min_x, min_y, max_x, max_y;
-			int nstrokes = fontutil->GetCharStrokes( value_str[ic], SIMPLEX, 
-				&min_x, &min_y, &max_x, &max_y, coord, 64 );
-			for( int is=0; is<nstrokes; is++ )
-			{
-				xi = (coord[is][0] - min_x)*x_scale + xc;
-				yi = coord[is][1]*y_scale + y_offset;
-				xf = (coord[is][2] - min_x)*x_scale + xc;
-				yf = coord[is][3]*y_scale + y_offset;
-				// get stroke relative to text box
-				if( yi > yf )
-				{
-					si.x = xi;
-					sf.x = xf;
-					si.y = yi;
-					sf.y = yf;
-				}
-				else
-				{
-					si.x = xf;
-					sf.x = xi;
-					si.y = yf;
-					sf.y = yi;
-				}
-				// rotate with text box
-				tb_org.x = m_value_xi;
-				tb_org.y = m_value_yi;
-				RotatePoint( &si, m_value_angle, zero );
-				RotatePoint( &sf, m_value_angle, zero );
-				// move to origin of text box
-				si.x += tb_org.x;
-				sf.x += tb_org.x;
-				si.y += tb_org.y;
-				sf.y += tb_org.y;
-				// draw
-				p_id.i = i_el;
-				m_value_el.SetSize(i_el+1);
-				m_value_el[i_el] = dlist->Add( p_id, this, 
-					silk_lay, DL_LINE, 1, m_value_w, 0, 
-					si.x, si.y, sf.x, sf.y, 0, 0 );
-				i_el++;
-			}
-			xc += (max_x - min_x + 8.0)*x_scale;
-		}
-		// draw selection rectangle for value text
-		p_id.st = ID_SEL_VALUE_TXT;
-		p_id.i = 0;
-		width = xc - 3.0*x_scale;
-		si.x = m_value_xi;
-		sf.x = m_value_xi + width;
-		si.y = m_value_yi;
-		sf.y = m_value_yi + m_value_size;
-		// rotate rectangle relative to part
-		RotatePoint( &sf, m_value_angle, si );
-		// draw
-		m_value_sel = dlist->AddSelector( p_id, NULL, silk_lay, DL_HOLLOW_RECT, 1,
-			0, 0, si.x, si.y, sf.x, sf.y, si.x, si.y );
-	}
+	CString strValue ("VALUE");
+	if (!m_value)
+		m_value = new CText(dlist, m_value_xi, m_value_yi, m_value_angle, 0, false, 
+						  LAY_FP_SILK_TOP, m_value_size, m_value_w, 0, &strValue, ID_PART, ID_SEL_VALUE_TXT);
+	if (m_value_size)
+		m_value->Draw( dlist, fontutil );
 
 	// now draw outline polylines
 	p_id.st = ID_OUTLINE;
@@ -3072,18 +2938,9 @@ void CEditShape::Undraw()
 	m_pad_inner_el.RemoveAll();
 	m_pad_bottom_el.RemoveAll();
 
-	for( int i=0; i<m_ref_el.GetSize(); i++ )
-		m_dlist->Remove( m_ref_el[i] );
-	m_ref_el.SetSize(0);
-	m_dlist->Remove( m_ref_sel );
-	m_ref_sel = NULL;
-
-	for( int i=0; i<m_value_el.GetSize(); i++ )
-		m_dlist->Remove( m_value_el[i] );
-	m_value_el.SetSize(0);
-	if( m_value_size )
-		m_dlist->Remove( m_value_sel );
-	m_value_sel = NULL;
+	// CPT new system:
+	m_ref->Undraw();
+	m_value->Undraw();
 
 	for( int i=0; i<m_outline_poly.GetSize(); i++ )
 		m_outline_poly[i].Undraw();
@@ -3313,11 +3170,12 @@ void CEditShape::CancelDraggingCentroid()
 void CEditShape::SelectRef()
 {
 	// select it by making its selection rectangle visible
+	dl_element *ref_sel = m_ref->dl_sel;
 	m_dlist->HighLight( DL_HOLLOW_RECT, 
-		m_dlist->Get_x(m_ref_sel), 
-		m_dlist->Get_y(m_ref_sel),
-		m_dlist->Get_xf(m_ref_sel), 
-		m_dlist->Get_yf(m_ref_sel), 
+		m_dlist->Get_x(ref_sel), 
+		m_dlist->Get_y(ref_sel),
+		m_dlist->Get_xf(ref_sel), 
+		m_dlist->Get_yf(ref_sel), 
 		1 );
 }
 
@@ -3326,18 +3184,20 @@ void CEditShape::SelectRef()
 void CEditShape::StartDraggingRef( CDC * pDC )
 {
 	// make ref text invisible
-	for( int i=0; i<m_ref_el.GetSize(); i++ )
-		m_dlist->Set_visible( m_ref_el[i], 0 );
+	CArray<stroke> &strokes = m_ref->m_stroke;
+	for (int i=0; i<strokes.GetSize(); i++)
+		m_dlist->Set_visible(strokes[i].dl_el, 0);
 	// cancel selection 
 	m_dlist->CancelHighLight();
 	// drag
+	dl_element *ref_sel = m_ref->dl_sel;
 	m_dlist->StartDraggingRectangle( pDC, 
-						m_dlist->Get_x_org(m_ref_sel), 
-						m_dlist->Get_y_org(m_ref_sel),
-						m_dlist->Get_x(m_ref_sel)-m_dlist->Get_x_org(m_ref_sel), 
-						m_dlist->Get_y(m_ref_sel)-m_dlist->Get_y_org(m_ref_sel),
-						m_dlist->Get_xf(m_ref_sel)-m_dlist->Get_x_org(m_ref_sel), 
-						m_dlist->Get_yf(m_ref_sel)-m_dlist->Get_y_org(m_ref_sel),
+						m_dlist->Get_x_org(ref_sel), 
+						m_dlist->Get_y_org(ref_sel),
+						m_dlist->Get_x(ref_sel)-m_dlist->Get_x_org(ref_sel), 
+						m_dlist->Get_y(ref_sel)-m_dlist->Get_y_org(ref_sel),
+						m_dlist->Get_xf(ref_sel)-m_dlist->Get_x_org(ref_sel), 
+						m_dlist->Get_yf(ref_sel)-m_dlist->Get_y_org(ref_sel),
 						0, LAY_FP_SELECTION );
 }
 
@@ -3346,8 +3206,9 @@ void CEditShape::StartDraggingRef( CDC * pDC )
 void CEditShape::CancelDraggingRef()
 {
 	// make ref text visible
-	for( int i=0; i<m_ref_el.GetSize(); i++ )
-		m_dlist->Set_visible( m_ref_el[i], 1 );
+	CArray<stroke> &strokes = m_ref->m_stroke;
+	for (int i=0; i<strokes.GetSize(); i++)
+		m_dlist->Set_visible(strokes[i].dl_el, 1);
 	// stop dragging
 	m_dlist->StopDragging();
 }
@@ -3357,11 +3218,12 @@ void CEditShape::CancelDraggingRef()
 void CEditShape::SelectValue()
 {
 	// select it by making its selection rectangle visible
+	dl_element *value_sel = m_value->dl_sel;
 	m_dlist->HighLight( DL_HOLLOW_RECT, 
-		m_dlist->Get_x(m_value_sel), 
-		m_dlist->Get_y(m_value_sel),
-		m_dlist->Get_xf(m_value_sel), 
-		m_dlist->Get_yf(m_value_sel), 
+		m_dlist->Get_x(value_sel), 
+		m_dlist->Get_y(value_sel),
+		m_dlist->Get_xf(value_sel), 
+		m_dlist->Get_yf(value_sel), 
 		1 );
 }
 
@@ -3370,18 +3232,20 @@ void CEditShape::SelectValue()
 void CEditShape::StartDraggingValue( CDC * pDC )
 {
 	// make value text invisible
-	for( int i=0; i<m_value_el.GetSize(); i++ )
-		m_dlist->Set_visible( m_value_el[i], 0 );
+	CArray<stroke> &strokes = m_value->m_stroke;
+	for (int i=0; i<strokes.GetSize(); i++)
+		m_dlist->Set_visible(strokes[i].dl_el, 0);
 	// cancel selection 
 	m_dlist->CancelHighLight();
 	// drag
+	dl_element *value_sel = m_value->dl_sel;
 	m_dlist->StartDraggingRectangle( pDC, 
-						m_dlist->Get_x_org(m_value_sel), 
-						m_dlist->Get_y_org(m_value_sel),
-						m_dlist->Get_x(m_value_sel)-m_dlist->Get_x_org(m_value_sel), 
-						m_dlist->Get_y(m_value_sel)-m_dlist->Get_y_org(m_value_sel),
-						m_dlist->Get_xf(m_value_sel)-m_dlist->Get_x_org(m_value_sel), 
-						m_dlist->Get_yf(m_value_sel)-m_dlist->Get_y_org(m_value_sel),
+						m_dlist->Get_x_org(value_sel), 
+						m_dlist->Get_y_org(value_sel),
+						m_dlist->Get_x(value_sel)-m_dlist->Get_x_org(value_sel), 
+						m_dlist->Get_y(value_sel)-m_dlist->Get_y_org(value_sel),
+						m_dlist->Get_xf(value_sel)-m_dlist->Get_x_org(value_sel), 
+						m_dlist->Get_yf(value_sel)-m_dlist->Get_y_org(value_sel),
 						0, LAY_FP_SELECTION );
 }
 
@@ -3389,9 +3253,10 @@ void CEditShape::StartDraggingValue( CDC * pDC )
 //
 void CEditShape::CancelDraggingValue()
 {
-	// make ref text visible
-	for( int i=0; i<m_value_el.GetSize(); i++ )
-		m_dlist->Set_visible( m_value_el[i], 1 );
+	// make value text visible
+	CArray<stroke> &strokes = m_value->m_stroke;
+	for (int i=0; i<strokes.GetSize(); i++)
+		m_dlist->Set_visible(strokes[i].dl_el, 1);
 	// stop dragging
 	m_dlist->StopDragging();
 }
@@ -3473,5 +3338,3 @@ BOOL CEditShape::GenerateSelectionRectangle( CRect * r )
 	m_sel_yf = br.top;
 	return TRUE;
 }
-
-

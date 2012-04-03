@@ -15,6 +15,7 @@ class cpart;
 class CPartList;
 class CNetList;
 class cnet;
+class carea;						// CPT: need this forward declaration it appears
 
 #include "DesignRules.h"
 
@@ -191,12 +192,13 @@ public:
 	{ m_footprint_cache_map = shape_cache_map; };
 	int GetNumParts(){ return m_size; };
 	cpart * Add(); 
+	// CPT: add ref-visibility argument, also to SetPartData() below
 	cpart * Add( CShape * shape, CString * ref_des, CString * package, 
-					int x, int y, int side, int angle, int visible, int glued ); 
+					int x, int y, int side, int angle, int visible, int glued, bool ref_vis = true ); 
 	cpart * AddFromString( CString * str );
 	void SetNumCopperLayers( int nlayers ){ m_layers = nlayers;};
 	int SetPartData( cpart * part, CShape * shape, CString * ref_des, CString * package, 
-					int x, int y, int side, int angle, int visible, int glued ); 
+					int x, int y, int side, int angle, int visible, int glued, bool ref_vis = true ); 
 	void MarkAllParts( int mark );
 	int Remove( cpart * element );
 	void RemoveAllParts();
@@ -273,6 +275,9 @@ public:
 		int units, BOOL check_unrouted,
 		CArray<CPolyLine> * board_outline,
 		DesignRules * dr, DRErrorList * DRElist );
+	// CPT new helper for DRC():
+	void CheckBrokenArea(carea *a, cnet *net, CDlgLog * log, int units, DRErrorList * drelist, long &nerrors);
+
 	undo_part * CreatePartUndoRecord( cpart * part, CString * new_ref_des );
 	static void PartUndoCallback( int type, void * ptr, BOOL undo );
 };

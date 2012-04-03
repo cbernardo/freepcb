@@ -12,6 +12,7 @@
 #include <afxtempl.h>
 #include "DisplayList.h"
 #include "FreePcbDoc.h"
+#include "CommonView.h"
 
 class CFootprintView;
 
@@ -163,34 +164,14 @@ static char fk_fp_str[FK_FP_NUM_OPTIONS*2+2][32] =
 };
 */
 
-class CFootprintView : public CView
+class CFootprintView : public CCommonView
 {
 public: // create from serialization only
 	CFootprintView();
 	DECLARE_DYNCREATE(CFootprintView)
 
-// Attributes
-public:
-	CFreePcbDoc* GetDocument();
-
 // member variables
 public:
-	CFreePcbDoc * m_Doc;	// the document
-	CDisplayList * m_dlist;	// the display list
-
-	// Windows fonts
-	CFont m_small_font;
-
-	// cursor mode
-	int m_cursor_mode;		// see enum above
-
-	// debug flag
-	int m_debug_flag;
-
-	// flag to indicate that a newly-created item is being dragged,
-	// as opposed to an existing item
-	// if so, right-clicking or ESC will delete item not restore it
-	BOOL m_dragging_new_item;
 	int m_drag_num_pads;
 
 	// mode for drawing new polyline segments
@@ -202,51 +183,11 @@ public:
 	// if right-click handled some other way
 	int m_disable_context_menu;
 
-	// selected item
-	id m_sel_id;		// id of selected item
-	int m_sel_layer;	// layer of selected item
 	CText * m_sel_text;	// pointer to selected text
-
-	// display coordinate mapping
-	double m_pcbu_per_pixel;	// pcb units per pixel
-	double m_org_x;				// x-coord of left side of screen in pcb units
-	double m_org_y;				// y-coord of bottom of screen in pcb units
-
-	// grids
-	CPoint m_snap_angle_ref;		// reference point for snap angle
-
-	// window parameters
-	CRect m_client_r;	// in device coords
-	int m_left_pane_w;		// width of pane at left of screen for layer selection, etc.
-	int m_bottom_pane_h;	// height of pane at bottom of screen for key assignments, etc.
-	int m_fkey_w;			// CPT: Width of f-key boxes.
-	CRgn m_pcb_rgn;		// region for the pcb
-	BOOL m_left_pane_invalid;	// flag to erase and redraw left pane
-
-	// mouse
-	CPoint m_last_mouse_point;	// last mouse position
-	CPoint m_last_cursor_point;	// last cursor position (may be different from mouse)
-
-	// function key shortcuts
-	int m_fkey_option[12];
-	int m_fkey_command[12];
-	int m_fkey_rsrc[24];		// CPT:  used to have a table of char[]'s, now we have a table of string rsrc id's
-
-	// memory DC and bitmap
-	BOOL m_memDC_created;
-	CDC m_memDC;
-	CBitmap m_bitmap;
-	CBitmap * m_old_bitmap;
-	CRect m_bitmap_rect;
+	void * m_sel_ptr;	// CPT: pointer to selected ANYTHING (but in practice I think it will always be equal to m_sel_text)
 
 	// footprint
 	CEditShape m_fp;	// footprint being edited
-
-	// units (mil or mm)
-	int m_units;
-
-	// active copper layer
-	int m_active_layer;
 
 	// undo stack
 	CArray<CEditShape*> undo_stack;
@@ -261,7 +202,6 @@ public:
 	//{{AFX_VIRTUAL(CFootprintView)
 	public:
 	virtual void OnDraw(CDC* pDC);  // overridden to draw this view
-	virtual BOOL PreCreateWindow(CREATESTRUCT& cs);
 	protected:
 	virtual BOOL OnPreparePrinting(CPrintInfo* pInfo);
 	virtual void OnBeginPrinting(CDC* pDC, CPrintInfo* pInfo);
@@ -271,20 +211,13 @@ public:
 // Implementation
 public:
 	virtual ~CFootprintView();
-	void InitializeView();
-#ifdef _DEBUG
-	virtual void AssertValid() const;
-	virtual void Dump(CDumpContext& dc) const;
-#endif
-	int SetDCToWorldCoords( CDC * pDC );
-	CPoint ScreenToPCB( CPoint point );
-	CPoint PCBToScreen( CPoint point );
-	CPoint WindowToPCB( CPoint point );
+	//	CPoint ScreenToPCB( CPoint point );			// CPT eliminated
+	//	CPoint PCBToScreen( CPoint point );
+	//	CPoint WindowToPCB( CPoint point );
 	void SetCursorMode( int mode );
 	void SetFKText( int mode );
+	void FinishArrowKey(int x, int y, int dx, int dy);   // CPT helper function for HandleKeyPress()
 	void HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags);
-	void DrawBottomPane();
-	int ShowCursor();
 	int ShowSelectStatus();
 	int ShowActiveLayer();
 	void SetWindowTitle( CString * str );
@@ -296,7 +229,6 @@ public:
 	BOOL CurDragging();
 	BOOL CurDraggingPlacement();
 	void SnapCursorPoint( CPoint wp );
-	void InvalidateLeftPane(){ m_left_pane_invalid = TRUE; }
 	void FootprintModified( BOOL flag, BOOL force = FALSE, BOOL clear_redo=TRUE );
 	void FootprintNameChanged( CString * str );
 	void MoveOrigin( int x, int y );
@@ -315,15 +247,11 @@ protected:
 // Generated message map functions
 protected:
 	//{{AFX_MSG(CFootprintView)
-	afx_msg void OnSize(UINT nType, int cx, int cy);
 	afx_msg void OnLButtonDown(UINT nFlags, CPoint point);
 	afx_msg void OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags);
 	afx_msg void OnMouseMove(UINT nFlags, CPoint point);
 	afx_msg void OnRButtonDown(UINT nFlags, CPoint point);
 	afx_msg void OnLButtonDblClk(UINT nFlags, CPoint point);
-	afx_msg void OnSysKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags);
-	afx_msg void OnSysKeyUp(UINT nChar, UINT nRepCnt, UINT nFlags);
-	afx_msg BOOL OnMouseWheel(UINT nFlags, short zDelta, CPoint pt);
 	//}}AFX_MSG
 	DECLARE_MESSAGE_MAP()
 public:
@@ -334,7 +262,6 @@ public:
 	afx_msg void OnPadEdit( int i );
 	afx_msg void OnPadDelete( int i );
 	afx_msg void OnRefMove();
-	afx_msg void OnAddBoardOutline();
 	afx_msg void OnPolylineCornerMove();
 	afx_msg void OnPolylineCornerEdit();
 	afx_msg void OnPolylineCornerDelete();
@@ -382,17 +309,38 @@ public:
 	afx_msg void OnAdhesiveDelete();
 	afx_msg void OnCentroidRotateAxis();
 	// CPT
-	void UnitToggle(bool fShiftKeyDown);
-	void PlacementGridUp();
-	void PlacementGridDown();
+	void UnitToggle(bool bShiftKeyDown);
 	afx_msg void OnViewPlacementGrid();
 	afx_msg void OnViewVisibleGrid();
-};
 
-#ifndef _DEBUG  // debug version
-inline CFreePcbDoc* CFootprintView::GetDocument()
-   { return (CFreePcbDoc*)m_pDocument; }
-#endif
+	// CPT:  virtual functions from CCommonView:
+	bool IsFreePcbView() { return false; }
+	void SetDList()
+		{ m_dlist = m_Doc->m_dlist_fp; }
+	int GetNLayers()
+		{ return m_Doc->m_fp_num_layers; }
+	int GetTopCopperLayer() 
+		{ return LAY_FP_TOP_COPPER; }
+	int GetLayerRGB(int layer, int i) 
+		{ return m_Doc->m_fp_rgb[layer][i]; }
+	int GetLayerVis(int layer)
+		{ return m_Doc->m_fp_vis[layer]; }
+	void GetLayerLabel(int i, CString &label) {
+		label.LoadStringA(IDS_FpLayerStr+i);
+		}
+	int ToggleLayerVis(int i)
+		{ return m_Doc->m_fp_vis[i] = !m_Doc->m_fp_vis[i]; }
+
+	int GetLeftPaneKeyID() { return IDS_FpLeftPaneKey; }
+
+	int GetNMasks() { return NUM_FP_SEL_MASKS; }
+	int GetMaskNamesID() { return IDS_FpSelMaskStr; }
+	void HandleNoShiftLayerKey(int layer, CDC *pDC) {
+		m_active_layer = layer;
+		ShowActiveLayer();
+		}
+
+};
 
 /////////////////////////////////////////////////////////////////////////////
 

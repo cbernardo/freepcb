@@ -1186,8 +1186,8 @@ void * CDisplayList::TestSelect( int x, int y, id * sel_id, int * sel_layer,
 	void * hit_ptr[MAX_HITS];
 	int hit_priority[MAX_HITS];
 
-	int xx = x/m_pcbu_per_wu;
-	int yy = y/m_pcbu_per_wu;
+	double xx = double(x)/m_pcbu_per_wu;				// CPT (was int)
+	double yy = double(y)/m_pcbu_per_wu;				// CPT (was int)
 
 	// traverse the list, looking for selection shapes
 	dl_element * el = &m_start[LAY_SELECTION];
@@ -1202,9 +1202,33 @@ void * CDisplayList::TestSelect( int x, int y, id * sel_id, int * sel_layer,
 		if( el->visible == 0 )
 			continue;
 
-		if( el->gtype == DL_HOLLOW_RECT || el->gtype == DL_RECT_X )
+		if( el->gtype == DL_HOLLOW_RECT) {
+			// CPT: following a suggestion from obparham, selection of vertices should be based partly on distances in screen pixels. 
+			double xCenter = (el->x + el->xf) / 2., yCenter = (el->y + el->yf) / 2.;
+			double w2 = abs(el->x - el->xf) / 2., h2 = abs(el->y - el->yf) / 2.;
+			if (el->id.type==ID_NET || el->id.type==ID_PART && el->id.st==ID_OUTLINE) {
+				// For vertices on connects and area edges, don't let the selectable region get too small (total width & ht < 6 pixels), or
+				// too big (total width & ht > 16 pixels).  But for pins & parts etc. don't make this adjustment.  Also skip the adjustment
+				// if it's a via.
+				cnet *net = (cnet*) el->ptr;
+				cconnect *c = net && el->id.st==ID_CONNECT? &net->connect[el->id.i]: 0;
+				cvertex *v = c && (el->id.sst==ID_VERTEX || el->id.sst==ID_SEL_VERTEX)? &c->vtx[el->id.ii]: 0;
+				if (v && v->via_w) ;
+				else if (w2 < 3.0*m_scale) w2 = h2 = 3.0*m_scale;				// NB assuming that squares are always appropriate
+				else if (w2 > 8.0*m_scale) w2 = h2 = 8.0*m_scale;
+			}
+			if (abs(xx-xCenter) < w2 && abs(yy-yCenter) < h2) {
+				// Hit!
+				hit_layer[nhits] = el->layer;
+				hit_id[nhits] = el->id;
+				hit_ptr[nhits] = el->ptr;
+				nhits++;
+				if( nhits >= MAX_HITS )	ASSERT(0);
+			}
+		}
+		/*  CPT:  I believe the following clause is bogus (el->gtype will never be DL_RECT_X)
+		else if (el->gtype == DL_RECT_X )
 		{
-			// found selection rectangle, test for hit
 			if( ( (xx>el->x && xx<el->xf) || (xx<el->x && xx>el->xf) )
 				&& ( (yy>el->y && yy<el->yf) || (yy<el->y && yy>el->yf) ) )
 			{
@@ -1217,6 +1241,7 @@ void * CDisplayList::TestSelect( int x, int y, id * sel_id, int * sel_layer,
 					ASSERT(0);
 			}
 		}
+		*/
 		else if( el->gtype == DL_LINE )
 		{
 			// found selection line, test for hit (within 4 pixels or line width+3 mils )

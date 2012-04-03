@@ -37,7 +37,10 @@ public:
 	void Clear() 
 	{ type=0; st=0; i=0; sst=0; ii=0; } 
 	void Set( int qt, int qst=0, int qis=0, int qsst=0, int qiis=0 ) 
-	{ type=qt; st=qst; i=qis; sst=qsst; ii=qiis; } 
+	{ type=qt; st=qst; i=qis; sst=qsst; ii=qiis; }
+	// CPT utility
+	void Copy(id *other) 
+		{ type = other->type; st = other->st; i = other->i; sst = other->sst; ii = other->ii; }
 	// member variables
 	unsigned int type;	// type of element
 	unsigned int st;	// type of subelement
