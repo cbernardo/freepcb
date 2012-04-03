@@ -12,7 +12,6 @@
 #define IDR_HTML_DLGAREALAYER           105
 #define IDR_MAINFRAME                   128
 #define IDR_FREEPCTYPE                  129
-#define IDS_STRING129                   129
 #define IDD_ADD_PART                    130
 #define ID_ADD_PART                     131
 #define ID_ADD_NET                      132
@@ -1294,6 +1293,7 @@
 #define IDS_DrilledHole2                62360
 #define IDS_SelectionMask               62361
 #define IDS_12UseThese                  62362
+#define IDS_LeftPaneKey                 62362
 #define IDS_KeysToChange                62363
 #define IDS_RoutingLayer                62364
 #define IDS_C1Cf1                       62365
@@ -1530,6 +1530,12 @@
 #define IDS_ConnectTo                   62598
 #define IDS_ToolbarPlacementCtrlUpDn    62599
 #define IDS_ToolbarRoutingCtrlUpDn      62600
+#define IDS_STRING129                   62601
+#define IDS_WarningCopperAreaIsTooNarrow 62601
+#define IDS_FpLeftPaneKey               62602
+#define IDS_PinXY                       62611
+#define IDS_STRING130                   62612
+#define IDS_PolylineCornerXY            62612
 #define IDS_FkFpStr                     63000
 #define IDS_STRING63001                 63001
 #define IDS_STRING63002                 63002
@@ -1803,6 +1809,7 @@
 #define IDS_STRING64008                 64008
 #define IDS_STRING64009                 64009
 #define IDS_STRING64010                 64010
+#define IDS_FpSelMaskStr                64100
 #define IDS_LayerStr                    64500
 #define IDS_STRING64501                 64501
 #define IDS_STRING64502                 64502
@@ -1863,7 +1870,7 @@
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_3D_CONTROLS                     1
-#define _APS_NEXT_RESOURCE_VALUE        354
+#define _APS_NEXT_RESOURCE_VALUE        355
 #define _APS_NEXT_COMMAND_VALUE         32962
 #define _APS_NEXT_CONTROL_VALUE         1441
 #define _APS_NEXT_SYMED_VALUE           106

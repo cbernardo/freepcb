@@ -31,12 +31,17 @@ class CText
 {
 public:
 	// member functions
+	// CPT added selType and selSubtype members.  Most of the time, for normal text, these are 
+	// ID_TEXT/ID_SEL_TXT, but in special cases like e.g. "REF" in the footprint editor, they can be ID_PART/ID_SEL_REF_TXT
 	CText( CDisplayList * dlist, int x, int y, int angle, 
 		int mirror, BOOL bNegative, int layer, int font_size, 
-		int stroke_width, SMFontUtil * smfontutil, CString * str_ptr );
+		int stroke_width, SMFontUtil * smfontutil, CString * str_ptr, unsigned int selType=ID_TEXT, unsigned int selSubtype=ID_SEL_TXT );
 	~CText();
 	void Draw( CDisplayList * dlist, SMFontUtil * smfontutil );
 	void Undraw();
+	// CPT:  Move() was in CTextList; moved it here.  GetBounds() is new:
+	void Move( int x, int y, int angle, BOOL mirror, BOOL negative, int layer, int size=-1, int w=-1 );
+	void GetBounds( CRect &br );
 	// member variables
 	GUID m_guid;
 	int m_x, m_y;
@@ -53,6 +58,7 @@ public:
 	CDisplayList * m_dlist;
 	dl_element * dl_sel;
 	SMFontUtil * m_smfontutil;
+	unsigned int m_selType, m_selSubtype;			// CPT
 };
 
 class CTextList
@@ -76,8 +82,6 @@ public:
 	void HighlightText( CText * text );
 	void StartDraggingText( CDC * pDC, CText * text );
 	void CancelDraggingText( CText * text );
-	void MoveText( CText * text, int x, int y, int angle, 
-		BOOL mirror, BOOL negative, int layer );
 	void ReadTexts( CStdioFile * file );
 	int WriteTexts( CStdioFile * file );
 	void MoveOrigin( int x_off, int y_off );

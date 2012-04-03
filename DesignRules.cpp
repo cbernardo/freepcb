@@ -95,7 +95,8 @@ DRError * DRErrorList::Add( long index, int type, CString * str,
 		y = (y1 + y2)/2;
 	}
 	// first check for redundant error
-	if( !list.IsEmpty() )
+	// CPT: allow repeats of COPPERAREA_BROKEN errors
+	if( !list.IsEmpty()  && type != DRError::COPPERAREA_BROKEN)	
 	{
 		for( pos = list.GetHeadPosition(); pos != NULL; )
 		{
@@ -407,6 +408,8 @@ void DRErrorList::HighLight( DRError * dre )
 		if( part2 && dre->id2.i < part2->pin.GetSize() )
 			dl2 = GetPadElement( &part2->pin[dre->id2.i], dre->layer );
 	}
+	else if (dre->m_id.sst == DRError::COPPERAREA_BROKEN)
+		;															// CPT
 	else
 		ASSERT(0);
 	if( dl1 )

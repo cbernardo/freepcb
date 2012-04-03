@@ -318,8 +318,7 @@ void MakeCStringFromDimension( CString * str, int dim, int units, BOOL append_un
 							  BOOL lower_case, BOOL space, int max_dp, BOOL strip )
 {
 	CString f_str;
-	f_str.Format( "11.%df", max_dp );
-	f_str = "%" + f_str;
+	f_str.Format( "%%11.%df", max_dp );				// CPT tidy-up
 	if( units == MM )
 		str->Format( f_str, (double)dim/1000000.0 );
 	else if( units == MIL )

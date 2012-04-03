@@ -31,16 +31,8 @@
 #include "DlgValueText.h"
 
 // globals
-BOOL g_bShow_Ratline_Warning = TRUE;
 extern CFreePcbApp theApp;
-BOOL t_pressed = FALSE;
-BOOL n_pressed = FALSE;
-BOOL gLastKeyWasArrow = FALSE;
-int gTotalArrowMoveX = 0;
-int gTotalArrowMoveY = 0;
-// CPT:  removed gShiftKeyDown global
-
-BOOL gLastKeyWasGroupRotate = FALSE;
+// CPT:  removed gShiftKeyDown global. Other globals moved into class CCommonView
 long long groupAverageX=0, groupAverageY=0;
 int groupNumberItems=0;
 
@@ -54,10 +46,9 @@ static char THIS_FILE[] = __FILE__;
 
 #define ZOOM_RATIO 1.4
 
-// constants for function key menu
 #define FKEY_OFFSET_X 4
 #define FKEY_OFFSET_Y 4
-#define	FKEY_R_W m_fkey_w	// CPT:  No longer constant!
+#define	FKEY_R_W m_fkey_w	// CPT:
 #define FKEY_R_H 30
 #define FKEY_STEP (FKEY_R_W+5)
 #define FKEY_GAP 20
@@ -65,9 +56,6 @@ static char THIS_FILE[] = __FILE__;
 
 // constants for layer list
 #define VSTEP 14
-
-// macro for approximating angles to 1 degree accuracy
-#define APPROX(angle,ref) ((angle > ref-M_PI/360) && (angle < ref+M_PI/360))
 
 // these must be changed if context menu is edited
 enum {
@@ -96,9 +84,9 @@ enum {
 /////////////////////////////////////////////////////////////////////////////
 // CFreePcbView
 
-IMPLEMENT_DYNCREATE(CFreePcbView, CView)
+IMPLEMENT_DYNCREATE(CFreePcbView, CCommonView)
 
-BEGIN_MESSAGE_MAP(CFreePcbView, CView)
+BEGIN_MESSAGE_MAP(CFreePcbView, CCommonView)
 	//{{AFX_MSG_MAP(CFreePcbView)
 	ON_WM_SIZE()
 	ON_WM_LBUTTONDOWN()
@@ -256,64 +244,9 @@ END_MESSAGE_MAP()
 
 CFreePcbView::CFreePcbView()
 {
-	// GetDocument() is not available at this point
-	m_small_font.CreateFont( 14, 0, 0, 0, FW_NORMAL, 0, 0, 0, DEFAULT_CHARSET,
-		OUT_CHARACTER_PRECIS, CLIP_CHARACTER_PRECIS, DEFAULT_QUALITY,
-		DEFAULT_PITCH | FF_DONTCARE, "Arial" );
-#if 0
-	m_small_font.CreateFont( 10, 0, 0, 0, FW_NORMAL, 0, 0, 0, DEFAULT_CHARSET,
-		OUT_CHARACTER_PRECIS, CLIP_CHARACTER_PRECIS, DEFAULT_QUALITY,
-		DEFAULT_PITCH | FF_DONTCARE, "MS Sans Serif" );
-#endif
-
-	m_Doc = NULL;
-	m_dlist = 0;
-	m_last_mouse_point.x = 0;
-	m_last_mouse_point.y = 0;
-	m_last_cursor_point.x = 0;
-	m_last_cursor_point.y = 0;
-	// CPT: left pane width customizable by changing resource string 
-	CString s ((LPCSTR) IDS_LeftPaneWidth);
-	m_left_pane_w = atoi(s);
-	if (m_left_pane_w<=0) m_left_pane_w = 125;
-	// CPT: Likewise f-key box width
-	s.LoadStringA(IDS_FKeyWidth);
-	m_fkey_w = atoi(s);
-	if (m_fkey_w<=0) m_fkey_w = 70;
-	// CPT
-	m_last_autoscroll = 0;
-
-	m_bottom_pane_h = 40;	// the bottom pane on screen is this high (pixels)
-	m_memDC_created = FALSE;
-	m_dragging_new_item = FALSE;
 	m_bDraggingRect = FALSE;
 	m_bLButtonDown = FALSE;
 	CalibrateTimer();
- }
-
-// initialize the view object
-// this code can't be placed in the constructor, because it depends on document
-// don't try to draw window until this function has been called
-// need only be called once
-//
-void CFreePcbView::InitInstance()
-{
-	// this should be called from InitInstance function of CApp,
-	// after the document is created
-	m_Doc = GetDocument();
-	ASSERT_VALID(m_Doc);
-	m_Doc->m_edit_footprint = FALSE;
-	m_dlist = m_Doc->m_dlist;
-	InitializeView();
-	CRect screen_r;
-	GetWindowRect( &screen_r );
-	m_dlist->SetMapping( &m_client_r, &screen_r, m_left_pane_w, m_bottom_pane_h,
-		m_pcbu_per_pixel, m_org_x, m_org_y );
-	for(int i=0; i<m_Doc->m_num_layers; i++ )
-		m_dlist->SetLayerRGB( i, m_Doc->m_rgb[i][0], m_Doc->m_rgb[i][1], m_Doc->m_rgb[i][2] );
-	ShowSelectStatus();
-	ShowActiveLayer();
-	m_Doc->m_view = this;
 	// set up array of mask ids
 	m_mask_id[SEL_MASK_PARTS].Set( ID_PART, ID_SEL_RECT );
 	m_mask_id[SEL_MASK_REF].Set( ID_PART, ID_SEL_REF_TXT );
@@ -328,39 +261,36 @@ void CFreePcbView::InitInstance()
 	m_mask_id[SEL_MASK_DRC].Set( ID_DRC );
 }
 
+// initialize the view object
+// this code can't be placed in the constructor, because it depends on document
+// don't try to draw window until this function has been called
+// need only be called once
+//
+void CFreePcbView::InitInstance()
+{
+	// this should be called from InitInstance function of CApp,
+	// after the document is created
+	OnNewProject();
+	ShowSelectStatus();
+	ShowActiveLayer();
+	m_Doc->m_view = this;
+}
+
 // initialize view with defaults for a new project
 // should be called each time a new project is created
-//
-void CFreePcbView::InitializeView()
+// CPT:  reorganized & renamed as part of the CCommonView reorganization (used to be called InitializeView())
+void CFreePcbView::OnNewProject()
 {
-	if( !m_dlist )
-		ASSERT(0);
-
-	// set defaults
-	SetCursorMode( CUR_NONE_SELECTED );
-	m_sel_id.Clear();
+	BaseInit();
+	// CFreePcbView specific defaults
 	m_sel_layer = 0;
 	m_dir = 0;
-	m_debug_flag = 0;
-	m_dragging_new_item = 0;
 	m_active_layer = LAY_TOP_COPPER;
 	m_bDraggingRect = FALSE;
 	m_bLButtonDown = FALSE;
-	m_sel_mask = 0xffff;
-	SetSelMaskArray( m_sel_mask );
 	m_inflection_mode = IM_90_45;
 	m_snap_mode = SM_GRID_POINTS;
-
-	// default screen coords in world units (i.e. display units)
-	m_pcbu_per_pixel = 5.0*PCBU_PER_MIL;	// 5 mils per pixel
-	m_org_x = -100.0*PCBU_PER_MIL;			// lower left corner of window
-	m_org_y = -100.0*PCBU_PER_MIL;
-
-	// grid defaults
-	m_Doc->m_snap_angle = 45;
-
-	m_left_pane_invalid = TRUE;
-	Invalidate( FALSE );
+	m_units = m_Doc->m_units;
 }
 
 // destructor
@@ -368,16 +298,9 @@ CFreePcbView::~CFreePcbView()
 {
 }
 
-BOOL CFreePcbView::PreCreateWindow(CREATESTRUCT& cs)
-{
-	// TODO: Modify the Window class or styles here by modifying
-	//  the CREATESTRUCT cs
-
-	return CView::PreCreateWindow(cs);
-}
-
 /////////////////////////////////////////////////////////////////////////////
 // CFreePcbView drawing
+
 
 void CFreePcbView::OnDraw(CDC* pDC)
 {
@@ -397,182 +320,9 @@ void CFreePcbView::OnDraw(CDC* pDC)
 	}
 
 	// draw stuff on left pane
-	CRect r = m_client_r;
-	int y_off = 10;
-	int x_off = 10;
-	if( m_left_pane_invalid )
-	{
-		// erase previous contents if changed
-		CBrush brush( RGB(255, 255, 255) );
-		CPen pen( PS_SOLID, 1, RGB(255, 255, 255) );
-		CBrush * old_brush = pDC->SelectObject( &brush );
-		CPen * old_pen = pDC->SelectObject( &pen );
-		// erase left pane
-		r.right = m_left_pane_w;
-		r.bottom -= m_bottom_pane_h;
-		pDC->Rectangle( &r );
-		// erase bottom pane
-		r = m_client_r;
-		r.top = r.bottom - m_bottom_pane_h;
-		pDC->Rectangle( &r );
-		pDC->SelectObject( old_brush );
-		pDC->SelectObject( old_pen );
-		m_left_pane_invalid = FALSE;
-	}
-	CFont * old_font = pDC->SelectObject( &m_small_font );
-	int index_to_active_layer;
-	for( int i=0; i<m_Doc->m_num_layers; i++ )
-	{
-		// i = position index
-		r.left = x_off;
-		r.right = x_off+12;
-		r.top = i*VSTEP+y_off;
-		r.bottom = i*VSTEP+12+y_off;
-		// il = layer index, since copper layers are displayed out of order
-		int il = i;
-		if( i == m_Doc->m_num_layers-1 && m_Doc->m_num_copper_layers > 1 )
-			il = LAY_BOTTOM_COPPER;
-		else if( i > LAY_TOP_COPPER )
-			il = i+1;
-		CBrush brush( RGB(m_Doc->m_rgb[il][0], m_Doc->m_rgb[il][1], m_Doc->m_rgb[il][2]) );
-		if( m_Doc->m_vis[il] )
-		{
-			// if layer is visible, draw colored rectangle
-			CBrush * old_brush = pDC->SelectObject( &brush );
-			pDC->Rectangle( &r );
-			pDC->SelectObject( old_brush );
-		}
-		else
-		{
-			// if layer is invisible, draw box with X
-			pDC->Rectangle( &r );
-			pDC->MoveTo( r.left, r.top );
-			pDC->LineTo( r.right, r.bottom );
-			pDC->MoveTo( r.left, r.bottom );
-			pDC->LineTo( r.right, r.top );
-		}
-		r.left += 20;
-		r.right += 120;
-		r.bottom += 5;
-		// CPT
-		CString label, s;
-		char lc = layer_char[i-LAY_TOP_COPPER];
-		if (il==LAY_TOP_COPPER)
-			s.LoadStringA(IDS_TopCopper),
-			label.Format(s, lc, lc);
-		else if (il==LAY_BOTTOM_COPPER)
-			s.LoadStringA(IDS_Bottom3),
-			label.Format(s, lc, lc);
-		else if (il==LAY_PAD_THRU)
-			label.LoadStringA(IDS_DrilledHole2);
-		else if (il>LAY_TOP_COPPER)
-			s.LoadStringA(IDS_LayerStr+il),
-			label.Format("%s. %c,C%c", s, lc, lc);
-		else if (il>1)
-			s.LoadStringA(IDS_LayerStr+il),
-			label.Format("%s. CF%d", s, i-1);
-		else
-			label.LoadStringA(IDS_LayerStr+il);
-		if( il == LAY_TOP_COPPER )
-			pDC->DrawText( label, -1, &r, DT_TOP );
-		else
-			pDC->DrawText( label, -1, &r, 0 );
-		CRect ar = r;
-		ar.left = 2;
-		ar.right = 8;
-		ar.bottom -= 5;
-		if( il == m_active_layer )
-		{
-			// draw arrowhead
-			pDC->MoveTo( ar.left, ar.top+1 );
-			pDC->LineTo( ar.right-1, (ar.top+ar.bottom)/2 );
-			pDC->LineTo( ar.left, ar.bottom-1 );
-			pDC->LineTo( ar.left, ar.top+1 );
-		}
-		else
-		{
-			// erase arrowhead
-			pDC->FillSolidRect( &ar, RGB(255,255,255) );
-		}
-	}
-	r.left = x_off;
-	r.bottom += VSTEP*2;
-	r.top += VSTEP*2;
-	CString s ((LPCSTR) IDS_SelectionMask);
-	pDC->DrawText( s, -1, &r, DT_TOP );
-	y_off = r.bottom;
-	for( int i=0; i<NUM_SEL_MASKS; i++ )
-	{
-		// i = position index
-		r.left = x_off;
-		r.right = x_off+12;
-		r.top = i*VSTEP+y_off;
-		r.bottom = i*VSTEP+12+y_off;
-		CBrush green_brush( RGB(0, 255, 0) );
-		CBrush red_brush( RGB(255, 0, 0) );
-		if( m_sel_mask & (1<<i) )
-		{
-			// if mask is selected is visible, draw green rectangle
-			CBrush * old_brush = pDC->SelectObject( &green_brush );
-			pDC->Rectangle( &r );
-			pDC->SelectObject( old_brush );
-		}
-		else
-		{
-			// if mask not selected, draw red
-			CBrush * old_brush = pDC->SelectObject( &red_brush );
-			pDC->Rectangle( &r );
-			pDC->SelectObject( old_brush );
-		}
-		r.left += 20;
-		r.right += 120;
-		r.bottom += 5;
-		// CPT
-		CString label, s ((LPCSTR) (IDS_SelMaskStr+i));
-		label.Format("%s. A%c", s, i<9? '1'+i: i==9? '0': '-');
-		pDC->DrawText( label, -1, &r, DT_TOP );
-	}
-	// CPT
-	r.left = x_off;
-	r.bottom += VSTEP*2;
-	r.top += VSTEP*2;
-	s.LoadStringA(IDS_12UseThese);
-	pDC->DrawText( s, -1, &r, DT_TOP );
-	r.bottom += VSTEP;
-	r.top += VSTEP;
-	s.LoadStringA(IDS_KeysToChange);
-	pDC->DrawText( s, -1, &r, DT_TOP );
-	r.bottom += VSTEP;
-	r.top += VSTEP;
-	s.LoadStringA(IDS_RoutingLayer);
-	pDC->DrawText( s, -1, &r, DT_TOP );
-	r.bottom += VSTEP*3/2;
-	r.top += VSTEP*3/2;
-	s.LoadStringA(IDS_C1Cf1);
-	pDC->DrawText( s, -1, &r, DT_TOP );
-	r.bottom += VSTEP;
-	r.top += VSTEP;
-	s.LoadStringA(IDS_Ctrl1CtrlF1);
-	pDC->DrawText( s, -1, &r, DT_TOP );
-	r.bottom += VSTEP;
-	r.top += VSTEP;
-	s.LoadStringA(IDS_HideRevealLayers);
-	pDC->DrawText( s, -1, &r, DT_TOP );
-	r.bottom += VSTEP*3/2;
-	r.top += VSTEP*3/2;
-	s.LoadStringA(IDS_A1A2);
-	pDC->DrawText( s, -1, &r, DT_TOP );
-	r.bottom += VSTEP;
-	r.top += VSTEP;
-	s.LoadStringA(IDS_Alt1Alt2);
-	pDC->DrawText( s, -1, &r, DT_TOP );
-	r.bottom += VSTEP;
-	r.top += VSTEP;
-	s.LoadStringA(IDS_ToggleMasks);
-	pDC->DrawText( s, -1, &r, DT_TOP );
-
+	DrawLeftPane(pDC);
 	// draw function keys on bottom pane
-	DrawBottomPane();
+	DrawBottomPane(pDC);
 
 	//** this is for testing only, needs to be converted to PCB coords
 #if 0
@@ -626,73 +376,9 @@ void CFreePcbView::OnEndPrinting(CDC* /*pDC*/, CPrintInfo* /*pInfo*/)
 	// TODO: add cleanup after printing
 }
 
-/////////////////////////////////////////////////////////////////////////////
-// CFreePcbView diagnostics
-
-#ifdef _DEBUG
-void CFreePcbView::AssertValid() const
-{
-	CView::AssertValid();
-}
-
-void CFreePcbView::Dump(CDumpContext& dc) const
-{
-	CView::Dump(dc);
-}
-
-CFreePcbDoc* CFreePcbView::GetDocument() // non-debug version is inline
-{
-	ASSERT(m_pDocument->IsKindOf(RUNTIME_CLASS(CFreePcbDoc)));
-	return (CFreePcbDoc*)m_pDocument;
-}
-#endif //_DEBUG
 
 /////////////////////////////////////////////////////////////////////////////
 // CFreePcbView message handlers
-
-// Window was resized
-//
-void CFreePcbView::OnSize(UINT nType, int cx, int cy)
-{
-	CView::OnSize(nType, cx, cy);
-
-	// update client rect and create clipping region
-	GetClientRect( &m_client_r );
-	m_pcb_rgn.DeleteObject();
-	m_pcb_rgn.CreateRectRgn( m_left_pane_w, m_client_r.bottom-m_bottom_pane_h,
-		m_client_r.right, m_client_r.top );
-
-	// update display mapping for display list
-	if( m_dlist )
-	{
-		CRect screen_r;
-		GetWindowRect( &screen_r );
-		m_dlist->SetMapping( &m_client_r, &screen_r, m_left_pane_w, m_bottom_pane_h, m_pcbu_per_pixel,
-					m_org_x, m_org_y );
-	}
-
-	// create memory DC and DDB
-	if( !m_memDC_created && m_client_r.right != 0 )
-	{
-		CDC * pDC = GetDC();
-		m_memDC.CreateCompatibleDC( pDC );
-		m_memDC_created = TRUE;
-		m_bitmap.CreateCompatibleBitmap( pDC, m_client_r.right, m_client_r.bottom );
-		m_old_bitmap = (HBITMAP)::SelectObject( m_memDC.m_hDC, m_bitmap.m_hObject );
-		m_bitmap_rect = m_client_r;
-		ReleaseDC( pDC );
-	}
-	else if( m_memDC_created && (m_bitmap_rect != m_client_r) )
-	{
-		CDC * pDC = GetDC();
-		::SelectObject(m_memDC.m_hDC, m_old_bitmap );
-		m_bitmap.DeleteObject();
-		m_bitmap.CreateCompatibleBitmap( pDC, m_client_r.right, m_client_r.bottom );
-		m_old_bitmap = (HBITMAP)::SelectObject( m_memDC.m_hDC, m_bitmap.m_hObject );
-		m_bitmap_rect = m_client_r;
-		ReleaseDC( pDC );
-	}
-}
 
 // Left mouse button released, we should probably do something
 //
@@ -710,8 +396,8 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 	CPoint tp = m_dlist->WindowToPCB( point );
 
 	m_bLButtonDown = FALSE;
-	gLastKeyWasArrow = FALSE;	// cancel series of arrow keys
-	gLastKeyWasGroupRotate=false; // cancel series of group rotations
+	m_lastKeyWasArrow = FALSE;	// cancel series of arrow keys
+	m_lastKeyWasGroupRotate=false; // cancel series of group rotations
 	if( m_bDraggingRect )
 	{
 		// we were dragging selection rect, handle it.  CPT modified:  formerly used m_last_drag_rect, which is no longer a 
@@ -741,495 +427,341 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		return;
 	}
 
-	if( point.y > (m_client_r.bottom-m_bottom_pane_h) )
-	{
-		// clicked in bottom pane, test for hit on function key rectangle
-		for( int i=0; i<9; i++ )
-		{
-			CRect r( FKEY_OFFSET_X+i*FKEY_STEP+(i/4)*FKEY_GAP,
-				m_client_r.bottom-FKEY_OFFSET_Y-FKEY_R_H,
-				FKEY_OFFSET_X+i*FKEY_STEP+(i/4)*FKEY_GAP+FKEY_R_W,
-				m_client_r.bottom-FKEY_OFFSET_Y );
-			if( r.PtInRect( point ) )
-			{
-				// fake function key pressed
-				int nChar = i + 112;
-				HandleKeyPress( nChar, 0, 0 );
-			}
-		}
-	}
-	else if( point.x < m_left_pane_w )
-	{
-		// clicked in left pane
-		CRect r = m_client_r;
-		int y_off = 10;
-		int x_off = 10;
-		for( int i=0; i<m_Doc->m_num_layers; i++ )
-		{
-			// i = position index
-			// il = layer index, since copper layers are displayed out of order
-			int il = i;
-			if( i == m_Doc->m_num_layers-1 && m_Doc->m_num_copper_layers > 1 )
-				il = LAY_BOTTOM_COPPER;
-			else if( i > LAY_TOP_COPPER )
-				il = i+1;
-			// get color square
-			r.left = x_off;
-			r.right = x_off+12;
-			r.top = i*VSTEP+y_off;
-			r.bottom = i*VSTEP+12+y_off;
-			if( r.PtInRect( point ) && il > LAY_BACKGND )
-			{
-				// clicked in color square
-				m_Doc->m_vis[il] = !m_Doc->m_vis[il];
-				m_dlist->SetLayerVisible( il, m_Doc->m_vis[il] );
-				if( il == LAY_RAT_LINE && m_Doc->m_vis[il] && g_bShow_Ratline_Warning )
-				{
-					CDlgMyMessageBox dlg;
-					CString s ((LPCSTR) IDS_RatlinesTurnedBackOn);
-					dlg.Initialize( s );
-					dlg.DoModal();
-					g_bShow_Ratline_Warning = !dlg.bDontShowBoxState;
-				}
-				Invalidate( FALSE );
-			}
-			else
-			{
-				// get layer name rect
-				r.left += 20;
-				r.right += 120;
-				r.bottom += 5;
-				if( r.PtInRect( point ) )
-				{
-					// clicked on layer name
-					if( i >= LAY_TOP_COPPER && i < LAY_TOP_COPPER + 8 )
-					{
-						int nChar = '1' + i - LAY_TOP_COPPER;
-						HandleKeyPress( nChar, 0, 0 );
-						Invalidate( FALSE );
-					}
-					else
-					{
-						switch( i )
-						{
-						case LAY_TOP_COPPER: HandleKeyPress( '1', 0, 0 ); Invalidate( FALSE ); break;
-						case LAY_TOP_COPPER+1: HandleKeyPress( '2', 0, 0 ); Invalidate( FALSE ); break;
-						case LAY_TOP_COPPER+2: HandleKeyPress( '3', 0, 0 ); Invalidate( FALSE ); break;
-						case LAY_TOP_COPPER+3: HandleKeyPress( '4', 0, 0 ); Invalidate( FALSE ); break;
-						case LAY_TOP_COPPER+4: HandleKeyPress( '5', 0, 0 ); Invalidate( FALSE ); break;
-						case LAY_TOP_COPPER+5: HandleKeyPress( '6', 0, 0 ); Invalidate( FALSE ); break;
-						case LAY_TOP_COPPER+6: HandleKeyPress( '7', 0, 0 ); Invalidate( FALSE ); break;
-						case LAY_TOP_COPPER+7: HandleKeyPress( '8', 0, 0 ); Invalidate( FALSE ); break;
-						case LAY_TOP_COPPER+8: HandleKeyPress( 'Q', 0, 0 ); Invalidate( FALSE ); break;
-						case LAY_TOP_COPPER+9: HandleKeyPress( 'W', 0, 0 ); Invalidate( FALSE ); break;
-						case LAY_TOP_COPPER+10: HandleKeyPress( 'E', 0, 0 ); Invalidate( FALSE ); break;
-						case LAY_TOP_COPPER+11: HandleKeyPress( 'R', 0, 0 ); Invalidate( FALSE ); break;
-						case LAY_TOP_COPPER+12: HandleKeyPress( 'T', 0, 0 ); Invalidate( FALSE ); break;
-						case LAY_TOP_COPPER+13: HandleKeyPress( 'Y', 0, 0 ); Invalidate( FALSE ); break;
-						case LAY_TOP_COPPER+14: HandleKeyPress( 'U', 0, 0 ); Invalidate( FALSE ); break;
-						case LAY_TOP_COPPER+15: HandleKeyPress( 'I', 0, 0 ); Invalidate( FALSE ); break;
-						}
-					}
-				}
-			}
-		}
-		y_off = r.bottom + 2*VSTEP;
-		for( int i=0; i<NUM_SEL_MASKS; i++ )
-		{
-			// get color square
-			r.left = x_off;
-			r.right = x_off+12+120;
-			r.top = i*VSTEP+y_off;
-			r.bottom = i*VSTEP+12+y_off;
-			if( r.PtInRect( point ) )
-			{
-				// clicked in color square or name
-				m_sel_mask = m_sel_mask ^ (1<<i);
-				SetSelMaskArray( m_sel_mask );
-				Invalidate( FALSE );
-			}
-		}
-	}
-	else
-	{
-		// clicked in PCB pane
-		if(	CurNone() || CurSelected() )
-		{
-			// see if new item selected
-			CPoint p = m_dlist->WindowToPCB( point );
-			id sid;
-			void * sel_ptr = NULL;
-			if( m_sel_id.type == ID_PART )
-				sel_ptr = m_sel_part;
-			else if( m_sel_id.type == ID_NET )
-				sel_ptr = m_sel_net;
-			else if( m_sel_id.type == ID_TEXT )
-				sel_ptr = m_sel_text;
-			else if( m_sel_id.type == ID_DRC )
-				sel_ptr = m_sel_dre;
-			// save masks in case they are changed
-			id old_mask_pins = m_mask_id[SEL_MASK_PINS];
-			id old_mask_ref = m_mask_id[SEL_MASK_REF];
-			if( nFlags & MK_CONTROL && m_mask_id[SEL_MASK_PARTS].ii == 0xfffe )
-			{
-				// if control key pressed and parts masked, also mask pins and ref
-				m_mask_id[SEL_MASK_PINS].ii = 0xfffe;
-				m_mask_id[SEL_MASK_REF].ii = 0xfffe;
-			}
-			void * ptr = m_dlist->TestSelect( p.x, p.y, &sid, &m_sel_layer, &m_sel_id, sel_ptr,
-				m_mask_id, NUM_SEL_MASKS );
-			// restore mask
-			m_mask_id[SEL_MASK_PINS] = old_mask_pins;
-			m_mask_id[SEL_MASK_REF] = old_mask_ref;
+	if (CheckBottomPaneClick(point)) return;
+	if (CheckLeftPaneClick(point)) return;
 
-			// check for second pad selected while holding down 's'
-			SHORT kc = GetKeyState( 'S' );
-			if( kc & 0x8000 && m_cursor_mode == CUR_PAD_SELECTED )
+	// clicked in PCB pane
+	if(	CurNone() || CurSelected() )
+	{
+		// see if new item selected
+		CPoint p = m_dlist->WindowToPCB( point );
+		id sid;
+		void * sel_ptr = NULL;
+		if( m_sel_id.type == ID_PART )
+			sel_ptr = m_sel_part;
+		else if( m_sel_id.type == ID_NET )
+			sel_ptr = m_sel_net;
+		else if( m_sel_id.type == ID_TEXT )
+			sel_ptr = m_sel_text;
+		else if( m_sel_id.type == ID_DRC )
+			sel_ptr = m_sel_dre;
+		// save masks in case they are changed
+		id old_mask_pins = m_mask_id[SEL_MASK_PINS];
+		id old_mask_ref = m_mask_id[SEL_MASK_REF];
+		if( nFlags & MK_CONTROL && m_mask_id[SEL_MASK_PARTS].ii == 0xfffe )
+		{
+			// if control key pressed and parts masked, also mask pins and ref
+			m_mask_id[SEL_MASK_PINS].ii = 0xfffe;
+			m_mask_id[SEL_MASK_REF].ii = 0xfffe;
+		}
+		void * ptr = m_dlist->TestSelect( p.x, p.y, &sid, &m_sel_layer, &m_sel_id, sel_ptr,
+			m_mask_id, NUM_SEL_MASKS );
+		// restore mask
+		m_mask_id[SEL_MASK_PINS] = old_mask_pins;
+		m_mask_id[SEL_MASK_REF] = old_mask_ref;
+
+		// check for second pad selected while holding down 's'
+		SHORT kc = GetKeyState( 'S' );
+		if( kc & 0x8000 && m_cursor_mode == CUR_PAD_SELECTED )
+		{
+			if( sid.type == ID_PART && sid.st == ID_SEL_PAD )
 			{
-				if( sid.type == ID_PART && sid.st == ID_SEL_PAD )
+				CString mess;
+				// OK, now swap pads
+				cpart * part1 = m_sel_part;
+				CString pin_name1 = part1->shape->GetPinNameByIndex( m_sel_id.i );
+				cnet * net1 = m_Doc->m_plist->GetPinNet(part1, &pin_name1);
+				CString net_name1 = "unconnected";
+				if( net1 )
+					net_name1 = net1->name;
+				cpart * part2 = (cpart*)ptr;
+				CString pin_name2 = part2->shape->GetPinNameByIndex( sid.i );
+				cnet * net2 = m_Doc->m_plist->GetPinNet(part2, &pin_name2);
+				CString net_name2 = "unconnected";
+				if( net2 )
+					net_name2 = net2->name;
+				if( net1 == NULL && net2 == NULL )
 				{
-					CString mess;
-					// OK, now swap pads
-					cpart * part1 = m_sel_part;
-					CString pin_name1 = part1->shape->GetPinNameByIndex( m_sel_id.i );
-					cnet * net1 = m_Doc->m_plist->GetPinNet(part1, &pin_name1);
-					CString net_name1 = "unconnected";
-					if( net1 )
-						net_name1 = net1->name;
-					cpart * part2 = (cpart*)ptr;
-					CString pin_name2 = part2->shape->GetPinNameByIndex( sid.i );
-					cnet * net2 = m_Doc->m_plist->GetPinNet(part2, &pin_name2);
-					CString net_name2 = "unconnected";
-					if( net2 )
-						net_name2 = net2->name;
-					if( net1 == NULL && net2 == NULL )
-					{
-						CString s ((LPCSTR) IDS_NoConnectionsToSwap);
-						AfxMessageBox( s );
-						return;
-					}
-					CString s ((LPCSTR) IDS_SwapPins);
-					mess.Format( s, part1->ref_des, pin_name1, net_name1,
-						part2->ref_des, pin_name2, net_name2 );
-					int ret = AfxMessageBox( mess, MB_OKCANCEL );
-					if( ret == IDOK )
-					{
-						SaveUndoInfoFor2PartsAndNets( part1, part2, TRUE, m_Doc->m_undo_list );
-						m_Doc->m_nlist->SwapPins( part1, &pin_name1, part2, &pin_name2 );
-						m_Doc->ProjectModified( TRUE );
-						ShowSelectStatus();
-						Invalidate( FALSE );
-					}
+					CString s ((LPCSTR) IDS_NoConnectionsToSwap);
+					AfxMessageBox( s );
 					return;
 				}
+				CString s ((LPCSTR) IDS_SwapPins);
+				mess.Format( s, part1->ref_des, pin_name1, net_name1,
+					part2->ref_des, pin_name2, net_name2 );
+				int ret = AfxMessageBox( mess, MB_OKCANCEL );
+				if( ret == IDOK )
+				{
+					SaveUndoInfoFor2PartsAndNets( part1, part2, TRUE, m_Doc->m_undo_list );
+					m_Doc->m_nlist->SwapPins( part1, &pin_name1, part2, &pin_name2 );
+					m_Doc->ProjectModified( TRUE );
+					ShowSelectStatus();
+					Invalidate( FALSE );
+				}
+				return;
 			}
+		}
 
-			// now handle new selection
-			if( nFlags & MK_CONTROL )
+		// now handle new selection
+		if( nFlags & MK_CONTROL )
+		{
+			// control key held down
+			if(    sid.type == ID_PART
+					&& m_mask_id[SEL_MASK_PARTS].ii != 0xfffe
+				|| sid.type == ID_TEXT
+					&& m_mask_id[SEL_MASK_TEXT].ii != 0xfffe
+				|| (sid.type == ID_NET && sid.st == ID_CONNECT && sid.sst == ID_SEL_SEG
+					&& ((cnet*)ptr)->connect[sid.i].seg[sid.ii].layer != LAY_RAT_LINE)
+					&& m_mask_id[SEL_MASK_CON].ii != 0xfffe
+				|| sid.type == ID_NET && sid.st == ID_CONNECT && sid.sst == ID_SEL_VERTEX
+					&& (((cnet*)ptr)->connect[sid.i].vtx[sid.ii].tee_ID
+						|| ((cnet*)ptr)->connect[sid.i].vtx[sid.ii].force_via_flag )
+					&& m_mask_id[SEL_MASK_VIA].ii != 0xfffe
+				|| sid.type == ID_NET && sid.st == ID_AREA && sid.sst == ID_SEL_SIDE
+					&& m_mask_id[SEL_MASK_AREAS].ii != 0xfffe
+				|| sid.type == ID_SM_CUTOUT && sid.st == ID_SM_CUTOUT && sid.sst == ID_SEL_SIDE
+					&& m_mask_id[SEL_MASK_SM].ii != 0xfffe
+				|| sid.type == ID_BOARD && sid.st == ID_BOARD && sid.sst == ID_SEL_SIDE
+					&& m_mask_id[SEL_MASK_BOARD].ii != 0xfffe
+					)
 			{
-				// control key held down
-				if(    sid.type == ID_PART
-						&& m_mask_id[SEL_MASK_PARTS].ii != 0xfffe
-					|| sid.type == ID_TEXT
-						&& m_mask_id[SEL_MASK_TEXT].ii != 0xfffe
-					|| (sid.type == ID_NET && sid.st == ID_CONNECT && sid.sst == ID_SEL_SEG
-						&& ((cnet*)ptr)->connect[sid.i].seg[sid.ii].layer != LAY_RAT_LINE)
-						&& m_mask_id[SEL_MASK_CON].ii != 0xfffe
-					|| sid.type == ID_NET && sid.st == ID_CONNECT && sid.sst == ID_SEL_VERTEX
-						&& (((cnet*)ptr)->connect[sid.i].vtx[sid.ii].tee_ID
-							|| ((cnet*)ptr)->connect[sid.i].vtx[sid.ii].force_via_flag )
-						&& m_mask_id[SEL_MASK_VIA].ii != 0xfffe
-					|| sid.type == ID_NET && sid.st == ID_AREA && sid.sst == ID_SEL_SIDE
-						&& m_mask_id[SEL_MASK_AREAS].ii != 0xfffe
-					|| sid.type == ID_SM_CUTOUT && sid.st == ID_SM_CUTOUT && sid.sst == ID_SEL_SIDE
-						&& m_mask_id[SEL_MASK_SM].ii != 0xfffe
-					|| sid.type == ID_BOARD && sid.st == ID_BOARD && sid.sst == ID_SEL_SIDE
-						&& m_mask_id[SEL_MASK_BOARD].ii != 0xfffe
-						)
+				// legal selection for group
+				if( sid.type == ID_PART )
 				{
-					// legal selection for group
-					if( sid.type == ID_PART )
+					sid.st = ID_SEL_RECT;
+					sid.i = 0;
+					sid.sst = 0;
+					sid.ii = 0;
+				}
+				// if previous single selection, convert to group.  CPT streamlined
+				ConvertSelectionToGroup(true);
+				// now add or remove from group
+				if( m_cursor_mode == CUR_GROUP_SELECTED )
+				{
+					BOOL bFound = FALSE;
+					for( int i=0; i<m_sel_ids.GetSize(); i++ )
 					{
-						sid.st = ID_SEL_RECT;
-						sid.i = 0;
-						sid.sst = 0;
-						sid.ii = 0;
+						id tid = m_sel_ids[i];
+						void * tptr = m_sel_ptrs[i];
+						if( tid == sid && m_sel_ptrs[i] == ptr )
+						{
+							bFound = TRUE;
+							m_sel_ptrs.RemoveAt(i);
+							m_sel_ids.RemoveAt(i);
+						}
 					}
-					// if previous single selection, convert to group.  CPT streamlined
-					ConvertSelectionToGroup(true);
-					// now add or remove from group
-					if( m_cursor_mode == CUR_GROUP_SELECTED )
+					if( !bFound )
 					{
-						BOOL bFound = FALSE;
-						for( int i=0; i<m_sel_ids.GetSize(); i++ )
-						{
-							id tid = m_sel_ids[i];
-							void * tptr = m_sel_ptrs[i];
-							if( tid == sid && m_sel_ptrs[i] == ptr )
-							{
-								bFound = TRUE;
-								m_sel_ptrs.RemoveAt(i);
-								m_sel_ids.RemoveAt(i);
-							}
-						}
-						if( !bFound )
-						{
-							m_sel_ids.Add( sid );
-							m_sel_ptrs.Add( ptr );
-						}
-						if( m_sel_ids.GetSize() == 0 )
-						{
-							CancelSelection();
-						}
-						else if (m_sel_ids.GetSize() == 1)
-							ConvertSingletonGroup();
-						else
-						{
-							HighlightGroup();
-						}
-						Invalidate( FALSE );
+						m_sel_ids.Add( sid );
+						m_sel_ptrs.Add( ptr );
 					}
+					if( m_sel_ids.GetSize() == 0 )
+					{
+						CancelSelection();
+					}
+					else if (m_sel_ids.GetSize() == 1)
+						ConvertSingletonGroup();
+					else
+					{
+						HighlightGroup();
+					}
+					Invalidate( FALSE );
 				}
 			}
+		}
 
-			// CPT: reworked;  will invoke new helper function DoSelection().
-			else if( sid.type == ID_PART &&  (GetKeyState('N') & 0x8000) && sid.st == ID_SEL_PAD )
+		// CPT: reworked;  will invoke new helper function DoSelection().
+		else if( sid.type == ID_PART &&  (GetKeyState('N') & 0x8000) && sid.st == ID_SEL_PAD )
+		{
+			// pad selected and if "n" held down, select net
+			m_sel_part = (cpart*)ptr;
+			m_sel_id = sid;
+			cnet * net = m_Doc->m_plist->GetPinNet( m_sel_part, sid.i );
+			if( net )
 			{
-				// pad selected and if "n" held down, select net
-				m_sel_part = (cpart*)ptr;
-				m_sel_id = sid;
-				cnet * net = m_Doc->m_plist->GetPinNet( m_sel_part, sid.i );
-				if( net )
-				{
-					m_sel_net = net;
-					m_sel_id = net->id;
-					m_sel_id.st = ID_ENTIRE_NET;
-					m_Doc->m_nlist->HighlightNetConnections( m_sel_net );
-					m_Doc->m_plist->HighlightAllPadsOnNet( m_sel_net );
-					SetCursorMode( CUR_NET_SELECTED );
-				}
-				else
-				{
-					m_Doc->m_plist->SelectPad( m_sel_part, sid.i );
-					SetCursorMode( CUR_PAD_SELECTED );
-				}
-				Invalidate( FALSE );
+				m_sel_net = net;
+				m_sel_id = net->id;
+				m_sel_id.st = ID_ENTIRE_NET;
+				m_Doc->m_nlist->HighlightNetConnections( m_sel_net );
+				m_Doc->m_plist->HighlightAllPadsOnNet( m_sel_net );
+				SetCursorMode( CUR_NET_SELECTED );
 			}
-	
 			else
-				CancelSelection(),
-				DoSelection(sid, ptr);
-		}
-
-		else if( m_cursor_mode == CUR_DRAG_PART )
-		{
-			// complete move
-			SetCursorMode( CUR_PART_SELECTED );
-			CPoint p = m_dlist->WindowToPCB( point );
-			m_Doc->m_plist->StopDragging();
-			int old_angle = m_Doc->m_plist->GetAngle( m_sel_part );
-			int angle = old_angle + m_dlist->GetDragAngle();
-			angle = angle % 360;
-			int old_side = m_sel_part->side;
-			int side = old_side + m_dlist->GetDragSide();
-			if( side > 1 )
-				side = side - 2;
-
-			// save undo info for part and attached nets
-			if( !m_dragging_new_item )
-				SaveUndoInfoForPartAndNets( m_sel_part,
-				CPartList::UNDO_PART_MODIFY, NULL, TRUE, m_Doc->m_undo_list );
-			m_dragging_new_item = FALSE;
-
-			// now move it
-			m_sel_part->glued = 0;
-			m_Doc->m_plist->Move( m_sel_part, m_last_cursor_point.x, m_last_cursor_point.y,
-				angle, side );
-			m_Doc->m_plist->HighlightPart( m_sel_part );
-			m_Doc->m_nlist->PartMoved( m_sel_part );
-			if( m_Doc->m_vis[LAY_RAT_LINE] )
-				m_Doc->m_nlist->OptimizeConnections( m_sel_part, m_Doc->m_auto_ratline_disable,
-										m_Doc->m_auto_ratline_min_pins );
-			SetFKText( m_cursor_mode );
-			m_Doc->ProjectModified( TRUE );
-			Invalidate( FALSE );
-#if 0
-			//** for testing only
-			CRect test_rect( 0, 0, 100, 100 );
-			InvalidateRect( test_rect, FALSE );
-			OnDraw( GetDC() );
-#endif
-		}
-		else if( m_cursor_mode == CUR_DRAG_GROUP || m_cursor_mode == CUR_DRAG_GROUP_ADD )
-		{
-			// complete move
-			m_Doc->m_dlist->StopDragging();
-			if( m_cursor_mode == CUR_DRAG_GROUP )
-				SaveUndoInfoForGroup( UNDO_GROUP_MODIFY, &m_sel_ptrs, &m_sel_ids, m_Doc->m_undo_list );
-			MoveGroup( m_last_cursor_point.x - m_from_pt.x, m_last_cursor_point.y - m_from_pt.y );
-			m_dlist->SetLayerVisible( LAY_HILITE, TRUE );
-			HighlightGroup();
-			if(m_cursor_mode == CUR_DRAG_GROUP_ADD)
-				FindGroupCenter();
-			SetCursorMode( CUR_GROUP_SELECTED );
-			m_dlist->SetLayerVisible( LAY_RAT_LINE, m_Doc->m_vis[LAY_RAT_LINE] );
-			if( m_Doc->m_vis[LAY_RAT_LINE] )
-				m_Doc->m_nlist->OptimizeConnections( m_Doc->m_auto_ratline_disable,
-										m_Doc->m_auto_ratline_min_pins );
-			// CPT:
-			if (m_sel_ids.GetSize()==1)
-				ConvertSingletonGroup();
-			m_Doc->ProjectModified( TRUE );
-			Invalidate( FALSE );
-		}
-		else if( m_cursor_mode == CUR_MOVE_ORIGIN )
-		{
-			// complete move
-			SetCursorMode( CUR_NONE_SELECTED );
-			CPoint p = m_dlist->WindowToPCB( point );
-			m_Doc->m_dlist->StopDragging();
-			SaveUndoInfoForMoveOrigin( -m_last_cursor_point.x, -m_last_cursor_point.y, m_Doc->m_undo_list );
-			MoveOrigin( -m_last_cursor_point.x, -m_last_cursor_point.y );
-			OnViewAllElements();
-			m_Doc->ProjectModified( TRUE );
-			Invalidate( FALSE );
-		}
-		else if( m_cursor_mode == CUR_DRAG_REF )
-		{
-			// complete move
-			SetCursorMode( CUR_REF_SELECTED );
-			CPoint p = m_dlist->WindowToPCB( point );
-			m_Doc->m_plist->StopDragging();
-			int drag_angle = m_dlist->GetDragAngle();
-			// if part on bottom of board, drag angle is CCW instead of CW
-			if( m_Doc->m_plist->GetSide( m_sel_part ) && drag_angle )
-				drag_angle = 360 - drag_angle;
-			int angle = m_Doc->m_plist->GetRefAngle( m_sel_part ) + drag_angle;
-			if( angle>270 )
-				angle = angle - 360;
-			// save undo info
-			SaveUndoInfoForPart( m_sel_part,
-				CPartList::UNDO_PART_MODIFY, NULL, TRUE, m_Doc->m_undo_list );
-			// now move it
-			m_Doc->m_plist->MoveRefText( m_sel_part, m_last_cursor_point.x, m_last_cursor_point.y,
-				angle, m_sel_part->m_ref_size, m_sel_part->m_ref_w );
-			m_Doc->m_plist->SelectRefText( m_sel_part );
-			m_Doc->ProjectModified( TRUE );
-			Invalidate( FALSE );
-		}
-		else if( m_cursor_mode == CUR_DRAG_VALUE )
-		{
-			// complete move
-			SetCursorMode( CUR_VALUE_SELECTED );
-			CPoint p = m_dlist->WindowToPCB( point );
-			m_Doc->m_plist->StopDragging();
-			int drag_angle = m_dlist->GetDragAngle();
-			// if part on bottom of board, drag angle is CCW instead of CW
-			if( m_Doc->m_plist->GetSide( m_sel_part ) && drag_angle )
-				drag_angle = 360 - drag_angle;
-			int angle = m_Doc->m_plist->GetValueAngle( m_sel_part ) + drag_angle;
-			if( angle>270 )
-				angle = angle - 360;
-			// save undo info
-			SaveUndoInfoForPart( m_sel_part,
-				CPartList::UNDO_PART_MODIFY, NULL, TRUE, m_Doc->m_undo_list );
-			// now move it
-			m_Doc->m_plist->MoveValueText( m_sel_part, m_last_cursor_point.x, m_last_cursor_point.y,
-				angle, m_sel_part->m_value_size, m_sel_part->m_value_w );
-			m_Doc->m_plist->SelectValueText( m_sel_part );
-			m_Doc->ProjectModified( TRUE );
-			Invalidate( FALSE );
-		}
-		else if( m_cursor_mode == CUR_DRAG_RAT )
-		{
-			// routing a ratline, add segment(s)
-			pDC = GetDC();
-			SetDCToWorldCoords( pDC );
-			pDC->SelectClipRgn( &m_pcb_rgn );
-//			m_dlist->StopDragging();
-			// get trace widths
-            /* CPT eliminated:
-			int w = m_Doc->m_trace_w;
-			int via_w = m_Doc->m_via_w;
-			int via_hole_w = m_Doc->m_via_hole_w;
-			GetWidthsForSegment( &w, &via_w, &via_hole_w );
-            // Instead of this I'm going to want w to reflect the new m_active_width.
-            // As for via_w and via_hole_w, their original usage in the following code was somewhat confusing.
-            //  They appeared as arguments for CNetList::InsertSegment(), but that routine _didn't use_ those params.
-            //  They were also used as arguments for CNetList::StartDraggingSegment(), which passes them down to
-            //  CDisplayList::StartDraggingLineVertex().  That
-            //  routine then sets m_Doc->m_nlist->m_dlist's m_drag_via_w & m_drag_via_holew members, which can then be used for
-            //  drawing a (temporary) via if user changes layers during the dragging of the next segment.
-            // In my new system, InsertSegment() _will_ use variables via_w and via_hole_w and will set the new
-            //  cseg::via_w and cseg::via_hole_w fields.  These fields are used if vias need to be created
-            //  during the current or future invocations of InsertSegment().
-            */
-            int w = m_active_width, via_w, via_hole_w;
-            GetViaWidths(w, &via_w, &via_hole_w);
-			cconnect * c = &m_sel_net->connect[m_sel_ic];
-			// test for termination of trace
-			if( c->end_pin == cconnect::NO_END && m_sel_is == c->nsegs-1 && m_dir == 0
-				&& c->vtx[c->nsegs].tee_ID )
 			{
-				// routing branch to tee-vertex, test for hit on tee-vertex
-				cnet * hit_net;
-				int hit_ic, hit_iv;
-				BOOL bHit = m_Doc->m_nlist->TestForHitOnVertex( m_sel_net, 0,
-					m_last_cursor_point.x, m_last_cursor_point.y,
-					&hit_net, &hit_ic, &hit_iv );
-				if( bHit && hit_net == m_sel_net )
-				{
-					int tee_ic, tee_iv;
-					BOOL bTeeFound = m_Doc->m_nlist->FindTeeVertexInNet( m_sel_net, c->vtx[c->nsegs].tee_ID,
-						&tee_ic, &tee_iv );
-					if( bTeeFound && tee_ic == hit_ic && tee_iv == hit_iv )
-					{
-						// now route to tee-vertex
-						SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_Doc->m_undo_list );
-						CPoint pi = m_snap_angle_ref;
-						CPoint pf = m_last_cursor_point;
-						CPoint pp = GetInflectionPoint( pi, pf, m_inflection_mode );
-						BOOL insert_flag = FALSE;
-						if( pp != pi )
-						{
-							insert_flag = m_Doc->m_nlist->InsertSegment( m_sel_net, m_sel_ic, m_sel_is,
-								pp.x, pp.y, m_active_layer, w, via_w, via_hole_w, m_dir );
-							if( !insert_flag )
-							{
-								// hit end-vertex of segment, terminate routing
-								goto cancel_selection_and_goodbye;
-							}
-							if( m_dir == 0 )
-								m_sel_is++;
-						}
-						insert_flag = m_Doc->m_nlist->InsertSegment( m_sel_net, m_sel_ic, m_sel_is,
-							m_last_cursor_point.x, m_last_cursor_point.y,
-							m_active_layer, w, via_w, via_hole_w, m_dir );
-						if( !insert_flag )
-						{
-							// hit end-vertex of segment, terminate routing
-							goto cancel_selection_and_goodbye;
-						}
-						if( m_dir == 0 )
-							m_sel_is++;
-						// finish trace if necessary
-						m_Doc->m_nlist->RouteSegment( m_sel_net, m_sel_ic, m_sel_is,
-							m_active_layer, w, via_w, via_hole_w );
-						m_Doc->m_nlist->ReconcileVia( m_sel_net, tee_ic, tee_iv );
-						goto cancel_selection_and_goodbye;
-					}
-				}
+				m_Doc->m_plist->SelectPad( m_sel_part, sid.i );
+				SetCursorMode( CUR_PAD_SELECTED );
 			}
-			else if( m_dir == 0 && c->vtx[m_sel_is+1].tee_ID || m_dir == 1 && c->vtx[m_sel_is].tee_ID )
+			Invalidate( FALSE );
+		}
+	
+		else
+			CancelSelection(),
+			DoSelection(sid, ptr);
+	}
+
+	else if( m_cursor_mode == CUR_DRAG_PART )
+	{
+		// complete move
+		SetCursorMode( CUR_PART_SELECTED );
+		CPoint p = m_dlist->WindowToPCB( point );
+		m_Doc->m_plist->StopDragging();
+		int old_angle = m_Doc->m_plist->GetAngle( m_sel_part );
+		int angle = old_angle + m_dlist->GetDragAngle();
+		angle = angle % 360;
+		int old_side = m_sel_part->side;
+		int side = old_side + m_dlist->GetDragSide();
+		if( side > 1 )
+			side = side - 2;
+
+		// save undo info for part and attached nets
+		if( !m_dragging_new_item )
+			SaveUndoInfoForPartAndNets( m_sel_part,
+			CPartList::UNDO_PART_MODIFY, NULL, TRUE, m_Doc->m_undo_list );
+		m_dragging_new_item = FALSE;
+
+		// now move it
+		m_sel_part->glued = 0;
+		int dx = m_last_cursor_point.x - m_from_pt.x, dy = m_last_cursor_point.y - m_from_pt.y;		// CPT bug fix #29
+		m_Doc->m_plist->Move( m_sel_part, m_last_cursor_point.x, m_last_cursor_point.y,
+			angle, side );
+		m_Doc->m_plist->HighlightPart( m_sel_part );
+		m_Doc->m_nlist->PartMoved( m_sel_part, dx, dy );											// CPT bug fix #29
+		if( m_Doc->m_vis[LAY_RAT_LINE] )
+			m_Doc->m_nlist->OptimizeConnections( m_sel_part, m_Doc->m_auto_ratline_disable,
+									m_Doc->m_auto_ratline_min_pins );
+		SetFKText( m_cursor_mode );
+		m_Doc->ProjectModified( TRUE );
+		Invalidate( FALSE );
+#if 0
+		//** for testing only
+		CRect test_rect( 0, 0, 100, 100 );
+		InvalidateRect( test_rect, FALSE );
+		OnDraw( GetDC() );
+#endif
+	}
+	else if( m_cursor_mode == CUR_DRAG_GROUP || m_cursor_mode == CUR_DRAG_GROUP_ADD )
+	{
+		// complete move
+		m_Doc->m_dlist->StopDragging();
+		if( m_cursor_mode == CUR_DRAG_GROUP )
+			SaveUndoInfoForGroup( UNDO_GROUP_MODIFY, &m_sel_ptrs, &m_sel_ids, m_Doc->m_undo_list );
+		MoveGroup( m_last_cursor_point.x - m_from_pt.x, m_last_cursor_point.y - m_from_pt.y );
+		m_dlist->SetLayerVisible( LAY_HILITE, TRUE );
+		HighlightGroup();
+		if(m_cursor_mode == CUR_DRAG_GROUP_ADD)
+			FindGroupCenter();
+		SetCursorMode( CUR_GROUP_SELECTED );
+		m_dlist->SetLayerVisible( LAY_RAT_LINE, m_Doc->m_vis[LAY_RAT_LINE] );
+		if( m_Doc->m_vis[LAY_RAT_LINE] )
+			m_Doc->m_nlist->OptimizeConnections( m_Doc->m_auto_ratline_disable,
+									m_Doc->m_auto_ratline_min_pins );
+		// CPT:
+		if (m_sel_ids.GetSize()==1)
+			ConvertSingletonGroup();
+		m_Doc->ProjectModified( TRUE );
+		Invalidate( FALSE );
+	}
+	else if( m_cursor_mode == CUR_MOVE_ORIGIN )
+	{
+		// complete move
+		SetCursorMode( CUR_NONE_SELECTED );
+		CPoint p = m_dlist->WindowToPCB( point );
+		m_Doc->m_dlist->StopDragging();
+		SaveUndoInfoForMoveOrigin( -m_last_cursor_point.x, -m_last_cursor_point.y, m_Doc->m_undo_list );
+		MoveOrigin( -m_last_cursor_point.x, -m_last_cursor_point.y );
+		OnViewAllElements();
+		m_Doc->ProjectModified( TRUE );
+		Invalidate( FALSE );
+	}
+	else if( m_cursor_mode == CUR_DRAG_REF )
+	{
+		// complete move
+		SetCursorMode( CUR_REF_SELECTED );
+		CPoint p = m_dlist->WindowToPCB( point );
+		m_Doc->m_plist->StopDragging();
+		int drag_angle = m_dlist->GetDragAngle();
+		// if part on bottom of board, drag angle is CCW instead of CW
+		if( m_Doc->m_plist->GetSide( m_sel_part ) && drag_angle )
+			drag_angle = 360 - drag_angle;
+		int angle = m_Doc->m_plist->GetRefAngle( m_sel_part ) + drag_angle;
+		if( angle>270 )
+			angle = angle - 360;
+		// save undo info
+		SaveUndoInfoForPart( m_sel_part,
+			CPartList::UNDO_PART_MODIFY, NULL, TRUE, m_Doc->m_undo_list );
+		// now move it
+		m_Doc->m_plist->MoveRefText( m_sel_part, m_last_cursor_point.x, m_last_cursor_point.y,
+			angle, m_sel_part->m_ref_size, m_sel_part->m_ref_w );
+		m_Doc->m_plist->SelectRefText( m_sel_part );
+		m_Doc->ProjectModified( TRUE );
+		Invalidate( FALSE );
+	}
+	else if( m_cursor_mode == CUR_DRAG_VALUE )
+	{
+		// complete move
+		SetCursorMode( CUR_VALUE_SELECTED );
+		CPoint p = m_dlist->WindowToPCB( point );
+		m_Doc->m_plist->StopDragging();
+		int drag_angle = m_dlist->GetDragAngle();
+		// if part on bottom of board, drag angle is CCW instead of CW
+		if( m_Doc->m_plist->GetSide( m_sel_part ) && drag_angle )
+			drag_angle = 360 - drag_angle;
+		int angle = m_Doc->m_plist->GetValueAngle( m_sel_part ) + drag_angle;
+		if( angle>270 )
+			angle = angle - 360;
+		// save undo info
+		SaveUndoInfoForPart( m_sel_part,
+			CPartList::UNDO_PART_MODIFY, NULL, TRUE, m_Doc->m_undo_list );
+		// now move it
+		m_Doc->m_plist->MoveValueText( m_sel_part, m_last_cursor_point.x, m_last_cursor_point.y,
+			angle, m_sel_part->m_value_size, m_sel_part->m_value_w );
+		m_Doc->m_plist->SelectValueText( m_sel_part );
+		m_Doc->ProjectModified( TRUE );
+		Invalidate( FALSE );
+	}
+	else if( m_cursor_mode == CUR_DRAG_RAT )
+	{
+		// routing a ratline, add segment(s)
+		pDC = GetDC();
+		SetDCToWorldCoords( pDC );
+		pDC->SelectClipRgn( &m_pcb_rgn );
+//			m_dlist->StopDragging();
+		// get trace widths
+        /* CPT eliminated:
+		int w = m_Doc->m_trace_w;
+		int via_w = m_Doc->m_via_w;
+		int via_hole_w = m_Doc->m_via_hole_w;
+		GetWidthsForSegment( &w, &via_w, &via_hole_w );
+        // Instead of this I'm going to want w to reflect the new m_active_width.
+        // As for via_w and via_hole_w, their original usage in the following code was somewhat confusing.
+        //  They appeared as arguments for CNetList::InsertSegment(), but that routine _didn't use_ those params.
+        //  They were also used as arguments for CNetList::StartDraggingSegment(), which passes them down to
+        //  CDisplayList::StartDraggingLineVertex().  That
+        //  routine then sets m_Doc->m_nlist->m_dlist's m_drag_via_w & m_drag_via_holew members, which can then be used for
+        //  drawing a (temporary) via if user changes layers during the dragging of the next segment.
+        // In my new system, InsertSegment() _will_ use variables via_w and via_hole_w and will set the new
+        //  cseg::via_w and cseg::via_hole_w fields.  These fields are used if vias need to be created
+        //  during the current or future invocations of InsertSegment().
+        */
+        int w = m_active_width, via_w, via_hole_w;
+        GetViaWidths(w, &via_w, &via_hole_w);
+		cconnect * c = &m_sel_net->connect[m_sel_ic];
+		// test for termination of trace
+		if( c->end_pin == cconnect::NO_END && m_sel_is == c->nsegs-1 && m_dir == 0
+			&& c->vtx[c->nsegs].tee_ID )
+		{
+			// routing branch to tee-vertex, test for hit on tee-vertex
+			cnet * hit_net;
+			int hit_ic, hit_iv;
+			BOOL bHit = m_Doc->m_nlist->TestForHitOnVertex( m_sel_net, 0,
+				m_last_cursor_point.x, m_last_cursor_point.y,
+				&hit_net, &hit_ic, &hit_iv );
+			if( bHit && hit_net == m_sel_net )
 			{
-				// routing ratline to tee-vertex
-				int tee_iv = m_sel_is + 1 - m_dir;
-				cnet * hit_net;
-				int hit_ic, hit_iv;
-				BOOL bHit = m_Doc->m_nlist->TestForHitOnVertex( m_sel_net, 0,
-					m_last_cursor_point.x, m_last_cursor_point.y,
-					&hit_net, &hit_ic, &hit_iv );
-				if( bHit && hit_net == m_sel_net && hit_ic == m_sel_ic && hit_iv == tee_iv )
+				int tee_ic, tee_iv;
+				BOOL bTeeFound = m_Doc->m_nlist->FindTeeVertexInNet( m_sel_net, c->vtx[c->nsegs].tee_ID,
+					&tee_ic, &tee_iv );
+				if( bTeeFound && tee_ic == hit_ic && tee_iv == hit_iv )
 				{
 					// now route to tee-vertex
 					SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_Doc->m_undo_list );
@@ -1262,81 +794,43 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 					// finish trace if necessary
 					m_Doc->m_nlist->RouteSegment( m_sel_net, m_sel_ic, m_sel_is,
 						m_active_layer, w, via_w, via_hole_w );
+					m_Doc->m_nlist->ReconcileVia( m_sel_net, tee_ic, tee_iv );
 					goto cancel_selection_and_goodbye;
 				}
 			}
-			else if( m_sel_is == 0 && m_dir == 1 || m_sel_is == c->nsegs-1 && m_dir == 0 )
+		}
+		else if( m_dir == 0 && c->vtx[m_sel_is+1].tee_ID || m_dir == 1 && c->vtx[m_sel_is].tee_ID )
+		{
+			// routing ratline to tee-vertex
+			int tee_iv = m_sel_is + 1 - m_dir;
+			cnet * hit_net;
+			int hit_ic, hit_iv;
+			BOOL bHit = m_Doc->m_nlist->TestForHitOnVertex( m_sel_net, 0,
+				m_last_cursor_point.x, m_last_cursor_point.y,
+				&hit_net, &hit_ic, &hit_iv );
+			if( bHit && hit_net == m_sel_net && hit_ic == m_sel_ic && hit_iv == tee_iv )
 			{
-				// routing ratline at end of trace, test for hit on any pad in net
-				int ip = m_Doc->m_nlist->TestHitOnAnyPadInNet( m_last_cursor_point.x,
-					m_last_cursor_point.y,
-					m_active_layer, m_sel_net );
-				int ns = m_sel_con.nsegs;
-				if( ip != -1 )
+				// now route to tee-vertex
+				SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_Doc->m_undo_list );
+				CPoint pi = m_snap_angle_ref;
+				CPoint pf = m_last_cursor_point;
+				CPoint pp = GetInflectionPoint( pi, pf, m_inflection_mode );
+				BOOL insert_flag = FALSE;
+				if( pp != pi )
 				{
-					// hit on pad in net, see if this is our starting pad
-					if( ns < 3 && (m_dir == 0 && ip == m_sel_net->connect[m_sel_ic].start_pin
-						|| m_dir == 1 && ip == m_sel_net->connect[m_sel_ic].end_pin) )
+					insert_flag = m_Doc->m_nlist->InsertSegment( m_sel_net, m_sel_ic, m_sel_is,
+						pp.x, pp.y, m_active_layer, w, via_w, via_hole_w, m_dir );
+					if( !insert_flag )
 					{
-						// starting pin with too few segments, don't route to pin
-					}
-					else
-					{
-						// route to pin
-						// see if this is our destination
-						if( !(m_dir == 0 && ip == m_sel_net->connect[m_sel_ic].end_pin
-							|| m_dir == 1 && ip == m_sel_net->connect[m_sel_ic].start_pin) )
-						{
-							// no, change connection to this pin unless it is the starting pin
-							cpart * hit_part = m_sel_net->pin[ip].part;
-							CString * hit_pin_name = &m_sel_net->pin[ip].pin_name;
-							m_Doc->m_nlist->ChangeConnectionPin( m_sel_net, m_sel_ic, 1-m_dir, hit_part, hit_pin_name );
-						}
-						// now route to destination pin
-						SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_Doc->m_undo_list );
-						CPoint pi = m_snap_angle_ref;
-						CPoint pf = m_last_cursor_point;
-						CPoint pp = GetInflectionPoint( pi, pf, m_inflection_mode );
-						BOOL insert_flag = FALSE;
-						if( pp != pi )
-						{
-							insert_flag = m_Doc->m_nlist->InsertSegment( m_sel_net, m_sel_ic, m_sel_is,
-								pp.x, pp.y, m_active_layer, w, via_w, via_hole_w, m_dir );
-							if( !insert_flag )
-							{
-								// hit end-vertex of segment, terminate routing
-								goto cancel_selection_and_goodbye;
-							}
-							if( m_dir == 0 )
-								m_sel_is++;
-						}
-						insert_flag = m_Doc->m_nlist->InsertSegment( m_sel_net, m_sel_ic, m_sel_is,
-							m_last_cursor_point.x, m_last_cursor_point.y,
-							m_active_layer, w, via_w, via_hole_w, m_dir );
-						if( !insert_flag )
-						{
-							// hit end-vertex of segment, terminate routing
-							goto cancel_selection_and_goodbye;
-						}
-						if( m_dir == 0 )
-							m_sel_is++;
-						// finish trace to pad if necessary
-						m_Doc->m_nlist->RouteSegment( m_sel_net, m_sel_ic, m_sel_is,
-							m_active_layer, w, via_w, via_hole_w );
+						// hit end-vertex of segment, terminate routing
 						goto cancel_selection_and_goodbye;
 					}
+					if( m_dir == 0 )
+						m_sel_is++;
 				}
-			}
-			// trace was not terminated, insert segment and continue routing
-			SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_Doc->m_undo_list );
-			CPoint pi = m_snap_angle_ref;
-			CPoint pf = m_last_cursor_point;
-			CPoint pp = GetInflectionPoint( pi, pf, m_inflection_mode );
-			BOOL insert_flag = FALSE;
-			if( pp != pi )
-			{
 				insert_flag = m_Doc->m_nlist->InsertSegment( m_sel_net, m_sel_ic, m_sel_is,
-					pp.x, pp.y, m_active_layer, w, via_w, via_hole_w, m_dir );
+					m_last_cursor_point.x, m_last_cursor_point.y,
+					m_active_layer, w, via_w, via_hole_w, m_dir );
 				if( !insert_flag )
 				{
 					// hit end-vertex of segment, terminate routing
@@ -1344,10 +838,84 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 				}
 				if( m_dir == 0 )
 					m_sel_is++;
+				// finish trace if necessary
+				m_Doc->m_nlist->RouteSegment( m_sel_net, m_sel_ic, m_sel_is,
+					m_active_layer, w, via_w, via_hole_w );
+				goto cancel_selection_and_goodbye;
 			}
+		}
+		else if( m_sel_is == 0 && m_dir == 1 || m_sel_is == c->nsegs-1 && m_dir == 0 )
+		{
+			// routing ratline at end of trace, test for hit on any pad in net
+			int ip = m_Doc->m_nlist->TestHitOnAnyPadInNet( m_last_cursor_point.x,
+				m_last_cursor_point.y,
+				m_active_layer, m_sel_net );
+			int ns = m_sel_con.nsegs;
+			if( ip != -1 )
+			{
+				// hit on pad in net, see if this is our starting pad
+				if( ns < 3 && (m_dir == 0 && ip == m_sel_net->connect[m_sel_ic].start_pin
+					|| m_dir == 1 && ip == m_sel_net->connect[m_sel_ic].end_pin) )
+				{
+					// starting pin with too few segments, don't route to pin
+				}
+				else
+				{
+					// route to pin
+					// see if this is our destination
+					if( !(m_dir == 0 && ip == m_sel_net->connect[m_sel_ic].end_pin
+						|| m_dir == 1 && ip == m_sel_net->connect[m_sel_ic].start_pin) )
+					{
+						// no, change connection to this pin unless it is the starting pin
+						cpart * hit_part = m_sel_net->pin[ip].part;
+						CString * hit_pin_name = &m_sel_net->pin[ip].pin_name;
+						m_Doc->m_nlist->ChangeConnectionPin( m_sel_net, m_sel_ic, 1-m_dir, hit_part, hit_pin_name );
+					}
+					// now route to destination pin
+					SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_Doc->m_undo_list );
+					CPoint pi = m_snap_angle_ref;
+					CPoint pf = m_last_cursor_point;
+					CPoint pp = GetInflectionPoint( pi, pf, m_inflection_mode );
+					BOOL insert_flag = FALSE;
+					if( pp != pi )
+					{
+						insert_flag = m_Doc->m_nlist->InsertSegment( m_sel_net, m_sel_ic, m_sel_is,
+							pp.x, pp.y, m_active_layer, w, via_w, via_hole_w, m_dir );
+						if( !insert_flag )
+						{
+							// hit end-vertex of segment, terminate routing
+							goto cancel_selection_and_goodbye;
+						}
+						if( m_dir == 0 )
+							m_sel_is++;
+					}
+					insert_flag = m_Doc->m_nlist->InsertSegment( m_sel_net, m_sel_ic, m_sel_is,
+						m_last_cursor_point.x, m_last_cursor_point.y,
+						m_active_layer, w, via_w, via_hole_w, m_dir );
+					if( !insert_flag )
+					{
+						// hit end-vertex of segment, terminate routing
+						goto cancel_selection_and_goodbye;
+					}
+					if( m_dir == 0 )
+						m_sel_is++;
+					// finish trace to pad if necessary
+					m_Doc->m_nlist->RouteSegment( m_sel_net, m_sel_ic, m_sel_is,
+						m_active_layer, w, via_w, via_hole_w );
+					goto cancel_selection_and_goodbye;
+				}
+			}
+		}
+		// trace was not terminated, insert segment and continue routing
+		SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_Doc->m_undo_list );
+		CPoint pi = m_snap_angle_ref;
+		CPoint pf = m_last_cursor_point;
+		CPoint pp = GetInflectionPoint( pi, pf, m_inflection_mode );
+		BOOL insert_flag = FALSE;
+		if( pp != pi )
+		{
 			insert_flag = m_Doc->m_nlist->InsertSegment( m_sel_net, m_sel_ic, m_sel_is,
-				m_last_cursor_point.x, m_last_cursor_point.y,
-				m_active_layer, w, via_w, via_hole_w, m_dir );
+				pp.x, pp.y, m_active_layer, w, via_w, via_hole_w, m_dir );
 			if( !insert_flag )
 			{
 				// hit end-vertex of segment, terminate routing
@@ -1355,938 +923,916 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 			}
 			if( m_dir == 0 )
 				m_sel_is++;
-			m_Doc->m_nlist->StartDraggingSegment( pDC, m_sel_net,
-				m_sel_id.i, m_sel_is,
-				m_last_cursor_point.x, m_last_cursor_point.y, m_active_layer,
-				LAY_SELECTION, w,
-				m_active_layer, via_w, via_hole_w, m_dir, 2 );
-			m_snap_angle_ref = m_last_cursor_point;
-			m_Doc->ProjectModified( TRUE );
-			Invalidate( FALSE );
 		}
+		insert_flag = m_Doc->m_nlist->InsertSegment( m_sel_net, m_sel_ic, m_sel_is,
+			m_last_cursor_point.x, m_last_cursor_point.y,
+			m_active_layer, w, via_w, via_hole_w, m_dir );
+		if( !insert_flag )
+		{
+			// hit end-vertex of segment, terminate routing
+			goto cancel_selection_and_goodbye;
+		}
+		if( m_dir == 0 )
+			m_sel_is++;
+		m_Doc->m_nlist->StartDraggingSegment( pDC, m_sel_net,
+			m_sel_id.i, m_sel_is,
+			m_last_cursor_point.x, m_last_cursor_point.y, m_active_layer,
+			LAY_SELECTION, w,
+			m_active_layer, via_w, via_hole_w, m_dir, 2 );
+		m_snap_angle_ref = m_last_cursor_point;
+		m_Doc->ProjectModified( TRUE );
+		Invalidate( FALSE );
+	}
 
-		else if( m_cursor_mode == CUR_DRAG_VTX_INSERT )
-		{
-			// add trace segment and vertex
-			pDC = GetDC();
-			SetDCToWorldCoords( pDC );
-			pDC->SelectClipRgn( &m_pcb_rgn );
-			m_dlist->StopDragging();
+	else if( m_cursor_mode == CUR_DRAG_VTX_INSERT )
+	{
+		// add trace segment and vertex
+		pDC = GetDC();
+		SetDCToWorldCoords( pDC );
+		pDC->SelectClipRgn( &m_pcb_rgn );
+		m_dlist->StopDragging();
 
-			// make undo record
-			SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_Doc->m_undo_list );
-			int layer = m_sel_net->connect[m_sel_ic].seg[m_sel_is].layer;
-			int w = m_sel_net->connect[m_sel_ic].seg[m_sel_is].width;
-			int insert_flag = m_Doc->m_nlist->InsertSegment( m_sel_net, m_sel_ic, m_sel_is,
-				m_last_cursor_point.x, m_last_cursor_point.y,
-				layer, w, 0, 0, m_dir );
-			CancelSelection();
-			m_Doc->ProjectModified( TRUE );
-			Invalidate( FALSE );
-		}
-		else if( m_cursor_mode == CUR_ADD_BOARD )
+		// make undo record
+		SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_Doc->m_undo_list );
+		int layer = m_sel_net->connect[m_sel_ic].seg[m_sel_is].layer;
+		int w = m_sel_net->connect[m_sel_ic].seg[m_sel_is].width;
+		int insert_flag = m_Doc->m_nlist->InsertSegment( m_sel_net, m_sel_ic, m_sel_is,
+			m_last_cursor_point.x, m_last_cursor_point.y,
+			layer, w, 0, 0, m_dir );
+		CancelSelection();
+		m_Doc->ProjectModified( TRUE );
+		Invalidate( FALSE );
+	}
+	else if( m_cursor_mode == CUR_ADD_BOARD )
+	{
+		// place first corner of board outline
+		pDC = GetDC();
+		SetDCToWorldCoords( pDC );
+		pDC->SelectClipRgn( &m_pcb_rgn );
+		CPoint p;
+		p = m_last_cursor_point;
+		// make new board outline
+		int ib = m_Doc->m_board_outline.GetSize();
+		m_Doc->m_board_outline.SetSize( ib+1 );
+		m_Doc->m_board_outline[ib].SetDisplayList( m_dlist );
+		m_sel_id.i = ib;
+		m_Doc->m_board_outline[ib].Start( LAY_BOARD_OUTLINE, 1, 20*NM_PER_MIL, p.x, p.y,
+			0, &m_sel_id, NULL );
+		m_sel_id.sst = ID_SEL_CORNER;
+		m_sel_id.ii = 0;
+		m_dlist->StartDraggingArc( pDC, m_polyline_style, p.x, p.y, p.x, p.y, LAY_SELECTION, 1, 2 );
+		SetCursorMode( CUR_DRAG_BOARD_1 );
+		m_Doc->ProjectModified( TRUE );
+		Invalidate( FALSE );
+		m_snap_angle_ref = m_last_cursor_point;
+	}
+	else if( m_cursor_mode == CUR_DRAG_BOARD_1 )
+	{
+		// place second corner of board outline
+		pDC = GetDC();
+		SetDCToWorldCoords( pDC );
+		pDC->SelectClipRgn( &m_pcb_rgn );
+		CPoint p;
+		p = m_last_cursor_point;
+		m_Doc->m_board_outline[m_sel_id.i].AppendCorner( p.x, p.y, m_polyline_style );
+		m_dlist->StartDraggingArc( pDC, m_polyline_style, p.x, p.y, p.x, p.y, LAY_SELECTION, 1, 2 );
+		m_sel_id.ii++;
+		SetCursorMode( CUR_DRAG_BOARD );
+		m_Doc->ProjectModified( TRUE );
+		Invalidate( FALSE );
+		m_snap_angle_ref = m_last_cursor_point;
+	}
+	else if( m_cursor_mode == CUR_DRAG_BOARD )
+	{
+		// place subsequent corners of board outline
+		pDC = GetDC();
+		SetDCToWorldCoords( pDC );
+		pDC->SelectClipRgn( &m_pcb_rgn );
+		CPoint p;
+		p = m_last_cursor_point;
+		if( p.x == m_Doc->m_board_outline[m_sel_id.i].GetX(0)
+			&& p.y == m_Doc->m_board_outline[m_sel_id.i].GetY(0) )
 		{
-			// place first corner of board outline
-			pDC = GetDC();
-			SetDCToWorldCoords( pDC );
-			pDC->SelectClipRgn( &m_pcb_rgn );
-			CPoint p;
-			p = m_last_cursor_point;
-			// make new board outline
-			int ib = m_Doc->m_board_outline.GetSize();
-			m_Doc->m_board_outline.SetSize( ib+1 );
-			m_Doc->m_board_outline[ib].SetDisplayList( m_dlist );
-			m_sel_id.i = ib;
-			m_Doc->m_board_outline[ib].Start( LAY_BOARD_OUTLINE, 1, 20*NM_PER_MIL, p.x, p.y,
-				0, &m_sel_id, NULL );
-			m_sel_id.sst = ID_SEL_CORNER;
-			m_sel_id.ii = 0;
-			m_dlist->StartDraggingArc( pDC, m_polyline_style, p.x, p.y, p.x, p.y, LAY_SELECTION, 1, 2 );
-			SetCursorMode( CUR_DRAG_BOARD_1 );
-			m_Doc->ProjectModified( TRUE );
-			Invalidate( FALSE );
-			m_snap_angle_ref = m_last_cursor_point;
+			// this point is the start point, close the polyline and quit
+			SaveUndoInfoForBoardOutlines( TRUE, m_Doc->m_undo_list );
+			m_Doc->m_board_outline[m_sel_id.i].Close( m_polyline_style );
+			SetCursorMode( CUR_NONE_SELECTED );
+			m_Doc->m_dlist->StopDragging();
 		}
-		else if( m_cursor_mode == CUR_DRAG_BOARD_1 )
+		else
 		{
-			// place second corner of board outline
-			pDC = GetDC();
-			SetDCToWorldCoords( pDC );
-			pDC->SelectClipRgn( &m_pcb_rgn );
-			CPoint p;
-			p = m_last_cursor_point;
+			// add corner to polyline
 			m_Doc->m_board_outline[m_sel_id.i].AppendCorner( p.x, p.y, m_polyline_style );
 			m_dlist->StartDraggingArc( pDC, m_polyline_style, p.x, p.y, p.x, p.y, LAY_SELECTION, 1, 2 );
 			m_sel_id.ii++;
-			SetCursorMode( CUR_DRAG_BOARD );
-			m_Doc->ProjectModified( TRUE );
-			Invalidate( FALSE );
 			m_snap_angle_ref = m_last_cursor_point;
 		}
-		else if( m_cursor_mode == CUR_DRAG_BOARD )
+		m_Doc->ProjectModified( TRUE );
+		Invalidate( FALSE );
+	}
+	else if( m_cursor_mode == CUR_DRAG_BOARD_INSERT )
+	{
+		pDC = GetDC();
+		SetDCToWorldCoords( pDC );
+		pDC->SelectClipRgn( &m_pcb_rgn );
+		CPoint p;
+		p = m_last_cursor_point;
+		m_dlist->StopDragging();
+		SaveUndoInfoForBoardOutlines( TRUE, m_Doc->m_undo_list );
+		m_Doc->m_board_outline[m_sel_id.i].InsertCorner( m_sel_id.ii+1, p.x, p.y );
+		m_Doc->m_board_outline[m_sel_id.i].HighlightCorner( m_sel_id.ii+1 );
+		SetCursorMode( CUR_BOARD_CORNER_SELECTED );
+		m_sel_id.Set( ID_BOARD, ID_BOARD_OUTLINE, m_sel_id.i, ID_SEL_CORNER, m_sel_id.ii+1 );
+		m_Doc->ProjectModified( TRUE );
+		Invalidate( FALSE );
+	}
+	else if( m_cursor_mode == CUR_DRAG_BOARD_MOVE )
+	{
+		pDC = GetDC();
+		SetDCToWorldCoords( pDC );
+		pDC->SelectClipRgn( &m_pcb_rgn );
+		CPoint p;
+		p = m_last_cursor_point;
+		m_dlist->StopDragging();
+		SaveUndoInfoForBoardOutlines( TRUE, m_Doc->m_undo_list );
+		m_Doc->m_board_outline[m_sel_id.i].MoveCorner( m_sel_id.ii, p.x, p.y );
+		m_Doc->m_board_outline[m_sel_id.i].HighlightCorner( m_sel_id.ii );
+		SetCursorMode( CUR_BOARD_CORNER_SELECTED );
+		m_Doc->ProjectModified( TRUE );
+		Invalidate( FALSE );
+	}
+	else if( m_cursor_mode == CUR_ADD_AREA )
+	{
+		pDC = GetDC();
+		SetDCToWorldCoords( pDC );
+		pDC->SelectClipRgn( &m_pcb_rgn );
+		CPoint p;
+		p = m_last_cursor_point;
+		int iarea = m_Doc->m_nlist->AddArea( m_sel_net, m_active_layer, p.x, p.y, m_polyline_hatch );
+		m_sel_id.Set( m_sel_net->id.type, ID_AREA, iarea, ID_SEL_CORNER, 1 );
+		m_dlist->StartDraggingArc( pDC, m_polyline_style, p.x, p.y, p.x, p.y, LAY_SELECTION, 1, 2 );
+		SetCursorMode( CUR_DRAG_AREA_1 );
+		m_Doc->ProjectModified( TRUE );
+		Invalidate( FALSE );
+		m_snap_angle_ref = m_last_cursor_point;
+	}
+	else if( m_cursor_mode == CUR_DRAG_AREA_1 )
+	{
+		pDC = GetDC();
+		SetDCToWorldCoords( pDC );
+		pDC->SelectClipRgn( &m_pcb_rgn );
+		CPoint p;
+		p = m_last_cursor_point;
+		m_Doc->m_nlist->AppendAreaCorner( m_sel_net, m_sel_ia, p.x, p.y, m_polyline_style );
+		m_dlist->StartDraggingArc( pDC, m_polyline_style, p.x, p.y, p.x, p.y, LAY_SELECTION, 1, 2 );
+		m_sel_id.ii = 2;
+		SetCursorMode( CUR_DRAG_AREA );
+		m_Doc->ProjectModified( TRUE );
+		Invalidate( FALSE );
+		m_snap_angle_ref = m_last_cursor_point;
+	}
+	else if( m_cursor_mode == CUR_DRAG_AREA )
+	{
+		pDC = GetDC();
+		SetDCToWorldCoords( pDC );
+		pDC->SelectClipRgn( &m_pcb_rgn );
+		CPoint p;
+		p = m_last_cursor_point;
+		if( p.x == m_sel_net->area[m_sel_id.i].poly->GetX(0)
+			&& p.y == m_sel_net->area[m_sel_id.i].poly->GetY(0) )
 		{
-			// place subsequent corners of board outline
-			pDC = GetDC();
-			SetDCToWorldCoords( pDC );
-			pDC->SelectClipRgn( &m_pcb_rgn );
-			CPoint p;
-			p = m_last_cursor_point;
-			if( p.x == m_Doc->m_board_outline[m_sel_id.i].GetX(0)
-				&& p.y == m_Doc->m_board_outline[m_sel_id.i].GetY(0) )
-			{
-				// this point is the start point, close the polyline and quit
-				SaveUndoInfoForBoardOutlines( TRUE, m_Doc->m_undo_list );
-				m_Doc->m_board_outline[m_sel_id.i].Close( m_polyline_style );
-				SetCursorMode( CUR_NONE_SELECTED );
-				m_Doc->m_dlist->StopDragging();
-			}
-			else
-			{
-				// add corner to polyline
-				m_Doc->m_board_outline[m_sel_id.i].AppendCorner( p.x, p.y, m_polyline_style );
-				m_dlist->StartDraggingArc( pDC, m_polyline_style, p.x, p.y, p.x, p.y, LAY_SELECTION, 1, 2 );
-				m_sel_id.ii++;
-				m_snap_angle_ref = m_last_cursor_point;
-			}
-			m_Doc->ProjectModified( TRUE );
-			Invalidate( FALSE );
+			// cursor point is first point, close area
+			SaveUndoInfoForAllAreasInNet( m_sel_net, TRUE, m_Doc->m_undo_list );
+			m_Doc->m_nlist->CompleteArea( m_sel_net, m_sel_ia, m_polyline_style );
+			m_Doc->m_nlist->AreaPolygonModified( m_sel_net, m_sel_ia, TRUE, TRUE );
+			m_Doc->m_dlist->StopDragging();
+			if( m_Doc->m_vis[LAY_RAT_LINE] )
+				m_Doc->m_nlist->OptimizeConnections( m_sel_net, -1, m_Doc->m_auto_ratline_disable,
+													m_Doc->m_auto_ratline_min_pins, TRUE );
+			CancelSelection();
 		}
-		else if( m_cursor_mode == CUR_DRAG_BOARD_INSERT )
+		else
 		{
-			pDC = GetDC();
-			SetDCToWorldCoords( pDC );
-			pDC->SelectClipRgn( &m_pcb_rgn );
-			CPoint p;
-			p = m_last_cursor_point;
-			m_dlist->StopDragging();
-			SaveUndoInfoForBoardOutlines( TRUE, m_Doc->m_undo_list );
-			m_Doc->m_board_outline[m_sel_id.i].InsertCorner( m_sel_id.ii+1, p.x, p.y );
-			m_Doc->m_board_outline[m_sel_id.i].HighlightCorner( m_sel_id.ii+1 );
-			SetCursorMode( CUR_BOARD_CORNER_SELECTED );
-			m_sel_id.Set( ID_BOARD, ID_BOARD_OUTLINE, m_sel_id.i, ID_SEL_CORNER, m_sel_id.ii+1 );
-			m_Doc->ProjectModified( TRUE );
-			Invalidate( FALSE );
-		}
-		else if( m_cursor_mode == CUR_DRAG_BOARD_MOVE )
-		{
-			pDC = GetDC();
-			SetDCToWorldCoords( pDC );
-			pDC->SelectClipRgn( &m_pcb_rgn );
-			CPoint p;
-			p = m_last_cursor_point;
-			m_dlist->StopDragging();
-			SaveUndoInfoForBoardOutlines( TRUE, m_Doc->m_undo_list );
-			m_Doc->m_board_outline[m_sel_id.i].MoveCorner( m_sel_id.ii, p.x, p.y );
-			m_Doc->m_board_outline[m_sel_id.i].HighlightCorner( m_sel_id.ii );
-			SetCursorMode( CUR_BOARD_CORNER_SELECTED );
-			m_Doc->ProjectModified( TRUE );
-			Invalidate( FALSE );
-		}
-		else if( m_cursor_mode == CUR_ADD_AREA )
-		{
-			pDC = GetDC();
-			SetDCToWorldCoords( pDC );
-			pDC->SelectClipRgn( &m_pcb_rgn );
-			CPoint p;
-			p = m_last_cursor_point;
-			int iarea = m_Doc->m_nlist->AddArea( m_sel_net, m_active_layer, p.x, p.y, m_polyline_hatch );
-			m_sel_id.Set( m_sel_net->id.type, ID_AREA, iarea, ID_SEL_CORNER, 1 );
-			m_dlist->StartDraggingArc( pDC, m_polyline_style, p.x, p.y, p.x, p.y, LAY_SELECTION, 1, 2 );
-			SetCursorMode( CUR_DRAG_AREA_1 );
-			m_Doc->ProjectModified( TRUE );
-			Invalidate( FALSE );
-			m_snap_angle_ref = m_last_cursor_point;
-		}
-		else if( m_cursor_mode == CUR_DRAG_AREA_1 )
-		{
-			pDC = GetDC();
-			SetDCToWorldCoords( pDC );
-			pDC->SelectClipRgn( &m_pcb_rgn );
-			CPoint p;
-			p = m_last_cursor_point;
+			// add cursor point
 			m_Doc->m_nlist->AppendAreaCorner( m_sel_net, m_sel_ia, p.x, p.y, m_polyline_style );
 			m_dlist->StartDraggingArc( pDC, m_polyline_style, p.x, p.y, p.x, p.y, LAY_SELECTION, 1, 2 );
-			m_sel_id.ii = 2;
+			m_sel_id.ii = m_sel_id.ii + 1;
 			SetCursorMode( CUR_DRAG_AREA );
-			m_Doc->ProjectModified( TRUE );
-			Invalidate( FALSE );
 			m_snap_angle_ref = m_last_cursor_point;
 		}
-		else if( m_cursor_mode == CUR_DRAG_AREA )
+		m_Doc->ProjectModified( TRUE );
+		Invalidate( FALSE );
+	}
+	else if( m_cursor_mode == CUR_DRAG_AREA_MOVE )
+	{
+		SaveUndoInfoForAllAreasInNet( m_sel_net, TRUE, m_Doc->m_undo_list );
+		pDC = GetDC();
+		SetDCToWorldCoords( pDC );
+		pDC->SelectClipRgn( &m_pcb_rgn );
+		CPoint p;
+		p = m_last_cursor_point;
+		m_dlist->StopDragging();
+		m_Doc->m_nlist->MoveAreaCorner( m_sel_net, m_sel_ia, m_sel_is, p.x, p.y );
+		int ret = m_Doc->m_nlist->AreaPolygonModified( m_sel_net, m_sel_ia, FALSE, TRUE );
+		if( ret == -1 )
 		{
-			pDC = GetDC();
-			SetDCToWorldCoords( pDC );
-			pDC->SelectClipRgn( &m_pcb_rgn );
-			CPoint p;
-			p = m_last_cursor_point;
-			if( p.x == m_sel_net->area[m_sel_id.i].poly->GetX(0)
-				&& p.y == m_sel_net->area[m_sel_id.i].poly->GetY(0) )
-			{
-				// cursor point is first point, close area
-				SaveUndoInfoForAllAreasInNet( m_sel_net, TRUE, m_Doc->m_undo_list );
-				m_Doc->m_nlist->CompleteArea( m_sel_net, m_sel_ia, m_polyline_style );
-				m_Doc->m_nlist->AreaPolygonModified( m_sel_net, m_sel_ia, TRUE, TRUE );
-				m_Doc->m_dlist->StopDragging();
-				if( m_Doc->m_vis[LAY_RAT_LINE] )
-					m_Doc->m_nlist->OptimizeConnections( m_sel_net, -1, m_Doc->m_auto_ratline_disable,
-														m_Doc->m_auto_ratline_min_pins, TRUE );
-				CancelSelection();
-			}
-			else
-			{
-				// add cursor point
-				m_Doc->m_nlist->AppendAreaCorner( m_sel_net, m_sel_ia, p.x, p.y, m_polyline_style );
-				m_dlist->StartDraggingArc( pDC, m_polyline_style, p.x, p.y, p.x, p.y, LAY_SELECTION, 1, 2 );
-				m_sel_id.ii = m_sel_id.ii + 1;
-				SetCursorMode( CUR_DRAG_AREA );
-				m_snap_angle_ref = m_last_cursor_point;
-			}
-			m_Doc->ProjectModified( TRUE );
-			Invalidate( FALSE );
+			// error
+			CString s ((LPCSTR) IDS_ErrorUnableToClipPolygon);
+			AfxMessageBox( s );
+			CancelSelection();
+			m_Doc->OnEditUndo();
 		}
-		else if( m_cursor_mode == CUR_DRAG_AREA_MOVE )
+		else
 		{
+			TryToReselectAreaCorner( p.x, p.y );
+			if( m_Doc->m_vis[LAY_RAT_LINE] )
+				m_Doc->m_nlist->OptimizeConnections( m_sel_net, -1, m_Doc->m_auto_ratline_disable,
+													m_Doc->m_auto_ratline_min_pins, TRUE );
+		}
+		m_Doc->ProjectModified( TRUE );
+		Invalidate( FALSE );
+	}
+	else if( m_cursor_mode == CUR_DRAG_AREA_INSERT )
+	{
+		SaveUndoInfoForAllAreasInNet( m_sel_net, TRUE, m_Doc->m_undo_list );
+		pDC = GetDC();
+		SetDCToWorldCoords( pDC );
+		pDC->SelectClipRgn( &m_pcb_rgn );
+		CPoint p;
+		p = m_last_cursor_point;
+		m_dlist->StopDragging();
+		m_Doc->m_nlist->InsertAreaCorner( m_sel_net, m_sel_ia, m_sel_is+1, p.x, p.y, CPolyLine::STRAIGHT );
+		int ret = m_Doc->m_nlist->AreaPolygonModified( m_sel_net, m_sel_ia, FALSE, TRUE );
+		if( ret == -1 )
+		{
+			// error
+			CString s ((LPCSTR) IDS_ErrorUnableToClipPolygon);
+			AfxMessageBox( s );
+			CancelSelection();
+			m_Doc->OnEditUndo();
+		}
+		else
+		{
+			TryToReselectAreaCorner( p.x, p.y );
+			if( m_Doc->m_vis[LAY_RAT_LINE] )
+				m_Doc->m_nlist->OptimizeConnections( m_sel_net, -1, m_Doc->m_auto_ratline_disable,
+													m_Doc->m_auto_ratline_min_pins, TRUE );
+		}
+		m_Doc->ProjectModified( TRUE );
+		Invalidate( FALSE );
+	}
+	else if( m_cursor_mode == CUR_ADD_AREA_CUTOUT )
+	{
+		pDC = GetDC();
+		SetDCToWorldCoords( pDC );
+		pDC->SelectClipRgn( &m_pcb_rgn );
+		CPoint p;
+		p = m_last_cursor_point;
+		int ia = m_sel_id.i;
+		carea * a = &m_sel_net->area[ia];
+		m_Doc->m_nlist->AppendAreaCorner( m_sel_net, ia, p.x, p.y, m_polyline_style );
+		m_sel_id.Set( m_sel_net->id.type, ID_AREA, ia, ID_SEL_CORNER, a->poly->GetNumCorners()-1 );
+		m_dlist->StartDraggingArc( pDC, m_polyline_style, p.x, p.y, p.x, p.y, LAY_SELECTION, 1, 2 );
+		SetCursorMode( CUR_DRAG_AREA_CUTOUT_1 );
+		m_Doc->ProjectModified( TRUE );
+		Invalidate( FALSE );
+		m_snap_angle_ref = m_last_cursor_point;
+	}
+	else if( m_cursor_mode == CUR_DRAG_AREA_CUTOUT_1 )
+	{
+		pDC = GetDC();
+		SetDCToWorldCoords( pDC );
+		pDC->SelectClipRgn( &m_pcb_rgn );
+		CPoint p;
+		p = m_last_cursor_point;
+		m_Doc->m_nlist->AppendAreaCorner( m_sel_net, m_sel_ia, p.x, p.y, m_polyline_style );
+		m_dlist->StartDraggingArc( pDC, m_polyline_style, p.x, p.y, p.x, p.y, LAY_SELECTION, 1, 2 );
+		m_sel_id.ii = 2;
+		SetCursorMode( CUR_DRAG_AREA_CUTOUT );
+		m_Doc->ProjectModified( TRUE );
+		Invalidate( FALSE );
+		m_snap_angle_ref = m_last_cursor_point;
+	}
+	else if( m_cursor_mode == CUR_DRAG_AREA_CUTOUT )
+	{
+		pDC = GetDC();
+		SetDCToWorldCoords( pDC );
+		pDC->SelectClipRgn( &m_pcb_rgn );
+		CPoint p;
+		p = m_last_cursor_point;
+		CPolyLine * poly = m_sel_net->area[m_sel_id.i].poly;
+		int icontour = poly->GetContour( poly->GetNumCorners()-1 );
+		int istart = poly->GetContourStart( icontour );
+		if( p.x == poly->GetX(istart)
+			&& p.y == poly->GetY(istart) )
+		{
+			// cursor point is first point, close area
 			SaveUndoInfoForAllAreasInNet( m_sel_net, TRUE, m_Doc->m_undo_list );
-			pDC = GetDC();
-			SetDCToWorldCoords( pDC );
-			pDC->SelectClipRgn( &m_pcb_rgn );
-			CPoint p;
-			p = m_last_cursor_point;
-			m_dlist->StopDragging();
-			m_Doc->m_nlist->MoveAreaCorner( m_sel_net, m_sel_ia, m_sel_is, p.x, p.y );
-			int ret = m_Doc->m_nlist->AreaPolygonModified( m_sel_net, m_sel_ia, FALSE, TRUE );
+			m_Doc->m_nlist->CompleteArea( m_sel_net, m_sel_ia, m_polyline_style );
+			m_Doc->m_dlist->StopDragging();
+			int n_old_areas = m_sel_net->area.GetSize();
+			int ret = m_Doc->m_nlist->AreaPolygonModified( m_sel_net, m_sel_ia, FALSE, FALSE );
 			if( ret == -1 )
 			{
 				// error
 				CString s ((LPCSTR) IDS_ErrorUnableToClipPolygon);
 				AfxMessageBox( s );
-				CancelSelection();
 				m_Doc->OnEditUndo();
 			}
 			else
 			{
-				TryToReselectAreaCorner( p.x, p.y );
-				if( m_Doc->m_vis[LAY_RAT_LINE] )
-					m_Doc->m_nlist->OptimizeConnections( m_sel_net, -1, m_Doc->m_auto_ratline_disable,
-														m_Doc->m_auto_ratline_min_pins, TRUE );
-			}
-			m_Doc->ProjectModified( TRUE );
-			Invalidate( FALSE );
-		}
-		else if( m_cursor_mode == CUR_DRAG_AREA_INSERT )
-		{
-			SaveUndoInfoForAllAreasInNet( m_sel_net, TRUE, m_Doc->m_undo_list );
-			pDC = GetDC();
-			SetDCToWorldCoords( pDC );
-			pDC->SelectClipRgn( &m_pcb_rgn );
-			CPoint p;
-			p = m_last_cursor_point;
-			m_dlist->StopDragging();
-			m_Doc->m_nlist->InsertAreaCorner( m_sel_net, m_sel_ia, m_sel_is+1, p.x, p.y, CPolyLine::STRAIGHT );
-			int ret = m_Doc->m_nlist->AreaPolygonModified( m_sel_net, m_sel_ia, FALSE, TRUE );
-			if( ret == -1 )
-			{
-				// error
-				CString s ((LPCSTR) IDS_ErrorUnableToClipPolygon);
-				AfxMessageBox( s );
-				CancelSelection();
-				m_Doc->OnEditUndo();
-			}
-			else
-			{
-				TryToReselectAreaCorner( p.x, p.y );
-				if( m_Doc->m_vis[LAY_RAT_LINE] )
-					m_Doc->m_nlist->OptimizeConnections( m_sel_net, -1, m_Doc->m_auto_ratline_disable,
-														m_Doc->m_auto_ratline_min_pins, TRUE );
-			}
-			m_Doc->ProjectModified( TRUE );
-			Invalidate( FALSE );
-		}
-		else if( m_cursor_mode == CUR_ADD_AREA_CUTOUT )
-		{
-			pDC = GetDC();
-			SetDCToWorldCoords( pDC );
-			pDC->SelectClipRgn( &m_pcb_rgn );
-			CPoint p;
-			p = m_last_cursor_point;
-			int ia = m_sel_id.i;
-			carea * a = &m_sel_net->area[ia];
-			m_Doc->m_nlist->AppendAreaCorner( m_sel_net, ia, p.x, p.y, m_polyline_style );
-			m_sel_id.Set( m_sel_net->id.type, ID_AREA, ia, ID_SEL_CORNER, a->poly->GetNumCorners()-1 );
-			m_dlist->StartDraggingArc( pDC, m_polyline_style, p.x, p.y, p.x, p.y, LAY_SELECTION, 1, 2 );
-			SetCursorMode( CUR_DRAG_AREA_CUTOUT_1 );
-			m_Doc->ProjectModified( TRUE );
-			Invalidate( FALSE );
-			m_snap_angle_ref = m_last_cursor_point;
-		}
-		else if( m_cursor_mode == CUR_DRAG_AREA_CUTOUT_1 )
-		{
-			pDC = GetDC();
-			SetDCToWorldCoords( pDC );
-			pDC->SelectClipRgn( &m_pcb_rgn );
-			CPoint p;
-			p = m_last_cursor_point;
-			m_Doc->m_nlist->AppendAreaCorner( m_sel_net, m_sel_ia, p.x, p.y, m_polyline_style );
-			m_dlist->StartDraggingArc( pDC, m_polyline_style, p.x, p.y, p.x, p.y, LAY_SELECTION, 1, 2 );
-			m_sel_id.ii = 2;
-			SetCursorMode( CUR_DRAG_AREA_CUTOUT );
-			m_Doc->ProjectModified( TRUE );
-			Invalidate( FALSE );
-			m_snap_angle_ref = m_last_cursor_point;
-		}
-		else if( m_cursor_mode == CUR_DRAG_AREA_CUTOUT )
-		{
-			pDC = GetDC();
-			SetDCToWorldCoords( pDC );
-			pDC->SelectClipRgn( &m_pcb_rgn );
-			CPoint p;
-			p = m_last_cursor_point;
-			CPolyLine * poly = m_sel_net->area[m_sel_id.i].poly;
-			int icontour = poly->GetContour( poly->GetNumCorners()-1 );
-			int istart = poly->GetContourStart( icontour );
-			if( p.x == poly->GetX(istart)
-				&& p.y == poly->GetY(istart) )
-			{
-				// cursor point is first point, close area
-				SaveUndoInfoForAllAreasInNet( m_sel_net, TRUE, m_Doc->m_undo_list );
-				m_Doc->m_nlist->CompleteArea( m_sel_net, m_sel_ia, m_polyline_style );
-				m_Doc->m_dlist->StopDragging();
-				int n_old_areas = m_sel_net->area.GetSize();
-				int ret = m_Doc->m_nlist->AreaPolygonModified( m_sel_net, m_sel_ia, FALSE, FALSE );
-				if( ret == -1 )
-				{
-					// error
-					CString s ((LPCSTR) IDS_ErrorUnableToClipPolygon);
-					AfxMessageBox( s );
-					m_Doc->OnEditUndo();
-				}
-				else
-				{
-					if( m_Doc->m_vis[LAY_RAT_LINE] )
-						m_Doc->m_nlist->OptimizeConnections(  m_sel_net, -1, m_Doc->m_auto_ratline_disable,
-														m_Doc->m_auto_ratline_min_pins, TRUE  );
-				}
-				CancelSelection();
-			}
-			else
-			{
-				// add cursor point
-				m_Doc->m_nlist->AppendAreaCorner( m_sel_net, m_sel_ia, p.x, p.y, m_polyline_style );
-				m_dlist->StartDraggingArc( pDC, m_polyline_style, p.x, p.y, p.x, p.y, LAY_SELECTION, 1, 2 );
-				m_sel_id.ii = m_sel_id.ii + 1;
-				SetCursorMode( CUR_DRAG_AREA_CUTOUT );
-				m_snap_angle_ref = m_last_cursor_point;
-			}
-			m_Doc->ProjectModified( TRUE );
-			Invalidate( FALSE );
-		}
-		else if( m_cursor_mode == CUR_ADD_SMCUTOUT )
-		{
-			// add poly for new cutout
-			pDC = GetDC();
-			SetDCToWorldCoords( pDC );
-			pDC->SelectClipRgn( &m_pcb_rgn );
-			CPoint p;
-			p = m_last_cursor_point;
-			int ism = m_Doc->m_sm_cutout.GetSize();
-			m_Doc->m_sm_cutout.SetSize( ism + 1 );
-			CPolyLine * p_sm = &m_Doc->m_sm_cutout[ism];
-			p_sm->SetDisplayList( m_Doc->m_dlist );
-			id id_sm( ID_SM_CUTOUT, ID_SM_CUTOUT, ism );
-			m_sel_id = id_sm;
-			p_sm->Start( m_polyline_layer, 0, 10*NM_PER_MIL, p.x, p.y, m_polyline_hatch, &m_sel_id, NULL );
-			m_sel_id.sst = ID_SEL_CORNER;
-			m_dlist->StartDraggingArc( pDC, m_polyline_style, p.x, p.y, p.x, p.y, LAY_SELECTION, 1, 2 );
-			m_sel_id.ii = 1;
-			SetCursorMode( CUR_DRAG_SMCUTOUT_1 );
-			m_Doc->ProjectModified( TRUE );
-			Invalidate( FALSE );
-			m_snap_angle_ref = m_last_cursor_point;
-		}
-		else if( m_cursor_mode == CUR_DRAG_SMCUTOUT_1 )
-		{
-			pDC = GetDC();
-			SetDCToWorldCoords( pDC );
-			pDC->SelectClipRgn( &m_pcb_rgn );
-			CPoint p;
-			p = m_last_cursor_point;
-			CPolyLine * p_sm = &m_Doc->m_sm_cutout[m_sel_id.i];
-			p_sm->AppendCorner( p.x, p.y, m_polyline_style );
-			m_dlist->StartDraggingArc( pDC, m_polyline_style, p.x, p.y, p.x, p.y, LAY_SELECTION, 1, 2 );
-			m_sel_id.ii = 2;
-			SetCursorMode( CUR_DRAG_SMCUTOUT );
-			m_Doc->ProjectModified( TRUE );
-			Invalidate( FALSE );
-			m_snap_angle_ref = m_last_cursor_point;
-		}
-		else if( m_cursor_mode == CUR_DRAG_SMCUTOUT )
-		{
-			pDC = GetDC();
-			SetDCToWorldCoords( pDC );
-			pDC->SelectClipRgn( &m_pcb_rgn );
-			CPoint p;
-			p = m_last_cursor_point;
-			CPolyLine * p_sm = &m_Doc->m_sm_cutout[m_sel_id.i];
-			if( p.x == p_sm->GetX(0)
-				&& p.y == p_sm->GetY(0) )
-			{
-				// cursor point is first point, close area
-				SaveUndoInfoForSMCutouts( TRUE, m_Doc->m_undo_list );
-				p_sm->Close( m_polyline_style );
-				SetCursorMode( CUR_NONE_SELECTED );
-				m_Doc->m_dlist->StopDragging();
-			}
-			else
-			{
-				// add cursor point
-				p_sm->AppendCorner( p.x, p.y, m_polyline_style );
-				m_dlist->StartDraggingArc( pDC, m_polyline_style, p.x, p.y, p.x, p.y, LAY_SELECTION, 1, 2 );
-				m_sel_id.ii = m_sel_id.ii + 1;
-				SetCursorMode( CUR_DRAG_SMCUTOUT );
-				m_snap_angle_ref = m_last_cursor_point;
-			}
-			m_Doc->ProjectModified( TRUE );
-			Invalidate( FALSE );
-		}
-		else if( m_cursor_mode == CUR_DRAG_SMCUTOUT_MOVE )
-		{
-			SaveUndoInfoForSMCutouts( TRUE, m_Doc->m_undo_list );
-			CPolyLine * poly = &m_Doc->m_sm_cutout[m_sel_id.i];
-			pDC = GetDC();
-			SetDCToWorldCoords( pDC );
-			pDC->SelectClipRgn( &m_pcb_rgn );
-			CPoint p;
-			p = m_last_cursor_point;
-			m_dlist->StopDragging();
-			poly->MoveCorner( m_sel_id.ii, p.x, p.y );
-			poly->HighlightCorner( m_sel_id.ii );
-			SetCursorMode( CUR_SMCUTOUT_CORNER_SELECTED );
-			m_Doc->ProjectModified( TRUE );
-			Invalidate( FALSE );
-		}
-		else if( m_cursor_mode == CUR_DRAG_SMCUTOUT_INSERT )
-		{
-			SaveUndoInfoForSMCutouts( TRUE, m_Doc->m_undo_list );
-			CPolyLine * poly = &m_Doc->m_sm_cutout[m_sel_id.i];
-			pDC = GetDC();
-			SetDCToWorldCoords( pDC );
-			pDC->SelectClipRgn( &m_pcb_rgn );
-			CPoint p;
-			p = m_last_cursor_point;
-			m_dlist->StopDragging();
-			poly->InsertCorner( m_sel_id.ii+1, p.x, p.y );
-			poly->HighlightCorner( m_sel_id.ii+1 );
-			m_sel_id.Set( ID_SM_CUTOUT, ID_SM_CUTOUT, m_sel_id.i, ID_SEL_CORNER, m_sel_id.ii+1 );
-			SetCursorMode( CUR_SMCUTOUT_CORNER_SELECTED );
-			m_Doc->ProjectModified( TRUE );
-			Invalidate( FALSE );
-		}
-		else if( m_cursor_mode == CUR_ADD_AREA_CUTOUT )
-		{
-			pDC = GetDC();
-			SetDCToWorldCoords( pDC );
-			pDC->SelectClipRgn( &m_pcb_rgn );
-			CPoint p;
-			p = m_last_cursor_point;
-			int ia = m_sel_id.i;
-			carea * a = &m_sel_net->area[ia];
-			m_Doc->m_nlist->AppendAreaCorner( m_sel_net, ia, p.x, p.y, m_polyline_style );
-			m_sel_id.Set( m_sel_net->id.type, ID_AREA, ia, ID_SEL_CORNER, a->poly->GetNumCorners()-1 );
-			m_dlist->StartDraggingArc( pDC, m_polyline_style, p.x, p.y, p.x, p.y, LAY_SELECTION, 1, 2 );
-			SetCursorMode( CUR_DRAG_AREA_1 );
-			m_Doc->ProjectModified( TRUE );
-			Invalidate( FALSE );
-			m_snap_angle_ref = m_last_cursor_point;
-		}
-		else if( m_cursor_mode == CUR_DRAG_VTX )
-		{
-			// move vertex by modifying adjacent segments and reconciling via
-			SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_Doc->m_undo_list );
-			CPoint p;
-			p = m_last_cursor_point;
-			int ic = m_sel_id.i;
-			int ivtx = m_sel_id.ii;
-			m_Doc->m_nlist->MoveVertex( m_sel_net, m_sel_ic, m_sel_is, p.x, p.y );
-			m_Doc->m_nlist->HighlightVertex( m_sel_net, ic, ivtx );
-			if( m_Doc->m_vis[LAY_RAT_LINE] )
-			{
-				int new_ic = m_Doc->m_nlist->OptimizeConnections( m_sel_net, m_sel_ic, m_Doc->m_auto_ratline_disable,
-														m_Doc->m_auto_ratline_min_pins, TRUE  );
-				ReselectNetItemIfConnectionsChanged( new_ic );
-			}
-			else
-				SetCursorMode( CUR_VTX_SELECTED );
-			m_Doc->ProjectModified( TRUE );
-			Invalidate( FALSE );
-		}
-		else if( m_cursor_mode == CUR_MOVE_SEGMENT )
-		{
-			// move vertex by modifying adjacent segments and reconciling via
-			m_Doc->m_dlist->StopDragging();
-			SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_Doc->m_undo_list );
-			CPoint cpi;
-			CPoint cpf;
-			m_Doc->m_dlist->Get_Endpoints(&cpi, &cpf);
-			int ic = m_sel_id.i;
-			int ivtx = m_sel_id.ii;
-			m_Doc->m_nlist->MoveVertex( m_sel_net, m_sel_ic, m_sel_is,   cpi.x, cpi.y );
-			ASSERT(cpi != cpf);			// Should be at least one grid snap apart.
-			m_Doc->m_nlist->MoveVertex( m_sel_net, m_sel_ic, m_sel_is+1, cpf.x, cpf.y );
-			SetCursorMode( CUR_NONE_SELECTED );
-			m_Doc->ProjectModified( TRUE );
-			Invalidate( FALSE );
-		}
-		else if( m_cursor_mode == CUR_DRAG_END_VTX )
-		{
-			// move end-vertex of stub trace
-			m_Doc->m_dlist->StopDragging();
-			SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_Doc->m_undo_list );
-			CPoint p;
-			p = m_last_cursor_point;
-			int ic = m_sel_id.i;
-			int ivtx = m_sel_id.ii;
-			m_Doc->m_nlist->MoveEndVertex( m_sel_net, ic, ivtx, p.x, p.y );
-			SetCursorMode( CUR_END_VTX_SELECTED );
-			if( m_Doc->m_vis[LAY_RAT_LINE] )
-			{
-				int new_ic = m_Doc->m_nlist->OptimizeConnections( m_sel_net, m_sel_ic, m_Doc->m_auto_ratline_disable,
-														m_Doc->m_auto_ratline_min_pins, TRUE  );
-				ReselectNetItemIfConnectionsChanged( new_ic );
-			}
-			m_Doc->ProjectModified( TRUE );
-			Invalidate( FALSE );
-		}
-		else if( m_cursor_mode == CUR_DRAG_CONNECT )
-		{
-			// dragging ratline to make a new connection
-			// test for hit on pin
-			CPoint p = m_dlist->WindowToPCB( point );
-			id sel_id;	// id of selected item
-			id pad_id( ID_PART, ID_SEL_PAD, 0, 0, 0 );	// force selection of pad
-			void * ptr = m_dlist->TestSelect( p.x, p.y, &sel_id, &m_sel_layer, NULL, NULL, &pad_id );
-			if( ptr )
-			{
-				if( sel_id.type == ID_PART && sel_id.st == ID_SEL_PAD )
-				{
-					// hit on pin
-					cpart * new_sel_part = (cpart*)ptr;
-					cnet * new_sel_net = (cnet*)new_sel_part->pin[sel_id.i].net;
-					if( m_sel_id.type == ID_NET  && m_sel_id.st == ID_CONNECT
-						&& m_sel_id.sst == ID_SEL_VERTEX )
-					{
-						// dragging ratline from vertex of a trace
-						if( new_sel_net && new_sel_net != m_sel_net )
-						{
-							// pin assigned to different net, can't connect it
-							CString s ((LPCSTR) IDS_YouAreTryingToConnectATraceToAPin);
-							AfxMessageBox( s );
-						}
-						else if( m_sel_con.end_pin == cconnect::NO_END
-							&& m_sel_iv == m_sel_con.nsegs )
-						{
-							// dragging ratline from end of stub trace
-							CString pin_name = new_sel_part->shape->GetPinNameByIndex( sel_id.i );
-							CPoint p = m_Doc->m_plist->GetPinPoint( new_sel_part, pin_name );
-							int pin = m_Doc->m_nlist->GetNetPinIndex( m_sel_net, &new_sel_part->ref_des, &pin_name );
-							if( pin == m_sel_con.start_pin )
-							{
-								// trying to connect pin to itself
-								goto goodbye;
-							}
-							// convert to regular pin-pin trace
-							if(  m_sel_con.vtx[m_sel_iv].tee_ID )
-								ASSERT(0);	// error, should not be a branch end or a tee-vertex
-							SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_Doc->m_undo_list );
-							SaveUndoInfoForPart( new_sel_part,
-								CPartList::UNDO_PART_MODIFY, NULL, FALSE, m_Doc->m_undo_list );
-							if( new_sel_net == 0 )
-							{
-								m_Doc->m_nlist->AddNetPin( m_sel_net, &new_sel_part->ref_des,
-									&pin_name );
-							}
-							int is = m_Doc->m_nlist->AppendSegment( m_sel_net, m_sel_ic, p.x, p.y,
-								LAY_RAT_LINE, 0 );
-							m_Doc->m_nlist->UndrawConnection( m_sel_net, m_sel_ic );
-							m_sel_con.vtx[m_sel_iv].force_via_flag = 0;
-							m_sel_con.end_pin = pin;
-							cvertex * end_v = &m_sel_con.vtx[m_sel_con.nsegs];
-							end_v->pad_layer = m_Doc->m_plist->GetPinLayer( new_sel_part, sel_id.i );
-							m_Doc->m_nlist->DrawConnection( m_sel_net, m_sel_ic );
-							if( m_Doc->m_vis[LAY_RAT_LINE] )
-								m_Doc->m_nlist->OptimizeConnections(  m_sel_net, -1, m_Doc->m_auto_ratline_disable,
-													m_Doc->m_auto_ratline_min_pins, TRUE  );
-							m_Doc->m_dlist->StopDragging();
-							// CPT:  ensure new ratline is selected:
-							id newId (ID_NET, ID_CONNECT, m_sel_ic, ID_SEL_SEG, is);
-							DoSelection(newId, m_sel_net);
-							Invalidate( FALSE );
-							m_Doc->ProjectModified( TRUE );
-						}
-						else
-						{
-							// dragging ratline from any other vertex to pin
-							// add new stub trace from pin to tee
-							SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_Doc->m_undo_list );
-							SaveUndoInfoForPart( new_sel_part,
-								CPartList::UNDO_PART_MODIFY, NULL, FALSE, m_Doc->m_undo_list );
-							CString pin_name = new_sel_part->shape->GetPinNameByIndex( sel_id.i );
-							if( new_sel_net == 0 )
-							{
-								m_Doc->m_nlist->AddNetPin( m_sel_net, &new_sel_part->ref_des,
-									&pin_name );
-							}
-							int p1 = m_Doc->m_nlist->GetNetPinIndex( m_sel_net, &new_sel_part->ref_des, &pin_name );
-							int ic = m_Doc->m_nlist->AddNetStub( m_sel_net, p1 );
-							int is = m_Doc->m_nlist->AppendSegment( m_sel_net, ic, m_sel_vtx.x, m_sel_vtx.y, LAY_RAT_LINE,
-								1 );
-							int id0 = m_sel_vtx.tee_ID;
-							if( id0 == 0 )
-							{
-								id0 = m_Doc->m_nlist->GetNewTeeID();
-								m_sel_vtx.tee_ID = id0;
-							}
-							m_sel_net->connect[ic].vtx[1].tee_ID = m_sel_vtx.tee_ID;
-							m_Doc->m_nlist->DrawConnection( m_sel_net, ic );
-							if( m_Doc->m_vis[LAY_RAT_LINE] )
-								m_Doc->m_nlist->OptimizeConnections(  m_sel_net, -1, m_Doc->m_auto_ratline_disable,
-														m_Doc->m_auto_ratline_min_pins, TRUE  );
-							m_Doc->m_dlist->StopDragging();
-							// CPT:  ensure new ratline is selected:
-							id newId (ID_NET, ID_CONNECT, ic, ID_SEL_SEG, is);
-							DoSelection(newId, m_sel_net);
-							Invalidate( FALSE );
-							m_Doc->ProjectModified( TRUE );
-						}
-					}
-					else if( m_sel_id.type == ID_PART  && m_sel_id.st == ID_SEL_PAD )
-					{
-						// connecting pin to pin
-						cnet * from_sel_net = (cnet*)m_sel_part->pin[m_sel_id.i].net;
-						if( new_sel_net && from_sel_net && (new_sel_net != from_sel_net) )
-						{
-							// pins assigned to different nets, can't connect them
-							CString s ((LPCSTR) IDS_YouAreTryingToConnectPinsOnDifferentNets);
-							AfxMessageBox( s );
-							m_Doc->m_dlist->StopDragging();
-							SetCursorMode( CUR_PAD_SELECTED );
-						}
-						else
-						{
-							// see if we are trying to connect a pin to itself
-							if( new_sel_part == m_sel_part && m_sel_id.i == sel_id.i )
-							{
-								// yes, forget it
-								goto goodbye;
-							}
-							// we can connect these pins
-							SaveUndoInfoForPart( m_sel_part,
-								CPartList::UNDO_PART_MODIFY, NULL, TRUE, m_Doc->m_undo_list );
-							SaveUndoInfoForPart( new_sel_part,
-								CPartList::UNDO_PART_MODIFY, NULL, FALSE, m_Doc->m_undo_list );
-							if( new_sel_net != from_sel_net )
-							{
-								// one pin is unassigned, assign it to net
-								if( !new_sel_net )
-								{
-									// connecting to unassigned pin, assign it
-									SaveUndoInfoForNetAndConnections( from_sel_net, CNetList::UNDO_NET_MODIFY, FALSE, m_Doc->m_undo_list );
-									CString pin_name = new_sel_part->shape->GetPinNameByIndex( sel_id.i );
-									m_Doc->m_nlist->AddNetPin( from_sel_net,
-										&new_sel_part->ref_des,
-										&pin_name );
-									new_sel_net = from_sel_net;
-								}
-								else if( !from_sel_net )
-								{
-									// connecting from unassigned pin, assign it
-									SaveUndoInfoForNetAndConnections( new_sel_net, CNetList::UNDO_NET_MODIFY, FALSE, m_Doc->m_undo_list );
-									CString pin_name = m_sel_part->shape->GetPinNameByIndex( m_sel_id.i );
-									m_Doc->m_nlist->AddNetPin( new_sel_net,
-										&m_sel_part->ref_des,
-										&pin_name );
-									from_sel_net = new_sel_net;
-								}
-								else
-									ASSERT(0);
-							}
-							else if( !new_sel_net && !m_sel_part->pin[m_sel_id.i].net )
-							{
-								// connecting 2 unassigned pins, select net
-								DlgAssignNet assign_net_dlg;
-								assign_net_dlg.m_map = &m_Doc->m_nlist->m_map;
-								int ret = assign_net_dlg.DoModal();
-								if( ret != IDOK )
-								{
-									m_Doc->m_dlist->StopDragging();
-									SetCursorMode( CUR_PAD_SELECTED );
-									goto goodbye;
-								}
-								CString name = assign_net_dlg.m_net_str;
-								void * ptr;
-								int test = m_Doc->m_nlist->m_map.Lookup( name, ptr );
-								if( test )
-								{
-									// assign pins to existing net
-									new_sel_net = (cnet*)ptr;
-									SaveUndoInfoForNetAndConnections( new_sel_net,
-										CNetList::UNDO_NET_MODIFY, FALSE, m_Doc->m_undo_list );
-									CString pin_name1 = m_sel_part->shape->GetPinNameByIndex( m_sel_id.i );
-									CString pin_name2 = new_sel_part->shape->GetPinNameByIndex( sel_id.i );
-									m_Doc->m_nlist->AddNetPin( new_sel_net,
-										&m_sel_part->ref_des,
-										&pin_name1 );
-									m_Doc->m_nlist->AddNetPin( new_sel_net,
-										&new_sel_part->ref_des,
-										&pin_name2 );
-								}
-								else
-								{
-									// make new net
-									new_sel_net = m_Doc->m_nlist->AddNet( (char*)(LPCTSTR)name, 10, 0, 0, 0 );
-									SaveUndoInfoForNetAndConnections( new_sel_net,
-										CNetList::UNDO_NET_ADD, FALSE, m_Doc->m_undo_list );
-									CString pin_name1 = m_sel_part->shape->GetPinNameByIndex( m_sel_id.i );
-									CString pin_name2 = new_sel_part->shape->GetPinNameByIndex( sel_id.i );
-									m_Doc->m_nlist->AddNetPin( new_sel_net,
-										&m_sel_part->ref_des,
-										&pin_name1 );
-									m_Doc->m_nlist->AddNetPin( new_sel_net,
-										&new_sel_part->ref_des,
-										&pin_name2 );
-								}
-							}
-							// find pins in net and connect them
-							int p1 = -1;
-							int p2 = -1;
-							for( int ip=0; ip<new_sel_net->npins; ip++ )
-							{
-								CString pin_name = new_sel_net->pin[ip].pin_name;
-								if( new_sel_net->pin[ip].part == m_sel_part )
-								{
-									int pin_index = m_sel_part->shape->GetPinIndexByName( pin_name );
-									if( pin_index == m_sel_id.i )
-									{
-										// found starting pin in net
-										p1 = ip;
-									}
-								}
-								if( new_sel_net->pin[ip].part == new_sel_part )
-								{
-									int pin_index = new_sel_part->shape->GetPinIndexByName( pin_name );
-									if( pin_index == sel_id.i )
-									{
-										// found ending pin in net
-										p2 = ip;
-									}
-								}
-							}
-							if( p1>=0 && p2>=0 )
-								m_Doc->m_nlist->AddNetConnect( new_sel_net, p1, p2 );
-							else
-								ASSERT(0);	// couldn't find pins in net
-							m_dlist->StopDragging();
-							// CPT:  ensure new ratline is selected:
-							id newId (ID_NET, ID_CONNECT, new_sel_net->nconnects-1, ID_SEL_SEG, 0);
-							DoSelection(newId, new_sel_net);
-						}
-
-						m_Doc->ProjectModified( TRUE );
-						Invalidate( FALSE );
-					}
-				}
-			}
-		}
-		else if( m_cursor_mode == CUR_DRAG_RAT_PIN )
-		{
-			// see if pad selected
-			CPoint p = m_dlist->WindowToPCB( point );
-			id sel_id;	// id of selected item
-			id pad_id( ID_PART, ID_SEL_PAD, 0, 0, 0 );	// force selection of pad
-			void * ptr = m_dlist->TestSelect( p.x, p.y, &sel_id, &m_sel_layer, NULL, NULL, &pad_id );
-			if( ptr )
-			{
-				if( sel_id.type == ID_PART )
-				{
-					if( sel_id.st == ID_SEL_PAD )
-					{
-						// see if we can connect to this pin
-						cpart * new_sel_part = (cpart*)ptr;
-						cnet * new_sel_net = (cnet*)new_sel_part->pin[sel_id.i].net;
-						CString pin_name = new_sel_part->shape->GetPinNameByIndex( sel_id.i );
-
-						if( new_sel_net && (new_sel_net != m_sel_net) )
-						{
-							// pin assigned to different net, can't connect it
-							CString s ((LPCSTR) IDS_YouAreTryingToConnectToAPinOnADifferentNet);
-							AfxMessageBox( s );
-							return;
-						}
-						else if( new_sel_net == 0 )
-						{
-							// unassigned pin, assign it
-							SaveUndoInfoForPart( new_sel_part,
-								CPartList::UNDO_PART_MODIFY, NULL, TRUE, m_Doc->m_undo_list );
-							SaveUndoInfoForNetAndConnections( m_sel_net,
-								CNetList::UNDO_NET_MODIFY, FALSE, m_Doc->m_undo_list );
-							m_Doc->m_nlist->AddNetPin( m_sel_net, &new_sel_part->ref_des, &pin_name );
-						}
-						else
-						{
-							// pin already assigned to this net
-							SaveUndoInfoForNetAndConnections( m_sel_net,
-								CNetList::UNDO_NET_MODIFY, TRUE, m_Doc->m_undo_list );
-						}
-						m_Doc->m_nlist->ChangeConnectionPin( m_sel_net, m_sel_ic, m_sel_is,
-							new_sel_part, &pin_name );
-						m_dlist->Set_visible( m_sel_seg.dl_el, TRUE );
-						m_dlist->StopDragging();
-						m_dlist->CancelHighLight();
-						SetCursorMode( CUR_RAT_SELECTED );
-						m_Doc->m_nlist->HighlightSegment( m_sel_net, m_sel_ic, m_sel_is );
-						m_Doc->m_nlist->SetAreaConnections( m_sel_net );
-						m_Doc->ProjectModified( TRUE );
-						Invalidate( FALSE );
-					}
-				}
-			}
-		}
-		else if( m_cursor_mode == CUR_DRAG_STUB )
-		{
-			if( m_sel_is != 0 )
-			{
-				// if first vertex, we have already saved
-				SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_Doc->m_undo_list );
-			}
-            // CPT.  Similar to what happened for CUR_DRAG_RAT mode, above.  Below, arguments for AppendSegment get
-            // changed to include via_w and via_hole_w
-            int w = m_active_width, via_w, via_hole_w;
-            GetViaWidths(w, &via_w, &via_hole_w);
-			// see if cursor on pad
-			CPoint p = m_dlist->WindowToPCB( point );
-			id sel_id;	// id of selected item
-			id pad_id( ID_PART, ID_SEL_PAD, 0, 0, 0 );	// test for hit on pad
-			void * ptr = m_dlist->TestSelect( p.x, p.y, &sel_id, &m_sel_layer, NULL, NULL, &pad_id );
-			if( ptr && sel_id.type == ID_PART && sel_id.st == ID_SEL_PAD )
-			{
-				// see if we can connect to this pin
-				cpart * new_sel_part = (cpart*)ptr;
-				cnet * new_sel_net = (cnet*)new_sel_part->pin[sel_id.i].net;
-				CString pin_name = new_sel_part->shape->GetPinNameByIndex( sel_id.i );
-				if( m_Doc->m_plist->TestHitOnPad( new_sel_part, &pin_name, p.x, p.y, m_active_layer ) )
-				{
-					// check for starting pad of stub trace
-					cpart * origin_part = m_sel_start_pin.part;
-					CString * origin_pin_name = &m_sel_start_pin.pin_name;
-					if( origin_part != new_sel_part || *origin_pin_name != *pin_name )
-					{
-						// not starting pad
-						if( new_sel_net && (new_sel_net != m_sel_net) )
-						{
-							// pin assigned to different net, can't connect it
-							CString s ((LPCSTR) IDS_YouAreTryingToConnectToAPinOnADifferentNet);
-							AfxMessageBox( s );
-							return;
-						}
-						else if( new_sel_net == 0 )
-						{
-							// unassigned pin, assign it
-							SaveUndoInfoForPart( new_sel_part,
-								CPartList::UNDO_PART_MODIFY, NULL, FALSE, m_Doc->m_undo_list );
-							m_Doc->m_nlist->AddNetPin( m_sel_net, &new_sel_part->ref_des, &pin_name );
-						}
-						else
-						{
-							// pin already assigned to this net
-						}
-						CPoint pi = m_snap_angle_ref;
-						CPoint pf = m_last_cursor_point;
-						CPoint pp = GetInflectionPoint( pi, pf, m_inflection_mode );
-						if( pp != pi )
-						{
-							m_sel_id.ii = m_Doc->m_nlist->AppendSegment( m_sel_net, m_sel_ic,
-								pp.x, pp.y, m_active_layer, w, via_w, via_hole_w );
-						}
-						m_sel_id.ii = m_Doc->m_nlist->AppendSegment( m_sel_net, m_sel_ic,
-							m_last_cursor_point.x, m_last_cursor_point.y, m_active_layer, w );
-						CPoint pin_point = m_Doc->m_plist->GetPinPoint( new_sel_part, pin_name );
-						if( m_last_cursor_point != pin_point )
-						{
-							m_sel_id.ii = m_Doc->m_nlist->AppendSegment( m_sel_net, m_sel_ic,
-								pin_point.x, pin_point.y, m_active_layer, w, via_w, via_hole_w );
-						}
-						m_Doc->m_nlist->ChangeConnectionPin( m_sel_net, m_sel_ic, TRUE,
-							new_sel_part, &pin_name );
-						m_dlist->StopDragging();
-						SetCursorMode( CUR_NONE_SELECTED );
-						m_Doc->m_nlist->SetAreaConnections( m_sel_net );
-						m_Doc->ProjectModified( TRUE );
-						Invalidate( FALSE );
-						return;
-					}
-				}
-			}
-			// test for tee-connection to vertex
-			cnet * hit_net = NULL;
-			int hit_ic, hit_iv;
-			BOOL bHit = m_Doc->m_nlist->TestForHitOnVertex( m_sel_net, m_active_layer,
-				m_last_cursor_point.x, m_last_cursor_point.y,
-				&hit_net, &hit_ic, &hit_iv );
-			if( bHit )
-			{
-				// hit on vertex
-				cconnect * hit_c;
-				cvertex * hit_v;
-				hit_c = &m_sel_net->connect[hit_ic];
-				hit_v = &hit_c->vtx[hit_iv];
-				CString s ((LPCSTR) IDS_BranchCreated);
-				int ret = AfxMessageBox( s );
-				// first, see if already a tee
-				int id;
-				if( hit_v->tee_ID )
-				{
-					// yes
-					id = hit_v->tee_ID;
-				}
-				else
-				{
-					// no
-					id = m_Doc->m_nlist->GetNewTeeID();
-					hit_v->tee_ID = id;
-				}
-				// now connect it (no via)
-				CPoint pi = m_snap_angle_ref;
-				CPoint pf = m_last_cursor_point;
-				CPoint pp = GetInflectionPoint( pi, pf, m_inflection_mode );
-				if( pp != pi )
-				{
-					m_sel_id.ii = m_Doc->m_nlist->AppendSegment( m_sel_net, m_sel_ic,
-						pp.x, pp.y, m_active_layer, w, via_w, via_hole_w );
-				}
-				m_sel_id.ii = m_Doc->m_nlist->AppendSegment( m_sel_net, m_sel_ic,
-					m_last_cursor_point.x, m_last_cursor_point.y, m_active_layer, w, via_w, via_hole_w );
-				if( m_last_cursor_point.x != hit_v->x || m_last_cursor_point.y != hit_v->y )
-				{
-					m_sel_id.ii = m_Doc->m_nlist->AppendSegment( m_sel_net, m_sel_ic,
-						hit_v->x, hit_v->y, m_active_layer, w, via_w, via_hole_w );
-				}
-				// set tee_ID for end-vertex and remove selector
-				m_sel_con.vtx[m_sel_iv+1].tee_ID = id;
-				m_Doc->m_nlist->ReconcileVia( m_sel_net, m_sel_ic, m_sel_iv+1 );
-				m_dlist->StopDragging();
 				if( m_Doc->m_vis[LAY_RAT_LINE] )
 					m_Doc->m_nlist->OptimizeConnections(  m_sel_net, -1, m_Doc->m_auto_ratline_disable,
-														m_Doc->m_auto_ratline_min_pins, TRUE  );
-				CancelSelection();
-				m_Doc->ProjectModified( TRUE );
-				Invalidate( FALSE );
-				return;
+													m_Doc->m_auto_ratline_min_pins, TRUE  );
 			}
+			CancelSelection();
+		}
+		else
+		{
+			// add cursor point
+			m_Doc->m_nlist->AppendAreaCorner( m_sel_net, m_sel_ia, p.x, p.y, m_polyline_style );
+			m_dlist->StartDraggingArc( pDC, m_polyline_style, p.x, p.y, p.x, p.y, LAY_SELECTION, 1, 2 );
+			m_sel_id.ii = m_sel_id.ii + 1;
+			SetCursorMode( CUR_DRAG_AREA_CUTOUT );
+			m_snap_angle_ref = m_last_cursor_point;
+		}
+		m_Doc->ProjectModified( TRUE );
+		Invalidate( FALSE );
+	}
+	else if( m_cursor_mode == CUR_ADD_SMCUTOUT )
+	{
+		// add poly for new cutout
+		pDC = GetDC();
+		SetDCToWorldCoords( pDC );
+		pDC->SelectClipRgn( &m_pcb_rgn );
+		CPoint p;
+		p = m_last_cursor_point;
+		int ism = m_Doc->m_sm_cutout.GetSize();
+		m_Doc->m_sm_cutout.SetSize( ism + 1 );
+		CPolyLine * p_sm = &m_Doc->m_sm_cutout[ism];
+		p_sm->SetDisplayList( m_Doc->m_dlist );
+		id id_sm( ID_SM_CUTOUT, ID_SM_CUTOUT, ism );
+		m_sel_id = id_sm;
+		p_sm->Start( m_polyline_layer, 0, 10*NM_PER_MIL, p.x, p.y, m_polyline_hatch, &m_sel_id, NULL );
+		m_sel_id.sst = ID_SEL_CORNER;
+		m_dlist->StartDraggingArc( pDC, m_polyline_style, p.x, p.y, p.x, p.y, LAY_SELECTION, 1, 2 );
+		m_sel_id.ii = 1;
+		SetCursorMode( CUR_DRAG_SMCUTOUT_1 );
+		m_Doc->ProjectModified( TRUE );
+		Invalidate( FALSE );
+		m_snap_angle_ref = m_last_cursor_point;
+	}
+	else if( m_cursor_mode == CUR_DRAG_SMCUTOUT_1 )
+	{
+		pDC = GetDC();
+		SetDCToWorldCoords( pDC );
+		pDC->SelectClipRgn( &m_pcb_rgn );
+		CPoint p;
+		p = m_last_cursor_point;
+		CPolyLine * p_sm = &m_Doc->m_sm_cutout[m_sel_id.i];
+		p_sm->AppendCorner( p.x, p.y, m_polyline_style );
+		m_dlist->StartDraggingArc( pDC, m_polyline_style, p.x, p.y, p.x, p.y, LAY_SELECTION, 1, 2 );
+		m_sel_id.ii = 2;
+		SetCursorMode( CUR_DRAG_SMCUTOUT );
+		m_Doc->ProjectModified( TRUE );
+		Invalidate( FALSE );
+		m_snap_angle_ref = m_last_cursor_point;
+	}
+	else if( m_cursor_mode == CUR_DRAG_SMCUTOUT )
+	{
+		pDC = GetDC();
+		SetDCToWorldCoords( pDC );
+		pDC->SelectClipRgn( &m_pcb_rgn );
+		CPoint p;
+		p = m_last_cursor_point;
+		CPolyLine * p_sm = &m_Doc->m_sm_cutout[m_sel_id.i];
+		if( p.x == p_sm->GetX(0)
+			&& p.y == p_sm->GetY(0) )
+		{
+			// cursor point is first point, close area
+			SaveUndoInfoForSMCutouts( TRUE, m_Doc->m_undo_list );
+			p_sm->Close( m_polyline_style );
+			SetCursorMode( CUR_NONE_SELECTED );
+			m_Doc->m_dlist->StopDragging();
+		}
+		else
+		{
+			// add cursor point
+			p_sm->AppendCorner( p.x, p.y, m_polyline_style );
+			m_dlist->StartDraggingArc( pDC, m_polyline_style, p.x, p.y, p.x, p.y, LAY_SELECTION, 1, 2 );
+			m_sel_id.ii = m_sel_id.ii + 1;
+			SetCursorMode( CUR_DRAG_SMCUTOUT );
+			m_snap_angle_ref = m_last_cursor_point;
+		}
+		m_Doc->ProjectModified( TRUE );
+		Invalidate( FALSE );
+	}
+	else if( m_cursor_mode == CUR_DRAG_SMCUTOUT_MOVE )
+	{
+		SaveUndoInfoForSMCutouts( TRUE, m_Doc->m_undo_list );
+		CPolyLine * poly = &m_Doc->m_sm_cutout[m_sel_id.i];
+		pDC = GetDC();
+		SetDCToWorldCoords( pDC );
+		pDC->SelectClipRgn( &m_pcb_rgn );
+		CPoint p;
+		p = m_last_cursor_point;
+		m_dlist->StopDragging();
+		poly->MoveCorner( m_sel_id.ii, p.x, p.y );
+		poly->HighlightCorner( m_sel_id.ii );
+		SetCursorMode( CUR_SMCUTOUT_CORNER_SELECTED );
+		m_Doc->ProjectModified( TRUE );
+		Invalidate( FALSE );
+	}
+	else if( m_cursor_mode == CUR_DRAG_SMCUTOUT_INSERT )
+	{
+		SaveUndoInfoForSMCutouts( TRUE, m_Doc->m_undo_list );
+		CPolyLine * poly = &m_Doc->m_sm_cutout[m_sel_id.i];
+		pDC = GetDC();
+		SetDCToWorldCoords( pDC );
+		pDC->SelectClipRgn( &m_pcb_rgn );
+		CPoint p;
+		p = m_last_cursor_point;
+		m_dlist->StopDragging();
+		poly->InsertCorner( m_sel_id.ii+1, p.x, p.y );
+		poly->HighlightCorner( m_sel_id.ii+1 );
+		m_sel_id.Set( ID_SM_CUTOUT, ID_SM_CUTOUT, m_sel_id.i, ID_SEL_CORNER, m_sel_id.ii+1 );
+		SetCursorMode( CUR_SMCUTOUT_CORNER_SELECTED );
+		m_Doc->ProjectModified( TRUE );
+		Invalidate( FALSE );
+	}
+	else if( m_cursor_mode == CUR_ADD_AREA_CUTOUT )
+	{
+		pDC = GetDC();
+		SetDCToWorldCoords( pDC );
+		pDC->SelectClipRgn( &m_pcb_rgn );
+		CPoint p;
+		p = m_last_cursor_point;
+		int ia = m_sel_id.i;
+		carea * a = &m_sel_net->area[ia];
+		m_Doc->m_nlist->AppendAreaCorner( m_sel_net, ia, p.x, p.y, m_polyline_style );
+		m_sel_id.Set( m_sel_net->id.type, ID_AREA, ia, ID_SEL_CORNER, a->poly->GetNumCorners()-1 );
+		m_dlist->StartDraggingArc( pDC, m_polyline_style, p.x, p.y, p.x, p.y, LAY_SELECTION, 1, 2 );
+		SetCursorMode( CUR_DRAG_AREA_1 );
+		m_Doc->ProjectModified( TRUE );
+		Invalidate( FALSE );
+		m_snap_angle_ref = m_last_cursor_point;
+	}
+	else if( m_cursor_mode == CUR_DRAG_VTX )
+	{
+		// move vertex by modifying adjacent segments and reconciling via
+		SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_Doc->m_undo_list );
+		CPoint p;
+		p = m_last_cursor_point;
+		int ic = m_sel_id.i;
+		int ivtx = m_sel_id.ii;
+		m_Doc->m_nlist->MoveVertex( m_sel_net, m_sel_ic, m_sel_is, p.x, p.y );
+		m_Doc->m_nlist->HighlightVertex( m_sel_net, ic, ivtx );
+		if( m_Doc->m_vis[LAY_RAT_LINE] )
+		{
+			int new_ic = m_Doc->m_nlist->OptimizeConnections( m_sel_net, m_sel_ic, m_Doc->m_auto_ratline_disable,
+													m_Doc->m_auto_ratline_min_pins, TRUE  );
+			ReselectNetItemIfConnectionsChanged( new_ic );
+		}
+		else
+			SetCursorMode( CUR_VTX_SELECTED );
+		m_Doc->ProjectModified( TRUE );
+		Invalidate( FALSE );
+	}
+	else if( m_cursor_mode == CUR_MOVE_SEGMENT )
+	{
+		// move vertex by modifying adjacent segments and reconciling via
+		m_Doc->m_dlist->StopDragging();
+		SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_Doc->m_undo_list );
+		CPoint cpi;
+		CPoint cpf;
+		m_Doc->m_dlist->Get_Endpoints(&cpi, &cpf);
+		int ic = m_sel_id.i;
+		int ivtx = m_sel_id.ii;
+		m_Doc->m_nlist->MoveVertex( m_sel_net, m_sel_ic, m_sel_is,   cpi.x, cpi.y );
+		ASSERT(cpi != cpf);			// Should be at least one grid snap apart.
+		m_Doc->m_nlist->MoveVertex( m_sel_net, m_sel_ic, m_sel_is+1, cpf.x, cpf.y );
+		SetCursorMode( CUR_NONE_SELECTED );
+		m_Doc->ProjectModified( TRUE );
+		Invalidate( FALSE );
+	}
+	else if( m_cursor_mode == CUR_DRAG_END_VTX )
+	{
+		// move end-vertex of stub trace
+		m_Doc->m_dlist->StopDragging();
+		SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_Doc->m_undo_list );
+		CPoint p;
+		p = m_last_cursor_point;
+		int ic = m_sel_id.i;
+		int ivtx = m_sel_id.ii;
+		m_Doc->m_nlist->MoveEndVertex( m_sel_net, ic, ivtx, p.x, p.y );
+		SetCursorMode( CUR_END_VTX_SELECTED );
+		if( m_Doc->m_vis[LAY_RAT_LINE] )
+		{
+			int new_ic = m_Doc->m_nlist->OptimizeConnections( m_sel_net, m_sel_ic, m_Doc->m_auto_ratline_disable,
+													m_Doc->m_auto_ratline_min_pins, TRUE  );
+			ReselectNetItemIfConnectionsChanged( new_ic );
+		}
+		m_Doc->ProjectModified( TRUE );
+		Invalidate( FALSE );
+	}
+	else if( m_cursor_mode == CUR_DRAG_CONNECT )
+	{
+		// dragging ratline to make a new connection
+		// test for hit on pin
+		CPoint p = m_dlist->WindowToPCB( point );
+		id sel_id;	// id of selected item
+		id pad_id( ID_PART, ID_SEL_PAD, 0, 0, 0 );	// force selection of pad
+		void * ptr = m_dlist->TestSelect( p.x, p.y, &sel_id, &m_sel_layer, NULL, NULL, &pad_id );
+		if( ptr )
+		{
+			if( sel_id.type == ID_PART && sel_id.st == ID_SEL_PAD )
+			{
+				// hit on pin
+				cpart * new_sel_part = (cpart*)ptr;
+				cnet * new_sel_net = (cnet*)new_sel_part->pin[sel_id.i].net;
+				if( m_sel_id.type == ID_NET  && m_sel_id.st == ID_CONNECT
+					&& m_sel_id.sst == ID_SEL_VERTEX )
+				{
+					// dragging ratline from vertex of a trace
+					if( new_sel_net && new_sel_net != m_sel_net )
+					{
+						// pin assigned to different net, can't connect it
+						CString s ((LPCSTR) IDS_YouAreTryingToConnectATraceToAPin);
+						AfxMessageBox( s );
+					}
+					else if( m_sel_con.end_pin == cconnect::NO_END
+						&& m_sel_iv == m_sel_con.nsegs )
+					{
+						// dragging ratline from end of stub trace
+						CString pin_name = new_sel_part->shape->GetPinNameByIndex( sel_id.i );
+						CPoint p = m_Doc->m_plist->GetPinPoint( new_sel_part, pin_name );
+						int pin = m_Doc->m_nlist->GetNetPinIndex( m_sel_net, &new_sel_part->ref_des, &pin_name );
+						if( pin == m_sel_con.start_pin )
+						{
+							// trying to connect pin to itself
+							goto goodbye;
+						}
+						// convert to regular pin-pin trace
+						if(  m_sel_con.vtx[m_sel_iv].tee_ID )
+							ASSERT(0);	// error, should not be a branch end or a tee-vertex
+						SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_Doc->m_undo_list );
+						SaveUndoInfoForPart( new_sel_part,
+							CPartList::UNDO_PART_MODIFY, NULL, FALSE, m_Doc->m_undo_list );
+						if( new_sel_net == 0 )
+						{
+							m_Doc->m_nlist->AddNetPin( m_sel_net, &new_sel_part->ref_des,
+								&pin_name );
+						}
+						int is = m_Doc->m_nlist->AppendSegment( m_sel_net, m_sel_ic, p.x, p.y,
+							LAY_RAT_LINE, 0 );
+						m_Doc->m_nlist->UndrawConnection( m_sel_net, m_sel_ic );
+						m_sel_con.vtx[m_sel_iv].force_via_flag = 0;
+						m_sel_con.end_pin = pin;
+						cvertex * end_v = &m_sel_con.vtx[m_sel_con.nsegs];
+						end_v->pad_layer = m_Doc->m_plist->GetPinLayer( new_sel_part, sel_id.i );
+						m_Doc->m_nlist->DrawConnection( m_sel_net, m_sel_ic );
+						if( m_Doc->m_vis[LAY_RAT_LINE] )
+							m_Doc->m_nlist->OptimizeConnections(  m_sel_net, -1, m_Doc->m_auto_ratline_disable,
+												m_Doc->m_auto_ratline_min_pins, TRUE  );
+						m_Doc->m_dlist->StopDragging();
+						// CPT:  ensure new ratline is selected:
+						id newId (ID_NET, ID_CONNECT, m_sel_ic, ID_SEL_SEG, is);
+						DoSelection(newId, m_sel_net);
+						Invalidate( FALSE );
+						m_Doc->ProjectModified( TRUE );
+					}
+					else
+					{
+						// dragging ratline from any other vertex to pin
+						// add new stub trace from pin to tee
+						SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_Doc->m_undo_list );
+						SaveUndoInfoForPart( new_sel_part,
+							CPartList::UNDO_PART_MODIFY, NULL, FALSE, m_Doc->m_undo_list );
+						CString pin_name = new_sel_part->shape->GetPinNameByIndex( sel_id.i );
+						if( new_sel_net == 0 )
+						{
+							m_Doc->m_nlist->AddNetPin( m_sel_net, &new_sel_part->ref_des,
+								&pin_name );
+						}
+						int p1 = m_Doc->m_nlist->GetNetPinIndex( m_sel_net, &new_sel_part->ref_des, &pin_name );
+						int ic = m_Doc->m_nlist->AddNetStub( m_sel_net, p1 );
+						int is = m_Doc->m_nlist->AppendSegment( m_sel_net, ic, m_sel_vtx.x, m_sel_vtx.y, LAY_RAT_LINE,
+							1 );
+						int id0 = m_sel_vtx.tee_ID;
+						if( id0 == 0 )
+						{
+							id0 = m_Doc->m_nlist->GetNewTeeID();
+							m_sel_vtx.tee_ID = id0;
+						}
+						m_sel_net->connect[ic].vtx[1].tee_ID = m_sel_vtx.tee_ID;
+						m_Doc->m_nlist->DrawConnection( m_sel_net, ic );
+						if( m_Doc->m_vis[LAY_RAT_LINE] )
+							m_Doc->m_nlist->OptimizeConnections(  m_sel_net, -1, m_Doc->m_auto_ratline_disable,
+													m_Doc->m_auto_ratline_min_pins, TRUE  );
+						m_Doc->m_dlist->StopDragging();
+						// CPT:  ensure new ratline is selected:
+						id newId (ID_NET, ID_CONNECT, ic, ID_SEL_SEG, is);
+						DoSelection(newId, m_sel_net);
+						Invalidate( FALSE );
+						m_Doc->ProjectModified( TRUE );
+					}
+				}
+				else if( m_sel_id.type == ID_PART  && m_sel_id.st == ID_SEL_PAD )
+				{
+					// connecting pin to pin
+					cnet * from_sel_net = (cnet*)m_sel_part->pin[m_sel_id.i].net;
+					if( new_sel_net && from_sel_net && (new_sel_net != from_sel_net) )
+					{
+						// pins assigned to different nets, can't connect them
+						CString s ((LPCSTR) IDS_YouAreTryingToConnectPinsOnDifferentNets);
+						AfxMessageBox( s );
+						m_Doc->m_dlist->StopDragging();
+						SetCursorMode( CUR_PAD_SELECTED );
+					}
+					else
+					{
+						// see if we are trying to connect a pin to itself
+						if( new_sel_part == m_sel_part && m_sel_id.i == sel_id.i )
+						{
+							// yes, forget it
+							goto goodbye;
+						}
+						// we can connect these pins
+						SaveUndoInfoForPart( m_sel_part,
+							CPartList::UNDO_PART_MODIFY, NULL, TRUE, m_Doc->m_undo_list );
+						SaveUndoInfoForPart( new_sel_part,
+							CPartList::UNDO_PART_MODIFY, NULL, FALSE, m_Doc->m_undo_list );
+						if( new_sel_net != from_sel_net )
+						{
+							// one pin is unassigned, assign it to net
+							if( !new_sel_net )
+							{
+								// connecting to unassigned pin, assign it
+								SaveUndoInfoForNetAndConnections( from_sel_net, CNetList::UNDO_NET_MODIFY, FALSE, m_Doc->m_undo_list );
+								CString pin_name = new_sel_part->shape->GetPinNameByIndex( sel_id.i );
+								m_Doc->m_nlist->AddNetPin( from_sel_net,
+									&new_sel_part->ref_des,
+									&pin_name );
+								new_sel_net = from_sel_net;
+							}
+							else if( !from_sel_net )
+							{
+								// connecting from unassigned pin, assign it
+								SaveUndoInfoForNetAndConnections( new_sel_net, CNetList::UNDO_NET_MODIFY, FALSE, m_Doc->m_undo_list );
+								CString pin_name = m_sel_part->shape->GetPinNameByIndex( m_sel_id.i );
+								m_Doc->m_nlist->AddNetPin( new_sel_net,
+									&m_sel_part->ref_des,
+									&pin_name );
+								from_sel_net = new_sel_net;
+							}
+							else
+								ASSERT(0);
+						}
+						else if( !new_sel_net && !m_sel_part->pin[m_sel_id.i].net )
+						{
+							// connecting 2 unassigned pins, select net
+							DlgAssignNet assign_net_dlg;
+							assign_net_dlg.m_map = &m_Doc->m_nlist->m_map;
+							int ret = assign_net_dlg.DoModal();
+							if( ret != IDOK )
+							{
+								m_Doc->m_dlist->StopDragging();
+								SetCursorMode( CUR_PAD_SELECTED );
+								goto goodbye;
+							}
+							CString name = assign_net_dlg.m_net_str;
+							void * ptr;
+							int test = m_Doc->m_nlist->m_map.Lookup( name, ptr );
+							if( test )
+							{
+								// assign pins to existing net
+								new_sel_net = (cnet*)ptr;
+								SaveUndoInfoForNetAndConnections( new_sel_net,
+									CNetList::UNDO_NET_MODIFY, FALSE, m_Doc->m_undo_list );
+								CString pin_name1 = m_sel_part->shape->GetPinNameByIndex( m_sel_id.i );
+								CString pin_name2 = new_sel_part->shape->GetPinNameByIndex( sel_id.i );
+								m_Doc->m_nlist->AddNetPin( new_sel_net,
+									&m_sel_part->ref_des,
+									&pin_name1 );
+								m_Doc->m_nlist->AddNetPin( new_sel_net,
+									&new_sel_part->ref_des,
+									&pin_name2 );
+							}
+							else
+							{
+								// make new net
+								new_sel_net = m_Doc->m_nlist->AddNet( (char*)(LPCTSTR)name, 10, 0, 0, 0 );
+								SaveUndoInfoForNetAndConnections( new_sel_net,
+									CNetList::UNDO_NET_ADD, FALSE, m_Doc->m_undo_list );
+								CString pin_name1 = m_sel_part->shape->GetPinNameByIndex( m_sel_id.i );
+								CString pin_name2 = new_sel_part->shape->GetPinNameByIndex( sel_id.i );
+								m_Doc->m_nlist->AddNetPin( new_sel_net,
+									&m_sel_part->ref_des,
+									&pin_name1 );
+								m_Doc->m_nlist->AddNetPin( new_sel_net,
+									&new_sel_part->ref_des,
+									&pin_name2 );
+							}
+						}
+						// find pins in net and connect them
+						int p1 = -1;
+						int p2 = -1;
+						for( int ip=0; ip<new_sel_net->npins; ip++ )
+						{
+							CString pin_name = new_sel_net->pin[ip].pin_name;
+							if( new_sel_net->pin[ip].part == m_sel_part )
+							{
+								int pin_index = m_sel_part->shape->GetPinIndexByName( pin_name );
+								if( pin_index == m_sel_id.i )
+								{
+									// found starting pin in net
+									p1 = ip;
+								}
+							}
+							if( new_sel_net->pin[ip].part == new_sel_part )
+							{
+								int pin_index = new_sel_part->shape->GetPinIndexByName( pin_name );
+								if( pin_index == sel_id.i )
+								{
+									// found ending pin in net
+									p2 = ip;
+								}
+							}
+						}
+						if( p1>=0 && p2>=0 )
+							m_Doc->m_nlist->AddNetConnect( new_sel_net, p1, p2 );
+						else
+							ASSERT(0);	// couldn't find pins in net
+						m_dlist->StopDragging();
+						// CPT:  ensure new ratline is selected:
+						id newId (ID_NET, ID_CONNECT, new_sel_net->nconnects-1, ID_SEL_SEG, 0);
+						DoSelection(newId, new_sel_net);
+					}
 
-			// come here if not connecting to anything
-			pDC = GetDC();
-			SetDCToWorldCoords( pDC );
-			pDC->SelectClipRgn( &m_pcb_rgn );
-			m_sel_vtx.force_via_flag = 0;
+					m_Doc->ProjectModified( TRUE );
+					Invalidate( FALSE );
+				}
+			}
+		}
+	}
+	else if( m_cursor_mode == CUR_DRAG_RAT_PIN )
+	{
+		// see if pad selected
+		CPoint p = m_dlist->WindowToPCB( point );
+		id sel_id;	// id of selected item
+		id pad_id( ID_PART, ID_SEL_PAD, 0, 0, 0 );	// force selection of pad
+		void * ptr = m_dlist->TestSelect( p.x, p.y, &sel_id, &m_sel_layer, NULL, NULL, &pad_id );
+		if( ptr )
+		{
+			if( sel_id.type == ID_PART )
+			{
+				if( sel_id.st == ID_SEL_PAD )
+				{
+					// see if we can connect to this pin
+					cpart * new_sel_part = (cpart*)ptr;
+					cnet * new_sel_net = (cnet*)new_sel_part->pin[sel_id.i].net;
+					CString pin_name = new_sel_part->shape->GetPinNameByIndex( sel_id.i );
+
+					if( new_sel_net && (new_sel_net != m_sel_net) )
+					{
+						// pin assigned to different net, can't connect it
+						CString s ((LPCSTR) IDS_YouAreTryingToConnectToAPinOnADifferentNet);
+						AfxMessageBox( s );
+						return;
+					}
+					else if( new_sel_net == 0 )
+					{
+						// unassigned pin, assign it
+						SaveUndoInfoForPart( new_sel_part,
+							CPartList::UNDO_PART_MODIFY, NULL, TRUE, m_Doc->m_undo_list );
+						SaveUndoInfoForNetAndConnections( m_sel_net,
+							CNetList::UNDO_NET_MODIFY, FALSE, m_Doc->m_undo_list );
+						m_Doc->m_nlist->AddNetPin( m_sel_net, &new_sel_part->ref_des, &pin_name );
+					}
+					else
+					{
+						// pin already assigned to this net
+						SaveUndoInfoForNetAndConnections( m_sel_net,
+							CNetList::UNDO_NET_MODIFY, TRUE, m_Doc->m_undo_list );
+					}
+					m_Doc->m_nlist->ChangeConnectionPin( m_sel_net, m_sel_ic, m_sel_is,
+						new_sel_part, &pin_name );
+					m_dlist->Set_visible( m_sel_seg.dl_el, TRUE );
+					m_dlist->StopDragging();
+					m_dlist->CancelHighLight();
+					SetCursorMode( CUR_RAT_SELECTED );
+					m_Doc->m_nlist->HighlightSegment( m_sel_net, m_sel_ic, m_sel_is );
+					m_Doc->m_nlist->SetAreaConnections( m_sel_net );
+					m_Doc->ProjectModified( TRUE );
+					Invalidate( FALSE );
+				}
+			}
+		}
+	}
+	else if( m_cursor_mode == CUR_DRAG_STUB )
+	{
+		if( m_sel_is != 0 )
+		{
+			// if first vertex, we have already saved
+			SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_Doc->m_undo_list );
+		}
+        // CPT.  Similar to what happened for CUR_DRAG_RAT mode, above.  Below, arguments for AppendSegment get
+        // changed to include via_w and via_hole_w
+        int w = m_active_width, via_w, via_hole_w;
+        GetViaWidths(w, &via_w, &via_hole_w);
+		// see if cursor on pad
+		CPoint p = m_dlist->WindowToPCB( point );
+		id sel_id;	// id of selected item
+		id pad_id( ID_PART, ID_SEL_PAD, 0, 0, 0 );	// test for hit on pad
+		void * ptr = m_dlist->TestSelect( p.x, p.y, &sel_id, &m_sel_layer, NULL, NULL, &pad_id );
+		if( ptr && sel_id.type == ID_PART && sel_id.st == ID_SEL_PAD )
+		{
+			// see if we can connect to this pin
+			cpart * new_sel_part = (cpart*)ptr;
+			cnet * new_sel_net = (cnet*)new_sel_part->pin[sel_id.i].net;
+			CString pin_name = new_sel_part->shape->GetPinNameByIndex( sel_id.i );
+			if( m_Doc->m_plist->TestHitOnPad( new_sel_part, &pin_name, p.x, p.y, m_active_layer ) )
+			{
+				// check for starting pad of stub trace
+				cpart * origin_part = m_sel_start_pin.part;
+				CString * origin_pin_name = &m_sel_start_pin.pin_name;
+				if( origin_part != new_sel_part || *origin_pin_name != *pin_name )
+				{
+					// not starting pad
+					if( new_sel_net && (new_sel_net != m_sel_net) )
+					{
+						// pin assigned to different net, can't connect it
+						CString s ((LPCSTR) IDS_YouAreTryingToConnectToAPinOnADifferentNet);
+						AfxMessageBox( s );
+						return;
+					}
+					else if( new_sel_net == 0 )
+					{
+						// unassigned pin, assign it
+						SaveUndoInfoForPart( new_sel_part,
+							CPartList::UNDO_PART_MODIFY, NULL, FALSE, m_Doc->m_undo_list );
+						m_Doc->m_nlist->AddNetPin( m_sel_net, &new_sel_part->ref_des, &pin_name );
+					}
+					else
+					{
+						// pin already assigned to this net
+					}
+					CPoint pi = m_snap_angle_ref;
+					CPoint pf = m_last_cursor_point;
+					CPoint pp = GetInflectionPoint( pi, pf, m_inflection_mode );
+					if( pp != pi )
+					{
+						m_sel_id.ii = m_Doc->m_nlist->AppendSegment( m_sel_net, m_sel_ic,
+							pp.x, pp.y, m_active_layer, w, via_w, via_hole_w );
+					}
+					m_sel_id.ii = m_Doc->m_nlist->AppendSegment( m_sel_net, m_sel_ic,
+						m_last_cursor_point.x, m_last_cursor_point.y, m_active_layer, w );
+					CPoint pin_point = m_Doc->m_plist->GetPinPoint( new_sel_part, pin_name );
+					if( m_last_cursor_point != pin_point )
+					{
+						m_sel_id.ii = m_Doc->m_nlist->AppendSegment( m_sel_net, m_sel_ic,
+							pin_point.x, pin_point.y, m_active_layer, w, via_w, via_hole_w );
+					}
+					m_Doc->m_nlist->ChangeConnectionPin( m_sel_net, m_sel_ic, TRUE,
+						new_sel_part, &pin_name );
+					m_dlist->StopDragging();
+					SetCursorMode( CUR_NONE_SELECTED );
+					m_Doc->m_nlist->SetAreaConnections( m_sel_net );
+					m_Doc->ProjectModified( TRUE );
+					Invalidate( FALSE );
+					return;
+				}
+			}
+		}
+		// test for tee-connection to vertex
+		cnet * hit_net = NULL;
+		int hit_ic, hit_iv;
+		BOOL bHit = m_Doc->m_nlist->TestForHitOnVertex( m_sel_net, m_active_layer,
+			m_last_cursor_point.x, m_last_cursor_point.y,
+			&hit_net, &hit_ic, &hit_iv );
+		if( bHit )
+		{
+			// hit on vertex
+			cconnect * hit_c;
+			cvertex * hit_v;
+			hit_c = &m_sel_net->connect[hit_ic];
+			hit_v = &hit_c->vtx[hit_iv];
+			CString s ((LPCSTR) IDS_BranchCreated);
+			int ret = AfxMessageBox( s );
+			// first, see if already a tee
+			int id;
+			if( hit_v->tee_ID )
+			{
+				// yes
+				id = hit_v->tee_ID;
+			}
+			else
+			{
+				// no
+				id = m_Doc->m_nlist->GetNewTeeID();
+				hit_v->tee_ID = id;
+			}
+			// now connect it (no via)
 			CPoint pi = m_snap_angle_ref;
 			CPoint pf = m_last_cursor_point;
 			CPoint pp = GetInflectionPoint( pi, pf, m_inflection_mode );
@@ -2297,65 +1843,98 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 			}
 			m_sel_id.ii = m_Doc->m_nlist->AppendSegment( m_sel_net, m_sel_ic,
 				m_last_cursor_point.x, m_last_cursor_point.y, m_active_layer, w, via_w, via_hole_w );
-			m_dlist->StopDragging();
-			m_sel_id.ii++;
-			m_Doc->m_nlist->StartDraggingStub( pDC, m_sel_net, m_sel_ic, m_sel_is,
-				m_last_cursor_point.x, m_last_cursor_point.y, m_active_layer, w, m_active_layer,
-				via_w, via_hole_w, 2, m_inflection_mode );
-			m_snap_angle_ref = m_last_cursor_point;
-			m_Doc->ProjectModified( TRUE );
-			Invalidate( FALSE );
-		}
-		else if( m_cursor_mode == CUR_DRAG_TEXT )
-		{
-			CPoint p;
-			p = m_last_cursor_point;
-			m_dlist->StopDragging();
-			if( !m_dragging_new_item )
-				SaveUndoInfoForText( m_sel_text, CTextList::UNDO_TEXT_MODIFY, TRUE, m_Doc->m_undo_list );
-			int old_angle = m_sel_text->m_angle;
-			int angle = old_angle + m_dlist->GetDragAngle();
-			if( angle>270 )
-				angle = angle - 360;
-			int old_mirror = m_sel_text->m_mirror;
-			int mirror = (old_mirror + m_dlist->GetDragSide())%2;
-			BOOL negative = m_sel_text->m_bNegative;;
-			int layer = m_sel_text->m_layer;
-			m_Doc->m_tlist->MoveText( m_sel_text, m_last_cursor_point.x, m_last_cursor_point.y,
-				angle, mirror, negative, layer );
-			if( m_dragging_new_item )
+			if( m_last_cursor_point.x != hit_v->x || m_last_cursor_point.y != hit_v->y )
 			{
-				SaveUndoInfoForText( m_sel_text, CTextList::UNDO_TEXT_ADD, TRUE, m_Doc->m_undo_list );
-				m_dragging_new_item = FALSE;
+				m_sel_id.ii = m_Doc->m_nlist->AppendSegment( m_sel_net, m_sel_ic,
+					hit_v->x, hit_v->y, m_active_layer, w, via_w, via_hole_w );
 			}
-			SetCursorMode( CUR_TEXT_SELECTED );
-			m_Doc->m_tlist->HighlightText( m_sel_text );
+			// set tee_ID for end-vertex and remove selector
+			m_sel_con.vtx[m_sel_iv+1].tee_ID = id;
+			m_Doc->m_nlist->ReconcileVia( m_sel_net, m_sel_ic, m_sel_iv+1 );
+			m_dlist->StopDragging();
+			if( m_Doc->m_vis[LAY_RAT_LINE] )
+				m_Doc->m_nlist->OptimizeConnections(  m_sel_net, -1, m_Doc->m_auto_ratline_disable,
+													m_Doc->m_auto_ratline_min_pins, TRUE  );
+			CancelSelection();
 			m_Doc->ProjectModified( TRUE );
 			Invalidate( FALSE );
+			return;
 		}
-		else if( m_cursor_mode == CUR_DRAG_MEASURE_1 )
-		{
-			m_from_pt = m_last_cursor_point;
-			m_dlist->MakeDragRatlineArray( 1, 1 );
-			m_dlist->AddDragRatline( m_from_pt, zero );
-			SetCursorMode( CUR_DRAG_MEASURE_2 );
-		}
-		else if( m_cursor_mode == CUR_DRAG_MEASURE_2 )
-		{
-			m_dlist->StopDragging();
-			SetCursorMode( CUR_NONE_SELECTED );
-		}
-		goto goodbye;
 
-cancel_selection_and_goodbye:
+		// come here if not connecting to anything
+		pDC = GetDC();
+		SetDCToWorldCoords( pDC );
+		pDC->SelectClipRgn( &m_pcb_rgn );
+		m_sel_vtx.force_via_flag = 0;
+		CPoint pi = m_snap_angle_ref;
+		CPoint pf = m_last_cursor_point;
+		CPoint pp = GetInflectionPoint( pi, pf, m_inflection_mode );
+		if( pp != pi )
+		{
+			m_sel_id.ii = m_Doc->m_nlist->AppendSegment( m_sel_net, m_sel_ic,
+				pp.x, pp.y, m_active_layer, w, via_w, via_hole_w );
+		}
+		m_sel_id.ii = m_Doc->m_nlist->AppendSegment( m_sel_net, m_sel_ic,
+			m_last_cursor_point.x, m_last_cursor_point.y, m_active_layer, w, via_w, via_hole_w );
 		m_dlist->StopDragging();
-		CancelSelection();
+		m_sel_id.ii++;
+		m_Doc->m_nlist->StartDraggingStub( pDC, m_sel_net, m_sel_ic, m_sel_is,
+			m_last_cursor_point.x, m_last_cursor_point.y, m_active_layer, w, m_active_layer,
+			via_w, via_hole_w, 2, m_inflection_mode );
+		m_snap_angle_ref = m_last_cursor_point;
 		m_Doc->ProjectModified( TRUE );
 		Invalidate( FALSE );
+	}
+	else if( m_cursor_mode == CUR_DRAG_TEXT )
+	{
+		CPoint p;
+		p = m_last_cursor_point;
+		m_dlist->StopDragging();
+		if( !m_dragging_new_item )
+			SaveUndoInfoForText( m_sel_text, CTextList::UNDO_TEXT_MODIFY, TRUE, m_Doc->m_undo_list );
+		int old_angle = m_sel_text->m_angle;
+		int angle = old_angle + m_dlist->GetDragAngle();
+		if( angle>270 )
+			angle = angle - 360;
+		int old_mirror = m_sel_text->m_mirror;
+		int mirror = (old_mirror + m_dlist->GetDragSide())%2;
+		BOOL negative = m_sel_text->m_bNegative;;
+		int layer = m_sel_text->m_layer;
+		m_sel_text->Move(m_last_cursor_point.x, m_last_cursor_point.y,
+			angle, mirror, negative, layer );
+		if( m_dragging_new_item )
+		{
+			SaveUndoInfoForText( m_sel_text, CTextList::UNDO_TEXT_ADD, TRUE, m_Doc->m_undo_list );
+			m_dragging_new_item = FALSE;
+		}
+		SetCursorMode( CUR_TEXT_SELECTED );
+		m_Doc->m_tlist->HighlightText( m_sel_text );
+		m_Doc->ProjectModified( TRUE );
+		Invalidate( FALSE );
+	}
+	else if( m_cursor_mode == CUR_DRAG_MEASURE_1 )
+	{
+		m_from_pt = m_last_cursor_point;
+		m_dlist->MakeDragRatlineArray( 1, 1 );
+		m_dlist->AddDragRatline( m_from_pt, zero );
+		SetCursorMode( CUR_DRAG_MEASURE_2 );
+	}
+	else if( m_cursor_mode == CUR_DRAG_MEASURE_2 )
+	{
+		m_dlist->StopDragging();
+		SetCursorMode( CUR_NONE_SELECTED );
+	}
+	goto goodbye;
+
+cancel_selection_and_goodbye:
+	m_dlist->StopDragging();
+	CancelSelection();
+	m_Doc->ProjectModified( TRUE );
+	Invalidate( FALSE );
 
 goodbye:
-		ShowSelectStatus();
-	}
+	ShowSelectStatus();
+
 	if( pDC )
 		ReleaseDC( pDC );
 	CView::OnLButtonUp(nFlags, point);
@@ -2708,48 +2287,6 @@ void CFreePcbView::OnRButtonDown(UINT nFlags, CPoint point)
 	CView::OnRButtonDown(nFlags, point);
 }
 
-// System Key on keyboard pressed down
-//
-void CFreePcbView::OnSysKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags)
-{
-	if( nChar == 121 )
-		OnKeyDown( nChar, nRepCnt, nFlags);
-	else
-		CView::OnSysKeyDown(nChar, nRepCnt, nFlags);
-}
-
-// System Key on keyboard pressed up
-//
-void CFreePcbView::OnSysKeyUp(UINT nChar, UINT nRepCnt, UINT nFlags)
-{
-	// CPT new hotkeys
-	if (nChar>=VK_NUMPAD0 && nChar<=VK_NUMPAD9 )						// Translate number-pad numbers to regular numbers...
-		nChar = '0' + nChar - VK_NUMPAD0;
-	else if (nChar==VK_SUBTRACT)
-		nChar = VK_OEM_MINUS;
-	if (nChar>='0' && nChar<='9' || nChar==VK_OEM_MINUS) {
-		int sel = nChar-'1';
-		if (nChar=='0') sel = 9;
-		else if (nChar==VK_OEM_MINUS) sel = 10;
-		m_sel_mask = m_sel_mask ^ (1<<sel);
-		SetSelMaskArray( m_sel_mask );
-		Invalidate( FALSE );
-		return;
-		}
-	else if (nChar==VK_UP) {
-		// Increase visible grid
-		CMainFrame * frm = (CMainFrame*)AfxGetMainWnd();
-		frm->m_wndMyToolBar.VisibleGridUp();
-		}
-	else if (nChar==VK_DOWN) {
-		// Decrease visible grid
-		CMainFrame * frm = (CMainFrame*)AfxGetMainWnd();
-		frm->m_wndMyToolBar.VisibleGridDown();
-		}
-
-	if( nChar != 121 )
-		CView::OnSysKeyUp(nChar, nRepCnt, nFlags);
-}
 
 // Key pressed up
 //
@@ -2823,8 +2360,8 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 		return;
 
 	// CPT: different way of dealing with gShiftKeyDown
-	bool fShiftKeyDown = (GetKeyState(VK_SHIFT)&0x8000) != 0;
-	bool fCtrlKeyDown = (GetKeyState(VK_CONTROL)&0x8000) != 0;
+	bool bShiftKeyDown = (GetKeyState(VK_SHIFT)&0x8000) != 0;
+	bool bCtrlKeyDown = (GetKeyState(VK_CONTROL)&0x8000) != 0;
 
 	if( nChar == 'C' && m_cursor_mode == CUR_SEG_SELECTED )
 	{
@@ -2942,7 +2479,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 
 	if (nChar==VK_OEM_2 || nChar==VK_DIVIDE) {
 		// CPT. Slash key => toggle units
-		UnitToggle(fShiftKeyDown);
+		UnitToggle(bShiftKeyDown);
 		return;
 		}
 
@@ -2957,7 +2494,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 		return;
 	}
 
-	CDC *pDC = GetDC();
+	CDC *pDC = GetDC();											// CPT:  Is this business really necessary?
 	pDC->SelectClipRgn( &m_pcb_rgn );
 	SetDCToWorldCoords( pDC );
 
@@ -3101,162 +2638,18 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 	GetCursorPos( &p );		// cursor pos in screen coords
 	p = m_dlist->ScreenToPCB( p );	// convert to PCB coords
 
-	// test for pressing key to change layer
-	char test_char = nChar;
-	if( test_char >= 97 )						// Translate number-pad numbers to regular numbers...
-		test_char = '1' + nChar - 97;
-	char * ch = strchr( layer_char, test_char );
-	if( ch && m_Doc->m_num_copper_layers > 1 )
-	{
-		int ilayer = ch - layer_char;
-		if( ilayer < m_Doc->m_num_copper_layers )
-		{
-			// OK, shortcut key to a copper layer
-			int new_active_layer = ilayer + LAY_TOP_COPPER;
-			if( ilayer == m_Doc->m_num_copper_layers-1 )
-				new_active_layer = LAY_BOTTOM_COPPER;
-			else if( new_active_layer > LAY_TOP_COPPER )
-				new_active_layer++;
+	if (HandleLayerKey(nChar, bShiftKeyDown, bCtrlKeyDown, pDC)) 
+		{ ReleaseDC(pDC); return; }
 
-			// CPT.  New hotkeys:
-			if (fCtrlKeyDown) {
-				m_Doc->m_vis[new_active_layer] = !m_Doc->m_vis[new_active_layer];
-				m_dlist->SetLayerVisible( new_active_layer, m_Doc->m_vis[new_active_layer] );
-				Invalidate( FALSE );
-				return;
-				}
-
-			else if( !fShiftKeyDown )
-			{
-				// shift key not held down, change active layer for routing
-				if( !m_Doc->m_vis[new_active_layer] )
-				{
-					PlaySound( TEXT("CriticalStop"), 0, 0 );
-					CString s ((LPCSTR) IDS_CantRouteOnInvisibleLayer);
-					AfxMessageBox( s );
-					ReleaseDC( pDC );
-					return;
-				}
-				if( m_cursor_mode == CUR_DRAG_RAT || m_cursor_mode == CUR_DRAG_STUB)
-				{
-					// if we are routing, change layer
-					pDC->SelectClipRgn( &m_pcb_rgn );
-					SetDCToWorldCoords( pDC );
-					if( m_sel_id.ii == 0 && m_dir == 0 )
-					{
-						// we are trying to change first segment from pad
-						int p1 = m_sel_con.start_pin;
-						CString pin_name = m_sel_net->pin[p1].pin_name;
-						int pin_index = m_sel_net->pin[p1].part->shape->GetPinIndexByName( pin_name );
-						if( m_sel_net->pin[p1].part->shape->m_padstack[pin_index].hole_size == 0)
-						{
-							// SMT pad, this is illegal;
-							new_active_layer = -1;
-							PlaySound( TEXT("CriticalStop"), 0, 0 );
-						}
-					}
-					else if( m_sel_id.ii == (m_sel_con.nsegs-1) && m_dir == 1 )
-					{
-						// we are trying to change last segment to pad
-						int p2 = m_sel_con.end_pin;
-						if( p2 != -1 )
-						{
-							CString pin_name = m_sel_net->pin[p2].pin_name;
-							int pin_index = m_sel_net->pin[p2].part->shape->GetPinIndexByName( pin_name );
-							if( m_sel_net->pin[p2].part->shape->m_padstack[pin_index].hole_size == 0)
-							{
-								// SMT pad
-								new_active_layer = -1;
-								PlaySound( TEXT("CriticalStop"), 0, 0 );
-							}
-						}
-					}
-					if( new_active_layer != -1 )
-					{
-						m_dlist->ChangeRoutingLayer( pDC, new_active_layer, LAY_SELECTION, 0 );
-						m_active_layer = new_active_layer;
-						ShowActiveLayer();
-					}
-				}
-				else
-				{
-					m_active_layer = new_active_layer;
-					ShowActiveLayer();
-				}
-				return;
-			}
-			else
-			{
-				// shift key held down, change layer if item selected
-				if( m_cursor_mode == CUR_SEG_SELECTED )
-				{
-					SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_Doc->m_undo_list );
-					m_Doc->m_nlist->UndrawConnection( m_sel_net, m_sel_ic );
-					cconnect * c = &m_sel_net->connect[m_sel_ic];
-					cseg * seg = &c->seg[m_sel_is];
-					seg->layer = new_active_layer;
-					m_Doc->m_nlist->DrawConnection( m_sel_net, m_sel_ic );
-					m_Doc->ProjectModified( TRUE );
-					Invalidate( FALSE );
-				}
-				else if( m_cursor_mode == CUR_CONNECT_SELECTED )
-				{
-					SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_Doc->m_undo_list );
-					m_Doc->m_nlist->UndrawConnection( m_sel_net, m_sel_ic );
-					cconnect * c = &m_sel_net->connect[m_sel_ic];
-					for( int is=0; is<c->nsegs; is++ )
-					{
-						cseg * seg = &c->seg[is];
-						seg->layer = new_active_layer;
-					}
-					m_Doc->m_nlist->DrawConnection( m_sel_net, m_sel_ic );
-					m_Doc->ProjectModified( TRUE );
-					Invalidate( FALSE );
-				}
-				else if( m_cursor_mode == CUR_AREA_CORNER_SELECTED
-					|| m_cursor_mode == CUR_AREA_SIDE_SELECTED )
-				{
-					SaveUndoInfoForAllAreasInNet( m_sel_net, TRUE, m_Doc->m_undo_list );
-					carea * a = &m_sel_net->area[m_sel_ia];
-					a->poly->Undraw();
-					a->poly->SetLayer( new_active_layer );
-					a->poly->Draw( m_dlist );
-					int ret = m_Doc->m_nlist->AreaPolygonModified( m_sel_net, m_sel_ia, TRUE, TRUE );
-					if( ret == -1 )
-					{
-						// error
-						CString s ((LPCSTR) IDS_ErrorUnableToClipPolygon);
-						AfxMessageBox( s );
-						m_Doc->OnEditUndo();
-					}
-					else
-					{
-						if( m_Doc->m_vis[LAY_RAT_LINE] )
-							m_Doc->m_nlist->OptimizeConnections(  m_sel_net, -1, m_Doc->m_auto_ratline_disable,
-														m_Doc->m_auto_ratline_min_pins, TRUE  );
-					}
-					CancelSelection();
-					m_Doc->ProjectModified( TRUE );
-					Invalidate( FALSE );
-				}
-				return;
-			}
-		}
-	}
-
-	// continue
 	if( nChar >= 112 && nChar <= 123 )
 	{
 		// function key pressed
 		// CPT
-		if (fCtrlKeyDown) {
-			int layer = nChar-110;
-			m_Doc->m_vis[layer] = !m_Doc->m_vis[layer];
-			m_dlist->SetLayerVisible( layer, m_Doc->m_vis[layer] );
-			Invalidate( FALSE );
+		if (bCtrlKeyDown) {
+			HandleCtrlFKey(nChar);
+			ReleaseDC(pDC);
 			return;
-			}
-
+		}
 		fk = m_fkey_option[nChar-112];
 	}
 	if( nChar >= 37 && nChar <= 40 )
@@ -3264,16 +2657,16 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 		// arrow key.  CPT: streamlined
 		fk = FK_ARROW;
 		int d;
-		if( fShiftKeyDown && m_Doc->m_units == MM )
+		if( bShiftKeyDown && m_units == MM )
 			d = 10000;		// 0.01 mm
-		else if( fShiftKeyDown && m_Doc->m_units == MIL )
+		else if( bShiftKeyDown && m_units == MIL )
 			d = 25400;		// 1 mil
-		else if (fCtrlKeyDown && nChar==VK_UP)	{		// CPT
+		else if (bCtrlKeyDown && nChar==VK_UP)	{		// CPT
 			if (m_sel_id.type==ID_NET) 	RoutingGridUp();
 			else                        PlacementGridUp(); 
 			return;
 			}
-		else if (fCtrlKeyDown && nChar==VK_DOWN)	{	// CPT
+		else if (bCtrlKeyDown && nChar==VK_DOWN)	{	// CPT
 			if (m_sel_id.type==ID_NET) RoutingGridDown();
 			else                       PlacementGridDown(); 
 			return;
@@ -3292,7 +2685,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 			dy -= d;
 	}
 	else
-		gLastKeyWasArrow = FALSE;
+		m_lastKeyWasArrow = FALSE;
 
 	switch( m_cursor_mode )
 	{
@@ -3316,7 +2709,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 	case CUR_PART_SELECTED:
 		if( fk == FK_ARROW )
 		{
-			if( !gLastKeyWasArrow )
+			if( !m_lastKeyWasArrow )
 			{
 				if( m_sel_part->glued )
 				{
@@ -3329,9 +2722,9 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 				}
 				SaveUndoInfoForPartAndNets( m_sel_part,
 					CPartList::UNDO_PART_MODIFY, NULL, TRUE, m_Doc->m_undo_list );
-				gTotalArrowMoveX = 0;
-				gTotalArrowMoveY = 0;
-				gLastKeyWasArrow = TRUE;
+				m_totalArrowMoveX = 0;
+				m_totalArrowMoveY = 0;
+				m_lastKeyWasArrow = TRUE;
 			}
 			m_dlist->CancelHighLight();
 			m_Doc->m_plist->Move( m_sel_part,
@@ -3343,11 +2736,11 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 			if( m_Doc->m_vis[LAY_RAT_LINE] )
 				m_Doc->m_nlist->OptimizeConnections( m_sel_part, m_Doc->m_auto_ratline_disable,
 										m_Doc->m_auto_ratline_min_pins );
-			gTotalArrowMoveX += dx;
-			gTotalArrowMoveY += dy;
+			m_totalArrowMoveX += dx;
+			m_totalArrowMoveY += dy;
 			m_Doc->m_plist->HighlightPart( m_sel_part );
 			ShowRelativeDistance( m_sel_part->x, m_sel_part->y,
-				gTotalArrowMoveX, gTotalArrowMoveY );
+				m_totalArrowMoveX, m_totalArrowMoveY );
 			m_Doc->ProjectModified( TRUE );
 			Invalidate( FALSE );
 		}
@@ -3373,13 +2766,13 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 	case CUR_REF_SELECTED:
 		if( fk == FK_ARROW )
 		{
-			if( !gLastKeyWasArrow )
+			if( !m_lastKeyWasArrow )
 			{
 				SaveUndoInfoForPart( m_sel_part,
 					CPartList::UNDO_PART_MODIFY, NULL, TRUE, m_Doc->m_undo_list );
-				gTotalArrowMoveX = 0;
-				gTotalArrowMoveY = 0;
-				gLastKeyWasArrow = TRUE;
+				m_totalArrowMoveX = 0;
+				m_totalArrowMoveY = 0;
+				m_lastKeyWasArrow = TRUE;
 			}
 			m_dlist->CancelHighLight();
 			CPoint ref_pt = m_Doc->m_plist->GetRefPoint( m_sel_part );
@@ -3389,12 +2782,12 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 										m_sel_part->m_ref_angle,
 										m_sel_part->m_ref_size,
 										m_sel_part->m_ref_w );
-			gTotalArrowMoveX += dx;
-			gTotalArrowMoveY += dy;
+			m_totalArrowMoveX += dx;
+			m_totalArrowMoveY += dy;
 			m_Doc->m_plist->SelectRefText( m_sel_part );
 			ShowRelativeDistance( m_Doc->m_plist->GetRefPoint(m_sel_part).x,
 				m_Doc->m_plist->GetRefPoint(m_sel_part).y,
-				gTotalArrowMoveX, gTotalArrowMoveY );
+				m_totalArrowMoveX, m_totalArrowMoveY );
 			m_Doc->ProjectModified( TRUE );
 			Invalidate( FALSE );
 		}
@@ -3411,13 +2804,13 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 	case CUR_VALUE_SELECTED:
 		if( fk == FK_ARROW )
 		{
-			if( !gLastKeyWasArrow )
+			if( !m_lastKeyWasArrow )
 			{
 				SaveUndoInfoForPart( m_sel_part,
 					CPartList::UNDO_PART_MODIFY, NULL, TRUE, m_Doc->m_undo_list );
-				gTotalArrowMoveX = 0;
-				gTotalArrowMoveY = 0;
-				gLastKeyWasArrow = TRUE;
+				m_totalArrowMoveX = 0;
+				m_totalArrowMoveY = 0;
+				m_lastKeyWasArrow = TRUE;
 			}
 			m_dlist->CancelHighLight();
 			CPoint val_pt = m_Doc->m_plist->GetValuePoint( m_sel_part );
@@ -3427,12 +2820,12 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 										m_sel_part->m_value_angle,
 										m_sel_part->m_value_size,
 										m_sel_part->m_value_w );
-			gTotalArrowMoveX += dx;
-			gTotalArrowMoveY += dy;
+			m_totalArrowMoveX += dx;
+			m_totalArrowMoveY += dy;
 			m_Doc->m_plist->SelectValueText( m_sel_part );
 			ShowRelativeDistance( m_Doc->m_plist->GetValuePoint(m_sel_part).x,
 				m_Doc->m_plist->GetValuePoint(m_sel_part).y,
-				gTotalArrowMoveX, gTotalArrowMoveY );
+				m_totalArrowMoveX, m_totalArrowMoveY );
 			m_Doc->ProjectModified( TRUE );
 			Invalidate( FALSE );
 		}
@@ -3476,12 +2869,12 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 				break;
 			}
 
-			if( !gLastKeyWasArrow )
+			if( !m_lastKeyWasArrow )
 			{
 				SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_Doc->m_undo_list );
-				gTotalArrowMoveX = 0;
-				gTotalArrowMoveY = 0;
-				gLastKeyWasArrow = TRUE;
+				m_totalArrowMoveX = 0;
+				m_totalArrowMoveY = 0;
+				m_lastKeyWasArrow = TRUE;
 			}
 			m_dlist->CancelHighLight();
 
@@ -3569,9 +2962,9 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 			}
 
 			// CPT FIXME
-			gTotalArrowMoveX += dx;
-			gTotalArrowMoveY += dy;
-			ShowRelativeDistance( m_sel_vtx.x, m_sel_vtx.y, gTotalArrowMoveX, gTotalArrowMoveY );
+			m_totalArrowMoveX += dx;
+			m_totalArrowMoveY += dy;
+			ShowRelativeDistance( m_sel_vtx.x, m_sel_vtx.y, m_totalArrowMoveX, m_totalArrowMoveY );
 			m_Doc->m_nlist->HighlightSegment( m_sel_net, m_sel_ic, m_sel_is );
 			m_Doc->ProjectModified( TRUE );
 			Invalidate( FALSE );
@@ -3599,19 +2992,19 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 	case  CUR_VTX_SELECTED:
 		if( fk == FK_ARROW )
 		{
-			if( !gLastKeyWasArrow )
+			if( !m_lastKeyWasArrow )
 			{
 				SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_Doc->m_undo_list );
-				gTotalArrowMoveX = 0;
-				gTotalArrowMoveY = 0;
-				gLastKeyWasArrow = TRUE;
+				m_totalArrowMoveX = 0;
+				m_totalArrowMoveY = 0;
+				m_lastKeyWasArrow = TRUE;
 			}
 			m_dlist->CancelHighLight();
 			m_Doc->m_nlist->MoveVertex( m_sel_net, m_sel_ic, m_sel_is,
 										m_sel_vtx.x + dx, m_sel_vtx.y + dy );
-			gTotalArrowMoveX += dx;
-			gTotalArrowMoveY += dy;
-			ShowRelativeDistance( m_sel_vtx.x, m_sel_vtx.y, gTotalArrowMoveX, gTotalArrowMoveY );
+			m_totalArrowMoveX += dx;
+			m_totalArrowMoveY += dy;
+			ShowRelativeDistance( m_sel_vtx.x, m_sel_vtx.y, m_totalArrowMoveX, m_totalArrowMoveY );
 			m_Doc->m_nlist->HighlightVertex( m_sel_net, m_sel_ic, m_sel_is );
 			m_Doc->ProjectModified( TRUE );
 			Invalidate( FALSE );
@@ -3638,12 +3031,12 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 		// CPT enabled arrow keys
 		if( fk == FK_ARROW )
 		{
-			if( !gLastKeyWasArrow )
+			if( !m_lastKeyWasArrow )
 			{
 				SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_Doc->m_undo_list );
-				gTotalArrowMoveX = 0;
-				gTotalArrowMoveY = 0;
-				gLastKeyWasArrow = TRUE;
+				m_totalArrowMoveX = 0;
+				m_totalArrowMoveY = 0;
+				m_lastKeyWasArrow = TRUE;
 			}
 			m_dlist->CancelHighLight();
 
@@ -3655,9 +3048,9 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 														m_Doc->m_auto_ratline_min_pins, TRUE  );
 				ReselectNetItemIfConnectionsChanged( new_ic );
 			}
-			gTotalArrowMoveX += dx;
-			gTotalArrowMoveY += dy;
-			ShowRelativeDistance( m_sel_vtx.x, m_sel_vtx.y, gTotalArrowMoveX, gTotalArrowMoveY );
+			m_totalArrowMoveX += dx;
+			m_totalArrowMoveY += dy;
+			ShowRelativeDistance( m_sel_vtx.x, m_sel_vtx.y, m_totalArrowMoveX, m_totalArrowMoveY );
 			m_Doc->m_nlist->HighlightVertex( m_sel_net, m_sel_ic, m_sel_is );
 			m_Doc->ProjectModified( TRUE );
 			Invalidate( FALSE );
@@ -3725,22 +3118,21 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 	case CUR_TEXT_SELECTED:
 		if( fk == FK_ARROW )
 		{
-			if( !gLastKeyWasArrow )
+			if( !m_lastKeyWasArrow )
 			{
 				SaveUndoInfoForText( m_sel_text, CTextList::UNDO_TEXT_MODIFY, TRUE, m_Doc->m_undo_list );
-				gTotalArrowMoveX = 0;
-				gTotalArrowMoveY = 0;
-				gLastKeyWasArrow = TRUE;
+				m_totalArrowMoveX = 0;
+				m_totalArrowMoveY = 0;
+				m_lastKeyWasArrow = TRUE;
 			}
 			m_dlist->CancelHighLight();
-			m_Doc->m_tlist->MoveText( m_sel_text,
-						m_sel_text->m_x + dx, m_sel_text->m_y + dy,
+			m_sel_text->Move( m_sel_text->m_x + dx, m_sel_text->m_y + dy,
 						m_sel_text->m_angle, m_sel_text->m_mirror,
 						m_sel_text->m_bNegative, m_sel_text->m_layer );
-			gTotalArrowMoveX += dx;
-			gTotalArrowMoveY += dy;
+			m_totalArrowMoveX += dx;
+			m_totalArrowMoveY += dy;
 			ShowRelativeDistance( m_sel_text->m_x, m_sel_text->m_y,
-				gTotalArrowMoveX, gTotalArrowMoveY );
+				m_totalArrowMoveX, m_totalArrowMoveY );
 			m_Doc->m_tlist->HighlightText( m_sel_text );
 			m_Doc->ProjectModified( TRUE );
 			Invalidate( FALSE );
@@ -3756,22 +3148,22 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 	case CUR_BOARD_CORNER_SELECTED:
 		if( fk == FK_ARROW )
 		{
-			if( !gLastKeyWasArrow )
+			if( !m_lastKeyWasArrow )
 			{
 				SaveUndoInfoForBoardOutlines( TRUE, m_Doc->m_undo_list );
-				gTotalArrowMoveX = 0;
-				gTotalArrowMoveY = 0;
-				gLastKeyWasArrow = TRUE;
+				m_totalArrowMoveX = 0;
+				m_totalArrowMoveY = 0;
+				m_lastKeyWasArrow = TRUE;
 			}
 			CPolyLine * poly = &m_Doc->m_board_outline[m_sel_id.i];
 			poly->MoveCorner( m_sel_is,
 				poly->GetX( m_sel_is ) + dx,
 				poly->GetY( m_sel_is ) + dy );
 			m_dlist->CancelHighLight();
-			gTotalArrowMoveX += dx;
-			gTotalArrowMoveY += dy;
+			m_totalArrowMoveX += dx;
+			m_totalArrowMoveY += dy;
 			ShowRelativeDistance( poly->GetX( m_sel_is ), poly->GetY( m_sel_is ),
-				gTotalArrowMoveX, gTotalArrowMoveY );
+				m_totalArrowMoveX, m_totalArrowMoveY );
 			poly->HighlightCorner( m_sel_is );
 			m_Doc->ProjectModified( TRUE );
 			Invalidate( FALSE );
@@ -3805,22 +3197,22 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 	case CUR_SMCUTOUT_CORNER_SELECTED:
 		if( fk == FK_ARROW )
 		{
-			if( !gLastKeyWasArrow )
+			if( !m_lastKeyWasArrow )
 			{
 				SaveUndoInfoForSMCutouts( TRUE, m_Doc->m_undo_list );
-				gTotalArrowMoveX = 0;
-				gTotalArrowMoveY = 0;
-				gLastKeyWasArrow = TRUE;
+				m_totalArrowMoveX = 0;
+				m_totalArrowMoveY = 0;
+				m_lastKeyWasArrow = TRUE;
 			}
 			CPolyLine * poly = &m_Doc->m_sm_cutout[m_sel_ic];
 			poly->MoveCorner( m_sel_is,
 				poly->GetX( m_sel_is ) + dx,
 				poly->GetY( m_sel_is ) + dy );
 			m_dlist->CancelHighLight();
-			gTotalArrowMoveX += dx;
-			gTotalArrowMoveY += dy;
+			m_totalArrowMoveX += dx;
+			m_totalArrowMoveY += dy;
 			ShowRelativeDistance( poly->GetX( m_sel_is ), poly->GetY( m_sel_is ),
-				gTotalArrowMoveX, gTotalArrowMoveY );
+				m_totalArrowMoveX, m_totalArrowMoveY );
 			poly->HighlightCorner( m_sel_is );
 			m_Doc->ProjectModified( TRUE );
 			Invalidate( FALSE );
@@ -3881,12 +3273,12 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 	case CUR_AREA_CORNER_SELECTED:
 		if( fk == FK_ARROW )
 		{
-			if( !gLastKeyWasArrow )
+			if( !m_lastKeyWasArrow )
 			{
 				SaveUndoInfoForAllAreasInNet( m_sel_net, TRUE, m_Doc->m_undo_list );
-				gTotalArrowMoveX = 0;
-				gTotalArrowMoveY = 0;
-				gLastKeyWasArrow = TRUE;
+				m_totalArrowMoveX = 0;
+				m_totalArrowMoveY = 0;
+				m_lastKeyWasArrow = TRUE;
 			}
 			CPolyLine * poly = m_sel_net->area[m_sel_ic].poly;
 			CPoint p;
@@ -3904,9 +3296,9 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 			}
 			else
 			{
-				gTotalArrowMoveX += dx;
-				gTotalArrowMoveY += dy;
-				ShowRelativeDistance( p.x, p.y, gTotalArrowMoveX, gTotalArrowMoveY );
+				m_totalArrowMoveX += dx;
+				m_totalArrowMoveY += dy;
+				ShowRelativeDistance( p.x, p.y, m_totalArrowMoveX, m_totalArrowMoveY );
 				TryToReselectAreaCorner( p.x, p.y );
 			}
 			m_Doc->ProjectModified( TRUE );
@@ -3983,7 +3375,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 		if( fk == FK_ARROW )
 		{
 			m_dlist->CancelHighLight();
-			if( !gLastKeyWasArrow && !gLastKeyWasGroupRotate)
+			if( !m_lastKeyWasArrow && !m_lastKeyWasGroupRotate)
 			{
 				if( GluedPartsInGroup() )
 				{
@@ -3993,15 +3385,15 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 						return;
 				}
 				SaveUndoInfoForGroup( UNDO_GROUP_MODIFY, &m_sel_ptrs, &m_sel_ids, m_Doc->m_undo_list );
-				gTotalArrowMoveX = 0;
-				gTotalArrowMoveY = 0;
-				gLastKeyWasArrow = TRUE;
+				m_totalArrowMoveX = 0;
+				m_totalArrowMoveY = 0;
+				m_lastKeyWasArrow = TRUE;
 			}
 			MoveGroup( dx, dy );
-			gTotalArrowMoveX += dx;
-			gTotalArrowMoveY += dy;
+			m_totalArrowMoveX += dx;
+			m_totalArrowMoveY += dy;
 			HighlightGroup();
-			ShowRelativeDistance( gTotalArrowMoveX, gTotalArrowMoveY );
+			ShowRelativeDistance( m_totalArrowMoveX, m_totalArrowMoveY );
 			m_Doc->ProjectModified( TRUE );
 			Invalidate( FALSE );
 		}
@@ -4171,72 +3563,13 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 		break;
 	}	// end switch
 
-	// CPT:  reverse PgUp and PgDn option:
-	if (m_Doc->bReversePgupPgdn)
-		if (nChar==33) nChar = 34;
-		else if (nChar==34) nChar = 33;
-
-	if( nChar == ' ' )
-	{
-		// space bar pressed, center window on cursor then center cursor
-		m_org_x = p.x - ((m_client_r.right-m_left_pane_w)*m_pcbu_per_pixel)/2;
-		m_org_y = p.y - ((m_client_r.bottom-m_bottom_pane_h)*m_pcbu_per_pixel)/2;
-		CRect screen_r;
-		GetWindowRect( &screen_r );
-		m_dlist->SetMapping( &m_client_r, &screen_r, m_left_pane_w, m_bottom_pane_h, m_pcbu_per_pixel,
-			m_org_x, m_org_y );
-		Invalidate( FALSE );
-		p = m_dlist->PCBToScreen( p );
-		SetCursorPos( p.x, p.y );
-	}
-	else if( nChar == VK_HOME )
-	{
+	if( nChar == VK_HOME )
 		// home key pressed, ViewAllElements
 		OnViewAllElements();
-	}
-	else if( nChar == 33 )
-	{
-		// PgUp pressed, zoom in
-		if( m_pcbu_per_pixel > 254 )
-		{
-			m_pcbu_per_pixel = m_pcbu_per_pixel/ZOOM_RATIO;
-			m_org_x = p.x - ((m_client_r.right-m_left_pane_w)*m_pcbu_per_pixel)/2;
-			m_org_y = p.y - ((m_client_r.bottom-m_bottom_pane_h)*m_pcbu_per_pixel)/2;
-			CRect screen_r;
-			GetWindowRect( &screen_r );
-			m_dlist->SetMapping( &m_client_r, &screen_r, m_left_pane_w, m_bottom_pane_h, m_pcbu_per_pixel,
-				m_org_x, m_org_y );
-			Invalidate( FALSE );
-			p = m_dlist->PCBToScreen( p );
-			SetCursorPos( p.x, p.y );
-		}
-	}
-	else if( nChar == 34 )
-	{
-		// PgDn pressed, zoom out
-		// first, make sure that window boundaries will be OK
-		int org_x = p.x - ((m_client_r.right-m_left_pane_w)*m_pcbu_per_pixel*ZOOM_RATIO)/2;
-		int org_y = p.y - ((m_client_r.bottom-m_bottom_pane_h)*m_pcbu_per_pixel*ZOOM_RATIO)/2;
-		int max_x = org_x + (m_client_r.right-m_left_pane_w)*m_pcbu_per_pixel*ZOOM_RATIO;
-		int max_y = org_y + (m_client_r.bottom-m_bottom_pane_h)*m_pcbu_per_pixel*ZOOM_RATIO;
-		if( org_x > -PCB_BOUND && org_x < PCB_BOUND && max_x > -PCB_BOUND && max_x < PCB_BOUND
-			&& org_y > -PCB_BOUND && org_y < PCB_BOUND && max_y > -PCB_BOUND && max_y < PCB_BOUND )
-		{
-			// OK, do it
-			m_org_x = org_x;
-			m_org_y = org_y;
-			m_pcbu_per_pixel = m_pcbu_per_pixel*ZOOM_RATIO;
-			CRect screen_r;
-			GetWindowRect( &screen_r );
-			m_dlist->SetMapping( &m_client_r, &screen_r, m_left_pane_w, m_bottom_pane_h, m_pcbu_per_pixel,
-				m_org_x, m_org_y );
-			Invalidate( FALSE );
-			p = m_dlist->PCBToScreen( p );
-			SetCursorPos( p.x, p.y );
-		}
-	}
+	HandlePanAndZoom(nChar, p);
+
 	ReleaseDC( pDC );
-	if( gLastKeyWasArrow ==FALSE && gLastKeyWasGroupRotate==false )
+	if( m_lastKeyWasArrow ==FALSE && m_lastKeyWasGroupRotate==false )
 		ShowSelectStatus();
 }
 
@@ -4343,14 +3676,6 @@ void CFreePcbView::OnMouseMove(UINT nFlags, CPoint point)
 // Utility functions
 //
 
-// Set the device context to world coords
-//
-int CFreePcbView::SetDCToWorldCoords( CDC * pDC )
-{
-	m_dlist->SetDCToWorldCoords( pDC, &m_memDC, m_org_x, m_org_y );
-
-	return 0;
-}
 
 
 // Set cursor mode, update function key menu if necessary
@@ -4796,91 +4121,6 @@ int CFreePcbView::SegmentMovable(void)
 	return TRUE;
 }
 
-// Draw bottom pane
-//
-void CFreePcbView::DrawBottomPane()
-{
-	CDC * pDC = GetDC();
-	CFont * old_font = pDC->SelectObject( &m_small_font );
-
-	// get client rectangle
-	GetClientRect( &m_client_r );
-
-	// CPT:  Erase bottom pane (in case left pane overflowed)
-	CBrush brush( RGB(255, 255, 255) );
-	CPen pen( PS_SOLID, 1, RGB(255, 255, 255) );
-	CBrush * old_brush = pDC->SelectObject( &brush );
-	CPen * old_pen = pDC->SelectObject( &pen );
-	CRect r (m_client_r);
-	r.top = r.bottom-m_bottom_pane_h;
-	pDC->Rectangle( &r );
-	pDC->SelectObject(old_brush);
-	pDC->SelectObject(old_pen);
-
-	// draw labels for function keys at bottom of client area
-	for( int j=0; j<3; j++ )
-	{
-		for( int i=0; i<4; i++ )
-		{ 
-			int ifn = j*4+i;
-			if( ifn < 9 )
-			{
-				CRect r( FKEY_OFFSET_X+ifn*FKEY_STEP+j*FKEY_GAP, 
-					m_client_r.bottom-FKEY_OFFSET_Y-FKEY_R_H,
-					FKEY_OFFSET_X+ifn*FKEY_STEP+j*FKEY_GAP+FKEY_R_W,
-					m_client_r.bottom-FKEY_OFFSET_Y );
-				pDC->Rectangle( &r );
-				pDC->MoveTo( r.left+FKEY_SEP_W, r.top );
-				pDC->LineTo( r.left+FKEY_SEP_W, r.top + FKEY_R_H/2 + 1 );
-				pDC->MoveTo( r.left, r.top + FKEY_R_H/2 );
-				pDC->LineTo( r.left+FKEY_SEP_W, r.top + FKEY_R_H/2 );
-				r.top += 1;
-				r.left += 2;
-				char fkstr[3] = "F1";
-				fkstr[1] = '1' + j*4+i;
-				pDC->DrawText( fkstr, -1, &r, 0 );
-				r.left += FKEY_SEP_W;
-				CString str1 ((LPCSTR) m_fkey_rsrc[2*(j*4+i)]);
-				CString str2 ((LPCSTR) m_fkey_rsrc[2*(j*4+i)+1]);
-				pDC->DrawText( str1, -1, &r, 0 );
-				r.top += FKEY_R_H/2 - 2;
-				pDC->DrawText( str2, -1, &r, 0 );
-			}
-		}
-	}
-	pDC->SelectObject( old_font );
-	ReleaseDC( pDC );
-}
-
-void CFreePcbView::ShowRelativeDistance( int dx, int dy )
-{
-	CString str;
-	CMainFrame * pMain = (CMainFrame*) AfxGetApp()->m_pMainWnd;
-	double d = sqrt( (double)dx*dx + (double)dy*dy );
-	if( m_Doc->m_units == MIL )
-		str.Format( "dx = %.1f, dy = %.1f, d = %.2f",
-		(double)dx/NM_PER_MIL, (double)dy/NM_PER_MIL, d/NM_PER_MIL );
-	else
-		str.Format( "dx = %.3f, dy = %.3f, d = %.3f", dx/1000000.0, dy/1000000.0, d/1000000.0 );
-	pMain->DrawStatus( 3, &str );
-}
-
-void CFreePcbView::ShowRelativeDistance( int x, int y, int dx, int dy )
-{
-	CString str;
-	CMainFrame * pMain = (CMainFrame*) AfxGetApp()->m_pMainWnd;
-	double d = sqrt( (double)dx*dx + (double)dy*dy );
-	if( m_Doc->m_units == MIL )
-		str.Format( "x = %.1f, y = %.1f, dx = %.1f, dy = %.1f, d = %.2f",
-		(double)x/NM_PER_MIL, (double)y/NM_PER_MIL,
-		(double)dx/NM_PER_MIL, (double)dy/NM_PER_MIL, d/NM_PER_MIL );
-	else
-		str.Format( "x = %.3f, y = %.3f, dx = %.3f, dy = %.3f, d = %.3f",
-		x/1000000.0, y/1000000.0,
-		dx/1000000.0, dy/1000000.0, d/1000000.0 );
-	pMain->DrawStatus( 3, &str );
-}
-
 // display selected item in status bar
 //
 int CFreePcbView::ShowSelectStatus()
@@ -4888,7 +4128,7 @@ int CFreePcbView::ShowSelectStatus()
 //#define SHOW_UIDS
 
 	CString x_str, y_str, w_str, hole_str, via_w_str, via_hole_str;
-	int u = m_Doc->m_units;
+	int u = m_units;
 
 	CMainFrame * pMain = (CMainFrame*) AfxGetApp()->m_pMainWnd;
 	if( !pMain )
@@ -5585,33 +4825,6 @@ int CFreePcbView::ShowSelectStatus()
 	return 0;
 }
 
-// display cursor coords in status bar
-//
-int CFreePcbView::ShowCursor()
-{
-	CMainFrame * pMain = (CMainFrame*) AfxGetApp()->m_pMainWnd;
-	if( !pMain )
-		return 1;
-
-	CString str;
-	CPoint p;
-	p = m_last_cursor_point;
-	if( m_Doc->m_units == MIL )
-	{
-		str.Format( "X: %8.1f", (double)m_last_cursor_point.x/PCBU_PER_MIL );
-		pMain->DrawStatus( 1, &str );
-		str.Format( "Y: %8.1f", (double)m_last_cursor_point.y/PCBU_PER_MIL );
-		pMain->DrawStatus( 2, &str );
-	}
-	else
-	{
-		str.Format( "X: %8.3f", m_last_cursor_point.x/1000000.0 );
-		pMain->DrawStatus( 1, &str );
-		str.Format( "Y: %8.3f", m_last_cursor_point.y/1000000.0 );
-		pMain->DrawStatus( 2, &str );
-	}
-	return 0;
-}
 
 // display active layer in status bar and change layer order for DisplayList
 //
@@ -5647,13 +4860,6 @@ int CFreePcbView::ShowActiveLayer()
 //
 BOOL CFreePcbView::OnMouseWheel(UINT nFlags, short zDelta, CPoint pt)
 {
-#define MIN_WHEEL_DELAY 1.0
-
-	static struct _timeb current_time;
-	static struct _timeb last_time;
-	static int first_time = 1;
-	double diff;
-
 	// ignore if cursor not in window
 	CRect wr;
 	GetWindowRect( wr );
@@ -5664,87 +4870,7 @@ BOOL CFreePcbView::OnMouseWheel(UINT nFlags, short zDelta, CPoint pt)
 	if( m_bDraggingRect )
 		return CView::OnMouseWheel(nFlags, zDelta, pt);
 
-	// get current time
-	_ftime( &current_time );
-
-	if( first_time )
-	{
-		diff = 999.0;
-		first_time = 0;
-	}
-	else
-	{
-		// get elapsed time since last wheel event
-		diff = difftime( current_time.time, last_time.time );
-		double diff_mil = (double)(current_time.millitm - last_time.millitm)*0.001;
-		diff = diff + diff_mil;
-	}
-
-	if( diff > MIN_WHEEL_DELAY )
-	{
-		// first wheel movement in a while
-		// center window on cursor then center cursor
-		CPoint p;
-		GetCursorPos( &p );		// cursor pos in screen coords
-		p = m_dlist->ScreenToPCB( p );
-		m_org_x = p.x - ((m_client_r.right-m_left_pane_w)*m_pcbu_per_pixel)/2;
-		m_org_y = p.y - ((m_client_r.bottom-m_bottom_pane_h)*m_pcbu_per_pixel)/2;
-		CRect screen_r;
-		GetWindowRect( &screen_r );
-		m_dlist->SetMapping( &m_client_r, &screen_r, m_left_pane_w, m_bottom_pane_h, m_pcbu_per_pixel, m_org_x, m_org_y );
-		Invalidate( FALSE );
-		p = m_dlist->PCBToScreen( p );
-		SetCursorPos( p.x, p.y - 4 );
-	}
-	else
-	{
-		// serial movements, zoom in or out
-		if( zDelta > 0 && m_pcbu_per_pixel > NM_PER_MIL/1000 )
-		{
-			// wheel pushed, zoom in then center world coords and cursor
-			CPoint p;
-			GetCursorPos( &p );		// cursor pos in screen coords
-			p = m_dlist->ScreenToPCB( p );	// convert to PCB coords
-			m_pcbu_per_pixel = m_pcbu_per_pixel/ZOOM_RATIO;
-			m_org_x = p.x - ((m_client_r.right-m_left_pane_w)*m_pcbu_per_pixel)/2;
-			m_org_y = p.y - ((m_client_r.bottom-m_bottom_pane_h)*m_pcbu_per_pixel)/2;
-			CRect screen_r;
-			GetWindowRect( &screen_r );
-			m_dlist->SetMapping( &m_client_r, &screen_r, m_left_pane_w, m_bottom_pane_h, m_pcbu_per_pixel, m_org_x, m_org_y );
-			Invalidate( FALSE );
-			p = m_dlist->PCBToScreen( p );
-			SetCursorPos( p.x, p.y - 4 );
-		}
-		else if( zDelta < 0 )
-		{
-			// wheel pulled, zoom out then center
-			// first, make sure that window boundaries will be OK
-			CPoint p;
-			GetCursorPos( &p );		// cursor pos in screen coords
-			p = m_dlist->ScreenToPCB( p );
-			int org_x = p.x - ((m_client_r.right-m_left_pane_w)*m_pcbu_per_pixel*ZOOM_RATIO)/2;
-			int org_y = p.y - ((m_client_r.bottom-m_bottom_pane_h)*m_pcbu_per_pixel*ZOOM_RATIO)/2;
-			int max_x = org_x + (m_client_r.right-m_left_pane_w)*m_pcbu_per_pixel*ZOOM_RATIO;
-			int max_y = org_y + (m_client_r.bottom-m_bottom_pane_h)*m_pcbu_per_pixel*ZOOM_RATIO;
-			if( org_x > -PCB_BOUND && org_x < PCB_BOUND && max_x > -PCB_BOUND && max_x < PCB_BOUND
-				&& org_y > -PCB_BOUND && org_y < PCB_BOUND && max_y > -PCB_BOUND && max_y < PCB_BOUND )
-			{
-				// OK, do it
-				m_org_x = org_x;
-				m_org_y = org_y;
-				m_pcbu_per_pixel = m_pcbu_per_pixel*ZOOM_RATIO;
-				CRect screen_r;
-				GetWindowRect( &screen_r );
-				m_dlist->SetMapping( &m_client_r, &screen_r, m_left_pane_w, m_bottom_pane_h, m_pcbu_per_pixel, m_org_x, m_org_y );
-				Invalidate( FALSE );
-				p = m_dlist->PCBToScreen( p );
-				SetCursorPos( p.x, p.y - 4 );
-			}
-		}
-	}
-	last_time = current_time;
-
-	return CView::OnMouseWheel(nFlags, zDelta, pt);
+	return CCommonView::OnMouseWheel(nFlags, zDelta, pt);
 }
 
 // SelectPart...this is called from FreePcbDoc when a new part is added
@@ -5765,22 +4891,23 @@ int CFreePcbView::SelectPart( cpart * part )
 		m_Doc->m_plist->SelectPart( m_sel_part );
 		SetCursorMode( CUR_PART_SELECTED );
 	}
-	gLastKeyWasArrow = FALSE;
-	gLastKeyWasGroupRotate=false;
+	m_lastKeyWasArrow = FALSE;
+	m_lastKeyWasGroupRotate=false;
 	Invalidate( FALSE );
 	return 0;
 }
 
-// cancel selection
+// cancel selection.  CPT slight tweaks for consistency 
 //
 void CFreePcbView::CancelSelection()
 {
-	m_Doc->m_dlist->CancelHighLight();
+	m_dlist->CancelHighLight();
 	m_sel_ids.RemoveAll();
 	m_sel_ptrs.RemoveAll();
 	m_sel_id.Clear();
 	// CPT
 	m_active_width = 0;
+	m_dragging_new_item = FALSE;
 	SetCursorMode( CUR_NONE_SELECTED );
 }
 
@@ -6282,7 +5409,7 @@ void CFreePcbView::OnTextAdd()
 	// create, initialize and show dialog
 	CDlgAddText add_text_dlg;
 	CString str = "";
-	add_text_dlg.Initialize( 0, m_Doc->m_num_layers, 1, &str, m_Doc->m_units,
+	add_text_dlg.Initialize( 0, m_Doc->m_num_layers, 1, &str, m_units,
 			LAY_SILK_TOP, 0, 0, 0, 0, 0, 0, 0 );
 	add_text_dlg.m_num_layers = m_Doc->m_num_layers;
 	add_text_dlg.m_bDrag = 1;
@@ -7113,7 +6240,7 @@ void CFreePcbView::OnEndVertexEdit()
 	CString str ((LPCSTR) IDS_EditEndVertexPosition);
 	int x = m_sel_vtx.x;
 	int y = m_sel_vtx.y;
-	dlg.Init( &str, m_Doc->m_units, x, y );
+	dlg.Init( &str, m_units, x, y );
 	int ret = dlg.DoModal();
 	if( ret == IDOK )
 	{
@@ -7216,7 +6343,7 @@ void CFreePcbView::OnTextEdit()
 	// create dialog and pass parameters
 	CDlgAddText add_text_dlg;
 	add_text_dlg.Initialize( 0, m_Doc->m_num_layers, 0, &m_sel_text->m_str,
-		m_Doc->m_units, m_sel_text->m_layer, m_sel_text->m_mirror,
+		m_units, m_sel_text->m_layer, m_sel_text->m_mirror,
 			m_sel_text->m_bNegative, m_sel_text->m_angle, m_sel_text->m_font_size,
 			m_sel_text->m_stroke_width, m_sel_text->m_x, m_sel_text->m_y );
 	int ret = add_text_dlg.DoModal();
@@ -7294,7 +6421,7 @@ void CFreePcbView::OnBoardCornerEdit()
 	CString str ((LPCSTR) IDS_CornerPosition);
 	int x = m_Doc->m_board_outline[m_sel_id.i].GetX(m_sel_id.ii);
 	int y = m_Doc->m_board_outline[m_sel_id.i].GetY(m_sel_id.ii);
-	dlg.Init( &str, m_Doc->m_units, x, y );
+	dlg.Init( &str, m_units, x, y );
 	int ret = dlg.DoModal();
 	if( ret == IDOK )
 	{
@@ -7551,11 +6678,11 @@ void CFreePcbView::SnapCursorPoint( CPoint wp, UINT nFlags )
 		{
 			grid_spacing = m_Doc->m_routing_grid_spacing;
 		}
-		else if( m_Doc->m_units == MIL )
+		else if( m_units == MIL )
 		{
 			grid_spacing = m_Doc->m_pcbu_per_wu;
 		}
-		else if( m_Doc->m_units == MM )
+		else if( m_units == MM )
 		{
 			grid_spacing = m_Doc->m_pcbu_per_wu;
 		}
@@ -7574,333 +6701,18 @@ void CFreePcbView::SnapCursorPoint( CPoint wp, UINT nFlags )
 		{
 			// yes, check snap mode
 			if( m_snap_mode == SM_GRID_LINES )
-			{
-				// patch to snap to grid lines, contributed by ???
-				// modified by AMW to work when cursor x,y are < 0
-				// offset cursor and ref positions by integral number of grid spaces
-				// to make all values positive
-				double offset_grid_spaces;
-				modf( (double)INT_MAX/grid_spacing, &offset_grid_spaces );
-				double offset = offset_grid_spaces*grid_spacing;
-				double off_x = wp.x + offset;
-				double off_y = wp.y + offset;
-				double ref_x = m_snap_angle_ref.x + offset;
-				double ref_y = m_snap_angle_ref.y + offset;
-				//find nearest snap angle to an integer division of 90
-				int snap_angle = m_Doc->m_snap_angle;
-				if(90 % snap_angle != 0)
-				{
-					int snap_pos = snap_angle;
-					int snap_neg = snap_angle;
-					while(90 % snap_angle != 0)
-					{
-						snap_pos++;
-						snap_neg--;
-						if(snap_pos >= 90)
-							snap_pos = 90;
-						if(snap_neg <= 1)
-							snap_neg = 1;
-						if(90 % snap_pos == 0)
-							snap_angle = snap_pos;
-						if(90 % snap_neg == 0)
-							snap_angle = snap_neg;
-					}
-				}
-
-				//snap the x and y coordinates to the appropriate angle
-				double angle_grid = snap_angle*M_PI/180.0;
-				double dx = off_x - ref_x;
-				double dy = off_y - ref_y;
-				double angle = atan2(dy,dx) + 2*M_PI; //make it a positive angle
-				if(angle > 2*M_PI)
-					angle -= 2*M_PI;
-				double angle_angle_grid = angle/angle_grid;
-				int sel_snap_angle = (int)angle_angle_grid + ((angle_angle_grid - (double)((int)angle_angle_grid)) > 0.5 ? 1 : 0);
-				double point_angle = angle_grid*sel_snap_angle; //result of angle calculation
-				CString test, test_grid, s;
-				test.Format("point_angle: %f\r\n",point_angle);
-				test_grid.Format("grid_spacing: %d\r\n",grid_spacing);
-
-
-				//find the distance along that angle
-				//match the distance the actual point is from the start point
-				//double dist = sqrt(dx*dx + dy*dy);
-				double dist = dx*cos(point_angle)+dy*sin(point_angle);
-
-				double distx = dist*cos(point_angle);
-				double disty = dist*sin(point_angle);
-
-				double xpos = ref_x + distx;
-				double ypos = ref_y + disty;
-
-
-				//special case horizontal lines and vertical lines
-				// just to make sure floating point error doesn't cause any problems
-				if(APPROX(point_angle,0) || APPROX(point_angle,2*M_PI) || APPROX(point_angle,M_PI))
-				{
-					//horizontal line
-					//snap x component to nearest grid
-					off_y = (int)(ypos + 0.5);
-					double modval = fmod(xpos,(double)grid_spacing);
-					if(modval > grid_spacing/2.0)
-					{
-						//round up to nearest grid space
-						off_x = xpos + ((double)grid_spacing - modval);
-					}
-					else
-					{
-						//round down to nearest grid space
-						off_x = xpos - modval;
-					}
-				}
-				else if(APPROX(point_angle,M_PI/2) || APPROX(point_angle,3*M_PI/2))
-				{
-					//vertical line
-					//snap y component to nearest grid
-					off_x = (int)(xpos + 0.5);
-					double modval = fabs(fmod(ypos,(double)grid_spacing));
-					int test = modval * grid_spacing - offset;
-					if(modval > grid_spacing/2.0)
-					{
-						off_y = ypos + ((double)grid_spacing - modval);
-					}
-					else
-					{
-						off_y = ypos - modval;
-					}
-				}
-				else
-				{
-					//normal case
-					//snap x and y components to nearest grid line along the same angle
-					//calculate grid lines surrounding point
-					int minx = ((int)(xpos/(double)grid_spacing))*grid_spacing - (xpos < 0);
-					//int minx = (int)fmod(xpos,(double)grid_spacing);
-					int maxx = minx + grid_spacing;
-					int miny = ((int)(ypos/(double)grid_spacing))*grid_spacing - (ypos < 0);
-					//int miny = (int)fmod(ypos,(double)grid_spacing);
-					int maxy = miny + grid_spacing;
-
-					//calculate the relative distances to each of those grid lines from the ref point
-					int rminx = minx - ref_x;
-					int rmaxx = maxx - ref_x;
-					int rminy = miny - ref_y;
-					int rmaxy = maxy - ref_y;
-
-					//calculate the length of the hypotenuse of the triangle
-					double maxxh = dist*(double)rmaxx/distx;
-					double minxh = dist*(double)rminx/distx;
-					double maxyh = dist*(double)rmaxy/disty;
-					double minyh = dist*(double)rminy/disty;
-
-					//some stupidly large value.  One of the results MUST be smaller than this unless the grid is this large (unlikely)
-					double mindist = 1e100;
-					int select = 0;
-
-					if(fabs(maxxh - dist) < mindist)
-					{
-						select = 1;
-						mindist = fabs(maxxh - dist);
-					}
-					if(fabs(minxh - dist) < mindist)
-					{
-						select = 2;
-						mindist = fabs(minxh - dist);
-					}
-					if(fabs(maxyh - dist) < mindist)
-					{
-						select = 3;
-						mindist = fabs(maxyh - dist);
-					}
-					if(fabs(minyh - dist) < mindist)
-					{
-						select = 4;
-						mindist = fabs(minyh - dist);
-					}
-
-					switch(select)
-					{
-					case 1:
-						//snap to line right of point
-						off_x = maxx;
-						off_y = (int)(disty*(double)rmaxx/distx + (double)(ref_y) + 0.5);
-						break;
-					case 2:
-						//snap to line left of point
-						off_x = minx;
-						off_y = (int)(disty*(double)rminx/distx + (double)(ref_y) + 0.5);
-						break;
-					case 3:
-						//snap to line above point
-						off_x = (int)(distx*(double)rmaxy/disty + (double)(ref_x) + 0.5);
-						off_y = maxy;
-						break;
-					case 4:
-						//snap to line below point
-						off_x = (int)(distx*(double)rminy/disty + (double)(ref_x) + 0.5);
-						off_y = miny;
-						break;
-					default:
-						ASSERT(0);//error
-					}
-
-				}
-				// remove offset and correct for round-off
-				double ttest = off_x - offset;
-				if( ttest >= 0.0 )
-					wp.x = ttest + 0.5;
-				else
-					wp.x = ttest - 0.5;
-				ttest = off_y - offset;
-				if( ttest >= 0.0 )
-					wp.y = ttest + 0.5;
-				else
-					wp.y = ttest - 0.5;
-			}
+				SnapToGridLine(wp, grid_spacing);
 			else
-			{
-				// old code
+				// old code.  CPT factored out.
 				// snap to angle only if the starting point is on-grid
-				double ddx = fmod( (double)(m_snap_angle_ref.x), grid_spacing );
-				double ddy = fmod( (double)(m_snap_angle_ref.y), grid_spacing );
-				if( fabs(ddx) < 0.5 && fabs(ddy) < 0.5 )
-				{
-					// starting point is on-grid, snap to angle
-					// snap to n*45 degree angle
-					const double pi = 3.14159265359;
-					double dx = wp.x - m_snap_angle_ref.x;
-					double dy = wp.y - m_snap_angle_ref.y;
-					double dist = sqrt( dx*dx + dy*dy );
-					double dist45 = dist/sqrt(2.0);
-					{
-						int d;
-						d = (int)(dist/grid_spacing+0.5);
-						dist = d*grid_spacing;
-						d = (int)(dist45/grid_spacing+0.5);
-						dist45 = d*grid_spacing;
-					}
-					if( m_Doc->m_snap_angle == 45 )
-					{
-						// snap angle = 45 degrees, divide circle into 8 octants
-						double angle = atan2( dy, dx );
-						if( angle < 0.0 )
-							angle = 2.0*pi + angle;
-						angle += pi/8.0;
-						double d_quad = angle/(pi/4.0);
-						int oct = d_quad;
-						switch( oct )
-						{
-						case 0:
-							wp.x = m_snap_angle_ref.x + dist;
-							wp.y = m_snap_angle_ref.y;
-							break;
-						case 1:
-							wp.x = m_snap_angle_ref.x + dist45;
-							wp.y = m_snap_angle_ref.y + dist45;
-							break;
-						case 2:
-							wp.x = m_snap_angle_ref.x;
-							wp.y = m_snap_angle_ref.y + dist;
-							break;
-						case 3:
-							wp.x = m_snap_angle_ref.x - dist45;
-							wp.y = m_snap_angle_ref.y + dist45;
-							break;
-						case 4:
-							wp.x = m_snap_angle_ref.x - dist;
-							wp.y = m_snap_angle_ref.y;
-							break;
-						case 5:
-							wp.x = m_snap_angle_ref.x - dist45;
-							wp.y = m_snap_angle_ref.y - dist45;
-							break;
-						case 6:
-							wp.x = m_snap_angle_ref.x;
-							wp.y = m_snap_angle_ref.y - dist;
-							break;
-						case 7:
-							wp.x = m_snap_angle_ref.x + dist45;
-							wp.y = m_snap_angle_ref.y - dist45;
-							break;
-						case 8:
-							wp.x = m_snap_angle_ref.x + dist;
-							wp.y = m_snap_angle_ref.y;
-							break;
-						default:
-							ASSERT(0);
-							break;
-						}
-					}
-					else
-					{
-						// snap angle is 90 degrees, divide into 4 quadrants
-						double angle = atan2( dy, dx );
-						if( angle < 0.0 )
-							angle = 2.0*pi + angle;
-						angle += pi/4.0;
-						double d_quad = angle/(pi/2.0);
-						int quad = d_quad;
-						switch( quad )
-						{
-						case 0:
-							wp.x = m_snap_angle_ref.x + dist;
-							wp.y = m_snap_angle_ref.y;
-							break;
-						case 1:
-							wp.x = m_snap_angle_ref.x;
-							wp.y = m_snap_angle_ref.y + dist;
-							break;
-						case 2:
-							wp.x = m_snap_angle_ref.x - dist;
-							wp.y = m_snap_angle_ref.y;
-							break;
-						case 3:
-							wp.x = m_snap_angle_ref.x;
-							wp.y = m_snap_angle_ref.y - dist;
-							break;
-						case 4:
-							wp.x = m_snap_angle_ref.x + dist;
-							wp.y = m_snap_angle_ref.y;
-							break;
-						default:
-							ASSERT(0);
-							break;
-						}
-					}
-				}
-			}
+				SnapToAngle(wp, grid_spacing);
 		}
 		else
 			m_snap_mode = SM_GRID_POINTS;
 
 		// snap to grid points if needed
 		if( m_snap_mode == SM_GRID_POINTS )
-		{
-			// snap to grid
-			// get position in integral units of grid_spacing
-			if( wp.x > 0 )
-				wp.x = (wp.x + grid_spacing/2)/grid_spacing;
-			else
-				wp.x = (wp.x - grid_spacing/2)/grid_spacing;
-			if( wp.y > 0 )
-				wp.y = (wp.y + grid_spacing/2)/grid_spacing;
-			else
-				wp.y = (wp.y - grid_spacing/2)/grid_spacing;
-			// multiply by grid spacing, adding or subracting 0.5 to prevent round-off
-			// when using a fractional grid
-			double test = wp.x * grid_spacing;
-			if( test > 0.0 )
-				test += 0.5;
-			else
-				test -= 0.5;
-			wp.x = test;
-			test = wp.y * grid_spacing;
-			if( test > 0.0 )
-				test += 0.5;
-			else
-				test -= 0.5;
-			wp.y = test;
-		}
+			SnapToGridPoint(wp, grid_spacing);
 	}
 
 	if( CurDragging() )
@@ -8001,9 +6813,9 @@ LONG CFreePcbView::OnChangeUnits( UINT wp, LONG lp )
 	if( wp == WM_BY_INDEX )
 	{
 		if( lp == 0 )
-			m_Doc->m_units = MIL;
+			m_Doc->m_units = m_units = MIL;
 		else
-			m_Doc->m_units = MM;
+			m_Doc->m_units = m_units = MM;
 	}
 	else
 		ASSERT(0);
@@ -8031,7 +6843,7 @@ void CFreePcbView::OnAreaCornerProperties()
 	DlgEditBoardCorner dlg;
 	CString str ((LPCSTR) IDS_CornerPosition);
 	CPoint pt = m_Doc->m_nlist->GetAreaCorner( m_sel_net, m_sel_ia, m_sel_is );
-	dlg.Init( &str, m_Doc->m_units, pt.x, pt.y );
+	dlg.Init( &str, m_units, pt.x, pt.y );
 	int ret = dlg.DoModal();
 	if( ret == IDOK )
 	{
@@ -8080,7 +6892,7 @@ void CFreePcbView::OnVertexProperties()
 	CString str ((LPCSTR) IDS_VertexPosition); 
 	int x = m_sel_vtx.x;
 	int y = m_sel_vtx.y;
-	dlg.Init( &str, m_Doc->m_units, x, y );
+	dlg.Init( &str, m_units, x, y );
 	int ret = dlg.DoModal();
 	if( ret == IDOK )
 	{
@@ -8880,7 +7692,7 @@ void CFreePcbView::OnSmCornerSetPosition()
 	CString str ((LPCSTR) IDS_CornerPosition);
 	int x = poly->GetX(m_sel_id.ii);
 	int y = poly->GetY(m_sel_id.ii);
-	dlg.Init( &str, m_Doc->m_units, x, y );
+	dlg.Init( &str, m_units, x, y );
 	int ret = dlg.DoModal();
 	if( ret == IDOK )
 	{
@@ -9153,7 +7965,7 @@ void CFreePcbView::OnNetEditnet()
 	}
 	if( inet == -1 )
 		ASSERT(0);
-	dlg.Initialize( &nl, inet, m_Doc->m_plist, FALSE, TRUE, m_Doc->m_units,
+	dlg.Initialize( &nl, inet, m_Doc->m_plist, FALSE, TRUE, m_units,
 		&m_Doc->m_w, &m_Doc->m_v_w, &m_Doc->m_v_h_w );
 	int ret = dlg.DoModal();
 	if( ret == IDOK )
@@ -9169,7 +7981,7 @@ void CFreePcbView::OnNetEditnet()
 void CFreePcbView::OnToolsMoveOrigin()
 {
 	CDlgMoveOrigin dlg;
-	dlg.Initialize( m_Doc->m_units );
+	dlg.Initialize( m_units );
 	int ret = dlg.DoModal();
 	if( ret == IDOK )
 	{
@@ -9476,8 +8288,8 @@ void CFreePcbView::SelectItemsInRect( CRect r, BOOL bAddToGroup )
 		HighlightGroup();
 		SetCursorMode( CUR_GROUP_SELECTED );
 	}
-	gLastKeyWasArrow = FALSE;
-	gLastKeyWasGroupRotate=false;
+	m_lastKeyWasArrow = FALSE;
+	m_lastKeyWasGroupRotate=false;
 	FindGroupCenter();
 }
 
@@ -9862,8 +8674,7 @@ void CFreePcbView::MoveGroup( int dx, int dy )
 		{
 			// text
 			CText * t = (CText*)m_sel_ptrs[i];
-			m_Doc->m_tlist->MoveText( t, t->m_x+dx, t->m_y+dy, t->m_angle,
-				t->m_mirror, t->m_bNegative, t->m_layer );
+			t->Move( t->m_x+dx, t->m_y+dy, t->m_angle, t->m_mirror, t->m_bNegative, t->m_layer );
 		}
 		else if( sid.type == ID_NET && sid.st == ID_AREA && sid.sst == ID_SEL_SIDE )
 		{
@@ -10407,19 +9218,6 @@ void CFreePcbView::UngluePartsInGroup()
 	}
 }
 
-// Set array of selection mask ids
-//
-void CFreePcbView::SetSelMaskArray( int mask )
-{
-	for( int i=0; i<NUM_SEL_MASKS; i++ )
-	{
-		if( mask & (1<<i) )
-			m_mask_id[i].ii = 0;
-		else
-			m_mask_id[i].ii = 0xfffe;	// guaranteed not to exist
-	}
-}
-
 
 void CFreePcbView::OnAddSimilarArea()
 {
@@ -10563,7 +9361,7 @@ void CFreePcbView::OnGroupCopy()
 			cpart * part = (cpart*)m_sel_ptrs[i];
 			CShape * shape = part->shape;
 			cpart * g_part = g_pl->Add( part->shape, &part->ref_des, &part->package, part->x, part->y,
-				part->side, part->angle, 1, 0 );
+				part->side, part->angle, 1, 0, part->m_ref_vis );
 			// set ref text parameters
 			g_part->m_ref_angle = part->m_ref_angle;
 			g_part->m_ref_size = part->m_ref_size;
@@ -12065,7 +10863,7 @@ void CFreePcbView::RotateGroup()
 		{
 			// text
 			CText * t = (CText*)m_sel_ptrs[i];
-			m_Doc->m_tlist->MoveText( t, groupAverageX + t->m_y - groupAverageY,
+			t->Move(groupAverageX + t->m_y - groupAverageY,
 				groupAverageY - t->m_x + groupAverageX, (t->m_angle+90)%360,
 				t->m_mirror, t->m_bNegative, t->m_layer );
 		}
@@ -13117,7 +11915,7 @@ void * CFreePcbView::CreateGroupDescriptor( CUndoList * list, CArray<void*> * pt
 void CFreePcbView::OnGroupRotate()
 {
 	m_dlist->CancelHighLight();
-	if( !gLastKeyWasArrow && !gLastKeyWasGroupRotate)
+	if( !m_lastKeyWasArrow && !m_lastKeyWasGroupRotate)
 	{
 		if( GluedPartsInGroup() )
 		{
@@ -13127,7 +11925,7 @@ void CFreePcbView::OnGroupRotate()
 				return;
 		}
 		SaveUndoInfoForGroup( UNDO_GROUP_MODIFY, &m_sel_ptrs, &m_sel_ids, m_Doc->m_undo_list );
-		gLastKeyWasGroupRotate=true;
+		m_lastKeyWasGroupRotate=true;
 	}
 	RotateGroup( );
 	HighlightGroup();
@@ -13402,20 +12200,11 @@ void CFreePcbView::RoutingGridDown() {
 	frm->m_wndMyToolBar.RoutingGridDown();
 	}
 
-void CFreePcbView::PlacementGridUp() {
-	CMainFrame * frm = (CMainFrame*)AfxGetMainWnd();
-	frm->m_wndMyToolBar.PlacementGridUp();
-	}
-
-void CFreePcbView::PlacementGridDown() {
-	CMainFrame * frm = (CMainFrame*)AfxGetMainWnd();
-	frm->m_wndMyToolBar.PlacementGridDown();
-	}
-
 void CFreePcbView::UnitToggle(bool bShiftKeyDown) {
 	CMainFrame * frm = (CMainFrame*)AfxGetMainWnd();
 	frm->m_wndMyToolBar.UnitToggle(bShiftKeyDown, &(m_Doc->m_visible_grid), &(m_Doc->m_part_grid), &(m_Doc->m_routing_grid));
 	}
+
 
 bool CFreePcbView::ConvertSelectionToGroup(bool bChangeMode) {
 	// Utility for converting a single selected object into a "group select".  Return true on success, false OW
@@ -13456,16 +12245,16 @@ void CFreePcbView::ConvertSelectionToGroupAndMove(int dx, int dy) {
 	// Kludgy way that I threw together to get arrows keys working on board edges, area edges, and sm-cutout edges:  convert the
 	// current selected object to a 1-member group, then do the moving, then clear out m_sel_ids and m_sel_ptrs so that we're back to normal
 	ConvertSelectionToGroup(false);
-	if( !gLastKeyWasArrow )	{
+	if( !m_lastKeyWasArrow )	{
 		SaveUndoInfoForGroup( UNDO_GROUP_MODIFY, &m_sel_ptrs, &m_sel_ids, m_Doc->m_undo_list );
-		gTotalArrowMoveX = 0;
-		gTotalArrowMoveY = 0;
-		gLastKeyWasArrow = TRUE;
+		m_totalArrowMoveX = 0;
+		m_totalArrowMoveY = 0;
+		m_lastKeyWasArrow = TRUE;
 		}
 	MoveGroup( dx, dy );
-	gTotalArrowMoveX += dx;
-	gTotalArrowMoveY += dy;
-	ShowRelativeDistance( gTotalArrowMoveX, gTotalArrowMoveY );
+	m_totalArrowMoveX += dx;
+	m_totalArrowMoveY += dy;
+	ShowRelativeDistance( m_totalArrowMoveX, m_totalArrowMoveY );
 	HighlightGroup();
 	m_sel_ids.RemoveAll();  m_sel_ptrs.RemoveAll();
 	m_Doc->ProjectModified( TRUE );
@@ -13579,3 +12368,92 @@ void CFreePcbView::DoSelection(id &sid, void *ptr) {
 	Invalidate( FALSE );
 	}
 
+void CFreePcbView::HandleNoShiftLayerKey(int layer, CDC *pDC) {
+	if( !m_Doc->m_vis[layer] ) {
+		PlaySound( TEXT("CriticalStop"), 0, 0 );
+		CString s ((LPCSTR) IDS_CantRouteOnInvisibleLayer);
+		AfxMessageBox( s );
+		return;
+		}
+	if( m_cursor_mode == CUR_DRAG_RAT || m_cursor_mode == CUR_DRAG_STUB) {
+		// if we are routing, change layer
+		pDC->SelectClipRgn( &m_pcb_rgn );
+		SetDCToWorldCoords( pDC );						// Haven't figured out why we need this...
+		if( m_sel_id.ii == 0 && m_dir == 0 ) {
+			// we are trying to change first segment from pad
+			int p1 = m_sel_con.start_pin;
+			CString pin_name = m_sel_net->pin[p1].pin_name;
+			int pin_index = m_sel_net->pin[p1].part->shape->GetPinIndexByName( pin_name );
+			if( m_sel_net->pin[p1].part->shape->m_padstack[pin_index].hole_size == 0)
+				// SMT pad, this is illegal;
+				layer = -1,
+				PlaySound( TEXT("CriticalStop"), 0, 0 );
+			}
+		else if( m_sel_id.ii == (m_sel_con.nsegs-1) && m_dir == 1 ) {
+			// we are trying to change last segment to pad
+			int p2 = m_sel_con.end_pin;
+			if( p2 != -1 ) {
+				CString pin_name = m_sel_net->pin[p2].pin_name;
+				int pin_index = m_sel_net->pin[p2].part->shape->GetPinIndexByName( pin_name );
+				if( m_sel_net->pin[p2].part->shape->m_padstack[pin_index].hole_size == 0)
+					// SMT pad
+					layer = -1,
+					PlaySound( TEXT("CriticalStop"), 0, 0 );
+				}
+			}
+		if( layer != -1 ) {
+			m_dlist->ChangeRoutingLayer( pDC, layer, LAY_SELECTION, 0 );
+			m_active_layer = layer;
+			ShowActiveLayer();
+			}
+		return;
+		}
+	
+	m_active_layer = layer;
+	ShowActiveLayer();
+	}
+
+void CFreePcbView::HandleShiftLayerKey(int layer, CDC *pDC) {
+	if( m_cursor_mode == CUR_SEG_SELECTED )	{
+		SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_Doc->m_undo_list );
+		m_Doc->m_nlist->UndrawConnection( m_sel_net, m_sel_ic );
+		cconnect * c = &m_sel_net->connect[m_sel_ic];
+		cseg * seg = &c->seg[m_sel_is];
+		seg->layer = layer;
+		m_Doc->m_nlist->DrawConnection( m_sel_net, m_sel_ic );
+		m_Doc->ProjectModified( TRUE );
+		Invalidate( FALSE );
+		}
+	else if( m_cursor_mode == CUR_CONNECT_SELECTED ) {
+		SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_Doc->m_undo_list );
+		m_Doc->m_nlist->UndrawConnection( m_sel_net, m_sel_ic );
+		cconnect * c = &m_sel_net->connect[m_sel_ic];
+		for( int is=0; is<c->nsegs; is++ ) {
+			cseg * seg = &c->seg[is];
+			seg->layer = layer;
+			}
+		m_Doc->m_nlist->DrawConnection( m_sel_net, m_sel_ic );
+		m_Doc->ProjectModified( TRUE );
+		Invalidate( FALSE );
+		}
+	else if( m_cursor_mode == CUR_AREA_CORNER_SELECTED || m_cursor_mode == CUR_AREA_SIDE_SELECTED ) {
+		SaveUndoInfoForAllAreasInNet( m_sel_net, TRUE, m_Doc->m_undo_list );
+		carea * a = &m_sel_net->area[m_sel_ia];
+		a->poly->Undraw();
+		a->poly->SetLayer( layer );
+		a->poly->Draw( m_dlist );
+		int ret = m_Doc->m_nlist->AreaPolygonModified( m_sel_net, m_sel_ia, TRUE, TRUE );
+		if( ret == -1 ) {
+			// error
+			CString s ((LPCSTR) IDS_ErrorUnableToClipPolygon);
+			AfxMessageBox( s );
+			m_Doc->OnEditUndo();
+			}
+		else if( m_Doc->m_vis[LAY_RAT_LINE] )
+			m_Doc->m_nlist->OptimizeConnections(  m_sel_net, -1, m_Doc->m_auto_ratline_disable,
+					m_Doc->m_auto_ratline_min_pins, TRUE  );
+		CancelSelection();
+		m_Doc->ProjectModified( TRUE );
+		Invalidate( FALSE );
+		}
+	}			

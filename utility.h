@@ -128,3 +128,111 @@ CPoint GetInflectionPoint( CPoint pi, CPoint pf, int mode );
 void quickSort(int numbers[], int index[], int array_size);
 void q_sort(int numbers[], int index[], int left, int right);
 void q_sort_3way( int a[], int b[], int left, int right );
+
+class CMyBitmap {
+	// CPT.  A handy class used during the new phase I've added to PartList::DRC().  Represents a 2-d array of 1-byte values ("pixels").
+	int w, h;
+	char *data;
+
+	public:
+	CMyBitmap(int w0, int h0) {
+		w = w0; h = h0;
+		data = (char*) HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, w*h);
+		};
+	~CMyBitmap() {
+		HeapFree(GetProcessHeap(), 0, data);
+		};
+	inline char Get(int x, int y) 
+		{ return data[y*w+x]; }							// NB no range check!
+	inline void Set(int x, int y, char val) 
+		{ data[y*w+x] = val; }							// NB no range check!
+
+	void Line(int x0, int y0, int x1, int y1, char val) {
+		// Draw a "line" on the bitmap from (x1,y1) to (x2,y2), using byte value "val".  Successfully clips any out-of-range pixels on the line.
+		if (x0<0 && x1<0) return;
+		if (x0>=w && x1>=w) return;
+		if (y0<0 && y1<0) return;
+		if (y0>=h && y1>=h) return;
+		int dx = x1-x0, dy = y1-y0, tmp, jog;
+		bool bSteep;
+		if (dx>0) bSteep = dy>dx || dy<-dx;
+		else      bSteep = dy<dx || dy>-dx;
+		if (bSteep) {
+			if (dy<0)
+				tmp = x0, x0 = x1, x1 = tmp,
+				tmp = y0, y0 = y1, y1 = tmp,
+				dx = -dx, dy = -dy;
+			if (dx<0) jog = -1, dx = -dx;
+			else      jog = 1;
+			for (int y=y0, x=x0, r=0; y<=y1; y++, r+=dx) {
+				if (r>=dy) r-=dy, x+=jog;
+				if (y>=h) break;
+				if (y<0 || x<0 || x>=w) continue;
+				data[y*w+x] = val;
+				}
+			}
+		else {
+			if (dx<0)
+				tmp = x0, x0 = x1, x1 = tmp,
+				tmp = y0, y0 = y1, y1 = tmp,
+				dx = -dx, dy = -dy;
+			if (dy<0) jog = -1, dy = -dy;
+			else      jog = 1;
+			for (int x=x0, y=y0, r=0; x<=x1; x++, r+=dy) {
+				if (r>=dx) r-=dx, y+=jog;
+				if (x>=w) break;
+				if (x<0 || y<0 || y>=h) continue;
+				data[y*w+x] = val;
+				}
+			}
+		}
+
+	int FloodFill(int x0, int y0, char val) {
+		// Start at position (x0,y0), and flood fill, putting in value "val" wherever we encounter values equal to the original value at
+		// position (x0,y0).  Returns the number of pixels that got flooded
+		if (x0<0 || x0>=w) return 0;
+		if (y0<0 || y0>=h) return 0;
+		char orig = data[y0*w+x0];
+		if (val==orig) return 0;						// Caller goofed...
+		int ret = 0;
+		char *row = data+y0*w;
+		while (x0>0 && row[x0-1]==orig) x0--;			// Move x0 back to the beginning of any run of pixels with value "orig"
+		CArray<int> xList, yList;
+		xList.SetSize(0, 1000); yList.SetSize(0, 1000);
+		xList.Add(x0), yList.Add(y0);
+		int p=0;
+		while (p<xList.GetSize()) {
+			// Get a point (x,y) from the needs-to-be-processed list.  Determine the horizontal run of points starting at (x,y),
+			// such that all of them have the value "orig" on the bitmap.  Change their values to "val"
+			int x = xList[p], y = yList[p++], x2, x3;
+			row = data+y*w;
+			for (x2=x; x2<w && row[x2]==orig; x2++)
+				row[x2] = val, ret++;
+			// Determine if there are points in the preceding row to add to the needs-to-be-processed list.  Only add points that are at
+			// the starts of runs with the value "orig"
+			if (y>0) {
+				char *above = row-w;
+				if (above[x]==orig) {
+					for (x3=x; x3>0 && above[x3-1]==orig; x3--) ;
+					xList.Add(x3);  yList.Add(y-1);
+					}
+				for (x3=x+1; x3<x2; x3++)
+					if (above[x3]==orig && above[x3-1]!=orig)
+						xList.Add(x3), yList.Add(y-1);
+				}
+			// Similarly look for points in the following row to add to the needs-to-be-processed list.
+			if (y<h-1) {
+				char *below = row+w;
+				if (below[x]==orig) {
+					for (x3=x; x3>0 && below[x3-1]==orig; x3--) ;
+					xList.Add(x3); yList.Add(y+1);
+					}
+				for (x3=x+1; x3<x2; x3++)
+					if (below[x3]==orig && below[x3-1]!=orig)
+						xList.Add(x3), yList.Add(y+1);
+				}
+			}
+		return ret;
+		}
+
+	};

@@ -127,10 +127,12 @@ public:
 	CString m_desc;
 	int m_units;		// units used for original definition (MM, NM or MIL)
 	int m_sel_xi, m_sel_yi, m_sel_xf, m_sel_yf;			// selection rectangle
-	int m_ref_size, m_ref_xi, m_ref_yi, m_ref_angle;	// ref text
-	int m_ref_w;						// thickness of stroke for ref text
+	CText *m_ref;										// CPT:  New system! Use the CText machinery to process "REF" and "VALUE"
+	int m_ref_size, m_ref_xi, m_ref_yi, m_ref_angle;	// ref text params
+	int m_ref_w;										// thickness of stroke for ref text
+	CText *m_value;										// CPT:  New system!
 	int m_value_size, m_value_xi, m_value_yi, m_value_angle;	// value text
-	int m_value_w;						// thickness of stroke for value text
+	int m_value_w;												// thickness of stroke for value text
 	CENTROID_TYPE m_centroid_type;		// type of centroid
 	int m_centroid_x, m_centroid_y;		// position of centroid
 	int m_centroid_angle;				// angle of centroid (CCW)
@@ -204,10 +206,6 @@ public:
 	CArray<dl_element*> m_pad_bottom_mask_el;
 	CArray<dl_element*> m_pad_bottom_paste_el;
 	CArray<dl_element*> m_pad_sel;		// pad selector
-	CArray<dl_element*> m_ref_el;		// strokes for "REF"
-	dl_element * m_ref_sel;				// ref selector
-	CArray<dl_element*> m_value_el;		// strokes for "VALUE"
-	dl_element * m_value_sel;			// value selector
 	dl_element * m_centroid_el;			// centroid
 	dl_element * m_centroid_sel;		// centroid selector
 	CArray<dl_element*> m_dot_el;		// adhesive dots

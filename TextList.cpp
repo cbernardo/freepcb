@@ -19,7 +19,7 @@ int g_it;
 //
 CText::CText( CDisplayList * dlist, int x, int y, int angle, int mirror,
 			BOOL bNegative, int layer, int font_size, int stroke_width, 
-			SMFontUtil * smfontutil, CString * str_ptr )
+			SMFontUtil * smfontutil, CString * str_ptr, unsigned int selType, unsigned int selSubtype )
 {
 	m_guid = GUID_NULL;
 	HRESULT hr = ::UuidCreate(&m_guid);
@@ -34,6 +34,8 @@ CText::CText( CDisplayList * dlist, int x, int y, int angle, int mirror,
 	m_str = *str_ptr;
 	m_nchars = str_ptr->GetLength();
 	m_dlist = dlist;
+	m_selType = selType;									// CPT
+	m_selSubtype = selSubtype;
 
 	if( smfontutil )
 	{
@@ -146,8 +148,7 @@ void CText::Draw( CDisplayList * dlist, SMFontUtil * smfontutil )
 			RotatePoint( &si, m_angle, zero );
 			RotatePoint( &sf, m_angle, zero );
 			// draw it
-			id.st = ID_SEL_TXT;
-			id.i = 0;
+			id.Set(m_selType, m_selSubtype);
 			dl_sel = dlist->AddSelector( id, this, m_layer, DL_HOLLOW_RECT, 1,
 				0, 0, m_x + si.x, m_y + si.y, m_x + sf.x, m_y + sf.y, m_x + si.x, m_y + si.y );
 			m_dlist = dlist;
@@ -173,6 +174,42 @@ void CText::Undraw()
 		m_stroke.RemoveAll();
 	}
 	m_smfontutil = NULL;	// indicate that strokes have been removed
+}
+
+// CPT moved this function out of CTextList and into CText.  Added optional size/width params.
+void CText::Move( int x, int y, int angle, BOOL mirror, BOOL negative, int layer, int size, int w )
+{
+	CDisplayList *dlist = m_dlist;
+	SMFontUtil *smf = m_smfontutil;
+	Undraw();
+	m_x = x;
+	m_y = y;
+	m_angle = angle;
+	m_layer = layer;
+	m_mirror = mirror;
+	m_bNegative = negative;
+	if (size>=0) m_font_size = size;
+	if (w>=0) m_stroke_width = w;
+	Draw( dlist, smf );
+}
+
+void CText::GetBounds( CRect &br ) {
+	br.bottom = INT_MAX;
+	br.left = INT_MAX;
+	br.top = INT_MIN;
+	br.right = INT_MIN;
+	for( int is=0; is<m_stroke.GetSize(); is++ )
+	{
+		stroke * s = &m_stroke[is];
+		br.bottom = min( br.bottom, s->yi - s->w );
+		br.bottom = min( br.bottom, s->yf - s->w );
+		br.top = max( br.top, s->yi + s->w );
+		br.top = max( br.top, s->yf + s->w );
+		br.left = min( br.left, s->xi - s->w );
+		br.left = min( br.left, s->xf - s->w );
+		br.right = max( br.right, s->xi + s->w );
+		br.right = max( br.right, s->xf + s->w );
+	}
 }
 
 // CTextList constructor/destructors
@@ -314,23 +351,6 @@ CText * CTextList::MoveText( CText * text, int x, int y, int angle, int mirror, 
 	return new_text;
 }
 #endif
-
-// move text
-//
-void CTextList::MoveText( CText * text, int x, int y, int angle, 
-						 BOOL mirror, BOOL negative, int layer )
-{
-	CDisplayList * dl = text->m_dlist;
-	SMFontUtil * smf = text->m_smfontutil;
-	text->Undraw();
-	text->m_x = x;
-	text->m_y = y;
-	text->m_angle = angle;
-	text->m_layer = layer;
-	text->m_mirror = mirror;
-	text->m_bNegative = negative;
-	text->Draw( dl, smf );
-}
 
 // write text info to file
 //

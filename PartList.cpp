@@ -73,9 +73,10 @@ cpart * CPartList::Add()
 
 // Create new part, add to end of list, set part data 
 // return pointer to element created.
+// CPT added reference visibility arg to this and to SetPartData() below
 //
 cpart * CPartList::Add( CShape * shape, CString * ref_des, CString * package, 
-							int x, int y, int side, int angle, int visible, int glued )
+							int x, int y, int side, int angle, int visible, int glued, bool ref_vis )
 {
 	if(m_size >= m_max_size )
 	{
@@ -87,14 +88,14 @@ cpart * CPartList::Add( CShape * shape, CString * ref_des, CString * package,
 	// create new instance and link into list
 	cpart * part = Add();
 	// set data
-	SetPartData( part, shape, ref_des, package, x, y, side, angle, visible, glued );
+	SetPartData( part, shape, ref_des, package, x, y, side, angle, visible, glued, ref_vis );
 	return part;
 }
 
 // Set part data, draw part if m_dlist != NULL
 //
 int CPartList::SetPartData( cpart * part, CShape * shape, CString * ref_des, CString * package, 
-							int x, int y, int side, int angle, int visible, int glued )
+							int x, int y, int side, int angle, int visible, int glued, bool ref_vis )
 {
 	UndrawPart( part );
 	CDisplayList * old_dlist = m_dlist;
@@ -149,6 +150,7 @@ int CPartList::SetPartData( cpart * part, CShape * shape, CString * ref_des, CSt
 	part->m_outline_stroke.SetSize(0);
 	part->ref_text_stroke.SetSize(0);
 	part->value_stroke.SetSize(0);
+	part->m_ref_vis = ref_vis;					// CPT
 	m_size++;
 
 	// now draw part into display list
@@ -2225,7 +2227,7 @@ cpart * CPartList::AddFromString( CString * str )
 		}
 		in_str = str->Tokenize( "\n", pos );
 	}
-	SetPartData( part, s, &ref_des, &package, x, y, side, angle, 1, glued );
+	SetPartData( part, s, &ref_des, &package, x, y, side, angle, 1, glued, true );
 	SetValue( part, &value, value_xi, value_yi, value_angle, value_size, value_width, value_vis );
 	if( part->shape ) 
 	{
@@ -2847,7 +2849,7 @@ void CPartList::ImportPartListInfo( partlist_info * pl, int flags, CDlgLog * log
 			}
 			// now place part
 			cpart * part = Add( pi->shape, &pi->ref_des, &pi->package, pi->x, pi->y,
-				pi->side, pi->angle, TRUE, FALSE );
+				pi->side, pi->angle, TRUE, FALSE);
 			if( part->shape )
 			{
 				ResizeRefText( part, pi->ref_size, pi->ref_width, pi->ref_vis );
@@ -4887,8 +4889,12 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 					}
 				}
 			}
+
+			// CPT: new broken area check (function defined below)
+			CheckBrokenArea(a, net, log, units, drelist, nerrors);
 		}
 	}
+
 	// now check for unrouted connections, if requested
 	if( check_unrouted )
 	{
@@ -5140,4 +5146,132 @@ BOOL CPartList::CheckForProblemFootprints()
 	return bHeaders_28mil_holes;
 }
 
+void CPartList::CheckBrokenArea(carea *a, cnet *net, CDlgLog * log, int units, DRErrorList * drelist, long &nerrors) {
+	// CPT: new check for areas that have been broken or nearly broken by the clearances for traces from other nets.
+	// Create a "bitmap" (just a 2-d array of 1-byte flags, indicating whether a given location is part of the area's copper).
+	// NB class CMyBitmap is found in utility.h.
+	// Warning --- doesn't yet account for curved sides
+	CString x_str, y_str;
+	int layer = a->poly->GetLayer();
+	int nContours = a->poly->GetNumContours();
+	// Get area's bounds and dimensions in nm.
+	CRect bounds = a->poly->GetCornerBounds();
+	int wNm = bounds.right - bounds.left, hNm = bounds.top - bounds.bottom;
+	// Determine the granularity of the bitmap.  By default it's 10 mils per pixel, but that value may increase if area is big
+	int gran = 10*NM_PER_MIL;	
+	int w = wNm/gran, h = hNm/gran;
+	while (w*h>1000000)
+		w /= 2, h /= 2, gran *= 2;
+	w += 3, h += 3;												// A little extra wiggle room...
+	int x0 = bounds.left - gran, y0 = bounds.bottom - gran;
+	int xSample = 0, ySample = 0;								// Set below:  an arbitrarily chosen edge-corner position
+	CMyBitmap *bmp  = new CMyBitmap(w, h);
 
+	// Draw the area's edges onto bmp, filling the relevant pixels in with byte value xEdge for outer edges
+	// (edges belonging to a->poly's contour #0) or xHole for edges of the area's holes (contours 1, 2, ...)
+	#define xEdge 0x01
+	#define xHole 0x02
+	for( int i=0; i<nContours; i++ ) {
+		int start = a->poly->GetContourStart(i), end = a->poly->GetContourEnd(i);
+		for (int j=start; j<=end; j++) {
+			int x1 = a->poly->GetX(j), y1 = a->poly->GetY(j);
+			if (!xSample)
+				xSample = x1, ySample = y1;
+			int x2, y2;
+			if (j==end) 
+				x2 = a->poly->GetX(start), y2 = a->poly->GetY(start);
+			else
+				x2 = a->poly->GetX(j+1), y2 = a->poly->GetY(j+1);
+			x1 = (x1-x0)/gran, y1 = (y1-y0)/gran;
+			x2 = (x2-x0)/gran, y2 = (y2-y0)/gran;
+			bmp->Line(x1,y1, x2,y2, i==0? xEdge: xHole);
+			}
+		}
+
+	// Now draw on the bitmap any segments that are in the correct layer but belong to nets other than a's.
+	#define xSeg 0x03
+	POSITION pos2 = m_nlist->m_map.GetStartPosition();
+	void * ptr2;
+	CString name2;
+	while( pos2 != NULL ) {
+		m_nlist->m_map.GetNextAssoc( pos2, name2, ptr2 );
+		cnet * net2 = (cnet*)ptr2;
+		if (net2==net) continue;
+		for( int ic=0; ic<net2->nconnects; ic++ ) {
+			cconnect * c2 = &net2->connect[ic];
+			for (int is=0; is<c2->nsegs; is++) {
+				cseg *s = &c2->seg[is];
+				if (s->layer!=layer) continue;
+				int x1 = c2->vtx[is].x, y1 = c2->vtx[is].y;
+				int x2 = c2->vtx[is+1].x, y2 = c2->vtx[is+1].y;
+				x1 = (x1-x0)/gran, y1 = (y1-y0)/gran;
+				x2 = (x2-x0)/gran, y2 = (y2-y0)/gran;
+				bmp->Line(x1,y1, x2,y2, xSeg);
+				}
+			}
+		}
+
+	// Now scan the bitmap's rows, looking for one where the initial pixel values are 0/xSeg, 0/xSeg, ..., 0/xSeg, xEdge, 0.
+	// The last pixel there is surely in the area's interior.  If we don't find such a pixel, the area is weirdly scrawny:  generate 
+	// a DRC warning and bail out.
+	int xInt = -1, yInt = -1;
+	for (int y=1; y<h-1; y++) {
+		int x=0;
+		while (x<w && (bmp->Get(x,y)==0 || bmp->Get(x,y)==xSeg)) x++;
+		if (x>=w-2) continue;
+		if (bmp->Get(x,y)==xEdge && bmp->Get(x+1,y)==0) 
+			{ xInt = x+1, yInt = y; break; }
+		}
+	if (xInt==-1) {
+		CString s ((LPCSTR) IDS_WarningCopperAreaIsTooNarrow), str;
+		::MakeCStringFromDimension( &x_str, xSample, units, FALSE, TRUE, TRUE, 1 );
+		::MakeCStringFromDimension( &y_str, ySample, units, FALSE, TRUE, TRUE, 1 );
+		str.Format( s, nerrors+1, net->name, x_str, y_str );
+		DRError * dre = drelist->Add( nerrors, DRError::COPPERAREA_BROKEN, &str,
+									&net->name, 0, net->id, 0, xSample, ySample, xSample, ySample, 0, 0 );
+		if (dre) { 
+			nerrors++;
+			if( log ) log->AddLine( str );
+			}
+		delete(bmp);
+		return;
+		}
+
+	// Flood-fill the area's interior, starting from the just-found point (xInt,yInt)
+	#define xInterior 0x04
+	bmp->FloodFill(xInt,yInt, xInterior);
+
+	// Now scan the bitmap for any xEdge/xHole pixels that are not adjacent to an xInterior, and convert them to value xBad.
+	//  If the area is nicely connected, then only a few odd corner pixels will be xBad
+	#define xBad 0x05
+	for (int y=1; y<h-1; y++) 
+		for (int x=1; x<w-1; x++) {
+			if (bmp->Get(x,y) != xEdge && bmp->Get(x,y) != xHole) continue;
+			if (bmp->Get(x-1,y) != xInterior && bmp->Get(x+1,y) != xInterior &&
+				bmp->Get(x,y-1) != xInterior && bmp->Get(x,y+1) != xInterior) 
+					bmp->Set(x,y, xBad);
+			}
+
+	// Now determine the connected components among the xBad pixels.  Each component that contains more than 2 (?) pixels results in
+	// its own DRE.
+	#define xBad2 0x06
+	for (int y=1; y<h-1; y++) 
+		for (int x=1; x<w-1; x++) {
+			if (bmp->Get(x,y) != xBad) continue;
+			int nPix = bmp->FloodFill(x, y, xBad2);
+			if (nPix<3) continue;
+			int x2 = x*gran + x0, y2 = y*gran + y0;
+			CString s ((LPCSTR) IDS_WarningCopperAreaIsTooNarrow), str;
+			::MakeCStringFromDimension( &x_str, x2, units, FALSE, TRUE, TRUE, 1 );
+			::MakeCStringFromDimension( &y_str, y2, units, FALSE, TRUE, TRUE, 1 );
+			str.Format( s, nerrors+1, net->name, x_str, y_str );
+			DRError * dre = drelist->Add( nerrors, DRError::COPPERAREA_BROKEN, &str,
+										&net->name, 0, net->id, 0, x2, y2, x2, y2, 0, 0 );
+			if (!dre) continue;
+			nerrors++;
+			if( log ) log->AddLine( str );
+			}
+	
+	// Done!
+	delete(bmp);
+	}

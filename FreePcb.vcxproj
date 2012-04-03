@@ -139,6 +139,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="afxasert.cpp" />
+    <ClCompile Include="CommonView.cpp" />
     <ClCompile Include="Cuid.cpp" />
     <ClCompile Include="DesignRules.cpp" />
     <ClCompile Include="DisplayList.cpp" />
@@ -232,6 +233,7 @@
     <ClCompile Include="utility.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="CommonView.h" />
     <ClInclude Include="DlgAddGridVal.h" />
     <ClInclude Include="DlgAddPoly.h" />
     <ClInclude Include="Cuid.h" />

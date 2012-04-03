@@ -2384,7 +2384,7 @@ void CFreePcbDoc::InitializeNewProject()
 	m_import_flags = IMPORT_PARTS | IMPORT_NETS | KEEP_TRACES | KEEP_STUBS | KEEP_AREAS;
 
 	CFreePcbView * view = (CFreePcbView*)m_view;
-	view->InitializeView();
+	view->OnNewProject();
 
 	// now try to find global options file.
 	CString fn = m_app_dir + "\\" + "default.cfg";
@@ -3063,6 +3063,7 @@ int CFreePcbDoc::ImportNetlist( CStdioFile * file, UINT flags,
 					(*pl)[ipart].y = 0;
 					(*pl)[ipart].angle = 0;
 					(*pl)[ipart].side = 0;
+					(*pl)[ipart].ref_vis = 1;				
 					if( !s )
 						err_flags |= FOOTPRINTS_NOT_FOUND;
 					ipart++;
@@ -4738,16 +4739,16 @@ void CFreePcbDoc::OnFileSaveLibrary()
 // CPT (all that follows)
 
 void ReadFileLines(CString &fname, CArray<CString> &lines) {
-	// Helper function used when making modifications to default.cfg
+	// Helper function used when making modifications to default.cfg.  Bug fix #28
 	lines.RemoveAll();
 	CStdioFile file;
 	CString line;
 	int ok = file.Open( LPCSTR(fname), CFile::modeRead | CFile::typeText, NULL );
-	while (ok)	{
-		ok = file.ReadString( line );
-		if (ok) 
-			line.Trim(),
-			lines.Add(line + "\n");
+	if (!ok) return;
+	while (1)	{
+		if (!file.ReadString( line )) break;
+		line.Trim(),
+		lines.Add(line + "\n");
 		}
 	file.Close();
 	}
@@ -4772,6 +4773,8 @@ void ReplaceLines(CArray<CString> &oldLines, CArray<CString> &newLines, char *ke
 			oldLines.RemoveAt(i),
 			i--;
 		}
+	if (oldLines.GetSize()==0)
+		oldLines.Add("[options]\n");
 	for (int i=0; i<newLines.GetSize(); i++) {
 		CString str = newLines[i].TrimLeft();
 		if (str.Left(keyLgth) == key)
