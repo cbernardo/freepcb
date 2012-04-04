@@ -2532,7 +2532,7 @@ CRect CShape::GetPadRowBounds( int i, int num )
 //
 CRect CShape::GetBounds( BOOL bIncludeLineWidths )
 {
-	CRect br, br0;
+	CRect br;
 
 	br.left = br.bottom = INT_MAX;
 	br.right = br.top = INT_MIN;

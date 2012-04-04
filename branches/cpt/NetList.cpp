@@ -6225,7 +6225,9 @@ int CNetList::ClipAreaPolygon( cnet * net, int iarea,
 		}
 	}
 //** TODO test for cutouts outside of area
-//**	if( test == 1 )
+	// CPT the next line "if (test==1)" was commented out --- surely a mistake??  If we run NormalizeWithGpc() below every time, weird things 
+	// seem to happen.  For instance, if we add a new vertex to an area edge-segment and the vertex is on the segment, it may get eliminated...
+	if( test == 1 )
 	{
 		CArray<CPolyLine*> * pa = new CArray<CPolyLine*>;
 		p->Undraw();

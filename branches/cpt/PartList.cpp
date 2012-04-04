@@ -5150,7 +5150,6 @@ void CPartList::CheckBrokenArea(carea *a, cnet *net, CDlgLog * log, int units, D
 	// CPT: new check for areas that have been broken or nearly broken by the clearances for traces from other nets.
 	// Create a "bitmap" (just a 2-d array of 1-byte flags, indicating whether a given location is part of the area's copper).
 	// NB class CMyBitmap is found in utility.h.
-	// Warning --- doesn't yet account for curved sides
 	CString x_str, y_str;
 	int layer = a->poly->GetLayer();
 	int nContours = a->poly->GetNumContours();
@@ -5184,7 +5183,12 @@ void CPartList::CheckBrokenArea(carea *a, cnet *net, CDlgLog * log, int units, D
 				x2 = a->poly->GetX(j+1), y2 = a->poly->GetY(j+1);
 			x1 = (x1-x0)/gran, y1 = (y1-y0)/gran;
 			x2 = (x2-x0)/gran, y2 = (y2-y0)/gran;
-			bmp->Line(x1,y1, x2,y2, i==0? xEdge: xHole);
+			char val = i==0? xEdge: xHole;
+			int style = a->poly->GetSideStyle(j);
+			if (style==CPolyLine::STRAIGHT)
+				bmp->Line(x1,y1, x2,y2, val);
+			else
+				bmp->Arc(x1,y1, x2,y2, style==CPolyLine::ARC_CW, val);
 			}
 		}
 
