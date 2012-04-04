@@ -2067,7 +2067,7 @@ void CFootprintView::OnViewEntireFootprint()
 {
 	CRect r;
 	r = m_fp.GetBounds();
-	// CPT:  better accounting for the ref-text and value boxes, which CShape::GetBounds() doesn't account for
+	// CPT:  better accounting for the ref-text and value boxes, which CShape::GetBounds() ignores
 	int refMinX = m_fp.m_ref_xi, refMaxX = refMinX + m_fp.m_ref_size*5/2;			// Approximately, width of "REF" is 2.5x the height
 	int refMinY = m_fp.m_ref_yi, refMaxY = refMinY + m_fp.m_ref_size;
 	int valMinX = m_fp.m_value_xi, valMaxX = valMinX + m_fp.m_value_size*9/2;		// Approximately, width of "VALUE" is 4.5x the height
