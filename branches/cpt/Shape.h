@@ -160,7 +160,9 @@ public:
 	int Copy( CShape * shape );	// copy all data from shape
 	BOOL Compare( CShape * shape );	// compare shapes, return true if same
 	HENHMETAFILE CreateMetafile( CMetaFileDC * mfDC, CDC * pDC, int x_size, int y_size );
-	HENHMETAFILE CreateWarningMetafile( CMetaFileDC * mfDC, CDC * pDC, int x_size, int y_size );
+	// CPT:  the following is apparently leftover scrap?  Cull it out?
+	// HENHMETAFILE CreateWarningMetafile( CMetaFileDC * mfDC, CDC * pDC, int x_size, int y_size );
+	void GenerateValueParams();	// CPT
 };
 
 

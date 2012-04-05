@@ -756,6 +756,7 @@
 #define IDC_REVERSE_PGUP_PGDN           1436
 #define IDC_BUTTON_LAYER_7              1437
 #define IDC_LIST_GRIDVALS               1437
+#define IDC_LEFTHAND_MODE               1437
 #define IDC_BUTTON_LAYER_8              1438
 #define IDC_CHECK_GRIDVALS_DEFAULT      1438
 #define IDC_BUTTON_LAYER_9              1439
@@ -984,6 +985,8 @@
 #define ID_VIEW_VISIBLEGRIDVALUES       32959
 #define ID_VIEW_PLACEMENTGRIDVALUES     32960
 #define ID_VIEW_ROUTINGGRIDVALUES       32961
+#define ID_VIEW_REVEALVALUETEXT         32962
+#define ID_Menu32963                    32963
 #define IDS_AppName                     61999
 #define IDS_IllegalNetName              62000
 #define IDS_TopSolderMask               62001
@@ -1534,8 +1537,8 @@
 #define IDS_WarningCopperAreaIsTooNarrow 62601
 #define IDS_FpLeftPaneKey               62602
 #define IDS_PinXY                       62611
-#define IDS_STRING130                   62612
 #define IDS_PolylineCornerXY            62612
+#define IDS_TextHeightZeroIsNotPermitted 62613
 #define IDS_FkFpStr                     63000
 #define IDS_STRING63001                 63001
 #define IDS_STRING63002                 63002
@@ -1871,7 +1874,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_3D_CONTROLS                     1
 #define _APS_NEXT_RESOURCE_VALUE        355
-#define _APS_NEXT_COMMAND_VALUE         32962
+#define _APS_NEXT_COMMAND_VALUE         32964
 #define _APS_NEXT_CONTROL_VALUE         1441
 #define _APS_NEXT_SYMED_VALUE           106
 #endif

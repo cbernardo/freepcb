@@ -400,35 +400,35 @@ void CCommonView::DrawBottomPane(CDC *pDC)
 	pDC->SelectObject(old_brush);
 	pDC->SelectObject(old_pen);
 
-	// draw labels for function keys at bottom of client area
-	for( int j=0; j<3; j++ )
-		for( int i=0; i<4; i++ )
-		{ 
-			int ifn = j*4+i;
-			if( ifn < 9 )
-			{
-				CRect r( FKEY_OFFSET_X+ifn*FKEY_STEP+j*FKEY_GAP, 
-					m_client_r.bottom-FKEY_OFFSET_Y-FKEY_R_H,
-					FKEY_OFFSET_X+ifn*FKEY_STEP+j*FKEY_GAP+FKEY_R_W,
-					m_client_r.bottom-FKEY_OFFSET_Y );
-				pDC->Rectangle( &r );
-				pDC->MoveTo( r.left+FKEY_SEP_W, r.top );
-				pDC->LineTo( r.left+FKEY_SEP_W, r.top + FKEY_R_H/2 + 1 );
-				pDC->MoveTo( r.left, r.top + FKEY_R_H/2 );
-				pDC->LineTo( r.left+FKEY_SEP_W, r.top + FKEY_R_H/2 );
-				r.top += 1;
-				r.left += 2;
-				char fkstr[3] = "F1";
-				fkstr[1] = '1' + j*4+i;
-				pDC->DrawText( fkstr, -1, &r, 0 );
-				r.left += FKEY_SEP_W;
-				CString str1 ((LPCSTR) m_fkey_rsrc[2*ifn]);
-				CString str2 ((LPCSTR) m_fkey_rsrc[2*ifn+1]);
-				pDC->DrawText( str1, -1, &r, 0 );
-				r.top += FKEY_R_H/2 - 2;
-				pDC->DrawText( str2, -1, &r, 0 );
-			}
-		}
+	// draw labels for function keys at bottom of client area.  CPT:  adjusted the positions of the gaps in lefthanded mode
+	for (int ifn=0; ifn<9; ifn++)
+	{
+		int left = FKEY_OFFSET_X + ifn*FKEY_STEP;
+		if (!m_Doc->m_bLefthanded)
+			left += ifn/4 * FKEY_GAP;
+		else
+			left += (ifn+3)/4 * FKEY_GAP;
+		CRect r( left, 
+			m_client_r.bottom-FKEY_OFFSET_Y-FKEY_R_H,
+			left + FKEY_R_W,
+			m_client_r.bottom-FKEY_OFFSET_Y );
+		pDC->Rectangle( &r );
+		pDC->MoveTo( r.left+FKEY_SEP_W, r.top );
+		pDC->LineTo( r.left+FKEY_SEP_W, r.top + FKEY_R_H/2 + 1 );
+		pDC->MoveTo( r.left, r.top + FKEY_R_H/2 );
+		pDC->LineTo( r.left+FKEY_SEP_W, r.top + FKEY_R_H/2 );
+		r.top += 1;
+		r.left += 2;
+		char fkstr[3] = "F1";
+		fkstr[1] = '1' + ifn;
+		pDC->DrawText( fkstr, -1, &r, 0 );
+		r.left += FKEY_SEP_W;
+		CString str1 ((LPCSTR) m_fkey_rsrc[2*ifn]);
+		CString str2 ((LPCSTR) m_fkey_rsrc[2*ifn+1]);
+		pDC->DrawText( str1, -1, &r, 0 );
+		r.top += FKEY_R_H/2 - 2;
+		pDC->DrawText( str2, -1, &r, 0 );
+	}
 	pDC->SelectObject( old_font );
 }
 
@@ -437,20 +437,28 @@ void CCommonView::DrawBottomPane(CDC *pDC)
 bool CCommonView::CheckBottomPaneClick(CPoint &point) {
 	if( point.y <= (m_client_r.bottom-m_bottom_pane_h) ) return false;
 	// clicked in bottom pane, test for hit on function key rectangle
+	// CPT: added left-handed mode support
 	for( int i=0; i<9; i++ )
 	{
-		CRect r( FKEY_OFFSET_X+i*FKEY_STEP+(i/4)*FKEY_GAP,
+		int left = FKEY_OFFSET_X + i*FKEY_STEP;
+		if (!m_Doc->m_bLefthanded)
+			left += i/4 * FKEY_GAP;
+		else
+			left += (i+3)/4 * FKEY_GAP;
+
+		CRect r( left,
 			m_client_r.bottom-FKEY_OFFSET_Y-FKEY_R_H,
-			FKEY_OFFSET_X+i*FKEY_STEP+(i/4)*FKEY_GAP+FKEY_R_W,
+			left+FKEY_R_W,
 			m_client_r.bottom-FKEY_OFFSET_Y );
 		if( r.PtInRect( point ) )
 		{
 			// fake function key pressed
 			int nChar = i + 112;
 			HandleKeyPress( nChar, 0, 0 );
+			return true;
 		}
 	}
-	return true;
+	return false;
 }
 
 bool CCommonView::CheckLeftPaneClick(CPoint &point) {
@@ -646,7 +654,7 @@ void CCommonView::HandleCtrlFKey(int nChar) {
 }
 
 void CCommonView::HandlePanAndZoom(int nChar, CPoint &p) {
-	if (m_Doc->bReversePgupPgdn)
+	if (m_Doc->m_bReversePgupPgdn)
 		if (nChar==33) nChar = 34;
 		else if (nChar==34) nChar = 33;
 
