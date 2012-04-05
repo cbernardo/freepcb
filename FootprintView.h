@@ -241,6 +241,7 @@ public:
 	void Redo();
 	void EnableUndo( BOOL bEnable );
 	void EnableRedo( BOOL bEnable );
+	void EnableRevealValue();				// CPT
 	
 protected:
 
@@ -299,9 +300,10 @@ public:
 	afx_msg void OnCentroidMove();
 	afx_msg void OnAddSlot();
 	afx_msg void OnAddHole();
-	afx_msg void OnAddValueText();
+	//  CPT supplanted: afx_msg void OnAddValueText();
 	afx_msg void OnValueEdit();
 	afx_msg void OnValueMove();
+	afx_msg void OnValueReveal();			// CPT
 	afx_msg void OnAddAdhesive();
 	afx_msg void OnAdhesiveEdit();
 	afx_msg void OnAdhesiveMove();

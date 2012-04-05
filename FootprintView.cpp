@@ -83,6 +83,7 @@ ON_COMMAND(ID_FOOTPRINT_FILE_IMPORT, OnFootprintFileImport)
 ON_COMMAND(ID_FOOTPRINT_FILE_CLOSE, OnFootprintFileClose)
 ON_COMMAND(ID_FOOTPRINT_FILE_NEW, OnFootprintFileNew)
 ON_COMMAND(ID_VIEW_ENTIREFOOTPRINT, OnViewEntireFootprint)
+ON_COMMAND(ID_VIEW_REVEALVALUETEXT, OnValueReveal)
 //ON_COMMAND(ID_FP_EDIT_UNDO, OnFpEditUndo)
 ON_WM_ERASEBKGND()
 ON_COMMAND(ID_FP_MOVE, OnFpMove)
@@ -117,7 +118,7 @@ ON_COMMAND(ID_ADD_ADHESIVESPOT, OnAddAdhesive)
 ON_COMMAND(ID_CENTROID_SETPARAMETERS, OnCentroidEdit)
 ON_COMMAND(ID_CENTROID_MOVE, OnCentroidMove)
 ON_COMMAND(ID_ADD_SLOT, OnAddSlot)
-ON_COMMAND(ID_ADD_VALUETEXT, OnAddValueText)
+// CPT ON_COMMAND(ID_ADD_VALUETEXT, OnAddValueText)
 ON_COMMAND(ID_ADD_HOLE, OnAddHole)
 ON_COMMAND(ID_FP_EDIT, OnValueEdit)
 ON_COMMAND(ID_FP_MOVE32923, OnValueMove)
@@ -145,7 +146,8 @@ CFootprintView::CFootprintView()
 	m_mask_id[FP_SEL_MASK_REF].Set( ID_PART, ID_SEL_REF_TXT );
 	m_mask_id[FP_SEL_MASK_VALUE].Set( ID_PART, ID_SEL_VALUE_TXT );
 	m_mask_id[FP_SEL_MASK_PINS].Set( ID_PART, ID_SEL_PAD );
-	m_mask_id[FP_SEL_MASK_OUTLINE].Set( ID_PART, ID_OUTLINE );
+	m_mask_id[FP_SEL_MASK_SIDES].Set( ID_PART, ID_OUTLINE, 0, ID_SEL_SIDE );
+	m_mask_id[FP_SEL_MASK_CORNERS].Set( ID_PART, ID_OUTLINE, 0, ID_SEL_CORNER );
 	m_mask_id[FP_SEL_MASK_TEXT].Set( ID_TEXT );
 	m_mask_id[FP_SEL_MASK_CENTROID].Set( ID_CENTROID );
 	m_mask_id[FP_SEL_MASK_GLUE].Set( ID_GLUE );
@@ -180,6 +182,7 @@ void CFootprintView::InitInstance( CShape * fp )
 		m_fp.m_name = s;
 	}
 	SetWindowTitle( &m_fp.m_name );
+	EnableRevealValue();					// CPT
 
 	// set up footprint library map (if necessary)
 	if( *m_Doc->m_footlibfoldermap.GetDefaultFolder() == "" )
@@ -1057,8 +1060,11 @@ void CFootprintView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 		// Home key pressed
 		OnViewEntireFootprint();
 	else if( nChar == 27 )
-		// ESC key, simulate a right-click
-		OnRButtonDown( 0, NULL );
+		// ESC key.  CPT:  modified to do what happens in FreePcbView:
+		if( CurSelected() )
+			CancelSelection();
+		else
+			OnRButtonDown( 0, NULL );
 	HandlePanAndZoom(nChar, p);
 
 	ReleaseDC( pDC );
@@ -1230,6 +1236,13 @@ void CFootprintView::SetFKText( int mode )
 		m_fkey_option[2] = FK_FP_ROTATE_TEXT;
 		break;
 	}
+
+	// CPT: Lefthanded mode support:  if set, reverse key meanings
+	if (m_Doc->m_bLefthanded) 
+		for (int lo=0, hi=8, tmp; lo<hi; lo++, hi--)
+			tmp = m_fkey_option[lo], 
+			m_fkey_option[lo] = m_fkey_option[hi],
+			m_fkey_option[hi] = tmp;
 
 	for( int i=0; i<12; i++ )
 	{
@@ -2065,21 +2078,19 @@ void CFootprintView::FootprintNameChanged( CString * str )
 
 void CFootprintView::OnViewEntireFootprint()
 {
-	CRect r;
+	CRect r, rRef, rVal;
 	r = m_fp.GetBounds();
 	// CPT:  better accounting for the ref-text and value boxes, which CShape::GetBounds() ignores
-	int refMinX = m_fp.m_ref_xi, refMaxX = refMinX + m_fp.m_ref_size*5/2;			// Approximately, width of "REF" is 2.5x the height
-	int refMinY = m_fp.m_ref_yi, refMaxY = refMinY + m_fp.m_ref_size;
-	int valMinX = m_fp.m_value_xi, valMaxX = valMinX + m_fp.m_value_size*9/2;		// Approximately, width of "VALUE" is 4.5x the height
-	int valMinY = m_fp.m_value_yi, valMaxY = valMinY + m_fp.m_value_size;
-	if (r.left>refMinX) r.left = refMinX;
-	if (r.left>valMinX) r.left = valMinX;
-	if (r.right<refMaxX) r.right = refMaxX;
-	if (r.right<valMaxX) r.right = valMaxX;
-	if (r.bottom>refMinY) r.bottom = refMinY;
-	if (r.bottom>valMinY) r.bottom = valMinY;
-	if (r.top<refMaxY) r.top = refMaxY;
-	if (r.top<valMaxY) r.top = valMaxY;
+	m_fp.m_ref->GetBounds(rRef);
+	m_fp.m_value->GetBounds(rVal);
+	r.left = min(r.left, rRef.left);
+	r.left = min(r.left, rVal.left);
+	r.right = max(r.right, rRef.right);
+	r.right = max(r.right, rVal.right);
+	r.bottom = min(r.bottom, rRef.bottom);
+	r.bottom = min(r.bottom, rVal.bottom);
+	r.top = max(r.top, rRef.top);
+	r.top = max(r.top, rVal.top);
 
 	int max_x = (9*r.right - r.left)/8;			// CPT: Before we had (3*right-left)/2, but given the new lines above, this change is appropriate.
 	int min_x = (9*r.left - r.right)/8;
@@ -2465,8 +2476,10 @@ void CFootprintView::MoveOrigin( int x, int y )
 	m_fp.m_sel_yf -= y;
 	m_fp.m_ref_xi -= x;
 	m_fp.m_ref_yi -= y;
+	m_fp.m_ref->Move(m_fp.m_ref_xi, m_fp.m_ref_yi, m_fp.m_ref_angle, 0, 0, LAY_FP_SILK_TOP );	// CPT
 	m_fp.m_value_xi -= x;
 	m_fp.m_value_yi -= y;
+	m_fp.m_value->Move(m_fp.m_value_xi, m_fp.m_value_yi, m_fp.m_value_angle, 0, 0, LAY_FP_SILK_TOP );	// CPT
 	m_fp.m_centroid_x -= x; 
 	m_fp.m_centroid_y -= y;
 	for( int ip=0; ip<m_fp.m_padstack.GetSize(); ip++ )
@@ -2511,6 +2524,23 @@ void CFootprintView::EnableRedo( BOOL bEnable )
 			submenu->EnableMenuItem( ID_EDIT_REDO, MF_BYCOMMAND | MF_ENABLED );
 		else
 			submenu->EnableMenuItem( ID_EDIT_REDO, MF_BYCOMMAND | MF_DISABLED |MF_GRAYED );
+		pMain->DrawMenuBar();
+	}
+}
+
+// CPT: providing a way to restore a "VALUE" that has been shrunk to size 0.  The menu item gets grayed or ungrayed depending on m_fp.m_value_size.
+void CFootprintView::EnableRevealValue( )
+{
+	bool bEnable = m_fp.m_value_size==0;
+	CWnd* pMain = AfxGetMainWnd();
+	if (pMain != NULL)
+	{
+		CMenu* pMenu = pMain->GetMenu();
+		CMenu* submenu = pMenu->GetSubMenu(2);	// "View" submenu
+		if( bEnable )
+			submenu->EnableMenuItem( ID_VIEW_REVEALVALUETEXT, MF_BYCOMMAND | MF_ENABLED );
+		else
+			submenu->EnableMenuItem( ID_VIEW_REVEALVALUETEXT, MF_BYCOMMAND | MF_DISABLED |MF_GRAYED );
 		pMain->DrawMenuBar();
 	}
 }
@@ -2573,9 +2603,9 @@ void CFootprintView::OnAddSlot()
 	dlg.DoModal();
 }
 
+/* CPT:  This function was disused and has now been supplanted by CFootprintView::RevealValue()
 void CFootprintView::OnAddValueText()
 {
-	// CPT:  I don't believe this is ever used...
 	CancelSelection();
 	CString str = "";
 	CDlgFpText dlg;
@@ -2599,6 +2629,7 @@ void CFootprintView::OnAddValueText()
 		Invalidate( FALSE );		
 	}
 }
+*/
 
 void CFootprintView::OnAddHole()
 {
@@ -2631,6 +2662,7 @@ void CFootprintView::OnValueEdit()
 			int angle = m_fp.m_value_angle = dlg.m_angle;
 			int sz = m_fp.m_value_size = dlg.m_height;
 			int w = m_fp.m_value_w = dlg.m_width;
+			// CPT: the following regenerates the VALUE text and redraws it to m_fp.m_dlist
 			m_fp.m_value->Move(x, y, angle, false, false, LAY_FP_SILK_TOP, sz, w);
 			if( m_fp.m_value_size )
 			{
@@ -2639,6 +2671,8 @@ void CFootprintView::OnValueEdit()
 			}
 			else
 				CancelSelection();
+			EnableRevealValue();			// CPT
+			FootprintModified(true);
 		}
 		Invalidate( FALSE );		
 	}
@@ -2664,6 +2698,20 @@ void CFootprintView::OnValueMove()
 	ReleaseDC( pDC );
 	Invalidate( FALSE );
 }
+
+void CFootprintView::OnValueReveal()
+{
+	// CPT:  new function for revealing hidden (i.e. size 0) value text
+	PushUndo();
+	CancelSelection();
+	m_fp.Undraw();
+	m_fp.GenerateValueParams();
+	m_fp.Draw(m_dlist, m_Doc->m_smfontutil);
+	FootprintModified(true);
+	EnableRevealValue();
+	OnViewEntireFootprint();
+}
+
 
 void CFootprintView::OnAddAdhesive()
 {

@@ -70,8 +70,11 @@ BOOL padstack::operator==(padstack p)
 CShape::CShape()
 {
 	m_tl = new CTextList;	
+	CString strRef ("REF");
+	m_ref = new CText(0, 0, 0, 0, 0, false, LAY_FP_SILK_TOP, 0, 0, 0, &strRef, ID_PART, ID_SEL_REF_TXT);
+	CString strValue ("VALUE");
+	m_value = new CText(0, 0, 0, 0, 0, false, LAY_FP_SILK_TOP, 0, 0, 0, &strValue, ID_PART, ID_SEL_VALUE_TXT);
 	Clear();
-	m_ref = m_value = NULL;		// CPT
 } 
 
 // destructor
@@ -80,8 +83,8 @@ CShape::~CShape()
 {
 	Clear();
 	delete m_tl;
-	if (m_ref) delete m_ref;
-	if (m_value) delete m_value; // CPT
+	delete m_ref;
+	delete m_value; // CPT
 }
 
 void CShape::Clear()
@@ -98,11 +101,13 @@ void CShape::Clear()
 	m_ref_yi = 200*NM_PER_MIL;
 	m_ref_angle = 0;
 	m_ref_w = 10*NM_PER_MIL;
+	m_ref->Move(m_ref_xi, m_ref_yi, m_ref_angle, false, false, LAY_FP_SILK_TOP, m_ref_size, m_ref_w);
 	m_value_size = 100*NM_PER_MIL;		
 	m_value_xi = 100*NM_PER_MIL;
 	m_value_yi = 0;
 	m_value_angle = 0;
 	m_value_w = 10*NM_PER_MIL;
+	m_value->Move(m_value_xi, m_value_yi, m_value_angle, false, false, LAY_FP_SILK_TOP, m_value_size, m_value_w);
 	m_centroid_type = CENTROID_DEFAULT;
 	m_centroid_x = 0;
 	m_centroid_y = 0;
@@ -1081,6 +1086,9 @@ int CShape::MakeFromString( CString name, CString str )
 	m_centroid_x = c.x;
 	m_centroid_y = c.y;
 	m_centroid_angle = 0;
+	// CPT: get m_ref and m_value into the correct positions
+	m_ref->Move(m_ref_xi, m_ref_yi, m_ref_angle, false, false, LAY_FP_SILK_TOP, m_ref_size, m_ref_w);
+	m_value->Move(m_value_xi, m_value_yi, m_value_angle, false, false, LAY_FP_SILK_TOP, m_value_size, m_value_w);
 	return 0;
 }
 
@@ -1479,34 +1487,13 @@ normal_return:
 			m_centroid_y = c.y;
 			m_centroid_angle = 0;
 		}
+
 		// generate value params if not defined
 		if( !bValue )
-		{
-			// no value parameters, make them from ref text params
-			m_value_size = m_ref_size;
-			m_value_w = m_ref_w;
-			m_value_angle = m_ref_angle;
-			if( m_ref_angle == 0 )
-			{
-				m_value_xi = m_ref_xi;
-				m_value_yi = m_ref_yi - m_value_size*2;
-			}
-			else if( m_ref_angle == 90 )
-			{
-				m_value_xi = m_ref_xi - m_value_size*2;
-				m_value_yi = m_ref_yi;
-			}
-			else if( m_ref_angle == 180 )
-			{
-				m_value_xi = m_ref_xi;
-				m_value_yi = m_ref_yi + m_value_size*2;
-			}
-			else
-			{
-				m_value_xi = m_ref_xi + m_value_size*2;
-				m_value_yi = m_ref_yi;
-			}
-		}
+			GenerateValueParams();
+		// CPT: move m_ref and m_value into position:
+		m_ref->Move(m_ref_xi, m_ref_yi, m_ref_angle, false, false, LAY_FP_SILK_TOP, m_ref_size, m_ref_w);
+		m_value->Move(m_value_xi, m_value_yi, m_value_angle, false, false, LAY_FP_SILK_TOP, m_value_size, m_value_w);
 		return 0;
 	}
 
@@ -1549,12 +1536,14 @@ int CShape::Copy( CShape * shape )
 	m_ref_xi = shape->m_ref_xi;
 	m_ref_yi = shape->m_ref_yi;
 	m_ref_angle = shape->m_ref_angle;
+	m_ref->Move(m_ref_xi, m_ref_yi, m_ref_angle, false, false, LAY_FP_SILK_TOP, m_ref_size, m_ref_w);
 	// value text
 	m_value_size = shape->m_value_size;
 	m_value_w = shape->m_value_w;
 	m_value_xi = shape->m_value_xi;
 	m_value_yi = shape->m_value_yi;
 	m_value_angle = shape->m_value_angle;
+	m_value->Move(m_value_xi, m_value_yi, m_value_angle, false, false, LAY_FP_SILK_TOP, m_value_size, m_value_w);
 	// centroid
 	m_centroid_type = shape->m_centroid_type;
 	m_centroid_x = shape->m_centroid_x;
@@ -1862,7 +1851,16 @@ int CShape::WriteFootprint( CStdioFile * file )
 HENHMETAFILE CShape::CreateMetafile( CMetaFileDC * mfDC, CDC * pDC, int x_size, int y_size )
 {
 	// get bounds of shape
-	int x_min = INT_MAX;
+	// CPT:  substituted in a call to GetBounds() (I get my jollies by culling duplicate code).  It's probably possible to factor out some
+	// of the drawing that occurs later in the routine as well...
+	CRect r = GetBounds(), rRef;
+	// Account for the ref-text bounds also (which GetBounds() didn't do)
+	m_ref->GetBounds(rRef);
+	r.left = min(r.left, rRef.left);
+	r.right = max(r.right, rRef.right);
+	r.bottom = min(r.bottom, rRef.bottom);
+	r.top = max(r.top, rRef.top);
+/*	int x_min = INT_MAX;
 	int x_max = INT_MIN;
 	int y_min = INT_MAX;
 	int y_max = INT_MIN;
@@ -1987,12 +1985,13 @@ HENHMETAFILE CShape::CreateMetafile( CMetaFileDC * mfDC, CDC * pDC, int x_size, 
 	x_max = max( x_max, m_ref_xi+3*m_ref_size );
 	y_min = min( y_min, m_ref_yi );
 	y_max = max( y_max, m_ref_yi+m_ref_size );
+	*/
 
 	// convert to mils
-	x_min = x_min/NM_PER_MIL;
-	x_max = x_max/NM_PER_MIL;
-	y_min = y_min/NM_PER_MIL;
-	y_max = y_max/NM_PER_MIL;
+	int x_min = r.left/NM_PER_MIL;
+	int x_max = r.right/NM_PER_MIL;
+	int y_min = r.bottom/NM_PER_MIL;
+	int y_max = r.top/NM_PER_MIL;
 
 	// set up scale factor for drawing, mils per pixel
 	double x_scale = (double)(x_max-x_min)/(double)x_size;
@@ -2408,7 +2407,8 @@ HENHMETAFILE CShape::CreateMetafile( CMetaFileDC * mfDC, CDC * pDC, int x_size, 
 	return hMF;
 }
 
-HENHMETAFILE CShape::CreateWarningMetafile( CMetaFileDC * mfDC, CDC * pDC, int x_size, int y_size )
+// CPT:  the following is apparently leftover scrap?  Cull it out?
+/* HENHMETAFILE CShape::CreateWarningMetafile( CMetaFileDC * mfDC, CDC * pDC, int x_size, int y_size )
 {
 	CRect rNM;
 	rNM.left = 0;
@@ -2435,6 +2435,7 @@ HENHMETAFILE CShape::CreateWarningMetafile( CMetaFileDC * mfDC, CDC * pDC, int x
 	HENHMETAFILE hMF = mfDC->CloseEnhanced();
 	return hMF;
 }
+*/
 
 // Get default centroid
 // if no pads, returns (0,0)
@@ -2819,17 +2820,8 @@ void CEditShape::Draw( CDisplayList * dlist, SMFontUtil * fontutil )
 		}
 	}
 
-	// draw ref designator text.  CPT:  new simpler system makes use of the CText machinery
-	CString strRef ("REF");
-	if (!m_ref)
-		m_ref = new CText(dlist, m_ref_xi, m_ref_yi, m_ref_angle, 0, false, 
-						  LAY_FP_SILK_TOP, m_ref_size, m_ref_w, 0, &strRef, ID_PART, ID_SEL_REF_TXT);
+	// draw ref designator & value text.  CPT:  new simpler system makes use of the CText machinery
 	m_ref->Draw(dlist, fontutil);
-	// draw value text
-	CString strValue ("VALUE");
-	if (!m_value)
-		m_value = new CText(dlist, m_value_xi, m_value_yi, m_value_angle, 0, false, 
-						  LAY_FP_SILK_TOP, m_value_size, m_value_w, 0, &strValue, ID_PART, ID_SEL_VALUE_TXT);
 	if (m_value_size)
 		m_value->Draw( dlist, fontutil );
 
@@ -3337,4 +3329,33 @@ BOOL CEditShape::GenerateSelectionRectangle( CRect * r )
 	m_sel_yi = br.bottom;
 	m_sel_yf = br.top;
 	return TRUE;
+}
+
+
+void CShape::GenerateValueParams() {
+	// CPT:  factored-out helper function.  If value has been hidden or isn't specified, we call this function & position it relative to the ref-text
+	m_value_size = m_ref_size;
+	m_value_w = m_ref_w;
+	m_value_angle = m_ref_angle;
+	if( m_ref_angle == 0 )
+	{
+		m_value_xi = m_ref_xi;
+		m_value_yi = m_ref_yi - m_value_size*2;
+	}
+	else if( m_ref_angle == 90 )
+	{
+		m_value_xi = m_ref_xi - m_value_size*2;
+		m_value_yi = m_ref_yi;
+	}
+	else if( m_ref_angle == 180 )
+	{
+		m_value_xi = m_ref_xi;
+		m_value_yi = m_ref_yi + m_value_size*2;
+	}
+	else
+	{
+		m_value_xi = m_ref_xi + m_value_size*2;
+		m_value_yi = m_ref_yi;
+	}
+	m_value->Move(m_value_xi, m_value_yi, m_value_angle, false, false, LAY_FP_SILK_TOP, m_value_size, m_value_w);
 }

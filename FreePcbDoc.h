@@ -256,7 +256,8 @@ public:
 	DesignRules m_dr;
 
 	// CPT:  new preference values
-	bool bReversePgupPgdn;
+	bool m_bReversePgupPgdn;
+	bool m_bLefthanded;
 
 // Generated message map functions
 public:

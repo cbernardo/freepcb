@@ -1937,7 +1937,9 @@ void CFreePcbDoc::ReadOptions( CStdioFile * pcb_file )
 				}
 			}
 			else if (np && key_str == "reverse_pgup_pgdn")
-				bReversePgupPgdn = my_atoi(&p[0]);
+				m_bReversePgupPgdn = my_atoi(&p[0]);
+			else if (np && key_str == "lefthanded_mode")
+				m_bLefthanded = my_atoi(&p[0]);
 		}
 		if( m_fp_visible_grid.GetSize() == 0 )
 		{
@@ -2030,7 +2032,7 @@ void CFreePcbDoc::CollectOptionsStrings(CArray<CString> &arr) {
 	arr.Add( line );
 	line.Format( "dsn_signals_poly: \"%d\"\n", m_dsn_signals_poly );
 	arr.Add( line );
-	// CPT autosave_interval, auto_ratline_disable, auto_ratline_disable_min_pins, and reverse_pgup_pgdn are now stored in default.cfg ONLY
+	// CPT autosave_interval, auto_ratline_disable, auto_ratline_disable_min_pins, reverse_pgup_pgdn, etc. are now stored in default.cfg ONLY
 
 	line.Format( "netlist_import_flags: %d\n", m_import_flags );
 	arr.Add( line );
@@ -4787,10 +4789,11 @@ void ReplaceLines(CArray<CString> &oldLines, CArray<CString> &newLines, char *ke
 void CFreePcbDoc::OnToolsPreferences() {
 	CDlgPrefs dlg;
 	dlg.doc = this;
-	dlg.Init( bReversePgupPgdn, m_auto_interval, m_auto_ratline_disable, m_auto_ratline_min_pins); 
+	dlg.Init( m_bReversePgupPgdn, m_bLefthanded, m_auto_interval, m_auto_ratline_disable, m_auto_ratline_min_pins); 
 	int ret = dlg.DoModal();
 	if( ret == IDOK ) {
-		bReversePgupPgdn = dlg.m_bReverse;
+		m_bReversePgupPgdn = dlg.m_bReverse;
+		m_bLefthanded = dlg.m_bLefthanded;
 		m_auto_interval = dlg.m_auto_interval;
 		m_auto_ratline_disable = dlg.m_bAuto_Ratline_Disable;
 		m_auto_ratline_min_pins = dlg.m_auto_ratline_min_pins;
@@ -4803,7 +4806,9 @@ void CFreePcbDoc::OnToolsPreferences() {
 		newLines.Add( line );
 		line.Format( "auto_ratline_disable_min_pins: \"%d\"\n", m_auto_ratline_min_pins );
 		newLines.Add( line );
-		line.Format( "reverse_pgup_pgdn: \"%d\"\n", bReversePgupPgdn);
+		line.Format( "reverse_pgup_pgdn: \"%d\"\n", m_bReversePgupPgdn);
+		newLines.Add( line );
+		line.Format( "lefthanded_mode: \"%d\"\n", m_bLefthanded);
 		newLines.Add( line );
 		CString fn = m_app_dir + "\\" + "default.cfg";
 		ReadFileLines(fn, oldLines);
@@ -4811,7 +4816,9 @@ void CFreePcbDoc::OnToolsPreferences() {
 		ReplaceLines(oldLines, newLines, "auto_ratline_disable");
 		ReplaceLines(oldLines, newLines, "auto_ratline_disable_min_pins");
 		ReplaceLines(oldLines, newLines, "reverse_pgup_pgdn");
+		ReplaceLines(oldLines, newLines, "lefthanded_mode");
 		WriteFileLines(fn, oldLines);
+		m_view->SetFKText(m_view->m_cursor_mode);					// In case user changed the left-handed mode...
 		}
 	}
 

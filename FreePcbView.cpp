@@ -4079,6 +4079,13 @@ void CFreePcbView::SetFKText( int mode )
 		break;
 	}
 
+	// CPT: Lefthanded mode support:  if set, reverse key meanings
+	if (m_Doc->m_bLefthanded) 
+		for (int lo=0, hi=8, tmp; lo<hi; lo++, hi--)
+			tmp = m_fkey_option[lo], 
+			m_fkey_option[lo] = m_fkey_option[hi],
+			m_fkey_option[hi] = tmp;
+
 	for( int i=0; i<12; i++ )
 	{
 		// CPT: now we store resource string id's rather than do a strcpy() as before

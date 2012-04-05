@@ -12,16 +12,14 @@ IMPLEMENT_DYNAMIC(CDlgPrefs, CDialogEx)
 
 CDlgPrefs::CDlgPrefs(CWnd* pParent /*=NULL*/)
 	: CDialogEx(CDlgPrefs::IDD, pParent)
-{
-
-}
+	{ }
 
 CDlgPrefs::~CDlgPrefs()
-{
-}
+	{ }
 
-void CDlgPrefs::Init(bool bReverse, int auto_interval,	BOOL bAuto_Ratline_Disable,	int auto_ratline_min_pins) {
+void CDlgPrefs::Init(bool bReverse, bool bLefthanded, int auto_interval, BOOL bAuto_Ratline_Disable, int auto_ratline_min_pins) {
 	m_bReverse = bReverse;
+	m_bLefthanded = bLefthanded;
 	m_auto_interval = auto_interval;
 	m_bAuto_Ratline_Disable = bAuto_Ratline_Disable;
 	m_auto_ratline_min_pins = auto_ratline_min_pins;
@@ -33,6 +31,7 @@ void CDlgPrefs::DoDataExchange(CDataExchange* pDX) {
 		// incoming:  convert seconds to minutes
 		m_auto_interval /= 60;
 	DDX_Control(pDX, IDC_REVERSE_PGUP_PGDN, m_check_reverse);
+	DDX_Control(pDX, IDC_LEFTHAND_MODE, m_check_lefthanded);
 	DDX_Control(pDX, IDC_CHECK_AUTOSAVE, m_check_autosave);
 	DDX_Control(pDX, IDC_EDIT_AUTO_INTERVAL, m_edit_auto_interval);
 	DDX_Text(pDX, IDC_EDIT_AUTO_INTERVAL, m_auto_interval );
@@ -45,6 +44,7 @@ void CDlgPrefs::DoDataExchange(CDataExchange* pDX) {
 	if(pDX->m_bSaveAndValidate)  { 
 		// outgoing
 		m_bReverse = m_check_reverse.GetCheck();
+		m_bLefthanded = m_check_lefthanded.GetCheck();
 		m_bAuto_Ratline_Disable = m_check_disable_auto_rats.GetCheck();
 		// convert minutes to seconds
 		m_auto_interval *= 60;
@@ -55,6 +55,7 @@ void CDlgPrefs::DoDataExchange(CDataExchange* pDX) {
 BEGIN_MESSAGE_MAP(CDlgPrefs, CDialogEx)
 	ON_BN_CLICKED(IDC_CHECK_AUTOSAVE, OnBnClickedCheckAutosave)
 	ON_BN_CLICKED(IDC_CHECK_AUTORAT_DISABLE, OnBnClickedCheckAutoRatDisable)
+	ON_EN_CHANGE(IDC_EDIT_AUTO_INTERVAL, &CDlgPrefs::OnEnChangeEditAutoInterval)
 END_MESSAGE_MAP()
 
 
@@ -65,6 +66,7 @@ BOOL CDlgPrefs::OnInitDialog()
 	CDialog::OnInitDialog();
 
 	m_check_reverse.SetCheck(m_bReverse);
+	m_check_lefthanded.SetCheck(m_bLefthanded);
 	if( !m_auto_interval )
 	{
 		m_edit_auto_interval.EnableWindow( FALSE );
@@ -94,3 +96,14 @@ void CDlgPrefs::OnBnClickedCheckAutoRatDisable()
 	m_edit_min_pins.EnableWindow( m_check_disable_auto_rats.GetCheck() );
 }
 
+
+
+void CDlgPrefs::OnEnChangeEditAutoInterval()
+{
+	// TODO:  If this is a RICHEDIT control, the control will not
+	// send this notification unless you override the CDialogEx::OnInitDialog()
+	// function and call CRichEditCtrl().SetEventMask()
+	// with the ENM_CHANGE flag ORed into the mask.
+
+	// TODO:  Add your control notification handler code here
+}
