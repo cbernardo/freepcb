@@ -155,53 +155,26 @@ void RotateRect( CRect *r, int angle, CPoint org )
 //				(xi,yi) and (xf,yf) are the end-points of the line segment
 //				dist = maximum distance for hit
 //
-int TestLineHit( int xi, int yi, int xf, int yf, int x, int y, double dist )
+int TestLineHit( int xi, int yi, int xf, int yf, int x, int y, double dist, double *pRet )
 {
-	double dd;
-
-	// test for vertical or horizontal segment
-	if( xf==xi )
-	{
-		// vertical segment
-		dd = fabs( (double)(x-xi) );
-		if( dd<dist && ( (yf>yi && y<yf && y>yi) || (yf<yi && y>yf && y<yi) ) )
-			return 1;
-	}
-	else if( yf==yi )
-	{
-		// horizontal segment
-		dd = fabs( (double)(y-yi) );
-		if( dd<dist && ( (xf>xi && x<xf && x>xi) || (xf<xi && x>xf && x<xi) ) )
-			return 1;
-	}
-	else
-	{
-		// oblique segment
-		// find a,b such that (xi,yi) and (xf,yf) lie on y = a + bx
-		double b = (double)(yf-yi)/(xf-xi);
-		double a = (double)yi-b*xi;
-		// find c,d such that (x,y) lies on y = c + dx where d=(-1/b)
-		double d = -1.0/b;
-		double c = (double)y-d*x;
-		// find nearest point to (x,y) on line segment (xi,yi) to (xf,yf)
-		double xp = (a-c)/(d-b);
-		double yp = a + b*xp;
-		// find distance
-		dd = sqrt((x-xp)*(x-xp)+(y-yp)*(y-yp));
-		if( fabs(b)>0.7 )
-		{
-			// line segment more vertical than horizontal
-			if( dd<dist && ( (yf>yi && yp<yf && yp>yi) || (yf<yi && yp>yf && yp<yi) ) )
-				return 1;
-		}
-		else
-		{
-			// line segment more horizontal than vertical
-			if( dd<dist && ( (xf>xi && xp<xf && xp>xi) || (xf<xi && xp>xf && xp<xi) ) )
-				return 1;
-		}
-	}	
-	return 0;	// no hit
+	// CPT: improved algorithm (old one wasn't working well on short segs).  It also optionally returns a distance value in *pRet (if non-null).
+	// First determine (x,y)'s distance to each endpoint, obtaining the minimum of the two.  Then
+	// project (x,y) perpendicularly onto segment (xi,yi)-(xf,yf) (a touch of linear algebra).  If the projected point is between the endpoints,
+	// we measure the distance along the perpendicular and make that the return distance.
+	double dx = x-xi, dy = y-yi, d = sqrt(dx*dx+dy*dy);
+	double ret = d;
+	dx = x-xf, dy = y-yf, d = sqrt(dx*dx+dy*dy);
+	if (d<ret) ret = d;
+	// Translate (xi,yi) to the origin:
+	double xf2 = xf-xi, yf2 = yf-yi;
+	double x2 = x-xi, y2 = y-yi;
+    double lgthSeg = sqrt(xf2*xf2+yf2*yf2);
+	double pos = (x2*xf2 + y2*yf2) / lgthSeg;                // This is the relative position of (x,y) when projected onto line 0-(xf,yf)
+    if (pos>=0 && pos<=lgthSeg)
+		// Projected pt. is between the vertices...
+		ret = fabs(xf2*y2 - yf2*x2) / lgthSeg;	             // That's the distance from (x,y) to the line 0-(xf,yf)
+	if (pRet) *pRet = ret;
+    return ret < dist;
 }
 
 // function to read font file

@@ -281,3 +281,13 @@ CPT revisions:
 42. Got ESC key working better in footprint editor.
 
 ...TortoiseSVN commit, version 248
+
+43.  Fixed 'N' key so that it selects a net if a ratline was previously selected.  Also turned 'N' into a toggle key, so that pressing it twice takes 
+	us back to the prior selection.
+44.  Similar changes for 'T' (which selects individual traces)
+45. New system for selecting.  (See CDisplayList::TestSelect(), and the new CCommonView::m_sel_offset.)  If user repeatedly clicks on a spot where 
+	multiple objects are located, the selection cycles through all of them.  Ctrl-click in the main CFreePcbView is also affected:  if you ctrl-click 
+	a spot in order to select or unselect a group member, and don't get the effect you want, keep holding ctrl and clicking until you do.
+46. Improved TestLineHit() in utility.cpp so that we get more reliable results (on short segments particularly).  
+
+...TortoiseSVN commit, version 249

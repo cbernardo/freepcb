@@ -257,7 +257,8 @@ void CFootprintView::OnEndPrinting(CDC* /*pDC*/, CPrintInfo* /*pInfo*/)
 //
 void CFootprintView::OnLButtonDown(UINT nFlags, CPoint point) 
 {
-	CDC * pDC = NULL;	// !! remember to ReleaseDC() at end, if necessary
+	m_last_click = point;					// CPT
+	CDC * pDC = NULL;						// !! remember to ReleaseDC() at end, if necessary
 	// CPT:  not sure why we need pDC at all (some clauses below change its clipping, but does it really matter?)
 	m_lastKeyWasArrow = FALSE;	// cancel series of arrow keys
 	if (CheckBottomPaneClick(point)) return;
@@ -269,8 +270,7 @@ void CFootprintView::OnLButtonDown(UINT nFlags, CPoint point)
 		// we are not dragging anything, see if new item selected
 		CPoint p = m_dlist->WindowToPCB( point );
 		id id;
-		m_sel_ptr = m_dlist->TestSelect( p.x, p.y, &id, &m_sel_layer, &m_sel_id, m_sel_ptr, 
-			m_mask_id, NUM_FP_SEL_MASKS );
+		m_sel_ptr = m_dlist->TestSelect( p.x, p.y, &id, &m_sel_layer, &m_sel_offset, m_mask_id, NUM_FP_SEL_MASKS );
 
 		// deselect previously selected item
 		CancelSelection();
@@ -615,6 +615,7 @@ void CFootprintView::OnLButtonDblClk(UINT nFlags, CPoint point)
 		m_dlist->StartDraggingSelection( pDC, p.x, p.y );
 	}
 #endif
+	OnLButtonDown(nFlags, point);
 	CView::OnLButtonDblClk(nFlags, point);
 }
 
@@ -750,6 +751,7 @@ void CFootprintView::OnRButtonDown(UINT nFlags, CPoint point)
 //
 void CFootprintView::OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags) 
 {
+	m_sel_offset = -1;			// CPT.  Indicates that user has interrupted a series of mouse clicks.
 	HandleKeyPress( nChar, nRepCnt, nFlags );
 
 	// don't pass through SysKey F10
@@ -1060,7 +1062,7 @@ void CFootprintView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 		// Home key pressed
 		OnViewEntireFootprint();
 	else if( nChar == 27 )
-		// ESC key.  CPT:  modified to do what happens in FreePcbView:
+		// ESC key.  CPT: modified to do what happens in FreePcbView:
 		if( CurSelected() )
 			CancelSelection();
 		else
@@ -1076,6 +1078,8 @@ void CFootprintView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 //
 void CFootprintView::OnMouseMove(UINT nFlags, CPoint point) 
 {
+	if (m_sel_offset!=-1 && (abs(point.x-m_last_click.x) > 3 || abs(point.y-m_last_click.y) > 3))
+		m_sel_offset = -1;
 	m_last_mouse_point = m_dlist->WindowToPCB( point );
 	SnapCursorPoint( m_last_mouse_point );
 }

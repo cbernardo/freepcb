@@ -3683,7 +3683,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 							for( int il=0; il<copper_layers; il++ )
 							{
 								int layer = il + LAY_TOP_COPPER;
-								CString lay_str = layer_str[layer];
+								CString lay_str ((LPCSTR) (IDS_LayerStr+layer));
 								int t_pad_x, t_pad_y, t_pad_w, t_pad_l, t_pad_r;
 								int t_pad_type, t_pad_hole, t_pad_connect, t_pad_angle;
 								cnet * t_pad_net;

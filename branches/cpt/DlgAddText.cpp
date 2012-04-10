@@ -150,15 +150,15 @@ BOOL CDlgAddText::OnInitDialog()
 	// layers
 	if( m_fp_flag )
 	{
-		m_layer_list.InsertString( -1, fp_layer_str[LAY_FP_SILK_TOP] );
+		m_layer_list.InsertString( -1, (LPCSTR) (IDS_FpLayerStr+LAY_FP_SILK_TOP) );
 		m_layer_list.SetCurSel( 0 );
 	}
 	else
 	{
-		m_layer_list.InsertString( -1, layer_str[LAY_SILK_TOP] );
-		m_layer_list.InsertString( -1, layer_str[LAY_SILK_BOTTOM] );
+		m_layer_list.InsertString( -1, (LPCSTR) (IDS_LayerStr+LAY_SILK_TOP) );
+		m_layer_list.InsertString( -1, (LPCSTR) (IDS_LayerStr+LAY_SILK_BOTTOM) );
 		for( int i=LAY_TOP_COPPER; i<m_num_layers; i++ )
-			m_layer_list.InsertString( -1, layer_str[i] );
+			m_layer_list.InsertString( -1, (LPCSTR) (IDS_LayerStr+i) );
 	}
 
 	// angles
