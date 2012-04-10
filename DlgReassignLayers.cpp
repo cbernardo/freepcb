@@ -48,7 +48,7 @@ void CDlgReassignLayers::DoDataExchange(CDataExchange* pDX)
 				// old layer, set combo box to pick from new layers or "delete"
 				m_combo[il].EnableWindow( TRUE );
 				for( int inew=0; inew<m_new_layers; inew++ )
-					m_combo[il].InsertString( inew, layer_str[LAY_TOP_COPPER+inew] );
+					m_combo[il].InsertString( inew, (LPCSTR) (IDS_LayerStr+LAY_TOP_COPPER+inew));
 				CString s ((LPCSTR) IDS_Delete);
 				m_combo[il].InsertString( m_new_layers, s );
 				// initialize combo box to old layer, or delete if old layer > new layers

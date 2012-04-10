@@ -76,7 +76,8 @@ CCommonView::CCommonView()
 	m_memDC_created = FALSE;
 	m_dragging_new_item = FALSE;
 	m_units = MIL;
-	m_cursor_mode = -1;															// CPT.  Ensures that SetFKText() will get called																				// by InitInstance(),  no matter what.
+	m_cursor_mode = -1;												// CPT.  Ensures that SetFKText() will get called by InitInstance(),  no matter what.
+	m_sel_offset = -1;
 	}
 
 void CCommonView::BaseInit() {
@@ -722,6 +723,7 @@ void CCommonView::OnSysKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags)
 		OnKeyDown( nChar, nRepCnt, nFlags);
 	else
 		CView::OnSysKeyDown(nChar, nRepCnt, nFlags);
+	m_sel_offset = -1;													// CPT:  indicates that a series of mouse-clicks has been interrupted
 }
 
 // System Key on keyboard pressed up

@@ -607,6 +607,7 @@ public:
 	void ConvertSelectionToGroupAndMove(int dx, int dy);
 	void ConvertSingletonGroup();
 	void DoSelection(id &sid, void *ptr);
+	void ToggleSelectionState(id &sid, void *ptr);
 
 	// CPT:  virtual functions from CCommonView:
 	bool IsFreePcbView() { return true; }

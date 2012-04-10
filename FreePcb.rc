@@ -1852,12 +1852,12 @@ BEGIN
     LTEXT           "Y",IDC_STATIC,90,51,8,8
 END
 
-IDD_SHORTCUTS DIALOGEX 0, 0, 282, 290
+IDD_SHORTCUTS DIALOGEX 0, 0, 282, 327
 STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Keyboard Shortcuts"
 FONT 8, "MS Shell Dlg", 400, 0, 0x1
 BEGIN
-    PUSHBUTTON      "Cancel",IDCANCEL,120,267,50,12
+    PUSHBUTTON      "Cancel",IDCANCEL,120,289,50,12
     LTEXT           "space",IDC_STATIC,6,6,20,8
     LTEXT           "PgUp",IDC_STATIC,6,18,18,8
     LTEXT           "PgDn",IDC_STATIC,6,30,18,8
@@ -1865,9 +1865,9 @@ BEGIN
     LTEXT           "ESC",IDC_STATIC,6,54,14,8
     LTEXT           "1234567890qwerty",IDC_STATIC,6,66,63,8
     LTEXT           "t",IDC_STATIC,6,90,8,8
-    LTEXT           "n",IDC_STATIC,6,102,8,8
-    LTEXT           "s",IDC_STATIC,6,114,8,8
-    LTEXT           "SHIFT",IDC_STATIC,6,196,20,8
+    LTEXT           "n",IDC_STATIC,6,111,8,8
+    LTEXT           "s",IDC_STATIC,6,132,8,8
+    LTEXT           "SHIFT",IDC_STATIC,6,214,20,8
     LTEXT           "- center on cursor",IDC_STATIC,42,6,92,8
     LTEXT           "- center on cursor and zoom in",IDC_STATIC,42,18,117,8
     LTEXT           "- center on cursor and zoom out",IDC_STATIC,42,30,117,8
@@ -1875,29 +1875,31 @@ BEGIN
     LTEXT           "- cancel selection or drawing operation",IDC_STATIC,42,54,165,8
     LTEXT           "- set routing layer (1 to 16)",IDC_STATIC,72,66,138,8
     LTEXT           "- with segment or vertex selected, press to highlight entire trace",IDC_STATIC,42,90,231,8
-    LTEXT           "- with pin, segment or vertex selected, press to highlight entire net",IDC_STATIC,42,102,230,8
-    LTEXT           "- with pin selected, hold down and select another pin to swap connections",IDC_STATIC,42,114,231,8
-    LTEXT           "- when using arrows, hold down to move in steps of 1 mil or 0.01 mm",IDC_STATIC,42,196,240,8
-    LTEXT           "arrows",IDC_STATIC,6,174,23,8
-    LTEXT           "- move selected item(s) one grid step",IDC_STATIC,42,174,153,8
-    LTEXT           "CTRL",IDC_STATIC,6,220,18,8
-    LTEXT           "- hold down when selecting items to add/remove from group",IDC_STATIC,42,220,225,8
-    LTEXT           "d",IDC_STATIC,6,126,8,8
-    LTEXT           "- hold down to magnify DRC erors",IDC_STATIC,42,126,104,8
-    LTEXT           "Backspace",IDC_STATIC,6,232,34,8
-    LTEXT           "- while routing, back up one segment",IDC_STATIC,43,232,164,8
-    LTEXT           "f",IDC_STATIC,6,138,8,8
-    LTEXT           "- with vertex selected, force a via",IDC_STATIC,42,138,110,8
-    LTEXT           "u",IDC_STATIC,6,150,8,8
-    LTEXT           "- with vertex selected, unforce a via",IDC_STATIC,42,150,118,8
-    LTEXT           "- when routing from off-grid point, hold down to reverse trace angles",IDC_STATIC,42,206,234,8
-    LTEXT           "m",IDC_STATIC,6,163,8,8
-    LTEXT           "- press to enter ""measurement"" mode",IDC_STATIC,42,163,164,8
+    LTEXT           "- with pin, segment or vertex selected, press to highlight entire net",IDC_STATIC,42,111,230,8
+    LTEXT           "- with pin selected, hold down and select another pin to swap connections",IDC_STATIC,42,132,231,8
+    LTEXT           "- when using arrows, hold down to move in steps of 1 mil or 0.01 mm",IDC_STATIC,42,214,240,8
+    LTEXT           "arrows",IDC_STATIC,6,192,23,8
+    LTEXT           "- move selected item(s) one grid step",IDC_STATIC,42,192,153,8
+    LTEXT           "CTRL",IDC_STATIC,6,238,18,8
+    LTEXT           "- hold down when selecting items to add/remove from group",IDC_STATIC,42,238,225,8
+    LTEXT           "d",IDC_STATIC,6,144,8,8
+    LTEXT           "- hold down to magnify DRC erors",IDC_STATIC,42,144,104,8
+    LTEXT           "Backspace",IDC_STATIC,6,250,34,8
+    LTEXT           "- while routing, back up one segment",IDC_STATIC,43,250,164,8
+    LTEXT           "f",IDC_STATIC,6,156,8,8
+    LTEXT           "- with vertex selected, force a via",IDC_STATIC,42,156,110,8
+    LTEXT           "u",IDC_STATIC,6,168,8,8
+    LTEXT           "- with vertex selected, unforce a via",IDC_STATIC,42,168,118,8
+    LTEXT           "- when routing from off-grid point, hold down to reverse trace angles",IDC_STATIC,42,224,234,8
+    LTEXT           "m",IDC_STATIC,6,181,8,8
+    LTEXT           "- press to enter ""measurement"" mode",IDC_STATIC,42,181,164,8
     LTEXT           "SHIFT-1234567890qwerty",IDC_STATIC,6,78,86,8
     LTEXT           "- change layer of trace or copper area",IDC_STATIC,96,78,168,8
-    LTEXT           "- in routing mode, change segment width",IDC_STATIC,42,185,225,8
-    LTEXT           "/",IDC_STATIC,6,244,8,8
-    LTEXT           "- toggle units (mm or mil)",IDC_STATIC,43,244,164,8
+    LTEXT           "- in routing mode, change segment width",IDC_STATIC,42,203,225,8
+    LTEXT           "/",IDC_STATIC,6,262,8,8
+    LTEXT           "- toggle units (mm or mil)",IDC_STATIC,43,262,164,8
+    LTEXT           "- hit twice to restore previous highlighting",IDC_STATIC,42,120,230,8
+    LTEXT           "- hit twice to restore previous highlighting",IDC_STATIC,42,99,230,8
 END
 
 IDD_MY_MESSAGE DIALOGEX 0, 0, 244, 101
@@ -2404,8 +2406,21 @@ END
 #ifdef APSTUDIO_INVOKED
 GUIDELINES DESIGNINFO
 BEGIN
+    IDD_ABOUTBOX, DIALOG
+    BEGIN
+    END
+
     IDD_PROJECT_OPTIONS, DIALOG
     BEGIN
+    END
+
+    IDD_CHANGE_LAYER, DIALOG
+    BEGIN
+    END
+
+    IDD_SHORTCUTS, DIALOG
+    BEGIN
+        BOTTOMMARGIN, 320
     END
 
     IDD_PREFS, DIALOG
@@ -3805,7 +3820,7 @@ END
 
 STRINGTABLE
 BEGIN
-    IDS_AppName             "FPC-CPT 0.19"
+    IDS_AppName             "FPC-CPT 0.21"
 END
 
 STRINGTABLE

@@ -384,7 +384,9 @@ void CFreePcbView::OnEndPrinting(CDC* /*pDC*/, CPrintInfo* /*pInfo*/)
 //
 void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 {
-	ReleaseCapture();								// CPT
+	ReleaseCapture();									// CPT
+	bool bCtrlKeyDown = (nFlags & MK_CONTROL) != 0;		// CPT
+	m_last_click = point;								// CPT
 	if( !m_bLButtonDown )
 	{
 		// this avoids problems with opening a project with the button held down
@@ -408,7 +410,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		CPoint tl = m_dlist->WindowToPCB( m_drag_rect.TopLeft() );
 		CPoint br = m_dlist->WindowToPCB( m_drag_rect.BottomRight() );
 		m_sel_rect = CRect( tl, br );
-		if( nFlags & MK_CONTROL )
+		if( bCtrlKeyDown )
 		{
 			// control key held down.  CPT streamlined:
 			ConvertSelectionToGroup(true);
@@ -445,17 +447,23 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 			sel_ptr = m_sel_text;
 		else if( m_sel_id.type == ID_DRC )
 			sel_ptr = m_sel_dre;
+		if (bCtrlKeyDown && m_sel_offset>=0) 
+			// CPT: User is doing multiple ctrl-clicks.  Reverse the selection state of the item that was affected by the previous click
+			ConvertSelectionToGroup(false),
+			ToggleSelectionState(m_sel_id_prev, m_sel_prev),
+			Invalidate(false);
 		// save masks in case they are changed
 		id old_mask_pins = m_mask_id[SEL_MASK_PINS];
 		id old_mask_ref = m_mask_id[SEL_MASK_REF];
-		if( nFlags & MK_CONTROL && m_mask_id[SEL_MASK_PARTS].ii == 0xfffe )
+		if( bCtrlKeyDown && m_mask_id[SEL_MASK_PARTS].ii == 0xfffe )
 		{
 			// if control key pressed and parts masked, also mask pins and ref
 			m_mask_id[SEL_MASK_PINS].ii = 0xfffe;
 			m_mask_id[SEL_MASK_REF].ii = 0xfffe;
 		}
-		void * ptr = m_dlist->TestSelect( p.x, p.y, &sid, &m_sel_layer, &m_sel_id, sel_ptr,
-			m_mask_id, NUM_SEL_MASKS );
+		void * ptr = m_dlist->TestSelect( p.x, p.y, &sid, &m_sel_layer, &m_sel_offset, m_mask_id, NUM_SEL_MASKS, bCtrlKeyDown );
+		m_sel_id_prev = sid;
+		m_sel_prev = ptr;
 		// restore mask
 		m_mask_id[SEL_MASK_PINS] = old_mask_pins;
 		m_mask_id[SEL_MASK_REF] = old_mask_ref;
@@ -503,74 +511,27 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		}
 
 		// now handle new selection
-		if( nFlags & MK_CONTROL )
+		if( bCtrlKeyDown )
 		{
-			// control key held down
-			if(    sid.type == ID_PART
-					&& m_mask_id[SEL_MASK_PARTS].ii != 0xfffe
-				|| sid.type == ID_TEXT
-					&& m_mask_id[SEL_MASK_TEXT].ii != 0xfffe
-				|| (sid.type == ID_NET && sid.st == ID_CONNECT && sid.sst == ID_SEL_SEG
-					&& ((cnet*)ptr)->connect[sid.i].seg[sid.ii].layer != LAY_RAT_LINE)
-					&& m_mask_id[SEL_MASK_CON].ii != 0xfffe
-				|| sid.type == ID_NET && sid.st == ID_CONNECT && sid.sst == ID_SEL_VERTEX
-					&& (((cnet*)ptr)->connect[sid.i].vtx[sid.ii].tee_ID
-						|| ((cnet*)ptr)->connect[sid.i].vtx[sid.ii].force_via_flag )
-					&& m_mask_id[SEL_MASK_VIA].ii != 0xfffe
-				|| sid.type == ID_NET && sid.st == ID_AREA && sid.sst == ID_SEL_SIDE
-					&& m_mask_id[SEL_MASK_AREAS].ii != 0xfffe
-				|| sid.type == ID_SM_CUTOUT && sid.st == ID_SM_CUTOUT && sid.sst == ID_SEL_SIDE
-					&& m_mask_id[SEL_MASK_SM].ii != 0xfffe
-				|| sid.type == ID_BOARD && sid.st == ID_BOARD && sid.sst == ID_SEL_SIDE
-					&& m_mask_id[SEL_MASK_BOARD].ii != 0xfffe
-					)
+			// CPT: former clause for checking legality of selection for group membership eliminated 
+			// (the check now occurs within CDisplayList::TestSelect())
+			if( sid.type == ID_PART )
 			{
-				// legal selection for group
-				if( sid.type == ID_PART )
-				{
-					sid.st = ID_SEL_RECT;
-					sid.i = 0;
-					sid.sst = 0;
-					sid.ii = 0;
-				}
-				// if previous single selection, convert to group.  CPT streamlined
-				ConvertSelectionToGroup(true);
-				// now add or remove from group
-				if( m_cursor_mode == CUR_GROUP_SELECTED )
-				{
-					BOOL bFound = FALSE;
-					for( int i=0; i<m_sel_ids.GetSize(); i++ )
-					{
-						id tid = m_sel_ids[i];
-						void * tptr = m_sel_ptrs[i];
-						if( tid == sid && m_sel_ptrs[i] == ptr )
-						{
-							bFound = TRUE;
-							m_sel_ptrs.RemoveAt(i);
-							m_sel_ids.RemoveAt(i);
-						}
-					}
-					if( !bFound )
-					{
-						m_sel_ids.Add( sid );
-						m_sel_ptrs.Add( ptr );
-					}
-					if( m_sel_ids.GetSize() == 0 )
-					{
-						CancelSelection();
-					}
-					else if (m_sel_ids.GetSize() == 1)
-						ConvertSingletonGroup();
-					else
-					{
-						HighlightGroup();
-					}
-					Invalidate( FALSE );
-				}
+				sid.st = ID_SEL_RECT;
+				sid.i = 0;
+				sid.sst = 0;
+				sid.ii = 0;
+				m_sel_id_prev = sid;
 			}
+			if (sid.type)
+				// if previous single selection, convert to group.
+				ConvertSelectionToGroup(true),
+				// now add or remove from group
+				ToggleSelectionState(sid, ptr);
+			Invalidate( FALSE );
 		}
 
-		// CPT: reworked;  will invoke new helper function DoSelection().
+		// CPT: reworked;  will invoke new helper function DoSelection().  Do we really need this business with the 'N' key here?
 		else if( sid.type == ID_PART &&  (GetKeyState('N') & 0x8000) && sid.st == ID_SEL_PAD )
 		{
 			// pad selected and if "n" held down, select net
@@ -1442,7 +1403,8 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		CPoint p = m_dlist->WindowToPCB( point );
 		id sel_id;	// id of selected item
 		id pad_id( ID_PART, ID_SEL_PAD, 0, 0, 0 );	// force selection of pad
-		void * ptr = m_dlist->TestSelect( p.x, p.y, &sel_id, &m_sel_layer, NULL, NULL, &pad_id );
+		m_sel_offset = -1;
+		void * ptr = m_dlist->TestSelect( p.x, p.y, &sel_id, &m_sel_layer, &m_sel_offset, &pad_id );
 		if( ptr )
 		{
 			if( sel_id.type == ID_PART && sel_id.st == ID_SEL_PAD )
@@ -1681,7 +1643,8 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		CPoint p = m_dlist->WindowToPCB( point );
 		id sel_id;	// id of selected item
 		id pad_id( ID_PART, ID_SEL_PAD, 0, 0, 0 );	// force selection of pad
-		void * ptr = m_dlist->TestSelect( p.x, p.y, &sel_id, &m_sel_layer, NULL, NULL, &pad_id );
+		m_sel_offset = -1;
+		void * ptr = m_dlist->TestSelect( p.x, p.y, &sel_id, &m_sel_layer, &m_sel_offset, &pad_id );
 		if( ptr )
 		{
 			if( sel_id.type == ID_PART )
@@ -1744,7 +1707,8 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		CPoint p = m_dlist->WindowToPCB( point );
 		id sel_id;	// id of selected item
 		id pad_id( ID_PART, ID_SEL_PAD, 0, 0, 0 );	// test for hit on pad
-		void * ptr = m_dlist->TestSelect( p.x, p.y, &sel_id, &m_sel_layer, NULL, NULL, &pad_id );
+		m_sel_offset = -1;
+		void * ptr = m_dlist->TestSelect( p.x, p.y, &sel_id, &m_sel_layer, &m_sel_offset, &pad_id );
 		if( ptr && sel_id.type == ID_PART && sel_id.st == ID_SEL_PAD )
 		{
 			// see if we can connect to this pin
@@ -1964,6 +1928,9 @@ void CFreePcbView::OnLButtonDblClk(UINT nFlags, CPoint point)
 		m_dlist->StartDraggingSelection( pDC, p.x, p.y );
 	}
 #endif
+	m_bLButtonDown = true;				// CPT.  Basically double-clicking is a moribund concept in this program, and should be treated like 2 rapid
+										// single clicks.  This statement ensures that we get the usual results when the OnLButtonUp() gets called 
+										// momentarily
 	CView::OnLButtonDblClk(nFlags, point);
 }
 
@@ -1971,6 +1938,7 @@ void CFreePcbView::OnLButtonDblClk(UINT nFlags, CPoint point)
 //
 void CFreePcbView::OnRButtonDown(UINT nFlags, CPoint point)
 {
+	m_sel_offset = -1;							// CPT:  the current series of left-clicks has been interrupted...
 	m_disable_context_menu = 1;
 	if( m_cursor_mode == CUR_DRAG_PART )
 	{
@@ -2292,8 +2260,9 @@ void CFreePcbView::OnRButtonDown(UINT nFlags, CPoint point)
 //
 void CFreePcbView::OnKeyUp(UINT nChar, UINT nRepCnt, UINT nFlags)
 {
-	// CPT:  Removed code relating to gShiftKeyDown (used GetKeyState() instead)
+	m_sel_offset = -1;			// CPT.  Indicates that user has interrupted a series of mouse clicks.
 
+	// CPT:  Removed code relating to gShiftKeyDown (used GetKeyState() instead)
 	if( nChar == 'D' )
 	{
 		// 'd'
@@ -2321,7 +2290,6 @@ void CFreePcbView::OnKeyUp(UINT nChar, UINT nRepCnt, UINT nFlags)
 void CFreePcbView::OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags)
 {
 	// CPT: removed code relating to gShiftKeyDown (used GetKeyState() further down instead...)
-
 	if( nChar == 'D' )
 	{
 		// 'd'
@@ -2437,13 +2405,33 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 		return;
 	}
 
-	if( nChar == 'T' && (m_cursor_mode == CUR_VTX_SELECTED || m_cursor_mode == CUR_SEG_SELECTED ) )
-	{
-		// "t" pressed, select trace
-		m_sel_id.sst = ID_ENTIRE_CONNECT;
-		m_Doc->m_nlist->HighlightConnection( m_sel_net, m_sel_ic );
-		SetCursorMode( CUR_CONNECT_SELECTED );
-		Invalidate( FALSE );
+	if( nChar == 'T' )
+	{ 
+		if (m_cursor_mode == CUR_VTX_SELECTED || m_cursor_mode == CUR_SEG_SELECTED 
+			|| m_cursor_mode == CUR_RAT_SELECTED )									// CPT
+		{
+			// "t" pressed, select trace
+			m_sel_id_prev.Copy(&m_sel_id);						// CPT
+			m_sel_prev = m_sel_net;
+			m_cursor_mode_prev = m_cursor_mode;
+			m_sel_id.sst = ID_ENTIRE_CONNECT;
+			m_Doc->m_nlist->HighlightConnection( m_sel_net, m_sel_ic );
+			SetCursorMode( CUR_CONNECT_SELECTED );
+			Invalidate( FALSE );
+		}
+		else if (m_cursor_mode==CUR_NET_SELECTED)
+			// CPT.  Net selected => trace selected
+			m_dlist->CancelHighLight(),
+			m_sel_id.Copy(&m_sel_id_prev),
+			m_sel_id.sst = ID_ENTIRE_CONNECT,
+			m_Doc->m_nlist->HighlightConnection( m_sel_net, m_sel_ic ),
+			SetCursorMode( CUR_CONNECT_SELECTED ),
+			Invalidate( FALSE );
+		else if (m_cursor_mode==CUR_CONNECT_SELECTED)
+			// CPT:  'T' key now toggles back and forth between selected item and trace
+			m_dlist->CancelHighLight(),
+			DoSelection(m_sel_id_prev, m_sel_prev),
+			SetCursorMode(m_cursor_mode_prev);
 	}
 
 	if( nChar == 'N' )
@@ -2451,10 +2439,13 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 		// "n" pressed, select net
 		if( m_cursor_mode == CUR_VTX_SELECTED
 			|| m_cursor_mode == CUR_SEG_SELECTED
-			|| m_cursor_mode == CUR_CONNECT_SELECTED
+			|| m_cursor_mode == CUR_RAT_SELECTED				// CPT
 			|| m_cursor_mode == CUR_AREA_CORNER_SELECTED
 			|| m_cursor_mode == CUR_AREA_SIDE_SELECTED )
 		{
+			m_sel_id_prev.Copy(&m_sel_id);						// CPT
+			m_sel_prev = m_sel_net;
+			m_cursor_mode_prev = m_cursor_mode;
 			m_sel_id.st = ID_ENTIRE_NET;
 			m_Doc->m_nlist->HighlightNet( m_sel_net );
 			m_Doc->m_plist->HighlightAllPadsOnNet( m_sel_net );
@@ -2467,6 +2458,9 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 			cnet * net = m_Doc->m_plist->GetPinNet( m_sel_part, m_sel_id.i );
 			if( net )
 			{
+				m_sel_id_prev.Copy(&m_sel_id);					// CPT
+				m_sel_prev = m_sel_part;
+				m_cursor_mode_prev = m_cursor_mode;
 				m_sel_net = net;
 				m_sel_id = net->id;
 				m_sel_id.st = ID_ENTIRE_NET;
@@ -2475,6 +2469,20 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 				SetCursorMode( CUR_NET_SELECTED );
 			}
 		}
+		else if (m_cursor_mode==CUR_CONNECT_SELECTED)
+			// CPT:  trace selected => net selected
+			m_dlist->CancelHighLight(),
+			m_sel_id.Copy(&m_sel_id_prev),
+			m_sel_id.st = ID_ENTIRE_NET,
+			m_Doc->m_nlist->HighlightNet( m_sel_net ),
+			m_Doc->m_plist->HighlightAllPadsOnNet( m_sel_net ),
+			SetCursorMode( CUR_NET_SELECTED ),
+			Invalidate( FALSE );
+		else if (m_cursor_mode==CUR_NET_SELECTED)
+			// CPT:  'N' key now toggles back and forth between selected item and net
+			m_dlist->CancelHighLight(),
+			DoSelection(m_sel_id_prev, m_sel_prev),
+			SetCursorMode(m_cursor_mode_prev);
 	}
 
 	if (nChar==VK_OEM_2 || nChar==VK_DIVIDE) {
@@ -3578,7 +3586,10 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 
 void CFreePcbView::OnMouseMove(UINT nFlags, CPoint point)
 {
-	static BOOL bCursorOn = TRUE;
+	// CPT:  determine whether a series of mouse clicks by the user is truly over (see if we've moved away significantly from m_last_click).
+	// If so m_sel_offset is reset to -1.
+	if (m_sel_offset!=-1 && (abs(point.x-m_last_click.x) > 1 || abs(point.y-m_last_click.y) > 1))
+		m_sel_offset = -1;
 
 	if( (nFlags & MK_LBUTTON) && m_bLButtonDown )
 	{
@@ -3662,7 +3673,8 @@ void CFreePcbView::OnMouseMove(UINT nFlags, CPoint point)
 	CPoint p = m_dlist->WindowToPCB( point );
 	int hit_layer;
 	id hit_id, pad_id( ID_PART, ID_SEL_PAD, 0, 0, 0 );
-	void * ptr = m_dlist->TestSelect( p.x, p.y, &hit_id, &hit_layer, NULL, NULL, &pad_id );
+	m_sel_offset = -1;
+	void * ptr = m_dlist->TestSelect( p.x, p.y, &hit_id, &hit_layer, &m_sel_offset, &pad_id );
 	if (!ptr || hit_id.type != ID_PART || hit_id.st != ID_SEL_PAD )
 		{ pMain->DrawStatus(3, &pin_name); return; }
 	// hit on pin
@@ -4867,6 +4879,7 @@ int CFreePcbView::ShowActiveLayer()
 //
 BOOL CFreePcbView::OnMouseWheel(UINT nFlags, short zDelta, CPoint pt)
 {
+	m_sel_offset = -1;							// CPT:  the current series of left-clicks has been interrupted...
 	// ignore if cursor not in window
 	CRect wr;
 	GetWindowRect( wr );
@@ -12374,6 +12387,29 @@ void CFreePcbView::DoSelection(id &sid, void *ptr) {
 	
 	Invalidate( FALSE );
 	}
+
+void CFreePcbView::ToggleSelectionState(id &sid, void *ptr) {
+	// If the item specified by ptr/id is part of the selection group, remove it from the selection group.  Otherwise,
+	// add it to the group.
+	BOOL bFound = FALSE;
+	for (int i=0; i<m_sel_ids.GetSize(); i++) 
+		if (m_sel_ids[i] == sid && m_sel_ptrs[i] == ptr) {
+			bFound = TRUE;
+			m_sel_ptrs.RemoveAt(i);
+			m_sel_ids.RemoveAt(i);
+			break;
+			}
+	if (!bFound)
+		m_sel_ids.Add(sid),
+		m_sel_ptrs.Add(ptr);
+	if (m_sel_ids.GetSize() == 0)
+		CancelSelection();
+	else if (m_sel_ids.GetSize() == 1)
+		ConvertSingletonGroup();
+	else
+		HighlightGroup();
+	}
+
 
 void CFreePcbView::HandleNoShiftLayerKey(int layer, CDC *pDC) {
 	if( !m_Doc->m_vis[layer] ) {

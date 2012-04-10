@@ -78,7 +78,12 @@ public:
 
 	// selected items
 	id m_sel_id;			// id of selected item
-	int m_sel_layer;	// layer of selected item
+	int m_sel_layer;		// layer of selected item
+	int m_sel_offset;		// CPT:  new system for processing repeated clicks in the same place --- see CDisplayList::TestSelect()
+	id m_sel_id_prev;		// CPT: ditto.  See e.g. CFreePcbView::OnLButtonUp().  Also used when user repeatedly hits 'N' or 'T'
+	void *m_sel_prev;		// CPT: ditto
+	int m_cursor_mode_prev;	// CPT: ditto
+
 
 	// active layer for placement and (perhaps) routing
 	int m_active_layer;
@@ -95,6 +100,7 @@ public:
 	CPoint m_from_pt;			// for dragging mode, origin
 	CPoint m_last_mouse_point;	// last mouse position
 	CPoint m_last_cursor_point;	// last cursor position (may be different from mouse)
+	CPoint m_last_click;		// CPT:  last point where user clicked
 
 	// function key shortcuts
 	int m_fkey_option[12];

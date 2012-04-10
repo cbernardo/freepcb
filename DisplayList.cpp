@@ -1163,28 +1163,42 @@ void CDisplayList::SetLayerVisible( int layer, BOOL vis )
 	m_vis[layer] = vis;
 }
 
+struct Hit {
+	// CPT.  Utility struct used by TestSelect()
+	int layer;
+	id id;
+	void *ptr;
+	int priority;
+	double dist;
+	};
+
+int CompareHits(const Hit *h1, const Hit *h2) {
+	// CPT.  Used when sorting a list of hits. 
+	if (h1->priority==h2->priority)
+		return h1->dist < h2->dist? -1: 1;
+	return h1->priority < h2->priority? 1: -1; 
+	}
+
 // test x,y for a hit on an item in the selection layer
 // creates arrays with layer and id of each hit item
 // assigns priority based on layer and id
 // then returns pointer to item with highest priority
-// If exclude_id != NULL, excludes item with
-// id == exclude_id and ptr == exclude_ptr
 // If include_id != NULL, only include items that match include_id[]
 // where n_include_ids is size of array, and
 // where 0's in include_id[] fields are treated as wildcards
 //
-void * CDisplayList::TestSelect( int x, int y, id * sel_id, int * sel_layer,
-								id * exclude_id, void * exclude_ptr,
-								id * include_id, int n_include_ids )
+void * CDisplayList::TestSelect( int x, int y, id * sel_id, int * sel_layer, 
+		int * sel_offset, id * include_id, int n_include_ids, bool bCtrl )	
 {
+	// CPT: new system for selection.  We obtain the set of objects that might correspond with (x,y), and order it by priority.  If 
+	// *sel_offset is -1, we select item #0 in the set;  if it's 0 and the set has cardinality 1, select nothing; otherwise select item
+	// *sel_offset+1 (rolling over to 0 as needed).  We put the appropriate new value in *sel_offset on exit.
+	// If bCtrl is set, then user is doing a ctrl-click, and we exclude e.g. vertices and ratlines, which can't belong to groups.
 	enum {
 		MAX_HITS = 10000
 	};
 	int  nhits = 0;
-	int hit_layer[MAX_HITS];
-	id hit_id[MAX_HITS];
-	void * hit_ptr[MAX_HITS];
-	int hit_priority[MAX_HITS];
+	Hit hits[MAX_HITS];
 
 	double xx = double(x)/m_pcbu_per_wu;				// CPT (was int)
 	double yy = double(y)/m_pcbu_per_wu;				// CPT (was int)
@@ -1194,6 +1208,7 @@ void * CDisplayList::TestSelect( int x, int y, id * sel_id, int * sel_layer,
 	while( el->next != &m_end[LAY_SELECTION] )
 	{
 		el = el->next;
+		id &id0 = el->id;
 
 		// don't select anything on an invisible layer
 		if( !m_vis[el->layer] )
@@ -1202,44 +1217,35 @@ void * CDisplayList::TestSelect( int x, int y, id * sel_id, int * sel_layer,
 		if( el->visible == 0 )
 			continue;
 
+		bool bHit = false;					// CPT reorganization...
+		double d = 0;						// CPT distance value will be used in prioritization of hits
+
 		if( el->gtype == DL_HOLLOW_RECT) {
 			// CPT: following a suggestion from obparham, selection of vertices should be based partly on distances in screen pixels. 
 			double xCenter = (el->x + el->xf) / 2., yCenter = (el->y + el->yf) / 2.;
 			double w2 = abs(el->x - el->xf) / 2., h2 = abs(el->y - el->yf) / 2.;
-			if (el->id.type==ID_NET || el->id.type==ID_PART && el->id.st==ID_OUTLINE) {
+			if (id0.type==ID_NET || id0.type==ID_PART && id0.st==ID_OUTLINE) {
 				// For vertices on connects and area edges, don't let the selectable region get too small (total width & ht < 6 pixels), or
 				// too big (total width & ht > 16 pixels).  But for pins & parts etc. don't make this adjustment.  Also skip the adjustment
 				// if it's a via.
 				cnet *net = (cnet*) el->ptr;
-				cconnect *c = net && el->id.st==ID_CONNECT? &net->connect[el->id.i]: 0;
-				cvertex *v = c && (el->id.sst==ID_VERTEX || el->id.sst==ID_SEL_VERTEX)? &c->vtx[el->id.ii]: 0;
+				cconnect *c = net && id0.st==ID_CONNECT? &net->connect[id0.i]: 0;
+				cvertex *v = c && (id0.sst==ID_VERTEX || id0.sst==ID_SEL_VERTEX)? &c->vtx[id0.ii]: 0;
 				if (v && v->via_w) ;
 				else if (w2 < 3.0*m_scale) w2 = h2 = 3.0*m_scale;				// NB assuming that squares are always appropriate
 				else if (w2 > 8.0*m_scale) w2 = h2 = 8.0*m_scale;
 			}
-			if (abs(xx-xCenter) < w2 && abs(yy-yCenter) < h2) {
-				// Hit!
-				hit_layer[nhits] = el->layer;
-				hit_id[nhits] = el->id;
-				hit_ptr[nhits] = el->ptr;
-				nhits++;
-				if( nhits >= MAX_HITS )	ASSERT(0);
-			}
+			double dx = xx-xCenter, dy = yy-yCenter;
+			if (fabs(dx) < w2 && fabs(dy) < h2) 
+				bHit = true,
+				d = sqrt(dx*dx+dy*dy);
 		}
 		/*  CPT:  I believe the following clause is bogus (el->gtype will never be DL_RECT_X)
 		else if (el->gtype == DL_RECT_X )
 		{
 			if( ( (xx>el->x && xx<el->xf) || (xx<el->x && xx>el->xf) )
 				&& ( (yy>el->y && yy<el->yf) || (yy<el->y && yy>el->yf) ) )
-			{
-				// OK, hit
-				hit_layer[nhits] = el->layer;
-				hit_id[nhits] = el->id;
-				hit_ptr[nhits] = el->ptr;
-				nhits++;
-				if( nhits >= MAX_HITS )
-					ASSERT(0);
-			}
+					bHit = true;
 		}
 		*/
 		else if( el->gtype == DL_LINE )
@@ -1247,17 +1253,7 @@ void * CDisplayList::TestSelect( int x, int y, id * sel_id, int * sel_layer,
 			// found selection line, test for hit (within 4 pixels or line width+3 mils )
 //**			int w = max( el->w/2+3*DU_PER_MIL, int(4.0*m_scale) );
 			int w = max( el->w/2, int(4.0*m_scale) );
-			int test = TestLineHit( el->x, el->y, el->xf, el->yf, xx, yy, w );
-			if( test )
-			{
-				// OK, hit
-				hit_layer[nhits] = el->layer;
-				hit_id[nhits] = el->id;
-				hit_ptr[nhits] = el->ptr;
-				nhits++;
-				if( nhits >= MAX_HITS )
-					ASSERT(0);
-			}
+			bHit = TestLineHit( el->x, el->y, el->xf, el->yf, xx, yy, w, &d );
 		}
 		else if( el->gtype == DL_HOLLOW_CIRC )
 		{
@@ -1267,126 +1263,101 @@ void * CDisplayList::TestSelect( int x, int y, id * sel_id, int * sel_layer,
 			int w = el->w/2;
 			int x = el->x;
 			int y = el->y;
-			int d = Distance( x, y, xx, yy );
-			if( abs(w-d) < dr )
-			{
-				// OK, hit
-				hit_layer[nhits] = el->layer;
-				hit_id[nhits] = el->id;
-				hit_ptr[nhits] = el->ptr;
-				nhits++;
-				if( nhits >= MAX_HITS )
-					ASSERT(0);
-			}
+			d = Distance( x, y, xx, yy );
+			bHit = abs(w-d) < dr;
 		}
 		else if( el->gtype == DL_ARC_CW || el->gtype == DL_ARC_CCW )
 		{
 			// found selection rectangle, test for hit
 			if( ( (xx>el->x && xx<el->xf) || (xx<el->x && xx>el->xf) )
 				&& ( (yy>el->y && yy<el->yf) || (yy<el->y && yy>el->yf) ) )
-			{
-				// OK, hit
-				hit_layer[nhits] = el->layer;
-				hit_id[nhits] = el->id;
-				hit_ptr[nhits] = el->ptr;
-				nhits++;
-				if( nhits >= MAX_HITS )
-					ASSERT(0);
-			}
+					bHit = true;
 		}
 		else if( el->gtype == DL_CURVE_CW || el->gtype == DL_CURVE_CCW )
 		{
 			// found selection rectangle, test for hit
 			if( ( (xx>el->x && xx<el->xf) || (xx<el->x && xx>el->xf) )
 				&& ( (yy>el->y && yy<el->yf) || (yy<el->y && yy>el->yf) ) )
-			{
-				// OK, hit
-				hit_layer[nhits] = el->layer;
-				hit_id[nhits] = el->id;
-				hit_ptr[nhits] = el->ptr;
-				nhits++;
-				if( nhits >= MAX_HITS )
-					ASSERT(0);
-			}
+			bHit = true;
 		}
 		else
 			ASSERT(0);		// bad element
+
+		if (!bHit) continue;
+		// Hit!  Check if item satisfies the include_id mask:
+		int type = id0.type, st = id0.st, sst = id0.sst, i = id0.i, ii = id0.ii;
+		cnet *net = (cnet*) (el->ptr);
+		BOOL included_hit = TRUE;
+		if( include_id )
+		{
+			included_hit = FALSE;
+			for( int inc=0; inc<n_include_ids; inc++ )
+			{
+				id * inc_id = &include_id[inc];
+				if( inc_id->type == type
+					&& ( inc_id->st == 0 || inc_id->st == st )
+					&& ( inc_id->i == 0 || inc_id->i == i )
+					&& ( inc_id->sst == 0 || inc_id->sst == sst )
+					&& ( inc_id->ii == 0 || inc_id->ii == ii ) )
+						{ included_hit = TRUE; break; }
+			}
+		}
+		if (!included_hit) continue;
+		if (bCtrl)
+			if (type == ID_PART  && st == ID_SEL_RECT) ;
+			else if (type == ID_TEXT) ;
+			else if (type == ID_NET && st == ID_CONNECT && sst == ID_SEL_SEG
+					&& net->connect[i].seg[ii].layer != LAY_RAT_LINE) ;
+			else if (type == ID_NET && st == ID_CONNECT && sst == ID_SEL_VERTEX
+					&& (net->connect[i].vtx[ii].tee_ID || net->connect[i].vtx[ii].force_via_flag) ) ;
+			else if (type == ID_NET && st == ID_AREA && sst == ID_SEL_SIDE) ;
+			else if (type == ID_SM_CUTOUT && st == ID_SM_CUTOUT && sst == ID_SEL_SIDE) ;
+			else if (type == ID_BOARD && st == ID_BOARD && sst == ID_SEL_SIDE) ;
+			else
+				// Not a valid group member!
+				continue;
+
+		// OK, valid hit, now assign priority
+		// start with reversed layer drawing order * 10
+		// i.e. last drawn = highest priority
+		int priority = (MAX_LAYERS - m_order_for_layer[el->layer])*10;
+		// bump priority for small items which may be overlapped by larger items on same layer
+		if( type == ID_PART && st == ID_SEL_REF_TXT )
+			priority++;
+		else if( type == ID_PART && st == ID_SEL_VALUE_TXT )
+			priority++;
+		else if( type == ID_BOARD && st == ID_BOARD_OUTLINE && sst == ID_SEL_CORNER )
+			priority++;
+		else if( type == ID_NET && st == ID_AREA && sst == ID_SEL_CORNER )
+			priority++;
+		hits[nhits].layer = el->layer;
+		hits[nhits].id = id0;
+		hits[nhits].ptr = el->ptr;
+		hits[nhits].priority = priority;
+		hits[nhits].dist = d;
+		nhits++;
+		if( nhits >= MAX_HITS )	ASSERT(0);
 	}
-	// now return highest priority hit
-	if( nhits == 0 )
+
+	if( nhits == 0 || nhits==1 && *sel_offset>=0 )
 	{
-		// no hit
+		// no selection
 		id no_id;
 		*sel_id = no_id;
 		*sel_layer = 0;
+		*sel_offset = -1;
 		return NULL;
 	}
-	else
-	{
-		// assign priority to each hit, track maximum, exclude exclude_id item
-		int best_hit = -1;
-		int best_hit_priority = 0;
-		for( int i=0; i<nhits; i++ )
-		{
-			BOOL excluded_hit = FALSE;
-			BOOL included_hit = TRUE;
-			if( exclude_id )
-			{
-				if( hit_id[i] == *exclude_id && hit_ptr[i] == exclude_ptr )
-					excluded_hit = TRUE;
-			}
-			if( include_id )
-			{
-				included_hit = FALSE;
-				for( int inc=0; inc<n_include_ids; inc++ )
-				{
-					id * inc_id = &include_id[inc];
-					if( inc_id->type == hit_id[i].type
-						&& ( inc_id->st == 0 || inc_id->st == hit_id[i].st )
-						&& ( inc_id->i == 0 || inc_id->i == hit_id[i].i )
-						&& ( inc_id->sst == 0 || inc_id->sst == hit_id[i].sst )
-						&& ( inc_id->ii == 0 || inc_id->ii == hit_id[i].ii ) )
-					{
-						included_hit = TRUE;
-						break;
-					}
-				}
-			}
-			if( !excluded_hit && included_hit )
-			{
-				// OK, valid hit, now assign priority
-				// start with reversed layer drawing order * 10
-				// i.e. last drawn = highest priority
-				int priority = (MAX_LAYERS - m_order_for_layer[hit_layer[i]])*10;
-				// bump priority for small items which may be overlapped by larger items on same layer
-				if( hit_id[i].type == ID_PART && hit_id[i].st == ID_SEL_REF_TXT )
-					priority++;
-				else if( hit_id[i].type == ID_PART && hit_id[i].st == ID_SEL_VALUE_TXT )
-					priority++;
-				else if( hit_id[i].type == ID_BOARD && hit_id[i].st == ID_BOARD_OUTLINE && hit_id[i].sst == ID_SEL_CORNER )
-					priority++;
-				else if( hit_id[i].type == ID_NET && hit_id[i].st == ID_AREA && hit_id[i].sst == ID_SEL_CORNER )
-					priority++;
-				hit_priority[i] = priority;
-				if( priority >= best_hit_priority )
-				{
-					best_hit_priority = priority;
-					best_hit = i;
-				}
-			}
-		}
-		if( best_hit == -1 )
-		{
-			id no_id;
-			*sel_id = no_id;
-			*sel_layer = 0;
-			return NULL;
-		}
 
-		*sel_id = hit_id[best_hit];
-		*sel_layer = hit_layer[best_hit];
-		return hit_ptr[best_hit];
-	}
+	// CPT: Sort hit list by priority
+	qsort(hits, nhits, sizeof(Hit), (int (*)(const void*,const void*)) CompareHits);
+	// Choose the selection!
+	int sel = *sel_offset+1;
+	if (sel>=nhits) sel = 0;
+	*sel_id = hits[sel].id;
+	*sel_layer = hits[sel].layer;
+	*sel_offset = sel;
+	return hits[sel].ptr;
 }
 
 // Start dragging arrays of drag lines and ratlines
