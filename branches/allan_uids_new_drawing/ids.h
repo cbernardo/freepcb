@@ -58,8 +58,8 @@ public:
 	void Set(	int t1=0, int u1=-1, 
 				int t2=0, int u2=-1, int i2=-1, 
 				int t3=0, int u3=-1, int i3=-1  );
-	void SetLevel2( int t2, int u2=-1, int i2=-1 );
-	void SetLevel3( int t3, int u3=-1, int i3=-1 );
+	void SetSubType( int t2, int u2=-1, int i2=-1 );
+	void SetSubSubType( int t3, int u3=-1, int i3=-1 );
 	void SetPtr( void * p );
 
 	void SetT1( int t1 );
@@ -85,6 +85,7 @@ public:
 	// what type of item ?
 	int Type();			// lowest level type in id
 	// tests for specific types
+	BOOL IsClear();		
 	BOOL IsDRC();
 	BOOL IsPart();
 	BOOL IsRefText();
