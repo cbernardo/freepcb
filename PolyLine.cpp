@@ -162,6 +162,7 @@ void CPolyLine::SetFromUndo( undo_poly * un_poly )
 	undo_corner * un_corner = (undo_corner*)((UINT)un_poly + sizeof(undo_poly));
 	Start( un_poly->layer, un_poly->width, un_poly->sel_box, 
 		un_corner[0].x, un_corner[0].y, un_poly->hatch, &un_poly->root_id, NULL );
+	SetUID( un_poly->uid );
 	SetCornerUID( 0, un_corner[0].uid ); 
 	for( int ic=1; ic<nc; ic++ )
 	{
@@ -1576,6 +1577,16 @@ int CPolyLine::SideUID( int is )
 int CPolyLine::SideStyle( int is ) 
 {	
 	return side[is].m_style;	
+}
+
+void CPolyLine::SetUID( int uid )
+{
+	Undraw();
+	m_uid = uid;
+	if( m_dlist )
+	{
+		Draw();
+	}
 }
 
 // renumber ids

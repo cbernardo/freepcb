@@ -168,6 +168,7 @@ public:
 	BOOL Drawn(){ return bDrawn; };
 	gpc_polygon * GetGpcPoly(){ return m_gpc_poly; };
 
+	void SetUID( int uid );
 	void SetCornerUID( int ic, int uid );
 	void SetSideUID( int is, int uid );
 	void SetClosed( BOOL bClosed );

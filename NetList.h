@@ -174,6 +174,7 @@ public:
 	CNetList( CDisplayList * dlist, CPartList * plist );
 	~CNetList();
 	void SetNumCopperLayers( int layers ){ m_layers = layers;};
+	int GetNumCopperLayers(){ return m_layers;};
 	void SetWidths( int w, int via_w, int via_hole_w );
 	void SetViaAnnularRing( int ring ){ m_annular_ring = ring; };
 	void SetSMTconnect( BOOL bSMTconnect ){ m_bSMT_connect = bSMTconnect; };
@@ -345,9 +346,8 @@ public:
 	BOOL FindTeeVertexInNet( cnet * net, int id, int * ic=NULL, int * iv=NULL );
 	BOOL FindTeeVertex( int id, cnet ** net, int * ic=NULL, int * iv=NULL );
 	int RemoveTee( cnet * net, int id );
-	BOOL DisconnectBranch( cnet * net, int ic, id * del_id_1, id * del_id_2 );
 	int RemoveTeeIfNoBranches( cnet * net, int id );
-	BOOL TeeViaNeeded( cnet * net, int id );
+	BOOL TeeViaNeeded( cnet * net, int id, cvertex ** v );
 	BOOL RemoveOrphanBranches( cnet * net, int id, BOOL bRemoveSegs=FALSE );
 
 private:

@@ -66,14 +66,13 @@ CIterator_cconnect::CIterator_cconnect( cnet * net )
 //	, m_pCurrentNet(NULL)
 {
 	m_net = net;
-//**	int n = m_LIST_Iterator.GetListSize();
+	m_CurrentPos = -1;	// -1 = position before first connection
 	m_LIST_Iterator.insert_after(this);
 }
 
 // Destructor
 CIterator_cconnect::~CIterator_cconnect()
 {
-//**	int n = m_LIST_Iterator.GetListSize();
 }
 
 // Iterator operators: First/Next
@@ -116,12 +115,14 @@ void CIterator_cconnect::OnRemove( int ic )
 	for( CDLinkList *pElement = m_LIST_Iterator.next; pElement != &m_LIST_Iterator; pElement = pElement->next )
 	{
 		CIterator_cconnect *pIterator = static_cast<CIterator_cconnect *>(pElement);
-
-		if( ic <= pIterator->m_CurrentPos )
+		if( m_net == pIterator->m_net )
 		{
-			// Make adjustment so that the next GetNext() moves to 
-			// the connection after the one removed.
-			pIterator->m_CurrentPos--;
+			if( ic <= pIterator->m_CurrentPos )
+			{
+				// Make adjustment so that the next GetNext() moves to 
+				// the connection after the one removed.
+				pIterator->m_CurrentPos--;
+			}
 		}
 	}
 }

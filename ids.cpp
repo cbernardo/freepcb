@@ -45,9 +45,8 @@ BOOL operator ==(id id1, id id2)
 //
 void id::Clear() 
 { 
-	t1 = 0; u1 = -1; 
-	t2 = 0; u2 = -1; i2 = -1; 
-	t3 = 0; u3 = -1; i3 = -1; 		
+	Set(); 
+	SetPtr( NULL );
 }
 
 // Try to identify the item described by this id
@@ -251,7 +250,7 @@ void id::Set(int qt1, int qu1,
 
 // set lower levels of hierarchy
 //
-void id::SetLevel2( int qt2, int qu2, int qi2 )
+void id::SetSubType( int qt2, int qu2, int qi2 )
 {
 	ptr = NULL;
 	t2 = qt2; 
@@ -259,7 +258,7 @@ void id::SetLevel2( int qt2, int qu2, int qi2 )
 	i2 = qi2; 
 }
 
-void id::SetLevel3( int qt3, int qu3, int qi3 )
+void id::SetSubSubType( int qt3, int qu3, int qi3 )
 {
 	ptr = NULL;
 	t3 = qt3; 
@@ -282,6 +281,7 @@ int id::Type()
 
 // tests for various types, doesn't verify UIDs
 //
+BOOL id::IsClear()		{ return t1 == ID_NONE	&& t2 == ID_NONE	&& t3 == ID_NONE; }
 BOOL id::IsDRC()		{ return t1 == ID_DRC	&& t2 == ID_SEL_DRE; }
 BOOL id::IsText()		{ return t1 == ID_TEXT	&& t2 == ID_TEXT; }
 BOOL id::IsPart()		{ return t1 == ID_PART	&& t2 == ID_SEL_RECT; }

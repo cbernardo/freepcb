@@ -137,6 +137,7 @@ public:
 	int UID();
 	id Id();
 	int Index();
+	void Draw();
 	void Undraw();
 	VType GetType();
 	cpin * GetNetPin();
@@ -282,14 +283,19 @@ public:
 
 	// connections
 	cconnect * AddConnect( int * ic=NULL );
-	int AddConnectFromPin( int p1 );
-	int AddConnectFromPinToPin( int p1, int p2 );
-	cconnect * AddConnectFromTraceVtx( id& vtx_id );
-	cconnect * AddConnectFromTraceVtxToPin( id vtx_id, int pin_index );
+	cconnect * AddConnectFromPin( int p1, int * ic=NULL );
+	cconnect * AddConnectFromPinToPin( int p1, int p2, int * ic=NULL );
+	cconnect * AddConnectFromTraceVtx( id& vtx_id, int * ic=NULL );
+	cconnect * AddConnectFromTraceVtxToPin( id vtx_id, int pin_index, int * ic=NULL );
 	void RemoveConnect( cconnect * c );
+	void RemoveConnectAdjustTees( cconnect * c );
 	cconnect * SplitConnectAtVtx( id vtx_id );
 	void ConcatenateConnections( cconnect * c1, cconnect * c2 );
 	void RecreateConnectFromUndo( undo_con * con, undo_seg * seg, undo_vtx * vtx );
+	void AdjustTees( int tee_ID );
+
+	// segments
+	void RemoveSegmentAdjustTees( cseg * s );
 
 // member variables
 	id m_id;				// net id

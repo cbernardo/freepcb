@@ -998,8 +998,12 @@ int CDisplayList::TestSelect(
 				// test for other exclusions
 				if( exclude_id )
 				{
-					if( hit_info[i].ID == *exclude_id && hit_info[i].ptr == exclude_ptr )
-						excluded_hit = TRUE;
+					if( !exclude_id->IsClear() )
+					{
+						id test_id = hit_info[i].ID;
+						if( test_id == *exclude_id && hit_info[i].ptr == exclude_ptr )
+							excluded_hit = TRUE;
+					}
 				}
 				// test for explicit inclusions
 				if( include_id )
