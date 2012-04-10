@@ -5657,7 +5657,7 @@ void CFreePcbView::OnPadStartStubTrace()
 	int via_hole_w = m_Doc->m_via_hole_w;
 	if( net->def_via_hole_w )
 		via_hole_w = net->def_via_hole_w;
-	// CPT
+	// CPT 
 	m_active_width = w;
 	m_Doc->m_nlist->StartDraggingStub( pDC, net, m_sel_id.i, m_sel_id.ii,
 		pi.x, pi.y, m_active_layer, w, m_active_layer, via_w, via_hole_w,

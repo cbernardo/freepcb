@@ -3820,7 +3820,7 @@ END
 
 STRINGTABLE
 BEGIN
-    IDS_AppName             "FPC-CPT 0.21"
+    IDS_AppName             "FPC-CPT 0.22"
 END
 
 STRINGTABLE
