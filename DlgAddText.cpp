@@ -157,13 +157,13 @@ BOOL CDlgAddText::OnInitDialog()
 	}
 	else
 	{
-		s.LoadStringA(IDS_FpLayerStr+LAY_SILK_TOP);
+		s.LoadStringA(IDS_LayerStr+LAY_SILK_TOP);
 		m_layer_list.InsertString( -1, s );
-		s.LoadStringA(IDS_FpLayerStr+LAY_SILK_BOTTOM);
+		s.LoadStringA(IDS_LayerStr+LAY_SILK_BOTTOM);
 		m_layer_list.InsertString( -1, s );
 		for( int i=LAY_TOP_COPPER; i<m_num_layers; i++ )
 			s.LoadStringA(IDS_LayerStr+i),
-			m_layer_list.InsertString( -1, (LPCSTR) (IDS_LayerStr+i) );
+			m_layer_list.InsertString( -1, s );
 	}
 
 	// angles
