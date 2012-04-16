@@ -21,14 +21,14 @@ id::id( int qt1, int qu1,
 	i2 = qi2; 
 	t3 = qt3; 
 	u3 = qu3;
-	i3 = qi3; 
+	i3 = qi3;
 }
 
-// == operator, allows wildcards
-BOOL operator ==(id id1, id id2)
+// == operator, allows wildcards, except for T1
+BOOL operator ==(const id &id1, const id &id2)
 { 
-	return (
-		   ( id1.t1 == id2.t1	|| id1.t1 == ID_NONE	|| id2.t1 == ID_NONE ) 
+	BOOL test = (
+		     id1.t1 == id2.t1 
 		&& ( id1.u1 == id2.u1	|| id1.u1 == -1			|| id2.u1  == -1 )
 		&& ( id1.t2 == id2.t2	|| id1.t2 == ID_NONE	|| id2.t2 == ID_NONE ) 
 		&& ( id1.u2 == id2.u2	|| id1.u2 == -1			|| id2.u2 == -1 )
@@ -37,6 +37,7 @@ BOOL operator ==(id id1, id id2)
 		&& ( id1.u3 == id2.u3	|| id1.u3 == -1			|| id2.u3 == -1 )
 		&& ( id1.i3 == id2.i3	|| id1.i3 == -1			|| id2.i3 == -1 )
 	); 
+	return test;
 }
 
 // member functions

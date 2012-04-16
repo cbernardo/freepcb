@@ -36,8 +36,8 @@ public:
 	~cpin();
 	cpin& operator=( const cpin& rhs );
 	cpin& operator=( cpin& rhs );
-	void Initialize( cnet * net );
 
+	void Initialize( cnet * net );
 	int Index();				// index of pin in array
 	int UID();					// unique identifier			
 	part_pin * GetPartPin();	// pointer to this pin on part
@@ -60,8 +60,8 @@ public:
 	~carea();						
 	carea &operator=( carea &a );		// dummy assignment operator
 	carea &operator=( const carea &a );	// dummy assignment operator
-	void Initialize( CDisplayList * dlist, cnet * net );
 
+	void Initialize( CDisplayList * dlist, cnet * net );
 	int UID(){ return m_uid; };
 	void SetUID( int uid ){ m_uid = uid; };
 	id& Id();
@@ -90,22 +90,30 @@ public:
 	cseg( cseg& src );		// copy constructor
 	cseg& operator=( cseg& rhs );	// assignment
 	cseg& operator=( const cseg& rhs );	// assignment
+
 	void Initialize( cconnect * c );
+
+	void Draw();
+	void Undraw();
+	BOOL IsDrawn();
+
+	void SetVisibility( int vis );
 	id Id();
 	int UID(){ return m_uid; };
-
 	int GetIndex();
 	cvertex& GetPreVtx();
 	cvertex& GetPostVtx();
 	void GetStatusStr( CString * str );
 
 	int m_uid;				// unique id
-	int layer;				// copper layer
-	int width;				// width
-	int curve;
-	int selected;			// 1 if selected for editing
+	int m_layer;			// copper layer
+	int m_width;			// width
+	int m_curve;
+	int m_selected;			// 1 if selected for editing
+//private:
 	dl_element * dl_el;		// display element for segment
 	dl_element * dl_sel;	// selection line
+public:
 	CDisplayList * m_dlist;
 	cnet * m_net;			// parent net
 	cconnect * m_con;		// parent connection
@@ -137,8 +145,11 @@ public:
 	int UID();
 	id Id();
 	int Index();
+
 	void Draw();
 	void Undraw();
+	void Highlight();
+
 	VType GetType();
 	cpin * GetNetPin();
 	int GetNetPinIndex();
@@ -179,6 +190,7 @@ public:
 	// general
 	cconnect( cnet * net );
 	~cconnect();
+
 	int UID(){ return m_uid; };
 	void ClearArrays();
 	void GetStatusStr( CString * str );
@@ -211,7 +223,6 @@ public:
 				const cseg& new_seg, const cvertex& new_vtx );
 	void AppendSegAndVertex( const cseg& new_seg, const cvertex& new_vtx );
 	void PrependVertexAndSeg( const cvertex& new_vtx, const cseg& new_seg );
-	void RemoveSegAndVertexByIndex( int is );
 	void ReverseDirection();
 
 	// drawing methods
@@ -240,6 +251,7 @@ public:
 	// new stuff
 	int m_uid;					// unique id
 	cnet * m_net;				// parent net
+	BOOL m_bDrawn;				// drawn into display list or not
 	CDisplayList * m_dlist;		
 };
 
@@ -262,6 +274,7 @@ public:
 	int NumPins();
 	cpin * PinByIndex( int ip );
 	cpin * PinByUID( int uid, int * index );
+	void SetVertexToPin( int ip, cvertex * v );
 
 	// connections
 	int NumCons();
@@ -286,16 +299,20 @@ public:
 	cconnect * AddConnectFromPin( int p1, int * ic=NULL );
 	cconnect * AddConnectFromPinToPin( int p1, int p2, int * ic=NULL );
 	cconnect * AddConnectFromTraceVtx( id& vtx_id, int * ic=NULL );
-	cconnect * AddConnectFromTraceVtxToPin( id vtx_id, int pin_index, int * ic=NULL );
+	cconnect * AddRatlineFromVtxToPin( id vtx_id, int pin_index );
 	void RemoveConnect( cconnect * c );
 	void RemoveConnectAdjustTees( cconnect * c );
 	cconnect * SplitConnectAtVtx( id vtx_id );
-	void ConcatenateConnections( cconnect * c1, cconnect * c2 );
+	void MergeConnections( cconnect * c1, cconnect * c2 );
 	void RecreateConnectFromUndo( undo_con * con, undo_seg * seg, undo_vtx * vtx );
 	void AdjustTees( int tee_ID );
 
-	// segments
+	// segments and vertices
 	void RemoveSegmentAdjustTees( cseg * s );
+	void RemoveSegAndVertexByIndex( cconnect * c, int is );
+	void RemoveVertexAndSegByIndex( cconnect * c, int is );
+	void RemoveVertex( cconnect * c, int iv );
+	void RemoveVertex( cvertex * v );
 
 // member variables
 	id m_id;				// net id

@@ -208,8 +208,8 @@ public:
 	void OptimizeConnections( BOOL bBelowPinCount=FALSE, int pin_count=0, BOOL bVisibleNetsOnly=TRUE );
 	int OptimizeConnections( cnet * net, int ic, BOOL bBelowPinCount, int pin_count, BOOL bVisibleNetsOnly=TRUE );
 	void OptimizeConnections( cpart * part, BOOL bBelowPinCount, int pin_count, BOOL bVisibleNetsOnly=TRUE );
-	void RenumberConnection( cnet * net, int ic );
-	void RenumberConnections( cnet * net );
+//	void RenumberConnection( cnet * net, int ic );
+//	void RenumberConnections( cnet * net );
 	BOOL TestHitOnConnectionEndPad( int x, int y, cnet * net, int ic, int layer, int dir );
 	int TestHitOnAnyPadInNet( int x, int y, int layer, cnet * net );
 	void ChangeConnectionPin( cnet * net, int ic, int end_flag, 
@@ -221,7 +221,7 @@ public:
 	// functions for segments
 	int AppendSegment( cnet * net, int ic, int x, int y, int layer, int width );
 	int InsertSegment( cnet * net, int ic, int iseg, int x, int y, int layer, int width,
-						int via_width, int via_hole_width, int dir, BOOL bDrawConnection=TRUE );
+						int via_width, int via_hole_width, int dir );
 	id  UnrouteSegment( cnet * net, int ic, int iseg );
 	void UnrouteSegmentWithoutMerge( cnet * net, int ic, int iseg );
 	id MergeUnroutedSegments( cnet * net, int ic );
@@ -251,7 +251,7 @@ public:
 	int ReconcileVia( cnet * net, int ic, int ivtx, BOOL bDrawVertex=TRUE );
 	int ForceVia( cnet * net, int ic, int ivtx, BOOL set_areas=TRUE );
 	int UnforceVia( cnet * net, int ic, int ivtx, BOOL set_areas=TRUE );
-	int DrawVertex( cnet * net, int ic, int iv );
+	void DrawVertex( cnet * net, int ic, int iv );
 	void UndrawVia( cnet * net, int ic, int iv );
 	void SetViaVisible( cnet * net, int ic, int iv, BOOL visible );
 
@@ -264,7 +264,7 @@ public:
 	int GetViaConnectionStatus( cnet * net, int ic, int iv, int layer );
 	void GetViaPadInfo( cnet * net, int ic, int iv, int layer,
 		int * pad_w, int * hole_w, int * connect_status );
-	BOOL TestForHitOnVertex( cnet * net, int layer, int x, int y, 
+	BOOL TestHitOnVertex( cnet * net, int layer, int x, int y, 
 		cnet ** hit_net, int * hit_ic, int * hit_iv );
 
 	// functions related to parts
@@ -364,143 +364,5 @@ public:
 	CMapStringToPtr m_map;	// map net names to pointers
 	CMap<int,int,cnet*,cnet*> m_uid_map;
 	int m_annular_ring;
-};
-
-// definitions of Iterators for nets, connections, segments and vertices
-
-class CIterator_cnet : protected CDLinkList
-{
-	// List of all active iterators
-	static CDLinkList m_LIST_Iterator;
-
-	CNetList const * m_NetList;
-
-	POSITION m_CurrentPos;
-	cnet * m_pCurrentNet;
-
-public:
-	explicit CIterator_cnet( CNetList const * netlist );
-	~CIterator_cnet() {}
-
-	cnet *GetFirst();
-	cnet *GetNext();
-
-public:
-	static void OnRemove( cnet const * net );
-};
-
-class CIterator_cconnect : protected CDLinkList
-{
-	// List of all active iterators
-	static CDLinkList m_LIST_Iterator;
-
-	cnet * m_net;
-
-	int m_CurrentPos;
-	cconnect * m_pCurrentConnection;
-
-public:
-	explicit CIterator_cconnect( cnet * net );
-	~CIterator_cconnect();
-
-	cconnect *GetFirst();
-	cconnect *GetNext();
-
-public:
-	void OnRemove( int ic );
-	void OnRemove( cconnect * con );
-	int GetIndex(){ return m_CurrentPos; };
-};
-
-class CIterator_cseg : protected CDLinkList
-{
-	// List of all active iterators
-	static CDLinkList m_LIST_Iterator;
-
-	cconnect * m_cconnect;
-
-	int m_CurrentPos, m_PreviousPos, m_NextPos;
-	cseg * m_pCurrentSegment;
-
-public:
-	explicit CIterator_cseg( cconnect * con );
-	~CIterator_cseg() {}
-
-	cseg *GetFirst();
-	cseg *GetNext();
-
-public:
-	void OnRemove( int is );
-	void OnRemove( cseg * seg );
-	int GetIndex(){ return m_CurrentPos; };
-};
-
-class CIterator_cvertex : protected CDLinkList
-{
-	// List of all active iterators
-	static CDLinkList m_LIST_Iterator;
-
-	cconnect * m_cconnect;
-
-	int m_CurrentPos;
-	cvertex * m_pCurrentVertex;
-
-public:
-	explicit CIterator_cvertex( cconnect * con );
-	~CIterator_cvertex() {}
-
-	cvertex *GetFirst();
-	cvertex *GetNext();
-
-public:
-	void OnRemove( int iv );
-	void OnRemove( cvertex * vtx );
-	int GetIndex(){ return m_CurrentPos; };
-};
-
-class CIterator_cpin : protected CDLinkList
-{
-	// List of all active iterators
-	static CDLinkList m_LIST_Iterator;
-
-	cnet * m_net;
-
-	int m_CurrentPos;
-	cpin * m_pCurrentConnection;
-
-public:
-	explicit CIterator_cpin( cnet * net );
-	~CIterator_cpin();
-
-	cpin *GetFirst();
-	cpin *GetNext();
-
-public:
-	void OnRemove( int ip );
-	void OnRemove( cpin * pin );
-	int GetIndex(){ return m_CurrentPos; };
-};
-
-class CIterator_carea : protected CDLinkList
-{
-	// List of all active iterators
-	static CDLinkList m_LIST_Iterator;
-
-	cnet * m_net;
-
-	int m_CurrentPos;
-	carea * m_pCurrentConnection;
-
-public:
-	explicit CIterator_carea( cnet * net );
-	~CIterator_carea();
-
-	carea *GetFirst();
-	carea *GetNext();
-
-public:
-	void OnRemove( int ic );
-	void OnRemove( carea * a );
-	int GetIndex(){ return m_CurrentPos; };
 };
 

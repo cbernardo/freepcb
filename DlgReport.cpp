@@ -6,7 +6,7 @@
 #include "DlgReport.h"
 #include "FreePcbDoc.h"
 #include "Gerber.h"
-
+#include "Net_iter.h"
 
 // CDlgReport dialog
 

@@ -49,7 +49,7 @@ public:
 		int qt3 = 0, int qu3 = -1, int qi3 = -1 ); 
 
 	// == operator
-	friend BOOL operator ==(id id1, id id2);
+	friend BOOL operator ==(const id &id1, const id &id2);
 
 	// member functions
 	// set id elements
@@ -189,7 +189,7 @@ enum {
 	ID_VIA
 };
 
-// subsubtypes of ID_NET.ID_AREA, ID_OUTLINE
+// subsubtypes of ID_NET.ID_AREA, ID_BOARD.ID_OUTLINE, ID_MASK.ID_OUTLINE
 enum {
 	ID_SIDE = 1,
 	ID_SEL_SIDE,
