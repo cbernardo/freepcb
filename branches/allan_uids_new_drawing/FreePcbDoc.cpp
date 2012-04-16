@@ -14,7 +14,6 @@
 #include "DlgNetlist.h"
 #include "DlgProjectOptions.h"
 #include "DlgImportOptions.h" 
-#include "freepcbdoc.h"
 #include "DlgLayers.h"
 #include "DlgPartlist.h"
 #include "MyFileDialog.h"

@@ -35,6 +35,13 @@
 #include <shlwapi.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#define _USE_MATH_DEFINES
+#include <math.h>
+#include <stdlib.h>
+#include <Mmsystem.h>
+#include <sys/timeb.h>
+#include <time.h>
+#include <algorithm>
 
 #include "MainFrm.h"
 #include "FreePcb.h"
@@ -59,6 +66,9 @@
 #include "DlgLog.h" 
 #include "PolyLine.h"
 #include "ids.h"
+#include "Net_iter.h"
+#include "DlgMyMessageBox.h"
+#include "MyToolBar.h"
 
 #define ASSERT(f) assert(f)	//changed ASSERT() to work in release versions if NDEBUG undefined
 

@@ -234,6 +234,13 @@ dl_element * CDisplayList::AddSelector( id id, void * ptr, int layer, int gtype,
 							   int radius )
 {
 	// create new element
+	//** for debugging
+	if( gtype == DL_HOLLOW_RECT )
+	{
+		int w_in_mils = abs(x-xf)/PCBU_PER_MIL;	
+		w_in_mils = w_in_mils;
+	}
+	//**
 	dl_element * new_element = CreateDLE( id, ptr, layer, gtype, visible,
 	                                      w, holew, 0,
 	                                      x,y, xf,yf, xo,yo, radius,
@@ -942,7 +949,7 @@ COLORREF CDisplayList::GetLayerColor( int layer )
 }
 
 // test x,y for a hit on an item in the selection layer
-// creates arrays with layer and id of each hit item
+// creates array with layer and id of each hit item
 // assigns priority based on layer and id
 // then returns index of item with highest priority
 // If exclude_id != NULL, excludes item with
@@ -951,11 +958,6 @@ COLORREF CDisplayList::GetLayerColor( int layer )
 // where n_include_ids is size of array, and
 // where -1's in include_id[] fields are treated as wildcards
 //
-#if 0
-void * CDisplayList::TestSelect( int x, int y, id * sel_id, int * sel_layer, 
-								id * exclude_id, 
-								id * include_id, int n_include_ids )
-#endif
 int CDisplayList::TestSelect(
 	int x, int y,
 	CDL_job::HitInfo hit_info[], int max_hits, int &num_hits,
@@ -974,90 +976,80 @@ int CDisplayList::TestSelect(
 		num_hits = pJob->TestForHit(point, hit_info, max_hits-1);
 
 		// now return highest priority hit
-		if( num_hits == 0 )
+		// assign priority to each hit, track maximum, exclude exclude_id item
+		int best_hit_priority = 0;
+		for( int i=0; i<num_hits; i++ )
 		{
-			goto no_hit;
-		}
-		else
-		{
-			// Mark the end of the hit array with invalid layer.
+			// resolve all id fields of the item that was hit
+			BOOL bOK = hit_info[i].ID.Resolve();
+			if( !bOK )
+				ASSERT(0);
 
-			// assign priority to each hit, track maximum, exclude exclude_id item
-			int best_hit_priority = 0;
-			for( int i=0; i<num_hits; i++ )
+			// now check inclusion/exclusion criteria
+			BOOL excluded_hit = FALSE;
+			BOOL included_hit = TRUE;
+			// always exclude hits on slaved tee-vertices 
+			if( hit_info[i].ID.IsVtx() )
 			{
-				BOOL excluded_hit = FALSE;
-				BOOL included_hit = TRUE;
-				
-				// always exclude hits on slaved tee-vertices 
-				if( hit_info[i].ID.IsVtx() )
+				if( hit_info[i].ID.Vtx()->tee_ID < 0 )
+					excluded_hit = TRUE;
+			}
+			// test for other exclusions
+			if( exclude_id )
+			{
+				if( !exclude_id->IsClear() )
 				{
-					if( hit_info[i].ID.Vtx()->tee_ID < 0 )
+					id test_id = hit_info[i].ID;
+					if( test_id == *exclude_id && hit_info[i].ptr == exclude_ptr )
 						excluded_hit = TRUE;
 				}
-				// test for other exclusions
-				if( exclude_id )
+			}
+			// test for explicit inclusions
+			if( include_id )
+			{
+				included_hit = FALSE;
+				for( int inc=0; inc<n_include_ids; inc++ )
 				{
-					if( !exclude_id->IsClear() )
+					id * inc_id = &include_id[inc];
+					if( hit_info[i].ID == *inc_id )	 // note that == includes wildcards
 					{
-						id test_id = hit_info[i].ID;
-						if( test_id == *exclude_id && hit_info[i].ptr == exclude_ptr )
-							excluded_hit = TRUE;
+						included_hit = TRUE;
+						break;
 					}
 				}
-				// test for explicit inclusions
-				if( include_id )
-				{
-					included_hit = FALSE;
-					for( int inc=0; inc<n_include_ids; inc++ )
-					{
-						id * inc_id = &include_id[inc];
-						if( inc_id->T1() == hit_info[i].ID.T1()
-							&& ( inc_id->T2() == 0 || inc_id->T2() == hit_info[i].ID.T2() )
-							&& ( inc_id->I2() == -1 || inc_id->I2() == hit_info[i].ID.I2() )
-							&& ( inc_id->T3() == 0 || inc_id->T3() == hit_info[i].ID.T3() )
-							&& ( inc_id->I3() == -1 || inc_id->I3() == hit_info[i].ID.I3() ) )
-						{
-							included_hit = TRUE;
-							break;
-						}
-					}
-				}
-				if( !excluded_hit && included_hit )
-				{
-					// OK, valid hit, now assign priority
-					// start with reversed layer drawing order * 10
-					// i.e. last drawn = highest priority
-					int priority = (MAX_LAYERS - m_order_for_layer[hit_info[i].layer])*10;
-					// bump priority for small items which may be overlapped by larger items on same layer
-					if( hit_info[i].ID.T1() == ID_PART && hit_info[i].ID.T2() == ID_REF_TXT && hit_info[i].ID.T3() == ID_SEL_TXT )
-						priority++;
-					else if( hit_info[i].ID.T1() == ID_PART && hit_info[i].ID.T2() == ID_VALUE_TXT && hit_info[i].ID.T3() == ID_SEL_TXT )
-						priority++;
-					else if( hit_info[i].ID.T1() == ID_BOARD && hit_info[i].ID.T2() == ID_OUTLINE && hit_info[i].ID.T3() == ID_SEL_CORNER )
-						priority++;
-					else if( hit_info[i].ID.T1() == ID_NET && hit_info[i].ID.T2() == ID_AREA && hit_info[i].ID.T3() == ID_SEL_CORNER )
-						priority++;
-					else if( hit_info[i].ID.T1() == ID_NET && hit_info[i].ID.T2() == ID_CONNECT && hit_info[i].ID.T3() == ID_SEL_VERTEX )
-						priority++;
+			}
+			if( !excluded_hit && included_hit )
+			{
+				// OK, valid hit, now assign priority
+				// start with reversed layer drawing order * 10
+				// i.e. last drawn = highest priority
+				int priority = (MAX_LAYERS - m_order_for_layer[hit_info[i].layer])*10;
+				// bump priority for small items which may be overlapped by larger items on same layer
+				if( hit_info[i].ID.T1() == ID_PART && hit_info[i].ID.T2() == ID_REF_TXT && hit_info[i].ID.T3() == ID_SEL_TXT )
+					priority++;
+				else if( hit_info[i].ID.T1() == ID_PART && hit_info[i].ID.T2() == ID_VALUE_TXT && hit_info[i].ID.T3() == ID_SEL_TXT )
+					priority++;
+				else if( hit_info[i].ID.T1() == ID_BOARD && hit_info[i].ID.T2() == ID_OUTLINE && hit_info[i].ID.T3() == ID_SEL_CORNER )
+					priority++;
+				else if( hit_info[i].ID.T1() == ID_NET && hit_info[i].ID.T2() == ID_AREA && hit_info[i].ID.T3() == ID_SEL_CORNER )
+					priority++;
+				else if( hit_info[i].ID.T1() == ID_NET && hit_info[i].ID.T2() == ID_CONNECT && hit_info[i].ID.T3() == ID_SEL_VERTEX )
+					priority++;
 
-					hit_info[i].priority = priority;
-					if( priority >= best_hit_priority )
-					{
-						best_hit_priority = priority;
-						best_hit = i;
-					}
-				}
-				else
+				hit_info[i].priority = priority;
+				if( priority >= best_hit_priority )
 				{
-					// Not valid hit, set priority < zero
-					hit_info[i].priority = -1;
+					best_hit_priority = priority;
+					best_hit = i;
 				}
+			}
+			else
+			{
+				// Not valid hit, set priority < zero
+				hit_info[i].priority = -1;
 			}
 		}
 	}
-
-no_hit:
 	return best_hit;
 }
 

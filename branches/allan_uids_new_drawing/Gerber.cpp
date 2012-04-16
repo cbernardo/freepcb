@@ -2,9 +2,6 @@
 //
 #include "stdafx.h"
 #include "Gerber.h"
-#include <math.h>
-#include <afxcoll.h>
-#include <afxtempl.h>
 
 #define pi  3.14159265359
 
@@ -1432,12 +1429,12 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 								}
 							}
 
-							if( s->layer == layer && num_area_nets == 1 && net != first_area_net ) 
+							if( s->m_layer == layer && num_area_nets == 1 && net != first_area_net ) 
 							{
 								// segment is on this layer and there is a single copper area
 								// on this layer not on the same net, draw clearance
 								int type = CAperture::AP_CIRCLE;
-								int size1 = s->width + 2*fill_clearance;
+								int size1 = s->m_width + 2*fill_clearance;
 								CAperture seg_ap( type, size1, 0 );
 								ChangeAperture( &seg_ap, &current_ap, &ap_array, PASS0, f );
 								if( PASS1 )
@@ -1446,7 +1443,7 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 									WriteMoveTo( f, xf, yf, LIGHT_ON );
 								}
 							}
-							else if( s->layer == layer && num_area_nets > 1 )
+							else if( s->m_layer == layer && num_area_nets > 1 )
 							{
 								// test for segment intersection with area on own net
 								BOOL bIntOwnNet = FALSE;
@@ -1478,7 +1475,7 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 											int x2f = poly->X(ic2);
 											int y2f = poly->Y(ic2);
 											int style2 = poly->SideStyle( is );
-											int d = ::GetClearanceBetweenSegments( xi, yi, xf, yf, CPolyLine::STRAIGHT, s->width,
+											int d = ::GetClearanceBetweenSegments( xi, yi, xf, yf, CPolyLine::STRAIGHT, s->m_width,
 												x2i, y2i, x2f, y2f, style2, 0, fill_clearance, 0, 0 );
 											if( d < fill_clearance )
 											{
@@ -1507,7 +1504,7 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 										ChangeAperture( &pad_ap, &current_ap, &ap_array, PASS0, f );
 										if( PASS1 ) 
 										{
-											DrawClearanceInForeignAreas( net, -1, s->width, xi, yi, xf, yf,
+											DrawClearanceInForeignAreas( net, -1, s->m_width, xi, yi, xf, yf,
 												0, 0, 0, 0, f, flags, layer, fill_clearance, 
 												&area_net_list, &area_list );
 										}
@@ -1516,7 +1513,7 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 								else
 								{
 									// segment does not intersect area on own net, just make clearance
-									int w = s->width + 2*fill_clearance;
+									int w = s->m_width + 2*fill_clearance;
 									CAperture seg_ap( CAperture::AP_CIRCLE, w, 0 );
 									ChangeAperture( &seg_ap, &current_ap, &ap_array, PASS0, f );
 									if( PASS1 )
@@ -1779,10 +1776,10 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 						int test, pad_w, hole_w;
 						nl->GetViaPadInfo( net, ic, is+1, layer,
 							&pad_w, &hole_w, &test );
-						if( s->layer == layer )
+						if( s->m_layer == layer )
 						{
 							// segment is on this layer, draw it
-							int w = s->width;
+							int w = s->m_width;
 							CAperture seg_ap( CAperture::AP_CIRCLE, w, 0 );
 							ChangeAperture( &seg_ap, &current_ap, &ap_array, PASS0, f );
 							if( PASS1 )

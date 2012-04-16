@@ -63,7 +63,7 @@ enum {
 	CUR_DRAG_SMCUTOUT,		// dragging next corner of solder mask cutout
 	CUR_DRAG_SMCUTOUT_INSERT,	// dragging solder mask cutout corner being inserted
 	CUR_DRAG_SMCUTOUT_MOVE,		// dragging solder mask cutout corner being moved
-	CUR_DRAG_STUB,		// dragging ratline to next stub endpoint
+	CUR_DRAG_TRACE,		// dragging ratline to next stub endpoint
 	CUR_DRAG_CONNECT,	// dragging ratline to new connection
 	CUR_DRAG_RAT_PIN,	// dragging ratline to new end pin of trace
 	CUR_MOVE_ORIGIN,	// dragging new origin
@@ -125,7 +125,7 @@ enum {
 	FK_UNDO,
 	FK_SET_SIZE,
 	FK_SET_PARAMS,
-	FK_START_STUB,
+	FK_START_TRACE,
 	FK_EDIT_TEXT,
 	FK_SET_POSITION,
 	FK_DELETE_OUTLINE,
@@ -209,7 +209,7 @@ const char fk_str[FK_NUM_OPTIONS*2+2][32] =
 	" Delete",	" Outline",
 	" Delete",	" Area",
 	" Delete",	" Cutout",
-	" Add",		" Segment",
+	" Start",	" Trace",
 	" Add",		" Via",
 	" Delete",	" Via",
 	" Delete",	" Segment",
@@ -361,9 +361,10 @@ public:
 	// if right-click handled some other way
 	int m_disable_context_menu;
 
-	// selection mask
-	int m_sel_mask;
-	id m_mask_id[NUM_SEL_MASKS];
+	// selection masks
+	int m_sel_mask;							// bits for mask
+	id m_mask_id[NUM_SEL_MASKS];			// ids for each bit
+	id m_mask_default_id[NUM_SEL_MASKS];	// default ids
 
 	// selected items
 	id m_sel_id;			// id of selected item
@@ -577,7 +578,7 @@ public:
 	afx_msg void OnRatlineOptimize();
 	afx_msg void OnVertexMove();
 	afx_msg void OnVertexConnectToPin();
-	afx_msg void OnVertexStartStub();
+	afx_msg void OnVertexStartTrace();
 	afx_msg void OnVertexDelete();
 	afx_msg void OnRatlineComplete();
 	afx_msg void OnRatlineSetWidth();

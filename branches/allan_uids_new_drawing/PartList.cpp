@@ -3,9 +3,6 @@
 // this is a linked-list of parts on a PCB board
 //
 #include "stdafx.h"
-#include <math.h>
-#include "DisplayList.h"
-#include "DlgMyMessageBox.h"
 
 #define PL_MAX_SIZE		5000		// default max. size 
 
@@ -2000,7 +1997,7 @@ int CPartList::StartDraggingPart( CDC * pDC, cpart * part, BOOL bRatlines,
 								// hide segment
 								cseg * first_seg = &c->SegByIndex(0);
 								cvertex * v = &first_seg->GetPostVtx();
-								m_dlist->Set_visible( first_seg->dl_el, 0 );
+								first_seg->SetVisibility( 0 );
 								for( int i=0; i<v->dl_el.GetSize(); i++ )
 									m_dlist->Set_visible( v->dl_el[i], 0 );
 								if( v->dl_hole )
@@ -2046,7 +2043,7 @@ int CPartList::StartDraggingPart( CDC * pDC, cpart * part, BOOL bRatlines,
 								// ip is the end pin for the connection
 								cseg * last_seg = &c->SegByIndex(c->NumSegs()-1);
 								cvertex * v = &last_seg->GetPreVtx();
-								m_dlist->Set_visible( c->SegByIndex(c->NumSegs()-1).dl_el, 0 );
+								c->SegByIndex(c->NumSegs()-1).SetVisibility( 0 );
 								if( v->dl_el.GetSize() )
 									for( int i=0; i<v->dl_el.GetSize(); i++ )
 										m_dlist->Set_visible( v->dl_el[i], 0 );
@@ -2162,7 +2159,7 @@ int CPartList::CancelDraggingPart( cpart * part )
 						// start pin
 						cseg * first_seg = &c->SegByIndex(0);
 						cvertex * v = &first_seg->GetPostVtx();
-						m_dlist->Set_visible( first_seg->dl_el, 1 );
+						first_seg->SetVisibility( 1 );
 						for( int i=0; i<v->dl_el.GetSize(); i++ )
 							m_dlist->Set_visible( v->dl_el[i], 1 );
 						if( v->dl_hole )
@@ -2175,7 +2172,7 @@ int CPartList::CancelDraggingPart( cpart * part )
 							// end pin
 							cseg * last_seg = &c->SegByIndex(nsegs-1);
 							cvertex * v = &last_seg->GetPreVtx();
-							m_dlist->Set_visible( last_seg->dl_el, 1 );
+							last_seg->SetVisibility( 1 );
 							if( v->dl_el.GetSize() )
 								for( int i=0; i<v->dl_el.GetSize(); i++ )
 									m_dlist->Set_visible( v->dl_el[i], 1 );
@@ -3254,7 +3251,7 @@ int CPartList::GetPinConnectionStatus( cpart * part, CString * pin_name, int lay
 		cpin * p2 = c->EndPin();
 		if( p1->part == part &&
 			p1->pin_name == *pin_name &&
-			c->SegByIndex(0).layer == layer )
+			c->SegByIndex(0).m_layer == layer )
 		{
 			// first segment connects to pin on this layer
 			status |= TRACE_CONNECT;
@@ -3265,7 +3262,7 @@ int CPartList::GetPinConnectionStatus( cpart * part, CString * pin_name, int lay
 		}
 		else if( p2->part == part &&
 			p2->pin_name == *pin_name &&
-			c->SegByIndex(nsegs-1).layer == layer )
+			c->SegByIndex(nsegs-1).m_layer == layer )
 		{
 			// last segment connects to pin on this layer
 			status |= TRACE_CONNECT;
@@ -4217,11 +4214,11 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 				int y1 = s->GetPreVtx().y;
 				int x2 = s->GetPostVtx().x;
 				int y2 = s->GetPostVtx().y;
-				int w = s->width;
-				int layer = s->layer;
-				if( s->layer >= LAY_TOP_COPPER )
+				int w = s->m_width;
+				int layer = s->m_layer;
+				if( s->m_layer >= LAY_TOP_COPPER )
 				{
-					int layer_bit = s->layer - LAY_TOP_COPPER;
+					int layer_bit = s->m_layer - LAY_TOP_COPPER;
 					c->seg_layers |= 1<<layer_bit;
 				}
 				// add segment to bounding box
@@ -4463,7 +4460,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 						cvertex * post_vtx = &s->GetPostVtx();
 						cvertex * pre_vtx_test = &s->GetPreVtx();
 						cvertex * post_vtx_test = &s->GetPostVtx();
-						int w = s->width;
+						int w = s->m_width;
 						int xi = pre_vtx->x;
 						int yi = pre_vtx->y;
 						int xf = post_vtx->x;
@@ -4490,7 +4487,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 							int layer = il + LAY_TOP_COPPER;
 							int layer_bit = 1<<il;
 
-							if( s->layer == layer )
+							if( s->m_layer == layer )
 							{
 								// check segment clearances
 								cnet * pin_net = part->pin[ip].net;
@@ -4737,7 +4734,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 						int is = iter_seg.GetIndex();
 						cvertex * pre_vtx = &s->GetPreVtx();
 						cvertex * post_vtx = &s->GetPostVtx();
-						int w = s->width;
+						int w = s->m_width;
 						int xi = pre_vtx->x;
 						int yi = pre_vtx->y;
 						int xf = post_vtx->x;
@@ -4758,7 +4755,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 						id_via.SetT3( ID_VIA );
 						id_via.SetI3( is+1 );
 
-						if( s->layer == test_stroke->layer )
+						if( s->m_layer == test_stroke->layer )
 						{
 							// check segment clearances
 							int x, y;
@@ -4908,7 +4905,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 						int is = iter_seg.GetIndex();
 						cvertex * pre_vtx = &s->GetPreVtx();
 						cvertex * post_vtx = &s->GetPostVtx();
-						int seg_w = s->width;
+						int seg_w = s->m_width;
 						int vw = post_vtx->via_w;
 						int max_w = max( seg_w, vw );
 						int xi = pre_vtx->x;
@@ -4932,7 +4929,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 							int is2 = iter_seg2.GetIndex();
 							cvertex * pre_vtx2 = &s2->GetPreVtx();
 							cvertex * post_vtx2 = &s2->GetPostVtx();
-							int seg_w2 = s2->width;
+							int seg_w2 = s2->m_width;
 							int vw2 = post_vtx2->via_w;
 							int max_w2 = max( seg_w2, vw2 );
 							int xi2 = pre_vtx2->x;
@@ -4959,7 +4956,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 								continue;
 
 							// check if segments on same layer
-							if( s->layer == s2->layer && s->layer >= LAY_TOP_COPPER ) 
+							if( s->m_layer == s2->m_layer && s->m_layer >= LAY_TOP_COPPER ) 
 							{
 								// yes, test clearances between segments
 								int xx, yy; 
@@ -4975,7 +4972,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 										nerrors+1, net->name, net2->name,
 										d_str, x_str, y_str );
 									DRError * dre = drelist->Add( nerrors, DRError::SEG_SEG, &str, 
-										&net->name, &net2->name, id_seg1, id_seg2, xx, yy, xx, yy, 0, s->layer );
+										&net->name, &net2->name, id_seg1, id_seg2, xx, yy, xx, yy, 0, s->m_layer );
 									if( dre )
 									{
 										nerrors++;
@@ -4985,7 +4982,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 								}
 							}
 							// test clearances between net->segment and net2->via
-							int layer = s->layer;
+							int layer = s->m_layer;
 							if( layer >= LAY_TOP_COPPER && post_vtx2->via_w )
 							{
 								// via exists
@@ -5017,7 +5014,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 											nerrors+1, net->name, net2->name,
 											d_str, x_str, y_str );
 										DRError * dre = drelist->Add( nerrors, DRError::SEG_VIA, &str, 
-											&net->name, &net2->name, id_seg1, id_via2, xf2, yf2, xf2, yf2, 0, s->layer );
+											&net->name, &net2->name, id_seg1, id_via2, xf2, yf2, xf2, yf2, 0, s->m_layer );
 										if( dre )
 										{
 											nerrors++;
@@ -5039,7 +5036,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 										nerrors+1, net->name, net2->name,
 										d_str, x_str, y_str );
 									DRError * dre = drelist->Add( nerrors, DRError::SEG_VIAHOLE, &str, 
-										&net->name, &net2->name, id_seg1, id_via2, xf2, yf2, xf2, yf2, 0, s->layer );
+										&net->name, &net2->name, id_seg1, id_via2, xf2, yf2, xf2, yf2, 0, s->m_layer );
 									if( dre )
 									{
 										nerrors++;
@@ -5049,7 +5046,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 								}
 							}
 							// test clearances between net2->segment and net->via
-							layer = s2->layer;
+							layer = s2->m_layer;
 							if( post_vtx->via_w )
 							{
 								// via exists
@@ -5410,7 +5407,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 				BOOL bUnrouted = FALSE;
 				for( int is=0; is<c->NumSegs(); is++ )
 				{
-					if( c->SegByIndex(is).layer == LAY_RAT_LINE )
+					if( c->SegByIndex(is).m_layer == LAY_RAT_LINE )
 					{
 						bUnrouted = TRUE;
 						break;
@@ -5572,7 +5569,7 @@ int CPartList::CheckPartlist( CString * logstr )
 							if( net_pin == -1 )
 							{
 								// pin not found
-								str.Format( "ERROR: Part \"%s\" pin \"%s\" connected to net \"%\" but pin not in net\r\n",
+								str.Format( "ERROR: Part \"%s\" pin \"%s\" connected to net \"%s\" but pin not in net\r\n",
 									*ref_des, *pin_name, net->name );
 								*logstr += str;
 								nerrors++;

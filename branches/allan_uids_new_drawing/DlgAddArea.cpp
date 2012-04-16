@@ -5,6 +5,7 @@
 #include "FreePcb.h"
 #include "DlgAddArea.h"
 #include "layers.h"
+#include "Net_iter.h"
 
 // globals
 int gHatch = CPolyLine::NO_HATCH;

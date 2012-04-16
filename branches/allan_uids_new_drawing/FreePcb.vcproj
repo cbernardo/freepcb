@@ -499,6 +499,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\Net_iter.h"
+				>
+			</File>
+			<File
 				RelativePath=".\NetList.h"
 				>
 			</File>
