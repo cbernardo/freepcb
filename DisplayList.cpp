@@ -41,9 +41,11 @@ dl_element::dl_element()
 
 // constructor
 //
-CDisplayList::CDisplayList( int pcbu_per_wu )
+CDisplayList::CDisplayList( int pcbu_per_wu, SMFontUtil * fontutil )
 {
 	m_pcbu_per_wu = pcbu_per_wu;
+	m_fontutil = fontutil;
+
 	// create lists for all layers
 	for( int layer=0; layer<MAX_LAYERS; layer++ )
 	{
@@ -232,6 +234,13 @@ dl_element * CDisplayList::AddSelector( id id, void * ptr, int layer, int gtype,
 							   int radius )
 {
 	// create new element
+	//** for debugging
+	if( gtype == DL_HOLLOW_RECT )
+	{
+		int w_in_mils = abs(x-xf)/PCBU_PER_MIL;	
+		w_in_mils = w_in_mils;
+	}
+	//**
 	dl_element * new_element = CreateDLE( id, ptr, layer, gtype, visible,
 	                                      w, holew, 0,
 	                                      x,y, xf,yf, xo,yo, radius,
@@ -292,6 +301,7 @@ dl_element * CDisplayList::CreateDLE( id id, void * ptr, int layer, int gtype, i
 	// create new element
 	dl_element * new_element = CreateDLE( gtype );
 
+#if 0	// code added by Brian, doesn't work in fp_editor
 	if( layer == LAY_RAT_LINE )
 	{
 		new_element->w = m_ratline_w;
@@ -300,11 +310,13 @@ dl_element * CDisplayList::CreateDLE( id id, void * ptr, int layer, int gtype, i
 	{
 		new_element->w = (w < 0) ? w : w / m_pcbu_per_wu;
 	}
+#endif
 
 	// now copy data from entry into element
 	new_element->id         = id;
 	new_element->ptr        = ptr;
 	new_element->visible    = visible;
+	new_element->w			= w			 / m_pcbu_per_wu;
 	new_element->holew      = holew      / m_pcbu_per_wu;
 	new_element->clearancew = clearancew / m_pcbu_per_wu;
 	new_element->i.x        = x          / m_pcbu_per_wu;
@@ -501,6 +513,11 @@ void CDisplayList::Set_id( dl_element * el, id * id )
 	if( el)
 		el->id = *id;
 }
+void CDisplayList::Set_gtype( dl_element * el, int gtype )
+{
+	if( el )
+		el->gtype = gtype;
+}
 
 
 
@@ -597,7 +614,7 @@ void CDisplayList::Draw( CDC * dDC )
 	CDrawInfo di;
 
 	di.DC_Master = pDC;
-	CMemDC dcMemory(pDC);
+//**	CMemDC dcMemory(pDC);
 
 	for( int order=(MAX_LAYERS-1); order>=0; order-- )
 	{
@@ -608,6 +625,7 @@ void CDisplayList::Draw( CDC * dDC )
 		  continue;
 		}
 
+#if 0
 		if( layer > LAY_BOARD_OUTLINE )
 		{
 			// Use transparent DC in dcMemory
@@ -619,6 +637,7 @@ void CDisplayList::Draw( CDC * dDC )
 			di.layer_color[1] = C_RGB::mono_on;
 		}
 		else
+#endif
 		{
 			// Draw directly on main DC (di.DC_Master) for speed
 			di.DC = di.DC_Master;
@@ -660,7 +679,7 @@ void CDisplayList::Draw( CDC * dDC )
 		}
 	}
 
-	dcMemory.DeleteDC();
+//**	dcMemory.DeleteDC();
 
 	// origin
 	CRect r;
@@ -701,12 +720,12 @@ void CDisplayList::Draw( CDC * dDC )
 
 	if( m_drag_num_ratlines )
 	{
-		// draw ratline array
+		// draw ratline array, dragging endpoint m_drag_ratline_end_pt
 		CPen drag_pen( PS_SOLID, m_drag_ratline_width, m_rgb[m_drag_layer] );
 		CPen * old_pen = pDC->SelectObject( &drag_pen );
 		for( int il=0; il<m_drag_num_ratlines; il++ )
 		{
-			pDC->MoveTo( m_drag_ratline_start_pt[il].x, m_drag_ratline_start_pt[il].y );
+			pDC->MoveTo( m_drag_ratline_start_pt[il] );
 			pDC->LineTo( m_drag_x+m_drag_ratline_end_pt[il].x, m_drag_y+m_drag_ratline_end_pt[il].y );
 		}
 		pDC->SelectObject( old_pen );
@@ -923,17 +942,22 @@ void CDisplayList::SetLayerVisible( int layer, BOOL vis )
 	m_vis[layer] = vis;
 }
 
+COLORREF CDisplayList::GetLayerColor( int layer )
+{
+//	return (m_rgb[layer][0], m_rgb[layer][1], m_rgb[layer][2]) );
+	return m_rgb[layer];
+}
+
 // test x,y for a hit on an item in the selection layer
-// creates arrays with layer and id of each hit item
+// creates array with layer and id of each hit item
 // assigns priority based on layer and id
-// then returns pointer to item with highest priority
+// then returns index of item with highest priority
 // If exclude_id != NULL, excludes item with
 // id == exclude_id and ptr == exclude_ptr
 // If include_id != NULL, only include items that match include_id[]
 // where n_include_ids is size of array, and
-// where 0's in include_id[] fields are treated as wildcards
+// where -1's in include_id[] fields are treated as wildcards
 //
-// Returns: Index into hit_info[] if hit, -1 if no hit
 int CDisplayList::TestSelect(
 	int x, int y,
 	CDL_job::HitInfo hit_info[], int max_hits, int &num_hits,
@@ -952,76 +976,80 @@ int CDisplayList::TestSelect(
 		num_hits = pJob->TestForHit(point, hit_info, max_hits-1);
 
 		// now return highest priority hit
-		if( num_hits == 0 )
+		// assign priority to each hit, track maximum, exclude exclude_id item
+		int best_hit_priority = 0;
+		for( int i=0; i<num_hits; i++ )
 		{
-			goto no_hit;
-		}
-		else
-		{
-			// Mark the end of the hit array with invalid layer.
+			// resolve all id fields of the item that was hit
+			BOOL bOK = hit_info[i].ID.Resolve();
+			if( !bOK )
+				ASSERT(0);
 
-			// assign priority to each hit, track maximum, exclude exclude_id item
-			int best_hit_priority = 0;
-			for( int i=0; i<num_hits; i++ )
+			// now check inclusion/exclusion criteria
+			BOOL excluded_hit = FALSE;
+			BOOL included_hit = TRUE;
+			// always exclude hits on slaved tee-vertices 
+			if( hit_info[i].ID.IsVtx() )
 			{
-				BOOL excluded_hit = FALSE;
-				BOOL included_hit = TRUE;
-				if( exclude_id )
+				if( hit_info[i].ID.Vtx()->tee_ID < 0 )
+					excluded_hit = TRUE;
+			}
+			// test for other exclusions
+			if( exclude_id )
+			{
+				if( !exclude_id->IsClear() )
 				{
-					if( hit_info[i].ID == *exclude_id && hit_info[i].ptr == exclude_ptr )
+					id test_id = hit_info[i].ID;
+					if( test_id == *exclude_id && hit_info[i].ptr == exclude_ptr )
 						excluded_hit = TRUE;
 				}
-				if( include_id )
+			}
+			// test for explicit inclusions
+			if( include_id )
+			{
+				included_hit = FALSE;
+				for( int inc=0; inc<n_include_ids; inc++ )
 				{
-					included_hit = FALSE;
-					for( int inc=0; inc<n_include_ids; inc++ )
+					id * inc_id = &include_id[inc];
+					if( hit_info[i].ID == *inc_id )	 // note that == includes wildcards
 					{
-						id * inc_id = &include_id[inc];
-						if( inc_id->type == hit_info[i].ID.type
-							&& ( inc_id->st  == 0 || inc_id->st  == hit_info[i].ID.st )
-							&& ( inc_id->i   == 0 || inc_id->i   == hit_info[i].ID.i )
-							&& ( inc_id->sst == 0 || inc_id->sst == hit_info[i].ID.sst )
-							&& ( inc_id->ii  == 0 || inc_id->ii  == hit_info[i].ID.ii ) )
-						{
-							included_hit = TRUE;
-							break;
-						}
+						included_hit = TRUE;
+						break;
 					}
 				}
-				if( !excluded_hit && included_hit )
+			}
+			if( !excluded_hit && included_hit )
+			{
+				// OK, valid hit, now assign priority
+				// start with reversed layer drawing order * 10
+				// i.e. last drawn = highest priority
+				int priority = (MAX_LAYERS - m_order_for_layer[hit_info[i].layer])*10;
+				// bump priority for small items which may be overlapped by larger items on same layer
+				if( hit_info[i].ID.T1() == ID_PART && hit_info[i].ID.T2() == ID_REF_TXT && hit_info[i].ID.T3() == ID_SEL_TXT )
+					priority++;
+				else if( hit_info[i].ID.T1() == ID_PART && hit_info[i].ID.T2() == ID_VALUE_TXT && hit_info[i].ID.T3() == ID_SEL_TXT )
+					priority++;
+				else if( hit_info[i].ID.T1() == ID_BOARD && hit_info[i].ID.T2() == ID_OUTLINE && hit_info[i].ID.T3() == ID_SEL_CORNER )
+					priority++;
+				else if( hit_info[i].ID.T1() == ID_NET && hit_info[i].ID.T2() == ID_AREA && hit_info[i].ID.T3() == ID_SEL_CORNER )
+					priority++;
+				else if( hit_info[i].ID.T1() == ID_NET && hit_info[i].ID.T2() == ID_CONNECT && hit_info[i].ID.T3() == ID_SEL_VERTEX )
+					priority++;
+
+				hit_info[i].priority = priority;
+				if( priority >= best_hit_priority )
 				{
-					// OK, valid hit, now assign priority
-					// start with reversed layer drawing order * 10
-					// i.e. last drawn = highest priority
-					int priority = (MAX_LAYERS - m_order_for_layer[hit_info[i].layer])*10;
-					// bump priority for small items which may be overlapped by larger items on same layer
-					if( hit_info[i].ID.type == ID_PART && hit_info[i].ID.st == ID_SEL_REF_TXT )
-						priority++;
-					else if( hit_info[i].ID.type == ID_PART && hit_info[i].ID.st == ID_SEL_VALUE_TXT )
-						priority++;
-					else if( hit_info[i].ID.type == ID_BOARD && hit_info[i].ID.st == ID_BOARD_OUTLINE && hit_info[i].ID.sst == ID_SEL_CORNER )
-						priority++;
-					else if( hit_info[i].ID.type == ID_NET && hit_info[i].ID.st == ID_AREA && hit_info[i].ID.sst == ID_SEL_CORNER )
-						priority++;
-					else if( hit_info[i].ID.type == ID_NET && hit_info[i].ID.st == ID_CONNECT && hit_info[i].ID.sst == ID_SEL_VERTEX )
-						priority++;
-					hit_info[i].priority = priority;
-					if( priority >= best_hit_priority )
-					{
-						best_hit_priority = priority;
-						best_hit = i;
-					}
+					best_hit_priority = priority;
+					best_hit = i;
 				}
-				else
-				{
-					// Not valid hit, set priority < zero
-					hit_info[i].priority = -1;
-				}
+			}
+			else
+			{
+				// Not valid hit, set priority < zero
+				hit_info[i].priority = -1;
 			}
 		}
 	}
-
-no_hit:
 	return best_hit;
 }
 
@@ -1310,6 +1338,7 @@ void CDisplayList::Drag( CDC * pDC, int x, int y )
 	//**** there are three dragging modes, which may be used simultaneously ****//
 
 	// drag array of lines, used to make complex graphics like a part
+	// both endpoints of each line are dragged
 	if( m_drag_num_lines )
 	{
 		CPen drag_pen( PS_SOLID, 1, m_rgb[m_drag_layer] );
@@ -1327,6 +1356,7 @@ void CDisplayList::Drag( CDC * pDC, int x, int y )
 	}
 
 	// drag array of rubberband lines, used for ratlines to dragged part
+	// one endpoint of each line is dragged, the other is fixed
 	if( m_drag_num_ratlines )
 	{
 		CPen drag_pen( PS_SOLID, m_drag_ratline_width, m_rgb[m_drag_layer] );
@@ -1764,7 +1794,6 @@ void CDisplayList::ChangeRoutingLayer( CDC * pDC, int layer1, int layer2, int ww
 			int thick = (m_drag_via_w - m_drag_via_holew)/2;
 			int w = m_drag_via_w - thick;
 			int holew = m_drag_via_holew;
-//			CPen pen( PS_SOLID, thick, m_rgb[LAY_PAD_THRU] );
 			CPen pen( PS_SOLID, thick, m_rgb[m_drag_layer_1] );
 			CPen * old_pen = pDC->SelectObject( &pen );
 			CBrush black_brush( C_RGB::black );
@@ -1803,7 +1832,6 @@ void CDisplayList::ChangeRoutingLayer( CDC * pDC, int layer1, int layer2, int ww
 			int thick = (m_drag_via_w - m_drag_via_holew)/2;
 			int w = m_drag_via_w - thick;
 			int holew = m_drag_via_holew;
-//			CPen pen( PS_SOLID, thick, m_rgb[LAY_PAD_THRU] );
 			CPen pen( PS_SOLID, thick, m_rgb[m_drag_layer_1] );
 			CPen * old_pen = pDC->SelectObject( &pen );
 			CBrush black_brush( C_RGB::black );
@@ -1971,6 +1999,9 @@ int CDisplayList::MakeDragLineArray( int num_lines )
 
 int CDisplayList::MakeDragRatlineArray( int num_ratlines, int width )
 {
+	m_drag_ratline_drag_pt.SetSize(0);
+	m_drag_ratline_stat_pt.SetSize(0);
+
 	if( m_drag_ratline_start_pt )
 		free(m_drag_ratline_start_pt );
 	m_drag_ratline_start_pt = (CPoint*)calloc( num_ratlines, sizeof(CPoint) );
@@ -2002,8 +2033,13 @@ int CDisplayList::AddDragLine( CPoint pi, CPoint pf )
 	return 0;
 }
 
+// CPoint pi is the stationary point, pf is the offset to the cursor for the dragged point
+//
 int CDisplayList::AddDragRatline( CPoint pi, CPoint pf )
 {
+	m_drag_ratline_drag_pt.Add( pi );
+	m_drag_ratline_stat_pt.Add( pf );
+
 	if( m_drag_num_ratlines == m_drag_max_ratlines )
 		return  1;
 

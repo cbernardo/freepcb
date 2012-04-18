@@ -6,7 +6,7 @@
 #include "DlgReport.h"
 #include "FreePcbDoc.h"
 #include "Gerber.h"
-
+#include "Net_iter.h"
 
 // CDlgReport dialog
 
@@ -174,9 +174,8 @@ void CDlgReport::OnBnClickedOk()
 	int num_th_pins = 0;
 	int num_nets = 0;
 	int num_vias = 0;
-
-	CIterator_cpart part_iter(m_pl);
-	for( cpart *part = part_iter.GetFirst(); part != NULL; part = part_iter.GetNext() )
+	cpart * part = m_pl->GetFirstPart();
+	while( part )
 	{
 		num_parts++;
 		if( part->shape )
@@ -199,6 +198,7 @@ void CDlgReport::OnBnClickedOk()
 				}
 			}
 		}
+		part = m_pl->GetNextPart( part );
 	}
 	if( !(m_flags & NO_PCB_STATS) )
 	{
@@ -212,18 +212,17 @@ void CDlgReport::OnBnClickedOk()
 			num_pins, num_th_pins, num_pins-num_th_pins );
 		file.WriteString( line );
 	}
-
-	CIterator_cnet net_iter(m_nl);
-
-	for( cnet * net = net_iter.GetFirst(); net != NULL; net = net_iter.GetNext() )
+	CIterator_cnet iter_net(m_nl);
+	for( cnet * net = iter_net.GetFirst(); net; net=iter_net.GetNext() )
 	{
 		num_nets++;
-		for( int ic=0; ic<net->nconnects; ic++ )
+		CIterator_cconnect iter_con(net);
+		for( cconnect * c=iter_con.GetFirst(); c; c=iter_con.GetNext() )
 		{
-			for( int iv=0; iv<net->connect[ic].vtx.GetSize(); iv++ )
+			CIterator_cvertex iter_vtx( c );
+			for( cvertex * v=iter_vtx.GetFirst(); v; v=iter_vtx.GetNext() )
 			{
-				cvertex * v = &net->connect[ic].vtx[iv];
-				int hole_size = v->via_hole_w(); 
+				int hole_size = v->via_hole_w; 
 				if( hole_size > 0 )
 				{
 					int num_holes;
@@ -237,7 +236,6 @@ void CDlgReport::OnBnClickedOk()
 			}
 		}
 	}
-
 	if( !(m_flags & NO_PCB_STATS) )
 	{
 		line.Format( "Number of vias: %d\n", num_vias );
@@ -277,13 +275,13 @@ void CDlgReport::OnBnClickedOk()
 		// make array of pointers to ref_des strings, used for sorting
 		int nparts = m_pl->GetNumParts();
 		CString ** ref_ptr = (CString**)malloc( nparts * sizeof(CString*) );
-
+		cpart * part = m_pl->GetFirstPart();
 		int ip = 0;
-		cpart *part;
-		for( part = part_iter.GetFirst(); part != NULL; part = part_iter.GetNext() )
+		while( part )
 		{
 			ref_ptr[ip] = &part->ref_des;
 			ip++;
+			part = m_pl->GetNextPart( part );
 		}
 		// quicksort
 		qsort( ref_ptr, nparts, sizeof(CString*), mycompare );
@@ -558,8 +556,10 @@ void CDlgReport::OnBnClickedOk()
 		CString str_n_y; 
 		CString str_space_x; 
 		CString str_space_y;
-		//BAF ::MakeCStringFromDimension( &str_fill_clearance, m_doc->m_fill_clearance,	m_units, TRUE, FALSE, TRUE, dp );
-		::MakeCStringFromDimension( &str_mask_clearance, m_doc->m_mask_clearance,	m_units, TRUE, FALSE, TRUE, dp );
+		::MakeCStringFromDimension( &str_fill_clearance, m_doc->m_fill_clearance,
+			m_units, TRUE, FALSE, TRUE, dp );
+		::MakeCStringFromDimension( &str_mask_clearance, m_doc->m_mask_clearance,
+			m_units, TRUE, FALSE, TRUE, dp );
 		::MakeCStringFromDimension( &str_paste_shrink, m_doc->m_paste_shrink,
 			m_units, TRUE, FALSE, TRUE, dp );
 		::MakeCStringFromDimension( &str_thermal_width, m_doc->m_thermal_width,

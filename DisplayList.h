@@ -8,6 +8,7 @@
 #include "layers.h"
 #include "LinkList.h"
 #include "rgb.h"
+#include "smfontutil.h"
 
 //#define DL_MAX_LAYERS 32
 #define DL_MAGIC		2674
@@ -15,10 +16,10 @@
 #define PCBU_PER_WU		25400	// conversion from PCB units to world units
 
 // graphics element types
-enum
+enum 
 {
 	DL_NONE = 0,
-	DL_LINE,			// line segment with round end-caps
+	DL_LINE,			// line segment with round end-caps  
 	DL_CIRC,			// filled circle
 	DL_DONUT,			// annulus
 	DL_SQUARE,			// filled square
@@ -33,8 +34,11 @@ enum
 	DL_HOLLOW_OVAL,		// oval outline
 	DL_HOLLOW_OCTAGON,	// octagon outline
 	DL_RECT_X,			// rectangle outline with X
+	DL_POINT,			// shape to highlight a point
 	DL_ARC_CW,			// arc with clockwise curve
 	DL_ARC_CCW,			// arc with counter-clockwise curve
+	DL_CURVE_CW,		// circular clockwise curve
+	DL_CURVE_CCW,		// circular counter-clockwise curve
 	DL_CENTROID,		// circle and X
 	DL_X				// X
 };
@@ -47,7 +51,9 @@ enum
 	DS_LINE,				// line
 	DS_ARC_STRAIGHT,		// straight line (used when drawing polylines)
 	DS_ARC_CW,				// clockwise arc (used when drawing polylines)
-	DS_ARC_CCW,				// counterclockwise arc (used when drawing polylines)
+	DS_ARC_CCW,				// counterclockwise arc 
+	DS_CURVE_CW,			// clockwise curve
+	DS_CURVE_CCW,			// counterclockwise curve 
 	DS_SEGMENT				// line segment (with rubber banding of linking segments)
 };
 
@@ -183,6 +189,8 @@ private:
 	CPoint * m_drag_ratline_start_pt;	// absolute coords for ratline start points
 	CPoint * m_drag_ratline_end_pt;		// relative coords for ratline endpoints
 	int m_drag_ratline_width;
+	CArray<CPoint> m_drag_ratline_drag_pt;
+	CArray<CPoint> m_drag_ratline_stat_pt;
 
 	// cursor parameters
 	int m_cross_hairs;	// 0 = none, 1 = cross-hairs, 2 = diagonals
@@ -193,12 +201,17 @@ private:
 	int m_visual_grid_on;
 	double m_visual_grid_spacing;	// in world units
 
+	// font
+	SMFontUtil * m_fontutil;
+
+
     dl_element * CreateDLE( int gtype );
 
 public:
-	CDisplayList( int pcbu_per_wu );
+	CDisplayList( int pcbu_per_wu, SMFontUtil * fontutil );
 	~CDisplayList();
 
+	SMFontUtil * GetSMFontUtil(){ return m_fontutil; };
 	void SetVisibleGrid( BOOL on, double grid );
 	void SetMapping( CRect *client_r, CRect *screen_r, int pane_org_x, int pane_bottom_h, double scale, int org_x, int org_y );
 	void SetDCToWorldCoords( CDC * pDC, CDC * mDC, int pcbu_org_x, int pcbu_org_y );
@@ -319,6 +332,7 @@ public:
 	void Set_radius( dl_element * el, int radius );
 	void Set_mode( dl_element * el, int mode );
 	void Set_pass( dl_element * el, int pass );
+	void Set_gtype( dl_element * el, int gtype );
 	void Move( dl_element * el, int dx, int dy );
 
 	// get element parameters
@@ -336,6 +350,7 @@ public:
 	int Get_yf( dl_element * el );
 	int Get_radius( dl_element * el );
 	int Get_layer( dl_element * el );
+	COLORREF GetLayerColor( int layer );
 	int Get_mode( dl_element * el );
 	int Get_pass( dl_element * el );
 	void Get_Endpoints(CPoint *cpi, CPoint *cpf);

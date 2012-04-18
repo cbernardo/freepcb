@@ -1,6 +1,8 @@
 #include "stdafx.h"
 #include "dle_octagon.h"
+#include "math.h"
 
+extern CFreePcbApp theApp;
 static const double pi = 3.14159265359;
 
 // filled octagon

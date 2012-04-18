@@ -4,6 +4,7 @@
 #include "stdafx.h"
 #include "FreePcb.h"
 #include "DlgImportOptions.h"
+#include ".\dlgimportoptions.h"
 
 
 // CDlgImportOptions dialog
@@ -31,6 +32,7 @@ void CDlgImportOptions::DoDataExchange(CDataExchange* pDX)
 	DDX_Control(pDX, IDC_CHECK_KEEP_TRACES, m_check_keep_traces);
 	DDX_Control(pDX, IDC_CHECK_KEEP_STUBS, m_check_keep_stubs);
 	DDX_Control(pDX, IDC_CHECK_KEEP_AREAS, m_check_keep_areas);
+	DDX_Control(pDX, ID_SAVE_AND_IMPORT, m_button_save_and_import);
 	if( !pDX->m_bSaveAndValidate )
 	{
 		// incoming
@@ -114,6 +116,8 @@ void CDlgImportOptions::DoDataExchange(CDataExchange* pDX)
 
 
 BEGIN_MESSAGE_MAP(CDlgImportOptions, CDialog)
+	ON_BN_CLICKED(ID_SAVE_AND_IMPORT, OnBnClickedSaveAndImport)
+	ON_BN_CLICKED(IDOK, OnBnClickedOk)
 END_MESSAGE_MAP()
 
 void CDlgImportOptions::Initialize( int flags )
@@ -122,3 +126,15 @@ void CDlgImportOptions::Initialize( int flags )
 }
 
 // CDlgImportOptions message handlers
+
+void CDlgImportOptions::OnBnClickedSaveAndImport()
+{
+	m_flags |= SAVE_BEFORE_IMPORT;
+	OnOK();
+}
+
+void CDlgImportOptions::OnBnClickedOk()
+{
+	m_flags &= ~SAVE_BEFORE_IMPORT;
+	OnOK();
+}

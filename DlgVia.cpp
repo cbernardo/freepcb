@@ -6,85 +6,124 @@
 #include "DlgVia.h"
 
 
-// CDlgViaPinSize dialog
+// CDlgVia dialog
 
-IMPLEMENT_DYNAMIC(CDlgViaPinSize, CDialog)
-CDlgViaPinSize::CDlgViaPinSize(CWnd* pParent /*=NULL*/)
-	: CDialog(CDlgViaPinSize::IDD, pParent)
-	, CSubDlg_ViaWidth()
-	, CSubDlg_Clearance( E_NO_AUTO_MODE )
-{
-	m_via_width.Undef();
-}
-
-CDlgViaPinSize::~CDlgViaPinSize()
+IMPLEMENT_DYNAMIC(CDlgVia, CDialog)
+CDlgVia::CDlgVia(CWnd* pParent /*=NULL*/)
+	: CDialog(CDlgVia::IDD, pParent)
 {
 }
 
-void CDlgViaPinSize::Initialize( CInheritableInfo const &via_width )
+CDlgVia::~CDlgVia()
 {
-	m_via_width = via_width;
 }
 
-BOOL CDlgViaPinSize::OnInitDialog()
-{
-	CDialog::OnInitDialog();
-
-	m_via_width.Update();
-
-	// Enable Modification of Vias
-	m_check_v_modify.SetCheck( 1 );
-	m_check_c_modify.SetCheck( 1 );
-
-	CSubDlg_ViaWidth ::OnInitDialog( m_via_width );
-	CSubDlg_Clearance::OnInitDialog( m_via_width );
-
-	return TRUE;
-}
-
-BEGIN_MESSAGE_MAP(CDlgViaPinSize, CDialog)
-	ON_BN_CLICKED(IDC_CHECK_VIA,       OnBnClicked_v_modify)
-	ON_BN_CLICKED(IDC_RADIO2_PROJ_DEF, OnBnClicked_v_Default)
-	ON_BN_CLICKED(IDC_RADIO2_SET_TO,   OnBnClicked_v_Set)
-
-	ON_BN_CLICKED(IDC_CHECK_CLEARANCE,           OnBnClicked_c_modify)
-	ON_BN_CLICKED(IDC_RADIO_USE_NET_CLEARANCE,   OnBnClicked_c_Default)
-	ON_BN_CLICKED(IDC_RADIO_SET_TRACE_CLEARANCE, OnBnClicked_c_Set)
-END_MESSAGE_MAP()
-
-void CDlgViaPinSize::DoDataExchange(CDataExchange* pDX)
+void CDlgVia::DoDataExchange(CDataExchange* pDX)
 {
 	CDialog::DoDataExchange(pDX);
-
-	DDX_Control(pDX, IDC_STATIC_GROUP_WIDTH,   m_text_v_group);
-	DDX_Control(pDX, IDC_CHECK_VIA,            m_check_v_modify);
-	DDX_Control(pDX, IDC_RADIO2_PROJ_DEF,      m_rb_v_default);
-	DDX_Control(pDX, IDC_RADIO2_SET_TO,        m_rb_v_set);
-	DDX_Control(pDX, IDC_TEXT_PAD,             m_text_v_pad_w);
-	DDX_Control(pDX, IDC_EDIT_VIA_PAD_W,       m_edit_v_pad_w);
-	DDX_Control(pDX, IDC_TEXT_HOLE,            m_text_v_hole_w);
-	DDX_Control(pDX, IDC_EDIT_VIA_HOLE_W,      m_edit_v_hole_w);
-
-	DDX_Control(pDX, IDC_CHECK_CLEARANCE,           m_check_c_modify);
-	DDX_Control(pDX, IDC_RADIO_USE_NET_CLEARANCE,   m_rb_c_default);
-	DDX_Control(pDX, IDC_RADIO_SET_TRACE_CLEARANCE, m_rb_c_set);
-	DDX_Control(pDX, IDC_EDIT_CLEARANCE,            m_edit_c_clearance);
-
-	if( pDX->m_bSaveAndValidate )
+	DDX_Control(pDX, IDC_VIA_WIDTH, m_edit_via_w);
+	DDX_Control(pDX, IDC_VIA_HOLE_WIDTH, m_edit_hole_w);
+	DDX_Control(pDX, IDC_COMBO_VIA_UNITS, m_combo_units);
+	DDX_Control(pDX, IDC_VIA_X, m_edit_x);
+	DDX_Control(pDX, IDC_VIA_Y, m_edit_y);
+	if( !pDX->m_bSaveAndValidate )
+	{
+		// incoming
+		CString str;
+		str.Format( "%d", m_via_w/NM_PER_MIL );
+		m_edit_via_w.SetWindowText( str );
+		str.Format( "%d", m_via_hole_w/NM_PER_MIL );
+		m_edit_hole_w.SetWindowText( str );
+		m_combo_units.InsertString( 0, "MIL" );
+		m_combo_units.InsertString( 1, "MM" );
+		if( m_units == MIL )
+			m_combo_units.SetCurSel(0);
+		else
+			m_combo_units.SetCurSel(1);
+		SetFields();
+	}
+	else
 	{
 		// outgoing
-		if( !CSubDlg_ViaWidth ::OnDDXOut() ||
-			!CSubDlg_Clearance::OnDDXOut() )
+		GetFields();
+		CString str;
+		m_edit_via_w.GetWindowText( str );
+		m_via_w = GetDimensionFromString( &str );
+		if( m_via_w <= 0 )
 		{
+			AfxMessageBox( "Illegal via width" );
 			pDX->Fail();
-			return;
 		}
-		else
+		m_edit_hole_w.GetWindowText( str );
+		m_via_hole_w = GetDimensionFromString( &str );
+		if( m_via_hole_w <= 0 )
 		{
-			m_via_width.Undef();
-
-			m_via_width = CSubDlg_ViaWidth ::m_attrib;
-			m_via_width = CSubDlg_Clearance::m_attrib;
+			AfxMessageBox( "Illegal via hole width" );
+			pDX->Fail();
 		}
 	}
+}
+
+void CDlgVia::Initialize( int via_w, int via_hole_w, CPoint pt, int units )
+{
+	m_via_w = via_w;
+	m_via_hole_w = via_hole_w;
+	m_pt = pt;
+	m_units = units;
+}
+
+BEGIN_MESSAGE_MAP(CDlgVia, CDialog)
+	ON_CBN_SELCHANGE(IDC_COMBO_VIA_UNITS, &CDlgVia::OnCbnSelChangeComboViaUnits)
+END_MESSAGE_MAP()
+
+
+// CDlgVia message handlers
+
+void CDlgVia::OnCbnSelChangeComboViaUnits()
+{
+	GetFields();
+	if( m_combo_units.GetCurSel() == 0 )
+		m_units = MIL;
+	else
+		m_units = MM;
+	SetFields();
+}
+
+void CDlgVia::GetFields()
+{
+	// get x and y values
+	CString xstr;
+	m_edit_x.GetWindowText( xstr );
+	CString ystr;
+	m_edit_y.GetWindowText( ystr );
+	if( m_units == MIL )
+	{
+		m_pt.x = my_atof( &xstr )*NM_PER_MIL;
+		m_pt.y = my_atof( &ystr )*NM_PER_MIL;
+	}
+	else
+	{
+		m_pt.x = my_atof( &xstr )*1000000.0;
+		m_pt.y = my_atof( &ystr )*1000000.0;
+	}
+}
+
+void CDlgVia::SetFields()
+{
+	CString str;
+	if( m_units == MIL )
+	{
+		::MakeCStringFromDouble( &str, (double)m_pt.x/NM_PER_MIL );
+		m_edit_x.SetWindowText( str );
+		::MakeCStringFromDouble( &str, (double)m_pt.y/NM_PER_MIL );
+		m_edit_y.SetWindowText( str );
+	}
+	else
+	{
+		::MakeCStringFromDouble( &str, (double)m_pt.x/1000000.0 );
+		m_edit_x.SetWindowText( str );
+		::MakeCStringFromDouble( &str, (double)m_pt.y/1000000.0 );
+		m_edit_y.SetWindowText( str );
+	}
+
 }

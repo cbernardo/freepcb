@@ -2,6 +2,8 @@
 #include "memdc.h"
 #include "DrawingElement.h"
 
+extern CFreePcbApp theApp;
+
 CDL_job::~CDL_job()
 {
 	// Remove all elements
@@ -186,7 +188,7 @@ void CDL_job_copper_area::Draw(CDrawInfo &di) const
 		}
 		di.DC->SelectObject( old_pen );
 		di.DC->SelectObject( old_brush );
-
+#if 0
 		// Scratch the clearances
 		void *area_net = my_poly->GetPtr();
 
@@ -195,7 +197,7 @@ void CDL_job_copper_area::Draw(CDrawInfo &di) const
 
 		// Scratch the hole clearances
 		ScratchClearances(di, LAY_PAD_THRU, area_bounds, area_net);
-
+#endif
 		// Restore original drawing objects
 		{
 			di.DC->SelectObject( old_pen );
@@ -250,7 +252,7 @@ void CDL_job_copper_area::ScratchClearances(CDrawInfo &di, int layer, CRect cons
 #endif
 			void *net;
 
-			switch (el->id.type)
+			switch (el->id.T1())
 			{
 			case ID_TEXT:
 			{
@@ -268,7 +270,7 @@ void CDL_job_copper_area::ScratchClearances(CDrawInfo &di, int layer, CRect cons
 			{
 				cpart *part = (cpart *)el->ptr;
 
-                net = part->pin[el->id.i].net;
+                net = part->pin[el->id.I2()].net;
 			}
 			// fall thru to chk_net
 

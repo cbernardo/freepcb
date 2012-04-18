@@ -1,6 +1,8 @@
 #include "stdafx.h"
 #include "dle_square.h"
 
+extern CFreePcbApp theApp;
+
 // filled square
 void CDLE_SQUARE::_Draw(CDrawInfo const &di) const
 {

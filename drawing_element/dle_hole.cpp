@@ -1,6 +1,8 @@
 #include "stdafx.h"
 #include "dle_hole.h"
 
+extern CFreePcbApp theApp;
+
 // hole, shown as circle
 void CDLE_HOLE::_Draw(CDrawInfo const &di) const
 {

@@ -128,7 +128,7 @@ void CDlgImportFootprint::OnTvnSelchangedPartLibTree(NMHDR *pNMHDR, LRESULT *pRe
 		void * ptr;
 		// lookup shape in cache
 		BOOL bInCache = m_footprint_cache_map->Lookup( m_footprint_name, ptr );
-		if( bInCache )
+		if( bInCache && m_in_cache )
 		{
 			// found it, make shape
 			m_shape.Copy( (CShape*)ptr );
@@ -141,13 +141,13 @@ void CDlgImportFootprint::OnTvnSelchangedPartLibTree(NMHDR *pNMHDR, LRESULT *pRe
 			CString * lib_file_name = m_footlibfolder->GetLibraryFullPath( m_ilib );
 			int offset = m_footlibfolder->GetFootprintOffset( m_ilib, m_ifoot );
 			// make shape from library file
-			int err = m_shape.MakeFromFile( NULL, m_footprint_name, *lib_file_name, offset );
+			int err = m_shape.MakeFromFile( NULL, m_footprint_name, *lib_file_name, offset ); 
 			if( err )
 			{
 				// unable to make shape
 				ASSERT(0);
 			}
-			BOOL bOK = ::SplitString( lib_file_name,
+			BOOL bOK = ::SplitString( lib_file_name, 
 				&m_footprint_folder, &m_footprint_filename, '\\', TRUE );
 		}
 		// now draw preview of footprint
@@ -155,11 +155,11 @@ void CDlgImportFootprint::OnTvnSelchangedPartLibTree(NMHDR *pNMHDR, LRESULT *pRe
 		CDC * pDC = this->GetDC();
 		CRect rw;
 		m_preview.GetClientRect( &rw );
-		HENHMETAFILE hMF;
-		hMF = m_shape.CreateMetafile( &m_mfDC, pDC, rw );
+		HENHMETAFILE hMF = m_shape.CreateMetafile( &m_mfDC, pDC, rw );
 		m_preview.SetEnhMetaFile( hMF );
 		ReleaseDC( pDC );
 		DeleteEnhMetaFile( hMF );
+
 		// update text strings
 		m_edit_author.SetWindowText( m_shape.m_author );
 		m_edit_source.SetWindowText( m_shape.m_source );
@@ -180,7 +180,7 @@ void CDlgImportFootprint::InitPartLibTree()
 	CTreeCtrl * pCtrl = &part_tree;
 	pCtrl->DeleteAllItems();
 	int i_exp = 0;
-
+	
 	// allow vertical scroll
 	long style = ::GetWindowLong( part_tree, GWL_STYLE );
 	style = style & ~TVS_NOSCROLL;

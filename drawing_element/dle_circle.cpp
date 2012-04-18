@@ -1,6 +1,8 @@
 #include "stdafx.h"
 #include "dle_circle.h"
 
+extern CFreePcbApp theApp;
+
 //-----------------------------------------------------------------------------
 // filled circle
 void CDLE_CIRC::_Draw(CDrawInfo const &di) const

@@ -12,8 +12,8 @@ public:
 	DlgEditBoardCorner(CWnd* pParent = NULL);   // standard constructor
 	virtual ~DlgEditBoardCorner();
 	void Init( CString * str, int units, int x, int y );
-	int GetX(){ return m_x; };
-	int GetY(){ return m_y; };
+	int X(){ return m_x; };
+	int Y(){ return m_y; };
 
 // Dialog Data
 	enum { IDD = IDD_EDIT_BOARD_CORNER };

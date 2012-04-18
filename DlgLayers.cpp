@@ -4,9 +4,9 @@
 //
 #include "stdafx.h"
 #include "FreePcb.h"
-#include "layers.h"
-#include "DlgRatWidth.h"
 #include "DlgLayers.h"
+#include "layers.h"
+#include ".\dlglayers.h"
 
 
 // CDlgLayers dialog
@@ -40,7 +40,9 @@ void CDlgLayers::DoDataExchange(CDataExchange* pDX)
 		// on OK
 		for( int i=0; i<NUM_DLG_LAYERS; i++ )
 		{
-			m_rgb_ptr[i] = m_rgb[i];
+			m_rgb_ptr[i*3] = m_rgb[i][0];
+			m_rgb_ptr[i*3+1] = m_rgb[i][1];
+			m_rgb_ptr[i*3+2] = m_rgb[i][2];
 		}
 	}
 }
@@ -75,18 +77,18 @@ BEGIN_MESSAGE_MAP(CDlgLayers, CDialog)
 	ON_BN_CLICKED(IDC_BUTTON_LAYER_26, OnBnClickedButtonLayer26)
 	ON_BN_CLICKED(IDC_BUTTON_LAYER_27, OnBnClickedButtonLayer27)
 	ON_BN_CLICKED(IDC_BUTTON_LAYER_28, OnBnClickedButtonLayer28)
-	ON_BN_CLICKED(IDC_BUTTON_LAYER_7W, &CDlgLayers::OnBnClickedButtonLayer7W)
 END_MESSAGE_MAP()
 
-void CDlgLayers::Initialize( int nlayers, int ratlineWidth, int vis[], C_RGB rgb[] )
+void CDlgLayers::Initialize( int nlayers, int vis[], int rgb[][3] )
 {
 	m_nlayers = nlayers;
-	m_ratline_w = ratlineWidth;
 	m_vis = vis;
-	m_rgb_ptr = (C_RGB*)rgb;
+	m_rgb_ptr = (int*)rgb;
 	for( int i=0; i<NUM_DLG_LAYERS; i++ )
 	{
-		m_rgb[i] = m_rgb_ptr[i];
+		m_rgb[i][0] = m_rgb_ptr[i*3];
+		m_rgb[i][1] = m_rgb_ptr[i*3+1];
+		m_rgb[i][2] = m_rgb_ptr[i*3+2];
 	}
 }
 
@@ -105,10 +107,10 @@ HBRUSH CDlgLayers::OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor)
 	{
 		int i = pWnd->GetDlgCtrlID() - IDC_STATIC_LAYER_1;
 		// Set layer color
-		pDC->SetTextColor( m_rgb[i] );
+		pDC->SetTextColor(RGB(m_rgb[i][0], m_rgb[i][1], m_rgb[i][2]));
 		pDC->SetBkMode(TRANSPARENT);
 		m_brush.DeleteObject();
-		m_brush.CreateSolidBrush( m_rgb[i] );
+		m_brush.CreateSolidBrush( RGB(m_rgb[i][0], m_rgb[i][1], m_rgb[i][2]) );
 		hbr = m_brush;
 	}
 	return hbr;
@@ -116,15 +118,15 @@ HBRUSH CDlgLayers::OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor)
 
 // handle edit button clicks
 //
-void CDlgLayers::OnBnClickedButtonLayer1()  { EditColor( 0 ); }
-void CDlgLayers::OnBnClickedButtonLayer2()  { EditColor( 1 ); }
-void CDlgLayers::OnBnClickedButtonLayer3()  { EditColor( 2 ); }
-void CDlgLayers::OnBnClickedButtonLayer4()  { EditColor( 3 ); }
-void CDlgLayers::OnBnClickedButtonLayer5()  { EditColor( 4 ); }
-void CDlgLayers::OnBnClickedButtonLayer6()  { EditColor( 5 ); }
-void CDlgLayers::OnBnClickedButtonLayer7()  { EditColor( 6 ); }
-void CDlgLayers::OnBnClickedButtonLayer8()  { EditColor( 7 ); }
-void CDlgLayers::OnBnClickedButtonLayer9()  { EditColor( 8 ); }
+void CDlgLayers::OnBnClickedButtonLayer1() { EditColor( 0 ); }
+void CDlgLayers::OnBnClickedButtonLayer2() { EditColor( 1 ); }
+void CDlgLayers::OnBnClickedButtonLayer3() { EditColor( 2 ); }
+void CDlgLayers::OnBnClickedButtonLayer4() { EditColor( 3 ); }
+void CDlgLayers::OnBnClickedButtonLayer5() { EditColor( 4 ); }
+void CDlgLayers::OnBnClickedButtonLayer6() { EditColor( 5 ); }
+void CDlgLayers::OnBnClickedButtonLayer7() { EditColor( 6 ); }
+void CDlgLayers::OnBnClickedButtonLayer8() { EditColor( 7 ); }
+void CDlgLayers::OnBnClickedButtonLayer9() { EditColor( 8 ); }
 void CDlgLayers::OnBnClickedButtonLayer10() { EditColor( 9 ); }
 void CDlgLayers::OnBnClickedButtonLayer11() { EditColor( 10 ); }
 void CDlgLayers::OnBnClickedButtonLayer12() { EditColor( 11 ); }
@@ -149,24 +151,16 @@ void CDlgLayers::OnBnClickedButtonLayer28() { EditColor( 27 ); }
 //
 void CDlgLayers::EditColor( int layer )
 {
-	CColorDialog dlg( m_rgb[layer], CC_FULLOPEN | CC_ANYCOLOR );
+	CColorDialog dlg( RGB(m_rgb[layer][0], m_rgb[layer][1], m_rgb[layer][2]), 
+		CC_FULLOPEN | CC_ANYCOLOR );
 	int ret = dlg.DoModal();
 	if( ret == IDOK )
 	{
-		m_rgb[layer] = dlg.GetColor();
+		COLORREF color = dlg.GetColor();
+		m_rgb[layer][0] = GetRValue( color );
+		m_rgb[layer][1] = GetGValue( color );
+		m_rgb[layer][2] = GetBValue( color );
 		Invalidate( FALSE );
 	}
 }
 
-
-void CDlgLayers::OnBnClickedButtonLayer7W()
-{
-	CRatWidth dlg;
-	dlg.m_ratline_w = m_ratline_w / NM_PER_MIL;
-	int ret = dlg.DoModal();
-	if( ret == IDOK )
-	{
-        m_ratline_w = dlg.m_ratline_w * NM_PER_MIL;
-		Invalidate( FALSE );
-	}
-}
