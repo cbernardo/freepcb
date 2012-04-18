@@ -2909,6 +2909,1392 @@ BEGIN
     AFX_IDS_PREVIEW_CLOSE   "Close print preview mode\nCancel Preview"
 END
 
+STRINGTABLE
+BEGIN
+    IDS_IllegalNetName      "Illegal net name"
+    IDS_TopSolderMask       "TOP SOLDER MASK"
+    IDS_BottomSolderMask    "BOTTOM SOLDER MASK"
+    IDS_IllegalReferenceDesignator "Illegal reference designator"
+    IDS_DuplicateReference  "Duplicate reference: %s already used"
+    IDS_ValueCannotContainAt "Value cannot contain ""@"""
+    IDS_WarningAFootprint   "Warning: A footprint named ""%s""\r\nis already in use by other parts.\r\nLoading this new footprint will overwrite the old one\r\nunless you change its name\r\n"
+    IDS_ErrorNoFootprintSelected "Error: No footprint selected"
+    IDS_WarningSHasFewerPins 
+                            "Warning: %s has fewer pins than %s\nDo you really want to replace it ? "
+    IDS_DoYouWantToAssignFootprint 
+                            "Do you want to assign footprint ""%s""\nto all instances of package ""%s"" ?"
+    IDS_Top                 "top"
+    IDS_Bottom              "bottom"
+    IDS_Multiple            "multiple"
+    IDS_OpenFolder          "Open folder"
+    IDS_SelectFootprintLibraryFolder "Select footprint library folder"
+    IDS_PadShape            "<default>"
+END
+
+STRINGTABLE
+BEGIN
+    62016                   "none"
+    62017                   "round"
+    62018                   "square"
+    62019                   "rect"
+    62020                   "rounded-rect"
+    62021                   "oval"
+    62022                   "octagon"
+    IDS_LeftCenterRight     "left"
+    62024                   "center"
+    62025                   "right"
+    IDS_TopMiddleBottom     "top"
+    62027                   "middle"
+    62028                   "bottom"
+    IDS_HorizVert           "horiz"
+    62030                   "vert"
+    IDS_PinNameMayNotContainAnyOfTheCharacters 
+                            "Pin name may not contain any of the characters .,;:/!@#$%^&*(){}[]|<>?\\~, nor any spaces"
+END
+
+STRINGTABLE
+BEGIN
+    IDS_IllegalRowSpacing   "Illegal row spacing"
+    IDS_PinNameForARow      "Pin name for a row of pins must end in a number"
+    IDS_ForThroughHolePin   "For through-hole pin, hole diameter must be > 0"
+    IDS_IllegalTopPadWidth  "Illegal top pad width"
+    IDS_IllegalInnerPadWidth "Illegal inner pad width"
+    IDS_IllegalBottomPadWidth "Illegal bottom pad width"
+    IDS_SMTPadShapeCantBeNone "SMT pad shape can't be ""none"""
+    IDS_RadiusOfTopRoundedRect 
+                            "Radius of top rounded-rect pad > length/2 or width/2"
+    IDS_RadiusOfTopMask     "Radius of top mask rounded-rect pad > length/2 or width/2"
+    IDS_RadiusOfTopPaste    "Radius of top paste rounded-rect pad > length/2 or width/2"
+    62043                   "Radius of inner rounded-rect pad > length/2 or width/2"
+    IDS_RadiusOfBottomRoundedRect 
+                            "Radius of bottom rounded-rect pad > length/2 or width/2"
+    IDS_RadiusOfBottomMask  "Radius of bottom mask rounded-rect pad > length/2 or width/2"
+    IDS_RadiusOfBottomPaste "Radius of bottom paste rounded-rect pad > length/2 or width/2"
+    IDS_ToCreateARowOfPins  "To create a row of pins, the pin name must end in a number"
+END
+
+STRINGTABLE
+BEGIN
+    IDS_PinNameIsAlreadyInUse "Pin name ""%s"" is already in use"
+    IDS_PinNameConflicts    "Pin name ""%s"" conflicts with an existing pin\nShift the existing pin name up?"
+    IDS_PinNamesConflict    "Pin names ""%s%d"" through ""%s%d"" conflict with existing pins\nShift existing pin names up?"
+    IDS_YouAreApplyingNewPadParameters 
+                            "You are applying new pad parameters to SMT pads\non both top and bottom layers.\n\nClick YES to preserve the layers of these pads,\nor NO to set them all to the layer of the new pad"
+    IDS_WidthOutOfRange     "Width out of range (1 to 999 mils)"
+    IDS_InvalidTextString   "Invalid text string"
+    IDS_TextStringCantContainQuote "Text string can't contain """
+    IDS_NetNotFoundInNetlist "Net ""%s"" not found in netlist.\nCreate it ?"
+    IDS_FolderDoesntExist   "Folder ""%s"" doesn't exist, create it ?"
+    IDS_UnableToCreateFolder "Unable to create folder ""%s"""
+    IDS_WarningYouHaveSetTheCopper 
+                            "WARNING: You have set the copper to copper-fill clearance to 0.\nThis will disable automatic generation of clearances for pads and vias in copper areas.\nAre you SURE that you don't need these clearances ?"
+    IDS_ErrorUnableToOpenFile "ERROR: Unable to open file ""%s""\r\n"
+    IDS_WritingFile         "Writing file: ""%s""\r\n"
+    IDS_ErrorsOccurredDuringCreationOfGerber 
+                            "****** ERRORS OCCURRED DURING CREATION OF GERBERS ******\r\n"
+    IDS_AllGerbersCreatedSuccessfully 
+                            "************ ALL GERBERS CREATED SUCCESSFULLY **********\r\n"
+END
+
+STRINGTABLE
+BEGIN
+    IDS_RenderingPngFiles   "*********** RENDERING .PNG FILES FOR LAYERS ************\r\n"
+    IDS_Done                "************************* DONE *************************\r\n"
+    IDS_SelectFolder        "Select Folder"
+    IDS_SetCAMOutputFolder  "Set CAM output folder"
+    IDS_WarningYourDesignRule 
+                            "Warning: Your design rule for minimum annular ring width for pins\nexceeds the default annular ring width in the CAM dialog.\nThis will probably create DRC errors.\n\nDo you want to set the CAM parameter to match the design rule?"
+    IDS_WarningYourDesignRuleVias 
+                            "Warning: Your design rule for minimum annular ring width for vias\nexceeds the default annular ring width in the CAM dialog.\nThis will probably create DRC errors.\n\nDo you want to set the CAM parameter to match the design rule?"
+    IDS_YouMustEnterANewFootprintName "You must enter a new footprint name"
+    IDS_NewFootprintNameIsAlreadyInUse "New footprint name is already in use"
+    IDS_MaxLengthOfNetName  "Max length of net name is %d characters"
+    IDS_IllegalTraceWidth   "illegal trace width"
+    IDS_IllegalViaWidth     "illegal via width"
+    IDS_IllegalViaHoleWidth "illegal via hole width"
+    IDS_DuplicateNetName    "duplicate net name"
+    IDS_IllegalPin          "Illegal pin"
+    IDS_PinAlreadyInThisNet "Pin already in this net"
+    IDS_PartDoesNotExist    "Part ""%s"" does not exist"
+END
+
+STRINGTABLE
+BEGIN
+    IDS_PartDoesNotHaveAFootprint """Part ""%s"" does not have a footprint"""
+    IDS_PinNameMustConsistOf 
+                            "Pin name must consist of zero or more letters\nFollowed by zero or more numbers\nFor example: 1, 23, A12, SOURCE are legal\nwhile 1A, A2B3 are not\n"
+    IDS_PinNotFoundInFootprint "Pin ""%s"" not found in footprint ""%s"""
+    IDS_PinIsAssignedToNet  "Pin %s.%s is assigned to net ""%s""\nRemove it from ""%s""?"
+    IDS_GroupPasteCols      "Sel"
+    IDS_NetCombineCols      "Name"
+    62086                   "Pins"
+    62087                   "Width"
+    62088                   "Via W"
+    62089                   "Hole"
+    IDS_SessionFiles        "Session files (*.ses)|*.ses|All Files (*.*)|*.*||"
+    IDS_IvexLibraryFiles    "Ivex library files (*.mod)|*.mod|All Files (*.*)|*.*||"
+    IDS_UnableToOpenFile    " Unable to open file %s"
+    IDS_ConvertingIvexFile  "Converting Ivex file %s...\r\n"
+    IDS_Done2               "done\r\n"
+    IDS_AllLibraryFiles     "*** all library files ***"
+END
+
+STRINGTABLE
+BEGIN
+    IDS_Letter              "letter  (8.5 x 11.0 in)"
+    IDS_A4                  "A4  (210 x 297 mm)"
+    IDS_NativeForFootprint  "native for footprint"
+    IDS_MmAndMils           "mm and mils"
+    IDS_CreatingFile        "Creating file: ""%s""\r\n"
+    IDS_ErrorUnableToWriteFile 
+                            "Error: Unable to write file\nIt may be read-only or open in another application"
+    IDS_ErrorUnableToWriteFile2 "*** Error: unable to write file ***\r\n"
+    IDS_NoNetsSelected      "No nets selected"
+    IDS_Vis                 "Vis"
+    IDS_YouHaveNoNetSelected "You have no net selected"
+    IDS_YouHaveMoreThanOneNetSelected "You have more than one net selected"
+    IDS_PartListCols        "Value Vis"
+    62109                   "Reference"
+    62110                   "Package"
+    62111                   "Footprint"
+END
+
+STRINGTABLE
+BEGIN
+    62112                   "Value"
+    IDS_YouHaveNoPartSelected "You have no part selected"
+    IDS_ToEditMultipleParts "To edit multiple parts, please select Footprint, Package or Value"
+    IDS_PleaseEnterNameForProject "Please enter name for project"
+    IDS_PleaseEnterProjectFolder "Please enter project folder"
+    IDS_PleaseEnterLibraryFolder "Please enter library folder"
+    IDS_ProjectOptionsCols  "Trace width"
+    62119                   "Via pad width"
+    62120                   "Via hole width"
+    IDS_NoMenuItemSelected  "no menu item selected"
+    IDS_LibraryFolder       "Library Folder"
+    IDS_SelectDefaultLibraryFolder "Select default library folder"
+    IDS_Delete              "delete"
+    IDS_FreePCBProjectReport 
+                            "FreePCB project report (default units = %s)\n============================================\n"
+    IDS_ProjectName         "Project name: %s\n"
+    IDS_ProjectFile         "Project file: %s\n"
+END
+
+STRINGTABLE
+BEGIN
+    IDS_DefaultLibraryFolder "Default library folder: %s\n"
+    IDS_BoardStatistics     "\nBoard statistics\n==============\n"
+    IDS_NumberOfCopperLayers "Number of copper layers: %d\n"
+    IDS_NumberOfBoardOutlines "Number of board outlines: %d\n"
+    IDS_BoardOutlinesExtent "Board outline(s) extent: X = %s; Y = %s\n"
+    IDS_NumberOfParts       "Number of parts: %d (without footprints = %d)\n"
+    IDS_NumberOfParts2      "Number of parts: %d\n"
+    IDS_NumberOfPins        "Number of pins: %d (%d through-hole, %d SMT)\n"
+    IDS_NumberOfVias        "Number of vias: %d\n"
+    IDS_NumberOfHoles       "Number of holes: %d\n"
+    IDS_DrillList           "\nDrill list\n==========\nNUMBER  DIAMETER\n------  --------\n"
+    IDS_PartList            "\nPart list\n=========\n"
+    IDS_Counterclockwise    "CCW"
+    IDS_Clockwise           "CW"
+    IDS_ForPartsOnTopTheAngleIs 
+                            "For parts on top: the angle is in degrees %s, as viewed from the top\n"
+    IDS_ForPartsOnTheBottomTheAngleIs 
+                            "For parts on the bottom: the angle is in degrees %s, as viewed from the top\n"
+END
+
+STRINGTABLE
+BEGIN
+    IDS_ForPartsOnTheBottomTheAngleIs2 
+                            "For parts on the bottom: the angle is in degrees %s, as viewed from the bottom by flipping the PCB left-right\n"
+    IDS_AllCentroidCoordinatesAreAsViewedFromTheTop 
+                            "All centroid coordinates are as viewed from the top\n\n"
+    IDS_Top2                "   top"
+    IDS_STRING62147         "bottom"
+    IDS_ReportFields        "REF"
+    62149                   "PACKAGE"
+    62150                   "VALUE"
+    62151                   "FOOTPRINT"
+    62152                   "PINS"
+    62153                   "HOLES"
+    62154                   "SIDE"
+    62155                   "ANGLE"
+    62156                   "CENT X"
+    62157                   "CENT Y"
+    62158                   "PIN1 X"
+    62159                   "PIN1 Y"
+END
+
+STRINGTABLE
+BEGIN
+    62160                   "GLUE W"
+    62161                   "GLUE X"
+    62162                   "GLUE Y"
+    IDS_GerberFileSettings  "\nGerber file settings\n====================\n"
+    IDS_No                  "NO"
+    IDS_Yes                 "YES"
+    IDS_IncludeBoardOutline "Include board outline: %s\n"
+    IDS_IncludeMoires       "Include moires: %s\n"
+    IDS_IncludeLayerDescriptionText "Include layer description text: %s\n"
+    IDS_IncludePilotHoles   "Include pilot holes: %s\n"
+    IDS_ConnectSMTPinsToCopperAreas "Connect SMT pins to copper areas: %s\n"
+    IDS_UseThermalsForSMTPins "Use thermals for SMT pins: %s\n"
+    IDS_UseThermalsForThroughHolePins 
+                            "Use thermals for through-hole pins: %s\n"
+    IDS_UseThermalsForVias  "Use thermals for vias: %s\n"
+    IDS_MakeSolderMaskCutoutsForVias "Make solder-mask cutouts for vias: %s\n"
+    IDS_Use90DegreeThermalsForRoundPins 
+                            "Use 90-degree thermals for round pins: %s\n"
+END
+
+STRINGTABLE
+BEGIN
+    IDS_CopperToCopperFillClearance "Copper to copper-fill clearance: %s\n"
+    IDS_HoleEdgeToCopperFillClearance 
+                            "Hole-edge to copper-fill clearance: %s\n"
+    IDS_SolderMaskClearance "Solder mask clearance: %s\n"
+    IDS_PilotHoleDiameter   "Pilot hole diameter: %s\n"
+    IDS_MinimumSilkscreenLineWidth "Minimum silkscreen line width: %s\n"
+    IDS_ThermalReliefLineWidth "Thermal relief line width: %s\n"
+    IDS_BoardOutlineLineWidth "Board outline line width: %s\n"
+    IDS_MinimumAnnularRingWidthPins "Minimum annular ring width (pins): %s\n"
+    IDS_MinimumAnnularRingWidthVias "Minimum annular ring width (vias): %s\n"
+    IDS_AmountToShrinkSMTPadsForPasteMask 
+                            "Amount to shrink SMT pads for paste mask: %s\n"
+    IDS_DRCSettings         "\nDRC settings\n============\n"
+    IDS_MinimumTraceWidth   "Minimum trace width: %s\n"
+    IDS_MinimumPadToPadClearance "Minimum pad to pad clearance: %s\n"
+    IDS_MinimumPadToTraceClearance "Minimum pad to trace clearance: %s\n"
+    IDS_MinimumTraceToTraceClearance "Minimum trace to trace clearance: %s\n"
+    IDS_MinimumHoleToCopperClearance "Minimum hole to copper clearance: %s\n"
+END
+
+STRINGTABLE
+BEGIN
+    IDS_MinimumHoleToHoleClearance "Minimum hole to hole clearance: %s\n"
+    IDS_MinimumAnnularRingPins "Minimum annular ring (pins): %s\n"
+    IDS_MinimumAnnularRingVias "Minimum annular ring (vias): %s\n"
+    IDS_MinimumBoardEdgeToCopperClearance 
+                            "Minimum board edge to copper clearance: %s\n"
+    IDS_MinimumBoardEdgeToHoleClearance 
+                            "Minimum board edge to hole clearance: %s\n"
+    IDS_MinimumCopperAreaToCopperAreaClearance 
+                            "Minimum copper area to copper area clearance: %s\n"
+    IDS_DRCErrors           "\nDRC errors\n==========\n"
+    IDS_RoutedConnectionFrom "routed connection from"
+    IDS_ConnectivityErrors  "\nConnectivity errors\n===================\n"
+    IDS_FolderDoesntExistCreateIt "Folder ""%s"" doesn't exist\nCreate it ?"
+    IDS_IndexingLibraryFolder "Indexing library folder ""%s""\r\n"
+    IDS_NameTooLong         "Name too long, can't exceed %d characters"
+    IDS_FootprintAlreadyExistsInFile 
+                            "Footprint ""%s"" already exists in file ""%s""\nOverwrite ?"
+    IDS_FootprintAlreadyExistsInAnotherLibrary 
+                            "Footprint ""%s"" already exists in another library file ""%s""\nDo you want to change the name?"
+    IDS_FileSystemErrorUnableToModifyLibrary 
+                            "File system error: Unable to modify library file\nFile could be read-only or you don't have permission to modify it\nThe modified file has been saved as ""temp.txt"""
+    IDS_FileSystemErrorUnableToModifyLibrary2 
+                            "File system error: Unable to modify library file\nThe original file has been deleted but can't be rewritten\nThe modified file has been saved as ""temp.txt"""
+END
+
+STRINGTABLE
+BEGIN
+    IDS_IllegalHoleWidth    "illegal hole width"
+    IDS_RightDownLeftUp     "RIGHT"
+    62210                   "DOWN"
+    62211                   "LEFT"
+    62212                   "UP"
+    IDS_Done3               "Done"
+    IDS_Cancel              "Cancel"
+    IDS_WizPinShapes        "Round"
+    62216                   "Square"
+    62217                   "Pin 1 square, others round"
+    62218                   "Octagon"
+    62219                   "Rectangular"
+    62220                   "Rounded Rect"
+    62221                   "Oval"
+    62222                   "None"
+    IDS_WizPin1             "top row, center pin"
+END
+
+STRINGTABLE
+BEGIN
+    62224                   "bottom row, left-most pin"
+    62225                   "top row, left-most pin"
+    IDS_WizType             "SIP"
+    62227                   "DIP"
+    62228                   "QUAD"
+    62229                   "HEADER"
+    62230                   "HEADER2"
+    62231                   "PGA/BGA"
+    62232                   "EDGE"
+    62233                   "EDGE2"
+    IDS_IllegalName         "Illegal name"
+    IDS_IllegalNumberOfPins "Illegal number of pins"
+    IDS_TooManyPins         "Too many pins"
+    IDS_IllegalNumberOfPinsPerHorizontalRow 
+                            "Illegal number of pins per horizontal row"
+    IDS_IllegalNumberOfPinsPerVerticalRow 
+                            "Illegal number of pins per vertical row"
+    IDS_TooManyRows         "Too many rows"
+END
+
+STRINGTABLE
+BEGIN
+    IDS_IllegalPadWidthX    "Illegal pad width (X)"
+    IDS_IllegalPadLengthY   "Illegal pad length (Y)"
+    IDS_IllegalPadCornerRadius "Illegal pad corner radius"
+    IDS_PadCornerRadiusTooLarge "Pad corner radius too large"
+    IDS_PadShapeNoneRequiresANonZeroHoleWidth 
+                            "Pad shape ""None"" requires a non-zero hole width"
+    IDS_IllegalPadSpacingE  "Illegal pad spacing (E)"
+    IDS_IllegalDistanceBetweenTopAndBottomRows 
+                            "Illegal distance between top and bottom rows"
+    IDS_IllegalDistanceBetweenLeftAndRightRows 
+                            "Illegal distance between left and right rows"
+    IDS_IllegalPadShapeForEdgeConnector 
+                            "Illegal pad shape for edge connector\nUse rectangle, rounded-rect or oval"
+    IDS_CShapeMakeFromStringFailed 
+                            "CShape::MakeFromString() failed to make footprint from:\n\n%s"
+    IDS_UnableToOpenLibraryFile "Unable to open library file\n\n ""%s"""
+    IDS_IndexingLibrary     "Indexing library: ""%s""\r\n"
+    IDS_Untitled            "untitled"
+    IDS_DrilledHole         "drilled hole"
+    IDS_UseNumeric          "* Use numeric"
+    IDS_KeysToDisplay       "keys to display"
+END
+
+STRINGTABLE
+BEGIN
+    IDS_LayerOnTop          "layer on top"
+    IDS_NoSelection         "No selection"
+    IDS_Pin                 "Pin %s"
+    IDS_MovingPin           "Moving pin %s"
+    IDS_PolylineCorner      "Polyline %d, corner %d"
+    62261                   "straight"
+    IDS_ArcCw               "arc(cw)"
+    IDS_ArcCcw              "arc(ccw)"
+    IDS_PolylineSideStyle   "Polyline %d, side %d, style = %s"
+    IDS_DefaultPosition     "default position"
+    IDS_Defined             "defined"
+    IDS_CentroidXYAngle     "Centroid (%s), x %s, y %s, angle %d"
+    IDS_ProjectDefault      "<project default>"
+    IDS_AdhesiveSpotWXY     "Adhesive spot %d: w %s, x %s, y %s"
+    IDS_AdhesiveSpotWAtCentroid "Adhesive spot %d: w %s at <centroid>"
+    IDS_MovingCornerOfPolyline "Moving corner %d of polyline %d"
+END
+
+STRINGTABLE
+BEGIN
+    IDS_CornerPosition      "Corner Position"
+    IDS_PolylineHasTooFewCorners "Polyline has too few corners"
+    IDS_UnableToSaveEmptyFootprint "Unable to save: empty footprint"
+    IDS_SaveFootprintBeforeExiting "Save footprint before exiting ?"
+    IDS_SaveFootprint       "Save footprint ?"
+    IDS_SaveFootprintBeforeLaunchingWizard 
+                            "Save footprint before launching Wizard ?"
+    IDS_FootprintEditor     "Footprint Editor - "
+    IDS_Top3                "Top"
+    IDS_Inner               "Inner"
+    IDS_Bottom2             "Bottom"
+    IDS_Value               "VALUE"
+    IDS_NoteTheRecentFileListIsDisabled 
+                            "NOTE: The recent file list is disabled on your system.\nUse the system policy editor to re-enable."
+    IDS_UnableToOpenLibraryFolder "Unable to open library folder: %s"
+    IDS_NoProjectOpen       "no project open"
+    IDS_PCBFiles            "PCB files (*.fpc)|*.fpc|All Files (*.*)|*.*||"
+    IDS_YouAreOpeningAFileWithExtensionFPL 
+                            "You are opening a file with extension "".fpl""\nwhich is usually a FreePCB footprint library.\n\nWould you like to load this library as a project?"
+END
+
+STRINGTABLE
+BEGIN
+    IDS_FileOpenDialogErrorCode "File Open Dialog error code = %ulx\n"
+    IDS_ProjectModifiedSaveIt "Project modified, save it ? "
+    IDS_ProjectFolder       "Project Folder"
+    IDS_UnableToCreateAutosaveFolder "Unable to create autosave folder ""%s"""
+    IDS_UnableToOpenAutosaveFolder "Unable to open autosave folder ""%s"""
+    IDS_FileSaveFailed      "File save failed"
+    IDS_UnableToMakeShapeFromFile "Unable to make shape %s from file"
+    IDS_UnableToFindFootprintsSectionInFile 
+                            "Unable to find [footprints] section in file"
+    IDS_UnexpectedEOFInProjectFile "unexpected EOF in project file"
+    IDS_FileError1          "File error: %d\n"
+    IDS_FileError2          "File error: %d %ld (%s)\n"
+    IDS_UnableToFindBoardSectionInFile 
+                            "Unable to find [board] section in file"
+    IDS_ErrorParsingBoardSectionOfProjectFile 
+                            "error parsing [board] section of project file"
+    IDS_UnableToFindSolderMaskCutoutsSectionInFile 
+                            "Unable to find [solder_mask_cutouts] section in file"
+    IDS_ErrorParsingSolderMaskCutoutsSectionOfProjectFile 
+                            "error parsing [solder_mask_cutouts] section of project file"
+    IDS_UnableToFindOptionsSectionInFile 
+                            "Unable to find [options] section in file"
+END
+
+STRINGTABLE
+BEGIN
+    IDS_WarningTheFileVersionIs 
+                            "Warning: the file version is %5.3f\n\nYou are running an earlier FreePCB version %5.3f \n\nErrors may occur\n\nClick on OK to continue reading or CANCEL to cancel"
+    IDS_ReadingProjectFileFailedCancelledByUser 
+                            "Reading project file failed: Cancelled by user"
+    IDS_ErrorParsingOptionsSectionOfProjectFile 
+                            " error parsing [options] section of project file"
+    IDS_WarningLayerNotSupported "Warning: layer ""%s"" not supported"
+    IDS_UnableToOpenGlobalConfigurationFile 
+                            "Unable to open global configuration file ""default.cfg""\nUsing application defaults"
+    IDS_AllFiles            "All Files (*.*)|*.*||"
+    IDS_UnableToOpenFile2   "Unable to open file"
+    IDS_ImportNetListFile   "Import netlist file"
+    IDS_ReadingNetlistFile  "Reading netlist file ""%s"":\r\n"
+    IDS_WarningThisDoesNotAppearToBeALegalPADSPCB 
+                            "WARNING: This does not appear to be a legal PADS-PCB netlist file\nIt does not contain the string ""*PADS-PCB*"" in the first few lines\n"
+    IDS_ImportingPartsIntoProject "\r\nImporting parts into project:\r\n"
+    IDS_ImportingNetsIntoProject "\r\nImporting nets into project:\r\n"
+    IDS_MovingTracesAndCopperAreas 
+                            "\r\nMoving traces and copper areas whose nets have changed:\r\n"
+    IDS_UnableToOpenSessionFile "Unable to open session file ""%s"""
+    IDS_ErrorInLineOfNetlistFile 
+                            "Error in line %d of netlist file\nIllegal pin identifier ""%s"""
+    IDS_LineReferenceDesignatorTooLong 
+                            "  line %d: Reference designator ""%s"" too long, truncated\r\n"
+END
+
+STRINGTABLE
+BEGIN
+    IDS_LinePartIllegalReferenceDesignator 
+                            "  line %d: Part ""%s"" illegal reference designator, ignored\r\n"
+    IDS_LinePartIsDuplicateIgnored 
+                            "  line %d: Part ""%s"" is duplicate, ignored\r\n"
+    IDS_LinePackageNameTooLong 
+                            "  line %d: Package name ""%s"" too long, truncated\r\n"
+    IDS_LinePartFootprintNotFound 
+                            "  line %d: Part ""%s"" footprint ""%s"" not found\r\n"
+    IDS_LineNetNameTooLong  "  line %d: Net name ""%s"" too long, truncated\r\n                    truncated to ""%s""\r\n"
+    IDS_LineNetNameIllegal  "  line %d: Net name ""%s"" illegal, ignored\r\n"
+    IDS_LineNetNameIsDuplicate 
+                            "  line %d: Net name ""%s"" is duplicate, ignored\r\n"
+    IDS_LineNetPinIsDuplicate 
+                            "  line %d: Net ""%s"" pin ""%s"" is duplicate, ignored\r\n"
+    IDS_LinePinNameTooLong  "  line %d: Pin name ""%s"" too long, truncated\r\n"
+    IDS_LinePinIdentifierIllegal 
+                            "  line %d: Pin identifier ""%s"" illegal, ignored\r\n"
+    IDS_ABoardOutlineMustBePresentForCAM 
+                            "A board outline must be present for CAM file generation"
+    IDS_NoUnroutedConnections 
+                            "********* NO UNROUTED CONNECTIONS ************\r\n"
+    IDS_NetAreas            "net ""%s"": %d areas\r\n"
+    IDS_AreaHasOnlyCorners  "    area %d has only %d corners\r\n"
+    IDS_AreaIsNotClosed     "    area %d is not closed\r\n"
+    IDS_AreaIsSelfIntersecting 
+                            "    area %d is self-intersecting with arcs\r\n"
+END
+
+STRINGTABLE
+BEGIN
+    IDS_AreaIsOK            "    area %d is OK\r\n"
+    IDS_AreaIsSelfIntersecting2 
+                            "    area %d is self-intersecting, areas may be renumbered\r\n"
+    IDS_AreasHaveAnIntersectingArc 
+                            "    areas %d and %d have an intersecting arc, can't be combined\r\n"
+    IDS_AreasIntersectButCantBeCombined 
+                            "    areas %d and %d intersect but can't be combined due to self-intersecting arcs in area %d\r\n"
+    IDS_AreasIntersectAndHaveBeenCombined 
+                            "    areas %d and %d intersect and have been combined\r\n"
+    IDS_CheckingTracesForZeroLengthOrColinearSegments 
+                            "Checking traces for zero-length or colinear segments:\r\n"
+    IDS_PasteGroupFromFile  "Paste group from file"
+    IDS_TheGroupFileThatYouArePastingHasMoreLayers 
+                            "The group file that you are pasting has more layers than the current project.\n\nThis is not allowed.\n\nYou can reduce the number of layers in the group file by editing it in FreePCB."
+    IDS_ThisFunctionCreatesADsnFile 
+                            "This function creates a .dsn file from the last saved project file.\nHowever, your project has changed since it was last saved.\n\nDo you want to save the project now ?"
+    IDS_SavingProjectFile   "Saving project file: ""%s""\r\n"
+    IDS_CreatingDsnFile     "Creating .dsn file: ""%s""\r\n"
+    IDS_Run                 "Run: %s\r\n"
+    IDS_ProjectModifiedSaveBeforeImport 
+                            "Project modified, save before import (recommended) ?"
+    IDS_Delete2             "Delete: %s\r\n"
+    IDS_Save                "Save: %s\r\n"
+    IDS_FpcRouteFailedToCreate 
+                            "\r\nFpcROUTE failed to create routed project file: ""%s""\r\n"
+END
+
+STRINGTABLE
+BEGIN
+    IDS_Rename              "\r\nRename: ""%s"" to ""%s""\r\n"
+    IDS_RenamingProjectFileFailed 
+                            "\r\nRenaming project file from %s to %s failed:\r\n"
+    IDS_Load                "\r\nLoad: %s\r\n"
+    IDS_Reimport            "Re-import: %s\r\n"
+    IDS_LibraryFiles        "Library files (*.fpl)|*.fpl|All Files (*.*)|*.*||"
+    IDS_FreePCBLibraryProject "FreePCB library project - "
+    IDS_TopCopper           "top copper. %c,C%c"
+    IDS_Bottom3             "bottom. %c,C%c"
+    IDS_DrilledHole2        "drilled hole. CF10"
+    IDS_SelectionMask       "SELECTION MASK"
+    IDS_LeftPaneKey         "1,2,...: Use these"
+    62363                   "keys to change"
+    62364                   "routing layer"
+    62365                   "C1,CF1,... ="
+    62366                   "Ctrl-1,Ctrl-F1... ="
+    62367                   "hide/reveal layers"
+END
+
+STRINGTABLE
+BEGIN
+    62368                   "A1,A2,... ="
+    62369                   "Alt-1,Alt-2... ="
+    62370                   "toggle masks"
+    IDS_RatlinesTurnedBackOn 
+                            "Ratlines turned back on, but may not be up to date.\n\nPress F9 to recalculate."
+    IDS_NoConnectionsToSwap "No connections to swap"
+    IDS_SwapPins            "Swap %s.%s (""%s"") and %s.%s (""%s"") ?"
+    IDS_ErrorUnableToClipPolygon 
+                            "Error: Unable to clip polygon due to intersecting arc"
+    IDS_YouAreTryingToConnectATraceToAPin 
+                            "You are trying to connect a trace to a pin on a different net\nYou must detach the pin from the net first"
+    IDS_YouAreTryingToConnectPinsOnDifferentNets 
+                            "You are trying to connect pins on different nets\nYou must detach one of them first"
+    IDS_YouAreTryingToConnectToAPinOnADifferentNet 
+                            "You are trying to connect to a pin on a different net"
+    IDS_BranchCreated       "Branch created"
+    IDS_TeeVertexReached    "tee-vertex reached"
+    IDS_CantRouteOnInvisibleLayer "Can't route on invisible layer"
+    IDS_ThisPartIsGluedDoYouWantToUnglueIt 
+                            "This part is glued, do you want to unglue it ?  "
+    IDS_ThisGroupContainsGluedPartsDoYouWantToUnglueThem 
+                            "This group contains glued parts, do you want to unglue them ?  "
+    IDS_SolderMaskCutoutCorner 
+                            "Solder mask cutout %d: %s, corner %d, x %s, y %s"
+END
+
+STRINGTABLE
+BEGIN
+    IDS_Straight            "straight"
+    IDS_SelectDefaultProjectFolder "Select default project folder"
+    IDS_SolderMaskCutoutSide "Solder mask cutout %d: %s, side %d of %d, %s"
+    IDS_BoardOutlineCorner  "board outline %d, corner %d, x %s, y %s"
+    IDS_BoardOutlineSide    "board outline %d, side %d of %d, %s"
+    IDS_PartXYAngle         "part %s ""%s"", x %s, y %s, angle %d, %s"
+    IDS_RefText             "ref text: %s"
+    IDS_Value2              "value: %s"
+    IDS_PinOnNet            "pin %s.%s on net ""%s"", x %s, y %s"
+    IDS_PinUnconnected      "pin %s.%s unconnected, x %s, y %s"
+    IDS_NetStub             "net ""%s"" stub(%d) from %s.%s, seg %d, width %d"
+    IDS_NetBranch           "net ""%s"" branch(%d) to %s.%s, seg %d, width %d (T%d)"
+    IDS_NetConnection       "net ""%s"" connection(%d) %s.%s-%s.%s%s, seg %d, width %d"
+    IDS_NetTrace            "net ""%s"" trace(%d) %s.%s-%s.%s%s, seg %d, width %d"
+    IDS_NetBranch2          "net ""%s"" branch(%d) to %s.%s, vertex %d, x %s, y %s, via %s/%s %s"
+END
+
+STRINGTABLE
+BEGIN
+    IDS_NetStub2            "net ""%s"" stub(%d) from %s.%s, vertex %d, x %s, y %s, via %s/%s %s"
+    IDS_NetBranch3          "net ""%s"" branch(%d) to %s.%s, vertex %d, x %s, y %s %s"
+    IDS_NetStub3            "net ""%s"" stub(%d) from %s.%s, vertex %d, x %s, y %s %s"
+    IDS_NetTrace2           "net ""%s"" trace(%d) %s.%s-%s.%s%s, vertex %d, x %s, y %s, via %s/%s %s"
+    IDS_NetTrace3           "net ""%s"" trace(%d) %s.%s-%s.%s%s, vertex %d, x %s, y %s %s"
+    IDS_NetStubEnd          "net ""%s"" stub(%d) end, x %s, y %s, via %s/%s %s"
+    IDS_NetBranch4          "net ""%s"" branch(%d) from %s.%s%s %s len=%s"
+    IDS_NetStub4            "net ""%s"" stub(%d) from %s.%s%s len=%s"
+    IDS_NetTrace4           "net ""%s"" trace(%d) %s.%s-%s.%s%s len=%s"
+    IDS_Net                 "net ""%s"""
+    IDS_Neg                 "(NEG)"
+    IDS_Text                "Text ""%s"" %s"
+    IDS_CopperAreaCorner    """%s"" copper area %d corner %d, x %s, y %s"
+    IDS_CopperAreaEdge      """%s"" copper area %d edge %d"
+    IDS_CopperAreaCutoutEdge """%s"" copper area %d cutout %d edge %d"
+    IDS_GroupSelected       "Group selected"
+END
+
+STRINGTABLE
+BEGIN
+    IDS_PlacingFirstCornerOfBoardOutline 
+                            "Placing first corner of board outline"
+    IDS_PlacingSecondCornerOfBoardOutline 
+                            "Placing second corner of board outline"
+    IDS_PlacingCornerOfBoardOutline "Placing corner %d of board outline"
+    IDS_InsertingCornerOfBoardOutline "Inserting corner %d of board outline"
+    IDS_MovingCornerOfBoardOutline "Moving corner %d of board outline"
+    IDS_MovingPart          "Moving part %s"
+    IDS_MovingRefTextForPart "Moving ref text for part %s"
+    IDS_RoutingNet          "Routing net ""%s"""
+    IDS_MovingText          "Moving text ""%s"""
+    IDS_PlacingFirstCornerOfCopperArea "Placing first corner of copper area"
+    IDS_PlacingSecondCornerOfCopperArea "Placing second corner of copper area"
+    IDS_PlacingCornerOfCopperArea "Placing corner %d of copper area"
+    IDS_InsertingCornerOfCopperArea "Inserting corner %d of copper area"
+    IDS_MovingCornerOfCopperArea "Moving corner %d of copper area"
+    IDS_AddingConnectionToPin "Adding connection to pin %s.%s"
+    IDS_AddingBranchToTrace "Adding branch to trace %s.%d"
+END
+
+STRINGTABLE
+BEGIN
+    IDS_MeasurementModeLeftClickToStart 
+                            "Measurement mode: left-click to start"
+    IDS_Inner2              "Inner %d"
+    IDS_NetNotFound         "Net ""%s"" not found"
+    IDS_DeletingPartDoYouWishToRemoveAllReferences 
+                            "Deleting part %s\nDo you wish to remove all references\nto this part from netlist ?"
+    IDS_PadMustBeAssignedToANetBeforeAddingTrace 
+                            "Pad must be assigned to a net before adding trace"
+    IDS_YouAreDeletingATeeVertexContinue 
+                            "You are deleting a tee-vertex\nContinue ?"
+    IDS_EditEndVertexPosition "Edit End Vertex Position"
+    IDS_YouAreTryingToDeleteALockedConnection 
+                            "You are trying to delete a locked connection.\nAre you sure ? "
+    IDS_BoardOutlineHasTooFewCorners "Board outline has too few corners"
+    IDS_VertexPosition      "Vertex Position"
+    IDS_BoardOutlineDoesNotExist "Board outline does not exist"
+    IDS_DoYouWishToReplaceTheFootprintOfPart 
+                            "Do you wish to replace the footprint of part ""%s""\nwith the new footprint ""%s"" ?"
+    IDS_WarningAFootprintNamedIsAlreadyInUse 
+                            "Warning: A footprint named ""%s""\r\nis already in use by other parts.\r\nLoading this new footprint will overwrite the old one\r\nunless you change its name\r\n"
+    IDS_SorryThisPartDoesntHaveAFootprint 
+                            "Sorry, this part doesn't have a footprint"
+    IDS_SorryThisPartDoesntExist "Sorry, this part doesn't exist"
+    IDS_SolderMaskCutoutHasTooFewCorners 
+                            "Solder mask cutout has too few corners"
+END
+
+STRINGTABLE
+BEGIN
+    IDS_UnableToChangeLayerForThisSegment 
+                            "Unable to change layer for this segment"
+    IDS_UnableToChangeLayerForAllSegments 
+                            "Unable to change layer for all segments"
+    IDS_ThisGroupContainsGluedParts 
+                            "This group contains glued parts, unglue and move them ?"
+    IDS_ErrorUnableToClipPolygonDueToIntersectingArc 
+                            "Error: Unable to clip polygon due to intersecting arc"
+    IDS_NothingCopiedRememberThatTracesMustBeConnected 
+                            "Nothing copied !\nRemember that traces must be connected\nto a part in the group to be copied"
+    IDS_PartAlreadyExistsInProjectItWillBeRenamed 
+                            "Part ""%s"" already exists in project.\nIt will be renamed "" %s """
+    IDS_NoItemsToDrag       "No items to drag"
+    IDS_ThisGroupContainsGluedPartsUnglueAndRotate 
+                            "This group contains glued parts, unglue and rotate them ?  "
+    IDS_ToolbarUnits        " Units"
+    IDS_ToolbarGridsVisible " Grids: Visible (alt-up/dn)"
+    IDS_ToolbarPlacement    " Placement"
+    IDS_ToolbarRouting      " Routing"
+    IDS_ToolbarAngle        " Angle"
+    IDS_Off                 "Off"
+    IDS_NetStubTraceRemovingZeroLength 
+                            "net %s: stub trace from %s.%s: removing zero-length segment\r\n"
+    IDS_NetTraceRemovingZeroLength 
+                            "net %s: trace %s.%s to %s.%s: removing zero-length segment\r\n"
+END
+
+STRINGTABLE
+BEGIN
+    IDS_NetStubTraceCombiningColinear 
+                            "net %s: stub trace from %s.%s: combining colinear segments\r\n"
+    IDS_NetTraceCombiningColinear 
+                            "net %s: trace %s.%s to %s.%s: combining colinear segments\r\n"
+    IDS_NetStubTraceSingleUnrouted 
+                            "net %s: stub trace from %s.%s: single unrouted segment and no end via, removed\r\n"
+    IDS_CheckingTeesAndBranches "\r\nChecking tees and branches:\r\n"
+    IDS_TeeIdsInArray       "  %d tee_IDs in array:\r\n"
+    IDS_TeeIdNotFoundInProjectRemoved 
+                            "    tee_id %d not found in project, removed\r\n"
+    IDS_NotInTrace          ", not in trace"
+    IDS_NotInIdArray        ", not in ID array"
+    IDS_TeeIdFoundInBranchBranchRemoved 
+                            "  tee_id %d found in branch%s%s, branch removed\r\n"
+    IDS_TeeIdFoundInTraceNotInIdArray 
+                            "  tee_id %d found in trace, not in ID array\r\n"
+    IDS_UnableToFindNetsSectionInFile "Unable to find [nets] section in file"
+    IDS_ErrorParsingNetsSectionOfProjectFile 
+                            "error parsing [nets] section of project file"
+    IDS_FatalErrorInNetPartDoesntExist 
+                            "fatal error in net ""%s""\r\npart ""%s"" doesn't exist"
+    IDS_FatalErrorInNetPartDoesntHaveAFootprint 
+                            "fatal error in net ""%s""\r\npart ""%s"" doesn't have a footprint"
+    IDS_FatalErrorInNetPinDoesntExist 
+                            "fatal error in net ""%s""\r\npin ""%s""doesn't exist in footprint ""%s"" for part ""%s"""
+    IDS_RemovingNet         "  Removing net ""%s""\r\n"
+END
+
+STRINGTABLE
+BEGIN
+    IDS_KeepingNetNotInImportedNetlist 
+                            "  Keeping net ""%s"", not in imported netlist\r\n"
+    IDS_RemovingPinFromNet  "    Removing pin %s.%s from net ""%s""\r\n"
+    IDS_AddingPinToNet      "    Adding pin %s.%s to net ""%s""\r\n"
+    IDS_MovingStubTraceToNewNet 
+                            "  Moving stub trace from %s.%s to new net ""%s""\r\n"
+    IDS_MovingBranchToNewNet 
+                            "  Moving branch from %s.%s to new net ""%s""\r\n"
+    IDS_MovingTraceToNewNet "  Moving trace from %s.%s to %s.%s to new net ""%s""\r\n"
+    IDS_RemovingCopperAreaOnOldNet 
+                            "  Removing copper area on old net ""%s""\r\n"
+    IDS_MovingCopperAreaFromOldNetToNewNet 
+                            "  Moving copper area from old net ""%s"" to new net ""%s""\r\n"
+    IDS_CheckingNets        "***** Checking Nets *****\r\n"
+    IDS_ErrorNetIsDuplicate "ERROR: Net ""%s"" is duplicate\r\n    ###   To fix this, delete one instance of the net, then save and re-open project\r\n"
+    IDS_WarningNetHasNoPins "Warning: Net ""%s"": has no pins\r\n"
+    IDS_WarningNetHasSinglePin "Warning: Net ""%s"": has single pin\r\n"
+    IDS_ErrorNetPinIsDuplicate 
+                            "ERROR: Net ""%s"": pin ""%s"" is duplicate\r\n"
+    IDS_FixedConnectionsRepaired 
+                            "              Fixed: Connections repaired\r\n"
+    IDS_ErrorNetPinAlreadyAssignedToNet 
+                            "ERROR: Net ""%s"": pin ""%s"" already assigned to net ""%s""\r\n    ###   To fix this, delete pin from one of these nets, then save and re-open project\r\n"
+    IDS_WarningNetPinNotConnectedPartDoesntExist 
+                            "Warning: Net ""%s"": pin ""%s.%s"" not connected, part doesn't exist\r\n"
+END
+
+STRINGTABLE
+BEGIN
+    IDS_WarningNetPinNotConnectedPartDoesntHaveFootprint 
+                            "Warning: Net ""%s"": pin ""%s.%s"" connected, part doesn't have footprint\r\n"
+    IDS_ErrorPinNotConnectedButPartExists 
+                            "ERROR: Net ""%s"": pin ""%s.%s"" not connected, but part exists although pin doesn't\r\n    ###   To fix this, fix any other errors then save and re-open project\r\n"
+    IDS_ErrorNetPinNotConnectedButPartAndPinExist 
+                            "ERROR: Net ""%s"": pin ""%s.%s"" not connected, but part and pin exist\r\n    ###   To fix this, fix any other errors then save and re-open project\r\n"
+    IDS_ErrorNetPinConnectedToWrongPart 
+                            "ERROR: Net ""%s"": pin ""%s.%s"" connected to wrong part %s\r\n    ###   To fix this, fix any other errors then save and re-open project\r\n"
+    IDS_ErrorNetPinConnectedButPartNotInPartlist 
+                            "ERROR: Net ""%s"": pin ""%s.%s"" connected but part not in partlist\r\n"
+    IDS_ErrorNetPinConnectedButNetPinPartDoesntMatchPartlist 
+                            "ERROR: Net ""%s"": pin ""%s.%s"" connected but net->pin->part doesn't match partlist\r\n    ###   To fix this, fix any other errors then save and re-open project\r\n"
+    IDS_WarningNetPinConnectedButPartDoesntHaveFootprint 
+                            "Warning: Net ""%s"": pin ""%s.%s"" connected but part doesn't have footprint\r\n"
+    IDS_WarningNetPinConnectedButPartDoesntHavePin 
+                            "Warning: Net ""%s"": pin ""%s.%s"" connected but part doesn't have pin\r\n"
+    IDS_ErrorNetPinConnectedButPartPinNetDoesntMatch 
+                            "ERROR: Net ""%s"": pin ""%s.%s"" connected but part->pin->net doesn't match\r\n    ###   To fix this, fix any other errors then save and re-open project\r\n"
+    IDS_ErrorNetConnectionWithNoSegments 
+                            "ERROR: Net ""%s"": connection with no segments\r\n"
+    IDS_FixedConnectionRemoved "              Fixed: Connection removed\r\n"
+    IDS_ErrorNetConnectionFromPinToItself 
+                            "ERROR: Net ""%s"": connection from pin to itself\r\n"
+    IDS_ErrorsFixedWarnings "***** %d ERROR(S), %d FIXED, %d WARNING(S) *****\r\n"
+    IDS_NetPartiallyRoutedStubTrace 
+                            "Net ""%s"": partially routed stub trace from %s\r\n"
+    IDS_NetUnroutedConnection 
+                            "Net ""%s"": unrouted connection from %s to %s\r\n"
+    IDS_NetPartiallyRoutedConnection 
+                            "Net ""%s"": partially routed connection from %s to %s\r\n"
+END
+
+STRINGTABLE
+BEGIN
+    IDS_AreaOfNetHasArcsIntersectingOtherSides 
+                            "Area %d of net ""%s"" has arcs intersecting other sides.\nThis may cause problems with other editing operations,\nsuch as adding cutouts. It can't be fixed automatically.\nManual correction is recommended.\n"
+    IDS_AreaOfNetIsSelfIntersectingAndWillBeClipped 
+                            "Area %d of net ""%s"" is self-intersecting and will be clipped.\nThis may result in splitting the area.\nIf the area is complex, this may take a few seconds."
+    IDS_AreasOfNetIntersectAndWillBeCombined 
+                            "Areas %d and %d of net ""%s"" intersect and will be combined.\nIf they are complex, this may take a few seconds."
+    IDS_AreasOfNetIntersectButSomeOfTheIntersectingSidesAreArcs 
+                            "Areas %d and %d of net ""%s"" intersect, but some of the intersecting sides are arcs.\nTherefore, these areas can't be combined."
+    IDS_NumNodes            "num nodes = %d\r\n"
+    IDS_None                "none"
+    IDS_Pin2                "pin"
+    IDS_Via                 "via"
+    IDS_Junction            "junction"
+    IDS_NodeXYLayerNpaths   "  node %d: %s x=%d y=%d layer=%d npaths=%d\r\n"
+    IDS_Stub                "stub: "
+    IDS_PinPin              "pin-pin: "
+    IDS_Branch              "branch: "
+    IDS_ErrorPathFailedToRoute "error: path %d failed to route"
+    IDS_AtXY                ", %s at x=%d y=%d"
+END
+
+STRINGTABLE
+BEGIN
+    IDS_ToAtXYLayer         " to %s at x=%d y=%d, layer %d\r\n"
+    IDS_SuccessAllPathsRouted "success: all paths routed\r\n"
+    IDS_MaximumNumberOfPartsExceeded "Maximum number of parts exceeded"
+    IDS_UnableToFindPartsSectionInFile 
+                            "Unable to find [parts] section in file"
+    IDS_KeepingPartAndConnections "  Keeping part %s and connections\r\n"
+    IDS_KeppingPartButRemovingConnections 
+                            "  Keeping part %s but removing connections\r\n"
+    IDS_RemovingPart        "  Removing part %s\r\n"
+    IDS_ChangingFootprintOfPart 
+                            "  Changing footprint of part %s from ""%s"" to ""%s""\r\n"
+    IDS_ChangingFootprintOfPart2 
+                            "  Changing footprint of part %s from ""%s"" to ""%s"" (not found)\r\n"
+    IDS_CheckingParts       "Checking parts:\r\n"
+    IDS_PadHoleToBoardEdgeEquals 
+                            "%ld: %s.%s pad hole to board edge = %s, x=%s, y=%s\r\n"
+    IDS_AnnularRingEquals   "%ld: %s.%s annular ring = %s, x=%s, y=%s\r\n"
+    IDS_PadToBoardEdgeEquals 
+                            "%ld: %s.%s pad to board edge = %s, x=%s, y=%s\r\n"
+    IDS_PadHoleToPadeHoleEquals 
+                            "%ld: %s.%s pad hole to %s.%s pad hole = %s, x=%s, y=%s\r\n"
+    IDS_PadHoleToPadEquals  "%ld: %s.%s pad hole to %s.%s pad = %s, x=%s, y=%s\r\n"
+    IDS_PadToPadEquals      "%ld: %s.%s pad to %s.%s pad = %s, x=%s, y=%s\r\n"
+END
+
+STRINGTABLE
+BEGIN
+    IDS_CheckingNetsAndParts "\r\nChecking nets and parts:\r\n"
+    IDS_CopperAreaToBoardEdgeEquals 
+                            "%ld: ""%s"" copper area to board edge = %s, x=%s, y=%s\r\n"
+    IDS_TraceWidthEquals    "%ld: ""%s"" trace width = %s, x=%s, y=%s\r\n"
+    IDS_TraceToBoardEdgeEquals 
+                            "%ld: ""%s"" trace to board edge = %s, x=%s, y=%s\r\n"
+    IDS_ViaAnnularRingEquals 
+                            "%ld: ""%s"" via annular ring = %s, x=%s, y=%s\r\n"
+    IDS_ViaToBoardEdgeEquals 
+                            "%ld: ""%s"" via to board edge = %s, x=%s, y=%s\r\n"
+    IDS_ViaHoleToBoardEdgeEquals 
+                            "%ld: ""%s"" via hole to board edge = %s, x=%s, y=%s\r\n"
+    IDS_TraceToPadHoleEquals 
+                            "%ld: ""%s"" trace to %s.%s pad hole = %s, x=%s, y=%s\r\n"
+    IDS_TraceToPadEquals    "%ld: ""%s"" trace to %s.%s pad = %s, x=%s, y=%s\r\n"
+    IDS_ViaPadToPadEquals   "%ld: ""%s"" via pad to %s.%s pad = %s, x=%s, y=%s\r\n"
+    IDS_ViaPadToPadHoleEquals 
+                            "%ld: ""%s"" via pad to %s.%s pad hole = %s, x=%s, y=%s\r\n"
+    IDS_ViaHoleToPadEquals  "%ld: ""%s"" via hole to %s.%s pad = %s, x=%s, y=%s\r\n"
+    IDS_ViaHoleToPadHoleEquals 
+                            "%ld: ""%s"" via hole to %s.%s pad hole = %s, x=%s, y=%s\r\n"
+    IDS_CheckingNets2       "\r\nChecking nets:\r\n"
+    IDS_TraceToTraceEquals  "%ld: ""%s"" trace to ""%s"" trace = %s, x=%s, y=%s\r\n"
+    IDS_TraceToViaPadEquals "%ld: ""%s"" trace to ""%s"" via pad = %s, x=%s, y=%s\r\n"
+END
+
+STRINGTABLE
+BEGIN
+    IDS_TraceToViaHoleEquals 
+                            "%ld: ""%s"" trace to ""%s"" via hole = %s, x=%s, y=%s\r\n"
+    IDS_ViaPadToTraceEquals "%ld: ""%s"" via pad to ""%s"" trace = %s, x=%s, y=%s\r\n"
+    IDS_ViaPadToViaPadEquals 
+                            "%ld: ""%s"" via pad to ""%s"" via pad = %s, x=%s, y=%s\r\n"
+    IDS_ViaPadToViaHoleEquals 
+                            "%ld: ""%s"" via pad to ""%s"" via hole = %s, x=%s, y=%s\r\n"
+    IDS_ViaHoleToViaHoleEquals 
+                            "%ld: ""%s"" via hole to ""%s"" via hole = %s, x=%s, y=%s\r\n"
+    IDS_CopperAreaInsideCopperArea 
+                            "%ld: ""%s"" copper area inside ""%s"" copper area\r\n"
+    IDS_CopperAreaToCopperArea 
+                            "%ld: ""%s"" copper area to ""%s"" copper area = %s, x=%s, y=%s\r\n"
+    IDS_PartiallyRoutedStubTrace 
+                            "%ld: ""%s"": partially routed stub trace from %s\r\n"
+    IDS_PartiallyRoutedConnection 
+                            "%ld: ""%s"": partially routed connection from %s to %s\r\n"
+    IDS_UnroutedConnection  "%ld: ""%s"": unrouted connection from %s to %s\r\n"
+    IDS_Done4               "\r\n***** DONE *****\r\n"
+    IDS_CheckingParts2      "***** Checking Parts *****\r\n"
+    IDS_PartDuplicated      "ERROR: Part ""%s"" duplicated\r\n    ###   To fix this, delete one instance of the part, then save, close and re-open project\r\n"
+    IDS_WarningPartHasNoFootprint "Warning: Part ""%s"" has no footprint\r\n"
+    IDS_ErrorPartPinConnectedToNetWhichDoesntMatchNetlist 
+                            "ERROR: Part ""%s"" pin ""%s"" connected to net ""%s"" which doesn't match netlist\r\n"
+    IDS_ErrorPartPinConnectedToNetWhichDoesntExist 
+                            "ERROR: Part ""%s"" pin ""%s"" connected to net ""%s"" which doesn't exist in netlist\r\n"
+END
+
+STRINGTABLE
+BEGIN
+    IDS_ErrorPartPinConnectedToNetButPinNotInNet 
+                            "ERROR: Part ""%s"" pin ""%s"" connected to net ""%"" but pin not in net\r\n"
+    IDS_ErrorsWarnings      "***** %d ERROR(S), %d WARNING(S) *****\r\n"
+    IDS_WarningYouAreLoadingFootprintsForThroughHoleHeaders 
+                            "WARNING: You are loading footprint(s) for through-hole headers with 100 mil pin spacing and 28 mil holes.\n\nThese may be from an obsolete version of the library ""th_header.fpl"" with holes that are too small for standard parts. Please check your design."
+    IDS_TheFolderDoesNotExist 
+                            "The folder:\n\n%s\n\ndoes not exist. Do you want the folder to be created?"
+    IDS_TheFolderIsInvalid  "The folder:\n\n%s\n\nis invalid. Please reenter."
+    IDS_TheFolderCanNotBeCreated 
+                            "The folder:\n\n%s\n\ncan not be created. Please double check."
+    IDS_Failed              "Failed!\r\n"
+    IDS_FootprintNameTooLong 
+                            "Footprint name ""%s"" too long\nTruncated to ""%s"""
+    IDS_FootprintPinNameTooLong 
+                            "Footprint ""%s"": pin name ""%s"" too long\nTruncated to ""%s"""
+    IDS_ErrorTryingToWriteBadPadShapeInFootprint 
+                            "Error: Trying to write bad pad shape in footprint"
+    IDS_UnableToFindTextsSectionInFile 
+                            "Unable to find [texts] section in file"
+    IDS_GridValsCols        "Active"
+    IDS_STRING62588         "Value"
+    IDS_EditRoutingGridValues "Edit Routing Grid Values"
+    IDS_EditPlacementGridValues "Edit Placement Grid Values"
+    IDS_EditVisibleGridValues "Edit Visible Grid Values"
+END
+
+STRINGTABLE
+BEGIN
+    IDS_FkFpStr             "  "
+    IDS_STRING63001         "  "
+    IDS_STRING63002         " Move"
+    IDS_STRING63003         " Pad"
+    IDS_STRING63004         " Move"
+    IDS_STRING63005         " Ref Text"
+    IDS_STRING63006         " Rotate"
+    IDS_STRING63007         " Pad"
+END
+
+STRINGTABLE
+BEGIN
+    IDS_STRING63008         " Rotate"
+    IDS_STRING63009         " Ref Text"
+    IDS_STRING63010         " Change"
+    IDS_STRING63011         " Side"
+    IDS_STRING63012         " Route"
+    IDS_STRING63013         " Segment"
+    IDS_STRING63014         " Unroute"
+    IDS_STRING63015         " Segment"
+    IDS_STRING63016         " Reroute"
+    IDS_STRING63017         " Segment"
+    IDS_STRING63018         " Complete"
+    IDS_STRING63019         " Segment"
+    IDS_STRING63020         " Add"
+    IDS_STRING63021         " Pin"
+    IDS_STRING63022         " Add"
+    IDS_STRING63023         " Net"
+END
+
+STRINGTABLE
+BEGIN
+    IDS_STRING63024         " Add"
+    IDS_STRING63025         " Text"
+    IDS_STRING63026         " Add"
+    IDS_STRING63027         " Polyline"
+    IDS_STRING63028         " Recalc."
+    IDS_STRING63029         " Ratlines"
+    IDS_STRING63030         " Add"
+    IDS_STRING63031         " Area"
+    IDS_STRING63032         " Delete"
+    IDS_STRING63033         " Pad"
+    IDS_STRING63034         " Delete"
+    IDS_STRING63035         " Vertex"
+    IDS_STRING63036         " Move"
+    IDS_STRING63037         " Vertex"
+    IDS_STRING63038         " Move"
+    IDS_STRING63039         " Corner"
+END
+
+STRINGTABLE
+BEGIN
+    IDS_STRING63040         " Add"
+    IDS_STRING63041         " Corner"
+    IDS_STRING63042         " Delete"
+    IDS_STRING63043         " Corner"
+    IDS_STRING63044         " Connect"
+    IDS_STRING63045         " Pin"
+    IDS_STRING63046         " Detach"
+    IDS_STRING63047         " Net"
+    IDS_STRING63048         " Set"
+    IDS_STRING63049         " Net"
+    IDS_STRING63050         " Delete"
+    IDS_STRING63051         " Connect"
+    IDS_STRING63052         " Force"
+    IDS_STRING63053         " Via"
+    IDS_STRING63054         " Set"
+    IDS_STRING63055         " Width"
+END
+
+STRINGTABLE
+BEGIN
+    IDS_STRING63056         " Lock"
+    IDS_STRING63057         " Connect"
+    IDS_STRING63058         " Unlock"
+    IDS_STRING63059         " Connect"
+    IDS_STRING63060         " Move"
+    IDS_STRING63061         " Text"
+    IDS_STRING63062         " Rotate"
+    IDS_STRING63063         " Text"
+    IDS_STRING63064         " Delete"
+    IDS_STRING63065         " Text"
+    IDS_STRING63066         " Straight"
+    IDS_STRING63067         " Line"
+    IDS_STRING63068         " Arc"
+    IDS_STRING63069         " (CW)"
+    IDS_STRING63070         " Arc"
+    IDS_STRING63071         " (CCW)"
+END
+
+STRINGTABLE
+BEGIN
+    IDS_STRING63072         " Edit"
+    IDS_STRING63073         " Pad"
+    IDS_STRING63074         " Glue"
+    IDS_STRING63075         " Part"
+    IDS_STRING63076         " Unglue"
+    IDS_STRING63077         " Part"
+    IDS_STRING63078         " Undo"
+    IDS_STRING63079         "  "
+    IDS_STRING63080         " Edit"
+    IDS_STRING63081         " Params"
+    IDS_STRING63082         " Start"
+    IDS_STRING63083         " Stub"
+    IDS_STRING63084         " Edit"
+    IDS_STRING63085         " Text"
+    IDS_STRING63086         " Set"
+    IDS_STRING63087         " Position"
+END
+
+STRINGTABLE
+BEGIN
+    IDS_STRING63088         " Delete"
+    IDS_STRING63089         " Polyline"
+    IDS_STRING63090         " Edit"
+    IDS_STRING63091         " Centroid"
+    IDS_STRING63092         " Move"
+    IDS_STRING63093         " Centroid"
+    IDS_STRING63094         " Move"
+    IDS_STRING63095         " Value"
+    IDS_STRING63096         " Rotate"
+    IDS_STRING63097         " Value"
+    IDS_STRING63098         " Return"
+    IDS_STRING63099         " to PCB"
+    IDS_STRING63100         " Rotate"
+    IDS_STRING63101         " Axis"
+    IDS_STRING63102         " Edit"
+    IDS_STRING63103         " Adhesive"
+END
+
+STRINGTABLE
+BEGIN
+    IDS_STRING63104         " Move"
+    IDS_STRING63105         " Adhesive"
+    IDS_STRING63106         " Delete"
+    IDS_STRING63107         " Adhesive"
+    IDS_STRING63108         " ****"
+    IDS_STRING63109         " ****"
+END
+
+STRINGTABLE
+BEGIN
+    IDS_FkStr               "  "
+    IDS_STRING63501         "  "
+    IDS_STRING63502         " Move"
+    IDS_STRING63503         " Part"
+END
+
+STRINGTABLE
+BEGIN
+    IDS_STRING63504         " Move"
+    IDS_STRING63505         " Ref Text"
+    IDS_STRING63506         " Move"
+    IDS_STRING63507         " Value"
+    IDS_STRING63508         " Rotate"
+    IDS_STRING63509         " Part CW"
+    IDS_STRING63510         " Rotate"
+    IDS_STRING63511         " Part CCW"
+    IDS_STRING63512         " Rotate"
+    IDS_STRING63513         " CW"
+    IDS_STRING63514         " Rotate"
+    IDS_STRING63515         " CCW"
+    IDS_STRING63516         " Rotate"
+    IDS_STRING63517         " CW"
+    IDS_STRING63518         " Rotate"
+    IDS_STRING63519         " CCW"
+END
+
+STRINGTABLE
+BEGIN
+    IDS_STRING63520         " Change"
+    IDS_STRING63521         " Side"
+    IDS_STRING63522         " Route"
+    IDS_STRING63523         " Segment"
+    IDS_STRING63524         " Unroute"
+    IDS_STRING63525         " Segment"
+    IDS_STRING63526         " Reroute"
+    IDS_STRING63527         " Segment"
+    IDS_STRING63528         " Complete"
+    IDS_STRING63529         " Segment"
+    IDS_STRING63530         " Add"
+    IDS_STRING63531         " Part"
+    IDS_STRING63532         " Add"
+    IDS_STRING63533         " Net"
+    IDS_STRING63534         " Add"
+    IDS_STRING63535         " Text"
+END
+
+STRINGTABLE
+BEGIN
+    IDS_STRING63536         " Add"
+    IDS_STRING63537         " Graphics"
+    IDS_STRING63538         " Recalc."
+    IDS_STRING63539         " Ratlines"
+    IDS_STRING63540         " Add"
+    IDS_STRING63541         " Area"
+    IDS_STRING63542         " Delete"
+    IDS_STRING63543         " Part"
+    IDS_STRING63544         " Delete"
+    IDS_STRING63545         " Vertex"
+    IDS_STRING63546         " Move"
+    IDS_STRING63547         " Vertex"
+    IDS_STRING63548         " Move"
+    IDS_STRING63549         " Corner"
+    IDS_STRING63550         " Add"
+    IDS_STRING63551         " Corner"
+END
+
+STRINGTABLE
+BEGIN
+    IDS_STRING63552         " Delete"
+    IDS_STRING63553         " Corner"
+    IDS_STRING63554         " Connect"
+    IDS_STRING63555         " Pin"
+    IDS_STRING63556         " Detach"
+    IDS_STRING63557         " Net"
+    IDS_STRING63558         " Set"
+    IDS_STRING63559         " Net"
+    IDS_STRING63560         " Delete"
+    IDS_STRING63561         " Connect"
+    IDS_STRING63562         " Force"
+    IDS_STRING63563         " Via"
+    IDS_STRING63564         " Set"
+    IDS_STRING63565         " Width"
+    IDS_STRING63566         " Lock"
+    IDS_STRING63567         " Connect"
+END
+
+STRINGTABLE
+BEGIN
+    IDS_STRING63568         " Unlock"
+    IDS_STRING63569         " Connect"
+    IDS_STRING63570         " Move"
+    IDS_STRING63571         " Text"
+    IDS_STRING63572         " Rotate"
+    IDS_STRING63573         " Text"
+    IDS_STRING63574         " Delete"
+    IDS_STRING63575         " Text"
+    IDS_STRING63576         " Straight"
+    IDS_STRING63577         " Line"
+    IDS_STRING63578         " Arc"
+    IDS_STRING63579         " (CW)"
+    IDS_STRING63580         " Arc"
+    IDS_STRING63581         " (CCW)"
+    IDS_STRING63582         " Edit"
+    IDS_STRING63583         " Part"
+END
+
+STRINGTABLE
+BEGIN
+    IDS_STRING63584         " Edit"
+    IDS_STRING63585         " Footprint"
+    IDS_STRING63586         " Glue"
+    IDS_STRING63587         " Part"
+    IDS_STRING63588         " Unglue"
+    IDS_STRING63589         " Part"
+    IDS_STRING63590         " Undo"
+    IDS_STRING63591         " "
+    IDS_STRING63592         " Set"
+    IDS_STRING63593         " Size"
+    IDS_STRING63594         " Set"
+    IDS_STRING63595         " Params"
+    IDS_STRING63596         " Start"
+    IDS_STRING63597         " Stub"
+    IDS_STRING63598         " Edit"
+    IDS_STRING63599         " Text"
+END
+
+STRINGTABLE
+BEGIN
+    IDS_STRING63600         " Set"
+    IDS_STRING63601         " Position"
+    IDS_STRING63602         " Delete"
+    IDS_STRING63603         " Outline"
+    IDS_STRING63604         " Delete"
+    IDS_STRING63605         " Area"
+    IDS_STRING63606         " Delete"
+    IDS_STRING63607         " Cutout"
+    IDS_STRING63608         " Add"
+    IDS_STRING63609         " Segment"
+    IDS_STRING63610         " Add"
+    IDS_STRING63611         " Via"
+    IDS_STRING63612         " Delete"
+    IDS_STRING63613         " Via"
+    IDS_STRING63614         " Delete"
+    IDS_STRING63615         " Segment"
+END
+
+STRINGTABLE
+BEGIN
+    IDS_STRING63616         " Unroute"
+    IDS_STRING63617         " Trace"
+    IDS_STRING63618         " Change"
+    IDS_STRING63619         " Pin"
+    IDS_STRING63620         " Add"
+    IDS_STRING63621         " Cutout"
+    IDS_STRING63622         " Change"
+    IDS_STRING63623         " Layer"
+    IDS_STRING63624         " Edit"
+    IDS_STRING63625         " Net"
+    IDS_STRING63626         " Move"
+    IDS_STRING63627         " Group"
+    IDS_STRING63628         " Delete"
+    IDS_STRING63629         " Group"
+    IDS_STRING63630         " Rotate"
+    IDS_STRING63631         " Group"
+END
+
+STRINGTABLE
+BEGIN
+    IDS_STRING63632         " Set"
+    IDS_STRING63633         " Via Size"
+    IDS_STRING63634         " Add"
+    IDS_STRING63635         " Vertex"
+    IDS_STRING63636         " Set Side"
+    IDS_STRING63637         " Style"
+    IDS_STRING63638         " Edit"
+    IDS_STRING63639         " Area"
+    IDS_STRING63640         " Move"
+    IDS_STRING63641         " Segment"
+    IDS_STRING63642         " Increase"
+    IDS_STRING63643         " Width"
+    IDS_STRING63644         " Decrease"
+    IDS_STRING63645         " Width"
+    IDS_STRING63646         " Increase"
+    IDS_STRING63647         " Grid"
+END
+
+STRINGTABLE
+BEGIN
+    IDS_STRING63648         " Decrease"
+    IDS_STRING63649         " Grid"
+    IDS_STRING63650         " ****"
+    IDS_STRING63651         " ****"
+END
+
+STRINGTABLE
+BEGIN
+    IDS_SelMaskStr          "parts"
+    IDS_STRING64001         "ref des"
+    IDS_STRING64002         "value"
+    IDS_STRING64003         "pins"
+    IDS_STRING64004         "traces/ratlines"
+    IDS_STRING64005         "vertices/vias"
+    IDS_STRING64006         "copper areas"
+    IDS_STRING64007         "text"
+    IDS_STRING64008         "sm cutouts"
+    IDS_STRING64009         "board outline"
+    IDS_STRING64010         "DRC errors"
+END
+
+STRINGTABLE
+BEGIN
+    IDS_AppName             "FPC-CPT 0.22"
+END
+
+STRINGTABLE
+BEGIN
+    IDS_UnitsWidth          "40"
+    IDS_GridsVisibleWidth   "135"
+    IDS_PlacementWidth      "120"
+    IDS_RoutingWidth        "120"
+    IDS_AngleWidth          "50"
+    IDS_LeftPaneWidth       "125"
+    IDS_FKeyWidth           "70"
+END
+
+STRINGTABLE
+BEGIN
+    IDS_LayerStr            "selection"
+    IDS_STRING64501         "background"
+    IDS_STRING64502         "visible grid"
+    IDS_STRING64503         "highlight"
+    IDS_STRING64504         "DRC error"
+    IDS_STRING64505         "board outline"
+    IDS_STRING64506         "rat line"
+    IDS_STRING64507         "top silk"
+    IDS_STRING64508         "bottom silk"
+    IDS_STRING64509         "top sm cutout"
+    IDS_STRING64510         "bot sm cutout"
+    IDS_STRING64511         "thru pad"
+END
+
+STRINGTABLE
+BEGIN
+    IDS_STRING64512         "top copper"
+    IDS_STRING64513         "bottom copper"
+    IDS_STRING64514         "inner 1"
+    IDS_STRING64515         "inner 2"
+    IDS_STRING64516         "inner 3"
+    IDS_STRING64517         "inner 4"
+    IDS_STRING64518         "inner 5"
+    IDS_STRING64519         "inner 6"
+    IDS_STRING64520         "inner 7"
+    IDS_STRING64521         "inner 8"
+    IDS_STRING64522         "inner 9"
+    IDS_STRING64523         "inner 10"
+    IDS_STRING64524         "inner 11"
+    IDS_STRING64525         "inner 12"
+    IDS_STRING64526         "inner 13"
+    IDS_STRING64527         "inner 14"
+END
+
+STRINGTABLE
+BEGIN
+    IDS_STRING64528         "inner 15"
+    IDS_STRING64529         "inner 16"
+    IDS_STRING64530         "undefined"
+    IDS_STRING64531         "undefined"
+END
+
+STRINGTABLE
+BEGIN
+    IDS_FpLayerStr          "selection"
+    IDS_STRING64601         "background"
+    IDS_STRING64602         "visible grid. CF1"
+    IDS_STRING64603         "highlight. CF2"
+    IDS_STRING64604         "top silk. CF3"
+    IDS_STRING64605         "centroid. CF4"
+    IDS_STRING64606         "adhesive. CF5"
+    IDS_STRING64607         "drilled hole. CF6"
+END
+
+STRINGTABLE
+BEGIN
+    IDS_STRING64608         "top mask. CF7"
+    IDS_STRING64609         "top paste. CF8"
+    IDS_STRING64610         "bottom mask. CF9"
+    IDS_STRING64611         "bottom paste. CF10"
+    IDS_STRING64612         "top copper. 1,C1"
+    IDS_STRING64613         "inner. 2,C2"
+    IDS_STRING64614         "bottom. 3,C3"
+END
+
+STRINGTABLE
+BEGIN
+    IDS_IllegalValue        "Illegal Value"
+    IDS_ValueIsAlreadyInTheList "Value is already in the list"
+    IDS_EditFootprintPlacementGridValues 
+                            "Edit Footprint Placement Grid Values"
+    IDS_EditFootprintVisibleGridValues "Edit Footprint Visible Grid Values"
+    IDS_UnableToCopyAnything "Unable to copy anything"
+    IDS_UnableToCutAnything "Unable to cut anything"
+    IDS_ConnectTo           "Connect to "
+    IDS_ToolbarPlacementCtrlUpDn " Placement (ctrl-up/dn)"
+    IDS_ToolbarRoutingCtrlUpDn " Routing (ctrl-up/dn)"
+    IDS_WarningCopperAreaIsTooNarrow 
+                            "%ld: Warning --- ""%s"" copper area is too narrow or is broken; x=%s, y=%s\r\n"
+    IDS_FpLeftPaneKey       "1,2,...: Use these"
+    62603                   "keys to draw"
+    62604                   "layers at the top"
+    62605                   "C1,CF1,... ="
+    62606                   "Ctrl-1,Ctrl-F1... ="
+    62607                   "hide/reveal layers"
+END
+
+STRINGTABLE
+BEGIN
+    IDS_FpSelMaskStr        "ref des"
+    64101                   "value"
+    64102                   "pins"
+    64103                   "outline sides"
+    64104                   "corners"
+    64105                   "text"
+    64106                   "centroid"
+    64107                   "adhesive"
+END
+
+STRINGTABLE
+BEGIN
+    62608                   "A1,A2,... ="
+    62609                   "Alt-1,Alt-2... ="
+    62610                   "toggle masks"
+    IDS_PinXY               "Pin %s, x=%s, y=%s"
+    IDS_PolylineCornerXY    "Polyline %d, corner %d, x=%s, y=%s"
+    IDS_TextHeightZeroIsNotPermitted "Text height zero is not permitted."
+END
+
 #endif    // English (U.S.) resources
 /////////////////////////////////////////////////////////////////////////////
 
