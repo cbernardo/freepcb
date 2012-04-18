@@ -1560,11 +1560,28 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 			pDC->SelectClipRgn( &m_pcb_rgn );
 //			m_dlist->StopDragging();
 			// get trace widths
+
+			/* CPT eliminated:
 			int w = m_Doc->m_trace_w;
 			int via_w = m_Doc->m_via_w;
 			int via_hole_w = m_Doc->m_via_hole_w;
 			GetWidthsForSegment( &w, &via_w, &via_hole_w );
-			cconnect * c = m_sel_net->ConByIndex(m_sel_ic);
+			// Instead of this I'm going to want w to reflect the new m_active_width.
+			// As for via_w and via_hole_w, their original usage in the following code was somewhat confusing.
+			//  They appeared as arguments for CNetList::InsertSegment(), but that routine _didn't use_ those params.
+			//  They were also used as arguments for CNetList::StartDraggingSegment(), which passes them down to
+			//  CDisplayList::StartDraggingLineVertex().  That
+			//  routine then sets m_Doc->m_nlist->m_dlist's m_drag_via_w & m_drag_via_holew members, which can then be used for
+			//  drawing a (temporary) via if user changes layers during the dragging of the next segment.
+			// In my new system, InsertSegment() _will_ use variables via_w and via_hole_w and will set the new
+			//  cseg::via_w and cseg::via_hole_w fields.  These fields are used if vias need to be created
+			//  during the current or future invocations of InsertSegment().
+			*/
+			int w = m_active_width, via_w, via_hole_w;
+			GetViaWidths(w, &via_w, &via_hole_w);
+			cconnect * c = m_sel_net->ConByIndex(m_sel_ic);	//** AMW
+			//** end CPT
+
 			// test for destination of ratline
 			if( c->EndPin() == NULL && m_sel_is == c->NumSegs()-1 && m_dir == 0
 				&& c->VtxByIndex(c->NumSegs()).tee_ID )
@@ -2513,10 +2530,13 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 				// otherwise save it here
 				SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_Doc->m_undo_list );
 			}
-			int w = m_Doc->m_trace_w;
-			int via_w = m_Doc->m_via_w;
-			int via_hole_w = m_Doc->m_via_hole_w;
-			GetWidthsForSegment( &w, &via_w, &via_hole_w );
+
+			// CPT.  Similar to what happened for CUR_DRAG_RAT mode, above.  Below, arguments for AppendSegment get
+			// changed to include via_w and via_hole_w
+			int w = m_active_width, via_w, via_hole_w;
+			GetViaWidths(w, &via_w, &via_hole_w);
+			// end CPT
+
 			// test for hit on vertex or pin
 			CPoint p = m_last_cursor_point;
 			id include_ids[2];
@@ -4324,8 +4344,12 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 		if( fk == FK_COMPLETE )
 		{
 			SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_Doc->m_undo_list );
-			int w, v_w, v_h_w;
-			GetWidthsForSegment( &w, &v_w, &v_h_w );
+
+			// CPT next 3 lines
+            int w = m_active_width, via_w, via_hole_w;
+            GetViaWidths(w, &via_w, &via_hole_w);
+			// end CPT
+
 			int test = m_Doc->m_nlist->RouteSegment( m_sel_net, m_sel_ic,
 				m_sel_is, m_active_layer, w );
 			if( !test )
@@ -4338,6 +4362,20 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 			Invalidate( FALSE );
 			m_Doc->ProjectModified( TRUE );
 		}
+
+        // CPT
+        else if (fk==FK_ACTIVE_WIDTH_UP || fk==FK_ARROW && dy>0)     // F2 or up-arrow
+            ActiveWidthUp(pDC);
+        else if (fk==FK_ACTIVE_WIDTH_DOWN || fk==FK_ARROW && dy<0)   // F1 or down-arrow
+            ActiveWidthDown(pDC);
+#if 0 //** AMW
+		else if (fk==FK_RGRID_UP)
+			RoutingGridUp();
+		else if (fk==FK_RGRID_DOWN)
+			RoutingGridDown();
+#endif //** AMW
+		// end cpt
+
 		break;
 
 	case CUR_DRAG_TRACE:
@@ -4667,8 +4705,8 @@ void CFreePcbView::SetFKText( int mode )
 			m_fkey_option[0] = FK_DETACH_NET;
 		else
 			m_fkey_option[0] = FK_ATTACH_NET;
-		m_fkey_option[2] = FK_START_TRACE;
-		m_fkey_option[3] = FK_ADD_CONNECT;
+		m_fkey_option[1] = FK_START_TRACE;
+		m_fkey_option[2] = FK_ADD_CONNECT;
 		m_fkey_option[8] = FK_REDO_RATLINES;
 		break;
 
@@ -4884,13 +4922,31 @@ void CFreePcbView::SetFKText( int mode )
 		break;
 
 	case CUR_DRAG_VTX:
+	case CUR_DRAG_END_VTX:
+	case CUR_DRAG_VTX_INSERT:
+		// CPT
+        m_fkey_option[4] = FK_RGRID_DOWN;
+        m_fkey_option[5] = FK_RGRID_UP;
+		// END cpt
 		break;
 
 	case CUR_DRAG_RAT:
+        // CPT
+        m_fkey_option[0] = FK_ACTIVE_WIDTH_DOWN;
+        m_fkey_option[1] = FK_ACTIVE_WIDTH_UP;
+        m_fkey_option[4] = FK_RGRID_DOWN;
+        m_fkey_option[5] = FK_RGRID_UP;
+		// END cpt
 		m_fkey_option[3] = FK_COMPLETE;
 		break;
 
 	case CUR_DRAG_TRACE:
+        // CPT
+        m_fkey_option[0] = FK_ACTIVE_WIDTH_DOWN;
+        m_fkey_option[1] = FK_ACTIVE_WIDTH_UP;
+        m_fkey_option[4] = FK_RGRID_DOWN;
+        m_fkey_option[5] = FK_RGRID_UP;
+		// END cpt
 		break;
 
 	case CUR_DRAG_SMCUTOUT_1:
@@ -5584,6 +5640,12 @@ void CFreePcbView::CancelSelection()
 	m_sel_ids.RemoveAll();
 	m_sel_ptrs.RemoveAll();
 	m_sel_id.Clear();
+
+	// CPT
+	m_active_width = 0;
+	m_dragging_new_item = FALSE;
+	// end CPT
+
 	SetCursorMode( CUR_NONE_SELECTED );
 }
 
@@ -6317,6 +6379,11 @@ void CFreePcbView::OnPadStartStubTrace()
 	int via_hole_w = m_Doc->m_via_hole_w;
 	if( net->def_via_hole_w )
 		via_hole_w = net->def_via_hole_w;
+
+	// CPT 
+	m_active_width = w;
+	// end CPT
+
 	m_Doc->m_nlist->StartDraggingStub( pDC, net, m_sel_id.I2(), m_sel_id.I3(),
 		pi.x, pi.y, m_active_layer, w, m_active_layer, via_w, via_hole_w,
 		2, m_inflection_mode );
@@ -6596,10 +6663,20 @@ void CFreePcbView::OnRatlineRoute()
 		}
 	}
 	// now start dragging new segment
-	int w = m_Doc->m_trace_w;
-	int via_w = m_Doc->m_via_w;
-	int via_hole_w = m_Doc->m_via_hole_w;
-	GetWidthsForSegment( &w, &via_w, &via_hole_w );
+    // CPT.  If already in drag mode, we'll use m_active_width.  Otherwise, set m_active_width to the net's default value
+	int w, via_w, via_hole_w;
+    if (m_cursor_mode==CUR_DRAG_RAT)
+        w = m_active_width;
+    else 
+	{
+        w = m_Doc->m_trace_w;
+        if (m_sel_net->def_w)
+                w = m_sel_net->def_w;
+        m_active_width = w;
+    }
+    GetViaWidths(w, &via_w, &via_hole_w);
+	// end CPT
+
 	m_dragging_new_item = 0;
 	m_Doc->m_nlist->StartDraggingSegment( pDC, m_sel_net, m_sel_ic, m_sel_is,
 		p.x, p.y, m_active_layer,
@@ -6811,10 +6888,18 @@ void CFreePcbView::OnEndVertexAddSegments()
 	CPoint p;
 	p = m_last_cursor_point;
 	m_sel_id.SetT3( ID_SEL_SEG );
+
+	// CPT.  Set m_active_width to the net default value:
 	int w, via_w, via_hole_w;
+    w = m_Doc->m_trace_w;
+    if (m_sel_net->def_w)
+        w = m_sel_net->def_w;
+    m_active_width = w;
+    GetViaWidths(w, &via_w, &via_hole_w);
+	// end CPT
+
 	m_snap_angle_ref.x = m_sel_vtx->x;
 	m_snap_angle_ref.y = m_sel_vtx->y;
-	GetWidthsForSegment( &w, &via_w, &via_hole_w );
 	m_Doc->m_nlist->StartDraggingStub( pDC, m_sel_net, m_sel_ic, m_sel_is,
 		p.x, p.y, m_active_layer, w, m_active_layer, via_w, via_hole_w,
 		2, m_inflection_mode );
@@ -6873,9 +6958,16 @@ void CFreePcbView::OnRatlineComplete()
 	SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_Doc->m_undo_list );
 
 	// complete routing to pin
-	int w = m_Doc->m_trace_w;
-	int via_w = m_Doc->m_via_w;
-	int via_hole_w = m_Doc->m_via_hole_w;
+
+	// CPT:
+    int w, via_w, via_hole_w;
+	if (m_active_width!=0)
+		w = m_active_width,
+		GetViaWidths(w, &via_w, &via_hole_w);
+	else
+		GetWidthsForSegment(&w, &via_w, &via_hole_w);
+	// end CPT
+
 	GetWidthsForSegment( &w, &via_w, &via_hole_w );
 	int test = m_Doc->m_nlist->RouteSegment( m_sel_net, m_sel_ic, m_sel_is, m_active_layer, w );
 	if( !test )
@@ -13102,3 +13194,354 @@ void CFreePcbView::OnSegmentMove()
 	ReleaseDC( pDC );
 	Invalidate( FALSE );
 }
+
+// CPT (all that follows):
+
+void CFreePcbView::ActiveWidthUp(CDC * pDC) {
+  // Increase the active routing width to the next value in document's width table greater than the current value.  Also check
+  // the current net's default width value, and make that value one of the options:
+  int cWidths = m_Doc->m_w.GetSize();
+  #define widthAt(i) (m_Doc->m_w.GetAt(i))
+  int defaultW = m_Doc->m_trace_w;
+  if (m_sel_net->def_w) defaultW = m_sel_net->def_w;
+  int i;
+  for (i=0; i<cWidths; i++)
+    if (m_active_width < widthAt(i)) break;
+  if (m_active_width < defaultW && (i==cWidths || defaultW < widthAt(i)))
+    m_active_width = defaultW;
+  else if (i<cWidths)
+    m_active_width = widthAt(i);
+  // Change the display of the temporary dragged seg:
+  m_dlist->ChangeRoutingLayer( pDC, m_active_layer, LAY_SELECTION, m_active_width);
+  Invalidate(FALSE);
+  ShowSelectStatus();
+  }
+
+void CFreePcbView::ActiveWidthDown(CDC * pDC) {
+  // Similar to ActiveWidthUp().
+  int cWidths = m_Doc->m_w.GetSize();
+  #define widthAt(i) (m_Doc->m_w.GetAt(i))
+  int defaultW = m_Doc->m_trace_w;
+  if (m_sel_net->def_w) defaultW = m_sel_net->def_w;
+  int i;
+  for (i=cWidths-1; i>=0; i--)
+    if (m_active_width > widthAt(i)) break;
+  if (m_active_width > defaultW && (i<0 || defaultW > widthAt(i)))
+    m_active_width = defaultW;
+  else if (i>=0)
+    m_active_width = widthAt(i);
+  // Change the display of the temporary dragged seg:
+  m_dlist->ChangeRoutingLayer( pDC, m_active_layer, LAY_SELECTION, m_active_width);
+  Invalidate(FALSE);
+  ShowSelectStatus();
+  }
+
+void CFreePcbView::GetViaWidths(int w, int *via_w, int *via_hole_w) {
+  // Given a segment width value "w", determine a matching via and via hole width.  Do this by first checking if w==this->m_sel_net->def_w,
+  //  and return the net's default via size if so;
+  //  otherwise, scan thru m_Doc->m_w and find the last entry in there <=w.  The corresponding members of mDoc->m_v_w
+  // and mDoc->m_v_h_w are then the return values.
+  int cWidths = m_Doc->m_w.GetSize(), i;
+  if (w == m_sel_net->def_w || cWidths == 0)
+    { *via_w = m_sel_net->def_via_w; *via_hole_w = m_sel_net->def_via_hole_w; return; }
+  for (i=1; i<cWidths; i++)
+    if (m_Doc->m_w.GetAt(i) > w) break;
+  // i-1 = last entry in width table that's <= w:
+  *via_w = m_Doc->m_v_w.GetAt(i-1);
+  *via_hole_w = m_Doc->m_v_h_w.GetAt(i-1);
+  }
+
+#if 0 //** AMW
+void CFreePcbView::RoutingGridUp() {
+	CMainFrame * frm = (CMainFrame*)AfxGetMainWnd();
+	frm->m_wndMyToolBar.RoutingGridUp();
+	}
+
+void CFreePcbView::RoutingGridDown() {
+	CMainFrame * frm = (CMainFrame*)AfxGetMainWnd();
+	frm->m_wndMyToolBar.RoutingGridDown();
+	}
+
+void CFreePcbView::UnitToggle(bool bShiftKeyDown) {
+	CMainFrame * frm = (CMainFrame*)AfxGetMainWnd();
+	frm->m_wndMyToolBar.UnitToggle(bShiftKeyDown, &(m_Doc->m_visible_grid), &(m_Doc->m_part_grid), &(m_Doc->m_routing_grid));
+	}
+
+
+bool CFreePcbView::ConvertSelectionToGroup(bool bChangeMode) {
+	// Utility for converting a single selected object into a "group select".  Return true on success, false OW
+	if (m_cursor_mode==CUR_GROUP_SELECTED) return true;			// Nothing to do!
+	if( m_cursor_mode == CUR_PART_SELECTED ) {
+		m_sel_ids.Add( m_sel_id );
+		m_sel_ptrs.Add( m_sel_part );
+		}			
+	else if( m_cursor_mode == CUR_SEG_SELECTED ) {
+		m_sel_ids.Add( m_sel_id );
+		m_sel_ptrs.Add( m_sel_net );
+		}
+	else if( m_cursor_mode == CUR_AREA_SIDE_SELECTED ) {
+		m_sel_ids.Add( m_sel_id );
+		m_sel_ptrs.Add( m_sel_net );
+		}
+	else if( m_cursor_mode == CUR_SMCUTOUT_SIDE_SELECTED
+		|| m_cursor_mode == CUR_BOARD_SIDE_SELECTED ) {
+		m_sel_ids.Add( m_sel_id );
+		m_sel_ptrs.Add( NULL );
+	}
+	else if( m_cursor_mode == CUR_TEXT_SELECTED )
+	{
+		if( m_sel_ids.GetSize() )
+			ASSERT(0);
+		m_sel_ids.Add( m_sel_id );
+		m_sel_ptrs.Add( m_sel_text );
+	}
+	else return false;						// Don't know how to convert...
+	
+	if (bChangeMode)
+		SetCursorMode( CUR_GROUP_SELECTED ),
+		m_sel_id.type = ID_MULTI;
+	return true;
+	}
+
+void CFreePcbView::ConvertSelectionToGroupAndMove(int dx, int dy) {
+	// Kludgy way that I threw together to get arrows keys working on board edges, area edges, and sm-cutout edges:  convert the
+	// current selected object to a 1-member group, then do the moving, then clear out m_sel_ids and m_sel_ptrs so that we're back to normal
+	ConvertSelectionToGroup(false);
+	if( !m_lastKeyWasArrow )	{
+		SaveUndoInfoForGroup( UNDO_GROUP_MODIFY, &m_sel_ptrs, &m_sel_ids, m_Doc->m_undo_list );
+		m_totalArrowMoveX = 0;
+		m_totalArrowMoveY = 0;
+		m_lastKeyWasArrow = TRUE;
+		}
+	MoveGroup( dx, dy );
+	m_totalArrowMoveX += dx;
+	m_totalArrowMoveY += dy;
+	ShowRelativeDistance( m_totalArrowMoveX, m_totalArrowMoveY );
+	HighlightGroup();
+	m_sel_ids.RemoveAll();  m_sel_ptrs.RemoveAll();
+	m_Doc->ProjectModified( TRUE );
+	Invalidate( FALSE );
+	}
+
+void CFreePcbView::ConvertSingletonGroup() {
+	// If selected group contains a single item, convert it back to a regular object selection
+	DoSelection(m_sel_ids[0], m_sel_ptrs[0]);
+	m_sel_ids.RemoveAll();
+	m_sel_ptrs.RemoveAll();
+	}
+
+void CFreePcbView::DoSelection(id &sid, void *ptr) {
+	// User wants to select object with the given id & ptr.  Accordingly set the cursor mode etc. 
+	m_dlist->CancelHighLight();
+	if( sid.type == ID_DRC && sid.st == ID_SEL_DRE ) {
+		DRError * dre = (DRError*)ptr;
+		m_sel_id = sid;
+		m_sel_dre = dre;
+		m_Doc->m_drelist->HighLight( m_sel_dre );
+		SetCursorMode( CUR_DRE_SELECTED );
+		}
+	else if( sid.type == ID_BOARD && sid.st == ID_BOARD_OUTLINE	&& sid.sst == ID_SEL_CORNER )	{
+		m_Doc->m_board_outline[sid.i].HighlightCorner( sid.ii );
+		m_sel_id = sid;
+		SetCursorMode( CUR_BOARD_CORNER_SELECTED );
+		}
+	else if( sid.type == ID_BOARD && sid.st == ID_BOARD_OUTLINE && sid.sst == ID_SEL_SIDE ) {
+		m_Doc->m_board_outline[sid.i].HighlightSide( sid.ii );
+		m_sel_id = sid;
+		SetCursorMode( CUR_BOARD_SIDE_SELECTED );
+		}
+	else if( sid.type == ID_SM_CUTOUT && sid.st == ID_SM_CUTOUT && sid.sst == ID_SEL_CORNER )	{
+		m_Doc->m_sm_cutout[sid.i].HighlightCorner( sid.ii );
+		m_sel_id = sid;
+		SetCursorMode( CUR_SMCUTOUT_CORNER_SELECTED );
+		}
+	else if( sid.type == ID_SM_CUTOUT && sid.st == ID_SM_CUTOUT	&& sid.sst == ID_SEL_SIDE ) {
+		m_Doc->m_sm_cutout[sid.i].HighlightSide( sid.ii );
+		m_sel_id = sid;
+		SetCursorMode( CUR_SMCUTOUT_SIDE_SELECTED );
+		}
+
+	else if( sid.type == ID_PART ) {
+		m_sel_part = (cpart*)ptr;
+		m_sel_id = sid;
+		if( sid.st == ID_SEL_RECT ) {
+			SelectPart( m_sel_part );
+			m_Doc->m_plist->SelectRefText( m_sel_part );
+			m_Doc->m_plist->SelectValueText( m_sel_part );
+			}
+		else if( sid.st == ID_SEL_REF_TXT )	{
+			m_Doc->m_plist->SelectRefText( m_sel_part );
+			SetCursorMode( CUR_REF_SELECTED );
+			}
+		else if( sid.st == ID_SEL_VALUE_TXT ) {
+			m_Doc->m_plist->SelectValueText( m_sel_part );
+			SetCursorMode( CUR_VALUE_SELECTED );
+			}
+		else if( sid.st == ID_SEL_PAD ) {
+			m_Doc->m_plist->SelectPad( m_sel_part, sid.i );
+			SetCursorMode( CUR_PAD_SELECTED );
+			}
+		}
+
+	else if( sid.type == ID_NET ) {
+		m_sel_net = (cnet*)ptr;
+		m_sel_id = sid;
+		if( sid.st == ID_CONNECT && sid.sst == ID_SEL_SEG ) {
+			// select segment
+			m_Doc->m_nlist->HighlightSegment( m_sel_net, sid.i, sid.ii );
+			if( m_sel_net->connect[sid.i].seg[sid.ii].layer != LAY_RAT_LINE )
+				SetCursorMode( CUR_SEG_SELECTED );
+			else
+				SetCursorMode( CUR_RAT_SELECTED );
+			}
+		else if( sid.st == ID_CONNECT && sid.sst == ID_SEL_VERTEX ) {
+			// select vertex
+			cconnect * c = &m_sel_net->connect[sid.i];
+			if( c->end_pin == cconnect::NO_END && sid.ii == c->nsegs )
+				SetCursorMode( CUR_END_VTX_SELECTED );
+			else
+				SetCursorMode( CUR_VTX_SELECTED );
+			m_Doc->m_nlist->HighlightVertex( m_sel_net, sid.i, sid.ii );
+			}
+		else if( sid.st == ID_AREA && sid.sst == ID_SEL_SIDE ) {
+			// select copper area side
+			m_Doc->m_nlist->SelectAreaSide( m_sel_net, sid.i, sid.ii );
+			SetCursorMode( CUR_AREA_SIDE_SELECTED );
+			}
+		else if( sid.st == ID_AREA && sid.sst == ID_SEL_CORNER ) {
+			// select copper area corner
+			m_Doc->m_nlist->SelectAreaCorner( m_sel_net, sid.i, sid.ii );
+			SetCursorMode( CUR_AREA_CORNER_SELECTED );
+			}
+		else
+			ASSERT(0);
+		}
+
+	else if( sid.type == ID_TEXT ) {
+		m_sel_text = (CText*)ptr;
+		m_sel_id = sid;
+		m_Doc->m_tlist->HighlightText( m_sel_text );
+		SetCursorMode( CUR_TEXT_SELECTED );
+		}
+	else 
+		// nothing selected
+		m_sel_id.Clear();
+	
+	Invalidate( FALSE );
+	}
+
+void CFreePcbView::ToggleSelectionState(id &sid, void *ptr) {
+	// If the item specified by ptr/id is part of the selection group, remove it from the selection group.  Otherwise,
+	// add it to the group.
+	BOOL bFound = FALSE;
+	for (int i=0; i<m_sel_ids.GetSize(); i++) 
+		if (m_sel_ids[i] == sid && m_sel_ptrs[i] == ptr) {
+			bFound = TRUE;
+			m_sel_ptrs.RemoveAt(i);
+			m_sel_ids.RemoveAt(i);
+			break;
+			}
+	if (!bFound)
+		m_sel_ids.Add(sid),
+		m_sel_ptrs.Add(ptr);
+	if (m_sel_ids.GetSize() == 0)
+		CancelSelection();
+	else if (m_sel_ids.GetSize() == 1)
+		ConvertSingletonGroup();
+	else
+		HighlightGroup();
+	}
+
+
+void CFreePcbView::HandleNoShiftLayerKey(int layer, CDC *pDC) {
+	if( !m_Doc->m_vis[layer] ) {
+		PlaySound( TEXT("CriticalStop"), 0, 0 );
+		CString s ((LPCSTR) IDS_CantRouteOnInvisibleLayer);
+		AfxMessageBox( s );
+		return;
+		}
+	if( m_cursor_mode == CUR_DRAG_RAT || m_cursor_mode == CUR_DRAG_STUB) {
+		// if we are routing, change layer
+		pDC->SelectClipRgn( &m_pcb_rgn );
+		SetDCToWorldCoords( pDC );						// Haven't figured out why we need this...
+		if( m_sel_id.ii == 0 && m_dir == 0 ) {
+			// we are trying to change first segment from pad
+			int p1 = m_sel_con.start_pin;
+			CString pin_name = m_sel_net->pin[p1].pin_name;
+			int pin_index = m_sel_net->pin[p1].part->shape->GetPinIndexByName( pin_name );
+			if( m_sel_net->pin[p1].part->shape->m_padstack[pin_index].hole_size == 0)
+				// SMT pad, this is illegal;
+				layer = -1,
+				PlaySound( TEXT("CriticalStop"), 0, 0 );
+			}
+		else if( m_sel_id.ii == (m_sel_con.nsegs-1) && m_dir == 1 ) {
+			// we are trying to change last segment to pad
+			int p2 = m_sel_con.end_pin;
+			if( p2 != -1 ) {
+				CString pin_name = m_sel_net->pin[p2].pin_name;
+				int pin_index = m_sel_net->pin[p2].part->shape->GetPinIndexByName( pin_name );
+				if( m_sel_net->pin[p2].part->shape->m_padstack[pin_index].hole_size == 0)
+					// SMT pad
+					layer = -1,
+					PlaySound( TEXT("CriticalStop"), 0, 0 );
+				}
+			}
+		if( layer != -1 ) {
+			m_dlist->ChangeRoutingLayer( pDC, layer, LAY_SELECTION, 0 );
+			m_active_layer = layer;
+			ShowActiveLayer();
+			}
+		return;
+		}
+	
+	m_active_layer = layer;
+	ShowActiveLayer();
+	}
+
+void CFreePcbView::HandleShiftLayerKey(int layer, CDC *pDC) {
+	if( m_cursor_mode == CUR_SEG_SELECTED )	{
+		SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_Doc->m_undo_list );
+		m_Doc->m_nlist->UndrawConnection( m_sel_net, m_sel_ic );
+		cconnect * c = &m_sel_net->connect[m_sel_ic];
+		cseg * seg = &c->seg[m_sel_is];
+		seg->layer = layer;
+		m_Doc->m_nlist->DrawConnection( m_sel_net, m_sel_ic );
+		m_Doc->ProjectModified( TRUE );
+		Invalidate( FALSE );
+		}
+	else if( m_cursor_mode == CUR_CONNECT_SELECTED ) {
+		SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_Doc->m_undo_list );
+		m_Doc->m_nlist->UndrawConnection( m_sel_net, m_sel_ic );
+		cconnect * c = &m_sel_net->connect[m_sel_ic];
+		for( int is=0; is<c->nsegs; is++ ) {
+			cseg * seg = &c->seg[is];
+			seg->layer = layer;
+			}
+		m_Doc->m_nlist->DrawConnection( m_sel_net, m_sel_ic );
+		m_Doc->ProjectModified( TRUE );
+		Invalidate( FALSE );
+		}
+	else if( m_cursor_mode == CUR_AREA_CORNER_SELECTED || m_cursor_mode == CUR_AREA_SIDE_SELECTED ) {
+		SaveUndoInfoForAllAreasInNet( m_sel_net, TRUE, m_Doc->m_undo_list );
+		carea * a = &m_sel_net->area[m_sel_ia];
+		a->poly->Undraw();
+		a->poly->SetLayer( layer );
+		a->poly->Draw( m_dlist );
+		int ret = m_Doc->m_nlist->AreaPolygonModified( m_sel_net, m_sel_ia, TRUE, TRUE );
+		if( ret == -1 ) {
+			// error
+			CString s ((LPCSTR) IDS_ErrorUnableToClipPolygon);
+			AfxMessageBox( s );
+			m_Doc->OnEditUndo();
+			}
+		else if( m_Doc->m_vis[LAY_RAT_LINE] )
+			m_Doc->m_nlist->OptimizeConnections(  m_sel_net, -1, m_Doc->m_auto_ratline_disable,
+					m_Doc->m_auto_ratline_min_pins, TRUE  );
+		CancelSelection();
+		m_Doc->ProjectModified( TRUE );
+		Invalidate( FALSE );
+		}
+	}
+
+#endif //** AMW
+// end CPT

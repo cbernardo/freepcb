@@ -2514,12 +2514,13 @@ void CNetList::MoveVertex( cnet * net, int ic, int ivtx, int x, int y )
 	v->y = y;
 	if( v->GetType() == cvertex::V_TEE )
 	{
-		// this is a tee-point in a trace
+		// this is a tee-vertex in a trace
 		// move other slave vertices connected to it
 		int tee_id = v->tee_ID;
-		for( int icc=0; icc<net->NumCons(); icc++ )
+		CIterator_cconnect iter_con( net );
+		for( cconnect * test_c=iter_con.GetFirst(); test_c; test_c= iter_con.GetNext() )
 		{
-			cconnect * test_c = net->connect[icc];
+			int icc = iter_con.GetIndex();
 			cvertex * test_v = test_c->FirstVtx();
 			if( test_v->GetType() == cvertex::V_SLAVE && test_v->tee_ID == -tee_id )
 			{

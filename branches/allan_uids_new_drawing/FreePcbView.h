@@ -148,6 +148,14 @@ enum {
 	FK_SIDE_STYLE,
 	FK_EDIT_AREA,
 	FK_MOVE_SEGMENT,
+
+    // CPT
+    FK_ACTIVE_WIDTH_UP,
+    FK_ACTIVE_WIDTH_DOWN,
+	FK_RGRID_UP,
+	FK_RGRID_DOWN,
+	// end CPT
+
 	FK_NUM_OPTIONS,
 	FK_ARROW
 };
@@ -185,7 +193,7 @@ const char fk_str[FK_NUM_OPTIONS*2+2][32] =
 	" Connect",	" Pin",
 	" Detach",	" Net",
 	" Set",		" Net",
-	" Delete",	" Connect",
+	" Delete",	" Trace",
 	" Force",	" Via",
 	" Set",		" Width",
 	" Lock",	" Connect",
@@ -226,6 +234,14 @@ const char fk_str[FK_NUM_OPTIONS*2+2][32] =
 	" Set Side"," Style",
 	" Edit",	" Area",
 	" Move",	" Segment",
+
+	// CPT
+    " Increase",    " Width",
+    " Decrease",    " Width",
+	" Increase",    " Grid",
+	" Decrease",    " Grid",
+	// end CPT
+
 	" ****",	" ****"
 };
 
@@ -398,11 +414,13 @@ public:
 #define m_sel_con_start_pin (&m_sel_net->pin[m_sel_con->start_pin])
 #define m_sel_con_end_pin (&m_sel_net->pin[m_sel_con->end_pin])
 
-	// new selection class
-//**	CSelection ss;
-
 	// direction of routing
 	int m_dir;			// 0 = forward, 1 = back
+
+// CPT
+    int m_active_width;             // Width for upcoming segs during routing mode (in nm)
+	DWORD m_last_autoscroll;		// Tick count when an autoscroll last occurred.
+// end CPT
 
 	// display coordinate mapping
 	double m_pcbu_per_pixel;	// pcb units per pixel
@@ -683,7 +701,74 @@ public:
 	afx_msg void OnValueRotateCW();
 	afx_msg void OnValueRotateCCW();
 	afx_msg void OnSegmentMove();
+
+// CPT:
+    void ActiveWidthUp(CDC * pDC);
+    void ActiveWidthDown(CDC * pDC);
+    void GetViaWidths(int w, int *via_w, int *via_hole_w);
+#if 0 //** AMW
+	void RoutingGridUp();
+	void RoutingGridDown();
+#endif //** AMW
+	void UnitToggle(bool bShiftKeyDown);
+	bool ConvertSelectionToGroup(bool bChangeMode);
+	void ConvertSelectionToGroupAndMove(int dx, int dy);
+	void ConvertSingletonGroup();
+	void DoSelection(id &sid, void *ptr);
+	void ToggleSelectionState(id &sid, void *ptr);
+
+	// CPT:  virtual functions from CCommonView:
+	bool IsFreePcbView() { return true; }
+	void SetDList()
+		{ m_dlist = m_Doc->m_dlist; }
+	int GetNLayers()
+		{ return m_Doc->m_num_layers; }
+	int GetTopCopperLayer() 
+		{ return LAY_FP_TOP_COPPER; }
+	int GetLayerRGB(int layer, int i) 
+		{ return m_Doc->m_rgb[layer][i]; }
+	int GetLayerVis(int layer)
+		{ return m_Doc->m_vis[layer]; }
+	int GetLayerNum(int i) {
+		// Given a line-number within the left pane, return the actual layer num
+		// (may differ for copper layers)
+		if( i == GetNLayers()-1 && m_Doc->m_num_copper_layers > 1 )
+			return LAY_BOTTOM_COPPER;
+		if( i > LAY_TOP_COPPER )
+			return i+1;
+		return i;
+		}
+	void GetLayerLabel(int i, CString &label) {
+		// Get the layer label for the i-th line in the left pane display
+		CString s;
+		char lc = layer_char[i-LAY_TOP_COPPER];
+		if (i==LAY_TOP_COPPER)
+			s.LoadStringA(IDS_TopCopper),
+			label.Format(s, lc, lc);
+		else if (i==GetNLayers()-1)
+			s.LoadStringA(IDS_Bottom3),
+			label.Format(s, lc, lc);
+		else if (i==LAY_PAD_THRU)
+			label.LoadStringA(IDS_DrilledHole2);
+		else if (i>LAY_TOP_COPPER)
+			s.LoadStringA(IDS_LayerStr+i+1),
+			label.Format("%s. %c,C%c", s, lc, lc);
+		else if (i>1)
+			s.LoadStringA(IDS_LayerStr+i),
+			label.Format("%s. CF%d", s, i-1);
+		else
+			label.LoadStringA(IDS_LayerStr+i);
+		}
+	int ToggleLayerVis(int i)
+		{ return m_Doc->m_vis[i] = !m_Doc->m_vis[i]; }
+	int GetLeftPaneKeyID() { return IDS_LeftPaneKey; }
+	int GetNMasks() { return NUM_SEL_MASKS; }
+	int GetMaskNamesID() { return IDS_SelMaskStr; }
+
+	void HandleShiftLayerKey(int layer, CDC *pDC);
+	void HandleNoShiftLayerKey(int layer, CDC *pDC);
 };
+// end CPT
 
 #ifndef _DEBUG  // debug version in FreePcbView.cpp
 inline CFreePcbDoc* CFreePcbView::GetDocument()
