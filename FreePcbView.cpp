@@ -11733,7 +11733,7 @@ void CFreePcbView::OnGroupSaveToFile()
 	// force old-style file dialog by setting size of OPENFILENAME struct
 	CFileDialog dlg( 0, "fpc", NULL, 0,
 		"PCB files (*.fpc)|*.fpc|All Files (*.*)|*.*||",
-		NULL, OPENFILENAME_SIZE_VERSION_400 );
+		NULL, OPENFILENAME_SIZE_VERSION_500 );
 	// get folder of most-recent file or project folder
 	CString MRFile = theApp.GetMRUFile();
 	CString MRFolder;

@@ -411,7 +411,7 @@ void CFreePcbDoc::OnFileOpen()
 	// force old-style file dialog by setting size of OPENFILENAME struct (for Win98)
 	CFileDialog dlg( 1, "fpc", LPCTSTR(m_pcb_filename), 0, 
 		"PCB files (*.fpc)|*.fpc|All Files (*.*)|*.*||", 
-		NULL, OPENFILENAME_SIZE_VERSION_400 );
+		NULL, OPENFILENAME_SIZE_VERSION_500 );
 	dlg.AssertValid();
 
 	// get folder of most-recent file or project folder
@@ -868,7 +868,7 @@ void CFreePcbDoc::OnFileSaveAs()
 	// force old-style file dialog by setting size of OPENFILENAME struct
 	CFileDialog dlg( 0, "fpc", LPCTSTR(m_pcb_filename), 0, 
 		"PCB files (*.fpc)|*.fpc|All Files (*.*)|*.*||",
-		NULL, OPENFILENAME_SIZE_VERSION_400 );
+		NULL, OPENFILENAME_SIZE_VERSION_500 );
 	OPENFILENAME  * myOFN = dlg.m_pOFN;
 	myOFN->Flags |= OFN_OVERWRITEPROMPT;
 	// get folder of most-recent file or project folder
@@ -2651,7 +2651,7 @@ void CFreePcbDoc::OnFileExport()
 	// force old-style file dialog by setting size of OPENFILENAME struct
 	CMyFileDialogExport dlg( FALSE, NULL, NULL, 
 		OFN_HIDEREADONLY | OFN_EXPLORER | OFN_OVERWRITEPROMPT, 
-		"All Files (*.*)|*.*||", NULL, OPENFILENAME_SIZE_VERSION_400 );
+		"All Files (*.*)|*.*||", NULL, OPENFILENAME_SIZE_VERSION_500 );
 	dlg.SetTemplate( IDD_EXPORT, IDD_EXPORT );
 	dlg.Initialize( EXPORT_PARTS | EXPORT_NETS );
 	int ret = dlg.DoModal();
@@ -2681,7 +2681,7 @@ void CFreePcbDoc::OnFileImport()
 {
 	// force old-style file dialog by setting size of OPENFILENAME struct
 	CMyFileDialog dlg( TRUE, NULL, (LPCTSTR)m_netlist_full_path, OFN_HIDEREADONLY | OFN_EXPLORER, 
-		"All Files (*.*)|*.*||", NULL, OPENFILENAME_SIZE_VERSION_400 );
+		"All Files (*.*)|*.*||", NULL, OPENFILENAME_SIZE_VERSION_500 );
 	dlg.SetTemplate( IDD_IMPORT, IDD_IMPORT );
 	dlg.m_ofn.lpstrTitle = "Import netlist file";
 	dlg.Initialize( m_import_flags );
@@ -4122,7 +4122,7 @@ void CFreePcbDoc::OnEditPasteFromFile()
 {
 	// force old-style file dialog by setting size of OPENFILENAME struct
 	CFileDialog dlg( TRUE, NULL, NULL, OFN_HIDEREADONLY | OFN_EXPLORER, 
-		"All Files (*.*)|*.*||", NULL, OPENFILENAME_SIZE_VERSION_400 );
+		"All Files (*.*)|*.*||", NULL, OPENFILENAME_SIZE_VERSION_500 );
 	dlg.m_ofn.lpstrTitle = "Paste group from file";
 	int ret = dlg.DoModal();
 	if( ret == IDOK )
@@ -4624,7 +4624,7 @@ void CFreePcbDoc::OnFileLoadLibrary()
 	// force old-style file dialog by setting size of OPENFILENAME struct (for Win98)
 	CFileDialog dlg( 1, "fpl", LPCTSTR(m_pcb_filename), 0, 
 		"Library files (*.fpl)|*.fpl|All Files (*.*)|*.*||", 
-		NULL, OPENFILENAME_SIZE_VERSION_400 );
+		NULL, OPENFILENAME_SIZE_VERSION_500 );
 	dlg.AssertValid();
 
 	// get folder of most-recent file or project folder
