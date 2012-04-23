@@ -156,7 +156,19 @@ CFootprintView::CFootprintView()
 	m_last_mouse_point.y = 0;
 	m_last_cursor_point.x = 0;
 	m_last_cursor_point.y = 0;
-	m_left_pane_w = 110;	// the left pane on screen is this wide (pixels)
+
+	// CPT: left pane width customizable by changing resource string 
+	CString s ((LPCSTR) IDS_LeftPaneWidth);
+	m_left_pane_w = atoi(s);
+	if (m_left_pane_w<=0) 
+		m_left_pane_w = 125;
+	// CPT: Likewise f-key box width 
+	s.LoadStringA(IDS_FKeyWidth);
+	m_fkey_w = atoi(s);
+	if (m_fkey_w<=0) 
+		m_fkey_w = 70;
+	// end CPT
+
 	m_bottom_pane_h = 40;	// the bottom pane on screen is this high (pixels)
 	m_memDC_created = FALSE;
 	m_dragging_new_item = FALSE;

@@ -218,6 +218,7 @@ public:
 	CRect m_client_r;	// in device coords
 	int m_left_pane_w;		// width of pane at left of screen for layer selection, etc.
 	int m_bottom_pane_h;	// height of pane at bottom of screen for key assignments, etc.
+	int m_fkey_w;			// CPT: Width of f-key boxes.
 	CRgn m_pcb_rgn;		// region for the pcb
 	BOOL m_left_pane_invalid;	// flag to erase and redraw left pane
 

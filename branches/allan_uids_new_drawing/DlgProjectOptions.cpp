@@ -8,6 +8,8 @@
 #include "PathDialog.h"
 #include ".\dlgprojectoptions.h"
 
+// CPT:  moved controls for autosave and auto-ratline-disable into DlgPrefs.
+
 // global callback function for sorting
 //		
 int CALLBACK WidthCompare( LPARAM lp1, LPARAM lp2, LPARAM type )
@@ -48,8 +50,6 @@ void CDlgProjectOptions::DoDataExchange(CDataExchange* pDX)
 		m_trace_w = m_trace_w/NM_PER_MIL;
 		m_via_w = m_via_w/NM_PER_MIL;
 		m_hole_w = m_hole_w/NM_PER_MIL;
-		// convert seconds to minutes
-		m_auto_interval = m_auto_interval/60;
 	}
 	DDX_Control(pDX, IDC_EDIT_NAME, m_edit_name);
 	DDX_Text(pDX, IDC_EDIT_NAME, m_name );
@@ -69,44 +69,39 @@ void CDlgProjectOptions::DoDataExchange(CDataExchange* pDX)
 	DDX_Text(pDX, IDC_EDIT_DEF_VIA_HOLE, m_hole_w );
 	DDV_MinMaxInt(pDX, m_hole_w, 1, 1000 );
 	DDX_Control(pDX, IDC_LIST_WIDTH_MENU, m_list_menu);
-	DDX_Control(pDX, IDC_CHECK_AUTOSAVE, m_check_autosave);
-	DDX_Control(pDX, IDC_EDIT_AUTO_INTERVAL, m_edit_auto_interval);
-	DDX_Text(pDX, IDC_EDIT_AUTO_INTERVAL, m_auto_interval );
 	DDX_Control(pDX, IDC_CHECK1, m_check_SMT_connect);
-	DDX_Control(pDX, IDC_CHECK_AUTORAT_DISABLE, m_check_disable_auto_rats);
-	DDX_Control(pDX, IDC_EDIT_MIN_PINS, m_edit_min_pins);
-	DDX_Text(pDX, IDC_EDIT_MIN_PINS, m_auto_ratline_min_pins );
-	DDV_MinMaxInt(pDX, m_auto_ratline_min_pins, 0, 10000 );
+	// CPT:
+	DDX_Control(pDX, IDC_BUTTON_PROJ, m_button_proj);
+	DDX_Control(pDX, IDC_CHECK_OPTIONS_DEFAULT, m_check_default);
 
 	if( pDX->m_bSaveAndValidate )
 	{
 		// leaving dialog
 		if( m_name.GetLength() == 0 )
 		{
+			CString s ((LPCSTR) IDS_PleaseEnterNameForProject);
 			pDX->PrepareEditCtrl( IDC_EDIT_NAME );
-			AfxMessageBox( "Please enter name for project" );
+			AfxMessageBox( s );
 			pDX->Fail();
 		}
 		else if( m_path_to_folder.GetLength() == 0 )
 		{
+			CString s ((LPCSTR) IDS_PleaseEnterProjectFolder);
 			pDX->PrepareEditCtrl( IDC_EDIT_FOLDER );
-			AfxMessageBox( "Please enter project folder" );
+			AfxMessageBox( s );
 			pDX->Fail();
 		}
 		else if( m_lib_folder.GetLength() == 0 )
 		{
+			CString s ((LPCSTR) IDS_PleaseEnterLibraryFolder);
 			pDX->PrepareEditCtrl( IDC_EDIT_LIBRARY_FOLDER );
-			AfxMessageBox( "Please enter library folder" );
+			AfxMessageBox( s );
 			pDX->Fail();
 		}
 		else
 		{
 			// save options
 			m_bSMT_connect_copper = m_check_SMT_connect.GetCheck();
-			m_bAuto_Ratline_Disable = m_check_disable_auto_rats.GetCheck();
-
-			// convert minutes to seconds
-			m_auto_interval *= 60;
 
 			// convert NM to MILS
 			m_trace_w = m_trace_w*NM_PER_MIL;
@@ -130,6 +125,8 @@ void CDlgProjectOptions::DoDataExchange(CDataExchange* pDX)
 				m_v_h_w->SetAt(i, atoi(str)*NM_PER_MIL);
 			}
 		}
+		// CPT:
+		m_default = m_check_default.GetCheck();
 	}
 }
 
@@ -142,9 +139,8 @@ BEGIN_MESSAGE_MAP(CDlgProjectOptions, CDialog)
 	ON_EN_CHANGE(IDC_EDIT_FOLDER, OnEnChangeEditFolder)
 	ON_EN_SETFOCUS(IDC_EDIT_FOLDER, OnEnSetfocusEditFolder)
 	ON_EN_KILLFOCUS(IDC_EDIT_FOLDER, OnEnKillfocusEditFolder)
-	ON_BN_CLICKED(IDC_CHECK_AUTOSAVE, OnBnClickedCheckAutosave)
 	ON_BN_CLICKED(IDC_BUTTON_LIB, OnBnClickedButtonLib)
-	ON_BN_CLICKED(IDC_CHECK_AUTORAT_DISABLE, OnBnClickedCheckAutoRatDisable)
+	ON_BN_CLICKED(IDC_BUTTON_PROJ, OnBnClickedButtonProj)
 END_MESSAGE_MAP()
 
 // initialize data
@@ -159,9 +155,6 @@ void CDlgProjectOptions::Init( BOOL new_project,
 							  int trace_w,
 							  int via_w,
 							  int hole_w,
-							  int auto_interval,
-							  BOOL bAuto_Ratline_Disable,
-							  int auto_ratline_min_pins,
 							  CArray<int> * w,
 							  CArray<int> * v_w,
 							  CArray<int> * v_h_w )
@@ -176,9 +169,6 @@ void CDlgProjectOptions::Init( BOOL new_project,
 	m_trace_w = trace_w;
 	m_via_w = via_w;
 	m_hole_w = hole_w;
-	m_auto_interval = auto_interval;
-	m_bAuto_Ratline_Disable = bAuto_Ratline_Disable;
-	m_auto_ratline_min_pins = auto_ratline_min_pins;
 	m_w = w;
 	m_v_w = v_w;
 	m_v_h_w = v_h_w;
@@ -193,9 +183,12 @@ BOOL CDlgProjectOptions::OnInitDialog()
 	// set up list control
 	DWORD old_style = m_list_menu.GetExtendedStyle();
 	m_list_menu.SetExtendedStyle( LVS_EX_FULLROWSELECT | LVS_EX_FLATSB | old_style );
-	m_list_menu.InsertColumn( 0, "Trace width", LVCFMT_LEFT, 77 );
-	m_list_menu.InsertColumn( 1, "Via pad width", LVCFMT_LEFT, 77 );
-	m_list_menu.InsertColumn( 2, "Via hole width", LVCFMT_LEFT, 78 );
+	CString colNames[3];
+	for (int i=0; i<3; i++)
+		colNames[i].LoadStringA(IDS_ProjectOptionsCols+i);
+	m_list_menu.InsertColumn( 0, colNames[0], LVCFMT_LEFT, 77 );
+	m_list_menu.InsertColumn( 1, colNames[1], LVCFMT_LEFT, 77 );
+	m_list_menu.InsertColumn( 2, colNames[2], LVCFMT_LEFT, 78 );
 	CString str;
 	int n = m_w->GetSize();
 	for( int i=0; i<n; i++ )
@@ -213,17 +206,8 @@ BOOL CDlgProjectOptions::OnInitDialog()
 	{
 		// disable some fields for existing project
 		m_edit_folder.EnableWindow( FALSE );
+		m_button_proj.EnableWindow(FALSE);
 	}
-	if( !m_auto_interval )
-	{
-		m_edit_auto_interval.EnableWindow( FALSE );
-		m_check_autosave.SetCheck(0);
-	}
-	else
-		m_check_autosave.SetCheck(1);
-
-	m_check_disable_auto_rats.SetCheck( m_bAuto_Ratline_Disable );
-	m_edit_min_pins.EnableWindow( m_bAuto_Ratline_Disable );
 	m_check_SMT_connect.SetCheck( m_bSMT_connect_copper );
 	return TRUE;
 }
@@ -241,7 +225,7 @@ void CDlgProjectOptions::OnBnClickedButtonAdd()
 	{
 		CString str;
 		m_list_menu.InsertItem( 0, "" );
-		m_list_menu.SetItemData( 0, (LPARAM)dlg.m_width );
+		m_list_menu.SetItemData( 0, (LPARAM)dlg.m_width * NM_PER_MIL );		// CPT:  bug fix (led to bad sorting)
 		str.Format( "%d", dlg.m_width );
 		m_list_menu.SetItem( 0, 0, LVIF_TEXT, str, 0, 0, 0, 0 );
 		str.Format( "%d", dlg.m_via_w );
@@ -258,7 +242,8 @@ void CDlgProjectOptions::OnBnClickedButtonEdit()
 	int i_sel = m_list_menu.GetNextSelectedItem( pos );
 	if( i_sel < 0 )
 	{
-		AfxMessageBox( "no menu item selected" );
+		CString s ((LPCSTR) IDS_NoMenuItemSelected);
+		AfxMessageBox( s );
 	}
 	else
 	{
@@ -276,7 +261,7 @@ void CDlgProjectOptions::OnBnClickedButtonEdit()
 			m_list_menu.DeleteItem( i_sel );
 			CString str;
 			m_list_menu.InsertItem( 0, "" );
-			m_list_menu.SetItemData( 0, (LPARAM)dlg.m_width );
+			m_list_menu.SetItemData( 0, (LPARAM)dlg.m_width * NM_PER_MIL );			// CPT bug fix (led to bad sorting)
 			str.Format( "%d", dlg.m_width );
 			m_list_menu.SetItem( 0, 0, LVIF_TEXT, str, 0, 0, 0, 0 );
 			str.Format( "%d", dlg.m_via_w );
@@ -291,19 +276,22 @@ void CDlgProjectOptions::OnBnClickedButtonEdit()
 void CDlgProjectOptions::OnBnClickedButtonDelete()
 {
 	POSITION pos = m_list_menu.GetFirstSelectedItemPosition();
+	CString s ((LPCSTR) IDS_NoMenuItemSelected);
 	int i_sel = m_list_menu.GetNextSelectedItem( pos );
 	if( i_sel < 0 )
-		AfxMessageBox( "no menu item selected" );
+		AfxMessageBox( s );
 	else
 		m_list_menu.DeleteItem( i_sel );
 }
 
 void CDlgProjectOptions::OnEnChangeEditName()
 {
+	/* CPT
 	CString str;
 	m_edit_name.GetWindowText( str ); 
 	if( m_new_project == TRUE && m_folder_changed == FALSE )
 		m_edit_folder.SetWindowText( m_path_to_folder + str );
+	*/
 }
 
 void CDlgProjectOptions::OnEnChangeEditFolder()
@@ -322,20 +310,11 @@ void CDlgProjectOptions::OnEnKillfocusEditFolder()
 	m_folder_has_focus = FALSE;
 }
 
-void CDlgProjectOptions::OnBnClickedCheckAutosave()
-{
-	if( m_check_autosave.GetCheck() )
-		m_edit_auto_interval.EnableWindow( TRUE );
-	else
-	{
-		m_edit_auto_interval.EnableWindow( FALSE );
-		m_edit_auto_interval.SetWindowText( "0" );
-	}
-}
 
 void CDlgProjectOptions::OnBnClickedButtonLib()
 {
-	CPathDialog dlg( "Library Folder", "Select default library folder", m_lib_folder );
+	CString s1 ((LPCSTR) IDS_LibraryFolder), s2 ((LPCSTR) IDS_SelectDefaultLibraryFolder);
+	CPathDialog dlg( s1, s2, m_lib_folder );
 	int ret = dlg.DoModal();
 	if( ret == IDOK )
 	{
@@ -344,7 +323,15 @@ void CDlgProjectOptions::OnBnClickedButtonLib()
 	}
 }
 
-void CDlgProjectOptions::OnBnClickedCheckAutoRatDisable()
+void CDlgProjectOptions::OnBnClickedButtonProj()
 {
-	m_edit_min_pins.EnableWindow( m_check_disable_auto_rats.GetCheck() );
+	CString s1 ((LPCSTR) IDS_ProjectFolder), s2 ((LPCSTR) IDS_SelectDefaultProjectFolder);
+	CPathDialog dlg( s1, s2, m_path_to_folder );
+	int ret = dlg.DoModal();
+	if( ret == IDOK )
+	{
+		m_path_to_folder = dlg.GetPathName();
+		m_edit_folder.SetWindowText( m_path_to_folder );
+	}
 }
+

@@ -261,7 +261,19 @@ CFreePcbView::CFreePcbView()
 	m_last_mouse_point.y = 0;
 	m_last_cursor_point.x = 0;
 	m_last_cursor_point.y = 0;
-	m_left_pane_w = 110;	// the left pane on screen is this wide (pixels)
+
+	// CPT: left pane width customizable by changing resource string 
+	CString s ((LPCSTR) IDS_LeftPaneWidth);
+	m_left_pane_w = atoi(s);
+	if (m_left_pane_w<=0) 
+		m_left_pane_w = 125;
+	// CPT: Likewise f-key box width 
+	s.LoadStringA(IDS_FKeyWidth);
+	m_fkey_w = atoi(s);
+	if (m_fkey_w<=0) 
+		m_fkey_w = 70;
+	// end CPT
+
 	m_bottom_pane_h = 40;	// the bottom pane on screen is this high (pixels)
 	m_memDC_created = FALSE;
 	m_dragging_new_item = FALSE;
@@ -392,141 +404,10 @@ void CFreePcbView::OnDraw(CDC* pDC)
 		return;
 	}
 
+	// CPT - moved code to draw left pane into DrawLeftPane()
 	// draw stuff on left pane
-	CRect r = m_client_r;
-	int y_off = 10;
-	int x_off = 10;
-	if( m_left_pane_invalid )
-	{
-		// erase previous contents if changed
-		CBrush brush( RGB(255, 255, 255) );
-		CPen pen( PS_SOLID, 1, RGB(255, 255, 255) );
-		CBrush * old_brush = pDC->SelectObject( &brush );
-		CPen * old_pen = pDC->SelectObject( &pen );
-		// erase left pane
-		r.right = m_left_pane_w;
-		r.bottom -= m_bottom_pane_h;
-		pDC->Rectangle( &r );
-		// erase bottom pane
-		r = m_client_r;
-		r.top = r.bottom - m_bottom_pane_h;
-		pDC->Rectangle( &r );
-		pDC->SelectObject( old_brush );
-		pDC->SelectObject( old_pen );
-		m_left_pane_invalid = FALSE;
-	}
-	CFont * old_font = pDC->SelectObject( &m_small_font );
-	int index_to_active_layer;
-	for( int i=0; i<m_Doc->m_num_layers; i++ )
-	{
-		// i = position index
-		r.left = x_off;
-		r.right = x_off+12;
-		r.top = i*VSTEP+y_off;
-		r.bottom = i*VSTEP+12+y_off;
-		// il = layer index, since copper layers are displayed out of order
-		int il = i;
-		if( i == m_Doc->m_num_layers-1 && m_Doc->m_num_copper_layers > 1 )
-			il = LAY_BOTTOM_COPPER;
-		else if( i > LAY_TOP_COPPER )
-			il = i+1;
-		CBrush brush( RGB(m_Doc->m_rgb[il][0], m_Doc->m_rgb[il][1], m_Doc->m_rgb[il][2]) );
-		if( m_Doc->m_vis[il] )
-		{
-			// if layer is visible, draw colored rectangle
-			CBrush * old_brush = pDC->SelectObject( &brush );
-			pDC->Rectangle( &r );
-			pDC->SelectObject( old_brush );
-		}
-		else
-		{
-			// if layer is invisible, draw box with X
-			pDC->Rectangle( &r );
-			pDC->MoveTo( r.left, r.top );
-			pDC->LineTo( r.right, r.bottom );
-			pDC->MoveTo( r.left, r.bottom );
-			pDC->LineTo( r.right, r.top );
-		}
-		r.left += 20;
-		r.right += 120;
-		r.bottom += 5;
-		if( il == LAY_TOP_COPPER )
-			pDC->DrawText( "top copper", -1, &r, DT_TOP );
-		else if( il == LAY_BOTTOM_COPPER )
-			pDC->DrawText( "bottom", -1, &r, 0 );
-		else if( il == LAY_PAD_THRU )
-			pDC->DrawText( "drilled hole", -1, &r, 0 );
-		else
-			pDC->DrawText( &layer_str[il][0], -1, &r, 0 );
-		if( il >= LAY_TOP_COPPER )
-		{
-			CString num_str;
-			num_str.Format( "[%c*]", layer_char[i-LAY_TOP_COPPER] );
-			CRect nr = r;
-			nr.left = nr.right - 55;
-			pDC->DrawText( num_str, -1, &nr, DT_TOP );
-		}
-		CRect ar = r;
-		ar.left = 2;
-		ar.right = 8;
-		ar.bottom -= 5;
-		if( il == m_active_layer )
-		{
-			// draw arrowhead
-			pDC->MoveTo( ar.left, ar.top+1 );
-			pDC->LineTo( ar.right-1, (ar.top+ar.bottom)/2 );
-			pDC->LineTo( ar.left, ar.bottom-1 );
-			pDC->LineTo( ar.left, ar.top+1 );
-		}
-		else
-		{
-			// erase arrowhead
-			pDC->FillSolidRect( &ar, RGB(255,255,255) );
-		}
-	}
-	r.left = x_off;
-	r.bottom += VSTEP*2;
-	r.top += VSTEP*2;
-	pDC->DrawText( "SELECTION MASK", -1, &r, DT_TOP );
-	y_off = r.bottom;
-	for( int i=0; i<NUM_SEL_MASKS; i++ )
-	{
-		// i = position index
-		r.left = x_off;
-		r.right = x_off+12;
-		r.top = i*VSTEP+y_off;
-		r.bottom = i*VSTEP+12+y_off;
-		CBrush green_brush( RGB(0, 255, 0) );
-		CBrush red_brush( RGB(255, 0, 0) );
-		if( m_sel_mask & (1<<i) )
-		{
-			// if mask is selected is visible, draw green rectangle
-			CBrush * old_brush = pDC->SelectObject( &green_brush );
-			pDC->Rectangle( &r );
-			pDC->SelectObject( old_brush );
-		}
-		else
-		{
-			// if mask not selected, draw red
-			CBrush * old_brush = pDC->SelectObject( &red_brush );
-			pDC->Rectangle( &r );
-			pDC->SelectObject( old_brush );
-		}
-		r.left += 20;
-		r.right += 120;
-		r.bottom += 5;
-		pDC->DrawText( sel_mask_str[i], -1, &r, DT_TOP );
-	}
-	r.left = x_off;
-	r.bottom += VSTEP*2;
-	r.top += VSTEP*2;
-	pDC->DrawText( "* Use these", -1, &r, DT_TOP );
-	r.bottom += VSTEP;
-	r.top += VSTEP;
-	pDC->DrawText( "keys to change", -1, &r, DT_TOP );
-	r.bottom += VSTEP;
-	r.top += VSTEP;
-	pDC->DrawText( "routing layer", -1, &r, DT_TOP );
+	DrawLeftPane(pDC);
+	// end CPT
 
 	// draw function keys on bottom pane
 	DrawBottomPane();
@@ -3114,6 +2995,8 @@ void CFreePcbView::OnRButtonDown(UINT nFlags, CPoint point)
 	CView::OnRButtonDown(nFlags, point);
 }
 
+
+
 // System Key on keyboard pressed down
 //
 void CFreePcbView::OnSysKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags)
@@ -3122,12 +3005,46 @@ void CFreePcbView::OnSysKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags)
 		OnKeyDown( nChar, nRepCnt, nFlags);
 	else
 		CView::OnSysKeyDown(nChar, nRepCnt, nFlags);
+
+#if 0 // AMW - disabled this for now
+	// CPT
+	m_sel_offset = -1;		// CPT: indicates that a series of mouse-clicks has been interrupted
+	// end CPT
+#endif
 }
 
 // System Key on keyboard pressed up
 //
 void CFreePcbView::OnSysKeyUp(UINT nChar, UINT nRepCnt, UINT nFlags)
 {
+	// CPT - merged by AMW, taken from CCommonView
+	// CPT new hotkeys
+	if (nChar>=VK_NUMPAD0 && nChar<=VK_NUMPAD9 )						// Translate number-pad numbers to regular numbers...
+		nChar = '0' + nChar - VK_NUMPAD0;
+	else if (nChar==VK_SUBTRACT)
+		nChar = VK_OEM_MINUS;
+	if (nChar>='0' && nChar<='9' || nChar==VK_OEM_MINUS) {
+		int sel = nChar-'1';
+		if (nChar=='0') sel = 9;
+		else if (nChar==VK_OEM_MINUS) sel = 10;
+		m_sel_mask = m_sel_mask ^ (1<<sel);
+		SetSelMaskArray( m_sel_mask );
+		InvalidateLeftPane();
+		Invalidate( FALSE );
+		return;
+		}
+	else if (nChar==VK_UP) {
+		// Increase visible grid
+		CMainFrame * frm = (CMainFrame*)AfxGetMainWnd();
+		frm->m_wndMyToolBar.VisibleGridUp();
+		}
+	else if (nChar==VK_DOWN) {
+		// Decrease visible grid
+		CMainFrame * frm = (CMainFrame*)AfxGetMainWnd();
+		frm->m_wndMyToolBar.VisibleGridDown();
+		}
+	// end CPT
+
 	if( nChar != 121 )
 		CView::OnSysKeyUp(nChar, nRepCnt, nFlags);
 }
@@ -3203,6 +3120,10 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 {
 	if( m_bDraggingRect )
 		return;
+
+	// CPT: different way of dealing with gShiftKeyDown
+	bool bShiftKeyDown = (GetKeyState(VK_SHIFT)&0x8000) != 0;
+	bool bCtrlKeyDown = (GetKeyState(VK_CONTROL)&0x8000) != 0;
 
 #ifdef ALLOW_CURVED_SEGMENTS
 	if( nChar == 'C' && m_cursor_mode == CUR_SEG_SELECTED )
@@ -3331,6 +3252,15 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 			}
 		}
 	}
+
+	// CPT
+	if (nChar==VK_OEM_2 || nChar==VK_DIVIDE) 
+	{
+		// CPT. Slash key => toggle units
+		UnitToggle(bShiftKeyDown);
+		return;
+	}
+	// end CPT
 
 	if( nChar == 27 )
 	{
@@ -3623,6 +3553,15 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 	if( nChar >= 112 && nChar <= 123 )
 	{
 		// function key pressed
+
+		// CPT
+		if (bCtrlKeyDown) {
+			HandleCtrlFKey(nChar);
+			ReleaseDC(pDC);
+			return;
+		}
+		// end CPT
+
 		fk = m_fkey_option[nChar-112];
 	}
 	if( nChar >= 37 && nChar <= 40 )
@@ -4368,13 +4307,11 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
             ActiveWidthUp(pDC);
         else if (fk==FK_ACTIVE_WIDTH_DOWN || fk==FK_ARROW && dy<0)   // F1 or down-arrow
             ActiveWidthDown(pDC);
-#if 0 //** AMW
 		else if (fk==FK_RGRID_UP)
 			RoutingGridUp();
 		else if (fk==FK_RGRID_DOWN)
 			RoutingGridDown();
-#endif //** AMW
-		// end cpt
+		// end CPT
 
 		break;
 
@@ -5047,6 +4984,17 @@ void CFreePcbView::DrawBottomPane()
 
 	// get client rectangle
 	GetClientRect( &m_client_r );
+
+	// Erase bottom pane (in case left pane overflowed)
+	CBrush brush( RGB(255, 255, 255) );
+	CPen pen( PS_SOLID, 1, RGB(255, 255, 255) );
+	CBrush * old_brush = pDC->SelectObject( &brush );
+	CPen * old_pen = pDC->SelectObject( &pen );
+	CRect r (m_client_r);
+	r.top = r.bottom-m_bottom_pane_h;
+	pDC->Rectangle( &r );
+	pDC->SelectObject(old_brush);
+	pDC->SelectObject(old_pen);
 
 	// draw labels for function keys at bottom of client area
 	for( int j=0; j<3; j++ )
@@ -13251,7 +13199,137 @@ void CFreePcbView::GetViaWidths(int w, int *via_w, int *via_hole_w) {
   *via_hole_w = m_Doc->m_v_h_w.GetAt(i-1);
   }
 
-#if 0 //** AMW
+// CPT - merged by AMW - taken from CCommonView
+void CFreePcbView::HandleCtrlFKey(int nChar) {
+	int layer = nChar-110;
+	int vis = ToggleLayerVis(layer);
+	m_dlist->SetLayerVisible( layer, vis );
+	InvalidateLeftPane();
+	Invalidate( FALSE );
+}
+
+void CFreePcbView::DrawLeftPane(CDC *pDC) {
+	#define VSTEP 14
+	CRect r = m_client_r;
+	int y_off = 10;
+	int x_off = 10;
+	if( m_left_pane_invalid )
+	{
+		m_left_pane_invalid = FALSE;
+		// erase previous contents
+		CBrush brush( RGB(255, 255, 255) );
+		CPen pen( PS_SOLID, 1, RGB(255, 255, 255) );
+		CBrush * old_brush = pDC->SelectObject( &brush );
+		CPen * old_pen = pDC->SelectObject( &pen );
+		// erase left pane
+		r.right = m_left_pane_w;
+		r.bottom -= m_bottom_pane_h;
+		pDC->Rectangle( &r );
+		pDC->SelectObject( old_brush );
+		pDC->SelectObject( old_pen );
+		CFont * old_font = pDC->SelectObject( &m_small_font );
+		for( int i=0; i<GetNLayers(); i++ )
+		{
+			// i = position index
+			r.SetRect( x_off, i*VSTEP+y_off, x_off+12, i*VSTEP+12+y_off );
+			// il = true layer num since copper layers are displayed out of order
+			int il = GetLayerNum(i);
+			CBrush brush( RGB(GetLayerRGB(il,0), GetLayerRGB(il,1), GetLayerRGB(il,2)));
+			if( GetLayerVis(il) )
+			{
+				// if layer is visible, draw colored rectangle
+				CBrush * old_brush = pDC->SelectObject( &brush );
+				pDC->Rectangle( &r );
+				pDC->SelectObject( old_brush );
+			}
+			else
+			{
+				// if layer is invisible, draw box with X
+				pDC->Rectangle( &r );
+				pDC->MoveTo( r.left, r.top );
+				pDC->LineTo( r.right, r.bottom );
+				pDC->MoveTo( r.left, r.bottom );
+				pDC->LineTo( r.right, r.top );
+			}
+			r.left += 20;
+			r.right += 120;
+			r.bottom += 5;
+			// CPT
+			CString label;
+			GetLayerLabel(i, label);
+			pDC->DrawText( label, -1, &r, 0 );
+			CRect ar = r;
+			ar.left = 2;
+			ar.right = 8;
+			ar.bottom -= 5;
+			if( il == m_active_layer )
+			{
+				// draw arrowhead
+				pDC->MoveTo( ar.left, ar.top+1 );
+				pDC->LineTo( ar.right-1, (ar.top+ar.bottom)/2 );
+				pDC->LineTo( ar.left, ar.bottom-1 );
+				pDC->LineTo( ar.left, ar.top+1 );
+			}
+			else
+			{
+				// erase arrowhead
+				pDC->FillSolidRect( &ar, RGB(255,255,255) );
+			}
+		}
+		r.left = x_off;
+		r.bottom += VSTEP*2;
+		r.top += VSTEP*2;
+		CString s ((LPCSTR) IDS_SelectionMask);
+		pDC->DrawText( s, -1, &r, DT_TOP );
+		y_off = r.bottom;
+		for( int i=0; i<GetNMasks(); i++ )
+		{
+			// i = position index
+			r.left = x_off;
+			r.right = x_off+12;
+			r.top = i*VSTEP+y_off;
+			r.bottom = i*VSTEP+12+y_off;
+			CBrush green_brush( RGB(0, 255, 0) );
+			CBrush red_brush( RGB(255, 0, 0) );
+			if( m_sel_mask & (1<<i) )
+			{
+				// if mask is selected is visible, draw green rectangle
+				CBrush * old_brush = pDC->SelectObject( &green_brush );
+				pDC->Rectangle( &r );
+				pDC->SelectObject( old_brush );
+			}
+			else
+			{
+				// if mask not selected, draw red
+				CBrush * old_brush = pDC->SelectObject( &red_brush );
+				pDC->Rectangle( &r );
+				pDC->SelectObject( old_brush );
+			}
+			r.left += 20;
+			r.right += 120;
+			r.bottom += 5;
+			// CPT
+			int id = GetMaskNamesID();
+			CString label, s ((LPCSTR) (id+i));
+			label.Format("%s. A%c", s, i<9? '1'+i: i==9? '0': '-');
+			pDC->DrawText( label, -1, &r, DT_TOP );
+		}
+		// CPT
+		r.left = x_off;
+		r.bottom += VSTEP*2;
+		r.top += VSTEP*2;
+		int id = GetLeftPaneKeyID();
+		for (int i=0; i<9; i++) 
+		{
+			s.LoadStringA(id+i);
+			pDC->DrawText( s, -1, &r, DT_TOP );
+			int step = i%3==2? VSTEP*3/2: VSTEP;
+			r.bottom += step;
+			r.top += step;
+		}
+	}
+}
+
 void CFreePcbView::RoutingGridUp() {
 	CMainFrame * frm = (CMainFrame*)AfxGetMainWnd();
 	frm->m_wndMyToolBar.RoutingGridUp();
@@ -13268,6 +13346,7 @@ void CFreePcbView::UnitToggle(bool bShiftKeyDown) {
 	}
 
 
+#if 0 //** AMW
 bool CFreePcbView::ConvertSelectionToGroup(bool bChangeMode) {
 	// Utility for converting a single selected object into a "group select".  Return true on success, false OW
 	if (m_cursor_mode==CUR_GROUP_SELECTED) return true;			// Nothing to do!

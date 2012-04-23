@@ -285,7 +285,6 @@ void CFreePcbDoc::OnFileNew()
 	dlg.Init( TRUE, &m_name, &m_parent_folder, &m_lib_dir,
 		m_num_copper_layers, m_bSMT_copper_connect, m_default_glue_w,
 		m_trace_w, m_via_w, m_via_hole_w,
-		m_auto_interval, m_auto_ratline_disable, m_auto_ratline_min_pins,
 		&m_w, &m_v_w, &m_v_h_w );
 	int ret = dlg.DoModal();
 	if( ret == IDOK )
@@ -357,8 +356,6 @@ void CFreePcbDoc::OnFileNew()
 		pMain->DrawMenuBar();
 
 		// set options from dialog
-		m_auto_ratline_disable = dlg.GetAutoRatlineDisable();
-		m_auto_ratline_min_pins = dlg.GetAutoRatlineMinPins();
 		m_num_copper_layers = dlg.GetNumCopperLayers();
 		m_plist->SetNumCopperLayers( m_num_copper_layers );
 		m_nlist->SetNumCopperLayers( m_num_copper_layers );
@@ -3811,14 +3808,11 @@ void CFreePcbDoc::OnProjectOptions()
 	dlg.Init( FALSE, &m_name, &m_path_to_folder, &m_full_lib_dir,
 		m_num_copper_layers, m_bSMT_copper_connect, m_default_glue_w,
 		m_trace_w, m_via_w, m_via_hole_w,
-		m_auto_interval, m_auto_ratline_disable, m_auto_ratline_min_pins,
 		&m_w, &m_v_w, &m_v_h_w );
 	int ret = dlg.DoModal();
 	if( ret == IDOK )  
 	{
 		// set options from dialog
-		m_auto_ratline_disable = dlg.GetAutoRatlineDisable();
-		m_auto_ratline_min_pins = dlg.GetAutoRatlineMinPins();
 		BOOL bResetAreaConnections = m_bSMT_copper_connect != dlg.m_bSMT_connect_copper;
 		m_bSMT_copper_connect = dlg.m_bSMT_connect_copper;
 		m_nlist->SetSMTconnect( m_bSMT_copper_connect );
@@ -3867,8 +3861,6 @@ void CFreePcbDoc::OnProjectOptions()
 		m_via_w = dlg.GetViaWidth();
 		m_via_hole_w = dlg.GetViaHoleWidth();
 		m_nlist->SetWidths( m_trace_w, m_via_w, m_via_hole_w );
-		m_auto_interval = dlg.GetAutoInterval();
-		m_auto_ratline_disable = dlg.GetAutoRatlineDisable();
 
 		if( m_vis[LAY_RAT_LINE] && !m_auto_ratline_disable )
 			m_nlist->OptimizeConnections();

@@ -47,6 +47,25 @@ int CMyToolBar::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	if( !LoadToolBar( IDR_MYTOOLBAR ) )
 		return -1;
 
+	// CPT:  make widths of static text adjustable via changing string resource values
+	CString s;
+	s.LoadStringA(IDS_UnitsWidth);
+	int wUnits = atoi(s);
+	if (wUnits<=0) wUnits = 40;
+	s.LoadStringA(IDS_GridsVisibleWidth);
+	int wGridsVisible = atoi(s);
+	if (wGridsVisible<=0) wGridsVisible = 80;
+	s.LoadStringA(IDS_PlacementWidth);
+	int wPlacement = atoi(s);
+	if (wPlacement<=0) wPlacement = 64;
+	s.LoadStringA(IDS_RoutingWidth);
+	int wRouting = atoi(s);
+	if (wRouting<=0) wRouting = 50;
+	s.LoadStringA(IDS_AngleWidth);
+	int wAngle = atoi(s);
+	if (wAngle<=0) wAngle = 50;
+	// end CPT
+
 	SetButtonInfo( 12, IDC_STATIC_VISIBLE_GRID, TBBS_SEPARATOR, 40 );
 	SetButtonInfo( 13, IDC_STATIC_VISIBLE_GRID, TBBS_SEPARATOR, 50 );
 	SetButtonInfo( 14, IDC_STATIC_VISIBLE_GRID, TBBS_SEPARATOR, 80 );
@@ -303,3 +322,138 @@ void CMyToolBar::SetUnits( int units )
 	return;
 }
 
+
+// CPT:  all that follows
+
+void CMyToolBar::RoutingGridDown() {
+	int cur_sel = m_ctlComboRoutingGrid.GetCurSel();
+	cur_sel++;
+	m_ctlComboRoutingGrid.SetCurSel(cur_sel);
+	cur_sel = m_ctlComboRoutingGrid.GetCurSel();
+	AfxGetMainWnd()->SendMessage( WM_USER_ROUTING_GRID, WM_BY_INDEX, cur_sel );
+	}
+
+void CMyToolBar::RoutingGridUp() {
+	int cur_sel = m_ctlComboRoutingGrid.GetCurSel();
+	if (cur_sel==0) return;
+	cur_sel--;
+	m_ctlComboRoutingGrid.SetCurSel(cur_sel);
+	cur_sel = m_ctlComboRoutingGrid.GetCurSel();
+	AfxGetMainWnd()->SendMessage( WM_USER_ROUTING_GRID, WM_BY_INDEX, cur_sel );
+	}
+
+void CMyToolBar::PlacementGridDown() {
+	int cur_sel = m_ctlComboPlacementGrid.GetCurSel();
+	cur_sel++;
+	m_ctlComboPlacementGrid.SetCurSel(cur_sel);
+	cur_sel = m_ctlComboPlacementGrid.GetCurSel();
+	AfxGetMainWnd()->SendMessage( WM_USER_PLACEMENT_GRID, WM_BY_INDEX, cur_sel );
+	}
+
+void CMyToolBar::PlacementGridUp() {
+	int cur_sel = m_ctlComboPlacementGrid.GetCurSel();
+	if (cur_sel==0) return;
+	cur_sel--;
+	m_ctlComboPlacementGrid.SetCurSel(cur_sel);
+	cur_sel = m_ctlComboPlacementGrid.GetCurSel();
+	AfxGetMainWnd()->SendMessage( WM_USER_PLACEMENT_GRID, WM_BY_INDEX, cur_sel );
+	}
+
+void CMyToolBar::VisibleGridDown() {
+	int cur_sel = m_ctlComboVisibleGrid.GetCurSel();
+	cur_sel++;
+	m_ctlComboVisibleGrid.SetCurSel(cur_sel);
+	cur_sel = m_ctlComboVisibleGrid.GetCurSel();
+	AfxGetMainWnd()->SendMessage( WM_USER_VISIBLE_GRID, WM_BY_INDEX, cur_sel );
+	}
+ 
+void CMyToolBar::VisibleGridUp() {
+	int cur_sel = m_ctlComboVisibleGrid.GetCurSel();
+	if (cur_sel==0) return;
+	cur_sel--;
+	m_ctlComboVisibleGrid.SetCurSel(cur_sel);
+	cur_sel = m_ctlComboVisibleGrid.GetCurSel();
+	AfxGetMainWnd()->SendMessage( WM_USER_VISIBLE_GRID, WM_BY_INDEX, cur_sel );
+	}
+ 
+void CMyToolBar::UnitToggle(bool bShiftKeyDown, CArray<double> * visible, CArray<double> * placement, CArray<double> * routing) {
+	int cur_sel = m_ctlComboUnits.GetCurSel();
+	cur_sel = !cur_sel;
+	m_ctlComboUnits.SetCurSel(cur_sel);
+	AfxGetMainWnd()->SendMessage( WM_USER_UNITS, WM_BY_INDEX, cur_sel );
+	if (!bShiftKeyDown) return;
+	// In the following code we switch the three grid combo-boxes (provided shift-key was down) 
+	int sz = visible->GetSize();
+	double vis_sel = (*visible)[m_ctlComboVisibleGrid.GetCurSel()];
+	if (cur_sel==0 && vis_sel<0) {
+		// User wants mils but visible grid is in mm.  Find the closest grid val in mils if possible, and select that
+		int best = -1;
+		double dBest = 1000000000.;
+		for (int i=0; i<sz; i++)
+			if ((*visible)[i]>0 && abs((*visible)[i]+vis_sel)<dBest)
+				dBest = abs((*visible)[i]+vis_sel), best = i;
+		if (best>=0)
+			m_ctlComboVisibleGrid.SetCurSel(best),
+			AfxGetMainWnd()->SendMessage( WM_USER_VISIBLE_GRID, WM_BY_INDEX, best );
+		}
+	else if (cur_sel==1 && vis_sel>0) {
+		// User wants mm but visible grid is in mils 
+		int best = -1;
+		double dBest = 1000000000.;
+		for (int i=0; i<sz; i++)
+			if ((*visible)[i]<0 && abs((*visible)[i]+vis_sel)<dBest)
+				dBest = abs((*visible)[i]+vis_sel), best = i;
+		if (best>=0)
+			m_ctlComboVisibleGrid.SetCurSel(best),
+			AfxGetMainWnd()->SendMessage( WM_USER_VISIBLE_GRID, WM_BY_INDEX, best );
+		}
+
+	// Analogous stuff for placement and routing grids.
+	sz = placement->GetSize();
+	double place_sel = (*placement)[m_ctlComboPlacementGrid.GetCurSel()];
+	if (cur_sel==0 && place_sel<0) {
+		int best = -1;
+		double dBest = 1000000000.;
+		for (int i=0; i<sz; i++)
+			if ((*placement)[i]>0 && abs((*placement)[i]+place_sel)<dBest)
+				dBest = abs((*placement)[i]+place_sel), best = i;
+		if (best>=0)
+			m_ctlComboPlacementGrid.SetCurSel(best),
+			AfxGetMainWnd()->SendMessage( WM_USER_PLACEMENT_GRID, WM_BY_INDEX, best );
+		}
+	else if (cur_sel==1 && vis_sel>0) {
+		int best = -1, sz = placement->GetSize();
+		double dBest = 1000000000.;
+		for (int i=0; i<sz; i++)
+			if ((*placement)[i]<0 && abs((*placement)[i]+place_sel)<dBest)
+				dBest = abs((*placement)[i]+place_sel), best = i;
+		if (best>=0)
+			m_ctlComboPlacementGrid.SetCurSel(best),
+			AfxGetMainWnd()->SendMessage( WM_USER_PLACEMENT_GRID, WM_BY_INDEX, best );
+		}
+
+	if (!routing) return;
+	sz = routing->GetSize();
+	double route_sel = (*routing)[m_ctlComboRoutingGrid.GetCurSel()];
+	if (cur_sel==0 && route_sel<0) {
+		int best = -1;
+		double dBest = 1000000000.;
+		for (int i=0; i<sz; i++)
+			if ((*routing)[i]>0 && abs((*routing)[i]+route_sel)<dBest)
+				dBest = abs((*routing)[i]+route_sel), best = i;
+		if (best>=0)
+			m_ctlComboRoutingGrid.SetCurSel(best),
+			AfxGetMainWnd()->SendMessage( WM_USER_ROUTING_GRID, WM_BY_INDEX, best );
+		}
+	else if (cur_sel==1 && route_sel>0) {
+		int best = -1;
+		double dBest = 1000000000.;
+		for (int i=0; i<sz; i++)
+			if ((*routing)[i]<0 && abs((*routing)[i]+route_sel)<dBest)
+				dBest = abs((*routing)[i]+route_sel), best = i;
+		if (best>=0)
+			m_ctlComboRoutingGrid.SetCurSel(best),
+			AfxGetMainWnd()->SendMessage( WM_USER_ROUTING_GRID, WM_BY_INDEX, best );
+		}
+
+	}
