@@ -217,6 +217,9 @@
 #define IDD_DIALOG5                     349
 #define IDD_CHOOSE_NET                  349
 #define IDD_SAVE_LIB                    350
+#define IDD_DIALOG6                     351
+#define IDD_GRIDVALS                    352
+#define IDD_ADD_GRIDVAL                 353
 #define IDC_EDIT1                       1002
 #define IDC_PART_REF                    1002
 #define IDC_EDIT_VIA_PAD                1002
@@ -617,6 +620,7 @@
 #define IDC_STATIC_9                    1351
 #define IDC_BUTTON_FOLDER               1352
 #define IDC_STATIC_10                   1352
+#define IDC_BUTTON_PROJ                 1352
 #define IDC_BUTTON_DEF                  1353
 #define IDC_STATIC_11                   1353
 #define IDC_STATIC_12                   1354
@@ -727,6 +731,7 @@
 #define IDC_COMBO_LAYER_VALUE           1439
 #define IDC_BUTTON_LAYER_10             1440
 #define IDC_COMBO_PIN_NAME              1440
+#define IDC_CHECK_OPTIONS_DEFAULT       1440
 #define IDC_BUTTON_LAYER_11             1441
 #define IDC_STATIC_PIN_NAME             1441
 #define IDC_BUTTON_LAYER_12             1442
@@ -777,6 +782,8 @@
 #define IDC_STATIC_LAYER_27             1497
 #define IDC_STATIC_LAYER_28             1498
 #define ID_HELP_FPCROUTE                1499
+#define IDC_REVERSE_PGUP_PGDN			1500
+#define IDC_LEFTHAND_MODE				1501
 #define ID_BUTTON32771                  32771
 #define ID_FP_MOVE                      32772
 #define ID_FP_EDITPROPERTIES            32773
@@ -929,7 +936,6 @@
 #define ID_FP_POLYLINRPROPERTIES        32944
 #define ID_FP_POLYLINEPROPERTIES        32945
 #define ID_FP_POLYLINEPROPERTIES32946   32946
-
 #define IDS_AppName                     61999
 #define IDS_IllegalNetName              62000
 #define IDS_TopSolderMask               62001
@@ -1810,14 +1816,12 @@
 #define IDS_LeftPaneWidth               65005
 #define IDS_FKeyWidth                   65006
 
-
-
 // Next default values for new objects
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_3D_CONTROLS                     1
-#define _APS_NEXT_RESOURCE_VALUE        351
+#define _APS_NEXT_RESOURCE_VALUE        352
 #define _APS_NEXT_COMMAND_VALUE         32947
 #define _APS_NEXT_CONTROL_VALUE         1444
 #define _APS_NEXT_SYMED_VALUE           106
