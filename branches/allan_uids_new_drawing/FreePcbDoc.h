@@ -195,6 +195,12 @@ public:
 	CArray<double> m_part_grid;		// array of choices for placement grid
 	CArray<double> m_routing_grid;	// array of choices for routing grid
 
+	// CPT.  Allow for "hidden" grid values (which are seen as unchecked items in the grid-values dialogs)
+	CArray<double> m_visible_grid_hidden;
+	CArray<double> m_part_grid_hidden;	
+	CArray<double> m_routing_grid_hidden;
+	// end CPT
+
 	// grids and units for footprint editor
 	int m_fp_units;						// MM or MIL
 	double m_fp_visual_grid_spacing;	// grid spacing
@@ -202,6 +208,11 @@ public:
 	int m_fp_snap_angle;				// 0, 45 or 90
 	CArray<double> m_fp_visible_grid;	// array of choices for visible grid
 	CArray<double> m_fp_part_grid;		// array of choices for placement grid
+
+	// CPT.  Allow for "hidden" grid values (which are seen as unchecked items in the grid-values dialogs)
+	CArray<double> m_fp_visible_grid_hidden;
+	CArray<double> m_fp_part_grid_hidden;	
+	// end CPT
 
 	// layers
 	int m_num_layers;			// number of drawing layers (note: different than copper layers)
@@ -245,6 +256,11 @@ public:
 	// autosave times
 	int m_auto_interval;	// interval (sec)
 	int m_auto_elapsed;		// time since last save (sec)
+
+	// CPT:  new preference values
+	bool m_bReversePgupPgdn;
+	bool m_bLefthanded;
+	// end CPT
 
 	//DRC limits
 	DesignRules m_dr;
@@ -295,6 +311,15 @@ public:
 	afx_msg void OnProjectCombineNets();
 	afx_msg void OnFileLoadLibrary();
 	afx_msg void OnFileSaveLibrary();
+	// CPT
+	afx_msg void OnToolsPreferences();
+	afx_msg void OnViewRoutingGrid();
+	afx_msg void OnViewVisibleGrid();
+	afx_msg void OnViewPlacementGrid();
+	void SaveOptionsToRegistry();
+	void ReadOptionsFromRegistry();
+	void CollectOptionsStrings(CArray<CString> &arr);
+	// end CPT
 };
 
 /////////////////////////////////////////////////////////////////////////////

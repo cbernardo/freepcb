@@ -61,9 +61,15 @@ int GetPartAngleForReportedAngle( int angle, int cent_angle, int side );
 
 // handle strings
 char * mystrtok( LPCTSTR str, LPCTSTR delim );
-double GetDimensionFromString( CString * str, int def_units=MIL, BOOL bRound10=TRUE );
+
 void MakeCStringFromDimension( CString * str, int dim, int units, BOOL append_units=TRUE, 
 							  BOOL lower_case = FALSE, BOOL space=FALSE, int max_dp=8, BOOL strip=TRUE );
+// CPT
+double GetDimensionFromString( CString * str, int def_units=MIL, BOOL bRound10=TRUE, BOOL bNegateMm=FALSE );
+void MakeCStringFromGridVal(CString *str, double val);  
+int CompareGridVals(const double *gv1, const double *gv2); 
+// end CPT
+
 void MakeCStringFromDouble( CString * str, double d );
 BOOL CheckLegalPinName( CString * pinstr, 
 					   CString * astr=NULL, 

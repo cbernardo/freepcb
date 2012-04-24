@@ -220,6 +220,7 @@
 #define IDD_DIALOG6                     351
 #define IDD_GRIDVALS                    352
 #define IDD_ADD_GRIDVAL                 353
+#define IDD_PREFS                       354
 #define IDC_EDIT1                       1002
 #define IDC_PART_REF                    1002
 #define IDC_EDIT_VIA_PAD                1002
@@ -725,10 +726,13 @@
 #define IDC_COMBO_FP_TEXT_LAYER         1436
 #define IDC_BUTTON_LAYER_7              1437
 #define IDC_COMBO_LAYER                 1437
+#define IDC_LIST_GRIDVALS               1437
 #define IDC_BUTTON_LAYER_8              1438
 #define IDC_COMBO_LAYER_REF             1438
 #define IDC_BUTTON_LAYER_9              1439
 #define IDC_COMBO_LAYER_VALUE           1439
+#define IDC_VALUE                       1439
+#define IDC_CHECK_GRIDVALS_DEFAULT      1438
 #define IDC_BUTTON_LAYER_10             1440
 #define IDC_COMBO_PIN_NAME              1440
 #define IDC_CHECK_OPTIONS_DEFAULT       1440
@@ -782,8 +786,8 @@
 #define IDC_STATIC_LAYER_27             1497
 #define IDC_STATIC_LAYER_28             1498
 #define ID_HELP_FPCROUTE                1499
-#define IDC_REVERSE_PGUP_PGDN			1500
-#define IDC_LEFTHAND_MODE				1501
+#define IDC_REVERSE_PGUP_PGDN           1500
+#define IDC_LEFTHAND_MODE               1501
 #define ID_BUTTON32771                  32771
 #define ID_FP_MOVE                      32772
 #define ID_FP_EDITPROPERTIES            32773
@@ -936,6 +940,10 @@
 #define ID_FP_POLYLINRPROPERTIES        32944
 #define ID_FP_POLYLINEPROPERTIES        32945
 #define ID_FP_POLYLINEPROPERTIES32946   32946
+#define ID_TOOLS_PREFERENCES            32947
+#define ID_VIEW_VISIBLEGRIDVALUES       32948
+#define ID_VIEW_ROUTINGGRIDVALUES       32949
+#define ID_VIEW_PLACEMENTGRIDVALUES     32950
 #define IDS_AppName                     61999
 #define IDS_IllegalNetName              62000
 #define IDS_TopSolderMask               62001
@@ -1821,8 +1829,8 @@
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_3D_CONTROLS                     1
-#define _APS_NEXT_RESOURCE_VALUE        352
-#define _APS_NEXT_COMMAND_VALUE         32947
+#define _APS_NEXT_RESOURCE_VALUE        353
+#define _APS_NEXT_COMMAND_VALUE         32951
 #define _APS_NEXT_CONTROL_VALUE         1444
 #define _APS_NEXT_SYMED_VALUE           106
 #endif

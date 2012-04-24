@@ -36,6 +36,9 @@
 #include "DlgNetCombine.h"
 #include "DlgMyMessageBox.h"
 #include "DlgSaveLib.h"
+#include "DlgPrefs.h"
+#include "DlgGridVals.h"
+#include "DlgAddGridVal.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -99,6 +102,12 @@ BEGIN_MESSAGE_MAP(CFreePcbDoc, CDocument)
 	ON_COMMAND(ID_PROJECT_COMBINENETS, OnProjectCombineNets)
 	ON_COMMAND(ID_FILE_LOADLIBRARYASPROJECT, OnFileLoadLibrary)
 	ON_COMMAND(ID_FILE_SAVEPROJECTASLIBRARY, OnFileSaveLibrary)
+	// CPT
+	ON_COMMAND(ID_TOOLS_PREFERENCES, OnToolsPreferences)
+	ON_COMMAND(ID_VIEW_ROUTINGGRIDVALUES, OnViewRoutingGrid)
+	ON_COMMAND(ID_VIEW_PLACEMENTGRIDVALUES, OnViewPlacementGrid)
+	ON_COMMAND(ID_VIEW_VISIBLEGRIDVALUES, OnViewVisibleGrid)
+	// end CPT
 END_MESSAGE_MAP()
 
 /////////////////////////////////////////////////////////////////////////////
@@ -266,6 +275,13 @@ BOOL CFreePcbDoc::OnSaveDocument(LPCTSTR lpszPathName)
 	return CDocument::OnSaveDocument(lpszPathName);
 }
 
+// CPT: helper routines defined further below:
+void ReadFileLines(CString &fname, CArray<CString> &lines); 
+void WriteFileLines(CString &fname, CArray<CString> &lines);
+void ReplaceLines(CArray<CString> &oldLines, CArray<CString> &newLines, char *key);
+// end CPT
+
+// CPT
 void CFreePcbDoc::OnFileNew()
 {
 	if( theApp.m_view_mode == CFreePcbApp::FOOTPRINT )
@@ -282,7 +298,8 @@ void CFreePcbDoc::OnFileNew()
 	// now set default project options
 	InitializeNewProject();
 	CDlgProjectOptions dlg;
-	dlg.Init( TRUE, &m_name, &m_parent_folder, &m_lib_dir,
+	// CPT: args have changed.  Including m_path_to_folder instead of m_parent_folder (don't really understand the point of m_parent_folder anyway).
+	dlg.Init( TRUE, &m_name, &m_path_to_folder, &m_lib_dir,
 		m_num_copper_layers, m_bSMT_copper_connect, m_default_glue_w,
 		m_trace_w, m_via_w, m_via_hole_w,
 		&m_w, &m_v_w, &m_v_h_w );
@@ -302,15 +319,16 @@ void CFreePcbDoc::OnFileNew()
 		int err = _stat( m_path_to_folder, &buf );
 		if( err )
 		{
-			CString str;
-			str.Format( "Folder \"%s\" doesn't exist, create it ?", m_path_to_folder );
+			CString str, s ((LPCSTR) IDS_FolderDoesntExistCreateIt);
+			str.Format( s, m_path_to_folder );
 			int ret = AfxMessageBox( str, MB_YESNO );
 			if( ret == IDYES )
 			{
 				err = _mkdir( m_path_to_folder );
 				if( err )
 				{
-					str.Format( "Unable to create folder \"%s\"", m_path_to_folder );
+					CString s ((LPCSTR) IDS_UnableToCreateFolder);
+					str.Format( s, m_path_to_folder );
 					AfxMessageBox( str, MB_OK );
 				}
 			}
@@ -320,7 +338,8 @@ void CFreePcbDoc::OnFileNew()
 
 		CString str;
 		m_pcb_full_path = (CString)fullpath	+ "\\" + m_pcb_filename;
-		m_window_title = "FreePCB - " + m_pcb_filename;
+		CString s1 ((LPCSTR) IDS_AppName);
+		m_window_title = s1 + " - " + m_pcb_filename;
 		CWnd* pMain = AfxGetMainWnd();
 		pMain->SetWindowText( m_window_title );
 
@@ -368,13 +387,34 @@ void CFreePcbDoc::OnFileNew()
 		for( int i=0; i<m_num_layers; i++ )
 		{
 			m_vis[i] = 1;
-			m_dlist->SetLayerRGB( i, C_RGB(m_rgb[i][0], m_rgb[i][1], m_rgb[i][2]) );
+			m_dlist->SetLayerRGB( i, C_RGB( m_rgb[i][0],m_rgb[i][1],m_rgb[i][2] ) );
 		}
 
-		// force redraw of left pane
-		m_view->InvalidateLeftPane();
-		m_view->Invalidate( FALSE );
+		// CPT: option to save dlg results to default.cfg:
+		if (dlg.m_default) 
+		{
+			CArray<CString> oldLines, newLines;
+			CString fn = m_app_dir + "\\" + "default.cfg";
+			ReadFileLines(fn, oldLines);
+			CollectOptionsStrings(newLines);
+			ReplaceLines(oldLines, newLines, "path_to_folder");
+			ReplaceLines(oldLines, newLines, "library_folder");
+			ReplaceLines(oldLines, newLines, "n_copper_layers");
+			ReplaceLines(oldLines, newLines, "SMT_connect_copper");
+			ReplaceLines(oldLines, newLines, "default_glue_width");
+			ReplaceLines(oldLines, newLines, "default_trace_width");
+			ReplaceLines(oldLines, newLines, "default_via_pad_width");
+			ReplaceLines(oldLines, newLines, "default_via_hole_width");
+			ReplaceLines(oldLines, newLines, "n_width_menu");
+			ReplaceLines(oldLines, newLines, "width_menu_item");
+			WriteFileLines(fn, oldLines);
+		}
+
+
+		// CPT:  fixed bug where m_view->m_dlist->SetMapping() didn't get called, with unpredictable results for the initial
+		// display
 		m_project_open = TRUE;
+		m_view->OnViewAllElements();
 
 		// force redraw of function key text
 		m_view->m_cursor_mode = 999;
@@ -406,9 +446,9 @@ void CFreePcbDoc::OnFileOpen()
 
 	// get project file name
 	// force old-style file dialog by setting size of OPENFILENAME struct (for Win98)
+	CString s ((LPCSTR) IDS_PCBFiles);
 	CFileDialog dlg( 1, "fpc", LPCTSTR(m_pcb_filename), 0, 
-		"PCB files (*.fpc)|*.fpc|All Files (*.*)|*.*||", 
-		NULL, OPENFILENAME_SIZE_VERSION_500 );
+		s, NULL, /* CPT:  OPENFILENAME_SIZE_VERSION_400 */ 0 );
 	dlg.AssertValid();
 
 	// get folder of most-recent file or project folder
@@ -429,9 +469,7 @@ void CFreePcbDoc::OnFileOpen()
 		CString filename = dlg.GetFileName();
 		if( filename.Right(4) == ".fpl" )
 		{
-			CString mess = "You are opening a file with extension \".fpl\"\n";
-			mess += "which is usually a FreePCB footprint library.\n\n";
-			mess += "Would you like to load this library as a project?";
+			CString mess ((LPCSTR) IDS_YouAreOpeningAFileWithExtensionFPL); 
 			int ret = AfxMessageBox( mess, MB_YESNOCANCEL );
 			if( ret == IDCANCEL )
 				return;
@@ -450,21 +488,20 @@ void CFreePcbDoc::OnFileOpen()
 		DWORD dwError = ::CommDlgExtendedError();
 		if( dwError )
 		{
-			CString str;
-			str.Format( "File Open Dialog error code = %ulx\n", (unsigned long)dwError );
+			CString str, s ((LPCSTR) IDS_FileOpenDialogErrorCode);
+			str.Format( s, (unsigned long)dwError );
 			AfxMessageBox( str );
 		}
 	}
 }
+
 
 void CFreePcbDoc::OnFileAutoOpen( LPCTSTR fn )
 {
 	CString pathname = fn;
 	if( pathname.Right(4) == ".fpl" )
 	{
-		CString mess = "You are opening a file with extension \".fpl\"\n";
-		mess += "which is usually a FreePCB footprint library.\n\n";
-		mess += "Would you like to load this library as a project?";
+		CString mess ((LPCSTR) IDS_YouAreOpeningAFileWithExtensionFPL);
 		int ret = AfxMessageBox( mess, MB_YESNOCANCEL );
 		if( ret == IDCANCEL )
 			return;
@@ -501,8 +538,8 @@ BOOL CFreePcbDoc::FileOpen( LPCTSTR fn, BOOL bLibrary )
 	if( !err )
 	{
 		// error opening project file
-		CString mess;
-		mess.Format( "Unable to open file %s", fn );
+		CString mess, s ((LPCSTR) IDS_UnableToOpenFile);
+		mess.Format( s, fn );
 		AfxMessageBox( mess );
 		return FALSE;
 	}
@@ -553,7 +590,8 @@ BOOL CFreePcbDoc::FileOpen( LPCTSTR fn, BOOL bLibrary )
 		m_pcb_filename = m_pcb_full_path.Right( fpl - isep - 1);
 		int fnl = m_pcb_filename.GetLength();
 		m_path_to_folder = m_pcb_full_path.Left( m_pcb_full_path.GetLength() - fnl - 1 );
-		m_window_title = "FreePCB - " + m_pcb_filename;
+		CString s1 ((LPCSTR) IDS_AppName);
+		m_window_title = s1 + " - " + m_pcb_filename;
 		CWnd* pMain = AfxGetMainWnd();
 		pMain->SetWindowText( m_window_title );
 		if( m_name == "" )
@@ -593,7 +631,7 @@ BOOL CFreePcbDoc::FileOpen( LPCTSTR fn, BOOL bLibrary )
 		// now set layer visibility
 		for( int i=0; i<m_num_layers; i++ )
 		{
-			m_dlist->SetLayerRGB( i, C_RGB(m_rgb[i][0], m_rgb[i][1], m_rgb[i][2]) );
+			m_dlist->SetLayerRGB( i, C_RGB(m_rgb[i][0],m_rgb[i][1],m_rgb[i][2]) );
 			m_dlist->SetLayerVisible( i, m_vis[i] );
 		}
 		// force redraw of function key text
@@ -706,7 +744,8 @@ int CFreePcbDoc::FileClose()
 	// force redraw
 	m_view->m_cursor_mode = 999;
 	m_view->SetCursorMode( CUR_NONE_SELECTED );
-	m_window_title = "FreePCB - no project open";
+	CString s1 ((LPCSTR) IDS_AppName), s2 ((LPCSTR) IDS_NoProjectOpen);
+	m_window_title = s1 + " - " + s2;
 	pMain->SetWindowText( m_window_title );
 	CDC * pDC = m_view->GetDC();
 	m_view->OnDraw( pDC );
@@ -746,7 +785,8 @@ BOOL CFreePcbDoc::AutoSave()
 			err = _mkdir( auto_folder );
 			if( err )
 			{
-				str.Format( "Unable to create autosave folder \"%s\"", auto_folder );
+				CString s ((LPCSTR) IDS_UnableToCreateAutosaveFolder);
+				str.Format( s, auto_folder );
 				AfxMessageBox( str, MB_OK );
 				return FALSE;
 			}
@@ -760,8 +800,8 @@ BOOL CFreePcbDoc::AutoSave()
 	int max_suffix = 0;
 	if( _chdir( auto_folder ) != 0 )
 	{
-		CString mess;
-		mess.Format( "Unable to open autosave folder \"%s\"", auto_folder );
+		CString mess, s ((LPCSTR) IDS_UnableToOpenAutosaveFolder);
+		mess.Format( s, auto_folder );
 		AfxMessageBox( mess );
 	}
 	else
@@ -823,11 +863,11 @@ BOOL CFreePcbDoc::FileSave( CString * folder, CString * filename,
 	if( !err )
 	{
 		// error opening file
-		CString mess;
-		mess.Format( "Unable to open file \"%s\"", full_path ); 
+		CString mess, s ((LPCSTR) IDS_UnableToOpenFile);
+		mess.Format( s, full_path ); 
 		AfxMessageBox( mess );
 		return FALSE;
-	}
+	} 
 	else
 	{
 		// write project to file
@@ -863,9 +903,9 @@ BOOL CFreePcbDoc::FileSave( CString * folder, CString * filename,
 void CFreePcbDoc::OnFileSaveAs() 
 {
 	// force old-style file dialog by setting size of OPENFILENAME struct
+	CString s ((LPCSTR) IDS_PCBFiles);
 	CFileDialog dlg( 0, "fpc", LPCTSTR(m_pcb_filename), 0, 
-		"PCB files (*.fpc)|*.fpc|All Files (*.*)|*.*||",
-		NULL, OPENFILENAME_SIZE_VERSION_500 );
+		s, NULL, 0 /* CPT eliminated, doesn't work in VS 10.0: OPENFILENAME_SIZE_VERSION_400 */ );
 	OPENFILENAME  * myOFN = dlg.m_pOFN;
 	myOFN->Flags |= OFN_OVERWRITEPROMPT;
 	// get folder of most-recent file or project folder
@@ -895,14 +935,16 @@ void CFreePcbDoc::OnFileSaveAs()
 			m_pcb_full_path = new_pathname;
 			m_path_to_folder = new_folder;
 			theApp.AddMRUFile( &m_pcb_full_path );
-			m_window_title = "FreePCB - " + m_pcb_filename;
+			CString s1 ((LPCSTR) IDS_AppName);
+			m_window_title = s1 + " - " + m_pcb_filename;
 			CWnd* pMain = AfxGetMainWnd();
 			pMain->SetWindowText( m_window_title );
 			ProjectModified( FALSE );
 		}
 		else
 		{
-			AfxMessageBox( "File save failed" );
+			CString s ((LPCSTR) IDS_FileSaveFailed);
+			AfxMessageBox( s );
 		}
 	}
 }
@@ -1454,6 +1496,20 @@ void CFreePcbDoc::ReadSolderMaskCutouts( CStdioFile * pcb_file, CArray<CPolyLine
 	}
 }
 
+// CPT
+void AddGridVal(CArray<double> &arr, CArray<CString> &p, int np) {
+	// CPT: helper for ReadOptions() below.  Reads a length value in mm or mils from a line in the options file that has been parsed into p.
+	// Adds the resulting value (positive for mils, negative for mm) to "arr":
+	CString str = np==3? p[1]: p[0];
+	double value = my_atof( &str );
+	if( str.Right(2) == "MM" || str.Right(2) == "mm" )
+		arr.Add( -value );
+	else
+		arr.Add( value );
+	}
+// end CPT
+
+
 // read project options from file
 //
 // throws CString * exception on error
@@ -1467,10 +1523,15 @@ void CFreePcbDoc::ReadOptions( CStdioFile * pcb_file )
 	// initalize
 	CFreePcbView * view = (CFreePcbView*)m_view;
 	m_visible_grid.SetSize( 0 );
+	m_visible_grid_hidden.SetSize( 0 );				// CPT
 	m_part_grid.SetSize( 0 );
+	m_part_grid_hidden.SetSize( 0 );
 	m_routing_grid.SetSize( 0 );
+	m_routing_grid_hidden.SetSize( 0 );
 	m_fp_visible_grid.SetSize( 0 );
+	m_fp_visible_grid_hidden.SetSize( 0 );
 	m_fp_part_grid.SetSize( 0 );
+	m_fp_part_grid_hidden.SetSize( 0 );
 	m_name = "";
 	m_auto_interval = 0;
 	m_dr.bCheckUnrouted = FALSE;
@@ -1489,8 +1550,7 @@ void CFreePcbDoc::ReadOptions( CStdioFile * pcb_file )
 			if( !err )
 			{
 				// error reading pcb file
-				CString mess;
-				mess.Format( "Unable to find [options] section in file" );
+				CString mess ((LPCSTR) IDS_UnableToFindOptionsSectionInFile);
 				AfxMessageBox( mess );
 				return;
 			}
@@ -1505,7 +1565,7 @@ void CFreePcbDoc::ReadOptions( CStdioFile * pcb_file )
 			err = pcb_file->ReadString( in_str );
 			if( !err )
 			{
-				CString * err_str = new CString( "unexpected EOF in project file" );
+				CString * err_str = new CString((LPCSTR) IDS_UnexpectedEOFInProjectFile);
 				throw err_str;
 			}
 			in_str.Trim();
@@ -1529,14 +1589,12 @@ void CFreePcbDoc::ReadOptions( CStdioFile * pcb_file )
 				double file_version = my_atof( &p[0] );
 				if( file_version > m_version )
 				{
-					CString mess;
-					mess.Format( "Warning: the file version is %5.3f\n\nYou are running an earlier FreePCB version %5.3f", 
-						file_version, m_version );
-					mess += "\n\nErrors may occur\n\nClick on OK to continue reading or CANCEL to cancel";
+					CString mess, s ((LPCSTR) IDS_WarningTheFileVersionIs);
+					mess.Format( s, file_version, m_version );
 					int ret = AfxMessageBox( mess, MB_OKCANCEL );
 					if( ret == IDCANCEL )
 					{
-						CString * err_str = new CString( "Reading project file failed: Cancelled by user" );
+						CString * err_str = new CString((LPCSTR) IDS_ReadingProjectFileFailedCancelledByUser);
 						throw err_str;
 					}
 				}
@@ -1545,6 +1603,9 @@ void CFreePcbDoc::ReadOptions( CStdioFile * pcb_file )
 			{
 				m_parent_folder = p[0];
 			}
+			// CPT.  The parent_folder vs path_to_folder distinction is unclear to me.
+			else if( np && key_str == "path_to_folder" )
+				m_path_to_folder = p[0];
 			else if( np && key_str == "library_folder" )
 			{
 				m_lib_dir = p[0];
@@ -1617,100 +1678,48 @@ void CFreePcbDoc::ReadOptions( CStdioFile * pcb_file )
 				else
 					m_units = MIL;
 			}
+
+			// CPT: factored out shared code.  Allowed for "hidden" grid items. 
 			else if( np && key_str == "visible_grid_spacing" )
-			{
 				m_visual_grid_spacing = my_atof( &p[0] );
-			}
 			else if( np && key_str == "visible_grid_item" )
-			{
-				CString str;
-				double value;
-				if( np == 3 )
-					str = p[1];
-				else
-					str = p[0];
-				value = my_atof( &str );
-				if( str.Right(2) == "MM" || str.Right(2) == "mm" )
-					m_visible_grid.Add( -value );
-				else
-					m_visible_grid.Add( value );
-			}
+				AddGridVal(m_visible_grid, p, np);
+			else if( np && key_str == "visible_grid_hidden" )
+				AddGridVal(m_visible_grid_hidden, p, np);
+
 			else if( np && key_str == "placement_grid_spacing" )
-			{
 				m_part_grid_spacing = my_atof( &p[0] );
-			}
 			else if( np && key_str == "placement_grid_item" )
-			{
-				CString str;
-				double value;
-				if( np == 3 )
-					str = p[1];
-				else
-					str = p[0];
-				value = my_atof( &str );
-				if( str.Right(2) == "MM" || str.Right(2) == "mm" )
-					m_part_grid.Add( -value );
-				else
-					m_part_grid.Add( value );
-			}
+				AddGridVal(m_part_grid, p, np);
+			else if( np && key_str == "placement_grid_hidden" )
+				AddGridVal(m_part_grid_hidden, p, np);
+
 			else if( np && key_str == "routing_grid_spacing" )
-			{
 				m_routing_grid_spacing = my_atof( &p[0] );
-			}
 			else if( np && key_str == "routing_grid_item" )
-			{
-				CString str;
-				double value;
-				if( np == 3 )
-					str = p[1];
-				else
-					str = p[0];
-				value = my_atof( &str );
-				if( str.Right(2) == "MM" || str.Right(2) == "mm" )
-					m_routing_grid.Add( -value );
-				else
-					m_routing_grid.Add( value );
-			}
+				AddGridVal(m_routing_grid, p, np);
+			else if( np && key_str == "routing_grid_hidden" )
+				AddGridVal(m_routing_grid_hidden, p, np);
+
 			else if( np && key_str == "snap_angle" )
 			{
 				m_snap_angle = my_atof( &p[0] );
 			}
+
 			else if( np && key_str == "fp_visible_grid_spacing" )
-			{
 				m_fp_visual_grid_spacing = my_atof( &p[0] );
-			}
 			else if( np && key_str == "fp_visible_grid_item" )
-			{
-				CString str;
-				double value;
-				if( np == 3 )
-					str = p[1];
-				else
-					str = p[0];
-				value = my_atof( &str );
-				if( str.Right(2) == "MM" || str.Right(2) == "mm" )
-					m_fp_visible_grid.Add( -value );
-				else
-					m_fp_visible_grid.Add( value );
-			}
+				AddGridVal(m_fp_visible_grid, p, np);
+			else if( np && key_str == "fp_visible_grid_hidden" )
+				AddGridVal(m_fp_visible_grid_hidden, p, np);
+
 			else if( np && key_str == "fp_placement_grid_spacing" )
-			{
 				m_fp_part_grid_spacing = my_atof( &p[0] );
-			}
 			else if( np && key_str == "fp_placement_grid_item" )
-			{
-				CString str;
-				double value;
-				if( np == 3 )
-					str = p[1];
-				else
-					str = p[0];
-				value = my_atof( &str );
-				if( str.Right(2) == "MM" || str.Right(2) == "mm" )
-					m_fp_part_grid.Add( -value );
-				else
-					m_fp_part_grid.Add( value );
-			}
+				AddGridVal(m_fp_part_grid, p, np);
+			else if( np && key_str == "fp_placement_grid_hidden" )
+				AddGridVal(m_fp_part_grid_hidden, p, np);
+
 			else if( np && key_str == "fp_snap_angle" )
 			{
 				m_fp_snap_angle = my_atof( &p[0] );
@@ -1868,19 +1877,19 @@ void CFreePcbDoc::ReadOptions( CStdioFile * pcb_file )
 					err = pcb_file->ReadString( in_str );
 					if( !err )
 					{
-						CString * err_str = new CString( "unexpected EOF in project file" );
+						CString * err_str = new CString((LPCSTR) IDS_UnexpectedEOFInProjectFile);
 						throw err_str;
 					}
 					np = ParseKeyString( &in_str, &key_str, &p );
 					if( np < 5 || key_str != "width_menu_item" )
 					{
-						CString * err_str = new CString( "error parsing [options] section of project file" );
+						CString * err_str = new CString((LPCSTR) IDS_ErrorParsingOptionsSectionOfProjectFile );
 						throw err_str;
 					}
 					int ig = my_atoi( &p[0] ) - 1;
 					if( ig != i )
 					{
-						CString * err_str = new CString( "error parsing [options] section of project file" );
+						CString * err_str = new CString((LPCSTR) IDS_ErrorParsingOptionsSectionOfProjectFile );
 						throw err_str;
 					}
 					m_w[i] = my_atoi( &p[1] );
@@ -1905,7 +1914,9 @@ void CFreePcbDoc::ReadOptions( CStdioFile * pcb_file )
 				}
 				if( layer < 0 )
 				{
-					AfxMessageBox( "Warning: layer \"" + file_layer_name + "\" not supported" );
+					CString s ((LPCSTR) IDS_WarningLayerNotSupported), mess;
+					mess.Format(s, file_layer_name);
+					AfxMessageBox( mess );
 				}
 				else
 				{
@@ -1915,6 +1926,34 @@ void CFreePcbDoc::ReadOptions( CStdioFile * pcb_file )
 					m_vis[layer] = my_atoi( &p[5] );
 				}
 			}
+			// CPT.  For footprint layer info, I don't bother with anything like the SetFileLayerMap business (don't see any point)
+			else if( np && key_str == "fp_layer_info" )
+			{
+				CString file_layer_name = p[0];
+				int layer;
+				for( layer=0; layer<NUM_FP_LAYERS; layer++ )
+				{
+					CString layer_string = &fp_layer_str[layer][0];
+					if( file_layer_name == layer_string ) break;
+				}
+				if( layer==NUM_FP_LAYERS )
+				{
+					CString s ((LPCSTR) IDS_WarningLayerNotSupported), mess;
+					mess.Format(s, file_layer_name);
+					AfxMessageBox( mess );
+				}
+				else
+				{
+					m_fp_rgb[layer][0] = my_atoi( &p[2] );
+					m_fp_rgb[layer][1] = my_atoi( &p[3] );
+					m_fp_rgb[layer][2] = my_atoi( &p[4] );
+					m_fp_vis[layer] = my_atoi( &p[5] );
+				}
+			}
+			else if (np && key_str == "reverse_pgup_pgdn")
+				m_bReversePgupPgdn = my_atoi(&p[0]);
+			else if (np && key_str == "lefthanded_mode")
+				m_bLefthanded = my_atoi(&p[0]);
 		}
 		if( m_fp_visible_grid.GetSize() == 0 )
 		{
@@ -1931,6 +1970,12 @@ void CFreePcbDoc::ReadOptions( CStdioFile * pcb_file )
 		if( m_fp_snap_angle != 0 && m_fp_snap_angle != 45 && m_fp_snap_angle != 90 )
 			m_fp_snap_angle = m_snap_angle;
 		CMainFrame * frm = (CMainFrame*)AfxGetMainWnd();
+		// CPT.  I want a particular order for the grid values in the dropdowns (descending values, mils before mms)
+		qsort(m_visible_grid.GetData(), m_visible_grid.GetSize(), sizeof(double), (int (*)(const void*,const void*)) CompareGridVals);
+		qsort(m_part_grid.GetData(), m_part_grid.GetSize(), sizeof(double), (int (*)(const void*,const void*)) CompareGridVals);
+		qsort(m_routing_grid.GetData(), m_routing_grid.GetSize(), sizeof(double), (int (*)(const void*,const void*)) CompareGridVals);
+		qsort(m_fp_visible_grid.GetData(), m_fp_visible_grid.GetSize(), sizeof(double), (int (*)(const void*,const void*)) CompareGridVals);
+		qsort(m_fp_part_grid.GetData(), m_fp_part_grid.GetSize(), sizeof(double), (int (*)(const void*,const void*)) CompareGridVals);
 		frm->m_wndMyToolBar.SetLists( &m_visible_grid, &m_part_grid, &m_routing_grid,
 			m_visual_grid_spacing, m_part_grid_spacing, m_routing_grid_spacing, m_snap_angle, m_units );
 		m_dlist->SetVisibleGrid( TRUE, m_visual_grid_spacing );
@@ -1938,230 +1983,223 @@ void CFreePcbDoc::ReadOptions( CStdioFile * pcb_file )
 	}
 	catch( CFileException * e )
 	{
-		CString * err_str = new CString;
+		CString * err_str = new CString, s ((LPCSTR) IDS_FileError1), s2 ((LPCSTR) IDS_FileError2);
 		if( e->m_lOsError == -1 )
-			err_str->Format( "File error: %d\n", e->m_cause );
+			err_str->Format( s, e->m_cause );
 		else
-			err_str->Format( "File error: %d %ld (%s)\n", 
-				e->m_cause, e->m_lOsError, _sys_errlist[e->m_lOsError] );
+			err_str->Format( s2, e->m_cause, e->m_lOsError, _sys_errlist[e->m_lOsError] );
 		*err_str = "CFreePcbDoc::WriteOptions()\n" + *err_str;
 		throw err_str;
 	}
+
 }
+
+void AddGridVals(CArray<CString> &arr, CArray<double> &grid, CString label) {
+	// CPT: Helper for WriteOptions().  Writes the values in "grid" to "file", labeling each entry with "label"
+	CString str;
+	for( int i=0; i<grid.GetSize(); i++ ) {
+			if( grid[i] > 0 )
+				::MakeCStringFromDimension( &str, grid[i], MIL );
+			else
+				::MakeCStringFromDimension( &str, -grid[i], MM );
+			arr.Add( label + str + "\n" );
+		}
+	arr.Add("\n");
+	}
 
 // write project options to file
 //
 // throws CString * exception on error
 //
+void CFreePcbDoc::CollectOptionsStrings(CArray<CString> &arr) {
+	// CPT: extracted from the original WriteOptions().  
+	CString line;
+	arr.RemoveAll();
+	CFreePcbView * view = (CFreePcbView*)m_view;
+	line.Format( "[options]\n\n" );
+	arr.Add( line );
+	line.Format( "version: %5.3f\n", m_version );
+	arr.Add( line );
+	line.Format( "file_version: %5.3f\n", m_file_version );
+	arr.Add( line );
+	line.Format( "project_name: \"%s\"\n", m_name );
+	arr.Add( line );
+	line.Format( "path_to_folder: \"%s\"\n", m_path_to_folder);
+	arr.Add( line );
+	line.Format( "library_folder: \"%s\"\n", m_lib_dir );
+	arr.Add( line );
+	line.Format( "full_library_folder: \"%s\"\n", m_full_lib_dir );
+	arr.Add( line );
+	line.Format( "CAM_folder: \"%s\"\n", m_cam_full_path );
+	arr.Add( line );
+	line.Format( "ses_file_path: \"%s\"\n", m_ses_full_path );
+	arr.Add( line );
+	line.Format( "netlist_file_path: \"%s\"\n", m_netlist_full_path );
+	arr.Add( line );
+	line.Format( "SMT_connect_copper: \"%d\"\n", m_bSMT_copper_connect );
+	arr.Add( line );
+	line.Format( "default_glue_width: \"%d\"\n", m_default_glue_w );
+	arr.Add( line );
+	line.Format( "dsn_flags: \"%d\"\n", m_dsn_flags );
+	arr.Add( line );
+	line.Format( "dsn_bounds_poly: \"%d\"\n", m_dsn_bounds_poly );
+	arr.Add( line );
+	line.Format( "dsn_signals_poly: \"%d\"\n", m_dsn_signals_poly );
+	arr.Add( line );
+	// CPT autosave_interval, auto_ratline_disable, auto_ratline_disable_min_pins, reverse_pgup_pgdn, etc. are now stored in default.cfg ONLY
+
+	line.Format( "netlist_import_flags: %d\n", m_import_flags );
+	arr.Add( line );
+	if( m_units == MIL )
+		arr.Add( "units: MIL\n\n" );
+	else
+		arr.Add( "units: MM\n\n" );
+	line.Format( "visible_grid_spacing: %f\n", m_visual_grid_spacing );
+	arr.Add( line );
+	// CPT: factored out shared code.  Also accounted for hidden grid values:
+	AddGridVals(arr, m_visible_grid, "  visible_grid_item: "); 
+	AddGridVals(arr, m_visible_grid_hidden, "  visible_grid_hidden: "); 
+	line.Format( "placement_grid_spacing: %f\n", m_part_grid_spacing );
+	arr.Add( line );
+	AddGridVals(arr, m_part_grid, "  placement_grid_item: ");
+	AddGridVals(arr, m_part_grid_hidden, "  placement_grid_hidden: ");
+	line.Format( "routing_grid_spacing: %f\n", m_routing_grid_spacing );
+	arr.Add( line );
+	AddGridVals(arr, m_routing_grid, "  routing_grid_item: ");
+	AddGridVals(arr, m_routing_grid_hidden, "  routing_grid_hidden: ");
+	line.Format( "snap_angle: %d\n", m_snap_angle );
+	arr.Add( line );
+	arr.Add( "\n" );
+	line.Format( "fp_visible_grid_spacing: %f\n", m_fp_visual_grid_spacing );
+	arr.Add( line );
+	AddGridVals(arr, m_fp_visible_grid, "  fp_visible_grid_item: ");
+	AddGridVals(arr, m_fp_visible_grid_hidden, "  fp_visible_grid_hidden: ");
+	line.Format( "fp_placement_grid_spacing: %f\n", m_fp_part_grid_spacing );
+	arr.Add( line );
+	AddGridVals(arr, m_fp_part_grid, "  fp_placement_grid_item: ");
+	AddGridVals(arr, m_fp_part_grid_hidden, "  fp_placement_grid_hidden: ");
+	line.Format( "fp_snap_angle: %d\n", m_fp_snap_angle );
+	arr.Add( line );
+	arr.Add( "\n" );
+	line.Format( "fill_clearance: %d\n", m_fill_clearance );
+	arr.Add( line );
+	line.Format( "mask_clearance: %d\n", m_mask_clearance );
+	arr.Add( line );
+	line.Format( "thermal_width: %d\n", m_thermal_width );
+	arr.Add( line );
+	line.Format( "min_silkscreen_width: %d\n", m_min_silkscreen_stroke_wid );
+	arr.Add( line );
+	line.Format( "board_outline_width: %d\n", m_outline_width );
+	arr.Add( line );
+	line.Format( "hole_clearance: %d\n", m_hole_clearance );
+	arr.Add( line );
+	line.Format( "pilot_diameter: %d\n", m_pilot_diameter );
+	arr.Add( line );
+	line.Format( "annular_ring_for_pins: %d\n", m_annular_ring_pins );
+	arr.Add( line );
+	line.Format( "annular_ring_for_vias: %d\n", m_annular_ring_vias );
+	arr.Add( line );
+	line.Format( "shrink_paste_mask: %d\n", m_paste_shrink );
+	arr.Add( line );
+	line.Format( "cam_flags: %d\n", m_cam_flags );
+	arr.Add( line );
+	line.Format( "cam_layers: %d\n", m_cam_layers );
+	arr.Add( line );
+	line.Format( "cam_drill_file: %d\n", m_cam_drill_file );
+	arr.Add( line );
+	line.Format( "cam_units: %d\n", m_cam_units );
+	arr.Add( line );
+	line.Format( "cam_n_x: %d\n", m_n_x );
+	arr.Add( line );
+	line.Format( "cam_n_y: %d\n", m_n_y );
+	arr.Add( line );
+	line.Format( "cam_space_x: %d\n", m_space_x );
+	arr.Add( line );
+	line.Format( "cam_space_y: %d\n", m_space_y );
+	arr.Add( line );
+	arr.Add( "\n" );
+
+	line.Format( "report_options: %d\n", m_report_flags );
+	arr.Add( line );
+
+	line.Format( "drc_check_unrouted: %d\n", m_dr.bCheckUnrouted );
+	arr.Add( line );
+	line.Format( "drc_trace_width: %d\n", m_dr.trace_width );
+	arr.Add( line );
+	line.Format( "drc_pad_pad: %d\n", m_dr.pad_pad );
+	arr.Add( line );
+	line.Format( "drc_pad_trace: %d\n", m_dr.pad_trace );
+	arr.Add( line );
+	line.Format( "drc_trace_trace: %d\n", m_dr.trace_trace );
+	arr.Add( line );
+	line.Format( "drc_hole_copper: %d\n", m_dr.hole_copper );
+	arr.Add( line );
+	line.Format( "drc_annular_ring_pins: %d\n", m_dr.annular_ring_pins );
+	arr.Add( line );
+	line.Format( "drc_annular_ring_vias: %d\n", m_dr.annular_ring_vias );
+	arr.Add( line );
+	line.Format( "drc_board_edge_copper: %d\n", m_dr.board_edge_copper );
+	arr.Add( line );
+	line.Format( "drc_board_edge_hole: %d\n", m_dr.board_edge_hole );
+	arr.Add( line );
+	line.Format( "drc_hole_hole: %d\n", m_dr.hole_hole );
+	arr.Add( line );
+	line.Format( "drc_copper_copper: %d\n", m_dr.copper_copper );
+	arr.Add( line );
+	arr.Add( "\n" );
+
+	line.Format( "default_trace_width: %d\n", m_trace_w );
+	arr.Add( line );
+	line.Format( "default_via_pad_width: %d\n", m_via_w );
+	arr.Add( line );
+	line.Format( "default_via_hole_width: %d\n", m_via_hole_w );
+	arr.Add( line );
+	line.Format( "n_width_menu: %d\n", m_w.GetSize() );
+	arr.Add( line );
+	for( int i=0; i<m_w.GetSize(); i++ )
+	{
+		line.Format( "  width_menu_item: %d %d %d %d\n", i+1, m_w[i], m_v_w[i], m_v_h_w[i]  );
+		arr.Add( line );
+	}
+	arr.Add( "\n" );
+	line.Format( "n_copper_layers: %d\n", m_num_copper_layers );
+	arr.Add( line );
+	for( int i=0; i<(LAY_TOP_COPPER+m_num_copper_layers); i++ )
+	{
+		line.Format( "  layer_info: \"%s\" %d %d %d %d %d\n",
+			&layer_str[i][0], i,
+			m_rgb[i][0], m_rgb[i][1], m_rgb[i][2], m_vis[i] );
+		arr.Add( line );
+	}
+	// CPT:  footprint layer info.
+	for( int i=0; i<NUM_FP_LAYERS; i++ )
+	{
+		line.Format( "  fp_layer_info: \"%s\" %d %d %d %d %d\n",
+			&fp_layer_str[i][0], i,
+			m_fp_rgb[i][0], m_fp_rgb[i][1], m_fp_rgb[i][2], m_fp_vis[i] );
+		arr.Add( line );
+	}
+
+	arr.Add( "\n" );
+}
+
 void CFreePcbDoc::WriteOptions( CStdioFile * file )
 {
-	CString line;
-
-	try
-	{
-		CString str;
-		CFreePcbView * view = (CFreePcbView*)m_view;
-		line.Format( "[options]\n\n" );
-		file->WriteString( line );
-		line.Format( "version: %5.3f\n", m_version );
-		file->WriteString( line );
-		line.Format( "file_version: %5.3f\n", m_file_version );
-		file->WriteString( line );
-		line.Format( "project_name: \"%s\"\n", m_name );
-		file->WriteString( line );
-		line.Format( "full_library_folder: \"%s\"\n", m_full_lib_dir );
-		file->WriteString( line );
-		line.Format( "CAM_folder: \"%s\"\n", m_cam_full_path );
-		file->WriteString( line );
-		line.Format( "ses_file_path: \"%s\"\n", m_ses_full_path );
-		file->WriteString( line );
-		line.Format( "netlist_file_path: \"%s\"\n", m_netlist_full_path );
-		file->WriteString( line );
-		line.Format( "SMT_connect_copper: \"%d\"\n", m_bSMT_copper_connect );
-		file->WriteString( line );
-		line.Format( "default_glue_width: \"%d\"\n", m_default_glue_w );
-		file->WriteString( line );
-		line.Format( "dsn_flags: \"%d\"\n", m_dsn_flags );
-		file->WriteString( line );
-		line.Format( "dsn_bounds_poly: \"%d\"\n", m_dsn_bounds_poly );
-		file->WriteString( line );
-		line.Format( "dsn_signals_poly: \"%d\"\n", m_dsn_signals_poly );
-		file->WriteString( line );
-		line.Format( "autosave_interval: %d\n", m_auto_interval );
-		file->WriteString( line );
-		line.Format( "auto_ratline_disable: \"%d\"\n", m_auto_ratline_disable );
-		file->WriteString( line );
-		line.Format( "auto_ratline_disable_min_pins: \"%d\"\n", m_auto_ratline_min_pins );
-		file->WriteString( line );
-		line.Format( "netlist_import_flags: %d\n", m_import_flags );
-		file->WriteString( line );
-		if( m_units == MIL )
-			file->WriteString( "units: MIL\n\n" );
-		else
-			file->WriteString( "units: MM\n\n" );
-		line.Format( "visible_grid_spacing: %f\n", m_visual_grid_spacing );
-		file->WriteString( line );
-		for( int i=0; i<m_visible_grid.GetSize(); i++ )
-		{
-			if( m_visible_grid[i] > 0 )
-				::MakeCStringFromDimension( &str, m_visible_grid[i], MIL );
-			else
-				::MakeCStringFromDimension( &str, -m_visible_grid[i], MM );
-			file->WriteString( "  visible_grid_item: " + str + "\n" );
-		}
-		file->WriteString( "\n" );
-		line.Format( "placement_grid_spacing: %f\n", m_part_grid_spacing );
-		file->WriteString( line );
-		for( int i=0; i<m_part_grid.GetSize(); i++ )
-		{
-			if( m_part_grid[i] > 0 )
-				::MakeCStringFromDimension( &str, m_part_grid[i], MIL );
-			else
-				::MakeCStringFromDimension( &str, -m_part_grid[i], MM );
-			file->WriteString( "  placement_grid_item: " + str + "\n" );
-		}
-		file->WriteString( "\n" );
-		line.Format( "routing_grid_spacing: %f\n", m_routing_grid_spacing );
-		file->WriteString( line );
-		for( int i=0; i<m_routing_grid.GetSize(); i++ )
-		{
-			if( m_routing_grid[i] > 0 )
-				::MakeCStringFromDimension( &str, m_routing_grid[i], MIL );
-			else
-				::MakeCStringFromDimension( &str, -m_routing_grid[i], MM );
-			file->WriteString( "  routing_grid_item: " + str + "\n" );
-		}
-		file->WriteString( "\n" );
-		line.Format( "snap_angle: %d\n", m_snap_angle );
-		file->WriteString( line );
-		file->WriteString( "\n" );
-		line.Format( "fp_visible_grid_spacing: %f\n", m_fp_visual_grid_spacing );
-		file->WriteString( line );
-		for( int i=0; i<m_fp_visible_grid.GetSize(); i++ )
-		{
-			if( m_fp_visible_grid[i] > 0 )
-				::MakeCStringFromDimension( &str, m_fp_visible_grid[i], MIL );
-			else
-				::MakeCStringFromDimension( &str, -m_fp_visible_grid[i], MM );
-			file->WriteString( "  fp_visible_grid_item: " + str + "\n" );
-		}
-		file->WriteString( "\n" );
-		line.Format( "fp_placement_grid_spacing: %f\n", m_fp_part_grid_spacing );
-		file->WriteString( line );
-		for( int i=0; i<m_fp_part_grid.GetSize(); i++ )
-		{
-			if( m_fp_part_grid[i] > 0 )
-				::MakeCStringFromDimension( &str, m_fp_part_grid[i], MIL );
-			else
-				::MakeCStringFromDimension( &str, -m_fp_part_grid[i], MM );
-			file->WriteString( "  fp_placement_grid_item: " + str + "\n" );
-		}
-		file->WriteString( "\n" );
-		line.Format( "fp_snap_angle: %d\n", m_fp_snap_angle );
-		file->WriteString( line );
-		file->WriteString( "\n" );
-		line.Format( "fill_clearance: %d\n", m_fill_clearance );
-		file->WriteString( line );
-		line.Format( "mask_clearance: %d\n", m_mask_clearance );
-		file->WriteString( line );
-		line.Format( "thermal_width: %d\n", m_thermal_width );
-		file->WriteString( line );
-		line.Format( "min_silkscreen_width: %d\n", m_min_silkscreen_stroke_wid );
-		file->WriteString( line );
-		line.Format( "board_outline_width: %d\n", m_outline_width );
-		file->WriteString( line );
-		line.Format( "hole_clearance: %d\n", m_hole_clearance );
-		file->WriteString( line );
-		line.Format( "pilot_diameter: %d\n", m_pilot_diameter );
-		file->WriteString( line );
-		line.Format( "annular_ring_for_pins: %d\n", m_annular_ring_pins );
-		file->WriteString( line );
-		line.Format( "annular_ring_for_vias: %d\n", m_annular_ring_vias );
-		file->WriteString( line );
-		line.Format( "shrink_paste_mask: %d\n", m_paste_shrink );
-		file->WriteString( line );
-		line.Format( "cam_flags: %d\n", m_cam_flags );
-		file->WriteString( line );
-		line.Format( "cam_layers: %d\n", m_cam_layers );
-		file->WriteString( line );
-		line.Format( "cam_drill_file: %d\n", m_cam_drill_file );
-		file->WriteString( line );
-		line.Format( "cam_units: %d\n", m_cam_units );
-		file->WriteString( line );
-		line.Format( "cam_n_x: %d\n", m_n_x );
-		file->WriteString( line );
-		line.Format( "cam_n_y: %d\n", m_n_y );
-		file->WriteString( line );
-		line.Format( "cam_space_x: %d\n", m_space_x );
-		file->WriteString( line );
-		line.Format( "cam_space_y: %d\n", m_space_y );
-		file->WriteString( line );
-		file->WriteString( "\n" );
-
-		line.Format( "report_options: %d\n", m_report_flags );
-		file->WriteString( line );
-
-		line.Format( "drc_check_unrouted: %d\n", m_dr.bCheckUnrouted );
-		file->WriteString( line );
-		line.Format( "drc_trace_width: %d\n", m_dr.trace_width );
-		file->WriteString( line );
-		line.Format( "drc_pad_pad: %d\n", m_dr.pad_pad );
-		file->WriteString( line );
-		line.Format( "drc_pad_trace: %d\n", m_dr.pad_trace );
-		file->WriteString( line );
-		line.Format( "drc_trace_trace: %d\n", m_dr.trace_trace );
-		file->WriteString( line );
-		line.Format( "drc_hole_copper: %d\n", m_dr.hole_copper );
-		file->WriteString( line );
-		line.Format( "drc_annular_ring_pins: %d\n", m_dr.annular_ring_pins );
-		file->WriteString( line );
-		line.Format( "drc_annular_ring_vias: %d\n", m_dr.annular_ring_vias );
-		file->WriteString( line );
-		line.Format( "drc_board_edge_copper: %d\n", m_dr.board_edge_copper );
-		file->WriteString( line );
-		line.Format( "drc_board_edge_hole: %d\n", m_dr.board_edge_hole );
-		file->WriteString( line );
-		line.Format( "drc_hole_hole: %d\n", m_dr.hole_hole );
-		file->WriteString( line );
-		line.Format( "drc_copper_copper: %d\n", m_dr.copper_copper );
-		file->WriteString( line );
-		file->WriteString( "\n" );
-
-		line.Format( "default_trace_width: %d\n", m_trace_w );
-		file->WriteString( line );
-		line.Format( "default_via_pad_width: %d\n", m_via_w );
-		file->WriteString( line );
-		line.Format( "default_via_hole_width: %d\n", m_via_hole_w );
-		file->WriteString( line );
-		line.Format( "n_width_menu: %d\n", m_w.GetSize() );
-		file->WriteString( line );
-		for( int i=0; i<m_w.GetSize(); i++ )
-		{
-			line.Format( "  width_menu_item: %d %d %d %d\n", i+1, m_w[i], m_v_w[i], m_v_h_w[i]  );
-			file->WriteString( line );
-		}
-		file->WriteString( "\n" );
-		line.Format( "n_copper_layers: %d\n", m_num_copper_layers );
-		file->WriteString( line );
-		for( int i=0; i<(LAY_TOP_COPPER+m_num_copper_layers); i++ )
-		{
-			line.Format( "  layer_info: \"%s\" %d %d %d %d %d\n",
-				&layer_str[i][0], i,
-				m_rgb[i][0], m_rgb[i][1], m_rgb[i][2], m_vis[i] );
-			file->WriteString( line );
-		}
-		file->WriteString( "\n" );
+	try {
+		CArray<CString> arr;
+		CollectOptionsStrings(arr);
+		for (int i=0; i<arr.GetSize(); i++)
+			file->WriteString(arr[i]);
 		return;
 	}
 	catch( CFileException * e )
 	{
-		CString * err_str = new CString;
+		CString * err_str = new CString, s ((LPCSTR) IDS_FileError1), s2 ((LPCSTR) IDS_FileError2);
 		if( e->m_lOsError == -1 )
-			err_str->Format( "File error: %d\n", e->m_cause );
+			err_str->Format( s, e->m_cause );
 		else
-			err_str->Format( "File error: %d %ld (%s)\n", 
-				e->m_cause, e->m_lOsError, _sys_errlist[e->m_lOsError] );
-		*err_str = "CFreePcbDoc::WriteBoardOutline()\n" + *err_str;
+			err_str->Format( s2, e->m_cause, e->m_lOsError, _sys_errlist[e->m_lOsError] );
+		*err_str = "CFreePcbDoc::WriteOptions()\n" + *err_str;									// CPT fixed
 		throw err_str;
 	}
 }
@@ -4743,3 +4781,154 @@ void CFreePcbDoc::OnFileSaveLibrary()
 	dlg.Initialize( &names );
 	int ret = dlg.DoModal();
 }
+
+
+// CPT (all that follows)
+
+void ReadFileLines(CString &fname, CArray<CString> &lines) {
+	// Helper function used when making modifications to default.cfg.  Bug fix #28
+	lines.RemoveAll();
+	CStdioFile file;
+	CString line;
+	int ok = file.Open( LPCSTR(fname), CFile::modeRead | CFile::typeText, NULL );
+	if (!ok) return;
+	while (1)	{
+		if (!file.ReadString( line )) break;
+		line.Trim(),
+		lines.Add(line + "\n");
+		}
+	file.Close();
+	}
+
+void WriteFileLines(CString &fname, CArray<CString> &lines) {
+	// Helper function used when making modifications to default.cfg
+	CStdioFile file;
+	int ok = file.Open( LPCSTR(fname), CFile::modeCreate | CFile::modeWrite | CFile::typeText, NULL );
+	if (!ok) return;
+	for (int i=0; i<lines.GetSize(); i++)
+		file.WriteString(lines[i]);
+	file.Close();
+	}
+
+void ReplaceLines(CArray<CString> &oldLines, CArray<CString> &newLines, char *key) {
+	// Another helper for making modifications to default.cfg. Look through "oldLines" and eliminate all entries beginning with "key" (if any).
+	// Then append to oldLines all members of newLines beginning with that key.  Must ensure that the [end] line is still at the end...
+	int keyLgth = strlen(key);
+	for (int i=0; i<oldLines.GetSize(); i++) {
+		CString str = oldLines[i].TrimLeft();
+		if (str.Left(keyLgth) == key || str.Left(5) == "[end]")
+			oldLines.RemoveAt(i),
+			i--;
+		}
+	if (oldLines.GetSize()==0)
+		oldLines.Add("[options]\n");
+	for (int i=0; i<newLines.GetSize(); i++) {
+		CString str = newLines[i].TrimLeft();
+		if (str.Left(keyLgth) == key)
+			oldLines.Add(str);
+		}
+	oldLines.Add("[end]\n");
+	}
+
+
+void CFreePcbDoc::OnToolsPreferences() {
+	CDlgPrefs dlg;
+	dlg.doc = this;
+	dlg.Init( m_bReversePgupPgdn, m_bLefthanded, m_auto_interval, m_auto_ratline_disable, m_auto_ratline_min_pins); 
+	int ret = dlg.DoModal();
+	if( ret == IDOK ) {
+		m_bReversePgupPgdn = dlg.m_bReverse;
+		m_bLefthanded = dlg.m_bLefthanded;
+		m_auto_interval = dlg.m_auto_interval;
+		m_auto_ratline_disable = dlg.m_bAuto_Ratline_Disable;
+		m_auto_ratline_min_pins = dlg.m_auto_ratline_min_pins;
+		// Save these values to default.cfg
+		CString line;
+		CArray<CString> oldLines, newLines;
+		line.Format( "autosave_interval: \"%d\"\n", m_auto_interval );
+		newLines.Add( line );
+		line.Format( "auto_ratline_disable: \"%d\"\n", m_auto_ratline_disable );
+		newLines.Add( line );
+		line.Format( "auto_ratline_disable_min_pins: \"%d\"\n", m_auto_ratline_min_pins );
+		newLines.Add( line );
+		line.Format( "reverse_pgup_pgdn: \"%d\"\n", m_bReversePgupPgdn);
+		newLines.Add( line );
+		line.Format( "lefthanded_mode: \"%d\"\n", m_bLefthanded);
+		newLines.Add( line );
+		CString fn = m_app_dir + "\\" + "default.cfg";
+		ReadFileLines(fn, oldLines);
+		ReplaceLines(oldLines, newLines, "autosave_interval");
+		ReplaceLines(oldLines, newLines, "auto_ratline_disable");
+		ReplaceLines(oldLines, newLines, "auto_ratline_disable_min_pins");
+		ReplaceLines(oldLines, newLines, "reverse_pgup_pgdn");
+		ReplaceLines(oldLines, newLines, "lefthanded_mode");
+		WriteFileLines(fn, oldLines);
+		m_view->SetFKText(m_view->m_cursor_mode);					// In case user changed the left-handed mode...
+		}
+	}
+
+//#if 0 // AMW
+void CFreePcbDoc::OnViewRoutingGrid() {
+	CDlgGridVals dlg (&m_routing_grid, &m_routing_grid_hidden, IDS_EditRoutingGridValues);
+	int ret = dlg.DoModal();
+	if( ret == IDOK ) {
+		// CDlgGridVals::DoDataExchange() already updated m_routing_grid and m_routing_grid_hidden.  We just need to change the
+		// ToolBar lists:
+		CMainFrame * frm = (CMainFrame*)AfxGetMainWnd();
+		frm->m_wndMyToolBar.SetLists( &m_visible_grid, &m_part_grid, &m_routing_grid,
+			m_visual_grid_spacing, m_part_grid_spacing, m_routing_grid_spacing, m_snap_angle, m_units );
+		ProjectModified(true);
+		if (dlg.bSetDefault) {
+			CArray<CString> oldLines, newLines;
+			CString fn = m_app_dir + "\\" + "default.cfg";
+			ReadFileLines(fn, oldLines);
+			CollectOptionsStrings(newLines);
+			ReplaceLines(oldLines, newLines, "routing_grid_item");
+			ReplaceLines(oldLines, newLines, "routing_grid_hidden");
+			WriteFileLines(fn, oldLines);
+			}
+		}
+	}
+
+void CFreePcbDoc::OnViewPlacementGrid() {
+	CDlgGridVals dlg (&m_part_grid, &m_part_grid_hidden, IDS_EditPlacementGridValues);
+	int ret = dlg.DoModal();
+	if( ret == IDOK ) {
+		CMainFrame * frm = (CMainFrame*)AfxGetMainWnd();
+		frm->m_wndMyToolBar.SetLists( &m_visible_grid, &m_part_grid, &m_routing_grid,
+			m_visual_grid_spacing, m_part_grid_spacing, m_routing_grid_spacing, m_snap_angle, m_units );
+		ProjectModified(true);
+		if (dlg.bSetDefault) {
+			CArray<CString> oldLines, newLines;
+			CString fn = m_app_dir + "\\" + "default.cfg";
+			ReadFileLines(fn, oldLines);
+			CollectOptionsStrings(newLines);
+			ReplaceLines(oldLines, newLines, "placement_grid_item");
+			ReplaceLines(oldLines, newLines, "placement_grid_hidden");
+			WriteFileLines(fn, oldLines);
+			}
+		}
+	}
+
+void CFreePcbDoc::OnViewVisibleGrid() {
+	CDlgGridVals dlg (&m_visible_grid, &m_visible_grid_hidden, IDS_EditVisibleGridValues);
+	int ret = dlg.DoModal();
+	if( ret == IDOK ) {
+		CMainFrame * frm = (CMainFrame*)AfxGetMainWnd();
+		frm->m_wndMyToolBar.SetLists( &m_visible_grid, &m_part_grid, &m_routing_grid,
+			m_visual_grid_spacing, m_part_grid_spacing, m_routing_grid_spacing, m_snap_angle, m_units );
+		ProjectModified(true);
+		if (dlg.bSetDefault) {
+			CArray<CString> oldLines, newLines;
+			CString fn = m_app_dir + "\\" + "default.cfg";
+			ReadFileLines(fn, oldLines);
+			CollectOptionsStrings(newLines);
+			ReplaceLines(oldLines, newLines, "visible_grid_item");
+			ReplaceLines(oldLines, newLines, "visible_grid_hidden");
+			WriteFileLines(fn, oldLines);
+			}
+		}
+	}
+//#endif // AMW
+
+// end CPT
