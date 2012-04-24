@@ -6,7 +6,6 @@
 //
 #include "stdafx.h"
 #include <math.h>
-
 #include "memdc.h"
 
 #include "dle_arc.h"

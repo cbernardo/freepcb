@@ -200,6 +200,9 @@ BEGIN
         MENUITEM "Show part...",                ID_VIEW_FINDPART
         MENUITEM SEPARATOR
         MENUITEM "Layers...",                   ID_VIEW_LAYERS
+        MENUITEM "Visible Grid Values...",      ID_VIEW_VISIBLEGRIDVALUES
+        MENUITEM "Placement Grid Values...",    ID_VIEW_PLACEMENTGRIDVALUES
+        MENUITEM "Routing Grid Values...",      ID_VIEW_ROUTINGGRIDVALUES
         MENUITEM SEPARATOR
         MENUITEM "Show Log...",                 ID_VIEW_LOG
     END
@@ -227,6 +230,8 @@ BEGIN
         MENUITEM "Clear DRC Errors",            ID_TOOLS_CLEAR_DRC
         MENUITEM SEPARATOR
         MENUITEM "FreeRoute autorouter...",     ID_TOOLS_OPENONLINEAUTOROUTER
+        MENUITEM SEPARATOR
+        MENUITEM "Preferences...",              ID_TOOLS_PREFERENCES
     END
     POPUP "Add"
     BEGIN
@@ -2312,6 +2317,32 @@ BEGIN
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,22,32,183,10
 END
 
+IDD_GRIDVALS DIALOGEX 0, 0, 286, 321
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Preferences"
+FONT 8, "MS Shell Dlg", 400, 0, 0x1
+BEGIN
+    DEFPUSHBUTTON   "OK",IDOK,85,292,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,150,292,50,14
+    CONTROL         "",IDC_LIST_GRIDVALS,"SysListView32",LVS_REPORT | LVS_SHOWSELALWAYS | LVS_ALIGNLEFT | WS_BORDER | WS_TABSTOP,66,7,204,234
+    CONTROL         "Use these values for new projects by default",IDC_CHECK_GRIDVALS_DEFAULT,
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,63,272,160,10
+    PUSHBUTTON      "Add...",IDC_BUTTON_ADD,14,88,36,12
+    PUSHBUTTON      "Delete",IDC_BUTTON_DELETE,14,110,36,13
+END
+
+IDD_ADD_GRIDVAL DIALOGEX 0, 0, 252, 103
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Add Grid Distance Value"
+FONT 8, "MS Shell Dlg", 400, 0, 0x1
+BEGIN
+    EDITTEXT        IDC_VALUE,108,25,104,12,ES_AUTOHSCROLL
+    DEFPUSHBUTTON   "OK",IDOK,66,57,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,135,57,50,14
+    LTEXT           "Grid Distance Value",IDC_STATIC,38,27,62,8
+END
+
+
 /////////////////////////////////////////////////////////////////////////////
 //
 // Version
@@ -2809,6 +2840,10 @@ BEGIN
         RIGHTMARGIN, 309
         TOPMARGIN, 7
         BOTTOMMARGIN, 173
+    END
+
+    IDD_PREFS, DIALOG
+    BEGIN
     END
 END
 #endif    // APSTUDIO_INVOKED

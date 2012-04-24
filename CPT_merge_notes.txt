@@ -2,7 +2,7 @@ CPT merge notes
 ---------------
 #1	- merged
 #2	- merged
-#2a	- deferred, since I've started to combine property dialogs, so all properties 
+#2a	- deferred, since I've been combining property dialogs, so all properties 
 	of an item are accessed from a single dialog using F1, leaving F2 available		
 #3  - merged 
 #4  - merged
@@ -13,6 +13,8 @@ CPT merge notes
 #9  - merged new Project Options dialog, but this doesn't have the items that were later moved 
 	to Tools->Options
 #13 - merged
+#14 - merged
+#14a - merged
 
 ---------------------------------------------------------------------------------------
 CPT revisions:
