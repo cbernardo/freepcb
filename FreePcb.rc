@@ -4100,7 +4100,7 @@ BEGIN
     IDS_STRING63558         " Set"
     IDS_STRING63559         " Net"
     IDS_STRING63560         " Delete"
-    IDS_STRING63561         " Connect"
+    IDS_STRING63561         " Trace"
     IDS_STRING63562         " Force"
     IDS_STRING63563         " Via"
     IDS_STRING63564         " Set"
@@ -4159,8 +4159,8 @@ BEGIN
     IDS_STRING63605         " Area"
     IDS_STRING63606         " Delete"
     IDS_STRING63607         " Cutout"
-    IDS_STRING63608         " Add"
-    IDS_STRING63609         " Segment"
+    IDS_STRING63608         " Start"
+    IDS_STRING63609         " Trace"
     IDS_STRING63610         " Add"
     IDS_STRING63611         " Via"
     IDS_STRING63612         " Delete"
@@ -4191,8 +4191,8 @@ END
 
 STRINGTABLE
 BEGIN
-    IDS_STRING63632         " Set"
-    IDS_STRING63633         " Via Size"
+    IDS_STRING63632         " Edit Via"
+    IDS_STRING63633         " or Vertex"
     IDS_STRING63634         " Add"
     IDS_STRING63635         " Vertex"
     IDS_STRING63636         " Set Side"
@@ -4234,7 +4234,7 @@ END
 
 STRINGTABLE
 BEGIN
-    IDS_AppName             "FPC-CPT 0.22"
+    IDS_AppName             "Merge-CPT 0.22"
 END
 
 STRINGTABLE

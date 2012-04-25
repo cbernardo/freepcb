@@ -3529,11 +3529,9 @@ int CNetList::ReconcileVia( cnet * net, int ic, int ivtx, BOOL bDrawVertex )
 	}
 	else if( v->GetType() == cvertex::V_TEE || v->GetType() == cvertex::V_SLAVE )
 	{
-		// tee-vertex must be at end of a trace
+		// CPT 4/24/12:  removed requirement for tee to be at end of trace:
 		if( ivtx != 0 && ivtx != c->NumSegs() )
-		{
-			ASSERT(0);
-		}
+			;
 		else if( TeeViaNeeded( net, abs( v->tee_ID ), &v_draw ) )
 		{
 			via_needed = TRUE;

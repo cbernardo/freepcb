@@ -193,7 +193,7 @@ const char fk_str[FK_NUM_OPTIONS*2+2][32] =
 	" Connect",	" Pin",
 	" Detach",	" Net",
 	" Set",		" Net",
-	" Delete",	" Trace",
+	" Delete",	" Trace",   // was Connect
 	" Force",	" Via",
 	" Set",		" Width",
 	" Lock",	" Connect",
@@ -217,7 +217,7 @@ const char fk_str[FK_NUM_OPTIONS*2+2][32] =
 	" Delete",	" Outline",
 	" Delete",	" Area",
 	" Delete",	" Cutout",
-	" Start",	" Trace",
+	" Start",	" Trace",	// was add segment
 	" Add",		" Via",
 	" Delete",	" Via",
 	" Delete",	" Segment",
@@ -229,7 +229,7 @@ const char fk_str[FK_NUM_OPTIONS*2+2][32] =
 	" Move",	" Group",
 	" Delete",	" Group",
 	" Rotate",	" Group",
-	" Edit Via"," Or Vertex",
+	" Edit Via"," Or Vertex",  // Was Set via size
 	" Add",		" Vertex",
 	" Set Side"," Style",
 	" Edit",	" Area",
@@ -366,7 +366,8 @@ public:
 	BOOL m_bDraggingRect;
 	CPoint m_start_pt;
 	CRect m_drag_rect, m_last_drag_rect;
-	CRect m_sel_rect;		// rectangle used for selection
+	BOOL m_bDontDrawDragRect;					// CPT true after an autoscroll but before repainting occurs
+	CRect m_sel_rect;							// rectangle used for selection
 
 	// mode for drawing new polyline segments
 	int m_polyline_style;	// STRAIGHT, ARC_CW or ARC_CCW
@@ -420,6 +421,7 @@ public:
 // CPT
     int m_active_width;             // Width for upcoming segs during routing mode (in nm)
 	DWORD m_last_autoscroll;		// Tick count when an autoscroll last occurred.
+	int m_units;					// Units (mm or mil).  WILL PUT IN CCommonView
 // end CPT
 
 	// display coordinate mapping
@@ -455,6 +457,7 @@ public:
 	CPoint m_to_pt;				// for dragging segment, endpoint of this segment
 	CPoint m_last_pt;			// for dragging segment
 	CPoint m_next_pt;			// for dragging segment
+	CPoint m_last_click;		// CPT:  last point where user clicked
 
 	// function key shortcuts
 	int m_fkey_option[12];
@@ -488,7 +491,9 @@ public:
 // Implementation
 public:
 	virtual ~CFreePcbView();
-	void InitializeView();
+	void OnNewProject();					// CPT.  Used to be called InitializeView().
+	void BaseInit();						// CPT.  Will move to class CCommonView when the time comes.
+
 #ifdef _DEBUG
 	virtual void AssertValid() const;
 	virtual void Dump(CDumpContext& dc) const;
@@ -770,6 +775,15 @@ public:
 
 	void HandleShiftLayerKey(int layer, CDC *pDC);
 	void HandleNoShiftLayerKey(int layer, CDC *pDC);
+	// WILL GO INTO CCommonView when the time comes:
+	bool CheckBottomPaneClick(CPoint &point);
+	bool CheckLeftPaneClick(CPoint &point);
+	void PlacementGridUp();
+	void PlacementGridDown();
+	BOOL m_lastKeyWasArrow;	// (used to be globals)
+	BOOL m_lastKeyWasGroupRotate;
+	int m_totalArrowMoveX;
+	int m_totalArrowMoveY;
 };
 // end CPT
 

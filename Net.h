@@ -103,7 +103,7 @@ public:
 	int GetIndex();
 	cvertex& GetPreVtx();
 	cvertex& GetPostVtx();
-	void GetStatusStr( CString * str );
+	void GetStatusStr( CString * str, int width = 0 );			// CPT added width param
 
 	int m_uid;				// unique id
 	int m_layer;			// copper layer
