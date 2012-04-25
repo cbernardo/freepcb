@@ -1,6 +1,6 @@
 CPT merge notes
 ---------------
-#1	- merged
+#1	- merged.  CPT r260: added m_active_width display in status bar.
 #2	- merged
 #2a	- deferred, since I've been combining property dialogs, so all properties 
 	of an item are accessed from a single dialog using F1, leaving F2 available		
@@ -12,9 +12,13 @@ CPT merge notes
 #8  - merged
 #9  - merged new Project Options dialog, but this doesn't have the items that were later moved 
 	to Tools->Options
+#11 - CPT r260:  merged.
 #13 - merged
 #14 - merged
 #14a - merged
+#15 - CPT r260: merged
+#15a - CPT r260: merged
+#22 - CPT r260: merged
 
 ---------------------------------------------------------------------------------------
 CPT revisions:
@@ -49,6 +53,9 @@ CPT revisions:
 15. Modified group-selection behavior, so that there is no longer a distinction between a group of 1 element and a single selected
 	item.  To prevent any lost functionality, implemented arrow keys for board edges, area edges, sm-cutouts, and end-vertices; implemented
 	ctrl-c/x for single selected items.
+15a.  FORGOT TO LIST THIS ONE PREVIOUSLY.  Fixed bug where SetCapture() was not called in CFreePcbView::OnLButtonDown(), causing
+	poor behavior when dragging and releasing outside the client area.  Moreover, now allows autoscrolling when dragging a group-select 
+	rectangle out to the margins.
 16. Added sorting to export netlist.
 17. Removed restriction on pin names (before, 1A and A1A were illegal)
 18. During connect-to-pin-to-create-ratline mode (CUR_DRAG_CONNECT), the status bar now shows the name of the pin where mouse is hovering.

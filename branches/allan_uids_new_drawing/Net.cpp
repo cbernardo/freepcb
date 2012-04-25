@@ -402,12 +402,13 @@ cvertex& cseg::GetPostVtx()
 }
 
 // create string describing segment
-//
-void cseg::GetStatusStr( CString * str )
+// CPT:  added width param.  If this is 0 (the default) replace it with this->m_width
+void cseg::GetStatusStr( CString * str, int width )
 {
 	int u = pcb->m_units;
+	if (width==0) width = m_width;
 	CString w_str;
-	::MakeCStringFromDimension( &w_str, m_width, u, FALSE, FALSE, FALSE, u==MIL?1:3 );
+	::MakeCStringFromDimension( &w_str, width, u, FALSE, FALSE, FALSE, u==MIL?1:3 );
 	str->Format( "segment, w %s", w_str );
 }
 

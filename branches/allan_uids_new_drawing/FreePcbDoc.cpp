@@ -2520,7 +2520,7 @@ void CFreePcbDoc::InitializeNewProject()
 	m_import_flags = IMPORT_PARTS | IMPORT_NETS | KEEP_TRACES | KEEP_STUBS | KEEP_AREAS;
 
 	CFreePcbView * view = (CFreePcbView*)m_view;
-	view->InitializeView();
+	view->OnNewProject();								// CPT renamed function
 
 	// now try to find global options file
 	CString fn = m_app_dir + "\\" + "default.cfg";

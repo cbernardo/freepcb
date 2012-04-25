@@ -189,6 +189,8 @@ Some examples of information flow:
 			to the calling program which can use it to identify the item represented
 			by the graphic element
  
+ 
+
 CPT revisions:
 1. m_active_width added to CFreePcbView.  Permits adjustment
     of width during routing.  There are coordinated changes in the system of via widths.  
@@ -221,6 +223,9 @@ CPT revisions:
 15. Modified group-selection behavior, so that there is no longer a distinction between a group of 1 element and a single selected
 	item.  To prevent any lost functionality, implemented arrow keys for board edges, area edges, sm-cutouts, and end-vertices; implemented
 	ctrl-c/x for single selected items.
+15a.  FORGOT TO LIST THIS ONE PREVIOUSLY.  Fixed bug where SetCapture() was not called in CFreePcbView::OnLButtonDown(), causing
+	poor behavior when dragging and releasing outside the client area.  Moreover, now allows autoscrolling when dragging a group-select 
+	rectangle out to the margins.
 16. Added sorting to export netlist.
 17. Removed restriction on pin names (before, 1A and A1A were illegal)
 18. During connect-to-pin-to-create-ratline mode (CUR_DRAG_CONNECT), the status bar now shows the name of the pin where mouse is hovering.
@@ -288,4 +293,52 @@ CPT revisions:
 	a spot in order to select or unselect a group member, and don't get the effect you want, keep holding ctrl and clicking until you do.
 46. Improved TestLineHit() in utility.cpp so that we get more reliable results (on short segments particularly).  
 
-...TortoiseSVN commit, version 249 
+...TortoiseSVN commit, version 249
+
+
+TODO:
+Check Undo hotkey merge.
+Fix ReconcileVia (step 1)
+Border line for left and bottom panes.
+
+void CFreePcbDoc::OnFileSaveAs() 
+{
+	// force old-style file dialog by setting size of OPENFILENAME struct
+	CString s ((LPCSTR) IDS_PCBFiles);
+	CFileDialog dlg( 0, "fpc", LPCTSTR(m_pcb_filename), OFN_OVERWRITEPROMPT,							// CPT changed arg
+		s, NULL, 0 /* CPT eliminated, doesn't work in VS 10.0: OPENFILENAME_SIZE_VERSION_400 */ );
+//	OPENFILENAME  * myOFN = dlg.m_pOFN;																	// CPT: this way of setting options was causing doModal() 
+																										// to fail if file had changed
+//	myOFN->Flags |= OFN_OVERWRITEPROMPT;
+
+etc.
+
+int CPartList::WriteParts( CStdioFile * file )
+{
+	// CPT: Sort the part lines.
+	CMapStringToPtr shape_map;
+	cpart * el = m_start.next;
+	CString line;
+	CString key;
+	CArray<CString> lines;
+	try
+	{
+		// now write all parts
+		line.Format( "[parts]\n\n" );
+		file->WriteString( line );
+		el = m_start.next;
+		while( el->next != 0 )
+		{
+			// test
+			CString test;
+			SetPartString( el, &test );
+			lines.Add(test);
+			el = el->next;
+		}
+		extern int strcmpNumeric(CString *s1, CString *s2);				// In FreePcbDoc.cpp
+		qsort(lines.GetData(), lines.GetSize(), sizeof(CString), (int (*)(const void*,const void*)) strcmpNumeric);			
+		for (int i=0; i<lines.GetSize(); i++)
+			file->WriteString( lines[i] );
+	}
+etc.
+
