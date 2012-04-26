@@ -453,10 +453,9 @@ void CFreePcbView::OnDraw(CDC* pDC)
 	// CPT - moved code to draw left pane into DrawLeftPane()
 	// draw stuff on left pane
 	DrawLeftPane(pDC);
-	// end CPT
-
 	// draw function keys on bottom pane
 	DrawBottomPane();
+	// end CPT
 
 	//** this is for testing only, needs to be converted to PCB coords
 #if 0
@@ -3230,6 +3229,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 	// CPT: different way of dealing with gShiftKeyDown
 	bool bShiftKeyDown = (GetKeyState(VK_SHIFT)&0x8000) != 0;
 	bool bCtrlKeyDown = (GetKeyState(VK_CONTROL)&0x8000) != 0;
+	// end CPT
 
 #ifdef ALLOW_CURVED_SEGMENTS
 	if( nChar == 'C' && m_cursor_mode == CUR_SEG_SELECTED )
@@ -3519,143 +3519,11 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 	GetCursorPos( &p );		// cursor pos in screen coords
 	p = m_dlist->ScreenToPCB( p );	// convert to PCB coords
 
-	// test for pressing key to change layer
-	char test_char = nChar;
-	if( test_char >= 97 )
-		test_char = '1' + nChar - 97;
-	char * ch = strchr( layer_char, test_char );
-	if( ch && m_Doc->m_num_copper_layers > 1 )
-	{
-		int ilayer = ch - layer_char;
-		if( ilayer < m_Doc->m_num_copper_layers )
-		{
-			// OK, shortcut key to a copper layer
-			int new_active_layer = ilayer + LAY_TOP_COPPER;
-			if( ilayer == m_Doc->m_num_copper_layers-1 )
-				new_active_layer = LAY_BOTTOM_COPPER;
-			else if( new_active_layer > LAY_TOP_COPPER )
-				new_active_layer++;
-			if( !bShiftKeyDown )
-			{
-				// shift key not held down, change active layer for routing
-				if( !m_Doc->m_vis[new_active_layer] )
-				{
-					PlaySound( TEXT("CriticalStop"), 0, 0 );
-					AfxMessageBox( "Can't route on invisible layer" );
-					ReleaseDC( pDC );
-					return;
-				}
-				if( m_cursor_mode == CUR_DRAG_RAT || m_cursor_mode == CUR_DRAG_TRACE)
-				{
-					// if we are routing, change layer
-					pDC->SelectClipRgn( &m_pcb_rgn );
-					SetDCToWorldCoords( pDC );
-					if( m_sel_id.I3() == 0 && m_dir == 0 )
-					{
-						// we are trying to change first segment from pad
-						int p1 = m_sel_con->start_pin;
-						CString pin_name = m_sel_net->pin[p1].pin_name;
-						int pin_index = m_sel_net->pin[p1].part->shape->GetPinIndexByName( pin_name );
-						if( m_sel_net->pin[p1].part->shape->m_padstack[pin_index].hole_size == 0)
-						{
-							// SMT pad, this is illegal;
-							new_active_layer = -1;
-							PlaySound( TEXT("CriticalStop"), 0, 0 );
-						}
-					}
-					else if( m_sel_id.I3() == (m_sel_con->NumSegs()-1) && m_dir == 1 )
-					{
-						// we are trying to change last segment to pad
-						int p2 = m_sel_con->end_pin;
-						if( p2 != -1 )
-						{
-							CString pin_name = m_sel_net->pin[p2].pin_name;
-							int pin_index = m_sel_net->pin[p2].part->shape->GetPinIndexByName( pin_name );
-							if( m_sel_net->pin[p2].part->shape->m_padstack[pin_index].hole_size == 0)
-							{
-								// SMT pad
-								new_active_layer = -1;
-								PlaySound( TEXT("CriticalStop"), 0, 0 );
-							}
-						}
-					}
-					if( new_active_layer != -1 )
-					{
-						m_dlist->ChangeRoutingLayer( pDC, new_active_layer, LAY_SELECTION, 0 );
-						m_active_layer = new_active_layer;
-						ShowActiveLayer();
-					}
-				}
-				else
-				{
-					m_active_layer = new_active_layer;
-					ShowActiveLayer();
-				}
-				return;
-			}
-			else
-			{
-				// shift key held down, change layer if item selected 
-				if( m_cursor_mode == CUR_SEG_SELECTED )
-				{
-					SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_Doc->m_undo_list );
-					m_sel_con->Undraw();
-					int err = m_Doc->m_nlist->ChangeSegmentLayer( m_sel_net, m_sel_ic, m_sel_is, new_active_layer );
-					if( err )
-					{
-						// can't change layer due to connection to SMT pad
-						new_active_layer = -1;
-						PlaySound( TEXT("CriticalStop"), 0, 0 );
-					}
-					m_sel_con->Draw();
-					m_Doc->ProjectModified( TRUE );
-					Invalidate( FALSE );
-				}
-				else if( m_cursor_mode == CUR_CONNECT_SELECTED )
-				{
-					SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_Doc->m_undo_list );
-					cconnect * c = m_sel_con;
-					c->Undraw();
-					for( int is=0; is<c->NumSegs(); is++ )
-					{
-						cseg * seg = &c->SegByIndex(is);
-						seg->m_layer = new_active_layer;
-					}
-					m_sel_con->Draw();
-					m_Doc->ProjectModified( TRUE );
-					Invalidate( FALSE );
-				}
-				else if( m_cursor_mode == CUR_AREA_CORNER_SELECTED 
-					|| m_cursor_mode == CUR_AREA_SIDE_SELECTED )
-				{
-					SaveUndoInfoForAllAreasInNet( m_sel_net, TRUE, m_Doc->m_undo_list );
-					carea * a = &m_sel_net->area[m_sel_ia];
-					a->Undraw();
-					a->SetLayer( new_active_layer );
-					a->Draw( m_dlist );
-					int ret = m_Doc->m_nlist->AreaPolygonModified( m_sel_net, m_sel_ia, TRUE, TRUE );
-					if( ret == -1 )
-					{
-						// error
-						AfxMessageBox( "Error: Unable to clip polygon due to intersecting arc" );
-						m_Doc->OnEditUndo();
-					}
-					else
-					{
-						if( m_Doc->m_vis[LAY_RAT_LINE] )
-							m_Doc->m_nlist->OptimizeConnections(  m_sel_net, -1, m_Doc->m_auto_ratline_disable,
-														m_Doc->m_auto_ratline_min_pins, TRUE  );
-					}
-					CancelSelection();
-					m_Doc->ProjectModified( TRUE );
-					Invalidate( FALSE );
-				}
-				return;
-			}
-		}
-	}
+	// CPT
+	if (HandleLayerKey(nChar, bShiftKeyDown, bCtrlKeyDown, pDC)) 
+		{ ReleaseDC(pDC); return; }
+	// end CPT
 
-	// continue
 	if( nChar >= 112 && nChar <= 123 )
 	{
 		// function key pressed

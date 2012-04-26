@@ -733,10 +733,10 @@
 #define IDC_LIST_GRIDVALS               1437
 #define IDC_BUTTON_LAYER_8              1438
 #define IDC_COMBO_LAYER_REF             1438
+#define IDC_CHECK_GRIDVALS_DEFAULT      1438
 #define IDC_BUTTON_LAYER_9              1439
 #define IDC_COMBO_LAYER_VALUE           1439
 #define IDC_VALUE                       1439
-#define IDC_CHECK_GRIDVALS_DEFAULT      1438
 #define IDC_BUTTON_LAYER_10             1440
 #define IDC_COMBO_PIN_NAME              1440
 #define IDC_CHECK_OPTIONS_DEFAULT       1440
