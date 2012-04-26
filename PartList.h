@@ -68,6 +68,7 @@ typedef struct {
 	CString package;	// package (from original imported netlist, don't edit)
 	CString value;		// value (from original imported netlist, don't edit)
 	BOOL value_vis;		// visibility of value
+	BOOL ref_vis;		// CPT: visibility of ref text
 	int value_layer;	// value layer
 	CShape * shape;		// pointer to shape (may be edited)
 	BOOL deleted;		// flag to indicate that part was deleted
@@ -218,10 +219,10 @@ public:
 
 	cpart * Add( int uid=-1 ); 
 	cpart * Add( CShape * shape, CString * ref_des, CString * package, 
-					int x, int y, int side, int angle, int visible, int glued, int uid=-1 ); 
+					int x, int y, int side, int angle, int visible, int glued, bool ref_vis, int uid=-1 ); 
 	cpart * AddFromString( CString * str );
 	int SetPartData( cpart * part, CShape * shape, CString * ref_des, CString * package, 
-					int x, int y, int side, int angle, int visible, int glued ); 
+					int x, int y, int side, int angle, int visible, int glued, bool ref_vis  ); 
 	void MarkAllParts( int mark );
 	int Remove( cpart * element );
 	void RemoveAllParts();

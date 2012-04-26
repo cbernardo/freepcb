@@ -27,6 +27,37 @@ CText::CText()
 	m_uid = pcb_cuid.GetNewUID();
 }
 
+// Constructor with data
+//
+CText::CText( CDisplayList * dlist, int x, int y, int angle, int mirror,
+			BOOL bNegative, int layer, int font_size, int stroke_width, 
+			SMFontUtil * smfontutil, CString * str_ptr, 
+			unsigned int selType, unsigned int selSubtype )
+{
+	m_uid = pcb_cuid.GetNewUID();
+	m_x = x;
+	m_y = y;
+	m_angle = angle;
+	m_mirror = mirror;
+	m_bNegative = bNegative;
+	m_layer = layer;
+	m_stroke_width = stroke_width;
+	m_font_size = font_size;
+	m_str = *str_ptr;
+	m_nchars = str_ptr->GetLength();
+	m_dlist = dlist;
+	m_id = id( ID_TEXT, m_uid );
+	m_id.SetSubType( selType );
+	m_id.SetSubSubType( selSubtype );
+	dl_sel = 0;												// CPT bug fix #37
+	m_smfontutil = smfontutil;
+
+	if( smfontutil )
+	{
+		Draw( dlist, smfontutil );
+	}
+}
+
 // Initialize text data, create strokes if smfontutil != NULL
 // Draw() strokes them into display list if dlist != NULL
 // Enter with tid = root uid (ie. levels 1 and 2 set)
@@ -243,11 +274,11 @@ void CText::CancelDragging()
 	}
 }
 
-// move text
-//
-void CText::Move( int x, int y, int angle, 
-					BOOL mirror, BOOL negative, int layer )
+// CPT moved this function out of CTextList and into CText.  Added optional size/width params (default vals -1)
+void CText::Move( int x, int y, int angle, BOOL mirror, BOOL negative, int layer, int size, int w )
 {
+	CDisplayList *dlist = m_dlist;
+	SMFontUtil *smf = m_smfontutil;
 	Undraw();
 	m_x = x;
 	m_y = y;
@@ -255,8 +286,39 @@ void CText::Move( int x, int y, int angle,
 	m_layer = layer;
 	m_mirror = mirror;
 	m_bNegative = negative;
-	Draw( m_dlist, m_smfontutil );
+	if (size>=0) m_font_size = size;
+	if (w>=0) m_stroke_width = w;
+	if (smf)
+		Draw( dlist, smf );
 }
+
+void CText::GetBounds( CRect &br ) {
+	br.bottom = INT_MAX;
+	br.left = INT_MAX;
+	br.top = INT_MIN;
+	br.right = INT_MIN;
+	// CPT: If text has never been drawn before, generate some strokes first, so we get an accurate return value.  (When first opening the
+	// footprint editor, CFootprintView::OnViewEntireFootprint() often gave bogus results if fp included text.)  Also if m_smfontutil isn't set up,
+	// give it the default value from the document.   In general dealing with m_smfontutil feels like a bit of a charade, since as far as I 
+	// have seen it never varies, but I suppose one day it might...???
+	if (!m_smfontutil) 
+		m_smfontutil = ((CFreePcbApp*)AfxGetApp())->m_Doc->m_smfontutil;
+	if (m_stroke.GetSize()==0) 
+		Draw(0, m_smfontutil);
+	for( int is=0; is<m_stroke.GetSize(); is++ )
+	{
+		stroke * s = &m_stroke[is];
+		br.bottom = min( br.bottom, s->yi - s->w );
+		br.bottom = min( br.bottom, s->yf - s->w );
+		br.top = max( br.top, s->yi + s->w );
+		br.top = max( br.top, s->yf + s->w );
+		br.left = min( br.left, s->xi - s->w );
+		br.left = min( br.left, s->xf - s->w );
+		br.right = max( br.right, s->xi + s->w );
+		br.right = max( br.right, s->xf + s->w );
+	}
+}
+// end CPT
 
 
 //*******************************************************************

@@ -166,7 +166,7 @@ cpart * CPartList::Add( int uid )
 // return pointer to element created.
 //
 cpart * CPartList::Add( CShape * shape, CString * ref_des, CString * package, 
-							int x, int y, int side, int angle, int visible, int glued, int uid )
+							int x, int y, int side, int angle, int visible, int glued, bool ref_vis, int uid )
 {
 	if(m_size >= m_max_size )
 	{
@@ -177,14 +177,14 @@ cpart * CPartList::Add( CShape * shape, CString * ref_des, CString * package,
 	// create new instance and link into list
 	cpart * part = Add( uid );
 	// set data
-	SetPartData( part, shape, ref_des, package, x, y, side, angle, visible, glued );
+	SetPartData( part, shape, ref_des, package, x, y, side, angle, visible, glued, ref_vis );
 	return part;
 }
 
 // Set part data, draw part if m_dlist != NULL
 //
 int CPartList::SetPartData( cpart * part, CShape * shape, CString * ref_des, CString * package, 
-							int x, int y, int side, int angle, int visible, int glued )
+							int x, int y, int side, int angle, int visible, int glued, bool ref_vis  )
 {
 	UndrawPart( part );
 	CDisplayList * old_dlist = m_dlist;
@@ -212,37 +212,32 @@ int CPartList::SetPartData( cpart * part, CShape * shape, CString * ref_des, CSt
 		part->m_ref_angle = 0;
 		part->m_ref_size = 0;
 		part->m_ref_w = 0;
-		part->m_ref_layer = LAY_SILK_TOP;
 		part->m_value_xi = 0;
 		part->m_value_yi = 0;
 		part->m_value_angle = 0;
 		part->m_value_size = 0;
 		part->m_value_w = 0;
-		part->m_value_layer = LAY_SILK_TOP;
 	}
 	else
 	{
 		part->shape = shape;
 		part->pin.SetSize( shape->m_padstack.GetSize() );
-		for( int ip=0; ip<part->pin.GetSize(); ip++ )
-			part->pin[ip].m_part = part;	// set parent part for each pin
 		Move( part, x, y, angle, side );	// force setting pin positions
 		part->m_ref_xi = shape->m_ref_xi;
 		part->m_ref_yi = shape->m_ref_yi;
 		part->m_ref_angle = shape->m_ref_angle;
 		part->m_ref_size = shape->m_ref_size;
 		part->m_ref_w = shape->m_ref_w;
-		part->m_ref_layer = FootprintLayer2Layer( shape->m_ref_layer );
 		part->m_value_xi = shape->m_value_xi;
 		part->m_value_yi = shape->m_value_yi;
 		part->m_value_angle = shape->m_value_angle;
 		part->m_value_size = shape->m_value_size;
 		part->m_value_w = shape->m_value_w;
-		part->m_value_layer = FootprintLayer2Layer( shape->m_value_layer );
 	}
 	part->m_outline_stroke.SetSize(0);
 	part->ref_text_stroke.SetSize(0);
 	part->value_stroke.SetSize(0);
+	part->m_ref_vis = ref_vis;					// CPT
 	m_size++;
 
 	// now draw part into display list
@@ -2363,7 +2358,7 @@ cpart * CPartList::AddFromString( CString * str )
 		}
 		in_str = str->Tokenize( "\n", pos );
 	}
-	SetPartData( part, s, &ref_des, &package, x, y, side, angle, 1, glued );
+	SetPartData( part, s, &ref_des, &package, x, y, side, angle, 1, glued, ref_vis );
 	SetValue( part, &value, value_xi, value_yi, value_angle, value_size, value_width, 
 		value_vis, value_layer );
 	if( part->shape ) 
@@ -2677,16 +2672,9 @@ int CPartList::ExportPartListInfo( partlist_info * pl, cpart * test_part )
 		(*pl)[i].shape = part->shape;
 		(*pl)[i].bShapeChanged = FALSE;
 		(*pl)[i].ref_des = part->ref_des;
-		if( part->shape )
-		{
-			(*pl)[i].ref_size = part->m_ref_size;
-			(*pl)[i].ref_width = part->m_ref_w;
-		}
-		else
-		{
-			(*pl)[i].ref_size = 0;
-			(*pl)[i].ref_width = 0;
-		}
+		(*pl)[i].ref_vis = part->m_ref_vis;
+		(*pl)[i].ref_size = part->m_ref_size;
+		(*pl)[i].ref_width = part->m_ref_w;
 		(*pl)[i].package = part->package;
 		(*pl)[i].value = part->value;
 		(*pl)[i].value_vis = part->m_value_vis;
@@ -2991,7 +2979,7 @@ void CPartList::ImportPartListInfo( partlist_info * pl, int flags, CDlgLog * log
 			}
 			// now place part
 			cpart * part = Add( pi->shape, &pi->ref_des, &pi->package, pi->x, pi->y,
-				pi->side, pi->angle, TRUE, FALSE );
+				pi->side, pi->angle, TRUE, FALSE, &pi->ref_vis );
 			if( part->shape )
 			{
 				ResizeRefText( part, pi->ref_size, pi->ref_width );
@@ -3002,7 +2990,7 @@ void CPartList::ImportPartListInfo( partlist_info * pl, int flags, CDlgLog * log
 					part->shape->m_value_size, 
 					part->shape->m_value_w,
 					pi->value_vis, 
-					FootprintLayer2Layer( part->shape->m_value_layer )
+					FootprintLayer2Layer( part->shape->m_ref->m_layer )
 					);
 			}
 			else
@@ -3017,10 +3005,11 @@ void CPartList::ImportPartListInfo( partlist_info * pl, int flags, CDlgLog * log
 				// package changed
 				pi->part->package = pi->package;
 			}
-			if( pi->part->value != pi->value )
+			if( pi->part->value != pi->value || pi->part->m_value_vis != pi->value_vis )
 			{
-				// value changed, keep size and position
-				SetValue( pi->part, &pi->value, 
+				// value changed, keep size, position and visibility
+				SetValue( pi->part, 
+					&pi->value, 
 					pi->part->shape->m_value_xi, 
 					pi->part->shape->m_value_yi,
 					pi->part->shape->m_value_angle, 
@@ -3030,6 +3019,11 @@ void CPartList::ImportPartListInfo( partlist_info * pl, int flags, CDlgLog * log
 					pi->value_layer
 					);
 
+			}
+			if( pi->part->m_ref_vis != pi->ref_vis )
+			{
+				// ref visibility changed
+				pi->part->m_ref_vis = pi->ref_vis;
 			}
 			if( pi->part->shape != pi->shape || pi->bShapeChanged == TRUE )
 			{

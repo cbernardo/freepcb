@@ -4554,65 +4554,15 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 		break;
 	}	// end switch
 
-	if( nChar == ' ' )
-	{
-		// space bar pressed, center window on cursor then center cursor
-		m_org_x = p.x - ((m_client_r.right-m_left_pane_w)*m_pcbu_per_pixel)/2;
-		m_org_y = p.y - ((m_client_r.bottom-m_bottom_pane_h)*m_pcbu_per_pixel)/2;
-		CRect screen_r;
-		GetWindowRect( &screen_r );
-		m_dlist->SetMapping( &m_client_r, &screen_r, m_left_pane_w, m_bottom_pane_h, m_pcbu_per_pixel,
-			m_org_x, m_org_y );
-		Invalidate( FALSE );
-		p = m_dlist->PCBToScreen( p );
-		SetCursorPos( p.x, p.y );
-	}
-	else if( nChar == VK_HOME )
+	// CPT
+	if( nChar == VK_HOME )
 	{
 		// home key pressed, ViewAllElements
 		OnViewAllElements();
 	}
-	else if( nChar == 33 )
-	{
-		// PgUp pressed, zoom in
-		if( m_pcbu_per_pixel > 254 )
-		{
-			m_pcbu_per_pixel = m_pcbu_per_pixel/ZOOM_RATIO;
-			m_org_x = p.x - ((m_client_r.right-m_left_pane_w)*m_pcbu_per_pixel)/2;
-			m_org_y = p.y - ((m_client_r.bottom-m_bottom_pane_h)*m_pcbu_per_pixel)/2;
-			CRect screen_r;
-			GetWindowRect( &screen_r );
-			m_dlist->SetMapping( &m_client_r, &screen_r, m_left_pane_w, m_bottom_pane_h, m_pcbu_per_pixel,
-				m_org_x, m_org_y );
-			Invalidate( FALSE );
-			p = m_dlist->PCBToScreen( p );
-			SetCursorPos( p.x, p.y );
-		}
-	}
-	else if( nChar == 34 )
-	{
-		// PgDn pressed, zoom out
-		// first, make sure that window boundaries will be OK
-		int org_x = p.x - ((m_client_r.right-m_left_pane_w)*m_pcbu_per_pixel*ZOOM_RATIO)/2;
-		int org_y = p.y - ((m_client_r.bottom-m_bottom_pane_h)*m_pcbu_per_pixel*ZOOM_RATIO)/2;
-		int max_x = org_x + (m_client_r.right-m_left_pane_w)*m_pcbu_per_pixel*ZOOM_RATIO;
-		int max_y = org_y + (m_client_r.bottom-m_bottom_pane_h)*m_pcbu_per_pixel*ZOOM_RATIO;
-		if( org_x > -PCB_BOUND && org_x < PCB_BOUND && max_x > -PCB_BOUND && max_x < PCB_BOUND
-			&& org_y > -PCB_BOUND && org_y < PCB_BOUND && max_y > -PCB_BOUND && max_y < PCB_BOUND )
-		{
-			// OK, do it
-			m_org_x = org_x;
-			m_org_y = org_y;
-			m_pcbu_per_pixel = m_pcbu_per_pixel*ZOOM_RATIO;
-			CRect screen_r;
-			GetWindowRect( &screen_r );
-			m_dlist->SetMapping( &m_client_r, &screen_r, m_left_pane_w, m_bottom_pane_h, m_pcbu_per_pixel,
-				m_org_x, m_org_y );
-			Invalidate( FALSE );
-			p = m_dlist->PCBToScreen( p );
-			SetCursorPos( p.x, p.y );
-		}
-	}
+	HandlePanAndZoom(nChar, p);
+	// end CPT
+
 	ReleaseDC( pDC );
 	if( m_lastKeyWasArrow ==FALSE && m_lastKeyWasGroupRotate==false )
 		ShowSelectStatus();
@@ -5103,11 +5053,22 @@ void CFreePcbView::SetFKText( int mode )
 		break;
 	}
 
+
+	// CPT: Lefthanded mode support:  if set, reverse key meanings
+	if (m_Doc->m_bLefthanded) 
+		for (int lo=0, hi=8, tmp; lo<hi; lo++, hi--)
+			tmp = m_fkey_option[lo], 
+			m_fkey_option[lo] = m_fkey_option[hi],
+			m_fkey_option[hi] = tmp;
+
 	for( int i=0; i<12; i++ )
 	{
-		strcpy( m_fkey_str[2*i],   fk_str[2*m_fkey_option[i]] );
-		strcpy( m_fkey_str[2*i+1], fk_str[2*m_fkey_option[i]+1] );
+		// CPT: now we store resource string id's rather than do a strcpy() as before
+		int index = 2*m_fkey_option[i];
+		m_fkey_rsrc[2*i] = IDS_FkStr+index;
+		m_fkey_rsrc[2*i+1] = IDS_FkStr+index+1;
 	}
+	// end CPT
 
 	InvalidateLeftPane();
 	Invalidate( FALSE );
@@ -5164,37 +5125,37 @@ void CFreePcbView::DrawBottomPane()
 	pDC->SelectObject(old_brush);
 	pDC->SelectObject(old_pen);
 
-	// draw labels for function keys at bottom of client area
-	for( int j=0; j<3; j++ )
+	// draw labels for function keys at bottom of client area.  CPT:  adjusted the positions of the gaps in lefthanded mode
+	for (int ifn=0; ifn<9; ifn++)
 	{
-		for( int i=0; i<4; i++ )
-		{
-			int ifn = j*4+i;
-			if( ifn < 9 )
-			{
-				CRect r( FKEY_OFFSET_X+ifn*FKEY_STEP+j*FKEY_GAP,
-					m_client_r.bottom-FKEY_OFFSET_Y-FKEY_R_H,
-					FKEY_OFFSET_X+ifn*FKEY_STEP+j*FKEY_GAP+FKEY_R_W,
-					m_client_r.bottom-FKEY_OFFSET_Y );
-				pDC->Rectangle( &r );
-				pDC->MoveTo( r.left+FKEY_SEP_W, r.top );
-				pDC->LineTo( r.left+FKEY_SEP_W, r.top + FKEY_R_H/2 + 1 );
-				pDC->MoveTo( r.left, r.top + FKEY_R_H/2 );
-				pDC->LineTo( r.left+FKEY_SEP_W, r.top + FKEY_R_H/2 );
-				r.top += 1;
-				r.left += 2;
-				char fkstr[3] = "F1";
-				fkstr[1] = '1' + j*4+i;
-				pDC->DrawText( fkstr, -1, &r, 0 );
-				r.left += FKEY_SEP_W;
-				char * str1 = &m_fkey_str[2*ifn][0];
-				char * str2 = &m_fkey_str[2*ifn+1][0];
-				pDC->DrawText( str1, -1, &r, 0 );
-				r.top += FKEY_R_H/2 - 2;
-				pDC->DrawText( str2, -1, &r, 0 );
-			}
-		}
+		int left = FKEY_OFFSET_X + ifn*FKEY_STEP;
+		if (!m_Doc->m_bLefthanded)
+			left += ifn/4 * FKEY_GAP;
+		else
+			left += (ifn+3)/4 * FKEY_GAP;
+		CRect r( left, 
+			m_client_r.bottom-FKEY_OFFSET_Y-FKEY_R_H,
+			left + FKEY_R_W,
+			m_client_r.bottom-FKEY_OFFSET_Y );
+		pDC->Rectangle( &r );
+		pDC->MoveTo( r.left+FKEY_SEP_W, r.top );
+		pDC->LineTo( r.left+FKEY_SEP_W, r.top + FKEY_R_H/2 + 1 );
+		pDC->MoveTo( r.left, r.top + FKEY_R_H/2 );
+		pDC->LineTo( r.left+FKEY_SEP_W, r.top + FKEY_R_H/2 );
+		r.top += 1;
+		r.left += 2;
+		char fkstr[3] = "F1";
+		fkstr[1] = '1' + ifn;
+		pDC->DrawText( fkstr, -1, &r, 0 );
+		r.left += FKEY_SEP_W;
+		CString str1 ((LPCSTR) m_fkey_rsrc[2*ifn]);
+		CString str2 ((LPCSTR) m_fkey_rsrc[2*ifn+1]);
+		pDC->DrawText( str1, -1, &r, 0 );
+		r.top += FKEY_R_H/2 - 2;
+		pDC->DrawText( str2, -1, &r, 0 );
 	}
+	// end CPT
+
 	pDC->SelectObject( old_font );
 	ReleaseDC( pDC );
 }
@@ -10291,7 +10252,9 @@ void CFreePcbView::MoveGroup( int dx, int dy )
 							id sid( ID_NET, net->UID(), ID_CONNECT, c->UID(), ic, 
 								ID_SEL_SEG, c->SegByIndex(is).UID(), is );
 							m_sel_ids.Add( sid );
-							c->SegByIndex(is).dl_el->visible = 1;	// restore visibility
+							dl_element * dl = c->SegByIndex(is).dl_el;
+							if( dl )
+								dl->visible = 1;	// restore visibility
 						}
 					}
 					for( int iv=0; iv<c->NumSegs()+1; iv++ )
@@ -10559,7 +10522,7 @@ void CFreePcbView::OnGroupCopy()
 			cpart * part = (cpart*)m_sel_ptrs[i];
 			CShape * shape = part->shape;
 			cpart * g_part = g_pl->Add( part->shape, &part->ref_des, &part->package, part->x, part->y,
-				part->side, part->angle, 1, 0 );
+				part->side, part->angle, 1, 0, part->m_ref_vis );
 			// set ref text parameters
 			g_part->m_ref_angle = part->m_ref_angle;
 			g_part->m_ref_size = part->m_ref_size;
@@ -11405,7 +11368,7 @@ void CFreePcbView::OnGroupPaste()
 			// add new part
 			cpart * prj_part = pl->Add( g_part->shape, &new_ref, &g_part->package,
 				g_part->x + dlg.m_dx, g_part->y + dlg.m_dy,
-				g_part->side, g_part->angle, 1, 0 );
+				g_part->side, g_part->angle, 1, 0, g_part->m_ref_vis );
 			ref_des_map.SetAt( new_ref, NULL );
 			SaveUndoInfoForPart( prj_part,
 				CPartList::UNDO_PART_ADD, &prj_part->ref_des, FALSE, m_Doc->m_undo_list );
@@ -13939,4 +13902,181 @@ void CFreePcbView::PlacementGridDown() {
 	frm->m_wndMyToolBar.PlacementGridDown();
 	}
 
+// end CPT
+
+// - AMW - these were taken from CCommonView
+// CPT
+bool CFreePcbView::HandleLayerKey(UINT nChar, bool bShiftKeyDown, bool bCtrlKeyDown, CDC *pDC) {
+	if( nChar>=VK_NUMPAD1 && nChar<=VK_NUMPAD9 )	// Translate number-pad numbers to regular numbers...
+		nChar = '1' + nChar - VK_NUMPAD1;
+	char * ch = strchr( layer_char, nChar );
+	if (!ch) return false;
+	int l = ch - layer_char;
+	int layer = GetLayerNum(l + GetTopCopperLayer());
+	if( layer >= GetNLayers() ) return true;
+	InvalidateLeftPane();
+	Invalidate(FALSE);
+	if (bCtrlKeyDown) {
+		// New CPT ctrl-hotkeys
+		int vis = ToggleLayerVis(layer);
+		m_dlist->SetLayerVisible( layer, vis );
+	}
+	else if (bShiftKeyDown) HandleShiftLayerKey(layer, pDC);
+	else                    HandleNoShiftLayerKey(layer, pDC);
+	return true;
+}
+
+void CFreePcbView::HandlePanAndZoom(int nChar, CPoint &p) {
+	if (m_Doc->m_bReversePgupPgdn)
+		if (nChar==33) nChar = 34;
+		else if (nChar==34) nChar = 33;
+
+	if( nChar == ' ' )
+	{
+		// space bar pressed, center window on cursor then center cursor
+		m_org_x = p.x - ((m_client_r.right-m_left_pane_w)*m_pcbu_per_pixel)/2;
+		m_org_y = p.y - ((m_client_r.bottom-m_bottom_pane_h)*m_pcbu_per_pixel)/2;
+		CRect screen_r;
+		GetWindowRect( &screen_r );
+		m_dlist->SetMapping( &m_client_r, &screen_r, m_left_pane_w, m_bottom_pane_h, m_pcbu_per_pixel, 
+			m_org_x, m_org_y );
+		Invalidate( FALSE );
+		p = m_dlist->PCBToScreen( p );
+		SetCursorPos( p.x, p.y - 4 );
+	}
+	else if( nChar == 33 )
+	{
+		// PgUp pressed, zoom in
+		if( m_pcbu_per_pixel > 254 )
+		{
+			m_pcbu_per_pixel = m_pcbu_per_pixel/ZOOM_RATIO;
+			m_org_x = p.x - ((m_client_r.right-m_left_pane_w)*m_pcbu_per_pixel)/2;
+			m_org_y = p.y - ((m_client_r.bottom-m_bottom_pane_h)*m_pcbu_per_pixel)/2;
+			CRect screen_r;
+			GetWindowRect( &screen_r );
+			m_dlist->SetMapping( &m_client_r, &screen_r, m_left_pane_w, m_bottom_pane_h, m_pcbu_per_pixel, 
+				m_org_x, m_org_y );
+			Invalidate( FALSE );
+			p = m_dlist->PCBToScreen( p );
+			SetCursorPos( p.x, p.y - 4 );
+		}
+	}
+	else if( nChar == 34 )
+	{
+		// PgDn pressed, zoom out
+		// first, make sure that window boundaries will be OK
+		int org_x = p.x - ((m_client_r.right-m_left_pane_w)*m_pcbu_per_pixel*ZOOM_RATIO)/2;
+		int org_y = p.y - ((m_client_r.bottom-m_bottom_pane_h)*m_pcbu_per_pixel*ZOOM_RATIO)/2;
+		int max_x = org_x + (m_client_r.right-m_left_pane_w)*m_pcbu_per_pixel*ZOOM_RATIO;
+		int max_y = org_y + (m_client_r.bottom-m_bottom_pane_h)*m_pcbu_per_pixel*ZOOM_RATIO;
+		if( org_x > -PCB_BOUND && org_x < PCB_BOUND && max_x > -PCB_BOUND && max_x < PCB_BOUND
+			&& org_y > -PCB_BOUND && org_y < PCB_BOUND && max_y > -PCB_BOUND && max_y < PCB_BOUND )
+		{
+			// OK, do it
+			m_org_x = org_x;
+			m_org_y = org_y;
+			m_pcbu_per_pixel = m_pcbu_per_pixel*ZOOM_RATIO;
+			CRect screen_r;
+			GetWindowRect( &screen_r );
+			m_dlist->SetMapping( &m_client_r, &screen_r, m_left_pane_w, m_bottom_pane_h, m_pcbu_per_pixel, 
+				m_org_x, m_org_y );
+			Invalidate( FALSE );
+			p = m_dlist->PCBToScreen( p );
+			SetCursorPos( p.x, p.y );
+		}
+	}
+}
+// end CPT
+// end AMW
+
+// CPT
+void CFreePcbView::HandleNoShiftLayerKey(int layer, CDC *pDC) {
+	if( !m_Doc->m_vis[layer] ) {
+		PlaySound( TEXT("CriticalStop"), 0, 0 );
+		CString s ((LPCSTR) IDS_CantRouteOnInvisibleLayer);
+		AfxMessageBox( s );
+		return;
+		}
+	if( m_cursor_mode == CUR_DRAG_RAT || m_cursor_mode == CUR_DRAG_TRACE) {
+		// if we are routing, change layer
+		pDC->SelectClipRgn( &m_pcb_rgn );
+		SetDCToWorldCoords( pDC );						// Haven't figured out why we need this...
+		if( m_sel_id.I2() == 0 && m_dir == 0 ) {
+			// we are trying to change first segment from pad
+			int p1 = m_sel_id.Con()->start_pin;
+			CString pin_name = m_sel_net->pin[p1].pin_name;
+			int pin_index = m_sel_net->pin[p1].part->shape->GetPinIndexByName( pin_name );
+			if( m_sel_net->pin[p1].part->shape->m_padstack[pin_index].hole_size == 0)
+				// SMT pad, this is illegal;
+				layer = -1,
+				PlaySound( TEXT("CriticalStop"), 0, 0 );
+			}
+		else if( m_sel_id.I2() == (m_sel_id.Con()->NumSegs()-1) && m_dir == 1 ) {
+			// we are trying to change last segment to pad
+			int p2 = m_sel_id.Con()->end_pin;
+			if( p2 != -1 ) {
+				CString pin_name = m_sel_id.Net()->pin[p2].pin_name;
+				int pin_index = m_sel_net->pin[p2].part->shape->GetPinIndexByName( pin_name );
+				if( m_sel_net->pin[p2].part->shape->m_padstack[pin_index].hole_size == 0)
+					// SMT pad
+					layer = -1,
+					PlaySound( TEXT("CriticalStop"), 0, 0 );
+				}
+			}
+		if( layer != -1 ) {
+			m_dlist->ChangeRoutingLayer( pDC, layer, LAY_SELECTION, 0 );
+			m_active_layer = layer;
+			ShowActiveLayer();
+			}
+		return;
+		}
+	
+	m_active_layer = layer;
+	ShowActiveLayer();
+	}
+
+void CFreePcbView::HandleShiftLayerKey(int layer, CDC *pDC) {
+	if( m_cursor_mode == CUR_SEG_SELECTED )	{
+		SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_Doc->m_undo_list );
+		m_sel_id.Con()->Undraw();	// AMW: updated for new id functions, etc.
+		cconnect * c = m_sel_id.Con();
+		cseg * seg = m_sel_id.Seg();
+		seg->m_layer = layer;
+		m_sel_id.Con()->Draw();		
+		m_Doc->ProjectModified( TRUE );
+		Invalidate( FALSE );
+		}
+	else if( m_cursor_mode == CUR_CONNECT_SELECTED ) {
+		SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_Doc->m_undo_list );
+		m_sel_id.Con()->Undraw();	// AMW: updated for new id functions, etc.
+		cconnect * c = m_sel_id.Con();
+		for( int is=0; is<c->NumSegs(); is++ ) {
+			cseg * seg = &c->SegByIndex(is);
+			seg->m_layer = layer;
+			}
+		m_sel_id.Con()->Draw();	
+		m_Doc->ProjectModified( TRUE );
+		Invalidate( FALSE );
+		}
+	else if( m_cursor_mode == CUR_AREA_CORNER_SELECTED || m_cursor_mode == CUR_AREA_SIDE_SELECTED ) {
+		SaveUndoInfoForAllAreasInNet( m_sel_net, TRUE, m_Doc->m_undo_list );
+		carea * a = &m_sel_net->area[m_sel_ia];
+		a->Undraw();
+		a->SetLayer( layer );
+		a->Draw( m_dlist );
+		int ret = m_Doc->m_nlist->AreaPolygonModified( m_sel_net, m_sel_ia, TRUE, TRUE );
+		if( ret == -1 ) {
+			// error
+			CString s ((LPCSTR) IDS_ErrorUnableToClipPolygon);
+			AfxMessageBox( s );
+			m_Doc->OnEditUndo();
+			}
+		else if( m_Doc->m_vis[LAY_RAT_LINE] )
+			m_Doc->m_nlist->OptimizeConnections(  m_sel_net, -1, m_Doc->m_auto_ratline_disable,
+					m_Doc->m_auto_ratline_min_pins, TRUE  );
+		CancelSelection();
+		m_Doc->ProjectModified( TRUE );
+		Invalidate( FALSE );
+		}
+	}		
 // end CPT
