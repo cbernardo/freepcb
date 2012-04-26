@@ -1250,7 +1250,7 @@ int CPartList::DrawPart( cpart * part )
 			{
 				id.SetI3( is );
 				m_stroke[is].dl_el = m_dlist->Add( id, this, 
-					m_stroke[is].layer, DL_LINE, 1, m_stroke[is].w, 0, 0,
+					ref_layer, DL_LINE, 1, m_stroke[is].w, 0, 0,
 					m_stroke[is].xi, m_stroke[is].yi, 
 					m_stroke[is].xf, m_stroke[is].yf, 0, 0 );
 				part->ref_text_stroke[is] = m_stroke[is];

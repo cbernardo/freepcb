@@ -581,72 +581,66 @@ void CFootprintView::OnLButtonDown(UINT nFlags, CPoint point)
 			{
 				id id = hit_info[idx].ID;
 				// now check for new selection
-				if( id.T1() == ID_PART )
+				if( id.IsAnyFootItem() )
 				{
 					// something was selected
 					m_sel_id = id;
-					if( id.T2() == ID_SEL_PAD )
+					if( id.IsFootPad() )
 					{
 						// pad selected
 						m_fp.SelectPad( id.I2() );
 						SetCursorMode( CUR_FP_PAD_SELECTED );
 						Invalidate( FALSE );
 					}
-					else if( id.T2() == ID_REF_TXT )
+					else if( id.IsFootRef() )
 					{
 						// ref text selected
 						m_fp.m_ref_text.Highlight();
 						SetCursorMode( CUR_FP_REF_SELECTED );
 					}
-					else if( id.T2() == ID_VALUE_TXT )
+					else if( id.IsFootValue() )
 					{
 						// value text selected
 						m_fp.m_value_text.Highlight();
 						SetCursorMode( CUR_FP_VALUE_SELECTED );
 					}
-					else if( id.T2() == ID_POLYLINE )
+					else if( id.IsFootPolyCorner() )
 					{
-						// outline polyline selected
-						int i = m_sel_id.I2();
-						if( id.T3() == ID_SEL_CORNER )
-						{
-							// corner selected
-							int ic = m_sel_id.I3();
-							m_fp.m_outline_poly[i].HighlightCorner( ic );
-							SetCursorMode( CUR_FP_POLY_CORNER_SELECTED );
-						}
-						else if( id.T3() == ID_SEL_SIDE )
-						{
-							// side selected
-							int is = m_sel_id.I3();
-							m_fp.m_outline_poly[i].HighlightSide( is );
-							SetCursorMode( CUR_FP_POLY_SIDE_SELECTED );
-						}
+						// corner selected
+						int ip = m_sel_id.I2();
+						int ic = m_sel_id.I3();
+						m_fp.m_outline_poly[ip].HighlightCorner( ic );
+						SetCursorMode( CUR_FP_POLY_CORNER_SELECTED );
 					}
-				}
-				else if( id.T1() == ID_TEXT )
-				{
-					// text selected
-					m_sel_id = id;
-					m_sel_text = (CText*)hit_info[idx].ptr;
-					SetCursorMode( CUR_FP_TEXT_SELECTED );
-					m_fp.m_tl->HighlightText( m_sel_text );
-				}
-				else if( id.T1() == ID_CENTROID )
-				{
-					// centroid selected
-					m_sel_id = id;
-					SetCursorMode( CUR_FP_CENTROID_SELECTED );
-					m_fp.SelectCentroid();
-					Invalidate( FALSE );
-				}
-				else if( id.T1() == ID_GLUE )
-				{
-					// glue spot selected
-					m_sel_id = id;
-					SetCursorMode( CUR_FP_ADHESIVE_SELECTED );
-					m_fp.SelectAdhesive( id.I2() );
-					Invalidate( FALSE );
+					else if( id.IsFootPolySide() )
+					{
+						// side selected
+						int ip = m_sel_id.I2();
+						int is = m_sel_id.I3();
+						m_fp.m_outline_poly[ip].HighlightSide( is );
+						SetCursorMode( CUR_FP_POLY_SIDE_SELECTED );
+					}
+					else if( id.IsFootText() )
+					{
+						// text selected
+						m_sel_text = (CText*)hit_info[idx].ptr;
+						SetCursorMode( CUR_FP_TEXT_SELECTED );
+						m_fp.m_tl->HighlightText( m_sel_text );
+					}
+					else if( id.IsCentroid() )
+					{
+						// centroid selected
+						SetCursorMode( CUR_FP_CENTROID_SELECTED );
+						m_fp.SelectCentroid();
+						Invalidate( FALSE );
+					}
+					else if( id.IsGlue() )
+					{
+						// glue spot selected
+						SetCursorMode( CUR_FP_ADHESIVE_SELECTED );
+						m_fp.SelectAdhesive( id.I2() );
+						Invalidate( FALSE );
+					}
 				}
 			}
 			else

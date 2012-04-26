@@ -47,12 +47,14 @@ public:
 		int mirror, BOOL bNegative, int layer, int font_size, 
 		int stroke_width, SMFontUtil * smfontutil, CString * str_ptr );
 	void Draw( CDisplayList * dlist, SMFontUtil * smfontutil );
+	void Draw();
 	void Undraw();
 	void Highlight();
 	void StartDragging( CDC * pDC );
 	void CancelDragging();
 	void Move( int x, int y, int angle, BOOL mirror, BOOL negative, int layer, int size=-1, int w=-1 );
 	void GetBounds( CRect &br );
+	void SetIDType( int type, int subtype );
 	int UID(){ return m_uid; };
 
 	// member variables
@@ -87,6 +89,7 @@ public:
 	CTextList();
 	CTextList( CDisplayList * dlist, SMFontUtil * smfontutil );
 	~CTextList();
+	void SetIDType( int type, int subtype );
 	CText * AddText( int x, int y, int angle, int mirror, 
 					BOOL bNegative,	int layer, 
 					int font_size, int stroke_width, 
@@ -110,6 +113,8 @@ public:
 	static void TextUndoCallback( int type, void * ptr, BOOL undo );
 
 	// member variables
+	int m_text_type;
+	int m_text_subtype;
 	SMFontUtil * m_smfontutil;
 	CDisplayList * m_dlist;
 	CArray<CText*> text_ptr;

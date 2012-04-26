@@ -979,10 +979,14 @@ int CDisplayList::TestSelect(
 		int best_hit_priority = 0;
 		for( int i=0; i<num_hits; i++ )
 		{
-			// resolve all id fields of the item that was hit
-			BOOL bOK = hit_info[i].ID.Resolve();
-			if( !bOK )
-				ASSERT(0);
+			// if a pcb item (ie. not a footprint )
+			// try to resolve all id fields of the item that was hit
+			if( !hit_info[i].ID.IsAnyFootItem() )
+			{
+				BOOL bOK = hit_info[i].ID.Resolve();
+				if( !bOK )
+					ASSERT(0);
+			}
 
 			// now check inclusion/exclusion criteria
 			BOOL excluded_hit = FALSE;
