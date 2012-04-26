@@ -39,6 +39,10 @@ public:
 	// member functions
 	CText();
 	~CText();
+	CText( CDisplayList * dlist, int x, int y, int angle, 
+		int mirror, BOOL bNegative, int layer, int font_size, 
+		int stroke_width, SMFontUtil * smfontutil, CString * str_ptr, 
+		unsigned int selType=ID_TEXT, unsigned int selSubtype=ID_SEL_TXT );
 	void Init( CDisplayList * dlist, id tid, int x, int y, int angle, 
 		int mirror, BOOL bNegative, int layer, int font_size, 
 		int stroke_width, SMFontUtil * smfontutil, CString * str_ptr );
@@ -47,8 +51,8 @@ public:
 	void Highlight();
 	void StartDragging( CDC * pDC );
 	void CancelDragging();
-	void Move( int x, int y, int angle, 
-		BOOL mirror, BOOL negative, int layer );
+	void Move( int x, int y, int angle, BOOL mirror, BOOL negative, int layer, int size=-1, int w=-1 );
+	void GetBounds( CRect &br );
 	int UID(){ return m_uid; };
 
 	// member variables

@@ -25,26 +25,17 @@ void CDlgLayers::DoDataExchange(CDataExchange* pDX)
 {
 	CDialog::DoDataExchange(pDX);
 	if( !pDX->m_bSaveAndValidate )
-	{
-		// on entry
-		for( int i=m_nlayers; i<NUM_DLG_LAYERS; i++ )
+		// on entry.  CPT:  Don't disable the last 4 checks, which are footprint layers
+		for( int i=m_nlayers; i<NUM_MAIN_LAYERS; i++ )
 			GetDlgItem( IDC_CHECK_LAYER_3+i-2 )->EnableWindow( 0 );
-	}
-	for( int i=0; i<NUM_DLG_LAYERS; i++ )
-	{
-		if( i>1 )
-			DDX_Check( pDX, IDC_CHECK_LAYER_3+i-2, m_vis[i] );
-	}
-	if( pDX->m_bSaveAndValidate )
-	{
-		// on OK
-		for( int i=0; i<NUM_DLG_LAYERS; i++ )
-		{
-			m_rgb_ptr[i*3] = m_rgb[i][0];
-			m_rgb_ptr[i*3+1] = m_rgb[i][1];
-			m_rgb_ptr[i*3+2] = m_rgb[i][2];
-		}
-	}
+	for( int i=2; i<NUM_MAIN_LAYERS; i++ )
+		DDX_Check( pDX, IDC_CHECK_LAYER_3+i-2, m_vis[i] );
+	#define IDC_CHECK_FP_LAYERS (IDC_CHECK_LAYER_3+NUM_MAIN_LAYERS-2)
+	static int fpLayers[] = { LAY_FP_CENTROID, LAY_FP_DOT, LAY_FP_TOP_MASK, LAY_FP_TOP_PASTE };
+	for (int i=0; i<4; i++)
+		DDX_Check( pDX, IDC_CHECK_FP_LAYERS+i, m_fp_vis[fpLayers[i]] );
+	DDX_Check( pDX, IDC_CHECK_COLORS_DEFAULT, fColorsDefault );
+	
 }
 
 BEGIN_MESSAGE_MAP(CDlgLayers, CDialog)
@@ -77,19 +68,30 @@ BEGIN_MESSAGE_MAP(CDlgLayers, CDialog)
 	ON_BN_CLICKED(IDC_BUTTON_LAYER_26, OnBnClickedButtonLayer26)
 	ON_BN_CLICKED(IDC_BUTTON_LAYER_27, OnBnClickedButtonLayer27)
 	ON_BN_CLICKED(IDC_BUTTON_LAYER_28, OnBnClickedButtonLayer28)
+	ON_BN_CLICKED(IDC_BUTTON_LAYER_29, OnBnClickedButtonLayer29)
+	ON_BN_CLICKED(IDC_BUTTON_LAYER_30, OnBnClickedButtonLayer30)
+	ON_BN_CLICKED(IDC_BUTTON_LAYER_31, OnBnClickedButtonLayer31)
+	ON_BN_CLICKED(IDC_BUTTON_LAYER_32, OnBnClickedButtonLayer32)
 END_MESSAGE_MAP()
 
-void CDlgLayers::Initialize( int nlayers, int vis[], int rgb[][3] )
+void CDlgLayers::Initialize( int nlayers, int vis[], int fp_vis[], int rgb[][3], int fp_rgb[][3] )
 {
 	m_nlayers = nlayers;
 	m_vis = vis;
-	m_rgb_ptr = (int*)rgb;
-	for( int i=0; i<NUM_DLG_LAYERS; i++ )
+	m_fp_vis = fp_vis;
+	fColorsDefault = false;
+	int *p = (int*)rgb;
+	for( int i=0; i<NUM_MAIN_LAYERS; i++ )
 	{
-		m_rgb[i][0] = m_rgb_ptr[i*3];
-		m_rgb[i][1] = m_rgb_ptr[i*3+1];
-		m_rgb[i][2] = m_rgb_ptr[i*3+2];
+		m_rgb[i][0] = *p++;
+		m_rgb[i][1] = *p++;
+		m_rgb[i][2] = *p++;
 	}
+	static int fpLayerIndex[] = { LAY_FP_CENTROID, LAY_FP_DOT, LAY_FP_TOP_MASK, LAY_FP_BOTTOM_MASK };
+	for( int i=0; i<4; i++ )
+		m_rgb[i+NUM_MAIN_LAYERS][0] = fp_rgb[fpLayerIndex[i]][0],
+		m_rgb[i+NUM_MAIN_LAYERS][1] = fp_rgb[fpLayerIndex[i]][1],
+		m_rgb[i+NUM_MAIN_LAYERS][2] = fp_rgb[fpLayerIndex[i]][2];
 }
 
 
@@ -146,6 +148,10 @@ void CDlgLayers::OnBnClickedButtonLayer25() { EditColor( 24 ); }
 void CDlgLayers::OnBnClickedButtonLayer26() { EditColor( 25 ); }
 void CDlgLayers::OnBnClickedButtonLayer27() { EditColor( 26 ); }
 void CDlgLayers::OnBnClickedButtonLayer28() { EditColor( 27 ); }
+void CDlgLayers::OnBnClickedButtonLayer29() { EditColor( 28 ); }
+void CDlgLayers::OnBnClickedButtonLayer30() { EditColor( 29 ); }
+void CDlgLayers::OnBnClickedButtonLayer31() { EditColor( 30 ); }
+void CDlgLayers::OnBnClickedButtonLayer32() { EditColor( 31 ); }
 
 // edit color for selected layer
 //

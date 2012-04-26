@@ -70,6 +70,10 @@ BOOL padstack::operator==(padstack p)
 CShape::CShape()
 {
 	m_tl = new CTextList;	
+	CString strRef ("REF");
+	m_ref = new CText(0, 0, 0, 0, 0, false, LAY_FP_SILK_TOP, 0, 0, 0, &strRef, ID_PART, ID_REF_TXT);
+	CString strValue ("VALUE");
+	m_value = new CText(0, 0, 0, 0, 0, false, LAY_FP_SILK_TOP, 0, 0, 0, &strValue, ID_PART, ID_VALUE_TXT);
 	Clear();
 } 
 
@@ -78,6 +82,8 @@ CShape::CShape()
 CShape::~CShape()
 {
 	Clear();
+	delete m_ref;
+	delete m_value;
 	delete m_tl;
 }
 
@@ -90,23 +96,22 @@ void CShape::Clear()
 	m_units = MIL;
 	m_sel_xi = m_sel_yi = 0;
 	m_sel_xf = m_sel_yf = 500*NM_PER_MIL;
-	m_ref_layer = LAY_FP_SILK_TOP;
 	m_ref_size = 100*NM_PER_MIL;
 	m_ref_xi = 100*NM_PER_MIL;
 	m_ref_yi = 200*NM_PER_MIL;
 	m_ref_angle = 0;
 	m_ref_w = 10*NM_PER_MIL;
-	m_value_layer = LAY_FP_SILK_TOP;
+	m_ref->Move(m_ref_xi, m_ref_yi, m_ref_angle, false, false, LAY_FP_SILK_TOP, m_ref_size, m_ref_w);
 	m_value_size = 100*NM_PER_MIL;		
 	m_value_xi = 100*NM_PER_MIL;
 	m_value_yi = 0;
 	m_value_angle = 0;
 	m_value_w = 10*NM_PER_MIL;
+	m_value->Move(m_value_xi, m_value_yi, m_value_angle, false, false, LAY_FP_SILK_TOP, m_value_size, m_value_w);
 	m_centroid_type = CENTROID_DEFAULT;
 	m_centroid_x = 0;
 	m_centroid_y = 0;
 	m_centroid_angle = 0;
-	// remove all subelements
 	m_padstack.SetSize(0);
 	m_outline_poly.SetSize(0);
 	m_tl->RemoveAllTexts();
@@ -1253,9 +1258,9 @@ int CShape::MakeFromFile( CStdioFile * in_file, CString name,
 				m_ref_angle = my_atoi( &p[3] ); 
 				m_ref_w = GetDimensionFromString( &p[4], m_units);
 				if( np >= 7 )
-					m_ref_layer = my_atoi( &p[5] );
-				if( m_ref_layer < 4 )
-					m_ref_layer = 4;
+					m_ref->m_layer = my_atoi( &p[5] );
+				if( m_ref->m_layer < 4 )
+					m_ref->m_layer = 4;
 				bRef = TRUE;
 			}
 			else if( key_str == "value_text" && np >= 6 )
@@ -1266,9 +1271,9 @@ int CShape::MakeFromFile( CStdioFile * in_file, CString name,
 				m_value_angle = my_atoi( &p[3] ); 
 				m_value_w = GetDimensionFromString( &p[4], m_units);
 				if( np >= 7 )
-					m_value_layer = my_atoi( &p[5] );
-				if( m_value_layer < 4 )
-					m_value_layer = 4;
+					m_value->m_layer = my_atoi( &p[5] );
+				if( m_value->m_layer < 4 )
+					m_value->m_layer = 4;
 				bValue = TRUE;
 			}
 			else if( key_str == "centroid" && np >= 4 )
@@ -1559,19 +1564,19 @@ int CShape::Copy( CShape * shape )
 	m_sel_xf = shape->m_sel_xf;
 	m_sel_yf = shape->m_sel_yf;
 	// reference designator text
-	m_ref_layer = shape->m_ref_layer;
 	m_ref_size = shape->m_ref_size;
 	m_ref_w = shape->m_ref_w;
 	m_ref_xi = shape->m_ref_xi;
 	m_ref_yi = shape->m_ref_yi;
 	m_ref_angle = shape->m_ref_angle;
+	m_ref->Move(m_ref_xi, m_ref_yi, m_ref_angle, false, false, LAY_FP_SILK_TOP, m_ref_size, m_ref_w);
 	// value text
-	m_value_layer = shape->m_value_layer;
 	m_value_size = shape->m_value_size;
 	m_value_w = shape->m_value_w;
 	m_value_xi = shape->m_value_xi;
 	m_value_yi = shape->m_value_yi;
 	m_value_angle = shape->m_value_angle;
+	m_value->Move(m_value_xi, m_value_yi, m_value_angle, false, false, LAY_FP_SILK_TOP, m_value_size, m_value_w);
 	// centroid
 	m_centroid_type = shape->m_centroid_type;
 	m_centroid_x = shape->m_centroid_x;
@@ -1595,7 +1600,7 @@ int CShape::Copy( CShape * shape )
 	{
 		CText * t = shape->m_tl->text_ptr[it];
 		m_tl->AddText( t->m_x, t->m_y, t->m_angle, t->m_mirror, t->m_bNegative, 
-			t->m_layer, t->m_font_size, t->m_stroke_width, &t->m_str, FALSE ); 
+			LAY_FP_SILK_TOP, t->m_font_size, t->m_stroke_width, &t->m_str, FALSE ); 
 	}
 	// glue spots
 	int nd = shape->m_glue.GetSize();
@@ -1621,13 +1626,13 @@ BOOL CShape::Compare( CShape * shape )
 		|| m_ref_xi != shape->m_ref_xi 
 		|| m_ref_yi != shape->m_ref_yi 
 		|| m_ref_angle != shape->m_ref_angle 
-		|| m_ref_layer != shape->m_ref_layer 
+		|| m_ref->m_layer != shape->m_ref->m_layer 
 		|| m_value_size != shape->m_value_size 
 		|| m_value_w != shape->m_value_w 
 		|| m_value_xi != shape->m_value_xi 
 		|| m_value_yi != shape->m_value_yi 
 		|| m_value_angle != shape->m_value_angle 
-		|| m_value_layer != shape->m_value_layer 
+		|| m_value->m_layer != shape->m_value->m_layer 
 		)
 			return FALSE;
 
@@ -1743,11 +1748,11 @@ int CShape::WriteFootprint( CStdioFile * file )
 		int layer_index = 0;
 		line.Format( "  ref_text: %s %s %s %d %s %d\n", 
 			ws(m_ref_size,m_units), ws(m_ref_xi,m_units), ws(m_ref_yi,m_units), m_ref_angle, 
-			ws(m_ref_w,m_units), m_ref_layer );
+			ws(m_ref_w,m_units), m_ref->m_layer );
 		file->WriteString( line );
 		line.Format( "  value_text: %s %s %s %d %s %d\n", 
 			ws(m_value_size,m_units), ws(m_value_xi,m_units), ws(m_value_yi,m_units), m_value_angle, 
-			ws(m_value_w,m_units), m_value_layer );
+			ws(m_value_w,m_units), m_value->m_layer );
 		file->WriteString( line );
 		line.Format( "  centroid: %d %s %s %d\n", 
 			m_centroid_type, ws(m_centroid_x,m_units), ws(m_centroid_y,m_units), m_centroid_angle );
@@ -1887,8 +1892,16 @@ HENHMETAFILE CShape::CreateMetafile( CMetaFileDC * mfDC, CDC * pDC, CRect const 
 	int x_size = window.Width();
 	int y_size = window.Height();
 
-	// get bounds of shape
-	int x_min = INT_MAX;
+	// CPT:  substituted in a call to GetBounds() (I get my jollies by culling duplicate code).  It's probably possible to factor out some
+	// of the drawing that occurs later in the routine as well...
+	CRect r = GetBounds(), rRef;
+	// Account for the ref-text bounds also (which GetBounds() didn't do)
+	m_ref->GetBounds(rRef);
+	r.left = min(r.left, rRef.left);
+	r.right = max(r.right, rRef.right);
+	r.bottom = min(r.bottom, rRef.bottom);
+	r.top = max(r.top, rRef.top);
+/*	int x_min = INT_MAX;
 	int x_max = INT_MIN;
 	int y_min = INT_MAX;
 	int y_max = INT_MIN;
@@ -1938,10 +1951,10 @@ HENHMETAFILE CShape::CreateMetafile( CMetaFileDC * mfDC, CDC * pDC, CRect const 
 	for( int ip=0; ip<m_outline_poly.GetSize(); ip++ )
 	{
 		CPolyLine * p = &m_outline_poly[ip];
-		for( int ic=0; ic<p->NumCorners(); ic++ )
+		for( int ic=0; ic<p->GetNumCorners(); ic++ )
 		{
-			int x = p->X( ic );
-			int y = p->Y( ic );
+			int x = p->GetX( ic );
+			int y = p->GetY( ic );
 			x_min = min( x_min, x );
 			x_max = max( x_max, x );
 			y_min = min( y_min, y );
@@ -1967,7 +1980,7 @@ HENHMETAFILE CShape::CreateMetafile( CMetaFileDC * mfDC, CDC * pDC, CRect const 
 			int xi, yi, xf, yf;
 			double coord[64][4];
 			double min_x, min_y, max_x, max_y;
-			int nstrokes = smfontutil->GetCharStrokes( t_str[ic], SIMPLEX,
+			int nstrokes = smfontutil->GetCharStrokes( t_str[ic], SIMPLEX, 
 				&min_x, &min_y, &max_x, &max_y, coord, 64 );
 			for( int is=0; is<nstrokes; is++ )
 			{
@@ -1995,7 +2008,7 @@ HENHMETAFILE CShape::CreateMetafile( CMetaFileDC * mfDC, CDC * pDC, CRect const 
 				sf.x += t->m_x;
 				si.y += t->m_y;
 				sf.y += t->m_y;
-				// rotate to angle
+				// rotate to angle 
 				CPoint text_org( t->m_x, t->m_y );
 				RotatePoint( &si, t->m_angle, text_org );
 				RotatePoint( &sf, t->m_angle, text_org );
@@ -2013,12 +2026,13 @@ HENHMETAFILE CShape::CreateMetafile( CMetaFileDC * mfDC, CDC * pDC, CRect const 
 	x_max = max( x_max, m_ref_xi+3*m_ref_size );
 	y_min = min( y_min, m_ref_yi );
 	y_max = max( y_max, m_ref_yi+m_ref_size );
+	*/
 
 	// convert to mils
-	x_min = x_min/NM_PER_MIL;
-	x_max = x_max/NM_PER_MIL;
-	y_min = y_min/NM_PER_MIL;
-	y_max = y_max/NM_PER_MIL;
+	int x_min = r.left/NM_PER_MIL;
+	int x_max = r.right/NM_PER_MIL;
+	int y_min = r.bottom/NM_PER_MIL;
+	int y_max = r.top/NM_PER_MIL;
 
 	// set up scale factor for drawing, mils per pixel
 	double x_scale = (double)(x_max-x_min)/(double)x_size;
@@ -3393,18 +3407,18 @@ void CEditShape::Draw( CDisplayList * dlist, SMFontUtil * fontutil )
 
 	// draw ref designator text
 	id rid( ID_PART, -1, ID_REF_TXT );
-	BOOL bMirror = (m_ref_layer == LAY_FP_SILK_BOTTOM || m_ref_layer == LAY_FP_BOTTOM_COPPER) ;
+	BOOL bMirror = (m_ref->m_layer == LAY_FP_SILK_BOTTOM || m_ref->m_layer == LAY_FP_BOTTOM_COPPER) ;
 	CString r_str( "REF" );
 	m_ref_text.Init( m_dlist, rid, m_ref_xi, m_ref_yi, m_ref_angle,
-			bMirror, FALSE, m_ref_layer, m_ref_size, m_ref_w,
+			bMirror, FALSE, m_ref->m_layer, m_ref_size, m_ref_w,
 			fontutil, &r_str );
 
 	// draw value text
 	id vid( ID_PART, -1, ID_VALUE_TXT );
-	bMirror = (m_value_layer == LAY_FP_SILK_BOTTOM || m_value_layer == LAY_FP_BOTTOM_COPPER) ;
+	bMirror = (m_value->m_layer == LAY_FP_SILK_BOTTOM || m_value->m_layer == LAY_FP_BOTTOM_COPPER) ;
 	CString v_str( "VALUE" );
 	m_value_text.Init( m_dlist, vid, m_value_xi, m_value_yi, m_value_angle,
-			bMirror, FALSE, m_value_layer, m_value_size, m_value_w,
+			bMirror, FALSE, m_value->m_layer, m_value_size, m_value_w,
 			fontutil, &v_str );
 
 	// now draw outline polylines

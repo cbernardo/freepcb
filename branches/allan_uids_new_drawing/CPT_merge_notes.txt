@@ -3,16 +3,18 @@ CPT merge notes
 #1	- merged.  CPT r260: added m_active_width display in status bar.
 #2	- merged
 #2a	- deferred, since I've been combining property dialogs, so all properties 
-	of an item are accessed from a single dialog using F1, leaving F2 available		
+		of an item are accessed from a single dialog using F1, leaving F2 available		
 #3  - merged 
 #4  - merged
 #5  - deferred, since I think this was changed later
 #6  - deferred, since I'm not seeing the problem with SetTemplates()
 #7  - merged
 #8  - merged
-#9  - merged new Project Options dialog, but this doesn't have the items that were later moved 
-	to Tools->Options
+#9  - merged
+#10 - AMW r260: merged
 #11 - CPT r260:  merged.
+#12 - AMW r260: merged and compiles, but required changes to multiple classes
+		probably incomplete, will require more testing, so far group move fails
 #13 - merged
 #14 - merged
 #14a - merged

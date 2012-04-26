@@ -119,28 +119,28 @@ class CShape
 {
 	// if variables are added, remember to modify Copy!
 public:
-	enum { MAX_NAME_SIZE = 59 };		// max. characters
+	enum { MAX_NAME_SIZE = 59 };	// max. characters
 	enum { MAX_PIN_NAME_SIZE = 39 };
 	enum { MAX_VALUE_SIZE = 39 };
-	CString m_name;						// name of shape (e.g. "DIP20")
+	CString m_name;		// name of shape (e.g. "DIP20")
 	CString m_author;
 	CString m_source;
 	CString m_desc;
-	int m_units;						// units used for original definition (MM, NM or MIL)
+	int m_units;		// units used for original definition (MM, NM or MIL)
 	int m_sel_xi, m_sel_yi, m_sel_xf, m_sel_yf;			// selection rectangle
-	int m_ref_size, m_ref_xi, m_ref_yi, m_ref_angle;	// ref text
-	int m_ref_w;						// thickness of stroke for ref text
-	int m_ref_layer;					
+	CText *m_ref;										// CPT:  New system! Use the CText machinery to process "REF" and "VALUE"
+	int m_ref_size, m_ref_xi, m_ref_yi, m_ref_angle;	// ref text params
+	int m_ref_w;										// thickness of stroke for ref text
+	CText *m_value;										// CPT:  New system!
 	int m_value_size, m_value_xi, m_value_yi, m_value_angle;	// value text
-	int m_value_w;						// thickness of stroke for value text
-	int m_value_layer;				
+	int m_value_w;												// thickness of stroke for value text
 	CENTROID_TYPE m_centroid_type;		// type of centroid
 	int m_centroid_x, m_centroid_y;		// position of centroid
 	int m_centroid_angle;				// angle of centroid (CCW)
 	CArray<padstack> m_padstack;		// array of padstacks for shape
 	CArray<CPolyLine> m_outline_poly;	// array of polylines for part outline
 	CTextList * m_tl;					// list of text strings
-	CArray<glue> m_glue;				// array of adhesive dots
+	CArray<glue> m_glue;		// array of adhesive dots
 
 public:
 	CShape();
@@ -160,10 +160,14 @@ public:
 	CRect GetAllPadBounds();
 	int Copy( CShape * shape );	// copy all data from shape
 	BOOL Compare( CShape * shape );	// compare shapes, return true if same
-//**	HENHMETAFILE CreateMetafile( CMetaFileDC * mfDC, CDC * pDC, int x_size, int y_size );
-	HENHMETAFILE CreateMetafile( CMetaFileDC * mfDC, CDC * pDC, CRect const &window, CString ref = "REF", int bDrawSelectionRect=1 );
+//	HENHMETAFILE CreateMetafile( CMetaFileDC * mfDC, CDC * pDC, int x_size, int y_size );
+	HENHMETAFILE CreateMetafile( CMetaFileDC * mfDC, CDC * pDC, CRect const &window, 
+		CString ref = "REF", int bDrawSelectionRect=1 );
+	// CPT:  the following is apparently leftover scrap?  Cull it out?
 	HENHMETAFILE CreateWarningMetafile( CMetaFileDC * mfDC, CDC * pDC, int x_size, int y_size );
+	void GenerateValueParams();	// CPT
 };
+
 
 
 // CEditShape class represents a footprint whose elements can be edited

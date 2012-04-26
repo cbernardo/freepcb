@@ -2615,13 +2615,61 @@ void CFreePcbDoc::OnViewLayers()
 {
 	CDlgLayers dlg;
 	CFreePcbView * view = (CFreePcbView*)m_view;
-	dlg.Initialize( m_num_layers, m_vis, m_rgb );
+	dlg.Initialize( m_num_layers, m_vis, m_fp_vis, m_rgb, m_fp_rgb );
 	int ret = dlg.DoModal();
 	if( ret == IDOK )
 	{
+		// CPT: For simplicity moved the following out of the DlgLayers::DoDataExchange() code
+		for( int i=0; i<NUM_MAIN_LAYERS; i++ )
+		{
+			m_rgb[i][0] = dlg.m_rgb[i][0];
+			m_rgb[i][1] = dlg.m_rgb[i][1];
+			m_rgb[i][2] = dlg.m_rgb[i][2];
+		}
+		// Set footprint layer colors & visibility.  Some of these are borrowed from the main screen layer values; others are based on the last
+		// four rows of the layer-dialog
+		static int fpLayerMap[] = {	LAY_SELECTION, LAY_BACKGND, LAY_VISIBLE_GRID, LAY_HILITE, LAY_SILK_TOP, -1, -1, LAY_PAD_THRU, 
+			-1, -1, -1, -1, LAY_TOP_COPPER, LAY_BOTTOM_COPPER+1, LAY_BOTTOM_COPPER };
+		for (int i=0; i<NUM_FP_LAYERS; i++) {
+			int mainLayer = fpLayerMap[i];
+			if (mainLayer!=-1)
+				m_fp_rgb[i][0] = m_rgb[mainLayer][0],
+				m_fp_rgb[i][1] = m_rgb[mainLayer][1],
+				m_fp_rgb[i][2] = m_rgb[mainLayer][2],
+				m_fp_vis[i] = m_vis[mainLayer];
+			}
+		static int fpLayers[] = { LAY_FP_CENTROID, LAY_FP_DOT, LAY_FP_TOP_MASK, LAY_FP_BOTTOM_MASK };
+		for (int i=0; i<4; i++) {
+			int layer = fpLayers[i];
+			m_fp_rgb[layer][0] = dlg.m_rgb[i+NUM_MAIN_LAYERS][0];
+			m_fp_rgb[layer][1] = dlg.m_rgb[i+NUM_MAIN_LAYERS][1];
+			m_fp_rgb[layer][2] = dlg.m_rgb[i+NUM_MAIN_LAYERS][2];
+			}
+
+		// The footprint top-paste and top-mask colors are always the same on exit.  Likewise for visibility:
+		m_fp_rgb[LAY_FP_TOP_PASTE][0] = m_fp_rgb[LAY_FP_TOP_MASK][0];
+		m_fp_rgb[LAY_FP_TOP_PASTE][1] = m_fp_rgb[LAY_FP_TOP_MASK][1];
+		m_fp_rgb[LAY_FP_TOP_PASTE][2] = m_fp_rgb[LAY_FP_TOP_MASK][2];
+		m_fp_rgb[LAY_FP_BOTTOM_PASTE][0] = m_fp_rgb[LAY_FP_BOTTOM_MASK][0];
+		m_fp_rgb[LAY_FP_BOTTOM_PASTE][1] = m_fp_rgb[LAY_FP_BOTTOM_MASK][1];
+		m_fp_rgb[LAY_FP_BOTTOM_PASTE][2] = m_fp_rgb[LAY_FP_BOTTOM_MASK][2];
+		m_fp_vis[LAY_FP_TOP_PASTE] = m_fp_vis[LAY_FP_TOP_MASK];
+		m_fp_vis[LAY_FP_BOTTOM_PASTE] = m_fp_vis[LAY_FP_BOTTOM_MASK];
+
+		if (dlg.fColorsDefault) {		
+			// User wants to apply settings to future new projects
+			CArray<CString> oldLines, newLines;
+			CString fn = m_app_dir + "\\" + "default.cfg";
+			ReadFileLines(fn, oldLines);
+			CollectOptionsStrings(newLines);
+			ReplaceLines(oldLines, newLines, "layer_info");
+			ReplaceLines(oldLines, newLines, "fp_layer_info");
+			WriteFileLines(fn, oldLines);
+			}
+
 		for( int i=0; i<m_num_layers; i++ )
 		{
-			m_dlist->SetLayerRGB( i, C_RGB(m_rgb[i][0], m_rgb[i][1], m_rgb[i][2]) );
+			m_dlist->SetLayerRGB( i, C_RGB(m_rgb[i][0],m_rgb[i][1],m_rgb[i][2]) );
 			m_dlist->SetLayerVisible( i, m_vis[i] );
 		}
 		view->m_left_pane_invalid = TRUE;	// force erase of left pane
@@ -3843,10 +3891,13 @@ void CFreePcbDoc::OnProjectOptions()
 		if( m_name.Right(4) == ".fpc" )
 			m_name = m_name.Left( m_name.GetLength()-4 );
 	}
-	dlg.Init( FALSE, &m_name, &m_path_to_folder, &m_full_lib_dir,
+	// CPT: args have changed:
+	dlg.Init( FALSE, &m_name, &m_path_to_folder, &m_lib_dir,
 		m_num_copper_layers, m_bSMT_copper_connect, m_default_glue_w,
 		m_trace_w, m_via_w, m_via_hole_w,
 		&m_w, &m_v_w, &m_v_h_w );
+	// end CPT
+
 	int ret = dlg.DoModal();
 	if( ret == IDOK )  
 	{
@@ -3899,6 +3950,27 @@ void CFreePcbDoc::OnProjectOptions()
 		m_via_w = dlg.GetViaWidth();
 		m_via_hole_w = dlg.GetViaHoleWidth();
 		m_nlist->SetWidths( m_trace_w, m_via_w, m_via_hole_w );
+
+		// CPT: option to save dlg results to default.cfg:
+		if (dlg.m_default) 
+		{
+			CArray<CString> oldLines, newLines;
+			CString fn = m_app_dir + "\\" + "default.cfg";
+			ReadFileLines(fn, oldLines);
+			CollectOptionsStrings(newLines);
+			ReplaceLines(oldLines, newLines, "path_to_folder");
+			ReplaceLines(oldLines, newLines, "library_folder");
+			ReplaceLines(oldLines, newLines, "n_copper_layers");
+			ReplaceLines(oldLines, newLines, "SMT_connect_copper");
+			ReplaceLines(oldLines, newLines, "default_glue_width");
+			ReplaceLines(oldLines, newLines, "default_trace_width");
+			ReplaceLines(oldLines, newLines, "default_via_pad_width");
+			ReplaceLines(oldLines, newLines, "default_via_hole_width");
+			ReplaceLines(oldLines, newLines, "n_width_menu");
+			ReplaceLines(oldLines, newLines, "width_menu_item");
+			WriteFileLines(fn, oldLines);
+		}
+		// end CPT
 
 		if( m_vis[LAY_RAT_LINE] && !m_auto_ratline_disable )
 			m_nlist->OptimizeConnections();
@@ -4710,7 +4782,7 @@ void CFreePcbDoc::FileLoadLibrary( LPCTSTR pathname )
 			p = (LPCSTR)key;
 			shape = (CShape*)ptr;
 			ref.Format( "LIB_%d", i );
-			cpart * part = m_plist->Add( shape, &ref, NULL, x, y, 0, 0, 1, 0 );
+			cpart * part = m_plist->Add( shape, &ref, NULL, x, y, 0, 0, 1, 0, 1 );
 			// get bounding rectangle of pads and outline
 			CRect shape_r = part->shape->GetBounds();
 			int height = shape_r.top - shape_r.bottom;
