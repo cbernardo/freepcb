@@ -236,7 +236,11 @@ BOOL CFreePcbDoc::OnNewDocument()
 	if (!CDocument::OnNewDocument())
 		return FALSE;
 
-	m_window_title = "no project open";
+	// CPT
+	CString s1 ((LPCSTR) IDS_AppName), s2 ((LPCSTR) IDS_NoProjectOpen);
+	m_window_title = s1 + " - " + s2;
+	// end CPT
+
 	m_parent_folder = "..\\projects\\";
 	m_lib_dir = "..\\lib\\" ;
 	return TRUE;

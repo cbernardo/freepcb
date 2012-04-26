@@ -734,7 +734,7 @@ public:
 	int GetNLayers()
 		{ return m_Doc->m_num_layers; }
 	int GetTopCopperLayer() 
-		{ return LAY_FP_TOP_COPPER; }
+		{ return LAY_TOP_COPPER; }
 	int GetLayerRGB(int layer, int i) 
 		{ return m_Doc->m_rgb[layer][i]; }
 	int GetLayerVis(int layer)

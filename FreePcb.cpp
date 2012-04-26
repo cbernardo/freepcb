@@ -124,6 +124,7 @@ BOOL CFreePcbApp::InitInstance()
 	m_view_mode = PCB;
 
 	m_Doc->InitializeNewProject();
+	m_pMainWnd->SetWindowTextA(m_Doc->m_window_title);			// CPT --- want a consistent window title from the get-go
 
 	if( cmdInfo.m_nShellCommand == CCommandLineInfo::FileOpen )
 	{

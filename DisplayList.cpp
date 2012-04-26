@@ -569,8 +569,8 @@ void CDisplayList::Draw( CDC * dDC )
 	pDC->SetBkColor( C_RGB::black );
 
 	// create pens and brushes
-	CPen black_pen  ( PS_SOLID, 1, C_RGB::white );
-	CPen white_pen  ( PS_SOLID, 1, C_RGB::black );
+	CPen black_pen  ( PS_SOLID, 1, C_RGB::black );					// CPT fixed (was C_RGB::white)
+	CPen white_pen  ( PS_SOLID, 1, C_RGB::white );					// CPT fixed (was C_RGB::black)
 	CPen grid_pen   ( PS_SOLID, 1, m_rgb[LAY_VISIBLE_GRID] );
 	CPen backgnd_pen( PS_SOLID, 1, m_rgb[LAY_BACKGND] );
 	CPen board_pen  ( PS_SOLID, 1, m_rgb[LAY_BOARD_OUTLINE] );

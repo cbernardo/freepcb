@@ -184,7 +184,7 @@ BEGIN
     POPUP "&Edit"
     BEGIN
         MENUITEM "&Undo\tCtrl+Z",               ID_EDIT_UNDO
-        MENUITEM "&Redo\tCtrl+Y",               ID_EDIT_REDO
+        MENUITEM "&Redo\tCtrl+Shift+Z",         ID_EDIT_REDO
         MENUITEM SEPARATOR
         MENUITEM "Cu&t\tCtrl+X",                ID_EDIT_CUT
         MENUITEM "&Copy\tCtrl+C",               ID_EDIT_COPY
@@ -273,7 +273,7 @@ BEGIN
     POPUP "&Edit"
     BEGIN
         MENUITEM "&Undo\tCtrl+Z",               ID_EDIT_UNDO
-        MENUITEM "&Redo\tCtrl+Y",               ID_EDIT_REDO
+        MENUITEM "&Redo\tCtrl+Shift+Z",         ID_EDIT_REDO
         MENUITEM SEPARATOR
         MENUITEM "Cu&t\tCtrl+X",                ID_EDIT_CUT, INACTIVE
         MENUITEM "&Copy\tCtrl+C",               ID_EDIT_COPY, INACTIVE
@@ -625,7 +625,7 @@ BEGIN
     POPUP "&Edit", GRAYED
     BEGIN
         MENUITEM "&Undo\tCtrl+Z",               ID_EDIT_UNDO
-        MENUITEM "&Redo\tCtrl+Y",               ID_EDIT_REDO
+        MENUITEM "&Redo\tCtrl+Shift+Z",         ID_EDIT_REDO
         MENUITEM SEPARATOR
         MENUITEM "Cu&t\tCtrl+X",                ID_EDIT_CUT
         MENUITEM "&Copy\tCtrl+C",               ID_EDIT_COPY
@@ -705,7 +705,7 @@ BEGIN
     POPUP "&Edit", GRAYED
     BEGIN
         MENUITEM "&Undo\tCtrl+Z",               ID_EDIT_UNDO
-        MENUITEM "&Redo\tCtrl+Y",               ID_EDIT_REDO
+        MENUITEM "&Redo\tCtrl+Shift+Z",         ID_EDIT_REDO
         MENUITEM SEPARATOR
         MENUITEM "Cu&t\tCtrl+X",                ID_EDIT_CUT, INACTIVE
         MENUITEM "&Copy\tCtrl+C",               ID_EDIT_COPY, INACTIVE
@@ -754,13 +754,13 @@ BEGIN
     "X",            ID_EDIT_CUT,            VIRTKEY, CONTROL, NOINVERT
     "V",            ID_EDIT_PASTE,          VIRTKEY, CONTROL, NOINVERT
     VK_INSERT,      ID_EDIT_PASTE,          VIRTKEY, SHIFT, NOINVERT
-    "Y",            ID_EDIT_REDO,           VIRTKEY, CONTROL, NOINVERT
+    "Z",            ID_EDIT_REDO,           VIRTKEY, SHIFT, CONTROL, NOINVERT
     VK_BACK,        ID_EDIT_UNDO,           VIRTKEY, ALT, NOINVERT
     "Z",            ID_EDIT_UNDO,           VIRTKEY, CONTROL, NOINVERT
     "O",            ID_FILE_OPEN,           VIRTKEY, CONTROL, NOINVERT
     "P",            ID_FILE_PRINT,          VIRTKEY, CONTROL, NOINVERT
     "S",            ID_FILE_SAVE,           VIRTKEY, CONTROL, NOINVERT
-    "N",            ID_FOOTPRINT_FILE_NEW,  VIRTKEY, CONTROL, NOINVERT
+    "N",            ID_FILE_NEW,            VIRTKEY, CONTROL, NOINVERT
     "D",            ID_TOOLS_REPEATDRC,     VIRTKEY, CONTROL, NOINVERT
 END
 
@@ -4264,7 +4264,7 @@ END
 
 STRINGTABLE
 BEGIN
-    IDS_AppName             "Merge-CPT 0.22"
+    IDS_AppName             "Merge-CPT 0.23"
 END
 
 STRINGTABLE
