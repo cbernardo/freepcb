@@ -46,9 +46,7 @@ CText::CText( CDisplayList * dlist, int x, int y, int angle, int mirror,
 	m_str = *str_ptr;
 	m_nchars = str_ptr->GetLength();
 	m_dlist = dlist;
-	m_id = id( ID_TEXT, m_uid );
-	m_id.SetSubType( selType );
-	m_id.SetSubSubType( selSubtype );
+	m_id = id( selType, m_uid, selSubtype );	// default
 	dl_sel = 0;												// CPT bug fix #37
 	m_smfontutil = smfontutil;
 
@@ -103,8 +101,23 @@ void CText::Draw( CDisplayList * dlist, SMFontUtil * smfontutil )
 {
 	if( smfontutil )
 	{
+		m_smfontutil = smfontutil;
 		m_dlist = dlist;
+		Draw();
+	}
+	else
+	{
+		ASSERT(0);
+	}
+}
 
+// Draw text as a series of strokes
+// If dlist == NULL, generate strokes but don't draw into display list
+//
+void CText::Draw()
+{
+	if( m_smfontutil )
+	{
 		// make stroke array
  		id tid = m_id;
 		tid.SetT3( ID_STROKE );
@@ -125,12 +138,12 @@ void CText::Draw( CDisplayList * dlist, SMFontUtil * smfontutil )
 			int nstrokes;
 			if( !m_mirror )
 			{
-				nstrokes = smfontutil->GetCharStrokes( m_str[ic], SIMPLEX, &min_x, &min_y, &max_x, &max_y,
+				nstrokes = m_smfontutil->GetCharStrokes( m_str[ic], SIMPLEX, &min_x, &min_y, &max_x, &max_y,
 					coord, 64 );
 			}
 			else
 			{
-				nstrokes = smfontutil->GetCharStrokes( m_str[m_nchars-ic-1], SIMPLEX, &min_x, &min_y, &max_x, &max_y,
+				nstrokes = m_smfontutil->GetCharStrokes( m_str[m_nchars-ic-1], SIMPLEX, &min_x, &min_y, &max_x, &max_y,
 					coord, 64 );
 			}
 			for( int is=0; is<nstrokes; is++ )
@@ -166,9 +179,9 @@ void CText::Draw( CDisplayList * dlist, SMFontUtil * smfontutil )
 				m_stroke[i].xf = m_x + sf.x;
 				m_stroke[i].yf = m_y + sf.y;
 				// draw into display list
-				if( dlist )
+				if( m_dlist )
 				{
-					m_stroke[i].dl_el = dlist->Add( tid, this, 
+					m_stroke[i].dl_el = m_dlist->Add( tid, this, 
 					m_layer, DL_LINE, 1, m_stroke_width, 0, 0,  
 					m_x+si.x, m_y+si.y, m_x+sf.x, m_y+sf.y, 0, 0 );
 				}
@@ -186,9 +199,8 @@ void CText::Draw( CDisplayList * dlist, SMFontUtil * smfontutil )
 				xc += 16.0*x_scale;
 		}
 		m_stroke.SetSize( i );
-		m_smfontutil = smfontutil;
 
-		if( dlist )
+		if( m_dlist )
 		{
 			// create selection rectangle
 			int width = xc - 8.0*x_scale;
@@ -201,9 +213,8 @@ void CText::Draw( CDisplayList * dlist, SMFontUtil * smfontutil )
 			RotatePoint( &sf, m_angle, zero );
 			// draw it
 			tid.SetT3( ID_SEL_TXT );
-			dl_sel = dlist->AddSelector( tid, this, m_layer, DL_HOLLOW_RECT, 1,
+			dl_sel = m_dlist->AddSelector( tid, this, m_layer, DL_HOLLOW_RECT, 1,
 				0, 0, m_x + si.x, m_y + si.y, m_x + sf.x, m_y + sf.y, m_x + si.x, m_y + si.y );
-			m_dlist = dlist;
 		}
 	}
 	else
@@ -227,6 +238,16 @@ void CText::Undraw()
 	}
 	m_smfontutil = NULL;	// indicate that strokes have been removed
 }
+
+// change top-level id type (may be ID_TEXT or ID_FP)
+//
+void CText::SetIDType( int type, int subtype )
+{ 
+	m_id.SetT1(type); 
+	m_id.SetT2(subtype); 
+}
+
+
 
 // Select text for editing
 //
@@ -331,6 +352,8 @@ CTextList::CTextList()
 {
 	m_dlist = NULL;
 	m_smfontutil = NULL;
+	m_text_type = ID_TEXT;
+	m_text_subtype = ID_TEXT;
 }
 
 // normal constructor
@@ -351,13 +374,21 @@ CTextList::~CTextList()
 	}
 }
 
+// set the default ID type and subtype for new texts
+//
+void CTextList::SetIDType( int type, int subtype )
+{
+	m_text_type = type;
+	m_text_subtype = subtype;
+}
+
 // AddText ... adds a new entry to TextList, returns pointer to the entry
 //
 CText * CTextList::AddText( int x, int y, int angle, int mirror, BOOL bNegative, int layer, 
 						   int font_size, int stroke_width, CString * str_ptr, BOOL draw_flag )
 {
 	// create new CText and put pointer into text_ptr[]
-	id tid(ID_TEXT, -1, ID_TEXT );
+	id tid(m_text_type, -1, m_text_subtype );
 	if( draw_flag )
 	{
 		CText * text = new CText();

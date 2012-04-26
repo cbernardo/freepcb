@@ -13,8 +13,7 @@ CPT merge notes
 #9  - merged
 #10 - AMW r260: merged
 #11 - CPT r260:  merged.
-#12 - AMW r260: merged and compiles, but required changes to multiple classes
-		probably incomplete, will require more testing, so far group move fails
+#12 - AMW r260: merged, but required changes to multiple classes, runs but there are probably some bugs
 #13 - merged
 #14 - merged
 #14a - merged

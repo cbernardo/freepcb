@@ -10146,7 +10146,8 @@ void CFreePcbView::MoveGroup( int dx, int dy )
 							}
 						}
 					}
-					m_Doc->m_nlist->MergeUnroutedSegments( net, ic );	// this also redraws connection
+					m_Doc->m_nlist->MergeUnroutedSegments( net, ic );	
+					c->Draw();
 				}
 			}
 

@@ -272,9 +272,9 @@ void id::SetSubSubType( int qt3, int qu3, int qi3 )
 //
 int id::Type()
 {
-	if( t3 > 0 ) 
+	if( t1 > 0 && t2 > 0 && t3 > 0 ) 
 		return t3;
-	else if( t2 > 0 ) 
+	else if( t1 > 0 && t2 > 0 ) 
 		return t2;
 	else 
 		return t1;
@@ -282,26 +282,35 @@ int id::Type()
 
 // tests for various types, doesn't verify UIDs
 //
-BOOL id::IsClear()		{ return t1 == ID_NONE	&& t2 == ID_NONE	&& t3 == ID_NONE; }
-BOOL id::IsDRC()		{ return t1 == ID_DRC	&& t2 == ID_SEL_DRE; }
-BOOL id::IsText()		{ return t1 == ID_TEXT	&& t2 == ID_TEXT; }
-BOOL id::IsPart()		{ return t1 == ID_PART	&& t2 == ID_SEL_RECT; }
-BOOL id::IsRefText()	{ return t1 == ID_PART	&& t2 == ID_REF_TXT; }
-BOOL id::IsValueText()	{ return t1 == ID_PART	&& t2 == ID_VALUE_TXT; }
-BOOL id::IsPin()		{ return t1 == ID_PART	&& t2 == ID_SEL_PAD; }
-BOOL id::IsNet()		{ return t1 == ID_NET	&& t2 == ID_NONE; }
-BOOL id::IsCon()		{ return t1 == ID_NET	&& t2 == ID_CONNECT	&& t3 == ID_NONE; }
-BOOL id::IsSeg()		{ return t1 == ID_NET	&& t2 == ID_CONNECT	&& t3 == ID_SEL_SEG; }
+BOOL id::IsClear()		{ return t1 == ID_NONE	&& t2 == ID_NONE	&& t3 == ID_NONE;		}
+BOOL id::IsDRC()		{ return t1 == ID_DRC	&& t2 == ID_SEL_DRE;						}
+BOOL id::IsText()		{ return t1 == ID_TEXT	&& t2 == ID_TEXT;							}
+BOOL id::IsPart()		{ return t1 == ID_PART	&& t2 == ID_SEL_RECT;						}
+BOOL id::IsRefText()	{ return t1 == ID_PART	&& t2 == ID_REF_TXT;						}
+BOOL id::IsValueText()	{ return t1 == ID_PART	&& t2 == ID_VALUE_TXT;						}
+BOOL id::IsPin()		{ return t1 == ID_PART	&& t2 == ID_SEL_PAD;						}
+BOOL id::IsNet()		{ return t1 == ID_NET	&& t2 == ID_NONE;							}
+BOOL id::IsCon()		{ return t1 == ID_NET	&& t2 == ID_CONNECT	&& t3 == ID_NONE;		}
+BOOL id::IsSeg()		{ return t1 == ID_NET	&& t2 == ID_CONNECT	&& t3 == ID_SEL_SEG;	}
 BOOL id::IsVtx()		{ return t1 == ID_NET	&& t2 == ID_CONNECT	&& t3 == ID_SEL_VERTEX; }
-BOOL id::IsArea()		{ return t1 == ID_NET	&& t2 == ID_AREA	&& t3 == ID_NONE; }
+BOOL id::IsArea()		{ return t1 == ID_NET	&& t2 == ID_AREA	&& t3 == ID_NONE;		}
 BOOL id::IsAreaCorner()	{ return t1 == ID_NET	&& t2 == ID_AREA	&& t3 == ID_SEL_CORNER; }
-BOOL id::IsAreaSide()	{ return t1 == ID_NET	&& t2 == ID_AREA	&& t3 == ID_SEL_SIDE; }
-BOOL id::IsBoard()		{ return t1 == ID_BOARD && t2 == ID_OUTLINE	&& t3 == ID_NONE; }
+BOOL id::IsAreaSide()	{ return t1 == ID_NET	&& t2 == ID_AREA	&& t3 == ID_SEL_SIDE;	}
+BOOL id::IsBoard()		{ return t1 == ID_BOARD && t2 == ID_OUTLINE	&& t3 == ID_NONE;		}
 BOOL id::IsBoardCorner(){ return t1 == ID_BOARD && t2 == ID_OUTLINE	&& t3 == ID_SEL_CORNER; }
-BOOL id::IsBoardSide()	{ return t1 == ID_BOARD && t2 == ID_OUTLINE	&& t3 == ID_SEL_SIDE; }
-BOOL id::IsMask()		{ return t1 == ID_MASK	&& t2 == ID_OUTLINE	&& t3 == ID_NONE; }
+BOOL id::IsBoardSide()	{ return t1 == ID_BOARD && t2 == ID_OUTLINE	&& t3 == ID_SEL_SIDE;	}
+BOOL id::IsMask()		{ return t1 == ID_MASK	&& t2 == ID_OUTLINE	&& t3 == ID_NONE;		}
 BOOL id::IsMaskCorner()	{ return t1 == ID_MASK	&& t2 == ID_OUTLINE	&& t3 == ID_SEL_CORNER; }
-BOOL id::IsMaskSide()	{ return t1 == ID_MASK	&& t2 == ID_OUTLINE	&& t3 == ID_SEL_SIDE; }
+BOOL id::IsMaskSide()	{ return t1 == ID_MASK	&& t2 == ID_OUTLINE	&& t3 == ID_SEL_SIDE;	}
+BOOL id::IsAnyFootItem() { return t1 == ID_FP;												}
+BOOL id::IsCentroid()	{ return t1 == ID_FP	&& t2 == ID_CENTROID && t3 == ID_SEL_CENT;	}
+BOOL id::IsGlue()		{ return t1 == ID_FP	&& t2 == ID_GLUE	 && t3 == ID_SEL_SPOT;	}
+BOOL id::IsFootPad()	{ return t1 == ID_FP	&& t2 == ID_SEL_PAD;						}
+BOOL id::IsFootText()	{ return t1 == ID_FP	&& t2 == ID_FP_TXT	 && t3 == ID_SEL_TXT;	}
+BOOL id::IsFootPolySide()   { return t1 == ID_FP	&& t2 == ID_POLYLINE && t3 == ID_SEL_SIDE;	}					
+BOOL id::IsFootPolyCorner() { return t1 == ID_FP	&& t2 == ID_POLYLINE && t3 == ID_SEL_CORNER; }					
+BOOL id::IsFootRef()	{ return t1 == ID_FP	&& t2 == ID_REF_TXT  &&	t3 == ID_SEL_TXT;	}			
+BOOL id::IsFootValue()	{ return t1 == ID_FP	&& t2 == ID_VALUE_TXT && t3 == ID_SEL_TXT;	}			
 
 // return pointer to pcb element identified by id
 //

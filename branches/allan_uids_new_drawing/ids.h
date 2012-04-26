@@ -105,6 +105,15 @@ public:
 	BOOL IsMaskCorner();
 	BOOL IsMaskSide();
 	BOOL IsText();
+	BOOL IsAnyFootItem();	// any item in a footprint
+	BOOL IsCentroid();
+	BOOL IsGlue();
+	BOOL IsFootPad();
+	BOOL IsFootText();
+	BOOL IsFootPolySide();
+	BOOL IsFootPolyCorner();
+	BOOL IsFootRef();
+	BOOL IsFootValue();
 
 	// get pointer to item
 	cpart * Part();
@@ -142,12 +151,11 @@ enum {
 	ID_TEXT,		// free-standing text
 	ID_DRC,			// DRC error
 	ID_MASK,		// cutout for solder mask
-	ID_CENTROID,	// centroid of footprint
-	ID_GLUE,		// adhesive spot
+	ID_FP,			// footprint (in footprint editor)
 	ID_MULTI		// if multiple selections
 };
 
-// subtypes of ID_PART
+// subtypes of ID_PART or ID_FP
 enum {
 	ID_PAD = 1,		// pad_stack in a part
 	ID_SEL_PAD,		// selection rectangle for pad_stack in a part
@@ -155,6 +163,8 @@ enum {
 	ID_REF_TXT,		// text showing ref num for part
 	ID_VALUE_TXT,	// text showing value for part
 	ID_FP_TXT,		// free text in footprint
+	ID_CENTROID,	// centroid
+	ID_GLUE,		// adhesive spot
 	ID_ORIG,		// part origin
 	ID_SEL_RECT,	// selection rectangle for part
 };
@@ -206,13 +216,13 @@ enum {
 	ID_SEL_DRE
 };
 
-// subtypes of ID_CENTROID
+// subsubtypes of ID_CENTROID
 enum {
 	ID_CENT = 1,
 	ID_SEL_CENT
 };
 
-// subtypes of ID_GLUE
+// subsubtypes of ID_GLUE
 enum {
 	ID_SPOT = 1,
 	ID_SEL_SPOT
