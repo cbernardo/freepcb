@@ -39,6 +39,7 @@
 #include "DlgPrefs.h"
 #include "DlgGridVals.h"
 #include "DlgAddGridVal.h"
+#include "DlgExportOptions.h"	// CPT
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -452,7 +453,7 @@ void CFreePcbDoc::OnFileOpen()
 	// force old-style file dialog by setting size of OPENFILENAME struct (for Win98)
 	CString s ((LPCSTR) IDS_PCBFiles);
 	CFileDialog dlg( 1, "fpc", LPCTSTR(m_pcb_filename), 0, 
-		s, NULL, /* CPT:  OPENFILENAME_SIZE_VERSION_400 */ 0 );
+		s, NULL, OPENFILENAME_SIZE_VERSION_500 );
 	dlg.AssertValid();
 
 	// get folder of most-recent file or project folder
@@ -908,10 +909,11 @@ void CFreePcbDoc::OnFileSaveAs()
 {
 	// force old-style file dialog by setting size of OPENFILENAME struct
 	CString s ((LPCSTR) IDS_PCBFiles);
-	CFileDialog dlg( 0, "fpc", LPCTSTR(m_pcb_filename), 0, 
-		s, NULL, 0 /* CPT eliminated, doesn't work in VS 10.0: OPENFILENAME_SIZE_VERSION_400 */ );
-	OPENFILENAME  * myOFN = dlg.m_pOFN;
-	myOFN->Flags |= OFN_OVERWRITEPROMPT;
+	CFileDialog dlg( 0, "fpc", LPCTSTR(m_pcb_filename), OFN_OVERWRITEPROMPT,							// CPT changed arg
+		s, NULL, OPENFILENAME_SIZE_VERSION_500 );
+	// OPENFILENAME  * myOFN = dlg.m_pOFN;
+	// myOFN->Flags |= OFN_OVERWRITEPROMPT;																// CPT: this way of setting options was causing 
+																										// doModal() to fail if file had changed
 	// get folder of most-recent file or project folder
 	CString MRFile = theApp.GetMRUFile();
 	CString MRFolder;
@@ -2733,14 +2735,13 @@ void CFreePcbDoc::OnPartProperties()
 	}
 }
 
+// CPT:  since MS broke CFileDialog::SetTemplate(), I had to rewrite this (as in OnFileImport(), qv)
 void CFreePcbDoc::OnFileExport()
 {
-	// force old-style file dialog by setting size of OPENFILENAME struct
-	CMyFileDialogExport dlg( FALSE, NULL, NULL, 
+	CString s ((LPCSTR) IDS_AllFiles);
+	CFileDialog dlg( FALSE, NULL, NULL, 
 		OFN_HIDEREADONLY | OFN_EXPLORER | OFN_OVERWRITEPROMPT, 
-		"All Files (*.*)|*.*||", NULL, OPENFILENAME_SIZE_VERSION_500 );
-	dlg.SetTemplate( IDD_EXPORT, IDD_EXPORT );
-	dlg.Initialize( EXPORT_PARTS | EXPORT_NETS );
+		s, NULL, OPENFILENAME_SIZE_VERSION_500 );
 	int ret = dlg.DoModal();
 	if( ret == IDOK )
 	{
@@ -2748,39 +2749,49 @@ void CFreePcbDoc::OnFileExport()
 		CStdioFile file;
 		if( !file.Open( str, CFile::modeWrite | CFile::modeCreate ) )
 		{
-			AfxMessageBox( "Unable to open file" );
+			CString s ((LPCSTR) IDS_UnableToOpenFile2);
+			AfxMessageBox( s );
 		}
 		else
 		{
+			CDlgExportOptions dlg2;
+			dlg2.Initialize(EXPORT_PARTS | EXPORT_NETS); 
+			ret = dlg2.DoModal();
+			if (ret==IDCANCEL) return;
 			partlist_info pl;
 			netlist_info nl;
 			m_plist->ExportPartListInfo( &pl, NULL );
 			m_nlist->ExportNetListInfo( &nl );
-			if( dlg.m_format == CMyFileDialog::PADSPCB )
-				ExportPADSPCBNetlist( &file, dlg.m_select, &pl, &nl );
+			if( dlg2.m_format == CMyFileDialog::PADSPCB )
+				ExportPADSPCBNetlist( &file, dlg2.m_select, &pl, &nl );
 			else
 				ASSERT(0);
 			file.Close();
 		}
 	}
 }
+// end CPT
+
+// CPT:  Under Vista, good old MS has broken the CFileDialog::SetTemplate function.  Ultimately I decided to rewrite this to put 
+// the options that were formerly in the open-file dialog into the import-options dialog
+
 void CFreePcbDoc::OnFileImport()
 {
-	// force old-style file dialog by setting size of OPENFILENAME struct
-	CMyFileDialog dlg( TRUE, NULL, (LPCTSTR)m_netlist_full_path, OFN_HIDEREADONLY | OFN_EXPLORER, 
-		"All Files (*.*)|*.*||", NULL, OPENFILENAME_SIZE_VERSION_500 );
-	dlg.SetTemplate( IDD_IMPORT, IDD_IMPORT );
-	dlg.m_ofn.lpstrTitle = "Import netlist file";
-	dlg.Initialize( m_import_flags );
+	CString s ((LPCSTR) IDS_AllFiles), s2 ((LPCSTR) IDS_ImportNetListFile);
+	// NB CPT.  This works more or less, but MS has done its best to wreck CFileDialog and its behavior is pretty spotty...  Might have to consider
+	// other options long term
+	CFileDialog dlg( TRUE , NULL, (LPCTSTR)m_netlist_full_path , OFN_HIDEREADONLY, 
+		s, NULL, OPENFILENAME_SIZE_VERSION_500 );
+	dlg.m_ofn.lpstrTitle = s2;
 	int ret = dlg.DoModal();
 	if( ret == IDOK )
 	{ 
-		m_import_flags = dlg.m_flags;	// get updated flags
 		CString str = dlg.GetPathName(); 
 		CStdioFile file;
 		if( !file.Open( str, CFile::modeRead ) )
 		{
-			AfxMessageBox( "Unable to open file" );
+			CString s ((LPCSTR) IDS_UnableToOpenFile2);
+			AfxMessageBox( s );
 		}
 		else
 		{
@@ -2788,17 +2799,14 @@ void CFreePcbDoc::OnFileImport()
 			partlist_info pl;
 			netlist_info nl;
 			m_netlist_full_path = str;	// save path for next time
-			if( m_plist->GetFirstPart() != NULL || m_nlist->m_map.GetCount() != 0 )
-			{
-				// there are parts and/or nets in project 
-				CDlgImportOptions dlg_options;
-				dlg_options.Initialize( m_import_flags );
-				int ret = dlg_options.DoModal();
-				if( ret == IDCANCEL )
-					return;
-				else
-					m_import_flags = IMPORT_FROM_NETLIST_FILE | dlg_options.m_flags;
-			}
+			// CPT: Do the option dlg even if there are no parts and/or nets in project 
+			CDlgImportOptions dlg_options;
+			dlg_options.Initialize( m_import_flags );
+			int ret = dlg_options.DoModal();
+			if( ret == IDCANCEL )
+				return;
+			else
+				m_import_flags = IMPORT_FROM_NETLIST_FILE | dlg_options.m_flags;
 			if( m_import_flags & SAVE_BEFORE_IMPORT )
 			{
 				// save project
@@ -2813,7 +2821,7 @@ void CFreePcbDoc::OnFileImport()
 
 			// import the netlist file
 			CString line;
-			if( dlg.m_format == CMyFileDialog::PADSPCB )
+			if( dlg_options.m_format == CMyFileDialog::PADSPCB )
 			{
 				line.Format( "Reading netlist file \"%s\":\r\n", str ); 
 				m_dlg_log->AddLine( line );
@@ -3324,16 +3332,17 @@ int CFreePcbDoc::ImportNetlist( CStdioFile * file, UINT flags,
 //	IMPORT_PARTS = include parts in file
 //	IMPORT_NETS = include nets in file
 //	IMPORT_AT = use "value@footprint" format for parts
-//
+// CPT:  added sorting so that results are more readable.
+
 int CFreePcbDoc::ExportPADSPCBNetlist( CStdioFile * file, UINT flags, 
 							   partlist_info * pl, netlist_info * nl )
 {
 	CString str, str2;
-
 	file->WriteString( "*PADS-PCB*\n" );
 	if( flags & EXPORT_PARTS )
 	{
 		file->WriteString( "*PART*\n" );
+		CArray<CString> parts;							// Will accumulate part strings in this array, and sort afterwards.
 		for( int i=0; i<pl->GetSize(); i++ )
 		{
 			part_info * pi = &(*pl)[i];
@@ -3345,8 +3354,11 @@ int CFreePcbDoc::ExportPADSPCBNetlist( CStdioFile * file, UINT flags,
 			else
 				str2 += pi->package;
 			str.Format( "%s %s\n", pi->ref_des, str2 );
-			file->WriteString( str );
+			parts.Add( str );
 		}
+		qsort(parts.GetData(), parts.GetSize(), sizeof(CString), (int (*)(const void*,const void*)) strcmpNumeric);			
+		for (int i=0; i<parts.GetSize(); i++) 
+			file->WriteString(parts[i]);
 	}
 
 	if( flags & EXPORT_NETS )
@@ -3354,30 +3366,38 @@ int CFreePcbDoc::ExportPADSPCBNetlist( CStdioFile * file, UINT flags,
 		if( flags & IMPORT_PARTS )
 			file->WriteString( "\n" );
 		file->WriteString( "*NET*\n" );
+
+		CArray<CString> nets;							// Will accumulate net strings in this array, and sort afterwards.
 		for( int i=0; i<nl->GetSize(); i++ )
 		{
 			net_info * ni = &(*nl)[i];
-			str.Format( "*SIGNAL* %s\n", ni->name );
-			file->WriteString( str );
-			str = "";
+			str.Format( "*SIGNAL* %s", ni->name );
+			CArray<CString> pins;
 			int np = ni->pin_name.GetSize();
 			for( int ip=0; ip<np; ip++ )
 			{
 				CString pin_str;
 				pin_str.Format( "%s.%s ", ni->ref_des[ip], ni->pin_name[ip] );
-				str += pin_str;
-				if( !((ip+1)%8) || ip==(np-1) )
-				{
-					str += "\n";
-					file->WriteString( str );
-					str = "";
-				}
+				pins.Add(pin_str);
 			}
+			qsort(pins.GetData(), pins.GetSize(), sizeof(CString), (int (*)(const void*,const void*)) strcmpNumeric);			
+			for (int i=0; i<np; i++) 
+			{
+				if (!(i%8)) str += "\n  ";
+				str += pins[i];
+			}
+			nets.Add(str);
 		}
+
+		qsort(nets.GetData(), nets.GetSize(), sizeof(CString), (int (*)(const void*,const void*)) strcmpNumeric);			
+		for (int i=0; i<nets.GetSize(); i++) 
+			file->WriteString(nets[i]),
+			file->WriteString("\n");
 	}
 	file->WriteString( "*END*\n" );
 	return 0;
 }
+// (end CPT)
 
 // import netlist in PADS-PCB format
 // enter with file already open

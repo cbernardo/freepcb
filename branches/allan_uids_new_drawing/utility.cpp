@@ -406,6 +406,36 @@ int CompareGridVals(const double *gv1, const double *gv2) {
 	else if (*gv2<0) return -1;
 	else return *gv1<*gv2? 1: -1;
 	}
+
+int strcmpNumeric(CString *s1, CString *s2) {
+	// CPT: String comparison where IC9 comes before IC10, etc.  Alpha comparison is caseless.  Used when exporting netlists and (eventually)
+	// when saving .fpc's.  Was originally in FreePcbDoc.cpp, but this seems a better place.
+	int lgth1 = s1->GetLength(), lgth2 = s2->GetLength();
+	for (int i=0; i<lgth1 && i<lgth2; i++) {
+		char c1 = toupper((*s1)[i]), c2 = toupper((*s2)[i]);
+		if (isdigit(c1) && isdigit(c2)) {
+			int val1 = atoi(s1->Mid(i)), val2 = atoi(s2->Mid(i));
+			if (val1<val2) return -1;
+			if (val1>val2) return 1;
+			int i1=i+1, i2=i+1;
+			while (i1<lgth1 && isdigit((*s1)[i1])) i1++;
+			while (i2<lgth2 && isdigit((*s2)[i2])) i2++;
+			if (i1<i2) return -1;									// Fewer leading 0's comes first in this ordering.
+			if (i1>i2) return 1;
+			i = i1-1;
+			continue;												// Numeric segments are identical:  move on to the rest of the string
+			}
+		if (c1<c2) return -1;
+		if (c1>c2) return 1;
+		}
+
+	// One string is a subseg of the other
+	if (lgth1<lgth2) return -1;
+	if (lgth1>lgth2) return 1;
+	return strcmp(*s1,*s2);											// Do cased comparison of strings that are caseless-identical
+	}
+
+
 // end CPT
 
 
