@@ -21,7 +21,9 @@ CPT merge notes
 #15 - CPT r260: merged
 #15a - CPT r260: merged
 #16 - CPT r264: merged
+#17 - CPT r266: merged
 #22 - CPT r260: merged
+#28 - merged (by AMW)
 
 ---------------------------------------------------------------------------------------
 CPT revisions:

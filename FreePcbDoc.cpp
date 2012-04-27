@@ -3329,9 +3329,9 @@ int CFreePcbDoc::ImportNetlist( CStdioFile * file, UINT flags,
 // export netlist in PADS-PCB format
 // enter with file already open
 // flags:
-//	IMPORT_PARTS = include parts in file
-//	IMPORT_NETS = include nets in file
-//	IMPORT_AT = use "value@footprint" format for parts
+//	EXPORT_PARTS = include parts in file
+//	EXPORT_NETS = include nets in file
+//	EXPORT_VALUES = use "value@footprint" format for parts
 // CPT:  added sorting so that results are more readable.
 
 int CFreePcbDoc::ExportPADSPCBNetlist( CStdioFile * file, UINT flags, 
@@ -3964,6 +3964,7 @@ void CFreePcbDoc::OnProjectOptions()
 		m_plist->SetNumCopperLayers( m_num_copper_layers );
 
 		m_name = dlg.GetName();
+		m_lib_dir = dlg.GetLibFolder();							// CPT added (not sure why it wasn't there before...)
 		if( m_full_lib_dir != dlg.GetLibFolder() )
 		{
 			m_full_lib_dir = dlg.GetLibFolder();

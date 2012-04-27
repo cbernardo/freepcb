@@ -269,11 +269,8 @@ void CDlgEditNet::OnBnClickedButtonAdd()
 			CString pinstr = str.Right( len - dot_pos - 1 );
 			if( !CheckLegalPinName( &pinstr ) )
 			{
-				str = "Pin name must consist of zero or more letters\n";
-				str	+= "Followed by zero or more numbers\n";
-				str	+= "For example: 1, 23, A12, SOURCE are legal\n";
-				str	+= "while 1A, A2B3 are not\n";
-				AfxMessageBox( str );
+				CString s1 ((LPCSTR) IDS_PinNameMayNotContainAnyOfTheCharacters);
+				AfxMessageBox( s1 );
 				return;
 			}
 			int pin_index = part->shape->GetPinIndexByName( pinstr );
