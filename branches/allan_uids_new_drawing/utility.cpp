@@ -490,6 +490,9 @@ int ParseRef( CString * ref, CString * prefix )
 // if nstr != NULL, set to numeric part
 // if n != NULL, set to value of numeric part
 //
+// CPT changed:  now allowing 1A.  In that sort of case, astr on return will be 1a and nstr will be "".  I.e.
+//  nstr is filled only if pinstr ENDS with a number.
+
 BOOL CheckLegalPinName( CString * pinstr, CString * astr, CString * nstr, int * n )
 {
 	CString aastr;
@@ -500,38 +503,18 @@ BOOL CheckLegalPinName( CString * pinstr, CString * astr, CString * nstr, int * 
 		return FALSE;
 	if( -1 != pinstr->FindOneOf( " .,;:/!@#$%^&*(){}[]|<>?\\~\'\"" ) )
 		return FALSE;
-	int asize = pinstr->FindOneOf( "0123456789" );
-	if( asize == -1 )
+	int lgth = pinstr->GetLength(), lastNonDigit;
+	for (lastNonDigit=lgth-1; lastNonDigit>=0; lastNonDigit--) 
 	{
-		// starts with a non-number
-		aastr = *pinstr;
+		char c = (*pinstr)[lastNonDigit];
+		if (!isdigit(c)) break;
 	}
-	else if( asize == 0 )
-	{
-		// starts with a number, illegal if any non-numbers
-		nnstr = *pinstr;
-		for( int ic=0; ic<nnstr.GetLength(); ic++ )
-		{
-			if( nnstr[ic] < '0' || nnstr[ic] > '9' )
-				return FALSE;
-		}
-		nn = atoi( nnstr );
-	}
+	if (lastNonDigit==lgth-1)
+		aastr = *pinstr;			// Doesn't have trailing digits...
 	else
-	{
-		// both alpha and numeric parts
-		// get alpha substring
-		aastr = pinstr->Left( asize );
-		int test = aastr.FindOneOf( "0123456789" );
-		if( test != -1 )
-			return FALSE;	// alpha substring contains a number
-		// get numeric substring
-		nnstr = pinstr->Right( pinstr->GetLength() - asize );
-		CString teststr = nnstr.SpanIncluding( "0123456789" );
-		if( teststr != nnstr )
-			return FALSE;	// numeric substring contains non-number
-		nn = atoi( nnstr );
-	}
+		aastr = pinstr->Left(lastNonDigit+1),
+		nnstr = pinstr->Mid(lastNonDigit+1),
+		nn = atoi(nnstr);
 	if( astr )
 		*astr = aastr;
 	if( nstr )
@@ -540,7 +523,7 @@ BOOL CheckLegalPinName( CString * pinstr, CString * astr, CString * nstr, int * 
 		*n = nn;
 	return TRUE;
 }
-
+// end CPT
 
 
 // find intersection between y = a + bx and y = c + dx;

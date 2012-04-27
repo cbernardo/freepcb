@@ -383,12 +383,8 @@ void CDlgAddPin::DoDataExchange(CDataExchange* pDX)
 		// check for legal pin name
 		if( !CheckLegalPinName( &m_pin_name, &astr, &nstr, &n ) )
 		{
-			str = "Pin name must consist of zero or more letters\n";
-			str	+= "Followed by zero or more numbers\n";
-			str	+= "The characters \" .,;:/!@#$%^&*(){}[]|<>?\\~\'\" are illegal\n";
-			str	+= "For example: 1, 23, A12, SOURCE are legal\n";
-			str	+= "while 1A, A2B3, A:3 are not\n";
-			AfxMessageBox( str );
+			CString s1 ((LPCSTR) IDS_PinNameMayNotContainAnyOfTheCharacters);
+			AfxMessageBox( s1 );
 			pDX->Fail();
 		}
 		if( m_mode == ADD )
