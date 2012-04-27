@@ -1763,46 +1763,55 @@ BEGIN
     LTEXT           "Reference designator",IDC_STATIC,12,20,70,8
 END
 
-IDD_EXPORT DIALOGEX 0, 0, 250, 116
-STYLE DS_SETFONT | DS_FIXEDSYS | WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS
+IDD_EXPORT DIALOGEX 0, 0, 250, 145
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Export options"
 FONT 8, "MS Shell Dlg", 400, 0, 0x1
 BEGIN
-    CONTROL         "Parts only",IDC_RADIO_PARTS,"Button",BS_AUTORADIOBUTTON | WS_GROUP,18,12,48,10
-    CONTROL         "Nets only",IDC_RADIO_NETS,"Button",BS_AUTORADIOBUTTON,18,24,46,10
-    CONTROL         "Parts and Nets",IDC_RADIO_PARTSANDNETS,"Button",BS_AUTORADIOBUTTON,18,36,63,10
-    CONTROL         "PADS-PCB",IDC_RADIO_PADSPCB,"Button",BS_AUTORADIOBUTTON | WS_GROUP,18,72,49,10
+    CONTROL         "Parts only",IDC_RADIO_PARTS,"Button",BS_AUTORADIOBUTTON | WS_GROUP,18,15,48,10
+    CONTROL         "Nets only",IDC_RADIO_NETS,"Button",BS_AUTORADIOBUTTON,18,27,46,10
+    CONTROL         "Parts and Nets",IDC_RADIO_PARTSANDNETS,"Button",BS_AUTORADIOBUTTON,18,39,63,10
+    CONTROL         "PADS-PCB",IDC_RADIO_PADSPCB,"Button",BS_AUTORADIOBUTTON | WS_GROUP,18,75,49,10
     CONTROL         "For parts, use ""value@footprint"" format",IDC_CHECK_AT,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,80,72,144,10
-    GROUPBOX        "Export",IDC_STATIC,6,0,228,54
-    GROUPBOX        "Format",IDC_STATIC,6,60,228,42
-    CONTROL         "FreePCB",IDC_RADIO_FREEPCB,"Button",BS_AUTORADIOBUTTON | WS_DISABLED,18,85,43,10
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,80,75,144,10
+    GROUPBOX        "Export",IDC_STATIC,6,3,228,54
+    GROUPBOX        "Format",IDC_STATIC,6,63,228,42
+    CONTROL         "FreePCB",IDC_RADIO_FREEPCB,"Button",BS_AUTORADIOBUTTON | WS_DISABLED,18,88,43,10
+    DEFPUSHBUTTON   "Export",IDOK,18,115,104,14
+    PUSHBUTTON      "Cancel",IDCANCEL,129,115,104,14
 END
 
-IDD_IMPORT_OPTIONS DIALOGEX 0, 0, 292, 274
+IDD_IMPORT_OPTIONS DIALOGEX 0, 0, 292, 314
 STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Import Options"
 FONT 8, "MS Shell Dlg", 400, 0, 0x1
 BEGIN
-    DEFPUSHBUTTON   "Import",IDOK,12,246,50,14
-    PUSHBUTTON      "Save project with these settings then import",ID_SAVE_AND_IMPORT,72,246,150,14
-    PUSHBUTTON      "Cancel",IDCANCEL,234,246,50,14
-    LTEXT           "You are importing a netlist file into a project that already contains parts and/or nets",IDC_STATIC,6,6,268,8
-    GROUPBOX        "For parts in project but not in netlist file",IDC_STATIC,6,24,276,54
-    CONTROL         "Remove parts",IDC_RADIO_REMOVE_PARTS,"Button",BS_AUTORADIOBUTTON | WS_GROUP,12,36,61,10
+    DEFPUSHBUTTON   "Import",IDOK,12,290,50,14
+    PUSHBUTTON      "Save project with these settings then import",ID_SAVE_AND_IMPORT,72,290,150,14
+    PUSHBUTTON      "Cancel",IDCANCEL,234,290,50,14
+    GROUPBOX        "For parts in project but not in netlist file",IDC_STATIC,6,68,279,54
+    CONTROL         "Remove parts",IDC_RADIO_REMOVE_PARTS,"Button",BS_AUTORADIOBUTTON | WS_GROUP,12,80,61,10
     CONTROL         "Keep parts but remove connections to nets",IDC_RADIO_KEEP_PARTS_NO_CONNECTIONS,
-                    "Button",BS_AUTORADIOBUTTON,12,48,154,10
+                    "Button",BS_AUTORADIOBUTTON,12,92,154,10
     CONTROL         "Keep parts and connections to nets",IDC_RADIO_KEEP_PARTS_AND_CONNECTIONS,
-                    "Button",BS_AUTORADIOBUTTON,12,60,129,10
-    GROUPBOX        "For parts in project whose package or footprint doesn't match netlist file",IDC_STATIC,6,84,276,42
-    CONTROL         "Change footprints",IDC_RADIO4,"Button",BS_AUTORADIOBUTTON | WS_GROUP,12,96,74,10
-    CONTROL         "Keep footprints",IDC_RADIO3,"Button",BS_AUTORADIOBUTTON,12,108,65,10
-    GROUPBOX        "For nets in project that are not in netlist file",IDC_STATIC,6,132,276,42
-    CONTROL         "Remove nets",IDC_RADIO6,"Button",BS_AUTORADIOBUTTON | WS_GROUP,12,144,58,10
-    CONTROL         "Keep nets",IDC_RADIO5,"Button",BS_AUTORADIOBUTTON,12,156,48,10
-    GROUPBOX        "For traces and copper areas connected to pins whose nets have changed",IDC_STATIC,6,180,276,54
-    CONTROL         "Retain traces",IDC_CHECK_KEEP_TRACES,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,12,192,59,10
-    CONTROL         "Retain stubs",IDC_CHECK_KEEP_STUBS,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,12,204,56,10
-    CONTROL         "Retain areas if possible",IDC_CHECK_KEEP_AREAS,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,12,216,90,10
+                    "Button",BS_AUTORADIOBUTTON,12,104,129,10
+    GROUPBOX        "For parts in project whose package or footprint doesn't match netlist file",IDC_STATIC,9,126,276,42
+    CONTROL         "Change footprints",IDC_RADIO4,"Button",BS_AUTORADIOBUTTON | WS_GROUP,12,140,74,10
+    CONTROL         "Keep footprints",IDC_RADIO3,"Button",BS_AUTORADIOBUTTON,12,152,65,10
+    GROUPBOX        "For nets in project that are not in netlist file",IDC_STATIC,6,176,279,42
+    CONTROL         "Remove nets",IDC_RADIO6,"Button",BS_AUTORADIOBUTTON | WS_GROUP,12,188,58,10
+    CONTROL         "Keep nets",IDC_RADIO5,"Button",BS_AUTORADIOBUTTON,12,200,48,10
+    GROUPBOX        "For traces and copper areas connected to pins whose nets have changed",IDC_STATIC,6,224,279,54
+    CONTROL         "Retain traces",IDC_CHECK_KEEP_TRACES,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,12,236,59,10
+    CONTROL         "Retain stubs",IDC_CHECK_KEEP_STUBS,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,12,248,56,10
+    CONTROL         "Retain areas if possible",IDC_CHECK_KEEP_AREAS,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,12,260,90,10
+    CONTROL         "Parts only",IDC_RADIO_PARTS,"Button",BS_AUTORADIOBUTTON | WS_GROUP,12,18,48,10
+    CONTROL         "Nets only",IDC_RADIO_NETS,"Button",BS_AUTORADIOBUTTON,12,30,46,10
+    CONTROL         "Parts and Nets",IDC_RADIO_PARTSANDNETS,"Button",BS_AUTORADIOBUTTON,12,42,63,10
+    CONTROL         "PADS-PCB",IDC_RADIO_PADSPCB,"Button",BS_AUTORADIOBUTTON | WS_GROUP,166,17,49,10
+    GROUPBOX        "Import",IDC_STATIC,6,7,144,54
+    GROUPBOX        "Format",IDC_STATIC,155,7,130,54
+    CONTROL         "FreePCB",IDC_RADIO_FREEPCB,"Button",BS_AUTORADIOBUTTON | WS_DISABLED,166,30,43,10
 END
 
 IDD_ADD_MASK_CUTOUT DIALOGEX 0, 0, 172, 95
@@ -4264,7 +4273,7 @@ END
 
 STRINGTABLE
 BEGIN
-    IDS_AppName             "Merge-CPT 0.23"
+    IDS_AppName             "Merge-CPT 0.24"
 END
 
 STRINGTABLE
