@@ -1196,11 +1196,13 @@ int CNetList::InsertSegment( cnet * net, int ic, int iseg, int x, int y, int lay
 		c->seg[iseg].m_width = width;
 	}
 
+#if 0	// AMW 300 shouldn't need this until connection is drawn
 	// clean up vias
 	ReconcileVia( net, ic, iseg, FALSE );
 	ReconcileVia( net, ic, iseg+1, FALSE );
 	if( (iseg+1) < c->NumSegs() )
 		ReconcileVia( net, ic, iseg+2, FALSE );
+#endif 
 
 	// redraw connection
 	if( bWasDrawn )
@@ -3531,7 +3533,9 @@ int CNetList::ReconcileVia( cnet * net, int ic, int ivtx, BOOL bDrawVertex )
 	{
 		// CPT REINSTATED ASSERT(0)
 		if( ivtx != 0 && ivtx != c->NumSegs() )
+		{
 			ASSERT(0);
+		}
 		else if( TeeViaNeeded( net, abs( v->tee_ID ), &v_draw ) )
 		{
 			via_needed = TRUE;
@@ -3885,18 +3889,19 @@ void CNetList::ReadNets( CStdioFile * pcb_file, double read_version, int * layer
 					}
 				}
 				int nc;
+				cconnect * c;
 				if( start_pin != cconnect::NO_END && end_pin != cconnect::NO_END )
 				{
-					net->AddConnectFromPinToPin( start_pin, end_pin, &nc );
+					c = net->AddConnectFromPinToPin( start_pin, end_pin, &nc );
 				}
 				else if( start_pin != cconnect::NO_END && end_pin == cconnect::NO_END )
 				{
-					net->AddConnectFromPin( start_pin, &nc );
+					c = net->AddConnectFromPin( start_pin, &nc );
 				}
 				else if( start_pin == cconnect::NO_END && end_pin != cconnect::NO_END )
 				{
 					// connect from vertex to pin
-					cconnect * c = net->AddConnect( &nc);
+					c = net->AddConnect( &nc);
 					c->end_pin = end_pin;
 					// add the first vertex
 					cvertex * v = &c->InsertVertexByIndex( 0, first_vtx );
@@ -4028,8 +4033,10 @@ void CNetList::ReadNets( CStdioFile * pcb_file, double read_version, int * layer
 							else if( read_version > 1.312001 )	// i.e. 1.313 or greater
 								ForceVia( net, ic, is+1 );
 						}
+						//**
 						net->connect[ic]->vtx[is+1].tee_ID = tee_ID;
 
+#if 0	// AMW r266 not needed anymore
 						// if older version of fpc file, negate tee_ID of end_vertex
 						// of stub trace to make compatible with version 1.360 and higher
 						if( end_pin == cconnect::NO_END 
@@ -4039,23 +4046,23 @@ void CNetList::ReadNets( CStdioFile * pcb_file, double read_version, int * layer
 						{
 							net->connect[ic]->vtx[is+1].tee_ID = -tee_ID;
 						}
-						//**
+#endif
 
 						if( is != 0 )
 						{
 							// set widths of preceding vertex
 							net->connect[ic]->vtx[is].via_w = pre_via_w;
 							net->connect[ic]->vtx[is].via_hole_w = pre_via_hole_w;
-							if( m_dlist )
-								DrawVertex( net, ic, is );
+
+//** AMW r266 shouldn't need this, since we will be drawing connection at the end
+//							if( m_dlist )
+//								DrawVertex( net, ic, is );
 						}
 						pre_via_w = via_w;
 						pre_via_hole_w = via_hole_w;
 					}
 				}
-#if 0
-				}
-#endif
+
 				// connection created
 				// if older version of fpc file, split at tees if needed
 				if( read_version < 1.360 )

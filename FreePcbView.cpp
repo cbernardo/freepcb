@@ -1740,6 +1740,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		CPoint pf = m_last_cursor_point;
 		CPoint pp = GetInflectionPoint( pi, pf, m_inflection_mode );
 		BOOL insert_flag = FALSE;
+		m_sel_id.Con()->Draw();		// AMW 300
 		if( pp != pi )
 		{
 			insert_flag = m_Doc->m_nlist->InsertSegment( m_sel_net, m_sel_ic, m_sel_is,
