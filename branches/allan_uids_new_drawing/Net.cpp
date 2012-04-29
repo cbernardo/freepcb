@@ -869,8 +869,18 @@ cvertex * cconnect::LastVtx()
 		return &vtx[nv-1]; 
 }
 
+cseg & cconnect::FirstSeg()
+{
+	return SegByIndex(0);
+}
+
+cseg & cconnect::LastSeg()
+{
+	return SegByIndex( NumSegs() - 1 );
+}
+
 // return reference to seg[is]
-cseg& cconnect::SegByIndex( int is )
+cseg & cconnect::SegByIndex( int is )
 { 
 	return seg[is]; 
 }
@@ -1388,17 +1398,9 @@ cconnect * cnet::AddConnectFromPinToPin( int p1, int p2, int * ic_ptr )
 	c->end_pin = p2;
 	cseg * s = &c->SegByIndex( 0 );
 
-	// create id for this segment
-	id id( ID_NET, this->UID(), ID_CONNECT, c->UID(), ic, ID_SEG, s->UID(), 0 );
-
 	if( m_dlist )
 	{
-		// draw graphic elements for segment
-		s->dl_el = m_dlist->Add( id, this, LAY_RAT_LINE, DL_LINE, 
-			visible, 0, 0, 0, pi.x, pi.y, pf.x, pf.y, 0, 0 ); 
-		id.SetT3( ID_SEL_SEG );
-		s->dl_sel = m_dlist->AddSelector( id, this, LAY_RAT_LINE, DL_LINE,
-			visible, 0, 0, pi.x, pi.y, pf.x, pf.y, 0, 0 ); 
+		c->Draw();
 	}
 	if( ic_ptr )
 		*ic_ptr = ic;
@@ -1425,17 +1427,11 @@ void cnet::RemoveConnect( cconnect * c )
 //
 void cnet::RemoveConnectAdjustTees( cconnect * c )
 {
-	// notify iterators of pending removal
-	CIterator_cconnect iter_con( this );
-	iter_con.OnRemove( c );
 	// see if any tees to check
 	int tee_1 = c->FirstVtx()->tee_ID;
 	int tee_2 = c->LastVtx()->tee_ID;
 	// remove connection
-	int ic = ConIndexByPtr( c );
-	c->Undraw();
-	delete c;
-	connect.RemoveAt( ic );
+	RemoveConnect( c );
 	// now adjust tees
 	if( tee_1 )
 		AdjustTees( tee_1 );
@@ -1443,12 +1439,16 @@ void cnet::RemoveConnectAdjustTees( cconnect * c )
 		AdjustTees( tee_2 );
 }
 
-void cnet::RemoveSegAndVertexByIndex( cconnect * c, int is )
+// AMW r267 modified
+//
+bool cnet::RemoveSegAndVertexByIndex( cconnect * c, int is )
 {
+	bool bConRemoved = FALSE;
 	if( c->NumSegs() < 2 )
 	{
 		// remove entire connection
 		RemoveConnectAdjustTees( c );
+		bConRemoved = TRUE;
 	}
 	else
 	{
@@ -1457,18 +1457,27 @@ void cnet::RemoveSegAndVertexByIndex( cconnect * c, int is )
 		if( is == c->NumSegs() )
 		{
 			// we just removed the last segment and vertex
-// AMW r266			c->LastVtx()->tee_ID = 0;
 			c->end_pin = cconnect::NO_END;
+			// if new last segment is unrouted and un-teed, remove that too
+			if( c->LastSeg().m_layer == LAY_RAT_LINE && c->LastVtx()->tee_ID == 0 )
+			{
+				bConRemoved = RemoveSegAndVertexByIndex( c, c->NumSegs()-1 );
+			}
 		}
 	}
+	return bConRemoved;
 }
 
-void cnet::RemoveVertexAndSegByIndex( cconnect * c, int is )
+// AMW r267 modified
+//
+bool cnet::RemoveVertexAndSegByIndex( cconnect * c, int is )
 {
+	bool bConRemoved = FALSE;
 	if( c->NumSegs() < 2 )
 	{
 		// remove entire connection
 		RemoveConnectAdjustTees( c );
+		bConRemoved = TRUE;
 	}
 	else
 	{
@@ -1479,15 +1488,24 @@ void cnet::RemoveVertexAndSegByIndex( cconnect * c, int is )
 			// we just removed the first vertex and segment
 			c->FirstVtx()->tee_ID = 0;
 			c->start_pin = cconnect::NO_END;
+			// if new first segment is unrouted, remove it too
+			if( c->SegByIndex(0).m_layer == LAY_RAT_LINE )
+			{
+				bool bConRemoved = RemoveVertexAndSegByIndex( c, 0 );
+			}
 		}
 	}
+	return bConRemoved;
 }
 
+// AMW r267 modified
 // remove a vertex from a connection
-// this may result in removal of connection
+// this may result in removal of connection(s)
+// return TRUE if connection removed
 //
-void cnet::RemoveVertex( cconnect * c, int iv )
+bool cnet::RemoveVertex( cconnect * c, int iv )
 {
+	bool bConRemoved = FALSE;
 	cvertex * v = &c->vtx[iv];
 	if( v->GetType() == cvertex::V_TEE || v->GetType() == cvertex::V_SLAVE )
 	{
@@ -1515,7 +1533,7 @@ void cnet::RemoveVertex( cconnect * c, int iv )
 		}
 		// now remove tee
 		v->tee_ID = 0;
-		RemoveVertex( v );
+		bConRemoved = RemoveVertex( v );
 	}
 	else if( v->GetType() == cvertex::V_TRACE )
 	{
@@ -1525,30 +1543,74 @@ void cnet::RemoveVertex( cconnect * c, int iv )
 		if( s1->m_layer != s2->m_layer )
 		{
 			s2->m_layer = LAY_RAT_LINE;
+			s2->m_width = 1;	// AMW r267 added 
 		}
-		RemoveSegAndVertexByIndex( c, iv-1 );
+		bConRemoved = RemoveSegAndVertexByIndex( c, iv-1 );
 	}
 	else if( v->GetType() == cvertex::V_END )
 	{
 		// end-vertex, but not a tee, just delete vertex and segment
 		if( iv == 0 )
 		{
-			RemoveVertexAndSegByIndex( c, iv );
+			bConRemoved = RemoveVertexAndSegByIndex( c, iv );
 		}
 		else
 		{
-			RemoveSegAndVertexByIndex( c, iv-1 );
+			bConRemoved = RemoveSegAndVertexByIndex( c, iv-1 );
 		}
 	}
+	else
+	{
+		ASSERT(0);
+		return FALSE;
+	}
+	if( !bConRemoved )
+	{
+		bConRemoved = MergeUnroutedSegments( c );
+	}
+	return bConRemoved;
 }
 
+// AMW r267 modified
 // remove a non-tee vertex from a connection
 //
-void cnet::RemoveVertex( cvertex * v )
+bool cnet::RemoveVertex( cvertex * v )
 {
 	int iv = v->Index();
-	RemoveVertex( v->m_con, iv );
+	bool bConRemoved = RemoveVertex( v->m_con, iv );
+	return bConRemoved;
 }
+
+
+// AMW r267 added
+// Merge any adjacent unrouted segment of this connection
+// unless separated by a tee-connection
+// if single unrouted segment of non-tee stub, removes the connection
+// Returns TRUE if connection removed
+//
+bool cnet::MergeUnroutedSegments( cconnect * c )
+{
+	bool bConRemoved = FALSE;
+	bool bWasDrawn = c->m_bDrawn;
+	c->Undraw();
+	for( int is=c->NumSegs()-2; is>=0; is-- )
+	{
+		cseg * s = &c->SegByIndex(is);
+		cseg * post_s = &c->SegByIndex(is+1);
+		cvertex * post_v = &c->VtxByIndex(is+1);
+		if( post_s->m_layer == LAY_RAT_LINE && s->m_layer == LAY_RAT_LINE
+			&& post_v->tee_ID == 0 && post_v->force_via_flag == 0 )
+		{
+			// this segment and next are unrouted, remove vertex
+			bConRemoved = RemoveVertex( post_v );
+		}
+	}
+	if( bWasDrawn && !bConRemoved )
+		c->Draw();
+	return bConRemoved;
+}
+// end AMW
+
 
 // check connections to a tee and modify if necessary
 // usually called when a connection to a tee has been removed
@@ -1735,8 +1797,9 @@ void cnet::MergeConnections( cconnect * c1, cconnect * c2 )
 // remove a segment from connection
 // if this splits the connection, make new one
 // handle any tee-vertices
+// return TRUE if connection deleted
 //
-void cnet::RemoveSegmentAdjustTees( cseg * s )
+bool cnet::RemoveSegmentAdjustTees( cseg * s )
 {
 	cconnect * c = s->m_con;
 	id cid = c->Id();
@@ -1752,6 +1815,7 @@ void cnet::RemoveSegmentAdjustTees( cseg * s )
 	if( ns == 1 )
 	{
 		RemoveConnectAdjustTees( c );
+		return TRUE;
 	}
 	else if( is == 0 )
 	{
@@ -1794,6 +1858,7 @@ void cnet::RemoveSegmentAdjustTees( cseg * s )
 		AdjustTees( tee_1 );
 	if( tee_2 )
 		AdjustTees( tee_2 );
+	return FALSE;
 }
 
 
@@ -1813,6 +1878,15 @@ cconnect * cnet::SplitConnectAtVtx( id vtx_id )
 	new_c->start_pin = old_c->end_pin;	
 	int ivsplit;
 	cvertex * v_split = old_c->VtxByUID( vtx_id.U3(), &ivsplit );
+	// AMW r267 added
+	// make vertex into tee
+	int tee_ID = v_split->tee_ID;
+	if( tee_ID == 0 )
+	{
+		tee_ID = m_nlist->GetNewTeeID();
+		v_split->tee_ID = tee_ID;
+	}
+	// end AMW
 	for( int iv=old_c->NumSegs(); iv>=ivsplit; iv-- )
 	{
 		if( iv == old_c->NumSegs() )
@@ -1823,12 +1897,11 @@ cconnect * cnet::SplitConnectAtVtx( id vtx_id )
 			RemoveSegAndVertexByIndex( old_c, iv );
 		}
 	}
+#if 0 // AMW r267 removed
 	// convert both connections to stubs, ending at a shared tee-vertex
-	int tee_ID = v_split->tee_ID;
-	if( tee_ID == 0 )
-		tee_ID = m_nlist->GetNewTeeID();
 	old_c->LastVtx()->tee_ID = tee_ID;		// master
 	new_c->LastVtx()->tee_ID = -tee_ID;		// slave
+#endif
 	if( bWasDrawn )
 	{
 		new_c->Draw();

@@ -212,8 +212,10 @@ public:
 	// get info about segments
 	int NumSegs();
 	void SetNumSegs( int n );
+	cseg & FirstSeg();
+	cseg & LastSeg();
 	cseg * SegByUID( int uid, int * index=NULL );
-	cseg& SegByIndex( int is );
+	cseg & SegByIndex( int is );
 	int SegIndexByPtr( cseg * s );
 	int SegUIDByPtr( cseg * s );
 
@@ -307,12 +309,15 @@ public:
 	void RecreateConnectFromUndo( undo_con * con, undo_seg * seg, undo_vtx * vtx );
 	void AdjustTees( int tee_ID );
 
+	// AMW r267 added return values to indicate connection deleted
 	// segments and vertices
-	void RemoveSegmentAdjustTees( cseg * s );
-	void RemoveSegAndVertexByIndex( cconnect * c, int is );
-	void RemoveVertexAndSegByIndex( cconnect * c, int is );
-	void RemoveVertex( cconnect * c, int iv );
-	void RemoveVertex( cvertex * v );
+	bool RemoveSegmentAdjustTees( cseg * s );
+	bool RemoveSegAndVertexByIndex( cconnect * c, int is );
+	bool RemoveVertexAndSegByIndex( cconnect * c, int is );
+	bool RemoveVertex( cconnect * c, int iv );
+	bool RemoveVertex( cvertex * v );
+	bool MergeUnroutedSegments( cconnect * c );	// AMW r267 added
+	// end AMW
 
 // member variables
 	id m_id;				// net id

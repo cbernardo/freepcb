@@ -2639,7 +2639,7 @@ int CNetList::StartDraggingVertex( CDC * pDC, cnet * net, int ic, int ivtx,
 	}
 
 	// start dragging
-	if( ivtx < c->NumSegs() )
+	if( ivtx < c->NumSegs() && ivtx > 0 )
 	{
 		// vertex with segments on both sides
 		int xi = c->vtx[ivtx-1].x;
@@ -2657,12 +2657,25 @@ int CNetList::StartDraggingVertex( CDC * pDC, cnet * net, int ic, int ivtx,
 	else
 	{
 		// end-vertex, only drag one segment
-		int xi = c->vtx[ivtx-1].x;
-		int yi = c->vtx[ivtx-1].y;
-		int layer1 = c->seg[ivtx-1].m_layer;
-		int w1 = c->seg[ivtx-1].m_width;
+		// AMW r267 modified for new trace code
+		int start_iv, is;
+		if( ivtx ==  0 )
+		{
+			start_iv = 1;
+			is = 0;
+		}
+		else
+		{
+			start_iv = ivtx - 1;
+			is = ivtx-1;
+		}
+		int xi = c->vtx[start_iv].x;
+		int yi = c->vtx[start_iv].y;
+		int layer1 = c->seg[is].m_layer;
+		int w1 = c->seg[is].m_width;
 		m_dlist->StartDraggingLine( pDC, x, y, xi, yi, layer1, 
 									w1, layer1, 0, 0, crosshair, DSS_STRAIGHT, 0 );
+		// end AMW
 	}
 	return 0;
 }
@@ -3534,7 +3547,9 @@ int CNetList::ReconcileVia( cnet * net, int ic, int ivtx, BOOL bDrawVertex )
 		// CPT REINSTATED ASSERT(0)
 		if( ivtx != 0 && ivtx != c->NumSegs() )
 		{
-			ASSERT(0);
+			// AMW r267 this should be an error, but it occurs when reading project file
+			// TODO: I should fix this
+			// ASSERT(0);
 		}
 		else if( TeeViaNeeded( net, abs( v->tee_ID ), &v_draw ) )
 		{

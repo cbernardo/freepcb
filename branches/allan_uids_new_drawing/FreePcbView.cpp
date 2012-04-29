@@ -2306,7 +2306,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 					}
 					else 
 					{
-						// add ratline from pin to vertex
+						// add ratline from vertex to pin
 						SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_Doc->m_undo_list );
 						SaveUndoInfoForPartAndNets( pin_part,
 							CPartList::UNDO_PART_MODIFY, NULL, FALSE, m_Doc->m_undo_list );
@@ -2317,9 +2317,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 								&pin_name );
 						}
 						int p1 = m_Doc->m_nlist->GetNetPinIndex( m_sel_net, &pin_part->ref_des, &pin_name );
-						m_sel_con->Undraw();
 						cconnect * new_con = m_sel_net->AddRatlineFromVtxToPin( m_sel_id, p1 );
-						m_sel_con->Draw();
 						if( new_con != m_sel_con )
 							new_con->Draw();
 						CancelSelection();
@@ -2592,6 +2590,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 					m_Doc->m_nlist->ChangeConnectionPin( m_sel_net, m_sel_ic, TRUE,
 						new_sel_part, &pin_name );
 					m_dlist->StopDragging();
+					m_sel_id.Con()->Draw();		// AMW r267 added
 					SetCursorMode( CUR_NONE_SELECTED );
 					m_Doc->m_nlist->SetAreaConnections( m_sel_net );
 					m_Doc->ProjectModified( TRUE );
@@ -6465,6 +6464,7 @@ void CFreePcbView::OnVertexStartTrace()
 	// select the vertex
 	m_sel_id = new_c->FirstVtx()->Id();
 	GetWidthsForSegment( &w, &via_w, &via_hole_w );
+	m_active_width = w;		// AMW r267 added
 	m_Doc->m_nlist->StartDraggingStub( pDC, m_sel_net, m_sel_ic, m_sel_iv,
 		p.x, p.y, m_active_layer, w, m_active_layer, via_w, via_hole_w,
 		2, m_inflection_mode );
