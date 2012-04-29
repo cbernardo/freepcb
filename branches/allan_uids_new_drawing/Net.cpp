@@ -1457,7 +1457,7 @@ void cnet::RemoveSegAndVertexByIndex( cconnect * c, int is )
 		if( is == c->NumSegs() )
 		{
 			// we just removed the last segment and vertex
-			c->LastVtx()->tee_ID = 0;
+// AMW r266			c->LastVtx()->tee_ID = 0;
 			c->end_pin = cconnect::NO_END;
 		}
 	}
@@ -1807,6 +1807,7 @@ void cnet::RemoveSegmentAdjustTees( cseg * s )
 cconnect * cnet::SplitConnectAtVtx( id vtx_id )
 {
 	cconnect * old_c = ConByUID( vtx_id.U2() );
+	bool bWasDrawn = old_c->m_bDrawn;
 	old_c->Undraw();
 	cconnect * new_c = AddConnect();	// add empty connection
 	new_c->start_pin = old_c->end_pin;	
@@ -1828,8 +1829,11 @@ cconnect * cnet::SplitConnectAtVtx( id vtx_id )
 		tee_ID = m_nlist->GetNewTeeID();
 	old_c->LastVtx()->tee_ID = tee_ID;		// master
 	new_c->LastVtx()->tee_ID = -tee_ID;		// slave
-	new_c->Draw();
-	old_c->Draw();
+	if( bWasDrawn )
+	{
+		new_c->Draw();
+		old_c->Draw();
+	}
 	return new_c;
 }
 
