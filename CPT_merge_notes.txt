@@ -22,7 +22,11 @@ CPT merge notes
 #15a - CPT r260: merged
 #16 - CPT r264: merged
 #17 - CPT r266: merged
+#18 - AMW r268: merged
+#19 - AMW r268: merged
+#20 - AMW: partially merged, works for moving parts but not groups, I just ran out of time tonight
 #22 - CPT r260: merged
+#23 - AMW deferred, these ratlines should already be eliminated by pressing F9
 #28 - merged (by AMW)
 
 ---------------------------------------------------------------------------------------

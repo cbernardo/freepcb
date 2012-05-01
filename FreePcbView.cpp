@@ -1452,10 +1452,11 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 
 		// now move it
 		m_sel_part->glued = 0;
+		int dx = m_last_cursor_point.x - m_from_pt.x, dy = m_last_cursor_point.y - m_from_pt.y;		// CPT bug fix #29
 		m_Doc->m_plist->Move( m_sel_part, m_last_cursor_point.x, m_last_cursor_point.y,
 			angle, side );
 		m_Doc->m_plist->HighlightPart( m_sel_part );
-		m_Doc->m_nlist->PartMoved( m_sel_part );
+		m_Doc->m_nlist->PartMoved( m_sel_part, dx, dy );											// CPT bug fix #29
 		if( m_Doc->m_vis[LAY_RAT_LINE] )
 			m_Doc->m_nlist->OptimizeConnections( m_sel_part, m_Doc->m_auto_ratline_disable, 
 									m_Doc->m_auto_ratline_min_pins );
@@ -2318,11 +2319,10 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 						}
 						int p1 = m_Doc->m_nlist->GetNetPinIndex( m_sel_net, &pin_part->ref_des, &pin_name );
 						cconnect * new_con = m_sel_net->AddRatlineFromVtxToPin( m_sel_id, p1 );
-						if( new_con != m_sel_con )
-							new_con->Draw();
-						CancelSelection();
+						cseg * seg = &new_con->FirstSeg();
 						m_Doc->m_dlist->StopDragging();
-						Invalidate( FALSE );
+						m_sel_id = seg->Id();
+						SelectItem( m_sel_id );
 						m_Doc->ProjectModified( TRUE );
 					}
 				}
@@ -2437,12 +2437,16 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 								}
 							}
 						}
+						cconnect * new_con = NULL;
 						if( p1>=0 && p2>=0 )
-							pin_net->AddConnectFromPinToPin( p1, p2 );
+							new_con = pin_net->AddConnectFromPinToPin( p1, p2 );
 						else
 							ASSERT(0);	// couldn't find pins in net
-						m_dlist->StopDragging();
-						SetCursorMode( CUR_PAD_SELECTED );
+						m_Doc->m_dlist->StopDragging();
+						cseg * seg = &new_con->FirstSeg();
+						m_sel_id = seg->Id();
+						m_sel_net = pin_net;
+						SelectItem( m_sel_id );
 					}
 					m_Doc->ProjectModified( TRUE );
 					Invalidate( FALSE );
@@ -3620,7 +3624,8 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 				m_sel_part->y+dy,
 				m_sel_part->angle,
 				m_sel_part->side );
-			m_Doc->m_nlist->PartMoved( m_sel_part );
+			m_Doc->m_nlist->PartMoved( m_sel_part, dx, dy );	// CPT
+// AMW			m_Doc->m_nlist->PartMoved( m_sel_part );
 			if( m_Doc->m_vis[LAY_RAT_LINE] )
 				m_Doc->m_nlist->OptimizeConnections( m_sel_part, m_Doc->m_auto_ratline_disable, 
 										m_Doc->m_auto_ratline_min_pins );
@@ -4515,6 +4520,43 @@ void CFreePcbView::OnMouseMove(UINT nFlags, CPoint point)
 		r.bottom -= m_bottom_pane_h;
 		frm->SetHideCursor( TRUE, &r );
 	}
+
+	// CPT:  when in connect-to-pin mode, see if we're on top of a pin and display its name in the status bar if so
+	if (m_cursor_mode != CUR_DRAG_CONNECT) 
+		return;
+	CMainFrame * pMain = (CMainFrame*) AfxGetApp()->m_pMainWnd;
+	if( !pMain ) 
+		return;
+	CString pin_name = "", connect_to ((LPCSTR) IDS_ConnectTo);
+	CPoint p = m_dlist->WindowToPCB( point );
+	int hit_layer;
+	id hit_id, pad_id( ID_PART, -1, ID_SEL_PAD );
+	m_sel_offset = -1;
+
+#if 0	// AMW this is the old version of TestSelect()
+	void * ptr = m_dlist->TestSelect( p.x, p.y, &hit_id, &hit_layer, &m_sel_offset, &pad_id );
+#endif
+
+	// AMW this is the replacement using the new version of TestSelect
+	CDL_job::HitInfo hit_info[20];
+	int num_hits;	
+	int best_hit_index = m_dlist->TestSelect( p.x, p.y, hit_info, 20, num_hits, NULL, NULL, &pad_id, 1 );
+
+	if( num_hits > 0 && best_hit_index != -1 )
+	{
+		void * ptr = hit_info[best_hit_index].ptr;
+		hit_id = hit_info[best_hit_index].ID;
+		if (ptr && hit_id.IsPin() )
+		{ 
+			// hit on pin
+			cpart * hit_part = (cpart*)ptr;
+			pin_name = connect_to + hit_part->ref_des + "." + hit_part->shape->GetPinNameByIndex( hit_id.I2() ) + "?";
+			pMain->DrawStatus( 3, &pin_name );
+			return;
+		}
+	}
+	// no hit on pin
+	pMain->DrawStatus(3, &pin_name); 
 }
 
 

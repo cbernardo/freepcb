@@ -763,8 +763,26 @@ void CNetList::ChangeConnectionPin( cnet * net, int ic, int end_flag,
 	}
 }
 
+// AMW: minor changes to CPT's code
+// Unroute segment
+// return id of new segment (since seg[] array may change as a result)
+// CPT: added dx/dy/end params which get passed down to UnrouteSegmentWithoutMerge(), q.v.
+id CNetList::UnrouteSegment( cnet * net, int ic, int is, int dx, int dy, int end )
+{
+	cconnect * c = net->ConByIndex(ic);
+	cseg * s = &c->SegByIndex(is);
+	id seg_id = s->Id();
+	UnrouteSegmentWithoutMerge( net, ic, is, dx, dy, end );
+	id mid = MergeUnroutedSegments( net, ic );
+	if( mid.T1() == ID_NONE )
+		mid = seg_id;
+	return mid;
+}
 
 
+
+
+#if 0 // AMW see above
 // Unroute segment
 // return id of new segment (since seg[] array may change as a result)
 //
@@ -780,6 +798,7 @@ id CNetList::UnrouteSegment( cnet * net, int ic, int is )
 		mid = seg_id;
 	return mid;
 }
+#endif
 
 // Merge any adjacent unrouted segment of this connection
 // unless separated by a tee-connection
@@ -819,6 +838,58 @@ id CNetList::MergeUnroutedSegments( cnet * net, int ic )
 	return mid;
 }
 
+
+// AMW: minor changes to CPT's code
+// Unroute segment, but don't merge with adjacent unrouted segments
+// Assume that there will be an eventual call to MergeUnroutedSegments() to set vias
+// CPT: added dx, dy and end arguments (which are 1/1/0 by default).  If, say, dx==0, dy==100000, end==1, then caller is about
+// to move a group/part to which the segment's end #1 is attached (by distance (0,100000)).  If the segment is itself vertical
+// (or nearly so) then we don't really need to unroute.
+
+void CNetList::UnrouteSegmentWithoutMerge( cnet * net, int ic, int is, double dx, double dy, int end )
+{
+	cconnect * c = net->ConByIndex(ic);
+	bool bUnroute = true;
+	int xi = c->VtxByIndex(is).x;
+	int yi = c->VtxByIndex(is).y;
+	int xf = c->VtxByIndex(is+1).x;
+	int yf = c->VtxByIndex(is+1).y;
+	if (dx==0 && abs(xi-xf) < abs(dy/10))
+	{
+		// Segment is almost vertical, and one of it's endpoints is going to move vertically
+		// If end 0 is going to move, we will unroute only if it's getting moved to the opposite side of end 1.  Analogously if end 1 is moving.
+		if (end==0) 
+			bUnroute = (yf-yi)*(yf-(yi+dy)) <= 0;
+		else        
+			bUnroute = (yf-yi)*((yf+dy)-yi) <= 0;
+	}
+	if (dy==0 && abs(yi-yf) < abs(dx/10)) 
+	{
+		if (end==0) 
+			bUnroute = (xf-xi)*(xf-(xi+dx)) <= 0;
+		else        
+			bUnroute = (xf-xi)*((xf+dx)-xi) <= 0;
+	}
+	if (!bUnroute) 
+		return;
+
+	c->SegByIndex(is).m_layer = LAY_RAT_LINE;
+	c->SegByIndex(is).m_width = 0;
+
+	// redraw segment
+	if( c->seg[is].IsDrawn() )
+	{
+		c->seg[is].Draw();
+	}
+	ReconcileVia( net, ic, is );
+	ReconcileVia( net, ic, is+1 );
+}
+
+
+
+
+
+#if 0	// AMW, see above
 // Unroute segment, but don't merge with adjacent unrouted segments
 // Assume that there will be an eventual call to MergeUnroutedSegments() to set vias
 //
@@ -841,6 +912,7 @@ void CNetList::UnrouteSegmentWithoutMerge( cnet * net, int ic, int is )
 	ReconcileVia( net, ic, is );
 	ReconcileVia( net, ic, is+1 );
 }
+#endif
 
 // Remove segment ... currently only used for last segment of stub trace
 // If adjacent segments are unrouted, removes them too
@@ -1628,12 +1700,147 @@ void CNetList::SwapPins( cpart * part1, CString * pin_name1,
 #endif
 }
 
+#if 0
+// Part moved, so unroute starting and ending segments of connections
+// to this part, and update positions of endpoints
+// Undraw and Redraw any changed connections
+// CPT:  added dx and dy params indicating how much the part moved (both are 1 by default).  If, say, dx==0
+// and an attached seg is vertical, then we don't have to unroute it.
+
+int CNetList::PartMoved( cpart * part, int dx, int dy )
+{
+	// first, mark all nets and connections unmodified
+	CIterator_cnet iter_net(this);
+	cnet * net = iter_net.GetFirst();
+	while( net )
+	{
+		net->utility = 0;
+		for( int ic=0; ic<net->NumCons(); ic++ )
+			net->connect[ic]->utility = 0;
+		net = iter_net.GetNext();
+	}
+	// disable drawing/undrawing
+	CDisplayList * old_dlist = m_dlist;
+	m_dlist = 0;
+
+	// find nets that connect to this part
+	// find nets that connect to this part
+	for( int ip=0; ip<part->shape->m_padstack.GetSize(); ip++ ) 
+	{
+		net = (cnet*)part->pin[ip].net;
+		if( net && net->utility == 0 )
+		{
+			for( int ic=0; ic<net->NumCons(); ic++ )
+			{
+				cconnect * c = net->ConByIndex(ic);
+				int nsegs = c->NumSegs();
+				if( nsegs )
+				{
+					// check this connection
+					int p1 = c->start_pin;
+					CString pin_name1 = net->pin[p1].pin_name;
+					int pin_index1 = part->shape->GetPinIndexByName( pin_name1 );
+					int p2 = c->end_pin;
+					cseg * s0 = &c->seg[0];
+					cvertex * v0 = &c->vtx[0];
+					if( net->pin[p1].part == part )
+					{
+						// start pin is on part, unroute first segment
+						net->utility = 1;	// mark net modified
+						c->utility = 1;		// mark connection modified
+						UnrouteSegment( net, ic, 0, dx, dy, 0 );
+						nsegs = c->NumSegs();
+						// modify vertex[0] position and layer
+						v0->x = part->pin[pin_index1].x;
+						v0->y = part->pin[pin_index1].y;
+						if( part->shape->m_padstack[pin_index1].hole_size )
+						{
+							// through-hole pad
+							v0->pad_layer = LAY_PAD_THRU;
+						}
+						else if( part->side == 0 && part->shape->m_padstack[pin_index1].top.shape != PAD_NONE
+							|| part->side == 1 && part->shape->m_padstack[pin_index1].bottom.shape != PAD_NONE )
+						{
+							// SMT pad on top
+							v0->pad_layer = LAY_TOP_COPPER;
+						}
+						else
+						{
+							// SMT pad on bottom
+							v0->pad_layer = LAY_BOTTOM_COPPER;
+						}
+						if( part->pin[pin_index1].net != net )
+							part->pin[pin_index1].net = net;
+					}
+					if( p2 != cconnect::NO_END )
+					{
+						if( net->pin[p2].part == part )
+						{
+							// end pin is on part, unroute last segment
+							net->utility = 1;	// mark net modified
+							c->utility = 1;		// mark connection modified
+							UnrouteSegment( net, ic, nsegs-1, dx, dy, 1 );
+							nsegs = c->nsegs;
+							// modify vertex position and layer
+							CString pin_name2 = net->pin[p2].pin_name;
+							int pin_index2 = part->shape->GetPinIndexByName( pin_name2 );
+							c->vtx[nsegs].x = part->pin[pin_index2].x;
+							c->vtx[nsegs].y = part->pin[pin_index2].y;
+							if( part->shape->m_padstack[pin_index2].hole_size )
+							{
+								// through-hole pad
+								c->vtx[nsegs].pad_layer = LAY_PAD_THRU;
+							}
+							else if( part->side == 0 && part->shape->m_padstack[pin_index2].top.shape != PAD_NONE
+								|| part->side == 0 && part->shape->m_padstack[pin_index2].top.shape != PAD_NONE )
+							{
+								// SMT pad, part on top
+								c->vtx[nsegs].pad_layer = LAY_TOP_COPPER;
+							}
+							else
+							{
+								// SMT pad, part on bottom
+								c->vtx[nsegs].pad_layer = LAY_BOTTOM_COPPER;
+							}
+							if( part->pin[pin_index2].net != net )
+								part->pin[pin_index2].net = net;
+						}
+					}
+				}
+			}
+		}
+	}
+	// now redraw connections
+	m_dlist = old_dlist;
+	if( m_dlist )
+	{
+		cnet * net;
+		net = GetFirstNet();
+		while( net )
+		{
+			if( net->utility )
+			{
+				for( int ic=0; ic<net->nconnects; ic++ )
+				{
+					if( net->connect[ic].utility )
+						DrawConnection( net, ic );
+				}
+			}
+			net = GetNextNet();
+		}
+	}
+	return 0;
+}
+#endif
+
 
 // Part moved, so unroute starting and ending segments of connections
 // to this part, and update positions of endpoints
 // Undraw and Redraw any changed connections
-// 
-int CNetList::PartMoved( cpart * part )
+// CPT:  added dx and dy params indicating how much the part moved (both are 1 by default).  If, say, dx==0
+// and an attached seg is vertical, then we don't have to unroute it.
+
+int CNetList::PartMoved( cpart * part, int dx, int dy )
 {
 	// first, mark all nets and connections unmodified
 	CIterator_cnet iter_net(this);
@@ -1675,7 +1882,7 @@ int CNetList::PartMoved( cpart * part )
 							int pin_index1 = part->shape->GetPinIndexByName( pin_name1 );
 							net->utility = 1;	// mark net modified
 							c->utility = 1;		// mark connection modified
-							UnrouteSegment( net, ic, 0 );
+							UnrouteSegment( net, ic, 0, dx, dy, 0  );
 							nsegs = c->NumSegs();
 							// modify vertex[0] position and layer
 							v0->x = part->pin[pin_index1].x;
@@ -1707,7 +1914,7 @@ int CNetList::PartMoved( cpart * part )
 							// end pin is on part, unroute last segment
 							net->utility = 1;	// mark net modified
 							c->utility = 1;		// mark connection modified
-							UnrouteSegment( net, ic, nsegs-1 );
+							UnrouteSegment( net, ic, nsegs-1, dx, dy, 1 );
 							nsegs = c->NumSegs();
 							// modify vertex position and layer
 							CString pin_name2 = net->pin[p2].pin_name;
@@ -1757,6 +1964,7 @@ int CNetList::PartMoved( cpart * part )
 	}
 	return 0;
 }
+//#endif
 
 // Part footprint changed, check new pins and positions
 // If changed, unroute starting and ending segments of connections

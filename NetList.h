@@ -222,8 +222,10 @@ public:
 	int AppendSegment( cnet * net, int ic, int x, int y, int layer, int width );
 	int InsertSegment( cnet * net, int ic, int iseg, int x, int y, int layer, int width,
 						int via_width, int via_hole_width, int dir );
-	id  UnrouteSegment( cnet * net, int ic, int iseg );
-	void UnrouteSegmentWithoutMerge( cnet * net, int ic, int iseg );
+	id  UnrouteSegment( cnet * net, int ic, int iseg, int dx=1, int dy=1, int end=0 );
+//	id  UnrouteSegment( cnet * net, int ic, int iseg );
+//	void UnrouteSegmentWithoutMerge( cnet * net, int ic, int iseg );
+	void UnrouteSegmentWithoutMerge( cnet * net, int ic, int iseg, double dx=1, double dy=1, int end=0 );
 	id MergeUnroutedSegments( cnet * net, int ic );
 	int RouteSegment( cnet * net, int ic, int iseg, int layer, int width );
 	void RemoveSegment( cnet * net, int ic, int iseg, BOOL bHandleTees=FALSE, BOOL bSetAreaConnections=TRUE );							 
@@ -270,7 +272,8 @@ public:
 	// functions related to parts
 	int RehookPartsToNet( cnet * net );
 	void PartAdded( cpart * part );
-	int PartMoved( cpart * part );
+	int PartMoved( cpart * part, int dx = 1, int dy = 1 );			// CPT added optional params
+//	int PartMoved( cpart * part );
 	int PartFootprintChanged( cpart * part );
 	int PartDeleted( cpart * part, BOOL bSetAreas=TRUE );
 	int PartDisconnected( cpart * part, BOOL bSetAreas=TRUE );

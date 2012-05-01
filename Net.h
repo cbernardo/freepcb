@@ -100,7 +100,7 @@ public:
 	void SetVisibility( int vis );
 	id Id();
 	int UID(){ return m_uid; };
-	int GetIndex();
+	int Index();
 	cvertex& GetPreVtx();
 	cvertex& GetPostVtx();
 	void GetStatusStr( CString * str, int width = 0 );			// CPT added width param

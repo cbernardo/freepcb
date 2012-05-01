@@ -383,6 +383,15 @@ public:
 	id m_mask_id[NUM_SEL_MASKS];			// ids for each bit
 	id m_mask_default_id[NUM_SEL_MASKS];	// default ids
 
+	// CPT - AMW: copied from CCommonView for now 
+	// selected items
+	int m_sel_offset;		// CPT:  new system for processing repeated clicks in the same place --- see CDisplayList::TestSelect()
+	id m_sel_id_prev;		// CPT: ditto.  See e.g. CFreePcbView::OnLButtonUp().  Also used when user repeatedly hits 'N' or 'T'
+	void *m_sel_prev;		// CPT: ditto
+	int m_cursor_mode_prev;	// CPT: ditto
+	// end CPT
+
+
 	// selected items
 	id m_sel_id;			// id of selected item
 	id m_sel_uid;			// uid of selected item
