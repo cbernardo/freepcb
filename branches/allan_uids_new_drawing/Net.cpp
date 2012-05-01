@@ -315,40 +315,46 @@ void cseg::Initialize( cconnect * c )
 //
 void cseg::Draw()
 {
-	if( dl_el )
-		Undraw();
-	int is = GetIndex();
-	cvertex *pre_v = &m_con->VtxByIndex(is);
-	cvertex *post_v = &m_con->VtxByIndex(is+1);
-	id s_id = m_con->Id();
-	s_id.SetSubSubType( ID_SEG, m_uid, is );
-	int v = 1;
-	if( m_layer == LAY_RAT_LINE )
-		v = m_net->visible;
-	int shape = DL_LINE;
-	if( m_curve == CW )
-		shape = DL_CURVE_CW;
-	else if( m_curve == CCW )
-		shape = DL_CURVE_CCW;
-	dl_el = m_dlist->Add( s_id, m_net, m_layer, shape, v, 
-		m_width, 0, 0, pre_v->x, pre_v->y, post_v->x, post_v->y,
-		0, 0 );
-	s_id.SetT3( ID_SEL_SEG );
-	dl_sel = m_dlist->AddSelector( s_id, m_net, m_layer, DL_LINE, v, 
-		m_width, 0, pre_v->x, pre_v->y, post_v->x, post_v->y,
-		0, 0 );
-	// mark parent connection as at least partially drawn
-	m_con->m_bDrawn = TRUE;
+	if( m_dlist )
+	{
+		if( dl_el )
+			Undraw();
+		int is = Index();
+		cvertex *pre_v = &m_con->VtxByIndex(is);
+		cvertex *post_v = &m_con->VtxByIndex(is+1);
+		id s_id = m_con->Id();
+		s_id.SetSubSubType( ID_SEG, m_uid, is );
+		int v = 1;
+		if( m_layer == LAY_RAT_LINE )
+			v = m_net->visible;
+		int shape = DL_LINE;
+		if( m_curve == CW )
+			shape = DL_CURVE_CW;
+		else if( m_curve == CCW )
+			shape = DL_CURVE_CCW;
+		dl_el = m_dlist->Add( s_id, m_net, m_layer, shape, v, 
+			m_width, 0, 0, pre_v->x, pre_v->y, post_v->x, post_v->y,
+			0, 0 );
+		s_id.SetT3( ID_SEL_SEG );
+		dl_sel = m_dlist->AddSelector( s_id, m_net, m_layer, DL_LINE, v, 
+			m_width, 0, pre_v->x, pre_v->y, post_v->x, post_v->y,
+			0, 0 );
+		// mark parent connection as at least partially drawn
+		m_con->m_bDrawn = TRUE;
+	}
 }
 
 // set up pointers
 //
 void cseg::Undraw()
 {
-	m_dlist->Remove( dl_el );
-	m_dlist->Remove( dl_sel );
-	dl_el = NULL;
-	dl_sel = NULL;
+	if( m_dlist )
+	{
+		m_dlist->Remove( dl_el );
+		m_dlist->Remove( dl_sel );
+		dl_el = NULL;
+		dl_sel = NULL;
+	}
 }
 
 // see if elements drawn
@@ -368,13 +374,13 @@ void cseg::SetVisibility( int vis )
 id cseg::Id()
 {
 	id s_id = m_con->Id();
-	s_id.SetSubSubType( ID_SEL_SEG, m_uid );
+	s_id.SetSubSubType( ID_SEL_SEG, m_uid, Index() );
 	return s_id;
 }
 
 // get index of this segment in cconnect
 //
-int cseg::GetIndex()
+int cseg::Index()
 {
 	CIterator_cseg iter_seg( m_con );
 	for( cseg * s=iter_seg.GetFirst(); s; s=iter_seg.GetNext() )
@@ -382,6 +388,7 @@ int cseg::GetIndex()
 		if( s == this )
 			return iter_seg.GetIndex();
 	}
+	ASSERT(0);
 	return -1;
 }
 
@@ -389,7 +396,7 @@ int cseg::GetIndex()
 //
 cvertex& cseg::GetPreVtx()
 {
-	int is = GetIndex();
+	int is = Index();
 	return m_con->VtxByIndex(is);
 }
 
@@ -397,7 +404,7 @@ cvertex& cseg::GetPreVtx()
 //
 cvertex& cseg::GetPostVtx()
 {
-	int is = GetIndex();
+	int is = Index();
 	return m_con->VtxByIndex(is+1);
 }
 
@@ -788,7 +795,7 @@ id cconnect::Id()
 	id c_id = m_net->Id();
 	int ic;
 	m_net->ConByUID( m_uid, &ic );
-	c_id.Set( id::NOP, id::NOP, ID_CONNECT, m_uid, ic ); 
+	c_id.SetSubType( ID_CONNECT, m_uid, ic ); 
 	return c_id;
 }
 
@@ -1810,7 +1817,7 @@ bool cnet::RemoveSegmentAdjustTees( cseg * s )
 	int tee_2 = s->GetPostVtx().tee_ID;
 	s->GetPreVtx().tee_ID = 0;
 	s->GetPostVtx().tee_ID = 0;
-	int is = s->GetIndex();
+	int is = s->Index();
 	int ns = c->NumSegs();
 	if( ns == 1 )
 	{
@@ -1931,6 +1938,7 @@ cconnect * cnet::AddRatlineFromVtxToPin( id vtx_id, int pin_index )
 		new_seg.m_width = 0;
 		new_seg.m_selected = 0;
 		new_c->AppendSegAndVertex( new_seg, *tee_v );
+		new_c->Draw();
 		return new_c;
 	}
 	else if( v->GetType() == cvertex::V_END )
@@ -1954,6 +1962,7 @@ cconnect * cnet::AddRatlineFromVtxToPin( id vtx_id, int pin_index )
 			c->AppendSegAndVertex( new_seg, new_vtx ); 
 			c->end_pin = pin_index;
 		}
+		c->Draw();
 		return c;
 	}
 	else if( v->GetType() == cvertex::V_TEE || v->GetType() == cvertex::V_SLAVE )
@@ -1969,6 +1978,7 @@ cconnect * cnet::AddRatlineFromVtxToPin( id vtx_id, int pin_index )
 		new_vtx.y = v->y;
 		new_vtx.tee_ID = -abs(v->tee_ID);
 		new_c->AppendSegAndVertex( new_seg, new_vtx );
+		new_c->Draw();
 		return new_c;
 	}
 	else
