@@ -643,13 +643,13 @@ BOOL CFreePcbView::SelectItem( id sid )
 				m_sel_net = sid.Net();
 				m_sel_id = net->m_id;
 				m_sel_id.SetT2( ID_ENTIRE_NET );
-				m_Doc->m_nlist->HighlightNetConnections( m_sel_net );
+				m_Doc->m_nlist->HighlightNet( m_sel_net );
 				m_Doc->m_plist->HighlightAllPadsOnNet( m_sel_net );
 				SetCursorMode( CUR_NET_SELECTED );
 			}
 			else
 			{
-				m_Doc->m_plist->SelectPad( m_sel_part, sid.I2() );
+				m_Doc->m_plist->HighlightPad( m_sel_part, sid.I2() );
 				SetCursorMode( CUR_PAD_SELECTED );
 				Invalidate( FALSE );
 			}
@@ -674,7 +674,7 @@ BOOL CFreePcbView::SelectItem( id sid )
 		}
 		else if( sid.IsPin() )
 		{
-			m_Doc->m_plist->SelectPad( m_sel_part, sid.I2() );
+			m_Doc->m_plist->HighlightPad( m_sel_part, sid.I2() );
 			SetCursorMode( CUR_PAD_SELECTED );
 			Invalidate( FALSE );
 		}
@@ -1022,170 +1022,6 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 	}
 	//end CPT
 
-	/* CPT COMMENTED OUT OLD VERSION
-	if( m_bDraggingRect )
-	{
-		// we were dragging selection rect, handle it
-		m_last_drag_rect.NormalizeRect();
-		CPoint tl = m_dlist->WindowToPCB( m_last_drag_rect.TopLeft() );
-		CPoint br = m_dlist->WindowToPCB( m_last_drag_rect.BottomRight() );
-		m_sel_rect = CRect( tl, br );
-		if( bCtrlKeyDown )
-		{
-			// control key held down
-			// if current selection is a single item, convert to group
-			if( m_cursor_mode == CUR_PART_SELECTED )
-			{
-				if( m_sel_id.T1() != ID_PART && m_sel_id.T2()  != ID_SEL_RECT )
-					ASSERT(0);
-				m_sel_ids.Add( m_sel_id );
-				m_sel_ptrs.Add( m_sel_part );
-				SetCursorMode( CUR_GROUP_SELECTED );
-			}
-			else if( m_cursor_mode == CUR_TEXT_SELECTED )
-			{
-				if( m_sel_id.T1() != ID_TEXT )
-					ASSERT(0);
-				m_sel_ids.Add( m_sel_id );
-				m_sel_ptrs.Add( m_sel_text );
-				SetCursorMode( CUR_GROUP_SELECTED );
-			}
-			else if( m_cursor_mode == CUR_SEG_SELECTED )
-			{
-				if( m_sel_id.T1() != ID_NET )
-					ASSERT(0);
-				m_sel_ids.Add( m_sel_id );
-				m_sel_ptrs.Add( m_sel_net );
-				SetCursorMode( CUR_GROUP_SELECTED );
-			}
-			if( m_cursor_mode == CUR_GROUP_SELECTED )
-			{
-				SelectItemsInRect( m_sel_rect, TRUE );
-			}
-			else
-				SelectItemsInRect( m_sel_rect, FALSE );
-		}
-		else
-		{
-			SelectItemsInRect( m_sel_rect, FALSE );
-		}
-		m_bDraggingRect = FALSE;
-		Invalidate( FALSE );
-		CView::OnLButtonUp(nFlags, point);
-		return;
-	}
-
-	if( point.y > (m_client_r.bottom-m_bottom_pane_h) )
-	{
-		// clicked in bottom pane, test for hit on function key rectangle
-		for( int i=0; i<9; i++ )
-		{
-			CRect r( FKEY_OFFSET_X+i*FKEY_STEP+(i/4)*FKEY_GAP,
-				m_client_r.bottom-FKEY_OFFSET_Y-FKEY_R_H,
-				FKEY_OFFSET_X+i*FKEY_STEP+(i/4)*FKEY_GAP+FKEY_R_W,
-				m_client_r.bottom-FKEY_OFFSET_Y );
-			if( r.PtInRect( point ) )
-			{
-				// fake function key pressed
-				int nChar = i + 112;
-				HandleKeyPress( nChar, 0, 0 );
-			}
-		}
-	}
-	else if( point.x < m_left_pane_w )
-	{
-		// clicked in left pane
-		CRect r = m_client_r;
-		int y_off = 10;
-		int x_off = 10;
-		for( int i=0; i<m_Doc->m_num_layers; i++ )
-		{
-			// i = position index
-			// il = layer index, since copper layers are displayed out of order
-			int il = i;
-			if( i == m_Doc->m_num_layers-1 && m_Doc->m_num_copper_layers > 1 )
-				il = LAY_BOTTOM_COPPER;
-			else if( i > LAY_TOP_COPPER )
-				il = i+1;
-			// get color square
-			r.left = x_off;
-			r.right = x_off+12;
-			r.top = i*VSTEP+y_off;
-			r.bottom = i*VSTEP+12+y_off;
-			if( r.PtInRect( point ) && il > LAY_BACKGND )
-			{
-				// clicked in color square
-				m_Doc->m_vis[il] = !m_Doc->m_vis[il];
-				m_dlist->SetLayerVisible( il, m_Doc->m_vis[il] );
-				if( il == LAY_RAT_LINE && m_Doc->m_vis[il] && g_bShow_Ratline_Warning )
-				{
-					CDlgMyMessageBox dlg;
-					dlg.Initialize( "Ratlines turned back on, but may not be up to date.\n\nPress F9 to recalculate." );
-					dlg.DoModal();
-					g_bShow_Ratline_Warning = !dlg.bDontShowBoxState;
-				}
-				Invalidate( FALSE );
-			}
-			else
-			{
-				// get layer name rect
-				r.left += 20;
-				r.right += 120;
-				r.bottom += 5;
-				if( r.PtInRect( point ) )
-				{
-					// clicked on layer name
-					if( i >= LAY_TOP_COPPER && i < LAY_TOP_COPPER + 8 )
-					{
-						int nChar = '1' + i - LAY_TOP_COPPER;
-						HandleKeyPress( nChar, 0, 0 );
-						Invalidate( FALSE );
-					}
-					else
-					{
-						switch( i )
-						{
-						case LAY_TOP_COPPER: HandleKeyPress( '1', 0, 0 ); Invalidate( FALSE ); break;
-						case LAY_TOP_COPPER+1: HandleKeyPress( '2', 0, 0 ); Invalidate( FALSE ); break;
-						case LAY_TOP_COPPER+2: HandleKeyPress( '3', 0, 0 ); Invalidate( FALSE ); break;
-						case LAY_TOP_COPPER+3: HandleKeyPress( '4', 0, 0 ); Invalidate( FALSE ); break;
-						case LAY_TOP_COPPER+4: HandleKeyPress( '5', 0, 0 ); Invalidate( FALSE ); break;
-						case LAY_TOP_COPPER+5: HandleKeyPress( '6', 0, 0 ); Invalidate( FALSE ); break;
-						case LAY_TOP_COPPER+6: HandleKeyPress( '7', 0, 0 ); Invalidate( FALSE ); break;
-						case LAY_TOP_COPPER+7: HandleKeyPress( '8', 0, 0 ); Invalidate( FALSE ); break;
-						case LAY_TOP_COPPER+8: HandleKeyPress( 'Q', 0, 0 ); Invalidate( FALSE ); break;
-						case LAY_TOP_COPPER+9: HandleKeyPress( 'W', 0, 0 ); Invalidate( FALSE ); break;
-						case LAY_TOP_COPPER+10: HandleKeyPress( 'E', 0, 0 ); Invalidate( FALSE ); break;
-						case LAY_TOP_COPPER+11: HandleKeyPress( 'R', 0, 0 ); Invalidate( FALSE ); break;
-						case LAY_TOP_COPPER+12: HandleKeyPress( 'T', 0, 0 ); Invalidate( FALSE ); break;
-						case LAY_TOP_COPPER+13: HandleKeyPress( 'Y', 0, 0 ); Invalidate( FALSE ); break;
-						case LAY_TOP_COPPER+14: HandleKeyPress( 'U', 0, 0 ); Invalidate( FALSE ); break;
-						case LAY_TOP_COPPER+15: HandleKeyPress( 'I', 0, 0 ); Invalidate( FALSE ); break;
-						}
-					}
-				}
-			}
-		}
-		y_off = r.bottom + 2*VSTEP;
-		for( int i=0; i<NUM_SEL_MASKS; i++ )
-		{
-			// get color square
-			r.left = x_off;
-			r.right = x_off+12+120;
-			r.top = i*VSTEP+y_off;
-			r.bottom = i*VSTEP+12+y_off;
-			if( r.PtInRect( point ) )
-			{
-				// clicked in color square or name
-				m_sel_mask = m_sel_mask ^ (1<<i);
-				SetSelMaskArray( m_sel_mask );
-				Invalidate( FALSE );
-			}
-		}
-	}
-	else
-	*/
-
 	// clicked in PCB pane
 	if(	CurNone() || CurSelected() )
 	{
@@ -1343,76 +1179,6 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 						// now add or remove from group
 						ToggleSelectionState(sid, ptr);
 					// end CPT
-					/*
-					if( m_cursor_mode == CUR_PART_SELECTED )
-					{
-						m_sel_ids.Add( m_sel_id );
-						m_sel_ptrs.Add( m_sel_part );
-						SetCursorMode( CUR_GROUP_SELECTED );
-						m_sel_id.SetT1(ID_MULTI);
-					}
-					else if( m_cursor_mode == CUR_SEG_SELECTED )
-					{
-						m_sel_ids.Add( m_sel_id );
-						m_sel_ptrs.Add( m_sel_net );
-						SetCursorMode( CUR_GROUP_SELECTED );
-						m_sel_id.SetT1(ID_MULTI);
-					}
-					else if( m_cursor_mode == CUR_AREA_SIDE_SELECTED )
-					{
-						m_sel_ids.Add( m_sel_id );
-						m_sel_ptrs.Add( m_sel_net );
-						SetCursorMode( CUR_GROUP_SELECTED );
-						m_sel_id.SetT1(ID_MULTI);
-					}
-					else if( m_cursor_mode == CUR_SMCUTOUT_SIDE_SELECTED
-						|| m_cursor_mode == CUR_BOARD_SIDE_SELECTED )
-					{
-						m_sel_ids.Add( m_sel_id );
-						m_sel_ptrs.Add( NULL );
-						SetCursorMode( CUR_GROUP_SELECTED );
-						m_sel_id.SetT1(ID_MULTI);
-					}
-					else if( m_cursor_mode == CUR_TEXT_SELECTED )
-					{
-						if( m_sel_ids.GetSize() )
-							ASSERT(0);
-						m_sel_ids.Add( m_sel_id );
-						m_sel_ptrs.Add( m_sel_text );
-						SetCursorMode( CUR_GROUP_SELECTED );
-						m_sel_id.SetT1(ID_MULTI);
-					}
-					// now add or remove from group
-					if( m_cursor_mode == CUR_GROUP_SELECTED )
-					{
-						BOOL bFound = FALSE;
-						for( int i=0; i<m_sel_ids.GetSize(); i++ )
-						{
-							id tid = m_sel_ids[i];
-							void * tptr = m_sel_ptrs[i];
-							if( tid == sid && m_sel_ptrs[i] == ptr )
-							{
-								bFound = TRUE;
-								m_sel_ptrs.RemoveAt(i);
-								m_sel_ids.RemoveAt(i);
-							}
-						}
-						if( !bFound )
-						{
-							m_sel_ids.Add( sid );
-							m_sel_ptrs.Add( ptr );
-						}
-						if( m_sel_ids.GetSize() == 0 )
-						{
-							CancelSelection();
-						}
-						else
-						{
-							HighlightGroup();
-						}
-						Invalidate( FALSE );
-					}
-					*/
 				}
 			}
 			else
@@ -1744,6 +1510,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		m_sel_id.Con()->Draw();		// AMW 300
 		if( pp != pi )
 		{
+			m_dlist->CancelHighLight();	// AMW r269
 			insert_flag = m_Doc->m_nlist->InsertSegment( m_sel_net, m_sel_ic, m_sel_is,
 				pp.x, pp.y, m_active_layer, w, via_w, via_hole_w, m_dir );
 			if( !insert_flag )
@@ -1769,6 +1536,8 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 			m_last_cursor_point.x, m_last_cursor_point.y, m_active_layer,
 			LAY_SELECTION, w,
 			m_active_layer, via_w, via_hole_w, m_dir, 2 );
+		m_Doc->m_nlist->HighlightNet( m_sel_net, m_sel_id.I2(), m_sel_id.I3() ); // AMW r269
+		m_Doc->m_plist->HighlightAllPadsOnNet( m_sel_net ); // AMW r269
 		m_snap_angle_ref = m_last_cursor_point;
 		m_Doc->ProjectModified( TRUE );
 		Invalidate( FALSE );
@@ -3356,7 +3125,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 				m_sel_net = net;
 				m_sel_id = net->m_id;
 				m_sel_id.SetT2( ID_ENTIRE_NET );
-				m_Doc->m_nlist->HighlightNetConnections( m_sel_net );
+				m_Doc->m_nlist->HighlightNet( m_sel_net );
 				m_Doc->m_plist->HighlightAllPadsOnNet( m_sel_net );
 				SetCursorMode( CUR_NET_SELECTED );
 			}
@@ -3506,7 +3275,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 					m_sel_id = sel_part->m_id;
 					m_sel_id.SetT2( ID_PAD );
 					m_sel_id.SetI2( i );
-					m_Doc->m_plist->SelectPad( sel_part, i );
+					m_Doc->m_plist->HighlightPad( sel_part, i );
 					OnPadStartStubTrace();
 				}
 			}
@@ -6677,6 +6446,12 @@ void CFreePcbView::OnRatlineRoute()
 		LAY_SELECTION, w,
 		last_seg_layer, via_w, via_hole_w, m_dir, 2 );
 	SetCursorMode( CUR_DRAG_RAT );
+
+	// AMW r269: highlight net while routing, except for ratline being routed
+	m_Doc->m_nlist->HighlightNet( m_sel_net, m_sel_id.I2(), m_sel_id.I3() );
+	m_Doc->m_plist->HighlightAllPadsOnNet( m_sel_net );
+	// end AMW
+
 	ReleaseDC( pDC );
 }
 
@@ -9875,7 +9650,7 @@ void CFreePcbView::MoveGroup( int dx, int dy )
 									{
 										// unroute it if not selected
 										if( !c->SegByIndex(0).utility )
-											m_Doc->m_nlist->UnrouteSegmentWithoutMerge( net, ic, 0 );
+											m_Doc->m_nlist->UnrouteSegmentWithoutMerge( net, ic, 0, dx, dy, 0 );
 									}
 									// modify vertex position if necessary
 									if( !c->VtxByIndex(0).utility )
@@ -9899,7 +9674,7 @@ void CFreePcbView::MoveGroup( int dx, int dy )
 									{
 										// unroute it if not selected
 										if( !c->SegByIndex(nsegs-1).utility )
-											m_Doc->m_nlist->UnrouteSegmentWithoutMerge( net, ic, nsegs-1 );
+											m_Doc->m_nlist->UnrouteSegmentWithoutMerge( net, ic, nsegs-1, dx, dy, 1 );
 									}
 									// modify vertex position if necessary
 									if( !c->VtxByIndex(nsegs).utility )
@@ -9946,32 +9721,10 @@ void CFreePcbView::MoveGroup( int dx, int dy )
 							// move trace segment by flagging adjacent vertices
 							cvertex * pre_v = &s->GetPreVtx();		// pre vertex
 							cvertex * post_v = &s->GetPostVtx();	// post vertex
-							CPoint old_pre_v_pt( pre_v->x, pre_v->y );		// pre vertex coords
-							CPoint old_post_v_pt( post_v->x, post_v->y );	// post vertex coords
-							// get starting and ending parts for connection (or NULL)
-							cpart * part1 = NULL;	
-							if( c->start_pin != cconnect::NO_END )
-								part1 = net->pin[c->start_pin].part;	
-							cpart * part2 = NULL;					
-							if( c->end_pin != cconnect::NO_END )
-								part2 = net->pin[c->end_pin].part;
+
 							// flag adjacent vertices as selected
 							pre_v->utility = TRUE;
 							post_v->utility = TRUE;
-
-							// unroute adjacent segments unless they are also being moved
-							if( is>0 )
-							{
-								// test for preceding segment
-								if( !c->SegByIndex(is-1).utility )
-									m_Doc->m_nlist->UnrouteSegmentWithoutMerge( net, ic, is-1 );
-							}
-							if( is < c->NumSegs()-1 )
-							{
-								// test for following segment and not end of stub trace
-								if( !c->SegByIndex(is+1).utility && (part2 || is < c->NumSegs()-2) )
-									m_Doc->m_nlist->UnrouteSegmentWithoutMerge( net, ic, is+1 );
-							}
 						}
 					}
 					// now move vertices
@@ -9990,13 +9743,13 @@ void CFreePcbView::MoveGroup( int dx, int dy )
 							{
 								cseg * pre_s = &c->SegByIndex(iv-1);
 								if( pre_s->utility == 0 )
-									m_Doc->m_nlist->UnrouteSegmentWithoutMerge( net, ic, iv-1 );
+									m_Doc->m_nlist->UnrouteSegmentWithoutMerge( net, ic, iv-1, dx, dy, 1 );
 							}
 							if( iv<c->NumSegs() )
 							{
 								cseg * post_s = &c->SegByIndex(iv);
 								if( post_s->utility == 0 )
-									m_Doc->m_nlist->UnrouteSegmentWithoutMerge( net, ic, iv );
+									m_Doc->m_nlist->UnrouteSegmentWithoutMerge( net, ic, iv, dx, dy, 0 );
 							}
 						}
 					}
@@ -10402,7 +10155,7 @@ void CFreePcbView::ReselectNetItemIfConnectionsChanged( int new_ic )
 		else if( m_cursor_mode == CUR_CONNECT_SELECTED )
 			m_Doc->m_nlist->HighlightConnection( m_sel_net, m_sel_ic );
 		else if( m_cursor_mode == CUR_NET_SELECTED )
-			m_Doc->m_nlist->HighlightNetConnections( m_sel_net );
+			m_Doc->m_nlist->HighlightNet( m_sel_net );
 	}
 	else
 		CancelSelection();
@@ -13536,7 +13289,7 @@ void CFreePcbView::DoSelection(id &sid, void *ptr) {
 			SetCursorMode( CUR_VALUE_SELECTED );
 			}
 		else if( sid.st == ID_SEL_PAD ) {
-			m_Doc->m_plist->SelectPad( m_sel_part, sid.i );
+			m_Doc->m_plist->HighlightPad( m_sel_part, sid.i );
 			SetCursorMode( CUR_PAD_SELECTED );
 			}
 		}

@@ -3657,18 +3657,28 @@ void CNetList::SetAreaSideStyle( cnet * net, int iarea, int iside, int style )
 
 
 // Select all connections in net
-void CNetList::HighlightNetConnections( cnet * net )
+// AMW r269: except segment is in connection ic
+void CNetList::HighlightNetConnections( cnet * net, int exclude_ic, int exclude_is )
 {
 	for( int ic=0; ic<net->NumCons(); ic++ )
-		HighlightConnection( net, ic );
+	{
+		if( ic == exclude_ic )
+			HighlightConnection( net, ic, exclude_is );
+		else
+			HighlightConnection( net, ic );
+	}
 }
 
 // Select connection
-void CNetList::HighlightConnection( cnet * net, int ic )
+// AMW r269: except segment is 
+void CNetList::HighlightConnection( cnet * net, int ic, int exclude_is )
 {
 	cconnect * c = net->connect[ic];
 	for( int is=0; is<c->seg.GetSize(); is++ )
-		HighlightSegment( net, ic, is );
+	{
+		if( is != exclude_is )
+			HighlightSegment( net, ic, is );
+	}
 }
 
 // Select segment
@@ -3701,9 +3711,9 @@ void CNetList::HighlightAreaSides( cnet * net, int ia )
 }
 
 // Highlight entire net
-void CNetList::HighlightNet( cnet * net)
+void CNetList::HighlightNet( cnet * net, int exclude_ic, int exclude_is )
 {
-	HighlightNetConnections( net );
+	HighlightNetConnections( net, exclude_ic, exclude_is );
 	for( int ia=0;ia<net->NumAreas(); ia++ )
 		HighlightAreaSides( net, ia );
 }

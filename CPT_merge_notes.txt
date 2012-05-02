@@ -14,7 +14,7 @@ CPT merge notes
 #9  - merged
 #10 - AMW r260: merged
 #11 - CPT r260:  merged.
-#12 - AMW r260: merged, but required changes to multiple classes, runs but there are probably some bugs
+#12 - AMW r260: merged
 #13 - merged
 #14 - merged
 #14a - merged
@@ -24,9 +24,13 @@ CPT merge notes
 #17 - CPT r266: merged
 #18 - AMW r268: merged
 #19 - AMW r268: merged
-#20 - AMW: partially merged, works for moving parts but not groups, I just ran out of time tonight
+#20 - AMW: merged
+#21 - AMW: r269: not merged, because it conflicts with my new feature of highlighting the entire
+	net when routing. So far this is only implemented when routing ratlines, but it is probably more important 
+	when routing without a ratline, since the endpoint is undetermined.
 #22 - CPT r260: merged
 #23 - AMW deferred, these ratlines should already be eliminated by pressing F9
+#24 - deferred, couldn't reproduce the problem.
 #28 - merged (by AMW)
 
 ---------------------------------------------------------------------------------------

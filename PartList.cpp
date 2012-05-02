@@ -330,7 +330,7 @@ void CPartList:: HighlightAllPadsOnNet( cnet * net )
 			for( int ip=0; ip<part->shape->GetNumPins(); ip++ )
 			{
 				if( net == part->pin[ip].net )
-					SelectPad( part, ip );
+					HighlightPad( part, ip );
 			}
 		}
 		part = GetNextPart( part );
@@ -339,7 +339,7 @@ void CPartList:: HighlightAllPadsOnNet( cnet * net )
 
 // Select part pad
 //
-int CPartList::SelectPad( cpart * part, int i )
+int CPartList::HighlightPad( cpart * part, int i )
 {
 	// select it by making its selection rectangle visible
 	if( part->pin[i].dl_sel )
