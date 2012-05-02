@@ -3420,7 +3420,7 @@ void CEditShape::Undraw()
 
 // Select part pad
 //
-void CEditShape::SelectPad( int i )
+void CEditShape::HighlightPad( int i )
 {
 	// select it by making its selection rectangle visible
 	m_dlist->HighLight( DL_RECT_X, 

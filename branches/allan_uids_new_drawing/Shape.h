@@ -181,7 +181,7 @@ public:
 	void Draw( CDisplayList * dlist, SMFontUtil * fontutil );
 	void Undraw();
 	void Copy( CShape * shape );
-	void SelectPad( int i );
+	void HighlightPad( int i );
 	void StartDraggingPad( CDC * pDC, int i );
 	void CancelDraggingPad( int i );
 	void StartDraggingPadRow( CDC * pDC, int i, int num );

@@ -588,7 +588,7 @@ void CFootprintView::OnLButtonDown(UINT nFlags, CPoint point)
 					if( id.IsFootPad() )
 					{
 						// pad selected
-						m_fp.SelectPad( id.I2() );
+						m_fp.HighlightPad( id.I2() );
 						SetCursorMode( CUR_FP_PAD_SELECTED );
 						Invalidate( FALSE );
 					}
@@ -677,7 +677,7 @@ void CFootprintView::OnLButtonDown(UINT nFlags, CPoint point)
 			m_dragging_new_item = FALSE;
 			m_fp.Draw( m_dlist, m_Doc->m_smfontutil );
 			SetCursorMode( CUR_FP_PAD_SELECTED );
-			m_fp.SelectPad( m_sel_id.I2() );
+			m_fp.HighlightPad( m_sel_id.I2() );
 			FootprintModified( TRUE );
 		}
 		else if( m_cursor_mode == CUR_FP_DRAG_REF )
@@ -945,7 +945,7 @@ void CFootprintView::OnRButtonDown(UINT nFlags, CPoint point)
 		else
 		{
 			m_fp.CancelDraggingPad( m_sel_id.I2() );
-			m_fp.SelectPad( m_sel_id.I2() );
+			m_fp.HighlightPad( m_sel_id.I2() );
 			SetCursorMode( CUR_FP_PAD_SELECTED );
 		}
 	}
@@ -1940,7 +1940,7 @@ void CFootprintView::OnPadEdit( int i )
 	{
 		Undo();	// restore to original state
 	}
-	m_fp.SelectPad( i );
+	m_fp.HighlightPad( i );
 	Invalidate( FALSE );
 }
 

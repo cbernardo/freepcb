@@ -196,8 +196,8 @@ public:
 	BOOL GetNetVisibility( cnet * net );
 	int CheckNetlist( CString * logstr );
 	int CheckConnectivity( CString * logstr );
-	void HighlightNetConnections( cnet * net );
-	void HighlightNet( cnet * net );
+	void HighlightNetConnections( cnet * net, int exclude_ic=-1, int exclude_is=-1 );
+	void HighlightNet( cnet * net, int exclude_ic=-1, int exclude_is=-1 );
 	void GetWidths( cnet * net, int * w, int * via_w, int * via_hole_w );
 	BOOL GetNetBoundaries( CRect * r );
 
@@ -208,13 +208,11 @@ public:
 	void OptimizeConnections( BOOL bBelowPinCount=FALSE, int pin_count=0, BOOL bVisibleNetsOnly=TRUE );
 	int OptimizeConnections( cnet * net, int ic, BOOL bBelowPinCount, int pin_count, BOOL bVisibleNetsOnly=TRUE );
 	void OptimizeConnections( cpart * part, BOOL bBelowPinCount, int pin_count, BOOL bVisibleNetsOnly=TRUE );
-//	void RenumberConnection( cnet * net, int ic );
-//	void RenumberConnections( cnet * net );
 	BOOL TestHitOnConnectionEndPad( int x, int y, cnet * net, int ic, int layer, int dir );
 	int TestHitOnAnyPadInNet( int x, int y, int layer, cnet * net );
 	void ChangeConnectionPin( cnet * net, int ic, int end_flag, 
 		cpart * part, CString * pin_name );
-	void HighlightConnection( cnet * net, int ic );
+	void HighlightConnection( cnet * net, int ic, int exclude_is=-1 );
 	void CleanUpConnections( cnet * net, CString * logstr=NULL );
 	void CleanUpAllConnections( CString * logstr=NULL );
 
