@@ -67,6 +67,7 @@ void MakeCStringFromDimension( CString * str, int dim, int units, BOOL append_un
 							  BOOL lower_case = FALSE, BOOL space=FALSE, int max_dp=8, BOOL strip=TRUE );
 void MakeCStringFromGridVal(CString *str, double val);  // CPT
 int CompareGridVals(const double *gv1, const double *gv2); // CPT
+int strcmpNumeric(CString *s1, CString *s2);				// CPT
 void MakeCStringFromDouble( CString * str, double d );
 BOOL CheckLegalPinName( CString * pinstr, 
 					   CString * astr=NULL, 

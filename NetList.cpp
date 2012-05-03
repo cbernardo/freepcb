@@ -1766,18 +1766,18 @@ int CNetList::InsertSegment( cnet * net, int ic, int iseg, int x, int y, int lay
 		// set position for new vertex.  CPT: also set uid, tee_ID, and force_via_flag:
 		c->vtx[iseg+1].x = x;
 		c->vtx[iseg+1].y = y;
-                c->vtx[iseg+1].m_uid = nl_cuid.GetNewUID();
-                c->vtx[iseg+1].tee_ID = 0;
-                c->vtx[iseg+1].force_via_flag = FALSE;
+        c->vtx[iseg+1].m_uid = nl_cuid.GetNewUID();
+        c->vtx[iseg+1].tee_ID = 0;
+        c->vtx[iseg+1].force_via_flag = FALSE;
 		// fill in data for new seg[iseg] or seg[is+1] (depending on dir)
-                // CPT: tidied up
-                int index = dir==0? iseg: iseg+1;
-                c->seg[index].layer = layer;
-                c->seg[index].width = width;
-                c->seg[index].selected = 0;
-                c->seg[index].m_uid = nl_cuid.GetNewUID();
+        // CPT: tidied up
+        int index = dir==0? iseg: iseg+1;
+        c->seg[index].layer = layer;
+        c->seg[index].width = width;
+        c->seg[index].selected = 0;
+        c->seg[index].m_uid = nl_cuid.GetNewUID();
 		c->seg[index].via_w = via_width;                // CPT: New!  Segs now have associated via-widths and via-hole-widths.
-                c->seg[index].via_hole_w = via_hole_width;
+		c->seg[index].via_hole_w = via_hole_width;
 		c->nsegs++;
 	}
 	else

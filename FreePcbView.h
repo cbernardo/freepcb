@@ -215,7 +215,7 @@ const char fk_str[FK_NUM_OPTIONS*2+2][32] =
 	" Delete",	" Outline",
 	" Delete",	" Area",
 	" Delete",	" Cutout",
-	" Add",		" Segment",
+	" Add",		" Segment", // Start Trace
 	" Add",		" Via",
 	" Delete",	" Via",
 	" Delete",	" Segment",

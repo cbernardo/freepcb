@@ -366,7 +366,7 @@ void MakeCStringFromGridVal(CString *str, double val) {
 	}
 
 int CompareGridVals(const double *gv1, const double *gv2) {
-	// CPT.  Compare grid vals for the dropdowns and the grid-val dlgs.
+	// cptdone.  Compare grid vals for the dropdowns and the grid-val dlgs.
 	// Order is like this:  200 mil, 100 mil, 20 mil, 5 mm, 2 mm, 1 mm.
 	if (*gv1==*gv2) return 0;
 	if (*gv1<0)
@@ -426,7 +426,7 @@ int ParseRef( CString * ref, CString * prefix )
 // if astr != NULL, set to alphabetic part
 // if nstr != NULL, set to numeric part
 // if n != NULL, set to value of numeric part
-// CPT changed:  now allowing 1A.  In that sort of case, astr on return will be 1a and nstr will be "".  I.e.
+// cptdone changed:  now allowing 1A.  In that sort of case, astr on return will be 1a and nstr will be "".  I.e.
 //  nstr is filled only if pinstr ENDS with a number.
 
 BOOL CheckLegalPinName( CString * pinstr, CString * astr, CString * nstr, int * n )
