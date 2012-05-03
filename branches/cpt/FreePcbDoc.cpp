@@ -2636,12 +2636,12 @@ void CFreePcbDoc::OnFileExport()
 void CFreePcbDoc::OnFileImport()
 {
 	CString s ((LPCSTR) IDS_AllFiles), s2 ((LPCSTR) IDS_ImportNetListFile);
-	// CPT:  Under Vista, good old MS has broken the CFileDialog::SetTemplate function, which this code formerly relied on.
+	// cptdone:  Under Vista, good old MS has broken the CFileDialog::SetTemplate function, which this code formerly relied on.
 	// It's not at all clear to me how one's supposed to write code that
 	// works under XP and Vista/Win 7 simultaneously...  So screw it, I've rewritten this to put the options that were formerly in the
 	// open-file dialog into the import-options dialog
 	CFileDialog dlg( TRUE, NULL, (LPCTSTR)m_netlist_full_path, OFN_HIDEREADONLY | OFN_EXPLORER, 
-		s, NULL, 0 /* CPT eliminated (doesn't work under VS10.0): OPENFILENAME_SIZE_VERSION_400 */ );
+		s, NULL, 0 /* cptdone eliminated (doesn't work under VS10.0): OPENFILENAME_SIZE_VERSION_400 */ );
 	dlg.m_ofn.lpstrTitle = s2;
 	int ret = dlg.DoModal();
 	if( ret == IDOK )
@@ -2659,7 +2659,7 @@ void CFreePcbDoc::OnFileImport()
 			partlist_info pl;
 			netlist_info nl;
 			m_netlist_full_path = str;	// save path for next time
-			// CPT: Do the option dlg even if there are no parts and/or nets in project 
+			// cptdone: Do the option dlg even if there are no parts and/or nets in project 
 			CDlgImportOptions dlg_options;
 			dlg_options.Initialize( m_import_flags );
 			int ret = dlg_options.DoModal();
@@ -3187,11 +3187,11 @@ int CFreePcbDoc::ImportNetlist( CStdioFile * file, UINT flags,
 // export netlist in PADS-PCB format
 // enter with file already open
 // flags:
-//	EXPORT_PARTS = include parts in file						// CPT:  fixed comment text
+//	EXPORT_PARTS = include parts in file						// cptdone:  fixed comment text
 //	EXPORT_NETS = include nets in file
 //	EXPORT_VALUES = use "value@footprint" format for parts
 //
-// CPT:  added sorting so that results are more readable.
+// cptdone:  added sorting so that results are more readable.
 
 int strcmpNumeric(CString *s1, CString *s2) {
 	// String comparison where IC9 comes before IC10, etc.  Alpha comparison is caseless.
@@ -3776,7 +3776,7 @@ void CFreePcbDoc::OnProjectOptions()
 		if( m_name.Right(4) == ".fpc" )
 			m_name = m_name.Left( m_name.GetLength()-4 );
 	}
-	// CPT: args have changed:
+	// cptdone: args have changed:
 	dlg.Init( FALSE, &m_name, &m_path_to_folder, &m_lib_dir,
 		m_num_copper_layers, m_bSMT_copper_connect, m_default_glue_w,
 		m_trace_w, m_via_w, m_via_hole_w,
@@ -3823,7 +3823,7 @@ void CFreePcbDoc::OnProjectOptions()
 		m_plist->SetNumCopperLayers( m_num_copper_layers );
 
 		m_name = dlg.GetName();
-		m_lib_dir = dlg.GetLibFolder();							// CPT added (not sure why it wasn't there before...)
+		m_lib_dir = dlg.GetLibFolder();							// cptdone added (not sure why it wasn't there before...)
 		if( m_full_lib_dir != dlg.GetLibFolder() )
 		{
 			m_full_lib_dir = dlg.GetLibFolder();
@@ -3835,7 +3835,7 @@ void CFreePcbDoc::OnProjectOptions()
 		m_via_hole_w = dlg.GetViaHoleWidth();
 		m_nlist->SetWidths( m_trace_w, m_via_w, m_via_hole_w );
 
-		// CPT: option to save dlg results to default.cfg:
+		// cptdone: option to save dlg results to default.cfg:
 		if (dlg.m_default) 
 		{
 			CArray<CString> oldLines, newLines;
@@ -4118,7 +4118,7 @@ void CFreePcbDoc::OnEditPasteFromFile()
 	// force old-style file dialog by setting size of OPENFILENAME struct
 	CString s ((LPCSTR) IDS_AllFiles);
 	CFileDialog dlg( TRUE, NULL, NULL, OFN_HIDEREADONLY | OFN_EXPLORER, 
-		s, NULL, 0 /* CPT OPENFILENAME_SIZE_VERSION_400 */ );
+		s, NULL, 0 /* cptdone OPENFILENAME_SIZE_VERSION_400 */ );
 	s.LoadStringA(IDS_PasteGroupFromFile);
 	dlg.m_ofn.lpstrTitle = s; 
 	int ret = dlg.DoModal();
@@ -4738,7 +4738,7 @@ void CFreePcbDoc::OnFileSaveLibrary()
 }
 
 
-// CPT (all that follows)
+// cptdone (all that follows)
 
 void ReadFileLines(CString &fname, CArray<CString> &lines) {
 	// Helper function used when making modifications to default.cfg.  Bug fix #28

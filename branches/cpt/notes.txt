@@ -223,6 +223,9 @@ CPT revisions:
 15. Modified group-selection behavior, so that there is no longer a distinction between a group of 1 element and a single selected
 	item.  To prevent any lost functionality, implemented arrow keys for board edges, area edges, sm-cutouts, and end-vertices; implemented
 	ctrl-c/x for single selected items.
+15a.  FORGOT TO LIST THIS ONE PREVIOUSLY.  Fixed bug where SetCapture() was not called in CFreePcbView::OnLButtonDown() was not called, causing
+	poor behavior when dragging and releasing outside the client area.  Moreover, now allows autoscrolling when dragging a group-select 
+	rectangle out to the margins.
 16. Added sorting to export netlist.
 17. Removed restriction on pin names (before, 1A and A1A were illegal)
 18. During connect-to-pin-to-create-ratline mode (CUR_DRAG_CONNECT), the status bar now shows the name of the pin where mouse is hovering.
@@ -291,3 +294,39 @@ CPT revisions:
 46. Improved TestLineHit() in utility.cpp so that we get more reliable results (on short segments particularly).  
 
 ...TortoiseSVN commit, version 249
+
+
+TODO:
+Implement PgUp/PgDn reversal.
+Fix ReconcileVia (step 1)
+Discuss highlighted seg appearance with Allan.
+
+int CPartList::WriteParts( CStdioFile * file )
+{
+	// CPT: Sort the part lines.
+	CMapStringToPtr shape_map;
+	cpart * el = m_start.next;
+	CString line;
+	CString key;
+	CArray<CString> lines;
+	try
+	{
+		// now write all parts
+		line.Format( "[parts]\n\n" );
+		file->WriteString( line );
+		el = m_start.next;
+		while( el->next != 0 )
+		{
+			// test
+			CString test;
+			SetPartString( el, &test );
+			lines.Add(test);
+			el = el->next;
+		}
+		extern int strcmpNumeric(CString *s1, CString *s2);				// In FreePcbDoc.cpp
+		qsort(lines.GetData(), lines.GetSize(), sizeof(CString), (int (*)(const void*,const void*)) strcmpNumeric);			
+		for (int i=0; i<lines.GetSize(); i++)
+			file->WriteString( lines[i] );
+	}
+etc.
+

@@ -32,7 +32,7 @@
 
 // globals
 extern CFreePcbApp theApp;
-// CPT:  removed gShiftKeyDown global. Other globals moved into class CCommonView
+// cptdone:  removed gShiftKeyDown global. Other globals moved into class CCommonView
 long long groupAverageX=0, groupAverageY=0;
 int groupNumberItems=0;
 
@@ -48,7 +48,7 @@ static char THIS_FILE[] = __FILE__;
 
 #define FKEY_OFFSET_X 4
 #define FKEY_OFFSET_Y 4
-#define	FKEY_R_W m_fkey_w	// CPT:
+#define	FKEY_R_W m_fkey_w	// cptdone:
 #define FKEY_R_H 30
 #define FKEY_STEP (FKEY_R_W+5)
 #define FKEY_GAP 20
@@ -278,7 +278,7 @@ void CFreePcbView::InitInstance()
 
 // initialize view with defaults for a new project
 // should be called each time a new project is created
-// CPT:  reorganized & renamed as part of the CCommonView reorganization (used to be called InitializeView())
+// cptdone:  reorganized & renamed as part of the CCommonView reorganization (used to be called InitializeView())
 void CFreePcbView::OnNewProject()
 {
 	BaseInit();
@@ -346,7 +346,7 @@ void CFreePcbView::OnDraw(CDC* pDC)
 	// now draw the display list
 	SetDCToWorldCoords( pDC );
 	m_dlist->Draw( pDC );
-	// CPT After an autoscroll, this routine is called, and at the end we have to redraw the drag rectangle:
+	// cptdone After an autoscroll, this routine is called, and at the end we have to redraw the drag rectangle:
 	if (m_bDraggingRect) {
 		SIZE s1;
 		s1.cx = s1.cy = 1;
@@ -384,9 +384,9 @@ void CFreePcbView::OnEndPrinting(CDC* /*pDC*/, CPrintInfo* /*pInfo*/)
 //
 void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 {
-	ReleaseCapture();									// CPT
-	bool bCtrlKeyDown = (nFlags & MK_CONTROL) != 0;		// CPT
-	m_last_click = point;								// CPT
+	ReleaseCapture();									// cptdone
+	bool bCtrlKeyDown = (nFlags & MK_CONTROL) != 0;		// cptdone
+	m_last_click = point;								// cptdone
 	if( !m_bLButtonDown )
 	{
 		// this avoids problems with opening a project with the button held down
@@ -402,7 +402,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 	m_lastKeyWasGroupRotate=false; // cancel series of group rotations
 	if( m_bDraggingRect )
 	{
-		// we were dragging selection rect, handle it.  CPT modified:  formerly used m_last_drag_rect, which is no longer a 
+		// we were dragging selection rect, handle it.  cptdone modified:  formerly used m_last_drag_rect, which is no longer a 
 		//  reliable gauge of user's actual (auto-scrolled) rectangle 
 		m_drag_rect.TopLeft() = m_start_pt;
 		m_drag_rect.BottomRight() = point;
@@ -412,7 +412,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		m_sel_rect = CRect( tl, br );
 		if( bCtrlKeyDown )
 		{
-			// control key held down.  CPT streamlined:
+			// control key held down.  cptdone streamlined:
 			ConvertSelectionToGroup(true);
 			if( m_cursor_mode == CUR_GROUP_SELECTED )
 				SelectItemsInRect( m_sel_rect, TRUE );
@@ -531,7 +531,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 			Invalidate( FALSE );
 		}
 
-		// CPT: reworked;  will invoke new helper function DoSelection().  Do we really need this business with the 'N' key here?
+		// CPT done: reworked;  will invoke new helper function DoSelection().  Do we really need this business with the 'N' key here?
 		else if( sid.type == ID_PART &&  (GetKeyState('N') & 0x8000) && sid.st == ID_SEL_PAD )
 		{
 			// pad selected and if "n" held down, select net
@@ -616,7 +616,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		if( m_Doc->m_vis[LAY_RAT_LINE] )
 			m_Doc->m_nlist->OptimizeConnections( m_Doc->m_auto_ratline_disable,
 									m_Doc->m_auto_ratline_min_pins );
-		// CPT:
+		// cptdone:
 		if (m_sel_ids.GetSize()==1)
 			ConvertSingletonGroup();
 		m_Doc->ProjectModified( TRUE );
@@ -1492,9 +1492,17 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 							m_Doc->m_nlist->OptimizeConnections(  m_sel_net, -1, m_Doc->m_auto_ratline_disable,
 													m_Doc->m_auto_ratline_min_pins, TRUE  );
 						m_Doc->m_dlist->StopDragging();
-						// CPT:  ensure new ratline is selected:
-						id newId (ID_NET, ID_CONNECT, ic, ID_SEL_SEG, is);
-						DoSelection(newId, m_sel_net);
+						// CPT 19:  ensure new ratline is selected.  NB this caused problems if OptimizeConnections() above eliminated other ratline(s).
+						// For now, my solution is to check that ic < m_sel_net->nconnects.  Once we're not relying on index values like ic, 
+						// a better fix will be possible... 
+						if (ic < m_sel_net->nconnects)
+						{
+							id newId (ID_NET, ID_CONNECT, ic, ID_SEL_SEG, is);
+							DoSelection(newId, m_sel_net);
+						}
+						else
+							m_dlist->CancelHighLight(),
+							SetCursorMode( CUR_NONE_SELECTED );
 						Invalidate( FALSE );
 						m_Doc->ProjectModified( TRUE );
 					}
@@ -1699,7 +1707,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 			// if first vertex, we have already saved
 			SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_Doc->m_undo_list );
 		}
-        // CPT.  Similar to what happened for CUR_DRAG_RAT mode, above.  Below, arguments for AppendSegment get
+        // cptdone.  Similar to what happened for CUR_DRAG_RAT mode, above.  Below, arguments for AppendSegment get
         // changed to include via_w and via_hole_w
         int w = m_active_width, via_w, via_hole_w;
         GetViaWidths(w, &via_w, &via_hole_w);
@@ -2262,7 +2270,7 @@ void CFreePcbView::OnKeyUp(UINT nChar, UINT nRepCnt, UINT nFlags)
 {
 	m_sel_offset = -1;			// CPT.  Indicates that user has interrupted a series of mouse clicks.
 
-	// CPT:  Removed code relating to gShiftKeyDown (used GetKeyState() instead)
+	// cptdone:  Removed code relating to gShiftKeyDown (used GetKeyState() instead)
 	if( nChar == 'D' )
 	{
 		// 'd'
@@ -2289,7 +2297,7 @@ void CFreePcbView::OnKeyUp(UINT nChar, UINT nRepCnt, UINT nFlags)
 //
 void CFreePcbView::OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags)
 {
-	// CPT: removed code relating to gShiftKeyDown (used GetKeyState() further down instead...)
+	// cptdone: removed code relating to gShiftKeyDown (used GetKeyState() further down instead...)
 	if( nChar == 'D' )
 	{
 		// 'd'
@@ -2327,7 +2335,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 	if( m_bDraggingRect )
 		return;
 
-	// CPT: different way of dealing with gShiftKeyDown
+	// cptdone: different way of dealing with gShiftKeyDown
 	bool bShiftKeyDown = (GetKeyState(VK_SHIFT)&0x8000) != 0;
 	bool bCtrlKeyDown = (GetKeyState(VK_CONTROL)&0x8000) != 0;
 
@@ -2486,7 +2494,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 	}
 
 	if (nChar==VK_OEM_2 || nChar==VK_DIVIDE) {
-		// CPT. Slash key => toggle units
+		// cptdone. Slash key => toggle units
 		UnitToggle(bShiftKeyDown);
 		return;
 		}
@@ -2652,7 +2660,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 	if( nChar >= 112 && nChar <= 123 )
 	{
 		// function key pressed
-		// CPT
+		// cptdone
 		if (bCtrlKeyDown) {
 			HandleCtrlFKey(nChar);
 			ReleaseDC(pDC);
@@ -2662,19 +2670,19 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 	}
 	if( nChar >= 37 && nChar <= 40 )
 	{
-		// arrow key.  CPT: streamlined
+		// arrow key.  cptdone: streamlined
 		fk = FK_ARROW;
 		int d;
 		if( bShiftKeyDown && m_units == MM )
 			d = 10000;		// 0.01 mm
 		else if( bShiftKeyDown && m_units == MIL )
 			d = 25400;		// 1 mil
-		else if (bCtrlKeyDown && nChar==VK_UP)	{		// CPT
+		else if (bCtrlKeyDown && nChar==VK_UP)	{		// cptdone
 			if (m_sel_id.type==ID_NET) 	RoutingGridUp();
 			else                        PlacementGridUp(); 
 			return;
 			}
-		else if (bCtrlKeyDown && nChar==VK_DOWN)	{	// CPT
+		else if (bCtrlKeyDown && nChar==VK_DOWN)	{	// cptdone
 			if (m_sel_id.type==ID_NET) RoutingGridDown();
 			else                       PlacementGridDown(); 
 			return;
@@ -3187,7 +3195,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 		break;
 
 	case CUR_BOARD_SIDE_SELECTED:
-		// CPT
+		// cptdone
 		if( fk == FK_ARROW )
 			ConvertSelectionToGroupAndMove(dx, dy);
 		else if( fk == FK_POLY_STRAIGHT )
@@ -3238,7 +3246,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 	case CUR_SMCUTOUT_SIDE_SELECTED:
 		{
 			CPolyLine * poly = &m_Doc->m_sm_cutout[m_sel_id.i];
-			// CPT: enable arrow keys
+			// cptdone: enable arrow keys
 			if( fk == FK_ARROW )
 				ConvertSelectionToGroupAndMove(dx, dy);
 			else if( fk == FK_POLY_STRAIGHT )
@@ -3331,7 +3339,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 		break;
 
 	case CUR_AREA_SIDE_SELECTED:
-		// CPT
+		// cptdone
 		if( fk == FK_ARROW )
 			ConvertSelectionToGroupAndMove(dx, dy);
 		else if( fk == FK_SIDE_STYLE )
@@ -3423,7 +3431,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 		if( fk == FK_COMPLETE )
 		{
 			SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_Doc->m_undo_list );
-			// CPT next 3 lines
+			// CPT next 3 lines  (3rd line not done)
             int w = m_active_width, via_w, via_hole_w;
             GetViaWidths(w, &via_w, &via_hole_w);
 			int test = m_Doc->m_nlist->RouteSegment( m_sel_net, m_sel_ic,
@@ -3438,7 +3446,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 			Invalidate( FALSE );
 			m_Doc->ProjectModified( TRUE );
 		}
-        // CPT
+        // cptdone
         else if (fk==FK_ACTIVE_WIDTH_UP || fk==FK_ARROW && dy>0)     // F2 or up-arrow
             ActiveWidthUp(pDC);
         else if (fk==FK_ACTIVE_WIDTH_DOWN || fk==FK_ARROW && dy<0)   // F1 or down-arrow
@@ -3450,7 +3458,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 		break;
 
 	case CUR_DRAG_STUB:
-        // CPT
+        // cptdone
         if (fk==FK_ACTIVE_WIDTH_UP || fk==FK_ARROW && dy>0)         // F2 or up-arrow
             ActiveWidthUp(pDC);
         else if (fk==FK_ACTIVE_WIDTH_DOWN || fk==FK_ARROW && dy<0)  // F1 or down-arrow
@@ -3461,7 +3469,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 			RoutingGridDown();
 		break;
 
-	// CPT:
+	// cptdone:
 	case CUR_DRAG_VTX:
 	case CUR_DRAG_END_VTX:
 	case CUR_DRAG_VTX_INSERT:
@@ -3598,7 +3606,7 @@ void CFreePcbView::OnMouseMove(UINT nFlags, CPoint point)
 			|| (d > 10 && !CurDragging() ) )
 		{
 			// we are dragging a selection rect
-			// CPT: autoscrolling implemented
+			// cptdone: autoscrolling implemented
 			int w = m_client_r.right - m_left_pane_w;
 			int h = m_client_r.bottom - m_bottom_pane_h;
 			int dx = 0, dy = 0;
@@ -3629,7 +3637,7 @@ void CFreePcbView::OnMouseMove(UINT nFlags, CPoint point)
 			m_drag_rect.TopLeft() = m_start_pt;
 			m_drag_rect.BottomRight() = point;
 			m_drag_rect.NormalizeRect();
-			// CPT Modify drag-rect if necessary to prevent messing up the bottom or left panes
+			// cptdone Modify drag-rect if necessary to prevent messing up the bottom or left panes
 			if (m_drag_rect.top >= h) m_drag_rect.bottom = m_drag_rect.top = h-1;
 			else if (m_drag_rect.bottom >= h) m_drag_rect.bottom = h-1;
 			if (m_drag_rect.right <= m_left_pane_w) m_drag_rect.right = m_drag_rect.left = m_left_pane_w+1;
@@ -3691,7 +3699,7 @@ void CFreePcbView::OnMouseMove(UINT nFlags, CPoint point)
 
 
 // Set cursor mode, update function key menu if necessary
-// CPT:  changed to allow copying of selected singletons
+// cptdone:  changed to allow copying of selected singletons
 void CFreePcbView::SetCursorMode( int mode )
 {
 	if( mode != m_cursor_mode )
@@ -3699,7 +3707,7 @@ void CFreePcbView::SetCursorMode( int mode )
 		SetFKText( mode );
 		m_cursor_mode = mode;
 		ShowSelectStatus();
-		/*  CPT removed
+		/*  cptdone removed
 		if( mode == CUR_GROUP_SELECTED )
 		{
 			CWnd* pMain = AfxGetMainWnd();
@@ -4020,13 +4028,13 @@ void CFreePcbView::SetFKText( int mode )
 	case CUR_DRAG_VTX:
 	case CUR_DRAG_END_VTX:
 	case CUR_DRAG_VTX_INSERT:
-		// CPT
+		// cptdone
         m_fkey_option[4] = FK_RGRID_DOWN;
         m_fkey_option[5] = FK_RGRID_UP;
 		break;
 
 	case CUR_DRAG_RAT:
-        // CPT
+        // cptdone
         m_fkey_option[0] = FK_ACTIVE_WIDTH_DOWN;
         m_fkey_option[1] = FK_ACTIVE_WIDTH_UP;
 		m_fkey_option[3] = FK_COMPLETE;
@@ -4035,7 +4043,7 @@ void CFreePcbView::SetFKText( int mode )
 		break;
 
 	case CUR_DRAG_STUB:
-        // CPT
+        // cptdone
         m_fkey_option[0] = FK_ACTIVE_WIDTH_DOWN;
         m_fkey_option[1] = FK_ACTIVE_WIDTH_UP;
         m_fkey_option[4] = FK_RGRID_DOWN;
@@ -4281,7 +4289,7 @@ int CFreePcbView::ShowSelectStatus()
 	case CUR_DRAG_STUB:
 	case CUR_DRAG_RAT:
 		{
-            // CPT
+            // cptdone
             int width;
             if (m_cursor_mode==CUR_DRAG_STUB || m_cursor_mode==CUR_DRAG_RAT)
                 width = m_active_width/NM_PER_MIL;
@@ -4291,7 +4299,7 @@ int CFreePcbView::ShowSelectStatus()
 			{
 				if( m_cursor_mode == CUR_DRAG_STUB )
 				{
-					// stub trace segment.  CPT: added width info
+					// stub trace segment.  cptdone: added width info
 					CString s ((LPCSTR) IDS_NetStub);
 					str.Format( s, m_sel_net->name, m_sel_id.i+1,
 						m_sel_start_pin.ref_des,
@@ -5657,7 +5665,7 @@ void CFreePcbView::OnPadStartStubTrace()
 	int via_hole_w = m_Doc->m_via_hole_w;
 	if( net->def_via_hole_w )
 		via_hole_w = net->def_via_hole_w;
-	// CPT 
+	// CPT
 	m_active_width = w;
 	m_Doc->m_nlist->StartDraggingStub( pDC, net, m_sel_id.i, m_sel_id.ii,
 		pi.x, pi.y, m_active_layer, w, m_active_layer, via_w, via_hole_w,
@@ -5910,7 +5918,7 @@ void CFreePcbView::OnRatlineRoute()
 		}
 	}
 	// now start dragging new segment
-    // CPT.  If already in drag mode, we'll use m_active_width.  Otherwise, set m_active_width to the net's default value
+    // cptdone.  If already in drag mode, we'll use m_active_width.  Otherwise, set m_active_width to the net's default value
 	int w, via_w, via_hole_w;
     if (m_cursor_mode==CUR_DRAG_RAT)
         w = m_active_width;
@@ -6212,7 +6220,7 @@ void CFreePcbView::OnEndVertexAddSegments()
 	CPoint p;
 	p = m_last_cursor_point;
 	m_sel_id.sst = ID_SEL_SEG;
-	// CPT.  Set m_active_width to the net default value:
+	// cptdone.  Set m_active_width to the net default value:
 	int w, via_w, via_hole_w;
     w = m_Doc->m_trace_w;
     if (m_sel_net->def_w)
@@ -6280,7 +6288,7 @@ void CFreePcbView::OnRatlineComplete()
 	SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_Doc->m_undo_list );
 
 	// complete routing to pin
-	// CPT:
+	// cptdone:
     int w, via_w, via_hole_w;
 	if (m_active_width!=0)
 		w = m_active_width,
@@ -6839,10 +6847,10 @@ LONG CFreePcbView::OnChangeUnits( UINT wp, LONG lp )
 	}
 	else
 		ASSERT(0);
-	// CPT: m_Doc->ProjectModified( TRUE );
+	// cptdone: m_Doc->ProjectModified( TRUE );
 	SetFocus();
 	ShowSelectStatus();
-	// CPT:
+	// cptdone:
 	if( m_cursor_mode == CUR_DRAG_GROUP	|| m_cursor_mode == CUR_DRAG_GROUP_ADD || m_cursor_mode == CUR_DRAG_PART
 				|| m_cursor_mode == CUR_DRAG_VTX || m_cursor_mode ==  CUR_DRAG_BOARD_MOVE || m_cursor_mode == CUR_DRAG_AREA_MOVE
 				|| m_cursor_mode ==  CUR_DRAG_SMCUTOUT_MOVE || m_cursor_mode ==  CUR_DRAG_MEASURE_2 || m_cursor_mode == CUR_MOVE_SEGMENT)
@@ -7481,7 +7489,7 @@ void CFreePcbView::OnViewAllElements()
 		m_org_y = (max_y + min_y)/2 - (m_client_r.bottom - m_bottom_pane_h)/2 * m_pcbu_per_pixel;
 	}
 	else 
-		// CPT:  fixed bug that occurred when viewing an empty doc (m_dlist->SetMapping() was never called, with unpredictable results)
+		// cptdone:  fixed bug that occurred when viewing an empty doc (m_dlist->SetMapping() was never called, with unpredictable results)
 		m_org_x = m_org_y = 0, m_pcbu_per_pixel = 127000;
 	CRect screen_r;
 	GetWindowRect( &screen_r );
@@ -8048,7 +8056,7 @@ void CFreePcbView::OnLButtonDown(UINT nFlags, CPoint point)
 	m_bDraggingRect = FALSE;
 	m_start_pt = point;
 	CView::OnLButtonDown(nFlags, point);
-	SetCapture();									// CPT
+	SetCapture();									// cptdone
 	m_bDontDrawDragRect = false;
 }
 
@@ -8300,7 +8308,7 @@ void CFreePcbView::SelectItemsInRect( CRect r, BOOL bAddToGroup )
 	// now highlight selected items
 	if( m_sel_ids.GetSize() == 0 )
 		CancelSelection();
-	// CPT:
+	// cptdone:
 	else if (m_sel_ids.GetSize() == 1)
 		ConvertSingletonGroup();
 	else
@@ -10657,7 +10665,7 @@ void CFreePcbView::OnGroupPaste()
 						m_Doc->m_auto_ratline_min_pins, TRUE );
 				}
 			}
-			// CPT:
+			// cptdone:
 			if (m_sel_ids.GetSize()==1)
 				ConvertSingletonGroup();
 		}
@@ -10672,7 +10680,7 @@ void CFreePcbView::OnGroupSaveToFile()
 
 	CString s ((LPCSTR) IDS_PCBFiles);
 	CFileDialog dlg( 0, "fpc", NULL, 0,
-		s, NULL, 0 /* CPT OPENFILENAME_SIZE_VERSION_400 */ );
+		s, NULL, 0 /* cptdone OPENFILENAME_SIZE_VERSION_400 */ );
 	// get folder of most-recent file or project folder
 	CString MRFile = theApp.GetMRUFile();
 	CString MRFolder;
@@ -10743,7 +10751,7 @@ void CFreePcbView::OnEditCopy()
 		return;
 	if( m_cursor_mode == CUR_GROUP_SELECTED )
 		OnGroupCopy();
-	// CPT:  permit ctrl-c for single selected items:
+	// cptdone:  permit ctrl-c for single selected items:
 	else if (ConvertSelectionToGroup(false)) {
 		OnGroupCopy();
 		m_sel_ids.RemoveAll();  m_sel_ptrs.RemoveAll();
@@ -10771,7 +10779,7 @@ void CFreePcbView::OnEditCut()
 		OnGroupCopy();
 		OnGroupDelete();
 	}
-	// CPT:  permit ctrl-x for single selected items:
+	// cptdone:  permit ctrl-x for single selected items:
 	else if (ConvertSelectionToGroup(false)) {
 		OnGroupCopy();
 		OnGroupDelete();
