@@ -211,6 +211,9 @@ id& carea::Id()
 
 //**************************** cseg implementation ************************
 
+// initialization
+int cseg::m_array_step = 0;
+
 // normal constructor
 //
 cseg::cseg()
@@ -382,11 +385,53 @@ id cseg::Id()
 //
 int cseg::Index()
 {
+	// AMW experiment, unnecessarily verbose for debugging
+	int test_index;
+	void * p0;
+	void * p1;
+	unsigned long long lp0, lp1, lpThis;
+	int nsegs = m_con->NumSegs();
+	if( nsegs > 1 )
+	{
+		if( m_array_step == 0 )
+		{
+			// set CArray step size
+			p0 = &m_con->FirstSeg();
+			p1 = &m_con->SegByIndex(1);
+			lp0 = (unsigned long long)p0;
+			lp1 = (unsigned long long)p1;
+			lpThis = (unsigned long long)this;
+			m_array_step = lp1 - lp0;
+		}
+	}
+	// calculate index
+	p0 = &m_con->FirstSeg();
+	lp0 = (unsigned long long)p0;
+	lpThis = (unsigned long long)this;
+	if( lpThis == lp0 )
+		test_index = 0;
+	else
+	{
+		if( m_array_step == 0 )
+			ASSERT(0);
+		test_index = ( lpThis - lp0 )/m_array_step;
+	}
+	if( test_index < 0 )
+		ASSERT(0);
+	// end AMW
+
 	CIterator_cseg iter_seg( m_con );
 	for( cseg * s=iter_seg.GetFirst(); s; s=iter_seg.GetNext() )
 	{
 		if( s == this )
-			return iter_seg.GetIndex();
+		{
+			int index = iter_seg.GetIndex();
+			// AMW experiment, see if calculated index is correct
+			if( test_index > -1 && index != test_index )
+				ASSERT(0);
+			// end AMW
+			return index;;
+		}
 	}
 	ASSERT(0);
 	return -1;

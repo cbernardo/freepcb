@@ -105,6 +105,7 @@ public:
 	cvertex& GetPostVtx();
 	void GetStatusStr( CString * str, int width = 0 );			// CPT added width param
 
+	static int m_array_step;
 	int m_uid;				// unique id
 	int m_layer;			// copper layer
 	int m_width;			// width
