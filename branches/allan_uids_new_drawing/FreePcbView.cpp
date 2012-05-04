@@ -283,7 +283,6 @@ CFreePcbView::CFreePcbView()
 	CalibrateTimer();
 	m_lastKeyWasArrow = m_lastKeyWasGroupRotate = FALSE;		// CPT
 
-
 	// CPT:  put the following into the constructor (was in InitInstance()).
 	// set up arrays of mask ids
 	// default settings to enable all selections
@@ -344,6 +343,7 @@ void CFreePcbView::OnNewProject()
 	m_inflection_mode = IM_90_45;
 	m_snap_mode = SM_GRID_POINTS;
 	m_units = m_Doc->m_units;
+	m_bNetHighlighted = FALSE;		// AMW
 }
 
 void CFreePcbView::BaseInit() 
@@ -634,6 +634,7 @@ BOOL CFreePcbView::SelectItem( id sid )
 		CancelSelection();
 		m_sel_part = sid.Part();
 		m_sel_id = sid;
+#if 0	// AMW r272: can't select net, just highlight it
 		if( (GetKeyState('N') & 0x8000) && sid.T2()  == ID_SEL_PAD )
 		{
 			// pad selected and if "n" held down, select net
@@ -655,6 +656,8 @@ BOOL CFreePcbView::SelectItem( id sid )
 			}
 		}
 		else if( sid.IsPart() )
+#endif
+		if( sid.IsPart() )		// AMW r272
 		{
 			SelectPart( m_sel_part );
 			m_Doc->m_plist->SelectRefText( m_sel_part );
@@ -1507,10 +1510,10 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		CPoint pf = m_last_cursor_point;
 		CPoint pp = GetInflectionPoint( pi, pf, m_inflection_mode );
 		BOOL insert_flag = FALSE;
-		m_sel_id.Con()->Draw();		// AMW 300
+		m_sel_id.Con()->Draw();		// AMW
 		if( pp != pi )
 		{
-			m_dlist->CancelHighLight();	// AMW r269
+			CancelHighlight();	// AMW r269
 			insert_flag = m_Doc->m_nlist->InsertSegment( m_sel_net, m_sel_ic, m_sel_is,
 				pp.x, pp.y, m_active_layer, w, via_w, via_hole_w, m_dir );
 			if( !insert_flag )
@@ -1538,6 +1541,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 			m_active_layer, via_w, via_hole_w, m_dir, 2 );
 		m_Doc->m_nlist->HighlightNet( m_sel_net, m_sel_id.I2(), m_sel_id.I3() ); // AMW r269
 		m_Doc->m_plist->HighlightAllPadsOnNet( m_sel_net ); // AMW r269
+		m_bNetHighlighted = TRUE;							// AMW r272
 		m_snap_angle_ref = m_last_cursor_point;
 		m_Doc->ProjectModified( TRUE );
 		Invalidate( FALSE );
@@ -2277,7 +2281,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 					new_sel_part, &pin_name );
 				m_dlist->Set_visible( m_sel_seg->dl_el, TRUE );
 				m_dlist->StopDragging();
-				m_dlist->CancelHighLight();
+				CancelHighlight();
 				SetCursorMode( CUR_RAT_SELECTED );
 				m_Doc->m_nlist->HighlightSegment( m_sel_net, m_sel_ic, m_sel_is );
 				m_Doc->m_nlist->SetAreaConnections( m_sel_net );
@@ -3103,17 +3107,27 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 
 	if( nChar == 'N' )
 	{
-		// "n" pressed, select net
+		// "n" pressed
+		// AMW r272: changed from select net to toggle for net highlighted
 		if( m_cursor_mode == CUR_VTX_SELECTED
+			|| m_cursor_mode == CUR_END_VTX_SELECTED
 			|| m_cursor_mode == CUR_SEG_SELECTED
 			|| m_cursor_mode == CUR_CONNECT_SELECTED 
+			|| m_cursor_mode == CUR_RAT_SELECTED 
 			|| m_cursor_mode == CUR_AREA_CORNER_SELECTED 
 			|| m_cursor_mode == CUR_AREA_SIDE_SELECTED )
 		{
-			m_sel_id.SetT2( ID_ENTIRE_NET );
-			m_Doc->m_nlist->HighlightNet( m_sel_net );
-			m_Doc->m_plist->HighlightAllPadsOnNet( m_sel_net );
-			SetCursorMode( CUR_NET_SELECTED );
+			if( m_bNetHighlighted )
+			{
+				CancelHighlight();
+				SelectItem( m_sel_id );		// re-highlight selected item
+			}
+			else
+			{
+				m_Doc->m_nlist->HighlightNet( m_sel_net );
+				m_Doc->m_plist->HighlightAllPadsOnNet( m_sel_net );
+				m_bNetHighlighted = TRUE;
+			}
 			Invalidate( FALSE );
 		}
 		else if( m_cursor_mode == CUR_PAD_SELECTED )
@@ -3122,12 +3136,18 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 			cnet * net = m_Doc->m_plist->GetPinNet( m_sel_part, m_sel_id.I2() );
 			if( net )
 			{
-				m_sel_net = net;
-				m_sel_id = net->m_id;
-				m_sel_id.SetT2( ID_ENTIRE_NET );
-				m_Doc->m_nlist->HighlightNet( m_sel_net );
-				m_Doc->m_plist->HighlightAllPadsOnNet( m_sel_net );
-				SetCursorMode( CUR_NET_SELECTED );
+				if( m_bNetHighlighted )
+				{
+					CancelHighlight();
+					SelectItem( m_sel_id );		// re-highlight selected item
+				}
+				else
+				{
+					m_Doc->m_nlist->HighlightNet( net );
+					m_Doc->m_plist->HighlightAllPadsOnNet( net );
+					m_bNetHighlighted = TRUE;
+				}
+				Invalidate( FALSE );
 			}
 		}
 	}
@@ -3387,7 +3407,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 				m_totalArrowMoveY = 0;
 				m_lastKeyWasArrow = TRUE;
 			}
-			m_dlist->CancelHighLight();
+			CancelHighlight();
 			m_Doc->m_plist->Move( m_sel_part,
 				m_sel_part->x+dx,
 				m_sel_part->y+dy,
@@ -3436,7 +3456,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 				m_totalArrowMoveY = 0;
 				m_lastKeyWasArrow = TRUE;
 			}
-			m_dlist->CancelHighLight();
+			CancelHighlight();
 			CPoint ref_pt = m_Doc->m_plist->GetRefPoint( m_sel_part );
 			m_Doc->m_plist->MoveRefText( m_sel_part,
 										ref_pt.x + dx,
@@ -3474,7 +3494,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 				m_totalArrowMoveY = 0;
 				m_lastKeyWasArrow = TRUE;
 			}
-			m_dlist->CancelHighLight();
+			CancelHighlight();
 			CPoint val_pt = m_Doc->m_plist->GetValuePoint( m_sel_part );
 			m_Doc->m_plist->MoveValueText( m_sel_part,
 										val_pt.x + dx,
@@ -3538,7 +3558,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 				m_totalArrowMoveY = 0;
 				m_lastKeyWasArrow = TRUE;
 			}
-			m_dlist->CancelHighLight();
+			CancelHighlight();
 
 			// 1. Move the line defined by the segment
 			m_last_pt.x = m_sel_prev_vtx->x;
@@ -3660,7 +3680,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 				m_totalArrowMoveY = 0;
 				m_lastKeyWasArrow = TRUE;
 			}
-			m_dlist->CancelHighLight();
+			CancelHighlight();
 			m_Doc->m_nlist->MoveVertex( m_sel_net, m_sel_ic, m_sel_is,
 										m_sel_vtx->x + dx, m_sel_vtx->y + dy );
 			m_totalArrowMoveX += dx;
@@ -3758,7 +3778,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 				m_totalArrowMoveY = 0;
 				m_lastKeyWasArrow = TRUE;
 			}
-			m_dlist->CancelHighLight();
+			CancelHighlight();
 			m_Doc->m_tlist->MoveText( m_sel_text,
 						m_sel_text->m_x + dx, m_sel_text->m_y + dy,
 						m_sel_text->m_angle, m_sel_text->m_mirror,
@@ -3793,7 +3813,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 			poly->MoveCorner( m_sel_is,
 				poly->X( m_sel_is ) + dx,
 				poly->Y( m_sel_is ) + dy );
-			m_dlist->CancelHighLight();
+			CancelHighlight();
 			m_totalArrowMoveX += dx;
 			m_totalArrowMoveY += dy;
 			ShowRelativeDistance( poly->X( m_sel_is ), poly->Y( m_sel_is ),
@@ -3843,7 +3863,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 			poly->MoveCorner( m_sel_is,
 				poly->X( m_sel_is ) + dx,
 				poly->Y( m_sel_is ) + dy );
-			m_dlist->CancelHighLight();
+			CancelHighlight();
 			m_totalArrowMoveX += dx;
 			m_totalArrowMoveY += dy;
 			ShowRelativeDistance( poly->X( m_sel_is ), poly->Y( m_sel_is ),
@@ -3871,7 +3891,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 			// end CPT
 			else if( fk == FK_POLY_STRAIGHT )
 			{
-				m_dlist->CancelHighLight();
+				CancelHighlight();
 				m_polyline_style = CPolyLine::STRAIGHT;
 				poly->SetSideStyle( m_sel_id.I3(), m_polyline_style );
 				SetFKText( m_cursor_mode );
@@ -3881,7 +3901,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 			}
 			else if( fk == FK_POLY_ARC_CW )
 			{
-				m_dlist->CancelHighLight();
+				CancelHighlight();
 				m_polyline_style = CPolyLine::ARC_CW;
 				poly->SetSideStyle( m_sel_id.I3(), m_polyline_style );
 				SetFKText( m_cursor_mode );
@@ -3891,7 +3911,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 			}
 			else if( fk == FK_POLY_ARC_CCW )
 			{
-				m_dlist->CancelHighLight();
+				CancelHighlight();
 				m_polyline_style = CPolyLine::ARC_CCW;
 				poly->SetSideStyle( m_sel_id.I3(), m_polyline_style );
 				SetFKText( m_cursor_mode );
@@ -4010,7 +4030,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 	case CUR_GROUP_SELECTED:
 		if( fk == FK_ARROW )
 		{
-			m_dlist->CancelHighLight();
+			CancelHighlight();
 			if( !m_lastKeyWasArrow && !m_lastKeyWasGroupRotate)
 			{
 				if( GluedPartsInGroup() )
@@ -5394,11 +5414,19 @@ int CFreePcbView::SelectPart( cpart * part )
 	return 0;
 }
 
+// cancel any highlights
+//
+void CFreePcbView::CancelHighlight()
+{
+	m_dlist->CancelHighLight();
+	m_bNetHighlighted = FALSE;
+}
+
 // cancel selection
 //
 void CFreePcbView::CancelSelection()
 {
-	m_Doc->m_dlist->CancelHighLight();
+	CancelHighlight();
 	m_sel_ids.RemoveAll();
 	m_sel_ptrs.RemoveAll();
 	m_sel_id.Clear();
@@ -5415,7 +5443,7 @@ void CFreePcbView::CancelSelection()
 // should be used after areas are modified
 void CFreePcbView::TryToReselectAreaCorner( int x, int y )
 {
-	m_dlist->CancelHighLight();
+	CancelHighlight();
 	for( int ia=0; ia<m_sel_net->NumAreas(); ia++ )
 	{
 		for( int ic=0; ic<m_sel_net->area[ia].NumCorners(); ic++ )
@@ -5813,7 +5841,7 @@ void CFreePcbView::OnAddArea()
 			CDC *pDC = GetDC();
 			pDC->SelectClipRgn( &m_pcb_rgn );
 			SetDCToWorldCoords( pDC );
-			m_dlist->CancelHighLight();
+			CancelHighlight();
 			SetCursorMode( CUR_ADD_AREA );
 			// make layer visible
 			m_active_layer = dlg.m_layer;
@@ -5842,7 +5870,7 @@ void CFreePcbView::OnAreaAddCutout()
 	CDC *pDC = GetDC();
 	pDC->SelectClipRgn( &m_pcb_rgn );
 	SetDCToWorldCoords( pDC );
-	m_dlist->CancelHighLight();
+	CancelHighlight();
 	SetCursorMode( CUR_ADD_AREA_CUTOUT );
 	// make layer visible
 	m_active_layer = m_sel_net->area[m_sel_ia].Layer();
@@ -5985,7 +6013,7 @@ void CFreePcbView::OnTextMove()
 	CPoint cur_p = m_dlist->PCBToScreen( p );
 	SetCursorPos( cur_p.x, cur_p.y );
 	// start moving
-	m_dlist->CancelHighLight();
+	CancelHighlight();
 	m_dragging_new_item = 0;
 	m_Doc->m_tlist->StartDraggingText( pDC, m_sel_text );
 	SetCursorMode( CUR_DRAG_TEXT );
@@ -6151,7 +6179,7 @@ void CFreePcbView::OnPadStartStubTrace()
 		2, m_inflection_mode );
 	m_snap_angle_ref = p;
 	SetCursorMode( CUR_DRAG_TRACE );
-	m_dlist->CancelHighLight();
+	CancelHighlight();
 	ShowSelectStatus();
 	m_Doc->ProjectModified( TRUE );
 	ReleaseDC( pDC );
@@ -6289,7 +6317,7 @@ void CFreePcbView::OnVertexStartTrace()
 void CFreePcbView::OnSegmentSetWidth()
 {
 	SetWidth( 0 );
-	m_dlist->CancelHighLight();
+	CancelHighlight();
 	m_Doc->m_nlist->HighlightSegment( m_sel_net, m_sel_ic, m_sel_is );
 	Invalidate( FALSE );
 }
@@ -6472,7 +6500,7 @@ void CFreePcbView::OnRatlineChangeEndPin()
 	CDC *pDC = GetDC();
 	pDC->SelectClipRgn( &m_pcb_rgn );
 	SetDCToWorldCoords( pDC );
-	m_dlist->CancelHighLight();
+	CancelHighlight();
 	cconnect * c = m_sel_con;
 	m_dlist->Set_visible( m_sel_seg->dl_el, FALSE );
 	int x, y;
@@ -6507,7 +6535,7 @@ void CFreePcbView::OnVertexProperties()
 	{
 		m_sel_vtx->via_w = dlg.m_via_w;
 		m_sel_vtx->via_hole_w = dlg.m_via_hole_w;
-		m_dlist->CancelHighLight();
+		CancelHighlight();
 		m_Doc->m_nlist->MoveVertex( m_sel_net, m_sel_ic, m_sel_is,
 			dlg.pt().x, dlg.pt().y );
 		m_Doc->ProjectModified( TRUE );
@@ -6832,7 +6860,7 @@ void CFreePcbView::OnTextEdit()
 	int stroke_width = add_text_dlg.m_width;
 	int layer = add_text_dlg.m_layer;
 	CString test_str = add_text_dlg.m_str;
-	m_dlist->CancelHighLight();
+	CancelHighlight();
 	CText * new_text = m_Doc->m_tlist->AddText( x, y, angle, mirror, bNegative,
 		layer, font_size, stroke_width, &test_str );
 	new_text->m_uid = m_sel_text->m_uid;
@@ -6858,7 +6886,7 @@ void CFreePcbView::OnAddBoardOutline()
 	pDC->SelectClipRgn( &m_pcb_rgn );
 	SetDCToWorldCoords( pDC );
 	CPoint p = m_last_mouse_point;
-	m_dlist->CancelHighLight();
+	CancelHighlight();
 	int ib = m_Doc->m_board_outline.GetSize() - 1;
 	m_sel_id.Set( ID_BOARD, -1, ID_OUTLINE, -1, ib, ID_SEL_CORNER, -1, 0 );
 	m_polyline_style = CPolyLine::STRAIGHT;
@@ -6980,7 +7008,7 @@ void CFreePcbView::OnAreaCornerDelete()
 		SaveUndoInfoForArea( m_sel_net, m_sel_ia, CNetList::UNDO_AREA_MODIFY, TRUE, m_Doc->m_undo_list );
 //		SaveUndoInfoForNetAndConnectionsAndArea( m_sel_net, m_sel_ia, CNetList::UNDO_AREA_MODIFY, TRUE, m_Doc->m_undo_list );
 		area->DeleteCorner( m_sel_id.I3() );
-		m_dlist->CancelHighLight();
+		CancelHighlight();
 		m_Doc->m_nlist->SetAreaConnections( m_sel_net, m_sel_ia );
 		if( m_Doc->m_vis[LAY_RAT_LINE] )
 			m_Doc->m_nlist->OptimizeConnections(  m_sel_net, -1, m_Doc->m_auto_ratline_disable,
@@ -7660,7 +7688,7 @@ void CFreePcbView::OnRefProperties()
 		m_sel_part->m_ref_layer = FlipLayer( m_sel_part->side, dlg.m_layer );
 		m_Doc->m_plist->ResizeRefText( m_sel_part, dlg.m_height, dlg.m_width, dlg.m_vis );
 		m_Doc->ProjectModified( TRUE );
-		m_dlist->CancelHighLight();
+		CancelHighlight();
 		if( m_cursor_mode == CUR_PART_SELECTED )
 			m_Doc->m_plist->SelectPart( m_sel_part );
 		else if( m_cursor_mode == CUR_REF_SELECTED 
@@ -7685,7 +7713,7 @@ void CFreePcbView::OnVertexProperties()
 	{
 		SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY,
 			TRUE, m_Doc->m_undo_list );
-		m_dlist->CancelHighLight();
+		CancelHighlight();
 		m_Doc->m_nlist->MoveVertex( m_sel_net, m_sel_ic, m_sel_is,
 			dlg.X(), dlg.Y() );
 		m_Doc->ProjectModified( TRUE );
@@ -8357,7 +8385,7 @@ void CFreePcbView::OnExternalChangeFootprint( CShape * fp )
 			m_Doc->ResetUndoState();
 		}
 		m_Doc->ProjectModified( TRUE );
-		m_dlist->CancelHighLight();
+		CancelHighlight();
 		m_Doc->m_plist->SelectRefText( m_sel_part );
 		m_Doc->m_plist->HighlightPart( m_sel_part );
 		Invalidate( FALSE );
@@ -8450,7 +8478,7 @@ void CFreePcbView::OnAddSoldermaskCutout()
 		CDC *pDC = GetDC();
 		pDC->SelectClipRgn( &m_pcb_rgn );
 		SetDCToWorldCoords( pDC );
-		m_dlist->CancelHighLight();
+		CancelHighlight();
 		SetCursorMode( CUR_ADD_SMCUTOUT );
 		m_polyline_layer = il;
 		m_dlist->StartDraggingArray( pDC, m_last_cursor_point.x,
@@ -8570,7 +8598,7 @@ void CFreePcbView::OnPartChangeSide()
 {
 	SaveUndoInfoForPartAndNets( m_sel_part,
 		CPartList::UNDO_PART_MODIFY, NULL, TRUE, m_Doc->m_undo_list );
-	m_Doc->m_dlist->CancelHighLight();
+	CancelHighlight();
 	m_Doc->m_plist->UndrawPart( m_sel_part );
 	m_sel_part->side = 1 - m_sel_part->side;
 	m_Doc->m_plist->DrawPart( m_sel_part );
@@ -8590,7 +8618,7 @@ void CFreePcbView::OnPartRotate()
 {
 	SaveUndoInfoForPartAndNets( m_sel_part,
 		CPartList::UNDO_PART_MODIFY, NULL, TRUE, m_Doc->m_undo_list );
-	m_Doc->m_dlist->CancelHighLight();
+	CancelHighlight();
 	m_Doc->m_plist->UndrawPart( m_sel_part );
 	m_sel_part->angle = (m_sel_part->angle + 90)%360;
 	m_Doc->m_plist->DrawPart( m_sel_part );
@@ -8608,7 +8636,7 @@ void CFreePcbView::OnPartRotateCCW()
 {
 	SaveUndoInfoForPartAndNets( m_sel_part,
 		CPartList::UNDO_PART_MODIFY, NULL, TRUE, m_Doc->m_undo_list );
-	m_Doc->m_dlist->CancelHighLight();
+	CancelHighlight();
 	m_Doc->m_plist->UndrawPart( m_sel_part );
 	m_sel_part->angle = (m_sel_part->angle + 270)%360;
 	m_Doc->m_plist->DrawPart( m_sel_part );
@@ -8626,14 +8654,14 @@ void CFreePcbView::OnPartRotateCCW()
 void CFreePcbView::OnNetSetWidth()
 {
 	SetWidth( 2 );
-	m_Doc->m_dlist->CancelHighLight();
+	CancelHighlight();
 	m_Doc->m_nlist->HighlightNetConnections( m_sel_net );
 }
 
 void CFreePcbView::OnConnectSetWidth()
 {
 	SetWidth( 1 );
-	m_Doc->m_dlist->CancelHighLight();
+	CancelHighlight();
 	m_Doc->m_nlist->HighlightConnection( m_sel_net, m_sel_ic );
 }
 
@@ -8777,7 +8805,7 @@ void CFreePcbView::OnToolsMoveOrigin()
 			CDC *pDC = GetDC();
 			pDC->SelectClipRgn( &m_pcb_rgn );
 			SetDCToWorldCoords( pDC );
-			m_dlist->CancelHighLight();
+			CancelHighlight();
 			SetCursorMode( CUR_MOVE_ORIGIN );
 			m_dlist->StartDraggingArray( pDC, m_last_cursor_point.x,
 				m_last_cursor_point.y, 0, LAY_SELECTION, 2 );
@@ -9957,7 +9985,7 @@ void CFreePcbView::MoveGroup( int dx, int dy )
 //
 void CFreePcbView::HighlightGroup()
 {
-	m_dlist->CancelHighLight();
+	CancelHighlight();
 	for( int i=0; i<m_sel_ids.GetSize(); i++ )
 	{
 		id sid = m_sel_ids[i];
@@ -10051,7 +10079,7 @@ void CFreePcbView::OnAddSimilarArea()
 	CDC *pDC = GetDC();
 	pDC->SelectClipRgn( &m_pcb_rgn );
 	SetDCToWorldCoords( pDC );
-	m_dlist->CancelHighLight();
+	CancelHighlight();
 	SetCursorMode( CUR_ADD_AREA );
 	m_active_layer = m_sel_net->area[m_sel_ia].Layer();
 	m_Doc->m_vis[m_active_layer] = TRUE;
@@ -10142,7 +10170,7 @@ void CFreePcbView::ReselectNetItemIfConnectionsChanged( int new_ic )
 		|| m_cursor_mode == CUR_CONNECT_SELECTED
 		|| m_cursor_mode == CUR_NET_SELECTED ) )
 	{
-		m_Doc->m_dlist->CancelHighLight();
+		CancelHighlight();
 		m_sel_id.SetI2( new_ic );
 		if( m_cursor_mode == CUR_SEG_SELECTED )
 			m_Doc->m_nlist->HighlightSegment( m_sel_net, m_sel_ic, m_sel_is );
@@ -12754,7 +12782,7 @@ void * CFreePcbView::CreateGroupDescriptor( CUndoList * list, CArray<void*> * pt
 
 void CFreePcbView::OnGroupRotate()
 {
-	m_dlist->CancelHighLight();
+	CancelHighlight();
 	if( !m_lastKeyWasArrow && !m_lastKeyWasGroupRotate)
 	{
 		if( GluedPartsInGroup() )
@@ -12816,7 +12844,7 @@ void CFreePcbView::OnAreaSideStyle()
 	if( ret == IDOK )
 	{
 		SaveUndoInfoForArea( m_sel_net, m_sel_ia, CNetList::UNDO_AREA_MODIFY, TRUE, m_Doc->m_undo_list );
-		m_dlist->CancelHighLight();
+		CancelHighlight();
 		m_sel_net->area[m_sel_ia].SetSideStyle( m_sel_id.I3(), dlg.m_style );
 		m_Doc->m_nlist->SelectAreaSide( m_sel_net, m_sel_ia, m_sel_id.I3() );
 		m_Doc->m_nlist->SetAreaConnections( m_sel_net, m_sel_ia );
@@ -12862,7 +12890,7 @@ void CFreePcbView::OnValueProperties()
 			m_sel_part->m_value_angle,
 			dlg.m_height, dlg.m_width, dlg.m_vis, value_layer );
 		m_Doc->ProjectModified( TRUE );
-		m_dlist->CancelHighLight();
+		CancelHighlight();
 		if( m_cursor_mode == CUR_PART_SELECTED )
 			m_Doc->m_plist->SelectPart( m_sel_part );
 		else if( m_cursor_mode == CUR_VALUE_SELECTED 
@@ -12888,7 +12916,7 @@ void CFreePcbView::OnPartEditValue()
 void CFreePcbView::OnRefRotateCW()
 {
 	SaveUndoInfoForPart( m_sel_part, CPartList::UNDO_PART_MODIFY, NULL, TRUE, m_Doc->m_undo_list ); 
-	m_dlist->CancelHighLight();
+	CancelHighlight();
 	m_Doc->m_plist->UndrawPart( m_sel_part );
 	m_sel_part->m_ref_angle = (m_sel_part->m_ref_angle + 90)%360;
 	m_Doc->m_plist->DrawPart( m_sel_part );
@@ -12900,7 +12928,7 @@ void CFreePcbView::OnRefRotateCW()
 void CFreePcbView::OnRefRotateCCW()
 {
 	SaveUndoInfoForPart( m_sel_part, CPartList::UNDO_PART_MODIFY, NULL, TRUE, m_Doc->m_undo_list ); 
-	m_dlist->CancelHighLight();
+	CancelHighlight();
 	m_Doc->m_plist->UndrawPart( m_sel_part );
 	m_sel_part->m_ref_angle = (m_sel_part->m_ref_angle + 270)%360;
 	m_Doc->m_plist->DrawPart( m_sel_part );
@@ -12912,7 +12940,7 @@ void CFreePcbView::OnRefRotateCCW()
 void CFreePcbView::OnValueRotateCW()
 {
 	SaveUndoInfoForPart( m_sel_part, CPartList::UNDO_PART_MODIFY, NULL, TRUE, m_Doc->m_undo_list ); 
-	m_dlist->CancelHighLight();
+	CancelHighlight();
 	m_Doc->m_plist->UndrawPart( m_sel_part );
 	m_sel_part->m_value_angle = (m_sel_part->m_value_angle + 90)%360;
 	m_Doc->m_plist->DrawPart( m_sel_part );
@@ -12924,7 +12952,7 @@ void CFreePcbView::OnValueRotateCW()
 void CFreePcbView::OnValueRotateCCW()
 {
 	SaveUndoInfoForPart( m_sel_part, CPartList::UNDO_PART_MODIFY, NULL, TRUE, m_Doc->m_undo_list ); 
-	m_dlist->CancelHighLight();
+	CancelHighlight();
 	m_Doc->m_plist->UndrawPart( m_sel_part );
 	m_sel_part->m_value_angle = (m_sel_part->m_value_angle + 270)%360;
 	m_Doc->m_plist->DrawPart( m_sel_part );
@@ -13243,7 +13271,7 @@ void CFreePcbView::ConvertSingletonGroup() {
 #if 0
 void CFreePcbView::DoSelection(id &sid, void *ptr) {
 	// User wants to select object with the given id & ptr.  Accordingly set the cursor mode etc. 
-	m_dlist->CancelHighLight();
+	CancelHighlight();
 	if( sid.type == ID_DRC && sid.st == ID_SEL_DRE ) {
 		DRError * dre = (DRError*)ptr;
 		m_sel_id = sid;

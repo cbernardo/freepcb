@@ -3671,27 +3671,40 @@ void CNetList::HighlightNetConnections( cnet * net, int exclude_ic, int exclude_
 
 // Select connection
 // AMW r269: except segment is 
+// AMW r272: thin segment highlights and vertex highlights
 void CNetList::HighlightConnection( cnet * net, int ic, int exclude_is )
 {
-	cconnect * c = net->connect[ic];
-	for( int is=0; is<c->seg.GetSize(); is++ )
+	cconnect * c = net->ConByIndex(ic);
+	for( int is=0; is<c->NumSegs(); is++ )
 	{
+		cseg * s = &c->SegByIndex(is);
 		if( is != exclude_is )
-			HighlightSegment( net, ic, is );
+			HighlightSegment( net, ic, is, TRUE );
+		if( is > 0 || c->FirstVtx()->GetType() == cvertex::V_END )
+		{
+			cseg * s = &c->SegByIndex(is);
+			s->GetPreVtx().Highlight();
+		}
+		if( is == c->NumSegs()-1 && c->LastVtx()->GetType() == cvertex::V_END )
+			s->GetPostVtx().Highlight();
 	}
 }
 
-// Select segment
-void CNetList::HighlightSegment( cnet * net, int ic, int iseg )
+// Select segment by redrawing in highlight color
+// AMW r272: if bThin, just draw a thin line through segment, so segment color still visible
+void CNetList::HighlightSegment( cnet * net, int ic, int iseg, bool bThin )
 {
-	cconnect * c = net->connect[ic];
-	m_dlist->HighLight( DL_LINE, m_dlist->Get_x(c->seg[iseg].dl_el), 
-								m_dlist->Get_y(c->seg[iseg].dl_el),
-								m_dlist->Get_xf(c->seg[iseg].dl_el),
-								m_dlist->Get_yf(c->seg[iseg].dl_el),
-								m_dlist->Get_w(c->seg[iseg].dl_el),
-								m_dlist->Get_layer(c->seg[iseg].dl_el) );
-
+	cconnect * c = net->ConByIndex(ic);
+	cseg * s = &c->SegByIndex(iseg);
+	int w = 1;
+	if( !bThin )
+		w = m_dlist->Get_w(s->dl_el);
+	m_dlist->HighLight( DL_LINE, m_dlist->Get_x(s->dl_el), 
+								m_dlist->Get_y(s->dl_el),
+								m_dlist->Get_xf(s->dl_el),
+								m_dlist->Get_yf(s->dl_el),
+								w,
+								m_dlist->Get_layer(s->dl_el) );
 }
 
 // Select vertex
