@@ -403,6 +403,9 @@ public:
 	CArray<id> m_sel_ids;	// array of multiple selections
 	CArray<void*> m_sel_ptrs;	// array of pointers to selected items
 
+	// highlight flags
+	bool m_bNetHighlighted;
+
 #define m_sel_ic m_sel_id.I2()							// index of selected connection
 #define m_sel_ia m_sel_id.I2()							// index of selected area
 #define m_sel_is m_sel_id.I3()						// index of selected side, segment, or corner
@@ -521,6 +524,7 @@ public:
 	void ShowRelativeDistance( int x, int y, int dx, int dy );
 	int ShowActiveLayer();
 	int SelectPart( cpart * part );
+	void CancelHighlight();		// AMW r272
 	void CancelSelection();
 	int SetWidth( int mode );
 	int GetWidthsForSegment( int * w, int * via_w, int * via_hole_w );
