@@ -3342,14 +3342,19 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 			d = 25400;		// 1 mil
 		else if (bCtrlKeyDown && nChar==VK_UP)	
 		{
-			if (m_sel_id.T1()==ID_NET) 	RoutingGridUp();
-			else                        PlacementGridUp(); 
+
+			if (m_sel_id.T1()==ID_NET || m_cursor_mode==CUR_ADD_AREA)
+				RoutingGridUp();
+			else
+				PlacementGridUp(); 
 			return;
 		}
 		else if (bCtrlKeyDown && nChar==VK_DOWN) 
 		{
-			if (m_sel_id.T1()==ID_NET) RoutingGridDown();
-			else                       PlacementGridDown(); 
+			if (m_sel_id.T1()==ID_NET || m_cursor_mode==CUR_ADD_AREA)
+				RoutingGridDown();
+			else
+				PlacementGridDown(); 
 			return;
 		}
 		else if( m_sel_id.T1() == ID_NET )
@@ -4410,6 +4415,19 @@ void CFreePcbView::SetCursorMode( int mode )
 //
 void CFreePcbView::SetFKText( int mode )
 {
+	// CPT: text for routing/placement grid controls in the toolbar changes depending on what's selected
+	CString placement, routing;
+	if (m_sel_id.T1()==ID_NET || mode==CUR_ADD_AREA) 
+		placement.LoadStringA(IDS_ToolbarPlacement),
+		routing.LoadStringA(IDS_ToolbarRoutingCtrlUpDn);
+	else
+		placement.LoadStringA(IDS_ToolbarPlacementCtrlUpDn),
+		routing.LoadStringA(IDS_ToolbarRouting);
+	CMainFrame * frm = (CMainFrame*)AfxGetMainWnd();
+	frm->m_wndMyToolBar.m_ctlStaticPlacementGrid.SetWindowTextA(placement);
+	frm->m_wndMyToolBar.m_ctlStaticRoutingGrid.SetWindowTextA(routing);
+	// End CPT
+
 	for( int i=0; i<12; i++ )
 	{
 		m_fkey_option[i] = 0;
