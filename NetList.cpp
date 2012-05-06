@@ -3658,35 +3658,59 @@ void CNetList::SetAreaSideStyle( cnet * net, int iarea, int iside, int style )
 
 // Select all connections in net
 // AMW r269: except segment is in connection ic
-void CNetList::HighlightNetConnections( cnet * net, int exclude_ic, int exclude_is )
-{
+void CNetList::HighlightNetConnections( cnet * net, id * exclude_id )
+{	
 	for( int ic=0; ic<net->NumCons(); ic++ )
 	{
-		if( ic == exclude_ic )
-			HighlightConnection( net, ic, exclude_is );
-		else
-			HighlightConnection( net, ic );
+		HighlightConnection( net, ic, exclude_id );
 	}
 }
 
-// Select connection
-// AMW r269: except segment is 
+// Highlight connection
 // AMW r272: thin segment highlights and vertex highlights
-void CNetList::HighlightConnection( cnet * net, int ic, int exclude_is )
+// AMW r274: exclude item(s) indicated by exclude_id
+// if exclude_id is a segment, just exclude it
+// if exclude_id is a vertex, exclude it and adjacent segments
+//
+void CNetList::HighlightConnection( cnet * net, int ic, id * exclude_id )
 {
+	id x_id;
+	if( exclude_id )
+		x_id = *exclude_id;
+	id pre_s_id, post_s_id;
+
+	if( x_id.IsVtx() )
+	{
+		// exclude vertex and adjacent segments
+		cconnect * x_c = x_id.Con();
+		cvertex * x_v = x_id.Vtx();
+		int iv = x_v->Index();
+		if( iv > 0 )
+			pre_s_id = x_c->SegByIndex(iv-1).Id();
+		if( iv < x_c->NumSegs()+1 )
+			post_s_id = x_c->SegByIndex(iv).Id();
+	}
+
 	cconnect * c = net->ConByIndex(ic);
 	for( int is=0; is<c->NumSegs(); is++ )
 	{
 		cseg * s = &c->SegByIndex(is);
-		if( is != exclude_is )
+		if( !( x_id == s->Id() || pre_s_id == s->Id() || post_s_id == s->Id() ) )
+		{
 			HighlightSegment( net, ic, is, TRUE );
+		}
 		if( is > 0 || c->FirstVtx()->GetType() == cvertex::V_END )
 		{
-			cseg * s = &c->SegByIndex(is);
-			s->GetPreVtx().Highlight();
+			cvertex * v = &s->GetPreVtx();
+			if( !( x_id == v->Id() ) )
+				v->Highlight();
 		}
 		if( is == c->NumSegs()-1 && c->LastVtx()->GetType() == cvertex::V_END )
-			s->GetPostVtx().Highlight();
+		{
+			cvertex * v = &s->GetPostVtx();
+			if( !( x_id == v->Id() ) )
+				v->Highlight();
+		}
 	}
 }
 
@@ -3724,9 +3748,9 @@ void CNetList::HighlightAreaSides( cnet * net, int ia )
 }
 
 // Highlight entire net
-void CNetList::HighlightNet( cnet * net, int exclude_ic, int exclude_is )
+void CNetList::HighlightNet( cnet * net, id * exclude_id )
 {
-	HighlightNetConnections( net, exclude_ic, exclude_is );
+	HighlightNetConnections( net, exclude_id );
 	for( int ia=0;ia<net->NumAreas(); ia++ )
 		HighlightAreaSides( net, ia );
 }

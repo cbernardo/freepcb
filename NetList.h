@@ -196,8 +196,8 @@ public:
 	BOOL GetNetVisibility( cnet * net );
 	int CheckNetlist( CString * logstr );
 	int CheckConnectivity( CString * logstr );
-	void HighlightNetConnections( cnet * net, int exclude_ic=-1, int exclude_is=-1 );
-	void HighlightNet( cnet * net, int exclude_ic=-1, int exclude_is=-1 );
+	void HighlightNetConnections( cnet * net, id * exclude_id=NULL );
+	void HighlightNet( cnet * net, id * exclude_id=NULL );
 	void GetWidths( cnet * net, int * w, int * via_w, int * via_hole_w );
 	BOOL GetNetBoundaries( CRect * r );
 
@@ -212,7 +212,7 @@ public:
 	int TestHitOnAnyPadInNet( int x, int y, int layer, cnet * net );
 	void ChangeConnectionPin( cnet * net, int ic, int end_flag, 
 		cpart * part, CString * pin_name );
-	void HighlightConnection( cnet * net, int ic, int exclude_is=-1 );
+	void HighlightConnection( cnet * net, int ic, id * exclude_id=NULL );
 	void CleanUpConnections( cnet * net, CString * logstr=NULL );
 	void CleanUpAllConnections( CString * logstr=NULL );
 

@@ -2826,6 +2826,7 @@ void CPartList::ImportPartListInfo( partlist_info * pl, int flags, CDlgLog * log
 						pi->part = old_part;
 						pi->ref_size = old_part->m_ref_size; 
 						pi->ref_width = old_part->m_ref_w;
+						pi->ref_vis = old_part->m_ref_vis;				// CPT
 						pi->value = old_part->value;
 						pi->value_vis = old_part->m_value_vis;
 						pi->x = old_part->x; 
@@ -2839,6 +2840,7 @@ void CPartList::ImportPartListInfo( partlist_info * pl, int flags, CDlgLog * log
 						// use new footprint, but preserve position
 						pi->ref_size = old_part->m_ref_size; 
 						pi->ref_width = old_part->m_ref_w;
+						pi->ref_vis = old_part->m_ref_vis;				// CPT
 						pi->value = old_part->value;
 						pi->value_vis = old_part->m_value_vis;
 						pi->x = old_part->x; 
@@ -3024,6 +3026,11 @@ void CPartList::ImportPartListInfo( partlist_info * pl, int flags, CDlgLog * log
 			{
 				// ref visibility changed
 				pi->part->m_ref_vis = pi->ref_vis;
+			}
+			if( pi->part->m_value_vis != pi->value_vis )
+			{
+				// value visibility changed
+				pi->part->m_value_vis = pi->value_vis;
 			}
 			if( pi->part->shape != pi->shape || pi->bShapeChanged == TRUE )
 			{
@@ -4225,7 +4232,8 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 				c->min_y = min( c->min_y, seg_min_y - w/2 );
 				c->max_y = max( c->max_y, seg_max_y + w/2 );
 				// test trace width
-				if( w > 0 && w < dr->trace_width )
+				// CPT: noticed a dre for a ratline with width 1 nm (not sure how that width got set...)  Anyway, no width errors for ratlines:
+				if( w > 0 && w < dr->trace_width && c->SegByIndex(is).m_layer!=LAY_RAT_LINE)		
 				{
 					// TRACE_WIDTH error
 					int x = (x1+x2)/2;

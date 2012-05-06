@@ -30,8 +30,13 @@ CPT merge notes
 	when routing without a ratline, since the endpoint is undetermined.
 #22 - CPT r260: merged
 #23 - AMW deferred, these ratlines should already be eliminated by pressing F9
-#24 - deferred, couldn't reproduce the problem.
+#24 - AMW r274: couldn't reproduce the problem, but merged anyway
+#25,25a - AMW r274: merged, not tested
+#26 - AMW r274: merged
+#27 - AMW r274: deferred, not a simple merge due to changes in DisplayList
 #28 - merged (by AMW)
+#29 - AMW r274: already merged
+#30 - AMW r274: deferred, since I don't think this is completed
 
 ---------------------------------------------------------------------------------------
 CPT revisions:

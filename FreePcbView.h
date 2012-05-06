@@ -526,6 +526,8 @@ public:
 	int SelectPart( cpart * part );
 	void CancelHighlight();		// AMW r272
 	void CancelSelection();
+	void HighlightNet( cnet * net, id * exclude_id=NULL );
+	void CancelHighlightNet();
 	int SetWidth( int mode );
 	int GetWidthsForSegment( int * w, int * via_w, int * via_hole_w );
 	void ChangeTraceLayer( int mode, int old_layer=0 );
