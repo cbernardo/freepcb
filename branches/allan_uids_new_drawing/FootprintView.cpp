@@ -174,6 +174,7 @@ CFootprintView::CFootprintView()
 	m_dragging_new_item = FALSE;
 	m_units = MIL;
 	m_active_layer = LAY_FP_TOP_COPPER;
+	m_cursor_mode = -1;			// CPT.  Ensures that SetFKText() will get called by InitInstance(),  no matter what.
 }
 
 // Initialize data for view

@@ -356,7 +356,7 @@ void CFreePcbView::BaseInit()
 		ASSERT(0);
 
 	// Set default values
-	m_debug_flag = 0;
+	m_bNetHighlighted = 0;
 	m_dragging_new_item = 0;
 	m_pcbu_per_pixel = 5.0*PCBU_PER_MIL;	// 5 mils per pixel
 	m_org_x = -100.0*PCBU_PER_MIL;			// lower left corner of window
@@ -585,6 +585,9 @@ void CFreePcbView::OnSize(UINT nType, int cx, int cy)
 //
 BOOL CFreePcbView::SelectItem( id sid )
 {
+	if( m_bNetHighlighted )
+		CancelHighlightNet();
+
 	if( sid.IsDRC() )
 	{
 #if 0
@@ -1194,6 +1197,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		else
 		{
 			// nothing selected
+			CancelHighlightNet();
 			CancelSelection();
 			m_sel_id.Clear();
 			Invalidate( FALSE );
@@ -1317,6 +1321,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 	else if( m_cursor_mode == CUR_DRAG_RAT )
 	{
 		// routing a ratline, add segment(s)
+		bool bNetWasHighlighted = m_bNetHighlighted;	// AMW r274 save previous state
 		pDC = GetDC();
 		SetDCToWorldCoords( pDC );
 		pDC->SelectClipRgn( &m_pcb_rgn );
@@ -1539,9 +1544,10 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 			m_last_cursor_point.x, m_last_cursor_point.y, m_active_layer,
 			LAY_SELECTION, w,
 			m_active_layer, via_w, via_hole_w, m_dir, 2 );
-		m_Doc->m_nlist->HighlightNet( m_sel_net, m_sel_id.I2(), m_sel_id.I3() ); // AMW r269
-		m_Doc->m_plist->HighlightAllPadsOnNet( m_sel_net ); // AMW r269
-		m_bNetHighlighted = TRUE;							// AMW r272
+		if( bNetWasHighlighted )	// AMW r274
+		{
+			HighlightNet( m_sel_net, &m_sel_id ); // AMW r269
+		}
 		m_snap_angle_ref = m_last_cursor_point;
 		m_Doc->ProjectModified( TRUE );
 		Invalidate( FALSE );
@@ -3108,48 +3114,49 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 	if( nChar == 'N' )
 	{
 		// "n" pressed
-		// AMW r272: changed from select net to toggle for net highlighted
-		if( m_cursor_mode == CUR_VTX_SELECTED
-			|| m_cursor_mode == CUR_END_VTX_SELECTED
-			|| m_cursor_mode == CUR_SEG_SELECTED
-			|| m_cursor_mode == CUR_CONNECT_SELECTED 
-			|| m_cursor_mode == CUR_RAT_SELECTED 
-			|| m_cursor_mode == CUR_AREA_CORNER_SELECTED 
-			|| m_cursor_mode == CUR_AREA_SIDE_SELECTED )
+		// AMW r272: changed from "select net" to "toggle net highlighted state"
+		if( m_bNetHighlighted )
 		{
-			if( m_bNetHighlighted )
-			{
-				CancelHighlight();
-				SelectItem( m_sel_id );		// re-highlight selected item
-			}
-			else
-			{
-				m_Doc->m_nlist->HighlightNet( m_sel_net );
-				m_Doc->m_plist->HighlightAllPadsOnNet( m_sel_net );
-				m_bNetHighlighted = TRUE;
-			}
-			Invalidate( FALSE );
+			CancelHighlightNet();
 		}
-		else if( m_cursor_mode == CUR_PAD_SELECTED )
+		else
 		{
-			// pad selected and if "n" held down, select net
-			cnet * net = m_Doc->m_plist->GetPinNet( m_sel_part, m_sel_id.I2() );
-			if( net )
+			if(    m_cursor_mode == CUR_VTX_SELECTED
+				|| m_cursor_mode == CUR_END_VTX_SELECTED
+				|| m_cursor_mode == CUR_SEG_SELECTED
+				|| m_cursor_mode == CUR_CONNECT_SELECTED 
+				|| m_cursor_mode == CUR_RAT_SELECTED 
+				|| m_cursor_mode == CUR_PAD_SELECTED 
+				|| m_cursor_mode == CUR_AREA_CORNER_SELECTED 
+				|| m_cursor_mode == CUR_AREA_SIDE_SELECTED
+				|| m_cursor_mode == CUR_DRAG_RAT 
+				|| m_cursor_mode == CUR_DRAG_TRACE 
+				|| m_cursor_mode == CUR_DRAG_CONNECT 
+				|| m_cursor_mode == CUR_DRAG_VTX 
+				|| m_cursor_mode == CUR_DRAG_END_VTX 
+				|| m_cursor_mode == CUR_DRAG_VTX_INSERT )
 			{
-				if( m_bNetHighlighted )
+				if( CurDragging() )
 				{
-					CancelHighlight();
-					SelectItem( m_sel_id );		// re-highlight selected item
+					// highlight selected net, except the element being dragged
+					HighlightNet( m_sel_net, &m_sel_id );
 				}
 				else
 				{
-					m_Doc->m_nlist->HighlightNet( net );
-					m_Doc->m_plist->HighlightAllPadsOnNet( net );
-					m_bNetHighlighted = TRUE;
+					// highlight entire net
+					if( m_cursor_mode == CUR_PAD_SELECTED )
+					{
+						// pad selected 
+						HighlightNet( m_sel_id.Net() );		// if pin not in net, does nothing
+					}
+					else
+					{
+						HighlightNet( m_sel_net );
+					}
 				}
-				Invalidate( FALSE );
 			}
 		}
+		Invalidate( FALSE );
 	}
 
 	// CPT
@@ -5440,14 +5447,23 @@ void CFreePcbView::CancelHighlight()
 	m_bNetHighlighted = FALSE;
 }
 
-// cancel selection
+// cancel selection, but not net highlight
 //
 void CFreePcbView::CancelSelection()
 {
+	bool bNetWasHighlighted = m_bNetHighlighted;
 	CancelHighlight();
 	m_sel_ids.RemoveAll();
 	m_sel_ptrs.RemoveAll();
 	m_sel_id.Clear();
+
+	// AMW r274
+	if( bNetWasHighlighted )
+	{
+		// rehighlight but don't select
+		HighlightNet( m_sel_net ); 
+	}
+	// end AMW
 
 	// CPT
 	m_active_width = 0;
@@ -5455,6 +5471,26 @@ void CFreePcbView::CancelSelection()
 	// end CPT
 
 	SetCursorMode( CUR_NONE_SELECTED );
+}
+
+// highlight all segments, vertices and pads in net, except for excluded_id
+//
+void CFreePcbView::HighlightNet( cnet * net, id * exclude_id ) 
+{
+	if( net == NULL )
+		return;
+	m_Doc->m_nlist->HighlightNet( net, exclude_id ); 
+	m_Doc->m_plist->HighlightAllPadsOnNet( net ); 
+	m_bNetHighlighted = TRUE;
+}
+
+// cancel net highlight, reselect selected item if not dragging
+//
+void CFreePcbView::CancelHighlightNet()
+{
+	CancelHighlight();
+	if( !m_sel_id.IsClear() && !CurDragging() )
+		SelectItem( m_sel_id );
 }
 
 // attempt to reselect area corner based on position
@@ -6494,8 +6530,7 @@ void CFreePcbView::OnRatlineRoute()
 	SetCursorMode( CUR_DRAG_RAT );
 
 	// AMW r269: highlight net while routing, except for ratline being routed
-	m_Doc->m_nlist->HighlightNet( m_sel_net, m_sel_id.I2(), m_sel_id.I3() );
-	m_Doc->m_plist->HighlightAllPadsOnNet( m_sel_net );
+	HighlightNet( m_sel_net, &m_sel_id );
 	// end AMW
 
 	ReleaseDC( pDC );

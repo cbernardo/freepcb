@@ -1,9 +1,18 @@
 FreePCB release notes: (versions since 1.2) 
 -------------------------------------------
 
-1.360
------
-- started adding UIDs to identify pcb items
+Works-in-progress
+-----------------
+- traces may now start or end on pin, vertex in another trace, or end-vertex in same trace
+- tee-vertices only allowed at end of traces, if created in middle of trace, the trace is split
+- new style for highlighting traces when entire net selected
+- option to highlight net automatically when routing
+- pressing "n" toggles net highlighting, may be pressed while routing
+- highlighting or unhighlighting net doesn't lose current selection 
+
+Implemented for next release
+----------------------------
+- added UIDs to identify pcb items
 - fixed bug where a pad entirely within another pad might not generate a DRC error
 - fixed bug where the Footprint Editor would import a footprint from the local cache,
   instead of the library file
