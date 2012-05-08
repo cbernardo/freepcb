@@ -2,6 +2,9 @@
 #include "dle_line.h"
 
 // line segment with round end-caps
+// if mode = 1, draw line
+// if mode = 0, draw clearance
+//
 void CDLE_LINE::__Draw(CDrawInfo const &di, int mode) const
 {
 	int width = w/2 + clearancew;
@@ -94,7 +97,7 @@ void CDLE_LINE::__Draw(CDrawInfo const &di, int mode) const
 
 		if( mode )
 		{
-            // Drawing, not erasing - apply special "treatments"
+            // apply special "treatments"
 			if( layer == LAY_RAT_LINE )
 			{
 				CPen pen( PS_SOLID, linew + PCBU_PER_WU / 1024 + (int)dlist->m_scale, di.layer_color[0] );

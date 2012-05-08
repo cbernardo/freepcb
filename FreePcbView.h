@@ -404,7 +404,7 @@ public:
 	CArray<void*> m_sel_ptrs;	// array of pointers to selected items
 
 	// highlight flags
-	bool m_bNetHighlighted;
+	bool m_bNetHighlighted;	// current net is highlighted (not selected)
 
 #define m_sel_ic m_sel_id.I2()							// index of selected connection
 #define m_sel_ia m_sel_id.I2()							// index of selected area

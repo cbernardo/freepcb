@@ -3687,7 +3687,7 @@ void CNetList::HighlightConnection( cnet * net, int ic, id * exclude_id )
 		int iv = x_v->Index();
 		if( iv > 0 )
 			pre_s_id = x_c->SegByIndex(iv-1).Id();
-		if( iv < x_c->NumSegs()+1 )
+		if( iv < x_c->NumSegs() )
 			post_s_id = x_c->SegByIndex(iv).Id();
 	}
 
