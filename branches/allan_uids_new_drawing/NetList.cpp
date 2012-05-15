@@ -3083,28 +3083,36 @@ int CNetList::CancelDraggingVertex( cnet * net, int ic, int ivtx )
 	// make segments and via visible
 	cconnect * c = net->connect[ic];
 	cvertex * v = &c->vtx[ivtx];
-	m_dlist->Set_visible(c->seg[ivtx-1].dl_el, 1);
+	if( ivtx > 0 )
+		m_dlist->Set_visible(c->seg[ivtx-1].dl_el, 1);
 	if( ivtx < c->NumSegs() )
 		m_dlist->Set_visible(c->seg[ivtx].dl_el, 1);
 	SetViaVisible( net, ic, ivtx, TRUE );
 	for( int ia=0; ia<net->NumAreas(); ia++ )
+	{
 		for( int iv=0; iv<net->area[ia].nvias; iv++ )
+		{
 			if( net->area[ia].vcon[iv] == ic )
+			{
 				if( net->area[ia].dl_via_thermal[iv] != 0 )
 					m_dlist->Set_visible( net->area[ia].dl_via_thermal[iv], 1 );
+			}
+		}
+	}
 	// if tee, make connecting stubs visible
 	if( v->tee_ID )
 	{
 		for( int icc=0; icc<net->NumCons(); icc++ )
 		{
 			cconnect * cc = net->connect[icc];
-			if( cc != c && cc->end_pin == cconnect::NO_END )
+			if( cc != c )
 			{
-				cvertex * vv = &cc->vtx[cc->NumSegs()];
-				if( vv->tee_ID == v->tee_ID )
-				{
-					m_dlist->Set_visible( cc->seg[cc->NumSegs()-1].dl_el, 1 );
-				}
+				cvertex * vv = cc->FirstVtx();
+				if( abs(vv->tee_ID) == v->tee_ID )
+					m_dlist->Set_visible( cc->FirstSeg().dl_el, 1 );
+				vv = cc->LastVtx();
+				if( abs(vv->tee_ID) == v->tee_ID )
+					m_dlist->Set_visible( cc->LastSeg().dl_el, 1 );
 			}
 		}
 	}

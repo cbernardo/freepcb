@@ -2000,7 +2000,9 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		bool bNetWasHighlighted = m_bNetHighlighted;	// AMW r275 save previous state
 		CPoint p = m_dlist->WindowToPCB( point );
 		id sel_id;	
-		id pad_id( ID_PART, -1, ID_SEL_PAD );	// force selection of pin
+		id include_id[2];
+		include_id[0] = id( ID_PART, -1, ID_SEL_PAD );	// allow selection of pin
+		include_id[1] = id( ID_NET, -1, ID_CONNECT, -1, -1, ID_SEL_VERTEX );	// allow selection of vertex
 		int idx;
 		int num_hits;
 		CDL_job::HitInfo hit_info[MAX_HITS];
@@ -2008,180 +2010,199 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 			p.x, p.y,					  // Point
 			hit_info, MAX_HITS, num_hits, // Hit Information
 			&m_sel_id, NULL,			  // Exclusions
-			&pad_id, 1					  // Inclusions
-		);
+			include_id, 2				  // Inclusions
+			);
 		if( num_hits )
 		{
 			// we have a hit
 			sel_id = hit_info[idx].ID;		
 			sel_id.Resolve();
-			if( sel_id.IsPin() )
+			// now see what we are trying to connect
+			if( m_sel_id.IsVtx() && sel_id.IsPin() || m_sel_id.IsPin() && sel_id.IsVtx() )
 			{
-				// hit on pin
+				// connecting from vertex to pin, or from pin to vertex, sort it out
+				id vtx_id;
+				id pin_id;
+				if( m_sel_id.IsVtx() && sel_id.IsPin() )
+				{
+					vtx_id = m_sel_id;
+					pin_id = sel_id;
+				}
+				else
+				{
+					vtx_id = sel_id;
+					pin_id = m_sel_id;
+				}
+				// now do it
+				cnet * vtx_net = vtx_id.Net();
+				cpart * pin_part = pin_id.Part();		
+				cnet * pin_net = pin_id.Net();			
+				if( pin_net && pin_net != vtx_net )
+				{
+					// pin assigned to different net, can't connect it
+					CString mess;
+					mess.Format( "You are trying to connect a trace to a pin on a different net\nYou must detach the pin from the net first" );
+					AfxMessageBox( mess );
+					return;
+				}
+				else 
+				{
+					// add ratline from vertex to pin
+					SaveUndoInfoForNetAndConnections( vtx_net, CNetList::UNDO_NET_MODIFY, TRUE, m_Doc->m_undo_list );
+					SaveUndoInfoForPartAndNets( pin_part,
+						CPartList::UNDO_PART_MODIFY, NULL, FALSE, m_Doc->m_undo_list );
+					CString pin_name = pin_part->shape->GetPinNameByIndex( pin_id.I2() );
+					if( pin_net == NULL )
+					{
+						vtx_net->AddPin( &pin_part->ref_des,
+							&pin_name );
+					}
+					int p1 = m_Doc->m_nlist->GetNetPinIndex( vtx_net, &pin_part->ref_des, &pin_name );
+					cconnect * new_con = vtx_net->AddRatlineFromVtxToPin( vtx_id, p1 );
+					cseg * new_seg = &new_con->FirstSeg();
+					m_Doc->m_dlist->StopDragging();
+					// change selection to new ratline
+					m_sel_id = new_seg->Id();
+					m_sel_net = vtx_net;
+					SelectItem( m_sel_id );
+					if( bNetWasHighlighted )	// AMW r275
+						HighlightNet( vtx_net, &m_sel_id ); 
+					m_Doc->ProjectModified( TRUE );
+				}
+			}
+			else if( m_sel_id.IsPin() && sel_id.IsPin() )
+			{
+				// connecting pin to pin
+				cnet * from_sel_net = (cnet*)m_sel_part->pin[m_sel_id.I2()].net;
 				cpart * pin_part = sel_id.Part();
 				cnet * pin_net = sel_id.Net();
-				// now see whether connection was from pin or vertex
-				if( m_sel_id.IsVtx() )
+				if( pin_net && from_sel_net && (pin_net != from_sel_net) )
 				{
-					// connecting from vertex to pin
-					if( pin_net && pin_net != m_sel_net )
-					{
-						// pin assigned to different net, can't connect it
-						CString mess;
-						mess.Format( "You are trying to connect a trace to a pin on a different net\nYou must detach the pin from the net first" );
-						AfxMessageBox( mess );
-						return;
-					}
-					else 
-					{
-						// add ratline from vertex to pin
-						SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_Doc->m_undo_list );
-						SaveUndoInfoForPartAndNets( pin_part,
-							CPartList::UNDO_PART_MODIFY, NULL, FALSE, m_Doc->m_undo_list );
-						CString pin_name = pin_part->shape->GetPinNameByIndex( sel_id.I2() );
-						if( pin_net == NULL )
-						{
-							m_sel_net->AddPin( &pin_part->ref_des,
-								&pin_name );
-						}
-						int p1 = m_Doc->m_nlist->GetNetPinIndex( m_sel_net, &pin_part->ref_des, &pin_name );
-						cconnect * new_con = m_sel_net->AddRatlineFromVtxToPin( m_sel_id, p1 );
-						cseg * seg = &new_con->FirstSeg();
-						m_Doc->m_dlist->StopDragging();
-						m_sel_id = seg->Id();
-						SelectItem( m_sel_id );
-						if( bNetWasHighlighted )	// AMW r275
-							HighlightNet( m_sel_net, &m_sel_id ); 
-						m_Doc->ProjectModified( TRUE );
-					}
+					// pins assigned to different nets, can't connect them
+					CString mess;
+					mess.Format( "You are trying to connect pins on different nets\nYou must detach one of them first" );
+					AfxMessageBox( mess );
+					m_Doc->m_dlist->StopDragging();
+					SetCursorMode( CUR_PAD_SELECTED );
 				}
-				else if( m_sel_id.T1() == ID_PART  && m_sel_id.T2()  == ID_SEL_PAD )
+				else
 				{
-					// connecting pin to pin
-					cnet * from_sel_net = (cnet*)m_sel_part->pin[m_sel_id.I2()].net;
-					if( pin_net && from_sel_net && (pin_net != from_sel_net) )
+					// see if we are trying to connect a pin to itself
+					if( m_sel_id == sel_id )
 					{
-						// pins assigned to different nets, can't connect them
-						CString mess;
-						mess.Format( "You are trying to connect pins on different nets\nYou must detach one of them first" );
-						AfxMessageBox( mess );
-						m_Doc->m_dlist->StopDragging();
-						SetCursorMode( CUR_PAD_SELECTED );
+						// yes, forget it
+						goto goodbye;
 					}
-					else
+					// we can connect these pins
+					SaveUndoInfoForPart( m_sel_part,
+						CPartList::UNDO_PART_MODIFY, NULL, TRUE, m_Doc->m_undo_list );
+					SaveUndoInfoForPart( pin_part,
+						CPartList::UNDO_PART_MODIFY, NULL, FALSE, m_Doc->m_undo_list );
+					if( pin_net != from_sel_net )
 					{
-						// see if we are trying to connect a pin to itself
-						if( pin_part == m_sel_part && m_sel_id.I2() == sel_id.I2() )
+						// one pin is unassigned, assign it to net
+						if( !pin_net )
 						{
-							// yes, forget it
+							// connecting to unassigned pin, assign it
+							SaveUndoInfoForNetAndConnections( from_sel_net, CNetList::UNDO_NET_MODIFY, FALSE, m_Doc->m_undo_list );
+							CString pin_name = pin_part->shape->GetPinNameByIndex( sel_id.I2() );
+							from_sel_net->AddPin( &pin_part->ref_des, &pin_name );
+							pin_net = from_sel_net;
+						}
+						else if( !from_sel_net )
+						{
+							// connecting from unassigned pin, assign it
+							SaveUndoInfoForNetAndConnections( pin_net, CNetList::UNDO_NET_MODIFY, FALSE, m_Doc->m_undo_list );
+							CString pin_name = m_sel_part->shape->GetPinNameByIndex( m_sel_id.I2() );
+							pin_net->AddPin( &m_sel_part->ref_des, &pin_name );
+							from_sel_net = pin_net;
+						}
+						else
+							ASSERT(0);
+					}
+					else if( !pin_net && !m_sel_part->pin[m_sel_id.I2()].net )
+					{
+						// connecting 2 unassigned pins, select net
+						DlgAssignNet assign_net_dlg;
+						assign_net_dlg.m_map = &m_Doc->m_nlist->m_map;
+						int ret = assign_net_dlg.DoModal();
+						if( ret != IDOK )
+						{
+							m_Doc->m_dlist->StopDragging();
+							SetCursorMode( CUR_PAD_SELECTED );
 							goto goodbye;
 						}
-						// we can connect these pins
-						SaveUndoInfoForPart( m_sel_part,
-							CPartList::UNDO_PART_MODIFY, NULL, TRUE, m_Doc->m_undo_list );
-						SaveUndoInfoForPart( pin_part,
-							CPartList::UNDO_PART_MODIFY, NULL, FALSE, m_Doc->m_undo_list );
-						if( pin_net != from_sel_net )
+						CString name = assign_net_dlg.m_net_str;
+						void * ptr;
+						int test = m_Doc->m_nlist->m_map.Lookup( name, ptr );
+						if( test )
 						{
-							// one pin is unassigned, assign it to net
-							if( !pin_net )
-							{
-								// connecting to unassigned pin, assign it
-								SaveUndoInfoForNetAndConnections( from_sel_net, CNetList::UNDO_NET_MODIFY, FALSE, m_Doc->m_undo_list );
-								CString pin_name = pin_part->shape->GetPinNameByIndex( sel_id.I2() );
-								from_sel_net->AddPin( &pin_part->ref_des, &pin_name );
-								pin_net = from_sel_net;
-							}
-							else if( !from_sel_net )
-							{
-								// connecting from unassigned pin, assign it
-								SaveUndoInfoForNetAndConnections( pin_net, CNetList::UNDO_NET_MODIFY, FALSE, m_Doc->m_undo_list );
-								CString pin_name = m_sel_part->shape->GetPinNameByIndex( m_sel_id.I2() );
-								pin_net->AddPin( &m_sel_part->ref_des, &pin_name );
-								from_sel_net = pin_net;
-							}
-							else
-								ASSERT(0);
+							// assign pins to existing net
+							pin_net = (cnet*)ptr;
+							SaveUndoInfoForNetAndConnections( pin_net,
+								CNetList::UNDO_NET_MODIFY, FALSE, m_Doc->m_undo_list );
+							CString pin_name1 = m_sel_part->shape->GetPinNameByIndex( m_sel_id.I2() );
+							CString pin_name2 = pin_part->shape->GetPinNameByIndex( sel_id.I2() );
+							pin_net->AddPin( &m_sel_part->ref_des, &pin_name1 );
+							pin_net->AddPin( &pin_part->ref_des, &pin_name2 );
 						}
-						else if( !pin_net && !m_sel_part->pin[m_sel_id.I2()].net )
-						{
-							// connecting 2 unassigned pins, select net
-							DlgAssignNet assign_net_dlg;
-							assign_net_dlg.m_map = &m_Doc->m_nlist->m_map;
-							int ret = assign_net_dlg.DoModal();
-							if( ret != IDOK )
-							{
-								m_Doc->m_dlist->StopDragging();
-								SetCursorMode( CUR_PAD_SELECTED );
-								goto goodbye;
-							}
-							CString name = assign_net_dlg.m_net_str;
-							void * ptr;
-							int test = m_Doc->m_nlist->m_map.Lookup( name, ptr );
-							if( test )
-							{
-								// assign pins to existing net
-								pin_net = (cnet*)ptr;
-								SaveUndoInfoForNetAndConnections( pin_net,
-									CNetList::UNDO_NET_MODIFY, FALSE, m_Doc->m_undo_list );
-								CString pin_name1 = m_sel_part->shape->GetPinNameByIndex( m_sel_id.I2() );
-								CString pin_name2 = pin_part->shape->GetPinNameByIndex( sel_id.I2() );
-								pin_net->AddPin( &m_sel_part->ref_des, &pin_name1 );
-								pin_net->AddPin( &pin_part->ref_des, &pin_name2 );
-							}
-							else
-							{
-								// make new net
-								pin_net = m_Doc->m_nlist->AddNet( (char*)(LPCTSTR)name, 10, 0, 0, 0 );
-								SaveUndoInfoForNetAndConnections( pin_net,
-									CNetList::UNDO_NET_ADD, FALSE, m_Doc->m_undo_list );
-								CString pin_name1 = m_sel_part->shape->GetPinNameByIndex( m_sel_id.I2() );
-								CString pin_name2 = pin_part->shape->GetPinNameByIndex( sel_id.I2() );
-								pin_net->AddPin( &m_sel_part->ref_des, &pin_name1 );
-								pin_net->AddPin( &pin_part->ref_des, &pin_name2 );
-							}
-						}
-						// find pins in net and connect them
-						int p1 = -1;
-						int p2 = -1;
-						for( int ip=0; ip<pin_net->NumPins(); ip++ )
-						{
-							CString pin_name = pin_net->pin[ip].pin_name;
-							if( pin_net->pin[ip].part == m_sel_part )
-							{
-								int pin_index = m_sel_part->shape->GetPinIndexByName( pin_name );
-								if( pin_index == m_sel_id.I2() )
-								{
-									// found starting pin in net
-									p1 = ip;
-								}
-							}
-							if( pin_net->pin[ip].part == pin_part )
-							{
-								int pin_index = pin_part->shape->GetPinIndexByName( pin_name );
-								if( pin_index == sel_id.I2() )
-								{
-									// found ending pin in net
-									p2 = ip;
-								}
-							}
-						}
-						cconnect * new_con = NULL;
-						if( p1>=0 && p2>=0 )
-							new_con = pin_net->AddConnectFromPinToPin( p1, p2 );
 						else
-							ASSERT(0);	// couldn't find pins in net
-						m_Doc->m_dlist->StopDragging();
-						cseg * seg = &new_con->FirstSeg();
-						m_sel_id = seg->Id();
-						m_sel_net = pin_net;
-						SelectItem( m_sel_id );
-						if( bNetWasHighlighted )	// AMW r275
-							HighlightNet( m_sel_net, &m_sel_id ); 
+						{
+							// make new net
+							pin_net = m_Doc->m_nlist->AddNet( (char*)(LPCTSTR)name, 10, 0, 0, 0 );
+							SaveUndoInfoForNetAndConnections( pin_net,
+								CNetList::UNDO_NET_ADD, FALSE, m_Doc->m_undo_list );
+							CString pin_name1 = m_sel_part->shape->GetPinNameByIndex( m_sel_id.I2() );
+							CString pin_name2 = pin_part->shape->GetPinNameByIndex( sel_id.I2() );
+							pin_net->AddPin( &m_sel_part->ref_des, &pin_name1 );
+							pin_net->AddPin( &pin_part->ref_des, &pin_name2 );
+						}
 					}
-					m_Doc->ProjectModified( TRUE );
-					Invalidate( FALSE );
+					// find pins in net and connect them
+					int p1 = -1;
+					int p2 = -1;
+					for( int ip=0; ip<pin_net->NumPins(); ip++ )
+					{
+						CString pin_name = pin_net->pin[ip].pin_name;
+						if( pin_net->pin[ip].part == m_sel_part )
+						{
+							int pin_index = m_sel_part->shape->GetPinIndexByName( pin_name );
+							if( pin_index == m_sel_id.I2() )
+							{
+								// found starting pin in net
+								p1 = ip;
+							}
+						}
+						if( pin_net->pin[ip].part == pin_part )
+						{
+							int pin_index = pin_part->shape->GetPinIndexByName( pin_name );
+							if( pin_index == sel_id.I2() )
+							{
+								// found ending pin in net
+								p2 = ip;
+							}
+						}
+					}
+					cconnect * new_con = NULL;
+					if( p1>=0 && p2>=0 )
+						new_con = pin_net->AddConnectFromPinToPin( p1, p2 );
+					else
+						ASSERT(0);	// couldn't find pins in net
+					m_Doc->m_dlist->StopDragging();
+					// change selection to new ratline
+					cseg * seg = &new_con->FirstSeg();
+					m_sel_id = seg->Id();
+					m_sel_net = pin_net;
+					SelectItem( m_sel_id );
+					if( bNetWasHighlighted )	// AMW r275
+						HighlightNet( m_sel_net, &m_sel_id ); 
 				}
+				m_Doc->ProjectModified( TRUE );
+				Invalidate( FALSE );
+			}
+			else if( m_sel_id.IsVtx() && sel_id.IsVtx() )
+			{
+				// AMW r276 TODO 
 			}
 		}
 	}

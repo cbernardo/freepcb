@@ -1949,11 +1949,11 @@ cconnect * cnet::SplitConnectAtVtx( id vtx_id )
 			RemoveSegAndVertexByIndex( old_c, iv );
 		}
 	}
-#if 0 // AMW r267 removed
+//#if 0 // AMW r267 removed
 	// convert both connections to stubs, ending at a shared tee-vertex
 	old_c->LastVtx()->tee_ID = tee_ID;		// master
 	new_c->LastVtx()->tee_ID = -tee_ID;		// slave
-#endif
+//#endif
 	if( bWasDrawn )
 	{
 		new_c->Draw();
