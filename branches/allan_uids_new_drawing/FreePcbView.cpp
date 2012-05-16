@@ -2202,7 +2202,79 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 			}
 			else if( m_sel_id.IsVtx() && sel_id.IsVtx() )
 			{
-				// AMW r276 TODO 
+				// connection from vertex to vertex
+				cnet * net = m_sel_id.Net();
+				cnet * net2 = sel_id.Net();
+				if( net != net2 )
+				{
+					AfxMessageBox( "You are trying to connect traces on different nets" );
+					return;
+				}
+				cconnect * c1 = m_sel_id.Con();
+				cconnect * c2 = sel_id.Con();
+				if( c1 == c2 )
+				{
+					// AMW r277: TODO make this legal
+					AfxMessageBox( "You are trying to connect vertices on same trace" );
+					return;
+				}
+				// OK, we should be able to do this, save undo info
+				SaveUndoInfoForNetAndConnections( net,
+					CNetList::UNDO_NET_MODIFY, TRUE, m_Doc->m_undo_list );
+				cseg rat_seg;
+				rat_seg.m_layer = LAY_RAT_LINE;
+				rat_seg.m_width = 1;
+				cvertex * v1 = m_sel_id.Vtx();	// connect from this vertex
+				cvertex * v2 = sel_id.Vtx();	// to this one
+				if( v1->GetType() == cvertex::V_END && v2->GetType() == cvertex::V_END )
+				{
+					// join end vertices of 2 stub traces by stepping through c2 and appending segs and vertices to c1
+					c1->Undraw();
+					c2->Undraw();
+					// make sure that the directions are correct for joining
+					if( v1->Index() == 0 )
+						c1->ReverseDirection();		// make sure v1 is last vertex in c1
+					if( v2->Index() != 0 )
+						c2->ReverseDirection();		// make sure v2 is first vertex in c2
+					for( int iv=0; iv<=c2->NumSegs(); iv++ )
+					{
+						if( iv == 0 )
+							c1->AppendSegAndVertex( rat_seg, c2->VtxByIndex(iv) );
+						else
+							c1->AppendSegAndVertex( c2->SegByIndex(iv-1), c2->VtxByIndex(iv) );
+
+					}
+					c1->end_pin = c2->end_pin;
+					net->RemoveConnectAdjustTees(c2);
+					c1->Draw();
+				}
+				else if( v1->GetType() == cvertex::V_END || v2->GetType() == cvertex::V_END )
+				{
+					// join end vertex of stub trace to a tee vertex or trace vertex
+					if( v2->GetType() == cvertex::V_END )
+					{
+						v1 = v2;
+						v2 = m_sel_id.Vtx();
+					}
+					// now v1 is the end vertex, v2 is tee or trace vertex
+					v1->m_con->Undraw();
+					// make sure the stub trace is in the right direction
+					if( v1->Index() == 0 )
+						v1->m_con->ReverseDirection();
+					if( v2->GetType() == cvertex::V_TRACE )
+					{
+						// if trave vertex, split trace and make new tee vertex
+						net->SplitConnectAtVtx( v2->Id() );
+					}
+					// now v2 is always a tee vertex, connect end vertex to it
+					v1->m_con->AppendSegAndVertex( rat_seg, *v2 );
+					v1->m_con->LastVtx()->tee_ID == -abs( v1->m_con->LastVtx()->tee_ID );
+					v1->m_con->Draw();
+				}
+				m_Doc->m_dlist->StopDragging();
+				CancelSelection();
+				m_Doc->ProjectModified( TRUE );
+				Invalidate( FALSE );
 			}
 		}
 	}
