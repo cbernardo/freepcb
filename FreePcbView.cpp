@@ -125,7 +125,7 @@ ON_COMMAND(ID_REF_MOVE, OnRefMove)
 ON_COMMAND(ID_PAD_OPTIMIZERATLINES, OnPadOptimize)
 ON_COMMAND(ID_PAD_ADDTONET, OnPadAddToNet)
 ON_COMMAND(ID_PAD_DETACHFROMNET, OnPadDetachFromNet)
-ON_COMMAND(ID_PAD_CONNECTTOPIN, OnPadConnectToPin)
+ON_COMMAND(ID_PAD_CONNECTTOPIN, OnPadStartRatline)
 ON_COMMAND(ID_SEGMENT_SETWIDTH, OnSegmentSetWidth)
 ON_COMMAND(ID_SEGMENT_UNROUTE, OnSegmentUnroute)
 ON_COMMAND(ID_RATLINE_ROUTE, OnRatlineRoute)
@@ -147,7 +147,7 @@ ON_COMMAND(ID_BOARDCORNER_DELETECORNER, OnBoardCornerDelete)
 ON_COMMAND(ID_BOARDCORNER_DELETEOUTLINE, OnBoardDeleteOutline)
 ON_COMMAND(ID_BOARDSIDE_INSERTCORNER, OnBoardSideAddCorner)
 ON_COMMAND(ID_BOARDSIDE_DELETEOUTLINE, OnBoardDeleteOutline)
-ON_COMMAND(ID_PAD_STARTSTUBTRACE, OnPadStartStubTrace)
+ON_COMMAND(ID_PAD_STARTSTUBTRACE, OnPadStartTrace)
 ON_COMMAND(ID_SEGMENT_DELETE, OnSegmentDelete)
 ON_COMMAND(ID_ENDVERTEX_MOVE, OnEndVertexMove)
 ON_COMMAND(ID_ENDVERTEX_ADDSEGMENTS, OnEndVertexAddSegments)
@@ -227,7 +227,7 @@ ON_COMMAND(ID_GROUP_CUT, OnGroupCut)
 ON_COMMAND(ID_GROUP_DELETE, OnGroupDelete)
 ON_COMMAND(ID_EDIT_COPY, OnEditCopy)
 ON_COMMAND(ID_EDIT_PASTE, OnEditPaste)
-ON_COMMAND(ID_VERTEX_CONNECTTOPIN, OnVertexConnectToPin)
+ON_COMMAND(ID_VERTEX_CONNECTTOPIN, OnVertexStartRatline)
 ON_COMMAND(ID_EDIT_CUT, OnEditCut)
 ON_COMMAND(ID_EDIT_SAVEGROUPTOFILE, OnGroupSaveToFile)
 ON_COMMAND(ID_GROUP_ROTATE, OnGroupRotate)
@@ -2034,6 +2034,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 					pin_id = m_sel_id;
 				}
 				// now do it
+				cvertex * v = vtx_id.Vtx();
 				cnet * vtx_net = vtx_id.Net();
 				cpart * pin_part = pin_id.Part();		
 				cnet * pin_net = pin_id.Net();			
@@ -2058,14 +2059,20 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 							&pin_name );
 					}
 					int p1 = m_Doc->m_nlist->GetNetPinIndex( vtx_net, &pin_part->ref_des, &pin_name );
+					bool bLastSegment = ( v->GetType() == cvertex::V_END && v->Index() > 0 );
 					cconnect * new_con = vtx_net->AddRatlineFromVtxToPin( vtx_id, p1 );
-					cseg * new_seg = &new_con->FirstSeg();
-					m_Doc->m_dlist->StopDragging();
+					// get new ratline segment
+					cseg * rat_seg;
+					if( bLastSegment )
+						rat_seg = &new_con->LastSeg();
+					else
+						rat_seg = &new_con->FirstSeg();
 					// change selection to new ratline
-					m_sel_id = new_seg->Id();
+					m_sel_id = rat_seg->Id();
 					m_sel_net = vtx_net;
+					m_Doc->m_dlist->StopDragging();
 					SelectItem( m_sel_id );
-					if( bNetWasHighlighted )	// AMW r275
+					if( bNetWasHighlighted )
 						HighlightNet( vtx_net, &m_sel_id ); 
 					m_Doc->ProjectModified( TRUE );
 				}
@@ -2226,6 +2233,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 				rat_seg.m_width = 1;
 				cvertex * v1 = m_sel_id.Vtx();	// connect from this vertex
 				cvertex * v2 = sel_id.Vtx();	// to this one
+				id ratline_id;		// set to id of ratline to select it at the end
 				if( v1->GetType() == cvertex::V_END && v2->GetType() == cvertex::V_END )
 				{
 					// join end vertices of 2 stub traces by stepping through c2 and appending segs and vertices to c1
@@ -2239,7 +2247,10 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 					for( int iv=0; iv<=c2->NumSegs(); iv++ )
 					{
 						if( iv == 0 )
+						{
 							c1->AppendSegAndVertex( rat_seg, c2->VtxByIndex(iv) );
+							ratline_id = c1->LastSeg().Id();
+						}
 						else
 							c1->AppendSegAndVertex( c2->SegByIndex(iv-1), c2->VtxByIndex(iv) );
 
@@ -2267,12 +2278,27 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 						net->SplitConnectAtVtx( v2->Id() );
 					}
 					// now v2 is always a tee vertex, connect end vertex to it
-					v1->m_con->AppendSegAndVertex( rat_seg, *v2 );
-					v1->m_con->LastVtx()->tee_ID == -abs( v1->m_con->LastVtx()->tee_ID );
-					v1->m_con->Draw();
+					cconnect * c1 = v1->m_con;
+					c1->AppendSegAndVertex( rat_seg, *v2 );
+					ratline_id = c1->LastSeg().Id();
+					c1->LastVtx()->tee_ID = -abs( c1->LastVtx()->tee_ID );
+					c1->Draw();
+				}
+				else
+				{
+					// connect tee or trace vertices
+					if( v1->GetType() == cvertex::V_TRACE )
+						net->SplitConnectAtVtx( v1->Id() );
+					if( v2->GetType() == cvertex::V_TRACE )
+						net->SplitConnectAtVtx( v2->Id() );
+					cconnect * c = net->AddConnect();
+					c->PrependVertex( *v1 );
+					c->AppendSegAndVertex( rat_seg, *v2 );
+					c->Draw();
+					ratline_id = c->FirstSeg().Id();
 				}
 				m_Doc->m_dlist->StopDragging();
-				CancelSelection();
+				SelectItem( ratline_id );
 				m_Doc->ProjectModified( TRUE );
 				Invalidate( FALSE );
 			}
@@ -2536,7 +2562,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 			via_w, via_hole_w, 2, m_inflection_mode );
 		m_snap_angle_ref = m_last_cursor_point;
 		if( m_bNetHighlighted )		// AMW r275 re-highlight net
-			HighlightNet( m_sel_net, &m_sel_id );
+			HighlightNet( m_sel_net );
 		m_Doc->ProjectModified( TRUE );
 		Invalidate( FALSE );
 	}
@@ -3365,7 +3391,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 					m_sel_id.SetT2( ID_PAD );
 					m_sel_id.SetI2( i );
 					m_Doc->m_plist->HighlightPad( sel_part, i );
-					OnPadStartStubTrace();
+					OnPadStartTrace();
 				}
 			}
 		}
@@ -3773,7 +3799,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 		else if( fk == FK_MOVE_VERTEX )
 			OnVertexMove();
 		else if( fk == FK_ADD_CONNECT )
-			OnVertexConnectToPin();
+			OnVertexStartRatline();
 		else if( fk == FK_DELETE_VERTEX || nChar == 46 )
 			OnVertexDelete();
 		else if( fk == FK_UNROUTE_TRACE )
@@ -3788,7 +3814,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 		if( fk == FK_SET_POSITION )
 			OnVertexProperties();
 		else if( fk == FK_ADD_CONNECT )
-			OnVertexConnectToPin();
+			OnVertexStartRatline();
 		else if( fk == FK_MOVE_VERTEX )
 			OnEndVertexMove();
 		else if( fk == FK_DELETE_VERTEX || nChar == 46 )
@@ -3833,9 +3859,9 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 		if( fk == FK_ATTACH_NET )
 			OnPadAddToNet();
 		else if( fk == FK_START_TRACE )
-			OnPadStartStubTrace();
+			OnPadStartTrace();
 		else if( fk == FK_ADD_CONNECT )
-			OnPadConnectToPin();
+			OnPadStartRatline();
 		else if( fk == FK_DETACH_NET )
 			OnPadDetachFromNet();
 		else if( fk == FK_REDO_RATLINES )
@@ -6228,7 +6254,7 @@ void CFreePcbView::OnPadOptimize()
 
 // start stub trace from this pad
 //
-void CFreePcbView::OnPadStartStubTrace()
+void CFreePcbView::OnPadStartTrace()
 {
 	cnet * net = (cnet*)m_sel_part->pin[m_sel_id.I2()].net;
 	if( net == NULL )
@@ -6297,6 +6323,8 @@ void CFreePcbView::OnPadStartStubTrace()
 	SetCursorMode( CUR_DRAG_TRACE );
 	CancelHighlight();
 	ShowSelectStatus();
+	if( m_Doc->m_bHighlightNet )
+		HighlightNet( m_sel_net, &m_sel_id );
 	m_Doc->ProjectModified( TRUE );
 	ReleaseDC( pDC );
 	Invalidate( FALSE );
@@ -6372,7 +6400,7 @@ void CFreePcbView::OnPadDetachFromNet()
 
 // connect this pad to another pad
 //
-void CFreePcbView::OnPadConnectToPin()
+void CFreePcbView::OnPadStartRatline()
 {
 	CDC *pDC = GetDC();
 	pDC->SelectClipRgn( &m_pcb_rgn );
@@ -6381,6 +6409,8 @@ void CFreePcbView::OnPadConnectToPin()
 	CPoint p = m_Doc->m_plist->GetPinPoint( m_sel_part, pin_name );
 	m_dragging_new_item = 0;
 	m_dlist->StartDraggingRatLine( pDC, 0, 0, p.x, p.y, LAY_RAT_LINE, 1, 1 );
+	if( m_Doc->m_bHighlightNet )
+		HighlightNet( m_sel_net, &m_sel_id );
 	SetCursorMode( CUR_DRAG_CONNECT );
 	ReleaseDC( pDC );
 	Invalidate( FALSE );
@@ -6388,13 +6418,15 @@ void CFreePcbView::OnPadConnectToPin()
 
 // connect this vertex to another pad with a tee connection
 //
-void CFreePcbView::OnVertexConnectToPin()
+void CFreePcbView::OnVertexStartRatline()
 {
 	CDC *pDC = GetDC();
 	pDC->SelectClipRgn( &m_pcb_rgn );
 	SetDCToWorldCoords( pDC );
 	m_dragging_new_item = 0;
 	m_dlist->StartDraggingRatLine( pDC, 0, 0, m_sel_vtx->x, m_sel_vtx->y, LAY_RAT_LINE, 1, 1 );
+	if( m_Doc->m_bHighlightNet )
+		HighlightNet( m_sel_net );
 	SetCursorMode( CUR_DRAG_CONNECT );
 	ReleaseDC( pDC );
 	Invalidate( FALSE );
@@ -6423,6 +6455,8 @@ void CFreePcbView::OnVertexStartTrace()
 	m_Doc->m_nlist->StartDraggingStub( pDC, m_sel_net, m_sel_ic, m_sel_iv,
 		p.x, p.y, m_active_layer, w, m_active_layer, via_w, via_hole_w,
 		2, m_inflection_mode );
+	if( m_Doc->m_bHighlightNet )
+		HighlightNet( m_sel_net );
 	SetCursorMode( CUR_DRAG_TRACE );
 	ReleaseDC( pDC );
 	Invalidate( FALSE );
@@ -6595,7 +6629,8 @@ void CFreePcbView::OnRatlineRoute()
 	SetCursorMode( CUR_DRAG_RAT );
 
 	// AMW r269: highlight net while routing, except for ratline being routed
-	HighlightNet( m_sel_net, &m_sel_id );
+	if( m_Doc->m_bHighlightNet )
+		HighlightNet( m_sel_net, &m_sel_id );
 	// end AMW
 
 	ReleaseDC( pDC );
@@ -6827,7 +6862,7 @@ void CFreePcbView::OnEndVertexAddSegments()
 //
 void CFreePcbView::OnEndVertexAddConnection()
 {
-	OnVertexConnectToPin();
+	OnVertexStartRatline();
 }
 
 // end vertex selected, delete it and the adjacent segment

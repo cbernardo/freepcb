@@ -225,6 +225,7 @@ public:
 	void InsertSegAndVtxByIndex( int is, int dir, 
 				const cseg& new_seg, const cvertex& new_vtx );
 	void AppendSegAndVertex( const cseg& new_seg, const cvertex& new_vtx );
+	void PrependVertex( const cvertex& new_vtx );
 	void PrependVertexAndSeg( const cvertex& new_vtx, const cseg& new_seg );
 	void ReverseDirection();
 

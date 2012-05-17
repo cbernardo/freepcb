@@ -12,7 +12,8 @@ class CDlgPrefs : public CDialogEx
 public:
 	CDlgPrefs(CWnd* pParent = NULL);   // standard constructor
 	virtual ~CDlgPrefs();
-	void Init(bool bReverse, bool bLefthanded, int auto_interval, BOOL bAuto_Ratline_Disable, int auto_ratline_min_pins);
+	void Init(bool bReverse, bool bLefthanded, BOOL bHighlightNet, int auto_interval, 
+		BOOL bAuto_Ratline_Disable, int auto_ratline_min_pins);
 
 // Dialog Data
 	enum { IDD = IDD_PREFS };
@@ -29,9 +30,10 @@ protected:
 	CButton m_check_lefthanded;
 	CButton m_check_disable_auto_rats;
 	CEdit m_edit_min_pins;
+	CButton m_check_highlight_net;
 	afx_msg void OnBnClickedCheckAutoRatDisable();
 public:
-	bool m_bReverse, m_bLefthanded;
+	bool m_bReverse, m_bLefthanded, m_bHighlightNet;
 	int m_auto_interval;
 	BOOL m_bAuto_Ratline_Disable;
 	int m_auto_ratline_min_pins;

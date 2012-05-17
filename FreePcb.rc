@@ -2336,25 +2336,28 @@ BEGIN
     PUSHBUTTON      "Cancel",IDCANCEL,259,159,50,14
 END
 
-IDD_PREFS DIALOGEX 0, 0, 248, 165
+IDD_PREFS DIALOGEX 0, 0, 248, 186
 STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Preferences"
 FONT 8, "MS Shell Dlg", 400, 0, 0x1
 BEGIN
     CONTROL         "Reverse PgUp and PgDn",IDC_REVERSE_PGUP_PGDN,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,22,16,94,10
-    DEFPUSHBUTTON   "OK",IDOK,35,136,50,14
-    PUSHBUTTON      "Cancel",IDCANCEL,162,136,50,14
-    CONTROL         "Enable",IDC_CHECK_AUTOSAVE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,22,100,37,10
-    EDITTEXT        IDC_EDIT_AUTO_INTERVAL,140,99,24,12,ES_AUTOHSCROLL
-    LTEXT           "pins",IDC_STATIC,173,67,14,8
-    LTEXT           "Interval (minutes)",IDC_STATIC,76,101,58,8
-    GROUPBOX        "Autosave",IDC_STATIC,10,89,222,27
-    GROUPBOX        "Automatic recalculation of ratlines after edits",IDC_STATIC,10,54,222,30
+    DEFPUSHBUTTON   "OK",IDOK,35,160,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,162,160,50,14
+    CONTROL         "Enable",IDC_CHECK_AUTOSAVE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,22,124,37,10
+    EDITTEXT        IDC_EDIT_AUTO_INTERVAL,140,123,24,12,ES_AUTOHSCROLL
+    LTEXT           "pins",IDC_STATIC,173,91,14,8
+    LTEXT           "Interval (minutes)",IDC_STATIC,76,125,58,8
+    GROUPBOX        "Autosave",IDC_STATIC,10,113,222,27
+    GROUPBOX        "Automatic recalculation of ratlines after edits",IDC_STATIC,10,78,222,30
     CONTROL         "Disable for nets with more than ",IDC_CHECK_AUTORAT_DISABLE,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,22,66,118,10
-    EDITTEXT        IDC_EDIT_MIN_PINS,140,65,29,12,ES_AUTOHSCROLL
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,22,90,118,10
+    EDITTEXT        IDC_EDIT_MIN_PINS,140,89,29,12,ES_AUTOHSCROLL
     CONTROL         "Left-handed mode (alters function-key assignments)",IDC_LEFTHAND_MODE,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,22,32,183,10
+    CONTROL         "Highlight net on starting trace or ratline",IDC_CHECK_AUTO_HIGHLIGHT_NET,
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,22,48,142,10
+    LTEXT           "(can always toggle on and off with ""n"" while routing)",IDC_STATIC,47,60,168,8
 END
 
 IDD_GRIDVALS DIALOGEX 0, 0, 286, 321
@@ -2883,6 +2886,7 @@ BEGIN
 
     IDD_PREFS, DIALOG
     BEGIN
+        BOTTOMMARGIN, 165
     END
 END
 #endif    // APSTUDIO_INVOKED
@@ -4132,8 +4136,8 @@ STRINGTABLE
 BEGIN
     IDS_STRING63552         " Delete"
     IDS_STRING63553         " Corner"
-    IDS_STRING63554         " Connect"
-    IDS_STRING63555         " Pin"
+    IDS_STRING63554         " Start"
+    IDS_STRING63555         " Ratline"
     IDS_STRING63556         " Detach"
     IDS_STRING63557         " Net"
     IDS_STRING63558         " Set"
@@ -4183,7 +4187,7 @@ BEGIN
     IDS_STRING63594         " Set"
     IDS_STRING63595         " Params"
     IDS_STRING63596         " Start"
-    IDS_STRING63597         " Stub"
+    IDS_STRING63597         " Trace"
     IDS_STRING63598         " Edit"
     IDS_STRING63599         " Text"
 END

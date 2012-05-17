@@ -260,6 +260,7 @@ public:
 	// CPT:  new preference values
 	bool m_bReversePgupPgdn;
 	bool m_bLefthanded;
+	bool m_bHighlightNet;	// AMW
 	// end CPT
 
 	//DRC limits
