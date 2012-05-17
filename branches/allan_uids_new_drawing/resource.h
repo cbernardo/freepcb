@@ -747,6 +747,7 @@
 #define IDC_BUTTON_LAYER_13             1443
 #define IDC_COMBO_VIA_UNITS             1443
 #define IDC_BUTTON_LAYER_14             1444
+#define IDC_CHECK_AUTO_HIGHLIGHT_NET    1444
 #define IDC_BUTTON_LAYER_15             1445
 #define IDC_BUTTON_LAYER_16             1446
 #define IDC_BUTTON_LAYER_17             1447
@@ -1844,7 +1845,7 @@
 #define _APS_3D_CONTROLS                     1
 #define _APS_NEXT_RESOURCE_VALUE        353
 #define _APS_NEXT_COMMAND_VALUE         32951
-#define _APS_NEXT_CONTROL_VALUE         1444
+#define _APS_NEXT_CONTROL_VALUE         1445
 #define _APS_NEXT_SYMED_VALUE           106
 #endif
 #endif

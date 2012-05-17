@@ -160,6 +160,7 @@ enum {
 	FK_ARROW
 };
 
+#if 0	// AMW r278: replaced by string table
 // function key menu strings
 const char fk_str[FK_NUM_OPTIONS*2+2][32] = 
 { 
@@ -190,10 +191,10 @@ const char fk_str[FK_NUM_OPTIONS*2+2][32] =
 	" Move",	" Corner",
 	" Add",		" Corner",
 	" Delete",	" Corner",
-	" Connect",	" Pin",
+	" Draw",	" Ratline",
 	" Detach",	" Net",
 	" Set",		" Net",
-	" Delete",	" Trace",   // was Connect
+	" Delete",	" Trace",  
 	" Force",	" Via",
 	" Set",		" Width",
 	" Lock",	" Connect",
@@ -211,13 +212,13 @@ const char fk_str[FK_NUM_OPTIONS*2+2][32] =
 	" Undo",	"",
 	" Set",		" Size",
 	" Set",		" Params",
-	" Start",	" Trace",
+	" Start",	" Trace",	
 	" Edit",	" Text",
 	" Set",		" Position",
 	" Delete",	" Outline",
 	" Delete",	" Area",
 	" Delete",	" Cutout",
-	" Start",	" Trace",	// was add segment
+	" Start",	" Trace",	
 	" Add",		" Via",
 	" Delete",	" Via",
 	" Delete",	" Segment",
@@ -229,7 +230,7 @@ const char fk_str[FK_NUM_OPTIONS*2+2][32] =
 	" Move",	" Group",
 	" Delete",	" Group",
 	" Rotate",	" Group",
-	" Edit Via"," Or Vertex",  // Was Set via size
+	" Edit Via"," Or Vertex",  
 	" Add",		" Vertex",
 	" Set Side"," Style",
 	" Edit",	" Area",
@@ -244,6 +245,7 @@ const char fk_str[FK_NUM_OPTIONS*2+2][32] =
 
 	" ****",	" ****"
 };
+#endif
 
 // selection masks
 enum {	SEL_MASK_PARTS = 0,
@@ -612,13 +614,13 @@ public:
 	afx_msg void OnPadOptimize();
 	afx_msg void OnPadAddToNet();
 	afx_msg void OnPadDetachFromNet();
-	afx_msg void OnPadConnectToPin();
+	afx_msg void OnPadStartRatline();
 	afx_msg void OnSegmentSetWidth();
 	afx_msg void OnSegmentUnroute();
 	afx_msg void OnRatlineRoute();
 	afx_msg void OnRatlineOptimize();
 	afx_msg void OnVertexMove();
-	afx_msg void OnVertexConnectToPin();
+	afx_msg void OnVertexStartRatline();
 	afx_msg void OnVertexStartTrace();
 	afx_msg void OnVertexDelete();
 	afx_msg void OnRatlineComplete();
@@ -634,7 +636,7 @@ public:
 	afx_msg void OnBoardCornerDelete();
 	afx_msg void OnBoardSideAddCorner();
 	afx_msg void OnBoardDeleteOutline();
-	afx_msg void OnPadStartStubTrace();
+	afx_msg void OnPadStartTrace();
 	afx_msg void OnSegmentDelete();
 	afx_msg void OnEndVertexMove();
 	afx_msg void OnEndVertexAddSegments();

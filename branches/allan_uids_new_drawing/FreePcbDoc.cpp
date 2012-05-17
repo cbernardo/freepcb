@@ -1960,6 +1960,8 @@ void CFreePcbDoc::ReadOptions( CStdioFile * pcb_file )
 				m_bReversePgupPgdn = my_atoi(&p[0]);
 			else if (np && key_str == "lefthanded_mode")
 				m_bLefthanded = my_atoi(&p[0]);
+			else if (np && key_str == "highlight_net")
+				m_bHighlightNet = my_atoi(&p[0]);
 		}
 		if( m_fp_visible_grid.GetSize() == 0 )
 		{
@@ -2232,6 +2234,9 @@ void CFreePcbDoc::InitializeNewProject()
 	m_auto_ratline_disable = FALSE;
 	m_auto_ratline_min_pins = 100;
 	m_auto_interval = 0;
+	m_bReversePgupPgdn = 0;
+	m_bLefthanded = 0;
+	m_bHighlightNet = 0;	
 	m_sm_cutout.RemoveAll();
 
 	// colors for layers
@@ -4931,11 +4936,13 @@ void ReplaceLines(CArray<CString> &oldLines, CArray<CString> &newLines, char *ke
 void CFreePcbDoc::OnToolsPreferences() {
 	CDlgPrefs dlg;
 	dlg.doc = this;
-	dlg.Init( m_bReversePgupPgdn, m_bLefthanded, m_auto_interval, m_auto_ratline_disable, m_auto_ratline_min_pins); 
+	dlg.Init( m_bReversePgupPgdn, m_bLefthanded, m_bHighlightNet, m_auto_interval, 
+		m_auto_ratline_disable, m_auto_ratline_min_pins); 
 	int ret = dlg.DoModal();
 	if( ret == IDOK ) {
 		m_bReversePgupPgdn = dlg.m_bReverse;
 		m_bLefthanded = dlg.m_bLefthanded;
+		m_bHighlightNet = dlg.m_bHighlightNet;
 		m_auto_interval = dlg.m_auto_interval;
 		m_auto_ratline_disable = dlg.m_bAuto_Ratline_Disable;
 		m_auto_ratline_min_pins = dlg.m_auto_ratline_min_pins;
@@ -4952,6 +4959,8 @@ void CFreePcbDoc::OnToolsPreferences() {
 		newLines.Add( line );
 		line.Format( "lefthanded_mode: \"%d\"\n", m_bLefthanded);
 		newLines.Add( line );
+		line.Format( "highlight_net: \"%d\"\n", m_bHighlightNet);
+		newLines.Add( line );
 		CString fn = m_app_dir + "\\" + "default.cfg";
 		ReadFileLines(fn, oldLines);
 		ReplaceLines(oldLines, newLines, "autosave_interval");
@@ -4959,6 +4968,7 @@ void CFreePcbDoc::OnToolsPreferences() {
 		ReplaceLines(oldLines, newLines, "auto_ratline_disable_min_pins");
 		ReplaceLines(oldLines, newLines, "reverse_pgup_pgdn");
 		ReplaceLines(oldLines, newLines, "lefthanded_mode");
+		ReplaceLines(oldLines, newLines, "highlight_net");
 		WriteFileLines(fn, oldLines);
 		m_view->SetFKText(m_view->m_cursor_mode);					// In case user changed the left-handed mode...
 		}

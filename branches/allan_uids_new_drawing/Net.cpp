@@ -1073,6 +1073,15 @@ void cconnect::AppendSegAndVertex( const cseg& new_seg,
 	v->Initialize(this);
 }
 
+// insert new starting vertex into connection
+//
+void cconnect::PrependVertex( const cvertex& new_vtx )
+{
+	vtx.InsertAt( 0, new_vtx );
+	cvertex * v = &VtxByIndex( 0 );
+	v->Initialize(this);
+}
+
 // insert new starting vertex and segment into connection
 //
 void cconnect::PrependVertexAndSeg( const cvertex& new_vtx,
@@ -1949,11 +1958,9 @@ cconnect * cnet::SplitConnectAtVtx( id vtx_id )
 			RemoveSegAndVertexByIndex( old_c, iv );
 		}
 	}
-//#if 0 // AMW r267 removed
 	// convert both connections to stubs, ending at a shared tee-vertex
 	old_c->LastVtx()->tee_ID = tee_ID;		// master
 	new_c->LastVtx()->tee_ID = -tee_ID;		// slave
-//#endif
 	if( bWasDrawn )
 	{
 		new_c->Draw();
