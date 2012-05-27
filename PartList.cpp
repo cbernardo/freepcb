@@ -228,11 +228,13 @@ int CPartList::SetPartData( cpart * part, CShape * shape, CString * ref_des, CSt
 		part->m_ref_angle = shape->m_ref_angle;
 		part->m_ref_size = shape->m_ref_size;
 		part->m_ref_w = shape->m_ref_w;
+		part->m_ref_layer = shape->m_ref->m_layer;		
 		part->m_value_xi = shape->m_value_xi;
 		part->m_value_yi = shape->m_value_yi;
 		part->m_value_angle = shape->m_value_angle;
 		part->m_value_size = shape->m_value_size;
 		part->m_value_w = shape->m_value_w;
+		part->m_value_layer = shape->m_value->m_layer;		
 	}
 	part->m_outline_stroke.SetSize(0);
 	part->ref_text_stroke.SetSize(0);
