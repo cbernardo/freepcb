@@ -981,9 +981,10 @@ int CDisplayList::TestSelect(
 		{
 			// if a pcb item (ie. not a footprint )
 			// try to resolve all id fields of the item that was hit
-			if( !hit_info[i].ID.IsAnyFootItem() )
+			CDL_job::HitInfo this_hit = hit_info[i];
+			if( !this_hit.ID.IsAnyFootItem() )
 			{
-				BOOL bOK = hit_info[i].ID.Resolve();
+				BOOL bOK = this_hit.ID.Resolve();
 				if( !bOK )
 					ASSERT(0);
 			}
@@ -992,9 +993,9 @@ int CDisplayList::TestSelect(
 			BOOL excluded_hit = FALSE;
 			BOOL included_hit = TRUE;
 			// always exclude hits on slaved tee-vertices 
-			if( hit_info[i].ID.IsVtx() )
+			if( this_hit.ID.IsVtx() )
 			{
-				if( hit_info[i].ID.Vtx()->tee_ID < 0 )
+				if( this_hit.ID.Vtx()->tee_ID < 0 )
 					excluded_hit = TRUE;
 			}
 			// test for other exclusions
@@ -1002,8 +1003,8 @@ int CDisplayList::TestSelect(
 			{
 				if( !exclude_id->IsClear() )
 				{
-					id test_id = hit_info[i].ID;
-					if( test_id == *exclude_id && hit_info[i].ptr == exclude_ptr )
+					id test_id = this_hit.ID;
+					if( test_id == *exclude_id && this_hit.ptr == exclude_ptr )
 						excluded_hit = TRUE;
 				}
 			}
@@ -1014,7 +1015,7 @@ int CDisplayList::TestSelect(
 				for( int inc=0; inc<n_include_ids; inc++ )
 				{
 					id * inc_id = &include_id[inc];
-					if( hit_info[i].ID == *inc_id )	 // note that == includes wildcards
+					if( this_hit.ID == *inc_id )	 // note that == includes wildcards
 					{
 						included_hit = TRUE;
 						break;
@@ -1028,15 +1029,15 @@ int CDisplayList::TestSelect(
 				// i.e. last drawn = highest priority
 				int priority = (MAX_LAYERS - m_order_for_layer[hit_info[i].layer])*10;
 				// bump priority for small items which may be overlapped by larger items on same layer
-				if( hit_info[i].ID.T1() == ID_PART && hit_info[i].ID.T2() == ID_REF_TXT && hit_info[i].ID.T3() == ID_SEL_TXT )
+				if( this_hit.ID.T1() == ID_PART &&this_hit.ID.T2() == ID_REF_TXT && this_hit.ID.T3() == ID_SEL_TXT )
 					priority++;
-				else if( hit_info[i].ID.T1() == ID_PART && hit_info[i].ID.T2() == ID_VALUE_TXT && hit_info[i].ID.T3() == ID_SEL_TXT )
+				else if( this_hit.ID.T1() == ID_PART && this_hit.ID.T2() == ID_VALUE_TXT && this_hit.ID.T3() == ID_SEL_TXT )
 					priority++;
-				else if( hit_info[i].ID.T1() == ID_BOARD && hit_info[i].ID.T2() == ID_OUTLINE && hit_info[i].ID.T3() == ID_SEL_CORNER )
+				else if( this_hit.ID.T1() == ID_BOARD && this_hit.ID.T2() == ID_OUTLINE && this_hit.ID.T3() == ID_SEL_CORNER )
 					priority++;
-				else if( hit_info[i].ID.T1() == ID_NET && hit_info[i].ID.T2() == ID_AREA && hit_info[i].ID.T3() == ID_SEL_CORNER )
+				else if( this_hit.ID.T1() == ID_NET && this_hit.ID.T2() == ID_AREA && this_hit.ID.T3() == ID_SEL_CORNER )
 					priority++;
-				else if( hit_info[i].ID.T1() == ID_NET && hit_info[i].ID.T2() == ID_CONNECT && hit_info[i].ID.T3() == ID_SEL_VERTEX )
+				else if( this_hit.ID.T1() == ID_NET && this_hit.ID.T2() == ID_CONNECT && this_hit.ID.T3() == ID_SEL_VERTEX )
 					priority++;
 
 				hit_info[i].priority = priority;

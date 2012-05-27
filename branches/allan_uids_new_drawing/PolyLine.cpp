@@ -117,6 +117,7 @@ CPolyLine::CPolyLine()
 	m_gpc_poly->num_contours = 0;
 	m_php_poly = new polygon;
 	bDrawn = 0;
+	m_root_id.Clear();
 }
 
 // destructor, remove all elements
@@ -1063,9 +1064,7 @@ void CPolyLine::Draw(  CDisplayList * dl )
 		for( int ic=0; ic<NumCorners(); ic++ )
 		{
 			id sel_id = m_root_id;	// id for selection rects
-			sel_id.SetT3( ID_SEL_CORNER );	// selection rect for corner
-			sel_id.SetI3( ic );
-			sel_id.SetU3( corner[ic].m_uid );
+			sel_id.SetSubSubType( ID_SEL_CORNER, corner[ic].m_uid, ic ); // id for corner
 
 			int xi = corner[ic].x;
 			int yi = corner[ic].y;
@@ -1091,8 +1090,7 @@ void CPolyLine::Draw(  CDisplayList * dl )
 			if( ic<(NumCorners()-1) || corner[ic].end_contour )
 			{
 				// draw side
-				sel_id.SetT3( ID_SIDE );	
-				sel_id.SetU3( side[ic].m_uid );
+				sel_id.SetSubSubType( ID_SIDE, side[ic].m_uid, ic ); // id for side
 				if( xi == xf || yi == yf )
 				{
 					// if endpoints not angled, make side STRAIGHT
@@ -2067,7 +2065,7 @@ void CPolyLine::Copy( CPolyLine * src )
 	side.SetSize(nsides);
 	for( int i=0; i<nsides; i++ )
 	{
-		side[i].m_style = src->side[i].m_style;
+		side[i] = src->side[i];
 	}
 	// don't copy the Gpc_poly, just clear the old one
 	FreeGpcPoly();

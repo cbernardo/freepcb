@@ -9614,7 +9614,9 @@ void CFreePcbView::MoveGroup( int dx, int dy )
 	for( int i=0; i<m_sel_ids.GetSize(); i++ )
 	{
 		id sid = m_sel_ids[i];
-		sid.Resolve();
+		bool bOK = sid.Resolve();
+		if( !bOK )
+			ASSERT(0);
 		if( sid.IsSeg() )
 		{
 			// segment
@@ -9649,7 +9651,7 @@ void CFreePcbView::MoveGroup( int dx, int dy )
 			m_Doc->m_tlist->MoveText( t, t->m_x+dx, t->m_y+dy, t->m_angle,
 				t->m_mirror, t->m_bNegative, t->m_layer );
 		}
-		else if( sid.T1() == ID_NET && sid.T2() == ID_AREA && sid.T3() == ID_SEL_SIDE )
+		else if( sid.IsAreaSide() )
 		{
 			// area side
 			cnet * net = (cnet*)m_sel_ptrs[i];
@@ -10362,6 +10364,9 @@ void CFreePcbView::OnGroupCopy()
 	for( int i=0; i<m_sel_ids.GetSize(); i++ )
 	{
 		id sid = m_sel_ids[i];
+		bool bOK = sid.Resolve();
+		if( !bOK )
+			ASSERT(0);
 		if( sid.T1() == ID_PART && sid.T2() == ID_SEL_RECT )
 		{
 			// add part to group partlist
@@ -10447,14 +10452,16 @@ void CFreePcbView::OnGroupCopy()
 				// test start and end pins
 				BOOL bStartPinInGroup = FALSE;
 				BOOL bEndPinInGroup = FALSE;
-				BOOL bStubTrace = FALSE;
-				if( c->end_pin == cconnect::NO_END )
-					bStubTrace = TRUE;
-				cpin * pin1 = &net->pin[c->start_pin];
-				cpart * part1 = pin1->part;
+				cpin * pin1 = NULL;
 				cpin * pin2 = NULL;
+				cpart * part1 = NULL;
 				cpart * part2 = NULL;
-				if( !bStubTrace )
+				if( c->start_pin != cconnect::NO_END )
+				{
+					pin1 = &net->pin[c->start_pin];
+					part1 = pin1->part;
+				}
+				if( c->end_pin != cconnect::NO_END )
 				{
 					pin2 = &net->pin[c->end_pin];
 					part2 = pin2->part;
@@ -10463,28 +10470,42 @@ void CFreePcbView::OnGroupCopy()
 				cpart * g_part = g_pl->GetFirstPart();
 				while( g_part )
 				{
-					if( part1->ref_des == g_part->ref_des )
-						bStartPinInGroup = TRUE;
-					if( !bStubTrace )
+					if( part1 )
+					{
+						if( part1->ref_des == g_part->ref_des )
+							bStartPinInGroup = TRUE;
+					}
+					if( part2 )
+					{
 						if( part2->ref_des == g_part->ref_des )
 							bEndPinInGroup = TRUE;
+					}
 					g_part = g_pl->GetNextPart( g_part );
 				}
-				if( bStartPinInGroup && (bEndPinInGroup || bStubTrace) )
+				if( (bStartPinInGroup || !pin1) && (bEndPinInGroup || !pin2) )
 				{
 					// add connection to group net, and copy all segments and vertices
-					int p1 = g_nl->GetNetPinIndex( g_net, &pin1->ref_des, &pin1->pin_name );
-					int g_ic;
-					cconnect * g_c;
-					if( !bStubTrace )
+					cconnect * g_c = NULL;
+					int g_ic = -1;
+					if( pin1 )
 					{
-						int p2 = g_nl->GetNetPinIndex( g_net, &pin2->ref_des, &pin2->pin_name );
-						g_c = g_net->AddConnectFromPinToPin( p1, p2, &g_ic );
+						// AMW TODO: add code for pin1 == NULL
+						int p1 = g_nl->GetNetPinIndex( g_net, &pin1->ref_des, &pin1->pin_name );
+						cconnect * g_c;
+						if( pin2 )
+						{
+							int p2 = g_nl->GetNetPinIndex( g_net, &pin2->ref_des, &pin2->pin_name );
+							g_c = g_net->AddConnectFromPinToPin( p1, p2, &g_ic );
+						}
+
+						else
+						{
+							g_c = g_net->AddConnectFromPin( p1, &g_ic );
+						}
 					}
-					else
-					{
-						g_c = g_net->AddConnectFromPin( p1, &g_ic );
-					}
+					if( !g_c )
+						continue;
+
 					g_c->SetNumSegs( c->NumSegs() );
 					for( int is=0; is<c->NumSegs(); is++ )
 					{
@@ -11097,6 +11118,7 @@ void CFreePcbView::OnGroupPaste()
 	g_nl->MarkAllNets( 0 );
 	CArray<CPolyLine> * g_sm = &m_Doc->clip_sm_cutout;
 	CArray<CPolyLine> * g_bd = &m_Doc->clip_board_outline;
+
 	// pointers to project lists
 	CPartList * pl = m_Doc->m_plist;
 	CNetList * nl = m_Doc->m_nlist;
@@ -11514,9 +11536,9 @@ void CFreePcbView::OnGroupPaste()
 						int y = p->Y(is);
 						p->SetX( is, x + dlg.m_dx );
 						p->SetY( is, y + dlg.m_dy );
+						p_id.SetU2( p->UID() );
 						p_id.SetI2( ia );
-						p_id.SetT3( ID_SEL_SIDE );
-						p_id.SetI3( is );
+						p_id.SetSubSubType( ID_SEL_SIDE, p->SideUID(is), is );
 						m_sel_ids.Add( p_id );
 						m_sel_ptrs.Add( prj_net );
 						// update lower-left corner
@@ -11550,6 +11572,7 @@ void CFreePcbView::OnGroupPaste()
 				CPolyLine * p = &(*sm)[ism];
 				p->Copy( g_p );
 				id p_id = p->Id();
+				p_id.SetU2( p->UID() );
 				p_id.SetI2( ism );
 				p->SetId( &p_id );
 				for( int is=0; is<p->NumSides(); is++ )
@@ -11558,9 +11581,9 @@ void CFreePcbView::OnGroupPaste()
 					int y = p->Y(is);
 					p->SetX( is, x + dlg.m_dx );
 					p->SetY( is, y + dlg.m_dy );
+					p_id.SetU2( p->UID() );
 					p_id.SetI2( ism );
-					p_id.SetT3( ID_SEL_SIDE );
-					p_id.SetI3( is );
+					p_id.SetSubSubType( ID_SEL_SIDE, p->SideUID(is), is );
 					m_sel_ids.Add( p_id );
 					m_sel_ptrs.Add( NULL );
 					// update lower-left corner
@@ -11583,6 +11606,9 @@ void CFreePcbView::OnGroupPaste()
 		{
 			SaveUndoInfoForBoardOutlines( FALSE, m_Doc->m_undo_list );
 			bd->SetSize( old_size + grp_size );
+			//**
+			CPolyLine * p1 = &(*bd)[0];
+			CPolyLine * p2 = &(*bd)[1];
 			for( int g_ibd=0; g_ibd<grp_size; g_ibd++ )
 			{
 				int ibd = g_ibd + old_size;
@@ -11590,6 +11616,7 @@ void CFreePcbView::OnGroupPaste()
 				CPolyLine * p = &(*bd)[ibd];		// project poly
 				p->Copy( g_p );
 				id p_id = p->Id();
+				p_id.SetU2( p->UID() );		// root id
 				p_id.SetI2( ibd );
 				p->SetId( &p_id );
 				for( int is=0; is<p->NumSides(); is++ )
@@ -11598,9 +11625,11 @@ void CFreePcbView::OnGroupPaste()
 					int y = p->Y(is);
 					p->SetX( is, x + dlg.m_dx );
 					p->SetY( is, y + dlg.m_dy );
-					p_id.SetT3( ID_SEL_SIDE );
-					p_id.SetI3( is );
-					m_sel_ids.Add( p_id );
+					p_id.SetI2( ibd );
+					p_id.SetSubSubType( ID_SEL_SIDE, p->SideUID(is), is );
+					int ns = m_sel_ids.GetSize();
+					m_sel_ids.Add( p_id );		//**
+					id sid = m_sel_ids[ns];	//**
 					m_sel_ptrs.Add( NULL );
 					// update lower-left corner
 					double d = x + y;
