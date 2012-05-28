@@ -64,7 +64,7 @@ public:
 	void Initialize( CDisplayList * dlist, cnet * net );
 	int UID(){ return m_uid; };
 	void SetUID( int uid ){ m_uid = uid; };
-	id& Id();
+	id Id();
 
 	cnet * m_net;		// parent net
 	int npins;			// number of thru-hole pins within area on same net

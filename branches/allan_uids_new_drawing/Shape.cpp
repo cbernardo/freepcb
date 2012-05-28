@@ -3299,7 +3299,7 @@ void CEditShape::Draw( CDisplayList * dlist, SMFontUtil * fontutil )
 		int sel_box_size = m_outline_poly[i].W();
 		sel_box_size = max( sel_box_size, 5*NM_PER_MIL );
 		m_outline_poly[i].SetSelBoxSize( sel_box_size );
-		m_outline_poly[i].SetId( &p_id );
+		m_outline_poly[i].SetParentId( &p_id );
 		m_outline_poly[i].Draw( dlist );
 	}
 

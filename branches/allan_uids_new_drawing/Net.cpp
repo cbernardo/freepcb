@@ -159,7 +159,8 @@ carea::carea( const carea& s )
 	npins = 0;
 	nvias = 0;
 	npins = 0;
-	SetDlist( m_dlist );
+	m_parent_id.Clear();
+	SetDisplayList( m_dlist );
 }
 
 carea::~carea()
@@ -195,17 +196,17 @@ void carea::Initialize( CDisplayList * dlist, cnet * net )
 {
 	m_dlist = dlist;
 	m_net = net;
-	SetDlist( dlist );
+	SetDisplayList( dlist );
 	Id();
 }
 
-// initialize and return id
+// set and return id
 //
-id& carea::Id()
+id carea::Id()
 {
 	id a_id = m_net->Id();
 	a_id.Set( id::NOP, id::NOP, ID_AREA, m_uid );
-	CPolyLine::SetId( &a_id );
+	CPolyLine::SetParentId( &a_id );
 	return CPolyLine::Id();
 }
 

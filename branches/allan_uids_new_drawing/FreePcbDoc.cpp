@@ -193,12 +193,13 @@ CFreePcbDoc::~CFreePcbDoc()
 	delete clip_plist;
 	delete clip_tlist;
 	clip_sm_cutout.RemoveAll();
+	clip_board_outline.RemoveAll();
 	// delete partlist, netlist, displaylist, etc.
 	m_sm_cutout.RemoveAll();
+	m_board_outline.RemoveAll();
 	delete m_drelist;
 	delete m_undo_list;
 	delete m_redo_list;
-	m_board_outline.RemoveAll();
 	delete m_nlist;
 	delete m_plist;
 	delete m_tlist;

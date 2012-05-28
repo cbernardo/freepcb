@@ -117,7 +117,7 @@ CPolyLine::CPolyLine()
 	m_gpc_poly->num_contours = 0;
 	m_php_poly = new polygon;
 	bDrawn = 0;
-	m_root_id.Clear();
+	m_parent_id.Clear();
 }
 
 // destructor, remove all elements
@@ -135,13 +135,6 @@ void CPolyLine::Clear()
 	FreeGpcPoly();
 	delete m_gpc_poly;
 	delete m_php_poly;
-}
-
-// must be set for drawing
-//
-void CPolyLine::SetDlist( CDisplayList * dl )
-{
-	m_dlist = dl;
 }
 
 int CPolyLine::SizeOfUndoRecord()
@@ -240,7 +233,7 @@ int CPolyLine::NormalizeWithGpc( CArray<CPolyLine*> * pa, BOOL bRetainArcs )
 						int x = ((m_gpc_poly->contour)[ic].vertex)[i].x;
 						int y = ((m_gpc_poly->contour)[ic].vertex)[i].y;
 						if( i==0 )
-							Start( m_layer, m_w, m_sel_box, x, y, m_hatch, &m_root_id, m_ptr );
+							Start( m_layer, m_w, m_sel_box, x, y, m_hatch, &m_parent_id, m_ptr );
 						else
 							AppendCorner( x, y, STRAIGHT );
 					}
@@ -259,7 +252,7 @@ int CPolyLine::NormalizeWithGpc( CArray<CPolyLine*> * pa, BOOL bRetainArcs )
 					int x = ((m_gpc_poly->contour)[ic].vertex)[i].x;
 					int y = ((m_gpc_poly->contour)[ic].vertex)[i].y;
 					if( i==0 )
-						poly->Start( m_layer, m_w, m_sel_box, x, y, m_hatch, &m_root_id, m_ptr, FALSE );
+						poly->Start( m_layer, m_w, m_sel_box, x, y, m_hatch, &m_parent_id, m_ptr, FALSE );
 					else
 						poly->AppendCorner( x, y, STRAIGHT );
 				}
@@ -372,7 +365,7 @@ void CPolyLine::ClipPhpPolygon( int php_op, CPolyLine * poly )
 		do
 		{
 			vertex * v = p->getFirst();
-			Start( m_layer, m_w, m_sel_box, v->X()*DENOM, v->Y()*DENOM, m_hatch, &m_root_id, m_ptr );
+			Start( m_layer, m_w, m_sel_box, v->X()*DENOM, v->Y()*DENOM, m_hatch, &m_parent_id, m_ptr );
 			do
 			{
 				vertex * n = v->Next();
@@ -786,11 +779,10 @@ void CPolyLine::Start( int layer, int w, int sel_box, int x, int y,
 
 	// set id, using the one provided
 	if( set_id )
-		m_root_id = *set_id;
+		m_parent_id = *set_id;
 	else
-		m_root_id.Clear();
-	if( m_root_id.U2() == -1 )	// if provided id doesn't have level 2 uid
-		m_root_id.SetU2( m_uid );	// use this poly's own uid
+		m_parent_id.Clear();
+	m_parent_id.SetU2( m_uid );	// use this poly's own uid
 
 	m_ptr = ptr;
 	m_hatch = hatch;
@@ -802,7 +794,7 @@ void CPolyLine::Start( int layer, int w, int sel_box, int x, int y,
 	if( m_sel_box && m_dlist && bDraw )
 	{
 		// create id for selection rect
-		id sel_id = m_root_id;
+		id sel_id = m_parent_id;
 		sel_id.SetT3( ID_SEL_CORNER );
 		sel_id.SetI3( 0 );					
 		sel_id.SetU3( corner[0].m_uid );	
@@ -1063,7 +1055,7 @@ void CPolyLine::Draw(  CDisplayList * dl )
 		// draw elements
 		for( int ic=0; ic<NumCorners(); ic++ )
 		{
-			id sel_id = m_root_id;	// id for selection rects
+			id sel_id = m_parent_id;	// id for selection rects
 			sel_id.SetSubSubType( ID_SEL_CORNER, corner[ic].m_uid, ic ); // id for corner
 
 			int xi = corner[ic].x;
@@ -1343,6 +1335,14 @@ void CPolyLine::HighlightCorner( int ic )
 		m_dlist->Get_w( corner[ic].dl_corner_sel ) );
 }
 
+id CPolyLine::Id() 
+{	
+	id poly_id = m_parent_id;
+	poly_id.SetU2( m_uid );
+	poly_id.SetSubSubType( -1 );
+	return poly_id;
+}
+
 int CPolyLine::UID() 
 {	
 	return m_uid; 
@@ -1587,23 +1587,20 @@ void CPolyLine::SetUID( int uid )
 	}
 }
 
-// renumber ids
+// Since a CPolyLine is often part of something else, 
+// you can set the top-level of the id (actually T1, U1, T2 and I2)
+// Then for the id of the CPolyLine, U2 will be it's own UID
+// For the id's of display elements, T3, U3 and I3 are set for each side and corner
 //
-void CPolyLine::SetId( id * id )
+void CPolyLine::SetParentId( id * id )
 {
 	Undraw();
-	m_root_id = *id;
+	m_parent_id = *id;
+	m_parent_id.SetU2( m_uid );
 	if( m_dlist )
 	{
 		Draw();
 	}
-}
-
-// get root id
-//
-id& CPolyLine::Id()
-{
-	return m_root_id;
 }
 
 int CPolyLine::Closed() 
@@ -1772,7 +1769,7 @@ void CPolyLine::Hatch()
 			// draw lines
 			for( int ip=0; ip<npts; ip+=2 )
 			{
-				id hatch_id = m_root_id;
+				id hatch_id = m_parent_id;
 				hatch_id.SetT3( ID_HATCH );
 				hatch_id.SetI3( nhatch );
 				double dx = xx[ip+1] - xx[ip];
@@ -2040,14 +2037,15 @@ void CPolyLine::SetDisplayList( CDisplayList * dl )
 
 // copy data from another poly, but don't draw it
 // 
-// don't copy the UID
+// don't copy the UID or the display list
 // generate new uids for corners and sides
 //
 void CPolyLine::Copy( CPolyLine * src )
 {
 	Undraw();
-	m_dlist = src->m_dlist;
-	m_root_id = src->m_root_id;
+//	m_dlist = src->m_dlist;
+	m_parent_id = src->m_parent_id;
+	m_parent_id.SetU2( m_uid );
 	m_ptr = src->m_ptr;
 	m_layer = src->m_layer;
 	m_w = src->m_w;

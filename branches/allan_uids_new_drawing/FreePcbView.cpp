@@ -6410,7 +6410,7 @@ void CFreePcbView::OnPadStartRatline()
 	m_dragging_new_item = 0;
 	m_dlist->StartDraggingRatLine( pDC, 0, 0, p.x, p.y, LAY_RAT_LINE, 1, 1 );
 	if( m_Doc->m_bHighlightNet )
-		HighlightNet( m_sel_net, &m_sel_id );
+		HighlightNet( m_sel_id.Net(), &m_sel_id );
 	SetCursorMode( CUR_DRAG_CONNECT );
 	ReleaseDC( pDC );
 	Invalidate( FALSE );
@@ -7127,7 +7127,7 @@ void CFreePcbView::OnBoardDeleteOutline()
 	{
 		CPolyLine * poly = &m_Doc->m_board_outline[i];
 		new_id.SetI2( i );
-		poly->SetId( &new_id );
+		poly->SetParentId( &new_id );
 	}
 	m_Doc->ProjectModified( TRUE );
 	CancelSelection();
@@ -8702,7 +8702,7 @@ void CFreePcbView::OnSmCornerDeleteCutout()
 	{
 		CPolyLine * poly = &m_Doc->m_sm_cutout[i];
 		new_id.SetI2( i );
-		poly->SetId( &new_id );
+		poly->SetParentId( &new_id );
 	}
 	m_Doc->ProjectModified( TRUE );
 	CancelSelection();
@@ -10271,7 +10271,7 @@ void CFreePcbView::OnAreaEdit()
 			net->area[ia].SetPtr( net );
 			id new_id = net->area[ia].Id();
 			new_id.SetI2( ia );
-			net->area[ia].SetId( &new_id );
+			net->area[ia].SetParentId( &new_id );
 			m_Doc->m_nlist->RemoveArea( m_sel_net, m_sel_ia ); 
 			m_Doc->m_nlist->SetAreaConnections( net, ia );
 			if( m_Doc->m_vis[LAY_RAT_LINE] )
@@ -10489,9 +10489,8 @@ void CFreePcbView::OnGroupCopy()
 					int g_ic = -1;
 					if( pin1 )
 					{
-						// AMW TODO: add code for pin1 == NULL
+						// make connection from pin1
 						int p1 = g_nl->GetNetPinIndex( g_net, &pin1->ref_des, &pin1->pin_name );
-						cconnect * g_c;
 						if( pin2 )
 						{
 							int p2 = g_nl->GetNetPinIndex( g_net, &pin2->ref_des, &pin2->pin_name );
@@ -10502,6 +10501,13 @@ void CFreePcbView::OnGroupCopy()
 						{
 							g_c = g_net->AddConnectFromPin( p1, &g_ic );
 						}
+					}
+					else if( pin2 )
+					{
+						// make connection from pin2 then reverse it
+						int p2 = g_nl->GetNetPinIndex( g_net, &pin2->ref_des, &pin2->pin_name );
+						g_c = g_net->AddConnectFromPin( p2, &g_ic );
+						g_c->ReverseDirection();
 					}
 					if( !g_c )
 						continue;
@@ -10656,7 +10662,7 @@ void CFreePcbView::OnGroupCopy()
 					id g_id;
 					g_id = g_p->Id();
 					g_id.SetI2( g_ia );
-					g_p->SetId( &g_id );
+					g_p->SetParentId( &g_id );
 				}
 			}
 		}
@@ -10710,7 +10716,7 @@ void CFreePcbView::OnGroupCopy()
 			g_p->Copy( p );
 			id sid = g_p->Id();
 			sid.SetI2( g_ism );
-			g_p->SetId( &sid );
+			g_p->SetParentId( &sid );
 		}
 	}
 
@@ -10751,7 +10757,7 @@ void CFreePcbView::OnGroupCopy()
 			g_p->Copy( p );
 			id sid = g_p->Id();
 			sid.SetI2( g_ibd );
-			g_p->SetId( &sid );
+			g_p->SetParentId( &sid );
 		}
 	}
 
@@ -11034,7 +11040,7 @@ void CFreePcbView::DeleteGroup( CArray<void*> * grp_ptr, CArray<id> * grp_id )
 	{
 			id new_id = m_Doc->m_sm_cutout[ism].Id();
 			new_id.SetI2( ism );
-			m_Doc->m_sm_cutout[ism].SetId( &new_id );
+			m_Doc->m_sm_cutout[ism].SetParentId( &new_id );
 	}
 	// delete board outlines and renumber them
 	bUndoSaved = FALSE;
@@ -11056,7 +11062,7 @@ void CFreePcbView::DeleteGroup( CArray<void*> * grp_ptr, CArray<id> * grp_id )
 	{
 			id new_id = m_Doc->m_board_outline[ibd].Id();
 			new_id.SetI2( ibd );
-			m_Doc->m_board_outline[ibd].SetId( &new_id );
+			m_Doc->m_board_outline[ibd].SetParentId( &new_id );
 	}
 	// delete copper areas or cutouts if all sides are in group
 	net = iter_net.GetFirst();
@@ -11417,23 +11423,25 @@ void CFreePcbView::OnGroupPaste()
 				{
 					cconnect * g_c = g_net->ConByIndex(g_ic);
 					// get start pin of connection in new net
-					CString g_start_ref_des = g_net->pin[g_c->start_pin].ref_des;
-					CString g_start_pin_name = g_net->pin[g_c->start_pin].pin_name;
-					int new_start_pin = nl->GetNetPinIndex( prj_net, &g_start_ref_des, &g_start_pin_name );
+					int new_start_pin = cconnect::NO_END;
+					if( g_c->start_pin != cconnect::NO_END )
+					{
+						CString g_start_ref_des = g_net->pin[g_c->start_pin].ref_des;
+						CString g_start_pin_name = g_net->pin[g_c->start_pin].pin_name;
+						new_start_pin = nl->GetNetPinIndex( prj_net, &g_start_ref_des, &g_start_pin_name );
+					}
 					// get end pin of connection in new net
-					CString g_end_ref_des;
-					CString g_end_pin_name;
 					int new_end_pin = cconnect::NO_END;
 					if( g_c->end_pin != cconnect::NO_END )
 					{
-						g_end_ref_des = g_net->pin[g_c->end_pin].ref_des;
-						g_end_pin_name = g_net->pin[g_c->end_pin].pin_name;
+						CString g_end_ref_des = g_net->pin[g_c->end_pin].ref_des;
+						CString g_end_pin_name = g_net->pin[g_c->end_pin].pin_name;
 						new_end_pin = nl->GetNetPinIndex( prj_net, &g_end_ref_des, &g_end_pin_name );
 					}
+					int ic;
 					if( new_start_pin != -1 && (new_end_pin != -1 || g_c->end_pin == cconnect::NO_END) )
 					{
 						// add connection to new net
-						int ic;
 						if( new_end_pin != cconnect::NO_END )
 						{
 							prj_net->AddConnectFromPinToPin( new_start_pin, new_end_pin, &ic );
@@ -11442,80 +11450,85 @@ void CFreePcbView::OnGroupPaste()
 						{
 							prj_net->AddConnectFromPin( new_start_pin, &ic );
 						}
-						// copy it and draw it
-						if( ic < 0 )
-							ASSERT(0);
-						else
+					}
+					else if( new_start_pin == -1 && (new_end_pin != -1 || g_c->end_pin == cconnect::NO_END) )
+					{
+						cconnect * c = prj_net->AddConnectFromPin( new_end_pin, &ic );
+						c->ReverseDirection();
+					}
+					// copy it and draw it
+					if( ic < 0 )
+						ASSERT(0);
+					else
+					{
+						// copy connection
+						cconnect * c = prj_net->ConByIndex(ic);
+						c->Undraw();
+						c->SetNumSegs( g_c->NumSegs() );
+						for( int is=0; is<c->NumSegs(); is++ )
 						{
-							// copy connection
-							cconnect * c = prj_net->ConByIndex(ic);
-							c->Undraw();
-							c->SetNumSegs( g_c->NumSegs() );
-							for( int is=0; is<c->NumSegs(); is++ )
-							{
-								cseg * s = &c->SegByIndex(is);
-								cvertex * v = &c->VtxByIndex(is);
-								*s = g_c->SegByIndex(is);
-								s->m_con = c;
-								s->m_dlist = m_dlist;
-								s->dl_el = NULL;
-								s->dl_sel = NULL;
-								*v = g_c->VtxByIndex(is);
-								v->m_dlist = m_dlist;
-								v->m_con = c;
-								v->dl_sel = NULL;
-								v->dl_hole = NULL;
-								v->dl_el.SetSize(0);
-								id seg_id( ID_NET, prj_net->UID(), ID_CONNECT, c->UID(), ic, 
-									ID_SEL_SEG, s->UID(), is );
-								m_sel_ptrs.Add( prj_net );
-								m_sel_ids.Add( seg_id );
-								id vtx_id( ID_NET, prj_net->UID(), ID_CONNECT, c->UID(), ic, 
-									ID_SEL_VERTEX, v->UID(), is );
-								m_sel_ptrs.Add( prj_net );
-								m_sel_ids.Add( vtx_id );
-							}
-							cvertex * v = &c->VtxByIndex(c->NumSegs());
-							*v = g_c->VtxByIndex(g_c->NumSegs());
-							v->m_con = c;
+							cseg * s = &c->SegByIndex(is);
+							cvertex * v = &c->VtxByIndex(is);
+							*s = g_c->SegByIndex(is);
+							s->m_con = c;
+							s->m_dlist = m_dlist;
+							s->dl_el = NULL;
+							s->dl_sel = NULL;
+							*v = g_c->VtxByIndex(is);
 							v->m_dlist = m_dlist;
+							v->m_con = c;
 							v->dl_sel = NULL;
 							v->dl_hole = NULL;
 							v->dl_el.SetSize(0);
-							if( c->end_pin != cconnect::NO_END )
-							{
-								id vtx_id( ID_NET, prj_net->UID(), ID_CONNECT, c->UID(), ic,
-									ID_SEL_VERTEX, v->UID(), c->NumSegs() );
-								m_sel_ptrs.Add( prj_net );
-								m_sel_ids.Add( vtx_id );
-							}
-							for( int iv=0; iv<c->NumSegs()+1; iv++ )
-							{
-								c->VtxByIndex(iv).x += dlg.m_dx;
-								c->VtxByIndex(iv).y += dlg.m_dy;
-								if( int g_id = c->VtxByIndex(iv).tee_ID )
-								{
-									// assign new tee_ID
-									int new_id;
-									BOOL bFound = tee_map.Lookup( g_id, new_id );
-									if( !bFound )
-									{
-										new_id = nl->GetNewTeeID();
-										tee_map.SetAt( g_id, new_id );
-									}
-									c->VtxByIndex(iv).tee_ID = new_id;
-								}
-								// update lower-left corner
-								double d = c->VtxByIndex(iv).x + c->VtxByIndex(iv).y;
-								if( d < min_d )
-								{
-									min_d = d;
-									min_x = c->VtxByIndex(iv).x;
-									min_y = c->VtxByIndex(iv).y;
-								}
-							}
-							c->Draw();
+							id seg_id( ID_NET, prj_net->UID(), ID_CONNECT, c->UID(), ic, 
+								ID_SEL_SEG, s->UID(), is );
+							m_sel_ptrs.Add( prj_net );
+							m_sel_ids.Add( seg_id );
+							id vtx_id( ID_NET, prj_net->UID(), ID_CONNECT, c->UID(), ic, 
+								ID_SEL_VERTEX, v->UID(), is );
+							m_sel_ptrs.Add( prj_net );
+							m_sel_ids.Add( vtx_id );
 						}
+						cvertex * v = &c->VtxByIndex(c->NumSegs());
+						*v = g_c->VtxByIndex(g_c->NumSegs());
+						v->m_con = c;
+						v->m_dlist = m_dlist;
+						v->dl_sel = NULL;
+						v->dl_hole = NULL;
+						v->dl_el.SetSize(0);
+						if( c->end_pin != cconnect::NO_END )
+						{
+							id vtx_id( ID_NET, prj_net->UID(), ID_CONNECT, c->UID(), ic,
+								ID_SEL_VERTEX, v->UID(), c->NumSegs() );
+							m_sel_ptrs.Add( prj_net );
+							m_sel_ids.Add( vtx_id );
+						}
+						for( int iv=0; iv<c->NumSegs()+1; iv++ )
+						{
+							c->VtxByIndex(iv).x += dlg.m_dx;
+							c->VtxByIndex(iv).y += dlg.m_dy;
+							if( int g_id = c->VtxByIndex(iv).tee_ID )
+							{
+								// assign new tee_ID
+								int new_id;
+								BOOL bFound = tee_map.Lookup( g_id, new_id );
+								if( !bFound )
+								{
+									new_id = nl->GetNewTeeID();
+									tee_map.SetAt( g_id, new_id );
+								}
+								c->VtxByIndex(iv).tee_ID = new_id;
+							}
+							// update lower-left corner
+							double d = c->VtxByIndex(iv).x + c->VtxByIndex(iv).y;
+							if( d < min_d )
+							{
+								min_d = d;
+								min_x = c->VtxByIndex(iv).x;
+								min_y = c->VtxByIndex(iv).y;
+							}
+						}
+						c->Draw();
 					}
 				}
 				// add copper areas
@@ -11528,7 +11541,7 @@ void CFreePcbView::OnGroupPaste()
 					CPolyLine * p = &prj_net->area[ia];
 					id p_id = p->Id();
 					p->Copy( gp );
-					p->SetId( &p_id );
+					p->SetParentId( &p_id );
 					p->SetPtr( prj_net );
 					for( int is=0; is<p->NumSides(); is++ )
 					{
@@ -11574,7 +11587,7 @@ void CFreePcbView::OnGroupPaste()
 				id p_id = p->Id();
 				p_id.SetU2( p->UID() );
 				p_id.SetI2( ism );
-				p->SetId( &p_id );
+				p->SetParentId( &p_id );
 				for( int is=0; is<p->NumSides(); is++ )
 				{
 					int x = p->X(is);
@@ -11618,7 +11631,7 @@ void CFreePcbView::OnGroupPaste()
 				id p_id = p->Id();
 				p_id.SetU2( p->UID() );		// root id
 				p_id.SetI2( ibd );
-				p->SetId( &p_id );
+				p->SetParentId( &p_id );
 				for( int is=0; is<p->NumSides(); is++ )
 				{
 					int x = p->X(is);

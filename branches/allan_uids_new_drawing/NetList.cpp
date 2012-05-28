@@ -1047,7 +1047,7 @@ void CNetList::RenumberAreas( cnet * net )
 	{
 		a_id = net->area[ia].Id();
 		a_id.SetI2( ia );
-		net->area[ia].SetId( &a_id );
+		net->area[ia].SetParentId( &a_id );
 		for( int ip=0; ip<net->area[ia].npins; ip++ )
 		{
 			carea * a = &net->area[ia];
@@ -4895,10 +4895,16 @@ void CNetList::Copy( CNetList * src_nl )
 		for( int ic=0; ic<src_net->NumCons(); ic++ )
 		{
 			cconnect * src_c = src_net->connect[ic];
-			if( src_c->end_pin == cconnect::NO_END )
+			int ip1 = src_c->start_pin;
+			if( src_c->start_pin != cconnect::NO_END && src_c->end_pin == cconnect::NO_END )
 				net->AddConnectFromPin( src_c->start_pin );
-			else
+			else if( src_c->start_pin != cconnect::NO_END && src_c->end_pin != cconnect::NO_END )
 				net->AddConnectFromPinToPin( src_c->start_pin, src_c->end_pin );
+			else if( src_c->start_pin == cconnect::NO_END && src_c->end_pin != cconnect::NO_END )
+			{
+				cconnect * c = net->AddConnectFromPin( src_c->end_pin );
+				c->ReverseDirection();
+			}
 			cconnect * c = net->connect[ic];
 			c->seg.SetSize( src_c->NumSegs() );
 			for( int is=0; is<src_c->NumSegs(); is++ )
@@ -5240,7 +5246,7 @@ void CNetList::RestoreConnectionsAndAreas( CNetList * old_nl, int flags, CDlgLog
 					carea * a = &net->area[ia];
 					a->Copy( old_a );
 					id p_id( ID_NET, net->UID(), ID_AREA, a->UID(), ia );
-					a->SetId( &p_id );
+					a->SetParentId( &p_id );
 					a->SetPtr( net );
 					a->Draw( m_dlist );
 				}
@@ -6036,7 +6042,7 @@ int CNetList::ClipAreaPolygon( cnet * net, int iarea,
 				a->SetHatch( p->GetHatch() );
 				a->SetLayer( p->Layer() );
 				id p_id( ID_NET, net->UID(), ID_AREA, a->UID(), ia );
-				a->SetId( &p_id );
+				a->SetParentId( &p_id );
 				a->Draw();
 				a->utility = 1;
 #endif
