@@ -109,7 +109,6 @@ public:
 	void RemoveContour( int icont );
 
 	// drawing functions
-	void SetDlist( CDisplayList * dl );
 	void HighlightSide( int is );
 	void HighlightCorner( int ic );
 	void StartDraggingToInsertCorner( CDC * pDC, int ic, int x, int y, int crosshair = 1 );
@@ -139,6 +138,7 @@ public:
 	void CreatePolyUndoRecord( undo_poly * un_poly );
 
 	// access functions
+	id Id();
 	int UID();
 	int NumCorners();
 	int NumSides();
@@ -160,7 +160,6 @@ public:
 	int CornerUID( int ic ){ return corner[ic].m_uid; };
 	int SideUID( int is );
 	int SideStyle( int is );
-	id&  Id();
 	void * Ptr(){ return m_ptr; };
 	int SelBoxSize();
 	CDisplayList * DisplayList(){ return m_dlist; };
@@ -168,6 +167,7 @@ public:
 	BOOL Drawn(){ return bDrawn; };
 	gpc_polygon * GetGpcPoly(){ return m_gpc_poly; };
 
+	void SetParentId( id * id );
 	void SetUID( int uid );
 	void SetCornerUID( int ic, int uid );
 	void SetSideUID( int is, int uid );
@@ -180,7 +180,6 @@ public:
 	void SetLayer( int layer );
 	void SetW( int w );
 	void SetSideStyle( int is, int style, BOOL bDraw=TRUE );
-	void SetId( id * id );
 	void SetPtr( void * ptr ){ m_ptr = ptr; };
 	void SetSelBoxSize( int sel_box );
 	void SetHatch( int hatch ){ Undraw(); m_hatch = hatch; Draw(); };
@@ -205,7 +204,7 @@ public:
 
 protected:
 	CDisplayList * m_dlist;		// display list 
-	id m_root_id;	// root id
+	id m_parent_id;	// id of the parent of the polyline
 	int m_uid;		// use this uid if root_id doesn't provide one
 	void * m_ptr;	// pointer to parent object (or NULL)
 	int m_layer;	// layer to draw on
