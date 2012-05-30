@@ -136,3 +136,27 @@ CPoint GetInflectionPoint( CPoint pi, CPoint pf, int mode );
 void quickSort(int numbers[], int index[], int array_size);
 void q_sort(int numbers[], int index[], int left, int right);
 void q_sort_3way( int a[], int b[], int left, int right );
+
+class CMyBitmap {
+	// CPT.  A handy class used during the new PartList::CheckBrokenArea() (itself a helper for PartList::DRC()).
+	// Represents a 2-d array of 1-byte values ("pixels").
+	int w, h;
+	char *data;
+
+	public:
+	CMyBitmap(int w0, int h0) {
+		w = w0; h = h0;
+		data = (char*) HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, w*h);
+		};
+	~CMyBitmap() {
+		HeapFree(GetProcessHeap(), 0, data);
+		};
+	inline char Get(int x, int y) 
+		{ return data[y*w+x]; }							// NB no range check!
+	inline void Set(int x, int y, char val) 
+		{ data[y*w+x] = val; }							// NB no range check!
+
+	void Line(int x0, int y0, int x1, int y1, char val); 
+	void Arc(int x0, int y0, int x1, int y1, bool bCw, char val);
+	int FloodFill(int x0, int y0, char val);
+	};

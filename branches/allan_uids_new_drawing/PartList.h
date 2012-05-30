@@ -302,6 +302,10 @@ public:
 		int units, BOOL check_unrouted,
 		CArray<CPolyLine> * board_outline,
 		DesignRules * dr, DRErrorList * DRElist );
+	// CPT new helper for DRC():
+	void CheckBrokenArea(carea *a, cnet *net, CDlgLog * log, int units, DRErrorList * drelist, long &nerrors);
+	// end CPT
+
 	undo_part * CreatePartUndoRecord( cpart * part, CString * new_ref_des );
 	static void PartUndoCallback( int type, void * ptr, BOOL undo );
 };

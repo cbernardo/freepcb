@@ -148,7 +148,7 @@ CFreePcbDoc::CFreePcbDoc()
 	m_dlist = new CDisplayList( m_pcbu_per_wu, m_smfontutil );
 	m_dlist_fp = new CDisplayList( m_pcbu_per_wu, m_smfontutil );
 	m_plist = new CPartList( m_dlist );
-	m_nlist = new CNetList( m_dlist, m_plist );
+	m_nlist = new CNetList( m_dlist, m_plist, this );
 	m_plist->UseNetList( m_nlist );
 	m_plist->SetShapeCacheMap( &m_footprint_cache_map );
 	m_tlist = new CTextList( m_dlist, m_smfontutil );
@@ -180,7 +180,7 @@ CFreePcbDoc::CFreePcbDoc()
 
 	// initialize pseudo-clipboard
 	clip_plist = new CPartList( NULL );
-	clip_nlist = new CNetList( NULL, clip_plist );
+	clip_nlist = new CNetList( NULL, clip_plist, this );
 	clip_plist->UseNetList( clip_nlist );
 	clip_plist->SetShapeCacheMap( &m_footprint_cache_map );
 	clip_tlist = new CTextList( NULL, m_smfontutil );
@@ -2853,7 +2853,7 @@ void CFreePcbDoc::OnFileImport()
 			{
 				line = "\r\nImporting nets into project:\r\n";
 				m_dlg_log->AddLine( line );
-				CNetList * old_nlist = new CNetList( NULL, m_plist ); 
+				CNetList * old_nlist = new CNetList( NULL, m_plist, this ); 
 				old_nlist->Copy( m_nlist );
 				m_nlist->ImportNetListInfo( &nl, m_import_flags, m_dlg_log, 0, 0, 0 );
 				line = "\r\nMoving traces and copper areas whose nets have changed:\r\n";
@@ -4675,7 +4675,7 @@ void CFreePcbDoc::OnProjectCombineNets()
 	if( ret == IDOK )
 	{
 		// copy existing netlist
-		CNetList * old_nlist = new CNetList( NULL, NULL );	// save to fix traces
+		CNetList * old_nlist = new CNetList( NULL, NULL, this );	// save to fix traces
 		old_nlist->Copy( m_nlist );
 		// combine nets under new name
 		CString c_name = dlg.m_new_name;
