@@ -31,6 +31,7 @@ class cvertex;
 class CVertex;
 class cconnect;
 class CIterator_cconnect;
+class CFreePcbDoc;					// CPT
 
 #define MAX_NET_NAME_SIZE 39
 
@@ -171,7 +172,7 @@ public:
 		UNDO_NET_MODIFY,		// undo modify net
 		UNDO_NET_OPTIMIZE		// flag to optimize net on undo
 	};
-	CNetList( CDisplayList * dlist, CPartList * plist );
+	CNetList( CDisplayList * dlist, CPartList * plist, CFreePcbDoc * doc );				// CPT:  added doc parameter
 	~CNetList();
 	void SetNumCopperLayers( int layers ){ m_layers = layers;};
 	int GetNumCopperLayers(){ return m_layers;};
@@ -246,6 +247,8 @@ public:
 						int crosshair, int inflection_mode );
 	void CancelDraggingStub( cnet * net, int ic, int iseg );
 	int CancelMovingSegment( cnet * net, int ic, int ivtx );
+	bool IsPinSmt(cnet *net, int pin);					 // CPT
+	bool IsRatlineConnected(cnet *net, int ic, int is);  // CPT
 
 	// functions for vias
 	int ReconcileVia( cnet * net, int ic, int ivtx, BOOL bDrawVertex=TRUE );
@@ -365,5 +368,6 @@ public:
 	CMapStringToPtr m_map;	// map net names to pointers
 	CMap<int,int,cnet*,cnet*> m_uid_map;
 	int m_annular_ring;
+	CFreePcbDoc *m_doc;			// CPT.  Added so that OptimizeConnections() can call CFreePcbDoc::ProjectModified()
 };
 

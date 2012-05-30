@@ -11119,7 +11119,7 @@ void CFreePcbView::OnGroupPaste()
 	// pointers to group lists
 	CPartList * g_pl = m_Doc->clip_plist;
 	CTextList * g_tl = m_Doc->clip_tlist;
-	CNetList * g_nl = new CNetList( NULL, g_pl );	// make copy to modify
+	CNetList * g_nl = new CNetList( NULL, g_pl, m_Doc );	// make copy to modify
 	g_nl->Copy( m_Doc->clip_nlist );
 	g_nl->MarkAllNets( 0 );
 	CArray<CPolyLine> * g_sm = &m_Doc->clip_sm_cutout;

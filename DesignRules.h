@@ -56,6 +56,7 @@ public:
 		COPPERGRAPHIC_BOARDEDGE,	
 		COPPERAREA_COPPERAREA,
 		COPPERAREA_INSIDE_COPPERAREA,
+		COPPERAREA_BROKEN,					// CPT
 		UNROUTED
 	};
 	int layer;				// layer (if pad error)
