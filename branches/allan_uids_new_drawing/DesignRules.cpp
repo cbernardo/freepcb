@@ -18,8 +18,10 @@ DRError::~DRError()
 {
 	if( dl_el )
 	{
-		dl_el->get_dlist()->Remove( dl_el );
-		dl_sel->get_dlist()->Remove( dl_sel );
+		dl_el->Unhook();
+		dl_sel->Unhook();
+		delete dl_el;   
+		delete dl_sel;
 	}
 }
 

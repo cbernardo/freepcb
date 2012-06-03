@@ -754,7 +754,7 @@ BOOL CFreePcbView::SelectItem( id sid )
 //	point    - current mouse position (relative to client window)
 //	hit_info - Drawing objects hit by mouse (must be sorted - priority order)
 //	num_hits - # objects in hit_info array
-int CFreePcbView::SelectObjPopup( CPoint const &point, CDL_job::HitInfo hit_info[], int num_hits )
+int CFreePcbView::SelectObjPopup( CPoint const &point, CHitInfo hit_info[], int num_hits )
 {
 	CDC *winDC = GetDC();
 
@@ -766,7 +766,7 @@ int CFreePcbView::SelectObjPopup( CPoint const &point, CDL_job::HitInfo hit_info
 	dc.SetViewportExt( 1,1 );
 	dc.SetViewportOrg( 0,0 );
 
-	CDL_job::HitInfo *pInfo;
+	CHitInfo *pInfo;
 
 	int idx;
 
@@ -1062,7 +1062,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		//************* now see if item was selected *******************
 		int idx;
 		int num_hits;
-		CDL_job::HitInfo hit_info[MAX_HITS];
+		CHitInfo hit_info[MAX_HITS];
 		void * ptr = NULL;
 		sid.Clear();
 
@@ -2005,7 +2005,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		include_id[1] = id( ID_NET, -1, ID_CONNECT, -1, -1, ID_SEL_VERTEX );	// allow selection of vertex
 		int idx;
 		int num_hits;
-		CDL_job::HitInfo hit_info[MAX_HITS];
+		CHitInfo hit_info[MAX_HITS];
 		idx = m_dlist->TestSelect(
 			p.x, p.y,					  // Point
 			hit_info, MAX_HITS, num_hits, // Hit Information
@@ -2313,7 +2313,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		id pad_id( ID_PART, -1, ID_SEL_PAD );	// force selection of pad
 		int idx;
 		int num_hits;
-		CDL_job::HitInfo hit_info[MAX_HITS];
+		CHitInfo hit_info[MAX_HITS];
 		idx = m_dlist->TestSelect(
 			p.x, p.y,					  // Point
 			hit_info, MAX_HITS, num_hits, // Hit Information
@@ -2390,7 +2390,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		include_ids[1].Set( ID_NET, -1, ID_CONNECT, -1, -1, ID_SEL_VERTEX  );	
 		int idx;
 		int num_hits;
-		CDL_job::HitInfo hit_info[MAX_HITS];
+		CHitInfo hit_info[MAX_HITS];
 		idx = m_dlist->TestSelect(
 			m_last_cursor_point.x, m_last_cursor_point.y,					  
 			hit_info, MAX_HITS, num_hits, 
@@ -4427,7 +4427,7 @@ void CFreePcbView::OnMouseMove(UINT nFlags, CPoint point)
 #endif
 
 	// AMW this is the replacement using the new version of TestSelect
-	CDL_job::HitInfo hit_info[20];
+	CHitInfo hit_info[20];
 	int num_hits;	
 	int best_hit_index = m_dlist->TestSelect( p.x, p.y, hit_info, 20, num_hits, NULL, NULL, &pad_id, 1 );
 

@@ -4277,7 +4277,7 @@ END
 
 STRINGTABLE
 BEGIN
-    IDS_AppName             "Merge-CPT 0.25"
+    IDS_AppName             "Merge-CPT 0.26"
 END
 
 STRINGTABLE

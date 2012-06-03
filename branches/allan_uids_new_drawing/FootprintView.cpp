@@ -566,7 +566,7 @@ void CFootprintView::OnLButtonDown(UINT nFlags, CPoint point)
 #endif
 
 			enum { MAX_HITS = 500 };
-			CDL_job::HitInfo hit_info[MAX_HITS];
+			CHitInfo hit_info[MAX_HITS];
 			int num_hits;
 
 			int idx = m_dlist->TestSelect(

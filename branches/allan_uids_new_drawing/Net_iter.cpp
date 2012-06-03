@@ -536,3 +536,4 @@ void CIterator_carea::OnRemove( carea * area )
 
 	OnRemove( remove_ia );
 }
+
