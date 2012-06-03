@@ -35,11 +35,10 @@
 //
 dl_element::dl_element()
 {
+	prev = next = NULL;
 }
 
 
-// constructor
-//
 CDisplayList::CDisplayList( int pcbu_per_wu, SMFontUtil * fontutil )
 {
 	m_pcbu_per_wu = pcbu_per_wu;
@@ -60,9 +59,6 @@ CDisplayList::CDisplayList( int pcbu_per_wu, SMFontUtil * fontutil )
 		m_order_for_layer[layer] = layer;
 		m_vis[layer] = 0;
 
-		// Force the creation of "traces" job.
-		// This is where the traces are added to in the non job specific version of Add()
-		GetJob_traces(layer);
 	}
 	// miscellaneous
 	m_ratline_w = 1;
@@ -79,17 +75,9 @@ CDisplayList::CDisplayList( int pcbu_per_wu, SMFontUtil * fontutil )
 	m_inflection_mode = IM_NONE;
 }
 
-// destructor
-//
 CDisplayList::~CDisplayList()
 {
 	RemoveAll();
-
-	// Delete the "traces" jobs
-	for( int layer=0; layer<MAX_LAYERS; layer++ )
-	{
-		delete GetJob_traces(layer);
-	}
 }
 
 // Remove element from list, return id
@@ -108,8 +96,9 @@ id CDisplayList::Remove( dl_element * element )
 		return no_id;
 	}
 
-	// remove links to this element
-	element->DLinkList_remove();
+	// CPT:  new system replacing Brian's.  "element" will unhook itself from its linked list:
+	element->Unhook();
+	// end CPT
 
 	// destroy element
 	id el_id = element->id;
@@ -120,18 +109,13 @@ id CDisplayList::Remove( dl_element * element )
 
 void CDisplayList::RemoveAllFromLayer( int layer )
 {
-	CDLinkList *pLIST = &m_LIST_job[layer];
-	for (;;)
-	{
-		if( pLIST->next == pLIST ) break;
-
-		delete static_cast<CDL_job*>(pLIST->next);
-	}
-
-	// Re-insert the "traces" job
-	GetJob_traces(layer);
+	// CPT: new system replacing Brian's.  Delete all elements from linked list layers[layer].elements:
+	CDisplayLayer *dl = &layers[layer];
+	for (dl_element *el = dl->elements, *next; el; el = next)
+		next = el->next,
+		delete el;
+	dl->elements = NULL;
 }
-
 
 void CDisplayList::RemoveAll()
 {
@@ -246,8 +230,7 @@ dl_element * CDisplayList::AddSelector( id id, void * ptr, int layer, int gtype,
 	                                      layer );
 
 	// Add to traces job in selection layer
-	CDL_job *pDL_job = GetJob_traces(LAY_SELECTION);
-	pDL_job->Add(new_element);
+	layers[LAY_SELECTION].Add(new_element);
 
 	return new_element;
 }
@@ -333,7 +316,7 @@ dl_element * CDisplayList::CreateDLE( id id, void * ptr, int layer, int gtype, i
 }
 
 
-dl_element * CDisplayList::MorphDLE( dl_element *pFrom, int to_gtype )
+/* dl_element * CDisplayList::MorphDLE( dl_element *pFrom, int to_gtype )
 {
 	// create new element
 	dl_element * new_element = CreateDLE( to_gtype );
@@ -359,6 +342,8 @@ dl_element * CDisplayList::MorphDLE( dl_element *pFrom, int to_gtype )
 }
 
 
+/* CPT:  culling out Brian's unused stuff
+
 CDL_job_traces * CDisplayList::GetJob_traces( int layer )
 {
 	CDL_job_traces *pJob;
@@ -378,12 +363,15 @@ CDL_job_traces * CDisplayList::GetJob_traces( int layer )
 }
 
 
+/*  CPT:  culling out Brian's unused stuff
+
 void CDisplayList::Add( CDL_job *pDL_job, int layer )
 {
     m_LIST_job[layer].move_before(pDL_job);
 }
+*/
 
-
+/*  CPT:  culling out Brian's unused stuff
 // Add entry to end of list, returns pointer to element created.
 //
 // Entry is added to the given job.
@@ -404,7 +392,7 @@ dl_element * CDisplayList::Add( CDL_job *pDL_job, id id, void * ptr, int layer, 
 
 	return new_element;
 }
-
+*/
 
 // Add entry to end of list, returns pointer to element created.
 //
@@ -422,19 +410,14 @@ dl_element * CDisplayList::Add( id id, void * ptr, int layer, int gtype, int vis
 	                                      w, holew, clearancew,
 	                                      x,y, xf,yf, xo,yo, radius,
 	                                      orig_layer );
-	// Link into traces job
-	CDL_job *pDL_job = GetJob_traces(layer);
-	pDL_job->Add(new_element);
-
+	layers[layer].Add(new_element);										// CPT:  new system replacing Brian's
 	return new_element;
 }
 
 
 void CDisplayList::Add( dl_element * element )
 {
-	// Link into traces job
-	CDL_job *pDL_job = GetJob_traces(element->layer);
-    pDL_job->Add(element);
+	layers[element->layer].Add(element);								// CPT:  new system replacing Brian's
 }
 
 
@@ -645,13 +628,8 @@ void CDisplayList::Draw( CDC * dDC )
 			di.layer_color[1] = m_rgb[layer];
 		}
 
-		// Run drawing jobs for this layer
-		CDLinkList *pElement;
-		for( pElement = m_LIST_job[layer].next; pElement != &m_LIST_job[layer]; pElement = pElement->next )
-		{
-			CDL_job *pJob = static_cast<CDL_job*>(pElement);
-			pJob->Draw(di);
-		}
+		// CPT: Draw layer!
+		layers[layer].Draw(di);
 
 		if( di.DC != di.DC_Master )
 		{
@@ -957,103 +935,102 @@ COLORREF CDisplayList::GetLayerColor( int layer )
 // where n_include_ids is size of array, and
 // where -1's in include_id[] fields are treated as wildcards
 //
+// CPT:  removed references to Brian's CDL_job classes, and tidied up.
+
 int CDisplayList::TestSelect(
 	int x, int y,
-	CDL_job::HitInfo hit_info[], int max_hits, int &num_hits,
+	CHitInfo hit_info[], int max_hits, int &num_hits,
 	id * exclude_id, void * exclude_ptr,
 	id * include_id, int n_include_ids )
 {
 	int best_hit = -1;
 
 	// Get the traces job (last in job list)
-	if( m_vis[LAY_SELECTION] )
+	if(!m_vis[LAY_SELECTION] ) return -1;
+
+	CPoint point(x/m_pcbu_per_wu, y/m_pcbu_per_wu);
+	num_hits = TestForHits(point, hit_info, max_hits-1);
+
+	// now return highest priority hit
+	// assign priority to each hit, track maximum, exclude exclude_id item
+	int best_hit_priority = 0;
+	for( int i=0; i<num_hits; i++ )
 	{
-		CDL_job_traces *pJob = GetJob_traces(LAY_SELECTION);
-
-		CPoint point(x/m_pcbu_per_wu, y/m_pcbu_per_wu);
-
-		num_hits = pJob->TestForHit(point, hit_info, max_hits-1);
-
-		// now return highest priority hit
-		// assign priority to each hit, track maximum, exclude exclude_id item
-		int best_hit_priority = 0;
-		for( int i=0; i<num_hits; i++ )
+		// if a pcb item (ie. not a footprint )
+		// try to resolve all id fields of the item that was hit
+		CHitInfo this_hit = hit_info[i];
+		if( !this_hit.ID.IsAnyFootItem() )
 		{
-			// if a pcb item (ie. not a footprint )
-			// try to resolve all id fields of the item that was hit
-			CDL_job::HitInfo this_hit = hit_info[i];
-			if( !this_hit.ID.IsAnyFootItem() )
-			{
-				BOOL bOK = this_hit.ID.Resolve();
-				if( !bOK )
-					ASSERT(0);
-			}
+			BOOL bOK = this_hit.ID.Resolve();
+			if( !bOK )
+				ASSERT(0);
+		}
 
-			// now check inclusion/exclusion criteria
-			BOOL excluded_hit = FALSE;
-			BOOL included_hit = TRUE;
-			// always exclude hits on slaved tee-vertices 
-			if( this_hit.ID.IsVtx() )
+		// now check inclusion/exclusion criteria
+		BOOL excluded_hit = FALSE;
+		BOOL included_hit = TRUE;
+		// always exclude hits on slaved tee-vertices 
+		if( this_hit.ID.IsVtx() )
+		{
+			if( this_hit.ID.Vtx()->tee_ID < 0 )
+				excluded_hit = TRUE;
+		}
+		// test for other exclusions
+		if( exclude_id )
+		{
+			if( !exclude_id->IsClear() )
 			{
-				if( this_hit.ID.Vtx()->tee_ID < 0 )
+				id test_id = this_hit.ID;
+				if( test_id == *exclude_id && this_hit.ptr == exclude_ptr )
 					excluded_hit = TRUE;
 			}
-			// test for other exclusions
-			if( exclude_id )
+		}
+		// test for explicit inclusions
+		if( include_id )
+		{
+			included_hit = FALSE;
+			for( int inc=0; inc<n_include_ids; inc++ )
 			{
-				if( !exclude_id->IsClear() )
+				id * inc_id = &include_id[inc];
+				if( this_hit.ID == *inc_id )	 // note that == includes wildcards
 				{
-					id test_id = this_hit.ID;
-					if( test_id == *exclude_id && this_hit.ptr == exclude_ptr )
-						excluded_hit = TRUE;
+					included_hit = TRUE;
+					break;
 				}
-			}
-			// test for explicit inclusions
-			if( include_id )
-			{
-				included_hit = FALSE;
-				for( int inc=0; inc<n_include_ids; inc++ )
-				{
-					id * inc_id = &include_id[inc];
-					if( this_hit.ID == *inc_id )	 // note that == includes wildcards
-					{
-						included_hit = TRUE;
-						break;
-					}
-				}
-			}
-			if( !excluded_hit && included_hit )
-			{
-				// OK, valid hit, now assign priority
-				// start with reversed layer drawing order * 10
-				// i.e. last drawn = highest priority
-				int priority = (MAX_LAYERS - m_order_for_layer[hit_info[i].layer])*10;
-				// bump priority for small items which may be overlapped by larger items on same layer
-				if( this_hit.ID.T1() == ID_PART &&this_hit.ID.T2() == ID_REF_TXT && this_hit.ID.T3() == ID_SEL_TXT )
-					priority++;
-				else if( this_hit.ID.T1() == ID_PART && this_hit.ID.T2() == ID_VALUE_TXT && this_hit.ID.T3() == ID_SEL_TXT )
-					priority++;
-				else if( this_hit.ID.T1() == ID_BOARD && this_hit.ID.T2() == ID_OUTLINE && this_hit.ID.T3() == ID_SEL_CORNER )
-					priority++;
-				else if( this_hit.ID.T1() == ID_NET && this_hit.ID.T2() == ID_AREA && this_hit.ID.T3() == ID_SEL_CORNER )
-					priority++;
-				else if( this_hit.ID.T1() == ID_NET && this_hit.ID.T2() == ID_CONNECT && this_hit.ID.T3() == ID_SEL_VERTEX )
-					priority++;
-
-				hit_info[i].priority = priority;
-				if( priority >= best_hit_priority )
-				{
-					best_hit_priority = priority;
-					best_hit = i;
-				}
-			}
-			else
-			{
-				// Not valid hit, set priority < zero
-				hit_info[i].priority = -1;
 			}
 		}
+		if( !excluded_hit && included_hit )
+		{
+			// OK, valid hit, now assign priority
+			// start with reversed layer drawing order * 10
+			// i.e. last drawn = highest priority
+			int priority = (MAX_LAYERS - m_order_for_layer[hit_info[i].layer])*10;
+			// bump priority for small items which may be overlapped by larger items on same layer
+			if( this_hit.ID.T1() == ID_PART &&this_hit.ID.T2() == ID_REF_TXT && this_hit.ID.T3() == ID_SEL_TXT )
+				priority++;
+			else if( this_hit.ID.T1() == ID_PART && this_hit.ID.T2() == ID_VALUE_TXT && this_hit.ID.T3() == ID_SEL_TXT )
+				priority++;
+			else if( this_hit.ID.T1() == ID_BOARD && this_hit.ID.T2() == ID_OUTLINE && this_hit.ID.T3() == ID_SEL_CORNER )
+				priority++;
+			else if( this_hit.ID.T1() == ID_NET && this_hit.ID.T2() == ID_AREA && this_hit.ID.T3() == ID_SEL_CORNER )
+				priority++;
+			else if( this_hit.ID.T1() == ID_NET && this_hit.ID.T2() == ID_CONNECT && this_hit.ID.T3() == ID_SEL_VERTEX )
+				priority++;
+
+			hit_info[i].priority = priority;
+			if( priority >= best_hit_priority )
+			{
+				best_hit_priority = priority;
+				best_hit = i;
+			}
+		}
+		else
+		{
+			// Not valid hit, set priority < zero
+			hit_info[i].priority = -1;
+		}
 	}
+
 	return best_hit;
 }
 
@@ -2209,6 +2186,7 @@ CPoint CDisplayList::PCBToScreen( CPoint point )
 }
 
 
+/* CPT:  culling out Brian's unused stuff
 void CDisplayList::UpdateRatlineWidth( int width )
 {
 	m_ratline_w = width / m_pcbu_per_wu;
@@ -2216,3 +2194,73 @@ void CDisplayList::UpdateRatlineWidth( int width )
 	GetJob_traces( LAY_RAT_LINE  )->UpdateLineWidths(m_ratline_w, LAY_RAT_LINE);
 	GetJob_traces( LAY_SELECTION )->UpdateLineWidths(m_ratline_w, LAY_RAT_LINE);
 }
+*/
+
+
+void CDisplayLayer::Draw(CDrawInfo &di) 
+{
+	CPen * old_pen;
+	CBrush * old_brush;
+
+	// Create drawing objects
+	{
+		di.erase_pen.CreatePen( PS_SOLID, 1, di.layer_color[0] );
+		di.erase_brush.CreateSolidBrush( di.layer_color[0] );
+		di.line_pen.CreatePen( PS_SOLID, 1, di.layer_color[1] );
+		di.fill_brush.CreateSolidBrush( di.layer_color[1] );
+
+		old_pen   = di.DC->SelectObject( &di.line_pen );
+		old_brush = di.DC->SelectObject( &di.fill_brush );
+	}
+
+	for (dl_element *el = elements; el; el = el->next)
+		el->Draw(di);
+
+	// Restore original drawing objects
+	{
+		di.DC->SelectObject( old_pen );
+		di.DC->SelectObject( old_brush );
+
+		di.erase_pen.DeleteObject();
+		di.erase_brush.DeleteObject();
+		di.line_pen.DeleteObject();
+		di.fill_brush.DeleteObject();
+	}
+}
+
+
+// CPT:  Brian had this function in class CDL_job.  I've moved it into CDisplayList.  (Also changed name from TestForHit to TestForHits.)
+// Tests x,y for a hit on one of the items in the selection layer.
+// creates arrays with layer and id of each hit item
+// assigns priority based on layer and id
+// then returns pointer to item with highest priority
+// If exclude_id != NULL, excludes item with
+// id == exclude_id and ptr == exclude_ptr
+// If include_id != NULL, only include items that match include_id[]
+// where n_include_ids is size of array, and
+// where 0's in include_id[] fields are treated as wildcards
+//
+int CDisplayList::TestForHits( CPoint const &point, CHitInfo hitInfo[], int max_hits ) 
+{
+	int  nhits = 0;
+
+	// traverse the list, looking for selection shapes
+	for (dl_element *el = layers[LAY_SELECTION].elements; el; el = el->next) {
+		if( el->isHit(point) )
+		{
+			// OK, hit
+			hitInfo->layer = el->layer;
+			hitInfo->ID    = el->id;
+			hitInfo->ptr   = el->ptr;
+
+			hitInfo++;
+			nhits++;
+
+			if( nhits >= max_hits )
+				break;
+		}
+	}
+
+	return nhits;
+}
+

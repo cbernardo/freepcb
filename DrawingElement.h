@@ -10,9 +10,11 @@ struct CDrawInfo;
 class CDisplayList;
 
 // this structure contains an element of the display list
-class dl_element : public CDLinkList
+// CPT:  no longer derived from CDLinkList.
+class dl_element
 {
 	friend class CDisplayList;
+	friend class CDisplayLayer;
 
 public:
 	int magic;
@@ -30,10 +32,6 @@ public:
 	int isHit(CPoint const &point) const;
 	int getBoundingRect(CRect &rect) const { return _getBoundingRect(rect); }
 
-	void Remove(void);
-
-	CDisplayList *get_dlist() { return dlist; }
-
 protected:
 	virtual void _Draw             (CDrawInfo const &di) const {}
 	virtual void _DrawClearance    (CDrawInfo const &di) const {}
@@ -43,9 +41,6 @@ protected:
 	virtual int  _getBoundingRect(CRect &rect) const { return 0; }
 
 protected:
-	friend class CDL_job;
-	friend class CDL_job_traces;
-
 	CDisplayList * dlist;
 
 	int sel_vert;     // for selection rectangles, 1 if part is vertical
@@ -56,10 +51,15 @@ protected:
 	CPoint i;         // starting or center position of element
 	CPoint f;         // opposite corner (for rectangle or line)
 	int radius;       // radius of corners for DL_RRECT
-	int layer;        // layer to draw on
+	int layer;        // layer to draw on.  CPT:  for elements in the selection layer, this is not necessarily LAY_SELECTION!
 	int orig_layer;   // for elements on highlight layer,
 	                  // the original layer, the highlight will
 	                  // only be drawn if this layer is visible
+	dl_element *prev, *next;			// CPT.  I'm phasing out references to CDLinkList, and am implementing the linked lists this way.
+	CDisplayLayer *displayLayer;		// CPT
+public:
+	void Unhook();						// CPT.  Used to be called Remove(), but this name is more descriptive.
+
 };
 
 // n-sided with equal length sides

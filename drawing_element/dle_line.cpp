@@ -109,11 +109,12 @@ void CDLE_LINE::__Draw(CDrawInfo const &di, int mode) const
 			else if( layer == LAY_HILITE )
 			{
 // AMW r272 				CPen pen( PS_SOLID, linew + PCBU_PER_WU / 256 + 3*(int)dlist->m_scale, di.layer_color[0] );
-				CPen pen( PS_SOLID, linew + PCBU_PER_WU / 1024 + 3*(int)dlist->m_scale, di.layer_color[0] );
+/*				CPen pen( PS_SOLID, linew + PCBU_PER_WU / 1024 + 3*(int)dlist->m_scale, di.layer_color[0] );
 				CPen *old_pen = di.DC_Master->SelectObject( &pen );
 				di.DC_Master->MoveTo( xi, yi );
 				di.DC_Master->LineTo( f.x, f.y );
 				di.DC_Master->SelectObject( old_pen );
+*/
 			}
 
 			if( linew < 0 ) return;

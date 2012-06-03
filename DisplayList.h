@@ -97,8 +97,42 @@ struct CDrawInfo
 
 
 #include "DrawingElement.h"
-#include "DrawingJob.h"
 
+// CPT:  new system to replace Brian's "drawing jobs"
+class CDisplayLayer {
+public:
+	dl_element *elements;					// A doubly-linked list of display elements.
+
+	CDisplayLayer()
+		{ elements = NULL; }
+	void Add(dl_element* el) {
+		// Add el to the head of the linked list.
+		if (elements) elements->prev = el;
+		el->next = elements;
+		elements = el;
+		el->displayLayer = this;
+		}
+	void Draw(CDrawInfo &di);
+};
+
+class CHitInfo
+{
+	// Was a struct within Brian's CDL_job class, for some reason.  Now it's an independent class.
+public:
+	int layer;
+	id  ID;
+	void *ptr;
+	int priority;
+
+	// To support sorting.  CPT:  A horrible business.  Should dump this...
+	int operator < ( CHitInfo const &to) const
+	{
+		// Use > so that sort order is highest to lowest priority
+		return priority > to.priority;
+	}
+};
+
+// end CPT
 
 class CDisplayList
 {
@@ -106,8 +140,7 @@ private:
     friend dl_element;
 
 	// display-list parameters for each layer
-	CDLinkList m_LIST_job[MAX_LAYERS];
-
+	CDisplayLayer layers[MAX_LAYERS];					// CPT
 	C_RGB m_rgb[MAX_LAYERS];            // layer colors
 	int m_layer_in_order[MAX_LAYERS];	// array of layers in draw order
 	int m_order_for_layer[MAX_LAYERS];	// draw order for each layer
@@ -230,23 +263,12 @@ public:
 
     dl_element * MorphDLE( dl_element *pFrom, int to_gtype );
 
-	// Get traces job
-	CDL_job_traces * GetJob_traces( int layer );
-
-	// Add a job
-	void Add( CDL_job *pDL_job, int layer );
-
     // Create and add elements
 	dl_element * Add( id id, void * ptr, int glayer, int gtype, int visible,
 						int w, int holew, int clearancew,
 						int x, int y, int xf, int yf, int xo, int yo,
 						int radius=0,
 						int orig_layer=LAY_SELECTION );
-
-	dl_element * Add( CDL_job *pDL_job, id id, void * ptr, int glayer, int gtype, int visible,
-						int w, int holew, int clearancew,
-						int x, int y, int xf, int yf, int xo, int yo,
-						int radius=0 );
 
 	dl_element * AddSelector( id id, void * ptr, int glayer, int gtype, int visible,
 								int w, int holew,
@@ -265,7 +287,7 @@ public:
 	int HighLight( int gtype, int x, int y, int xf, int yf, int w, int orig_layer=LAY_SELECTION );
 	int CancelHighLight();
 	int TestSelect( int x, int y,
-					CDL_job::HitInfo hit_info[], int max_hits, int &num_hits,
+					CHitInfo hit_info[], int max_hits, int &num_hits,
 					id * exclude_id = NULL, void * exclude_ptr = NULL,
 					id * include_id = NULL, int n_include_ids=0 );
 	int StartDraggingArray( CDC * pDC, int x, int y, int vert, int layer, int crosshair = 1 );
@@ -355,4 +377,6 @@ public:
 	int Get_pass( dl_element * el );
 	void Get_Endpoints(CPoint *cpi, CPoint *cpf);
 	id Get_id( dl_element * el );
+
+	int TestForHits( CPoint const &point, CHitInfo hitInfo[], int max_hits );			// CPT:  previously in Brian's CDL_job
 };

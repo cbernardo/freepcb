@@ -29,13 +29,16 @@ int dl_element::isHit(CPoint const &point) const
 }
 
 
-void dl_element::Remove(void)
+void dl_element::Unhook(void)
 {
-	if( this == NULL ) return;
-
-	dlist->Remove(this);
+	// CPT.  New system replacing Brian's.  Element unhooks itself from its doubly linked list (the head of which is in this->displayLayer->elements).
+	if (displayLayer->elements==this)
+		displayLayer->elements = next;
+	else 
+		prev->next = next;
+	if (next) 
+		next->prev = prev;
 }
-
 
 
 int CDLE_Symmetric::onScreen(void) const

@@ -582,7 +582,7 @@ public:
 	void HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags);
 	void CFreePcbView::TryToReselectAreaCorner( int x, int y );
 	void ReselectNetItemIfConnectionsChanged( int new_ic );
-	int SelectObjPopup( CPoint const &point, CDL_job::HitInfo hit_info[], int num_hits );
+	int SelectObjPopup( CPoint const &point, CHitInfo hit_info[], int num_hits );
 
 protected:
 
