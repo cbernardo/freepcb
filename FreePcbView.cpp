@@ -4471,6 +4471,7 @@ void CFreePcbView::SetCursorMode( int mode )
 		m_cursor_mode = mode;
 		ShowSelectStatus();
 		/*  CPT removed.  Want to allow copy/paste when single item is selected
+		//** AMW r284: reinserted since edit commands never enabled */
 		if( mode == CUR_GROUP_SELECTED )
 		{
 			CWnd* pMain = AfxGetMainWnd();
@@ -4497,7 +4498,7 @@ void CFreePcbView::SetCursorMode( int mode )
 				pMain->DrawMenuBar();
 			}
 		}
-		*/
+//**		*/
 		if( CurDragging() )
 			SetMainMenu( FALSE );
 		else if( m_Doc->m_project_open )
@@ -10439,7 +10440,7 @@ void CFreePcbView::OnGroupCopy()
 		id sid = m_sel_ids[i];
 		if( sid.T1() == ID_NET && sid.T2() == ID_CONNECT )
 		{
-			// connection, only add if between parts in group
+			// connection, only add if between parts in group and/or tees
 			cnet * net = (cnet*)m_sel_ptrs[i];
 			cconnect * c = net->ConByIndex(sid.I2());
 			if( c->utility == FALSE )
@@ -10487,27 +10488,35 @@ void CFreePcbView::OnGroupCopy()
 					// add connection to group net, and copy all segments and vertices
 					cconnect * g_c = NULL;
 					int g_ic = -1;
-					if( pin1 )
+					if( bStartPinInGroup )
 					{
 						// make connection from pin1
 						int p1 = g_nl->GetNetPinIndex( g_net, &pin1->ref_des, &pin1->pin_name );
-						if( pin2 )
+						if( bEndPinInGroup )
 						{
+							// pin1-pin2 connnection
 							int p2 = g_nl->GetNetPinIndex( g_net, &pin2->ref_des, &pin2->pin_name );
 							g_c = g_net->AddConnectFromPinToPin( p1, p2, &g_ic );
 						}
 
 						else
 						{
+							// pin1-tee connection
 							g_c = g_net->AddConnectFromPin( p1, &g_ic );
 						}
 					}
-					else if( pin2 )
+					else if( bEndPinInGroup )
 					{
-						// make connection from pin2 then reverse it
+						// tee-pin2 connection, make connection from pin2 then reverse it
 						int p2 = g_nl->GetNetPinIndex( g_net, &pin2->ref_des, &pin2->pin_name );
 						g_c = g_net->AddConnectFromPin( p2, &g_ic );
 						g_c->ReverseDirection();
+					}
+					else
+					{
+						// tee-tee connection
+						g_c = g_net->AddConnect( &g_ic);
+						g_c->PrependVertex( *c->FirstVtx() );
 					}
 					if( !g_c )
 						continue;
@@ -10519,8 +10528,9 @@ void CFreePcbView::OnGroupCopy()
 						g_c->SegByIndex(is).m_dlist = NULL;
 						g_c->SegByIndex(is).dl_el = NULL;
 						g_c->SegByIndex(is).dl_sel = NULL;
-						g_c->VtxByIndex(is) = c->VtxByIndex(is);	// this zeros graphics elements
-						c->VtxByIndex(is) = g_c->VtxByIndex(is);	// this restores them
+						g_c->SegByIndex(is).m_con = g_c;
+						g_c->VtxByIndex(is) = c->VtxByIndex(is);	// this zeros graphics elements in c
+						c->VtxByIndex(is) = g_c->VtxByIndex(is);	// this restores them, and zeros g_c
 						g_c->VtxByIndex(is).m_con = g_c;
 						g_nl->AddTeeID( g_c->VtxByIndex(is).tee_ID );
 					}
@@ -10529,15 +10539,15 @@ void CFreePcbView::OnGroupCopy()
 					g_c->VtxByIndex(c->NumSegs()).m_con = g_c;
 //					g_c->vtx[c->NumSegs()].m_bDrawingEnabled = FALSE;
 					g_nl->AddTeeID( g_c->VtxByIndex(c->NumSegs()).tee_ID );
+
 					// remove any routed segments that are not in group
 					for( int is=0; is<c->NumSegs(); is++ )
 					{
+						cseg * s = &c->SegByIndex(is);
 						if( c->SegByIndex(is).m_layer != LAY_RAT_LINE )
 						{
 							// routed segment, is this in group ?
-							id search_id = sid;
-							search_id.SetT3( ID_SEL_SEG );
-							search_id.SetI3( is );
+							id search_id = s->Id();
 							BOOL bInGroup = FALSE;
 							for( int i=0; i<m_sel_ids.GetSize(); i++ )
 							{
@@ -11439,22 +11449,26 @@ void CFreePcbView::OnGroupPaste()
 						new_end_pin = nl->GetNetPinIndex( prj_net, &g_end_ref_des, &g_end_pin_name );
 					}
 					int ic;
-					if( new_start_pin != -1 && (new_end_pin != -1 || g_c->end_pin == cconnect::NO_END) )
+					if( new_start_pin != -1 && new_end_pin != -1 )
 					{
-						// add connection to new net
-						if( new_end_pin != cconnect::NO_END )
-						{
-							prj_net->AddConnectFromPinToPin( new_start_pin, new_end_pin, &ic );
-						}
-						else
-						{
-							prj_net->AddConnectFromPin( new_start_pin, &ic );
-						}
+						// pin-pin connection
+						prj_net->AddConnectFromPinToPin( new_start_pin, new_end_pin, &ic );
 					}
-					else if( new_start_pin == -1 && (new_end_pin != -1 || g_c->end_pin == cconnect::NO_END) )
+					if( new_start_pin != -1 && new_end_pin == -1 )
 					{
+						// pin-tee
+						prj_net->AddConnectFromPin( new_start_pin, &ic );
+					}
+					else if( new_start_pin == -1 && new_end_pin != -1 )
+					{
+						// tee-pin
 						cconnect * c = prj_net->AddConnectFromPin( new_end_pin, &ic );
 						c->ReverseDirection();
+					}
+					else
+					{
+						// tee-tee
+						cconnect * c = prj_net->AddConnect( &ic );
 					}
 					// copy it and draw it
 					if( ic < 0 )
@@ -11511,13 +11525,16 @@ void CFreePcbView::OnGroupPaste()
 							{
 								// assign new tee_ID
 								int new_id;
-								BOOL bFound = tee_map.Lookup( g_id, new_id );
+								BOOL bFound = tee_map.Lookup( abs(g_id), new_id );
 								if( !bFound )
 								{
 									new_id = nl->GetNewTeeID();
-									tee_map.SetAt( g_id, new_id );
+									tee_map.SetAt( abs(g_id), new_id );
 								}
-								c->VtxByIndex(iv).tee_ID = new_id;
+								if( g_id > 0 )
+									c->VtxByIndex(iv).tee_ID = new_id;
+								else
+									c->VtxByIndex(iv).tee_ID = -new_id;
 							}
 							// update lower-left corner
 							double d = c->VtxByIndex(iv).x + c->VtxByIndex(iv).y;
