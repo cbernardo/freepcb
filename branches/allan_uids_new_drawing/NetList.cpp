@@ -2647,15 +2647,19 @@ int CNetList::OptimizeConnections( cnet * net, int ic_track, BOOL bBelowPinCount
 	free( grid );
 
 	// CPT:  cull out ratlines where the two endpts are determined to be already connected in copper
-	for (int i=0; i<net->NumCons(); i++) {
-		cconnect *c = net->ConByIndex(i);
-		for (int j=0; j<c->NumSegs(); j++) {
+	// AMW r284: fixed bug where if removing segment resulted in removing connection, loop failed
+	for ( cconnect * c=iter_con.GetFirst(); c=iter_con.GetNext(); c )
+	{
+		for (int j=0; j<c->NumSegs(); j++) 
+		{
 			cseg *seg = &c->seg[j];
-			if (seg->m_layer!=LAY_RAT_LINE) continue;
-			if (!IsRatlineConnected(net, i, j)) continue;
+			if (seg->m_layer!=LAY_RAT_LINE) 
+				continue;
+			if (!IsRatlineConnected(net, i, j)) 
+				continue;
 			net->RemoveSegmentAdjustTees(seg);
-			ic_new = -1;									// Unselect all on return if ratlines are culled (seemed safest and simplest)
-			j--;											// Because we just eliminated a segment from the connect...
+			ic_new = -1;							// Unselect all on return if ratlines are culled (seemed safest and simplest)
+			j--;									// Because we just eliminated a segment from the connect...
 			m_doc->ProjectModified(true);
 		}
 	}
@@ -5031,7 +5035,7 @@ void CNetList::ImportNetListInfo( netlist_info * nl, int flags, CDlgLog * log,
 	CleanUpAllConnections();
 }
 
-// Copy all data from another netlist (except display elements)
+// Copy all data from another netlist (except UIDs and display elements)
 //
 void CNetList::Copy( CNetList * src_nl )
 {
@@ -5082,6 +5086,11 @@ void CNetList::Copy( CNetList * src_nl )
 			{
 				cconnect * c = net->AddConnectFromPin( src_c->end_pin );
 				c->ReverseDirection();
+			}
+			else
+			{
+				cconnect * c = net->AddConnect();
+				c->PrependVertex( *src_c->FirstVtx() );
 			}
 			cconnect * c = net->connect[ic];
 			c->seg.SetSize( src_c->NumSegs() );
