@@ -248,7 +248,7 @@ public:
 	void CancelDraggingStub( cnet * net, int ic, int iseg );
 	int CancelMovingSegment( cnet * net, int ic, int ivtx );
 	bool IsPinSmt(cnet *net, int pin);					 // CPT
-	bool IsRatlineConnected(cnet *net, int ic, int is);  // CPT
+	bool IsRatlineConnected(cseg *seg);					 // CPT
 
 	// functions for vias
 	int ReconcileVia( cnet * net, int ic, int ivtx, BOOL bDrawVertex=TRUE );

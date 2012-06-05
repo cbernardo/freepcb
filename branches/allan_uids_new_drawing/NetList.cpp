@@ -2647,7 +2647,7 @@ int CNetList::OptimizeConnections( cnet * net, int ic_track, BOOL bBelowPinCount
 	free( grid );
 
 	// CPT:  cull out ratlines where the two endpts are determined to be already connected in copper
-	// AMW r284: fixed bug where if removing segment resulted in removing connection, loop failed
+	// AMW r284: fixed bug where if removing segment resulted in removing connection, loop failed.  CPT r286 finished job by tweaking IsRatlineConnected()
 	for ( cconnect * c=iter_con.GetFirst(); c=iter_con.GetNext(); c )
 	{
 		for (int j=0; j<c->NumSegs(); j++) 
@@ -2655,7 +2655,7 @@ int CNetList::OptimizeConnections( cnet * net, int ic_track, BOOL bBelowPinCount
 			cseg *seg = &c->seg[j];
 			if (seg->m_layer!=LAY_RAT_LINE) 
 				continue;
-			if (!IsRatlineConnected(net, i, j)) 
+			if (!IsRatlineConnected(seg)) 
 				continue;
 			net->RemoveSegmentAdjustTees(seg);
 			ic_new = -1;							// Unselect all on return if ratlines are culled (seemed safest and simplest)
@@ -2696,11 +2696,12 @@ bool CNetList::IsPinSmt(cnet *net, int pin) {
 	return ps->hole_size==0;
 	}
 
-bool CNetList::IsRatlineConnected(cnet *net, int ic, int is) {
+bool CNetList::IsRatlineConnected(cseg *seg) {
 	// Utility routine to check whether a ratline's two end vertices are already linked by some copper path through connects 
-	// and areas of "net".  "ic"/"is" contains the info to pinpoint the ratline of interest.
-	cconnect * c0 = net->connect[ic];
-	int ivtx0 = is, ivtx1 = is+1, pin1 = -1;
+	// and areas of "net".
+	cnet *net = seg->m_net;
+	cconnect * c0 = seg->m_con;
+	int ivtx0 = seg->Index(), ivtx1 = ivtx0+1, pin1 = -1;
 	if (ivtx1==0) pin1 = c0->start_pin;
 	else if (ivtx1==c0->NumSegs()) pin1 = c0->end_pin;
 	// Clear utility flags on net's areas and vertices
