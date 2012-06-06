@@ -28,8 +28,9 @@ void CDlgAddMaskCutout::DoDataExchange(CDataExchange* pDX)
 	if( !pDX->m_bSaveAndValidate )
 	{
 		// incoming
-		m_combo_layer.InsertString( 0, "TOP SOLDER MASK" );
-		m_combo_layer.InsertString( 1, "BOTTOM SOLDER MASK" );
+		CString str1 ((LPCSTR) IDS_TopSolderMask), str2 ((LPCSTR) IDS_BottomSolderMask);
+		m_combo_layer.InsertString( 0, str1 );
+		m_combo_layer.InsertString( 1, str2 );
 		m_combo_layer.SetCurSel(0);
 		m_radio_none.SetCheck(1);
 	}

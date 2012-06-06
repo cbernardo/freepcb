@@ -41,10 +41,10 @@ void CDlgAddPoly::DoDataExchange(CDataExchange* pDX)
 			m_combo_units.SetCurSel( 0 );
 		else
 			m_combo_units.SetCurSel( 1 );
-		m_combo_layer.InsertString( 0, "TOP SILK" );
-		m_combo_layer.InsertString( 1, "BOTTOM SILK" );
-		m_combo_layer.InsertString( 2, "TOP COPPER" );
-		m_combo_layer.InsertString( 3, "BOTTOM COPPER" );
+		CString s;
+		for (int i=0; i<4; i++)
+			s.LoadStringA(IDS_TopSilk+i),
+			m_combo_layer.InsertString( i, s );
 		for( int ip=0; ip<m_padstack->GetSize(); ip++ )
 		{
 			m_combo_pin_name.InsertString( ip, (*m_padstack)[ip].name );
@@ -59,7 +59,8 @@ void CDlgAddPoly::DoDataExchange(CDataExchange* pDX)
 		if( m_width < 1*NM_PER_MIL || m_width > 999*NM_PER_MIL )
 		{
 			pDX->PrepareEditCtrl( IDC_EDIT_WIDTH );
-			AfxMessageBox( "Width out of range (1 to 999 mils)" );
+			CString s ((LPCSTR) IDS_WidthOutOfRange);
+			AfxMessageBox( s );
 			pDX->Fail();
 		}
 		gLastLayerIndex = m_layer_index;

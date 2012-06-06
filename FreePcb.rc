@@ -3689,16 +3689,12 @@ BEGIN
     IDS_Off                 "Off"
     IDS_NetStubTraceRemovingZeroLength 
                             "net %s: stub trace from %s.%s: removing zero-length segment\r\n"
-    IDS_NetTraceRemovingZeroLength 
-                            "net %s: trace %s.%s to %s.%s: removing zero-length segment\r\n"
 END
 
 STRINGTABLE
 BEGIN
     IDS_NetStubTraceCombiningColinear 
                             "net %s: stub trace from %s.%s: combining colinear segments\r\n"
-    IDS_NetTraceCombiningColinear 
-                            "net %s: trace %s.%s to %s.%s: combining colinear segments\r\n"
     IDS_NetStubTraceSingleUnrouted 
                             "net %s: stub trace from %s.%s: single unrouted segment and no end via, removed\r\n"
     IDS_CheckingTeesAndBranches "\r\nChecking tees and branches:\r\n"
@@ -3817,7 +3813,7 @@ BEGIN
     IDS_UnableToFindPartsSectionInFile 
                             "Unable to find [parts] section in file"
     IDS_KeepingPartAndConnections "  Keeping part %s and connections\r\n"
-    IDS_KeppingPartButRemovingConnections 
+    IDS_KeepingPartButRemovingConnections 
                             "  Keeping part %s but removing connections\r\n"
     IDS_RemovingPart        "  Removing part %s\r\n"
     IDS_ChangingFootprintOfPart 
@@ -4277,7 +4273,7 @@ END
 
 STRINGTABLE
 BEGIN
-    IDS_AppName             "Merge-CPT 0.26"
+    IDS_AppName             "Merge-CPT 0.27"
 END
 
 STRINGTABLE
@@ -4400,6 +4396,80 @@ BEGIN
     IDS_PinXY               "Pin %s, x=%s, y=%s"
     IDS_PolylineCornerXY    "Polyline %d, corner %d, x=%s, y=%s"
     IDS_TextHeightZeroIsNotPermitted "Text height zero is not permitted."
+    IDS_TopSilk             "TOP SILK"
+    IDS_BottomSilk          "BOTTOM SILK"
+    IDS_TopCopper2          "TOP COPPER"
+    IDS_BottomCopper2       "BOTTOM COPPER"
+    IDS_String              "String"
+    IDS_ArcsWithEndpointsNotAt45DegreeAngles 
+                            "Arcs with endpoints not at 45 degree angles converted to straight lines"
+    IDS_Board               "BOARD"
+    IDS_Side3               " SIDE"
+    IDS_Corner3             " CORNER"
+    IDS_Pin3                "PIN: %s.%s"
+END
+
+STRINGTABLE
+BEGIN
+    IDS_Ref3                "REF: %s"
+    IDS_Value3              "VALUE: %s"
+    IDS_Segment3            "SEGMENT"
+    IDS_Via3                "VIA"
+    IDS_Vertex3             "VERTEX"
+    IDS_Copper3             "COPPER"
+    IDS_Text3               "TEXT: %s"
+    IDS_DRC3                "DRC"
+    IDS_Cutout3             "CUTOUT"
+    IDS_Centroid3           "CENTROID"
+    IDS_GlueSpot3           "GLUE SPOT"
+    IDS_YouAreTryingToConnectTracesOnDifferentNets 
+                            "You are trying to connect traces on different nets"
+    IDS_YouAreTryingToConnectVerticesOnSameTrace 
+                            "You are trying to connect vertices on same trace"
+    IDS_CantConnectTraceToItself "Can't connect trace to itself"
+    IDS_ConnectingTraceToVertex "Connecting trace to vertex"
+    IDS_Length              "%s, length %s"
+END
+
+STRINGTABLE
+BEGIN
+    IDS_SegmentW            "segment, w %s"
+    IDS_EndVertex           "end-vertex"
+    IDS_Vertex              "vertex"
+    IDS_PinVertex           "pin-vertex"
+    IDS_TVertex             "T-vertex(%d)"
+    IDS_XYVia               "%s, x %s, y %s, via %s/%s"
+    IDS_Ratline             "ratline"
+    IDS_Trace               "trace"
+    IDS_FromTo              "%s, %s from %s to %s%s"
+    IDS_Net2                "Net %s"
+    IDS_NetTraceRemovingZeroLength 
+                            "net %s: trace from %s to %s: removing zero-length segment\r\n"
+    IDS_NetTraceCombiningColinear 
+                            "net %s: trace from %s to %s: combining colinear segments\r\n"
+    IDS_XYNoVia             "%s, x %s, y %s, no via"
+    IDS_PadHoleToCopperGraphics 
+                            "%ld: %s.%s pad hole to %s.%s copper graphics = %s, x=%s, y=%s\r\n"
+    IDS_PadToCopperGraphics "%ld: %s.%s pad to %s.%s copper graphics = %s, x=%s, y=%s\r\n"
+    IDS_TraceToCopperGraphic 
+                            "%ld: ""%s"" trace to copper graphic = %s, x=%s, y=%s\r\n"
+END
+
+STRINGTABLE
+BEGIN
+    IDS_ViaToCopperGraphic  "%ld: ""%s"" via to copper graphic = %s, x=%s, y=%s\r\n"
+    IDS_ViaHoleToCopperGraphic 
+                            "%ld: ""%s"" via hole to copper graphic = %s, x=%s, y=%s\r\n"
+    IDS_FontStrokeFileWasNotFound "Font stroke file was not found"
+    IDS_FontTranslationFileWasNotFound "Font translation file was not found"
+    IDS_FontTranslationFile "Font Translation File (*.csv)|*.csv||"
+    IDS_SelectFontTranslationFile "Select Font Translation File"
+    IDS_TranslationFileDidNotOpen 
+                            "Translation file did not open\nLoadOldStyleXlationFile"
+    IDS_Error               "Error"
+    IDS_FontStrokeFile      "Font Stroke File (*.csv)|*.csv||"
+    IDS_SelectFontStrokeFile "Select Font Stroke File"
+    IDS_FontFileDidNotOpen  "Font file did not open\nLoadOldStyleFile"
 END
 
 #endif    // English (United States) resources

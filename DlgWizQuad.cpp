@@ -69,8 +69,10 @@ void CDlgWizQuad::DoDataExchange(CDataExchange* pDX)
 		// incoming
 		if( !m_enable_save )
 		{
-			m_button_save.SetWindowText( "Done" );
-			m_button_exit.SetWindowText( "Cancel" );
+			CString s ((LPCSTR) IDS_Done3);
+			m_button_save.SetWindowText( s );
+			s.LoadStringA(IDS_Cancel);
+			m_button_exit.SetWindowText( s );
 		}
 		m_bmp.LoadBitmap( IDB_BITMAP_QUAD );
 		m_bmp_quad.SetBitmap( m_bmp );
@@ -80,14 +82,10 @@ void CDlgWizQuad::DoDataExchange(CDataExchange* pDX)
 		m_edit_Z1.EnableWindow(0);
 		m_edit_G2.EnableWindow(0);
 		m_edit_Z2.EnableWindow(0);
-		m_combo_shape.InsertString( -1, "Round" );
-		m_combo_shape.InsertString( -1, "Square" );
-		m_combo_shape.InsertString( -1, "Pin 1 square, others round" ); 
-		m_combo_shape.InsertString( -1, "Octagon" );
-		m_combo_shape.InsertString( -1, "Rectangular" );
-		m_combo_shape.InsertString( -1, "Rounded Rect" );
-		m_combo_shape.InsertString( -1, "Oval" );
-		m_combo_shape.InsertString( -1, "None" );
+		CString s;
+		for (int i=0; i<8; i++) 
+			s.LoadStringA(IDS_WizPinShapes+i),
+			m_combo_shape.InsertString( -1, s);
 		m_combo_shape.SetCurSel(4);
 		m_shape = RECT;
 		m_edit_y.EnableWindow(1);
@@ -97,20 +95,15 @@ void CDlgWizQuad::DoDataExchange(CDataExchange* pDX)
 		m_combo_units.SetCurSel(0);
 		m_units = MIL;
 		m_mult = NM_PER_MIL;
-		m_combo_pin1.InsertString( -1, "top row, center pin" );
-		m_combo_pin1.InsertString( -1, "bottom row, left-most pin" );
-		m_combo_pin1.InsertString( -1, "top row, left-most pin" );
+		for (int i=0; i<3; i++) 
+			s.LoadStringA(IDS_WizPin1+i),
+			m_combo_pin1.InsertString( -1, s);
 		m_combo_pin1.SetCurSel(0);
 		OnCbnSelchangeComboPin1();
 		m_pin1 = TOP_CENTER;
-		m_combo_type.InsertString( -1, "SIP" );
-		m_combo_type.InsertString( -1, "DIP" );
-		m_combo_type.InsertString( -1, "QUAD" );
-		m_combo_type.InsertString( -1, "HEADER" );
-		m_combo_type.InsertString( -1, "HEADER2" );
-		m_combo_type.InsertString( -1, "PGA/BGA" );
-		m_combo_type.InsertString( -1, "EDGE" );
-		m_combo_type.InsertString( -1, "EDGE2" );
+		for (int i=0; i<8; i++) 
+			s.LoadStringA(IDS_WizType+i),
+			m_combo_type.InsertString( -1, s);
 		m_combo_type.SetCurSel(0);
 		OnCbnSelchangeComboWizType();
 		m_npins = 0;
@@ -224,7 +217,10 @@ void CDlgWizQuad::OnCbnSelchangeComboWizShape()
 {
 	CString str, x_str;
 	m_combo_shape.GetWindowText( str );
-	if( str == "Rectangular" )
+	enum { shpRound=0, shpSquare, shpPin1Square, shpOctagon, 
+		   shpRectangular, shpRoundedRect, shpOval, shpNone };
+	int index = m_combo_shape.GetCurSel( );
+	if( index==shpRectangular )
 	{
 		m_shape = RECT;
 		m_edit_x.EnableWindow(1);
@@ -232,7 +228,7 @@ void CDlgWizQuad::OnCbnSelchangeComboWizShape()
 		m_edit_radius.EnableWindow(0);
 		m_edit_radius.SetWindowText( "0" );
 	}
-	else if( str == "Oval" )
+	else if( index==shpOval )
 	{
 		m_shape = OVAL;
 		m_edit_x.EnableWindow(1);
@@ -240,14 +236,14 @@ void CDlgWizQuad::OnCbnSelchangeComboWizShape()
 		m_edit_radius.EnableWindow(0);
 		m_edit_radius.SetWindowText( "0" );
 	}
-	else if( str == "Rounded Rect" )
+	else if( index==shpRoundedRect )
 	{
 		m_shape = RRECT;
 		m_edit_x.EnableWindow(1);
 		m_edit_y.EnableWindow(1);
 		m_edit_radius.EnableWindow(1);
 	}
-	else if( str == "None" )
+	else if( index==shpNone )
 	{
 		m_shape = NONE;
 		m_edit_x.EnableWindow(0);
@@ -259,13 +255,13 @@ void CDlgWizQuad::OnCbnSelchangeComboWizShape()
 	}
 	else
 	{
-		if( str == "Pin 1 square, others round" )
+		if( index==shpPin1Square )
 			m_shape = SQ1;
-		else if( str == "Round" )
+		else if( index==shpRound )
 			m_shape = ROUND;
-		else if( str == "Octagon" )
+		else if( index==shpOctagon )
 			m_shape = OCTAGON;
-		else if( str == "Square" )
+		else if( index==shpSquare )
 			m_shape = SQUARE;
 		m_edit_x.EnableWindow(1);
 		m_edit_y.EnableWindow(0);
@@ -791,80 +787,95 @@ BOOL CDlgWizQuad::MakeFootprint()
 	m_str_name.Trim();
 	if( m_str_name.GetLength() == 0 )
 	{
-		AfxMessageBox( "Illegal name" );
+		CString s ((LPCSTR) IDS_IllegalName);
+		AfxMessageBox( s );
 		return FALSE;
 	}
 	if( m_npins < 1 )
 	{
-		AfxMessageBox( "Illegal number of pins" );
+		CString s ((LPCSTR) IDS_IllegalNumberOfPins);
+		AfxMessageBox( s );
 		return FALSE;
 	}
 	if( m_npins > MAX_PINS )
 	{
-		AfxMessageBox( "Too many pins" );
+		CString s ((LPCSTR) IDS_TooManyPins);
+		AfxMessageBox( s );
 		return FALSE;
 	}
 	if( m_type == HDR1 || m_type == HDR2 || m_type == BGA )
 	{
 		if( m_npins != m_hpins*m_vpins )
 		{
-			AfxMessageBox( "Illegal number of pins" );
+			CString s ((LPCSTR) IDS_IllegalNumberOfPins);
+			AfxMessageBox( s );
 			return FALSE;
 		}
 	}
 	if( m_hpins < 1 || m_hpins > m_npins )
 	{
-		AfxMessageBox( "Illegal number of pins per horizontal row" );
+		CString s ((LPCSTR) IDS_IllegalNumberOfPinsPerHorizontalRow);
+		AfxMessageBox( s );
 		return FALSE;
 	}
 	if( m_vpins < 0 || m_vpins > m_npins )
 	{
-		AfxMessageBox( "Illegal number of pins per vertical row" );
+		CString s ((LPCSTR) IDS_IllegalNumberOfPinsPerVerticalRow);
+		AfxMessageBox( s );
 		return FALSE;
 	}
 	if( m_vpins > MAX_BGA_ROWS && m_type == BGA )
 	{
-		AfxMessageBox( "Too many rows" );
+		CString s ((LPCSTR) IDS_TooManyRows);
+		AfxMessageBox( s );
 		return FALSE;
 	}
 	if( m_x <= 0 && m_shape != NONE ) 
 	{
-		AfxMessageBox( "Illegal pad width (X)" );
+		CString s ((LPCSTR) IDS_IllegalPadWidthX);
+		AfxMessageBox( s );
 		return FALSE;
 	}
 	if( m_y <= 0  && (m_shape == RECT || m_shape == RRECT || m_shape == OVAL ) )
 	{
-		AfxMessageBox( "Illegal pad length (Y)" ); 
+		CString s ((LPCSTR) IDS_IllegalPadLengthY);
+		AfxMessageBox( s ); 
 		return FALSE;
 	}
 	if( m_r <= 0  && m_shape == RRECT )
 	{
-		AfxMessageBox( "Illegal pad corner radius" );
+		CString s ((LPCSTR) IDS_IllegalPadCornerRadius);
+		AfxMessageBox( s );
 		return FALSE;
 	}
 	if( m_r > 0.5*min(m_y,m_x) && m_shape == RRECT )
 	{
-		AfxMessageBox( "Pad corner radius too large" );
+		CString s ((LPCSTR) IDS_PadCornerRadiusTooLarge);
+		AfxMessageBox( s );
 		return FALSE;
 	}
 	if( m_shape == NONE && m_hd == 0 )
 	{
-		AfxMessageBox( "Pad shape \"None\" requires a non-zero hole width" );
+		CString s ((LPCSTR) IDS_PadShapeNoneRequiresANonZeroHoleWidth);
+		AfxMessageBox( s );
 		return FALSE;
 	}
 	if( m_e <= 0 && m_hpins != 1 )
 	{
-		AfxMessageBox( "Illegal pad spacing (E)" );
+		CString s ((LPCSTR) IDS_IllegalPadSpacingE);
+		AfxMessageBox( s );
 		return FALSE;
 	}
 	if( (m_type == QUAD || m_type == DIP) && m_g1 <= 0 )
 	{
-		AfxMessageBox( "Illegal distance between top and bottom rows" );
+		CString s ((LPCSTR) IDS_IllegalDistanceBetweenTopAndBottomRows);
+		AfxMessageBox( s );
 		return FALSE;
 	}
 	if( m_type == QUAD && m_g2 <= 0 )
 	{
-		AfxMessageBox( "Illegal distance between left and right rows" );
+		CString s ((LPCSTR) IDS_IllegalDistanceBetweenLeftAndRightRows);
+		AfxMessageBox( s );
 		return FALSE;
 	}
 
@@ -880,7 +891,8 @@ BOOL CDlgWizQuad::MakeFootprint()
 			pad_type = PAD_OVAL;
 		else
 		{
-			AfxMessageBox( "Illegal pad shape for edge connector\nUse rectangle, rounded-rect or oval" );
+			CString s ((LPCSTR) IDS_IllegalPadShapeForEdgeConnector);
+			AfxMessageBox( s );
 			return FALSE;
 		}
 
@@ -1021,8 +1033,8 @@ BOOL CDlgWizQuad::MakeFootprint()
 		int err = m_footprint.MakeFromString( m_str_name, str );
 		if( err )
 		{
-			CString err_str;
-			err_str = "CShape::MakeFromString() failed to make footprint from:\n\n" + str;
+			CString err_str, s ((LPCSTR) IDS_CShapeMakeFromStringFailed);
+			err_str.Format(s, str); 
 			AfxMessageBox( err_str );
 			m_footprint.Clear();
 			return FALSE;

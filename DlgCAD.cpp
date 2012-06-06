@@ -261,15 +261,16 @@ void CDlgCAD::OnBnClickedGo()
 	int err = _stat( m_folder, &buf );
 	if( err )
 	{
-		CString str;
-		str.Format( "Folder \"%s\" doesn't exist, create it ?", m_folder );
+		CString s ((LPCSTR) IDS_FolderDoesntExist), str;
+		str.Format( s, m_folder );
 		int ret = AfxMessageBox( str, MB_YESNO );
 		if( ret == IDYES )
 		{
 			err = _mkdir( m_folder );
 			if( err )
 			{
-				str.Format( "Unable to create folder \"%s\"", m_folder );
+				CString s ((LPCSTR) IDS_UnableToCreateFolder);
+				str.Format( s, m_folder );
 				AfxMessageBox( str, MB_OK );
 				return;
 			}
@@ -283,9 +284,7 @@ void CDlgCAD::OnBnClickedGo()
 	if( m_fill_clearance == 0 && m_bShowMessageForClearance )     
 	{
 		CDlgMyMessageBox2 dlg;
-		CString mess = "WARNING: You have set the copper to copper-fill clearance to 0.";
-		mess += "\nThis will disable automatic generation of clearances for pads and vias in copper areas.";
-		mess += "\nAre you SURE that you don't need these clearances ?";
+		CString mess ((LPCSTR) IDS_WarningYouHaveSetTheCopper);
 		dlg.Initialize( &mess );
 		int ret = dlg.DoModal();
 		if( ret == IDCANCEL )
@@ -317,15 +316,15 @@ void CDlgCAD::OnBnClickedGo()
 		int ok = f.Open( f_name, CFile::modeCreate | CFile::modeWrite ); 
 		if( !ok )
 		{
-			CString log_message;
-			log_message.Format( "ERROR: Unable to open file \"%s\"\r\n", f_name );
+			CString log_message, s ((LPCSTR) IDS_ErrorUnableToOpenFile);
+			log_message.Format( s, f_name );
 			m_dlg_log->AddLine( log_message );
 			errors = TRUE;
 		}
 		else
 		{
-			CString log_message;
-			log_message.Format( "Writing file: \"%s\"\r\n", f_name );
+			CString log_message, s ((LPCSTR) IDS_WritingFile);
+			log_message.Format( s, f_name );
 			m_dlg_log->AddLine( log_message );
 
 			::WriteDrillFile( &f, m_pl, m_nl, m_bd, m_n_x, m_n_y, m_space_x, m_space_y );
@@ -427,8 +426,8 @@ void CDlgCAD::OnBnClickedGo()
 			int ok = f.Open( f_str, CFile::modeCreate | CFile::modeWrite );
 			if( !ok )
 			{
-				CString log_message;
-				log_message.Format( "ERROR: Unable to open file \"%s\"\r\n", f_str );
+				CString log_message, s ((LPCSTR) IDS_ErrorUnableToOpenFile);
+				log_message.Format( s, f_str );
 				m_dlg_log->AddLine( log_message );
 				errors = TRUE;
 			}
@@ -473,21 +472,25 @@ void CDlgCAD::OnBnClickedGo()
 			}
 		}
 	}
+	CString s1 ((LPCSTR) IDS_ErrorsOccurredDuringCreationOfGerber);
+	CString s2 ((LPCSTR) IDS_AllGerbersCreatedSuccessfully);
 	if( errors )
-		m_dlg_log->AddLine( "****** ERRORS OCCURRED DURING CREATION OF GERBERS ******\r\n" );
+		m_dlg_log->AddLine( s1 );
 	else
-		m_dlg_log->AddLine( "************ ALL GERBERS CREATED SUCCESSFULLY **********\r\n" );
+		m_dlg_log->AddLine( s2 );
 	if( commands.GetSize() != 0 )
 	{
 		_chdir( m_folder );		// change current working directory to CAM folder
-		m_dlg_log->AddLine( "*********** RENDERING .PNG FILES FOR LAYERS ************\r\n" );
+		CString s ((LPCSTR) IDS_RenderingPngFiles);
+		m_dlg_log->AddLine( s );
 		for( int i=0; i<commands.GetSize(); i++ )
 		{
 			m_dlg_log->AddLine( "Run: " + commands[i] + "\r\n" ); 
 			::RunConsoleProcess( commands[i], m_dlg_log );
 			m_dlg_log->AddLine( "\r\n" ); 
 		}
-		m_dlg_log->AddLine( "************************* DONE *************************\r\n" ); 
+		CString s2 ((LPCSTR) IDS_Done);
+		m_dlg_log->AddLine( s2 ); 
 		_chdir( m_app_folder );	// change back
 	}
 }
@@ -721,7 +724,8 @@ void CDlgCAD::OnBnClickedButtonFolder()
 		m_folder = m_project_folder + "\\CAM";
 		m_edit_folder.SetWindowText( m_folder );
 	}
-	CPathDialog dlg( "Select Folder", "Set CAM output folder", m_folder );
+	CString s1 ((LPCSTR) IDS_SelectFolder), s2 ((LPCSTR) IDS_SetCAMOutputFolder);
+	CPathDialog dlg( s1, s2, m_folder );
 	int ret = dlg.DoModal();
 	if( ret == IDOK )
 	{

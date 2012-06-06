@@ -40,10 +40,10 @@ void CDlgRefText::DoDataExchange(CDataExchange* pDX)
 		m_combo_units.InsertString( 0, "MIL" );
 		m_combo_units.InsertString( 1, "MM" );
 
-		m_combo_layer.InsertString( 0, "TOP SILK" );
-		m_combo_layer.InsertString( 1, "BOTTOM SILK" );
-		m_combo_layer.InsertString( 2, "TOP COPPER" );
-		m_combo_layer.InsertString( 3, "BOTTOM COPPER" );
+		CString s;
+		for (int i=0; i<4; i++)
+			s.LoadStringA(IDS_TopSilk+i),
+			m_combo_layer.InsertString( i, s );
 
 		if( m_width == m_height/10 )
 		{

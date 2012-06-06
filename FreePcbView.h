@@ -478,8 +478,6 @@ public:
 	int m_fkey_command[12];
 	int m_fkey_rsrc[24];		// CPT:  used to have a table of char[]'s, now we have a table of string rsrc id's
 
-
-
 	// memory DC and bitmap
 	BOOL m_memDC_created;
 	CDC m_memDC;

@@ -37,17 +37,21 @@ void CDlgLibraryManager::DoDataExchange(CDataExchange* pDX)
 		m_edit_footlib.SetWindowText( *m_footlib->GetFullPath() ); 
 		for( int i=0; i<m_footlib->GetNumLibs(); i++ )
 			m_combo_libfile.InsertString( i, *m_footlib->GetLibraryFullPath(i) );
-		m_combo_libfile.InsertString( m_footlib->GetNumLibs(), "*** all library files ***" );
+		CString s ((LPCSTR) IDS_AllLibraryFiles);
+		m_combo_libfile.InsertString( m_footlib->GetNumLibs(), s );
 		m_combo_libfile.SetCurSel( 0 );
-
-		m_combo_page_size.InsertString( PG_LETTER, "letter  (8.5 x 11.0 in)" );
-		m_combo_page_size.InsertString( PG_A4, "A4  (210 x 297 mm)" );
+		s.LoadStringA(IDS_Letter);
+		m_combo_page_size.InsertString( PG_LETTER, s );
+		s.LoadStringA(IDS_A4);
+		m_combo_page_size.InsertString( PG_A4, s );
 		m_combo_page_size.SetCurSel( m_page_sel );
 
-		m_combo_units.InsertString( U_NATIVE, "native for footprint" );
+		s.LoadStringA(IDS_NativeForFootprint);
+		m_combo_units.InsertString( U_NATIVE, s);
 		m_combo_units.InsertString( U_MM, "mm" );
 		m_combo_units.InsertString( U_MIL, "mils" );
-		m_combo_units.InsertString( U_MM_MIL, "mm and mils" );
+		s.LoadStringA(IDS_MmAndMils);
+		m_combo_units.InsertString( U_MM_MIL, s );
 		m_combo_units.SetCurSel( m_units_sel );
 	}
 }
@@ -149,8 +153,8 @@ void CDlgLibraryManager::OnBnClickedButtonMakePdf()
 		// post message to log, if it exists
 		if( m_dlg_log )
 		{
-			CString log_message;
-			log_message.Format( "Creating file: \"%s\"\r\n", title_str );
+			CString log_message, s ((LPCSTR) IDS_CreatingFile);
+			log_message.Format( s, title_str );
 			m_dlg_log->AddLine( log_message );
 		}
 
@@ -959,12 +963,13 @@ void CDlgLibraryManager::OnBnClickedButtonMakePdf()
 		{
 			if( !m_dlg_log )
 			{
-				AfxMessageBox( "Error: Unable to write file\nIt may be read-only or open in another application", MB_OK );
+				CString s ((LPCSTR) IDS_ErrorUnableToWriteFile);
+				AfxMessageBox( s, MB_OK );
 			}
 			else
 			{
-				CString log_message = "*** Error: unable to write file ***\r\n";
-				m_dlg_log->AddLine( log_message );
+				CString s ((LPCSTR) IDS_ErrorUnableToWriteFile2);
+				m_dlg_log->AddLine( s );
 			}
 		}
 		cpdf_close(pdf);			/* shut down */
@@ -981,7 +986,8 @@ void CDlgLibraryManager::Initialize( CFootLibFolderMap * foldermap, CDlgLog * lo
 
 void CDlgLibraryManager::OnBnClickedButtonMgrBrowse()
 {
-	CPathDialog dlg( "Open Folder", "Select footprint library folder", *m_footlib->GetFullPath() );
+	CString s ((LPCSTR) IDS_OpenFolder), s2 ((LPCSTR) IDS_SelectFootprintLibraryFolder);
+	CPathDialog dlg( s, s2, *m_footlib->GetFullPath() );
 	int ret = dlg.DoModal();
 	if( ret == IDOK )
 	{
@@ -1001,7 +1007,8 @@ void CDlgLibraryManager::OnBnClickedButtonMgrBrowse()
 		{
 			m_combo_libfile.InsertString( i, *m_footlib->GetLibraryFullPath(i) );
 		}
-		m_combo_libfile.InsertString( m_footlib->GetNumLibs(), "*** all library files ***" );
+		CString s ((LPCSTR) IDS_AllLibraryFiles);
+		m_combo_libfile.InsertString( m_footlib->GetNumLibs(), s );
 		m_combo_libfile.SetCurSel( 0 );
 	}
 }

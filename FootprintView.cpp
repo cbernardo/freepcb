@@ -215,7 +215,8 @@ void CFootprintView::InitInstance( CShape * fp )
 	}
 	else
 	{
-		m_fp.m_name = "untitled";
+		CString s ((LPCSTR) IDS_Untitled);
+		m_fp.m_name = s;
 	}
 	SetWindowTitle( &m_fp.m_name );
 
@@ -345,10 +346,12 @@ void CFootprintView::OnDraw(CDC* pDC)
 		r.left += 20;
 		r.right += 120;
 		r.bottom += 5;
+		CString s;
 		if( i == LAY_FP_PAD_THRU ) 
-			pDC->DrawText( "drilled hole", -1, &r, 0 ); 
+			pDC->DrawText( "drilled hole", -1, &r, 0 );					// CPT:  will be replaced when feature #31 is merged.
 		else
-			pDC->DrawText( &fp_layer_str[i][0], -1, &r, 0 ); 
+			s.LoadStringA( IDS_FpLayerStr + i ),
+			pDC->DrawText( s, -1, &r, 0 ); 
 		if( i >= LAY_FP_TOP_COPPER && i <= LAY_FP_BOTTOM_COPPER ) 
 		{
 			CString num_str; 
@@ -737,7 +740,8 @@ void CFootprintView::OnLButtonDown(UINT nFlags, CPoint point)
 			m_fp.m_outline_poly[m_sel_id.I2()].HighlightCorner( m_sel_id.I3() );
 			if( bMod )
 			{
-				AfxMessageBox( "Arcs with endpoints not at 45 degree angles converted to straight lines" );
+				CString s ((LPCSTR) IDS_ArcsWithEndpointsNotAt45DegreeAngles);
+				AfxMessageBox( s );
 			}
 			SetCursorMode( CUR_FP_POLY_CORNER_SELECTED );
 			FootprintModified( TRUE );
@@ -1502,10 +1506,19 @@ void CFootprintView::SetFKText( int mode )
 		break;
 	}
 
+	// CPT: Lefthanded mode support:  if set, reverse key meanings
+	if (m_Doc->m_bLefthanded) 
+		for (int lo=0, hi=8, tmp; lo<hi; lo++, hi--)
+			tmp = m_fkey_option[lo], 
+			m_fkey_option[lo] = m_fkey_option[hi],
+			m_fkey_option[hi] = tmp;
+
 	for( int i=0; i<12; i++ )
 	{
-		strcpy( m_fkey_str[2*i],   fk_fp_str[2*m_fkey_option[i]] );
-		strcpy( m_fkey_str[2*i+1], fk_fp_str[2*m_fkey_option[i]+1] );
+		// CPT: now we store resource string id's rather than do a strcpy() as before
+		int index = 2*m_fkey_option[i];
+		m_fkey_rsrc[2*i] = IDS_FkFpStr+index;
+		m_fkey_rsrc[2*i+1] = IDS_FkFpStr+index+1;
 	}
 
 	InvalidateLeftPane();
@@ -1523,32 +1536,36 @@ void CFootprintView::DrawBottomPane()
 	GetClientRect( &m_client_r );
 
 	// draw labels for function keys at bottom of client area
-	for( int j=0; j<2; j++ )
+	// draw labels for function keys at bottom of client area.  CPT:  adjusted the positions of the gaps in lefthanded mode
+	for (int ifn=0; ifn<9; ifn++)
 	{
-		for( int i=0; i<4; i++ )
-		{
-			CRect r( FKEY_OFFSET_X+(j*4+i)*FKEY_STEP+j*FKEY_GAP, 
-						m_client_r.bottom-FKEY_OFFSET_Y-FKEY_R_H, 
-						FKEY_OFFSET_X+(j*4+i)*FKEY_STEP+j*FKEY_GAP+FKEY_R_W,
-						m_client_r.bottom-FKEY_OFFSET_Y );
-			pDC->Rectangle( &r );
-			pDC->MoveTo( r.left+FKEY_SEP_W, r.top );
-			pDC->LineTo( r.left+FKEY_SEP_W, r.top + FKEY_R_H/2 + 1 );
-			pDC->MoveTo( r.left, r.top + FKEY_R_H/2 );
-			pDC->LineTo( r.left+FKEY_SEP_W, r.top + FKEY_R_H/2 );
-			r.top += 1;
-			r.left += 2;
-			char fkstr[3] = "F1";
-			fkstr[1] = '1' + j*4+i;
-			pDC->DrawText( fkstr, -1, &r, 0 );
-			r.left += FKEY_SEP_W;
-			char * str1 = &m_fkey_str[2*(j*4+i)][0];
-			char * str2 = &m_fkey_str[2*(j*4+i)+1][0];
-			pDC->DrawText( str1, -1, &r, 0 );
-			r.top += FKEY_R_H/2 - 2;
-			pDC->DrawText( str2, -1, &r, 0 );
-		}
+		int left = FKEY_OFFSET_X + ifn*FKEY_STEP;
+		if (!m_Doc->m_bLefthanded)
+			left += ifn/4 * FKEY_GAP;
+		else
+			left += (ifn+3)/4 * FKEY_GAP;
+		CRect r( left, 
+			m_client_r.bottom-FKEY_OFFSET_Y-FKEY_R_H,
+			left + FKEY_R_W,
+			m_client_r.bottom-FKEY_OFFSET_Y );
+		pDC->Rectangle( &r );
+		pDC->MoveTo( r.left+FKEY_SEP_W, r.top );
+		pDC->LineTo( r.left+FKEY_SEP_W, r.top + FKEY_R_H/2 + 1 );
+		pDC->MoveTo( r.left, r.top + FKEY_R_H/2 );
+		pDC->LineTo( r.left+FKEY_SEP_W, r.top + FKEY_R_H/2 );
+		r.top += 1;
+		r.left += 2;
+		char fkstr[3] = "F1";
+		fkstr[1] = '1' + ifn;
+		pDC->DrawText( fkstr, -1, &r, 0 );
+		r.left += FKEY_SEP_W;
+		CString str1 ((LPCSTR) m_fkey_rsrc[2*ifn]);
+		CString str2 ((LPCSTR) m_fkey_rsrc[2*ifn+1]);
+		pDC->DrawText( str1, -1, &r, 0 );
+		r.top += FKEY_R_H/2 - 2;
+		pDC->DrawText( str2, -1, &r, 0 );
 	}
+	// end CPT
 
 	pDC->SelectObject( old_font );
 	ReleaseDC( pDC );
@@ -1562,81 +1579,90 @@ int CFootprintView::ShowSelectStatus()
 	if( !pMain )
 		return 1;
 
-	CString str;
+	CString str, s, x_str, y_str, w_str, type_str, style_str;
+	int i, j, x, y;
 
 	switch( m_cursor_mode )
 	{
 	case CUR_FP_NONE_SELECTED: 
-		str.Format( "No selection" );
+		str.LoadStringA(IDS_NoSelection);
 		break;
 
 	case CUR_FP_PAD_SELECTED: 
-		str.Format( "Pin %s", m_fp.GetPinNameByIndex( m_sel_id.I2() ) );
+		i = m_sel_id.I2();	// pin number (zero-based)
+		x = m_fp.m_padstack[i].x_rel;
+		y = m_fp.m_padstack[i].y_rel;
+		::MakeCStringFromDimension( &x_str, x, m_units, TRUE, TRUE, TRUE, 3 );
+		::MakeCStringFromDimension( &y_str, y, m_units, TRUE, TRUE, TRUE, 3 );
+		s.LoadStringA(IDS_PinXY);
+		str.Format( s, m_fp.GetPinNameByIndex( i ), x_str, y_str );
 		break;
 
 	case CUR_FP_DRAG_PAD:
-		str.Format( "Moving pin %s", m_fp.GetPinNameByIndex( m_sel_id.I2() ) );
+		s.LoadStringA(IDS_MovingPin);
+		str.Format( s, m_fp.GetPinNameByIndex( m_sel_id.I2() ) );
 		break;
 
 	case CUR_FP_POLY_CORNER_SELECTED: 
-		str.Format( "Polyline %d, corner %d", m_sel_id.I2()+1, m_sel_id.I3()+1 );
+		i = m_sel_id.I2();
+		x = m_fp.m_outline_poly[i].X(m_sel_id.I3());
+		y = m_fp.m_outline_poly[i].Y(m_sel_id.I3());
+		::MakeCStringFromDimension( &x_str, x, m_units, TRUE, TRUE, TRUE, 3 );
+		::MakeCStringFromDimension( &y_str, y, m_units, TRUE, TRUE, TRUE, 3 );
+		s.LoadStringA(IDS_PolylineCornerXY);
+		str.Format( s, m_sel_id.I2()+1, m_sel_id.I3()+1, x_str, y_str );
 		break;
 
 
 	case CUR_FP_POLY_SIDE_SELECTED: 
-		{
-			CString style_str;
-			if( m_fp.m_outline_poly[m_sel_id.I2()].SideStyle( m_sel_id.I3() ) == CPolyLine::STRAIGHT )
-				style_str = "straight";
-			else if( m_fp.m_outline_poly[m_sel_id.I2()].SideStyle( m_sel_id.I3() ) == CPolyLine::ARC_CW )
-				style_str = "arc(cw)";
-			else if( m_fp.m_outline_poly[m_sel_id.I2()].SideStyle( m_sel_id.I3() ) == CPolyLine::ARC_CCW )
-				style_str = "arc(ccw)";
-			str.Format( "Polyline %d, side %d, style = %s", m_sel_id.I2()+1, m_sel_id.I3()+1, 
-				style_str );
-		} 
+		i = m_sel_id.I2(); 
+		j = m_sel_id.I3();
+		if( m_fp.m_outline_poly[i].SideStyle( j ) == CPolyLine::STRAIGHT )
+			style_str.LoadStringA(IDS_straight);
+		else if( m_fp.m_outline_poly[i].SideStyle( j ) == CPolyLine::ARC_CW )
+			style_str.LoadStringA(IDS_ArcCw);
+		else if( m_fp.m_outline_poly[i].SideStyle( j ) == CPolyLine::ARC_CCW )
+			style_str.LoadStringA(IDS_ArcCcw);
+		s.LoadStringA(IDS_PolylineSideStyle);
+		str.Format( s, i+1, j+1, style_str );
 		break;
 
 	case CUR_FP_CENTROID_SELECTED:
-		{
-			CString type_str, x_str, y_str;
-			if( m_fp.m_centroid_type == CENTROID_DEFAULT )
-				type_str = "default position"; 
-			else
-				type_str =  "defined";
-			::MakeCStringFromDimension( &x_str, m_fp.m_centroid_x, m_units, TRUE, TRUE, TRUE, 3 );
-			::MakeCStringFromDimension( &y_str, m_fp.m_centroid_y, m_units, TRUE, TRUE, TRUE, 3 );
-			str.Format( "Centroid (%s), x %s, y %s, angle %d", 
-				type_str, x_str, y_str, m_fp.m_centroid_angle );
-		}
+		if( m_fp.m_centroid_type == CENTROID_DEFAULT )
+			type_str.LoadStringA(IDS_DefaultPosition); 
+		else
+			type_str.LoadStringA(IDS_Defined);
+		::MakeCStringFromDimension( &x_str, m_fp.m_centroid_x, m_units, TRUE, TRUE, TRUE, 3 );
+		::MakeCStringFromDimension( &y_str, m_fp.m_centroid_y, m_units, TRUE, TRUE, TRUE, 3 );
+		s.LoadStringA(IDS_CentroidXYAngle);
+		str.Format( s, type_str, x_str, y_str, m_fp.m_centroid_angle );
 		break;
 
 	case CUR_FP_ADHESIVE_SELECTED:
 		{
 			int idot = m_sel_id.I2();
-			CString w_str, x_str, y_str;
 			int w = m_fp.m_glue[idot].w;
 			if( w > 0 )
 				::MakeCStringFromDimension( &w_str, m_fp.m_glue[idot].w, m_units, TRUE, TRUE, TRUE, 3 );
 			else
 			{
-				w_str = "<project default>";
+				w_str.LoadStringA(IDS_ProjectDefault);
 				w = 15*NM_PER_MIL;
 			}
 			::MakeCStringFromDimension( &x_str, m_fp.m_glue[idot].x_rel, m_units, TRUE, TRUE, TRUE, 3 );
 			::MakeCStringFromDimension( &y_str, m_fp.m_glue[idot].y_rel, m_units, TRUE, TRUE, TRUE, 3 );
 			if( m_fp.m_glue[idot].type == GLUE_POS_DEFINED )
-				str.Format( "Adhesive spot %d: w %s, x %s, y %s", 
-					idot+1, w_str, x_str, y_str );
+				s.LoadStringA(IDS_AdhesiveSpotWXY),
+				str.Format( s, idot+1, w_str, x_str, y_str );
 			else
-				str.Format( "Adhesive spot %d: w %s at <centroid>",
-					idot+1, w_str );
+				s.LoadStringA(IDS_AdhesiveSpotWAtCentroid),
+				str.Format( s, idot+1, w_str );
 		}
 		break;
 
 	case CUR_FP_DRAG_POLY_MOVE:
-		str.Format( "Moving corner %d of polyline %d", 
-						m_sel_id.I3()+1, m_sel_id.I2()+1 );
+		s.LoadStringA(IDS_MovingCornerOfPolyline);
+		str.Format( s, m_sel_id.I3()+1, m_sel_id.I2()+1 );
 		break;
 
 
@@ -2024,7 +2050,7 @@ void CFootprintView::OnPolylineCornerMove()
 void CFootprintView::OnPolylineCornerEdit()
 {
 	DlgEditBoardCorner dlg;
-	CString str = "Corner Position";
+	CString str ((LPCSTR) IDS_CornerPosition);
 	int x = m_fp.m_outline_poly[m_sel_id.I2()].X(m_sel_id.I3());
 	int y = m_fp.m_outline_poly[m_sel_id.I2()].Y(m_sel_id.I3());
 	dlg.Init( &str, m_units, x, y );
@@ -2049,7 +2075,8 @@ void CFootprintView::OnPolylineCornerDelete()
 	if( poly->Closed() && poly->NumCorners() < 4
 		|| !poly->Closed() && poly->NumCorners() < 3 )
 	{
-		AfxMessageBox( "Polyline has too few corners" );
+		CString s ((LPCSTR) IDS_PolylineHasTooFewCorners);
+		AfxMessageBox( s );
 		return;
 	}
 	m_fp.m_outline_poly[m_sel_id.I2()].DeleteCorner( m_sel_id.I3() );
@@ -2465,7 +2492,8 @@ void CFootprintView::OnFootprintFileSaveAs()
 	BOOL bOK = m_fp.GenerateSelectionRectangle( &r );
 	if( !bOK )
 	{
-		AfxMessageBox( "Unable to save: empty footprint", MB_OK );
+		CString s ((LPCSTR) IDS_UnableToSaveEmptyFootprint);
+		AfxMessageBox( s, MB_OK );
 		return;
 	}
 	m_fp.Draw( m_dlist, m_Doc->m_smfontutil );
@@ -2605,7 +2633,8 @@ void CFootprintView::OnFootprintFileClose()
 
 	if( m_Doc->m_footprint_modified )
 	{
-		int ret = AfxMessageBox( "Save footprint before exiting ?", MB_YESNOCANCEL );
+		CString s ((LPCSTR) IDS_SaveFootprintBeforeExiting);
+		int ret = AfxMessageBox( s, MB_YESNOCANCEL );
 		m_Doc->m_file_close_ret = ret;
 		if( ret == IDCANCEL )
 			return;
@@ -2621,7 +2650,8 @@ void CFootprintView::OnFootprintFileNew()
 {
 	if( m_Doc->m_footprint_modified ) 
 	{
-		int ret = AfxMessageBox( "Save footprint ?", MB_YESNOCANCEL );
+		CString s ((LPCSTR) IDS_SaveFootprint);
+		int ret = AfxMessageBox( s, MB_YESNOCANCEL );
 		if( ret == IDCANCEL )
 			return;
 		else if( ret == IDYES )
@@ -2821,7 +2851,8 @@ void CFootprintView::OnFpToolsFootprintwizard()
 	// ask about saving
 	if( m_Doc->m_footprint_modified )
 	{
-		int ret = AfxMessageBox( "Save footprint before launching Wizard ?", MB_YESNOCANCEL );
+		CString s ((LPCSTR) IDS_SaveFootprintBeforeLaunchingWizard);
+		int ret = AfxMessageBox( s, MB_YESNOCANCEL );
 		m_Doc->m_file_close_ret = ret;
 		if( ret == IDCANCEL )
 			return;
@@ -2854,7 +2885,8 @@ void CFootprintView::OnFpToolsFootprintwizard()
 
 void CFootprintView::SetWindowTitle( CString * str )
 {
-	m_Doc->m_fp_window_title = "Footprint Editor - " + *str;
+	CString s ((LPCSTR) IDS_FootprintEditor);
+	m_Doc->m_fp_window_title = s + *str;
 	CMainFrame * pMain = (CMainFrame*)AfxGetMainWnd();
 	pMain->SetWindowText( m_Doc->m_fp_window_title );
 }
@@ -2987,7 +3019,7 @@ int CFootprintView::ShowActiveLayer()
 	CString str;
 	if( m_active_layer == LAY_FP_TOP_COPPER ) 
 	{
-		str.Format( "Top" );
+		str.LoadStringA( IDS_Top3 );
 		m_dlist->SetLayerDrawOrder( LAY_FP_TOP_MASK, LAY_FP_TOP_MASK );
 		m_dlist->SetLayerDrawOrder( LAY_FP_TOP_PASTE, LAY_FP_TOP_PASTE );
 		m_dlist->SetLayerDrawOrder( LAY_FP_BOTTOM_MASK, LAY_FP_BOTTOM_MASK );
@@ -2998,7 +3030,7 @@ int CFootprintView::ShowActiveLayer()
 	}
 	else if( m_active_layer == LAY_FP_INNER_COPPER )
 	{
-		str.Format( "Inner" );
+		str.LoadStringA( IDS_Inner );
 		m_dlist->SetLayerDrawOrder( LAY_FP_TOP_MASK, LAY_FP_TOP_MASK );
 		m_dlist->SetLayerDrawOrder( LAY_FP_TOP_PASTE, LAY_FP_TOP_PASTE );
 		m_dlist->SetLayerDrawOrder( LAY_FP_BOTTOM_MASK, LAY_FP_BOTTOM_MASK );
@@ -3009,7 +3041,7 @@ int CFootprintView::ShowActiveLayer()
 	}
 	else if( m_active_layer == LAY_FP_BOTTOM_COPPER )
 	{
-		str.Format( "Bottom" );
+		str.LoadStringA( IDS_Bottom2 );
 		m_dlist->SetLayerDrawOrder( LAY_FP_BOTTOM_MASK, LAY_FP_TOP_MASK );
 		m_dlist->SetLayerDrawOrder( LAY_FP_BOTTOM_PASTE, LAY_FP_TOP_PASTE );
 		m_dlist->SetLayerDrawOrder( LAY_FP_TOP_MASK, LAY_FP_BOTTOM_MASK );
@@ -3207,7 +3239,7 @@ void CFootprintView::OnValueEdit()
 {
 	CString str = "";
 	CDlgFpText dlg;
-	CString value_str = "VALUE";
+	CString value_str ((LPCSTR) IDS_Value);
 	dlg.Initialize( FALSE, TRUE, &value_str, m_fp.m_value->m_layer, m_units, 
 		m_fp.m_value_angle, m_fp.m_value_size, m_fp.m_value_w, 
 		m_fp.m_value_xi, m_fp.m_value_yi );

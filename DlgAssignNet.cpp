@@ -52,13 +52,15 @@ void DlgAssignNet::DoDataExchange(CDataExchange* pDX)
 		pDX->PrepareCtrl( IDC_COMBO_NET );
 		if( m_net_str == "" )
 		{
-			AfxMessageBox( "Illegal net name" );
+			CString s ((LPCSTR) IDS_IllegalNetName);
+			AfxMessageBox( s );
 			pDX->Fail();
 		}
 		void * ptr;
 		if( m_net_str != created_name && !m_map->Lookup( m_net_str, ptr ) )
 		{
-			CString str = "Net \"" + m_net_str + "\" not found in netlist\nCreate it ?"; 
+			CString s ((LPCSTR) IDS_NetNotFoundInNetlist), str;
+			str.Format(s, m_net_str);
 			int ret = AfxMessageBox( str, MB_YESNO );
 			if( ret == IDNO )
 			{

@@ -263,7 +263,6 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Cuid.h" />
-    <ClInclude Include="DdlgNetCombine.h" />
     <ClInclude Include="DesignRules.h" />
     <ClInclude Include="DisplayList.h" />
     <ClInclude Include="DlgAddGridVal.h" />

@@ -86,7 +86,8 @@ int CMyToolBar::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	GetItemRect( 12, &rect );
 	rect.top += 5;
 	rect.left += 5;
-	m_ctlStaticUnits.Create( "   Units", WS_VISIBLE, rect, this, IDC_STATIC_VISIBLE_GRID );
+	s.LoadStringA(IDS_ToolbarUnits);
+	m_ctlStaticUnits.Create( s, WS_VISIBLE, rect, this, IDC_STATIC_VISIBLE_GRID );
 	m_ctlStaticUnits.SetFont( &m_font );
 
 	GetItemRect( 13, &rect );
@@ -102,7 +103,8 @@ int CMyToolBar::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	GetItemRect( 14, &rect );
 	rect.top += 5;
 	rect.left += 5;
-	m_ctlStaticVisibleGrid.Create( "   Grids: Visible", WS_VISIBLE, rect, this, IDC_STATIC_VISIBLE_GRID );
+	s.LoadStringA(IDS_ToolbarGridsVisible);
+	m_ctlStaticVisibleGrid.Create( s, WS_VISIBLE, rect, this, IDC_STATIC_VISIBLE_GRID );
 	m_ctlStaticVisibleGrid.SetFont( &m_font );
 
 	GetItemRect( 15, &rect );
@@ -114,7 +116,8 @@ int CMyToolBar::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	GetItemRect( 16, &rect );
 	rect.top += 5;
 	rect.left += 5;
-	m_ctlStaticPlacementGrid.Create( "  Placement", WS_VISIBLE, rect, this, IDC_STATIC_PLACEMENT_GRID );
+	s.LoadStringA(IDS_ToolbarPlacement);
+	m_ctlStaticPlacementGrid.Create( s, WS_VISIBLE, rect, this, IDC_STATIC_PLACEMENT_GRID );
 	m_ctlStaticPlacementGrid.SetFont( &m_font );
 
 	GetItemRect( 17, &rect );
@@ -126,7 +129,8 @@ int CMyToolBar::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	GetItemRect( 18, &rect );
 	rect.top += 5;
 	rect.left += 5;
-	m_ctlStaticRoutingGrid.Create( "  Routing", WS_VISIBLE, rect, this, IDC_STATIC_ROUTING_GRID );
+	s.LoadStringA(IDS_ToolbarRouting);
+	m_ctlStaticRoutingGrid.Create( s, WS_VISIBLE, rect, this, IDC_STATIC_ROUTING_GRID );
 	m_ctlStaticRoutingGrid.SetFont( &m_font );
 
 	GetItemRect( 19, &rect );
@@ -138,7 +142,8 @@ int CMyToolBar::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	GetItemRect( 20, &rect );
 	rect.top += 5;
 	rect.left += 5;
-	m_ctlStaticSnapAngle.Create( "  Angle", WS_VISIBLE, rect, this, IDC_STATIC_SNAP_ANGLE );
+	s.LoadStringA(IDS_ToolbarAngle);
+	m_ctlStaticSnapAngle.Create( s, WS_VISIBLE, rect, this, IDC_STATIC_SNAP_ANGLE );
 	m_ctlStaticSnapAngle.SetFont( &m_font );
 
 	GetItemRect( 21, &rect );
@@ -259,7 +264,8 @@ void CMyToolBar::SetLists( CArray<double> * visible,
 	}
 	m_ctlComboSnapAngle.AddString( "45" );
 	m_ctlComboSnapAngle.AddString( "90" );
-	m_ctlComboSnapAngle.AddString( "Off" );
+	CString s ((LPCSTR) IDS_Off);
+	m_ctlComboSnapAngle.AddString( s );
 	m_ctlComboSnapAngle.SetCurSel( 0 );
 }
 

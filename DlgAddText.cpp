@@ -51,12 +51,14 @@ void CDlgAddText::DoDataExchange(CDataExchange* pDX)
 		// leaving the dialog
 		if( m_str == "" )
 		{
-			AfxMessageBox( "Invalid text string" );
+			CString s ((LPCSTR) IDS_InvalidTextString);
+			AfxMessageBox( s );
 			pDX->Fail();
 		}
 		if( m_str.Find( '\"' ) != -1 )
 		{
-			AfxMessageBox( "Text string can't contain \"" );
+			CString s ((LPCSTR) IDS_TextStringCantContainQuote);
+			AfxMessageBox( s );
 			pDX->Fail();
 		}
 		GetFields();
@@ -146,17 +148,22 @@ BOOL CDlgAddText::OnInitDialog()
 	}
 
 	// layers
+	CString s;
 	if( m_fp_flag )
 	{
-		m_layer_list.InsertString( -1, fp_layer_str[LAY_FP_SILK_TOP] );
+		s.LoadStringA(IDS_FpLayerStr+LAY_FP_SILK_TOP);
+		m_layer_list.InsertString( -1, s );
 		m_layer_list.SetCurSel( 0 );
 	}
 	else
 	{
-		m_layer_list.InsertString( -1, layer_str[LAY_SILK_TOP] );
-		m_layer_list.InsertString( -1, layer_str[LAY_SILK_BOTTOM] );
+		s.LoadStringA(IDS_LayerStr+LAY_SILK_TOP);
+		m_layer_list.InsertString( -1, s );
+		s.LoadStringA(IDS_LayerStr+LAY_SILK_BOTTOM);
+		m_layer_list.InsertString( -1, s );
 		for( int i=LAY_TOP_COPPER; i<m_num_layers; i++ )
-			m_layer_list.InsertString( -1, layer_str[i] );
+			s.LoadStringA(IDS_LayerStr+i),
+			m_layer_list.InsertString( -1, s ); 
 	}
 
 	// angles

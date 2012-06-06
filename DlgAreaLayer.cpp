@@ -27,7 +27,8 @@ void DlgAreaLayer::DoDataExchange(CDataExchange* pDX)
 		// incoming
 		for( int il=0; il<m_num_layers; il++ )
 		{
-			m_list_layer.InsertString( il, &layer_str[il+LAY_TOP_COPPER][0] );
+			CString s ((LPCSTR) (IDS_LayerStr+il+LAY_TOP_COPPER));
+			m_list_layer.InsertString( il, s );
 		}
 		m_list_layer.SetCurSel( m_layer - LAY_TOP_COPPER );
 	}

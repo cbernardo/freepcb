@@ -808,15 +808,16 @@ int CFreePcbView::SelectObjPopup( CPoint const &point, CHitInfo hit_info[], int 
 
 				if( pInfo->ID.T1() == ID_BOARD )
 				{
-					str = "BOARD";
-
+					str.LoadStringA(IDS_Board);
 					if( pInfo->ID.T3() == ID_SEL_SIDE )
 					{
-						str += " SIDE";
+						CString s ((LPCSTR) IDS_Side3);
+						str += s;
 					}
 					else if( pInfo->ID.T3() == ID_SEL_CORNER )
 					{
-						str += " CORNER";
+						CString s ((LPCSTR) IDS_Corner3);
+						str += s;
 					}
 				}
 				else if( pInfo->ID.T1() == ID_PART )
@@ -825,7 +826,8 @@ int CFreePcbView::SelectObjPopup( CPoint const &point, CHitInfo hit_info[], int 
 
 					if( pInfo->ID.T2() == ID_SEL_PAD )
 					{
-						str.Format( "PIN: %s.%s", part->ref_des, part->shape->GetPinNameByIndex(pInfo->ID.I2()) );
+						CString s ((LPCSTR) IDS_Pin3);
+						str.Format( s, part->ref_des, part->shape->GetPinNameByIndex(pInfo->ID.I2()) );
 					}
 					else if( pInfo->ID.T2() == ID_SEL_RECT )
 					{
@@ -856,11 +858,13 @@ int CFreePcbView::SelectObjPopup( CPoint const &point, CHitInfo hit_info[], int 
 					}
 					else if( pInfo->ID.T2() == ID_REF_TXT )
 					{
-						str.Format("REF: %s", part->ref_des);
+						CString s ((LPCSTR) IDS_Ref3);
+						str.Format(s, part->ref_des);
 					}
 					else if( pInfo->ID.T2() == ID_VALUE_TXT )
 					{
-						str.Format("VALUE: %s", part->value);
+						CString s ((LPCSTR) IDS_Value3);
+						str.Format(s, part->value);
 					}
 				}
 				else if( pInfo->ID.T1() == ID_NET )
@@ -871,64 +875,66 @@ int CFreePcbView::SelectObjPopup( CPoint const &point, CHitInfo hit_info[], int 
 					{
 						if( pInfo->ID.T3() == ID_SEL_SEG )
 						{
-							str = "SEGMENT";
+							str.LoadStringA(IDS_Segment3);
 						}
 						else if( pInfo->ID.T3() == ID_SEL_VERTEX )
 						{
 							if( net->ConByIndex(pInfo->ID.I2())->VtxByIndex(pInfo->ID.I3()).via_w )
 							{
-								str = "VIA";
+								str.LoadStringA(IDS_Via3);
 							}
 							else
 							{
-								str = "VERTEX";
+								str.LoadStringA(IDS_Vertex3);
 							}
 						}
 					}
 					else if( pInfo->ID.T2() == ID_AREA )
 					{
-						str = "COPPER";
-
+						str.LoadStringA(IDS_Copper3);
 						if( pInfo->ID.T3() == ID_SEL_SIDE )
 						{
-							str += " SIDE";
+							CString s ((LPCSTR) IDS_Side3);
+							str += s;
 						}
 						else if( pInfo->ID.T3() == ID_SEL_CORNER )
 						{
-							str += " CORNER";
+							CString s ((LPCSTR) IDS_Corner3);
+							str += s;
 						}
 					}
 				}
 				else if( pInfo->ID.T1() == ID_TEXT )
 				{
 					CText *text = (CText*)pInfo->ptr;
-
-					str.Format("TEXT: %s", text->m_str);
+					CString s ((LPCSTR) IDS_Text3);
+					str.Format(s, text->m_str);
 				}
 				else if( pInfo->ID.T1() == ID_DRC )
 				{
-					str = "DRC";
+					str.LoadStringA(IDS_DRC3);
 				}
 				else if( pInfo->ID.T1() == ID_MASK )
 				{
-					str = "CUTOUT";
-
+					str.LoadStringA(IDS_Cutout3);
 					if( pInfo->ID.T3() == ID_SEL_SIDE )
 					{
-						str += " SIDE";
+						CString s ((LPCSTR) IDS_Side3);
+						str += s;
 					}
 					else if( pInfo->ID.T3() == ID_SEL_CORNER )
 					{
-						str += " CORNER";
+						CString s ((LPCSTR) IDS_Corner3);
+						str += s;
 					}
 				}
 				else if( pInfo->ID.T1() == ID_CENTROID )
 				{
-					str = "CENTROID";
+					str.LoadStringA(IDS_Centroid3);
 				}
 				else if( pInfo->ID.T1() == ID_GLUE )
 				{
-					str = "GLUE SPOT";
+					str.LoadStringA(IDS_GlueSpot3);
 				}
 				else
 				{
@@ -1129,11 +1135,12 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 						net_name2 = net2->name;
 					if( net1 == NULL && net2 == NULL )
 					{
-						AfxMessageBox( "No connections to swap" );
+						CString s ((LPCSTR) IDS_NoConnectionsToSwap);
+						AfxMessageBox( s );
 						return;
 					}
-					mess.Format( "Swap %s.%s (\"%s\") and %s.%s (\"%s\") ?",
-						part1->ref_des, pin_name1, net_name1,
+					CString s ((LPCSTR) IDS_SwapPins);
+					mess.Format( s, part1->ref_des, pin_name1, net_name1,
 						part2->ref_des, pin_name2, net_name2 );
 					int ret = AfxMessageBox( mess, MB_OKCANCEL );
 					if( ret == IDOK )
@@ -1692,7 +1699,8 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		if( ret == -1 )
 		{
 			// error
-			AfxMessageBox( "Error: Unable to clip polygon due to intersecting arc" );
+			CString s ((LPCSTR) IDS_ErrorUnableToClipPolygon);
+			AfxMessageBox( s );
 			CancelSelection();
 			m_Doc->OnEditUndo();
 		}
@@ -1720,7 +1728,8 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		if( ret == -1 )
 		{
 			// error
-			AfxMessageBox( "Error: Unable to clip polygon due to intersecting arc" );
+			CString s ((LPCSTR) IDS_ErrorUnableToClipPolygon);
+			AfxMessageBox( s );
 			CancelSelection();
 			m_Doc->OnEditUndo();
 		}
@@ -1787,8 +1796,8 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 			int ret = m_Doc->m_nlist->AreaPolygonModified( m_sel_net, m_sel_ia, FALSE, FALSE );
 			if( ret == -1 )
 			{
-				// error
-				AfxMessageBox( "Error: Unable to clip polygon due to intersecting arc" );
+				CString s ((LPCSTR) IDS_ErrorUnableToClipPolygon);
+				AfxMessageBox( s );
 				m_Doc->OnEditUndo();
 			}
 			else
@@ -2041,9 +2050,8 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 				if( pin_net && pin_net != vtx_net )
 				{
 					// pin assigned to different net, can't connect it
-					CString mess;
-					mess.Format( "You are trying to connect a trace to a pin on a different net\nYou must detach the pin from the net first" );
-					AfxMessageBox( mess );
+					CString s ((LPCSTR) IDS_YouAreTryingToConnectATraceToAPin);
+					AfxMessageBox( s );
 					return;
 				}
 				else 
@@ -2086,9 +2094,8 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 				if( pin_net && from_sel_net && (pin_net != from_sel_net) )
 				{
 					// pins assigned to different nets, can't connect them
-					CString mess;
-					mess.Format( "You are trying to connect pins on different nets\nYou must detach one of them first" );
-					AfxMessageBox( mess );
+					CString s ((LPCSTR) IDS_YouAreTryingToConnectPinsOnDifferentNets);
+					AfxMessageBox( s );
 					m_Doc->m_dlist->StopDragging();
 					SetCursorMode( CUR_PAD_SELECTED );
 				}
@@ -2214,7 +2221,8 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 				cnet * net2 = sel_id.Net();
 				if( net != net2 )
 				{
-					AfxMessageBox( "You are trying to connect traces on different nets" );
+					CString s ((LPCSTR) IDS_YouAreTryingToConnectTracesOnDifferentNets);
+					AfxMessageBox( s );
 					return;
 				}
 				cconnect * c1 = m_sel_id.Con();
@@ -2222,7 +2230,8 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 				if( c1 == c2 )
 				{
 					// AMW r277: TODO make this legal
-					AfxMessageBox( "You are trying to connect vertices on same trace" );
+					CString s ((LPCSTR) IDS_YouAreTryingToConnectVerticesOnSameTrace);
+					AfxMessageBox( s );
 					return;
 				}
 				// OK, we should be able to do this, save undo info
@@ -2335,9 +2344,8 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 				if( new_sel_net && (new_sel_net != m_sel_net) )
 				{
 					// pin assigned to different net, can't connect it
-					CString mess;
-					mess.Format( "You are trying to connect to a pin on a different net" );
-					AfxMessageBox( mess );
+					CString s ((LPCSTR) IDS_YouAreTryingToConnectToAPinOnADifferentNet);
+					AfxMessageBox( s );
 					return;
 				}
 				else if( new_sel_net == 0 )
@@ -2414,9 +2422,8 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 					if( new_sel_net && (new_sel_net != m_sel_net) )
 					{
 						// pin assigned to different net, can't connect it
-						CString mess;
-						mess.Format( "You are trying to connect to a pin on a different net" );
-						AfxMessageBox( mess );
+						CString s ((LPCSTR) IDS_YouAreTryingToConnectToAPinOnADifferentNet);
+						AfxMessageBox( s );
 						return;
 					}
 					if( new_sel_net == NULL )
@@ -2469,10 +2476,12 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 					cconnect * sel_c = m_sel_id.Con();
 					if( hit_c == sel_c )
 					{
-						AfxMessageBox( "Can't connect trace to itself" );
+						CString s ((LPCSTR) IDS_CantConnectTraceToItself);
+						AfxMessageBox( s );
 						return;
 					}
-					int ret = AfxMessageBox( "Connecting trace to vertex" );
+					CString s ((LPCSTR) IDS_ConnectingTraceToVertex);
+					int ret = AfxMessageBox( s );
 					// route trace to center of vertex
 					sel_c->Undraw();
 					hit_c->Undraw();
@@ -2886,7 +2895,8 @@ void CFreePcbView::OnRButtonDown(UINT nFlags, CPoint point)
 		if( ret == -1 )
 		{
 			// error
-			AfxMessageBox( "Error: Unable to clip polygon due to intersecting arc" );
+			CString s ((LPCSTR) IDS_ErrorUnableToClipPolygonDueToIntersectingArc);
+			AfxMessageBox( s );
 			m_Doc->OnEditUndo();
 		}
 		TryToReselectAreaCorner( p.x, p.y );
@@ -3297,7 +3307,8 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 				// routing forward
 				if( m_sel_vtx->tee_ID )
 				{
-					AfxMessageBox( "tee-vertex reached" );
+					CString s ((LPCSTR) IDS_TeeVertexReached);
+					AfxMessageBox( s );
 				}
 				else
 				{
@@ -3323,7 +3334,8 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 				// routing backward, not at end of stub trace
 				if( m_sel_next_vtx->tee_ID )
 				{
-					AfxMessageBox( "tee-vertex reached" );
+					CString s ((LPCSTR) IDS_TeeVertexReached);
+					AfxMessageBox( s );
 				}
 				else
 				{
@@ -3350,7 +3362,8 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 			{
 				if( m_sel_vtx->tee_ID )
 				{
-					AfxMessageBox( "tee-vertex reached" );
+					CString s ((LPCSTR) IDS_TeeVertexReached);
+					AfxMessageBox( s );
 				}
 				else
 				{
@@ -3374,7 +3387,8 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 			{
 				if( m_sel_vtx->tee_ID )
 				{
-					AfxMessageBox( "tee-vertex reached" );
+					CString s ((LPCSTR) IDS_TeeVertexReached);
+					AfxMessageBox( s );
 				}
 				else
 				{
@@ -3495,7 +3509,8 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 			{
 				if( m_sel_part->glued )
 				{
-					int ret = AfxMessageBox( "This part is glued, do you want to unglue it ?  ", MB_YESNO );
+					CString s ((LPCSTR) IDS_ThisPartIsGluedDoYouWantToUnglueIt);
+					int ret = AfxMessageBox( s, MB_YESNO );
 					if( ret == IDYES )
 						m_sel_part->glued = 0;
 					else
@@ -4045,7 +4060,8 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 			if( ret == -1 )
 			{
 				// error
-				AfxMessageBox( "Error: Unable to clip polygon due to intersecting arc" );
+				CString s ((LPCSTR) IDS_ErrorUnableToClipPolygon);
+				AfxMessageBox( s );
 				CancelSelection();
 				m_Doc->OnEditUndo();
 			}
@@ -4135,7 +4151,8 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 			{
 				if( GluedPartsInGroup() )
 				{
-					int ret = AfxMessageBox( "This group contains glued parts, do you want to unglue them ?  ", MB_YESNO );
+					CString s ((LPCSTR) IDS_ThisGroupContainsGluedPartsDoYouWantToUnglueThem);
+					int ret = AfxMessageBox( s, MB_YESNO );
 					if( ret != IDYES )
 						return;
 				}
@@ -5023,12 +5040,12 @@ int CFreePcbView::ShowSelectStatus()
 
 	int u = m_Doc->m_units;
 	CString x_str, y_str, w_str, hole_str, via_w_str, via_hole_str;
-	CString str;
+	CString str, s;
 
 	switch( m_cursor_mode )
 	{
 	case CUR_NONE_SELECTED:
-		str.Format( "No selection" );
+		str.LoadStringA(IDS_NoSelection);
 		break;
 
 	case CUR_DRE_SELECTED:
@@ -5040,13 +5057,13 @@ int CFreePcbView::ShowSelectStatus()
 			CString lay_str;
 			CPolyLine * poly = &m_Doc->m_sm_cutout[m_sel_id.I2()];
 			if( poly->Layer() == LAY_SM_TOP )
-				lay_str = "Top";
+				lay_str.LoadStringA(IDS_Top3);
 			else
-				lay_str = "Bottom";
+				lay_str.LoadStringA(IDS_Bottom2);
 			::MakeCStringFromDimension( &x_str, poly->X(m_sel_id.I3()), u, FALSE, FALSE, FALSE, u==MIL?1:3 );
 			::MakeCStringFromDimension( &y_str, poly->Y(m_sel_id.I3()), u, FALSE, FALSE, FALSE, u==MIL?1:3 );
-			str.Format( "Solder mask cutout %d: %s, corner %d, x %s, y %s%s",
-				m_sel_id.I2()+1, lay_str, m_sel_id.I3()+1, x_str, y_str, uid_str );
+			CString s ((LPCSTR) IDS_SolderMaskCutoutCorner);
+			str.Format( s, m_sel_id.I2()+1, lay_str, m_sel_id.I3()+1, x_str, y_str, uid_str );
 		}
 		break;
 
@@ -5055,67 +5072,67 @@ int CFreePcbView::ShowSelectStatus()
 			CString style_str;
 			CPolyLine * poly = &m_Doc->m_sm_cutout[m_sel_id.I2()];
 			if( poly->SideStyle( m_sel_id.I3() ) == CPolyLine::STRAIGHT )
-				style_str = "straight";
+				style_str.LoadStringA(IDS_Straight);
 			else if( poly->SideStyle( m_sel_id.I3() ) == CPolyLine::ARC_CW )
-				style_str = "arc(cw)";
+				style_str.LoadStringA(IDS_ArcCw);
 			else if( poly->SideStyle( m_sel_id.I3() ) == CPolyLine::ARC_CCW )
-				style_str = "arc(ccw)";
+				style_str.LoadStringA(IDS_ArcCcw);
 			CString lay_str;
 			if( poly->Layer() == LAY_SM_TOP )
-				lay_str = "Top";
+				lay_str.LoadStringA(IDS_Top3);
 			else
-				lay_str = "Bottom";
-			str.Format( "Solder mask cutout %d: %s, side %d of %d, %s%s",
-				m_sel_id.I2()+1, lay_str, m_sel_id.I3()+1,
+				lay_str.LoadStringA(IDS_Bottom2);
+			CString s ((LPCSTR) IDS_SolderMaskCutoutSide);
+			str.Format( s, m_sel_id.I2()+1, lay_str, m_sel_id.I3()+1,
 				poly->NumCorners(), style_str, uid_str );
 		}
 		break;
 
-	case CUR_BOARD_CORNER_SELECTED:
+	case CUR_BOARD_CORNER_SELECTED: 
 		::MakeCStringFromDimension( &x_str, m_Doc->m_board_outline[m_sel_id.I2()].X(m_sel_id.I3()), u, FALSE, FALSE, FALSE, u==MIL?1:3 );
 		::MakeCStringFromDimension( &y_str, m_Doc->m_board_outline[m_sel_id.I2()].Y(m_sel_id.I3()), u, FALSE, FALSE, FALSE, u==MIL?1:3 );
-		str.Format( "board outline %d, corner %d, x %s, y %s%s",
-			m_sel_id.I2()+1, m_sel_id.I3()+1, x_str, y_str, uid_str );
+		s.LoadStringA(IDS_BoardOutlineCorner);
+		str.Format( s, m_sel_id.I2()+1, m_sel_id.I3()+1, x_str, y_str, uid_str );
 		break;
 
 	case CUR_BOARD_SIDE_SELECTED:
 		{
 			CString style_str;
 			if( m_Doc->m_board_outline[m_sel_id.I2()].SideStyle( m_sel_id.I3() ) == CPolyLine::STRAIGHT )
-				style_str = "straight";
+				style_str.LoadStringA(IDS_Straight);
 			else if( m_Doc->m_board_outline[m_sel_id.I2()].SideStyle( m_sel_id.I3() ) == CPolyLine::ARC_CW )
-				style_str = "arc(cw)";
+				style_str.LoadStringA(IDS_ArcCw);
 			else if( m_Doc->m_board_outline[m_sel_id.I2()].SideStyle( m_sel_id.I3() ) == CPolyLine::ARC_CCW )
-				style_str = "arc(ccw)";
-			str.Format( "board outline %d, side %d of %d, %s%s", m_sel_id.I2()+1, m_sel_id.I3()+1,
+				style_str.LoadStringA(IDS_ArcCcw);
+			s.LoadStringA(IDS_BoardOutlineSide);
+			str.Format( s, m_sel_id.I2()+1, m_sel_id.I3()+1,
 				m_Doc->m_board_outline[m_sel_id.I2()].NumCorners(), style_str, uid_str );
 		}
 		break;
 
 	case CUR_PART_SELECTED:
 		{
-			CString side = "top"; 
-			if( m_sel_part->side ) 
-				side = "bottom";
+			CString side ((LPCSTR) IDS_Top);
+			if( m_sel_part->side )
+				side.LoadStringA(IDS_Bottom);
 			::MakeCStringFromDimension( &x_str, m_sel_part->x, u, FALSE, FALSE, FALSE, u==MIL?1:3 );
 			::MakeCStringFromDimension( &y_str, m_sel_part->y, u, FALSE, FALSE, FALSE, u==MIL?1:3 );
 			int rep_angle = ::GetReportedAngleForPart( m_sel_part->angle, 
 				m_sel_part->shape->m_centroid_angle, m_sel_part->side );
-			str.Format( "part %s \"%s\", x %s, y %s, angle %d, %s%s",
-				m_sel_part->ref_des, m_sel_part->shape->m_name, 
-				x_str, y_str, 
-				rep_angle,
-				side,
-				uid_str );
+			s.LoadStringA(IDS_PartXYAngle);
+			str.Format( s, m_sel_part->ref_des, m_sel_part->shape->m_name,
+				x_str, y_str, rep_angle, side );
 		}
 		break;
 
 	case CUR_REF_SELECTED:
-		str.Format( "ref text: %s%s", m_sel_part->ref_des, uid_str ); 
+		s.LoadStringA(IDS_RefText);
+		str.Format( s, m_sel_part->ref_des );
 		break;
 
 	case CUR_VALUE_SELECTED:
-		str.Format( "value: %s%s", m_sel_part->value, uid_str );
+		s.LoadStringA(IDS_Value2);
+		str.Format( s, m_sel_part->value );
 		break;
 
 	case CUR_PAD_SELECTED:
@@ -5126,16 +5143,16 @@ int CFreePcbView::ShowSelectStatus()
 			if( pin_net )
 			{
 				// pad attached to net
-				str.Format( "pin %s.%s on net \"%s\", x %s, y %s%s",
-					m_sel_part->ref_des,
+				CString s ((LPCSTR) IDS_PinOnNet);
+				str.Format( s, m_sel_part->ref_des,
 					m_sel_part->shape->GetPinNameByIndex(m_sel_id.I2()),
 					pin_net->name, x_str, y_str, uid_str );
 			}
 			else
 			{
 				// pad not attached to a net
-				str.Format( "pin %s.%s unconnected, x %s, y %s%s",
-					m_sel_part->ref_des,
+				CString s ((LPCSTR) IDS_PinUnconnected);
+				str.Format( s, m_sel_part->ref_des,
 					m_sel_part->shape->GetPinNameByIndex(m_sel_id.I2()),
 					x_str, y_str, uid_str );
 			}
@@ -5213,20 +5230,23 @@ int CFreePcbView::ShowSelectStatus()
 				last_y = y;
 			}
 			::MakeCStringFromDimension( &len_str, (int)len, u, TRUE, TRUE, FALSE, u==MIL?1:3 );
-			str = con_str + ", length " + len_str;
+			CString s ((LPCSTR) IDS_Length);
+			str.Format(s, con_str, len_str);
 		}
 		break;
 
 	case CUR_NET_SELECTED:
-		str.Format( "net \"%s\"", m_sel_net->name );
+		s.LoadStringA(IDS_Net);
+		str.Format( s, m_sel_net->name );
 		break;
 
 	case CUR_TEXT_SELECTED:
 		{
 			CString neg_str = "";
 			if( m_sel_text->m_bNegative )
-				neg_str = "(NEG)";
-			str.Format( "Text \"%s\" %s,%s", m_sel_text->m_str, neg_str, uid_str ); 
+				neg_str.LoadStringA(IDS_Neg);
+			CString s ((LPCSTR) IDS_Text);
+			str.Format( s, m_sel_text->m_str, neg_str );
 			break;
 		}
 
@@ -5235,8 +5255,8 @@ int CFreePcbView::ShowSelectStatus()
 			CPoint p = m_Doc->m_nlist->GetAreaCorner( m_sel_net, m_sel_ia, m_sel_is );
 			::MakeCStringFromDimension( &x_str, p.x, u, FALSE, FALSE, FALSE, u==MIL?1:3 );
 			::MakeCStringFromDimension( &y_str, p.y, u, FALSE, FALSE, FALSE, u==MIL?1:3 );
-			str.Format( "\"%s\" copper area %d corner %d, x %s, y %s%s",
-				m_sel_net->name, m_sel_id.I2()+1, m_sel_id.I3()+1,
+			CString s ((LPCSTR) IDS_CopperAreaCorner);
+			str.Format( s, m_sel_net->name, m_sel_id.I2()+1, m_sel_id.I3()+1,
 				x_str, y_str, uid_str );
 		}
 		break;
@@ -5248,94 +5268,97 @@ int CFreePcbView::ShowSelectStatus()
 			CPolyLine * p = &m_sel_net->area[ia];
 			int ncont = p->Contour(ic);
 			if( ncont == 0 )
-				str.Format( "\"%s\" copper area %d edge %d%s", 
-				m_sel_net->name, ia+1, ic+1, uid_str );
+				s.LoadStringA(IDS_CopperAreaEdge),
+				str.Format( s, m_sel_net->name, ia+1, ic+1 );
 			else
-			{
-				str.Format( "\"%s\" copper area %d cutout %d edge %d%s",
-					m_sel_net->name, ia+1, ncont, ic+1-p->ContourStart(ncont),
-					uid_str );
-			}
+				s.LoadStringA(IDS_CopperAreaCutoutEdge),
+				str.Format( s,	m_sel_net->name, ia+1, ncont, ic+1-p->ContourStart(ncont) );
 		}
 		break;
 
 	case CUR_GROUP_SELECTED:
-		str.Format( "Group selected" );
+		str.LoadStringA(IDS_GroupSelected);
 		break;
 
 	case CUR_ADD_BOARD:
-		str.Format( "Placing first corner of board outline" );
+		str.LoadStringA(IDS_PlacingFirstCornerOfBoardOutline);
 		break;
 
 	case CUR_DRAG_BOARD_1:
-		str.Format( "Placing second corner of board outline" );
+		str.LoadStringA(IDS_PlacingSecondCornerOfBoardOutline);
 		break;
 
 	case CUR_DRAG_BOARD:
-		str.Format( "Placing corner %d of board outline", m_sel_id.I3()+2 );
+		s.LoadStringA(IDS_PlacingCornerOfBoardOutline);
+		str.Format( s, m_sel_id.I3()+2 );
 		break;
 
 	case CUR_DRAG_BOARD_INSERT:
-		str.Format( "Inserting corner %d of board outline", m_sel_id.I3()+2 );
+		s.LoadStringA(IDS_InsertingCornerOfBoardOutline);
+		str.Format( s, m_sel_id.I3()+2 );
 		break;
 
 	case CUR_DRAG_BOARD_MOVE:
-		str.Format( "Moving corner %d of board outline", m_sel_id.I3()+1 );
+		s.LoadStringA(IDS_MovingCornerOfBoardOutline);
+		str.Format( s, m_sel_id.I3()+1 );
 		break;
 
 	case CUR_DRAG_PART:
-		str.Format( "Moving part %s", m_sel_part->ref_des );
+		s.LoadStringA(IDS_MovingPart);
+		str.Format( s, m_sel_part->ref_des );
 		break;
 
 	case CUR_DRAG_REF:
-		str.Format( "Moving ref text for part %s", m_sel_part->ref_des );
+		s.LoadStringA(IDS_MovingRefTextForPart);
+		str.Format( s, m_sel_part->ref_des );
 		break;
 
 	case CUR_DRAG_VTX:
-		str.Format( "Routing net \"%s\"", m_sel_net->name );
-		break;
-
 	case CUR_DRAG_END_VTX:
-		str.Format( "Routing net \"%s\"", m_sel_net->name );
+		s.LoadStringA(IDS_RoutingNet);
+		str.Format( s, m_sel_net->name );
 		break;
 
 	case CUR_DRAG_TEXT:
-		str.Format( "Moving text \"%s\"", m_sel_text->m_str );
+		s.LoadStringA(IDS_MovingText);
+		str.Format( s, m_sel_text->m_str );
 		break;
 
 	case CUR_ADD_AREA:
-		str.Format( "Placing first corner of copper area" );
+		str.LoadStringA(IDS_PlacingFirstCornerOfCopperArea);
 		break;
 
 	case CUR_DRAG_AREA_1:
-		str.Format( "Placing second corner of copper area" );
+		str.LoadStringA(IDS_PlacingSecondCornerOfCopperArea);
 		break;
 
 	case CUR_DRAG_AREA:
-		str.Format( "Placing corner %d of copper area", m_sel_id.I3()+1 );
+		s.LoadStringA(IDS_PlacingCornerOfCopperArea);
+		str.Format( s, m_sel_id.I3()+1 );
 		break;
 
 	case CUR_DRAG_AREA_INSERT:
-		str.Format( "Inserting corner %d of copper area", m_sel_id.I3()+2 );
+		s.LoadStringA(IDS_InsertingCornerOfCopperArea);
+		str.Format( s, m_sel_id.I3()+2 );
 		break;
 
 	case CUR_DRAG_AREA_MOVE:
-		str.Format( "Moving corner %d of copper area", m_sel_id.I3()+1 );
+		s.LoadStringA(IDS_MovingCornerOfCopperArea);
+		str.Format( s, m_sel_id.I3()+1 );
 		break;
 
 	case CUR_DRAG_CONNECT:
 		if( m_sel_id.T1() == ID_PART )
-			str.Format( "Adding connection to pin \"%s.%s",
-			m_sel_part->ref_des,
-			m_sel_part->shape->GetPinNameByIndex(m_sel_id.I2()) );
+			s.LoadStringA(IDS_AddingConnectionToPin),
+			str.Format( s, m_sel_part->ref_des,
+				m_sel_part->shape->GetPinNameByIndex(m_sel_id.I2()) );
 		else if( m_sel_id.T1() == ID_NET )
-			str.Format( "Adding branch to trace \"%s.%d",
-			m_sel_net->name,
-			m_sel_id.I2() );
+			s.LoadStringA(IDS_AddingBranchToTrace),
+			str.Format( s, m_sel_net->name,	m_sel_id.I2() );
 		break;
 
 	case CUR_DRAG_MEASURE_1:
-		str = "Measurement mode: left-click to start";
+		str.LoadStringA(IDS_MeasurementModeLeftClickToStart);
 		break;
 
 	}
@@ -5379,13 +5402,14 @@ int CFreePcbView::ShowActiveLayer()
 	if( !pMain )
 		return 1;
 
-	CString str;
+	CString str, s;
 	if( m_active_layer == LAY_TOP_COPPER )
-		str.Format( "Top" );
+		str.LoadStringA( IDS_Top3 );
 	else if( m_active_layer == LAY_BOTTOM_COPPER )
-		str.Format( "Bottom" );
+		str.LoadStringA( IDS_Bottom2 );
 	else if( m_active_layer > LAY_BOTTOM_COPPER )
-		str.Format( "Inner %d", m_active_layer - LAY_BOTTOM_COPPER );
+		s.LoadStringA(IDS_Inner2),
+		str.Format( s, m_active_layer - LAY_BOTTOM_COPPER );
 	pMain->DrawStatus( 4, &str );
 	for( int order=LAY_TOP_COPPER; order<LAY_TOP_COPPER+m_Doc->m_num_copper_layers; order++ )
 	{
@@ -5975,8 +5999,8 @@ void CFreePcbView::OnAddArea()
 	{
 		if( !dlg.m_net )
 		{
-			CString str;
-			str.Format( "Net \"%s\" not found", dlg.m_net_name );
+			CString str, s ((LPCSTR) IDS_NetNotFound);
+			str.Format( s, dlg.m_net_name );
 			AfxMessageBox( str, MB_OK );
 		}
 		else
@@ -6050,7 +6074,8 @@ void CFreePcbView::OnPartMove()
 	// check for glue
 	if( m_sel_part->glued )
 	{
-		int ret = AfxMessageBox( "This part is glued, do you want to unglue it ?  ", MB_YESNO );
+		CString s ((LPCSTR) IDS_ThisPartIsGluedDoYouWantToUnglueIt);
+		int ret = AfxMessageBox( s, MB_YESNO );
 		if( ret != IDYES )
 			return;
 	}
@@ -6191,9 +6216,8 @@ void CFreePcbView::OnPartUnglue()
 void CFreePcbView::OnPartDelete()
 {
 	// delete part
-	CString mess;
-	mess.Format( "Deleting part %s\nDo you wish to remove all references\nto this part from netlist ?",
-		m_sel_part->ref_des );
+	CString mess, s ((LPCSTR) IDS_DeletingPartDoYouWishToRemoveAllReferences);
+	mess.Format( s, m_sel_part->ref_des );
 	int ret = AfxMessageBox( mess, MB_YESNOCANCEL );
 	if( ret == IDCANCEL )
 		return;
@@ -6260,7 +6284,8 @@ void CFreePcbView::OnPadStartTrace()
 	cnet * net = (cnet*)m_sel_part->pin[m_sel_id.I2()].net;
 	if( net == NULL )
 	{
-		AfxMessageBox( "Pad must be assigned to a net before adding trace", MB_OK );
+		CString s ((LPCSTR) IDS_PadMustBeAssignedToANetBeforeAddingTrace);
+		AfxMessageBox( s, MB_OK );
 		return;
 	}
 	CDC *pDC = GetDC();
@@ -6356,7 +6381,8 @@ void CFreePcbView::OnPadAddToNet()
 			else
 			{
 				// blank net name
-				AfxMessageBox( "Illegal net name" );
+				CString s ((LPCSTR) IDS_IllegalNetName);
+				AfxMessageBox( s );
 				return;
 			}
 		}
@@ -6733,7 +6759,8 @@ void CFreePcbView::OnVertexDelete()
 	if( v->GetType() == cvertex::V_TEE )
 	{
 		// ask about tee-connection
-		int ret = AfxMessageBox( "You are deleting a tee-vertex\nContinue ?", MB_OKCANCEL );
+		CString s ((LPCSTR) IDS_YouAreDeletingATeeVertexContinue);
+		int ret = AfxMessageBox( s,	MB_OKCANCEL );
 		if( ret == IDCANCEL )
 			return;
 	}
@@ -6886,7 +6913,7 @@ void CFreePcbView::OnEndVertexDelete()
 void CFreePcbView::OnEndVertexEdit()
 {
 	DlgEditBoardCorner dlg;
-	CString str = "Edit End Vertex Position";
+	CString str ((LPCSTR) IDS_EditEndVertexPosition);
 	int x = m_sel_vtx->x;
 	int y = m_sel_vtx->y;
 	dlg.Init( &str, m_Doc->m_units, x, y );
@@ -6951,8 +6978,8 @@ void CFreePcbView::OnRatlineDeleteConnection()
 {
 	if( m_sel_con->locked )
 	{
-		int ret = AfxMessageBox( "You are trying to delete a locked connection.\nAre you sure ? ",
-			MB_YESNO );
+		CString s ((LPCSTR) IDS_YouAreTryingToDeleteALockedConnection);
+		int ret = AfxMessageBox( s,	MB_YESNO );
 		if( ret == IDNO )
 			return;
 	}
@@ -7071,7 +7098,7 @@ void CFreePcbView::OnBoardCornerMove()
 void CFreePcbView::OnBoardCornerEdit()
 {
 	DlgEditBoardCorner dlg;
-	CString str = "Corner Position";
+	CString str ((LPCSTR) IDS_CornerPosition);
 	int x = m_Doc->m_board_outline[m_sel_id.I2()].X(m_sel_id.I3());
 	int y = m_Doc->m_board_outline[m_sel_id.I2()].Y(m_sel_id.I3());
 	dlg.Init( &str, m_Doc->m_units, x, y );
@@ -7093,7 +7120,8 @@ void CFreePcbView::OnBoardCornerDelete()
 {
 	if( m_Doc->m_board_outline[m_sel_id.I2()].NumCorners() < 4 )
 	{
-		AfxMessageBox( "Board outline has too few corners" );
+		CString s ((LPCSTR) IDS_BoardOutlineHasTooFewCorners);
+		AfxMessageBox( s );
 		return;
 	}
 	SaveUndoInfoForBoardOutlines( TRUE, m_Doc->m_undo_list );
@@ -7396,10 +7424,11 @@ void CFreePcbView::SnapCursorPoint( CPoint wp, UINT nFlags )
 				double angle_angle_grid = angle/angle_grid;
 				int sel_snap_angle = (int)angle_angle_grid + ((angle_angle_grid - (double)((int)angle_angle_grid)) > 0.5 ? 1 : 0);
 				double point_angle = angle_grid*sel_snap_angle; //result of angle calculation
+				/* CPT eliminated:
 				CString test, test_grid;
 				test.Format("point_angle: %f\r\n",point_angle);
 				test_grid.Format("grid_spacing: %d\r\n",grid_spacing);
-
+				*/
 
 				//find the distance along that angle
 				//match the distance the actual point is from the start point
@@ -7808,7 +7837,7 @@ void CFreePcbView::OnAreaCornerProperties()
 {
 	// reuse board corner dialog
 	DlgEditBoardCorner dlg;
-	CString str = "Corner Position";
+	CString str ((LPCSTR) IDS_CornerPosition);
 	CPoint pt = m_Doc->m_nlist->GetAreaCorner( m_sel_net, m_sel_ia, m_sel_is );
 	dlg.Init( &str, m_Doc->m_units, pt.x, pt.y );
 	int ret = dlg.DoModal();
@@ -8377,7 +8406,8 @@ void CFreePcbView::OnViewEntireBoard()
 	}
 	else
 	{
-		AfxMessageBox( "Board outline does not exist" );
+		CString s ((LPCSTR) IDS_BoardOutlineDoesNotExist);
+		AfxMessageBox( s );
 	}
 }
 
@@ -8473,9 +8503,8 @@ void CFreePcbView::OnPartEditThisFootprint()
 //
 void CFreePcbView::OnExternalChangeFootprint( CShape * fp )
 {
-	CString str;
-	str.Format( "Do you wish to replace the footprint of part \"%s\"\nwith the new footprint \"%s\" ?",
-		m_sel_part->ref_des, fp->m_name );
+	CString str, s ((LPCSTR) IDS_DoYouWishToReplaceTheFootprintOfPart);
+	str.Format( s, m_sel_part->ref_des, fp->m_name );
 	int ret = AfxMessageBox( str, MB_YESNO );
 	if( ret == IDYES )
 	{
@@ -8501,9 +8530,8 @@ void CFreePcbView::OnExternalChangeFootprint( CShape * fp )
 			{
 				// offer to overwrite or rename it
 				CDlgDupFootprintName dlg;
-				CString mess;
-				mess.Format( "Warning: A footprint named \"%s\"\r\nis already in use by other parts.\r\n", fp->m_name );
-				mess += "Loading this new footprint will overwrite the old one\r\nunless you change its name\r\n";
+				CString mess, s ((LPCSTR) IDS_WarningAFootprintNamedIsAlreadyInUse);
+				mess.Format( s, fp->m_name );
 				dlg.Initialize( &mess, &m_Doc->m_footprint_cache_map );
 				int ret = dlg.DoModal();
 				if( ret == IDOK )
@@ -8578,12 +8606,14 @@ void CFreePcbView::OnViewFindpart()
 			}
 			else
 			{
-				AfxMessageBox( "Sorry, this part doesn't have a footprint" );
+				CString s ((LPCSTR) IDS_SorryThisPartDoesntHaveAFootprint);
+				AfxMessageBox( s );
 			}
 		}
 		else
 		{
-			AfxMessageBox( "Sorry, this part doesn't exist" );
+			CString s ((LPCSTR) IDS_SorryThisPartDoesntExist);
+			AfxMessageBox( s );
 		}
 	}
 }
@@ -8663,7 +8693,7 @@ void CFreePcbView::OnSmCornerSetPosition()
 {
 	CPolyLine * poly = &m_Doc->m_sm_cutout[m_sel_id.I2()];
 	DlgEditBoardCorner dlg;
-	CString str = "Corner Position";
+	CString str ((LPCSTR) IDS_CornerPosition);
 	int x = poly->X(m_sel_id.I3());
 	int y = poly->Y(m_sel_id.I3());
 	dlg.Init( &str, m_Doc->m_units, x, y );
@@ -8684,7 +8714,8 @@ void CFreePcbView::OnSmCornerDeleteCorner()
 	CPolyLine * poly = &m_Doc->m_sm_cutout[m_sel_id.I2()];
 	if( poly->NumCorners() < 4 )
 	{
-		AfxMessageBox( "Solder mask cutout has too few corners" );
+		CString s ((LPCSTR) IDS_SolderMaskCutoutHasTooFewCorners);
+		AfxMessageBox( s );
 		return;
 	}
 	SaveUndoInfoForSMCutouts( TRUE, m_Doc->m_undo_list );
@@ -8877,7 +8908,8 @@ void CFreePcbView::ChangeTraceLayer( int mode, int old_layer )
 						m_sel_id.I2(), m_sel_id.I3(), dlg.m_new_layer );
 			if( err )
 			{
-				AfxMessageBox( "Unable to change layer for this segment" );
+				CString s ((LPCSTR) IDS_UnableToChangeLayerForThisSegment);
+				AfxMessageBox( s );
 			}
 		}
 		else if( dlg.m_apply_to == 1 )
@@ -8892,7 +8924,8 @@ void CFreePcbView::ChangeTraceLayer( int mode, int old_layer )
 			}
 			if( err )
 			{
-				AfxMessageBox( "Unable to change layer for all segments" );
+				CString s ((LPCSTR) IDS_UnableToChangeLayerForAllSegments);
+				AfxMessageBox( s );
 			}
 		}
 		else if( dlg.m_apply_to == 2 )
@@ -8911,7 +8944,8 @@ void CFreePcbView::ChangeTraceLayer( int mode, int old_layer )
 			}
 			if( err )
 			{
-				AfxMessageBox( "Unable to change layer for all segments" );
+				CString s ((LPCSTR) IDS_UnableToChangeLayerForAllSegments);
+				AfxMessageBox( s );
 			}
 		}
 		m_Doc->ProjectModified( TRUE );
@@ -9538,7 +9572,8 @@ void CFreePcbView::OnGroupMove()
 {
 	if( GluedPartsInGroup() )
 	{
-		int ret = AfxMessageBox( "This group contains glued parts, unglue and move them ?", MB_OKCANCEL );
+		CString s ((LPCSTR) IDS_ThisGroupContainsGluedParts);
+		int ret = AfxMessageBox( s, MB_OKCANCEL );
 		if( ret != IDOK )
 			return;
 	}
@@ -10289,8 +10324,8 @@ void CFreePcbView::OnAreaEdit()
 		int ret = m_Doc->m_nlist->AreaPolygonModified( m_sel_net, m_sel_ia, FALSE, TRUE );
 		if( ret == -1 )
 		{
-			// error
-			AfxMessageBox( "Error: Unable to clip polygon due to intersecting arc" );
+			CString s ((LPCSTR) IDS_ErrorUnableToClipPolygonDueToIntersectingArc);
+			AfxMessageBox( s );
 			CancelSelection();
 			m_Doc->OnEditUndo();
 		}
@@ -10775,7 +10810,8 @@ void CFreePcbView::OnGroupCopy()
 	if( !iter_net_g.GetFirst() && !g_pl->GetFirstPart() && !g_sm->GetSize() 
 		&& !g_bd->GetSize() && !g_tl->GetNumTexts() )
 	{
-		AfxMessageBox( "Nothing copied !\nRemember that traces must be connected\nto a part in the group to be copied" );
+		CString s ((LPCSTR) IDS_NothingCopiedRememberThatTracesMustBeConnected);
+		AfxMessageBox( s );
 		CWnd* pMain = AfxGetMainWnd();
 		if (pMain != NULL)
 		{
@@ -11224,11 +11260,8 @@ void CFreePcbView::OnGroupPaste()
 			if( bConflict )
 			{
 				// ref in group conflicts with ref in project
-				CString mess = "Part \"";
-				mess += conflicted_ref;
-				mess += "\" already exists in project.\nIt will be renamed \" ";
-				mess += new_ref;
-				mess += " \"";
+				CString s ((LPCSTR) IDS_PartAlreadyExistsInProjectItWillBeRenamed), mess;
+				mess.Format(s, conflicted_ref, new_ref);
 				AfxMessageBox( mess );
 				bConflict = TRUE;
 			}
@@ -11699,8 +11732,10 @@ void CFreePcbView::OnGroupPaste()
 		HighlightGroup();
 		if( bDragGroup )
 		{
-			if( min_x == INT_MAX || min_y == INT_MAX )
-				AfxMessageBox( "No items to drag" );
+			if( min_x == INT_MAX || min_y == INT_MAX ) {
+				CString s ((LPCSTR) IDS_NoItemsToDrag);
+				AfxMessageBox( s );
+			}
 			else
 				StartDraggingGroup( TRUE, min_x, min_y );
 		}
@@ -11729,10 +11764,9 @@ void CFreePcbView::OnGroupSaveToFile()
 	// Copy group to pseudo-clipboard
 	OnGroupCopy();
 
-	// force old-style file dialog by setting size of OPENFILENAME struct
+	CString s ((LPCSTR) IDS_PCBFiles);
 	CFileDialog dlg( 0, "fpc", NULL, 0,
-		"PCB files (*.fpc)|*.fpc|All Files (*.*)|*.*||",
-		NULL, OPENFILENAME_SIZE_VERSION_500 );
+		s, NULL, OPENFILENAME_SIZE_VERSION_500 );
 	// get folder of most-recent file or project folder
 	CString MRFile = theApp.GetMRUFile();
 	CString MRFolder;
@@ -11753,8 +11787,8 @@ void CFreePcbView::OnGroupSaveToFile()
 		if( !err )
 		{
 			// error opening partlist file
-			CString mess;
-			mess.Format( "Unable to open file %s", pathname );
+			CString mess, s ((LPCSTR) IDS_UnableToOpenFile);
+			mess.Format( s, pathname );
 			AfxMessageBox( mess );
 		}
 		else
@@ -12999,7 +13033,8 @@ void CFreePcbView::OnGroupRotate()
 	{
 		if( GluedPartsInGroup() )
 		{
-			int ret = AfxMessageBox( "This group contains glued parts, unglue and rotate them ?  ", MB_YESNO );
+			CString s ((LPCSTR) IDS_ThisGroupContainsGluedPartsUnglueAndRotate);
+			int ret = AfxMessageBox( s, MB_YESNO );
 			if( ret != IDYES )
 				return;
 		}
