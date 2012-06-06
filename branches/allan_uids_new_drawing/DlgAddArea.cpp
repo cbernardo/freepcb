@@ -54,7 +54,8 @@ void CDlgAddArea::DoDataExchange(CDataExchange* pDX)
 		m_num_layers = m_num_layers-LAY_TOP_COPPER;
 		for( int il=0; il<m_num_layers; il++ )
 		{
-			m_list_layer.InsertString( il, &layer_str[il+LAY_TOP_COPPER][0] );
+			CString s ((LPCSTR) (IDS_LayerStr+il+LAY_TOP_COPPER));
+			m_list_layer.InsertString( il, s );
 		}
 		m_list_layer.SetCurSel( m_layer - LAY_TOP_COPPER );
 		if( m_hatch == -1 )
@@ -78,7 +79,8 @@ void CDlgAddArea::DoDataExchange(CDataExchange* pDX)
 		m_net = m_nlist->GetNetPtrByName( &m_net_name );
 		if( !m_net )
 		{
-			AfxMessageBox( "Illegal net name" );
+			CString msg ((LPCSTR) IDS_IllegalNetName);
+			AfxMessageBox( msg );
 			pDX->Fail();
 		}
 		if( m_radio_none.GetCheck() )

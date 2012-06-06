@@ -134,7 +134,8 @@ int SMFontUtil::LoadFontData(void)
 	CString full_path = smfpath + "\\" + smffile;
 	if(!(infile = fopen(full_path,"rb")))
 	{
-		AfxMessageBox( "Font stroke file was not found" );
+		CString s ((LPCSTR) IDS_FontStrokeFileWasNotFound);
+		AfxMessageBox( s );
 		return 1;
 	}
 	else
@@ -185,7 +186,8 @@ int SMFontUtil::LoadXlationData(void)
 	CString full_path = smfpath + "\\" + xtbfile;
 	if(!(infile = fopen(full_path,"rb")))
 	{
-		AfxMessageBox( "Font translation file was not found" );
+		CString s ((LPCSTR) IDS_FontTranslationFileWasNotFound);
+		AfxMessageBox( s );
 		return 1;
 	}
 	else
@@ -339,15 +341,19 @@ void SMFontUtil::LoadOldStyleXlation(void)
 	int i,j,k;
 
 	cCharCount = 0;
+	CString s ((LPCSTR) IDS_FontTranslationFile), s2;
 	CFileDialog open(TRUE,NULL,"*.csv",
 		OFN_HIDEREADONLY | OFN_FILEMUSTEXIST,
-		"Font Translation File (*.csv)|*.csv||",NULL);
+		s, NULL);
 	open.m_ofn.lpstrInitialDir = "\\";
-	open.m_ofn.lpstrTitle = "Select Font Translation File";
+	s.LoadStringA(IDS_SelectFontTranslationFile);
+	open.m_ofn.lpstrTitle = s;
 	open.DoModal();
 	if(!(infile = fopen(open.GetPathName(),"rb")))
 	{
-		MessageBox(NULL,"Translation file did not open\nLoadOldStyleXlationFile","Error",MB_OK);
+		s.LoadStringA(IDS_TranslationFileDidNotOpen);
+		s2.LoadStringA(IDS_Error);
+		MessageBox(NULL, s, s2, MB_OK);
 		_exit(0);
 	}
 
@@ -403,15 +409,18 @@ void SMFontUtil::LoadOldStyleFile(void)
 	SMCharacter * chr;
 
 	cCharCount = 0;
+	CString s ((LPCSTR) IDS_FontStrokeFile), s2;
 	CFileDialog open(TRUE,NULL,"*.csv",
-		OFN_HIDEREADONLY | OFN_FILEMUSTEXIST,
-		"Font Stroke File (*.csv)|*.csv||",NULL);
+		OFN_HIDEREADONLY | OFN_FILEMUSTEXIST, s, NULL);
 	open.m_ofn.lpstrInitialDir = "\\";
-	open.m_ofn.lpstrTitle = "Select Font Stroke File";
+	s.LoadStringA(IDS_SelectFontStrokeFile);
+	open.m_ofn.lpstrTitle = s;
 	open.DoModal();
 	if(!(infile = fopen(open.GetPathName(),"rb")))
 	{
-		MessageBox(NULL,"Font file did not open\nLoadOldStyleFile","Error",MB_OK);
+		s.LoadStringA(IDS_FontFileDidNotOpen);
+		s2.LoadStringA(IDS_Error);
+		MessageBox(NULL, s, s2, MB_OK);
 		_exit(0);
 	}
 

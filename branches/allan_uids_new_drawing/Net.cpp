@@ -462,7 +462,8 @@ void cseg::GetStatusStr( CString * str, int width )
 	if (width==0) width = m_width;
 	CString w_str;
 	::MakeCStringFromDimension( &w_str, width, u, FALSE, FALSE, FALSE, u==MIL?1:3 );
-	str->Format( "segment, w %s", w_str );
+	CString s ((LPCSTR) IDS_SegmentW);
+	str->Format( s, w_str );
 }
 
 
@@ -749,11 +750,11 @@ void cvertex::GetTypeStatusStr( CString * str )
 	}
 	else if( type == V_END )
 	{
-		*str = "end-vertex";
+		str->LoadStringA(IDS_EndVertex);
 	}
 	else
 	{
-		*str = "vertex";	
+		str->LoadStringA(IDS_Vertex);	
 	}
 }
 
@@ -766,19 +767,20 @@ void cvertex::GetStatusStr( CString * str )
 	VType type = GetType();
 	if( type == V_PIN )
 	{
-		type_str = "pin-vertex";	// should never happen
+		type_str.LoadStringA(IDS_PinVertex);	// should never happen
 	}
 	else if( type == V_TEE || type == V_SLAVE )
 	{
-		type_str.Format( "T-vertex(%d)", tee_ID );
+		CString s ((LPCSTR) IDS_TVertex);
+		type_str.Format( s, tee_ID );
 	}
 	else if( type == V_END )
 	{
-		type_str = "end-vertex";
+		type_str.LoadStringA(IDS_EndVertex);
 	}
 	else
 	{
-		type_str = "vertex";
+		type_str.LoadStringA(IDS_Vertex);
 	}
 	::MakeCStringFromDimension( &x_str, x, u, FALSE, FALSE, FALSE, u==MIL?1:3 );
 	::MakeCStringFromDimension( &y_str, y, u, FALSE, FALSE, FALSE, u==MIL?1:3 );
@@ -786,21 +788,13 @@ void cvertex::GetStatusStr( CString * str )
 	{
 		::MakeCStringFromDimension( &via_w_str, via_w, u, FALSE, FALSE, FALSE, u==MIL?1:3 );
 		::MakeCStringFromDimension( &via_hole_str, via_hole_w, u, FALSE, FALSE, FALSE, u==MIL?1:3 );
-		str->Format( "%s, x %s, y %s, via %s/%s",
-			type_str,
-			x_str,
-			y_str,
-			via_w_str,
-			via_hole_str
-			);
+		CString s ((LPCSTR) IDS_XYVia);
+		str->Format( s, type_str, x_str, y_str, via_w_str, via_hole_str );
 	}
 	else
 	{
-		str->Format( "%s, x %s, y %s, no via",
-			type_str,
-			x_str,
-			y_str
-			);
+		CString s ((LPCSTR) IDS_XYNoVia);
+		str->Format( s,	type_str, x_str, y_str );
 	}
 }
 
@@ -853,11 +847,11 @@ void cconnect::GetStatusStr( CString * str )
 	m_net->GetStatusStr( &net_str );
 	if( NumSegs() == 1 && seg[0].m_layer == LAY_RAT_LINE )
 	{
-		type_str = "ratline";
+		type_str.LoadStringA(IDS_Ratline);
 	}
 	else
 	{
-		type_str = "trace";
+		type_str.LoadStringA(IDS_Trace);
 	}
 	locked_str = "";
 	if( FirstVtx()->GetType() == cvertex::V_PIN 
@@ -868,7 +862,8 @@ void cconnect::GetStatusStr( CString * str )
 	}
 	FirstVtx()->GetTypeStatusStr( &from_str );
 	LastVtx()->GetTypeStatusStr( &to_str );
-	str->Format( "%s, %s from %s to %s%s", net_str, type_str,
+	CString s ((LPCSTR) IDS_FromTo);
+	str->Format( s, net_str, type_str,
 		from_str, to_str, locked_str );
 }
 
@@ -1197,7 +1192,8 @@ int cnet::NumAreas(){ return area.GetSize(); };
 // create string showing net status
 void cnet::GetStatusStr( CString * str )
 {
-	str->Format( "Net %s", name ); 
+	CString s ((LPCSTR) IDS_Net2);
+	str->Format( s, name ); 
 }
 
 // methods for pins

@@ -50,6 +50,9 @@ enum
 	NUM_FP_LAYERS
 };
 
+//  CPT:  the following tables are used when reading/writing Gerber and .fpc files.  But they are not used when UI elements are being drawn
+//  (the string resource table is used instead)
+
 static char layer_str[32][64] = 
 { 
 	"selection",
@@ -84,7 +87,7 @@ static char layer_str[32][64] =
 	"inner 16",
 	"undefined",
 	"undefined"
-};
+}; 
 
 static char fp_layer_str[NUM_FP_LAYERS][64] = 
 { 

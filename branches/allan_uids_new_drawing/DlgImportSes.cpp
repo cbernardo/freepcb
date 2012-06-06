@@ -75,9 +75,9 @@ void CDlgImportSes::OnBnClickedButtonDef()
 void CDlgImportSes::OnBnClickedButtonBrowse()
 {
 	// force old-style file dialog by setting size of OPENFILENAME struct (for Win98)
+	CString s ((LPCSTR) IDS_SessionFiles);
 	CFileDialog dlg( 1, "ses", LPCTSTR(m_ses_filepath), 0, 
-		"Session files (*.ses)|*.ses|All Files (*.*)|*.*||", 
-		NULL, OPENFILENAME_SIZE_VERSION_500 );
+		s, NULL, OPENFILENAME_SIZE_VERSION_500 );
 	dlg.AssertValid();
 
 	// get folder of last ses file

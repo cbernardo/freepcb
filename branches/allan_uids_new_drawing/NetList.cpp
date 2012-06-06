@@ -493,8 +493,8 @@ void CNetList::CleanUpConnections( cnet * net, CString * logstr )
 					c->seg.RemoveAt(is);
 					if( logstr )
 					{
-						CString str;
-						CString str_pin_1 = "end-vertex", str_pin_2 = "end-vertex";
+						CString str, s ((LPCSTR) IDS_NetTraceRemovingZeroLength);
+						CString str_pin_1 ((LPCSTR) IDS_EndVertex), str_pin_2 ((LPCSTR) IDS_EndVertex);
 						if( c->FirstVtx()->GetType() == cvertex::V_TEE || c->FirstVtx()->GetType() == cvertex::V_SLAVE )
 							str_pin_1.Format( "T(%d)", abs( c->FirstVtx()->tee_ID ) );
 						else if( c->start_pin != cconnect::NO_END )
@@ -503,8 +503,7 @@ void CNetList::CleanUpConnections( cnet * net, CString * logstr )
 							str_pin_1.Format( "T(%d)", abs( c->LastVtx()->tee_ID ) );
 						else if( c->end_pin != cconnect::NO_END )
 							str_pin_2 = net->pin[c->end_pin].ref_des + "." + net->pin[c->end_pin].pin_name;
-						str.Format( "net %s: trace from %s to %s: removing zero-length segment\r\n",
-								net->name, str_pin_1, str_pin_2 ); 
+						str.Format( s, net->name, str_pin_1, str_pin_2 ); 
 						*logstr += str;
 					}
 				}
@@ -538,8 +537,8 @@ void CNetList::CleanUpConnections( cnet * net, CString * logstr )
 						// yes, combine these segments
 						if( logstr )
 						{
-							CString str;
-							CString str_pin_1 = "end-vertex", str_pin_2 = "end-vertex";
+							CString str, s ((LPCSTR) IDS_NetTraceCombiningColinear);
+							CString str_pin_1 ((LPCSTR) IDS_EndVertex), str_pin_2 ((LPCSTR) IDS_EndVertex);
 							if( c->FirstVtx()->GetType() == cvertex::V_TEE || c->FirstVtx()->GetType() == cvertex::V_SLAVE )
 								str_pin_1.Format( "T(%d)", abs( c->FirstVtx()->tee_ID ) );
 							else if( c->start_pin != cconnect::NO_END )
@@ -548,8 +547,7 @@ void CNetList::CleanUpConnections( cnet * net, CString * logstr )
 								str_pin_1.Format( "T(%d)", abs( c->LastVtx()->tee_ID ) );
 							else if( c->end_pin != cconnect::NO_END )
 								str_pin_2 = net->pin[c->end_pin].ref_des + "." + net->pin[c->end_pin].pin_name;
-							str.Format( "net %s: trace from %s to %s: combining colinear segments\r\n",
-									net->name, str_pin_1, str_pin_2 ); 
+							str.Format( s, net->name, str_pin_1, str_pin_2 ); 
 							*logstr += str;
 						}
 						c->vtx.RemoveAt(is+1);
@@ -566,10 +564,8 @@ void CNetList::CleanUpConnections( cnet * net, CString * logstr )
 				{
 					if( logstr )
 					{
-						CString str;
-						str.Format( "net %s: stub trace from %s.%s: single unrouted segment and no end via, removed\r\n",
-							net->name, 
-							net->pin[c->start_pin].ref_des, net->pin[c->start_pin].pin_name ); 
+						CString str, s ((LPCSTR) IDS_NetStubTraceSingleUnrouted);
+						str.Format( s, net->name, net->pin[c->start_pin].ref_des, net->pin[c->start_pin].pin_name );
 						*logstr += str;
 					}
 					bConnectionRemoved = TRUE;
@@ -589,7 +585,7 @@ void CNetList::CleanUpConnections( cnet * net, CString * logstr )
 //
 void CNetList::CleanUpAllConnections( CString * logstr )
 {
-	CString str;
+	CString str, s;
 
 	CIterator_cnet iter_net(this);
 	cnet * net = iter_net.GetFirst();
@@ -600,10 +596,12 @@ void CNetList::CleanUpAllConnections( CString * logstr )
 	}
 	// check tee_IDs in array
 	if( logstr )
-		*logstr += "\r\nChecking tees and branches:\r\n";
+		s.LoadStringA(IDS_CheckingTeesAndBranches),
+		*logstr += s;
 	if( logstr )
 	{
-		str.Format( "  %d tee_IDs in array:\r\n", m_tee.GetSize() );
+		s.LoadStringA(IDS_TeeIdsInArray);
+		str.Format( s, m_tee.GetSize() );
 		*logstr += str;
 	}
 	for( int it=0; it<m_tee.GetSize(); it++ )
@@ -617,7 +615,8 @@ void CNetList::CleanUpAllConnections( CString * logstr )
 		{
 			if( logstr )
 			{
-				str.Format( "    tee_id %d not found in project, removed\r\n", tee_id );
+				s.LoadStringA(IDS_TeeIdNotFoundInProjectRemoved);
+				str.Format( s, tee_id );
 				*logstr += str;
 			}
 			RemoveTeeID( tee_id );
@@ -647,18 +646,18 @@ void CNetList::CleanUpAllConnections( CString * logstr )
 						CString no_ID_str = "";
 						if( !FindTeeVertexInNet( net, end_id, 0, 0 ) )
 						{
-							no_tee_str = ", not in trace";
+							no_tee_str.LoadStringA(IDS_NotInTrace);
 							bError = TRUE;
 						}
 						if( FindTeeID( end_id ) == -1 )
 						{
-							no_ID_str = ", not in ID array";
+							no_ID_str.LoadStringA(IDS_NotInIdArray);
 							bError = TRUE;
 						}
 						if( bError && logstr )
 						{
-							str.Format( "  tee_id %d found in branch%s%s, branch removed\r\n", 
-								end_id, no_tee_str, no_ID_str );
+							CString s ((LPCSTR) IDS_TeeIdFoundInBranchBranchRemoved);
+							str.Format( s, end_id, no_tee_str, no_ID_str );
 							*logstr += str;
 						}
 						if( bError )
@@ -677,7 +676,8 @@ void CNetList::CleanUpAllConnections( CString * logstr )
 							// tee-vertex, check array
 							if( FindTeeID(id) == -1 && logstr )
 							{
-								str.Format( "  tee_id %d found in trace, not in ID array\r\n", id );
+								CString s ((LPCSTR) IDS_TeeIdFoundInTraceNotInIdArray);
+								str.Format( s, id );
 								*logstr += str;
 							}
 						}
