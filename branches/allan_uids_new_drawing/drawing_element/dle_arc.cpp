@@ -2,7 +2,7 @@
 #include "dle_arc.h"
 
 // arcs
-int CDLE_ARC::onScreen(void) const
+int CDLE_ARC::onScreen(void)
 {
 	return ( (    (f.x >= i.x && i.x < dlist->m_max_x && f.x > dlist->m_org_x)
 	         ||   (f.x <  i.x && f.x < dlist->m_max_x && i.x > dlist->m_org_x) )
@@ -10,7 +10,7 @@ int CDLE_ARC::onScreen(void) const
 	         ||   (f.y <  i.y && f.y < dlist->m_max_y && i.y > dlist->m_org_y) ) );
 }
 
-int CDLE_ARC::_isHit(CPoint const &point) const
+int CDLE_ARC::_isHit(CPoint &point)
 {
     // found selection rectangle, test for hit
     return (   ( (point.x>i.x && point.x<f.x) || (point.x<i.x && point.x>f.x) )
@@ -19,7 +19,7 @@ int CDLE_ARC::_isHit(CPoint const &point) const
 
 
 // arc with clockwise curve
-void CDLE_ARC_CW::_Draw(CDrawInfo const &di) const
+void CDLE_ARC_CW::_Draw(CDrawInfo &di, bool) 
 {
 	if( onScreen() )
 	{
@@ -32,7 +32,7 @@ void CDLE_ARC_CW::_Draw(CDrawInfo const &di) const
 
 
 // arc with counter-clockwise curve
-void CDLE_ARC_CCW::_Draw(CDrawInfo const &di) const
+void CDLE_ARC_CCW::_Draw(CDrawInfo &di, bool) 
 {
 	if( onScreen() )
 	{

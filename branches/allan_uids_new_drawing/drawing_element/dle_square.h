@@ -7,9 +7,9 @@
 class CDLE_SQUARE : public CDLE_Symmetric
 {
 protected:
-	virtual void _Draw         (CDrawInfo const &di) const;
-	virtual void _DrawClearance(CDrawInfo const &di) const;
-	virtual void _DrawThermalRelief(CDrawInfo const &di) const;
+	virtual void _Draw(CDrawInfo &di, bool);
+	// virtual void _DrawClearance(CDrawInfo &di);
+	virtual void _DrawThermalRelief(CDrawInfo &di);
 };
 
 #endif /* !_DLE_SQUARE_F_H ] */

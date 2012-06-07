@@ -565,6 +565,11 @@ void CFreePcbView::OnSize(UINT nType, int cx, int cy)
 		m_bitmap.CreateCompatibleBitmap( pDC, m_client_r.right, m_client_r.bottom );
 		m_old_bitmap = (HBITMAP)::SelectObject( m_memDC.m_hDC, m_bitmap.m_hObject );		
 		m_bitmap_rect = m_client_r;
+		// CPT experimental
+		m_memDC2.CreateCompatibleDC( pDC );
+		m_bitmap2.CreateCompatibleBitmap( pDC, m_client_r.right, m_client_r.bottom );
+		m_old_bitmap2 = (HBITMAP)::SelectObject( m_memDC2.m_hDC, m_bitmap2.m_hObject );
+		// end CPT
 		ReleaseDC( pDC );
 	}
 	else if( m_memDC_created && (m_bitmap_rect != m_client_r) )
@@ -575,6 +580,12 @@ void CFreePcbView::OnSize(UINT nType, int cx, int cy)
 		m_bitmap.CreateCompatibleBitmap( pDC, m_client_r.right, m_client_r.bottom );
 		m_old_bitmap = (HBITMAP)::SelectObject( m_memDC.m_hDC, m_bitmap.m_hObject );		
 		m_bitmap_rect = m_client_r;
+		// CPT experimental
+		::SelectObject(m_memDC2.m_hDC, m_old_bitmap2 );
+		m_bitmap2.DeleteObject();
+		m_bitmap2.CreateCompatibleBitmap( pDC, m_client_r.right, m_client_r.bottom );
+		m_old_bitmap2 = (HBITMAP)::SelectObject( m_memDC2.m_hDC, m_bitmap2.m_hObject );		
+		// end CPT
 		ReleaseDC( pDC );
 	}
 }
@@ -4474,7 +4485,7 @@ void CFreePcbView::OnMouseMove(UINT nFlags, CPoint point)
 //
 int CFreePcbView::SetDCToWorldCoords( CDC * pDC )
 {
-	m_dlist->SetDCToWorldCoords( pDC, &m_memDC, m_org_x, m_org_y );
+	m_dlist->SetDCToWorldCoords( pDC, &m_memDC, &m_memDC2, m_org_x, m_org_y );
 
 	return 0;
 }
@@ -10201,6 +10212,8 @@ void CFreePcbView::HighlightGroup()
 		else
 			ASSERT(0);
 	}
+
+	Invalidate(false);				// CPT bug fix 6/5/12.
 }
 
 // Find item in group by id

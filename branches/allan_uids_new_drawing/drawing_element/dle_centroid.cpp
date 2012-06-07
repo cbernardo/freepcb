@@ -2,7 +2,7 @@
 #include "dle_centroid.h"
 
 // circle and X
-void CDLE_CENTROID::_Draw(CDrawInfo const &di) const
+void CDLE_CENTROID::_Draw(CDrawInfo &di, bool) 
 {
 	// x,y are center coords; w = width;
 	// f.x,f.y define arrow end-point for P&P orientation

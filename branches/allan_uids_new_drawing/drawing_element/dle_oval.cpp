@@ -2,7 +2,7 @@
 #include "dle_oval.h"
 
 // filled oval
-void CDLE_OVAL::_Draw(CDrawInfo const &di) const
+void CDLE_OVAL::_Draw(CDrawInfo &di, bool)
 {
 	if( onScreen() )
 	{
@@ -31,7 +31,7 @@ void CDLE_OVAL::_Draw(CDrawInfo const &di) const
 	}
 }
 
-void CDLE_OVAL::_DrawClearance(CDrawInfo const &di) const
+/* void CDLE_OVAL::_DrawClearance(CDrawInfo const &di) const
 {
 	int _xi = i.x;
 	int _yi = i.y;
@@ -62,3 +62,4 @@ void CDLE_OVAL::_DrawClearance(CDrawInfo const &di) const
 	di.DC->SelectObject( di.line_pen );
 }
 
+*/

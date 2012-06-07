@@ -7,8 +7,8 @@
 class CDLE_DONUT : public CDLE_Symmetric
 {
 protected:
-	virtual void _Draw         (CDrawInfo const &di) const;
-	virtual void _DrawClearance(CDrawInfo const &di) const;
+	virtual void _Draw (CDrawInfo &di, bool);
+	// virtual void _DrawClearance(CDrawInfo &di);
 };
 
 #endif /* !_DLE_DONUT_H ] */

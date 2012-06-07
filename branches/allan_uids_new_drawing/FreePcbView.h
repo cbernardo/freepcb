@@ -485,6 +485,9 @@ public:
 //	CBitmap * m_old_bitmap;
 	HBITMAP m_old_bitmap;
 	CRect m_bitmap_rect;
+	CDC m_memDC2;				// CPT experimental
+	CBitmap m_bitmap2;			// ditto
+	HBITMAP m_old_bitmap2;		// ditto
 	
 // Operations
 public:

@@ -7,8 +7,8 @@
 class CDLE_ARC : public dl_element
 {
 protected:
-    int onScreen(void) const;
-	virtual int  _isHit(CPoint const &point) const;
+    int onScreen(void);
+	virtual int  _isHit(CPoint &point);
 };
 
 
@@ -17,7 +17,7 @@ protected:
 class CDLE_ARC_CW : public CDLE_ARC
 {
 protected:
-	virtual void _Draw(CDrawInfo const &di) const;
+	virtual void _Draw(CDrawInfo &di, bool);
 };
 
 
@@ -25,7 +25,7 @@ protected:
 class CDLE_ARC_CCW : public CDLE_ARC
 {
 protected:
-	virtual void _Draw(CDrawInfo const &di) const;
+	virtual void _Draw(CDrawInfo &di, bool);
 };
 
 

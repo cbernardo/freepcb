@@ -2,7 +2,7 @@
 #include "dle_x.h"
 
 // X
-void CDLE_X::_Draw(CDrawInfo const &di) const
+void CDLE_X::_Draw(CDrawInfo &di, bool)
 {
 	int w2 = w/2;
 	int _xi = i.x - w2;

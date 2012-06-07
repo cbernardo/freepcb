@@ -9,7 +9,7 @@ CPT merge notes
 #5  - deferred, since I think this was changed later
 #6  - CPT r264:  merged because I couldn't test #16 on my computer without doing this.  The behavior of CFileDialog under Vista is hideously unpredictable,
 	clearly;  I've got it working OK but the dialog is still flaky.
-#7  - merged.  CPT r286:  finished.
+#7  - merged.  CPT r287:  finished.
 #8  - merged
 #9  - merged
 #10 - AMW r260: merged

@@ -1352,7 +1352,7 @@ void CFootprintView::OnMouseMove(UINT nFlags, CPoint point)
 //
 int CFootprintView::SetDCToWorldCoords( CDC * pDC )
 {
-	m_dlist->SetDCToWorldCoords( pDC, &m_memDC, m_org_x, m_org_y );
+	m_dlist->SetDCToWorldCoords( pDC, &m_memDC, &m_memDC, m_org_x, m_org_y );
 
 	return 0;
 }
