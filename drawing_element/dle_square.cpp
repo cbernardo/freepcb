@@ -4,7 +4,7 @@
 extern CFreePcbApp theApp;
 
 // filled square
-void CDLE_SQUARE::_Draw(CDrawInfo const &di) const
+void CDLE_SQUARE::_Draw(CDrawInfo &di, bool)
 {
 	if( onScreen() )
 	{
@@ -23,7 +23,7 @@ void CDLE_SQUARE::_Draw(CDrawInfo const &di) const
 }
 
 
-void CDLE_SQUARE::_DrawClearance(CDrawInfo const &di) const
+/* void CDLE_SQUARE::_DrawClearance(CDrawInfo const &di) const
 {
 	int sz = w/2 + clearancew;
 
@@ -35,8 +35,9 @@ void CDLE_SQUARE::_DrawClearance(CDrawInfo const &di) const
 	di.DC->SelectObject( di.fill_brush );
 	di.DC->SelectObject( di.line_pen );
 }
+*/
 
-void CDLE_SQUARE::_DrawThermalRelief(CDrawInfo const &di) const
+void CDLE_SQUARE::_DrawThermalRelief(CDrawInfo &di)
 {
 	CFreePcbDoc * doc = theApp.m_Doc;
 

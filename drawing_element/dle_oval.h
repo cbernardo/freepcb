@@ -7,8 +7,8 @@
 class CDLE_OVAL : public CDLE_Rectangular
 {
 protected:
-	virtual void _Draw         (CDrawInfo const &di) const;
-	virtual void _DrawClearance(CDrawInfo const &di) const;
+	virtual void _Draw(CDrawInfo &di, bool);
+	// virtual void _DrawClearance(CDrawInfo &di);
 };
 
 // oval outline

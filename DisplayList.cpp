@@ -31,8 +31,6 @@
 #define DL_MAX_LAYERS	32
 #define HILITE_POINT_W	10	// size/2 of selection box for points (mils)
 
-// constructor
-//
 dl_element::dl_element()
 {
 	prev = next = NULL;
@@ -539,7 +537,7 @@ void CDisplayList::Get_Endpoints(CPoint *cpi, CPoint *cpf)
 }
 
 
-// Draw the display list using device DC or memory DC
+// Draw the display list using device DC or memory DC.  Routine is mostly CPT.
 //
 void CDisplayList::Draw( CDC * dDC )
 {
@@ -563,7 +561,7 @@ void CDisplayList::Draw( CDC * dDC )
 	CBrush * old_brush;
 	CPen * old_pen;
 
-	// paint it background color
+	// paint the background color
 	old_brush = pDC->SelectObject( &backgnd_brush );
 	old_pen = pDC->SelectObject( &black_pen );
 
@@ -594,18 +592,13 @@ void CDisplayList::Draw( CDC * dDC )
 	// now traverse the lists, starting with the layer in the last element
 	// of the m_order[] array
 	CDrawInfo di;
-
 	di.DC_Master = pDC;
-//**	CMemDC dcMemory(pDC);
 
 	for( int order=(MAX_LAYERS-1); order>=0; order-- )
 	{
 		int layer = m_layer_in_order[order];
-
 		if( !m_vis[layer] || layer == LAY_SELECTION )
-		{
-		  continue;
-		}
+			continue;
 
 #if 0
 		if( layer > LAY_BOARD_OUTLINE )
@@ -623,14 +616,47 @@ void CDisplayList::Draw( CDC * dDC )
 		{
 			// Draw directly on main DC (di.DC_Master) for speed
 			di.DC = di.DC_Master;
-
 			di.layer_color[0] = m_rgb[LAY_BACKGND];
 			di.layer_color[1] = m_rgb[layer];
 		}
 
 		// CPT: Draw layer!
-		layers[layer].Draw(di);
+		if (layer==LAY_HILITE) 
+		{
+			// For the highlight layer, we are going to perform some alpha-blending before drawing the highlights proper.
+			// Onto memDC2, we will first BitBlt the current contents of pDC.  Then we draw fatter versions of all the line segments in the
+			// highlight layer, using the background color.  Finally we perform the alpha-blending of memDC2 onto pDC, using a constant alpha of
+			// .75.  That way the pixels next to highlighted segs are lightened (in the case of a white bkgnd) or darkened (in the case of a black
+			// bkgnd).
+			CRect r (m_client_r), r2 = r;
+			pDC->DPtoLP(r);
+			memDC2->BitBlt(r.left, r.top, r.Width(), r.Height(), pDC, r.left, r.top, SRCCOPY);
+			// Draw the fattened segs within the layer.  Setting di.bHiliteSegs before calling CDisplayLayer.Draw() does the trick:
+			di.DC = memDC2;
+			layers[layer].Draw(di, true);
+			di.DC = pDC;
+			// Now do the alpha-blending!  Unfortunately AlphaBlend() screws up with the typical current mapping-mode values for pDC and memDC2 (because 
+			// y-values are negated, I think).  Therefore, we have to temporarily change the mapping-mode on both to MM_TEXT.
+			int mm = pDC->GetMapMode();
+			CSize wext = pDC->GetWindowExt();
+			CSize vext = pDC->GetViewportExt();
+			pDC->SetMapMode(MM_TEXT); memDC2->SetMapMode(MM_TEXT);
+			pDC->DPtoLP(r2);
+			int left = r2.left, top = r2.top, w = r2.Width(), h = r2.Height();
+			BLENDFUNCTION bf;														// Argument for AlphaBlend...
+			bf.BlendOp = AC_SRC_OVER;
+			bf.BlendFlags = 0;
+			bf.SourceConstantAlpha = 192;
+			bf.AlphaFormat = 0;
+			pDC->AlphaBlend(left, top, w, h, memDC2, left, top, w, h, bf);
+			pDC->SetMapMode(mm); memDC2->SetMapMode(mm);
+			pDC->SetWindowExt(wext); memDC2->SetWindowExt(wext);
+			pDC->SetViewportExt(vext); memDC2->SetViewportExt(vext);
+		}
 
+		layers[layer].Draw(di, false);
+
+		/*  CPT:  obsolete?
 		if( di.DC != di.DC_Master )
 		{
 			// di.DC is a monochrome mask
@@ -654,6 +680,7 @@ void CDisplayList::Draw( CDC * dDC )
 			                     di.DC,
 			                     m_org_x, m_org_y, SRCPAINT);
 		}
+		*/
 	}
 
 //**	dcMemory.DeleteDC();
@@ -2049,10 +2076,10 @@ int CDisplayList::CancelHighLight()
 
 // Set the device context and memory context to world coords
 //
-void CDisplayList::SetDCToWorldCoords( CDC * pDC, CDC * mDC,
+void CDisplayList::SetDCToWorldCoords( CDC * pDC, CDC * mDC, CDC * mDC2,			// CPT added mDC2 (experimental)
 							int pcbu_org_x, int pcbu_org_y )
 {
-	memDC = NULL;
+	memDC = memDC2 = NULL;
 	if( pDC )
 	{
 		// set window scale (WU per pixel) and origin (WU)
@@ -2080,6 +2107,17 @@ void CDisplayList::SetDCToWorldCoords( CDC * pDC, CDC * mDC,
 		// update pointer
 		memDC = mDC;
 	}
+	// CPT experimental
+	if( mDC2->m_hDC )
+	{
+		mDC2->SetMapMode( MM_ANISOTROPIC );
+		mDC2->SetWindowExt( w_ext_x, w_ext_y );
+		mDC2->SetWindowOrg( pcbu_org_x/m_pcbu_per_wu, pcbu_org_y/m_pcbu_per_wu );
+		mDC2->SetViewportExt( v_ext_x, v_ext_y );
+		mDC2->SetViewportOrg( m_pane_org_x, m_pane_org_y );
+		memDC2 = mDC2;
+	}
+	// end CPT
 }
 
 void CDisplayList::SetVisibleGrid( BOOL on, double grid )
@@ -2197,7 +2235,7 @@ void CDisplayList::UpdateRatlineWidth( int width )
 */
 
 
-void CDisplayLayer::Draw(CDrawInfo &di) 
+void CDisplayLayer::Draw(CDrawInfo &di, bool bHiliteSegs) 
 {
 	CPen * old_pen;
 	CBrush * old_brush;
@@ -2213,8 +2251,12 @@ void CDisplayLayer::Draw(CDrawInfo &di)
 		old_brush = di.DC->SelectObject( &di.fill_brush );
 	}
 
-	for (dl_element *el = elements; el; el = el->next)
-		el->Draw(di);
+	if (bHiliteSegs)
+		for (dl_element *el = elements; el; el = el->next)
+			el->DrawHiliteSegs(di);
+	else
+		for (dl_element *el = elements; el; el = el->next)
+			el->Draw(di);
 
 	// Restore original drawing objects
 	{
@@ -2240,7 +2282,7 @@ void CDisplayLayer::Draw(CDrawInfo &di)
 // where n_include_ids is size of array, and
 // where 0's in include_id[] fields are treated as wildcards
 //
-int CDisplayList::TestForHits( CPoint const &point, CHitInfo hitInfo[], int max_hits ) 
+int CDisplayList::TestForHits( CPoint  &point, CHitInfo hitInfo[], int max_hits ) 
 {
 	int  nhits = 0;
 

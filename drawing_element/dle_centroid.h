@@ -7,7 +7,7 @@
 class CDLE_CENTROID : public CDLE_Symmetric
 {
 protected:
-	virtual void _Draw(CDrawInfo const &di) const;
+	virtual void _Draw(CDrawInfo &di, bool);
 };
 
 #endif /* !_DLE_CENTROID_H ] */

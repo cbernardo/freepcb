@@ -5,7 +5,7 @@ extern CFreePcbApp theApp;
 
 //-----------------------------------------------------------------------------
 // filled circle
-void CDLE_CIRC::_Draw(CDrawInfo const &di) const
+void CDLE_CIRC::_Draw(CDrawInfo &di, bool)
 {
 	if( onScreen() )
 	{
@@ -13,7 +13,7 @@ void CDLE_CIRC::_Draw(CDrawInfo const &di) const
 	}
 }
 
-void CDLE_CIRC::_DrawClearance(CDrawInfo const &di) const
+/* void CDLE_CIRC::_DrawClearance(CDrawInfo const &di) const
 {
 	int sz = w/2 + clearancew;
 
@@ -24,9 +24,9 @@ void CDLE_CIRC::_DrawClearance(CDrawInfo const &di) const
 
 	di.DC->SelectObject( di.fill_brush );
 	di.DC->SelectObject( di.line_pen );
-}
+} */
 
-void CDLE_CIRC::_DrawThermalRelief(CDrawInfo const &di) const
+void CDLE_CIRC::_DrawThermalRelief(CDrawInfo &di)
 {
 	CFreePcbDoc * doc = theApp.m_Doc;
 
@@ -54,7 +54,7 @@ void CDLE_CIRC::_DrawThermalRelief(CDrawInfo const &di) const
 	di.DC->SelectObject( di.line_pen );
 }
 
-int CDLE_CIRC::_isHit(CPoint const &point) const
+int CDLE_CIRC::_isHit(CPoint  &point)
 {
 	int hit_w = w/2;
 	int d = Distance( i.x, i.y, point.x, point.y );
@@ -67,7 +67,7 @@ int CDLE_CIRC::_isHit(CPoint const &point) const
 //-----------------------------------------------------------------------------
 // hollow circle
 
-void CDLE_HOLLOW_CIRC::_Draw(CDrawInfo const &di) const
+void CDLE_HOLLOW_CIRC::_Draw(CDrawInfo &di, bool) 
 {
 	if( onScreen() )
 	{
@@ -80,7 +80,7 @@ void CDLE_HOLLOW_CIRC::_Draw(CDrawInfo const &di) const
 }
 
 
-int CDLE_HOLLOW_CIRC::_isHit(CPoint const &point) const
+int CDLE_HOLLOW_CIRC::_isHit(CPoint &point)
 {
 	// test for hit (within 3 mils or 4 pixels)
 //**	int dr = max( 3*DU_PER_MIL, int(4.0*m_scale) );

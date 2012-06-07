@@ -25,20 +25,20 @@ public:
 
 	dl_element();
 
-	void Draw             (CDrawInfo const &di) const;
-	void DrawClearance    (CDrawInfo const &di) const { _DrawClearance(di); }
-    void DrawThermalRelief(CDrawInfo const &di) const;
-
-	int isHit(CPoint const &point) const;
-	int getBoundingRect(CRect &rect) const { return _getBoundingRect(rect); }
+	// CPT: reworked a bit:
+	void Draw(CDrawInfo &di);
+	virtual void DrawHiliteSegs (CDrawInfo &di) { }
+	// LATER?  void _DrawClearance(CDrawInfo &di);
+    void DrawThermalRelief(CDrawInfo &di);
+	int isHit(CPoint  &point) ;
+	int getBoundingRect(CRect &rect)  { return _getBoundingRect(rect); }
 
 protected:
-	virtual void _Draw             (CDrawInfo const &di) const {}
-	virtual void _DrawClearance    (CDrawInfo const &di) const {}
-    virtual void _DrawThermalRelief(CDrawInfo const &di) const {}
+	virtual void _Draw(CDrawInfo &di, bool fHiliteSegs) {}
+    virtual void _DrawThermalRelief(CDrawInfo &di) {}
 
-	virtual int  _isHit(CPoint const &point) const { return 0; }
-	virtual int  _getBoundingRect(CRect &rect) const { return 0; }
+	virtual int  _isHit(CPoint &point) { return 0; }
+	virtual int  _getBoundingRect(CRect &rect)  { return 0; }
 
 protected:
 	CDisplayList * dlist;
@@ -66,17 +66,17 @@ public:
 class CDLE_Symmetric : public dl_element
 {
 protected:
-    int onScreen(void) const;
-	virtual int  _getBoundingRect(CRect &rect) const;
+    int onScreen(void) ;
+	virtual int  _getBoundingRect(CRect &rect) ;
 };
 
 // rectangular
 class CDLE_Rectangular : public dl_element
 {
 protected:
-    int onScreen(void) const;
-	virtual int  _getBoundingRect(CRect &rect) const;
-	virtual void _DrawThermalRelief(CDrawInfo const &di) const;
+    int onScreen(void) ;
+	virtual int  _getBoundingRect(CRect &rect) ;
+	virtual void _DrawThermalRelief(CDrawInfo  &di) ;
 };
 
 

@@ -6,15 +6,12 @@
 // line segment with round end-caps
 class CDLE_LINE : public dl_element
 {
-    void __Draw(CDrawInfo const &di, int mode) const;
-
 protected:
-	virtual void _Draw         (CDrawInfo const &di) const;
-	virtual void _DrawClearance(CDrawInfo const &di) const;
-
-	virtual int  _isHit(CPoint const &point) const;
-
-	virtual int  _getBoundingRect(CRect &rect) const;
+	virtual void DrawHiliteSegs(CDrawInfo &di) 
+		{ if( visible && dlist->m_vis[ orig_layer ] ) _Draw(di, true); }	// CPT.  Overrides default behavior, which is to do nothing.
+	virtual void _Draw(CDrawInfo &di, bool bHiliteSegs);
+	virtual int _isHit(CPoint &point);
+	virtual int _getBoundingRect(CRect &rect);
 };
 
 #endif /* !_DLE_LINE_H ] */

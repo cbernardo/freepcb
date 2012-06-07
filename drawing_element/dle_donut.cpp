@@ -2,7 +2,7 @@
 #include "dle_donut.h"
 
 // annulus
-void CDLE_DONUT::_Draw(CDrawInfo const &di) const
+void CDLE_DONUT::_Draw(CDrawInfo &di, bool)
 {
 	if( onScreen() )
 	{
@@ -41,8 +41,9 @@ void CDLE_DONUT::_Draw(CDrawInfo const &di) const
 	}
 }
 
-void CDLE_DONUT::_DrawClearance(CDrawInfo const &di) const
+/*void CDLE_DONUT::_DrawClearance(CDrawInfo const &di) const
 {
 }
+*/
 
 

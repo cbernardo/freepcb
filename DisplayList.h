@@ -112,7 +112,7 @@ public:
 		elements = el;
 		el->displayLayer = this;
 		}
-	void Draw(CDrawInfo &di);
+	void Draw(CDrawInfo &di, bool bHiliteSegs);
 };
 
 class CHitInfo
@@ -140,7 +140,7 @@ private:
     friend dl_element;
 
 	// display-list parameters for each layer
-	CDisplayLayer layers[MAX_LAYERS];					// CPT
+	CDisplayLayer layers[MAX_LAYERS];	// CPT
 	C_RGB m_rgb[MAX_LAYERS];            // layer colors
 	int m_layer_in_order[MAX_LAYERS];	// array of layers in draw order
 	int m_order_for_layer[MAX_LAYERS];	// draw order for each layer
@@ -152,7 +152,8 @@ private:
 	int m_pane_org_x;	// left border of drawing pane (pixels)
 	int m_pane_org_y;	// bottom border of drawing pane (pixels)
 	int m_bottom_pane_h;	// height of bottom pane
-	CDC * memDC;		// pointer to memory DC
+	CDC *memDC;			// pointer to memory DC
+	CDC *memDC2;		// CPT experimental
 
 public:
 	BOOL m_vis[MAX_LAYERS];		// layer visibility flags
@@ -247,7 +248,7 @@ public:
 	SMFontUtil * GetSMFontUtil(){ return m_fontutil; };
 	void SetVisibleGrid( BOOL on, double grid );
 	void SetMapping( CRect *client_r, CRect *screen_r, int pane_org_x, int pane_bottom_h, double scale, int org_x, int org_y );
-	void SetDCToWorldCoords( CDC * pDC, CDC * mDC, int pcbu_org_x, int pcbu_org_y );
+	void SetDCToWorldCoords( CDC *pDC, CDC *mDC, CDC *mDC2, int pcbu_org_x, int pcbu_org_y );		// CPT added mDC2 (experimental)
 	void SetLayerRGB( int layer, C_RGB color );
 	void SetLayerVisible( int layer, BOOL vis );
 	void SetLayerDrawOrder( int layer, int order )
@@ -378,5 +379,5 @@ public:
 	void Get_Endpoints(CPoint *cpi, CPoint *cpf);
 	id Get_id( dl_element * el );
 
-	int TestForHits( CPoint const &point, CHitInfo hitInfo[], int max_hits );			// CPT:  previously in Brian's CDL_job
+	int TestForHits( CPoint  &point, CHitInfo hitInfo[], int max_hits );			// CPT:  previously in Brian's CDL_job
 };
