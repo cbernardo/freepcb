@@ -2,7 +2,7 @@
 #include "dle_line.h"
 
 // line segment with round end-caps
-// CPT:  added bHiliteLine arg (experimentally).  When it's true, we'll draw the seg in the backgroun color, fatter than normal
+// CPT:  added bHiliteLine arg (experimentally).  When it's true, we'll draw the seg in the background color, fatter than normal
 //
 void CDLE_LINE::_Draw(CDrawInfo &di, bool bHiliteSegs)
 {

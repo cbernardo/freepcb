@@ -25,9 +25,9 @@ public:
 
 	dl_element();
 
-	// CPT: reworked a bit:
+	// CPT: reworked the following 6 declarations a bit:
 	void Draw(CDrawInfo &di);
-	virtual void DrawHiliteSegs (CDrawInfo &di) { }
+	virtual void DrawHiliteSeg (CDrawInfo &di) { }						// CPT: Does nothing except with CDLE_LINE objects.
 	// LATER?  void _DrawClearance(CDrawInfo &di);
     void DrawThermalRelief(CDrawInfo &di);
 	int isHit(CPoint  &point) ;
