@@ -4500,6 +4500,8 @@ void CFreePcbView::SetCursorMode( int mode )
 		ShowSelectStatus();
 		/*  CPT removed.  Want to allow copy/paste when single item is selected
 		//** AMW r284: reinserted since edit commands never enabled */
+		/* CPT fixed problem by removing other cases where edit-copy and edit-paste were disabled.  These should now always be enabled, and if
+		   users try to use them in a bogus way, they get an error msg.
 		if( mode == CUR_GROUP_SELECTED )
 		{
 			CWnd* pMain = AfxGetMainWnd();
@@ -4526,7 +4528,7 @@ void CFreePcbView::SetCursorMode( int mode )
 				pMain->DrawMenuBar();
 			}
 		}
-//**		*/
+		*/
 		if( CurDragging() )
 			SetMainMenu( FALSE );
 		else if( m_Doc->m_project_open )
@@ -13348,10 +13350,11 @@ void CFreePcbView::DrawLeftPane(CDC *pDC) {
 		pDC->SelectObject( old_brush );
 		pDC->SelectObject( old_pen );
 		CFont * old_font = pDC->SelectObject( &m_small_font );
-		for( int i=0; i<GetNLayers(); i++ )
+		// CPT: modified so that "Selection" is no longer one of the displayed layers
+		for( int i=1; i<GetNLayers(); i++ )
 		{
 			// i = position index
-			r.SetRect( x_off, i*VSTEP+y_off, x_off+12, i*VSTEP+12+y_off );
+			r.SetRect( x_off, (i-1)*VSTEP+y_off, x_off+12, (i-1)*VSTEP+12+y_off );
 			// il = true layer num since copper layers are displayed out of order
 			int il = GetLayerNum(i);
 			CBrush brush( RGB(GetLayerRGB(il,0), GetLayerRGB(il,1), GetLayerRGB(il,2)));
@@ -13782,7 +13785,8 @@ bool CFreePcbView::CheckLeftPaneClick(CPoint &point) {
 	CRect r = m_client_r;
 	int y_off = 10;
 	int x_off = 10;
-	for( int i=0; i<GetNLayers(); i++ )
+	// CPT modified: "Selection" is no longer one of the displayed layers, so click handling changes slightly
+	for( int i=1; i<GetNLayers(); i++ )
 	{
 		// i = position index
 		// il = true layer number, since copper layers are displayed out of order
@@ -13790,8 +13794,8 @@ bool CFreePcbView::CheckLeftPaneClick(CPoint &point) {
 		// get color square
 		r.left = x_off;
 		r.right = x_off+12;
-		r.top = i*VSTEP+y_off;
-		r.bottom = i*VSTEP+12+y_off;
+		r.top = (i-1)*VSTEP+y_off;
+		r.bottom = (i-1)*VSTEP+12+y_off;
 		if( r.PtInRect( point ) && il > LAY_BACKGND )
 		{
 			// clicked in color square

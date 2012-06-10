@@ -621,12 +621,12 @@ void CDisplayList::Draw( CDC * dDC )
 		}
 
 		// CPT: Draw layer!
-		if (layer==LAY_HILITE) 
+		if (layer==LAY_HILITE || layer==LAY_RAT_LINE) 
 		{
-			// For the highlight layer, we are going to perform some alpha-blending before drawing the highlights proper.
+			// For the highlight and ratline layers, we are going to perform some alpha-blending before drawing the highlights proper.
 			// Onto memDC2, we will first BitBlt the current contents of pDC.  Then we draw fatter versions of all the line segments in the
 			// highlight layer, using the background color.  Finally we perform the alpha-blending of memDC2 onto pDC, using a constant alpha of
-			// .75.  That way the pixels next to highlighted segs are lightened (in the case of a white bkgnd) or darkened (in the case of a black
+			// .5.  That way the pixels next to highlighted segs are lightened (in the case of a white bkgnd) or darkened (in the case of a black
 			// bkgnd).
 			CRect r (m_client_r), r2 = r;
 			pDC->DPtoLP(r);
@@ -646,7 +646,7 @@ void CDisplayList::Draw( CDC * dDC )
 			BLENDFUNCTION bf;														// Argument for AlphaBlend...
 			bf.BlendOp = AC_SRC_OVER;
 			bf.BlendFlags = 0;
-			bf.SourceConstantAlpha = 192;
+			bf.SourceConstantAlpha = 128;
 			bf.AlphaFormat = 0;
 			pDC->AlphaBlend(left, top, w, h, memDC2, left, top, w, h, bf);
 			pDC->SetMapMode(mm); memDC2->SetMapMode(mm);
@@ -2253,7 +2253,7 @@ void CDisplayLayer::Draw(CDrawInfo &di, bool bHiliteSegs)
 
 	if (bHiliteSegs)
 		for (dl_element *el = elements; el; el = el->next)
-			el->DrawHiliteSegs(di);
+			el->DrawHiliteSeg(di);
 	else
 		for (dl_element *el = elements; el; el = el->next)
 			el->Draw(di);
