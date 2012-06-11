@@ -381,6 +381,38 @@ public:
 	afx_msg void OnAdhesiveDrag();
 	afx_msg void OnAdhesiveDelete();
 	afx_msg void OnCentroidRotateAxis();
+	// CPT
+	void UnitToggle(bool bShiftKeyDown);
+	afx_msg void OnViewPlacementGrid();
+	afx_msg void OnViewVisibleGrid();
+
+	// CPT:  virtual functions from CCommonView:
+	bool IsFreePcbView() { return false; }
+	void SetDList()
+		{ m_dlist = m_Doc->m_dlist_fp; }
+	int GetNLayers()
+		{ return m_Doc->m_fp_num_layers; }
+	int GetTopCopperLayer() 
+		{ return LAY_FP_TOP_COPPER; }
+	int GetLayerRGB(int layer, int i) 
+		{ return m_Doc->m_fp_rgb[layer][i]; }
+	int GetLayerVis(int layer)
+		{ return m_Doc->m_fp_vis[layer]; }
+	void GetLayerLabel(int i, CString &label) {
+		label.LoadStringA(IDS_FpLayerStr+i);
+		}
+	int ToggleLayerVis(int i)
+		{ return m_Doc->m_fp_vis[i] = !m_Doc->m_fp_vis[i]; }
+
+	int GetLeftPaneKeyID() { return IDS_FpLeftPaneKey; }
+
+//	int GetNMasks() { return NUM_FP_SEL_MASKS; }
+	int GetMaskNamesID() { return IDS_FpSelMaskStr; }
+	void HandleNoShiftLayerKey(int layer, CDC *pDC) {
+		m_active_layer = layer;
+		ShowActiveLayer();
+		}
+
 };
 
 #ifndef _DEBUG  // debug version

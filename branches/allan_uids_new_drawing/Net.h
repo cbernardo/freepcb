@@ -66,6 +66,11 @@ public:
 	void SetUID( int uid ){ m_uid = uid; };
 	id Id();
 
+	int NumVertices();
+	cvertex * VtxByIndex( int iv );
+	int NumPins();
+	cpin * PinByIndex( int ip );
+
 	cnet * m_net;		// parent net
 	int npins;			// number of thru-hole pins within area on same net
 	CArray<int> pin;	// array of thru-hole pins
@@ -75,6 +80,7 @@ public:
 	CArray<int> vtx;	// vertices
 	CArray<dl_element*> dl_via_thermal; // graphics for thermals on stubs
 	int utility, utility2;
+
 };
 
 // cseg: describes a segment of a connection
@@ -157,6 +163,9 @@ public:
 	void GetTypeStatusStr( CString * str );
 	void GetStatusStr( CString * str );
 
+	bool IsConnectedToArea( carea * a );
+	int GetConnectedAreas( CArray<int> * a=NULL );
+
 	int m_uid;					// unique id
 	int x, y;					// coords
 	int pad_layer;				// layer of pad if this is first or last vertex, otherwise 0
@@ -196,6 +205,7 @@ public:
 	void ClearArrays();
 	void GetStatusStr( CString * str );
 	id Id();
+	int Index();
 
 	// get info about start/ending pins
 	cpin * StartPin();

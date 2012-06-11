@@ -2343,15 +2343,6 @@ void CFreePcbDoc::InitializeNewProject()
 	m_fp_rgb[LAY_FP_PAD_THRU][0] =   0; 
 	m_fp_rgb[LAY_FP_PAD_THRU][1] =   0; 
 	m_fp_rgb[LAY_FP_PAD_THRU][2] = 255;		//thru-hole pads BLUE
-	m_fp_rgb[LAY_FP_TOP_COPPER][0] =   0; 
-	m_fp_rgb[LAY_FP_TOP_COPPER][1] = 255; 
-	m_fp_rgb[LAY_FP_TOP_COPPER][2] =   0;		//top copper GREEN
-	m_fp_rgb[LAY_FP_INNER_COPPER][0] =  128; 
-	m_fp_rgb[LAY_FP_INNER_COPPER][1] = 128; 
-	m_fp_rgb[LAY_FP_INNER_COPPER][2] =  128;		//inner copper GREY
-	m_fp_rgb[LAY_FP_BOTTOM_COPPER][0] = 255; 
-	m_fp_rgb[LAY_FP_BOTTOM_COPPER][1] = 0; 
-	m_fp_rgb[LAY_FP_BOTTOM_COPPER][2] = 0;		//bottom copper RED
 	m_fp_rgb[LAY_FP_TOP_MASK][0] = 0; 
 	m_fp_rgb[LAY_FP_TOP_MASK][1] = 127; 
 	m_fp_rgb[LAY_FP_TOP_MASK][2] = 0;		//top mask DARK GREEN
@@ -2364,6 +2355,15 @@ void CFreePcbDoc::InitializeNewProject()
 	m_fp_rgb[LAY_FP_BOTTOM_PASTE][0] = 127; 
 	m_fp_rgb[LAY_FP_BOTTOM_PASTE][1] = 0; 
 	m_fp_rgb[LAY_FP_BOTTOM_PASTE][2] = 0;		//bottom paste DARK RED
+	m_fp_rgb[LAY_FP_TOP_COPPER][0] =   0; 
+	m_fp_rgb[LAY_FP_TOP_COPPER][1] = 255; 
+	m_fp_rgb[LAY_FP_TOP_COPPER][2] =   0;		//top copper GREEN
+	m_fp_rgb[LAY_FP_INNER_COPPER][0] =  128; 
+	m_fp_rgb[LAY_FP_INNER_COPPER][1] = 128; 
+	m_fp_rgb[LAY_FP_INNER_COPPER][2] =  128;		//inner copper GREY
+	m_fp_rgb[LAY_FP_BOTTOM_COPPER][0] = 255; 
+	m_fp_rgb[LAY_FP_BOTTOM_COPPER][1] = 0; 
+	m_fp_rgb[LAY_FP_BOTTOM_COPPER][2] = 0;		//bottom copper RED
 
 	// now set footprint editor layer colors and visibility
 	for( int i=0; i<m_fp_num_layers; i++ )
