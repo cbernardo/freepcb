@@ -210,6 +210,38 @@ id carea::Id()
 	return CPolyLine::Id();
 }
 
+// return number of vertices connected to carea
+//
+int carea::NumVertices()
+{ 
+	return vtx.GetSize(); 
+}
+
+// return particular vertex connected to carea
+//
+cvertex * carea::VtxByIndex( int iv )
+{
+	cconnect * c = m_net->ConByIndex( vcon[iv] );
+	cvertex * v = &c->VtxByIndex( vtx[iv] );
+	return v;
+}
+
+// number of pins connected to copper area
+//
+int carea::NumPins()
+{
+	return pin.GetSize();
+}
+
+// particular pin connected to copper area
+//
+cpin * carea::PinByIndex( int ip )
+{
+	int i_net_pin = pin[ip];
+	cpin * net_pin = m_net->PinByIndex(i_net_pin);
+	return net_pin;
+}
+
 //**************************** cseg implementation ************************
 
 // initialization
@@ -686,7 +718,37 @@ void cvertex::Highlight()
 	m_dlist->HighLight( DL_HOLLOW_RECT, x - w/2, y - w/2, x + w/2, y + w/2, 0 );
 }
 
+// test for connection to particular copper area in net
+//
+bool cvertex::IsConnectedToArea( carea * a )
+{
+	for( int iv=0; iv<a->NumVertices(); iv++ )
+	{
+		if( Index() == a->vtx[iv] && m_con->Index() == a->vcon[iv] )
+			return TRUE;
+	}
+	return FALSE;
+}
 
+// get indices to all copper areas connected to this vertex
+//
+int cvertex::GetConnectedAreas( CArray<int> * aa )
+{
+	int n_areas = 0;
+	if( aa )
+		aa->SetSize(0);
+	for( int ia=0; ia<m_con->m_net->NumAreas(); ia++ )
+	{
+		carea * a = m_con->m_net->AreaByIndex(ia);
+		if( IsConnectedToArea(a) )
+		{
+			if( aa )
+				aa->Add(ia);
+			n_areas++;
+		}
+	}
+	return n_areas;
+}
 
 
 // return type of vertex
@@ -827,6 +889,17 @@ void cconnect::ClearArrays()
 { 
 	seg.RemoveAll(); 
 	vtx.SetSize(0); 
+}
+
+// return index of this connection in net
+int cconnect::Index()
+{
+	for( int ic=0; ic<m_net->NumCons(); ic++ )
+	{
+		if( m_net->ConByIndex(ic) == this )
+			return ic;
+	}
+	return -1;
 }
 
 // get id

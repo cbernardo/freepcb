@@ -2319,16 +2319,8 @@ int CNetList::OptimizeConnections( cnet * net, int ic_track, BOOL bBelowPinCount
 	CArray<int> pair;			// use CArray because size is unknown,
 	pair.SetSize( 2*npins );	// although this should be plenty
 
-	// first, flag ic_track if requested
-	int ic_new = -1;
-	if( ic_track >= 0 && ic_track < net->NumCons() )
-	{
-		for( int ic=0; ic<net->NumCons(); ic++ )
-			net->connect[ic]->utility = 0;
-		net->connect[ic_track]->utility = 1;		// flag connection
-	}
-
-	// go through net, deleting unrouted and unlocked connections
+	// go through net, deleting unrouted and unlocked connections 
+	// unless they end on a tee or end-vertex
 	CIterator_cconnect iter_con( net );
 	for( cconnect * c=iter_con.GetFirst(); c; c=iter_con.GetNext() )
 	{
@@ -2356,171 +2348,169 @@ int CNetList::OptimizeConnections( cnet * net, int ic_track, BOOL bBelowPinCount
 		}
 	}
 
-	// go through net again, recording pins of routed or locked connections
-	CMap<int, int, int, int> tee_ids_analyzed;	// map of tee_id's analyzed
-	for( cconnect * c=iter_con.GetFirst(); c; c=iter_con.GetNext() )
-	{
-		// record pins in pair[] and grid[]
-		int p1 = c->start_pin;
-		int p2 = c->end_pin;
-		if( p1 != cconnect::NO_END && p2 != cconnect::NO_END )
-		{
-			// unrouted pin-pin connection, record pins as connected
-			AddPinsToGrid( grid, p1, p2, npins );
-		}
-		else
-		{
-			// find connections between pins and tee-vertices
-			CMap<int, int, int, int> tee_ids_connected;	// list of connected tee_ids
-			CMap<int, int, int, int> pins_connected;	// list of connected pins
-			// check for connection between pin and tee-vertex
-			int tee_id = abs( c->FirstVtx()->tee_ID );
-			int pin_ix = c->LastVtx()->GetNetPinIndex();
-			if( tee_id == 0 || pin_ix == -1 )
-			{
-				tee_id = abs( c->LastVtx()->tee_ID );
-				pin_ix = c->FirstVtx()->GetNetPinIndex();
-			}
-			if( tee_id > 0 && pin_ix != -1 )
-			{
-				// connection between pin and tee-vertex, see if this tee_id already analyzed
-				int dummy;
-				if( !tee_ids_analyzed.Lookup( tee_id, dummy ) )
-				{
-					// tee_id not found, start analyzing all connections with this tee_id,
-					// record any connected tee_ids and pin_indexes
-					tee_ids_analyzed.SetAt( tee_id, tee_id );
-					tee_ids_connected.SetAt( tee_id, tee_id );
-					pins_connected.SetAt( pin_ix, pin_ix );
-					// start by looking for connected tees
-					CIterator_cconnect iter_con2( net );
-					for( cconnect * test_c=iter_con2.GetFirst(); test_c; test_c=iter_con2.GetNext() )
-					{
-						// check for tees at both ends
-						int first_tee_id = abs( test_c->FirstVtx()->tee_ID );
-						int last_tee_id = abs( test_c->LastVtx()->tee_ID );
-						if( first_tee_id > 0 && last_tee_id > 0 )
-						{
-							// list the tee_ids as connected and analyzed
-							if( tee_ids_connected.Lookup( first_tee_id, dummy ) )
-							{
-								tee_ids_connected.SetAt( last_tee_id, last_tee_id );
-								tee_ids_analyzed.SetAt( last_tee_id, last_tee_id );
-							}
-							else if( tee_ids_connected.Lookup( last_tee_id, dummy ) )
-							{
-								tee_ids_connected.SetAt( first_tee_id, first_tee_id );
-								tee_ids_analyzed.SetAt( first_tee_id, first_tee_id );
-							}
-						}
-					}
-					// now look for connected pins
-					for( cconnect * test_c=iter_con2.GetFirst(); test_c; test_c=iter_con2.GetNext() )
-					{
-						// see if first vertex is a tee
-						int first_tee_id = abs( test_c->FirstVtx()->tee_ID );
-						if( first_tee_id > 0 && tee_ids_connected.Lookup( first_tee_id, dummy ) )
-						{
-							// first vertex is a connected tee, check last vertex
-							int last_pin_ix = abs( test_c->LastVtx()->GetNetPinIndex() );
-							if( last_pin_ix != -1 )
-							{
-								// last vertex is a pin, add to list of connected pins
-								pins_connected.SetAt( last_pin_ix, last_pin_ix );
-							}
-						}
-						// now repeat for last vertex
-						int last_tee_id = abs( test_c->LastVtx()->tee_ID );
-						if( last_tee_id > 0 && tee_ids_connected.Lookup( last_tee_id, dummy ) )
-						{
-							// last vertex is a connected tee, check first vertex
-							int first_pin_ix = abs( test_c->FirstVtx()->GetNetPinIndex() );
-							if( first_pin_ix != -1 )
-							{
-								// first vertex is a pin, add to list of connected pins
-								pins_connected.SetAt( first_pin_ix, first_pin_ix );
-							}
-						}
-					}
-					// now loop through all pins and mark them as connected to first pin
-					int m_pins = pins_connected.GetCount();
-					if( m_pins > 1 )
-					{
-						POSITION pos = pins_connected.GetStartPosition();
-						int    nKey, nValue;
-						pins_connected.GetNextAssoc( pos, nKey, nValue );
-						int p1 = nValue;
-						while (pos != NULL)
-						{
-							pins_connected.GetNextAssoc( pos, nKey, nValue );
-							int p2 = nValue;
-							AddPinsToGrid( grid, p1, p2, npins );
-						}
-					}
-				}
-			}
-		}
-	}
 
-	// find ic_track if still present
-	if( ic_track >= 0 )
+	// AMW r289: Programming note:
+	// The following code figures out which pins are connected to each other through
+	// existing traces, tees and copper areas, and therefore don't need new ratlines.
+	// Previously, when every connection had to start on a pin,
+	// this was pretty easy to do since the levels of branching were limited.
+	// Now that traces can be routed between other traces and copper areas pretty much ad lib,
+	// it is more complicated. Probably the best approach would be some sort of recursive
+	// tree-following or grid-following algorithm, but since I am lazy and modifying existing
+	// code, I am using a different method of starting with a pin,
+	// iterating through all the connections in the net (multiple times if necessary),
+	// and building maps of the connected pins, tees and copper areas, so I can eventually
+	// identify every connected pin. Hopefully, this won't be too inefficient.
+	int dummy;
+	CMap<int, int, int, int> pins_analyzed;  // list of all pins analyzed
+	CIterator_cpin iter_cpin(net);
+	for( cpin * pin=iter_cpin.GetFirst(); pin; pin=iter_cpin.GetNext() )
 	{
-		if( id_track.Resolve() )
-		{
-			ic_new = id_track.I2();
-		}
-	}
+		// skip pins that have already been analyzed through connections to earlier pins
+		int ipin = pin->Index();
+		if( pins_analyzed.Lookup( ipin, dummy ) )
+			continue;
+		pins_analyzed.SetAt( ipin, ipin );
 
-	//** TEMP
-	if( net->visible == 0 )
-	{
-		free( grid );
-		return ic_new;
-	}
-
-	// now add pins connected to copper areas
-	for( int ia=0; ia<net->NumAreas(); ia++ )
-	{
-		SetAreaConnections( net, ia );
-		if( (net->area[ia].npins + net->area[ia].nvias) > 1 )
+		// look for all connections to this pin, or to any pin, tee or area connected to this pin
+		CMap<int, int, int, int> cons_eliminated;  // list of connections that don't connect to this pin
+		CMap<int, int, int, int> cons_connected;   // list of connections that do connect to this pin
+		CMap<int, int, int, int> tee_ids_connected;	// list of tee_ids connected to this pin
+		CMap<int, int, int, int> pins_connected;	// list of pins connected to this pin
+		CMap<int, int, int, int> areas_connected;	// list of areas connected to this pin
+		int num_new_connections = 1;
+		while( num_new_connections )	// iterate as long as we are still finding new connections
 		{
-			int p1, p2, ic;
-			if( net->area[ia].npins > 0 )
-				p1 = net->area[ia].pin[0];
-			else
+			num_new_connections = 0;
+			for( cconnect * c=iter_con.GetFirst(); c; c=iter_con.GetNext() )
 			{
-				ic = net->area[ia].vcon[0];
-				cconnect * c = net->connect[ic];
-				p1 = c->start_pin;
-			}
-			for( int ip=1; ip<net->area[ia].npins; ip++ )
-			{
-				p2 = net->area[ia].pin[ip];
-				if( p2 != p1 )
+				int ic = c->Index();
+				if( cons_eliminated.Lookup( ic, dummy ) )	// already eliminated
+					continue;
+				if( cons_connected.Lookup( ic, dummy ) )	// already analyzed
+					continue;
+				// see if this connection can be eliminated, 
+				// or is connected to a pin, tee or area that connects to the pin being analyzed
+				bool bConEliminated = TRUE;
+				bool bConConnected = FALSE;
+				CIterator_cvertex iter_vtx(c);
+				for( cvertex * v=iter_vtx.GetFirst(); v; v=iter_vtx.GetNext() )
 				{
-					AddPinsToGrid( grid, p1, p2, npins );
-				}
-			}
-			for( int iv=0; iv<net->area[ia].nvias; iv++ )
-			{
-				ic = net->area[ia].vcon[iv];
-				cconnect * c = net->connect[ic];
-				p2 = c->start_pin;
-				if( p2 != p1 )
-				{
-					AddPinsToGrid( grid, p1, p2, npins );
-				}
-				if( c->end_pin != cconnect::NO_END )
-				{
-					p2 = c->end_pin;
-					if( p2 != p1 )
+					if( v->GetType() == cvertex::V_PIN )
 					{
-						AddPinsToGrid( grid, p1, p2, npins );
+						// vertex is a pin
+						cpin * v_pin = v->GetNetPin();
+						if( v_pin == pin )
+						{
+							// pin being analyzed
+							bConEliminated = FALSE;
+							bConConnected = TRUE;
+							break;
+						}
+						else if( pins_connected.Lookup( v_pin->Index(), dummy ) )
+						{
+							// pin connected to pin being analyzed
+							bConEliminated = FALSE;
+							bConConnected = TRUE;
+							break;
+						}
+						else
+						{
+							// other pin, might connect in later iterations
+							bConEliminated = FALSE;
+						}
+					}
+					else if( v->GetType() == cvertex::V_TEE || v->GetType() == cvertex::V_SLAVE )
+					{
+						// vertex is a tee, might connect
+						bConEliminated = FALSE;
+						if( tee_ids_connected.Lookup( abs(v->tee_ID), dummy ) )
+							bConConnected = TRUE;	// does connect
+					}
+					CArray<int> ca;		// array of indices to copper areas
+					if( v->GetConnectedAreas( &ca ) > 0 )
+					{
+						// connected to copper area(s), might connect
+						bConEliminated = FALSE;
+						for( int iarray=0; iarray<ca.GetSize(); iarray++ )
+						{
+							// get copper area
+							int ia = ca[iarray];
+							if( areas_connected.Lookup( ia, dummy ) )
+								bConConnected = TRUE;	// does connect
+						}
 					}
 				}
+				if( bConEliminated )
+				{
+					// don't need to look at this connection any more
+					cons_eliminated.SetAt( ic, ic );
+				}
+				else if( bConConnected )
+				{
+					cons_connected.SetAt( ic, ic );
+					num_new_connections++;
+					// add pins. tees and areas to maps of connected items
+					for( cvertex * v=iter_vtx.GetFirst(); v; v=iter_vtx.GetNext() )
+					{
+						if( v->GetType() == cvertex::V_PIN )
+						{
+							// vertex is a pin
+							cpin * v_pin = v->GetNetPin();
+							if( v_pin != pin )
+							{
+								// connected
+								pins_connected.SetAt( v_pin->Index(), v_pin->Index() );
+								pins_analyzed.SetAt( v_pin->Index(), v_pin->Index() );
+							}
+						}
+						else if( v->GetType() == cvertex::V_TEE || v->GetType() == cvertex::V_SLAVE )
+						{
+							// vertex is a tee
+							tee_ids_connected.SetAt( abs(v->tee_ID), abs(v->tee_ID) );
+						}
+						CArray<int> ca;		// array of indices to copper areas
+						if( v->GetConnectedAreas( &ca ) > 0 )
+						{
+							// vertex connected to copper area(s), add to map
+							for( int iarray=0; iarray<ca.GetSize(); iarray++ )
+							{
+								// get copper area(s)
+								int ia = ca[iarray];
+								areas_connected.SetAt( ia, ia );
+								// get pins attached to copper area
+								carea* a = net->AreaByIndex(ia);
+								for( int ip=0; ip<a->NumPins(); ip++ )
+								{
+									cpin * pin = a->PinByIndex(ip);
+									ipin = pin->Index();
+									pins_connected.SetAt( ipin, ipin );
+								}
+							}
+						}
+					}
+				}
+			}	// end connection loop
+		}	// end while loop
+
+		// now loop through all connected pins and mark them as connected
+		int m_pins = pins_connected.GetCount();
+		if( m_pins > 0 )
+		{
+			int p1 = pin->Index();
+			POSITION pos = pins_connected.GetStartPosition();
+			int    nKey, nValue;
+			while (pos != NULL)
+			{
+				pins_connected.GetNextAssoc( pos, nKey, nValue );
+				int p2 = nValue;
+				AddPinsToGrid( grid, p1, p2, npins );
 			}
 		}
-	}
+
+	}	// end loop through net pins
+
+
 #ifdef PROFILE
 	double time1 = GetElapsedTime();
 	StartTimer();
@@ -2635,6 +2625,7 @@ int CNetList::OptimizeConnections( cnet * net, int ic_track, BOOL bBelowPinCount
 	free( numbers );
 	free( index );
 
+//#if 0
 	// add new optimized connections
 	for( int ic=0; ic<n_optimized; ic++ )
 	{
@@ -2643,13 +2634,27 @@ int CNetList::OptimizeConnections( cnet * net, int ic_track, BOOL bBelowPinCount
 		int p2 = pair[ic*2+1];
 		net->AddConnectFromPinToPin( p1, p2 );
 	}
+//#endif
 
 	free( grid );
 
+	// find ic_track if still present, and return index
+	int ic_new = -1;
+	if( ic_track >= 0 )
+	{
+		if( id_track.Resolve() )
+		{
+			ic_new = id_track.I2();
+		}
+	}
+
 	// CPT:  cull out ratlines where the two endpts are determined to be already connected in copper
-	// AMW r284: fixed bug where if removing segment resulted in removing connection, loop failed.  CPT r286 finished job by tweaking IsRatlineConnected()
+	// AMW r284: fixed bug where if removing segment resulted in removing connection, loop failed.  
+	// CPT r286 finished job by tweaking IsRatlineConnected()
 	for ( cconnect * c=iter_con.GetFirst(); c=iter_con.GetNext(); c )
 	{
+		if( c->NumSegs() == 1 )
+			continue;	// AMW r288: quick fix for bug where tee-tee ratline was being incorrectly removed
 		for (int j=0; j<c->NumSegs(); j++) 
 		{
 			cseg *seg = &c->seg[j];
@@ -3647,7 +3652,7 @@ void CNetList::SetAreaConnections( cpart * part )
 	}
 }
 
-// set arrays of pins and stub traces connected to area
+// set arrays of pins and vias connected to area
 // does not modify connect[] array
 //
 void CNetList::SetAreaConnections( cnet * net, int iarea )
@@ -3729,37 +3734,51 @@ void CNetList::SetAreaConnections( cnet * net, int iarea )
 	}
 	// test all vias in traces for being inside copper area,
 	// also test all end-vertices of non-branch stubs for being on same layer
+	// AMW r288: test all vertices of all traces, not just stubs
 	id.SetT3( ID_STUB_X );
 	for( int ic=0; ic<net->NumCons(); ic++ ) 
 	{
 		cconnect * c = net->connect[ic];
 		int nsegs = c->NumSegs();
-		int nvtx = nsegs;
-		if( c->end_pin == cconnect::NO_END )
-			nvtx++;
-		for( int iv=1; iv<nvtx; iv++ )
+		for( int iv=0; iv<=nsegs; iv++ )
 		{
 			cvertex * v = &c->vtx[iv];
-			if( v->via_w || c->seg[nsegs-1].m_layer == area->Layer() )
+			if( v->GetType() == cvertex::V_PIN )
+				continue;
+			bool bVtxConnectsToArea = FALSE;
+			int x_w = 0;
+			if( v->via_w )
 			{
-				// via or on same layer as copper area
+				bVtxConnectsToArea = TRUE;
+				x_w = v->via_w;
+			}
+			if( iv > 0 && c->SegByIndex(iv-1).m_layer == area->Layer() ) 
+			{
+				bVtxConnectsToArea = TRUE;
+				x_w = max( x_w, c->SegByIndex(iv-1).m_width + 10*NM_PER_MIL );
+			}
+			if( iv < nsegs && c->SegByIndex(iv).m_layer == area->Layer() ) 
+			{
+				bVtxConnectsToArea = TRUE;
+				x_w = max( x_w, c->SegByIndex(iv).m_width + 10*NM_PER_MIL );
+			}
+			if( bVtxConnectsToArea )
+			{
+				// via or adjacent segments on same layer as copper area
 				int x = v->x;
 				int y = v->y;
 				if( area->TestPointInside( x, y ) )
 				{
-					// end point of trace is inside copper area
+					// vertex is inside copper area
 					area->vcon.SetSize( area->nvias+1 );
 					area->vcon[area->nvias] = ic;
 					area->vtx.SetSize( area->nvias+1 );
 					area->vtx[area->nvias] = iv;
 					id.SetI3( ic );
-					int w = v->via_w;
-					if( !w )
-						w = c->seg[iv-1].m_width + 10*NM_PER_MIL;
 					if( m_dlist )
 					{
 						dl_element * dl = m_dlist->Add( id, net, LAY_RAT_LINE, DL_X, net->visible,
-							2*w/3, 0, 0, x, y, 0, 0, 0, 0 );
+							2*x_w/3, 0, 0, x, y, 0, 0, 0, 0 );
 						area->dl_via_thermal.SetAtGrow(area->nvias, dl );
 					}
 					area->nvias++;
