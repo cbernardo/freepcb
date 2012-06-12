@@ -148,6 +148,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="afxasert.cpp" />
+    <ClCompile Include="CommonView.cpp" />
     <ClCompile Include="Cuid.cpp" />
     <ClCompile Include="DesignRules.cpp" />
     <ClCompile Include="DisplayList.cpp" />
@@ -262,6 +263,7 @@
     <ResourceCompile Include="FreePcb.rc" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="CommonView.h" />
     <ClInclude Include="Cuid.h" />
     <ClInclude Include="DesignRules.h" />
     <ClInclude Include="DisplayList.h" />

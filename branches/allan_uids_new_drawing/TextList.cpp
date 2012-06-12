@@ -47,7 +47,7 @@ CText::CText( CDisplayList * dlist, int x, int y, int angle, int mirror,
 	m_nchars = str_ptr->GetLength();
 	m_dlist = dlist;
 	m_id = id( selType, m_uid, selSubtype );	// default
-	dl_sel = 0;												// CPT bug fix #37
+	dl_sel = 0;									// CPT bug fix #37
 	m_smfontutil = smfontutil;
 
 	if( smfontutil )
@@ -311,6 +311,14 @@ void CText::Move( int x, int y, int angle, BOOL mirror, BOOL negative, int layer
 	if (w>=0) m_stroke_width = w;
 	if (smf)
 		Draw( dlist, smf );
+}
+
+
+// CPT:  new version of Move(); works for ref and value-texts, where the layer doesn't change and the mirroring is by default
+void CText::Move(int x, int y, int angle, int size, int w) 
+{
+	bool bMirror = m_layer==LAY_FP_SILK_BOTTOM || m_layer==LAY_FP_BOTTOM_COPPER;
+	Move(x, y, angle, bMirror, false, m_layer, size, w);
 }
 
 void CText::GetBounds( CRect &br ) {

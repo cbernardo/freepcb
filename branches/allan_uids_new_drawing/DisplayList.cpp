@@ -554,7 +554,6 @@ void CDisplayList::Draw( CDC * dDC )
 	CPen white_pen  ( PS_SOLID, 1, C_RGB::white );					// CPT fixed (was C_RGB::black)
 	CPen grid_pen   ( PS_SOLID, 1, m_rgb[LAY_VISIBLE_GRID] );
 	CPen backgnd_pen( PS_SOLID, 1, m_rgb[LAY_BACKGND] );
-	CPen board_pen  ( PS_SOLID, 1, m_rgb[LAY_BOARD_OUTLINE] );
 	CBrush black_brush( C_RGB::black );
 	CBrush backgnd_brush( m_rgb[LAY_BACKGND] );
 
@@ -972,7 +971,6 @@ int CDisplayList::TestSelect(
 {
 	int best_hit = -1;
 
-	// Get the traces job (last in job list)
 	if(!m_vis[LAY_SELECTION] ) return -1;
 
 	CPoint point(x/m_pcbu_per_wu, y/m_pcbu_per_wu);
@@ -1033,9 +1031,9 @@ int CDisplayList::TestSelect(
 			// i.e. last drawn = highest priority
 			int priority = (MAX_LAYERS - m_order_for_layer[hit_info[i].layer])*10;
 			// bump priority for small items which may be overlapped by larger items on same layer
-			if( this_hit.ID.T1() == ID_PART &&this_hit.ID.T2() == ID_REF_TXT && this_hit.ID.T3() == ID_SEL_TXT )
+			if( this_hit.ID.T1() == ID_PART &&this_hit.ID.T2() == ID_REF_TXT && this_hit.ID.T3() == ID_SEL_REF_TXT )
 				priority++;
-			else if( this_hit.ID.T1() == ID_PART && this_hit.ID.T2() == ID_VALUE_TXT && this_hit.ID.T3() == ID_SEL_TXT )
+			else if( this_hit.ID.T1() == ID_PART && this_hit.ID.T2() == ID_VALUE_TXT && this_hit.ID.T3() == ID_SEL_VALUE_TXT )
 				priority++;
 			else if( this_hit.ID.T1() == ID_BOARD && this_hit.ID.T2() == ID_OUTLINE && this_hit.ID.T3() == ID_SEL_CORNER )
 				priority++;
