@@ -53,6 +53,7 @@ public:
 	void StartDragging( CDC * pDC );
 	void CancelDragging();
 	void Move( int x, int y, int angle, BOOL mirror, BOOL negative, int layer, int size=-1, int w=-1 );
+	void Move( int x, int y, int angle, int size=-1, int w=-1);											// CPT added.  Used when moving ref/value texts
 	void GetBounds( CRect &br );
 	void SetIDType( int type, int subtype );
 	int UID(){ return m_uid; };

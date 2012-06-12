@@ -24,7 +24,6 @@
 #include "DlgValueText.h"
 
 // globals
-BOOL g_bShow_Ratline_Warning = TRUE;	
 extern CFreePcbApp theApp;
 BOOL t_pressed = FALSE;
 BOOL n_pressed = FALSE;
@@ -46,21 +45,7 @@ HCURSOR my_cursor = LoadCursor( NULL, IDC_CROSS );
 static char THIS_FILE[] = __FILE__;
 #endif
 
-#define ZOOM_RATIO 1.4
-
 #define MAX_HITS   500		// max number of items selected
-
-// constants for function key menu
-#define FKEY_OFFSET_X 4
-#define FKEY_OFFSET_Y 4
-#define	FKEY_R_W m_fkey_w	// CPT:	now a variable, controlled by a string resource (for the sake of foreign language translators)
-#define FKEY_R_H 30
-#define FKEY_STEP (FKEY_R_W+5)
-#define FKEY_GAP 20
-#define FKEY_SEP_W 16
-
-// constants for layer list
-#define VSTEP 14
 
 // macro for approximating angles to 1 degree accuracy
 #define APPROX(angle,ref) ((angle > ref-M_PI/360) && (angle < ref+M_PI/360))
@@ -252,36 +237,11 @@ END_MESSAGE_MAP()
 
 CFreePcbView::CFreePcbView()
 {
-	// GetDocument() is not available at this point
-	m_small_font.CreateFont( 14, 0, 0, 0, FW_NORMAL, 0, 0, 0, DEFAULT_CHARSET,
-		OUT_CHARACTER_PRECIS, CLIP_CHARACTER_PRECIS, DEFAULT_QUALITY,
-		DEFAULT_PITCH | FF_DONTCARE, "Arial" );
-	m_Doc = NULL;
-	m_dlist = 0;
-	m_last_mouse_point.x = 0;
-	m_last_mouse_point.y = 0;
-	m_last_cursor_point.x = 0;
-	m_last_cursor_point.y = 0;
-
-	// CPT: left pane width customizable by changing resource string 
-	CString s ((LPCSTR) IDS_LeftPaneWidth);
-	m_left_pane_w = atoi(s);
-	if (m_left_pane_w<=0) 
-		m_left_pane_w = 125;
-	// CPT: Likewise f-key box width 
-	s.LoadStringA(IDS_FKeyWidth);
-	m_fkey_w = atoi(s);
-	if (m_fkey_w<=0) 
-		m_fkey_w = 70;
-	// end CPT
-
-	m_bottom_pane_h = 40;	// the bottom pane on screen is this high (pixels)
-	m_memDC_created = FALSE;
-	m_dragging_new_item = FALSE;
 	m_bDraggingRect = FALSE;
 	m_bLButtonDown = FALSE;
 	CalibrateTimer();
 	m_lastKeyWasArrow = m_lastKeyWasGroupRotate = FALSE;		// CPT
+	m_bNetHighlighted = FALSE;
 
 	// CPT:  put the following into the constructor (was in InitInstance()).
 	// set up arrays of mask ids
@@ -346,89 +306,12 @@ void CFreePcbView::OnNewProject()
 	m_bNetHighlighted = FALSE;		// AMW
 }
 
-void CFreePcbView::BaseInit() 
-{
-	// All CPT:  will move to class CCommonView when the time comes.
-	// Initialization that occurs after GetDocument() is ready to run
-	m_Doc = (CFreePcbDoc*) GetDocument();
-	SetDList();
-	if( m_Doc == NULL || m_dlist == NULL )
-		ASSERT(0);
-
-	// Set default values
-	m_bNetHighlighted = 0;
-	m_dragging_new_item = 0;
-	m_pcbu_per_pixel = 5.0*PCBU_PER_MIL;	// 5 mils per pixel
-	m_org_x = -100.0*PCBU_PER_MIL;			// lower left corner of window
-	m_org_y = -100.0*PCBU_PER_MIL;
-	m_Doc->m_fp_snap_angle = 45;
-	m_left_pane_invalid = TRUE;
-	CancelSelection();
-	m_sel_mask = 0xffff;
-	SetSelMaskArray( m_sel_mask );
-
-	CRect screen_r;
-	GetWindowRect( &screen_r );
-	m_dlist->SetMapping( &m_client_r, &screen_r, m_left_pane_w, m_bottom_pane_h, 
-		m_pcbu_per_pixel, m_org_x, m_org_y );
-	for(int i=0; i<GetNLayers(); i++ )
-		m_dlist->SetLayerRGB( i, C_RGB(m_Doc->m_rgb[i][0], m_Doc->m_rgb[i][1], m_Doc->m_rgb[i][2]) ), 
-		m_dlist->SetLayerVisible( i, 1 );
-	Invalidate( FALSE );
-}
-
-/*  OLD VERSION OF OnNewProject
-// initialize view with defaults for a new project
-// should be called each time a new project is created
-//
-void CFreePcbView::InitializeView()
-{
-	if( !m_dlist )
-		ASSERT(0);
-
-	// set defaults
-	SetCursorMode( CUR_NONE_SELECTED );
-	m_sel_id.Clear();
-	m_sel_layer = 0;
-	m_dir = 0;
-	m_debug_flag = 0;
-	m_dragging_new_item = 0;
-	m_active_layer = LAY_TOP_COPPER;
-	m_bDraggingRect = FALSE;
-	m_bLButtonDown = FALSE;
-	m_sel_mask = 0xffff;
-	SetSelMaskArray( m_sel_mask );
-	m_inflection_mode = IM_90_45;
-	m_snap_mode = SM_GRID_POINTS;
-
-	// default screen coords in world units (i.e. display units)
-	m_pcbu_per_pixel = 5.0*PCBU_PER_MIL;	// 5 mils per pixel
-	m_org_x = -100.0*PCBU_PER_MIL;			// lower left corner of window
-	m_org_y = -100.0*PCBU_PER_MIL;
-
-	// grid defaults
-	m_Doc->m_snap_angle = 45;
-
-	// new selection class
-//**	ss.Initialize( m_Doc->m_plist, m_Doc->m_nlist ); 
-
-	m_left_pane_invalid = TRUE;
-	Invalidate( FALSE );
-}
-*/
 
 // destructor
 CFreePcbView::~CFreePcbView()
 {
 }
 
-BOOL CFreePcbView::PreCreateWindow(CREATESTRUCT& cs)
-{
-	// TODO: Modify the Window class or styles here by modifying
-	//  the CREATESTRUCT cs
-
-	return CView::PreCreateWindow(cs);
-}
 
 /////////////////////////////////////////////////////////////////////////////
 // CFreePcbView drawing
@@ -454,7 +337,7 @@ void CFreePcbView::OnDraw(CDC* pDC)
 	// draw stuff on left pane
 	DrawLeftPane(pDC);
 	// draw function keys on bottom pane
-	DrawBottomPane();
+	DrawBottomPane(pDC);
 	// end CPT
 
 	//** this is for testing only, needs to be converted to PCB coords
@@ -511,84 +394,9 @@ void CFreePcbView::OnEndPrinting(CDC* /*pDC*/, CPrintInfo* /*pInfo*/)
 	// TODO: add cleanup after printing
 }
 
-/////////////////////////////////////////////////////////////////////////////
-// CFreePcbView diagnostics
-
-#ifdef _DEBUG
-void CFreePcbView::AssertValid() const
-{
-	CView::AssertValid();
-}
-
-void CFreePcbView::Dump(CDumpContext& dc) const
-{
-	CView::Dump(dc);
-}
-
-CFreePcbDoc* CFreePcbView::GetDocument() // non-debug version is inline
-{
-	ASSERT(m_pDocument->IsKindOf(RUNTIME_CLASS(CFreePcbDoc)));
-	return (CFreePcbDoc*)m_pDocument;
-}
-#endif //_DEBUG
 
 /////////////////////////////////////////////////////////////////////////////
 // CFreePcbView message handlers
-
-// Window was resized
-//
-void CFreePcbView::OnSize(UINT nType, int cx, int cy)
-{
-	CView::OnSize(nType, cx, cy);
-
-	// update client rect and create clipping region
-	GetClientRect( &m_client_r );
-	m_pcb_rgn.DeleteObject();
-	m_pcb_rgn.CreateRectRgn( m_left_pane_w, m_client_r.bottom-m_bottom_pane_h,
-		m_client_r.right, m_client_r.top );
-
-	// update display mapping for display list
-	if( m_dlist )
-	{
-		CRect screen_r;
-		GetWindowRect( &screen_r );
-		m_dlist->SetMapping( &m_client_r, &screen_r, m_left_pane_w, m_bottom_pane_h, m_pcbu_per_pixel,
-					m_org_x, m_org_y );
-	}
-
-	// create memory DC and DDB
-	if( !m_memDC_created && m_client_r.right != 0 )
-	{
-		CDC * pDC = GetDC();
-		m_memDC.CreateCompatibleDC( pDC );
-		m_memDC_created = TRUE;
-		m_bitmap.CreateCompatibleBitmap( pDC, m_client_r.right, m_client_r.bottom );
-		m_old_bitmap = (HBITMAP)::SelectObject( m_memDC.m_hDC, m_bitmap.m_hObject );		
-		m_bitmap_rect = m_client_r;
-		// CPT experimental
-		m_memDC2.CreateCompatibleDC( pDC );
-		m_bitmap2.CreateCompatibleBitmap( pDC, m_client_r.right, m_client_r.bottom );
-		m_old_bitmap2 = (HBITMAP)::SelectObject( m_memDC2.m_hDC, m_bitmap2.m_hObject );
-		// end CPT
-		ReleaseDC( pDC );
-	}
-	else if( m_memDC_created && (m_bitmap_rect != m_client_r) )
-	{
-		CDC * pDC = GetDC();
-		::SelectObject(m_memDC.m_hDC, m_old_bitmap );
-		m_bitmap.DeleteObject();
-		m_bitmap.CreateCompatibleBitmap( pDC, m_client_r.right, m_client_r.bottom );
-		m_old_bitmap = (HBITMAP)::SelectObject( m_memDC.m_hDC, m_bitmap.m_hObject );		
-		m_bitmap_rect = m_client_r;
-		// CPT experimental
-		::SelectObject(m_memDC2.m_hDC, m_old_bitmap2 );
-		m_bitmap2.DeleteObject();
-		m_bitmap2.CreateCompatibleBitmap( pDC, m_client_r.right, m_client_r.bottom );
-		m_old_bitmap2 = (HBITMAP)::SelectObject( m_memDC2.m_hDC, m_bitmap2.m_hObject );		
-		// end CPT
-		ReleaseDC( pDC );
-	}
-}
 
 // select item from id sid
 // sets m_sel_id and pointer to top level item 
@@ -2396,7 +2204,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 			SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_Doc->m_undo_list );
 		}
 
-		// CPT.  Similar to what happened for CUR_DRAG_RAT mode, above.  Below, arguments for AppendSegment get
+		// CPT.  Similar to what happened for CUR_DRAG_RAT mode, above.  Below, arguments for AppendSegment() get
 		// changed to include via_w and via_hole_w
 		int w = m_active_width, via_w, via_hole_w;
 		GetViaWidths(w, &via_w, &via_hole_w);
@@ -2989,59 +2797,6 @@ void CFreePcbView::OnRButtonDown(UINT nFlags, CPoint point)
 	CView::OnRButtonDown(nFlags, point);
 }
 
-
-
-// System Key on keyboard pressed down
-//
-void CFreePcbView::OnSysKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags)
-{
-	if( nChar == 121 )
-		OnKeyDown( nChar, nRepCnt, nFlags);
-	else
-		CView::OnSysKeyDown(nChar, nRepCnt, nFlags);
-
-#if 0 // AMW - disabled this for now
-	// CPT
-	m_sel_offset = -1;		// CPT: indicates that a series of mouse-clicks has been interrupted
-	// end CPT
-#endif
-}
-
-// System Key on keyboard pressed up
-//
-void CFreePcbView::OnSysKeyUp(UINT nChar, UINT nRepCnt, UINT nFlags)
-{
-	// CPT - merged by AMW, taken from CCommonView
-	// CPT new hotkeys
-	if (nChar>=VK_NUMPAD0 && nChar<=VK_NUMPAD9 )						// Translate number-pad numbers to regular numbers...
-		nChar = '0' + nChar - VK_NUMPAD0;
-	else if (nChar==VK_SUBTRACT)
-		nChar = VK_OEM_MINUS;
-	if (nChar>='0' && nChar<='9' || nChar==VK_OEM_MINUS) {
-		int sel = nChar-'1';
-		if (nChar=='0') sel = 9;
-		else if (nChar==VK_OEM_MINUS) sel = 10;
-		m_sel_mask = m_sel_mask ^ (1<<sel);
-		SetSelMaskArray( m_sel_mask );
-		InvalidateLeftPane();
-		Invalidate( FALSE );
-		return;
-		}
-	else if (nChar==VK_UP) {
-		// Increase visible grid
-		CMainFrame * frm = (CMainFrame*)AfxGetMainWnd();
-		frm->m_wndMyToolBar.VisibleGridUp();
-		}
-	else if (nChar==VK_DOWN) {
-		// Decrease visible grid
-		CMainFrame * frm = (CMainFrame*)AfxGetMainWnd();
-		frm->m_wndMyToolBar.VisibleGridDown();
-		}
-	// end CPT
-
-	if( nChar != 121 )
-		CView::OnSysKeyUp(nChar, nRepCnt, nFlags);
-}
 
 // Key pressed up
 //
@@ -4483,12 +4238,6 @@ void CFreePcbView::OnMouseMove(UINT nFlags, CPoint point)
 
 // Set the device context to world coords
 //
-int CFreePcbView::SetDCToWorldCoords( CDC * pDC )
-{
-	m_dlist->SetDCToWorldCoords( pDC, &m_memDC, &m_memDC2, m_org_x, m_org_y );
-
-	return 0;
-}
 
 // Set cursor mode, update function key menu if necessary
 void CFreePcbView::SetCursorMode( int mode )
@@ -4947,90 +4696,6 @@ int CFreePcbView::SegmentMovable(void)
 	return TRUE;
 }
 
-// Draw bottom pane
-//
-void CFreePcbView::DrawBottomPane()
-{
-	CDC * pDC = GetDC();
-	CFont * old_font = pDC->SelectObject( &m_small_font );
-
-	// get client rectangle
-	GetClientRect( &m_client_r );
-
-	// Erase bottom pane (in case left pane overflowed)
-	CBrush brush( RGB(255, 255, 255) );
-	CPen pen( PS_SOLID, 1, RGB(255, 255, 255) );
-	CBrush * old_brush = pDC->SelectObject( &brush );
-	CPen * old_pen = pDC->SelectObject( &pen );
-	CRect r (m_client_r);
-	r.top = r.bottom-m_bottom_pane_h;
-	pDC->Rectangle( &r );
-	pDC->SelectObject(old_brush);
-	pDC->SelectObject(old_pen);
-
-	// draw labels for function keys at bottom of client area.  CPT:  adjusted the positions of the gaps in lefthanded mode
-	for (int ifn=0; ifn<9; ifn++)
-	{
-		int left = FKEY_OFFSET_X + ifn*FKEY_STEP;
-		if (!m_Doc->m_bLefthanded)
-			left += ifn/4 * FKEY_GAP;
-		else
-			left += (ifn+3)/4 * FKEY_GAP;
-		CRect r( left, 
-			m_client_r.bottom-FKEY_OFFSET_Y-FKEY_R_H,
-			left + FKEY_R_W,
-			m_client_r.bottom-FKEY_OFFSET_Y );
-		pDC->Rectangle( &r );
-		pDC->MoveTo( r.left+FKEY_SEP_W, r.top );
-		pDC->LineTo( r.left+FKEY_SEP_W, r.top + FKEY_R_H/2 + 1 );
-		pDC->MoveTo( r.left, r.top + FKEY_R_H/2 );
-		pDC->LineTo( r.left+FKEY_SEP_W, r.top + FKEY_R_H/2 );
-		r.top += 1;
-		r.left += 2;
-		char fkstr[3] = "F1";
-		fkstr[1] = '1' + ifn;
-		pDC->DrawText( fkstr, -1, &r, 0 );
-		r.left += FKEY_SEP_W;
-		CString str1 ((LPCSTR) m_fkey_rsrc[2*ifn]);
-		CString str2 ((LPCSTR) m_fkey_rsrc[2*ifn+1]);
-		pDC->DrawText( str1, -1, &r, 0 );
-		r.top += FKEY_R_H/2 - 2;
-		pDC->DrawText( str2, -1, &r, 0 );
-	}
-	// end CPT
-
-	pDC->SelectObject( old_font );
-	ReleaseDC( pDC );
-}
-
-void CFreePcbView::ShowRelativeDistance( int dx, int dy )
-{
-	CString str;
-	CMainFrame * pMain = (CMainFrame*) AfxGetApp()->m_pMainWnd;
-	double d = sqrt( (double)dx*dx + (double)dy*dy );  
-	if( m_Doc->m_units == MIL )
-		str.Format( "dx = %.1f, dy = %.1f, d = %.2f", 
-		(double)dx/NM_PER_MIL, (double)dy/NM_PER_MIL, d/NM_PER_MIL );
-	else
-		str.Format( "dx = %.3f, dy = %.3f, d = %.3f", dx/1000000.0, dy/1000000.0, d/1000000.0 );
-	pMain->DrawStatus( 3, &str );
-}
-
-void CFreePcbView::ShowRelativeDistance( int x, int y, int dx, int dy )
-{
-	CString str;
-	CMainFrame * pMain = (CMainFrame*) AfxGetApp()->m_pMainWnd;
-	double d = sqrt( (double)dx*dx + (double)dy*dy );  
-	if( m_Doc->m_units == MIL )
-		str.Format( "x = %.1f, y = %.1f, dx = %.1f, dy = %.1f, d = %.2f",
-		(double)x/NM_PER_MIL, (double)y/NM_PER_MIL,
-		(double)dx/NM_PER_MIL, (double)dy/NM_PER_MIL, d/NM_PER_MIL );
-	else
-		str.Format( "x = %.3f, y = %.3f, dx = %.3f, dy = %.3f, d = %.3f", 
-		x/1000000.0, y/1000000.0,
-		dx/1000000.0, dy/1000000.0, d/1000000.0 );
-	pMain->DrawStatus( 3, &str );
-}
 
 // display selected item in status bar
 //
@@ -5381,32 +5046,6 @@ int CFreePcbView::ShowSelectStatus()
 
 // display cursor coords in status bar
 //
-int CFreePcbView::ShowCursor()
-{
-	CMainFrame * pMain = (CMainFrame*) AfxGetApp()->m_pMainWnd;
-	if( !pMain )
-		return 1;
-
-	CString str;
-	CPoint p;
-	p = m_last_cursor_point;
-	if( m_Doc->m_units == MIL )  
-	{
-		str.Format( "X: %8.1f", (double)m_last_cursor_point.x/PCBU_PER_MIL );
-		pMain->DrawStatus( 1, &str );
-		str.Format( "Y: %8.1f", (double)m_last_cursor_point.y/PCBU_PER_MIL );
-		pMain->DrawStatus( 2, &str );
-	}
-	else
-	{
-		str.Format( "X: %8.3f", m_last_cursor_point.x/1000000.0 );
-		pMain->DrawStatus( 1, &str );
-		str.Format( "Y: %8.3f", m_last_cursor_point.y/1000000.0 );
-		pMain->DrawStatus( 2, &str );
-	}
-	return 0;
-}
-
 // display active layer in status bar and change layer order for DisplayList
 //
 int CFreePcbView::ShowActiveLayer()
@@ -5439,6 +5078,23 @@ int CFreePcbView::ShowActiveLayer()
 
 // handle mouse scroll wheel
 //
+BOOL CFreePcbView::OnMouseWheel(UINT nFlags, short zDelta, CPoint pt)
+{
+	m_sel_offset = -1;							// CPT:  the current series of left-clicks has been interrupted...
+	// ignore if cursor not in window
+	CRect wr;
+	GetWindowRect( wr );
+	if( pt.x < wr.left || pt.x > wr.right || pt.y < wr.top || pt.y > wr.bottom )
+		return CView::OnMouseWheel(nFlags, zDelta, pt);
+
+	// ignore if we are dragging a selection rect
+	if( m_bDraggingRect )
+		return CView::OnMouseWheel(nFlags, zDelta, pt);
+
+	return CCommonView::OnMouseWheel(nFlags, zDelta, pt);
+}
+
+/* Old version, pre-CCommonView reorganization
 BOOL CFreePcbView::OnMouseWheel(UINT nFlags, short zDelta, CPoint pt)
 {
 #define MIN_WHEEL_DELAY 1.0
@@ -5540,6 +5196,7 @@ BOOL CFreePcbView::OnMouseWheel(UINT nFlags, short zDelta, CPoint pt)
 
 	return CView::OnMouseWheel(nFlags, zDelta, pt);
 }
+*/
 
 // SelectPart...this is called from FreePcbDoc when a new part is added
 // selects the new part as long as the cursor is not dragging something
@@ -7331,6 +6988,7 @@ void CFreePcbView::SnapCursorPoint( CPoint wp, UINT nFlags )
 			// routing a trace segment, set modes
 			if( nFlags != -1 )
 			{
+				/* CPT removed.  Doesn't work at all, and couldn't figure out the point of it
 				if( nFlags & MK_CONTROL )
 				{
 					// control key held down
@@ -7338,6 +6996,7 @@ void CFreePcbView::SnapCursorPoint( CPoint wp, UINT nFlags )
 					m_inflection_mode = IM_NONE;
 				}
 				else
+				*/
 				{
 					m_snap_mode = SM_GRID_POINTS;
 					if( m_Doc->m_snap_angle == 45 )
@@ -7394,334 +7053,18 @@ void CFreePcbView::SnapCursorPoint( CPoint wp, UINT nFlags )
 		{
 			// yes, check snap mode
 			if( m_snap_mode == SM_GRID_LINES )
-			{
-				// patch to snap to grid lines, contributed by ???
-				// modified by AMW to work when cursor x,y are < 0
-				// offset cursor and ref positions by integral number of grid spaces
-				// to make all values positive
-				double offset_grid_spaces;
-				modf( (double)INT_MAX/grid_spacing, &offset_grid_spaces );
-				double offset = offset_grid_spaces*grid_spacing;
-				double off_x = wp.x + offset;
-				double off_y = wp.y + offset;
-				double ref_x = m_snap_angle_ref.x + offset;
-				double ref_y = m_snap_angle_ref.y + offset;
-				//find nearest snap angle to an integer division of 90
-				int snap_angle = m_Doc->m_snap_angle;
-				if(90 % snap_angle != 0)
-				{
-					int snap_pos = snap_angle;
-					int snap_neg = snap_angle;
-					while(90 % snap_angle != 0)
-					{
-						snap_pos++;
-						snap_neg--;
-						if(snap_pos >= 90)
-							snap_pos = 90;
-						if(snap_neg <= 1)
-							snap_neg = 1;
-						if(90 % snap_pos == 0)
-							snap_angle = snap_pos;
-						if(90 % snap_neg == 0)
-							snap_angle = snap_neg;
-					}
-				}
-
-				//snap the x and y coordinates to the appropriate angle
-				double angle_grid = snap_angle*M_PI/180.0;
-				double dx = off_x - ref_x;
-				double dy = off_y - ref_y;
-				double angle = atan2(dy,dx) + 2*M_PI; //make it a positive angle
-				if(angle > 2*M_PI)
-					angle -= 2*M_PI;
-				double angle_angle_grid = angle/angle_grid;
-				int sel_snap_angle = (int)angle_angle_grid + ((angle_angle_grid - (double)((int)angle_angle_grid)) > 0.5 ? 1 : 0);
-				double point_angle = angle_grid*sel_snap_angle; //result of angle calculation
-				/* CPT eliminated:
-				CString test, test_grid;
-				test.Format("point_angle: %f\r\n",point_angle);
-				test_grid.Format("grid_spacing: %d\r\n",grid_spacing);
-				*/
-
-				//find the distance along that angle
-				//match the distance the actual point is from the start point
-				//double dist = sqrt(dx*dx + dy*dy);
-				double dist = dx*cos(point_angle)+dy*sin(point_angle);
-
-				double distx = dist*cos(point_angle);
-				double disty = dist*sin(point_angle);
-
-				double xpos = ref_x + distx;
-				double ypos = ref_y + disty;
-
-
-				//special case horizontal lines and vertical lines
-				// just to make sure floating point error doesn't cause any problems
-				if(APPROX(point_angle,0) || APPROX(point_angle,2*M_PI) || APPROX(point_angle,M_PI))
-				{
-					//horizontal line
-					//snap x component to nearest grid
-					off_y = (int)(ypos + 0.5);
-					double modval = fmod(xpos,(double)grid_spacing);
-					if(modval > grid_spacing/2.0)
-					{
-						//round up to nearest grid space
-						off_x = xpos + ((double)grid_spacing - modval);
-					}
-					else
-					{
-						//round down to nearest grid space
-						off_x = xpos - modval;
-					}
-				}
-				else if(APPROX(point_angle,M_PI/2) || APPROX(point_angle,3*M_PI/2))
-				{
-					//vertical line
-					//snap y component to nearest grid
-					off_x = (int)(xpos + 0.5);
-					double modval = fabs(fmod(ypos,(double)grid_spacing));
-					int test = modval * grid_spacing - offset;
-					if(modval > grid_spacing/2.0)
-					{
-						off_y = ypos + ((double)grid_spacing - modval);
-					}
-					else
-					{
-						off_y = ypos - modval;
-					}
-				}
-				else
-				{
-					//normal case
-					//snap x and y components to nearest grid line along the same angle
-					//calculate grid lines surrounding point
-					int minx = ((int)(xpos/(double)grid_spacing))*grid_spacing - (xpos < 0);
-					//int minx = (int)fmod(xpos,(double)grid_spacing);
-					int maxx = minx + grid_spacing;
-					int miny = ((int)(ypos/(double)grid_spacing))*grid_spacing - (ypos < 0);
-					//int miny = (int)fmod(ypos,(double)grid_spacing);
-					int maxy = miny + grid_spacing;
-
-					//calculate the relative distances to each of those grid lines from the ref point
-					int rminx = minx - ref_x;
-					int rmaxx = maxx - ref_x;
-					int rminy = miny - ref_y;
-					int rmaxy = maxy - ref_y;
-
-					//calculate the length of the hypotenuse of the triangle
-					double maxxh = dist*(double)rmaxx/distx;
-					double minxh = dist*(double)rminx/distx;
-					double maxyh = dist*(double)rmaxy/disty;
-					double minyh = dist*(double)rminy/disty;
-
-					//some stupidly large value.  One of the results MUST be smaller than this unless the grid is this large (unlikely)
-					double mindist = 1e100;
-					int select = 0;
-
-					if(fabs(maxxh - dist) < mindist)
-					{
-						select = 1;
-						mindist = fabs(maxxh - dist);
-					}
-					if(fabs(minxh - dist) < mindist)
-					{
-						select = 2;
-						mindist = fabs(minxh - dist);
-					}
-					if(fabs(maxyh - dist) < mindist)
-					{
-						select = 3;
-						mindist = fabs(maxyh - dist);
-					}
-					if(fabs(minyh - dist) < mindist)
-					{
-						select = 4;
-						mindist = fabs(minyh - dist);
-					}
-
-					switch(select)
-					{
-					case 1:
-						//snap to line right of point
-						off_x = maxx;
-						off_y = (int)(disty*(double)rmaxx/distx + (double)(ref_y) + 0.5);
-						break;
-					case 2:
-						//snap to line left of point
-						off_x = minx;
-						off_y = (int)(disty*(double)rminx/distx + (double)(ref_y) + 0.5);
-						break;
-					case 3:
-						//snap to line above point
-						off_x = (int)(distx*(double)rmaxy/disty + (double)(ref_x) + 0.5);
-						off_y = maxy;
-						break;
-					case 4:
-						//snap to line below point
-						off_x = (int)(distx*(double)rminy/disty + (double)(ref_x) + 0.5);
-						off_y = miny;
-						break;
-					default:
-						ASSERT(0);//error
-					}
-
-				}
-				// remove offset and correct for round-off
-				double ttest = off_x - offset;
-				if( ttest >= 0.0 )
-					wp.x = ttest + 0.5;
-				else
-					wp.x = ttest - 0.5;
-				ttest = off_y - offset;
-				if( ttest >= 0.0 )
-					wp.y = ttest + 0.5;
-				else
-					wp.y = ttest - 0.5;
-			}
+				SnapToGridLine(wp, grid_spacing);
 			else
-			{
-				// old code
+				// old code.  CPT factored out.
 				// snap to angle only if the starting point is on-grid
-				double ddx = fmod( (double)(m_snap_angle_ref.x), grid_spacing );
-				double ddy = fmod( (double)(m_snap_angle_ref.y), grid_spacing );
-				if( fabs(ddx) < 0.5 && fabs(ddy) < 0.5 )
-				{
-					// starting point is on-grid, snap to angle
-					// snap to n*45 degree angle
-					const double pi = 3.14159265359;
-					double dx = wp.x - m_snap_angle_ref.x;
-					double dy = wp.y - m_snap_angle_ref.y;
-					double dist = sqrt( dx*dx + dy*dy );
-					double dist45 = dist/sqrt(2.0);
-					{
-						int d;
-						d = (int)(dist/grid_spacing+0.5);
-						dist = d*grid_spacing;
-						d = (int)(dist45/grid_spacing+0.5);
-						dist45 = d*grid_spacing;
-					}
-					if( m_Doc->m_snap_angle == 45 )
-					{
-						// snap angle = 45 degrees, divide circle into 8 octants
-						double angle = atan2( dy, dx );
-						if( angle < 0.0 )
-							angle = 2.0*pi + angle;
-						angle += pi/8.0;
-						double d_quad = angle/(pi/4.0);
-						int oct = d_quad;
-						switch( oct )
-						{
-						case 0:
-							wp.x = m_snap_angle_ref.x + dist;
-							wp.y = m_snap_angle_ref.y;
-							break;
-						case 1:
-							wp.x = m_snap_angle_ref.x + dist45;
-							wp.y = m_snap_angle_ref.y + dist45;
-							break;
-						case 2:
-							wp.x = m_snap_angle_ref.x;
-							wp.y = m_snap_angle_ref.y + dist;
-							break;
-						case 3:
-							wp.x = m_snap_angle_ref.x - dist45;
-							wp.y = m_snap_angle_ref.y + dist45;
-							break;
-						case 4:
-							wp.x = m_snap_angle_ref.x - dist;
-							wp.y = m_snap_angle_ref.y;
-							break;
-						case 5:
-							wp.x = m_snap_angle_ref.x - dist45;
-							wp.y = m_snap_angle_ref.y - dist45;
-							break;
-						case 6:
-							wp.x = m_snap_angle_ref.x;
-							wp.y = m_snap_angle_ref.y - dist;
-							break;
-						case 7:
-							wp.x = m_snap_angle_ref.x + dist45;
-							wp.y = m_snap_angle_ref.y - dist45;
-							break;
-						case 8:
-							wp.x = m_snap_angle_ref.x + dist;
-							wp.y = m_snap_angle_ref.y;
-							break;
-						default:
-							ASSERT(0);
-							break;
-						}
-					}
-					else
-					{
-						// snap angle is 90 degrees, divide into 4 quadrants
-						double angle = atan2( dy, dx );
-						if( angle < 0.0 )
-							angle = 2.0*pi + angle;
-						angle += pi/4.0;
-						double d_quad = angle/(pi/2.0);
-						int quad = d_quad;
-						switch( quad )
-						{
-						case 0:
-							wp.x = m_snap_angle_ref.x + dist;
-							wp.y = m_snap_angle_ref.y;
-							break;
-						case 1:
-							wp.x = m_snap_angle_ref.x;
-							wp.y = m_snap_angle_ref.y + dist;
-							break;
-						case 2:
-							wp.x = m_snap_angle_ref.x - dist;
-							wp.y = m_snap_angle_ref.y;
-							break;
-						case 3:
-							wp.x = m_snap_angle_ref.x;
-							wp.y = m_snap_angle_ref.y - dist;
-							break;
-						case 4:
-							wp.x = m_snap_angle_ref.x + dist;
-							wp.y = m_snap_angle_ref.y;
-							break;
-						default:
-							ASSERT(0);
-							break;
-						}
-					}
-				}
-			}
+				SnapToAngle(wp, grid_spacing);
 		}
 		else
 			m_snap_mode = SM_GRID_POINTS;
 
 		// snap to grid points if needed
 		if( m_snap_mode == SM_GRID_POINTS )
-		{
-			// snap to grid
-			// get position in integral units of grid_spacing
-			if( wp.x > 0 )
-				wp.x = (wp.x + grid_spacing/2)/grid_spacing;
-			else
-				wp.x = (wp.x - grid_spacing/2)/grid_spacing;
-			if( wp.y > 0 )
-				wp.y = (wp.y + grid_spacing/2)/grid_spacing;
-			else
-				wp.y = (wp.y - grid_spacing/2)/grid_spacing;
-			// multiply by grid spacing, adding or subracting 0.5 to prevent round-off
-			// when using a fractional grid
-			double test = wp.x * grid_spacing;
-			if( test > 0.0 )
-				test += 0.5;
-			else
-				test -= 0.5;
-			wp.x = test;
-			test = wp.y * grid_spacing;
-			if( test > 0.0 )
-				test += 0.5;
-			else
-				test -= 0.5;
-			wp.y = test;
-		}
+			SnapToGridPoint(wp, grid_spacing);
 	}
 
 	if( CurDragging() )
@@ -10262,23 +9605,6 @@ void CFreePcbView::UngluePartsInGroup()
 	}
 }
 
-// Set array of selection mask ids
-//
-void CFreePcbView::SetSelMaskArray( int mask )
-{
-	for( int i=0; i<NUM_SEL_MASKS; i++ )
-	{
-		if( mask & (1<<i) )
-		{
-			m_mask_id[i] = m_mask_default_id[i];
-		}
-		else
-		{
-			m_mask_id[i].SetT1( ID_NONE );	// guaranteed not to exist
-		}
-	}
-}
-
 
 void CFreePcbView::OnAddSimilarArea()
 {
@@ -10395,8 +9721,13 @@ void CFreePcbView::ReselectNetItemIfConnectionsChanged( int new_ic )
 		CancelSelection();
 }
 
-void CFreePcbView::OnGroupCopy()
+void CFreePcbView::OnGroupCopy() 
+	// CPT:  added inner routine that has a return value
+	{ DoGroupCopy(); }
+
+bool CFreePcbView::DoGroupCopy()
 {
+	// CPT:  added return value (true on success).  
 	// clear clipboard
 	m_Doc->clip_sm_cutout.SetSize(0);
 	m_Doc->clip_board_outline.SetSize(0);
@@ -10835,6 +10166,7 @@ void CFreePcbView::OnGroupCopy()
 			submenu->EnableMenuItem( ID_EDIT_PASTE, MF_BYCOMMAND | MF_DISABLED | MF_GRAYED );
 			pMain->DrawMenuBar();
 		}
+		return false;								// CPT
 	}
 	else
 	{
@@ -10847,6 +10179,7 @@ void CFreePcbView::OnGroupCopy()
 			pMain->DrawMenuBar();
 		}
 	}
+	return true;									// CPT
 }
 
 // function to find all stub traces ending on tee and mark them for removal,
@@ -10881,8 +10214,9 @@ void MarkStubsForRemoval( cnet * net, int tee_ID )
 
 void CFreePcbView::OnGroupCut()
 {
-	OnGroupCopy();
-	OnGroupDelete();
+	// CPT: took advantage of return value from the new DoGroupCopy().
+	if (DoGroupCopy())
+		OnGroupDelete();
 }
 
 // Remove all elements in group from project
@@ -11776,8 +11110,8 @@ void CFreePcbView::OnGroupPaste()
 
 void CFreePcbView::OnGroupSaveToFile()
 {
-	// Copy group to pseudo-clipboard
-	OnGroupCopy();
+	// Copy group to pseudo-clipboard.  CPT:  took advantage of return value from new DoGroupCopy()...
+	if (!DoGroupCopy()) return;
 
 	CString s ((LPCSTR) IDS_PCBFiles);
 	CFileDialog dlg( 0, "fpc", NULL, 0,
@@ -11879,13 +11213,13 @@ void CFreePcbView::OnEditCut()
 		return;
 	if( m_cursor_mode == CUR_GROUP_SELECTED )
 	{
-		OnGroupCopy();
-		OnGroupDelete();
+		if (DoGroupCopy())
+			OnGroupDelete();
 	}
 	// CPT:  permit ctrl-x for single selected items:
 	else if (ConvertSelectionToGroup(false)) {
-		OnGroupCopy();
-		OnGroupDelete();
+		if (DoGroupCopy())
+			OnGroupDelete();
 		}
 	else {
 		CString str ((LPCSTR) IDS_UnableToCutAnything);
@@ -13321,138 +12655,6 @@ void CFreePcbView::GetViaWidths(int w, int *via_w, int *via_hole_w) {
   *via_hole_w = m_Doc->m_v_h_w.GetAt(i-1);
   }
 
-// CPT - merged by AMW - taken from CCommonView
-void CFreePcbView::HandleCtrlFKey(int nChar) {
-	int layer = nChar-110;
-	int vis = ToggleLayerVis(layer);
-	m_dlist->SetLayerVisible( layer, vis );
-	InvalidateLeftPane();
-	Invalidate( FALSE );
-}
-
-void CFreePcbView::DrawLeftPane(CDC *pDC) {
-	#define VSTEP 14
-	CRect r = m_client_r;
-	int y_off = 10;
-	int x_off = 10;
-	if( m_left_pane_invalid )
-	{
-		m_left_pane_invalid = FALSE;
-		// erase previous contents
-		CBrush brush( RGB(255, 255, 255) );
-		CPen pen( PS_SOLID, 1, RGB(255, 255, 255) );
-		CBrush * old_brush = pDC->SelectObject( &brush );
-		CPen * old_pen = pDC->SelectObject( &pen );
-		// erase left pane
-		r.right = m_left_pane_w;
-		r.bottom -= m_bottom_pane_h;
-		pDC->Rectangle( &r );
-		pDC->SelectObject( old_brush );
-		pDC->SelectObject( old_pen );
-		CFont * old_font = pDC->SelectObject( &m_small_font );
-		// CPT: modified so that "Selection" is no longer one of the displayed layers
-		for( int i=1; i<GetNLayers(); i++ )
-		{
-			// i = position index
-			r.SetRect( x_off, (i-1)*VSTEP+y_off, x_off+12, (i-1)*VSTEP+12+y_off );
-			// il = true layer num since copper layers are displayed out of order
-			int il = GetLayerNum(i);
-			CBrush brush( RGB(GetLayerRGB(il,0), GetLayerRGB(il,1), GetLayerRGB(il,2)));
-			if( GetLayerVis(il) )
-			{
-				// if layer is visible, draw colored rectangle
-				CBrush * old_brush = pDC->SelectObject( &brush );
-				pDC->Rectangle( &r );
-				pDC->SelectObject( old_brush );
-			}
-			else
-			{
-				// if layer is invisible, draw box with X
-				pDC->Rectangle( &r );
-				pDC->MoveTo( r.left, r.top );
-				pDC->LineTo( r.right, r.bottom );
-				pDC->MoveTo( r.left, r.bottom );
-				pDC->LineTo( r.right, r.top );
-			}
-			r.left += 20;
-			r.right += 120;
-			r.bottom += 5;
-			// CPT
-			CString label;
-			GetLayerLabel(i, label);
-			pDC->DrawText( label, -1, &r, 0 );
-			CRect ar = r;
-			ar.left = 2;
-			ar.right = 8;
-			ar.bottom -= 5;
-			if( il == m_active_layer )
-			{
-				// draw arrowhead
-				pDC->MoveTo( ar.left, ar.top+1 );
-				pDC->LineTo( ar.right-1, (ar.top+ar.bottom)/2 );
-				pDC->LineTo( ar.left, ar.bottom-1 );
-				pDC->LineTo( ar.left, ar.top+1 );
-			}
-			else
-			{
-				// erase arrowhead
-				pDC->FillSolidRect( &ar, RGB(255,255,255) );
-			}
-		}
-		r.left = x_off;
-		r.bottom += VSTEP*2;
-		r.top += VSTEP*2;
-		CString s ((LPCSTR) IDS_SelectionMask);
-		pDC->DrawText( s, -1, &r, DT_TOP );
-		y_off = r.bottom;
-		for( int i=0; i<GetNMasks(); i++ )
-		{
-			// i = position index
-			r.left = x_off;
-			r.right = x_off+12;
-			r.top = i*VSTEP+y_off;
-			r.bottom = i*VSTEP+12+y_off;
-			CBrush green_brush( RGB(0, 255, 0) );
-			CBrush red_brush( RGB(255, 0, 0) );
-			if( m_sel_mask & (1<<i) )
-			{
-				// if mask is selected is visible, draw green rectangle
-				CBrush * old_brush = pDC->SelectObject( &green_brush );
-				pDC->Rectangle( &r );
-				pDC->SelectObject( old_brush );
-			}
-			else
-			{
-				// if mask not selected, draw red
-				CBrush * old_brush = pDC->SelectObject( &red_brush );
-				pDC->Rectangle( &r );
-				pDC->SelectObject( old_brush );
-			}
-			r.left += 20;
-			r.right += 120;
-			r.bottom += 5;
-			// CPT
-			int id = GetMaskNamesID();
-			CString label, s ((LPCSTR) (id+i));
-			label.Format("%s. A%c", s, i<9? '1'+i: i==9? '0': '-');
-			pDC->DrawText( label, -1, &r, DT_TOP );
-		}
-		// CPT
-		r.left = x_off;
-		r.bottom += VSTEP*2;
-		r.top += VSTEP*2;
-		int id = GetLeftPaneKeyID();
-		for (int i=0; i<9; i++) 
-		{
-			s.LoadStringA(id+i);
-			pDC->DrawText( s, -1, &r, DT_TOP );
-			int step = i%3==2? VSTEP*3/2: VSTEP;
-			r.bottom += step;
-			r.top += step;
-		}
-	}
-}
-
 void CFreePcbView::RoutingGridUp() {
 	CMainFrame * frm = (CMainFrame*)AfxGetMainWnd();
 	frm->m_wndMyToolBar.RoutingGridUp();
@@ -13531,109 +12733,6 @@ void CFreePcbView::ConvertSingletonGroup() {
 	m_sel_ptrs.RemoveAll();
 	}
 
-#if 0
-void CFreePcbView::DoSelection(id &sid, void *ptr) {
-	// User wants to select object with the given id & ptr.  Accordingly set the cursor mode etc. 
-	CancelHighlight();
-	if( sid.type == ID_DRC && sid.st == ID_SEL_DRE ) {
-		DRError * dre = (DRError*)ptr;
-		m_sel_id = sid;
-		m_sel_dre = dre;
-		m_Doc->m_drelist->HighLight( m_sel_dre );
-		SetCursorMode( CUR_DRE_SELECTED );
-		}
-	else if( sid.type == ID_BOARD && sid.st == ID_BOARD_OUTLINE	&& sid.sst == ID_SEL_CORNER )	{
-		m_Doc->m_board_outline[sid.i].HighlightCorner( sid.ii );
-		m_sel_id = sid;
-		SetCursorMode( CUR_BOARD_CORNER_SELECTED );
-		}
-	else if( sid.type == ID_BOARD && sid.st == ID_BOARD_OUTLINE && sid.sst == ID_SEL_SIDE ) {
-		m_Doc->m_board_outline[sid.i].HighlightSide( sid.ii );
-		m_sel_id = sid;
-		SetCursorMode( CUR_BOARD_SIDE_SELECTED );
-		}
-	else if( sid.type == ID_SM_CUTOUT && sid.st == ID_SM_CUTOUT && sid.sst == ID_SEL_CORNER )	{
-		m_Doc->m_sm_cutout[sid.i].HighlightCorner( sid.ii );
-		m_sel_id = sid;
-		SetCursorMode( CUR_SMCUTOUT_CORNER_SELECTED );
-		}
-	else if( sid.type == ID_SM_CUTOUT && sid.st == ID_SM_CUTOUT	&& sid.sst == ID_SEL_SIDE ) {
-		m_Doc->m_sm_cutout[sid.i].HighlightSide( sid.ii );
-		m_sel_id = sid;
-		SetCursorMode( CUR_SMCUTOUT_SIDE_SELECTED );
-		}
-
-	else if( sid.type == ID_PART ) {
-		m_sel_part = (cpart*)ptr;
-		m_sel_id = sid;
-		if( sid.st == ID_SEL_RECT ) {
-			SelectPart( m_sel_part );
-			m_Doc->m_plist->SelectRefText( m_sel_part );
-			m_Doc->m_plist->SelectValueText( m_sel_part );
-			}
-		else if( sid.st == ID_SEL_REF_TXT )	{
-			m_Doc->m_plist->SelectRefText( m_sel_part );
-			SetCursorMode( CUR_REF_SELECTED );
-			}
-		else if( sid.st == ID_SEL_VALUE_TXT ) {
-			m_Doc->m_plist->SelectValueText( m_sel_part );
-			SetCursorMode( CUR_VALUE_SELECTED );
-			}
-		else if( sid.st == ID_SEL_PAD ) {
-			m_Doc->m_plist->HighlightPad( m_sel_part, sid.i );
-			SetCursorMode( CUR_PAD_SELECTED );
-			}
-		}
-
-	else if( sid.type == ID_NET ) {
-		m_sel_net = (cnet*)ptr;
-		m_sel_id = sid;
-		if( sid.st == ID_CONNECT && sid.sst == ID_SEL_SEG ) {
-			// select segment
-			m_Doc->m_nlist->HighlightSegment( m_sel_net, sid.i, sid.ii );
-			if( m_sel_net->connect[sid.i].seg[sid.ii].layer != LAY_RAT_LINE )
-				SetCursorMode( CUR_SEG_SELECTED );
-			else
-				SetCursorMode( CUR_RAT_SELECTED );
-			}
-		else if( sid.st == ID_CONNECT && sid.sst == ID_SEL_VERTEX ) {
-			// select vertex
-			cconnect * c = &m_sel_net->connect[sid.i];
-			if( c->end_pin == cconnect::NO_END && sid.ii == c->nsegs )
-				SetCursorMode( CUR_END_VTX_SELECTED );
-			else
-				SetCursorMode( CUR_VTX_SELECTED );
-			m_Doc->m_nlist->HighlightVertex( m_sel_net, sid.i, sid.ii );
-			}
-		else if( sid.st == ID_AREA && sid.sst == ID_SEL_SIDE ) {
-			// select copper area side
-			m_Doc->m_nlist->SelectAreaSide( m_sel_net, sid.i, sid.ii );
-			SetCursorMode( CUR_AREA_SIDE_SELECTED );
-			}
-		else if( sid.st == ID_AREA && sid.sst == ID_SEL_CORNER ) {
-			// select copper area corner
-			m_Doc->m_nlist->SelectAreaCorner( m_sel_net, sid.i, sid.ii );
-			SetCursorMode( CUR_AREA_CORNER_SELECTED );
-			}
-		else
-			ASSERT(0);
-		}
-
-	else if( sid.type == ID_TEXT ) {
-		m_sel_text = (CText*)ptr;
-		m_sel_id = sid;
-		m_Doc->m_tlist->HighlightText( m_sel_text );
-		SetCursorMode( CUR_TEXT_SELECTED );
-		}
-	else 
-		// nothing selected
-		m_sel_id.Clear();
-	
-	Invalidate( FALSE );
-	}
-
-#endif
-
 void CFreePcbView::ToggleSelectionState(id &sid, void *ptr) {
 	// If the item specified by ptr/id is part of the selection group, remove it from the selection group.  Otherwise,
 	// add it to the group.
@@ -13656,295 +12755,6 @@ void CFreePcbView::ToggleSelectionState(id &sid, void *ptr) {
 		HighlightGroup();
 	}
 
-#if 0
-void CFreePcbView::HandleNoShiftLayerKey(int layer, CDC *pDC) {
-	if( !m_Doc->m_vis[layer] ) {
-		PlaySound( TEXT("CriticalStop"), 0, 0 );
-		CString s ((LPCSTR) IDS_CantRouteOnInvisibleLayer);
-		AfxMessageBox( s );
-		return;
-		}
-	if( m_cursor_mode == CUR_DRAG_RAT || m_cursor_mode == CUR_DRAG_STUB) {
-		// if we are routing, change layer
-		pDC->SelectClipRgn( &m_pcb_rgn );
-		SetDCToWorldCoords( pDC );						// Haven't figured out why we need this...
-		if( m_sel_id.ii == 0 && m_dir == 0 ) {
-			// we are trying to change first segment from pad
-			int p1 = m_sel_con.start_pin;
-			CString pin_name = m_sel_net->pin[p1].pin_name;
-			int pin_index = m_sel_net->pin[p1].part->shape->GetPinIndexByName( pin_name );
-			if( m_sel_net->pin[p1].part->shape->m_padstack[pin_index].hole_size == 0)
-				// SMT pad, this is illegal;
-				layer = -1,
-				PlaySound( TEXT("CriticalStop"), 0, 0 );
-			}
-		else if( m_sel_id.ii == (m_sel_con.nsegs-1) && m_dir == 1 ) {
-			// we are trying to change last segment to pad
-			int p2 = m_sel_con.end_pin;
-			if( p2 != -1 ) {
-				CString pin_name = m_sel_net->pin[p2].pin_name;
-				int pin_index = m_sel_net->pin[p2].part->shape->GetPinIndexByName( pin_name );
-				if( m_sel_net->pin[p2].part->shape->m_padstack[pin_index].hole_size == 0)
-					// SMT pad
-					layer = -1,
-					PlaySound( TEXT("CriticalStop"), 0, 0 );
-				}
-			}
-		if( layer != -1 ) {
-			m_dlist->ChangeRoutingLayer( pDC, layer, LAY_SELECTION, 0 );
-			m_active_layer = layer;
-			ShowActiveLayer();
-			}
-		return;
-		}
-	
-	m_active_layer = layer;
-	ShowActiveLayer();
-	}
-
-void CFreePcbView::HandleShiftLayerKey(int layer, CDC *pDC) {
-	if( m_cursor_mode == CUR_SEG_SELECTED )	{
-		SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_Doc->m_undo_list );
-		m_Doc->m_nlist->UndrawConnection( m_sel_net, m_sel_ic );
-		cconnect * c = &m_sel_net->connect[m_sel_ic];
-		cseg * seg = &c->seg[m_sel_is];
-		seg->layer = layer;
-		m_Doc->m_nlist->DrawConnection( m_sel_net, m_sel_ic );
-		m_Doc->ProjectModified( TRUE );
-		Invalidate( FALSE );
-		}
-	else if( m_cursor_mode == CUR_CONNECT_SELECTED ) {
-		SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_Doc->m_undo_list );
-		m_Doc->m_nlist->UndrawConnection( m_sel_net, m_sel_ic );
-		cconnect * c = &m_sel_net->connect[m_sel_ic];
-		for( int is=0; is<c->nsegs; is++ ) {
-			cseg * seg = &c->seg[is];
-			seg->layer = layer;
-			}
-		m_Doc->m_nlist->DrawConnection( m_sel_net, m_sel_ic );
-		m_Doc->ProjectModified( TRUE );
-		Invalidate( FALSE );
-		}
-	else if( m_cursor_mode == CUR_AREA_CORNER_SELECTED || m_cursor_mode == CUR_AREA_SIDE_SELECTED ) {
-		SaveUndoInfoForAllAreasInNet( m_sel_net, TRUE, m_Doc->m_undo_list );
-		carea * a = &m_sel_net->area[m_sel_ia];
-		a->poly->Undraw();
-		a->poly->SetLayer( layer );
-		a->poly->Draw( m_dlist );
-		int ret = m_Doc->m_nlist->AreaPolygonModified( m_sel_net, m_sel_ia, TRUE, TRUE );
-		if( ret == -1 ) {
-			// error
-			CString s ((LPCSTR) IDS_ErrorUnableToClipPolygon);
-			AfxMessageBox( s );
-			m_Doc->OnEditUndo();
-			}
-		else if( m_Doc->m_vis[LAY_RAT_LINE] )
-			m_Doc->m_nlist->OptimizeConnections(  m_sel_net, -1, m_Doc->m_auto_ratline_disable,
-					m_Doc->m_auto_ratline_min_pins, TRUE  );
-		CancelSelection();
-		m_Doc->ProjectModified( TRUE );
-		Invalidate( FALSE );
-		}
-	}
-
-#endif //** AMW
-
-// CPT:  the following will go into CCommonView when the time comes
-
-bool CFreePcbView::CheckBottomPaneClick(CPoint &point) {
-	if( point.y <= (m_client_r.bottom-m_bottom_pane_h) ) return false;
-	// clicked in bottom pane, test for hit on function key rectangle
-	// CPT: added left-handed mode support
-	for( int i=0; i<9; i++ )
-	{
-		int left = FKEY_OFFSET_X + i*FKEY_STEP;
-		if (!m_Doc->m_bLefthanded)
-			left += i/4 * FKEY_GAP;
-		else
-			left += (i+3)/4 * FKEY_GAP;
-
-		CRect r( left,
-			m_client_r.bottom-FKEY_OFFSET_Y-FKEY_R_H,
-			left+FKEY_R_W,
-			m_client_r.bottom-FKEY_OFFSET_Y );
-		if( r.PtInRect( point ) )
-		{
-			// fake function key pressed
-			int nChar = i + 112;
-			HandleKeyPress( nChar, 0, 0 );
-			return true;
-		}
-	}
-	return false;
-}
-
-bool CFreePcbView::CheckLeftPaneClick(CPoint &point) {
-	if( point.x >= m_left_pane_w ) return false;
-	// clicked in left pane
-	InvalidateLeftPane();
-	CRect r = m_client_r;
-	int y_off = 10;
-	int x_off = 10;
-	// CPT modified: "Selection" is no longer one of the displayed layers, so click handling changes slightly
-	for( int i=1; i<GetNLayers(); i++ )
-	{
-		// i = position index
-		// il = true layer number, since copper layers are displayed out of order
-		int il = GetLayerNum(i);
-		// get color square
-		r.left = x_off;
-		r.right = x_off+12;
-		r.top = (i-1)*VSTEP+y_off;
-		r.bottom = (i-1)*VSTEP+12+y_off;
-		if( r.PtInRect( point ) && il > LAY_BACKGND )
-		{
-			// clicked in color square
-			int vis = ToggleLayerVis(il);
-			m_dlist->SetLayerVisible( il, vis );
-			if( IsFreePcbView() && il == LAY_RAT_LINE && m_Doc->m_vis[il] && g_bShow_Ratline_Warning )
-			{
-				CDlgMyMessageBox dlg;
-				CString s ((LPCSTR) IDS_RatlinesTurnedBackOn);
-				dlg.Initialize( s );
-				dlg.DoModal();
-				g_bShow_Ratline_Warning = !dlg.bDontShowBoxState;
-			}
-			Invalidate( FALSE );
-			return true;
-		}
-		else
-		{
-			// get layer name rect
-			r.left += 20;
-			r.right += 120;
-			r.bottom += 5;
-			if( r.PtInRect( point ) )
-			{
-				int nChar = layer_char[i - GetTopCopperLayer()];
-				HandleKeyPress( nChar, 0, 0 );
-				Invalidate( FALSE );
-				return true;
-			}
-		}
-	}
-
-	y_off = r.bottom + 2*VSTEP;
-	for( int i=0; i<GetNMasks(); i++ )
-	{
-		// get color square
-		r.left = x_off;
-		r.right = x_off+12+120;
-		r.top = i*VSTEP+y_off;
-		r.bottom = i*VSTEP+12+y_off;
-		if( r.PtInRect( point ) )
-		{
-			// clicked in color square or name
-			m_sel_mask = m_sel_mask ^ (1<<i);
-			SetSelMaskArray( m_sel_mask );
-			Invalidate( FALSE );
-			return true;
-		}
-	}
-
-	return true;
-}
-
-
-void CFreePcbView::PlacementGridUp() {
-	CMainFrame * frm = (CMainFrame*)AfxGetMainWnd();
-	frm->m_wndMyToolBar.PlacementGridUp();
-	}
-void CFreePcbView::PlacementGridDown() {
-	CMainFrame * frm = (CMainFrame*)AfxGetMainWnd();
-	frm->m_wndMyToolBar.PlacementGridDown();
-	}
-
-// end CPT
-
-// - AMW - these were taken from CCommonView
-// CPT
-bool CFreePcbView::HandleLayerKey(UINT nChar, bool bShiftKeyDown, bool bCtrlKeyDown, CDC *pDC) {
-	if( nChar>=VK_NUMPAD1 && nChar<=VK_NUMPAD9 )	// Translate number-pad numbers to regular numbers...
-		nChar = '1' + nChar - VK_NUMPAD1;
-	char * ch = strchr( layer_char, nChar );
-	if (!ch) return false;
-	int l = ch - layer_char;
-	int layer = GetLayerNum(l + GetTopCopperLayer());
-	if( layer >= GetNLayers() ) return true;
-	InvalidateLeftPane();
-	Invalidate(FALSE);
-	if (bCtrlKeyDown) {
-		// New CPT ctrl-hotkeys
-		int vis = ToggleLayerVis(layer);
-		m_dlist->SetLayerVisible( layer, vis );
-	}
-	else if (bShiftKeyDown) HandleShiftLayerKey(layer, pDC);
-	else                    HandleNoShiftLayerKey(layer, pDC);
-	return true;
-}
-
-void CFreePcbView::HandlePanAndZoom(int nChar, CPoint &p) {
-	if (m_Doc->m_bReversePgupPgdn)
-		if (nChar==33) nChar = 34;
-		else if (nChar==34) nChar = 33;
-
-	if( nChar == ' ' )
-	{
-		// space bar pressed, center window on cursor then center cursor
-		m_org_x = p.x - ((m_client_r.right-m_left_pane_w)*m_pcbu_per_pixel)/2;
-		m_org_y = p.y - ((m_client_r.bottom-m_bottom_pane_h)*m_pcbu_per_pixel)/2;
-		CRect screen_r;
-		GetWindowRect( &screen_r );
-		m_dlist->SetMapping( &m_client_r, &screen_r, m_left_pane_w, m_bottom_pane_h, m_pcbu_per_pixel, 
-			m_org_x, m_org_y );
-		Invalidate( FALSE );
-		p = m_dlist->PCBToScreen( p );
-		SetCursorPos( p.x, p.y - 4 );
-	}
-	else if( nChar == 33 )
-	{
-		// PgUp pressed, zoom in
-		if( m_pcbu_per_pixel > 254 )
-		{
-			m_pcbu_per_pixel = m_pcbu_per_pixel/ZOOM_RATIO;
-			m_org_x = p.x - ((m_client_r.right-m_left_pane_w)*m_pcbu_per_pixel)/2;
-			m_org_y = p.y - ((m_client_r.bottom-m_bottom_pane_h)*m_pcbu_per_pixel)/2;
-			CRect screen_r;
-			GetWindowRect( &screen_r );
-			m_dlist->SetMapping( &m_client_r, &screen_r, m_left_pane_w, m_bottom_pane_h, m_pcbu_per_pixel, 
-				m_org_x, m_org_y );
-			Invalidate( FALSE );
-			p = m_dlist->PCBToScreen( p );
-			SetCursorPos( p.x, p.y - 4 );
-		}
-	}
-	else if( nChar == 34 )
-	{
-		// PgDn pressed, zoom out
-		// first, make sure that window boundaries will be OK
-		int org_x = p.x - ((m_client_r.right-m_left_pane_w)*m_pcbu_per_pixel*ZOOM_RATIO)/2;
-		int org_y = p.y - ((m_client_r.bottom-m_bottom_pane_h)*m_pcbu_per_pixel*ZOOM_RATIO)/2;
-		int max_x = org_x + (m_client_r.right-m_left_pane_w)*m_pcbu_per_pixel*ZOOM_RATIO;
-		int max_y = org_y + (m_client_r.bottom-m_bottom_pane_h)*m_pcbu_per_pixel*ZOOM_RATIO;
-		if( org_x > -PCB_BOUND && org_x < PCB_BOUND && max_x > -PCB_BOUND && max_x < PCB_BOUND
-			&& org_y > -PCB_BOUND && org_y < PCB_BOUND && max_y > -PCB_BOUND && max_y < PCB_BOUND )
-		{
-			// OK, do it
-			m_org_x = org_x;
-			m_org_y = org_y;
-			m_pcbu_per_pixel = m_pcbu_per_pixel*ZOOM_RATIO;
-			CRect screen_r;
-			GetWindowRect( &screen_r );
-			m_dlist->SetMapping( &m_client_r, &screen_r, m_left_pane_w, m_bottom_pane_h, m_pcbu_per_pixel, 
-				m_org_x, m_org_y );
-			Invalidate( FALSE );
-			p = m_dlist->PCBToScreen( p );
-			SetCursorPos( p.x, p.y );
-		}
-	}
-}
-// end CPT
-// end AMW
 
 // CPT
 void CFreePcbView::HandleNoShiftLayerKey(int layer, CDC *pDC) {

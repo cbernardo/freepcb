@@ -167,6 +167,8 @@ enum {
 	ID_GLUE,		// adhesive spot
 	ID_ORIG,		// part origin
 	ID_SEL_RECT,	// selection rectangle for part
+	ID_SEL_REF_TXT,		// selection rectangle for ref text
+	ID_SEL_VALUE_TXT	// selection rectangle for value text
 };
 
 // subtype of ID_TEXT is always ID_TEXT

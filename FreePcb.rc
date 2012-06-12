@@ -282,6 +282,9 @@ BEGIN
     POPUP "&View"
     BEGIN
         MENUITEM "Entire Footprint",            ID_VIEW_ENTIREFOOTPRINT
+        MENUITEM "Reveal Value Text",           ID_VIEW_REVEALVALUETEXT
+        MENUITEM "Visible Grid Values...",      ID_VIEW_FPVISIBLEGRIDVALUES
+        MENUITEM "Placement Grid Values...",    ID_VIEW_FPPLACEMENTGRIDVALUES
     END
     POPUP "Add"
     BEGIN
@@ -714,6 +717,9 @@ BEGIN
     POPUP "&View", GRAYED
     BEGIN
         MENUITEM "Entire Footprint",            ID_VIEW_ENTIREFOOTPRINT
+        MENUITEM "Reveal Value Text",           ID_VIEW_REVEALVALUETEXT
+        MENUITEM "Visible Grid Values...",      ID_VIEW_FPVISIBLEGRIDVALUES
+        MENUITEM "Placement Grid Values...",    ID_VIEW_FPPLACEMENTGRIDVALUES
     END
     POPUP "Add", GRAYED
     BEGIN
@@ -4273,7 +4279,7 @@ END
 
 STRINGTABLE
 BEGIN
-    IDS_AppName             "Merge-CPT 0.27"
+    IDS_AppName             "Merge-CPT 0.28"
 END
 
 STRINGTABLE
@@ -4334,24 +4340,25 @@ END
 STRINGTABLE
 BEGIN
     IDS_FpLayerStr          "selection"
-    IDS_STRING64601         "background"
-    IDS_STRING64602         "visible grid. CF1"
-    IDS_STRING64603         "highlight. CF2"
-    IDS_STRING64604         "top silk. CF3"
-    IDS_STRING64605         "centroid. CF4"
-    IDS_STRING64606         "adhesive. CF5"
-    IDS_STRING64607         "drilled hole. CF6"
+    64601                   "background"
+    64602                   "visible grid. CF1"
+    64603                   "highlight. CF2"
+    64604                   "top silk. CF3"
+    64605                   "bottom silk. CF4"
+    64606                   "centroid. CF5"
+    64607                   "adhesive. CF6"
 END
 
 STRINGTABLE
 BEGIN
-    IDS_STRING64608         "top mask. CF7"
-    IDS_STRING64609         "top paste. CF8"
-    IDS_STRING64610         "bottom mask. CF9"
-    IDS_STRING64611         "bottom paste. CF10"
-    IDS_STRING64612         "top copper. 1,C1"
-    IDS_STRING64613         "inner. 2,C2"
-    IDS_STRING64614         "bottom. 3,C3"
+    64608                   "drilled hole. CF7"
+    64609                   "top mask. CF8"
+    64610                   "top paste. CF9"
+    64611                   "bottom mask. CF10"
+    64612                   "bottom paste"
+    64613                   "top copper. 1,C1"
+    64614                   "inner. 2,C2"
+    64615                   "bottom. 3,C3"
 END
 
 STRINGTABLE

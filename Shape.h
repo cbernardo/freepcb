@@ -206,8 +206,6 @@ public:
 	CArray<dl_element*> m_pad_bottom_mask_el;
 	CArray<dl_element*> m_pad_bottom_paste_el;
 	CArray<dl_element*> m_pad_sel;		// pad selector
-	CText m_ref_text;
-	CText m_value_text;
 	dl_element * m_centroid_el;			// centroid
 	dl_element * m_centroid_sel;		// centroid selector
 	CArray<dl_element*> m_dot_el;		// adhesive dots

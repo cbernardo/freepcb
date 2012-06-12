@@ -13,7 +13,7 @@ public:
 	virtual ~CDlgFpText();
 	void Initialize( BOOL bDrag, BOOL bFixedString,
 		CString * str, int layer, int units, 
-		int angle, int height, int width, int x, int y );
+		int angle, int height, int width, int x, int y, BOOL bForbidZeroHeight = false );	// CPT added last param
 	int Layer2LayerIndex( int layer);
 	int LayerIndex2Layer( int layer_index );
 
@@ -28,7 +28,8 @@ public:
 	void SetFields();
 	void GetFields();
 	BOOL m_bNewText;
-	BOOL m_bFixedString;	// if TRUE, can't edit string
+	BOOL m_bFixedString;		// if TRUE, can't edit string
+	BOOL m_bForbidZeroHeight;	// CPT added
 	BOOL m_bDrag;		// 1 if dragging to position
 	int m_x, m_y;		// set on entry if editing
 	int m_width;

@@ -73,10 +73,10 @@ CShape::CShape()
 	m_tl->SetIDType( ID_FP, ID_FP_TXT );
 	CString strRef ("REF");
 	m_ref = new CText(0, 0, 0, 0, 0, false, LAY_FP_SILK_TOP, 0, 0, 0, &strRef, 
-		ID_PART, ID_REF_TXT);
+		ID_FP, ID_REF_TXT);
 	CString strValue ("VALUE");
 	m_value = new CText(0, 0, 0, 0, 0, false, LAY_FP_SILK_TOP, 0, 0, 0, &strValue, 
-		ID_PART, ID_VALUE_TXT);
+		ID_FP, ID_VALUE_TXT);
 	Clear();
 } 
 
@@ -1499,34 +1499,13 @@ normal_return:
 			m_centroid_y = c.y;
 			m_centroid_angle = 0;
 		}
-		// generate value params if not defined
 		if( !bValue )
-		{
-			// no value parameters, make them from ref text params
-			m_value_size = m_ref_size;
-			m_value_w = m_ref_w;
-			m_value_angle = m_ref_angle;
-			if( m_ref_angle == 0 )
-			{
-				m_value_xi = m_ref_xi;
-				m_value_yi = m_ref_yi - m_value_size*2;
-			}
-			else if( m_ref_angle == 90 )
-			{
-				m_value_xi = m_ref_xi - m_value_size*2;
-				m_value_yi = m_ref_yi;
-			}
-			else if( m_ref_angle == 180 )
-			{
-				m_value_xi = m_ref_xi;
-				m_value_yi = m_ref_yi + m_value_size*2;
-			}
-			else
-			{
-				m_value_xi = m_ref_xi + m_value_size*2;
-				m_value_yi = m_ref_yi;
-			}
-		}
+			GenerateValueParams();
+		// CPT:  accounted for ref and value-text layers (and mirroring)
+		bool bMirror = m_ref->m_layer==LAY_FP_SILK_BOTTOM || m_ref->m_layer==LAY_FP_BOTTOM_COPPER;
+		m_ref->Move(m_ref_xi, m_ref_yi, m_ref_angle, bMirror, false, m_ref->m_layer, m_ref_size, m_ref_w);
+		bMirror = m_value->m_layer==LAY_FP_SILK_BOTTOM || m_value->m_layer==LAY_FP_BOTTOM_COPPER;
+		m_value->Move(m_value_xi, m_value_yi, m_value_angle, bMirror, false, m_value->m_layer, m_value_size, m_value_w);
 		return 0;
 	}
 
@@ -1570,14 +1549,16 @@ int CShape::Copy( CShape * shape )
 	m_ref_xi = shape->m_ref_xi;
 	m_ref_yi = shape->m_ref_yi;
 	m_ref_angle = shape->m_ref_angle;
-	m_ref->Move(m_ref_xi, m_ref_yi, m_ref_angle, false, false, LAY_FP_SILK_TOP, m_ref_size, m_ref_w);
+	m_ref->m_layer = shape->m_ref->m_layer;
+	m_ref->Move(m_ref_xi, m_ref_yi, m_ref_angle, m_ref_size, m_ref_w);
 	// value text
 	m_value_size = shape->m_value_size;
 	m_value_w = shape->m_value_w;
 	m_value_xi = shape->m_value_xi;
 	m_value_yi = shape->m_value_yi;
 	m_value_angle = shape->m_value_angle;
-	m_value->Move(m_value_xi, m_value_yi, m_value_angle, false, false, LAY_FP_SILK_TOP, m_value_size, m_value_w);
+	m_value->m_layer = shape->m_value->m_layer;
+	m_value->Move(m_value_xi, m_value_yi, m_value_angle, m_value_size, m_value_w);
 	// centroid
 	m_centroid_type = shape->m_centroid_type;
 	m_centroid_x = shape->m_centroid_x;
@@ -1601,7 +1582,7 @@ int CShape::Copy( CShape * shape )
 	{
 		CText * t = shape->m_tl->text_ptr[it];
 		CText * new_t = m_tl->AddText( t->m_x, t->m_y, t->m_angle, t->m_mirror, t->m_bNegative, 
-			LAY_FP_SILK_TOP, t->m_font_size, t->m_stroke_width, &t->m_str, FALSE );
+			t->m_layer, t->m_font_size, t->m_stroke_width, &t->m_str, FALSE );
 	}
 	// glue spots
 	int nd = shape->m_glue.GetSize();
@@ -3274,21 +3255,25 @@ void CEditShape::Draw( CDisplayList * dlist, SMFontUtil * fontutil )
 		}
 	}
 
+
 	// draw ref designator text
 	id rid( ID_FP, -1, ID_REF_TXT );
 	BOOL bMirror = (m_ref->m_layer == LAY_FP_SILK_BOTTOM || m_ref->m_layer == LAY_FP_BOTTOM_COPPER) ;
 	CString r_str( "REF" );
-	m_ref_text.Init( m_dlist, rid, m_ref_xi, m_ref_yi, m_ref_angle,
+	m_ref->Init( m_dlist, rid, m_ref_xi, m_ref_yi, m_ref_angle,
 			bMirror, FALSE, m_ref->m_layer, m_ref_size, m_ref_w,
 			fontutil, &r_str );
 
-	// draw value text
-	id vid( ID_FP, -1, ID_VALUE_TXT );
-	bMirror = (m_value->m_layer == LAY_FP_SILK_BOTTOM || m_value->m_layer == LAY_FP_BOTTOM_COPPER) ;
-	CString v_str( "VALUE" );
-	m_value_text.Init( m_dlist, vid, m_value_xi, m_value_yi, m_value_angle,
-			bMirror, FALSE, m_value->m_layer, m_value_size, m_value_w,
-			fontutil, &v_str );
+	// draw value text (CPT: only if height is >0)
+	if (m_value_size) 
+	{
+		id vid( ID_FP, -1, ID_VALUE_TXT );
+		bMirror = (m_value->m_layer == LAY_FP_SILK_BOTTOM || m_value->m_layer == LAY_FP_BOTTOM_COPPER) ;
+		CString v_str( "VALUE" );
+		m_value->Init( m_dlist, vid, m_value_xi, m_value_yi, m_value_angle,
+				bMirror, FALSE, m_value->m_layer, m_value_size, m_value_w,
+				fontutil, &v_str );
+	}
 
 	// now draw outline polylines
 	p_id.SetT2( ID_POLYLINE );
@@ -3394,8 +3379,8 @@ void CEditShape::Undraw()
 	m_pad_inner_el.RemoveAll();
 	m_pad_bottom_el.RemoveAll();
 
-	m_ref_text.Undraw();
-	m_value_text.Undraw();
+	m_ref->Undraw();
+	m_value->Undraw();
 
 	for( int i=0; i<m_outline_poly.GetSize(); i++ )
 		m_outline_poly[i].Undraw();
@@ -3663,6 +3648,35 @@ BOOL CEditShape::GenerateSelectionRectangle( CRect * r )
 	m_sel_yi = br.bottom;
 	m_sel_yf = br.top;
 	return TRUE;
+}
+
+
+void CShape::GenerateValueParams() {
+	// CPT:  factored-out helper function.  If value has been hidden or isn't specified, we call this function & position it relative to the ref-text
+	m_value_size = m_ref_size;
+	m_value_w = m_ref_w;
+	m_value_angle = m_ref_angle;
+	if( m_ref_angle == 0 )
+	{
+		m_value_xi = m_ref_xi;
+		m_value_yi = m_ref_yi - m_value_size*2;
+	}
+	else if( m_ref_angle == 90 )
+	{
+		m_value_xi = m_ref_xi - m_value_size*2;
+		m_value_yi = m_ref_yi;
+	}
+	else if( m_ref_angle == 180 )
+	{
+		m_value_xi = m_ref_xi;
+		m_value_yi = m_ref_yi + m_value_size*2;
+	}
+	else
+	{
+		m_value_xi = m_ref_xi + m_value_size*2;
+		m_value_yi = m_ref_yi;
+	}
+	m_value->Move(m_value_xi, m_value_yi, m_value_angle, false, false, LAY_FP_SILK_TOP, m_value_size, m_value_w);
 }
 
 

@@ -309,8 +309,8 @@ BOOL id::IsFootPad()	{ return t1 == ID_FP	&& t2 == ID_SEL_PAD;						}
 BOOL id::IsFootText()	{ return t1 == ID_FP	&& t2 == ID_FP_TXT	 && t3 == ID_SEL_TXT;	}
 BOOL id::IsFootPolySide()   { return t1 == ID_FP	&& t2 == ID_POLYLINE && t3 == ID_SEL_SIDE;	}					
 BOOL id::IsFootPolyCorner() { return t1 == ID_FP	&& t2 == ID_POLYLINE && t3 == ID_SEL_CORNER; }					
-BOOL id::IsFootRef()	{ return t1 == ID_FP	&& t2 == ID_REF_TXT  &&	t3 == ID_SEL_TXT;	}			
-BOOL id::IsFootValue()	{ return t1 == ID_FP	&& t2 == ID_VALUE_TXT && t3 == ID_SEL_TXT;	}			
+BOOL id::IsFootRef()	{ return t1 == ID_FP	&& t2 == ID_REF_TXT; } // CPT
+BOOL id::IsFootValue()	{ return t1 == ID_FP	&& t2 == ID_VALUE_TXT; } // CPT
 
 // return pointer to pcb element identified by id
 //

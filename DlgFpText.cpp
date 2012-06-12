@@ -83,7 +83,17 @@ void CDlgFpText::DoDataExchange(CDataExchange* pDX)
 			AfxMessageBox( s );
 			pDX->Fail();
 		}
+
 		GetFields();
+		// CPT:  forbid height 0 for things like "REF" text.  
+		// If user makes that setting, it can never be undone!  Let 'em hide individual parts' ref-texts if they really want that.
+		if (m_bForbidZeroHeight && m_height==0)
+		{
+			CString s ((LPCSTR) IDS_TextHeightZeroIsNotPermitted);
+			AfxMessageBox( s );
+			pDX->Fail();
+		}
+		// End CPT
 		if( m_bNewText )
 		{
 			// remember values to be defaults for next time
@@ -91,6 +101,7 @@ void CDlgFpText::DoDataExchange(CDataExchange* pDX)
 			gFpLastWidth = m_width;
 			gFpUseDefaultWidth = m_button_def_width.GetCheck();
 		}
+
 	}
 }
 
@@ -109,11 +120,11 @@ END_MESSAGE_MAP()
 //
 void CDlgFpText::Initialize( BOOL bDrag, BOOL bFixedString, 
 		CString * str, int layer, int units, 
-		int angle, int height, int width, int x, int y )
-
+		int angle, int height, int width, int x, int y, BOOL bForbidZeroHeight )
 {
 	m_bDrag = bDrag;
 	m_bFixedString = bFixedString;
+	m_bForbidZeroHeight = bForbidZeroHeight;
 	m_bNewText = (bDrag && !bFixedString && !str);
 	if( str )
 		m_str = *str;

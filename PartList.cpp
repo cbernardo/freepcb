@@ -1260,7 +1260,7 @@ int CPartList::DrawPart( cpart * part )
 				part->ref_text_stroke[is] = m_stroke[is];
 			}
 			// draw selection rectangle for ref text
-			id.SetT3( ID_SEL_TXT );
+			id.SetT3( ID_SEL_REF_TXT );
 			part->dl_ref_sel = m_dlist->AddSelector( id, part, part->m_ref_layer, DL_HOLLOW_RECT, 1,
 				0, 0, xmin, ymin, xmax, ymax, xmin, ymin );
 		}
@@ -1306,7 +1306,7 @@ int CPartList::DrawPart( cpart * part )
 			}
 
 			// draw selection rectangle for value
-			id.SetT3( ID_SEL_TXT );
+			id.SetT3( ID_SEL_VALUE_TXT );
 			part->dl_value_sel = m_dlist->AddSelector( id, part, part->m_value_layer, DL_HOLLOW_RECT, 1,
 				0, 0, xmin, ymin, xmax, ymax, xmin, ymin );
 		}
