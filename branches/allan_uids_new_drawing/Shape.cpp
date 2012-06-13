@@ -2851,6 +2851,8 @@ HENHMETAFILE CShape::CreateMetafile( CMetaFileDC * mfDC, CDC * pDC, int x_size, 
 }
 #endif
 
+// CPT:  the following is apparently leftover scrap?  Cull it out?
+/*
 HENHMETAFILE CShape::CreateWarningMetafile( CMetaFileDC * mfDC, CDC * pDC, int x_size, int y_size )
 {
 	CRect rNM;
@@ -2871,13 +2873,13 @@ HENHMETAFILE CShape::CreateWarningMetafile( CMetaFileDC * mfDC, CDC * pDC, int x
 	old_brush = mfDC->SelectObject( &backgnd_brush );
 	mfDC->Rectangle( rNM );
 
-
 	// restore DC
 	mfDC->SelectObject( old_brush );
 	mfDC->SelectObject( old_pen );
 	HENHMETAFILE hMF = mfDC->CloseEnhanced();
 	return hMF;
 }
+*/
 
 // Get default centroid
 // if no pads, returns (0,0)
@@ -3204,8 +3206,7 @@ void CEditShape::Draw( CDisplayList * dlist, SMFontUtil * fontutil )
 				}
 				*pad_el = dlist->Add( p_id, NULL, pad_lay, 
 					gtype, 1, 
-					0,
-					0, 
+					0, 0, 0,										// CPT r292 arg list bug fix
 					pad_pi.x, pad_pi.y, 
 					pad_pf.x, pad_pf.y, 
 					pin.x, pin.y, p->radius );
@@ -3219,8 +3220,7 @@ void CEditShape::Draw( CDisplayList * dlist, SMFontUtil * fontutil )
 					gtype = DL_HOLLOW_OCTAGON;
 				*pad_el = dlist->Add( p_id, NULL, pad_lay, 
 					gtype, 1, 
-					p->size_h,
-					0, 0, 
+					p->size_h, 0, 0, 
 					pin.x, pin.y, 
 					0, 0, 
 					pin.x, pin.y );
@@ -3235,8 +3235,7 @@ void CEditShape::Draw( CDisplayList * dlist, SMFontUtil * fontutil )
 			// add to display list
 			m_hole_el[i] = dlist->Add( p_id, NULL, LAY_FP_PAD_THRU, 
 				DL_HOLE, 1, 
-				ps->hole_size,
-				0, 0,
+				ps->hole_size, 0, 0,
 				pin.x, pin.y, 0, 0, pin.x, pin.y );
 			sel_x = max( sel_x, ps->hole_size );
 			sel_y = max( sel_y, ps->hole_size );
@@ -3332,7 +3331,7 @@ void CEditShape::Draw( CDisplayList * dlist, SMFontUtil * fontutil )
 			w = DEFAULT_GLUE_WIDTH;
 		id g_id( ID_FP, -1, ID_GLUE, -1, idot, ID_SPOT );
 		m_dot_el[idot] = m_dlist->Add( g_id, NULL, LAY_FP_DOT, DL_CIRC, TRUE, 
-			w, 0, g->x_rel, g->y_rel, 0, 0, 0, 0, 0 ); 
+			w, 0, 0, g->x_rel, g->y_rel, 0, 0, 0, 0 );									// CPT r292 arg-list bug fix
 		g_id.SetSubSubType( ID_SEL_SPOT );
 		m_dot_sel[idot] = m_dlist->AddSelector( g_id, NULL, LAY_FP_DOT, DL_HOLLOW_RECT, 
 			TRUE, 0, 0, 

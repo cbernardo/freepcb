@@ -11,7 +11,6 @@
 #define IDR_HTML_DLGAREALAYER           105
 #define IDR_MAINFRAME                   128
 #define IDR_FREEPCTYPE                  129
-#define IDS_STRING129                   129
 #define IDD_ADD_PART                    130
 #define ID_ADD_PART                     131
 #define ID_ADD_NET                      132
@@ -1564,6 +1563,8 @@
 #define IDS_SelectFontStrokeFile        62665
 #define IDS_STRING62666                 62666
 #define IDS_FontFileDidNotOpen          62666
+#define IDS_STRING129                   62667
+#define IDS_ErrorNetConnectionSegmentWithInvalidPtrToConnect 62667
 #define IDS_FkFpStr                     63000
 #define IDS_STRING63001                 63001
 #define IDS_STRING63002                 63002
