@@ -140,7 +140,7 @@ public:
 	CArray<padstack> m_padstack;		// array of padstacks for shape
 	CArray<CPolyLine> m_outline_poly;	// array of polylines for part outline
 	CTextList * m_tl;					// list of text strings
-	CArray<glue> m_glue;		// array of adhesive dots
+	CArray<glue> m_glue;				// array of adhesive dots
 
 public:
 	CShape();
@@ -160,11 +160,11 @@ public:
 	CRect GetAllPadBounds();
 	int Copy( CShape * shape );	// copy all data from shape
 	BOOL Compare( CShape * shape );	// compare shapes, return true if same
-//	HENHMETAFILE CreateMetafile( CMetaFileDC * mfDC, CDC * pDC, int x_size, int y_size );
+	//	HENHMETAFILE CreateMetafile( CMetaFileDC * mfDC, CDC * pDC, int x_size, int y_size );
 	HENHMETAFILE CreateMetafile( CMetaFileDC * mfDC, CDC * pDC, CRect const &window, 
 		CString ref = "REF", int bDrawSelectionRect=1 );
 	// CPT:  the following is apparently leftover scrap?  Cull it out?
-	HENHMETAFILE CreateWarningMetafile( CMetaFileDC * mfDC, CDC * pDC, int x_size, int y_size );
+	// HENHMETAFILE CreateWarningMetafile( CMetaFileDC * mfDC, CDC * pDC, int x_size, int y_size );
 	void GenerateValueParams();	// CPT
 };
 

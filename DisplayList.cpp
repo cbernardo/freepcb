@@ -394,8 +394,6 @@ dl_element * CDisplayList::Add( CDL_job *pDL_job, id id, void * ptr, int layer, 
 
 // Add entry to end of list, returns pointer to element created.
 //
-// Entry is added to the traces job.  If that job doesn't exist, it will be created.
-//
 // Dimensional units for input parameters are PCBU
 //
 dl_element * CDisplayList::Add( id id, void * ptr, int layer, int gtype, int visible,

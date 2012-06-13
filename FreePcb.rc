@@ -4279,7 +4279,7 @@ END
 
 STRINGTABLE
 BEGIN
-    IDS_AppName             "Merge-CPT 0.28"
+    IDS_AppName             "Merge-CPT 0.29"
 END
 
 STRINGTABLE
@@ -4477,6 +4477,8 @@ BEGIN
     IDS_FontStrokeFile      "Font Stroke File (*.csv)|*.csv||"
     IDS_SelectFontStrokeFile "Select Font Stroke File"
     IDS_FontFileDidNotOpen  "Font file did not open\nLoadOldStyleFile"
+    IDS_ErrorNetConnectionSegmentWithInvalidPtrToConnect 
+                            "ERROR: Net ""%s"": connection %d segment %d with invalid ptr to connect\r\n"
 END
 
 #endif    // English (United States) resources

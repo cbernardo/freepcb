@@ -2651,7 +2651,7 @@ int CNetList::OptimizeConnections( cnet * net, int ic_track, BOOL bBelowPinCount
 	// CPT:  cull out ratlines where the two endpts are determined to be already connected in copper
 	// AMW r284: fixed bug where if removing segment resulted in removing connection, loop failed.  
 	// CPT r286 finished job by tweaking IsRatlineConnected()
-	for ( cconnect * c=iter_con.GetFirst(); c=iter_con.GetNext(); c )
+	for (cconnect * c=iter_con.GetFirst(); c; c=iter_con.GetNext())
 	{
 		if( c->NumSegs() == 1 )
 			continue;	// AMW r288: quick fix for bug where tee-tee ratline was being incorrectly removed
@@ -4157,12 +4157,11 @@ int CNetList::WriteNets( CStdioFile * file )
 	}
 	catch( CFileException * e )
 	{
-		CString str;
+		CString str, s ((LPCSTR) IDS_FileError1), s2 ((LPCSTR) IDS_FileError2);
 		if( e->m_lOsError == -1 )
-			str.Format( "File error: %d\n", e->m_cause );
+			str.Format( s, e->m_cause );
 		else
-			str.Format( "File error: %d %ld (%s)\n", e->m_cause, e->m_lOsError,
-			_sys_errlist[e->m_lOsError] );
+			str.Format( s2, e->m_cause, e->m_lOsError, _sys_errlist[e->m_lOsError] );
 		return 1;
 	}
 	return 0;
@@ -4187,8 +4186,7 @@ void CNetList::ReadNets( CStdioFile * pcb_file, double read_version, int * layer
 		if( !err )
 		{
 			// error reading pcb file
-			CString mess;
-			mess.Format( "Unable to find [nets] section in file" );
+			CString mess ((LPCSTR) IDS_UnableToFindNetsSectionInFile);
 			AfxMessageBox( mess );
 			return;
 		}
@@ -4204,7 +4202,7 @@ void CNetList::ReadNets( CStdioFile * pcb_file, double read_version, int * layer
 		err = pcb_file->ReadString( in_str );
 		if( !err )
 		{
-			CString * err_str = new CString( "unexpected EOF in project file" );
+			CString * err_str = new CString((LPCSTR) IDS_UnexpectedEOFInProjectFile);
 			throw err_str;
 		}
 		in_str.Trim();
@@ -4234,13 +4232,13 @@ void CNetList::ReadNets( CStdioFile * pcb_file, double read_version, int * layer
 				err = pcb_file->ReadString( in_str );
 				if( !err )
 				{
-					CString * err_str = new CString( "unexpected EOF in project file" );
+					CString * err_str = new CString((LPCSTR) IDS_UnexpectedEOFInProjectFile);
 					throw err_str;
 				}
 				np = ParseKeyString( &in_str, &key_str, &p );
 				if( key_str != "pin" || np < 3 )
 				{
-					CString * err_str = new CString( "error parsing [nets] section of project file" );
+					CString * err_str = new CString((LPCSTR) IDS_ErrorParsingNetsSectionOfProjectFile);
 					throw err_str;
 				}
 				CString pin_str = p[1].Left(CShape::MAX_PIN_NAME_SIZE);
@@ -4254,13 +4252,13 @@ void CNetList::ReadNets( CStdioFile * pcb_file, double read_version, int * layer
 				err = pcb_file->ReadString( in_str );
 				if( !err )
 				{
-					CString * err_str = new CString( "unexpected EOF in project file" );
+					CString * err_str = new CString((LPCSTR) IDS_UnexpectedEOFInProjectFile);
 					throw err_str;
 				}
 				np = ParseKeyString( &in_str, &key_str, &p );
 				if( key_str != "connect" || np < 6 )
 				{
-					CString * err_str = new CString( "error parsing [nets] section of project file" );
+					CString * err_str = new CString((LPCSTR) IDS_ErrorParsingNetsSectionOfProjectFile);
 					throw err_str;
 				}
 				int start_pin = my_atoi( &p[1] );
@@ -4278,16 +4276,14 @@ void CNetList::ReadNets( CStdioFile * pcb_file, double read_version, int * layer
 						cpart * test_part = net->pin[ipin].part;
 						if( !test_part )
 						{
-							CString * err_str = new CString( "fatal error in net \"" );
-							*err_str += net_name + "\"";
-							*err_str += "\r\n\rpart \"" + test_ref_des + "\" doesn't exist";
+							CString s ((LPCSTR) IDS_FatalErrorInNetPartDoesntExist), *err_str = new CString();
+							err_str->Format(s, net_name, test_ref_des);
 							throw err_str;
 						}
 						else if( !test_part->shape )
 						{
-							CString * err_str = new CString( "fatal error in net \"" );
-							*err_str += net_name + "\"";
-							*err_str += "\r\n\rpart \"" + test_ref_des + "\" doesn't haved a footprint";
+							CString s ((LPCSTR) IDS_FatalErrorInNetPartDoesntHaveAFootprint), *err_str = new CString();
+							err_str->Format(s, net_name, test_ref_des);
 							throw err_str;
 						}
 						else
@@ -4296,11 +4292,8 @@ void CNetList::ReadNets( CStdioFile * pcb_file, double read_version, int * layer
 							int pin_index = test_part->shape->GetPinIndexByName( test_pin_name );
 							if( pin_index == -1 )
 							{
-								CString * err_str = new CString( "fatal error in net \"" );
-								*err_str += net_name + "\"";
-								*err_str += "\r\n\r\npin \"" + test_pin_name + "\"";
-								*err_str += " doesn't exist in footprint \"" + test_part->shape->m_name + "\"";
-								*err_str += " for part \"" + test_ref_des + "\"";
+								CString s ((LPCSTR) IDS_FatalErrorInNetPinDoesntExist), *err_str = new CString();
+								err_str->Format(s, net_name, test_pin_name, test_part->shape->m_name, test_ref_des);
 								throw err_str;
 							}
 						}
@@ -4332,13 +4325,13 @@ void CNetList::ReadNets( CStdioFile * pcb_file, double read_version, int * layer
 				err = pcb_file->ReadString( in_str );
 				if( !err )
 				{
-					CString * err_str = new CString( "unexpected EOF in project file" );
+					CString * err_str = new CString((LPCSTR) IDS_UnexpectedEOFInProjectFile);
 					throw err_str;
 				}
 				np = ParseKeyString( &in_str, &key_str, &p );
 				if( key_str != "vtx" || np < 8 )
 				{
-					CString * err_str = new CString( "error parsing [nets] section of project file" );
+					CString * err_str = new CString((LPCSTR) IDS_ErrorParsingNetsSectionOfProjectFile);
 					throw err_str;
 				}
 				cvertex first_vtx;
@@ -4431,13 +4424,13 @@ void CNetList::ReadNets( CStdioFile * pcb_file, double read_version, int * layer
 					err = pcb_file->ReadString( in_str );
 					if( !err )
 					{
-						CString * err_str = new CString( "unexpected EOF in project file" );
+						CString * err_str = new CString((LPCSTR) IDS_UnexpectedEOFInProjectFile);
 						throw err_str;
 					}
 					np = ParseKeyString( &in_str, &key_str, &p );
 					if( key_str != "seg" || np < 6 )
 					{
-						CString * err_str = new CString( "error parsing [nets] section of project file" );
+						CString * err_str = new CString((LPCSTR) IDS_ErrorParsingNetsSectionOfProjectFile);
 						throw err_str;
 					}
 					int file_layer = my_atoi( &p[1] ); 
@@ -4447,13 +4440,13 @@ void CNetList::ReadNets( CStdioFile * pcb_file, double read_version, int * layer
 					err = pcb_file->ReadString( in_str );
 					if( !err )
 					{
-						CString * err_str = new CString( "unexpected EOF in project file" );
+						CString * err_str = new CString((LPCSTR) IDS_UnexpectedEOFInProjectFile);
 						throw err_str;
 					}
 					np = ParseKeyString( &in_str, &key_str, &p );
 					if( key_str != "vtx" || np < 8 )
 					{
-						CString * err_str = new CString( "error parsing [nets] section of project file" );
+						CString * err_str = new CString((LPCSTR) IDS_ErrorParsingNetsSectionOfProjectFile);
 						throw err_str;
 					}
 					if( test_not_done )
@@ -4567,19 +4560,19 @@ void CNetList::ReadNets( CStdioFile * pcb_file, double read_version, int * layer
 				err = pcb_file->ReadString( in_str );
 				if( !err )
 				{
-					CString * err_str = new CString( "unexpected EOF in project file" );
+					CString * err_str = new CString((LPCSTR) IDS_UnexpectedEOFInProjectFile);
 					throw err_str;
 				}
 				np = ParseKeyString( &in_str, &key_str, &p );
 				if( key_str != "area" || np < 4 )
 				{
-					CString * err_str = new CString( "error parsing [nets] section of project file" );
+					CString * err_str = new CString((LPCSTR) IDS_ErrorParsingNetsSectionOfProjectFile);
 					throw err_str;
 				}
 				int na = my_atoi( &p[0] );
 				if( (na-1) != ia )
 				{
-					CString * err_str = new CString( "error parsing [nets] section of project file" );
+					CString * err_str = new CString((LPCSTR) IDS_ErrorParsingNetsSectionOfProjectFile);
 					throw err_str;
 				}
 				int ncorners = my_atoi( &p[1] );
@@ -4594,19 +4587,19 @@ void CNetList::ReadNets( CStdioFile * pcb_file, double read_version, int * layer
 					err = pcb_file->ReadString( in_str );
 					if( !err )
 					{
-						CString * err_str = new CString( "unexpected EOF in project file" );
+						CString * err_str = new CString((LPCSTR) IDS_UnexpectedEOFInProjectFile);
 						throw err_str;
 					}
 					np = ParseKeyString( &in_str, &key_str, &p );
 					if( key_str != "corner" || np < 4 )
 					{
-						CString * err_str = new CString( "error parsing [nets] section of project file" );
+						CString * err_str = new CString((LPCSTR) IDS_ErrorParsingNetsSectionOfProjectFile);
 						throw err_str;
 					} 
 					int ncor = my_atoi( &p[0] );
 					if( (ncor-1) != icor )
 					{
-						CString * err_str = new CString( "error parsing [nets] section of project file" );
+						CString * err_str = new CString((LPCSTR) IDS_ErrorParsingNetsSectionOfProjectFile);
 						throw err_str;
 					}
 					int x = my_atoi( &p[1] );
@@ -4785,7 +4778,8 @@ void CNetList::ImportNetListInfo( netlist_info * nl, int flags, CDlgLog * log,
 			// net was deleted, remove it
 			if( log )
 			{
-				mess.Format( "  Removing net \"%s\"\r\n", net->name );
+				CString s ((LPCSTR) IDS_RemovingNet);
+				mess.Format( s, net->name );
 				log->AddLine( mess );
 			}
 			RemoveNet( net );
@@ -4833,7 +4827,8 @@ void CNetList::ImportNetListInfo( netlist_info * nl, int flags, CDlgLog * log,
 			{
 				if( log )
 				{
-					mess.Format( "  Keeping net \"%s\", not in imported netlist\r\n", net->name );
+					CString s ((LPCSTR) IDS_KeepingNetNotInImportedNetlist);
+					mess.Format( s, net->name );
 					log->AddLine( mess );
 				}
 			}
@@ -4841,7 +4836,8 @@ void CNetList::ImportNetListInfo( netlist_info * nl, int flags, CDlgLog * log,
 			{
 				if( log )
 				{
-					mess.Format( "  Removing net \"%s\"\r\n", net->name );
+					CString s ((LPCSTR) IDS_RemovingNet);
+					mess.Format( s, net->name );
 					log->AddLine( mess );
 				}
 				delete_these.Add( net );	// flag for deletion
@@ -4946,8 +4942,8 @@ void CNetList::ImportNetListInfo( netlist_info * nl, int flags, CDlgLog * log,
 					// delete it from net
 					if( log )
 					{
-						mess.Format( "    Removing pin %s.%s from net \"%s\"\r\n", 
-							ref_des, pin_name, net->name  );
+						CString s ((LPCSTR) IDS_RemovingPinFromNet);
+						mess.Format( s, ref_des, pin_name, net->name  );
 						log->AddLine( mess );
 					}
 					net->RemovePin( &ref_des, &pin_name );
@@ -4986,8 +4982,8 @@ void CNetList::ImportNetListInfo( netlist_info * nl, int flags, CDlgLog * log,
 							{
 								if( log )
 								{
-									mess.Format( "    Removing pin %s.%s from net \"%s\"\r\n", 
-										test_net->pin[test_ip].ref_des,
+									CString s ((LPCSTR) IDS_RemovingPinFromNet);
+									mess.Format( s, test_net->pin[test_ip].ref_des,
 										test_net->pin[test_ip].pin_name,
 										test_net->name  );
 									log->AddLine( mess );
@@ -5015,10 +5011,8 @@ void CNetList::ImportNetListInfo( netlist_info * nl, int flags, CDlgLog * log,
 					net->AddPin( &(*nl)[i].ref_des[ipl], &(*nl)[i].pin_name[ipl] );
 					if( log )
 					{
-						mess.Format( "    Adding pin %s.%s to net \"%s\"\r\n", 
-							(*nl)[i].ref_des[ipl],
-							(*nl)[i].pin_name[ipl],
-							net->name  );
+						CString s ((LPCSTR) IDS_AddingPinToNet);
+						mess.Format( s,	(*nl)[i].ref_des[ipl], (*nl)[i].pin_name[ipl], net->name );
 						log->AddLine( mess );
 					}
 				}
@@ -5311,24 +5305,24 @@ void CNetList::RestoreConnectionsAndAreas( CNetList * old_nl, int flags, CDlgLog
 					// Restore it in new net
 					if( log )
 					{
-						CString line; 
+						CString line, s; 
 						if( old_c->end_pin == cconnect::NO_END )
 						{
 							// branch or stub
 							int tee_id = old_c->vtx[old_c->NumSegs()].tee_ID;
 							if( !tee_id )
-								line.Format( "  Moving stub trace from %s.%s to new net \"%s\"\r\n",
-								old_start_pin->ref_des, old_start_pin->pin_name, new_start_net->name );
+								s.LoadStringA(IDS_MovingStubTraceToNewNet),
+								line.Format( s, old_start_pin->ref_des, old_start_pin->pin_name, new_start_net->name );
 							else
-								line.Format( "  Moving branch from %s.%s to new net \"%s\"\r\n",
-								old_start_pin->ref_des, old_start_pin->pin_name, new_start_net->name );
+								s.LoadStringA(IDS_MovingBranchToNewNet),
+								line.Format( s, old_start_pin->ref_des, old_start_pin->pin_name, new_start_net->name );
 						}
 						else
 						{
 							// pin-pin trace
-							line.Format( "  Moving trace from %s.%s to %s.%s to new net \"%s\"\r\n",
-								old_start_pin->ref_des, old_start_pin->pin_name,
-								old_end_pin->ref_des, old_end_pin->pin_name, 
+							s.LoadStringA(IDS_MovingTraceToNewNet),
+							line.Format( s, old_start_pin->ref_des, old_start_pin->pin_name,
+								old_end_pin->ref_des, old_end_pin->pin_name,
 								new_start_net->name );
 						}
 						log->AddLine( line );
@@ -5435,13 +5429,13 @@ void CNetList::RestoreConnectionsAndAreas( CNetList * old_nl, int flags, CDlgLog
 					break;	// area doesn't need to be moved, go to next area
 				if( log )
 				{
-					CString line;
+					CString line, s;
 					if( !bMoveIt )
-						line.Format( "  Removing copper area on old net \"%s\"\r\n",
-						old_net->name );
+						s.LoadStringA(IDS_RemovingCopperAreaOnOldNet),
+						line.Format( s,	old_net->name );
 					else
-						line.Format( "  Moving copper area from old net \"%s\" to new net \"%s\"\r\n",
-						old_net->name, new_area_net->name );
+						s.LoadStringA(IDS_MovingCopperAreaFromOldNetToNewNet),
+						line.Format( s, old_net->name, new_area_net->name );
 					log->AddLine( line );
 				}
 				if( bMoveIt )
@@ -5706,7 +5700,8 @@ int CNetList::CheckNetlist( CString * logstr )
 	CMapStringToPtr net_map;
 	CMapStringToPtr pin_map;
 
-	*logstr += "***** Checking Nets *****\r\n";
+	str.LoadStringA(IDS_CheckingNets);
+	*logstr += str;
 
 	// traverse map
 	POSITION pos;
@@ -5720,8 +5715,8 @@ int CNetList::CheckNetlist( CString * logstr )
 		CString net_name = net->name;
 		if( net_map.Lookup( net_name, ptr ) )
 		{
-			str.Format( "ERROR: Net \"%s\" is duplicate\r\n", net_name );
-			str += "    ###   To fix this, delete one instance of the net, then save and re-open project\r\n";
+			CString s ((LPCSTR) IDS_ErrorNetIsDuplicate);
+			str.Format( s, net_name );
 			*logstr += str;
 			nerrors++;
 		}
@@ -5730,13 +5725,15 @@ int CNetList::CheckNetlist( CString * logstr )
 		int npins = net->pin.GetSize();
 		if( npins == 0 )
 		{
-			str.Format( "Warning: Net \"%s\": has no pins\r\n", net->name );
+			CString s ((LPCSTR) IDS_WarningNetHasNoPins);
+			str.Format( s, net->name );
 			*logstr += str;
 			nwarnings++;
 		}
 		else if( npins == 1 )
 		{
-			str.Format( "Warning: Net \"%s\": has single pin\r\n", net->name );
+			CString s ((LPCSTR) IDS_WarningNetHasSinglePin);
+			str.Format( s, net->name );
 			*logstr += str;
 			nwarnings++;
 		}
@@ -5753,8 +5750,8 @@ int CNetList::CheckNetlist( CString * logstr )
 			{
 				if( dup_net->name == net_name )
 				{
-					str.Format( "ERROR: Net \"%s\": pin \"%s\" is duplicate\r\n", 
-						net->name, pin_id );
+					CString s ((LPCSTR) IDS_ErrorNetPinIsDuplicate);
+					str.Format( s, net->name, pin_id );
 					*logstr += str;
 					// reassign all connections
 					// find index of first instance of pin
@@ -5781,7 +5778,7 @@ int CNetList::CheckNetlist( CString * logstr )
 					// remove pin
 					net->RemovePin( ip );
 					RehookPartsToNet( net );
-					str.Format( "              Fixed: Connections repaired\r\n" );
+					str.LoadStringA( IDS_FixedConnectionsRepaired );
 					*logstr += str;
 					nerrors++;
 					nfixed++;
@@ -5789,11 +5786,10 @@ int CNetList::CheckNetlist( CString * logstr )
 				}
 				else
 				{
-					str.Format( "ERROR: Net \"%s\": pin \"%s\" already assigned to net \"%s\"\r\n", 
-						net->name, pin_id, dup_net->name );
-					str += "    ###   To fix this, delete pin from one of these nets, then save and re-open project\r\n";
-					nerrors++;
+					CString s ((LPCSTR) IDS_ErrorNetPinAlreadyAssignedToNet);
+					str.Format( s, net->name, pin_id, dup_net->name );
 					*logstr += str;
+					nerrors++;
 				}
 			}
 			else
@@ -5808,8 +5804,8 @@ int CNetList::CheckNetlist( CString * logstr )
 				if( !test_part )
 				{
 					// no
-					str.Format( "Warning: Net \"%s\": pin \"%s.%s\" not connected, part doesn't exist\r\n", 
-						net->name, *ref_des, *pin_name, net->name );
+					CString s ((LPCSTR) IDS_WarningNetPinNotConnectedPartDoesntExist);
+					str.Format( s, net->name, *ref_des, *pin_name, net->name );
 					*logstr += str;
 					nwarnings++;
 				}
@@ -5819,8 +5815,8 @@ int CNetList::CheckNetlist( CString * logstr )
 					if( !test_part->shape )
 					{
 						// no
-						str.Format( "Warning: Net \"%s\": pin \"%s.%s\" connected, part doesn't have footprint\r\n", 
-							net->name, *ref_des, *pin_name, net->name );
+						CString s ((LPCSTR) IDS_WarningNetPinNotConnectedPartDoesntHaveFootprint);
+						str.Format( s, net->name, *ref_des, *pin_name, net->name );
 						*logstr += str;
 						nwarnings++;
 					}
@@ -5831,18 +5827,17 @@ int CNetList::CheckNetlist( CString * logstr )
 						if( pin_index == -1 )
 						{
 							// no
-							str.Format( "ERROR: Net \"%s\": pin \"%s.%s\" not connected, but part exists although pin doesn't\r\n", 
-								net->name, *ref_des, *pin_name, net->name );
-							str += "    ###   To fix this, fix any other errors then save and re-open project\r\n";
+							CString s ((LPCSTR) IDS_ErrorPinNotConnectedButPartExists);
+							str.Format( s, net->name, *ref_des, *pin_name, net->name );
 							*logstr += str;
 							nerrors++;
 						}
 						else
 						{
 							// yes
-							str.Format( "ERROR: Net \"%s\": pin \"%s.%s\" not connected, but part and pin exist\r\n", 
-								net->name, *ref_des, *pin_name, net->name );
-							str += "    ###   To fix this, fix any other errors then save and re-open project\r\n";
+							CString s ((LPCSTR) IDS_ErrorNetPinNotConnectedButPartAndPinExist);
+							str.Format( s, net->name, *ref_des, *pin_name, net->name );
+							*logstr += str;
 							*logstr += str;
 							nerrors++;
 						}
@@ -5855,9 +5850,8 @@ int CNetList::CheckNetlist( CString * logstr )
 				if( part->ref_des != *ref_des )
 				{
 					// net->pin->ref_des != net->pin->part->ref_des
-					str.Format( "ERROR: Net \"%s\": pin \"%s.%s\" connected to wrong part %s\r\n",
-						net->name, *ref_des, *pin_name, part->ref_des );
-					str += "    ###   To fix this, fix any other errors then save and re-open project\r\n";
+					CString s ((LPCSTR) IDS_ErrorNetPinConnectedToWrongPart);
+					str.Format( s, net->name, *ref_des, *pin_name, part->ref_des );
 					*logstr += str;
 					nerrors++;
 				}
@@ -5867,8 +5861,8 @@ int CNetList::CheckNetlist( CString * logstr )
 					if( !partlist_part )
 					{
 						// net->pin->ref_des not found in partlist
-						str.Format( "ERROR: Net \"%s\": pin \"%s.%s\" connected but part not in partlist\r\n",
-							net->name, *ref_des, *pin_name );
+						CString s ((LPCSTR) IDS_ErrorNetPinConnectedButPartNotInPartlist);
+						str.Format( s, net->name, *ref_des, *pin_name );
 						*logstr += str;
 						nerrors++;
 					}
@@ -5877,9 +5871,8 @@ int CNetList::CheckNetlist( CString * logstr )
 						if( part != partlist_part )
 						{
 							// net->pin->ref_des found in partlist, but doesn't match net->pin->part
-							str.Format( "ERROR: Net \"%s\": pin \"%s.%s\" connected but net->pin->part doesn't match partlist\r\n",
-								net->name, *ref_des, *pin_name );
-							str += "    ###   To fix this, fix any other errors then save and re-open project\r\n";
+							CString s ((LPCSTR) IDS_ErrorNetPinConnectedButNetPinPartDoesntMatchPartlist);
+							str.Format( s, net->name, *ref_des, *pin_name );
 							*logstr += str;
 							nerrors++;
 						}
@@ -5888,8 +5881,8 @@ int CNetList::CheckNetlist( CString * logstr )
 							if( !part->shape )
 							{
 								// part matches, but no footprint
-								str.Format( "Warning: Net \"%s\": pin \"%s.%s\" connected but part doesn't have footprint\r\n",
-									net->name, *ref_des, *pin_name );
+								CString s ((LPCSTR) IDS_WarningNetPinConnectedButPartDoesntHaveFootprint);
+								str.Format( s, net->name, *ref_des, *pin_name );
 								*logstr += str;
 								nwarnings++;
 							}
@@ -5899,8 +5892,8 @@ int CNetList::CheckNetlist( CString * logstr )
 								if( pin_index == -1 )
 								{
 									// net->pin->pin_name doesn't exist in part
-									str.Format( "Warning: Net \"%s\": pin \"%s.%s\" connected but part doesn't have pin\r\n",
-										net->name, *ref_des, *pin_name );
+									CString s ((LPCSTR) IDS_WarningNetPinConnectedButPartDoesntHavePin);
+									str.Format( s, net->name, *ref_des, *pin_name );
 									*logstr += str;
 									nwarnings++;
 								}
@@ -5910,9 +5903,8 @@ int CNetList::CheckNetlist( CString * logstr )
 									if( part_pin_net != net )
 									{
 										// part->pin->net != net 
-										str.Format( "ERROR: Net \"%s\": pin \"%s.%s\" connected but part->pin->net doesn't match\r\n",
-											net->name, *ref_des, *pin_name );
-										str += "    ###   To fix this, fix any other errors then save and re-open project\r\n";
+										CString s ((LPCSTR) IDS_ErrorNetPinConnectedButPartPinNetDoesntMatch);
+										str.Format( s, net->name, *ref_des, *pin_name );
 										*logstr += str;
 										nerrors++;
 									}
@@ -5936,8 +5928,8 @@ int CNetList::CheckNetlist( CString * logstr )
 			{
 				if( s->m_con != c )
 				{
-					str.Format( "ERROR: Net \"%s\": connection %d segment %d with invalid ptr to connect\r\n",
-						net->name, ic, iter_seg.GetIndex() );
+					CString s ((LPCSTR) IDS_ErrorNetConnectionSegmentWithInvalidPtrToConnect);
+					str.Format( s, net->name, ic, iter_seg.GetIndex() );
 					*logstr += str;
 					nerrors++;
 				}
@@ -5947,28 +5939,28 @@ int CNetList::CheckNetlist( CString * logstr )
 			{
 				if( v->m_con != c )
 				{
-					str.Format( "ERROR: Net \"%s\": connection %d vertex %d with invalid ptr to connect\r\n",
-						net->name, ic, iter_vtx.GetIndex() );
+					CString s ((LPCSTR) IDS_ErrorNetConnectionSegmentWithInvalidPtrToConnect);
+					str.Format( s, net->name, ic, iter_vtx.GetIndex() );
 					*logstr += str;
 					nerrors++;
 				}
 			}
 			if( c->NumSegs() == 0 )
 			{
-				str.Format( "ERROR: Net \"%s\": connection with no segments\r\n",
-					net->name );
+				CString s ((LPCSTR) IDS_ErrorNetConnectionWithNoSegments);
+				str.Format( s, net->name );
 				*logstr += str;
 				RemoveNetConnect( net, ic, FALSE );
-				str.Format( "              Fixed: Connection removed\r\n",
-					net->name );
+				str.LoadStringA(IDS_FixedConnectionRemoved);
 				*logstr += str;
+					*logstr += str;
 				nerrors++;
 				nfixed++;
 			}
 		}
 	}
-	str.Format( "***** %d ERROR(S), %d FIXED, %d WARNING(S) *****\r\n",
-		nerrors, nfixed, nwarnings );
+	CString s ((LPCSTR) IDS_ErrorsFixedWarnings);
+	str.Format( s, nerrors, nfixed, nwarnings );
 	*logstr += str;
 	return nerrors;
 }
@@ -6000,24 +5992,22 @@ int CNetList::CheckConnectivity( CString * logstr )
 			cconnect * c = net->connect[ic];
 			if( c->NumSegs() == 0 )
 			{
-				str.Format( "ERROR: Net \"%s\": connection with no segments\r\n",
-					net->name );
+				CString s ((LPCSTR) IDS_ErrorNetConnectionWithNoSegments);
+				str.Format( s, net->name );
 				*logstr += str;
 				RemoveNetConnect( net, ic, FALSE );
-				str.Format( "              Fixed: Connection removed\r\n",
-					net->name );
+				str.LoadStringA(IDS_FixedConnectionRemoved);
 				*logstr += str;
 				nerrors++;
 				nfixed++;
 			} 
 			else if( c->start_pin == c->end_pin )
 			{
-				str.Format( "ERROR: Net \"%s\": connection from pin to itself\r\n",
-					net->name );
+				CString s ((LPCSTR) IDS_ErrorNetConnectionFromPinToItself);
+				str.Format( s, net->name );
 				*logstr += str;
 				RemoveNetConnect( net, ic, FALSE );
-				str.Format( "              Fixed: Connection removed\r\n",
-					net->name );
+				str.LoadStringA(IDS_FixedConnectionRemoved);
 				*logstr += str;
 				nerrors++;
 				nfixed++;
@@ -6042,8 +6032,8 @@ int CNetList::CheckConnectivity( CString * logstr )
 					int iend = c->end_pin;
 					if( iend == cconnect::NO_END )
 					{
-						str.Format( "Net \"%s\": partially routed stub trace from %s\r\n",
-							net->name, start_pin );
+						CString s ((LPCSTR) IDS_NetPartiallyRoutedStubTrace);
+						str.Format( s, net->name, start_pin );
 						*logstr += str;
 						nerrors++;
 					}
@@ -6052,15 +6042,15 @@ int CNetList::CheckConnectivity( CString * logstr )
 						end_pin = net->pin[iend].ref_des + "." + net->pin[iend].pin_name;
 						if( c->NumSegs() == 1 )
 						{
-							str.Format( "Net \"%s\": unrouted connection from %s to %s\r\n",
-								net->name, start_pin, end_pin );
+							CString s ((LPCSTR) IDS_NetUnroutedConnection);
+							str.Format( s, net->name, start_pin, end_pin );
 							*logstr += str;
 							nerrors++;
 						}
 						else
 						{
-							str.Format( "Net \"%s\": partially routed connection from %s to %s\r\n",
-								net->name, start_pin, end_pin );
+							CString s ((LPCSTR) IDS_NetPartiallyRoutedConnection);
+							str.Format( s, net->name, start_pin, end_pin );
 							*logstr += str;
 							nerrors++;
 						}
@@ -6191,12 +6181,8 @@ int CNetList::ClipAreaPolygon( cnet * net, int iarea,
 		// arc intersections, don't clip unless bRetainArcs == FALSE
 		if( bMessageBoxArc && bDontShowSelfIntersectionArcsWarning == FALSE )
 		{
-			CString str;
-			str.Format( "Area %d of net \"%s\" has arcs intersecting other sides.\n",
-				iarea+1, net->name );
-			str += "This may cause problems with other editing operations,\n";
-			str += "such as adding cutouts. It can't be fixed automatically.\n";
-			str += "Manual correction is recommended.\n";
+			CString str, s ((LPCSTR) IDS_AreaOfNetHasArcsIntersectingOtherSides);
+			str.Format( s, iarea+1, net->name );
 			CDlgMyMessageBox dlg;
 			dlg.Initialize( str );
 			dlg.DoModal();
@@ -6215,11 +6201,8 @@ int CNetList::ClipAreaPolygon( cnet * net, int iarea,
 		// non-arc intersections, clip the polygon
 		if( bMessageBoxInt && bDontShowSelfIntersectionWarning == FALSE)
 		{
-			CString str;
-			str.Format( "Area %d of net \"%s\" is self-intersecting and will be clipped.\n",
-				iarea+1, net->name );
-			str += "This may result in splitting the area.\n";
-			str += "If the area is complex, this may take a few seconds.";
+			CString str, s ((LPCSTR) IDS_AreaOfNetIsSelfIntersectingAndWillBeClipped);
+			str.Format( s, iarea+1, net->name );
 			CDlgMyMessageBox dlg;
 			dlg.Initialize( str );
 			dlg.DoModal();
@@ -6227,7 +6210,9 @@ int CNetList::ClipAreaPolygon( cnet * net, int iarea,
 		}
 	}
 //** TODO test for cutouts outside of area	
-//**	if( test == 1 )
+	// CPT the next line "if (test==1)" was commented out --- surely a mistake??  If we run NormalizeWithGpc() below every time, weird things 
+	// seem to happen.  For instance, if we add a new vertex to an area edge-segment and the vertex is on the segment, it may get eliminated...
+	if( test == 1 )
 	{
 		CArray<CPolyLine*> * pa = new CArray<CPolyLine*>;
 		a->Undraw();
@@ -6326,10 +6311,8 @@ int CNetList::CombineAllAreasInNet( cnet * net, BOOL bMessageBox, BOOL bUseUtili
 							{
 								if( bMessageBox && bDontShowIntersectionWarning == FALSE )
 								{
-									CString str;
-									str.Format( "Areas %d and %d of net \"%s\" intersect and will be combined.\n",
-										ia1+1, ia2+1, net->name );
-									str += "If they are complex, this may take a few seconds.";
+									CString str, s ((LPCSTR) IDS_AreasOfNetIntersectAndWillBeCombined);
+									str.Format( s, ia1+1, ia2+1, net->name );
 									CDlgMyMessageBox dlg;
 									dlg.Initialize( str );
 									dlg.DoModal();
@@ -6341,10 +6324,8 @@ int CNetList::CombineAllAreasInNet( cnet * net, BOOL bMessageBox, BOOL bUseUtili
 							{
 								if( bMessageBox && bDontShowIntersectionArcsWarning == FALSE )
 								{
-									CString str;
-									str.Format( "Areas %d and %d of net \"%s\" intersect, but some of the intersecting sides are arcs.\n",
-										ia1+1, ia2+1, net->name );
-									str += "Therefore, these areas can't be combined.";
+									CString str, s ((LPCSTR) IDS_AreasOfNetIntersectButSomeOfTheIntersectingSidesAreArcs);
+									str.Format( s, ia1+1, ia2+1, net->name );
 									CDlgMyMessageBox dlg;
 									dlg.Initialize( str );
 									dlg.DoModal();
@@ -7410,24 +7391,26 @@ void CNetList::ImportNetRouting( CString * name,
 	// dump data
 	if( log )
 	{
-		mess.Format( "\r\nrouting net \"%s\"\r\n", *name );
-		log->AddLine( mess );
+		CString s ((LPCSTR) IDS_RoutingNet);
+		mess.Format( s, *name );
+		log->AddLine( s );
 		if( bVerbose )
 		{
-			mess.Format( "num nodes = %d\r\n", nodes->GetSize() );
+			s.LoadStringA(IDS_NumNodes);
+			mess.Format( s, nodes->GetSize() );
 			log->AddLine( mess );
 			for( int inode=0; inode<nodes->GetSize(); inode++ )
 			{
 				cnode * node = &(*nodes)[inode];
-				CString type_str = "none";
+				CString type_str ((LPCSTR) IDS_None);
 				if( node->type == NPIN )
-					type_str = "pin";
+					type_str.LoadStringA(IDS_Pin2);
 				else if( node->type == NVIA )
-					type_str = "via";
+					type_str.LoadStringA(IDS_Via);
 				else if( node->type == NJUNCTION )
-					type_str = "junction";
-				mess.Format( "  node %d: %s x=%d y=%d layer=%d npaths=%d\r\n",
-					inode, type_str, node->x/NM_PER_MIL, node->y/NM_PER_MIL, node->layer, node->path_index.GetSize() );
+					type_str.LoadStringA(IDS_Junction);
+				s.LoadStringA(IDS_NodeXYLayerNpaths);
+				mess.Format( s, inode, type_str, node->x/NM_PER_MIL, node->y/NM_PER_MIL, node->layer, node->path_index.GetSize() );
 				log->AddLine( mess );
 			}
 		}
@@ -7465,11 +7448,11 @@ void CNetList::ImportNetRouting( CString * name,
 					{
 						// add routed trace to project
 						if( ipass == 0 )
-							mess = "stub: ";
+							mess.LoadStringA(IDS_Stub);
 						else if( ipass == 1 )
-							mess = "pin-pin: ";
+							mess.LoadStringA(IDS_PinPin);
 						else if( ipass == 2 )
-							mess = "branch: ";
+							mess.LoadStringA(IDS_Branch);
 						CString str;
 						// create new connection
 						int ic = -1;
@@ -7613,27 +7596,26 @@ void CNetList::ImportNetRouting( CString * name,
 		{
 			if( log )
 			{
-				CString str;
-				mess.Format( "error: path %d failed to route", ipath );
+				CString str, s ((LPCSTR) IDS_ErrorPathFailedToRoute);
+				mess.Format( s, ipath );
 				cnode * node = &(*nodes)[path->GetInode(0)];
-				CString type_str = "pin";
+				CString type_str ((LPCSTR) IDS_Pin2);;
 				if( node->type == NVIA )
-					type_str = "via";
+					type_str.LoadStringA(IDS_Via);
 				else if( node->type == NJUNCTION )
-					type_str = "junction";
+					type_str.LoadStringA(IDS_Junction);
 				cnode * node_end = &(*nodes)[path->GetInode(1)];
-				str.Format( ", %s at x=%d y=%d",
-					type_str, node->x/NM_PER_MIL, node->y/NM_PER_MIL );
+				s.LoadStringA(IDS_AtXY);
+				str.Format( s, type_str, node->x/NM_PER_MIL, node->y/NM_PER_MIL );
 				mess += str;
 				node = &(*nodes)[path->GetInode(1)];
-				type_str = "pin";
+				type_str.LoadStringA(IDS_Pin2);
 				if( node->type == NVIA )
-					type_str = "via";
+					type_str.LoadStringA(IDS_Via);
 				else if( node->type == NJUNCTION )
-					type_str = "junction";
-				str.Format( " to %s at x=%d y=%d, layer %d\r\n",
-					type_str, node->x/NM_PER_MIL, node->y/NM_PER_MIL,
-					path->layer );
+					type_str.LoadStringA(IDS_Junction);
+				s.LoadStringA(IDS_ToAtXYLayer);
+				str.Format( s, type_str, node->x/NM_PER_MIL, node->y/NM_PER_MIL, path->layer );
 				mess += str;
 				log->AddLine( mess );
 			}
@@ -7641,7 +7623,10 @@ void CNetList::ImportNetRouting( CString * name,
 		}
 	}
 	if( !bFailed && log ) 
-		log->AddLine( "success: all paths routed\r\n" );
+	{
+		CString s ((LPCSTR) IDS_SuccessAllPathsRouted);
+		log->AddLine( s );
+	}
 	SetAreaConnections( net );
 }
 
