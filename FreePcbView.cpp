@@ -237,6 +237,17 @@ END_MESSAGE_MAP()
 
 CFreePcbView::CFreePcbView()
 {
+	/* CPT: FOR TESTING MY NEW FOUNDATIONAL TEMPLATE CLASSES:
+	carray<cpin> arr;
+	for (int i=0; i<32; i++)
+		arr.Add(new cpin());
+	citer<cpin> ip (&arr);
+	for (cpin *p=ip.First(); p; p=ip.Next())
+		if (p->UID() & 1) 
+			arr.Remove(p);
+	arr.DestroyAll();
+	*/
+
 	m_bDraggingRect = FALSE;
 	m_bLButtonDown = FALSE;
 	CalibrateTimer();
@@ -543,6 +554,14 @@ BOOL CFreePcbView::SelectItem( id sid )
 			m_Doc->m_nlist->SelectAreaCorner( m_sel_net, sid.I2(), sid.I3() );
 			SetCursorMode( CUR_AREA_CORNER_SELECTED );
 			Invalidate( FALSE );
+		}
+		else if( sid.T2()  == ID_CONNECT && sid.T3() == ID_ENTIRE_CONNECT )
+		{
+			// CPT:  account for the possibility of whole-trace selection.
+			m_Doc->m_nlist->HighlightConnection( m_sel_net, sid.I2() );
+			SetCursorMode( CUR_CONNECT_SELECTED );
+			Invalidate( FALSE );
+			// end CPT
 		}
 		else
 			ASSERT(0);
@@ -2958,13 +2977,23 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 		return;
 	}
 
-	if( nChar == 'T' && (m_cursor_mode == CUR_VTX_SELECTED || m_cursor_mode == CUR_SEG_SELECTED ) )
-	{
-		// "t" pressed, select trace
-		m_sel_id.SetT3( ID_ENTIRE_CONNECT );
-		m_Doc->m_nlist->HighlightConnection( m_sel_net, m_sel_ic );
-		SetCursorMode( CUR_CONNECT_SELECTED );
-		Invalidate( FALSE );
+	if( nChar == 'T' )
+	{ 
+		// CPT:  'T' key now toggles back and forth between selected item and trace.
+		if (m_cursor_mode == CUR_VTX_SELECTED || m_cursor_mode == CUR_SEG_SELECTED || m_cursor_mode == CUR_RAT_SELECTED )
+		{
+			m_sel_id_prev = m_sel_id;
+			m_cursor_mode_prev = m_cursor_mode;
+			m_sel_id.SetT3( ID_ENTIRE_CONNECT );
+			m_Doc->m_nlist->HighlightConnection( m_sel_net, m_sel_ic );
+			SetCursorMode( CUR_CONNECT_SELECTED );
+			Invalidate( FALSE );
+		}
+		else if (m_cursor_mode==CUR_CONNECT_SELECTED)
+			m_dlist->CancelHighLight(),
+			SelectItem(m_sel_id_prev),
+			SetCursorMode(m_cursor_mode_prev);
+		// end CPT
 	}
 
 	if( nChar == 'N' )
@@ -3036,6 +3065,8 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 	{
 		// ESC key, if something selected, cancel it
 		// otherwise, fake a right-click
+		if( m_bNetHighlighted )															// CPT r293
+			CancelHighlightNet();
 		if( CurSelected() )
 			CancelSelection();
 		else
@@ -5228,20 +5259,21 @@ void CFreePcbView::CancelHighlight()
 {
 	m_dlist->CancelHighLight();
 	m_bNetHighlighted = FALSE;
+	Invalidate(false);					// CPT r293
 }
 
-// cancel selection, but not net highlight
+// cancel selection.
 //
 void CFreePcbView::CancelSelection()
 {
-	bool bNetWasHighlighted = m_bNetHighlighted;
+	bool bRehighlightNet = m_bNetHighlighted;
 	CancelHighlight();
 	m_sel_ids.RemoveAll();
 	m_sel_ptrs.RemoveAll();
 	m_sel_id.Clear();
 
 	// AMW r274
-	if( bNetWasHighlighted )
+	if( bRehighlightNet )
 	{
 		// rehighlight but don't select
 		HighlightNet( m_sel_net ); 

@@ -26,6 +26,7 @@ static char THIS_FILE[]=__FILE__;
 extern Cuid pcb_cuid;		// global UID gnerator
 extern CFreePcbDoc * pcb;	// global pointer to document
 
+
 //********************** cpin implementation ****************************
 
 // default constructor, should always be followed by Initialize()
