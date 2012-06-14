@@ -49,8 +49,8 @@ CPT merge notes
 #40 - CPT r291: merged
 #41 - CPT r291: merged
 #42 - CPT r291: merged
-#43 -
-#44 -
+#43 - Allan's new system supplants this.
+#44 - CPT r293: merged ('T' now toggles between a single seg and its trace)
 #45 -
 #46 - CPT r292: merged
 

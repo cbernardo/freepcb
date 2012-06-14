@@ -292,6 +292,7 @@
     <ClInclude Include="Net.h" />
     <ClInclude Include="Net_iter.h" />
     <ClInclude Include="NetList.h" />
+    <ClInclude Include="Newnet.h" />
     <ClInclude Include="PartList.h" />
     <ClInclude Include="PathDialog.h" />
     <ClInclude Include="php_polygon.h" />
