@@ -172,96 +172,54 @@ void CMyToolBar::SetLists( CArray<double> * visible,
 	m_ctlComboPlacementGrid.ResetContent();
 	m_ctlComboRoutingGrid.ResetContent();
 	m_ctlComboSnapAngle.ResetContent();
+	/* CPT:  moved these into the loops below (works better if vg/pg/rg don't match entries in their respective lists)
 	m_ctlComboVisibleGrid.SetCurSel( 0 );
 	m_ctlComboPlacementGrid.SetCurSel( 0 );
 	m_ctlComboRoutingGrid.SetCurSel( 0 );
 	m_ctlComboSnapAngle.SetCurSel( 0 );
+	*/
+	int sel = 0;
 	for( int i=0; i<visible->GetSize(); i++ )
 	{
 		CString str;
 		double val = (*m_v)[i];
-		BOOL is_mm = ( val < 0 );
-		val = fabs( val );
-		if( is_mm )
-			str.Format( "%9.3f", val/1000000.0 );
-		else
-			str.Format( "%9.3f", val/NM_PER_MIL );
-		str.Trim();
-		if( str[str.GetLength()-1] == '0' )
-			str = str.Left( str.GetLength()-1 );
-		if( str[str.GetLength()-1] == '0' )
-			str = str.Left( str.GetLength()-1 );
-		if( str[str.GetLength()-1] == '0' )
-			str = str.Left( str.GetLength()-1 );
-		if( str[str.GetLength()-1] == '.' )
-			str = str.Left( str.GetLength()-1 );
-		if( is_mm )
-			m_ctlComboVisibleGrid.AddString( str + " mm" );
-		else
-			m_ctlComboVisibleGrid.AddString( str );
-		if( val == vg )
-			m_ctlComboVisibleGrid.SetCurSel( i );
+		MakeCStringFromGridVal(&str, val);
+		m_ctlComboVisibleGrid.AddString( str );
+		if (fabs(val) == vg) sel = i;									// CPT
 	}
+	m_ctlComboVisibleGrid.SetCurSel( sel );
+
+	sel = 0;
 	for( int i=0; i<placement->GetSize(); i++ )
 	{
 		CString str;
 		double val = (*m_p)[i];
-		BOOL is_mm = ( val < 0 );
-		val = fabs( val );
-		if( is_mm )
-			str.Format( "%9.3f", val/1000000.0 );
-		else
-			str.Format( "%9.3f", val/NM_PER_MIL );
-		str.Trim();
-		if( str[str.GetLength()-1] == '0' )
-			str = str.Left( str.GetLength()-1 );
-		if( str[str.GetLength()-1] == '0' )
-			str = str.Left( str.GetLength()-1 );
-		if( str[str.GetLength()-1] == '0' )
-			str = str.Left( str.GetLength()-1 );
-		if( str[str.GetLength()-1] == '.' )
-			str = str.Left( str.GetLength()-1 );
-		if( is_mm )
-			m_ctlComboPlacementGrid.AddString( str + " mm" );
-		else
-			m_ctlComboPlacementGrid.AddString( str );
-		if( val == pg )
-			m_ctlComboPlacementGrid.SetCurSel( i );
+		MakeCStringFromGridVal(&str, val); // CPT streamlined
+		m_ctlComboPlacementGrid.AddString(str); 
+		if (fabs(val) == pg) sel = i;
 	}
+	m_ctlComboPlacementGrid.SetCurSel( sel );
+
 	if( routing != NULL )
 	{
+		sel = 0;
 		for( int i=0; i<routing->GetSize(); i++ )
 		{
 			CString str;
 			double val = (*m_r)[i];
-			BOOL is_mm = ( val < 0 );
-			val = fabs( val );
-			if( is_mm )
-				str.Format( "%9.3f", val/1000000.0 );
-			else
-				str.Format( "%9.3f", val/NM_PER_MIL );
-			str.Trim();
-			if( str[str.GetLength()-1] == '0' )
-				str = str.Left( str.GetLength()-1 );
-			if( str[str.GetLength()-1] == '0' )
-				str = str.Left( str.GetLength()-1 );
-			if( str[str.GetLength()-1] == '0' )
-				str = str.Left( str.GetLength()-1 );
-			if( str[str.GetLength()-1] == '.' )
-				str = str.Left( str.GetLength()-1 );
-			if( is_mm )
-				m_ctlComboRoutingGrid.AddString( str + " mm" );
-			else
-				m_ctlComboRoutingGrid.AddString( str );
-			if( val == rg )
-				m_ctlComboRoutingGrid.SetCurSel( i );
+			MakeCStringFromGridVal(&str, val); // CPT streamlined
+			m_ctlComboRoutingGrid.AddString(str); 
+			if (fabs(val) == rg) sel = i;
 		}
+		m_ctlComboRoutingGrid.SetCurSel( sel );
 	}
 	else
 	{
 		m_ctlComboRoutingGrid.AddString( "---" );
 		m_ctlComboRoutingGrid.SetCurSel(0);
 	}
+	// end CPT
+
 	m_ctlComboSnapAngle.AddString( "45" );
 	m_ctlComboSnapAngle.AddString( "90" );
 	CString s ((LPCSTR) IDS_Off);

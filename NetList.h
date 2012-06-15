@@ -217,13 +217,11 @@ public:
 	void CleanUpConnections( cnet * net, CString * logstr=NULL );
 	void CleanUpAllConnections( CString * logstr=NULL );
 
-	// functions for segments
+	// functions for segments.
+	// CPT r295 note that via_w and via_hole_w params are NO LONGER USED.
 	int AppendSegment( cnet * net, int ic, int x, int y, int layer, int width );
-	int InsertSegment( cnet * net, int ic, int iseg, int x, int y, int layer, int width,
-						int via_width, int via_hole_width, int dir );
+	int InsertSegment( cnet * net, int ic, int iseg, int x, int y, int layer, int width, int dir );
 	id  UnrouteSegment( cnet * net, int ic, int iseg, int dx=1, int dy=1, int end=0 );
-//	id  UnrouteSegment( cnet * net, int ic, int iseg );
-//	void UnrouteSegmentWithoutMerge( cnet * net, int ic, int iseg );
 	void UnrouteSegmentWithoutMerge( cnet * net, int ic, int iseg, double dx=1, double dy=1, int end=0 );
 	id MergeUnroutedSegments( cnet * net, int ic );
 	int RouteSegment( cnet * net, int ic, int iseg, int layer, int width );
@@ -233,9 +231,10 @@ public:
 	void HighlightSegment( cnet * net, int ic, int iseg, bool bThin=FALSE );
 	int StartMovingSegment( CDC * pDC, cnet * net, int ic, int ivtx,
 								   int x, int y, int crosshair, int use_third_segment );
+	// CPT r295: removed via_w and via_hole_w params
 	int StartDraggingSegment( CDC * pDC, cnet * net, int ic, int iseg,
 						int x, int y, int layer1, int layer2, int w, 
-						int layer_no_via, int via_w, int via_hole_w, int dir,
+						int layer_no_via, int dir,
 						int crosshair = 1 );
 	int CancelDraggingSegment( cnet * net, int ic, int iseg );
 	int StartDraggingSegmentNewVertex( CDC * pDC, cnet * net, int ic, int iseg,
@@ -243,14 +242,14 @@ public:
 	int CancelDraggingSegmentNewVertex( cnet * net, int ic, int iseg );
 	void StartDraggingStub( CDC * pDC, cnet * net, int ic, int iseg,
 						int x, int y, int layer1, int w, 
-						int layer_no_via, int via_w, int via_hole_w, 
-						int crosshair, int inflection_mode );
+						int layer_no_via, int crosshair, int inflection_mode );			// CPT r295, removed via-width args
 	void CancelDraggingStub( cnet * net, int ic, int iseg );
 	int CancelMovingSegment( cnet * net, int ic, int ivtx );
 	bool IsPinSmt(cnet *net, int pin);					 // CPT
 	bool IsRatlineConnected(cseg *seg);					 // CPT
 
 	// functions for vias
+	void GetViaWidths(cnet *net, int w, int *via_w, int *via_hole_w);						// CPT r295
 	int ReconcileVia( cnet * net, int ic, int ivtx, BOOL bDrawVertex=TRUE );
 	int ForceVia( cnet * net, int ic, int ivtx, BOOL set_areas=TRUE );
 	int UnforceVia( cnet * net, int ic, int ivtx, BOOL set_areas=TRUE );

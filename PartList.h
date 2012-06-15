@@ -16,6 +16,7 @@ class cpart;
 class CPartList;
 class CNetList;
 class cnet;
+class carea;
 
 #include "DesignRules.h"
 

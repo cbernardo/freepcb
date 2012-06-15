@@ -635,7 +635,6 @@ public:
 // CPT:
     void ActiveWidthUp(CDC * pDC);
     void ActiveWidthDown(CDC * pDC);
-    void GetViaWidths(int w, int *via_w, int *via_hole_w);
 
 	void RoutingGridUp();
 	void RoutingGridDown();

@@ -116,110 +116,108 @@ void CText::Draw( CDisplayList * dlist, SMFontUtil * smfontutil )
 //
 void CText::Draw()
 {
-	if( m_smfontutil )
+	// CPT slight reorganization; plus bail out silently if font-size is 0.
+	if( !m_smfontutil )
+		{ ASSERT(0); return; }
+	if (m_font_size==0) return;
+
+	// make stroke array
+ 	id tid = m_id;
+	tid.SetT3( ID_STROKE );
+	m_stroke.SetSize( 1000 );
+
+	CPoint si, sf;
+	double x_scale = (double)m_font_size/22.0;
+	double y_scale = (double)m_font_size/22.0;
+	double y_offset = 9.0*y_scale;
+	int i = 0;
+	double xc = 0.0;
+	for( int ic=0; ic<m_nchars; ic++ )
 	{
-		// make stroke array
- 		id tid = m_id;
-		tid.SetT3( ID_STROKE );
-		m_stroke.SetSize( 1000 );
-
-		CPoint si, sf;
-		double x_scale = (double)m_font_size/22.0;
-		double y_scale = (double)m_font_size/22.0;
-		double y_offset = 9.0*y_scale;
-		int i = 0;
-		double xc = 0.0;
-		for( int ic=0; ic<m_nchars; ic++ )
+		// get stroke info for character
+		int xi, yi, xf, yf;
+		double coord[64][4];
+		double min_x, min_y, max_x, max_y;
+		int nstrokes;
+		if( !m_mirror )
 		{
-			// get stroke info for character
-			int xi, yi, xf, yf;
-			double coord[64][4];
-			double min_x, min_y, max_x, max_y;
-			int nstrokes;
-			if( !m_mirror )
-			{
-				nstrokes = m_smfontutil->GetCharStrokes( m_str[ic], SIMPLEX, &min_x, &min_y, &max_x, &max_y,
-					coord, 64 );
-			}
-			else
-			{
-				nstrokes = m_smfontutil->GetCharStrokes( m_str[m_nchars-ic-1], SIMPLEX, &min_x, &min_y, &max_x, &max_y,
-					coord, 64 );
-			}
-			for( int is=0; is<nstrokes; is++ )
-			{
-				if( m_mirror )
-				{
-					xi = (max_x - coord[is][0])*x_scale;
-					yi = coord[is][1]*y_scale + y_offset;
-					xf = (max_x - coord[is][2])*x_scale;
-					yf = coord[is][3]*y_scale + y_offset;
-				}
-				else
-				{
-					xi = (coord[is][0] - min_x)*x_scale;
-					yi = coord[is][1]*y_scale + y_offset;
-					xf = (coord[is][2] - min_x)*x_scale;
-					yf = coord[is][3]*y_scale + y_offset;
-				}
-
-				// get stroke relative to x,y
-				si.x = xi + xc;
-				sf.x = xf + xc;
-				si.y = yi;
-				sf.y = yf;
-				// rotate
-				RotatePoint( &si, m_angle, zero );
-				RotatePoint( &sf, m_angle, zero );
-				// add x, y
-				tid.SetI2( i );
-				m_stroke[i].w = m_stroke_width;
-				m_stroke[i].xi = m_x + si.x;
-				m_stroke[i].yi = m_y + si.y;
-				m_stroke[i].xf = m_x + sf.x;
-				m_stroke[i].yf = m_y + sf.y;
-				// draw into display list
-				if( m_dlist )
-				{
-					m_stroke[i].dl_el = m_dlist->Add( tid, this, 
-					m_layer, DL_LINE, 1, m_stroke_width, 0, 0,  
-					m_x+si.x, m_y+si.y, m_x+sf.x, m_y+sf.y, 0, 0 );
-				}
-				else
-				{
-					m_stroke[i].dl_el = NULL;
-				}
-				i++;
-				if( i >= m_stroke.GetSize() )
-					m_stroke.SetSize( i + 100 );
-			}
-			if( nstrokes > 0 )
-				xc += (max_x - min_x + 8.0)*x_scale;
-			else
-				xc += 16.0*x_scale;
+			nstrokes = m_smfontutil->GetCharStrokes( m_str[ic], SIMPLEX, &min_x, &min_y, &max_x, &max_y,
+				coord, 64 );
 		}
-		m_stroke.SetSize( i );
-
-		if( m_dlist )
+		else
 		{
-			// create selection rectangle
-			int width = xc - 8.0*x_scale;
-			si.x = 0 - m_stroke_width/2;
-			sf.x = width + m_stroke_width/2;
-			si.y = 0 - m_stroke_width/2;
-			sf.y = m_font_size;
-			// rotate to angle
+			nstrokes = m_smfontutil->GetCharStrokes( m_str[m_nchars-ic-1], SIMPLEX, &min_x, &min_y, &max_x, &max_y,
+				coord, 64 );
+		}
+		for( int is=0; is<nstrokes; is++ )
+		{
+			if( m_mirror )
+			{
+				xi = (max_x - coord[is][0])*x_scale;
+				yi = coord[is][1]*y_scale + y_offset;
+				xf = (max_x - coord[is][2])*x_scale;
+				yf = coord[is][3]*y_scale + y_offset;
+			}
+			else
+			{
+				xi = (coord[is][0] - min_x)*x_scale;
+				yi = coord[is][1]*y_scale + y_offset;
+				xf = (coord[is][2] - min_x)*x_scale;
+				yf = coord[is][3]*y_scale + y_offset;
+			}
+
+			// get stroke relative to x,y
+			si.x = xi + xc;
+			sf.x = xf + xc;
+			si.y = yi;
+			sf.y = yf;
+			// rotate
 			RotatePoint( &si, m_angle, zero );
 			RotatePoint( &sf, m_angle, zero );
-			// draw it
-			tid.SetT3( ID_SEL_TXT );
-			dl_sel = m_dlist->AddSelector( tid, this, m_layer, DL_HOLLOW_RECT, 1,
-				0, 0, m_x + si.x, m_y + si.y, m_x + sf.x, m_y + sf.y, m_x + si.x, m_y + si.y );
+			// add x, y
+			tid.SetI2( i );
+			m_stroke[i].w = m_stroke_width;
+			m_stroke[i].xi = m_x + si.x;
+			m_stroke[i].yi = m_y + si.y;
+			m_stroke[i].xf = m_x + sf.x;
+			m_stroke[i].yf = m_y + sf.y;
+			// draw into display list
+			if( m_dlist )
+			{
+				m_stroke[i].dl_el = m_dlist->Add( tid, this, 
+				m_layer, DL_LINE, 1, m_stroke_width, 0, 0,  
+				m_x+si.x, m_y+si.y, m_x+sf.x, m_y+sf.y, 0, 0 );
+			}
+			else
+			{
+				m_stroke[i].dl_el = NULL;
+			}
+			i++;
+			if( i >= m_stroke.GetSize() )
+				m_stroke.SetSize( i + 100 );
 		}
+		if( nstrokes > 0 )
+			xc += (max_x - min_x + 8.0)*x_scale;
+		else
+			xc += 16.0*x_scale;
 	}
-	else
+	m_stroke.SetSize( i );
+
+	if( m_dlist )
 	{
-		ASSERT(0);
+		// create selection rectangle
+		int width = xc - 8.0*x_scale;
+		si.x = 0 - m_stroke_width/2;
+		sf.x = width + m_stroke_width/2;
+		si.y = 0 - m_stroke_width/2;
+		sf.y = m_font_size;
+		// rotate to angle
+		RotatePoint( &si, m_angle, zero );
+		RotatePoint( &sf, m_angle, zero );
+		// draw it
+		tid.SetT3( ID_SEL_TXT );
+		dl_sel = m_dlist->AddSelector( tid, this, m_layer, DL_HOLLOW_RECT, 1,
+			0, 0, m_x + si.x, m_y + si.y, m_x + sf.x, m_y + sf.y, m_x + si.x, m_y + si.y );
 	}
 }
 
@@ -725,19 +723,15 @@ BOOL CTextList::GetTextBoundaries( CRect * r )
 	CIterator_CText iter_t(this);
 	for( CText * t = iter_t.GetFirst(); t != NULL; t = iter_t.GetNext() )		
 	{
-		for( int is=0; is<t->m_stroke.GetSize(); is++ )
-		{
-			stroke * s = &t->m_stroke[is];
-			br.bottom = min( br.bottom, s->yi - s->w );
-			br.bottom = min( br.bottom, s->yf - s->w );
-			br.top = max( br.top, s->yi + s->w );
-			br.top = max( br.top, s->yf + s->w );
-			br.left = min( br.left, s->xi - s->w );
-			br.left = min( br.left, s->xf - s->w );
-			br.right = max( br.right, s->xi + s->w );
-			br.right = max( br.right, s->xf + s->w );
-			bValid = TRUE;
-		}
+		// CPT: invoke new CText::GetBounds()
+		CRect br2;
+		t->GetBounds(br2);
+		br.bottom = min(br.bottom, br2.bottom);
+		br.top = max(br.top, br2.top);
+		br.left = min(br.left, br2.left);
+		br.right = max(br.right, br2.right);
+		bValid = TRUE;
+		// end CPT
 	}
 	*r = br;
 	return bValid;

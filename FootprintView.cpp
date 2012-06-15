@@ -125,7 +125,11 @@ ON_COMMAND(ID_ADHESIVE_EDIT, OnAdhesiveEdit)
 ON_COMMAND(ID_ADHESIVE_MOVE, OnAdhesiveMove)
 ON_COMMAND(ID_ADHESIVE_DELETE, OnAdhesiveDelete)
 ON_COMMAND(ID_CENTROID_ROTATEAXIS, OnCentroidRotateAxis)
+// CPT
+ON_COMMAND(ID_VIEW_FPVISIBLEGRIDVALUES, OnViewVisibleGrid)
+ON_COMMAND(ID_VIEW_FPPLACEMENTGRIDVALUES, OnViewPlacementGrid)
 END_MESSAGE_MAP()
+
 /////////////////////////////////////////////////////////////////////////////
 // CFootprintView construction/destruction
 
@@ -2477,6 +2481,7 @@ void CFootprintView::OnFpTextMove()
 	CPoint p;
 	p.x = m_sel_text->m_x;
 	p.y = m_sel_text->m_y;
+	m_from_pt = p;						// CPT
 	CPoint cur_p = m_dlist->PCBToScreen( p );
 	SetCursorPos( cur_p.x, cur_p.y );
 	// start dragging
@@ -2583,8 +2588,10 @@ void CFootprintView::MoveOrigin( int x, int y )
 	m_fp.m_sel_yf -= y;
 	m_fp.m_ref_xi -= x;
 	m_fp.m_ref_yi -= y;
+	m_fp.m_ref->Move(m_fp.m_ref_xi, m_fp.m_ref_yi, m_fp.m_ref_angle );	// CPT
 	m_fp.m_value_xi -= x;
 	m_fp.m_value_yi -= y;
+	m_fp.m_value->Move(m_fp.m_value_xi, m_fp.m_value_yi, m_fp.m_value_angle );	// CPT
 	m_fp.m_centroid_x -= x; 
 	m_fp.m_centroid_y -= y;
 	for( int ip=0; ip<m_fp.m_padstack.GetSize(); ip++ )
@@ -2690,6 +2697,7 @@ void CFootprintView::OnCentroidMove()
 	CPoint p;
 	p.x = m_fp.m_centroid_x;
 	p.y = m_fp.m_centroid_y;
+	m_from_pt = p;								// CPT
 	CPoint cur_p = m_dlist->PCBToScreen( p );
 	SetCursorPos( cur_p.x, cur_p.y );
 	// start dragging
@@ -2795,6 +2803,7 @@ void CFootprintView::OnValueMove()
 	CPoint p;
 	p.x = m_fp.m_value_xi;
 	p.y = m_fp.m_value_yi;
+	m_from_pt = p;						// CPT
 	CPoint cur_p = m_dlist->PCBToScreen( p );
 	SetCursorPos( cur_p.x, cur_p.y );
 	// start dragging
@@ -2923,6 +2932,7 @@ void CFootprintView::OnAdhesiveDrag()
 	CPoint p;
 	p.x = m_fp.m_glue[idot].x_rel;
 	p.y = m_fp.m_glue[idot].y_rel;
+	m_from_pt = p;								// CPT
 	CPoint cur_p = m_dlist->PCBToScreen( p );
 	SetCursorPos( cur_p.x, cur_p.y );
 	// start dragging

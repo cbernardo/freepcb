@@ -44,6 +44,7 @@ cpart::cpart()
 	dl_ref_sel = 0;
 	shape = 0;
 	drawn = FALSE;
+	m_ref_vis = TRUE;						// CPT:  is this the right place to be doing this?
 	// set uids
 	m_id.Clear();
 	m_id.SetT1(ID_PART);
@@ -2571,10 +2572,12 @@ void * CPartList::CreatePartUndoRecordForRename( cpart * part, CString * old_ref
 //
 int CPartList::WriteParts( CStdioFile * file )
 {
+	// CPT: Sort the part lines.
 	CMapStringToPtr shape_map;
 	cpart * el = m_start.next;
 	CString line;
 	CString key;
+	CArray<CString> lines;
 	try
 	{
 		// now write all parts
@@ -2586,11 +2589,15 @@ int CPartList::WriteParts( CStdioFile * file )
 			// test
 			CString test;
 			SetPartString( el, &test );
-			file->WriteString( test );
+			lines.Add(test);
 			el = el->next;
 		}
-		
+		extern int strcmpNumeric(CString *s1, CString *s2);															// In FreePcbDoc.cpp
+		qsort(lines.GetData(), lines.GetSize(), sizeof(CString), (int (*)(const void*,const void*)) strcmpNumeric);			
+		for (int i=0; i<lines.GetSize(); i++)
+			file->WriteString( lines[i] );
 	}
+	// end CPT
 	catch( CFileException * e )
 	{
 		CString str, s ((LPCSTR) IDS_FileError1), s2 ((LPCSTR) IDS_FileError2);

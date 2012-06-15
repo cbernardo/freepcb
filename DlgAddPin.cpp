@@ -766,7 +766,7 @@ void CDlgAddPin::DoDataExchange(CDataExchange* pDX)
 		}
 		else
 		{
-			ps.name.Format( "%s%s", astr, nstr );
+			ps.name.Format( m_pin_name );						// CPT --- maybe will help with my mystery pin name bug
 			m_fp->ShiftToInsertPadName( &astr, n );
 			m_fp->m_padstack.InsertAt(  m_pin_num, ps );
 		}
