@@ -488,7 +488,7 @@ public:
 	void HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags);
 	void CFreePcbView::TryToReselectAreaCorner( int x, int y );
 	void ReselectNetItemIfConnectionsChanged( int new_ic );
-	int SelectObjPopup( CPoint const &point, CHitInfo hit_info[], int num_hits );
+	int SelectObjPopup( CPoint const &point );												// CPT r294: removed args (use m_hit_info instead)
 	bool DoGroupCopy();																		// CPT added:  OnGroupCopy() wraps around this.  But it's 
 																							// nice to have a bool return value here.
 

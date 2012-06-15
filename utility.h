@@ -126,7 +126,7 @@ int GetPointToSegmentDistance( CPoint p,
 double GetPointToPadDistance( CPoint p, 
 						   int type, int x, int y, int w, int l, int rad, int angle );
 BOOL InRange( double x, double xi, double xf );
-double Distance( int x1, int y1, int x2, int y2 );
+double Distance( double x1, double y1, double x2, double y2 );
 int GetArcIntersections( EllipseKH * el1, EllipseKH * el2, 
 						double * x1=NULL, double * y1=NULL, 
 						double * x2=NULL, double * y2=NULL );						

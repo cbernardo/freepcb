@@ -10,11 +10,14 @@ int CDLE_ARC::onScreen(void)
 	         ||   (f.y <  i.y && f.y < dlist->m_max_y && i.y > dlist->m_org_y) ) );
 }
 
-int CDLE_ARC::_isHit(CPoint &point)
+int CDLE_ARC::_isHit(double x, double y, double &d)					// CPT r294, changed args and introduced a distance metric (not a great one)
 {
-    // found selection rectangle, test for hit
-    return (   ( (point.x>i.x && point.x<f.x) || (point.x<i.x && point.x>f.x) )
-	        && ( (point.y>i.y && point.y<f.y) || (point.y<i.y && point.y>f.y) ) );
+	double xCenter = (i.x+f.x) / 2., yCenter = (i.y+f.y) / 2.;
+	double w2 = abs(i.x-f.x) / 2., h2 = abs(i.y-f.y) / 2.;
+	double dx = x-xCenter, dy = y-yCenter;
+	if (fabs(dx) < w2 && fabs(dy) < h2) 
+		{ d = sqrt(dx*dx+dy*dy); return true; }
+	return false;
 }
 
 

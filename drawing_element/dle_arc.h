@@ -8,7 +8,7 @@ class CDLE_ARC : public dl_element
 {
 protected:
     int onScreen(void);
-	virtual int  _isHit(CPoint &point);
+	virtual int _isHit(double x, double y, double &d);
 };
 
 

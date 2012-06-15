@@ -237,7 +237,7 @@ END_MESSAGE_MAP()
 
 CFreePcbView::CFreePcbView()
 {
-	/* CPT: FOR TESTING MY NEW FOUNDATIONAL TEMPLATE CLASSES:
+	/* CPT r293: FOR TESTING MY NEW FOUNDATIONAL TEMPLATE CLASSES:
 	carray<cpin> arr;
 	for (int i=0; i<32; i++)
 		arr.Add(new cpin());
@@ -590,9 +590,8 @@ BOOL CFreePcbView::SelectItem( id sid )
 //
 // Param:
 //	point    - current mouse position (relative to client window)
-//	hit_info - Drawing objects hit by mouse (must be sorted - priority order)
-//	num_hits - # objects in hit_info array
-int CFreePcbView::SelectObjPopup( CPoint const &point, CHitInfo hit_info[], int num_hits )
+// CPT r294: removed hit-info args (using m_hit_info instead).  Reorganized and tidied up.
+int CFreePcbView::SelectObjPopup( CPoint const &point )
 {
 	CDC *winDC = GetDC();
 
@@ -604,204 +603,179 @@ int CFreePcbView::SelectObjPopup( CPoint const &point, CHitInfo hit_info[], int 
 	dc.SetViewportExt( 1,1 );
 	dc.SetViewportOrg( 0,0 );
 
-	CHitInfo *pInfo;
-
-	int idx;
+	int sel = 0;
+	int num_hits = m_hit_info.GetCount();
+	if (num_hits>25) num_hits = 25;					// m_hit_info has unlimited size...
 
 	// Create bitmap array
 	CArray<CBitmap> bitmaps;
 	bitmaps.SetSize(num_hits);
+	CString str;
+	CMenu file_menu;
+	file_menu.CreatePopupMenu();
 
-	int sel = 0;
+	for( int idx = 0; idx < num_hits; idx++ )
 	{
-		CString str;
-		CMenu file_menu;
-		file_menu.CreatePopupMenu();
+		CHitInfo *pInfo = &m_hit_info[idx];
 
-		for( idx = 0, pInfo = &hit_info[0]; idx < num_hits; idx++, pInfo++ )
+		// Don't display masked items.  CPT r294:  obsolete, removed
+		// if( info.priority < 0 )
+		//    break;
+
+		CRect r(0,0, 139,23);
+		CBitmap *pBitmap = &bitmaps[idx];
+		pBitmap->CreateCompatibleBitmap(winDC, r.Width()+1, r.Height()+1);
+		CBitmap *pOldBitmap = dc.SelectObject(pBitmap);
+		COLORREF layer_color = C_RGB( m_Doc->m_rgb[ pInfo->layer ][0],
+										m_Doc->m_rgb[ pInfo->layer ][1],
+										m_Doc->m_rgb[ pInfo->layer ][2] );
+		COLORREF text_color  = C_RGB(m_Doc->m_rgb[ LAY_BACKGND ][0],
+										m_Doc->m_rgb[ LAY_BACKGND ][1],
+										m_Doc->m_rgb[ LAY_BACKGND ][2] );
+
+		dc.FillSolidRect(r, layer_color);
+		dc.SetTextColor(text_color);
+
+		if( pInfo->ID.T1() == ID_BOARD )
 		{
-			// Don't display masked items
-			if( pInfo->priority < 0 )
+			str.LoadStringA(IDS_Board);
+			if( pInfo->ID.T3() == ID_SEL_SIDE )
 			{
-				break;
+				CString s ((LPCSTR) IDS_Side3);
+				str += s;
 			}
-
-			CRect r(0,0, 139,23);
-			CBitmap *pBitmap = &bitmaps[idx];
-			str = "";
-
-			pBitmap->CreateCompatibleBitmap(winDC, r.Width()+1, r.Height()+1);
-
-			CBitmap *pOldBitmap = dc.SelectObject(pBitmap);
+			else if( pInfo->ID.T3() == ID_SEL_CORNER )
 			{
-				COLORREF layer_color = C_RGB( m_Doc->m_rgb[ pInfo->layer ][0],
-												m_Doc->m_rgb[ pInfo->layer ][1],
-												m_Doc->m_rgb[ pInfo->layer ][2] );
-				COLORREF text_color  = C_RGB(m_Doc->m_rgb[ LAY_BACKGND ][0],
-												m_Doc->m_rgb[ LAY_BACKGND ][1],
-												m_Doc->m_rgb[ LAY_BACKGND ][2] );
-
-				dc.FillSolidRect(r, layer_color);
-				dc.SetTextColor(text_color);
-
-				if( pInfo->ID.T1() == ID_BOARD )
-				{
-					str.LoadStringA(IDS_Board);
-					if( pInfo->ID.T3() == ID_SEL_SIDE )
-					{
-						CString s ((LPCSTR) IDS_Side3);
-						str += s;
-					}
-					else if( pInfo->ID.T3() == ID_SEL_CORNER )
-					{
-						CString s ((LPCSTR) IDS_Corner3);
-						str += s;
-					}
-				}
-				else if( pInfo->ID.T1() == ID_PART )
-				{
-					cpart *part = (cpart*)pInfo->ptr;
-
-					if( pInfo->ID.T2() == ID_SEL_PAD )
-					{
-						CString s ((LPCSTR) IDS_Pin3);
-						str.Format( s, part->ref_des, part->shape->GetPinNameByIndex(pInfo->ID.I2()) );
-					}
-					else if( pInfo->ID.T2() == ID_SEL_RECT )
-					{
-						CShape *shape = part->shape;
-
-						if( shape )
-						{
-							CMetaFileDC m_mfDC;
-
-							CRect shape_bounds = shape->GetBounds();
-							int dx = -shape_bounds.Height() / NM_PER_MIL;
-
-							// Scale part bitmap height between 40 and 128 for better readability
-							r.bottom = 32 + dx / 11;
-							if( r.bottom > 128 ) r.bottom = 128;
-
-							// Trade in the default bitmap for the new one
-							dc.SelectObject(pOldBitmap);
-							pBitmap->DeleteObject();
-							pBitmap->CreateCompatibleBitmap(winDC, r.Width()+1, r.Height()+1);
-							dc.SelectObject(pBitmap);
-
-							// Draw the shape with actual ref_des & no selection rectangle
-							HENHMETAFILE hMF = shape->CreateMetafile( &m_mfDC, winDC, r, part->ref_des, FALSE );
-							dc.PlayMetaFile( hMF, r );
-							DeleteEnhMetaFile( hMF );
-						}
-					}
-					else if( pInfo->ID.T2() == ID_REF_TXT )
-					{
-						CString s ((LPCSTR) IDS_Ref3);
-						str.Format(s, part->ref_des);
-					}
-					else if( pInfo->ID.T2() == ID_VALUE_TXT )
-					{
-						CString s ((LPCSTR) IDS_Value3);
-						str.Format(s, part->value);
-					}
-				}
-				else if( pInfo->ID.T1() == ID_NET )
-				{
-					cnet *net = (cnet*)pInfo->ptr;
-
-					if( pInfo->ID.T2() == ID_CONNECT )
-					{
-						if( pInfo->ID.T3() == ID_SEL_SEG )
-						{
-							str.LoadStringA(IDS_Segment3);
-						}
-						else if( pInfo->ID.T3() == ID_SEL_VERTEX )
-						{
-							if( net->ConByIndex(pInfo->ID.I2())->VtxByIndex(pInfo->ID.I3()).via_w )
-							{
-								str.LoadStringA(IDS_Via3);
-							}
-							else
-							{
-								str.LoadStringA(IDS_Vertex3);
-							}
-						}
-					}
-					else if( pInfo->ID.T2() == ID_AREA )
-					{
-						str.LoadStringA(IDS_Copper3);
-						if( pInfo->ID.T3() == ID_SEL_SIDE )
-						{
-							CString s ((LPCSTR) IDS_Side3);
-							str += s;
-						}
-						else if( pInfo->ID.T3() == ID_SEL_CORNER )
-						{
-							CString s ((LPCSTR) IDS_Corner3);
-							str += s;
-						}
-					}
-				}
-				else if( pInfo->ID.T1() == ID_TEXT )
-				{
-					CText *text = (CText*)pInfo->ptr;
-					CString s ((LPCSTR) IDS_Text3);
-					str.Format(s, text->m_str);
-				}
-				else if( pInfo->ID.T1() == ID_DRC )
-				{
-					str.LoadStringA(IDS_DRC3);
-				}
-				else if( pInfo->ID.T1() == ID_MASK )
-				{
-					str.LoadStringA(IDS_Cutout3);
-					if( pInfo->ID.T3() == ID_SEL_SIDE )
-					{
-						CString s ((LPCSTR) IDS_Side3);
-						str += s;
-					}
-					else if( pInfo->ID.T3() == ID_SEL_CORNER )
-					{
-						CString s ((LPCSTR) IDS_Corner3);
-						str += s;
-					}
-				}
-				else if( pInfo->ID.T1() == ID_CENTROID )
-				{
-					str.LoadStringA(IDS_Centroid3);
-				}
-				else if( pInfo->ID.T1() == ID_GLUE )
-				{
-					str.LoadStringA(IDS_GlueSpot3);
-				}
-				else
-				{
-					str = "Unknown";
-				}
-
-				if( str.GetLength() > 0 )
-				{
-					dc.TextOut( 10,3, str );
-				}
-
-				// Draw bounding box around the bitmap
-				dc.MoveTo(r.left,r.top);
-				dc.LineTo(r.right,r.top);
-				dc.LineTo(r.right,r.bottom);
-				dc.LineTo(r.left,r.bottom);
-				dc.LineTo(r.left,r.top);
+				CString s ((LPCSTR) IDS_Corner3);
+				str += s;
 			}
-			dc.SelectObject(pOldBitmap);
-
-			file_menu.AppendMenu( MF_STRING, idx + 1, pBitmap );
 		}
-
-		if (idx > 0)
+		else if( pInfo->ID.T1() == ID_PART )
 		{
-			CRect r;
-			GetWindowRect(r);
-			sel = file_menu.TrackPopupMenu(TPM_LEFTALIGN | TPM_RIGHTBUTTON | TPM_RETURNCMD, point.x + r.left + 5, point.y + r.top + 5, this);
+			cpart *part = (cpart*)pInfo->ptr;
+
+			if( pInfo->ID.T2() == ID_SEL_PAD )
+			{
+				CString s ((LPCSTR) IDS_Pin3);
+				str.Format( s, part->ref_des, part->shape->GetPinNameByIndex(pInfo->ID.I2()) );
+			}
+			else if( pInfo->ID.T2() == ID_SEL_RECT )
+			{
+				str = "";
+				CShape *shape = part->shape;
+				if( shape )
+				{
+					CMetaFileDC m_mfDC;
+
+					CRect shape_bounds = shape->GetBounds();
+					int dx = -shape_bounds.Height() / NM_PER_MIL;
+
+					// Scale part bitmap height between 40 and 128 for better readability
+					r.bottom = 32 + dx / 11;
+					if( r.bottom > 128 ) r.bottom = 128;
+
+					// Trade in the default bitmap for the new one
+					dc.SelectObject(pOldBitmap);
+					pBitmap->DeleteObject();
+					pBitmap->CreateCompatibleBitmap(winDC, r.Width()+1, r.Height()+1);
+					dc.SelectObject(pBitmap);
+
+					// Draw the shape with actual ref_des & no selection rectangle
+					HENHMETAFILE hMF = shape->CreateMetafile( &m_mfDC, winDC, r, part->ref_des, FALSE );
+					dc.PlayMetaFile( hMF, r );
+					DeleteEnhMetaFile( hMF );
+				}
+			}
+			else if( pInfo->ID.T2() == ID_REF_TXT )
+			{
+				CString s ((LPCSTR) IDS_Ref3);
+				str.Format(s, part->ref_des);
+			}
+			else if( pInfo->ID.T2() == ID_VALUE_TXT )
+			{
+				CString s ((LPCSTR) IDS_Value3);
+				str.Format(s, part->value);
+			}
 		}
+		else if( pInfo->ID.T1() == ID_NET )
+		{
+			cnet *net = (cnet*)pInfo->ptr;
+
+			if( pInfo->ID.T2() == ID_CONNECT )
+			{
+				if( pInfo->ID.T3() == ID_SEL_SEG )
+					str.LoadStringA(IDS_Segment3);
+				else if( pInfo->ID.T3() == ID_SEL_VERTEX )
+				{
+					if( net->ConByIndex(pInfo->ID.I2())->VtxByIndex(pInfo->ID.I3()).via_w )
+						str.LoadStringA(IDS_Via3);
+					else
+						str.LoadStringA(IDS_Vertex3);
+				}
+			}
+			else if( pInfo->ID.T2() == ID_AREA )
+			{
+				str.LoadStringA(IDS_Copper3);
+				if( pInfo->ID.T3() == ID_SEL_SIDE )
+				{
+					CString s ((LPCSTR) IDS_Side3);
+					str += s;
+				}
+				else if( pInfo->ID.T3() == ID_SEL_CORNER )
+				{
+					CString s ((LPCSTR) IDS_Corner3);
+					str += s;
+				}
+			}
+		}
+		else if( pInfo->ID.T1() == ID_TEXT )
+		{
+			CText *text = (CText*)pInfo->ptr;
+			CString s ((LPCSTR) IDS_Text3);
+			str.Format(s, text->m_str);
+		}
+		else if( pInfo->ID.T1() == ID_DRC )
+			str.LoadStringA(IDS_DRC3);
+		else if( pInfo->ID.T1() == ID_MASK )
+		{
+			str.LoadStringA(IDS_Cutout3);
+			if( pInfo->ID.T3() == ID_SEL_SIDE )
+			{
+				CString s ((LPCSTR) IDS_Side3);
+				str += s;
+			}
+			else if( pInfo->ID.T3() == ID_SEL_CORNER )
+			{
+				CString s ((LPCSTR) IDS_Corner3);
+				str += s;
+			}
+		}
+		else if( pInfo->ID.T1() == ID_CENTROID )
+			str.LoadStringA(IDS_Centroid3);
+		else if( pInfo->ID.T1() == ID_GLUE )
+			str.LoadStringA(IDS_GlueSpot3);
+		else
+			str = "Unknown";
+
+		if( str.GetLength() > 0 )
+			dc.TextOut( 10,3, str );
+
+		// Draw bounding box around the bitmap
+		dc.MoveTo(r.left,r.top);
+		dc.LineTo(r.right,r.top);
+		dc.LineTo(r.right,r.bottom);
+		dc.LineTo(r.left,r.bottom);
+		dc.LineTo(r.left,r.top);
+		dc.SelectObject(pOldBitmap);
+
+		file_menu.AppendMenu( MF_STRING, idx + 1, pBitmap );
+	}
+
+	if (num_hits > 0)
+	{
+		CRect r;
+		GetWindowRect(r);
+		sel = file_menu.TrackPopupMenu(TPM_LEFTALIGN | TPM_RIGHTBUTTON | TPM_RETURNCMD, point.x + r.left + 5, point.y + r.top + 5, this);
 	}
 
 	// Release GDI objects
@@ -819,6 +793,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 {
 	ReleaseCapture();									// CPT
 	bool bCtrlKeyDown = (nFlags & MK_CONTROL) != 0;		// CPT
+	bool bShiftKeyDown = (nFlags & MK_SHIFT) != 0;		// CPT r294
 	m_last_click = point;								// CPT
 
 	if( !m_bLButtonDown )
@@ -887,69 +862,63 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 			sel_ptr = m_sel_text;
 		else if( m_sel_id.T1() == ID_DRC )
 			sel_ptr = m_sel_dre;
+		// CPT
+		if (bCtrlKeyDown && m_sel_offset>=0) 
+			// User is doing multiple ctrl-clicks.  Reverse the selection state of the item that was affected by the previous click
+			ConvertSelectionToGroup(false),
+			ToggleSelectionState(m_sel_id_prev, m_sel_prev),
+			Invalidate(false);
+		// end CPT
 
 		// save masks in case they are changed
 		id old_mask_pins = m_mask_id[SEL_MASK_PINS];
 		id old_mask_ref = m_mask_id[SEL_MASK_REF];
-		if( nFlags & MK_CONTROL && m_mask_id[SEL_MASK_PARTS].T1() == ID_NONE )
+		if(bCtrlKeyDown && m_mask_id[SEL_MASK_PARTS].T1() == ID_NONE )
 		{
 			// if control key pressed and parts masked, also mask pins and ref
 			m_mask_id[SEL_MASK_PINS].SetT1( ID_NONE );
 			m_mask_id[SEL_MASK_REF].SetT1( ID_NONE );
 		}
-
-		// Default selection mask is to use the global selection mask
-		id *pMask_id = m_mask_id;
-		int num_incl_masks = NUM_SEL_MASKS;
-		id mask_id[4];
+		// CPT removed some superfluous stuff...
 
 		//************* now see if item was selected *******************
-		int idx;
-		int num_hits;
-		CHitInfo hit_info[MAX_HITS];
+		// CPT r294.  Reworked so that my feature #45 is available, along with the new shift-click popup.  (Discuss with Allan...)
+		int nHits = m_hit_info.GetCount();
 		void * ptr = NULL;
 		sid.Clear();
 
-		if( nFlags & MK_SHIFT )
-		{
-			idx = m_dlist->TestSelect(
-				p.x, p.y,                     // Point
-				hit_info, 25, num_hits,       // Hit Information
-				NULL, NULL,                   // No exclusions
-				NULL, 0						  // No inclusions
-			);
-		}
+		if( bShiftKeyDown )
+			nHits = m_dlist->TestSelect(p.x, p.y, &m_hit_info, NULL, 0);						  // NB: No inclusion masks
+		else if (m_sel_offset==-1)
+			// Series of clicks is just beginning: calculate m_hit_info, and select the zero-th of those (highest priority)
+			nHits = m_dlist->TestSelect(p.x, p.y, &m_hit_info, m_mask_id, NUM_SEL_MASKS, bCtrlKeyDown),
+			m_sel_offset = nHits==0? -1: 0;
+		else if (nHits==1)
+			m_sel_offset = -1;					// Unselect if there's just one hit nearby, already selected.
+		else if (m_sel_offset == nHits-1)
+			m_sel_offset = 0;					// Cycle round...
 		else
-		{
-			idx = m_dlist->TestSelect(
-				p.x, p.y,					  // Point
-				hit_info, MAX_HITS, num_hits, // Hit Information
-				&m_sel_id, sel_ptr,			  // Exclusions
-				pMask_id, num_incl_masks      // Inclusions
-			);
-		}
+			m_sel_offset++;						// Try next member of m_hit_info
 
 		// restore mask
 		m_mask_id[SEL_MASK_PINS] = old_mask_pins;
 		m_mask_id[SEL_MASK_REF] = old_mask_ref;
 
-		if( idx >= 0 )
-		{
-			if( nFlags & MK_SHIFT )
-			{
-				std::sort( &hit_info[0], &hit_info[num_hits] );
+		if( bShiftKeyDown )
+			if( nHits>0 )
+				m_sel_offset = SelectObjPopup( point );
+			else
+				m_sel_offset = -1;
 
-				idx = SelectObjPopup( point, hit_info, num_hits );
-			}
-		}
-
-		if( idx >= 0 )
+		if( m_sel_offset >= 0 )
 		{
-			void * ptr = hit_info[idx].ptr;
- 			id sid = hit_info[idx].ID;
+			void * ptr = m_hit_info[m_sel_offset].ptr;
+ 			id sid = m_hit_info[m_sel_offset].ID;
 			if( !sid.Resolve() )
 				ASSERT(0);
-			m_sel_layer = hit_info[idx].layer;
+			m_sel_layer = m_hit_info[m_sel_offset].layer;
+			m_sel_id_prev = sid;							// CPT
+			m_sel_prev = ptr;								// CPT
 
 			// check for second pad selected while holding down 's'
 			SHORT kc = GetKeyState( 'S' );
@@ -994,43 +963,25 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 			}
 
 			// now handle new selection
-			if( nFlags & MK_CONTROL )
+			if( bCtrlKeyDown )
 			{
-				// control key held down
-				if(    sid.T1() == ID_PART
-						&& m_mask_id[SEL_MASK_PARTS].T1() != ID_NONE
-					|| sid.T1() == ID_TEXT
-						&& m_mask_id[SEL_MASK_TEXT].T1() != ID_NONE
-					|| (sid.T1() == ID_NET && sid.T2()  == ID_CONNECT && sid.T3() == ID_SEL_SEG
-						&& ((cnet*)ptr)->ConByIndex(sid.I2())->SegByIndex(sid.I3()).m_layer != LAY_RAT_LINE)
-						&& m_mask_id[SEL_MASK_CON].T1() != ID_NONE
-					|| sid.T1() == ID_NET && sid.T2()  == ID_CONNECT && sid.T3() == ID_SEL_VERTEX
-						&& (((cnet*)ptr)->ConByIndex(sid.I2())->VtxByIndex(sid.I3()).tee_ID
-							|| ((cnet*)ptr)->ConByIndex(sid.I2())->VtxByIndex(sid.I3()).force_via_flag )
-						&& m_mask_id[SEL_MASK_VIA].T1() != ID_NONE
-					|| sid.T1() == ID_NET && sid.T2()  == ID_AREA && sid.T3() == ID_SEL_SIDE
-						&& m_mask_id[SEL_MASK_AREAS].T1() != ID_NONE
-					|| sid.T1() == ID_MASK && sid.T2()  == ID_MASK && sid.T3() == ID_SEL_SIDE
-						&& m_mask_id[SEL_MASK_SM].T1() != ID_NONE
-					|| sid.T1() == ID_BOARD && sid.T2()  == ID_BOARD && sid.T3() == ID_SEL_SIDE
-						&& m_mask_id[SEL_MASK_BOARD].T1() != ID_NONE
-						)
+				// CPT r294: former clause for checking legality of selection for group membership eliminated 
+				// (the check now occurs within CDisplayList::TestSelect())
+				if( sid.T1() == ID_PART )
 				{
-					// legal selection for group
-					if( sid.T1() == ID_PART )
-					{
-						sid.SetT2( ID_SEL_RECT );
-						sid.SetI2( 0 );
-						sid.SetT3( 0 );
-						sid.SetI3( 0 );
-					}
-					// CPT: if previous single selection, convert to group
-					if (sid.T1())
-						ConvertSelectionToGroup(true),
-						// now add or remove from group
-						ToggleSelectionState(sid, ptr);
-					// end CPT
+					sid.SetT2( ID_SEL_RECT );
+					sid.SetI2( 0 );
+					sid.SetT3( 0 );
+					sid.SetI3( 0 );
+					m_sel_id_prev = sid;
 				}
+				// CPT: if previous single selection, convert to group
+				if (sid.T1())
+					ConvertSelectionToGroup(true),
+					// now add or remove from group
+					ToggleSelectionState(sid, ptr);
+				// end CPT
+				Invalidate( FALSE );
 			}
 			else
 			{
@@ -1846,23 +1797,18 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		// test for hit on pin
 		bool bNetWasHighlighted = m_bNetHighlighted;	// AMW r275 save previous state
 		CPoint p = m_dlist->WindowToPCB( point );
+		m_sel_offset = -1;								// CPT r294
 		id sel_id;	
 		id include_id[2];
 		include_id[0] = id( ID_PART, -1, ID_SEL_PAD );	// allow selection of pin
 		include_id[1] = id( ID_NET, -1, ID_CONNECT, -1, -1, ID_SEL_VERTEX );	// allow selection of vertex
-		int idx;
-		int num_hits;
-		CHitInfo hit_info[MAX_HITS];
-		idx = m_dlist->TestSelect(
-			p.x, p.y,					  // Point
-			hit_info, MAX_HITS, num_hits, // Hit Information
-			&m_sel_id, NULL,			  // Exclusions
-			include_id, 2				  // Inclusions
-			);
+		// CPT r294:  new args for TestSelect()...		
+		CArray<CHitInfo> hit_info;
+		int num_hits = m_dlist->TestSelect(p.x, p.y, &hit_info,	include_id, 2);
 		if( num_hits )
 		{
 			// we have a hit
-			sel_id = hit_info[idx].ID;		
+			sel_id = hit_info[0].ID;		
 			sel_id.Resolve();
 			// now see what we are trying to connect
 			if( m_sel_id.IsVtx() && sel_id.IsPin() || m_sel_id.IsPin() && sel_id.IsVtx() )
@@ -2156,21 +2102,15 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		// dragging ratline to change end pin of trace
 		// see if pad selected
 		CPoint p = m_dlist->WindowToPCB( point );
-		id sel_id;	// id of selected item
+		m_sel_offset = -1;						// CPT r294
+		id sel_id;								// id of selected item
 		id pad_id( ID_PART, -1, ID_SEL_PAD );	// force selection of pad
-		int idx;
-		int num_hits;
-		CHitInfo hit_info[MAX_HITS];
-		idx = m_dlist->TestSelect(
-			p.x, p.y,					  // Point
-			hit_info, MAX_HITS, num_hits, // Hit Information
-			&m_sel_id, NULL,			  // Exclusions
-			&pad_id, 1					  // Inclusions
-		);
+		CArray<CHitInfo> hit_info;
+		int num_hits = m_dlist->TestSelect(p.x, p.y, &hit_info, &pad_id, 1);
 		sel_id.Clear();
 		if( num_hits )
 		{
-			sel_id = hit_info[idx].ID;		
+			sel_id = hit_info[0].ID;		
 			sel_id.Resolve();
 			if( sel_id.IsPin() )
 			{
@@ -2233,20 +2173,15 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		CPoint p = m_last_cursor_point;
 		id include_ids[2];
 		include_ids[0].Set( ID_PART, -1, ID_SEL_PAD );	
-		include_ids[1].Set( ID_NET, -1, ID_CONNECT, -1, -1, ID_SEL_VERTEX  );	
-		int idx;
-		int num_hits;
-		CHitInfo hit_info[MAX_HITS];
-		idx = m_dlist->TestSelect(
-			m_last_cursor_point.x, m_last_cursor_point.y,					  
-			hit_info, MAX_HITS, num_hits, 
-			&m_sel_id, NULL,			  
-			include_ids, 2
-			);
+		include_ids[1].Set( ID_NET, -1, ID_CONNECT, -1, -1, ID_SEL_VERTEX  );
+		// CPT r294:  new args for TestSelect()...
+		CArray<CHitInfo> hit_info;
+		int num_hits = m_dlist->TestSelect(m_last_cursor_point.x, m_last_cursor_point.y, &hit_info, 
+											include_ids, 2);
 		if( num_hits )
 		{
 			// hit pin or vertex
- 			id sel_id = hit_info[idx].ID;
+ 			id sel_id = hit_info[0].ID;
 			sel_id.Resolve();
 			if( sel_id.IsPin() )
 			{
@@ -2491,6 +2426,9 @@ void CFreePcbView::OnLButtonDblClk(UINT nFlags, CPoint point)
 		m_dlist->StartDraggingSelection( pDC, p.x, p.y );
 	}
 #endif
+	m_bLButtonDown = true;				// CPT r294. Basically double-clicking is a moribund concept in this program, and should be treated like 2 rapid
+										// single clicks.  This statement ensures that we get the usual results when the OnLButtonUp() gets called 
+										// momentarily
 	CView::OnLButtonDblClk(nFlags, point);
 }
 
@@ -2498,6 +2436,7 @@ void CFreePcbView::OnLButtonDblClk(UINT nFlags, CPoint point)
 //
 void CFreePcbView::OnRButtonDown(UINT nFlags, CPoint point)
 {
+	m_sel_offset = -1;							// CPT r294:  the current series of left-clicks has been interrupted...
 	m_disable_context_menu = 1;
 	if( m_cursor_mode == CUR_DRAG_PART )
 	{
@@ -2821,6 +2760,7 @@ void CFreePcbView::OnRButtonDown(UINT nFlags, CPoint point)
 //
 void CFreePcbView::OnKeyUp(UINT nChar, UINT nRepCnt, UINT nFlags)
 {
+	m_sel_offset = -1;							// CPT r294
 	// CPT:  eliminated gShiftKeyDown stuff...
 	if( nChar == 'D' )
 	{
@@ -4148,6 +4088,11 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 //
 void CFreePcbView::OnMouseMove(UINT nFlags, CPoint point)
 {
+	// CPT r294:  determine whether a series of mouse clicks by the user is truly over (see if we've moved away significantly from m_last_click).
+	// If so m_sel_offset is reset to -1.
+	if (m_sel_offset!=-1 && (abs(point.x-m_last_click.x) > 1 || abs(point.y-m_last_click.y) > 1))
+		m_sel_offset = -1;
+
 	static BOOL bCursorOn = TRUE;
 
 	if( (nFlags & MK_LBUTTON) && m_bLButtonDown )
@@ -4232,23 +4177,14 @@ void CFreePcbView::OnMouseMove(UINT nFlags, CPoint point)
 		return;
 	CString pin_name = "", connect_to ((LPCSTR) IDS_ConnectTo);
 	CPoint p = m_dlist->WindowToPCB( point );
-	int hit_layer;
-	id hit_id, pad_id( ID_PART, -1, ID_SEL_PAD );
-	m_sel_offset = -1;
-
-#if 0	// AMW this is the old version of TestSelect()
-	void * ptr = m_dlist->TestSelect( p.x, p.y, &hit_id, &hit_layer, &m_sel_offset, &pad_id );
-#endif
-
-	// AMW this is the replacement using the new version of TestSelect
-	CHitInfo hit_info[20];
-	int num_hits;	
-	int best_hit_index = m_dlist->TestSelect( p.x, p.y, hit_info, 20, num_hits, NULL, NULL, &pad_id, 1 );
-
-	if( num_hits > 0 && best_hit_index != -1 )
+	// CPT r294:  new args for TestSelect()...
+	CArray<CHitInfo> hit_info;
+	id pad_id( ID_PART, -1, ID_SEL_PAD );
+	int num_hits = m_dlist->TestSelect( p.x, p.y, &hit_info, &pad_id, 1 );
+	if( num_hits > 0 )
 	{
-		void * ptr = hit_info[best_hit_index].ptr;
-		hit_id = hit_info[best_hit_index].ID;
+		void * ptr = hit_info[0].ptr;
+		id hit_id = hit_info[0].ID;
 		if (ptr && hit_id.IsPin() )
 		{ 
 			// hit on pin

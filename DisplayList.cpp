@@ -945,43 +945,47 @@ void CDisplayList::SetLayerVisible( int layer, BOOL vis )
 
 COLORREF CDisplayList::GetLayerColor( int layer )
 {
-//	return (m_rgb[layer][0], m_rgb[layer][1], m_rgb[layer][2]) );
 	return m_rgb[layer];
 }
 
-// test x,y for a hit on an item in the selection layer
-// creates array with layer and id of each hit item
-// assigns priority based on layer and id
-// then returns index of item with highest priority
-// If exclude_id != NULL, excludes item with
-// id == exclude_id and ptr == exclude_ptr
+int CompareHits(const CHitInfo *h1, const CHitInfo *h2) {
+	// CPT.  Used when sorting a list of hits (see TestSelect() just below). 
+	if (h1->priority==h2->priority)
+		return h1->dist < h2->dist? -1: 1;
+	return h1->priority < h2->priority? 1: -1; 
+	}
+
+// CPT r294, reworked arguments, and made corresponding changes to function body.
+// Test x,y for a hit on an item in the selection layer.
+// Creates array hit_info containing layer and id of each hit item
+//   and also priority and distance values from (x,y).  
 // If include_id != NULL, only include items that match include_id[]
-// where n_include_ids is size of array, and
-// where -1's in include_id[] fields are treated as wildcards
+//   where n_include_ids is size of array, and
+//   where -1's in include_id[] fields are treated as wildcards.
+// New arg bCtrl is true if user is currently ctrl-clicking.  In that case we exclude e.g. vertices and ratlines, which can't belong to groups.
+// Function now always sorts hit_info.  Return value is now the number of elements in hit_info.
 //
-// CPT:  removed references to Brian's CDL_job classes, and tidied up.
+// CPT: also removed references to Brian's CDL_job classes, and tidied up.
 
-int CDisplayList::TestSelect(
-	int x, int y,
-	CHitInfo hit_info[], int max_hits, int &num_hits,
-	id * exclude_id, void * exclude_ptr,
-	id * include_id, int n_include_ids )
+int CDisplayList::TestSelect( int x, int y, CArray<CHitInfo> *hit_info,
+	id * include_id, int n_include_ids, bool bCtrl )
 {
-	int best_hit = -1;
+	if(!m_vis[LAY_SELECTION] ) return -1;				// CPT: irrelevant??
 
-	if(!m_vis[LAY_SELECTION] ) return -1;
+	double xx = double(x)/m_pcbu_per_wu;				// CPT (was int, which caused range issues)
+	double yy = double(y)/m_pcbu_per_wu;				// CPT (was int)
 
-	CPoint point(x/m_pcbu_per_wu, y/m_pcbu_per_wu);
-	num_hits = TestForHits(point, hit_info, max_hits-1);
+	// Get array of info for _all_ elements that hit (xx,yy).
+	CArray<CHitInfo> hit_info0;
+	int num_hits = TestForHits(xx, yy, &hit_info0);
 
-	// now return highest priority hit
-	// assign priority to each hit, track maximum, exclude exclude_id item
-	int best_hit_priority = 0;
+	// Now cull the array out based on include_id and other criteria.  Put the winners from hit_info0 into hit_info.
+	hit_info->RemoveAll();
 	for( int i=0; i<num_hits; i++ )
 	{
-		// if a pcb item (ie. not a footprint )
-		// try to resolve all id fields of the item that was hit
-		CHitInfo this_hit = hit_info[i];
+		// if a pcb item (ie. not a footprint ) try to resolve all id fields of the item that was hit
+		CHitInfo this_hit = hit_info0[i];
+		id id0 = this_hit.ID;
 		if( !this_hit.ID.IsAnyFootItem() )
 		{
 			BOOL bOK = this_hit.ID.Resolve();
@@ -989,26 +993,13 @@ int CDisplayList::TestSelect(
 				ASSERT(0);
 		}
 
-		// now check inclusion/exclusion criteria
-		BOOL excluded_hit = FALSE;
-		BOOL included_hit = TRUE;
+		// now check inclusion/exclusion criteria.
 		// always exclude hits on slaved tee-vertices 
 		if( this_hit.ID.IsVtx() )
-		{
 			if( this_hit.ID.Vtx()->tee_ID < 0 )
-				excluded_hit = TRUE;
-		}
-		// test for other exclusions
-		if( exclude_id )
-		{
-			if( !exclude_id->IsClear() )
-			{
-				id test_id = this_hit.ID;
-				if( test_id == *exclude_id && this_hit.ptr == exclude_ptr )
-					excluded_hit = TRUE;
-			}
-		}
+				continue;
 		// test for explicit inclusions
+		BOOL included_hit = TRUE;
 		if( include_id )
 		{
 			included_hit = FALSE;
@@ -1022,39 +1013,49 @@ int CDisplayList::TestSelect(
 				}
 			}
 		}
-		if( !excluded_hit && included_hit )
+		if (!included_hit) continue;
+		if (bCtrl)
 		{
-			// OK, valid hit, now assign priority
-			// start with reversed layer drawing order * 10
-			// i.e. last drawn = highest priority
-			int priority = (MAX_LAYERS - m_order_for_layer[hit_info[i].layer])*10;
-			// bump priority for small items which may be overlapped by larger items on same layer
-			if( this_hit.ID.T1() == ID_PART &&this_hit.ID.T2() == ID_REF_TXT && this_hit.ID.T3() == ID_SEL_REF_TXT )
-				priority++;
-			else if( this_hit.ID.T1() == ID_PART && this_hit.ID.T2() == ID_VALUE_TXT && this_hit.ID.T3() == ID_SEL_VALUE_TXT )
-				priority++;
-			else if( this_hit.ID.T1() == ID_BOARD && this_hit.ID.T2() == ID_OUTLINE && this_hit.ID.T3() == ID_SEL_CORNER )
-				priority++;
-			else if( this_hit.ID.T1() == ID_NET && this_hit.ID.T2() == ID_AREA && this_hit.ID.T3() == ID_SEL_CORNER )
-				priority++;
-			else if( this_hit.ID.T1() == ID_NET && this_hit.ID.T2() == ID_CONNECT && this_hit.ID.T3() == ID_SEL_VERTEX )
-				priority++;
+			int type = id0.T1(), st = id0.T2(), sst = id0.T3(), i = id0.I2(), ii = id0.I3();
+			cnet *net = (cnet*) (this_hit.ptr);
+			if (type == ID_PART  && st == ID_SEL_RECT) ;
+			else if (type == ID_TEXT) ;
+			else if (type == ID_NET && st == ID_CONNECT && sst == ID_SEL_SEG
+					&& net->ConByIndex(i)->SegByIndex(ii).m_layer != LAY_RAT_LINE) ;
+			else if (type == ID_NET && st == ID_CONNECT && sst == ID_SEL_VERTEX
+					&& (net->ConByIndex(i)->VtxByIndex(ii).tee_ID || net->ConByIndex(i)->VtxByIndex(ii).force_via_flag) ) ;
+			else if (type == ID_NET && st == ID_AREA && sst == ID_SEL_SIDE) ;
+			else if (type == ID_MASK && st == ID_MASK && sst == ID_SEL_SIDE) ;
+			else if (type == ID_BOARD && st == ID_BOARD && sst == ID_SEL_SIDE) ;
+			else
+				// Not a valid group member!
+				continue;
+		}
 
-			hit_info[i].priority = priority;
-			if( priority >= best_hit_priority )
-			{
-				best_hit_priority = priority;
-				best_hit = i;
-			}
-		}
-		else
-		{
-			// Not valid hit, set priority < zero
-			hit_info[i].priority = -1;
-		}
+		// OK, valid hit, now add to final array hit_info, and assign priority
+		// start with reversed layer drawing order * 10
+		// i.e. last drawn = highest priority
+		hit_info->Add(this_hit);
+		int priority = (MAX_LAYERS - m_order_for_layer[this_hit.layer])*10;
+		// bump priority for small items which may be overlapped by larger items on same layer
+		if( this_hit.ID.T1() == ID_PART && this_hit.ID.T2() == ID_REF_TXT && this_hit.ID.T3() == ID_SEL_REF_TXT )
+			priority++;
+		else if( this_hit.ID.T1() == ID_PART && this_hit.ID.T2() == ID_VALUE_TXT && this_hit.ID.T3() == ID_SEL_VALUE_TXT )
+			priority++;
+		else if( this_hit.ID.T1() == ID_BOARD && this_hit.ID.T2() == ID_OUTLINE && this_hit.ID.T3() == ID_SEL_CORNER )
+			priority++;
+		else if( this_hit.ID.T1() == ID_NET && this_hit.ID.T2() == ID_AREA && this_hit.ID.T3() == ID_SEL_CORNER )
+			priority++;
+		else if( this_hit.ID.T1() == ID_NET && this_hit.ID.T2() == ID_CONNECT && this_hit.ID.T3() == ID_SEL_VERTEX )
+			priority++;
+
+		this_hit.priority = priority;
 	}
 
-	return best_hit;
+	// Sort output array and return.
+	num_hits = hit_info->GetCount();
+	qsort(hit_info->GetData(), num_hits, sizeof(CHitInfo), (int (*)(const void*,const void*)) CompareHits);
+	return num_hits;
 }
 
 
@@ -2268,37 +2269,25 @@ void CDisplayLayer::Draw(CDrawInfo &di, bool bHiliteSegs)
 
 
 // CPT:  Brian had this function in class CDL_job.  I've moved it into CDisplayList.  (Also changed name from TestForHit to TestForHits.)
-// Tests x,y for a hit on one of the items in the selection layer.
-// creates arrays with layer and id of each hit item
-// assigns priority based on layer and id
-// then returns pointer to item with highest priority
-// If exclude_id != NULL, excludes item with
-// id == exclude_id and ptr == exclude_ptr
-// If include_id != NULL, only include items that match include_id[]
-// where n_include_ids is size of array, and
-// where 0's in include_id[] fields are treated as wildcards
-//
-int CDisplayList::TestForHits( CPoint  &point, CHitInfo hitInfo[], int max_hits ) 
+// Tests x,y for hits on items in the selection layer.
+// Puts layer, id, and ptr info for each hit item into hitInfo.
+// r294: altered args and made the relevant changes to the function body.
+int CDisplayList::TestForHits( double x, double y, CArray<CHitInfo> *hitInfo ) 
 {
-	int  nhits = 0;
-
+	double d;
 	// traverse the list, looking for selection shapes
 	for (dl_element *el = layers[LAY_SELECTION].elements; el; el = el->next) {
-		if( el->isHit(point) )
+		if( el->isHit(x, y, d) )
 		{
-			// OK, hit
-			hitInfo->layer = el->layer;
-			hitInfo->ID    = el->id;
-			hitInfo->ptr   = el->ptr;
-
-			hitInfo++;
-			nhits++;
-
-			if( nhits >= max_hits )
-				break;
+			CHitInfo hit;
+			hit.layer = el->layer;
+			hit.ID = el->id;
+			hit.ptr = el->ptr;
+			hit.dist = d;								// CPT r294.  Introduced distance values into CHitInfo;  el->isHit() now provides these.
+			hitInfo->Add(hit);
 		}
 	}
 
-	return nhits;
+	return hitInfo->GetCount();
 }
 

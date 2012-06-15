@@ -10,7 +10,7 @@ protected:
 	virtual void _Draw(CDrawInfo &di, bool);
 	// virtual void _DrawClearance (CDrawInfo &di);
 	virtual void _DrawThermalRelief(CDrawInfo &di);
-	virtual int  _isHit(CPoint &point);
+	virtual int _isHit(double x, double y, double &d);
 };
 
 

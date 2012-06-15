@@ -54,12 +54,10 @@ void CDLE_CIRC::_DrawThermalRelief(CDrawInfo &di)
 	di.DC->SelectObject( di.line_pen );
 }
 
-int CDLE_CIRC::_isHit(CPoint  &point)
+int CDLE_CIRC::_isHit(double x, double y, double &d)		// CPT r294, changed args and tidied up.
 {
-	int hit_w = w/2;
-	int d = Distance( i.x, i.y, point.x, point.y );
-
-	return ( d < hit_w );
+	d = Distance( i.x, i.y, x, y );
+	return d < w/2.;
 }
 
 

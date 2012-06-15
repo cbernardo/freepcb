@@ -123,13 +123,7 @@ public:
 	id  ID;
 	void *ptr;
 	int priority;
-
-	// To support sorting.  CPT:  A horrible business.  Should dump this...
-	int operator < ( CHitInfo const &to) const
-	{
-		// Use > so that sort order is highest to lowest priority
-		return priority > to.priority;
-	}
+	double dist;			// CPT r294
 };
 
 // end CPT
@@ -287,10 +281,10 @@ public:
 	void Draw( CDC * pDC );
 	int HighLight( int gtype, int x, int y, int xf, int yf, int w, int orig_layer=LAY_SELECTION );
 	int CancelHighLight();
-	int TestSelect( int x, int y,
-					CHitInfo hit_info[], int max_hits, int &num_hits,
-					id * exclude_id = NULL, void * exclude_ptr = NULL,
-					id * include_id = NULL, int n_include_ids=0 );
+	// CPT r294.  Changed args quite a bit:  exclude-ids are out; hit_info is now a CArray; new bCtrl param added (depends on ctrl-key state).
+	// Now always sorts hit_info, and returns the number of hits, not the highest-priority index.
+	int TestSelect( int x, int y, CArray<CHitInfo> *hit_info,
+					id * include_id, int n_include_ids, bool bCtrl = false );
 	int StartDraggingArray( CDC * pDC, int x, int y, int vert, int layer, int crosshair = 1 );
 	int StartDraggingRatLine( CDC * pDC, int x, int y, int xf, int yf, int layer,
 		int w, int crosshair = 1 );
@@ -379,5 +373,5 @@ public:
 	void Get_Endpoints(CPoint *cpi, CPoint *cpf);
 	id Get_id( dl_element * el );
 
-	int TestForHits( CPoint  &point, CHitInfo hitInfo[], int max_hits );			// CPT:  previously in Brian's CDL_job
+	int TestForHits( double x, double y, CArray<CHitInfo> *hitInfo );			// CPT:  previously in Brian's CDL_job.  r294: altered args.
 };
