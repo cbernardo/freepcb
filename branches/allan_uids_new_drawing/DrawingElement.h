@@ -30,14 +30,14 @@ public:
 	virtual void DrawHiliteSeg (CDrawInfo &di) { }						// CPT: Does nothing except with CDLE_LINE objects.
 	// LATER?  void _DrawClearance(CDrawInfo &di);
     void DrawThermalRelief(CDrawInfo &di);
-	int isHit(CPoint  &point) ;
+	int isHit(double x, double y, double &d) ;							// CPT: changed args.
 	int getBoundingRect(CRect &rect)  { return _getBoundingRect(rect); }
 
 protected:
 	virtual void _Draw(CDrawInfo &di, bool fHiliteSegs) {}
     virtual void _DrawThermalRelief(CDrawInfo &di) {}
 
-	virtual int  _isHit(CPoint &point) { return 0; }
+	virtual int  _isHit(double x, double y, double &d) { return 0; }
 	virtual int  _getBoundingRect(CRect &rect)  { return 0; }
 
 protected:

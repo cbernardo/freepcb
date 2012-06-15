@@ -2242,15 +2242,12 @@ BOOL InRange( double x, double xi, double xf )
 	return FALSE;
 }
 
-// Get distance between 2 points
+// Get distance between 2 points.  CPT r294:  changed args to double.
 //
-double Distance( int x1, int y1, int x2, int y2 )
+double Distance( double x1, double y1, double x2, double y2 )
 {
-	double d;
-	d = sqrt( (double)(x1-x2)*(x1-x2) + (double)(y1-y2)*(y1-y2) );
-	if( d > INT_MAX || d < INT_MIN )
-		ASSERT(0);
-	return (int)d;
+	double d = sqrt( (x1-x2)*(x1-x2) + (y1-y2)*(y1-y2) );
+	return d;
 }
 
 // this finds approximate solutions

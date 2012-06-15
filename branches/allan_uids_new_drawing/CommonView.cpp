@@ -737,12 +737,7 @@ void CCommonView::OnSysKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags)
 		OnKeyDown( nChar, nRepCnt, nFlags);
 	else
 		CView::OnSysKeyDown(nChar, nRepCnt, nFlags);
-
-#if 0 // AMW - disabled this for now
-	// CPT
-	m_sel_offset = -1;		// CPT: indicates that a series of mouse-clicks has been interrupted
-	// end CPT
-#endif
+	m_sel_offset = -1;									// CPT r294: indicates that a series of mouse-clicks has been interrupted
 }
 
 // System Key on keyboard pressed up

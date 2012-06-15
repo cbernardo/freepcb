@@ -276,33 +276,24 @@ void CFootprintView::OnLButtonDown(UINT nFlags, CPoint point)
 		// we are not dragging anything, see if new item selected
 		CPoint p = m_dlist->WindowToPCB( point );
 
-#if 0
-		id id;
-//**			void * ptr = m_dlist->TestSelect( p.x, p.y, &id, &m_sel_layer, &m_sel_id );
-		void * ptr = NULL;
-		id.Clear();
-		//**
-#endif
-
-		enum { MAX_HITS = 500 };
-		CHitInfo hit_info[MAX_HITS];
-		int num_hits;
-
-		// CPT: added args so that masks work.  The exclusions probably don't work right... will fix when I figure out how to incorporate my 
-		// feature #45.
-		int idx = m_dlist->TestSelect(
-			p.x, p.y,					  // Point
-			hit_info, MAX_HITS, num_hits, // Hit Information
-			&m_sel_id, 0,				  // Exclusions
-			m_mask_id, NUM_FP_SEL_MASKS   // Inclusions
-			);
-
+		// CPT reworked so that we have masks, and also (r294) so that my feature #45 with repeated clicks works.
+		int nHits = m_hit_info.GetCount();
+		if (m_sel_offset==-1)
+			// Series of clicks is just beginning: calculate m_hit_info, and select the first of those (highest priority)
+			nHits = m_dlist->TestSelect(p.x, p.y, &m_hit_info, m_mask_id, NUM_FP_SEL_MASKS ),
+			m_sel_offset = nHits==0? -1: 0;
+		else if (nHits==1)
+			m_sel_offset = -1;					// Unselect if there's just one hit nearby, already selected.
+		else if (m_sel_offset == nHits-1)
+			m_sel_offset = 0;					// Cycle round...
+		else
+			m_sel_offset++;						// Try next member of m_hit_info
 		// deselect previously selected item
 		CancelSelection();
 
-		if( idx >= 0 )
+		if( m_sel_offset >= 0 )
 		{
-			id id = hit_info[idx].ID;
+			id id = m_hit_info[m_sel_offset].ID;
 			// now check for new selection
 			if( id.IsAnyFootItem() )
 			{
@@ -346,7 +337,7 @@ void CFootprintView::OnLButtonDown(UINT nFlags, CPoint point)
 				else if( id.IsFootText() )
 				{
 					// text selected
-					m_sel_text = (CText*)hit_info[idx].ptr;
+					m_sel_text = (CText*)m_hit_info[m_sel_offset].ptr;
 					SetCursorMode( CUR_FP_TEXT_SELECTED );
 					m_fp.m_tl->HighlightText( m_sel_text );
 				}
@@ -368,7 +359,7 @@ void CFootprintView::OnLButtonDown(UINT nFlags, CPoint point)
 		}
 		else
 		{
-			// nothing selected
+			// nothing selected.  CPT:  don't expect to get here often, if at all.
 			m_sel_id.Clear();
 			SetCursorMode( CUR_FP_NONE_SELECTED );
 		}
@@ -786,7 +777,7 @@ void CFootprintView::OnRButtonDown(UINT nFlags, CPoint point)
 //
 void CFootprintView::OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags) 
 {
-	m_sel_offset = -1;			// CPT.  Indicates that user has interrupted a series of mouse clicks.
+	m_sel_offset = -1;							// CPT.  Indicates that user has interrupted a series of mouse clicks.
 	HandleKeyPress( nChar, nRepCnt, nFlags );
 
 	// don't pass through SysKey F10
@@ -1115,8 +1106,9 @@ void CFootprintView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 //
 void CFootprintView::OnMouseMove(UINT nFlags, CPoint point) 
 {
-	// CPT
-	if (m_sel_offset!=-1 && (abs(point.x-m_last_click.x) > 3 || abs(point.y-m_last_click.y) > 3))
+	// CPT:  determine whether a series of mouse clicks by the user is truly over (see if we've moved away significantly from m_last_click).
+	// If so m_sel_offset is reset to -1.
+	if (m_sel_offset!=-1 && (abs(point.x-m_last_click.x) > 1 || abs(point.y-m_last_click.y) > 1))
 		m_sel_offset = -1;
 	// end CPT
 	m_last_mouse_point = m_dlist->WindowToPCB( point );
