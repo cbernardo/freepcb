@@ -1152,7 +1152,6 @@ int CNetList::RouteSegment( cnet * net, int ic, int iseg, int layer, int width )
 // Append new segment to connection 
 // this is mainly used for stub traces
 // returns index to new segment
-//
 int CNetList::AppendSegment( cnet * net, int ic, int x, int y, int layer, int width )
 {
 	// add new vertex and segment
@@ -1179,8 +1178,7 @@ int CNetList::AppendSegment( cnet * net, int ic, int x, int y, int layer, int wi
 // tests position within +/- 10 nm.
 //
 
-int CNetList::InsertSegment( cnet * net, int ic, int iseg, int x, int y, int layer, int width,
-						 int via_width, int via_hole_width, int dir )
+int CNetList::InsertSegment( cnet * net, int ic, int iseg, int x, int y, int layer, int width, int dir )
 {
 	const int TOL = 10;
 
@@ -1258,8 +1256,6 @@ int CNetList::InsertSegment( cnet * net, int ic, int iseg, int x, int y, int lay
 		new_seg.m_width = width;
 		new_vtx.x = x;
 		new_vtx.y = y;
-		new_vtx.via_w = via_width;
-		new_vtx.via_hole_w = via_hole_width;
 		c->InsertSegAndVtxByIndex( iseg, dir, new_seg, new_vtx );
 	}
 	else
@@ -3142,8 +3138,7 @@ int CNetList::StartMovingSegment( CDC * pDC, cnet * net, int ic, int ivtx,
 //
 int CNetList::StartDraggingSegment( CDC * pDC, cnet * net, int ic, int iseg,
 								   int x, int y, int layer1, int layer2, int w, 
-								   int layer_no_via, int via_w, int via_hole_w, int dir,
-								   int crosshair )
+								   int layer_no_via, int dir, int crosshair )
 {
 	// cancel previous selection and make segment invisible
 	cconnect * c = net->connect[ic];
@@ -3156,7 +3151,8 @@ int CNetList::StartDraggingSegment( CDC * pDC, cnet * net, int ic, int iseg,
 	int yf = c->vtx[iseg+1].y;
 	m_dlist->StartDraggingLineVertex( pDC, x, y, xi, yi, xf, yf, layer1, 
 								layer2, w, 1, DSS_STRAIGHT, DSS_STRAIGHT, 
-								layer_no_via, via_w, via_hole_w, dir, crosshair );
+								layer_no_via, w*3/2, w, dir, crosshair );		// CPT r295 put in approximate args for via_w and via_hole_w.  This
+																				// whole business seems a bit bogus to me...
 	return 0;
 }
 
@@ -3181,11 +3177,10 @@ int CNetList::StartDraggingSegmentNewVertex( CDC * pDC, cnet * net, int ic, int 
 }
 
 // Start dragging stub trace segment, iseg is index of new segment
-//
+// CPT r295:  removed via_w and via_hole_w params
 void CNetList::StartDraggingStub( CDC * pDC, cnet * net, int ic, int iseg,
 								   int x, int y, int layer1, int w, 
-								   int layer_no_via, int via_w, int via_hole_w,
-								   int crosshair, int inflection_mode )
+								   int layer_no_via,  int crosshair, int inflection_mode )
 {
 	cconnect * c = net->connect[ic];
 	m_dlist->CancelHighLight();
@@ -3199,7 +3194,7 @@ void CNetList::StartDraggingStub( CDC * pDC, cnet * net, int ic, int iseg,
 	int xi = c->vtx[iseg].x;
 	int yi = c->vtx[iseg].y;
 	m_dlist->StartDraggingLine( pDC, x, y, xi, yi, layer1, 
-		w, layer_no_via, via_w, via_hole_w, 
+		w, layer_no_via, w*3/2, w,												// CPT r295.  Put in approx args for via_w and via_hole_w.  Fairly bogus... 
 		crosshair, DSS_STRAIGHT, inflection_mode );
 }
 
@@ -3988,27 +3983,49 @@ int CNetList::UnforceVia( cnet * net, int ic, int ivtx, BOOL set_areas )
 	return 0;
 }
 
+void CNetList::GetViaWidths(cnet *net, int w, int *via_w, int *via_hole_w) {
+  // CPT r295.  Helper for ReconcileVia().  
+  // Given a segment width value "w", determine a matching via and via hole width.  Do this by first checking if w==net->def_w,
+  //  and return the net's default via sizes if so;
+  //  otherwise, scan thru m_doc->m_w and find the last entry in there <=w.  The corresponding members of m_doc->m_v_w
+  // and m_doc->m_v_h_w are then the return values.
+  int cWidths = m_doc->m_w.GetSize(), i;
+  if (w == net->def_w || cWidths == 0)
+    { *via_w = net->def_via_w; *via_hole_w = net->def_via_hole_w; return; }
+  for (i=1; i<cWidths; i++)
+    if (m_doc->m_w.GetAt(i) > w) break;
+  // i-1 = last entry in width table that's <= w:
+  *via_w = m_doc->m_v_w.GetAt(i-1);
+  *via_hole_w = m_doc->m_v_h_w.GetAt(i-1);
+  }
+
 // Reconcile via with preceding and following segments
-// if a via is needed, use defaults for adjacent segments 
-//
+// CPT r295: if a via is needed,  determine the size based on the segments' widths and possibly the net 
+// defaults.
 int CNetList::ReconcileVia( cnet * net, int ic, int ivtx, BOOL bDrawVertex )
 {
 	cconnect * c = net->connect[ic];
 	cvertex * v = &c->vtx[ivtx];
+	// CPT r295, quickie optimization:  if v already has a set via-width, bail out.
+	if (v->via_w && v->via_hole_w)
+	{
+		if( m_dlist && bDrawVertex && v->GetType() != cvertex::V_PIN )
+			v->Draw();
+		return 0;
+	}
+	cseg * s1 = ivtx==0? NULL: &c->seg[ivtx-1];
+	cseg * s2 = ivtx==c->NumSegs()? NULL: &c->seg[ivtx];
+	// end CPT
 	cvertex * v_draw = v;
-	BOOL via_needed = FALSE;
 	// see if via needed
+	BOOL via_needed = FALSE;
 	if( v->GetType() == cvertex::V_PIN )
-	{
-		// never draw a pin vertex
-	}
+		// pin vertices never get vias
+		via_needed = FALSE;
 	else if( v->force_via_flag ) 
-	{
 		via_needed = TRUE;
-	}
 	else if( v->GetType() == cvertex::V_TEE || v->GetType() == cvertex::V_SLAVE )
 	{
-		// CPT REINSTATED ASSERT(0)
 		if( ivtx != 0 && ivtx != c->NumSegs() )
 		{
 			// AMW r267 this should be an error, but it occurs when reading project file
@@ -4016,43 +4033,41 @@ int CNetList::ReconcileVia( cnet * net, int ic, int ivtx, BOOL bDrawVertex )
 			// ASSERT(0);
 		}
 		else if( TeeViaNeeded( net, abs( v->tee_ID ), &v_draw ) )
-		{
 			via_needed = TRUE;
-		}
 	}
 	else if( v->GetType() == cvertex::V_TRACE )
 	{
 		if( ivtx == 0 || ivtx == c->NumSegs() )
-		{
 			ASSERT(0);
-		}
 		else
 		{
 			c->vtx[ivtx].pad_layer = 0;
-			cseg * s1 = &c->seg[ivtx-1];
-			cseg * s2 = &c->seg[ivtx];
 			if(	   s1->m_layer != s2->m_layer 
 				&& s1->m_layer != LAY_RAT_LINE 
 				&& s2->m_layer != LAY_RAT_LINE )
-			{
 				via_needed = TRUE;
-			}
 		}
 	}
 
 	if( via_needed )
 	{
-		// via needed, make sure it exists or create it
-		if( v_draw->via_w == 0 || v_draw->via_hole_w == 0 )
+		// CPT r295: via needed. Calculate its default width, based on the widths of the adjacent segs and possibly the net defaults.
+		int via_w = 0, via_hole_w = 0, vw2, vhw2;
+		if (s1)
+			GetViaWidths(net, s1->m_width, &via_w, &via_hole_w);
+		if (s2) 
 		{
-			// via doesn't already exist, set via width and hole width
-			// using project or net defaults
-			int w, via_w, via_hole_w;
-			GetWidths( net, &w, &via_w, &via_hole_w );
-			// set parameters for via
-			v_draw->via_w = via_w;
-			v_draw->via_hole_w = via_hole_w;
+			GetViaWidths(net, s2->m_width, &vw2, &vhw2);
+			if (vw2 > via_w) 
+				via_w = vw2, via_hole_w = vhw2;
 		}
+		if (via_w<=0 || via_hole_w<=0)
+			// Use defaults...
+			via_w = net->def_via_w==0? m_def_via_w: net->def_via_w,
+			via_hole_w = net->def_via_hole_w==0? m_def_via_hole_w: net->def_via_hole_w;
+		v_draw->via_w = via_w;
+		v_draw->via_hole_w = via_hole_w;
+		// End CPT
 	}
 	else
 	{
@@ -4488,7 +4503,7 @@ void CNetList::ReadNets( CStdioFile * pcb_file, double read_version, int * layer
 								x = end_pt.x;
 								y = end_pt.y;
 							}
-							test_not_done = InsertSegment( net, ic, is, x, y, layer, seg_width, 0, 0, 0 );
+							test_not_done = InsertSegment( net, ic, is, x, y, layer, seg_width, 0 );
 						}
 						else
 						{
@@ -6938,8 +6953,7 @@ BOOL CNetList::RemoveOrphanBranches( cnet * net, int id, BOOL bRemoveSegs )
 									{
 										int test = InsertSegment( net, ic, c->NumSegs()-1, 
 											tc->vtx[tis].x, tc->vtx[tis].y,
-											tc->seg[tis].m_layer, tc->seg[tis].m_width, 
-											0, 0, 0 );
+											tc->seg[tis].m_layer, tc->seg[tis].m_width, 0 );
 										if( !test )
 											ASSERT(0);
 										c->vtx[c->NumSegs()-1] = tc->vtx[tis];
@@ -7505,7 +7519,7 @@ void CNetList::ImportNetRouting( CString * name,
 								if( ipass == 0 || ipass == 2 )
 									AppendSegment( net, ic, x, y, layer, width );
 								else if( ipass == 1 )
-									InsertSegment( net, ic, is, x, y, layer, width, 0, 0, 0 );
+									InsertSegment( net, ic, is, x, y, layer, width, 0 );
 								is++;
 							}
 							// force all vias

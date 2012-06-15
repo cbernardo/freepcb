@@ -1123,25 +1123,11 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		pDC->SelectClipRgn( &m_pcb_rgn );
 //			m_dlist->StopDragging();
 		// get trace widths
-
-		/* CPT eliminated:
-		int w = m_Doc->m_trace_w;
-		int via_w = m_Doc->m_via_w;
-		int via_hole_w = m_Doc->m_via_hole_w;
-		GetWidthsForSegment( &w, &via_w, &via_hole_w );
-		// Instead of this I'm going to want w to reflect the new m_active_width.
-		// As for via_w and via_hole_w, their original usage in the following code was somewhat confusing.
-		//  They appeared as arguments for CNetList::InsertSegment(), but that routine _didn't use_ those params.
-		//  They were also used as arguments for CNetList::StartDraggingSegment(), which passes them down to
-		//  CDisplayList::StartDraggingLineVertex().  That
-		//  routine then sets m_Doc->m_nlist->m_dlist's m_drag_via_w & m_drag_via_holew members, which can then be used for
-		//  drawing a (temporary) via if user changes layers during the dragging of the next segment.
-		// In my new system, InsertSegment() _will_ use variables via_w and via_hole_w and will set the new
-		//  cseg::via_w and cseg::via_hole_w fields.  These fields are used if vias need to be created
-		//  during the current or future invocations of InsertSegment().
+		/* CPT:  We want w to reflect the new m_active_width.  
+		// As for via and via-hole widths, I decided (r295) on a simpler system:  they are determined entirely by CNetList::ReconcileVias(), when
+		//  the time comes, based on the adjacent segment widths and the net default values.
 		*/
-		int w = m_active_width, via_w, via_hole_w;
-		GetViaWidths(w, &via_w, &via_hole_w);
+		int w = m_active_width;
 		cconnect * c = m_sel_net->ConByIndex(m_sel_ic);	//** AMW
 		//** end CPT
 
@@ -1167,7 +1153,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 				if( pp != pi )
 				{
 					insert_flag = m_Doc->m_nlist->InsertSegment( m_sel_net, m_sel_ic, m_sel_is,
-						pp.x, pp.y, m_active_layer, w, via_w, via_hole_w, m_dir );
+						pp.x, pp.y, m_active_layer, w, m_dir );
 					if( !insert_flag )
 					{
 						// hit end-vertex of segment, terminate routing
@@ -1178,7 +1164,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 				}
 				insert_flag = m_Doc->m_nlist->InsertSegment( m_sel_net, m_sel_ic, m_sel_is,
 					m_last_cursor_point.x, m_last_cursor_point.y,
-					m_active_layer, w, via_w, via_hole_w, m_dir );
+					m_active_layer, w, m_dir );
 				if( !insert_flag )
 				{
 					// hit end-vertex of segment, terminate routing
@@ -1228,7 +1214,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 					if( pp != pi )
 					{
 						insert_flag = m_Doc->m_nlist->InsertSegment( m_sel_net, m_sel_ic, m_sel_is,
-							pp.x, pp.y, m_active_layer, w, via_w, via_hole_w, m_dir );
+							pp.x, pp.y, m_active_layer, w, m_dir );
 						if( !insert_flag )
 						{
 							// hit end-vertex of segment, terminate routing
@@ -1239,7 +1225,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 					}
 					insert_flag = m_Doc->m_nlist->InsertSegment( m_sel_net, m_sel_ic, m_sel_is,
 						m_last_cursor_point.x, m_last_cursor_point.y,
-						m_active_layer, w, via_w, via_hole_w, m_dir );
+						m_active_layer, w, m_dir );
 					if( !insert_flag )
 					{
 						// hit end-vertex of segment, terminate routing
@@ -1265,7 +1251,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		{
 			CancelHighlight();	// AMW r269
 			insert_flag = m_Doc->m_nlist->InsertSegment( m_sel_net, m_sel_ic, m_sel_is,
-				pp.x, pp.y, m_active_layer, w, via_w, via_hole_w, m_dir );
+				pp.x, pp.y, m_active_layer, w, m_dir );
 			if( !insert_flag )
 			{
 				// hit end-vertex of segment, terminate routing
@@ -1276,7 +1262,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		}
 		insert_flag = m_Doc->m_nlist->InsertSegment( m_sel_net, m_sel_ic, m_sel_is,
 			m_last_cursor_point.x, m_last_cursor_point.y,
-			m_active_layer, w, via_w, via_hole_w, m_dir );
+			m_active_layer, w, m_dir );
 		if( !insert_flag )
 		{
 			// hit end-vertex of segment, terminate routing
@@ -1288,7 +1274,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 			m_sel_id.I2(), m_sel_is,
 			m_last_cursor_point.x, m_last_cursor_point.y, m_active_layer,
 			LAY_SELECTION, w,
-			m_active_layer, via_w, via_hole_w, m_dir, 2 );
+			m_active_layer, m_dir, 2 );
 		if( bNetWasHighlighted )	// AMW r274
 			HighlightNet( m_sel_net, &m_sel_id ); // AMW r269
 		m_snap_angle_ref = m_last_cursor_point;
@@ -1309,7 +1295,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		int w = m_sel_seg->m_width;
 		int insert_flag = m_Doc->m_nlist->InsertSegment( m_sel_net, m_sel_ic, m_sel_is,
 			m_last_cursor_point.x, m_last_cursor_point.y,
-			layer, w, 0, 0, m_dir );
+			layer, w, m_dir );
 		CancelSelection();
 		m_Doc->ProjectModified( TRUE );
 		Invalidate( FALSE );
@@ -1797,7 +1783,6 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		// test for hit on pin
 		bool bNetWasHighlighted = m_bNetHighlighted;	// AMW r275 save previous state
 		CPoint p = m_dlist->WindowToPCB( point );
-		m_sel_offset = -1;								// CPT r294
 		id sel_id;	
 		id include_id[2];
 		include_id[0] = id( ID_PART, -1, ID_SEL_PAD );	// allow selection of pin
@@ -2163,12 +2148,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 			SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_Doc->m_undo_list );
 		}
 
-		// CPT.  Similar to what happened for CUR_DRAG_RAT mode, above.  Below, arguments for AppendSegment() get
-		// changed to include via_w and via_hole_w
-		int w = m_active_width, via_w, via_hole_w;
-		GetViaWidths(w, &via_w, &via_hole_w);
-		// end CPT
-
+		int w = m_active_width;					// CPT.  Similar to what happened for CUR_DRAG_RAT mode, above.
 		// test for hit on vertex or pin
 		CPoint p = m_last_cursor_point;
 		id include_ids[2];
@@ -2340,8 +2320,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		m_sel_id.SetI3( m_sel_id.I3() + 1 );
 		// AMW r275 The following statement calls m_dlist->CancelHighlight()
 		m_Doc->m_nlist->StartDraggingStub( pDC, m_sel_net, m_sel_ic, m_sel_is,
-			m_last_cursor_point.x, m_last_cursor_point.y, m_active_layer, w, m_active_layer,
-			via_w, via_hole_w, 2, m_inflection_mode );
+			m_last_cursor_point.x, m_last_cursor_point.y, m_active_layer, w, m_active_layer, 2, m_inflection_mode );
 		m_snap_angle_ref = m_last_cursor_point;
 		if( m_bNetHighlighted )		// AMW r275 re-highlight net
 			HighlightNet( m_sel_net );
@@ -3563,7 +3542,30 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 		break;
 
 	case  CUR_END_VTX_SELECTED:
-		if( fk == FK_SET_POSITION )
+		// CPT r295:  added arrow key support
+		if( fk == FK_ARROW )
+		{
+			if( !m_lastKeyWasArrow )
+			{
+				SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_Doc->m_undo_list );
+				m_totalArrowMoveX = 0;
+				m_totalArrowMoveY = 0;
+				m_lastKeyWasArrow = TRUE;
+			}
+			CancelHighlight();
+			m_Doc->m_nlist->MoveVertex( m_sel_net, m_sel_ic, m_sel_is,
+										m_sel_vtx->x + dx, m_sel_vtx->y + dy );
+			m_totalArrowMoveX += dx;
+			m_totalArrowMoveY += dy;
+			ShowRelativeDistance( m_sel_vtx->x, m_sel_vtx->y, m_totalArrowMoveX, m_totalArrowMoveY );
+			m_Doc->m_nlist->HighlightVertex( m_sel_net, m_sel_ic, m_sel_is );
+			m_Doc->ProjectModified( TRUE );
+			Invalidate( FALSE );
+		}
+		// end CPT
+		else if( fk == FK_SET_POSITION )
+			OnVertexProperties();
+		else if( fk == FK_VERTEX_PROPERTIES )						// CPT r295
 			OnVertexProperties();
 		else if( fk == FK_ADD_CONNECT )
 			OnVertexStartRatline();
@@ -3925,13 +3927,11 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 		{
 			SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_Doc->m_undo_list );
 
-			// CPT next 3 lines
+			// CPT
             int w = m_active_width, via_w, via_hole_w;
-            GetViaWidths(w, &via_w, &via_hole_w);
-			// end CPT
-
 			int test = m_Doc->m_nlist->RouteSegment( m_sel_net, m_sel_ic,
 				m_sel_is, m_active_layer, w );
+			// end CPT
 			if( !test )
 			{
 				m_Doc->m_nlist->CancelDraggingSegment( m_sel_net, m_sel_ic, m_sel_is );
@@ -4183,7 +4183,7 @@ void CFreePcbView::OnMouseMove(UINT nFlags, CPoint point)
 	int num_hits = m_dlist->TestSelect( p.x, p.y, &hit_info, &pad_id, 1 );
 	if( num_hits > 0 )
 	{
-		void * ptr = hit_info[0].ptr;
+		void * ptr = hit_info[0].ptr;			// hit_info[0] is the highest-priority hit
 		id hit_id = hit_info[0].ID;
 		if (ptr && hit_id.IsPin() )
 		{ 
@@ -5969,20 +5969,21 @@ void CFreePcbView::OnPadStartTrace()
 	int w = m_Doc->m_trace_w;
 	if( net->def_w )
 		w = net->def_w;
+	/* CPT disused:
 	int via_w = m_Doc->m_via_w;
 	if( net->def_via_w )
 		via_w = net->def_via_w;
 	int via_hole_w = m_Doc->m_via_hole_w;
 	if( net->def_via_hole_w )
 		via_hole_w = net->def_via_hole_w;
+	*/
 
 	// CPT 
 	m_active_width = w;
 	// end CPT
 
 	m_Doc->m_nlist->StartDraggingStub( pDC, net, m_sel_id.I2(), m_sel_id.I3(),
-		pi.x, pi.y, m_active_layer, w, m_active_layer, via_w, via_hole_w,
-		2, m_inflection_mode );
+		pi.x, pi.y, m_active_layer, w, m_active_layer, 2, m_inflection_mode );
 	m_snap_angle_ref = p;
 	SetCursorMode( CUR_DRAG_TRACE );
 	CancelHighlight();
@@ -6118,8 +6119,7 @@ void CFreePcbView::OnVertexStartTrace()
 	GetWidthsForSegment( &w, &via_w, &via_hole_w );
 	m_active_width = w;		// AMW r267 added
 	m_Doc->m_nlist->StartDraggingStub( pDC, m_sel_net, m_sel_ic, m_sel_iv,
-		p.x, p.y, m_active_layer, w, m_active_layer, via_w, via_hole_w,
-		2, m_inflection_mode );
+		p.x, p.y, m_active_layer, w, m_active_layer, 2, m_inflection_mode );
 	if( m_Doc->m_bHighlightNet )
 		HighlightNet( m_sel_net );
 	SetCursorMode( CUR_DRAG_TRACE );
@@ -6273,7 +6273,7 @@ void CFreePcbView::OnRatlineRoute()
 	}
 	// now start dragging new segment
     // CPT.  If already in drag mode, we'll use m_active_width.  Otherwise, set m_active_width to the net's default value
-	int w, via_w, via_hole_w;
+	int w;
     if (m_cursor_mode==CUR_DRAG_RAT)
         w = m_active_width;
     else 
@@ -6283,14 +6283,13 @@ void CFreePcbView::OnRatlineRoute()
                 w = m_sel_net->def_w;
         m_active_width = w;
     }
-    GetViaWidths(w, &via_w, &via_hole_w);
 	// end CPT
 
 	m_dragging_new_item = 0;
 	m_Doc->m_nlist->StartDraggingSegment( pDC, m_sel_net, m_sel_ic, m_sel_is,
 		p.x, p.y, m_active_layer,
 		LAY_SELECTION, w,
-		last_seg_layer, via_w, via_hole_w, m_dir, 2 );
+		last_seg_layer, m_dir, 2 );
 	SetCursorMode( CUR_DRAG_RAT );
 
 	// AMW r269: highlight net while routing, except for ratline being routed
@@ -6506,19 +6505,17 @@ void CFreePcbView::OnEndVertexAddSegments()
 	m_sel_id.SetT3( ID_SEL_SEG );
 
 	// CPT.  Set m_active_width to the net default value:
-	int w, via_w, via_hole_w;
+	int w;
     w = m_Doc->m_trace_w;
     if (m_sel_net->def_w)
         w = m_sel_net->def_w;
     m_active_width = w;
-    GetViaWidths(w, &via_w, &via_hole_w);
 	// end CPT
 
 	m_snap_angle_ref.x = m_sel_vtx->x;
 	m_snap_angle_ref.y = m_sel_vtx->y;
 	m_Doc->m_nlist->StartDraggingStub( pDC, m_sel_net, m_sel_ic, m_sel_is,
-		p.x, p.y, m_active_layer, w, m_active_layer, via_w, via_hole_w,
-		2, m_inflection_mode );
+		p.x, p.y, m_active_layer, w, m_active_layer, 2, m_inflection_mode );
 	SetCursorMode( CUR_DRAG_TRACE );
 	ReleaseDC( pDC );
 	Invalidate( FALSE );
@@ -6576,10 +6573,9 @@ void CFreePcbView::OnRatlineComplete()
 	// complete routing to pin
 
 	// CPT:
-    int w, via_w, via_hole_w;
+    int w, via_w, via_hole_w;				// CPT r295.  The latter two are basically unused (just passed to GetWidthsForSegment() as dummies).
 	if (m_active_width!=0)
-		w = m_active_width,
-		GetViaWidths(w, &via_w, &via_hole_w);
+		w = m_active_width;
 	else
 		GetWidthsForSegment(&w, &via_w, &via_hole_w);
 	// end CPT
@@ -9278,10 +9274,7 @@ void CFreePcbView::MoveGroup( int dx, int dy )
 						if( v->utility && !v->utility2 )
 						{
 							// selected and not already moved
-							v->x += dx;
-							v->y += dy;
-							v->utility2 = TRUE;	// moved
-							// if adjacent segments were not selected, unroute them
+							// if adjacent segments were not selected, unroute them.  CPT r295 do this _before_ moving the vertex
 							if( iv>0 )
 							{
 								cseg * pre_s = &c->SegByIndex(iv-1);
@@ -9294,6 +9287,9 @@ void CFreePcbView::MoveGroup( int dx, int dy )
 								if( post_s->utility == 0 )
 									m_Doc->m_nlist->UnrouteSegmentWithoutMerge( net, ic, iv, dx, dy, 0 );
 							}
+							v->x += dx;
+							v->y += dy;
+							v->utility2 = TRUE;	// moved
 						}
 					}
 
@@ -9324,7 +9320,7 @@ void CFreePcbView::MoveGroup( int dx, int dy )
 									CPoint new_v_pt( pre_v->x, pre_v->y );
 									CPoint old_v_pt = m_Doc->m_plist->GetPinPoint( part1, net->pin[c->start_pin].pin_name );		// pre vertex coords
 									m_Doc->m_nlist->MoveVertex( net, ic, 0, old_v_pt.x, old_v_pt.y );
-									m_Doc->m_nlist->InsertSegment( net, ic, 0, new_v_pt.x, new_v_pt.y, LAY_RAT_LINE, 1, 0, 0, 0 );
+									m_Doc->m_nlist->InsertSegment( net, ic, 0, new_v_pt.x, new_v_pt.y, LAY_RAT_LINE, 0, 0 );
 									c->SegByIndex(0).utility = 0;
 									c->VtxByIndex(0).utility = 0;
 									is++;
@@ -9338,15 +9334,13 @@ void CFreePcbView::MoveGroup( int dx, int dy )
 								{
 									// insert ratline as new last segment
 									int old_w = c->SegByIndex(c->NumSegs()-1).m_width;
-									int old_v_w = c->VtxByIndex(c->NumSegs()-1).via_w;
-									int old_v_h_w = c->VtxByIndex(c->NumSegs()-1).via_hole_w;
 									int old_layer = c->SegByIndex(c->NumSegs()-1).m_layer;
 									m_Doc->m_nlist->UnrouteSegmentWithoutMerge( net, ic, c->NumSegs()-1 );
 									CPoint new_v_pt( c->VtxByIndex(c->NumSegs()).x, c->VtxByIndex(c->NumSegs()).y );
 									CPoint old_v_pt = m_Doc->m_plist->GetPinPoint( part2, net->pin[c->end_pin].pin_name );
 									m_Doc->m_nlist->MoveVertex( net, ic, c->NumSegs(), old_v_pt.x, old_v_pt.y );
 									BOOL bInserted = m_Doc->m_nlist->InsertSegment( net, ic, c->NumSegs()-1,
-										new_v_pt.x, new_v_pt.y, old_layer, old_w, old_v_w, old_v_h_w, 0 );
+										new_v_pt.x, new_v_pt.y, old_layer, old_w, 0 );
 									c->SegByIndex(c->NumSegs()-2).utility = 1;
 									c->SegByIndex(c->NumSegs()-1).utility = 0;
 								}
@@ -11602,7 +11596,7 @@ void CFreePcbView::RotateGroup()
 								CPoint new_v_pt( pre_v->x, pre_v->y );
 								CPoint old_v_pt = m_Doc->m_plist->GetPinPoint( part1, net->pin[c->start_pin].pin_name );		// pre vertex coords
 								m_Doc->m_nlist->MoveVertex( net, ic, 0, old_v_pt.x, old_v_pt.y );
-								m_Doc->m_nlist->InsertSegment( net, ic, 0, new_v_pt.x, new_v_pt.y, LAY_RAT_LINE, 1, 0, 0, 0 );
+								m_Doc->m_nlist->InsertSegment( net, ic, 0, new_v_pt.x, new_v_pt.y, LAY_RAT_LINE, 0, 0 );
 								c->SegByIndex(0).utility = 0;
 								c->VtxByIndex(0).utility = 0;
 								is++;
@@ -11615,15 +11609,13 @@ void CFreePcbView::RotateGroup()
 								{
 									// insert ratline as new last segment
 									int old_w = c->SegByIndex(c->NumSegs()-1).m_width;
-									int old_v_w = c->VtxByIndex(c->NumSegs()-1).via_w;
-									int old_v_h_w = c->VtxByIndex(c->NumSegs()-1).via_hole_w;
 									int old_layer = c->SegByIndex(c->NumSegs()-1).m_layer;
 									m_Doc->m_nlist->UnrouteSegmentWithoutMerge( net, ic, c->NumSegs()-1 );
 									CPoint new_v_pt( c->VtxByIndex(c->NumSegs()).x, c->VtxByIndex(c->NumSegs()).y );
 									CPoint old_v_pt = m_Doc->m_plist->GetPinPoint( part2, net->pin[c->end_pin].pin_name );
 									m_Doc->m_nlist->MoveVertex( net, ic, c->NumSegs(), old_v_pt.x, old_v_pt.y );
 									BOOL bInserted = m_Doc->m_nlist->InsertSegment( net, ic, c->NumSegs()-1,
-										new_v_pt.x, new_v_pt.y, old_layer, old_w, old_v_w, old_v_h_w, 0 );
+										new_v_pt.x, new_v_pt.y, old_layer, old_w, 0 );
 									c->SegByIndex(c->NumSegs()-2).utility = 1;
 									c->SegByIndex(c->NumSegs()-1).utility = 0;
 								}
@@ -12608,21 +12600,6 @@ void CFreePcbView::ActiveWidthDown(CDC * pDC) {
   ShowSelectStatus();
   }
 
-void CFreePcbView::GetViaWidths(int w, int *via_w, int *via_hole_w) {
-  // Given a segment width value "w", determine a matching via and via hole width.  Do this by first checking if w==this->m_sel_net->def_w,
-  //  and return the net's default via size if so;
-  //  otherwise, scan thru m_Doc->m_w and find the last entry in there <=w.  The corresponding members of mDoc->m_v_w
-  // and mDoc->m_v_h_w are then the return values.
-  int cWidths = m_Doc->m_w.GetSize(), i;
-  if (w == m_sel_net->def_w || cWidths == 0)
-    { *via_w = m_sel_net->def_via_w; *via_hole_w = m_sel_net->def_via_hole_w; return; }
-  for (i=1; i<cWidths; i++)
-    if (m_Doc->m_w.GetAt(i) > w) break;
-  // i-1 = last entry in width table that's <= w:
-  *via_w = m_Doc->m_v_w.GetAt(i-1);
-  *via_hole_w = m_Doc->m_v_h_w.GetAt(i-1);
-  }
-
 void CFreePcbView::RoutingGridUp() {
 	CMainFrame * frm = (CMainFrame*)AfxGetMainWnd();
 	frm->m_wndMyToolBar.RoutingGridUp();
@@ -12735,8 +12712,8 @@ void CFreePcbView::HandleNoShiftLayerKey(int layer, CDC *pDC) {
 	if( m_cursor_mode == CUR_DRAG_RAT || m_cursor_mode == CUR_DRAG_TRACE) {
 		// if we are routing, change layer
 		pDC->SelectClipRgn( &m_pcb_rgn );
-		SetDCToWorldCoords( pDC );						// Haven't figured out why we need this...
-		if( m_sel_id.I2() == 0 && m_dir == 0 ) {
+		SetDCToWorldCoords( pDC );										// Haven't figured out why we need this...
+		if( m_sel_id.I3() == 0 && m_dir == 0 ) {						// CPT r295 bugfix (I2() => I3()).
 			// we are trying to change first segment from pad
 			int p1 = m_sel_id.Con()->start_pin;
 			CString pin_name = m_sel_net->pin[p1].pin_name;
@@ -12746,7 +12723,7 @@ void CFreePcbView::HandleNoShiftLayerKey(int layer, CDC *pDC) {
 				layer = -1,
 				PlaySound( TEXT("CriticalStop"), 0, 0 );
 			}
-		else if( m_sel_id.I2() == (m_sel_id.Con()->NumSegs()-1) && m_dir == 1 ) {
+		else if( m_sel_id.I3() == (m_sel_id.Con()->NumSegs()-1) && m_dir == 1 ) {		// CPT r295 bugfix (I2() => I3()).
 			// we are trying to change last segment to pad
 			int p2 = m_sel_id.Con()->end_pin;
 			if( p2 != -1 ) {

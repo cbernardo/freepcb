@@ -287,7 +287,6 @@ void WriteFileLines(CString &fname, CArray<CString> &lines);
 void ReplaceLines(CArray<CString> &oldLines, CArray<CString> &newLines, char *key);
 // end CPT
 
-// CPT
 void CFreePcbDoc::OnFileNew()
 {
 	if( theApp.m_view_mode == CFreePcbApp::FOOTPRINT )
@@ -2001,7 +2000,7 @@ void CFreePcbDoc::ReadOptions( CStdioFile * pcb_file )
 }
 
 void AddGridVals(CArray<CString> &arr, CArray<double> &grid, CString label) {
-	// CPT: Helper for WriteOptions().  Writes the values in "grid" to "file", labeling each entry with "label"
+	// CPT: Helper for WriteOptions().  Enters the values in "grid" into "arr", labeling each entry with "label"
 	CString str;
 	for( int i=0; i<grid.GetSize(); i++ ) {
 			if( grid[i] > 0 )
@@ -2237,218 +2236,111 @@ void CFreePcbDoc::InitializeNewProject()
 	m_bHighlightNet = 0;	
 	m_sm_cutout.RemoveAll();
 
-	// colors for layers
+	// CPT compacted the code for embedded default layer colors, visibility, etc.
+	static unsigned int defaultLayerColors[] = {
+		0xffffff, 0x000000, 0xffffff, 0xffffff, // selection WHITE, backgrnd BLACK, vis grid WHITE, highlight WHITE
+		0xff8040, 0x0000ff, 0xff00ff, 0xffff00, // DRE orange, board outline BLUE, ratlines VIOLET, top silk YELLOW
+		0xffc0c0, 0xa0a0a0, 0x5f5f5f, 0x0000ff, // bottom silk PINK, top sm cutout LT GRAY, bottom sm cutout DK GRAY, thru-hole pads BLUE
+		0x00ff00, 0xff0000, 0x408040, 0x804040, // top copper GREEN, bottom copper RED, inner 1, inner 2
+		0x404080
+	};
+
+	static unsigned int defaultFpLayerColors[] = {
+		0xffffff, 0x000000, 0xffffff, 0xffffff, // selection WHITE, backgrnd BLACK, vis grid WHITE, highlight WHITE
+		0xffff00, 0xffffff, 0xff8040, 0x0000ff, // silk top YELLOW, centroid WHITE, dot ORANGE, pad-thru BLUE
+		0x007f00, 0x007f00, 0x7f0000, 0x7f0000, // Top mask+paste DK GREEN, bottom mask+paste DK RED
+		0x00ff00, 0x5f5f5f, 0xff0000            // top copper GREEN, inner copper GRAY, bottom copper RED
+	};
+
 	for( int i=0; i<MAX_LAYERS; i++ )
 	{
-		m_vis[i] = 0;
-		m_rgb[i][0] = 127; 
-		m_rgb[i][1] = 127; 
-		m_rgb[i][2] = 127;			// default grey
+		m_vis[i] = 1;
+		m_rgb[i][0] = m_rgb[i][1] = m_rgb[i][2] = 127;	// Default grey 
 	}
-	m_rgb[LAY_BACKGND][0] = 0; 
-	m_rgb[LAY_BACKGND][1] = 0; 
-	m_rgb[LAY_BACKGND][2] = 0;			// background BLACK
-	m_rgb[LAY_VISIBLE_GRID][0] = 255; 
-	m_rgb[LAY_VISIBLE_GRID][1] = 255; 
-	m_rgb[LAY_VISIBLE_GRID][2] = 255;	// visible grid WHITE 
-	m_rgb[LAY_HILITE][0] = 255; 
-	m_rgb[LAY_HILITE][1] = 255; 
-	m_rgb[LAY_HILITE][2] = 255;			//highlight WHITE
-	m_rgb[LAY_DRC_ERROR][0] = 255; 
-	m_rgb[LAY_DRC_ERROR][1] = 128; 
-	m_rgb[LAY_DRC_ERROR][2] = 64;		// DRC error ORANGE
-	m_rgb[LAY_BOARD_OUTLINE][0] = 0; 
-	m_rgb[LAY_BOARD_OUTLINE][1] = 0; 
-	m_rgb[LAY_BOARD_OUTLINE][2] = 255;	//board outline BLUE
-	m_rgb[LAY_SELECTION][0] = 255; 
-	m_rgb[LAY_SELECTION][1] = 255; 
-	m_rgb[LAY_SELECTION][2] = 255;		//selection WHITE
-	m_rgb[LAY_SILK_TOP][0] = 255; 
-	m_rgb[LAY_SILK_TOP][1] = 255; 
-	m_rgb[LAY_SILK_TOP][2] =   0;		//top silk YELLOW
-	m_rgb[LAY_SILK_BOTTOM][0] = 255; 
-	m_rgb[LAY_SILK_BOTTOM][1] = 192; 
-	m_rgb[LAY_SILK_BOTTOM][2] = 192;	//bottom silk PINK
-	m_rgb[LAY_SM_TOP][0] =   160; 
-	m_rgb[LAY_SM_TOP][1] =   160; 
-	m_rgb[LAY_SM_TOP][2] =   160;		//top solder mask cutouts LIGHT GREY
-	m_rgb[LAY_SM_BOTTOM][0] = 95; 
-	m_rgb[LAY_SM_BOTTOM][1] = 95; 
-	m_rgb[LAY_SM_BOTTOM][2] = 95;	//bottom solder mask cutouts DARK GREY
-	m_rgb[LAY_PAD_THRU][0] =   0; 
-	m_rgb[LAY_PAD_THRU][1] =   0; 
-	m_rgb[LAY_PAD_THRU][2] = 255;		//thru-hole pads BLUE
-	m_rgb[LAY_RAT_LINE][0] = 255; 
-	m_rgb[LAY_RAT_LINE][1] = 0; 
-	m_rgb[LAY_RAT_LINE][2] = 255;		//ratlines VIOLET
-	m_rgb[LAY_TOP_COPPER][0] =   0; 
-	m_rgb[LAY_TOP_COPPER][1] = 255; 
-	m_rgb[LAY_TOP_COPPER][2] =   0;		//top copper GREEN
-	m_rgb[LAY_BOTTOM_COPPER][0] = 255; 
-	m_rgb[LAY_BOTTOM_COPPER][1] =   0; 
-	m_rgb[LAY_BOTTOM_COPPER][2] =   0;	//bottom copper RED
-	m_rgb[LAY_BOTTOM_COPPER+1][0] = 64; 
-	m_rgb[LAY_BOTTOM_COPPER+1][1] = 128; 
-	m_rgb[LAY_BOTTOM_COPPER+1][2] = 64;	
-	m_rgb[LAY_BOTTOM_COPPER+2][0] = 128; // inner 1 
-	m_rgb[LAY_BOTTOM_COPPER+2][1] = 64; 
-	m_rgb[LAY_BOTTOM_COPPER+2][2] = 64;	
-	m_rgb[LAY_BOTTOM_COPPER+3][0] = 64; // inner 2
-	m_rgb[LAY_BOTTOM_COPPER+3][1] = 64; 
-	m_rgb[LAY_BOTTOM_COPPER+3][2] = 128;	
-	m_rgb[LAY_BOTTOM_COPPER+4][0] = 64; // inner 3
-	m_rgb[LAY_BOTTOM_COPPER+4][1] = 64; 
-	m_rgb[LAY_BOTTOM_COPPER+4][2] = 64;	
-	m_rgb[LAY_BOTTOM_COPPER+5][0] = 64; // inner 5
-	m_rgb[LAY_BOTTOM_COPPER+5][1] = 64; 
-	m_rgb[LAY_BOTTOM_COPPER+5][2] = 64;	
-	m_rgb[LAY_BOTTOM_COPPER+6][0] = 64; // inner 6 
-	m_rgb[LAY_BOTTOM_COPPER+6][1] = 64; 
-	m_rgb[LAY_BOTTOM_COPPER+6][2] = 64;	
+	for (int i=0; i<17; i++)
+		m_rgb[i][0] = defaultLayerColors[i]>>16,
+		m_rgb[i][1] = defaultLayerColors[i]>>8 & 0xff,
+		m_rgb[i][2] = defaultLayerColors[i]&0xff;
+	for (int i=0; i<15; i++)
+		m_fp_rgb[i][0] = defaultFpLayerColors[i]>>16,
+		m_fp_rgb[i][1] = defaultFpLayerColors[i]>>8 & 0xff,
+		m_fp_rgb[i][2] = defaultFpLayerColors[i]&0xff;
 
-	// now set layer colors and visibility
+	// set main screen layer colors & visibility
 	for( int i=0; i<m_num_layers; i++ )
 	{
 		m_vis[i] = 1;
 		m_dlist->SetLayerRGB( i, C_RGB(m_rgb[i][0], m_rgb[i][1], m_rgb[i][2]) );
 		m_dlist->SetLayerVisible( i, m_vis[i] );
 	}
-
-	// colors for footprint editor layers
-	m_fp_num_layers = NUM_FP_LAYERS;
-	m_fp_rgb[LAY_FP_SELECTION][0] = 255; 
-	m_fp_rgb[LAY_FP_SELECTION][1] = 255; 
-	m_fp_rgb[LAY_FP_SELECTION][2] = 255;		//selection WHITE
-	m_fp_rgb[LAY_FP_BACKGND][0] = 0; 
-	m_fp_rgb[LAY_FP_BACKGND][1] = 0; 
-	m_fp_rgb[LAY_FP_BACKGND][2] = 0;			// background BLACK
-	m_fp_rgb[LAY_FP_VISIBLE_GRID][0] = 255; 
-	m_fp_rgb[LAY_FP_VISIBLE_GRID][1] = 255; 
-	m_fp_rgb[LAY_FP_VISIBLE_GRID][2] = 255;	// visible grid WHITE 
-	m_fp_rgb[LAY_FP_HILITE][0] = 255; 
-	m_fp_rgb[LAY_FP_HILITE][1] = 255; 
-	m_fp_rgb[LAY_FP_HILITE][2] = 255;		//highlight WHITE
-	m_fp_rgb[LAY_FP_SILK_TOP][0] = 255; 
-	m_fp_rgb[LAY_FP_SILK_TOP][1] = 255; 
-	m_fp_rgb[LAY_FP_SILK_TOP][2] =   0;		//top silk YELLOW
-	m_fp_rgb[LAY_FP_SILK_BOTTOM][0] = 255; 
-	m_fp_rgb[LAY_FP_SILK_BOTTOM][1] = 192; 
-	m_fp_rgb[LAY_FP_SILK_BOTTOM][2] = 192;	//bottom silk PINK
-	m_fp_rgb[LAY_FP_CENTROID][0] = 255; 
-	m_fp_rgb[LAY_FP_CENTROID][1] = 255; 
-	m_fp_rgb[LAY_FP_CENTROID][2] = 255;		//centroid WHITE
-	m_fp_rgb[LAY_FP_DOT][0] = 255; 
-	m_fp_rgb[LAY_FP_DOT][1] = 128; 
-	m_fp_rgb[LAY_FP_DOT][2] =  64;			//adhesive dot ORANGE
-	m_fp_rgb[LAY_FP_PAD_THRU][0] =   0; 
-	m_fp_rgb[LAY_FP_PAD_THRU][1] =   0; 
-	m_fp_rgb[LAY_FP_PAD_THRU][2] = 255;		//thru-hole pads BLUE
-	m_fp_rgb[LAY_FP_TOP_MASK][0] = 0; 
-	m_fp_rgb[LAY_FP_TOP_MASK][1] = 127; 
-	m_fp_rgb[LAY_FP_TOP_MASK][2] = 0;		//top mask DARK GREEN
-	m_fp_rgb[LAY_FP_TOP_PASTE][0] = 0; 
-	m_fp_rgb[LAY_FP_TOP_PASTE][1] = 127; 
-	m_fp_rgb[LAY_FP_TOP_PASTE][2] = 0;		//top paste DARK GREEN
-	m_fp_rgb[LAY_FP_BOTTOM_MASK][0] = 127; 
-	m_fp_rgb[LAY_FP_BOTTOM_MASK][1] = 0; 
-	m_fp_rgb[LAY_FP_BOTTOM_MASK][2] = 0;		//bottom mask DARK RED
-	m_fp_rgb[LAY_FP_BOTTOM_PASTE][0] = 127; 
-	m_fp_rgb[LAY_FP_BOTTOM_PASTE][1] = 0; 
-	m_fp_rgb[LAY_FP_BOTTOM_PASTE][2] = 0;		//bottom paste DARK RED
-	m_fp_rgb[LAY_FP_TOP_COPPER][0] =   0; 
-	m_fp_rgb[LAY_FP_TOP_COPPER][1] = 255; 
-	m_fp_rgb[LAY_FP_TOP_COPPER][2] =   0;		//top copper GREEN
-	m_fp_rgb[LAY_FP_INNER_COPPER][0] =  128; 
-	m_fp_rgb[LAY_FP_INNER_COPPER][1] = 128; 
-	m_fp_rgb[LAY_FP_INNER_COPPER][2] =  128;		//inner copper GREY
-	m_fp_rgb[LAY_FP_BOTTOM_COPPER][0] = 255; 
-	m_fp_rgb[LAY_FP_BOTTOM_COPPER][1] = 0; 
-	m_fp_rgb[LAY_FP_BOTTOM_COPPER][2] = 0;		//bottom copper RED
-
 	// now set footprint editor layer colors and visibility
+	m_fp_num_layers = NUM_FP_LAYERS;
 	for( int i=0; i<m_fp_num_layers; i++ )
 	{
 		m_fp_vis[i] = 1;
 		m_dlist_fp->SetLayerRGB( i, C_RGB(m_fp_rgb[i][0], m_fp_rgb[i][1], m_fp_rgb[i][2]) );
 		m_dlist_fp->SetLayerVisible( i, 1 );
 	}
+	// end CPT
 
-	// default visible grid spacing menu values (in NM)
+	// CPT:  Also compacted the embedded-defaults code for grid values.  Later we'll see if we can read vals from default.cfg...
+	static const double vis_grid_vals[] =
+		{ 1000*NM_PER_MIL, 500*NM_PER_MIL, 400*NM_PER_MIL, 250*NM_PER_MIL, 200*NM_PER_MIL, 125*NM_PER_MIL, 100*NM_PER_MIL 
+		-100*NM_PER_MM, -50*NM_PER_MM, -40*NM_PER_MM, -25*NM_PER_MM, -20*NM_PER_MM, -10*NM_PER_MM, -5*NM_PER_MM, -2*NM_PER_MM };
 	m_visible_grid.RemoveAll();
-	m_visible_grid.Add( 100*NM_PER_MIL );
-	m_visible_grid.Add( 125*NM_PER_MIL );
-	m_visible_grid.Add( 200*NM_PER_MIL );	// default index = 2
-	m_visible_grid.Add( 250*NM_PER_MIL );
-	m_visible_grid.Add( 400*NM_PER_MIL );
-	m_visible_grid.Add( 500*NM_PER_MIL );
-	m_visible_grid.Add( 1000*NM_PER_MIL );
-//	int visible_index = 2;
+	m_visible_grid_hidden.RemoveAll();
+	for (int i=0; i<15; i++)
+		m_visible_grid.Add( vis_grid_vals[i] );
 	m_visual_grid_spacing = 200*NM_PER_MIL;
 	m_dlist->SetVisibleGrid( TRUE, m_visual_grid_spacing );
 
 	// default placement grid spacing menu values (in NM)
+	static const double part_grid_vals[] = 
+		{ 1000*NM_PER_MIL, 500*NM_PER_MIL, 400*NM_PER_MIL, 250*NM_PER_MIL, 200*NM_PER_MIL, 100*NM_PER_MIL, 
+		  50*NM_PER_MIL, 40*NM_PER_MIL, 25*NM_PER_MIL, 20*NM_PER_MIL, 10*NM_PER_MIL,
+		 -10*NM_PER_MM, -5*NM_PER_MM, -4*NM_PER_MM, -2*NM_PER_MM, -1*NM_PER_MM, -.5*NM_PER_MM, -.4*NM_PER_MM, -.2*NM_PER_MM };
 	m_part_grid.RemoveAll();
-	m_part_grid.Add( 10*NM_PER_MIL );
-	m_part_grid.Add( 20*NM_PER_MIL );
-	m_part_grid.Add( 25*NM_PER_MIL );
-	m_part_grid.Add( 40*NM_PER_MIL );
-	m_part_grid.Add( 50*NM_PER_MIL );		// default
-	m_part_grid.Add( 100*NM_PER_MIL );
-	m_part_grid.Add( 200*NM_PER_MIL );
-	m_part_grid.Add( 250*NM_PER_MIL );
-	m_part_grid.Add( 400*NM_PER_MIL );
-	m_part_grid.Add( 500*NM_PER_MIL );
-	m_part_grid.Add( 1000*NM_PER_MIL );
+	m_part_grid_hidden.RemoveAll();
+	for (int i=0; i<19; i++)
+		m_part_grid.Add( part_grid_vals[i] );
 	m_part_grid_spacing = 50*NM_PER_MIL;
 
 	// default routing grid spacing menu values (in NM)
+	static const double routing_grid_vals[] = 
+		{ 100*NM_PER_MIL, 50*NM_PER_MIL, 40*NM_PER_MIL, 25*NM_PER_MIL, 20*NM_PER_MIL, 10*NM_PER_MIL, 
+		  5*NM_PER_MIL, 4*NM_PER_MIL, 2.5*NM_PER_MIL, 2*NM_PER_MIL, 1*NM_PER_MIL,
+		 -10*NM_PER_MM, -5*NM_PER_MM, -4*NM_PER_MM, -2*NM_PER_MM, -1*NM_PER_MM, -.5*NM_PER_MM, -.4*NM_PER_MM, -.2*NM_PER_MM,
+ 		 -.1*NM_PER_MM, -.05*NM_PER_MM, -.04*NM_PER_MM, -.02*NM_PER_MM, -.01*NM_PER_MM };
 	m_routing_grid.RemoveAll();
-	m_routing_grid.Add( 1*NM_PER_MIL );
-	m_routing_grid.Add( 2*NM_PER_MIL );
-	m_routing_grid.Add( 2.5*NM_PER_MIL );
-	m_routing_grid.Add( 3.333333333333*NM_PER_MIL );
-	m_routing_grid.Add( 4*NM_PER_MIL );
-	m_routing_grid.Add( 5*NM_PER_MIL );
-	m_routing_grid.Add( 8.333333333333*NM_PER_MIL );
-	m_routing_grid.Add( 10*NM_PER_MIL );	// default
-	m_routing_grid.Add( 16.66666666666*NM_PER_MIL );
-	m_routing_grid.Add( 20*NM_PER_MIL );
-	m_routing_grid.Add( 25*NM_PER_MIL );
-	m_routing_grid.Add( 40*NM_PER_MIL );
-	m_routing_grid.Add( 50*NM_PER_MIL );
-	m_routing_grid.Add( 100*NM_PER_MIL );
+	m_routing_grid_hidden.RemoveAll();
+	for (int i=0; i<24; i++)
+		m_routing_grid.Add( routing_grid_vals[i] );
 	m_routing_grid_spacing = 10*NM_PER_MIL;
-
+	
 	// footprint editor parameters 
 	m_fp_units = MIL;
 
 	// default footprint editor visible grid spacing menu values (in NM)
+	static const double fp_vis_grid_vals[] =
+		{ 400*NM_PER_MIL, 250*NM_PER_MIL, 200*NM_PER_MIL, 125*NM_PER_MIL, 100*NM_PER_MIL,
+		-100*NM_PER_MM, -50*NM_PER_MM, -40*NM_PER_MM, -25*NM_PER_MM, -20*NM_PER_MM };
 	m_fp_visible_grid.RemoveAll();
-	m_fp_visible_grid.Add( 100*NM_PER_MIL );
-	m_fp_visible_grid.Add( 125*NM_PER_MIL );
-	m_fp_visible_grid.Add( 200*NM_PER_MIL );	
-	m_fp_visible_grid.Add( 250*NM_PER_MIL );
-	m_fp_visible_grid.Add( 400*NM_PER_MIL );
+	m_fp_visible_grid_hidden.RemoveAll();
+	for (int i=0; i<10; i++)
+		m_fp_visible_grid.Add( fp_vis_grid_vals[i] );
 	m_fp_visual_grid_spacing = 200*NM_PER_MIL;
 
-	// default footprint editor placement grid spacing menu values (in NM)
+	// default footprint editor placement grid spacing menu values (in NM)  (CPT: same as regular placement grid)
 	m_fp_part_grid.RemoveAll();
-	m_fp_part_grid.Add( 10*NM_PER_MIL );
-	m_fp_part_grid.Add( 20*NM_PER_MIL );
-	m_fp_part_grid.Add( 25*NM_PER_MIL );
-	m_fp_part_grid.Add( 40*NM_PER_MIL );
-	m_fp_part_grid.Add( 50*NM_PER_MIL );
-	m_fp_part_grid.Add( 100*NM_PER_MIL );
-	m_fp_part_grid.Add( 200*NM_PER_MIL );
-	m_fp_part_grid.Add( 250*NM_PER_MIL );
-	m_fp_part_grid.Add( 400*NM_PER_MIL );
-	m_fp_part_grid.Add( 500*NM_PER_MIL );
-	m_fp_part_grid.Add( 1000*NM_PER_MIL );
+	m_fp_part_grid_hidden.RemoveAll();
+	for (int i=0; i<19; i++)
+		m_fp_part_grid.Add( part_grid_vals[i] );
 	m_fp_part_grid_spacing = 50*NM_PER_MIL;
 
 	CMainFrame * frm = (CMainFrame*)AfxGetMainWnd();
 	frm->m_wndMyToolBar.SetLists( &m_visible_grid, &m_part_grid, &m_routing_grid,
 		m_visual_grid_spacing, m_part_grid_spacing, m_routing_grid_spacing, m_snap_angle, MIL );
+	// end CPT
 
 	// default PCB parameters
 	m_bSMT_copper_connect = FALSE;
@@ -2497,32 +2389,19 @@ void CFreePcbDoc::InitializeNewProject()
 	m_dr.hole_hole = 25*NM_PER_MIL;
 	m_dr.copper_copper = 10*NM_PER_MIL;
 
-	// default trace widths (must be in ascending order)
-	m_w.SetAtGrow( 0, 6*NM_PER_MIL );
-	m_w.SetAtGrow( 1, 8*NM_PER_MIL );
-	m_w.SetAtGrow( 2, 10*NM_PER_MIL );
-	m_w.SetAtGrow( 3, 12*NM_PER_MIL );
-	m_w.SetAtGrow( 4, 15*NM_PER_MIL );
-	m_w.SetAtGrow( 5, 20*NM_PER_MIL );
-	m_w.SetAtGrow( 6, 25*NM_PER_MIL );
-
-	// default via widths
-	m_v_w.SetAtGrow( 0, 24*NM_PER_MIL );
-	m_v_w.SetAtGrow( 1, 24*NM_PER_MIL );
-	m_v_w.SetAtGrow( 2, 24*NM_PER_MIL );
-	m_v_w.SetAtGrow( 3, 24*NM_PER_MIL );
-	m_v_w.SetAtGrow( 4, 30*NM_PER_MIL );
-	m_v_w.SetAtGrow( 5, 30*NM_PER_MIL );
-	m_v_w.SetAtGrow( 6, 40*NM_PER_MIL );
-
-	// default via hole widths
-	m_v_h_w.SetAtGrow( 0, 15*NM_PER_MIL );
-	m_v_h_w.SetAtGrow( 1, 15*NM_PER_MIL );
-	m_v_h_w.SetAtGrow( 2, 15*NM_PER_MIL );
-	m_v_h_w.SetAtGrow( 3, 15*NM_PER_MIL );
-	m_v_h_w.SetAtGrow( 4, 18*NM_PER_MIL );
-	m_v_h_w.SetAtGrow( 5, 18*NM_PER_MIL );
-	m_v_h_w.SetAtGrow( 6, 20*NM_PER_MIL );
+	// Embedded default trace widths (must be in ascending order)
+	// CPT streamlined
+	int defaultW[] = { 6*NM_PER_MIL, 8*NM_PER_MIL, 10*NM_PER_MIL, 12*NM_PER_MIL, 15*NM_PER_MIL, 20*NM_PER_MIL, 25*NM_PER_MIL };
+	int defaultVw[] = { 24*NM_PER_MIL, 24*NM_PER_MIL, 24*NM_PER_MIL, 24*NM_PER_MIL, 30*NM_PER_MIL, 30*NM_PER_MIL, 40*NM_PER_MIL };
+	int defaultVhw[] = { 15*NM_PER_MIL, 15*NM_PER_MIL, 15*NM_PER_MIL, 15*NM_PER_MIL, 18*NM_PER_MIL, 18*NM_PER_MIL, 20*NM_PER_MIL };
+	m_w.RemoveAll();
+	m_v_w.RemoveAll();
+	m_v_h_w.RemoveAll();
+	for (int i=0; i<7; i++) 
+		m_w.Add(defaultW[i]),
+		m_v_w.Add(defaultVw[i]),
+		m_v_h_w.Add(defaultVhw[i]);
+	// end CPT
 
 	// netlist import options
 	m_netlist_full_path = "";
@@ -3524,6 +3403,7 @@ int CFreePcbDoc::ImportPADSPCBNetlist( CStdioFile * file, UINT flags,
 				(*pl)[ipart].side = 0;
 				(*pl)[ipart].x = 0;
 				(*pl)[ipart].y = 0;
+				(*pl)[ipart].ref_vis = true;		// CPT
 				ipart++;
 			}
 		}

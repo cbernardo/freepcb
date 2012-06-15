@@ -317,8 +317,6 @@ public:
 	afx_msg void OnViewRoutingGrid();
 	afx_msg void OnViewVisibleGrid();
 	afx_msg void OnViewPlacementGrid();
-	void SaveOptionsToRegistry();
-	void ReadOptionsFromRegistry();
 	void CollectOptionsStrings(CArray<CString> &arr);
 	// end CPT
 };

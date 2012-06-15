@@ -39,6 +39,8 @@ void CDlgImportOptions::DoDataExchange(CDataExchange* pDX)
 	DDX_Control( pDX, IDC_RADIO_PARTSANDNETS, m_radio_parts_and_nets );
 	DDX_Control( pDX, IDC_RADIO_PADSPCB, m_radio_padspcb );
 	DDX_Control( pDX, IDC_RADIO_FREEPCB, m_radio_freepcb );
+	// end CPT
+
 	if( !pDX->m_bSaveAndValidate )
 	{
 		// incoming

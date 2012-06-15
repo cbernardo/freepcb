@@ -650,7 +650,8 @@ bool CCommonView::HandleLayerKey(UINT nChar, bool bShiftKeyDown, bool bCtrlKeyDo
 	if( layer >= GetNLayers() ) return true;
 	InvalidateLeftPane();
 	Invalidate(FALSE);
-	if (bCtrlKeyDown) {
+	if (bCtrlKeyDown) 
+	{
 		// New CPT ctrl-hotkeys
 		int vis = ToggleLayerVis(layer);
 		m_dlist->SetLayerVisible( layer, vis );
