@@ -4000,7 +4000,7 @@ void CNetList::GetViaWidths(cnet *net, int w, int *via_w, int *via_hole_w) {
   }
 
 // Reconcile via with preceding and following segments
-// CPT r295: if a via is needed,  determine the size based on the segments' widths and possibly the net 
+// CPT r295: if a via is needed,  determine the size now, based on the segments' widths and possibly the net 
 // defaults.
 int CNetList::ReconcileVia( cnet * net, int ic, int ivtx, BOOL bDrawVertex )
 {

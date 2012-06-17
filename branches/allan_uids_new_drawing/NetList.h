@@ -28,7 +28,6 @@ extern int m_layer_by_file_layer[MAX_LAYERS];
 
 class CNetList;
 class cvertex;
-class CVertex;
 class cconnect;
 class CIterator_cconnect;
 class CFreePcbDoc;					// CPT

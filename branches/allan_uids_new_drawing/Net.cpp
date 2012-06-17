@@ -147,7 +147,6 @@ carea::carea()
 	npins = 0;
 	nvias = 0;
 	utility = 0;
-	utility = 0;
 	utility2 = 0;
 }
 
@@ -157,7 +156,6 @@ carea::carea()
 carea::carea( const carea& s )
 {
 	m_net = NULL;
-	npins = 0;
 	nvias = 0;
 	npins = 0;
 	m_parent_id.Clear();

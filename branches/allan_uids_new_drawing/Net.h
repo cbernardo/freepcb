@@ -18,7 +18,6 @@
 #include "NetList.h"
 
 class cconnect;
-class CVertex;
 class cvertex;
 class cseg;
 class cpin;
@@ -26,6 +25,7 @@ class carea;
 class undo_con;
 class undo_seg;
 class undo_vtx;
+
 
 // cpin: describes a pin in a net
 class cpin
@@ -349,6 +349,6 @@ public:
 	CDisplayList * m_dlist;		// CDisplayList to use
 	CNetList * m_nlist;			// parent netlist
 	// new stuff, for testing
-	CMap<int,int,CVertex*,CVertex*> m_vertex_map;
+//	CMap<int,int,CVertex*,CVertex*> m_vertex_map;
 };
 

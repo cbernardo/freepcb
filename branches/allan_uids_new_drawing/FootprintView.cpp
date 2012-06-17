@@ -645,6 +645,7 @@ void CFootprintView::OnLButtonDblClk(UINT nFlags, CPoint point)
 		m_dlist->StartDraggingSelection( pDC, p.x, p.y );
 	}
 #endif
+	OnLButtonDown(nFlags, point);					// CPT r296.  We want double clicks to behave like 2 quick single clicks.
 	CView::OnLButtonDblClk(nFlags, point);
 }
 

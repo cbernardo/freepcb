@@ -1,6 +1,6 @@
 // PolyLine.h ... definition of CPolyLine class
 //
-// A polyline is an set of connected line segments
+// A polyline is a set of connected line segments
 // It may be closed (ie. a polygon) or open
 //
 // The CPolyLine class represents a polyline that contains one 
@@ -91,7 +91,6 @@ class CPolyLine
 public:
 	enum { STRAIGHT, ARC_CW, ARC_CCW };	// side styles
 	enum { NO_HATCH, DIAGONAL_FULL, DIAGONAL_EDGE }; // hatch styles
-//	enum { DEF_SIZE = 50, DEF_ADD = 50 };	// number of array elements to add at a time
 
 	// constructors/destructor
 	CPolyLine();
