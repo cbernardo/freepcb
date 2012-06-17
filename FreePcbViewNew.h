@@ -161,117 +161,12 @@ enum {
 	FK_ARROW
 };
 
-#if 0	// AMW r278: replaced by string table
-// function key menu strings
-const char fk_str[FK_NUM_OPTIONS*2+2][32] = 
-{ 
-	"",			"",
-	" Move",	" Part",
-	" Move",	" Ref Text",
-	" Move",	" Value",
-	" Rotate",	" Part CW",
-	" Rotate",	" Part CCW",
-	" Rotate",	" CW",
-	" Rotate",	" CCW",
-	" Rotate",	" CW",
-	" Rotate",	" CCW",
-	" Change",	" Side",
-	" Route",	" Segment",
-	" Unroute",	" Segment",
-	" Reroute",	" Segment",
-	" Complete"," Segment",
-	" Add",		" Part",
-	" Add",		" Net",
-	" Add",		" Text",
-	" Add",		" Graphics",
-	" Recalc.",	" Ratlines",
-	" Add",		" Area",
-	" Delete",  " Part",
-	" Delete",  " Vertex",
-	" Move",	" Vertex",
-	" Move",	" Corner",
-	" Add",		" Corner",
-	" Delete",	" Corner",
-	" Draw",	" Ratline",
-	" Detach",	" Net",
-	" Set",		" Net",
-	" Delete",	" Trace",  
-	" Force",	" Via",
-	" Set",		" Width",
-	" Lock",	" Connect",
-	" Unlock",	" Connect",
-	" Move",	" Text",
-	" Rotate",	" Text",
-	" Delete",	" Text",
-	" Straight"," Line",
-	" Arc",		" (CW)",
-	" Arc",		" (CCW)",
-	" Edit",	" Part",
-	" Edit",	" Footprint",
-	" Glue",	" Part",
-	" Unglue",	" Part",
-	" Undo",	"",
-	" Set",		" Size",
-	" Set",		" Params",
-	" Start",	" Trace",	
-	" Edit",	" Text",
-	" Set",		" Position",
-	" Delete",	" Outline",
-	" Delete",	" Area",
-	" Delete",	" Cutout",
-	" Start",	" Trace",	
-	" Add",		" Via",
-	" Delete",	" Via",
-	" Delete",	" Segment",
-	" Unroute",	" Trace",
-	" Change",	" Pin",
-	" Add",		" Cutout",
-	" Change",	" Layer",
-	" Edit",	" Net",
-	" Move",	" Group",
-	" Delete",	" Group",
-	" Rotate",	" Group",
-	" Edit Via"," Or Vertex",  
-	" Add",		" Vertex",
-	" Set Side"," Style",
-	" Edit",	" Area",
-	" Move",	" Segment",
-
-	// CPT
-    " Increase",    " Width",
-    " Decrease",    " Width",
-	" Increase",    " Grid",
-	" Decrease",    " Grid",
-	// end CPT
-
-	" ****",	" ****"
-};
-#endif
-
 // snap modes
 enum {	SM_GRID_POINTS,	// snap to grid points
 		SM_GRID_LINES	// snap to grid lines
 };
 
-/* CPT: added to string rsrc table
-// selection mask menu strings
-const char sel_mask_str[NUM_SEL_MASKS][32] = 
-{
-	"parts",
-	"ref des",
-	"value",
-	"pins",
-	"traces/ratlines",
-	"vertices/vias",
-	"copper areas",
-	"text",
-	"sm cutouts",
-	"board outline",
-	"DRC errors"
-};
-*/
-
-// descriptor for undo/redo
+// descriptor for undo/redo.  TODO think about...
 struct undo_descriptor {
 	CFreePcbView * view;	// the view class
 	CUndoList * list;		// undo or redo list
@@ -288,7 +183,7 @@ struct undo_group_descriptor {
 	CUndoList * list;		// undo or redo list
 	int type;				// type of operation
 	CArray<CString> str;	// array strings with names of items in group
-	CArray<id> m_ids;		// array of item ids
+	carray<cpcb_item> items;	// CPT
 };
 
 class CFreePcbView : public CCommonView
@@ -324,28 +219,14 @@ public:
 		UNDO_GROUP_ADD
 	};
 
-public: // create from serialization only
-	CFreePcbView();
-	DECLARE_DYNCREATE(CFreePcbView)
-
-// Attributes
 public:
-	CFreePcbDoc* GetDocument();
+	// CPT2. selected item(s)
+	carray<cpcb_item> m_sel;
 
-// member variables
-public:
 	// flag to indicate that a newly-created item is being dragged,
 	// as opposed to an existing item
 	// if so, right-clicking or ESC will delete item not restore it
 	BOOL m_dragging_new_item;
-
-	// parameters for dragging selection rectangle
-	BOOL m_bLButtonDown;
-	BOOL m_bDraggingRect;
-	CPoint m_start_pt;
-	CRect m_drag_rect, m_last_drag_rect;
-	BOOL m_bDontDrawDragRect;					// CPT true after an autoscroll but before repainting occurs
-	CRect m_sel_rect;							// rectangle used for selection
 
 	// mode for drawing new polyline segments
 	int m_polyline_style;	// STRAIGHT, ARC_CW or ARC_CCW
@@ -356,45 +237,12 @@ public:
 	// if right-click handled some other way
 	int m_disable_context_menu;
 
-	// selected items
-	cpart * m_sel_part;		// pointer to part, if selected
-	cnet * m_sel_net;		// pointer to net, if selected
-	CText * m_sel_text;		// pointer to text, if selected
-	DRError * m_sel_dre;	// pointer to DRC error, if selected
-	CArray<id> m_sel_ids;	// array of multiple selections
-	CArray<void*> m_sel_ptrs;	// array of pointers to selected items
-
 	// highlight flags
 	bool m_bNetHighlighted;	// current net is highlighted (not selected)
 
-#define m_sel_ic m_sel_id.I2()							// index of selected connection
-#define m_sel_ia m_sel_id.I2()							// index of selected area
-#define m_sel_is m_sel_id.I3()						// index of selected side, segment, or corner
-#define m_sel_iv m_sel_id.I3()						// index of selected vertex
-
-#define m_sel_con (m_sel_net->ConByIndex(m_sel_ic))	// selected connection
-
-#define m_sel_seg (&m_sel_con->SegByIndex(m_sel_is))			// selected side or segment
-#define m_sel_prev_seg (&m_sel_con->SegByIndex(m_sel_is-1))			// selected side or segment
-#define m_sel_next_seg (&m_sel_con->SegByIndex(m_sel_is+1))			// selected side or segment
-
-#define m_sel_vtx (&m_sel_con->VtxByIndex(m_sel_is))			// selected vertex
-#define m_sel_prev_vtx (&m_sel_con->VtxByIndex(m_sel_is-1))	// last vertex
-#define m_sel_next_vtx (&m_sel_con->VtxByIndex(m_sel_is+1))	// next vertex
-#define m_sel_next_next_vtx (&m_sel_con->VtxByIndex(m_sel_is+2))	// next vertex after that
-
-#define m_sel_con_last_vtx (&m_sel_con->VtxByIndex(m_sel_con->NumSegs()))
-
-#define m_sel_con_start_pin (&m_sel_net->pin[m_sel_con->start_pin])
-#define m_sel_con_end_pin (&m_sel_net->pin[m_sel_con->end_pin])
-
-	// direction of routing
-	int m_dir;			// 0 = forward, 1 = back
-
-// CPT
-    int m_active_width;             // Width for upcoming segs during routing mode (in nm)
-	DWORD m_last_autoscroll;		// Tick count when an autoscroll last occurred.
-// end CPT
+	// routing options
+	int m_dir;					// 0 = forward, 1 = back
+    int m_active_width;         // CPT Width for upcoming segs during routing mode (in nm)
 
 	// grid stuff
 	int m_snap_mode;			// snap mode
@@ -408,6 +256,22 @@ public:
 	CPoint m_to_pt;				// for dragging segment, endpoint of this segment
 	CPoint m_last_pt;			// for dragging segment
 	CPoint m_next_pt;			// for dragging segment
+	// parameters for dragging selection rectangle
+	BOOL m_bLButtonDown;
+	BOOL m_bDraggingRect;
+	CPoint m_start_pt;
+	CRect m_drag_rect, m_last_drag_rect;
+	BOOL m_bDontDrawDragRect;					// CPT true after an autoscroll but before repainting occurs
+	DWORD m_last_autoscroll;					// CPT Tick count when an autoscroll last occurred.
+	CRect m_sel_rect;							// rectangle used for selection
+
+
+public: // create from serialization only
+	CFreePcbView();
+	DECLARE_DYNCREATE(CFreePcbView)
+
+// Attributes
+	CFreePcbDoc* GetDocument();
 
 // Operations
 public:
@@ -424,18 +288,18 @@ public:
 // Implementation
 public:
 	virtual ~CFreePcbView();
-	void OnNewProject();					// CPT.  Used to be called InitializeView().
+	void OnNewProject();										// CPT.  Used to be called InitializeView().
 
 	void SetMainMenu( BOOL bAll );
 	void SetCursorMode( int mode );
 	void SetFKText( int mode );
-	BOOL SelectItem( id sid );
+	BOOL SelectItem( cpcb_item *item );							// CPT2. Arg changed
 	int ShowSelectStatus();
 	int ShowActiveLayer();
 	int SelectPart( cpart * part );
-	void CancelHighlight();		// AMW r272
+	void CancelHighlight();										// AMW r272
 	void CancelSelection();
-	void HighlightNet( cnet * net, id * exclude_id=NULL );
+	void HighlightNet( cnet * net, cpcb_item * exclude=NULL );	// CPT2. Arg changed
 	void CancelHighlightNet();
 	int SetWidth( int mode );
 	int GetWidthsForSegment( int * w, int * via_w, int * via_hole_w );
@@ -446,10 +310,10 @@ public:
 	void CancelDraggingGroup();
 	void MoveGroup( int dx, int dy );
 	void RotateGroup();
-	void DeleteGroup(  CArray<void*> * grp_ptr, CArray<id> * grp_id );
+	void DeleteGroup( carray<cpcb_item> *grp );					// CPT2. Arg changed
 	void FindGroupCenter();
 	void HighlightGroup();
-	int FindItemInGroup( void * ptr, id * tid );	
+	// int FindItemInGroup( void * ptr, id * tid );				// CPT2. Use m_sel.Contains(pItem);
 	BOOL GluedPartsInGroup();
 	void UngluePartsInGroup();
 	int SegmentMovable();
@@ -459,6 +323,7 @@ public:
 	BOOL CurDraggingRouting();
 	BOOL CurDraggingPlacement();
 	void SnapCursorPoint( CPoint wp, UINT nFlags );
+	// CPT2 TODO Need to think about undo stuff...
 	void SaveUndoInfoForPart( cpart * part, int type, CString * new_ref_des, BOOL new_event, CUndoList * list );
 	void SaveUndoInfoForPartAndNets( cpart * part, int type, CString * new_ref_des, BOOL new_event, CUndoList * list );
 	void SaveUndoInfoFor2PartsAndNets( cpart * part1, cpart * part2, BOOL new_event, CUndoList * list );
@@ -485,8 +350,8 @@ public:
 	static void UndoGroupCallback( int type, void * ptr, BOOL undo );
 	void OnExternalChangeFootprint( CShape * fp );
 	void HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags);
-	void CFreePcbView::TryToReselectAreaCorner( int x, int y );
-	void ReselectNetItemIfConnectionsChanged( int new_ic );
+	void TryToReselectAreaCorner( int x, int y );
+	// void ReselectNetItemIfConnectionsChanged( int new_ic );								// CPT2: should be obsolete...
 	int SelectObjPopup( CPoint const &point );												// CPT r294: removed args (use m_hit_info instead)
 	bool DoGroupCopy();																		// CPT added:  OnGroupCopy() wraps around this.  But it's 
 																							// nice to have a bool return value here.
@@ -641,7 +506,7 @@ public:
 	bool ConvertSelectionToGroup(bool bChangeMode);
 	void ConvertSelectionToGroupAndMove(int dx, int dy);
 	void ConvertSingletonGroup();
-	void ToggleSelectionState(id &sid, void *ptr);
+	void ToggleSelectionState(cpcb_item *item);					// CPT2. Arg change
 
 	// CPT:  virtual functions from CCommonView:
 	bool IsFreePcbView() { return true; }
