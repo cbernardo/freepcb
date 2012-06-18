@@ -244,11 +244,9 @@ public:
 						int layer_no_via, int crosshair, int inflection_mode );			// CPT r295, removed via-width args
 	void CancelDraggingStub( cnet * net, int ic, int iseg );
 	int CancelMovingSegment( cnet * net, int ic, int ivtx );
-	bool IsPinSmt(cnet *net, int pin);					 // CPT
-	bool IsRatlineConnected(cseg *seg);					 // CPT
 
 	// functions for vias
-	void GetViaWidths(cnet *net, int w, int *via_w, int *via_hole_w);						// CPT r295
+	void GetViaWidths(cnet *net, int w, int *via_w, int *via_hole_w);					// CPT r295
 	int ReconcileVia( cnet * net, int ic, int ivtx, BOOL bDrawVertex=TRUE );
 	int ForceVia( cnet * net, int ic, int ivtx, BOOL set_areas=TRUE );
 	int UnforceVia( cnet * net, int ic, int ivtx, BOOL set_areas=TRUE );

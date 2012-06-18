@@ -4462,6 +4462,7 @@ void CFreePcbView::SetFKText( int mode )
 			// pin-pin connection
 			m_fkey_option[4] = FK_CHANGE_PIN;
 		}
+		m_fkey_option[6] = FK_DELETE_SEGMENT;				// CPT r296
 		m_fkey_option[7] = FK_DELETE_CONNECT;
 		m_fkey_option[8] = FK_REDO_RATLINES;
 		break;
