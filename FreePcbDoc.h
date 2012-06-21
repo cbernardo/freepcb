@@ -18,11 +18,13 @@
 #include "DlgDRC.h"
 #include "DesignRules.h"
 //#include "QAFDebug.h"
+#include "PcbItem.h"
+#include "NetListNew.h"
 
 class CFreePcbDoc;
 class CFreePcbView;
-
-
+class cpcb_item;
+template <class T> class carray;
 
 struct undo_board_outline {
 	// undo_poly struct starts here 
@@ -55,13 +57,10 @@ public:
 public:
 
 // Overrides
-	// ClassWizard generated virtual function overrides
-	//{{AFX_VIRTUAL(CFreePcbDoc)
 	public:
 	virtual BOOL OnNewDocument();
 	virtual void Serialize(CArchive& ar);
 	virtual BOOL OnSaveDocument(LPCTSTR lpszPathName);
-	//}}AFX_VIRTUAL
 
 // Implementation
 public:
@@ -108,13 +107,12 @@ public:
 	void SetFileLayerMap( int file_layer, int layer );
 	void PurgeFootprintCache();
 	void ResetUndoState();
+	void GarbageCollect();		// CPT2.
 
 #ifdef _DEBUG
 	virtual void AssertValid() const;
 	virtual void Dump(CDumpContext& dc) const;
 #endif
-
-protected:
 
 public:
 	double m_version;			// version number, such as "1.105"
@@ -153,7 +151,9 @@ public:
 	CFootLibFolderMap m_footlibfoldermap;
 	CDlgLog * m_dlg_log;
 	DRErrorList * m_drelist;
-	CArray<CPolyLine> m_sm_cutout;	// array of soldermask cutouts
+	CArray<CPolyLine> m_sm_cutout;	// array of soldermask cutouts. // CPT2 TODO:  change to carray<csmcutout>
+	carray<cpcb_item> items;		// CPT2.  Master list of all created pcb-items.  GarbageCollect() will go through this list and clean up now and then.
+	carray<cpcb_item> others;		// CPT2.  All active pcb-items that belong to "other" categories (not net-items, part-items, or texts)
 
 	// undo and redo stacks and state
 	BOOL m_bLastPopRedo;		// flag that last stack op was pop redo

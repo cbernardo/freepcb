@@ -551,6 +551,8 @@ cvertex::~cvertex()
 	}
 }
 
+
+
 // assignment from const
 // don't copy m_con, m_dlist, UID or display elements
 //

@@ -3803,7 +3803,7 @@ int CNetList::UnforceVia( cnet * net, int ic, int ivtx, BOOL set_areas )
 	return 0;
 }
 
-void CNetList::GetViaWidths(cnet *net, int w, int *via_w, int *via_hole_w) {
+void CNetList::CalcViaWidths(cnet *net, int w, int *via_w, int *via_hole_w) {
   // CPT r295.  Helper for ReconcileVia().  
   // Given a segment width value "w", determine a matching via and via hole width.  Do this by first checking if w==net->def_w,
   //  and return the net's default via sizes if so;
@@ -3874,10 +3874,10 @@ int CNetList::ReconcileVia( cnet * net, int ic, int ivtx, BOOL bDrawVertex )
 		// CPT r295: via needed. Calculate its default width, based on the widths of the adjacent segs and possibly the net defaults.
 		int via_w = 0, via_hole_w = 0, vw2, vhw2;
 		if (s1)
-			GetViaWidths(net, s1->m_width, &via_w, &via_hole_w);
+			CalcViaWidths(net, s1->m_width, &via_w, &via_hole_w);
 		if (s2) 
 		{
-			GetViaWidths(net, s2->m_width, &vw2, &vhw2);
+			CalcViaWidths(net, s2->m_width, &vw2, &vhw2);
 			if (vw2 > via_w) 
 				via_w = vw2, via_hole_w = vhw2;
 		}

@@ -17,6 +17,7 @@ class CPartList;
 class CNetList;
 class cnet;
 class carea;
+class CFreePcbDoc;
 
 #include "DesignRules.h"
 
@@ -192,6 +193,8 @@ public:
 	};
 	cpart m_start;
 	cpart m_end;
+	CFreePcbDoc *doc;			// CPT2.
+
 private:
 	int m_size, m_max_size;
 	int m_layers;
