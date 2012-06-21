@@ -184,6 +184,20 @@ CFreePcbDoc::CFreePcbDoc()
 	clip_plist->UseNetList( clip_nlist );
 	clip_plist->SetShapeCacheMap( &m_footprint_cache_map );
 	clip_tlist = new CTextList( NULL, m_smfontutil );
+
+	// CPT2 r298: FOR TESTING MY NEW FOUNDATIONAL TEMPLATE CLASSES:
+	cnetlist *nlTest = new cnetlist( this );
+	cnet2 *nTest = new cnet2( nlTest, "Test", 0, 0, 0 );
+	carray<cconnect2> arr;
+	for (int i=0; i<32; i++)
+		arr.Add(new cconnect2(nTest));
+	citer<cconnect2> ic (&arr);
+	for (cconnect2 *c=ic.First(); c; c=ic.Next())
+		if (c->UID() & 1) 
+			arr.Remove(c);
+	arr.DestroyAll();
+	delete nTest;
+	delete nlTest;
 }
 
 CFreePcbDoc::~CFreePcbDoc()
@@ -4884,7 +4898,6 @@ void CFreePcbDoc::OnToolsPreferences() {
 		}
 	}
 
-//#if 0 // AMW
 void CFreePcbDoc::OnViewRoutingGrid() {
 	CDlgGridVals dlg (&m_routing_grid, &m_routing_grid_hidden, IDS_EditRoutingGridValues);
 	int ret = dlg.DoModal();
@@ -4946,6 +4959,62 @@ void CFreePcbDoc::OnViewVisibleGrid() {
 			}
 		}
 	}
-//#endif // AMW
 
 // end CPT
+
+// CPT2
+
+/*
+void CFreePcbDoc::GarbageCollect() {
+	// Part of my proposed new architecture is to take some of the hassle out of memory management for pcb-items by using garbage collection.
+	// Each time an item is constructed, it is added to the doc's "items" array.  If an item goes out of use, one does not have to "delete" it;
+	// just unhook it from its parent entity or array.  When garbage collection time comes, we'll first clear the utility bits on all members of
+	// "items".  Then we'll scan through the doc's netlist (recursing through connects, segs, vtxs, tees, areas), partlist (recursing through pins), 
+	// textlist, and otherlist, marking utility bits as we go.  At the end, items with clear utility bits can be deleted.
+	citer<cpcb_item> ii (&items);
+	for (cpcb_item *i = ii.First(); i; i = ii.Next())
+		i->utility = 0;
+
+	citer<cnet2> in (&m_nlist->nets);
+	for (cnet2 *n = in.First(); n; n = in.Next()) {
+		n->utility = 1;
+		citer<cconnect2> ic (&n->connects);
+		for (cconnect2 *c = ic.First(); c; c = ic.Next()) {
+			c->utility = 1;
+			citer<cvertex2> iv (&c->vtxs);
+			for (cvertex2 *v = iv.First(); v; v = iv.Next()) {
+				v->utility = 1;
+				if (v->tee) v->tee->utility = 1;
+				}
+			citer<cseg2> is (&c->segs);
+			for (cseg2 *s = is.First(); s; s = is.Next())
+				s->utility = 1;
+			}
+		citer<carea2> ia (&n->areas);
+		for (carea2 *a = ia.First(); a; a = ia.Next())
+			a->MarkConstituents();
+		}
+	citer<cpart2> ip (&m_plist->parts);
+	for (cpart2 *p = ip.First(); p; p = ip.Next()) {
+		p->utility = 1;
+		citer<cpin2> ipin (&p->pins);
+		for (cpin2 *pin = ipin.First(); pin; pin = ipin.Next())
+			pin->utility = 1;
+		}
+	citer<ctext> it (&m_tlist->texts);
+	for (ctext *t = it.First(); t; t = it.Next()) 
+		t->utility = 1;
+	citer<cpcb_item> ii2 (&others);
+	for (cpcb_item *i = ii2.First(); i; i = ii2.Next()) {
+		if (cpolyline *p = i->ToPolyline())
+			p->MarkConstituents();
+		else
+			p->utility = 1;
+
+	// Do the deletions of unused items!
+	for (cpcb_item *i = ii.First(); i; i = ii.Next())
+		if (!i.utility)
+			delete i;
+	}
+
+*/

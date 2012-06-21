@@ -237,17 +237,6 @@ END_MESSAGE_MAP()
 
 CFreePcbView::CFreePcbView()
 {
-	/* CPT r293: FOR TESTING MY NEW FOUNDATIONAL TEMPLATE CLASSES:
-	carray<cpin> arr;
-	for (int i=0; i<32; i++)
-		arr.Add(new cpin());
-	citer<cpin> ip (&arr);
-	for (cpin *p=ip.First(); p; p=ip.Next())
-		if (p->UID() & 1) 
-			arr.Remove(p);
-	arr.DestroyAll();
-	*/
-
 	m_bDraggingRect = FALSE;
 	m_bLButtonDown = FALSE;
 	CalibrateTimer();

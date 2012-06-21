@@ -246,7 +246,7 @@ public:
 	int CancelMovingSegment( cnet * net, int ic, int ivtx );
 
 	// functions for vias
-	void GetViaWidths(cnet *net, int w, int *via_w, int *via_hole_w);					// CPT r295
+	void CalcViaWidths(cnet *net, int w, int *via_w, int *via_hole_w);					// CPT r295
 	int ReconcileVia( cnet * net, int ic, int ivtx, BOOL bDrawVertex=TRUE );
 	int ForceVia( cnet * net, int ic, int ivtx, BOOL set_areas=TRUE );
 	int UnforceVia( cnet * net, int ic, int ivtx, BOOL set_areas=TRUE );

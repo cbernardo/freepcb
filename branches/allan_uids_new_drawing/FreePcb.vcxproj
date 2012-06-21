@@ -178,6 +178,7 @@
     <ClCompile Include="NetList.cpp" />
     <ClCompile Include="PartList.cpp" />
     <ClCompile Include="PathDialog.cpp" />
+    <ClCompile Include="PcbItem.cpp" />
     <ClCompile Include="php_polygon.cpp" />
     <ClCompile Include="php_polygon_vertex.cpp" />
     <ClCompile Include="PolyLine.cpp" />
@@ -290,6 +291,7 @@
     <ClInclude Include="MyFileDialogExport.h" />
     <ClInclude Include="MyToolBar.h" />
     <ClInclude Include="Net.h" />
+    <ClInclude Include="NetListNew.h" />
     <ClInclude Include="Net_iter.h" />
     <ClInclude Include="NetList.h" />
     <ClInclude Include="PartList.h" />
