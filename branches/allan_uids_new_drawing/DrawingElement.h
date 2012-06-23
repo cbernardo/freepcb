@@ -4,7 +4,8 @@
 #include "afxwin.h"
 #include "ids.h"
 #include "layers.h"
-#include "LinkList.h"
+// #include "LinkList.h"
+#include "PcbItem.h"
 
 struct CDrawInfo;
 class CDisplayList;
@@ -18,8 +19,9 @@ class dl_element
 
 public:
 	int magic;
-	id id;			// identifier (see ids.h)
-	void * ptr;		// pointer to object drawing this element
+	id id;			// identifier (see ids.h)						// CPT2 will phase out in favor of member "item"
+	void * ptr;		// pointer to object drawing this element		// CPT2 ditto
+	cpcb_item *item;												// CPT2.  
 	int gtype;		// type of primitive
 	int visible;	// 0 to hide
 

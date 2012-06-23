@@ -153,11 +153,6 @@ class cnetlist
 	friend class cnet2;
 public:
 	// enum{ MAX_ITERATORS=10 }; // CPT2
-	enum {
-		VIA_NO_CONNECT = 0,
-		VIA_TRACE = 1,
-		VIA_AREA = 2
-	};
 	enum {						// used for UNDO records
 		UNDO_CONNECT_MODIFY=1,	// undo modify connection
 		UNDO_AREA_CLEAR_ALL,	// flag to remove all areas
@@ -183,11 +178,11 @@ public:
 	// int m_pos_i;						// index for iterators // CPT2 probably supplanted
 	// POSITION m_pos[MAX_ITERATORS];	// iterators for nets // CPT2 ditto
 	// CArray<int> m_tee;				// CPT2 ditto
-	BOOL m_bSMT_connect;				// CPT2 ???
+	carray<ctee> tees;					// Used when reading files (and the like) only
+	BOOL m_bSMT_connect;
 
 
-	cnetlist( CFreePcbDoc * _doc )														// CPT2:  Changed param
-		{ m_doc = _doc; }																// CPT2 TODO: finish
+	cnetlist( CFreePcbDoc * _doc ) ;													// CPT2:  Changed param
 	~cnetlist() { }																		// CPT2 TODO
 	void SetNumCopperLayers( int layers ) { m_layers = layers;}
 	int GetNumCopperLayers() { return m_layers;}
@@ -271,50 +266,49 @@ public:
 																									
 	// int ChangeSegmentLayer( cnet2 * net, int ic, int iseg, int layer );					 // CPT2 use cseg2::SetLayer().
 	// int SetSegmentWidth( cnet2 * net, int ic, int is, int w, int via_w, int via_hole_w ); // CPT2 use cseg2::SetWidth()
-	void HighlightSegment( cnet2 * net, int ic, int iseg, bool bThin=FALSE );
-	int StartMovingSegment( CDC * pDC, cnet2 * net, int ic, int ivtx,
-								   int x, int y, int crosshair, int use_third_segment );
+	// void HighlightSegment( cnet2 * net, int ic, int iseg, bool bThin=FALSE );			 // CPT2 use cseg2::Highlight()
+	// int StartMovingSegment( CDC * pDC, cnet2 * net, int ic, int ivtx,					 // CPT2 use cseg2::StartMoving()
+	//							   int x, int y, int crosshair, int use_third_segment );
 	// CPT r295: removed via_w and via_hole_w params
-	int StartDraggingSegment( CDC * pDC, cnet2 * net, int ic, int iseg,
-						int x, int y, int layer1, int layer2, int w, 
-						int layer_no_via, int dir,
-						int crosshair = 1 );
-	int CancelDraggingSegment( cnet2 * net, int ic, int iseg );
-	int StartDraggingSegmentNewVertex( CDC * pDC, cnet2 * net, int ic, int iseg,
-								   int x, int y, int layer, int w, int crosshair );
-	int CancelDraggingSegmentNewVertex( cnet2 * net, int ic, int iseg );
-	void StartDraggingStub( CDC * pDC, cnet2 * net, int ic, int iseg,
-						int x, int y, int layer1, int w, 
-						int layer_no_via, int crosshair, int inflection_mode );			// CPT r295, removed via-width args
-	void CancelDraggingStub( cnet2 * net, int ic, int iseg );
-	int CancelMovingSegment( cnet2 * net, int ic, int ivtx );
+	// int StartDraggingSegment( CDC * pDC, cnet2 * net, int ic, int iseg,					 // CPT2 use cseg2::StartDragging()
+	//					int x, int y, int layer1, int layer2, int w, 
+	//					int layer_no_via, int dir,
+	//					int crosshair = 1 );
+	// int CancelDraggingSegment( cnet2 * net, int ic, int iseg );							// CPT2 use cseg2::CancelDragging()
+	// int StartDraggingSegmentNewVertex( CDC * pDC, cnet2 * net, int ic, int iseg,			// CPT2 use cseg2::StartDraggingNewVertex()
+	//							   int x, int y, int layer, int w, int crosshair );
+	// int CancelDraggingSegmentNewVertex( cnet2 * net, int ic, int iseg );					// CPT2 use cseg2::CancelDraggingNewVertex()
+	// void StartDraggingStub( CDC * pDC, cnet2 * net, int ic, int iseg,
+	//					int x, int y, int layer1, int w, 
+	//					int layer_no_via, int crosshair, int inflection_mode );				// CPT2 TODO decide if this should go into cvertex2 or cseg2
+	// void CancelDraggingStub( cnet2 * net, int ic, int iseg );							// CPT2 TODO ditto
+	// int CancelMovingSegment( cnet2 * net, int ic, int ivtx );							// use cseg2::CancelMoving()
 
 	// functions for vias
 	// void CalcViaWidths(cnet2 *net, int w, int *via_w, int *via_hole_w);					// CPT r295. CPT2 use cnet2::CalcViaWidths()
-	// int ReconcileVia( cnet2 * net, int ic, int ivtx, BOOL bDrawVertex=TRUE );				// CPT2.  Use cvertex2::ReconcileVia()
-	int ForceVia( cnet2 * net, int ic, int ivtx, BOOL set_areas=TRUE );
-	int UnforceVia( cnet2 * net, int ic, int ivtx, BOOL set_areas=TRUE );
-	void DrawVertex( cnet2 * net, int ic, int iv );
-	void UndrawVia( cnet2 * net, int ic, int iv );
-	void SetViaVisible( cnet2 * net, int ic, int iv, BOOL visible );
+	// int ReconcileVia( cnet2 * net, int ic, int ivtx, BOOL bDrawVertex=TRUE );			// CPT2.  Use cvertex2::ReconcileVia()
+	// int ForceVia( cnet2 * net, int ic, int ivtx, BOOL set_areas=TRUE );					// CPT2.  Use cvertex2::ForceVia()
+	// int UnforceVia( cnet2 * net, int ic, int ivtx, BOOL set_areas=TRUE );				// CPT2.  Use cvertex2::UnforceVia()
+	// void DrawVertex( cnet2 * net, int ic, int iv );										// CPT2.  Use cvertex2::Draw
+	// void UndrawVia( cnet2 * net, int ic, int iv );										// CPT2.  Use cvertex2::Undraw()
+	// void SetViaVisible( cnet2 * net, int ic, int iv, BOOL visible );						// CPT2. Use cvertex2::SetVisible()
 
 	// functions for vertices
-	void HighlightVertex( cnet2 * net, int ic, int ivtx );
-	int StartDraggingVertex( CDC * pDC, cnet2 * net, int ic, int iseg,
-						int x, int y, int cosshair = 1 );
-	int CancelDraggingVertex( cnet2 * net, int ic, int ivtx );
-	void MoveVertex( cnet2 * net, int ic, int ivtx, int x, int y );
-	int GetViaConnectionStatus( cnet2 * net, int ic, int iv, int layer );
-	void GetViaPadInfo( cnet2 * net, int ic, int iv, int layer,
-		int * pad_w, int * hole_w, int * connect_status );
-	BOOL TestHitOnVertex( cnet2 * net, int layer, int x, int y, 
-		cnet2 ** hit_net, int * hit_ic, int * hit_iv );
+	// void HighlightVertex( cnet2 * net, int ic, int ivtx );								// CPT2. Use cvertex2::Highlight. 
+	// int StartDraggingVertex( CDC * pDC, cnet2 * net, int ic, int iseg,					// CPT2. Use cvertex2::StartDragging
+	//					int x, int y, int cosshair = 1 );
+	// int CancelDraggingVertex( cnet2 * net, int ic, int ivtx );							// CPT2. Use cvertex2::CancelDragging
+	// void MoveVertex( cnet2 * net, int ic, int ivtx, int x, int y );						// CPT2. Use cvertex2::Move
+	// int GetViaConnectionStatus( cnet2 * net, int ic, int iv, int layer );				// CPT2. Use cvertex2::GetViaConnectionStatus
+	// void GetViaPadInfo( cnet2 * net, int ic, int iv, int layer,
+	//	int * pad_w, int * hole_w, int * connect_status );									// CPT2. Use cvertex2::GetViaPadInfo
+	// BOOL TestHitOnVertex( cnet2 * net, int layer, int x, int y, 
+	// 	cnet2 ** hit_net, int * hit_ic, int * hit_iv );										// CPT2. Use cnet2::TestHitOnVertex
 
-	// functions related to parts
+	// functions related to parts. CPT2 TODO think these through more
 	int RehookPartsToNet( cnet2 * net );
 	void PartAdded( cpart2 * part );
 	int PartMoved( cpart2 * part, int dx = 1, int dy = 1 );			// CPT added optional params
-//	int PartMoved( cpart2 * part );
 	int PartFootprintChanged( cpart2 * part );
 	int PartDeleted( cpart2 * part, BOOL bSetAreas=TRUE );
 	int PartDisconnected( cpart2 * part, BOOL bSetAreas=TRUE );
@@ -323,26 +317,27 @@ public:
 	void PartRefChanged( CString * old_ref_des, CString * new_ref_des );
 
 	// functions for copper areas
-	int AddArea( cnet2 * net, int layer, int x, int y, int hatch, BOOL bDraw=TRUE );
-	void InsertArea( cnet2 * net, int iarea, int layer, int x, int y, int hatch, BOOL bDraw=TRUE );
-	int AppendAreaCorner( cnet2 * net, int iarea, int x, int y, int style );
-	int InsertAreaCorner( cnet2 * net, int iarea, int icorner, 
-		int x, int y, int style );
-	void MoveAreaCorner( cnet2 * net, int iarea, int icorner, int x, int y );
-	void HighlightAreaCorner( cnet2 * net, int iarea, int icorner );
-	void HighlightAreaSides( cnet2 * net, int ia );
-	CPoint GetAreaCorner( cnet2 * net, int iarea, int icorner );
-	int CompleteArea( cnet2 * net, int iarea, int style );
+	// int AddArea( cnet2 * net, int layer, int x, int y, int hatch, BOOL bDraw=TRUE );					// CPT2 Use cnet2::AddArea
+	// void InsertArea( cnet2 * net, int iarea, int layer, int x, int y, int hatch, BOOL bDraw=TRUE );  // CPT2 TODO Surely unnecessary?
+	// int AppendAreaCorner( cnet2 * net, int iarea, int x, int y, int style );							// CPT2 Use cpolyline::AppendCorner
+	// int InsertAreaCorner( cnet2 * net, int iarea, int icorner,										// CPT2 Use cpolyline::InsertCorner
+	//	int x, int y, int style );
+	// void MoveAreaCorner( cnet2 * net, int iarea, int icorner, int x, int y );						// CPT2 use ccorner::Move
+	// void HighlightAreaCorner( cnet2 * net, int iarea, int icorner );									// CPT2 use ccorner::Highlight
+	// void HighlightAreaSides( cnet2 * net, int ia );													// CPT2 use cpolyline::HighlightSides
+	// CPoint GetAreaCorner( cnet2 * net, int iarea, int icorner );										// CPT2 just use ccorner.x,y
+	// int CompleteArea( cnet2 * net, int iarea, int style );											// CPT2 use carea2::Complete
 	void SetAreaConnections()
 	{
 		citer<cnet2> in (&nets);
 		for (cnet2 *n = in.First(); n; n = in.Next())
 			n->SetAreaConnections();
 	}
-	// void SetAreaConnections( cnet2 * net, int iarea ); // CPT2 use carea2::SetAreaConnections();
-	// void SetAreaConnections( cnet2 * net );			 // CPT2 use cnet2::SetAreaConnections();
-	void SetAreaConnections( cpart2 * part );
-	BOOL TestPointInArea( cnet2 * net, int x, int y, int layer, int * iarea );
+	// void SetAreaConnections( cnet2 * net, int iarea );	// CPT2 use carea2::SetAreaConnections();
+	// void SetAreaConnections( cnet2 * net );				// CPT2 use cnet2::SetAreaConnections();
+	// void SetAreaConnections( cpart2 * part );			// CPT2 use cpart2::SetAreaConnections() ?
+	// BOOL TestPointInArea( cnet2 * net, int x, int y, int layer, int * iarea ); // CPT2 use cnet2::NetAreaFromPoint
+	// TODO:
 	int RemoveArea( cnet2 * net, int iarea );
 	void SelectAreaSide( cnet2 * net, int iarea, int iside );
 	void SelectAreaCorner( cnet2 * net, int iarea, int icorner );
@@ -394,11 +389,11 @@ public:
 	*/
 
 	// functions for tees and branches
-	BOOL FindTeeVertexInNet( cnet2 * net, int id, int * ic=NULL, int * iv=NULL );
-	BOOL FindTeeVertex( int id, cnet2 ** net, int * ic=NULL, int * iv=NULL );
-	int RemoveTee( cnet2 * net, int id );
-	int RemoveTeeIfNoBranches( cnet2 * net, int id );
+	// BOOL FindTeeVertexInNet( cnet2 * net, int id, int * ic=NULL, int * iv=NULL );// CPT2 Obsolete
+	// BOOL FindTeeVertex( int id, cnet2 ** net, int * ic=NULL, int * iv=NULL ); // CPT2 Obsolete
+	// int RemoveTee( cnet2 * net, int id );									// CPT2 Obsolete
+	// int RemoveTeeIfNoBranches( cnet2 * net, int id );						// CPT2.  Disused
 	// BOOL TeeViaNeeded( cnet2 * net, int id, cvertex2 ** v );					// Folded into cvertex2::IsViaNeeded().
-	BOOL RemoveOrphanBranches( cnet2 * net, int id, BOOL bRemoveSegs=FALSE );
+	// BOOL RemoveOrphanBranches( cnet2 * net, int id, BOOL bRemoveSegs=FALSE ); // CPT2. Disused
 };
 

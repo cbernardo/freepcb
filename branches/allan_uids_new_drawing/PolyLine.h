@@ -20,10 +20,12 @@
 //
 #pragma once
 #include "gpc_232.h"
+#include "DrawingElement.h"
 
 class polygon;
 class CPolyLine;
 class CDisplayList;
+class dl_element;
 
 struct undo_poly {
 	CPolyLine * poly;
