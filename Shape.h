@@ -151,6 +151,7 @@ public:
 	int WriteFootprint( CStdioFile * file );
 	int GetNumPins();
 	int GetPinIndexByName( LPCTSTR name );
+	padstack *GetPadstackByName (CString *name);			// CPT2
 	CString GetPinNameByIndex( int index );
 	CRect GetBounds( BOOL bIncludeLineWidths=TRUE );
 	CRect GetCornerBounds();

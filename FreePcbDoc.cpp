@@ -40,6 +40,7 @@
 #include "DlgGridVals.h"
 #include "DlgAddGridVal.h"
 #include "DlgExportOptions.h"	// CPT
+#include "PartListNew.h"		// CPT2
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -185,7 +186,7 @@ CFreePcbDoc::CFreePcbDoc()
 	clip_plist->SetShapeCacheMap( &m_footprint_cache_map );
 	clip_tlist = new CTextList( NULL, m_smfontutil );
 
-	// CPT2 r298: FOR TESTING MY NEW FOUNDATIONAL TEMPLATE CLASSES:
+	// CPT2 r298: FOR TESTING MY NEW FOUNDATIONAL TEMPLATE CLASSES (Harmless code for single-stepping fun)
 	cnetlist *nlTest = new cnetlist( this );
 	cnet2 *nTest = new cnet2( nlTest, "Test", 0, 0, 0 );
 	carray<cconnect2> arr;
@@ -582,6 +583,15 @@ BOOL CFreePcbDoc::FileOpen( LPCTSTR fn, BOOL bLibrary )
 			m_plist->ReadParts( &pcb_file );
 			m_nlist->ReadNets( &pcb_file, m_read_version );
 			m_tlist->ReadTexts( &pcb_file );
+
+			// CPT2.  Test code
+			m_plist2 = new cpartlist (this);
+			m_plist2->SetShapeCacheMap( &m_footprint_cache_map );
+			pcb_file.SeekToBegin();
+			m_plist2->ReadParts( &pcb_file );
+			m_nlist2 = new cnetlist (this);
+			m_nlist2->ReadNets( &pcb_file, m_read_version );
+			// end CPT2.
 
 			// make path to library folder and index libraries
 			if( m_full_lib_dir == "" )
@@ -2753,7 +2763,6 @@ void CFreePcbDoc::OnFileImport()
 				delete old_nlist;
 				// rehook all parts to nets after destroying old_nlist
 				CIterator_cnet iter_net(m_nlist);
-				cnet * net = iter_net.GetFirst();
 				for( cnet * net=iter_net.GetFirst(); net; net=iter_net.GetNext() )
 					m_nlist->RehookPartsToNet( net );
 			}

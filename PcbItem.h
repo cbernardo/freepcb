@@ -16,8 +16,9 @@
 #include "PartList.h"
 #include "PolyLine.h"
 #include "UndoList.h"
-#include "LinkList.h"
-#include "Cuid.h"
+// #include "LinkList.h"
+// #include "Cuid.h"
+// #include "PartListNew.h"		// CPT2
 
 class cpcb_item;
 class carray_link;
@@ -52,6 +53,7 @@ class undo_vtx;
 
 class cnetlist;
 class CFreePcbDoc;
+class cpartlist;
 
 enum typebits {
 	// Bit flags to represent the types of the various types of PCB items.  The main use for these will be in implementing selection masks.
@@ -296,7 +298,7 @@ public:
 		int off; 
 		if (free>=0)
 			off = free,
-			free = *(int*) heap[off];
+			free = *(int*) (heap+off);
 		else
 			off = ++maxOff;
 		// Add item!  Then create a carray_link that connects the item with this carray.
@@ -375,6 +377,16 @@ public:
 		return NULL;
 	}
 
+	T *FindByUtility(int utility)
+	{
+		for (int i=0; i<=maxOff; i++)
+			if (flags[i>>3] & (1<<(i&7)))
+				if (heap[i]->utility == utility)
+					return heap[i];
+		return NULL;
+	}
+
+
 	bool ReadItems(T** out, int ct) 
 	{
 		// Read "ct" items from the carray into "out". Return false if ct is too large.  Maybe unneeded.
@@ -452,16 +464,11 @@ public:
 class cvertex2: public cpcb_item
 {
 public:
-	/* types of vertices.  CPT2:  can probably do without.
-	enum VType { 
-		V_ERR = 0,	// unknown
-		V_PIN,		// pin at end of trace
-		V_TRACE,	// vertex between trace segments
-		V_END,		// end vertex of stub trace
-		V_TEE,		// T-vertex (defined here)
-		V_SLAVE		// T-vertex (defined in another trace)
-	};	
-	*/
+	enum {
+		VIA_NO_CONNECT = 0,
+		VIA_TRACE = 1,
+		VIA_AREA = 2
+	};
 
 	cconnect2 * m_con;			// parent connection
 	cnet2 *m_net;				// CPT2.  Very likely useful.
@@ -478,7 +485,6 @@ public:
 	// CDisplayList * m_dlist;		// NULL if not drawable.  CPT2 use doc->m_dlist (?)
 
 	cvertex2(cconnect2 *c, int _x=0, int _y=0);				// CPT2 Added args. Done in cpp
-	cvertex2( cvertex2& src );
 	~cvertex2()
 	{
 	}
@@ -506,6 +512,7 @@ public:
 	void Draw() { }											// TODO
 	void Undraw() { }										// TODO
 	void Highlight() { }									// TODO
+	void SetVisible( bool bVis );							// CPT2 TODO Derive from CNetList::SetViaVisible 
 
 	void GetTypeStatusStr( CString * str );
 	void GetStatusStr( CString * str );
@@ -513,6 +520,13 @@ public:
 	void ReconcileVia();									// Done in cpp
 	bool IsConnectedToArea( carea2 * a );
 	int GetConnectedAreas( carray<carea2> *a=NULL );		// CPT2. Arg change
+	void ForceVia( BOOL set_areas=TRUE );					// CPT2 TODO Derive from CNetList
+	int UnforceVia( BOOL set_areas=TRUE );					// CPT2 TODO Derive from CNetList
+
+	void StartDragging( CDC * pDC, int x, int y, int cosshair = 1 );			// CPT2 TODO Derive from CNetList::StartDraggingVertex
+	void CancelDragging();														// CPT2 TODO Derive from CNetList::CancelDraggingVertex
+	void Move( int x, int y );													// CPT2 TODO Derive from CNetList::MoveVertex
+	int GetViaConnectionStatus( int layer );									// Done in cpp
 };
 
 class ctee: public cpcb_item 
@@ -550,7 +564,7 @@ public:
 	int m_layer;
 	int m_width;
 	int m_curve;
-	bool m_selected;
+	bool m_selected;			// CPT2 TODO check (bogus?)
 	// CDisplayList * m_dlist;	// CPT2 use doc->m_dlist (?)
 	cnet2 * m_net;				// parent net
 	cconnect2 * m_con;			// parent connection
@@ -587,6 +601,9 @@ public:
 	void Draw() { }												// TODO
 	void Undraw() { }											// TODO
 	BOOL IsDrawn() { return false; }							// TODO
+	void Highlight( bool bThin ) { }							// CPT2 TODO derive from CNetList::HighlightSegment()
+	void Highlight()											// CPT2 This form of the function overrides the base-class virtual func.  (Best system?)
+		{ Highlight(false); }
 
 	void SetVisibility( int vis );
 	int Index();												// CPT2:  maybe, maybe not...
@@ -597,6 +614,14 @@ public:
 	bool UnrouteWithoutMerge(int dx, int dy, int end);			// Done in cpp
 	bool RemoveMerge(int end);									// Done in cpp
 	bool RemoveBreak();											// Done in cpp
+	void StartMoving( CDC * pDC, int x, int y, int crosshair, bool use_third_segment ); // CPT2 TODO derive from CNetList::StartMovingSegment
+	int CancelMoving();																	// CPT2 TODO derive from CNetList::CancelMovingSegment()
+
+	void StartDragging( CDC * pDC, int x, int y, int layer1, int layer2, int w,			// CPT2 TODO derive from CNetList::StartDraggingSegment
+						int layer_no_via, int dir, int crosshair = 1 );
+	void CancelDragging();																// CPT2 TODO derive from CNetList::CancelDraggingSegment()
+	int StartDraggingNewVertex( CDC * pDC, int x, int y, int layer, int w, int crosshair );// CPT2 TODO derive from CNetList::StartDraggingSegmentNewVertex()
+	int CancelDraggingNewVertex( );														// CPT2 TODO derive from CNetList::CancelDraggingSegmentNewVertex()
 };
 
 // cconnect2: describes a sequence of segments, running between two end vertices of arbitrary type (pin, tee, isolated end-vertex...)
@@ -675,6 +700,7 @@ public:
 	void SetWidth( int w, int via_w, int via_hole_w );				// Done in cpp
 
 	// modify segments and vertices. 
+	void Start( cvertex2 *v );										// CPT2 New.  Done in cpp.
 	void Remove(bool bSetAreaConnections = true);					// Done in cpp
 	// cvertex2& InsertVertexByIndex( int iv, const cvertex2& new_vtx );		// CPT2.  Currently called only with iv==0.  Not really compatible with
 																				// the new system, hopefully dumpable
@@ -708,15 +734,16 @@ public:
 	CString pin_name;		// pin name such as "1" or "A23"
 	cpart2 * part;			// pointer to part containing the pin.
 	int x, y;				// position on PCB
-	int pad_layer;			// CPT2. layer of pad on this pin (was in cvertex2)
+	padstack *ps;			// CPT2. TODO Seems useful to have this here.  Constructor sets it up
+	int pad_layer;			// CPT2. layer of pad on this pin (was in cvertex2).  
+							// TODO compare with PartList::GetPinLayer().  Have constructor set this based on ps.  
+							// Possible values LAY_PAD_THRU, LAY_TOP_COPPER, LAY_BOTTOM_COPPER
 	cnet2 * net;			// pointer to net, or NULL if not assigned.
 	drc_pin drc;			// drc info
 	dl_element * dl_hole;	// pointer to graphic element for hole
 	CArray<dl_element*> dl_els;	// array of pointers to graphic elements for pads
-	CArray<dl_element*> dl_thermals;					// CPT2.  TODO figure out if this works.
 
-	cpin2(cpart2 *_part, cnet2 *_net);					// CPT2. Added args. Done in cpp
-	cpin2( cpin2& src );
+	cpin2(cpart2 *_part, padstack *_ps, cnet2 *_net);					// CPT2. Added args. Done in cpp
 	~cpin2();
 
 	bool IsPin() { return true; }
@@ -727,6 +754,8 @@ public:
 
 	// void Initialize( cnet2 * net );  // Put in constructor
 	void Disconnect(bool bSetAreas = true) ;						// Done in cpp
+	int GetWidth();													// Done in cpp
+	void SetPosition();												// Done in cpp.  New, but related to CPartList::GetPinPoint
 };
 
 
@@ -737,8 +766,8 @@ public:
 	// The partlist will be a carray, so no links required:
 	// cpart2 * prev;		// link backward
 	// cpart2 * next;		// link forward
-	CPartList * m_pl;	// parent partlist
-	carray<cpin2> pins;				// array of all pins in part
+	cpartlist * m_pl;	// parent partlist
+	carray<cpin2> pins;	// array of all pins in part
 	BOOL drawn;			// TRUE if part has been drawn to display list.  ?? TODO Put into base class?
 	BOOL visible;		// 0 to hide part                                ?? TODO Put into base class?
 	int x,y;			// position of part origin on board
@@ -746,6 +775,7 @@ public:
 	int angle;			// orientation, degrees CW
 	BOOL glued;			// 1=glued in place
 	BOOL m_ref_vis;		// TRUE = ref shown
+	// CPT2 TODO replace all the following with a single creftext and cvaluetext??
 	int m_ref_xi;		// ref text params (relative to part)
 	int m_ref_yi;	
 	int m_ref_angle; 
@@ -781,26 +811,34 @@ public:
 	// flag used for importing
 	BOOL bPreserve;	// preserve connections to this part
 
-	cpart2( CPartList * pl )			// CPT2 TODO.  Will probably add more args...
-		: cpcb_item (pl->doc)
-	{ 
-		m_pl = pl;
-		// zero out pointers
-		dl_ref_sel = 0;
-		shape = 0;
-	}
-
+	cpart2( cpartlist * pl );			// In cpp.  CPT2 TODO.  Will probably add more args...
 	~cpart2();
 
 	bool IsPart() { return true; }
 	cpart2 *ToPart() { return this; }
 	int GetTypeBit() { return bitPart; }
+	void Remove();						// Done in cpp.
 
-	cpin2 * PinByUID( int uid, int * index=NULL );
+	void Highlight() { }				// CPT2 TODO derive from CPartList::HighlightPart()
+	void SetVisible(bool bVis);         // CPT2 TODO derive from CPartList::MakePartVisible()
+	void Move( int x, int y, int angle, int side );													// Done in cpp, derived from CPartList::Move
+
+	void SetData( CShape * shape, CString * ref_des, CString * package, 
+	     		  int x, int y, int side, int angle, int visible, int glued, bool ref_vis );		// Done in cpp, Derived from CPartList::SetPartData
+	void SetValue( CString * value, int x, int y, int angle, int size, 
+				  int w, BOOL vis, int layer );														// Done in cpp, Derived from CPartList::SetValue
+	void ResizeRefText(int size, int width, BOOL vis );												// Done in cpp, derived from CPartList::ResizeRefText()
+	void InitPins();																				// Done in cpp. Basically all new
+
+	// cpin2 * PinByUID( int uid );		// CPT2. Use pins.FindByUID().
 	int GetNumRefStrokes();
 	int GetNumValueStrokes();
 	int GetNumOutlineStrokes();
 	void OptimizeConnections( BOOL bBelowPinCount, int pin_count, BOOL bVisibleNetsOnly=TRUE );	// CPT2 TODO:  derive from old CNetList function
+	CPoint GetCentroidPoint();			// CPT2 TODO derive from CPartList::GetCentroidPoint
+	CPoint GetGluePoint( int iglue );	// CPT2 TODO derive from CPartList::GetGluePoint()
+
+	void SetAreaConnections();			// CPT2 TODO derive from CNetList::SetAreaConnections() ?
 };
 
 
@@ -825,7 +863,9 @@ public:
 	bool IsCorner() { return true; }
 	ccorner *ToCorner() { return this; }
 	int GetTypeBit();				// Done in cpp
-	void Highlight() { }			// CPT2 TODO. Derive from old CPolyLine::HighlightCorner().
+	void Highlight() { }			// CPT2 TODO. Derive from old CPolyLine::HighlightCorner().  See also CNetList::HighlightAreaCorner.
+	void Move( int x, int y );		// CPT2 TODO. Derive from CNetList::MoveAreaCorner (et al?)
+
 };
 
 class cside: public cpcb_item
@@ -838,7 +878,6 @@ public:
 	ccorner *preCorner, *postCorner;
 
 	cside(ccontour *_contour);
-	cside( cside& src );
 	~cside();
 	//	cside& operator=( const cside& rhs );	// assignment
 	//	cside& operator=( cside& rhs );	// assignment
@@ -848,6 +887,7 @@ public:
 	void Highlight() { }	// CPT2 TODO. Derive from cpolyline::HighlightSide()
 	void SetVisible();		// CPT2
 	bool IsOnCutout();		// Done in cpp
+	void SetStyle();
 };
 
 class ccontour: public cpcb_item
@@ -856,7 +896,7 @@ public:
 	// All CPT2.
 	carray<ccorner> corners;	// Array of corners.  NB entries not necessarily in geometrical order
 	carray<cside> sides;		// Array of sides
-	ccorner *head, *tail;	// For when we need to trace thru geometrically.
+	ccorner *head, *tail;		// For when we need to trace thru geometrically.
 	cpolyline *poly;			// The parent polyline
 
 	ccontour(cpolyline *_poly, bool bMain);		// Done in cpp
@@ -897,7 +937,7 @@ public:
 
 	cpcb_item *parent;			// CPT2.  TODO Probably obsolete...
 	ccontour *main;				// CPT2
-	carray<ccontour> contours;	// CPT2.  Secondary contours
+	carray<ccontour> contours;	// CPT2.  All contours, including main
 	// id m_parent_id;			// id of the parent of the polyline
 	// void * m_ptr;			// pointer to parent object (or NULL)
 	int m_layer;				// layer to draw on
@@ -926,8 +966,8 @@ public:
 	void Start( int layer, int w, int sel_box, int x, int y,
 		int hatch, id * id, void * ptr, BOOL bDraw=TRUE );
 	void AppendCorner( int x, int y, int style = STRAIGHT );
-	void InsertCorner( ccorner *c, int x, int y );			// Arg change.  Insert prior to "corner"
-	void DeleteCorner( ccorner *c );						// Arg change.
+	void InsertCorner( ccorner *c, int x, int y, int style = STRAIGHT );		// Arg change.  Insert prior to "corner"
+	void DeleteCorner( ccorner *c );											// Put into ccorner?
 	BOOL MoveCorner( ccorner *c, int x, int y, BOOL bEnforceCircularArcs=FALSE );	// Put into ccorner?
 	void Close( int style = STRAIGHT );
 	void RemoveContour( ccontour *ctr );					// Arg change
@@ -950,7 +990,7 @@ public:
 	CRect GetCornerBounds();
 	// CRect GetCornerBounds( int icont );			// Use ccontour::GetCornerBounds()
 	void Copy( cpolyline * src );
-	BOOL TestPointInside( int x, int y );
+	bool TestPointInside( int x, int y );			// Done in cpp
 	// BOOL TestPointInsideContour( int icont, int x, int y ); // Use ccontour fxn
 	int TestIntersection( cpolyline * poly );
 	void AppendArc( int xi, int yi, int xf, int yf, int xc, int yc, int num );	// Should we put this in ccontour?
@@ -1011,7 +1051,6 @@ public:
 		{ bDrawn = drawn; }
 	void Highlight()													// CPT2 Derives from old CNetList::HighlightAreaSides
 	{
-		main->Highlight();
 		citer<ccontour> ic (&contours);
 		for (ccontour *c = ic.First(); c; c = ic.Next())
 			c->Highlight();
@@ -1040,11 +1079,12 @@ class carea2 : public cpolyline
 public:
 	cnet2 * m_net;		// parent net
 	carray<cpin2> pins;	// CPT2: replaces npins, pin, PinByIndex() below.  Set up by SetAreaConnections() below.
-	// CArray<dl_element*> dl_thermal;		// graphics for thermals on pins.  CPT2 Use cpin2::dl_thermal (TODO check that this works)
+	CArray<dl_element*> dl_thermal;		// graphics for thermals on pins.
 	CArray<dl_element*> dl_via_thermal; // graphics for thermals on stubs
-	int nvias;							// number of via connections to area
-	carray<cconnect2> vcon;				// Changed from CArray<int>.  DON'T YET UNDERSTAND USAGE
-	carray<cvertex2> vtx;				// Ditto
+	carray<cvertex2> vtxs;				// CPT2: replaces the following three members
+	// int nvias;						// number of via connections to area
+	// carray<cconnect2> vcon;			// Changed from CArray<int>. 
+	// carray<cvertex2> vtx;			// Ditto
 	int utility2;
 
 	carea2(cnet2 *_net);					// Done in cpp
@@ -1058,18 +1098,8 @@ public:
 	carea2 *ToArea() { return this; }
 	int GetTypeBit() { return bitArea; }
 
-	void SetConnections() { }									// CPT2 TODO Derive from old CNetList::SetAreaConnections(cnet2*, int)
-
-	// The following supplanted by using pin, vcon, and vtx members above.
-	// int NumVertices();
-	// cvertex2 * VtxByIndex( int iv );
-	// int NumPins();
-	//	cpin2 * PinByIndex( int ip );
-	//	int npins;			// number of thru-hole pins within area on same net
-	//	CArray<int> pin;	// array of thru-hole pins.
-	//	cpin2 * PinByIndex( int ip );
-	// CArray<int> vcon;	// connections 
-	// CArray<int> vtx;	// vertices
+	void SetConnections();											// Done (almost) in cpp. Derived from old CNetList::SetAreaConnections(cnet2*, int)
+	int Complete( int style );										// CPT2 TODO derive from CNetList::CompleteArea
 };
 
 
@@ -1159,6 +1189,8 @@ public:
 	// ? cpin2 * PinByUID( int uid, int * index );
 	void SetVertexToPin( cvertex2 *v, cpin2 *p );					// Arg change
 	int TestHitOnAnyPad( int x, int y, int layer );					// CPT2 TODO adapt from CNetList function
+	cvertex2 *TestHitOnVertex(int layer, int x, int y);				// Done in cpp, derived from old CNetList function
+
 	// connections
 	int NumCons() { return connects.GetNItems(); }
 	// cconnect2 * ConByIndex( int ic );
@@ -1175,21 +1207,15 @@ public:
 		for (carea2* a = ia.First(); a; a = ia.Next())
 			a->SetConnections();
 	}
+	int AddArea( int layer, int x, int y, int hatch, BOOL bDraw=TRUE );					// CPT2 TODO. Derive from CNetList::AddArea
+
 
 // methods that edit object
 	// pins
-	void AddPin( CString * ref_des, CString * pin_name, BOOL bSetAreas=TRUE );
+	cpin2 *AddPin( CString * ref_des, CString * pin_name, BOOL bSetAreas=TRUE );					// Done in cpp
 	void RemovePin( cpin2 *pin, BOOL bSetAreas=TRUE );											// CPT2
 	// ? void RemovePinByUID( int uid, BOOL bSetAreas=TRUE );
 	// void RemovePin( CString * ref_des, CString * pin_name, BOOL bSetAreas=TRUE );			// CPT2 Use above RemovePin, plus:
-	cpin2 *GetPinByNames( CString *ref_des, CString *pin_name)
-	{
-		citer<cpin2> ip (&pins);
-		for (cpin2 *p = ip.First(); p; p = ip.Next())
-			if (p->part->ref_des == *ref_des && p->pin_name == *pin_name)
-				return p;
-		return NULL;
-	}
 	// void RemovePin( int pin_index, BOOL bSetAreas=TRUE );
 
 	void SetWidth( int w, int via_w, int via_hole_w )
@@ -1221,6 +1247,14 @@ public:
 
 	void CleanUpConnections( CString * logstr=NULL );				// CPT2 TODO adapt from CNetList::CleanUpConnections(cnet*,CString*)
 	int OptimizeConnections(BOOL bBelowPinCount, int pin_count, BOOL bVisibleNetsOnly=TRUE );  // CPT2 TODO:  derive from old CNetList functions
+	carea2 *NetAreaFromPoint( int x, int y, int layer )								// CPT2 replaces CNetList::TestPointInArea
+	{
+		citer<carea2> ia (&areas);
+		for (carea2 *a = ia.First(); a; a = ia.Next())
+			if ((a->Layer()==layer || layer==LAY_PAD_THRU) && a->TestPointInside(x, y))
+				return a;
+		return NULL;
+	}
 };
 
 

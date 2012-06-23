@@ -174,9 +174,11 @@
     <ClCompile Include="MyFileDialogExport.cpp" />
     <ClCompile Include="MyToolBar.cpp" />
     <ClCompile Include="Net.cpp" />
+    <ClCompile Include="NetListNew.cpp" />
     <ClCompile Include="Net_iter.cpp" />
     <ClCompile Include="NetList.cpp" />
     <ClCompile Include="PartList.cpp" />
+    <ClCompile Include="PartListNew.cpp" />
     <ClCompile Include="PathDialog.cpp" />
     <ClCompile Include="PcbItem.cpp" />
     <ClCompile Include="php_polygon.cpp" />
@@ -295,6 +297,7 @@
     <ClInclude Include="Net_iter.h" />
     <ClInclude Include="NetList.h" />
     <ClInclude Include="PartList.h" />
+    <ClInclude Include="PartListNew.h" />
     <ClInclude Include="PathDialog.h" />
     <ClInclude Include="PcbItem.h" />
     <ClInclude Include="php_polygon.h" />

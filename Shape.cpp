@@ -1682,6 +1682,14 @@ int CShape::GetPinIndexByName( LPCTSTR name )
 	return -1;		// error
 }
 
+padstack *CShape::GetPadstackByName( CString *name )
+{
+	for (int ip=0; ip<m_padstack.GetSize(); ip++)
+		if (m_padstack[ip].name == *name)
+			return &m_padstack[ip];
+	return NULL;
+}
+
 CString CShape::GetPinNameByIndex( int ip )
 {
 	return m_padstack[ip].name;

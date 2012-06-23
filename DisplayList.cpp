@@ -314,84 +314,6 @@ dl_element * CDisplayList::CreateDLE( id id, void * ptr, int layer, int gtype, i
 }
 
 
-/* dl_element * CDisplayList::MorphDLE( dl_element *pFrom, int to_gtype )
-{
-	// create new element
-	dl_element * new_element = CreateDLE( to_gtype );
-
-	new_element->id         = pFrom->id;
-	new_element->ptr        = pFrom->ptr;
-	new_element->visible    = pFrom->visible;
-	new_element->holew      = pFrom->holew;
-	new_element->clearancew = pFrom->clearancew;
-	new_element->i          = pFrom->i;
-	new_element->f          = pFrom->f;
-	new_element->org        = pFrom->org;
-	new_element->radius     = pFrom->radius;
-	new_element->sel_vert   = pFrom->sel_vert;
-	new_element->layer      = pFrom->layer;
-	new_element->orig_layer = pFrom->orig_layer;
-
-	// Move the element into the same list as pFrom
-	pFrom->insert_after(new_element);
-	pFrom->DLinkList_remove();
-
-	return new_element;
-}
-
-
-/* CPT:  culling out Brian's unused stuff
-
-CDL_job_traces * CDisplayList::GetJob_traces( int layer )
-{
-	CDL_job_traces *pJob;
-	CDLinkList *pElement = m_LIST_job[layer].next;
-
-	if( pElement == &m_LIST_job[layer] )
-	{
-		pJob = new CDL_job_traces(this);
-        m_LIST_job[layer].insert_after(pJob);
-	}
-	else
-	{
-		pJob = static_cast< CDL_job_traces * >(pElement);
-	}
-
-	return pJob;
-}
-
-
-/*  CPT:  culling out Brian's unused stuff
-
-void CDisplayList::Add( CDL_job *pDL_job, int layer )
-{
-    m_LIST_job[layer].move_before(pDL_job);
-}
-*/
-
-/*  CPT:  culling out Brian's unused stuff
-// Add entry to end of list, returns pointer to element created.
-//
-// Entry is added to the given job.
-//
-// Dimensional units for input parameters are PCBU
-//
-dl_element * CDisplayList::Add( CDL_job *pDL_job, id id, void * ptr, int layer, int gtype, int visible,
-	                            int w, int holew, int clearancew, int x, int y, int xf, int yf, int xo, int yo,
-	                            int radius )
-{
-	// create new element
-	dl_element * new_element = CreateDLE( id, ptr, layer, gtype, visible,
-	                                      w, holew, clearancew,
-	                                      x,y, xf,yf, xo,yo, radius,
-	                                      layer );
-	// Link into job
-	pDL_job->Add(new_element);
-
-	return new_element;
-}
-*/
-
 // Add entry to end of list, returns pointer to element created.
 //
 // Dimensional units for input parameters are PCBU
@@ -2220,16 +2142,6 @@ CPoint CDisplayList::PCBToScreen( CPoint point )
 	return p;
 }
 
-
-/* CPT:  culling out Brian's unused stuff
-void CDisplayList::UpdateRatlineWidth( int width )
-{
-	m_ratline_w = width / m_pcbu_per_wu;
-
-	GetJob_traces( LAY_RAT_LINE  )->UpdateLineWidths(m_ratline_w, LAY_RAT_LINE);
-	GetJob_traces( LAY_SELECTION )->UpdateLineWidths(m_ratline_w, LAY_RAT_LINE);
-}
-*/
 
 
 void CDisplayLayer::Draw(CDrawInfo &di, bool bHiliteSegs) 
