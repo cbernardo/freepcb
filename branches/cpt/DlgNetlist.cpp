@@ -203,13 +203,13 @@ void CDlgNetlist::DrawListCtrl()
 	colNames[0].LoadStringA(IDS_Vis);
 	for (int i=1; i<6; i++)
 		colNames[i].LoadStringA(IDS_NetCombineCols+i-1);
-
 	m_list_ctrl.InsertColumn( COL_VIS, colNames[0], LVCFMT_LEFT, 25 );
 	m_list_ctrl.InsertColumn( COL_NAME, colNames[1], LVCFMT_LEFT, 140 );
 	m_list_ctrl.InsertColumn( COL_PINS, colNames[2], LVCFMT_LEFT, 40 );
 	m_list_ctrl.InsertColumn( COL_WIDTH, colNames[3], LVCFMT_LEFT, 40 );
 	m_list_ctrl.InsertColumn( COL_VIA_W, colNames[4], LVCFMT_LEFT, 40 );   
 	m_list_ctrl.InsertColumn( COL_HOLE_W, colNames[5], LVCFMT_LEFT, 40 );
+
 	int iItem = 0;
 	for( int i=0; i<::nl.GetSize(); i++ )
 	{
@@ -299,11 +299,11 @@ void CDlgNetlist::OnBnClickedButtonEdit()
 	if( n_sel == 0 ) {
 		CString s ((LPCSTR) IDS_YouHaveNoNetSelected);
 		AfxMessageBox( s );
-		}
+	}
 	else if( n_sel > 1 ) {
 		CString s ((LPCSTR) IDS_YouHaveMoreThanOneNetSelected);
 		AfxMessageBox( s );
-		}
+	}
 	else
 	{
 		POSITION pos = m_list_ctrl.GetFirstSelectedItemPosition();

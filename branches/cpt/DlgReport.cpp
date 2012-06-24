@@ -6,7 +6,7 @@
 #include "DlgReport.h"
 #include "FreePcbDoc.h"
 #include "Gerber.h"
-
+#include "Net_iter.h"
 
 // CDlgReport dialog
 
@@ -59,12 +59,14 @@ void CDlgReport::DoDataExchange(CDataExchange* pDX)
 
 void CDlgReport::Initialize( CFreePcbDoc * doc )
 {
+#ifndef CPT2
 	m_doc = doc;
 	m_pl = doc->m_plist;
 	m_nl = doc->m_nlist;
 	m_flags = doc->m_report_flags;
 	m_ccw = (m_flags & CW)/CW;		// set to 0 to use CCW (default)
 	m_top = 1 - (m_flags & TOP)/TOP;	// set to 1 to use bottom (default)
+#endif
 }
 
 
@@ -225,15 +227,16 @@ void CDlgReport::OnBnClickedOk()
 		line.Format( s,	num_pins, num_th_pins, num_pins-num_th_pins );
 		file.WriteString( line );
 	}
-	cnet * net = m_nl->GetFirstNet();
-	while( net )
+	CIterator_cnet iter_net(m_nl);
+	for( cnet * net = iter_net.GetFirst(); net; net=iter_net.GetNext() )
 	{
 		num_nets++;
-		for( int ic=0; ic<net->nconnects; ic++ )
+		CIterator_cconnect iter_con(net);
+		for( cconnect * c=iter_con.GetFirst(); c; c=iter_con.GetNext() )
 		{
-			for( int iv=0; iv<net->connect[ic].vtx.GetSize(); iv++ )
+			CIterator_cvertex iter_vtx( c );
+			for( cvertex * v=iter_vtx.GetFirst(); v; v=iter_vtx.GetNext() )
 			{
-				cvertex * v = &net->connect[ic].vtx[iv];
 				int hole_size = v->via_hole_w; 
 				if( hole_size > 0 )
 				{
@@ -247,7 +250,6 @@ void CDlgReport::OnBnClickedOk()
 				}
 			}
 		}
-		net = m_nl->GetNextNet();
 	}
 	if( !(m_flags & NO_PCB_STATS) )
 	{
@@ -359,7 +361,7 @@ void CDlgReport::OnBnClickedOk()
 			ASSERT(0);
 		for( int ip=0; ip<m_pl->GetNumParts(); ip++ )
 		{
-			part = m_pl->GetPart( *ref_ptr[ip] );
+			part = m_pl->GetPartByName( *ref_ptr[ip] );
 			if( !part )
 				ASSERT(0);
 			ref_ptr[ip] = &part->ref_des;
@@ -513,6 +515,7 @@ void CDlgReport::OnBnClickedOk()
 			file.WriteString( str1 + "\n" );
 		}
 	}
+
 	if( !(m_flags & NO_CAM_PARAMS) )  
 	{
 		CString s ((LPCSTR) IDS_GerberFileSettings);
@@ -716,7 +719,7 @@ void CDlgReport::OnBnClickedOk()
 		s.LoadStringA(IDS_MinimumCopperAreaToCopperAreaClearance);
 		line.Format(s, str_min_copper_copper);
 		file.WriteString( line );
-		}
+	}
 	if( m_flags & (DRC_LIST | CONNECTIVITY_LIST) )
 	{
 		BOOL bDrc = m_flags & DRC_LIST;
@@ -731,9 +734,6 @@ void CDlgReport::OnBnClickedOk()
 		{
 			CString s ((LPCSTR) IDS_DRCErrors);
 			file.WriteString( s );
-		}
-		else
-		{
 		}
 		POSITION pos;
 		for( pos = m_doc->m_drelist->list.GetHeadPosition(); pos != NULL; )

@@ -258,6 +258,7 @@ void CDlgAddPin::DoDataExchange(CDataExchange* pDX)
 			s.LoadStringA(IDS_HorizVert+i),
 			m_combo_pad_orient.InsertString(i, s);
 		m_combo_pad_orient.SetCurSel( 0 );
+
 		if( m_fp->GetNumPins() )
 		{
 			CArray<CString> pin_name;
@@ -771,6 +772,7 @@ void CDlgAddPin::DoDataExchange(CDataExchange* pDX)
 		}
 	}
 }
+
 
 BEGIN_MESSAGE_MAP(CDlgAddPin, CDialog)
 	ON_BN_CLICKED(IDC_RADIO_ADD_PIN, OnBnClickedRadioAddPin)

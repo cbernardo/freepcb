@@ -32,27 +32,27 @@
 
 #define ZOOM_RATIO 1.4
 
+// constants for function key menu
 #define FKEY_OFFSET_X 4
 #define FKEY_OFFSET_Y 4
-#define	FKEY_R_W m_fkey_w
+#define	FKEY_R_W m_fkey_w				// CPT:	now a variable, controlled by a string resource (for the sake of foreign language translators)
 #define FKEY_R_H 30
 #define FKEY_STEP (FKEY_R_W+5)
 #define FKEY_GAP 20
 #define FKEY_SEP_W 16
+// constants for layer list
+#define VSTEP 14
 
 extern CFreePcbApp theApp;
 BOOL g_bShow_Ratline_Warning = TRUE;
 
+
 CCommonView::CCommonView()
 {
+	// GetDocument() is not available at this point
 	m_small_font.CreateFont( 14, 0, 0, 0, FW_NORMAL, 0, 0, 0, DEFAULT_CHARSET,
 		OUT_CHARACTER_PRECIS, CLIP_CHARACTER_PRECIS, DEFAULT_QUALITY, 
 		DEFAULT_PITCH | FF_DONTCARE, "Arial" );
-#if 0
-	m_small_font.CreateFont( 10, 0, 0, 0, FW_NORMAL, 0, 0, 0, DEFAULT_CHARSET,
-		OUT_CHARACTER_PRECIS, CLIP_CHARACTER_PRECIS, DEFAULT_QUALITY, 
-		DEFAULT_PITCH | FF_DONTCARE, "MS Sans Serif" );
-#endif
 	m_Doc = NULL;
 	m_dlist = NULL; 
 	m_last_mouse_point.x = 0;
@@ -71,6 +71,7 @@ CCommonView::CCommonView()
 	s.LoadStringA(IDS_FKeyWidth);
 	m_fkey_w = atoi(s);
 	if (m_fkey_w<=0) m_fkey_w = 70;
+	// end CPT
 
 	m_bottom_pane_h = 40;	// the bottom pane on screen is this high (pixels)
 	m_memDC_created = FALSE;
@@ -79,42 +80,6 @@ CCommonView::CCommonView()
 	m_cursor_mode = -1;												// CPT.  Ensures that SetFKText() will get called by InitInstance(),  no matter what.
 	m_sel_offset = -1;
 	}
-
-void CCommonView::BaseInit() {
-	// Initialization that occurs after GetDocument() is ready to run
-	m_Doc = (CFreePcbDoc*) GetDocument();
-	SetDList();
-	if( m_Doc == NULL || m_dlist == NULL )
-		ASSERT(0);
-
-	// Set default values
-	m_debug_flag = 0;
-	m_dragging_new_item = 0;
-	m_pcbu_per_pixel = 5.0*PCBU_PER_MIL;	// 5 mils per pixel
-	m_org_x = -100.0*PCBU_PER_MIL;			// lower left corner of window
-	m_org_y = -100.0*PCBU_PER_MIL;
-	m_Doc->m_fp_snap_angle = 45;
-	m_left_pane_invalid = TRUE;
-	CancelSelection();
-	m_sel_mask = 0xffff;
-	SetSelMaskArray( m_sel_mask );
-
-	CRect screen_r;
-	GetWindowRect( &screen_r );
-	m_dlist->SetMapping( &m_client_r, &screen_r, m_left_pane_w, m_bottom_pane_h, 
-		m_pcbu_per_pixel, m_org_x, m_org_y );
-	for(int i=0; i<GetNLayers(); i++ )
-		m_dlist->SetLayerRGB( i, GetLayerRGB(i,0), GetLayerRGB(i,1), GetLayerRGB(i,2) ),
-		m_dlist->SetLayerVisible( i, 1 );
-	Invalidate( FALSE );
-	}
-
-BOOL CCommonView::PreCreateWindow(CREATESTRUCT& cs)
-{
-	// TODO: Modify the Window class or styles here by modifying
-	//  the CREATESTRUCT cs
-	return CView::PreCreateWindow(cs);
-}
 
 #ifdef _DEBUG
 void CCommonView::AssertValid() const
@@ -134,21 +99,15 @@ CFreePcbDoc* CCommonView::GetDocument() // non-debug version is inline
 }
 #endif //_DEBUG
 
-// Set the device context to world coords
-//
 int CCommonView::SetDCToWorldCoords( CDC * pDC )
 {
-	m_dlist->SetDCToWorldCoords( pDC, &m_memDC, m_org_x, m_org_y );
-
+	m_dlist->SetDCToWorldCoords( pDC, &m_memDC, &m_memDC2, m_org_x, m_org_y );
 	return 0;
 }
 
 
-// Window was resized
-//
-void CCommonView::OnSize(UINT nType, int cx, int cy) 
+void CCommonView::OnSize(UINT nType, int cx, int cy)
 {
-
 	CView::OnSize(nType, cx, cy);
 
 	// update client rect and create clipping region
@@ -162,10 +121,10 @@ void CCommonView::OnSize(UINT nType, int cx, int cy)
 	{
 		CRect screen_r;
 		GetWindowRect( &screen_r );
-		m_dlist->SetMapping( &m_client_r, &screen_r, m_left_pane_w, m_bottom_pane_h, m_pcbu_per_pixel, 
+		m_dlist->SetMapping( &m_client_r, &screen_r, m_left_pane_w, m_bottom_pane_h, m_pcbu_per_pixel,
 					m_org_x, m_org_y );
 	}
-	
+
 	// create memory DC and DDB
 	if( !m_memDC_created && m_client_r.right != 0 )
 	{
@@ -173,39 +132,90 @@ void CCommonView::OnSize(UINT nType, int cx, int cy)
 		m_memDC.CreateCompatibleDC( pDC );
 		m_memDC_created = TRUE;
 		m_bitmap.CreateCompatibleBitmap( pDC, m_client_r.right, m_client_r.bottom );
-		m_old_bitmap = m_memDC.SelectObject( &m_bitmap );
+		m_old_bitmap = (HBITMAP)::SelectObject( m_memDC.m_hDC, m_bitmap.m_hObject );		
 		m_bitmap_rect = m_client_r;
+		// CPT experimental
+		m_memDC2.CreateCompatibleDC( pDC );
+		m_bitmap2.CreateCompatibleBitmap( pDC, m_client_r.right, m_client_r.bottom );
+		m_old_bitmap2 = (HBITMAP)::SelectObject( m_memDC2.m_hDC, m_bitmap2.m_hObject );
+		// end CPT
 		ReleaseDC( pDC );
 	}
 	else if( m_memDC_created && (m_bitmap_rect != m_client_r) )
 	{
 		CDC * pDC = GetDC();
-		m_memDC.SelectObject( m_old_bitmap );
+		::SelectObject(m_memDC.m_hDC, m_old_bitmap );
 		m_bitmap.DeleteObject();
 		m_bitmap.CreateCompatibleBitmap( pDC, m_client_r.right, m_client_r.bottom );
-		m_old_bitmap = m_memDC.SelectObject( &m_bitmap );
+		m_old_bitmap = (HBITMAP)::SelectObject( m_memDC.m_hDC, m_bitmap.m_hObject );		
 		m_bitmap_rect = m_client_r;
+		// CPT experimental
+		::SelectObject(m_memDC2.m_hDC, m_old_bitmap2 );
+		m_bitmap2.DeleteObject();
+		m_bitmap2.CreateCompatibleBitmap( pDC, m_client_r.right, m_client_r.bottom );
+		m_old_bitmap2 = (HBITMAP)::SelectObject( m_memDC2.m_hDC, m_bitmap2.m_hObject );		
+		// end CPT
 		ReleaseDC( pDC );
 	}
+}
+
+BOOL CCommonView::PreCreateWindow(CREATESTRUCT& cs)
+{
+	// TODO: Modify the Window class or styles here by modifying
+	//  the CREATESTRUCT cs
+	return CView::PreCreateWindow(cs);
+}
+
+void CCommonView::BaseInit() 
+{
+	// All CPT.
+	// Initialization that occurs after GetDocument() is ready to run
+	m_Doc = (CFreePcbDoc*) GetDocument();
+	SetDList();
+	if( m_Doc == NULL || m_dlist == NULL )
+		ASSERT(0);
+
+	// Set default values
+	m_dragging_new_item = 0;
+	m_pcbu_per_pixel = 5.0*PCBU_PER_MIL;	// 5 mils per pixel
+	m_org_x = -100.0*PCBU_PER_MIL;			// lower left corner of window
+	m_org_y = -100.0*PCBU_PER_MIL;
+	m_Doc->m_fp_snap_angle = 45;
+	m_left_pane_invalid = TRUE;
+	CancelSelection();
+	m_sel_mask = 0xffff;
+	SetSelMaskArray( m_sel_mask );
+
+	CRect screen_r;
+	GetWindowRect( &screen_r );
+	m_dlist->SetMapping( &m_client_r, &screen_r, m_left_pane_w, m_bottom_pane_h, 
+		m_pcbu_per_pixel, m_org_x, m_org_y );
+	for(int i=0; i<GetNLayers(); i++ )
+		m_dlist->SetLayerRGB( i, GetLayerRGB(i) ), 
+		m_dlist->SetLayerVisible( i, 1 );
+	Invalidate( FALSE );
 }
 
 // Set array of selection mask ids
 //
 void CCommonView::SetSelMaskArray( int mask )
 {
-	for( int i=0; i<GetNMasks(); i++ )
+	for( int i=0; i<NUM_SEL_MASKS; i++ )
 	{
 		if( mask & (1<<i) )
-			m_mask_id[i].ii = 0;
+		{
+			m_mask_id[i] = m_mask_default_id[i];
+		}
 		else
-			m_mask_id[i].ii = 0xfffe;	// guaranteed not to exist
+		{
+			m_mask_id[i].SetT1( ID_NONE );	// guaranteed not to exist
+		}
 	}
 }
 
-// DISPLAY RELATED:
 
-// display cursor coords in status bar
-//
+// DISPLAY-RELATED
+
 int CCommonView::ShowCursor()
 {
 	CMainFrame * pMain = (CMainFrame*) AfxGetApp()->m_pMainWnd;
@@ -215,7 +225,7 @@ int CCommonView::ShowCursor()
 	CString str;
 	CPoint p;
 	p = m_last_cursor_point;
-	if( m_units == MIL )
+	if( m_units == MIL )  
 	{
 		str.Format( "X: %8.1f", (double)m_last_cursor_point.x/PCBU_PER_MIL );
 		pMain->DrawStatus( 1, &str );
@@ -236,9 +246,9 @@ void CCommonView::ShowRelativeDistance( int dx, int dy )
 {
 	CString str;
 	CMainFrame * pMain = (CMainFrame*) AfxGetApp()->m_pMainWnd;
-	double d = sqrt( (double)dx*dx + (double)dy*dy );
+	double d = sqrt( (double)dx*dx + (double)dy*dy );  
 	if( m_units == MIL )
-		str.Format( "dx = %.1f, dy = %.1f, d = %.2f",
+		str.Format( "dx = %.1f, dy = %.1f, d = %.2f", 
 		(double)dx/NM_PER_MIL, (double)dy/NM_PER_MIL, d/NM_PER_MIL );
 	else
 		str.Format( "dx = %.3f, dy = %.3f, d = %.3f", dx/1000000.0, dy/1000000.0, d/1000000.0 );
@@ -249,13 +259,13 @@ void CCommonView::ShowRelativeDistance( int x, int y, int dx, int dy )
 {
 	CString str;
 	CMainFrame * pMain = (CMainFrame*) AfxGetApp()->m_pMainWnd;
-	double d = sqrt( (double)dx*dx + (double)dy*dy );
+	double d = sqrt( (double)dx*dx + (double)dy*dy );  
 	if( m_units == MIL )
 		str.Format( "x = %.1f, y = %.1f, dx = %.1f, dy = %.1f, d = %.2f",
 		(double)x/NM_PER_MIL, (double)y/NM_PER_MIL,
 		(double)dx/NM_PER_MIL, (double)dy/NM_PER_MIL, d/NM_PER_MIL );
 	else
-		str.Format( "x = %.3f, y = %.3f, dx = %.3f, dy = %.3f, d = %.3f",
+		str.Format( "x = %.3f, y = %.3f, dx = %.3f, dy = %.3f, d = %.3f", 
 		x/1000000.0, y/1000000.0,
 		dx/1000000.0, dy/1000000.0, d/1000000.0 );
 	pMain->DrawStatus( 3, &str );
@@ -281,10 +291,11 @@ void CCommonView::DrawLeftPane(CDC *pDC) {
 		pDC->SelectObject( old_brush );
 		pDC->SelectObject( old_pen );
 		CFont * old_font = pDC->SelectObject( &m_small_font );
-		for( int i=0; i<GetNLayers(); i++ )
+		// CPT: modified so that "Selection" is no longer one of the displayed layers
+		for( int i=1; i<GetNLayers(); i++ )
 		{
 			// i = position index
-			r.SetRect( x_off, i*VSTEP+y_off, x_off+12, i*VSTEP+12+y_off );
+			r.SetRect( x_off, (i-1)*VSTEP+y_off, x_off+12, (i-1)*VSTEP+12+y_off );
 			// il = true layer num since copper layers are displayed out of order
 			int il = GetLayerNum(i);
 			CBrush brush( RGB(GetLayerRGB(il,0), GetLayerRGB(il,1), GetLayerRGB(il,2)));
@@ -430,8 +441,11 @@ void CCommonView::DrawBottomPane(CDC *pDC)
 		r.top += FKEY_R_H/2 - 2;
 		pDC->DrawText( str2, -1, &r, 0 );
 	}
+	// end CPT
+
 	pDC->SelectObject( old_font );
 }
+
 
 // USER INPUT RESPONSE
 
@@ -469,7 +483,8 @@ bool CCommonView::CheckLeftPaneClick(CPoint &point) {
 	CRect r = m_client_r;
 	int y_off = 10;
 	int x_off = 10;
-	for( int i=0; i<GetNLayers(); i++ )
+	// CPT modified: "Selection" is no longer one of the displayed layers, so click handling changes slightly
+	for( int i=1; i<GetNLayers(); i++ )
 	{
 		// i = position index
 		// il = true layer number, since copper layers are displayed out of order
@@ -477,8 +492,8 @@ bool CCommonView::CheckLeftPaneClick(CPoint &point) {
 		// get color square
 		r.left = x_off;
 		r.right = x_off+12;
-		r.top = i*VSTEP+y_off;
-		r.bottom = i*VSTEP+12+y_off;
+		r.top = (i-1)*VSTEP+y_off;
+		r.bottom = (i-1)*VSTEP+12+y_off;
 		if( r.PtInRect( point ) && il > LAY_BACKGND )
 		{
 			// clicked in color square
@@ -532,8 +547,7 @@ bool CCommonView::CheckLeftPaneClick(CPoint &point) {
 	return true;
 }
 
-// handle mouse scroll wheel
-//
+
 BOOL CCommonView::OnMouseWheel(UINT nFlags, short zDelta, CPoint pt) 
 {
 #define MIN_WHEEL_DELAY 1.0
@@ -627,7 +641,7 @@ BOOL CCommonView::OnMouseWheel(UINT nFlags, short zDelta, CPoint pt)
 }
 
 bool CCommonView::HandleLayerKey(UINT nChar, bool bShiftKeyDown, bool bCtrlKeyDown, CDC *pDC) {
-	if( nChar>=VK_NUMPAD1 && nChar<=VK_NUMPAD9 )						// Translate number-pad numbers to regular numbers...
+	if( nChar>=VK_NUMPAD1 && nChar<=VK_NUMPAD9 )	// Translate number-pad numbers to regular numbers...
 		nChar = '1' + nChar - VK_NUMPAD1;
 	char * ch = strchr( layer_char, nChar );
 	if (!ch) return false;
@@ -636,7 +650,8 @@ bool CCommonView::HandleLayerKey(UINT nChar, bool bShiftKeyDown, bool bCtrlKeyDo
 	if( layer >= GetNLayers() ) return true;
 	InvalidateLeftPane();
 	Invalidate(FALSE);
-	if (bCtrlKeyDown) {
+	if (bCtrlKeyDown) 
+	{
 		// New CPT ctrl-hotkeys
 		int vis = ToggleLayerVis(layer);
 		m_dlist->SetLayerVisible( layer, vis );
@@ -644,14 +659,6 @@ bool CCommonView::HandleLayerKey(UINT nChar, bool bShiftKeyDown, bool bCtrlKeyDo
 	else if (bShiftKeyDown) HandleShiftLayerKey(layer, pDC);
 	else                    HandleNoShiftLayerKey(layer, pDC);
 	return true;
-}
-
-void CCommonView::HandleCtrlFKey(int nChar) {
-	int layer = nChar-110;
-	int vis = ToggleLayerVis(layer);
-	m_dlist->SetLayerVisible( layer, vis );
-	InvalidateLeftPane();
-	Invalidate( FALSE );
 }
 
 void CCommonView::HandlePanAndZoom(int nChar, CPoint &p) {
@@ -715,6 +722,14 @@ void CCommonView::HandlePanAndZoom(int nChar, CPoint &p) {
 	}
 }
 
+void CCommonView::HandleCtrlFKey(int nChar) {
+	int layer = nChar-110;
+	int vis = ToggleLayerVis(layer);
+	m_dlist->SetLayerVisible( layer, vis );
+	InvalidateLeftPane();
+	Invalidate( FALSE );
+}
+
 // System Key on keyboard pressed down
 //
 void CCommonView::OnSysKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags)
@@ -723,7 +738,7 @@ void CCommonView::OnSysKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags)
 		OnKeyDown( nChar, nRepCnt, nFlags);
 	else
 		CView::OnSysKeyDown(nChar, nRepCnt, nFlags);
-	m_sel_offset = -1;													// CPT:  indicates that a series of mouse-clicks has been interrupted
+	m_sel_offset = -1;									// CPT r294: indicates that a series of mouse-clicks has been interrupted
 }
 
 // System Key on keyboard pressed up
@@ -755,10 +770,12 @@ void CCommonView::OnSysKeyUp(UINT nChar, UINT nRepCnt, UINT nFlags)
 		CMainFrame * frm = (CMainFrame*)AfxGetMainWnd();
 		frm->m_wndMyToolBar.VisibleGridDown();
 		}
+	// end CPT
 
 	if( nChar != 121 )
 		CView::OnSysKeyUp(nChar, nRepCnt, nFlags);
 }
+
 
 void CCommonView::PlacementGridUp() {
 	CMainFrame * frm = (CMainFrame*)AfxGetMainWnd();
@@ -768,6 +785,7 @@ void CCommonView::PlacementGridDown() {
 	CMainFrame * frm = (CMainFrame*)AfxGetMainWnd();
 	frm->m_wndMyToolBar.PlacementGridDown();
 	}
+
 
 void CCommonView::SnapToAngle(CPoint &wp, int grid_spacing) {
 	double ddx = fmod( (double)(m_snap_angle_ref.x), grid_spacing );
@@ -901,13 +919,14 @@ void CCommonView::SnapToGridPoint(CPoint &wp, int grid_spacing)
 	wp.y = test;
 }
 
-#define M_PI 3.1415926536
+
 // macro for approximating angles to 1 degree accuracy
 #define APPROX(angle,ref) ((angle > ref-M_PI/360) && (angle < ref+M_PI/360))
 
 void CCommonView::SnapToGridLine(CPoint &wp, int grid_spacing) {
 	// patch to snap to grid lines, contributed by ???
 	// modified by AMW to work when cursor x,y are < 0
+	// CPT:  Have my doubts whether this works right...
 	// offset cursor and ref positions by integral number of grid spaces
 	// to make all values positive
 	double offset_grid_spaces;
@@ -1085,4 +1104,6 @@ void CCommonView::SnapToGridLine(CPoint &wp, int grid_spacing) {
 	else
 		wp.y = ttest - 0.5;
 }
+
+
 

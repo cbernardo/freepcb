@@ -264,7 +264,6 @@ BOOL CPathDialog::IsFileNameValid(LPCTSTR lpFileName)
 	return TRUE;
 }
 
-
 //return -1: user break;
 //return 0: no error
 //return 1: lpPath is invalid
@@ -307,7 +306,7 @@ int CPathDialog::MakeSurePathExists(LPCTSTR lpPath)
 	{
 		CString s1 ((LPCSTR) IDS_TheFolderIsInvalid);
 		CString s2 ((LPCSTR) IDS_TheFolderCanNotBeCreated);
-		
+ 
 		switch(nErrCode)
 		{
 		case 1:

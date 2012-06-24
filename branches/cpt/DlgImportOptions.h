@@ -15,7 +15,7 @@ public:
 
 // Dialog Data
 	enum { IDD = IDD_IMPORT_OPTIONS };
-	enum { FREEPCB, PADSPCB }; 
+	enum { FREEPCB, PADSPCB };							// CPT
 
 protected:
 	virtual void DoDataExchange(CDataExchange* pDX);    // DDX/DDV support
@@ -23,7 +23,6 @@ protected:
 	DECLARE_MESSAGE_MAP()
 public:
 	int m_flags;
-	int m_format;
 	CButton m_radio_remove_parts;
 	CButton m_radio_keep_parts_no_connections;
 	CButton m_radio_keep_parts_and_connections;
@@ -41,10 +40,12 @@ public:
 	CButton m_radio_parts_and_nets;
 	CButton m_radio_padspcb;
 	CButton m_radio_freepcb;
+	int m_format;
 
-	afx_msg void OnBnClickedSaveAndImport();
-	afx_msg void OnBnClickedOk();
 	void SetPartsNetsFlags();
 	void EnableDisableButtons();
 	afx_msg void OnBnClickedPartsAndNets();
+	// end CPT
+	afx_msg void OnBnClickedSaveAndImport();
+	afx_msg void OnBnClickedOk();
 };

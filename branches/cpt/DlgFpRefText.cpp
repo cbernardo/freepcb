@@ -55,14 +55,6 @@ void CDlgFpRefText::DoDataExchange(CDataExchange* pDX)
 		GetFields();
 		if( m_radio_def.GetCheck() )
 			m_width = m_def_width;
-		// CPT:  forbid height 0.  If user makes that setting, it can never be undone!  Let 'em hide individual parts' ref-texts if they really want that.
-		if (m_height==0)
-		{
-			CString s ((LPCSTR) IDS_TextHeightZeroIsNotPermitted);
-			AfxMessageBox( s );
-			pDX->Fail();
-		}
-
 	}
 }
 

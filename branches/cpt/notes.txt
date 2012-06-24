@@ -223,7 +223,7 @@ CPT revisions:
 15. Modified group-selection behavior, so that there is no longer a distinction between a group of 1 element and a single selected
 	item.  To prevent any lost functionality, implemented arrow keys for board edges, area edges, sm-cutouts, and end-vertices; implemented
 	ctrl-c/x for single selected items.
-15a.  FORGOT TO LIST THIS ONE PREVIOUSLY.  Fixed bug where SetCapture() was not called in CFreePcbView::OnLButtonDown() was not called, causing
+15a.  FORGOT TO LIST THIS ONE PREVIOUSLY.  Fixed bug where SetCapture() was not called in CFreePcbView::OnLButtonDown(), causing
 	poor behavior when dragging and releasing outside the client area.  Moreover, now allows autoscrolling when dragging a group-select 
 	rectangle out to the margins.
 16. Added sorting to export netlist.
@@ -297,9 +297,21 @@ CPT revisions:
 
 
 TODO:
-Implement PgUp/PgDn reversal.
+Check Undo hotkey merge.
 Fix ReconcileVia (step 1)
-Discuss highlighted seg appearance with Allan.
+Border line for left and bottom panes.
+
+void CFreePcbDoc::OnFileSaveAs() 
+{
+	// force old-style file dialog by setting size of OPENFILENAME struct
+	CString s ((LPCSTR) IDS_PCBFiles);
+	CFileDialog dlg( 0, "fpc", LPCTSTR(m_pcb_filename), OFN_OVERWRITEPROMPT,							// CPT changed arg
+		s, NULL, 0 /* CPT eliminated, doesn't work in VS 10.0: OPENFILENAME_SIZE_VERSION_400 */ );
+//	OPENFILENAME  * myOFN = dlg.m_pOFN;																	// CPT: this way of setting options was causing doModal() 
+																										// to fail if file had changed
+//	myOFN->Flags |= OFN_OVERWRITEPROMPT;
+
+etc.
 
 int CPartList::WriteParts( CStdioFile * file )
 {

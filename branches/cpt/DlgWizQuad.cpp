@@ -216,6 +216,7 @@ void CDlgWizQuad::OnBnClickedRadioZ2()
 void CDlgWizQuad::OnCbnSelchangeComboWizShape()
 {
 	CString str, x_str;
+	m_combo_shape.GetWindowText( str );
 	enum { shpRound=0, shpSquare, shpPin1Square, shpOctagon, 
 		   shpRectangular, shpRoundedRect, shpOval, shpNone };
 	int index = m_combo_shape.GetCurSel( );
@@ -755,16 +756,15 @@ void CDlgWizQuad::OnBnClickedButton2()
 	CDC * pDC = this->GetDC();
 	CRect rw;
 	m_preview.GetClientRect( &rw );
-	int x_size = rw.right - rw.left;
-	int y_size = rw.bottom - rw.top;
-	HENHMETAFILE hMF = m_footprint.CreateMetafile( &m_mfDC, pDC, x_size, y_size );
+	HENHMETAFILE hMF = m_footprint.CreateMetafile( &m_mfDC, pDC, rw );
 	m_preview.SetEnhMetaFile( hMF );
 	ReleaseDC( pDC );
-
+	DeleteEnhMetaFile( hMF );
 }
 
 BOOL CDlgWizQuad::MakeFootprint()
 {
+#ifndef CPT2
 	CString str_name;
 	CString str;
 	CString str_E;
@@ -1065,23 +1065,23 @@ BOOL CDlgWizQuad::MakeFootprint()
 			}
 			// modify outline
 			CPolyLine * poly = &m_footprint.m_outline_poly[0];
-			int xc = poly->GetX(3);
-			int yc = poly->GetY(3);
+			int xc = poly->X(3);
+			int yc = poly->Y(3);
 			poly->DeleteCorner(3);
 			int chamfer = m_e;
 			int enlarge = m_e/2;
 			poly->InsertCorner( 3, xc + chamfer, yc );
 			poly->InsertCorner( 4, xc, yc - chamfer );
-			poly->SetX( 0, poly->GetX(0) - enlarge );
-			poly->SetY( 0, poly->GetY(0) - enlarge );
-			poly->SetX( 1, poly->GetX(1) + enlarge);
-			poly->SetY( 1, poly->GetY(1) - enlarge );
-			poly->SetX( 2, poly->GetX(2) + enlarge );
-			poly->SetY( 2, poly->GetY(2) + enlarge );
-			poly->SetX( 3, poly->GetX(3) - enlarge );
-			poly->SetY( 3, poly->GetY(3) + enlarge );
-			poly->SetX( 4, poly->GetX(4) - enlarge );
-			poly->SetY( 4, poly->GetY(4) + enlarge );
+			poly->SetX( 0, poly->X(0) - enlarge );
+			poly->SetY( 0, poly->Y(0) - enlarge );
+			poly->SetX( 1, poly->X(1) + enlarge);
+			poly->SetY( 1, poly->Y(1) - enlarge );
+			poly->SetX( 2, poly->X(2) + enlarge );
+			poly->SetY( 2, poly->Y(2) + enlarge );
+			poly->SetX( 3, poly->X(3) - enlarge );
+			poly->SetY( 3, poly->Y(3) + enlarge );
+			poly->SetX( 4, poly->X(4) - enlarge );
+			poly->SetY( 4, poly->Y(4) + enlarge );
 			m_footprint.m_sel_xi -= enlarge;
 			m_footprint.m_sel_yi -= enlarge;
 			m_footprint.m_sel_xf += enlarge;
@@ -1089,6 +1089,7 @@ BOOL CDlgWizQuad::MakeFootprint()
 		}
 	}
 
+#endif
 	// Yay!
 	return TRUE;
 }

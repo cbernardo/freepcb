@@ -720,7 +720,7 @@ void CDlgAddPart::OnTvnSelchangedPartLibTree(NMHDR *pNMHDR, LRESULT *pResult)
 		m_preview.GetClientRect( &rw );
 		int x_size = rw.right - rw.left;
 		int y_size = rw.bottom - rw.top;
-		HENHMETAFILE hMF = m_shape.CreateMetafile( &m_mfDC, pDC, x_size, y_size );
+		HENHMETAFILE hMF = m_shape.CreateMetafile( &m_mfDC, pDC, CRect(0, 0, x_size, y_size) );
 		m_preview.SetEnhMetaFile( hMF );
 		ReleaseDC( pDC );
 		// update text strings

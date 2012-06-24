@@ -219,6 +219,7 @@ void DlgDRC::CheckDesign()
 	GetFields();
 
 	// warnings
+	CString mess;
 	if( m_dr_local.annular_ring_pins > m_CAM_annular_ring_pins )  
 	{
 		CString s ((LPCSTR) IDS_WarningYourDesignRule);

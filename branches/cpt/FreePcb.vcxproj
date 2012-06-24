@@ -18,6 +18,7 @@
     <ProjectGuid>{48B16142-FBCE-4203-996C-8DEC8AAE6546}</ProjectGuid>
     <RootNamespace>FreePcb</RootNamespace>
     <Keyword>MFCProj</Keyword>
+    <ProjectName>FreePcbCPT</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
@@ -52,6 +53,15 @@
     <OutDir Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">.\Release\</OutDir>
     <IntDir Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">.\Release\</IntDir>
     <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</LinkIncremental>
+    <CodeAnalysisRuleSet Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">AllRules.ruleset</CodeAnalysisRuleSet>
+    <CodeAnalysisRules Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" />
+    <CodeAnalysisRuleAssemblies Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" />
+    <CodeAnalysisRuleSet Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">AllRules.ruleset</CodeAnalysisRuleSet>
+    <CodeAnalysisRules Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" />
+    <CodeAnalysisRuleAssemblies Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" />
+    <CodeAnalysisRuleSet Condition="'$(Configuration)|$(Platform)'=='Template|Win32'">AllRules.ruleset</CodeAnalysisRuleSet>
+    <CodeAnalysisRules Condition="'$(Configuration)|$(Platform)'=='Template|Win32'" />
+    <CodeAnalysisRuleAssemblies Condition="'$(Configuration)|$(Platform)'=='Template|Win32'" />
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <Midl>
@@ -64,7 +74,7 @@
     <ClCompile>
       <AdditionalOptions>/D "_CRT_SECURE_NO_DEPRECATE" %(AdditionalOptions)</AdditionalOptions>
       <Optimization>Disabled</Optimization>
-      <AdditionalIncludeDirectories>./include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>./include;./drawing_element;./;./Dialogs;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
@@ -86,7 +96,7 @@
     <Link>
       <AdditionalOptions>/MACHINE:I386 %(AdditionalOptions)</AdditionalOptions>
       <AdditionalDependencies>winmm.lib;rpcrt4.lib;clibpdf.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <OutputFile>.\Debug/FreePcb.exe</OutputFile>
+      <OutputFile>.\Debug/FreePcbCPT.exe</OutputFile>
       <Version>1.109</Version>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <AdditionalLibraryDirectories>./libs/Debug;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
@@ -109,7 +119,7 @@
     <ClCompile>
       <AdditionalOptions>/D "_CRT_SECURE_NO_DEPRECATE" %(AdditionalOptions)</AdditionalOptions>
       <InlineFunctionExpansion>OnlyExplicitInline</InlineFunctionExpansion>
-      <AdditionalIncludeDirectories>./include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>./include;./drawing_element;./;./Dialogs;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN32;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <StringPooling>true</StringPooling>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
@@ -143,8 +153,63 @@
     <ClCompile Include="Cuid.cpp" />
     <ClCompile Include="DesignRules.cpp" />
     <ClCompile Include="DisplayList.cpp" />
-    <ClCompile Include="DlgAddArea.cpp" />
     <ClCompile Include="DlgAddGridVal.cpp" />
+    <ClCompile Include="DlgExportOptions.cpp" />
+    <ClCompile Include="DlgGridVals.cpp" />
+    <ClCompile Include="DlgPrefs.cpp" />
+    <ClCompile Include="DrawingElement.cpp" />
+    <ClCompile Include="ellipse_newton.cpp" />
+    <ClCompile Include="file_io.cpp" />
+    <ClCompile Include="FootprintLib.cpp" />
+    <ClCompile Include="FootprintView.cpp" />
+    <ClCompile Include="FreePcb.cpp" />
+    <ClCompile Include="FreePcbDoc.cpp" />
+    <ClCompile Include="FreePcbView.cpp" />
+    <ClCompile Include="Gerber.cpp" />
+    <ClCompile Include="gpc_232.cpp" />
+    <ClCompile Include="ids.cpp" />
+    <ClCompile Include="ivex_mod_file.cpp" />
+    <ClCompile Include="layers.cpp" />
+    <ClCompile Include="MainFrm.cpp" />
+    <ClCompile Include="MyFileDialog.cpp" />
+    <ClCompile Include="MyFileDialogExport.cpp" />
+    <ClCompile Include="MyToolBar.cpp" />
+    <ClCompile Include="Net.cpp" />
+    <ClCompile Include="NetListNew.cpp" />
+    <ClCompile Include="Net_iter.cpp" />
+    <ClCompile Include="NetList.cpp" />
+    <ClCompile Include="PartList.cpp" />
+    <ClCompile Include="PartListNew.cpp" />
+    <ClCompile Include="PathDialog.cpp" />
+    <ClCompile Include="PcbItem.cpp" />
+    <ClCompile Include="php_polygon.cpp" />
+    <ClCompile Include="php_polygon_vertex.cpp" />
+    <ClCompile Include="PolyLine.cpp" />
+    <ClCompile Include="QAFDebug.cpp" />
+    <ClCompile Include="RTcall.cpp" />
+    <ClCompile Include="Shape.cpp" />
+    <ClCompile Include="smcharacter.cpp" />
+    <ClCompile Include="smfontutil.cpp" />
+    <ClCompile Include="StdAfx.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="TextList.cpp" />
+    <ClCompile Include="UndoList.cpp" />
+    <ClCompile Include="utility.cpp" />
+    <ClCompile Include="drawing_element\dle_arc.cpp" />
+    <ClCompile Include="drawing_element\dle_centroid.cpp" />
+    <ClCompile Include="drawing_element\dle_circle.cpp" />
+    <ClCompile Include="drawing_element\dle_donut.cpp" />
+    <ClCompile Include="drawing_element\dle_hole.cpp" />
+    <ClCompile Include="drawing_element\dle_line.cpp" />
+    <ClCompile Include="drawing_element\dle_octagon.cpp" />
+    <ClCompile Include="drawing_element\dle_oval.cpp" />
+    <ClCompile Include="drawing_element\dle_rect.cpp" />
+    <ClCompile Include="drawing_element\dle_rect_rounded.cpp" />
+    <ClCompile Include="drawing_element\dle_square.cpp" />
+    <ClCompile Include="drawing_element\dle_x.cpp" />
+    <ClCompile Include="DlgAddArea.cpp" />
     <ClCompile Include="DlgAddMaskCutout.cpp" />
     <ClCompile Include="DlgAddNet.cpp" />
     <ClCompile Include="DlgAddPart.cpp" />
@@ -163,12 +228,9 @@
     <ClCompile Include="DlgEditBoardCorner.cpp" />
     <ClCompile Include="DlgEditNet.cpp" />
     <ClCompile Include="DlgExportDsn.cpp" />
-    <ClCompile Include="DlgExportOptions.cpp" />
     <ClCompile Include="DlgFindPart.cpp" />
-    <ClCompile Include="DlgFpRefText.cpp" />
     <ClCompile Include="DlgFpText.cpp" />
     <ClCompile Include="DlgGlue.cpp" />
-    <ClCompile Include="DlgGridVals.cpp" />
     <ClCompile Include="DlgGroupPaste.cpp" />
     <ClCompile Include="DlgHole.cpp" />
     <ClCompile Include="DlgImportFootprint.cpp" />
@@ -185,7 +247,6 @@
     <ClCompile Include="DlgNetCombine.cpp" />
     <ClCompile Include="DlgNetlist.cpp" />
     <ClCompile Include="DlgPartlist.cpp" />
-    <ClCompile Include="DlgPrefs.cpp" />
     <ClCompile Include="DlgProjectOptions.cpp" />
     <ClCompile Include="DlgReassignLayers.cpp" />
     <ClCompile Include="DlgRefText.cpp" />
@@ -201,50 +262,77 @@
     <ClCompile Include="DlgValueText.cpp" />
     <ClCompile Include="DlgVia.cpp" />
     <ClCompile Include="DlgWizQuad.cpp" />
-    <ClCompile Include="file_io.cpp" />
-    <ClCompile Include="FootprintLib.cpp" />
-    <ClCompile Include="FootprintView.cpp" />
-    <ClCompile Include="FreePcb.cpp" />
-    <ClCompile Include="FreePcbDoc.cpp" />
-    <ClCompile Include="FreePcbView.cpp" />
-    <ClCompile Include="Gerber.cpp" />
-    <ClCompile Include="gpc_232.cpp" />
-    <ClCompile Include="ivex_mod_file.cpp" />
-    <ClCompile Include="MainFrm.cpp" />
-    <ClCompile Include="MyToolBar.cpp" />
-    <ClCompile Include="Net_iter.cpp" />
-    <ClCompile Include="NetList.cpp" />
-    <ClCompile Include="PartList.cpp" />
-    <ClCompile Include="PathDialog.cpp" />
-    <ClCompile Include="php_polygon.cpp" />
-    <ClCompile Include="php_polygon_vertex.cpp" />
-    <ClCompile Include="PolyLine.cpp" />
-    <ClCompile Include="QAFDebug.cpp" />
-    <ClCompile Include="RTcall.cpp" />
-    <ClCompile Include="Shape.cpp" />
-    <ClCompile Include="smcharacter.cpp" />
-    <ClCompile Include="smfontutil.cpp" />
-    <ClCompile Include="StdAfx.cpp">
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
-    </ClCompile>
-    <ClCompile Include="TextList.cpp" />
-    <ClCompile Include="UndoList.cpp" />
-    <ClCompile Include="utility.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="FreePcb.rc" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="CommonView.h" />
-    <ClInclude Include="DlgAddGridVal.h" />
-    <ClInclude Include="DlgAddPoly.h" />
     <ClInclude Include="Cuid.h" />
-    <ClInclude Include="DdlgNetCombine.h" />
     <ClInclude Include="DesignRules.h" />
     <ClInclude Include="DisplayList.h" />
+    <ClInclude Include="DlgAddGridVal.h" />
+    <ClInclude Include="DlgExportOptions.h" />
+    <ClInclude Include="DlgGridVals.h" />
+    <ClInclude Include="DlgPrefs.h" />
+    <ClInclude Include="DrawingElement.h" />
+    <ClInclude Include="ellipse_newton.h" />
+    <ClInclude Include="file_io.h" />
+    <ClInclude Include="FootprintLib.h" />
+    <ClInclude Include="FootprintView.h" />
+    <ClInclude Include="FreePcb.h" />
+    <ClInclude Include="FreePcbDoc.h" />
+    <ClInclude Include="FreePcbView.h" />
+    <ClInclude Include="Gerber.h" />
+    <ClInclude Include="gpc_232.h" />
+    <ClInclude Include="ids.h" />
+    <ClInclude Include="ivex_mod_file.h" />
+    <ClInclude Include="layers.h" />
+    <ClInclude Include="LinkList.h" />
+    <ClInclude Include="MainFrm.h" />
+    <ClInclude Include="MyFileDialog.h" />
+    <ClInclude Include="MyFileDialogExport.h" />
+    <ClInclude Include="MyToolBar.h" />
+    <ClInclude Include="Net.h" />
+    <ClInclude Include="NetListNew.h" />
+    <ClInclude Include="Net_iter.h" />
+    <ClInclude Include="NetList.h" />
+    <ClInclude Include="PartList.h" />
+    <ClInclude Include="PartListNew.h" />
+    <ClInclude Include="PathDialog.h" />
+    <ClInclude Include="PcbItem.h" />
+    <ClInclude Include="php_polygon.h" />
+    <ClInclude Include="php_polygon_vertex.h" />
+    <ClInclude Include="PolyLine.h" />
+    <ClInclude Include="QAFDebug.h" />
+    <ClInclude Include="Resource.h" />
+    <ClInclude Include="resource1.h" />
+    <ClInclude Include="RTcall.h" />
+    <ClInclude Include="Shape.h" />
+    <ClInclude Include="smcharacter.h" />
+    <ClInclude Include="smfontutil.h" />
+    <ClInclude Include="StdAfx.h" />
+    <ClInclude Include="TextList.h" />
+    <ClInclude Include="UndoList.h" />
+    <ClInclude Include="utility.h" />
+    <ClInclude Include="drawing_element\dle_arc.h" />
+    <ClInclude Include="drawing_element\dle_centroid.h" />
+    <ClInclude Include="drawing_element\dle_circle.h" />
+    <ClInclude Include="drawing_element\dle_donut.h" />
+    <ClInclude Include="drawing_element\dle_hole.h" />
+    <ClInclude Include="drawing_element\dle_line.h" />
+    <ClInclude Include="drawing_element\dle_octagon.h" />
+    <ClInclude Include="drawing_element\dle_oval.h" />
+    <ClInclude Include="drawing_element\dle_rect.h" />
+    <ClInclude Include="drawing_element\dle_rect_rounded.h" />
+    <ClInclude Include="drawing_element\dle_square.h" />
+    <ClInclude Include="drawing_element\dle_x.h" />
     <ClInclude Include="DlgAddArea.h" />
     <ClInclude Include="DlgAddMaskCutout.h" />
     <ClInclude Include="DlgAddNet.h" />
     <ClInclude Include="DlgAddPart.h" />
     <ClInclude Include="DlgAddPin.h" />
+    <ClInclude Include="DlgAddPoly.h" />
     <ClInclude Include="DlgAddText.h" />
     <ClInclude Include="DlgAddWidth.h" />
     <ClInclude Include="DlgAreaLayer.h" />
@@ -258,12 +346,9 @@
     <ClInclude Include="DlgEditBoardCorner.h" />
     <ClInclude Include="DlgEditNet.h" />
     <ClInclude Include="DlgExportDsn.h" />
-    <ClInclude Include="DlgExportOptions.h" />
     <ClInclude Include="DlgFindPart.h" />
-    <ClInclude Include="DlgFpRefText.h" />
     <ClInclude Include="DlgFpText.h" />
     <ClInclude Include="DlgGlue.h" />
-    <ClInclude Include="DlgGridVals.h" />
     <ClInclude Include="DlgGroupPaste.h" />
     <ClInclude Include="DlgImportFootprint.h" />
     <ClInclude Include="DlgImportOptions.h" />
@@ -279,7 +364,6 @@
     <ClInclude Include="DlgNetCombine.h" />
     <ClInclude Include="DlgNetlist.h" />
     <ClInclude Include="DlgPartlist.h" />
-    <ClInclude Include="DlgPrefs.h" />
     <ClInclude Include="DlgProjectOptions.h" />
     <ClInclude Include="DlgReassignLayers.h" />
     <ClInclude Include="DlgRefText.h" />
@@ -295,42 +379,9 @@
     <ClInclude Include="DlgValueText.h" />
     <ClInclude Include="DlgVia.h" />
     <ClInclude Include="DlgWizQuad.h" />
-    <ClInclude Include="file_io.h" />
-    <ClInclude Include="FootprintLib.h" />
-    <ClInclude Include="FootprintView.h" />
-    <ClInclude Include="FreePcb.h" />
-    <ClInclude Include="FreePcbDoc.h" />
-    <ClInclude Include="FreePcbView.h" />
-    <ClInclude Include="Gerber.h" />
-    <ClInclude Include="gpc_232.h" />
-    <ClInclude Include="ids.h" />
-    <ClInclude Include="ivex_mod_file.h" />
-    <ClInclude Include="layers.h" />
-    <ClInclude Include="LinkList.h" />
-    <ClInclude Include="MainFrm.h" />
-    <ClInclude Include="MyToolBar.h" />
-    <ClInclude Include="NetList.h" />
-    <ClInclude Include="PartList.h" />
-    <ClInclude Include="PathDialog.h" />
-    <ClInclude Include="php_polygon.h" />
-    <ClInclude Include="php_polygon_vertex.h" />
-    <ClInclude Include="PolyLine.h" />
-    <ClInclude Include="QAFDebug.h" />
-    <ClInclude Include="Resource.h" />
-    <ClInclude Include="resource1.h" />
-    <ClInclude Include="RTcall.h" />
-    <ClInclude Include="Shape.h" />
-    <ClInclude Include="smcharacter.h" />
-    <ClInclude Include="smfontutil.h" />
-    <ClInclude Include="StdAfx.h" />
-    <ClInclude Include="TextList.h" />
-    <ClInclude Include="UndoList.h" />
-    <ClInclude Include="utility.h" />
   </ItemGroup>
   <ItemGroup>
-    <ResourceCompile Include="FreePcb.rc" />
-  </ItemGroup>
-  <ItemGroup>
+    <None Include="CPT_merge_notes.txt" />
     <None Include="res\bga.bmp" />
     <None Include="res\bitmap_d.bmp" />
     <None Include="res\edge.bmp" />

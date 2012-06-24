@@ -144,12 +144,12 @@ void CDlgPartlist::DrawListCtrl()
 	CString colNames[5];
 	for (int i=0; i<5; i++)
 		colNames[i].LoadStringA(IDS_PartListCols+i);
-
 	m_list_ctrl.InsertColumn( COL_VIS, colNames[0], LVCFMT_LEFT, 60 );
 	m_list_ctrl.InsertColumn( COL_NAME, colNames[1], LVCFMT_LEFT, 70 );
 	m_list_ctrl.InsertColumn( COL_PACKAGE, colNames[2], LVCFMT_LEFT, 150 );
 	m_list_ctrl.InsertColumn( COL_FOOTPRINT, colNames[3], LVCFMT_LEFT, 150 );
 	m_list_ctrl.InsertColumn( COL_VALUE, colNames[4], LVCFMT_LEFT, 200 );
+
 	for( int i=0; i<::pl.GetSize(); i++ )
 	{
 		lvitem.mask = LVIF_TEXT | LVIF_PARAM;
@@ -199,7 +199,7 @@ void CDlgPartlist::OnBnClickedButtonEdit()
 	if( n_sel == 0 ) {
 		CString s ((LPCSTR) IDS_YouHaveNoPartSelected);
 		AfxMessageBox( s );
-		}
+	}
 	BOOL bMultiple = FALSE;
 	if( n_sel > 1 )
 		bMultiple = TRUE;
@@ -278,7 +278,7 @@ void CDlgPartlist::OnBnClickedButtonDelete()
 	if( n_sel == 0 ) {
 		CString s ((LPCSTR) IDS_YouHaveNoPartSelected);
 		AfxMessageBox( s );
-		}
+	}
 	else
 	{
 		while( m_list_ctrl.GetSelectedCount() )

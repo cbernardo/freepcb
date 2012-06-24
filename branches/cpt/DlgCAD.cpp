@@ -433,8 +433,8 @@ void CDlgCAD::OnBnClickedGo()
 			}
 			else
 			{
-				CString log_message, s ((LPCSTR) IDS_WritingFile);
-				log_message.Format( s, f_str );
+				CString log_message;
+				log_message.Format( "Writing file: \"%s\"\r\n", f_str );
 				m_dlg_log->AddLine( log_message );
 				CString line;
 				line.Format( "G04 FreePCB version %5.3f*\n", m_version );

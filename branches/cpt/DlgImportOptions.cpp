@@ -39,6 +39,7 @@ void CDlgImportOptions::DoDataExchange(CDataExchange* pDX)
 	DDX_Control( pDX, IDC_RADIO_PARTSANDNETS, m_radio_parts_and_nets );
 	DDX_Control( pDX, IDC_RADIO_PADSPCB, m_radio_padspcb );
 	DDX_Control( pDX, IDC_RADIO_FREEPCB, m_radio_freepcb );
+	// end CPT
 
 	if( !pDX->m_bSaveAndValidate )
 	{
@@ -75,7 +76,6 @@ void CDlgImportOptions::DoDataExchange(CDataExchange* pDX)
 	{
 		// outgoing
 		SetPartsNetsFlags();
-
 		// NOT IMPLEMENTED: if( m_radio_padspcb.GetCheck() )
 		m_format = PADSPCB;
 
@@ -103,14 +103,14 @@ void CDlgImportOptions::DoDataExchange(CDataExchange* pDX)
 		}
 	}
 }
-
+// end CPT
 
 BEGIN_MESSAGE_MAP(CDlgImportOptions, CDialog)
 	ON_BN_CLICKED(ID_SAVE_AND_IMPORT, OnBnClickedSaveAndImport)
 	ON_BN_CLICKED(IDOK, OnBnClickedOk)
-	ON_BN_CLICKED(IDC_RADIO_PARTS, OnBnClickedPartsAndNets)
-	ON_BN_CLICKED(IDC_RADIO_NETS, OnBnClickedPartsAndNets)
-	ON_BN_CLICKED(IDC_RADIO_PARTSANDNETS, OnBnClickedPartsAndNets)
+	ON_BN_CLICKED(IDC_RADIO_PARTS, OnBnClickedPartsAndNets)					// CPT
+	ON_BN_CLICKED(IDC_RADIO_NETS, OnBnClickedPartsAndNets)					// CPT
+	ON_BN_CLICKED(IDC_RADIO_PARTSANDNETS, OnBnClickedPartsAndNets)			// CPT
 END_MESSAGE_MAP()
 
 void CDlgImportOptions::Initialize( int flags )
@@ -132,6 +132,7 @@ void CDlgImportOptions::OnBnClickedOk()
 	OnOK();
 }
 
+// CPT:  All that follows:
 void CDlgImportOptions::SetPartsNetsFlags() {
 	m_flags &= ~IMPORT_PARTS;
 	m_flags &= ~IMPORT_NETS;
@@ -186,3 +187,5 @@ void CDlgImportOptions::OnBnClickedPartsAndNets() {
 	SetPartsNetsFlags();
 	EnableDisableButtons();
 	}
+
+// end CPT

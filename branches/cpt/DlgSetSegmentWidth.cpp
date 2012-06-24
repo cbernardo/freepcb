@@ -65,13 +65,11 @@ void DlgSetSegmentWidth::DoDataExchange(CDataExchange* pDX)
 			if( m_via_width <= 0 )
 			{
 				CString s ((LPCSTR) IDS_IllegalViaWidth);
-				AfxMessageBox( s );
 				pDX->Fail();
 			}
 			if( m_hole_width <= 0 )
 			{
 				CString s ((LPCSTR) IDS_IllegalHoleWidth);
-				AfxMessageBox( s );
 				pDX->Fail();
 			}
 		}

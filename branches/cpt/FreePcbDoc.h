@@ -7,6 +7,8 @@
 #include "stdafx.h"
 
 #pragma once
+#define CPT2 0
+
 #include "NetList.h"
 #include "TextList.h"
 #include "PcbFont.h"
@@ -18,14 +20,16 @@
 #include "DlgDRC.h"
 #include "DesignRules.h"
 //#include "QAFDebug.h"
+#include "PcbItem.h"
+#include "NetListNew.h"
 
 class CFreePcbDoc;
 class CFreePcbView;
-
+class cpcb_item;
+template <class T> class carray;
 
 struct undo_board_outline {
-	int ncorners;
-	// array of undo_corners starts here 
+	// undo_poly struct starts here 
 };
 
 struct undo_sm_cutout {
@@ -48,20 +52,11 @@ protected: // create from serialization only
 	CFreePcbDoc();
 	DECLARE_DYNCREATE(CFreePcbDoc)
 
-// Attributes
-public:
-
-// Operations
-public:
-
 // Overrides
-	// ClassWizard generated virtual function overrides
-	//{{AFX_VIRTUAL(CFreePcbDoc)
 	public:
 	virtual BOOL OnNewDocument();
 	virtual void Serialize(CArchive& ar);
 	virtual BOOL OnSaveDocument(LPCTSTR lpszPathName);
-	//}}AFX_VIRTUAL
 
 // Implementation
 public:
@@ -79,6 +74,8 @@ public:
 	int WriteFootprints( CStdioFile * file, CMapStringToPtr * cache_map=NULL );
 	CShape * GetFootprintPtr( CString name );
 	void MakeLibraryMaps( CString * fullpath );
+	CPolyLine * GetBoardOutlineByUID( int uid, int * index=NULL );
+	CPolyLine * GetMaskCutoutByUID( int uid, int * index=NULL );
 	void ReadBoardOutline( CStdioFile * pcb_file, CArray<CPolyLine> * bd=NULL );
 	void WriteBoardOutline( CStdioFile * pcb_file, CArray<CPolyLine> * bd=NULL );
 	void ReadSolderMaskCutouts( CStdioFile * pcb_file, CArray<CPolyLine> * sm=NULL );
@@ -112,8 +109,6 @@ public:
 	virtual void Dump(CDumpContext& dc) const;
 #endif
 
-protected:
-
 public:
 	double m_version;			// version number, such as "1.105"
 	double m_file_version;		// the oldest version of FreePCB that can read
@@ -141,9 +136,13 @@ public:
 	CArray<CPolyLine> m_board_outline;	// PCB outline
 	CDisplayList * m_dlist;		// display list
 	CDisplayList * m_dlist_fp;	// display list for footprint editor
+#ifndef CPT2
 	CPartList * m_plist;		// part list
+#endif
 	SMFontUtil * m_smfontutil;	// Hershey font utility
+#ifndef CPT2
 	CNetList * m_nlist;			// net list
+#endif
 	CTextList * m_tlist;		// text list
 	CMapStringToPtr m_footprint_cache_map;	// map of footprints cached in memory
 	CFreePcbView * m_view;		// pointer to CFreePcbView 
@@ -151,7 +150,13 @@ public:
 	CFootLibFolderMap m_footlibfoldermap;
 	CDlgLog * m_dlg_log;
 	DRErrorList * m_drelist;
-	CArray<CPolyLine> m_sm_cutout;	// array of soldermask cutouts
+	CArray<CPolyLine> m_sm_cutout;	// array of soldermask cutouts. // CPT2 TODO:  change to carray<csmcutout>
+	carray<cpcb_item> items;		// CPT2.  Master list of all created pcb-items.  GarbageCollect() will go through this list and clean up now and then.
+	carray<cpcb_item> others;		// CPT2.  All active pcb-items that belong to "other" categories (not net-items, part-items, or texts)
+#ifdef CPT2
+	cnetlist *m_nlist;				// CPT2.  Will replace m_nlist
+	cpartlist *m_plist;				// CPT2.  Will replace m_plist
+#endif
 
 	// undo and redo stacks and state
 	BOOL m_bLastPopRedo;		// flag that last stack op was pop redo
@@ -192,11 +197,12 @@ public:
 	CArray<double> m_visible_grid;	// array of choices for visible grid
 	CArray<double> m_part_grid;		// array of choices for placement grid
 	CArray<double> m_routing_grid;	// array of choices for routing grid
+
 	// CPT.  Allow for "hidden" grid values (which are seen as unchecked items in the grid-values dialogs)
 	CArray<double> m_visible_grid_hidden;
 	CArray<double> m_part_grid_hidden;	
 	CArray<double> m_routing_grid_hidden;
-
+	// end CPT
 
 	// grids and units for footprint editor
 	int m_fp_units;						// MM or MIL
@@ -205,9 +211,11 @@ public:
 	int m_fp_snap_angle;				// 0, 45 or 90
 	CArray<double> m_fp_visible_grid;	// array of choices for visible grid
 	CArray<double> m_fp_part_grid;		// array of choices for placement grid
-	// CPT
+
+	// CPT.  Allow for "hidden" grid values (which are seen as unchecked items in the grid-values dialogs)
 	CArray<double> m_fp_visible_grid_hidden;
-	CArray<double> m_fp_part_grid_hidden;
+	CArray<double> m_fp_part_grid_hidden;	
+	// end CPT
 
 	// layers
 	int m_num_layers;			// number of drawing layers (note: different than copper layers)
@@ -252,12 +260,18 @@ public:
 	int m_auto_interval;	// interval (sec)
 	int m_auto_elapsed;		// time since last save (sec)
 
-	//DRC limits
-	DesignRules m_dr;
-
 	// CPT:  new preference values
 	bool m_bReversePgupPgdn;
 	bool m_bLefthanded;
+	bool m_bHighlightNet;	// AMW
+	// end CPT
+
+	//DRC limits
+	DesignRules m_dr;
+
+	// Brian's stuff
+	int m_thermal_clearance;
+
 
 // Generated message map functions
 public:
@@ -306,9 +320,8 @@ public:
 	afx_msg void OnViewRoutingGrid();
 	afx_msg void OnViewVisibleGrid();
 	afx_msg void OnViewPlacementGrid();
-	void SaveOptionsToRegistry();
-	void ReadOptionsFromRegistry();
 	void CollectOptionsStrings(CArray<CString> &arr);
+	// end CPT
 };
 
 /////////////////////////////////////////////////////////////////////////////

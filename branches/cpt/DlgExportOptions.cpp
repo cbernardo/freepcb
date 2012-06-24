@@ -5,8 +5,7 @@
 #include "FreePcb.h"
 #include "DlgExportOptions.h"
 
-
-// CMyFileDialogExport
+// ALL CPT
 
 IMPLEMENT_DYNAMIC(CDlgExportOptions, CDialog)
 CDlgExportOptions::CDlgExportOptions(CWnd* pParent /*=NULL*/)
@@ -17,7 +16,6 @@ CDlgExportOptions::CDlgExportOptions(CWnd* pParent /*=NULL*/)
 CDlgExportOptions::~CDlgExportOptions()
 {
 }
-
 
 void CDlgExportOptions::DoDataExchange(CDataExchange* pDX)
 {

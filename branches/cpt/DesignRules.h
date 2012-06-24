@@ -23,7 +23,7 @@ public:
 	DRError();
 	~DRError();
 	enum {				// subtypes of errors 
-		PAD_PAD = 0,				
+		PAD_PAD = 1,				
 		PAD_PADHOLE,		
 		PADHOLE_PADHOLE,	
 		SEG_PAD,			
@@ -40,16 +40,23 @@ public:
 		VIAHOLE_VIAHOLE,	
 		TRACE_WIDTH,	
 		RING_PAD,			
-		RING_VIA,			
+		RING_VIA,
 		BOARDEDGE_PAD,			
 		BOARDEDGE_PADHOLE,	
 		BOARDEDGE_VIA,			
 		BOARDEDGE_VIAHOLE,		
-		BOARDEDGE_TRACE,	
+		BOARDEDGE_SEG,	
 		BOARDEDGE_COPPERAREA,	
+		COPPERGRAPHIC_PAD,			
+		COPPERGRAPHIC_PADHOLE,	
+		COPPERGRAPHIC_VIA,			
+		COPPERGRAPHIC_VIAHOLE,		
+		COPPERGRAPHIC_SEG,	
+		COPPERGRAPHIC_COPPERAREA,	
+		COPPERGRAPHIC_BOARDEDGE,	
 		COPPERAREA_COPPERAREA,
 		COPPERAREA_INSIDE_COPPERAREA,
-		COPPERAREA_BROKEN,							// CPT
+		COPPERAREA_BROKEN,					// CPT
 		UNROUTED
 	};
 	int layer;				// layer (if pad error)
@@ -69,7 +76,7 @@ public:
 	~DRErrorList();
 	void SetLists( CPartList * pl, CNetList * nl, CDisplayList * dl );
 	void Clear();
-	DRError * Add( long index, int st, CString * str, 
+	DRError * Add( long index, int t2, CString * str, 
 		CString * name1, CString * name2, id id1, id id2,
 		int x1, int y1, int x2, int y2, int w, int layer );
 	void Remove( DRError * dre );

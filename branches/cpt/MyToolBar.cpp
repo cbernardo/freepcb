@@ -64,6 +64,7 @@ int CMyToolBar::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	s.LoadStringA(IDS_AngleWidth);
 	int wAngle = atoi(s);
 	if (wAngle<=0) wAngle = 50;
+
 	SetButtonInfo( 12, IDC_STATIC_VISIBLE_GRID, TBBS_SEPARATOR, wUnits );
 	SetButtonInfo( 13, IDC_STATIC_VISIBLE_GRID, TBBS_SEPARATOR, 50 );
 	SetButtonInfo( 14, IDC_STATIC_VISIBLE_GRID, TBBS_SEPARATOR, wGridsVisible );
@@ -74,6 +75,7 @@ int CMyToolBar::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	SetButtonInfo( 19, IDC_COMBO_ROUTING_GRID, TBBS_SEPARATOR, 70 );
 	SetButtonInfo( 20, IDC_STATIC_SNAP_ANGLE, TBBS_SEPARATOR, wAngle );
 	SetButtonInfo( 21, IDC_COMBO_SNAP_ANGLE, TBBS_SEPARATOR, 50 );
+	// end CPT
 
 	m_font.CreateFont( 14, 0, 0, 0, FW_NORMAL, 0, 0, 0, DEFAULT_CHARSET,
 		OUT_CHARACTER_PRECIS, CLIP_CHARACTER_PRECIS, DEFAULT_QUALITY, 
@@ -186,7 +188,7 @@ void CMyToolBar::SetLists( CArray<double> * visible,
 		if (fabs(val) == vg) sel = i;									// CPT
 	}
 	m_ctlComboVisibleGrid.SetCurSel( sel );
-	
+
 	sel = 0;
 	for( int i=0; i<placement->GetSize(); i++ )
 	{
@@ -216,6 +218,7 @@ void CMyToolBar::SetLists( CArray<double> * visible,
 		m_ctlComboRoutingGrid.AddString( "---" );
 		m_ctlComboRoutingGrid.SetCurSel(0);
 	}
+	// end CPT
 
 	m_ctlComboSnapAngle.AddString( "45" );
 	m_ctlComboSnapAngle.AddString( "90" );
@@ -282,6 +285,7 @@ void CMyToolBar::SetUnits( int units )
 	AfxGetMainWnd()->SendMessage( WM_USER_UNITS, WM_BY_INDEX, cur_sel );
 	return;
 }
+
 
 // CPT:  all that follows
 

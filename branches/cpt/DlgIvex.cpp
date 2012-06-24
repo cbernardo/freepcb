@@ -97,7 +97,7 @@ void CivexDlg::OnBnClickedButtonInfile()
 	// get project file name
 	CString s ((LPCSTR) IDS_IvexLibraryFiles);
 	CFileDialog dlg( 1, "mod", LPCTSTR(""), 0, s );
-	int err = (int)dlg.DoModal();
+	int err = dlg.DoModal();
 	if( err == IDOK )
 	{
 		in_pathname = dlg.GetPathName();

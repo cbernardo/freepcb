@@ -1,0 +1,163 @@
+CPT merge notes
+---------------
+#1	- merged.  CPT r260: added m_active_width display in status bar.
+#2	- merged
+#2a	- deferred, since I've been combining property dialogs, so all properties 
+		of an item are accessed from a single dialog using F1, leaving F2 available		
+#3  - merged 
+#4  - merged
+#5  - deferred, since I think this was changed later
+#6  - CPT r264:  merged because I couldn't test #16 on my computer without doing this.  The behavior of CFileDialog under Vista is hideously unpredictable,
+	clearly;  I've got it working OK but the dialog is still flaky.
+#7  - merged.  CPT r287:  finished.
+#8  - merged
+#9  - merged
+#10 - AMW r260: merged
+#11 - CPT r260:  merged.
+#12 - AMW r260: merged
+#13 - merged
+#14 - merged
+#14a - merged
+#15 - CPT r260: merged
+#15a - CPT r260: merged
+#16 - CPT r264: merged
+#17 - CPT r266: merged
+#18 - AMW r268: merged
+#19 - AMW r268: merged
+#20 - AMW: merged
+#21 - AMW: r269: not merged, because it conflicts with my new feature of highlighting the entire
+	net when routing. So far this is only implemented when routing ratlines, but it is probably more important 
+	when routing without a ratline, since the endpoint is undetermined.
+#22 - CPT r260: merged
+#23 - CPT r282: merged
+#24 - AMW r274: couldn't reproduce the problem, but merged anyway
+#25,25a - AMW r274: merged, not tested
+#26 - AMW r274: merged
+#27 - AMW r274: deferred, not a simple merge due to changes in DisplayList
+      CPT r294: done
+#28 - merged (by AMW)
+#29 - AMW r274: already merged
+#30 - CPT r282:  merged (also #35).
+#31 - CPT r291: merged
+#32 - CPT r291: merged
+#33 - CPT r291: merged
+#34 - CPT r292: merged
+#35 - CPT r282: merged.
+#36 - merged (AMW)
+#37 - merged (AMW)
+#38 - merged (AMW)
+#39 - CPT r291: merged
+#40 - CPT r291: merged
+#41 - CPT r291: merged
+#42 - CPT r291: merged
+#43 - Allan's new system supplants this.
+#44 - CPT r293: merged ('T' now toggles between a single seg and its trace)
+#45 - CPT r294: merged, while preserving the new shift-click system also (the code can be shared to a large extent)
+#46 - CPT r292: merged
+
+
+
+---------------------------------------------------------------------------------------
+CPT revisions:
+1. m_active_width added to CFreePcbView.  Permits adjustment
+    of width during routing.  There are coordinated changes in the system of via widths.  
+2. Got rid of the OPENFILENAME_SIZE_VERSION_400 business in calls to 
+	CFileDialog::CFileDialog().  (Produced "Assertion failed" errors, at least under Visual studio 10.)
+2a. In CUR_END_VTX_SELECTED mode, changed the
+    original assignment of F2 when the vertex is a via (was FK_ADD_SEGMENT, now FK_VIA_SIZE)
+3. Shortcut keys: Ctrl F1..., Ctrl 1..., Alt 1...  NB undo is now ctrl-shift-z (ctrl-y would toggle layer #13 or some such)
+4. Changed shift-key and ctrl-key state detection.
+5. Tools>Preferences.  Starting to move some config elements to the Registry (desirable?)
+6. Since MS broke CFileDialog::SetTemplates(), changed the import netlist and export netlist options dialogs.
+7. Moved strings into Resource string table.
+8. Allowed adaptible widths for items in MyToolBar, the left pane, and the F-key
+	help boxes.  (For use by people doing foreign language adaptations with Resource Hacker)
+9. Added a project folder selection button to DlgProjectOptions
+10.  Altered DlgLayers.  Now allows for control of the colors in the FootprintView (they match the main view colors, 
+	except for the layers that are footprint-specific --- those latter get extra rows in the DlgLayers table).  Allowed
+	for setting a color scheme to be used by default in future projects (vals stored in the registry).
+11. Fixed bugs with the display of new (empty) documents.
+12. Added reference-text-visibility control to DlgAddPart.  Fixed bug where ref text visibility came out randomly when
+	copying and pasting.
+13. "/" key for toggle units.  "?" for toggle units plus change grid units.  Tweaked FreePcbView::OnChangeUnits().
+14. New system for modifying grid values (View>Visible Grid Values, etc.).  Completed conversion over from 
+	default.cfg to the registry for all program-wide prefs (for new projects e.g.).  Added checkbox to Project>Options
+	to make settings default.  Moved some stuff to Tools>Preferences.
+
+...TortoiseSVN commit by Allan, revision 238
+
+14a. Info related to default new-project settings _no longer_ in the registry, but stored in default.cfg.
+15. Modified group-selection behavior, so that there is no longer a distinction between a group of 1 element and a single selected
+	item.  To prevent any lost functionality, implemented arrow keys for board edges, area edges, sm-cutouts, and end-vertices; implemented
+	ctrl-c/x for single selected items.
+15a.  FORGOT TO LIST THIS ONE PREVIOUSLY.  Fixed bug where SetCapture() was not called in CFreePcbView::OnLButtonDown(), causing
+	poor behavior when dragging and releasing outside the client area.  Moreover, now allows autoscrolling when dragging a group-select 
+	rectangle out to the margins.
+16. Added sorting to export netlist.
+17. Removed restriction on pin names (before, 1A and A1A were illegal)
+18. During connect-to-pin-to-create-ratline mode (CUR_DRAG_CONNECT), the status bar now shows the name of the pin where mouse is hovering.
+19. After creating such a ratline, it is selected by default.
+20. When moving groups/parts, don't unroute an adjacent seg if, say, the group is moving vertically and the seg is vertical (changes in e.g.
+   	CNetList::UnrouteSegment() and CNetList::UnrouteSegmentWithoutMerge())
+21. When routing a ratline provide highlighting for the opposite end of the ratline
+22. Tweaked behavior of ctrl-up/dn (they now change whichever grid is currently relevant --- routing grid if net object is selected, placement
+     grid otherwise).  Alt-up/dn now controls the visible grid.
+23. Made a start towards ratline elimination in case the ratline's two endpoints are already connected by some sort of copper route
+     (including connects and/or areas).  Can't yet create traces where neither end is a pin (see TestC.fpc for an example where this would be
+	 nice).
+24. Suppressed DRC width errors for segments in the ratline layer.
+25. Fixed bug with random ref text visibility after importing netlists.
+
+...TortoiseSVN commit, version 244
+
+25a. Fix 25 (random ref text visibility after importing netlist bug) didn't quite do it;  bug should now be smashed!
+26. Fixed bug where SetFKText wasn't reliably called when starting up the footprint editor (see CFootprintView constructor)
+27. obparham's idea: boxes for grabbing vertices are no longer a constant size in mils (in pixel terms, they are a minimum of 6 pixels wide/high
+	and a maximum of 16 pixels wide/high).
+28. Bug fix in ReadFileLines() (FreePcbDoc.cpp) (related to feature #14a).
+29. Fixed bug in feature #20 (wasn't implemented when moving parts with the mouse).
+30. Created CPartList::CheckBrokenArea():  checks if an area has been broken, or nearly broken, by clearances for traces from other nets.  TODO: 
+	make it accommodate areas with curved edges.
+31.  THE BIGGIE:  created class CCommonView as a base for CFootprintView and CFreePcbView.  Moved shared functions into it.  Added functionality to
+	footprint editor to make it more consistent with the main editor, including:  selection masks; hotkeys for layers and masks;
+	arrow keys with dx/dy status display;  status bar when pin & outline-corner selected has become more informative (shows x/y);  
+	status bar shows dx/dy when dragging pins, text, ref-text, etc.
+32. Reworked the internal handling of the ref-text and value-text objects in footprint editor.  They are now basically instances of CText, 
+	meaning we can rely on that class's preexisting functions and eliminate some more-or-less-duplicate code.
+33. Modified behavior of CFootprintView::OnViewEntireFootprint() to account better for ref and value text.
+
+...TortoiseSVN commit, version 246
+
+34. Resolved apparent bug in CNetList::ClipAreaPolygon() (a commented-out "if"-clause, now restored).  Was causing insertion of corner into area
+	edges to fail if new vertex was collinear with pre-existing vertices.
+35. Continuation of #30: CPartList::CheckBrokenArea() now accounts for curved area edges.
+
+...TortoiseSVN commit, version 247
+
+36. Added left-handed mode support (reverses function keys).   Activate it via Tools>Preferences.
+37. Fixed CText constructor (dl_sel member wasn't prveviously initialized).  Caused problems when one called CShape::m_value->Undraw()
+	in cases where CShape::m_value->Draw() hadn't previously been called (because CShape::m_value_size was 0, say)
+38. A little clean-up for CShape::CreateMetaFile() & CreateWarningMetaFile() (evidently pretty old code).
+39. (Basically a continuation of #33 earlier.)  Improvements to the new CText::GetBounds().  Before it would fail for text that had 
+	never been drawn, implying in turn bogus results from
+	FootprintView::OnViewEntireFootprint() when first starting the fp editor.  Also: improved system for initializing the new 
+	CShape::m_ref and CShape::m_value.  (Constructor does more of the work, as it should.)
+40. In FootprintView, forbade setting ref-text height to 0 --- doing that caused "REF" to shrink down to a useless dot that a later user 
+    couldn't select or repair   If users want invisible ref-text, I say they can do it when inserting the part into the board.
+	Considered making the same prohibition for value-text, but instead I'm implementing "View>Reveal Value Text" (CFootprintView::OnValueReveal())
+	in case user wants to restore a	size-0 "VALUE" (formerly impossible to do short of hacking the fpl file).  
+	This supplants the old apparently disused CFootprintView::OnAddValueText() function.
+41. Slight change to selection masks in footprint editor.
+42. Got ESC key working better in footprint editor.
+
+...TortoiseSVN commit, version 248
+
+43.  Fixed 'N' key so that it selects a net if a ratline was previously selected.  Also turned 'N' into a toggle key, so that pressing it twice takes 
+	us back to the prior selection.
+44.  Similar changes for 'T' (which selects individual traces)
+45. New system for selecting.  (See CDisplayList::TestSelect(), and the new CCommonView::m_sel_offset.)  If user repeatedly clicks on a spot where 
+	multiple objects are located, the selection cycles through all of them.  Ctrl-click in the main CFreePcbView is also affected:  if you ctrl-click 
+	a spot in order to select or unselect a group member, and don't get the effect you want, keep holding ctrl and clicking until you do.
+46. Improved TestLineHit() in utility.cpp so that we get more reliable results (on short segments particularly).  
+
+...TortoiseSVN commit, version 249 

@@ -12,8 +12,10 @@ public:
 	CDlgFpText(CWnd* pParent = NULL);   // standard constructor
 	virtual ~CDlgFpText();
 	void Initialize( BOOL bDrag, BOOL bFixedString,
-		CString * str, int units, 
-		int angle, int height, int width, int x, int y );
+		CString * str, int layer, int units, 
+		int angle, int height, int width, int x, int y, BOOL bForbidZeroHeight = false );	// CPT added last param
+	int Layer2LayerIndex( int layer);
+	int LayerIndex2Layer( int layer_index );
 
 // Dialog Data
 	enum { IDD = IDD_FP_TEXT };
@@ -26,7 +28,8 @@ public:
 	void SetFields();
 	void GetFields();
 	BOOL m_bNewText;
-	BOOL m_bFixedString;	// if TRUE, can't edit string
+	BOOL m_bFixedString;		// if TRUE, can't edit string
+	BOOL m_bForbidZeroHeight;	// CPT added
 	BOOL m_bDrag;		// 1 if dragging to position
 	int m_x, m_y;		// set on entry if editing
 	int m_width;
@@ -34,6 +37,7 @@ public:
 	int m_angle;
 	int m_units;
 	int m_unit_mult;
+	int m_layer;
 	CString m_str;
 	virtual BOOL OnInitDialog();
 	CEdit m_edit_height;
@@ -54,4 +58,5 @@ public:
 	afx_msg void OnBnClickedDefWidth();
 	CComboBox m_combo_units;
 	afx_msg void OnCbnSelchangeComboAddTextUnits();
+	CComboBox m_combo_layer;
 };
