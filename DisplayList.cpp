@@ -6,6 +6,20 @@
 //
 #include "stdafx.h"
 #include <math.h>
+#include "memdc.h"
+
+#include "dle_arc.h"
+#include "dle_centroid.h"
+#include "dle_circle.h"
+#include "dle_donut.h"
+#include "dle_hole.h"
+#include "dle_line.h"
+#include "dle_octagon.h"
+#include "dle_oval.h"
+#include "dle_rect.h"
+#include "dle_rect_rounded.h"
+#include "dle_square.h"
+#include "dle_x.h"
 
 // dimensions passed to DisplayList from the application are in PCBU (i.e. nm)
 // since the Win95/98 GDI uses 16-bit arithmetic, PCBU must be scaled to DU (i.e. mils)
@@ -17,30 +31,35 @@
 #define DL_MAX_LAYERS	32
 #define HILITE_POINT_W	10	// size/2 of selection box for points (mils)
 
-// constructor
-//
-CDisplayList::CDisplayList( int pcbu_per_wu )
+dl_element::dl_element()
+{
+	prev = next = NULL;
+}
+
+
+CDisplayList::CDisplayList( int pcbu_per_wu, SMFontUtil * fontutil )
 {
 	m_pcbu_per_wu = pcbu_per_wu;
+	m_fontutil = fontutil;
+
 	// create lists for all layers
 	for( int layer=0; layer<MAX_LAYERS; layer++ )
 	{
-		// linked list for layer
-		m_start[layer].prev = 0;		// first element
-		m_start[layer].next = &m_end[layer];
-		m_start[layer].magic = 0;
-		m_end[layer].next = 0;			// last element
-		m_end[layer].prev = &m_start[layer];
-		m_end[layer].magic = 0;
 		// default colors, these should be overwritten with actual colors
-		m_rgb[layer][0] = layer*63;			// R
-		m_rgb[layer][1] = (layer/4)*127;	// G
-		m_rgb[layer][2] = (layer/8)*63;		// B
+		m_rgb[layer].Set(
+			layer*63,      // R
+			(layer/4)*127, // G
+			(layer/8)*63   // B
+		);
+
 		// default order
 		m_layer_in_order[layer] = layer;	// will be drawn from highest to lowest
 		m_order_for_layer[layer] = layer;
+		m_vis[layer] = 0;
+
 	}
 	// miscellaneous
+	m_ratline_w = 1;
 	m_drag_flag = 0;
 	m_drag_num_lines = 0;
 	m_drag_line_pt = 0;
@@ -54,18 +73,46 @@ CDisplayList::CDisplayList( int pcbu_per_wu )
 	m_inflection_mode = IM_NONE;
 }
 
-// destructor
-//
 CDisplayList::~CDisplayList()
 {
 	RemoveAll();
 }
 
+// Remove element from list, return id
+//
+id CDisplayList::Remove( dl_element * element )
+{
+	if( !element )
+	{
+		id no_id;
+		return no_id;
+	}
+	if( element->magic != DL_MAGIC )
+	{
+		ASSERT(0);
+		id no_id;
+		return no_id;
+	}
+
+	// CPT:  new system replacing Brian's.  "element" will unhook itself from its linked list:
+	element->Unhook();
+	// end CPT
+
+	// destroy element
+	id el_id = element->id;
+	delete( element );
+
+	return el_id;
+}
+
 void CDisplayList::RemoveAllFromLayer( int layer )
 {
-	// traverse list for layer, removing all elements
-	while( m_end[layer].prev != &m_start[layer] )
-		Remove( m_end[layer].prev );
+	// CPT: new system replacing Brian's.  Delete all elements from linked list layers[layer].elements:
+	CDisplayLayer *dl = &layers[layer];
+	for (dl_element *el = dl->elements, *next; el; el = next)
+		next = el->next,
+		delete el;
+	dl->elements = NULL;
 }
 
 void CDisplayList::RemoveAll()
@@ -151,61 +198,225 @@ void CDisplayList::SetMapping( CRect *client_r, CRect *screen_r, int pane_org_x,
 	m_max_y = m_org_y - m_wu_per_pixel_y*client_r->bottom + 2;				// world units
 }
 
-// add graphics element used for selection
-//
-dl_element * CDisplayList::AddSelector( id id, void * ptr, int layer, int gtype, int visible,
-							   int w, int holew, int x, int y, int xf, int yf, int xo, int yo,
-							   int radius )
+
+void CDisplayList::Scale_pcbu_to_wu(CRect &rect)
 {
-	dl_element * test = Add( id, ptr, LAY_SELECTION, gtype, visible,
-							   w, holew, x, y, xf, yf, xo, yo, radius, layer );
-	test->layer = layer;
-	return test;
+	rect.top    /= m_pcbu_per_wu;
+	rect.bottom /= m_pcbu_per_wu;
+	rect.left   /= m_pcbu_per_wu;
+	rect.right  /= m_pcbu_per_wu;
 }
+
+
+dl_element * CDisplayList::CreateDLE( int gtype )
+{
+	// create new element and link into list
+	dl_element * new_element;
+
+	switch( gtype )
+	{
+		case DL_LINE:           new_element = new CDLE_LINE;           break;
+		case DL_CIRC:           new_element = new CDLE_CIRC;           break;
+		case DL_DONUT:          new_element = new CDLE_DONUT;          break;
+		case DL_SQUARE:         new_element = new CDLE_SQUARE;         break;
+		case DL_RECT:           new_element = new CDLE_RECT;           break;
+		case DL_RRECT:          new_element = new CDLE_RRECT;          break;
+		case DL_OVAL:           new_element = new CDLE_OVAL;           break;
+		case DL_OCTAGON:        new_element = new CDLE_OCTAGON;        break;
+		case DL_HOLE:           new_element = new CDLE_HOLE;           break;
+		case DL_HOLLOW_CIRC:    new_element = new CDLE_HOLLOW_CIRC;    break;
+		case DL_HOLLOW_RECT:    new_element = new CDLE_HOLLOW_RECT;    break;
+		case DL_HOLLOW_RRECT:   new_element = new CDLE_HOLLOW_RRECT;   break;
+		case DL_HOLLOW_OVAL:    new_element = new CDLE_HOLLOW_OVAL;    break;
+		case DL_HOLLOW_OCTAGON: new_element = new CDLE_HOLLOW_OCTAGON; break;
+		case DL_RECT_X:         new_element = new CDLE_RECT_X;         break;
+		case DL_ARC_CW:         new_element = new CDLE_ARC_CW;         break;
+		case DL_ARC_CCW:        new_element = new CDLE_ARC_CCW;        break;
+		case DL_CENTROID:       new_element = new CDLE_CENTROID;       break;
+		case DL_X:              new_element = new CDLE_X;              break;
+
+		default:                new_element = new dl_element;          break;
+	}
+
+	// now copy data from entry into element
+	new_element->magic = DL_MAGIC;
+	new_element->dlist = this;
+	new_element->gtype = gtype;
+
+    return new_element;
+}
+
+
+dl_element * CDisplayList::CreateDLE( id id, void * ptr, int layer, int gtype, int visible,
+                                      int w, int holew, int clearancew,
+                                      int x, int y, int xf, int yf, int xo, int yo, int radius,
+                                      int orig_layer )
+{
+	// create new element
+	dl_element * new_element = CreateDLE( gtype );
+
+#if 0	// code added by Brian, doesn't work in fp_editor
+	if( layer == LAY_RAT_LINE )
+	{
+		new_element->w = m_ratline_w;
+	}
+	else
+	{
+		new_element->w = (w < 0) ? w : w / m_pcbu_per_wu;
+	}
+#endif
+
+	// now copy data from entry into element
+	new_element->id         = id;
+	new_element->ptr        = ptr;
+	new_element->visible    = visible;
+	new_element->w			= w			 / m_pcbu_per_wu;
+	new_element->holew      = holew      / m_pcbu_per_wu;
+	new_element->clearancew = clearancew / m_pcbu_per_wu;
+	new_element->i.x        = x          / m_pcbu_per_wu;
+	new_element->i.y        = y          / m_pcbu_per_wu;
+	new_element->f.x        = xf         / m_pcbu_per_wu;
+	new_element->f.y        = yf         / m_pcbu_per_wu;
+	new_element->org.x      = xo         / m_pcbu_per_wu;
+	new_element->org.y      = yo         / m_pcbu_per_wu;
+	new_element->radius     = radius     / m_pcbu_per_wu;
+	new_element->sel_vert   = 0;
+	new_element->layer      = layer;
+	new_element->orig_layer = orig_layer;
+
+	return new_element;
+}
+
 
 // Add entry to end of list, returns pointer to element created.
 //
 // Dimensional units for input parameters are PCBU
 //
 dl_element * CDisplayList::Add( id id, void * ptr, int layer, int gtype, int visible,
-							   int w, int holew, int x, int y, int xf, int yf, int xo, int yo,
-							   int radius, int orig_layer )
+	                            int w, int holew, int clearancew,
+                                int x, int y, int xf, int yf, int xo, int yo,
+	                            int radius, int orig_layer )
 {
-	// create new element and link into list
-	dl_element * new_element = new dl_element;
-	new_element->prev = m_end[layer].prev;
-	new_element->next = &m_end[layer];
-	new_element->prev->next = new_element;
-	new_element->next->prev = new_element;
-	// now copy data from entry into element
-	new_element->magic = DL_MAGIC;
-	new_element->id = id;
-	new_element->ptr = ptr;
-	new_element->gtype = gtype;
-	new_element->visible = visible;
-	new_element->w = w/m_pcbu_per_wu;
-	new_element->holew = holew/m_pcbu_per_wu;
-	new_element->x = x/m_pcbu_per_wu;
-	new_element->xf = xf/m_pcbu_per_wu;
-	new_element->y = y/m_pcbu_per_wu;
-	new_element->yf = yf/m_pcbu_per_wu;
-	new_element->x_org = xo/m_pcbu_per_wu;
-	new_element->y_org = yo/m_pcbu_per_wu;
-	new_element->radius = radius/m_pcbu_per_wu;
-	new_element->sel_vert = 0;
-	new_element->layer = layer;
-	new_element->orig_layer = orig_layer;
-	new_element->dlist = this;
+	// create new element
+	dl_element * new_element = CreateDLE( id, ptr, layer, gtype, visible,
+	                                      w, holew, clearancew,
+	                                      x,y, xf,yf, xo,yo, radius,
+	                                      orig_layer );
+	layers[layer].Add(new_element);										// CPT:  new system replacing Brian's
 	return new_element;
 }
 
+// add graphics element used for selection
+//
+dl_element * CDisplayList::AddSelector( id id, void * ptr, int layer, int gtype, int visible,
+							   int w, int holew, int x, int y, int xf, int yf, int xo, int yo,
+							   int radius )
+{
+	// create new element
+	//** for debugging
+	if( gtype == DL_HOLLOW_RECT )
+	{
+		int w_in_mils = abs(x-xf)/PCBU_PER_MIL;	
+		w_in_mils = w_in_mils;
+	}
+	//**
+	dl_element * new_element = CreateDLE( id, ptr, layer, gtype, visible,
+	                                      w, holew, 0,
+	                                      x,y, xf,yf, xo,yo, radius,
+	                                      layer );
+
+	layers[LAY_SELECTION].Add(new_element);
+	return new_element;
+}
+
+
+// BEGIN CPT2.  As I begin contemplating the phase-out of class id, I need versions of dl-elements that make use of cpcb_item pointers instead.
+
+dl_element * CDisplayList::CreateDLE( cpcb_item *item, int usage, int layer, int gtype, int visible,
+								int w, int holew, int clearancew,
+								int x, int y, int xf, int yf, int xo, int yo, int radius,
+								int orig_layer )
+{
+{
+	// create new element
+	dl_element * new_element = CreateDLE( gtype );
+	// now copy data from entry into element
+	new_element->item       = item;
+	new_element->usage      = usage;
+	new_element->visible    = visible;
+	new_element->w			= w			 / m_pcbu_per_wu;
+	new_element->holew      = holew      / m_pcbu_per_wu;
+	new_element->clearancew = clearancew / m_pcbu_per_wu;
+	new_element->i.x        = x          / m_pcbu_per_wu;
+	new_element->i.y        = y          / m_pcbu_per_wu;
+	new_element->f.x        = xf         / m_pcbu_per_wu;
+	new_element->f.y        = yf         / m_pcbu_per_wu;
+	new_element->org.x      = xo         / m_pcbu_per_wu;
+	new_element->org.y      = yo         / m_pcbu_per_wu;
+	new_element->radius     = radius     / m_pcbu_per_wu;
+	new_element->sel_vert   = 0;
+	new_element->layer      = layer;
+	new_element->orig_layer = orig_layer;
+
+	return new_element;
+}
+
+}
+
+dl_element * CDisplayList::Add( cpcb_item *item, int usage, int layer, int gtype, int visible,
+	                            int w, int holew, int clearancew,
+                                int x, int y, int xf, int yf, int xo, int yo,
+	                            int radius, int orig_layer )
+{
+	dl_element * new_element = CreateDLE( item, usage, layer, gtype, visible,
+	                                      w, holew, clearancew,
+	                                      x,y, xf,yf, xo,yo, radius,
+	                                      orig_layer );
+	layers[layer].Add(new_element);										// CPT:  new system replacing Brian's
+	return new_element;
+}
+
+dl_element * CDisplayList::AddMain( cpcb_item *item, int layer, int gtype, int visible,
+	                            int w, int holew, int clearancew,
+                                int x, int y, int xf, int yf, int xo, int yo,
+	                            int radius, int orig_layer )
+{
+	// CPT2 convenience method similar to Add(), so that we don't have to type "dl_element::DL_MAIN" every time we're creating a plain-vanilla dl-element
+	dl_element * new_element = CreateDLE( item, dl_element::DL_MAIN, layer, gtype, visible,
+	                                      w, holew, clearancew,
+	                                      x,y, xf,yf, xo,yo, radius,
+	                                      orig_layer );
+	layers[layer].Add(new_element);										// CPT:  new system replacing Brian's
+	return new_element;
+}
+
+// add graphics element used for selection.  Another convenience method similar to Add()
+//
+dl_element * CDisplayList::AddSelector( cpcb_item *item, int layer, int gtype, int visible,
+							   int w, int holew, int x, int y, int xf, int yf, int xo, int yo,
+							   int radius )
+{
+	dl_element * new_element = CreateDLE( item, dl_element::DL_SEL, layer, gtype, visible,
+	                                      w, holew, 0,
+	                                      x,y, xf,yf, xo,yo, radius,
+	                                      layer );
+
+	layers[LAY_SELECTION].Add(new_element);
+	return new_element;
+}
+
+// END CPT2
+
+void CDisplayList::Add( dl_element * element )
+{
+	layers[element->layer].Add(element);								// CPT:  new system replacing Brian's
+}
+
+
+
+
 // set element parameters in PCBU
 //
-void CDisplayList::Set_gtype( dl_element * el, int gtype )
-{
-	if( el)
-		el->gtype = gtype;
-}
 void CDisplayList::Set_visible( dl_element * el, int visible )
 {
 	if( el)
@@ -221,6 +432,11 @@ void CDisplayList::Set_w( dl_element * el, int w )
 	if( el)
 		el->w = w/m_pcbu_per_wu;
 }
+void CDisplayList::Set_clearance( dl_element * el, int clearance )
+{
+	if( el)
+		el->clearancew = clearance/m_pcbu_per_wu;
+}
 void CDisplayList::Set_holew( dl_element * el, int holew )
 {
 	if( el)
@@ -229,32 +445,32 @@ void CDisplayList::Set_holew( dl_element * el, int holew )
 void CDisplayList::Set_x_org( dl_element * el, int x_org )
 {
 	if( el)
-		el->x_org = x_org/m_pcbu_per_wu;
+		el->org.x = x_org/m_pcbu_per_wu;
 }
 void CDisplayList::Set_y_org( dl_element * el, int y_org )
 {
 	if( el)
-		el->y_org = y_org/m_pcbu_per_wu;
+		el->org.y = y_org/m_pcbu_per_wu;
 }
 void CDisplayList::Set_x( dl_element * el, int x )
 {
 	if( el)
-		el->x = x/m_pcbu_per_wu;
+		el->i.x = x/m_pcbu_per_wu;
 }
 void CDisplayList::Set_y( dl_element * el, int y )
 {
 	if( el)
-		el->y = y/m_pcbu_per_wu;
+		el->i.y = y/m_pcbu_per_wu;
 }
 void CDisplayList::Set_xf( dl_element * el, int xf )
 {
 	if( el)
-		el->xf = xf/m_pcbu_per_wu;
+		el->f.x = xf/m_pcbu_per_wu;
 }
 void CDisplayList::Set_yf( dl_element * el, int yf )
 {
 	if( el)
-		el->yf = yf/m_pcbu_per_wu;
+		el->f.y = yf/m_pcbu_per_wu;
 }
 void CDisplayList::Set_layer( dl_element * el, int layer )
 {
@@ -271,15 +487,22 @@ void CDisplayList::Set_id( dl_element * el, id * id )
 	if( el)
 		el->id = *id;
 }
+void CDisplayList::Set_gtype( dl_element * el, int gtype )
+{
+	if( el )
+		el->gtype = gtype;
+}
+
+
 
 void CDisplayList::Move( dl_element * el, int dx, int dy )
 {
-	el->x += dx;
-	el->y += dy;
-	el->x_org += dx;
-	el->y_org += dy;
-	el->xf += dx;
-	el->yf += dy;
+	el->i.x += dx;
+	el->i.y += dy;
+	el->org.x += dx;
+	el->org.y += dy;
+	el->f.x += dx;
+	el->f.y += dy;
 }
 
 
@@ -291,15 +514,15 @@ int CDisplayList::Get_visible( dl_element * el ) { return el->visible; }
 int CDisplayList::Get_sel_vert( dl_element * el ) { return el->sel_vert; }
 int CDisplayList::Get_w( dl_element * el ) { return el->w*m_pcbu_per_wu; }
 int CDisplayList::Get_holew( dl_element * el ) { return el->holew*m_pcbu_per_wu; }
-int CDisplayList::Get_x_org( dl_element * el ) { return el->x_org*m_pcbu_per_wu; }
-int CDisplayList::Get_y_org( dl_element * el ) { return el->y_org*m_pcbu_per_wu; }
-int CDisplayList::Get_x( dl_element * el ) { return el->x*m_pcbu_per_wu; }
-int CDisplayList::Get_y( dl_element * el ) { return el->y*m_pcbu_per_wu; }
-int CDisplayList::Get_xf( dl_element * el ) { return el->xf*m_pcbu_per_wu; }
-int CDisplayList::Get_yf( dl_element * el ) { return el->yf*m_pcbu_per_wu; }
+int CDisplayList::Get_x_org( dl_element * el ) { return el->org.x*m_pcbu_per_wu; }
+int CDisplayList::Get_y_org( dl_element * el ) { return el->org.y*m_pcbu_per_wu; }
+int CDisplayList::Get_x( dl_element * el ) { return el->i.x*m_pcbu_per_wu; }
+int CDisplayList::Get_y( dl_element * el ) { return el->i.y*m_pcbu_per_wu; }
+int CDisplayList::Get_xf( dl_element * el ) { return el->f.x*m_pcbu_per_wu; }
+int CDisplayList::Get_yf( dl_element * el ) { return el->f.y*m_pcbu_per_wu; }
 int CDisplayList::Get_radius( dl_element * el ) { return el->radius*m_pcbu_per_wu; }
 int CDisplayList::Get_layer( dl_element * el ) { return el->layer; }
-id CDisplayList::Get_id( dl_element * el ) { return el->id; }
+id  CDisplayList::Get_id( dl_element * el ) { return el->id; }
 
 void CDisplayList::Get_Endpoints(CPoint *cpi, CPoint *cpf)
 {
@@ -307,31 +530,8 @@ void CDisplayList::Get_Endpoints(CPoint *cpi, CPoint *cpf)
 	cpf->x = m_drag_xf*m_pcbu_per_wu; cpf->y = m_drag_yf*m_pcbu_per_wu;
 }
 
-// Remove element from list, return id
-//
-id CDisplayList::Remove( dl_element * element )
-{
-	if( !element )
-	{
-		id no_id;
-		return no_id;
-	}
-	if( element->magic != DL_MAGIC )
-	{
-		ASSERT(0);
-		id no_id;
-		return no_id;
-	}
-	// remove links to this element
-	element->next->prev = element->prev;
-	element->prev->next = element->next;
-	// destroy element
-	id el_id = element->id;
-	delete( element );
-	return el_id;
-}
 
-// Draw the display list using device DC or memory DC
+// Draw the display list using device DC or memory DC.  Routine is mostly CPT.
 //
 void CDisplayList::Draw( CDC * dDC )
 {
@@ -341,33 +541,23 @@ void CDisplayList::Draw( CDC * dDC )
 	else
 		pDC = dDC;
 
-	pDC->SetBkColor( RGB(0, 0, 0) );
+	pDC->SetBkColor( C_RGB::black );
 
 	// create pens and brushes
-	CPen * old_pen;
-	CPen black_pen( PS_SOLID, 1, RGB( 0, 0, 0 ) );
-	CPen white_pen( PS_SOLID, 1, RGB( 255, 255, 255 ) );
-	CPen grid_pen( PS_SOLID, 1,
-						RGB( m_rgb[LAY_VISIBLE_GRID][0],
-						     m_rgb[LAY_VISIBLE_GRID][1],
-						     m_rgb[LAY_VISIBLE_GRID][2] ) );
-	CPen backgnd_pen( PS_SOLID, 1,
-						RGB( m_rgb[LAY_BACKGND][0],
-						     m_rgb[LAY_BACKGND][1],
-						     m_rgb[LAY_BACKGND][2] ) );
-	CPen board_pen( PS_SOLID, 1,
-						RGB( m_rgb[LAY_BOARD_OUTLINE][0],
-						     m_rgb[LAY_BOARD_OUTLINE][1],
-						     m_rgb[LAY_BOARD_OUTLINE][2] ) );
-	CBrush * old_brush;
-	CBrush black_brush( RGB( 0, 0, 0 ) );
-	CBrush backgnd_brush( RGB( m_rgb[LAY_BACKGND][0],
-								m_rgb[LAY_BACKGND][1],
-								m_rgb[LAY_BACKGND][2] ) );
+	CPen black_pen  ( PS_SOLID, 1, C_RGB::black );					// CPT fixed (was C_RGB::white)
+	CPen white_pen  ( PS_SOLID, 1, C_RGB::white );					// CPT fixed (was C_RGB::black)
+	CPen grid_pen   ( PS_SOLID, 1, m_rgb[LAY_VISIBLE_GRID] );
+	CPen backgnd_pen( PS_SOLID, 1, m_rgb[LAY_BACKGND] );
+	CBrush black_brush( C_RGB::black );
+	CBrush backgnd_brush( m_rgb[LAY_BACKGND] );
 
-	// paint it background color
+	CBrush * old_brush;
+	CPen * old_pen;
+
+	// paint the background color
 	old_brush = pDC->SelectObject( &backgnd_brush );
 	old_pen = pDC->SelectObject( &black_pen );
+
 	CRect client_rect;
 	client_rect.left = m_org_x;
 	client_rect.right = m_max_x;
@@ -386,498 +576,107 @@ void CDisplayList::Draw( CDC * dDC )
 		{
 			for( double iy=start_grid_y; iy<m_max_y; iy+=m_visual_grid_spacing )
 			{
-				pDC->SetPixel( ix, iy,
-					RGB( m_rgb[LAY_VISIBLE_GRID][0],
-						 m_rgb[LAY_VISIBLE_GRID][1],
-						 m_rgb[LAY_VISIBLE_GRID][2] ) );
+				pDC->SetPixel( ix, iy, m_rgb[LAY_VISIBLE_GRID] );
 			}
 		}
 	}
 
+
 	// now traverse the lists, starting with the layer in the last element
 	// of the m_order[] array
-	int nlines = 0;
-	int size_of_2_pixels = 2*m_scale;
+	CDrawInfo di;
+	di.DC_Master = pDC;
+
 	for( int order=(MAX_LAYERS-1); order>=0; order-- )
 	{
 		int layer = m_layer_in_order[order];
 		if( !m_vis[layer] || layer == LAY_SELECTION )
 			continue;
 
-		CPen line_pen( PS_SOLID, 1, RGB( m_rgb[layer][0], m_rgb[layer][1], m_rgb[layer][2] ) );
-		CBrush fill_brush( RGB( m_rgb[layer][0], m_rgb[layer][1], m_rgb[layer][2] ) );
-		pDC->SelectObject( &line_pen );
-		pDC->SelectObject( &fill_brush );
-		dl_element * el = &m_start[layer];
-		while( el->next->next )
+#if 0
+		if( layer > LAY_BOARD_OUTLINE )
 		{
-			el = el->next;
-			if( el->visible && m_vis[el->orig_layer] )
-			{
-				int xi = el->x;
-				int xf = el->xf;
-				int yi = el->y;
-				int yf = el->yf;
-				int w = el->w;
-				if( el->gtype == DL_CIRC || el->gtype == DL_HOLLOW_CIRC )
-				{
-					if( xi-w/2 < m_max_x && xi+w/2 > m_org_x
-						&& yi-w/2 < m_max_y && yi+w/2 > m_org_y )
-					{
-						if( el->gtype == DL_HOLLOW_CIRC )
-							pDC->SelectObject( GetStockObject( HOLLOW_BRUSH ) );
-						pDC->Ellipse( xi - w/2, yi - w/2, xi + w/2, yi + w/2 );
-						if( el->gtype == DL_HOLLOW_CIRC )
-							pDC->SelectObject( fill_brush );
-					}
-				}
-				if( el->gtype == DL_HOLE )
-				{
-					if( xi-w/2 < m_max_x && xi+w/2 > m_org_x
-						&& yi-w/2 < m_max_y && yi+w/2 > m_org_y )
-					{
-						if( w>size_of_2_pixels )
-							pDC->Ellipse( xi - w/2, yi - w/2, xi + w/2, yi + w/2 );
-					}
-				}
-				else if( el->gtype == DL_CENTROID )
-				{
-					// x,y are center coords; w = width;
-					// xf,yf define arrow end-point for P&P orientation
-					if( xi-w/2 < m_max_x && xi+w/2 > m_org_x
-						&& yi-w/2 < m_max_y && yi+w/2 > m_org_y )
-					{
-						pDC->SelectObject( GetStockObject( HOLLOW_BRUSH ) );
-						pDC->Ellipse( xi - w/4, yi - w/4, xi + w/4, yi + w/4 );
-						pDC->SelectObject( fill_brush );
-						xi = el->x - el->w/2;
-						xf = el->x + el->w/2;
-						yi = el->y - el->w/2;
-						yf = el->y + el->w/2;
-						pDC->MoveTo( xi, yi );
-						pDC->LineTo( xf, yf );
-						pDC->MoveTo( xf, yi );
-						pDC->LineTo( xi, yf );
-						pDC->MoveTo( el->x, el->y );	// p&p arrow
-						pDC->LineTo( el->xf, el->yf );	//
-						if( el->y == el->yf )
-						{
-							// horizontal arrow
-							pDC->LineTo( el->xf - (el->xf - el->x)/4,
-										el->yf + w/4 );
-							pDC->LineTo( el->xf - (el->xf - el->x)/4,
-										el->yf - w/4 );
-							pDC->LineTo( el->xf, el->yf );
-						}
-						else if( el->x == el->xf )
-						{
-							// vertical arrow
-							pDC->LineTo( el->xf + w/4, el->yf - (el->yf - el->y)/4 );
-							pDC->LineTo( el->xf - w/4, el->yf - (el->yf - el->y)/4 );
-							pDC->LineTo( el->xf, el->yf );
-						}
-						else
-							ASSERT(0);
-						int w_pp = el->w/10;
-						nlines += 2;
-					}
-				}
-				else if( el->gtype == DL_DONUT )
-				{
-					if( xi-w/2 < m_max_x && xi+w/2 > m_org_x
-						&& yi-w/2 < m_max_y && yi+w/2 > m_org_y )
-					{
-						int thick = (w - el->holew)/2;
-						int ww = w - thick;
-						int holew = el->holew;
-						int size_of_2_pixels = m_scale;
-						if( thick < size_of_2_pixels )
-						{
-							holew = w - 2*size_of_2_pixels;
-							if( holew < 0 )
-								holew = 0;
-							thick = (w - holew)/2;
-							ww = w - thick;
-						}
-						if( w-el->holew > 0 )
-						{
-							CPen pen( PS_SOLID, thick, RGB( m_rgb[layer][0], m_rgb[layer][1], m_rgb[layer][2] ) );
-							pDC->SelectObject( &pen );
-							pDC->SelectObject( &backgnd_brush );
-							pDC->Ellipse( xi - ww/2, yi - ww/2, xi + ww/2, yi + ww/2 );
-							pDC->SelectObject( line_pen );
-							pDC->SelectObject( fill_brush );
-						}
-						else
-						{
-							CPen backgnd_pen( PS_SOLID, 1,
-								RGB( m_rgb[LAY_BACKGND][0],
-								m_rgb[LAY_BACKGND][1],
-								m_rgb[LAY_BACKGND][2] ) );
-							pDC->SelectObject( &backgnd_pen );
-							pDC->SelectObject( &backgnd_brush );
-							pDC->Ellipse( xi - holew/2, yi - holew/2, xi + holew/2, yi + holew/2 );
-							pDC->SelectObject( line_pen );
-							pDC->SelectObject( fill_brush );
-						}
-					}
-				}
-				else if( el->gtype == DL_SQUARE )
-				{
-					if( xi-w/2 < m_max_x && xi+w/2 > m_org_x
-						&& yi-w/2 < m_max_y && yi+w/2 > m_org_y )
-					{
-						int holew = el->holew;
-						pDC->Rectangle( xi - w/2, yi - w/2, xi + w/2, yi + w/2 );
-						if( holew )
-						{
-							pDC->SelectObject( &backgnd_brush );
-							pDC->SelectObject( &backgnd_pen );
-							pDC->Ellipse( xi - holew/2, yi - holew/2,
-								xi + holew/2, yi + holew/2 );
-							pDC->SelectObject( fill_brush );
-							pDC->SelectObject( line_pen );
-						}
-					}
-				}
-				else if( el->gtype == DL_OCTAGON || el->gtype == DL_HOLLOW_OCTAGON )
-				{
-					if( xi-w/2 < m_max_x && xi+w/2 > m_org_x
-						&& yi-w/2 < m_max_y && yi+w/2 > m_org_y )
-					{
-						const double pi = 3.14159265359;
-						POINT pt[8];
-						double angle = pi/8.0;
-						for( int iv=0; iv<8; iv++ )
-						{
-							pt[iv].x = el->x + 0.5 * el->w * cos(angle);
-							pt[iv].y = el->y + 0.5 * el->w * sin(angle);
-							angle += pi/4.0;
-						}
-						int holew = el->holew;
-						if( el->gtype == DL_HOLLOW_OCTAGON )
-							pDC->SelectObject( GetStockObject( HOLLOW_BRUSH ) );
-						pDC->Polygon( pt, 8 );
-						if( el->gtype == DL_HOLLOW_OCTAGON )
-							pDC->SelectObject( fill_brush );
-						if( holew )
-						{
-							pDC->SelectObject( &backgnd_brush );
-							pDC->SelectObject( &backgnd_pen );
-							pDC->Ellipse( xi - holew/2, yi - holew/2,
-								xi + holew/2, yi + holew/2 );
-							pDC->SelectObject( fill_brush );
-							pDC->SelectObject( line_pen );
-						}
+			// Use transparent DC in dcMemory
+			di.DC = &dcMemory;
 
-					}
-				}
-				else if( el->gtype == DL_RECT )
-				{
-					if( xf < xi )
-					{
-						xf = xi;
-						xi = el->xf;
-					}
-					if( yf < yi )
-					{
-						yf = yi;
-						yi = el->yf;
-					}
-					if( xi < m_max_x && xf > m_org_x && yi < m_max_y && yf > m_org_y )
-					{
-						int holew = el->holew;
-						pDC->Rectangle( xi, yi, xf, yf );
-						if( holew )
-						{
-							pDC->SelectObject( &black_brush );
-							pDC->SelectObject( &black_pen );
-							pDC->Ellipse( el->x_org - holew/2, el->y_org - holew/2,
-								el->x_org + holew/2, el->y_org + holew/2 );
-							pDC->SelectObject( fill_brush );
-							pDC->SelectObject( line_pen );
-						}
-					}
-				}
-				else if( el->gtype == DL_HOLLOW_RECT )
-				{
-					if( xf < xi )
-					{
-						xf = xi;
-						xi = el->xf;
-					}
-					if( yf < yi )
-					{
-						yf = yi;
-						yi = el->yf;
-					}
-					if( xi < m_max_x && xf > m_org_x
-						&& yi < m_max_y && yf > m_org_y )
-					{
-						pDC->MoveTo( xi, yi );
-						pDC->LineTo( xf, yi );
-						pDC->LineTo( xf, yf );
-						pDC->LineTo( xi, yf );
-						pDC->LineTo( xi, yi );
-						nlines += 4;
-					}
-				}
-				else if( el->gtype == DL_OVAL || el->gtype == DL_HOLLOW_OVAL )
-				{
-					if( xf < xi )
-					{
-						xf = xi;
-						xi = el->xf;
-					}
-					if( yf < yi )
-					{
-						yf = yi;
-						yi = el->yf;
-					}
-					if( xi < m_max_x && xf > m_org_x && yi < m_max_y && yf > m_org_y )
-					{
-						int h = abs(xf-xi);
-						int v = abs(yf-yi);
-						int r = min(h,v);
-						if( el->gtype == DL_HOLLOW_OVAL )
-							pDC->SelectObject( GetStockObject( HOLLOW_BRUSH ) );
-						pDC->RoundRect( xi, yi, xf, yf, r, r );
-						if( el->gtype == DL_HOLLOW_OVAL )
-							pDC->SelectObject( fill_brush );
-						int holew = el->holew;
-						if( el->holew )
-						{
-							pDC->SelectObject( &black_brush );
-							pDC->SelectObject( &black_pen );
-							pDC->Ellipse( el->x_org - holew/2, el->y_org - holew/2,
-								el->x_org + holew/2, el->y_org + holew/2 );
-							pDC->SelectObject( fill_brush );
-							pDC->SelectObject( line_pen );
-						}
-					}
-				}
-				else if( el->gtype == DL_RRECT || el->gtype == DL_HOLLOW_RRECT )
-				{
-					if( xf < xi )
-					{
-						xf = xi;
-						xi = el->xf;
-					}
-					if( yf < yi )
-					{
-						yf = yi;
-						yi = el->yf;
-					}
-					if( xi < m_max_x && xf > m_org_x && yi < m_max_y && yf > m_org_y )
-					{
-						int holew = el->holew;
-						if( el->gtype == DL_HOLLOW_RRECT )
-							pDC->SelectObject( GetStockObject( HOLLOW_BRUSH ) );
-						pDC->RoundRect( xi, yi, xf, yf, 2*el->radius, 2*el->radius );
-						if( el->gtype == DL_HOLLOW_RRECT )
-							pDC->SelectObject( fill_brush );
-						if( holew )
-						{
-							pDC->SelectObject( &black_brush );
-							pDC->SelectObject( &black_pen );
-							pDC->Ellipse( el->x_org - holew/2, el->y_org - holew/2,
-								el->x_org + holew/2, el->y_org + holew/2 );
-							pDC->SelectObject( fill_brush );
-							pDC->SelectObject( line_pen );
-						}
-					}
-				}
-				else if( el->gtype == DL_RECT_X )
-				{
-					if( xf < xi )
-					{
-						xf = xi;
-						xi = el->xf;
-					}
-					if( yf < yi )
-					{
-						yf = yi;
-						yi = el->yf;
-					}
-					if( xi < m_max_x && xf > m_org_x
-						&& yi < m_max_y && yf > m_org_y )
-					{
-						pDC->MoveTo( el->x, el->y );
-						pDC->LineTo( el->xf, el->y );
-						pDC->LineTo( el->xf, el->yf );
-						pDC->LineTo( el->x, el->yf );
-						pDC->LineTo( el->x, el->y );
-						pDC->MoveTo( el->x, el->y );
-						pDC->LineTo( el->xf, el->yf );
-						pDC->MoveTo( el->x, el->yf );
-						pDC->LineTo( el->xf, el->y );
-						nlines += 4;
-					}
-				}
-				else if( el->gtype == DL_ARC_CW )
-				{
-					if( ( (el->xf >= el->x && el->x < m_max_x && el->xf > m_org_x)
-						|| (el->xf < el->x && el->xf < m_max_x && el->x > m_org_x) )
-						&& ( (el->yf >= el->y && el->y < m_max_y && el->yf > m_org_y)
-						|| (el->yf < el->y && el->yf < m_max_y && el->y > m_org_y) ) )
-					{
-						CPen pen( PS_SOLID, el->w, RGB( m_rgb[layer][0], m_rgb[layer][1], m_rgb[layer][2] ) );
-						pDC->SelectObject( &pen );
-						DrawArc( pDC, DL_ARC_CW, el->x, el->y, el->xf, el->yf );
-						pDC->SelectObject( line_pen );
-					}
-				}
-				else if( el->gtype == DL_ARC_CCW )
-				{
-					if( ( (el->xf >= el->x && el->x < m_max_x && el->xf > m_org_x)
-						|| (el->xf < el->x && el->xf < m_max_x && el->x > m_org_x) )
-						&& ( (el->yf >= el->y && el->y < m_max_y && el->yf > m_org_y)
-						|| (el->yf < el->y && el->yf < m_max_y && el->y > m_org_y) ) )
-					{
-						CPen pen( PS_SOLID, el->w, RGB( m_rgb[layer][0], m_rgb[layer][1], m_rgb[layer][2] ) );
-						pDC->SelectObject( &pen );
-						DrawArc( pDC, DL_ARC_CCW, el->x, el->y, el->xf, el->yf );
-						pDC->SelectObject( line_pen );
-					}
-				}
-				else if( el->gtype == DL_CURVE_CW )
-				{
-					if( ( (el->xf >= el->x && el->x < m_max_x && el->xf > m_org_x)
-						|| (el->xf < el->x && el->xf < m_max_x && el->x > m_org_x) )
-						&& ( (el->yf >= el->y && el->y < m_max_y && el->yf > m_org_y)
-						|| (el->yf < el->y && el->yf < m_max_y && el->y > m_org_y) ) )
-					{
-						CPen pen( PS_SOLID, el->w, RGB( m_rgb[layer][0], m_rgb[layer][1], m_rgb[layer][2] ) );
-						pDC->SelectObject( &pen );
-						DrawCurve( pDC, DL_CURVE_CW, el->x, el->y, el->xf, el->yf );
-						pDC->SelectObject( line_pen );
-					}
-				}
-				else if( el->gtype == DL_CURVE_CCW )
-				{
-					if( ( (el->xf >= el->x && el->x < m_max_x && el->xf > m_org_x)
-						|| (el->xf < el->x && el->xf < m_max_x && el->x > m_org_x) )
-						&& ( (el->yf >= el->y && el->y < m_max_y && el->yf > m_org_y)
-						|| (el->yf < el->y && el->yf < m_max_y && el->y > m_org_y) ) )
-					{
-						CPen pen( PS_SOLID, el->w, RGB( m_rgb[layer][0], m_rgb[layer][1], m_rgb[layer][2] ) );
-						pDC->SelectObject( &pen );
-						DrawCurve( pDC, DL_CURVE_CCW, el->x, el->y, el->xf, el->yf );
-						pDC->SelectObject( line_pen );
-					}
-				}
-				else if( el->gtype == DL_X )
-				{
-					xi = el->x - el->w/2;
-					xf = el->x + el->w/2;
-					yi = el->y - el->w/2;
-					yf = el->y + el->w/2;
-					if( xi < m_max_x && xf > m_org_x
-						&& yi < m_max_y && yf > m_org_y )
-					{
-						pDC->MoveTo( xi, yi );
-						pDC->LineTo( xf, yf );
-						pDC->MoveTo( xf, yi );
-						pDC->LineTo( xi, yf );
-						nlines += 2;
-					}
-				}
-				else if( el->gtype == DL_LINE )
-				{
-					// only draw line segments which are in viewport
-					// viewport bounds, enlarged to account for line thickness
-					int Yb = m_org_y - w/2;		// y-coord of viewport top
-					int Yt = m_max_y + w/2;		// y-coord of bottom
-					int Xl = m_org_x - w/2;		// x-coord of left edge
-					int Xr = m_max_x - w/2;		// x-coord of right edge
-					// line segment from (xi,yi) to (xf,yf)
-					int draw_flag = 0;
-					// now test for all conditions where drawing is necessary
-					if( xi==xf )
-					{
-						// vertical line
-						if( yi<yf )
-						{
-							// upward
-							if( yi<=Yt && yf>=Yb && xi<=Xr && xi>=Xl )
-								draw_flag = 1;
-						}
-						else
-						{
-							// downward
-							if( yf<=Yt && yi>=Yb && xi<=Xr && xi>=Xl )
-								draw_flag = 1;
-						}
-					}
-					else if( yi==yf )
-					{
-						// horizontal line
-						if( xi<xf )
-						{
-							// rightward
-							if( xi<=Xr && xf>=Xl && yi<=Yt && yi>=Yb )
-								draw_flag = 1;
-						}
-						else
-						{
-							// leftward
-							if( xf<=Xr && xi>=Xl && yi<=Yt && yi>=Yb )
-								draw_flag = 1;
-						}
-					}
-					else if( !((xi<Xl&&xf<Xl)||(xi>Xr&&xf>Xr)||(yi<Yb&&yf<Yb)||(yi>Yt&&yf>Yt)) )
-					{
-						// oblique line
-						// not entirely above or below or right or left of viewport
-						// get slope b and intercept a so that y=a+bx
-						double b = (double)(yf-yi)/(xf-xi);
-						int a = yi - int(b*xi);
-						// now test for line in viewport
-						if( abs((yf-yi)*(Xr-Xl)) > abs((xf-xi)*(Yt-Yb)) )
-						{
-							// line is more vertical than window diagonal
-							int x1 = int((Yb-a)/b);
-							if( x1>=Xl && x1<=Xr)
-								draw_flag = 1;		// intercepts bottom of screen
-							else
-							{
-								int x2 = int((Yt-a)/b);
-								if( x2>=Xl && x2<=Xr )
-									draw_flag = 1;	// intercepts top of screen
-							}
-						}
-						else
-						{
-							// line is more horizontal than window diagonal
-							int y1 = int(a + b*Xl);
-							if( y1>=Yb && y1<=Yt )
-								draw_flag = 1;		// intercepts left edge of screen
-							else
-							{
-								int y2 = a + int(b*Xr);
-								if( y2>=Yb && y2<=Yt )
-									draw_flag = 1;	// intercepts right edge of screen
-							}
-						}
+			dcMemory.mono();
 
-					}
-					// now draw the line segment if not clipped
-					if( draw_flag )
-					{
-						CPen pen( PS_SOLID, w, RGB( m_rgb[layer][0], m_rgb[layer][1], m_rgb[layer][2] ) );
-						pDC->SelectObject( &pen );
-						pDC->MoveTo( xi, yi );
-						pDC->LineTo( xf, yf );
-						pDC->SelectObject( line_pen );
-						nlines++;
-					}
-				}
-			}
+			di.layer_color[0] = C_RGB::mono_off;
+			di.layer_color[1] = C_RGB::mono_on;
 		}
-		// restore original objects
-		pDC->SelectObject( old_pen );
-		pDC->SelectObject( old_brush );
+		else
+#endif
+		{
+			// Draw directly on main DC (di.DC_Master) for speed
+			di.DC = di.DC_Master;
+			di.layer_color[0] = m_rgb[LAY_BACKGND];
+			di.layer_color[1] = m_rgb[layer];
+		}
+
+		// CPT: Draw layer!
+		if (layer==LAY_HILITE || layer==LAY_RAT_LINE) 
+		{
+			// For the highlight and ratline layers, we are going to perform some alpha-blending before drawing the highlights proper.
+			// Onto memDC2, we will first BitBlt the current contents of pDC.  Then we draw fatter versions of all the line segments in the
+			// highlight layer, using the background color.  Finally we perform the alpha-blending of memDC2 onto pDC, using a constant alpha of
+			// .5.  That way the pixels next to highlighted segs are lightened (in the case of a white bkgnd) or darkened (in the case of a black
+			// bkgnd).
+			CRect r (m_client_r), r2 = r;
+			pDC->DPtoLP(r);
+			memDC2->BitBlt(r.left, r.top, r.Width(), r.Height(), pDC, r.left, r.top, SRCCOPY);
+			// Draw the fattened segs within the layer.  Setting di.bHiliteSegs before calling CDisplayLayer.Draw() does the trick:
+			di.DC = memDC2;
+			layers[layer].Draw(di, true);
+			di.DC = pDC;
+			// Now do the alpha-blending!  Unfortunately AlphaBlend() screws up with the typical current mapping-mode values for pDC and memDC2 (because 
+			// y-values are negated, I think).  Therefore, we have to temporarily change the mapping-mode on both to MM_TEXT.
+			int mm = pDC->GetMapMode();
+			CSize wext = pDC->GetWindowExt();
+			CSize vext = pDC->GetViewportExt();
+			pDC->SetMapMode(MM_TEXT); memDC2->SetMapMode(MM_TEXT);
+			pDC->DPtoLP(r2);
+			int left = r2.left, top = r2.top, w = r2.Width(), h = r2.Height();
+			BLENDFUNCTION bf;														// Argument for AlphaBlend...
+			bf.BlendOp = AC_SRC_OVER;
+			bf.BlendFlags = 0;
+			bf.SourceConstantAlpha = 128;
+			bf.AlphaFormat = 0;
+			pDC->AlphaBlend(left, top, w, h, memDC2, left, top, w, h, bf);
+			pDC->SetMapMode(mm); memDC2->SetMapMode(mm);
+			pDC->SetWindowExt(wext); memDC2->SetWindowExt(wext);
+			pDC->SetViewportExt(vext); memDC2->SetViewportExt(vext);
+		}
+
+		layers[layer].Draw(di, false);
+
+		/*  CPT:  obsolete?
+		if( di.DC != di.DC_Master )
+		{
+			// di.DC is a monochrome mask
+
+			// DC_Master &= ~mask
+			//   0 = transparent (AND with ~RGB(0,0,0) -> no effect, D AND 1 = D)
+			//   1 = solid       (AND with ~RGB(255,255,255) -> clear the masked area to RGB(0,0,0)
+			di.DC_Master->SetTextColor(RGB(0,0,0));
+			di.DC_Master->SetBkColor(RGB(255,255,255));
+
+			di.DC_Master->BitBlt(m_org_x, m_org_y, m_max_x-m_org_x, m_max_y-m_org_y,
+			                     di.DC,
+			                     m_org_x, m_org_y, 0x00220326);
+
+			// DC_Master |= mask
+			//   0 = transparent (OR with RBG(0,0,0) -> no effect D OR 0 = D)
+			//   1 = solid       (OR the masked area with layer color -> 0 OR C = C)
+			di.DC_Master->SetBkColor( m_rgb[layer] );
+
+			di.DC_Master->BitBlt(m_org_x, m_org_y, m_max_x-m_org_x, m_max_y-m_org_y,
+			                     di.DC,
+			                     m_org_x, m_org_y, SRCPAINT);
+		}
+		*/
 	}
+
+//**	dcMemory.DeleteDC();
 
 	// origin
 	CRect r;
@@ -906,8 +705,7 @@ void CDisplayList::Draw( CDC * dDC )
 	if( m_drag_num_lines )
 	{
 		// draw line array
-		CPen drag_pen( PS_SOLID, 1, RGB( m_rgb[m_drag_layer][0],
-			m_rgb[m_drag_layer][1], m_rgb[m_drag_layer][2] ) );
+		CPen drag_pen( PS_SOLID, 1, m_rgb[m_drag_layer] );
 		CPen * old_pen = pDC->SelectObject( &drag_pen );
 		for( int il=0; il<m_drag_num_lines; il++ )
 		{
@@ -919,13 +717,12 @@ void CDisplayList::Draw( CDC * dDC )
 
 	if( m_drag_num_ratlines )
 	{
-		// draw ratline array
-		CPen drag_pen( PS_SOLID, m_drag_ratline_width, RGB( m_rgb[m_drag_layer][0],
-			m_rgb[m_drag_layer][1], m_rgb[m_drag_layer][2] ) );
+		// draw ratline array, dragging endpoint m_drag_ratline_end_pt
+		CPen drag_pen( PS_SOLID, m_drag_ratline_width, m_rgb[m_drag_layer] );
 		CPen * old_pen = pDC->SelectObject( &drag_pen );
 		for( int il=0; il<m_drag_num_ratlines; il++ )
 		{
-			pDC->MoveTo( m_drag_ratline_start_pt[il].x, m_drag_ratline_start_pt[il].y );
+			pDC->MoveTo( m_drag_ratline_start_pt[il] );
 			pDC->LineTo( m_drag_x+m_drag_ratline_end_pt[il].x, m_drag_y+m_drag_ratline_end_pt[il].y );
 		}
 		pDC->SelectObject( old_pen );
@@ -939,22 +736,19 @@ void CDisplayList::Draw( CDC * dDC )
 			pDC->MoveTo( m_drag_xb, m_drag_yb );
 
 			// draw first segment
-			CPen pen0( PS_SOLID, m_drag_w0, RGB( m_rgb[m_drag_layer_0][0],
-				m_rgb[m_drag_layer_0][1], m_rgb[m_drag_layer_0][2] ) );
+			CPen pen0( PS_SOLID, m_drag_w0, m_rgb[m_drag_layer_0] );
 			CPen * old_pen = pDC->SelectObject( &pen0 );
 			pDC->LineTo( m_drag_xi, m_drag_yi );
 
 			// draw second segment
-			CPen pen1( PS_SOLID, m_drag_w1, RGB( m_rgb[m_drag_layer_1][0],
-				m_rgb[m_drag_layer_1][1], m_rgb[m_drag_layer_1][2] ) );
+			CPen pen1( PS_SOLID, m_drag_w1, m_rgb[m_drag_layer_1] );
 			pDC->SelectObject( &pen1 );
 			pDC->LineTo( m_drag_xf, m_drag_yf );
 
 			// draw third segment
 			if(m_drag_style2 != DSS_NONE)
 			{
-				CPen pen2( PS_SOLID, m_drag_w2, RGB( m_rgb[m_drag_layer_2][0],
-					m_rgb[m_drag_layer_2][1], m_rgb[m_drag_layer_2][2] ) );
+				CPen pen2( PS_SOLID, m_drag_w2, m_rgb[m_drag_layer_2] );
 				pDC->SelectObject( &pen2 );
 				pDC->LineTo( m_drag_xe, m_drag_ye );
 			}
@@ -963,8 +757,8 @@ void CDisplayList::Draw( CDC * dDC )
 		// draw drag shape, if used
 		if( m_drag_shape == DS_LINE_VERTEX || m_drag_shape == DS_LINE )
 		{
-			CPen pen_w( PS_SOLID, m_drag_w1, RGB( m_rgb[m_drag_layer_1][0],
-				m_rgb[m_drag_layer_1][1], m_rgb[m_drag_layer_1][2] ) );
+			CPen pen_w( PS_SOLID, m_drag_w1, m_rgb[m_drag_layer_1] );
+
 			// draw dragged shape
 			pDC->SelectObject( &pen_w );
 			if( m_drag_style1 == DSS_STRAIGHT )
@@ -990,16 +784,12 @@ void CDisplayList::Draw( CDC * dDC )
 				DrawArc( pDC, DL_ARC_CW, m_drag_xi, m_drag_yi, m_drag_x, m_drag_y );
 			else if( m_drag_style1 == DSS_ARC_CCW )
 				DrawArc( pDC, DL_ARC_CCW, m_drag_xi, m_drag_yi, m_drag_x, m_drag_y );
-			else if( m_drag_style1 == DSS_CURVE_CW )
-				DrawCurve( pDC, DL_CURVE_CW, m_drag_xi, m_drag_yi, m_drag_x, m_drag_y );
-			else if( m_drag_style1 == DSS_CURVE_CCW )
-				DrawCurve( pDC, DL_CURVE_CCW, m_drag_xi, m_drag_yi, m_drag_x, m_drag_y );
 			else
 				ASSERT(0);
 			if( m_drag_shape == DS_LINE_VERTEX )
 			{
-				CPen pen( PS_SOLID, m_drag_w2, RGB( m_rgb[m_drag_layer_2][0],
-					m_rgb[m_drag_layer_2][1], m_rgb[m_drag_layer_2][2] ) );
+				CPen pen( PS_SOLID, m_drag_w2, m_rgb[m_drag_layer_2] );
+
 				pDC->SelectObject( &pen );
 				if( m_drag_style2 == DSS_STRAIGHT )
 					pDC->LineTo( m_drag_xf, m_drag_yf );
@@ -1007,10 +797,6 @@ void CDisplayList::Draw( CDC * dDC )
 					DrawArc( pDC, DL_ARC_CW, m_drag_x, m_drag_y, m_drag_xf, m_drag_yf );
 				else if( m_drag_style2 == DSS_ARC_CCW )
 					DrawArc( pDC, DL_ARC_CCW, m_drag_x, m_drag_y, m_drag_xf, m_drag_yf );
-				else if( m_drag_style2 == DSS_CURVE_CW )
-					DrawCurve( pDC, DL_CURVE_CW, m_drag_x, m_drag_y, m_drag_xf, m_drag_yf );
-				else if( m_drag_style2 == DSS_CURVE_CCW )
-					DrawCurve( pDC, DL_CURVE_CCW, m_drag_x, m_drag_y, m_drag_xf, m_drag_yf );
 				else
 					ASSERT(0);
 				pDC->SelectObject( old_pen );
@@ -1024,10 +810,10 @@ void CDisplayList::Draw( CDC * dDC )
 				int thick = (m_drag_via_w - m_drag_via_holew)/2;
 				int w = m_drag_via_w - thick;
 				int holew = m_drag_via_holew;
-//				CPen pen( PS_SOLID, thick, RGB( m_rgb[LAY_PAD_THRU][0], m_rgb[LAY_PAD_THRU][1], m_rgb[LAY_PAD_THRU][2] ) );
-				CPen pen( PS_SOLID, thick, RGB( m_rgb[m_drag_layer_1][0], m_rgb[m_drag_layer_1][1], m_rgb[m_drag_layer_1][2] ) );
+//				CPen pen( PS_SOLID, thick, m_rgb[LAY_PAD_THRU] );
+				CPen pen( PS_SOLID, thick, m_rgb[m_drag_layer_1] );
 				CPen * old_pen = pDC->SelectObject( &pen );
-				CBrush black_brush( RGB( 0, 0, 0 ) );
+				CBrush black_brush( C_RGB::black );
 				CBrush * old_brush = pDC->SelectObject( &black_brush );
 				pDC->Ellipse( m_drag_xi - w/2, m_drag_yi - w/2, m_drag_xi + w/2, m_drag_yi + w/2 );
 				pDC->SelectObject( old_brush );
@@ -1035,13 +821,10 @@ void CDisplayList::Draw( CDC * dDC )
 			}
 
 		}
-		else if( m_drag_shape == DS_ARC_STRAIGHT
-			|| m_drag_shape == DS_ARC_CW || m_drag_shape == DS_ARC_CCW
-			|| m_drag_shape == DS_CURVE_CW || m_drag_shape == DS_CURVE_CCW
-			)
+		else if( m_drag_shape == DS_ARC_STRAIGHT || m_drag_shape == DS_ARC_CW || m_drag_shape == DS_ARC_CCW )
 		{
-			CPen pen_w( PS_SOLID, m_drag_w1, RGB( m_rgb[m_drag_layer_1][0],
-				m_rgb[m_drag_layer_1][1], m_rgb[m_drag_layer_1][2] ) );
+			CPen pen_w( PS_SOLID, m_drag_w1, m_rgb[m_drag_layer_1] );
+
 			// redraw dragged shape
 			pDC->SelectObject( &pen_w );
 			if( m_drag_shape == DS_ARC_STRAIGHT )
@@ -1050,10 +833,6 @@ void CDisplayList::Draw( CDC * dDC )
 				DrawArc( pDC, DL_ARC_CW, m_drag_xi, m_drag_yi, m_drag_x, m_drag_y );
 			else if( m_drag_shape == DS_ARC_CCW )
 				DrawArc( pDC, DL_ARC_CCW, m_drag_xi, m_drag_yi, m_drag_x, m_drag_y );
-			else if( m_drag_shape == DS_CURVE_CW )
-				DrawCurve( pDC, DL_CURVE_CW, m_drag_xi, m_drag_yi, m_drag_x, m_drag_y );
-			else if( m_drag_shape == DS_CURVE_CCW )
-				DrawCurve( pDC, DL_CURVE_CCW, m_drag_xi, m_drag_yi, m_drag_x, m_drag_y );
 			pDC->SelectObject( old_pen );
 			m_last_drag_shape = m_drag_shape;
 		}
@@ -1063,8 +842,8 @@ void CDisplayList::Draw( CDC * dDC )
 	if( m_cross_hairs )
 	{
 		// draw cross-hairs
-		COLORREF bk = pDC->SetBkColor( RGB(0,0,0) );
-		CPen pen( PS_DOT, 0, RGB( 128, 128, 128 ) );
+		COLORREF bk = pDC->SetBkColor( C_RGB::black );
+		CPen pen( PS_DOT, 0, C_RGB::grey );
 		pDC->SelectObject( &pen );
 		int x = m_cross_bottom.x;
 		int y = m_cross_left.y;
@@ -1144,18 +923,15 @@ void CDisplayList::Draw( CDC * dDC )
 	// double-buffer to screen
 	if( memDC )
 	{
-		dDC->BitBlt( m_org_x, m_org_y, m_max_x-m_org_x, m_max_y-m_org_y,
-			pDC, m_org_x, m_org_y, SRCCOPY );
+		dDC->BitBlt( m_org_x, m_org_y, m_max_x-m_org_x, m_max_y-m_org_y, pDC, m_org_x, m_org_y, SRCCOPY );
 	}
 }
 
 // set the display color for a layer
 //
-void CDisplayList::SetLayerRGB( int layer, int r, int g, int b )
+void CDisplayList::SetLayerRGB( int layer, C_RGB color )
 {
-	m_rgb[layer][0] = r;
-	m_rgb[layer][1] = g;
-	m_rgb[layer][2] = b;
+	m_rgb[layer] = color;
 }
 
 void CDisplayList::SetLayerVisible( int layer, BOOL vis )
@@ -1163,130 +939,62 @@ void CDisplayList::SetLayerVisible( int layer, BOOL vis )
 	m_vis[layer] = vis;
 }
 
-struct Hit {
-	// CPT.  Utility struct used by TestSelect()
-	int layer;
-	id id;
-	void *ptr;
-	int priority;
-	double dist;
-	};
+COLORREF CDisplayList::GetLayerColor( int layer )
+{
+	return m_rgb[layer];
+}
 
-int CompareHits(const Hit *h1, const Hit *h2) {
-	// CPT.  Used when sorting a list of hits. 
+int CompareHits(const CHitInfo *h1, const CHitInfo *h2) {
+	// CPT.  Used when sorting a list of hits (see TestSelect() just below). 
 	if (h1->priority==h2->priority)
 		return h1->dist < h2->dist? -1: 1;
 	return h1->priority < h2->priority? 1: -1; 
 	}
 
-// test x,y for a hit on an item in the selection layer
-// creates arrays with layer and id of each hit item
-// assigns priority based on layer and id
-// then returns pointer to item with highest priority
+// CPT r294, reworked arguments, and made corresponding changes to function body.
+// Test x,y for a hit on an item in the selection layer.
+// Creates array hit_info containing layer and id of each hit item
+//   and also priority and distance values from (x,y).  
 // If include_id != NULL, only include items that match include_id[]
-// where n_include_ids is size of array, and
-// where 0's in include_id[] fields are treated as wildcards
+//   where n_include_ids is size of array, and
+//   where -1's in include_id[] fields are treated as wildcards.
+// New arg bCtrl is true if user is currently ctrl-clicking.  In that case we exclude e.g. vertices and ratlines, which can't belong to groups.
+// Function now always sorts hit_info.  Return value is now the number of elements in hit_info.
 //
-void * CDisplayList::TestSelect( int x, int y, id * sel_id, int * sel_layer, 
-		int * sel_offset, id * include_id, int n_include_ids, bool bCtrl )	
-{
-	// CPT: new system for selection.  We obtain the set of objects that might correspond with (x,y), and order it by priority.  If 
-	// *sel_offset is -1, we select item #0 in the set;  if it's 0 and the set has cardinality 1, select nothing; otherwise select item
-	// *sel_offset+1 (rolling over to 0 as needed).  We put the appropriate new value in *sel_offset on exit.
-	// If bCtrl is set, then user is doing a ctrl-click, and we exclude e.g. vertices and ratlines, which can't belong to groups.
-	enum {
-		MAX_HITS = 10000
-	};
-	int  nhits = 0;
-	Hit hits[MAX_HITS];
+// CPT: also removed references to Brian's CDL_job classes, and tidied up.
 
-	double xx = double(x)/m_pcbu_per_wu;				// CPT (was int)
+int CDisplayList::TestSelect( int x, int y, CArray<CHitInfo> *hit_info,
+	id * include_id, int n_include_ids, bool bCtrl )
+{
+	if(!m_vis[LAY_SELECTION] ) return -1;				// CPT: irrelevant??
+
+	double xx = double(x)/m_pcbu_per_wu;				// CPT (was int, which caused range issues)
 	double yy = double(y)/m_pcbu_per_wu;				// CPT (was int)
 
-	// traverse the list, looking for selection shapes
-	dl_element * el = &m_start[LAY_SELECTION];
-	while( el->next != &m_end[LAY_SELECTION] )
+	// Get array of info for _all_ elements that hit (xx,yy).
+	CArray<CHitInfo> hit_info0;
+	int num_hits = TestForHits(xx, yy, &hit_info0);
+
+	// Now cull the array out based on include_id and other criteria.  Put the winners from hit_info0 into hit_info.
+	hit_info->RemoveAll();
+	for( int i=0; i<num_hits; i++ )
 	{
-		el = el->next;
-		id &id0 = el->id;
+		// if a pcb item (ie. not a footprint ) try to resolve all id fields of the item that was hit
+		CHitInfo this_hit = hit_info0[i];
+		id id0 = this_hit.ID;
+		if( !this_hit.ID.IsAnyFootItem() )
+		{
+			BOOL bOK = this_hit.ID.Resolve();
+			if( !bOK )
+				ASSERT(0);
+		}
 
-		// don't select anything on an invisible layer
-		if( !m_vis[el->layer] )
-			continue;
-		// don't select anything invisible
-		if( el->visible == 0 )
-			continue;
-
-		bool bHit = false;					// CPT reorganization...
-		double d = 0;						// CPT distance value will be used in prioritization of hits
-
-		if( el->gtype == DL_HOLLOW_RECT) {
-			// CPT: following a suggestion from obparham, selection of vertices should be based partly on distances in screen pixels. 
-			double xCenter = (el->x + el->xf) / 2., yCenter = (el->y + el->yf) / 2.;
-			double w2 = abs(el->x - el->xf) / 2., h2 = abs(el->y - el->yf) / 2.;
-			if (id0.type==ID_NET || id0.type==ID_PART && id0.st==ID_OUTLINE) {
-				// For vertices on connects and area edges, don't let the selectable region get too small (total width & ht < 6 pixels), or
-				// too big (total width & ht > 16 pixels).  But for pins & parts etc. don't make this adjustment.  Also skip the adjustment
-				// if it's a via.
-				cnet *net = (cnet*) el->ptr;
-				cconnect *c = net && id0.st==ID_CONNECT? &net->connect[id0.i]: 0;
-				cvertex *v = c && (id0.sst==ID_VERTEX || id0.sst==ID_SEL_VERTEX)? &c->vtx[id0.ii]: 0;
-				if (v && v->via_w) ;
-				else if (w2 < 3.0*m_scale) w2 = h2 = 3.0*m_scale;				// NB assuming that squares are always appropriate
-				else if (w2 > 8.0*m_scale) w2 = h2 = 8.0*m_scale;
-			}
-			double dx = xx-xCenter, dy = yy-yCenter;
-			if (fabs(dx) < w2 && fabs(dy) < h2) 
-				bHit = true,
-				d = sqrt(dx*dx+dy*dy);
-		}
-		/*  CPT:  I believe the following clause is bogus (el->gtype will never be DL_RECT_X)
-		else if (el->gtype == DL_RECT_X )
-		{
-			if( ( (xx>el->x && xx<el->xf) || (xx<el->x && xx>el->xf) )
-				&& ( (yy>el->y && yy<el->yf) || (yy<el->y && yy>el->yf) ) )
-					bHit = true;
-		}
-		*/
-		else if( el->gtype == DL_LINE )
-		{
-			// found selection line, test for hit (within 4 pixels or line width+3 mils )
-//**			int w = max( el->w/2+3*DU_PER_MIL, int(4.0*m_scale) );
-			int w = max( el->w/2, int(4.0*m_scale) );
-			bHit = TestLineHit( el->x, el->y, el->xf, el->yf, xx, yy, w, &d );
-		}
-		else if( el->gtype == DL_HOLLOW_CIRC )
-		{
-			// found hollow circle, test for hit (within 3 mils or 4 pixels)
-//**			int dr = max( 3*DU_PER_MIL, int(4.0*m_scale) );
-			int dr = 4.0*m_scale;
-			int w = el->w/2;
-			int x = el->x;
-			int y = el->y;
-			d = Distance( x, y, xx, yy );
-			bHit = abs(w-d) < dr;
-		}
-		else if( el->gtype == DL_ARC_CW || el->gtype == DL_ARC_CCW )
-		{
-			// found selection rectangle, test for hit
-			if( ( (xx>el->x && xx<el->xf) || (xx<el->x && xx>el->xf) )
-				&& ( (yy>el->y && yy<el->yf) || (yy<el->y && yy>el->yf) ) )
-					bHit = true;
-		}
-		else if( el->gtype == DL_CURVE_CW || el->gtype == DL_CURVE_CCW )
-		{
-			// found selection rectangle, test for hit
-			if( ( (xx>el->x && xx<el->xf) || (xx<el->x && xx>el->xf) )
-				&& ( (yy>el->y && yy<el->yf) || (yy<el->y && yy>el->yf) ) )
-			bHit = true;
-		}
-		else
-			ASSERT(0);		// bad element
-
-		if (!bHit) continue;
-		// Hit!  Check if item satisfies the include_id mask:
-		int type = id0.type, st = id0.st, sst = id0.sst, i = id0.i, ii = id0.ii;
-		cnet *net = (cnet*) (el->ptr);
+		// now check inclusion/exclusion criteria.
+		// always exclude hits on slaved tee-vertices 
+		if( this_hit.ID.IsVtx() )
+			if( this_hit.ID.Vtx()->tee_ID < 0 )
+				continue;
+		// test for explicit inclusions
 		BOOL included_hit = TRUE;
 		if( include_id )
 		{
@@ -1294,76 +1002,63 @@ void * CDisplayList::TestSelect( int x, int y, id * sel_id, int * sel_layer,
 			for( int inc=0; inc<n_include_ids; inc++ )
 			{
 				id * inc_id = &include_id[inc];
-				if( inc_id->type == type
-					&& ( inc_id->st == 0 || inc_id->st == st )
-					&& ( inc_id->i == 0 || inc_id->i == i )
-					&& ( inc_id->sst == 0 || inc_id->sst == sst )
-					&& ( inc_id->ii == 0 || inc_id->ii == ii ) )
-						{ included_hit = TRUE; break; }
+				if( this_hit.ID == *inc_id )	 // note that == includes wildcards
+				{
+					included_hit = TRUE;
+					break;
+				}
 			}
 		}
 		if (!included_hit) continue;
 		if (bCtrl)
+		{
+			int type = id0.T1(), st = id0.T2(), sst = id0.T3(), i = id0.I2(), ii = id0.I3();
+			cnet *net = (cnet*) (this_hit.ptr);
 			if (type == ID_PART  && st == ID_SEL_RECT) ;
 			else if (type == ID_TEXT) ;
 			else if (type == ID_NET && st == ID_CONNECT && sst == ID_SEL_SEG
-					&& net->connect[i].seg[ii].layer != LAY_RAT_LINE) ;
+					&& net->ConByIndex(i)->SegByIndex(ii).m_layer != LAY_RAT_LINE) ;
 			else if (type == ID_NET && st == ID_CONNECT && sst == ID_SEL_VERTEX
-					&& (net->connect[i].vtx[ii].tee_ID || net->connect[i].vtx[ii].force_via_flag) ) ;
+					&& (net->ConByIndex(i)->VtxByIndex(ii).tee_ID || net->ConByIndex(i)->VtxByIndex(ii).force_via_flag) ) ;
 			else if (type == ID_NET && st == ID_AREA && sst == ID_SEL_SIDE) ;
-			else if (type == ID_SM_CUTOUT && st == ID_SM_CUTOUT && sst == ID_SEL_SIDE) ;
+			else if (type == ID_MASK && st == ID_MASK && sst == ID_SEL_SIDE) ;
 			else if (type == ID_BOARD && st == ID_BOARD && sst == ID_SEL_SIDE) ;
 			else
 				// Not a valid group member!
 				continue;
+		}
 
-		// OK, valid hit, now assign priority
+		// OK, valid hit, now add to final array hit_info, and assign priority
 		// start with reversed layer drawing order * 10
 		// i.e. last drawn = highest priority
-		int priority = (MAX_LAYERS - m_order_for_layer[el->layer])*10;
+		hit_info->Add(this_hit);
+		int priority = (MAX_LAYERS - m_order_for_layer[this_hit.layer])*10;
 		// bump priority for small items which may be overlapped by larger items on same layer
-		if( type == ID_PART && st == ID_SEL_REF_TXT )
+		if( this_hit.ID.T1() == ID_PART && this_hit.ID.T2() == ID_REF_TXT && this_hit.ID.T3() == ID_SEL_REF_TXT )
 			priority++;
-		else if( type == ID_PART && st == ID_SEL_VALUE_TXT )
+		else if( this_hit.ID.T1() == ID_PART && this_hit.ID.T2() == ID_VALUE_TXT && this_hit.ID.T3() == ID_SEL_VALUE_TXT )
 			priority++;
-		else if( type == ID_BOARD && st == ID_BOARD_OUTLINE && sst == ID_SEL_CORNER )
+		else if( this_hit.ID.T1() == ID_BOARD && this_hit.ID.T2() == ID_OUTLINE && this_hit.ID.T3() == ID_SEL_CORNER )
 			priority++;
-		else if( type == ID_NET && st == ID_AREA && sst == ID_SEL_CORNER )
+		else if( this_hit.ID.T1() == ID_NET && this_hit.ID.T2() == ID_AREA && this_hit.ID.T3() == ID_SEL_CORNER )
 			priority++;
-		hits[nhits].layer = el->layer;
-		hits[nhits].id = id0;
-		hits[nhits].ptr = el->ptr;
-		hits[nhits].priority = priority;
-		hits[nhits].dist = d;
-		nhits++;
-		if( nhits >= MAX_HITS )	ASSERT(0);
+		else if( this_hit.ID.T1() == ID_NET && this_hit.ID.T2() == ID_CONNECT && this_hit.ID.T3() == ID_SEL_VERTEX )
+			priority++;
+
+		this_hit.priority = priority;
 	}
 
-	if( nhits == 0 || nhits==1 && *sel_offset>=0 )
-	{
-		// no selection
-		id no_id;
-		*sel_id = no_id;
-		*sel_layer = 0;
-		*sel_offset = -1;
-		return NULL;
-	}
-
-	// CPT: Sort hit list by priority
-	qsort(hits, nhits, sizeof(Hit), (int (*)(const void*,const void*)) CompareHits);
-	// Choose the selection!
-	int sel = *sel_offset+1;
-	if (sel>=nhits) sel = 0;
-	*sel_id = hits[sel].id;
-	*sel_layer = hits[sel].layer;
-	*sel_offset = sel;
-	return hits[sel].ptr;
+	// Sort output array and return.
+	num_hits = hit_info->GetCount();
+	qsort(hit_info->GetData(), num_hits, sizeof(CHitInfo), (int (*)(const void*,const void*)) CompareHits);
+	return num_hits;
 }
+
 
 // Start dragging arrays of drag lines and ratlines
 // Assumes that arrays have already been set up using MakeLineArray, etc.
 // If no arrays, just drags point
-// 
+//
 int CDisplayList::StartDraggingArray( CDC * pDC, int xx, int yy, int vert, int layer, int crosshair )
 {
 	// convert to display units
@@ -1389,8 +1084,7 @@ int CDisplayList::StartDraggingArray( CDC * pDC, int xx, int yy, int vert, int l
 
 // Start dragging rectangle
 //
-int CDisplayList::StartDraggingRectangle( CDC * pDC, int x, int y, int xi, int yi,
-										 int xf, int yf, int vert, int layer )
+int CDisplayList::StartDraggingRectangle( CDC * pDC, int x, int y, int xi, int yi, int xf, int yf, int vert, int layer )
 {
 	// create drag lines
 	CPoint p1(xi,yi);
@@ -1412,13 +1106,12 @@ int CDisplayList::StartDraggingRectangle( CDC * pDC, int x, int y, int xi, int y
 
 // Start dragging line
 //
-int CDisplayList::StartDraggingRatLine( CDC * pDC, int x, int y, int xi, int yi,
-									   int layer, int w, int crosshair )
+int CDisplayList::StartDraggingRatLine( CDC * pDC, int x, int y, int xi, int yi, int layer, int w, int crosshair )
 {
 	// create drag line
 	CPoint p1(xi,yi);
 	CPoint p2(x,y);
-	MakeDragRatlineArray( 1, w );
+	MakeDragRatlineArray( 1, 1 );
 	AddDragRatline( p1, p2 );
 
 	StartDraggingArray( pDC, xi, yi, 0, layer, crosshair );
@@ -1442,8 +1135,7 @@ void CDisplayList::SetDragArcStyle( int style )
 // Start dragging arc endpoint, using style from CPolyLine
 // Use the layer color and width w
 //
-int CDisplayList::StartDraggingArc( CDC * pDC, int style, int xx, int yy, int xi, int yi,
-								   int layer, int w, int crosshair )
+int CDisplayList::StartDraggingArc( CDC * pDC, int style, int xx, int yy, int xi, int yi, int layer, int w, int crosshair )
 {
 	int x = xx/m_pcbu_per_wu;
 	int y = yy/m_pcbu_per_wu;
@@ -1647,10 +1339,10 @@ void CDisplayList::Drag( CDC * pDC, int x, int y )
 	//**** there are three dragging modes, which may be used simultaneously ****//
 
 	// drag array of lines, used to make complex graphics like a part
+	// both endpoints of each line are dragged
 	if( m_drag_num_lines )
 	{
-		CPen drag_pen( PS_SOLID, 1, RGB( m_rgb[m_drag_layer][0],
-			m_rgb[m_drag_layer][1], m_rgb[m_drag_layer][2] ) );
+		CPen drag_pen( PS_SOLID, 1, m_rgb[m_drag_layer] );
 		CPen * old_pen = pDC->SelectObject( &drag_pen );
 		for( int il=0; il<m_drag_num_lines; il++ )
 		{
@@ -1665,10 +1357,10 @@ void CDisplayList::Drag( CDC * pDC, int x, int y )
 	}
 
 	// drag array of rubberband lines, used for ratlines to dragged part
+	// one endpoint of each line is dragged, the other is fixed
 	if( m_drag_num_ratlines )
 	{
-		CPen drag_pen( PS_SOLID, 1, RGB( m_rgb[m_drag_layer][0],
-			m_rgb[m_drag_layer][1], m_rgb[m_drag_layer][2] ) );
+		CPen drag_pen( PS_SOLID, m_drag_ratline_width, m_rgb[m_drag_layer] );
 		CPen * old_pen = pDC->SelectObject( &drag_pen );
 		for( int il=0; il<m_drag_num_ratlines; il++ )
 		{
@@ -1687,8 +1379,7 @@ void CDisplayList::Drag( CDC * pDC, int x, int y )
 	{
 		// drag rubberband trace segment, or vertex between two rubberband segments
 		// used for routing traces
-		CPen pen_w( PS_SOLID, m_drag_w1, RGB( m_rgb[m_drag_layer_1][0],
-			m_rgb[m_drag_layer_1][1], m_rgb[m_drag_layer_1][2] ) );
+		CPen pen_w( PS_SOLID, m_drag_w1, m_rgb[m_drag_layer_1] );
 
 		// undraw first segment
 		CPen * old_pen = pDC->SelectObject( &pen_w );
@@ -1715,17 +1406,13 @@ void CDisplayList::Drag( CDC * pDC, int x, int y )
 				DrawArc( pDC, DL_ARC_CW, m_drag_xi, m_drag_yi, m_drag_x, m_drag_y );
 			else if( m_drag_style1 == DSS_ARC_CCW )
 				DrawArc( pDC, DL_ARC_CCW, m_drag_xi, m_drag_yi, m_drag_x, m_drag_y );
-			else if( m_drag_style1 == DSS_CURVE_CW )
-				DrawCurve( pDC, DL_CURVE_CW, m_drag_xi, m_drag_yi, m_drag_x, m_drag_y );
-			else if( m_drag_style1 == DSS_CURVE_CCW )
-				DrawCurve( pDC, DL_CURVE_CCW, m_drag_xi, m_drag_yi, m_drag_x, m_drag_y );
 			else
 				ASSERT(0);
 			if( m_drag_shape == DS_LINE_VERTEX )
 			{
 				// undraw second segment
-				CPen pen( PS_SOLID, m_drag_w2, RGB( m_rgb[m_drag_layer_2][0],
-					m_rgb[m_drag_layer_2][1], m_rgb[m_drag_layer_2][2] ) );
+				CPen pen( PS_SOLID, m_drag_w2, m_rgb[m_drag_layer_2] );
+
 				CPen * old_pen = pDC->SelectObject( &pen );
 				if( m_drag_style2 == DSS_STRAIGHT )
 					pDC->LineTo( m_drag_xf, m_drag_yf );
@@ -1733,10 +1420,6 @@ void CDisplayList::Drag( CDC * pDC, int x, int y )
 					DrawArc( pDC, DL_ARC_CW, m_drag_x, m_drag_y, m_drag_xf, m_drag_yf );
 				else if( m_drag_style2 == DSS_ARC_CCW )
 					DrawArc( pDC, DL_ARC_CCW, m_drag_x, m_drag_y, m_drag_xf, m_drag_yf );
-				else if( m_drag_style2 == DSS_CURVE_CW )
-					DrawCurve( pDC, DL_CURVE_CW, m_drag_x, m_drag_y, m_drag_xf, m_drag_yf );
-				else if( m_drag_style2 == DSS_CURVE_CCW )
-					DrawCurve( pDC, DL_CURVE_CCW, m_drag_x, m_drag_y, m_drag_xf, m_drag_yf );
 				else
 					ASSERT(0);
 				pDC->SelectObject( old_pen );
@@ -1766,27 +1449,19 @@ void CDisplayList::Drag( CDC * pDC, int x, int y )
 				DrawArc( pDC, DL_ARC_CW, m_drag_xi, m_drag_yi, xx, yy );
 			else if( m_drag_style1 == DSS_ARC_CCW )
 				DrawArc( pDC, DL_ARC_CCW, m_drag_xi, m_drag_yi, xx, yy );
-			else if( m_drag_style1 == DSS_CURVE_CW )
-				DrawCurve( pDC, DL_CURVE_CW, m_drag_xi, m_drag_yi, xx, yy );
-			else if( m_drag_style1 == DSS_CURVE_CCW )
-				DrawCurve( pDC, DL_CURVE_CCW, m_drag_xi, m_drag_yi, xx, yy );
 			else
 				ASSERT(0);
 			if( m_drag_shape == DS_LINE_VERTEX )
 			{
 				// draw second segment
-				CPen pen( PS_SOLID, m_drag_w2, RGB( m_rgb[m_drag_layer_2][0],
-					m_rgb[m_drag_layer_2][1], m_rgb[m_drag_layer_2][2] ) );
+				CPen pen( PS_SOLID, m_drag_w2, m_rgb[m_drag_layer_2] );
+
 				CPen * old_pen = pDC->SelectObject( &pen );
 				if( m_drag_style2 == DSS_STRAIGHT )
 					pDC->LineTo( m_drag_xf, m_drag_yf );
 				else if( m_drag_style2 == DSS_ARC_CW )
 					DrawArc( pDC, DL_ARC_CW, xx, yy, m_drag_xf, m_drag_yf );
 				else if( m_drag_style2 == DSS_ARC_CCW )
-					DrawArc( pDC, DL_ARC_CCW, xx, yy, m_drag_xf, m_drag_yf );
-				else if( m_drag_style2 == DSS_CURVE_CW )
-					DrawArc( pDC, DL_ARC_CW, xx, yy, m_drag_xf, m_drag_yf );
-				else if( m_drag_style2 == DSS_CURVE_CCW )
 					DrawArc( pDC, DL_ARC_CCW, xx, yy, m_drag_xf, m_drag_yf );
 				else
 					ASSERT(0);
@@ -1801,11 +1476,11 @@ void CDisplayList::Drag( CDC * pDC, int x, int y )
 				int thick = (m_drag_via_w - m_drag_via_holew)/2;
 				int w = m_drag_via_w - thick;
 				int holew = m_drag_via_holew;
-//				CPen pen( PS_SOLID, thick, RGB( m_rgb[LAY_PAD_THRU][0], m_rgb[LAY_PAD_THRU][1], m_rgb[LAY_PAD_THRU][2] ) );
-				CPen pen( PS_SOLID, thick, RGB( m_rgb[m_drag_layer_1][0], m_rgb[m_drag_layer_1][1], m_rgb[m_drag_layer_1][2] ) );
+//				CPen pen( PS_SOLID, thick, m_rgb[LAY_PAD_THRU] );
+				CPen pen( PS_SOLID, thick, m_rgb[m_drag_layer_1] );
 				CPen * old_pen = pDC->SelectObject( &pen );
 				{
-					CBrush black_brush( RGB( 0, 0, 0 ) );
+					CBrush black_brush( C_RGB::black );
 					CBrush * old_brush = pDC->SelectObject( &black_brush );
 					pDC->Ellipse( m_drag_xi - w/2, m_drag_yi - w/2, m_drag_xi + w/2, m_drag_yi + w/2 );
 					pDC->SelectObject( old_brush );
@@ -1825,23 +1500,20 @@ void CDisplayList::Drag( CDC * pDC, int x, int y )
 			pDC->MoveTo( m_drag_xb, m_drag_yb );
 
 			// undraw first segment
-			CPen pen0( PS_SOLID, m_drag_w0, RGB( m_rgb[m_drag_layer_0][0],
-				m_rgb[m_drag_layer_0][1], m_rgb[m_drag_layer_0][2] ) );
+			CPen pen0( PS_SOLID, m_drag_w0, m_rgb[m_drag_layer_0] );
 			CPen * old_pen = pDC->SelectObject( &pen0 );
 			pDC->LineTo( m_drag_xi, m_drag_yi );
 
 			// undraw second segment
 			ASSERT(m_drag_style1 == DSS_STRAIGHT);
-			CPen pen1( PS_SOLID, m_drag_w1, RGB( m_rgb[m_drag_layer_1][0],
-				m_rgb[m_drag_layer_1][1], m_rgb[m_drag_layer_1][2] ) );
+			CPen pen1( PS_SOLID, m_drag_w1, m_rgb[m_drag_layer_1] );
 			pDC->SelectObject( &pen1 );
 			pDC->LineTo( m_drag_xf, m_drag_yf );
 
 			// undraw third segment
 			if(m_drag_style2 == DSS_STRAIGHT)		// Could also be DSS_NONE (this segment only)
 			{
-				CPen pen2( PS_SOLID, m_drag_w2, RGB( m_rgb[m_drag_layer_2][0],
-					m_rgb[m_drag_layer_2][1], m_rgb[m_drag_layer_2][2] ) );
+				CPen pen2( PS_SOLID, m_drag_w2, m_rgb[m_drag_layer_2] );
 				pDC->SelectObject( &pen2 );
 				pDC->LineTo( m_drag_xe, m_drag_ye );
 			}
@@ -1917,22 +1589,19 @@ void CDisplayList::Drag( CDC * pDC, int x, int y )
 			pDC->MoveTo( m_drag_xb, m_drag_yb );
 
 			// draw first segment
-			CPen pen0( PS_SOLID, m_drag_w0, RGB( m_rgb[m_drag_layer_0][0],
-				m_rgb[m_drag_layer_0][1], m_rgb[m_drag_layer_0][2] ) );
+			CPen pen0( PS_SOLID, m_drag_w0, m_rgb[m_drag_layer_0] );
 			CPen * old_pen = pDC->SelectObject( &pen0 );
 			pDC->LineTo( m_drag_xi, m_drag_yi );
 
 			// draw second segment
-			CPen pen1( PS_SOLID, m_drag_w1, RGB( m_rgb[m_drag_layer_1][0],
-				m_rgb[m_drag_layer_1][1], m_rgb[m_drag_layer_1][2] ) );
+			CPen pen1( PS_SOLID, m_drag_w1, m_rgb[m_drag_layer_1] );
 			pDC->SelectObject( &pen1 );
 			pDC->LineTo( m_drag_xf, m_drag_yf );
 
 			if(m_drag_style2 == DSS_STRAIGHT)
 			{
 				// draw third segment
-				CPen pen2( PS_SOLID, m_drag_w2, RGB( m_rgb[m_drag_layer_2][0],
-					m_rgb[m_drag_layer_2][1], m_rgb[m_drag_layer_2][2] ) );
+				CPen pen2( PS_SOLID, m_drag_w2, m_rgb[m_drag_layer_2] );
 				pDC->SelectObject( &pen2 );
 				pDC->LineTo( m_drag_xe, m_drag_ye );
 			}
@@ -1940,13 +1609,9 @@ void CDisplayList::Drag( CDC * pDC, int x, int y )
 		}
 
 	}
-	else if( m_drag_flag && (m_drag_shape == DS_ARC_STRAIGHT
-		|| m_drag_shape == DS_ARC_CW || m_drag_shape == DS_ARC_CCW
-		|| m_drag_shape == DS_CURVE_CW || m_drag_shape == DS_CURVE_CCW
-		) )
+	else if( m_drag_flag && (m_drag_shape == DS_ARC_STRAIGHT || m_drag_shape == DS_ARC_CW || m_drag_shape == DS_ARC_CCW) )
 	{
-		CPen pen_w( PS_SOLID, m_drag_w1, RGB( m_rgb[m_drag_layer_1][0],
-			m_rgb[m_drag_layer_1][1], m_rgb[m_drag_layer_1][2] ) );
+		CPen pen_w( PS_SOLID, m_drag_w1, m_rgb[m_drag_layer_1] );
 
 		// undraw old arc
 		CPen * old_pen = pDC->SelectObject( &pen_w );
@@ -1957,10 +1622,6 @@ void CDisplayList::Drag( CDC * pDC, int x, int y )
 				DrawArc( pDC, DL_ARC_CW, m_drag_xi, m_drag_yi, m_drag_x, m_drag_y );
 			else if( m_last_drag_shape == DS_ARC_CCW )
 				DrawArc( pDC, DL_ARC_CCW, m_drag_xi, m_drag_yi, m_drag_x, m_drag_y );
-			else if( m_last_drag_shape == DS_CURVE_CW )
-				DrawCurve( pDC, DL_CURVE_CW, m_drag_xi, m_drag_yi, m_drag_x, m_drag_y );
-			else if( m_last_drag_shape == DS_CURVE_CCW )
-				DrawCurve( pDC, DL_CURVE_CCW, m_drag_xi, m_drag_yi, m_drag_x, m_drag_y );
 
 			// draw new arc
 			if( m_drag_shape == DS_ARC_STRAIGHT )
@@ -1969,10 +1630,6 @@ void CDisplayList::Drag( CDC * pDC, int x, int y )
 				DrawArc( pDC, DL_ARC_CW, m_drag_xi, m_drag_yi, xx, yy );
 			else if( m_drag_shape == DS_ARC_CCW )
 				DrawArc( pDC, DL_ARC_CCW, m_drag_xi, m_drag_yi, xx, yy );
-			else if( m_drag_shape == DS_CURVE_CW )
-				DrawCurve( pDC, DL_CURVE_CW, m_drag_xi, m_drag_yi, xx, yy );
-			else if( m_drag_shape == DS_CURVE_CCW )
-				DrawCurve( pDC, DL_CURVE_CCW, m_drag_xi, m_drag_yi, xx, yy );
 			m_last_drag_shape = m_drag_shape;	// used only for polylines
 		}
 		pDC->SelectObject( old_pen );
@@ -1986,8 +1643,8 @@ void CDisplayList::Drag( CDC * pDC, int x, int y )
 	{
 		int x = xx;
 		int y = yy;
-		COLORREF bk = pDC->SetBkColor( RGB(0,0,0) );
-		CPen cross_pen( PS_DOT, 0, RGB( 128, 128, 128 ) );
+		COLORREF bk = pDC->SetBkColor( C_RGB::black );
+		CPen cross_pen( PS_DOT, 0, C_RGB::grey );
 		CPen * old_pen = pDC->SelectObject( &cross_pen );
 		{
 			pDC->MoveTo( m_cross_left );
@@ -2094,10 +1751,6 @@ int CDisplayList::StopDragging()
 
 // Change the drag layer and/or width for DS_LINE_VERTEX
 // if ww = 0, don't change width
-// CPT:  I checked the entire existing source code, and till now ww was never anything _but_ 0.  (And param layer2 is never anything other than LAY_SELECTION.)
-//       But now I use this param during CFreePcbView::ActiveWidthUp() and ActiveWidthDown().
-// NB note that the redrawing doesn't really work correctly if the current segment being routed includes an inflection point.  But since the calling
-// routines tend to call Invalidate() as well it doesn't exactly matter.  One day I guess the situation ought to be rationalized...
 //
 void CDisplayList::ChangeRoutingLayer( CDC * pDC, int layer1, int layer2, int ww )
 {
@@ -2110,14 +1763,10 @@ void CDisplayList::ChangeRoutingLayer( CDC * pDC, int layer1, int layer2, int ww
 
 	if( m_drag_shape == DS_LINE_VERTEX )
 	{
-		CPen pen_old( PS_SOLID, 1, RGB( m_rgb[m_drag_layer_2][0],
-						m_rgb[m_drag_layer_2][1], m_rgb[m_drag_layer_2][2] ) );
-		CPen pen_old_w( PS_SOLID, m_drag_w1, RGB( m_rgb[m_drag_layer_1][0],
-						m_rgb[m_drag_layer_1][1], m_rgb[m_drag_layer_1][2] ) );
-		CPen pen( PS_SOLID, 1, RGB( m_rgb[layer2][0],
-						m_rgb[layer2][1], m_rgb[layer2][2] ) );
-		CPen pen_w( PS_SOLID, w/m_pcbu_per_wu, RGB( m_rgb[layer1][0],
-						m_rgb[layer1][1], m_rgb[layer1][2] ) );
+		CPen pen_old( PS_SOLID, 1, m_rgb[m_drag_layer_2] );
+		CPen pen_old_w( PS_SOLID, m_drag_w1, m_rgb[m_drag_layer_1] );
+		CPen pen( PS_SOLID, 1, m_rgb[layer2] );
+		CPen pen_w( PS_SOLID, w/m_pcbu_per_wu, m_rgb[layer1] );
 
 		// undraw segments
 		CPen * old_pen = pDC->SelectObject( &pen_old_w );
@@ -2146,10 +1795,9 @@ void CDisplayList::ChangeRoutingLayer( CDC * pDC, int layer1, int layer2, int ww
 			int thick = (m_drag_via_w - m_drag_via_holew)/2;
 			int w = m_drag_via_w - thick;
 			int holew = m_drag_via_holew;
-//			CPen pen( PS_SOLID, thick, RGB( m_rgb[LAY_PAD_THRU][0], m_rgb[LAY_PAD_THRU][1], m_rgb[LAY_PAD_THRU][2] ) );
-			CPen pen( PS_SOLID, thick, RGB( m_rgb[m_drag_layer_1][0], m_rgb[m_drag_layer_1][1], m_rgb[m_drag_layer_1][2] ) );
+			CPen pen( PS_SOLID, thick, m_rgb[m_drag_layer_1] );
 			CPen * old_pen = pDC->SelectObject( &pen );
-			CBrush black_brush( RGB( 0, 0, 0 ) );
+			CBrush black_brush( C_RGB::black );
 			CBrush * old_brush = pDC->SelectObject( &black_brush );
 			pDC->Ellipse( m_drag_xi - w/2, m_drag_yi - w/2, m_drag_xi + w/2, m_drag_yi + w/2 );
 			pDC->SelectObject( old_brush );
@@ -2159,12 +1807,9 @@ void CDisplayList::ChangeRoutingLayer( CDC * pDC, int layer1, int layer2, int ww
 	}
 	else if( m_drag_shape == DS_LINE )
 	{
-		CPen pen_old_w( PS_SOLID, m_drag_w1, RGB( m_rgb[m_drag_layer_1][0],
-						m_rgb[m_drag_layer_1][1], m_rgb[m_drag_layer_1][2] ) );
-		CPen pen( PS_SOLID, 1, RGB( m_rgb[layer2][0],
-						m_rgb[layer2][1], m_rgb[layer2][2] ) );
-		CPen pen_w( PS_SOLID, w/m_pcbu_per_wu, RGB( m_rgb[layer1][0],
-						m_rgb[layer1][1], m_rgb[layer1][2] ) );
+		CPen pen_old_w( PS_SOLID, m_drag_w1, m_rgb[m_drag_layer_1] );
+		CPen pen( PS_SOLID, 1, m_rgb[layer2] );
+		CPen pen_w( PS_SOLID, w/m_pcbu_per_wu, m_rgb[layer1] );
 
 		// undraw segments
 		CPen * old_pen = pDC->SelectObject( &pen_old_w );
@@ -2188,10 +1833,9 @@ void CDisplayList::ChangeRoutingLayer( CDC * pDC, int layer1, int layer2, int ww
 			int thick = (m_drag_via_w - m_drag_via_holew)/2;
 			int w = m_drag_via_w - thick;
 			int holew = m_drag_via_holew;
-//			CPen pen( PS_SOLID, thick, RGB( m_rgb[LAY_PAD_THRU][0], m_rgb[LAY_PAD_THRU][1], m_rgb[LAY_PAD_THRU][2] ) );
-			CPen pen( PS_SOLID, thick, RGB( m_rgb[m_drag_layer_1][0], m_rgb[m_drag_layer_1][1], m_rgb[m_drag_layer_1][2] ) );
+			CPen pen( PS_SOLID, thick, m_rgb[m_drag_layer_1] );
 			CPen * old_pen = pDC->SelectObject( &pen );
-			CBrush black_brush( RGB( 0, 0, 0 ) );
+			CBrush black_brush( C_RGB::black );
 			CBrush * old_brush = pDC->SelectObject( &black_brush );
 			pDC->Ellipse( m_drag_xi - w/2, m_drag_yi - w/2, m_drag_xi + w/2, m_drag_yi + w/2 );
 			pDC->SelectObject( old_brush );
@@ -2216,8 +1860,7 @@ void CDisplayList::IncrementDragAngle( CDC * pDC )
 
 	CPoint zero(0,0);
 
-	CPen drag_pen( PS_SOLID, 1, RGB( m_rgb[m_drag_layer][0],
-					m_rgb[m_drag_layer][1], m_rgb[m_drag_layer][2] ) );
+	CPen drag_pen( PS_SOLID, 1, m_rgb[m_drag_layer] );
 	CPen *old_pen = pDC->SelectObject( &drag_pen );
 
 	int old_ROP2 = pDC->GetROP2();
@@ -2261,8 +1904,7 @@ void CDisplayList::FlipDragSide( CDC * pDC )
 {
 	m_drag_side = 1 - m_drag_side;
 
-	CPen drag_pen( PS_SOLID, 1, RGB( m_rgb[m_drag_layer][0],
-					m_rgb[m_drag_layer][1], m_rgb[m_drag_layer][2] ) );
+	CPen drag_pen( PS_SOLID, 1, m_rgb[m_drag_layer] );
 	CPen *old_pen = pDC->SelectObject( &drag_pen );
 
 	int old_ROP2 = pDC->GetROP2();
@@ -2358,6 +2000,9 @@ int CDisplayList::MakeDragLineArray( int num_lines )
 
 int CDisplayList::MakeDragRatlineArray( int num_ratlines, int width )
 {
+	m_drag_ratline_drag_pt.SetSize(0);
+	m_drag_ratline_stat_pt.SetSize(0);
+
 	if( m_drag_ratline_start_pt )
 		free(m_drag_ratline_start_pt );
 	m_drag_ratline_start_pt = (CPoint*)calloc( num_ratlines, sizeof(CPoint) );
@@ -2389,8 +2034,13 @@ int CDisplayList::AddDragLine( CPoint pi, CPoint pf )
 	return 0;
 }
 
+// CPoint pi is the stationary point, pf is the offset to the cursor for the dragged point
+//
 int CDisplayList::AddDragRatline( CPoint pi, CPoint pf )
 {
+	m_drag_ratline_drag_pt.Add( pi );
+	m_drag_ratline_stat_pt.Add( pf );
+
 	if( m_drag_num_ratlines == m_drag_max_ratlines )
 		return  1;
 
@@ -2407,7 +2057,7 @@ int CDisplayList::AddDragRatline( CPoint pi, CPoint pf )
 int CDisplayList::HighLight( int gtype, int x, int y, int xf, int yf, int w, int orig_layer )
 {
 	id h_id;
-	Add( h_id, NULL, LAY_HILITE, gtype, 1, w, 0, x, y, xf, yf, x, y, 0, orig_layer );
+	Add( h_id, NULL, LAY_HILITE, gtype, 1, w, 0, 0, x, y, xf, yf, x, y, 0, orig_layer );
 	return 0;
 }
 
@@ -2419,10 +2069,10 @@ int CDisplayList::CancelHighLight()
 
 // Set the device context and memory context to world coords
 //
-void CDisplayList::SetDCToWorldCoords( CDC * pDC, CDC * mDC,
+void CDisplayList::SetDCToWorldCoords( CDC * pDC, CDC * mDC, CDC * mDC2,			// CPT added mDC2 (experimental)
 							int pcbu_org_x, int pcbu_org_y )
 {
-	memDC = NULL;
+	memDC = memDC2 = NULL;
 	if( pDC )
 	{
 		// set window scale (WU per pixel) and origin (WU)
@@ -2450,6 +2100,17 @@ void CDisplayList::SetDCToWorldCoords( CDC * pDC, CDC * mDC,
 		// update pointer
 		memDC = mDC;
 	}
+	// CPT experimental
+	if( mDC2->m_hDC )
+	{
+		mDC2->SetMapMode( MM_ANISOTROPIC );
+		mDC2->SetWindowExt( w_ext_x, w_ext_y );
+		mDC2->SetWindowOrg( pcbu_org_x/m_pcbu_per_wu, pcbu_org_y/m_pcbu_per_wu );
+		mDC2->SetViewportExt( v_ext_x, v_ext_y );
+		mDC2->SetViewportOrg( m_pane_org_x, m_pane_org_y );
+		memDC2 = mDC2;
+	}
+	// end CPT
 }
 
 void CDisplayList::SetVisibleGrid( BOOL on, double grid )
@@ -2556,4 +2217,63 @@ CPoint CDisplayList::PCBToScreen( CPoint point )
 }
 
 
+
+void CDisplayLayer::Draw(CDrawInfo &di, bool bHiliteSegs) 
+{
+	CPen * old_pen;
+	CBrush * old_brush;
+
+	// Create drawing objects
+	{
+		di.erase_pen.CreatePen( PS_SOLID, 1, di.layer_color[0] );
+		di.erase_brush.CreateSolidBrush( di.layer_color[0] );
+		di.line_pen.CreatePen( PS_SOLID, 1, di.layer_color[1] );
+		di.fill_brush.CreateSolidBrush( di.layer_color[1] );
+
+		old_pen   = di.DC->SelectObject( &di.line_pen );
+		old_brush = di.DC->SelectObject( &di.fill_brush );
+	}
+
+	if (bHiliteSegs)
+		for (dl_element *el = elements; el; el = el->next)
+			el->DrawHiliteSeg(di);
+	else
+		for (dl_element *el = elements; el; el = el->next)
+			el->Draw(di);
+
+	// Restore original drawing objects
+	{
+		di.DC->SelectObject( old_pen );
+		di.DC->SelectObject( old_brush );
+
+		di.erase_pen.DeleteObject();
+		di.erase_brush.DeleteObject();
+		di.line_pen.DeleteObject();
+		di.fill_brush.DeleteObject();
+	}
+}
+
+
+// CPT:  Brian had this function in class CDL_job.  I've moved it into CDisplayList.  (Also changed name from TestForHit to TestForHits.)
+// Tests x,y for hits on items in the selection layer.
+// Puts layer, id, and ptr info for each hit item into hitInfo.
+// r294: altered args and made the relevant changes to the function body.
+int CDisplayList::TestForHits( double x, double y, CArray<CHitInfo> *hitInfo ) 
+{
+	double d;
+	// traverse the list, looking for selection shapes
+	for (dl_element *el = layers[LAY_SELECTION].elements; el; el = el->next) {
+		if( el->isHit(x, y, d) )
+		{
+			CHitInfo hit;
+			hit.layer = el->layer;
+			hit.ID = el->id;
+			hit.ptr = el->ptr;
+			hit.dist = d;								// CPT r294.  Introduced distance values into CHitInfo;  el->isHit() now provides these.
+			hitInfo->Add(hit);
+		}
+	}
+
+	return hitInfo->GetCount();
+}
 

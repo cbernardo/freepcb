@@ -73,6 +73,7 @@ void CDlgLibraryManager::OnBnClickedButtonMakePdf()
 	return;
 #endif
 //#if 0
+#ifndef CPT2
 	// set page size
 	double PageWidth;	
 	double PageHeight;	
@@ -736,35 +737,35 @@ void CDlgLibraryManager::OnBnClickedButtonMakePdf()
 			{
 				float last_x, last_y;
 				CPolyLine * poly = &foot.m_outline_poly[ip];
-				int nsides = poly->GetNumCorners() - 1;
-				if( poly->GetClosed() )
-					nsides = poly->GetNumCorners();
+				int nsides = poly->NumCorners() - 1;
+				if( poly->Closed() )
+					nsides = poly->NumCorners();
 				cpdf_newpath( pdf );
-				last_x = org_x + poly->GetX(0)*scale/NM_PER_INCH;
-				last_y = org_y + poly->GetY(0)*scale/NM_PER_INCH;
+				last_x = org_x + poly->X(0)*scale/NM_PER_INCH;
+				last_y = org_y + poly->Y(0)*scale/NM_PER_INCH;
 				cpdf_moveto( pdf, last_x, last_y );
 				for( int is=0; is<nsides; is++ )
 				{
 					float x;
 					float y;
-					if( is == (nsides-1 ) && poly->GetClosed() )
+					if( is == (nsides-1 ) && poly->Closed() )
 					{
 						// close poly
-						x = org_x + poly->GetX(0)*scale/NM_PER_INCH;
-						y = org_y + poly->GetY(0)*scale/NM_PER_INCH;
+						x = org_x + poly->X(0)*scale/NM_PER_INCH;
+						y = org_y + poly->Y(0)*scale/NM_PER_INCH;
 					}
 					else
 					{
 						// normal side
-						x = org_x + poly->GetX(is+1)*scale/NM_PER_INCH;
-						y = org_y + poly->GetY(is+1)*scale/NM_PER_INCH;
+						x = org_x + poly->X(is+1)*scale/NM_PER_INCH;
+						y = org_y + poly->Y(is+1)*scale/NM_PER_INCH;
 					}
-					if( poly->GetSideStyle(is) == CPolyLine::STRAIGHT )
+					if( poly->SideStyle(is) == CPolyLine::STRAIGHT )
 					{
 						// straight line segment
 						cpdf_lineto( pdf, x, y );
 					}
-					else if( poly->GetSideStyle(is) == CPolyLine::ARC_CW )
+					else if( poly->SideStyle(is) == CPolyLine::ARC_CW )
 					{
 						// ellipse quadrant, clockwise, start vertical
 						double x1 = last_x;
@@ -781,7 +782,7 @@ void CDlgLibraryManager::OnBnClickedButtonMakePdf()
 						}
 						cpdf_curveto( pdf, x1, y1, x2, y2, x, y );
 					}
-					else if( poly->GetSideStyle(is) == CPolyLine::ARC_CCW )
+					else if( poly->SideStyle(is) == CPolyLine::ARC_CCW )
 					{
 						// ellipse quadrant, clockwise, start vertical
 						double x1 = last_x;
@@ -802,7 +803,7 @@ void CDlgLibraryManager::OnBnClickedButtonMakePdf()
 					last_y = y;
 				}		
 				cpdf_closepath( pdf );
-				cpdf_setlinewidth( pdf, 72.0*scale*poly->GetW()/NM_PER_INCH );
+				cpdf_setlinewidth( pdf, 72.0*scale*poly->W()/NM_PER_INCH );
 				cpdf_stroke( pdf );
 			}
 
@@ -974,7 +975,7 @@ void CDlgLibraryManager::OnBnClickedButtonMakePdf()
 		}
 		cpdf_close(pdf);			/* shut down */
 	}
-//#endif
+#endif
 }
 
 void CDlgLibraryManager::Initialize( CFootLibFolderMap * foldermap, CDlgLog * log )

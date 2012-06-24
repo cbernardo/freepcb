@@ -39,6 +39,7 @@ ps * current_ps;
 //
 int ConvertIvex( CStdioFile * mod_file, CStdioFile * lib_file, CEdit * edit_ctrl )
 {
+#ifndef CPT2
 	// state-machine
 	enum { IDLE,	// idle (i.e. no state)
 		PAD_STACK,	// parsing pad stack
@@ -546,6 +547,7 @@ int ConvertIvex( CStdioFile * mod_file, CStdioFile * lib_file, CEdit * edit_ctrl
 		delete ptr;
 		return 0;
 	}
+#endif
 	return 0;
 }
 

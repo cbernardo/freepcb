@@ -24,6 +24,34 @@ CDlgFpText::~CDlgFpText()
 {
 }
 
+int CDlgFpText::Layer2LayerIndex( int layer)
+{
+	int li;
+	switch( layer ) 
+	{
+	case LAY_FP_SILK_TOP: li = 0; break;
+	case LAY_FP_SILK_BOTTOM: li = 1; break;
+	case LAY_FP_TOP_COPPER: li = 2; break;
+	case LAY_FP_BOTTOM_COPPER: li = 3; break;
+	default: ASSERT(0); return -1;
+	}
+	return li;
+}
+
+int CDlgFpText::LayerIndex2Layer( int layer_index )
+{
+	int layer;
+	switch( layer_index ) 
+	{
+	case 0: layer = LAY_FP_SILK_TOP; break;
+	case 1: layer = LAY_FP_SILK_BOTTOM; break;
+	case 2: layer = LAY_FP_TOP_COPPER; break;
+	case 3: layer = LAY_FP_BOTTOM_COPPER; break;
+	default: ASSERT(0); return -1;
+	}
+	return layer;
+}
+
 void CDlgFpText::DoDataExchange(CDataExchange* pDX)
 {
 	CDialog::DoDataExchange(pDX);
@@ -39,6 +67,7 @@ void CDlgFpText::DoDataExchange(CDataExchange* pDX)
 	DDX_Control(pDX, IDC_RADIO1, m_button_drag);
 	DDX_Control(pDX, IDC_RADIO2, m_button_set_position );
 	DDX_Control(pDX, IDC_COMBO_ADD_TEXT_UNITS, m_combo_units);
+	DDX_Control(pDX, IDC_COMBO_FP_TEXT_LAYER, m_combo_layer);
 	if( pDX->m_bSaveAndValidate )
 	{
 		// leaving the dialog
@@ -54,15 +83,25 @@ void CDlgFpText::DoDataExchange(CDataExchange* pDX)
 			AfxMessageBox( s );
 			pDX->Fail();
 		}
+
 		GetFields();
-		int ia = m_list_angle.GetCurSel();
-		m_angle = ia*90;
+		// CPT:  forbid height 0 for things like "REF" text.  
+		// If user makes that setting, it can never be undone!  Let 'em hide individual parts' ref-texts if they really want that.
+		if (m_bForbidZeroHeight && m_height==0)
+		{
+			CString s ((LPCSTR) IDS_TextHeightZeroIsNotPermitted);
+			AfxMessageBox( s );
+			pDX->Fail();
+		}
+		// End CPT
 		if( m_bNewText )
 		{
+			// remember values to be defaults for next time
 			gFpLastHeight = m_height;
 			gFpLastWidth = m_width;
 			gFpUseDefaultWidth = m_button_def_width.GetCheck();
 		}
+
 	}
 }
 
@@ -80,12 +119,12 @@ END_MESSAGE_MAP()
 // Initialize dialog
 //
 void CDlgFpText::Initialize( BOOL bDrag, BOOL bFixedString, 
-		CString * str, int units, 
-		int angle, int height, int width, int x, int y )
-
+		CString * str, int layer, int units, 
+		int angle, int height, int width, int x, int y, BOOL bForbidZeroHeight )
 {
 	m_bDrag = bDrag;
 	m_bFixedString = bFixedString;
+	m_bForbidZeroHeight = bForbidZeroHeight;
 	m_bNewText = (bDrag && !bFixedString && !str);
 	if( str )
 		m_str = *str;
@@ -97,6 +136,7 @@ void CDlgFpText::Initialize( BOOL bDrag, BOOL bFixedString,
 	m_width = width;
 	m_x = x;
 	m_y = y;
+	m_layer = layer;
 }
 
 // CDlgFpText message handlers
@@ -104,6 +144,13 @@ void CDlgFpText::Initialize( BOOL bDrag, BOOL bFixedString,
 BOOL CDlgFpText::OnInitDialog()
 {
 	CDialog::OnInitDialog();
+
+	// layers
+	CString s;
+	for (int i=0; i<4; i++)
+		s.LoadStringA(IDS_TopSilk+i),
+		m_combo_layer.InsertString( i, s );
+	m_combo_layer.SetCurSel( Layer2LayerIndex( m_layer ) );
 
 	// units
 	m_combo_units.InsertString(	0, "MIL" );
@@ -165,6 +212,12 @@ BOOL CDlgFpText::OnInitDialog()
 	if( m_bFixedString )
 		m_text.EnableWindow( FALSE );
 	SetFields();
+	if( m_bFixedString )
+	{
+		CString s ((LPCSTR) IDS_String), title;
+		title.Format("%s %s", m_str, s);
+		this->SetWindowTextA( title );
+	}
 	return TRUE;  // return TRUE unless you set the focus to a control
 }
 
@@ -258,6 +311,8 @@ void CDlgFpText::GetFields()
 	m_x = atof( str ) * mult;
 	m_edit_y.GetWindowText( str );
 	m_y = atof( str ) * mult;
+	m_angle = 90*m_list_angle.GetCurSel();
+	m_layer = LayerIndex2Layer( m_combo_layer.GetCurSel() );
 }
 
 void CDlgFpText::SetFields()
@@ -276,6 +331,8 @@ void CDlgFpText::SetFields()
 	m_edit_x.SetWindowText( str );
 	MakeCStringFromDouble( &str, m_y/mult );
 	m_edit_y.SetWindowText( str );
+	m_list_angle.SetCurSel( m_angle/90 );
+	m_combo_layer.SetCurSel( Layer2LayerIndex( m_layer ) );
 }
 
 

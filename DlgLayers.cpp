@@ -1,6 +1,9 @@
 // DlgLayers.cpp : implementation file
 //
 // uses global arrays in layers.h
+// 
+// CPT:  Note that I did a quick-and-dirty job eliminating "Selection" as one of the editable layers in this dlg.  Namely, I just disabled 
+// and hid the relevant controls within the resource editor --- no changes to the code necessary.
 //
 #include "stdafx.h"
 #include "FreePcb.h"

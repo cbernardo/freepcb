@@ -103,7 +103,7 @@ enum {
 };
 
 // function key menu strings
-/*
+/* 
 static char fk_fp_str[FK_FP_NUM_OPTIONS*2+2][32] = 
 { 
 	"",			"",
@@ -172,19 +172,24 @@ public: // create from serialization only
 
 // member variables
 public:
+	// flag to indicate that a newly-created item is being dragged,
+	// as opposed to an existing item
+	// if so, right-clicking or ESC will delete item not restore it
 	int m_drag_num_pads;
 
 	// mode for drawing new polyline segments
 	BOOL m_polyline_closed_flag;
 	int m_polyline_style;	// STRAIGHT, ARC_CW or ARC_CCW
 	int m_polyline_width;
+	int m_polyline_layer;
 
 	// flag to disable context menu on right-click,
 	// if right-click handled some other way
 	int m_disable_context_menu;
 
+	// selected item
 	CText * m_sel_text;	// pointer to selected text
-	void * m_sel_ptr;	// CPT: pointer to selected ANYTHING (but in practice I think it will always be equal to m_sel_text)
+	void *m_sel_ptr;	// CPT:  pointer to selected ANYTHING (but in practice I think it will always be equal to m_sel_text)
 
 	// footprint
 	CEditShape m_fp;	// footprint being edited
@@ -198,22 +203,19 @@ public:
 	void InitInstance( CShape * fp );
 
 // Overrides
-	// ClassWizard generated virtual function overrides
-	//{{AFX_VIRTUAL(CFootprintView)
 	public:
 	virtual void OnDraw(CDC* pDC);  // overridden to draw this view
 	protected:
 	virtual BOOL OnPreparePrinting(CPrintInfo* pInfo);
 	virtual void OnBeginPrinting(CDC* pDC, CPrintInfo* pInfo);
 	virtual void OnEndPrinting(CDC* pDC, CPrintInfo* pInfo);
-	//}}AFX_VIRTUAL
 
 // Implementation
 public:
 	virtual ~CFootprintView();
-	//	CPoint ScreenToPCB( CPoint point );			// CPT eliminated
-	//	CPoint PCBToScreen( CPoint point );
-	//	CPoint WindowToPCB( CPoint point );
+	// CPoint ScreenToPCB( CPoint point );		// CPT eliminated
+	// CPoint PCBToScreen( CPoint point );
+	// CPoint WindowToPCB( CPoint point );
 	void SetCursorMode( int mode );
 	void SetFKText( int mode );
 	void FinishArrowKey(int x, int y, int dx, int dy);   // CPT helper function for HandleKeyPress()
@@ -242,18 +244,14 @@ public:
 	void EnableUndo( BOOL bEnable );
 	void EnableRedo( BOOL bEnable );
 	void EnableRevealValue();				// CPT
-	
-protected:
 
 // Generated message map functions
 protected:
-	//{{AFX_MSG(CFootprintView)
 	afx_msg void OnLButtonDown(UINT nFlags, CPoint point);
 	afx_msg void OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags);
 	afx_msg void OnMouseMove(UINT nFlags, CPoint point);
 	afx_msg void OnRButtonDown(UINT nFlags, CPoint point);
 	afx_msg void OnLButtonDblClk(UINT nFlags, CPoint point);
-	//}}AFX_MSG
 	DECLARE_MESSAGE_MAP()
 public:
 //	afx_msg void OnSysChar(UINT nChar, UINT nRepCnt, UINT nFlags);
@@ -263,6 +261,7 @@ public:
 	afx_msg void OnPadEdit( int i );
 	afx_msg void OnPadDelete( int i );
 	afx_msg void OnRefMove();
+	afx_msg void OnAddBoardOutline();
 	afx_msg void OnPolylineCornerMove();
 	afx_msg void OnPolylineCornerEdit();
 	afx_msg void OnPolylineCornerDelete();
@@ -280,6 +279,7 @@ public:
 	afx_msg void OnAddPin();
 	afx_msg void OnFootprintFileSaveAs();
 	afx_msg void OnAddPolyline();
+	afx_msg void OnEditPolyline();
 	afx_msg void OnFootprintFileImport();
 	afx_msg void OnFootprintFileClose();
 	afx_msg void OnFootprintFileNew();
@@ -343,10 +343,5 @@ public:
 		}
 
 };
-
-/////////////////////////////////////////////////////////////////////////////
-
-//{{AFX_INSERT_LOCATION}}
-// Microsoft Visual C++ will insert additional declarations immediately before the previous line.
 
 #endif // !defined(AFX_FREEPCBVIEW_H__BE1CA173_E2B9_4252_8422_0B9767B01566__INCLUDED_)

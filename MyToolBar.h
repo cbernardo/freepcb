@@ -27,6 +27,7 @@ public:
 	void OnSelectSnapAngle();
 	void OnSelectUnits();
 	void SetUnits( int units );
+
 	// CPT
 	void RoutingGridUp();
 	void RoutingGridDown();

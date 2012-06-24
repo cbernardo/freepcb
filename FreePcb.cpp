@@ -6,7 +6,7 @@
 #include "resource.h"
 #include "DlgShortcuts.h"
 #include "afxwin.h"
-#include ".\freepcb.h"
+#include "freepcb.h"
 //#include "QAFDebug.h"
 
 #ifdef _DEBUG
@@ -69,7 +69,8 @@ BOOL CFreePcbApp::InitInstance()
 	// Standard initialization
 
 #ifdef _AFXDLL
-	Enable3dControls();			// Call this when using MFC in a shared DLL
+//** deprecated **	
+//	Enable3dControls();			// Call this when using MFC in a shared DLL
 #else
 	Enable3dControlsStatic();	// Call this when linking to MFC statically
 #endif
@@ -80,8 +81,7 @@ BOOL CFreePcbApp::InitInstance()
 	CWinApp::LoadStdProfileSettings();  // Load standard INI file options (including MRU)
 	if( CWinApp::m_pRecentFileList == NULL)
 	{
-		CString s ((LPCSTR) IDS_NoteTheRecentFileListIsDisabled);
-		AfxMessageBox( s );
+		AfxMessageBox( "NOTE: The recent file list is disabled on your system.\nUse the system policy editor to re-enable." );
 	}
 
 	EnableShellOpen();
@@ -124,7 +124,7 @@ BOOL CFreePcbApp::InitInstance()
 	m_view_mode = PCB;
 
 	m_Doc->InitializeNewProject();
-	m_pMainWnd->SetWindowTextA(m_Doc->m_window_title);
+	m_pMainWnd->SetWindowTextA(m_Doc->m_window_title);			// CPT --- want a consistent window title from the get-go
 
 	if( cmdInfo.m_nShellCommand == CCommandLineInfo::FileOpen )
 	{

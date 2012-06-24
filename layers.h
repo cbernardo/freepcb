@@ -36,6 +36,7 @@ enum
 	LAY_FP_VISIBLE_GRID,
 	LAY_FP_HILITE,
 	LAY_FP_SILK_TOP,
+	LAY_FP_SILK_BOTTOM,
 	LAY_FP_CENTROID,
 	LAY_FP_DOT,
 	LAY_FP_PAD_THRU,
@@ -48,6 +49,10 @@ enum
 	LAY_FP_BOTTOM_COPPER,
 	NUM_FP_LAYERS
 };
+
+//  CPT:  the following tables are used when reading/writing Gerber and .fpc files.  
+//  But they are not used when UI elements are being drawn
+//  (the string resource table is used instead)
 
 static char layer_str[32][64] = 
 { 
@@ -83,7 +88,7 @@ static char layer_str[32][64] =
 	"inner 16",
 	"undefined",
 	"undefined"
-};
+}; 
 
 static char fp_layer_str[NUM_FP_LAYERS][64] = 
 { 
@@ -92,6 +97,7 @@ static char fp_layer_str[NUM_FP_LAYERS][64] =
 	"visible grid",
 	"highlight",
 	"top silk",
+	"bottom_silk",
 	"centroid",
 	"adhesive",
 	"thru pad",
@@ -105,3 +111,5 @@ static char fp_layer_str[NUM_FP_LAYERS][64] =
 };
 
 static char layer_char[17] = "12345678QWERTYUI";
+
+int FlipLayer( int side, int layer );

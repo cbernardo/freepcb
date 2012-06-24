@@ -1,5 +1,6 @@
 #pragma once
 #include "afxwin.h"
+#include "afxdialogex.h"
 
 
 // CDlgGridVals dialog.  ALL CPT

@@ -2,11 +2,9 @@
 //  or project specific include files that are used frequently, but
 //      are changed infrequently
 // 
-// CPT #define WINVER 0x400
-#define WINVER 0x501
-
+#define WINVER 0x500
 #define _WIN32_IE 0x0500 
-#define OPENFILENAME_SIZE_VERSION_400 0
+#define OPENFILENAME_SIZE_VERSION_500 0
 
 #define _CRT_SECURE_CPP_OVERLOAD_STANDARD_NAMES 1
 
@@ -24,21 +22,32 @@
 #include <afxext.h>         // MFC extensions
 #include <afxdisp.h>        // MFC Automation classes
 #include <afxdtctl.h>		// MFC support for Internet Explorer 4 Common Controls
+
 #ifndef _AFX_NO_AFXCMN_SUPPORT
 #include <afxcmn.h>			// MFC support for Windows Common Controls
 #endif // _AFX_NO_AFXCMN_SUPPORT
 
 #include <afxdhtml.h>
 #include <afxdlgs.h>
+#include <afxcoll.h>
+#include <afxtempl.h>
 #include <direct.h>
 #include <shlwapi.h>
 #include <sys/types.h>
 #include <sys/stat.h>
- 
+#define _USE_MATH_DEFINES
+#include <math.h>
+#include <stdlib.h>
+#include <Mmsystem.h>
+#include <sys/timeb.h>
+#include <time.h>
+#include <algorithm>
+
 #include "MainFrm.h"
 #include "FreePcb.h"
-#include "PolyLine.h"
-#include "NetList.h" 
+#include "NetList.h"
+#include "Net.h"
+#include "Net.h"
 #include "DisplayList.h"
 #include "PartList.h"
 #include "FreePcbView.h"
@@ -46,7 +55,6 @@
 #include "FootprintView.h"
 #include "file_io.h"
 #include "utility.h"
-#include "ids.h"
 #include "layers.h"
 #include "Shape.h"
 #include "PcbFont.h"
@@ -56,7 +64,11 @@
 #include "UndoList.h" 
 #include "flags.h" 
 #include "DlgLog.h" 
-#include <afxcontrolbars.h>
+#include "PolyLine.h"
+#include "ids.h"
+#include "Net_iter.h"
+#include "DlgMyMessageBox.h"
+#include "MyToolBar.h"
 
 #define ASSERT(f) assert(f)	//changed ASSERT() to work in release versions if NDEBUG undefined
 

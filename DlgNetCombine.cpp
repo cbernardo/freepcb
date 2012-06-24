@@ -1,4 +1,4 @@
-// DlgNetlist.cpp : implementation file
+// DlgNetCombine.cpp : implementation file
 //
 
 #include "stdafx.h"

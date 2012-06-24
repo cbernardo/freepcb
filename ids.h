@@ -1,85 +1,179 @@
-// definition of ID structure used by FreePCB
-//
 #pragma once
 
+// definition of ID structure used by FreePCB
+//
 // struct id : this structure is used to identify PCB design elements
 // such as instances of parts or nets, and their subelements
 // Each element will have its own id.
-// An id is attached to each item of the Display List so that it can
+// An id is attached to each item of the DisplayList so that it can
 // be linked back to the PCB design element which drew it.
-// These are mainly used to identify items selected by clicking the mouse
+// These are mainly used to identify items selected from the
+// DisplayList by clicking the mouse
 //
 // In general: 
-//		id.type	= type of PCB element (e.g. part, net, text)
-//		id.st	= subelement type (e.g. part pad, net connection)
-//		id.i	= subelement index (zero-based)
-//		id.sst	= subelement of subelement (e.g. net connection segment)
-//		id.ii	= subsubelement index (zero-based)
+//		id.t1	= top level type of PCB element (eg. ID_NET)
+//		id.u1	= uid for top level type
+//		id.t2	= sub-type (eg. ID_CONNECT, a connection in the net)
+//		id.u2	= sub-type uid
+//		id.i2	= sub-type index (for ordered sub-elements)
+//		id.t3	= sub-sub-type (eg. ID_SEG, a segment of the connection)
+//		id.u3	= sub-sub-type uid
+//		id.i3	= sub-sub-type index (for ordered sub-sub-elements)
 //
-// For example, the id for segment 0 of connection 4 of net 12 would be
-//	id = { ID_NET, 12, ID_CONNECT, 4, ID_SEG, 0 };
+// For example, the id for segment 0 of connection 4 of a net would be
+//	id = {  ID_NET, uid of net, 
+//			ID_CONNECT, uid of con, 4, 
+//			ID_SEG, uid of seg, 0 
+//	};
 //
-//
+
+class cpart;
+class part_pin;
+class cnet;
+class cconnect;
+class cseg;
+class cvertex;
+class carea;
+class CText;
+class CPolyLine;
+class CPolySide;
+class CPolyCorner;
+
 class id {
 public:
+	enum { NOP = -2 };	// for Set();
+
 	// constructor
-	id( int qt=0, int qst=0, int qis=0, int qsst=0, int qiis=0 ) 
-	{ type=qt; st=qst; i=qis; sst=qsst; ii=qiis; } 
-	// operators
-	friend int operator ==(id id1, id id2)
-	{ return (id1.type==id2.type 
-			&& id1.st==id2.st 
-			&& id1.sst==id2.sst 
-			&& id1.i==id2.i 
-			&& id1.ii==id2.ii ); 
-	}
+	id( int qt1 = 0, int qu1 = -1,
+		int qt2 = 0, int qu2 = -1, int qi2 = -1, 
+		int qt3 = 0, int qu3 = -1, int qi3 = -1 ); 
+
+	// == operator
+	friend BOOL operator ==(const id &id1, const id &id2);
+
 	// member functions
-	void Clear() 
-	{ type=0; st=0; i=0; sst=0; ii=0; } 
-	void Set( int qt, int qst=0, int qis=0, int qsst=0, int qiis=0 ) 
-	{ type=qt; st=qst; i=qis; sst=qsst; ii=qiis; }
-	// CPT utility
-	void Copy(id *other) 
-		{ type = other->type; st = other->st; i = other->i; sst = other->sst; ii = other->ii; }
+	// set id elements
+	void Clear();
+	BOOL Resolve();
+	void Set(	int t1=0, int u1=-1, 
+				int t2=0, int u2=-1, int i2=-1, 
+				int t3=0, int u3=-1, int i3=-1  );
+	void SetSubType( int t2, int u2=-1, int i2=-1 );
+	void SetSubSubType( int t3, int u3=-1, int i3=-1 );
+	void SetPtr( void * p );
+
+	void SetT1( int t1 );
+	void SetU1( int u1 );
+	void SetT2( int t2 );
+	void SetU2( int u2 );
+	void SetI2( int i2 );
+	void SetT3( int t3 );
+	void SetU3( int u3 );
+	void SetI3( int i3 );
+
+	// get id elements
+	void * Ptr();
+	int T1();
+	int U1();
+	int T2();
+	int U2();
+	int I2();
+	int T3();
+	int U3();
+	int I3();
+
+	// what type of item ?
+	int Type();			// lowest level type in id
+	// tests for specific types
+	BOOL IsClear();		
+	BOOL IsDRC();
+	BOOL IsPart();
+	BOOL IsRefText();
+	BOOL IsValueText();
+	BOOL IsPin();
+	BOOL IsNet();
+	BOOL IsCon();
+	BOOL IsSeg();
+	BOOL IsVtx();
+	BOOL IsArea();
+	BOOL IsAreaCorner();
+	BOOL IsAreaSide();
+	BOOL IsBoard();
+	BOOL IsBoardCorner();
+	BOOL IsBoardSide();
+	BOOL IsMask();
+	BOOL IsMaskCorner();
+	BOOL IsMaskSide();
+	BOOL IsText();
+	BOOL IsAnyFootItem();	// any item in a footprint
+	BOOL IsCentroid();
+	BOOL IsGlue();
+	BOOL IsFootPad();
+	BOOL IsFootText();
+	BOOL IsFootPolySide();
+	BOOL IsFootPolyCorner();
+	BOOL IsFootRef();
+	BOOL IsFootValue();
+
+	// get pointer to item
+	cpart * Part();
+	part_pin * Pin();
+	cnet * Net();
+	cconnect * Con();
+	cseg * Seg();
+	cvertex * Vtx();
+	carea * Area();
+	CText * Text();
+	CPolyLine * BoardOutline();
+	CPolyLine * MaskOutline();
+
 	// member variables
-	unsigned int type;	// type of element
-	unsigned int st;	// type of subelement
-	unsigned int i;		// index of subelement
-	unsigned int sst;	// type of subsubelement
-	unsigned int ii;	// index of subsubelement
+protected:
+	void * ptr;	// pointer to top-level item
+	int t1;		// type of element
+	int u1;		// UID of element
+	int t2;		// type of subelement
+	int u2;		// UID of subelement
+	int i2;		// index of subelement
+	int t3;		// type of subsubelement
+	int u3;		// UID of subsubelement
+	int i3;		// index of subsubelement
 };
 
 
 // these are constants used in ids
 // root types
 enum {
-	ID_NONE = 0,	// an undefined type or st (or an error)
+	ID_NONE = 0,	// an undefined type (or an error)
 	ID_BOARD,		// board outline
 	ID_PART,		// part
 	ID_NET,			// net
 	ID_TEXT,		// free-standing text
 	ID_DRC,			// DRC error
-	ID_SM_CUTOUT,	// cutout for solder mask
-	ID_CENTROID,	// centroid of footprint
-	ID_GLUE,		// adhesive spot
+	ID_MASK,		// cutout for solder mask
+	ID_FP,			// footprint (in footprint editor)
 	ID_MULTI		// if multiple selections
 };
 
-// subtypes of ID_PART
+// subtypes of ID_PART or ID_FP
 enum {
 	ID_PAD = 1,		// pad_stack in a part
 	ID_SEL_PAD,		// selection rectangle for pad_stack in a part
-	ID_OUTLINE,		// part outline
+	ID_POLYLINE,	// part outline
 	ID_REF_TXT,		// text showing ref num for part
 	ID_VALUE_TXT,	// text showing value for part
 	ID_FP_TXT,		// free text in footprint
+	ID_CENTROID,	// centroid
+	ID_GLUE,		// adhesive spot
 	ID_ORIG,		// part origin
 	ID_SEL_RECT,	// selection rectangle for part
 	ID_SEL_REF_TXT,		// selection rectangle for ref text
 	ID_SEL_VALUE_TXT	// selection rectangle for value text
 };
 
-// subtypes of ID_TEXT
+// subtype of ID_TEXT is always ID_TEXT
+
+// subsubtypes of ID_TEXT
 enum {
 	ID_SEL_TXT = 1,		// selection rectangle
 	ID_STROKE			// stroke for text
@@ -92,9 +186,9 @@ enum {
 	ID_AREA			// copper area
 };
 
-// subtypes of ID_BOARD
+// subtypes of ID_BOARD and ID_MASK
 enum {
-	ID_BOARD_OUTLINE = 1,
+	ID_OUTLINE = 1,
 };
 
 // subsubtypes of ID_NET.ID_CONNECT
@@ -107,7 +201,7 @@ enum {
 	ID_VIA
 };
 
-// subsubtypes of ID_NET.ID_AREA, ID_BOARD.ID_BOARD_OUTLINE, ID_SM_CUTOUT
+// subsubtypes of ID_NET.ID_AREA, ID_BOARD.ID_OUTLINE, ID_MASK.ID_OUTLINE
 enum {
 	ID_SIDE = 1,
 	ID_SEL_SIDE,
@@ -124,13 +218,13 @@ enum {
 	ID_SEL_DRE
 };
 
-// subtypes of ID_CENTROID
+// subsubtypes of ID_CENTROID
 enum {
 	ID_CENT = 1,
 	ID_SEL_CENT
 };
 
-// subtypes of ID_GLUE
+// subsubtypes of ID_GLUE
 enum {
 	ID_SPOT = 1,
 	ID_SEL_SPOT

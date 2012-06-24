@@ -33,6 +33,7 @@ enum {	SEL_MASK_PARTS = 0,
 		NUM_SEL_MASKS
 };
 
+
 // Footprint selection masks
 enum { FP_SEL_MASK_REF = 0,
 	   FP_SEL_MASK_VALUE,
@@ -48,27 +49,17 @@ enum { FP_SEL_MASK_REF = 0,
 
 class CCommonView : public CView {
 public:
-	// Constructor, low-level stuff:
-	CCommonView();
-	CFreePcbDoc* GetDocument();
-#ifdef _DEBUG
-	virtual void AssertValid() const;
-	virtual void Dump(CDumpContext& dc) const;
-#endif
-	int SetDCToWorldCoords( CDC * pDC );
-	afx_msg void OnSize(UINT nType, int cx, int cy);
-
 	CFreePcbDoc * m_Doc;	// the document
 	CDisplayList * m_dlist;	// the display list
 
 	// Windows fonts
 	CFont m_small_font;
 	// cursor mode
-	int m_cursor_mode;		// see enum above
+	int m_cursor_mode;
 	BOOL m_lastKeyWasArrow;	// (used to be globals)
+	BOOL m_lastKeyWasGroupRotate;
 	int m_totalArrowMoveX;
 	int m_totalArrowMoveY;
-	BOOL m_lastKeyWasGroupRotate;
 
 	int m_debug_flag;
 	// flag to indicate that a newly-created item is being dragged,
@@ -78,12 +69,12 @@ public:
 
 	// selected items
 	id m_sel_id;			// id of selected item
+	id m_sel_uid;			// uid of selected item
 	int m_sel_layer;		// layer of selected item
 	int m_sel_offset;		// CPT:  new system for processing repeated clicks in the same place --- see CDisplayList::TestSelect()
-	id m_sel_id_prev;		// CPT: ditto.  See e.g. CFreePcbView::OnLButtonUp().  Also used when user repeatedly hits 'N' or 'T'
-	void *m_sel_prev;		// CPT: ditto
+	id m_sel_id_prev;		// CPT: ditto.  See e.g. CFreePcbView::OnLButtonUp().  Also used when user repeatedly hits 'T'
 	int m_cursor_mode_prev;	// CPT: ditto
-
+	void *m_sel_prev;
 
 	// active layer for placement and (perhaps) routing
 	int m_active_layer;
@@ -100,7 +91,8 @@ public:
 	CPoint m_from_pt;			// for dragging mode, origin
 	CPoint m_last_mouse_point;	// last mouse position
 	CPoint m_last_cursor_point;	// last cursor position (may be different from mouse)
-	CPoint m_last_click;		// CPT:  last point where user clicked
+	CPoint m_last_click;			// CPT:  last point where user clicked
+	CArray<CHitInfo> m_hit_info;	// CPT r294: info about items near where user is clicking, now a member applicable throughout the class.
 
 	// function key shortcuts
 	int m_fkey_option[12];
@@ -121,7 +113,11 @@ public:
 	CDC m_memDC;
 	CBitmap m_bitmap;
 	CRect m_bitmap_rect;
-	CBitmap * m_old_bitmap;
+	// CBitmap * m_old_bitmap;
+	HBITMAP m_old_bitmap;
+	CDC m_memDC2;				// CPT experimental
+	CBitmap m_bitmap2;			// ditto
+	HBITMAP m_old_bitmap2;		// ditto
 
 	// units (mil or mm)
 	int m_units;
@@ -129,6 +125,17 @@ public:
 	// selection mask
 	int m_sel_mask;
 	id m_mask_id[NUM_SEL_MASKS];
+	id m_mask_default_id[NUM_SEL_MASKS];	// default ids
+
+	// Constructor, low-level stuff:
+	CCommonView();
+	CFreePcbDoc* GetDocument();
+#ifdef _DEBUG
+	virtual void AssertValid() const;
+	virtual void Dump(CDumpContext& dc) const;
+#endif
+	int SetDCToWorldCoords( CDC * pDC );
+	afx_msg void OnSize(UINT nType, int cx, int cy);
 
 	virtual bool IsFreePcbView() = 0;
 	// Initialization functions:
@@ -140,6 +147,8 @@ public:
 	virtual int GetNLayers() = 0;
 	virtual int GetTopCopperLayer() = 0;
 	virtual int GetLayerRGB(int l, int i) = 0;
+	C_RGB GetLayerRGB(int layer)
+		{ return C_RGB(GetLayerRGB(layer,0), GetLayerRGB(layer,1), GetLayerRGB(layer,2)); }
 	virtual int GetLayerVis(int layer) = 0;
 	virtual int GetLayerNum(int i)
 		{ return i; }
@@ -167,8 +176,8 @@ public:
 	bool HandleLayerKey(UINT nChar, bool bShiftKeyDown, bool bCtrlKeyDown, CDC *pDC);
 	virtual void HandleShiftLayerKey(int layer, CDC *pDC) { }
 	virtual void HandleNoShiftLayerKey(int layer, CDC *pDC) { }
-	void HandleCtrlFKey(int nChar);
 	void HandlePanAndZoom(int nChar, CPoint &p);
+	void HandleCtrlFKey(int nChar);
 
 	afx_msg void OnSysKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags);
 	afx_msg void OnSysKeyUp(UINT nChar, UINT nRepCnt, UINT nFlags);

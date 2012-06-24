@@ -259,7 +259,7 @@ void CDlgEditNet::OnBnClickedButtonAdd()
 		if( dot_pos >= 2 && dot_pos < (len-1) )
 		{
 			CString refstr = str.Left( dot_pos );
-			cpart * part = m_plist->GetPart( refstr );
+			cpart * part = m_plist->GetPartByName( refstr );
 			if( !part )
 			{
 				CString s ((LPCSTR) IDS_PartDoesNotExist);
@@ -277,8 +277,8 @@ void CDlgEditNet::OnBnClickedButtonAdd()
 			CString pinstr = str.Right( len - dot_pos - 1 );
 			if( !CheckLegalPinName( &pinstr ) )
 			{
-				CString s ((LPCSTR) IDS_PinNameMustConsistOf);
-				AfxMessageBox( s );
+				CString s1 ((LPCSTR) IDS_PinNameMayNotContainAnyOfTheCharacters);
+				AfxMessageBox( s1 );
 				return;
 			}
 			int pin_index = part->shape->GetPinIndexByName( pinstr );
