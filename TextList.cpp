@@ -251,7 +251,7 @@ void CText::SetIDType( int type, int subtype )
 //
 void CText::Highlight()
 {
-	m_dlist->HighLight( DL_HOLLOW_RECT, 
+	m_dlist->Highlight( DL_HOLLOW_RECT, 
 		m_dlist->Get_x(dl_sel), 
 		m_dlist->Get_y(dl_sel),
 		m_dlist->Get_xf(dl_sel), 
@@ -269,7 +269,7 @@ void CText::StartDragging( CDC * pDC )
 		m_stroke[is].dl_el->visible = 0;
 	}
 	// cancel selection 
-	m_dlist->CancelHighLight();
+	m_dlist->CancelHighlight();
 
 	// drag
 	m_dlist->StartDraggingRectangle( pDC, 
@@ -447,7 +447,7 @@ void CTextList::RemoveAllTexts()
 //
 void CTextList::HighlightText( CText * text )
 {
-	m_dlist->HighLight( DL_HOLLOW_RECT, 
+	m_dlist->Highlight( DL_HOLLOW_RECT, 
 		m_dlist->Get_x(text->dl_sel), 
 		m_dlist->Get_y(text->dl_sel),
 		m_dlist->Get_xf(text->dl_sel), 
@@ -465,7 +465,7 @@ void CTextList::StartDraggingText( CDC * pDC, CText * text )
 		((dl_element*)text->m_stroke[is].dl_el)->visible = 0;
 	}
 	// cancel selection 
-	m_dlist->CancelHighLight();
+	m_dlist->CancelHighlight();
 
 	// drag
 	m_dlist->StartDraggingRectangle( pDC, 

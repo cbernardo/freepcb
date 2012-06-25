@@ -143,7 +143,7 @@ void CDLE_LINE::_Draw(CDrawInfo &di, bool bHiliteSegs)
 	}
 }
 
-int CDLE_LINE::_isHit(double x, double y, double &d)							// CPT r294, new args
+int CDLE_LINE::_IsHit(double x, double y, double &d)							// CPT r294, new args
 {
 	// found selection line, test for hit (within 4 pixels or line width+3 mils )
 //**			int w = max( w/2+3*DU_PER_MIL, int(4.0*m_scale) );
@@ -151,7 +151,7 @@ int CDLE_LINE::_isHit(double x, double y, double &d)							// CPT r294, new args
 	return TestLineHit( i.x, i.y, f.x, f.y, x, y, hit_w, &d );
 }
 
-int CDLE_LINE::_getBoundingRect(CRect &rect)
+int CDLE_LINE::_GetBoundingRect(CRect &rect)
 {
 	int linew = w/2 + clearancew;
 

@@ -80,7 +80,7 @@ public:
 		CString * name1, CString * name2, id id1, id id2,
 		int x1, int y1, int x2, int y2, int w, int layer );
 	void Remove( DRError * dre );
-	void HighLight( DRError * dre );
+	void Highlight( DRError * dre );
 	void MakeSolidCircles();
 	void MakeHollowCircles();
 

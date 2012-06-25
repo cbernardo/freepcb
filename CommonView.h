@@ -68,13 +68,14 @@ public:
 	BOOL m_dragging_new_item;
 
 	// selected items
+	carray<cpcb_item> m_sel;	// CPT2.  Will replace the following 2 items
 	id m_sel_id;			// id of selected item
 	id m_sel_uid;			// uid of selected item
 	int m_sel_layer;		// layer of selected item
 	int m_sel_offset;		// CPT:  new system for processing repeated clicks in the same place --- see CDisplayList::TestSelect()
 	id m_sel_id_prev;		// CPT: ditto.  See e.g. CFreePcbView::OnLButtonUp().  Also used when user repeatedly hits 'T'
 	int m_cursor_mode_prev;	// CPT: ditto
-	void *m_sel_prev;
+	cpcb_item *m_sel_prev;	// CPT2 was void*
 
 	// active layer for placement and (perhaps) routing
 	int m_active_layer;

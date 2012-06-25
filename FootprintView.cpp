@@ -810,7 +810,7 @@ void CFootprintView::FinishArrowKey(int x, int y, int dx, int dy) {
 		ShowRelativeDistance(x, y, m_totalArrowMoveX, m_totalArrowMoveY);
 	FootprintModified( TRUE );
 	Invalidate(false);
-	m_dlist->CancelHighLight();
+	m_dlist->CancelHighlight();
 	m_fp.Draw( m_dlist, m_Doc->m_smfontutil );
 }
 
@@ -1405,7 +1405,7 @@ int CFootprintView::ShowSelectStatus()
 //
 void CFootprintView::CancelSelection()
 {
-	m_dlist->CancelHighLight();
+	m_dlist->CancelHighlight();
 	m_sel_id.Clear();
 	m_dragging_new_item = FALSE;
 	SetCursorMode( CUR_FP_NONE_SELECTED );
@@ -1550,7 +1550,7 @@ void CFootprintView::OnPadEdit( int i )
 	// now launch dialog
 	CDlgAddPin dlg;
 	dlg.InitDialog( &m_fp, CDlgAddPin::EDIT, i, m_units );
-	m_dlist->CancelHighLight();
+	m_dlist->CancelHighlight();
 	int ret = dlg.DoModal();
 	if( ret == IDOK )
 	{
@@ -1915,7 +1915,7 @@ void CFootprintView::OnPolylineSideConvertToStraightLine()
 {
 #ifndef CPT2
 	PushUndo();
-	m_dlist->CancelHighLight();
+	m_dlist->CancelHighlight();
 	m_fp.m_outline_poly[m_sel_id.I2()].SetSideStyle( m_sel_id.I3(), CPolyLine::STRAIGHT );
 	m_fp.m_outline_poly[m_sel_id.I2()].HighlightSide( m_sel_id.I3() );
 	ShowSelectStatus();
@@ -1928,7 +1928,7 @@ void CFootprintView::OnPolylineSideConvertToArcCw()
 {
 #ifndef CPT2
 	PushUndo();
-	m_dlist->CancelHighLight();
+	m_dlist->CancelHighlight();
 	m_fp.m_outline_poly[m_sel_id.I2()].SetSideStyle( m_sel_id.I3(), CPolyLine::ARC_CW );
 	m_fp.m_outline_poly[m_sel_id.I2()].HighlightSide( m_sel_id.I3() );
 	ShowSelectStatus();
@@ -1941,7 +1941,7 @@ void CFootprintView::OnPolylineSideConvertToArcCcw()
 {
 #ifndef CPT2
 	PushUndo(); 
-	m_dlist->CancelHighLight();
+	m_dlist->CancelHighlight();
 	m_fp.m_outline_poly[m_sel_id.I2()].SetSideStyle( m_sel_id.I3(), CPolyLine::ARC_CCW );
 	m_fp.m_outline_poly[m_sel_id.I2()].HighlightSide( m_sel_id.I3() );
 	ShowSelectStatus();
@@ -2033,7 +2033,7 @@ void CFootprintView::OnAddPolyline()
 		pDC->SelectClipRgn( &m_pcb_rgn );
 		SetDCToWorldCoords( pDC );
 		CPoint p = m_last_mouse_point;
-		m_dlist->CancelHighLight();
+		m_dlist->CancelHighlight();
 		m_sel_id.Set( ID_PART, -1, 
 					ID_POLYLINE, -1, m_fp.m_outline_poly.GetSize(), 
 					ID_SEL_CORNER, -1, 0 );
@@ -2095,7 +2095,7 @@ void CFootprintView::OnFootprintFileImport()
 	// now import if OK
 	if( ret == IDOK && dlg.m_footprint_name != "" && dlg.m_shape.m_name != "" )
 	{
-		m_dlist->CancelHighLight();					// CPT
+		m_dlist->CancelHighlight();					// CPT
 		m_fp.Copy( &dlg.m_shape );
 		m_fp.Draw( m_dlist, m_Doc->m_smfontutil );
 
@@ -2173,7 +2173,7 @@ void CFootprintView::OnFootprintFileNew()
 		else if( ret == IDYES )
 			OnFootprintFileSaveAs();
 	}
-	m_dlist->CancelHighLight();
+	m_dlist->CancelHighlight();
 	m_fp.Clear();
 	m_fp.Draw( m_dlist, m_Doc->m_smfontutil );
 	SetWindowTitle( &m_fp.m_name );
@@ -2491,7 +2491,7 @@ void CFootprintView::OnFpTextEdit()
 	int layer = dlg.m_layer;
 	BOOL mirror = (layer == LAY_FP_SILK_BOTTOM || layer == LAY_FP_BOTTOM_COPPER);
 	CString str = dlg.m_str;
-	m_dlist->CancelHighLight();
+	m_dlist->CancelHighlight();
 	m_fp.m_tl->RemoveText( m_sel_text );
 	CText * new_text = m_fp.m_tl->AddText( x, y, angle, mirror, FALSE,
 		layer, font_size, stroke_width, &str );
@@ -2531,7 +2531,7 @@ void CFootprintView::OnFpTextDelete()
 {
 	PushUndo(); 
 	m_fp.m_tl->RemoveText( m_sel_text );
-	m_dlist->CancelHighLight();
+	m_dlist->CancelHighlight();
 	SetCursorMode( CUR_FP_NONE_SELECTED );
 	FootprintModified( TRUE );
 	Invalidate( FALSE );
@@ -2597,7 +2597,7 @@ void CFootprintView::OnToolsMoveOriginFP()
 			CDC *pDC = GetDC();
 			pDC->SelectClipRgn( &m_pcb_rgn );
 			SetDCToWorldCoords( pDC );
-			m_dlist->CancelHighLight();
+			m_dlist->CancelHighlight();
 			SetCursorMode( CUR_FP_MOVE_ORIGIN );
 			m_dlist->StartDraggingArray( pDC, m_last_cursor_point.x, 
 				m_last_cursor_point.y, 0, LAY_SELECTION, 2 );
@@ -2703,7 +2703,7 @@ void CFootprintView::OnCentroidEdit()
 	if( ret == IDOK )
 	{
 		PushUndo();
-		m_dlist->CancelHighLight();
+		m_dlist->CancelHighlight();
 		m_fp.Undraw();
 		m_fp.m_centroid_type = dlg.m_type; 
 		if( m_fp.m_centroid_type == CENTROID_DEFAULT )
@@ -2935,7 +2935,7 @@ void CFootprintView::OnAdhesiveEdit()
 		}
 		else
 		{
-			m_dlist->CancelHighLight();
+			m_dlist->CancelHighlight();
 			m_fp.Draw( m_dlist, m_Doc->m_smfontutil );
 			m_fp.SelectAdhesive( m_sel_id.I2() );
 			FootprintModified( TRUE );

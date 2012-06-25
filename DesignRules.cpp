@@ -263,7 +263,7 @@ dl_element * GetPadElement( part_pin * pin, int layer )
 
 // Highlight the error in the layout window
 //
-void DRErrorList::HighLight( DRError * dre )
+void DRErrorList::Highlight( DRError * dre )
 {
 	m_dlist->Add( dre->m_id, dre, LAY_HILITE, dre->dl_el->gtype, 1,
 		m_dlist->Get_w( dre->dl_el ),

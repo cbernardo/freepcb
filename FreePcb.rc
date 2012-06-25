@@ -3721,7 +3721,7 @@ BEGIN
     IDS_FatalErrorInNetPartDoesntHaveAFootprint 
                             "fatal error in net ""%s""\r\npart ""%s"" doesn't have a footprint"
     IDS_FatalErrorInNetPinDoesntExist 
-                            "fatal error in net ""%s""\r\npin ""%s""doesn't exist in footprint ""%s"" for part ""%s"""
+                            "fatal error in net ""%s""\r\npin ""%s""doesn't exist for part ""%s"""
     IDS_RemovingNet         "  Removing net ""%s""\r\n"
 END
 
@@ -4279,7 +4279,7 @@ END
 
 STRINGTABLE
 BEGIN
-    IDS_AppName             "Merge-CPT 0.30"
+    IDS_AppName             "CPT2.1"
 END
 
 STRINGTABLE
@@ -4479,6 +4479,8 @@ BEGIN
     IDS_FontFileDidNotOpen  "Font file did not open\nLoadOldStyleFile"
     IDS_ErrorNetConnectionSegmentWithInvalidPtrToConnect 
                             "ERROR: Net ""%s"": connection %d segment %d with invalid ptr to connect\r\n"
+    IDS_FatalErrorInNetConnectNonexistentPin 
+                            "Fatal error in net ""%s"", connect #%d: nonexistent pin #%d"
 END
 
 #endif    // English (United States) resources

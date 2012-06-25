@@ -25,7 +25,8 @@ public:
 	int usage;														// CPT2. A given pcb-item may have various types of drawing-elements associated
 																	// with it (e.g. most have a main element and a selector;  parts have ref and value 
 																	// elements, etc.)
-																	// Currently id's are used to show an element's role, but I'm trying this method
+																	// Currently id's are used to show an element's role, but I'm trying this method. Not
+																	// sure if it's really useful.
 	enum { DL_MAIN, DL_SEL, DL_REF, DL_REF_SEL, 
 		DL_VALUE, DL_VALUE_SEL, DL_HATCH, DL_OTHER };				// Values for "usage" 
 	int gtype;		// type of primitive
@@ -38,17 +39,17 @@ public:
 	virtual void DrawHiliteSeg (CDrawInfo &di) { }						// CPT: Does nothing except with CDLE_LINE objects.
 	// LATER?  void _DrawClearance(CDrawInfo &di);
     void DrawThermalRelief(CDrawInfo &di);
-	int isHit(double x, double y, double &d) ;							// CPT: changed args.
-	int getBoundingRect(CRect &rect)  { return _getBoundingRect(rect); }
+	int IsHit(double x, double y, double &d) ;							// CPT: changed args.  Renamed with capital letter (consistency rules!)
+	int GetBoundingRect(CRect &rect)  { return _GetBoundingRect(rect); }
 
 protected:
 	virtual void _Draw(CDrawInfo &di, bool fHiliteSegs) {}
     virtual void _DrawThermalRelief(CDrawInfo &di) {}
 
-	virtual int  _isHit(double x, double y, double &d) { return 0; }
-	virtual int  _getBoundingRect(CRect &rect)  { return 0; }
+	virtual int  _IsHit(double x, double y, double &d) { return 0; }
+	virtual int  _GetBoundingRect(CRect &rect)  { return 0; }
 
-protected:
+public:										// CPT2: was protected, causing pains in my tail.  Maybe change later...
 	CDisplayList * dlist;
 
 	int sel_vert;     // for selection rectangles, 1 if part is vertical
@@ -65,7 +66,6 @@ protected:
 	                  // only be drawn if this layer is visible
 	dl_element *prev, *next;			// CPT.  I'm phasing out references to CDLinkList, and am implementing the linked lists this way.
 	CDisplayLayer *displayLayer;		// CPT
-public:
 	void Unhook();						// CPT.  Used to be called Remove(), but this name is more descriptive.
 
 };
@@ -75,7 +75,7 @@ class CDLE_Symmetric : public dl_element
 {
 protected:
     int onScreen(void) ;
-	virtual int  _getBoundingRect(CRect &rect) ;
+	virtual int  _GetBoundingRect(CRect &rect) ;
 };
 
 // rectangular
@@ -83,7 +83,7 @@ class CDLE_Rectangular : public dl_element
 {
 protected:
     int onScreen(void) ;
-	virtual int  _getBoundingRect(CRect &rect) ;
+	virtual int  _GetBoundingRect(CRect &rect) ;
 	virtual void _DrawThermalRelief(CDrawInfo  &di) ;
 };
 

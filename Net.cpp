@@ -716,7 +716,7 @@ void cvertex::Highlight()
 
 	w = max( w, via_w );
 	w = max( w, 20*PCBU_PER_MIL );
-	m_dlist->HighLight( DL_HOLLOW_RECT, x - w/2, y - w/2, x + w/2, y + w/2, 0 );
+	m_dlist->Highlight( DL_HOLLOW_RECT, x - w/2, y - w/2, x + w/2, y + w/2, 0 );
 }
 
 // test for connection to particular copper area in net

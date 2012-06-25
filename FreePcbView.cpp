@@ -406,6 +406,8 @@ void CFreePcbView::OnEndPrinting(CDC* /*pDC*/, CPrintInfo* /*pInfo*/)
 //
 BOOL CFreePcbView::SelectItem( id sid )
 {
+// CPT2 TODO Will phase out in favor of ToggleSelectionState().
+
 #ifndef CPT2
 	if( m_bNetHighlighted )
 		CancelHighlightNet();
@@ -417,7 +419,7 @@ BOOL CFreePcbView::SelectItem( id sid )
 		DRError * dre = (DRError*)ptr;
 		m_sel_id = sid;
 		m_sel_dre = dre;
-		m_Doc->m_drelist->HighLight( m_sel_dre );
+		m_Doc->m_drelist->Highlight( m_sel_dre );
 		SetCursorMode( CUR_DRE_SELECTED );
 		Invalidate( FALSE );
 #endif
@@ -785,7 +787,6 @@ int CFreePcbView::SelectObjPopup( CPoint const &point )
 //
 void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 {
-#ifndef CPT2
 	ReleaseCapture();									// CPT
 	bool bCtrlKeyDown = (nFlags & MK_CONTROL) != 0;		// CPT
 	bool bShiftKeyDown = (nFlags & MK_SHIFT) != 0;		// CPT r294
@@ -817,18 +818,9 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		CPoint br = m_dlist->WindowToPCB( m_drag_rect.BottomRight() );
 		m_sel_rect = CRect( tl, br );
 		if( bCtrlKeyDown )
-		{
-			// control key held down.  CPT streamlined:
-			ConvertSelectionToGroup(true);
-			if( m_cursor_mode == CUR_GROUP_SELECTED )
-				SelectItemsInRect( m_sel_rect, TRUE );
-			else
-				SelectItemsInRect( m_sel_rect, FALSE );
-		}
+			SelectItemsInRect( m_sel_rect, TRUE );
 		else
-		{
 			SelectItemsInRect( m_sel_rect, FALSE );
-		}
 		m_bDraggingRect = FALSE;
 		Invalidate( FALSE );
 		CView::OnLButtonUp(nFlags, point);
@@ -845,26 +837,16 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 	// clicked in PCB pane
 	if(	CurNone() || CurSelected() )
 	{
-		// see if new item selected
-		CPoint p = m_dlist->WindowToPCB( point );
-		id sid;
-		void * sel_ptr = NULL;		// pointer to last selected top-level item
-		if( m_sel_id.T1() == ID_PART )
-			sel_ptr = m_sel_part;
-		else if( m_sel_id.T1() == ID_NET )
-			sel_ptr = m_sel_net;
-		else if( m_sel_id.T1() == ID_TEXT )
-			sel_ptr = m_sel_text;
-		else if( m_sel_id.T1() == ID_DRC )
-			sel_ptr = m_sel_dre;
-		// CPT
-		if (bCtrlKeyDown && m_sel_offset>=0) 
+		if (!bCtrlKeyDown)
+			m_sel.RemoveAll();
+		else if (m_sel_offset>=0) 
 			// User is doing multiple ctrl-clicks.  Reverse the selection state of the item that was affected by the previous click
-			ConvertSelectionToGroup(false),
-			ToggleSelectionState(m_sel_id_prev, m_sel_prev),
-			Invalidate(false);
-		// end CPT
+			ToggleSelectionState(m_sel_prev);
+		else if (m_sel.GetSize()==1 && !m_sel.First()->IsSelectableForGroup())
+			// E.g. if user clicks a vertex, then ctrl-clicks something else, the vertex can't be part of a group-select
+			m_sel.RemoveAll();
 
+#ifndef CPT2	// TODO
 		// save masks in case they are changed
 		id old_mask_pins = m_mask_id[SEL_MASK_PINS];
 		id old_mask_ref = m_mask_id[SEL_MASK_REF];
@@ -875,15 +857,13 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 			m_mask_id[SEL_MASK_REF].SetT1( ID_NONE );
 		}
 		// CPT removed some superfluous stuff...
+#endif
 
-		//************* now see if item was selected *******************
-		// CPT r294.  Reworked so that my feature #45 is available, along with the new shift-click popup.  (Discuss with Allan...)
-		int nHits = m_hit_info.GetCount();
-		void * ptr = NULL;
-		sid.Clear();
-
+		// Search for selectors overlapping the click point, and choose among them depending on user's number of multiple clicks
+		CPoint p = m_dlist->WindowToPCB( point );
+		int nHits = m_hit_info.GetCount();										// Might reuse the previous contents of m_hit_info...
 		if( bShiftKeyDown )
-			nHits = m_dlist->TestSelect(p.x, p.y, &m_hit_info, NULL, 0);						  // NB: No inclusion masks
+			nHits = m_dlist->TestSelect(p.x, p.y, &m_hit_info, NULL, 0);		// NB: No inclusion masks
 		else if (m_sel_offset==-1)
 			// Series of clicks is just beginning: calculate m_hit_info, and select the zero-th of those (highest priority)
 			nHits = m_dlist->TestSelect(p.x, p.y, &m_hit_info, m_mask_id, NUM_SEL_MASKS, bCtrlKeyDown),
@@ -895,9 +875,11 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		else
 			m_sel_offset++;						// Try next member of m_hit_info
 
+#ifndef CPT2
 		// restore mask
 		m_mask_id[SEL_MASK_PINS] = old_mask_pins;
 		m_mask_id[SEL_MASK_REF] = old_mask_ref;
+#endif
 
 		if( bShiftKeyDown )
 			if( nHits>0 )
@@ -907,14 +889,12 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 
 		if( m_sel_offset >= 0 )
 		{
-			void * ptr = m_hit_info[m_sel_offset].ptr;
- 			id sid = m_hit_info[m_sel_offset].ID;
-			if( !sid.Resolve() )
-				ASSERT(0);
+			// Something to select!
+			cpcb_item *item = m_hit_info[m_sel_offset].item;
 			m_sel_layer = m_hit_info[m_sel_offset].layer;
-			m_sel_id_prev = sid;							// CPT
-			m_sel_prev = ptr;								// CPT
+			m_sel_prev = item;								// CPT
 
+#ifndef CPT2
 			// check for second pad selected while holding down 's'
 			SHORT kc = GetKeyState( 'S' );
 			if( kc & 0x8000 && m_cursor_mode == CUR_PAD_SELECTED )
@@ -956,44 +936,24 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 					return;
 				}
 			}
+#endif
 
-			// now handle new selection
-			if( bCtrlKeyDown )
-			{
-				// CPT r294: former clause for checking legality of selection for group membership eliminated 
-				// (the check now occurs within CDisplayList::TestSelect())
-				if( sid.T1() == ID_PART )
-				{
-					sid.SetT2( ID_SEL_RECT );
-					sid.SetI2( 0 );
-					sid.SetT3( 0 );
-					sid.SetI3( 0 );
-					m_sel_id_prev = sid;
-				}
-				// CPT: if previous single selection, convert to group
-				if (sid.T1())
-					ConvertSelectionToGroup(true),
-					// now add or remove from group
-					ToggleSelectionState(sid, ptr);
-				// end CPT
-				Invalidate( FALSE );
-			}
-			else
-			{
-				BOOL bOK = SelectItem( sid );
-				if( !bOK )
-					ASSERT(0);
-			}
+			// Do it!
+			ToggleSelectionState(item);
 		}
+		else if (bCtrlKeyDown)
+			HighlightSelection();				// Apparently user ctrl-clicked an object twice; it's been unselected already, so no further changes...
 		else
 		{
 			// nothing selected
 			CancelHighlightNet();
 			CancelSelection();
-			m_sel_id.Clear();
-			Invalidate( FALSE );
+			m_sel.RemoveAll();
 		}
+		Invalidate( FALSE );
 	}
+
+#ifndef CPT2
 	else if( m_cursor_mode == CUR_DRAG_PART )
 	{
 		// complete move
@@ -1036,7 +996,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 			SaveUndoInfoForGroup( UNDO_GROUP_MODIFY, &m_sel_ptrs, &m_sel_ids, m_Doc->m_undo_list );
 		MoveGroup( m_last_cursor_point.x - m_from_pt.x, m_last_cursor_point.y - m_from_pt.y );
 		m_dlist->SetLayerVisible( LAY_HILITE, TRUE );
-		HighlightGroup();
+		HighlightSelection();
 		if(m_cursor_mode == CUR_DRAG_GROUP_ADD)
 			FindGroupCenter();
 		SetCursorMode( CUR_GROUP_SELECTED );
@@ -1044,10 +1004,6 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		if( m_Doc->m_vis[LAY_RAT_LINE] )
 			m_Doc->m_nlist->OptimizeConnections( m_Doc->m_auto_ratline_disable, 
 									m_Doc->m_auto_ratline_min_pins );
-		// CPT:
-		if (m_sel_ids.GetSize()==1)
-			ConvertSingletonGroup();
-		// end CPT
 		m_Doc->ProjectModified( TRUE );
 		Invalidate( FALSE );
 	}
@@ -2908,7 +2864,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 			Invalidate( FALSE );
 		}
 		else if (m_cursor_mode==CUR_CONNECT_SELECTED)
-			m_dlist->CancelHighLight(),
+			m_dlist->CancelHighlight(),
 			SelectItem(m_sel_id_prev),
 			SetCursorMode(m_cursor_mode_prev);
 		// end CPT
@@ -3688,7 +3644,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 	case CUR_BOARD_SIDE_SELECTED:
 		// CPT
 		if( fk == FK_ARROW )
-			ConvertSelectionToGroupAndMove(dx, dy);
+			MoveGroup(dx, dy);
 		// end CPT
 		else if( fk == FK_POLY_STRAIGHT )
 			OnBoardSideConvertToStraightLine();
@@ -3740,7 +3696,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 			CPolyLine * poly = &m_Doc->m_sm_cutout[m_sel_id.I2()];
 			// CPT: enable arrow keys
 			if( fk == FK_ARROW )
-				ConvertSelectionToGroupAndMove(dx, dy);
+				MoveGroup(dx, dy);
 			// end CPT
 			else if( fk == FK_POLY_STRAIGHT )
 			{
@@ -3834,7 +3790,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 	case CUR_AREA_SIDE_SELECTED:
 		// CPT
 		if( fk == FK_ARROW )
-			ConvertSelectionToGroupAndMove(dx, dy);
+			MoveGroup(dx, dy);
 		// end CPT
 		else if( fk == FK_SIDE_STYLE )
 			OnAreaSideStyle();
@@ -4276,6 +4232,7 @@ void CFreePcbView::SetFKText( int mode )
 		m_fkey_command[i] = 0;
 	}
 
+#ifndef CPT2			// Not ready for prime time (uses m_sel_con, etc.)  TODO: fix soon!
 	switch( mode )
 	{
 	case CUR_NONE_SELECTED:
@@ -4620,6 +4577,7 @@ void CFreePcbView::SetFKText( int mode )
 			tmp = m_fkey_option[lo], 
 			m_fkey_option[lo] = m_fkey_option[hi],
 			m_fkey_option[hi] = tmp;
+#endif
 
 	for( int i=0; i<12; i++ )
 	{
@@ -5175,6 +5133,7 @@ BOOL CFreePcbView::OnMouseWheel(UINT nFlags, short zDelta, CPoint pt)
 
 // SelectPart...this is called from FreePcbDoc when a new part is added
 // selects the new part as long as the cursor is not dragging something
+// CPT2.  TODO eliminate
 //
 int CFreePcbView::SelectPart( cpart * part )
 {
@@ -5203,27 +5162,23 @@ int CFreePcbView::SelectPart( cpart * part )
 //
 void CFreePcbView::CancelHighlight()
 {
-	m_dlist->CancelHighLight();
+	m_dlist->CancelHighlight();
 	m_bNetHighlighted = FALSE;
 	Invalidate(false);					// CPT r293
 }
 
-// cancel selection.
+// cancel selection.  CPT2 updated
 //
 void CFreePcbView::CancelSelection()
 {
 	bool bRehighlightNet = m_bNetHighlighted;
 	CancelHighlight();
-	m_sel_ids.RemoveAll();
-	m_sel_ptrs.RemoveAll();
-	m_sel_id.Clear();
+	m_sel.RemoveAll();
 
 	// AMW r274
 	if( bRehighlightNet )
-	{
 		// rehighlight but don't select
 		HighlightNet( m_sel_net ); 
-	}
 	// end AMW
 
 	// CPT
@@ -5232,6 +5187,68 @@ void CFreePcbView::CancelSelection()
 	// end CPT
 
 	SetCursorMode( CUR_NONE_SELECTED );
+}
+
+void CFreePcbView::HighlightSelection()
+{
+	// CPT2 Was named HighlightGroup(), but renamed since it works regardless of how many items are in m_sel.
+	// Now also sets the cursor mode based on what's in m_sel (which used to be done in SelectItem(), now obsolescent)
+	CancelHighlight();
+	citer<cpcb_item> ii (&m_sel);
+	for (cpcb_item *i = ii.First(); i; i = ii.Next())
+		i->Highlight();
+
+	cpcb_item *first = m_sel.First();
+	if (m_sel.GetSize()==0)
+		SetCursorMode( CUR_NONE_SELECTED );
+	else if (m_sel.GetSize()>=2)
+		SetCursorMode( CUR_GROUP_SELECTED );
+	else if (first->IsDRC())
+		SetCursorMode( CUR_DRE_SELECTED );
+	else if( first->IsBoardCorner() )
+		SetCursorMode( CUR_BOARD_CORNER_SELECTED );
+	else if( first->IsBoardSide() )
+		SetCursorMode( CUR_BOARD_SIDE_SELECTED );
+	else if( first->IsSmCorner() )
+		SetCursorMode( CUR_SMCUTOUT_CORNER_SELECTED );
+	else if( first->IsSmSide() )
+		SetCursorMode( CUR_SMCUTOUT_SIDE_SELECTED );
+	else if( first->IsPart() )
+		SetCursorMode( CUR_PART_SELECTED );				// CPT2 TODO Make sure cpart2::Highlight has dealt with ref text and value text
+	else if( first->IsRefText() )
+		SetCursorMode( CUR_REF_SELECTED );				// CPT2 NB ref and value-text selection is independent of part selection (except that 
+														// selecting a part does highlight the ref and value)
+	else if( first->IsValueText() )
+		SetCursorMode( CUR_VALUE_SELECTED );
+	else if( first->IsPin() )
+		SetCursorMode( CUR_PAD_SELECTED );
+	else if( cseg2 *s = first->ToSeg() )
+		if (s->m_layer == LAY_RAT_LINE)
+			SetCursorMode( CUR_RAT_SELECTED );
+		else
+			SetCursorMode( CUR_SEG_SELECTED );
+	else if( cvertex2 *v = first->ToVertex() )
+		if (!v->preSeg || !v->postSeg)
+			SetCursorMode( CUR_END_VTX_SELECTED );		// CPT2 TODO Is the distinction of CUR_END_VTX_SELECTED necessary?
+		else
+			SetCursorMode( CUR_VTX_SELECTED );
+	else if( first->IsAreaSide() )
+		SetCursorMode( CUR_AREA_SIDE_SELECTED );
+	else if( first->IsAreaCorner() )
+		SetCursorMode( CUR_AREA_CORNER_SELECTED );
+	else if( first->IsConnect() )
+		// CPT:  account for the possibility of whole-trace selection.
+		// CPT2:  TODO figure out if this is salvageable
+		SetCursorMode( CUR_CONNECT_SELECTED );
+	else if( first->IsText() )
+		SetCursorMode( CUR_TEXT_SELECTED );
+	else
+		// nothing selected (CPT2: UNLIKELY I HOPE)
+		SetCursorMode( CUR_NONE_SELECTED );
+
+	m_lastKeyWasArrow = FALSE;
+	m_lastKeyWasGroupRotate=false;
+	Invalidate(false);
 }
 
 // highlight all segments, vertices and pads in net, except for excluded_id
@@ -9614,46 +9631,11 @@ void CFreePcbView::MoveGroup( int dx, int dy )
 #endif
 }
 
-// Highlight group selection
-// the only legal members are parts, texts, trace segments and
-// copper area, solder mask cutout and board outline sides
-//
-void CFreePcbView::HighlightGroup()
-{
-#ifndef CPT2
-	CancelHighlight();
-	for( int i=0; i<m_sel_ids.GetSize(); i++ )
-	{
-		id sid = m_sel_ids[i];
-		if( sid.T1() == ID_PART && sid.T2() == ID_SEL_RECT )
-			m_Doc->m_plist->HighlightPart( (cpart*)m_sel_ptrs[i] );
-		else if( sid.T1() == ID_NET && sid.T2() == ID_CONNECT && sid.T3() == ID_SEL_SEG )
-			m_Doc->m_nlist->HighlightSegment( (cnet*)m_sel_ptrs[i], sid.I2(), sid.I3() );
-		else if( sid.T1() == ID_NET && sid.T2() == ID_CONNECT && sid.T3() == ID_SEL_VERTEX )
-		{
-			cvertex * v = &((cnet*)m_sel_ptrs[i])->ConByIndex(sid.I2())->VtxByIndex(sid.I3());
-			if( v->tee_ID || v->force_via_flag )
-				m_Doc->m_nlist->HighlightVertex( (cnet*)m_sel_ptrs[i], sid.I2(), sid.I3() );
-		}
-		else if( sid.T1() == ID_TEXT && sid.T2() == ID_TEXT && sid.T3() == ID_SEL_TXT )
-			m_Doc->m_tlist->HighlightText( (CText*)m_sel_ptrs[i] );
-		else if( sid.T1() == ID_NET && sid.T2() == ID_AREA && sid.T3() == ID_SEL_SIDE )
-			((cnet*)m_sel_ptrs[i])->area[sid.I2()].HighlightSide(sid.I3());
-		else if( sid.T1() == ID_MASK && sid.T2() == ID_MASK && sid.T3() == ID_SEL_SIDE )
-			m_Doc->m_sm_cutout[sid.I2()].HighlightSide(sid.I3());
-		else if( sid.T1() == ID_BOARD && sid.T2() == ID_BOARD && sid.T3() == ID_SEL_SIDE )
-			m_Doc->m_board_outline[sid.I2()].HighlightSide(sid.I3());
-		else
-			ASSERT(0);
-	}
-
-	Invalidate(false);				// CPT bug fix 6/5/12.
-#endif
-}
 
 // Find item in group by id
 // returns index of item if found, otherwise -1
-//
+// CPT2 TODO All one will need to do is to check m_sel.Contains(item)
+
 int CFreePcbView::FindItemInGroup( void * ptr, id * tid )
 {
 	for( int i=0; i<m_sel_ids.GetSize(); i++ )
@@ -11284,21 +11266,15 @@ void CFreePcbView::OnGroupSaveToFile()
 
 void CFreePcbView::OnEditCopy()
 {
+	// CPT2 rewrote, but TODO I must rewrite OnGroupCopy (and preferably rename it)
 	if( !m_Doc->m_project_open )
 		return;
-	if( m_cursor_mode == CUR_GROUP_SELECTED )
-		OnGroupCopy();
-	// CPT:  permit ctrl-c for single selected items:
-	else if (ConvertSelectionToGroup(false)) {
-		OnGroupCopy();
-		m_sel_ids.RemoveAll();  
-		m_sel_ptrs.RemoveAll();
-		}
-	else {
+	if (m_sel.GetSize()==0) {
 		CString str ((LPCSTR) IDS_UnableToCopyAnything);
 		AfxMessageBox(str);
 		}
-	// end CPT
+	else
+		OnGroupCopy();										
 }
 
 void CFreePcbView::OnEditPaste()
@@ -11311,23 +11287,15 @@ void CFreePcbView::OnEditPaste()
 
 void CFreePcbView::OnEditCut()
 {
+	// CPT2 rewrote
 	if( !m_Doc->m_project_open )
 		return;
-	if( m_cursor_mode == CUR_GROUP_SELECTED )
-	{
-		if (DoGroupCopy())
-			OnGroupDelete();
-	}
-	// CPT:  permit ctrl-x for single selected items:
-	else if (ConvertSelectionToGroup(false)) {
-		if (DoGroupCopy())
-			OnGroupDelete();
-		}
-	else {
+	if (m_sel.GetSize()==0) {
 		CString str ((LPCSTR) IDS_UnableToCutAnything);
 		AfxMessageBox(str);
 		}
-	// end CPT
+	else if (DoGroupCopy())
+		OnGroupDelete();
 }
 
 void CFreePcbView::RotateGroup()
@@ -12488,7 +12456,7 @@ void * CFreePcbView::CreateGroupDescriptor( CUndoList * list, CArray<void*> * pt
 }
 
 
-void CFreePcbView::OnGroupRotate()
+void CFreePcbView::OnGroupRotate() 
 {
 	CancelHighlight();
 	if( !m_lastKeyWasArrow && !m_lastKeyWasGroupRotate)
@@ -12504,7 +12472,7 @@ void CFreePcbView::OnGroupRotate()
 		m_lastKeyWasGroupRotate=true;
 	}
 	RotateGroup( );
-	HighlightGroup();
+	HighlightSelection();
 	m_Doc->ProjectModified( TRUE );
 	Invalidate( FALSE );
 }
@@ -12525,6 +12493,7 @@ void CFreePcbView::SetMainMenu( BOOL bAll )
 		pMainWnd->SetMenu(&theApp.m_main_drag);
 	return;
 }
+
 void CFreePcbView::OnRefShowPart()
 {
 	cpart * part = m_sel_part;
@@ -12784,7 +12753,10 @@ void CFreePcbView::UnitToggle(bool bShiftKeyDown) {
 	}
 
 
+/* CPT2 OBSOLETE STUFF
+
 bool CFreePcbView::ConvertSelectionToGroup(bool bChangeMode) {
+	// CPT2.  Now superfluous.  TODO eliminate completely.
 	// Utility for converting a single selected object into a "group select".  Return true on success, false OW
 	if (m_cursor_mode==CUR_GROUP_SELECTED) return true;			// Nothing to do!
 	if( m_cursor_mode == CUR_PART_SELECTED ) {
@@ -12819,58 +12791,35 @@ bool CFreePcbView::ConvertSelectionToGroup(bool bChangeMode) {
 	return true;
 	}
 
+
 void CFreePcbView::ConvertSelectionToGroupAndMove(int dx, int dy) {
-	// Kludgy way that I threw together to get arrows keys working on board edges, area edges, and sm-cutout edges:  convert the
-	// current selected object to a 1-member group, then do the moving, then clear out m_sel_ids and m_sel_ptrs so that we're back to normal
-	ConvertSelectionToGroup(false);
-	if( !m_lastKeyWasArrow )	{
-		SaveUndoInfoForGroup( UNDO_GROUP_MODIFY, &m_sel_ptrs, &m_sel_ids, m_Doc->m_undo_list );
-		m_totalArrowMoveX = 0;
-		m_totalArrowMoveY = 0;
-		m_lastKeyWasArrow = TRUE;
-		}
-	MoveGroup( dx, dy );
-	m_totalArrowMoveX += dx;
-	m_totalArrowMoveY += dy;
-	ShowRelativeDistance( m_totalArrowMoveX, m_totalArrowMoveY );
-	HighlightGroup();
-	m_sel_ids.RemoveAll();  m_sel_ptrs.RemoveAll();
-	m_Doc->ProjectModified( TRUE );
-	Invalidate( FALSE );
 	}
 
 void CFreePcbView::ConvertSingletonGroup() {
-	// If selected group contains a single item, convert it back to a regular object selection
-	SelectItem(m_sel_ids[0]);
-	m_sel_ids.RemoveAll();
-	m_sel_ptrs.RemoveAll();
 	}
+*/
 
-void CFreePcbView::ToggleSelectionState(id &sid, void *ptr) {
-	// If the item specified by ptr/id is part of the selection group, remove it from the selection group.  Otherwise,
+void CFreePcbView::ToggleSelectionState(cpcb_item *item) 
+{
+	// CPT2 updated arg & rewrote.  Included a few things from SelectItem(), which this routine can eventually supplant (it's more general).
+	// If the item specified is part of the selection group, remove it from the selection group.  Otherwise,
 	// add it to the group.
-	BOOL bFound = FALSE;
-	for (int i=0; i<m_sel_ids.GetSize(); i++) 
-		if (m_sel_ids[i] == sid && m_sel_ptrs[i] == ptr) {
-			bFound = TRUE;
-			m_sel_ptrs.RemoveAt(i);
-			m_sel_ids.RemoveAt(i);
-			break;
-			}
-	if (!bFound)
-		m_sel_ids.Add(sid),
-		m_sel_ptrs.Add(ptr);
-	if (m_sel_ids.GetSize() == 0)
-		CancelSelection();
-	else if (m_sel_ids.GetSize() == 1)
-		ConvertSingletonGroup();
+	if( m_bNetHighlighted )
+		CancelHighlightNet();
+	if (m_sel.Contains(item))
+		m_sel.Remove(item);
 	else
-		HighlightGroup();
-	}
+		m_sel.Add(item);
+	if (m_sel.GetSize()==0)
+		CancelSelection();
+	else
+		HighlightSelection();
+}
 
 
 // CPT
-void CFreePcbView::HandleNoShiftLayerKey(int layer, CDC *pDC) {
+void CFreePcbView::HandleNoShiftLayerKey(int layer, CDC *pDC) 
+{
 	if( !m_Doc->m_vis[layer] ) {
 		PlaySound( TEXT("CriticalStop"), 0, 0 );
 		CString s ((LPCSTR) IDS_CantRouteOnInvisibleLayer);
@@ -12913,7 +12862,7 @@ void CFreePcbView::HandleNoShiftLayerKey(int layer, CDC *pDC) {
 	
 	m_active_layer = layer;
 	ShowActiveLayer();
-	}
+}
 
 void CFreePcbView::HandleShiftLayerKey(int layer, CDC *pDC) {
 #ifndef CPT2

@@ -3427,7 +3427,7 @@ void CEditShape::Undraw()
 void CEditShape::HighlightPad( int i )
 {
 	// select it by making its selection rectangle visible
-	m_dlist->HighLight( DL_RECT_X, 
+	m_dlist->Highlight( DL_RECT_X, 
 		m_dlist->Get_x(m_pad_sel[i]), 
 		m_dlist->Get_y(m_pad_sel[i]),
 		m_dlist->Get_xf(m_pad_sel[i]), 
@@ -3445,7 +3445,7 @@ void CEditShape::StartDraggingPad( CDC * pDC, int i )
 	m_dlist->Set_visible( m_pad_inner_el[i], 0 );
 	m_dlist->Set_visible( m_pad_bottom_el[i], 0 );
 	// cancel selection 
-	m_dlist->CancelHighLight();
+	m_dlist->CancelHighlight();
 	// drag
 	CRect r = GetPadBounds( i );
 	int x = m_padstack[i].x_rel;
@@ -3478,7 +3478,7 @@ void CEditShape::CancelDraggingPad( int i )
 void CEditShape::StartDraggingPadRow( CDC * pDC, int i, int num )
 {
 	// cancel selection 
-	m_dlist->CancelHighLight();
+	m_dlist->CancelHighlight();
 	// make pads invisible
 	for( int ip=i; ip<(i+num); ip++ )
 	{
@@ -3522,7 +3522,7 @@ void CEditShape::CancelDraggingPadRow( int i, int num )
 void CEditShape::SelectAdhesive( int idot )
 {
 	// select it by making its selection rectangle visible
-	m_dlist->HighLight( DL_HOLLOW_RECT, 
+	m_dlist->Highlight( DL_HOLLOW_RECT, 
 		m_dlist->Get_x( m_dot_sel[idot] ), 
 		m_dlist->Get_y( m_dot_sel[idot] ),
 		m_dlist->Get_xf( m_dot_sel[idot] ), 
@@ -3538,7 +3538,7 @@ void CEditShape::StartDraggingAdhesive( CDC * pDC, int idot )
 	// make glue spot invisible
 	m_dlist->Set_visible( m_dot_el[idot], 0 );
 	// cancel selection 
-	m_dlist->CancelHighLight();
+	m_dlist->CancelHighlight();
 	// drag
 	int w = g->w;
 	if( w == 0 )
@@ -3568,7 +3568,7 @@ void CEditShape::CancelDraggingAdhesive( int idot )
 void CEditShape::SelectCentroid()
 {
 	// select it by making its selection rectangle visible
-	m_dlist->HighLight( DL_HOLLOW_RECT, 
+	m_dlist->Highlight( DL_HOLLOW_RECT, 
 		m_dlist->Get_x(m_centroid_sel), 
 		m_dlist->Get_y(m_centroid_sel),
 		m_dlist->Get_xf(m_centroid_sel), 
@@ -3583,7 +3583,7 @@ void CEditShape::StartDraggingCentroid( CDC * pDC )
 	// make centroid invisible
 	m_dlist->Set_visible( m_centroid_el, 0 );
 	// cancel selection 
-	m_dlist->CancelHighLight();
+	m_dlist->CancelHighlight();
 	// make graphic to drag
 	m_dlist->MakeDragLineArray( 8 );
 	int w = CENTROID_WIDTH;

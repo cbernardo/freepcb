@@ -10,17 +10,17 @@ class CFreePcbDoc;
 class cpcb_item;
 
 int cpcb_item::next_uid = 1;
-carray<cpcb_item> cpcb_item::items;
 
 cpcb_item::cpcb_item(CFreePcbDoc *_doc)
 {
 	carray_list = NULL; 
 	m_uid = next_uid++;
 	doc = _doc;
+	if (doc)
+		doc->items.Add(this);
 	dl_el = dl_sel = NULL;
 	utility = 0;
 	bDrawn = false;
-	items.Add(this);
 }
 
 cpcb_item::~cpcb_item()
@@ -258,6 +258,8 @@ int cvertex2::Draw()
 	Undraw();							// undraw previous via and selection box 
 	if (tee)
 		return NOERR;					// CPT2.  Rather than draw the individual vertices, just draw the tee itself.
+	if (pin)
+		return NOERR;					// CPT2.  Similarly, draw the pin and its selector, not the vtx.
 
 	// draw via if via_w > 0
 	if( via_w )
@@ -303,12 +305,35 @@ void cvertex2::Undraw()
 	dl_hole = NULL;
 }
 
+void cvertex2::Highlight()
+{
+	CDisplayList *dl = doc->m_dlist;
+	if (!dl) return;
+	if (tee)
+		// Since vertices within a tee don't have selectors, it's unlikely that Highlight() will be called on them.
+		// But just in case...
+		{ tee->Highlight(); return; }
+
+	// highlite square width is adjacent seg-width*2, via_width or 20 mils
+	// whichever is greatest
+	int w = 0;
+	if (preSeg)
+		w = 2 * preSeg->m_width;
+	if (postSeg)
+		w = max(w, 2 * postSeg->m_width);
+	w = max( w, via_w );
+	w = max( w, 20*PCBU_PER_MIL );
+	dl->Highlight( DL_HOLLOW_RECT, x - w/2, y - w/2, x + w/2, y + w/2, 0 );
+}
+
+
 
 ctee::ctee(cnet2 *n)
 	: cpcb_item (n->doc)
 { 
 	via_w = via_hole_w = 0; 
 	doc->m_nlist->tees.Add(this);
+	dl_hole = NULL;
 }
 
 void ctee::Remove()
@@ -374,10 +399,10 @@ int ctee::Draw()
 		{
 			int layer = LAY_TOP_COPPER + il;
 			dl_els[il] = dl->AddMain( this, layer, DL_CIRC, 1, via_w, 0, 0,
-									x, y, 0, 0, 0, 0 );
+								      x, y, 0, 0, 0, 0 );
 		}
 		dl_hole = dl->AddMain( this, LAY_PAD_THRU, DL_HOLE, 1, via_hole_w, 0, 0,
-							x, y, 0, 0, 0, 0 );
+							   x, y, 0, 0, 0, 0 );
 	}
 
 	// draw selection box for vertex, using LAY_THRU_PAD if via, or layer of adjacent
@@ -393,13 +418,44 @@ int ctee::Draw()
 		1, 0, 0, x-10*PCBU_PER_MIL, y-10*PCBU_PER_MIL, x+10*PCBU_PER_MIL, y+10*PCBU_PER_MIL, 0, 0 );
 	bDrawn = true;
 	return NOERR;
-	
-	return NOERR;
 }
 
 void ctee::Undraw()
 {
+	// CPT2.  Practically identical to cvertex2::Undraw()
+	CDisplayList *dl = doc->m_dlist;
+	if (!dl) return;
+	for( int i=0; i<dl_els.GetSize(); i++ )
+		dl->Remove( dl_els[i] );
+	dl_els.RemoveAll();
+	dl->Remove( dl_sel );
+	dl->Remove( dl_hole );
+	dl_sel = NULL;
+	dl_hole = NULL;
 }
+
+void ctee::Highlight()
+{
+	CDisplayList *dl = doc->m_dlist;
+	if (!dl) return;
+
+	// highlite square width is adjacent seg-width*2, via_width or 20 mils
+	// whichever is greatest
+	int w = 0;
+	citer<cvertex2> iv (&vtxs);
+	for (cvertex2 *v = iv.First(); v; v = iv.Next())
+	{
+		if (v->preSeg)
+			w = max(w, 2 * v->preSeg->m_width);
+		if (v->postSeg)
+			w = max(w, 2 * v->postSeg->m_width);
+	}
+	w = max( w, via_w );
+	w = max( w, 20*PCBU_PER_MIL );
+	int x = vtxs.First()->x, y = vtxs.First()->y;
+	dl->Highlight( DL_HOLLOW_RECT, x - w/2, y - w/2, x + w/2, y + w/2, 0 );
+}
+
 
 
 cseg2::cseg2(cconnect2 *c, int _layer, int _width)							// CPT2 added args.  Replaces Initialize()
@@ -650,6 +706,16 @@ void cseg2::Undraw()
 	dl->Remove( dl_sel );
 	dl_el = NULL;
 	dl_sel = NULL;
+}
+
+void cseg2::Highlight( bool bThin )
+{
+	CDisplayList *dl = doc->m_dlist;
+	if (!dl) return;
+	int w = bThin? 1: dl->Get_w(dl_el);
+	dl->Highlight( DL_LINE, dl->Get_x(dl_el), dl->Get_y(dl_el),
+							dl->Get_xf(dl_el), dl->Get_yf(dl_el),
+							w, dl_el->layer );
 }
 
 
@@ -909,6 +975,18 @@ void cpin2::SetPosition()
 	x = part->x + pp.x;
 	y = part->y + pp.y;
 }
+
+void cpin2::Highlight()
+{
+	CDisplayList *dl = doc->m_dlist;
+	if( !dl ) return;
+	if( !dl_sel ) return;							// CPT2 Necessary check?  NB selector was created drawn by cpart2::Draw
+	dl->Highlight( DL_RECT_X, 
+				dl->Get_x(dl_sel), dl->Get_y(dl_sel),
+				dl->Get_xf(dl_sel), dl->Get_yf(dl_sel), 
+				1, pad_layer );
+}
+
 
 
 cpart2::cpart2( cpartlist * pl )			// CPT2 TODO.  Will probably add more args...
@@ -1583,6 +1661,16 @@ void cpart2::Undraw()
 	bDrawn = FALSE;
 }
 
+void cpart2::Highlight( )
+{
+	CDisplayList *dl = doc->m_dlist;
+	if( !dl ) return;
+	if (!shape) return;
+	dl->Highlight( DL_HOLLOW_RECT, 
+				dl->Get_x( dl_sel ), dl->Get_y( dl_sel ),
+				dl->Get_xf( dl_sel ), dl->Get_yf( dl_sel ), 1 );
+	// CPT2 TODO:  Deal with the reftext and valuetext issue
+}
 
 
 /**********************************************************************************************/
@@ -1600,6 +1688,11 @@ ccorner::ccorner(ccontour *_contour, int _x, int _y)
 	preSide = postSide = NULL;
 }
 
+bool ccorner::IsAreaCorner() { return contour->poly->IsArea(); }
+bool ccorner::IsBoardCorner() { return contour->poly->IsBoard(); }
+bool ccorner::IsSmCorner() { return contour->poly->IsSmCutout(); }
+bool ccorner::IsOutlineCorner() { return contour->poly->IsOutline(); }
+
 int ccorner::GetTypeBit() 
 {														// Later:  put in .cpp file.  There wouldn't be this nonsense in Java...
 	if (contour->poly->IsArea()) return bitAreaCorner;
@@ -1616,6 +1709,11 @@ cside::cside(ccontour *_contour, int _style)
 	m_style = _style;
 	preCorner = postCorner = NULL;
 }
+
+bool cside::IsAreaSide() { return contour->poly->IsArea(); }
+bool cside::IsBoardSide() { return contour->poly->IsBoard(); }
+bool cside::IsSmSide() { return contour->poly->IsSmCutout(); }
+bool cside::IsOutlineSide() { return contour->poly->IsOutline(); }
 
 int cside::GetTypeBit() 
 {

@@ -357,6 +357,7 @@ public:
 	int m_disable_context_menu;
 
 	// selected items
+	// CPT2.  THE FOLLOWING 6 ITEMS WILL ALL BE SUPPLANTED BY CCommonView::m_sel
 	cpart * m_sel_part;		// pointer to part, if selected
 	cnet * m_sel_net;		// pointer to net, if selected
 	CText * m_sel_text;		// pointer to text, if selected
@@ -448,7 +449,7 @@ public:
 	void RotateGroup();
 	void DeleteGroup(  CArray<void*> * grp_ptr, CArray<id> * grp_id );
 	void FindGroupCenter();
-	void HighlightGroup();
+	void HighlightSelection();							// CPT2.  Changed name from HighlightGroup() and rewrote
 	int FindItemInGroup( void * ptr, id * tid );	
 	BOOL GluedPartsInGroup();
 	void UngluePartsInGroup();
@@ -638,10 +639,10 @@ public:
 	void RoutingGridUp();
 	void RoutingGridDown();
 	void UnitToggle(bool bShiftKeyDown);
-	bool ConvertSelectionToGroup(bool bChangeMode);
-	void ConvertSelectionToGroupAndMove(int dx, int dy);
-	void ConvertSingletonGroup();
-	void ToggleSelectionState(id &sid, void *ptr);
+	// bool ConvertSelectionToGroup(bool bChangeMode);			// CPT2 obsolete
+	// void ConvertSelectionToGroupAndMove(int dx, int dy);		// CPT2 obsolete
+	// void ConvertSingletonGroup();							// CPT2 obsolete
+	void ToggleSelectionState(cpcb_item *item);					// CPT2 updated arg
 
 	// CPT:  virtual functions from CCommonView:
 	bool IsFreePcbView() { return true; }

@@ -54,7 +54,7 @@ void CDLE_CIRC::_DrawThermalRelief(CDrawInfo &di)
 	di.DC->SelectObject( di.line_pen );
 }
 
-int CDLE_CIRC::_isHit(double x, double y, double &d)		// CPT r294, changed args and tidied up.
+int CDLE_CIRC::_IsHit(double x, double y, double &d)		// CPT r294, changed args and tidied up.
 {
 	d = Distance( i.x, i.y, x, y );
 	return d < w/2.;
@@ -78,7 +78,7 @@ void CDLE_HOLLOW_CIRC::_Draw(CDrawInfo &di, bool)
 }
 
 
-int CDLE_HOLLOW_CIRC::_isHit(CPoint &point)
+int CDLE_HOLLOW_CIRC::_IsHit(CPoint &point)
 {
 	// test for hit (within 3 mils or 4 pixels)
 //**	int dr = max( 3*DU_PER_MIL, int(4.0*m_scale) );
