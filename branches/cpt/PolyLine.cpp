@@ -1144,7 +1144,7 @@ void CPolyLine::StartDraggingToInsertCorner( CDC * pDC, int ic, int x, int y, in
 	m_dlist->StartDraggingLineVertex( pDC, x, y, xi, yi, xf, yf, 
 		LAY_SELECTION, LAY_SELECTION, 1, 1, DSS_STRAIGHT, DSS_STRAIGHT,
 		0, 0, 0, 0, crosshair );
-	m_dlist->CancelHighLight();
+	m_dlist->CancelHighlight();
 	m_dlist->Set_visible( side[ic].dl_side, 0 );
 	for( int ih=0; ih<m_nhatch; ih++ )
 		m_dlist->Set_visible( dl_hatch[ih], 0 );
@@ -1207,7 +1207,7 @@ void CPolyLine::StartDraggingToMoveCorner( CDC * pDC, int ic, int x, int y, int 
 			style = SideStyle( iside );
 		}		
 		m_dlist->StartDraggingArc( pDC, style, X(ic), Y(ic), xi, yi, LAY_SELECTION, 1, crosshair );
-		m_dlist->CancelHighLight();
+		m_dlist->CancelHighlight();
 		m_dlist->Set_visible( side[iside].dl_side, 0 );
 		for( int ih=0; ih<m_nhatch; ih++ )
 			m_dlist->Set_visible( dl_hatch[ih], 0 );
@@ -1260,7 +1260,7 @@ void CPolyLine::StartDraggingToMoveCorner( CDC * pDC, int ic, int x, int y, int 
 		m_dlist->StartDraggingLineVertex( pDC, x, y, xi, yi, xf, yf, 
 			LAY_SELECTION, LAY_SELECTION, 1, 1, style1, style2, 
 			0, 0, 0, 0, crosshair );
-		m_dlist->CancelHighLight();
+		m_dlist->CancelHighlight();
 		m_dlist->Set_visible( side[pre_c].dl_side, 0 );
 		m_dlist->Set_visible( side[ic].dl_side, 0 );
 		for( int ih=0; ih<m_nhatch; ih++ )
@@ -1311,7 +1311,7 @@ void CPolyLine::HighlightSide( int is )
 		style = DL_ARC_CW;
 	else if( side[is].m_style == CPolyLine::ARC_CCW )
 		style = DL_ARC_CCW;
-	m_dlist->HighLight( style, 
+	m_dlist->Highlight( style, 
 		m_dlist->Get_x( side[is].dl_side_sel ),
 		m_dlist->Get_y( side[is].dl_side_sel ),
 		m_dlist->Get_xf( side[is].dl_side_sel ),
@@ -1327,7 +1327,7 @@ void CPolyLine::HighlightCorner( int ic )
 	if( !m_dlist )
 		ASSERT(0);
 
-	m_dlist->HighLight( DL_HOLLOW_RECT, 
+	m_dlist->Highlight( DL_HOLLOW_RECT, 
 		m_dlist->Get_x( corner[ic].dl_corner_sel ),
 		m_dlist->Get_y( corner[ic].dl_corner_sel ),
 		m_dlist->Get_xf( corner[ic].dl_corner_sel ),

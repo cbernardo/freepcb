@@ -37,7 +37,7 @@ void CDLE_HOLE::_Draw(CDrawInfo &di, bool)
 }
 */
 
-int CDLE_HOLE::_getBoundingRect(CRect &rect)
+int CDLE_HOLE::_GetBoundingRect(CRect &rect)
 {
 	CFreePcbDoc * doc = theApp.m_Doc;
 

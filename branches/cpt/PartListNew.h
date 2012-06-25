@@ -161,7 +161,7 @@ public:
 	int SelectPart( cpart * part );
 	int SelectRefText( cpart * part );
 	int SelectValueText( cpart * part );
-	int HighlightPad( cpart * part, int i );
+	// int HighlightPad( cpart * part, int i );											// CPT2 Use cpin2::Highlight
 	void HighlightAllPadsOnNet( cnet * net );
 	BOOL TestHitOnPad( cpart * part, CString * pin_name, int x, int y, int layer );
 	void MoveOrigin( int x_off, int y_off ) { }

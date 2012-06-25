@@ -93,7 +93,8 @@ enum typebits {
 	bitOther =			0x80000000,
 	bitsNetItem = bitVia | bitPinVtx | bitTraceVtx | bitTeeVtx | bitTee | bitSeg | bitConnect |
 				  bitAreaCorner | bitAreaSide | bitArea,
-	bitsPartItem = bitPin | bitPart
+	bitsPartItem = bitPin | bitPart,
+	bitsSelectableForGroup = bitVia | bitSeg | bitConnect | bitPart | bitText | bitAreaSide | bitSmSide | bitBoardSide
 };
 
 class cpcb_item 
@@ -127,7 +128,6 @@ class cpcb_item
 	carray_link *carray_list;	// List of carray's into which this item has been added
 	int m_uid;
 	static int next_uid;
-	static carray<cpcb_item> items;
 public:							// ?
 	CFreePcbDoc *doc;
 	dl_element *dl_el;			// Do enough of the derived classes want it to merit its inclusion?
@@ -161,7 +161,15 @@ public:
 	virtual bool IsPin() { return false; }
 	virtual bool IsPart() { return false; }
 	virtual bool IsCorner() { return false; }
+	virtual bool IsBoardCorner() { return false; }
+	virtual bool IsAreaCorner() { return false; }
+	virtual bool IsSmCorner() { return false; }
+	virtual bool IsOutlineCorner() { return false; }
 	virtual bool IsSide() { return false; }
+	virtual bool IsAreaSide() { return false; }
+	virtual bool IsBoardSide() { return false; }
+	virtual bool IsSmSide() { return false; }
+	virtual bool IsOutlineSide() { return false; }
 	virtual bool IsContour() { return false; }
 	virtual bool IsPolyline() { return false; }
 	virtual bool IsArea() { return false; }
@@ -176,9 +184,10 @@ public:
 	virtual bool IsAdhesive() { return false; }
 	virtual bool IsDRC() { return false; }
 
-	virtual int GetTypeBit() { return 0; }			// See "enum typebits" above for return values from the various derived classes
+	virtual int GetTypeBit() { return 0; }				// See "enum typebits" above for return values from the various derived classes
 	bool IsPartItem() { return (GetTypeBit() & bitsNetItem) != 0; }
 	bool IsNetItem() { return (GetTypeBit() & bitsPartItem) != 0; }
+	bool IsSelectableForGroup() { return (GetTypeBit() & bitsSelectableForGroup) != 0; }
 
 	// Type casting functions.  All return null by default, but are overridden to return type-cast pointers in specified derived classes
 	virtual cvertex2 *ToVertex() { return NULL; }
@@ -202,8 +211,6 @@ public:
 	virtual ccentroid *ToCentroid() { return NULL; }
 	virtual cadhesive *ToAdhesive() { return NULL; }
 	virtual cdrc *ToDRC() { return NULL; }
-
-	static void GarbageCollect();
 };
 
 class carray_link
@@ -411,6 +418,7 @@ public:
 			if (flags[i>>3] & (1<<(i&7)))
 				return heap[i];
 		ASSERT(0);
+		return NULL;
 	}
 
 	bool ReadItems(T** out, int ct) 
@@ -527,7 +535,7 @@ public:
 	cvertex2 *ToVertex() { return this; }
 	int GetTypeBit()
 	{ 
-		if (via_w>=0) return bitVia;
+		if (via_w>0) return bitVia;
 		if (pin) return bitPinVtx;
 		if (tee) return bitTeeVtx;							// NB tee-vertices will typically NOT be selectable, but tees will.
 		return bitTraceVtx;
@@ -537,7 +545,7 @@ public:
 
 	int Draw();												// Done in cpp
 	void Undraw();											// Done in cpp
-	void Highlight() { }									// TODO
+	void Highlight();										// Done in cpp, derived from cvertex::Highlight
 	void SetVisible( bool bVis );							// CPT2 TODO Derive from CNetList::SetViaVisible 
 
 	void GetTypeStatusStr( CString * str );
@@ -583,6 +591,7 @@ public:
 	void Remove(cvertex2 *v);							// Done in cpp
 	int Draw();											// Done in cpp
 	void Undraw();										// Done in cpp
+	void Highlight();									// Done in cpp
 };
 
 
@@ -628,7 +637,7 @@ public:
 
 	int Draw();													// Done in cpp
 	void Undraw();												// Done in cpp
-	void Highlight( bool bThin ) { }							// CPT2 TODO derive from CNetList::HighlightSegment()
+	void Highlight( bool bThin );								// Done in cpp (derived from CNetList::HighlightSegment)
 	void Highlight()											// CPT2 This form of the function overrides the base-class virtual func.  (Best system?)
 		{ Highlight(false); }
 
@@ -744,7 +753,7 @@ public:
 	// drawing methods
 	int Draw();															// Done in cpp
 	void Undraw();														// Done in cpp
-	void HighLight() { }												// CPT2 TODO adapt from CNetList::HighlightConnection()
+	void Highlight() { }												// CPT2 TODO adapt from CNetList::HighlightConnection()
 };
 
 
@@ -760,10 +769,9 @@ public:
 	CString pin_name;		// pin name such as "1" or "A23"
 	cpart2 * part;			// pointer to part containing the pin.
 	int x, y;				// position on PCB
-	padstack *ps;			// CPT2. TODO Seems useful to have this here.  Constructor sets it up
+	padstack *ps;			// CPT2. Seems useful to have this here.  Constructor sets it up
 	int pad_layer;			// CPT2. layer of pad on this pin (was in cvertex2).  
-							// TODO compare with PartList::GetPinLayer().  Have constructor set this based on ps.  
-							// Possible values LAY_PAD_THRU, LAY_TOP_COPPER, LAY_BOTTOM_COPPER
+							// Constructor sets this based on ps. Possible values LAY_PAD_THRU, LAY_TOP_COPPER, LAY_BOTTOM_COPPER
 	cnet2 * net;			// pointer to net, or NULL if not assigned.
 	// drc_pin drc;			// drc info.  CPT2 TODO.  Was causing problems with the #$*& preprocessor, put the issue off for another day...
 	dl_element * dl_hole;	// pointer to graphic element for hole
@@ -782,6 +790,7 @@ public:
 	void Disconnect(bool bSetAreas = true) ;						// Done in cpp
 	int GetWidth();													// Done in cpp
 	void SetPosition();												// Done in cpp.  New, but related to CPartList::GetPinPoint
+	void Highlight();												// Done in cpp, derived from old CPartList::HighlightPad
 };
 
 
@@ -866,7 +875,7 @@ public:
 
 	int Draw();							// Done in cpp
 	void Undraw();						// Done in cpp
-	void Highlight() { }				// CPT2 TODO derive from CPartList::HighlightPart()
+	void Highlight();					// Done in cpp, derived from CPartList::HighlightPart()
 	void SetVisible(bool bVis);         // CPT2 TODO derive from CPartList::MakePartVisible()
 };
 
@@ -874,8 +883,6 @@ public:
 /**********************************************************************************************/
 /*  RELATED TO cpolyline/carea2/csmcutout                                                      */
 /**********************************************************************************************/
-
-// TODO: Rename ccorner, cside, cpolyline
 
 class ccorner: public cpcb_item
 {
@@ -886,12 +893,15 @@ public:
 	cside *preSide, *postSide;		// CPT2
 
 	ccorner(ccontour *_contour, int _x, int _y);		// Done in cpp
-	// ccorner( ccorner& src );							// copy constructor.  CPT2 possibly dump
 	~ccorner();
 
 	bool IsCorner() { return true; }
+	bool IsAreaCorner();								// Done in cpp
+	bool IsBoardCorner();								// Done in cpp
+	bool IsSmCorner(); 									// Done in cpp
+	bool IsOutlineCorner(); 							// Done in cpp
 	ccorner *ToCorner() { return this; }
-	int GetTypeBit();				// Done in cpp
+	int GetTypeBit();									// Done in cpp
 	void Highlight() { }			// CPT2 TODO. Derive from old CPolyLine::HighlightCorner().  See also CNetList::HighlightAreaCorner.
 	void Move( int x, int y );		// CPT2 TODO. Derive from CNetList::MoveAreaCorner (et al?)
 
@@ -908,11 +918,14 @@ public:
 
 	cside(ccontour *_contour, int _style);
 	~cside();
-	//	cside& operator=( const cside& rhs );	// assignment
-	//	cside& operator=( cside& rhs );	// assignment
 	bool IsSide() { return true; }
+	bool IsAreaSide();								// Done in cpp
+	bool IsBoardSide();								// Done in cpp
+	bool IsSmSide(); 								// Done in cpp
+	bool IsOutlineSide(); 							// Done in cpp
 	cside *ToSide() { return this; }
 	int GetTypeBit();
+
 	void Highlight() { }	// CPT2 TODO. Derive from cpolyline::HighlightSide()
 	void SetVisible();		// CPT2
 	bool IsOnCutout();		// Done in cpp

@@ -72,7 +72,7 @@ void CDLE_HOLLOW_RECT::_Draw(CDrawInfo &di, bool)
 }
 */
 
-int CDLE_HOLLOW_RECT::_isHit(double x, double y, double &d)
+int CDLE_HOLLOW_RECT::_IsHit(double x, double y, double &d)
 {
 	double xCenter = (i.x+f.x) / 2., yCenter = (i.y+f.y) / 2.;
 	double w2 = abs(i.x-f.x) / 2., h2 = abs(i.y-f.y) / 2.;

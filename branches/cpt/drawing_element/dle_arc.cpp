@@ -10,7 +10,7 @@ int CDLE_ARC::onScreen(void)
 	         ||   (f.y <  i.y && f.y < dlist->m_max_y && i.y > dlist->m_org_y) ) );
 }
 
-int CDLE_ARC::_isHit(double x, double y, double &d)					// CPT r294, changed args and introduced a distance metric (not a great one)
+int CDLE_ARC::_IsHit(double x, double y, double &d)					// CPT r294, changed args and introduced a distance metric (not a great one)
 {
 	double xCenter = (i.x+f.x) / 2., yCenter = (i.y+f.y) / 2.;
 	double w2 = abs(i.x-f.x) / 2., h2 = abs(i.y-f.y) / 2.;

@@ -120,6 +120,7 @@ class CHitInfo
 	// Was a struct within Brian's CDL_job class, for some reason.  Now it's an independent class.
 public:
 	int layer;
+	cpcb_item *item;			// CPT2.  TODO: get rid of ID and ptr
 	id  ID;
 	void *ptr;
 	int priority;
@@ -294,8 +295,8 @@ public:
 	id Remove( dl_element * element );
 
 	void Draw( CDC * pDC );
-	int HighLight( int gtype, int x, int y, int xf, int yf, int w, int orig_layer=LAY_SELECTION );
-	int CancelHighLight();
+	int Highlight( int gtype, int x, int y, int xf, int yf, int w, int orig_layer=LAY_SELECTION );
+	int CancelHighlight();
 	// CPT r294.  Changed args quite a bit:  exclude-ids are out; hit_info is now a CArray; new bCtrl param added (depends on ctrl-key state).
 	// Now always sorts hit_info, and returns the number of hits, not the highest-priority index.
 	int TestSelect( int x, int y, CArray<CHitInfo> *hit_info,

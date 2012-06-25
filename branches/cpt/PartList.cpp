@@ -348,7 +348,7 @@ int CPartList::FootprintLayer2Layer( int fp_layer )
 int CPartList::HighlightPart( cpart * part )
 {
 	// highlight it by making its selection rectangle visible
-	m_dlist->HighLight( DL_HOLLOW_RECT, 
+	m_dlist->Highlight( DL_HOLLOW_RECT, 
 				m_dlist->Get_x( part->dl_sel) , 
 				m_dlist->Get_y( part->dl_sel),
 				m_dlist->Get_xf(part->dl_sel), 
@@ -374,7 +374,7 @@ int CPartList::SelectRefText( cpart * part )
 	// highlight it by making its selection rectangle visible
 	if( part->dl_ref_sel )
 	{
-		m_dlist->HighLight( DL_HOLLOW_RECT, 
+		m_dlist->Highlight( DL_HOLLOW_RECT, 
 			m_dlist->Get_x(part->dl_ref_sel), 
 			m_dlist->Get_y(part->dl_ref_sel),
 			m_dlist->Get_xf(part->dl_ref_sel), 
@@ -390,7 +390,7 @@ int CPartList::SelectValueText( cpart * part )
 	// highlight it by making its selection rectangle visible
 	if( part->dl_value_sel )
 	{
-		m_dlist->HighLight( DL_HOLLOW_RECT, 
+		m_dlist->Highlight( DL_HOLLOW_RECT, 
 			m_dlist->Get_x(part->dl_value_sel), 
 			m_dlist->Get_y(part->dl_value_sel),
 			m_dlist->Get_xf(part->dl_value_sel), 
@@ -423,7 +423,7 @@ int CPartList::HighlightPad( cpart * part, int i )
 	// select it by making its selection rectangle visible
 	if( part->pin[i].dl_sel )
 	{
-		m_dlist->HighLight( DL_RECT_X, 
+		m_dlist->Highlight( DL_RECT_X, 
 			m_dlist->Get_x(part->pin[i].dl_sel), 
 			m_dlist->Get_y(part->pin[i].dl_sel),
 			m_dlist->Get_xf(part->pin[i].dl_sel), 
@@ -1937,7 +1937,7 @@ int CPartList::StartDraggingPart( CDC * pDC, cpart * part, BOOL bRatlines,
 {
 	// make part invisible
 	MakePartVisible( part, FALSE );
-	m_dlist->CancelHighLight();
+	m_dlist->CancelHighlight();
 
 	// create drag lines
 	CPoint zero(0,0);
@@ -2155,7 +2155,7 @@ int CPartList::StartDraggingRefText( CDC * pDC, cpart * part )
 		el->visible = 0;
 	}
 	// cancel selection 
-	m_dlist->CancelHighLight();
+	m_dlist->CancelHighlight();
 	// drag
 	m_dlist->StartDraggingRectangle( pDC, 
 						m_dlist->Get_x(part->dl_ref_sel), 
@@ -2180,7 +2180,7 @@ int CPartList::StartDraggingValue( CDC * pDC, cpart * part )
 		el->visible = 0;
 	}
 	// cancel selection 
-	m_dlist->CancelHighLight();
+	m_dlist->CancelHighlight();
 	// drag
 	m_dlist->StartDraggingRectangle( pDC, 
 						m_dlist->Get_x(part->dl_value_sel), 

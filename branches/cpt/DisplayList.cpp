@@ -953,11 +953,13 @@ int CompareHits(const CHitInfo *h1, const CHitInfo *h2) {
 
 // CPT r294, reworked arguments, and made corresponding changes to function body.
 // Test x,y for a hit on an item in the selection layer.
+// CPT2.  Now fills the CHitInfo::item member.  TODO will dump ID and ptr elements eventually.
 // Creates array hit_info containing layer and id of each hit item
 //   and also priority and distance values from (x,y).  
 // If include_id != NULL, only include items that match include_id[]
 //   where n_include_ids is size of array, and
 //   where -1's in include_id[] fields are treated as wildcards.
+// CPT2 TODO include_id business will be replaced by bitmasks.
 // New arg bCtrl is true if user is currently ctrl-clicking.  In that case we exclude e.g. vertices and ratlines, which can't belong to groups.
 // Function now always sorts hit_info.  Return value is now the number of elements in hit_info.
 //
@@ -975,12 +977,13 @@ int CDisplayList::TestSelect( int x, int y, CArray<CHitInfo> *hit_info,
 	CArray<CHitInfo> hit_info0;
 	int num_hits = TestForHits(xx, yy, &hit_info0);
 
-	// Now cull the array out based on include_id and other criteria.  Put the winners from hit_info0 into hit_info.
 	hit_info->RemoveAll();
+	// Now cull the array out based on include_id and other criteria.  Put the winners from hit_info0 into hit_info.
 	for( int i=0; i<num_hits; i++ )
 	{
 		// if a pcb item (ie. not a footprint ) try to resolve all id fields of the item that was hit
 		CHitInfo this_hit = hit_info0[i];
+#ifndef CPT2
 		id id0 = this_hit.ID;
 		if( !this_hit.ID.IsAnyFootItem() )
 		{
@@ -1010,23 +1013,9 @@ int CDisplayList::TestSelect( int x, int y, CArray<CHitInfo> *hit_info,
 			}
 		}
 		if (!included_hit) continue;
+#endif
 		if (bCtrl)
-		{
-			int type = id0.T1(), st = id0.T2(), sst = id0.T3(), i = id0.I2(), ii = id0.I3();
-			cnet *net = (cnet*) (this_hit.ptr);
-			if (type == ID_PART  && st == ID_SEL_RECT) ;
-			else if (type == ID_TEXT) ;
-			else if (type == ID_NET && st == ID_CONNECT && sst == ID_SEL_SEG
-					&& net->ConByIndex(i)->SegByIndex(ii).m_layer != LAY_RAT_LINE) ;
-			else if (type == ID_NET && st == ID_CONNECT && sst == ID_SEL_VERTEX
-					&& (net->ConByIndex(i)->VtxByIndex(ii).tee_ID || net->ConByIndex(i)->VtxByIndex(ii).force_via_flag) ) ;
-			else if (type == ID_NET && st == ID_AREA && sst == ID_SEL_SIDE) ;
-			else if (type == ID_MASK && st == ID_MASK && sst == ID_SEL_SIDE) ;
-			else if (type == ID_BOARD && st == ID_BOARD && sst == ID_SEL_SIDE) ;
-			else
-				// Not a valid group member!
-				continue;
-		}
+			if (!this_hit.item->IsSelectableForGroup()) continue;
 
 		// OK, valid hit, now add to final array hit_info, and assign priority
 		// start with reversed layer drawing order * 10
@@ -2054,14 +2043,14 @@ int CDisplayList::AddDragRatline( CPoint pi, CPoint pf )
 
 // add element to highlight layer (if the orig_layer is visible)
 //
-int CDisplayList::HighLight( int gtype, int x, int y, int xf, int yf, int w, int orig_layer )
+int CDisplayList::Highlight( int gtype, int x, int y, int xf, int yf, int w, int orig_layer )
 {
 	id h_id;
 	Add( h_id, NULL, LAY_HILITE, gtype, 1, w, 0, 0, x, y, xf, yf, x, y, 0, orig_layer );
 	return 0;
 }
 
-int CDisplayList::CancelHighLight()
+int CDisplayList::CancelHighlight()
 {
 	RemoveAllFromLayer( LAY_HILITE );
 	return 0;
@@ -2258,18 +2247,20 @@ void CDisplayLayer::Draw(CDrawInfo &di, bool bHiliteSegs)
 // Tests x,y for hits on items in the selection layer.
 // Puts layer, id, and ptr info for each hit item into hitInfo.
 // r294: altered args and made the relevant changes to the function body.
+// CPT2 rewrote to set CHitInfo::item member.  TODO will dump the ID and ptr business.
 int CDisplayList::TestForHits( double x, double y, CArray<CHitInfo> *hitInfo ) 
 {
 	double d;
 	// traverse the list, looking for selection shapes
 	for (dl_element *el = layers[LAY_SELECTION].elements; el; el = el->next) {
-		if( el->isHit(x, y, d) )
+		if( el->IsHit(x, y, d) )
 		{
 			CHitInfo hit;
 			hit.layer = el->layer;
+			hit.item = el->item;						// CPT2.
 			hit.ID = el->id;
 			hit.ptr = el->ptr;
-			hit.dist = d;								// CPT r294.  Introduced distance values into CHitInfo;  el->isHit() now provides these.
+			hit.dist = d;								// CPT r294.  Introduced distance values into CHitInfo;  el->IsHit() now provides these.
 			hitInfo->Add(hit);
 		}
 	}

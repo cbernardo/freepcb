@@ -242,7 +242,7 @@ public:
 	// drawing methods
 	void Draw();
 	void Undraw();
-	void HighLight();
+	void Highlight();
 
 	// utilities
 	int Utility(){ return utility; };

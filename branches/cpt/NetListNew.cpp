@@ -122,7 +122,7 @@ void cnetlist::ReadNets( CStdioFile * pcb_file, double read_version, int * layer
 				if (!pin)
 				{
 					CString s ((LPCSTR) IDS_FatalErrorInNetPinDoesntExist), *err_str = new CString();
-					err_str->Format(s, net_name, pin_num_str, "?", ref_str );							// TODO "?" instead of footprint name. Fix some day...
+					err_str->Format(s, net_name, pin_num_str, ref_str );	
 					throw err_str;
 				}
 				else if( !pin->part )
@@ -166,13 +166,23 @@ void cnetlist::ReadNets( CStdioFile * pcb_file, double read_version, int * layer
 				if (start_pin != cconnect::NO_END)
 				{
 					pin0 = net->pins.FindByUtility(start_pin);
-					ASSERT(pin0);
+					if (!pin0)
+					{
+						CString s ((LPCSTR) IDS_FatalErrorInNetConnectNonexistentPin), *err_str = new CString();
+						err_str->Format(s, net_name, ic+1, start_pin );
+						throw err_str;
+					}
 				}
 				v0->pin = pin0;
 				if (end_pin != cconnect::NO_END)
 				{
 					pin1 = net->pins.FindByUtility(end_pin);
-					ASSERT(pin1);
+					if (!pin1)
+					{
+						CString s ((LPCSTR) IDS_FatalErrorInNetConnectNonexistentPin), *err_str = new CString();
+						err_str->Format(s, net_name, ic+1, end_pin );
+						throw err_str;
+					}
 				}
 				// Additional error checks that used to occur here have moved to the loop above...
 				int nsegs = my_atoi( &p[3] );

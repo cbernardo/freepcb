@@ -10,12 +10,12 @@ void dl_element::DrawThermalRelief(CDrawInfo &di)
 	{ if( visible && dlist->m_vis[ orig_layer ] ) _DrawThermalRelief(di); }
 
 
-int dl_element::isHit(double x, double y, double &d) 
+int dl_element::IsHit(double x, double y, double &d) 
 {
 	// don't select anything on an invisible layer or element
 	// CPT r294: changed args.
 	if( visible && dlist->m_vis[layer] )
-		return _isHit(x, y, d);
+		return _IsHit(x, y, d);
 	else 
 		return 0;
 }
@@ -40,7 +40,7 @@ int CDLE_Symmetric::onScreen(void)
 	         && i.y-sz < dlist->m_max_y && i.y+sz > dlist->m_org_y );
 }
 
-int CDLE_Symmetric::_getBoundingRect(CRect &rect) 
+int CDLE_Symmetric::_GetBoundingRect(CRect &rect) 
 {
 	int sz = w/2 + clearancew;
 
@@ -77,7 +77,7 @@ int CDLE_Rectangular::onScreen(void)
 }
 
 
-int CDLE_Rectangular::_getBoundingRect(CRect &rect) 
+int CDLE_Rectangular::_GetBoundingRect(CRect &rect) 
 {
 	int sz = clearancew;
 

@@ -2759,7 +2759,7 @@ int CNetList::StartDraggingVertex( CDC * pDC, cnet * net, int ic, int ivtx,
 	// cancel previous selection and make segments and via invisible
 	cconnect * c =net->connect[ic];
 	cvertex * v = &c->vtx[ivtx];
-	m_dlist->CancelHighLight();
+	m_dlist->CancelHighlight();
 	if( ivtx > 0 )
 	{
 		m_dlist->Set_visible(c->seg[ivtx-1].dl_el, 0);
@@ -2897,7 +2897,7 @@ int CNetList::StartMovingSegment( CDC * pDC, cnet * net, int ic, int ivtx,
 	// cancel previous selection and make segments and via invisible
 	cconnect * c =net->connect[ic];
 	cvertex * v = &c->vtx[ivtx];
-	m_dlist->CancelHighLight();
+	m_dlist->CancelHighlight();
 	m_dlist->Set_visible(c->seg[ivtx-1].dl_el, 0);
 	m_dlist->Set_visible(c->seg[ivtx].dl_el, 0);
 	SetViaVisible( net, ic, ivtx,   FALSE );
@@ -2962,7 +2962,7 @@ int CNetList::StartDraggingSegment( CDC * pDC, cnet * net, int ic, int iseg,
 {
 	// cancel previous selection and make segment invisible
 	cconnect * c = net->connect[ic];
-	m_dlist->CancelHighLight();
+	m_dlist->CancelHighlight();
 	m_dlist->Set_visible(c->seg[iseg].dl_el, 0);
 	// start dragging
 	int xi = c->vtx[iseg].x;
@@ -2983,7 +2983,7 @@ int CNetList::StartDraggingSegmentNewVertex( CDC * pDC, cnet * net, int ic, int 
 {
 	// cancel previous selection and make segment invisible
 	cconnect * c = net->connect[ic];
-	m_dlist->CancelHighLight();
+	m_dlist->CancelHighlight();
 	m_dlist->Set_visible(c->seg[iseg].dl_el, 0);
 	// start dragging
 	int xi = c->vtx[iseg].x;
@@ -3003,7 +3003,7 @@ void CNetList::StartDraggingStub( CDC * pDC, cnet * net, int ic, int iseg,
 								   int layer_no_via,  int crosshair, int inflection_mode )
 {
 	cconnect * c = net->connect[ic];
-	m_dlist->CancelHighLight();
+	m_dlist->CancelHighlight();
 	SetViaVisible( net, ic, iseg, FALSE );
 	for( int ia=0; ia<net->NumAreas(); ia++ )
 		for( int iv=0; iv<net->area[ia].nvias; iv++ )
@@ -3660,21 +3660,21 @@ cnet * CNetList::GetNetPtrByUID( int uid )
 // Select copper area side
 void CNetList::SelectAreaSide( cnet * net, int iarea, int iside )
 {
-	m_dlist->CancelHighLight();
+	m_dlist->CancelHighlight();
 	net->area[iarea].HighlightSide( iside );
 }
 
 // Select copper area corner
 void CNetList::SelectAreaCorner( cnet * net, int iarea, int icorner )
 {
-	m_dlist->CancelHighLight();
+	m_dlist->CancelHighlight();
 	net->area[iarea].HighlightCorner( icorner );
 }
 
 // Set style for area side
 void CNetList::SetAreaSideStyle( cnet * net, int iarea, int iside, int style )
 {
-	m_dlist->CancelHighLight();
+	m_dlist->CancelHighlight();
 	net->area[iarea].SetSideStyle( iside, style );
 	net->area[iarea].HighlightSide( iside );
 }
@@ -3747,7 +3747,7 @@ void CNetList::HighlightSegment( cnet * net, int ic, int iseg, bool bThin )
 	int w = 1;
 	if( !bThin )
 		w = m_dlist->Get_w(s->dl_el);
-	m_dlist->HighLight( DL_LINE, m_dlist->Get_x(s->dl_el), 
+	m_dlist->Highlight( DL_LINE, m_dlist->Get_x(s->dl_el), 
 								m_dlist->Get_y(s->dl_el),
 								m_dlist->Get_xf(s->dl_el),
 								m_dlist->Get_yf(s->dl_el),
