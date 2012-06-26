@@ -195,6 +195,7 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="TextList.cpp" />
+    <ClCompile Include="TextListNew.cpp" />
     <ClCompile Include="UndoList.cpp" />
     <ClCompile Include="utility.cpp" />
     <ClCompile Include="drawing_element\dle_arc.cpp" />
@@ -313,6 +314,7 @@
     <ClInclude Include="smfontutil.h" />
     <ClInclude Include="StdAfx.h" />
     <ClInclude Include="TextList.h" />
+    <ClInclude Include="TextListNew.h" />
     <ClInclude Include="UndoList.h" />
     <ClInclude Include="utility.h" />
     <ClInclude Include="drawing_element\dle_arc.h" />

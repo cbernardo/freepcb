@@ -66,7 +66,7 @@ public:
 		FOOTPRINT
 	};
 	CFreePcbApp();
-	CFreePcbDoc * m_Doc;
+	CFreePcbDoc * m_doc;
 	CFreePcbView * m_View;
 	CFootprintView * m_View_fp;
 	CSingleDocTemplate * m_pDocTemplate;

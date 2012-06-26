@@ -165,20 +165,15 @@ public:
 	};
 
 public:
-	// CMapStringToPtr m_map;					// map net names to pointers.  CPT2 Replace this with:
 	carray<cnet2> nets;	
-	// CMap<int,int,cnet2*,cnet2*> m_uid_map;	// CPT2. Should be able to live without.
 	CFreePcbDoc *m_doc;							// CPT.  Added so that ReconcileVias() can figure out a good via width.  
 												// CPT2.  Might be put to other uses as well.
 	CDisplayList * m_dlist;
 	cpartlist * m_plist;
-	int m_layers;	// number of copper layers
+	int m_layers;						// number of copper layers
 	int m_def_w, m_def_via_w, m_def_via_hole_w;
 	int m_annular_ring;
-	// int m_pos_i;						// index for iterators // CPT2 probably supplanted
-	// POSITION m_pos[MAX_ITERATORS];	// iterators for nets // CPT2 ditto
-	// CArray<int> m_tee;				// CPT2 ditto
-	carray<ctee> tees;					// Used when reading files (and the like) only
+	carray<ctee> tees;					// Used when reading files (and the like), also by cnet2::Draw().  TODO consider moving into cnet2 structure
 	BOOL m_bSMT_connect;
 
 

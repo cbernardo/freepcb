@@ -116,20 +116,20 @@ BOOL CFreePcbApp::InitInstance()
 
 	// set pointers to document and view
 	CMainFrame * pMainWnd = (CMainFrame*)AfxGetMainWnd();
-	m_Doc = (CFreePcbDoc*)pMainWnd->GetActiveDocument();
+	m_doc = (CFreePcbDoc*)pMainWnd->GetActiveDocument();
 	m_View = (CFreePcbView*)pMainWnd->GetActiveView();
 	m_View->InitInstance();
 
 	// set initial view mode
 	m_view_mode = PCB;
 
-	m_Doc->InitializeNewProject();
-	m_pMainWnd->SetWindowTextA(m_Doc->m_window_title);			// CPT --- want a consistent window title from the get-go
+	m_doc->InitializeNewProject();
+	m_pMainWnd->SetWindowTextA(m_doc->m_window_title);			// CPT --- want a consistent window title from the get-go
 
 	if( cmdInfo.m_nShellCommand == CCommandLineInfo::FileOpen )
 	{
 		CString fn = cmdInfo.m_strFileName;
-		m_Doc->OnFileAutoOpen( fn );
+		m_doc->OnFileAutoOpen( fn );
 	}
 
 	return TRUE;
@@ -234,7 +234,7 @@ BOOL CFreePcbApp::SwitchToView( CRuntimeClass * pNewViewClass )
 		// switch to footprint view
 		CCreateContext context;
 		context.m_pNewViewClass = pNewViewClass;
-		context.m_pCurrentDoc = m_Doc;
+		context.m_pCurrentDoc = m_doc;
 		pNewView = STATIC_DOWNCAST(CView, pMainWnd->CreateView(&context));
 		m_View_fp = (CFootprintView*)pNewView;
 	}
@@ -276,8 +276,8 @@ BOOL CFreePcbApp::SwitchToView( CRuntimeClass * pNewViewClass )
 			// first, see if we were editing the footprint of the selected part
 			CShape * temp_footprint;
 			if(	m_View->m_cursor_mode == CUR_PART_SELECTED 
-				&& m_Doc->m_edit_footprint
-				&& (m_Doc->m_footprint_modified || m_Doc->m_footprint_name_changed) )
+				&& m_doc->m_edit_footprint
+				&& (m_doc->m_footprint_modified || m_doc->m_footprint_name_changed) )
 			{
 				// yes, make a copy of the footprint from the editor
 				temp_footprint = new CShape;
@@ -285,37 +285,37 @@ BOOL CFreePcbApp::SwitchToView( CRuntimeClass * pNewViewClass )
 			}
 			// destroy old footprint view
 			pOldActiveView->DestroyWindow();
-			if( !m_Doc->m_project_open )
+			if( !m_doc->m_project_open )
 			{
-				m_Doc->m_project_modified = FALSE;
-				m_Doc->m_project_modified_since_autosave = FALSE;
-				m_Doc->OnFileClose();	
+				m_doc->m_project_modified = FALSE;
+				m_doc->m_project_modified_since_autosave = FALSE;
+				m_doc->OnFileClose();	
 			}
 			// restore toolbar stuff
 			CMainFrame * frm = (CMainFrame*)AfxGetMainWnd();
-			frm->m_wndMyToolBar.SetLists( &m_Doc->m_visible_grid, &m_Doc->m_part_grid, &m_Doc->m_routing_grid,
-				m_Doc->m_visual_grid_spacing, m_Doc->m_part_grid_spacing, m_Doc->m_routing_grid_spacing, 
-				m_Doc->m_snap_angle, m_Doc->m_units );
-			m_View->m_dlist->SetVisibleGrid( 1, m_Doc->m_visual_grid_spacing );
-			frm->SetWindowText( m_Doc->m_window_title ); 
+			frm->m_wndMyToolBar.SetLists( &m_doc->m_visible_grid, &m_doc->m_part_grid, &m_doc->m_routing_grid,
+				m_doc->m_visual_grid_spacing, m_doc->m_part_grid_spacing, m_doc->m_routing_grid_spacing, 
+				m_doc->m_snap_angle, m_doc->m_units );
+			m_View->m_dlist->SetVisibleGrid( 1, m_doc->m_visual_grid_spacing );
+			frm->SetWindowText( m_doc->m_window_title ); 
 			m_View->ShowSelectStatus();
 			m_View->ShowActiveLayer();
 			if(	m_View->m_cursor_mode == CUR_PART_SELECTED 
-				&& m_Doc->m_edit_footprint
-				&& (m_Doc->m_footprint_modified || m_Doc->m_footprint_name_changed) )
+				&& m_doc->m_edit_footprint
+				&& (m_doc->m_footprint_modified || m_doc->m_footprint_name_changed) )
 			{
 				// now offer to replace the footprint of the selected part 
 				m_View->OnExternalChangeFootprint( temp_footprint );
 				delete temp_footprint;
 			}
-			m_Doc->m_edit_footprint = FALSE;	// clear this flag for next time
+			m_doc->m_edit_footprint = FALSE;	// clear this flag for next time
 		}
 		else
 		{
 			// switching to footprint view, create it
 			int units = MIL;
 			m_View_fp = (CFootprintView*)pNewView;
-			if( m_View->m_cursor_mode == CUR_PART_SELECTED && m_Doc->m_edit_footprint )
+			if( m_View->m_cursor_mode == CUR_PART_SELECTED && m_doc->m_edit_footprint )
 			{
 				m_View_fp->InitInstance( m_View->m_sel_part->shape );
 				units = m_View->m_sel_part->shape->m_units;
@@ -326,9 +326,9 @@ BOOL CFreePcbApp::SwitchToView( CRuntimeClass * pNewViewClass )
 			}
 			// restore toolbar stuff
 			CMainFrame * frm = (CMainFrame*)AfxGetMainWnd();
-			frm->m_wndMyToolBar.SetLists( &m_Doc->m_fp_visible_grid, &m_Doc->m_fp_part_grid, NULL,
-				m_Doc->m_fp_visual_grid_spacing, m_Doc->m_fp_part_grid_spacing, 0, m_Doc->m_fp_snap_angle, units );
-			m_View_fp->m_dlist->SetVisibleGrid( 1, m_Doc->m_fp_visual_grid_spacing );
+			frm->m_wndMyToolBar.SetLists( &m_doc->m_fp_visible_grid, &m_doc->m_fp_part_grid, NULL,
+				m_doc->m_fp_visual_grid_spacing, m_doc->m_fp_part_grid_spacing, 0, m_doc->m_fp_snap_angle, units );
+			m_View_fp->m_dlist->SetVisibleGrid( 1, m_doc->m_fp_visual_grid_spacing );
 		}
 		// resize window in case it changed
 		CRect client_rect;
@@ -370,7 +370,7 @@ void CFreePcbApp::OnFileMruFile1()
 {
 	ASSERT( CWinApp::m_pRecentFileList );
 	CString str = (*CWinApp::m_pRecentFileList)[0];
-	m_Doc->OnFileAutoOpen( str );
+	m_doc->OnFileAutoOpen( str );
 	return;
 }
 
@@ -378,7 +378,7 @@ void CFreePcbApp::OnFileMruFile2()
 {
 	ASSERT( CWinApp::m_pRecentFileList );
 	CString str = (*CWinApp::m_pRecentFileList)[1];
-	m_Doc->OnFileAutoOpen( str );
+	m_doc->OnFileAutoOpen( str );
 	return;
 }
 
@@ -386,7 +386,7 @@ void CFreePcbApp::OnFileMruFile3()
 {
 	ASSERT( CWinApp::m_pRecentFileList );
 	CString str = (*CWinApp::m_pRecentFileList)[2];
-	m_Doc->OnFileAutoOpen( str );
+	m_doc->OnFileAutoOpen( str );
 	return;
 }
 
@@ -394,7 +394,7 @@ void CFreePcbApp::OnFileMruFile4()
 {
 	ASSERT( CWinApp::m_pRecentFileList );
 	CString str = (*CWinApp::m_pRecentFileList)[3];
-	m_Doc->OnFileAutoOpen( str );
+	m_doc->OnFileAutoOpen( str );
 	return;
 }
 
@@ -431,7 +431,7 @@ void CFreePcbApp::OnHelpKeyboardshortcuts()
 void CFreePcbApp::OnToolsOpenOnlineAutorouter()
 {
     SHELLEXECUTEINFO ShExecInfo;
-	CString fn = m_Doc->m_app_dir + "\\freeroute.jnlp";
+	CString fn = m_doc->m_app_dir + "\\freeroute.jnlp";
 
 	ShExecInfo.cbSize = sizeof(SHELLEXECUTEINFO);
 	ShExecInfo.fMask = NULL;
@@ -467,7 +467,7 @@ void CFreePcbApp::OnHelpFreeRoutingWebsite()
 void CFreePcbApp::OnHelpUserGuidePdf()
 {
     SHELLEXECUTEINFO ShExecInfo;
-	CString fn = m_Doc->m_app_dir + "\\..\\doc\\freepcb_user_guide.pdf";
+	CString fn = m_doc->m_app_dir + "\\..\\doc\\freepcb_user_guide.pdf";
 
 	ShExecInfo.cbSize = sizeof(SHELLEXECUTEINFO);
 	ShExecInfo.fMask = NULL;
@@ -485,7 +485,7 @@ void CFreePcbApp::OnHelpUserGuidePdf()
 void CFreePcbApp::OnHelpUserGuideSupplementPdf()
 {
     SHELLEXECUTEINFO ShExecInfo;
-	CString fn = m_Doc->m_app_dir + "\\..\\doc\\freepcb_user_guide_supplement.pdf";
+	CString fn = m_doc->m_app_dir + "\\..\\doc\\freepcb_user_guide_supplement.pdf";
 
 	ShExecInfo.cbSize = sizeof(SHELLEXECUTEINFO);
 	ShExecInfo.fMask = NULL;
@@ -503,7 +503,7 @@ void CFreePcbApp::OnHelpUserGuideSupplementPdf()
 void CFreePcbApp::OnHelpFpcRoute()
 {
     SHELLEXECUTEINFO ShExecInfo;
-	CString fn = m_Doc->m_app_dir + "\\..\\doc\\fpcroute_user_guide.pdf";
+	CString fn = m_doc->m_app_dir + "\\..\\doc\\fpcroute_user_guide.pdf";
 
 	ShExecInfo.cbSize = sizeof(SHELLEXECUTEINFO);
 	ShExecInfo.fMask = NULL;

@@ -2,7 +2,7 @@
 #include "FreePcbDoc.h"
 #include "NetListNew.h"
 
-cnetlist::cnetlist( CFreePcbDoc * _doc )														// CPT2:  Changed param
+cnetlist::cnetlist( CFreePcbDoc * _doc )
 	{ 
 		m_doc = _doc; 
 		m_dlist = m_doc->m_dlist;
@@ -359,7 +359,7 @@ void cnetlist::ReadNets( CStdioFile * pcb_file, double read_version, int * layer
 				if( np == 5 )
 					hatch = my_atoi( &p[3] );
 				int last_side_style = CPolyLine::STRAIGHT;
-				carea2 *a = new carea2(net, layer, hatch);
+				carea2 *a = new carea2(net, layer, hatch, 2*NM_PER_MIL, 10*NM_PER_MIL);
 				ccontour *ctr = new ccontour(a, true);				// Adds ctr as a's main contour
 
 				for( int icor=0; icor<ncorners; icor++ )

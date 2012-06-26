@@ -19,7 +19,7 @@ void CDLE_HOLE::_Draw(CDrawInfo &di, bool)
 
 /* void CDLE_HOLE::_DrawClearance(CDrawInfo const &di) const
 {
-	CFreePcbDoc * doc = theApp.m_Doc;
+	CFreePcbDoc * doc = theApp.m_doc;
 
 	// Pick the larger of the two clearances
 	int sz = doc->m_hole_clearance / 2540;
@@ -39,7 +39,7 @@ void CDLE_HOLE::_Draw(CDrawInfo &di, bool)
 
 int CDLE_HOLE::_GetBoundingRect(CRect &rect)
 {
-	CFreePcbDoc * doc = theApp.m_Doc;
+	CFreePcbDoc * doc = theApp.m_doc;
 
 	// Pick the larger of the two clearances
 	int sz = doc->m_hole_clearance / 2540;

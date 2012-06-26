@@ -12,7 +12,7 @@ id::id( int qt1, int qu1,
 	int qt2, int qu2, int qi2, 
 	int qt3, int qu3,int qi3 ) 
 { 
-	pcb = ((CFreePcbApp*)AfxGetApp())->m_Doc;
+	pcb = ((CFreePcbApp*)AfxGetApp())->m_doc;
 	ptr = NULL;
 	t1 = qt1; 
 	u1 = qu1;
@@ -57,6 +57,7 @@ void id::Clear()
 //
 BOOL id::Resolve()
 {
+#ifndef CPT2
 	i2 = -1;
 	i3 = -1;
 	ptr = NULL;
@@ -205,6 +206,7 @@ BOOL id::Resolve()
 	{
 		return FALSE;	// unidentified
 	}
+#endif
 	return TRUE;
 }
 
@@ -407,10 +409,12 @@ carea * id::Area()
 
 CText * id::Text()
 {
+#ifndef CPT2
 	if( t1 == ID_TEXT )
 	{
 		return pcb->m_tlist->GetText( u1 );
 	}
+#endif
 	return NULL;
 }
 

@@ -49,7 +49,7 @@ enum { FP_SEL_MASK_REF = 0,
 
 class CCommonView : public CView {
 public:
-	CFreePcbDoc * m_Doc;	// the document
+	CFreePcbDoc * m_doc;	// the document
 	CDisplayList * m_dlist;	// the display list
 
 	// Windows fonts
@@ -124,9 +124,11 @@ public:
 	int m_units;
 
 	// selection mask
-	int m_sel_mask;
-	id m_mask_id[NUM_SEL_MASKS];
-	id m_mask_default_id[NUM_SEL_MASKS];	// default ids
+	int m_sel_mask;							// CPT2.  As before, this indicates which buttons in the left pane are on and which off
+	int m_sel_mask_bits;					// CPT2.  This value is a function of the previous:  each left-pane button corresponds to 1 or more bits whose
+											// meanings are given in cpcb_item's enum of type-bits.  (See cpcb_item::GetTypeBit()).
+	// id m_mask_id[NUM_SEL_MASKS];			// ditto
+	// id m_mask_default_id[NUM_SEL_MASKS];	// ditto
 
 	// Constructor, low-level stuff:
 	CCommonView();
@@ -158,8 +160,9 @@ public:
 	virtual int GetLeftPaneKeyID() = 0;
 	// Masks:
 	virtual int GetNMasks() = 0;
-	void SetSelMaskArray( int mask );
+	// void SetSelMaskArray( int mask );				// CPT2 dumped
 	virtual int GetMaskNamesID() = 0;
+	virtual int GetMaskBtnBits(int i) = 0;				// CPT2
 	// Display:
 	int ShowCursor();
 	void ShowRelativeDistance( int dx, int dy );

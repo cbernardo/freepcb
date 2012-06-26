@@ -17,7 +17,7 @@ cpcb_item::cpcb_item(CFreePcbDoc *_doc)
 	m_uid = next_uid++;
 	doc = _doc;
 	if (doc)
-		doc->items.Add(this);
+		doc->items.Add(this);						// NB if doc is NULL, this will not be garbage-collected (must delete by hand)
 	dl_el = dl_sel = NULL;
 	utility = 0;
 	bDrawn = false;
@@ -112,6 +112,9 @@ cvertex2::cvertex2(cconnect2 *c, int _x, int _y):				// Added args
 	force_via_flag = via_w = via_hole_w = 0;
 	dl_hole = NULL;
 }
+
+bool cvertex2::IsVia() 
+	{ return via_w>0 || tee && tee->via_w>0; }
 
 bool cvertex2::Remove()
 {
@@ -891,7 +894,7 @@ int cconnect2::Draw()
 void cconnect2::Undraw()
 {
 	CDisplayList *dl = doc->m_dlist;
-	if( !dl || IsDrawn() ) return;
+	if( !dl || !IsDrawn() ) return;
 
 	citer<cseg2> is (&segs);
 	for (cseg2 *s = is.First(); s; s = is.Next())
@@ -994,17 +997,12 @@ cpart2::cpart2( cpartlist * pl )			// CPT2 TODO.  Will probably add more args...
 { 
 	m_pl = pl;
 	pl->parts.Add(this);
-	// zero out pointers
-	dl_ref_sel = 0;
-	shape = 0;
-
 	x = y = side = angle = 0;
 	glued = false;
 	m_ref_vis = true;
-	m_ref_xi = m_ref_yi = m_ref_angle = m_ref_w = m_ref_layer = 0;
+	m_ref = new creftext(doc, 0, 0, 0, false, false, 0, 0, 0, doc->m_smfontutil, &CString(""));
 	m_value_vis = false;
-	m_value_xi = m_value_yi = m_value_angle = m_value_size = m_value_w = m_value_layer = 0;
-	dl_ref_sel = dl_value_sel = NULL;
+	m_value = new cvaluetext(doc, 0, 0, 0, false, false, 0, 0, 0, doc->m_smfontutil, &CString(""));
 	shape = NULL;
 }
 
@@ -1024,6 +1022,7 @@ void cpart2::Move( int _x, int _y, int _angle, int _side )
 		for (cpin2* p = ip.First(); p; p = ip.Next())
 			p->SetPosition();
 	}
+
 	if (shape && bWasDrawn)
 		Draw();
 }
@@ -1034,8 +1033,8 @@ void cpart2::Remove()						// CPT2. Derived from PartList::RemovePart().
 	m_pl->parts.Remove(this);
 }
 
-void cpart2::SetData(CShape * _shape, CString * _ref_des, CString * _package, 
-					 int _x, int _y, int _side, int _angle, int _visible, int _glued, bool _ref_vis  )
+void cpart2::SetData(CShape * _shape, CString * _ref_des, CString * _value_text, CString * _package, 
+					 int _x, int _y, int _side, int _angle, int _visible, int _glued  )
 {
 	// Derived from old CPartList::SetPartData.  Initializes data members, including "pins".  Ref and value-text related
 	// members are initialized according to _shape if possible.
@@ -1048,7 +1047,12 @@ void cpart2::SetData(CShape * _shape, CString * _ref_des, CString * _package,
 	// now copy data into part
 	visible = _visible;
 	ref_des = *_ref_des;
-	if( package )
+	m_ref->m_str = *_ref_des;
+	if (_value_text)
+		value_text = m_value->m_str = *_value_text;
+	else
+		value_text = m_value->m_str = "";
+	if( _package )
 		package = *_package;
 	else
 		package = "";
@@ -1061,42 +1065,27 @@ void cpart2::SetData(CShape * _shape, CString * _ref_des, CString * _package,
 	if( !_shape )
 	{
 		shape = NULL;
-		m_ref_xi = 0;
-		m_ref_yi = 0;
-		m_ref_angle = 0;
-		m_ref_size = 0;
-		m_ref_w = 0;
-		m_value_xi = 0;
-		m_value_yi = 0;
-		m_value_angle = 0;
-		m_value_size = 0;
-		m_value_w = 0;
+		m_ref->Move(0, 0, 0, 0, 0);
+		m_value->Move(0, 0, 0, 0, 0);
 	}
 	else
 	{
 		shape = _shape;
 		InitPins();
 		Move( x, y, angle, side );	// force setting pin positions
-		m_ref_xi = shape->m_ref_xi;
-		m_ref_yi = shape->m_ref_yi;
-		m_ref_angle = shape->m_ref_angle;
-		m_ref_size = shape->m_ref_size;
-		m_ref_w = shape->m_ref_w;
-		m_ref_layer = shape->m_ref->m_layer;		
-		m_value_xi = shape->m_value_xi;
-		m_value_yi = shape->m_value_yi;
-		m_value_angle = shape->m_value_angle;
-		m_value_size = shape->m_value_size;
-		m_value_w = shape->m_value_w;
-		m_value_layer = shape->m_value->m_layer;		
+
+		m_ref->Move( shape->m_ref_xi, shape->m_ref_yi, shape->m_ref_angle, 
+			false, false, shape->m_ref->m_layer,
+			shape->m_ref_size, shape->m_ref_w );											// TODO move Shape::m_ref_xi etc. into Shape::m_ref
+		m_value->Move( shape->m_value_xi, shape->m_value_yi, shape->m_value_angle, 
+			false, false, shape->m_value->m_layer,
+			shape->m_value_size, shape->m_value_w );										// TODO move Shape::m_ref_xi etc. into Shape::m_ref
 	}
 
 	m_outline_stroke.SetSize(0);
-	ref_text_stroke.SetSize(0);
-	value_stroke.SetSize(0);
-	m_ref_vis = _ref_vis;					// CPT
+	m_ref->m_stroke.SetSize(0);
+	m_value->m_stroke.SetSize(0);
 
-	// m_dlist = old_dlist;
 	if( shape && bWasDrawn )
 		Draw();
 }
@@ -1107,14 +1096,10 @@ void cpart2::SetValue(CString *_value, int x, int y, int angle, int size, int w,
 	bool bWasDrawn = IsDrawn();
 	if (shape)
 		Undraw();
-	value = *_value;
-	m_value_xi = x;
-	m_value_yi = y;
-	m_value_angle = angle;
-	m_value_size = size;
-	m_value_w = w;
+	value_text = *_value;
+	m_value->m_layer = layer;
+	m_value->Move(x, y, angle, size, w);
 	m_value_vis = vis;
-	m_value_layer = layer;
 	if( shape && bWasDrawn )
 		Draw();
 }
@@ -1124,8 +1109,7 @@ void cpart2::ResizeRefText(int size, int width, BOOL vis )
 	bool bWasDrawn = IsDrawn();
 	if (shape)
 		Undraw();
-	m_ref_size = size;
-	m_ref_w = width;	
+	m_ref->Move(m_ref->m_x, m_ref->m_y, m_ref->m_angle, size, width);
 	m_ref_vis = vis;
 	if (shape && bWasDrawn)
 		Draw();
@@ -1144,27 +1128,27 @@ void cpart2::InitPins()
 	}
 }
 
-
-
-extern int GenerateStrokesForPartString( CString * str, int layer, BOOL bMirror,					// CPT2 In old PartList.cpp
-								  int size, int rel_angle, int rel_xi, int rel_yi, int w, 
-								  int x, int y, int angle, int side,
-								  CArray<stroke> * strokes, CRect * br,
-								  CDisplayList * dlist, SMFontUtil * sm );
-
 // get bounding rect of value text relative to part origin 
 // works even if part isn't drawn
 //
 CRect cpart2::GetValueRect()
 {
-	CArray<stroke> m_stroke;
-	CRect br;
-	BOOL bMirror = (m_value_layer == LAY_SILK_BOTTOM || m_value_layer == LAY_BOTTOM_COPPER) ;
-	int nstrokes = GenerateStrokesForPartString( &value, 0, bMirror, m_value_size,
-		m_value_angle, m_value_xi, m_value_yi, m_value_w,
-		x, y, angle, side,
-		&m_stroke, &br, NULL, m_pl->m_dlist->GetSMFontUtil() );
-	return br;
+	m_value->GenerateStrokes();
+	return m_value->m_br;
+}
+
+int cpart2::GetBoundingRect( CRect * part_r )
+{
+	CRect r;
+	if( !shape || !dl_sel ) 
+		return 0;
+	CDisplayList *dl = doc->m_dlist;
+	r.left = min( dl->Get_x( dl_sel ), dl->Get_xf( dl_sel ) );
+	r.right = max( dl->Get_x( dl_sel ), dl->Get_xf( dl_sel ) );
+	r.bottom = min( dl->Get_y( dl_sel ), dl->Get_yf( dl_sel ) );
+	r.top = max( dl->Get_y( dl_sel ), dl->Get_yf( dl_sel ) );
+	*part_r = r;
+	return 1;
 }
 
 int cpart2::Draw()
@@ -1208,91 +1192,22 @@ int cpart2::Draw()
 	if( angle == 90 || angle ==  270 )
 		dl->Set_sel_vert( dl_sel, 1 );
 
-	CArray<stroke> strokes;	// used for text.  CPT2 renamed (m_ was confusing)
-	CRect br;
-	CPoint si, sf;
-
 	// draw ref designator text
-	dl_ref_sel = NULL;
-	if( m_ref_vis && m_ref_size )
-	{
-		int layer = m_ref_layer;
-		layer = FlipLayer( side, layer );
-		BOOL bMirror = (layer == LAY_SILK_BOTTOM || layer == LAY_BOTTOM_COPPER) ;	// CPT2 changed m_ref_layer to layer.  Correct?
-		int nstrokes = ::GenerateStrokesForPartString( &ref_des, 
-			layer, bMirror, m_ref_size,
-			m_ref_angle, m_ref_xi, m_ref_yi, m_ref_w,
-			x, y, angle, side,
-			&strokes, &br, dl, dl->GetSMFontUtil() );
-		if( nstrokes )
-		{
-			int xmin = br.left;
-			int xmax = br.right;
-			int ymin = br.bottom;
-			int ymax = br.top;
-			ref_text_stroke.SetSize( nstrokes );
-			for( int is=0; is<nstrokes; is++ )
-			{
-				strokes[is].dl_el = dl->Add( this, dl_element::DL_REF,  
-					layer, DL_LINE, 1, strokes[is].w, 0, 0,
-					strokes[is].xi, strokes[is].yi, 
-					strokes[is].xf, strokes[is].yf, 0, 0 );
-				ref_text_stroke[is] = strokes[is];
-			}
-			// draw selection rectangle for ref text
-			dl_ref_sel = dl->AddSelector( this, layer, DL_HOLLOW_RECT, 1,		// CPT2 changed m_ref_layer to layer.  Correct?
-				0, 0, xmin, ymin, xmax, ymax, xmin, ymin );
-		}
-	}
+	m_ref->dl_el = m_ref->dl_sel = NULL;
+	if( m_ref_vis && m_ref->m_font_size )
+		m_ref->DrawRelativeTo(this);
 	else
-	{
-		for( int is=0; is<ref_text_stroke.GetSize(); is++ )
-			dl->Remove( ref_text_stroke[is].dl_el );
-		ref_text_stroke.SetSize(0);
-	}
-
+		m_ref->Undraw();
+	
 	// draw value text
-	dl_value_sel = NULL;
-	if( m_value_vis && m_value_size )
-	{
-		int layer = m_value_layer;
-		layer = FlipLayer( side, layer );
-		BOOL bMirror = (layer == LAY_SILK_BOTTOM || layer == LAY_BOTTOM_COPPER) ;
-		int nstrokes = ::GenerateStrokesForPartString( &value, 
-			layer, bMirror, m_value_size,
-			m_value_angle, m_value_xi, m_value_yi, m_value_w,
-			x, y, angle, side,
-			&strokes, &br, dl, dl->GetSMFontUtil() );
-
-		if( nstrokes )
-		{
-			int xmin = br.left;
-			int xmax = br.right;
-			int ymin = br.bottom;
-			int ymax = br.top;
-			value_stroke.SetSize( nstrokes );
-			for( int is=0; is<nstrokes; is++ )
-			{
-				strokes[is].dl_el = dl->Add( this, dl_element::DL_VALUE,
-					strokes[is].layer, DL_LINE, 1, strokes[is].w, 0, 0,
-					strokes[is].xi, strokes[is].yi, 
-					strokes[is].xf, strokes[is].yf, 0, 0 );
-				value_stroke[is] = strokes[is];
-			}
-
-			// draw selection rectangle for value
-			dl_value_sel = dl->AddSelector( this, dl_element::DL_VALUE_SEL, m_value_layer, DL_HOLLOW_RECT, 1,
-				0, 0, xmin, ymin, xmax, ymax, xmin, ymin );
-		}
-	}
+	m_value->dl_el = m_value->dl_sel = NULL;
+	if( m_value_vis && m_value->m_font_size )
+		m_value->DrawRelativeTo(this);
 	else
-	{
-		for( int is=0; is<value_stroke.GetSize(); is++ )
-			dl->Remove( value_stroke[is].dl_el );
-		value_stroke.SetSize(0);
-	}
+		m_value->Undraw();
 
 	// draw part outline (code similar to but sadly not identical to cpolyline::Draw())
+	CPoint si, sf;
 	m_outline_stroke.SetSize(0);
 	citer<cpolyline> ip (&shape->m_outline_poly);
 	for (cpolyline *poly = ip.First(); poly; poly = ip.Next())
@@ -1602,7 +1517,7 @@ int cpart2::Draw()
 void cpart2::Undraw()
 {
 	CDisplayList *dl = doc->m_dlist;
-	if( !dl || IsDrawn() ) return;
+	if( !dl || !IsDrawn() ) return;
 	if (!shape)
 		{ bDrawn = false; return; }
 
@@ -1610,29 +1525,9 @@ void cpart2::Undraw()
 	dl->Remove( dl_sel );
 	dl_sel = 0;
 
-	// undraw selection rectangle for ref text
-	dl->Remove( dl_ref_sel );
-	dl_ref_sel = 0;
-
-	// undraw ref designator text
-	int nstrokes = ref_text_stroke.GetSize();
-	for( int i=0; i<nstrokes; i++ )
-	{
-		dl->Remove( ref_text_stroke[i].dl_el );
-		ref_text_stroke[i].dl_el = 0;
-	}
-
-	// undraw selection rectangle for value
-	dl->Remove( dl_value_sel );
-	dl_value_sel = 0;
-
-	// undraw  value text
-	nstrokes = value_stroke.GetSize();
-	for( int i=0; i<nstrokes; i++ )
-	{
-		dl->Remove( value_stroke[i].dl_el );
-		value_stroke[i].dl_el = 0;
-	}
+	// undraw selection rectangle for ref text and value text
+	m_ref->Undraw();
+	m_value->Undraw();
 
 	// undraw part outline (this also includes footprint free text)
 	for( int i=0; i<m_outline_stroke.GetSize(); i++ )
@@ -1669,7 +1564,17 @@ void cpart2::Highlight( )
 	dl->Highlight( DL_HOLLOW_RECT, 
 				dl->Get_x( dl_sel ), dl->Get_y( dl_sel ),
 				dl->Get_xf( dl_sel ), dl->Get_yf( dl_sel ), 1 );
-	// CPT2 TODO:  Deal with the reftext and valuetext issue
+
+	// Also highlight ref and value texts if possible
+	if (dl_element *ref_sel = m_ref->dl_sel)
+		dl->Highlight( DL_HOLLOW_RECT, 
+				dl->Get_x( ref_sel ), dl->Get_y( ref_sel ),
+				dl->Get_xf( ref_sel ), dl->Get_yf( ref_sel ), 1 );
+	if (dl_element *val_sel = m_value->dl_sel)
+		dl->Highlight( DL_HOLLOW_RECT, 
+				dl->Get_x( val_sel ), dl->Get_y( val_sel ),
+				dl->Get_xf( val_sel ), dl->Get_yf( val_sel ), 1 );
+	
 }
 
 
@@ -1701,6 +1606,18 @@ int ccorner::GetTypeBit()
 	return bitOther;
 }
 
+void ccorner::Highlight()
+{
+	CDisplayList *dl = doc->m_dlist;
+	if( !dl ) return;
+	if( !dl_sel ) return;
+	dl->Highlight( DL_HOLLOW_RECT, 
+		dl->Get_x( dl_sel ), dl->Get_y( dl_sel ),
+		dl->Get_xf( dl_sel ), dl->Get_yf( dl_sel ),
+		dl->Get_w( dl_sel ) );
+}
+
+
 cside::cside(ccontour *_contour, int _style)
 	: cpcb_item(_contour->doc)
 { 
@@ -1717,15 +1634,33 @@ bool cside::IsOutlineSide() { return contour->poly->IsOutline(); }
 
 int cside::GetTypeBit() 
 {
-	if (contour->poly->IsArea()) return bitAreaCorner;
-	if (contour->poly->IsSmCutout()) return bitSmCorner;
-	if (contour->poly->IsBoard()) return bitBoardCorner;
+	if (contour->poly->IsArea()) return bitAreaSide;
+	if (contour->poly->IsSmCutout()) return bitSmSide;
+	if (contour->poly->IsBoard()) return bitBoardSide;
 	return bitOther;
 }
 
 bool cside::IsOnCutout()
 	// Return true if this side lies on a secondary contour within the polyline
 	{ return contour->poly->main!=contour; }
+
+void cside::Highlight()
+{
+	CDisplayList *dl = doc->m_dlist;
+	if( !dl ) return;
+	if( !dl_sel ) return;
+	int s;
+	if( m_style == CPolyLine::STRAIGHT )
+		s = DL_LINE;
+	else if( m_style == CPolyLine::ARC_CW )
+		s = DL_ARC_CW;
+	else if( m_style == CPolyLine::ARC_CCW )
+		s = DL_ARC_CCW;
+	dl->Highlight( s, 
+		dl->Get_x( dl_sel ), dl->Get_y( dl_sel ),
+		dl->Get_xf( dl_sel ), dl->Get_yf( dl_sel ),
+		dl->Get_w( dl_sel ) );
+}
 
 
 ccontour::ccontour(cpolyline *_poly, bool bMain)
@@ -2116,10 +2051,10 @@ int cpolyline::Draw( /* CDisplayList * dl */ )
 			else if( s->m_style == ARC_CCW )
 				g_type = DL_ARC_CCW;
 			s->dl_el = dl->AddMain( s, m_layer, g_type, 
-				1, m_w, 0, 0, xi, yi, xf, yf, 0, 0 );
+				1, m_w, 0, 0, xi, yi, xf, yf, 0, 0 );	
 			if( m_sel_box )
 				s->dl_sel = dl->AddSelector( s, m_layer, g_type, 
-					1, m_w, 0, xi, yi, xf, yf, 0, 0 );
+					1, m_w*4, 0, xi, yi, xf, yf, 0, 0 );				// CPT2 Quadrupled the selector width for visibility when highlighting
 		}
 	}
 
@@ -2163,14 +2098,22 @@ void cpolyline::Undraw()
 	bDrawn = FALSE;
 }
 
+void cpolyline::Highlight()
+{
+	citer<ccontour> ic (&contours);
+	for (ccontour *c = ic.First(); c; c = ic.Next())
+		c->Highlight();
+}
 
-carea2::carea2(cnet2 *_net, int layer, int hatch)
+carea2::carea2(cnet2 *_net, int _layer, int _hatch, int _w, int _sel_box)
 	: cpolyline(_net->doc)
 { 
-	m_layer = layer;
-	m_hatch = hatch;
+	m_layer = _layer;
+	m_hatch = _hatch;
 	m_net = _net;
 	m_net->areas.Add(this);
+	m_w = _w;
+	m_sel_box = _sel_box;
 }
 
 void carea2::Remove()
@@ -2443,3 +2386,310 @@ int cnet2::Draw()
 /**********************************************************************************************/
 /*  OTHERS: ctext, cadhesive, ccentroid                                                       */
 /**********************************************************************************************/
+
+ctext::ctext( CFreePcbDoc *_doc, int _x, int _y, int _angle, 
+	BOOL _bMirror, BOOL _bNegative, int _layer, int _font_size, 
+	int _stroke_width, SMFontUtil *_smfontutil, CString * _str )			// CPT2 Removed selType/selSubtype args.  Will use derived creftext and cvaluetext
+	: cpcb_item (_doc)														// classes in place of this business.
+{
+	m_x = _x, m_y = _y;
+	m_angle = _angle;
+	m_bMirror = _bMirror; m_bNegative = _bNegative;
+	m_layer = _layer;
+	m_font_size = _font_size;
+	m_stroke_width = _stroke_width;
+	m_smfontutil = _smfontutil;
+	m_str = *_str;
+}
+
+void ctext::Move( int x, int y, int angle, BOOL mirror, BOOL negative, int layer, int size, int w )
+{
+	bool bWasDrawn = IsDrawn();
+	Undraw();
+	m_x = x;
+	m_y = y;
+	m_angle = angle;
+	m_layer = layer;
+	m_bMirror = mirror;
+	m_bNegative = negative;
+	if (size>=0) m_font_size = size;
+	if (w>=0) m_stroke_width = w;
+	if (bWasDrawn)
+		Draw();
+}
+
+void ctext::Move(int x, int y, int angle, int size, int w) 
+{
+	// CPT:  extra version of Move(); appropriate for ref and value-texts, where the layer doesn't change and the mirroring is by default
+	bool bMirror = m_layer==LAY_FP_SILK_BOTTOM || m_layer==LAY_FP_BOTTOM_COPPER;
+	Move(x, y, angle, bMirror, false, m_layer, size, w);
+}
+
+
+void ctext::GenerateStrokes() {
+	// CPT2 new.  Helper for Draw(), though it might also be called independently of drawing.
+	// Generate strokes and put them in m_stroke.  Also setup the bounding rectangle member m_br.
+	// TODO consider caching
+	m_stroke.SetSize( 1000 );
+	CPoint si, sf;
+	double x_scale = (double)m_font_size/22.0;
+	double y_scale = (double)m_font_size/22.0;
+	double y_offset = 9.0*y_scale;
+	int i = 0;
+	double xc = 0.0;
+	int xmin = INT_MAX;
+	int xmax = INT_MIN;
+	int ymin = INT_MAX;
+	int ymax = INT_MIN;
+	int nChars = m_str.GetLength();
+
+	for( int ic=0; ic<nChars; ic++ )
+	{
+		// get stroke info for character
+		int xi, yi, xf, yf;
+		double coord[64][4];
+		double min_x, min_y, max_x, max_y;
+		int nstrokes;
+		if( !m_bMirror )
+			nstrokes = m_smfontutil->GetCharStrokes( m_str[ic], SIMPLEX, &min_x, &min_y, &max_x, &max_y,
+				coord, 64 );
+		else
+			nstrokes = m_smfontutil->GetCharStrokes( m_str[nChars-ic-1], SIMPLEX, &min_x, &min_y, &max_x, &max_y,
+				coord, 64 );
+		// loop through strokes and create stroke structures
+		for( int is=0; is<nstrokes; is++ )
+		{
+			if( m_bMirror )
+			{
+				xi = (max_x - coord[is][0])*x_scale;
+				yi = coord[is][1]*y_scale + y_offset;
+				xf = (max_x - coord[is][2])*x_scale;
+				yf = coord[is][3]*y_scale + y_offset;
+			}
+			else
+			{
+				xi = (coord[is][0] - min_x)*x_scale;
+				yi = coord[is][1]*y_scale + y_offset;
+				xf = (coord[is][2] - min_x)*x_scale;
+				yf = coord[is][3]*y_scale + y_offset;
+			}
+
+			// get stroke relative to x,y
+			si.x = xi + xc;
+			sf.x = xf + xc;
+			si.y = yi;
+			sf.y = yf;
+			// rotate
+			RotatePoint( &si, m_angle, zero );
+			RotatePoint( &sf, m_angle, zero );
+			// add m_x, m_y, and fill in stroke structure
+			stroke * s = &m_stroke[i];
+			s->w = m_stroke_width;
+			s->xi = m_x + si.x;
+			s->yi = m_y + si.y;
+			s->xf = m_x + sf.x;
+			s->yf = m_y + sf.y;
+			// update bounding rectangle
+			ymin = min( ymin, s->yi - s->w );
+			ymin = min( ymin, s->yf - s->w );
+			ymax = max( ymax, s->yi + s->w );
+			ymax = max( ymax, s->yf + s->w );
+			xmin = min( xmin, s->xi - s->w );
+			xmin = min( xmin, s->xf - s->w );
+			xmax = max( xmax, s->xi + s->w );
+			xmax = max( xmax, s->xf + s->w );
+			// Next stroke...
+			i++;
+			if( i >= m_stroke.GetSize() )
+				m_stroke.SetSize( i + 100 );
+		}
+		if( nstrokes > 0 )
+			xc += (max_x - min_x + 8.0)*x_scale;
+		else
+			xc += 16.0*x_scale;
+	}
+
+	// Wrap up
+	m_stroke.SetSize( i );
+	m_br.left = xmin - m_stroke_width/2;
+	m_br.right = xmax + m_stroke_width/2;
+	m_br.bottom = ymin - m_stroke_width/2;
+	m_br.top = ymax + m_stroke_width/2;
+}
+
+void ctext::GenerateStrokesRelativeTo(cpart2 *part) {
+	// CPT2 new.  Helper for DrawRelativeTo(), though it might also be called independently of drawing.
+	// Somewhat descended from the old GenerateStrokesFromPartString() in PartList.cpp.
+	// Used for texts (including reftexts and valuetexts) whose position is relative to "part".
+	// Generate strokes and put them in m_stroke.  Also setup the bounding rectangle member m_br.
+	// TODO consider caching
+	m_stroke.SetSize( 1000 );
+	CPoint si, sf;
+	double x_scale = (double)m_font_size/22.0;
+	double y_scale = (double)m_font_size/22.0;
+	double y_offset = 9.0*y_scale;
+	// Adjust layer value if part is on bottom
+	int layer = m_layer;
+	if (part->side)
+		if (layer==LAY_SILK_TOP) layer = LAY_SILK_BOTTOM;
+		else if (layer==LAY_TOP_COPPER) layer = LAY_BOTTOM_COPPER;
+		else if (layer==LAY_SILK_BOTTOM) layer = LAY_SILK_TOP;
+		else if (layer==LAY_BOTTOM_COPPER) layer = LAY_TOP_COPPER;
+	int i = 0;
+	double xc = 0.0;
+	int xmin = INT_MAX;
+	int xmax = INT_MIN;
+	int ymin = INT_MAX;
+	int ymax = INT_MIN;
+	int nChars = m_str.GetLength();
+
+	for( int ic=0; ic<nChars; ic++ )
+	{
+		// get stroke info for character
+		int xi, yi, xf, yf;
+		double coord[64][4];
+		double min_x, min_y, max_x, max_y;
+		int nstrokes;
+		if( !m_bMirror )
+			nstrokes = m_smfontutil->GetCharStrokes( m_str[ic], SIMPLEX, &min_x, &min_y, &max_x, &max_y,
+				coord, 64 );
+		else
+			nstrokes = m_smfontutil->GetCharStrokes( m_str[nChars-ic-1], SIMPLEX, &min_x, &min_y, &max_x, &max_y,
+				coord, 64 );
+		// loop through strokes and create stroke structures
+		for( int is=0; is<nstrokes; is++ )
+		{
+			if( m_bMirror )
+			{
+				xi = (max_x - coord[is][0])*x_scale;
+				yi = coord[is][1]*y_scale + y_offset;
+				xf = (max_x - coord[is][2])*x_scale;
+				yf = coord[is][3]*y_scale + y_offset;
+			}
+			else
+			{
+				xi = (coord[is][0] - min_x)*x_scale;
+				yi = coord[is][1]*y_scale + y_offset;
+				xf = (coord[is][2] - min_x)*x_scale;
+				yf = coord[is][3]*y_scale + y_offset;
+			}
+			// Get stroke points relative to text box origin
+			si.x = xi + xc;
+			sf.x = xf + xc;
+			si.y = yi;
+			sf.y = yf;
+			// rotate about text box origin
+			RotatePoint( &si, m_angle, zero );
+			RotatePoint( &sf, m_angle, zero );
+			// move origin of text box to position relative to part
+			si.x += m_x;
+			sf.x += m_x;
+			si.y += m_y;
+			sf.y += m_y;
+			// flip if part on bottom
+			if( part->side )
+				si.x = -si.x,
+				sf.x = -sf.x;
+			// rotate with part about part origin
+			RotatePoint( &si, part->angle, zero );
+			RotatePoint( &sf, part->angle, zero );
+			// add part's (x,y), then add stroke to array
+			stroke * s = &m_stroke[i];
+			s->w = m_stroke_width;
+			s->xi = part->x + si.x;
+			s->yi = part->y + si.y;
+			s->xf = part->x + sf.x;
+			s->yf = part->y + sf.y;
+			s->layer = layer;
+			// update bounding rectangle
+			ymin = min( ymin, s->yi - s->w );
+			ymin = min( ymin, s->yf - s->w );
+			ymax = max( ymax, s->yi + s->w );
+			ymax = max( ymax, s->yf + s->w );
+			xmin = min( xmin, s->xi - s->w );
+			xmin = min( xmin, s->xf - s->w );
+			xmax = max( xmax, s->xi + s->w );
+			xmax = max( xmax, s->xf + s->w );
+			// Next stroke...
+			i++;
+			if( i >= m_stroke.GetSize() )
+				m_stroke.SetSize( i + 100 );
+		}
+		if( nstrokes > 0 )
+			xc += (max_x - min_x + 8.0)*x_scale;
+		else
+			xc += 16.0*x_scale;
+	}
+
+	// Wrap up
+	m_stroke.SetSize( i );
+	m_br.left = xmin - m_stroke_width/2;
+	m_br.right = xmax + m_stroke_width/2;
+	m_br.bottom = ymin - m_stroke_width/2;
+	m_br.top = ymax + m_stroke_width/2;
+}
+
+
+int ctext::Draw() 
+{
+	CDisplayList *dl = doc->m_dlist;
+	if( !dl )
+		return NO_DLIST;
+	if( IsDrawn() )
+		Undraw();
+
+	GenerateStrokes();													// Fills m_stroke and m_br
+	// Now draw each stroke
+	for( int is=0; is<m_stroke.GetSize(); is++ )
+		m_stroke[is].dl_el = dl->AddMain( this, m_layer, 
+			DL_LINE, 1, m_stroke[is].w, 0, 0,
+			m_stroke[is].xi, m_stroke[is].yi, 
+			m_stroke[is].xf, m_stroke[is].yf, 0, 0 );
+	// draw selection rectangle for text
+	dl_sel = dl->AddSelector( this, m_layer, DL_HOLLOW_RECT, 1,	
+		0, 0, m_br.left, m_br.bottom, m_br.right, m_br.top, m_br.left, m_br.bottom );
+	return NOERR;
+}
+
+int ctext::DrawRelativeTo(cpart2 *part) 
+{
+	CDisplayList *dl = doc->m_dlist;
+	if( !dl )
+		return NO_DLIST;
+	if( IsDrawn() )
+		Undraw();
+
+	GenerateStrokesRelativeTo( part );													// Fills m_stroke and m_br
+	// Now draw each stroke
+	for( int is=0; is<m_stroke.GetSize(); is++ )
+		m_stroke[is].dl_el = dl->AddMain( this, m_stroke[is].layer, 
+			DL_LINE, 1, m_stroke[is].w, 0, 0,
+			m_stroke[is].xi, m_stroke[is].yi, 
+			m_stroke[is].xf, m_stroke[is].yf, 0, 0 );
+	// draw selection rectangle for text
+	dl_sel = dl->AddSelector( this, m_layer, DL_HOLLOW_RECT, 1,	
+		0, 0, m_br.left, m_br.bottom, m_br.right, m_br.top, m_br.left, m_br.bottom );
+	return NOERR;
+}
+
+void ctext::Undraw()
+{
+	CDisplayList *dl = doc->m_dlist;
+	if( !dl || !IsDrawn() ) return;
+
+	dl->Remove( dl_sel );
+	dl_sel = NULL;
+	for( int i=0; i<m_stroke.GetSize(); i++ )
+		dl->Remove( m_stroke[i].dl_el );
+	m_stroke.RemoveAll();
+	m_smfontutil = NULL;							// indicate that strokes have been removed.  CPT2 TODO Is this desirable?
+}
+
+void ctext::Highlight()
+{
+	CDisplayList *dl = doc->m_dlist;
+	if (!dl) return;
+	dl->Highlight( DL_HOLLOW_RECT, 
+		dl->Get_x(dl_sel), dl->Get_y(dl_sel),
+		dl->Get_xf(dl_sel), dl->Get_yf(dl_sel), 1 );
+}

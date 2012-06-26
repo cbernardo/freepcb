@@ -2188,7 +2188,7 @@ HENHMETAFILE CShape::CreateMetafile( CMetaFileDC * mfDC, CDC * pDC, CRect const 
 	int thickness = m_ref_w/NM_PER_MIL;
 	CPen ref_pen( PS_SOLID, thickness, C_RGB::yellow );
 	mfDC->SelectObject( &ref_pen );
-	SMFontUtil * smfontutil = ((CFreePcbApp*)AfxGetApp())->m_Doc->m_smfontutil;
+	SMFontUtil * smfontutil = ((CFreePcbApp*)AfxGetApp())->m_doc->m_smfontutil;
 	x_scale = (double)m_ref_size/22.0;
 	y_scale = (double)m_ref_size/22.0;
 	double y_offset = 9.0*y_scale;
@@ -2247,7 +2247,7 @@ HENHMETAFILE CShape::CreateMetafile( CMetaFileDC * mfDC, CDC * pDC, CRect const 
 		int thickness = t->m_stroke_width/NM_PER_MIL;
 		CPen text_pen( PS_SOLID, thickness, C_RGB::yellow );
 		mfDC->SelectObject( &text_pen );
-		SMFontUtil * smfontutil = ((CFreePcbApp*)AfxGetApp())->m_Doc->m_smfontutil;
+		SMFontUtil * smfontutil = ((CFreePcbApp*)AfxGetApp())->m_doc->m_smfontutil;
 		CString t_str = t->m_str;
 		x_scale = (double)t->m_font_size/22.0;
 		y_scale = (double)t->m_font_size/22.0;
@@ -2329,7 +2329,7 @@ HENHMETAFILE CShape::CreateMetafile( CMetaFileDC * mfDC, CDC * pDC, CRect const 
 //
 HENHMETAFILE CShape::CreateMetafile( CMetaFileDC * mfDC, CDC * pDC, int x_size, int y_size )
 {
-	CFreePcbDoc * theDoc = ((CFreePcbApp*)AfxGetApp())->m_Doc;
+	CFreePcbDoc * theDoc = ((CFreePcbApp*)AfxGetApp())->m_doc;
 	CDisplayList * dlist_fp = theDoc->m_dlist_fp;
 
 	// get bounds of shape
@@ -2797,7 +2797,7 @@ HENHMETAFILE CShape::CreateMetafile( CMetaFileDC * mfDC, CDC * pDC, int x_size, 
 
 		CPen this_pen( PS_SOLID, this_thickness, this_color );
 		mfDC->SelectObject( &this_pen );
-		SMFontUtil * smfontutil = ((CFreePcbApp*)AfxGetApp())->m_Doc->m_smfontutil;
+		SMFontUtil * smfontutil = ((CFreePcbApp*)AfxGetApp())->m_doc->m_smfontutil;
 		x_scale = (double)this_size/22.0;
 		y_scale = (double)this_size/22.0;
 		double y_offset = 9.0*y_scale;

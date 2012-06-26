@@ -299,8 +299,7 @@ public:
 	int CancelHighlight();
 	// CPT r294.  Changed args quite a bit:  exclude-ids are out; hit_info is now a CArray; new bCtrl param added (depends on ctrl-key state).
 	// Now always sorts hit_info, and returns the number of hits, not the highest-priority index.
-	int TestSelect( int x, int y, CArray<CHitInfo> *hit_info,
-					id * include_id, int n_include_ids, bool bCtrl = false );
+	int TestSelect( int x, int y, CArray<CHitInfo> *hit_info, int maskBits, bool bCtrl = false );		// CPT2.  New mask bit system.
 	int StartDraggingArray( CDC * pDC, int x, int y, int vert, int layer, int crosshair = 1 );
 	int StartDraggingRatLine( CDC * pDC, int x, int y, int xf, int yf, int layer,
 		int w, int crosshair = 1 );

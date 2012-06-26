@@ -41,6 +41,7 @@
 #include "DlgAddGridVal.h"
 #include "DlgExportOptions.h"	// CPT
 #include "PartListNew.h"		// CPT2
+#include "TextListNew.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -148,16 +149,11 @@ CFreePcbDoc::CFreePcbDoc()
 		m_pcbu_per_wu = 2540;		// if Win2000 or XP or vista
 	m_dlist = new CDisplayList( m_pcbu_per_wu, m_smfontutil );
 	m_dlist_fp = new CDisplayList( m_pcbu_per_wu, m_smfontutil );
-#ifdef CPT2
 	m_plist = new cpartlist( this );
 	m_nlist = new cnetlist( this );
-#else
-	m_plist = new CPartList( m_dlist );
-	m_nlist = new CNetList( m_dlist, m_plist, this );
-#endif
 	m_plist->UseNetList( m_nlist );
 	m_plist->SetShapeCacheMap( &m_footprint_cache_map );
-	m_tlist = new CTextList( m_dlist, m_smfontutil );
+	m_tlist = new ctextlist( this, m_smfontutil );
 	m_drelist = new DRErrorList;
 #ifndef CPT2
 	m_drelist->SetLists( m_plist, m_nlist, m_dlist );
@@ -170,7 +166,7 @@ CFreePcbDoc::CFreePcbDoc()
 	m_project_modified_since_autosave = FALSE;
 	m_footprint_modified = FALSE;
 	m_footprint_name_changed = FALSE;
-	theApp.m_Doc = this;
+	theApp.m_doc = this;
 	m_undo_list = new CUndoList( 10000 );
 	m_redo_list = new CUndoList( 10000 );
 	this_Doc = this;
@@ -4760,23 +4756,16 @@ void CFreePcbDoc::FileLoadLibrary( LPCTSTR pathname )
 			p = (LPCSTR)key;
 			shape = (CShape*)ptr;
 			ref.Format( "LIB_%d", i );
-#ifdef CPT2
 			cpart2 * part = m_plist->Add( shape, &ref, NULL, x, y, 0, 0, 1, 0, 1 );
-#else
-			cpart * part = m_plist->Add( shape, &ref, NULL, x, y, 0, 0, 1, 0, 1 );
-#endif
 			// get bounding rectangle of pads and outline
 			CRect shape_r = part->shape->GetBounds();
 			int height = shape_r.top - shape_r.bottom;
 			int width = shape_r.right - shape_r.left;
 			// get dimensions of bounding rectangle for value text
-#ifdef CPT2
+			int refStroke = part->m_ref->m_stroke_width, refFontSz = part->m_ref->m_font_size;
 			part->SetValue( &shape->m_name,
-#else
-			m_plist->SetValue( part, &shape->m_name, 
-#endif
-				shape_r.left, shape_r.top + part->m_ref_w, 0, 
-				part->m_ref_size, part->m_ref_w, 1, LAY_SILK_TOP );
+				shape_r.left, shape_r.top + refStroke, 0, 
+				refFontSz, refStroke, 1, LAY_SILK_TOP );
 			CRect vr = part->GetValueRect();
 			int value_width = vr.right - vr.left;
 			// see if we can fit part between x and 8 inches
@@ -4790,17 +4779,17 @@ void CFreePcbDoc::FileLoadLibrary( LPCTSTR pathname )
 				max_height = 0;
 			}
 			// move part so upper-left corner is at x,y
-			part->Move( x - shape_r.left, y - shape_r.top - 2*part->m_ref_size, 0, 0 );
+			part->Move( x - shape_r.left, y - shape_r.top - 2*refFontSz, 0, 0 );
 			// make ref invisible
-			part->ResizeRefText( part->m_ref_size, part->m_ref_w, 0 );
+			part->ResizeRefText( refFontSz, refStroke, 0 );
 			// move value to top of part
 			part->SetValue( &shape->m_name, 
-				shape_r.left, shape_r.top + part->m_ref_w, 0, 
-				part->m_ref_size, part->m_ref_w, 1, part->m_ref_layer );
+				shape_r.left, shape_r.top + refStroke, 0, 
+				refFontSz, refStroke, 1, part->m_ref->m_layer );
 			part->Draw( );
 			i++;
 			x += max_width + 200*NM_PER_MIL;	// step right .2 inches
-			max_height = max( max_height, height + 2*part->m_ref_size );
+			max_height = max( max_height, height + 2*refFontSz );
 		}
 		if( m_pcb_filename.Right(4) == ".fpl" )
 		{

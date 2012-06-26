@@ -22,6 +22,7 @@
 //#include "QAFDebug.h"
 #include "PcbItem.h"
 #include "NetListNew.h"
+#include "TextListNew.h"
 
 class CFreePcbDoc;
 class CFreePcbView;
@@ -137,15 +138,15 @@ public:
 	CDisplayList * m_dlist;		// display list
 	CDisplayList * m_dlist_fp;	// display list for footprint editor
 	SMFontUtil * m_smfontutil;	// Hershey font utility
-	cnetlist *m_nlist;				// CPT2.  Was CNetList, now cnetlist
-	cpartlist *m_plist;				// CPT2.  Was CPartList, now cpartlist
-	CTextList * m_tlist;		// text list.	CPT2 TODO.  Convert to "ctextlist"
+	cnetlist *m_nlist;			// CPT2.  Was CNetList, now cnetlist
+	cpartlist *m_plist;			// CPT2.  Was CPartList, now cpartlist
+	ctextlist * m_tlist;		// CPT2.  Was CTextList, now ctextlist
 	CMapStringToPtr m_footprint_cache_map;	// map of footprints cached in memory
 	CFreePcbView * m_view;		// pointer to CFreePcbView 
 	int m_file_close_ret;		// return value from OnFileClose() dialog
 	CFootLibFolderMap m_footlibfoldermap;
 	CDlgLog * m_dlg_log;
-	DRErrorList * m_drelist;		// CPT2 TODO: change carray<cdrc>
+	DRErrorList * m_drelist;		// CPT2 TODO: change to drelist
 	CArray<CPolyLine> m_sm_cutout;	// array of soldermask cutouts. // CPT2 TODO:  change to carray<csmcutout>
 	carray<cpcb_item> items;		// CPT2.  Master list of all created pcb-items.  GarbageCollect() will go through this list and clean up now and then.
 	carray<cpcb_item> others;		// CPT2.  All active pcb-items that belong to "other" categories (not net-items, part-items, or texts)

@@ -45,7 +45,7 @@ class creftext;
 class cvaluetext;
 class ccentroid;
 class cadhesive;
-class cdrc;
+class cdre;
 
 class undo_con;
 class undo_seg;
@@ -65,7 +65,7 @@ enum typebits {
 	bitPinVtx =			0x2,
 	bitTraceVtx =		0x4,
 	bitTeeVtx =			0x8,
-	bitTee =			0x10,
+	bitTee =			0x10,			// Only returned by GetTypeBit() for non-vias (tees with vias produce a bitVia).
 	bitSeg =			0x20,
 	bitConnect =		0x40,
 	bitPin =			0x80,
@@ -89,7 +89,7 @@ enum typebits {
 	bitValueText =		0x2000000,
 	bitCentroid =		0x4000000,		// Fp editor only...
 	bitAdhesive =		0x8000000,		// Fp editor only...
-	bitDRC =			0x10000000,
+	bitDRE =			0x10000000,
 	bitOther =			0x80000000,
 	bitsNetItem = bitVia | bitPinVtx | bitTraceVtx | bitTeeVtx | bitTee | bitSeg | bitConnect |
 				  bitAreaCorner | bitAreaSide | bitArea,
@@ -123,7 +123,7 @@ class cpcb_item
 	friend class carray<cvaluetext>;
 	friend class carray<ccentroid>;
 	friend class carray<cadhesive>;
-	friend class carray<cdrc>;
+	friend class carray<cdre>;
 
 	carray_link *carray_list;	// List of carray's into which this item has been added
 	int m_uid;
@@ -182,7 +182,7 @@ public:
 	virtual bool IsValueText() { return false; }
 	virtual bool IsCentroid() { return false; }
 	virtual bool IsAdhesive() { return false; }
-	virtual bool IsDRC() { return false; }
+	virtual bool IsDRE() { return false; }
 
 	virtual int GetTypeBit() { return 0; }				// See "enum typebits" above for return values from the various derived classes
 	bool IsPartItem() { return (GetTypeBit() & bitsNetItem) != 0; }
@@ -210,7 +210,7 @@ public:
 	virtual cvaluetext *ToValueText() { return NULL; }
 	virtual ccentroid *ToCentroid() { return NULL; }
 	virtual cadhesive *ToAdhesive() { return NULL; }
-	virtual cdrc *ToDRC() { return NULL; }
+	virtual cdre *ToDRE() { return NULL; }
 };
 
 class carray_link
@@ -242,7 +242,7 @@ class carray_link
 	friend class carray<cvaluetext>;
 	friend class carray<ccentroid>;
 	friend class carray<cadhesive>;
-	friend class carray<cdrc>;
+	friend class carray<cdre>;
 
 	void *arr;									// Really a carray<T> pointer, for some T.
 	int off;
@@ -520,14 +520,10 @@ public:
 
 	cvertex2(cconnect2 *c, int _x=0, int _y=0);				// CPT2 Added args. Done in cpp
 	~cvertex2()
-	{
-	}
+		{ }
 
-	// cvertex2 &operator=( const cvertex2 &v );  // assignment	
-	// cvertex2 &operator=( cvertex2 &v );		// assignment
-	// void Initialize( cconnect2 * c );			// Move to constructor
 	bool IsVertex() { return true; }
-	bool IsVia() { return via_w>=0; }
+	bool IsVia();											// Done in cpp
 	bool IsSlaveVtx() { return tee!=NULL; }
 	bool IsPinVtx() { return pin!=NULL; }
 	bool IsEndVtx() { return (!preSeg || !postSeg) && !pin && !tee; }
@@ -535,7 +531,7 @@ public:
 	cvertex2 *ToVertex() { return this; }
 	int GetTypeBit()
 	{ 
-		if (via_w>0) return bitVia;
+		if (IsVia()) return bitVia;
 		if (pin) return bitPinVtx;
 		if (tee) return bitTeeVtx;							// NB tee-vertices will typically NOT be selectable, but tees will.
 		return bitTraceVtx;
@@ -758,6 +754,88 @@ public:
 
 
 /**********************************************************************************************/
+/*  RELATED TO ctext                                                                     */
+/**********************************************************************************************/
+
+class ctext: public cpcb_item
+{
+public:
+	int m_x, m_y;
+	int m_layer;
+	int m_angle;
+	bool m_bMirror;
+	bool m_bNegative;
+	int m_font_size;
+	int m_stroke_width;
+	// int m_nchars;					// CPT2 Ditched
+	CString m_str;
+	CArray<stroke> m_stroke;
+	CRect m_br;							// CPT2 added.  Bounding rectangle
+	// CDisplayList * m_dlist;			// CPT2 use doc->m_dlist (?)
+	SMFontUtil * m_smfontutil;
+
+	ctext( CFreePcbDoc *_doc, int _x, int _y, int _angle, 
+		BOOL _bMirror, BOOL _bNegative, int _layer, int _font_size, 
+		int _stroke_width, SMFontUtil *_smfontutil, CString * _str );
+	~ctext();
+
+	bool IsText() { return true; }
+	ctext *ToText() { return this; }
+	int GetTypeBit() { return bitText; }
+
+	void Init( CDisplayList * dlist, int x, int y, int angle,					// TODO: rethink relationship with constructor. Removed tid arg.
+		int mirror, BOOL bNegative, int layer, int font_size, 
+		int stroke_width, SMFontUtil * smfontutil, CString * str_ptr );
+
+	// void Draw( CDisplayList * dlist, SMFontUtil * smfontutil );				// CPT2.  Probably dispensible
+	void GenerateStrokes();														// CPT2 new.  Helper for Draw().
+	int Draw();																	// Done in cpp
+	void GenerateStrokesRelativeTo( cpart2 *p);									// CPT2 new.  Helper for DrawRelativeTo().
+	int DrawRelativeTo( cpart2 *p );											// CPT2 new.  Done in cpp
+	void Undraw();																// Done in cpp
+	void Highlight();															// Done in cpp
+	void StartDragging( CDC * pDC );
+	void CancelDragging();
+	void Move( int x, int y, int angle, BOOL mirror, BOOL negative, int layer, int size=-1, int w=-1 );
+	void Move( int x, int y, int angle, int size=-1, int w=-1);					// CPT added.  Used when moving ref/value texts
+	// void GetBounds( CRect &br );												// CPT2.  Use new m_br
+};
+
+class creftext: public ctext
+{
+public:
+	creftext( CFreePcbDoc * doc, int x, int y, int angle, 
+		BOOL bMirror, BOOL bNegative, int layer, int font_size, 
+		int stroke_width, SMFontUtil * smfontutil, CString * str_ptr ) :
+			ctext(doc, x, y, angle, bMirror, bNegative, layer, font_size,
+				stroke_width, smfontutil, str_ptr) 
+			{ }
+	bool IsText() { return false; }
+	bool IsRefText() { return true; }
+	ctext *ToText() { return NULL; }
+	creftext *ToRefText() { return this; }
+	int GetTypeBit() { return bitRefText; }
+};
+
+class cvaluetext: public ctext
+{
+public:
+	cvaluetext( CFreePcbDoc * doc, int x, int y, int angle, 
+		BOOL bMirror, BOOL bNegative, int layer, int font_size, 
+		int stroke_width, SMFontUtil * smfontutil, CString * str_ptr ) :
+			ctext(doc, x, y, angle, bMirror, bNegative, layer, font_size,
+				stroke_width, smfontutil, str_ptr) 
+			{ }
+	bool IsText() { return false; }
+	bool IsValueText() { return true; }
+	ctext *ToText() { return NULL; }
+	cvaluetext *ToValueText() { return this; }
+	int GetTypeBit() { return bitValueText; }
+};
+
+
+
+/**********************************************************************************************/
 /*  RELATED TO cpin2/cpart2                                                                     */
 /**********************************************************************************************/
 
@@ -807,31 +885,35 @@ public:
 	int x,y;			// position of part origin on board
 	int side;			// 0=top, 1=bottom
 	int angle;			// orientation, degrees CW
-	BOOL glued;			// 1=glued in place
+	BOOL glued;
+
+	CString ref_des;	// ref designator such as "U3"
 	BOOL m_ref_vis;		// TRUE = ref shown
-	// CPT2 TODO replace all the following with a single creftext and cvaluetext??
-	int m_ref_xi;		// ref text params (relative to part)
-	int m_ref_yi;	
-	int m_ref_angle; 
-	int m_ref_size;
-	int m_ref_w;
-	int m_ref_layer;	// layer if part is on top	
+	// int m_ref_xi;	// CPT2 Replaced by m_ref members..
+	// int m_ref_yi;	
+	// int m_ref_angle; 
+	// int m_ref_size;
+	// int m_ref_w;
+	// int m_ref_layer;	// layer if part is on top	
+	creftext *m_ref;	// CPT2 added. It's convenient to have an object for the ref-text on which we can invoke ctext methods.
+						// Note that m_ref.m_x, m_ref.m_y, etc. will be _relative_ parameters
+	CString value_text;
 	BOOL m_value_vis;	// TRUE = value shown
-	int m_value_xi;		// value text params (relative to part)
-	int m_value_yi; 
-	int m_value_angle; 
-	int m_value_size; 
-	int m_value_w;
-	int m_value_layer;	// layer if part is on top
+	// int m_value_xi;	// CPT2 Replaced by m_value members
+	// int m_value_yi; 
+	// int m_value_angle; 
+	// int m_value_size; 
+	// int m_value_w;
+	// int m_value_layer;	// layer if part is on top
+	cvaluetext *m_value; // CPT2 added.  Analogous to m_ref
+
 	// In base: dl_element * dl_sel;		// pointer to display list element for selection rect
-	CString ref_des;			// ref designator such as "U3"
-	dl_element * dl_ref_sel;	// pointer to selection rect for ref text 
-	CString value;				// "value" string
-	dl_element * dl_value_sel;	// pointer to selection rect for value 
+	//dl_element * dl_ref_sel;	// pointer to selection rect for ref text // CPT2 use m_ref.dl_sel
+	//dl_element * dl_value_sel;	// pointer to selection rect for value // CPT2 use m_value.dl_sel
 	CString package;			// package (from original imported netlist, may be "")
 	class CShape * shape;				// pointer to the footprint of the part, may be NULL
-	CArray<stroke> ref_text_stroke;		// strokes for ref. text // TODO CArray or carray?
-	CArray<stroke> value_stroke;		// strokes for ref. text
+	// CArray<stroke> ref_text_stroke;		// strokes for ref. text.  Use m_ref.m_stroke
+	// CArray<stroke> value_stroke;		// strokes for ref. text.  Use m_value.m_stroke
 	CArray<stroke> m_outline_stroke;	// array of outline strokes
 
 	// drc info
@@ -845,8 +927,9 @@ public:
 	// flag used for importing
 	BOOL bPreserve;	// preserve connections to this part
 
-	cpart2( cpartlist * pl );			// In cpp.  CPT2 TODO.  Will probably add more args...
-	~cpart2();
+	cpart2( cpartlist * pl );			// In cpp.
+	~cpart2()
+		{ delete m_ref; delete m_value; }
 
 	bool IsPart() { return true; }
 	cpart2 *ToPart() { return this; }
@@ -855,23 +938,23 @@ public:
 
 	void Move( int x, int y, int angle, int side );													// Done in cpp, derived from CPartList::Move
 
-	void SetData( CShape * shape, CString * ref_des, CString * package, 
-	     		  int x, int y, int side, int angle, int visible, int glued, bool ref_vis );		// Done in cpp, Derived from CPartList::SetPartData
+	void SetData( CShape * shape, CString * ref_des, CString *value_txt, CString * package, 
+	     		  int x, int y, int side, int angle, int visible, int glued );		// Done in cpp, Derived from CPartList::SetPartData
 	void SetValue( CString * value, int x, int y, int angle, int size, 
-				  int w, BOOL vis, int layer );														// Done in cpp, Derived from CPartList::SetValue
-	void ResizeRefText(int size, int width, BOOL vis );												// Done in cpp, derived from CPartList::ResizeRefText()
+				  int w, BOOL vis, int layer );													// Done in cpp, Derived from CPartList::SetValue
+	void ResizeRefText(int size, int width, BOOL vis );											// Done in cpp, derived from CPartList::ResizeRefText()
 	void InitPins();																				// Done in cpp. Basically all new
 
 	// cpin2 * PinByUID( int uid );		// CPT2. Use pins.FindByUID().
-	int GetNumRefStrokes();
-	int GetNumValueStrokes();
+	// int GetNumRefStrokes();			// CPT2. Use m_ref.m_stroke.GetSize()
+	// int GetNumValueStrokes();		// CPT2. Use m_value.m_stroke.GetSize()
 	int GetNumOutlineStrokes();
 	void OptimizeConnections( BOOL bBelowPinCount, int pin_count, BOOL bVisibleNetsOnly=TRUE );	// CPT2 TODO:  derive from old CNetList function
 	CPoint GetCentroidPoint();			// CPT2 TODO derive from CPartList::GetCentroidPoint
 	CPoint GetGluePoint( int iglue );	// CPT2 TODO derive from CPartList::GetGluePoint()
 	void SetAreaConnections();			// CPT2 TODO derive from CNetList::SetAreaConnections() ?
 	CRect GetValueRect();				// Done in cpp.  Derived from CPartList func.
-
+	int GetBoundingRect( CRect * part_r );  // Done in cpp. Derived from CPartList::GetPartBoundingRect()
 
 	int Draw();							// Done in cpp
 	void Undraw();						// Done in cpp
@@ -902,8 +985,8 @@ public:
 	bool IsOutlineCorner(); 							// Done in cpp
 	ccorner *ToCorner() { return this; }
 	int GetTypeBit();									// Done in cpp
-	void Highlight() { }			// CPT2 TODO. Derive from old CPolyLine::HighlightCorner().  See also CNetList::HighlightAreaCorner.
-	void Move( int x, int y );		// CPT2 TODO. Derive from CNetList::MoveAreaCorner (et al?)
+	void Highlight();									// Done in cpp, derived from old CPolyLine::HighlightCorner().  See also CNetList::HighlightAreaCorner.
+	void Move( int x, int y );							// CPT2 TODO. Derive from CNetList::MoveAreaCorner (et al?)
 
 };
 
@@ -926,7 +1009,7 @@ public:
 	cside *ToSide() { return this; }
 	int GetTypeBit();
 
-	void Highlight() { }	// CPT2 TODO. Derive from cpolyline::HighlightSide()
+	void Highlight();		// Done in cpp, derived from cpolyline::HighlightSide()
 	void SetVisible();		// CPT2
 	bool IsOnCutout();		// Done in cpp
 	void SetStyle();
@@ -1018,6 +1101,7 @@ public:
 	int Draw( /* CDisplayList * dl = NULL */ );													// Done in cpp CPT2 TODO Think about the arg
 	void Undraw();																				// Done in cpp
 	void Hatch();																				// Done in cpp
+	void Highlight();																			// Done in cpp
 	void MakeVisible( BOOL visible = TRUE );
 	void MoveOrigin( int x_off, int y_off );
 	// void SetSideVisible( int is, int visible );  // Use cside::SetVisible()
@@ -1083,12 +1167,6 @@ public:
 	void SetHatch( int hatch )
 		{ Undraw(); m_hatch = hatch; Draw(); };
 	void SetDisplayList( CDisplayList * dl );
-	void Highlight()													// CPT2 Derives from old CNetList::HighlightAreaSides
-	{
-		citer<ccontour> ic (&contours);
-		for (ccontour *c = ic.First(); c; c = ic.Next())
-			c->Highlight();
-	}
 	void Offset(int dx, int dy);
 
 	// GPC functions
@@ -1122,7 +1200,7 @@ public:
 	// carray<cvertex2> vtx;			// Ditto
 	int utility2;
 
-	carea2(cnet2 *_net, int layer, int hatch);					// Done in cpp
+	carea2(cnet2 *_net, int layer, int hatch, int w, int sel_box);	// Done in cpp
 	~carea2();						
 
 	// void Initialize( CDisplayList * dlist, cnet2 * net );		// TODO Rethink relationship to constructor??
@@ -1294,93 +1372,8 @@ public:
 
 
 /**********************************************************************************************/
-/*  OTHERS: ctext, cadhesive, ccentroid                                                       */
+/*  OTHERS: cadhesive, ccentroid                                                       */
 /**********************************************************************************************/
-
-class ctext: public cpcb_item
-{
-public:
-	int m_x, m_y;
-	int m_layer;
-	int m_angle;
-	bool m_bMirror;
-	bool m_bNegative;
-	int m_font_size;
-	int m_stroke_width;
-	int m_nchars;						// CPT2 TODO. Ditch?
-	CString m_str;
-	CArray<stroke> m_stroke;
-	// CDisplayList * m_dlist;			// CPT2 use doc->m_dlist (?)
-	dl_element * dl_sel;
-	SMFontUtil * m_smfontutil;
-
-
-	ctext( CFreePcbDoc *_doc, int _x, int _y, int _angle, 
-		BOOL _bMirror, BOOL _bNegative, int _layer, int _font_size, 
-		int _stroke_width, SMFontUtil *_smfontutil, CString * _str )			// CPT2 Removed selType/selSubtype args.  Will use derived creftext and cvaluetext
-		: cpcb_item (_doc)														// classes in place of this business.
-	{
-		m_x = _x, m_y = _y;
-		m_angle = _angle;
-		m_bMirror = _bMirror; m_bNegative = _bNegative;
-		m_layer = _layer;
-		m_font_size = _font_size;
-		m_stroke_width = _stroke_width;
-		m_smfontutil = _smfontutil;
-		m_str = *_str;
-		m_nchars = m_str.GetLength();
-	}
-	~ctext();
-
-	bool IsText() { return true; }
-	ctext *ToText() { return this; }
-	int GetTypeBit() { return bitText; }
-
-	void Init( CDisplayList * dlist, int x, int y, int angle,					// TODO: rethink relationship with constructor. Removed tid arg.
-		int mirror, BOOL bNegative, int layer, int font_size, 
-		int stroke_width, SMFontUtil * smfontutil, CString * str_ptr );
-	void Draw( CDisplayList * dlist, SMFontUtil * smfontutil );
-	int Draw() { return NOERR; }												// TODO
-	void Undraw() { }															// TODO
-	void Highlight() { }														// TODO
-	void StartDragging( CDC * pDC );
-	void CancelDragging();
-	void Move( int x, int y, int angle, BOOL mirror, BOOL negative, int layer, int size=-1, int w=-1 );
-	void Move( int x, int y, int angle, int size=-1, int w=-1);											// CPT added.  Used when moving ref/value texts
-	void GetBounds( CRect &br );
-};
-
-class creftext: public ctext
-{
-public:
-	creftext( CFreePcbDoc * doc, int x, int y, int angle, 
-		BOOL bMirror, BOOL bNegative, int layer, int font_size, 
-		int stroke_width, SMFontUtil * smfontutil, CString * str_ptr ) :
-			ctext(doc, x, y, angle, bMirror, bNegative, layer, font_size,
-				stroke_width, smfontutil, str_ptr) 
-			{ }
-	bool IsText() { return false; }
-	bool IsRefText() { return true; }
-	ctext *ToText() { return NULL; }
-	creftext *ToRefText() { return this; }
-	int GetTypeBit() { return bitRefText; }
-};
-
-class cvaluetext: public ctext
-{
-public:
-	cvaluetext( CFreePcbDoc * doc, int x, int y, int angle, 
-		BOOL bMirror, BOOL bNegative, int layer, int font_size, 
-		int stroke_width, SMFontUtil * smfontutil, CString * str_ptr ) :
-			ctext(doc, x, y, angle, bMirror, bNegative, layer, font_size,
-				stroke_width, smfontutil, str_ptr) 
-			{ }
-	bool IsText() { return false; }
-	bool IsValueText() { return true; }
-	ctext *ToText() { return NULL; }
-	cvaluetext *ToValueText() { return this; }
-	int GetTypeBit() { return bitValueText; }
-};
 
 class ccentroid : public cpcb_item
 {
@@ -1408,7 +1401,7 @@ public:
 	int GetTypeBit() { return bitAdhesive; }
 };
 
-class cdrc : public cpcb_item
+class cdre : public cpcb_item
 {
 public:
 	// Represents Design Rule Check error items.  Incorporates old class DRError
@@ -1458,12 +1451,12 @@ public:
 	cpcb_item *item1, *item2;	// ids of items tested
 	int x, y;					// position of error
 
-	cdrc(CFreePcbDoc *_doc) 
+	cdre(CFreePcbDoc *_doc) 
 		: cpcb_item(_doc)
 		{ }
-	~cdrc() { }
-	bool IsDRC() { return true; }
-	cdrc *ToDRC() { return this; }
-	int GetTypeBit() { return bitDRC; }
+	~cdre() { }
+	bool IsDRE() { return true; }
+	cdre *ToDRE() { return this; }
+	int GetTypeBit() { return bitDRE; }
 };
 
