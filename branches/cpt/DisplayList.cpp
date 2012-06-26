@@ -956,17 +956,14 @@ int CompareHits(const CHitInfo *h1, const CHitInfo *h2) {
 // CPT2.  Now fills the CHitInfo::item member.  TODO will dump ID and ptr elements eventually.
 // Creates array hit_info containing layer and id of each hit item
 //   and also priority and distance values from (x,y).  
-// If include_id != NULL, only include items that match include_id[]
-//   where n_include_ids is size of array, and
-//   where -1's in include_id[] fields are treated as wildcards.
-// CPT2 TODO include_id business will be replaced by bitmasks.
+// CPT2.  Selection mask is implemented by looking at argument maskBits.  If a given item returns a GetTypeBit() that is part of the mask, it
+//   is allowed for selection.
 // New arg bCtrl is true if user is currently ctrl-clicking.  In that case we exclude e.g. vertices and ratlines, which can't belong to groups.
 // Function now always sorts hit_info.  Return value is now the number of elements in hit_info.
 //
 // CPT: also removed references to Brian's CDL_job classes, and tidied up.
 
-int CDisplayList::TestSelect( int x, int y, CArray<CHitInfo> *hit_info,
-	id * include_id, int n_include_ids, bool bCtrl )
+int CDisplayList::TestSelect( int x, int y, CArray<CHitInfo> *hit_info, int maskBits, bool bCtrl )
 {
 	if(!m_vis[LAY_SELECTION] ) return -1;				// CPT: irrelevant??
 
@@ -981,60 +978,30 @@ int CDisplayList::TestSelect( int x, int y, CArray<CHitInfo> *hit_info,
 	// Now cull the array out based on include_id and other criteria.  Put the winners from hit_info0 into hit_info.
 	for( int i=0; i<num_hits; i++ )
 	{
-		// if a pcb item (ie. not a footprint ) try to resolve all id fields of the item that was hit
-		CHitInfo this_hit = hit_info0[i];
-#ifndef CPT2
-		id id0 = this_hit.ID;
-		if( !this_hit.ID.IsAnyFootItem() )
-		{
-			BOOL bOK = this_hit.ID.Resolve();
-			if( !bOK )
-				ASSERT(0);
-		}
-
-		// now check inclusion/exclusion criteria.
-		// always exclude hits on slaved tee-vertices 
-		if( this_hit.ID.IsVtx() )
-			if( this_hit.ID.Vtx()->tee_ID < 0 )
+		CHitInfo *this_hit = &hit_info0[i];
+		cpcb_item *this_item = this_hit->item;
+		if (bCtrl && !this_item->IsSelectableForGroup()) 
 				continue;
-		// test for explicit inclusions
-		BOOL included_hit = TRUE;
-		if( include_id )
-		{
-			included_hit = FALSE;
-			for( int inc=0; inc<n_include_ids; inc++ )
-			{
-				id * inc_id = &include_id[inc];
-				if( this_hit.ID == *inc_id )	 // note that == includes wildcards
-				{
-					included_hit = TRUE;
-					break;
-				}
-			}
-		}
-		if (!included_hit) continue;
-#endif
-		if (bCtrl)
-			if (!this_hit.item->IsSelectableForGroup()) continue;
+		if (!(this_item->GetTypeBit() & maskBits)) 
+			continue;
 
 		// OK, valid hit, now add to final array hit_info, and assign priority
 		// start with reversed layer drawing order * 10
 		// i.e. last drawn = highest priority
-		hit_info->Add(this_hit);
-		int priority = (MAX_LAYERS - m_order_for_layer[this_hit.layer])*10;
+		hit_info->Add(*this_hit);
+		int priority = (MAX_LAYERS - m_order_for_layer[this_hit->layer])*10;
+
 		// bump priority for small items which may be overlapped by larger items on same layer
-		if( this_hit.ID.T1() == ID_PART && this_hit.ID.T2() == ID_REF_TXT && this_hit.ID.T3() == ID_SEL_REF_TXT )
+		if (this_item->IsRefText())
+			priority++; 
+		else if (this_item->IsValueText())
 			priority++;
-		else if( this_hit.ID.T1() == ID_PART && this_hit.ID.T2() == ID_VALUE_TXT && this_hit.ID.T3() == ID_SEL_VALUE_TXT )
+		else if	(this_item->IsCorner())
 			priority++;
-		else if( this_hit.ID.T1() == ID_BOARD && this_hit.ID.T2() == ID_OUTLINE && this_hit.ID.T3() == ID_SEL_CORNER )
-			priority++;
-		else if( this_hit.ID.T1() == ID_NET && this_hit.ID.T2() == ID_AREA && this_hit.ID.T3() == ID_SEL_CORNER )
-			priority++;
-		else if( this_hit.ID.T1() == ID_NET && this_hit.ID.T2() == ID_CONNECT && this_hit.ID.T3() == ID_SEL_VERTEX )
+		else if ((this_item->IsVertex() || this_item->IsTee()) &&! this_item->IsVia())
 			priority++;
 
-		this_hit.priority = priority;
+		this_hit->priority = priority;
 	}
 
 	// Sort output array and return.

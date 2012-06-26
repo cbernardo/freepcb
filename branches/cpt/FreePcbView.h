@@ -364,6 +364,7 @@ public:
 	DRError * m_sel_dre;	// pointer to DRC error, if selected
 	CArray<id> m_sel_ids;	// array of multiple selections
 	CArray<void*> m_sel_ptrs;	// array of pointers to selected items
+	static int sel_mask_btn_bits[16];	// CPT2.  New system for masking selections.  Each left-pane button corresponds to 1+ bits for types of pcb-items...
 
 	// highlight flags
 	bool m_bNetHighlighted;	// current net is highlighted (not selected)
@@ -647,19 +648,19 @@ public:
 	// CPT:  virtual functions from CCommonView:
 	bool IsFreePcbView() { return true; }
 	void SetDList()
-		{ m_dlist = m_Doc->m_dlist; }
+		{ m_dlist = m_doc->m_dlist; }
 	int GetNLayers()
-		{ return m_Doc->m_num_layers; }
+		{ return m_doc->m_num_layers; }
 	int GetTopCopperLayer() 
 		{ return LAY_TOP_COPPER; }
 	int GetLayerRGB(int layer, int i) 
-		{ return m_Doc->m_rgb[layer][i]; }
+		{ return m_doc->m_rgb[layer][i]; }
 	int GetLayerVis(int layer)
-		{ return m_Doc->m_vis[layer]; }
+		{ return m_doc->m_vis[layer]; }
 	int GetLayerNum(int i) {
 		// Given a line-number within the left pane, return the actual layer num
 		// (may differ for copper layers)
-		if( i == GetNLayers()-1 && m_Doc->m_num_copper_layers > 1 )
+		if( i == GetNLayers()-1 && m_doc->m_num_copper_layers > 1 )
 			return LAY_BOTTOM_COPPER;
 		if( i > LAY_TOP_COPPER )
 			return i+1;
@@ -687,19 +688,16 @@ public:
 			label.LoadStringA(IDS_LayerStr+i);
 		}
 	int ToggleLayerVis(int i)
-		{ return m_Doc->m_vis[i] = !m_Doc->m_vis[i]; }
+		{ return m_doc->m_vis[i] = !m_doc->m_vis[i]; }
 	int GetLeftPaneKeyID() { return IDS_LeftPaneKey; }
 	int GetNMasks() { return NUM_SEL_MASKS; }
 	int GetMaskNamesID() { return IDS_SelMaskStr; }
+	int GetMaskBtnBits(int i) { return sel_mask_btn_bits[i]; }
 
 	void HandleShiftLayerKey(int layer, CDC *pDC);
 	void HandleNoShiftLayerKey(int layer, CDC *pDC);
 };
 // end CPT
 
-/////////////////////////////////////////////////////////////////////////////
-
-//{{AFX_INSERT_LOCATION}}
-// Microsoft Visual C++ will insert additional declarations immediately before the previous line.
 
 #endif // !defined(AFX_FREEPCBVIEW_H__BE1CA173_E2B9_4252_8422_0B9767B01566__INCLUDED_)

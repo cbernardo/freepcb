@@ -329,7 +329,7 @@ void CText::GetBounds( CRect &br ) {
 	// give it the default value from the document.   In general dealing with m_smfontutil feels like a bit of a charade, since as far as I 
 	// have seen it never varies, but I suppose one day it might...???
 	if (!m_smfontutil) 
-		m_smfontutil = ((CFreePcbApp*)AfxGetApp())->m_Doc->m_smfontutil;
+		m_smfontutil = ((CFreePcbApp*)AfxGetApp())->m_doc->m_smfontutil;
 	if (m_stroke.GetSize()==0) 
 		Draw(0, m_smfontutil);
 	for( int is=0; is<m_stroke.GetSize(); is++ )

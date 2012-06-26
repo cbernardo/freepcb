@@ -314,7 +314,7 @@ void CDlgNetlist::OnBnClickedButtonEdit()
 
 		// prepare and invoke dialog
 		CFreePcbView * view = theApp.m_View;
-		CFreePcbDoc * doc = theApp.m_Doc;
+		CFreePcbDoc * doc = theApp.m_doc;
 		CDlgEditNet dlg;
 		dlg.Initialize( &nl, i, m_plist, FALSE, ListView_GetCheckState( m_list_ctrl, nItem ),
 						MIL, &(doc->m_w), &(doc->m_v_w), &(doc->m_v_h_w) );
@@ -331,7 +331,7 @@ void CDlgNetlist::OnBnClickedButtonAdd()
 {
 	// prepare CDlgEditNet
 	CFreePcbView * view = theApp.m_View;
-	CFreePcbDoc * doc = theApp.m_Doc;
+	CFreePcbDoc * doc = theApp.m_doc;
 	CDlgEditNet dlg;
 	dlg.Initialize( &nl, -1, m_plist, TRUE, TRUE,
 						MIL, &doc->m_w, &doc->m_v_w, &doc->m_v_h_w );
@@ -395,7 +395,7 @@ void CDlgNetlist::OnBnClickedButtonNLWidth()
 		return;
 	}
 	CFreePcbView * view = theApp.m_View; 
-	CFreePcbDoc * doc = theApp.m_Doc;
+	CFreePcbDoc * doc = theApp.m_doc;
 	CDlgSetTraceWidths dlg;
 	dlg.m_w = &doc->m_w;
 	dlg.m_v_w = &doc->m_v_w;

@@ -190,6 +190,7 @@ public:
 	// selected item
 	CText * m_sel_text;	// pointer to selected text
 	void *m_sel_ptr;	// CPT:  pointer to selected ANYTHING (but in practice I think it will always be equal to m_sel_text)
+	static int sel_mask_btn_bits[16];	// CPT2.  New system for masking selections.  Each left-pane button corresponds to 1+ bits for types of pcb-items...
 
 	// footprint
 	CEditShape m_fp;	// footprint being edited
@@ -318,25 +319,27 @@ public:
 	// CPT:  virtual functions from CCommonView:
 	bool IsFreePcbView() { return false; }
 	void SetDList()
-		{ m_dlist = m_Doc->m_dlist_fp; }
+		{ m_dlist = m_doc->m_dlist_fp; }
 	int GetNLayers()
-		{ return m_Doc->m_fp_num_layers; }
+		{ return m_doc->m_fp_num_layers; }
 	int GetTopCopperLayer() 
 		{ return LAY_FP_TOP_COPPER; }
 	int GetLayerRGB(int layer, int i) 
-		{ return m_Doc->m_fp_rgb[layer][i]; }
+		{ return m_doc->m_fp_rgb[layer][i]; }
 	int GetLayerVis(int layer)
-		{ return m_Doc->m_fp_vis[layer]; }
+		{ return m_doc->m_fp_vis[layer]; }
 	void GetLayerLabel(int i, CString &label) {
 		label.LoadStringA(IDS_FpLayerStr+i);
 		}
 	int ToggleLayerVis(int i)
-		{ return m_Doc->m_fp_vis[i] = !m_Doc->m_fp_vis[i]; }
+		{ return m_doc->m_fp_vis[i] = !m_doc->m_fp_vis[i]; }
 
 	int GetLeftPaneKeyID() { return IDS_FpLeftPaneKey; }
 
 	int GetNMasks() { return NUM_FP_SEL_MASKS; }
 	int GetMaskNamesID() { return IDS_FpSelMaskStr; }
+	int GetMaskBtnBits(int i) { return sel_mask_btn_bits[i]; }
+
 	void HandleNoShiftLayerKey(int layer, CDC *pDC) {
 		m_active_layer = layer;
 		ShowActiveLayer();

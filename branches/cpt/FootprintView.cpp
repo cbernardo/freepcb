@@ -52,6 +52,8 @@ enum {
 	CONTEXT_FP_VALUE
 };
 
+int CFootprintView::sel_mask_btn_bits[16] = { 0 };
+
 /////////////////////////////////////////////////////////////////////////////
 // CFootprintView
 
@@ -142,23 +144,17 @@ CFootprintView::CFootprintView()
 	m_cursor_mode = -1;			// CPT.  Ensures that SetFKText() will get called by InitInstance(),  no matter what.
 	m_sel_ptr = m_sel_text = 0;
 	// set up array of mask ids
-	m_mask_default_id[FP_SEL_MASK_REF].Set( ID_FP, -1, ID_REF_TXT );
-	m_mask_default_id[FP_SEL_MASK_VALUE].Set( ID_FP, -1, ID_VALUE_TXT );
-	m_mask_default_id[FP_SEL_MASK_PINS].Set( ID_FP, -1, ID_SEL_PAD );
-	m_mask_default_id[FP_SEL_MASK_SIDES].Set( ID_FP, -1, ID_POLYLINE, -1, -1, ID_SEL_SEG );
-	m_mask_default_id[FP_SEL_MASK_CORNERS].Set( ID_FP, -1, ID_POLYLINE, -1, -1, ID_VERTEX );
-	m_mask_default_id[FP_SEL_MASK_TEXT].Set( ID_FP, -1, ID_FP_TXT );
-	m_mask_default_id[FP_SEL_MASK_CENTROID].Set( ID_FP, -1, ID_CENTROID );
-	m_mask_default_id[FP_SEL_MASK_GLUE].Set( ID_FP, -1, ID_GLUE );
-	// CPT: Mimicking CFreePcbView constructor.  Have to admit I don't quite see the point of m_mask_default_id...
-	m_mask_id[FP_SEL_MASK_REF]		= m_mask_default_id[FP_SEL_MASK_REF];
-	m_mask_id[FP_SEL_MASK_VALUE]	= m_mask_default_id[FP_SEL_MASK_VALUE];
-	m_mask_id[FP_SEL_MASK_PINS]		= m_mask_default_id[FP_SEL_MASK_PINS];
-	m_mask_id[FP_SEL_MASK_SIDES]	= m_mask_default_id[FP_SEL_MASK_SIDES];
-	m_mask_id[FP_SEL_MASK_CORNERS]	= m_mask_default_id[FP_SEL_MASK_CORNERS];
-	m_mask_id[FP_SEL_MASK_TEXT]		= m_mask_default_id[FP_SEL_MASK_TEXT];
-	m_mask_id[FP_SEL_MASK_CENTROID]	= m_mask_default_id[FP_SEL_MASK_CENTROID];
-	m_mask_id[FP_SEL_MASK_GLUE]		= m_mask_default_id[FP_SEL_MASK_GLUE];
+	// CPT2.  Set for new system.
+	sel_mask_btn_bits[FP_SEL_MASK_REF] = bitRefText;
+	sel_mask_btn_bits[FP_SEL_MASK_VALUE] = bitValueText;
+	sel_mask_btn_bits[FP_SEL_MASK_PINS] = bitPin;
+	sel_mask_btn_bits[FP_SEL_MASK_SIDES] = bitOutlineSide;
+	sel_mask_btn_bits[FP_SEL_MASK_CORNERS] = bitOutlineCorner;
+	sel_mask_btn_bits[FP_SEL_MASK_TEXT] = bitText;
+	sel_mask_btn_bits[FP_SEL_MASK_CENTROID] = bitCentroid;
+	sel_mask_btn_bits[FP_SEL_MASK_GLUE] = bitAdhesive;
+	m_sel_mask = 0xffffffff;
+	m_sel_mask_bits = 0xffffffff;
 }
 
 // Initialize data for view
@@ -171,10 +167,10 @@ void CFootprintView::InitInstance( CShape * fp )
 	BaseInit();
 	EnableUndo( FALSE );
 	EnableRedo( FALSE );
-	m_units = m_Doc->m_fp_units;
+	m_units = m_doc->m_fp_units;
 
 	// set up footprint to be edited (if provided)
-	m_units = m_Doc->m_fp_units;
+	m_units = m_doc->m_fp_units;
 	if( fp )
 	{
 		m_fp.Copy( fp );
@@ -195,14 +191,14 @@ void CFootprintView::InitInstance( CShape * fp )
 	EnableRevealValue();					// CPT
 
 	// set up footprint library map (if necessary)
-	if( *m_Doc->m_footlibfoldermap.GetDefaultFolder() == "" )
-		m_Doc->MakeLibraryMaps( &m_Doc->m_full_lib_dir );
+	if( *m_doc->m_footlibfoldermap.GetDefaultFolder() == "" )
+		m_doc->MakeLibraryMaps( &m_doc->m_full_lib_dir );
 
 	// initialize window
 	m_dlist->RemoveAll();
-	m_fp.Draw( m_dlist, m_Doc->m_smfontutil );
+	m_fp.Draw( m_dlist, m_doc->m_smfontutil );
 	FootprintModified( FALSE );
-	m_Doc->m_footprint_name_changed = FALSE;
+	m_doc->m_footprint_name_changed = FALSE;
 	ClearUndo();
 	ClearRedo();
 	ShowSelectStatus();
@@ -222,7 +218,7 @@ CFootprintView::~CFootprintView()
 
 void CFootprintView::OnDraw(CDC* pDC)
 {
-	if( !m_Doc )
+	if( !m_doc )
 		// don't try to draw until InitInstance() has been called
 		return;
 
@@ -394,7 +390,7 @@ void CFootprintView::OnLButtonDown(UINT nFlags, CPoint point)
 			m_fp.m_padstack[i].angle = angle;
 		}
 		m_dragging_new_item = FALSE;
-		m_fp.Draw( m_dlist, m_Doc->m_smfontutil );
+		m_fp.Draw( m_dlist, m_doc->m_smfontutil );
 		SetCursorMode( CUR_FP_PAD_SELECTED );
 		m_fp.HighlightPad( m_sel_id.I2() );
 		FootprintModified( TRUE );
@@ -412,7 +408,7 @@ void CFootprintView::OnLButtonDown(UINT nFlags, CPoint point)
 		m_fp.m_ref_xi = p.x;
 		m_fp.m_ref_yi = p.y;
 		m_fp.m_ref_angle = angle;
-		m_fp.Draw( m_dlist, m_Doc->m_smfontutil );
+		m_fp.Draw( m_dlist, m_doc->m_smfontutil );
 		SetCursorMode( CUR_FP_REF_SELECTED );
 		m_fp.m_ref->Highlight();
 		FootprintModified( TRUE );
@@ -430,7 +426,7 @@ void CFootprintView::OnLButtonDown(UINT nFlags, CPoint point)
 		m_fp.m_value_xi = p.x;
 		m_fp.m_value_yi = p.y;
 		m_fp.m_value_angle = angle;
-		m_fp.Draw( m_dlist, m_Doc->m_smfontutil );
+		m_fp.Draw( m_dlist, m_doc->m_smfontutil );
 		SetCursorMode( CUR_FP_VALUE_SELECTED );
 		m_fp.m_value->Highlight();
 		FootprintModified( TRUE );
@@ -593,7 +589,7 @@ void CFootprintView::OnLButtonDown(UINT nFlags, CPoint point)
 				g->y_rel = p.y;
 			}
 		}
-		m_fp.Draw( m_dlist, m_Doc->m_smfontutil );
+		m_fp.Draw( m_dlist, m_doc->m_smfontutil );
 		m_fp.SelectCentroid();
 		SetCursorMode( CUR_FP_CENTROID_SELECTED );
 		FootprintModified( TRUE );
@@ -608,7 +604,7 @@ void CFootprintView::OnLButtonDown(UINT nFlags, CPoint point)
 		m_fp.m_glue[idot].x_rel = p.x;
 		m_fp.m_glue[idot].y_rel = p.y;
 		m_fp.m_glue[idot].type = GLUE_POS_DEFINED;
-		m_fp.Draw( m_dlist, m_Doc->m_smfontutil );
+		m_fp.Draw( m_dlist, m_doc->m_smfontutil );
 		m_fp.SelectAdhesive( idot );
 		SetCursorMode( CUR_FP_ADHESIVE_SELECTED );
 		FootprintModified( TRUE );
@@ -811,7 +807,7 @@ void CFootprintView::FinishArrowKey(int x, int y, int dx, int dy) {
 	FootprintModified( TRUE );
 	Invalidate(false);
 	m_dlist->CancelHighlight();
-	m_fp.Draw( m_dlist, m_Doc->m_smfontutil );
+	m_fp.Draw( m_dlist, m_doc->m_smfontutil );
 }
 
 // Key on keyboard pressed down
@@ -857,7 +853,7 @@ void CFootprintView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 			return;
 			}
 		else
-			d = m_Doc->m_fp_part_grid_spacing;
+			d = m_doc->m_fp_part_grid_spacing;
 		if( nChar == 37 )
 			dx -= d;
 		else if( nChar == 39 )
@@ -1280,7 +1276,7 @@ void CFootprintView::SetFKText( int mode )
 	}
 
 	// CPT: Lefthanded mode support:  if set, reverse key meanings
-	if (m_Doc->m_bLefthanded) 
+	if (m_doc->m_bLefthanded) 
 		for (int lo=0, hi=8, tmp; lo<hi; lo++, hi--)
 			tmp = m_fkey_option[lo], 
 			m_fkey_option[lo] = m_fkey_option[hi],
@@ -1532,7 +1528,7 @@ void CFootprintView::OnPadDelete( int i )
 	PushUndo();
 	CancelSelection();
 	m_fp.m_padstack.RemoveAt( i );
-	m_fp.Draw( m_dlist, m_Doc->m_smfontutil );
+	m_fp.Draw( m_dlist, m_doc->m_smfontutil );
 	FootprintModified( TRUE );
 }
 
@@ -1561,14 +1557,14 @@ void CFootprintView::OnPadEdit( int i )
 			m_fp.m_padstack[i].x_rel = m_orig_x;
 			m_fp.m_padstack[i].y_rel = m_orig_y;
 			m_fp.m_padstack[i].angle = m_orig_angle;
-			m_fp.Draw( m_dlist, m_Doc->m_smfontutil );
+			m_fp.Draw( m_dlist, m_doc->m_smfontutil );
 			OnPadMove( i );
 			return;
 		}
 		else
 		{
 			// not dragging, just redraw
-			m_fp.Draw( m_dlist, m_Doc->m_smfontutil );
+			m_fp.Draw( m_dlist, m_doc->m_smfontutil );
 			FootprintModified( TRUE );
 		}
 	}
@@ -1639,7 +1635,7 @@ void CFootprintView::OnPolylineDelete()
 	PushUndo();
 	m_fp.m_outline_poly.RemoveAt( m_sel_id.I2() );
 	CancelSelection();
-	m_fp.Draw( m_dlist, m_Doc->m_smfontutil );
+	m_fp.Draw( m_dlist, m_doc->m_smfontutil );
 	FootprintModified( TRUE );
 #endif
 }
@@ -1767,10 +1763,10 @@ void CFootprintView::SnapCursorPoint( CPoint wp )
 	if( CurDragging() )
 	{	
 		int grid_spacing;
-		grid_spacing = m_Doc->m_fp_part_grid_spacing;
+		grid_spacing = m_doc->m_fp_part_grid_spacing;
 
 		// snap angle if needed
-		if( m_Doc->m_fp_snap_angle && (wp != m_snap_angle_ref) 
+		if( m_doc->m_fp_snap_angle && (wp != m_snap_angle_ref) 
 			&& ( m_cursor_mode == CUR_FP_DRAG_POLY_1 
 			|| m_cursor_mode == CUR_FP_DRAG_POLY ) )
 			// snap to angle only if the starting point is on-grid
@@ -1810,10 +1806,10 @@ void CFootprintView::SnapCursorPoint( CPoint wp )
 LONG CFootprintView::OnChangeVisibleGrid( UINT wp, LONG lp )
 {
 	if( wp == WM_BY_INDEX )
-		m_Doc->m_fp_visual_grid_spacing = fabs( m_Doc->m_fp_visible_grid[lp] );
+		m_doc->m_fp_visual_grid_spacing = fabs( m_doc->m_fp_visible_grid[lp] );
 	else
 		ASSERT(0);
-	m_dlist->SetVisibleGrid( TRUE, m_Doc->m_fp_visual_grid_spacing );
+	m_dlist->SetVisibleGrid( TRUE, m_doc->m_fp_visual_grid_spacing );
 	Invalidate( FALSE );
 	SetFocus();
 	return 0;
@@ -1822,7 +1818,7 @@ LONG CFootprintView::OnChangeVisibleGrid( UINT wp, LONG lp )
 LONG CFootprintView::OnChangePlacementGrid( UINT wp, LONG lp )
 {
 	if( wp == WM_BY_INDEX )
-		m_Doc->m_fp_part_grid_spacing = fabs( m_Doc->m_fp_part_grid[lp] );
+		m_doc->m_fp_part_grid_spacing = fabs( m_doc->m_fp_part_grid[lp] );
 	else
 		ASSERT(0);
 	SetFocus();
@@ -1834,11 +1830,11 @@ LONG CFootprintView::OnChangeSnapAngle( UINT wp, LONG lp )
 	if( wp == WM_BY_INDEX )
 	{
 		if( lp == 0 )
-			m_Doc->m_fp_snap_angle = 45;
+			m_doc->m_fp_snap_angle = 45;
 		else if( lp == 1 )
-			m_Doc->m_fp_snap_angle = 90;
+			m_doc->m_fp_snap_angle = 90;
 		else
-			m_Doc->m_fp_snap_angle = 0;
+			m_doc->m_fp_snap_angle = 0;
 	}
 	else
 		ASSERT(0);
@@ -1890,7 +1886,7 @@ void CFootprintView::OnRefProperties()
 			m_fp.m_ref_angle = dlg.m_angle;
 			m_fp.m_ref_size = dlg.m_height;
 			m_fp.m_ref_w = dlg.m_width;
-			m_fp.Draw( m_dlist, m_Doc->m_smfontutil );
+			m_fp.Draw( m_dlist, m_doc->m_smfontutil );
 			if( m_fp.m_ref_size )
 			{
 				m_fp.m_ref->Highlight();
@@ -1975,7 +1971,7 @@ void CFootprintView::OnAddPin()
 				m_fp.m_padstack[i].x_rel += dx;
 				m_fp.m_padstack[i].y_rel += dy;
 			}
-			m_fp.Draw( m_dlist, m_Doc->m_smfontutil );
+			m_fp.Draw( m_dlist, m_doc->m_smfontutil );
 			// now start dragging
 			m_sel_id.SetT1( ID_PART );
 			m_sel_id.SetT2( ID_SEL_PAD );
@@ -1986,7 +1982,7 @@ void CFootprintView::OnAddPin()
 		}
 		else
 		{
-			m_fp.Draw( m_dlist, m_Doc->m_smfontutil );
+			m_fp.Draw( m_dlist, m_doc->m_smfontutil );
 		}
 	}
 	Invalidate( FALSE );
@@ -2004,12 +2000,12 @@ void CFootprintView::OnFootprintFileSaveAs()
 		AfxMessageBox( s, MB_OK );
 		return;
 	}
-	m_fp.Draw( m_dlist, m_Doc->m_smfontutil );
+	m_fp.Draw( m_dlist, m_doc->m_smfontutil );
 
 	// now save it
 	CDlgSaveFootprint dlg;
 	dlg.Initialize( &str_name, &m_fp, m_units, "",
-		&m_Doc->m_footprint_cache_map, &m_Doc->m_footlibfoldermap, m_Doc->m_dlg_log );	
+		&m_doc->m_footprint_cache_map, &m_doc->m_footlibfoldermap, m_doc->m_dlg_log );	
 	int ret = dlg.DoModal();
 	if( ret == IDOK )	
 	{
@@ -2089,7 +2085,7 @@ void CFootprintView::OnFootprintFileImport()
 {
 	CDlgImportFootprint dlg;
 
-	dlg.InitInstance( &m_Doc->m_footprint_cache_map, &m_Doc->m_footlibfoldermap, m_Doc->m_dlg_log );
+	dlg.InitInstance( &m_doc->m_footprint_cache_map, &m_doc->m_footlibfoldermap, m_doc->m_dlg_log );
 	int ret = dlg.DoModal();
 
 	// now import if OK
@@ -2097,12 +2093,12 @@ void CFootprintView::OnFootprintFileImport()
 	{
 		m_dlist->CancelHighlight();					// CPT
 		m_fp.Copy( &dlg.m_shape );
-		m_fp.Draw( m_dlist, m_Doc->m_smfontutil );
+		m_fp.Draw( m_dlist, m_doc->m_smfontutil );
 
 		// update window title and units
 		SetWindowTitle( &m_fp.m_name );
-		m_Doc->m_footprint_name_changed = TRUE;
-		m_Doc->m_footprint_modified = FALSE;
+		m_doc->m_footprint_name_changed = TRUE;
+		m_doc->m_footprint_modified = FALSE;
 		CMainFrame * frm = (CMainFrame*)AfxGetMainWnd();
 		m_units = m_fp.m_units;
 		frm->m_wndMyToolBar.SetUnits( m_units );
@@ -2144,13 +2140,13 @@ void CFootprintView::OnFootprintFileClose()
 	m_fp.m_sel_xf = br.right + 10*NM_PER_MIL;
 	m_fp.m_sel_yi = br.bottom - 10*NM_PER_MIL;
 	m_fp.m_sel_yf = br.top + 10*NM_PER_MIL;
-	m_fp.Draw( m_dlist, m_Doc->m_smfontutil );
+	m_fp.Draw( m_dlist, m_doc->m_smfontutil );
 
-	if( m_Doc->m_footprint_modified )
+	if( m_doc->m_footprint_modified )
 	{
 		CString s ((LPCSTR) IDS_SaveFootprintBeforeExiting);
 		int ret = AfxMessageBox( s, MB_YESNOCANCEL );
-		m_Doc->m_file_close_ret = ret;
+		m_doc->m_file_close_ret = ret;
 		if( ret == IDCANCEL )
 			return;
 		else if( ret == IDYES )
@@ -2164,7 +2160,7 @@ void CFootprintView::OnFootprintFileClose()
 
 void CFootprintView::OnFootprintFileNew()
 {
-	if( m_Doc->m_footprint_modified ) 
+	if( m_doc->m_footprint_modified ) 
 	{
 		CString s ((LPCSTR) IDS_SaveFootprint);
 		int ret = AfxMessageBox( s, MB_YESNOCANCEL );
@@ -2175,7 +2171,7 @@ void CFootprintView::OnFootprintFileNew()
 	}
 	m_dlist->CancelHighlight();
 	m_fp.Clear();
-	m_fp.Draw( m_dlist, m_Doc->m_smfontutil );
+	m_fp.Draw( m_dlist, m_doc->m_smfontutil );
 	SetWindowTitle( &m_fp.m_name );
 	FootprintModified( FALSE, TRUE );
 	ClearUndo();
@@ -2190,30 +2186,30 @@ void CFootprintView::FootprintModified( BOOL flag, BOOL force, BOOL clear_redo )
 		ClearRedo();
 
 	// see if we need to do anything
-	if( flag == m_Doc->m_footprint_modified && !force )
+	if( flag == m_doc->m_footprint_modified && !force )
 		return;	// no!
 
 	// OK, set state and window title
-	m_Doc->m_footprint_modified = flag;
+	m_doc->m_footprint_modified = flag;
 	if( flag == TRUE )
 	{
 		// add "*" to end of window title
-		if( m_Doc->m_fp_window_title.Right(1) != "*" )
-			m_Doc->m_fp_window_title = m_Doc->m_fp_window_title + "*";
+		if( m_doc->m_fp_window_title.Right(1) != "*" )
+			m_doc->m_fp_window_title = m_doc->m_fp_window_title + "*";
 	}
 	else if( flag == FALSE )
 	{
 		// remove "*" from end of window title
-		if( m_Doc->m_fp_window_title.Right(1) == "*" )
-			m_Doc->m_fp_window_title = m_Doc->m_fp_window_title.Left( m_Doc->m_fp_window_title.GetLength()-1 );
+		if( m_doc->m_fp_window_title.Right(1) == "*" )
+			m_doc->m_fp_window_title = m_doc->m_fp_window_title.Left( m_doc->m_fp_window_title.GetLength()-1 );
 	}
 	CMainFrame * pMain = (CMainFrame*)AfxGetMainWnd();
-	pMain->SetWindowText( m_Doc->m_fp_window_title );
+	pMain->SetWindowText( m_doc->m_fp_window_title );
 }
 
 void CFootprintView::FootprintNameChanged( CString * str )
 {
-	m_Doc->m_footprint_name_changed = TRUE;
+	m_doc->m_footprint_name_changed = TRUE;
 	SetWindowTitle( &m_fp.m_name );
 }
 
@@ -2321,7 +2317,7 @@ void CFootprintView::UndoNoRedo()
 		m_fp.Clear();
 		CEditShape * sh = undo_stack[n-1];
 		m_fp.Copy( sh );
-		m_fp.Draw( m_dlist, m_Doc->m_smfontutil );
+		m_fp.Draw( m_dlist, m_doc->m_smfontutil );
 		delete sh;
 		undo_stack.SetSize( n-1 );
 	}
@@ -2340,7 +2336,7 @@ void CFootprintView::Redo()
 		m_fp.Clear();
 		CEditShape * sh = redo_stack[n-1];
 		m_fp.Copy( sh );
-		m_fp.Draw( m_dlist, m_Doc->m_smfontutil );
+		m_fp.Draw( m_dlist, m_doc->m_smfontutil );
 		delete sh;
 		redo_stack.SetSize( n-1 );
 	}
@@ -2377,11 +2373,11 @@ void CFootprintView::OnFpDelete()
 void CFootprintView::OnFpToolsFootprintwizard()
 {
 	// ask about saving
-	if( m_Doc->m_footprint_modified )
+	if( m_doc->m_footprint_modified )
 	{
 		CString s ((LPCSTR) IDS_SaveFootprintBeforeLaunchingWizard);
 		int ret = AfxMessageBox( s, MB_YESNOCANCEL );
-		m_Doc->m_file_close_ret = ret;
+		m_doc->m_file_close_ret = ret;
 		if( ret == IDCANCEL )
 			return;
 		else if( ret == IDYES )
@@ -2390,15 +2386,15 @@ void CFootprintView::OnFpToolsFootprintwizard()
 
 	// OK, launch wizard
 	CDlgWizQuad dlg;
-	dlg.Initialize( &m_Doc->m_footprint_cache_map, &m_Doc->m_footlibfoldermap, 
-		FALSE, m_Doc->m_dlg_log );
+	dlg.Initialize( &m_doc->m_footprint_cache_map, &m_doc->m_footlibfoldermap, 
+		FALSE, m_doc->m_dlg_log );
 	int ret = dlg.DoModal();
 	if( ret == IDOK )
 	{
 		// import wizard-created footprint
 		m_fp.Clear();
 		m_fp.Copy( &dlg.m_footprint );
-		m_fp.Draw( m_dlist, m_Doc->m_smfontutil );
+		m_fp.Draw( m_dlist, m_doc->m_smfontutil );
 		SetWindowTitle( &m_fp.m_name );
 		FootprintModified( TRUE, TRUE );
 		// switch to wizard units
@@ -2414,15 +2410,15 @@ void CFootprintView::OnFpToolsFootprintwizard()
 void CFootprintView::SetWindowTitle( CString * str )
 {
 	CString s ((LPCSTR) IDS_FootprintEditor);
-	m_Doc->m_fp_window_title = s + *str;
+	m_doc->m_fp_window_title = s + *str;
 	CMainFrame * pMain = (CMainFrame*)AfxGetMainWnd();
-	pMain->SetWindowText( m_Doc->m_fp_window_title );
+	pMain->SetWindowText( m_doc->m_fp_window_title );
 }
 
 void CFootprintView::OnToolsFootprintLibraryManager()
 {
 	CDlgLibraryManager dlg;
-	dlg.Initialize( &m_Doc->m_footlibfoldermap, m_Doc->m_dlg_log );
+	dlg.Initialize( &m_doc->m_footlibfoldermap, m_doc->m_dlg_log );
 	dlg.DoModal();
 }
 
@@ -2588,7 +2584,7 @@ int CFootprintView::ShowActiveLayer()
 void CFootprintView::OnToolsMoveOriginFP()
 {
 	CDlgMoveOrigin dlg;
-	dlg.Initialize( m_Doc->m_units );
+	dlg.Initialize( m_doc->m_units );
 	int ret = dlg.DoModal();
 	if( ret == IDOK )
 	{
@@ -2642,7 +2638,7 @@ void CFootprintView::MoveOrigin( int x, int y )
 		poly->MoveOrigin( -x, -y );
 	}
 	m_fp.m_tl->MoveOrigin( -x, -y );
-	m_fp.Draw( m_dlist, m_Doc->m_smfontutil );
+	m_fp.Draw( m_dlist, m_doc->m_smfontutil );
 	FootprintModified( TRUE );
 #endif
 }
@@ -2718,7 +2714,7 @@ void CFootprintView::OnCentroidEdit()
 			m_fp.m_centroid_y = dlg.m_y;
 		}
 		m_fp.m_centroid_angle = dlg.m_angle;
-		m_fp.Draw( m_dlist, m_Doc->m_smfontutil );
+		m_fp.Draw( m_dlist, m_doc->m_smfontutil );
 		m_fp.SelectCentroid();
 		FootprintModified( TRUE );
 		Invalidate( FALSE );
@@ -2771,7 +2767,7 @@ void CFootprintView::OnAddValueText()
 		m_fp.m_value_size = dlg.m_height;
 		m_fp.m_value_w = dlg.m_width;
 		m_fp.m_value->m_layer = dlg.m_layer;
-		m_fp.Draw( m_dlist, m_Doc->m_smfontutil );
+		m_fp.Draw( m_dlist, m_doc->m_smfontutil );
 		if( dlg.m_bDrag )
 		{
 			m_dragging_new_item = TRUE;
@@ -2816,7 +2812,7 @@ void CFootprintView::OnValueEdit()
 			m_fp.m_value_angle = dlg.m_angle;
 			m_fp.m_value_size = dlg.m_height;
 			m_fp.m_value_w = dlg.m_width;
-			m_fp.Draw( m_dlist, m_Doc->m_smfontutil );
+			m_fp.Draw( m_dlist, m_doc->m_smfontutil );
 			if( m_fp.m_value_size )
 			{
 				m_fp.m_value->Highlight();
@@ -2859,7 +2855,7 @@ void CFootprintView::OnValueReveal()
 	CancelSelection();
 	m_fp.Undraw();
 	m_fp.GenerateValueParams();
-	m_fp.Draw(m_dlist, m_Doc->m_smfontutil);
+	m_fp.Draw(m_dlist, m_doc->m_smfontutil);
 	FootprintModified(true);
 	EnableRevealValue();
 	OnViewEntireFootprint();
@@ -2889,7 +2885,7 @@ void CFootprintView::OnAddAdhesive()
 			m_fp.m_glue[i_spot].x_rel = m_fp.m_centroid_x;
 			m_fp.m_glue[i_spot].y_rel = m_fp.m_centroid_y;
 		}
-		m_fp.Draw( m_dlist, m_Doc->m_smfontutil );
+		m_fp.Draw( m_dlist, m_doc->m_smfontutil );
 		m_sel_id.Set( ID_GLUE, -1, ID_SEL_SPOT, -1, i_spot );
 		if( dlg.m_bDrag )
 		{
@@ -2936,7 +2932,7 @@ void CFootprintView::OnAdhesiveEdit()
 		else
 		{
 			m_dlist->CancelHighlight();
-			m_fp.Draw( m_dlist, m_Doc->m_smfontutil );
+			m_fp.Draw( m_dlist, m_doc->m_smfontutil );
 			m_fp.SelectAdhesive( m_sel_id.I2() );
 			FootprintModified( TRUE );
 			Invalidate( FALSE );
@@ -2984,7 +2980,7 @@ void CFootprintView::OnAdhesiveDelete()
 	PushUndo();
 	m_fp.Undraw();
 	m_fp.m_glue.RemoveAt( m_sel_id.I2() );
-	m_fp.Draw( m_dlist, m_Doc->m_smfontutil );
+	m_fp.Draw( m_dlist, m_doc->m_smfontutil );
 	CancelSelection();
 	FootprintModified( TRUE );
 	Invalidate( FALSE );
@@ -2997,7 +2993,7 @@ void CFootprintView::OnCentroidRotateAxis()
 	m_fp.m_centroid_angle += 90;
 	if( m_fp.m_centroid_angle > 270 )
 		m_fp.m_centroid_angle = 0;
-	m_fp.Draw( m_dlist, m_Doc->m_smfontutil );
+	m_fp.Draw( m_dlist, m_doc->m_smfontutil );
 	FootprintModified( TRUE );
 	Invalidate( FALSE );
 }
@@ -3006,7 +3002,7 @@ void CFootprintView::OnCentroidRotateAxis()
 
 void CFootprintView::UnitToggle(bool bShiftKeyDown) {
 	CMainFrame * frm = (CMainFrame*)AfxGetMainWnd();
-	frm->m_wndMyToolBar.UnitToggle(bShiftKeyDown, &(m_Doc->m_fp_visible_grid), &(m_Doc->m_fp_part_grid), 0);
+	frm->m_wndMyToolBar.UnitToggle(bShiftKeyDown, &(m_doc->m_fp_visible_grid), &(m_doc->m_fp_part_grid), 0);
 	}
 
 extern void ReadFileLines(CString &fname, CArray<CString> &lines);  // In FreePcbDoc.cpp
@@ -3014,19 +3010,19 @@ extern void WriteFileLines(CString &fname, CArray<CString> &lines);
 extern void ReplaceLines(CArray<CString> &oldLines, CArray<CString> &newLines, char *key);
 
 void CFootprintView::OnViewVisibleGrid() {
-	CArray<double> &arr = m_Doc->m_fp_visible_grid, &hidden = m_Doc->m_fp_visible_grid_hidden;
+	CArray<double> &arr = m_doc->m_fp_visible_grid, &hidden = m_doc->m_fp_visible_grid_hidden;
 	CDlgGridVals dlg (&arr, &hidden, IDS_EditFootprintVisibleGridValues);
 	int ret = dlg.DoModal();
 	if( ret == IDOK ) {
 		CMainFrame * frm = (CMainFrame*)AfxGetMainWnd();
-		frm->m_wndMyToolBar.SetLists( &m_Doc->m_fp_visible_grid, &m_Doc->m_fp_part_grid, NULL,
-				m_Doc->m_fp_visual_grid_spacing, m_Doc->m_fp_part_grid_spacing, 0, m_Doc->m_fp_snap_angle, -1 );
-		m_Doc->ProjectModified(true);
+		frm->m_wndMyToolBar.SetLists( &m_doc->m_fp_visible_grid, &m_doc->m_fp_part_grid, NULL,
+				m_doc->m_fp_visual_grid_spacing, m_doc->m_fp_part_grid_spacing, 0, m_doc->m_fp_snap_angle, -1 );
+		m_doc->ProjectModified(true);
 		if (dlg.bSetDefault) {
 			CArray<CString> oldLines, newLines;
-			CString fn = m_Doc->m_app_dir + "\\" + "default.cfg";
+			CString fn = m_doc->m_app_dir + "\\" + "default.cfg";
 			ReadFileLines(fn, oldLines);
-			m_Doc->CollectOptionsStrings(newLines);
+			m_doc->CollectOptionsStrings(newLines);
 			ReplaceLines(oldLines, newLines, "fp_visible_grid_item");
 			ReplaceLines(oldLines, newLines, "fp_visible_grid_hidden");
 			WriteFileLines(fn, oldLines);
@@ -3035,19 +3031,19 @@ void CFootprintView::OnViewVisibleGrid() {
 	}
 
 void CFootprintView::OnViewPlacementGrid() {
-	CArray<double> &arr = m_Doc->m_fp_part_grid, &hidden = m_Doc->m_fp_part_grid_hidden;
+	CArray<double> &arr = m_doc->m_fp_part_grid, &hidden = m_doc->m_fp_part_grid_hidden;
 	CDlgGridVals dlg (&arr, &hidden, IDS_EditFootprintPlacementGridValues);
 	int ret = dlg.DoModal();
 	if( ret == IDOK ) {
 		CMainFrame * frm = (CMainFrame*)AfxGetMainWnd();
-		frm->m_wndMyToolBar.SetLists( &m_Doc->m_fp_visible_grid, &m_Doc->m_fp_part_grid, NULL,
-				m_Doc->m_fp_visual_grid_spacing, m_Doc->m_fp_part_grid_spacing, 0, m_Doc->m_fp_snap_angle, -1 );
-		m_Doc->ProjectModified(true);
+		frm->m_wndMyToolBar.SetLists( &m_doc->m_fp_visible_grid, &m_doc->m_fp_part_grid, NULL,
+				m_doc->m_fp_visual_grid_spacing, m_doc->m_fp_part_grid_spacing, 0, m_doc->m_fp_snap_angle, -1 );
+		m_doc->ProjectModified(true);
 		if (dlg.bSetDefault) {
 			CArray<CString> oldLines, newLines;
-			CString fn = m_Doc->m_app_dir + "\\" + "default.cfg";
+			CString fn = m_doc->m_app_dir + "\\" + "default.cfg";
 			ReadFileLines(fn, oldLines);
-			m_Doc->CollectOptionsStrings(newLines);
+			m_doc->CollectOptionsStrings(newLines);
 			ReplaceLines(oldLines, newLines, "fp_placement_grid_item");
 			ReplaceLines(oldLines, newLines, "fp_placement_grid_hidden");
 			WriteFileLines(fn, oldLines);

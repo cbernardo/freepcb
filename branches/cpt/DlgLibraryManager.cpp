@@ -811,7 +811,7 @@ void CDlgLibraryManager::OnBnClickedButtonMakePdf()
 			for(int it=0; it<foot.m_tl->text_ptr.GetSize(); it++ )
 			{
 				CText * t = foot.m_tl->text_ptr[it];
-				SMFontUtil * smfontutil = ((CFreePcbApp*)AfxGetApp())->m_Doc->m_smfontutil;					
+				SMFontUtil * smfontutil = ((CFreePcbApp*)AfxGetApp())->m_doc->m_smfontutil;					
 				t->Draw( NULL, smfontutil );
 				for( int is=0; is<t->m_stroke.GetSize(); is++ )
 				{

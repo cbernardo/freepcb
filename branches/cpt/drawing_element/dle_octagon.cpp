@@ -65,7 +65,7 @@ void CDLE_OCTAGON::_Draw(CDrawInfo &di, bool)
 
 void CDLE_OCTAGON::_DrawThermalRelief(CDrawInfo &di)
 {
-	CFreePcbDoc * doc = theApp.m_Doc;
+	CFreePcbDoc * doc = theApp.m_doc;
 
 	int conn_tracew = doc->m_thermal_width / 2540;
 	int therm_clearance = doc->m_thermal_clearance / 2540;

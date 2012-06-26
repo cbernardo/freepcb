@@ -71,16 +71,16 @@ int cpartlist::GetPartBoundaries( CRect * part_r )
 			min_y = min( y, min_y);
 			parts_found = 1;
 		}
-		if( part->dl_ref_sel )
+		if( dl_element *ref_sel = part->m_ref->dl_sel )
 		{
-			int x = m_dlist->Get_x( part->dl_ref_sel );
-			int y = m_dlist->Get_y( part->dl_ref_sel );
+			int x = m_dlist->Get_x( ref_sel );
+			int y = m_dlist->Get_y( ref_sel );
 			max_x = max( x, max_x);
 			min_x = min( x, min_x);
 			max_y = max( y, max_y);
 			min_y = min( y, min_y);
-			x = m_dlist->Get_xf( part->dl_ref_sel );
-			y = m_dlist->Get_yf( part->dl_ref_sel );
+			x = m_dlist->Get_xf( ref_sel );
+			y = m_dlist->Get_yf( ref_sel );
 			max_x = max( x, max_x);
 			min_x = min( x, min_x);
 			max_y = max( y, max_y);
@@ -130,10 +130,6 @@ cpart2 * cpartlist::AddFromString( CString * str )
 	int angle;
 	int glued;
 	
-	// CPT2 TODO Consider removing the following?
-	CDisplayList * old_dlist = m_dlist;
-	m_dlist = NULL;		// cancel further drawing
-
 	in_str = str->Tokenize( "\n", pos );
 	while( in_str != "" )
 	{
@@ -231,19 +227,14 @@ cpart2 * cpartlist::AddFromString( CString * str )
 	}
 
 	cpart2 * part = new cpart2(this);
-	part->SetData( s, &ref_des, &package, x, y, side, angle, 1, glued, ref_vis );			// CPT2.  Also initializes pins.
-	part->SetValue( &value, value_xi, value_yi, value_angle, value_size, value_width, 
-		value_vis, value_layer );
-	if( part->shape ) 
-	{
-		part->m_ref_xi = ref_xi;
-		part->m_ref_yi = ref_yi;
-		part->m_ref_angle = ref_angle;
-		part->m_ref_layer = ref_layer;
-		part->ResizeRefText( ref_size, ref_width, ref_vis );
-	}
-	m_dlist = old_dlist;
-	part->Draw();
+	part->SetData( s, &ref_des, &value, &package, x, y, side, angle, 1, glued );					// CPT2.  Also initializes pins.
+	part->m_ref_vis = ref_vis;
+	part->m_ref->Move(ref_xi, ref_yi, ref_angle,
+			false, false, ref_layer, ref_size, ref_width);
+	part->m_value_vis = value_vis;
+	part->m_value->Move(value_xi, value_yi, value_angle, 
+			false, false, value_layer, value_size, value_width );
+	part->Draw();																			// CPT2. TODO is this the place to do this?
 	return part;
 }
 

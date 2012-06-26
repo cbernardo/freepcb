@@ -53,7 +53,7 @@ CCommonView::CCommonView()
 	m_small_font.CreateFont( 14, 0, 0, 0, FW_NORMAL, 0, 0, 0, DEFAULT_CHARSET,
 		OUT_CHARACTER_PRECIS, CLIP_CHARACTER_PRECIS, DEFAULT_QUALITY, 
 		DEFAULT_PITCH | FF_DONTCARE, "Arial" );
-	m_Doc = NULL;
+	m_doc = NULL;
 	m_dlist = NULL; 
 	m_last_mouse_point.x = 0;
 	m_last_mouse_point.y = 0;
@@ -170,9 +170,9 @@ void CCommonView::BaseInit()
 {
 	// All CPT.
 	// Initialization that occurs after GetDocument() is ready to run
-	m_Doc = (CFreePcbDoc*) GetDocument();
+	m_doc = (CFreePcbDoc*) GetDocument();
 	SetDList();
-	if( m_Doc == NULL || m_dlist == NULL )
+	if( m_doc == NULL || m_dlist == NULL )
 		ASSERT(0);
 
 	// Set default values
@@ -180,11 +180,11 @@ void CCommonView::BaseInit()
 	m_pcbu_per_pixel = 5.0*PCBU_PER_MIL;	// 5 mils per pixel
 	m_org_x = -100.0*PCBU_PER_MIL;			// lower left corner of window
 	m_org_y = -100.0*PCBU_PER_MIL;
-	m_Doc->m_fp_snap_angle = 45;
+	m_doc->m_fp_snap_angle = 45;
 	m_left_pane_invalid = TRUE;
 	CancelSelection();
 	m_sel_mask = 0xffff;
-	SetSelMaskArray( m_sel_mask );
+	m_sel_mask_bits = 0xffffffff;
 
 	CRect screen_r;
 	GetWindowRect( &screen_r );
@@ -198,7 +198,7 @@ void CCommonView::BaseInit()
 
 // Set array of selection mask ids
 //
-void CCommonView::SetSelMaskArray( int mask )
+/* void CCommonView::SetSelMaskArray( int mask )
 {
 	for( int i=0; i<NUM_SEL_MASKS; i++ )
 	{
@@ -212,7 +212,7 @@ void CCommonView::SetSelMaskArray( int mask )
 		}
 	}
 }
-
+*/
 
 // DISPLAY-RELATED
 
@@ -416,7 +416,7 @@ void CCommonView::DrawBottomPane(CDC *pDC)
 	for (int ifn=0; ifn<9; ifn++)
 	{
 		int left = FKEY_OFFSET_X + ifn*FKEY_STEP;
-		if (!m_Doc->m_bLefthanded)
+		if (!m_doc->m_bLefthanded)
 			left += ifn/4 * FKEY_GAP;
 		else
 			left += (ifn+3)/4 * FKEY_GAP;
@@ -456,7 +456,7 @@ bool CCommonView::CheckBottomPaneClick(CPoint &point) {
 	for( int i=0; i<9; i++ )
 	{
 		int left = FKEY_OFFSET_X + i*FKEY_STEP;
-		if (!m_Doc->m_bLefthanded)
+		if (!m_doc->m_bLefthanded)
 			left += i/4 * FKEY_GAP;
 		else
 			left += (i+3)/4 * FKEY_GAP;
@@ -499,7 +499,7 @@ bool CCommonView::CheckLeftPaneClick(CPoint &point) {
 			// clicked in color square
 			int vis = ToggleLayerVis(il);
 			m_dlist->SetLayerVisible( il, vis );
-			if( IsFreePcbView() && il == LAY_RAT_LINE && m_Doc->m_vis[il] && g_bShow_Ratline_Warning )
+			if( IsFreePcbView() && il == LAY_RAT_LINE && m_doc->m_vis[il] && g_bShow_Ratline_Warning )
 			{
 				CDlgMyMessageBox dlg;
 				CString s ((LPCSTR) IDS_RatlinesTurnedBackOn);
@@ -537,8 +537,8 @@ bool CCommonView::CheckLeftPaneClick(CPoint &point) {
 		if( r.PtInRect( point ) )
 		{
 			// clicked in color square or name
-			m_sel_mask = m_sel_mask ^ (1<<i);
-			SetSelMaskArray( m_sel_mask );
+			m_sel_mask ^= (1<<i);
+			m_sel_mask_bits ^= GetMaskBtnBits(i);
 			Invalidate( FALSE );
 			return true;
 		}
@@ -662,7 +662,7 @@ bool CCommonView::HandleLayerKey(UINT nChar, bool bShiftKeyDown, bool bCtrlKeyDo
 }
 
 void CCommonView::HandlePanAndZoom(int nChar, CPoint &p) {
-	if (m_Doc->m_bReversePgupPgdn)
+	if (m_doc->m_bReversePgupPgdn)
 		if (nChar==33) nChar = 34;
 		else if (nChar==34) nChar = 33;
 
@@ -754,8 +754,8 @@ void CCommonView::OnSysKeyUp(UINT nChar, UINT nRepCnt, UINT nFlags)
 		int sel = nChar-'1';
 		if (nChar=='0') sel = 9;
 		else if (nChar==VK_OEM_MINUS) sel = 10;
-		m_sel_mask = m_sel_mask ^ (1<<sel);
-		SetSelMaskArray( m_sel_mask );
+		m_sel_mask ^= (1<<sel);
+		m_sel_mask_bits ^= GetMaskBtnBits(sel);
 		InvalidateLeftPane();
 		Invalidate( FALSE );
 		return;
@@ -798,7 +798,7 @@ void CCommonView::SnapToAngle(CPoint &wp, int grid_spacing) {
 	double dy = wp.y - m_snap_angle_ref.y;
 	double dist = sqrt( dx*dx + dy*dy );
 	double dist45 = dist/sqrt(2.0);
-	if( m_Doc->m_snap_angle == 45 )
+	if( m_doc->m_snap_angle == 45 )
 	{
 		// snap angle = 45 degrees, divide circle into 8 octants
 		int d = (int)(dist45/grid_spacing+0.5);
@@ -937,7 +937,7 @@ void CCommonView::SnapToGridLine(CPoint &wp, int grid_spacing) {
 	double ref_x = m_snap_angle_ref.x + offset;
 	double ref_y = m_snap_angle_ref.y + offset;
 	//find nearest snap angle to an integer division of 90
-	int snap_angle = m_Doc->m_snap_angle;
+	int snap_angle = m_doc->m_snap_angle;
 	if(90 % snap_angle != 0)
 	{
 		int snap_pos = snap_angle;
