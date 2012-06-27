@@ -196,23 +196,6 @@ void CCommonView::BaseInit()
 	Invalidate( FALSE );
 }
 
-// Set array of selection mask ids
-//
-/* void CCommonView::SetSelMaskArray( int mask )
-{
-	for( int i=0; i<NUM_SEL_MASKS; i++ )
-	{
-		if( mask & (1<<i) )
-		{
-			m_mask_id[i] = m_mask_default_id[i];
-		}
-		else
-		{
-			m_mask_id[i].SetT1( ID_NONE );	// guaranteed not to exist
-		}
-	}
-}
-*/
 
 // DISPLAY-RELATED
 

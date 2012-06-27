@@ -2295,7 +2295,6 @@ int CNetList::OptimizeConnections( cnet * net, int ic_track, BOOL bBelowPinCount
 #ifdef PROFILE
 	StartTimer();	//****
 #endif
-
 	// see if we need to do this
 	if( bVisibleNetsOnly && net->visible == 0 )
 		return ic_track;
