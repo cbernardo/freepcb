@@ -367,7 +367,8 @@ public:
 	static int sel_mask_btn_bits[16];	// CPT2.  New system for masking selections.  Each left-pane button corresponds to 1+ bits for types of pcb-items...
 
 	// highlight flags
-	bool m_bNetHighlighted;	// current net is highlighted (not selected)
+	cnet2 *m_highlight_net;			// CPT2.  Replaces:
+	// bool m_bNetHighlighted;	    // current net is highlighted (not selected)
 
 #define m_sel_ic m_sel_id.I2()							// index of selected connection
 #define m_sel_ia m_sel_id.I2()							// index of selected area
@@ -461,25 +462,26 @@ public:
 	BOOL CurDraggingRouting();
 	BOOL CurDraggingPlacement();
 	void SnapCursorPoint( CPoint wp, UINT nFlags );
-	void SaveUndoInfoForPart( cpart * part, int type, CString * new_ref_des, BOOL new_event, CUndoList * list );
-	void SaveUndoInfoForPartAndNets( cpart * part, int type, CString * new_ref_des, BOOL new_event, CUndoList * list );
-	void SaveUndoInfoFor2PartsAndNets( cpart * part1, cpart * part2, BOOL new_event, CUndoList * list );
-	void SaveUndoInfoForNet( cnet * net, int type, BOOL new_event, CUndoList * list );
-	void SaveUndoInfoForNetAndConnections( cnet * net, int type, BOOL new_event, CUndoList * list );
-	void SaveUndoInfoForConnection( cnet * net, int ic, BOOL new_event, CUndoList * list );
-	void SaveUndoInfoForArea( cnet * net, int iarea, int type, BOOL new_event, CUndoList * list );
-	void SaveUndoInfoForAllAreasInNet( cnet * net, BOOL new_event, CUndoList * list );
-	void SaveUndoInfoForAllAreasIn2Nets( cnet * net1, cnet * net2, BOOL new_event, CUndoList * list );
-	void SaveUndoInfoForNetAndConnectionsAndArea( cnet * net, int iarea, int type, BOOL new_event, CUndoList * list );
-	void SaveUndoInfoForNetAndConnectionsAndAreas( cnet * net, BOOL new_event, CUndoList * list );
+	// CPT2 Modified arg lists for the SaveUndo functions.  TODO revise (still blanked out)
+	void SaveUndoInfoForPart( cpart2 * part, int type, CString * new_ref_des, BOOL new_event, CUndoList * list );
+	void SaveUndoInfoForPartAndNets( cpart2 * part, int type, CString * new_ref_des, BOOL new_event, CUndoList * list );
+	void SaveUndoInfoFor2PartsAndNets( cpart2 * part1, cpart2 * part2, BOOL new_event, CUndoList * list );
+	void SaveUndoInfoForNet( cnet2 * net, int type, BOOL new_event, CUndoList * list );
+	void SaveUndoInfoForNetAndConnections( cnet2 * net, int type, BOOL new_event, CUndoList * list );
+	void SaveUndoInfoForConnection( cconnect2 *con, BOOL new_event, CUndoList * list );
+	void SaveUndoInfoForArea( carea2 *area, int type, BOOL new_event, CUndoList * list );
+	void SaveUndoInfoForAllAreasInNet( cnet2 * net, BOOL new_event, CUndoList * list );
+	void SaveUndoInfoForAllAreasIn2Nets( cnet2 * net1, cnet2 * net2, BOOL new_event, CUndoList * list );
+	void SaveUndoInfoForNetAndConnectionsAndArea( cnet2 * net, carea2 *area, int type, BOOL new_event, CUndoList * list );
+	void SaveUndoInfoForNetAndConnectionsAndAreas( cnet2 * net, BOOL new_event, CUndoList * list );
 	void SaveUndoInfoForAllNetsAndConnectionsAndAreas( BOOL new_event, CUndoList * list );
 	void SaveUndoInfoForAllNets( BOOL new_event, CUndoList * list );
 	void SaveUndoInfoForMoveOrigin( int x_off, int y_off, CUndoList * list );
 	void SaveUndoInfoForBoardOutlines( BOOL new_event, CUndoList * list );
 	void SaveUndoInfoForSMCutouts( BOOL new_event, CUndoList * list );
-	void SaveUndoInfoForText( CText * text, int type, BOOL new_event, CUndoList * list );
+	void SaveUndoInfoForText( ctext * text, int type, BOOL new_event, CUndoList * list );
 	void SaveUndoInfoForText( undo_text * u_text, int type, BOOL new_event, CUndoList * list );
-	void SaveUndoInfoForGroup( int type, CArray<void*> * ptrs, CArray<id> * ids, CUndoList * list );
+	void SaveUndoInfoForGroup( int type, carray<cpcb_item> *items, CUndoList * list );
 	void *  CreateUndoDescriptor( CUndoList * list, int type,
 		CString * name1, CString * name2, int int1, int int2, CString * str1, void * ptr );
 	static void UndoCallback( int type, void * ptr, BOOL undo );

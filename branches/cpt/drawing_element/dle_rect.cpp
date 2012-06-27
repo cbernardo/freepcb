@@ -76,16 +76,13 @@ int CDLE_HOLLOW_RECT::_IsHit(double x, double y, double &d)
 {
 	double xCenter = (i.x+f.x) / 2., yCenter = (i.y+f.y) / 2.;
 	double w2 = abs(i.x-f.x) / 2., h2 = abs(i.y-f.y) / 2.;
-	if (id.T1()==ID_NET || id.T1()==ID_PART && id.T2()==ID_OUTLINE) {
+	if (item->IsVertex() || item->IsAreaCorner() || item->IsOutlineCorner()) {
 		// CPT r294.  Feature #27 (obparham's idea).  Still not certain if this is a winner...
 		// For vertices on connects and area edges, don't let the selectable region get too small (total width & ht < 6 pixels), or
 		// too big (total width & ht > 16 pixels).  But for pins & parts etc. don't make this adjustment.  Also skip the adjustment
 		// if it's a via.
-		cnet *net = (cnet*) ptr;
-		cconnect *c = net && id.T2()==ID_CONNECT? net->ConByIndex(id.I2()): 0;
-		cvertex *v = c && (id.T3()==ID_VERTEX || id.T3()==ID_SEL_VERTEX)? &c->VtxByIndex(id.I3()): 0;
 		double scale = dlist->m_scale;
-		if (v && v->via_w) ;
+		if (item->IsVia()) ;
 		else if (w2 < 3.0*scale) w2 = h2 = 3.0*scale;				// NB assuming that squares are always appropriate
 		else if (w2 > 8.0*scale) w2 = h2 = 8.0*scale;
 	}

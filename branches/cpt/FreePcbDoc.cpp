@@ -2614,6 +2614,7 @@ void CFreePcbDoc::OnProjectPartlist()
 
 void CFreePcbDoc::OnPartProperties()
 {
+#ifndef CPT2
 	partlist_info pl;
 	int ip = m_plist->ExportPartListInfo( &pl, m_view->m_sel_part );
 	CDlgAddPart dlg;
@@ -2642,6 +2643,7 @@ void CFreePcbDoc::OnPartProperties()
 			ProjectModified( TRUE );
 		}
 	}
+#endif
 }
 
 // CPT:  since MS broke CFileDialog::SetTemplate(), I had to rewrite this (as in OnFileImport(), qv)

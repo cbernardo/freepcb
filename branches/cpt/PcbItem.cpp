@@ -113,6 +113,13 @@ cvertex2::cvertex2(cconnect2 *c, int _x, int _y):				// Added args
 	dl_hole = NULL;
 }
 
+bool cvertex2::IsValid()
+{
+	if (!m_net->IsValid()) return false;
+	if (!m_con->IsValid()) return false;
+	return m_con->vtxs.Contains(this);
+}
+
 bool cvertex2::IsVia() 
 	{ return via_w>0 || tee && tee->via_w>0; }
 
@@ -153,6 +160,25 @@ bool cvertex2::Remove()
 	return false;
 }
 
+bool cvertex2::IsLooseEnd() 
+	{ return (!preSeg || !postSeg) && !pin && !tee && via_w==0; }
+
+void cvertex2::ForceVia( BOOL set_areas )
+{
+	force_via_flag = 1;
+	ReconcileVia();
+	if( set_areas )
+		m_net->SetAreaConnections();
+}
+
+void cvertex2::UnforceVia( BOOL set_areas )
+{
+	force_via_flag = 0;
+	ReconcileVia();
+	if( set_areas )
+		m_net->SetAreaConnections();
+}
+
 bool cvertex2::IsViaNeeded()
 {
 	if (tee) 
@@ -184,7 +210,10 @@ bool cvertex2::IsViaNeeded()
 
 void cvertex2::ReconcileVia()
 {
-	// CPT2.  Gets an appropriate width for a via on this vertex, if any.  NB does not do any drawing.
+	// CPT2.  Gets an appropriate width for a via on this vertex, if any.  NB does drawing too.
+	bool bWasDrawn = IsDrawn();
+	Undraw();
+
 	if (IsViaNeeded()) 
 	{
 		// CPT r295. Calculate via width, based on the widths of the adjacent segs and possibly the net defaults.
@@ -210,6 +239,8 @@ void cvertex2::ReconcileVia()
 
 	if (tee)
 		tee->ReconcileVia();
+	if (bWasDrawn)
+		Draw();
 }
 
 int cvertex2::GetViaConnectionStatus( int layer )
@@ -277,19 +308,23 @@ int cvertex2::Draw()
 		}
 		dl_hole = dl->AddMain( this, LAY_PAD_THRU, DL_HOLE, 1, via_hole_w, 0, 0,
 							x, y, 0, 0, 0, 0 );
+		// CPT2.  Trying a wider selector for vias (depending on hole size)
+		dl_sel = dl->AddSelector( this, LAY_SELECTION, DL_HOLLOW_RECT, 
+			1, 0, 0, x-via_w/2, y-via_w/2, x+via_w/2, y+via_w/2, 0, 0 );
+	}
+	else
+	{
+		// draw selection box for vertex, using layer of adjacent
+		// segments.  CPT2 TODO figure out why the layer of the selector matters...
+		int sel_layer;
+		if( preSeg )
+			sel_layer = preSeg->m_layer;
+		else
+			sel_layer = postSeg->m_layer;
+		dl_sel = dl->AddSelector( this, sel_layer, DL_HOLLOW_RECT, 
+			1, 0, 0, x-10*PCBU_PER_MIL, y-10*PCBU_PER_MIL, x+10*PCBU_PER_MIL, y+10*PCBU_PER_MIL, 0, 0 );
 	}
 
-	// draw selection box for vertex, using LAY_THRU_PAD if via, or layer of adjacent
-	// segments if no via
-	int sel_layer;
-	if( via_w )
-		sel_layer = LAY_SELECTION;
-	else if( preSeg )
-		sel_layer = preSeg->m_layer;
-	else
-		sel_layer = postSeg->m_layer;
-	dl_sel = dl->AddSelector( this, sel_layer, DL_HOLLOW_RECT, 
-		1, 0, 0, x-10*PCBU_PER_MIL, y-10*PCBU_PER_MIL, x+10*PCBU_PER_MIL, y+10*PCBU_PER_MIL, 0, 0 );
 	bDrawn = true;
 	return NOERR;
 }
@@ -316,6 +351,9 @@ void cvertex2::Highlight()
 		// Since vertices within a tee don't have selectors, it's unlikely that Highlight() will be called on them.
 		// But just in case...
 		{ tee->Highlight(); return; }
+	if (pin)
+		// Similarly for pin vertices:  highlight the pin, not the vtx
+		{ pin->Highlight(); return; }
 
 	// highlite square width is adjacent seg-width*2, via_width or 20 mils
 	// whichever is greatest
@@ -472,6 +510,14 @@ cseg2::cseg2(cconnect2 *c, int _layer, int _width)							// CPT2 added args.  Re
 	m_curve = m_selected = 0;
 	preVtx = postVtx = NULL;
 }
+
+bool cseg2::IsValid()
+{
+	if (!m_net->IsValid()) return false;
+	if (!m_con->IsValid()) return false;
+	return m_con->segs.Contains(this);
+}
+
 
 void cseg2::SetWidth( int w, int via_w, int via_hole_w )
 {
@@ -730,6 +776,9 @@ cconnect2::cconnect2( cnet2 * _net )
 	locked = 0;
 }
 
+bool cconnect2::IsValid()
+	{ return m_net->connects.Contains(this); }
+
 void cconnect2::SetWidth( int w, int via_w, int via_hole_w )
 {
 	citer<cseg2> is (&segs);
@@ -905,6 +954,18 @@ void cconnect2::Undraw()
 	bDrawn = false;
 }
 
+void cconnect2::Highlight()
+{
+	// Highlight connection, using thin lines so that segment layer colors can be seen.
+	citer<cseg2> is (&segs);
+	for (cseg2 *s = is.First(); s; s = is.Next())
+		s->Highlight(true);
+	// Highlight all vtxs (this will take care of tees and pins too)
+	citer<cvertex2> iv (&vtxs);
+	for (cvertex2 *v = iv.First(); v; v = iv.Next())
+		v->Highlight();
+
+}
 
 /**********************************************************************************************/
 /*  RELATED TO cpin2/cpart2                                                                     */
@@ -927,6 +988,12 @@ cpin2::cpin2(cpart2 *_part, padstack *_ps, cnet2 *_net)					// CPT2. Added args
 	if (net)
 		net->pins.Add(this);
 	dl_hole = NULL;
+}
+
+bool cpin2::IsValid()
+{
+	if (!part->IsValid()) return false;
+	return part->pins.Contains(this);
 }
 
 void cpin2::Disconnect(bool bSetAreas) 
@@ -1005,6 +1072,9 @@ cpart2::cpart2( cpartlist * pl )			// CPT2 TODO.  Will probably add more args...
 	m_value = new cvaluetext(doc, 0, 0, 0, false, false, 0, 0, 0, doc->m_smfontutil, &CString(""));
 	shape = NULL;
 }
+
+bool cpart2::IsValid()
+	{ return doc->m_plist->parts.Contains(this); }
 
 void cpart2::Move( int _x, int _y, int _angle, int _side )
 {
@@ -1263,7 +1333,7 @@ int cpart2::Draw()
 		}
 	}
 
-#if 0																							// CPT2 TODO coming soon...
+#ifndef CPT2																							// CPT2 TODO coming soon...
 	// draw text
 	for( int it=0; it<shape->m_tl->text_ptr.GetSize(); it++ )
 	{
@@ -1593,10 +1663,18 @@ ccorner::ccorner(ccontour *_contour, int _x, int _y)
 	preSide = postSide = NULL;
 }
 
+bool ccorner::IsValid() 
+{
+	if (!contour->poly->IsValid()) return false;
+	if (!contour->IsValid()) return false;
+	return contour->corners.Contains(this);
+}
+
 bool ccorner::IsAreaCorner() { return contour->poly->IsArea(); }
 bool ccorner::IsBoardCorner() { return contour->poly->IsBoard(); }
 bool ccorner::IsSmCorner() { return contour->poly->IsSmCutout(); }
 bool ccorner::IsOutlineCorner() { return contour->poly->IsOutline(); }
+cnet2 *ccorner::GetNet() { return contour->GetNet(); }
 
 int ccorner::GetTypeBit() 
 {														// Later:  put in .cpp file.  There wouldn't be this nonsense in Java...
@@ -1605,6 +1683,10 @@ int ccorner::GetTypeBit()
 	if (contour->poly->IsBoard()) return bitBoardCorner;
 	return bitOther;
 }
+
+bool ccorner::IsOnCutout()
+	// Return true if this side lies on a secondary contour within the polyline
+	{ return contour->poly->main!=contour; }
 
 void ccorner::Highlight()
 {
@@ -1627,6 +1709,13 @@ cside::cside(ccontour *_contour, int _style)
 	preCorner = postCorner = NULL;
 }
 
+bool cside::IsValid() 
+{
+	if (!contour->poly->IsValid()) return false;
+	if (!contour->IsValid()) return false;
+	return contour->sides.Contains(this);
+}
+
 bool cside::IsAreaSide() { return contour->poly->IsArea(); }
 bool cside::IsBoardSide() { return contour->poly->IsBoard(); }
 bool cside::IsSmSide() { return contour->poly->IsSmCutout(); }
@@ -1639,6 +1728,8 @@ int cside::GetTypeBit()
 	if (contour->poly->IsBoard()) return bitBoardSide;
 	return bitOther;
 }
+
+cnet2 *cside::GetNet() { return contour->GetNet(); }
 
 bool cside::IsOnCutout()
 	// Return true if this side lies on a secondary contour within the polyline
@@ -1671,6 +1762,11 @@ ccontour::ccontour(cpolyline *_poly, bool bMain)
 		poly->main = this;
 	poly->contours.Add(this);
 }
+
+bool ccontour::IsValid() 
+	{ return poly->contours.Contains(this); }
+
+cnet2 *ccontour::GetNet() { return poly->GetNet(); }
 
 void ccontour::AppendSideAndCorner( cside *s, ccorner *c, ccorner *after )
 {
@@ -1721,6 +1817,7 @@ CRect ccontour::GetCornerBounds()
 	}
 	return r;
 }
+
 
 
 void cpolyline::MarkConstituents()
@@ -2116,10 +2213,16 @@ carea2::carea2(cnet2 *_net, int _layer, int _hatch, int _w, int _sel_box)
 	m_sel_box = _sel_box;
 }
 
+bool carea2::IsValid()
+{
+	if (!m_net->IsValid()) return false;
+	return m_net->areas.Contains(this);
+}
+
 void carea2::Remove()
 {
 	// CPT2. User wants to delete area, so detach it from the network (garbage collector will later delete this object and its
-	// constituents for good).  bSetAreaConnections is true by default.
+	// constituents for good).
 	Undraw();
 	m_net->areas.Remove(this);
 }
@@ -2254,6 +2357,8 @@ cnet2::cnet2( cnetlist *nlist, CString _name, int _def_w, int _def_via_w, int _d
 	bVisible = true;	
 }
 
+bool cnet2::IsValid()
+	{ return doc->m_nlist->nets.Contains(this); }
 
 void cnet2::SetVisible( bool _bVisible )
 {
@@ -2300,9 +2405,38 @@ void cnet2::SetVisible( bool _bVisible )
 	}
 }
 
-void cnet2::Highlight()
+void cnet2::Highlight(cpcb_item *exclude)
 {
-	HighlightConnections();
+	// CPT2 Derived from old CNetList::HighlightConnection(), plus areas get highlighted too.  (Didn't see a reason to separate out the connection highlighting
+	// routine at this point...)
+	// AMW r272: thin segment highlights and vertex highlights
+	// AMW r274: exclude item(s) indicated by exclude_id
+	// if except is a segment, just exclude it
+	// if exclude is a vertex, exclude it and adjacent segments
+	cseg2 *x_seg1 = NULL, *x_seg2 = NULL;
+	if (!exclude) 
+		;
+	else if (exclude->IsSeg())
+		x_seg1 = exclude->ToSeg();
+	else if (cvertex2 *v = exclude->ToVertex())
+		x_seg1 = v->preSeg,
+		x_seg2 = v->postSeg;
+
+	citer<cconnect2> ic (&connects);
+	for (cconnect2 *c = ic.First(); c; c = ic.Next())
+	{
+		// Highlight all segs in net, minus exclusions, with _thin_ lines
+		citer<cseg2> is (&c->segs);
+		for (cseg2 *s = is.First(); s; s = is.Next())
+			if (s != x_seg1 && s != x_seg2)
+				s->Highlight(true);
+		// Highlight all vtxs, minus exclusions (this will take care of tees and pins too)
+		citer<cvertex2> iv (&c->vtxs);
+		for (cvertex2 *v = iv.First(); v; v = iv.Next())
+			if (v != exclude)
+				v->Highlight();
+	}
+
 	citer<carea2> ia (&areas);
 	for (carea2 *a = ia.First(); a; a = ia.Next())
 		a->Highlight();
@@ -2337,7 +2471,7 @@ void cnet2::CalcViaWidths(int w, int *via_w, int *via_hole_w) {
 
 cvertex2 *cnet2::TestHitOnVertex(int layer, int x, int y) 
 {
-	// Test for a hit on a vertex in a trace within this layer.
+	// Test for a hit on a vertex in a trace within this net/layer.
 	// If layer == 0, ignore layer.  New return value: returns the hit vertex, or 0 if no vtx is near (x,y) on layer
 	citer<cconnect2> ic (&connects);
 	for( cconnect2 *c = ic.First(); c; c = ic.Next())
@@ -2362,6 +2496,377 @@ cvertex2 *cnet2::TestHitOnVertex(int layer, int x, int y)
 	}
 	return NULL;
 }
+
+void cnet2::OptimizeConnections( BOOL bBelowPinCount, int pin_count, BOOL bVisibleNetsOnly )
+{
+	// CPT2 TODO.  Derive from CNetList::OptimizeConnections.  I think we can ditch the ic_track argument of the old routine. 
+#ifdef PROFILE
+	StartTimer();	//****
+#endif
+#ifndef CPT2
+	// see if we need to do this
+	if( bVisibleNetsOnly && net->visible == 0 )
+		return ic_track;
+	if( bBelowPinCount && net->NumPins() >= pin_count )
+		return ic_track;
+
+	// record id of connection to track
+	id id_track;
+	if( ic_track != -1 )
+		id_track = net->ConByIndex( ic_track )->Id();
+
+	// get number of pins N and make grid[NxN] array and pair[N*2] array
+	int npins = net->NumPins();
+	char * grid = (char*)calloc( npins*npins, sizeof(char) );
+	for( int ip=0; ip<npins; ip++ )
+		grid[ip*npins+ip] = 1;
+	CArray<int> pair;			// use CArray because size is unknown,
+	pair.SetSize( 2*npins );	// although this should be plenty
+
+	// go through net, deleting unrouted and unlocked connections 
+	// unless they end on a tee or end-vertex
+	CIterator_cconnect iter_con( net );
+	for( cconnect * c=iter_con.GetFirst(); c; c=iter_con.GetNext() )
+	{
+		if( c->NumSegs() == 0 )
+		{
+			// this is an error, fix it
+			ASSERT(0);
+			net->RemoveConnectAdjustTees( c );
+		}
+		else
+		{
+			// flag routed or partially routed connections
+			int routed = 0;
+			if( c->NumSegs() > 1						// at least partially routed
+				|| c->seg[0].m_layer != LAY_RAT_LINE	// first segment routed
+				|| c->end_pin == cconnect::NO_END		// ends on stub or tee-vertex
+				|| c->start_pin == cconnect::NO_END		// starts on stub or tee-vertex
+				)
+				routed = 1;
+			if( !routed && !c->locked )
+			{
+				// unrouted and unlocked, so delete connection, adjust tees
+				net->RemoveConnectAdjustTees( c );
+			}
+		}
+	}
+
+
+	// AMW r289: Programming note:
+	// The following code figures out which pins are connected to each other through
+	// existing traces, tees and copper areas, and therefore don't need new ratlines.
+	// Previously, when every connection had to start on a pin,
+	// this was pretty easy to do since the levels of branching were limited.
+	// Now that traces can be routed between other traces and copper areas pretty much ad lib,
+	// it is more complicated. Probably the best approach would be some sort of recursive
+	// tree-following or grid-following algorithm, but since I am lazy and modifying existing
+	// code, I am using a different method of starting with a pin,
+	// iterating through all the connections in the net (multiple times if necessary),
+	// and building maps of the connected pins, tees and copper areas, so I can eventually
+	// identify every connected pin. Hopefully, this won't be too inefficient.
+	int dummy;
+	CMap<int, int, int, int> pins_analyzed;  // list of all pins analyzed
+	CIterator_cpin iter_cpin(net);
+	for( cpin * pin=iter_cpin.GetFirst(); pin; pin=iter_cpin.GetNext() )
+	{
+		// skip pins that have already been analyzed through connections to earlier pins
+		int ipin = pin->Index();
+		if( pins_analyzed.Lookup( ipin, dummy ) )
+			continue;
+		pins_analyzed.SetAt( ipin, ipin );
+
+		// look for all connections to this pin, or to any pin, tee or area connected to this pin
+		CMap<int, int, int, int> cons_eliminated;  // list of connections that don't connect to this pin
+		CMap<int, int, int, int> cons_connected;   // list of connections that do connect to this pin
+		CMap<int, int, int, int> tee_ids_connected;	// list of tee_ids connected to this pin
+		CMap<int, int, int, int> pins_connected;	// list of pins connected to this pin
+		CMap<int, int, int, int> areas_connected;	// list of areas connected to this pin
+		int num_new_connections = 1;
+		while( num_new_connections )	// iterate as long as we are still finding new connections
+		{
+			num_new_connections = 0;
+			for( cconnect * c=iter_con.GetFirst(); c; c=iter_con.GetNext() )
+			{
+				int ic = c->Index();
+				if( cons_eliminated.Lookup( ic, dummy ) )	// already eliminated
+					continue;
+				if( cons_connected.Lookup( ic, dummy ) )	// already analyzed
+					continue;
+				// see if this connection can be eliminated, 
+				// or is connected to a pin, tee or area that connects to the pin being analyzed
+				bool bConEliminated = TRUE;
+				bool bConConnected = FALSE;
+				CIterator_cvertex iter_vtx(c);
+				for( cvertex * v=iter_vtx.GetFirst(); v; v=iter_vtx.GetNext() )
+				{
+					if( v->GetType() == cvertex::V_PIN )
+					{
+						// vertex is a pin
+						cpin * v_pin = v->GetNetPin();
+						if( v_pin == pin )
+						{
+							// pin being analyzed
+							bConEliminated = FALSE;
+							bConConnected = TRUE;
+							break;
+						}
+						else if( pins_connected.Lookup( v_pin->Index(), dummy ) )
+						{
+							// pin connected to pin being analyzed
+							bConEliminated = FALSE;
+							bConConnected = TRUE;
+							break;
+						}
+						else
+						{
+							// other pin, might connect in later iterations
+							bConEliminated = FALSE;
+						}
+					}
+					else if( v->GetType() == cvertex::V_TEE || v->GetType() == cvertex::V_SLAVE )
+					{
+						// vertex is a tee, might connect
+						bConEliminated = FALSE;
+						if( tee_ids_connected.Lookup( abs(v->tee_ID), dummy ) )
+							bConConnected = TRUE;	// does connect
+					}
+					CArray<int> ca;		// array of indices to copper areas
+					if( v->GetConnectedAreas( &ca ) > 0 )
+					{
+						// connected to copper area(s), might connect
+						bConEliminated = FALSE;
+						for( int iarray=0; iarray<ca.GetSize(); iarray++ )
+						{
+							// get copper area
+							int ia = ca[iarray];
+							if( areas_connected.Lookup( ia, dummy ) )
+								bConConnected = TRUE;	// does connect
+						}
+					}
+				}
+				if( bConEliminated )
+				{
+					// don't need to look at this connection any more
+					cons_eliminated.SetAt( ic, ic );
+				}
+				else if( bConConnected )
+				{
+					cons_connected.SetAt( ic, ic );
+					num_new_connections++;
+					// add pins. tees and areas to maps of connected items
+					for( cvertex * v=iter_vtx.GetFirst(); v; v=iter_vtx.GetNext() )
+					{
+						if( v->GetType() == cvertex::V_PIN )
+						{
+							// vertex is a pin
+							cpin * v_pin = v->GetNetPin();
+							if( v_pin != pin )
+							{
+								// connected
+								pins_connected.SetAt( v_pin->Index(), v_pin->Index() );
+								pins_analyzed.SetAt( v_pin->Index(), v_pin->Index() );
+							}
+						}
+						else if( v->GetType() == cvertex::V_TEE || v->GetType() == cvertex::V_SLAVE )
+						{
+							// vertex is a tee
+							tee_ids_connected.SetAt( abs(v->tee_ID), abs(v->tee_ID) );
+						}
+						CArray<int> ca;		// array of indices to copper areas
+						if( v->GetConnectedAreas( &ca ) > 0 )
+						{
+							// vertex connected to copper area(s), add to map
+							for( int iarray=0; iarray<ca.GetSize(); iarray++ )
+							{
+								// get copper area(s)
+								int ia = ca[iarray];
+								areas_connected.SetAt( ia, ia );
+								// get pins attached to copper area
+								carea* a = net->AreaByIndex(ia);
+								for( int ip=0; ip<a->NumPins(); ip++ )
+								{
+									cpin * pin = a->PinByIndex(ip);
+									ipin = pin->Index();
+									pins_connected.SetAt( ipin, ipin );
+								}
+							}
+						}
+					}
+				}
+			}	// end connection loop
+		}	// end while loop
+
+		// now loop through all connected pins and mark them as connected
+		int m_pins = pins_connected.GetCount();
+		if( m_pins > 0 )
+		{
+			int p1 = pin->Index();
+			POSITION pos = pins_connected.GetStartPosition();
+			int    nKey, nValue;
+			while (pos != NULL)
+			{
+				pins_connected.GetNextAssoc( pos, nKey, nValue );
+				int p2 = nValue;
+				AddPinsToGrid( grid, p1, p2, npins );
+			}
+		}
+
+	}	// end loop through net pins
+
+
+#ifdef PROFILE
+	double time1 = GetElapsedTime();
+	StartTimer();
+#endif
+
+	// now optimize the unrouted and unlocked connections
+	long num_loops = 0;
+	int n_optimized = 0;
+	int min_p1, min_p2, flag;
+	double min_dist;
+
+	// create arrays of pin params for efficiency
+	CArray<BOOL>legal;
+	CArray<double>x, y;
+	CArray<double>d;
+	x.SetSize(npins);
+	y.SetSize(npins);
+	d.SetSize(npins*npins);
+	legal.SetSize(npins);
+	CPoint p;
+	for( int ip=0; ip<npins; ip++ )
+	{
+		legal[ip] = FALSE;
+		cpart * part = net->pin[ip].part;
+		if( part )
+			if( part->shape )
+			{
+				{
+					CString pin_name = net->pin[ip].pin_name;
+					int pin_index = part->shape->GetPinIndexByName( pin_name );
+					if( pin_index != -1 )
+					{
+						p = m_plist->GetPinPoint( net->pin[ip].part, pin_name );
+						x[ip] = p.x;
+						y[ip] = p.y;
+						legal[ip] = TRUE;
+					}
+				}
+			}
+	}
+	for( int p1=0; p1<npins; p1++ )
+	{
+		for( int p2=0; p2<p1; p2++ )
+		{
+			if( legal[p1] && legal[p2] )
+			{
+				double dist = sqrt((x[p1]-x[p2])*(x[p1]-x[p2])+(y[p1]-y[p2])*(y[p1]-y[p2]));
+				d[p1*npins+p2] = dist;
+				d[p2*npins+p1] = dist;
+			}
+		}
+	}
+
+	// make array of distances for all pin pairs p1 and p2
+	// where p2<p1 and index = (p1)*(p1-1)/2
+	// first, get number of legal pins
+	int n_legal = 0;
+	for( int p1=0; p1<npins; p1++ )
+		if( legal[p1] )
+			n_legal++;
+
+	int n_elements = (n_legal*(n_legal-1))/2;
+	int * numbers = (int*)calloc( sizeof(int), n_elements );
+	int * index = (int*)calloc( sizeof(int), n_elements );
+	int i = 0;
+	for( int p1=1; p1<npins; p1++ )
+	{
+		for( int p2=0; p2<p1; p2++ )
+		{
+			if( legal[p1] && legal[p2] )
+			{
+				index[i] = p1*npins + p2;
+				double number = d[p1*npins+p2];
+				if( number > INT_MAX )
+					ASSERT(0);
+				numbers[i] = number;
+				i++;
+				if( i > n_elements )
+					ASSERT(0);
+			}
+		}
+	}
+	// sort
+	::q_sort(numbers, index, 0, n_elements - 1);
+	for( int i=0; i<n_elements; i++ )
+	{
+		int dd = numbers[i];
+		int p1 = index[i]/npins;
+		int p2 = index[i]%npins;
+		if( i>0 )
+		{
+			if( dd < numbers[i-1] )
+				ASSERT(0);
+		}
+	}
+
+	// now make connections, shortest first
+	for( int i=0; i<n_elements; i++ )
+	{
+		int p1 = index[i]/npins;
+		int p2 = index[i]%npins;
+		// find shortest connection between unconnected pins
+		if( legal[p1] && legal[p2] && !grid[p1*npins+p2] )
+		{
+			// connect p1 to p2
+			AddPinsToGrid( grid, p1, p2, npins );
+			pair.SetAtGrow(n_optimized*2, p1);	
+			pair.SetAtGrow(n_optimized*2+1, p2);		
+			n_optimized++;
+		}
+	}
+	free( numbers );
+	free( index );
+
+//#if 0
+	// add new optimized connections
+	for( int ic=0; ic<n_optimized; ic++ )
+	{
+		// make new connection with a single unrouted segment
+		int p1 = pair[ic*2];
+		int p2 = pair[ic*2+1];
+		net->AddConnectFromPinToPin( p1, p2 );
+	}
+//#endif
+
+	free( grid );
+
+	// find ic_track if still present, and return index
+	int ic_new = -1;
+	if( ic_track >= 0 )
+	{
+		if( id_track.Resolve() )
+		{
+			ic_new = id_track.I2();
+		}
+	}
+
+#ifdef PROFILE
+	double time2 = GetElapsedTime();
+	if( net->name == "GND" )
+	{
+		CString mess;
+		mess.Format( "net \"%s\", %d pins\nloops = %ld\ntime1 = %f\ntime2 = %f", 
+			net->name, net->npins, num_loops, time1, time2 );
+		AfxMessageBox( mess );
+	}
+#endif
+
+	return ic_new;
+#endif
+}
+
 
 int cnet2::Draw() 
 {
@@ -2401,6 +2906,9 @@ ctext::ctext( CFreePcbDoc *_doc, int _x, int _y, int _angle,
 	m_smfontutil = _smfontutil;
 	m_str = *_str;
 }
+
+bool ctext::IsValid()
+	{ return doc->m_tlist->texts.Contains(this); }
 
 void ctext::Move( int x, int y, int angle, BOOL mirror, BOOL negative, int layer, int size, int w )
 {

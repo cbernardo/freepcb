@@ -148,6 +148,8 @@ public:
 	virtual void Undraw() { }
 	bool IsDrawn() { return bDrawn; }
 	virtual void Highlight() { }
+	virtual bool IsValid() { return false; }	// Or make it pure virtual.
+
 	// Type identification functions.  All return false by default, but are overridden in specified derived classes.
 	virtual bool IsVertex() { return false; }
 	virtual bool IsVia() { return false; }
@@ -211,6 +213,8 @@ public:
 	virtual ccentroid *ToCentroid() { return NULL; }
 	virtual cadhesive *ToAdhesive() { return NULL; }
 	virtual cdre *ToDRE() { return NULL; }
+
+	virtual cnet2 *GetNet() { return NULL; }		// Returns something for items that belong to a net.
 };
 
 class carray_link
@@ -293,6 +297,7 @@ public:
 
 	void Add(T* item)
 	{
+		// NB If item is null, we get a crash.  OK?
 		// Add item to this carray.  But first check if the item already belongs to this, and return silently if so (?)
 		for (carray_link *link = item->carray_list; link; link = link->next)
 			if (link->arr==this) return;
@@ -338,7 +343,8 @@ public:
 
 	bool Contains(T* item)
 	{
-		// Return true if "item" is in the array.
+		// Return true if "item" is in the array.  NB if item is null, return false. (?)
+		if (!item) return false;
 		for (carray_link *link = item->carray_list; link; link = link->next)
 			if (link->arr == this) return true;
 		return false;
@@ -346,7 +352,7 @@ public:
 
 	void Remove(T* item)
 	{
-		// Remove "item" from this.  If item isn't in the list, do an ASSERT (?)
+		// Remove "item" from this.  If item isn't in the list, do an ASSERT (?).  If item is null, crash (?)
 		carray_link *link, *prev = NULL;
 		for (link = item->carray_list; link; prev = link, link = link->next)
 			if (link->arr == this) break;
@@ -522,6 +528,7 @@ public:
 	~cvertex2()
 		{ }
 
+	bool IsValid();											// Done in cpp
 	bool IsVertex() { return true; }
 	bool IsVia();											// Done in cpp
 	bool IsSlaveVtx() { return tee!=NULL; }
@@ -536,6 +543,8 @@ public:
 		if (tee) return bitTeeVtx;							// NB tee-vertices will typically NOT be selectable, but tees will.
 		return bitTraceVtx;
 	}
+	cnet2 *GetNet() { return m_net; }
+
 
 	bool Remove();											// Done in cpp
 
@@ -546,12 +555,13 @@ public:
 
 	void GetTypeStatusStr( CString * str );
 	void GetStatusStr( CString * str );
+	bool IsLooseEnd();										// Done in cpp
+	void ForceVia( BOOL set_areas=TRUE );					// Done in cpp
+	void UnforceVia( BOOL set_areas=TRUE );					// Done in cpp
 	bool IsViaNeeded();										// Done in cpp
 	void ReconcileVia();									// Done in cpp
 	bool IsConnectedToArea( carea2 * a );
 	int GetConnectedAreas( carray<carea2> *a=NULL );		// CPT2. Arg change
-	void ForceVia( BOOL set_areas=TRUE );					// CPT2 TODO Derive from CNetList
-	int UnforceVia( BOOL set_areas=TRUE );					// CPT2 TODO Derive from CNetList
 
 	void StartDragging( CDC * pDC, int x, int y, int cosshair = 1 );			// CPT2 TODO Derive from CNetList::StartDraggingVertex
 	void CancelDragging();														// CPT2 TODO Derive from CNetList::CancelDraggingVertex
@@ -577,10 +587,14 @@ public:
 			v->tee = NULL;
 		vtxs.RemoveAll();
 	}
+
+	bool IsValid() { return vtxs.GetSize()>0; }			// TODO Adequate?
 	bool IsTee() { return true; }
 	ctee *ToTee() { return this; }
 	int GetTypeBit() 
 		{ return via_w? bitVia: bitTee; }
+	cnet2 *GetNet() { return vtxs.GetSize()==0? NULL: vtxs.First()->m_net; }
+
 	void Remove();										// Done in cpp
 	bool Adjust();										// Done in cpp
 	void ReconcileVia();								// Done in cpp
@@ -616,10 +630,12 @@ public:
 		// Destructor is not responsible for unhooking seg from preVtx and postVtx.
 		Undraw();
 	}
-	// cseg2( cseg2& src );										// copy constructor. CPT2 possibly dump
+
+	bool IsValid();												// Done in cpp
 	bool IsSeg() { return true; }
 	cseg2 *ToSeg() { return this; }
 	int GetTypeBit() { return bitSeg; }
+	cnet2 *GetNet() { return m_net; }
 
 	void SetWidth( int w, int via_w, int via_hole_w );			// Done in cpp
 	void SetLayer( int _layer )
@@ -698,9 +714,11 @@ public:
 			if (v->m_con == this) v->m_con = NULL;
 	}
 
+	bool IsValid();
 	bool IsConnect() { return true; }
 	cconnect2 *ToConnect() { return this; }
 	int GetTypeBit() { return bitConnect; }			// Rarely used since connects don't have selector elements.
+	cnet2 *GetNet() { return m_net; }
 
 	// void ClearArrays();							// CPT2 unused
 	void GetStatusStr( CString * str );
@@ -749,7 +767,7 @@ public:
 	// drawing methods
 	int Draw();															// Done in cpp
 	void Undraw();														// Done in cpp
-	void Highlight() { }												// CPT2 TODO adapt from CNetList::HighlightConnection()
+	void Highlight();													// Done in cpp, derived from CNetList::HighlightConnection()
 };
 
 
@@ -779,6 +797,7 @@ public:
 		int _stroke_width, SMFontUtil *_smfontutil, CString * _str );
 	~ctext();
 
+	bool IsValid();																// Done in cpp
 	bool IsText() { return true; }
 	ctext *ToText() { return this; }
 	int GetTypeBit() { return bitText; }
@@ -858,9 +877,11 @@ public:
 	cpin2(cpart2 *_part, padstack *_ps, cnet2 *_net);					// CPT2. Added args. Done in cpp
 	~cpin2();
 
+	bool IsValid();													// Done in cpp
 	bool IsPin() { return true; }
 	cpin2 *ToPin() { return this; }
 	int GetTypeBit() { return bitPin; }
+	cnet2 *GetNet() { return net; }
 
 	void SetThermalVisible(int layer, bool bVisible) { }			// CPT2.  TODO figure this out.
 
@@ -931,19 +952,20 @@ public:
 	~cpart2()
 		{ delete m_ref; delete m_value; }
 
+	bool IsValid();								// Done in cpp
 	bool IsPart() { return true; }
 	cpart2 *ToPart() { return this; }
 	int GetTypeBit() { return bitPart; }
-	void Remove();						// Done in cpp.
+	void Remove();								// Done in cpp.
 
-	void Move( int x, int y, int angle, int side );													// Done in cpp, derived from CPartList::Move
+	void Move( int x, int y, int angle, int side );												// Done in cpp, derived from CPartList::Move
 
 	void SetData( CShape * shape, CString * ref_des, CString *value_txt, CString * package, 
-	     		  int x, int y, int side, int angle, int visible, int glued );		// Done in cpp, Derived from CPartList::SetPartData
+	     		  int x, int y, int side, int angle, int visible, int glued );					// Done in cpp, Derived from CPartList::SetPartData
 	void SetValue( CString * value, int x, int y, int angle, int size, 
 				  int w, BOOL vis, int layer );													// Done in cpp, Derived from CPartList::SetValue
 	void ResizeRefText(int size, int width, BOOL vis );											// Done in cpp, derived from CPartList::ResizeRefText()
-	void InitPins();																				// Done in cpp. Basically all new
+	void InitPins();																			// Done in cpp. Basically all new
 
 	// cpin2 * PinByUID( int uid );		// CPT2. Use pins.FindByUID().
 	// int GetNumRefStrokes();			// CPT2. Use m_ref.m_stroke.GetSize()
@@ -978,6 +1000,7 @@ public:
 	ccorner(ccontour *_contour, int _x, int _y);		// Done in cpp
 	~ccorner();
 
+	bool IsValid();										// Done in cpp
 	bool IsCorner() { return true; }
 	bool IsAreaCorner();								// Done in cpp
 	bool IsBoardCorner();								// Done in cpp
@@ -985,6 +1008,9 @@ public:
 	bool IsOutlineCorner(); 							// Done in cpp
 	ccorner *ToCorner() { return this; }
 	int GetTypeBit();									// Done in cpp
+	cnet2 *GetNet();									// Done in cpp
+	bool IsOnCutout();									// Done in cpp
+
 	void Highlight();									// Done in cpp, derived from old CPolyLine::HighlightCorner().  See also CNetList::HighlightAreaCorner.
 	void Move( int x, int y );							// CPT2 TODO. Derive from CNetList::MoveAreaCorner (et al?)
 
@@ -1001,17 +1027,20 @@ public:
 
 	cside(ccontour *_contour, int _style);
 	~cside();
+
+	bool IsValid();
 	bool IsSide() { return true; }
 	bool IsAreaSide();								// Done in cpp
 	bool IsBoardSide();								// Done in cpp
 	bool IsSmSide(); 								// Done in cpp
 	bool IsOutlineSide(); 							// Done in cpp
 	cside *ToSide() { return this; }
-	int GetTypeBit();
+	int GetTypeBit();								// Done in cpp
+	cnet2 *GetNet();								// Done in cpp
+	bool IsOnCutout();								// Done in cpp
 
 	void Highlight();		// Done in cpp, derived from cpolyline::HighlightSide()
 	void SetVisible();		// CPT2
-	bool IsOnCutout();		// Done in cpp
 	void SetStyle();
 };
 
@@ -1026,9 +1055,12 @@ public:
 
 	ccontour(cpolyline *_poly, bool bMain);		// Done in cpp
 	~ccontour();
+
+	bool IsValid();
 	bool IsContour() { return true; }
 	ccontour *ToContour() { return this; }
 	int GetTypeBit() { return bitContour; }
+	cnet2 *GetNet();														// Done in cpp
 
 	void Highlight() 
 	{
@@ -1077,6 +1109,7 @@ public:
 	}
 	~cpolyline()
 		{ }
+
 	bool IsPolyline() { return true; }
 	cpolyline *ToPolyline() { return this; }
 
@@ -1203,10 +1236,12 @@ public:
 	carea2(cnet2 *_net, int layer, int hatch, int w, int sel_box);	// Done in cpp
 	~carea2();						
 
-	// void Initialize( CDisplayList * dlist, cnet2 * net );		// TODO Rethink relationship to constructor??
+	bool IsValid();
 	bool IsArea() { return true; }
 	carea2 *ToArea() { return this; }
 	int GetTypeBit() { return bitArea; }
+	cnet2 *GetNet() { return m_net; }
+
 
 	void Remove();													// Done in cpp
 	void SetConnections();											// Done (almost) in cpp. Derived from old CNetList::SetAreaConnections(cnet2*, int)
@@ -1220,6 +1255,8 @@ class csmcutout : public cpolyline
 public:
 	csmcutout(CFreePcbDoc *_doc);				// Done in cpp
 	~csmcutout() { }
+
+	bool IsValid() { return true; }				// CPT2 TODO
 	bool IsSmCutout() { return true; }
 	csmcutout *ToSmCutout() { return this; }
 	int GetTypeBit() { return bitSmCutout; }
@@ -1232,6 +1269,8 @@ public:
 	// Represents board outlines.
 	cboard(CFreePcbDoc *_doc);					// Done in cpp
 	~cboard() { }
+
+	bool IsValid() { return true; }				// CPT2 TODO
 	bool IsBoard() { return true; }
 	cboard *ToBoard() { return this; }
 	int GetTypeBit() { return bitBoard; }
@@ -1278,6 +1317,7 @@ public:
 			p->net = NULL;
 	}
 
+	bool IsValid();
 	bool IsNet() { return true; }
 	cnet2 *ToNet() { return this; }
 	int GetTypeBit() { return bitNet; }
@@ -1287,12 +1327,9 @@ public:
 	bool GetVisible() { return bVisible; }
 
 	void SetVisible( bool _bVisible );				// Done in cpp
-	void HighlightConnections()						// CPT2 TODO Derive from CNetList::HighlightNetConnections().  
-													// ?Not implementing exclude_id arg at this point
-	{
-	}
 
-	void Highlight();												// Done in cpp
+	void Highlight(cpcb_item *exclude);								// Done in cpp
+	void Highlight() { Highlight(NULL); }							// Also overrides base-class func.
 	void CalcViaWidths(int w, int *via_w, int *via_hole_w);			// Done in cpp
 	// pins
 	int NumPins() { return pins.GetSize(); }
@@ -1357,7 +1394,7 @@ public:
 	// bool MergeUnroutedSegments( cconnect2 * c );		// CPT2 use cconnect::MergeUnroutedSegments()
 
 	void CleanUpConnections( CString * logstr=NULL );				// CPT2 TODO adapt from CNetList::CleanUpConnections(cnet*,CString*)
-	int OptimizeConnections(BOOL bBelowPinCount, int pin_count, BOOL bVisibleNetsOnly=TRUE );  // CPT2 TODO:  derive from old CNetList functions
+	void OptimizeConnections(BOOL bBelowPinCount, int pin_count, BOOL bVisibleNetsOnly=TRUE );  // CPT2 TODO:  derive from old CNetList functions
 	carea2 *NetAreaFromPoint( int x, int y, int layer )								// CPT2 replaces CNetList::TestPointInArea
 	{
 		citer<carea2> ia (&areas);
