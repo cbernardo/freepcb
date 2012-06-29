@@ -173,7 +173,6 @@ public:
 	int m_layers;						// number of copper layers
 	int m_def_w, m_def_via_w, m_def_via_hole_w;
 	int m_annular_ring;
-	carray<ctee> tees;					// Used when reading files (and the like), also by cnet2::Draw().  TODO consider moving into cnet2 structure
 	BOOL m_bSMT_connect;
 
 
@@ -276,8 +275,9 @@ public:
 	// int CancelDraggingSegmentNewVertex( cnet2 * net, int ic, int iseg );					// CPT2 use cseg2::CancelDraggingNewVertex()
 	// void StartDraggingStub( CDC * pDC, cnet2 * net, int ic, int iseg,
 	//					int x, int y, int layer1, int w, 
-	//					int layer_no_via, int crosshair, int inflection_mode );				// CPT2 TODO decide if this should go into cvertex2 or cseg2
-	// void CancelDraggingStub( cnet2 * net, int ic, int iseg );							// CPT2 TODO ditto
+	//					int layer_no_via, int crosshair, int inflection_mode );				// CPT2 use cvertex2::StartDraggingStub()
+	// void CancelDraggingStub( cnet2 * net, int ic, int iseg );							// CPT2 pretty much reduced to a simple CDisplayList::StopDragging(),
+																							// therefore eliminated
 	// int CancelMovingSegment( cnet2 * net, int ic, int ivtx );							// use cseg2::CancelMoving()
 
 	// functions for vias
@@ -304,7 +304,7 @@ public:
 	// functions related to parts. CPT2 TODO think these through more
 	int RehookPartsToNet( cnet2 * net );
 	void PartAdded( cpart2 * part );
-	int PartMoved( cpart2 * part, int dx = 1, int dy = 1 );			// CPT added optional params
+	// int PartMoved( cpart2 * part, int dx = 1, int dy = 1 );								// CPT2.  Use cpart2::PartMoved
 	int PartFootprintChanged( cpart2 * part );
 	int PartDeleted( cpart2 * part, BOOL bSetAreas=TRUE );
 	int PartDisconnected( cpart2 * part, BOOL bSetAreas=TRUE );
@@ -342,15 +342,15 @@ public:
 	int CancelDraggingAreaCorner( cnet2 * net, int iarea, int icorner );
 	int StartDraggingInsertedAreaCorner( CDC *pDC, cnet2 * net, int iarea, int icorner, int x, int y, int crosshair = 1 );
 	int CancelDraggingInsertedAreaCorner( cnet2 * net, int iarea, int icorner );
-	void RenumberAreas( cnet2 * net );
-	int TestAreaPolygon( cnet2 * net, int iarea );
-	int ClipAreaPolygon( cnet2 * net, int iarea, 
-		BOOL bMessageBoxArc, BOOL bMessageBoxInt, BOOL bRetainArcs=TRUE );
-	int AreaPolygonModified( cnet2 * net, int iarea, BOOL bMessageBoxArc, BOOL bMessageBoxInt );
-	int CombineAllAreasInNet( cnet2 * net, BOOL bMessageBox, BOOL bUseUtility );
-	int TestAreaIntersections( cnet2 * net, int ia );
-	int TestAreaIntersection( cnet2 * net, int ia1, int ia2 );
-	int CombineAreas( cnet2 * net, int ia1, int ia2 );
+	// void RenumberAreas( cnet2 * net );																// CPT2 obsolete
+	// int TestAreaPolygon( cnet2 * net, int iarea );													// CPT2 use cpolyline::TestPolygon
+	// int ClipAreaPolygon( cnet2 * net, int iarea, 
+	// 	BOOL bMessageBoxArc, BOOL bMessageBoxInt, BOOL bRetainArcs=TRUE );								// CPT2 use carea2::ClipPolygon
+	// int AreaPolygonModified( cnet2 * net, int iarea, BOOL bMessageBoxArc, BOOL bMessageBoxInt );		// CPT2 use carea2::PolygonModified
+	// int CombineAllAreasInNet( cnet2 * net, BOOL bMessageBox, BOOL bUseUtility );						// CPT2 use cnet2::CombineAllAreas
+	// int TestAreaIntersections( cnet2 * net, int ia );												// CPT2 use carea2::TestIntersections
+	// int TestAreaIntersection( cnet2 * net, int ia1, int ia2 );										// CPT2 use cpolyline::TestIntersection
+	// int CombineAreas( cnet2 * net, int ia1, int ia2 );												// CPT2 use cpolyline::CombinePolyline
 	void ApplyClearancesToArea( cnet2 * net, int ia, int flags,
 			int fill_clearance, int min_silkscreen_stroke_wid, 
 			int thermal_wid, int hole_clearance );

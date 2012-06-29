@@ -187,8 +187,8 @@ public:
 	virtual bool IsDRE() { return false; }
 
 	virtual int GetTypeBit() { return 0; }				// See "enum typebits" above for return values from the various derived classes
-	bool IsPartItem() { return (GetTypeBit() & bitsNetItem) != 0; }
-	bool IsNetItem() { return (GetTypeBit() & bitsPartItem) != 0; }
+	bool IsPartItem() { return (GetTypeBit() & bitsPartItem) != 0; }
+	bool IsNetItem() { return (GetTypeBit() & bitsNetItem) != 0; }
 	bool IsSelectableForGroup() { return (GetTypeBit() & bitsSelectableForGroup) != 0; }
 
 	// Type casting functions.  All return null by default, but are overridden to return type-cast pointers in specified derived classes
@@ -350,6 +350,13 @@ public:
 		return false;
 	}
 
+	int OffsetOf(T* item)
+	{
+		for (carray_link *link = item->carray_list; link; link = link->next)
+			if (link->arr == this) return link->off;
+		return INT_MAX;
+	}
+
 	void Remove(T* item)
 	{
 		// Remove "item" from this.  If item isn't in the list, do an ASSERT (?).  If item is null, crash (?)
@@ -462,6 +469,14 @@ public:
 		nextIter = arr->iters;
 		arr->iters = this;
 	}
+	citer(carray<T> *arr0, T *at)
+	{
+		// Iterate through, starting at the position of "at". If "at" is not in the array, advance iterator past the end
+		arr = arr0;
+		nextOff = arr0->OffsetOf(at);
+		nextIter = arr->iters;
+		arr->iters = this;
+	}
 
 	~citer()
 	{
@@ -543,16 +558,15 @@ public:
 		if (tee) return bitTeeVtx;							// NB tee-vertices will typically NOT be selectable, but tees will.
 		return bitTraceVtx;
 	}
-	cnet2 *GetNet() { return m_net; }
-
-
+	cnet2 *GetNet() { return m_net; }						// Ho-hum
 	bool Remove();											// Done in cpp
 
 	int Draw();												// Done in cpp
 	void Undraw();											// Done in cpp
 	void Highlight();										// Done in cpp, derived from cvertex::Highlight
-	void SetVisible( bool bVis );							// CPT2 TODO Derive from CNetList::SetViaVisible 
+	void SetVisible( bool bVis );							// Done in cpp, derived from CNetList::SetViaVisible
 
+	void SetConnect(cconnect2 *c);							// Done in cpp
 	void GetTypeStatusStr( CString * str );
 	void GetStatusStr( CString * str );
 	bool IsLooseEnd();										// Done in cpp
@@ -562,10 +576,14 @@ public:
 	void ReconcileVia();									// Done in cpp
 	bool IsConnectedToArea( carea2 * a );
 	int GetConnectedAreas( carray<carea2> *a=NULL );		// CPT2. Arg change
+	cconnect2 * SplitConnect();								// Done in cpp, derived from cnet::SplitConnectAtVertex
+	cseg2 * AddRatlineToPin( cpin2 *pin );					// Done in cpp
+	void StartDraggingStub( CDC * pDC, int x, int y, int layer1, int w,	
+							int layer_no_via, int crosshair, int inflection_mode );		// Done in cpp
 
-	void StartDragging( CDC * pDC, int x, int y, int cosshair = 1 );			// CPT2 TODO Derive from CNetList::StartDraggingVertex
+	void StartDragging( CDC * pDC, int x, int y, int crosshair = 1 );			// CPT2 TODO Derive from CNetList::StartDraggingVertex
 	void CancelDragging();														// CPT2 TODO Derive from CNetList::CancelDraggingVertex
-	void Move( int x, int y );													// CPT2 TODO Derive from CNetList::MoveVertex
+	void Move( int x, int y );													// Done in cpp, derived from CNetList::MoveVertex
 	int GetViaConnectionStatus( int layer );									// Done in cpp
 };
 
@@ -596,9 +614,11 @@ public:
 	cnet2 *GetNet() { return vtxs.GetSize()==0? NULL: vtxs.First()->m_net; }
 
 	void Remove();										// Done in cpp
+	void Add(cvertex2 *v);								// Done in cpp
 	bool Adjust();										// Done in cpp
 	void ReconcileVia();								// Done in cpp
 	void Remove(cvertex2 *v);							// Done in cpp
+	void Move(int x, int y);							// Done in cpp
 	int Draw();											// Done in cpp
 	void Undraw();										// Done in cpp
 	void Highlight();									// Done in cpp
@@ -637,6 +657,7 @@ public:
 	int GetTypeBit() { return bitSeg; }
 	cnet2 *GetNet() { return m_net; }
 
+	void SetConnect(cconnect2 *c);
 	void SetWidth( int w, int via_w, int via_hole_w );			// Done in cpp
 	void SetLayer( int _layer )
 	{
@@ -667,7 +688,7 @@ public:
 
 	void StartDragging( CDC * pDC, int x, int y, int layer1, int layer2, int w,			// CPT2 TODO derive from CNetList::StartDraggingSegment
 						int layer_no_via, int dir, int crosshair = 1 );
-	void CancelDragging();																// CPT2 TODO derive from CNetList::CancelDraggingSegment()
+	void CancelDragging();																// Done in cpp, derived from CNetList::CancelDraggingSegment
 	int StartDraggingNewVertex( CDC * pDC, int x, int y, int layer, int w, int crosshair );// CPT2 TODO derive from CNetList::StartDraggingSegmentNewVertex()
 	int CancelDraggingNewVertex( );														// CPT2 TODO derive from CNetList::CancelDraggingSegmentNewVertex()
 };
@@ -759,6 +780,8 @@ public:
 	// void PrependVertex( const cvertex2& new_vtx );							// CPT2.  Probably able to live without.  
 	void PrependVertexAndSeg( cvertex2 *v, cseg2 *s );					// Done in cpp
 	void AppendSegment( int x, int y, int layer, int width );           // Done in cpp
+	void PrependSegment( int x, int y, int layer, int width );			// Done in cpp
+
 	void ReverseDirection();											// Done in cpp
 	void CombineWith( cconnect2 *c2, cvertex2 *v1, cvertex2 *v2) ;		// Done in cpp
 	void MergeUnroutedSegments();										// Done in cpp
@@ -823,12 +846,11 @@ public:
 class creftext: public ctext
 {
 public:
-	creftext( CFreePcbDoc * doc, int x, int y, int angle, 
+	cpart2 *part;																// Which part contains this reftext?
+
+	creftext( cpart2 *_part, int x, int y, int angle, 
 		BOOL bMirror, BOOL bNegative, int layer, int font_size, 
-		int stroke_width, SMFontUtil * smfontutil, CString * str_ptr ) :
-			ctext(doc, x, y, angle, bMirror, bNegative, layer, font_size,
-				stroke_width, smfontutil, str_ptr) 
-			{ }
+		int stroke_width, SMFontUtil * smfontutil, CString * str_ptr );			// Done in cpp
 	bool IsText() { return false; }
 	bool IsRefText() { return true; }
 	ctext *ToText() { return NULL; }
@@ -839,12 +861,11 @@ public:
 class cvaluetext: public ctext
 {
 public:
-	cvaluetext( CFreePcbDoc * doc, int x, int y, int angle, 
+	cpart2 *part;
+
+	cvaluetext( cpart2 *_part, int x, int y, int angle, 
 		BOOL bMirror, BOOL bNegative, int layer, int font_size, 
-		int stroke_width, SMFontUtil * smfontutil, CString * str_ptr ) :
-			ctext(doc, x, y, angle, bMirror, bNegative, layer, font_size,
-				stroke_width, smfontutil, str_ptr) 
-			{ }
+		int stroke_width, SMFontUtil * smfontutil, CString * str_ptr );
 	bool IsText() { return false; }
 	bool IsValueText() { return true; }
 	ctext *ToText() { return NULL; }
@@ -882,14 +903,14 @@ public:
 	cpin2 *ToPin() { return this; }
 	int GetTypeBit() { return bitPin; }
 	cnet2 *GetNet() { return net; }
+	int GetWidth();													// Done in cpp
+	void Highlight();												// Done in cpp, derived from old CPartList::HighlightPad
 
+	void SetPosition();												// Done in cpp.  New, but related to CPartList::GetPinPoint
 	void SetThermalVisible(int layer, bool bVisible) { }			// CPT2.  TODO figure this out.
-
 	// void Initialize( cnet2 * net );  // Put in constructor
 	void Disconnect(bool bSetAreas = true) ;						// Done in cpp
-	int GetWidth();													// Done in cpp
-	void SetPosition();												// Done in cpp.  New, but related to CPartList::GetPinPoint
-	void Highlight();												// Done in cpp, derived from old CPartList::HighlightPad
+	cseg2 *AddRatlineToPin( cpin2 *p2 );
 };
 
 
@@ -959,22 +980,26 @@ public:
 	void Remove();								// Done in cpp.
 
 	void Move( int x, int y, int angle, int side );												// Done in cpp, derived from CPartList::Move
-
+	void PartMoved( int dx, int dy );															// TODO still #ifndef'ed.  Derived from CNetList::PartMoved
 	void SetData( CShape * shape, CString * ref_des, CString *value_txt, CString * package, 
 	     		  int x, int y, int side, int angle, int visible, int glued );					// Done in cpp, Derived from CPartList::SetPartData
 	void SetValue( CString * value, int x, int y, int angle, int size, 
 				  int w, BOOL vis, int layer );													// Done in cpp, Derived from CPartList::SetValue
+	void MoveRefText( int _x, int _y, int _angle=-1, int _size=-1, int _w=-1 );					// Done in cpp, derived from CPartList::MoveRefText
 	void ResizeRefText(int size, int width, BOOL vis );											// Done in cpp, derived from CPartList::ResizeRefText()
+	void MoveValueText( int _x, int _y, int _angle=-1, int _size=-1, int _w=-1 );				// Done in cpp, derived from CPartList func
 	void InitPins();																			// Done in cpp. Basically all new
 
 	// cpin2 * PinByUID( int uid );		// CPT2. Use pins.FindByUID().
 	// int GetNumRefStrokes();			// CPT2. Use m_ref.m_stroke.GetSize()
 	// int GetNumValueStrokes();		// CPT2. Use m_value.m_stroke.GetSize()
 	int GetNumOutlineStrokes();
-	void OptimizeConnections( BOOL bBelowPinCount, int pin_count, BOOL bVisibleNetsOnly=TRUE );	// CPT2 TODO:  derive from old CNetList function
+	void OptimizeConnections( BOOL bBelowPinCount, int pin_count, BOOL bVisibleNetsOnly=TRUE );	// Done in cpp, derived from old CNetList function
 	CPoint GetCentroidPoint();			// CPT2 TODO derive from CPartList::GetCentroidPoint
 	CPoint GetGluePoint( int iglue );	// CPT2 TODO derive from CPartList::GetGluePoint()
 	void SetAreaConnections();			// CPT2 TODO derive from CNetList::SetAreaConnections() ?
+	CPoint GetRefPoint();				// Done in cpp.  Derived from CPartList func.
+	CPoint GetValuePoint();				// Done in cpp.  Derived from CPartList func.
 	CRect GetValueRect();				// Done in cpp.  Derived from CPartList func.
 	int GetBoundingRect( CRect * part_r );  // Done in cpp. Derived from CPartList::GetPartBoundingRect()
 
@@ -1012,8 +1037,7 @@ public:
 	bool IsOnCutout();									// Done in cpp
 
 	void Highlight();									// Done in cpp, derived from old CPolyLine::HighlightCorner().  See also CNetList::HighlightAreaCorner.
-	void Move( int x, int y );							// CPT2 TODO. Derive from CNetList::MoveAreaCorner (et al?)
-
+	bool Move( int x, int y, BOOL bEnforceCircularArcs=FALSE );			// Done in cpp, derived from CNetList::MoveAreaCorner/CPolyLine::MoveCorner
 };
 
 class cside: public cpcb_item
@@ -1095,6 +1119,7 @@ public:
 	int m_hatch;				// hatch style, see enum above
 	int m_nhatch;				// number of hatch lines
 	CArray <dl_element*>  dl_hatch;	// hatch lines.  Use CArray with dl-elements generally?
+	int utility2;
 	gpc_polygon * m_gpc_poly;	// polygon in gpc format
 	polygon * m_php_poly;
 
@@ -1145,9 +1170,12 @@ public:
 	// CRect GetCornerBounds( int icont );			// Use ccontour::GetCornerBounds()
 	void Copy( cpolyline * src );
 	bool TestPointInside( int x, int y );			// Done in cpp
+	int TestPolygon();								// Done in cpp, derived from CNetList::TestAreaPolygon()
 	// BOOL TestPointInsideContour( int icont, int x, int y ); // Use ccontour fxn
-	int TestIntersection( cpolyline * poly );
-	void AppendArc( int xi, int yi, int xf, int yf, int xc, int yc, int num );	// Should we put this in ccontour?
+	int TestIntersection( cpolyline * poly2, bool bTestArcIntersections=true );		
+													// Done in cpp, derived from CNetList::TestAreaIntersection().
+	int CombinePolyline( cpolyline *poly2 );		// Done in cpp, derived from CNetList::CombineAreas
+	// void AppendArc( int xi, int yi, int xf, int yf, int xc, int yc, int num );	// CPT2. TODO Needed?
 
 	// undo functions
 	int SizeOfUndoRecord();
@@ -1173,15 +1201,17 @@ public:
 	// int EndContour( int ic );			// Use ctr->postSide==NULL
 	// int Utility(){ return utility; }						// Just use the base class data member?
 	// int Utility( int ic ){ return corner[ic].utility; };
-	int Layer() { return m_layer; }							// Put in the header...
+	int Layer() { return m_layer; }
 	int W() { return m_w; }
 	// int CornerUID( int ic ){ return corner[ic].m_uid; };
 	// int SideUID( int is );
 	// int SideStyle( int is );
 	// void * Ptr(){ return m_ptr; };
 	int SelBoxSize();
-	int GetHatch() { return m_hatch; }					// CPT2. Hard to get excited about these...
-	gpc_polygon * GetGpcPoly(){ return m_gpc_poly; }
+	int GetHatch() { return m_hatch; }
+
+	
+	gpc_polygon * GetGpcPoly() { return m_gpc_poly; }
 
 	// void SetParentId( id * id );
 	// void SetUID( int uid );					// Seems fishy...
@@ -1203,10 +1233,11 @@ public:
 	void Offset(int dx, int dy);
 
 	// GPC functions
-	int MakeGpcPoly( int icontour=0, CArray<CArc> * arc_array=NULL );
+	int MakeGpcPoly( int icontour=0, CArray<CArc> * arc_array=NULL ) { return 0; }				// CPT2 TODO
 	int FreeGpcPoly();
-	int NormalizeWithGpc( CArray<cpolyline*> * pa=NULL, BOOL bRetainArcs=FALSE );
-	int RestoreArcs( CArray<CArc> * arc_array, CArray<cpolyline*> * pa=NULL );
+	int NormalizeWithGpc( carray<carea2> * pa=NULL, BOOL bRetainArcs=FALSE ) { return 0; }		// CPT2 TODO.  Originally I had carray<cpolyline>* for the 1st
+																								// arg, which caused trouble.  Does carray<carea2>* suffice?
+	int RestoreArcs( CArray<CArc> * arc_array, CArray<cpolyline*> * pa=NULL ) { return 0; }		// CPT2 TODO
 //	cpolyline * MakePolylineForPad( int type, int x, int y, int w, int l, int r, int angle );
 //	void AddContourForPadClearance( int type, int x, int y, int w, 
 //						int l, int r, int angle, int fill_clearance,
@@ -1231,7 +1262,6 @@ public:
 	// int nvias;						// number of via connections to area
 	// carray<cconnect2> vcon;			// Changed from CArray<int>. 
 	// carray<cvertex2> vtx;			// Ditto
-	int utility2;
 
 	carea2(cnet2 *_net, int layer, int hatch, int w, int sel_box);	// Done in cpp
 	~carea2();						
@@ -1246,6 +1276,10 @@ public:
 	void Remove();													// Done in cpp
 	void SetConnections();											// Done (almost) in cpp. Derived from old CNetList::SetAreaConnections(cnet2*, int)
 	// int Complete( int style );									// CPT2 TODO consider dumping
+	bool TestIntersections();										// Done in cpp, covers CNetList::TestAreaIntersections().
+	int ClipPolygon( BOOL bMessageBoxArc, BOOL bMessageBoxInt, BOOL bRetainArcs );	// Done in cpp
+	int PolygonModified( BOOL bMessageBoxArc, BOOL bMessageBoxInt );				// Done in cpp
+
 };
 
 
@@ -1301,6 +1335,7 @@ public:
 	CString name;				// net name
 	carray<cpin2> pins;			// array of pins
 	carray<carea2> areas;		// array of copper areas
+	carray<ctee> tees;			// Used when reading files (and the like), also by Draw().  Used to be in cnetlist
 	int def_w;					// default trace width
 	int def_via_w;				// default via width
 	int def_via_hole_w;			// default via hole width
@@ -1309,7 +1344,7 @@ public:
 	// CDisplayList * m_dlist;		// CDisplayList to use	// CPT2 use doc->m_dlist (?)
 	cnetlist * m_nlist;			// parent netlist
 
-	cnet2( cnetlist *nlist, CString _name, int _def_w, int _def_via_w, int _def_via_hole_w );			// Done in cpp
+	cnet2( CFreePcbDoc *_doc, CString _name, int _def_w, int _def_via_w, int _def_via_hole_w );			// Done in cpp
 	~cnet2()
 	{
 		citer<cpin2> ip (&pins);
@@ -1356,11 +1391,12 @@ public:
 			a->SetConnections();
 	}
 	int AddArea( int layer, int x, int y, int hatch, BOOL bDraw=TRUE );					// CPT2 TODO. Derive from CNetList::AddArea
-
+	void CombineAllAreas( BOOL bMessageBox, BOOL bUseUtility );							// Done in cpp, derived from CNetList func
 
 // methods that edit object
 	// pins
-	cpin2 *AddPin( CString * ref_des, CString * pin_name, BOOL bSetAreas=TRUE );					// Done in cpp
+	cpin2 *AddPin( CString * ref_des, CString * pin_name, BOOL bSetAreas=TRUE );				// Done in cpp
+	void AddPin( cpin2 *pin );																	// Done in cpp
 	void RemovePin( cpin2 *pin, BOOL bSetAreas=TRUE );											// CPT2
 	// ? void RemovePinByUID( int uid, BOOL bSetAreas=TRUE );
 	// void RemovePin( CString * ref_des, CString * pin_name, BOOL bSetAreas=TRUE );			// CPT2 Use above RemovePin, plus:
@@ -1372,16 +1408,17 @@ public:
 		for (cconnect2 *c = ic.First(); c; c = ic.Next())
 			c->SetWidth(w, via_w, via_hole_w);
 	}
+	void cnet2::GetWidths( int * w, int * via_w, int * via_hole_w );
 
 	// connections
 	cconnect2 * AddConnect( int * ic=NULL );
 	cconnect2 * AddConnectFromPin( int p1, int * ic=NULL );
 	cconnect2 * AddConnectFromPinToPin( int p1, int p2, int * ic=NULL );
-	cconnect2 * AddConnectFromTraceVtx( id& vtx_id, int * ic=NULL );
-	cconnect2 * AddRatlineFromVtxToPin( id vtx_id, int pin_index );
-	// void RemoveConnect( cconnect2 * c ); // CPT2 use cconnect::Remove().	Adjusting tees will always happen (why not?)
-	// void RemoveConnectAdjustTees( cconnect2 * c ); // CPT2 use cconnect::Remove().
-	cconnect2 * SplitConnectAtVtx( id vtx_id );
+	// cconnect2 * AddConnectFromTraceVtx( id& vtx_id, int * ic=NULL );				// Just doing it by hand within CFreePcbView::OnVertexStartTrace
+	// cseg2 * AddRatlineFromVtxToPin( cvertex2 *v, cpin2 *pin );					// Use cvertex2::AddRatlineToPin
+	// void RemoveConnect( cconnect2 * c );											// CPT2 use cconnect::Remove().	Adjusting tees will always happen (why not?)
+	// void RemoveConnectAdjustTees( cconnect2 * c );								// CPT2 use cconnect::Remove().
+	// cconnect2 * SplitConnectAtVtx( id vtx_id );									// CPT2 use cvertex2::SplitConnect()
 	void MergeConnections( cconnect2 * c1, cconnect2 * c2 );
 	void RecreateConnectFromUndo( undo_con * con, undo_seg * seg, undo_vtx * vtx );
 	// void AdjustTees( int tee_ID ); // CPT2 use ctee:Adjust().
@@ -1405,6 +1442,7 @@ public:
 	}
 
 	int Draw();											// CPT2 new:  draws all connects and areas.  Done in cpp
+	void Undraw();										// CPT2 new, analogous.  Done in cpp
 };
 
 

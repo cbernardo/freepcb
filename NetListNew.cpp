@@ -99,7 +99,7 @@ void cnetlist::ReadNets( CStdioFile * pcb_file, double read_version, int * layer
 			int visible = 1;
 			if( np > 8 )
 				visible = my_atoi( &p[7] );
-			cnet2 *net = new cnet2( this, net_name, def_width, def_via_w, def_via_hole_w );
+			cnet2 *net = new cnet2( m_doc, net_name, def_width, def_via_w, def_via_hole_w );
 			net->bVisible = visible;
 			for( int ip=0; ip<npins; ip++ )
 			{
@@ -212,9 +212,9 @@ void cnetlist::ReadNets( CStdioFile * pcb_file, double read_version, int * layer
 				int tee_ID = np==9? abs(my_atoi(&p[7])): 0;
 				if( tee_ID )
 				{
-					ctee *tee = tees.FindByUtility(tee_ID);
+					ctee *tee = net->tees.FindByUtility(tee_ID);
 					if (!tee) 
-						tee = new ctee(net),				// Constructor adds tee to this->tees
+						tee = new ctee(net),				// Constructor adds tee to net->tees
 						tee->utility = tee_ID;
 					tee->vtxs.Add(v0);
 					v0->tee = tee;
@@ -266,9 +266,9 @@ void cnetlist::ReadNets( CStdioFile * pcb_file, double read_version, int * layer
 					int tee_ID = np==9? abs(my_atoi(&p[7])): 0;
 					if( tee_ID )
 					{
-						ctee *tee = tees.FindByUtility(tee_ID);
+						ctee *tee = net->tees.FindByUtility(tee_ID);
 						if (!tee) 
-							tee = new ctee(net),									// Constructor adds tee to this->tees
+							tee = new ctee(net),									// Constructor adds tee to net->tees
 							tee->utility = tee_ID;
 						tee->vtxs.Add(v);
 						v->tee = tee;

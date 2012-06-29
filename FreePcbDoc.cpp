@@ -188,22 +188,6 @@ CFreePcbDoc::CFreePcbDoc()
 	clip_plist->UseNetList( clip_nlist );
 	clip_plist->SetShapeCacheMap( &m_footprint_cache_map );
 	clip_tlist = new CTextList( NULL, m_smfontutil );
-
-#ifdef CPT2
-	// CPT2 r298: FOR TESTING MY NEW FOUNDATIONAL TEMPLATE CLASSES (Harmless code for single-stepping fun)
-	cnetlist *nlTest = new cnetlist( this );
-	cnet2 *nTest = new cnet2( nlTest, "Test", 0, 0, 0 );
-	carray<cconnect2> arr;
-	for (int i=0; i<32; i++)
-		arr.Add(new cconnect2(nTest));
-	citer<cconnect2> ic (&arr);
-	for (cconnect2 *c=ic.First(); c; c=ic.Next())
-		if (c->UID() & 1) 
-			arr.Remove(c);
-	arr.DestroyAll();
-	delete nTest;
-	delete nlTest;
-#endif
 }
 
 CFreePcbDoc::~CFreePcbDoc()
@@ -555,6 +539,7 @@ BOOL CFreePcbDoc::FileOpen( LPCTSTR fn, BOOL bLibrary )
 		return FALSE;		// file close cancelled
 	
 	// reset before opening new project
+	m_view->CancelHighlight();
 	m_view->CancelSelection();
 	InitializeNewProject();		// set defaults
 
@@ -2237,6 +2222,7 @@ void CFreePcbDoc::WriteOptions( CStdioFile * file )
 //
 void CFreePcbDoc::InitializeNewProject()
 {
+	m_dlist->RemoveAll();						// CPT2
 	m_bShowMessageForClearance = TRUE;
 
 	// these are the embedded defaults

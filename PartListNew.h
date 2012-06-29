@@ -158,18 +158,18 @@ public:
 	// void MakePartVisible( cpart * part, BOOL bVisible );			// CPT2. Use cpart2::SetVisible()
 
 	void SetNumCopperLayers( int nlayers ) { m_layers = nlayers; }
-	int SelectPart( cpart * part );
-	int SelectRefText( cpart * part );
-	int SelectValueText( cpart * part );
+	// int SelectPart( cpart * part );													// CPT2 Obsolete
+	// int SelectRefText( cpart * part );												// CPT2 Obsolete
+	// int SelectValueText( cpart * part );												// CPT2 Obsolete
 	// int HighlightPad( cpart * part, int i );											// CPT2 Use cpin2::Highlight
 	void HighlightAllPadsOnNet( cnet * net );
 	BOOL TestHitOnPad( cpart * part, CString * pin_name, int x, int y, int layer );
 	void MoveOrigin( int x_off, int y_off ) { }
 	// int Move( cpart * part, int x, int y, int angle, int side );						// CPT2 Use cpart2::Move
-	int MoveRefText( cpart * part, int x, int y, int angle, int size, int w );
-	int MoveValueText( cpart * part, int x, int y, int angle, int size, int w );
+	// int MoveRefText( cpart * part, int x, int y, int angle, int size, int w );		// CPT2 Use cpart2::MoveRefText
+	// int MoveValueText( cpart * part, int x, int y, int angle, int size, int w );		// CPT2 Use cPart2::MoveValueText
 	// void ResizeRefText( cpart * part, int size, int width, BOOL vis=TRUE );			// CPT2 Use cpart2::ResizeRefText
-	void ResizeValueText( cpart * part, int size, int width, BOOL vis=TRUE );
+	// void ResizeValueText( cpart * part, int size, int width, BOOL vis=TRUE );		// CPT2 sim.
 	// void SetValue( cpart * part, CString * value, int x, int y, int angle, int size, 
 	//	int w, BOOL vis, int layer );													// CPT2. Use cpart2::SetValue
 	// int DrawPart( cpart * el );														// CPT2. Use cpart2::Draw
@@ -180,15 +180,15 @@ public:
 	void RefTextSizeChanged( CShape * shape );
 	int RotatePoint( CPoint * p, int angle, CPoint org );
 	int RotateRect( CRect * r, int angle, CPoint p );
-	int GetSide( cpart * part );
-	int GetAngle( cpart * part );
-	int GetRefAngle( cpart * part );
-	int GetValueAngle( cpart * part );
-	CPoint GetRefPoint( cpart * part );
-	CPoint GetValuePoint( cpart * part );
-	CRect GetValueRect( cpart * part );
-	int GetValuePCBLayer( cpart * part );
-	int GetRefPCBLayer( cpart * part );
+	// int GetSide( cpart * part );								// CPT2 Use cpart2 functions for the following 9
+	// int GetAngle( cpart * part );
+	// int GetRefAngle( cpart * part );
+	// int GetValueAngle( cpart * part );
+	// CPoint GetRefPoint( cpart * part );
+	// CPoint GetValuePoint( cpart * part );
+	// CRect GetValueRect( cpart * part );
+	// int GetValuePCBLayer( cpart * part );
+	// int GetRefPCBLayer( cpart * part );
 	// CPoint GetPinPoint(  cpart * part, LPCTSTR pin_name );	// CPT2 Just use pin->x,y
 	// CPoint GetPinPoint(  cpart * part, int pin_index );
 	// CPoint GetCentroidPoint(  cpart * part );				// CPT2 use cpart2::GetCentroidPoint()

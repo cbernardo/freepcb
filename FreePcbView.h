@@ -30,6 +30,7 @@ enum {
 	CUR_RAT_SELECTED,			// unrouted trace segment selected
 	CUR_VTX_SELECTED,			// trace vertex selected
 	CUR_END_VTX_SELECTED,		// end vertex of stub trace selected
+	CUR_TEE_SELECTED,			// CPT2
 	CUR_CONNECT_SELECTED,		// entire connection selected
 	CUR_NET_SELECTED,			// entire net selected
 	CUR_TEXT_SELECTED,			// free text selected
@@ -64,7 +65,7 @@ enum {
 	CUR_DRAG_SMCUTOUT,		// dragging next corner of solder mask cutout
 	CUR_DRAG_SMCUTOUT_INSERT,	// dragging solder mask cutout corner being inserted
 	CUR_DRAG_SMCUTOUT_MOVE,		// dragging solder mask cutout corner being moved
-	CUR_DRAG_TRACE,		// dragging ratline to next stub endpoint
+	CUR_DRAG_STUB,		// dragging ratline to next stub endpoint
 	CUR_DRAG_CONNECT,	// dragging ratline to new connection
 	CUR_DRAG_RAT_PIN,	// dragging ratline to new end pin of trace
 	CUR_MOVE_ORIGIN,	// dragging new origin
@@ -432,7 +433,8 @@ public:
 	void SetMainMenu( BOOL bAll );
 	void SetCursorMode( int mode );
 	void SetFKText( int mode );
-	BOOL SelectItem( id sid );
+	//BOOL SelectItem( id sid );
+	void SelectItem(cpcb_item *item);		// CPT2 
 	int ShowSelectStatus();
 	int ShowActiveLayer();
 	int SelectPart( cpart * part );
@@ -441,7 +443,7 @@ public:
 	void HighlightNet( cnet * net, id * exclude_id=NULL );
 	void CancelHighlightNet();
 	int SetWidth( int mode );
-	int GetWidthsForSegment( int * w, int * via_w, int * via_hole_w );
+	// int GetWidthsForSegment( int * w, int * via_w, int * via_hole_w );	// CPT2 moved to cnet2::GetWidths
 	void ChangeTraceLayer( int mode, int old_layer=0 );
 	void MoveOrigin( int x_off, int y_off );
 	void SelectItemsInRect( CRect r, BOOL bAddToGroup );
@@ -547,8 +549,8 @@ public:
 	afx_msg void OnPadStartTrace();
 	afx_msg void OnSegmentDelete();
 	afx_msg void OnEndVertexMove();
-	afx_msg void OnEndVertexAddSegments();
-	afx_msg void OnEndVertexAddConnection();
+	// afx_msg void OnEndVertexAddSegments();
+	// afx_msg void OnEndVertexAddConnection();
 	afx_msg void OnEndVertexDelete();
 	afx_msg void OnEndVertexEdit();
 	afx_msg void OnAreaCornerMove();
