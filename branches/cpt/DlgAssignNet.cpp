@@ -14,7 +14,7 @@ DlgAssignNet::DlgAssignNet(CWnd* pParent /*=NULL*/)
 	: CDialog(DlgAssignNet::IDD, pParent)
 {
 	m_net_str = "";
-	m_map = 0;
+	m_nlist = 0;
 	created_name = "";
 }
 
@@ -31,18 +31,11 @@ void DlgAssignNet::DoDataExchange(CDataExchange* pDX)
 	if( !pDX->m_bSaveAndValidate )
 	{
 		// incoming
-		if( m_map )
+		if( m_nlist )
 		{
-			POSITION pos;
-			CString key;
-			void * ptr;
-
-			// Iterate through the entire netlist
-			for( pos = m_map->GetStartPosition(); pos != NULL; )
-			{
-				m_map->GetNextAssoc( pos, key, ptr );
-				m_combo_net.AddString( key );
-			}
+			citer<cnet2> in (&m_nlist->nets);
+			for (cnet2 *net = in.First(); net; net = in.Next())	
+				m_combo_net.AddString( net->name );
 		}
 		::ShowCursor( TRUE );	// force cursor
 	}
@@ -56,8 +49,7 @@ void DlgAssignNet::DoDataExchange(CDataExchange* pDX)
 			AfxMessageBox( s );
 			pDX->Fail();
 		}
-		void * ptr;
-		if( m_net_str != created_name && !m_map->Lookup( m_net_str, ptr ) )
+		if (m_net_str!=created_name && !m_nlist->GetNetPtrByName(&m_net_str))
 		{
 			CString s ((LPCSTR) IDS_NetNotFoundInNetlist), str;
 			str.Format(s, m_net_str);
@@ -89,8 +81,7 @@ void DlgAssignNet::OnBnClickedButtonNewNet()
 	{
 		i++;
 		str.Format( "N%.5d", i );
-		void * ptr;
-		if( !m_map->Lookup( str, ptr ) )
+		if (!m_nlist->GetNetPtrByName(&str))
 			bFound = FALSE;
 	}
 	m_combo_net.SetWindowText( str );

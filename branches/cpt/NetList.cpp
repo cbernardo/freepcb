@@ -11,7 +11,7 @@ static char THIS_FILE[]=__FILE__;
 extern Cuid pcb_cuid;
 
 //#define PROFILE		// profiles calls to OptimizeConnections() for "GND"  
-BOOL bDontShowSelfIntersectionWarning = FALSE;
+BOOL bDontShowSelfIntersectionWarning = FALSE;												// CPT2 TODO. Move globals into CFreePcbDoc?
 BOOL bDontShowSelfIntersectionArcsWarning = FALSE;
 BOOL bDontShowIntersectionWarning = FALSE;
 BOOL bDontShowIntersectionArcsWarning = FALSE;

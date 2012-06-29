@@ -1,3 +1,24 @@
+// CPT2 notes and proposals
+
+NetListNew.h, PartListNew.h, and TextListNew.h contain evolving notes on which functions
+are slated for moving into classes for lower-level objects (like cseg2, cnet2, etc.)
+
+Functions that contain code that won't yet compile (still need translation into the new
+idiom) are marked off with #ifndef CPT2.  The goal is to bring these back to life bit by bit.
+
+Proposal for drawing/undrawing.  Do less of this in low-level functions.  I have a strong impression that the
+loading of files, for instance, is getting slowed tremendously by lots of drawing and undrawing of objects as
+they get built up.  At one time it looks like there was an attempt to overcome this issue by setting the dlist argument
+for certain functions to NULL; in other places there's "bool bWasDrawn = IsDrawn(); Undraw(); ... ; if (bWasDrawn) Draw();"
+I think it might be simpler and more effective to invoke Undraw and Draw only at the tops/bottoms of outer functions 
+like CFreePcbView::OnLButtonUp or CNetList::ReadNets.  It might be that one will have to be a little generous with how many objects
+to Undraw/Draw (doing entire nets rather than a couple of individual segs, say).  But I think the benefits during long processes
+like loading will outweigh the slight penalties when doing single user edit operations.
+
+
+
+
+
 // FreePCB : programming notes
 //
 
