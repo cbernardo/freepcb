@@ -4279,7 +4279,7 @@ END
 
 STRINGTABLE
 BEGIN
-    IDS_AppName             "CPT2.1"
+    IDS_AppName             "CPT2.2"
 END
 
 STRINGTABLE
@@ -4481,6 +4481,8 @@ BEGIN
                             "ERROR: Net ""%s"": connection %d segment %d with invalid ptr to connect\r\n"
     IDS_FatalErrorInNetConnectNonexistentPin 
                             "Fatal error in net ""%s"", connect #%d: nonexistent pin #%d"
+    IDS_YouAreTryingToConnectToAVertexOnADifferentNet 
+                            "You are trying to connect to a vertex on a different net"
 END
 
 #endif    // English (United States) resources

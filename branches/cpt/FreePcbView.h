@@ -447,13 +447,14 @@ public:
 	void ChangeTraceLayer( int mode, int old_layer=0 );
 	void MoveOrigin( int x_off, int y_off );
 	void SelectItemsInRect( CRect r, BOOL bAddToGroup );
+	void FinishRouting( cseg2 *rat );								// CPT2.  Helper for when user completes routing ratline
 	void StartDraggingGroup( BOOL bAdd=FALSE, int x=0, int y=0 );
 	void CancelDraggingGroup();
 	void MoveGroup( int dx, int dy );
 	void RotateGroup();
 	void DeleteGroup(  CArray<void*> * grp_ptr, CArray<id> * grp_id );
 	void FindGroupCenter();
-	void HighlightSelection();							// CPT2.  Changed name from HighlightGroup() and rewrote
+	void HighlightSelection();										// CPT2.  Changed name from HighlightGroup() and rewrote
 	int FindItemInGroup( void * ptr, id * tid );	
 	BOOL GluedPartsInGroup();
 	void UngluePartsInGroup();
@@ -491,7 +492,7 @@ public:
 	static void UndoGroupCallback( int type, void * ptr, BOOL undo );
 	void OnExternalChangeFootprint( CShape * fp );
 	void HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags);
-	void CFreePcbView::TryToReselectAreaCorner( int x, int y );
+	void TryToReselectAreaCorner( int x, int y );
 	void ReselectNetItemIfConnectionsChanged( int new_ic );
 	int SelectObjPopup( CPoint const &point );												// CPT r294: removed args (use m_hit_info instead)
 	bool DoGroupCopy();																		// CPT added:  OnGroupCopy() wraps around this.  But it's 

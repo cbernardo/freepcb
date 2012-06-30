@@ -215,6 +215,7 @@ public:
 	virtual cdre *ToDRE() { return NULL; }
 
 	virtual cnet2 *GetNet() { return NULL; }		// Returns something for items that belong to a net.
+	virtual int GetLayer() { return -1; }
 };
 
 class carray_link
@@ -559,21 +560,24 @@ public:
 		return bitTraceVtx;
 	}
 	cnet2 *GetNet() { return m_net; }						// Ho-hum
-	bool Remove();											// Done in cpp
+	int GetLayer();											// Done in cpp
 
 	int Draw();												// Done in cpp
 	void Undraw();											// Done in cpp
 	void Highlight();										// Done in cpp, derived from cvertex::Highlight
 	void SetVisible( bool bVis );							// Done in cpp, derived from CNetList::SetViaVisible
 
+	bool IsLooseEnd();										// Done in cpp
+	bool Remove();											// Done in cpp
 	void SetConnect(cconnect2 *c);							// Done in cpp
 	void GetTypeStatusStr( CString * str );
 	void GetStatusStr( CString * str );
-	bool IsLooseEnd();										// Done in cpp
 	void ForceVia( BOOL set_areas=TRUE );					// Done in cpp
 	void UnforceVia( BOOL set_areas=TRUE );					// Done in cpp
 	bool IsViaNeeded();										// Done in cpp
+	void SetViaWidth();										// Done in cpp
 	void ReconcileVia();									// Done in cpp
+	bool TestHit(int x, int y, int layer);					// New, done in cpp.  (Frequently supplants CNetList::TestHitOnVertex())
 	bool IsConnectedToArea( carea2 * a );
 	int GetConnectedAreas( carray<carea2> *a=NULL );		// CPT2. Arg change
 	cconnect2 * SplitConnect();								// Done in cpp, derived from cnet::SplitConnectAtVertex
@@ -612,16 +616,19 @@ public:
 	int GetTypeBit() 
 		{ return via_w? bitVia: bitTee; }
 	cnet2 *GetNet() { return vtxs.GetSize()==0? NULL: vtxs.First()->m_net; }
+	int GetLayer();										// Done in cpp
+
+	int Draw();											// Done in cpp
+	void Undraw();										// Done in cpp
+	void Highlight();									// Done in cpp
 
 	void Remove();										// Done in cpp
 	void Add(cvertex2 *v);								// Done in cpp
 	bool Adjust();										// Done in cpp
+	bool IsViaNeeded();									// Done in cpp
 	void ReconcileVia();								// Done in cpp
 	void Remove(cvertex2 *v);							// Done in cpp
 	void Move(int x, int y);							// Done in cpp
-	int Draw();											// Done in cpp
-	void Undraw();										// Done in cpp
-	void Highlight();									// Done in cpp
 };
 
 
@@ -656,6 +663,7 @@ public:
 	cseg2 *ToSeg() { return this; }
 	int GetTypeBit() { return bitSeg; }
 	cnet2 *GetNet() { return m_net; }
+	int GetLayer() { return m_layer; }
 
 	void SetConnect(cconnect2 *c);
 	void SetWidth( int w, int via_w, int via_hole_w );			// Done in cpp
@@ -678,6 +686,7 @@ public:
 	int Index();												// CPT2:  maybe, maybe not...
 	void GetStatusStr( CString * str, int width = 0 );			// CPT added width param
 	void Divide( cvertex2 *v, cseg2 *s, int dir );				// Done in cpp
+	bool InsertSegment(int x, int y, int layer, int width, int dir );  // Done in cpp, derived from CNetList::InsertSegment()
 	int Route( int layer, int width );							// Done in cpp
 	void Unroute(int dx, int dy, int end);						// Done in cpp
 	bool UnrouteWithoutMerge(int dx, int dy, int end);			// Done in cpp
@@ -824,6 +833,7 @@ public:
 	bool IsText() { return true; }
 	ctext *ToText() { return this; }
 	int GetTypeBit() { return bitText; }
+	int GetLayer() { return m_layer; }
 
 	void Init( CDisplayList * dlist, int x, int y, int angle,					// TODO: rethink relationship with constructor. Removed tid arg.
 		int mirror, BOOL bNegative, int layer, int font_size, 
@@ -903,9 +913,12 @@ public:
 	cpin2 *ToPin() { return this; }
 	int GetTypeBit() { return bitPin; }
 	cnet2 *GetNet() { return net; }
+	int GetLayer() { return pad_layer; }
 	int GetWidth();													// Done in cpp
+
 	void Highlight();												// Done in cpp, derived from old CPartList::HighlightPad
 
+	bool TestHit(int x, int y, int layer);							// Done in cpp, derived from CPartList::TestHitOnPad
 	void SetPosition();												// Done in cpp.  New, but related to CPartList::GetPinPoint
 	void SetThermalVisible(int layer, bool bVisible) { }			// CPT2.  TODO figure this out.
 	// void Initialize( cnet2 * net );  // Put in constructor
@@ -1034,8 +1047,9 @@ public:
 	ccorner *ToCorner() { return this; }
 	int GetTypeBit();									// Done in cpp
 	cnet2 *GetNet();									// Done in cpp
-	bool IsOnCutout();									// Done in cpp
+	int GetLayer();										// Done in cpp
 
+	bool IsOnCutout();									// Done in cpp
 	void Highlight();									// Done in cpp, derived from old CPolyLine::HighlightCorner().  See also CNetList::HighlightAreaCorner.
 	bool Move( int x, int y, BOOL bEnforceCircularArcs=FALSE );			// Done in cpp, derived from CNetList::MoveAreaCorner/CPolyLine::MoveCorner
 };
@@ -1061,6 +1075,7 @@ public:
 	cside *ToSide() { return this; }
 	int GetTypeBit();								// Done in cpp
 	cnet2 *GetNet();								// Done in cpp
+	int GetLayer();									// Done in cpp
 	bool IsOnCutout();								// Done in cpp
 
 	void Highlight();		// Done in cpp, derived from cpolyline::HighlightSide()
@@ -1077,13 +1092,14 @@ public:
 	ccorner *head, *tail;		// For when we need to trace thru geometrically.
 	cpolyline *poly;			// The parent polyline
 
-	ccontour(cpolyline *_poly, bool bMain);		// Done in cpp
+	ccontour(cpolyline *_poly, bool bMain);									// Done in cpp
 	~ccontour();
 
-	bool IsValid();
+	bool IsValid();															// Done in cpp
 	bool IsContour() { return true; }
 	ccontour *ToContour() { return this; }
 	int GetTypeBit() { return bitContour; }
+	int GetLayer();															// Done in cpp
 	cnet2 *GetNet();														// Done in cpp
 
 	void Highlight() 
@@ -1137,6 +1153,7 @@ public:
 
 	bool IsPolyline() { return true; }
 	cpolyline *ToPolyline() { return this; }
+	int GetLayer() { return m_layer; }
 
 	// functions for creating and modifying polyline
 	void MarkConstituents();								// CPT2. Done in cpp.
@@ -1201,7 +1218,7 @@ public:
 	// int EndContour( int ic );			// Use ctr->postSide==NULL
 	// int Utility(){ return utility; }						// Just use the base class data member?
 	// int Utility( int ic ){ return corner[ic].utility; };
-	int Layer() { return m_layer; }
+	// int Layer() { return m_layer; }		// Renamed GetLayer()
 	int W() { return m_w; }
 	// int CornerUID( int ic ){ return corner[ic].m_uid; };
 	// int SideUID( int is );
@@ -1210,7 +1227,6 @@ public:
 	int SelBoxSize();
 	int GetHatch() { return m_hatch; }
 
-	
 	gpc_polygon * GetGpcPoly() { return m_gpc_poly; }
 
 	// void SetParentId( id * id );
@@ -1360,12 +1376,13 @@ public:
 	// general
 	void GetStatusStr( CString * str );
 	bool GetVisible() { return bVisible; }
-
 	void SetVisible( bool _bVisible );				// Done in cpp
 
+	int Draw();														// CPT2 new:  draws all connects and areas.  Done in cpp
+	void Undraw();													// CPT2 new, analogous.  Done in cpp
 	void Highlight(cpcb_item *exclude);								// Done in cpp
 	void Highlight() { Highlight(NULL); }							// Also overrides base-class func.
-	void CalcViaWidths(int w, int *via_w, int *via_hole_w);			// Done in cpp
+
 	// pins
 	int NumPins() { return pins.GetSize(); }
 	// cpin2 * PinByIndex( int ip );
@@ -1408,7 +1425,8 @@ public:
 		for (cconnect2 *c = ic.First(); c; c = ic.Next())
 			c->SetWidth(w, via_w, via_hole_w);
 	}
-	void cnet2::GetWidths( int * w, int * via_w, int * via_hole_w );
+	void GetWidth( int * w, int *via_w=NULL, int *via_hole_w=NULL);			// Done in cpp, derived from old CNetList::GetWidths()
+	void CalcViaWidths(int w, int *via_w, int *via_hole_w);					// Done in cpp
 
 	// connections
 	cconnect2 * AddConnect( int * ic=NULL );
@@ -1436,13 +1454,11 @@ public:
 	{
 		citer<carea2> ia (&areas);
 		for (carea2 *a = ia.First(); a; a = ia.Next())
-			if ((a->Layer()==layer || layer==LAY_PAD_THRU) && a->TestPointInside(x, y))
+			if ((a->GetLayer()==layer || layer==LAY_PAD_THRU) && a->TestPointInside(x, y))
 				return a;
 		return NULL;
 	}
 
-	int Draw();											// CPT2 new:  draws all connects and areas.  Done in cpp
-	void Undraw();										// CPT2 new, analogous.  Done in cpp
 };
 
 

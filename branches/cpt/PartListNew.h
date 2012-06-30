@@ -163,7 +163,7 @@ public:
 	// int SelectValueText( cpart * part );												// CPT2 Obsolete
 	// int HighlightPad( cpart * part, int i );											// CPT2 Use cpin2::Highlight
 	void HighlightAllPadsOnNet( cnet * net );
-	BOOL TestHitOnPad( cpart * part, CString * pin_name, int x, int y, int layer );
+	// BOOL TestHitOnPad( cpart * part, CString * pin_name, int x, int y, int layer );	// CPT2 Use cpin2::TestHit
 	void MoveOrigin( int x_off, int y_off ) { }
 	// int Move( cpart * part, int x, int y, int angle, int side );						// CPT2 Use cpart2::Move
 	// int MoveRefText( cpart * part, int x, int y, int angle, int size, int w );		// CPT2 Use cpart2::MoveRefText
