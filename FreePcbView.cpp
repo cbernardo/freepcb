@@ -855,7 +855,6 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 			m_mask_id[SEL_MASK_REF].SetT1( ID_NONE );
 		}
 		*/
-		// CPT removed some superfluous stuff...
 
 		// Search for selectors overlapping the click point, and choose among them depending on user's number of multiple clicks
 		CPoint p = m_dlist->WindowToPCB( point );
@@ -1063,173 +1062,106 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		m_doc->ProjectModified( TRUE );
 		Invalidate( FALSE );
 	}
+#endif
 	else if( m_cursor_mode == CUR_DRAG_RAT )
 	{
 		// routing a ratline, add segment(s)
-		bool bNetWasHighlighted = m_bNetHighlighted;	// AMW r274 save previous state
+		cnet2 *highlight_net0 = m_highlight_net;        // AMW r274 save previous state
+		CancelHighlight();
+		cseg2 *rat = m_sel.First()->ToSeg();
+		cconnect2 *c = rat->m_con;
+		c->Undraw();
+		cnet2 *net = rat->m_net;
+		CPoint p = m_last_cursor_point;
+
 		pDC = GetDC();
 		SetDCToWorldCoords( pDC );
 		pDC->SelectClipRgn( &m_pcb_rgn );
 //			m_dlist->StopDragging();
-		// get trace widths
-		/* CPT:  We want w to reflect the new m_active_width.  
-		// As for via and via-hole widths, I decided (r295) on a simpler system:  they are determined entirely by CNetList::ReconcileVias(), when
-		//  the time comes, based on the adjacent segment widths and the net default values.
-		*/
-		int w = m_active_width;
-		cconnect * c = m_sel_net->ConByIndex(m_sel_ic);	//** AMW
-		//** end CPT
 
-		// test for reaching destination of ratline
-		if(	   m_dir == 0 && m_sel_id.Seg()->GetPostVtx().tee_ID 
-			|| m_dir == 1 && m_sel_id.Seg()->GetPreVtx().tee_ID )
+		// test for reaching destination of ratline (which might be a pin-vtx, a tee-vtx, or any other vtx)
+		cvertex2 *start = m_dir==0? rat->preVtx: rat->postVtx;
+		cvertex2 *dest = m_dir==0? rat->postVtx: rat->preVtx;
+		// If destination is a pin, we have to take layers into account when deciding if we've hit it.  OW, don't care about layers:
+		int test_layer = dest->pin? m_active_layer: 0;
+		bool bHit = dest->TestHit( p.x, p.y, test_layer ), bRatlineFinished = false;
+		if (bHit)
 		{
-			// routing ratline to tee-vertex
-			int tee_iv = m_sel_is + 1 - m_dir;
-			cnet * hit_net;
-			int hit_ic, hit_iv;
-			BOOL bHit = m_doc->m_nlist->TestHitOnVertex( m_sel_net, 0,
-				m_last_cursor_point.x, m_last_cursor_point.y,
-				&hit_net, &hit_ic, &hit_iv );
-			if( bHit && hit_net == m_sel_net && hit_ic == m_sel_ic && hit_iv == tee_iv )
-			{
-				// now route to tee-vertex
-				SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_doc->m_undo_list );
-				CPoint pi = m_snap_angle_ref;
-				CPoint pf = m_last_cursor_point;
-				CPoint pp = GetInflectionPoint( pi, pf, m_inflection_mode );
-				BOOL insert_flag = FALSE;
-				if( pp != pi )
-				{
-					insert_flag = m_doc->m_nlist->InsertSegment( m_sel_net, m_sel_ic, m_sel_is,
-						pp.x, pp.y, m_active_layer, w, m_dir );
-					if( !insert_flag )
-					{
-						// hit end-vertex of segment, terminate routing
-						goto cancel_selection_and_goodbye;
-					}
-					if( m_dir == 0 )
-						m_sel_id.SetI3( m_sel_id.I3() + 1 );
-				}
-				insert_flag = m_doc->m_nlist->InsertSegment( m_sel_net, m_sel_ic, m_sel_is,
-					m_last_cursor_point.x, m_last_cursor_point.y,
-					m_active_layer, w, m_dir );
-				if( !insert_flag )
-				{
-					// hit end-vertex of segment, terminate routing
-					goto cancel_selection_and_goodbye;
-				}
-				if( m_dir == 0 )
-					m_sel_id.SetI3( m_sel_id.I3() + 1 );
-				// finish trace if necessary
-				m_doc->m_nlist->RouteSegment( m_sel_net, m_sel_ic, m_sel_is,
-					m_active_layer, w );
-				goto cancel_selection_and_goodbye;
-			}
+			// Hit ratline's endpoint, so finish routing
+			FinishRouting(rat);
+			bRatlineFinished = true;
 		}
-		else if( m_sel_is == 0 && m_dir == 1 || m_sel_is == c->NumSegs()-1 && m_dir == 0 )
+		else if (!dest->preSeg || !dest->postSeg)
 		{
 			// routing ratline at end of trace, test for hit on any pad in net
-			int ip = m_doc->m_nlist->TestHitOnAnyPadInNet( m_last_cursor_point.x,
-				m_last_cursor_point.y,
-				m_active_layer, m_sel_net );
-			int ns = m_sel_con->NumSegs();
-			if( ip != -1 )
+			CArray<CHitInfo> hit_info;
+			int num_hits = m_dlist->TestSelect(p.x, p.y, &hit_info,	bitPin);
+			cpin2 *pin = num_hits? hit_info[0].item->ToPin(): NULL;
+			if (pin && pin->net != net)
 			{
-				// hit on pad in net, see if this is our starting pad
-				if( ns < 3 && (m_dir == 0 && ip == m_sel_con->start_pin
-					|| m_dir == 1 && ip == m_sel_con->end_pin) )
-				{
-					// starting pin with too few segments, don't route to pin
-				}
-				else
-				{
-					// route to pin
-					// see if this is our destination
-					if( !(m_dir == 0 && ip == m_sel_con->end_pin
-						|| m_dir == 1 && ip == m_sel_con->start_pin) )
-					{
-						// no, change connection to this pin unless it is the starting pin
-						cpart * hit_part = m_sel_net->pin[ip].part;
-						CString * hit_pin_name = &m_sel_net->pin[ip].pin_name;
-						m_doc->m_nlist->ChangeConnectionPin( m_sel_net, m_sel_ic, 1-m_dir, hit_part, hit_pin_name );
-					}
-					// now route to destination pin
-					SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_doc->m_undo_list );
-					CPoint pi = m_snap_angle_ref;
-					CPoint pf = m_last_cursor_point;
-					CPoint pp = GetInflectionPoint( pi, pf, m_inflection_mode );
-					BOOL insert_flag = FALSE;
-					if( pp != pi )
-					{
-						insert_flag = m_doc->m_nlist->InsertSegment( m_sel_net, m_sel_ic, m_sel_is,
-							pp.x, pp.y, m_active_layer, w, m_dir );
-						if( !insert_flag )
-						{
-							// hit end-vertex of segment, terminate routing
-							goto cancel_selection_and_goodbye;
-						}
-						if( m_dir == 0 )
-							m_sel_id.SetI3( m_sel_id.I3() + 1 );
-					}
-					insert_flag = m_doc->m_nlist->InsertSegment( m_sel_net, m_sel_ic, m_sel_is,
-						m_last_cursor_point.x, m_last_cursor_point.y,
-						m_active_layer, w, m_dir );
-					if( !insert_flag )
-					{
-						// hit end-vertex of segment, terminate routing
-						goto cancel_selection_and_goodbye;
-					}
-					if( m_dir == 0 )
-						m_sel_id.SetI3( m_sel_id.I3() + 1 );
-					// finish trace to pad if necessary
-					m_doc->m_nlist->RouteSegment( m_sel_net, m_sel_ic, m_sel_is,
-						m_active_layer, w );
-					goto cancel_selection_and_goodbye;
-				}
-			}
-		}
-		// trace was not terminated, insert segment and continue routing
-		SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_doc->m_undo_list );
-		CPoint pi = m_snap_angle_ref;
-		CPoint pf = m_last_cursor_point;
-		CPoint pp = GetInflectionPoint( pi, pf, m_inflection_mode );
-		BOOL insert_flag = FALSE;
-		m_sel_id.Con()->Draw();		// AMW
-		if( pp != pi )
-		{
-			CancelHighlight();	// AMW r269
-			insert_flag = m_doc->m_nlist->InsertSegment( m_sel_net, m_sel_ic, m_sel_is,
-				pp.x, pp.y, m_active_layer, w, m_dir );
-			if( !insert_flag )
-			{
-				// hit end-vertex of segment, terminate routing
+				// pin assigned to different net, can't connect it
+				CString s ((LPCSTR) IDS_YouAreTryingToConnectATraceToAPin);
+				AfxMessageBox( s );
+				c->Draw();
 				goto cancel_selection_and_goodbye;
 			}
-			if( m_dir == 0 )
-				m_sel_id.SetI3( m_sel_id.I3() + 1 );
+			if (pin && pin->TestHit(p.x, p.y, m_active_layer))					// Double check that layer is OK for hooking onto (SMT) pins
+			{
+				if (start->pin == pin && c->NumSegs() < 3)
+					// Hit on starting pin with too few segments, don't route to pin
+					;
+				else 
+				{
+					// route to pin
+					if (dest->pin != pin)
+					{
+						// not our destination pin:  so move dest over [unless it is the starting pin --- CPT2 removed restriction]
+						dest->pin = pin;
+						dest->x = pin->x, dest->y = pin->y;
+					}
+					// now route to destination pin
+					FinishRouting(rat);
+					bRatlineFinished = true;
+				}
+			}
 		}
-		insert_flag = m_doc->m_nlist->InsertSegment( m_sel_net, m_sel_ic, m_sel_is,
-			m_last_cursor_point.x, m_last_cursor_point.y,
-			m_active_layer, w, m_dir );
-		if( !insert_flag )
+
+		if (!bRatlineFinished)
 		{
-			// hit end-vertex of segment, terminate routing
-			goto cancel_selection_and_goodbye;
+			// trace was not terminated, insert segment and continue routing
+			SaveUndoInfoForNetAndConnections( net, CNetList::UNDO_NET_MODIFY, TRUE, m_doc->m_undo_list );
+			CPoint pi = m_snap_angle_ref;
+			CPoint pf = m_last_cursor_point;
+			CPoint pp = GetInflectionPoint( pi, pf, m_inflection_mode );
+			if( pp != pi )
+			{
+				bool bInserted = rat->InsertSegment( pp.x, pp.y, m_active_layer, m_active_width, m_dir );
+				if( !bInserted )
+					// Hit end of ratline, terminate routing (not likely, given our tests above)
+					bRatlineFinished = true;
+			}
+			if (!bRatlineFinished)
+			{
+				bool bInserted = rat->InsertSegment( pf.x, pf.y, m_active_layer, m_active_width, m_dir );
+				if( !bInserted )
+					bRatlineFinished = true;
+			}
 		}
-		if( m_dir == 0 )
-			m_sel_id.SetI3( m_sel_id.I3() + 1 );
-		m_doc->m_nlist->StartDraggingSegment( pDC, m_sel_net,
-			m_sel_id.I2(), m_sel_is,
-			m_last_cursor_point.x, m_last_cursor_point.y, m_active_layer,
-			LAY_SELECTION, w,
-			m_active_layer, m_dir, 2 );
-		if( bNetWasHighlighted )	// AMW r274
-			HighlightNet( m_sel_net, &m_sel_id ); // AMW r269
+
+		c->Draw();
+		if (bRatlineFinished)
+			goto cancel_selection_and_goodbye;
+		rat->StartDragging( pDC, m_last_cursor_point.x, m_last_cursor_point.y, 
+							m_active_layer,	LAY_SELECTION, m_active_width, m_active_layer, m_dir, 2 );
+		if( highlight_net0 )							// AMW r274
+			m_highlight_net = highlight_net0,
+			m_highlight_net->Highlight( rat );
 		m_snap_angle_ref = m_last_cursor_point;
 		m_doc->ProjectModified( TRUE );
 		Invalidate( FALSE );
 	}
+
+#ifndef CPT2
 	else if( m_cursor_mode == CUR_DRAG_VTX_INSERT )
 	{
 		// add trace segment and vertex
@@ -1734,6 +1666,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		// test for hit on pin
 		// CPT2 not thrilled by keeping the net highlight after a new ratline is made:
 		// cnet2 *highlight_net0 = m_highlight_net;	// AMW r275 save previous state
+		CancelHighlight();
 		CPoint p = m_dlist->WindowToPCB( point );
 		CArray<CHitInfo> hit_info;
 		int num_hits = m_dlist->TestSelect(p.x, p.y, &hit_info,	bitPin|bitVia|bitTraceVtx|bitTee);
@@ -1758,7 +1691,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 					// pin assigned to different net, can't connect it
 					CString s ((LPCSTR) IDS_YouAreTryingToConnectATraceToAPin);
 					AfxMessageBox( s );
-					goto goodbye;
+					goto cancel_selection_and_goodbye;
 				}
 				// add ratline from vertex to pin
 				SaveUndoInfoForNetAndConnections( v->m_net, CNetList::UNDO_NET_MODIFY, TRUE, m_doc->m_undo_list );
@@ -1788,9 +1721,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 					// pins assigned to different nets, can't connect them
 					CString s ((LPCSTR) IDS_YouAreTryingToConnectPinsOnDifferentNets);
 					AfxMessageBox( s );
-					m_doc->m_dlist->StopDragging();
-					SetCursorMode( CUR_PAD_SELECTED );
-					goto goodbye;
+					goto cancel_selection_and_goodbye;
 				}
 				// see if we are trying to connect a pin to itself
 				if( p0==p1 )
@@ -1822,6 +1753,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 					int ret = assign_net_dlg.DoModal();
 					if( ret != IDOK )
 					{
+						m_doc->m_dlist->StopDragging();
 						m_doc->m_dlist->StopDragging();
 						SetCursorMode( CUR_PAD_SELECTED );
 						goto goodbye;
@@ -1865,7 +1797,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 				{
 					CString s ((LPCSTR) IDS_YouAreTryingToConnectTracesOnDifferentNets);
 					AfxMessageBox( s );
-					goto goodbye;
+					goto cancel_selection_and_goodbye;
 				}
 				if( v1==v2 )
 					goto goodbye;
@@ -1979,8 +1911,9 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 #endif
 	else if( m_cursor_mode == CUR_DRAG_STUB )			// CPT2 used to be called CUR_DRAG_TRACE, renamed (less confusing I think)
 	{
-		cvertex2 *vtx0 = m_sel.First()->ToVertex();
+		cvertex2 *vtx0 = m_sel.First()->ToVertex();		// (The vertex where user first started the stub)
 		cconnect2 *con0 = vtx0->m_con;
+		cvertex2 *tail0 = con0->tail;					// (The vertex that will be the start of the new seg)
 		cnet2 *net = vtx0->m_net;
  		if( vtx0->preSeg )
 			// if first vertex, we have already saved undo info,
@@ -1989,10 +1922,10 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 
 		// test for hit on vertex or pin
 		CDisplayList *dl = m_doc->m_dlist;
+		CPoint p = m_last_cursor_point;
 		CArray<CHitInfo> hit_info;
-		int num_hits = dl->TestSelect(m_last_cursor_point.x, m_last_cursor_point.y, &hit_info, 
-											bitVia | bitTraceVtx | bitTee | bitPin);
-		con0->Undraw();																	// NB do this _after_ invoking TestSelect()
+		int num_hits = dl->TestSelect(p.x, p.y, &hit_info, 
+										bitVia | bitTraceVtx | bitTee | bitPin);
 		if( num_hits )
 		{
 			// hit pin or vertex
@@ -2002,49 +1935,49 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 			if( cpin2 *pin = hit->ToPin() )
 			{
 				// hit on pin, see if we can connect to it
-				/* CPT2 didn't translate, didn't see the point:
-				cpart * new_sel_part = sel_id.Part();
-				cnet * new_sel_net = sel_id.Net();
-				CString pin_name = new_sel_part->shape->GetPinNameByIndex( sel_id.I2() );
-				if( m_doc->m_plist->TestHitOnPad( new_sel_part, &pin_name, p.x, p.y, m_active_layer ) )
-				*/
-				// check net
-				if( pin->net && pin->net!=net )
+				if (pin->TestHit(p.x, p.y, m_active_layer))								// Have to make sure layer is OK, in case pin is SMT.
 				{
-					// pin assigned to different net, can't connect it
-					CString s ((LPCSTR) IDS_YouAreTryingToConnectToAPinOnADifferentNet);
-					AfxMessageBox( s );
-					return;
+					// check net
+					if( pin->net && pin->net!=net )
+					{
+						// pin assigned to different net, can't connect it
+						CString s ((LPCSTR) IDS_YouAreTryingToConnectToAPinOnADifferentNet);
+						AfxMessageBox( s );
+						goto cancel_selection_and_goodbye;
+					}
+					if( !pin->net )
+					{
+						// unassigned pin, assign it
+						SaveUndoInfoForPart( pin->part,	CPartList::UNDO_PART_MODIFY, NULL, FALSE, m_doc->m_undo_list );
+						net->AddPin( pin );
+					}
+					// Go for it
+					con0->Undraw();
+					CPoint pi = m_snap_angle_ref;
+					CPoint pf = m_last_cursor_point;
+					CPoint pp = GetInflectionPoint( pi, pf, m_inflection_mode );
+					if( pp != pi )
+						con0->AppendSegment( pp.x, pp.y, m_active_layer, m_active_width ) ;
+					con0->AppendSegment( pf.x, pf.y, m_active_layer, m_active_width );
+					CPoint pin_point (pin->x, pin->y);
+					if( pf != pin_point )
+						con0->AppendSegment( pin_point.x, pin_point.y, m_active_layer, m_active_width );
+					con0->tail->pin = pin;
+					tail0->ReconcileVia();
+					// Cleanup
+					m_dlist->StopDragging();
+					con0->Draw();						// AMW r267 added
+					CancelSelection();
+					net->SetAreaConnections();
+					m_doc->ProjectModified( TRUE );
+					Invalidate( FALSE );
+					goto goodbye;
 				}
-				if( !pin->net )
-				{
-					// unassigned pin, assign it
-					SaveUndoInfoForPart( pin->part,	CPartList::UNDO_PART_MODIFY, NULL, FALSE, m_doc->m_undo_list );
-					net->AddPin( pin );
-				}
-				CPoint pi = m_snap_angle_ref;
-				CPoint pf = m_last_cursor_point;
-				CPoint pp = GetInflectionPoint( pi, pf, m_inflection_mode );
-				if( pp != pi )
-					con0->AppendSegment( pp.x, pp.y, m_active_layer, m_active_width ) ;
-				con0->AppendSegment( pf.x, pf.y, m_active_layer, m_active_width );
-				CPoint pin_point (pin->x, pin->y);
-				if( pf != pin_point )
-					con0->AppendSegment( pin_point.x, pin_point.y, m_active_layer, m_active_width );
-				con0->tail->pin = pin;
-				// Cleanup
-				m_dlist->StopDragging();
-				con0->Draw();						// AMW r267 added
-				CancelSelection();
-				net->SetAreaConnections();
-				m_doc->ProjectModified( TRUE );
-				Invalidate( FALSE );
-				goto goodbye;
 			}
 
 			else if( cvertex2 *vtx1 = hit->ToVertex() )
 			{
-				/* CPT2 TODO don't understand this second test (same with second test in the "if (hit->IsPad())" clause above):
+				/* CPT2 TODO don't understand this second test... there's no issue with layers as there might be with pins.
 				// hit on vertex, see if we can connect to it
 				cnet * hit_net = NULL;
 				int hit_ic, hit_iv;
@@ -2064,8 +1997,9 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 				*/
 				// CPT2 TODO dump message box?  Or give a turn-it-off option.
 				CString s ((LPCSTR) IDS_ConnectingTraceToVertex);
-				int ret = AfxMessageBox( s );
-				// We undraw the whole net, then redraw after this job's finished.  TODO optimize?
+				AfxMessageBox( s );
+
+				// Ready to connect to vertex! We undraw the whole net, then redraw after this job's finished.  TODO optimize?
 				net->Undraw();
 				CPoint pi = m_snap_angle_ref;
 				CPoint pf = m_last_cursor_point;
@@ -2076,16 +2010,18 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 				CPoint vtx1_point (vtx1->x, vtx1->y);
 				if( pf != vtx1_point )
 					con0->AppendSegment( vtx1->x, vtx1->y, m_active_layer, m_active_width );
-				con0->tail->pin = pin;
-				// CPT2 attach con0 to vtx1 with a (possibly new) tee.  Afterwards Adjust() the tee (in case vtx1 was an end-vtx)
+				cvertex2 *tail1 = con0->tail;
+				tail1->pin = pin;
+				// CPT2 attach tail1 to vtx1 with a (possibly new) tee.  Afterwards Adjust() the tee (in case vtx1 was an end-vtx)
 				if (vtx1->preSeg && vtx1->postSeg)
 					// Mid-trace vertex:  split trace (SplitConnect() will set vtx1->tee)
 					vtx1->SplitConnect();
 				else if (!vtx1->tee)
 					vtx1->tee = new ctee (net),
 					vtx1->tee->Add(vtx1);
-				vtx1->tee->Add(con0->tail);
-				vtx1->tee->Adjust();
+				vtx1->tee->Add(tail1);
+				vtx1->tee->Adjust();					// Also reconciles the via
+				tail0->ReconcileVia();
 				// Cleanup
 				m_dlist->StopDragging();
 				if( m_doc->m_vis[LAY_RAT_LINE] )
@@ -2103,7 +2039,6 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		pDC = GetDC();
 		SetDCToWorldCoords( pDC );
 		pDC->SelectClipRgn( &m_pcb_rgn );
-		vtx0->force_via_flag = 0;
 		con0->Undraw();
 		CPoint pi = m_snap_angle_ref;
 		CPoint pf = m_last_cursor_point;
@@ -2111,12 +2046,13 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		if( pp != pi )
 			con0->AppendSegment( pp.x, pp.y, m_active_layer, m_active_width ) ;
 		con0->AppendSegment( pf.x, pf.y, m_active_layer, m_active_width );
+		tail0->ReconcileVia();
 		// Cleanup
 		m_dlist->StopDragging();
 		con0->Draw();
-		CPoint p = m_last_cursor_point;
+		CPoint p0 = m_last_cursor_point;
 		// AMW r275 The following statement calls m_dlist->CancelHighlight()
-		con0->tail->StartDraggingStub( pDC, p.x, p.y, m_active_layer, m_active_width, m_active_layer, 2, m_inflection_mode );
+		con0->tail->StartDraggingStub( pDC, p0.x, p0.y, m_active_layer, m_active_width, m_active_layer, 2, m_inflection_mode );
 		m_snap_angle_ref = m_last_cursor_point;
 		if( m_highlight_net )					// AMW r275 re-highlight net
 			m_highlight_net->Highlight();
@@ -2245,11 +2181,6 @@ void CFreePcbView::OnRButtonDown(UINT nFlags, CPoint point)
 		m_doc->m_plist->CancelDraggingValue( m_sel_part );
 		m_doc->m_plist->SelectValueText( m_sel_part );
 	}
-	else if( m_cursor_mode == CUR_DRAG_RAT )
-	{
-		m_doc->m_nlist->CancelDraggingSegment( m_sel_net, m_sel_ic, m_sel_is );
-		m_doc->m_nlist->HighlightSegment( m_sel_net, m_sel_ic, m_sel_is );
-	}
 	else if( m_cursor_mode == CUR_DRAG_RAT_PIN )
 	{
 		m_dlist->StopDragging();
@@ -2309,6 +2240,14 @@ void CFreePcbView::OnRButtonDown(UINT nFlags, CPoint point)
 		}
 		Invalidate( FALSE );
 	}
+	else if( m_cursor_mode == CUR_DRAG_RAT )
+	{
+		m_dlist->CancelHighlight();
+		cseg2 *rat = m_sel.First()->ToSeg();
+		rat->CancelDragging();
+		rat->Highlight();
+	}
+
 #ifndef CPT2
 	else if( m_cursor_mode == CUR_DRAG_TEXT )
 	{
@@ -3352,7 +3291,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 		else if( fk == FK_UNROUTE_TRACE )
 			OnUnrouteTrace();
 		else if( fk == FK_REDO_RATLINES )
-			OnRatlineOptimize();	//**
+			OnRatlineOptimize();
 		else if( fk == FK_DELETE_CONNECT || nChar == 46 )
 			OnSegmentDeleteTrace();
 		break;
@@ -3684,11 +3623,33 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 		if( fk == FK_COMPLETE )
 		{
 			cseg2 *seg = m_sel.First()->ToSeg();
+			cvertex2 *start = m_dir==0? seg->preVtx: seg->postVtx;
+			cvertex2 *end = m_dir==0? seg->postVtx: seg->preVtx;
+			cconnect2 *c = seg->m_con;
 			SaveUndoInfoForNetAndConnections( seg->m_net, CNetList::UNDO_NET_MODIFY, TRUE, m_doc->m_undo_list );
-			int test = seg->Route( m_active_layer, m_active_width );
-			// end CPT
-			if( !test )
+			// CPT2 TODO.  I'm trying using FinishRouting() instead of cseg2::Route().  This gives us inflection points rather than just a 
+			// straight line.  Desirable?
+			bool bValid = true;
+			if (seg->preVtx->pin)
 			{
+				int pad_layer = seg->preVtx->pin->pad_layer;
+				if( pad_layer != LAY_PAD_THRU && m_active_layer != pad_layer )
+					bValid = false;
+			}
+			if (seg->postVtx->pin)
+			{
+				int pad_layer = seg->postVtx->pin->pad_layer;
+				if( pad_layer != LAY_PAD_THRU && m_active_layer != pad_layer )
+					bValid = false;
+			}
+
+			if (bValid)
+			{
+				m_snap_angle_ref = CPoint(start->x, start->y);
+				m_last_cursor_point = CPoint(end->x, end->y);
+				c->Undraw();
+				FinishRouting(seg);
+				c->Draw();
 				seg->CancelDragging();
 				CancelSelection();
 			}
@@ -4960,14 +4921,15 @@ void CFreePcbView::CancelSelection()
 	cnet2 *highlight_net0 = m_highlight_net;
 	CancelHighlight();
 
+	/* CPT2 see proposal in notes.txt
 	// AMW r274
 	if( highlight_net0 )
 		// rehighlight but don't select
 		m_highlight_net = highlight_net0,
 		highlight_net0->Highlight();
 	// end AMW
+	*/
 	m_sel.RemoveAll();
-
 
 	// CPT
 	m_active_width = 0;
@@ -5042,7 +5004,7 @@ void CFreePcbView::HighlightSelection()
 }
 
 // highlight all segments, vertices and pads in net, except for excluded_id.
-// CPT2 TODO supplant with (unfinished) cnet2::Highlight(cpcb_item *except)
+// CPT2 supplanted with cnet2::Highlight(cpcb_item *except)
 //
 /*
 void CFreePcbView::HighlightNet( cnet * net, id * exclude_id ) 
@@ -5768,11 +5730,9 @@ void CFreePcbView::OnPadStartTrace()
 	new_c->Start(new_v);
 	m_sel.RemoveAll();
 	m_sel.Add(new_v);
-	int w, via_w, via_hole_w;
-	net->GetWidths( &w, &via_w, &via_hole_w );
-	m_active_width = w;								// AMW r267 added
+	net->GetWidth( &m_active_width );								// AMW r267 added
 	CPoint p = m_last_cursor_point;
-	new_v->StartDraggingStub( pDC, p.x, p.y, m_active_layer, w, m_active_layer, 2, m_inflection_mode );
+	new_v->StartDraggingStub( pDC, p.x, p.y, m_active_layer, m_active_width, m_active_layer, 2, m_inflection_mode );
 	if( m_doc->m_bHighlightNet )
 		m_highlight_net = net,
 		net->Highlight();
@@ -5932,11 +5892,9 @@ void CFreePcbView::OnVertexStartTrace()
 		if (!v->preSeg)
 			v->m_con->ReverseDirection();			// Ensure we're extending from the tail end of connect
 	}
-	int w, via_w, via_hole_w;
-	net->GetWidths( &w, &via_w, &via_hole_w );
-	m_active_width = w;								// AMW r267 added
+	net->GetWidth( &m_active_width );				// AMW r267 added
 	CPoint p = m_last_cursor_point;
-	new_v->StartDraggingStub( pDC, p.x, p.y, m_active_layer, w, m_active_layer, 2, m_inflection_mode );
+	new_v->StartDraggingStub( pDC, p.x, p.y, m_active_layer, m_active_width, m_active_layer, 2, m_inflection_mode );
 	if( m_doc->m_bHighlightNet )
 		m_highlight_net = net,
 		net->Highlight();
@@ -6029,101 +5987,62 @@ void CFreePcbView::OnSegmentDelete()
 //
 void CFreePcbView::OnRatlineRoute()
 {
-#ifndef CPT2
+	cseg2 *seg = m_sel.First()->ToSeg();
+	cnet2 *net = seg->m_net;
+	cvertex2 *preVtx = seg->preVtx, *postVtx = seg->postVtx;
 	CDC *pDC = GetDC();
 	pDC->SelectClipRgn( &m_pcb_rgn );
 	SetDCToWorldCoords( pDC );
 	CPoint p = m_last_mouse_point;
-	int last_seg_layer = 0;
-	int n_segs = m_sel_con->NumSegs();
-	// get direction for routing, based on closest end of selected segment to cursor
-	double d1x = p.x - m_sel_vtx->x;
-	double d1y = p.y - m_sel_vtx->y;
-	double d2x = p.x - m_sel_next_vtx->x;
-	double d2y = p.y - m_sel_next_vtx->y;
+	// int last_seg_layer = 0;			// CPT2 TODO eliminated this old local (which was only passed down, semi-uselessly, to StartDragging()).  Desirable?
+
+	// get direction for routing, based on closest end of selected segment to cursor.  Then determine initial routing layer
+	double d1x = p.x - preVtx->x;
+	double d1y = p.y - preVtx->y;
+	double d2x = p.x - postVtx->x;
+	double d2y = p.y - postVtx->y;
 	double d1 = d1x*d1x + d1y*d1y;
 	double d2 = d2x*d2x + d2y*d2y;
 	if( d1<d2 )
 	{
 		// route forward
 		m_dir = 0;
-		if( m_sel_id.I3() > 0 )
-			last_seg_layer = m_sel_con->SegByIndex(m_sel_is-1).m_layer;
-		m_snap_angle_ref.x = m_sel_vtx->x;
-		m_snap_angle_ref.y = m_sel_vtx->y;
+		m_snap_angle_ref.x = preVtx->x;
+		m_snap_angle_ref.y = preVtx->y;
 	}
 	else
 	{
 		// route backward
 		m_dir = 1;
-		if( m_sel_id.I3() < (m_sel_con->NumSegs()-1) )
-			last_seg_layer = m_sel_con->SegByIndex(m_sel_is+1).m_layer;
-		m_snap_angle_ref.x = m_sel_next_vtx->x;
-		m_snap_angle_ref.y = m_sel_next_vtx->y;
+		m_snap_angle_ref.x = postVtx->x;
+		m_snap_angle_ref.y = postVtx->y;
 	}
-	if( m_sel_id.I3() == 0 && m_dir == 0 )
-	{
-		// first segment, force to layer of starting pad if SMT
-		int p1 = m_sel_con->start_pin;
-		if( p1 != cconnect::NO_END )
-		{
-			cpart * p = m_sel_net->pin[p1].part;
-			CString pin_name = m_sel_net->pin[p1].pin_name;
-			int pin_index = p->shape->GetPinIndexByName( pin_name );
-			if( p->shape->m_padstack[pin_index].hole_size == 0)
-			{
-				m_active_layer = m_doc->m_plist->GetPinLayer( p, &pin_name );
-				ShowActiveLayer();
-			}
-		}
-	}
-	else if( m_sel_id.I3() == (n_segs-1) && m_dir == 1 )
-	{
-		// last segment, force to layer of starting pad if SMT
-		int p1 = m_sel_con->end_pin;
-		if( p1 != cconnect::NO_END )
-		{
-			cpart * p = m_sel_net->pin[p1].part;
-			CString pin_name = m_sel_net->pin[p1].pin_name;
-			int pin_index = p->shape->GetPinIndexByName( pin_name );
-			if( p1 != cconnect::NO_END )
-			{
-				if( p->shape->m_padstack[pin_index].hole_size == 0)
-				{
-					m_active_layer = m_doc->m_plist->GetPinLayer( p, &pin_name );
-					ShowActiveLayer();
-				}
-			}
-		}
-	}
-	// now start dragging new segment
-    // CPT.  If already in drag mode, we'll use m_active_width.  Otherwise, set m_active_width to the net's default value
-	int w;
-    if (m_cursor_mode==CUR_DRAG_RAT)
-        w = m_active_width;
-    else 
-	{
-        w = m_doc->m_trace_w;
-        if (m_sel_net->def_w)
-                w = m_sel_net->def_w;
-        m_active_width = w;
-    }
+	if (m_dir==0 && preVtx->pin && preVtx->pin->pad_layer!=LAY_PAD_THRU)
+		// Routing forward from an SMT pin. Force routing on pin's layer
+		m_active_layer = preVtx->pin->pad_layer;
+	else if (m_dir==1 && postVtx->pin && postVtx->pin->pad_layer!=LAY_PAD_THRU)
+		// Routing backward from an SMT:
+		m_active_layer = postVtx->pin->pad_layer;
+	ShowActiveLayer();
+
+    // CPT.  In drag mode, the width used will be m_active_width.  Initialize this value  
+	// to the net's default value
+	net->GetWidth(&m_active_width);
 	// end CPT
 
+	// now start dragging segment!
 	m_dragging_new_item = 0;
-	m_doc->m_nlist->StartDraggingSegment( pDC, m_sel_net, m_sel_ic, m_sel_is,
-		p.x, p.y, m_active_layer,
-		LAY_SELECTION, w,
-		last_seg_layer, m_dir, 2 );
+	seg->StartDragging( pDC, p.x, p.y, 
+		m_active_layer, LAY_SELECTION, m_active_width, m_active_layer, m_dir, 2 );
 	SetCursorMode( CUR_DRAG_RAT );
 
 	// AMW r269: highlight net while routing, except for ratline being routed
 	if( m_doc->m_bHighlightNet )
-		HighlightNet( m_sel_net, &m_sel_id );
+		m_highlight_net = net,
+		net->Highlight(seg);
 	// end AMW
 
 	ReleaseDC( pDC );
-#endif
 }
 
 // optimize this connection
@@ -8443,6 +8362,26 @@ void CFreePcbView::SelectItemsInRect( CRect r, BOOL bAddToGroup )
 	m_lastKeyWasArrow = FALSE;
 	m_lastKeyWasGroupRotate = false;
 	FindGroupCenter();
+}
+
+void CFreePcbView::FinishRouting(cseg2 *rat)
+{
+	// CPT2: new helper for when user completes routing a ratline (while mode==CUR_DRAG_RAT, hitting F4 or clicking the dest. pin)
+	SaveUndoInfoForNetAndConnections( rat->m_net, CNetList::UNDO_NET_MODIFY, TRUE, m_doc->m_undo_list );
+	CPoint pi = m_snap_angle_ref;
+	CPoint pf = m_last_cursor_point;
+	CPoint pp = GetInflectionPoint( pi, pf, m_inflection_mode );
+	if( pp != pi )
+	{
+		bool bInserted = rat->InsertSegment( pp.x, pp.y, m_active_layer, m_active_width, m_dir );
+		if( !bInserted )
+			return;
+	}
+	bool bInserted = rat->InsertSegment( pf.x, pf.y, m_active_layer, m_active_width, m_dir );
+	if( !bInserted )
+		return;
+	// finish trace if necessary
+	rat->Route(m_active_layer, m_active_width);
 }
 
 // Start dragging group being moved or added
@@ -12453,50 +12392,36 @@ void CFreePcbView::ToggleSelectionState(cpcb_item *item)
 // CPT
 void CFreePcbView::HandleNoShiftLayerKey(int layer, CDC *pDC) 
 {
-#ifndef CPT2
-	if( !m_doc->m_vis[layer] ) {
+	if( !m_doc->m_vis[layer] ) 
+	{
 		PlaySound( TEXT("CriticalStop"), 0, 0 );
 		CString s ((LPCSTR) IDS_CantRouteOnInvisibleLayer);
 		AfxMessageBox( s );
 		return;
-		}
-	if( m_cursor_mode == CUR_DRAG_RAT || m_cursor_mode == CUR_DRAG_STUB) {
-		// if we are routing, change layer
-		pDC->SelectClipRgn( &m_pcb_rgn );
-		SetDCToWorldCoords( pDC );										// Haven't figured out why we need this...
-		if( m_sel_id.I3() == 0 && m_dir == 0 ) {						// CPT r295 bugfix (I2() => I3()).
-			// we are trying to change first segment from pad
-			int p1 = m_sel_id.Con()->start_pin;
-			CString pin_name = m_sel_net->pin[p1].pin_name;
-			int pin_index = m_sel_net->pin[p1].part->shape->GetPinIndexByName( pin_name );
-			if( m_sel_net->pin[p1].part->shape->m_padstack[pin_index].hole_size == 0)
-				// SMT pad, this is illegal;
-				layer = -1,
-				PlaySound( TEXT("CriticalStop"), 0, 0 );
-			}
-		else if( m_sel_id.I3() == (m_sel_id.Con()->NumSegs()-1) && m_dir == 1 ) {		// CPT r295 bugfix (I2() => I3()).
-			// we are trying to change last segment to pad
-			int p2 = m_sel_id.Con()->end_pin;
-			if( p2 != -1 ) {
-				CString pin_name = m_sel_id.Net()->pin[p2].pin_name;
-				int pin_index = m_sel_net->pin[p2].part->shape->GetPinIndexByName( pin_name );
-				if( m_sel_net->pin[p2].part->shape->m_padstack[pin_index].hole_size == 0)
-					// SMT pad
-					layer = -1,
-					PlaySound( TEXT("CriticalStop"), 0, 0 );
-				}
-			}
-		if( layer != -1 ) {
-			m_dlist->ChangeRoutingLayer( pDC, layer, LAY_SELECTION, 0 );
-			m_active_layer = layer;
-			ShowActiveLayer();
-			}
+	}
+	if (m_cursor_mode != CUR_DRAG_STUB && m_cursor_mode != CUR_DRAG_RAT)
+	{
+		m_active_layer = layer;
+		ShowActiveLayer();
 		return;
-		}
-	
-	m_active_layer = layer;
-	ShowActiveLayer();
-#endif
+	}
+
+	cvertex2 *start = NULL;
+	if (m_cursor_mode == CUR_DRAG_STUB) 
+		start = m_sel.First()->ToVertex();
+	else if (m_cursor_mode == CUR_DRAG_RAT)
+	{
+		cseg2 *rat = m_sel.First()->ToSeg();
+		start = m_dir==0? rat->preVtx: rat->postVtx;
+	}
+	if (start && start->pin && start->pin->pad_layer!=LAY_PAD_THRU)
+		// Changing layer while routing from an SMT pad is illegal
+		layer = -1,
+		PlaySound( TEXT("CriticalStop"), 0, 0 );
+	else
+		m_dlist->ChangeRoutingLayer( pDC, layer, LAY_SELECTION, 0 ),
+		m_active_layer = layer,
+		ShowActiveLayer();
 }
 
 void CFreePcbView::HandleShiftLayerKey(int layer, CDC *pDC) {

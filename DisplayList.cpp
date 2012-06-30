@@ -337,7 +337,6 @@ dl_element * CDisplayList::CreateDLE( cpcb_item *item, int usage, int layer, int
 								int x, int y, int xf, int yf, int xo, int yo, int radius,
 								int orig_layer )
 {
-{
 	// create new element
 	dl_element * new_element = CreateDLE( gtype );
 	// now copy data from entry into element
@@ -361,7 +360,6 @@ dl_element * CDisplayList::CreateDLE( cpcb_item *item, int usage, int layer, int
 	return new_element;
 }
 
-}
 
 dl_element * CDisplayList::Add( cpcb_item *item, int usage, int layer, int gtype, int visible,
 	                            int w, int holew, int clearancew,
@@ -959,11 +957,12 @@ int CompareHits(const CHitInfo *h1, const CHitInfo *h2) {
 // CPT2.  Selection mask is implemented by looking at argument maskBits.  If a given item returns a GetTypeBit() that is part of the mask, it
 //   is allowed for selection.
 // New arg bCtrl is true if user is currently ctrl-clicking.  In that case we exclude e.g. vertices and ratlines, which can't belong to groups.
+// Arg "net," if non-null, means that we must limit the results to members of that net.  Likewise layer, if >=0, indicates a layer filter.
 // Function now always sorts hit_info.  Return value is now the number of elements in hit_info.
 //
 // CPT: also removed references to Brian's CDL_job classes, and tidied up.
 
-int CDisplayList::TestSelect( int x, int y, CArray<CHitInfo> *hit_info, int maskBits, bool bCtrl )
+int CDisplayList::TestSelect( int x, int y, CArray<CHitInfo> *hit_info, int maskBits, bool bCtrl, cnet2 *net, int layer )
 {
 	if(!m_vis[LAY_SELECTION] ) return -1;				// CPT: irrelevant??
 
@@ -981,8 +980,12 @@ int CDisplayList::TestSelect( int x, int y, CArray<CHitInfo> *hit_info, int mask
 		CHitInfo *this_hit = &hit_info0[i];
 		cpcb_item *this_item = this_hit->item;
 		if (bCtrl && !this_item->IsSelectableForGroup()) 
-				continue;
+			continue;
 		if (!(this_item->GetTypeBit() & maskBits)) 
+			continue;
+		if (net && this_item->GetNet()!=net)
+			continue;
+		if (layer>=0 && this_item->GetLayer()!=layer && this_item->GetLayer()!=LAY_PAD_THRU)
 			continue;
 
 		// OK, valid hit, now add to final array hit_info, and assign priority

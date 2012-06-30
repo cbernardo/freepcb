@@ -250,7 +250,7 @@ public:
 	// functions for segments.
 	// CPT r295 note that via_w and via_hole_w params are NO LONGER USED.
 	// int AppendSegment( cnet2 * net, int ic, int x, int y, int layer, int width );				// CPT2 use cconnect2::AppendSegment()
-	// int InsertSegment( cnet2 * net, int ic, int iseg, int x, int y, int layer, int width, int dir );  // CPT2 use cconeect2::InsertSegment()
+	// int InsertSegment( cnet2 * net, int ic, int iseg, int x, int y, int layer, int width, int dir );  // CPT2 use cseg2::InsertSegment()
 	// id  UnrouteSegment( cnet2 * net, int ic, int iseg, int dx=1, int dy=1, int end=0 );				// CPT2 use cseg2::Unroute()
 	// void UnrouteSegmentWithoutMerge( cnet2 * net, int ic, int iseg, double dx=1, double dy=1, int end=0 ); // CPT2 use cseg2::UnrouteWithoutMerge()
 	// id MergeUnroutedSegments( cnet2 * net, int ic ); // CPT2 use cconnect2::MergeUnroutedSegments()

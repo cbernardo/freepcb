@@ -15,7 +15,8 @@ like CFreePcbView::OnLButtonUp or CNetList::ReadNets.  It might be that one will
 to Undraw/Draw (doing entire nets rather than a couple of individual segs, say).  But I think the benefits during long processes
 like loading will outweigh the slight penalties when doing single user edit operations.
 
-
+I would propose that CFreePcbView::CancelSelection() always turn off net highlighting by default.  If caller really wants to rehighlight
+afterwards (I don't think that will be frequent), let 'em do it by hand.
 
 
 

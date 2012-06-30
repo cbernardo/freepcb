@@ -128,6 +128,17 @@ bool cvertex2::IsValid()
 bool cvertex2::IsVia() 
 	{ return via_w>0 || tee && tee->via_w>0; }
 
+int cvertex2::GetLayer()
+{
+	// Return LAY_PAD_THRU for vias.  Otherwise return the layer of whichever emerging seg isn't a ratline.  Failing that, return LAY_RAT_LINE.
+	if (tee) return tee->GetLayer();
+	if (pin) return pin->GetLayer();
+	if (via_w) return LAY_PAD_THRU;
+	if (preSeg && preSeg->m_layer != LAY_RAT_LINE) return preSeg->m_layer;
+	if (postSeg && postSeg->m_layer != LAY_RAT_LINE) return postSeg->m_layer;
+	return LAY_RAT_LINE;
+}
+
 bool cvertex2::Remove()
 {
 	// Derived from old cnet::RemoveVertex() functions.  Remove vertex from the network.  If it's a tee-vertex, all associated vertices must be
@@ -196,26 +207,7 @@ void cvertex2::UnforceVia( BOOL set_areas )
 
 bool cvertex2::IsViaNeeded()
 {
-	if (tee) 
-	{
-		int layer0 = -1;
-		citer<cvertex2> iv (&tee->vtxs);
-		for (cvertex2 *v = iv.First(); v; v = iv.Next())
-		{
-			if (v->force_via_flag) return true;							// If any constituent vtx has a forced via, the tee needs one too
-			int layer = v->preSeg? v->preSeg->m_layer: LAY_RAT_LINE;
-			if (layer!=LAY_RAT_LINE)
-				if (layer0==-1) layer0 = layer;
-				else if (layer!=layer0) return true;
-			layer = v->postSeg? v->postSeg->m_layer: LAY_RAT_LINE;
-			if (layer!=LAY_RAT_LINE)
-				if (layer0==-1) layer0 = layer;
-				else if (layer!=layer0) return true;
-		}
-		return false;
-	}
-
-	// Non-tee:
+	if (tee) return tee->IsViaNeeded();
 	if (pin) return false;
 	if (force_via_flag) return true;
 	if (!preSeg || !postSeg) return false;					// CPT2 TODO: check...
@@ -223,39 +215,40 @@ bool cvertex2::IsViaNeeded()
 	return preSeg->m_layer!=LAY_RAT_LINE && postSeg->m_layer!=LAY_RAT_LINE;
 }
 
+void cvertex2::SetViaWidth()
+{
+	// CPT2.  We've determined that "this" needs a via, so determine the appropriate width based on incoming segs
+	via_w = via_hole_w = 0;
+	if (preSeg)
+		m_net->CalcViaWidths(preSeg->m_width, &via_w, &via_hole_w);
+	if (postSeg) 
+	{
+		int vw2, vhw2;
+		m_net->CalcViaWidths(postSeg->m_width, &vw2, &vhw2);
+		if (vw2 > via_w) 
+			via_w = vw2, via_hole_w = vhw2;
+	}
+	if (via_w<=0 || via_hole_w<=0)
+		// Not likely.  Use defaults...
+		via_w = m_net->def_via_w,
+		via_hole_w = m_net->def_via_hole_w;
+}
+
 void cvertex2::ReconcileVia()
 {
 	// CPT2.  Gets an appropriate width for a via on this vertex, if any.  NB DOESN'T DO ANY DRAWING ANY MORE (see proposed policy in notes.txt)
-	if (IsViaNeeded()) 
-	{
-		// CPT r295. Calculate via width, based on the widths of the adjacent segs and possibly the net defaults.
-		via_w = via_hole_w = 0;
-		if (preSeg)
-			m_net->CalcViaWidths(preSeg->m_width, &via_w, &via_hole_w);
-		if (postSeg) 
-		{
-			int vw2, vhw2;
-			m_net->CalcViaWidths(postSeg->m_width, &vw2, &vhw2);
-			if (vw2 > via_w) 
-				via_w = vw2, via_hole_w = vhw2;
-		}
-		if (via_w<=0 || via_hole_w<=0)
-			// Use defaults...  CPT2 TODO:  net gets its default widths from netlist when constructed if no other val is specified.
-			via_w = m_net->def_via_w,
-			via_hole_w = m_net->def_via_hole_w;
-		// End CPT
-	}
-	else
-		// via not needed
-		via_w = via_hole_w = 0;
-
 	if (tee)
-		tee->ReconcileVia();
+		{ tee->ReconcileVia(); return; }
+
+	if (IsViaNeeded()) 
+		SetViaWidth();
+	else
+		via_w = via_hole_w = 0;
 }
 
 int cvertex2::GetViaConnectionStatus( int layer )
 {
-	// Derived from old CNetList function.
+	// Derived from old CNetList function. CPT2 TODO possibly obsolete
 	int status = VIA_NO_CONNECT;
 
 	// check for end vertices of traces to pads.  CPT2 TODO:  I think I got the intent of the old routine, but need to check.
@@ -283,7 +276,7 @@ int cvertex2::GetViaConnectionStatus( int layer )
 	// see if it connects to any area in this net on this layer
 	citer<carea2> ia (&m_net->areas);
 	for( carea2 *a = ia.First(); a; a = ia.Next() )
-		if( a->Layer() == layer )
+		if( a->GetLayer() == layer )
 		{
 			// area is on this layer, loop through via connections to area
 			citer<cvertex2> iv (&a->vtxs);
@@ -293,6 +286,43 @@ int cvertex2::GetViaConnectionStatus( int layer )
 					status |= VIA_AREA;
 		}
 	return status;
+}
+
+bool cvertex2::TestHit(int _x, int _y, int _layer)
+{
+	// CPT2 Semi-supplants cnet2::TestHitOnVertex.  This routine also behaves appropriately if the vertex is part of a tee or associated with a pin.
+	if (pin)
+		return pin->TestHit(_x, _y, _layer);
+
+	// First check that the layer is OK:
+	if (_layer>0)
+	{
+		int layer = GetLayer();
+		if (layer != LAY_PAD_THRU && layer != LAY_RAT_LINE && layer != _layer)
+			return false; 
+	}
+	// Determine a test radius (perhaps this is a little obsessive...)
+	int test_w = max( via_w, 10*NM_PER_MIL );
+	if (preSeg)
+		test_w = max( test_w, preSeg->m_width );
+	if (postSeg)
+		test_w = max( test_w, postSeg->m_width );
+	if (tee)
+	{
+		test_w = max( test_w, tee->via_w );
+		citer<cvertex2> iv (&tee->vtxs);
+		for (cvertex2 *v = iv.First(); v; v = iv.Next()) 
+		{
+			if (v->preSeg) 
+				test_w = max(test_w, v->preSeg->m_width);
+			if (v->postSeg)
+				test_w = max(test_w, v->postSeg->m_width);
+		}
+	}
+
+	double dx = x - _x, dy = y - _y;
+	double d = sqrt( dx*dx + dy*dy );
+	return d < test_w/2;
 }
 
 void cvertex2::Move( int _x, int _y )
@@ -410,6 +440,7 @@ void cvertex2::StartDraggingStub( CDC * pDC, int _x, int _y, int layer1, int w,
 // CPT2 NB CancelDraggingStub() is pretty useless at this point, so it's eliminated
 
 
+
 int cvertex2::Draw()
 {
 	cnetlist * nl = m_net->m_nlist;
@@ -511,6 +542,22 @@ ctee::ctee(cnet2 *n)
 	dl_hole = NULL;
 }
 
+int ctee::GetLayer()
+{
+	// If this has a via, return LAY_PAD_THRU.
+	// Otherwise search the component vtxs for an emerging segment that has a layer other than LAY_RAT_LINE.  Return the first such layer if found.
+	// By default return LAY_RAT_LINE
+	if (via_w) 
+		return LAY_PAD_THRU;
+	citer<cvertex2> iv (&vtxs);
+	for (cvertex2 *v = iv.First(); v; v = iv.Next())
+		if (v->preSeg && v->preSeg->m_layer != LAY_RAT_LINE)
+			return v->preSeg->m_layer;
+		else if (v->postSeg && v->postSeg->m_layer != LAY_RAT_LINE)
+			return v->postSeg->m_layer;
+	return LAY_RAT_LINE;
+}
+
 void ctee::Remove()
 {
 	// Disconnect this from everything:  that is, remove references to this from all vertices in vtxs, and then clear out this->vtxs.  The
@@ -538,6 +585,7 @@ bool ctee::Adjust()
 	// Typically called after a segment/connect attached to a tee-vertex is removed.  At that point we see if there are still 3+ vertices 
 	// remaining within the tee;  if so, do nothing and return false.  If there's 0-1 vertex in the tee (not that likely, I think), just 
 	// remove the tee from the network and return true. If there are 2 attached connects, combine them before removing the tee & returning true.
+	ReconcileVia();
 	int nItems = vtxs.GetSize();
 	if (nItems > 2) return false;
 	if (nItems < 2) 
@@ -551,11 +599,34 @@ bool ctee::Adjust()
 	return true;
 }
 
+bool ctee::IsViaNeeded()
+{
+	int layer0 = -1;
+	citer<cvertex2> iv (&vtxs);
+	for (cvertex2 *v = iv.First(); v; v = iv.Next())
+	{
+		if (v->force_via_flag) return true;							// If any constituent vtx has a forced via, the tee needs one too
+		int layer = v->preSeg? v->preSeg->m_layer: LAY_RAT_LINE;
+		if (layer!=LAY_RAT_LINE)
+			if (layer0==-1) layer0 = layer;
+			else if (layer!=layer0) return true;
+		layer = v->postSeg? v->postSeg->m_layer: LAY_RAT_LINE;
+		if (layer!=LAY_RAT_LINE)
+			if (layer0==-1) layer0 = layer;
+			else if (layer!=layer0) return true;
+	}
+	return false;
+}
+
 void ctee::ReconcileVia()
 {
-	// Set via_w and via_hole_w, based on the max of the widths for the constituent vtxs.
-	citer<cvertex2> iv (&vtxs);
 	via_w = via_hole_w = 0;
+	if (!IsViaNeeded())
+		return;
+	// Set via_w and via_hole_w, based on the max of the widths for the constituent vtxs (which have to be set first)
+	citer<cvertex2> iv (&vtxs);
+	for (cvertex2 *v = iv.First(); v; v = iv.Next())
+		v->SetViaWidth();
 	for (cvertex2 *v = iv.First(); v; v = iv.Next())
 		if (v->via_w > via_w)
 			via_w = v->via_w, via_hole_w = v->via_hole_w;
@@ -725,6 +796,34 @@ void cseg2::Divide( cvertex2 *v, cseg2 *s, int dir )
 		postVtx = v;
 }
 
+bool cseg2::InsertSegment(int x, int y, int _layer, int _width, int dir )
+{
+	// CPT2, derived from CNetList::InsertSegment().  Used when "this" is a ratline that is getting partially routed.  this will be split at
+	// a new vertex (position (x,y)), and either the first or second half will be converted to layer/width, depending on dir.  However, if (x,y)
+	// is close to the final point of this (tolerance 10 nm), we'll just convert this to a single seg with the given layer/width and return false.
+	// NB NO DRAWING in accordance with my proposed new policy.
+	const int TOL = 10;													// CPT2 TODO this seems mighty small...
+	cvertex2 *dest = dir==0? postVtx: preVtx;
+	bool bHitDest = abs(x - dest->x) + abs(y - dest->y) < TOL;
+	if (dest->pin)
+		bHitDest &= dest->TestHit(x, y, _layer);						// Have to make sure layer is OK in case of SMT pins.
+	if (bHitDest)
+	{
+		m_layer = _layer;
+		m_width = _width;
+		preVtx->ReconcileVia();
+		postVtx->ReconcileVia();
+		return false;
+	}
+
+	cvertex2 *v = new cvertex2(m_con, x, y);
+	cseg2 *s = new cseg2(m_con, _layer, _width);
+	Divide(v, s, dir);
+	s->preVtx->ReconcileVia();
+	s->postVtx->ReconcileVia();
+	return true;
+}
+
 int cseg2::Route( int layer, int width )
 {
 	// Old CNetList::RouteSegment()
@@ -746,11 +845,11 @@ int cseg2::Route( int layer, int width )
 	}
 
 	// modify segment parameters
-	Undraw();
+	// Undraw();
 	m_layer = layer;
 	m_width = width;
 	m_selected = 0;
-	Draw();
+	// Draw();
 
 	// now adjust vias
 	preVtx->ReconcileVia();
@@ -893,6 +992,20 @@ bool cseg2::RemoveBreak()
 		// endpoints.  By calling Adjust() on that tee we'll get the two connects united into a single line.
 		headT->Adjust();
 	return false;
+}
+
+void cseg2::StartDragging( CDC * pDC, int x, int y, int layer1, int layer2, int w, 
+								   int layer_no_via, int dir, int crosshair )
+{
+	// cancel previous selection and make segment invisible
+	CDisplayList *dl = doc->m_dlist;
+	dl->CancelHighlight();
+	dl->Set_visible(dl_el, 0);
+	// CPT2 TODO:  Rationalize the whole 3-layer business in the arg list:
+	dl->StartDraggingLineVertex( pDC, x, y, preVtx->x, preVtx->y, postVtx->x, postVtx->y, 
+								layer1,	layer2, w, 1, DSS_STRAIGHT, DSS_STRAIGHT, 
+								layer_no_via, w*3/2, w, dir, crosshair );		// CPT r295 put in approximate args for via_w and via_hole_w.  This
+																				// whole business seems a bit bogus to me...
 }
 
 void cseg2::CancelDragging()
@@ -1207,6 +1320,68 @@ int cpin2::GetWidth()													// CPT2. Derived from CPartList::GetPinWidth()
 	w = max( w, ps->hole_size );
 	return w;
 }
+
+bool cpin2::TestHit( int _x, int _y, int _layer )
+{
+	// CPT2 Derived from CPartList::TestHitOnPad
+	if( !part )
+		return FALSE;
+	if( !part->shape )
+		return FALSE;
+
+	pad * p;
+	if( ps->hole_size == 0 )
+	{
+		// SMT pad
+		if( _layer == LAY_TOP_COPPER && part->side == 0 )
+			p = &ps->top;
+		else if( _layer == LAY_BOTTOM_COPPER && part->side == 1 )
+			p = &ps->top;
+		else
+			return FALSE;
+	}
+	else
+	{
+		// TH pad
+		if( _layer == LAY_TOP_COPPER && part->side == 0 )
+			p = &ps->top;
+		else if( _layer == LAY_TOP_COPPER && part->side == 1 )
+			p = &ps->bottom;
+		else if( _layer == LAY_BOTTOM_COPPER && part->side == 1 )
+			p = &ps->top;
+		else if( _layer == LAY_BOTTOM_COPPER && part->side == 0 )
+			p = &ps->bottom;
+		else
+			p = &ps->inner;
+	}
+	double dx = abs( x - _x );
+	double dy = abs( y - _y );
+	double dist = sqrt( dx*dx + dy*dy );
+	if( dist < ps->hole_size/2 )
+		return true;
+
+	switch( p->shape )
+	{
+	case PAD_NONE: 
+		return false;
+	case PAD_ROUND: 
+		return dist < (p->size_h/2);
+	case PAD_SQUARE:
+		return dx < (p->size_h/2) && dy < (p->size_h/2);
+	case PAD_RECT:
+	case PAD_RRECT:
+	case PAD_OVAL:
+		int pad_angle = part->angle + ps->angle;
+		if( pad_angle > 270 )
+			pad_angle -= 360;
+		if( pad_angle == 0 || pad_angle == 180 )
+			return dx < (p->size_l) && dy < (p->size_h/2);
+		else
+			return dx < (p->size_h/2) && dy < (p->size_l);
+	}
+	return false;
+}
+
 
 void cpin2::SetPosition()												
 {
@@ -1691,7 +1866,7 @@ int cpart2::Draw()
 	citer<cpolyline> ip (&shape->m_outline_poly);
 	for (cpolyline *poly = ip.First(); poly; poly = ip.Next())
 	{
-		int shape_layer = poly->Layer();
+		int shape_layer = poly->GetLayer();
 		int poly_layer = cpartlist::FootprintLayer2Layer( shape_layer );
 		poly_layer = FlipLayer( side, poly_layer );
 		int w = poly->W();
@@ -2084,6 +2259,7 @@ bool ccorner::IsBoardCorner() { return contour->poly->IsBoard(); }
 bool ccorner::IsSmCorner() { return contour->poly->IsSmCutout(); }
 bool ccorner::IsOutlineCorner() { return contour->poly->IsOutline(); }
 cnet2 *ccorner::GetNet() { return contour->GetNet(); }
+int ccorner::GetLayer() { return contour->poly->m_layer; }
 
 int ccorner::GetTypeBit() 
 {														// Later:  put in .cpp file.  There wouldn't be this nonsense in Java...
@@ -2158,6 +2334,7 @@ bool cside::IsAreaSide() { return contour->poly->IsArea(); }
 bool cside::IsBoardSide() { return contour->poly->IsBoard(); }
 bool cside::IsSmSide() { return contour->poly->IsSmCutout(); }
 bool cside::IsOutlineSide() { return contour->poly->IsOutline(); }
+int cside::GetLayer() { return contour->poly->m_layer; }
 
 int cside::GetTypeBit() 
 {
@@ -2203,8 +2380,8 @@ ccontour::ccontour(cpolyline *_poly, bool bMain)
 
 bool ccontour::IsValid() 
 	{ return poly->contours.Contains(this); }
-
 cnet2 *ccontour::GetNet() { return poly->GetNet(); }
+int ccontour::GetLayer() { return poly->m_layer; }
 
 void ccontour::AppendSideAndCorner( cside *s, ccorner *c, ccorner *after )
 {
@@ -2792,7 +2969,7 @@ int cpolyline::TestIntersection( cpolyline *poly2, bool bCheckArcIntersections )
 	//   the CMyBitmap class, or gpc?
 	// First see if polygons are on same layer
 	cpolyline *poly1 = this;
-	if( poly1->Layer() != poly2->Layer() )
+	if( poly1->GetLayer() != poly2->GetLayer() )
 		return 0;
 
 	// test bounding rects
@@ -3219,21 +3396,28 @@ void cnet2::AddPin( cpin2 *pin )
 	pin->net = this;
 }
 
-void cnet2::GetWidths( int * w, int * via_w, int * via_hole_w )
+void cnet2::GetWidth( int * w, int * via_w, int * via_hole_w )
 {
 	// Get net's trace and via widths.  If no net-specific default value set, use the board defaults.
-	// CPT2.  Derived from old CFreePcbView::GetWidthsForSegment()
-	*w = doc->m_trace_w;
-	if( def_w )
-		*w = def_w;
-
-	*via_w = doc->m_via_w;
-	if( def_via_w )
-		*via_w = def_via_w;
-
-	*via_hole_w = doc->m_via_hole_w;
-	if( def_via_hole_w )
-		*via_hole_w = def_via_hole_w;
+	// CPT2.  Derived from old CFreePcbView::GetWidthsForSegment().  Args may now be null (via_w and via_hole_w are by default)
+	if (w)
+	{
+		*w = doc->m_trace_w;
+		if( def_w )
+			*w = def_w;
+	}
+	if (via_w)
+	{
+		*via_w = doc->m_via_w;
+		if( def_via_w )
+			*via_w = def_via_w;
+	}
+	if (via_hole_w)
+	{
+		*via_hole_w = doc->m_via_hole_w;
+		if( def_via_hole_w )
+			*via_hole_w = def_via_hole_w;
+	}
 }
 
 void cnet2::CalcViaWidths(int w, int *via_w, int *via_hole_w) {
@@ -3255,6 +3439,7 @@ void cnet2::CalcViaWidths(int w, int *via_w, int *via_hole_w) {
 
 cvertex2 *cnet2::TestHitOnVertex(int layer, int x, int y) 
 {
+	// TODO maybe obsolete.  Frequently cvertex2::TestForHit() does the trick.
 	// Test for a hit on a vertex in a trace within this net/layer.
 	// If layer == 0, ignore layer.  New return value: returns the hit vertex, or 0 if no vtx is near (x,y) on layer
 	citer<cconnect2> ic (&connects);
@@ -3676,7 +3861,7 @@ void cnet2::CombineAllAreas( BOOL bMessageBox, BOOL bUseUtility )
 			ia2.Next();														// Advance to area AFTER a1.
 			for (carea2 *a2 = ia2.Next(); a2; a2 = ia2.Next())
 			{
-				if (a1->Layer()!=a2->Layer()) continue;
+				if (a1->GetLayer()!=a2->GetLayer()) continue;
 				if (a1->utility2 == -1 || a2->utility2 == -1) continue;
 				CRect b2 = a2->GetCornerBounds();
 				if ( b1.left > b2.right || b1.right < b2.left
