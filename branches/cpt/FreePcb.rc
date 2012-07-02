@@ -4441,14 +4441,14 @@ END
 STRINGTABLE
 BEGIN
     IDS_SegmentW            "segment, w %s"
-    IDS_EndVertex           "end-vertex"
-    IDS_Vertex              "vertex"
-    IDS_PinVertex           "pin-vertex"
+    IDS_EndVertex           "end-vtx"
+    IDS_Vertex              "vtx"
+    IDS_PinVertex           "pin-vtx"
     IDS_TVertex             "T-vertex(%d)"
     IDS_XYVia               "%s, x %s, y %s, via %s/%s"
     IDS_Ratline             "ratline"
     IDS_Trace               "trace"
-    IDS_FromTo              "%s, %s from %s to %s%s"
+    IDS_FromTo              "%s; %s from %s to %s%s"
     IDS_Net2                "Net %s"
     IDS_NetTraceRemovingZeroLength 
                             "net %s: trace from %s to %s: removing zero-length segment\r\n"
@@ -4483,6 +4483,8 @@ BEGIN
                             "Fatal error in net ""%s"", connect #%d: nonexistent pin #%d"
     IDS_YouAreTryingToConnectToAVertexOnADifferentNet 
                             "You are trying to connect to a vertex on a different net"
+    IDS_Tee                 "tee"
+    IDS_W                   "%s, w %s"
 END
 
 #endif    // English (United States) resources

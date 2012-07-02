@@ -495,6 +495,8 @@ public:
 	void TryToReselectAreaCorner( int x, int y );
 	void ReselectNetItemIfConnectionsChanged( int new_ic );
 	int SelectObjPopup( CPoint const &point );												// CPT r294: removed args (use m_hit_info instead)
+	void OnVertexStartTrace(bool bResetActiveWidth);										// CPT2 versions with an extra param added
+	void OnRatlineRoute(bool bResetActiveWidth);											// CPT2 ditto
 	bool DoGroupCopy();																		// CPT added:  OnGroupCopy() wraps around this.  But it's 
 																							// nice to have a bool return value here.
 

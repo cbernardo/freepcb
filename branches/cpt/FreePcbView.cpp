@@ -2533,16 +2533,16 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 
 	if( nChar == 'F' && ( m_cursor_mode == CUR_VTX_SELECTED || m_cursor_mode == CUR_END_VTX_SELECTED ) )
 	{
-		// force via at a vertex
-		cvertex2 *vtx = m_sel.First()->ToVertex();
-		SaveUndoInfoForNetAndConnections( vtx->m_net, CNetList::UNDO_NET_MODIFY, TRUE, m_doc->m_undo_list );
-		vtx->ForceVia( true );																							// CPT2 changed arg to true
-		vtx->Draw();
+		// force via at a vertex/tee
+		cpcb_item *sel = m_sel.First();
+		SaveUndoInfoForNetAndConnections( sel->GetNet(), CNetList::UNDO_NET_MODIFY, TRUE, m_doc->m_undo_list );
+		sel->ForceVia( true );																							// CPT2 changed arg to true
+		sel->Draw();
 		if( m_doc->m_vis[LAY_RAT_LINE] )
 		{
-			vtx->m_net->OptimizeConnections( m_doc->m_auto_ratline_disable,	m_doc->m_auto_ratline_min_pins, TRUE  );	// CPT2 TODO still disabled
+			sel->GetNet()->OptimizeConnections( m_doc->m_auto_ratline_disable,	m_doc->m_auto_ratline_min_pins, TRUE  );	// CPT2 TODO still disabled
 			// Check if OptimizeConnections() clobbered vtx:
-			if( !vtx->IsValid() )
+			if( !sel->IsValid() )
 				CancelSelection();
 		}
 		ShowSelectStatus();
@@ -2554,10 +2554,10 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 	if( nChar == 'U' && ( m_cursor_mode == CUR_VTX_SELECTED || m_cursor_mode == CUR_END_VTX_SELECTED ) )
 	{
 		// unforce via
-		cvertex2 *vtx = m_sel.First()->ToVertex();
-		SaveUndoInfoForNetAndConnections( vtx->m_net, CNetList::UNDO_NET_MODIFY, TRUE, m_doc->m_undo_list );
-		vtx->UnforceVia();
-		vtx->Draw();
+		cpcb_item *sel = m_sel.First();
+		SaveUndoInfoForNetAndConnections( sel->GetNet(), CNetList::UNDO_NET_MODIFY, TRUE, m_doc->m_undo_list );
+		sel->UnforceVia( true );																							// CPT2 changed arg to true
+		sel->Draw();
 		/* CPT2.  The following (translated from the old code) doesn't strike me as necessary:
 		if( m_cursor_mode == CUR_END_VTX_SELECTED && !vtx->tee )
 		{
@@ -2567,11 +2567,12 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 		}
 		else
 		*/
-		vtx->m_con->MergeUnroutedSegments();
+		if (!sel->IsTee())
+			sel->GetConnect()->MergeUnroutedSegments();
 		if( m_doc->m_vis[LAY_RAT_LINE] )
 		{
-			vtx->m_net->OptimizeConnections( m_doc->m_auto_ratline_disable,	m_doc->m_auto_ratline_min_pins, TRUE  );
-			if( !vtx->IsValid() )
+			sel->GetNet()->OptimizeConnections( m_doc->m_auto_ratline_disable,	m_doc->m_auto_ratline_min_pins, TRUE  );
+			if( !sel->IsValid() )
 				CancelSelection();
 		}
 		ShowSelectStatus();
@@ -2679,123 +2680,71 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 		}
 	}
 
-#ifndef CPT2					// TODO Save for another day
 	if( nChar == 8 )
 	{
 		// backspace, see if we are routing
 		if( m_cursor_mode == CUR_DRAG_RAT )
 		{
-			// backup, if possible, by unrouting preceding segment and changing active layer
-			if( m_dir == 0 && m_sel_is > 0 )
+			// backup, if possible, by removing preceding segment (merging it into the ratline).  Also change active layer
+			cseg2 *seg = m_sel.First()->ToSeg();
+			cconnect2 *c = seg->m_con;
+			cnet2 *net = seg->m_net;
+			cseg2 *remove = m_dir==0? seg->preVtx->preSeg: seg->postVtx->postSeg;
+			if (remove)
 			{
-				// routing forward
-				if( m_sel_vtx->tee_ID )
-				{
-					CString s ((LPCSTR) IDS_TeeVertexReached);
-					AfxMessageBox( s );
-				}
-				else
-				{
-					SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_doc->m_undo_list );
-					int new_active_layer = m_sel_con->SegByIndex(m_sel_is-1).m_layer;
-					m_doc->m_nlist->UnrouteSegment( m_sel_net, m_sel_ic, m_sel_is-1 );
-					m_sel_id.SetI3( m_sel_id.I3() - 1 );
-					ShowSelectStatus();
-					m_last_mouse_point.x = m_sel_vtx->x;
-					m_last_mouse_point.y = m_sel_vtx->y;
-					CPoint p = m_dlist->PCBToScreen( m_last_mouse_point );
-					SetCursorPos( p.x, p.y );
-					OnRatlineRoute();
-					m_dlist->ChangeRoutingLayer( pDC, new_active_layer, LAY_SELECTION, 0 );
-					m_active_layer = new_active_layer;
-					ShowActiveLayer();
-				}
-			}
-			else if( m_dir == 1 && m_sel_is < m_sel_con->NumSegs()-1
-				&& !(m_sel_is == m_sel_con->NumSegs()-2
-				&& m_sel_con->end_pin == cconnect::NO_END ) )
-			{
-				// routing backward, not at end of stub trace
-				if( m_sel_next_vtx->tee_ID )
-				{
-					CString s ((LPCSTR) IDS_TeeVertexReached);
-					AfxMessageBox( s );
-				}
-				else
-				{
-					SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_doc->m_undo_list );
-					m_doc->m_nlist->CancelDraggingSegment( m_sel_net, m_sel_ic, m_sel_is );
-					int new_active_layer = m_sel_con->SegByIndex(m_sel_is+1).m_layer;
-					m_doc->m_nlist->UnrouteSegment( m_sel_net, m_sel_ic, m_sel_is+1 );
-					ShowSelectStatus();
-					m_last_mouse_point.x = m_sel_next_vtx->x;
-					m_last_mouse_point.y = m_sel_next_vtx->y;
-					CPoint p = m_dlist->PCBToScreen( m_last_mouse_point );
-					SetCursorPos( p.x, p.y );
-					OnRatlineRoute();
-					m_dlist->ChangeRoutingLayer( pDC, new_active_layer, LAY_SELECTION, 0 );
-					m_active_layer = new_active_layer;
-					ShowActiveLayer();
-				}
+				SaveUndoInfoForNetAndConnections( net, CNetList::UNDO_NET_MODIFY, TRUE, m_doc->m_undo_list );
+				m_active_layer = remove->m_layer;
+				CancelSelection();
+				c->Undraw();
+				remove->RemoveMerge(!m_dir);
+				c->Draw();
+				SelectItem(seg);
+				cvertex2 *start = m_dir==0? seg->preVtx: seg->postVtx;
+				m_last_mouse_point.x = start->x;
+				m_last_mouse_point.y = start->y;
+				CPoint p = m_dlist->PCBToScreen( m_last_mouse_point );
+				SetCursorPos( p.x, p.y );
+				m_dlist->ChangeRoutingLayer( pDC, m_active_layer, LAY_SELECTION, 0 );
+				OnRatlineRoute(false);										// Set the dlist dragging mode, highlight the net, show the active layer, etc.
 			}
 		}
+
 		else if( m_cursor_mode == CUR_DRAG_STUB )
 		{
 			// routing stub trace
-			if( m_sel_is > 1 )
-			{
-				if( m_sel_vtx->tee_ID )
-				{
-					CString s ((LPCSTR) IDS_TeeVertexReached);
-					AfxMessageBox( s );
-				}
-				else
-				{
-					SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_doc->m_undo_list );
-					m_doc->m_nlist->RemoveSegment( m_sel_net, m_sel_ic, m_sel_is-1, FALSE );
-					int ns = m_sel_con->NumSegs();
-					m_sel_id.SetI3( ns );
-					ShowSelectStatus();
-					m_last_mouse_point.x = m_sel_vtx->x;
-					m_last_mouse_point.y = m_sel_vtx->y;
-					CPoint p = m_dlist->PCBToScreen( m_last_mouse_point );
-					SetCursorPos( p.x, p.y );
-					OnVertexStartTrace();
-					int new_active_layer = m_sel_con->SegByIndex(m_sel_is-1).m_layer;
-					m_dlist->ChangeRoutingLayer( pDC, new_active_layer, LAY_SELECTION, 0 );
-					m_active_layer = new_active_layer;
-					ShowActiveLayer();
-				}
-			}
+			cvertex2 *sel = m_sel.First()->ToVertex();
+			cconnect2 *c = sel->m_con;
+			cnet2 *net = sel->m_net;
+			CancelHighlight();
+			m_dlist->StopDragging();
+			bool bConnectRemoved = false;
+			if (c->NumSegs() < 2) 
+				c->Remove(),
+				bConnectRemoved = true;
 			else
 			{
-				if( m_sel_vtx->tee_ID )
-				{
-					CString s ((LPCSTR) IDS_TeeVertexReached);
-					AfxMessageBox( s );
-				}
-				else
-				{
-					m_doc->m_nlist->CancelDraggingStub( m_sel_net, m_sel_ic, m_sel_is );
-					SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_doc->m_undo_list );
-					cpart * sel_part = m_doc->m_plist->GetPartByName( m_sel_con_start_pin->ref_des );
-					int i = sel_part->shape->GetPinIndexByName( m_sel_con_start_pin->pin_name );
-					m_sel_con->Undraw();
-					m_doc->m_nlist->RemoveNetConnect( m_sel_net, m_sel_ic );
-					CancelSelection();
-					m_sel_net = NULL;
-					m_sel_part = sel_part;
-					m_sel_id = sel_part->m_id;
-					m_sel_id.SetT2( ID_PAD );
-					m_sel_id.SetI2( i );
-					m_doc->m_plist->HighlightPad( sel_part, i );
-					OnPadStartTrace();
-				}
+				SaveUndoInfoForNetAndConnections( net, CNetList::UNDO_NET_MODIFY, TRUE, m_doc->m_undo_list );
+				c->Undraw();
+				bConnectRemoved = c->tail->preSeg->RemoveBreak();
+			}
+			if (bConnectRemoved)
+				CancelSelection();
+			else 
+			{
+				c->Draw();
+				m_last_mouse_point.x = c->tail->x;
+				m_last_mouse_point.y = c->tail->y;
+				CPoint p = m_dlist->PCBToScreen( m_last_mouse_point );
+				SetCursorPos( p.x, p.y );
+				SelectItem(c->tail);
+				m_active_layer = c->tail->preSeg->m_layer;
+				m_dlist->ChangeRoutingLayer( pDC, m_active_layer, LAY_SELECTION, 0 );
+				OnVertexStartTrace(false);							// Set the dlist dragging mode, highlight the net, show the active layer, etc.
 			}
 		}
+
 		return;
 	}
-#endif
 
 	int fk = FK_NONE;
 	int dx = 0;
@@ -2851,7 +2800,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 				PlacementGridDown(); 
 			return;
 		}
-		else if( m_sel_id.T1() == ID_NET )
+		else if( m_sel.First() && m_sel.First()->IsNetItem() )
 			d = m_doc->m_routing_grid_spacing;
 		else
 			d = m_doc->m_part_grid_spacing;
@@ -3032,8 +2981,8 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 			// CPT2 TODO.  The old code was:
 			// if (!SegmentMovable())
 			//	 { PlaySound( TEXT("CriticalStop"), 0, 0 ); break; }
-			// I'm hoping the following will suffice, but time will tell:
-			if (seg->preVtx->pin || seg->postVtx->pin)	// Do we also want || seg->preVtx->tee || seg->postVtx->tee?
+			// I'm hoping the following will suffice, but time will tell
+			if (seg->preVtx->pin || seg->postVtx->pin || seg->preVtx->tee || seg->postVtx->tee)
 			{
 				PlaySound( TEXT("CriticalStop"), 0, 0 );
 				break;
@@ -3048,36 +2997,31 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 			}
 			CancelHighlight();
 
-#ifndef CPT2 // TODO another day
-			// 1. Move the line defined by the segment
-			m_last_pt.x = m_sel_prev_vtx->x;
-			m_last_pt.y = m_sel_prev_vtx->y;
+			// 1. Move the line defined by the segment.
+			m_from_pt.x = seg->preVtx->x;
+			m_from_pt.y = seg->preVtx->y;
+			m_to_pt.x = seg->postVtx->x;
+			m_to_pt.y = seg->postVtx->y;
 
-			m_from_pt.x = m_sel_vtx->x;
-			m_from_pt.y = m_sel_vtx->y;
-
-			m_to_pt.x = m_sel_next_vtx->x;
-			m_to_pt.y = m_sel_next_vtx->y;
-
-			int nsegs = m_sel_con->NumSegs();
-			int use_third_segment = m_sel_is < nsegs - 1;
-			if(use_third_segment)
-			{
-				m_next_pt.x = m_sel_next_next_vtx->x;	// Shouldn't really do this if we're off the edge?
-				m_next_pt.y = m_sel_next_next_vtx->y;
-			} else {
-				m_next_pt.x = 0;
-				m_next_pt.y = 0;
-			}
+			// CPT2.  The old code was I think problematic for the case that this seg is at the beginning of a trace.
+			// Let's try:
+			cseg2 *prev = seg->preVtx->preSeg;
+			cseg2 *next = seg->postVtx->postSeg;
+			if (prev)
+				m_last_pt.x = prev->preVtx->x,
+				m_last_pt.y = prev->preVtx->y;
+			if (next)
+				m_next_pt.x = next->postVtx->x,
+				m_next_pt.y = next->postVtx->y;
 
 			// 1. Move the endpoints of (xi, yi), (xf, yf) of the line by the mouse movement. This
 			//		is just temporary, since the final ending position is determined by the intercept
 			//		points with the leading and trailing segments:
-			int new_from_x = m_from_pt.x + dx;			
-			int new_from_y = m_from_pt.y + dy;
+			int new_xi = m_from_pt.x + dx;			
+			int new_yi = m_from_pt.y + dy;
 
-			int new_to_x = m_to_pt.x + dx;			
-			int new_to_y = m_to_pt.y + dy;
+			int new_xf = m_to_pt.x + dx;			
+			int new_yf = m_to_pt.y + dy;
 
 			int old_x0_dir = sign(m_from_pt.x - m_last_pt.x);
 			int old_y0_dir = sign(m_from_pt.y - m_last_pt.y);
@@ -3088,57 +3032,56 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 			int old_x2_dir = sign(m_next_pt.x - m_to_pt.x);
 			int old_y2_dir = sign(m_next_pt.y - m_to_pt.y);
 
-			// 2. Find the intercept between the extended segment in motion and the leading segment.
-			double d_new_from_x;
-			double d_new_from_y;
-			FindLineIntersection(m_last_pt.x, m_last_pt.y, m_from_pt.x, m_from_pt.y,
-									new_from_x,    new_from_y,	   new_to_x,    new_to_y,
-									&d_new_from_x, &d_new_from_y);
-			int i_nudge_from_x = floor(d_new_from_x + .5);
-			int i_nudge_from_y = floor(d_new_from_y + .5);
+			int i_nudge_xi = new_xi, i_nudge_yi = new_yi;
+			int i_nudge_xf = new_xf, i_nudge_yf = new_yf;
+
+			// 2. Find the intercept between the extended segment in motion and the leading segment IF ANY.
+			if (prev)
+			{
+				double d_new_xi, d_new_yi;
+				FindLineIntersection(m_last_pt.x, m_last_pt.y, m_from_pt.x, m_from_pt.y,
+									 new_xi, new_yi, new_xf, new_yf,
+									 &d_new_xi, &d_new_yi);
+				i_nudge_xi = floor(d_new_xi + .5);
+				i_nudge_yi = floor(d_new_yi + .5);
+			}
 
 			// 3. Find the intercept between the extended segment in motion and the trailing segment:
-			int i_nudge_to_x, i_nudge_to_y;
-			if(use_third_segment)
+			if(next)
 			{
-				double d_new_to_x;
-				double d_new_to_y;
-				FindLineIntersection(new_from_x,    new_from_y,	   new_to_x,    new_to_y,
-									 m_to_pt.x,		m_to_pt.y,	m_next_pt.x, m_next_pt.y,
-										&d_new_to_x, &d_new_to_y);
-
-				i_nudge_to_x = floor(d_new_to_x + .5);
-				i_nudge_to_y = floor(d_new_to_y + .5);
-			} else {
-				i_nudge_to_x = new_to_x;
-				i_nudge_to_y = new_to_y;
+				double d_new_xf;
+				double d_new_yf;
+				FindLineIntersection(new_xi, new_yi, new_xf, new_yf,
+									 m_to_pt.x,	m_to_pt.y, m_next_pt.x, m_next_pt.y,
+									 &d_new_xf, &d_new_yf);
+				i_nudge_xf = floor(d_new_xf + .5);
+				i_nudge_yf = floor(d_new_yf + .5);
 			}
 			
 			// If we drag too far, the line segment can reverse itself causing a little triangle to form.
 			//   That's a bad thing.
-			if(    sign(i_nudge_to_x - i_nudge_from_x) == old_x1_dir 
-				&& sign(i_nudge_to_y - i_nudge_from_y) == old_y1_dir
-				&& sign(i_nudge_from_x - m_last_pt.x) == old_x0_dir
-				&& sign(i_nudge_from_y - m_last_pt.y) == old_y0_dir
-				&& (!use_third_segment || (sign(m_next_pt.x - i_nudge_to_x) == old_x2_dir 
-										&& sign(m_next_pt.y - i_nudge_to_y) == old_y2_dir)))
+			bool bOK = sign(i_nudge_xf - i_nudge_xi) == old_x1_dir && sign(i_nudge_yf - i_nudge_yi) == old_y1_dir;
+			if (prev)
+				bOK &= sign(i_nudge_xi - m_last_pt.x) == old_x0_dir && sign(i_nudge_yi - m_last_pt.y) == old_y0_dir;
+			if (next)
+				bOK &= sign(m_next_pt.x - i_nudge_xf) == old_x2_dir && sign(m_next_pt.y - i_nudge_yf) == old_y2_dir;
+			if (bOK)
 			{
-			//	Move both vetices to the new position:
-				m_doc->m_nlist->MoveVertex( m_sel_net, m_sel_ic, m_sel_is,
-											i_nudge_from_x, i_nudge_from_y );
-				m_doc->m_nlist->MoveVertex( m_sel_net, m_sel_ic, m_sel_is+1,
-											i_nudge_to_x, i_nudge_to_y );
-			} else {
-				break;
+				//	Move both vetices to the new position:
+				seg->m_con->Undraw();
+				seg->preVtx->Move( i_nudge_xi, i_nudge_yi );
+				seg->postVtx->Move( i_nudge_xf, i_nudge_yf );
+				seg->m_con->Draw();
 			}
+			else
+				{ seg->Highlight(); break; }
 
 			m_totalArrowMoveX += dx;
 			m_totalArrowMoveY += dy;
-			ShowRelativeDistance( m_sel_vtx->x, m_sel_vtx->y, m_totalArrowMoveX, m_totalArrowMoveY );
-			m_doc->m_nlist->HighlightSegment( m_sel_net, m_sel_ic, m_sel_is );
+			ShowRelativeDistance( seg->preVtx->x, seg->preVtx->y, m_totalArrowMoveX, m_totalArrowMoveY );
+			seg->Highlight();
 			m_doc->ProjectModified( TRUE );
 			Invalidate( FALSE );
-#endif
 		}
 		if( fk == FK_SET_WIDTH )
 			OnSegmentSetWidth();
@@ -3620,25 +3563,28 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 		break;
 
 	case CUR_DRAG_RAT:
+	case CUR_DRAG_STUB:
 		if( fk == FK_COMPLETE )
 		{
+			// CUR_DRAG_RAT only
 			cseg2 *seg = m_sel.First()->ToSeg();
 			cvertex2 *start = m_dir==0? seg->preVtx: seg->postVtx;
 			cvertex2 *end = m_dir==0? seg->postVtx: seg->preVtx;
 			cconnect2 *c = seg->m_con;
-			SaveUndoInfoForNetAndConnections( seg->m_net, CNetList::UNDO_NET_MODIFY, TRUE, m_doc->m_undo_list );
+			cnet2 *net = seg->m_net;
+			SaveUndoInfoForNetAndConnections( net, CNetList::UNDO_NET_MODIFY, TRUE, m_doc->m_undo_list );
 			// CPT2 TODO.  I'm trying using FinishRouting() instead of cseg2::Route().  This gives us inflection points rather than just a 
 			// straight line.  Desirable?
 			bool bValid = true;
-			if (seg->preVtx->pin)
+			if (start->pin)
 			{
-				int pad_layer = seg->preVtx->pin->pad_layer;
+				int pad_layer = start->pin->pad_layer;
 				if( pad_layer != LAY_PAD_THRU && m_active_layer != pad_layer )
 					bValid = false;
 			}
-			if (seg->postVtx->pin)
+			if (end->pin)
 			{
-				int pad_layer = seg->postVtx->pin->pad_layer;
+				int pad_layer = end->pin->pad_layer;
 				if( pad_layer != LAY_PAD_THRU && m_active_layer != pad_layer )
 					bValid = false;
 			}
@@ -3647,9 +3593,9 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 			{
 				m_snap_angle_ref = CPoint(start->x, start->y);
 				m_last_cursor_point = CPoint(end->x, end->y);
-				c->Undraw();
+				net->Undraw();
 				FinishRouting(seg);
-				c->Draw();
+				net->Draw();
 				seg->CancelDragging();
 				CancelSelection();
 			}
@@ -3670,9 +3616,6 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 			RoutingGridDown();
 		// end CPT
 
-		break;
-
-	case CUR_DRAG_STUB:
 		break;
 
 	// CPT:
@@ -4122,7 +4065,7 @@ void CFreePcbView::SetFKText( int mode )
 			// if (SegmentMovable())
 				// m_fkey_option[3] = FK_MOVE_SEGMENT;
 			// I'm hoping the following will suffice, but time will tell:
-			if (!seg->preVtx->pin && !seg->postVtx->pin)	// Do we also want && !seg->preVtx->tee && !seg->postVtx->tee?
+			if (!seg->preVtx->pin && !seg->postVtx->pin && !seg->preVtx->tee && !seg->postVtx->tee)
 				m_fkey_option[3] = FK_MOVE_SEGMENT;
 			if (!seg->preVtx->IsLooseEnd() && !seg->postVtx->IsLooseEnd())
 				m_fkey_option[4] = FK_UNROUTE;
@@ -4379,8 +4322,7 @@ int CFreePcbView::SegmentMovable(void)
 //
 int CFreePcbView::ShowSelectStatus()
 {
-#ifndef CPT2
-#define SHOW_UIDS	// show UIDs for selected element, mainly for debugging
+// #define SHOW_UIDS	// show UIDs for selected element, mainly for debugging
 	CString uid_str;
 #ifdef SHOW_UIDS
 	if( m_sel_id.U3() != -1 )
@@ -4398,6 +4340,7 @@ int CFreePcbView::ShowSelectStatus()
 	int u = m_doc->m_units;
 	CString x_str, y_str, w_str, hole_str, via_w_str, via_hole_str;
 	CString str, s;
+	cpcb_item *sel = m_sel.First();
 
 	switch( m_cursor_mode )
 	{
@@ -4405,8 +4348,9 @@ int CFreePcbView::ShowSelectStatus()
 		str.LoadStringA(IDS_NoSelection);
 		break;
 
+#ifndef CPT2
 	case CUR_DRE_SELECTED:
-		str.Format( "DRE %s", m_sel_dre->str );
+		str.Format( "DRE %s", m_sel.First()->ToDRE()->str );
 		break;
 
 	case CUR_SMCUTOUT_CORNER_SELECTED:
@@ -4466,59 +4410,62 @@ int CFreePcbView::ShowSelectStatus()
 				m_doc->m_board_outline[m_sel_id.I2()].NumCorners(), style_str, uid_str );
 		}
 		break;
+#endif
 
 	case CUR_PART_SELECTED:
 		{
+			cpart2 *part = sel->ToPart();
 			CString side ((LPCSTR) IDS_Top);
-			if( m_sel_part->side )
+			if( part->side )
 				side.LoadStringA(IDS_Bottom);
-			::MakeCStringFromDimension( &x_str, m_sel_part->x, u, FALSE, FALSE, FALSE, u==MIL?1:3 );
-			::MakeCStringFromDimension( &y_str, m_sel_part->y, u, FALSE, FALSE, FALSE, u==MIL?1:3 );
-			int rep_angle = ::GetReportedAngleForPart( m_sel_part->angle, 
-				m_sel_part->shape->m_centroid_angle, m_sel_part->side );
+			::MakeCStringFromDimension( &x_str, part->x, u, FALSE, FALSE, FALSE, u==MIL?1:3 );
+			::MakeCStringFromDimension( &y_str, part->y, u, FALSE, FALSE, FALSE, u==MIL?1:3 );
+			int rep_angle = ::GetReportedAngleForPart( part->angle, part->shape->m_centroid_angle, part->side );
 			s.LoadStringA(IDS_PartXYAngle);
-			str.Format( s, m_sel_part->ref_des, m_sel_part->shape->m_name,
-				x_str, y_str, rep_angle, side );
+			str.Format( s, part->ref_des, part->shape->m_name, x_str, y_str, rep_angle, side );
 		}
 		break;
 
 	case CUR_REF_SELECTED:
-		s.LoadStringA(IDS_RefText);
-		str.Format( s, m_sel_part->ref_des );
-		break;
+		{
+			creftext *rt = sel->ToRefText();
+			s.LoadStringA(IDS_RefText);
+			str.Format( s, rt->m_str );
+			break;
+		}
 
 	case CUR_VALUE_SELECTED:
-		s.LoadStringA(IDS_Value2);
-		str.Format( s, m_sel_part->value );
-		break;
+		{
+			cvaluetext *vt = sel->ToValueText();
+			s.LoadStringA(IDS_Value2);
+			str.Format( s, vt->m_str );
+			break;
+		}
 
 	case CUR_PAD_SELECTED:
 		{
-			cnet * pin_net = (cnet*)m_sel_part->pin[m_sel_id.I2()].net;
-			::MakeCStringFromDimension( &x_str, m_sel_part->pin[m_sel_id.I2()].x, u, FALSE, FALSE, FALSE, u==MIL?1:3 );
-			::MakeCStringFromDimension( &y_str, m_sel_part->pin[m_sel_id.I2()].y, u, FALSE, FALSE, FALSE, u==MIL?1:3 );
-			if( pin_net )
+			cpin2 *pin = sel->ToPin();
+			::MakeCStringFromDimension( &x_str, pin->x, u, FALSE, FALSE, FALSE, u==MIL?1:3 );
+			::MakeCStringFromDimension( &y_str, pin->y, u, FALSE, FALSE, FALSE, u==MIL?1:3 );
+			if( pin->net )
 			{
 				// pad attached to net
 				CString s ((LPCSTR) IDS_PinOnNet);
-				str.Format( s, m_sel_part->ref_des,
-					m_sel_part->shape->GetPinNameByIndex(m_sel_id.I2()),
-					pin_net->name, x_str, y_str, uid_str );
+				str.Format( s, pin->part->ref_des,
+					pin->pin_name, pin->net->name, x_str, y_str, uid_str );
 			}
 			else
 			{
 				// pad not attached to a net
 				CString s ((LPCSTR) IDS_PinUnconnected);
-				str.Format( s, m_sel_part->ref_des,
-					m_sel_part->shape->GetPinNameByIndex(m_sel_id.I2()),
-					x_str, y_str, uid_str );
+				str.Format( s, pin->part->ref_des,
+					pin->pin_name, x_str, y_str, uid_str );
 			}
+			break;
 		}
-		break;
 
 	case CUR_SEG_SELECTED:
 	case CUR_RAT_SELECTED:
-	case CUR_DRAG_STUB:
 	case CUR_DRAG_RAT:
 		{
             // CPT.  If dragging a ratline, we want to display the active width
@@ -4527,64 +4474,62 @@ int CFreePcbView::ShowSelectStatus()
                 width = m_active_width;
 			// End CPT.
 
+			cseg2 *seg = sel->ToSeg();
 			CString con_str, seg_str;
-			m_sel_id.Con()->GetStatusStr( &con_str );
-			cseg * s = m_sel_id.Seg();
-			if( s )
-			{
-				m_sel_id.Seg()->GetStatusStr( &seg_str, width );			// CPT added arg
-				str = con_str + ", " + seg_str;
-			}
-			else
-			{
-				str = con_str;
-			}
+			seg->m_con->GetStatusStr( &con_str );
+			seg->GetStatusStr( &seg_str, width );			// CPT added arg
+			str = con_str + ", " + seg_str;
 			str = str + uid_str;
+			break;
 		}
-		break;
+
+	case CUR_DRAG_STUB:
+		{
+			// CPT2.  In this mode, the selected object is always the starting vertex.  Just show connection info, plus active width
+			CString con_str, w_str, s;
+			cconnect2 *c = sel->ToVertex()->m_con;
+			c->GetStatusStr( &con_str );
+			::MakeCStringFromDimension( &w_str, m_active_width, m_doc->m_units, FALSE, FALSE, FALSE, u==MIL?1:3 );
+			s.LoadStringA(IDS_W);
+			str.Format(s, con_str, w_str);
+			break;
+		}
 
 	case CUR_VTX_SELECTED:
 	case CUR_END_VTX_SELECTED:
 		{
-			CString con_str;
-			m_sel_id.Con()->GetStatusStr( &con_str );
-			CString vtx_str;
-			cvertex * v = m_sel_id.Vtx();
-			if( v == NULL )
-			{
-				str = con_str;
-			}
-			else if( v->tee_ID )
-			{
-				m_sel_id.Net()->GetStatusStr( &str );
-				m_sel_id.Vtx()->GetStatusStr( &vtx_str );
-				str = str + ", " + vtx_str;
-			}
-			else
-			{
-				m_sel_id.Vtx()->GetStatusStr( &vtx_str );
-				str = con_str + ", " + vtx_str;
-			}
+			CString con_str, vtx_str;
+			cvertex2 *v = sel->ToVertex();
+			v->m_con->GetStatusStr( &con_str );
+			v->GetStatusStr( &vtx_str );
+			str = con_str + "; " + vtx_str;
 			str = str + uid_str;
+			break;
 		}
-		break;
+
+	case CUR_TEE_SELECTED:
+		{
+			CString con_str, vtx_str;
+			sel->GetNet()->GetStatusStr( &str );
+			sel->GetStatusStr( &vtx_str );
+			str = str + "; " + vtx_str;
+			break;
+		}
 
 	case CUR_CONNECT_SELECTED:
 		{
+			cconnect2 *c = sel->ToConnect();
 			CString con_str;
-			m_sel_id.Con()->GetStatusStr( &con_str );
+			c->GetStatusStr( &con_str );
 			// get length of trace
 			CString len_str;
 			double len = 0;
-			double last_x = m_sel_con->VtxByIndex(0).x;
-			double last_y = m_sel_con->VtxByIndex(0).y;
-			for( int iv=1; iv<=m_sel_con->NumSegs(); iv++ )
+			citer<cseg2> is (&c->segs);
+			for (cseg2 *s = is.First(); s; s = is.Next())
 			{
-				double x = m_sel_id.Con()->VtxByIndex(iv).x;
-				double y = m_sel_id.Con()->VtxByIndex(iv).y;
-				len += sqrt( (x-last_x)*(x-last_x) + (y-last_y)*(y-last_y) );
-				last_x = x;
-				last_y = y;
+				double dx = s->preVtx->x - s->postVtx->x;
+				double dy = s->preVtx->y - s->postVtx->y;
+				len += sqrt( dx*dx + dy*dy );
 			}
 			::MakeCStringFromDimension( &len_str, (int)len, u, TRUE, TRUE, FALSE, u==MIL?1:3 );
 			CString s ((LPCSTR) IDS_Length);
@@ -4592,44 +4537,47 @@ int CFreePcbView::ShowSelectStatus()
 		}
 		break;
 
+	/* CPT2 TODO confirm that this is obsolete
 	case CUR_NET_SELECTED:
 		s.LoadStringA(IDS_Net);
 		str.Format( s, m_sel_net->name );
 		break;
+	*/
 
 	case CUR_TEXT_SELECTED:
 		{
+			ctext *t = sel->ToText();
 			CString neg_str = "";
-			if( m_sel_text->m_bNegative )
+			if( t->m_bNegative )
 				neg_str.LoadStringA(IDS_Neg);
 			CString s ((LPCSTR) IDS_Text);
-			str.Format( s, m_sel_text->m_str, neg_str );
+			str.Format( s, t->m_str, neg_str );
 			break;
 		}
 
 	case CUR_AREA_CORNER_SELECTED:
 		{
-			CPoint p = m_doc->m_nlist->GetAreaCorner( m_sel_net, m_sel_ia, m_sel_is );
-			::MakeCStringFromDimension( &x_str, p.x, u, FALSE, FALSE, FALSE, u==MIL?1:3 );
-			::MakeCStringFromDimension( &y_str, p.y, u, FALSE, FALSE, FALSE, u==MIL?1:3 );
+			ccorner *c = sel->ToCorner();
+			cpolyline *p = c->contour->poly;
+			cnet2 *net = c->GetNet();
+			::MakeCStringFromDimension( &x_str, c->x, u, FALSE, FALSE, FALSE, u==MIL?1:3 );
+			::MakeCStringFromDimension( &y_str, c->y, u, FALSE, FALSE, FALSE, u==MIL?1:3 );
 			CString s ((LPCSTR) IDS_CopperAreaCorner);
-			str.Format( s, m_sel_net->name, m_sel_id.I2()+1, m_sel_id.I3()+1,
-				x_str, y_str, uid_str );
+			str.Format( s, net->name, p->UID(), c->UID(), x_str, y_str, uid_str );
 		}
 		break;
 
 	case CUR_AREA_SIDE_SELECTED:
 		{
-			int ic = m_sel_id.I3();
-			int ia = m_sel_id.I2();
-			CPolyLine * p = &m_sel_net->area[ia];
-			int ncont = p->Contour(ic);
-			if( ncont == 0 )
+			cside *side = sel->ToSide();
+			cpolyline *p = side->contour->poly;
+			cnet2 *net = side->GetNet();
+			if (!side->IsOnCutout()) 
 				s.LoadStringA(IDS_CopperAreaEdge),
-				str.Format( s, m_sel_net->name, ia+1, ic+1 );
+				str.Format( s, net->name, p->UID(), side->UID() );
 			else
 				s.LoadStringA(IDS_CopperAreaCutoutEdge),
-				str.Format( s,	m_sel_net->name, ia+1, ncont, ic+1-p->ContourStart(ncont) );
+				str.Format( s, net->name, p->UID(), side->contour->UID(), side->UID() );
 		}
 		break;
 
@@ -4645,6 +4593,7 @@ int CFreePcbView::ShowSelectStatus()
 		str.LoadStringA(IDS_PlacingSecondCornerOfBoardOutline);
 		break;
 
+#ifndef CPT2
 	case CUR_DRAG_BOARD:
 		s.LoadStringA(IDS_PlacingCornerOfBoardOutline);
 		str.Format( s, m_sel_id.I3()+2 );
@@ -4659,26 +4608,27 @@ int CFreePcbView::ShowSelectStatus()
 		s.LoadStringA(IDS_MovingCornerOfBoardOutline);
 		str.Format( s, m_sel_id.I3()+1 );
 		break;
+#endif
 
 	case CUR_DRAG_PART:
 		s.LoadStringA(IDS_MovingPart);
-		str.Format( s, m_sel_part->ref_des );
+		str.Format( s, sel->ToPart()->ref_des );
 		break;
 
 	case CUR_DRAG_REF:
 		s.LoadStringA(IDS_MovingRefTextForPart);
-		str.Format( s, m_sel_part->ref_des );
+		str.Format( s, sel->ToRefText()->m_str );
 		break;
 
 	case CUR_DRAG_VTX:
 	case CUR_DRAG_END_VTX:
 		s.LoadStringA(IDS_RoutingNet);
-		str.Format( s, m_sel_net->name );
+		str.Format( s, sel->GetNet()->name );
 		break;
 
 	case CUR_DRAG_TEXT:
 		s.LoadStringA(IDS_MovingText);
-		str.Format( s, m_sel_text->m_str );
+		str.Format( s, sel->ToText()->m_str );
 		break;
 
 	case CUR_ADD_AREA:
@@ -4691,27 +4641,26 @@ int CFreePcbView::ShowSelectStatus()
 
 	case CUR_DRAG_AREA:
 		s.LoadStringA(IDS_PlacingCornerOfCopperArea);
-		str.Format( s, m_sel_id.I3()+1 );
+		str.Format( s, sel->UID() );
 		break;
 
 	case CUR_DRAG_AREA_INSERT:
 		s.LoadStringA(IDS_InsertingCornerOfCopperArea);
-		str.Format( s, m_sel_id.I3()+2 );
+		str.Format( s, sel->UID() );
 		break;
 
 	case CUR_DRAG_AREA_MOVE:
 		s.LoadStringA(IDS_MovingCornerOfCopperArea);
-		str.Format( s, m_sel_id.I3()+1 );
+		str.Format( s, sel->UID() );
 		break;
 
 	case CUR_DRAG_CONNECT:
-		if( m_sel_id.T1() == ID_PART )
+		if( cpin2 *p = sel->ToPin() )
 			s.LoadStringA(IDS_AddingConnectionToPin),
-			str.Format( s, m_sel_part->ref_des,
-				m_sel_part->shape->GetPinNameByIndex(m_sel_id.I2()) );
-		else if( m_sel_id.T1() == ID_NET )
+			str.Format( s, p->part->ref_des, p->pin_name );
+		else if( sel->IsVertex() )
 			s.LoadStringA(IDS_AddingBranchToTrace),
-			str.Format( s, m_sel_net->name,	m_sel_id.I2() );
+			str.Format( s, sel->GetNet()->name,	sel->UID() );
 		break;
 
 	case CUR_DRAG_MEASURE_1:
@@ -4720,7 +4669,6 @@ int CFreePcbView::ShowSelectStatus()
 
 	}
 	pMain->DrawStatus( 3, &str );
-#endif
 	return 0;
 }
 
@@ -5737,8 +5685,10 @@ void CFreePcbView::OnPadStartTrace()
 		m_highlight_net = net,
 		net->Highlight();
 	SetCursorMode( CUR_DRAG_STUB );
-	ReleaseDC( pDC );
+	ShowActiveLayer();
+	ShowSelectStatus();
 	Invalidate( FALSE );
+	ReleaseDC( pDC );
 }
 
 // attach this pad to a net
@@ -5856,8 +5806,11 @@ void CFreePcbView::OnVertexStartRatline()
 }
 
 // start stub trace from vertex of an existing trace
-// CPT2 converted.  Also now works if selected vtx is an end-vertex or a tee
-void CFreePcbView::OnVertexStartTrace()
+// CPT2 converted.  Also now works if selected vtx is an end-vertex or a tee.  Also added an optional new bResetActiveWidth param
+
+void CFreePcbView::OnVertexStartTrace() { OnVertexStartTrace(true); }
+
+void CFreePcbView::OnVertexStartTrace(bool bResetActiveWidth)
 {
 	cpcb_item *sel0 = m_sel.First();
 	cvertex2 *v = sel0->ToVertex();
@@ -5892,15 +5845,20 @@ void CFreePcbView::OnVertexStartTrace()
 		if (!v->preSeg)
 			v->m_con->ReverseDirection();			// Ensure we're extending from the tail end of connect
 	}
-	net->GetWidth( &m_active_width );				// AMW r267 added
+    // CPT.  In drag mode, the width used will be m_active_width.  Initialize this value to the net's default value, unless bResetActiveWidth is false
+	if (bResetActiveWidth)
+		net->GetWidth(&m_active_width);
+	// end CPT
 	CPoint p = m_last_cursor_point;
 	new_v->StartDraggingStub( pDC, p.x, p.y, m_active_layer, m_active_width, m_active_layer, 2, m_inflection_mode );
 	if( m_doc->m_bHighlightNet )
 		m_highlight_net = net,
 		net->Highlight();
 	SetCursorMode( CUR_DRAG_STUB );
-	ReleaseDC( pDC );
+	ShowActiveLayer();
+	ShowSelectStatus();
 	Invalidate( FALSE );
+	ReleaseDC( pDC );
 }
 
 // set width for this segment (not a ratline)
@@ -5985,7 +5943,9 @@ void CFreePcbView::OnSegmentDelete()
 
 // route this ratline
 //
-void CFreePcbView::OnRatlineRoute()
+void CFreePcbView::OnRatlineRoute() { OnRatlineRoute(true); }			// CPT2.  Need a version with the new bResetActiveWidth param
+
+void CFreePcbView::OnRatlineRoute(bool bResetActiveWidth)
 {
 	cseg2 *seg = m_sel.First()->ToSeg();
 	cnet2 *net = seg->m_net;
@@ -6023,11 +5983,10 @@ void CFreePcbView::OnRatlineRoute()
 	else if (m_dir==1 && postVtx->pin && postVtx->pin->pad_layer!=LAY_PAD_THRU)
 		// Routing backward from an SMT:
 		m_active_layer = postVtx->pin->pad_layer;
-	ShowActiveLayer();
 
-    // CPT.  In drag mode, the width used will be m_active_width.  Initialize this value  
-	// to the net's default value
-	net->GetWidth(&m_active_width);
+    // CPT.  In drag mode, the width used will be m_active_width.  Initialize this value to the net's default value, unless bResetActiveWidth is false
+	if (bResetActiveWidth)
+		net->GetWidth(&m_active_width);
 	// end CPT
 
 	// now start dragging segment!
@@ -6042,6 +6001,9 @@ void CFreePcbView::OnRatlineRoute()
 		net->Highlight(seg);
 	// end AMW
 
+	ShowActiveLayer();
+	ShowSelectStatus();
+	Invalidate( FALSE );
 	ReleaseDC( pDC );
 }
 
@@ -12320,10 +12282,12 @@ void CFreePcbView::OnSegmentMove()
 void CFreePcbView::ActiveWidthUp(CDC * pDC) {
   // Increase the active routing width to the next value in document's width table greater than the current value.  Also check
   // the current net's default width value, and make that value one of the options:
+  // CPT2 updated.
   int cWidths = m_doc->m_w.GetSize();
   #define widthAt(i) (m_doc->m_w.GetAt(i))
   int defaultW = m_doc->m_trace_w;
-  if (m_sel_net->def_w) defaultW = m_sel_net->def_w;
+  cnet2 *net = m_sel.First()->GetNet();
+  if (net->def_w) defaultW = net->def_w;
   int i;
   for (i=0; i<cWidths; i++)
     if (m_active_width < widthAt(i)) break;
@@ -12339,10 +12303,12 @@ void CFreePcbView::ActiveWidthUp(CDC * pDC) {
 
 void CFreePcbView::ActiveWidthDown(CDC * pDC) {
   // Similar to ActiveWidthUp().
+  // CPT2 updated.
   int cWidths = m_doc->m_w.GetSize();
   #define widthAt(i) (m_doc->m_w.GetAt(i))
   int defaultW = m_doc->m_trace_w;
-  if (m_sel_net->def_w) defaultW = m_sel_net->def_w;
+  cnet2 *net = m_sel.First()->GetNet();
+  if (net->def_w) defaultW = net->def_w;
   int i;
   for (i=cWidths-1; i>=0; i--)
     if (m_active_width > widthAt(i)) break;
