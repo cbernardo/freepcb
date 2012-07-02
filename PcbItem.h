@@ -214,8 +214,12 @@ public:
 	virtual cadhesive *ToAdhesive() { return NULL; }
 	virtual cdre *ToDRE() { return NULL; }
 
-	virtual cnet2 *GetNet() { return NULL; }		// Returns something for items that belong to a net.
+	virtual cnet2 *GetNet() { return NULL; }					// Returns something for items that belong to a net.
+	virtual cconnect2 *GetConnect() { return NULL; }			// Similar
 	virtual int GetLayer() { return -1; }
+	virtual void GetStatusStr( CString *str ) { *str = ""; }
+	virtual void ForceVia( BOOL set_areas ) { }					// Implemented in cvertex2 and ctee
+	virtual void UnforceVia( BOOL set_areas ) { }					// Implemented in cvertex2 and ctee
 };
 
 class carray_link
@@ -559,8 +563,11 @@ public:
 		if (tee) return bitTeeVtx;							// NB tee-vertices will typically NOT be selectable, but tees will.
 		return bitTraceVtx;
 	}
-	cnet2 *GetNet() { return m_net; }						// Ho-hum
+	cnet2 *GetNet() { return m_net; }
+	cconnect2 *GetConnect() { return m_con; }
 	int GetLayer();											// Done in cpp
+	void GetStatusStr( CString * str );						// Done in cpp, derived from old cvertex func.
+	void GetTypeStatusStr( CString * str );					// CPT2
 
 	int Draw();												// Done in cpp
 	void Undraw();											// Done in cpp
@@ -570,8 +577,6 @@ public:
 	bool IsLooseEnd();										// Done in cpp
 	bool Remove();											// Done in cpp
 	void SetConnect(cconnect2 *c);							// Done in cpp
-	void GetTypeStatusStr( CString * str );
-	void GetStatusStr( CString * str );
 	void ForceVia( BOOL set_areas=TRUE );					// Done in cpp
 	void UnforceVia( BOOL set_areas=TRUE );					// Done in cpp
 	bool IsViaNeeded();										// Done in cpp
@@ -615,8 +620,10 @@ public:
 	ctee *ToTee() { return this; }
 	int GetTypeBit() 
 		{ return via_w? bitVia: bitTee; }
-	cnet2 *GetNet() { return vtxs.GetSize()==0? NULL: vtxs.First()->m_net; }
-	int GetLayer();										// Done in cpp
+	cnet2 *GetNet() 
+		{ return vtxs.GetSize()==0? NULL: vtxs.First()->m_net; }
+	int GetLayer();													// Done in cpp
+	void GetStatusStr( CString * str );								// Done in cpp
 
 	int Draw();											// Done in cpp
 	void Undraw();										// Done in cpp
@@ -625,6 +632,8 @@ public:
 	void Remove();										// Done in cpp
 	void Add(cvertex2 *v);								// Done in cpp
 	bool Adjust();										// Done in cpp
+	void ForceVia( BOOL set_areas );					// Done in cpp
+	void UnforceVia( BOOL set_areas );					// Done in cpp
 	bool IsViaNeeded();									// Done in cpp
 	void ReconcileVia();								// Done in cpp
 	void Remove(cvertex2 *v);							// Done in cpp
@@ -663,6 +672,7 @@ public:
 	cseg2 *ToSeg() { return this; }
 	int GetTypeBit() { return bitSeg; }
 	cnet2 *GetNet() { return m_net; }
+	cconnect2 *GetConnect() { return m_con; }
 	int GetLayer() { return m_layer; }
 
 	void SetConnect(cconnect2 *c);
@@ -683,19 +693,20 @@ public:
 		{ Highlight(false); }
 
 	void SetVisibility( int vis );
-	int Index();												// CPT2:  maybe, maybe not...
-	void GetStatusStr( CString * str, int width = 0 );			// CPT added width param
-	void Divide( cvertex2 *v, cseg2 *s, int dir );				// Done in cpp
+	int Index();													// CPT2:  maybe, maybe not...
+	void GetStatusStr( CString * str, int width );					// CPT added width param
+	void GetStatusStr( CString *str ) { GetStatusStr(str, 0); }
+	void Divide( cvertex2 *v, cseg2 *s, int dir );					// Done in cpp
 	bool InsertSegment(int x, int y, int layer, int width, int dir );  // Done in cpp, derived from CNetList::InsertSegment()
-	int Route( int layer, int width );							// Done in cpp
-	void Unroute(int dx, int dy, int end);						// Done in cpp
-	bool UnrouteWithoutMerge(int dx, int dy, int end);			// Done in cpp
-	bool RemoveMerge(int end);									// Done in cpp
-	bool RemoveBreak();											// Done in cpp
+	int Route( int layer, int width );								// Done in cpp
+	void Unroute(int dx, int dy, int end);							// Done in cpp
+	bool UnrouteWithoutMerge(int dx, int dy, int end);				// Done in cpp
+	bool RemoveMerge(int end);										// Done in cpp
+	bool RemoveBreak();												// Done in cpp
 	void StartMoving( CDC * pDC, int x, int y, int crosshair, bool use_third_segment ); // CPT2 TODO derive from CNetList::StartMovingSegment
 	int CancelMoving();																	// CPT2 TODO derive from CNetList::CancelMovingSegment()
 
-	void StartDragging( CDC * pDC, int x, int y, int layer1, int layer2, int w,			// CPT2 TODO derive from CNetList::StartDraggingSegment
+	void StartDragging( CDC * pDC, int x, int y, int layer1, int layer2, int w,			// Done in cpp, derived from CNetList::StartDraggingSegment
 						int layer_no_via, int dir, int crosshair = 1 );
 	void CancelDragging();																// Done in cpp, derived from CNetList::CancelDraggingSegment
 	int StartDraggingNewVertex( CDC * pDC, int x, int y, int layer, int w, int crosshair );// CPT2 TODO derive from CNetList::StartDraggingSegmentNewVertex()
@@ -749,6 +760,7 @@ public:
 	cconnect2 *ToConnect() { return this; }
 	int GetTypeBit() { return bitConnect; }			// Rarely used since connects don't have selector elements.
 	cnet2 *GetNet() { return m_net; }
+	cconnect2 *GetConnect() { return this; }
 
 	// void ClearArrays();							// CPT2 unused
 	void GetStatusStr( CString * str );
@@ -1372,16 +1384,14 @@ public:
 	bool IsNet() { return true; }
 	cnet2 *ToNet() { return this; }
 	int GetTypeBit() { return bitNet; }
-
-	// general
 	void GetStatusStr( CString * str );
-	bool GetVisible() { return bVisible; }
-	void SetVisible( bool _bVisible );				// Done in cpp
 
 	int Draw();														// CPT2 new:  draws all connects and areas.  Done in cpp
 	void Undraw();													// CPT2 new, analogous.  Done in cpp
 	void Highlight(cpcb_item *exclude);								// Done in cpp
 	void Highlight() { Highlight(NULL); }							// Also overrides base-class func.
+	bool GetVisible() { return bVisible; }
+	void SetVisible( bool _bVisible );								// Done in cpp
 
 	// pins
 	int NumPins() { return pins.GetSize(); }

@@ -1566,8 +1566,9 @@
 #define IDS_STRING129                   62667
 #define IDS_ErrorNetConnectionSegmentWithInvalidPtrToConnect 62667
 #define IDS_FatalErrorInNetConnectNonexistentPin 62668
-#define IDS_STRING130                   62669
 #define IDS_YouAreTryingToConnectToAVertexOnADifferentNet 62669
+#define IDS_Tee                         62670
+#define IDS_W                           62671
 #define IDS_FkFpStr                     63000
 #define IDS_STRING63001                 63001
 #define IDS_STRING63002                 63002

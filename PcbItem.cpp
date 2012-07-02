@@ -139,6 +139,55 @@ int cvertex2::GetLayer()
 	return LAY_RAT_LINE;
 }
 
+void cvertex2::GetStatusStr( CString * str )
+{
+	int u = doc->m_units;
+	CString type_str, x_str, y_str, via_w_str, via_hole_str, s;
+	if( pin )
+		type_str.LoadStringA(IDS_PinVertex);	// should never happen
+	else if( tee )
+		s.LoadStringA(IDS_TVertex),
+		type_str.Format( s, tee->UID() );
+	else if( !preSeg || !postSeg )
+		type_str.LoadStringA(IDS_EndVertex);
+	else
+		type_str.LoadStringA(IDS_Vertex);
+	::MakeCStringFromDimension( &x_str, x, u, FALSE, FALSE, FALSE, u==MIL?1:3 );
+	::MakeCStringFromDimension( &y_str, y, u, FALSE, FALSE, FALSE, u==MIL?1:3 );
+	if( via_w )
+	{
+		::MakeCStringFromDimension( &via_w_str, via_w, u, FALSE, FALSE, FALSE, u==MIL?1:3 );
+		::MakeCStringFromDimension( &via_hole_str, via_hole_w, u, FALSE, FALSE, FALSE, u==MIL?1:3 );
+		CString s ((LPCSTR) IDS_XYVia);
+		str->Format( s, type_str, x_str, y_str, via_w_str, via_hole_str );
+		// CPT2 added (used to be there, liked it)
+		if (force_via_flag)
+			str->Append(" (F)");
+	}
+	else
+	{
+		CString s ((LPCSTR) IDS_XYNoVia);
+		str->Format( s,	type_str, x_str, y_str );
+	}
+}
+
+void cvertex2::GetTypeStatusStr( CString * str )
+{
+	if( pin )
+		str->Format( "%s.%s", pin->part->ref_des, pin->pin_name );
+	else if( tee )
+		str->LoadStringA(IDS_Tee);
+	/* CPT2. Having connects described as "from end vertex to end vertex" seems overlengthy.  How about "from vtx to vtx"?
+	else if( type == V_END )
+	{
+		str->LoadStringA(IDS_EndVertex);
+	}
+	*/
+	else
+		str->LoadStringA(IDS_Vertex);
+}
+
+
 bool cvertex2::Remove()
 {
 	// Derived from old cnet::RemoveVertex() functions.  Remove vertex from the network.  If it's a tee-vertex, all associated vertices must be
@@ -558,6 +607,31 @@ int ctee::GetLayer()
 	return LAY_RAT_LINE;
 }
 
+void ctee::GetStatusStr( CString * str )
+{
+	cvertex2 *v = vtxs.First();
+	if (!v) 
+		{ *str = "???"; return; }
+
+	int u = doc->m_units;
+	CString type_str, x_str, y_str, via_w_str, via_hole_str, s;
+	s.LoadStringA(IDS_TVertex),
+	type_str.Format( s, UID() );
+	::MakeCStringFromDimension( &x_str, v->x, u, FALSE, FALSE, FALSE, u==MIL?1:3 );
+	::MakeCStringFromDimension( &y_str, v->y, u, FALSE, FALSE, FALSE, u==MIL?1:3 );
+	if( via_w )
+	{
+		::MakeCStringFromDimension( &via_w_str, via_w, u, FALSE, FALSE, FALSE, u==MIL?1:3 );
+		::MakeCStringFromDimension( &via_hole_str, via_hole_w, u, FALSE, FALSE, FALSE, u==MIL?1:3 );
+		s.LoadStringA( IDS_XYVia );
+		str->Format( s, type_str, x_str, y_str, via_w_str, via_hole_str );
+	}
+	else
+		s.LoadStringA( IDS_XYNoVia ),
+		str->Format( s,	type_str, x_str, y_str );
+}
+
+
 void ctee::Remove()
 {
 	// Disconnect this from everything:  that is, remove references to this from all vertices in vtxs, and then clear out this->vtxs.  The
@@ -597,6 +671,26 @@ bool ctee::Adjust()
 	c0->CombineWith(c1, v0, v1);
 	Remove();
 	return true;
+}
+
+void ctee::ForceVia( BOOL set_areas )
+{
+	citer<cvertex2> iv (&vtxs);
+	for (cvertex2 *v = iv.First(); v; v = iv.Next())
+		v->force_via_flag = 1;
+	ReconcileVia();
+	if( set_areas )
+		GetNet()->SetAreaConnections();
+}
+
+void ctee::UnforceVia( BOOL set_areas )
+{
+	citer<cvertex2> iv (&vtxs);
+	for (cvertex2 *v = iv.First(); v; v = iv.Next())
+		v->force_via_flag = 1;
+	ReconcileVia();
+	if( set_areas )
+		GetNet()->SetAreaConnections();
 }
 
 bool ctee::IsViaNeeded()
@@ -748,6 +842,17 @@ bool cseg2::IsValid()
 	if (!m_net->IsValid()) return false;
 	if (!m_con->IsValid()) return false;
 	return m_con->segs.Contains(this);
+}
+
+// CPT:  added width param.  If this is 0 (the default) replace it with this->m_width
+void cseg2::GetStatusStr( CString * str, int width )
+{
+	int u = doc->m_units;
+	if (width==0) width = m_width;
+	CString w_str;
+	::MakeCStringFromDimension( &w_str, width, u, FALSE, FALSE, FALSE, u==MIL?1:3 );
+	CString s ((LPCSTR) IDS_SegmentW);
+	str->Format( s, w_str );
 }
 
 void cseg2::SetConnect(cconnect2 *c)
@@ -913,8 +1018,7 @@ bool cseg2::RemoveMerge(int end)
 	//   going to get eliminated in the process (0 => remove preVtx, 1 => remove postVtx).
 	// If this is an end-segment and "end" indicates the terminval vertex, then we just shorten the connect;  in other words, we call this->RemoveBreak().
 	// Routine returns true if the entire connection has been destroyed because connect has just 1 segment.
-	int nSegsInConnect = m_con->segs.GetSize();
-	if (nSegsInConnect<2) 
+	if (m_con->NumSegs()<2) 
 		{ m_con->Remove(); return true; }
 
 	if (!preVtx->preSeg && end==0 || !postVtx->postSeg && end==1)
@@ -930,6 +1034,8 @@ bool cseg2::RemoveMerge(int end)
 		m_con->vtxs.Remove(postVtx),
 		postVtx->postSeg->preVtx = preVtx,
 		preVtx->postSeg = postVtx->postSeg;
+	preVtx->ReconcileVia();
+	postVtx->ReconcileVia();
 	return false;
 }
 
@@ -937,8 +1043,7 @@ bool cseg2::RemoveBreak()
 {
 	// Replaces old cnet::RemoveSegmentAdjustTees().  Remove segment from its connect, and if it's in the middle somewhere then we'll have
 	// to split the old connect into 2.  If it's at an end point, just remove the segment, plus check for tees at the end point and adjust as needed.
-	int nSegsInConnect = m_con->segs.GetSize();
-	if (nSegsInConnect<2) 
+	if (m_con->NumSegs()<2) 
 		{ m_con->Remove(); return true; }
 	
 	m_con->segs.Remove(this);
@@ -985,6 +1090,8 @@ bool cseg2::RemoveBreak()
 	newCon->head = postVtx;
 	newCon->tail = m_con->tail;
 	m_con->tail = preVtx;
+	preVtx->ReconcileVia();
+	postVtx->ReconcileVia();
 
 	ctee *headT = m_con->head->tee;
 	if (headT && newCon->tail->tee == headT)
@@ -1070,10 +1177,27 @@ cconnect2::cconnect2( cnet2 * _net )
 bool cconnect2::IsValid()
 	{ return m_net->connects.Contains(this); }
 
+void cconnect2::GetStatusStr( CString * str )
+{
+	CString net_str, type_str, locked_str, from_str, to_str;
+	m_net->GetStatusStr( &net_str );
+	if( NumSegs() == 1 && head->postSeg->m_layer == LAY_RAT_LINE )
+		type_str.LoadStringA(IDS_Ratline);
+	else
+		type_str.LoadStringA(IDS_Trace);
+	locked_str = "";
+	if( head->pin && tail->pin && locked)
+		locked_str = " (L)";
+	head->GetTypeStatusStr( &from_str );
+	tail->GetTypeStatusStr( &to_str );
+	CString s ((LPCSTR) IDS_FromTo);
+	str->Format( s, net_str, type_str, from_str, to_str, locked_str );
+}
+
 void cconnect2::SetWidth( int w, int via_w, int via_hole_w )
 {
 	citer<cseg2> is (&segs);
-	for (cseg2 *s= is.First(); s; s = is.Next())
+	for (cseg2 *s = is.First(); s; s = is.Next())
 		s->SetWidth(w, via_w, via_hole_w);
 }
 
@@ -3297,6 +3421,12 @@ cnet2::cnet2( CFreePcbDoc *_doc, CString _name, int _def_w, int _def_via_w, int 
 
 bool cnet2::IsValid()
 	{ return doc->m_nlist->nets.Contains(this); }
+
+void cnet2::GetStatusStr( CString * str )
+{
+	CString s ((LPCSTR) IDS_Net2);
+	str->Format( s, name ); 
+}
 
 void cnet2::SetVisible( bool _bVisible )
 {
