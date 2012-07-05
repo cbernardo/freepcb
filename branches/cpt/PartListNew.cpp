@@ -96,6 +96,18 @@ int cpartlist::GetPartBoundaries( CRect * part_r )
 }
 
 
+void cpartlist::SetThermals()
+{
+	// CPT2 new.  Updates the bNeedsThermal flags for all pins in all parts.
+	citer<cpart2> ip (&parts);
+	for (cpart2 *p = ip.First(); p; p = ip.Next())
+	{
+		citer<cpin2> ipin (&p->pins);
+		for (cpin2 *pin = ipin.First(); pin; pin = ipin.Next())
+			pin->SetNeedsThermal();
+	}
+}
+
 cpart2 * cpartlist::AddFromString( CString * str )
 {
 	// set defaults

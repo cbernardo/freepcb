@@ -573,6 +573,7 @@ BOOL CFreePcbDoc::FileOpen( LPCTSTR fn, BOOL bLibrary )
 			m_plist->ReadParts( &pcb_file );
 			m_nlist->ReadNets( &pcb_file, m_read_version );
 			m_tlist->ReadTexts( &pcb_file );
+			m_plist->SetThermals();
 
 			// make path to library folder and index libraries
 			if( m_full_lib_dir == "" )
@@ -4526,6 +4527,7 @@ void CFreePcbDoc::OnFileImportSes()
 
 void CFreePcbDoc::OnEditUndo()
 {
+#ifndef CPT2
 	if( m_undo_list->m_num_items > 0 )
 	{
 		// undo last operation unless dragging something
@@ -4541,10 +4543,12 @@ void CFreePcbDoc::OnEditUndo()
 		m_bLastPopRedo = FALSE;
 		ProjectModified( TRUE, FALSE );
 	}
+#endif
 }
 
 void CFreePcbDoc::OnEditRedo()
 {
+#ifndef CPT2
 	if( m_redo_list->m_num_items > 0 )
 	{
 		// redo last operation unless dragging something
@@ -4561,6 +4565,7 @@ void CFreePcbDoc::OnEditRedo()
 		m_bLastPopRedo = TRUE;
 		ProjectModified( TRUE, FALSE );
 	}
+#endif
 }
 
 void CFreePcbDoc::ResetUndoState()

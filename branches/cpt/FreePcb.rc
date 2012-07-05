@@ -426,7 +426,7 @@ BEGIN
         MENUITEM "Add Area Cutout",             ID_AREAEDGE_ADDCUTOUT
         MENUITEM "Add Similar Area",            ID_AREAEDGE_ADDNEWAREA
         MENUITEM "Edit Area Params",            ID_AREAEDGE_CHANGELAYER
-        MENUITEM "Apply Clearances",            ID_AREAEDGE_APPLYCLEARANCES, GRAYED
+        MENUITEM "Apply Clearances",            ID_AREAEDGE_APPLYCLEARANCES
         MENUITEM SEPARATOR
         MENUITEM "Delete Cutout",               ID_AREAEDGE_DELETECUTOUT
         MENUITEM "Delete Area",                 ID_AREAEDGE_DELETE
@@ -518,6 +518,17 @@ BEGIN
         MENUITEM "Rotate CCW",                  ID_VALUE_ROTATECCW
         MENUITEM "Move",                        ID_VALUE_MOVE
         MENUITEM "Show Part",                   ID_VALUE_SHOWPART
+    END
+    POPUP "Tee"
+    BEGIN
+        MENUITEM "Move",                        ID_TEE_MOVE
+        MENUITEM "Set Position",                ID_TEE_SETPOSITION
+        MENUITEM "Set Via Size",                ID_TEE_SETSIZE
+        MENUITEM SEPARATOR
+        MENUITEM "Connect to Pin",              ID_TEE_CONNECTTOPIN
+        MENUITEM SEPARATOR
+        MENUITEM "Delete Tee",                  ID_TEE_DELETE
+        MENUITEM "Unroute Trace",               ID_TEE_UNROUTETRACE
     END
 END
 

@@ -76,6 +76,7 @@ int CDLE_HOLLOW_RECT::_IsHit(double x, double y, double &d)
 {
 	double xCenter = (i.x+f.x) / 2., yCenter = (i.y+f.y) / 2.;
 	double w2 = abs(i.x-f.x) / 2., h2 = abs(i.y-f.y) / 2.;
+	/*
 	if (item->IsVertex() || item->IsAreaCorner() || item->IsOutlineCorner()) {
 		// CPT r294.  Feature #27 (obparham's idea).  Still not certain if this is a winner...
 		// For vertices on connects and area edges, don't let the selectable region get too small (total width & ht < 6 pixels), or
@@ -86,6 +87,7 @@ int CDLE_HOLLOW_RECT::_IsHit(double x, double y, double &d)
 		else if (w2 < 3.0*scale) w2 = h2 = 3.0*scale;				// NB assuming that squares are always appropriate
 		else if (w2 > 8.0*scale) w2 = h2 = 8.0*scale;
 	}
+	*/
 	double dx = x-xCenter, dy = y-yCenter;
 	if (fabs(dx) < w2 && fabs(dy) < h2) 
 		{ d = sqrt(dx*dx+dy*dy); return true; }

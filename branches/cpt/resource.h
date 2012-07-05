@@ -958,8 +958,15 @@
 #define ID_VIEW_ROUTINGGRIDVALUES       32949
 #define ID_VIEW_PLACEMENTGRIDVALUES     32950
 #define ID_VIEW_FPVISIBLEGRIDVALUES     32951
+#define ID_TEE_MOVE                     32951
 #define ID_VIEW_FPPLACEMENTGRIDVALUES   32952
+#define ID_TEE_SETPOSITION              32952
 #define ID_VIEW_REVEALVALUETEXT         32953
+#define ID_TEE_SETVIASIZE               32953
+#define ID_TEE_CONNECTTOPIN             32954
+#define ID_TEE_DELETE                   32955
+#define ID_TEE_UNROUTETRACE             32956
+#define ID_TEE_SETSIZE                  32957
 #define IDS_AppName                     61999
 #define IDS_IllegalNetName              62000
 #define IDS_TopSolderMask               62001
@@ -1904,7 +1911,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_3D_CONTROLS                     1
 #define _APS_NEXT_RESOURCE_VALUE        353
-#define _APS_NEXT_COMMAND_VALUE         32951
+#define _APS_NEXT_COMMAND_VALUE         32958
 #define _APS_NEXT_CONTROL_VALUE         1445
 #define _APS_NEXT_SYMED_VALUE           106
 #endif

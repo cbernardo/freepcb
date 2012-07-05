@@ -198,9 +198,9 @@ public:
 	// cnet * GetPinNet( cpart * part, CString * pin_name );	// CPT2 Just use pin->net
 	// cnet * GetPinNet( cpart * part, int pin_index );
 	// int GetPinWidth( cpart * part, CString * pin_name );		// CPT2 Use cpin2::GetWidth()
-	void SetPinAnnularRing( int ring ){ m_annular_ring = ring; };
+	void SetPinAnnularRing( int ring ) { m_annular_ring = ring; }
 	// int GetPartBoundingRect( cpart * part, CRect * part_r );			// CPT2 This is barely used.  Anyway, move it to cpart2...
-	int GetPartBoundaries( CRect * part_r );
+	int GetPartBoundaries( CRect * part_r );							// Done in cpp  
 	int GetPinConnectionStatus( cpart * part, CString * pin_name, int layer );
 	int GetPadDrawInfo( cpart * part, int ipin, int layer, 
 							  BOOL bUse_TH_thermals, BOOL bUse_SMT_thermals,
@@ -217,6 +217,7 @@ public:
 	int CancelDraggingRefText( cpart * part );
 	int CancelDraggingValue( cpart * part );
 	int StopDragging();
+	void SetThermals();													// CPT2 new.  Updates the bNeedsThermal flags for all pins in all parts.
 	
 	int WriteParts( CStdioFile * file ) { return 0; }
 	int ReadParts( CStdioFile * file );

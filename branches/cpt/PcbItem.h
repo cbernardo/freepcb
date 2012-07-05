@@ -218,8 +218,8 @@ public:
 	virtual cconnect2 *GetConnect() { return NULL; }			// Similar
 	virtual int GetLayer() { return -1; }
 	virtual void GetStatusStr( CString *str ) { *str = ""; }
-	virtual void ForceVia( BOOL set_areas ) { }					// Implemented in cvertex2 and ctee
-	virtual void UnforceVia( BOOL set_areas ) { }					// Implemented in cvertex2 and ctee
+	virtual void ForceVia() { }									// Implemented in cvertex2 and ctee
+	virtual void UnforceVia() { }								// Implemented in cvertex2 and ctee
 };
 
 class carray_link
@@ -474,7 +474,7 @@ public:
 		nextIter = arr->iters;
 		arr->iters = this;
 	}
-	citer(carray<T> *arr0, T *at)
+	citer(carray<T> *arr0, T *at) 
 	{
 		// Iterate through, starting at the position of "at". If "at" is not in the array, advance iterator past the end
 		arr = arr0;
@@ -536,12 +536,15 @@ public:
 	ctee *tee;					// Points to a tee structure at tee-junctions, null otherwise
 	cpin2 *pin;					// If this vertex is at a pin, point to the said object
 	int x, y;					// coords
+	bool bNeedsThermal;			// CPT2 new.  If true, there's an area in this same net that intersects this vertex.  Therefore, if this is a via, we'll need
+								// to draw a thermal as well.
 	// CPT2: put into cpin2 (?) int pad_layer;				// layer of pad if this is first or last vertex, otherwise 0
 	int force_via_flag;			// force a via even if no layer change
 	int via_w, via_hole_w;		// via width and hole width (via_w==0 means no via)
 	int utility2;				// used for various functions
-	CArray<dl_element*> dl_els;	// CPT2 renamed;  contains one dl_element per layer (CHECK INTO THIS)
+	CArray<dl_element*> dl_els;	// CPT2 renamed;  contains one dl_element per layer
 	dl_element * dl_hole;		// hole in via
+	dl_element * dl_thermal;	// CPT2 new.  
 	// CDisplayList * m_dlist;		// NULL if not drawable.  CPT2 use doc->m_dlist (?)
 
 	cvertex2(cconnect2 *c, int _x=0, int _y=0);				// CPT2 Added args. Done in cpp
@@ -577,8 +580,8 @@ public:
 	bool IsLooseEnd();										// Done in cpp
 	bool Remove();											// Done in cpp
 	void SetConnect(cconnect2 *c);							// Done in cpp
-	void ForceVia( BOOL set_areas=TRUE );					// Done in cpp
-	void UnforceVia( BOOL set_areas=TRUE );					// Done in cpp
+	void ForceVia();										// Done in cpp
+	void UnforceVia();										// Done in cpp
 	bool IsViaNeeded();										// Done in cpp
 	void SetViaWidth();										// Done in cpp
 	void ReconcileVia();									// Done in cpp
@@ -590,10 +593,12 @@ public:
 	void StartDraggingStub( CDC * pDC, int x, int y, int layer1, int w,	
 							int layer_no_via, int crosshair, int inflection_mode );		// Done in cpp
 
-	void StartDragging( CDC * pDC, int x, int y, int crosshair = 1 );			// CPT2 TODO Derive from CNetList::StartDraggingVertex
-	void CancelDragging();														// CPT2 TODO Derive from CNetList::CancelDraggingVertex
+	void StartDragging( CDC * pDC, int x, int y, int crosshair = 1 );			// Done in cpp, derived from CNetList::StartDraggingVertex
+	void CancelDragging();														// Done in cpp, derived from CNetList::CancelDraggingVertex
 	void Move( int x, int y );													// Done in cpp, derived from CNetList::MoveVertex
 	int GetViaConnectionStatus( int layer );									// Done in cpp
+	bool SetNeedsThermal();														// Done in cpp.  New.  Sets the bNeedsThermal flag, depending on net areas
+																				// that overlap this point.
 };
 
 class ctee: public cpcb_item 
@@ -604,6 +609,7 @@ public:
 	int via_w, via_hole_w;					// These will be the max of the values in the constituent vtxs.
 	CArray<dl_element*> dl_els;				// Tee will be drawn if it's a via.
 	dl_element * dl_hole;					// 
+	dl_element * dl_thermal;				// CPT2 new.
 
 	ctee(cnet2 *n);							// Done in cpp
 	~ctee() 
@@ -618,6 +624,7 @@ public:
 	bool IsValid() { return vtxs.GetSize()>0; }			// TODO Adequate?
 	bool IsTee() { return true; }
 	ctee *ToTee() { return this; }
+	bool IsVia() { return via_w > 0; }
 	int GetTypeBit() 
 		{ return via_w? bitVia: bitTee; }
 	cnet2 *GetNet() 
@@ -628,16 +635,19 @@ public:
 	int Draw();											// Done in cpp
 	void Undraw();										// Done in cpp
 	void Highlight();									// Done in cpp
+	void SetVisible( bool bVis );						// Done in cpp, derived from cvertex2::SetVisible
 
-	void Remove();										// Done in cpp
-	void Add(cvertex2 *v);								// Done in cpp
-	bool Adjust();										// Done in cpp
-	void ForceVia( BOOL set_areas );					// Done in cpp
-	void UnforceVia( BOOL set_areas );					// Done in cpp
-	bool IsViaNeeded();									// Done in cpp
-	void ReconcileVia();								// Done in cpp
-	void Remove(cvertex2 *v);							// Done in cpp
-	void Move(int x, int y);							// Done in cpp
+	void Remove(bool bRemoveVtxs = false);								// Done in cpp
+	void Add(cvertex2 *v);												// Done in cpp
+	bool Adjust();														// Done in cpp
+	void ForceVia();													// Done in cpp
+	void UnforceVia();													// Done in cpp
+	bool IsViaNeeded();													// Done in cpp
+	void ReconcileVia();												// Done in cpp
+	void Remove(cvertex2 *v);											// Done in cpp
+	void Move(int x, int y);											// Done in cpp
+	void StartDragging( CDC * pDC, int x, int y, int crosshair );		// Done in cpp
+	void CancelDragging();												// Done in cpp
 };
 
 
@@ -792,7 +802,7 @@ public:
 
 	// modify segments and vertices. 
 	void Start( cvertex2 *v );										// CPT2 New.  Done in cpp.
-	void Remove(bool bSetAreaConnections = true);					// Done in cpp
+	void Remove();													// Done in cpp
 	// cvertex2& InsertVertexByIndex( int iv, const cvertex2& new_vtx );		// CPT2.  Currently called only with iv==0.  Not really compatible with
 																				// the new system, hopefully dumpable
 	// void InsertSegAndVtxByIndex( int is, int dir, const cseg2& new_seg, const cvertex2& new_vtx );	// CPT2.  Replace by:
@@ -913,9 +923,11 @@ public:
 	int pad_layer;			// CPT2. layer of pad on this pin (was in cvertex2).  
 							// Constructor sets this based on ps. Possible values LAY_PAD_THRU, LAY_TOP_COPPER, LAY_BOTTOM_COPPER
 	cnet2 * net;			// pointer to net, or NULL if not assigned.
+	bool bNeedsThermal;		// CPT2 new.  Set to true if there's an areas from the same network that occupies this same point.
 	// drc_pin drc;			// drc info.  CPT2 TODO.  Was causing problems with the #$*& preprocessor, put the issue off for another day...
 	dl_element * dl_hole;	// pointer to graphic element for hole
 	CArray<dl_element*> dl_els;	// array of pointers to graphic elements for pads
+	dl_element *dl_thermal; // CPT2 new.  The thermal drawn with this pin.
 
 	cpin2(cpart2 *_part, padstack *_ps, cnet2 *_net);					// CPT2. Added args. Done in cpp
 	~cpin2();
@@ -932,9 +944,10 @@ public:
 
 	bool TestHit(int x, int y, int layer);							// Done in cpp, derived from CPartList::TestHitOnPad
 	void SetPosition();												// Done in cpp.  New, but related to CPartList::GetPinPoint
-	void SetThermalVisible(int layer, bool bVisible) { }			// CPT2.  TODO figure this out.
+	bool SetNeedsThermal();											// Done in cpp.  New, but related to CNetList::SetAreaConnections
+	// void SetThermalVisible(int layer, bool bVisible) { }			// CPT2.  TODO figure this out.
 	// void Initialize( cnet2 * net );  // Put in constructor
-	void Disconnect(bool bSetAreas = true) ;						// Done in cpp
+	void Disconnect() ;												// Done in cpp
 	cseg2 *AddRatlineToPin( cpin2 *p2 );
 };
 
@@ -1022,7 +1035,7 @@ public:
 	void OptimizeConnections( BOOL bBelowPinCount, int pin_count, BOOL bVisibleNetsOnly=TRUE );	// Done in cpp, derived from old CNetList function
 	CPoint GetCentroidPoint();			// CPT2 TODO derive from CPartList::GetCentroidPoint
 	CPoint GetGluePoint( int iglue );	// CPT2 TODO derive from CPartList::GetGluePoint()
-	void SetAreaConnections();			// CPT2 TODO derive from CNetList::SetAreaConnections() ?
+	// void SetAreaConnections();		// CPT2 PROBABLY SUPERSEDED
 	CPoint GetRefPoint();				// Done in cpp.  Derived from CPartList func.
 	CPoint GetValuePoint();				// Done in cpp.  Derived from CPartList func.
 	CRect GetValueRect();				// Done in cpp.  Derived from CPartList func.
@@ -1283,10 +1296,11 @@ class carea2 : public cpolyline
 {
 public:
 	cnet2 * m_net;		// parent net
-	carray<cpin2> pins;	// CPT2: replaces npins, pin, PinByIndex() below.  Set up by SetConnections() below.
-	CArray<dl_element*> dl_thermal;		// graphics for thermals on pins.
-	CArray<dl_element*> dl_via_thermal; // graphics for thermals on stubs
-	carray<cvertex2> vtxs;				// CPT2: replaces the following three members
+	// CPT2.  Try moving these into cvertex2 and cpin2.  
+	// carray<cpin2> pins;	// CPT2: replaces npins, pin, PinByIndex() below.  Set up by SetConnections() below.
+	// CArray<dl_element*> dl_thermal;		// graphics for thermals on pins.
+	// CArray<dl_element*> dl_via_thermal; // graphics for thermals on stubs
+	// carray<cvertex2> vtxs;				// CPT2: replaces the following three members
 	// int nvias;						// number of via connections to area
 	// carray<cconnect2> vcon;			// Changed from CArray<int>. 
 	// carray<cvertex2> vtx;			// Ditto
@@ -1302,7 +1316,10 @@ public:
 
 
 	void Remove();													// Done in cpp
-	void SetConnections();											// Done (almost) in cpp. Derived from old CNetList::SetAreaConnections(cnet2*, int)
+	void SetConnections() { }										// CPT2 defanged.  In the old system thermals were associated with
+																	// areas, but now they're associated with vertices/tees/pins.  As I get that system
+																	// moving, I can remove carea2::SetConnections in favor of cvertex2/ctee/cpin2::
+																	// SetAreaConnections.  TODO finish eliminating...
 	// int Complete( int style );									// CPT2 TODO consider dumping
 	bool TestIntersections();										// Done in cpp, covers CNetList::TestAreaIntersections().
 	int ClipPolygon( BOOL bMessageBoxArc, BOOL bMessageBoxInt, BOOL bRetainArcs );	// Done in cpp
@@ -1411,12 +1428,14 @@ public:
 	int NumAreas() { return areas.GetSize(); }
 	// carea2 * AreaByUID( int uid, int * index=NULL );
 	// carea2 * AreaByIndex( int ia );
+	/* CPT2 phasing out in favor of SetThermals().
 	void SetAreaConnections()
 	{
 		citer<carea2> ia (&areas);
 		for (carea2* a = ia.First(); a; a = ia.Next())
 			a->SetConnections();
 	}
+	*/
 	int AddArea( int layer, int x, int y, int hatch, BOOL bDraw=TRUE );					// CPT2 TODO. Derive from CNetList::AddArea
 	void CombineAllAreas( BOOL bMessageBox, BOOL bUseUtility );							// Done in cpp, derived from CNetList func
 
@@ -1437,6 +1456,7 @@ public:
 	}
 	void GetWidth( int * w, int *via_w=NULL, int *via_hole_w=NULL);			// Done in cpp, derived from old CNetList::GetWidths()
 	void CalcViaWidths(int w, int *via_w, int *via_hole_w);					// Done in cpp
+	void SetThermals();														// Done in cpp
 
 	// connections
 	cconnect2 * AddConnect( int * ic=NULL );
