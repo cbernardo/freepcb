@@ -115,7 +115,8 @@ cvertex2::cvertex2(cconnect2 *c, int _x, int _y):				// Added args
 	pin = NULL;
 	preSeg = postSeg = NULL;
 	force_via_flag = via_w = via_hole_w = 0;
-	dl_hole = NULL;
+	dl_hole = dl_thermal = NULL;
+	SetNeedsThermal();
 }
 
 bool cvertex2::IsValid()
@@ -193,23 +194,17 @@ bool cvertex2::Remove()
 	// Derived from old cnet::RemoveVertex() functions.  Remove vertex from the network.  If it's a tee-vertex, all associated vertices must be
 	// axed as well.  If it's an end vertex of another type, remove vertex and the single attached seg.  If it's a middle vertex, merge the two adjacent
 	// segs.
-	Undraw();																	// To get rid of selector drawing-el (?)
 	if (tee)
 	{
-		citer<cvertex2> iv (&tee->vtxs);
-		for (cvertex2 *v = iv.First(); v; v = iv.Next())
-		{
-			v->tee = NULL;
-			if (v!=this) v->Remove();
-		}
-	// Fall thru and remove this just like any other end vertex...
+		tee->Remove(true);														// Removes tee and all its constituents.
+		return false;
 	}
 
+	Undraw();																	// To get rid of selector drawing-el (?)
 	int nSegsInConnect = m_con->segs.GetSize();
 	if (nSegsInConnect<2) 
 		{ m_con->Remove(); return true; }
 
-	m_con->vtxs.Remove(this);
 	if (!preSeg)
 		postSeg->RemoveBreak();
 	else if (!postSeg)
@@ -238,20 +233,16 @@ void cvertex2::SetConnect(cconnect2 *c)
 bool cvertex2::IsLooseEnd() 
 	{ return (!preSeg || !postSeg) && !pin && !tee && via_w==0; }
 
-void cvertex2::ForceVia( BOOL set_areas )
+void cvertex2::ForceVia()
 {
 	force_via_flag = 1;
 	ReconcileVia();
-	if( set_areas )
-		m_net->SetAreaConnections();
 }
 
-void cvertex2::UnforceVia( BOOL set_areas )
+void cvertex2::UnforceVia()
 {
 	force_via_flag = 0;
 	ReconcileVia();
-	if( set_areas )
-		m_net->SetAreaConnections();
 }
 
 bool cvertex2::IsViaNeeded()
@@ -267,6 +258,8 @@ bool cvertex2::IsViaNeeded()
 void cvertex2::SetViaWidth()
 {
 	// CPT2.  We've determined that "this" needs a via, so determine the appropriate width based on incoming segs
+	if (force_via_flag && via_w)
+		return;
 	via_w = via_hole_w = 0;
 	if (preSeg)
 		m_net->CalcViaWidths(preSeg->m_width, &via_w, &via_hole_w);
@@ -297,6 +290,7 @@ void cvertex2::ReconcileVia()
 
 int cvertex2::GetViaConnectionStatus( int layer )
 {
+#ifndef CPT2
 	// Derived from old CNetList function. CPT2 TODO possibly obsolete
 	int status = VIA_NO_CONNECT;
 
@@ -335,6 +329,8 @@ int cvertex2::GetViaConnectionStatus( int layer )
 					status |= VIA_AREA;
 		}
 	return status;
+#endif
+	return 0;
 }
 
 bool cvertex2::TestHit(int _x, int _y, int _layer)
@@ -384,9 +380,9 @@ void cvertex2::Move( int _x, int _y )
 	x = _x;
 	y = _y;
 	ReconcileVia();
+	SetNeedsThermal();
 	if( bWasDrawn )
 		m_con->Draw();
-	m_net->SetAreaConnections();
 }
 
 cconnect2 * cvertex2::SplitConnect()
@@ -486,8 +482,64 @@ void cvertex2::StartDraggingStub( CDC * pDC, int _x, int _y, int layer1, int w,
 		crosshair, DSS_STRAIGHT, inflection_mode );
 }
 
-// CPT2 NB CancelDraggingStub() is pretty useless at this point, so it's eliminated
+// CPT2 NB CancelDraggingStub() is pretty useless at this point, so it's eliminated.  (Just need to do a dlist->StopDragging().)
 
+// Start dragging vertex to reposition it
+//
+void cvertex2::StartDragging( CDC * pDC, int x, int y, int crosshair )
+{
+	// cancel previous selection and make segments and via invisible
+	CDisplayList *dl = doc->m_dlist;
+	cconnect2 *c = m_con;
+	cnet2 *net = m_net;
+	dl->CancelHighlight();
+	if (preSeg)
+		dl->Set_visible(preSeg->dl_el, 0);				// CPT2 TODO change name to SetVisible (et al)
+	if (postSeg)
+		dl->Set_visible(postSeg->dl_el, 0);
+	SetVisible( FALSE );
+
+	// start dragging
+	if( preSeg && postSeg )
+	{
+		// vertex with segments on both sides
+		int xi = preSeg->preVtx->x;
+		int yi = preSeg->preVtx->y;
+		int xf = postSeg->postVtx->x;
+		int yf = postSeg->postVtx->y;
+		int layer1 = preSeg->m_layer;
+		int layer2 = postSeg->m_layer;
+		int w1 = preSeg->m_width;
+		int w2 = postSeg->m_width;
+		dl->StartDraggingLineVertex( pDC, x, y, xi, yi, xf, yf, layer1, 
+									layer2, w1, w2, DSS_STRAIGHT, DSS_STRAIGHT, 
+									0, 0, 0, 0, crosshair );
+	}
+	else
+	{
+		// end-vertex, only drag one segment
+		cseg2 *s = preSeg? preSeg: postSeg;
+		cvertex2 *other = preSeg? preSeg->preVtx: postSeg->postVtx;
+		int xi = other->x;
+		int yi = other->y;
+		int layer1 = s->m_layer;
+		int w1 = s->m_width;
+		dl->StartDraggingLine( pDC, x, y, xi, yi, layer1, 
+									w1, layer1, 0, 0, crosshair, DSS_STRAIGHT, 0 );
+	}
+}
+
+void cvertex2::CancelDragging()
+{
+	// make segments and via visible
+	CDisplayList *dl = doc->m_dlist;
+	if (preSeg)
+		dl->Set_visible(preSeg->dl_el, 1);
+	if (postSeg)
+		dl->Set_visible(postSeg->dl_el, 1);
+	SetVisible( TRUE );
+	dl->StopDragging();
+}
 
 
 int cvertex2::Draw()
@@ -516,6 +568,10 @@ int cvertex2::Draw()
 		// CPT2.  Trying a wider selector for vias (depending on hole size)
 		dl_sel = dl->AddSelector( this, LAY_SELECTION, DL_HOLLOW_RECT, 
 			1, 0, 0, x-via_w/2, y-via_w/2, x+via_w/2, y+via_w/2, 0, 0 );
+		// CPT2.  Now draw a thermal, if the bNeedsThermal flag is set
+		if (bNeedsThermal)
+			dl_thermal = dl->Add( this, dl_element::DL_OTHER, LAY_RAT_LINE, DL_X, 1,
+								2*via_w/3, 0, 0, x, y, 0, 0, 0, 0 );
 	}
 	else
 	{
@@ -544,8 +600,8 @@ void cvertex2::Undraw()
 	dl_els.RemoveAll();
 	dl->Remove( dl_sel );
 	dl->Remove( dl_hole );
-	dl_sel = NULL;
-	dl_hole = NULL;
+	dl->Remove( dl_thermal );
+	dl_sel = dl_hole = dl_thermal = NULL;
 	bDrawn = false;
 }
 
@@ -580,7 +636,21 @@ void cvertex2::SetVisible( bool bVis )
 			dl_els[il]->visible = bVis;
 	if( dl_hole )
 		dl_hole->visible = bVis;
+	if (dl_thermal)
+		dl_thermal->visible = bVis;
 }
+
+bool cvertex2::SetNeedsThermal()
+{
+	// CPT2 new, but related to the old CNetList::SetAreaConnections.  Sets bNeedsThermal to true if some net area overlaps this vertex
+	bNeedsThermal = false;
+	citer<carea2> ia (&m_net->areas);
+	for (carea2 *a = ia.First(); a; a = ia.Next())
+		if (a->TestPointInside(x, y))
+			return bNeedsThermal = true;
+	return false;
+}
+
 
 
 ctee::ctee(cnet2 *n)
@@ -588,7 +658,7 @@ ctee::ctee(cnet2 *n)
 { 
 	via_w = via_hole_w = 0; 
 	n->tees.Add(this);
-	dl_hole = NULL;
+	dl_hole = dl_thermal = NULL;
 }
 
 int ctee::GetLayer()
@@ -629,20 +699,26 @@ void ctee::GetStatusStr( CString * str )
 	else
 		s.LoadStringA( IDS_XYNoVia ),
 		str->Format( s,	type_str, x_str, y_str );
+	if (v->force_via_flag)
+		str->Append(" (F)");
+
 }
 
 
-void ctee::Remove()
+void ctee::Remove(bool bRemoveVtxs)
 {
 	// Disconnect this from everything:  that is, remove references to this from all vertices in vtxs, and then clear out this->vtxs.  The
 	// garbage collector will later delete this.
+	Undraw();
 	cnet2 *net = vtxs.First()? vtxs.First()->m_net: NULL;
 	if (net) net->tees.Remove(this);
 	citer<cvertex2> iv (&vtxs);
 	for (cvertex2 *v = iv.First(); v; v = iv.Next())
+	{
 		v->tee = NULL;
+		if (bRemoveVtxs) v->Remove();
+	}
 	vtxs.RemoveAll();
-	Undraw();
 }
 
 void ctee::Add(cvertex2 *v)
@@ -673,24 +749,20 @@ bool ctee::Adjust()
 	return true;
 }
 
-void ctee::ForceVia( BOOL set_areas )
+void ctee::ForceVia()
 {
 	citer<cvertex2> iv (&vtxs);
 	for (cvertex2 *v = iv.First(); v; v = iv.Next())
 		v->force_via_flag = 1;
 	ReconcileVia();
-	if( set_areas )
-		GetNet()->SetAreaConnections();
 }
 
-void ctee::UnforceVia( BOOL set_areas )
+void ctee::UnforceVia()
 {
 	citer<cvertex2> iv (&vtxs);
 	for (cvertex2 *v = iv.First(); v; v = iv.Next())
-		v->force_via_flag = 1;
+		v->force_via_flag = 0;
 	ReconcileVia();
-	if( set_areas )
-		GetNet()->SetAreaConnections();
 }
 
 bool ctee::IsViaNeeded()
@@ -714,6 +786,9 @@ bool ctee::IsViaNeeded()
 
 void ctee::ReconcileVia()
 {
+	cvertex2 *v = vtxs.First();
+	if (v && v->force_via_flag && via_w>0)
+		return;														// Don't tinker with preexisting via width for forced tee vias...
 	via_w = via_hole_w = 0;
 	if (!IsViaNeeded())
 		return;
@@ -745,7 +820,6 @@ void ctee::Move(int _x, int _y)
 		v->x = _x, v->y = _y;
 	ReconcileVia();
 	net->Draw();
-	net->SetAreaConnections();
 }
 
 int ctee::Draw()
@@ -821,6 +895,56 @@ void ctee::Highlight()
 	w = max( w, 20*PCBU_PER_MIL );
 	int x = vtxs.First()->x, y = vtxs.First()->y;
 	dl->Highlight( DL_HOLLOW_RECT, x - w/2, y - w/2, x + w/2, y + w/2, 0 );
+}
+
+void ctee::SetVisible( bool bVis )
+{
+	for( int il=0; il<dl_els.GetSize(); il++ )
+		if( dl_els[il] )
+			dl_els[il]->visible = bVis;
+	if( dl_hole )
+		dl_hole->visible = bVis;
+	if (dl_thermal)
+		dl_thermal->visible = bVis;
+}
+
+void ctee::StartDragging( CDC * pDC, int x, int y, int crosshair )
+{
+	// cancel previous selection and make incoming segments and via invisible.  Also create a DragRatlineArray for the drawing list.
+	CDisplayList *dl = doc->m_dlist;
+	cnet2 *net = GetNet();
+	dl->CancelHighlight();
+	dl->MakeDragRatlineArray( vtxs.GetSize(), 0 );
+	citer<cvertex2> iv (&vtxs);
+	for (cvertex2 *v = iv.First(); v; v = iv.Next())
+	{
+		CPoint pi, pf = CPoint(0,0);
+		if (v->preSeg)
+			dl->Set_visible(v->preSeg->dl_el, 0),				// CPT2 TODO change name to SetVisible (et al)
+			pi.x = v->preSeg->preVtx->x,
+			pi.y = v->preSeg->preVtx->y;
+		else if (v->postSeg)
+			dl->Set_visible(v->postSeg->dl_el, 0),
+			pi.x = v->postSeg->postVtx->x,
+			pi.y = v->postSeg->postVtx->y;
+		dl->AddDragRatline( pi, pf );
+	}
+	SetVisible( FALSE );
+	dl->StartDraggingArray( pDC, 0, 0, 0, LAY_RAT_LINE );
+}
+
+void ctee::CancelDragging()
+{
+	// make emerging segments and via visible
+	CDisplayList *dl = doc->m_dlist;
+	dl->StopDragging();
+	SetVisible( TRUE );
+	citer<cvertex2> iv (&vtxs);
+	for (cvertex2 *v = iv.First(); v; v = iv.Next())
+		if (v->preSeg)
+			dl->Set_visible(v->preSeg->dl_el, 1);
+		else if (v->postSeg)
+			dl->Set_visible(v->postSeg->dl_el, 1);
 }
 
 
@@ -1201,19 +1325,17 @@ void cconnect2::SetWidth( int w, int via_w, int via_hole_w )
 		s->SetWidth(w, via_w, via_hole_w);
 }
 
-void cconnect2::Remove(bool bSetAreaConnections)
+void cconnect2::Remove()
 {
 	// CPT2. User wants to delete connection, so detach it from the network (garbage collector will later delete this object and its
 	// constituents for good).
-	// Any tee structures attached at either end get cleaned up.  bSetAreaConnections is true by default.
+	// Any tee structures attached at either end get cleaned up.
 	Undraw();
 	m_net->connects.Remove(this);
 	if (head->tee)
 		head->tee->Remove(head);
 	if (tail->tee)
 		tail->tee->Remove(tail);
-	if (bSetAreaConnections)
-		m_net->SetAreaConnections();
 }
 
 
@@ -1413,7 +1535,8 @@ cpin2::cpin2(cpart2 *_part, padstack *_ps, cnet2 *_net)					// CPT2. Added args
 	net = _net;
 	if (net)
 		net->pins.Add(this);
-	dl_hole = NULL;
+	dl_hole = dl_thermal = NULL;
+	bNeedsThermal = false;
 }
 
 bool cpin2::IsValid()
@@ -1422,17 +1545,16 @@ bool cpin2::IsValid()
 	return part->pins.Contains(this);
 }
 
-void cpin2::Disconnect(bool bSetAreas) 
+void cpin2::Disconnect() 
 {
 	// Detach pin from whichever net it's attached to.  Rip out any attached connections completely.
 	if (!net) return;
 	citer<cconnect2> ic (&net->connects);
 	for (cconnect2 *c = ic.First(); c; c = ic.Next())
 		if (c->head->pin == this || c->tail->pin == this)
-			c->Remove(false);
+			c->Remove();
 	net->pins.Remove(this);
-	if (bSetAreas)
-		net->SetAreaConnections();
+	net->areas.RemoveAll();
 	net = NULL;
 }
 
@@ -1532,6 +1654,20 @@ void cpin2::SetPosition()
 	// add coords of part origin
 	x = part->x + pp.x;
 	y = part->y + pp.y;
+
+	SetNeedsThermal();
+}
+
+bool cpin2::SetNeedsThermal()
+{
+	// CPT2 new, but related to the old CNetList::SetAreaConnections.  Sets bNeedsThermal to true if some net area overlaps this pin
+	bNeedsThermal = false;
+	if (!net) return false;
+	citer<carea2> ia (&net->areas);
+	for (carea2 *a = ia.First(); a; a = ia.Next())
+		if (a->TestPointInside(x, y))
+			return bNeedsThermal = true;
+	return false;
 }
 
 void cpin2::Highlight()
@@ -2098,13 +2234,13 @@ int cpart2::Draw()
 	citer<cpin2> ipin (&pins);
 	for (cpin2 *pin = ipin.First(); pin; pin = ipin.Next()) 
 	{
+		// CPT2 TODO check:  is pin->x/y always getting set correctly?
 		// set layer for pads
 		padstack * ps = pin->ps;
 		pin->dl_els.SetSize(nLayers);
 		pad * p;
 		int pad_layer;
 		// iterate through all copper layers 
-		pad * any_pad = NULL;
 		for( int il=0; il<nLayers; il++ )
 		{
 			pin_pt.x = ps->x_rel;
@@ -2128,9 +2264,6 @@ int cpart2::Draw()
 				sel_layer = LAY_SELECTION;
 			if( p )
 			{
-				if( p->shape != PAD_NONE )
-					any_pad = p;
-
 				// draw pad
 				dl_element * pad_el = NULL;
 				if( p->shape == PAD_NONE )
@@ -2286,6 +2419,12 @@ int cpart2::Draw()
 		}
 		else
 			pin->dl_hole = NULL;
+
+		if (pin->bNeedsThermal)
+			pin->dl_thermal = dl->Add( this, dl_element::DL_OTHER, LAY_RAT_LINE, DL_X, 1,
+				2*ps->hole_size/3, 0, 0, pin->x, pin->y, 0, 0, 0, 0 );
+		else
+			pin->dl_thermal = NULL;
 	}
 
 	bDrawn = true;
@@ -2327,8 +2466,8 @@ void cpart2::Undraw()
 		}
 		dl->Remove( pin->dl_hole );
 		dl->Remove( pin->dl_sel );
-		pin->dl_hole = NULL;
-		pin->dl_sel = NULL;
+		dl->Remove( pin->dl_thermal );
+		pin->dl_hole = pin->dl_sel = pin->dl_thermal = NULL;
 	}
 
 	bDrawn = false;
@@ -3243,6 +3382,7 @@ void carea2::Remove()
 	m_net->areas.Remove(this);
 }
 
+/*  CPT2 disabled for the time being.  TODO will probably revive when I start working on routines for editing areas.
 void carea2::SetConnections() 
 {
 	// set arrays of pins and other vtxs connected to area
@@ -3334,6 +3474,7 @@ void carea2::SetConnections()
 		}
 	}
 }
+*/
 
 bool carea2::TestIntersections()
 {
@@ -3442,14 +3583,7 @@ void cnet2::SetVisible( bool _bVisible )
 			for (cseg2 *s = is.First(); s; s = is.Next())
 				s->dl_el->visible = s->dl_sel->visible = true;
 		}
-		// make thermals visible
-		citer<carea2> ia (&areas);
-		for (carea2 *a = ia.First(); a; a = ia.Next())
-		{
-			citer<cpin2> ip (&a->pins);
-			for (cpin2 *p = ip.First(); p; p = ip.Next())
-				p->SetThermalVisible(a->m_layer, true);
-		}
+		// CPT2 TODO what about vias (+thermals)?
 	}
 	else
 	{
@@ -3462,14 +3596,7 @@ void cnet2::SetVisible( bool _bVisible )
 				if (s->m_layer == LAY_RAT_LINE)
 					s->dl_el->visible = s->dl_sel->visible = true;
 		}
-		// make thermals invisible
-		citer<carea2> ia (&areas);
-		for (carea2 *a = ia.First(); a; a = ia.Next())
-		{
-			citer<cpin2> ip (&a->pins);
-			for (cpin2 *p = ip.First(); p; p = ip.Next())
-				p->SetThermalVisible(a->m_layer, false);
-		}
+		// CPT2 TODO what about vias (+thermals)?
 	}
 }
 
@@ -3550,7 +3677,8 @@ void cnet2::GetWidth( int * w, int * via_w, int * via_hole_w )
 	}
 }
 
-void cnet2::CalcViaWidths(int w, int *via_w, int *via_hole_w) {
+void cnet2::CalcViaWidths(int w, int *via_w, int *via_hole_w) 
+{
 	// CPT r295.  Helper for cvertex2::ReconcileVia().  
 	// Given a segment width value "w", determine a matching via and via hole width.  Do this by first checking if w==net->def_w,
 	//  and return the net's default via sizes if so;
@@ -3565,7 +3693,19 @@ void cnet2::CalcViaWidths(int w, int *via_w, int *via_hole_w) {
 	// i-1 = last entry in width table that's <= w:
 	*via_w = doc->m_v_w.GetAt(i-1);
 	*via_hole_w = doc->m_v_h_w.GetAt(i-1);
+}
+
+void cnet2::SetThermals() 
+{
+	// CPT2.  New system for thermals.  Run SetThermalNeeded() for all vertices in the net.
+	citer<cconnect2> ic (&connects);
+	for (cconnect2 *c = ic.First(); c; c = ic.Next())
+	{
+		citer<cvertex2> iv (&c->vtxs);
+		for (cvertex2 *v = iv.First(); v; v = iv.Next())
+			v->SetNeedsThermal();
 	}
+}
 
 cvertex2 *cnet2::TestHitOnVertex(int layer, int x, int y) 
 {

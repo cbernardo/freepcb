@@ -29,7 +29,7 @@ enum {
 	CUR_SEG_SELECTED,			// trace segment selected
 	CUR_RAT_SELECTED,			// unrouted trace segment selected
 	CUR_VTX_SELECTED,			// trace vertex selected
-	CUR_END_VTX_SELECTED,		// end vertex of stub trace selected
+	// CPT2 merging with CUR_VTX_SELECTED: CUR_END_VTX_SELECTED,		// end vertex of stub trace selected
 	CUR_TEE_SELECTED,			// CPT2
 	CUR_CONNECT_SELECTED,		// entire connection selected
 	CUR_NET_SELECTED,			// entire net selected
@@ -50,7 +50,8 @@ enum {
 	CUR_DRAG_RAT,		// dragging ratline for trace segment
 	CUR_DRAG_VTX,		// dragging trace vertex
 	CUR_DRAG_VTX_INSERT,	// dragging new vertex being inserted
-	CUR_DRAG_END_VTX,	// dragging end vertex being moved
+	CUR_DRAG_TEE,			// CPT2 dragging tee
+	// CUR_DRAG_END_VTX,	// dragging end vertex being moved // CPT2 phasing out
 	CUR_DRAG_TEXT,		// dragging text box
 	CUR_ADD_AREA,		// setting starting point for copper area
 	CUR_DRAG_AREA_1,	// dragging first corner for copper area
@@ -133,7 +134,7 @@ enum {
 	FK_DELETE_OUTLINE,
 	FK_DELETE_AREA,
 	FK_DELETE_CUTOUT,
-	FK_ADD_SEGMENT,
+	FK_ADD_SEGMENT,				// CPT2 supplanted by FK_START_TRACE.  But not removing definition (otherwise string-table of fk-texts has to change too)
 	FK_ADD_VIA,
 	FK_DELETE_VIA,
 	FK_DELETE_SEGMENT,
@@ -533,9 +534,11 @@ public:
 	afx_msg void OnRatlineRoute();
 	afx_msg void OnRatlineOptimize();
 	afx_msg void OnVertexMove();
+	afx_msg void OnTeeMove();
 	afx_msg void OnVertexStartRatline();
 	afx_msg void OnVertexStartTrace();
 	afx_msg void OnVertexDelete();
+	afx_msg void OnTeeDelete(); 
 	afx_msg void OnRatlineComplete();
 	afx_msg void OnRatlineSetWidth();
 	afx_msg void OnRatlineDeleteConnection();
@@ -564,12 +567,13 @@ public:
 	afx_msg void OnAddArea();
 	afx_msg void OnAreaAddCutout();
 	afx_msg void OnAreaDeleteCutout();
-	afx_msg void OnEndVertexAddVia();
-	afx_msg void OnEndVertexRemoveVia();
+	afx_msg void OnVertexAddVia();
+	afx_msg void OnVertexRemoveVia();
 	afx_msg void OnSegmentDeleteTrace();
 	afx_msg void OnAreaCornerProperties();
 	afx_msg void OnRefProperties();
 	afx_msg void OnVertexProperties();
+	afx_msg void OnTeeProperties();
 	afx_msg BOOL OnEraseBkgnd(CDC* pDC);
 	afx_msg void OnBoardSideConvertToStraightLine();
 	afx_msg void OnBoardSideConvertToArcCw();

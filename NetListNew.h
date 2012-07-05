@@ -323,25 +323,26 @@ public:
 	// void HighlightAreaSides( cnet2 * net, int ia );													// CPT2 use cpolyline::HighlightSides
 	// CPoint GetAreaCorner( cnet2 * net, int iarea, int icorner );										// CPT2 just use ccorner.x,y
 	// int CompleteArea( cnet2 * net, int iarea, int style );											// CPT2 use carea2::Complete
+	/* CPT2 disabled in favor of SetThermals()
 	void SetAreaConnections()
 	{
 		citer<cnet2> in (&nets);
 		for (cnet2 *n = in.First(); n; n = in.Next())
 			n->SetAreaConnections();
 	}
+	*/
 	// void SetAreaConnections( cnet2 * net, int iarea );	// CPT2 use carea2::SetAreaConnections();
 	// void SetAreaConnections( cnet2 * net );				// CPT2 use cnet2::SetAreaConnections();
 	// void SetAreaConnections( cpart2 * part );			// CPT2 use cpart2::SetAreaConnections() ?
-	// BOOL TestPointInArea( cnet2 * net, int x, int y, int layer, int * iarea ); // CPT2 use cnet2::NetAreaFromPoint
-	// TODO:
-	int RemoveArea( cnet2 * net, int iarea );
-	void SelectAreaSide( cnet2 * net, int iarea, int iside );
-	void SelectAreaCorner( cnet2 * net, int iarea, int icorner );
-	void SetAreaSideStyle( cnet2 * net, int iarea, int iside, int style );
-	int StartDraggingAreaCorner( CDC *pDC, cnet2 * net, int iarea, int icorner, int x, int y, int crosshair = 1 );
-	int CancelDraggingAreaCorner( cnet2 * net, int iarea, int icorner );
-	int StartDraggingInsertedAreaCorner( CDC *pDC, cnet2 * net, int iarea, int icorner, int x, int y, int crosshair = 1 );
-	int CancelDraggingInsertedAreaCorner( cnet2 * net, int iarea, int icorner );
+	// BOOL TestPointInArea( cnet2 * net, int x, int y, int layer, int * iarea );	// CPT2 use cnet2::NetAreaFromPoint
+	// int RemoveArea( cnet2 * net, int iarea );									// CPT2 use carea2::Remove()
+	// void SelectAreaSide( cnet2 * net, int iarea, int iside );					// CPT2 use CFreePcbView::SelectItem
+	// void SelectAreaCorner( cnet2 * net, int iarea, int icorner );				// CPT2 ditto
+	// void SetAreaSideStyle( cnet2 * net, int iarea, int iside, int style );		// CPT2 use cside::SetStyle
+	// int StartDraggingAreaCorner( CDC *pDC, cnet2 * net, int iarea, int icorner, int x, int y, int crosshair = 1 );	// CPT2 use ccorner::StartDragging
+	// int CancelDraggingAreaCorner( cnet2 * net, int iarea, int icorner );												// CPT2 use ccorner::CancelDragging
+	// int StartDraggingInsertedAreaCorner( CDC *pDC, cnet2 * net, int iarea, int icorner, int x, int y, int crosshair = 1 ); // CPT2 use ccorner or cside
+	// int CancelDraggingInsertedAreaCorner( cnet2 * net, int iarea, int icorner );											  // functions TODO figure it out
 	// void RenumberAreas( cnet2 * net );																// CPT2 obsolete
 	// int TestAreaPolygon( cnet2 * net, int iarea );													// CPT2 use cpolyline::TestPolygon
 	// int ClipAreaPolygon( cnet2 * net, int iarea, 
@@ -351,9 +352,10 @@ public:
 	// int TestAreaIntersections( cnet2 * net, int ia );												// CPT2 use carea2::TestIntersections
 	// int TestAreaIntersection( cnet2 * net, int ia1, int ia2 );										// CPT2 use cpolyline::TestIntersection
 	// int CombineAreas( cnet2 * net, int ia1, int ia2 );												// CPT2 use cpolyline::CombinePolyline
-	void ApplyClearancesToArea( cnet2 * net, int ia, int flags,
-			int fill_clearance, int min_silkscreen_stroke_wid, 
-			int thermal_wid, int hole_clearance );
+	// void ApplyClearancesToArea( cnet2 * net, int ia, int flags,										// CPT2 will be a carea2 function, I imagine
+	//		int fill_clearance, int min_silkscreen_stroke_wid, 
+	//		int thermal_wid, int hole_clearance );
+	void SetThermals();																					// CPT2 new.
 
 	// I/O  functions
 	int WriteNets( CStdioFile * file ) { return 0; }

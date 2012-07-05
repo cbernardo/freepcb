@@ -120,8 +120,11 @@ ON_COMMAND(ID_SEGMENT_UNROUTE, OnSegmentUnroute)
 ON_COMMAND(ID_RATLINE_ROUTE, OnRatlineRoute)
 ON_COMMAND(ID_RATLINE_OPTIMIZE, OnRatlineOptimize)
 ON_COMMAND(ID_VERTEX_MOVE, OnVertexMove)
+ON_COMMAND(ID_TEE_MOVE, OnTeeMove)
 ON_COMMAND(ID_VERTEX_DELETE, OnVertexDelete)
+ON_COMMAND(ID_TEE_DELETE, OnTeeDelete)
 ON_COMMAND(ID_VERTEX_SETSIZE, OnVertexProperties)
+ON_COMMAND(ID_TEE_SETSIZE, OnTeeProperties)
 ON_COMMAND(ID_RATLINE_COMPLETE, OnRatlineComplete)
 ON_COMMAND(ID_RATLINE_SETWIDTH, OnRatlineSetWidth)
 ON_COMMAND(ID_RATLINE_DELETECONNECTION, OnRatlineDeleteConnection)
@@ -152,8 +155,6 @@ ON_COMMAND(ID_AREAEDGE_DELETECUTOUT, OnAreaDeleteCutout)
 ON_COMMAND(ID_AREACORNER_DELETECUTOUT, OnAreaDeleteCutout)
 ON_COMMAND(ID_ADD_AREA, OnAddArea)
 ON_COMMAND(ID_NONE_ADDCOPPERAREA, OnAddArea)
-ON_COMMAND(ID_ENDVERTEX_ADDVIA, OnEndVertexAddVia)
-ON_COMMAND(ID_ENDVERTEX_REMOVEVIA, OnEndVertexRemoveVia)
 ON_COMMAND(ID_ENDVERTEX_SETSIZE, OnVertexProperties)
 ON_MESSAGE( WM_USER_VISIBLE_GRID, OnChangeVisibleGrid )
 ON_COMMAND(ID_ADD_TEXT, OnTextAdd)
@@ -1594,30 +1595,54 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		Invalidate( FALSE );
 		m_snap_angle_ref = m_last_cursor_point;
 	}
+#endif
+
 	else if( m_cursor_mode == CUR_DRAG_VTX )
 	{
-		// move vertex by modifying adjacent segments and reconciling via
-		SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_doc->m_undo_list );
-		CPoint p;
-		p = m_last_cursor_point;
-		int ic = m_sel_id.I2();
-		int ivtx = m_sel_id.I3();
-		m_doc->m_nlist->MoveVertex( m_sel_net, m_sel_ic, m_sel_is, p.x, p.y );
-		m_doc->m_nlist->HighlightVertex( m_sel_net, ic, ivtx );
+		// move vertex by modifying adjacent segments
+		cvertex2 *vtx = m_sel.First()->ToVertex();
+		cconnect2 *c = vtx->m_con;
+		cnet2 *net = vtx->m_net;
+		vtx->CancelDragging();
+		SaveUndoInfoForNetAndConnections( net, CNetList::UNDO_NET_MODIFY, TRUE, m_doc->m_undo_list );
+		CPoint p = m_last_cursor_point;
+		c->Undraw();
+		vtx->Move( p.x, p.y );
+		c->Draw();
+		vtx->Highlight();
 		if( m_doc->m_vis[LAY_RAT_LINE] )
-		{
-			m_doc->m_nlist->OptimizeConnections( m_sel_net, m_sel_ic, m_doc->m_auto_ratline_disable,
-													m_doc->m_auto_ratline_min_pins, TRUE  );
-			if( m_sel_id.Resolve() )
-				SelectItem( m_sel_id );
-			else
-				CancelSelection();
-		}
-		else
+			net->OptimizeConnections( m_doc->m_auto_ratline_disable, m_doc->m_auto_ratline_min_pins, TRUE  );
+		if (vtx->IsValid())
 			SetCursorMode( CUR_VTX_SELECTED );
+		else
+			CancelSelection();
 		m_doc->ProjectModified( TRUE );
 		Invalidate( FALSE );
 	}
+
+	else if( m_cursor_mode == CUR_DRAG_TEE )
+	{
+		// move tee by modifying adjacent segments
+		ctee *tee = m_sel.First()->ToTee();
+		cnet2 *net = tee->GetNet();
+		tee->CancelDragging();
+		SaveUndoInfoForNetAndConnections( net, CNetList::UNDO_NET_MODIFY, TRUE, m_doc->m_undo_list );
+		CPoint p = m_last_cursor_point;
+		net->Undraw();
+		tee->Move( p.x, p.y );
+		net->Draw();
+		tee->Highlight();
+		if( m_doc->m_vis[LAY_RAT_LINE] )
+			net->OptimizeConnections( m_doc->m_auto_ratline_disable, m_doc->m_auto_ratline_min_pins, TRUE  );
+		if (tee->IsValid())
+			SetCursorMode( CUR_TEE_SELECTED );
+		else
+			CancelSelection();
+		m_doc->ProjectModified( TRUE );
+		Invalidate( FALSE );
+	}
+
+#ifndef CPT2
 	else if( m_cursor_mode == CUR_MOVE_SEGMENT )
 	{
 		// move vertex by modifying adjacent segments and reconciling via
@@ -1635,6 +1660,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		m_doc->ProjectModified( TRUE );
 		Invalidate( FALSE );
 	}
+/* CPT2 phasing out CUR_END_VTX_SELECTED and CUR_DRAG_END_VTX
 	else if( m_cursor_mode == CUR_DRAG_END_VTX )
 	{
 		// move end-vertex of stub trace
@@ -1658,6 +1684,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		m_doc->ProjectModified( TRUE );
 		Invalidate( FALSE );
 	}
+*/
 #endif
 
 	else if( m_cursor_mode == CUR_DRAG_CONNECT )
@@ -1968,7 +1995,6 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 					m_dlist->StopDragging();
 					con0->Draw();						// AMW r267 added
 					CancelSelection();
-					net->SetAreaConnections();
 					m_doc->ProjectModified( TRUE );
 					Invalidate( FALSE );
 					goto goodbye;
@@ -2028,7 +2054,6 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 					net->OptimizeConnections(  m_doc->m_auto_ratline_disable, m_doc->m_auto_ratline_min_pins, TRUE  );
 				net->Draw();
 				CancelSelection();
-				net->SetAreaConnections();
 				m_doc->ProjectModified( TRUE );
 				Invalidate( FALSE );
 				goto goodbye;
@@ -2187,11 +2212,21 @@ void CFreePcbView::OnRButtonDown(UINT nFlags, CPoint point)
 		m_dlist->Set_visible( m_sel_seg->dl_el, TRUE );
 		m_doc->m_nlist->HighlightSegment( m_sel_net, m_sel_ic, m_sel_is );
 	}
+#endif
 	else if( m_cursor_mode == CUR_DRAG_VTX )
 	{
-		m_doc->m_nlist->CancelDraggingVertex( m_sel_net, m_sel_ic, m_sel_is );
-		m_doc->m_nlist->HighlightVertex( m_sel_net, m_sel_ic, m_sel_is );
+		cvertex2 *vtx = m_sel.First()->ToVertex();
+		vtx->CancelDragging();
+		vtx->Highlight();
 	}
+	else if( m_cursor_mode == CUR_DRAG_TEE )
+	{
+		ctee *tee = m_sel.First()->ToTee();
+		tee->CancelDragging();
+		tee->Highlight();
+	}
+
+#ifndef CPT2
 	else if( m_cursor_mode == CUR_MOVE_SEGMENT )
 	{
 		m_doc->m_nlist->CancelMovingSegment( m_sel_net, m_sel_ic, m_sel_is );
@@ -2223,14 +2258,13 @@ void CFreePcbView::OnRButtonDown(UINT nFlags, CPoint point)
 			if ( net->NetAreaFromPoint(tail->x, tail->y, LAY_PAD_THRU) )		// "LAY_PAD_THRU" so that we find areas on any layer at (tail->x,tail->y)
 				tail->ForceVia(),
 				tail->Draw();
-			net->SetAreaConnections();
 			SelectItem(tail);
 			// optimize
 			if( m_doc->m_vis[LAY_RAT_LINE] )
 			{
 				net->OptimizeConnections( m_doc->m_auto_ratline_disable, m_doc->m_auto_ratline_min_pins, TRUE  );
 				if( !tail->IsValid() )
-					CancelSelection();				// Mighty unlikely...
+					CancelSelection();											// Mighty unlikely...
 			}
 		}
 		else
@@ -2531,53 +2565,17 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 	}
 #endif
 
-	if( nChar == 'F' && ( m_cursor_mode == CUR_VTX_SELECTED || m_cursor_mode == CUR_END_VTX_SELECTED ) )
+	if( nChar == 'F' && ( m_cursor_mode == CUR_VTX_SELECTED || m_cursor_mode == CUR_TEE_SELECTED ) )
 	{
 		// force via at a vertex/tee
-		cpcb_item *sel = m_sel.First();
-		SaveUndoInfoForNetAndConnections( sel->GetNet(), CNetList::UNDO_NET_MODIFY, TRUE, m_doc->m_undo_list );
-		sel->ForceVia( true );																							// CPT2 changed arg to true
-		sel->Draw();
-		if( m_doc->m_vis[LAY_RAT_LINE] )
-		{
-			sel->GetNet()->OptimizeConnections( m_doc->m_auto_ratline_disable,	m_doc->m_auto_ratline_min_pins, TRUE  );	// CPT2 TODO still disabled
-			// Check if OptimizeConnections() clobbered vtx:
-			if( !sel->IsValid() )
-				CancelSelection();
-		}
-		ShowSelectStatus();
-		m_doc->ProjectModified( TRUE );
-		Invalidate( FALSE );
+		OnVertexAddVia();
 		return;
 	}
 
-	if( nChar == 'U' && ( m_cursor_mode == CUR_VTX_SELECTED || m_cursor_mode == CUR_END_VTX_SELECTED ) )
+	if( nChar == 'U' && ( m_cursor_mode == CUR_VTX_SELECTED || CUR_TEE_SELECTED ) )
 	{
 		// unforce via
-		cpcb_item *sel = m_sel.First();
-		SaveUndoInfoForNetAndConnections( sel->GetNet(), CNetList::UNDO_NET_MODIFY, TRUE, m_doc->m_undo_list );
-		sel->UnforceVia( true );																							// CPT2 changed arg to true
-		sel->Draw();
-		/* CPT2.  The following (translated from the old code) doesn't strike me as necessary:
-		if( m_cursor_mode == CUR_END_VTX_SELECTED && !vtx->tee )
-		{
-			cseg2 * s = vtx->preSeg? vtx->preSeg: vtx->postSeg;
-			s->RemoveBreak();
-			CancelSelection();
-		}
-		else
-		*/
-		if (!sel->IsTee())
-			sel->GetConnect()->MergeUnroutedSegments();
-		if( m_doc->m_vis[LAY_RAT_LINE] )
-		{
-			sel->GetNet()->OptimizeConnections( m_doc->m_auto_ratline_disable,	m_doc->m_auto_ratline_min_pins, TRUE  );
-			if( !sel->IsValid() )
-				CancelSelection();
-		}
-		ShowSelectStatus();
-		m_doc->ProjectModified( TRUE );
-		Invalidate( FALSE );
+		OnVertexRemoveVia();
 		return;
 	}
 
@@ -2612,7 +2610,6 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 		if( m_highlight_net )
 			CancelHighlightNet();
 		else if(   m_cursor_mode == CUR_VTX_SELECTED
-				|| m_cursor_mode == CUR_END_VTX_SELECTED
 				|| m_cursor_mode == CUR_SEG_SELECTED
 				|| m_cursor_mode == CUR_CONNECT_SELECTED 
 				|| m_cursor_mode == CUR_RAT_SELECTED 
@@ -2623,7 +2620,6 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 				|| m_cursor_mode == CUR_DRAG_STUB 
 				|| m_cursor_mode == CUR_DRAG_CONNECT 
 				|| m_cursor_mode == CUR_DRAG_VTX 
-				|| m_cursor_mode == CUR_DRAG_END_VTX 
 				|| m_cursor_mode == CUR_DRAG_VTX_INSERT )
 		{
 			m_highlight_net = m_sel.First()->GetNet();
@@ -3019,7 +3015,6 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 			//		points with the leading and trailing segments:
 			int new_xi = m_from_pt.x + dx;			
 			int new_yi = m_from_pt.y + dy;
-
 			int new_xf = m_to_pt.x + dx;			
 			int new_yf = m_to_pt.y + dy;
 
@@ -3100,7 +3095,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 		else if( fk == FK_DELETE_CONNECT || nChar == 46 )
 			OnSegmentDeleteTrace();
 		else if( fk == FK_REDO_RATLINES )
-			OnRatlineOptimize();	//**
+			OnRatlineOptimize();
 		break;
 
 	case  CUR_VTX_SELECTED:
@@ -3125,14 +3120,18 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 		}
 		else if( fk == FK_SET_POSITION )
 			OnVertexProperties();
-		else if( fk == FK_START_TRACE )
-			OnVertexStartTrace();
 		else if( fk == FK_VERTEX_PROPERTIES )
 			OnVertexProperties();
-		else if( fk == FK_MOVE_VERTEX )
-			OnVertexMove();
+		else if( fk == FK_START_TRACE )
+			OnVertexStartTrace();
 		else if( fk == FK_ADD_CONNECT )
 			OnVertexStartRatline();
+		else if( fk == FK_MOVE_VERTEX )
+			OnVertexMove();
+		else if( fk == FK_ADD_VIA )
+			OnVertexAddVia();
+		else if( fk == FK_DELETE_VIA )
+			OnVertexRemoveVia();
 		else if( fk == FK_DELETE_VERTEX || nChar == 46 )
 			OnVertexDelete();
 		else if( fk == FK_UNROUTE_TRACE )
@@ -3143,6 +3142,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 			OnRatlineOptimize();
 		break;
 
+	/* CPT2 merging CUR_END_VTX_SELECTED with CUR_VTX_SELECTED
 	case  CUR_END_VTX_SELECTED:
 		// CPT r295:  added arrow key support
 		if( fk == FK_ARROW )
@@ -3186,6 +3186,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 		else if( fk == FK_REDO_RATLINES )
 			OnRatlineOptimize();
 		break;
+	*/
 
 	case CUR_TEE_SELECTED:
 		if( fk == FK_ARROW )
@@ -3211,19 +3212,23 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 		}
 
 		else if( fk == FK_SET_POSITION )
-			OnVertexProperties();
+			OnTeeProperties();
 		else if( fk == FK_VERTEX_PROPERTIES )
-			OnVertexProperties();
+			OnTeeProperties();
 		else if( fk == FK_START_TRACE )
 			OnVertexStartTrace();
 		else if( fk == FK_ADD_CONNECT )
 			OnVertexStartRatline();
 		else if( fk == FK_MOVE_VERTEX )
-			OnVertexMove();
+			OnTeeMove();
 		else if( fk == FK_DELETE_VERTEX || nChar == 46 )
-			OnVertexDelete();
+			OnTeeDelete();
 		else if( fk == FK_REDO_RATLINES )
 			OnRatlineOptimize();
+		else if( fk == FK_ADD_VIA )
+			OnVertexAddVia();
+		else if( fk == FK_DELETE_VIA )
+			OnVertexRemoveVia();
 		break;
 
 	case  CUR_CONNECT_SELECTED:
@@ -3620,7 +3625,6 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 
 	// CPT:
 	case CUR_DRAG_VTX:
-	case CUR_DRAG_END_VTX:
 	case CUR_DRAG_VTX_INSERT:
 		if (fk==FK_RGRID_UP)
 			RoutingGridUp();
@@ -4111,6 +4115,10 @@ void CFreePcbView::SetFKText( int mode )
 			m_fkey_option[1] = FK_START_TRACE;
 			m_fkey_option[2] = FK_ADD_CONNECT;
 			m_fkey_option[3] = FK_MOVE_VERTEX;
+			if( vtx->IsVia() )
+				m_fkey_option[4] = FK_DELETE_VIA;
+			else
+				m_fkey_option[4] = FK_ADD_VIA;
 			if (!con->head->IsLooseEnd() && !con->tail->IsLooseEnd())
 				m_fkey_option[5] = FK_UNROUTE_TRACE;
 			m_fkey_option[6] = FK_DELETE_VERTEX;
@@ -4119,6 +4127,7 @@ void CFreePcbView::SetFKText( int mode )
 			break;
 		}
 
+	/* CPT2 merging CUR_END_VTX_SELECTED with CUR_VTX_SELECTED
 	case CUR_END_VTX_SELECTED:
 		m_fkey_option[0] = FK_VERTEX_PROPERTIES;
 		m_fkey_option[1] = FK_ADD_SEGMENT;
@@ -4134,6 +4143,7 @@ void CFreePcbView::SetFKText( int mode )
 		m_fkey_option[7] = FK_DELETE_CONNECT;
 		m_fkey_option[8] = FK_REDO_RATLINES;
 		break;
+	*/
 
 	case CUR_TEE_SELECTED:
 		// CPT2, case is new.
@@ -4141,6 +4151,10 @@ void CFreePcbView::SetFKText( int mode )
 		m_fkey_option[1] = FK_START_TRACE;
 		m_fkey_option[2] = FK_ADD_CONNECT;
 		m_fkey_option[3] = FK_MOVE_VERTEX;
+		if( m_sel.First()->IsVia() )
+			m_fkey_option[4] = FK_DELETE_VIA;
+		else
+			m_fkey_option[4] = FK_ADD_VIA;
 		m_fkey_option[6] = FK_DELETE_VERTEX;
 		m_fkey_option[8] = FK_REDO_RATLINES;
 		break;
@@ -4185,7 +4199,6 @@ void CFreePcbView::SetFKText( int mode )
 		break;
 
 	case CUR_DRAG_VTX:
-	case CUR_DRAG_END_VTX:
 	case CUR_DRAG_VTX_INSERT:
 		// CPT
         m_fkey_option[4] = FK_RGRID_DOWN;
@@ -4496,7 +4509,6 @@ int CFreePcbView::ShowSelectStatus()
 		}
 
 	case CUR_VTX_SELECTED:
-	case CUR_END_VTX_SELECTED:
 		{
 			CString con_str, vtx_str;
 			cvertex2 *v = sel->ToVertex();
@@ -4621,7 +4633,6 @@ int CFreePcbView::ShowSelectStatus()
 		break;
 
 	case CUR_DRAG_VTX:
-	case CUR_DRAG_END_VTX:
 		s.LoadStringA(IDS_RoutingNet);
 		str.Format( s, sel->GetNet()->name );
 		break;
@@ -4926,10 +4937,7 @@ void CFreePcbView::HighlightSelection()
 		else
 			SetCursorMode( CUR_SEG_SELECTED );
 	else if( cvertex2 *v = first->ToVertex() )
-		if (!v->preSeg || !v->postSeg)
-			SetCursorMode( CUR_END_VTX_SELECTED );		// CPT2 TODO Is the distinction of CUR_END_VTX_SELECTED necessary?
-		else
-			SetCursorMode( CUR_VTX_SELECTED );
+		SetCursorMode( CUR_VTX_SELECTED );
 	else if ( first->IsTee())
 		SetCursorMode( CUR_TEE_SELECTED );
 	else if( first->IsAreaSide() )
@@ -5245,6 +5253,7 @@ void CFreePcbView::OnContextMenu(CWnd* pWnd, CPoint point )
 		break;
 
 	case CUR_VTX_SELECTED:
+		// CPT2 TODO. Need to be sure there are menu items for adding/removing/sizing of vias
 		pPopup = menu.GetSubMenu(CONTEXT_VERTEX);
 		ASSERT(pPopup != NULL);
 		if( m_sel_vtx->via_w == 0 )
@@ -5255,19 +5264,6 @@ void CFreePcbView::OnContextMenu(CWnd* pWnd, CPoint point )
 			)
 		{
 			pPopup->EnableMenuItem( ID_VERTEX_UNROUTETRACE, MF_GRAYED );
-		}
-		pPopup->TrackPopupMenu(TPM_LEFTALIGN | TPM_RIGHTBUTTON, point.x, point.y, pWnd );
-		break;
-
-	case CUR_END_VTX_SELECTED:
-		pPopup = menu.GetSubMenu(CONTEXT_END_VERTEX);
-		ASSERT(pPopup != NULL);
-		if( m_sel_vtx->via_w )
-			pPopup->EnableMenuItem( ID_ENDVERTEX_ADDVIA, MF_GRAYED );
-		else
-		{
-			pPopup->EnableMenuItem( ID_ENDVERTEX_SETSIZE, MF_GRAYED );
-			pPopup->EnableMenuItem( ID_ENDVERTEX_REMOVEVIA, MF_GRAYED );
 		}
 		pPopup->TrackPopupMenu(TPM_LEFTALIGN | TPM_RIGHTBUTTON, point.x, point.y, pWnd );
 		break;
@@ -5941,7 +5937,7 @@ void CFreePcbView::OnSegmentDelete()
 #endif
 }
 
-// route this ratline
+// route this ratline.  CPT2 converted
 //
 void CFreePcbView::OnRatlineRoute() { OnRatlineRoute(true); }			// CPT2.  Need a version with the new bResetActiveWidth param
 
@@ -6023,6 +6019,7 @@ void CFreePcbView::OnRatlineOptimize()
 //
 void CFreePcbView::OnRatlineChangeEndPin()
 {
+#ifndef CPT2
 	CDC *pDC = GetDC();
 	pDC->SelectClipRgn( &m_pcb_rgn );
 	SetDCToWorldCoords( pDC );
@@ -6046,91 +6043,145 @@ void CFreePcbView::OnRatlineChangeEndPin()
 	SetCursorMode( CUR_DRAG_RAT_PIN );
 	ReleaseDC( pDC );
 	Invalidate( FALSE );
-}
-
-// change via properties
-//
-void CFreePcbView::OnVertexProperties()
-{
-#ifndef CPT2
-	SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_doc->m_undo_list );
-	CPoint v_pt( m_sel_vtx->x, m_sel_vtx->y );
-	CDlgVia dlg = new CDlgVia;
-	dlg.Initialize( m_sel_vtx->via_w, m_sel_vtx->via_hole_w, v_pt, m_doc->m_units );
-	int ret = dlg.DoModal();
-	if( ret == IDOK )
-	{
-		m_sel_vtx->via_w = dlg.m_via_w;
-		m_sel_vtx->via_hole_w = dlg.m_via_hole_w;
-		CancelHighlight();
-		m_doc->m_nlist->MoveVertex( m_sel_net, m_sel_ic, m_sel_is,
-			dlg.pt().x, dlg.pt().y );
-		m_doc->ProjectModified( TRUE );
-		m_doc->m_nlist->HighlightVertex( m_sel_net, m_sel_ic, m_sel_is );
-	}
-	Invalidate( FALSE );
 #endif
 }
 
+// change vertex/via properties
+// CPT2 converted
+//
+void CFreePcbView::OnVertexProperties()
+{
+	cvertex2 *vtx = m_sel.First()->ToVertex();
+	cconnect2 *c = vtx->m_con;
+	cnet2 *net = vtx->m_net;
+	SaveUndoInfoForNetAndConnections( net, CNetList::UNDO_NET_MODIFY, TRUE, m_doc->m_undo_list );
+	CPoint v_pt( vtx->x, vtx->y );
+	CDlgVia dlg = new CDlgVia;
+	dlg.Initialize( vtx->via_w, vtx->via_hole_w, v_pt, m_doc->m_units );
+	int ret = dlg.DoModal();
+	if( ret == IDOK )
+	{
+		c->Undraw();
+		vtx->via_w = dlg.m_via_w;
+		vtx->via_hole_w = dlg.m_via_hole_w;
+		if (vtx->via_w)
+			vtx->force_via_flag = 1;					// So that ReconcileVia() won't tamper with the via.
+		CancelHighlight();
+		vtx->Move( dlg.pt().x, dlg.pt().y );
+		c->Draw();
+		m_doc->ProjectModified( TRUE );
+		vtx->Highlight();
+	}
+	Invalidate( FALSE );
+}
+
+// change tee/tee-via properties
+// CPT2 converted
+//
+void CFreePcbView::OnTeeProperties()
+{
+	ctee *tee = m_sel.First()->ToTee();
+	if (tee->vtxs.GetSize()==0) return;				// Weird...
+	cnet2 *net = tee->GetNet();
+	SaveUndoInfoForNetAndConnections( net, CNetList::UNDO_NET_MODIFY, TRUE, m_doc->m_undo_list );
+	CPoint v_pt( tee->vtxs.First()->x, tee->vtxs.First()->y );
+	CDlgVia dlg = new CDlgVia;
+	dlg.Initialize( tee->via_w, tee->via_hole_w, v_pt, m_doc->m_units );
+	int ret = dlg.DoModal();
+	if( ret == IDOK )
+	{
+		net->Undraw();
+		tee->via_w = dlg.m_via_w;
+		tee->via_hole_w = dlg.m_via_hole_w;
+		if (tee->via_w)
+			tee->ForceVia();						// So that ReconcileVia() won't tamper with the via.
+		CancelHighlight();
+		tee->Move( dlg.pt().x, dlg.pt().y );
+		net->Draw();
+		m_doc->ProjectModified( TRUE );
+		tee->Highlight();
+	}
+	Invalidate( FALSE );
+}
+
 // move this vertex
+// CPT2 converted
 //
 void CFreePcbView::OnVertexMove()
 {
-#ifndef CPT2
-//	m_doc->m_nlist->SetNetVisibility( m_sel_net, TRUE );
+	cvertex2 *vtx = m_sel.First()->ToVertex();
 	CDC *pDC = GetDC();
 	pDC->SelectClipRgn( &m_pcb_rgn );
 	SetDCToWorldCoords( pDC );
 	CPoint p = m_last_mouse_point;
-	id id = m_sel_id;
-	int ic = m_sel_id.I2();
-	int ivtx = m_sel_id.I3();
 	m_dragging_new_item = 0;
-	m_from_pt.x = m_sel_vtx->x;
-	m_from_pt.y = m_sel_vtx->y;
-	m_doc->m_nlist->StartDraggingVertex( pDC, m_sel_net, ic, ivtx, p.x, p.y, 2 );
+	m_from_pt.x = vtx->x;
+	m_from_pt.y = vtx->y;
+	vtx->StartDragging( pDC, p.x, p.y, 2 );
 	SetCursorMode( CUR_DRAG_VTX );
 	ReleaseDC( pDC );
 	Invalidate( FALSE );
-#endif
+}
+
+void CFreePcbView::OnTeeMove()
+{
+	ctee *tee = m_sel.First()->ToTee();
+	if (tee->vtxs.GetSize()==0) return;					// Weird...
+	CDC *pDC = GetDC();
+	pDC->SelectClipRgn( &m_pcb_rgn );
+	SetDCToWorldCoords( pDC );
+	CPoint p = m_last_mouse_point;
+	m_dragging_new_item = 0;
+	m_from_pt.x = tee->vtxs.First()->x;
+	m_from_pt.y = tee->vtxs.First()->y;
+	tee->StartDragging( pDC, p.x, p.y, 2 );
+	SetCursorMode( CUR_DRAG_TEE );
+	ReleaseDC( pDC );
+	Invalidate( FALSE );
 }
 
 // delete this vertex
-// i.e. unroute adjacent segments and reroute if on same layer
-// stub trace needs some special handling
+// CPT2 converted.
 //
 void CFreePcbView::OnVertexDelete()
 {
-#ifndef CPT2
-	int ic = m_sel_id.I2();
-	int iv = m_sel_id.I3();
-	cvertex * v = m_sel_id.Vtx();
-	cconnect * c = m_sel_id.Con();
-
-	if( v->GetType() == cvertex::V_TEE )
-	{
-		// ask about tee-connection
-		CString s ((LPCSTR) IDS_YouAreDeletingATeeVertexContinue);
-		int ret = AfxMessageBox( s,	MB_OKCANCEL );
-		if( ret == IDCANCEL )
-			return;
-	}
-	SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_doc->m_undo_list );
+	cpcb_item *sel0 = m_sel.First();
+	cvertex2 * v = sel0->ToVertex();
+	cconnect2 * c = v->m_con;
+	cnet2 *net = v->m_net;
+	SaveUndoInfoForNetAndConnections( net, CNetList::UNDO_NET_MODIFY, TRUE, m_doc->m_undo_list );
 	c->Undraw();
-	m_sel_net->RemoveVertex( v );
-	// convert id from vertex to connection, and redraw if it still exists
-	m_sel_id.SetSubSubType( ID_NONE );
-	if( m_sel_id.Resolve() )
-	{
-		m_sel_id.Con()->Draw();
-	}
+	v->Remove();
+	if (c->IsValid())
+		c->Draw();
 	if( m_doc->m_vis[LAY_RAT_LINE] )
-		m_doc->m_nlist->OptimizeConnections(  m_sel_net, -1, m_doc->m_auto_ratline_disable,
-														m_doc->m_auto_ratline_min_pins, TRUE  );
+		net->m_nlist->OptimizeConnections( m_doc->m_auto_ratline_disable, m_doc->m_auto_ratline_min_pins, TRUE  );
 	CancelSelection();
 	m_doc->ProjectModified( TRUE );
 	Invalidate( FALSE );
-#endif
+}
+
+// delete this tee
+// CPT2 adapted from OnVertexDelete()
+//
+void CFreePcbView::OnTeeDelete()
+{
+	ctee *tee = m_sel.First()->ToTee();
+	cnet2 *net = tee->GetNet();
+	// ask to confirm
+	CString s ((LPCSTR) IDS_YouAreDeletingATeeVertexContinue);
+	int ret = AfxMessageBox( s,	MB_OKCANCEL );
+	if( ret == IDCANCEL )
+		return;
+	SaveUndoInfoForNetAndConnections( net, CNetList::UNDO_NET_MODIFY, TRUE, m_doc->m_undo_list );
+	net->Undraw();
+	tee->Remove(true);
+	net->Draw();
+	if( m_doc->m_vis[LAY_RAT_LINE] )
+		net->m_nlist->OptimizeConnections( m_doc->m_auto_ratline_disable, m_doc->m_auto_ratline_min_pins, TRUE  );
+	CancelSelection();
+	m_doc->ProjectModified( TRUE );
+	Invalidate( FALSE );
 }
 
 // move the end vertex of a stub trace
@@ -6153,56 +6204,50 @@ void CFreePcbView::OnEndVertexMove()
 
 
 // force a via on end vertex
-//
-void CFreePcbView::OnEndVertexAddVia()
+// CPT2 updated.  Used code from the 'F' clause of HandleKeyPress.  Also works if selected item is a tee.
+
+void CFreePcbView::OnVertexAddVia()
 {
-#ifndef CPT2
-//	m_doc->m_nlist->SetNetVisibility( m_sel_net, TRUE );
-	SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_doc->m_undo_list );
-	m_doc->m_nlist->ForceVia( m_sel_net, m_sel_ic, m_sel_is );
-	SetFKText( m_cursor_mode );
-#if 0 //** debugging 
-	if( m_doc->m_vis[LAY_RAT_LINE] ) 
+	cpcb_item *sel = m_sel.First();
+	cnet2 *net = sel->GetNet();
+	SaveUndoInfoForNetAndConnections( net, CNetList::UNDO_NET_MODIFY, TRUE, m_doc->m_undo_list );
+	sel->ForceVia();																							// CPT2 changed arg to true
+	sel->Draw();
+	if( m_doc->m_vis[LAY_RAT_LINE] )
 	{
-		m_doc->m_nlist->OptimizeConnections( m_sel_net, m_sel_ic, m_doc->m_auto_ratline_disable,
-														m_doc->m_auto_ratline_min_pins, TRUE  );
-		if( m_sel_id.Resolve() )
-			SelectItem( m_sel_id );
-		else
+		net->OptimizeConnections( m_doc->m_auto_ratline_disable,	m_doc->m_auto_ratline_min_pins, TRUE  );	// CPT2 TODO still disabled
+		// Check if OptimizeConnections() clobbered vtx:
+		if( !sel->IsValid() )
 			CancelSelection();
 	}
-#endif //** debugging
+	ShowSelectStatus();
+	SetFKText( m_cursor_mode );
 	m_doc->ProjectModified( TRUE );
 	Invalidate( FALSE );
-#endif
 }
 
 // remove forced via on end vertex
-//
-void CFreePcbView::OnEndVertexRemoveVia()
+// CPT2 updated.  Used code from the 'U' clause of HandleKeyPress()
+
+void CFreePcbView::OnVertexRemoveVia()
 {
-//	m_doc->m_nlist->SetNetVisibility( m_sel_net, TRUE );
-#ifndef CPT2
-	SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_doc->m_undo_list );
-	m_doc->m_nlist->UnforceVia( m_sel_net, m_sel_ic, m_sel_is, FALSE );
-	if( m_sel_prev_seg->m_layer == LAY_RAT_LINE )
-	{
-		m_doc->m_nlist->RemoveSegment( m_sel_net, m_sel_ic, m_sel_is-1, TRUE );
-		CancelSelection();
-	}
-	SetFKText( m_cursor_mode );
-	m_doc->ProjectModified( TRUE );
+	cpcb_item *sel = m_sel.First();
+	cnet2 *net = sel->GetNet();
+	SaveUndoInfoForNetAndConnections( net, CNetList::UNDO_NET_MODIFY, TRUE, m_doc->m_undo_list );
+	sel->UnforceVia();																							// CPT2 changed arg to true
+	sel->Draw();
+	if (!sel->IsTee())
+		sel->GetConnect()->MergeUnroutedSegments();
 	if( m_doc->m_vis[LAY_RAT_LINE] )
 	{
-		m_doc->m_nlist->OptimizeConnections( m_sel_net, m_sel_ic, m_doc->m_auto_ratline_disable,
-														m_doc->m_auto_ratline_min_pins, TRUE  );
-		if( m_sel_id.Resolve() )
-			SelectItem( m_sel_id );
-		else
+		net->OptimizeConnections( m_doc->m_auto_ratline_disable, m_doc->m_auto_ratline_min_pins, TRUE  );
+		if( !sel->IsValid() )
 			CancelSelection();
 	}
+	ShowSelectStatus();
+	SetFKText( m_cursor_mode );
+	m_doc->ProjectModified( TRUE );
 	Invalidate( FALSE );
-#endif
 }
 
 // append more segments to this stub trace
@@ -6336,35 +6381,33 @@ void CFreePcbView::OnRatlineSetWidth()
 	Invalidate( FALSE );
 }
 
-// delete a connection
+// delete a connection CPT2 converted
 //
 void CFreePcbView::OnRatlineDeleteConnection()
 {
-#ifndef CPT2
-	if( m_sel_con->locked )
+	cconnect2 *c = m_sel.First()->GetConnect();
+	cnet2 *net = c->m_net;
+	if( c->locked )
 	{
 		CString s ((LPCSTR) IDS_YouAreTryingToDeleteALockedConnection);
 		int ret = AfxMessageBox( s,	MB_YESNO );
 		if( ret == IDNO )
 			return;
 	}
-	SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_doc->m_undo_list );
-	m_doc->m_nlist->RemoveNetConnect( m_sel_net, m_sel_ic, FALSE );
-	m_sel_id.Resolve();
-	m_sel_net = m_sel_id.Net();
-	m_doc->m_nlist->SetAreaConnections( m_sel_net );
+	SaveUndoInfoForNetAndConnections( net, CNetList::UNDO_NET_MODIFY, TRUE, m_doc->m_undo_list );
+	c->Remove();
 	CancelSelection();
 	m_doc->ProjectModified( TRUE );
 	Invalidate( FALSE );
-#endif
 }
 
 // lock a connection CPT2 converted
 //
 void CFreePcbView::OnRatlineLockConnection()
 {
-	SaveUndoInfoForNetAndConnections( m_sel.First()->GetNet(), CNetList::UNDO_NET_MODIFY, TRUE, m_doc->m_undo_list );
-	m_sel_con->locked = 1;
+	cconnect2 *c = m_sel.First()->GetConnect();
+	SaveUndoInfoForNetAndConnections( c->m_net, CNetList::UNDO_NET_MODIFY, TRUE, m_doc->m_undo_list );
+	c->locked = 1;
 	ShowSelectStatus();
 	SetFKText( m_cursor_mode );
 	m_doc->ProjectModified( TRUE );
@@ -6644,7 +6687,6 @@ BOOL CFreePcbView::CurDraggingRouting()
 	return( m_cursor_mode == CUR_DRAG_RAT
 		|| m_cursor_mode == CUR_DRAG_VTX
 		|| m_cursor_mode == CUR_DRAG_VTX_INSERT
-		|| m_cursor_mode == CUR_DRAG_END_VTX
 		|| m_cursor_mode == CUR_ADD_AREA
 		|| m_cursor_mode == CUR_DRAG_AREA_1
 		|| m_cursor_mode == CUR_DRAG_AREA
@@ -6949,29 +6991,6 @@ void CFreePcbView::OnRefProperties()
 #endif
 }
 
-#if 0
-void CFreePcbView::OnVertexProperties()
-{
-	DlgEditBoardCorner dlg;
-	CString str = "Vertex Position";
-	int x = m_sel_vtx->x;
-	int y = m_sel_vtx->y;
-	dlg.Init( &str, m_doc->m_units, x, y );
-	int ret = dlg.DoModal();
-	if( ret == IDOK )
-	{
-		SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY,
-			TRUE, m_doc->m_undo_list );
-		CancelHighlight();
-		m_doc->m_nlist->MoveVertex( m_sel_net, m_sel_ic, m_sel_is,
-			dlg.X(), dlg.Y() );
-		m_doc->ProjectModified( TRUE );
-		m_doc->m_nlist->HighlightVertex( m_sel_net, m_sel_ic, m_sel_is );
-		Invalidate( FALSE );
-	}
-}
-#endif
-
 BOOL CFreePcbView::OnEraseBkgnd(CDC* pDC)
 {
 	// Erase the left and bottom panes, the PCB area is always redrawn
@@ -7013,27 +7032,22 @@ void CFreePcbView::OnBoardSideConvertToArcCcw()
 //
 void CFreePcbView::OnUnrouteTrace()
 {
-#ifndef CPT2
-	SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_doc->m_undo_list );
-	cconnect * c = m_sel_con;
-	for( int is=0; is<c->NumSegs(); is++ )
-		m_doc->m_nlist->UnrouteSegmentWithoutMerge( m_sel_net, m_sel_ic, is );
-	m_doc->m_nlist->MergeUnroutedSegments( m_sel_net, m_sel_ic );
-	m_doc->m_nlist->SetAreaConnections( m_sel_net );
-	// try to reselect
-	m_sel_id = m_sel_id.Con()->SegByIndex(0).Id();
-	if( m_sel_id.Resolve() )
-	{
-		SelectItem( m_sel_id );
-		SetCursorMode( CUR_RAT_SELECTED );
-	}
-	else
-	{
-		CancelSelection();
-	}
+	cconnect2 *c = m_sel.First()->GetConnect();
+	cnet2 *net = c->m_net;
+	SaveUndoInfoForNetAndConnections( net, CNetList::UNDO_NET_MODIFY, TRUE, m_doc->m_undo_list );
+	c->Undraw();
+	c->vtxs.RemoveAll();
+	c->vtxs.Add(c->head); c->vtxs.Add(c->tail);
+	c->segs.RemoveAll();
+	cseg2 *seg = new cseg2(c, LAY_RAT_LINE, 0);
+	c->head->postSeg = seg;
+	seg->preVtx = c->head;
+	c->tail->preSeg = seg;
+	seg->postVtx = c->tail;
+	c->Draw();
+	SelectItem(seg);
 	m_doc->ProjectModified( TRUE );
 	Invalidate( FALSE );
-#endif
 }
 
 // save undo info for a group, for UNDO_GROUP_MODIFY or UNDO_GROUP_DELETE

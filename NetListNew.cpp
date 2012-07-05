@@ -10,6 +10,14 @@ cnetlist::cnetlist( CFreePcbDoc * _doc )
 	}													// CPT2 TODO: finish
 
 
+void cnetlist::SetThermals()
+{
+	// CPT2 new.  Call SetThermals() for all nets in the list.
+	citer<cnet2> in (&nets);
+	for (cnet2 *n = in.First(); n; n = in.Next())
+		n->SetThermals();
+}
+
 BOOL cnetlist::GetNetBoundaries( CRect * r )
 {
 	// get bounding rectangle for all net elements
@@ -399,6 +407,7 @@ void cnetlist::ReadNets( CStdioFile * pcb_file, double read_version, int * layer
 				if (a->main->corners.GetSize() < 3)
 					a->Remove();
 			
+			net->SetThermals();
 			net->Draw();
 			// CPT2 TODO: net->CleanUpConnections();
 		}

@@ -18,7 +18,12 @@ like loading will outweigh the slight penalties when doing single user edit oper
 I would propose that CFreePcbView::CancelSelection() always turn off net highlighting by default.  If caller really wants to rehighlight
 afterwards (I don't think that will be frequent), let 'em do it by hand.
 
+I am trying a new system for thermals, where their drawing objects get associated not with areas but with individual vertices/tees/pins.
+As a result the old routines carea2::SetConnections, cnet2::SetAreaConnections and the like can be phased out.  cvertex2::SetNeedsThermal,
+cpin2::SetNeedsThermal, cnet2::SetThermals, cnetlist::SetThermals, and cpartlist::SetThermals can take their place.
 
+To do later: just as functions in CNetList and CPartList are getting moved into classes for lower-level objects, I think various functions
+can be moved out of CDisplayList into dl_element and its descendants (will require adding a dlist pointer to class dl_element).
 
 // FreePCB : programming notes
 //
@@ -364,3 +369,26 @@ int CPartList::WriteParts( CStdioFile * file )
 	}
 etc.
 
+	else if( m_cursor_mode == CUR_DRAG_END_VTX )
+	{
+		// move end-vertex of stub trace
+		m_doc->m_dlist->StopDragging();
+		SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_doc->m_undo_list );
+		CPoint p;
+		p = m_last_cursor_point;
+		int ic = m_sel_id.I2();
+		int ivtx = m_sel_id.I3();
+		m_doc->m_nlist->MoveVertex( m_sel_net, ic, ivtx, p.x, p.y );
+		SetCursorMode( CUR_END_VTX_SELECTED );
+		if( m_doc->m_vis[LAY_RAT_LINE] )
+		{
+			m_doc->m_nlist->OptimizeConnections( m_sel_net, m_sel_ic, m_doc->m_auto_ratline_disable,
+													m_doc->m_auto_ratline_min_pins, TRUE  );
+			if( m_sel_id.Resolve() )
+				SelectItem( m_sel_id );
+			else
+				CancelSelection();
+		}
+		m_doc->ProjectModified( TRUE );
+		Invalidate( FALSE );
+	}
