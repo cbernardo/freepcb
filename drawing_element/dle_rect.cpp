@@ -3,7 +3,7 @@
 
 //-----------------------------------------------------------------------------
 // filled rectangle
-void CDLE_RECT::_Draw(CDrawInfo const &di) const
+void CDLE_RECT::_Draw(CDrawInfo &di, bool)
 {
 	if( onScreen() )
 	{
@@ -22,7 +22,7 @@ void CDLE_RECT::_Draw(CDrawInfo const &di) const
 	}
 }
 
-void CDLE_RECT::_DrawClearance(CDrawInfo const &di) const
+/* void CDLE_RECT::_DrawClearance(CDrawInfo const &di) const
 {
 	di.DC->SelectObject( di.erase_brush );
 	di.DC->SelectObject( di.erase_pen );
@@ -48,12 +48,12 @@ void CDLE_RECT::_DrawClearance(CDrawInfo const &di) const
 	di.DC->SelectObject( di.fill_brush );
 	di.DC->SelectObject( di.line_pen );
 }
-
+*/
 
 //-----------------------------------------------------------------------------
 // rectangle outline
 
-void CDLE_HOLLOW_RECT::_Draw(CDrawInfo const &di) const
+void CDLE_HOLLOW_RECT::_Draw(CDrawInfo &di, bool) 
 {
 	if( onScreen() )
 	{
@@ -67,11 +67,12 @@ void CDLE_HOLLOW_RECT::_Draw(CDrawInfo const &di) const
 	}
 }
 
-void CDLE_HOLLOW_RECT::_DrawClearance(CDrawInfo const &di) const
+/* void CDLE_HOLLOW_RECT::_DrawClearance(CDrawInfo const &di) const
 {
 }
+*/
 
-int CDLE_HOLLOW_RECT::_isHit(CPoint const &point) const
+int CDLE_HOLLOW_RECT::_isHit(CPoint &point)
 {
 	return (   ( (point.x>i.x && point.x<f.x) || (point.x<i.x && point.x>f.x) )
 	        && ( (point.y>i.y && point.y<f.y) || (point.y<i.y && point.y>f.y) ) );
@@ -82,11 +83,11 @@ int CDLE_HOLLOW_RECT::_isHit(CPoint const &point) const
 // rectangle outline with X
 
 // rectangle outline with X
-void CDLE_RECT_X::_Draw(CDrawInfo const &di) const
+void CDLE_RECT_X::_Draw(CDrawInfo &di, bool)
 {
 	if( onScreen() )
 	{
-		CDLE_HOLLOW_RECT::_Draw(di);
+		CDLE_HOLLOW_RECT::_Draw(di, false);
 
 		// Draw the X
 		di.DC->MoveTo( i.x, i.y );

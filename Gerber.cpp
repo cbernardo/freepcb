@@ -2,9 +2,6 @@
 //
 #include "stdafx.h"
 #include "Gerber.h"
-#include <math.h>
-#include <afxcoll.h>
-#include <afxtempl.h>
 
 #define pi  3.14159265359
 
@@ -33,7 +30,7 @@ CAperture::CAperture()
 }
 
 // constructor
-CAperture::CAperture( int type, int size1, int size2, int size3 )
+CAperture::CAperture( int type, int size1, int size2, int size3 ) 
 {
 	m_type = type;
 	m_size1 = size1;
@@ -60,10 +57,10 @@ BOOL CAperture::Equals( CAperture * ap )
 			return TRUE;
 		if( m_type == AP_RECT && m_size1 == ap->m_size1 && m_size2 == ap->m_size2 )
 			return TRUE;
-		if( m_type == AP_RRECT && m_size1 == ap->m_size1 && m_size2 == ap->m_size2
+		if( m_type == AP_RRECT && m_size1 == ap->m_size1 && m_size2 == ap->m_size2 
 				&& m_size3 == ap->m_size3 )
 			return TRUE;
-		if( m_type == AP_RECT_THERMAL && m_size1 == ap->m_size1 && m_size2 == ap->m_size2
+		if( m_type == AP_RECT_THERMAL && m_size1 == ap->m_size1 && m_size2 == ap->m_size2 
 				&& m_size3 == ap->m_size3 )
 			return TRUE;
 		if( m_type == AP_THERMAL && m_size1 == ap->m_size1 && m_size2 == ap->m_size2 )
@@ -76,7 +73,7 @@ BOOL CAperture::Equals( CAperture * ap )
 	return FALSE;
 }
 
-// find aperture in array
+// find aperture in array 
 // if not found and ok_to_add == TRUE, add to array
 // return posiiton in array, or -1 if not found and not added
 //
@@ -157,7 +154,7 @@ void WritePolygonSide( CStdioFile * f, int x1, int y1, int x2, int y2, int style
 		if( x2 > x1 && y2 > y1 )
 		{
 			// first quadrant, draw second quadrant of ellipse
-			xo = x2;
+			xo = x2;	
 			yo = y1;
 			theta1 = pi;
 			theta2 = pi/2.0;
@@ -165,15 +162,15 @@ void WritePolygonSide( CStdioFile * f, int x1, int y1, int x2, int y2, int style
 		else if( x2 < x1 && y2 > y1 )
 		{
 			// second quadrant, draw third quadrant of ellipse
-			xo = x1;
+			xo = x1;	
 			yo = y2;
 			theta1 = 3.0*pi/2.0;
 			theta2 = pi;
 		}
-		else if( x2 < x1 && y2 < y1 )
+		else if( x2 < x1 && y2 < y1 )	
 		{
 			// third quadrant, draw fourth quadrant of ellipse
-			xo = x2;
+			xo = x2;	
 			yo = y1;
 			theta1 = 2.0*pi;
 			theta2 = 3.0*pi/2.0;
@@ -204,7 +201,7 @@ void WritePolygonSide( CStdioFile * f, int x1, int y1, int x2, int y2, int style
 			theta1 = 0.0;
 			theta2 = pi/2.0;
 		}
-		else if( x2 < x1 && y2 < y1 )
+		else if( x2 < x1 && y2 < y1 )	
 		{
 			xo = x1;	// third quadrant
 			yo = y2;
@@ -261,14 +258,14 @@ void DrawClearanceInForeignAreas( cnet * net, int shape,
 	gpc_vertex_list gpc_contour;
 	gpc_polygon gpc_seg_poly;
 	// now loop through all areas in foreign nets
-	for( int ia=0; ia<area_list->GetSize(); ia++ )
+	for( int ia=0; ia<area_list->GetSize(); ia++ ) 
 	{
 		if( (*area_net_list)[ia] != net )
 		{
 			// foreign net, see if possible intersection
 			cnet * area_net = (*area_net_list)[ia];
 			carea * area = (*area_list)[ia];
-			CPolyLine * p = area->poly;
+			CPolyLine * p = area;
 			BOOL bIntersection = FALSE;
 			if( shape == PAD_NONE )
 				ASSERT(0);
@@ -283,17 +280,17 @@ void DrawClearanceInForeignAreas( cnet * net, int shape,
 				if( !bIntersection )
 				{
 					int min_d = fill_clearance;
-					for( int icont=0; icont<p->GetNumContours(); icont++ )
+					for( int icont=0; icont<p->NumContours(); icont++ )
 					{
-						int cont_start = p->GetContourStart(icont);
-						int cont_end = p->GetContourEnd(icont);
+						int cont_start = p->ContourStart(icont);
+						int cont_end = p->ContourEnd(icont);
 						for( int is=cont_start; is<=cont_end; is++ )
 						{
 							int ic2 = is+1;
 							if( ic2 > cont_end )
 								ic2 = cont_start;
 							int d = GetClearanceBetweenSegments( xi, yi, xf, yf, CPolyLine::STRAIGHT, w,
-								p->GetX(is), p->GetY(is), p->GetX(ic2), p->GetY(ic2), p->GetSideStyle(is), 0,
+								p->X(is), p->Y(is), p->X(ic2), p->Y(ic2), p->SideStyle(is), 0, 
 								min_d, NULL, NULL );
 							if( d < min_d )
 							{
@@ -307,17 +304,17 @@ void DrawClearanceInForeignAreas( cnet * net, int shape,
 			else if( shape == PAD_ROUND || shape == PAD_OCTAGON  )
 			{
 				int min_d = wid/2 + fill_clearance;
-				for( int icont=0; icont<p->GetNumContours(); icont++ )
+				for( int icont=0; icont<p->NumContours(); icont++ )
 				{
-					int cont_start = p->GetContourStart(icont);
-					int cont_end = p->GetContourEnd(icont);
+					int cont_start = p->ContourStart(icont);
+					int cont_end = p->ContourEnd(icont);
 					for( int is=cont_start; is<=cont_end; is++ )
 					{
 						int ic2 = is+1;
 						if( ic2 > cont_end )
 							ic2 = cont_start;
 						int d = GetClearanceBetweenSegments( xi, yi, xi+10, yi+10, CPolyLine::STRAIGHT, w,
-							p->GetX(is), p->GetY(is), p->GetX(ic2), p->GetY(ic2), p->GetSideStyle(is), 0,
+							p->X(is), p->Y(is), p->X(ic2), p->Y(ic2), p->SideStyle(is), 0, 
 							min_d, NULL, NULL );
 						if( d < min_d )
 						{
@@ -336,17 +333,17 @@ void DrawClearanceInForeignAreas( cnet * net, int shape,
 					min_d = sqrt((double)2.0*wid*wid)/2 + fill_clearance;
 				else
 					min_d = sqrt((double)wid*wid +(double)len*len)/2 + fill_clearance;
-				for( int icont=0; icont<p->GetNumContours(); icont++ )
+				for( int icont=0; icont<p->NumContours(); icont++ )
 				{
-					int cont_start = p->GetContourStart(icont);
-					int cont_end = p->GetContourEnd(icont);
+					int cont_start = p->ContourStart(icont);
+					int cont_end = p->ContourEnd(icont);
 					for( int is=cont_start; is<=cont_end; is++ )
 					{
 						int ic2 = is+1;
 						if( ic2 > cont_end )
 							ic2 = cont_start;
 						int d = GetClearanceBetweenSegments( xi, yi, xi+10, yi+10, CPolyLine::STRAIGHT, w,
-							p->GetX(is), p->GetY(is), p->GetX(ic2), p->GetY(ic2), p->GetSideStyle(is), 0,
+							p->X(is), p->Y(is), p->X(ic2), p->Y(ic2), p->SideStyle(is), 0, 
 							min_d, NULL, NULL );
 						if( d < min_d )
 						{
@@ -360,7 +357,7 @@ void DrawClearanceInForeignAreas( cnet * net, int shape,
 			}
 			if( bIntersection )
 			{
-				if( !bClearanceMade )
+				if( !bClearanceMade ) 
 				{
 					// construct a gpc_poly for the clearance
 					if( shape == -1 )
@@ -427,10 +424,10 @@ void DrawClearanceInForeignAreas( cnet * net, int shape,
 					}
 					else
 					{
-						int npoints = 4;	// number of points in poly
+						int npoints = 4;	// number of points in poly 
 						gpc_contour.num_vertices = npoints;
 						gpc_contour.vertex = (gpc_vertex*)calloc( 2 * npoints, sizeof(double) );
-						if( !gpc_contour.vertex )
+						if( !gpc_contour.vertex ) 
 							ASSERT(0);
 						int dx = len/2 + fill_clearance;
 						int dy = wid/2 + fill_clearance;
@@ -464,9 +461,9 @@ void DrawClearanceInForeignAreas( cnet * net, int shape,
 				gpc_intersection.hole = NULL;
 				gpc_intersection.contour = NULL;
 				// make area GpcPoly if not already made, including cutouts
-				if( area->poly->GetGpcPoly()->num_contours == 0 )
-					area->poly->MakeGpcPoly( -1 );
-				gpc_polygon_clip( GPC_INT, &gpc_seg_poly, area->poly->GetGpcPoly(),
+				if( area->GetGpcPoly()->num_contours == 0 )
+					area->MakeGpcPoly( -1 );
+				gpc_polygon_clip( GPC_INT, &gpc_seg_poly, area->GetGpcPoly(),
 					&gpc_intersection );
 				int ncontours = gpc_intersection.num_contours;
 				for( int ic=0; ic<ncontours; ic++ )
@@ -483,7 +480,7 @@ void DrawClearanceInForeignAreas( cnet * net, int shape,
 						WriteMoveTo( f, gpv[0].x, gpv[0].y, LIGHT_ON );
 						f->WriteString( "G37*\n" );
 						// now stroke outline to remove any truncation artifacts
-						// assumes aperture is already set to
+						// assumes aperture is already set to 
 						// CLEARANCE_POLY_STROKE_MILS*NM_PER_MIL
 						WriteMoveTo( f, gpv[0].x, gpv[0].y, LIGHT_OFF );
 						for( int iv=1; iv<nv; iv++ )
@@ -542,12 +539,12 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 					int min_silkscreen_stroke_wid, int thermal_wid,
 					int outline_width, int hole_clearance,
 					int n_x, int n_y, int step_x, int step_y,
-					CArray<CPolyLine> * bd, CArray<CPolyLine> * sm, CPartList * pl,
+					CArray<CPolyLine> * bd, CArray<CPolyLine> * sm, CPartList * pl, 
 					CNetList * nl, CTextList * tl, CDisplayList * dl )
 {
 #define LAYER_TEXT_HEIGHT			100*NM_PER_MIL	// for layer ID sring
 #define	LAYER_TEXT_STROKE_WIDTH		10*NM_PER_MIL
-#define PASS0 (ipass==0)
+#define PASS0 (ipass==0)	
 #define PASS1 (ipass==1)
 
 	BOOL bUsePinThermals = !(flags & GERBER_NO_PIN_THERMALS);
@@ -559,20 +556,20 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 	int bd_min_y = INT_MAX;
 	int bd_max_x = INT_MIN;
 	int bd_max_y = INT_MIN;
-	const double cos_oct = cos( pi/8.0 );
+	const double cos_oct = cos( pi/8.0 ); 
 	CString str;
 
 	// get boundaries of board outline (in nm)
-	for( int ib=0; ib<bd->GetSize(); ib++ )
+	for( int ib=0; ib<bd->GetSize(); ib++ ) 
 	{
-		for( int ic=0; ic<(*bd)[ib].GetNumCorners(); ic++ )
+		for( int ic=0; ic<(*bd)[ib].NumCorners(); ic++ )
 		{
-			int x = (*bd)[ib].GetX(ic);
+			int x = (*bd)[ib].X(ic);
 			if( x < bd_min_x )
 				bd_min_x = x;
 			if( x > bd_max_x )
 				bd_max_x = x;
-			int y = (*bd)[ib].GetY(ic);
+			int y = (*bd)[ib].Y(ic);
 			if( y < bd_min_y )
 				bd_min_y = y;
 			if( y > bd_max_y )
@@ -617,9 +614,9 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 			f->WriteString( "1,1,$3+$3,$1-$3,$3-$2*\n" );
 			f->WriteString( "1,1,$3+$3,$3-$1,$3-$2*%\n" );
 			f->WriteString( "G04 Rectangular Thermal Macro, params: W/2, H/2, T/2 *\n" );
-			f->WriteString( "%AMRECTHERM*\n" );
-			f->WriteString( "$4=$3/2*\n" );		// T/4
-			f->WriteString( "21,1,$1-$3,$2-$3,0-$1/2-$4,0-$2/2-$4,0*\n" );
+			f->WriteString( "%AMRECTHERM*\n" );  
+			f->WriteString( "$4=$3/2*\n" );		// T/4 
+			f->WriteString( "21,1,$1-$3,$2-$3,0-$1/2-$4,0-$2/2-$4,0*\n" ); 
 			f->WriteString( "21,1,$1-$3,$2-$3,0-$1/2-$4,$2/2+$4,0*\n" );
 			f->WriteString( "21,1,$1-$3,$2-$3,$1/2+$4,0-$2/2-$4,0*\n" );
 			f->WriteString( "21,1,$1-$3,$2-$3,$1/2+$4,$2/2+$4,0*%\n" );
@@ -633,7 +630,7 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 				}
 				else if( ap_array[ia].m_type == CAperture::AP_SQUARE )
 				{
-					line.Format( "ADD%dR,%.6fX%.6f*", ia+10,
+					line.Format( "ADD%dR,%.6fX%.6f*", ia+10, 
 						(double)ap_array[ia].m_size1/25400000.0, (double)ap_array[ia].m_size1/25400000.0 );
 					f->WriteString( "%" + line + "%\n" );
 				}
@@ -650,10 +647,10 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 				}
 				else if( ap_array[ia].m_type == CAperture::AP_RECT_THERMAL )
 				{
-					line.Format( "ADD%dRECTHERM,%.6fX%.6fX%.6f*", ia+10,
+					line.Format( "ADD%dRECTHERM,%.6fX%.6fX%.6f*", ia+10, 
 						(double)ap_array[ia].m_size1/(2*25400000.0), (double)ap_array[ia].m_size2/(2*25400000.0),
 						(double)ap_array[ia].m_size3/(2*25400000.0) );
-					f->WriteString( "%" + line + "%\n" );
+					f->WriteString( "%" + line + "%\n" ); 
 				}
 				else if( ap_array[ia].m_type == CAperture::AP_MOIRE )
 				{
@@ -666,28 +663,28 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 				}
 				else if( ap_array[ia].m_type == CAperture::AP_OCTAGON )
 				{
-					line.Format( "ADD%dP,%.6fX8X22.5*", ia+10,
+					line.Format( "ADD%dP,%.6fX8X22.5*", ia+10, 
 						((double)ap_array[ia].m_size1/25400000.0 )/cos_oct );
 					f->WriteString( "%" + line + "%\n" );
 				}
-				else if( ap_array[ia].m_type == CAperture::AP_OVAL )
+				else if( ap_array[ia].m_type == CAperture::AP_OVAL ) 
 				{
-					line.Format( "ADD%dO,%.6fX%.6f*", ia+10,
+					line.Format( "ADD%dO,%.6fX%.6f*", ia+10, 
 						(double)ap_array[ia].m_size2/25400000.0, (double)ap_array[ia].m_size1/25400000.0 );
 					f->WriteString( "%" + line + "%\n" );
 				}
-				else if( ap_array[ia].m_type == CAperture::AP_RECT )
+				else if( ap_array[ia].m_type == CAperture::AP_RECT ) 
 				{
-					line.Format( "ADD%dR,%.6fX%.6f*", ia+10,
+					line.Format( "ADD%dR,%.6fX%.6f*", ia+10, 
 						(double)ap_array[ia].m_size2/25400000.0, (double)ap_array[ia].m_size1/25400000.0 );
 					f->WriteString( "%" + line + "%\n" );
 				}
-				else if( ap_array[ia].m_type == CAperture::AP_RRECT )
+				else if( ap_array[ia].m_type == CAperture::AP_RRECT ) 
 				{
-					line.Format( "ADD%dRNDREC,%.6fX%.6fX%.6f*", ia+10,
+					line.Format( "ADD%dRNDREC,%.6fX%.6fX%.6f*", ia+10, 
 						(double)ap_array[ia].m_size2/(2*25400000.0), (double)ap_array[ia].m_size1/(2*25400000.0),
 						(double)ap_array[ia].m_size3/25400000.0 );
-					f->WriteString( "%" + line + "%\n" );
+					f->WriteString( "%" + line + "%\n" ); 
 				}
 				else
 					ASSERT(0);
@@ -729,7 +726,7 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 			if( PASS1 )
 			{
 				f->WriteString( "\nG04 Draw Layer Name*\n" );
-			}
+			}			
 			CString str = "";
 			switch( layer )
 			{
@@ -745,7 +742,7 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 			}
 			if( layer > LAY_BOTTOM_COPPER )
 				str.Format( "Inner %d Copper Layer", layer - LAY_BOTTOM_COPPER );
-			CText * t = tl->AddText( bd_min_x, bd_min_y-LAYER_TEXT_HEIGHT*2, 0, 0, 0,
+			CText * t = tl->AddText( bd_min_x, bd_min_y-LAYER_TEXT_HEIGHT*2, 0, 0, 0, 
 				LAY_SILK_TOP, LAYER_TEXT_HEIGHT, LAYER_TEXT_STROKE_WIDTH, &str );
 			// draw text
 			int w = t->m_stroke_width;
@@ -789,21 +786,21 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 				for( int ib=0; ib<bd->GetSize(); ib++ )
 				{
 					CPolyLine * b = &(*bd)[ib];
-					int nc = b->GetNumCorners();
+					int nc = b->NumCorners();
 					// turn on linear interpolation, move to first corner
-					::WriteMoveTo( f, b->GetX(0), b->GetY(0), LIGHT_OFF );
+					::WriteMoveTo( f, b->X(0), b->Y(0), LIGHT_OFF );
 					for( int ic=1; ic<nc; ic++ )
 					{
-						int x = b->GetX(ic);
-						int y = b->GetY(ic);
-						::WritePolygonSide( f, b->GetX(ic-1), b->GetY(ic-1),
-							b->GetX(ic), b->GetY(ic), b->GetSideStyle(ic-1), 10, LIGHT_ON );
+						int x = b->X(ic);
+						int y = b->Y(ic);
+						::WritePolygonSide( f, b->X(ic-1), b->Y(ic-1),
+							b->X(ic), b->Y(ic), b->SideStyle(ic-1), 10, LIGHT_ON ); 
 						line.Format( "G04 end of side %d*\n", ic );
 						f->WriteString( line );
 
 					}
-					::WritePolygonSide( f, b->GetX(nc-1), b->GetY(nc-1),
-						b->GetX(0), b->GetY(0), b->GetSideStyle(nc-1), 10, LIGHT_ON );
+					::WritePolygonSide( f, b->X(nc-1), b->Y(nc-1), 
+						b->X(0), b->Y(0), b->SideStyle(nc-1), 10, LIGHT_ON ); 
 				}
 			}
 		}
@@ -816,19 +813,20 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 		//
 		// loop through all nets and add areas to lists
 		BOOL areas_present = FALSE;
-		int num_area_nets = 0;		// 0, 1 or 2 (2 if more than 1)
+		int num_area_nets = 0;		// 0, 1 or 2 (2 if more than 1) 
 		int num_areas = 0;
 		cnet * first_area_net = NULL;
 		CArray<cnet*> area_net_list;
 		CArray<carea*> area_list;
-		CIterator_cnet net_iter(nl);
-		for( cnet * net = net_iter.GetFirst(); net != NULL; net = net_iter.GetNext() )
+		CIterator_cnet iter_net(nl);
+		cnet * net = iter_net.GetFirst();
+		while( net )
 		{
 			// loop through all areas
-			for( int ia=0; ia<net->nareas; ia++ )
+			for( int ia=0; ia<net->NumAreas(); ia++ )
 			{
-				CPolyLine * p = net->area[ia].poly;
-				if( p->GetLayer() == layer )
+				CPolyLine * p = &net->area[ia];
+				if( p->Layer() == layer )
 				{
 					// area on this layer, add to lists
 					areas_present = TRUE;
@@ -845,20 +843,21 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 						num_area_nets = 2;
 				}
 			}
+			net = iter_net.GetNext();
 		}
 
 		if( PASS1 )
 		{
 			CArray< c_area > ca;
-			CIterator_cnet net_iter(nl);
-			for( cnet * net = net_iter.GetFirst(); net != NULL; net = net_iter.GetNext() )
+			cnet * net = iter_net.GetFirst();
+			while( net ) 
 			{
 				// loop through all areas
-				for( int ia=0; ia<net->nareas; ia++ )
+				for( int ia=0; ia<net->NumAreas(); ia++ )
 				{
 					net->area[ia].utility = INT_MAX;		// mark as undrawn
-					CPolyLine * p = net->area[ia].poly;
-					if( p->GetLayer() == layer )
+					CPolyLine * p = &net->area[ia];
+					if( p->Layer() == layer )
 					{
 						// area on this layer, add to lists
 						areas_present = TRUE;
@@ -873,33 +872,34 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 						else if( num_area_nets == 1 && net != first_area_net )
 							num_area_nets = 2;
 						// now find any cutouts that contain this area
-						double x = p->GetX(0);
-						double y = p->GetY(0);
+						double x = p->X(0);
+						double y = p->Y(0);
 						int ica = ca.GetSize();
 						ca.SetSize(ica+1);
 						ca[ica].net = net;
 						ca[ica].ia = ia;
 						carea * a = &net->area[ia];
 						// loop through all nets to find cutouts
-						CIterator_cnet net_iter(nl);
-						for( cnet * cutout_net = net_iter.GetFirst(); cutout_net != NULL; cutout_net = net_iter.GetNext() )
+						CIterator_cnet iter_net_cutout(nl);
+						cnet * cutout_net = iter_net_cutout.GetFirst();
+						while( cutout_net )
 						{
 							// loop through all areas to find cutouts
-							for( int cutout_ia=0; cutout_ia<cutout_net->nareas; cutout_ia++ )
+							for( int cutout_ia=0; cutout_ia<cutout_net->NumAreas(); cutout_ia++ )
 							{
 								carea * cutout_a = &cutout_net->area[cutout_ia];
-								CPolyLine * cutout_p = cutout_a->poly;
-								if( cutout_p->GetLayer() == layer )
+								CPolyLine * cutout_p = cutout_a;
+								if( cutout_p->Layer() == layer )
 								{
 									// loop through all cutouts
-									for( int cutout_ic=0; cutout_ic<cutout_p->GetNumContours()-1; cutout_ic++ )
+									for( int cutout_ic=0; cutout_ic<cutout_p->NumContours()-1; cutout_ic++ )
 									{
 										// test whether area (net, ia) is contained by
 										// cutout_ic in area (cut_net, cut_ia)
 										BOOL b = cutout_p->TestPointInsideContour( cutout_ic+1, x, y );
 										if( b )
 										{
-											// yes, enter it in array
+											// yes, enter it in array 
 											int ci = ca[ica].containers.GetSize();
 											ca[ica].containers.SetSize(ci+1);
 											ca[ica].containers[ci].net = cutout_net;
@@ -910,9 +910,11 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 									}
 								}
 							}
+							cutout_net = iter_net_cutout.GetNext();
 						}
 					}
 				}
+				net = iter_net.GetNext();
 			}
 
 			// set order for drawing areas, save in net->area[ia].utility
@@ -932,7 +934,7 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 					BOOL bDrawIt = TRUE;
 					// test whether all areas that contain it have been drawn in previous pass
 					int ncontainers = ca[ica].containers.GetSize();
-					for( int ic=0; ic<ncontainers; ic++ )
+					for( int ic=0; ic<ncontainers; ic++ ) 
 					{
 						cnet * cutout_net = ca[ica].containers[ic].net;
 						int cutout_ia = ca[ica].containers[ic].ia;
@@ -963,20 +965,19 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 				area_pass++;
 				// draw areas
 				current_ap.m_type = CAperture::AP_NONE;	// force selection of aperture
-				CIterator_cnet net_iter(nl);
-				cnet * net;
-				for ( net = net_iter.GetFirst(); net != NULL; net = net_iter.GetNext() )
+				net = iter_net.GetFirst();
+				while( net )
 				{
-					for( int ia=0; ia<net->nareas; ia++ )
+					for( int ia=0; ia<net->NumAreas(); ia++ )
 					{
 						carea * a = &net->area[ia];
-						if( a->poly->GetLayer() == layer )
+						if( a->Layer() == layer )
 						{
 							if ( a->utility == area_pass )
 							{
 								// draw outline polygon
 								// make GpcPoly for outer contour of area
-								a->poly->MakeGpcPoly();
+								a->MakeGpcPoly();
 								// draw area
 								areas_present = TRUE;
 								f->WriteString( "\nG04 ----------------------- Draw copper area (positive)*\n" );
@@ -987,22 +988,22 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 								}
 								f->WriteString( "G36*\n" );
 								int x, y, style;
-								int last_x = a->poly->GetX(0);
-								int last_y = a->poly->GetY(0);
+								int last_x = a->X(0);
+								int last_y = a->Y(0);
 								::WriteMoveTo( f, last_x, last_y, LIGHT_OFF );
-								int nc = a->poly->GetContourSize(0);
+								int nc = a->ContourSize(0);
 								for( int ic=1; ic<nc; ic++ )
 								{
-									x = a->poly->GetX(ic);
-									y = a->poly->GetY(ic);
-									style = a->poly->GetSideStyle(ic-1);
+									x = a->X(ic);
+									y = a->Y(ic);
+									style = a->SideStyle(ic-1);
 									::WritePolygonSide( f, last_x, last_y, x, y, style, 10, LIGHT_ON );
 									last_x = x;
 									last_y = y;
 								}
-								x = a->poly->GetX(0);
-								y = a->poly->GetY(0);
-								style = a->poly->GetSideStyle(nc-1);
+								x = a->X(0);
+								y = a->Y(0);
+								style = a->SideStyle(nc-1);
 								::WritePolygonSide( f, last_x, last_y, x, y, style, 10, LIGHT_ON );
 								f->WriteString( "G37*\n" );
 							}
@@ -1010,25 +1011,27 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 								n_undrawn++;
 						}
 					}
+					net = iter_net.GetNext();
 				}
 				// draw area cutouts
 				current_ap.m_type = CAperture::AP_NONE;	// force selection of aperture
-				for( net = net_iter.GetFirst(); net != NULL; net = net_iter.GetNext() )
+				net = iter_net.GetFirst();
+				while( net )
 				{
-					for( int ia=0; ia<net->nareas; ia++ )
+					for( int ia=0; ia<net->NumAreas(); ia++ )
 					{
 						carea * a = &net->area[ia];
-						if ( a->utility == area_pass && a->poly->GetLayer() == layer )
+						if ( a->utility == area_pass && a->Layer() == layer )
 						{
 							// draw cutout polygons
 							// make clearances for area cutouts
-							CPolyLine * p = net->area[ia].poly;
-							if( p->GetLayer() == layer )
+							CPolyLine * p = &net->area[ia];
+							if( p->Layer() == layer )
 							{
-								for( int icont=1; icont<p->GetNumContours(); icont++ )
+								for( int icont=1; icont<p->NumContours(); icont++ )
 								{
-									int ic_st = p->GetContourStart( icont );
-									int ic_end = p->GetContourEnd( icont );
+									int ic_st = p->ContourStart( icont );
+									int ic_end = p->ContourEnd( icont );
 									// draw it
 									f->WriteString( "\nG04 -------------------- Draw copper area cutout (negative)*\n" );
 									if( !bLastLayerNegative )
@@ -1038,27 +1041,28 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 									}
 									f->WriteString( "G36*\n" );
 									int x, y, style;
-									int last_x = net->area[ia].poly->GetX(ic_st);
-									int last_y = net->area[ia].poly->GetY(ic_st);
+									int last_x = net->area[ia].X(ic_st);
+									int last_y = net->area[ia].Y(ic_st);
 									::WriteMoveTo( f, last_x, last_y, LIGHT_OFF );
 									for( int ic=ic_st+1; ic<=ic_end; ic++ )
 									{
-										x = net->area[ia].poly->GetX(ic);
-										y = net->area[ia].poly->GetY(ic);
-										style = net->area[ia].poly->GetSideStyle(ic-1);
+										x = net->area[ia].X(ic);
+										y = net->area[ia].Y(ic);
+										style = net->area[ia].SideStyle(ic-1);
 										::WritePolygonSide( f, last_x, last_y, x, y, style, 10, LIGHT_ON );
 										last_x = x;
 										last_y = y;
 									}
-									x = net->area[ia].poly->GetX(ic_st);
-									y = net->area[ia].poly->GetY(ic_st);
-									style = net->area[ia].poly->GetSideStyle(ic_end);
+									x = net->area[ia].X(ic_st);
+									y = net->area[ia].Y(ic_st);
+									style = net->area[ia].SideStyle(ic_end);
 									::WritePolygonSide( f, last_x, last_y, x, y, style, 10, LIGHT_ON );
 									f->WriteString( "G37*\n" );
 								}
 							}
 						}
 					}
+					net = iter_net.GetNext();
 				}
 			}
 		}
@@ -1067,32 +1071,32 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 		{
 			// ********** draw pad, trace, and via clearances and thermals ***********
 			// first, remove all GpcPolys
-			CIterator_cnet net_iter(nl);
-			for ( cnet * net = net_iter.GetFirst(); net != NULL; net = net_iter.GetNext() )
+			net = iter_net.GetFirst();
+			while( net )
 			{
-				for( int ia=0; ia<net->nareas; ia++ )
+				for( int ia=0; ia<net->NumAreas(); ia++ )
 				{
 					carea * a = &net->area[ia];
-					CPolyLine * p = a->poly;
+					CPolyLine * p = a;
 					p->FreeGpcPoly();
 				}
+				net = iter_net.GetNext();
 			}
-			if( PASS1 )
+			if( PASS1 ) 
 			{
 				f->WriteString( "\nG04 -------------------- Draw copper area clearances (negative)*\n" );
 				f->WriteString( "%LPC*%\n" );
 				current_ap.m_type = CAperture::AP_NONE;	// force selection of aperture
 			}
-			if( pl )
+			if( pl ) 
 			{
 				// iterate through all parts for pad clearances and thermals
 				if( PASS1 )
 				{
 					f->WriteString( "\nG04 Draw clearances for pads*\n" );
 				}
-
-				CIterator_cpart iter(pl);
-				for( cpart *part = iter.GetFirst(); part != NULL; part = iter.GetNext() )
+				cpart * part = pl->m_start.next;
+				while( part->next != 0 ) 
 				{
 					CShape * s = part->shape;
 					if( s )
@@ -1105,13 +1109,13 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 							cnet * pad_net;
 							int pad_connect_status, pad_connect_flag, clearance_type ;
 							BOOL bPad = pl->GetPadDrawInfo( part, ip, layer,
-								!(flags & GERBER_NO_PIN_THERMALS),
+								!(flags & GERBER_NO_PIN_THERMALS), 
 								!(flags & GERBER_NO_SMT_THERMALS),
 								mask_clearance, paste_mask_shrink,
 								&pad_type, &pad_x, &pad_y, &pad_w, &pad_l, &pad_r, &pad_hole, &pad_angle,
 								&pad_net, &pad_connect_status, &pad_connect_flag, &clearance_type );
 
-							if( bPad )
+							if( bPad ) 
 							{
 								// pad or hole exists on this layer
 								// parameters for clearance on adjacent areas (if needed)
@@ -1123,7 +1127,7 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 								int area_pad_clearance = 0;
 								// parameters for clearance aperture
 								int type = CAperture::AP_NONE;
-								int size1=0, size2=0, size3=0;
+								int size1=0, size2=0, size3=0; 
 								if( pad_type == PAD_NONE && pad_hole > 0 )
 								{
 									// through-hole pin, no pad, just annular ring and hole
@@ -1166,7 +1170,7 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 								}
 								else if( pad_type != PAD_NONE )
 								{
-									if( pad_connect_status & CPartList::AREA_CONNECT )
+									if( pad_connect_status & CPartList::AREA_CONNECT ) 
 									{
 										// pad connects to copper area, make clearance or thermal
 										// see if we need to make a thermal
@@ -1190,13 +1194,13 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 											if( bMakeThermal )
 											{
 												// make thermal for pad
-												type = CAperture::AP_THERMAL;
+												type = CAperture::AP_THERMAL; 
 												size2 = pad_w;	// inner diameter
 											}
 											area_pad_type = pad_type;
 											area_pad_wid = size1;
 										}
-										else if( pad_type == PAD_RECT || pad_type == PAD_RRECT || pad_type == PAD_OVAL
+										else if( pad_type == PAD_RECT || pad_type == PAD_RRECT || pad_type == PAD_OVAL 
 											|| pad_type == PAD_SQUARE )
 										{
 											if( bMakeThermal )
@@ -1214,7 +1218,7 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 														y1 = pad_y - pad_l/2;
 														y2 = pad_y + pad_l/2;
 													}
-													else if( pad_angle == 0 )
+													else if( pad_angle == 0 ) 
 													{
 														x1 = pad_x - pad_l/2;
 														x2 = pad_x + pad_l/2;
@@ -1245,7 +1249,7 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 												y1 -= y_clearance;
 												y2 += y_clearance;
 												// make thermal for pad
-												type = CAperture::AP_RECT_THERMAL;
+												type = CAperture::AP_RECT_THERMAL;   
 												size1 = x2 - x1;	// width
 												size2 = y2 - y1;	// height
 												size3 = thermal_wid;
@@ -1274,7 +1278,7 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 										{
 											type = CAperture::AP_OCTAGON;
 										}
-										else if( pad_type == PAD_OVAL || pad_type == PAD_RECT || pad_type == PAD_RRECT )
+										else if( pad_type == PAD_OVAL || pad_type == PAD_RECT || pad_type == PAD_RRECT ) 
 										{
 											if( pad_type == PAD_OVAL )
 												type = CAperture::AP_OVAL;
@@ -1295,7 +1299,7 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 									}
 								}
 								// now flash the aperture
-								if( type != CAperture::AP_NONE )
+								if( type != CAperture::AP_NONE )  
 								{
 									CAperture pad_ap( type, size1, size2, size3 );
 									ChangeAperture( &pad_ap, &current_ap, &ap_array, PASS0, f );
@@ -1307,13 +1311,13 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 								}
 								// now create clearances on adjacent areas for pins connected
 								// to copper area
-								if( area_pad_type != PAD_NONE )
+								if( area_pad_type != PAD_NONE ) 
 								{
 									int type = CAperture::AP_CIRCLE;
 									int size1 = CLEARANCE_POLY_STROKE_MILS*NM_PER_MIL;
 									CAperture pad_ap( type, size1, 0 );
 									ChangeAperture( &pad_ap, &current_ap, &ap_array, PASS0, f );
-									if( PASS1 )
+									if( PASS1 ) 
 									{
 										DrawClearanceInForeignAreas( pad_net, area_pad_type, 0, pad_x, pad_y,
 											0, 0, area_pad_wid, area_pad_len, area_pad_radius, area_pad_angle,
@@ -1324,28 +1328,31 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 							}
 						}
 					}
+					part = part->next;
 				}
 			} // end if pl
-			if( nl )
+			if( nl ) 
 			{
 				// iterate through all nets and draw trace and via clearances
 				if( PASS1 )
 				{
 					f->WriteString( "\nG04 Draw clearances for traces*\n" );
 				}
-				CIterator_cnet net_iter(nl);
-				for( cnet * net = net_iter.GetFirst(); net != NULL; net = net_iter.GetNext() )
+				net = iter_net.GetFirst();
+				while( net )
 				{
-					for( int ic=0; ic<net->nconnects; ic++ )
+					CIterator_cconnect iter_con(net);
+					for( cconnect * c=iter_con.GetFirst(); c; c=iter_con.GetNext() )
 					{
-						int nsegs = net->connect[ic].nsegs;
-						cconnect * c = &net->connect[ic];
-						for( int is=0; is<nsegs; is++ )
+						int ic = iter_con.GetIndex();
+//						int nsegs = c->NumSegs();
+						CIterator_cseg iter_seg( c );
+						for( cseg * s=iter_seg.GetFirst(); s; s=iter_seg.GetNext() )
 						{
 							// get segment and vertices
-							cseg * s = &c->seg[is];
-							cvertex * pre_vtx = &c->vtx[is];
-							cvertex * post_vtx = &c->vtx[is+1];
+							int is = iter_seg.GetIndex();
+							cvertex * pre_vtx = &s->GetPreVtx();
+							cvertex * post_vtx = &s->GetPostVtx();
 							double xi = pre_vtx->x;
 							double yi = pre_vtx->y;
 							double xf = post_vtx->x;
@@ -1353,7 +1360,7 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 							int test;
 							int pad_w;
 							int hole_w;
-							nl->GetViaPadInfo( net, ic, is+1, layer,
+							nl->GetViaPadInfo( net, ic, is+1, layer, 
 								&pad_w, &hole_w, &test );
 							// flash the via clearance if necessary
 							if( hole_w > 0 && layer >= LAY_TOP_COPPER )
@@ -1372,7 +1379,7 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 								int area_pad_clearance = 0;
 								if( pad_w == 0 )
 								{
-									// no pad, just make hole clearance
+									// no pad, just make hole clearance 
 									type = CAperture::AP_CIRCLE;
 									size1 = hole_w + 2*hole_clearance;
 								}
@@ -1422,12 +1429,12 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 								}
 							}
 
-							if( s->layer == layer && num_area_nets == 1 && net != first_area_net )
+							if( s->m_layer == layer && num_area_nets == 1 && net != first_area_net ) 
 							{
 								// segment is on this layer and there is a single copper area
 								// on this layer not on the same net, draw clearance
 								int type = CAperture::AP_CIRCLE;
-								int size1 = s->width() + 2*fill_clearance;
+								int size1 = s->m_width + 2*fill_clearance;
 								CAperture seg_ap( type, size1, 0 );
 								ChangeAperture( &seg_ap, &current_ap, &ap_array, PASS0, f );
 								if( PASS1 )
@@ -1436,13 +1443,13 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 									WriteMoveTo( f, xf, yf, LIGHT_ON );
 								}
 							}
-							else if( s->layer == layer && num_area_nets > 1 )
+							else if( s->m_layer == layer && num_area_nets > 1 )
 							{
 								// test for segment intersection with area on own net
 								BOOL bIntOwnNet = FALSE;
-								for( int ia=0; ia<net->nareas; ia++ )
+								for( int ia=0; ia<net->NumAreas(); ia++ )
 								{
-									CPolyLine * poly = net->area[ia].poly;
+									CPolyLine * poly = &net->area[ia]; 
 									if( poly->TestPointInside( xi, yi ) )
 									{
 										bIntOwnNet = TRUE;
@@ -1453,22 +1460,22 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 										bIntOwnNet = TRUE;
 										break;
 									}
-									for( int icont=0; icont<poly->GetNumContours(); icont++ )
+									for( int icont=0; icont<poly->NumContours(); icont++ )
 									{
-										int cont_start = poly->GetContourStart(icont);
-										int cont_end = poly->GetContourEnd(icont);
+										int cont_start = poly->ContourStart(icont);
+										int cont_end = poly->ContourEnd(icont);
 										for( int is=cont_start; is<=cont_end; is++ )
 										{
 											// test for clearance from area sides < fill_clearance
-											int x2i = poly->GetX(is);
-											int y2i = poly->GetY(is);
+											int x2i = poly->X(is);
+											int y2i = poly->Y(is);
 											int ic2 = is+1;
 											if( ic2 > cont_end )
 												ic2 = cont_start;
-											int x2f = poly->GetX(ic2);
-											int y2f = poly->GetY(ic2);
-											int style2 = poly->GetSideStyle( is );
-											int d = ::GetClearanceBetweenSegments( xi, yi, xf, yf, CPolyLine::STRAIGHT, s->width(),
+											int x2f = poly->X(ic2);
+											int y2f = poly->Y(ic2);
+											int style2 = poly->SideStyle( is );
+											int d = ::GetClearanceBetweenSegments( xi, yi, xf, yf, CPolyLine::STRAIGHT, s->m_width,
 												x2i, y2i, x2f, y2f, style2, 0, fill_clearance, 0, 0 );
 											if( d < fill_clearance )
 											{
@@ -1495,10 +1502,10 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 										int size1 = CLEARANCE_POLY_STROKE_MILS*NM_PER_MIL;
 										CAperture pad_ap( type, size1, 0 );
 										ChangeAperture( &pad_ap, &current_ap, &ap_array, PASS0, f );
-										if( PASS1 )
+										if( PASS1 ) 
 										{
-											DrawClearanceInForeignAreas( net, -1, s->width(), xi, yi, xf, yf,
-												0, 0, 0, 0, f, flags, layer, fill_clearance,
+											DrawClearanceInForeignAreas( net, -1, s->m_width, xi, yi, xf, yf,
+												0, 0, 0, 0, f, flags, layer, fill_clearance, 
 												&area_net_list, &area_list );
 										}
 									}
@@ -1506,7 +1513,7 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 								else
 								{
 									// segment does not intersect area on own net, just make clearance
-									int w = s->width() + 2*fill_clearance;
+									int w = s->m_width + 2*fill_clearance;
 									CAperture seg_ap( CAperture::AP_CIRCLE, w, 0 );
 									ChangeAperture( &seg_ap, &current_ap, &ap_array, PASS0, f );
 									if( PASS1 )
@@ -1518,8 +1525,9 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 							}
 						}
 					}
+					net = iter_net.GetNext();
 				}
-			}
+			}		
 			if( tl )
 			{
 				// draw clearances for text
@@ -1558,19 +1566,19 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 			f->WriteString( "%LPD*%\n" );
 			current_ap.m_type = CAperture::AP_NONE;	// force selection of aperture
 		}
-		// draw pads and reference designators
+		// draw pads, silkscreen items, reference designators and value
 		if( pl )
 		{
 			// iterate through all parts and draw pads
-			CIterator_cpart iter(pl);
-			for( cpart *part = iter.GetFirst(); part != NULL; part = iter.GetNext() )
+			cpart * part = pl->m_start.next;
+			while( part->next != 0 )
 			{
 				CShape * s = part->shape;
 				if( s )
 				{
 					if( PASS1 )
 					{
-						line.Format( "G04 Draw part %s*\n", part->ref_des );
+						line.Format( "G04 Draw part %s*\n", part->ref_des ); 
 						f->WriteString( line );
 					}
 					for( int ip=0; ip<s->GetNumPins(); ip++ )
@@ -1596,7 +1604,7 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 						if( bPad && pad_type != PAD_NONE && pad_w > 0 )
 						{
 							int type, size1, size2, size3;
-							if( pad_type == PAD_ROUND || pad_type == PAD_SQUARE
+							if( pad_type == PAD_ROUND || pad_type == PAD_SQUARE 
 								|| pad_type == PAD_OCTAGON || pad_type == PAD_OVAL
 								|| pad_type == PAD_RECT || pad_type == PAD_RRECT )
 							{
@@ -1616,7 +1624,7 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 										type = CAperture::AP_RECT;
 									if( pad_type == PAD_RRECT )
 										type = CAperture::AP_RRECT;
-									size2 = pad_l;
+									size2 = pad_l; 
 									size3 = pad_r;
 									if( pad_angle == 90 )
 									{
@@ -1625,7 +1633,7 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 										size2 = temp;
 									}
 								}
-								CAperture pad_ap( type, size1, size2, size3 );
+								CAperture pad_ap( type, size1, size2, size3 ); 
 								ChangeAperture( &pad_ap, &current_ap, &ap_array, PASS0, f );
 								if( PASS1 )
 								{
@@ -1636,92 +1644,106 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 						}
 					}
 				}
-				// now draw silkscreen items
-				if( layer == LAY_SILK_TOP && part->side == 0
-					|| layer == LAY_SILK_BOTTOM && part->side == 1 )
+				// draw part outline and text strings if any strokes on this layer
+				BOOL bOnLayer = FALSE;
+				int nstrokes = part->m_outline_stroke.GetSize();
+				for( int ips=0; ips<nstrokes; ips++ )
 				{
-					// draw part outline
+					if( part->m_outline_stroke[ips].layer == layer )
+					{
+						bOnLayer = TRUE;
+						break;
+					}
+				}
+				if( bOnLayer )
+				{
 					if( PASS1 )
 					{
-						line.Format( "G04 draw part outline for part %s*\n", part->ref_des );
+						line.Format( "G04 draw outline and text for part %s*\n", part->ref_des ); 
 						f->WriteString( line );
 					}
-					int nstrokes = part->m_outline_stroke.GetSize();
 					if( nstrokes )
 					{
 						for( int ips=0; ips<nstrokes; ips++ )
 						{
-							int s_w = max( part->m_outline_stroke[ips].w, min_silkscreen_stroke_wid );
-							CAperture outline_ap( CAperture::AP_CIRCLE, s_w, 0 );
-							ChangeAperture( &outline_ap, &current_ap, &ap_array, PASS0, f );
-							// move to start of stroke
-							if( PASS1 )
+							if( part->m_outline_stroke[ips].layer == layer )
 							{
-								::WriteMoveTo( f, part->m_outline_stroke[ips].xi,
-									part->m_outline_stroke[ips].yi, LIGHT_OFF );
-								int type;
-								if( part->m_outline_stroke[ips].type == DL_LINE )
-									type = CPolyLine::STRAIGHT;
-								else if( part->m_outline_stroke[ips].type == DL_ARC_CW )
-									type = CPolyLine::ARC_CW;
-								else if( part->m_outline_stroke[ips].type == DL_ARC_CCW )
-									type = CPolyLine::ARC_CCW;
-								else
-									ASSERT(0);
-								::WritePolygonSide( f,
-									part->m_outline_stroke[ips].xi,
-									part->m_outline_stroke[ips].yi,
-									part->m_outline_stroke[ips].xf,
-									part->m_outline_stroke[ips].yf,
-									type, 10, LIGHT_ON );
-							}
-						}
-					}
-					// draw reference designator text
-					if( part->m_ref_size && part->m_ref_vis )
-					{
-						if( PASS1 )
-						{
-							line.Format( "G04 draw reference designator for part %s*\n", part->ref_des );
-							f->WriteString( line );
-						}
-						int s_w = max( part->m_ref_w, min_silkscreen_stroke_wid );
-						CAperture ref_ap( CAperture::AP_CIRCLE, s_w, 0 );
-						ChangeAperture( &ref_ap, &current_ap, &ap_array, PASS0, f );
-						if( PASS1 )
-						{
-							for( int istroke=0; istroke<part->ref_text_stroke.GetSize(); istroke++ )
-							{
-								::WriteMoveTo( f, part->ref_text_stroke[istroke].xi,
-									part->ref_text_stroke[istroke].yi, LIGHT_OFF );
-								::WriteMoveTo( f, part->ref_text_stroke[istroke].xf,
-									part->ref_text_stroke[istroke].yf, LIGHT_ON );
-							}
-						}
-					}
-					// draw value text
-					if( part->m_value_size && part->m_value_vis )
-					{
-						if( PASS1 )
-						{
-							line.Format( "G04 draw value for part %s*\n", part->ref_des );
-							f->WriteString( line );
-						}
-						int s_w = max( part->m_ref_w, min_silkscreen_stroke_wid );
-						CAperture value_ap( CAperture::AP_CIRCLE, s_w, 0 );
-						ChangeAperture( &value_ap, &current_ap, &ap_array, PASS0, f );
-						if( PASS1 )
-						{
-							for( int istroke=0; istroke<part->value_stroke.GetSize(); istroke++ )
-							{
-								::WriteMoveTo( f, part->value_stroke[istroke].xi,
-									part->value_stroke[istroke].yi, LIGHT_OFF );
-								::WriteMoveTo( f, part->value_stroke[istroke].xf,
-									part->value_stroke[istroke].yf, LIGHT_ON );
+								int s_w = max( part->m_outline_stroke[ips].w, min_silkscreen_stroke_wid );
+								CAperture outline_ap( CAperture::AP_CIRCLE, s_w, 0 );
+								ChangeAperture( &outline_ap, &current_ap, &ap_array, PASS0, f );
+								if( PASS1 )
+								{
+									// move to start of stroke
+									::WriteMoveTo( f, part->m_outline_stroke[ips].xi, 
+										part->m_outline_stroke[ips].yi, LIGHT_OFF );
+									int type;
+									if( part->m_outline_stroke[ips].type == DL_LINE )
+										type = CPolyLine::STRAIGHT;
+									else if( part->m_outline_stroke[ips].type == DL_ARC_CW )
+										type = CPolyLine::ARC_CW;
+									else if( part->m_outline_stroke[ips].type == DL_ARC_CCW )
+										type = CPolyLine::ARC_CCW;
+									else
+										ASSERT(0);
+									::WritePolygonSide( f, 
+										part->m_outline_stroke[ips].xi, 
+										part->m_outline_stroke[ips].yi, 
+										part->m_outline_stroke[ips].xf, 
+										part->m_outline_stroke[ips].yf, 
+										type, 10, LIGHT_ON );
+								}
 							}
 						}
 					}
 				}
+				// draw reference designator text
+				if( part->m_ref_size && part->m_ref_vis 
+					&& (pl->GetRefPCBLayer( part ) == layer) )
+				{
+					if( PASS1 )
+					{
+						line.Format( "G04 draw reference designator for part %s*\n", part->ref_des ); 
+						f->WriteString( line );
+					}
+					int s_w = max( part->m_ref_w, min_silkscreen_stroke_wid );
+					CAperture ref_ap( CAperture::AP_CIRCLE, s_w, 0 );
+					ChangeAperture( &ref_ap, &current_ap, &ap_array, PASS0, f );
+					if( PASS1 )
+					{
+						for( int istroke=0; istroke<part->ref_text_stroke.GetSize(); istroke++ )
+						{
+							::WriteMoveTo( f, part->ref_text_stroke[istroke].xi, 
+								part->ref_text_stroke[istroke].yi, LIGHT_OFF );
+							::WriteMoveTo( f, part->ref_text_stroke[istroke].xf, 
+								part->ref_text_stroke[istroke].yf, LIGHT_ON );
+						}
+					}
+				}
+				// draw value text
+				if( part->m_value_size && part->m_value_vis 
+					&& (pl->GetValuePCBLayer(part) == layer) )
+				{
+					if( PASS1 )
+					{
+						line.Format( "G04 draw value for part %s*\n", part->ref_des ); 
+						f->WriteString( line );
+					}
+					int s_w = max( part->m_ref_w, min_silkscreen_stroke_wid );
+					CAperture value_ap( CAperture::AP_CIRCLE, s_w, 0 );
+					ChangeAperture( &value_ap, &current_ap, &ap_array, PASS0, f );
+					if( PASS1 )
+					{
+						for( int istroke=0; istroke<part->value_stroke.GetSize(); istroke++ )
+						{
+							::WriteMoveTo( f, part->value_stroke[istroke].xi, 
+								part->value_stroke[istroke].yi, LIGHT_OFF );
+							::WriteMoveTo( f, part->value_stroke[istroke].xf, 
+								part->value_stroke[istroke].yf, LIGHT_ON );
+						}
+					}
+				}
+				// go to next part
+				part = part->next;
 			}
 		}
 		// draw vias and traces
@@ -1735,27 +1757,29 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 			POSITION pos;
 			CString name;
 			void * ptr;
-			for( pos = nl->m_map.GetStartPosition(); pos != NULL; )
+			net = iter_net.GetFirst();
+			while( net )
 			{
-				nl->m_map.GetNextAssoc( pos, name, ptr );
-				cnet * net = (cnet*)ptr;
-				for( int ic=0; ic<net->nconnects; ic++ )
+				CIterator_cconnect iter_con(net);
+				for( cconnect * c=iter_con.GetFirst(); c; c=iter_con.GetNext() )
 				{
-					int nsegs = net->connect[ic].nsegs;
-					for( int is=0; is<nsegs; is++ )
+					int ic = iter_con.GetIndex();
+//					int nsegs = c->NumSegs();
+					CIterator_cseg iter_seg( c );
+					for( cseg * s=iter_seg.GetFirst(); s; s=iter_seg.GetNext() )
 					{
 						// get segment info
-						cseg * s = &(net->connect[ic].seg[is]);
-						cvertex * pre_vtx = &(net->connect[ic].vtx[is]);
-						cvertex * post_vtx = &(net->connect[ic].vtx[is+1]);
+						int is = iter_seg.GetIndex();
+						cvertex * pre_vtx = &s->GetPreVtx();
+						cvertex * post_vtx = &s->GetPostVtx();
 						// get following via info
 						int test, pad_w, hole_w;
 						nl->GetViaPadInfo( net, ic, is+1, layer,
 							&pad_w, &hole_w, &test );
-						if( s->layer == layer )
+						if( s->m_layer == layer )
 						{
 							// segment is on this layer, draw it
-							int w = s->width();
+							int w = s->m_width;
 							CAperture seg_ap( CAperture::AP_CIRCLE, w, 0 );
 							ChangeAperture( &seg_ap, &current_ap, &ap_array, PASS0, f );
 							if( PASS1 )
@@ -1780,7 +1804,7 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 							else if( layer >= LAY_TOP_COPPER )
 							{
 								// copper layer, set aperture
-								w = pad_w;
+								w = pad_w;							
 							}
 							if( w )
 							{
@@ -1795,6 +1819,7 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 						}
 					}
 				}
+				net = iter_net.GetNext();
 			}
 		}
 		// draw text
@@ -1845,49 +1870,49 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 				for( int i=0; i<sm->GetSize(); i++ )
 				{
 					CPolyLine * poly = &(*sm)[i];
-					if( ( layer == LAY_MASK_TOP && poly->GetLayer() == LAY_SM_TOP  )
-						|| ( layer == LAY_MASK_BOTTOM && poly->GetLayer() == LAY_SM_BOTTOM ) )
+					if( ( layer == LAY_MASK_TOP && poly->Layer() == LAY_SM_TOP  ) 
+						|| ( layer == LAY_MASK_BOTTOM && poly->Layer() == LAY_SM_BOTTOM ) )
 					{
 						// draw cutout on this layer
 						f->WriteString( "G36*\n" );
 						int x, y, style;
-						int last_x = poly->GetX(0);
-						int last_y = poly->GetY(0);
+						int last_x = poly->X(0);
+						int last_y = poly->Y(0);
 						::WriteMoveTo( f, last_x, last_y, LIGHT_OFF );
-						int nc = poly->GetContourSize(0);
+						int nc = poly->ContourSize(0);
 						for( int ic=1; ic<nc; ic++ )
 						{
-							x = poly->GetX(ic);
-							y = poly->GetY(ic);
-							style = poly->GetSideStyle(ic-1);
+							x = poly->X(ic);
+							y = poly->Y(ic);
+							style = poly->SideStyle(ic-1);
 							::WritePolygonSide( f, last_x, last_y, x, y, style, 10, LIGHT_ON );
 							last_x = x;
 							last_y = y;
 						}
-						x = poly->GetX(0);
-						y = poly->GetY(0);
-						style = poly->GetSideStyle(nc-1);
+						x = poly->X(0);
+						y = poly->Y(0);
+						style = poly->SideStyle(nc-1);
 						::WritePolygonSide( f, last_x, last_y, x, y, style, 10, LIGHT_ON );
 						f->WriteString( "G37*\n" );
 						if( !(flags & GERBER_NO_CLEARANCE_SMCUTOUTS) )
 						{
 							// stroke outline with aperture to create clearance
-							last_x = poly->GetX(0);
-							last_y = poly->GetY(0);
+							last_x = poly->X(0);
+							last_y = poly->Y(0);
 							::WriteMoveTo( f, last_x, last_y, LIGHT_OFF );
-							nc = poly->GetContourSize(0);
+							nc = poly->ContourSize(0);
 							for( int ic=1; ic<nc; ic++ )
 							{
-								x = poly->GetX(ic);
-								y = poly->GetY(ic);
-								style = poly->GetSideStyle(ic-1);
+								x = poly->X(ic);
+								y = poly->Y(ic);
+								style = poly->SideStyle(ic-1);
 								::WritePolygonSide( f, last_x, last_y, x, y, style, 10, LIGHT_ON );
 								last_x = x;
 								last_y = y;
 							}
-							x = poly->GetX(0);
-							y = poly->GetY(0);
-							style = poly->GetSideStyle(nc-1);
+							x = poly->X(0);
+							y = poly->Y(0);
+							style = poly->SideStyle(nc-1);
 							::WritePolygonSide( f, last_x, last_y, x, y, style, 10, LIGHT_ON );
 						}
 					}
@@ -1907,15 +1932,15 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 			if( pl )
 			{
 				// iterate through all parts
-				CIterator_cpart iter(pl);
-				for( cpart *part = iter.GetFirst(); part != NULL; part = iter.GetNext() )
+				cpart * part = pl->m_start.next;
+				while( part->next != 0 )
 				{
 					CShape * s = part->shape;
 					if( s )
 					{
 						if( PASS1 )
 						{
-							line.Format( "G04 draw pilot holes for part %s*\n", part->ref_des );
+							line.Format( "G04 draw pilot holes for part %s*\n", part->ref_des ); 
 							f->WriteString( line );
 						}
 						for( int ip=0; ip<s->GetNumPins(); ip++ )
@@ -1936,6 +1961,8 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 							}
 						}
 					}
+					// go to next part
+					part = part->next;
 				}
 			}
 			// draw pilot holes for vias
@@ -1949,19 +1976,20 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 				POSITION pos;
 				CString name;
 				void * ptr;
-				for( pos = nl->m_map.GetStartPosition(); pos != NULL; )
+				net = iter_net.GetFirst();
+				while( net )
 				{
-					nl->m_map.GetNextAssoc( pos, name, ptr );
-					cnet * net = (cnet*)ptr;
-					for( int ic=0; ic<net->nconnects; ic++ )
+					CIterator_cconnect iter_con(net);
+					for( cconnect * c=iter_con.GetFirst(); c; c=iter_con.GetNext() )
 					{
-						int nsegs = net->connect[ic].nsegs;
-						for( int is=0; is<nsegs; is++ )
+//						int ic = iter_con.GetIndex();
+//						int nsegs = c->NumSegs();
+						CIterator_cseg iter_seg( c );
+						for( cseg * s=iter_seg.GetFirst(); s; s=iter_seg.GetNext() )
 						{
 							// get segment
-							cseg * s = &(net->connect[ic].seg[is]);
-							cvertex * post_vtx = &(net->connect[ic].vtx[is+1]);
-							if( post_vtx->viaExists() )
+							cvertex * post_vtx = &s->GetPostVtx();
+							if( post_vtx->via_w )
 							{
 								// via exists
 								CAperture via_ap( CAperture::AP_CIRCLE, pilot_diameter, 0 );
@@ -1972,6 +2000,7 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 							}
 						}
 					}
+					net = iter_net.GetNext();
 				}
 			}
 		}
@@ -2008,8 +2037,8 @@ int WriteDrillFile( CStdioFile * file, CPartList * pl, CNetList * nl, CArray<CPo
 	if( pl )
 	{
 		// iterate through all parts
-		CIterator_cpart iter(pl);
-		for( cpart *part = iter.GetFirst(); part != NULL; part = iter.GetNext() )
+		cpart * part = pl->m_start.next;
+		while( part->next != 0 )
 		{
 			CShape * s = part->shape;
 			if( s )
@@ -2022,6 +2051,8 @@ int WriteDrillFile( CStdioFile * file, CPartList * pl, CNetList * nl, CArray<CPo
 						::AddToArray( ps->hole_size/NM_PER_MIL, &diameter );
 				}
 			}
+			// go to next part
+			part = part->next;
 		}
 	}
 	// now find hole diameters for vias
@@ -2036,17 +2067,19 @@ int WriteDrillFile( CStdioFile * file, CPartList * pl, CNetList * nl, CArray<CPo
 		{
 			nl->m_map.GetNextAssoc( pos, name, ptr );
 			cnet * net = (cnet*)ptr;
-			for( int ic=0; ic<net->nconnects; ic++ )
+			CIterator_cconnect iter_con(net);
+			for( cconnect * c=iter_con.GetFirst(); c; c=iter_con.GetNext() )
 			{
-				int nsegs = net->connect[ic].nsegs;
-				for( int is=0; is<nsegs; is++ )
+//				int nsegs = c->NumSegs();
+				CIterator_cseg iter_seg( c );
+				for( cseg * s=iter_seg.GetFirst(); s; s=iter_seg.GetNext() )
 				{
-					cvertex * v = &(net->connect[ic].vtx[is+1]);
-					if( v->viaExists() )
+					cvertex * v = &s->GetPostVtx();
+					if( v->via_w )
 					{
 						// via
-						int w = v->via_w();
-						int h_w = v->via_hole_w();
+						int w = v->via_w;
+						int h_w = v->via_hole_w;
 						if( w && h_w )
 							::AddToArray( h_w/NM_PER_MIL, &diameter );
 					}
@@ -2059,7 +2092,7 @@ int WriteDrillFile( CStdioFile * file, CPartList * pl, CNetList * nl, CArray<CPo
 	CString str;
 	for( int id=0; id<diameter.GetSize(); id++ )
 	{
-		str.Format( ";Holesize %d = %6.1f PLATED MILS\n",
+		str.Format( ";Holesize %d = %6.1f PLATED MILS\n", 
 			id+1, (double)diameter[id] );
 		file->WriteString( str );
 	}
@@ -2069,7 +2102,7 @@ int WriteDrillFile( CStdioFile * file, CPartList * pl, CNetList * nl, CArray<CPo
 	{
 		// write hole sizes
 		int d = diameter[id];
-		str.Format( "T%02dC%5.3f\n", id+1, (double)diameter[id]/1000.0 );
+		str.Format( "T%02dC%5.3f\n", id+1, (double)diameter[id]/1000.0 ); 
 		file->WriteString( str );
 	}
 	file->WriteString( "%\n" );		// start data
@@ -2081,16 +2114,16 @@ int WriteDrillFile( CStdioFile * file, CPartList * pl, CNetList * nl, CArray<CPo
 	int bd_min_y = INT_MAX;
 	int bd_max_x = INT_MIN;
 	int bd_max_y = INT_MIN;
-	for( int ib=0; ib<bd->GetSize(); ib++ )
+	for( int ib=0; ib<bd->GetSize(); ib++ ) 
 	{
-		for( int ic=0; ic<(*bd)[ib].GetNumCorners(); ic++ )
+		for( int ic=0; ic<(*bd)[ib].NumCorners(); ic++ )
 		{
-			int x = (*bd)[ib].GetX(ic);
+			int x = (*bd)[ib].X(ic);
 			if( x < bd_min_x )
 				bd_min_x = x;
 			if( x > bd_max_x )
 				bd_max_x = x;
-			int y = (*bd)[ib].GetY(ic);
+			int y = (*bd)[ib].Y(ic);
 			if( y < bd_min_y )
 				bd_min_y = y;
 			if( y > bd_max_y )
@@ -2103,7 +2136,7 @@ int WriteDrillFile( CStdioFile * file, CPartList * pl, CNetList * nl, CArray<CPo
 	{
 		// now write hole size and all holes
 		int d = diameter[id];
-		str.Format( "T%02d\n", id+1 );
+		str.Format( "T%02d\n", id+1 ); 
 		file->WriteString( str );
 		// loop for panelization
 		for( int ix=0; ix<n_x; ix++ )
@@ -2115,8 +2148,8 @@ int WriteDrillFile( CStdioFile * file, CPartList * pl, CNetList * nl, CArray<CPo
 				if( pl )
 				{
 					// iterate through all parts
-					CIterator_cpart iter(pl);
-					for( cpart *part = iter.GetFirst(); part != NULL; part = iter.GetNext() )
+					cpart * part = pl->m_start.next;
+					while( part->next != 0 )
 					{
 						CShape * s = part->shape;
 						if( s )
@@ -2130,14 +2163,16 @@ int WriteDrillFile( CStdioFile * file, CPartList * pl, CNetList * nl, CArray<CPo
 									part_pin * p = &part->pin[ip];
 									if( d == ps->hole_size/NM_PER_MIL )
 									{
-										str.Format( "X%.6dY%.6d\n",
-											(p->x + x_offset)/(NM_PER_MIL/10),
+										str.Format( "X%.6dY%.6d\n", 
+											(p->x + x_offset)/(NM_PER_MIL/10), 
 											(p->y + y_offset)/(NM_PER_MIL/10) );
 										file->WriteString( str );
 									}
 								}
 							}
 						}
+						// go to next part
+						part = part->next;
 					}
 				}
 				// now find hole diameters for vias
@@ -2148,26 +2183,27 @@ int WriteDrillFile( CStdioFile * file, CPartList * pl, CNetList * nl, CArray<CPo
 					POSITION pos;
 					CString name;
 					void * ptr;
-					for( pos = nl->m_map.GetStartPosition(); pos != NULL; )
+					CIterator_cnet iter_net(nl);
+					for( cnet * net=iter_net.GetFirst(); net; net=iter_net.GetNext() )
 					{
-						nl->m_map.GetNextAssoc( pos, name, ptr );
-						cnet * net = (cnet*)ptr;
-						for( int ic=0; ic<net->nconnects; ic++ )
+						CIterator_cconnect iter_con(net);
+						for( cconnect * c=iter_con.GetFirst(); c; c=iter_con.GetNext() )
 						{
-							int nsegs = net->connect[ic].nsegs;
-							for( int is=0; is<nsegs; is++ )
+//							int nsegs = c->NumSegs();
+							CIterator_cseg iter_seg( c );
+							for( cseg * s=iter_seg.GetFirst(); s; s=iter_seg.GetNext() )
 							{
-								cvertex * v = &(net->connect[ic].vtx[is+1]);
-								if( v->viaExists() )
+								cvertex * v = &s->GetPostVtx();
+								if( v->via_w )
 								{
 									// via
-									int h_w = v->via_hole_w();
-									if( h_w > 0 )
+									int h_w = v->via_hole_w;
+									if( h_w )
 									{
 										if( d == h_w/NM_PER_MIL )
 										{
-											str.Format( "X%.6dY%.6d\n",
-												(v->x + x_offset)/(NM_PER_MIL/10),
+											str.Format( "X%.6dY%.6d\n", 
+												(v->x + x_offset)/(NM_PER_MIL/10), 
 												(v->y + y_offset)/(NM_PER_MIL/10) );
 											file->WriteString( str );
 										}
@@ -2183,3 +2219,4 @@ int WriteDrillFile( CStdioFile * file, CPartList * pl, CNetList * nl, CArray<CPo
 	file->WriteString( "M30\n" );	// program end
 	return 0;
 }
+

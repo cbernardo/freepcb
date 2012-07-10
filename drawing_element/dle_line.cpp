@@ -2,7 +2,9 @@
 #include "dle_line.h"
 
 // line segment with round end-caps
-void CDLE_LINE::__Draw(CDrawInfo const &di, int mode) const
+// CPT:  added bHiliteLine arg (experimentally).  When it's true, we'll draw the seg in the background color, fatter than normal
+//
+void CDLE_LINE::_Draw(CDrawInfo &di, bool bHiliteSegs)
 {
 	int width = w/2 + clearancew;
 
@@ -92,9 +94,10 @@ void CDLE_LINE::__Draw(CDrawInfo const &di, int mode) const
 	{
 		int linew = w;
 
+		/*  CPT experimentally replaced:
 		if( mode )
 		{
-            // Drawing, not erasing - apply special "treatments"
+            // apply special "treatments"
 			if( layer == LAY_RAT_LINE )
 			{
 				CPen pen( PS_SOLID, linew + PCBU_PER_WU / 1024 + (int)dlist->m_scale, di.layer_color[0] );
@@ -105,8 +108,9 @@ void CDLE_LINE::__Draw(CDrawInfo const &di, int mode) const
 			}
 			else if( layer == LAY_HILITE )
 			{
-				CPen pen( PS_SOLID, linew + PCBU_PER_WU / 256 + 3*(int)dlist->m_scale, di.layer_color[0] );
-				CPen *old_pen = di.DC_Master->SelectObject( &pen );
+// AMW r272 				CPen pen( PS_SOLID, linew + PCBU_PER_WU / 256 + 3*(int)dlist->m_scale, di.layer_color[0] );
+				CPen pen( PS_SOLID, linew + PCBU_PER_WU / 1024 + 3*(int)dlist->m_scale, di.layer_color[0] );
+ 				CPen *old_pen = di.DC_Master->SelectObject( &pen );
 				di.DC_Master->MoveTo( xi, yi );
 				di.DC_Master->LineTo( f.x, f.y );
 				di.DC_Master->SelectObject( old_pen );
@@ -118,8 +122,18 @@ void CDLE_LINE::__Draw(CDrawInfo const &di, int mode) const
 		{
 			linew += clearancew*2;
 		}
+		*/
 
-		CPen pen( PS_SOLID, linew, di.layer_color[mode] );
+		// CPT (experimental)
+		int colorIndex;
+		if (bHiliteSegs)
+			linew += PCBU_PER_WU / 1024 + 3*(int)dlist->m_scale,
+			colorIndex = 0;														// Will draw with bkgnd color...
+		else
+			colorIndex = 1;														// Will draw with layer color...
+		// end CPT
+
+		CPen pen( PS_SOLID, linew, di.layer_color[colorIndex] );
 		di.DC->SelectObject( &pen );
 		di.DC->MoveTo( xi, yi );
 		di.DC->LineTo( f.x, f.y );
@@ -129,17 +143,7 @@ void CDLE_LINE::__Draw(CDrawInfo const &di, int mode) const
 	}
 }
 
-void CDLE_LINE::_Draw(CDrawInfo const &di) const
-{
-	__Draw(di, 1);
-}
-
-void CDLE_LINE::_DrawClearance(CDrawInfo const &di) const
-{
-	__Draw(di, 0);
-}
-
-int CDLE_LINE::_isHit(CPoint const &point) const
+int CDLE_LINE::_isHit(CPoint &point) 
 {
 	// found selection line, test for hit (within 4 pixels or line width+3 mils )
 //**			int w = max( w/2+3*DU_PER_MIL, int(4.0*m_scale) );
@@ -147,7 +151,7 @@ int CDLE_LINE::_isHit(CPoint const &point) const
 	return TestLineHit( i.x, i.y, f.x, f.y, point.x, point.y, hit_w );
 }
 
-int CDLE_LINE::_getBoundingRect(CRect &rect) const
+int CDLE_LINE::_getBoundingRect(CRect &rect)
 {
 	int linew = w/2 + clearancew;
 

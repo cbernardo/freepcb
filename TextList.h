@@ -9,13 +9,15 @@
 #include "PcbFont.h"
 #include "smfontutil.h"
 #include "UndoList.h"
-#include "pubsub.h"
+#include "LinkList.h"
 
 class CTextList;
 struct stroke;
 
+// All info needed to recreate a modified or deleted CText
+//
 struct undo_text {
-	GUID m_guid;
+	int m_uid;
 	int m_x, m_y;
 	int m_layer;
 	int m_angle;
@@ -24,29 +26,40 @@ struct undo_text {
 	int m_font_size;
 	int m_stroke_width;
 	CString m_str;
-	int m_nstrokes;
 	CTextList * m_tlist;
 };
 
+// Class to represent a text string that can be drawn on a PCB
+// If the string is part of a footprint or part, it's position parameters
+// will be relative to the part position.
+//
 class CText
 {
-	class C_DS_ThermalClearance : public CDataSubscriber<int> 
-	{
-	    virtual void Update(pub_t const &data);		
-	} m_DS_ThermalClearance;
-	friend class C_DS_ThermalClearance;
-	void Update_ThermalClearance(int clearance);
-
 public:
 	// member functions
+	CText();
+	~CText();
 	CText( CDisplayList * dlist, int x, int y, int angle, 
 		int mirror, BOOL bNegative, int layer, int font_size, 
+		int stroke_width, SMFontUtil * smfontutil, CString * str_ptr, 
+		unsigned int selType=ID_TEXT, unsigned int selSubtype=ID_SEL_TXT );
+	void Init( CDisplayList * dlist, id tid, int x, int y, int angle, 
+		int mirror, BOOL bNegative, int layer, int font_size, 
 		int stroke_width, SMFontUtil * smfontutil, CString * str_ptr );
-	~CText();
 	void Draw( CDisplayList * dlist, SMFontUtil * smfontutil );
+	void Draw();
 	void Undraw();
+	void Highlight();
+	void StartDragging( CDC * pDC );
+	void CancelDragging();
+	void Move( int x, int y, int angle, BOOL mirror, BOOL negative, int layer, int size=-1, int w=-1 );
+	void GetBounds( CRect &br );
+	void SetIDType( int type, int subtype );
+	int UID(){ return m_uid; };
+
 	// member variables
-	GUID m_guid;
+	id m_id;
+	int m_uid;
 	int m_x, m_y;
 	int m_layer;
 	int m_angle;
@@ -54,7 +67,6 @@ public:
 	BOOL m_bNegative;
 	int m_font_size;
 	int m_stroke_width;
-	CPcbFont * m_font;
 	int m_nchars;
 	CString m_str;
 	CArray<stroke> m_stroke;
@@ -63,6 +75,8 @@ public:
 	SMFontUtil * m_smfontutil;
 };
 
+// class to represent a list of CTexts
+//
 class CTextList
 {
 public:
@@ -75,6 +89,7 @@ public:
 	CTextList();
 	CTextList( CDisplayList * dlist, SMFontUtil * smfontutil );
 	~CTextList();
+	void SetIDType( int type, int subtype );
 	CText * AddText( int x, int y, int angle, int mirror, 
 					BOOL bNegative,	int layer, 
 					int font_size, int stroke_width, 
@@ -89,9 +104,7 @@ public:
 	void ReadTexts( CStdioFile * file );
 	int WriteTexts( CStdioFile * file );
 	void MoveOrigin( int x_off, int y_off );
-	CText * GetText( GUID * guid );
-	CText * GetFirstText();
-	CText * GetNextText();
+	CText * GetText( int uid, int * index=NULL );
 	int GetNumTexts(){ return text_ptr.GetSize();};
 	BOOL GetTextBoundaries( CRect * r );
 	BOOL GetTextRectOnPCB( CText * t, CRect * r );
@@ -100,8 +113,33 @@ public:
 	static void TextUndoCallback( int type, void * ptr, BOOL undo );
 
 	// member variables
+	int m_text_type;
+	int m_text_subtype;
 	SMFontUtil * m_smfontutil;
 	CDisplayList * m_dlist;
 	CArray<CText*> text_ptr;
+	CDLinkList m_iterator_list;
+};
+
+// Iterator for CTextList
+// All iterators are added to CTextList::m_iterator_list
+// If a CText item is removed from the CTextList,
+// call OnRemove() to adjust all existing iterators
+//
+class CIterator_CText : protected CDLinkList
+{
+public:
+	CIterator_CText( CTextList * tlist );
+	~CIterator_CText();
+	CText * GetFirst();		// reset position, get first CText
+	CText * GetNext();		// get next CText
+	int GetIndex();			// get index of current position
+	void OnRemove( CText * text );	// call when CText removed from CTextList
+	int GetNumIterators();			// number of active iterators
+
+private:
+	CTextList * m_tlist;		// the CTextList
+	int m_CurrentPos;			// current index into array of CTexts
+	CText * m_pCurrentText;		// current CText
 };
 

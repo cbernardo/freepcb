@@ -1,8 +1,10 @@
 #include "stdafx.h"
 #include "dle_hole.h"
 
+extern CFreePcbApp theApp;
+
 // hole, shown as circle
-void CDLE_HOLE::_Draw(CDrawInfo const &di) const
+void CDLE_HOLE::_Draw(CDrawInfo &di, bool)
 {
 	int size_of_2_pixels = dlist->m_scale * 2;
 
@@ -15,7 +17,7 @@ void CDLE_HOLE::_Draw(CDrawInfo const &di) const
     }
 }
 
-void CDLE_HOLE::_DrawClearance(CDrawInfo const &di) const
+/* void CDLE_HOLE::_DrawClearance(CDrawInfo const &di) const
 {
 	CFreePcbDoc * doc = theApp.m_Doc;
 
@@ -33,8 +35,9 @@ void CDLE_HOLE::_DrawClearance(CDrawInfo const &di) const
 	di.DC->SelectObject( di.fill_brush );
 	di.DC->SelectObject( di.line_pen );
 }
+*/
 
-int CDLE_HOLE::_getBoundingRect(CRect &rect) const
+int CDLE_HOLE::_getBoundingRect(CRect &rect)
 {
 	CFreePcbDoc * doc = theApp.m_Doc;
 

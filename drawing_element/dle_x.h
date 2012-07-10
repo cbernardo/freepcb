@@ -7,7 +7,7 @@
 class CDLE_X : public dl_element
 {
 protected:
-	virtual void _Draw(CDrawInfo const &di) const;
+	virtual void _Draw(CDrawInfo &di, bool);
 };
 
 #endif /* !_DLE_X_H ] */

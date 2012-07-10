@@ -102,8 +102,8 @@ enum {
 };
 
 // function key menu strings
-static char fk_fp_str[FK_FP_NUM_OPTIONS*2+2][32] =
-{
+static char fk_fp_str[FK_FP_NUM_OPTIONS*2+2][32] = 
+{ 
 	"",			"",
 	" Move",	" Pad",
 	" Move",	" Ref Text",
@@ -195,6 +195,7 @@ public:
 	BOOL m_polyline_closed_flag;
 	int m_polyline_style;	// STRAIGHT, ARC_CW or ARC_CCW
 	int m_polyline_width;
+	int m_polyline_layer;
 
 	// flag to disable context menu on right-click,
 	// if right-click handled some other way
@@ -217,6 +218,7 @@ public:
 	CRect m_client_r;	// in device coords
 	int m_left_pane_w;		// width of pane at left of screen for layer selection, etc.
 	int m_bottom_pane_h;	// height of pane at bottom of screen for key assignments, etc.
+	int m_fkey_w;			// CPT: Width of f-key boxes.
 	CRgn m_pcb_rgn;		// region for the pcb
 	BOOL m_left_pane_invalid;	// flag to erase and redraw left pane
 
@@ -227,7 +229,7 @@ public:
 	// function key shortcuts
 	int m_fkey_option[12];
 	int m_fkey_command[12];
-	char m_fkey_str[24][32];
+	int m_fkey_rsrc[24];		// CPT:  used to have a table of char[]'s, now we have a table of string rsrc id's
 
 	// memory DC and bitmap
 	BOOL m_memDC_created;
@@ -287,6 +289,7 @@ public:
 	void SetWindowTitle( CString * str );
 	void CancelSelection();
 	int SetWidth( int mode );
+	int GetWidthsForSegment( int * w, int * via_w, int * via_hole_w );
 	BOOL CurNone();
 	BOOL CurSelected();
 	BOOL CurDragging();
@@ -296,8 +299,6 @@ public:
 	void FootprintModified( BOOL flag, BOOL force = FALSE, BOOL clear_redo=TRUE );
 	void FootprintNameChanged( CString * str );
 	void MoveOrigin( int x, int y );
-	void SetActiveLayer(int layer);
-
 	void ClearUndo();
 	void ClearRedo();
 	void PushUndo();
@@ -307,7 +308,7 @@ public:
 	void Redo();
 	void EnableUndo( BOOL bEnable );
 	void EnableRedo( BOOL bEnable );
-
+	
 protected:
 
 // Generated message map functions
@@ -350,6 +351,7 @@ public:
 	afx_msg void OnAddPin();
 	afx_msg void OnFootprintFileSaveAs();
 	afx_msg void OnAddPolyline();
+	afx_msg void OnEditPolyline();
 	afx_msg void OnFootprintFileImport();
 	afx_msg void OnFootprintFileClose();
 	afx_msg void OnFootprintFileNew();
@@ -379,6 +381,38 @@ public:
 	afx_msg void OnAdhesiveDrag();
 	afx_msg void OnAdhesiveDelete();
 	afx_msg void OnCentroidRotateAxis();
+	// CPT
+	void UnitToggle(bool bShiftKeyDown);
+	afx_msg void OnViewPlacementGrid();
+	afx_msg void OnViewVisibleGrid();
+
+	// CPT:  virtual functions from CCommonView:
+	bool IsFreePcbView() { return false; }
+	void SetDList()
+		{ m_dlist = m_Doc->m_dlist_fp; }
+	int GetNLayers()
+		{ return m_Doc->m_fp_num_layers; }
+	int GetTopCopperLayer() 
+		{ return LAY_FP_TOP_COPPER; }
+	int GetLayerRGB(int layer, int i) 
+		{ return m_Doc->m_fp_rgb[layer][i]; }
+	int GetLayerVis(int layer)
+		{ return m_Doc->m_fp_vis[layer]; }
+	void GetLayerLabel(int i, CString &label) {
+		label.LoadStringA(IDS_FpLayerStr+i);
+		}
+	int ToggleLayerVis(int i)
+		{ return m_Doc->m_fp_vis[i] = !m_Doc->m_fp_vis[i]; }
+
+	int GetLeftPaneKeyID() { return IDS_FpLeftPaneKey; }
+
+//	int GetNMasks() { return NUM_FP_SEL_MASKS; }
+	int GetMaskNamesID() { return IDS_FpSelMaskStr; }
+	void HandleNoShiftLayerKey(int layer, CDC *pDC) {
+		m_active_layer = layer;
+		ShowActiveLayer();
+		}
+
 };
 
 #ifndef _DEBUG  // debug version

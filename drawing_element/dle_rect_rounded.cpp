@@ -2,7 +2,7 @@
 #include "dle_rect_rounded.h"
 
 // filled rounded rectangle
-void CDLE_RRECT::_Draw(CDrawInfo const &di) const
+void CDLE_RRECT::_Draw(CDrawInfo &di, bool)
 {
 	if( onScreen() )
 	{
@@ -27,7 +27,7 @@ void CDLE_RRECT::_Draw(CDrawInfo const &di) const
 	}
 }
 
-void CDLE_RRECT::_DrawClearance(CDrawInfo const &di) const
+/* void CDLE_RRECT::_DrawClearance(CDrawInfo const &di) const
 {
 	di.DC->SelectObject( di.erase_brush );
 	di.DC->SelectObject( di.erase_pen );
@@ -56,3 +56,4 @@ void CDLE_RRECT::_DrawClearance(CDrawInfo const &di) const
 	di.DC->SelectObject( di.fill_brush );
 	di.DC->SelectObject( di.line_pen );
 }
+*/

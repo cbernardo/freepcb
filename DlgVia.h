@@ -1,39 +1,42 @@
 #pragma once
 #include "afxwin.h"
-#include "SubdlgViaWidth.h"
-#include "SubdlgClearance.h"
 
 
-// CDlgViaPinSize dialog
+// CDlgVia dialog
 
-class CDlgViaPinSize 
-	: public CDialog
-	, public CSubDlg_ViaWidth
-	, public CSubDlg_Clearance
+class CDlgVia : public CDialog
 {
-	DECLARE_DYNAMIC(CDlgViaPinSize)
+	DECLARE_DYNAMIC(CDlgVia)
 
 public:
-	CDlgViaPinSize(CWnd* pParent = NULL);   // standard constructor
-	virtual ~CDlgViaPinSize();
-	void Initialize( CInheritableInfo const &via_width );
+	CDlgVia(CWnd* pParent = NULL);   // standard constructor
+	virtual ~CDlgVia();
+	void Initialize( int via_w, int via_hole_w, 
+		CPoint pt, int units );
+	void GetFields();
+	void SetFields();
+	CPoint pt(){ return m_pt; };
 
 // Dialog Data
-	enum { IDD = IDD_VIA_PIN_SIZE };
-
-	CViaWidthInfo m_via_width;
+	enum { IDD = IDD_VIA };
 
 protected:
 	virtual void DoDataExchange(CDataExchange* pDX);    // DDX/DDV support
-	virtual BOOL OnInitDialog();
 
 	DECLARE_MESSAGE_MAP()
+public:
+	CComboBox m_combo_units;
+	CEdit m_edit_via_w;
+	CEdit m_edit_hole_w;
 
-	afx_msg void OnBnClicked_v_modify()		 { CSubDlg_ViaWidth::OnBnClicked_v_modify();   }
-	afx_msg void OnBnClicked_v_Default()	 { CSubDlg_ViaWidth::OnBnClicked_v_Default();  }
-	afx_msg void OnBnClicked_v_Set()		 { CSubDlg_ViaWidth::OnBnClicked_v_Set();      }
+	int m_units;
+	int m_via_w, m_via_hole_w;
+	CPoint m_pt;
 
-	afx_msg void OnBnClicked_c_modify()		 { CSubDlg_Clearance::OnBnClicked_c_modify();  }
-	afx_msg void OnBnClicked_c_Default()     { CSubDlg_Clearance::OnBnClicked_c_Default(); }
-	afx_msg void OnBnClicked_c_Set()         { CSubDlg_Clearance::OnBnClicked_c_Set();     }
+public:
+	afx_msg void OnCbnSelChangeComboViaUnits();
+public:
+	CEdit m_edit_x;
+public:
+	CEdit m_edit_y;
 };

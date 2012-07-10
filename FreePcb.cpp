@@ -6,6 +6,7 @@
 #include "resource.h"
 #include "DlgShortcuts.h"
 #include "afxwin.h"
+#include "freepcb.h"
 //#include "QAFDebug.h"
 
 #ifdef _DEBUG
@@ -67,7 +68,12 @@ BOOL CFreePcbApp::InitInstance()
 
 	// Standard initialization
 
-	ENABLE_3D_CONTROLS();
+#ifdef _AFXDLL
+//** deprecated **	
+//	Enable3dControls();			// Call this when using MFC in a shared DLL
+#else
+	Enable3dControlsStatic();	// Call this when linking to MFC statically
+#endif
 
 	// Change the registry key under which our settings are stored.
 	SetRegistryKey(_T("eebit"));
@@ -118,6 +124,7 @@ BOOL CFreePcbApp::InitInstance()
 	m_view_mode = PCB;
 
 	m_Doc->InitializeNewProject();
+	m_pMainWnd->SetWindowTextA(m_Doc->m_window_title);			// CPT --- want a consistent window title from the get-go
 
 	if( cmdInfo.m_nShellCommand == CCommandLineInfo::FileOpen )
 	{

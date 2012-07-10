@@ -1,9 +1,11 @@
 // utility routines
 //
 #include "stdafx.h"
+#define _USE_MATH_DEFINES
 #include <math.h>
 #include <time.h>
 #include "DisplayList.h" 
+#include "ellipse_newton.h"
  
 // globals for timer functions
 LARGE_INTEGER PerfFreq, tStart, tStop; 
@@ -157,39 +159,20 @@ void RotateRect( CRect *r, int angle, CPoint org )
 int TestLineHit( int xi, int yi, int xf, int yf, int x, int y, double dist )
 {
 	double dd;
-	double end_ext = dist;
 
 	// test for vertical or horizontal segment
 	if( xf==xi )
 	{
 		// vertical segment
-
-		// Force yf > yi
-		if( yi>yf )
-		{
-			int t = yi;
-			yi = yf;
-			yf = t;
-		}
-
-		dd = abs( x-xi );
-		if( dd<dist && ( (y-end_ext) < yf && (y+end_ext) > yi) )
+		dd = fabs( (double)(x-xi) );
+		if( dd<dist && ( (yf>yi && y<yf && y>yi) || (yf<yi && y>yf && y<yi) ) )
 			return 1;
 	}
 	else if( yf==yi )
 	{
 		// horizontal segment
-
-		// Force xf > xi
-		if( xi>xf )
-		{
-			int t = xi;
-			xi = xf;
-			xf = t;
-		}
-
-		dd = abs( y-yi );
-		if( dd<dist && ((x-end_ext) < xf && (x+end_ext) > xi) )
+		dd = fabs( (double)(y-yi) );
+		if( dd<dist && ( (xf>xi && x<xf && x>xi) || (xf<xi && x>xf && x<xi) ) )
 			return 1;
 	}
 	else
@@ -202,45 +185,20 @@ int TestLineHit( int xi, int yi, int xf, int yf, int x, int y, double dist )
 		double d = -1.0/b;
 		double c = (double)y-d*x;
 		// find nearest point to (x,y) on line segment (xi,yi) to (xf,yf)
-		int xp = (a-c)/(d-b);
-		int yp = a + b*xp;
-
+		double xp = (a-c)/(d-b);
+		double yp = a + b*xp;
 		// find distance
-		int lx = (x-xp);
-		int ly = (y-yp);
-
-		dd = sqrt((double)lx*lx + (double)ly*ly );
-
-		end_ext = (end_ext - end_ext * 0.5 / fabs(d-b)); // * ((dist-dd) / dist);
-
-		if( fabs(b) > 1.0 )
+		dd = sqrt((x-xp)*(x-xp)+(y-yp)*(y-yp));
+		if( fabs(b)>0.7 )
 		{
 			// line segment more vertical than horizontal
-
-			// Force yf > yi
-			if( yi>yf )
-			{
-				int t = yi;
-				yi = yf;
-				yf = t;
-			}
-
-			if( dd<dist && ( (yp-end_ext)<yf && (yp+end_ext)>yi) )
+			if( dd<dist && ( (yf>yi && yp<yf && yp>yi) || (yf<yi && yp>yf && yp<yi) ) )
 				return 1;
 		}
 		else
 		{
 			// line segment more horizontal than vertical
-
-			// Force xf > xi
-			if( xi>xf )
-			{
-				int t = xi;
-				xi = xf;
-				xf = t;
-			}
-
-			if( dd<dist && ( (xp-end_ext)<xf && (xp+end_ext)>xi) )
+			if( dd<dist && ( (xf>xi && xp<xf && xp>xi) || (xf<xi && xp>xf && xp<xi) ) )
 				return 1;
 		}
 	}	
@@ -312,8 +270,9 @@ char * mystrtok( LPCTSTR str, LPCTSTR delim )
 //					nnnn for default units
 // if bRound10 = TRUE, round return value to nearest 10 nm.
 // returns the dimension in nanometers, or 0.0 if error
+// CPT: if bNegateMm is true, negate the return value if unit "mm" is specified.
 //
-double GetDimensionFromString( CString * str, int def_units, BOOL bRound10 )
+double GetDimensionFromString( CString * str, int def_units, BOOL bRound10, BOOL bNegateMm )
 {
 	double dim;
 	int mult;
@@ -328,11 +287,11 @@ double GetDimensionFromString( CString * str, int def_units, BOOL bRound10 )
 	int len = str->GetLength();
 	if( len > 2 )
 	{
-		if( str->Right(2) == "MM" )
-			mult = NM_PER_MM;
-		else if( str->Right(3) == "MIL" )
+		if( str->Right(2).CompareNoCase("MM") == 0 )				// CPT
+			mult = bNegateMm? -NM_PER_MM: NM_PER_MM;
+		else if( str->Right(3).CompareNoCase("MIL") == 0 )
 			mult = NM_PER_MIL;
-		else if( str->Right(2) == "NM" )
+		else if( str->Right(2).CompareNoCase("NM") == 0 )
 			mult = 1;
 	}
 	dim = mult*atof( (LPCSTR)str->GetBuffer() );
@@ -348,6 +307,7 @@ double GetDimensionFromString( CString * str, int def_units, BOOL bRound10 )
 	}
 	return dim;
 }
+
 
 // function to make string from dimension in NM, using requested units
 // if append_units == TRUE, add unit string, like "10MIL"
@@ -413,6 +373,72 @@ void MakeCStringFromDimension( CString * str, int dim, int units, BOOL append_un
 	}
 }
 
+// CPT
+void MakeCStringFromGridVal(CString *str, double val) {
+	// CPT.  Utility used for the strings display in the grid-value dropdowns and the grid-val dialogs.  
+	// Translate "val" into a mil-or-mm length string, where as usual val<0 => mm units, val>=0 => mil units.  
+	// Append "mm" if needed, but not "mil"
+	BOOL is_mm = ( val < 0 );
+	val = fabs( val );
+	if( is_mm )
+		str->Format( "%9.3f", val/1000000.0 );
+	else
+		str->Format( "%9.3f", val/NM_PER_MIL );
+	str->Trim();
+	int lgth = str->GetLength();
+	for (int i=1; i<4; i++)
+		if( (*str)[lgth-i] == '0' )
+			str->Delete(lgth-i);
+		else break;
+	if( (*str)[str->GetLength()-1] == '.' )
+		str->Delete( str->GetLength()-1 );
+	if (is_mm) 
+		str->Append(" mm");
+	}
+
+int CompareGridVals(const double *gv1, const double *gv2) {
+	// CPT.  Compare grid vals for the dropdowns and the grid-val dlgs.
+	// Order is like this:  200 mil, 100 mil, 20 mil, 5 mm, 2 mm, 1 mm.
+	if (*gv1==*gv2) return 0;
+	if (*gv1<0)
+		if (*gv2<0) return *gv1<*gv2? -1: 1;
+		else        return 1;
+	else if (*gv2<0) return -1;
+	else return *gv1<*gv2? 1: -1;
+	}
+
+int strcmpNumeric(CString *s1, CString *s2) {
+	// CPT: String comparison where IC9 comes before IC10, etc.  Alpha comparison is caseless.  Used when exporting netlists and (eventually)
+	// when saving .fpc's.  Was originally in FreePcbDoc.cpp, but this seems a better place.
+	int lgth1 = s1->GetLength(), lgth2 = s2->GetLength();
+	for (int i=0; i<lgth1 && i<lgth2; i++) {
+		char c1 = toupper((*s1)[i]), c2 = toupper((*s2)[i]);
+		if (isdigit(c1) && isdigit(c2)) {
+			int val1 = atoi(s1->Mid(i)), val2 = atoi(s2->Mid(i));
+			if (val1<val2) return -1;
+			if (val1>val2) return 1;
+			int i1=i+1, i2=i+1;
+			while (i1<lgth1 && isdigit((*s1)[i1])) i1++;
+			while (i2<lgth2 && isdigit((*s2)[i2])) i2++;
+			if (i1<i2) return -1;									// Fewer leading 0's comes first in this ordering.
+			if (i1>i2) return 1;
+			i = i1-1;
+			continue;												// Numeric segments are identical:  move on to the rest of the string
+			}
+		if (c1<c2) return -1;
+		if (c1>c2) return 1;
+		}
+
+	// One string is a subseg of the other
+	if (lgth1<lgth2) return -1;
+	if (lgth1>lgth2) return 1;
+	return strcmp(*s1,*s2);											// Do cased comparison of strings that are caseless-identical
+	}
+
+
+// end CPT
+
+
 // function to make a CString from a double, stripping trailing zeros and "."
 // allows maximum of 4 decimal places
 //
@@ -464,6 +490,9 @@ int ParseRef( CString * ref, CString * prefix )
 // if nstr != NULL, set to numeric part
 // if n != NULL, set to value of numeric part
 //
+// CPT changed:  now allowing 1A.  In that sort of case, astr on return will be 1a and nstr will be "".  I.e.
+//  nstr is filled only if pinstr ENDS with a number.
+
 BOOL CheckLegalPinName( CString * pinstr, CString * astr, CString * nstr, int * n )
 {
 	CString aastr;
@@ -474,38 +503,18 @@ BOOL CheckLegalPinName( CString * pinstr, CString * astr, CString * nstr, int * 
 		return FALSE;
 	if( -1 != pinstr->FindOneOf( " .,;:/!@#$%^&*(){}[]|<>?\\~\'\"" ) )
 		return FALSE;
-	int asize = pinstr->FindOneOf( "0123456789" );
-	if( asize == -1 )
+	int lgth = pinstr->GetLength(), lastNonDigit;
+	for (lastNonDigit=lgth-1; lastNonDigit>=0; lastNonDigit--) 
 	{
-		// starts with a non-number
-		aastr = *pinstr;
+		char c = (*pinstr)[lastNonDigit];
+		if (!isdigit(c)) break;
 	}
-	else if( asize == 0 )
-	{
-		// starts with a number, illegal if any non-numbers
-		nnstr = *pinstr;
-		for( int ic=0; ic<nnstr.GetLength(); ic++ )
-		{
-			if( nnstr[ic] < '0' || nnstr[ic] > '9' )
-				return FALSE;
-		}
-		nn = atoi( nnstr );
-	}
+	if (lastNonDigit==lgth-1)
+		aastr = *pinstr;			// Doesn't have trailing digits...
 	else
-	{
-		// both alpha and numeric parts
-		// get alpha substring
-		aastr = pinstr->Left( asize );
-		int test = aastr.FindOneOf( "0123456789" );
-		if( test != -1 )
-			return FALSE;	// alpha substring contains a number
-		// get numeric substring
-		nnstr = pinstr->Right( pinstr->GetLength() - asize );
-		CString teststr = nnstr.SpanIncluding( "0123456789" );
-		if( teststr != nnstr )
-			return FALSE;	// numeric substring contains non-number
-		nn = atoi( nnstr );
-	}
+		aastr = pinstr->Left(lastNonDigit+1),
+		nnstr = pinstr->Mid(lastNonDigit+1),
+		nn = atoi(nnstr);
 	if( astr )
 		*astr = aastr;
 	if( nstr )
@@ -514,7 +523,7 @@ BOOL CheckLegalPinName( CString * pinstr, CString * astr, CString * nstr, int * 
 		*n = nn;
 	return TRUE;
 }
-
+// end CPT
 
 
 // find intersection between y = a + bx and y = c + dx;
@@ -608,17 +617,6 @@ int MakeEllipseFromArc( int xi, int yi, int xf, int yf, int style, EllipseKH * e
 	el->Center.Y = yo;
 	el->xrad = abs(xf-xi);
 	el->yrad = abs(yf-yi);
-#if 0
-	el->Phi = 0.0;
-	el->MaxRad = el->xrad;
-	el->MinRad = el->yrad;
-	if( el->MaxRad < el->MinRad )
-	{
-		el->MaxRad = el->yrad;
-		el->MinRad = el->xrad;
-		el->Phi = M_PI/2.0;
-	}
-#endif
 	return 0;
 }
 
@@ -761,9 +759,9 @@ int FindSegmentIntersections( int xi, int yi, int xf, int yf, int style,
 		MakeEllipseFromArc( xi2, yi2, xf2, yf2, style2, &el2 );
 		int n;
 		if( el1.xrad+el1.yrad > el2.xrad+el2.yrad )
-			n = GetArcIntersections( &el1, &el2 );
+			n = GetArcIntersections( &el1, &el2, &(xr[0]), &(yr[0]), &(xr[1]), &(yr[1]) );
 		else
-			n = GetArcIntersections( &el2, &el1 );
+			n = GetArcIntersections( &el2, &el1, &(xr[0]), &(yr[0]), &(xr[1]), &(yr[1]) );
 		iret = n;
 	}
 	if( x && y )
@@ -1338,6 +1336,37 @@ int ccw( int angle )
 	return (720-angle)%360;
 }
 
+// rotate point representing vector between ends of 45-degree curve
+// so that it's long axis points along y
+// use -octant to reverse the transform
+//
+CPoint t_octant( int octant, CPoint& pt )
+{
+	CPoint p;
+	switch( octant )
+	{
+	case 0: p.x =  pt.x;  p.y =  pt.y;  break; 
+
+	case 1: p.x =  pt.y;  p.y = -pt.x;  break; 
+	case 2: p.x =  pt.y;  p.y = -pt.x;  break;
+	case 3: p.x = -pt.x;  p.y = -pt.y;  break;
+	case 4: p.x = -pt.x;  p.y = -pt.y;  break;
+	case 5: p.x = -pt.y;  p.y =  pt.x;  break;
+	case 6: p.x = -pt.y;  p.y =  pt.x;  break;
+	case 7: p.x =  pt.x;  p.y =  pt.y;  break;
+
+	case -1: p.x = -pt.y;  p.y =  pt.x;  break; 
+	case -2: p.x = -pt.y;  p.y =  pt.x;  break;
+	case -3: p.x = -pt.x;  p.y = -pt.y;  break;
+	case -4: p.x = -pt.x;  p.y = -pt.y;  break;
+	case -5: p.x =  pt.y;  p.y = -pt.x;  break;
+	case -6: p.x =  pt.y;  p.y = -pt.x;  break;
+	case -7: p.x =  pt.x;  p.y =  pt.y;  break;
+	}
+	return p;
+}
+
+
 // solves quadratic equation
 // i.e.   ax**2 + bx + c = 0
 // returns TRUE if solution exist, with solutions in x1 and x2
@@ -1466,6 +1495,156 @@ void DrawArc( CDC * pDC, int shape, int xxi, int yyi, int xxf, int yyf, BOOL bMe
 		ASSERT(0);	// oops
 }
 
+// Draw a straight line or a curve between xi,yi and xf,yf
+// The type of curve depends on the angle between the endpoints
+// If a multiple of 90 degrees, draw a straight line,
+// else if a multiple of 45 degrees, draw a quadrant of a circle,
+// else draw a compound curve consisting of an octant of a circle 
+// extended by a straight line at one end or the other
+// shape can be DL_LINE, DL_CURVE_CW or DL_CURVE_CCW
+//
+void DrawCurve( CDC * pDC, int shape, int xxi, int yyi, int xxf, int yyf, BOOL bMeta )
+{
+	CPoint pt_start(xxi,yyi), pt_end(xxf,yyf);
+	if( shape == DL_LINE || xxi == xxf || yyi == yyf || abs(xxf-xxi) == abs(yyf-yyi) )
+	{
+		// for straight line or 90-degree arc, use DrawArc()
+		if( shape == DL_LINE )
+			DrawArc( pDC, DL_LINE, xxi, yyi, xxf, yyf, bMeta );
+		else if( shape == DL_CURVE_CW )
+			DrawArc( pDC, DL_ARC_CW, xxi, yyi, xxf, yyf, bMeta );
+		else if( shape == DL_CURVE_CCW )
+			DrawArc( pDC, DL_ARC_CCW, xxi, yyi, xxf, yyf, bMeta );
+	}
+	else if( shape == DL_CURVE_CW || shape == DL_CURVE_CCW ) 
+	{
+		// for the compound curve, there are 8 possible octants,
+		// the straight line can be either vert/horizontal or at 45 degrees 
+		// (depending on dy/dx ratio)
+		// and the curve can be CW or CCW for a total of 32 different cases
+		// to simplify, set endpoints so we can always draw a counter-clockwise arc
+		if( shape == DL_CURVE_CW )
+		{
+			CPoint temp = pt_start;
+			pt_start = pt_end;
+			pt_end = temp;
+		}
+		pDC->MoveTo( pt_start );
+		// now get the vector from the start to end of curve
+		// to simplify further, rotate the vector so dy > 0 and dy > |dx|
+		// now there are only 4 cases
+		// we'll reverse the rotation at the end
+		CPoint d = pt_end - pt_start;	// vector	
+		double angle = atan2( (double)d.y, (double)d.x );
+		angle -= M_PI_2;
+		if( angle < 0.0 )
+			angle = 2.0 * M_PI + angle;
+		int octant = angle/M_PI_4;
+		if ( octant < 0 )
+			octant = 0;
+		else if( octant > 7 ) 
+			octant = 7;
+		// rotate vector
+		d = t_octant( octant, d );
+		double tdx = d.x;	// width of bounding rect for compound curve 
+		double tdy = d.y;	// height of bounding rect for compound curve
+		double sin_45 = sin(M_PI_4);
+		double arc_ratio = abs(sin_45/(1.0 - sin_45)); // dy/dx for octant arc in quadrant 0
+		CPoint pt_arc_start, pt_arc_end, pt_line_start, pt_line_end, pt_circle_center;
+		int circle_radius;
+		if( abs(tdy/tdx) > arc_ratio )
+		{
+			// height/width ratio of rect is greater than arc, add vertical line to arc
+			if( tdx > 0 )
+			{
+				pt_arc_start.x = 0;
+				pt_arc_start.y = 0;
+				pt_arc_end.x = tdx;
+				pt_arc_end.y = tdx*arc_ratio;
+				pt_line_start = pt_arc_end;
+				pt_line_end.x = tdx;
+				pt_line_end.y = tdy;
+				pt_circle_center.y = pt_arc_end.y;
+				pt_circle_center.x = - tdx*arc_ratio;
+				circle_radius = tdx - pt_circle_center.x;
+			}
+			else
+			{
+				pt_arc_start.x = 0;
+				pt_arc_start.y = tdy + tdx*arc_ratio;
+				pt_arc_end.x = tdx;
+				pt_arc_end.y = tdy;
+				pt_line_start.x = 0;
+				pt_line_start.y = 0;
+				pt_line_end = pt_arc_start;
+				pt_circle_center.y = pt_arc_start.y;
+				pt_circle_center.x = tdx - (tdy - pt_arc_start.y);
+				circle_radius = -pt_circle_center.x;
+			}
+		}
+		else
+		{
+			// height/width ratio of rect is less than arc, add 45-degree line to arc
+			if( tdx > 0 )
+			{
+				double ax = (-tdx+tdy)/(1.0-arc_ratio);
+				double ay = -arc_ratio*ax;	
+				pt_line_start.x = 0;
+				pt_line_start.y = 0;
+				pt_line_end.x = tdx + ax;
+				pt_line_end.y = tdy - ay;
+				pt_arc_start = pt_line_end;
+				pt_arc_end.x = tdx;
+				pt_arc_end.y = tdy;
+				pt_circle_center.x = tdx + ax - ay;
+				pt_circle_center.y = tdy;
+				circle_radius = ay - ax;
+			}
+			else
+			{
+				double ax = (tdx+tdy)/(1.0-arc_ratio);
+				double ay = -arc_ratio*ax;	
+				pt_arc_start.x = 0;
+				pt_arc_start.y = 0;
+				pt_arc_end.x = ax;
+				pt_arc_end.y = ay;
+				pt_line_start = pt_arc_end;
+				pt_line_end.x = tdx;
+				pt_line_end.y = tdy;
+				pt_circle_center.x = pt_arc_end.x - pt_arc_end.y;
+				pt_circle_center.y = 0;
+				circle_radius = -pt_circle_center.x;
+			}
+
+		}
+		// now transform points back to original octant
+		pt_arc_start = t_octant( -octant, pt_arc_start );
+		pt_arc_end = t_octant( -octant, pt_arc_end );
+		pt_line_start = t_octant( -octant, pt_line_start );
+		pt_line_end = t_octant( -octant, pt_line_end );
+		pt_circle_center = t_octant( -octant, pt_circle_center );
+		// and offset back to starting point
+		CPoint pt_offset = pt_start;
+		pt_arc_start += pt_offset;
+		pt_arc_end += pt_offset;
+		pt_line_start += pt_offset;
+		pt_line_end += pt_offset;
+		pt_circle_center += pt_offset;
+		CRect br;
+		br.left = pt_circle_center.x - circle_radius;
+		br.right = pt_circle_center.x + circle_radius;
+		br.top = pt_circle_center.y - circle_radius;
+		br.bottom = pt_circle_center.y + circle_radius;
+		// draw arc and line
+		pDC->Arc( br, pt_arc_start, pt_arc_end );
+		pDC->MoveTo( pt_line_start );
+		pDC->LineTo( pt_line_end );
+	}
+	else
+		ASSERT(0);	// illegal shape
+	pDC->MoveTo( xxf, yyf );
+}
+
 // Get arrays of circles, rects and line segments to represent pad
 // for purposes of drawing pad or calculating clearances
 // margins of circles and line segments represent pad outline
@@ -1584,66 +1763,115 @@ void GetPadElements( int type, int x, int y, int wid, int len, int radius, int a
 	ASSERT(0);
 }
 
-// Find distance from a staright line segment to a pad
+// Find distance from a straight line segment to a pad
 //
-int GetClearanceBetweenSegmentAndPad( int x1, int y1, int x2, int y2, int w,
+int GetClearanceBetweenLineSegmentAndPad( int x1, int y1, int x2, int y2, int w,
 								  int type, int x, int y, int wid, int len, int radius, int angle )
 {
 	if( type == PAD_NONE )
 		return INT_MAX;
+
+	// test for segment entirely within pad
+	if( 0 == GetPointToPadDistance( CPoint(x1,y1), type, x, y, wid, len, radius, angle ) )
+		return 0;
+
+	// now get distance from elements of pad outline
+	int nc, nr, ns;
+	my_circle c[4];
+	my_rect r[2];
+	my_seg s[8];
+	GetPadElements( type, x, y, wid, len, radius, angle,
+					&nr, r, &nc, c, &ns, s );
+	int dist = INT_MAX;
+	for( int ic=0; ic<nc; ic++ )
+	{
+		int d = GetPointToLineSegmentDistance( c[ic].x, c[ic].y, x1, y1, x2, y2 ) - c[ic].r - w/2;
+		dist = min(dist,d);
+	}
+	for( int is=0; is<ns; is++ )
+	{
+		double d;
+		TestForIntersectionOfStraightLineSegments( s[is].xi, s[is].yi, s[is].xf, s[is].yf,
+				x1, y1, x2, y2, NULL, NULL, &d );
+		d -= w/2;
+		dist = min(dist,d);
+	}
+	return max(0,dist);
+}
+
+// Returns distance between a point and a segment,
+// also returns coords of closest point on segment
+//
+int GetPointToSegmentDistance( CPoint p,
+				int xi, int yi, int xf, int yf, int w, int style )
+{
+	int dist = INT_MAX, xmin, ymin;
+	if( style == CPolyLine::STRAIGHT )
+	{
+		// segment is a straight line
+		dist = GetPointToLineSegmentDistance( p.x, p.y, xi, yi, xf, yf );
+	}
 	else
 	{
-		int nc, nr, ns;
-		my_circle c[4];
-		my_rect r[2];
-		my_seg s[8];
-		GetPadElements( type, x, y, wid, len, radius, angle,
-						&nr, r, &nc, c, &ns, s );
-		// first test for endpoints of line segment in rectangle
-		for( int ir=0; ir<nr; ir++ )
+		// segment is an arc of an ellipse
+		EllipseKH el;
+		MakeEllipseFromArc( xi, yi, xf, yf, style, &el );
+		// get quadrant of point in ellipse
+		double th_point = atan2( p.y - el.Center.Y, p.x - el.Center.X );
+		if( th_point < el.theta1 && th_point > el.theta2 )
 		{
-			if( x1 >= r[ir].xlo && x1 <= r[ir].xhi && y1 >= r[ir].ylo && y1 <= r[ir].yhi )
-				return 0;
-			if( x2 >= r[ir].xlo && x2 <= r[ir].xhi && y2 >= r[ir].ylo && y2 <= r[ir].yhi )
-				return 0;
+			// same quadrant as arc, need to solve for minimum distance
+			int nIter;
+			double nearX, nearY;
+			double d_test = DistancePointEllipse( p.x, p.y, el.xrad, el.yrad, 0.1, 1000, nIter, nearX, nearY );
 		}
-		// now get distance from elements of pad outline
-		int dist = INT_MAX;
-		for( int ic=0; ic<nc; ic++ )
+		else
 		{
-			int d = GetPointToLineSegmentDistance( c[ic].x, c[ic].y, x1, y1, x2, y2 ) - c[ic].r - w/2;
-			dist = min(dist,d);
+			// not in same quadrant, just check endpoints
+			double x_test, y_test, dx, dy, d_test;
+			for( int iq=0; iq<4; iq++ )
+			{
+				switch( iq )
+				{
+				case 0: x_test = el.Center.X + el.xrad; y_test = el.Center.Y; break;
+				case 1: x_test = el.Center.X; y_test = el.Center.Y + el.yrad; break;
+				case 2: x_test = el.Center.X - el.xrad; y_test = el.Center.Y; break;
+				case 3: x_test = el.Center.X; y_test = el.Center.Y - el.yrad; break;
+				}
+				dx = p.x - x_test;
+				dy = p.y - y_test;
+				d_test = sqrt( dx*dx + dy*dy );
+				if( d_test < dist )
+				{
+					dist = d_test;
+					xmin = x_test;
+					ymin = y_test;
+				}
+			}
+
 		}
-		for( int is=0; is<ns; is++ )
-		{
-			double d;
-			TestForIntersectionOfStraightLineSegments( s[is].xi, s[is].yi, s[is].xf, s[is].yf,
-					x1, y1, x2, y2, NULL, NULL, &d );
-			d -= w/2;
-			dist = min(dist,d);
-		}
-		return max(0,dist);
 	}
+	return dist - w;
 }
 
 // Get clearance between 2 segments
 // Returns point in segment closest to other segment in x, y
-// in clearance > max_cl, just returns max_cl and doesn't return x,y
+// if clearance > min_cl, just returns min_cl and doesn't return x,y
 //
 int GetClearanceBetweenSegments( int x1i, int y1i, int x1f, int y1f, int style1, int w1,
 								   int x2i, int y2i, int x2f, int y2f, int style2, int w2,
-								   int max_cl, int * x, int * y )
+								   int min_cl, int * x, int * y )
 {
 	// check clearance between bounding rectangles
-	int test = max_cl + w1/2 + w2/2;
+	int test = min_cl + w1/2 + w2/2;
 	if( min(x1i,x1f)-max(x2i,x2f) > test )
-		return max_cl;
+		return min_cl;
 	if( min(x2i,x2f)-max(x1i,x1f) > test )
-		return max_cl;
+		return min_cl;
 	if( min(y1i,y1f)-max(y2i,y2f) > test )
-		return max_cl;
+		return min_cl;
 	if( min(y2i,y2f)-max(y1i,y1f) > test )
-		return max_cl;
+		return min_cl;
 
 	if( style1 == CPolyLine::STRAIGHT && style1 == CPolyLine::STRAIGHT )
 	{
@@ -1806,7 +2034,41 @@ int GetClearanceBetweenSegments( int x1i, int y1i, int x1f, int y1f, int style1,
 	return max(0,dmin-w1/2-w2/2);	// allow for widths
 }
 
+// Get distance from point to pad
+// return 0 if point inside pad
+//
+double GetPointToPadDistance( CPoint p, 
+		int type, int x, int y, int w, int l, int rad, int angle )
+{
+	int dist = INT_MAX;
+	int nr, nc, ns, nrr, ncc, nss;
+	my_rect r[2];
+	my_circle c[4];
+	my_seg s[8];
 
+	if( type == PAD_NONE )
+		return INT_MAX;
+
+	GetPadElements( type, x, y, w, l, rad, angle,
+					&nr, r, &nc, c, &ns, s );
+
+	for( int ic=0; ic<nc; ic++ )
+	{
+		int d = Distance( p.x, p.y, c[ic].x, c[ic].y )- c[ic].r;
+		dist = min(dist,d);
+	}
+	for( int ir=0; ir<nr; ir++ )
+	{
+		if( p.x >= r[ir].xlo && p.x <= r[ir].xhi && p.y >= r[ir].ylo && p.y <= r[ir].yhi )
+			return 0;
+	}
+	for( int is=0; is<ns; is++ )
+	{
+		int d = GetPointToLineSegmentDistance( p.x, p.y, s[is].xi, s[is].yi, s[is].xf, s[is].yf );
+		dist = min(dist,d);
+	}
+	return dist;
+}
 
 // Find clearance between pads
 // For each pad:
@@ -1830,11 +2092,19 @@ int GetClearanceBetweenPads( int type1, int x1, int y1, int w1, int l1, int r1, 
 	my_circle c[4], cc[4];
 	my_seg s[8], ss[8];
 
+	// first, test for one pad entirely within the other
+	if( GetPointToPadDistance( CPoint(x1,y1), 
+				type2, x2, y2, w2, l2, r2, angle2 ) == 0 )
+	return 0;
+	if( GetPointToPadDistance( CPoint(x2,y2), 
+				type1, x1, y1, w1, l1, r1, angle1 ) == 0 )
+	return 0;
+
+	// now find distance from every element of pad1 to every element of pad2
 	GetPadElements( type1, x1, y1, w1, l1, r1, angle1,
 					&nr, r, &nc, c, &ns, s );
 	GetPadElements( type2, x2, y2, w2, l2, r2, angle2,
 					&nrr, rr, &ncc, cc, &nss, ss );
-	// now find distance from every element of pad1 to every element of pad2
 	for( int ic=0; ic<nc; ic++ )
 	{
 		for( int icc=0; icc<ncc; icc++ )
@@ -1903,25 +2173,35 @@ double GetPointToLineDistance( double a, double b, int x, int y, double * xpp, d
 // Get distance between line segment and point
 // enter with:	x,y = point
 //				(xi,yi) and (xf,yf) are the end-points of the line segment
+// on return, sets *pNearX and *pNearY to nearest point on line segment
 //
-double GetPointToLineSegmentDistance( int x, int y, int xi, int yi, int xf, int yf )
+double GetPointToLineSegmentDistance( int x, int y, int xi, int yi, int xf, int yf, 
+									 double * xp, double * yp )
 {
-	// test for vertical or horizontal segment
+	BOOL bFound = FALSE;
+	double nearX, nearY, dist;
+	// test for nearest point between ends of line segment
 	if( xf==xi )
 	{
 		// vertical line segment
 		if( InRange( y, yi, yf ) )
-			return abs( x - xi );
-		else
-			return min( Distance( x, y, xi, yi ), Distance( x, y, xf, yf ) );
+		{
+			dist = abs( x - xi );
+			nearX = xi;
+			nearY = y;
+			bFound = TRUE;
+		}
 	}
 	else if( yf==yi )
 	{
 		// horizontal line segment
 		if( InRange( x, xi, xf ) )
-			return abs( y - yi );
-		else
-			return min( Distance( x, y, xi, yi ), Distance( x, y, xf, yf ) );
+		{
+			dist = abs( y - yi );
+			nearX = x;
+			nearY = yi;
+			bFound = TRUE;
+		}
 	}
 	else
 	{
@@ -1937,10 +2217,35 @@ double GetPointToLineSegmentDistance( int x, int y, int xi, int yi, int xf, int 
 		double yp = a + b*xp;
 		// find distance
 		if( InRange( xp, xi, xf ) && InRange( yp, yi, yf ) )
-			return Distance( x, y, xp, yp );
-		else
-			return min( Distance( x, y, xi, yi ), Distance( x, y, xf, yf ) );
+		{
+			dist = Distance( x, y, xp, yp );
+			nearX = xp;
+			nearY = yp;
+			bFound = TRUE;
+		}
 	}
+	if( !bFound )
+	{
+		double dist_i = Distance( x, y, xi, yi );
+		double dist_f = Distance( x, y, xf, yf );
+		if( dist_i < dist_f )
+		{
+			dist = dist_i;
+			nearX = xi;
+			nearY = yi;
+		}
+		else
+		{
+			dist = dist_f;
+			nearX = xf;
+			nearY = yf;
+		}
+	}
+	if( xp )
+		*xp = nearX;
+	if( yp )
+		*yp = nearY;
+	return dist;
 }
 
 // test for value within range
@@ -2199,4 +2504,142 @@ int sign(int thing)
 	if(thing <  0) return -1;
 	return 1;
 }
+
+
+// CPT (All that follows):
+
+// CPT.  Functions for utility class CMyBitmap
+
+void CMyBitmap::Line(int x0, int y0, int x1, int y1, char val) {
+	// Draw a "line" on the bitmap from (x1,y1) to (x2,y2), using byte value "val".  Successfully clips any out-of-range pixels on the line.
+	if (x0<0 && x1<0) return;
+	if (x0>=w && x1>=w) return;
+	if (y0<0 && y1<0) return;
+	if (y0>=h && y1>=h) return;
+	int dx = x1-x0, dy = y1-y0, tmp, jog;
+	bool bSteep;
+	if (dx>0) bSteep = dy>dx || dy<-dx;
+	else      bSteep = dy<dx || dy>-dx;
+	if (bSteep) {
+		if (dy<0)
+			tmp = x0, x0 = x1, x1 = tmp,
+			tmp = y0, y0 = y1, y1 = tmp,
+			dx = -dx, dy = -dy;
+		if (dx<0) jog = -1, dx = -dx;
+		else      jog = 1;
+		for (int y=y0, x=x0, r=0; y<=y1; y++, r+=dx) {
+			if (r>=dy) r-=dy, x+=jog;
+			if (y>=h) break;
+			if (y<0 || x<0 || x>=w) continue;
+			data[y*w+x] = val;
+			}
+		}
+	else {
+		if (dx<0)
+			tmp = x0, x0 = x1, x1 = tmp,
+			tmp = y0, y0 = y1, y1 = tmp,
+			dx = -dx, dy = -dy;
+		if (dy<0) jog = -1, dy = -dy;
+		else      jog = 1;
+		for (int x=x0, y=y0, r=0; x<=x1; x++, r+=dy) {
+			if (r>=dx) r-=dx, y+=jog;
+			if (x>=w) break;
+			if (x<0 || y<0 || y>=h) continue;
+			data[y*w+x] = val;
+			}
+		}
+	}
+
+void CMyBitmap::Arc(int x0, int y0, int x1, int y1, bool bCw, char val) {
+	// Draw a quarter-elliptical arc from (x0,y0) to (x1,y1), either clockwise or counterclockwise depending on bCw.  (Just like the arcs that can
+	// be used as area edges...)  Fill in pixels using value "val".  Does not need to worry about out-of-range situations --- the CMyBitmap is 
+	// guaranteed to be large enough to accommodate any area-edge arcs that we're going to be "drawing" on it.
+	if (x0==x1 || y0==y1)
+		{ Line(x0,y0, x1,y1, val); return; }
+	// Ensure that x increases from x0 to x1:
+	int tmp;
+	if (x0>x1)
+		tmp = x0, x0 = x1, x1 = tmp,
+		tmp = y0, y0 = y1, y1 = tmp,
+		bCw = !bCw;
+	double dx = x1-x0, dy = y1-y0;
+	if (dy<0)
+		bCw = !bCw;
+	// At this point, if bCw, we'll basically use the function y = sqrt(2*x-x**2) (with scaling);  otherwise, use y = 1-sqrt(1-x**2).
+	int yPrev = y0;
+	for (int x=x0+1; x<=x1; x++) {
+		double xx = (x-x0)/dx, yy;
+		if (bCw)
+			yy = sqrt(2*xx-xx*xx);
+		else 
+			yy = 1 - sqrt(1-xx*xx);
+		int y = floor(yy*dy + y0 + .5);
+		// Fill in pixels in columns x-1 and x as appropriate
+		if (y==yPrev)
+			data[y*w+x-1] = data[y*w+x] = val;
+		else if (y>yPrev) {
+			int yMid = bCw? (y+yPrev+1)/2: (y+yPrev)/2;
+			for (int y1=yPrev; y1<=yMid; y1++)
+				data[y1*w+x-1] = val;
+			for (int y1=yMid; y1<=y; y1++)
+				data[y1*w+x] = val;
+			}
+		else {
+			int yMid = bCw? (y+yPrev)/2: (y+yPrev+1)/2;
+			for (int y1=yPrev; y1>=yMid; y1--)
+				data[y1*w+x-1] = val;
+			for (int y1=yMid; y1>=y; y1--)
+				data[y1*w+x] = val;
+			}
+		yPrev = y;
+		}
+	}
+
+int CMyBitmap::FloodFill(int x0, int y0, char val) {
+	// Start at position (x0,y0), and flood fill, putting in value "val" wherever we encounter values equal to the original value at
+	// position (x0,y0).  Returns the number of pixels that got flooded
+	if (x0<0 || x0>=w) return 0;
+	if (y0<0 || y0>=h) return 0;
+	char orig = data[y0*w+x0];
+	if (val==orig) return 0;						// Caller goofed...
+	int ret = 0;
+	char *row = data+y0*w;
+	while (x0>0 && row[x0-1]==orig) x0--;			// Move x0 back to the beginning of any run of pixels with value "orig"
+	CArray<int> xList, yList;
+	xList.SetSize(0, 1000); yList.SetSize(0, 1000);
+	xList.Add(x0), yList.Add(y0);
+	int p=0;
+	while (p<xList.GetSize()) {
+		// Get a point (x,y) from the needs-to-be-processed list.  Determine the horizontal run of points starting at (x,y),
+		// such that all of them have the value "orig" on the bitmap.  Change their values to "val"
+		int x = xList[p], y = yList[p++], x2, x3;
+		row = data+y*w;
+		for (x2=x; x2<w && row[x2]==orig; x2++)
+			row[x2] = val, ret++;
+		// Determine if there are points in the preceding row to add to the needs-to-be-processed list.  Only add points that are at
+		// the starts of runs with the value "orig"
+		if (y>0) {
+			char *above = row-w;
+			if (above[x]==orig) {
+				for (x3=x; x3>0 && above[x3-1]==orig; x3--) ;
+				xList.Add(x3);  yList.Add(y-1);
+				}
+			for (x3=x+1; x3<x2; x3++)
+				if (above[x3]==orig && above[x3-1]!=orig)
+					xList.Add(x3), yList.Add(y-1);
+			}
+		// Similarly look for points in the following row to add to the needs-to-be-processed list.
+		if (y<h-1) {
+			char *below = row+w;
+			if (below[x]==orig) {
+				for (x3=x; x3>0 && below[x3-1]==orig; x3--) ;
+				xList.Add(x3); yList.Add(y+1);
+				}
+			for (x3=x+1; x3<x2; x3++)
+				if (below[x3]==orig && below[x3-1]!=orig)
+					xList.Add(x3), yList.Add(y+1);
+			}
+		}
+	return ret;
+	}
 

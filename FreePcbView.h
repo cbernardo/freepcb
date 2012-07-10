@@ -10,13 +10,14 @@
 #include "stdafx.h"
 #include "DisplayList.h"
 #include "FreePcbDoc.h"
+#include "ids.h"
 
-class CFreePcbView;
+class CFreePcbView; 
 
 // cursor modes
 enum {
 	CUR_NONE_SELECTED = 0,		// nothing selected
-	CUR_SMCUTOUT_CORNER_SELECTED,	// corner of board outline sel.
+	CUR_SMCUTOUT_CORNER_SELECTED,	// corner of board outline sel.  
 	CUR_SMCUTOUT_SIDE_SELECTED,	// edge of board outline sel.
 	CUR_BOARD_CORNER_SELECTED,	// corner of board outline sel.
 	CUR_BOARD_SIDE_SELECTED,	// edge of board outline sel.
@@ -62,7 +63,7 @@ enum {
 	CUR_DRAG_SMCUTOUT,		// dragging next corner of solder mask cutout
 	CUR_DRAG_SMCUTOUT_INSERT,	// dragging solder mask cutout corner being inserted
 	CUR_DRAG_SMCUTOUT_MOVE,		// dragging solder mask cutout corner being moved
-	CUR_DRAG_STUB,		// dragging ratline to next stub endpoint
+	CUR_DRAG_TRACE,		// dragging ratline to next stub endpoint
 	CUR_DRAG_CONNECT,	// dragging ratline to new connection
 	CUR_DRAG_RAT_PIN,	// dragging ratline to new end pin of trace
 	CUR_MOVE_ORIGIN,	// dragging new origin
@@ -124,7 +125,7 @@ enum {
 	FK_UNDO,
 	FK_SET_SIZE,
 	FK_SET_PARAMS,
-	FK_START_STUB,
+	FK_START_TRACE,
 	FK_EDIT_TEXT,
 	FK_SET_POSITION,
 	FK_DELETE_OUTLINE,
@@ -142,18 +143,27 @@ enum {
 	FK_MOVE_GROUP,
 	FK_DELETE_GROUP,
 	FK_ROTATE_GROUP,
-	FK_VIA_SIZE,
+	FK_VERTEX_PROPERTIES,
 	FK_ADD_VERTEX,
 	FK_SIDE_STYLE,
 	FK_EDIT_AREA,
 	FK_MOVE_SEGMENT,
+
+    // CPT
+    FK_ACTIVE_WIDTH_UP,
+    FK_ACTIVE_WIDTH_DOWN,
+	FK_RGRID_UP,
+	FK_RGRID_DOWN,
+	// end CPT
+
 	FK_NUM_OPTIONS,
 	FK_ARROW
 };
 
+#if 0	// AMW r278: replaced by string table
 // function key menu strings
-const char fk_str[FK_NUM_OPTIONS*2+2][32] =
-{
+const char fk_str[FK_NUM_OPTIONS*2+2][32] = 
+{ 
 	"",			"",
 	" Move",	" Part",
 	" Move",	" Ref Text",
@@ -181,10 +191,10 @@ const char fk_str[FK_NUM_OPTIONS*2+2][32] =
 	" Move",	" Corner",
 	" Add",		" Corner",
 	" Delete",	" Corner",
-	" Connect",	" Pin",
+	" Draw",	" Ratline",
 	" Detach",	" Net",
 	" Set",		" Net",
-	" Delete",	" Connect",
+	" Delete",	" Trace",  
 	" Force",	" Via",
 	" Set",		" Width",
 	" Lock",	" Connect",
@@ -202,13 +212,13 @@ const char fk_str[FK_NUM_OPTIONS*2+2][32] =
 	" Undo",	"",
 	" Set",		" Size",
 	" Set",		" Params",
-	" Start",	" Stub",
+	" Start",	" Trace",	
 	" Edit",	" Text",
 	" Set",		" Position",
 	" Delete",	" Outline",
 	" Delete",	" Area",
 	" Delete",	" Cutout",
-	" Add",		" Segment",
+	" Start",	" Trace",	
 	" Add",		" Via",
 	" Delete",	" Via",
 	" Delete",	" Segment",
@@ -220,13 +230,22 @@ const char fk_str[FK_NUM_OPTIONS*2+2][32] =
 	" Move",	" Group",
 	" Delete",	" Group",
 	" Rotate",	" Group",
-	" Set",		" Via Size",
+	" Edit Via"," Or Vertex",  
 	" Add",		" Vertex",
-	" Set Side",	" Style",
+	" Set Side"," Style",
 	" Edit",	" Area",
 	" Move",	" Segment",
+
+	// CPT
+    " Increase",    " Width",
+    " Decrease",    " Width",
+	" Increase",    " Grid",
+	" Decrease",    " Grid",
+	// end CPT
+
 	" ****",	" ****"
 };
+#endif
 
 // selection masks
 enum {	SEL_MASK_PARTS = 0,
@@ -249,7 +268,7 @@ enum {	SM_GRID_POINTS,	// snap to grid points
 };
 
 // selection mask menu strings
-const char sel_mask_str[NUM_SEL_MASKS][32] =
+const char sel_mask_str[NUM_SEL_MASKS][32] = 
 {
 	"parts",
 	"ref des",
@@ -263,22 +282,6 @@ const char sel_mask_str[NUM_SEL_MASKS][32] =
 	"board outline",
 	"DRC errors"
 };
-
-#define KB_KEY_BACKSPACE	VK_BACK
-#define KB_KEY_SHIFT		VK_SHIFT
-#define KB_KEY_CTRL			VK_CONTROL
-#define KB_KEY_ESC			VK_ESCAPE
-#define KB_KEY_PG_UP		VK_PRIOR
-#define KB_KEY_PG_DOWN		VK_NEXT
-#define KB_KEY_DELETE		VK_DELETE
-#define KB_KEY_FUNC(x)		( VK_F1 - 1 + (x) )
-
-#define KB_KEY_ARROW_LOWEST		VK_LEFT
-#define KB_KEY_ARROW_HIGHEST	VK_DOWN
-	#define KB_KEY_ARROW_LEFT		VK_LEFT
-	#define KB_KEY_ARROW_RIGHT		VK_RIGHT
-	#define KB_KEY_ARROW_UP			VK_UP
-	#define KB_KEY_ARROW_DOWN		VK_DOWN
 
 // descriptor for undo/redo
 struct undo_descriptor {
@@ -297,13 +300,13 @@ struct undo_group_descriptor {
 	CUndoList * list;		// undo or redo list
 	int type;				// type of operation
 	CArray<CString> str;	// array strings with names of items in group
-	CArray<id> m_id;		// array of item ids
+	CArray<id> m_ids;		// array of item ids
 };
 
 class CFreePcbView : public CView
 {
 public:
-	enum {
+	enum {		
 		// undo types
 		UNDO_PART = 1,			// redo for ADD
 		UNDO_PART_AND_NETS,		// redo for DELETE and MODIFY
@@ -324,8 +327,8 @@ public:
 		UNDO_TEXT,					// redo
 		UNDO_GROUP,
 		// lower-level
-		UNDO_BOARD_OUTLINE_CLEAR_ALL,
-		UNDO_BOARD,
+		UNDO_BOARD_OUTLINE_CLEAR_ALL,	
+		UNDO_BOARD,		
 		UNDO_SM_CUTOUT_CLEAR_ALL,
 		UNDO_SM_CUTOUT,
 		UNDO_GROUP_MODIFY,
@@ -365,7 +368,8 @@ public:
 	BOOL m_bDraggingRect;
 	CPoint m_start_pt;
 	CRect m_drag_rect, m_last_drag_rect;
-	CRect m_sel_rect;		// rectangle used for selection
+	BOOL m_bDontDrawDragRect;					// CPT true after an autoscroll but before repainting occurs
+	CRect m_sel_rect;							// rectangle used for selection
 
 	// mode for drawing new polyline segments
 	int m_polyline_style;	// STRAIGHT, ARC_CW or ARC_CCW
@@ -376,12 +380,23 @@ public:
 	// if right-click handled some other way
 	int m_disable_context_menu;
 
-	// selection mask
-	int m_sel_mask;
-	id m_mask_id[NUM_SEL_MASKS];
+	// selection masks
+	int m_sel_mask;							// bits for mask
+	id m_mask_id[NUM_SEL_MASKS];			// ids for each bit
+	id m_mask_default_id[NUM_SEL_MASKS];	// default ids
+
+	// CPT - AMW: copied from CCommonView for now 
+	// selected items
+	int m_sel_offset;		// CPT:  new system for processing repeated clicks in the same place --- see CDisplayList::TestSelect()
+	id m_sel_id_prev;		// CPT: ditto.  See e.g. CFreePcbView::OnLButtonUp().  Also used when user repeatedly hits 'N' or 'T'
+	void *m_sel_prev;		// CPT: ditto
+	int m_cursor_mode_prev;	// CPT: ditto
+	// end CPT
+
 
 	// selected items
 	id m_sel_id;			// id of selected item
+	id m_sel_uid;			// uid of selected item
 	cpart * m_sel_part;		// pointer to part, if selected
 	cnet * m_sel_net;		// pointer to net, if selected
 	CText * m_sel_text;		// pointer to text, if selected
@@ -390,21 +405,38 @@ public:
 	CArray<id> m_sel_ids;	// array of multiple selections
 	CArray<void*> m_sel_ptrs;	// array of pointers to selected items
 
-#define m_sel_ic m_sel_id.i							// index of selected connection
-#define m_sel_ia m_sel_id.i							// index of selected area
-#define m_sel_is m_sel_id.ii						// index of selected side, segment, or corner
-#define m_sel_iv m_sel_id.ii						// index of selected vertex
-#define m_sel_con m_sel_net->connect[m_sel_ic]		// selected connection
-#define m_sel_seg m_sel_con.seg[m_sel_is]			// selected side or segment
-#define m_sel_last_vtx m_sel_con.vtx[m_sel_is-1]	// last vertex
-#define m_sel_vtx m_sel_con.vtx[m_sel_is]			// selected vertex
-#define m_sel_next_vtx m_sel_con.vtx[m_sel_is+1]	// next vertex
-#define m_sel_next_next_vtx m_sel_con.vtx[m_sel_is+2]	// next vertex after that
-#define m_sel_start_pin m_sel_net->pin[m_sel_con.start_pin]
-#define m_sel_end_pin m_sel_net->pin[m_sel_con.end_pin]
+	// highlight flags
+	bool m_bNetHighlighted;	// current net is highlighted (not selected)
+
+#define m_sel_ic m_sel_id.I2()							// index of selected connection
+#define m_sel_ia m_sel_id.I2()							// index of selected area
+#define m_sel_is m_sel_id.I3()						// index of selected side, segment, or corner
+#define m_sel_iv m_sel_id.I3()						// index of selected vertex
+
+#define m_sel_con (m_sel_net->ConByIndex(m_sel_ic))	// selected connection
+
+#define m_sel_seg (&m_sel_con->SegByIndex(m_sel_is))			// selected side or segment
+#define m_sel_prev_seg (&m_sel_con->SegByIndex(m_sel_is-1))			// selected side or segment
+#define m_sel_next_seg (&m_sel_con->SegByIndex(m_sel_is+1))			// selected side or segment
+
+#define m_sel_vtx (&m_sel_con->VtxByIndex(m_sel_is))			// selected vertex
+#define m_sel_prev_vtx (&m_sel_con->VtxByIndex(m_sel_is-1))	// last vertex
+#define m_sel_next_vtx (&m_sel_con->VtxByIndex(m_sel_is+1))	// next vertex
+#define m_sel_next_next_vtx (&m_sel_con->VtxByIndex(m_sel_is+2))	// next vertex after that
+
+#define m_sel_con_last_vtx (&m_sel_con->VtxByIndex(m_sel_con->NumSegs()))
+
+#define m_sel_con_start_pin (&m_sel_net->pin[m_sel_con->start_pin])
+#define m_sel_con_end_pin (&m_sel_net->pin[m_sel_con->end_pin])
 
 	// direction of routing
 	int m_dir;			// 0 = forward, 1 = back
+
+// CPT
+    int m_active_width;             // Width for upcoming segs during routing mode (in nm)
+	DWORD m_last_autoscroll;		// Tick count when an autoscroll last occurred.
+	int m_units;					// Units (mm or mil).  WILL PUT IN CCommonView
+// end CPT
 
 	// display coordinate mapping
 	double m_pcbu_per_pixel;	// pcb units per pixel
@@ -421,16 +453,17 @@ public:
 	CRect m_client_r;		// in device coords
 	int m_left_pane_w;		// width of pane at left of screen for layer selection, etc.
 	int m_bottom_pane_h;	// height of pane at bottom of screen for key assignments, etc.
+	int m_fkey_w;			// CPT: Width of f-key boxes.
 	CRgn m_pcb_rgn;			// region for the pcb
 	BOOL m_left_pane_invalid;	// flag to erase and redraw left pane
 
 	// active layer for routing and placement
 	int m_active_layer;
 
-	// starting point for a new copper area
+	// starting point for a new copper area 
 	int m_area_start_x;
 	int m_area_start_y;
-
+	
 	// mouse
 	CPoint m_last_mouse_point;	// last mouse position
 	CPoint m_last_cursor_point;	// last cursor position (may be different from mouse)
@@ -438,11 +471,12 @@ public:
 	CPoint m_to_pt;				// for dragging segment, endpoint of this segment
 	CPoint m_last_pt;			// for dragging segment
 	CPoint m_next_pt;			// for dragging segment
+	CPoint m_last_click;		// CPT:  last point where user clicked
 
 	// function key shortcuts
 	int m_fkey_option[12];
 	int m_fkey_command[12];
-	char m_fkey_str[24][32];
+	int m_fkey_rsrc[24];		// CPT:  used to have a table of char[]'s, now we have a table of string rsrc id's
 
 	// memory DC and bitmap
 	BOOL m_memDC_created;
@@ -451,7 +485,10 @@ public:
 //	CBitmap * m_old_bitmap;
 	HBITMAP m_old_bitmap;
 	CRect m_bitmap_rect;
-
+	CDC m_memDC2;				// CPT experimental
+	CBitmap m_bitmap2;			// ditto
+	HBITMAP m_old_bitmap2;		// ditto
+	
 // Operations
 public:
 	void InitInstance();
@@ -471,7 +508,9 @@ public:
 // Implementation
 public:
 	virtual ~CFreePcbView();
-	void InitializeView();
+	void OnNewProject();					// CPT.  Used to be called InitializeView().
+	void BaseInit();						// CPT.  Will move to class CCommonView when the time comes.
+
 #ifdef _DEBUG
 	virtual void AssertValid() const;
 	virtual void Dump(CDumpContext& dc) const;
@@ -481,14 +520,19 @@ public:
 	void SetCursorMode( int mode );
 	void SetFKText( int mode );
 	void DrawBottomPane();
+	BOOL SelectItem( id sid );
 	int ShowCursor();
 	int ShowSelectStatus();
 	void ShowRelativeDistance( int dx, int dy );
 	void ShowRelativeDistance( int x, int y, int dx, int dy );
 	int ShowActiveLayer();
 	int SelectPart( cpart * part );
+	void CancelHighlight();		// AMW r272
 	void CancelSelection();
-	int SetSizeAttrib( int mode );
+	void HighlightNet( cnet * net, id * exclude_id=NULL );
+	void CancelHighlightNet();
+	int SetWidth( int mode );
+	int GetWidthsForSegment( int * w, int * via_w, int * via_hole_w );
 	void ChangeTraceLayer( int mode, int old_layer=0 );
 	void MoveOrigin( int x_off, int y_off );
 	void SelectItemsInRect( CRect r, BOOL bAddToGroup );
@@ -500,7 +544,7 @@ public:
 	void DeleteGroup(  CArray<void*> * grp_ptr, CArray<id> * grp_id );
 	void FindGroupCenter();
 	void HighlightGroup();
-	int FindItemInGroup( void * ptr, id * tid );
+	int FindItemInGroup( void * ptr, id * tid );	
 	BOOL GluedPartsInGroup();
 	void UngluePartsInGroup();
 	int SegmentMovable();
@@ -537,16 +581,11 @@ public:
 	static void UndoGroupCallback( int type, void * ptr, BOOL undo );
 	void OnExternalChangeFootprint( CShape * fp );
 	void HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags);
-	void TryToReselectAreaCorner( int x, int y );
+	void CFreePcbView::TryToReselectAreaCorner( int x, int y );
 	void ReselectNetItemIfConnectionsChanged( int new_ic );
-	int SelectObjPopup( CPoint const &point, CDL_job::HitInfo hit_info[], int num_hits );
-	void SetActiveLayer(int layer);
-	void MakeLayerVisible(int layer);
-	void OnDeleteAny();
+	int SelectObjPopup( CPoint const &point, CHitInfo hit_info[], int num_hits );
 
 protected:
-	CString GetViaText( cvertex const &Vtx );
-	CString GetItemText( CII_FreePcb::Item const &item );
 
 // Generated message map functions
 protected:
@@ -576,18 +615,17 @@ public:
 	afx_msg void OnPadOptimize();
 	afx_msg void OnPadAddToNet();
 	afx_msg void OnPadDetachFromNet();
-	afx_msg void OnPadConnectToPin();
-	afx_msg void OnSegmentSetSizeAttrib();
+	afx_msg void OnPadStartRatline();
+	afx_msg void OnSegmentSetWidth();
 	afx_msg void OnSegmentUnroute();
 	afx_msg void OnRatlineRoute();
 	afx_msg void OnRatlineOptimize();
 	afx_msg void OnVertexMove();
-	afx_msg void OnVertexConnectToPin();
-	afx_msg void OnVertexSizeAttrib();
+	afx_msg void OnVertexStartRatline();
+	afx_msg void OnVertexStartTrace();
 	afx_msg void OnVertexDelete();
 	afx_msg void OnRatlineComplete();
-	afx_msg void OnRatlineSetSizeAttrib();
-	afx_msg void OnRatlineSetRatlineWidth();
+	afx_msg void OnRatlineSetWidth();
 	afx_msg void OnRatlineDeleteConnection();
 	afx_msg void OnRatlineLockConnection();
 	afx_msg void OnRatlineUnlockConnection();
@@ -599,8 +637,7 @@ public:
 	afx_msg void OnBoardCornerDelete();
 	afx_msg void OnBoardSideAddCorner();
 	afx_msg void OnBoardDeleteOutline();
-	afx_msg void OnPadStartStubTrace();
-	afx_msg void OnPadSetClearance();
+	afx_msg void OnPadStartTrace();
 	afx_msg void OnSegmentDelete();
 	afx_msg void OnEndVertexMove();
 	afx_msg void OnEndVertexAddSegments();
@@ -649,8 +686,8 @@ public:
 	afx_msg void OnSmSideDeleteCutout();
 	afx_msg void OnPartChangeSide();
 	afx_msg void OnPartRotate();
-	afx_msg void OnNetSetSizeAttrib();
-	afx_msg void OnConnectSetSizeAttrib();
+	afx_msg void OnNetSetWidth();
+	afx_msg void OnConnectSetWidth();
 	afx_msg void OnConnectUnroutetrace();
 	afx_msg void OnConnectDeletetrace();
 	afx_msg void OnSegmentChangeLayer();
@@ -668,6 +705,7 @@ public:
 	LONG OnChangeSnapAngle( UINT wp, LONG lp );
 	LONG OnChangeUnits( UINT wp, LONG lp );
 	afx_msg void OnAreaEdit();
+	afx_msg void OnAreaEdgeApplyClearances();
 	afx_msg void OnGroupSaveToFile();
 	afx_msg void OnGroupCopy();
 	afx_msg void OnGroupCut();
@@ -689,7 +727,90 @@ public:
 	afx_msg void OnValueRotateCW();
 	afx_msg void OnValueRotateCCW();
 	afx_msg void OnSegmentMove();
+
+// CPT:
+    void ActiveWidthUp(CDC * pDC);
+    void ActiveWidthDown(CDC * pDC);
+    void GetViaWidths(int w, int *via_w, int *via_hole_w);
+
+	void HandleCtrlFKey(int nChar);
+	void DrawLeftPane(CDC *pDC);
+
+	void RoutingGridUp();
+	void RoutingGridDown();
+	void UnitToggle(bool bShiftKeyDown);
+	bool ConvertSelectionToGroup(bool bChangeMode);
+	void ConvertSelectionToGroupAndMove(int dx, int dy);
+	void ConvertSingletonGroup();
+	void DoSelection(id &sid, void *ptr);
+	void ToggleSelectionState(id &sid, void *ptr);
+
+	// CPT:  virtual functions from CCommonView:
+	bool IsFreePcbView() { return true; }
+	void SetDList()
+		{ m_dlist = m_Doc->m_dlist; }
+	int GetNLayers()
+		{ return m_Doc->m_num_layers; }
+	int GetTopCopperLayer() 
+		{ return LAY_TOP_COPPER; }
+	int GetLayerRGB(int layer, int i) 
+		{ return m_Doc->m_rgb[layer][i]; }
+	int GetLayerVis(int layer)
+		{ return m_Doc->m_vis[layer]; }
+	int GetLayerNum(int i) {
+		// Given a line-number within the left pane, return the actual layer num
+		// (may differ for copper layers)
+		if( i == GetNLayers()-1 && m_Doc->m_num_copper_layers > 1 )
+			return LAY_BOTTOM_COPPER;
+		if( i > LAY_TOP_COPPER )
+			return i+1;
+		return i;
+		}
+	void GetLayerLabel(int i, CString &label) {
+		// Get the layer label for the i-th line in the left pane display
+		CString s;
+		char lc = layer_char[i-LAY_TOP_COPPER];
+		if (i==LAY_TOP_COPPER)
+			s.LoadStringA(IDS_TopCopper),
+			label.Format(s, lc, lc);
+		else if (i==GetNLayers()-1)
+			s.LoadStringA(IDS_Bottom3),
+			label.Format(s, lc, lc);
+		else if (i==LAY_PAD_THRU)
+			label.LoadStringA(IDS_DrilledHole2);
+		else if (i>LAY_TOP_COPPER)
+			s.LoadStringA(IDS_LayerStr+i+1),
+			label.Format("%s. %c,C%c", s, lc, lc);
+		else if (i>1)
+			s.LoadStringA(IDS_LayerStr+i),
+			label.Format("%s. CF%d", s, i-1);
+		else
+			label.LoadStringA(IDS_LayerStr+i);
+		}
+	int ToggleLayerVis(int i)
+		{ return m_Doc->m_vis[i] = !m_Doc->m_vis[i]; }
+	int GetLeftPaneKeyID() { return IDS_LeftPaneKey; }
+	int GetNMasks() { return NUM_SEL_MASKS; }
+	int GetMaskNamesID() { return IDS_SelMaskStr; }
+
+	void HandleShiftLayerKey(int layer, CDC *pDC);
+	void HandleNoShiftLayerKey(int layer, CDC *pDC);
+	// WILL GO INTO CCommonView when the time comes:
+	bool CheckBottomPaneClick(CPoint &point);
+	bool CheckLeftPaneClick(CPoint &point);
+	void PlacementGridUp();
+	void PlacementGridDown();
+	BOOL m_lastKeyWasArrow;	// (used to be globals)
+	BOOL m_lastKeyWasGroupRotate;
+	int m_totalArrowMoveX;
+	int m_totalArrowMoveY;
+
+	// AMW - taken from CCommmonView
+	bool CFreePcbView::HandleLayerKey(UINT nChar, bool bShiftKeyDown, bool bCtrlKeyDown, CDC *pDC);
+	void CFreePcbView::HandlePanAndZoom(int nChar, CPoint &p);
+
 };
+// end CPT
 
 #ifndef _DEBUG  // debug version in FreePcbView.cpp
 inline CFreePcbDoc* CFreePcbView::GetDocument()

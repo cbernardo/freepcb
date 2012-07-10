@@ -1,10 +1,12 @@
 #include "stdafx.h"
 #include "dle_octagon.h"
+#include "math.h"
 
+extern CFreePcbApp theApp;
 static const double pi = 3.14159265359;
 
 // filled octagon
-void CDLE_OCTAGON::_Draw(CDrawInfo const &di) const
+void CDLE_OCTAGON::_Draw(CDrawInfo &di, bool)
 {
 	if( onScreen() )
 	{
@@ -38,7 +40,7 @@ void CDLE_OCTAGON::_Draw(CDrawInfo const &di) const
 	}
 }
 
-void CDLE_OCTAGON::_DrawClearance(CDrawInfo const &di) const
+/* void CDLE_OCTAGON::_DrawClearance(CDrawInfo const &di) const
 {
 	int sz = w/2 + clearancew;
 
@@ -59,8 +61,9 @@ void CDLE_OCTAGON::_DrawClearance(CDrawInfo const &di) const
 	di.DC->SelectObject( di.fill_brush );
 	di.DC->SelectObject( di.line_pen );
 }
+*/
 
-void CDLE_OCTAGON::_DrawThermalRelief(CDrawInfo const &di) const
+void CDLE_OCTAGON::_DrawThermalRelief(CDrawInfo &di)
 {
 	CFreePcbDoc * doc = theApp.m_Doc;
 

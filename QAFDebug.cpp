@@ -546,8 +546,8 @@ void QAFDebug::OutputDebugStringEx( LPCTSTR szFilename, const int iLine,
 	#endif
 
 	// Prepare parameters for the complete error message
-	SYSTEMTIME st;
-	GetLocalTime( &st );
+	SYSTEMTIME t2;
+	GetLocalTime( &t2 );
 	DWORD dwProcess = GetCurrentProcessId(), dwThread = GetCurrentThreadId();
 	TCHAR lpszModule[MAX_PATH];
 	if( 0 == GetModuleFileName( NULL, lpszModule, MAX_PATH ) )
@@ -557,7 +557,7 @@ void QAFDebug::OutputDebugStringEx( LPCTSTR szFilename, const int iLine,
 	// Format the complete error message 
 	LPTSTR lpszFmtStr = QAFDEBUG_STD_FORMAT;
 	iRes = wsprintf( lpszBuffer, lpszFmtStr, 
-		st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute, st.wSecond, st.wMilliseconds,
+		t2.wYear, t2.wMonth, t2.wDay, t2.wHour, t2.wMinute, t2.wSecond, t2.wMilliseconds,
 		dwProcess, dwThread, lpszModule, dwLastError,
 		szFilename, iLine, szExpression,
 		szErrorMessage );

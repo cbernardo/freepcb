@@ -5,6 +5,7 @@
 #include "FreePcb.h"
 #include "DlgAddArea.h"
 #include "layers.h"
+#include "Net_iter.h"
 
 // globals
 int gHatch = CPolyLine::NO_HATCH;
@@ -32,12 +33,13 @@ void CDlgAddArea::DoDataExchange(CDataExchange* pDX)
 	if( !pDX->m_bSaveAndValidate )
 	{
 		// incoming, initialize net list
-		CIterator_cnet iter(m_nlist);
-		for( cnet * net = iter.GetFirst(); net != NULL; net = iter.GetNext() )
+		CIterator_cnet iter_net(m_nlist);
+		cnet * net = iter_net.GetFirst();
+		while( net )
 		{
 			m_combo_net.AddString( net->name );
+			net = iter_net.GetNext();
 		}
-
 		if( m_net )
 		{
 			bNewArea = FALSE;
@@ -46,15 +48,14 @@ void CDlgAddArea::DoDataExchange(CDataExchange* pDX)
 				ASSERT(0);
 		}
 		else
-		{
 			bNewArea = TRUE;
-		}
 
 		// initialize layers
 		m_num_layers = m_num_layers-LAY_TOP_COPPER;
 		for( int il=0; il<m_num_layers; il++ )
 		{
-			m_list_layer.InsertString( il, &layer_str[il+LAY_TOP_COPPER][0] );
+			CString s ((LPCSTR) (IDS_LayerStr+il+LAY_TOP_COPPER));
+			m_list_layer.InsertString( il, s );
 		}
 		m_list_layer.SetCurSel( m_layer - LAY_TOP_COPPER );
 		if( m_hatch == -1 )
@@ -78,7 +79,8 @@ void CDlgAddArea::DoDataExchange(CDataExchange* pDX)
 		m_net = m_nlist->GetNetPtrByName( &m_net_name );
 		if( !m_net )
 		{
-			AfxMessageBox( "Illegal net name" );
+			CString msg ((LPCSTR) IDS_IllegalNetName);
+			AfxMessageBox( msg );
 			pDX->Fail();
 		}
 		if( m_radio_none.GetCheck() )

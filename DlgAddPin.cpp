@@ -5,6 +5,22 @@
 #include "FreePcb.h"
 #include "DlgAddPin.h"
 
+int ConvertMaskCurSelToShape( int cur_sel )
+{
+	if( cur_sel == 0 )
+		return 99;
+	else
+		return cur_sel - 1;
+}
+
+int ConvertMaskShapeToCurSel( int shape )
+{
+	if( shape == 99 )
+		return 0;
+	else
+		return shape + 1;
+}
+
 double GetNameValue( CString * name )
 {
 	double value = 0.0;
@@ -106,7 +122,7 @@ CDlgAddPin::~CDlgAddPin()
 
 void CDlgAddPin::DoDataExchange(CDataExchange* pDX)
 {
-	CDialog::DoDataExchange(pDX);
+	CDialog::DoDataExchange(pDX); 
 	DDX_Control(pDX, IDC_RADIO_ADD_PIN, m_radio_add_pin);
 	DDX_Control(pDX, IDC_RADIO_ADD_ROW, m_radio_add_row);
 	DDX_Control(pDX, IDC_COMBO_PIN_UNITS, m_combo_units);
@@ -187,27 +203,30 @@ void CDlgAddPin::DoDataExchange(CDataExchange* pDX)
 				case 5: cbox = &m_combo_bottom_shape2; bMask = TRUE; break;
 				case 6: cbox = &m_combo_bottom_shape3; bMask = TRUE; break;
 			}
+			CString s[8];
+			for (int i=0; i<8; i++)
+				s[i].LoadStringA(IDS_PadShape+i);
 			if( bMask == FALSE )
 			{
-				cbox->InsertString( PAD_NONE, "none" );
-				cbox->InsertString( PAD_ROUND, "round" );
-				cbox->InsertString( PAD_SQUARE, "square" );
-				cbox->InsertString( PAD_RECT, "rect" );
-				cbox->InsertString( PAD_RRECT, "rounded-rect" );
-				cbox->InsertString( PAD_OVAL, "oval" );
-				cbox->InsertString( PAD_OCTAGON, "octagon" );
+				cbox->InsertString( PAD_NONE, s[1] );
+				cbox->InsertString( PAD_ROUND, s[2] );
+				cbox->InsertString( PAD_SQUARE, s[3] );
+				cbox->InsertString( PAD_RECT, s[4] );
+				cbox->InsertString( PAD_RRECT, s[5] );
+				cbox->InsertString( PAD_OVAL, s[6] );
+				cbox->InsertString( PAD_OCTAGON, s[7] );
 				cbox->SetCurSel( 0 );
 			}
 			else
 			{
-				cbox->InsertString( 0, "<default>" );
-				cbox->InsertString( PAD_NONE+1, "none" );
-				cbox->InsertString( PAD_ROUND+1, "round" );
-				cbox->InsertString( PAD_SQUARE+1, "square" );
-				cbox->InsertString( PAD_RECT+1, "rect" );
-				cbox->InsertString( PAD_RRECT+1, "rounded-rect" );
-				cbox->InsertString( PAD_OVAL+1, "oval" );
-				cbox->InsertString( PAD_OCTAGON+1, "octagon" );
+				cbox->InsertString( 0, s[0] );
+				cbox->InsertString( PAD_NONE+1, s[1] );
+				cbox->InsertString( PAD_ROUND+1, s[2] );
+				cbox->InsertString( PAD_SQUARE+1, s[3] );
+				cbox->InsertString( PAD_RECT+1, s[4] );
+				cbox->InsertString( PAD_RRECT+1, s[5] );
+				cbox->InsertString( PAD_OVAL+1, s[6] );
+				cbox->InsertString( PAD_OCTAGON+1, s[7] );
 				cbox->SetCurSel( 0 );
 			}
 		}
@@ -220,22 +239,26 @@ void CDlgAddPin::DoDataExchange(CDataExchange* pDX)
 		else
 			m_combo_units.SetCurSel( 1 );
 
-		m_combo_x_edge.AddString( "left" );
-		m_combo_x_edge.AddString( "center");
-		m_combo_x_edge.AddString( "right");
+		CString s;
+		for (int i=0; i<3; i++)
+			s.LoadStringA(IDS_LeftCenterRight+i),
+			m_combo_x_edge.AddString( s );
 		m_combo_x_edge.SetCurSel(1);
 
-		m_combo_y_edge.AddString( "top" );
-		m_combo_y_edge.AddString( "middle");
-		m_combo_y_edge.AddString( "bottom");
+		for (int i=0; i<3; i++)
+			s.LoadStringA(IDS_TopMiddleBottom+i),
+			m_combo_y_edge.AddString( s );
 		m_combo_y_edge.SetCurSel(1);
 
-		m_combo_row_orient.InsertString( 0, "horiz" );
-		m_combo_row_orient.InsertString( 1, "vert" );
+		for (int i=0; i<2; i++)
+			s.LoadStringA(IDS_HorizVert+i),
+			m_combo_row_orient.InsertString(i, s);
 		m_combo_row_orient.SetCurSel( 0 );
-		m_combo_pad_orient.InsertString( 0, "horiz" );
-		m_combo_pad_orient.InsertString( 1, "vert" );
+		for (int i=0; i<2; i++)
+			s.LoadStringA(IDS_HorizVert+i),
+			m_combo_pad_orient.InsertString(i, s);
 		m_combo_pad_orient.SetCurSel( 0 );
+
 		if( m_fp->GetNumPins() )
 		{
 			CArray<CString> pin_name;
@@ -312,15 +335,11 @@ void CDlgAddPin::DoDataExchange(CDataExchange* pDX)
 			m_top_length = ps->top.size_l*2;
 			m_top_radius = ps->top.radius;
 			m_top_flags = ps->top.connect_flag;
-			m_top_mask_shape = ps->top_mask.shape+1;
-			if( m_top_mask_shape == 100 )
-				m_top_mask_shape = 0;
+			m_top_mask_shape = ps->top_mask.shape;
 			m_top_mask_width = ps->top_mask.size_h;
 			m_top_mask_length = ps->top_mask.size_l*2;
 			m_top_mask_radius = ps->top_mask.radius;
-			m_top_paste_shape = ps->top_paste.shape+1;
-			if( m_top_paste_shape == 100 )
-				m_top_paste_shape = 0;
+			m_top_paste_shape = ps->top_paste.shape;
 			m_top_paste_width = ps->top_paste.size_h;
 			m_top_paste_length = ps->top_paste.size_l*2;
 			m_top_paste_radius = ps->top_paste.radius;
@@ -334,15 +353,11 @@ void CDlgAddPin::DoDataExchange(CDataExchange* pDX)
 			m_bottom_length = ps->bottom.size_l*2;
 			m_bottom_radius = ps->bottom.radius;
 			m_bottom_flags = ps->bottom.connect_flag;
-			m_bottom_mask_shape = ps->bottom_mask.shape+1;
-			if( m_bottom_mask_shape == 100 )
-				m_bottom_mask_shape = 0;
+			m_bottom_mask_shape = ps->bottom_mask.shape;
 			m_bottom_mask_width = ps->bottom_mask.size_h;
 			m_bottom_mask_length = ps->bottom_mask.size_l*2;
 			m_bottom_mask_radius = ps->bottom_mask.radius;
-			m_bottom_paste_shape = ps->bottom_paste.shape+1;
-			if( m_bottom_paste_shape == 100 )
-				m_bottom_paste_shape = 0;
+			m_bottom_paste_shape = ps->bottom_paste.shape;
 			m_bottom_paste_width = ps->bottom_paste.size_h;
 			m_bottom_paste_length = ps->bottom_paste.size_l*2;
 			m_bottom_paste_radius = ps->bottom_paste.radius;
@@ -375,52 +390,120 @@ void CDlgAddPin::DoDataExchange(CDataExchange* pDX)
 		// check for legal pin name
 		if( !CheckLegalPinName( &m_pin_name, &astr, &nstr, &n ) )
 		{
-			str = "Pin name must consist of zero or more letters\n";
-			str	+= "Followed by zero or more numbers\n";
-			str	+= "The characters \" .,;:/!@#$%^&*(){}[]|<>?\\~\'\" are illegal\n";
-			str	+= "For example: 1, 23, A12, SOURCE are legal\n";
-			str	+= "while 1A, A2B3, A:3 are not\n";
-			AfxMessageBox( str );
+			CString s1 ((LPCSTR) IDS_PinNameMayNotContainAnyOfTheCharacters);
+			AfxMessageBox( s1 );
 			pDX->Fail();
 		}
 		if( m_mode == ADD )
 		{
 			if( m_num_pins > 1 && m_row_spacing == 0 )
 			{
-				AfxMessageBox( "illegal row spacing" );
+				CString s ((LPCSTR) IDS_IllegalRowSpacing);
+				AfxMessageBox( s );
 				pDX->Fail();
 			}
 			if( m_num_pins > 1 && nstr == "" )
 			{
-				AfxMessageBox( "Pin name for a row of pins must end in a number" );
+				CString s ((LPCSTR) IDS_PinNameForARow);
+				AfxMessageBox( s );
 				pDX->Fail();
 			}
 		}
 		if( m_padstack_type == 1 && m_hole_diam <= 0 )
 		{
-			AfxMessageBox( "For through-hole pin, hole diameter must be > 0" );
+			CString s ((LPCSTR) IDS_ForThroughHolePin);
+			AfxMessageBox( s );
 			pDX->Fail();
 		}
 		if(  (m_padstack_type == 0 || m_padstack_type == 1) && m_top_shape != PAD_NONE && m_top_width <= 0 )
 		{
-			AfxMessageBox( "Illegal top pad width" );
+			CString s ((LPCSTR) IDS_IllegalTopPadWidth);
+			AfxMessageBox( s );
 			pDX->Fail();
 		}
 		if( m_padstack_type == 1 && m_inner_shape != PAD_NONE && m_inner_width <= 0 )
 		{
-			AfxMessageBox( "Illegal inner pad width" );
+			CString s ((LPCSTR) IDS_IllegalInnerPadWidth);
+			AfxMessageBox( s );
 			pDX->Fail();
 		}
 		if( (m_padstack_type == 2 || m_padstack_type == 1) && m_bottom_shape != PAD_NONE && m_bottom_width <= 0 )
 		{
-			AfxMessageBox( "Illegal bottom pad width" );
+			CString s ((LPCSTR) IDS_IllegalBottomPadWidth);
+			AfxMessageBox( s );
 			pDX->Fail();
 		}
 		if( (m_padstack_type == 0 && m_top_shape == 0)
 			|| (m_padstack_type == 2 && m_bottom_shape == 0) )
 		{
-			AfxMessageBox( "SMT pad shape can't be \"none\"" );
+			CString s ((LPCSTR) IDS_SMTPadShapeCantBeNone);
+			AfxMessageBox( s );
 			pDX->Fail();
+		}
+		if( m_padstack_type == 0 || m_padstack_type == 1 )
+		{
+			if( m_top_shape == PAD_RRECT && 
+				( m_top_radius > m_top_length/2 )
+				|| ( m_top_radius > m_top_width/2 ) )
+			{
+				CString s ((LPCSTR) IDS_RadiusOfTopRoundedRect);
+				AfxMessageBox( s );
+				pDX->Fail();
+			}
+			if( m_top_mask_shape == PAD_RRECT && 
+				( m_top_mask_radius > m_top_mask_length/2 )
+				|| ( m_top_mask_radius > m_top_mask_width/2 ) )
+			{
+				CString s ((LPCSTR) IDS_RadiusOfTopMask);
+				AfxMessageBox( s );
+				pDX->Fail();
+			}
+			if( m_top_paste_shape == PAD_RRECT && 
+				( m_top_paste_radius > m_top_paste_length/2 )
+				|| ( m_top_paste_radius > m_top_paste_width/2 ) )
+			{
+				CString s ((LPCSTR) IDS_RadiusOfTopPaste);
+				AfxMessageBox( s );
+				pDX->Fail();
+			}
+		}
+		if( m_padstack_type == 1 )
+		{
+			if( m_inner_shape == PAD_RRECT && 
+				( m_inner_radius > m_inner_length/2 )
+				|| ( m_inner_radius > m_inner_width/2 ) )
+			{
+				CString s ((LPCSTR) IDS_RadiusOfInnerRoundedRect);
+				AfxMessageBox( s );
+				pDX->Fail();
+			}
+		}
+		if( m_padstack_type == 1 || m_padstack_type == 2 )
+		{
+			if( m_bottom_shape == PAD_RRECT && 
+				( m_bottom_radius > m_bottom_length/2 )
+				|| ( m_bottom_radius > m_bottom_width/2 ) )
+			{
+				CString s ((LPCSTR) IDS_RadiusOfBottomRoundedRect);
+				AfxMessageBox( s );
+				pDX->Fail();
+			}
+			if( m_bottom_mask_shape == PAD_RRECT && 
+				( m_bottom_mask_radius > m_bottom_mask_length/2 )
+				|| ( m_bottom_mask_radius > m_bottom_mask_width/2 ) )
+			{
+				CString s ((LPCSTR) IDS_RadiusOfBottomMask);
+				AfxMessageBox( s );
+				pDX->Fail();
+			}
+			if( m_bottom_paste_shape == PAD_RRECT && 
+				( m_bottom_paste_radius > m_bottom_paste_length/2 )
+				|| ( m_bottom_paste_radius > m_bottom_paste_width/2 ) )
+			{
+				CString s ((LPCSTR) IDS_RadiusOfBottomPaste);
+				AfxMessageBox( s );
+				pDX->Fail();
+			}
 		}
 		// now check for conflicts
 		if( nstr == "" )
@@ -429,7 +512,8 @@ void CDlgAddPin::DoDataExchange(CDataExchange* pDX)
 			// can't make row
 			if( m_num_pins > 1 )
 			{
-				AfxMessageBox( "To create a row of pins, the pin name must end in a number" );
+				CString s ((LPCSTR) IDS_ToCreateARowOfPins);
+				AfxMessageBox( s );
 				pDX->Fail();
 			}
 			// check for conflicts
@@ -447,7 +531,9 @@ void CDlgAddPin::DoDataExchange(CDataExchange* pDX)
 			}
 			if( conflict )
 			{
-				str.Format( "Pin name \"%s\" is already in use", m_pin_name );
+				CString s ((LPCSTR) IDS_PinNameIsAlreadyInUse);
+				str.Format( s, m_pin_name );
+				AfxMessageBox( str );
 				pDX->Fail();
 			}
 		}
@@ -473,11 +559,14 @@ void CDlgAddPin::DoDataExchange(CDataExchange* pDX)
 			}
 			if( conflict )
 			{
-				if( m_num_pins == 1 )
-					str.Format( "Pin name \"%s\" conflicts with an existing pin\nShift the existing pin name up?", m_pin_name );
-				else
-					str.Format( "Pin names \"%s%d\" through \"%s%d\" conflict with existing pins\nShift existing pin names up?", 
-					astr, n, astr, n+(m_num_pins-1)*m_increment );
+				if( m_num_pins == 1 ) {
+					CString s ((LPCSTR) IDS_PinNameConflicts);
+					str.Format( s, m_pin_name );
+					}
+				else {
+					CString s ((LPCSTR) IDS_PinNamesConflict);
+					str.Format( s, astr, n, astr, n+(m_num_pins-1)*m_increment );
+					}
 				int ret = AfxMessageBox( str, MB_OKCANCEL );
 				if( ret != IDOK )
 					pDX->Fail();
@@ -511,18 +600,12 @@ void CDlgAddPin::DoDataExchange(CDataExchange* pDX)
 		ps.top.size_r = m_top_length/2;
 		ps.top.radius = m_top_radius;
 		ps.top.connect_flag = m_top_flags;
-		if( m_top_mask_shape == 0 )
-			ps.top_mask.shape = 99;
-		else
-			ps.top_mask.shape = m_top_mask_shape-1;
+		ps.top_mask.shape = m_top_mask_shape;
 		ps.top_mask.size_h = m_top_mask_width;
 		ps.top_mask.size_l = m_top_mask_length/2; 
 		ps.top_mask.size_r = m_top_mask_length/2;
 		ps.top_mask.radius = m_top_mask_radius;
-		if( m_top_paste_shape == 0 )
-			ps.top_paste.shape = 99;
-		else
-			ps.top_paste.shape = m_top_paste_shape-1;
+		ps.top_paste.shape = m_top_paste_shape;
 		ps.top_paste.size_h = m_top_paste_width;
 		ps.top_paste.size_l = m_top_paste_length/2; 
 		ps.top_paste.size_r = m_top_paste_length/2;
@@ -539,18 +622,12 @@ void CDlgAddPin::DoDataExchange(CDataExchange* pDX)
 		ps.bottom.size_r = m_bottom_length/2;
 		ps.bottom.radius = m_bottom_radius;
 		ps.bottom.connect_flag = m_bottom_flags;
-		if( m_bottom_mask_shape == 0 )
-			ps.bottom_mask.shape = 99;
-		else
-			ps.bottom_mask.shape = m_bottom_mask_shape-1;
+		ps.bottom_mask.shape = m_bottom_mask_shape;
 		ps.bottom_mask.size_h = m_bottom_mask_width;
 		ps.bottom_mask.size_l = m_bottom_mask_length/2; 
 		ps.bottom_mask.size_r = m_bottom_mask_length/2;
 		ps.bottom_mask.radius = m_bottom_mask_radius;
-		if( m_bottom_paste_shape == 0 )
-			ps.bottom_paste.shape = 99;
-		else
-			ps.bottom_paste.shape = m_bottom_paste_shape-1;
+		ps.bottom_paste.shape = m_bottom_paste_shape;
 		ps.bottom_paste.size_h = m_bottom_paste_width;
 		ps.bottom_paste.size_l = m_bottom_paste_length/2; 
 		ps.bottom_paste.size_r = m_bottom_paste_length/2;
@@ -617,10 +694,7 @@ void CDlgAddPin::DoDataExchange(CDataExchange* pDX)
 			}
 			if( bSMTtop && bSMTbottom )
 			{
-				CString mess = "You are applying new pad parameters to SMT pads\n";
-				mess += "on both top and bottom layers.\n\n";
-				mess += "Click YES to preserve the layers of these pads,\n";
-				mess += "or NO to set them all to the layer of the new pad";
+				CString mess ((LPCSTR) IDS_YouAreApplyingNewPadParameters);
 				int ret = AfxMessageBox( mess, MB_YESNO );
 				if( ret == IDYES )
 					bPreserveLayer = TRUE;
@@ -859,22 +933,20 @@ void CDlgAddPin::SetFields()
 	m_edit_top_length3.EnableWindow( bTopEnable );
 	m_edit_top_radius3.EnableWindow( bTopEnable );
 	m_combo_top_shape.SetCurSel( m_top_shape ); 
-	m_combo_top_shape2.SetCurSel( m_top_mask_shape ); 
-	m_combo_top_shape3.SetCurSel( m_top_paste_shape ); 
+	m_combo_top_shape2.SetCurSel( ConvertMaskShapeToCurSel(m_top_mask_shape) ); 
+	m_combo_top_shape3.SetCurSel( ConvertMaskShapeToCurSel(m_top_paste_shape) ); 
 	::MakeCStringFromDimension( &str, m_top_width, m_units, FALSE, FALSE, FALSE, max_dp );
 	m_edit_top_width.SetWindowText( str );
 	::MakeCStringFromDimension( &str, m_top_length, m_units, FALSE, FALSE, FALSE, max_dp );
 	m_edit_top_length.SetWindowText( str );
 	::MakeCStringFromDimension( &str, m_top_radius, m_units, FALSE, FALSE, FALSE, max_dp );
 	m_edit_top_radius.SetWindowText( str );
-	m_combo_top_shape2.SetCurSel( m_top_mask_shape ); 
 	::MakeCStringFromDimension( &str, m_top_mask_width, m_units, FALSE, FALSE, FALSE, max_dp );
 	m_edit_top_width2.SetWindowText( str );
 	::MakeCStringFromDimension( &str, m_top_mask_length, m_units, FALSE, FALSE, FALSE, max_dp );
 	m_edit_top_length2.SetWindowText( str );
 	::MakeCStringFromDimension( &str, m_top_mask_radius, m_units, FALSE, FALSE, FALSE, max_dp );
 	m_edit_top_radius2.SetWindowText( str );
-	m_combo_top_shape3.SetCurSel( m_top_paste_shape ); 
 	::MakeCStringFromDimension( &str, m_top_paste_width, m_units, FALSE, FALSE, FALSE, max_dp );
 	m_edit_top_width3.SetWindowText( str );
 	::MakeCStringFromDimension( &str, m_top_paste_length, m_units, FALSE, FALSE, FALSE, max_dp );
@@ -886,12 +958,12 @@ void CDlgAddPin::SetFields()
 		m_edit_top_width.EnableWindow( m_top_shape > PAD_NONE ); 
 		m_edit_top_length.EnableWindow( m_top_shape >= PAD_RECT && m_top_shape <= PAD_OVAL );
 		m_edit_top_radius.EnableWindow( m_top_shape == PAD_RRECT );
-		m_edit_top_width2.EnableWindow( m_top_mask_shape-1 > PAD_NONE ); 
-		m_edit_top_length2.EnableWindow( m_top_mask_shape-1 >= PAD_RECT && m_top_mask_shape-1 <= PAD_OVAL );
-		m_edit_top_radius2.EnableWindow( m_top_mask_shape-1 == PAD_RRECT );
-		m_edit_top_width3.EnableWindow( m_top_paste_shape-1 > PAD_NONE ); 
-		m_edit_top_length3.EnableWindow( m_top_paste_shape-1 >= PAD_RECT && m_top_paste_shape-1 <= PAD_OVAL );
-		m_edit_top_radius3.EnableWindow( m_top_paste_shape-1 == PAD_RRECT );
+		m_edit_top_width2.EnableWindow( m_top_mask_shape != PAD_DEFAULT && m_top_mask_shape > PAD_NONE ); 
+		m_edit_top_length2.EnableWindow( m_top_mask_shape >= PAD_RECT && m_top_mask_shape <= PAD_OVAL );
+		m_edit_top_radius2.EnableWindow( m_top_mask_shape == PAD_RRECT );
+		m_edit_top_width3.EnableWindow( m_top_paste_shape != PAD_DEFAULT && m_top_paste_shape > PAD_NONE ); 
+		m_edit_top_length3.EnableWindow( m_top_paste_shape >= PAD_RECT && m_top_paste_shape <= PAD_OVAL );
+		m_edit_top_radius3.EnableWindow( m_top_paste_shape == PAD_RRECT );
 	}
 	for( int i=0; i<4; i++ )
 	{
@@ -945,22 +1017,20 @@ void CDlgAddPin::SetFields()
 	m_edit_bottom_length3.EnableWindow( bBottomEnable );
 	m_edit_bottom_radius3.EnableWindow( bBottomEnable );
 	m_combo_bottom_shape.SetCurSel( m_bottom_shape ); 
-	m_combo_bottom_shape2.SetCurSel( m_bottom_mask_shape ); 
-	m_combo_bottom_shape3.SetCurSel( m_bottom_paste_shape ); 
+	m_combo_bottom_shape2.SetCurSel( ConvertMaskShapeToCurSel(m_bottom_mask_shape) ); 
+	m_combo_bottom_shape3.SetCurSel( ConvertMaskShapeToCurSel(m_bottom_paste_shape) ); 
 	::MakeCStringFromDimension( &str, m_bottom_width, m_units, FALSE, FALSE, FALSE, max_dp );
 	m_edit_bottom_width.SetWindowText( str );
 	::MakeCStringFromDimension( &str, m_bottom_length, m_units, FALSE, FALSE, FALSE, max_dp );
 	m_edit_bottom_length.SetWindowText( str );
 	::MakeCStringFromDimension( &str, m_bottom_radius, m_units, FALSE, FALSE, FALSE, max_dp );
 	m_edit_bottom_radius.SetWindowText( str );
-	m_combo_bottom_shape2.SetCurSel( m_bottom_mask_shape ); 
 	::MakeCStringFromDimension( &str, m_bottom_mask_width, m_units, FALSE, FALSE, FALSE, max_dp );
 	m_edit_bottom_width2.SetWindowText( str );
 	::MakeCStringFromDimension( &str, m_bottom_mask_length, m_units, FALSE, FALSE, FALSE, max_dp );
 	m_edit_bottom_length2.SetWindowText( str );
 	::MakeCStringFromDimension( &str, m_bottom_mask_radius, m_units, FALSE, FALSE, FALSE, max_dp );
 	m_edit_bottom_radius2.SetWindowText( str );
-	m_combo_bottom_shape3.SetCurSel( m_bottom_paste_shape ); 
 	::MakeCStringFromDimension( &str, m_bottom_paste_width, m_units, FALSE, FALSE, FALSE, max_dp );
 	m_edit_bottom_width3.SetWindowText( str );
 	::MakeCStringFromDimension( &str, m_bottom_paste_length, m_units, FALSE, FALSE, FALSE, max_dp );
@@ -969,15 +1039,15 @@ void CDlgAddPin::SetFields()
 	m_edit_bottom_radius3.SetWindowText( str );
 	if( bBottomEnable )
 	{
-		m_edit_bottom_width.EnableWindow( m_bottom_shape > PAD_NONE ); 
+		m_edit_bottom_width.EnableWindow( m_bottom_shape != PAD_DEFAULT && m_bottom_shape > PAD_NONE ); 
 		m_edit_bottom_length.EnableWindow( m_bottom_shape >= PAD_RECT && m_bottom_shape <= PAD_OVAL );
 		m_edit_bottom_radius.EnableWindow( m_bottom_shape == PAD_RRECT );
-		m_edit_bottom_width2.EnableWindow( m_bottom_mask_shape-1 > PAD_NONE ); 
-		m_edit_bottom_length2.EnableWindow( m_bottom_mask_shape-1 >= PAD_RECT && m_bottom_mask_shape-1 <= PAD_OVAL );
-		m_edit_bottom_radius2.EnableWindow( m_bottom_mask_shape-1 == PAD_RRECT );
-		m_edit_bottom_width3.EnableWindow( m_bottom_paste_shape-1 > PAD_NONE ); 
-		m_edit_bottom_length3.EnableWindow( m_bottom_paste_shape-1 >= PAD_RECT && m_bottom_paste_shape-1 <= PAD_OVAL );
-		m_edit_bottom_radius3.EnableWindow( m_bottom_paste_shape-1 == PAD_RRECT );
+		m_edit_bottom_width2.EnableWindow( m_bottom_mask_shape != PAD_DEFAULT && m_bottom_mask_shape > PAD_NONE ); 
+		m_edit_bottom_length2.EnableWindow( m_bottom_mask_shape >= PAD_RECT && m_bottom_mask_shape <= PAD_OVAL );
+		m_edit_bottom_radius2.EnableWindow( m_bottom_mask_shape == PAD_RRECT );
+		m_edit_bottom_width3.EnableWindow( m_bottom_paste_shape != PAD_DEFAULT && m_bottom_paste_shape > PAD_NONE ); 
+		m_edit_bottom_length3.EnableWindow( m_bottom_paste_shape >= PAD_RECT && m_bottom_paste_shape <= PAD_OVAL );
+		m_edit_bottom_radius3.EnableWindow( m_bottom_paste_shape == PAD_RRECT );
 	}
 	for( int i=0; i<4; i++ )
 	{
@@ -1037,6 +1107,8 @@ void CDlgAddPin::GetFields()
 			m_padstack_type = 2;
 		if( copy_ps->angle == 90 || copy_ps->angle == 270 )
 			m_pad_orient = 1;
+		else
+			m_pad_orient = 0;
 		m_hole_diam = copy_ps->hole_size;
 		m_top_shape = copy_ps->top.shape;
 		m_top_width = copy_ps->top.size_h;
@@ -1080,6 +1152,7 @@ void CDlgAddPin::GetFields()
 			m_padstack_type = 1;
 		else
 			m_padstack_type = 2;
+		m_pad_orient = m_combo_pad_orient.GetCurSel();
 
 		// top pad
 		m_top_shape = m_combo_top_shape.GetCurSel();
@@ -1089,14 +1162,14 @@ void CDlgAddPin::GetFields()
 		m_top_length = mult*atof( str );
 		m_edit_top_radius.GetWindowText( str );
 		m_top_radius = mult*atof( str );
-		m_top_mask_shape = m_combo_top_shape2.GetCurSel();
+		m_top_mask_shape = ConvertMaskCurSelToShape( m_combo_top_shape2.GetCurSel() );
 		m_edit_top_width2.GetWindowText( str );
 		m_top_mask_width = mult*atof( str );
 		m_edit_top_length2.GetWindowText( str );
 		m_top_mask_length = mult*atof( str );
 		m_edit_top_radius2.GetWindowText( str );
 		m_top_mask_radius = mult*atof( str );
-		m_top_paste_shape = m_combo_top_shape3.GetCurSel();
+		m_top_paste_shape = ConvertMaskCurSelToShape( m_combo_top_shape3.GetCurSel() );
 		m_edit_top_width3.GetWindowText( str );
 		m_top_paste_width = mult*atof( str );
 		m_edit_top_length3.GetWindowText( str );
@@ -1152,14 +1225,14 @@ void CDlgAddPin::GetFields()
 			m_bottom_length = mult*atof( str );
 			m_edit_bottom_radius.GetWindowText( str );
 			m_bottom_radius = mult*atof( str );
-			m_bottom_mask_shape = m_combo_bottom_shape2.GetCurSel();
+			m_bottom_mask_shape = ConvertMaskCurSelToShape( m_combo_bottom_shape2.GetCurSel() );
 			m_edit_bottom_width2.GetWindowText( str );
 			m_bottom_mask_width = mult*atof( str );
 			m_edit_bottom_length2.GetWindowText( str );
 			m_bottom_mask_length = mult*atof( str );
 			m_edit_bottom_radius2.GetWindowText( str );
 			m_bottom_mask_radius = mult*atof( str );
-			m_bottom_paste_shape = m_combo_bottom_shape3.GetCurSel();
+			m_bottom_paste_shape = ConvertMaskCurSelToShape( m_combo_bottom_shape3.GetCurSel() );
 			m_edit_bottom_width3.GetWindowText( str );
 			m_bottom_paste_width = mult*atof( str );
 			m_edit_bottom_length3.GetWindowText( str );
@@ -1197,8 +1270,7 @@ void CDlgAddPin::GetFields()
 		m_increment = atoi( str );
 	}
 
-	// pad and row orientation
-	m_pad_orient = m_combo_pad_orient.GetCurSel();
+	// row orientation
 	m_row_orient = m_combo_row_orient.GetCurSel();
 }
 

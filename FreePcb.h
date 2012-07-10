@@ -1,7 +1,6 @@
 // FreePcb.h : main header file for the FREEPCB application
 //
 
-
 #if !defined(AFX_FREEPCB_H__2D973E6F_7601_4C61_8528_D36001F51E5D__INCLUDED_)
 #define AFX_FREEPCB_H__2D973E6F_7601_4C61_8528_D36001F51E5D__INCLUDED_
 
@@ -14,7 +13,6 @@
 #include "stdafx.h"
 #include "resource.h"       // main symbols
 #include "FootprintView.h"
-#include "ii_FreePcb.h"
 
 // units for length
 enum
@@ -43,7 +41,7 @@ enum
 
 // custom messages
 enum {
-	WM_USER_VISIBLE_GRID = WM_USER+1,
+	WM_USER_VISIBLE_GRID = WM_USER +1,
 	WM_USER_PLACEMENT_GRID,
 	WM_USER_ROUTING_GRID,
 	WM_USER_SNAP_ANGLE,
@@ -54,35 +52,6 @@ enum {
 	WM_BY_INDEX,
 	WM_BY_STRING
 };
-
-
-/////////////////////////////////////////////////////////////////////////////
-// Limits
-#define MAX_TRACE_W_MIL			1000
-#define MAX_VIA_W_MIL			1000
-#define MAX_VIA_HOLE_MIL		(MAX_VIA_W_MIL-1)
-#define MAX_CLEARANCE_MIL		2000
-#define MAX_RATLINE_W_MIL		100
-#define MAX_ADHESIVE_SZ_MIL		1000
-#define MIN_THERMAL_LINE_W  	5
-#define MAX_THERMAL_LINE_W  	50
-#define MAX_THERMAL_CLEARANCE	50
-
-
-/////////////////////////////////////////////////////////////////////////////
-// Handle depricated functions
-#define CHDIR(x)	           _chdir(x)
-#define ENABLE_3D_CONTROLS()
-
-#if 0 // VS6 & 7
-#ifdef _AFXDLL
-	// Call this when using MFC in a shared DLL
-	#define ENABLE_3D_CONTROLS()  Enable3dControls()
-#else
-	// Call this when linking to MFC statically
-	#define ENABLE_3D_CONTROLS()  Enable3dControlsStatic()
-#endif
-#endif
 
 /////////////////////////////////////////////////////////////////////////////
 // CFreePcbApp:
@@ -145,7 +114,6 @@ public:
 	afx_msg void OnHelpFpcRoute();
 };
 
-extern CFreePcbApp theApp;
 
 /////////////////////////////////////////////////////////////////////////////
 
