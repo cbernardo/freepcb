@@ -1,0 +1,344 @@
+// FreePCB : programming notes
+//
+
+Classes:
+
+	CFreePcbApp:
+		- defined in file FreePcb.h, implemented in file FreePcb.cpp 
+		- this is the Windows application
+		- it contains instances of CFreePcbDoc and CFreePcbView (see below)
+
+	CFreePcbDoc:
+		- defined in file FreePcbDoc.h, implemented in file FreePcbDoc.cpp 
+		- in the Microsoft "Document-View" architecture, this is the Document
+		- it contains all of the data structures representing the PCB layout
+		
+	CFreePcbView:
+		- defined in file FreePcbView.h, implemented in file FreePcbView.cpp 
+		- in the Microsoft "Document-View" architecture, this is the View
+		- it handles the user interface and draws the PCB layout, using data
+			from the CFreePcbDoc
+			
+	id:
+		- common name "id"
+		- defined in file ids.h, implemented in file ids.cpp 
+		- represents a "tag" that identifies items in the PCB design
+		- it is used to identify items that have been selected, and to tag 
+			graphic elements for picking by mouse-clicking
+			
+	CPolyLine:
+		- common name "polyline" or "polygon"
+		- defined in file PolyLine.h and implemented in file PolyLine.cpp
+		- represents an open or closed polyline (a closed polyline is a polygon)
+		- contains arrays of corner positions and side-styles, where a side-style 
+			may be a straight line or a clockwise or counterclockwise arc
+		- a closed polyline may contain multiple contours, where the first contour 
+			is the external outline and subsequent contours represent "holes"
+
+	pad:
+		- common name "pad"
+		- defined in file Shape.h, implemented in file Shape.cpp 
+		- represents a copper pad in a padstack
+		
+	padstack:
+		- common name "padstack"
+		- defined in file Shape.h, implemented in file Shape.cpp 
+		- represents a stack of pads for a single pin in a footprint
+		- contains pads for the top, bottom and inner copper layers
+		
+	CShape:
+		- common name "footprint"
+		- defined in file Shape.h, implemented in file Shape.cpp 
+		- represents a footprint
+		- footprints are identified by name, such as "DIP20" or "DSUB-25-male-RA"
+		- CShape data will generally be loaded from a library or project file 
+		- contains an array of padstacks, one for each pin in the footprint
+		- contains an array of CPolyLines for the footprint's graphic representation
+			on the silkscreen layer
+
+	part_pin:
+		- common name "pin" or "part pin"
+		- defined in file PartList.h, implemented in file PartList.cpp 
+		- this class represents a single pin of a part
+		- it contains a pointer to the cnet that the pin is connected to (or NULL)
+
+	cpart:
+		- common name "part"
+		- defined in file PartList.h, implemented in file PartList.cpp 
+		- represents a single part
+		- identified by a reference designator such as "U23"
+		- may be accessed by id, reference designator, or a pointer to its address
+		- contains a pointer to the CShape object of its footprint
+		- contains positioning and status information required for drawing
+		- contains an array of part_pins (one for each pin)
+		- each padstack contains a pointer to the net attached to that pin
+			
+	CPartList:
+		- common name "part list"
+		- defined in file PartList.h, implemented in file PartList.cpp 
+		- this contains all of the cparts in the design
+		- it is implemented as a linked lists of cparts
+		- cparts in the part list are drawn by adding their graphic
+			elements to the display list, which handles all drawing to the layout
+			area of the application window (see below)
+		- since many of the operations on parts require access to the netlist,
+			it contains a pointer to the CNetList object for the project
+			
+	cpin:
+		- common name "pin" or "net pin"
+		- defined in file NetList.h, implemented if file NetList.cpp
+		- represents a single pin in a net
+		- contains a pointer to the cpart for the pin
+		
+	cseg:
+		- common name "trace segment" (if routed) or "ratline" (if unrouted)
+		- defined in file NetList.h, implemented if file NetList.cpp
+		- represents a single routed or unrouted segment of a trace
+		
+	cvertex:
+		- common name "vertex" or "via"
+		- defined in file NetList.h, implemented if file NetList.cpp
+		- represents a single vertex between csegs in a trace
+		- if the csegs are on different layers, defines a via between them
+		
+	cconnect:
+		- common name "connection" or "trace"
+		- defined in file NetList.h, implemented if file NetList.cpp
+		- represents a single trace or ratline connecting two cpins in a net
+		- the start and end pin are represented as indexes into the array of cpins
+			in the cnet
+		- contains an arrays of csegs and an array of cvertexes
+		
+	carea:
+		- common name "copper area"
+		- defined in file NetList.h, implemented if file NetList.cpp
+		- represent a single copper area attached to a net
+		- contains a CPolyLine which actually defines the area
+		- contains an array of indexes into the pin array for the cnet,
+			defining all of the pins that connect to it
+
+	cnet:
+		- common name "net"
+		- defined in file NetList.h, implemented if file NetList.cpp
+		- represents a single net
+		- identified by a name, which is a unique string such as "GND"
+		- contains an array of pins, where each pin has a part ref and a pin number,
+			such as "U23.6" for pin 6 of part U23
+		- each pin includes a pointer to the part for that pin
+		- contains an array of cconnects that define connections between pins
+		- contains an array of copper areas
+
+	CNetList:
+		- common name "net list"
+		- defined in file NetList.h, implemented in NetList.cpp
+		- this is a map of all of the nets in a design
+		- since many of the operations on nets require access to the part list,
+			it contains a pointer to the CPartList object for the project
+
+	dl_element:
+		- common name "graphic element"
+		- defined in file CDisplayList.h
+		- this is a structure which describes a primitive graphic element such
+			as a line, rectangle, circle, etc.
+		- all drawing into the layout area of the window consists of these
+			elements, which are placed into a display list (see below)
+		- each element is assigned to a drawing layer (such as TOP_SILKSCREEN, etc.)
+
+	CDisplayList:
+		- common name "display list"
+		- defined in file DisplayList.h, implemented in file DisplayList.cpp 
+		- this is a linked list of graphic elements which make up the PCB drawing
+		- each element is identified by the id of the item that it represents
+		- an item may be erased from the screen by removing all of the 
+			graphic elements from the display list which have the item's id,
+			then redrawing
+
+
+Some examples of information flow:
+
+	- when starting the application:
+		- a CDisplayList is created
+		- a CPartList is created
+		- a CNetList is created
+		- pointers to the CDisplayList and CNetList are passed to the CPartList
+		- pointers to the CDisplayList and CPartList are passed to the CNetList
+			
+	- when opening a project:
+		- the project file is read
+		- all cparts are added to the CPartList (see below) 
+		- all cnets are added to the CNetList (see below)
+			
+	- when adding a part:
+		- a cpart is created
+		- if the footprint of the part doesn't already exist in the design, it is
+			imported from a library and a CShape created
+		- a pointer to the CShape is passed to the cpart
+		- the cpart is added to CPartList
+		- CPartList draws the part by adding its graphic elements to the display list
+		- each graphic element is identified by the id of the part
+		- CDisplayList draws the graphic elements on the screen, thereby drawing the
+			part
+		- graphic elements drawn to the SELECTION layer are usually invisible, and
+			are used for selecting parts (see below)
+
+	- when the user selects a part by clicking the mouse button:
+		- the cursor position is passed to CDisplayList::TestSelect(), which searches 
+			for a corresponding graphic element on the SELECTION layer (these 
+			elements will generally be invisible)
+		- if a graphic element is found at the cursor position, its id is passed back
+			to the calling program which can use it to identify the item represented
+			by the graphic element
+ 
+ 
+
+CPT revisions:
+1. m_active_width added to CFreePcbView.  Permits adjustment
+    of width during routing.  There are coordinated changes in the system of via widths.  
+2. Got rid of the OPENFILENAME_SIZE_VERSION_400 business in calls to 
+	CFileDialog::CFileDialog().  (Produced "Assertion failed" errors, at least under Visual studio 10.)
+2a. In CUR_END_VTX_SELECTED mode, changed the
+    original assignment of F2 when the vertex is a via (was FK_ADD_SEGMENT, now FK_VIA_SIZE)
+3. Shortcut keys: Ctrl F1..., Ctrl 1..., Alt 1...  NB undo is now ctrl-shift-z (ctrl-y would toggle layer #13 or some such)
+4. Changed shift-key and ctrl-key state detection.
+5. Tools>Preferences.  Starting to move some config elements to the Registry (desirable?)
+6. Since MS broke CFileDialog::SetTemplates(), changed the import netlist and export netlist options dialogs.
+7. Moved strings into Resource string table.
+8. Allowed adaptible widths for items in MyToolBar, the left pane, and the F-key
+	help boxes.  (For use by people doing foreign language adaptations with Resource Hacker)
+9. Added a project folder selection button to DlgProjectOptions
+10.  Altered DlgLayers.  Now allows for control of the colors in the FootprintView (they match the main view colors, 
+	except for the layers that are footprint-specific --- those latter get extra rows in the DlgLayers table).  Allowed
+	for setting a color scheme to be used by default in future projects (vals stored in the registry).
+11. Fixed bugs with the display of new (empty) documents.
+12. Added reference-text-visibility control to DlgAddPart.  Fixed bug where ref text visibility came out randomly when
+	copying and pasting.
+13. "/" key for toggle units.  "?" for toggle units plus change grid units.  Tweaked FreePcbView::OnChangeUnits().
+14. New system for modifying grid values (View>Visible Grid Values, etc.).  Completed conversion over from 
+	default.cfg to the registry for all program-wide prefs (for new projects e.g.).  Added checkbox to Project>Options
+	to make settings default.  Moved some stuff to Tools>Preferences.
+
+...TortoiseSVN commit by Allan, revision 238
+
+14a. Info related to default new-project settings _no longer_ in the registry, but stored in default.cfg.
+15. Modified group-selection behavior, so that there is no longer a distinction between a group of 1 element and a single selected
+	item.  To prevent any lost functionality, implemented arrow keys for board edges, area edges, sm-cutouts, and end-vertices; implemented
+	ctrl-c/x for single selected items.
+15a.  FORGOT TO LIST THIS ONE PREVIOUSLY.  Fixed bug where SetCapture() was not called in CFreePcbView::OnLButtonDown(), causing
+	poor behavior when dragging and releasing outside the client area.  Moreover, now allows autoscrolling when dragging a group-select 
+	rectangle out to the margins.
+16. Added sorting to export netlist.
+17. Removed restriction on pin names (before, 1A and A1A were illegal)
+18. During connect-to-pin-to-create-ratline mode (CUR_DRAG_CONNECT), the status bar now shows the name of the pin where mouse is hovering.
+19. After creating such a ratline, it is selected by default.
+20. When moving groups/parts, don't unroute an adjacent seg if, say, the group is moving vertically and the seg is vertical (changes in e.g.
+   	CNetList::UnrouteSegment() and CNetList::UnrouteSegmentWithoutMerge())
+21. When routing a ratline provide highlighting for the opposite end of the ratline
+22. Tweaked behavior of ctrl-up/dn (they now change whichever grid is currently relevant --- routing grid if net object is selected, placement
+     grid otherwise).  Alt-up/dn now controls the visible grid.
+23. Made a start towards ratline elimination in case the ratline's two endpoints are already connected by some sort of copper route
+     (including connects and/or areas).  Can't yet create traces where neither end is a pin (see TestC.fpc for an example where this would be
+	 nice).
+24. Suppressed DRC width errors for segments in the ratline layer.
+25. Fixed bug with random ref text visibility after importing netlists.
+
+...TortoiseSVN commit, version 244
+
+25a. Fix 25 (random ref text visibility after importing netlist bug) didn't quite do it;  bug should now be smashed!
+26. Fixed bug where SetFKText wasn't reliably called when starting up the footprint editor (see CFootprintView constructor)
+27. obparham's idea: boxes for grabbing vertices are no longer a constant size in mils (in pixel terms, they are a minimum of 6 pixels wide/high
+	and a maximum of 16 pixels wide/high).
+28. Bug fix in ReadFileLines() (FreePcbDoc.cpp) (related to feature #14a).
+29. Fixed bug in feature #20 (wasn't implemented when moving parts with the mouse).
+30. Created CPartList::CheckBrokenArea():  checks if an area has been broken, or nearly broken, by clearances for traces from other nets.  TODO: 
+	make it accommodate areas with curved edges.
+31.  THE BIGGIE:  created class CCommonView as a base for CFootprintView and CFreePcbView.  Moved shared functions into it.  Added functionality to
+	footprint editor to make it more consistent with the main editor, including:  selection masks; hotkeys for layers and masks;
+	arrow keys with dx/dy status display;  status bar when pin & outline-corner selected has become more informative (shows x/y);  
+	status bar shows dx/dy when dragging pins, text, ref-text, etc.
+32. Reworked the internal handling of the ref-text and value-text objects in footprint editor.  They are now basically instances of CText, 
+	meaning we can rely on that class's preexisting functions and eliminate some more-or-less-duplicate code.
+33. Modified behavior of CFootprintView::OnViewEntireFootprint() to account better for ref and value text.
+
+...TortoiseSVN commit, version 246
+
+34. Resolved apparent bug in CNetList::ClipAreaPolygon() (a commented-out "if"-clause, now restored).  Was causing insertion of corner into area
+	edges to fail if new vertex was collinear with pre-existing vertices.
+35. Continuation of #30: CPartList::CheckBrokenArea() now accounts for curved area edges.
+
+...TortoiseSVN commit, version 247
+
+36. Added left-handed mode support (reverses function keys).   Activate it via Tools>Preferences.
+37. Fixed CText constructor (dl_sel member wasn't prveviously initialized).  Caused problems when one called CShape::m_value->Undraw()
+	in cases where CShape::m_value->Draw() hadn't previously been called (because CShape::m_value_size was 0, say)
+38. A little clean-up for CShape::CreateMetaFile() & CreateWarningMetaFile() (evidently pretty old code).
+39. (Basically a continuation of #33 earlier.)  Improvements to the new CText::GetBounds().  Before it would fail for text that had 
+	never been drawn, implying in turn bogus results from
+	FootprintView::OnViewEntireFootprint() when first starting the fp editor.  Also: improved system for initializing the new 
+	CShape::m_ref and CShape::m_value.  (Constructor does more of the work, as it should.)
+40. In FootprintView, forbade setting ref-text height to 0 --- doing that caused "REF" to shrink down to a useless dot that a later user 
+    couldn't select or repair   If users want invisible ref-text, I say they can do it when inserting the part into the board.
+	Considered making the same prohibition for value-text, but instead I'm implementing "View>Reveal Value Text" (CFootprintView::OnValueReveal())
+	in case user wants to restore a	size-0 "VALUE" (formerly impossible to do short of hacking the fpl file).  
+	This supplants the old apparently disused CFootprintView::OnAddValueText() function.
+41. Slight change to selection masks in footprint editor.
+42. Got ESC key working better in footprint editor.
+
+...TortoiseSVN commit, version 248
+
+43.  Fixed 'N' key so that it selects a net if a ratline was previously selected.  Also turned 'N' into a toggle key, so that pressing it twice takes 
+	us back to the prior selection.
+44.  Similar changes for 'T' (which selects individual traces)
+45. New system for selecting.  (See CDisplayList::TestSelect(), and the new CCommonView::m_sel_offset.)  If user repeatedly clicks on a spot where 
+	multiple objects are located, the selection cycles through all of them.  Ctrl-click in the main CFreePcbView is also affected:  if you ctrl-click 
+	a spot in order to select or unselect a group member, and don't get the effect you want, keep holding ctrl and clicking until you do.
+46. Improved TestLineHit() in utility.cpp so that we get more reliable results (on short segments particularly).  
+
+...TortoiseSVN commit, version 249
+
+
+TODO:
+Check Undo hotkey merge.
+Fix ReconcileVia (step 1)
+Border line for left and bottom panes.
+
+void CFreePcbDoc::OnFileSaveAs() 
+{
+	// force old-style file dialog by setting size of OPENFILENAME struct
+	CString s ((LPCSTR) IDS_PCBFiles);
+	CFileDialog dlg( 0, "fpc", LPCTSTR(m_pcb_filename), OFN_OVERWRITEPROMPT,							// CPT changed arg
+		s, NULL, 0 /* CPT eliminated, doesn't work in VS 10.0: OPENFILENAME_SIZE_VERSION_400 */ );
+//	OPENFILENAME  * myOFN = dlg.m_pOFN;																	// CPT: this way of setting options was causing doModal() 
+																										// to fail if file had changed
+//	myOFN->Flags |= OFN_OVERWRITEPROMPT;
+
+etc.
+
+int CPartList::WriteParts( CStdioFile * file )
+{
+	// CPT: Sort the part lines.
+	CMapStringToPtr shape_map;
+	cpart * el = m_start.next;
+	CString line;
+	CString key;
+	CArray<CString> lines;
+	try
+	{
+		// now write all parts
+		line.Format( "[parts]\n\n" );
+		file->WriteString( line );
+		el = m_start.next;
+		while( el->next != 0 )
+		{
+			// test
+			CString test;
+			SetPartString( el, &test );
+			lines.Add(test);
+			el = el->next;
+		}
+		extern int strcmpNumeric(CString *s1, CString *s2);				// In FreePcbDoc.cpp
+		qsort(lines.GetData(), lines.GetSize(), sizeof(CString), (int (*)(const void*,const void*)) strcmpNumeric);			
+		for (int i=0; i<lines.GetSize(); i++)
+			file->WriteString( lines[i] );
+	}
+etc.
+
