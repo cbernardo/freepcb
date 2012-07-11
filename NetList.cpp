@@ -1832,9 +1832,10 @@ int CNetList::PartMoved( cpart * part, int dx, int dy )
 #endif
 
 
-// Part moved, so unroute starting and ending segments of connections
-// to this part, and update positions of endpoints
+// AMW2: as an experiment, completely disabled unrouting of starting and ending segments
+// Part moved, so update positions of endpoints of connected traces
 // Undraw and Redraw any changed connections
+// AMW2: If area connections were set, update them
 // CPT:  added dx and dy params indicating how much the part moved (both are 1 by default).  If, say, dx==0
 // and an attached seg is vertical, then we don't have to unroute it.
 
@@ -1880,7 +1881,7 @@ int CNetList::PartMoved( cpart * part, int dx, int dy )
 							int pin_index1 = part->shape->GetPinIndexByName( pin_name1 );
 							net->utility = 1;	// mark net modified
 							c->utility = 1;		// mark connection modified
-							UnrouteSegment( net, ic, 0, dx, dy, 0  );
+//** AMW2							UnrouteSegment( net, ic, 0, dx, dy, 0  );
 							nsegs = c->NumSegs();
 							// modify vertex[0] position and layer
 							v0->x = part->pin[pin_index1].x;
@@ -1912,7 +1913,7 @@ int CNetList::PartMoved( cpart * part, int dx, int dy )
 							// end pin is on part, unroute last segment
 							net->utility = 1;	// mark net modified
 							c->utility = 1;		// mark connection modified
-							UnrouteSegment( net, ic, nsegs-1, dx, dy, 1 );
+//** AMW2							UnrouteSegment( net, ic, nsegs-1, dx, dy, 1 );
 							nsegs = c->NumSegs();
 							// modify vertex position and layer
 							CString pin_name2 = net->pin[p2].pin_name;
@@ -1960,6 +1961,9 @@ int CNetList::PartMoved( cpart * part, int dx, int dy )
 			}
 		}
 	}
+	// AMW2: set area connections if they were set before
+	if( part->bPinAreasSet )
+		SetAreaConnections( part );
 	return 0;
 }
 //#endif
@@ -2362,6 +2366,11 @@ int CNetList::OptimizeConnections( cnet * net, int ic_track, BOOL bBelowPinCount
 	CIterator_cpin iter_cpin(net);
 	for( cpin * pin=iter_cpin.GetFirst(); pin; pin=iter_cpin.GetNext() )
 	{
+		// skip pins on parts that have no footprint
+		part_pin * pp = pin->GetPartPin();
+		if( !pp )
+			continue;
+
 		// skip pins that have already been analyzed through connections to earlier pins
 		int ipin = pin->Index();
 		if( pins_analyzed.Lookup( ipin, dummy ) )
@@ -2374,10 +2383,73 @@ int CNetList::OptimizeConnections( cnet * net, int ic_track, BOOL bBelowPinCount
 		CMap<int, int, int, int> tee_ids_connected;	// list of tee_ids connected to this pin
 		CMap<int, int, int, int> pins_connected;	// list of pins connected to this pin
 		CMap<int, int, int, int> areas_connected;	// list of areas connected to this pin
+
+#if 0	//** AMW2 changed
 		int num_new_connections = 1;
 		while( num_new_connections )	// iterate as long as we are still finding new connections
 		{
 			num_new_connections = 0;
+#endif
+
+		//** AMW2 added search of areas
+		int num_new_connected_items = 1;
+		while( num_new_connected_items )	// iterate as long as we are still finding new connections
+		{
+			num_new_connected_items = 0;
+			for( int ia=0; ia<net->NumAreas(); ia++ )
+			{
+				carea * a = net->AreaByIndex(ia);
+				// see if area connects to this pin or any pins or vertices that connect to this pin
+				bool bAreaConnected = FALSE;
+				if( areas_connected.Lookup( ia, dummy ) )
+				{
+					// area already known to be connected
+					bAreaConnected = TRUE;
+				}
+				else
+				{
+					// check for pins
+					for( int iap=0; iap<a->NumPins(); iap++ )
+					{
+						cpin * apin = a->PinByIndex(iap);
+						int iapin = apin->Index();
+						if( iapin == ipin  || pins_connected.Lookup( iapin, dummy ) )
+						{
+							bAreaConnected = TRUE;
+							break;	
+						}
+					}
+					if( !bAreaConnected )
+					{
+						// check vertices
+						for( int iav=0; iav<a->NumVertices(); iav++ )
+						{
+							int icon = a->vcon[iav];
+							if( cons_connected.Lookup( icon, dummy ) )
+							{
+								bAreaConnected = TRUE;
+								break;
+							}
+						}
+					}
+				}
+				if( bAreaConnected )
+				{
+					if( !areas_connected.Lookup( ia, dummy) )
+					{
+						// new connected area, add area and all pins to list
+						num_new_connected_items++;
+						areas_connected.SetAt( ia, ia );
+						for( int iap=0; iap<a->NumPins(); iap++ )
+						{
+							cpin * apin = a->PinByIndex(iap);		// get pin from area
+							int iapin = apin->Index();				// index of pin in net
+							pins_connected.SetAt( iapin, iapin );
+						}
+					}
+				}
+			}
+			//** end AMW2
 			for( cconnect * c=iter_con.GetFirst(); c; c=iter_con.GetNext() )
 			{
 				int ic = c->Index();
@@ -2445,7 +2517,10 @@ int CNetList::OptimizeConnections( cnet * net, int ic_track, BOOL bBelowPinCount
 				else if( bConConnected )
 				{
 					cons_connected.SetAt( ic, ic );
-					num_new_connections++;
+
+//** AMW2					num_new_connections++;
+					num_new_connected_items++;			//** end AMW2
+
 					// add pins. tees and areas to maps of connected items
 					for( cvertex * v=iter_vtx.GetFirst(); v; v=iter_vtx.GetNext() )
 					{
@@ -3465,6 +3540,7 @@ void CNetList::SetAreaConnections( cpart * part )
 				SetAreaConnections( net );
 		}
 	}
+	part->bPinAreasSet = TRUE;	//** AMW2 
 }
 
 // set arrays of pins and vias connected to area

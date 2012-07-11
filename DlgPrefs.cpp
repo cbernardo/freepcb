@@ -7,6 +7,7 @@
 
 
 // CDlgPrefs dialog
+//** AMW2: wasn't working properly, fixed it
 
 IMPLEMENT_DYNAMIC(CDlgPrefs, CDialogEx)
 
@@ -24,15 +25,17 @@ void CDlgPrefs::Init(bool bReverse, bool bLefthanded, BOOL bHighlightNet,
 	m_bLefthanded = bLefthanded;
 	m_bHighlightNet = bHighlightNet;
 	m_auto_interval = auto_interval;
-	m_bAuto_Ratline_Disable = bAuto_Ratline_Disable;
+	m_bAuto_Ratline_Disable = auto_ratline_min_pins;
 	m_auto_ratline_min_pins = auto_ratline_min_pins;
 }
 
 void CDlgPrefs::DoDataExchange(CDataExchange* pDX) {
 	CDialogEx::DoDataExchange(pDX);
 	if (!pDX->m_bSaveAndValidate) 
+	{
 		// incoming:  convert seconds to minutes
 		m_auto_interval /= 60;
+	}
 	DDX_Control(pDX, IDC_REVERSE_PGUP_PGDN, m_check_reverse);
 	DDX_Control(pDX, IDC_LEFTHAND_MODE, m_check_lefthanded);
 	DDX_Control(pDX, IDC_CHECK_AUTO_HIGHLIGHT_NET, m_check_highlight_net);
@@ -41,11 +44,11 @@ void CDlgPrefs::DoDataExchange(CDataExchange* pDX) {
 	DDX_Text(pDX, IDC_EDIT_AUTO_INTERVAL, m_auto_interval );
 	DDX_Control(pDX, IDC_CHECK_AUTORAT_DISABLE, m_check_disable_auto_rats);
 	DDX_Control(pDX, IDC_EDIT_MIN_PINS, m_edit_min_pins);
-	if (m_check_disable_auto_rats.GetCheck()) 
-		DDX_Text(pDX, IDC_EDIT_MIN_PINS, m_auto_ratline_min_pins ),
-		DDV_MinMaxInt(pDX, m_auto_ratline_min_pins, 0, 10000 );
+	DDX_Text(pDX, IDC_EDIT_MIN_PINS, m_auto_ratline_min_pins ),
+	DDV_MinMaxInt(pDX, m_auto_ratline_min_pins, 0, 10000 );
 
-	if(pDX->m_bSaveAndValidate)  { 
+	if(pDX->m_bSaveAndValidate)  
+	{ 
 		// outgoing
 		m_bReverse = m_check_reverse.GetCheck();
 		m_bLefthanded = m_check_lefthanded.GetCheck();
@@ -60,7 +63,6 @@ void CDlgPrefs::DoDataExchange(CDataExchange* pDX) {
 BEGIN_MESSAGE_MAP(CDlgPrefs, CDialogEx)
 	ON_BN_CLICKED(IDC_CHECK_AUTOSAVE, OnBnClickedCheckAutosave)
 	ON_BN_CLICKED(IDC_CHECK_AUTORAT_DISABLE, OnBnClickedCheckAutoRatDisable)
-	ON_EN_CHANGE(IDC_EDIT_AUTO_INTERVAL, &CDlgPrefs::OnEnChangeEditAutoInterval)
 END_MESSAGE_MAP()
 
 
@@ -73,23 +75,20 @@ BOOL CDlgPrefs::OnInitDialog()
 	m_check_reverse.SetCheck(m_bReverse);
 	m_check_lefthanded.SetCheck(m_bLefthanded);
 	m_check_highlight_net.SetCheck(m_bHighlightNet);
-	if( !m_auto_interval )
-	{
-		m_edit_auto_interval.EnableWindow( FALSE );
-		m_check_autosave.SetCheck(0);
-	}
-	else
-		m_check_autosave.SetCheck(1);
-
-	m_check_disable_auto_rats.SetCheck( m_bAuto_Ratline_Disable );
-	m_edit_min_pins.EnableWindow( m_bAuto_Ratline_Disable );
+	m_edit_auto_interval.EnableWindow( m_auto_interval );
+	m_check_autosave.SetCheck( m_auto_interval );
+	m_edit_min_pins.EnableWindow( m_auto_ratline_min_pins );
+	m_check_disable_auto_rats.SetCheck( m_auto_ratline_min_pins );
 	return TRUE;
 }
 
 void CDlgPrefs::OnBnClickedCheckAutosave()
 {
 	if( m_check_autosave.GetCheck() )
+	{
 		m_edit_auto_interval.EnableWindow( TRUE );
+		m_edit_auto_interval.SetWindowText( "10" );
+	}
 	else
 	{
 		m_edit_auto_interval.EnableWindow( FALSE );
@@ -99,17 +98,15 @@ void CDlgPrefs::OnBnClickedCheckAutosave()
 
 void CDlgPrefs::OnBnClickedCheckAutoRatDisable()
 {
-	m_edit_min_pins.EnableWindow( m_check_disable_auto_rats.GetCheck() );
+	if( m_check_disable_auto_rats.GetCheck() )
+	{
+		m_edit_min_pins.EnableWindow( TRUE );
+		m_edit_min_pins.SetWindowText( "100" );
+	}
+	else
+	{
+		m_edit_min_pins.EnableWindow( FALSE );
+		m_edit_min_pins.SetWindowText( "0" );
+	}
 }
 
-
-
-void CDlgPrefs::OnEnChangeEditAutoInterval()
-{
-	// TODO:  If this is a RICHEDIT control, the control will not
-	// send this notification unless you override the CDialogEx::OnInitDialog()
-	// function and call CRichEditCtrl().SetEventMask()
-	// with the ENM_CHANGE flag ORed into the mask.
-
-	// TODO:  Add your control notification handler code here
-}

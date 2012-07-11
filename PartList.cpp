@@ -45,6 +45,7 @@ cpart::cpart()
 	shape = 0;
 	drawn = FALSE;
 	m_ref_vis = TRUE;						// CPT:  is this the right place to be doing this?
+	bPinAreasSet = TRUE;	// AMW2 default
 	// set uids
 	m_id.Clear();
 	m_id.SetT1(ID_PART);
@@ -60,6 +61,7 @@ cpart::cpart( CPartList * pl )
 	dl_ref_sel = 0;
 	shape = 0;
 	drawn = FALSE;
+	bPinAreasSet = TRUE;	// AMW2 default
 	// set uids
 	m_id.Clear();
 	m_id.SetT1(ID_PART);
@@ -231,13 +233,13 @@ int CPartList::SetPartData( cpart * part, CShape * shape, CString * ref_des, CSt
 		part->m_ref_angle = shape->m_ref_angle;
 		part->m_ref_size = shape->m_ref_size;
 		part->m_ref_w = shape->m_ref_w;
-		part->m_ref_layer = shape->m_ref->m_layer;		
+		part->m_ref_layer = FpToPCBLayer( shape->m_ref->m_layer );	// AMW2	
 		part->m_value_xi = shape->m_value_xi;
 		part->m_value_yi = shape->m_value_yi;
 		part->m_value_angle = shape->m_value_angle;
 		part->m_value_size = shape->m_value_size;
 		part->m_value_w = shape->m_value_w;
-		part->m_value_layer = shape->m_value->m_layer;		
+		part->m_value_layer = FpToPCBLayer( shape->m_value->m_layer );	// AMW2	
 	}
 	part->m_outline_stroke.SetSize(0);
 	part->ref_text_stroke.SetSize(0);
@@ -1261,7 +1263,7 @@ int CPartList::DrawPart( cpart * part )
 				part->ref_text_stroke[is] = m_stroke[is];
 			}
 			// draw selection rectangle for ref text
-			id.SetT3( ID_SEL_REF_TXT );
+			id.SetT3( ID_SEL_TXT );
 			part->dl_ref_sel = m_dlist->AddSelector( id, part, part->m_ref_layer, DL_HOLLOW_RECT, 1,
 				0, 0, xmin, ymin, xmax, ymax, xmin, ymin );
 		}
@@ -1307,7 +1309,7 @@ int CPartList::DrawPart( cpart * part )
 			}
 
 			// draw selection rectangle for value
-			id.SetT3( ID_SEL_VALUE_TXT );
+			id.SetT3( ID_SEL_TXT );
 			part->dl_value_sel = m_dlist->AddSelector( id, part, part->m_value_layer, DL_HOLLOW_RECT, 1,
 				0, 0, xmin, ymin, xmax, ymax, xmin, ymin );
 		}

@@ -40,7 +40,7 @@
 #include "DlgGridVals.h"
 #include "DlgAddGridVal.h"
 #include "DlgExportOptions.h"	// CPT
-#include "PartListNew.h"		// CPT2
+//** AMW2 #include "PartListNew.h"		// CPT2
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -186,6 +186,7 @@ CFreePcbDoc::CFreePcbDoc()
 	clip_plist->SetShapeCacheMap( &m_footprint_cache_map );
 	clip_tlist = new CTextList( NULL, m_smfontutil );
 
+#if 0	//** AMW2 removed
 	// CPT2 r298: FOR TESTING MY NEW FOUNDATIONAL TEMPLATE CLASSES (Harmless code for single-stepping fun)
 	cnetlist *nlTest = new cnetlist( this );
 	cnet2 *nTest = new cnet2( nlTest, "Test", 0, 0, 0 );
@@ -199,6 +200,7 @@ CFreePcbDoc::CFreePcbDoc()
 	arr.DestroyAll();
 	delete nTest;
 	delete nlTest;
+#endif
 }
 
 CFreePcbDoc::~CFreePcbDoc()
@@ -584,6 +586,7 @@ BOOL CFreePcbDoc::FileOpen( LPCTSTR fn, BOOL bLibrary )
 			m_nlist->ReadNets( &pcb_file, m_read_version );
 			m_tlist->ReadTexts( &pcb_file );
 
+#if 0 //** AMW2
 			// CPT2.  Test code
 			m_plist2 = new cpartlist (this);
 			m_plist2->SetShapeCacheMap( &m_footprint_cache_map );
@@ -592,6 +595,7 @@ BOOL CFreePcbDoc::FileOpen( LPCTSTR fn, BOOL bLibrary )
 			m_nlist2 = new cnetlist (this);
 			m_nlist2->ReadNets( &pcb_file, m_read_version );
 			// end CPT2.
+#endif
 
 			// make path to library folder and index libraries
 			if( m_full_lib_dir == "" )
@@ -2075,7 +2079,21 @@ void CFreePcbDoc::CollectOptionsStrings(CArray<CString> &arr) {
 	arr.Add( line );
 	line.Format( "dsn_signals_poly: \"%d\"\n", m_dsn_signals_poly );
 	arr.Add( line );
+
 	// CPT autosave_interval, auto_ratline_disable, auto_ratline_disable_min_pins, reverse_pgup_pgdn, etc. are now stored in default.cfg ONLY
+	// AMW2: no, these should be saved as project options and only saved in default.cfg if requested
+	line.Format( "autosave_interval: \"%d\"\n", m_auto_interval );
+	arr.Add( line );
+	line.Format( "auto_ratline_disable: \"%d\"\n", m_auto_ratline_disable );
+	arr.Add( line );
+	line.Format( "auto_ratline_disable_min_pins: \"%d\"\n", m_auto_ratline_min_pins );
+	arr.Add( line );
+	line.Format( "reverse_pgup_pgdn: \"%d\"\n", m_bReversePgupPgdn);
+	arr.Add( line );
+	line.Format( "lefthanded_mode: \"%d\"\n", m_bLefthanded);
+	arr.Add( line );
+	line.Format( "highlight_net: \"%d\"\n", m_bHighlightNet);
+	arr.Add( line );
 
 	line.Format( "netlist_import_flags: %d\n", m_import_flags );
 	arr.Add( line );
@@ -4879,6 +4897,9 @@ void CFreePcbDoc::OnToolsPreferences() {
 		m_auto_interval = dlg.m_auto_interval;
 		m_auto_ratline_disable = dlg.m_bAuto_Ratline_Disable;
 		m_auto_ratline_min_pins = dlg.m_auto_ratline_min_pins;
+
+#if 0	// AMW2: should not be written to default.cfg unless requested to be the new defaults
+
 		// Save these values to default.cfg
 		CString line;
 		CArray<CString> oldLines, newLines;
@@ -4903,6 +4924,7 @@ void CFreePcbDoc::OnToolsPreferences() {
 		ReplaceLines(oldLines, newLines, "lefthanded_mode");
 		ReplaceLines(oldLines, newLines, "highlight_net");
 		WriteFileLines(fn, oldLines);
+#endif
 		m_view->SetFKText(m_view->m_cursor_mode);					// In case user changed the left-handed mode...
 		}
 	}

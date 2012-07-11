@@ -16,7 +16,7 @@ cpcb_item::cpcb_item(CFreePcbDoc *_doc)
 	carray_list = NULL; 
 	m_uid = next_uid++;
 	doc = _doc;
-	doc->items.Add(this);
+//** AMW2	doc->items.Add(this);
 	dl_el = dl_sel = NULL;
 	utility = 0;
 }

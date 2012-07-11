@@ -960,9 +960,9 @@ int CDisplayList::TestSelect( int x, int y, CArray<CHitInfo> *hit_info,
 		hit_info->Add(this_hit);
 		int priority = (MAX_LAYERS - m_order_for_layer[this_hit.layer])*10;
 		// bump priority for small items which may be overlapped by larger items on same layer
-		if( this_hit.ID.T1() == ID_PART && this_hit.ID.T2() == ID_REF_TXT && this_hit.ID.T3() == ID_SEL_REF_TXT )
+		if( this_hit.ID.T1() == ID_PART && this_hit.ID.T2() == ID_REF_TXT && this_hit.ID.T3() == ID_SEL_TXT )
 			priority++;
-		else if( this_hit.ID.T1() == ID_PART && this_hit.ID.T2() == ID_VALUE_TXT && this_hit.ID.T3() == ID_SEL_VALUE_TXT )
+		else if( this_hit.ID.T1() == ID_PART && this_hit.ID.T2() == ID_VALUE_TXT && this_hit.ID.T3() == ID_SEL_TXT )
 			priority++;
 		else if( this_hit.ID.T1() == ID_BOARD && this_hit.ID.T2() == ID_OUTLINE && this_hit.ID.T3() == ID_SEL_CORNER )
 			priority++;
