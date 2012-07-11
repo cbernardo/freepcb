@@ -166,14 +166,15 @@ enum {
 	ID_CENTROID,	// centroid
 	ID_GLUE,		// adhesive spot
 	ID_ORIG,		// part origin
-	ID_SEL_RECT,	// selection rectangle for part
-	ID_SEL_REF_TXT,		// selection rectangle for ref text
-	ID_SEL_VALUE_TXT	// selection rectangle for value text
+	ID_SEL_RECT		// selection rectangle for part
+//** AMW2 these shouldn't be used, all instances replaced with ID_SEL_TXT
+//	ID_SEL_REF_TXT,		// selection rectangle for ref text
+//	ID_SEL_VALUE_TXT	// selection rectangle for value text
 };
 
 // subtype of ID_TEXT is always ID_TEXT
 
-// subsubtypes of ID_TEXT
+// subsubtypes of ID_TEXT, ID_REF_TXT, etc.
 enum {
 	ID_SEL_TXT = 1,		// selection rectangle
 	ID_STROKE			// stroke for text

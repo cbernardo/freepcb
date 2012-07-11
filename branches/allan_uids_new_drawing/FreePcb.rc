@@ -3544,7 +3544,7 @@ BEGIN
     IDS_Bottom3             "bottom. %c,C%c"
     IDS_DrilledHole2        "drilled hole. CF10"
     IDS_SelectionMask       "SELECTION MASK"
-    IDS_LeftPaneKey         "1,2,...: Use these"
+    IDS_LeftPaneKey         "1,2,...: Use number"
     62363                   "keys to change"
     62364                   "routing layer"
     62365                   "C1,CF1,... ="

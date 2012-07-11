@@ -152,10 +152,13 @@ public:
 	CDlgLog * m_dlg_log;
 	DRErrorList * m_drelist;
 	CArray<CPolyLine> m_sm_cutout;	// array of soldermask cutouts. // CPT2 TODO:  change to carray<csmcutout>
+
+#if 0 //** AMW2
 	carray<cpcb_item> items;		// CPT2.  Master list of all created pcb-items.  GarbageCollect() will go through this list and clean up now and then.
 	carray<cpcb_item> others;		// CPT2.  All active pcb-items that belong to "other" categories (not net-items, part-items, or texts)
 	cnetlist *m_nlist2;				// CPT2.  Will replace m_nlist
 	cpartlist *m_plist2;			// CPT2.  Will replace m_plist
+#endif
 
 	// undo and redo stacks and state
 	BOOL m_bLastPopRedo;		// flag that last stack op was pop redo

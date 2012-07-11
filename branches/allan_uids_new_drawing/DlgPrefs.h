@@ -38,5 +38,4 @@ public:
 	BOOL m_bAuto_Ratline_Disable;
 	int m_auto_ratline_min_pins;
 	CFreePcbDoc *doc;
-	afx_msg void OnEnChangeEditAutoInterval();
 };

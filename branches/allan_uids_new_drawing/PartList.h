@@ -137,6 +137,7 @@ public:
 	id m_id;			// instance id for this part
 	BOOL drawn;			// TRUE if part has been drawn to display list
 	BOOL visible;		// 0 to hide part
+	BOOL bPinAreasSet;	// AMW2: if 1, areas will be auto-updated on moves, 0 to disable this
 	int x,y;			// position of part origin on board
 	int side;			// 0=top, 1=bottom
 	int angle;			// orientation, degrees CW

@@ -16,3 +16,16 @@ int FlipLayer( int side, int layer )
 	}
 	return lay;
 }
+
+// AMW2 added
+int FpToPCBLayer( int fp_layer )
+{
+	switch( fp_layer )
+	{
+	case LAY_FP_SILK_TOP: return LAY_SILK_TOP; break;
+	case LAY_FP_SILK_BOTTOM: return LAY_SILK_BOTTOM; break;
+	case LAY_FP_TOP_COPPER: return LAY_TOP_COPPER; break;
+	case LAY_FP_BOTTOM_COPPER: return LAY_BOTTOM_COPPER; break;
+	default: ASSERT(0); return -1; break;
+	}
+}
