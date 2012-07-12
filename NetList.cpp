@@ -1996,57 +1996,52 @@ int CNetList::PartFootprintChanged( cpart * part )
 			{
 				int p1 = c->start_pin;
 				int p2 = c->end_pin;
-				if( net->pin[p1].part != part )
+				if( p1 != cconnect::NO_END )
 				{
-					// connection doesn't start on this part
-					if( p2 == cconnect::NO_END )
-						continue; // stub trace, ignore it
-					if( net->pin[p2].part != part )
-						continue;	// doesn't end on part, ignore it
-				}
-				CString pin_name1 = net->pin[p1].pin_name;
-				if( net->pin[p1].part == part )
-				{
-					// starting pin is on part, see if this pin still exists
-					int pin_index1 = part->shape->GetPinIndexByName( pin_name1 );
-					if( pin_index1 == -1 )
+					CString pin_name1 = net->pin[p1].pin_name;
+					if( net->pin[p1].part == part )
 					{
-						// no, remove connection
-						RemoveNetConnect( net, ic, FALSE );
-						continue;
-					}
-					// yes, rehook pin to net
-					part->pin[pin_index1].net = net;
-					// see if position or pad type has changed
-					int old_x = c->vtx[0].x;
-					int old_y = c->vtx[0].y;
-					int old_layer = c->seg[0].m_layer;
-					int new_x = part->pin[pin_index1].x;
-					int new_y = part->pin[pin_index1].y;
-					int new_layer;
-					if( part->side == 0 )
-						new_layer = LAY_TOP_COPPER;
-					else
-						new_layer = LAY_BOTTOM_COPPER;
-					BOOL layer_ok = new_layer == old_layer || part->shape->m_padstack[pin_index1].hole_size > 0;
-					// see if pin position has changed
-					if( old_x != new_x || old_y != new_y || !layer_ok )
-					{
-						// yes, unroute if necessary and update connection
-						if( old_layer != LAY_RAT_LINE )
+						// starting pin is on part, see if this pin still exists
+						int pin_index1 = part->shape->GetPinIndexByName( pin_name1 );
+						if( pin_index1 == -1 )
 						{
-							UnrouteSegment( net, ic, 0 );
-							nsegs = c->NumSegs();
+							// no, remove connection
+							RemoveNetConnect( net, ic, FALSE );
+							continue;
 						}
-						// modify vertex position
-						c->vtx[0].x = new_x;
-						c->vtx[0].y = new_y;
-						m_dlist->Set_x( c->seg[0].dl_el, c->vtx[0].x );
-						m_dlist->Set_y( c->seg[0].dl_el, c->vtx[0].y );
-						m_dlist->Set_visible( c->seg[0].dl_el, net->visible );
-						m_dlist->Set_x( c->seg[0].dl_sel, c->vtx[0].x );
-						m_dlist->Set_y( c->seg[0].dl_sel, c->vtx[0].y );
-						m_dlist->Set_visible( c->seg[0].dl_sel, net->visible );
+						// yes, rehook pin to net
+						part->pin[pin_index1].net = net;
+						// see if position or pad type has changed
+						int old_x = c->vtx[0].x;
+						int old_y = c->vtx[0].y;
+						int old_layer = c->seg[0].m_layer;
+						int new_x = part->pin[pin_index1].x;
+						int new_y = part->pin[pin_index1].y;
+						int new_layer;
+						if( part->side == 0 )
+							new_layer = LAY_TOP_COPPER;
+						else
+							new_layer = LAY_BOTTOM_COPPER;
+						BOOL layer_ok = new_layer == old_layer || part->shape->m_padstack[pin_index1].hole_size > 0;
+						// see if pin position has changed
+						if( old_x != new_x || old_y != new_y || !layer_ok )
+						{
+							// yes, unroute if necessary and update connection
+							if( old_layer != LAY_RAT_LINE )
+							{
+								UnrouteSegment( net, ic, 0 );
+								nsegs = c->NumSegs();
+							}
+							// modify vertex position
+							c->vtx[0].x = new_x;
+							c->vtx[0].y = new_y;
+							m_dlist->Set_x( c->seg[0].dl_el, c->vtx[0].x );
+							m_dlist->Set_y( c->seg[0].dl_el, c->vtx[0].y );
+							m_dlist->Set_visible( c->seg[0].dl_el, net->visible );
+							m_dlist->Set_x( c->seg[0].dl_sel, c->vtx[0].x );
+							m_dlist->Set_y( c->seg[0].dl_sel, c->vtx[0].y );
+							m_dlist->Set_visible( c->seg[0].dl_sel, net->visible );
+						}
 					}
 				}
 				if( p2 == cconnect::NO_END )
