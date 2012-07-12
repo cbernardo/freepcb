@@ -1,0 +1,25 @@
+I'm restarting this TODO list on July 11, 2012
+----------------------------------------------
+
+TODO
+----
+
+-	when clicking on a vertex with connected segments, the segments get selected first
+	which is very annoying
+-	DRC not working
+-	DRC needs to be updated to check copper text and graphics
+-	many improvements are needed to footprint editor
+-	when routing a trace and clicking on a vertex or segment of another trace,
+	there should be a dialog to confirm connection, for pins just connect with no dialog
+-	View->Find_Part should offer to center on part, or start moving it in the current viewport
+-	need to update User Guide
+-	put layer translation tables back in for backwards compatibility
+
+
+To think about
+--------------
+
+-	don't unroute traces when moving a part
+-	add bDrawn flag to items to control redrawing
+-	similarly, add flags for setting area connections and optimizing connections
+-	reorganize handling of events in FreePCBView depending on state

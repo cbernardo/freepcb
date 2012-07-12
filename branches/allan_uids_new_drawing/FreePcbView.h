@@ -38,42 +38,42 @@ enum {
 	CUR_DRE_SELECTED,			// DRC error selected
 	CUR_GROUP_SELECTED,			// multiple parts selected
 	CUR_NUM_SELECTED_MODES,		// number of SELECTED modes
-	CUR_ADD_BOARD,		// dragging starting point of board outline
-	CUR_DRAG_BOARD_1,	// dragging first corner of board outline
-	CUR_DRAG_BOARD,		// dragging next corner of board outline
-	CUR_DRAG_BOARD_INSERT,	// dragging board corner being inserted
-	CUR_DRAG_BOARD_MOVE,	// dragging board corner being moved
-	CUR_DRAG_PART,		// dragging part
-	CUR_DRAG_REF,		// dragging ref text of part
-	CUR_DRAG_VALUE,		// dragging value of part
-	CUR_DRAG_RAT,		// dragging ratline for trace segment
-	CUR_DRAG_VTX,		// dragging trace vertex
-	CUR_DRAG_VTX_INSERT,	// dragging new vertex being inserted
-	CUR_DRAG_END_VTX,	// dragging end vertex being moved
-	CUR_DRAG_TEXT,		// dragging text box
-	CUR_ADD_AREA,		// setting starting point for copper area
-	CUR_DRAG_AREA_1,	// dragging first corner for copper area
-	CUR_DRAG_AREA,		// dragging next corner for copper area
-	CUR_DRAG_AREA_INSERT,	// dragging area corner being inserted
-	CUR_DRAG_AREA_MOVE,		// dragging area corner being moved
-	CUR_ADD_AREA_CUTOUT,	// setting starting point for area cutout
-	CUR_DRAG_AREA_CUTOUT_1,	// dragging first corner for area cutout
-	CUR_DRAG_AREA_CUTOUT,	// dragging next corner for area cutout
-	CUR_ADD_SMCUTOUT,		// setting starting point of solder mask cutout
-	CUR_DRAG_SMCUTOUT_1,	// dragging first corner of solder mask cutout
-	CUR_DRAG_SMCUTOUT,		// dragging next corner of solder mask cutout
+	CUR_ADD_BOARD,				// dragging starting point of board outline
+	CUR_DRAG_BOARD_1,			// dragging first corner of board outline
+	CUR_DRAG_BOARD,				// dragging next corner of board outline
+	CUR_DRAG_BOARD_INSERT,		// dragging board corner being inserted
+	CUR_DRAG_BOARD_MOVE,		// dragging board corner being moved
+	CUR_DRAG_PART,				// dragging part
+	CUR_DRAG_REF,				// dragging ref text of part
+	CUR_DRAG_VALUE,				// dragging value of part
+	CUR_DRAG_RAT,				// dragging ratline for trace segment
+	CUR_DRAG_VTX,				// dragging trace vertex
+	CUR_DRAG_VTX_INSERT,		// dragging new vertex being inserted
+	CUR_DRAG_END_VTX,			// dragging end vertex being moved
+	CUR_DRAG_TEXT,				// dragging text box
+	CUR_ADD_AREA,				// setting starting point for copper area
+	CUR_DRAG_AREA_1,			// dragging first corner for copper area
+	CUR_DRAG_AREA,				// dragging next corner for copper area
+	CUR_DRAG_AREA_INSERT,		// dragging area corner being inserted
+	CUR_DRAG_AREA_MOVE,			// dragging area corner being moved
+	CUR_ADD_AREA_CUTOUT,		// setting starting point for area cutout
+	CUR_DRAG_AREA_CUTOUT_1,		// dragging first corner for area cutout
+	CUR_DRAG_AREA_CUTOUT,		// dragging next corner for area cutout
+	CUR_ADD_SMCUTOUT,			// setting starting point of solder mask cutout
+	CUR_DRAG_SMCUTOUT_1,		// dragging first corner of solder mask cutout
+	CUR_DRAG_SMCUTOUT,			// dragging next corner of solder mask cutout
 	CUR_DRAG_SMCUTOUT_INSERT,	// dragging solder mask cutout corner being inserted
 	CUR_DRAG_SMCUTOUT_MOVE,		// dragging solder mask cutout corner being moved
-	CUR_DRAG_TRACE,		// dragging ratline to next stub endpoint
-	CUR_DRAG_CONNECT,	// dragging ratline to new connection
-	CUR_DRAG_RAT_PIN,	// dragging ratline to new end pin of trace
-	CUR_MOVE_ORIGIN,	// dragging new origin
-	CUR_DRAG_GROUP,		// dragging a group of parts/segments
-	CUR_DRAG_GROUP_ADD,	// dragging a group being added
-	CUR_DRAG_MEASURE_1,	// dragging the start of measurement tool
-	CUR_DRAG_MEASURE_2,	// dragging the end of measurement tool
-	CUR_MOVE_SEGMENT,	// move a segment, leaving it connected to its ends
-	CUR_NUM_MODES		// number of modes
+	CUR_DRAG_TRACE,				// dragging ratline to next stub endpoint
+	CUR_DRAG_CONNECT,			// dragging ratline to new connection
+	CUR_DRAG_RAT_PIN,			// dragging ratline to new end pin of trace
+	CUR_MOVE_ORIGIN,			// dragging new origin
+	CUR_DRAG_GROUP,				// dragging a group of parts/segments
+	CUR_DRAG_GROUP_ADD,			// dragging a group being added
+	CUR_DRAG_MEASURE_1,			// dragging the start of measurement tool
+	CUR_DRAG_MEASURE_2,			// dragging the end of measurement tool
+	CUR_MOVE_SEGMENT,			// move a segment, leaving it connected to its ends
+	CUR_NUM_MODES				// number of modes
 };
 
 // function key options
