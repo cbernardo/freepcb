@@ -106,21 +106,20 @@ public:
 	// CDLinkList m_iterator_list;									// CPT2. Doomed
 
 	// member functions
-	ctextlist( CFreePcbDoc *_doc, SMFontUtil * _smfontutil );
+	ctextlist( CFreePcbDoc *_doc );
 	~ctextlist() { }
 	
 	// void SetIDType( int type, int subtype );						// CPT2.  Doomed
-	ctext * AddText( int x, int y, int angle, int mirror, 
-					BOOL bNegative,	int layer, 
-					int font_size, int stroke_width, 
-					CString * str_ptr, BOOL draw_flag=TRUE );
+	ctext * AddText( int x, int y, int angle, bool bMirror, 
+					bool bNegative,	int layer, 
+					int font_size, int stroke_width, CString * str_ptr );
 	// int RemoveText( CText * text );								// CPT2.  Use texts.Remove(text)
 	void RemoveAllTexts() { texts.RemoveAll(); }
 	// void HighlightText( CText * text );							// CPT2.  Use ctext::Highlight
 	// void StartDraggingText( CDC * pDC, CText * text );			// CPT2.  Use ctext::StartDragging
 	// void CancelDraggingText( CText * text );						// CPT2.  Use ctext::CancelDragging
 	// void MoveText( CText * text, int x, int y, int angle,		// CPT2.  Use ctext::Move
-		// BOOL mirror, BOOL negative, int layer );
+	//    BOOL mirror, BOOL negative, int layer );
 	void ReadTexts( CStdioFile * file );							// Done in cpp
 	int WriteTexts( CStdioFile * file ) { return 0; }				// TODO
 	void MoveOrigin( int x_off, int y_off ) { }						// TODO

@@ -22,6 +22,23 @@ I am trying a new system for thermals, where their drawing objects get associate
 As a result the old routines carea2::SetConnections, cnet2::SetAreaConnections and the like can be phased out.  cvertex2::SetNeedsThermal,
 cpin2::SetNeedsThermal, cnet2::SetThermals, cnetlist::SetThermals, and cpartlist::SetThermals can take their place.
 
+While translating CFreePcbView::OnPartDelete(), I grappled with the distinction between CNetList::PartDeleted() and 
+CNetList::PartDisconnected() --- hard for me to figure out.  The former
+seems to leave in place notional pins within nets that refer to parts no longer in existence.  I'm not convinced that 
+having these is terribly useful, and I can imagine them causing confusion or puzzling program behavior down the road.
+Therefore I'm proposing a different distinction that I think might be more helpful:  when deleting a part, user can choose whether or not to destroy
+all the traces that emanate from that part.  If no, then there will be stub traces that terminate in the positions where the vanished pins used to be 
+(might be useful if, say, user decides to trade out one kind of header for another, a trade that might leave the board's traces mostly unchanged).
+If yes, then the behavior will be similar to what we had before.  But in no case will there be phantom pins on non-existent parts.
+
+Reorganized class CShape a little: m_ref and m_value are now ctexts (formerly they were CTexts);  all the m_ref_xi, m_ref_angle, ... members 
+are now down within the m_ref object;  similarly for the m_value_xi, ... members.
+
+I am adjusting classes pad and padstack so that the latter in particular becomes part of the new class hierarchy, and both have associated
+drawing-elements.  This will be useful when converting the footprint editor UI;  instead of using cpin2's to represent pins, as happens in the main
+view, padstacks will represent the pins user sees.
+In honor of this change I'm renaming pad to cpad and padstack to cpadstack.  (Helps me ensure that I've converted things that need converting.)
+
 To do later: just as functions in CNetList and CPartList are getting moved into classes for lower-level objects, I think various functions
 can be moved out of CDisplayList into dl_element and its descendants (will require adding a dlist pointer to class dl_element).
 
@@ -255,7 +272,7 @@ CPT revisions:
 	rectangle out to the margins.
 16. Added sorting to export netlist.
 17. Removed restriction on pin names (before, 1A and A1A were illegal)
-18. During connect-to-pin-to-create-ratline mode (CUR_DRAG_CONNECT), the status bar now shows the name of the pin where mouse is hovering.
+18. During connect-to-pin-to-create-ratline mode (CUR_DRAG_NEW_RAT), the status bar now shows the name of the pin where mouse is hovering.
 19. After creating such a ratline, it is selected by default.
 20. When moving groups/parts, don't unroute an adjacent seg if, say, the group is moving vertically and the seg is vertical (changes in e.g.
    	CNetList::UnrouteSegment() and CNetList::UnrouteSegmentWithoutMerge())

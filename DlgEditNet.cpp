@@ -235,6 +235,7 @@ void CDlgEditNet::OnBnClickedButtonDelete()
 
 void CDlgEditNet::OnBnClickedButtonAdd()
 {
+#ifndef CPT2
 	CString str;
 
 	m_edit_addpin.GetWindowText( str );
@@ -330,7 +331,7 @@ void CDlgEditNet::OnBnClickedButtonAdd()
 			m_edit_addpin.SetWindowText( "" );
 		}
 	}
-
+#endif
 }
 
 // enter with the following variables set up by calling function:

@@ -67,7 +67,7 @@ enum {
 	CUR_DRAG_SMCUTOUT_INSERT,	// dragging solder mask cutout corner being inserted
 	CUR_DRAG_SMCUTOUT_MOVE,		// dragging solder mask cutout corner being moved
 	CUR_DRAG_STUB,		// dragging ratline to next stub endpoint
-	CUR_DRAG_CONNECT,	// dragging ratline to new connection
+	CUR_DRAG_NEW_RAT,	// dragging ratline to new connection. CPT2 new name (clearer I think)
 	CUR_DRAG_RAT_PIN,	// dragging ratline to new end pin of trace
 	CUR_MOVE_ORIGIN,	// dragging new origin
 	CUR_DRAG_GROUP,		// dragging a group of parts/segments
@@ -157,6 +157,7 @@ enum {
     FK_ACTIVE_WIDTH_DOWN,
 	FK_RGRID_UP,
 	FK_RGRID_DOWN,
+	FK_SET_TRACE_WIDTH,
 	// end CPT
 
 	FK_NUM_OPTIONS,
@@ -522,6 +523,7 @@ public:
 	afx_msg void OnTextMove();
 	afx_msg void OnPartGlue();
 	afx_msg void OnPartUnglue();
+	afx_msg void OnPartProperties();			// CPT2, formerly in CFreePcbDoc.
 	afx_msg void OnPartDelete();
 	afx_msg void OnPartOptimize();
 	afx_msg void OnRefMove();
@@ -554,11 +556,11 @@ public:
 	afx_msg void OnBoardDeleteOutline();
 	afx_msg void OnPadStartTrace();
 	afx_msg void OnSegmentDelete();
-	afx_msg void OnEndVertexMove();
+	// afx_msg void OnEndVertexMove();					// CPT2 phased out special end-vertex routines
 	// afx_msg void OnEndVertexAddSegments();
 	// afx_msg void OnEndVertexAddConnection();
-	afx_msg void OnEndVertexDelete();
-	afx_msg void OnEndVertexEdit();
+	// afx_msg void OnEndVertexDelete();
+	// afx_msg void OnEndVertexEdit();
 	afx_msg void OnAreaCornerMove();
 	afx_msg void OnAreaCornerDelete();
 	afx_msg void OnAreaCornerDeleteArea();

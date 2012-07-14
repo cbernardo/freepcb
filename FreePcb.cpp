@@ -50,8 +50,6 @@ END_MESSAGE_MAP()
 
 CFreePcbApp::CFreePcbApp()
 {
-	// TODO: add construction code here,
-	// Place all significant initialization in InitInstance
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -122,7 +120,6 @@ BOOL CFreePcbApp::InitInstance()
 
 	// set initial view mode
 	m_view_mode = PCB;
-
 	m_doc->InitializeNewProject();
 	m_pMainWnd->SetWindowTextA(m_doc->m_window_title);			// CPT --- want a consistent window title from the get-go
 
@@ -228,119 +225,122 @@ BOOL CFreePcbApp::SwitchToView( CRuntimeClass * pNewViewClass )
 	CView * pOldActiveView = pMainWnd->GetActiveView();
 	if( pOldActiveView->IsKindOf( pNewViewClass ) )
 		return TRUE;
+
+	bool bSwitchToPcb = pNewViewClass == RUNTIME_CLASS( CFreePcbView );
 	CView * pNewView;
-	if( pNewViewClass != RUNTIME_CLASS( CFreePcbView ) )
+	if( bSwitchToPcb )
+		pNewView = m_View;
+	else
 	{
-		// switch to footprint view
+		// Switch to footprint:
 		CCreateContext context;
 		context.m_pNewViewClass = pNewViewClass;
 		context.m_pCurrentDoc = m_doc;
 		pNewView = STATIC_DOWNCAST(CView, pMainWnd->CreateView(&context));
 		m_View_fp = (CFootprintView*)pNewView;
 	}
+	if (!pNewView) return false;
+
+#if 0
+	CMenu m_NewMenu;
+	if( pNewViewClass == RUNTIME_CLASS( CFreePcbView ) )
+		m_NewMenu.LoadMenu(IDR_MAINFRAME);
+	else
+		m_NewMenu.LoadMenu(IDR_FOOTPRINT);
+	ASSERT(m_NewMenu);
+	// Add the new menu
+	pMainWnd->SetMenu(&m_NewMenu);
+	m_NewMenu.Detach();
+#endif
+	if( bSwitchToPcb )
+		pMainWnd->SetMenu(&m_main);
+	else
+		pMainWnd->SetMenu(&m_foot);
+
+	// Exchange view window IDs so RecalcLayout() works.
+	UINT temp = ::GetWindowLong(pOldActiveView->m_hWnd, GWL_ID);
+	::SetWindowLong(pOldActiveView->m_hWnd, GWL_ID, ::GetWindowLong(pNewView->m_hWnd, GWL_ID));
+	::SetWindowLong(pNewView->m_hWnd, GWL_ID, temp);
+	pNewView->ShowWindow( SW_SHOW );
+	pOldActiveView->ShowWindow( SW_HIDE );
+	pNewView->OnInitialUpdate();
+	pMainWnd->SetActiveView( pNewView );
+	pMainWnd->RecalcLayout();
+
+	if( bSwitchToPcb )
+	{
+		// first, see if we were editing the footprint of the selected part
+		CShape * temp_footprint;
+		if(	m_View->m_cursor_mode == CUR_PART_SELECTED 
+			&& m_doc->m_edit_footprint
+			&& (m_doc->m_footprint_modified || m_doc->m_footprint_name_changed) )
+		{
+			// yes, make a copy of the footprint from the editor
+			temp_footprint = new CShape;
+			temp_footprint->Copy( &m_View_fp->m_fp );
+		}
+		// destroy old footprint view
+		pOldActiveView->DestroyWindow();
+		if( !m_doc->m_project_open )
+		{
+			m_doc->m_project_modified = FALSE;
+			m_doc->m_project_modified_since_autosave = FALSE;
+			m_doc->OnFileClose();	
+		}
+		// CPT2.  Ensure that all drawing henceforth goes to the main pcb's display-list:
+		m_doc->m_dlist = m_doc->m_dlist_pcb;
+		// restore toolbar stuff
+		CMainFrame * frm = (CMainFrame*)AfxGetMainWnd();
+		frm->m_wndMyToolBar.SetLists( &m_doc->m_visible_grid, &m_doc->m_part_grid, &m_doc->m_routing_grid,
+			m_doc->m_visual_grid_spacing, m_doc->m_part_grid_spacing, m_doc->m_routing_grid_spacing, 
+			m_doc->m_snap_angle, m_doc->m_units );
+		m_View->m_dlist->SetVisibleGrid( 1, m_doc->m_visual_grid_spacing );
+		frm->SetWindowText( m_doc->m_window_title ); 
+		m_View->ShowSelectStatus();
+		m_View->ShowActiveLayer();
+		if(	m_View->m_cursor_mode == CUR_PART_SELECTED 
+			&& m_doc->m_edit_footprint
+			&& (m_doc->m_footprint_modified || m_doc->m_footprint_name_changed) )
+		{
+			// now offer to replace the footprint of the selected part 
+			m_View->OnExternalChangeFootprint( temp_footprint );
+			delete temp_footprint;
+		}
+		m_doc->m_edit_footprint = FALSE;		// clear this flag for next time
+	}
+
 	else
 	{
-		// switch to pcb view
-		pNewView = m_View;
-	}
-	if( pNewView )
-	{
-#if 0
-		CMenu m_NewMenu;
-		if( pNewViewClass == RUNTIME_CLASS( CFreePcbView ) )
-			m_NewMenu.LoadMenu(IDR_MAINFRAME);
-		else
-			m_NewMenu.LoadMenu(IDR_FOOTPRINT);
-		ASSERT(m_NewMenu);
-		// Add the new menu
-		pMainWnd->SetMenu(&m_NewMenu);
-		m_NewMenu.Detach();
-#endif
-		if( pNewViewClass == RUNTIME_CLASS( CFreePcbView ) )
-			pMainWnd->SetMenu(&m_main);
-		else
-			pMainWnd->SetMenu(&m_foot);
-
-		// Exchange view window IDs so RecalcLayout() works.
-		UINT temp = ::GetWindowLong(pOldActiveView->m_hWnd, GWL_ID);
-		::SetWindowLong(pOldActiveView->m_hWnd, GWL_ID, ::GetWindowLong(pNewView->m_hWnd, GWL_ID));
-		::SetWindowLong(pNewView->m_hWnd, GWL_ID, temp);
-		pNewView->ShowWindow( SW_SHOW );
-		pOldActiveView->ShowWindow( SW_HIDE );
-		pNewView->OnInitialUpdate();
-		pMainWnd->SetActiveView( pNewView );
-		pMainWnd->RecalcLayout();
-		if( pNewViewClass == RUNTIME_CLASS( CFreePcbView ) )
+		// switching to footprint view, create it
+		int units = MIL;
+		m_View_fp = (CFootprintView*)pNewView;
+		m_doc->m_dlist = m_doc->m_dlist_fp;												// CPT2.  Ensures that we draw to the fp display-list
+		if( m_View->m_cursor_mode == CUR_PART_SELECTED && m_doc->m_edit_footprint )
 		{
-			// switch to pcb view
-			// first, see if we were editing the footprint of the selected part
-			CShape * temp_footprint;
-			if(	m_View->m_cursor_mode == CUR_PART_SELECTED 
-				&& m_doc->m_edit_footprint
-				&& (m_doc->m_footprint_modified || m_doc->m_footprint_name_changed) )
-			{
-				// yes, make a copy of the footprint from the editor
-				temp_footprint = new CShape;
-				temp_footprint->Copy( &m_View_fp->m_fp );
-			}
-			// destroy old footprint view
-			pOldActiveView->DestroyWindow();
-			if( !m_doc->m_project_open )
-			{
-				m_doc->m_project_modified = FALSE;
-				m_doc->m_project_modified_since_autosave = FALSE;
-				m_doc->OnFileClose();	
-			}
-			// restore toolbar stuff
-			CMainFrame * frm = (CMainFrame*)AfxGetMainWnd();
-			frm->m_wndMyToolBar.SetLists( &m_doc->m_visible_grid, &m_doc->m_part_grid, &m_doc->m_routing_grid,
-				m_doc->m_visual_grid_spacing, m_doc->m_part_grid_spacing, m_doc->m_routing_grid_spacing, 
-				m_doc->m_snap_angle, m_doc->m_units );
-			m_View->m_dlist->SetVisibleGrid( 1, m_doc->m_visual_grid_spacing );
-			frm->SetWindowText( m_doc->m_window_title ); 
-			m_View->ShowSelectStatus();
-			m_View->ShowActiveLayer();
-			if(	m_View->m_cursor_mode == CUR_PART_SELECTED 
-				&& m_doc->m_edit_footprint
-				&& (m_doc->m_footprint_modified || m_doc->m_footprint_name_changed) )
-			{
-				// now offer to replace the footprint of the selected part 
-				m_View->OnExternalChangeFootprint( temp_footprint );
-				delete temp_footprint;
-			}
-			m_doc->m_edit_footprint = FALSE;	// clear this flag for next time
+			cpart2 *part = m_View->m_sel.First()->ToPart();
+			m_View_fp->InitInstance( part->shape );
+			units = part->shape->m_units;
 		}
 		else
 		{
-			// switching to footprint view, create it
-			int units = MIL;
-			m_View_fp = (CFootprintView*)pNewView;
-			if( m_View->m_cursor_mode == CUR_PART_SELECTED && m_doc->m_edit_footprint )
-			{
-				m_View_fp->InitInstance( m_View->m_sel_part->shape );
-				units = m_View->m_sel_part->shape->m_units;
-			}
-			else
-			{
-				m_View_fp->InitInstance( NULL );
-			}
-			// restore toolbar stuff
-			CMainFrame * frm = (CMainFrame*)AfxGetMainWnd();
-			frm->m_wndMyToolBar.SetLists( &m_doc->m_fp_visible_grid, &m_doc->m_fp_part_grid, NULL,
-				m_doc->m_fp_visual_grid_spacing, m_doc->m_fp_part_grid_spacing, 0, m_doc->m_fp_snap_angle, units );
-			m_View_fp->m_dlist->SetVisibleGrid( 1, m_doc->m_fp_visual_grid_spacing );
+			m_View_fp->InitInstance( NULL );
 		}
-		// resize window in case it changed
-		CRect client_rect;
-		pMainWnd->GetClientRect( client_rect );
-		// TODO: replace these constants
-		client_rect.top += 24;		// leave room for toolbar
-		client_rect.bottom -= 18;	// leave room for status bar
-		pNewView->MoveWindow( client_rect, 1 );
-
-		return TRUE;
+		// restore toolbar stuff
+		CMainFrame * frm = (CMainFrame*)AfxGetMainWnd();
+		frm->m_wndMyToolBar.SetLists( &m_doc->m_fp_visible_grid, &m_doc->m_fp_part_grid, NULL,
+			m_doc->m_fp_visual_grid_spacing, m_doc->m_fp_part_grid_spacing, 0, m_doc->m_fp_snap_angle, units );
+		m_View_fp->m_dlist->SetVisibleGrid( 1, m_doc->m_fp_visual_grid_spacing );
 	}
-	return FALSE;
+
+	// resize window in case it changed
+	CRect client_rect;
+	pMainWnd->GetClientRect( client_rect );
+	// TODO: replace these constants
+	client_rect.top += 24;		// leave room for toolbar
+	client_rect.bottom -= 18;	// leave room for status bar
+	pNewView->MoveWindow( client_rect, 1 );
+
+	return TRUE;
 }
 
 int CFreePcbApp::ExitInstance()

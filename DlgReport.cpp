@@ -89,6 +89,7 @@ int mycompare( const void *arg1, const void *arg2 )
 
 void CDlgReport::OnBnClickedOk()
 {
+#ifndef CPT2
 	CString line, str1, str2, str3, str4, str_units;
 	int dp;			// decimal places for dimensions
 	m_flags = 0;
@@ -759,6 +760,7 @@ void CDlgReport::OnBnClickedOk()
 	}
 	file.Close();
 	OnOK();
+#endif
 }
 
 void CDlgReport::OnBnClickedCancel()

@@ -303,14 +303,14 @@ public:
 
 	// functions related to parts. CPT2 TODO think these through more
 	int RehookPartsToNet( cnet2 * net );
-	void PartAdded( cpart2 * part );
+	void PartAdded( cpart2 * part );														// Done in cpp, derived from CNetList func.
 	// int PartMoved( cpart2 * part, int dx = 1, int dy = 1 );								// CPT2.  Use cpart2::PartMoved
 	int PartFootprintChanged( cpart2 * part );
-	int PartDeleted( cpart2 * part, BOOL bSetAreas=TRUE );
-	int PartDisconnected( cpart2 * part, BOOL bSetAreas=TRUE );
+	// int PartDeleted( cpart2 * part, BOOL bSetAreas=TRUE );								// CPT2.  Use cpart2::Delete()
+	// int PartDisconnected( cpart2 * part, BOOL bSetAreas=TRUE );							// CPT2. Use cpart2::Disconnect()
 	void SwapPins( cpart2 * part1, CString * pin_name1,
 						cpart2 * part2, CString * pin_name2 );
-	void PartRefChanged( CString * old_ref_des, CString * new_ref_des );
+	// void PartRefChanged( CString * old_ref_des, CString * new_ref_des );					// CPT2 obsolete
 
 	// functions for copper areas
 	// int AddArea( cnet2 * net, int layer, int x, int y, int hatch, BOOL bDraw=TRUE );					// CPT2 Use cnet2::AddArea

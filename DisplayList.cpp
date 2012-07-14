@@ -1450,87 +1450,82 @@ void CDisplayList::Drag( CDC * pDC, int x, int y )
 		}
 		pDC->SelectObject( old_pen );
 	}
+
 	// move a trace segment
 	else if( m_drag_flag && m_drag_shape == DS_SEGMENT )
 	{
-
-		{
-			ASSERT(m_drag_style0 == DSS_STRAIGHT);
-			pDC->MoveTo( m_drag_xb, m_drag_yb );
-
-			// undraw first segment
-			CPen pen0( PS_SOLID, m_drag_w0, m_rgb[m_drag_layer_0] );
-			CPen * old_pen = pDC->SelectObject( &pen0 );
+		ASSERT(m_drag_style1 == DSS_STRAIGHT);
+		// undraw first segment. CPT2 allow this to be a void segment
+		CPen pen0( PS_SOLID, m_drag_w0, m_rgb[m_drag_layer_0] );
+		CPen * old_pen = pDC->SelectObject( &pen0 );
+		if (m_drag_style0 == DSS_STRAIGHT)
+			pDC->MoveTo( m_drag_xb, m_drag_yb ),
 			pDC->LineTo( m_drag_xi, m_drag_yi );
-
-			// undraw second segment
-			ASSERT(m_drag_style1 == DSS_STRAIGHT);
-			CPen pen1( PS_SOLID, m_drag_w1, m_rgb[m_drag_layer_1] );
-			pDC->SelectObject( &pen1 );
-			pDC->LineTo( m_drag_xf, m_drag_yf );
-
-			// undraw third segment
-			if(m_drag_style2 == DSS_STRAIGHT)		// Could also be DSS_NONE (this segment only)
-			{
-				CPen pen2( PS_SOLID, m_drag_w2, m_rgb[m_drag_layer_2] );
-				pDC->SelectObject( &pen2 );
-				pDC->LineTo( m_drag_xe, m_drag_ye );
-			}
-			pDC->SelectObject( old_pen );
+		else
+			pDC->MoveTo( m_drag_xi, m_drag_yi );
+		// undraw second segment.
+		CPen pen1( PS_SOLID, m_drag_w1, m_rgb[m_drag_layer_1] );
+		pDC->SelectObject( &pen1 );
+		pDC->LineTo( m_drag_xf, m_drag_yf );
+		// undraw third segment
+		if(m_drag_style2 == DSS_STRAIGHT)		// Could also be DSS_NONE (this segment only)
+		{
+			CPen pen2( PS_SOLID, m_drag_w2, m_rgb[m_drag_layer_2] );
+			pDC->SelectObject( &pen2 );
+			pDC->LineTo( m_drag_xe, m_drag_ye );
 		}
+		pDC->SelectObject( old_pen );
 
 		// Adjust the two vertices, (xi, yi) and (xf, yf) based on the movement of xx and yy
-		//  relative to m_drag_x and m_drag_y:
-
+		//  relative to m_drag_x and m_drag_y.  CPT2 modified to allow the possibility of no leading segment.
 		// 1. Move the endpoints of (xi, yi), (xf, yf) of the line by the mouse movement. This
 		//		is just temporary, since the final ending position is determined by the intercept
 		//		points with the leading and trailing segments:
-		int new_xi = m_drag_xi + xx - m_drag_x;			// Check sign here.
+		int new_xi = m_drag_xi + xx - m_drag_x;	
 		int new_yi = m_drag_yi + yy - m_drag_y;
-
 		int new_xf = m_drag_xf + xx - m_drag_x;
 		int new_yf = m_drag_yf + yy - m_drag_y;
 
 		int old_xb_dir = sign(m_drag_xi - m_drag_xb);
 		int old_yb_dir = sign(m_drag_yi - m_drag_yb);
-
 		int old_xi_dir = sign(m_drag_xf - m_drag_xi);
 		int old_yi_dir = sign(m_drag_yf - m_drag_yi);
-
 		int old_xe_dir = sign(m_drag_xe - m_drag_xf);
 		int old_ye_dir = sign(m_drag_ye - m_drag_yf);
 
-		// 2. Find the intercept between the extended segment in motion and the leading segment.
-		double d_new_xi;
-		double d_new_yi;
-		FindLineIntersection(m_drag_xb, m_drag_yb, m_drag_xi, m_drag_yi,
-								new_xi,    new_yi,	   new_xf,    new_yf,
-								&d_new_xi, &d_new_yi);
-		int i_drag_xi = floor(d_new_xi + .5);
-		int i_drag_yi = floor(d_new_yi + .5);
+		int i_drag_xi = new_xi, i_drag_yi = new_yi;
+		int i_drag_xf = new_xf, i_drag_yf = new_yf;
 
-		// 3. Find the intercept between the extended segment in motion and the trailing segment:
-		int i_drag_xf, i_drag_yf;
-		if(m_drag_style2 == DSS_STRAIGHT)
+		// 2. Find the intercept between the extended segment in motion and the leading segment IF ANY.
+		if (m_drag_style0 == DSS_STRAIGHT)
 		{
-			double d_new_xf;
-			double d_new_yf;
-			FindLineIntersection(new_xi,    new_yi,	   new_xf,    new_yf,
-									m_drag_xf, m_drag_yf, m_drag_xe, m_drag_ye,
-									&d_new_xf, &d_new_yf);
-
-			i_drag_xf = floor(d_new_xf + .5);
-			i_drag_yf = floor(d_new_yf + .5);
-		} else {
-			i_drag_xf = new_xf;
-			i_drag_yf = new_yf;
+			double d_new_xi, d_new_yi;
+			FindLineIntersection(m_drag_xb, m_drag_yb, m_drag_xi, m_drag_yi,
+								new_xi, new_yi, new_xf, new_yf,
+								&d_new_xi, &d_new_yi);
+			i_drag_xi = floor(d_new_xi + .5);
+			i_drag_yi = floor(d_new_yi + .5);
 		}
 
+		// 3. Find the intercept between the extended segment in motion and the trailing segment if any:
+		if (m_drag_style2 == DSS_STRAIGHT)
+		{
+			double d_new_xf, d_new_yf;
+			FindLineIntersection(new_xi, new_yi, new_xf, new_yf,
+								m_drag_xf, m_drag_yf, m_drag_xe, m_drag_ye,
+								&d_new_xf, &d_new_yf);
+			i_drag_xf = floor(d_new_xf + .5);
+			i_drag_yf = floor(d_new_yf + .5);
+		}
+			
 		// If we drag too far, the line segment can reverse itself causing a little triangle to form.
 		//   That's a bad thing.
-		if(sign(i_drag_xf - i_drag_xi) == old_xi_dir && sign(i_drag_yf - i_drag_yi) == old_yi_dir &&
-		   sign(i_drag_xi - m_drag_xb) == old_xb_dir && sign(i_drag_yi - m_drag_yb) == old_yb_dir &&
-		   sign(m_drag_xe - i_drag_xf) == old_xe_dir && sign(m_drag_ye - i_drag_yf) == old_ye_dir   )
+		bool bOK = sign(i_drag_xf - i_drag_xi) == old_xi_dir && sign(i_drag_yf - i_drag_yi) == old_yi_dir;
+		if (m_drag_style0 == DSS_STRAIGHT)
+			bOK &= sign(i_drag_xi - m_drag_xb) == old_xb_dir && sign(i_drag_yi - m_drag_yb) == old_yb_dir;
+		if (m_drag_style2 == DSS_STRAIGHT)
+			bOK &= sign(m_drag_xe - i_drag_xf) == old_xe_dir && sign(m_drag_ye - i_drag_yf) == old_ye_dir;
+		if (bOK)
 		{
 			m_drag_xi = i_drag_xi;
 			m_drag_yi = i_drag_yi;
@@ -1538,36 +1533,32 @@ void CDisplayList::Drag( CDC * pDC, int x, int y )
 			m_drag_yf = i_drag_yf;
 		}
 		else
-		{
-			xx = m_drag_x;
+			xx = m_drag_x,
 			yy = m_drag_y;
-		}
 
 		// 4. Redraw the three segments:
-		{
-			pDC->MoveTo( m_drag_xb, m_drag_yb );
-
-			// draw first segment
-			CPen pen0( PS_SOLID, m_drag_w0, m_rgb[m_drag_layer_0] );
-			CPen * old_pen = pDC->SelectObject( &pen0 );
+		CPen pen0a( PS_SOLID, m_drag_w0, m_rgb[m_drag_layer_0] );
+		old_pen = pDC->SelectObject( &pen0a );
+		if (m_drag_style0 == DSS_STRAIGHT)
+			// draw first seg
+			pDC->MoveTo( m_drag_xb, m_drag_yb ),
 			pDC->LineTo( m_drag_xi, m_drag_yi );
-
-			// draw second segment
-			CPen pen1( PS_SOLID, m_drag_w1, m_rgb[m_drag_layer_1] );
-			pDC->SelectObject( &pen1 );
-			pDC->LineTo( m_drag_xf, m_drag_yf );
-
-			if(m_drag_style2 == DSS_STRAIGHT)
-			{
-				// draw third segment
-				CPen pen2( PS_SOLID, m_drag_w2, m_rgb[m_drag_layer_2] );
-				pDC->SelectObject( &pen2 );
-				pDC->LineTo( m_drag_xe, m_drag_ye );
-			}
-			pDC->SelectObject( old_pen );
+		else
+			pDC->MoveTo( m_drag_xi, m_drag_yi );
+		// draw second segment
+		CPen pen1a( PS_SOLID, m_drag_w1, m_rgb[m_drag_layer_1] );
+		pDC->SelectObject( &pen1a );
+		pDC->LineTo( m_drag_xf, m_drag_yf );
+		if(m_drag_style2 == DSS_STRAIGHT)
+		{
+			// draw third segment
+			CPen pen2( PS_SOLID, m_drag_w2, m_rgb[m_drag_layer_2] );
+			pDC->SelectObject( &pen2 );
+			pDC->LineTo( m_drag_xe, m_drag_ye );
 		}
-
+		pDC->SelectObject( old_pen );
 	}
+
 	else if( m_drag_flag && (m_drag_shape == DS_ARC_STRAIGHT || m_drag_shape == DS_ARC_CW || m_drag_shape == DS_ARC_CCW) )
 	{
 		CPen pen_w( PS_SOLID, m_drag_w1, m_rgb[m_drag_layer_1] );

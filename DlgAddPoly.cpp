@@ -23,6 +23,7 @@ CDlgAddPoly::~CDlgAddPoly()
 
 void CDlgAddPoly::DoDataExchange(CDataExchange* pDX)
 {
+#ifndef CPT2
 	CDialog::DoDataExchange(pDX);
 	DDX_Control(pDX, IDC_RADIO_OPEN, m_radio_open);
 	DDX_Control(pDX, IDC_RADIO_CLOSED, m_radio_closed);
@@ -65,6 +66,7 @@ void CDlgAddPoly::DoDataExchange(CDataExchange* pDX)
 		}
 		gLastLayerIndex = m_layer_index;
 	}
+#endif
 }
 
 // initialize parameters
@@ -73,7 +75,7 @@ void CDlgAddPoly::DoDataExchange(CDataExchange* pDX)
 // if width == -1, use width used last time, or 10 mils
 // if bNewPoly, assume closed
 void CDlgAddPoly::Initialize( BOOL bNewPoly, int layer_index, int units, 
-							 int width, BOOL bClosed, CArray<padstack> * padstack )
+							 int width, BOOL bClosed, carray<cpadstack> * padstack )
 {
 	m_bNewPoly = bNewPoly;
 	m_units = units;
@@ -112,6 +114,7 @@ END_MESSAGE_MAP()
 
 void CDlgAddPoly::GetFields()
 {
+#ifndef CPT2
 	CString str;
 	if( m_units == MIL )
 	{
@@ -134,6 +137,7 @@ void CDlgAddPoly::GetFields()
 	{
 		m_pin_name = (*m_padstack)[pin_name_index].name;
 	}
+#endif
 }
 
 void CDlgAddPoly::SetFields()

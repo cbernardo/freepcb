@@ -263,6 +263,7 @@ cpart * CPartList::Add( CShape * shape, CString * ref_des, CString * package,
 int CPartList::SetPartData( cpart * part, CShape * shape, CString * ref_des, CString * package, 
 							int x, int y, int side, int angle, int visible, int glued, bool ref_vis  )
 {
+#ifndef CPT2				// Hide incompatible stuff from the compiler
 	UndrawPart( part );
 	CDisplayList * old_dlist = m_dlist;
 	m_dlist = NULL;		// cancel further drawing
@@ -324,6 +325,7 @@ int CPartList::SetPartData( cpart * part, CShape * shape, CString * ref_des, CSt
 	if( part->shape )
 		DrawPart( part );
 
+#endif
 	return 0;
 }
 
@@ -437,6 +439,7 @@ int CPartList::HighlightPad( cpart * part, int i )
 //
 BOOL CPartList::TestHitOnPad( cpart * part, CString * pin_name, int x, int y, int layer )
 {
+#ifndef CPT2
 	if( !part )
 		return FALSE;
 	if( !part->shape )
@@ -447,7 +450,7 @@ BOOL CPartList::TestHitOnPad( cpart * part, CString * pin_name, int x, int y, in
 
 	int xx = part->pin[pin_index].x;
 	int yy = part->pin[pin_index].y;
-	padstack * ps = &part->shape->m_padstack[pin_index];
+	cpadstack * ps = &part->shape->m_padstack[pin_index];
 	pad * p;
 	if( ps->hole_size == 0 )
 	{
@@ -508,6 +511,7 @@ BOOL CPartList::TestHitOnPad( cpart * part, CString * pin_name, int x, int y, in
 		}
 		break;
 	}
+#endif
 	return FALSE;
 }
 
@@ -736,18 +740,23 @@ CPoint CPartList::GetValuePoint( cpart * part )
 //
 CPoint CPartList::GetPinPoint( cpart * part, LPCTSTR pin_name )
 {
+#ifndef CPT2
 	// get pin coords relative to part origin
 	CPoint pp;
 	int pin_index = part->shape->GetPinIndexByName( pin_name );
 	if( pin_index == -1 )
 		ASSERT(0);
 	return GetPinPoint( part, pin_index );
+#else
+	return CPoint(0,0);
+#endif
 }
 
 // Get pin info from part
 //
 CPoint CPartList::GetPinPoint( cpart * part, int pin_index )
 {
+#ifndef CPT2
 	if( !part->shape )
 		ASSERT(0);
 
@@ -775,6 +784,10 @@ CPoint CPartList::GetPinPoint( cpart * part, int pin_index )
 	pp.x = part->x + pp.x;
 	pp.y = part->y + pp.y;
 	return pp;
+#else
+	CPoint pp;
+	return pp;
+#endif
 }
 
 // Get centroid info from part
@@ -844,8 +857,12 @@ CPoint CPartList::GetGluePoint( cpart * part, int iglue )
 //
 int CPartList::GetPinLayer( cpart * part, CString * pin_name )
 {
+#ifndef CPT2
 	int pin_index = part->shape->GetPinIndexByName( *pin_name );
 	return GetPinLayer( part, pin_index );
+#else
+	return 0;
+#endif
 }
 
 // Get pin layer
@@ -853,6 +870,7 @@ int CPartList::GetPinLayer( cpart * part, CString * pin_name )
 //
 int CPartList::GetPinLayer( cpart * part, int pin_index )
 {
+#ifndef CPT2
 	if( part->shape->m_padstack[pin_index].hole_size )
 		return LAY_PAD_THRU;
 	else if( part->side == 0 && part->shape->m_padstack[pin_index].top.shape != PAD_NONE 
@@ -860,16 +878,23 @@ int CPartList::GetPinLayer( cpart * part, int pin_index )
 		return LAY_TOP_COPPER;
 	else
 		return LAY_BOTTOM_COPPER;
+#else
+	return 0;
+#endif
 }
 
 // Get pin net
 //
 cnet * CPartList::GetPinNet( cpart * part, CString * pin_name )
 {
+#ifndef CPT2
 	int pin_index = part->shape->GetPinIndexByName( *pin_name );
 	if( pin_index == -1 )
 		return NULL;
 	return part->pin[pin_index].net;
+#else
+	return NULL;
+#endif
 }
 
 // Get pin net
@@ -884,6 +909,7 @@ cnet * CPartList::GetPinNet( cpart * part, int pin_index )
 //
 int CPartList::GetPinWidth( cpart * part, CString * pin_name )
 {
+#ifndef CPT2
 	if( !part->shape )
 		ASSERT(0);
 	int pin_index = part->shape->GetPinIndexByName( *pin_name );
@@ -891,6 +917,9 @@ int CPartList::GetPinWidth( cpart * part, CString * pin_name )
 	w = max( w, part->shape->m_padstack[pin_index].bottom.size_h );
 	w = max( w, part->shape->m_padstack[pin_index].hole_size );
 	return w;
+#else
+	return 0;
+#endif
 }
 
 // Get bounding rect for all pins
@@ -1496,7 +1525,7 @@ int CPartList::DrawPart( cpart * part )
 	for( i=0; i<shape->GetNumPins(); i++ ) 
 	{
 		// set layer for pads
-		padstack * ps = &shape->m_padstack[i];
+		cpadstack * ps = &shape->m_padstack[i];
 		part_pin * pin = &part->pin[i];
 		pin->dl_els.SetSize(m_layers);
 		pad * p;
@@ -1510,7 +1539,7 @@ int CPartList::DrawPart( cpart * part )
 			pad_layer = il + LAY_TOP_COPPER;
 			pin->dl_els[il] = NULL;
 			// get appropriate pad
-			padstack * ps = &shape->m_padstack[i];
+			cpadstack * ps = &shape->m_padstack[i];
 			pad * p = NULL;
 			if( pad_layer == LAY_TOP_COPPER && part->side == 0 )
 				p = &ps->top;
@@ -1861,6 +1890,7 @@ void CPartList::FootprintChanged( CShape * shape )
 //
 void CPartList::RefTextSizeChanged( CShape * shape )
 {
+#ifndef CPT2	// Hide incompatible stuff from compiler
 	// find all parts with given shape and update them
 	cpart * part = m_start.next;
 	while( part->next != 0 )
@@ -1871,6 +1901,7 @@ void CPartList::RefTextSizeChanged( CShape * shape )
 		}
 		part = part->next;
 	}
+#endif
 }
 
 // Make part visible or invisible, including thermal reliefs
@@ -1935,6 +1966,7 @@ void CPartList::MakePartVisible( cpart * part, BOOL bVisible )
 int CPartList::StartDraggingPart( CDC * pDC, cpart * part, BOOL bRatlines, 
 								 BOOL bBelowPinCount, int pin_count )
 {
+#ifndef CPT2
 	// make part invisible
 	MakePartVisible( part, FALSE );
 	m_dlist->CancelHighlight();
@@ -2140,6 +2172,7 @@ int CPartList::StartDraggingPart( CDC * pDC, cpart * part, BOOL bRatlines,
 	if( part->angle == 90 || part->angle == 270 )
 		vert = 1;
 	m_dlist->StartDraggingArray( pDC, part->x, part->y, vert, LAY_SELECTION );
+#endif
 	return 0;
 }
 
@@ -2720,6 +2753,7 @@ int CPartList::RotateRect( CRect *r, int angle, CPoint org )
 //
 int CPartList::ExportPartListInfo( partlist_info * pl, cpart * test_part )
 {
+#ifndef CPT2										// Hide from compiler the old version's incompatibilities with the new
 	// traverse part list to find number of parts
 	int ipart = -1;
 	int nparts = 0;
@@ -2758,12 +2792,15 @@ int CPartList::ExportPartListInfo( partlist_info * pl, cpart * test_part )
 		part = part->next;
 	}
 	return ipart;
+#endif
+	return 0;
 }
 
 // import part list data from struct partlist_info
 //
 void CPartList::ImportPartListInfo( partlist_info * pl, int flags, CDlgLog * log )
 {
+#ifndef CPT2			// Hiding compile-time errors caused by changing the innards of type partlist
 	CString mess; 
 
 	// undraw all parts and disable further drawing
@@ -3142,6 +3179,7 @@ void CPartList::ImportPartListInfo( partlist_info * pl, int flags, CDlgLog * log
 		DrawPart( part );
 		part = GetNextPart( part );
 	}
+#endif
 }
 
 // undo an operation on a part
@@ -3308,6 +3346,7 @@ void CPartList::PartUndoCallback( int type, void * ptr, BOOL undo )
 //
 int CPartList::GetPinConnectionStatus( cpart * part, CString * pin_name, int layer )
 {
+#ifndef CPT2
 	int pin_index = part->shape->GetPinIndexByName( *pin_name );
 	cnet * net = part->pin[pin_index].net;
 	if( !net )
@@ -3359,6 +3398,9 @@ int CPartList::GetPinConnectionStatus( cpart * part, CString * pin_name, int lay
 		}
 	}
 	return status;
+#else
+	return 0;
+#endif
 }
 
 // Function to provide info to draw pad in Gerber file (also used by DRC routines)
@@ -3400,13 +3442,14 @@ int CPartList::GetPadDrawInfo( cpart * part, int ipin, int layer,
 							  int * connection_status, int * pad_connect_flag, 
 							  int * clearance_type )
 {
+#ifndef CPT2
 	// get footprint
 	CShape * s = part->shape;
 	if( !s )
 		return 0;
 
 	// get pin and padstack info
-	padstack * ps = &s->m_padstack[ipin];
+	cpadstack * ps = &s->m_padstack[ipin];
 	BOOL bUseDefault = FALSE; // if TRUE, use copper pad for mask
 	CString pin_name = s->GetPinNameByIndex( ipin );
 	int connect_status = GetPinConnectionStatus( part, &pin_name, layer );
@@ -3613,6 +3656,9 @@ int CPartList::GetPadDrawInfo( cpart * part, int ipin, int layer,
 	if( clearance_type )
 		*clearance_type = clear_type;
 	return ret_code;
+#else
+	return 0;
+#endif
 }
 
 // Design rule check
@@ -3622,6 +3668,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 					CArray<CPolyLine> * board_outline,
 					DesignRules * dr, DRErrorList * drelist )
 {
+#ifndef CPT2
 	CString d_str, x_str, y_str;
 	CString str;
 	CString str2;
@@ -3957,7 +4004,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 					// iterate through pins in t_part
 					for( int t_ip=0; t_ip<t_s->GetNumPins(); t_ip++ )
 					{
-						padstack * t_ps = &t_s->m_padstack[t_ip];
+						cpadstack * t_ps = &t_s->m_padstack[t_ip];
 						part_pin * t_pin = &t_part->pin[t_ip];
 						drc_pin * t_drp = &t_pin->drc;
 						id id1 = part->m_id;
@@ -4016,7 +4063,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 						{
 							for( int ip=0; ip<s->GetNumPins(); ip++ )
 							{
-								padstack * ps = &s->m_padstack[ip];
+								cpadstack * ps = &s->m_padstack[ip];
 								part_pin * pin = &part->pin[ip];
 								drc_pin * drp = &pin->drc;
 								id id2 = part->m_id;
@@ -4499,7 +4546,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 				// OK, now we have to test each pad
 				for( int ip=0; ip<part->shape->GetNumPins(); ip++ )
 				{
-					padstack * ps = &s->m_padstack[ip];
+					cpadstack * ps = &s->m_padstack[ip];
 					part_pin * pin = &part->pin[ip];
 					drc_pin * drp = &pin->drc;
 					id id_pad = part->m_id;
@@ -5542,12 +5589,14 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 	str.LoadStringA(IDS_Done4);
 	if( log )
 		log->AddLine( str );
+#endif
 }
 
 // check partlist for errors
 //
 int CPartList::CheckPartlist( CString * logstr )
 {
+#ifndef CPT2
 	int nerrors = 0;
 	int nwarnings = 0;
 	CString str;
@@ -5669,6 +5718,9 @@ int CPartList::CheckPartlist( CString * logstr )
 	*logstr += str;
 
 	return nerrors;
+#else
+	return 0;
+#endif
 }
 
 void CPartList::MoveOrigin( int x_off, int y_off )
@@ -5695,6 +5747,7 @@ void CPartList::MoveOrigin( int x_off, int y_off )
 
 BOOL CPartList::CheckForProblemFootprints()
 {
+#ifndef CPT2
 	BOOL bHeaders_28mil_holes = FALSE;   
 	cpart * part = GetFirstPart();
 	while( part )
@@ -5718,6 +5771,9 @@ BOOL CPartList::CheckForProblemFootprints()
 		g_bShow_header_28mil_hole_warning = !dlg.bDontShowBoxState;
 	}
 	return bHeaders_28mil_holes;
+#else
+	return 0;
+#endif
 }
 
 

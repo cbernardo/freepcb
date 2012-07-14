@@ -122,6 +122,7 @@ CDlgAddPin::~CDlgAddPin()
 
 void CDlgAddPin::DoDataExchange(CDataExchange* pDX)
 {
+#ifndef CPT2
 	CDialog::DoDataExchange(pDX); 
 	DDX_Control(pDX, IDC_RADIO_ADD_PIN, m_radio_add_pin);
 	DDX_Control(pDX, IDC_RADIO_ADD_ROW, m_radio_add_row);
@@ -317,7 +318,7 @@ void CDlgAddPin::DoDataExchange(CDataExchange* pDX)
 			OnBnClickedRadioSetPinPos();
 			GetFields();
 			CString flag_str;
-			padstack * ps = &m_fp->m_padstack[m_pin_num];
+			cpadstack * ps = &m_fp->m_padstack[m_pin_num];
 			m_x = ps->x_rel;
 			m_y = ps->y_rel;
 			m_hole_diam = ps->hole_size;
@@ -577,7 +578,7 @@ void CDlgAddPin::DoDataExchange(CDataExchange* pDX)
 		// check if we will be dragging
 		m_drag_flag = m_radio_drag.GetCheck();
 		// now insert padstacks
-		padstack ps;
+		cpadstack ps;
 		ps.hole_size = m_hole_diam;
 		if( m_padstack_type == 0 || m_padstack_type == 2 )
 			ps.hole_size = 0;
@@ -682,7 +683,7 @@ void CDlgAddPin::DoDataExchange(CDataExchange* pDX)
 				{
 					m_list_pins.GetText( ip, str );
 					int i = m_fp->GetPinIndexByName( str );
-					padstack * sel_ps = &m_fp->m_padstack[i];
+					cpadstack * sel_ps = &m_fp->m_padstack[i];
 					if( sel_ps->hole_size == 0 )
 					{
 						if( sel_ps->top.shape != PAD_NONE )
@@ -709,7 +710,7 @@ void CDlgAddPin::DoDataExchange(CDataExchange* pDX)
 						ASSERT(0);
 					else
 					{
-						padstack * sel_ps = &m_fp->m_padstack[i];
+						cpadstack * sel_ps = &m_fp->m_padstack[i];
 						sel_ps->angle = ps.angle;
 						sel_ps->hole_size = ps.hole_size;
 						sel_ps->inner = ps.inner;
@@ -771,6 +772,7 @@ void CDlgAddPin::DoDataExchange(CDataExchange* pDX)
 			m_fp->m_padstack.InsertAt(  m_pin_num, ps );
 		}
 	}
+#endif
 }
 
 
@@ -1082,6 +1084,7 @@ void CDlgAddPin::SetFields()
 //
 void CDlgAddPin::GetFields()
 {
+#ifndef CPT2
 	CString str;
 	int val;
 	double mult = NM_PER_MIL;
@@ -1097,7 +1100,7 @@ void CDlgAddPin::GetFields()
 		// set all parameters to be the same as another pin
 		m_combo_same_as_pin.GetWindowText( m_same_as_pin_name );
 		int ip = m_fp->GetPinIndexByName( m_same_as_pin_name );
-		padstack * copy_ps = &m_fp->m_padstack[ip];
+		cpadstack * copy_ps = &m_fp->m_padstack[ip];
 		m_pad_orient = 0;
 		if( copy_ps->hole_size )
 			m_padstack_type = 1;
@@ -1272,6 +1275,7 @@ void CDlgAddPin::GetFields()
 
 	// row orientation
 	m_row_orient = m_combo_row_orient.GetCurSel();
+#endif
 }
 
 void CDlgAddPin::OnChange()

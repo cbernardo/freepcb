@@ -546,7 +546,7 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 #define	LAYER_TEXT_STROKE_WIDTH		10*NM_PER_MIL
 #define PASS0 (ipass==0)	
 #define PASS1 (ipass==1)
-
+#ifndef CPT2
 	BOOL bUsePinThermals = !(flags & GERBER_NO_PIN_THERMALS);
 
 	aperture_array ap_array;
@@ -2010,6 +2010,7 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 			f->WriteString( "M00*\n" );
 
 	}	// end of pass
+#endif
 	return 0;
 }
 
@@ -2030,6 +2031,7 @@ int AddToArray( int value, CArray<int,int> * array )
 int WriteDrillFile( CStdioFile * file, CPartList * pl, CNetList * nl, CArray<CPolyLine> * bd,
 				   int n_x, int n_y, int space_x, int space_y )
 {
+#ifndef CPT2
 	CArray<int,int> diameter;
 	diameter.SetSize(0);
 
@@ -2217,6 +2219,7 @@ int WriteDrillFile( CStdioFile * file, CPartList * pl, CNetList * nl, CArray<CPo
 		}
 	}
 	file->WriteString( "M30\n" );	// program end
+#endif
 	return 0;
 }
 

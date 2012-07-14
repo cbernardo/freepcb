@@ -2,11 +2,15 @@
 #include "FreePcbDoc.h"
 #include "TextListNew.h"
 
-ctextlist::ctextlist( CFreePcbDoc *_doc, SMFontUtil * _smfontutil )
+ctextlist::ctextlist( CFreePcbDoc *_doc )
 	{ 
-		m_doc = _doc; 
-		m_dlist = m_doc->m_dlist;
-		m_smfontutil = _smfontutil;
+		m_doc = _doc;
+		if (_doc)
+			m_dlist = m_doc->m_dlist,
+			m_smfontutil = m_doc->m_smfontutil;
+		else
+			m_dlist = NULL,
+			m_smfontutil = NULL;
 	}	
 
 void ctextlist::ReadTexts( CStdioFile * pcb_file )
@@ -60,6 +64,14 @@ void ctextlist::ReadTexts( CStdioFile * pcb_file )
 			text->Draw();
 		}
 	}
+}
+
+ctext *ctextlist::AddText( int x, int y, int angle, bool bMirror, bool bNegative, int layer, 
+					int font_size, int stroke_width, CString * str_ptr )
+{
+	ctext * text = new ctext(m_doc, x, y, angle, bMirror, bNegative, layer, font_size, stroke_width, m_smfontutil, str_ptr);
+	texts.Add(text);
+	return text;
 }
 
 BOOL ctextlist::GetTextBoundaries( CRect * r )
