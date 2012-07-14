@@ -5,6 +5,7 @@
 #include "NetListNew.h"
 #include "FreePcbDoc.h"
 #include "PartListNew.h"
+#include "TextListNew.h"
 
 extern BOOL bDontShowSelfIntersectionWarning;
 extern BOOL bDontShowSelfIntersectionArcsWarning;
@@ -735,17 +736,26 @@ bool ctee::Adjust()
 	// Typically called after a segment/connect attached to a tee-vertex is removed.  At that point we see if there are still 3+ vertices 
 	// remaining within the tee;  if so, do nothing and return false.  If there's 0-1 vertex in the tee (not that likely, I think), just 
 	// remove the tee from the network and return true. If there are 2 attached connects, combine them before removing the tee & returning true.
-	ReconcileVia();
 	int nItems = vtxs.GetSize();
-	if (nItems > 2) return false;
-	if (nItems < 2) 
+	if (nItems > 2) 
+		{ ReconcileVia(); return false; }
+	if (nItems == 0) 
 		{ Remove(); return true; }
 	citer<cvertex2> iv (&vtxs);
 	cvertex2 *v0 = iv.First(), *v1 = iv.Next();
+	if (nItems == 1)
+	{
+		Remove();
+		v0->ReconcileVia();
+		return true;
+	}
 	cconnect2 *c0 = v0->m_con, *c1 = v1->m_con;
-	if (c0==c1) return false;					// Remaining connect is a circle!  A tee is still required in that case. 
+	if (c0==c1) 
+		// Remaining connect is a circle!  A tee is still required in that case. 
+		{ ReconcileVia(); return false; }
 	c0->CombineWith(c1, v0, v1);
 	Remove();
+	v0->ReconcileVia();
 	return true;
 }
 
@@ -801,11 +811,13 @@ void ctee::ReconcileVia()
 			via_w = v->via_w, via_hole_w = v->via_hole_w;
 }
 
-void ctee::Remove(cvertex2 *v) 
+void ctee::Remove(cvertex2 *v, bool fAdjust) 
 {
 	vtxs.Remove(v);
-	Adjust();
-	ReconcileVia();
+	v->tee = NULL;
+	if (fAdjust)
+		Adjust(),
+		ReconcileVia();
 }
 
 void ctee::Move(int _x, int _y) 
@@ -813,7 +825,7 @@ void ctee::Move(int _x, int _y)
 	// CPT2 new
 	cvertex2 *first = vtxs.First();
 	cnet2 *net = first->m_net;
-	net->Undraw();								// Maybe overkill but simple
+	net->Undraw();								// Maybe overkill but simple.  TODO higher-level routines do all the drawing?
 	doc->m_dlist->StopDragging();
 	citer<cvertex2> iv (&vtxs);
 	for (cvertex2 *v = iv.First(); v; v = iv.Next())
@@ -992,17 +1004,38 @@ void cseg2::SetConnect(cconnect2 *c)
 void cseg2::SetWidth( int w, int via_w, int via_hole_w )
 {
 	if( m_layer != LAY_RAT_LINE && w )
-		m_width = w,
-		Draw();								// CPT2 are we sure we want this?
+		m_width = w;
 	if( preVtx->via_w && via_w )
 		preVtx->via_w = via_w,
-		preVtx->via_hole_w = via_hole_w,
-		preVtx->Draw();						// CPT2 ditto
+		preVtx->via_hole_w = via_hole_w;
 	if( postVtx->via_w && via_w )
 		postVtx->via_w = via_w,
-		postVtx->via_hole_w = via_hole_w,
-		postVtx->Draw();					// CPT2 ditto
+		postVtx->via_hole_w = via_hole_w;
 }
+
+int cseg2::SetLayer( int layer )
+{
+	// Set segment layer (must be a copper layer, not the ratline layer)
+	// returns 1 if unable to comply due to SMT pad
+	// CPT2 converted from old CNetList::ChangeSegmentLayer
+	// check layer settings of adjacent vertices to make sure this is legal
+
+	// check starting pad layer
+	int pad_layer = preVtx->pin? preVtx->pin->pad_layer: layer;
+	if( pad_layer != LAY_PAD_THRU && layer != pad_layer )
+		return 1;
+	// check destination pad layer
+	pad_layer = postVtx->pin? postVtx->pin->pad_layer: layer;
+	if( pad_layer != LAY_PAD_THRU && layer != pad_layer )
+		return 1; 
+	// change segment layer
+	m_layer = layer;
+	// now adjust vias
+	preVtx->ReconcileVia();
+	postVtx->ReconcileVia();
+	return 0;
+}
+
 
 void cseg2::Divide( cvertex2 *v, cseg2 *s, int dir )
 {
@@ -1171,7 +1204,6 @@ bool cseg2::RemoveBreak()
 		{ m_con->Remove(); return true; }
 	
 	m_con->segs.Remove(this);
-	Undraw();
 	if (!preVtx->preSeg)
 	{
 		// this is an initial segment
@@ -1205,15 +1237,14 @@ bool cseg2::RemoveBreak()
 	cconnect2 *newCon = new cconnect2(m_net);
 	for (cvertex2 *v = postVtx; 1; v = v->postSeg->postVtx)
 	{
-		m_con->vtxs.Remove(v);
-		newCon->vtxs.Add(v);
+		v->SetConnect(newCon);
 		if (!v->postSeg) break;
-		m_con->segs.Remove(v->postSeg);
-		newCon->segs.Add(v->postSeg);
+		v->postSeg->SetConnect(newCon);
 	}
 	newCon->head = postVtx;
 	newCon->tail = m_con->tail;
 	m_con->tail = preVtx;
+	postVtx->preSeg = preVtx->postSeg = NULL;
 	preVtx->ReconcileVia();
 	postVtx->ReconcileVia();
 
@@ -1247,6 +1278,89 @@ void cseg2::CancelDragging()
 	dl->StopDragging();
 }
 
+void cseg2::StartDraggingNewVertex( CDC * pDC, int x, int y, int layer, int w, int crosshair )
+{
+	// Start dragging new vertex in existing trace segment.  CPT2 converted from CNetList func.
+	// cancel previous selection and make segment invisible
+	CDisplayList *dl = doc->m_dlist;
+	dl->CancelHighlight();
+	dl->Set_visible(dl_el, 0);
+	// start dragging
+	dl->StartDraggingLineVertex( pDC, x, y, preVtx->x, preVtx->y, postVtx->x, postVtx->y, 
+								layer, layer, w, w, DSS_STRAIGHT, DSS_STRAIGHT, 
+								layer, 0, 0, 0, crosshair );
+}
+
+void cseg2::CancelDraggingNewVertex()
+{
+	// CPT2 converted from CNetList func.
+	// make segment visible
+	CDisplayList *dl = doc->m_dlist;
+	dl->Set_visible(dl_el, 1);
+	dl->StopDragging();
+}
+
+void cseg2::StartMoving( CDC * pDC, int x, int y, int crosshair )
+{
+	// cancel previous selection and make segments and via invisible
+	cseg2 *preSeg = preVtx->preSeg, *postSeg = postVtx->postSeg;
+	CDisplayList *dl = doc->m_dlist;
+	dl->CancelHighlight();
+	dl->Set_visible(dl_el, 0);
+	preVtx->SetVisible( FALSE );
+	postVtx->SetVisible( FALSE );
+	if (preSeg)
+		dl->Set_visible(preSeg->dl_el, 0);
+	if (postSeg)
+		dl->Set_visible(postSeg->dl_el, 0);
+
+	int xb = 0, yb = 0;
+	if (preSeg)
+		xb = preSeg->preVtx->x,
+		yb = preSeg->preVtx->y;
+	int xi = preVtx->x;
+	int yi = preVtx->y;
+	int xf = postVtx->x;
+	int yf = postVtx->y;
+	int xe = 0, ye = 0;
+	if (postSeg)
+		xe = postSeg->postVtx->x,
+		ye = postSeg->postVtx->y;
+	int layer0 = 0, layer1, layer2 = 0;
+	int w0 = 0, w1, w2 = 0;
+	if (preSeg)
+		layer0 = preSeg->m_layer,
+		w0 = preSeg->m_width;
+	layer1 = m_layer;
+	w1 = m_width;
+	if (postSeg)
+		layer2 = postSeg->m_layer,
+		w2 = postSeg->m_width;
+	dl->StartDraggingLineSegment( pDC, x, y, xb, yb, xi, yi, xf, yf, xe, ye,
+								layer0, layer1, layer2,
+								w0,		w1,		w2,
+								preSeg? DSS_STRAIGHT: DSS_NONE, DSS_STRAIGHT, postSeg? DSS_STRAIGHT: DSS_NONE,
+								0, 0, 0, 
+								crosshair );
+}
+
+void cseg2::CancelMoving()
+{
+	// CPT2 derived from CNetList::CancelMovingSegment()
+	// make segments and via visible
+	CDisplayList *dl = doc->m_dlist;
+	cseg2 *preSeg = preVtx->preSeg, *postSeg = postVtx->postSeg;
+	if (preSeg)
+		dl->Set_visible(preSeg->dl_el, 1);
+	dl->Set_visible(dl_el, 1);
+	if (postSeg)
+		dl->Set_visible(postSeg->dl_el, 1);
+	preVtx->SetVisible(true);
+	postVtx->SetVisible(true);
+	dl->StopDragging();
+}
+
+
 int cseg2::Draw()
 {
 	CDisplayList *dl = doc->m_dlist;
@@ -1265,6 +1379,21 @@ int cseg2::Draw()
 	// mark parent connection as at least partially drawn
 	m_con->bDrawn = TRUE;
 	bDrawn = true;
+	return NOERR;
+}
+
+int cseg2::DrawWithEndpoints()
+{
+	int err = Draw();
+	if (err!=NOERR) return err;
+	if (preVtx->tee)
+		preVtx->tee->Draw();
+	else
+		preVtx->Draw();
+	if (postVtx->tee)
+		postVtx->tee->Draw();
+	else
+		postVtx->Draw();
 	return NOERR;
 }
 
@@ -1287,6 +1416,11 @@ void cseg2::Highlight( bool bThin )
 	dl->Highlight( DL_LINE, dl->Get_x(dl_el), dl->Get_y(dl_el),
 							dl->Get_xf(dl_el), dl->Get_yf(dl_el),
 							w, dl_el->layer );
+}
+
+void cseg2::SetVisible( bool bVis )
+{
+	doc->m_dlist->Set_visible( dl_el, bVis );
 }
 
 
@@ -1332,7 +1466,11 @@ void cconnect2::Remove()
 	// Any tee structures attached at either end get cleaned up.
 	Undraw();
 	m_net->connects.Remove(this);
-	if (head->tee)
+	if (head->tee && head->tee==tail->tee)
+		// Connect is a loop, tricky special case.  The "false" argument below prevents 
+		// the calling of ctee::Adjust(), which might cause a crash
+		head->tee->Remove(head, false);					
+	else if (head->tee)
 		head->tee->Remove(head);
 	if (tail->tee)
 		tail->tee->Remove(tail);
@@ -1519,7 +1657,7 @@ void cconnect2::Highlight()
 /*  RELATED TO cpin2/cpart2                                                                     */
 /**********************************************************************************************/
 
-cpin2::cpin2(cpart2 *_part, padstack *_ps, cnet2 *_net)					// CPT2. Added args
+cpin2::cpin2(cpart2 *_part, cpadstack *_ps, cnet2 *_net)					// CPT2. Added args
 	: cpcb_item (_part->doc)
 {
 	part = _part;
@@ -1547,14 +1685,15 @@ bool cpin2::IsValid()
 
 void cpin2::Disconnect() 
 {
-	// Detach pin from whichever net it's attached to.  Rip out any attached connections completely.
+	// Detach pin from its part, and whichever net it's attached to.  Rip out any attached connections completely.
+	part->pins.Remove(this);
+	part = NULL;
 	if (!net) return;
 	citer<cconnect2> ic (&net->connects);
 	for (cconnect2 *c = ic.First(); c; c = ic.Next())
 		if (c->head->pin == this || c->tail->pin == this)
 			c->Remove();
 	net->pins.Remove(this);
-	net->areas.RemoveAll();
 	net = NULL;
 }
 
@@ -1567,6 +1706,21 @@ int cpin2::GetWidth()													// CPT2. Derived from CPartList::GetPinWidth()
 	return w;
 }
 
+void cpin2::GetVtxs(carray<cvertex2> *vtxs)
+{
+	// CPT2 new.  Fill "vtxs" with the vertices that are associated with this pin
+	vtxs->RemoveAll();
+	if (!net) return;
+	citer<cconnect2> ic (&net->connects);
+	for (cconnect2 *c = ic.First(); c; c = ic.Next())
+	{
+		if (c->head->pin == this)
+			vtxs->Add(c->head);
+		if (c->tail->pin == this)
+			vtxs->Add(c->tail);
+	}
+}
+
 bool cpin2::TestHit( int _x, int _y, int _layer )
 {
 	// CPT2 Derived from CPartList::TestHitOnPad
@@ -1575,7 +1729,7 @@ bool cpin2::TestHit( int _x, int _y, int _layer )
 	if( !part->shape )
 		return FALSE;
 
-	pad * p;
+	cpad * p;
 	if( ps->hole_size == 0 )
 	{
 		// SMT pad
@@ -1707,13 +1861,15 @@ cpart2::cpart2( cpartlist * pl )			// CPT2 TODO.  Will probably add more args...
 	: cpcb_item (pl->m_doc)
 { 
 	m_pl = pl;
-	pl->parts.Add(this);
+	if (pl)
+		pl->parts.Add(this);
 	x = y = side = angle = 0;
 	glued = false;
 	m_ref_vis = true;
 	m_ref = new creftext(this, 0, 0, 0, false, false, 0, 0, 0, doc->m_smfontutil, &CString(""));
 	m_value_vis = false;
 	m_value = new cvaluetext(this, 0, 0, 0, false, false, 0, 0, 0, doc->m_smfontutil, &CString(""));
+	m_tl = new ctextlist(doc);
 	shape = NULL;
 }
 
@@ -1746,7 +1902,7 @@ void cpart2::Move( int _x, int _y, int _angle, int _side )
 // Undraw and Redraw any changed connections
 // CPT:  added dx and dy params indicating how much the part moved (both are 1 by default).  If, say, dx==0
 // and an attached seg is vertical, then we don't have to unroute it.
-// CPT2:  Derived from CNetList::PartMoved.  TODO finish
+// CPT2:  Derived from CNetList::PartMoved.
 
 void cpart2::PartMoved( int dx, int dy )
 {
@@ -1776,7 +1932,7 @@ void cpart2::PartMoved( int dx, int dy )
 			if (c->head->pin && c->head->pin->part == this)
 			{
 				cvertex2 *head = c->head;
-				head->postSeg->Unroute( dx, dy, 0  );
+				head->postSeg->Unroute( dx, dy, 0 );
 				head->x = head->pin->x;
 				head->y = head->pin->y;
 				net->utility = 1;	// mark net modified
@@ -1819,10 +1975,68 @@ void cpart2::PartMoved( int dx, int dy )
 			net->Draw();
 }
 
-void cpart2::Remove()						// CPT2. Derived from PartList::RemovePart().
+void cpart2::Remove(bool bEraseTraces, bool bErasePart)
 {
-	Undraw();
-	m_pl->parts.Remove(this);
+	// CPT2 mostly new.  Implements my new system for deleting parts, where one can either erase all traces emanating from it, or not.
+	// Also added bErasePart param (true by default);  calling Remove(true, false) allows one to delete attached traces only.
+	// NB does undrawing/drawing.
+	if (bErasePart)
+		Undraw(),
+		m_pl->parts.Remove(this);
+
+	// Figure out which nets are going to be affected by this part's disappearance, and undraw 'em
+	m_pl->m_nlist->nets.SetUtility(0);
+	citer<cpin2> ipin (&pins);
+	for (cpin2 *pin = ipin.First(); pin; pin = ipin.Next())
+		if (pin->net)
+			pin->net->utility = 1,
+			pin->net->Undraw();
+
+	// Now go through the pins again.  If bEraseTraces, rip out connects attached to each one.  Otherwise, gather a list of vertices associated
+	// with each one (such vertices will later get united into a tee).  TODO for each pin, consider maintaining a list of vtxs associated with it
+	// at all times?
+	carray<cvertex2> vtxs;
+	for (cpin2 *pin = ipin.First(); pin; pin = ipin.Next())
+	{
+		if (!pin->net) continue;
+		citer<cconnect2> ic (&pin->net->connects);
+		if (bEraseTraces)
+		{
+			for (cconnect2 *c = ic.First(); c; c = ic.Next())
+				if (c->head->pin==pin || c->tail->pin==pin)
+					c->Remove();
+		}
+		else
+		{
+			// Make a list of vertices that are attached to the current pin.
+			pin->GetVtxs(&vtxs);
+			if (vtxs.GetSize()==0) 
+				continue;
+			if (vtxs.GetSize()==1)
+			{
+				// 1 vertex on this pin.  If the incoming seg is a ratline, erase it.  Otherwise, keep it and just clear the vtx's "pin" value.
+				cvertex2 *v = vtxs.First();
+				if (v->preSeg && v->preSeg->m_layer == LAY_RAT_LINE)
+					v->preSeg->RemoveBreak();
+				else if (v->postSeg && v->postSeg->m_layer == LAY_RAT_LINE)
+					v->postSeg->RemoveBreak();
+				else
+					v->pin = NULL;
+			}
+			// 2+ vertices on this pin.  Go thru the list, null out their "pin" values, and assign them instead to a new tee structure.
+			ctee *tee = new ctee(pin->net);
+			citer<cvertex2> iv (&vtxs);
+			for (cvertex2 *v = iv.First(); v; v = iv.Next())
+				v->pin = NULL,
+				tee->Add(v);
+			tee->Adjust();
+		}
+	}
+
+	citer<cnet2> in (&m_pl->m_nlist->nets);
+	for (cnet2 *net = in.First(); net; net = in.Next())
+		if (net->utility)
+			net->Draw();
 }
 
 void cpart2::SetData(CShape * _shape, CString * _ref_des, CString * _value_text, CString * _package, 
@@ -1830,8 +2044,6 @@ void cpart2::SetData(CShape * _shape, CString * _ref_des, CString * _value_text,
 {
 	// Derived from old CPartList::SetPartData.  Initializes data members, including "pins".  Ref and value-text related
 	// members are initialized according to _shape if possible.
-	bool bWasDrawn = IsDrawn(); 
-	Undraw();
 	// CPT2 Delete the following?
 	// CDisplayList * old_dlist = m_dlist;
 	// m_dlist = NULL;		// cancel further drawing
@@ -1866,45 +2078,44 @@ void cpart2::SetData(CShape * _shape, CString * _ref_des, CString * _value_text,
 		InitPins();
 		Move( x, y, angle, side );	// force setting pin positions
 
-		m_ref->Move( shape->m_ref_xi, shape->m_ref_yi, shape->m_ref_angle, 
-			false, false, shape->m_ref->m_layer,
-			shape->m_ref_size, shape->m_ref_w );											// TODO move Shape::m_ref_xi etc. into Shape::m_ref
-		m_value->Move( shape->m_value_xi, shape->m_value_yi, shape->m_value_angle, 
-			false, false, shape->m_value->m_layer,
-			shape->m_value_size, shape->m_value_w );										// TODO move Shape::m_ref_xi etc. into Shape::m_ref
+		ctext *txt = shape->m_ref;
+		int layer = cpartlist::FootprintLayer2Layer( txt->m_layer );
+		m_ref->Move( txt->m_x, txt->m_y, txt->m_angle, 
+			false, false, layer, txt->m_font_size, txt->m_stroke_width );
+		txt = shape->m_value;
+		layer = cpartlist::FootprintLayer2Layer( txt->m_layer );
+		m_value->Move( txt->m_x, txt->m_y, txt->m_angle, 
+			false, false, layer, txt->m_font_size, txt->m_stroke_width );
+		citer<ctext> it (&shape->m_tl->texts);
+		for (txt = it.First(); txt; txt = it.Next())
+		{
+			layer = cpartlist::FootprintLayer2Layer( txt->m_layer );
+			m_tl->AddText(txt->m_x, txt->m_y, txt->m_angle, txt->m_bMirror, txt->m_bNegative, 
+							layer, txt->m_font_size, txt->m_stroke_width, &txt->m_str);
+		}
 	}
 
 	m_outline_stroke.SetSize(0);
 	m_ref->m_stroke.SetSize(0);
 	m_value->m_stroke.SetSize(0);
-
-	if( shape && bWasDrawn )
-		Draw();
 }
 
 void cpart2::SetValue(CString *_value, int x, int y, int angle, int size, int w, 
 						 BOOL vis, int layer )
 {
-	bool bWasDrawn = IsDrawn();
-	if (shape)
-		Undraw();
 	value_text = *_value;
 	m_value->m_layer = layer;
 	m_value->Move(x, y, angle, size, w);
 	m_value_vis = vis;
-	if( shape && bWasDrawn )
-		Draw();
 }
 
 // Move ref text with given id to new position and angle
 // x and y are in absolute world coords
 // angle is relative to part angle
 // CPT2 derived from CPartList function.  "_angle", "_size", and "_w" are now -1 by default (=> no change)
+// TODO consolidate with value-text functions.
 void cpart2::MoveRefText( int _x, int _y, int _angle, int _size, int _w )
 {
-	bool bWasDrawn = IsDrawn();
-	Undraw();
-	
 	// get position of new text box origin relative to part
 	CPoint part_org, tb_org;
 	tb_org.x = _x - x;
@@ -1926,20 +2137,12 @@ void cpart2::MoveRefText( int _x, int _y, int _angle, int _size, int _w )
 		m_ref->m_font_size = _size;
 	if (_w!=-1)
 		m_ref->m_stroke_width = _w;
-	
-	if (bWasDrawn)
-		Draw();
 }
 
 void cpart2::ResizeRefText(int size, int width, BOOL vis )
 {
-	bool bWasDrawn = IsDrawn();
-	if (shape)
-		Undraw();
 	m_ref->Move(m_ref->m_x, m_ref->m_y, m_ref->m_angle, size, width);
 	m_ref_vis = vis;
-	if (shape && bWasDrawn)
-		Draw();
 }
 
 // Move value text with given id to new position and angle
@@ -1948,9 +2151,6 @@ void cpart2::ResizeRefText(int size, int width, BOOL vis )
 // CPT2 derived from CPartList function.  "_angle", "_size", and "_w" are now -1 by default (=> no change)
 void cpart2::MoveValueText( int _x, int _y, int _angle, int _size, int _w )
 {
-	bool bWasDrawn = IsDrawn();
-	Undraw();
-	
 	// get position of new text box origin relative to part
 	CPoint part_org, tb_org;
 	tb_org.x = _x - x;
@@ -1963,7 +2163,7 @@ void cpart2::MoveValueText( int _x, int _y, int _angle, int _size, int _w )
 	if( side == 1 )
 		tb_org.x = -tb_org.x;
 	
-	// reset ref text parameters
+	// reset value text parameters
 	m_value->m_x = tb_org.x;
 	m_value->m_y = tb_org.y;
 	if (_angle!=-1) 
@@ -1972,9 +2172,6 @@ void cpart2::MoveValueText( int _x, int _y, int _angle, int _size, int _w )
 		m_value->m_font_size = _size;
 	if (_w!=-1)
 		m_value->m_stroke_width = _w;
-	
-	if (bWasDrawn)
-		Draw();
 }
 
 
@@ -1982,13 +2179,19 @@ void cpart2::InitPins()
 {
 	// CPT2 New.  Initialize pins carray based on the padstacks in the shape.
 	ASSERT(shape);
-	int cPins = shape->m_padstack.GetCount();
-	for (int i=0; i<cPins; i++)
-	{
-		padstack *ps = &shape->m_padstack[i];
-		cpin2 *p = new cpin2(this, ps, NULL);
-		pins.Add(p);
-	}
+	citer<cpadstack> ips (&shape->m_padstack);
+	for (cpadstack *ps = ips.First(); ps; ps = ips.Next())
+		pins.Add( new cpin2(this, ps, NULL) );
+}
+
+cpin2 *cpart2::GetPinByName(CString *name)
+{
+	// CPT2 new.
+	citer<cpin2> ip (&pins);
+	for (cpin2 *p = ip.First(); p; p = ip.Next())
+		if (p->pin_name == *name)
+			return p;
+	return NULL;
 }
 
 CPoint cpart2::GetRefPoint()
@@ -2049,6 +2252,84 @@ int cpart2::GetBoundingRect( CRect * part_r )
 	return 1;
 }
 
+void cpart2::FootprintChanged(CShape *_shape)
+{
+	// CPT2.  Loosely derived from CPartList::PartFootprintChanged && CNetList::PartFootprintChanged.
+	// Setup pins corresponding to the new shape, reusing old pins where possible.  Mark used pins with
+	// a utility value of 1.  Pins that are unused at the end get axed.
+	// NB does undrawing and redrawing of the part and any attached nets.
+	Undraw();
+	carray<cnet2> nets;									// Maintain a list of attached nets so that we can redraw them afterwards
+	citer<cpin2> ip (&pins);
+	for (cpin2 *p = ip.First(); p; p = ip.Next())
+		if (p->net)
+			nets.Add(p->net),
+			p->net->Undraw();
+
+	shape = _shape;
+	pins.SetUtility(0);
+	int cPins = shape->m_padstack.GetSize();
+	carray<cvertex2> vtxs;
+	citer<cpadstack> ips (&shape->m_padstack);
+	for (cpadstack *ps = ips.First(); ps; ps = ips.Next())
+	{
+		cpin2 *old = GetPinByName(&ps->name);
+		cpin2 *p;
+		int oldX, oldY, oldLayer;
+		if (old)
+		{
+			oldX = old->x, oldY = old->y;
+			oldLayer = old->pad_layer;
+			old->ps = ps;
+			p = old;
+			if( ps->hole_size ) 
+				p->pad_layer = LAY_PAD_THRU;
+			else if( side == 0 && ps->top.shape != PAD_NONE || side == 1 && ps->bottom.shape != PAD_NONE )
+				p->pad_layer = LAY_TOP_COPPER;
+			else
+				p->pad_layer = LAY_BOTTOM_COPPER;
+			p->SetPosition();
+			bool bLayerChange = p->pad_layer!=oldLayer && p->pad_layer!=LAY_PAD_THRU;
+			if (oldX != p->x || oldY != p->y || bLayerChange)
+			{
+				// Pin's position has changed.  Find vertices associated with it, and unroute their adjacent segs as needed
+				p->GetVtxs(&vtxs);
+				citer<cvertex2> iv (&vtxs);
+				for (cvertex2 *v = iv.First(); v; v = iv.Next())
+					if (v->preSeg && v->preSeg->m_layer!=LAY_RAT_LINE)
+						v->preSeg->Unroute();
+					else if (v->postSeg && v->postSeg->m_layer!=LAY_RAT_LINE)
+						v->postSeg->Unroute();
+			}
+		}
+		else
+			p = new cpin2(this, ps, NULL),
+			p->SetPosition();
+		p->utility = 1;
+	}
+
+	// Look for disused pins (utility==0) and dump 'em.  NB Disconnect() rips out all attached traces completely.  TODO change or allow user an option to 
+	// keep traces?
+	for (cpin2 *p = ip.First(); p; p = ip.Next())
+		if (!p->utility) 
+			p->Disconnect();
+
+	// Dump texts from the old footprint and add texts from the new one:
+	m_tl->RemoveAllTexts();
+	citer<ctext> it (&shape->m_tl->texts);
+	for (ctext *txt = it.First(); txt; txt = it.Next()) 
+	{
+		int layer = cpartlist::FootprintLayer2Layer( txt->m_layer );
+		m_tl->AddText(txt->m_x, txt->m_y, txt->m_angle, txt->m_bMirror, txt->m_bNegative, 
+							layer, txt->m_font_size, txt->m_stroke_width, &txt->m_str);
+	}
+
+	Draw();
+	citer<cnet2> in (&nets);
+	for (cnet2 *n = in.First(); n; n = in.Next())
+		n->Draw();
+}
+
 void cpart2::OptimizeConnections(BOOL bBelowPinCount, int pin_count, BOOL bVisibleNetsOnly )
 {
 	if (!shape) return;
@@ -2079,7 +2360,6 @@ int cpart2::Draw()
 
 	// draw selection rectangle (layer = top or bottom copper, depending on side)
 	CRect sel;
-	int sel_layer;
 	if( !side )
 	{
 		// part on top
@@ -2087,7 +2367,6 @@ int cpart2::Draw()
 		sel.right = shape->m_sel_xf;
 		sel.bottom = shape->m_sel_yi;
 		sel.top = shape->m_sel_yf;
-		sel_layer = LAY_SELECTION;
 	}
 	else
 	{
@@ -2096,11 +2375,10 @@ int cpart2::Draw()
 		sel.left = - shape->m_sel_xf;
 		sel.bottom = shape->m_sel_yi;
 		sel.top = shape->m_sel_yf;
-		sel_layer = LAY_SELECTION;
 	}
 	if( angle > 0 )
 		RotateRect( &sel, angle, zero );
-	dl_sel = dl->AddSelector( this, sel_layer, DL_HOLLOW_RECT, 1,
+	dl_sel = dl->AddSelector( this, LAY_SELECTION, DL_HOLLOW_RECT, 1,
 		0, 0, x + sel.left, y + sel.bottom, x + sel.right, y + sel.top, x, y );
 	dl->Set_sel_vert( dl_sel, 0 );													// CPT2 TODO function should be in dl_element
 	if( angle == 90 || angle ==  270 )
@@ -2177,54 +2455,10 @@ int cpart2::Draw()
 		}
 	}
 
-#ifndef CPT2																							// CPT2 TODO coming soon...
-	// draw text
-	for( int it=0; it<shape->m_tl->text_ptr.GetSize(); it++ )
-	{
-		CText * t = part->shape->m_tl->text_ptr[it];
-		int nstrokes = 0;
-		CArray<stroke> m_stroke;
-		m_stroke.SetSize( 1000 );
-
-		double x_scale = (double)t->m_font_size/22.0;
-		double y_scale = (double)t->m_font_size/22.0;
-		double y_offset = 9.0*y_scale;
-		i = 0;
-		double xc = 0.0;
-		CPoint si, sf;
-		int w = t->m_stroke_width;
-		int xmin = INT_MAX;
-		int xmax = INT_MIN;
-		int ymin = INT_MAX;
-		int ymax = INT_MIN;
-
-		int text_layer = FootprintLayer2Layer( t->m_layer );
-		text_layer = FlipLayer( part->side, text_layer );
-		nstrokes = ::GenerateStrokesForPartString( &t->m_str, 
-			text_layer, t->m_mirror, t->m_font_size,
-			t->m_angle, t->m_x, t->m_y, t->m_stroke_width,
-			part->x, part->y, part->angle, part->side,
-			&m_stroke, &br, m_dlist, m_dlist->GetSMFontUtil() );
-
-		xmin = min( xmin, br.left );
-		xmax = max( xmax, br.right );
-		ymin = min( ymin, br.bottom );
-		ymax = max( ymax, br.top );
-		id.SetT1( ID_PART );
-		id.SetT2( ID_FP_TXT );
-		id.SetI2( it );
-		id.SetT3( ID_STROKE );
-		for( int is=0; is<nstrokes; is++ )
-		{
-			id.SetI3( is );
-			m_stroke[is].dl_el = m_dlist->Add( id, this, 
-				text_layer, DL_LINE, 1, m_stroke[is].w, 0, 0,
-				m_stroke[is].xi, m_stroke[is].yi, 
-				m_stroke[is].xf, m_stroke[is].yf, 0, 0 );
-			part->m_outline_stroke.Add( m_stroke[is] );
-		}
-	}
-#endif
+	// draw footprint texts
+	citer<ctext> it (&m_tl->texts);
+	for (ctext *t = it.First(); t; t = it.Next())
+		t->DrawRelativeTo(this);
 
 	// draw padstacks and save absolute position of pins
 	CPoint pin_pt;
@@ -2236,9 +2470,9 @@ int cpart2::Draw()
 	{
 		// CPT2 TODO check:  is pin->x/y always getting set correctly?
 		// set layer for pads
-		padstack * ps = pin->ps;
+		cpadstack * ps = pin->ps;
 		pin->dl_els.SetSize(nLayers);
-		pad * p;
+		cpad * p;
 		int pad_layer;
 		// iterate through all copper layers 
 		for( int il=0; il<nLayers; il++ )
@@ -2248,7 +2482,7 @@ int cpart2::Draw()
 			pad_layer = il + LAY_TOP_COPPER;
 			pin->dl_els[il] = NULL;
 			// get appropriate pad
-			pad * p = NULL;
+			cpad * p = NULL;
 			if( pad_layer == LAY_TOP_COPPER && side == 0 )
 				p = &ps->top;
 			else if( pad_layer == LAY_TOP_COPPER && side == 1 )
@@ -2411,7 +2645,7 @@ int cpart2::Draw()
 								pin->x, pin->y, 0, 0, 0, 0 );  
 			if( !pin->dl_sel )
 				// make selector for pin with hole only
-				pin->dl_sel = dl->AddSelector( pin, sel_layer, 
+				pin->dl_sel = dl->AddSelector( pin, LAY_SELECTION, 
 					DL_HOLLOW_RECT, 1, 1, 0,
 					pin->x-ps->hole_size/2, pin->y-ps->hole_size/2,  
 					pin->x+ps->hole_size/2, pin->y+ps->hole_size/2,  
@@ -2442,7 +2676,7 @@ void cpart2::Undraw()
 	dl->Remove( dl_sel );
 	dl_sel = 0;
 
-	// undraw selection rectangle for ref text and value text
+	// undraw ref text and value text
 	m_ref->Undraw();
 	m_value->Undraw();
 
@@ -2452,6 +2686,11 @@ void cpart2::Undraw()
 		dl->Remove( m_outline_stroke[i].dl_el );
 		m_outline_stroke[i].dl_el = 0;
 	}
+
+	// undraw footprint texts
+	citer<ctext> it (&m_tl->texts);
+	for (ctext *t = it.First(); t; t = it.Next())
+		t->Undraw();
 
 	// undraw padstacks
 	citer<cpin2> ip (&pins);
@@ -2492,6 +2731,191 @@ void cpart2::Highlight( )
 				dl->Get_x( val_sel ), dl->Get_y( val_sel ),
 				dl->Get_xf( val_sel ), dl->Get_yf( val_sel ), 1 );
 	
+}
+
+void cpart2::SetVisible(bool bVisible)
+{
+	// CPT2, derived from CPartList::MakePartVisible()
+	// Make part visible or invisible, including thermal reliefs
+	// outline strokes
+	for( int i=0; i<m_outline_stroke.GetSize(); i++ )
+	{
+		dl_element * el = m_outline_stroke[i].dl_el;
+		el->visible = bVisible;
+	}
+	// pins
+	citer<cpin2> ipin (&pins);
+	for (cpin2 *pin = ipin.First(); pin; pin = ipin.Next())
+	{
+		// pin pads
+		if (pin->dl_hole)
+			pin->dl_hole->visible = bVisible;
+		for( int i=0; i < pin->dl_els.GetSize(); i++ )
+			if( pin->dl_els[i] )
+				pin->dl_els[i]->visible = bVisible;
+		if (pin->dl_thermal)
+			pin->dl_thermal->visible = bVisible;
+	}
+	m_ref->SetVisible( bVisible );
+	m_value->SetVisible( bVisible );
+	// CPT2 TODO also set visibility for texts within footprint
+}
+
+
+void cpart2::StartDragging( CDC * pDC, BOOL bRatlines, BOOL bBelowPinCount, int pin_count ) 
+{
+	// CPT2, derived from CPartList::StartDraggingPart
+	// make part invisible
+	CDisplayList *dl = doc->m_dlist;
+	SetVisible( FALSE );
+	dl->CancelHighlight();
+
+	// create drag lines
+	CPoint zero(0,0);
+	dl->MakeDragLineArray( 2*pins.GetSize() + 4 );
+	int xi = shape->m_sel_xi;
+	int xf = shape->m_sel_xf;
+	if( side )
+		xi = -xi,
+		xf = -xf;
+	int yi = shape->m_sel_yi;
+	int yf = shape->m_sel_yf;
+	CPoint p1( xi, yi );
+	CPoint p2( xf, yi );
+	CPoint p3( xf, yf );
+	CPoint p4( xi, yf );
+	RotatePoint( &p1, angle, zero );
+	RotatePoint( &p2, angle, zero );
+	RotatePoint( &p3, angle, zero );
+	RotatePoint( &p4, angle, zero );
+	dl->AddDragLine( p1, p2 ); 
+	dl->AddDragLine( p2, p3 ); 
+	dl->AddDragLine( p3, p4 ); 
+	dl->AddDragLine( p4, p1 );
+	citer<cpin2> ipin (&pins);
+	for (cpin2 *pin = ipin.First(); pin; pin = ipin.Next())
+	{
+		// CPT2 used to recalculate pin's x/y-position.  I'm going to try relying on the pin's preexisting x/y member values.  Note
+		// that these values must be made relative to the part origin, however.
+		// make X for each pin
+		int d = pin->ps->top.size_h/2;
+		int xRel = pin->x - x, yRel = pin->y - y;
+		CPoint p1 (xRel - d, yRel - d);
+		CPoint p2 (xRel + d, yRel - d);
+		CPoint p3 (xRel + d, yRel + d);
+		CPoint p4 (xRel - d, yRel + d);
+		/*
+		CPoint p (pin->ps->x_rel, pin->ps->y_rel);
+		int xi = p.x-d;
+		int yi = p.y-d;
+		int xf = p.x+d;
+		int yf = p.y+d;
+		// reverse if on other side of board
+		if( side )
+		{
+			xi = -xi;
+			xf = -xf;
+			p.x = -p.x;
+		}
+		CPoint p1, p2, p3, p4;
+		p1.x = xi;
+		p1.y = yi;
+		p2.x = xf;
+		p2.y = yi;
+		p3.x = xf;
+		p3.y = yf;
+		p4.x = xi;
+		p4.y = yf;
+		// rotate by part angle
+		RotatePoint( &p1, angle, zero );
+		RotatePoint( &p2, angle, zero );
+		RotatePoint( &p3, angle, zero );
+		RotatePoint( &p4, angle, zero );
+		RotatePoint( &p, angle, zero );
+		// save pin position
+		pin_points[ip].x = p.x;
+		pin_points[ip].y = p.y;
+		*/
+		// draw X
+		dl->AddDragLine( p1, p3 ); 
+		dl->AddDragLine( p2, p4 );
+	}
+
+	// create drag lines for ratlines (OR OTHER SEGS --- CPT2) connected to pins
+	if( bRatlines ) 
+	{
+		dl->MakeDragRatlineArray( 2*pins.GetSize(), 1 );
+		// CPT2 Make a list of segs that have an endpoint (or 2) attached to one of the part's pins.  For efficiency, don't scan any net more than once
+		m_pl->m_nlist->nets.SetUtility(0);
+		carray<cseg2> segs;
+		for (cpin2 *pin = ipin.First(); pin; pin = ipin.Next())
+		{
+			if (!pin->net) continue;
+			if (pin->net->utility) continue;
+			pin->net->utility = 1;
+			citer<cconnect2> ic (&pin->net->connects);
+			for (cconnect2 *c = ic.First(); c; c = ic.Next())
+			{
+				if (c->head->pin && c->head->pin->part == this)
+					segs.Add(c->head->postSeg);
+				if (c->tail->pin && c->tail->pin->part == this)
+					segs.Add(c->tail->preSeg);
+			}
+		}
+		// Loop through the new list of segs that are attached to part's pins:
+		citer<cseg2> is (&segs);
+		for (cseg2 *s = is.First(); s; s = is.Next())
+		{
+			s->SetVisible(false);
+			// CPT2 old code spent effort worrying about hiding vias on the end of the seg opposite from the pin.  
+			// I'm going to try ignoring that issue...
+			// As in the old code, I'll suppress drag-ratlines if the seg has both ends attached to the part's pins.  The old code
+			// suppressed segs that belonged to single-seg connects with a loose end.  I'm going to try ignoring that issue too:
+			CPoint vtxPt, pinPt;
+			if (s->preVtx->pin && s->preVtx->pin->part==this)
+				if (s->postVtx->pin && s->postVtx->pin->part==this)
+					continue;												// Both ends of s are pins on "this"...
+				else
+					vtxPt = CPoint (s->postVtx->x, s->postVtx->y),
+					pinPt = CPoint (s->preVtx->x - x, s->preVtx->y - y);	// NB coords relative to part
+			else if (s->postVtx->pin && s->postVtx->pin->part==this)
+				vtxPt = CPoint (s->preVtx->x, s->preVtx->y),
+				pinPt = CPoint (s->postVtx->x - x, s->postVtx->y - y);		// NB coords relative to part
+			dl->AddDragRatline( vtxPt, pinPt );
+		}
+	}
+	
+	int vert = 0;
+	if( angle == 90 || angle == 270 )
+		vert = 1;
+	dl->StartDraggingArray( pDC, x, y, vert, LAY_RAT_LINE );				// CPT2, was LAY_SELECTION: came out invisible (at least with my color settings)
+}
+
+void cpart2::CancelDragging()
+{
+	// CPT2 derived from CPartList::CancelDraggingPart()
+	// make part visible again
+	SetVisible(true);
+
+	// get any connecting segments and make visible
+	CDisplayList *dl = doc->m_dlist;
+	m_pl->m_nlist->nets.SetUtility(0);
+	citer<cpin2> ipin (&pins);
+	for (cpin2 *pin = ipin.First(); pin; pin = ipin.Next())
+	{
+		if (!pin->net || !pin->net->bVisible || pin->net->utility)
+			continue;
+		pin->net->utility = 1;
+		citer<cconnect2> ic (&pin->net->connects);
+		for (cconnect2 *c = ic.First(); c; c = ic.Next())
+		{
+			if (c->head->pin && c->head->pin->part==this)
+				c->head->postSeg->SetVisible(true);
+			if (c->tail->pin && c->tail->pin->part==this)
+				c->tail->preSeg->SetVisible(true);
+		}
+	}
+	dl->StopDragging();
 }
 
 
@@ -2641,9 +3065,50 @@ ccontour::ccontour(cpolyline *_poly, bool bMain)
 	poly->contours.Add(this);
 }
 
+ccontour::ccontour(cpolyline *_poly, ccontour *src)
+	: cpcb_item (_poly->doc)
+{
+	poly = _poly;
+	poly->contours.Add(this);
+	corners.RemoveAll();
+	sides.RemoveAll();
+	head = tail = NULL;
+	if (src->corners.GetSize()==0) 
+		return;
+
+	// Loop thru src's corners and sides in geometrical order.  Must take care since src's head and tail may be the same.
+	cside *preSide = NULL;
+	for (ccorner *c = src->head; 1; c = c->postSide->postCorner)
+	{
+		ccorner *c2 = new ccorner(this, c->x, c->y);
+		corners.Add(c2);
+		c2->preSide = preSide;
+		if (preSide)
+			preSide->postCorner = c2;
+		if (c==src->head) 
+			head = c2;
+		cside *s = c->postSide;
+		if (!s) 
+			{ tail = c2; break; }
+		cside *s2 = new cside(this, s->m_style);
+		sides.Add(s2);
+		c2->postSide = s2;
+		s2->preCorner = c2;
+		if (s->postCorner == src->head)
+		{ 
+			tail = head; 
+			tail->preSide = s2; s2->postCorner = tail; 
+			break; 
+		}
+		preSide = s2;
+	}
+}
+
 bool ccontour::IsValid() 
 	{ return poly->contours.Contains(this); }
+
 cnet2 *ccontour::GetNet() { return poly->GetNet(); }
+
 int ccontour::GetLayer() { return poly->m_layer; }
 
 void ccontour::AppendSideAndCorner( cside *s, ccorner *c, ccorner *after )
@@ -2697,6 +3162,36 @@ CRect ccontour::GetCornerBounds()
 }
 
 
+
+cpolyline::cpolyline(CFreePcbDoc *_doc)
+	: cpcb_item (_doc)
+{ 
+	main = NULL;
+	m_layer = m_w = m_sel_box = m_hatch = m_nhatch = 0;
+	m_gpc_poly = NULL, m_php_poly = NULL;
+}
+
+cpolyline::cpolyline(cpolyline *src)
+	: cpcb_item (src->doc)
+{
+	main = NULL;
+	m_layer = src->m_layer;
+	m_w = src->m_w;
+	m_sel_box = src->m_sel_box;
+	m_hatch = src->m_hatch;
+	m_nhatch = src->m_nhatch;					// CPT2.  I guess...
+	m_gpc_poly = NULL, m_php_poly = NULL;
+	if (!src->main)
+		return;
+	citer<ccontour> ictr (&src->contours);
+	for (ccontour *ctr = ictr.First(); ctr; ctr = ictr.Next())
+	{
+		ccontour *ctr2 = new ccontour(this, ctr);
+		contours.Add(ctr2);
+		if (ctr==src->main) 
+			main = ctr2;
+	}
+}
 
 void cpolyline::MarkConstituents()
 {
@@ -3697,7 +4192,7 @@ void cnet2::CalcViaWidths(int w, int *via_w, int *via_hole_w)
 
 void cnet2::SetThermals() 
 {
-	// CPT2.  New system for thermals.  Run SetThermalNeeded() for all vertices in the net.
+	// CPT2.  New system for thermals.  Run SetNeedsThermal() for all vertices in the net.
 	citer<cconnect2> ic (&connects);
 	for (cconnect2 *c = ic.First(); c; c = ic.Next())
 	{
@@ -4227,10 +4722,24 @@ ctext::ctext( CFreePcbDoc *_doc, int _x, int _y, int _angle,
 bool ctext::IsValid()
 	{ return doc->m_tlist->texts.Contains(this); }
 
+void ctext::Copy( ctext *other )
+{
+	// CPT2 new.  Copy the contents of "other" into "this"
+	m_x = other->m_x;
+	m_y = other->m_y;
+	m_angle = other->m_angle;
+	m_bMirror = other->m_bMirror; 
+	m_bNegative = other->m_bNegative;
+	m_layer = other->m_layer;
+	m_font_size = other->m_font_size;
+	m_stroke_width = other->m_stroke_width;
+	m_smfontutil = other->m_smfontutil;
+	m_str = other->m_str;
+}
+
 void ctext::Move( int x, int y, int angle, BOOL mirror, BOOL negative, int layer, int size, int w )
 {
-	bool bWasDrawn = IsDrawn();
-	Undraw();
+	// CPT2 moved Undraw() and Draw() out of here in accordance with the new policy
 	m_x = x;
 	m_y = y;
 	m_angle = angle;
@@ -4239,8 +4748,6 @@ void ctext::Move( int x, int y, int angle, BOOL mirror, BOOL negative, int layer
 	m_bNegative = negative;
 	if (size>=0) m_font_size = size;
 	if (w>=0) m_stroke_width = w;
-	if (bWasDrawn)
-		Draw();
 }
 
 void ctext::Move(int x, int y, int angle, int size, int w) 
@@ -4249,6 +4756,9 @@ void ctext::Move(int x, int y, int angle, int size, int w)
 	bool bMirror = m_layer==LAY_FP_SILK_BOTTOM || m_layer==LAY_FP_BOTTOM_COPPER;
 	Move(x, y, angle, bMirror, false, m_layer, size, w);
 }
+
+void ctext::Resize(int size, int w)
+	{ Move (m_x, m_y, m_angle, m_bMirror, m_bNegative, m_layer, size, w); }
 
 
 void ctext::GenerateStrokes() {
@@ -4267,6 +4777,10 @@ void ctext::GenerateStrokes() {
 	int ymin = INT_MAX;
 	int ymax = INT_MIN;
 	int nChars = m_str.GetLength();
+	// CPT2.  Setup font (in case m_smfontutil is NULL).  This font business is a bit of a pain...
+	SMFontUtil *smf = m_smfontutil;
+	if (!smf)
+		smf = ((CFreePcbApp*)AfxGetApp())->m_doc->m_smfontutil;
 
 	for( int ic=0; ic<nChars; ic++ )
 	{
@@ -4276,10 +4790,10 @@ void ctext::GenerateStrokes() {
 		double min_x, min_y, max_x, max_y;
 		int nstrokes;
 		if( !m_bMirror )
-			nstrokes = m_smfontutil->GetCharStrokes( m_str[ic], SIMPLEX, &min_x, &min_y, &max_x, &max_y,
+			nstrokes = smf->GetCharStrokes( m_str[ic], SIMPLEX, &min_x, &min_y, &max_x, &max_y,
 				coord, 64 );
 		else
-			nstrokes = m_smfontutil->GetCharStrokes( m_str[nChars-ic-1], SIMPLEX, &min_x, &min_y, &max_x, &max_y,
+			nstrokes = smf->GetCharStrokes( m_str[nChars-ic-1], SIMPLEX, &min_x, &min_y, &max_x, &max_y,
 				coord, 64 );
 		// loop through strokes and create stroke structures
 		for( int is=0; is<nstrokes; is++ )
@@ -4348,6 +4862,10 @@ void ctext::GenerateStrokesRelativeTo(cpart2 *part) {
 	// Used for texts (including reftexts and valuetexts) whose position is relative to "part".
 	// Generate strokes and put them in m_stroke.  Also setup the bounding rectangle member m_br.
 	// TODO consider caching
+	SMFontUtil *smf = m_smfontutil;
+	if (smf==NULL) 
+		// May happen if "this" is a text belonging to a footprint
+		smf = part->doc->m_smfontutil;
 	m_stroke.SetSize( 1000 );
 	CPoint si, sf;
 	double x_scale = (double)m_font_size/22.0;
@@ -4376,10 +4894,10 @@ void ctext::GenerateStrokesRelativeTo(cpart2 *part) {
 		double min_x, min_y, max_x, max_y;
 		int nstrokes;
 		if( !m_bMirror )
-			nstrokes = m_smfontutil->GetCharStrokes( m_str[ic], SIMPLEX, &min_x, &min_y, &max_x, &max_y,
+			nstrokes = smf->GetCharStrokes( m_str[ic], SIMPLEX, &min_x, &min_y, &max_x, &max_y,
 				coord, 64 );
 		else
-			nstrokes = m_smfontutil->GetCharStrokes( m_str[nChars-ic-1], SIMPLEX, &min_x, &min_y, &max_x, &max_y,
+			nstrokes = smf->GetCharStrokes( m_str[nChars-ic-1], SIMPLEX, &min_x, &min_y, &max_x, &max_y,
 				coord, 64 );
 		// loop through strokes and create stroke structures
 		for( int is=0; is<nstrokes; is++ )
@@ -4519,6 +5037,13 @@ void ctext::Highlight()
 		dl->Get_x(dl_sel), dl->Get_y(dl_sel),
 		dl->Get_xf(dl_sel), dl->Get_yf(dl_sel), 1 );
 }
+
+void ctext::SetVisible(bool bVis)
+{
+	for( int is=0; is<m_stroke.GetSize(); is++ )
+		m_stroke[is].dl_el->visible = bVis;
+}
+
 
 creftext::creftext( cpart2 *_part, int x, int y, int angle, 
 	BOOL bMirror, BOOL bNegative, int layer, int font_size, 

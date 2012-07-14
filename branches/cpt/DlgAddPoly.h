@@ -12,7 +12,7 @@ public:
 	CDlgAddPoly(CWnd* pParent = NULL);   // standard constructor
 	virtual ~CDlgAddPoly();
 	void Initialize( BOOL bNewPoly, int layer_index, int units,
-		int width, BOOL bClosed, CArray<padstack> * padstack );
+		int width, BOOL bClosed, carray<cpadstack> * padstack );
 	int GetWidth(){ return m_width; };
 	int GetLayerIndex(){ return m_layer_index; };
 	int GetClosedFlag(){ return m_closed_flag; };
@@ -26,7 +26,7 @@ protected:
 
 	DECLARE_MESSAGE_MAP()
 private:
-	CArray<padstack> * m_padstack;
+	carray<cpadstack> * m_padstack;
 	void SetFields();
 	void GetFields();
 	BOOL m_bNewPoly;

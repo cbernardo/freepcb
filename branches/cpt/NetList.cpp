@@ -62,6 +62,7 @@ cnet * CNetList::AddNet( CString name, int max_pins, int def_w, int def_via_w, i
 //
 void CNetList::RemoveNet( cnet * net )
 {
+#ifndef CPT2
 	if( m_plist )
 	{
 		// remove pointers to net from pins on part
@@ -90,6 +91,7 @@ void CNetList::RemoveNet( cnet * net )
 	m_map.RemoveKey( net->name );
 	m_uid_map.RemoveKey( net->m_id.U1()  );
 	delete( net );
+#endif
 }
 
 // remove all nets from netlist
@@ -187,6 +189,7 @@ void CNetList::MoveOrigin( int x_off, int y_off )
 //
 void CNetList::RemoveNetPin( cpart * part, CString * pin_name, BOOL bSetAreas )
 {
+#ifndef CPT2
 	if( !part )
 		ASSERT(0);
 	if( !part->shape )
@@ -219,6 +222,7 @@ void CNetList::RemoveNetPin( cpart * part, CString * pin_name, BOOL bSetAreas )
 		ASSERT(0);
 	}
 	net->RemovePin( net_pin, bSetAreas );
+#endif
 }
 
 // Remove connections to part->pin from part->pin->net
@@ -226,6 +230,7 @@ void CNetList::RemoveNetPin( cpart * part, CString * pin_name, BOOL bSetAreas )
 //
 void CNetList::DisconnectNetPin( cpart * part, CString * pin_name, BOOL bSetAreas )
 {
+#ifndef CPT2
 	if( !part )
 		ASSERT(0);
 	if( !part->shape )
@@ -273,6 +278,7 @@ void CNetList::DisconnectNetPin( cpart * part, CString * pin_name, BOOL bSetArea
 	// adjust connections to areas
 	if( net->NumAreas() && bSetAreas )
 		SetAreaConnections( net );
+#endif
 }
 
 
@@ -282,6 +288,7 @@ void CNetList::DisconnectNetPin( cpart * part, CString * pin_name, BOOL bSetArea
 //
 void CNetList::DisconnectNetPin( cnet * net, CString * ref_des, CString * pin_name, BOOL bSetAreas )
 {
+#ifndef CPT2
 	// find pin in pin list for net
 	int net_pin = -1;
 	for( int ip=0; ip<net->NumPins(); ip++ )
@@ -319,6 +326,7 @@ void CNetList::DisconnectNetPin( cnet * net, CString * ref_des, CString * pin_na
 	// adjust connections to areas
 	if( net->NumAreas() && bSetAreas )
 		SetAreaConnections( net );
+#endif
 }
 
 // return pin index or -1 if not found
@@ -1334,6 +1342,7 @@ int CNetList::SetNetWidth( cnet * net, int w, int via_w, int via_hole_w )
 //
 void CNetList::PartAdded( cpart * part )
 {
+#ifndef CPT2
 	CString ref_des = part->ref_des;
 
 	// iterate through all nets, hooking up to part
@@ -1362,6 +1371,7 @@ void CNetList::PartAdded( cpart * part )
 			}
 		}
 	}
+#endif
 }
 
 // Swap 2 pins
@@ -1840,6 +1850,7 @@ int CNetList::PartMoved( cpart * part, int dx, int dy )
 
 int CNetList::PartMoved( cpart * part, int dx, int dy )
 {
+#ifndef CPT2													// Hide incompatible stuff from compiler
 	// first, mark all nets and connections unmodified
 	CIterator_cnet iter_net(this);
 	cnet * net = iter_net.GetFirst();
@@ -1960,6 +1971,7 @@ int CNetList::PartMoved( cpart * part, int dx, int dy )
 			}
 		}
 	}
+#endif
 	return 0;
 }
 //#endif
@@ -1970,6 +1982,7 @@ int CNetList::PartMoved( cpart * part, int dx, int dy )
 // 
 int CNetList::PartFootprintChanged( cpart * part )
 {
+#ifndef CPT2
 	POSITION pos;
 	CString name;
 	void * ptr;
@@ -2118,6 +2131,7 @@ int CNetList::PartFootprintChanged( cpart * part )
 		RemoveOrphanBranches( net, 0, TRUE );
 		net = iter_net.GetNext();
 	}
+#endif
 	return 0;
 }
 
@@ -2295,6 +2309,7 @@ int CNetList::OptimizeConnections( cnet * net, int ic_track, BOOL bBelowPinCount
 #ifdef PROFILE
 	StartTimer();	//****
 #endif
+#ifndef CPT2
 	// see if we need to do this
 	if( bVisibleNetsOnly && net->visible == 0 )
 		return ic_track;
@@ -2655,6 +2670,9 @@ int CNetList::OptimizeConnections( cnet * net, int ic_track, BOOL bBelowPinCount
 #endif
 
 	return ic_new;
+#else
+	return 0;
+#endif
 }
 
 
@@ -2662,6 +2680,7 @@ int CNetList::OptimizeConnections( cnet * net, int ic_track, BOOL bBelowPinCount
 //
 int CNetList::RehookPartsToNet( cnet * net )
 {
+#ifndef CPT2
 	for( int ip=0; ip<net->NumPins(); ip++ )
 	{
 		CString ref_des = net->pin[ip].ref_des;
@@ -2677,6 +2696,7 @@ int CNetList::RehookPartsToNet( cnet * net )
 			}
 		}
 	}
+#endif
 	return 0;
 }
 
@@ -3471,6 +3491,7 @@ void CNetList::SetAreaConnections( cpart * part )
 //
 void CNetList::SetAreaConnections( cnet * net, int iarea )
 {
+#ifndef CPT2
 	carea * area = &net->area[iarea];
 	// zero out previous arrays
 	for( int ip=0; ip<area->dl_thermal.GetSize(); ip++ )
@@ -3508,8 +3529,8 @@ void CNetList::SetAreaConnections( cnet * net, int iarea )
 							continue;	// not on area layer
 					}
 					// see if pad allowed to connect
-					padstack * ps = &part->shape->m_padstack[pin_index];
-					pad * ppad = &ps->inner;
+					cpadstack * ps = &part->shape->m_padstack[pin_index];
+					cpad * ppad = &ps->inner;
 					if( part->side == 0 && area_layer == LAY_TOP_COPPER
 						|| part->side == 1 && area_layer == LAY_BOTTOM_COPPER )
 						ppad = &ps->top;
@@ -3600,6 +3621,7 @@ void CNetList::SetAreaConnections( cnet * net, int iarea )
 			}
 		}
 	}
+#endif
 }
 
 // see if a point on a layer is inside a copper area in a net
@@ -4006,6 +4028,7 @@ int CNetList::WriteNets( CStdioFile * file )
 //
 void CNetList::ReadNets( CStdioFile * pcb_file, double read_version, int * layer )
 {
+#ifndef CPT2
 	int err, pos, np;
 	CArray<CString> p;
 	CString in_str, key_str;
@@ -4477,6 +4500,7 @@ void CNetList::ReadNets( CStdioFile * pcb_file, double read_version, int * layer
 			}
 		}
 	}
+#endif
 }
 
 // undraw via
@@ -5527,6 +5551,7 @@ void CNetList::AreaUndoCallback( int type, void * ptr, BOOL undo )
 //
 int CNetList::CheckNetlist( CString * logstr )
 {
+#ifndef CPT2
 	CString str;
 	int nwarnings = 0;
 	int nerrors = 0;
@@ -5797,6 +5822,9 @@ int CNetList::CheckNetlist( CString * logstr )
 	str.Format( s, nerrors, nfixed, nwarnings );
 	*logstr += str;
 	return nerrors;
+#else
+	return 0;
+#endif
 }
 
 // cross-check netlist with partlist, report results in logstr

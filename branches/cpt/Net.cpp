@@ -108,6 +108,7 @@ int cpin::UID()
 //
 part_pin * cpin::GetPartPin()
 {
+#ifndef CPT2
 	if( part )
 	{
 		if( part->shape )
@@ -121,6 +122,7 @@ part_pin * cpin::GetPartPin()
 			}
 		}
 	}
+#endif
 	return NULL;
 }
 
@@ -1273,6 +1275,7 @@ void cnet::GetStatusStr( CString * str )
 // methods for pins
 void cnet::AddPin( CString * ref_des, CString * pin_name, BOOL set_areas )
 {
+#ifndef CPT2
 	// set size of pin array
 	int old_size = pin.GetSize();
 	pin.SetSize(old_size + 1 );
@@ -1303,6 +1306,7 @@ void cnet::AddPin( CString * ref_des, CString * pin_name, BOOL set_areas )
 	// adjust connections to areas
 	if( NumAreas() && set_areas )
 		m_nlist->SetAreaConnections( this );
+#endif
 }
 
 cpin * cnet::PinByIndex( int ip )
@@ -1368,6 +1372,7 @@ void cnet::RemovePin( CString * ref_des, CString * pin_name, BOOL bSetAreas )
 
 void cnet::RemovePin( int net_pin_index, BOOL bSetAreas )
 {
+#ifndef CPT2
 	// now remove all connections to/from this pin
 	int ic = 0;
 	CIterator_cconnect iter_con( this );
@@ -1401,6 +1406,7 @@ void cnet::RemovePin( int net_pin_index, BOOL bSetAreas )
 	// adjust connections to areas
 	if( NumAreas() && bSetAreas )
 		m_nlist->SetAreaConnections( this );
+#endif
 }
 
 // set a vertex to reference a pin
@@ -1493,6 +1499,7 @@ cconnect * cnet::AddConnectFromPin( int p1, int * ic_ptr )
 //
 cconnect * cnet::AddConnectFromPinToPin( int p1, int p2, int * ic_ptr )
 {
+#ifndef CPT2
 	// check for valid pins
 	cpart * part1 = pin[p1].part;
 	cpart * part2 = pin[p2].part;
@@ -1537,6 +1544,9 @@ cconnect * cnet::AddConnectFromPinToPin( int p1, int p2, int * ic_ptr )
 	if( ic_ptr )
 		*ic_ptr = ic;
 	return c;
+#else
+	return NULL;
+#endif
 }
 
 // remove a connection, don't change others, notify any iterators 

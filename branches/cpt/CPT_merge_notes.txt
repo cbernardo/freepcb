@@ -95,7 +95,7 @@ CPT revisions:
 	rectangle out to the margins.
 16. Added sorting to export netlist.
 17. Removed restriction on pin names (before, 1A and A1A were illegal)
-18. During connect-to-pin-to-create-ratline mode (CUR_DRAG_CONNECT), the status bar now shows the name of the pin where mouse is hovering.
+18. During connect-to-pin-to-create-ratline mode (CUR_DRAG_NEW_RAT), the status bar now shows the name of the pin where mouse is hovering.
 19. After creating such a ratline, it is selected by default.
 20. When moving groups/parts, don't unroute an adjacent seg if, say, the group is moving vertically and the seg is vertical (changes in e.g.
    	CNetList::UnrouteSegment() and CNetList::UnrouteSegmentWithoutMerge())

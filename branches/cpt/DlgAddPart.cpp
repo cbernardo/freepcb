@@ -249,8 +249,8 @@ void CDlgAddPart::DoDataExchange(CDataExchange* pDX)
 			if( (*m_pl)[m_ip].shape == new_shape )
 				bFootprintChanged = FALSE;
 			(*m_pl)[m_ip].shape = new_shape;
-			(*m_pl)[m_ip].ref_size = new_shape->m_ref_size;
-			(*m_pl)[m_ip].ref_width = new_shape->m_ref_w;
+			(*m_pl)[m_ip].ref_size = new_shape->m_ref->m_font_size;
+			(*m_pl)[m_ip].ref_width = new_shape->m_ref->m_stroke_width;
 		}
 
 
@@ -297,8 +297,8 @@ void CDlgAddPart::DoDataExchange(CDataExchange* pDX)
 					if( (*m_pl)[ip].package == package_str )
 					{
 						(*m_pl)[ip].shape = (CShape*)ptr;
-						(*m_pl)[ip].ref_size = ((CShape*)ptr)->m_ref_size;
-						(*m_pl)[ip].ref_width = ((CShape*)ptr)->m_ref_w;
+						(*m_pl)[ip].ref_size = ((CShape*)ptr)->m_ref->m_font_size;
+						(*m_pl)[ip].ref_width = ((CShape*)ptr)->m_ref->m_stroke_width;
 					}
 				}
 			}

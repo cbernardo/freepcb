@@ -47,20 +47,17 @@ struct undo_move_origin {
 
 class CFreePcbDoc : public CDocument
 {
-public:
-
 protected: // create from serialization only
 	CFreePcbDoc();
 	DECLARE_DYNCREATE(CFreePcbDoc)
 
 // Overrides
-	public:
+public:
 	virtual BOOL OnNewDocument();
 	virtual void Serialize(CArchive& ar);
 	virtual BOOL OnSaveDocument(LPCTSTR lpszPathName);
 
 // Implementation
-public:
 	virtual ~CFreePcbDoc();
 	void OnTimer();
 	BOOL FileOpen( LPCTSTR fn, BOOL bLibrary=FALSE );
@@ -111,6 +108,26 @@ public:
 #endif
 
 public:
+	// Collections of pcb-items and drawing elements:
+	CDisplayList * m_dlist;		// current display list.  CPT2: new.  Sometimes this is equal to m_dlist_pcb, sometimes m_dlist_fp.
+	CDisplayList * m_dlist_pcb; // display list for main editor
+	CDisplayList * m_dlist_fp;	// display list for footprint editor
+	cnetlist *m_nlist;			// CPT2.  Was CNetList, now cnetlist
+	cpartlist *m_plist;			// CPT2.  Was CPartList, now cpartlist
+	ctextlist * m_tlist;		// CPT2.  Was CTextList, now ctextlist
+	CArray<CPolyLine> m_board_outline;	// PCB outline. CPT2 TODO.  Change to carray<cboard>
+	DRErrorList * m_drelist;		// CPT2 TODO: change to drelist or just carray<cdre>
+	CArray<CPolyLine> m_sm_cutout;	// array of soldermask cutouts. // CPT2 TODO:  change to carray<csmcutout>
+	carray<cpcb_item> items;		// CPT2.  Master list of all created pcb-items.  GarbageCollect() will go through this list and clean up now and then.
+	carray<cpcb_item> others;		// CPT2.  All active pcb-items that belong to "other" categories (not net-items, part-items, or texts)
+
+	CFreePcbView * m_view;		// pointer to CFreePcbView 
+	CDlgLog * m_dlg_log;
+	SMFontUtil * m_smfontutil;	// Hershey font utility
+	int m_file_close_ret;		// return value from OnFileClose() dialog
+	CFootLibFolderMap m_footlibfoldermap;
+	CMapStringToPtr m_footprint_cache_map;	// map of footprints cached in memory
+
 	double m_version;			// version number, such as "1.105"
 	double m_file_version;		// the oldest version of FreePCB that can read
 								// files created with this version
@@ -134,22 +151,6 @@ public:
 	CString m_pcb_full_path;	// full path to project file
 	CString m_cam_full_path;	// full path to CAM file folder
 	CString m_netlist_full_path;	// last netlist loaded
-	CArray<CPolyLine> m_board_outline;	// PCB outline
-	CDisplayList * m_dlist;		// display list
-	CDisplayList * m_dlist_fp;	// display list for footprint editor
-	SMFontUtil * m_smfontutil;	// Hershey font utility
-	cnetlist *m_nlist;			// CPT2.  Was CNetList, now cnetlist
-	cpartlist *m_plist;			// CPT2.  Was CPartList, now cpartlist
-	ctextlist * m_tlist;		// CPT2.  Was CTextList, now ctextlist
-	CMapStringToPtr m_footprint_cache_map;	// map of footprints cached in memory
-	CFreePcbView * m_view;		// pointer to CFreePcbView 
-	int m_file_close_ret;		// return value from OnFileClose() dialog
-	CFootLibFolderMap m_footlibfoldermap;
-	CDlgLog * m_dlg_log;
-	DRErrorList * m_drelist;		// CPT2 TODO: change to drelist
-	CArray<CPolyLine> m_sm_cutout;	// array of soldermask cutouts. // CPT2 TODO:  change to carray<csmcutout>
-	carray<cpcb_item> items;		// CPT2.  Master list of all created pcb-items.  GarbageCollect() will go through this list and clean up now and then.
-	carray<cpcb_item> others;		// CPT2.  All active pcb-items that belong to "other" categories (not net-items, part-items, or texts)
 
 	// undo and redo stacks and state
 	BOOL m_bLastPopRedo;		// flag that last stack op was pop redo
@@ -317,10 +318,5 @@ public:
 	void GarbageCollect();
 	// end CPT
 };
-
-/////////////////////////////////////////////////////////////////////////////
-
-//{{AFX_INSERT_LOCATION}}
-// Microsoft Visual C++ will insert additional declarations immediately before the previous line.
 
 #endif // !defined(AFX_FREEPCBDOC_H__A00395C2_2CF4_4902_9C7B_CBB16DB58836__INCLUDED_)

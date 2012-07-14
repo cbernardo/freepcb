@@ -78,7 +78,6 @@ BEGIN_MESSAGE_MAP(CFreePcbDoc, CDocument)
 	ON_COMMAND(ID_FILE_CLOSE, OnFileClose)
 	ON_COMMAND(ID_VIEW_LAYERS, OnViewLayers)
 	ON_COMMAND(ID_VIEW_PARTLIST, OnProjectPartlist)
-	ON_COMMAND(ID_PART_PROPERTIES, OnPartProperties)
 	ON_COMMAND(ID_FILE_IMPORT, OnFileImport)
 	ON_COMMAND(ID_APP_EXIT, OnAppExit)
 	ON_COMMAND(ID_FILE_CONVERT, OnFileConvert)
@@ -147,13 +146,13 @@ CFreePcbDoc::CFreePcbDoc()
 	DWORD dwWindowsMajorVersion =  (DWORD)(LOBYTE(LOWORD(dwVersion)));
 	if( dwWindowsMajorVersion > 4 )
 		m_pcbu_per_wu = 2540;		// if Win2000 or XP or vista
-	m_dlist = new CDisplayList( m_pcbu_per_wu, m_smfontutil );
+	m_dlist = m_dlist_pcb = new CDisplayList( m_pcbu_per_wu, m_smfontutil );
 	m_dlist_fp = new CDisplayList( m_pcbu_per_wu, m_smfontutil );
 	m_plist = new cpartlist( this );
 	m_nlist = new cnetlist( this );
 	m_plist->UseNetList( m_nlist );
 	m_plist->SetShapeCacheMap( &m_footprint_cache_map );
-	m_tlist = new ctextlist( this, m_smfontutil );
+	m_tlist = new ctextlist( this );
 	m_drelist = new DRErrorList;
 #ifndef CPT2
 	m_drelist->SetLists( m_plist, m_nlist, m_dlist );
@@ -2599,40 +2598,6 @@ void CFreePcbDoc::OnProjectPartlist()
 #endif
 }
 
-void CFreePcbDoc::OnPartProperties()
-{
-#ifndef CPT2
-	partlist_info pl;
-	int ip = m_plist->ExportPartListInfo( &pl, m_view->m_sel_part );
-	CDlgAddPart dlg;
-	dlg.Initialize( &pl, ip, TRUE, FALSE, FALSE, 0, &m_footprint_cache_map, 
-		&m_footlibfoldermap, m_units, m_dlg_log );
-	int ret = dlg.DoModal();
-	if( ret == IDOK )
-	{
-		// note: part must be selected in view
-		cpart * part = m_view->m_sel_part;
-		CShape * old_shape = part->shape;
-		CString old_ref_des = part->ref_des;
-		// see if ref_des has changed
-		CString new_ref_des = pl[ip].ref_des;
-		m_view->SaveUndoInfoForPartAndNets( part, 
-			CPartList::UNDO_PART_MODIFY, &new_ref_des, TRUE, m_undo_list );
-		m_plist->ImportPartListInfo( &pl, 0 );
-		m_view->SelectPart( part );
-		if( dlg.GetDragFlag() )
-			ASSERT(0);	// not allowed
-		else
-		{
-			if( m_vis[LAY_RAT_LINE] && !m_auto_ratline_disable )
-				m_nlist->OptimizeConnections();
-			m_view->Invalidate( FALSE );
-			ProjectModified( TRUE );
-		}
-	}
-#endif
-}
-
 // CPT:  since MS broke CFileDialog::SetTemplate(), I had to rewrite this (as in OnFileImport(), qv)
 void CFreePcbDoc::OnFileExport()
 {
@@ -3092,8 +3057,8 @@ int CFreePcbDoc::ImportNetlist( CStdioFile * file, UINT flags,
 					(*pl)[ipart].ref_des = ref_str;
 					if( s )
 					{
-						(*pl)[ipart].ref_size = s->m_ref_size;
-						(*pl)[ipart].ref_width = s->m_ref_w;
+						(*pl)[ipart].ref_size = s->m_ref->m_font_size;
+						(*pl)[ipart].ref_width = s->m_ref->m_stroke_width;
 					}
 					else
 					{
@@ -3404,8 +3369,8 @@ int CFreePcbDoc::ImportPADSPCBNetlist( CStdioFile * file, UINT flags,
 				part_map.SetAt( ref_str, NULL );
 				if( s )
 				{
-					(*pl)[ipart].ref_size = s->m_ref_size;
-					(*pl)[ipart].ref_width = s->m_ref_w;
+					(*pl)[ipart].ref_size = s->m_ref->m_font_size;
+					(*pl)[ipart].ref_width = s->m_ref->m_stroke_width;
 				}
 				else
 				{

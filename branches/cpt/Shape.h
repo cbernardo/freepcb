@@ -8,8 +8,9 @@
 #include "SMFontUtil.h"
 #include "TextList.h"
 #include "PcbItem.h"
+#include "TextListNew.h"
 
-class CTextList;
+class ctextlist;
 
 #define CENTROID_WIDTH 40*NM_PER_MIL	// width of centroid symbol
 #define DEFAULT_GLUE_WIDTH 15*NM_PER_MIL	// width of default glue spot
@@ -87,31 +88,42 @@ struct mtg_hole
 };
 
 
-// structure describing pad
-class pad
+// CPT2.  I am adjusting classes pad and padstack so that the latter in particular becomes part of the new class hierarchy.  This
+// will be useful when converting the footprint editor UI;  instead of using cpin2's to represent pins, as happens in the main
+// view, padstacks will represent the pins user sees.
+// In honor of this change I'm renaming pad to cpad and padstack to cpadstack.
+class cpad
 {
 public:
-	pad();
-	BOOL operator==(pad p);
 	int shape;	// see enum above
 	int size_l, size_r, size_h, radius;
 	int connect_flag;	// only for copper pads
+	dl_element *dl_el;
+
+	cpad();
+	BOOL operator==(cpad p);
 };
 
-// padstack is pads and hole associated with a pin
-class padstack
+// cpadstack is pads and hole associated with a pin
+class cpadstack: public cpcb_item
 {
 public:
-	padstack();
-	BOOL operator==(padstack p);
-	BOOL exists;		// only used when converting Ivex footprints or editing
 	CString name;		// identifier such as "1" or "B24"
 	int hole_size;		// 0 = no hole (i.e SMT)
 	int x_rel, y_rel;	// position relative to part origin
 	int angle;			// orientation: 0=left, 90=top, 180=right, 270=bottom
-	pad top, top_mask, top_paste;
-	pad bottom, bottom_mask, bottom_paste;
-	pad inner;
+	cpad top, top_mask, top_paste;
+	cpad bottom, bottom_mask, bottom_paste;
+	cpad inner;
+	BOOL exists;		// only used when converting Ivex footprints or editing
+
+	cpadstack(CFreePcbDoc *_doc);
+	BOOL operator==(cpadstack p);
+	CRect GetBounds();							// CPT2 done in cpp, derived from CShape::GetPadBounds
+	void Highlight();
+	bool IsPadstack() { return true; }
+	cpadstack *ToPadstack() { return this; }
+	int GetTypeBit() { return bitPadstack; }
 };
 
 // CShape class represents a footprint
@@ -131,18 +143,19 @@ public:
 	CString m_desc;
 	int m_units;			// units used for original definition (MM, NM or MIL)
 	int m_sel_xi, m_sel_yi, m_sel_xf, m_sel_yf;			// selection rectangle
-	CText *m_ref;										// CPT:  New system! Use the CText machinery to process "REF" and "VALUE"
-	int m_ref_size, m_ref_xi, m_ref_yi, m_ref_angle;	// ref text params
-	int m_ref_w;										// thickness of stroke for ref text
-	CText *m_value;										// CPT:  New system!
-	int m_value_size, m_value_xi, m_value_yi, m_value_angle;	// value text
-	int m_value_w;												// thickness of stroke for value text
+	// CPT2.  Reorganizing:  change m_ref and m_value to type ctext*, and get rid of m_ref_size, m_ref_xi, etc. (use m_ref->xi, etc., instead)
+	ctext *m_ref;										// CPT:  New system! Use the CText machinery to process "REF" and "VALUE"
+	// int m_ref_size, m_ref_xi, m_ref_yi, m_ref_angle;	// ref text params
+	// int m_ref_w;										// thickness of stroke for ref text
+	ctext *m_value;										// CPT:  New system!
+	// int m_value_size, m_value_xi, m_value_yi, m_value_angle;	// value text
+	// int m_value_w;												// thickness of stroke for value text
 	CENTROID_TYPE m_centroid_type;		// type of centroid
 	int m_centroid_x, m_centroid_y;		// position of centroid
 	int m_centroid_angle;				// angle of centroid (CCW)
-	CArray<padstack> m_padstack;		// array of padstacks for shape
-	carray<cpolyline> m_outline_poly;	// CPT2.
-	CTextList * m_tl;					// list of text strings
+	carray<cpadstack> m_padstack;		// array of padstacks for shape.  CPT2: was CArray<padstack>.  TODO rename padstacks
+	carray<cpolyline> m_outline_poly;	// CPT2: was CArray<CPolyLine>.  TODO Rename outline_polys
+	ctextlist *m_tl;					// CPT2.  Used to be CTextList*
 	CArray<glue> m_glue;				// array of adhesive dots
 
 public:
@@ -153,16 +166,16 @@ public:
 	int MakeFromFile( CStdioFile * in_file, CString name, CString file_path, int pos );
 	int WriteFootprint( CStdioFile * file );
 	int GetNumPins();
-	int GetPinIndexByName( LPCTSTR name );
-	padstack *GetPadstackByName (CString *name);			// CPT2
-	CString GetPinNameByIndex( int index );
+	// int GetPinIndexByName( LPCTSTR name );				// CPT2 deprecated
+	cpadstack *GetPadstackByName (CString *name);			// CPT2
+	// CString GetPinNameByIndex( int index );				// CPT2 deprecated
 	CRect GetBounds( BOOL bIncludeLineWidths=TRUE );
 	CRect GetCornerBounds();
-	CRect GetPadBounds( int i );
-	CRect GetPadRowBounds( int i, int num );
+	// CRect GetPadBounds( int i );							// CPT2 use cpadstack::GetBounds
+	CRect GetPadRowBounds( int i, int num );				// CPT2 TODO figure out
 	CPoint GetDefaultCentroid();
 	CRect GetAllPadBounds();
-	int Copy( CShape * shape );	// copy all data from shape
+	void Copy( CShape * shape );	// copy all data from shape
 	BOOL Compare( CShape * shape );	// compare shapes, return true if same
 	//	HENHMETAFILE CreateMetafile( CMetaFileDC * mfDC, CDC * pDC, int x_size, int y_size );
 	HENHMETAFILE CreateMetafile( CMetaFileDC * mfDC, CDC * pDC, CRect const &window, 
@@ -185,7 +198,7 @@ public:
 	void Draw( CDisplayList * dlist, SMFontUtil * fontutil );
 	void Undraw();
 	void Copy( CShape * shape );
-	void HighlightPad( int i );
+	// void HighlightPad( int i );									// CPT2 use cpadstack::Highlight
 	void StartDraggingPad( CDC * pDC, int i );
 	void CancelDraggingPad( int i );
 	void StartDraggingPadRow( CDC * pDC, int i, int num );
@@ -201,15 +214,16 @@ public:
 
 public:
 	CDisplayList * m_dlist;
-	CArray<dl_element*> m_hole_el;			// hole display element 
-	CArray<dl_element*> m_pad_top_el;		// top pad display element 
-	CArray<dl_element*> m_pad_inner_el;		// inner pad display element 
-	CArray<dl_element*> m_pad_bottom_el;	// bottom pad display element 
-	CArray<dl_element*> m_pad_top_mask_el;
-	CArray<dl_element*> m_pad_top_paste_el;
-	CArray<dl_element*> m_pad_bottom_mask_el;
-	CArray<dl_element*> m_pad_bottom_paste_el;
-	CArray<dl_element*> m_pad_sel;		// pad selector
+	// CPT2 the following are replaced by drawing elements within individual cpadstack or cpad objects
+	// CArray<dl_element*> m_hole_el;			// hole display element 
+	// CArray<dl_element*> m_pad_top_el;		// top pad display element 
+	// CArray<dl_element*> m_pad_inner_el;		// inner pad display element 
+	// CArray<dl_element*> m_pad_bottom_el;	// bottom pad display element 
+	// CArray<dl_element*> m_pad_top_mask_el;
+	// CArray<dl_element*> m_pad_top_paste_el;
+	// CArray<dl_element*> m_pad_bottom_mask_el;
+	// CArray<dl_element*> m_pad_bottom_paste_el;
+	// CArray<dl_element*> m_pad_sel;		// pad selector
 	dl_element * m_centroid_el;			// centroid
 	dl_element * m_centroid_sel;		// centroid selector
 	CArray<dl_element*> m_dot_el;		// adhesive dots

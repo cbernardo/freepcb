@@ -4162,13 +4162,13 @@ BEGIN
     IDS_STRING63564         " Set"
     IDS_STRING63565         " Width"
     IDS_STRING63566         " Lock"
-    IDS_STRING63567         " Connect"
+    IDS_STRING63567         "Trace"
 END
 
 STRINGTABLE
 BEGIN
     IDS_STRING63568         " Unlock"
-    IDS_STRING63569         " Connect"
+    IDS_STRING63569         "Trace"
     IDS_STRING63570         " Move"
     IDS_STRING63571         " Text"
     IDS_STRING63572         " Rotate"
@@ -4269,8 +4269,10 @@ STRINGTABLE
 BEGIN
     IDS_STRING63648         " Decrease"
     IDS_STRING63649         " Grid"
-    IDS_STRING63650         " ****"
-    IDS_STRING63651         " ****"
+    IDS_STRING63650         " Set Trace"
+    IDS_STRING63651         "Width"
+    IDS_STRING63652         " ****"
+    IDS_STRING63653         " ****"
 END
 
 STRINGTABLE
@@ -4290,7 +4292,7 @@ END
 
 STRINGTABLE
 BEGIN
-    IDS_AppName             "CPT2.2"
+    IDS_AppName             "CPT2.3"
 END
 
 STRINGTABLE
@@ -4496,6 +4498,12 @@ BEGIN
                             "You are trying to connect to a vertex on a different net"
     IDS_Tee                 "tee"
     IDS_W                   "%s, w %s"
+END
+
+STRINGTABLE
+BEGIN
+    IDS_DeletingPartDoYouWishToEraseAllTraces 
+                            "Deleting part ""%s.""  Do you wish to erase all traces emanating from this part?"
 END
 
 #endif    // English (United States) resources

@@ -66,7 +66,7 @@ struct undo_part {
 //	shape may be NULL if no footprint assigned
 //	may have package but no footprint, but not the reverse
 typedef struct {
-	cpart * part;		// pointer to original part, or NULL if new part added
+	cpart2 * part;		// pointer to original part, or NULL if new part added.  CPT2 changed cpart to cpart2
 	CString ref_des;	// ref designator string
 	int ref_size;		// size of ref text characters
 	int ref_width;		// stroke width of ref text characters
@@ -175,7 +175,7 @@ public:
 	// int DrawPart( cpart * el );														// CPT2. Use cpart2::Draw
 	// int UndrawPart( cpart * el );													// CPT2. Use cpart2::Undraw
 	static int FootprintLayer2Layer( int fp_layer );		 							// Done in cpp (identical to old version)
-	void PartFootprintChanged( cpart * part, CShape * shape );
+	// void PartFootprintChanged( cpart * part, CShape * shape );						// CPT2. Use cpart2::FootprintChanged
 	void FootprintChanged( CShape * shape );
 	void RefTextSizeChanged( CShape * shape );
 	int RotatePoint( CPoint * p, int angle, CPoint org );
@@ -209,22 +209,22 @@ public:
 							  int * angle=0, cnet ** net=0, 
 							  int * connection_status=0, int * pad_connect_flag=0, 
 							  int * clearance_type=0 );
-	int StartDraggingPart( CDC * pDC, cpart * part, BOOL bRatlines, 
-								 BOOL bBelowPinCount, int pin_count );
+	// int StartDraggingPart( CDC * pDC, cpart * part, BOOL bRatlines,  // CPT2 use part2::StartDragging()
+	//							 BOOL bBelowPinCount, int pin_count );
 	int StartDraggingRefText( CDC * pDC, cpart * part );
 	int StartDraggingValue( CDC * pDC, cpart * part ) { return 0; }
 	int CancelDraggingPart( cpart * part );
 	int CancelDraggingRefText( cpart * part );
 	int CancelDraggingValue( cpart * part );
 	int StopDragging();
-	void SetThermals();													// CPT2 new.  Updates the bNeedsThermal flags for all pins in all parts.
+	void SetThermals();																// CPT2 new.  Updates the bNeedsThermal flags for all pins in all parts.
 	
 	int WriteParts( CStdioFile * file ) { return 0; }
 	int ReadParts( CStdioFile * file );
 	int GetNumFootprintInstances( CShape * shape ) { return 0; }
 	void PurgeFootprintCache();
-	int ExportPartListInfo( partlist_info * pl, cpart * part ) { return 0; }
-	void ImportPartListInfo( partlist_info * pl, int flags, CDlgLog * log=NULL ) { }
+	int ExportPartListInfo( partlist_info * pli, cpart2 *part0 );						// Done in cpp.  Converted from old CPartList func.
+	void ImportPartListInfo( partlist_info * pli, int flags, CDlgLog * log=NULL );		// Done in cpp.  Converted from old CPartList func.
 	int SetPartString( cpart * part, CString * str );
 	int CheckPartlist( CString * logstr ) { return 0; }
 	BOOL CheckForProblemFootprints() { return false; }

@@ -1177,7 +1177,6 @@ void CFootprintView::SetCursorMode( int mode )
 //
 void CFootprintView::SetFKText( int mode )
 {
-#ifndef CPT2
 	for( int i=0; i<12; i++ )
 	{
 		m_fkey_option[i] = 0;
@@ -1216,16 +1215,16 @@ void CFootprintView::SetFKText( int mode )
 		break;
 
 	case CUR_FP_POLY_SIDE_SELECTED:
-		m_fkey_option[0] = FK_FP_POLY_STRAIGHT;
-		m_fkey_option[1] = FK_FP_POLY_ARC_CW;
-		m_fkey_option[2] = FK_FP_POLY_ARC_CCW;
 		{
-			int style = m_fp.m_outline_poly[m_sel_id.I2()].SideStyle( m_sel_id.I3() );
-			if( style == CPolyLine::STRAIGHT )
+			cside *s = m_sel.First()->ToSide();
+			m_fkey_option[0] = FK_FP_POLY_STRAIGHT;
+			m_fkey_option[1] = FK_FP_POLY_ARC_CW;
+			m_fkey_option[2] = FK_FP_POLY_ARC_CCW;
+			if( s->m_style == cpolyline::STRAIGHT )
 				m_fkey_option[3] = FK_FP_ADD_CORNER;
+			m_fkey_option[6] = FK_FP_DELETE_POLYLINE;
+			break;
 		}
-		m_fkey_option[6] = FK_FP_DELETE_POLYLINE;
-		break;
 
 	case CUR_FP_TEXT_SELECTED:
 		m_fkey_option[0] = FK_FP_EDIT_TEXT;
@@ -1246,7 +1245,7 @@ void CFootprintView::SetFKText( int mode )
 		break;
 
 	case CUR_FP_DRAG_PAD:
-		if( m_drag_num_pads == 1 )
+		if( m_drag_num_pads == 1 )						// CPT2 TODO fix
 			m_fkey_option[2] = FK_FP_ROTATE_PAD;
 		break;
 
@@ -1292,7 +1291,6 @@ void CFootprintView::SetFKText( int mode )
 
 	InvalidateLeftPane();
 	Invalidate( FALSE );
-#endif
 }
 
 // display selected item in status bar 
@@ -1525,11 +1523,13 @@ void CFootprintView::OnContextMenu(CWnd* pWnd, CPoint point )
 //
 void CFootprintView::OnPadDelete( int i )
 {
+#ifndef CPT2
 	PushUndo();
 	CancelSelection();
 	m_fp.m_padstack.RemoveAt( i );
 	m_fp.Draw( m_dlist, m_doc->m_smfontutil );
 	FootprintModified( TRUE );
+#endif
 }
 
 // edit pad
@@ -1538,6 +1538,7 @@ void CFootprintView::OnPadEdit( int i )
 {
 	// save original position and angle of pad, in case we decide
 	// to drag the pad, and then cancel dragging
+#ifndef CPT2
 	int m_orig_x = m_fp.m_padstack[i].x_rel;
 	int m_orig_y = m_fp.m_padstack[i].y_rel;
 	int m_orig_angle = m_fp.m_padstack[i].angle;
@@ -1574,12 +1575,14 @@ void CFootprintView::OnPadEdit( int i )
 	}
 	m_fp.HighlightPad( i );
 	Invalidate( FALSE );
+#endif
 }
 
 // move pad, don't push undo, this will be done when move completed
 //
 void CFootprintView::OnPadMove( int i, int num )
 {
+#ifndef CPT2
 	// drag pad
 	CDC *pDC = GetDC();
 	pDC->SelectClipRgn( &m_pcb_rgn );
@@ -1597,6 +1600,7 @@ void CFootprintView::OnPadMove( int i, int num )
 	SetCursorMode( CUR_FP_DRAG_PAD );
 	Invalidate( FALSE );
 	ReleaseDC( pDC );
+#endif
 }
 
 
@@ -1604,14 +1608,15 @@ void CFootprintView::OnPadMove( int i, int num )
 //
 void CFootprintView::OnRefMove()
 {
+#ifndef CPT2
 	// move reference ID
 	CDC *pDC = GetDC();
 	pDC->SelectClipRgn( &m_pcb_rgn );
 	SetDCToWorldCoords( pDC );
 	// move cursor to ref
 	CPoint p;
-	p.x = m_fp.m_ref_xi;
-	p.y = m_fp.m_ref_yi;
+	p.x = m_fp.m_ref->m_x;
+	p.y = m_fp.m_ref->m_y;
 	CPoint cur_p = m_dlist->PCBToScreen( p );
 	SetCursorPos( cur_p.x, cur_p.y );
 	m_from_pt = p;							// CPT
@@ -1621,6 +1626,7 @@ void CFootprintView::OnRefMove()
 	SetCursorMode( CUR_FP_DRAG_REF );
 	ReleaseDC( pDC );
 	Invalidate( FALSE );
+#endif
 }
 
 // start adding board outline by dragging line for first side
@@ -1866,8 +1872,8 @@ void CFootprintView::OnRefProperties()
 	CDlgFpText dlg;
 	CString ref_str = "REF";
 	dlg.Initialize( FALSE, TRUE, &ref_str, m_fp.m_ref->m_layer, m_units, 
-		m_fp.m_ref_angle, m_fp.m_ref_size, m_fp.m_ref_w, 
-		m_fp.m_ref_xi, m_fp.m_ref_yi, TRUE );								// CPT:  forbid text height zero (last arg)
+		m_fp.m_ref->m_angle, m_fp.m_ref->m_font_size, m_fp.m_ref->m_stroke_width, 
+		m_fp.m_ref->m_x, m_fp.m_ref->m_y, TRUE );								// CPT:  forbid text height zero (last arg)
 	int ret = dlg.DoModal();
 	if( ret == IDOK )
 	{
@@ -1881,13 +1887,13 @@ void CFootprintView::OnRefProperties()
 			PushUndo();
 			m_fp.Undraw();
 			m_fp.m_ref->m_layer = dlg.m_layer;
-			m_fp.m_ref_xi = dlg.m_x;
-			m_fp.m_ref_yi = dlg.m_y;
-			m_fp.m_ref_angle = dlg.m_angle;
-			m_fp.m_ref_size = dlg.m_height;
-			m_fp.m_ref_w = dlg.m_width;
+			m_fp.m_ref->m_x = dlg.m_x;
+			m_fp.m_ref->m_y = dlg.m_y;
+			m_fp.m_ref->m_angle = dlg.m_angle;
+			m_fp.m_ref->m_font_size = dlg.m_height;
+			m_fp.m_ref->m_stroke_width = dlg.m_width;
 			m_fp.Draw( m_dlist, m_doc->m_smfontutil );
-			if( m_fp.m_ref_size )
+			if( dlg.m_height )
 			{
 				m_fp.m_ref->Highlight();
 				SetCursorMode( CUR_FP_REF_SELECTED );
@@ -1948,6 +1954,7 @@ void CFootprintView::OnPolylineSideConvertToArcCcw()
 
 void CFootprintView::OnAddPin()
 {
+#ifndef CPT2
 	PushUndo();
 	CDlgAddPin dlg;
 	dlg.InitDialog( &m_fp, CDlgAddPin::ADD, m_fp.GetNumPins() + 1, m_units );
@@ -1986,6 +1993,7 @@ void CFootprintView::OnAddPin()
 		}
 	}
 	Invalidate( FALSE );
+#endif
 }
 
 void CFootprintView::OnFootprintFileSaveAs()
@@ -2112,25 +2120,15 @@ void CFootprintView::OnFootprintFileImport()
 
 void CFootprintView::OnFootprintFileClose()
 {
-#ifndef CPT2
 	// set units
 	m_fp.m_units = m_units;
 
 	// reset selection rectangle
-	CRect br;
-	br.left = br.bottom = INT_MAX;
-	br.right = br.top = INT_MIN;
-	for( int ip=0; ip<m_fp.GetNumPins(); ip++ )
+	CRect br = m_fp.GetAllPadBounds();
+	citer<cpolyline> ip (&m_fp.m_outline_poly);
+	for (cpolyline *p = ip.First(); p; p = ip.Next())
 	{
-		CRect padr = m_fp.GetPadBounds( ip );
-		br.left = min( br.left, padr.left ); 
-		br.bottom = min( br.bottom, padr.bottom ); 
-		br.right = max( br.right, padr.right ); 
-		br.top = max( br.top, padr.top ); 
-	}
-	for( int ip=0; ip<m_fp.m_outline_poly.GetSize(); ip++ )
-	{
-		CRect polyr = m_fp.m_outline_poly[ip].GetBounds();
+		CRect polyr = p->GetBounds();
 		br.left = min( br.left, polyr.left ); 
 		br.bottom = min( br.bottom, polyr.bottom ); 
 		br.right = max( br.right, polyr.right ); 
@@ -2155,7 +2153,6 @@ void CFootprintView::OnFootprintFileClose()
 	ClearUndo();
 	ClearRedo();
 	theApp.OnViewPcbEditor();
-#endif
 }
 
 void CFootprintView::OnFootprintFileNew()
@@ -2219,8 +2216,10 @@ void CFootprintView::OnViewEntireFootprint()
 	CRect r, rRef, rVal;
 	r = m_fp.GetBounds();
 	// CPT:  better accounting for the ref-text and value boxes, which CShape::GetBounds() ignores
-	m_fp.m_ref->GetBounds(rRef);
-	m_fp.m_value->GetBounds(rVal);
+	m_fp.m_ref->GenerateStrokes();
+	rRef = m_fp.m_ref->m_br;
+	m_fp.m_value->GenerateStrokes();
+	rVal = m_fp.m_value->m_br;
 	r.left = min(r.left, rRef.left);
 	r.left = min(r.left, rVal.left);
 	r.right = max(r.right, rRef.right);
@@ -2424,6 +2423,7 @@ void CFootprintView::OnToolsFootprintLibraryManager()
 
 void CFootprintView::OnAddText()
 {
+#ifndef CPT2
 	CString str = "";
 	CDlgFpText dlg;
 	dlg.Initialize( TRUE, FALSE, NULL, LAY_FP_SILK_TOP, m_units, 0, 0, 0, 0, 0 );
@@ -2463,10 +2463,12 @@ void CFootprintView::OnAddText()
 			m_fp.m_tl->HighlightText( m_sel_text );
 		}
 	}
+#endif
 }
 
 void CFootprintView::OnFpTextEdit()
 {
+#ifndef CPT2
 	// create dialog and pass parameters
 	CDlgFpText dlg;
 	CString test_str = m_sel_text->m_str;
@@ -2500,11 +2502,13 @@ void CFootprintView::OnFpTextEdit()
 	else
 		Invalidate( FALSE );
 	FootprintModified( TRUE );
+#endif
 }
 
 // move text
 void CFootprintView::OnFpTextMove()
 {
+#ifndef CPT2
 	CDC *pDC = GetDC();
 	pDC->SelectClipRgn( &m_pcb_rgn );
 	SetDCToWorldCoords( pDC );
@@ -2521,16 +2525,19 @@ void CFootprintView::OnFpTextMove()
 	SetCursorMode( CUR_FP_DRAG_TEXT );
 	ReleaseDC( pDC );
 	Invalidate( FALSE );
+#endif
 }
 
 void CFootprintView::OnFpTextDelete()
 {
+#ifndef CPT2
 	PushUndo(); 
 	m_fp.m_tl->RemoveText( m_sel_text );
 	m_dlist->CancelHighlight();
 	SetCursorMode( CUR_FP_NONE_SELECTED );
 	FootprintModified( TRUE );
 	Invalidate( FALSE );
+#endif
 }
 
 // display active layer in status bar and change layer order for DisplayList
@@ -2628,7 +2635,7 @@ void CFootprintView::MoveOrigin( int x, int y )
 	m_fp.m_centroid_y -= y;
 	for( int ip=0; ip<m_fp.m_padstack.GetSize(); ip++ )
 	{
-		padstack * ps = &m_fp.m_padstack[ip];
+		cpadstack * ps = &m_fp.m_padstack[ip];
 		ps->x_rel -= x;
 		ps->y_rel -= y;
 	}
@@ -2676,7 +2683,7 @@ void CFootprintView::EnableRedo( BOOL bEnable )
 // CPT: providing a way to restore a "VALUE" that has been shrunk to size 0.  The menu item gets grayed or ungrayed depending on m_fp.m_value_size.
 void CFootprintView::EnableRevealValue( )
 {
-	bool bEnable = m_fp.m_value_size==0;
+	bool bEnable = m_fp.m_value->m_font_size==0;
 	CWnd* pMain = AfxGetMainWnd();
 	if (pMain != NULL)
 	{
@@ -2791,8 +2798,8 @@ void CFootprintView::OnValueEdit()
 	CDlgFpText dlg;
 	CString value_str ((LPCSTR) IDS_Value);
 	dlg.Initialize( FALSE, TRUE, &value_str, m_fp.m_value->m_layer, m_units, 
-		m_fp.m_value_angle, m_fp.m_value_size, m_fp.m_value_w, 
-		m_fp.m_value_xi, m_fp.m_value_yi );
+		m_fp.m_value->m_angle, m_fp.m_value->m_font_size, m_fp.m_value->m_stroke_width, 
+		m_fp.m_value->m_x, m_fp.m_value->m_y );
 	int ret = dlg.DoModal();
 	if( ret == IDOK )
 	{
@@ -2806,14 +2813,14 @@ void CFootprintView::OnValueEdit()
 			PushUndo();
 			m_fp.Undraw();
 			m_fp.m_value->m_layer = dlg.m_layer;
-			m_fp.m_value->m_mirror = dlg.m_layer==LAY_FP_SILK_BOTTOM || dlg.m_layer==LAY_FP_BOTTOM_COPPER;
-			m_fp.m_value_xi = dlg.m_x;
-			m_fp.m_value_yi = dlg.m_y;
-			m_fp.m_value_angle = dlg.m_angle;
-			m_fp.m_value_size = dlg.m_height;
-			m_fp.m_value_w = dlg.m_width;
+			m_fp.m_value->m_bMirror = dlg.m_layer==LAY_FP_SILK_BOTTOM || dlg.m_layer==LAY_FP_BOTTOM_COPPER;
+			m_fp.m_value->m_x = dlg.m_x;
+			m_fp.m_value->m_y = dlg.m_y;
+			m_fp.m_value->m_angle = dlg.m_angle;
+			m_fp.m_value->m_font_size = dlg.m_height;
+			m_fp.m_value->m_stroke_width = dlg.m_width;
 			m_fp.Draw( m_dlist, m_doc->m_smfontutil );
-			if( m_fp.m_value_size )
+			if( dlg.m_height )
 			{
 				m_fp.m_value->Highlight();
 				SetCursorMode( CUR_FP_VALUE_SELECTED );
@@ -2829,13 +2836,14 @@ void CFootprintView::OnValueEdit()
 
 void CFootprintView::OnValueMove()
 {
+#ifndef CPT2
 	CDC *pDC = GetDC();
 	pDC->SelectClipRgn( &m_pcb_rgn );
 	SetDCToWorldCoords( pDC );
 	// move cursor to ref
 	CPoint p;
-	p.x = m_fp.m_value_xi;
-	p.y = m_fp.m_value_yi;
+	p.x = m_fp.m_value->m_x;
+	p.y = m_fp.m_value->m_y;
 	m_from_pt = p;						// CPT
 	CPoint cur_p = m_dlist->PCBToScreen( p );
 	SetCursorPos( cur_p.x, cur_p.y );
@@ -2846,6 +2854,7 @@ void CFootprintView::OnValueMove()
 	SetCursorMode( CUR_FP_DRAG_VALUE );
 	ReleaseDC( pDC );
 	Invalidate( FALSE );
+#endif
 }
 
 void CFootprintView::OnValueReveal()

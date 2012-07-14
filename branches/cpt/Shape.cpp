@@ -18,14 +18,14 @@ CString ws( int n, int units )
 }
  
 
-// class pad
-pad::pad()
+// class cpad  (Renamed by CPT2, was "pad")
+cpad::cpad()
 {
 	radius = 0;
 	connect_flag = 0;
 }
 
-BOOL pad::operator==(pad p)
+BOOL cpad::operator==(cpad p)
 { 
 	return( shape==p.shape 
 			&& size_l==p.size_l 
@@ -36,8 +36,9 @@ BOOL pad::operator==(pad p)
 			); 
 }
 
-// class padstack
-padstack::padstack()
+// class cpadstack  (Renamed by CPT2, was "padstack")
+cpadstack::cpadstack(CFreePcbDoc *_doc)
+	: cpcb_item (_doc)
 { 
 	exists = FALSE;
 	top_mask.shape = PAD_DEFAULT;
@@ -47,7 +48,7 @@ padstack::padstack()
 	bottom_paste.shape = PAD_DEFAULT;
 }
 
-BOOL padstack::operator==(padstack p)
+BOOL cpadstack::operator==(cpadstack p)
 { 
 	return( name == p.name
 			&& angle==p.angle 
@@ -64,20 +65,72 @@ BOOL padstack::operator==(padstack p)
 			); 
 }
 
+void cpadstack::Highlight()
+{
+	// select it by making its selection rectangle visible
+	CDisplayList *dl = doc->m_dlist;
+	dl->Highlight( DL_RECT_X, 
+		dl->Get_x(dl_sel), dl->Get_y(dl_sel),
+		dl->Get_xf(dl_sel), dl->Get_yf(dl_sel), 
+		1 );
+}
+
+
+// Get bounding rectangle of pad
+//
+CRect cpadstack::GetBounds()
+{
+	CRect r;
+	int dx=0, dy=0;
+	cpad * p = &top;
+	if( top.shape == PAD_NONE && bottom.shape != PAD_NONE )
+		p = &bottom;
+	if( p->shape == PAD_NONE )
+	{
+		{
+			dx = hole_size/2;
+			dy = dx;
+		}
+	}
+	else if( p->shape == PAD_SQUARE || p->shape == PAD_ROUND || p->shape == PAD_OCTAGON )
+	{
+		dx = p->size_h/2;
+		dy = dx;
+	}
+	else if( p->shape == PAD_RECT || p->shape == PAD_RRECT || p->shape == PAD_OVAL )
+	{
+		if( angle == 0 || angle == 180 )
+		{
+			dx = p->size_l;
+			dy = p->size_h/2;
+		}
+		else if( angle == 90 || angle == 270 )
+		{
+			dx = p->size_h/2;
+			dy = p->size_l;
+		}
+		else
+			ASSERT(0);	// illegal angle
+	}
+	r.left = x_rel - dx;
+	r.right = x_rel + dx;
+	r.bottom = y_rel - dy;
+	r.top = y_rel + dy;
+	return r;
+}
+
 // class CShape
 // this constructor creates an empty shape
+// CPT2 converted
 //
 CShape::CShape(CFreePcbDoc *doc)
 {
 	m_doc = doc;
-	m_tl = new CTextList;	
-	m_tl->SetIDType( ID_FP, ID_FP_TXT );
 	CString strRef ("REF");
-	m_ref = new CText(0, 0, 0, 0, 0, false, LAY_FP_SILK_TOP, 0, 0, 0, &strRef, 
-		ID_FP, ID_REF_TXT);
+	m_ref = new ctext(doc, 0, 0, 0, false, false, LAY_FP_SILK_TOP, 0, 0, 0, &strRef); 
 	CString strValue ("VALUE");
-	m_value = new CText(0, 0, 0, 0, 0, false, LAY_FP_SILK_TOP, 0, 0, 0, &strValue, 
-		ID_FP, ID_VALUE_TXT);
+	m_value = new ctext(doc, 0, 0, 0, false, false, LAY_FP_SILK_TOP, 0, 0, 0, &strValue);
+	m_tl = new ctextlist(doc);
 	Clear();
 } 
 
@@ -93,6 +146,7 @@ CShape::~CShape()
 
 void CShape::Clear()
 {
+	// CPT2 converted
 	m_name = "EMPTY_SHAPE";
 	m_author = "";
 	m_source = "";
@@ -100,23 +154,13 @@ void CShape::Clear()
 	m_units = MIL;
 	m_sel_xi = m_sel_yi = 0;
 	m_sel_xf = m_sel_yf = 500*NM_PER_MIL;
-	m_ref_size = 100*NM_PER_MIL;
-	m_ref_xi = 100*NM_PER_MIL;
-	m_ref_yi = 200*NM_PER_MIL;
-	m_ref_angle = 0;
-	m_ref_w = 10*NM_PER_MIL;
-	m_ref->Move(m_ref_xi, m_ref_yi, m_ref_angle, false, false, LAY_FP_SILK_TOP, m_ref_size, m_ref_w);
-	m_value_size = 100*NM_PER_MIL;		
-	m_value_xi = 100*NM_PER_MIL;
-	m_value_yi = 0;
-	m_value_angle = 0;
-	m_value_w = 10*NM_PER_MIL;
-	m_value->Move(m_value_xi, m_value_yi, m_value_angle, false, false, LAY_FP_SILK_TOP, m_value_size, m_value_w);
+	m_ref->Move(100*NM_PER_MIL, 200*NM_PER_MIL, 0, false, false, LAY_FP_SILK_TOP, 100*NM_PER_MIL, 10*NM_PER_MIL);
+	m_value->Move(100*NM_PER_MIL, 200*NM_PER_MIL, 0, false, false, LAY_FP_SILK_TOP, 100*NM_PER_MIL, 10*NM_PER_MIL);
 	m_centroid_type = CENTROID_DEFAULT;
 	m_centroid_x = 0;
 	m_centroid_y = 0;
 	m_centroid_angle = 0;
-	m_padstack.SetSize(0);
+	m_padstack.RemoveAll();
 	m_outline_poly.RemoveAll();
 	m_tl->RemoveAllTexts();
 	m_glue.SetSize(0);
@@ -1116,6 +1160,7 @@ int CShape::MakeFromFile( CStdioFile * in_file, CString name,
 	BOOL bRef = FALSE;
 	int n_glue = 0;
 	cpolyline *currPoly = NULL;			// CPT2
+	cpadstack *currPs = NULL;
 
 	p.SetSize( 10 );
 	// if in_file exists, use it, otherwise open file
@@ -1252,28 +1297,30 @@ int CShape::MakeFromFile( CStdioFile * in_file, CString name,
 			}
 			else if( key_str == "ref_text" && np >= 6 )
 			{
-				m_ref_size = GetDimensionFromString( &p[0], m_units);
-				m_ref_xi = GetDimensionFromString( &p[1], m_units);
-				m_ref_yi = GetDimensionFromString( &p[2], m_units);
-				m_ref_angle = my_atoi( &p[3] ); 
-				m_ref_w = GetDimensionFromString( &p[4], m_units);
-				if( np >= 7 )
-					m_ref->m_layer = my_atoi( &p[5] );
-				if( m_ref->m_layer < 4 )
-					m_ref->m_layer = 4;
+				int size = GetDimensionFromString( &p[0], m_units);
+				int xi = GetDimensionFromString( &p[1], m_units);
+				int yi = GetDimensionFromString( &p[2], m_units);
+				int angle = my_atoi( &p[3] ); 
+				int w = GetDimensionFromString( &p[4], m_units);
+				int layer = np>=7? my_atoi( &p[5] ): 4;
+				if( layer < 4 )
+					layer = 4;
+				bool bMirror = layer==LAY_FP_SILK_BOTTOM || layer==LAY_FP_BOTTOM_COPPER;
+				m_ref->Move(xi, yi, angle, bMirror, false, layer, size, w);
 				bRef = TRUE;
 			}
 			else if( key_str == "value_text" && np >= 6 )
 			{
-				m_value_size = GetDimensionFromString( &p[0], m_units);
-				m_value_xi = GetDimensionFromString( &p[1], m_units);
-				m_value_yi = GetDimensionFromString( &p[2], m_units);
-				m_value_angle = my_atoi( &p[3] ); 
-				m_value_w = GetDimensionFromString( &p[4], m_units);
-				if( np >= 7 )
-					m_value->m_layer = my_atoi( &p[5] );
-				if( m_value->m_layer < 4 )
-					m_value->m_layer = 4;
+				int size = GetDimensionFromString( &p[0], m_units);
+				int xi = GetDimensionFromString( &p[1], m_units);
+				int yi = GetDimensionFromString( &p[2], m_units);
+				int angle = my_atoi( &p[3] ); 
+				int w = GetDimensionFromString( &p[4], m_units);
+				int layer = np>=7? my_atoi( &p[5] ): 4;
+				if( layer < 4 )
+					layer = 4;
+				bool bMirror = layer==LAY_FP_SILK_BOTTOM || layer==LAY_FP_BOTTOM_COPPER;
+				m_value->Move(xi, yi, angle, bMirror, false, layer, size, w);
 				bValue = TRUE;
 			}
 			else if( key_str == "centroid" && np >= 4 )
@@ -1312,7 +1359,7 @@ int CShape::MakeFromFile( CStdioFile * in_file, CString name,
 				}
 				if( np >= 10 )
 					bNegative = my_atoi( &p[8] );
-				CText * t = m_tl->AddText( x, y, angle, mirror, bNegative, layer, font_size, stroke_w, &p[0], FALSE );
+				m_tl->AddText(x, y, angle, mirror, bNegative, layer, font_size, stroke_w, &p[0]);  
 			}
 			else if( (key_str == "outline_polygon" || key_str == "outline_polyline")
 				&& np >= 4 )
@@ -1352,7 +1399,6 @@ int CShape::MakeFromFile( CStdioFile * in_file, CString name,
 			else if( key_str == "n_pins" && np >= 2 )
 			{
 				num_pins = my_atoi( &p[0] );
-				m_padstack.SetSize( 0 );
 			}
 			else if( key_str == "pin" && np >= 6 )
 			{
@@ -1364,116 +1410,113 @@ int CShape::MakeFromFile( CStdioFile * in_file, CString name,
 					AfxMessageBox( mess );
 					pin_name = pin_name.Left(MAX_PIN_NAME_SIZE);
 				}
-				ipin = m_padstack.GetSize();
-				m_padstack.SetSize( ipin+1 );
-				if( ipin >= num_pins )
-				{
-					if( !in_file )
-						delete file;
-					return 3;
-				}
-				m_padstack[ipin].name = pin_name; 
-				m_padstack[ipin].hole_size = GetDimensionFromString( &p[1], m_units); 
-				m_padstack[ipin].x_rel = GetDimensionFromString( &p[2], m_units); 
-				m_padstack[ipin].y_rel = GetDimensionFromString( &p[3], m_units); 
-				m_padstack[ipin].angle = my_atoi( &p[4] );	
+				cpadstack *ps = new cpadstack(m_doc);
+				ps->name = pin_name; 
+				ps->hole_size = GetDimensionFromString( &p[1], m_units); 
+				ps->x_rel = GetDimensionFromString( &p[2], m_units); 
+				ps->y_rel = GetDimensionFromString( &p[3], m_units); 
+				ps->angle = my_atoi( &p[4] );
+				m_padstack.Add(ps);
+				currPs = ps;
 			}
 			else if( key_str == "top_pad" && np >= 5 )
 			{
-				pad * test_pad = &m_padstack[ipin].top;
-				if( test_pad->connect_flag != 0 )
-					ASSERT(0);
-				m_padstack[ipin].top.shape = my_atoi( &p[0] ); 
-				m_padstack[ipin].top.size_h = GetDimensionFromString( &p[1], m_units); 
-				m_padstack[ipin].top.size_l = GetDimensionFromString( &p[2], m_units); 
-				m_padstack[ipin].top.size_r = GetDimensionFromString( &p[3], m_units);
+				cpad * pad = &currPs->top;
+				ASSERT( pad->connect_flag == 0 );
+				pad->shape = my_atoi( &p[0] ); 
+				pad->size_h = GetDimensionFromString( &p[1], m_units); 
+				pad->size_l = GetDimensionFromString( &p[2], m_units); 
+				pad->size_r = GetDimensionFromString( &p[3], m_units);
 				if( np >= 6 )
 				{
-					m_padstack[ipin].top.radius = GetDimensionFromString( &p[4], m_units);
-					int rad_min = min( m_padstack[ipin].top.size_h/2, m_padstack[ipin].top.size_l );
-					m_padstack[ipin].top.radius = min( m_padstack[ipin].top.radius, rad_min );
+					pad->radius = GetDimensionFromString( &p[4], m_units);
+					int rad_min = min( pad->size_h/2, pad->size_l );
+					pad->radius = max( pad->radius, rad_min );
 				}
 				if( np >= 7 )
-					m_padstack[ipin].top.connect_flag = my_atoi( &p[5] );
+					pad->connect_flag = my_atoi( &p[5] );
 			}
 			else if( key_str == "top_mask" && np >= 6 )
 			{
-				m_padstack[ipin].top_mask.shape = my_atoi( &p[0] ); 
-				if( m_padstack[ipin].top_mask.shape > (PAD_DEFAULT - 50) )
-					m_padstack[ipin].top_mask.shape = PAD_DEFAULT; 
-				m_padstack[ipin].top_mask.size_h = GetDimensionFromString( &p[1], m_units); 
-				m_padstack[ipin].top_mask.size_l = GetDimensionFromString( &p[2], m_units); 
-				m_padstack[ipin].top_mask.size_r = GetDimensionFromString( &p[3], m_units);
-				m_padstack[ipin].top_mask.radius = GetDimensionFromString( &p[4], m_units);
-				int rad_min = min( m_padstack[ipin].top_mask.size_h/2, m_padstack[ipin].top_mask.size_l );
-				m_padstack[ipin].top_mask.radius = min( m_padstack[ipin].top_mask.radius, rad_min );
+				cpad *pad = &currPs->top_mask;
+				pad->shape = my_atoi( &p[0] ); 
+				if( pad->shape > (PAD_DEFAULT - 50) )
+					pad->shape = PAD_DEFAULT; 
+				pad->size_h = GetDimensionFromString( &p[1], m_units); 
+				pad->size_l = GetDimensionFromString( &p[2], m_units); 
+				pad->size_r = GetDimensionFromString( &p[3], m_units);
+				pad->radius = GetDimensionFromString( &p[4], m_units);
+				int rad_min = min( pad->size_h/2, pad->size_l );
+				pad->radius = max( pad->radius, rad_min );
 			}
 			else if( key_str == "top_paste" && np >= 6 )
 			{
-				m_padstack[ipin].top_paste.shape = my_atoi( &p[0] ); 
-				if( m_padstack[ipin].top_paste.shape > (PAD_DEFAULT - 50) )
-					m_padstack[ipin].top_paste.shape = PAD_DEFAULT; 
-				m_padstack[ipin].top_paste.size_h = GetDimensionFromString( &p[1], m_units); 
-				m_padstack[ipin].top_paste.size_l = GetDimensionFromString( &p[2], m_units); 
-				m_padstack[ipin].top_paste.size_r = GetDimensionFromString( &p[3], m_units);
-				m_padstack[ipin].top_paste.radius = GetDimensionFromString( &p[4], m_units);
-				int rad_min = min( m_padstack[ipin].top_paste.size_h/2, m_padstack[ipin].top_paste.size_l );
-				m_padstack[ipin].top_paste.radius = min( m_padstack[ipin].top_paste.radius, rad_min );
+				cpad *pad = &currPs->top_paste;
+				pad->shape = my_atoi( &p[0] ); 
+				if( pad->shape > (PAD_DEFAULT - 50) )
+					pad->shape = PAD_DEFAULT; 
+				pad->size_h = GetDimensionFromString( &p[1], m_units); 
+				pad->size_l = GetDimensionFromString( &p[2], m_units); 
+				pad->size_r = GetDimensionFromString( &p[3], m_units);
+				pad->radius = GetDimensionFromString( &p[4], m_units);
+				int rad_min = min( pad->size_h/2, pad->size_l );
+				pad->radius = max( pad->radius, rad_min );
 			}
 			else if( key_str == "inner_pad" && np >= 7 )
 			{
-				m_padstack[ipin].inner.shape = my_atoi( &p[0] ); 
-				m_padstack[ipin].inner.size_h = GetDimensionFromString( &p[1], m_units); 
-				m_padstack[ipin].inner.size_l = GetDimensionFromString( &p[2], m_units); 
-				m_padstack[ipin].inner.size_r = GetDimensionFromString( &p[3], m_units);
-				m_padstack[ipin].inner.radius = GetDimensionFromString( &p[4], m_units);
-				int rad_min = min( m_padstack[ipin].inner.size_h/2, m_padstack[ipin].inner.size_l );
-				m_padstack[ipin].inner.radius = min( m_padstack[ipin].inner.radius, rad_min );
-				m_padstack[ipin].inner.connect_flag = my_atoi( &p[5] );
+				cpad *pad = &currPs->inner;
+				pad->shape = my_atoi( &p[0] ); 
+				if( pad->shape > (PAD_DEFAULT - 50) )
+					pad->shape = PAD_DEFAULT; 
+				pad->size_h = GetDimensionFromString( &p[1], m_units); 
+				pad->size_l = GetDimensionFromString( &p[2], m_units); 
+				pad->size_r = GetDimensionFromString( &p[3], m_units);
+				pad->radius = GetDimensionFromString( &p[4], m_units);
+				int rad_min = min( pad->size_h/2, pad->size_l );
+				pad->radius = max( pad->radius, rad_min );
 			}
 			else if( key_str == "bottom_pad" && np >= 5 )
 			{
-				m_padstack[ipin].bottom.shape = my_atoi( &p[0] ); 
-				m_padstack[ipin].bottom.size_h = GetDimensionFromString( &p[1], m_units); 
-				m_padstack[ipin].bottom.size_l = GetDimensionFromString( &p[2], m_units); 
-				m_padstack[ipin].bottom.size_r = GetDimensionFromString( &p[3], m_units);
+				cpad * pad = &currPs->bottom;
+				ASSERT( pad->connect_flag == 0 );
+				pad->shape = my_atoi( &p[0] ); 
+				pad->size_h = GetDimensionFromString( &p[1], m_units); 
+				pad->size_l = GetDimensionFromString( &p[2], m_units); 
+				pad->size_r = GetDimensionFromString( &p[3], m_units);
 				if( np >= 6 )
 				{
-					m_padstack[ipin].bottom.radius = GetDimensionFromString( &p[4], m_units);
-					int rad_min = min( m_padstack[ipin].bottom.size_h/2, m_padstack[ipin].bottom.size_l );
-					m_padstack[ipin].bottom.radius = min( m_padstack[ipin].bottom.radius, rad_min );
+					pad->radius = GetDimensionFromString( &p[4], m_units);
+					int rad_min = min( pad->size_h/2, pad->size_l );
+					pad->radius = max( pad->radius, rad_min );
 				}
 				if( np >= 7 )
-					m_padstack[ipin].bottom.connect_flag = my_atoi( &p[5] );
+					pad->connect_flag = my_atoi( &p[5] );
 			}
 			else if( key_str == "bottom_mask" && np >= 6 )
 			{
-				m_padstack[ipin].bottom_mask.shape = my_atoi( &p[0] ); 
-				if( m_padstack[ipin].bottom_mask.shape > (PAD_DEFAULT - 50) )
-					m_padstack[ipin].bottom_mask.shape = PAD_DEFAULT; 
-				m_padstack[ipin].bottom_mask.size_h = GetDimensionFromString( &p[1], m_units); 
-				m_padstack[ipin].bottom_mask.size_l = GetDimensionFromString( &p[2], m_units); 
-				m_padstack[ipin].bottom_mask.size_r = GetDimensionFromString( &p[3], m_units);
-				m_padstack[ipin].bottom_mask.radius = GetDimensionFromString( &p[4], m_units);
-				int rad_min = min( m_padstack[ipin].bottom_mask.size_h/2, m_padstack[ipin].bottom_mask.size_l );
-				m_padstack[ipin].bottom_mask.radius = min( m_padstack[ipin].bottom_mask.radius, rad_min );
+				cpad *pad = &currPs->bottom_mask;
+				pad->shape = my_atoi( &p[0] ); 
+				if( pad->shape > (PAD_DEFAULT - 50) )
+					pad->shape = PAD_DEFAULT; 
+				pad->size_h = GetDimensionFromString( &p[1], m_units); 
+				pad->size_l = GetDimensionFromString( &p[2], m_units); 
+				pad->size_r = GetDimensionFromString( &p[3], m_units);
+				pad->radius = GetDimensionFromString( &p[4], m_units);
+				int rad_min = min( pad->size_h/2, pad->size_l );
+				pad->radius = max( pad->radius, rad_min );
 			}
 			else if( key_str == "bottom_paste" && np >= 6 )
 			{
-				m_padstack[ipin].bottom_paste.shape = my_atoi( &p[0] ); 
-				if( m_padstack[ipin].bottom_paste.shape > (PAD_DEFAULT - 50) )
-					m_padstack[ipin].bottom_paste.shape = PAD_DEFAULT; 
-				m_padstack[ipin].bottom_paste.size_h = GetDimensionFromString( &p[1], m_units); 
-				m_padstack[ipin].bottom_paste.size_l = GetDimensionFromString( &p[2], m_units); 
-				m_padstack[ipin].bottom_paste.size_r = GetDimensionFromString( &p[3], m_units);
-				m_padstack[ipin].bottom_paste.radius = GetDimensionFromString( &p[4], m_units);
-				int rad_min = min( m_padstack[ipin].bottom_paste.size_h/2, m_padstack[ipin].bottom_paste.size_l );
-				m_padstack[ipin].bottom_paste.radius = min( m_padstack[ipin].bottom_paste.radius, rad_min );
-			}
-			else
-			{
-				// for testing
-				// AfxMessageBox( "unidentified keyword in footprint definition" );
+				cpad *pad = &currPs->bottom_paste;
+				pad->shape = my_atoi( &p[0] ); 
+				if( pad->shape > (PAD_DEFAULT - 50) )
+					pad->shape = PAD_DEFAULT; 
+				pad->size_h = GetDimensionFromString( &p[1], m_units); 
+				pad->size_l = GetDimensionFromString( &p[2], m_units); 
+				pad->size_r = GetDimensionFromString( &p[3], m_units);
+				pad->radius = GetDimensionFromString( &p[4], m_units);
+				int rad_min = min( pad->size_h/2, pad->size_l );
+				pad->radius = max( pad->radius, rad_min );
 			}
 			line_num++;
 		}
@@ -1499,11 +1542,6 @@ normal_return:
 		}
 		if( !bValue )
 			GenerateValueParams();
-		// CPT:  accounted for ref and value-text layers (and mirroring)
-		bool bMirror = m_ref->m_layer==LAY_FP_SILK_BOTTOM || m_ref->m_layer==LAY_FP_BOTTOM_COPPER;
-		m_ref->Move(m_ref_xi, m_ref_yi, m_ref_angle, bMirror, false, m_ref->m_layer, m_ref_size, m_ref_w);
-		bMirror = m_value->m_layer==LAY_FP_SILK_BOTTOM || m_value->m_layer==LAY_FP_BOTTOM_COPPER;
-		m_value->Move(m_value_xi, m_value_yi, m_value_angle, bMirror, false, m_value->m_layer, m_value_size, m_value_w);
 		return 0;
 	}
 
@@ -1525,71 +1563,70 @@ normal_return:
 	}
 }
 
-// copy another shape into this shape,
-// replacing uids with new ones
+// copy another shape into this shape.
+// CPT2 converted after changing CShape members a bit.  Ensures that copies all have correct CFreePcbDoc pointers.
 //
-int CShape::Copy( CShape * shape )
+void CShape::Copy( CShape * src )
 {
-#ifndef CPT2
+	m_doc = src->m_doc;				// CPT2
+	if (!m_doc) 
+	{
+		CMainFrame * pMainWnd = (CMainFrame*)AfxGetMainWnd();
+		m_doc = (CFreePcbDoc*)pMainWnd->GetActiveDocument();
+	}
+
 	// description
-	m_name = shape->m_name;
-	m_author = shape->m_author;
-	m_source = shape->m_source;
-	m_desc = shape->m_desc;
-	m_units = shape->m_units;
+	m_name = src->m_name;
+	m_author = src->m_author;
+	m_source = src->m_source;
+	m_desc = src->m_desc;
+	m_units = src->m_units;
 	// selection box
-	m_sel_xi = shape->m_sel_xi;
-	m_sel_yi = shape->m_sel_yi;
-	m_sel_xf = shape->m_sel_xf;
-	m_sel_yf = shape->m_sel_yf;
+	m_sel_xi = src->m_sel_xi;
+	m_sel_yi = src->m_sel_yi;
+	m_sel_xf = src->m_sel_xf;
+	m_sel_yf = src->m_sel_yf;
 	// reference designator text
-	m_ref_size = shape->m_ref_size;
-	m_ref_w = shape->m_ref_w;
-	m_ref_xi = shape->m_ref_xi;
-	m_ref_yi = shape->m_ref_yi;
-	m_ref_angle = shape->m_ref_angle;
-	m_ref->m_layer = shape->m_ref->m_layer;
-	m_ref->Move(m_ref_xi, m_ref_yi, m_ref_angle, m_ref_size, m_ref_w);
+	m_ref->Copy( src->m_ref );
+	m_ref->doc = m_doc;
 	// value text
-	m_value_size = shape->m_value_size;
-	m_value_w = shape->m_value_w;
-	m_value_xi = shape->m_value_xi;
-	m_value_yi = shape->m_value_yi;
-	m_value_angle = shape->m_value_angle;
-	m_value->m_layer = shape->m_value->m_layer;
-	m_value->Move(m_value_xi, m_value_yi, m_value_angle, m_value_size, m_value_w);
-	// centroid
-	m_centroid_type = shape->m_centroid_type;
-	m_centroid_x = shape->m_centroid_x;
-	m_centroid_y = shape->m_centroid_y;
-	m_centroid_angle = shape->m_centroid_angle;
+	m_value->Copy( src->m_value );
+	m_value->doc = m_doc;
+	// centroid.  TODO change to ccentroid object
+	m_centroid_type = src->m_centroid_type;
+	m_centroid_x = src->m_centroid_x;
+	m_centroid_y = src->m_centroid_y;
+	m_centroid_angle = src->m_centroid_angle;
 	// padstacks
 	m_padstack.RemoveAll();
-	int np = shape->m_padstack.GetSize();
-	m_padstack.SetSize( np );
-	for( int i=0; i<np; i++ )
-		m_padstack[i] = shape->m_padstack[i];
+	citer<cpadstack> ips (&src->m_padstack);
+	for (cpadstack *ps = ips.First(); ps; ps = ips.Next())
+	{
+		cpadstack *ps2 = new cpadstack(*ps);
+		ps2->doc = m_doc;
+		m_padstack.Add( ps2 );
+	}
 	// outline polys
 	m_outline_poly.RemoveAll();
-	np = shape->m_outline_poly.GetSize();
-	m_outline_poly.SetSize(np);
-	for( int ip=0; ip<np; ip++ )
-		m_outline_poly[ip].Copy( &shape->m_outline_poly[ip] );
-	// text
-	m_tl->RemoveAllTexts();
-	for( int it=0; it<shape->m_tl->text_ptr.GetSize(); it++ )
+	citer<cpolyline> ip (&src->m_outline_poly);
+	for (cpolyline *p = ip.First(); p; p = ip.Next())
 	{
-		CText * t = shape->m_tl->text_ptr[it];
-		CText * new_t = m_tl->AddText( t->m_x, t->m_y, t->m_angle, t->m_mirror, t->m_bNegative, 
-			t->m_layer, t->m_font_size, t->m_stroke_width, &t->m_str, FALSE );
+		cpolyline *p2 = new cpolyline(p);
+		p2->doc = m_doc;
+		m_outline_poly.Add(p2);
 	}
-	// glue spots
-	int nd = shape->m_glue.GetSize();
+	// texts
+	m_tl->RemoveAllTexts();
+	m_tl->m_doc = m_doc;
+	citer<ctext> it (&src->m_tl->texts);
+	for (ctext *t = it.First(); t; t = it.Next())
+		m_tl->AddText( t->m_x, t->m_y, t->m_angle, t->m_bMirror, t->m_bNegative, 
+			t->m_layer, t->m_font_size, t->m_stroke_width, &t->m_str );
+	// glue spots.  CPT2 TODO will change to cadhesive objects presumably.
+	int nd = src->m_glue.GetSize();
 	m_glue.SetSize( nd );
 	for( int id=0; id<nd; id++ )
-		m_glue[id] = shape->m_glue[id];
-#endif
-	return PART_NOERR;
+		m_glue[id] = src->m_glue[id];
 }
 
 BOOL CShape::Compare( CShape * shape )
@@ -1674,6 +1711,7 @@ int CShape::GetNumPins()
 	return m_padstack.GetSize();
 }
 
+/* CPT2 deprecated
 int CShape::GetPinIndexByName( LPCTSTR name )
 {	
 	for( int ip=0; ip<m_padstack.GetSize(); ip++ )
@@ -1683,19 +1721,23 @@ int CShape::GetPinIndexByName( LPCTSTR name )
 	}
 	return -1;		// error
 }
+*/
 
-padstack *CShape::GetPadstackByName( CString *name )
+cpadstack *CShape::GetPadstackByName( CString *name )
 {
-	for (int ip=0; ip<m_padstack.GetSize(); ip++)
-		if (m_padstack[ip].name == *name)
-			return &m_padstack[ip];
+	citer<cpadstack> ips (&m_padstack);
+	for (cpadstack *ps = ips.First(); ps; ps = ips.Next())
+		if (ps->name == *name)
+			return ps;
 	return NULL;
 }
 
+/* CPT2 deprecated
 CString CShape::GetPinNameByIndex( int ip )
 {
 	return m_padstack[ip].name;
 }
+*/
 
 // write one footprint
 //
@@ -1789,7 +1831,7 @@ int CShape::WriteFootprint( CStdioFile * file )
 		file->WriteString( line );
 		for( int ip=0; ip<m_padstack.GetSize(); ip++ )
 		{
-			padstack * p = &(m_padstack[ip]);
+			cpadstack * p = &(m_padstack[ip]);
 			line.Format( "    pin: \"%s\" %s %s %s %d\n",
 				p->name, ws(p->hole_size,m_units), ws(p->x_rel,m_units), ws(p->y_rel,m_units), p->angle ); 
 			file->WriteString( line );
@@ -1881,10 +1923,10 @@ int CShape::WriteFootprint( CStdioFile * file )
 }
 
 // create metafile and draw footprint into it
+// CPT2 converted
 //
 HENHMETAFILE CShape::CreateMetafile( CMetaFileDC * mfDC, CDC * pDC, CRect const &window, CString ref, int bDrawSelectionRect )
 {
-#ifndef CPT2
 	int x_size = window.Width();
 	int y_size = window.Height();
 
@@ -1892,11 +1934,11 @@ HENHMETAFILE CShape::CreateMetafile( CMetaFileDC * mfDC, CDC * pDC, CRect const 
 	// of the drawing that occurs later in the routine as well...
 	CRect r = GetBounds(), rRef;
 	// Account for the ref-text bounds also (which GetBounds() didn't do)
-	m_ref->GetBounds(rRef);
-	r.left = min(r.left, rRef.left);
-	r.right = max(r.right, rRef.right);
-	r.bottom = min(r.bottom, rRef.bottom);
-	r.top = max(r.top, rRef.top);
+	m_ref->GenerateStrokes();
+	r.left = min(r.left, m_ref->m_br.left);
+	r.right = max(r.right, m_ref->m_br.right);
+	r.bottom = min(r.bottom, m_ref->m_br.bottom);
+	r.top = max(r.top, m_ref->m_br.top);
 
 	// convert to mils
 	int x_min = r.left/NM_PER_MIL;
@@ -1964,21 +2006,23 @@ HENHMETAFILE CShape::CreateMetafile( CMetaFileDC * mfDC, CDC * pDC, CRect const 
 	// iterate twice to draw top copper over bottom copper
 	for( int ipass=0; ipass<2; ipass++ )
 	{
-		for( int ip=0; ip<m_padstack.GetSize(); ip++ )
+		citer<cpadstack> ips (&m_padstack);
+		for (cpadstack *ps = ips.First(); ps; ps = ips.Next())
 		{
-			int x = m_padstack[ip].x_rel/NM_PER_MIL;
-			int y = m_padstack[ip].y_rel/NM_PER_MIL;
-			int angle = m_padstack[ip].angle;
-			int hole_size = m_padstack[ip].hole_size/NM_PER_MIL;
-			pad * p = &m_padstack[ip].top;
-			if( m_padstack[ip].top.shape == PAD_NONE && m_padstack[ip].bottom.shape != PAD_NONE )
-				p = &m_padstack[ip].bottom;
+			int x = ps->x_rel/NM_PER_MIL;
+			int y = ps->y_rel/NM_PER_MIL;
+			int angle = ps->angle;
+			int hole_size = ps->hole_size/NM_PER_MIL;
+			// CPT2 TODO.  Check that the following is right, maybe make it less confusing?
+			cpad * p = &ps->top;
+			if( ps->top.shape == PAD_NONE && ps->bottom.shape != PAD_NONE )
+				p = &ps->bottom;
 			int p_x_min, p_x_max, p_y_min, p_y_max;
 			if( hole_size && ipass == 0 )
 				continue;
-			if( p == &m_padstack[ip].top && ipass == 0 )
+			if( p == &ps->top && ipass == 0 )
 				continue;
-			if( p == &m_padstack[ip].bottom && ipass == 1 )
+			if( p == &ps->bottom && ipass == 1 )
 				continue;
 			if( hole_size )
 			{
@@ -1987,7 +2031,7 @@ HENHMETAFILE CShape::CreateMetafile( CMetaFileDC * mfDC, CDC * pDC, CRect const 
 			}
 			else
 			{
-				if( p == &m_padstack[ip].top )
+				if( p == &ps->top )
 				{
 					mfDC->SelectObject( &SMT_pad_pen );
 					mfDC->SelectObject( &SMT_pad_brush );
@@ -2139,165 +2183,65 @@ HENHMETAFILE CShape::CreateMetafile( CMetaFileDC * mfDC, CDC * pDC, CRect const 
 	}
 
 	// draw part outline
-	for( int ip=0; ip<m_outline_poly.GetSize(); ip++ )
+	citer<cpolyline> ip (&m_outline_poly);
+	for (cpolyline *p = ip.First(); p; p = ip.Next())
 	{
-		CPolyLine * p = &m_outline_poly[ip];
-		int thickness = p->W()/NM_PER_MIL;
+		int thickness = p->m_w/NM_PER_MIL;
 		CPen silk_pen( PS_SOLID, thickness, C_RGB::yellow );
 		mfDC->SelectObject( &silk_pen );
-		int x = p->X(0)/NM_PER_MIL;
-		int y = p->Y(0)/NM_PER_MIL;
-		mfDC->MoveTo( x+xoffset, -y+yoffset );
-		for( int ic=1; ic<p->NumCorners(); ic++ )
+		citer<ccontour> ictr (&p->contours);
+		for (ccontour *ctr = ictr.First(); ctr; ctr = ictr.Next())
 		{
-			int next_x = p->X( ic )/NM_PER_MIL;
-			int next_y = p->Y( ic )/NM_PER_MIL;
-			int style = p->SideStyle(ic-1);
-			int dl_shape;
-			if( style == CPolyLine::STRAIGHT )
-				dl_shape = DL_LINE;
-			else if( style == CPolyLine::ARC_CW )
-				dl_shape = DL_ARC_CCW;				// notice CW/CCW flipped since Y flipped
-			else if( style == CPolyLine::ARC_CCW )
-				dl_shape = DL_ARC_CW;
-			else
-				ASSERT(0);
-			::DrawArc( mfDC, dl_shape, x+xoffset, -y+yoffset, next_x+xoffset, -next_y+yoffset, TRUE );
-			x = next_x;
-			y = next_y;
-		}
-		if( p->Closed() )
-		{
-			int next_x = p->X(0)/NM_PER_MIL;
-			int next_y = p->Y(0)/NM_PER_MIL;
-			int style = p->SideStyle(p->NumCorners()-1);
-			int dl_shape;
-			if( style == CPolyLine::STRAIGHT )
-				dl_shape = DL_LINE;
-			else if( style == CPolyLine::ARC_CW )
-				dl_shape = DL_ARC_CCW;				// notice CW/CCW flipped since Y flipped
-			else if( style == CPolyLine::ARC_CCW )
-				dl_shape = DL_ARC_CW;
-			else
-				ASSERT(0);
-			::DrawArc( mfDC, dl_shape, x+xoffset, -y+yoffset, next_x+xoffset, -next_y+yoffset, TRUE );
+			citer<cside> is (&ctr->sides);
+			for (cside *s = is.First(); s; s = is.Next())
+			{
+				// CPT2.  NB sides may be drawn out of geometrical order, but who cares?
+				int dl_shape;
+				if( s->m_style == cpolyline::STRAIGHT )
+					dl_shape = DL_LINE;
+				else if( s->m_style == cpolyline::ARC_CW )
+					dl_shape = DL_ARC_CCW;				// notice CW/CCW flipped since Y flipped
+				else if( s->m_style == cpolyline::ARC_CCW )
+					dl_shape = DL_ARC_CW;
+				else
+					ASSERT(0);
+				int xi = s->preCorner->x/NM_PER_MIL, yi = s->preCorner->y/NM_PER_MIL;
+				int xf = s->postCorner->x/NM_PER_MIL, yf = s->postCorner->y/NM_PER_MIL;
+				::DrawArc( mfDC, dl_shape, xi+xoffset, -yi+yoffset, xf+xoffset, -yf+yoffset, TRUE );
+			}
 		}
 	}
 
-	// draw ref text placeholder
-	int thickness = m_ref_w/NM_PER_MIL;
+	// draw ref text placeholder.  CPT2 TODO could also factor out shared code for rendering ref text strokes and rendering footprint-text
+	// strokes (just below)
+	int thickness = m_ref->m_stroke_width/NM_PER_MIL;
 	CPen ref_pen( PS_SOLID, thickness, C_RGB::yellow );
 	mfDC->SelectObject( &ref_pen );
-	SMFontUtil * smfontutil = ((CFreePcbApp*)AfxGetApp())->m_doc->m_smfontutil;
-	x_scale = (double)m_ref_size/22.0;
-	y_scale = (double)m_ref_size/22.0;
-	double y_offset = 9.0*y_scale;
-	int i = 0;
-	double xc = 0.0;
-	CPoint si, sf;
-	for( int ic=0; ic<ref.GetLength(); ic++ )
+	m_ref->GenerateStrokes();
+	for (int is = 0; is < m_ref->m_stroke.GetSize(); is++)
 	{
-		// get stroke info for character
-		int xi, yi, xf, yf;
-		double coord[64][4];
-		double min_x, min_y, max_x, max_y;
-		int nstrokes = smfontutil->GetCharStrokes( ref[ic], SIMPLEX,
-			&min_x, &min_y, &max_x, &max_y, coord, 64 );
-		for( int is=0; is<nstrokes; is++ )
-		{
-			// draw each stroke
-			xi = (coord[is][0] - min_x)*x_scale + xc;
-			yi = coord[is][1]*y_scale + y_offset;
-			xf = (coord[is][2] - min_x)*x_scale + xc;
-			yf = coord[is][3]*y_scale + y_offset;
-			if( yi > yf )
-			{
-				si.x = xi;
-				sf.x = xf;
-				si.y = yi;
-				sf.y = yf;
-			}
-			else
-			{
-				si.x = xf;
-				sf.x = xi;
-				si.y = yf;
-				sf.y = yi;
-			}
-			// move to origin of text box
-			si.x += m_ref_xi;
-			sf.x += m_ref_xi;
-			si.y += m_ref_yi;
-			sf.y += m_ref_yi;
-			// rotate to angle
-			CPoint ref_org( m_ref_xi, m_ref_yi );
-			RotatePoint( &si, m_ref_angle, ref_org );
-			RotatePoint( &sf, m_ref_angle, ref_org );
-			// draw
-			mfDC->MoveTo( si.x/NM_PER_MIL+xoffset, -si.y/NM_PER_MIL+yoffset );
-			mfDC->LineTo( sf.x/NM_PER_MIL+xoffset, -sf.y/NM_PER_MIL+yoffset );
-		}
-		xc += (max_x - min_x + 8.0)*x_scale;
+		int xi = m_ref->m_stroke[is].xi, yi = m_ref->m_stroke[is].yi;
+		int xf = m_ref->m_stroke[is].xf, yf = m_ref->m_stroke[is].yf;
+		// draw
+		mfDC->MoveTo( xi/NM_PER_MIL+xoffset, -yi/NM_PER_MIL+yoffset );
+		mfDC->LineTo( xf/NM_PER_MIL+xoffset, -yf/NM_PER_MIL+yoffset );
 	}
 
 	// draw text
-	for( int it=0; it<m_tl->text_ptr.GetSize(); it++ )
+	citer<ctext> it (&m_tl->texts);
+	for (ctext *t = it.First(); t; t = it.Next())
 	{
-		CText * t = m_tl->text_ptr[it];
 		int thickness = t->m_stroke_width/NM_PER_MIL;
 		CPen text_pen( PS_SOLID, thickness, C_RGB::yellow );
 		mfDC->SelectObject( &text_pen );
-		SMFontUtil * smfontutil = ((CFreePcbApp*)AfxGetApp())->m_doc->m_smfontutil;
-		CString t_str = t->m_str;
-		x_scale = (double)t->m_font_size/22.0;
-		y_scale = (double)t->m_font_size/22.0;
-		double y_offset = 9.0*y_scale;
-		int i = 0;
-		double xc = 0.0;
-		CPoint si, sf;
-		for( int ic=0; ic<t_str.GetLength(); ic++ )
+		t->GenerateStrokes();
+		for (int is = 0; is < t->m_stroke.GetSize(); is++)
 		{
-			// get stroke info for character
-			int xi, yi, xf, yf;
-			double coord[64][4];
-			double min_x, min_y, max_x, max_y;
-			int nstrokes = smfontutil->GetCharStrokes( t_str[ic], SIMPLEX,
-				&min_x, &min_y, &max_x, &max_y, coord, 64 );
-			for( int is=0; is<nstrokes; is++ )
-			{
-				// draw each stroke
-				xi = (coord[is][0] - min_x)*x_scale + xc;
-				yi = coord[is][1]*y_scale + y_offset;
-				xf = (coord[is][2] - min_x)*x_scale + xc;
-				yf = coord[is][3]*y_scale + y_offset;
-				if( yi > yf )
-				{
-					si.x = xi;
-					sf.x = xf;
-					si.y = yi;
-					sf.y = yf;
-				}
-				else
-				{
-					si.x = xf;
-					sf.x = xi;
-					si.y = yf;
-					sf.y = yi;
-				}
-				// move to origin of text box
-				si.x += t->m_x;
-				sf.x += t->m_x;
-				si.y += t->m_y;
-				sf.y += t->m_y;
-				// rotate to angle
-				CPoint text_org( t->m_x, t->m_y );
-				RotatePoint( &si, t->m_angle, text_org );
-				RotatePoint( &sf, t->m_angle, text_org );
-				// draw
-				mfDC->MoveTo( si.x/NM_PER_MIL+xoffset, -si.y/NM_PER_MIL+yoffset );
-				mfDC->LineTo( sf.x/NM_PER_MIL+xoffset, -sf.y/NM_PER_MIL+yoffset );
-			}
-			xc += (max_x - min_x + 8.0)*x_scale;
+			int xi = t->m_stroke[is].xi, yi = t->m_stroke[is].yi;
+			int xf = t->m_stroke[is].xf, yf = t->m_stroke[is].yf;
+			// draw
+			mfDC->MoveTo( xi/NM_PER_MIL+xoffset, -yi/NM_PER_MIL+yoffset );
+			mfDC->LineTo( xf/NM_PER_MIL+xoffset, -yf/NM_PER_MIL+yoffset );
 		}
 	}
 
@@ -2319,583 +2263,8 @@ HENHMETAFILE CShape::CreateMetafile( CMetaFileDC * mfDC, CDC * pDC, CRect const 
 	mfDC->SelectObject( old_pen );
 	HENHMETAFILE hMF = mfDC->CloseEnhanced();
 	return hMF;
-#else
-	return 0;
-#endif
 }
 
-#if 0
-// create metafile and draw footprint into it
-//
-HENHMETAFILE CShape::CreateMetafile( CMetaFileDC * mfDC, CDC * pDC, int x_size, int y_size )
-{
-	CFreePcbDoc * theDoc = ((CFreePcbApp*)AfxGetApp())->m_doc;
-	CDisplayList * dlist_fp = theDoc->m_dlist_fp;
-
-	// get bounds of shape
-	int x_min = INT_MAX;
-	int x_max = INT_MIN;
-	int y_min = INT_MAX;
-	int y_max = INT_MIN;
-	// get bounds of pads
-	for( int ip=0; ip<m_padstack.GetSize(); ip++ )
-	{
-		int x = m_padstack[ip].x_rel;
-		int y = m_padstack[ip].y_rel;
-		int angle = m_padstack[ip].angle;
-		int hole_size = m_padstack[ip].hole_size;
-		pad p = m_padstack[ip].top;
-		if( m_padstack[ip].top.shape == PAD_NONE && m_padstack[ip].bottom.shape != PAD_NONE )
-			p = m_padstack[ip].bottom;
-		int p_x_min, p_x_max, p_y_min, p_y_max;
-		if( p.shape == PAD_ROUND || p.shape == PAD_SQUARE || p.shape == PAD_OCTAGON )
-		{
-			p_x_min = x - p.size_h/2;
-			p_x_max = x + p.size_h/2;
-			p_y_min = y - p.size_h/2;
-			p_y_max = y + p.size_h/2;
-		}
-		else if( p.shape == PAD_NONE )
-		{
-			p_x_min = x - hole_size/2;
-			p_x_max = x + hole_size/2;
-			p_y_min = y - hole_size/2;
-			p_y_max = y + hole_size/2;
-		}
-		else if( p.shape == PAD_RECT || p.shape == PAD_RRECT || p.shape == PAD_OVAL )
-		{
-			CRect pr( -p.size_l, p.size_h/2, p.size_r, -p.size_h/2 );
-			if( angle > 0 )
-				RotateRect( &pr, angle, zero );
-			p_x_min = x + pr.left;
-			p_x_max = x + pr.right;
-			p_y_min = y + pr.bottom;
-			p_y_max = y + pr.top;
-		}
-		else
-			ASSERT(0);
-		x_min = min( x_min, p_x_min );
-		x_max = max( x_max, p_x_max );
-		y_min = min( y_min, p_y_min );
-		y_max = max( y_max, p_y_max );
-	}
-	// get bounds of outline polys
-	for( int ip=0; ip<m_outline_poly.GetSize(); ip++ )
-	{
-		CPolyLine * p = &m_outline_poly[ip];
-		for( int ic=0; ic<p->NumCorners(); ic++ )
-		{
-			int x = p->X( ic );
-			int y = p->Y( ic );
-			x_min = min( x_min, x );
-			x_max = max( x_max, x );
-			y_min = min( y_min, y );
-			y_max = max( y_max, y );
-		}
-	}
-	// get bounds of text
-	for( int it=0; it<m_tl->text_ptr.GetSize(); it++ )
-	{
-		CText * t = m_tl->text_ptr[it];
-		int thickness = t->m_stroke_width/NM_PER_MIL;
-		SMFontUtil * smfontutil = theDoc->m_smfontutil;
-		CString t_str = t->m_str;
-		double x_scale = (double)t->m_font_size/22.0;
-		double y_scale = (double)t->m_font_size/22.0;
-		double y_offset = 9.0*y_scale;
-		int i = 0;
-		double xc = 0.0;
-		CPoint si, sf;
-		for( int ic=0; ic<t_str.GetLength(); ic++ )
-		{
-			// get stroke info for character
-			int xi, yi, xf, yf;
-			double coord[64][4];
-			double min_x, min_y, max_x, max_y;
-			int nstrokes = smfontutil->GetCharStrokes( t_str[ic], SIMPLEX, 
-				&min_x, &min_y, &max_x, &max_y, coord, 64 );
-			for( int is=0; is<nstrokes; is++ )
-			{
-				// get each
-				xi = (coord[is][0] - min_x)*x_scale + xc;
-				yi = coord[is][1]*y_scale + y_offset;
-				xf = (coord[is][2] - min_x)*x_scale + xc;
-				yf = coord[is][3]*y_scale + y_offset;
-				if( yi > yf )
-				{
-					si.x = xi;
-					sf.x = xf;
-					si.y = yi;
-					sf.y = yf;
-				}
-				else
-				{
-					si.x = xf;
-					sf.x = xi;
-					si.y = yf;
-					sf.y = yi;
-				}
-				// move to origin of text box
-				si.x += t->m_x;
-				sf.x += t->m_x;
-				si.y += t->m_y;
-				sf.y += t->m_y;
-				// rotate to angle 
-				CPoint text_org( t->m_x, t->m_y );
-				RotatePoint( &si, t->m_angle, text_org );
-				RotatePoint( &sf, t->m_angle, text_org );
-				// draw
-				x_min = min( x_min, min(si.x,sf.x) );
-				x_max = max( x_max, max(si.x,sf.x) );
-				y_min = min( y_min, min(si.y,sf.y) );
-				y_max = max( y_max, max(si.y,sf.y) );
-			}
-			xc += (max_x - min_x + 8.0)*x_scale;
-		}
-	}
-	// get bounds of ref_text
-	x_min = min( x_min, m_ref_xi );
-	x_max = max( x_max, m_ref_xi+3*m_ref_size );
-	y_min = min( y_min, m_ref_yi );
-	y_max = max( y_max, m_ref_yi+m_ref_size );
-	// get bounds of value
-	x_min = min( x_min, m_value_xi );
-	x_max = max( x_max, m_value_xi+3*m_value_size );
-	y_min = min( y_min, m_value_yi );
-	y_max = max( y_max, m_value_yi+m_value_size );
-
-	// convert to mils
-	x_min = x_min/NM_PER_MIL;
-	x_max = x_max/NM_PER_MIL;
-	y_min = y_min/NM_PER_MIL;
-	y_max = y_max/NM_PER_MIL;
-
-	// set up scale factor for drawing, mils per pixel
-	double x_scale = (double)(x_max-x_min)/(double)x_size;
-	double y_scale = (double)(y_max-y_min)/(double)y_size;
-	double scale = max( x_scale, y_scale) * 1.2;
-	if( scale < 1.0 )
-		scale = 1.0;
-	double x_center = (x_max+x_min)/2;
-	double y_center = (y_max+y_min)/2;
-
-	// set up frame rectangle for metafile
-	int widthmm = pDC->GetDeviceCaps( HORZSIZE );
-	int heightmm = pDC->GetDeviceCaps( VERTSIZE );
-	int widthpixel = pDC->GetDeviceCaps( HORZRES );
-	int heightpixel = pDC->GetDeviceCaps( VERTRES ); 
-
-	// set up bounding rectangle, with bottom > top, in mils
-	double left = x_center - scale*x_size/2;
-	double right = x_center + scale*x_size/2;
-	double top = y_center - scale*y_size/2;
-	double bottom = y_center + scale*y_size/2;
-	CRect rNM;
-	rNM.left = left*100.0*widthmm/widthpixel;
-	rNM.right = right*100.0*widthmm/widthpixel;
-	rNM.top = -bottom*100.0*heightmm/heightpixel;		// notice Y flipped
-	rNM.bottom = -top*100.0*heightmm/heightpixel;
-	// offsets to ensure that origin is in rNM
-	int xoffset = -(rNM.left+rNM.right)/2;
-	rNM.left += xoffset;
-	rNM.right += xoffset;
-	xoffset = xoffset/(100.0*widthmm/widthpixel);
-	int yoffset = -(rNM.top+rNM.bottom)/2;
-	rNM.top += yoffset;
-	rNM.bottom += yoffset;
-	yoffset = yoffset/(100.0*heightmm/heightpixel); 
-	// create enhanced metafile
-	mfDC->CreateEnhanced( NULL, NULL, rNM, NULL );
-	mfDC->SetAttribDC( *pDC );
-
-	// now we can draw using mils
-	// flip Y since metafile likes top < bottom
-	CPen * old_pen;
-	CBrush * old_brush;
-	CPen backgnd_pen( PS_SOLID, 1, dlist_fp->GetLayerColor(LAY_FP_BACKGND) );
-	CBrush backgnd_brush( dlist_fp->GetLayerColor(LAY_FP_BACKGND) );
-	CPen SMT_pad_pen( PS_SOLID, 1, dlist_fp->GetLayerColor(LAY_FP_TOP_COPPER) );
-	CBrush SMT_pad_brush( dlist_fp->GetLayerColor(LAY_FP_TOP_COPPER) );
-	CPen SMT_B_pad_pen( PS_SOLID, 1, dlist_fp->GetLayerColor(LAY_FP_BOTTOM_COPPER) );
-	CBrush SMT_B_pad_brush( dlist_fp->GetLayerColor(LAY_FP_BOTTOM_COPPER) );
-	CPen TH_pad_pen( PS_SOLID, 1, dlist_fp->GetLayerColor(LAY_FP_PAD_THRU) );
-	CBrush TH_pad_brush( dlist_fp->GetLayerColor(LAY_FP_PAD_THRU) );
-
-	// draw background
-	old_pen = mfDC->SelectObject( &backgnd_pen );
-	old_brush = mfDC->SelectObject( &backgnd_brush );
-	mfDC->Rectangle( rNM );
-
-	// draw pads and holes
-	// iterate twice to draw top copper over bottom copper
-	for( int ipass=0; ipass<2; ipass++ )
-	{
-		for( int ip=0; ip<m_padstack.GetSize(); ip++ )
-		{
-			int x = m_padstack[ip].x_rel/NM_PER_MIL;
-			int y = m_padstack[ip].y_rel/NM_PER_MIL;
-			int angle = m_padstack[ip].angle;
-			int hole_size = m_padstack[ip].hole_size/NM_PER_MIL;
-			pad * p = &m_padstack[ip].top;
-			if( m_padstack[ip].top.shape == PAD_NONE && m_padstack[ip].bottom.shape != PAD_NONE )
-				p = &m_padstack[ip].bottom;
-			int p_x_min, p_x_max, p_y_min, p_y_max;
-			if( hole_size && ipass == 0 )
-				continue;
-			if( p == &m_padstack[ip].top && ipass == 0 )
-				continue;
-			if( p == &m_padstack[ip].bottom && ipass == 1 )
-				continue;
-			if( hole_size )
-			{
-				mfDC->SelectObject( &TH_pad_pen );
-				mfDC->SelectObject( &TH_pad_brush );
-			}
-			else
-			{
-				if( p == &m_padstack[ip].top )
-				{
-					mfDC->SelectObject( &SMT_pad_pen );
-					mfDC->SelectObject( &SMT_pad_brush );
-				}
-				else
-				{
-					mfDC->SelectObject( &SMT_B_pad_pen );
-					mfDC->SelectObject( &SMT_B_pad_brush );
-				}
-			}
-			if( p->shape == PAD_NONE )
-			{
-				p_x_min = x - hole_size/2;
-				p_x_max = x + hole_size/2;
-				p_y_min = y - hole_size/2;
-				p_y_max = y + hole_size/2;
-				mfDC->SelectStockObject( NULL_BRUSH);
-				mfDC->Ellipse( p_x_min+xoffset, -p_y_min+yoffset, p_x_max+xoffset, -p_y_max+yoffset );
-			}
-			else if( p->shape == PAD_ROUND )
-			{
-				p_x_min = x - (p->size_h/NM_PER_MIL)/2;
-				p_x_max = x + (p->size_h/NM_PER_MIL)/2;
-				p_y_min = y - (p->size_h/NM_PER_MIL)/2;
-				p_y_max = y + (p->size_h/NM_PER_MIL)/2;
-				mfDC->Ellipse( p_x_min+xoffset, -p_y_min+yoffset, p_x_max+xoffset, -p_y_max+yoffset );
-				if( hole_size )
-				{
-					mfDC->SelectObject( &backgnd_pen );
-					mfDC->SelectObject( &backgnd_brush );
-					p_x_min = x - hole_size/2;
-					p_x_max = x + hole_size/2;
-					p_y_min = y - hole_size/2;
-					p_y_max = y + hole_size/2;
-					mfDC->Ellipse( p_x_min+xoffset, -p_y_min+yoffset, p_x_max+xoffset, -p_y_max+yoffset );
-				}
-			}
-			else if( p->shape == PAD_SQUARE )
-			{
-				p_x_min = x - (p->size_h/NM_PER_MIL)/2;
-				p_x_max = x + (p->size_h/NM_PER_MIL)/2;
-				p_y_min = y - (p->size_h/NM_PER_MIL)/2;
-				p_y_max = y + (p->size_h/NM_PER_MIL)/2;
-				mfDC->Rectangle( p_x_min+xoffset, -p_y_min+yoffset, p_x_max+xoffset, -p_y_max+yoffset );
-				if( hole_size )
-				{
-					mfDC->SelectObject( &backgnd_pen );
-					mfDC->SelectObject( &backgnd_brush );
-					p_x_min = x - hole_size/2;
-					p_x_max = x + hole_size/2;
-					p_y_min = y - hole_size/2;
-					p_y_max = y + hole_size/2;
-					mfDC->Ellipse( p_x_min+xoffset, -p_y_min+yoffset, p_x_max+xoffset, -p_y_max+yoffset );
-				}
-			}
-			else if( p->shape == PAD_RECT )
-			{
-				CRect pr( -p->size_l, p->size_h/2, p->size_r, -p->size_h/2 );
-				if( angle > 0 )
-					RotateRect( &pr, angle, zero );
-				p_x_min = x + pr.left/NM_PER_MIL;
-				p_x_max = x + pr.right/NM_PER_MIL;
-				p_y_min = y + pr.bottom/NM_PER_MIL;
-				p_y_max = y + pr.top/NM_PER_MIL;
-				mfDC->Rectangle( p_x_min+xoffset, -p_y_min+yoffset, p_x_max+xoffset, -p_y_max+yoffset );
-				if( hole_size )
-				{
-					mfDC->SelectObject( &backgnd_pen );
-					mfDC->SelectObject( &backgnd_brush );
-					p_x_min = x - hole_size/2;
-					p_x_max = x + hole_size/2;
-					p_y_min = y - hole_size/2;
-					p_y_max = y + hole_size/2;
-					mfDC->Ellipse( p_x_min+xoffset, -p_y_min+yoffset, p_x_max+xoffset, -p_y_max+yoffset );
-				}
-			}
-			else if( p->shape == PAD_RRECT )
-			{
-				CRect pr( -p->size_l, p->size_h/2, p->size_r, -p->size_h/2 );
-				if( angle > 0 )
-					RotateRect( &pr, angle, zero );
-				int xi = x + pr.left/NM_PER_MIL;
-				int xf = x + pr.right/NM_PER_MIL;
-				int yi = y + pr.bottom/NM_PER_MIL;
-				int yf = y + pr.top/NM_PER_MIL;
-				int h = xf - xi;
-				int v = yf - yi;
-				int radius = p->radius/NM_PER_MIL; 
-				mfDC->RoundRect( xi+xoffset, -yi+yoffset, xf+xoffset, -yf+yoffset, 2*radius, 2*radius ); 
-				if( hole_size )
-				{
-					mfDC->SelectObject( &backgnd_pen );
-					mfDC->SelectObject( &backgnd_brush );
-					xi = x - hole_size/2;
-					xf = x + hole_size/2;
-					yi = y - hole_size/2;
-					yf = y + hole_size/2;
-					mfDC->Ellipse( xi+xoffset, -yi+yoffset, xf+xoffset, -yf+yoffset );
-				}
-			}
-			else if( p->shape == PAD_OVAL )
-			{
-				CRect pr( -p->size_l, p->size_h/2, p->size_r, -p->size_h/2 );
-				if( angle > 0 )
-					RotateRect( &pr, angle, zero );
-				int xi = x + pr.left/NM_PER_MIL;
-				int xf = x + pr.right/NM_PER_MIL;
-				int yi = y + pr.bottom/NM_PER_MIL;
-				int yf = y + pr.top/NM_PER_MIL;
-				int h = abs(xf-xi);
-				int v = abs(yf-yi);
-				int radius = min(h,v);
-				mfDC->RoundRect( xi+xoffset, -yi+yoffset, xf+xoffset, -yf+yoffset, radius, radius ); 
-				if( hole_size )
-				{
-					mfDC->SelectObject( &backgnd_pen );
-					mfDC->SelectObject( &backgnd_brush );
-					xi = x - hole_size/2;
-					xf = x + hole_size/2;
-					yi = y - hole_size/2;
-					yf = y + hole_size/2;
-					mfDC->Ellipse( xi+xoffset, -yi+yoffset, xf+xoffset, -yf+yoffset );
-				}
-			}
-			else if( p->shape == PAD_OCTAGON )
-			{
-				const double pi = 3.14159265359;
-				POINT pt[8];
-				double angle = pi/8.0;
-				for( int iv=0; iv<8; iv++ ) 
-				{
-					pt[iv].x = x + (0.5*p->size_h/NM_PER_MIL) * cos(angle)+xoffset;
-					pt[iv].y = -(y + (0.5*p->size_h/NM_PER_MIL) * sin(angle))+yoffset;
-					angle += pi/4.0;
-				}
-				mfDC->Polygon( pt, 8 );
-				if( hole_size )
-				{
-					mfDC->SelectObject( &backgnd_pen );
-					mfDC->SelectObject( &backgnd_brush );
-					p_x_min = x - hole_size/2;
-					p_x_max = x + hole_size/2;
-					p_y_min = y - hole_size/2;
-					p_y_max = y + hole_size/2;
-					mfDC->Ellipse( p_x_min+xoffset, -p_y_min+yoffset, p_x_max+xoffset, -p_y_max+yoffset );
-				}
-			}
-		}
-	}
-
-	// draw part outline
-	for( int ip=0; ip<m_outline_poly.GetSize(); ip++ )
-	{
-		CPolyLine * p = &m_outline_poly[ip];
-		int thickness = p->W()/NM_PER_MIL;
-		CPen silk_pen( PS_SOLID, thickness, dlist_fp->GetLayerColor( p->Layer() ) );
-		mfDC->SelectObject( &silk_pen );
-		int x = p->X(0)/NM_PER_MIL;
-		int y = p->Y(0)/NM_PER_MIL;
-		mfDC->MoveTo( x+xoffset, -y+yoffset );
-		for( int ic=1; ic<p->NumCorners(); ic++ )
-		{
-			int next_x = p->X( ic )/NM_PER_MIL;
-			int next_y = p->Y( ic )/NM_PER_MIL;
-			int style = p->SideStyle(ic-1);
-			int dl_shape;
-			if( style == CPolyLine::STRAIGHT )
-				dl_shape = DL_LINE;
-			else if( style == CPolyLine::ARC_CW ) 
-				dl_shape = DL_ARC_CCW;				// notice CW/CCW flipped since Y flipped
-			else if( style == CPolyLine::ARC_CCW )
-				dl_shape = DL_ARC_CW;
-			else
-				ASSERT(0);
-			::DrawArc( mfDC, dl_shape, x+xoffset, -y+yoffset, next_x+xoffset, -next_y+yoffset, TRUE );
-			x = next_x; 
-			y = next_y;
-		}
-		if( p->Closed() )
-		{
-			int next_x = p->X(0)/NM_PER_MIL;
-			int next_y = p->Y(0)/NM_PER_MIL;
-			int style = p->SideStyle(p->NumCorners()-1);
-			int dl_shape;
-			if( style == CPolyLine::STRAIGHT )
-				dl_shape = DL_LINE;
-			else if( style == CPolyLine::ARC_CW )
-				dl_shape = DL_ARC_CCW;				// notice CW/CCW flipped since Y flipped
-			else if( style == CPolyLine::ARC_CCW )
-				dl_shape = DL_ARC_CW;
-			else
-				ASSERT(0);
-			::DrawArc( mfDC, dl_shape, x+xoffset, -y+yoffset, next_x+xoffset, -next_y+yoffset, TRUE );
-		}
-	}
-
-	// draw ref and value placeholders
-	int num_strings = 2 + m_tl->GetNumTexts();
-	for( int i_str=0; i_str<num_strings; i_str++ )
-	{
-		int this_thickness;
-		int this_size;
-		COLORREF this_color;
-		CString this_str;
-		int this_xi;
-		int this_yi;
-		int this_angle;
-
-		if( i_str == 0 )
-		{
-			this_thickness = m_ref_w/NM_PER_MIL;
-			this_size = m_ref_size;
-			this_color = dlist_fp->GetLayerColor( m_ref_layer );
-			this_str = "REF";
-			this_xi = m_ref_xi;
-			this_yi = m_ref_yi;
-			this_angle = m_ref_angle;
-		}
-		else if( i_str == 1 )
-		{
-			this_thickness = m_value_w/NM_PER_MIL;
-			this_size = m_value_size;
-			this_color = dlist_fp->GetLayerColor( m_value_layer );
-			this_str = "VALUE";
-			this_xi = m_value_xi;
-			this_yi = m_value_yi;
-			this_angle = m_value_angle;
-		}
-		else
-		{
-			int it = i_str - 2;
-			CText * t = m_tl->text_ptr[it];
-			this_thickness = t->m_stroke_width/NM_PER_MIL;
-			this_size = t->m_font_size;
-			this_color = dlist_fp->GetLayerColor( t->m_layer );
-			this_str = t->m_str;
-			this_xi = t->m_x;
-			this_yi = t->m_y;
-			this_angle = t->m_angle;
-		}
-
-		CPen this_pen( PS_SOLID, this_thickness, this_color );
-		mfDC->SelectObject( &this_pen );
-		SMFontUtil * smfontutil = ((CFreePcbApp*)AfxGetApp())->m_doc->m_smfontutil;
-		x_scale = (double)this_size/22.0;
-		y_scale = (double)this_size/22.0;
-		double y_offset = 9.0*y_scale;
-		int i = 0;
-		double xc = 0.0;
-		CPoint si, sf;
-		for( int ic=0; ic<this_str.GetLength(); ic++ )
-		{
-			// get stroke info for character
-			int xi, yi, xf, yf;
-			double coord[64][4];
-			double min_x, min_y, max_x, max_y;
-			int nstrokes = smfontutil->GetCharStrokes( this_str[ic], SIMPLEX, 
-				&min_x, &min_y, &max_x, &max_y, coord, 64 );
-			for( int is=0; is<nstrokes; is++ )
-			{
-				// draw each stroke
-				xi = (coord[is][0] - min_x)*x_scale + xc;
-				yi = coord[is][1]*y_scale + y_offset;
-				xf = (coord[is][2] - min_x)*x_scale + xc;
-				yf = coord[is][3]*y_scale + y_offset;
-				if( yi > yf )
-				{
-					si.x = xi;
-					sf.x = xf;
-					si.y = yi;
-					sf.y = yf;
-				}
-				else
-				{
-					si.x = xf;
-					sf.x = xi;
-					si.y = yf;
-					sf.y = yi;
-				}
-				// move to origin of text box
-				si.x += this_xi;
-				sf.x += this_xi;
-				si.y += this_yi;
-				sf.y += this_yi;
-				// rotate to angle 
-				CPoint this_org( this_xi, this_yi );
-				RotatePoint( &si, this_angle, this_org );
-				RotatePoint( &sf, this_angle, this_org );
-				// draw
-				mfDC->MoveTo( si.x/NM_PER_MIL+xoffset, -si.y/NM_PER_MIL+yoffset );
-				mfDC->LineTo( sf.x/NM_PER_MIL+xoffset, -sf.y/NM_PER_MIL+yoffset );
-			}
-			xc += (max_x - min_x + 8.0)*x_scale;
-		}
-	}
-
-	// draw selection rectangle
-	CPen sel_pen( PS_SOLID, 1, dlist_fp->GetLayerColor( LAY_FP_SELECTION ) );
-	mfDC->SelectObject( &sel_pen );
-	mfDC->MoveTo( m_sel_xi/NM_PER_MIL+xoffset, -m_sel_yi/NM_PER_MIL+yoffset );
-	mfDC->LineTo( m_sel_xf/NM_PER_MIL+xoffset, -m_sel_yi/NM_PER_MIL+yoffset );
-	mfDC->LineTo( m_sel_xf/NM_PER_MIL+xoffset, -m_sel_yf/NM_PER_MIL+yoffset );
-	mfDC->LineTo( m_sel_xi/NM_PER_MIL+xoffset, -m_sel_yf/NM_PER_MIL+yoffset );
-	mfDC->LineTo( m_sel_xi/NM_PER_MIL+xoffset, -m_sel_yi/NM_PER_MIL+yoffset );
-
-	// restore DC
-	mfDC->SelectObject( old_brush );
-	mfDC->SelectObject( old_pen );
-	HENHMETAFILE hMF = mfDC->CloseEnhanced();
-	return hMF;
-}
-#endif
-
-// CPT:  the following is apparently leftover scrap?  Cull it out?
-/*
-HENHMETAFILE CShape::CreateWarningMetafile( CMetaFileDC * mfDC, CDC * pDC, int x_size, int y_size )
-{
-	CRect rNM;
-	rNM.left = 0;
-	rNM.right = x_size;
-	rNM.top = 0;		// notice Y flipped
-	rNM.bottom = y_size;
-	mfDC->CreateEnhanced( NULL, NULL, rNM, NULL );
-	mfDC->SetAttribDC( *pDC );
-
-	CPen * old_pen;
-	CBrush * old_brush;
-	CPen backgnd_pen( PS_SOLID, 1, RGB(0,0,0) );
-	CBrush backgnd_brush( RGB(0,0,0) );
-
-	// draw background
-	old_pen = mfDC->SelectObject( &backgnd_pen );
-	old_brush = mfDC->SelectObject( &backgnd_brush );
-	mfDC->Rectangle( rNM );
-
-	// restore DC
-	mfDC->SelectObject( old_brush );
-	mfDC->SelectObject( old_pen );
-	HENHMETAFILE hMF = mfDC->CloseEnhanced();
-	return hMF;
-}
-*/
 
 // Get default centroid
 // if no pads, returns (0,0)
@@ -2915,9 +2284,10 @@ CRect CShape::GetAllPadBounds()
 	CRect r;
 	r.left = r.bottom = INT_MAX;
 	r.right = r.top = INT_MIN;
-	for( int ip=0; ip<m_padstack.GetSize(); ip++ )
+	citer<cpadstack> ips (&m_padstack);
+	for (cpadstack *ps = ips.First(); ps; ps = ips.Next())
 	{
-		CRect pad_r = GetPadBounds( ip );
+		CRect pad_r = ps->GetBounds();
 		r.left = min( r.left, pad_r.left );
 		r.bottom = min( r.bottom, pad_r.bottom );
 		r.right = max( r.right, pad_r.right );
@@ -2926,56 +2296,12 @@ CRect CShape::GetAllPadBounds()
 	return r;
 }
 
-// Get bounding rectangle of pad
-//
-CRect CShape::GetPadBounds( int i )
-{
-	CRect r;
-	int dx=0, dy=0;
-	padstack * ps = &m_padstack[i];
-	pad * p = &ps->top;
-	if( ps->top.shape == PAD_NONE && ps->bottom.shape != PAD_NONE )
-		p = &ps->bottom;
-	if( p->shape == PAD_NONE )
-	{
-		{
-			dx = ps->hole_size/2;
-			dy = dx;
-		}
-	}
-	else if( p->shape == PAD_SQUARE || p->shape == PAD_ROUND || p->shape == PAD_OCTAGON )
-	{
-		dx = p->size_h/2;
-		dy = dx;
-	}
-	else if( p->shape == PAD_RECT || p->shape == PAD_RRECT || p->shape == PAD_OVAL )
-	{
-		if( ps->angle == 0 || ps->angle == 180 )
-		{
-			dx = p->size_l;
-			dy = p->size_h/2;
-		}
-		else if( ps->angle == 90 || ps->angle == 270 )
-		{
-			dx = p->size_h/2;
-			dy = p->size_l;
-		}
-		else
-			ASSERT(0);	// illegal angle
-	}
-	r.left = ps->x_rel - dx;
-	r.right = ps->x_rel + dx;
-	r.bottom = ps->y_rel - dy;
-	r.top = ps->y_rel + dy;
-	return r;
-}
-
 // Get bounding rectangle of row of pads
 //
 CRect CShape::GetPadRowBounds( int i, int num )
 {
 	CRect rr;
-
+#ifndef CPT2
 	rr.left = rr.bottom = INT_MAX;
 	rr.right = rr.top = INT_MIN;
 	for( int ip=i; ip<(i+num); ip++ )
@@ -2986,6 +2312,7 @@ CRect CShape::GetPadRowBounds( int i, int num )
 		rr.right = max( r.right, rr.right );
 		rr.top = max( r.top, rr.top );
 	}
+#endif
 	return rr;
 }
 
@@ -2993,18 +2320,8 @@ CRect CShape::GetPadRowBounds( int i, int num )
 //
 CRect CShape::GetBounds( BOOL bIncludeLineWidths )
 {
-	CRect br;
+	CRect br = GetAllPadBounds();
 
-	br.left = br.bottom = INT_MAX;
-	br.right = br.top = INT_MIN;
-	for( int ip=0; ip<GetNumPins(); ip++ )
-	{
-		CRect padr = GetPadBounds( ip );
-		br.left = min( br.left, padr.left ); 
-		br.bottom = min( br.bottom, padr.bottom ); 
-		br.right = max( br.right, padr.right ); 
-		br.top = max( br.top, padr.top ); 
-	}
 	citer<cpolyline> ip (&m_outline_poly);
 	for (cpolyline *p = ip.First(); p; p = ip.Next())
 	{
@@ -3018,6 +2335,7 @@ CRect CShape::GetBounds( BOOL bIncludeLineWidths )
 		br.right = max( br.right, polyr.right ); 
 		br.top = max( br.top, polyr.top ); 
 	}
+
 	CRect tr;
 	BOOL bText = m_tl->GetTextBoundaries( &tr );
 	if( bText )
@@ -3068,85 +2386,62 @@ CEditShape::~CEditShape()
 }
 
 // draw footprint into display list
+// CPT2 updated.  TODO probably remove args from arg list.
 //
 void CEditShape::Draw( CDisplayList * dlist, SMFontUtil * fontutil )
 {
-#ifndef CPT2
-	id p_id(ID_FP);
-
 	// first, undraw
 	Undraw();
 
-	// draw pins
-	m_dlist = dlist;  
-	int npads = GetNumPins();
-	m_hole_el.SetSize( npads );
-	m_pad_top_el.SetSize( npads );
-	m_pad_inner_el.SetSize( npads );
-	m_pad_bottom_el.SetSize( npads );
-	m_pad_top_mask_el.SetSize( npads );
-	m_pad_top_paste_el.SetSize( npads );
-	m_pad_bottom_mask_el.SetSize( npads );
-	m_pad_bottom_paste_el.SetSize( npads );
-	m_pad_sel.SetSize( npads );
-	for( int i=0; i<npads; i++ )
+	// draw pins.  CPT2 Note that for each padstack ps we use drawing elements ps->top.dl_el, ps->inner.dl_el, etc.  We also use ps->dl_el to represent the
+	// hole (if any), plus of course ps->dl_sel for the selector.
+	m_dlist = dlist;
+	citer<cpadstack> ips (&m_padstack);
+	for (cpadstack *ps = ips.First(); ps; ps = ips.Next())
 	{
-		int sel_x = 0;	// width of selection rect
-		int sel_y = 0;	// height of selection rect
-		padstack * ps = &m_padstack[i];
-		CPoint pin;
-		p_id.SetSubType( ID_PAD, -1, i );
-		pin.x = ps->x_rel;
-		pin.y = ps->y_rel;
+		CPoint pin (ps->x_rel, ps->y_rel);
+		int sel_w = 0;	// width of selection rect
+		int sel_h = 0;	// height of selection rect
 		dl_element * pad_sel;
-		m_pad_sel[i] = NULL;
 		for( int il=0; il<7; il++ ) 
 		{
-			// set layer for pads
+			// set layer for pads within padstack
 			int pad_lay;
-			pad * p; 
-			dl_element ** pad_el;
+			cpad * p; 
 			if( il == 0 )
 			{
 				pad_lay = LAY_FP_TOP_COPPER;
 				p = &ps->top;
-				pad_el = &m_pad_top_el[i];
 			}
 			else if( il == 1 )
 			{
 				pad_lay = LAY_FP_INNER_COPPER;
 				p = &ps->inner;	
-				pad_el = &m_pad_inner_el[i];
 			}
 			else if( il == 2 )
 			{
 				pad_lay = LAY_FP_BOTTOM_COPPER;
 				p = &ps->bottom;
-				pad_el = &m_pad_bottom_el[i];
 			}
 			else if( il == 3 )
 			{
 				pad_lay = LAY_FP_TOP_MASK;
 				p = &ps->top_mask;
-				pad_el = &m_pad_top_mask_el[i];
 			}
 			else if( il == 4 )
 			{
 				pad_lay = LAY_FP_TOP_PASTE;
 				p = &ps->top_paste;
-				pad_el = &m_pad_top_paste_el[i];
 			}
 			else if( il == 5 )
 			{
 				pad_lay = LAY_FP_BOTTOM_MASK;
 				p = &ps->bottom_mask;
-				pad_el = &m_pad_bottom_mask_el[i];
 			}
 			else if( il == 6 )
 			{
 				pad_lay = LAY_FP_BOTTOM_PASTE;
 				p = &ps->bottom_paste;
-				pad_el = &m_pad_bottom_paste_el[i];
 			}
 
 			// draw pad
@@ -3157,38 +2452,26 @@ void CEditShape::Draw( CDisplayList * dlist, SMFontUtil * fontutil )
 					gtype = DL_CIRC;
 				else
 					gtype = DL_HOLLOW_CIRC;
-				*pad_el = dlist->Add( p_id, NULL, pad_lay, 
-					gtype, 1, 
-					p->size_h,
-					0, 0, 
+				p->dl_el = dlist->Add( ps, dl_element::DL_OTHER, pad_lay, 
+					gtype, 1, p->size_h, 0, 0, 
 					pin.x, pin.y, 0, 0, pin.x, pin.y );
-				sel_x = max( sel_x, p->size_h );
-				sel_y = max( sel_y, p->size_h );
+				sel_w = max( sel_w, p->size_h );
+				sel_h = max( sel_h, p->size_h );
 			}
 			else if( p->shape == PAD_SQUARE )
 			{
 				if( pad_lay >= LAY_FP_TOP_COPPER && pad_lay <= LAY_FP_BOTTOM_COPPER )
-				{
-					*pad_el = dlist->Add( p_id, NULL, pad_lay, 
-						DL_SQUARE, 1, 
-						p->size_h,
-						0, 0, 
-						pin.x, pin.y, 
-						0, 0, 
-						pin.x, pin.y );
-				}
+					p->dl_el = dlist->Add( ps, dl_element::DL_OTHER, pad_lay, 
+						DL_SQUARE, 1, p->size_h, 0, 0, 
+						pin.x, pin.y, 0, 0, pin.x, pin.y );
 				else
-				{
-					*pad_el = dlist->Add( p_id, NULL, pad_lay, 
+					p->dl_el = dlist->Add( ps, dl_element::DL_OTHER, pad_lay, 
 						DL_HOLLOW_RECT, 1, 1, 0, 0,
-						pin.x-p->size_h/2,  
-						pin.y-p->size_h/2, 
-						pin.x+p->size_h/2, 
-						pin.y+p->size_h/2, 
+						pin.x - p->size_h/2, pin.y - p->size_h/2, 
+						pin.x + p->size_h/2, pin.y + p->size_h/2, 
 						pin.x, pin.y );
-				}
-				sel_x = max( sel_x, p->size_h );
-				sel_y = max( sel_y, p->size_h );
+				sel_w = max( sel_w, p->size_h );
+				sel_h = max( sel_h, p->size_h );
 			}
 			else if( p->shape == PAD_RECT 
 				|| p->shape == PAD_RRECT 
@@ -3200,7 +2483,7 @@ void CEditShape::Draw( CDisplayList * dlist, SMFontUtil * fontutil )
 				pad_pf.x = pin.x + p->size_r;
 				pad_pf.y = pin.y + p->size_h/2;
 				// rotate pad about pin if necessary
-				if( m_padstack[i].angle > 0 )
+				if( ps->angle > 0 )
 				{
 					RotatePoint( &pad_pi, ps->angle, pin );
 					RotatePoint( &pad_pf, ps->angle, pin );
@@ -3222,96 +2505,67 @@ void CEditShape::Draw( CDisplayList * dlist, SMFontUtil * fontutil )
 					if( p->shape == PAD_OVAL )
 						gtype = DL_HOLLOW_OVAL;
 				}
-				*pad_el = dlist->Add( p_id, NULL, pad_lay, 
-					gtype, 1, 
-					0, 0, 0,										// CPT r292 arg list bug fix
-					pad_pi.x, pad_pi.y, 
-					pad_pf.x, pad_pf.y, 
+				p->dl_el = dlist->Add( ps, dl_element::DL_OTHER, pad_lay, 
+					gtype, 1, 0, 0, 0,										// CPT r292 arg list bug fix
+					pad_pi.x, pad_pi.y, pad_pf.x, pad_pf.y, 
 					pin.x, pin.y, p->radius );
-				sel_x = max( sel_x, abs(pad_pf.x-pad_pi.x) );
-				sel_y = max( sel_y, abs(pad_pf.y-pad_pi.y) );
+				sel_w = max( sel_w, abs(pad_pf.x-pad_pi.x) );
+				sel_h = max( sel_h, abs(pad_pf.y-pad_pi.y) );
 			}
 			else if( p->shape == PAD_OCTAGON )
 			{
 				gtype = DL_OCTAGON;
 				if( pad_lay < LAY_FP_TOP_COPPER || pad_lay > LAY_FP_BOTTOM_COPPER )
 					gtype = DL_HOLLOW_OCTAGON;
-				*pad_el = dlist->Add( p_id, NULL, pad_lay, 
-					gtype, 1, 
-					p->size_h, 0, 0, 
-					pin.x, pin.y, 
-					0, 0, 
-					pin.x, pin.y );
-				sel_x = max( sel_x, p->size_h );
-				sel_y = max( sel_y, p->size_h );
+				p->dl_el = dlist->Add( ps, dl_element::DL_OTHER, pad_lay, 
+					gtype, 1, p->size_h, 0, 0, 
+					pin.x, pin.y, 0, 0, pin.x, pin.y );
+				sel_w = max( sel_w, p->size_h );
+				sel_h = max( sel_h, p->size_h );
 			}
 			else
-				*pad_el = NULL;		// nothing drawn
+				p->dl_el = NULL;											// nothing drawn
 		}
 		if( ps->hole_size )
 		{
 			// add to display list
-			m_hole_el[i] = dlist->Add( p_id, NULL, LAY_FP_PAD_THRU, 
-				DL_HOLE, 1, 
-				ps->hole_size, 0, 0,
+			ps->dl_el = dlist->AddMain( ps, LAY_FP_PAD_THRU, 
+				DL_HOLE, 1, ps->hole_size, 0, 0,
 				pin.x, pin.y, 0, 0, pin.x, pin.y );
-			sel_x = max( sel_x, ps->hole_size );
-			sel_y = max( sel_y, ps->hole_size );
+			sel_w = max( sel_w, ps->hole_size );
+			sel_h = max( sel_h, ps->hole_size );
 		}
-		if( sel_x && sel_y )
-		{
-			// add selector
-			p_id.SetT2( ID_SEL_PAD );
-			m_pad_sel[i] = dlist->AddSelector( p_id, NULL, LAY_FP_PAD_THRU, 
-				DL_HOLLOW_RECT, 1, 1, 0,
-				pin.x-sel_x/2,  
-				pin.y-sel_y/2, 
-				pin.x+sel_x/2, 
-				pin.y+sel_y/2, 
-				pin.x, pin.y );
-		}
-	}
 
+		if( sel_w && sel_h )
+			// add selector
+			ps->dl_sel = dlist->AddSelector( ps, LAY_FP_PAD_THRU, 
+				DL_HOLLOW_RECT, 1, 1, 0,
+				pin.x - sel_w/2, pin.y - sel_h/2, 
+				pin.x + sel_w/2, pin.y + sel_h/2, 
+				pin.x, pin.y );
+	}
 
 	// draw ref designator text
-	id rid( ID_FP, -1, ID_REF_TXT );
-	BOOL bMirror = (m_ref->m_layer == LAY_FP_SILK_BOTTOM || m_ref->m_layer == LAY_FP_BOTTOM_COPPER) ;
-	CString r_str( "REF" );
-	m_ref->Init( m_dlist, rid, m_ref_xi, m_ref_yi, m_ref_angle,
-			bMirror, FALSE, m_ref->m_layer, m_ref_size, m_ref_w,
-			fontutil, &r_str );
-
+	m_ref->Draw();
 	// draw value text (CPT: only if height is >0)
-	if (m_value_size) 
-	{
-		id vid( ID_FP, -1, ID_VALUE_TXT );
-		bMirror = (m_value->m_layer == LAY_FP_SILK_BOTTOM || m_value->m_layer == LAY_FP_BOTTOM_COPPER) ;
-		CString v_str( "VALUE" );
-		m_value->Init( m_dlist, vid, m_value_xi, m_value_yi, m_value_angle,
-				bMirror, FALSE, m_value->m_layer, m_value_size, m_value_w,
-				fontutil, &v_str );
-	}
+	if (m_value->m_font_size)
+		m_value->Draw();
 
 	// now draw outline polylines
-	p_id.SetT2( ID_POLYLINE );
-	for( int i=0; i<m_outline_poly.GetSize(); i++ )
+	citer<cpolyline> ip (&m_outline_poly);
+	for (cpolyline *p = ip.First(); p; p = ip.Next())
 	{
-		p_id.SetI2( i );
-		int sel_box_size = m_outline_poly[i].W();
-		sel_box_size = max( sel_box_size, 5*NM_PER_MIL );
-		m_outline_poly[i].SetSelBoxSize( sel_box_size );
-		m_outline_poly[i].SetParentId( &p_id );
-		m_outline_poly[i].Draw( dlist );
+		int sel_box_size = max( p->m_w, 5*NM_PER_MIL );
+		p->SetSelBoxSize( sel_box_size );
+		p->Draw();
 	}
 
 	// draw text
-	m_tl->m_dlist = m_dlist;
-	m_tl->m_smfontutil = fontutil;
-	for( int it=0; it<m_tl->text_ptr.GetSize(); it++ )
-	{
-		m_tl->text_ptr[it]->Draw( dlist, fontutil );
-	}
+	citer<ctext> it (&m_tl->texts);
+	for (ctext *t = it.First(); t; t = it.Next())
+		t->Draw();
 
+#ifndef CPT2 // TODO
 	// draw centroid
 	id c_id( ID_FP, -1, ID_CENTROID, -1, -1, ID_CENT );
 	int axis_offset_x = 0;
@@ -3376,38 +2630,39 @@ void CEditShape::Copy( CShape * shape )
 
 void CEditShape::Undraw()
 {
-#ifndef CPT2
+	// CPT2 converted
 	if( !m_dlist )
 		return;
 
-	for( int i=0; i<m_hole_el.GetSize(); i++ )
+	citer<cpadstack> ips (&m_padstack);
+	for (cpadstack *ps = ips.First(); ps; ps = ips.Next())
 	{
-		m_dlist->Remove( m_hole_el[i] );
-		m_dlist->Remove( m_pad_sel[i] );
-		m_dlist->Remove( m_pad_top_el[i] );
-		m_dlist->Remove( m_pad_inner_el[i] );
-		m_dlist->Remove( m_pad_bottom_el[i] );
-		m_dlist->Remove( m_pad_top_mask_el[i] );
-		m_dlist->Remove( m_pad_top_paste_el[i] );
-		m_dlist->Remove( m_pad_bottom_mask_el[i] );
-		m_dlist->Remove( m_pad_bottom_paste_el[i] );
+		m_dlist->Remove( ps->dl_el );
+		m_dlist->Remove( ps->dl_sel );
+		m_dlist->Remove( ps->top.dl_el );
+		m_dlist->Remove( ps->inner.dl_el );
+		m_dlist->Remove( ps->bottom.dl_el );
+		m_dlist->Remove( ps->top_mask.dl_el );
+		m_dlist->Remove( ps->top_paste.dl_el );
+		m_dlist->Remove( ps->bottom_mask.dl_el );
+		m_dlist->Remove( ps->bottom_paste.dl_el );
+		ps->dl_el = ps->dl_sel = ps->top.dl_el = ps->inner.dl_el =
+			ps->bottom.dl_el = ps->top_mask.dl_el = ps->top_paste.dl_el =
+			ps->bottom_mask.dl_el = ps->bottom_paste.dl_el = NULL;
 	}
-	m_hole_el.RemoveAll();
-	m_pad_sel.RemoveAll();
-	m_pad_top_el.RemoveAll();
-	m_pad_inner_el.RemoveAll();
-	m_pad_bottom_el.RemoveAll();
 
 	m_ref->Undraw();
 	m_value->Undraw();
 
-	for( int i=0; i<m_outline_poly.GetSize(); i++ )
-		m_outline_poly[i].Undraw();
+	citer<cpolyline> ip (&m_outline_poly);
+	for (cpolyline *p = ip.First(); p; p = ip.Next())
+		p->Undraw();
 
-	for( int it=0; it<m_tl->text_ptr.GetSize(); it++ )
-	{
-		m_tl->text_ptr[it]->Undraw();
-	}
+	citer<ctext> it (&m_tl->texts);
+	for (ctext *t = it.First(); t; t = it.Next())
+		t->Undraw();
+
+#ifndef CPT2 // TODO
 	m_dlist->Remove( m_centroid_el );
 	m_dlist->Remove( m_centroid_sel );
 
@@ -3424,6 +2679,7 @@ void CEditShape::Undraw()
 
 // Select part pad
 //
+/* CPT2 replaced with cpadstack::Highlight()
 void CEditShape::HighlightPad( int i )
 {
 	// select it by making its selection rectangle visible
@@ -3434,11 +2690,13 @@ void CEditShape::HighlightPad( int i )
 		m_dlist->Get_yf(m_pad_sel[i]), 
 		1 );
 }
+*/
 
 // Start dragging pad
 //
 void CEditShape::StartDraggingPad( CDC * pDC, int i )
 {
+#ifndef CPT2	// TODO, will put into class cpadstack
 	// make pad invisible
 	m_dlist->Set_visible( m_hole_el[i], 0 );
 	m_dlist->Set_visible( m_pad_top_el[i], 0 );
@@ -3458,12 +2716,14 @@ void CEditShape::StartDraggingPad( CDC * pDC, int i )
 						r.right - x, 
 						r.top - y,
 						0, LAY_FP_SELECTION );
+#endif
 }
 
 // Cancel dragging pad
 //
 void CEditShape::CancelDraggingPad( int i )
 {
+#ifndef CPT2	// TODO, put into class cpadstack
 	// make pad visible
 	m_dlist->Set_visible( m_hole_el[i], 1 );
 	m_dlist->Set_visible( m_pad_top_el[i], 1 );
@@ -3471,12 +2731,14 @@ void CEditShape::CancelDraggingPad( int i )
 	m_dlist->Set_visible( m_pad_bottom_el[i], 1 );
 	// drag
 	m_dlist->StopDragging();
+#endif
 }
 
 // Start dragging row of pads
 //
 void CEditShape::StartDraggingPadRow( CDC * pDC, int i, int num )
 {
+#ifndef CPT2	// TODO, must figure out how rows will work
 	// cancel selection 
 	m_dlist->CancelHighlight();
 	// make pads invisible
@@ -3499,12 +2761,14 @@ void CEditShape::StartDraggingPadRow( CDC * pDC, int i, int num )
 						r.right - x, 
 						r.top - y,
 						0, LAY_FP_SELECTION );
+#endif
 }
 
 // Cancel dragging row of pads
 //
 void CEditShape::CancelDraggingPadRow( int i, int num )
 {
+#ifndef CPT2	// TODO, must figure rows out
 	// make pad visible
 	for( int ip=i; ip<(i+num); ip++ )
 	{
@@ -3515,6 +2779,7 @@ void CEditShape::CancelDraggingPadRow( int i, int num )
 	}
 	// drag
 	m_dlist->StopDragging();
+#endif
 }
 
 // Select glue spot
@@ -3627,6 +2892,7 @@ void CEditShape::CancelDraggingCentroid()
 
 void CEditShape::ShiftToInsertPadName( CString * astr, int n )
 {
+#ifndef CPT2
 	CString test;
 	test.Format( "%s%d", *astr, n );
 	int index = GetPinIndexByName( test );	 // see if pin name already exists
@@ -3643,7 +2909,7 @@ void CEditShape::ShiftToInsertPadName( CString * astr, int n )
 		new_name.Format( "%s%d", *astr, n+1 );
 		m_padstack[index].name = new_name;
 	}
-	return;
+#endif
 }
 
 // Generate selection rectangle from footprint elements
@@ -3651,7 +2917,7 @@ void CEditShape::ShiftToInsertPadName( CString * astr, int n )
 //
 BOOL CEditShape::GenerateSelectionRectangle( CRect * r )
 {
-	int num_elements = GetNumPins() + m_outline_poly.GetSize() + m_tl->GetNumTexts();
+	int num_elements = GetNumPins() + m_outline_poly.GetSize() + m_tl->texts.GetSize();
 	if( num_elements == 0 )
 		return FALSE;
 
@@ -3673,30 +2939,31 @@ BOOL CEditShape::GenerateSelectionRectangle( CRect * r )
 
 void CShape::GenerateValueParams() {
 	// CPT:  factored-out helper function.  If value has been hidden or isn't specified, we call this function & position it relative to the ref-text
-	m_value_size = m_ref_size;
-	m_value_w = m_ref_w;
-	m_value_angle = m_ref_angle;
-	if( m_ref_angle == 0 )
+	int ref_size = m_ref->m_font_size;
+	int ref_xi = m_ref->m_x, ref_yi = m_ref->m_y;
+	int ref_angle = m_ref->m_angle;
+	int value_xi, value_yi;
+	if( ref_angle == 0 )
 	{
-		m_value_xi = m_ref_xi;
-		m_value_yi = m_ref_yi - m_value_size*2;
+		value_xi = ref_xi;
+		value_yi = ref_yi - ref_size*2;
 	}
-	else if( m_ref_angle == 90 )
+	else if( ref_angle == 90 )
 	{
-		m_value_xi = m_ref_xi - m_value_size*2;
-		m_value_yi = m_ref_yi;
+		value_xi = ref_xi - ref_size*2;
+		value_yi = ref_yi;
 	}
-	else if( m_ref_angle == 180 )
+	else if( ref_angle == 180 )
 	{
-		m_value_xi = m_ref_xi;
-		m_value_yi = m_ref_yi + m_value_size*2;
+		value_xi = ref_xi;
+		value_yi = ref_yi + ref_size*2;
 	}
 	else
 	{
-		m_value_xi = m_ref_xi + m_value_size*2;
-		m_value_yi = m_ref_yi;
+		value_xi = ref_xi + ref_size*2;
+		value_yi = ref_yi;
 	}
-	m_value->Move(m_value_xi, m_value_yi, m_value_angle, false, false, LAY_FP_SILK_TOP, m_value_size, m_value_w);
+	m_value->Move(value_xi, value_yi, ref_angle, false, false, LAY_FP_SILK_TOP, ref_size, m_ref->m_stroke_width);
 }
 
 

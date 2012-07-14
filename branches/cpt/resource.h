@@ -1576,6 +1576,7 @@
 #define IDS_YouAreTryingToConnectToAVertexOnADifferentNet 62669
 #define IDS_Tee                         62670
 #define IDS_W                           62671
+#define IDS_DeletingPartDoYouWishToEraseAllTraces 62672
 #define IDS_FkFpStr                     63000
 #define IDS_STRING63001                 63001
 #define IDS_STRING63002                 63002
@@ -1838,6 +1839,8 @@
 #define IDS_STRING63649                 63649
 #define IDS_STRING63650                 63650
 #define IDS_STRING63651                 63651
+#define IDS_STRING63652                 63652
+#define IDS_STRING63653                 63653
 #define IDS_SelMaskStr                  64000
 #define IDS_STRING64001                 64001
 #define IDS_STRING64002                 64002

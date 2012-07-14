@@ -62,7 +62,7 @@ struct undo_part {
 //	shape may be NULL if no footprint assigned
 //	may have package but no footprint, but not the reverse
 typedef struct {
-	cpart * part;		// pointer to original part, or NULL if new part added
+	cpart2 * part;		// pointer to original part, or NULL if new part added.  CPT2 changed to cpart2
 	CString ref_des;	// ref designator string
 	int ref_size;		// size of ref text characters
 	int ref_width;		// stroke width of ref text characters
