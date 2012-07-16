@@ -202,7 +202,7 @@ enum {
 	ID_VIA
 };
 
-// subsubtypes of ID_NET.ID_AREA, ID_BOARD.ID_OUTLINE, ID_MASK.ID_OUTLINE
+// subsubtypes of any polyline, such as ID_NET.ID_AREA, ID_BOARD.ID_OUTLINE, ID_MASK.ID_OUTLINE
 enum {
 	ID_SIDE = 1,
 	ID_SEL_SIDE,

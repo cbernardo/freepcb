@@ -1032,10 +1032,12 @@ void CPartList::MarkAllParts( int mark )
 //	sm = pointer to SMFontUtil for character data	
 // returns number of strokes generated
 //
+// AMW2: added org to return position of lower-left corner of text box after transformation
+//
 int GenerateStrokesForPartString( CString * str, int layer, BOOL bMirror,
 								  int size, int rel_angle, int rel_xi, int rel_yi, int w, 
 								  int x, int y, int angle, int side,
-								  CArray<stroke> * strokes, CRect * br,
+								  CArray<stroke> * strokes, CRect * br, CPoint * org,
 								  CDisplayList * dlist, SMFontUtil * sm )
 {
 	strokes->SetSize( 10000 );
@@ -1145,6 +1147,22 @@ int GenerateStrokesForPartString( CString * str, int layer, BOOL bMirror,
 	br->right = xmax + w/2;
 	br->bottom = ymin - w/2;
 	br->top = ymax + w/2;
+	if( org )
+	{
+			// get origin of text box relative to part
+			CPoint text_org( rel_xi, rel_yi );
+			// flip if part on bottom
+			if( side )
+			{
+				text_org.x = -text_org.x;
+			}
+			// rotate with part about part origin and add part position
+			RotatePoint( &text_org, angle, zero );
+			text_org.x += x;
+			text_org.y += y;
+			*org = text_org;
+	}
+
 	return i;
 }
 
@@ -1160,7 +1178,7 @@ CRect CPartList::GetValueRect( cpart * part )
 		0, bMirror, part->m_value_size,
 		part->m_value_angle, part->m_value_xi, part->m_value_yi, part->m_value_w,
 		part->x, part->y, part->angle, part->side,
-		&m_stroke, &br, NULL, m_dlist->GetSMFontUtil() );
+		&m_stroke, &br, NULL, NULL, m_dlist->GetSMFontUtil() );
 	return br;
 }
 
@@ -1178,6 +1196,9 @@ int CPartList::GetRefPCBLayer( cpart * part )
 
 
 // Draw part into display list
+// AMW2 fixed bug introduced by changes to ::GenerateStrokesForPartString() 
+// by adding org parameter to indicate the origin of the text boxes
+// AMW2 fixed bug introduced when sel_layer was changed for some reason
 //
 int CPartList::DrawPart( cpart * part )
 {
@@ -1207,7 +1228,8 @@ int CPartList::DrawPart( cpart * part )
 		sel.right = shape->m_sel_xf;
 		sel.bottom = shape->m_sel_yi;
 		sel.top = shape->m_sel_yf;
-		sel_layer = LAY_SELECTION;
+// AMW2 incorrect, should be the layer for the part 	sel_layer = LAY_SELECTION;		
+		sel_layer = LAY_TOP_COPPER;		
 	}
 	else
 	{
@@ -1216,7 +1238,8 @@ int CPartList::DrawPart( cpart * part )
 		sel.left = - shape->m_sel_xf;
 		sel.bottom = shape->m_sel_yi;
 		sel.top = shape->m_sel_yf;
-		sel_layer = LAY_SELECTION;
+// AMW2 ditto 		sel_layer = LAY_SELECTION;		
+		sel_layer = LAY_BOTTOM_COPPER;
 	}
 	if( angle > 0 )
 		RotateRect( &sel, angle, zero );
@@ -1227,8 +1250,9 @@ int CPartList::DrawPart( cpart * part )
 	if( angle == 90 || angle ==  270 )
 		m_dlist->Set_sel_vert( part->dl_sel, 1 );
 
-	CArray<stroke> m_stroke;	// used for text
-	CRect br;
+	CArray<stroke> m_stroke;	// strokes for text
+	CRect br;					// bounding rectangle of text (PCB coords)
+	CPoint br_org;				// origin of text (PCB coords)
 	CPoint si, sf;
 
 	// draw ref designator text
@@ -1242,7 +1266,7 @@ int CPartList::DrawPart( cpart * part )
 			ref_layer, bMirror, part->m_ref_size,
 			part->m_ref_angle, part->m_ref_xi, part->m_ref_yi, part->m_ref_w,
 			part->x, part->y, part->angle, part->side,
-			&m_stroke, &br, m_dlist, m_dlist->GetSMFontUtil() );
+			&m_stroke, &br, &br_org, m_dlist, m_dlist->GetSMFontUtil() );
 		if( nstrokes )
 		{
 			int xmin = br.left;
@@ -1265,7 +1289,7 @@ int CPartList::DrawPart( cpart * part )
 			// draw selection rectangle for ref text
 			id.SetT3( ID_SEL_TXT );
 			part->dl_ref_sel = m_dlist->AddSelector( id, part, part->m_ref_layer, DL_HOLLOW_RECT, 1,
-				0, 0, xmin, ymin, xmax, ymax, xmin, ymin );
+				0, 0, xmin, ymin, xmax, ymax, br_org.x, br_org.y );
 		}
 	}
 	else
@@ -1286,7 +1310,7 @@ int CPartList::DrawPart( cpart * part )
 			value_layer, bMirror, part->m_value_size,
 			part->m_value_angle, part->m_value_xi, part->m_value_yi, part->m_value_w,
 			part->x, part->y, part->angle, part->side,
-			&m_stroke, &br, m_dlist, m_dlist->GetSMFontUtil() );
+			&m_stroke, &br, &br_org, m_dlist, m_dlist->GetSMFontUtil() );
 
 		if( nstrokes )
 		{
@@ -1311,7 +1335,7 @@ int CPartList::DrawPart( cpart * part )
 			// draw selection rectangle for value
 			id.SetT3( ID_SEL_TXT );
 			part->dl_value_sel = m_dlist->AddSelector( id, part, part->m_value_layer, DL_HOLLOW_RECT, 1,
-				0, 0, xmin, ymin, xmax, ymax, xmin, ymin );
+				0, 0, xmin, ymin, xmax, ymax, br_org.x, br_org.y );
 		}
 	}
 	else
@@ -1409,7 +1433,7 @@ int CPartList::DrawPart( cpart * part )
 			text_layer, t->m_mirror, t->m_font_size,
 			t->m_angle, t->m_x, t->m_y, t->m_stroke_width,
 			part->x, part->y, part->angle, part->side,
-			&m_stroke, &br, m_dlist, m_dlist->GetSMFontUtil() );
+			&m_stroke, &br, NULL, m_dlist, m_dlist->GetSMFontUtil() );
 
 		xmin = min( xmin, br.left );
 		xmax = max( xmax, br.right );
