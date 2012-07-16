@@ -61,7 +61,7 @@ void ctextlist::ReadTexts( CStdioFile * pcb_file )
 			BOOL negative = np>9? my_atoi( &p[8] ): false;
 			ctext *text = new ctext(m_doc, x, y, angle, mirror, negative, layer, font_size, stroke_width, m_smfontutil, &str);
 			texts.Add(text);
-			text->Draw();
+			text->MustRedraw();
 		}
 	}
 }

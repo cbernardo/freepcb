@@ -402,14 +402,14 @@ void cnetlist::ReadNets( CStdioFile * pcb_file, double read_version, int * layer
 				}
 			}
 
+			// Delete bogus areas whose main contour has <3 corners
 			citer<carea2> ia (&net->areas);
 			for (carea2 *a = ia.First(); a; a = ia.Next())
 				if (a->main->corners.GetSize() < 3)
 					a->Remove();
 			
 			net->SetThermals();
-			net->Draw();
-			// CPT2 TODO: net->CleanUpConnections();
+			net->MustRedraw();
 		}
 	}
 }

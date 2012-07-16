@@ -253,7 +253,7 @@ cpart2 * cpartlist::AddFromString( CString * str )
 	if (value_specified)
 		part->m_value->Move(value_xi, value_yi, value_angle, 
 				false, false, value_layer, value_size, value_width );
-	part->Draw();																			// CPT2. TODO is this the place to do this?
+	part->MustRedraw();																			// CPT2. TODO is this the place to do this?
 	return part;
 }
 
@@ -314,7 +314,7 @@ int cpartlist::ReadParts( CStdioFile * pcb_file )
 						&& in_str[0] != '[' );
 			pcb_file->Seek( pos, CFile::begin );
 
-			// now add part to partlist
+			// now add part to partlist.  (AddFromString() also calls MustRedraw().)
 			cpart2 * part = AddFromString( &str );
 		}
 	}
@@ -372,17 +372,9 @@ int cpartlist::ExportPartListInfo( partlist_info * pli, cpart2 *part0 )
 
 void cpartlist::ImportPartListInfo( partlist_info * pl, int flags, CDlgLog * log )
 {
+	// CPT2 converted.  Routine relies on lower-level subroutines to call Undraw() or MustRedraw(), as appropriate, for individual parts and 
+	// attached nets.
 	CString mess; 
-
-	// undraw all parts and disable further drawing
-	CDisplayList * old_dlist = m_dlist;
-	if( m_dlist )
-	{
-		citer<cpart2> ip (&parts);
-		for (cpart2 *part = ip.First(); part; part = ip.Next())
-			part->Undraw();
-	}
-	m_dlist = NULL;		
 
 	// grid for positioning parts off-board
 	int pos_x = 0;
@@ -421,7 +413,7 @@ void cpartlist::ImportPartListInfo( partlist_info * pl, int flags, CDlgLog * log
 			if( pi->part == part )
 			{
 				// part exists in partlist_info.  CPT2 TODO Before this check was based on comparing ref-designators, but I think this
-				// check will work better in case we're chaning the part's ref-des only.
+				// check will work better in case we're changing the part's ref-des only.
 				bFound = TRUE;
 				break;
 			}
@@ -481,101 +473,86 @@ void cpartlist::ImportPartListInfo( partlist_info * pl, int flags, CDlgLog * log
 			continue;
 		}
 
+		if( pi->part && !pi->part->shape && (pi->shape || pi->bShapeChanged == TRUE) )
+		{
+			// old part exists, but it had a null footprint that has now changed.
+			// Remove old part (we'll create the new one from scratch)
+			pi->part->Remove(true);
+			pi->part = NULL;
+		}
+
 		if( pi->part == 0 )
 		{
 			// the partlist_info does not include a pointer to an existing part
 			// the part might not exist in the project, or we are importing a netlist file
 			cpart2 * old_part = GetPartByName( &pi->ref_des );
-			if( old_part )
+			if( old_part && old_part->shape)
 			{
-				// an existing part has the same ref_des as the new part
-				if( old_part->shape )
+				// an existing part has the same ref_des as the new part, and has a footprint
+				// see if the incoming package name matches the old package or footprint
+				if( (flags & KEEP_FP) 
+					|| (pi->package == "") 
+					|| (pi->package == old_part->package)
+					|| (pi->package == old_part->shape->m_name) )
 				{
-					// the existing part has a footprint
-					// see if the incoming package name matches the old package or footprint
-					if( (flags & KEEP_FP) 
-						|| (pi->package == "") 
-						|| (pi->package == old_part->package)
-						|| (pi->package == old_part->shape->m_name) )
+					// use footprint and parameters from existing part
+					pi->part = old_part;
+					pi->ref_size = old_part->m_ref->m_font_size; 
+					pi->ref_width = old_part->m_ref->m_stroke_width;
+					pi->ref_vis = old_part->m_ref_vis;					// CPT
+					pi->value = old_part->value_text;
+					pi->value_vis = old_part->m_value_vis;
+					pi->x = old_part->x; 
+					pi->y = old_part->y;
+					pi->angle = old_part->angle;
+					pi->side = old_part->side;
+					pi->shape = old_part->shape;
+				}
+				else if( pi->shape )
+				{
+					// use new footprint, but preserve position
+					pi->ref_size = old_part->m_ref->m_font_size; 
+					pi->ref_width = old_part->m_ref->m_stroke_width;
+					pi->ref_vis = old_part->m_ref_vis;					// CPT
+					pi->value = old_part->value_text;
+					pi->value_vis = old_part->m_value_vis;
+					pi->x = old_part->x; 
+					pi->y = old_part->y;
+					pi->angle = old_part->angle;
+					pi->side = old_part->side;
+					pi->part = old_part;
+					pi->bShapeChanged = TRUE;
+					if( log && old_part->shape->m_name != pi->package )
 					{
-						// use footprint and parameters from existing part
-						pi->part = old_part;
-						pi->ref_size = old_part->m_ref->m_font_size; 
-						pi->ref_width = old_part->m_ref->m_stroke_width;
-						pi->ref_vis = old_part->m_ref_vis;					// CPT
-						pi->value = old_part->value_text;
-						pi->value_vis = old_part->m_value_vis;
-						pi->x = old_part->x; 
-						pi->y = old_part->y;
-						pi->angle = old_part->angle;
-						pi->side = old_part->side;
-						pi->shape = old_part->shape;
-					}
-					else if( pi->shape )
-					{
-						// use new footprint, but preserve position
-						pi->ref_size = old_part->m_ref->m_font_size; 
-						pi->ref_width = old_part->m_ref->m_stroke_width;
-						pi->ref_vis = old_part->m_ref_vis;					// CPT
-						pi->value = old_part->value_text;
-						pi->value_vis = old_part->m_value_vis;
-						pi->x = old_part->x; 
-						pi->y = old_part->y;
-						pi->angle = old_part->angle;
-						pi->side = old_part->side;
-						pi->part = old_part;
-						pi->bShapeChanged = TRUE;
-						if( log && old_part->shape->m_name != pi->package )
-						{
-							CString s ((LPCSTR) IDS_ChangingFootprintOfPart);
-							mess.Format( s, old_part->ref_des, old_part->shape->m_name, pi->shape->m_name );
-							log->AddLine( mess );
-						}
-					}
-					else
-					{
-						// new part does not have footprint, remove old part
-						if( log && old_part->shape->m_name != pi->package )
-						{
-							CString s ((LPCSTR) IDS_ChangingFootprintOfPart2);
-							mess.Format( s, old_part->ref_des, old_part->shape->m_name, pi->package );
-							log->AddLine( mess );
-						}
-						old_part->Remove(true);
+						CString s ((LPCSTR) IDS_ChangingFootprintOfPart);
+						mess.Format( s, old_part->ref_des, old_part->shape->m_name, pi->shape->m_name );
+						log->AddLine( mess );
 					}
 				}
 				else
 				{
-					// remove old part (which did not have a footprint)
-					if( log && old_part->package != pi->package )
+					// new part does not have footprint, remove old part
+					if( log && old_part->shape->m_name != pi->package )
 					{
-						CString s ((LPCSTR) IDS_ChangingFootprintOfPart);
-						mess.Format( s, old_part->ref_des, old_part->package, pi->package );
+						CString s ((LPCSTR) IDS_ChangingFootprintOfPart2);
+						mess.Format( s, old_part->ref_des, old_part->shape->m_name, pi->package );
 						log->AddLine( mess );
 					}
 					old_part->Remove(true);
 				}
 			}
-		}
-
-		if( pi->part )
-		{
-			if( pi->part->shape != pi->shape || pi->bShapeChanged == TRUE )
+			else if (old_part && !old_part->shape)
 			{
-				// old part exists, but footprint was changed
-				if( pi->part->shape == NULL )
+				// remove old part (which did not have a footprint)
+				if( log && old_part->package != pi->package )
 				{
-					// old part did not have a footprint before, so remove it
-					// and treat as new part
-					pi->part->Remove(true);
-					pi->part = NULL;
+					CString s ((LPCSTR) IDS_ChangingFootprintOfPart);
+					mess.Format( s, old_part->ref_des, old_part->package, pi->package );
+					log->AddLine( mess );
 				}
+				old_part->Remove(true);
 			}
-		}
 
-		if( pi->part == 0 )
-		{
-			// new part is being imported (with or without footprint)
 			if( pi->shape && pi->bOffBoard )
 			{
 				// place new part offboard, using grid 
@@ -586,9 +563,7 @@ void cpartlist::ImportPartListInfo( partlist_info * pl, int flags, CDlgLog * log
 				int h = abs( pi->shape->m_sel_yf - pi->shape->m_sel_yi )/(100*PCBU_PER_MIL)+2;
 				// now find space in grid for part
 				for( ix=0; ix<GRID_X; ix++ )
-				{
-					iy = 0;
-					while( iy < (GRID_Y - h) )
+					for (iy = 0; iy < (GRID_Y - h); iy++ )
 					{
 						if( !grid[ix+GRID_X*iy] )
 						{
@@ -599,13 +574,11 @@ void cpartlist::ImportPartListInfo( partlist_info * pl, int flags, CDlgLog * log
 									if( grid[iix+GRID_X*iiy] )
 										OK = FALSE;
 							if( OK )
-								break;
+								goto end_loop;
 						}
-						iy++;
 					}
-					if( OK )
-						break;
-				}
+
+				end_loop:
 				if( OK )
 				{
 					// place part
@@ -652,22 +625,25 @@ void cpartlist::ImportPartListInfo( partlist_info * pl, int flags, CDlgLog * log
 				pi->x -= pi->shape->m_sel_xi;
 				pi->y -= pi->shape->m_sel_yi;
 			}
-			// now place part
+			
+			// Create new part!
 			cpart2 *part = new cpart2(this);
 			CShape *shape = pi->shape;
+			// The following line also positions ref and value according to "shape", if possible, and calls part->MustRedraw():
 			part->SetData( shape, &pi->ref_des, &pi->value, &pi->package, pi->x, pi->y,
-				pi->side, pi->angle, TRUE, FALSE );											// Also positions ref and value according to "shape", if possible
+				pi->side, pi->angle, TRUE, FALSE );
 			part->m_ref_vis = pi->ref_vis;
 			part->m_value_vis = pi->value_vis;
 			// CPT2 TODO.  The point of the following line is to allow "phantom pins" (those within a net that refer to deleted parts)
 			// to be reattached when the part is reinstated.  Since I'm proposing that we drop phantom pins, I'm commenting it out.
 			// m_nlist->PartAdded( part );
 		}
-		
-		else
+
+		else 
 		{
 			// part existed before but may have been modified
 			cpart2 *part = pi->part;
+			part->MustRedraw();
 			part->package = pi->package;
 			if( part->shape != pi->shape || pi->bShapeChanged )
 			{
@@ -706,9 +682,5 @@ void cpartlist::ImportPartListInfo( partlist_info * pl, int flags, CDlgLog * log
 
 	// PurgeFootprintCache();
 	free( grid );
-	// redraw partlist
-	m_dlist = old_dlist;
-	for (cpart2 *part = ip.First(); part; part = ip.Next())
-		part->Draw();
 }
 

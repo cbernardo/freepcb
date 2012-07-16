@@ -129,6 +129,10 @@ BOOL CFreePcbApp::InitInstance()
 		m_doc->OnFileAutoOpen( fn );
 	}
 
+	// CPT2 TODO for testing only:
+	extern void TestGpc();
+	TestGpc();
+
 	return TRUE;
 }
 

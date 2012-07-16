@@ -65,7 +65,7 @@ public:
 	void FileLoadLibrary( LPCTSTR pathname );
 	void ProjectModified( BOOL flag, BOOL b_clear_redo=TRUE );
 	void InitializeNewProject();
-	void CFreePcbDoc::SendInitialUpdate();
+	void SendInitialUpdate();
 	void ReadFootprints( CStdioFile * pcb_file, 
 		CMapStringToPtr * cache_map=NULL,
 		BOOL bFindSection=TRUE );
@@ -120,6 +120,7 @@ public:
 	CArray<CPolyLine> m_sm_cutout;	// array of soldermask cutouts. // CPT2 TODO:  change to carray<csmcutout>
 	carray<cpcb_item> items;		// CPT2.  Master list of all created pcb-items.  GarbageCollect() will go through this list and clean up now and then.
 	carray<cpcb_item> others;		// CPT2.  All active pcb-items that belong to "other" categories (not net-items, part-items, or texts)
+	carray<cpcb_item> redraw;		// CPT2 r313.  My latest-n-greatest system for undrawing and redrawing (see notes.txt).
 
 	CFreePcbView * m_view;		// pointer to CFreePcbView 
 	CDlgLog * m_dlg_log;
@@ -315,6 +316,7 @@ public:
 	afx_msg void OnViewVisibleGrid();
 	afx_msg void OnViewPlacementGrid();
 	void CollectOptionsStrings(CArray<CString> &arr);
+	void Redraw();												// CPT2 r313, latest-n-greatest system for undrawing/redrawing (see notes.txt)
 	void GarbageCollect();
 	// end CPT
 };

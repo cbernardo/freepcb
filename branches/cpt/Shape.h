@@ -154,7 +154,7 @@ public:
 	int m_centroid_x, m_centroid_y;		// position of centroid
 	int m_centroid_angle;				// angle of centroid (CCW)
 	carray<cpadstack> m_padstack;		// array of padstacks for shape.  CPT2: was CArray<padstack>.  TODO rename padstacks
-	carray<cpolyline> m_outline_poly;	// CPT2: was CArray<CPolyLine>.  TODO Rename outline_polys
+	carray<coutline> m_outline_poly;	// CPT2: was CArray<CPolyLine>.  TODO Rename outline_polys
 	ctextlist *m_tl;					// CPT2.  Used to be CTextList*
 	CArray<glue> m_glue;				// array of adhesive dots
 

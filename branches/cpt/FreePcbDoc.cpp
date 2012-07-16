@@ -573,6 +573,7 @@ BOOL CFreePcbDoc::FileOpen( LPCTSTR fn, BOOL bLibrary )
 			m_nlist->ReadNets( &pcb_file, m_read_version );
 			m_tlist->ReadTexts( &pcb_file );
 			m_plist->SetThermals();
+			Redraw();											// pcb is loaded, so go ahead and draw the items added to this->redraw during the prior 6 lines
 
 			// make path to library folder and index libraries
 			if( m_full_lib_dir == "" )
@@ -4941,6 +4942,19 @@ void CFreePcbDoc::OnViewVisibleGrid() {
 	}
 
 // end CPT
+
+void CFreePcbDoc::Redraw() 
+{
+	// CPT2 r313, latest-n-greatest system for drawing and redrawing.  An outer-level routine like CFreePcbView::OnLButtonUp() should call this
+	// routine after all the modifications of the cpcb_item hierarchy requested by user have been completed.  At that time, this routine 
+	// runs through carray this->redraw, a list that has been built up during the course of the modifications by routine cpcb_item::MustRedraw().
+	// After double-checking that each item is still valid, routine invokes Draw() on each one.  At the end redraw gets cleared out.
+	citer<cpcb_item> ii (&redraw);
+	for (cpcb_item *i = ii.First(); i; i = ii.Next())
+		if (i->IsValid())
+			i->Draw();
+	redraw.RemoveAll();
+}
 
 /*  CPT2
 void CFreePcbDoc::GarbageCollect() {

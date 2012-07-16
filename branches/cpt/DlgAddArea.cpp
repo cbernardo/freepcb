@@ -33,13 +33,9 @@ void CDlgAddArea::DoDataExchange(CDataExchange* pDX)
 	if( !pDX->m_bSaveAndValidate )
 	{
 		// incoming, initialize net list
-		CIterator_cnet iter_net(m_nlist);
-		cnet * net = iter_net.GetFirst();
-		while( net )
-		{
+		citer<cnet2> in (&m_nlist->nets);
+		for (cnet2 *net = in.First(); net; net = in.Next())
 			m_combo_net.AddString( net->name );
-			net = iter_net.GetNext();
-		}
 		if( m_net )
 		{
 			bNewArea = FALSE;
@@ -103,8 +99,8 @@ END_MESSAGE_MAP()
 
 // CDlgAddArea message handlers
 
-void CDlgAddArea::Initialize( CNetList * nl, int nlayers, 
-							 cnet * net, int layer, int hatch )
+void CDlgAddArea::Initialize( cnetlist * nl, int nlayers, 
+							 cnet2 * net, int layer, int hatch )
 {
 	m_nlist = nl;
 	m_num_layers = nlayers;

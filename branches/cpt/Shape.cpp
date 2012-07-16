@@ -23,6 +23,7 @@ cpad::cpad()
 {
 	radius = 0;
 	connect_flag = 0;
+	dl_el = NULL;
 }
 
 BOOL cpad::operator==(cpad p)
@@ -1159,7 +1160,7 @@ int CShape::MakeFromFile( CStdioFile * in_file, CString name,
 	BOOL bValue = FALSE;
 	BOOL bRef = FALSE;
 	int n_glue = 0;
-	cpolyline *currPoly = NULL;			// CPT2
+	coutline *currPoly = NULL;			// CPT2
 	cpadstack *currPs = NULL;
 
 	p.SetSize( 10 );
@@ -1524,8 +1525,8 @@ int CShape::MakeFromFile( CStdioFile * in_file, CString name,
 normal_return:
 		// eliminate any polylines with only one corner
 		// CPT2
-		citer<cpolyline> ip (&m_outline_poly);
-		for (cpolyline *p = ip.First(); p; p = ip.Next())
+		citer<coutline> ip (&m_outline_poly);
+		for (coutline *p = ip.First(); p; p = ip.Next())
 			if( p->main->corners.GetSize() == 1 )
 				m_outline_poly.Remove(p);
 		// NM deprecated
@@ -1588,10 +1589,10 @@ void CShape::Copy( CShape * src )
 	m_sel_yf = src->m_sel_yf;
 	// reference designator text
 	m_ref->Copy( src->m_ref );
-	m_ref->doc = m_doc;
+	m_ref->SetDoc( m_doc );
 	// value text
 	m_value->Copy( src->m_value );
-	m_value->doc = m_doc;
+	m_value->SetDoc( m_doc );
 	// centroid.  TODO change to ccentroid object
 	m_centroid_type = src->m_centroid_type;
 	m_centroid_x = src->m_centroid_x;
@@ -1603,17 +1604,17 @@ void CShape::Copy( CShape * src )
 	for (cpadstack *ps = ips.First(); ps; ps = ips.Next())
 	{
 		cpadstack *ps2 = new cpadstack(*ps);
-		ps2->doc = m_doc;
+		ps2->SetDoc( m_doc );
 		m_padstack.Add( ps2 );
 	}
 	// outline polys
 	m_outline_poly.RemoveAll();
-	citer<cpolyline> ip (&src->m_outline_poly);
-	for (cpolyline *p = ip.First(); p; p = ip.Next())
+	citer<coutline> ip (&src->m_outline_poly);
+	for (coutline *p = ip.First(); p; p = ip.Next())
 	{
-		cpolyline *p2 = new cpolyline(p);
-		p2->doc = m_doc;
-		m_outline_poly.Add(p2);
+		coutline *p2 = new coutline(p);
+		p2->SetDoc( m_doc );
+		m_outline_poly.Add( p2 );
 	}
 	// texts
 	m_tl->RemoveAllTexts();
@@ -2183,8 +2184,8 @@ HENHMETAFILE CShape::CreateMetafile( CMetaFileDC * mfDC, CDC * pDC, CRect const 
 	}
 
 	// draw part outline
-	citer<cpolyline> ip (&m_outline_poly);
-	for (cpolyline *p = ip.First(); p; p = ip.Next())
+	citer<coutline> ip (&m_outline_poly);
+	for (coutline *p = ip.First(); p; p = ip.Next())
 	{
 		int thickness = p->m_w/NM_PER_MIL;
 		CPen silk_pen( PS_SOLID, thickness, C_RGB::yellow );
@@ -2322,8 +2323,8 @@ CRect CShape::GetBounds( BOOL bIncludeLineWidths )
 {
 	CRect br = GetAllPadBounds();
 
-	citer<cpolyline> ip (&m_outline_poly);
-	for (cpolyline *p = ip.First(); p; p = ip.Next())
+	citer<coutline> ip (&m_outline_poly);
+	for (coutline *p = ip.First(); p; p = ip.Next())
 	{
 		CRect polyr;
 		if( bIncludeLineWidths )
@@ -2526,6 +2527,7 @@ void CEditShape::Draw( CDisplayList * dlist, SMFontUtil * fontutil )
 			else
 				p->dl_el = NULL;											// nothing drawn
 		}
+
 		if( ps->hole_size )
 		{
 			// add to display list
@@ -2552,8 +2554,8 @@ void CEditShape::Draw( CDisplayList * dlist, SMFontUtil * fontutil )
 		m_value->Draw();
 
 	// now draw outline polylines
-	citer<cpolyline> ip (&m_outline_poly);
-	for (cpolyline *p = ip.First(); p; p = ip.Next())
+	citer<coutline> ip (&m_outline_poly);
+	for (coutline *p = ip.First(); p; p = ip.Next())
 	{
 		int sel_box_size = max( p->m_w, 5*NM_PER_MIL );
 		p->SetSelBoxSize( sel_box_size );
@@ -2654,8 +2656,8 @@ void CEditShape::Undraw()
 	m_ref->Undraw();
 	m_value->Undraw();
 
-	citer<cpolyline> ip (&m_outline_poly);
-	for (cpolyline *p = ip.First(); p; p = ip.Next())
+	citer<coutline> ip (&m_outline_poly);
+	for (coutline *p = ip.First(); p; p = ip.Next())
 		p->Undraw();
 
 	citer<ctext> it (&m_tl->texts);
