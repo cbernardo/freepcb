@@ -2125,7 +2125,7 @@ void CFootprintView::OnFootprintFileClose()
 
 	// reset selection rectangle
 	CRect br = m_fp.GetAllPadBounds();
-	citer<cpolyline> ip (&m_fp.m_outline_poly);
+	citer<coutline> ip (&m_fp.m_outline_poly);
 	for (cpolyline *p = ip.First(); p; p = ip.Next())
 	{
 		CRect polyr = p->GetBounds();

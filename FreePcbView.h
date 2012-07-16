@@ -351,9 +351,10 @@ public:
 	CRect m_sel_rect;							// rectangle used for selection
 
 	// mode for drawing new polyline segments
-	int m_polyline_style;	// STRAIGHT, ARC_CW or ARC_CCW
-	int m_polyline_hatch;	// NONE, DIAGONAL_FULL or DIAGONAL_EDGE
-	int m_polyline_layer;	// layer being drawn
+	int m_polyline_style;			// STRAIGHT, ARC_CW or ARC_CCW
+	int m_polyline_hatch;			// NONE, DIAGONAL_FULL or DIAGONAL_EDGE
+	int m_polyline_layer;			// layer being drawn
+	cpolyline *m_tmp_poly;			// CPT2.  When dragging new cutouts, we put the evolving contour into its own temporary polyline.
 
 	// flag to disable context menu on right-click,
 	// if right-click handled some other way
@@ -444,7 +445,7 @@ public:
 	void CancelSelection();
 	void HighlightNet( cnet * net, id * exclude_id=NULL );
 	void CancelHighlightNet();
-	int SetWidth( int mode );
+	void SetWidth( int mode );
 	// int GetWidthsForSegment( int * w, int * via_w, int * via_hole_w );	// CPT2 moved to cnet2::GetWidths
 	void ChangeTraceLayer( int mode, int old_layer=0 );
 	void MoveOrigin( int x_off, int y_off );

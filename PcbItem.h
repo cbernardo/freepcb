@@ -134,18 +134,22 @@ class cpcb_item
 	static int next_uid;
 public:							// ?
 	CFreePcbDoc *doc;
-	dl_element *dl_el;			// Do enough of the derived classes want it to merit its inclusion?
-	dl_element *dl_sel;			// Ditto...
+	dl_element *dl_el;
+	dl_element *dl_sel;
 	int utility;
 	bool bDrawn;
-	enum { NOERR = 0, NO_DLIST, NO_FOOTPRINT };
+	enum { NOERR = 0, NO_DLIST, NO_FOOTPRINT, ALREADY_DRAWN, EMPTY_TEXT };
+	enum { STRAIGHT, ARC_CW, ARC_CCW };	// polyline side styles
+	enum { NO_HATCH, DIAGONAL_FULL, DIAGONAL_EDGE }; // polyline hatch styles
 
 protected:
-	cpcb_item(CFreePcbDoc *_doc);
-	~cpcb_item();								// Had to define this in the .cpp.  When an item is destroyed, references to it are automatically
+	cpcb_item(CFreePcbDoc *_doc);				// Done in the .cpp.
+	~cpcb_item();								// Done in cpp.  When an item is destroyed, references to it are automatically
 												// removed from any carrays to which it belongs.
 public:
 	int UID() { return m_uid; }
+	void SetDoc(CFreePcbDoc *doc);				// Done in cpp.
+	void MustRedraw();							// CPT2 r313.  My latest-n-greatest new system for drawing/undrawing (see notes.txt). Done in cpp
 
 	// Virtual functions:
 	virtual	int Draw() { return NOERR; }
@@ -222,6 +226,8 @@ public:
 
 	virtual cnet2 *GetNet() { return NULL; }					// Returns something for items that belong to a net.
 	virtual cconnect2 *GetConnect() { return NULL; }			// Similar
+	virtual cpolyline *GetPolyline() { return NULL; }
+	carea2 *GetArea();											// In cpp
 	virtual int GetLayer() { return -1; }
 	virtual void GetStatusStr( CString *str ) { *str = ""; }
 	virtual void ForceVia() { }									// Implemented in cvertex2 and ctee
@@ -870,7 +876,7 @@ public:
 	void GenerateStrokes();														// CPT2 new.  Helper for Draw().
 	int Draw();																	// Done in cpp
 	void GenerateStrokesRelativeTo( cpart2 *p );								// CPT2 new.  Helper for DrawRelativeTo().
-	int DrawRelativeTo( cpart2 *p );											// CPT2 new.  Done in cpp
+	int DrawRelativeTo( cpart2 *p, bool bSelector=true );						// CPT2 new.  Done in cpp
 	void Undraw();																// Done in cpp
 	void Highlight();															// Done in cpp
 	void SetVisible(bool bVis);													// Done in cpp
@@ -887,11 +893,14 @@ public:
 	creftext( cpart2 *_part, int x, int y, int angle, 
 		BOOL bMirror, BOOL bNegative, int layer, int font_size, 
 		int stroke_width, SMFontUtil * smfontutil, CString * str_ptr );			// Done in cpp
+	bool IsValid();																// Done in cpp
 	bool IsText() { return false; }
 	bool IsRefText() { return true; }
 	ctext *ToText() { return NULL; }
 	creftext *ToRefText() { return this; }
 	int GetTypeBit() { return bitRefText; }
+
+	int Draw() { return DrawRelativeTo(part); }
 };
 
 class cvaluetext: public ctext
@@ -901,12 +910,15 @@ public:
 
 	cvaluetext( cpart2 *_part, int x, int y, int angle, 
 		BOOL bMirror, BOOL bNegative, int layer, int font_size, 
-		int stroke_width, SMFontUtil * smfontutil, CString * str_ptr );
+		int stroke_width, SMFontUtil * smfontutil, CString * str_ptr );			// Done in cpp
+	bool IsValid();																// Done in cpp
 	bool IsText() { return false; }
 	bool IsValueText() { return true; }
 	ctext *ToText() { return NULL; }
 	cvaluetext *ToValueText() { return this; }
 	int GetTypeBit() { return bitValueText; }
+
+	int Draw() { return DrawRelativeTo(part); }
 };
 
 
@@ -1083,10 +1095,14 @@ public:
 	int GetTypeBit();									// Done in cpp
 	cnet2 *GetNet();									// Done in cpp
 	int GetLayer();										// Done in cpp
+	cpolyline *GetPolyline();							// Done in cpp
 
 	bool IsOnCutout();									// Done in cpp
 	void Highlight();									// Done in cpp, derived from old CPolyLine::HighlightCorner().  See also CNetList::HighlightAreaCorner.
 	bool Move( int x, int y, BOOL bEnforceCircularArcs=FALSE );			// Done in cpp, derived from CNetList::MoveAreaCorner/CPolyLine::MoveCorner
+	void StartDragging( CDC * pDC, int x, int y, int crosshair = 1 );	// Done in cpp, derived from CPolyLine::StartDraggingToMoveCorner
+	void CancelDragging();												// Done in cpp, derived from CPolyLine::CancelDraggingToMoveCorner
+	void Remove();
 };
 
 class cside: public cpcb_item
@@ -1111,11 +1127,15 @@ public:
 	int GetTypeBit();								// Done in cpp
 	cnet2 *GetNet();								// Done in cpp
 	int GetLayer();									// Done in cpp
+	cpolyline *GetPolyline();						// Done in cpp
 	bool IsOnCutout();								// Done in cpp
 
+	void InsertCorner(int x, int y);				// Done in cpp
 	void Highlight();		// Done in cpp, derived from cpolyline::HighlightSide()
 	void SetVisible();		// CPT2
 	void SetStyle();
+	void StartDraggingNewCorner( CDC * pDC, int x, int y, int crosshair );  // Done in cpp, derived from CPolyLine::StartDraggingToInsertCorner
+	void CancelDraggingNewCorner( );										// Done in cpp, derived from CPolyLine::CancelDraggingToInsertCorner
 };
 
 class ccontour: public cpcb_item
@@ -1137,27 +1157,28 @@ public:
 	int GetTypeBit() { return bitContour; }
 	int GetLayer();															// Done in cpp
 	cnet2 *GetNet();														// Done in cpp
+	cpolyline *GetPolyline() { return poly; }
 
-	void Highlight() 
+	void Highlight()														// CPT2 TODO used?
 	{
 		citer<cside> is (&sides);
 		for (cside *s = is.First(); s; s = is.Next())
 			s->Highlight();
 	}
-
+	
+	int NumCorners() { return corners.GetSize(); }
 	void AppendSideAndCorner( cside *s, ccorner *c, ccorner *after );		// Done in cpp
-	void Close(int style);													// Done in cpp
+	void Close(int style = STRAIGHT);										// Done in cpp
 	void Unclose();															// Done in cpp
 	CRect GetCornerBounds();												// Done in cpp
 	BOOL TestPointInside( int x, int y );									// CPT2 Needed?
+	void SetPoly( cpolyline *_poly );										// Done in cpp
+	void Remove();															// Done in cpp, derived from CPolyLine::RemoveContour
 };
 
 class cpolyline: public cpcb_item
 {
 public:
-	enum { STRAIGHT, ARC_CW, ARC_CCW };	// side styles
-	enum { NO_HATCH, DIAGONAL_FULL, DIAGONAL_EDGE }; // hatch styles
-
 	// CDisplayList * m_dlist;		// display list // CPT2 use doc->m_dlist (?)
 
 	cpcb_item *parent;			// CPT2.  TODO Probably obsolete...
@@ -1170,6 +1191,7 @@ public:
 	int m_sel_box;				// corner selection box width/2
 	int m_hatch;				// hatch style, see enum above
 	int m_nhatch;				// number of hatch lines
+	bool m_bTemporary;			// CPT2 Set for CFreePcbView::m_tmp_poly.
 	CArray <dl_element*>  dl_hatch;	// hatch lines.  Use CArray with dl-elements generally?
 	int utility2;
 	gpc_polygon * m_gpc_poly;	// polygon in gpc format
@@ -1177,34 +1199,38 @@ public:
 
 public:
 	// constructors/destructor
-	cpolyline(CFreePcbDoc *_doc);							// Done in cpp
-	cpolyline(cpolyline *src);								// Done in cpp
+	cpolyline(CFreePcbDoc *_doc);													// Done in cpp
+	cpolyline(cpolyline *src, bool bCopyContours=true, bool bTemporary=false);		// Done in cpp
 	~cpolyline()
 		{ }
 
 	bool IsPolyline() { return true; }
 	cpolyline *ToPolyline() { return this; }
 	int GetLayer() { return m_layer; }
+	cpolyline *GetPolyline() { return this; }
+	bool IsValid() { return m_bTemporary; }											// We want CFreePcbDoc::Redraw always to render temporary polylines.
 
 	// functions for creating and modifying polyline
-	void MarkConstituents();								// CPT2. Done in cpp.
-	void Clear();
+	virtual void Remove() { }														// CPT2 new.  Check out the versions in derived classes.
+	void MarkConstituents();														// CPT2. Done in cpp.
+	void Clear();																	// CPT2 TODO maybe obsolete?
 	void Start( int layer, int w, int sel_box, int x, int y,
-		int hatch, id * id, void * ptr, BOOL bDraw=TRUE );
-	void AppendCorner( int x, int y, int style = STRAIGHT );
-	void InsertCorner( ccorner *c, int x, int y, int style = STRAIGHT );		// Arg change.  Insert prior to "c"
-	void DeleteCorner( ccorner *c );											// Put into ccorner?
-	BOOL MoveCorner( ccorner *c, int x, int y, BOOL bEnforceCircularArcs=FALSE );	// Put into ccorner?
-	void Close( int style = STRAIGHT );
-	void RemoveContour( ccontour *ctr );					// Arg change
+		int hatch, id * id, void * ptr, BOOL bDraw=TRUE );							// CPT2 TODO maybe obsolete?
+	void AppendCorner( int x, int y, int style = STRAIGHT );							// CPT2 TODO Probably move into ccontour.
+	void InsertCorner( ccorner *c, int x, int y, int style = STRAIGHT );				// CPT2 TODO Probably move into ccontour.  Insert prior to "c"
+	// void DeleteCorner( ccorner *c );													// Moved into ccorner
+	// BOOL MoveCorner( ccorner *c, int x, int y, BOOL bEnforceCircularArcs=FALSE );	// Moved into ccorner
+	void Close( int style = STRAIGHT );													// CPT2 TODO maybe obsolete?
+
+	// void RemoveContour( ccontour *ctr );												// Moved into ccontour
 	// drawing functions
-	// void HighlightSide( int is );		// Change to cside::Highlight();
-	// void HighlightCorner( int ic );		// sim.
+	// void HighlightSide( int is );													// Change to cside::Highlight();
+	// void HighlightCorner( int ic );													// sim.
 	void StartDraggingToInsertCorner( CDC * pDC, ccorner *c, int x, int y, int crosshair = 1 ); // Arg change
-	void StartDraggingToMoveCorner( CDC * pDC, ccorner *c, int x, int y, int crosshair = 1 );	// Arg change
+	// void StartDraggingToMoveCorner( CDC * pDC, ccorner *c, int x, int y, int crosshair = 1 );	// CPT2 Moved to ccorner
 	void CancelDraggingToInsertCorner( ccorner *c );											// Arg change
-	void CancelDraggingToMoveCorner( ccorner *c );												// Arg change
-	int Draw( /* CDisplayList * dl = NULL */ );													// Done in cpp CPT2 TODO Think about the arg
+	// void CancelDraggingToMoveCorner( ccorner *c );												// CPT2 Moved to ccorner
+	int Draw();																					// Done in cpp.  Old arg removed.
 	void Undraw();																				// Done in cpp
 	void Hatch();																				// Done in cpp
 	void Highlight();																			// Done in cpp
@@ -1213,7 +1239,6 @@ public:
 	// void SetSideVisible( int is, int visible );  // Use cside::SetVisible()
 
 	// misc. functions
-	// void Copy( cpolyline * src );				// Use the copy constructor instead (?)
 	CRect GetBounds();								// Done in cpp
 	CRect GetCornerBounds();						// Done in cpp
 	// CRect GetCornerBounds( int icont );			// Use ccontour::GetCornerBounds()
@@ -1223,6 +1248,7 @@ public:
 	int TestIntersection( cpolyline * poly2, bool bTestArcIntersections=true );		
 													// Done in cpp, derived from CNetList::TestAreaIntersection().
 	int CombinePolyline( cpolyline *poly2 );		// Done in cpp, derived from CNetList::CombineAreas
+	void RestoreArcs( CArray<CArc> *arc_array, carray<cpolyline> *pa=NULL );		// Done in cpp.  Originally in CPolyLine
 	// void AppendArc( int xi, int yi, int xf, int yf, int xc, int yc, int num );	// CPT2. TODO Needed?
 
 	// undo functions
@@ -1233,11 +1259,11 @@ public:
 	// access functions
 	// id Id();
 	// int UID();   in base class
-	int NumCorners();				// Also in ccontour?
-	int NumSides();					// Ditto
+	int NumCorners() { return main->NumCorners(); }
+	int NumSides();				
 	bool IsClosed()
 		{ return main->head==main->tail; }
-	int NumContours();
+	int NumContours() { return contours.GetSize(); }
 	// int Contour( int ic );				// Use ccorner::contour
 	// int ContourStart( int icont );		// Similarly...
 	// int ContourEnd( int icont );
@@ -1267,8 +1293,8 @@ public:
 	// void SetClosed( BOOL bClosed );			// Use ccontour::Close() and ccontour::Unclose()
 	// void SetX( int ic, int x );
 	// void SetY( int ic, int y );
-	void SetEndContour( int ic, BOOL end_contour );
-	// void SetUtility( int u ){ utility = u; };								// Maybe just make cpcb_item::utility public...
+	// void SetEndContour( int ic, BOOL end_contour );
+	// void SetUtility( int u ){ utility = u; };								// Am just making cpcb_item::utility public...
 	// void SetUtility( int ic, int utility ){ corner[ic].utility = utility; }  // Use corner->utility = ...
 	void SetLayer( int layer );
 	void SetW( int w );
@@ -1276,22 +1302,23 @@ public:
 	void SetSelBoxSize( int sel_box ) { m_sel_box = sel_box; }
 	void SetHatch( int hatch )
 		{ Undraw(); m_hatch = hatch; Draw(); };
-	void SetDisplayList( CDisplayList * dl );
-	void Offset(int dx, int dy);
+	// void SetDisplayList( CDisplayList * dl );
+	void Offset(int dx, int dy);														// CPT2 TODO obsolete?
 
 	// GPC functions
-	int MakeGpcPoly( int icontour=0, CArray<CArc> * arc_array=NULL ) { return 0; }				// CPT2 TODO
-	int FreeGpcPoly();
-	int NormalizeWithGpc( carray<carea2> * pa=NULL, BOOL bRetainArcs=FALSE ) { return 0; }		// CPT2 TODO.  Originally I had carray<cpolyline>* for the 1st
-																								// arg, which caused trouble.  Does carray<carea2>* suffice?
-	int RestoreArcs( CArray<CArc> * arc_array, CArray<cpolyline*> * pa=NULL ) { return 0; }		// CPT2 TODO
+	void MakeGpcPoly( ccontour *ctr = NULL, CArray<CArc> * arc_array=NULL );			// Done in cpp, derived from CPolyline function
+	void FreeGpcPoly();																	// Done in cpp.
+	// void NormalizeWithGpc( carray<cpolyline> *pa=NULL, bool bRetainArcs=false );		// Moved this into class carea2.  Currently that's all we need.
+																						// But perhaps one day I should think up a way to generalize it for
+																						// other cpolyline types
+	// void RestoreArcs( CArray<CArc> *arc_array, carray<cpolyline> *pa=NULL );			// Also moved into class carea2.  Might also generalize one day
 //	cpolyline * MakePolylineForPad( int type, int x, int y, int w, int l, int r, int angle );
 //	void AddContourForPadClearance( int type, int x, int y, int w, 
 //						int l, int r, int angle, int fill_clearance,
 //						int hole_w, int hole_clearance, BOOL bThermal=FALSE, int spoke_w=0 );
 	void ClipGpcPolygon( gpc_op op, cpolyline * poly );
 
-	// PHP functions
+	// PHP functions.  CPT2 TODO apparently obsolete.
 	int MakePhpPoly();
 	void FreePhpPoly();
 	void ClipPhpPolygon( int php_op, cpolyline * poly );
@@ -1320,16 +1347,14 @@ public:
 	int GetTypeBit() { return bitArea; }
 	cnet2 *GetNet() { return m_net; }
 
-
 	void Remove();													// Done in cpp
-	void SetConnections() { }										// CPT2 defanged.  In the old system thermals were associated with
-																	// areas, but now they're associated with vertices/tees/pins.  As I get that system
-																	// moving, I can remove carea2::SetConnections in favor of cvertex2/ctee/cpin2::
-																	// SetAreaConnections.  TODO finish eliminating...
 	// int Complete( int style );									// CPT2 TODO consider dumping
+	void SetNet( cnet2 *net );										// Done in cpp
 	bool TestIntersections();										// Done in cpp, covers CNetList::TestAreaIntersections().
-	int ClipPolygon( BOOL bMessageBoxArc, BOOL bMessageBoxInt, BOOL bRetainArcs );	// Done in cpp
-	int PolygonModified( BOOL bMessageBoxArc, BOOL bMessageBoxInt );				// Done in cpp
+	int ClipPolygon( bool bMessageBoxArc, bool bMessageBoxInt, bool bRetainArcs=true);	// Done in cpp
+	void NormalizeWithGpc( carray<carea2> *pa=NULL, bool bRetainArcs=false );			// Done in cpp.  Was originally in class CPolyLine, but for now I'm
+																						// content to move it into this subclass.
+	int PolygonModified( bool bMessageBoxArc, bool bMessageBoxInt );					// Done in cpp
 
 };
 
@@ -1366,6 +1391,8 @@ class coutline : public cpolyline
 public:
 	// Represents outlines within footprints
 	coutline(CFreePcbDoc *_doc, int layer, int w);		// Done in cpp
+	coutline(coutline *src):
+		cpolyline(src) { }
 	~coutline() { }
 	bool IsOutline() { return true; }
 	coutline *ToOutline() { return this; }
@@ -1444,12 +1471,14 @@ public:
 	*/
 	int AddArea( int layer, int x, int y, int hatch, BOOL bDraw=TRUE );					// CPT2 TODO. Derive from CNetList::AddArea
 	void CombineAllAreas( BOOL bMessageBox, BOOL bUseUtility );							// Done in cpp, derived from CNetList func
+	void DrawAreas();																	// Done in cpp, new
+	void UndrawAreas();																	// Done in cpp, new
 
-// methods that edit object
+	// methods that edit objects
 	// pins
-	cpin2 *AddPin( CString * ref_des, CString * pin_name, BOOL bSetAreas=TRUE );				// Done in cpp
+	cpin2 *AddPin( CString * ref_des, CString * pin_name );										// Done in cpp.  Removed bSetAreas param
 	void AddPin( cpin2 *pin );																	// Done in cpp
-	void RemovePin( cpin2 *pin, BOOL bSetAreas=TRUE );											// CPT2
+	void RemovePin( cpin2 *pin );																// CPT2
 	// ? void RemovePinByUID( int uid, BOOL bSetAreas=TRUE );
 	// void RemovePin( CString * ref_des, CString * pin_name, BOOL bSetAreas=TRUE );			// CPT2 Use above RemovePin, plus:
 	// void RemovePin( int pin_index, BOOL bSetAreas=TRUE );

@@ -1,5 +1,6 @@
 // FreePcbView.cpp : implementation of the CFreePcbView class
 //
+// CPT2 TODO maybe try putting the functions in this file into some sort of logical order.
 
 #include "stdafx.h"
 #include "DlgAddText.h"
@@ -980,9 +981,10 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		int dx = m_last_cursor_point.x - m_from_pt.x, dy = m_last_cursor_point.y - m_from_pt.y;		// CPT bug fix #29
 		part->Move( m_last_cursor_point.x, m_last_cursor_point.y, angle, side );
 		part->PartMoved( dx, dy );																	// CPT bug fix #29
-		part->Highlight();
 		if( m_doc->m_vis[LAY_RAT_LINE] )
 			part->OptimizeConnections( m_doc->m_auto_ratline_disable, m_doc->m_auto_ratline_min_pins );
+		m_doc->Redraw();
+		part->Highlight();
 		SetFKText( m_cursor_mode );
 		m_doc->ProjectModified( TRUE );
 		Invalidate( FALSE );
@@ -1074,7 +1076,6 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		CancelHighlight();
 		cseg2 *rat = m_sel.First()->ToSeg();
 		cconnect2 *c = rat->m_con;
-		c->Undraw();
 		cnet2 *net = rat->m_net;
 		CPoint p = m_last_cursor_point;
 
@@ -1152,7 +1153,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 			}
 		}
 
-		c->Draw();
+		m_doc->Redraw();
 		if (bRatlineFinished)
 			goto cancel_selection_and_goodbye;
 		rat->StartDragging( pDC, m_last_cursor_point.x, m_last_cursor_point.y, 
@@ -1178,10 +1179,9 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		cconnect2 *c = seg->m_con;
 		cnet2 *net = seg->m_net;
 		SaveUndoInfoForNetAndConnections( net, CNetList::UNDO_NET_MODIFY, TRUE, m_doc->m_undo_list );
-		c->Undraw();
 		seg->InsertSegment( m_last_cursor_point.x, m_last_cursor_point.y,
 			seg->m_layer, seg->m_width, 0 );
-		c->Draw();
+		m_doc->Redraw();
 		CancelSelection();
 		m_doc->ProjectModified( TRUE );
 		Invalidate( FALSE );
@@ -1348,17 +1348,22 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		m_doc->ProjectModified( TRUE );
 		Invalidate( FALSE );
 	}
+#endif
 	else if( m_cursor_mode == CUR_DRAG_AREA_MOVE )
 	{
-		SaveUndoInfoForAllAreasInNet( m_sel_net, TRUE, m_doc->m_undo_list );
+		ccorner *c = m_sel.First()->ToCorner();
+		carea2 *a = c->GetArea();
+		cnet2 *net = c->GetNet();
+		SaveUndoInfoForAllAreasInNet( net, TRUE, m_doc->m_undo_list );
 		pDC = GetDC();
 		SetDCToWorldCoords( pDC );
 		pDC->SelectClipRgn( &m_pcb_rgn );
 		CPoint p;
 		p = m_last_cursor_point;
 		m_dlist->StopDragging();
-		m_doc->m_nlist->MoveAreaCorner( m_sel_net, m_sel_ia, m_sel_is, p.x, p.y );
-		int ret = m_doc->m_nlist->AreaPolygonModified( m_sel_net, m_sel_ia, FALSE, TRUE );
+		c->Move( p.x, p.y );
+		int ret = a->PolygonModified( FALSE, TRUE );
+		m_doc->Redraw();
 		if( ret == -1 )
 		{
 			// error
@@ -1371,118 +1376,121 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		{
 			TryToReselectAreaCorner( p.x, p.y );
 			if( m_doc->m_vis[LAY_RAT_LINE] )
-				m_doc->m_nlist->OptimizeConnections( m_sel_net, -1, m_doc->m_auto_ratline_disable,
-													m_doc->m_auto_ratline_min_pins, TRUE );
+				net->OptimizeConnections( m_doc->m_auto_ratline_disable, m_doc->m_auto_ratline_min_pins, TRUE );
 		}
 		m_doc->ProjectModified( TRUE );
 		Invalidate( FALSE );
 	}
+
 	else if( m_cursor_mode == CUR_DRAG_AREA_INSERT )
 	{
-		SaveUndoInfoForAllAreasInNet( m_sel_net, TRUE, m_doc->m_undo_list );
-		pDC = GetDC();
-		SetDCToWorldCoords( pDC );
-		pDC->SelectClipRgn( &m_pcb_rgn );
-		CPoint p;
-		p = m_last_cursor_point;
+		cside *s = m_sel.First()->ToSide();
+		carea2 *a = s->GetArea();
+		cnet2 *net = a->m_net;
 		m_dlist->StopDragging();
-		m_doc->m_nlist->InsertAreaCorner( m_sel_net, m_sel_ia, m_sel_is+1, p.x, p.y, CPolyLine::STRAIGHT );
-		int ret = m_doc->m_nlist->AreaPolygonModified( m_sel_net, m_sel_ia, FALSE, TRUE );
+		SaveUndoInfoForAllAreasInNet( net, TRUE, m_doc->m_undo_list );
+		CPoint p = m_last_cursor_point;
+		a->MustRedraw();
+		s->InsertCorner( p.x, p.y );
+		int ret = a->PolygonModified( FALSE, TRUE );
 		if( ret == -1 )
 		{
 			// error
 			CString s ((LPCSTR) IDS_ErrorUnableToClipPolygon);
 			AfxMessageBox( s );
-			CancelSelection();
 			m_doc->OnEditUndo();
 		}
-		else
-		{
-			TryToReselectAreaCorner( p.x, p.y );
-			if( m_doc->m_vis[LAY_RAT_LINE] )
-				m_doc->m_nlist->OptimizeConnections( m_sel_net, -1, m_doc->m_auto_ratline_disable,
-													m_doc->m_auto_ratline_min_pins, TRUE );
-		}
+		else if( m_doc->m_vis[LAY_RAT_LINE] )
+			net->OptimizeConnections( m_doc->m_auto_ratline_disable, m_doc->m_auto_ratline_min_pins, TRUE );
+		m_doc->Redraw();
+		TryToReselectAreaCorner( p.x, p.y );
 		m_doc->ProjectModified( TRUE );
 		Invalidate( FALSE );
 	}
+
 	else if( m_cursor_mode == CUR_ADD_AREA_CUTOUT )
 	{
 		pDC = GetDC();
 		SetDCToWorldCoords( pDC );
 		pDC->SelectClipRgn( &m_pcb_rgn );
-		CPoint p;
-		p = m_last_cursor_point;
-		int ia = m_sel_id.I2();
-		carea * a = &m_sel_net->area[ia];
-		m_doc->m_nlist->AppendAreaCorner( m_sel_net, ia, p.x, p.y, m_polyline_style );
-		m_sel_id.Set( m_sel_net->m_id.T1(), -1, ID_AREA, -1, ia, ID_SEL_CORNER, -1, a->NumCorners()-1 );
-		m_dlist->StartDraggingArc( pDC, m_polyline_style, p.x, p.y, p.x, p.y, LAY_SELECTION, 1, 2 );
+		CPoint p = m_last_cursor_point;
+		carea2 *a = m_sel.First()->GetArea();
+		m_tmp_poly = new cpolyline(a, false, true);
+		ccontour *ctr = new ccontour(m_tmp_poly, true);
+		ccorner *c = new ccorner(ctr, p.x, p.y);					// Constructor sets contour's head and tail
+		m_dlist->StartDraggingArc( pDC, m_polyline_style, p.x, p.y, p.x, p.y, LAY_RAT_LINE, 1, 2 );
 		SetCursorMode( CUR_DRAG_AREA_CUTOUT_1 );
 		m_doc->ProjectModified( TRUE );
 		Invalidate( FALSE );
 		m_snap_angle_ref = m_last_cursor_point;
 	}
+
 	else if( m_cursor_mode == CUR_DRAG_AREA_CUTOUT_1 )
 	{
 		pDC = GetDC();
 		SetDCToWorldCoords( pDC );
 		pDC->SelectClipRgn( &m_pcb_rgn );
-		CPoint p;
-		p = m_last_cursor_point;
-		m_doc->m_nlist->AppendAreaCorner( m_sel_net, m_sel_ia, p.x, p.y, m_polyline_style );
-		m_dlist->StartDraggingArc( pDC, m_polyline_style, p.x, p.y, p.x, p.y, LAY_SELECTION, 1, 2 );
-		m_sel_id.SetI3( 2 );
+		CPoint p = m_last_cursor_point;
+		m_tmp_poly->MustRedraw();
+		ccontour *ctr = m_tmp_poly->main;
+		ccorner *c = new ccorner(ctr, p.x, p.y);
+		cside *s = new cside(ctr, m_polyline_style);
+		ctr->AppendSideAndCorner(s, c, ctr->tail);
+		m_doc->Redraw();
+		m_dlist->StartDraggingArc( pDC, m_polyline_style, p.x, p.y, p.x, p.y, LAY_RAT_LINE, 1, 2 );
 		SetCursorMode( CUR_DRAG_AREA_CUTOUT );
 		m_doc->ProjectModified( TRUE );
 		Invalidate( FALSE );
 		m_snap_angle_ref = m_last_cursor_point;
 	}
+
 	else if( m_cursor_mode == CUR_DRAG_AREA_CUTOUT )
 	{
 		pDC = GetDC();
 		SetDCToWorldCoords( pDC );
 		pDC->SelectClipRgn( &m_pcb_rgn );
-		CPoint p;
-		p = m_last_cursor_point;
-		CPolyLine * poly = &m_sel_net->area[m_sel_id.I2()];
-		int icontour = poly->Contour( poly->NumCorners()-1 );
-		int istart = poly->ContourStart( icontour );
-		if( p.x == poly->X(istart)
-			&& p.y == poly->Y(istart) )
+		CPoint p = m_last_cursor_point;
+		ccontour *ctr = m_tmp_poly->main;
+		ccorner *head = ctr->head;
+		if( p.x == head->x && p.y == head->y )
 		{
-			// cursor point is first point, close area
-			SaveUndoInfoForAllAreasInNet( m_sel_net, TRUE, m_doc->m_undo_list );
-			m_doc->m_nlist->CompleteArea( m_sel_net, m_sel_ia, m_polyline_style );
-			m_doc->m_dlist->StopDragging();
-			int n_old_areas = m_sel_net->area.GetSize();
-			int ret = m_doc->m_nlist->AreaPolygonModified( m_sel_net, m_sel_ia, FALSE, FALSE );
+			// cursor point is back at first point, close contour and finish up
+			carea2 *a = m_sel.First()->GetArea();
+			a->MustRedraw();
+			m_tmp_poly->Undraw();
+			cnet2 *net = a->m_net;
+			SaveUndoInfoForAllAreasInNet( net, TRUE, m_doc->m_undo_list );
+			ctr->Close();
+			ctr->SetPoly(a);
+			int ret = a->PolygonModified( FALSE, FALSE );
 			if( ret == -1 )
 			{
 				CString s ((LPCSTR) IDS_ErrorUnableToClipPolygon);
 				AfxMessageBox( s );
 				m_doc->OnEditUndo();
 			}
-			else
-			{
-				if( m_doc->m_vis[LAY_RAT_LINE] )
-					m_doc->m_nlist->OptimizeConnections(  m_sel_net, -1, m_doc->m_auto_ratline_disable,
-													m_doc->m_auto_ratline_min_pins, TRUE  );
-			}
+			else if( m_doc->m_vis[LAY_RAT_LINE] )
+				net->OptimizeConnections( m_doc->m_auto_ratline_disable, m_doc->m_auto_ratline_min_pins, TRUE  );
+			m_doc->Redraw();
+			m_doc->m_dlist->StopDragging();
 			CancelSelection();
 		}
 		else
 		{
 			// add cursor point
-			m_doc->m_nlist->AppendAreaCorner( m_sel_net, m_sel_ia, p.x, p.y, m_polyline_style );
-			m_dlist->StartDraggingArc( pDC, m_polyline_style, p.x, p.y, p.x, p.y, LAY_SELECTION, 1, 2 );
-			m_sel_id.SetI3( m_sel_id.I3() + 1 );
+			m_tmp_poly->MustRedraw();
+			ccorner *c = new ccorner(ctr, p.x, p.y);
+			cside *s = new cside(ctr, m_polyline_style);
+			ctr->AppendSideAndCorner(s, c, ctr->tail);
+			m_doc->Redraw();
+			m_dlist->StartDraggingArc( pDC, m_polyline_style, p.x, p.y, p.x, p.y, LAY_RAT_LINE, 1, 2 );
 			SetCursorMode( CUR_DRAG_AREA_CUTOUT );
 			m_snap_angle_ref = m_last_cursor_point;
 		}
 		m_doc->ProjectModified( TRUE );
 		Invalidate( FALSE );
 	}
+#ifndef CPT2
 	else if( m_cursor_mode == CUR_ADD_SMCUTOUT )
 	{
 		// add poly for new cutout
@@ -1584,23 +1592,6 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		m_doc->ProjectModified( TRUE );
 		Invalidate( FALSE );
 	}
-	else if( m_cursor_mode == CUR_ADD_AREA_CUTOUT )
-	{
-		pDC = GetDC();
-		SetDCToWorldCoords( pDC );
-		pDC->SelectClipRgn( &m_pcb_rgn );
-		CPoint p;
-		p = m_last_cursor_point;
-		int ia = m_sel_id.I2();
-		carea * a = &m_sel_net->area[ia];
-		m_doc->m_nlist->AppendAreaCorner( m_sel_net, ia, p.x, p.y, m_polyline_style );
-		m_sel_id.Set( m_sel_net->m_id.T1(), -1, ID_AREA, -1, ia, ID_SEL_CORNER, -1, a->NumCorners()-1 );
-		m_dlist->StartDraggingArc( pDC, m_polyline_style, p.x, p.y, p.x, p.y, LAY_SELECTION, 1, 2 );
-		SetCursorMode( CUR_DRAG_AREA_1 );
-		m_doc->ProjectModified( TRUE );
-		Invalidate( FALSE );
-		m_snap_angle_ref = m_last_cursor_point;
-	}
 #endif
 
 	else if( m_cursor_mode == CUR_DRAG_VTX )
@@ -1612,16 +1603,11 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		vtx->CancelDragging();
 		SaveUndoInfoForNetAndConnections( net, CNetList::UNDO_NET_MODIFY, TRUE, m_doc->m_undo_list );
 		CPoint p = m_last_cursor_point;
-		c->Undraw();
 		vtx->Move( p.x, p.y );
-		c->Draw();
-		vtx->Highlight();
 		if( m_doc->m_vis[LAY_RAT_LINE] )
 			net->OptimizeConnections( m_doc->m_auto_ratline_disable, m_doc->m_auto_ratline_min_pins, TRUE  );
-		if (vtx->IsValid())
-			SetCursorMode( CUR_VTX_SELECTED );
-		else
-			CancelSelection();
+		m_doc->Redraw();
+		HighlightSelection();
 		m_doc->ProjectModified( TRUE );
 		Invalidate( FALSE );
 	}
@@ -1634,16 +1620,11 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		tee->CancelDragging();
 		SaveUndoInfoForNetAndConnections( net, CNetList::UNDO_NET_MODIFY, TRUE, m_doc->m_undo_list );
 		CPoint p = m_last_cursor_point;
-		net->Undraw();
 		tee->Move( p.x, p.y );
-		net->Draw();
-		tee->Highlight();
 		if( m_doc->m_vis[LAY_RAT_LINE] )
 			net->OptimizeConnections( m_doc->m_auto_ratline_disable, m_doc->m_auto_ratline_min_pins, TRUE  );
-		if (tee->IsValid())
-			SetCursorMode( CUR_TEE_SELECTED );
-		else
-			CancelSelection();
+		m_doc->Redraw();
+		HighlightSelection();
 		m_doc->ProjectModified( TRUE );
 		Invalidate( FALSE );
 	}
@@ -1659,10 +1640,9 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		CPoint cpi, cpf;
 		m_doc->m_dlist->Get_Endpoints(&cpi, &cpf);
 		ASSERT(cpi != cpf);								// Should be at least one grid snap apart.
-		c->Undraw();
 		seg->preVtx->Move( cpi.x, cpi.y );
 		seg->postVtx->Move( cpf.x, cpf.y );
-		c->Draw();
+		m_doc->Redraw();
 		SetCursorMode( CUR_NONE_SELECTED );
 		m_doc->ProjectModified( TRUE );
 		Invalidate( FALSE );
@@ -1731,12 +1711,11 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 				SaveUndoInfoForNetAndConnections( v->m_net, CNetList::UNDO_NET_MODIFY, TRUE, m_doc->m_undo_list );
 				SaveUndoInfoForPartAndNets( pin->part, CPartList::UNDO_PART_MODIFY, NULL, FALSE, m_doc->m_undo_list );
 				cnet2 *net = v->m_net;
-				net->Undraw();
 				if( !pin->net )
 					net->AddPin( pin );
 				cseg2 *rat_seg = v->AddRatlineToPin( pin );
 				m_doc->m_dlist->StopDragging();
-				net->Draw();
+				m_doc->Redraw();
 				SelectItem(rat_seg);
 				/* CPT2 seems undesirable to me
 				if( highlight_net0 )
@@ -1840,7 +1819,6 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 				SaveUndoInfoForNetAndConnections( v1->m_net, CNetList::UNDO_NET_MODIFY, TRUE, m_doc->m_undo_list );
 				cconnect2 *c1 = v1->m_con;
 				cnet2 *net = v1->m_net;
-				net->Undraw();
 				ctee *adjust_at_end = NULL;
 				if (c1 == v2->m_con && c1->head->tee && c1->tail->tee==c1->head->tee)
 					// Slight subtlety if v1 and v2 are on the same connect, and the connect is a closed loop.  In that case, the tee that joins
@@ -1871,7 +1849,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 				v1->tee->Adjust();
 				v2->tee->Adjust();
 				m_doc->m_dlist->StopDragging();
-				net->Draw();
+				m_doc->Redraw();
 				SelectItem(rat_seg);
 				/* CPT2 seems undesirable to me
 				if( highlight_net0 )
@@ -1986,7 +1964,6 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 						net->AddPin( pin );
 					}
 					// Go for it
-					con0->Undraw();
 					CPoint pi = m_snap_angle_ref;
 					CPoint pf = m_last_cursor_point;
 					CPoint pp = GetInflectionPoint( pi, pf, m_inflection_mode );
@@ -2000,7 +1977,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 					tail0->ReconcileVia();
 					// Cleanup
 					m_dlist->StopDragging();
-					con0->Draw();						// AMW r267 added
+					m_doc->Redraw();
 					CancelSelection();
 					m_doc->ProjectModified( TRUE );
 					Invalidate( FALSE );
@@ -2032,8 +2009,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 				CString s ((LPCSTR) IDS_ConnectingTraceToVertex);
 				AfxMessageBox( s );
 
-				// Ready to connect to vertex! We undraw the whole net, then redraw after this job's finished.  TODO optimize?
-				net->Undraw();
+				// Ready to connect to vertex!
 				CPoint pi = m_snap_angle_ref;
 				CPoint pf = m_last_cursor_point;
 				CPoint pp = GetInflectionPoint( pi, pf, m_inflection_mode );
@@ -2059,7 +2035,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 				m_dlist->StopDragging();
 				if( m_doc->m_vis[LAY_RAT_LINE] )
 					net->OptimizeConnections(  m_doc->m_auto_ratline_disable, m_doc->m_auto_ratline_min_pins, TRUE  );
-				net->Draw();
+				m_doc->Redraw();
 				CancelSelection();
 				m_doc->ProjectModified( TRUE );
 				Invalidate( FALSE );
@@ -2071,7 +2047,6 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		pDC = GetDC();
 		SetDCToWorldCoords( pDC );
 		pDC->SelectClipRgn( &m_pcb_rgn );
-		con0->Undraw();
 		CPoint pi = m_snap_angle_ref;
 		CPoint pf = m_last_cursor_point;
 		CPoint pp = GetInflectionPoint( pi, pf, m_inflection_mode );
@@ -2081,7 +2056,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		tail0->ReconcileVia();
 		// Cleanup
 		m_dlist->StopDragging();
-		con0->Draw();
+		m_doc->Redraw();
 		CPoint p0 = m_last_cursor_point;
 		// AMW r275 The following statement calls m_dlist->CancelHighlight()
 		con0->tail->StartDraggingStub( pDC, p0.x, p0.y, m_active_layer, m_active_width, m_active_layer, 2, m_inflection_mode );
@@ -2255,16 +2230,11 @@ void CFreePcbView::OnRButtonDown(UINT nFlags, CPoint point)
 		{
 			cvertex2 *tail = sel->m_con->tail;
 			if ( net->NetAreaFromPoint(tail->x, tail->y, LAY_PAD_THRU) )		// "LAY_PAD_THRU" so that we find areas on any layer at (tail->x,tail->y)
-				tail->ForceVia(),
-				tail->Draw();
-			SelectItem(tail);
-			// optimize
+				tail->ForceVia();
 			if( m_doc->m_vis[LAY_RAT_LINE] )
-			{
 				net->OptimizeConnections( m_doc->m_auto_ratline_disable, m_doc->m_auto_ratline_min_pins, TRUE  );
-				if( !tail->IsValid() )
-					CancelSelection();											// Mighty unlikely...
-			}
+			m_doc->Redraw();
+			SelectItem(tail);
 		}
 		else
 		{
@@ -2384,51 +2354,57 @@ void CFreePcbView::OnRButtonDown(UINT nFlags, CPoint point)
 														m_doc->m_auto_ratline_min_pins, TRUE  );
 		CancelSelection();
 	}
+#endif
+	else if( m_cursor_mode == CUR_DRAG_AREA_INSERT )
+	{
+		cside *s = m_sel.First()->ToSide();
+		s->CancelDraggingNewCorner();
+		s->Highlight();
+	}
 	else if( m_cursor_mode == CUR_ADD_AREA_CUTOUT )
 	{
 		m_dlist->StopDragging();
 		CancelSelection();
 	}
 	else if( m_cursor_mode == CUR_DRAG_AREA_CUTOUT_1
-		  || (m_cursor_mode == CUR_DRAG_AREA_CUTOUT && m_sel_id.I3()<3) )
+		  || (m_cursor_mode == CUR_DRAG_AREA_CUTOUT && m_tmp_poly->NumCorners()<3) )
 	{
 		m_dlist->StopDragging();
-		CPolyLine * poly = &m_sel_net->area[m_sel_id.I2()];
-		int ncont = poly->NumContours();
-		poly->RemoveContour(ncont-1);
+		m_tmp_poly->Undraw();
 		CancelSelection();
 	}
 	else if( m_cursor_mode == CUR_DRAG_AREA_CUTOUT )
 	{
 		m_dlist->StopDragging();
 		SetCursorMode( CUR_NONE_SELECTED );
-		SaveUndoInfoForAllAreasInNet( m_sel_net, TRUE, m_doc->m_undo_list );
-		m_doc->m_nlist->CompleteArea( m_sel_net, m_sel_ia, m_polyline_style );
-		int icont = m_sel_net->area[m_sel_ia].NumContours() - 1;
-		int ic = m_sel_net->area[m_sel_ia].ContourStart(icont);
-		CPoint p;
-		p.x = m_sel_net->area[m_sel_ia].X(ic);
-		p.y = m_sel_net->area[m_sel_ia].Y(ic);
-		int ret = m_doc->m_nlist->AreaPolygonModified( m_sel_net, m_sel_ia, FALSE, FALSE );
+		ccontour *ctr = m_tmp_poly->main;
+		carea2 *a = m_sel.First()->GetArea();
+		a->MustRedraw();
+		m_tmp_poly->Undraw();
+		cnet2 *net = a->m_net;
+		SaveUndoInfoForAllAreasInNet( net, TRUE, m_doc->m_undo_list );
+		ctr->Close();
+		ctr->SetPoly(a);
+		int ret = a->PolygonModified( FALSE, FALSE );
 		if( ret == -1 )
 		{
-			// error
-			CString s ((LPCSTR) IDS_ErrorUnableToClipPolygonDueToIntersectingArc);
+			CString s ((LPCSTR) IDS_ErrorUnableToClipPolygon);
 			AfxMessageBox( s );
 			m_doc->OnEditUndo();
 		}
-		TryToReselectAreaCorner( p.x, p.y );
-	}
-	else if( m_cursor_mode == CUR_DRAG_AREA_INSERT )
-	{
-		m_doc->m_nlist->CancelDraggingInsertedAreaCorner( m_sel_net, m_sel_ia, m_sel_is );
-		m_doc->m_nlist->SelectAreaSide( m_sel_net, m_sel_ia, m_sel_is );
+		else if( m_doc->m_vis[LAY_RAT_LINE] )
+			net->OptimizeConnections( m_doc->m_auto_ratline_disable, m_doc->m_auto_ratline_min_pins, TRUE  );
+		m_doc->Redraw();
+		m_doc->m_dlist->StopDragging();
+		CancelSelection();
 	}
 	else if( m_cursor_mode == CUR_DRAG_AREA_MOVE )
 	{
-		m_doc->m_nlist->CancelDraggingAreaCorner( m_sel_net, m_sel_ia, m_sel_is );
-		m_doc->m_nlist->SelectAreaCorner( m_sel_net, m_sel_ia, m_sel_is );
+		ccorner *c = m_sel.First()->ToCorner();
+		c->CancelDragging();
+		c->Highlight();
 	}
+#ifndef CPT2
 	else if( m_cursor_mode == CUR_DRAG_GROUP )
 	{
 		CancelDraggingGroup();
@@ -2691,9 +2667,8 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 				SaveUndoInfoForNetAndConnections( net, CNetList::UNDO_NET_MODIFY, TRUE, m_doc->m_undo_list );
 				m_active_layer = remove->m_layer;
 				CancelSelection();
-				c->Undraw();
 				remove->RemoveMerge(!m_dir);
-				c->Draw();
+				m_doc->Redraw();
 				SelectItem(seg);
 				cvertex2 *start = m_dir==0? seg->preVtx: seg->postVtx;
 				m_last_mouse_point.x = start->x;
@@ -2720,14 +2695,13 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 			else
 			{
 				SaveUndoInfoForNetAndConnections( net, CNetList::UNDO_NET_MODIFY, TRUE, m_doc->m_undo_list );
-				c->Undraw();
 				bConnectRemoved = c->tail->preSeg->RemoveBreak();
 			}
+			m_doc->Redraw();
 			if (bConnectRemoved)
 				CancelSelection();
 			else 
 			{
-				c->Draw();
 				m_last_mouse_point.x = c->tail->x;
 				m_last_mouse_point.y = c->tail->y;
 				CPoint p = m_dlist->PCBToScreen( m_last_mouse_point );
@@ -2857,9 +2831,10 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 			part->PartMoved( dx, dy );	// CPT
 			if( m_doc->m_vis[LAY_RAT_LINE] )
 				part->OptimizeConnections( m_doc->m_auto_ratline_disable, m_doc->m_auto_ratline_min_pins );
+			m_doc->Redraw();
+			part->Highlight();
 			m_totalArrowMoveX += dx;
 			m_totalArrowMoveY += dy;
-			part->Highlight();
 			ShowRelativeDistance( part->x, part->y, m_totalArrowMoveX, m_totalArrowMoveY );
 			m_doc->ProjectModified( TRUE );
 			Invalidate( FALSE );
@@ -2893,9 +2868,8 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 			}
 			CancelHighlight();
 			CPoint ref_pt = part->GetRefPoint();
-			part->Undraw();
 			part->MoveRefText( ref_pt.x + dx, ref_pt.y + dy );
-			part->Draw();
+			m_doc->Redraw();
 			m_totalArrowMoveX += dx;
 			m_totalArrowMoveY += dy;
 			// m_doc->m_plist->SelectRefText( m_sel_part );
@@ -2928,9 +2902,8 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 			}
 			CancelHighlight();
 			CPoint val_pt = part->GetValuePoint();
-			part->Undraw();
 			part->MoveValueText( val_pt.x + dx,	val_pt.y + dy );
-			part->Draw();
+			m_doc->Redraw();
 			m_totalArrowMoveX += dx;
 			m_totalArrowMoveY += dy;
 			// m_doc->m_plist->SelectValueText( m_sel_part );
@@ -3064,10 +3037,9 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 			if (bOK)
 			{
 				//	Move both vetices to the new position:
-				seg->m_con->Undraw();
 				seg->preVtx->Move( i_nudge_xi, i_nudge_yi );
 				seg->postVtx->Move( i_nudge_xf, i_nudge_yf );
-				seg->m_con->Draw();
+				m_doc->Redraw();
 			}
 			else
 				{ seg->Highlight(); break; }
@@ -3115,6 +3087,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 			vtx->Move( vtx->x + dx, vtx->y + dy );
 			m_totalArrowMoveX += dx;
 			m_totalArrowMoveY += dy;
+			m_doc->Redraw();
 			ShowRelativeDistance( vtx->x, vtx->y, m_totalArrowMoveX, m_totalArrowMoveY );
 			vtx->Highlight();	
 			m_doc->ProjectModified( TRUE );
@@ -3143,52 +3116,6 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 		else if( fk == FK_REDO_RATLINES )
 			OnRatlineOptimize();
 		break;
-
-	/* CPT2 merging CUR_END_VTX_SELECTED with CUR_VTX_SELECTED
-	case  CUR_END_VTX_SELECTED:
-		// CPT r295:  added arrow key support
-		if( fk == FK_ARROW )
-		{
-			cvertex2 *vtx = m_sel.First()->ToVertex();
-			if( !m_lastKeyWasArrow )
-			{
-				SaveUndoInfoForNetAndConnections( vtx->m_net, CNetList::UNDO_NET_MODIFY, TRUE, m_doc->m_undo_list );
-				m_totalArrowMoveX = 0;
-				m_totalArrowMoveY = 0;
-				m_lastKeyWasArrow = TRUE;
-			}
-			CancelHighlight();
-			vtx->Move( vtx->x + dx, vtx->y + dy );
-			m_totalArrowMoveX += dx;
-			m_totalArrowMoveY += dy;
-			ShowRelativeDistance( vtx->x, vtx->y, m_totalArrowMoveX, m_totalArrowMoveY );
-			vtx->Highlight();	
-			m_doc->ProjectModified( TRUE );
-			Invalidate( FALSE );
-		}
-		// end CPT
-		else if( fk == FK_SET_POSITION )
-			OnVertexProperties();
-		else if( fk == FK_VERTEX_PROPERTIES )						// CPT r295
-			OnVertexProperties();
-		else if( fk == FK_ADD_CONNECT )
-			OnVertexStartRatline();
-		else if( fk == FK_ADD_SEGMENT )
-			OnVertexStartTrace();
-		else if( fk == FK_MOVE_VERTEX )
-			OnEndVertexMove();
-		else if( fk == FK_DELETE_VERTEX || nChar == 46 )
-			OnVertexDelete();
-		else if( fk == FK_ADD_VIA )
-			OnEndVertexAddVia();
-		else if( fk == FK_DELETE_VIA )
-			OnEndVertexRemoveVia();
-		else if( fk == FK_DELETE_CONNECT )
-			OnSegmentDeleteTrace();
-		else if( fk == FK_REDO_RATLINES )
-			OnRatlineOptimize();
-		break;
-	*/
 
 	case CUR_TEE_SELECTED:
 		if( fk == FK_ARROW )
@@ -3282,10 +3209,9 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 				m_lastKeyWasArrow = TRUE;
 			}
 			CancelHighlight();
-			text->Undraw();
 			text->Move( text->m_x + dx, text->m_y + dy,
 						text->m_angle, text->m_bMirror,	text->m_bNegative, text->m_layer );
-			text->Draw();
+			m_doc->Redraw();
 			m_totalArrowMoveX += dx;
 			m_totalArrowMoveY += dy;
 			ShowRelativeDistance( text->m_x, text->m_y, 
@@ -3445,8 +3371,8 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 				m_lastKeyWasArrow = TRUE;
 			}
 			CancelHighlight();
-			c->Move( c->x+dx, c->y+dy );
-			c->Highlight();
+			p = CPoint (c->x+dx, c->y+dy);
+			c->Move( p.x, p.y );
 			int ret = area->PolygonModified( FALSE, TRUE );
 			if( ret == -1 )
 			{
@@ -3455,13 +3381,16 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 				AfxMessageBox( s );
 				CancelSelection();
 				m_doc->OnEditUndo();
+				m_doc->Redraw();
 			}
 			else
 			{
+				m_doc->Redraw();
+				TryToReselectAreaCorner( p.x, p.y );
+				m_lastKeyWasArrow = true;
 				m_totalArrowMoveX += dx;
 				m_totalArrowMoveY += dy;
 				ShowRelativeDistance( p.x, p.y, m_totalArrowMoveX, m_totalArrowMoveY );
-				TryToReselectAreaCorner( p.x, p.y );
 			}
 			m_doc->ProjectModified( TRUE );
 			Invalidate( FALSE );
@@ -3472,7 +3401,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 			OnAreaCornerProperties();
 		else if( fk == FK_MOVE_CORNER )
 			OnAreaCornerMove();
-		else if( fk == FK_DELETE_CORNER )
+		else if( fk == FK_DELETE_CORNER || nChar == 46 )
 			OnAreaCornerDelete();
 		else if( fk == FK_DELETE_AREA )
 			OnAreaCornerDeleteArea();
@@ -3480,8 +3409,6 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 			OnAreaAddCutout();
 		else if( fk == FK_DELETE_CUTOUT )
 			OnAreaDeleteCutout();
-		else if( nChar == 46 )
-			OnAreaCornerDelete();
 		break;
 
 	case CUR_AREA_SIDE_SELECTED:
@@ -3502,7 +3429,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 //			SaveUndoInfoForNetAndConnectionsAndArea( m_sel_net, m_sel_ia, CNetList::UNDO_AREA_MODIFY, TRUE, m_doc->m_undo_list );
 			m_polyline_style = cpolyline::ARC_CCW;
 			s->m_style = m_polyline_style;
-			area->SetConnections();
+			net->SetThermals();
 			if( m_doc->m_vis[LAY_RAT_LINE] )
 				net->OptimizeConnections( m_doc->m_auto_ratline_disable, m_doc->m_auto_ratline_min_pins, TRUE  );
 			SetFKText( m_cursor_mode );
@@ -3708,7 +3635,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 	// end CPT
 
 	ReleaseDC( pDC );
-	if( m_lastKeyWasArrow ==FALSE && m_lastKeyWasGroupRotate==false )
+	if( m_lastKeyWasArrow==FALSE && m_lastKeyWasGroupRotate==false )
 		ShowSelectStatus();
 }
 
@@ -4868,11 +4795,14 @@ void CFreePcbView::CancelSelection()
 void CFreePcbView::HighlightSelection()
 {
 	// CPT2 Was named HighlightGroup(), but renamed since it works regardless of how many items are in m_sel.
-	// Now also sets the cursor mode based on what's in m_sel.
+	// Now also sets the cursor mode based on what's in m_sel.  Also checks that the items in the selection are all valid, removing the invalid ones.
 	CancelHighlight();
 	citer<cpcb_item> ii (&m_sel);
 	for (cpcb_item *i = ii.First(); i; i = ii.Next())
-		i->Highlight();
+		if (i->IsValid())
+			i->Highlight();
+		else
+			m_sel.Remove(i);
 
 	cpcb_item *first = m_sel.First();
 	if (m_sel.GetSize()==0)
@@ -4952,31 +4882,26 @@ void CFreePcbView::CancelHighlightNet()
 	m_highlight_net = NULL;
 }
 
-// attempt to reselect area corner based on position
+// attempt to reselect area corner within currently selected net, based on position
 // should be used after areas are modified
 void CFreePcbView::TryToReselectAreaCorner( int x, int y )
 {
-#ifndef CPT2
+	if (m_sel.IsEmpty()) return;
+	cnet2 *net = m_sel.First()->GetNet();
 	CancelHighlight();
-	for( int ia=0; ia<m_sel_net->NumAreas(); ia++ )
+	citer<carea2> ia (&net->areas);
+	for (carea2 *a = ia.First(); a; a = ia.Next())
 	{
-		for( int ic=0; ic<m_sel_net->area[ia].NumCorners(); ic++ )
+		citer<ccontour> ictr (&a->contours);
+		for (ccontour *ctr = ictr.First(); ctr; ctr = ictr.Next())
 		{
-			carea * sel_a = & m_sel_net->area[ia];
-			if( x == sel_a->X(ic)
-				&& y == sel_a->Y(ic) )
-			{
-				// found matching corner
-				m_sel_id = id(ID_NET, m_sel_net->UID(), ID_AREA, sel_a->UID(), ia, 
-					ID_SEL_CORNER, sel_a->CornerUID(ic), ic);
-				SetCursorMode( CUR_AREA_CORNER_SELECTED );
-				m_doc->m_nlist->HighlightAreaCorner( m_sel_net, ia, ic );
-				return;
-			}
+			citer<ccorner> ic (&ctr->corners);
+			for (ccorner *c = ic.First(); c; c = ic.Next())
+				if (c->x==x && c->y==y)
+					{ SelectItem(c); return; }
 		}
 	}
 	CancelSelection();
-#endif
 }
 
 
@@ -4986,7 +4911,7 @@ void CFreePcbView::TryToReselectAreaCorner( int x, int y )
 //	mode = 1 if called with connection selected
 //	mode = 2 if called with net selected
 //
-int CFreePcbView::SetWidth( int mode )
+void CFreePcbView::SetWidth( int mode )
 {
 	// set parameters for dialog
 	DlgSetSegmentWidth dlg;
@@ -5017,54 +4942,42 @@ int CFreePcbView::SetWidth( int mode )
 	// launch dialog
 	dlg.m_mode = mode;
 	int ret = dlg.DoModal();
-	int w = 0;
-	int via_w = 0;
-	int via_hole_w = 0;
-	if( ret == IDOK )
+	if (ret != IDOK) 
+		return;
+	int w = dlg.m_width;
+	int via_w = dlg.m_via_width;
+	int via_hole_w = dlg.m_hole_width;
+	if( dlg.m_tv == 3 )
+		w = 0;
+	else if( dlg.m_tv == 2 )
+		via_w = 0;
+	SaveUndoInfoForNetAndConnections( net, CNetList::UNDO_NET_MODIFY, TRUE, m_doc->m_undo_list );
+
+	// set default values for net or connection
+	if( dlg.m_def == 2 )
 	{
-		// returned with "OK"
-		w = dlg.m_width;
-		via_w = dlg.m_via_width;
-		via_hole_w = dlg.m_hole_width;
-		if( dlg.m_tv == 3 )
-			w = 0;
-		else if( dlg.m_tv == 2 )
-			via_w = 0;
-		SaveUndoInfoForNetAndConnections( net, CNetList::UNDO_NET_MODIFY, TRUE, m_doc->m_undo_list );
-
-		// set default values for net or connection
-		if( dlg.m_def == 2 )
+		// set default for net
+		if( w )
+			net->def_w = w;
+		if( via_w )
 		{
-			// set default for net
-			if( w )
-				net->def_w = w;
-			if( via_w )
-			{
-				net->def_via_w = via_w;
-				net->def_via_hole_w = via_hole_w;
-			}
+			net->def_via_w = via_w;
+			net->def_via_hole_w = via_hole_w;
 		}
-		// apply new widths to net, connection or segment
-		if( dlg.m_apply == 3 )
-			// apply width to net
-			net->Undraw(),
-			net->SetWidth( w, via_w, via_hole_w ),
-			net->Draw();
-		else if( dlg.m_apply == 2 )
-			// apply width to connection
-			net->Undraw(),
-			c->SetWidth( w, via_w, via_hole_w ),
-			net->Draw();
-		else if( dlg.m_apply == 1 )
-			// apply width to segment
-			c->Undraw(),
-			seg->SetWidth( w, via_w, via_hole_w ),
-			c->Draw();
 	}
-
+	// apply new widths to net, connection or segment
+	if( dlg.m_apply == 3 )
+		// apply width to net
+		net->SetWidth( w, via_w, via_hole_w );
+	else if( dlg.m_apply == 2 )
+		// apply width to connection
+		c->SetWidth( w, via_w, via_hole_w );
+	else if( dlg.m_apply == 1 )
+		// apply width to segment
+		seg->SetWidth( w, via_w, via_hole_w );
+	m_doc->Redraw();
 	m_doc->ProjectModified( TRUE );
 	Invalidate( FALSE );
-	return 0;
 }
 
 // context-sensitive menu invoked by right-click
@@ -5347,46 +5260,47 @@ void CFreePcbView::OnAddArea()
 }
 
 // add copper area cutout
-//
+// CPT2 converted
 void CFreePcbView::OnAreaAddCutout()
 {
-	// check if any non-straight sides
-	BOOL bArcs = FALSE;
-	CPolyLine * poly = &m_sel_net->area[m_sel_ia];
-	int ns = poly->NumCorners();
 	CDC *pDC = GetDC();
 	pDC->SelectClipRgn( &m_pcb_rgn );
 	SetDCToWorldCoords( pDC );
 	CancelHighlight();
 	SetCursorMode( CUR_ADD_AREA_CUTOUT );
 	// make layer visible
-	m_active_layer = m_sel_net->area[m_sel_ia].Layer();
+	carea2 *a = m_sel.First()->GetArea();
+	m_active_layer = a->m_layer;
 	m_doc->m_vis[m_active_layer] = TRUE;
 	m_dlist->SetLayerVisible( m_active_layer, TRUE );
 	ShowActiveLayer();
 	m_dlist->StartDraggingArray( pDC, m_last_cursor_point.x,
 		m_last_cursor_point.y, 0, m_active_layer, 2 );
-	m_polyline_style = CPolyLine::STRAIGHT;
+	m_polyline_style = cpcb_item::STRAIGHT;
 	Invalidate( FALSE );
 	ReleaseDC( pDC );
 }
 
 void CFreePcbView::OnAreaDeleteCutout()
 {
-#ifndef CPT2
-	CPolyLine * poly = &m_sel_net->area[m_sel_ia];
-	int icont = poly->Contour( m_sel_id.I3() );
-	if( icont < 1 )
-		ASSERT(0);
-	SaveUndoInfoForArea( m_sel_net, m_sel_ia, CNetList::UNDO_AREA_MODIFY, TRUE, m_doc->m_undo_list );
-	poly->RemoveContour( icont );
-	CancelSelection();
-	m_doc->m_nlist->SetAreaConnections( m_sel_net, m_sel_ia );
+	cpcb_item *first = m_sel.First();
+	carea2 *a = first->GetArea();
+	cnet2 *net = a->m_net;
+	ccontour *ctr = NULL;
+	if (ccorner *c = first->ToCorner())
+		ctr = c->contour;
+	else if (cside *s = first->ToSide())
+		ctr = s->contour;
+	ASSERT( ctr && ctr != ctr->poly->main );
+	SaveUndoInfoForArea( a, CNetList::UNDO_AREA_MODIFY, TRUE, m_doc->m_undo_list );
+	a->MustRedraw();
+	ctr->Remove();
+	net->SetThermals();
 	if( m_doc->m_vis[LAY_RAT_LINE] )
-		m_doc->m_nlist->OptimizeConnections(  m_sel_net, -1, m_doc->m_auto_ratline_disable,
-														m_doc->m_auto_ratline_min_pins, TRUE  );
+		net->OptimizeConnections( m_doc->m_auto_ratline_disable, m_doc->m_auto_ratline_min_pins, TRUE  );
+	m_doc->Redraw();
+	CancelSelection();
 	Invalidate( FALSE );
-#endif
 }
 
 // move part
@@ -5605,6 +5519,7 @@ void CFreePcbView::OnPartProperties()
 		CString new_ref_des = pl[ip].ref_des;
 		SaveUndoInfoForPartAndNets( part, CPartList::UNDO_PART_MODIFY, &new_ref_des, TRUE, m_doc->m_undo_list );
 		m_doc->m_plist->ImportPartListInfo( &pl, 0 );
+		m_doc->Redraw();
 		SelectItem( part );
 		if( dlg.GetDragFlag() )
 			ASSERT(0);	// not allowed
@@ -5912,13 +5827,9 @@ void CFreePcbView::OnSegmentUnroute()
 			m_doc->m_nlist->UnrouteSegmentWithoutMerge( m_sel_net, m_sel_ic, is );
 	}
 	*/
-	c->Undraw();
 	seg->Unroute();
-	c->Draw();
-	if (seg->IsValid())
-		SelectItem( seg );
-	else
-		CancelSelection();
+	m_doc->Redraw();
+	HighlightSelection();
 	m_doc->ProjectModified( TRUE );
 	Invalidate( FALSE );
 }
@@ -5930,9 +5841,8 @@ void CFreePcbView::OnSegmentDelete()
 	cseg2 *seg = m_sel.First()->ToSeg();
 	cnet2 *net = seg->m_net;
 	SaveUndoInfoForNetAndConnections( net, CNetList::UNDO_NET_MODIFY, TRUE, m_doc->m_undo_list );
-	net->Undraw();
 	seg->RemoveBreak();
-	net->Draw();
+	m_doc->Redraw();
 	CancelSelection();
 	ShowSelectStatus();
 	m_doc->ProjectModified( TRUE );
@@ -6063,14 +5973,13 @@ void CFreePcbView::OnVertexProperties()
 	int ret = dlg.DoModal();
 	if( ret == IDOK )
 	{
-		c->Undraw();
 		vtx->via_w = dlg.m_via_w;
 		vtx->via_hole_w = dlg.m_via_hole_w;
 		if (vtx->via_w)
 			vtx->force_via_flag = 1;					// So that ReconcileVia() won't tamper with the via.
 		CancelHighlight();
 		vtx->Move( dlg.pt().x, dlg.pt().y );
-		c->Draw();
+		m_doc->Redraw();
 		m_doc->ProjectModified( TRUE );
 		vtx->Highlight();
 	}
@@ -6092,14 +6001,14 @@ void CFreePcbView::OnTeeProperties()
 	int ret = dlg.DoModal();
 	if( ret == IDOK )
 	{
-		net->Undraw();
+		CancelHighlight();
+		tee->MustRedraw();
 		tee->via_w = dlg.m_via_w;
 		tee->via_hole_w = dlg.m_via_hole_w;
 		if (tee->via_w)
 			tee->ForceVia();						// So that ReconcileVia() won't tamper with the via.
-		CancelHighlight();
 		tee->Move( dlg.pt().x, dlg.pt().y );
-		net->Draw();
+		m_doc->Redraw();
 		m_doc->ProjectModified( TRUE );
 		tee->Highlight();
 	}
@@ -6152,12 +6061,10 @@ void CFreePcbView::OnVertexDelete()
 	cconnect2 * c = v->m_con;
 	cnet2 *net = v->m_net;
 	SaveUndoInfoForNetAndConnections( net, CNetList::UNDO_NET_MODIFY, TRUE, m_doc->m_undo_list );
-	c->Undraw();
 	v->Remove();
-	if (c->IsValid())
-		c->Draw();
 	if( m_doc->m_vis[LAY_RAT_LINE] )
 		net->m_nlist->OptimizeConnections( m_doc->m_auto_ratline_disable, m_doc->m_auto_ratline_min_pins, TRUE  );
+	m_doc->Redraw();
 	CancelSelection();
 	m_doc->ProjectModified( TRUE );
 	Invalidate( FALSE );
@@ -6176,11 +6083,10 @@ void CFreePcbView::OnTeeDelete()
 	if( ret == IDCANCEL )
 		return;
 	SaveUndoInfoForNetAndConnections( net, CNetList::UNDO_NET_MODIFY, TRUE, m_doc->m_undo_list );
-	net->Undraw();
 	tee->Remove(true);
-	net->Draw();
 	if( m_doc->m_vis[LAY_RAT_LINE] )
 		net->m_nlist->OptimizeConnections( m_doc->m_auto_ratline_disable, m_doc->m_auto_ratline_min_pins, TRUE  );
+	m_doc->Redraw();
 	CancelSelection();
 	m_doc->ProjectModified( TRUE );
 	Invalidate( FALSE );
@@ -6215,14 +6121,10 @@ void CFreePcbView::OnVertexAddVia()
 	cnet2 *net = sel->GetNet();
 	SaveUndoInfoForNetAndConnections( net, CNetList::UNDO_NET_MODIFY, TRUE, m_doc->m_undo_list );
 	sel->ForceVia();																							// CPT2 changed arg to true
-	sel->Draw();
 	if( m_doc->m_vis[LAY_RAT_LINE] )
-	{
 		net->OptimizeConnections( m_doc->m_auto_ratline_disable,	m_doc->m_auto_ratline_min_pins, TRUE  );	// CPT2 TODO still disabled
-		// Check if OptimizeConnections() clobbered vtx:
-		if( !sel->IsValid() )
-			CancelSelection();
-	}
+	m_doc->Redraw();
+	HighlightSelection();
 	ShowSelectStatus();
 	SetFKText( m_cursor_mode );
 	m_doc->ProjectModified( TRUE );
@@ -6238,15 +6140,12 @@ void CFreePcbView::OnVertexRemoveVia()
 	cnet2 *net = sel->GetNet();
 	SaveUndoInfoForNetAndConnections( net, CNetList::UNDO_NET_MODIFY, TRUE, m_doc->m_undo_list );
 	sel->UnforceVia();																							// CPT2 changed arg to true
-	sel->Draw();
 	if (!sel->IsTee())
 		sel->GetConnect()->MergeUnroutedSegments();
 	if( m_doc->m_vis[LAY_RAT_LINE] )
-	{
 		net->OptimizeConnections( m_doc->m_auto_ratline_disable, m_doc->m_auto_ratline_min_pins, TRUE  );
-		if( !sel->IsValid() )
-			CancelSelection();
-	}
+	m_doc->Redraw();
+	HighlightSelection();
 	ShowSelectStatus();
 	SetFKText( m_cursor_mode );
 	m_doc->ProjectModified( TRUE );
@@ -6372,9 +6271,8 @@ void CFreePcbView::OnRatlineComplete()
 	{
 		m_snap_angle_ref = CPoint(start->x, start->y);
 		m_last_cursor_point = CPoint(end->x, end->y);
-		net->Undraw();
 		FinishRouting(seg);
-		net->Draw();
+		m_doc->Redraw();
 		seg->CancelDragging();
 		CancelSelection();
 	}
@@ -6411,6 +6309,7 @@ void CFreePcbView::OnRatlineDeleteConnection()
 	}
 	SaveUndoInfoForNetAndConnections( net, CNetList::UNDO_NET_MODIFY, TRUE, m_doc->m_undo_list );
 	c->Remove();
+	m_doc->Redraw();
 	CancelSelection();
 	m_doc->ProjectModified( TRUE );
 	Invalidate( FALSE );
@@ -6593,85 +6492,78 @@ void CFreePcbView::OnBoardDeleteOutline()
 //
 void CFreePcbView::OnAreaCornerMove()
 {
-#ifndef CPT2
 	CDC *pDC = GetDC();
 	pDC->SelectClipRgn( &m_pcb_rgn );
 	SetDCToWorldCoords( pDC );
+	ccorner *c = m_sel.First()->ToCorner();
+	carea2 *a = c->GetArea();
 	CPoint p = m_last_mouse_point;
-	m_from_pt.x = m_sel_net->area[m_sel_id.I2()].X( m_sel_id.I3() );
-	m_from_pt.y = m_sel_net->area[m_sel_id.I2()].Y( m_sel_id.I3() );
-	m_doc->m_nlist->StartDraggingAreaCorner( pDC, m_sel_net, m_sel_ia, m_sel_is, p.x, p.y, 2 );
+	m_from_pt.x = c->x;
+	m_from_pt.y = c->y;
+	c->StartDragging(pDC, p.x, p.y, 2);
 	SetCursorMode( CUR_DRAG_AREA_MOVE );
 	ReleaseDC( pDC );
 	Invalidate( FALSE );
-#endif
 }
 
 // delete a copper area corner
 //
 void CFreePcbView::OnAreaCornerDelete()
 {
-#ifndef CPT2
-	carea * area;
-	area = &m_sel_net->area[m_sel_id.I2()];
-	if( area->NumCorners() > 3 )
-	{
-		SaveUndoInfoForArea( m_sel_net, m_sel_ia, CNetList::UNDO_AREA_MODIFY, TRUE, m_doc->m_undo_list );
+	ccorner *c = m_sel.First()->ToCorner();
+	carea2 *a = c->GetArea();
+	cnet2 *net = a->m_net;
+	SaveUndoInfoForArea( a, CNetList::UNDO_AREA_MODIFY, TRUE, m_doc->m_undo_list );
 //		SaveUndoInfoForNetAndConnectionsAndArea( m_sel_net, m_sel_ia, CNetList::UNDO_AREA_MODIFY, TRUE, m_doc->m_undo_list );
-		area->DeleteCorner( m_sel_id.I3() );
-		CancelHighlight();
-		m_doc->m_nlist->SetAreaConnections( m_sel_net, m_sel_ia );
-		if( m_doc->m_vis[LAY_RAT_LINE] )
-			m_doc->m_nlist->OptimizeConnections(  m_sel_net, -1, m_doc->m_auto_ratline_disable,
-														m_doc->m_auto_ratline_min_pins, TRUE  );
-		m_doc->ProjectModified( TRUE );
-		SetCursorMode( CUR_NONE_SELECTED );
-		Invalidate( FALSE );
-	}
+	c->Remove();							// NB could result in the removal of a contour or even the whole area
+	if (a->IsValid())
+		a->PolygonModified( false, true );
 	else
-		OnAreaCornerDeleteArea();
-#endif
+		net->SetThermals();
+	if( m_doc->m_vis[LAY_RAT_LINE] )
+		net->OptimizeConnections( m_doc->m_auto_ratline_disable, m_doc->m_auto_ratline_min_pins, TRUE  );
+	m_doc->Redraw();
+	m_doc->ProjectModified( TRUE );
+	CancelSelection();
+	Invalidate( FALSE );
 }
 
 // delete entire area
 //
 void CFreePcbView::OnAreaCornerDeleteArea()
-{
-	OnAreaSideDeleteArea();
-	m_doc->ProjectModified( TRUE );
-}
+	{ OnAreaSideDeleteArea(); }
 
 //insert a new corner in a side of a copper area
 //
 void CFreePcbView::OnAreaSideAddCorner()
 {
-#ifndef CPT2
 	CDC *pDC = GetDC();
 	pDC->SelectClipRgn( &m_pcb_rgn );
 	SetDCToWorldCoords( pDC );
 	CPoint p = m_last_mouse_point;
-	m_doc->m_nlist->StartDraggingInsertedAreaCorner( pDC, m_sel_net, m_sel_ia, m_sel_is, p.x, p.y, 2 );
+	cside *s = m_sel.First()->ToSide();
+	s->StartDraggingNewCorner( pDC, p.x, p.y, 2 );
 	SetCursorMode( CUR_DRAG_AREA_INSERT );
 	ReleaseDC( pDC );
 	Invalidate( FALSE );
-#endif
 }
 
 // delete entire area
-//
+// CPT2 converted.  Works if area corner is selected also
 void CFreePcbView::OnAreaSideDeleteArea()
 {
-#ifndef CPT2
-	SaveUndoInfoForArea( m_sel_net, m_sel_ia, CNetList::UNDO_AREA_DELETE, TRUE, m_doc->m_undo_list );
+	carea2 *a = m_sel.First()->GetArea();
+	cnet2 *net = a->m_net;
+	SaveUndoInfoForArea( a, CNetList::UNDO_AREA_DELETE, TRUE, m_doc->m_undo_list );
 //	SaveUndoInfoForNetAndConnectionsAndArea( m_sel_net, m_sel_ia, CNetList::UNDO_AREA_DELETE, TRUE, m_doc->m_undo_list );
-	m_doc->m_nlist->RemoveArea( m_sel_net, m_sel_ia );
+	a->Remove();
 	if( m_doc->m_vis[LAY_RAT_LINE] )
-		m_doc->m_nlist->OptimizeConnections(  m_sel_net, -1, m_doc->m_auto_ratline_disable,
-														m_doc->m_auto_ratline_min_pins, TRUE  );
+		net->OptimizeConnections( m_doc->m_auto_ratline_disable, m_doc->m_auto_ratline_min_pins, TRUE  );
+	m_doc->Redraw();
 	CancelSelection();
 	m_doc->ProjectModified( TRUE );
+	net->SetThermals();
 	Invalidate( FALSE );
-#endif
 }
 
 // detect state where nothing is selected or being dragged
@@ -6955,29 +6847,26 @@ void CFreePcbView::OnSegmentDeleteTrace()
 
 void CFreePcbView::OnAreaCornerProperties()
 {
-#ifndef CPT2
 	// reuse board corner dialog
+	ccorner *c = m_sel.First()->ToCorner();
+	carea2 *a = c->GetArea();
 	DlgEditBoardCorner dlg;
 	CString str ((LPCSTR) IDS_CornerPosition);
-	CPoint pt = m_doc->m_nlist->GetAreaCorner( m_sel_net, m_sel_ia, m_sel_is );
-	dlg.Init( &str, m_doc->m_units, pt.x, pt.y );
+	dlg.Init( &str, m_doc->m_units, c->x, c->y );
 	int ret = dlg.DoModal();
-	if( ret == IDOK )
-	{
-		SaveUndoInfoForArea( m_sel_net, m_sel_ia, CNetList::UNDO_AREA_MODIFY, TRUE, m_doc->m_undo_list );
+	if( ret != IDOK ) return;
+	SaveUndoInfoForArea( a, CNetList::UNDO_AREA_MODIFY, TRUE, m_doc->m_undo_list );
 //		SaveUndoInfoForNetAndConnectionsAndArea( m_sel_net, m_sel_ia, CNetList::UNDO_AREA_MODIFY, TRUE, m_doc->m_undo_list );
-		m_doc->m_nlist->MoveAreaCorner( m_sel_net, m_sel_ia, m_sel_is,
-			dlg.X(), dlg.Y() );
-		m_doc->m_nlist->SetAreaConnections( m_sel_net, m_sel_ia );
-		if( m_doc->m_vis[LAY_RAT_LINE] )
-			m_doc->m_nlist->OptimizeConnections(  m_sel_net, -1, m_doc->m_auto_ratline_disable,
-														m_doc->m_auto_ratline_min_pins, TRUE  );
-		m_doc->m_nlist->HighlightAreaCorner( m_sel_net, m_sel_ia, m_sel_is );
-		SetCursorMode( CUR_AREA_CORNER_SELECTED );
-		m_doc->ProjectModified( TRUE );
-		Invalidate( FALSE );
-	}
-#endif
+	int x = dlg.X(), y = dlg.Y();
+	c->Move( x, y );
+	a->PolygonModified(false, true);				// CPT2 TODO figure out the system regarding which arg-values this function gets handed.
+	if( m_doc->m_vis[LAY_RAT_LINE] )
+		a->m_net->OptimizeConnections( m_doc->m_auto_ratline_disable, m_doc->m_auto_ratline_min_pins, TRUE  );
+	m_doc->Redraw();
+	this->TryToReselectAreaCorner( x, y );
+	SetCursorMode( CUR_AREA_CORNER_SELECTED );
+	m_doc->ProjectModified( TRUE );
+	Invalidate( FALSE );
 }
 
 void CFreePcbView::OnRefProperties()
@@ -7051,7 +6940,7 @@ void CFreePcbView::OnUnrouteTrace()
 	cconnect2 *c = m_sel.First()->GetConnect();
 	cnet2 *net = c->m_net;
 	SaveUndoInfoForNetAndConnections( net, CNetList::UNDO_NET_MODIFY, TRUE, m_doc->m_undo_list );
-	c->Undraw();
+	c->MustRedraw();
 	c->vtxs.RemoveAll();
 	c->vtxs.Add(c->head); c->vtxs.Add(c->tail);
 	c->segs.RemoveAll();
@@ -7060,7 +6949,7 @@ void CFreePcbView::OnUnrouteTrace()
 	seg->preVtx = c->head;
 	c->tail->preSeg = seg;
 	seg->postVtx = c->tail;
-	c->Draw();
+	m_doc->Redraw();
 	SelectItem(seg);
 	m_doc->ProjectModified( TRUE );
 	Invalidate( FALSE );
@@ -8053,12 +7942,10 @@ void CFreePcbView::ChangeTraceLayer( int mode, int old_layer )
 	}
 	else if( dlg.m_apply_to == 1 )
 	{
-		c->Undraw();
 		citer<cseg2> is (&c->segs);
 		for (cseg2 *s = is.First(); s; s = is.Next())
 			if( s->m_layer >= LAY_TOP_COPPER )
 				err += s->SetLayer( dlg.m_new_layer );
-		c->Draw();
 		if( err )
 		{
 			CString s ((LPCSTR) IDS_UnableToChangeLayerForAllSegments);
@@ -8067,7 +7954,6 @@ void CFreePcbView::ChangeTraceLayer( int mode, int old_layer )
 	}
 	else if( dlg.m_apply_to == 2 )
 	{
-		net->Undraw();
 		citer<cconnect2> ic (&net->connects);
 		for (cconnect2 *c = ic.First(); c; c = ic.Next())
 		{
@@ -8076,13 +7962,13 @@ void CFreePcbView::ChangeTraceLayer( int mode, int old_layer )
 				if (s->m_layer >= LAY_TOP_COPPER)
 					err += s->SetLayer( dlg.m_new_layer );
 		}
-		net->Draw();
 		if( err )
 		{
 			CString s ((LPCSTR) IDS_UnableToChangeLayerForAllSegments);
 			AfxMessageBox( s );
 		}
 	}
+	m_doc->Redraw();
 	m_doc->ProjectModified( TRUE );
 	Invalidate( FALSE );
 }
@@ -9292,58 +9178,42 @@ void CFreePcbView::OnAddSimilarArea()
 
 void CFreePcbView::OnAreaEdit()
 {
-#ifndef CPT2
+	// CPT2 converted.
+	carea2 *a = m_sel.First()->GetArea();
+	cnet2 *old_net = a->m_net;
 	CDlgAddArea dlg;
-	int layer = m_sel_net->area[m_sel_id.I2()].Layer();
-	int hatch = m_sel_net->area[m_sel_id.I2()].GetHatch();
-	dlg.Initialize( m_doc->m_nlist, m_doc->m_num_layers, m_sel_net, layer, hatch );
+	dlg.Initialize( m_doc->m_nlist, m_doc->m_num_layers, old_net, a->m_layer, a->m_hatch );
 	int ret = dlg.DoModal();
-	if( ret == IDOK )
+	if( ret != IDOK ) 
+		return;
+	
+	a->MustRedraw();
+	cnet2 *net = dlg.m_net;
+	if( old_net == net )
+		SaveUndoInfoForAllAreasInNet( old_net, TRUE, m_doc->m_undo_list );
+	else
 	{
-		cnet * net = dlg.m_net;
-		if( m_sel_net == net )
-		{
-			SaveUndoInfoForAllAreasInNet( m_sel_net, TRUE, m_doc->m_undo_list );
-		}
-		else
-		{
-			// move area to new net
-			SaveUndoInfoForAllAreasIn2Nets( m_sel_net, net, TRUE, m_doc->m_undo_list );
-			int ia = m_doc->m_nlist->AddArea( net, dlg.m_layer, 0, 0, 0 );
-			net->area[ia].Copy( &m_sel_net->area[m_sel_ia] );
-			net->area[ia].SetPtr( net );
-			id new_id = net->area[ia].Id();
-			new_id.SetI2( ia );
-			net->area[ia].SetParentId( &new_id );
-			m_doc->m_nlist->RemoveArea( m_sel_net, m_sel_ia ); 
-			m_doc->m_nlist->SetAreaConnections( net, ia );
-			if( m_doc->m_vis[LAY_RAT_LINE] )
-				m_doc->m_nlist->OptimizeConnections(  net, -1, m_doc->m_auto_ratline_disable,
-														m_doc->m_auto_ratline_min_pins, TRUE  );
-			CancelSelection();
-			m_sel_net = net;
-			m_sel_id.SetI2( ia );
-		}
-		m_sel_net->area[m_sel_ia].Undraw();
-		m_sel_net->area[m_sel_ia].SetLayer( dlg.m_layer );
-		m_sel_net->area[m_sel_ia].SetHatch( dlg.m_hatch );
-		m_sel_net->area[m_sel_ia].Draw();
-		int ret = m_doc->m_nlist->AreaPolygonModified( m_sel_net, m_sel_ia, FALSE, TRUE );
-		if( ret == -1 )
-		{
-			CString s ((LPCSTR) IDS_ErrorUnableToClipPolygonDueToIntersectingArc);
-			AfxMessageBox( s );
-			CancelSelection();
-			m_doc->OnEditUndo();
-		}
-		if( m_doc->m_vis[LAY_RAT_LINE] )
-			m_doc->m_nlist->OptimizeConnections(  m_sel_net, -1, m_doc->m_auto_ratline_disable,
-														m_doc->m_auto_ratline_min_pins, TRUE  );
-		CancelSelection();
-		m_doc->ProjectModified( TRUE );
-		Invalidate( FALSE );
+		// move area to new net
+		SaveUndoInfoForAllAreasIn2Nets( old_net, net, TRUE, m_doc->m_undo_list );
+		a->SetNet(net);
+		old_net->SetThermals();
 	}
-#endif
+	a->m_layer = dlg.m_layer;
+	a->m_hatch = dlg.m_hatch;
+	ret = a->PolygonModified( FALSE, TRUE );		// Also calls net->SetThermals()
+	if( ret == -1 )
+	{
+		CString s ((LPCSTR) IDS_ErrorUnableToClipPolygonDueToIntersectingArc);
+		AfxMessageBox( s );
+		CancelSelection();
+		m_doc->OnEditUndo();
+	}
+	if( m_doc->m_vis[LAY_RAT_LINE] )
+		net->OptimizeConnections( m_doc->m_auto_ratline_disable, m_doc->m_auto_ratline_min_pins, TRUE  );
+	m_doc->Redraw();
+	CancelSelection();
+	m_doc->ProjectModified( TRUE );
+	Invalidate( FALSE );
 }
 
 void CFreePcbView::OnAreaEdgeApplyClearances()
@@ -12096,6 +11966,7 @@ void CFreePcbView::SetMainMenu( BOOL bAll )
 
 void CFreePcbView::OnRefShowPart()
 {
+#ifndef CPT2
 	cpart * part = m_sel_part;
 	CancelSelection();
 	dl_element * dl_sel = part->dl_sel;
@@ -12111,29 +11982,34 @@ void CFreePcbView::OnRefShowPart()
 	p = m_dlist->PCBToScreen( p );
 	SetCursorPos( p.x, p.y - 4 );
 	SelectPart( part );
+#endif
 }
 
 void CFreePcbView::OnAreaSideStyle()
 {
-#ifndef CPT2
 	CDlgSideStyle dlg;
-	int style = m_sel_net->area[m_sel_ia].SideStyle( m_sel_id.I3() );
-	dlg.Initialize( style );
+	cside *s = m_sel.First()->ToSide();
+	carea2 *a = s->GetArea();
+	cnet2 *net = a->m_net;
+	dlg.Initialize( s->m_style );
 	int ret = dlg.DoModal();
-	if( ret == IDOK )
+	if( ret != IDOK || dlg.m_style == s->m_style ) return;
+	SaveUndoInfoForArea( a, CNetList::UNDO_AREA_MODIFY, TRUE, m_doc->m_undo_list );
+	a->MustRedraw();
+	s->m_style = dlg.m_style;
+	ret = a->PolygonModified( FALSE, FALSE );
+	if( ret == -1 )
 	{
-		SaveUndoInfoForArea( m_sel_net, m_sel_ia, CNetList::UNDO_AREA_MODIFY, TRUE, m_doc->m_undo_list );
-		CancelHighlight();
-		m_sel_net->area[m_sel_ia].SetSideStyle( m_sel_id.I3(), dlg.m_style );
-		m_doc->m_nlist->SelectAreaSide( m_sel_net, m_sel_ia, m_sel_id.I3() );
-		m_doc->m_nlist->SetAreaConnections( m_sel_net, m_sel_ia );
-		if( m_doc->m_vis[LAY_RAT_LINE] )
-			m_doc->m_nlist->OptimizeConnections(  m_sel_net, -1, m_doc->m_auto_ratline_disable,
-														m_doc->m_auto_ratline_min_pins, TRUE );
+		CString s ((LPCSTR) IDS_ErrorUnableToClipPolygon);
+		AfxMessageBox( s );
+		m_doc->OnEditUndo();
 	}
+	else if( m_doc->m_vis[LAY_RAT_LINE] )
+		net->OptimizeConnections(  m_doc->m_auto_ratline_disable, m_doc->m_auto_ratline_min_pins, TRUE );
+	m_doc->Redraw();
+	HighlightSelection();
 	m_doc->ProjectModified( TRUE );
 	Invalidate( FALSE );
-#endif
 }
 
 // move text string for value
@@ -12391,40 +12267,38 @@ void CFreePcbView::HandleNoShiftLayerKey(int layer, CDC *pDC)
 }
 
 void CFreePcbView::HandleShiftLayerKey(int layer, CDC *pDC) {
-	cconnect2 *c = m_sel.First()->GetConnect();
 	cnet2 *net = m_sel.First()->GetNet();
 	if( m_cursor_mode == CUR_SEG_SELECTED )	{
 		cseg2 *seg = m_sel.First()->ToSeg();
+		seg->MustRedraw();
 		SaveUndoInfoForNetAndConnections( net, CNetList::UNDO_NET_MODIFY, TRUE, m_doc->m_undo_list );
-		c->Undraw();
 		seg->m_layer = layer;
 		seg->preVtx->ReconcileVia();
 		seg->postVtx->ReconcileVia();
-		c->Draw();		
+		m_doc->Redraw();		
 		m_doc->ProjectModified( TRUE );
 		Invalidate( FALSE );
 		}
 	else if( m_cursor_mode == CUR_CONNECT_SELECTED ) {
+		cconnect2 *c = m_sel.First()->GetConnect();
 		SaveUndoInfoForNetAndConnections( net, CNetList::UNDO_NET_MODIFY, TRUE, m_doc->m_undo_list );
-		c->Undraw();
+		c->MustRedraw();
 		citer<cseg2> is (&c->segs);
 		for (cseg2 *s = is.First(); s; s = is.Next())
 			s->m_layer = layer;
 		citer<cvertex2> iv (&c->vtxs);
 		for (cvertex2 *v = iv.First(); v; v = iv.Next())
 			v->ReconcileVia();
-		c->Draw();	
+		m_doc->Redraw();
 		m_doc->ProjectModified( TRUE );
 		Invalidate( FALSE );
 		}
-#ifndef CPT2
 	else if( m_cursor_mode == CUR_AREA_CORNER_SELECTED || m_cursor_mode == CUR_AREA_SIDE_SELECTED ) {
-		SaveUndoInfoForAllAreasInNet( m_sel_net, TRUE, m_doc->m_undo_list );
-		carea * a = &m_sel_net->area[m_sel_ia];
-		a->Undraw();
-		a->SetLayer( layer );
-		a->Draw( m_dlist );
-		int ret = m_doc->m_nlist->AreaPolygonModified( m_sel_net, m_sel_ia, TRUE, TRUE );
+		carea2 *a = m_sel.First()->GetArea();
+		SaveUndoInfoForAllAreasInNet( net, TRUE, m_doc->m_undo_list );
+		a->MustRedraw();
+		a->m_layer = layer;
+		int ret = a->PolygonModified( TRUE, TRUE );
 		if( ret == -1 ) {
 			// error
 			CString s ((LPCSTR) IDS_ErrorUnableToClipPolygon);
@@ -12432,12 +12306,11 @@ void CFreePcbView::HandleShiftLayerKey(int layer, CDC *pDC) {
 			m_doc->OnEditUndo();
 			}
 		else if( m_doc->m_vis[LAY_RAT_LINE] )
-			m_doc->m_nlist->OptimizeConnections(  m_sel_net, -1, m_doc->m_auto_ratline_disable,
-					m_doc->m_auto_ratline_min_pins, TRUE  );
-		CancelSelection();
+			net->OptimizeConnections( m_doc->m_auto_ratline_disable, m_doc->m_auto_ratline_min_pins, TRUE  );
+		m_doc->Redraw();
+		HighlightSelection();
 		m_doc->ProjectModified( TRUE );
 		Invalidate( FALSE );
 		}
-#endif
 	}		
 // end CPT

@@ -6,15 +6,6 @@ are slated for moving into classes for lower-level objects (like cseg2, cnet2, e
 Functions that contain code that won't yet compile (still need translation into the new
 idiom) are marked off with #ifndef CPT2.  The goal is to bring these back to life bit by bit.
 
-Proposal for drawing/undrawing.  Do less of this in low-level functions.  I have a strong impression that the
-loading of files, for instance, is getting slowed tremendously by lots of drawing and undrawing of objects as
-they get built up.  At one time it looks like there was an attempt to overcome this issue by setting the dlist argument
-for certain functions to NULL; in other places there's "bool bWasDrawn = IsDrawn(); Undraw(); ... ; if (bWasDrawn) Draw();"
-I think it might be simpler and more effective to invoke Undraw and Draw only at the tops/bottoms of outer functions 
-like CFreePcbView::OnLButtonUp or CNetList::ReadNets.  It might be that one will have to be a little generous with how many objects
-to Undraw/Draw (doing entire nets rather than a couple of individual segs, say).  But I think the benefits during long processes
-like loading will outweigh the slight penalties when doing single user edit operations.
-
 I would propose that CFreePcbView::CancelSelection() always turn off net highlighting by default.  If caller really wants to rehighlight
 afterwards (I don't think that will be frequent), let 'em do it by hand.
 
@@ -41,6 +32,20 @@ In honor of this change I'm renaming pad to cpad and padstack to cpadstack.  (He
 
 To do later: just as functions in CNetList and CPartList are getting moved into classes for lower-level objects, I think various functions
 can be moved out of CDisplayList into dl_element and its descendants (will require adding a dlist pointer to class dl_element).
+
+Latest-n-greatest proposal for drawing/undrawing.  I've grown dissatisfied with my previous system for drawing and undrawing, so here's another
+pass at it, hopefully this time a winner.  When a low-level routine is going to make changes to an object 
+in the cpcb_item hierarchy, it should first call either
+object->Undraw(), in the event that the object is being removed forever, or object->MustRedraw(), 
+in the event that it or its membership is only being modified.  The latter routine itself calls object->Undraw(), and then adds the
+object to the carray object->doc->redraw.  After all modifications are finished, the outer-level routine (CFreePcbDoc::OnLButtonUp, say) should then
+call doc->Redraw().  That routine runs through all the objects in doc->redraw, and after double-checking their validity, draws 'em.
+
+Notice also that the behavior of Draw() for individual classes is slightly different now too (other than in the case of cconnect2::Draw and
+cnet2::Draw, which as before simply hand off to Draw() for constituent items).  For the other, lower-level classes (including cpolyline and cpart), 
+Draw() first checks the bDrawn flag, and if it's already drawn, it _simply returns_.  This works because before objects are modified they will already
+have been undrawn by cpcb_item::MustRedraw().  In the event that (say) both a net and one of its constituent segments get added to CFreePcbDoc::redraw, 
+a real possibility, we save effort by just bailing out during CFreePcbDoc::Redraw's second attempt to draw the segment.
 
 // FreePCB : programming notes
 //
