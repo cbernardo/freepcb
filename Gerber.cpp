@@ -532,6 +532,7 @@ void ChangeAperture( CAperture * new_ap,			// new aperture
 // write the Gerber file for a layer
 // assumes that the file is already open for writing
 // returns 0 if successful
+// AMW2: modified to look for vias on first vertex of connection
 //
 int WriteGerberFile( CStdioFile * f, int flags, int layer,
 					CDlgLog * log, int paste_mask_shrink,
@@ -1345,22 +1346,17 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 					for( cconnect * c=iter_con.GetFirst(); c; c=iter_con.GetNext() )
 					{
 						int ic = iter_con.GetIndex();
-//						int nsegs = c->NumSegs();
-						CIterator_cseg iter_seg( c );
-						for( cseg * s=iter_seg.GetFirst(); s; s=iter_seg.GetNext() )
+
+						// AMW2 fixed problem where it wouldn't analyze the first vertex
+						// get vertices
+						CIterator_cvertex iter_vtx( c );
+						for( cvertex * v=iter_vtx.GetFirst(); v; v=iter_vtx.GetNext() )
 						{
-							// get segment and vertices
-							int is = iter_seg.GetIndex();
-							cvertex * pre_vtx = &s->GetPreVtx();
-							cvertex * post_vtx = &s->GetPostVtx();
-							double xi = pre_vtx->x;
-							double yi = pre_vtx->y;
-							double xf = post_vtx->x;
-							double yf = post_vtx->y;
+							int iv = iter_vtx.GetIndex();
 							int test;
 							int pad_w;
 							int hole_w;
-							nl->GetViaPadInfo( net, ic, is+1, layer, 
+							nl->GetViaPadInfo( net, ic, iv, layer, 
 								&pad_w, &hole_w, &test );
 							// flash the via clearance if necessary
 							if( hole_w > 0 && layer >= LAY_TOP_COPPER )
@@ -1411,7 +1407,7 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 									if( PASS1 )
 									{
 										// flash the via clearance
-										WriteMoveTo( f, post_vtx->x, post_vtx->y, LIGHT_FLASH );
+										WriteMoveTo( f, v->x, v->y, LIGHT_FLASH );
 									}
 								}
 								if( area_pad_type == PAD_ROUND && num_area_nets > 1 )
@@ -1423,12 +1419,27 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 									if( PASS1 )
 									{
 										DrawClearanceInForeignAreas( net, area_pad_type, 0,
-											xf, yf, 0, 0, area_pad_wid, 0, 0, 0,
+											v->x, v->y, 0, 0, area_pad_wid, 0, 0, 0,
 											f, flags, layer, 0, &area_net_list, &area_list );
 									}
 								}
 							}
+						}
 
+						// get segments
+						CIterator_cseg iter_seg( c );
+						for( cseg * s=iter_seg.GetFirst(); s; s=iter_seg.GetNext() )
+						{
+							int is = iter_seg.GetIndex();
+							cvertex * pre_vtx = &s->GetPreVtx();
+							cvertex * post_vtx = &s->GetPostVtx();
+							double xi = pre_vtx->x;
+							double yi = pre_vtx->y;
+							double xf = post_vtx->x;
+							double yf = post_vtx->y;
+							int test;
+							int pad_w;
+							int hole_w;
 							if( s->m_layer == layer && num_area_nets == 1 && net != first_area_net ) 
 							{
 								// segment is on this layer and there is a single copper area
@@ -1764,30 +1775,16 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 				for( cconnect * c=iter_con.GetFirst(); c; c=iter_con.GetNext() )
 				{
 					int ic = iter_con.GetIndex();
-//					int nsegs = c->NumSegs();
-					CIterator_cseg iter_seg( c );
-					for( cseg * s=iter_seg.GetFirst(); s; s=iter_seg.GetNext() )
+
+					// AMW2 vertices
+					CIterator_cvertex iter_vtx(c);
+					for( cvertex * v=iter_vtx.GetFirst(); v; v=iter_vtx.GetNext() )
 					{
-						// get segment info
-						int is = iter_seg.GetIndex();
-						cvertex * pre_vtx = &s->GetPreVtx();
-						cvertex * post_vtx = &s->GetPostVtx();
-						// get following via info
+						// get via info
+						int iv = iter_vtx.GetIndex();
 						int test, pad_w, hole_w;
-						nl->GetViaPadInfo( net, ic, is+1, layer,
+						nl->GetViaPadInfo( net, ic, iv, layer,
 							&pad_w, &hole_w, &test );
-						if( s->m_layer == layer )
-						{
-							// segment is on this layer, draw it
-							int w = s->m_width;
-							CAperture seg_ap( CAperture::AP_CIRCLE, w, 0 );
-							ChangeAperture( &seg_ap, &current_ap, &ap_array, PASS0, f );
-							if( PASS1 )
-							{
-								WriteMoveTo( f, pre_vtx->x, pre_vtx->y, LIGHT_OFF );
-								WriteMoveTo( f, post_vtx->x, post_vtx->y, LIGHT_ON );
-							}
-						}
 						if( pad_w )
 						{
 							// via exists
@@ -1813,8 +1810,30 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 								// flash the via
 								if( PASS1 )
 								{
-									WriteMoveTo( f, post_vtx->x, post_vtx->y, LIGHT_FLASH );
+									WriteMoveTo( f, v->x, v->y, LIGHT_FLASH );
 								}
+							}
+						}
+					}
+
+
+					CIterator_cseg iter_seg( c );
+					for( cseg * s=iter_seg.GetFirst(); s; s=iter_seg.GetNext() )
+					{
+						// get segment info
+						int is = iter_seg.GetIndex();
+						cvertex * pre_vtx = &s->GetPreVtx();
+						cvertex * post_vtx = &s->GetPostVtx();
+						if( s->m_layer == layer )
+						{
+							// segment is on this layer, draw it
+							int w = s->m_width;
+							CAperture seg_ap( CAperture::AP_CIRCLE, w, 0 );
+							ChangeAperture( &seg_ap, &current_ap, &ap_array, PASS0, f );
+							if( PASS1 )
+							{
+								WriteMoveTo( f, pre_vtx->x, pre_vtx->y, LIGHT_OFF );
+								WriteMoveTo( f, post_vtx->x, post_vtx->y, LIGHT_ON );
 							}
 						}
 					}
@@ -2026,6 +2045,7 @@ int AddToArray( int value, CArray<int,int> * array )
 }
 
 // write NC drill file
+// AMW2: modified to look for vias on first vertx of trace
 //
 int WriteDrillFile( CStdioFile * file, CPartList * pl, CNetList * nl, CArray<CPolyLine> * bd,
 				   int n_x, int n_y, int space_x, int space_y )
@@ -2071,10 +2091,9 @@ int WriteDrillFile( CStdioFile * file, CPartList * pl, CNetList * nl, CArray<CPo
 			for( cconnect * c=iter_con.GetFirst(); c; c=iter_con.GetNext() )
 			{
 //				int nsegs = c->NumSegs();
-				CIterator_cseg iter_seg( c );
-				for( cseg * s=iter_seg.GetFirst(); s; s=iter_seg.GetNext() )
+				CIterator_cvertex iter_vtx( c );
+				for( cvertex * v=iter_vtx.GetFirst(); v; v=iter_vtx.GetNext() )
 				{
-					cvertex * v = &s->GetPostVtx();
 					if( v->via_w )
 					{
 						// via
@@ -2190,10 +2209,9 @@ int WriteDrillFile( CStdioFile * file, CPartList * pl, CNetList * nl, CArray<CPo
 						for( cconnect * c=iter_con.GetFirst(); c; c=iter_con.GetNext() )
 						{
 //							int nsegs = c->NumSegs();
-							CIterator_cseg iter_seg( c );
-							for( cseg * s=iter_seg.GetFirst(); s; s=iter_seg.GetNext() )
+							CIterator_cvertex iter_vtx( c );
+							for( cvertex * v=iter_vtx.GetFirst(); v; v=iter_vtx.GetNext() )
 							{
-								cvertex * v = &s->GetPostVtx();
 								if( v->via_w )
 								{
 									// via

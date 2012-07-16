@@ -70,6 +70,7 @@ public:
 	cvertex * VtxByIndex( int iv );
 	int NumPins();
 	cpin * PinByIndex( int ip );
+	bool ContainsPin( int ip );
 
 	cnet * m_net;		// parent net
 	int npins;			// number of thru-hole pins within area on same net

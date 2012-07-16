@@ -350,6 +350,14 @@ public:
 	BOOL TeeViaNeeded( cnet * net, int id, cvertex ** v );
 	BOOL RemoveOrphanBranches( cnet * net, int id, BOOL bRemoveSegs=FALSE );
 
+	// helper functions
+void AnalyzeArea( CMap<int, int, int, int> * pins_connected,
+			CMap<int, int, int, int> * cons_analyzed,  
+			CMap<int, int, int, int> * cons_connected,	
+			CMap<int, int, int, int> * areas_analyzed,	
+			CMap<int, int, int, int> * areas_connected,					
+			cnet * net, int ipin, int ia, int level );
+
 private:
 	CDisplayList * m_dlist;
 	CPartList * m_plist;

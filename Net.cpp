@@ -241,6 +241,18 @@ cpin * carea::PinByIndex( int ip )
 	return net_pin;
 }
 
+// AMW2 function needed by OptimizeConnections()
+//
+bool carea::ContainsPin( int ip )
+{
+	for( int iap=0; iap<NumPins(); iap++ )
+	{
+		if( pin[iap] == ip )
+			return TRUE;
+	}
+	return FALSE;
+}
+
 //**************************** cseg implementation ************************
 
 // initialization
@@ -1590,8 +1602,8 @@ bool cnet::RemoveSegAndVertexByIndex( cconnect * c, int is )
 		{
 			// we just removed the last segment and vertex
 			c->end_pin = cconnect::NO_END;
-			// if new last segment is unrouted and un-teed, remove that too
-			if( c->LastSeg().m_layer == LAY_RAT_LINE && c->LastVtx()->tee_ID == 0 )
+			// if new last segment is unrouted and vertex has no via and un-teed, remove that too
+			if( c->LastSeg().m_layer == LAY_RAT_LINE && c->LastVtx()->tee_ID == 0 && c->LastVtx()->via_w == 0 )
 			{
 				bConRemoved = RemoveSegAndVertexByIndex( c, c->NumSegs()-1 );
 			}
@@ -2019,9 +2031,10 @@ cconnect * cnet::SplitConnectAtVtx( id vtx_id )
 		v_split->tee_ID = tee_ID;
 	}
 	// end AMW
-	for( int iv=old_c->NumSegs(); iv>=ivsplit; iv-- )
+	int ns = old_c->NumSegs();
+	for( int iv=ns; iv>=ivsplit; iv-- )
 	{
-		if( iv == old_c->NumSegs() )
+		if( iv == ns )
 			new_c->InsertVertexByIndex( 0, old_c->VtxByIndex(iv) );
 		else
 		{

@@ -21,6 +21,10 @@
 #include "dle_square.h"
 #include "dle_x.h"
 
+
+// AMW2 for debug trace
+int g_trace_num = 0;
+
 // dimensions passed to DisplayList from the application are in PCBU (i.e. nm)
 // since the Win95/98 GDI uses 16-bit arithmetic, PCBU must be scaled to DU (i.e. mils)
 //
@@ -215,14 +219,8 @@ dl_element * CDisplayList::AddSelector( id id, void * ptr, int layer, int gtype,
 							   int radius )
 {
 	// create new element
-	//** for debugging
-	if( gtype == DL_HOLLOW_RECT )
-	{
-		int w_in_mils = abs(x-xf)/PCBU_PER_MIL;	
-		w_in_mils = w_in_mils;
-	}
-	//**
-	dl_element * new_element = CreateDLE( id, ptr, layer, gtype, visible,
+// AMW2 	dl_element * new_element = CreateDLE( id, ptr, layer, gtype, visible,
+	dl_element * new_element = CreateDLE( id, ptr, LAY_SELECTION, gtype, visible,
 	                                      w, holew, 0,
 	                                      x,y, xf,yf, xo,yo, radius,
 	                                      layer );
@@ -870,12 +868,15 @@ COLORREF CDisplayList::GetLayerColor( int layer )
 	return m_rgb[layer];
 }
 
-int CompareHits(const CHitInfo *h1, const CHitInfo *h2) {
+int CompareHits(const CHitInfo *h1, const CHitInfo *h2) 
+{
 	// CPT.  Used when sorting a list of hits (see TestSelect() just below). 
 	if (h1->priority==h2->priority)
+	{
 		return h1->dist < h2->dist? -1: 1;
-	return h1->priority < h2->priority? 1: -1; 
 	}
+	return h1->priority < h2->priority? 1: -1; 
+}
 
 // CPT r294, reworked arguments, and made corresponding changes to function body.
 // Test x,y for a hit on an item in the selection layer.
@@ -954,10 +955,10 @@ int CDisplayList::TestSelect( int x, int y, CArray<CHitInfo> *hit_info,
 				continue;
 		}
 
+		// AMW2: fixed bug where priority was assigned after this_hit written to array
 		// OK, valid hit, now add to final array hit_info, and assign priority
 		// start with reversed layer drawing order * 10
 		// i.e. last drawn = highest priority
-		hit_info->Add(this_hit);
 		int priority = (MAX_LAYERS - m_order_for_layer[this_hit.layer])*10;
 		// bump priority for small items which may be overlapped by larger items on same layer
 		if( this_hit.ID.T1() == ID_PART && this_hit.ID.T2() == ID_REF_TXT && this_hit.ID.T3() == ID_SEL_TXT )
@@ -970,8 +971,8 @@ int CDisplayList::TestSelect( int x, int y, CArray<CHitInfo> *hit_info,
 			priority++;
 		else if( this_hit.ID.T1() == ID_NET && this_hit.ID.T2() == ID_CONNECT && this_hit.ID.T3() == ID_SEL_VERTEX )
 			priority++;
-
 		this_hit.priority = priority;
+		hit_info->Add(this_hit);
 	}
 
 	// Sort output array and return.
@@ -2188,11 +2189,13 @@ int CDisplayList::TestForHits( double x, double y, CArray<CHitInfo> *hitInfo )
 {
 	double d;
 	// traverse the list, looking for selection shapes
-	for (dl_element *el = layers[LAY_SELECTION].elements; el; el = el->next) {
+	for (dl_element *el = layers[LAY_SELECTION].elements; el; el = el->next) 
+	{
 		if( el->isHit(x, y, d) )
 		{
 			CHitInfo hit;
-			hit.layer = el->layer;
+//** AMW2			hit.layer = el->layer;
+			hit.layer = el->orig_layer;
 			hit.ID = el->id;
 			hit.ptr = el->ptr;
 			hit.dist = d;								// CPT r294.  Introduced distance values into CHitInfo;  el->isHit() now provides these.

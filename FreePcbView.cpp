@@ -876,16 +876,14 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		void * ptr = NULL;
 		sid.Clear();
 
-#if 0 // AMW2 removed Brian's menu of items
 		if( bShiftKeyDown )
 			nHits = m_dlist->TestSelect(p.x, p.y, &m_hit_info, NULL, 0);	// NB: No inclusion masks
 		else if (m_sel_offset==-1)
-#endif //**
-
-		if (m_sel_offset==-1)
+		{
 			// Series of clicks is just beginning: calculate m_hit_info, and select the zero-th of those (highest priority)
-			nHits = m_dlist->TestSelect(p.x, p.y, &m_hit_info, m_mask_id, NUM_SEL_MASKS, bCtrlKeyDown),
+			nHits = m_dlist->TestSelect(p.x, p.y, &m_hit_info, m_mask_id, NUM_SEL_MASKS, bCtrlKeyDown);
 			m_sel_offset = nHits==0? -1: 0;
+		}
 		else if (nHits==1)
 			m_sel_offset = -1;					// Unselect if there's just one hit nearby, already selected.
 		else if (m_sel_offset == nHits-1)
@@ -6339,7 +6337,7 @@ void CFreePcbView::OnVertexProperties()
 {
 	SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_Doc->m_undo_list );
 	CPoint v_pt( m_sel_vtx->x, m_sel_vtx->y );
-	CDlgVia dlg = new CDlgVia;
+	CDlgVia dlg;
 	dlg.Initialize( m_sel_vtx->via_w, m_sel_vtx->via_hole_w, v_pt, m_Doc->m_units );
 	int ret = dlg.DoModal();
 	if( ret == IDOK )
@@ -8965,8 +8963,8 @@ void CFreePcbView::MoveGroup( int dx, int dy )
 	{
 		id sid = m_sel_ids[i];
 		bool bOK = sid.Resolve();
-		if( !bOK )
-			ASSERT(0);
+//** 		if( !bOK )
+//**			ASSERT(0);
 		if( sid.IsSeg() )
 		{
 			// segment
