@@ -211,7 +211,6 @@
 #define IDD_HOLE                        343
 #define IDD_SLOT                        344
 #define IDD_FP_TEXT                     345
-#define IDD_VALUE_TEXT                  346
 #define IDD_NET_COMBINE                 347
 #define IDD_DIALOG5                     349
 #define IDD_CHOOSE_NET                  349
@@ -263,7 +262,6 @@
 #define IDC_EDIT_INCREMENT              1004
 #define IDC_EDIT_VIA_HOLE_W             1005
 #define IDC_EDIT_LAYER_4                1005
-#define IDC_EDIT_FOOTPRINT              1005
 #define IDC_EDIT_DESC                   1005
 #define IDC_EDIT_IMPORT_DESC            1005
 #define IDC_EDIT5                       1005
@@ -734,7 +732,6 @@
 #define IDC_COMBO_LAYER_REF             1438
 #define IDC_CHECK_GRIDVALS_DEFAULT      1438
 #define IDC_BUTTON_LAYER_9              1439
-#define IDC_COMBO_LAYER_VALUE           1439
 #define IDC_VALUE                       1439
 #define IDC_BUTTON_LAYER_10             1440
 #define IDC_COMBO_PIN_NAME              1440
@@ -1577,6 +1574,8 @@
 #define IDS_Tee                         62670
 #define IDS_W                           62671
 #define IDS_DeletingPartDoYouWishToEraseAllTraces 62672
+#define IDS_ReferenceTextProperties     62673
+#define IDS_ValueTextProperties         62674
 #define IDS_FkFpStr                     63000
 #define IDS_STRING63001                 63001
 #define IDS_STRING63002                 63002
@@ -1841,6 +1840,10 @@
 #define IDS_STRING63651                 63651
 #define IDS_STRING63652                 63652
 #define IDS_STRING63653                 63653
+#define IDS_STRING63654                 63654
+#define IDS_STRING63655                 63655
+#define IDS_STRING63656                 63656
+#define IDS_STRING63657                 63657
 #define IDS_SelMaskStr                  64000
 #define IDS_STRING64001                 64001
 #define IDS_STRING64002                 64002

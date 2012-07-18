@@ -2278,31 +2278,6 @@ BEGIN
     LTEXT           "Layer",IDC_STATIC,6,30,19,8
 END
 
-IDD_VALUE_TEXT DIALOGEX 0, 0, 179, 201
-STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
-CAPTION "Value Text Properties"
-FONT 8, "MS Shell Dlg", 400, 0, 0x1
-BEGIN
-    EDITTEXT        IDC_EDIT_REF_ID,70,10,30,12,ES_AUTOHSCROLL
-    EDITTEXT        IDC_EDIT_FOOTPRINT,45,28,77,12,ES_AUTOHSCROLL
-    CONTROL         "Visible",IDC_CHECK_VISIBLE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,18,52,35,10
-    EDITTEXT        IDC_EDIT_CHAR_HEIGHT,75,103,30,12,ES_AUTOHSCROLL
-    COMBOBOX        IDC_COMBO_REF_TEXT_UNITS,131,102,36,75,CBS_DROPDOWNLIST | CBS_SORT | WS_VSCROLL | WS_TABSTOP
-    CONTROL         "Set",IDC_RADIO_SET,"Button",BS_AUTORADIOBUTTON | WS_GROUP,24,135,27,10
-    EDITTEXT        IDC_EDIT_WIDTH,53,134,30,12,ES_AUTOHSCROLL
-    CONTROL         "Use default for height = ",IDC_RADIO_DEF,"Button",BS_AUTORADIOBUTTON,24,148,90,10
-    EDITTEXT        IDC_EDIT_DEF_WIDTH,117,147,30,12,ES_AUTOHSCROLL
-    DEFPUSHBUTTON   "OK",IDOK,18,174,50,14
-    PUSHBUTTON      "Cancel",IDCANCEL,114,174,50,14
-    LTEXT           "Character height",IDC_STATIC,18,105,55,8
-    GROUPBOX        "Stroke width",IDC_STATIC,12,123,156,42
-    LTEXT           "Part reference",IDC_STATIC,18,12,48,8
-    LTEXT           "Value",IDC_STATIC,18,30,18,8
-    LTEXT           "Units",IDC_STATIC,113,105,17,8
-    LTEXT           "Layer",IDC_STATIC,18,78,19,8
-    COMBOBOX        IDC_COMBO_LAYER_VALUE,48,76,102,69,CBS_DROPDOWNLIST | CBS_SORT | WS_VSCROLL | WS_TABSTOP
-END
-
 IDD_NET_COMBINE DIALOGEX 0, 0, 300, 185
 STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Combine Nets"
@@ -2860,13 +2835,6 @@ BEGIN
         RIGHTMARGIN, 171
         TOPMARGIN, 7
         BOTTOMMARGIN, 204
-    END
-
-    IDD_VALUE_TEXT, DIALOG
-    BEGIN
-        LEFTMARGIN, 7
-        RIGHTMARGIN, 173
-        TOPMARGIN, 7
     END
 
     IDD_NET_COMBINE, DIALOG
@@ -4271,8 +4239,12 @@ BEGIN
     IDS_STRING63649         " Grid"
     IDS_STRING63650         " Set Trace"
     IDS_STRING63651         "Width"
-    IDS_STRING63652         " ****"
-    IDS_STRING63653         " ****"
+    IDS_STRING63652         " Rotate"
+    IDS_STRING63653         " CW"
+    IDS_STRING63654         " Rotate"
+    IDS_STRING63655         " CCW"
+    IDS_STRING63656         "****"
+    IDS_STRING63657         "****"
 END
 
 STRINGTABLE
@@ -4292,7 +4264,7 @@ END
 
 STRINGTABLE
 BEGIN
-    IDS_AppName             "CPT2.3"
+    IDS_AppName             "CPT2.4"
 END
 
 STRINGTABLE
@@ -4504,6 +4476,8 @@ STRINGTABLE
 BEGIN
     IDS_DeletingPartDoYouWishToEraseAllTraces 
                             "Deleting part ""%s.""  Do you wish to erase all traces emanating from this part?"
+    IDS_ReferenceTextProperties "Reference Text Properties"
+    IDS_ValueTextProperties "Value Text Properties"
 END
 
 #endif    // English (United States) resources

@@ -1804,9 +1804,10 @@ void CDisplayList::ChangeRoutingLayer( CDC * pDC, int layer1, int layer2, int ww
 
 // change angle by adding 90 degrees clockwise
 //
-void CDisplayList::IncrementDragAngle( CDC * pDC )
+void CDisplayList::IncrementDragAngle( CDC * pDC, bool bCCW )
 {
-	m_drag_angle = (m_drag_angle + 90) % 360;
+	int angle = bCCW? 270: 90;
+	m_drag_angle = (m_drag_angle + angle) % 360;
 
 	CPoint zero(0,0);
 
@@ -1831,14 +1832,14 @@ void CDisplayList::IncrementDragAngle( CDC * pDC )
 	// rotate points, redraw lines
 	for( int il=0; il<m_drag_num_lines; il++ )
 	{
-		RotatePoint( &m_drag_line_pt[2*il], 90, zero );
-		RotatePoint( &m_drag_line_pt[2*il+1], 90, zero );
+		RotatePoint( &m_drag_line_pt[2*il], angle, zero );
+		RotatePoint( &m_drag_line_pt[2*il+1], angle, zero );
 		pDC->MoveTo( m_drag_x+m_drag_line_pt[2*il].x, m_drag_y+m_drag_line_pt[2*il].y );
 		pDC->LineTo( m_drag_x+m_drag_line_pt[2*il+1].x, m_drag_y+m_drag_line_pt[2*il+1].y );
 	}
 	for( int il=0; il<m_drag_num_ratlines; il++ )
 	{
-		RotatePoint( &m_drag_ratline_end_pt[il], 90, zero );
+		RotatePoint( &m_drag_ratline_end_pt[il], angle, zero );
 		pDC->MoveTo( m_drag_ratline_start_pt[il].x, m_drag_ratline_start_pt[il].y );
 		pDC->LineTo( m_drag_x+m_drag_ratline_end_pt[il].x, m_drag_y+m_drag_ratline_end_pt[il].y );
 	}

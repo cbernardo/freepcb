@@ -46,7 +46,7 @@ enum {
 	CUR_DRAG_BOARD_MOVE,	// dragging board corner being moved
 	CUR_DRAG_PART,		// dragging part
 	CUR_DRAG_REF,		// dragging ref text of part
-	CUR_DRAG_VALUE,		// dragging value of part
+	// CUR_DRAG_VALUE,		// dragging value of part // CPT2 assimilated to CUR_DRAG_REF
 	CUR_DRAG_RAT,		// dragging ratline for trace segment
 	CUR_DRAG_VTX,		// dragging trace vertex
 	CUR_DRAG_VTX_INSERT,	// dragging new vertex being inserted
@@ -84,12 +84,12 @@ enum {
 	FK_MOVE_PART,
 	FK_MOVE_REF,
 	FK_MOVE_VALUE,
-	FK_ROTATE_PART,
-	FK_ROTATE_PART_CCW,
-	FK_ROTATE_REF,
-	FK_ROTATE_REF_CCW,
-	FK_ROTATE_VALUE,
-	FK_ROTATE_VALUE_CCW,
+	FK_ROTATE_PART,				// CPT2 disused, but preserved in order to avoid having to change string table.  Now use FK_ROTATE_CW and FK_ROTATE_CCW
+	FK_ROTATE_PART_CCW,			// CPT2 disused
+	FK_ROTATE_REF,				// CPT2 disused
+	FK_ROTATE_REF_CCW,			// CPT2 disused
+	FK_ROTATE_VALUE,			// CPT2 disused
+	FK_ROTATE_VALUE_CCW,		// CPT2 disused
 	FK_SIDE,
 	FK_ROUTE,
 	FK_UNROUTE,
@@ -116,7 +116,7 @@ enum {
 	FK_LOCK_CONNECT,
 	FK_UNLOCK_CONNECT,
 	FK_MOVE_TEXT,
-	FK_ROTATE_TEXT,
+	FK_ROTATE_TEXT,					// CPT2 disused
 	FK_DELETE_TEXT,
 	FK_POLY_STRAIGHT,
 	FK_POLY_ARC_CW,
@@ -145,7 +145,7 @@ enum {
 	FK_EDIT_NET,
 	FK_MOVE_GROUP,
 	FK_DELETE_GROUP,
-	FK_ROTATE_GROUP,
+	FK_ROTATE_GROUP,			// CPT2 disused
 	FK_VERTEX_PROPERTIES,
 	FK_ADD_VERTEX,
 	FK_SIDE_STYLE,
@@ -158,6 +158,8 @@ enum {
 	FK_RGRID_UP,
 	FK_RGRID_DOWN,
 	FK_SET_TRACE_WIDTH,
+	FK_ROTATE_CW,
+	FK_ROTATE_CCW,
 	// end CPT
 
 	FK_NUM_OPTIONS,
@@ -604,7 +606,7 @@ public:
 	afx_msg void OnSmSideHatchStyle();
 	afx_msg void OnSmSideDeleteCutout();
 	afx_msg void OnPartChangeSide();
-	afx_msg void OnPartRotate();
+	afx_msg void OnPartRotateCW();
 	afx_msg void OnNetSetWidth();
 	afx_msg void OnConnectSetWidth();
 	afx_msg void OnConnectUnroutetrace();
@@ -636,18 +638,17 @@ public:
 	afx_msg void OnGroupRotate();
 	afx_msg void OnRefShowPart();
 	afx_msg void OnAreaSideStyle();
-	afx_msg void OnValueMove();
-	afx_msg void OnValueProperties();
-	afx_msg void OnValueShowPart();
-	afx_msg void OnPartEditValue();
 	afx_msg void OnPartRotateCCW();
 	afx_msg void OnRefRotateCW();
 	afx_msg void OnRefRotateCCW();
-	afx_msg void OnValueRotateCW();
-	afx_msg void OnValueRotateCCW();
+	afx_msg void OnTextRotateCW();			// CPT2 
+	afx_msg void OnTextRotateCCW();			// CPT2
 	afx_msg void OnSegmentMove();
 
 // CPT:
+	void OnPartRotate(int angle);			// Helper for OnPartRotateCW and OnPartRotateCCW.
+	void OnRefRotate(int angle);			// Sim.
+	void OnTextRotate(int angle);
     void ActiveWidthUp(CDC * pDC);
     void ActiveWidthDown(CDC * pDC);
 

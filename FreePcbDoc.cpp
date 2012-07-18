@@ -4725,7 +4725,7 @@ void CFreePcbDoc::FileLoadLibrary( LPCTSTR pathname )
 			part->SetValue( &shape->m_name,
 				shape_r.left, shape_r.top + refStroke, 0, 
 				refFontSz, refStroke, 1, LAY_SILK_TOP );
-			CRect vr = part->GetValueRect();
+			CRect vr = part->m_value->GetRect();
 			int value_width = vr.right - vr.left;
 			// see if we can fit part between x and 8 inches
 			int max_width = max( width, value_width );

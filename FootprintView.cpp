@@ -2755,36 +2755,6 @@ void CFootprintView::OnAddSlot()
 	dlg.DoModal();
 }
 
-/* CPT supplanted:
-
-void CFootprintView::OnAddValueText()
-{
-	CancelSelection();
-	CString str = "";
-	CDlgFpText dlg;
-	CString value_str = "VALUE";
-	dlg.Initialize( TRUE, TRUE, &value_str, 0, m_units, 0, 0, 0, 0, 0 );
-	int ret = dlg.DoModal();
-	if( ret == IDOK )
-	{
-		m_fp.Undraw();
-		m_fp.m_value_xi = dlg.m_x;
-		m_fp.m_value_yi = dlg.m_y;
-		m_fp.m_value_angle = dlg.m_angle;
-		m_fp.m_value_size = dlg.m_height;
-		m_fp.m_value_w = dlg.m_width;
-		m_fp.m_value->m_layer = dlg.m_layer;
-		m_fp.Draw( m_dlist, m_doc->m_smfontutil );
-		if( dlg.m_bDrag )
-		{
-			m_dragging_new_item = TRUE;
-			OnValueMove();
-		}
-		Invalidate( FALSE );		
-	}
-}
-*/
-
 void CFootprintView::OnAddHole()
 {
 	CDlgHole dlg;

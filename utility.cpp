@@ -2455,8 +2455,9 @@ BOOL SplitString( CString * str, CString * a, CString * b, char split_at, BOOL b
 int GetReportedAngleForPart( int part_angle, int cent_angle, int side )
 {
 	int angle = (360 + part_angle - cent_angle) % 360; 
-	if( side )
-		angle = (angle + 180) % 360;
+	// CPT2 TODO.  Not sure if I like the effect of the following.  I'm seeing what it's like without:
+	// if( side )
+	//	angle = (angle + 180) % 360;
 	return ccw(angle);
 }
 
@@ -2465,8 +2466,9 @@ int GetReportedAngleForPart( int part_angle, int cent_angle, int side )
 int GetPartAngleForReportedAngle( int angle, int cent_angle, int side )
 {
 	int a = ccw(angle);
-	if( side )
-		a = (a + 180)%360;
+	// CPT2.  Not sure I like the following 2 lines, seeing what it's like to omit em:
+	// if( side )
+	//	a = (a + 180)%360;
 	a = (a + cent_angle) % 360;  
 	return a;
 }

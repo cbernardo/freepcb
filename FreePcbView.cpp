@@ -22,7 +22,6 @@
 #include "DlgAreaLayer.h"
 #include "DlgGroupPaste.h"
 #include "DlgSideStyle.h"
-#include "DlgValueText.h"
 #include "PartListNew.h"
 
 
@@ -193,7 +192,7 @@ ON_COMMAND(ID_SMSIDE_INSERTCORNER, OnSmSideInsertCorner)
 ON_COMMAND(ID_SMSIDE_HATCHSTYLE, OnSmSideHatchStyle)
 ON_COMMAND(ID_SMSIDE_DELETECUTOUT, OnSmSideDeleteCutout)
 ON_COMMAND(ID_PART_CHANGESIDE, OnPartChangeSide)
-ON_COMMAND(ID_PART_ROTATE, OnPartRotate)
+ON_COMMAND(ID_PART_ROTATE, OnPartRotateCW)
 ON_COMMAND(ID_AREAEDGE_ADDCUTOUT, OnAreaAddCutout)
 ON_COMMAND(ID_AREACORNER_ADDCUTOUT, OnAreaAddCutout)
 ON_COMMAND(ID_NET_SETWIDTH, OnNetSetWidth)
@@ -227,15 +226,9 @@ ON_WM_SETCURSOR()
 ON_WM_MOVE()
 ON_COMMAND(ID_REF_SHOWPART, OnRefShowPart)
 ON_COMMAND(ID_AREA_SIDESTYLE, OnAreaSideStyle)
-ON_COMMAND(ID_VALUE_MOVE, OnValueMove)
-ON_COMMAND(ID_VALUE_CHANGESIZE, OnValueProperties)
-ON_COMMAND(ID_VALUE_SHOWPART, OnValueShowPart)
-ON_COMMAND(ID_PART_EDITVALUE, OnPartEditValue)
 ON_COMMAND(ID_PART_ROTATECOUNTERCLOCKWISE, OnPartRotateCCW)
 ON_COMMAND(ID_REF_ROTATECW, OnRefRotateCW)
 ON_COMMAND(ID_REF_ROTATECCW, OnRefRotateCCW)
-ON_COMMAND(ID_VALUE_ROTATECW, OnValueRotateCW)
-ON_COMMAND(ID_VALUE_ROTATECCW, OnValueRotateCCW)
 ON_COMMAND(ID_SEGMENT_MOVE, OnSegmentMove)
 END_MESSAGE_MAP()
 
@@ -395,187 +388,6 @@ void CFreePcbView::OnEndPrinting(CDC* /*pDC*/, CPrintInfo* /*pInfo*/)
 /////////////////////////////////////////////////////////////////////////////
 // CFreePcbView message handlers
 
-// select item from id sid
-// sets m_sel_id and pointer to top level item 
-// returns TRUE if successful
-//
-
-#ifndef CPT2
-// CPT2 PHASED OUT.
-BOOL CFreePcbView::SelectItem( id sid )
-{
-
-	if( m_bNetHighlighted )
-		CancelHighlightNet();
-
-	if( sid.IsDRC() )
-	{
-#if 0
-		CancelSelection();
-		DRError * dre = (DRError*)ptr;
-		m_sel_id = sid;
-		m_sel_dre = dre;
-		m_doc->m_drelist->Highlight( m_sel_dre );
-		SetCursorMode( CUR_DRE_SELECTED );
-		Invalidate( FALSE );
-#endif
-	}
-	else if( sid.IsBoardCorner() )
-	{
-		CancelSelection();
-		m_doc->m_board_outline[sid.I2()].HighlightCorner( sid.I3() );
-		m_sel_id = sid;
-		SetCursorMode( CUR_BOARD_CORNER_SELECTED );
-		Invalidate( FALSE );
-	}
-	else if( sid.IsBoardSide() )
-	{
-		CancelSelection();
-		m_doc->m_board_outline[sid.I2()].HighlightSide( sid.I3() );
-		m_sel_id = sid;
-		SetCursorMode( CUR_BOARD_SIDE_SELECTED );
-		Invalidate( FALSE );
-	}
-	else if( sid.IsMaskCorner() )
-	{
-		CancelSelection();
-		m_doc->m_sm_cutout[sid.I2()].HighlightCorner( sid.I3() );
-		m_sel_id = sid;
-		SetCursorMode( CUR_SMCUTOUT_CORNER_SELECTED );
-		Invalidate( FALSE );
-	}
-	else if( sid.IsMaskSide() )
-	{
-		CancelSelection();
-		m_doc->m_sm_cutout[sid.I2()].HighlightSide( sid.I3() );
-		m_sel_id = sid;
-		SetCursorMode( CUR_SMCUTOUT_SIDE_SELECTED );
-		Invalidate( FALSE );
-	}
-	else if( sid.T1() == ID_PART )
-	{
-		CancelSelection();
-		m_sel_part = sid.Part();
-		m_sel_id = sid;
-#if 0	// AMW r272: can't select net, just highlight it
-		if( (GetKeyState('N') & 0x8000) && sid.T2()  == ID_SEL_PAD )
-		{
-			// pad selected and if "n" held down, select net
-			cnet * net = m_doc->m_plist->GetPinNet( m_sel_part, sid.I2() );
-			if( net )
-			{
-				m_sel_net = sid.Net();
-				m_sel_id = net->m_id;
-				m_sel_id.SetT2( ID_ENTIRE_NET );
-				m_doc->m_nlist->HighlightNet( m_sel_net );
-				m_doc->m_plist->HighlightAllPadsOnNet( m_sel_net );
-				SetCursorMode( CUR_NET_SELECTED );
-			}
-			else
-			{
-				m_doc->m_plist->HighlightPad( m_sel_part, sid.I2() );
-				SetCursorMode( CUR_PAD_SELECTED );
-				Invalidate( FALSE );
-			}
-		}
-		else if( sid.IsPart() )
-#endif
-		if( sid.IsPart() )		// AMW r272
-		{
-			SelectPart( m_sel_part );
-			m_doc->m_plist->SelectRefText( m_sel_part );
-			m_doc->m_plist->SelectValueText( m_sel_part );
-		}
-		else if( sid.IsRefText() )
-		{
-			m_doc->m_plist->SelectRefText( m_sel_part );
-			SetCursorMode( CUR_REF_SELECTED );
-			Invalidate( FALSE );
-		}
-		else if( sid.IsValueText() )
-		{
-			m_doc->m_plist->SelectValueText( m_sel_part );
-			SetCursorMode( CUR_VALUE_SELECTED );
-			Invalidate( FALSE );
-		}
-		else if( sid.IsPin() )
-		{
-			m_doc->m_plist->HighlightPad( m_sel_part, sid.I2() );
-			SetCursorMode( CUR_PAD_SELECTED );
-			Invalidate( FALSE );
-		}
-	}
-	else if( sid.T1() == ID_NET )
-	{
-		CancelSelection();
-		m_sel_net = sid.Net();
-		m_sel_id = sid;
-		if( sid.T2()  == ID_CONNECT && sid.T3() == ID_SEL_SEG )
-		{
-			// select segment
-			m_doc->m_nlist->HighlightSegment( m_sel_net, sid.I2(), sid.I3() );
-			if( m_sel_seg->m_layer != LAY_RAT_LINE )
-				SetCursorMode( CUR_SEG_SELECTED );
-			else
-				SetCursorMode( CUR_RAT_SELECTED );
-			Invalidate( FALSE );
-		}
-		else if( sid.T2()  == ID_CONNECT && sid.T3() == ID_SEL_VERTEX )
-		{
-			// select vertex
-			cvertex * v = m_sel_id.Vtx();
-			if( v->GetType() == cvertex::V_END )
-				SetCursorMode( CUR_END_VTX_SELECTED );
-			else
-				SetCursorMode( CUR_VTX_SELECTED );
-			m_doc->m_nlist->HighlightVertex( m_sel_net, sid.I2(), sid.I3() );
-			Invalidate( FALSE );
-		}
-		else if( sid.T2()  == ID_AREA && sid.T3() == ID_SEL_SIDE )
-		{
-			// select copper area side
-			m_doc->m_nlist->SelectAreaSide( m_sel_net, sid.I2(), sid.I3() );
-			SetCursorMode( CUR_AREA_SIDE_SELECTED );
-			Invalidate( FALSE );
-		}
-		else if( sid.T2()  == ID_AREA && sid.T3() == ID_SEL_CORNER )
-		{
-			// select copper area corner
-			m_doc->m_nlist->SelectAreaCorner( m_sel_net, sid.I2(), sid.I3() );
-			SetCursorMode( CUR_AREA_CORNER_SELECTED );
-			Invalidate( FALSE );
-		}
-		else if( sid.T2()  == ID_CONNECT && sid.T3() == ID_ENTIRE_CONNECT )
-		{
-			// CPT:  account for the possibility of whole-trace selection.
-			m_doc->m_nlist->HighlightConnection( m_sel_net, sid.I2() );
-			SetCursorMode( CUR_CONNECT_SELECTED );
-			Invalidate( FALSE );
-			// end CPT
-		}
-		else
-			ASSERT(0);
-	}
-	else if( sid.T1() == ID_TEXT )
-	{
-		CancelSelection();
-		m_sel_text = sid.Text();
-		m_sel_id = sid;
-		m_doc->m_tlist->HighlightText( m_sel_text );
-		SetCursorMode( CUR_TEXT_SELECTED );
-		Invalidate( FALSE );
-	}
-	else
-	{
-		// nothing selected
-		return FALSE;
-		CancelSelection();
-		m_sel_id.Clear();
-		Invalidate( FALSE );
-	}
-	return TRUE;
-}
-#endif
 
 void CFreePcbView::SelectItem(cpcb_item *item) 
 {
@@ -1022,53 +834,29 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		m_doc->ProjectModified( TRUE );
 		Invalidate( FALSE );
 	}
+#endif
 	else if( m_cursor_mode == CUR_DRAG_REF )
 	{
 		// complete move
-		SetCursorMode( CUR_REF_SELECTED );
-		CPoint p = m_dlist->WindowToPCB( point );
-		m_doc->m_plist->StopDragging();
+		ctext *t = m_sel.First()->ToText();
+		cpart2 *part = t->GetPart();
+		m_doc->m_dlist->StopDragging();
 		int drag_angle = m_dlist->GetDragAngle();
 		// if part on bottom of board, drag angle is CCW instead of CW
-		if( m_doc->m_plist->GetSide( m_sel_part ) && drag_angle )
+		if( part->side && drag_angle )
 			drag_angle = 360 - drag_angle;
-		int angle = m_doc->m_plist->GetRefAngle( m_sel_part ) + drag_angle;
-		if( angle>270 )
-			angle = angle - 360;
+		int angle = (t->m_angle + drag_angle) % 360;
 		// save undo info
-		SaveUndoInfoForPart( m_sel_part,
-			CPartList::UNDO_PART_MODIFY, NULL, TRUE, m_doc->m_undo_list );
+		SaveUndoInfoForPart( part, cpartlist::UNDO_PART_MODIFY, NULL, TRUE, m_doc->m_undo_list );
 		// now move it
-		m_doc->m_plist->MoveRefText( m_sel_part, m_last_cursor_point.x, m_last_cursor_point.y,
-			angle, m_sel_part->m_ref_size, m_sel_part->m_ref_w );
-		m_doc->m_plist->SelectRefText( m_sel_part );
+		t->MustRedraw();
+		t->MoveRelative( m_last_cursor_point.x, m_last_cursor_point.y, angle );
+		m_doc->Redraw();
+		HighlightSelection();
 		m_doc->ProjectModified( TRUE );
 		Invalidate( FALSE );
 	}
-	else if( m_cursor_mode == CUR_DRAG_VALUE )
-	{
-		// complete move
-		SetCursorMode( CUR_VALUE_SELECTED );
-		CPoint p = m_dlist->WindowToPCB( point );
-		m_doc->m_plist->StopDragging();
-		int drag_angle = m_dlist->GetDragAngle();
-		// if part on bottom of board, drag angle is CCW instead of CW
-		if( m_doc->m_plist->GetSide( m_sel_part ) && drag_angle )
-			drag_angle = 360 - drag_angle;
-		int angle = m_doc->m_plist->GetValueAngle( m_sel_part ) + drag_angle;
-		if( angle>270 )
-			angle = angle - 360;
-		// save undo info
-		SaveUndoInfoForPart( m_sel_part,
-			CPartList::UNDO_PART_MODIFY, NULL, TRUE, m_doc->m_undo_list );
-		// now move it
-		m_doc->m_plist->MoveValueText( m_sel_part, m_last_cursor_point.x, m_last_cursor_point.y,
-			angle, m_sel_part->m_value_size, m_sel_part->m_value_w );
-		m_doc->m_plist->SelectValueText( m_sel_part );
-		m_doc->ProjectModified( TRUE );
-		Invalidate( FALSE );
-	}
-#endif
+
 	else if( m_cursor_mode == CUR_DRAG_RAT )
 	{
 		// routing a ratline, add segment(s)
@@ -2067,34 +1855,31 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		Invalidate( FALSE );
 	}
 
-#ifndef CPT2
 	else if( m_cursor_mode == CUR_DRAG_TEXT )
 	{
-		CPoint p;
-		p = m_last_cursor_point;
+		CPoint p = m_last_cursor_point;
 		m_dlist->StopDragging();
+		ctext *t = m_sel.First()->ToText();
 		if( !m_dragging_new_item )
-			SaveUndoInfoForText( m_sel_text, CTextList::UNDO_TEXT_MODIFY, TRUE, m_doc->m_undo_list );
-		int old_angle = m_sel_text->m_angle;
-		int angle = old_angle + m_dlist->GetDragAngle();
+			SaveUndoInfoForText( t, ctextlist::UNDO_TEXT_MODIFY, TRUE, m_doc->m_undo_list );
+		int angle = t->m_angle + m_dlist->GetDragAngle();
 		if( angle>270 )
 			angle = angle - 360;
-		int old_mirror = m_sel_text->m_mirror;
-		int mirror = (old_mirror + m_dlist->GetDragSide())%2;
-		BOOL negative = m_sel_text->m_bNegative;;
-		int layer = m_sel_text->m_layer;
-		m_doc->m_tlist->MoveText( m_sel_text, m_last_cursor_point.x, m_last_cursor_point.y,
-			angle, mirror, negative, layer );
+		int mirror = (t->m_bMirror + m_dlist->GetDragSide())%2;
+		t->MustRedraw();
+		t->Move( m_last_cursor_point.x, m_last_cursor_point.y, angle, mirror, t->m_bNegative, t->m_layer );
+		m_doc->Redraw();
 		if( m_dragging_new_item )
 		{
-			SaveUndoInfoForText( m_sel_text, CTextList::UNDO_TEXT_ADD, TRUE, m_doc->m_undo_list );
+			SaveUndoInfoForText( t, ctextlist::UNDO_TEXT_ADD, TRUE, m_doc->m_undo_list );
 			m_dragging_new_item = FALSE;
 		}
-		SetCursorMode( CUR_TEXT_SELECTED );
-		m_doc->m_tlist->HighlightText( m_sel_text );
+		SelectItem(t);
 		m_doc->ProjectModified( TRUE );
 		Invalidate( FALSE );
 	}
+
+#ifndef CPT2
 	else if( m_cursor_mode == CUR_DRAG_MEASURE_1 )
 	{
 		m_from_pt = m_last_cursor_point;
@@ -2127,26 +1912,6 @@ goodbye:
 //
 void CFreePcbView::OnLButtonDblClk(UINT nFlags, CPoint point)
 {
-#if 0
-	if( m_cursor_mode == CUR_PART_SELECTED )
-	{
-		SetCursorMode( CUR_DRAG_PART );
-		CDC *pDC = GetDC();
-		pDC->SelectClipRgn( &m_pcb_rgn );
-		SetDCToWorldCoords( pDC );
-		CPoint p = m_last_mouse_point;
-		m_dlist->StartDraggingSelection( pDC, p.x, p.y );
-	}
-	if( m_cursor_mode == CUR_REF_SELECTED )
-	{
-		SetCursorMode( CUR_DRAG_REF );
-		CDC *pDC = GetDC();
-		pDC->SelectClipRgn( &m_pcb_rgn );
-		SetDCToWorldCoords( pDC );
-		CPoint p = m_last_mouse_point;
-		m_dlist->StartDraggingSelection( pDC, p.x, p.y );
-	}
-#endif
 	m_bLButtonDown = true;				// CPT r294. Basically double-clicking is a moribund concept in this program, and should be treated like 2 rapid
 										// single clicks.  This statement ensures that we get the usual results when the OnLButtonUp() gets called 
 										// momentarily
@@ -2175,17 +1940,13 @@ void CFreePcbView::OnRButtonDown(UINT nFlags, CPoint point)
 		m_dragging_new_item = FALSE;
 	}
 
-#ifndef CPT2
 	else if( m_cursor_mode == CUR_DRAG_REF )
 	{
-		m_doc->m_plist->CancelDraggingRefText( m_sel_part );
-		m_doc->m_plist->SelectRefText( m_sel_part );
+		ctext *t = m_sel.First()->ToText();
+		t->CancelDragging();
+		t->Highlight();
 	}
-	else if( m_cursor_mode == CUR_DRAG_VALUE )
-	{
-		m_doc->m_plist->CancelDraggingValue( m_sel_part );
-		m_doc->m_plist->SelectValueText( m_sel_part );
-	}
+#ifndef CPT2
 	else if( m_cursor_mode == CUR_DRAG_RAT_PIN )
 	{
 		m_dlist->StopDragging();
@@ -2251,17 +2012,20 @@ void CFreePcbView::OnRButtonDown(UINT nFlags, CPoint point)
 		rat->Highlight();
 	}
 
-#ifndef CPT2
 	else if( m_cursor_mode == CUR_DRAG_TEXT )
 	{
-		m_doc->m_tlist->CancelDraggingText( m_sel_text );
+		ctext *t = m_sel.First()->ToText();
+		t->CancelDragging();
 		if( m_dragging_new_item )
 		{
-			m_doc->m_tlist->RemoveText( m_sel_text );
+			t->Undraw();
+			m_doc->m_tlist->texts.Remove( t );
 			CancelSelection();
 			m_dragging_new_item = 0;
 		}
 	}
+
+#ifndef CPT2
 	else if( m_cursor_mode == CUR_ADD_SMCUTOUT
 		  || m_cursor_mode == CUR_DRAG_SMCUTOUT_1
 		  || (m_cursor_mode == CUR_DRAG_SMCUTOUT && m_sel_id.I3()<3) )
@@ -2851,14 +2615,20 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 			OnPartUnglue();
 		else if( fk == FK_MOVE_PART )
 			OnPartMove();
+		else if( fk == FK_ROTATE_CW )
+			OnPartRotateCW();
+		else if( fk == FK_ROTATE_CCW )
+			OnPartRotateCCW();
 		else if( fk == FK_REDO_RATLINES )
 			OnPartOptimize();
 		break;
 
 	case CUR_REF_SELECTED:
+	case CUR_VALUE_SELECTED:
 		if( fk == FK_ARROW )
 		{
-			cpart2 *part = m_sel.First()->ToRefText()->part;
+			ctext *t = m_sel.First()->ToText();
+			cpart2 *part = t->GetPart();
 			if( !m_lastKeyWasArrow )
 			{
 				SaveUndoInfoForPart( part, CPartList::UNDO_PART_MODIFY, NULL, TRUE, m_doc->m_undo_list );
@@ -2867,60 +2637,29 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 				m_lastKeyWasArrow = TRUE;
 			}
 			CancelHighlight();
-			CPoint ref_pt = part->GetRefPoint();
-			part->MoveRefText( ref_pt.x + dx, ref_pt.y + dy );
+			CPoint ref_pt = t->GetAbsolutePoint();
+			ref_pt.x += dx;
+			ref_pt.y += dy;
+			t->MoveRelative( ref_pt.x, ref_pt.y );
 			m_doc->Redraw();
 			m_totalArrowMoveX += dx;
 			m_totalArrowMoveY += dy;
 			// m_doc->m_plist->SelectRefText( m_sel_part );
-			ShowRelativeDistance( part->GetRefPoint().x, part->GetRefPoint().y,
+			ref_pt = t->GetAbsolutePoint();
+			ShowRelativeDistance( ref_pt.x, ref_pt.y,
 				m_totalArrowMoveX, m_totalArrowMoveY );
-			part->m_ref->Highlight();
+			t->Highlight();
 			m_doc->ProjectModified( TRUE );
 			Invalidate( FALSE );
 		}
 		else if( fk == FK_SET_PARAMS )
 			OnRefProperties();
-		else if( fk == FK_MOVE_REF )
+		else if( fk == FK_MOVE_REF || fk == FK_MOVE_VALUE )
 			OnRefMove();
-		else if( fk == FK_ROTATE_REF )
+		else if( fk == FK_ROTATE_CW )
 			OnRefRotateCW();
-		else if( fk == FK_ROTATE_REF_CCW )
+		else if( fk == FK_ROTATE_CCW )
 			OnRefRotateCCW();
-		break;
-
-	case CUR_VALUE_SELECTED:
-		if( fk == FK_ARROW )
-		{
-			cpart2 *part = m_sel.First()->ToValueText()->part;
-			if( !m_lastKeyWasArrow )
-			{
-				SaveUndoInfoForPart( part, CPartList::UNDO_PART_MODIFY, NULL, TRUE, m_doc->m_undo_list );
-				m_totalArrowMoveX = 0;
-				m_totalArrowMoveY = 0;
-				m_lastKeyWasArrow = TRUE;
-			}
-			CancelHighlight();
-			CPoint val_pt = part->GetValuePoint();
-			part->MoveValueText( val_pt.x + dx,	val_pt.y + dy );
-			m_doc->Redraw();
-			m_totalArrowMoveX += dx;
-			m_totalArrowMoveY += dy;
-			// m_doc->m_plist->SelectValueText( m_sel_part );
-			ShowRelativeDistance( part->GetValuePoint().x, part->GetValuePoint().y,
-				m_totalArrowMoveX, m_totalArrowMoveY );
-			part->m_value->Highlight();
-			m_doc->ProjectModified( TRUE );
-			Invalidate( FALSE );
-		}
-		else if( fk == FK_SET_PARAMS )
-			OnValueProperties();
-		else if( fk == FK_MOVE_VALUE )
-			OnValueMove();
-		else if( fk == FK_ROTATE_VALUE )
-			OnValueRotateCW();
-		else if( fk == FK_ROTATE_VALUE_CCW )
-			OnValueRotateCCW();
 		break;
 
 	case CUR_RAT_SELECTED:
@@ -3226,6 +2965,10 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 			OnTextMove();
 		else if( fk == FK_DELETE_TEXT || nChar == 46 )
 			OnTextDelete();
+		else if ( fk == FK_ROTATE_CW )
+			OnTextRotateCW();
+		else if ( fk == FK_ROTATE_CCW )
+			OnTextRotateCCW();
 		break;
 
 #ifndef CPT2							// TODO
@@ -3494,7 +3237,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 			OnGroupMove();
 		else if( fk == FK_DELETE_GROUP || nChar == 46 )
 			OnGroupDelete();
-		else if(fk == FK_ROTATE_GROUP)
+		else if(fk == FK_ROTATE_CW)								// CPT2 TODO allow ccw rotation also
 			OnGroupRotate();
 		break;
 
@@ -3527,31 +3270,26 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 	// end CPT
 
 	case  CUR_DRAG_PART:
-		if( fk == FK_ROTATE_PART )
-			m_dlist->IncrementDragAngle( pDC );
-		if( fk == FK_ROTATE_PART_CCW )
-		{
-			m_dlist->IncrementDragAngle( pDC );
-			m_dlist->IncrementDragAngle( pDC );
-			m_dlist->IncrementDragAngle( pDC );
-		}
+		if( fk == FK_ROTATE_CW )
+			m_dlist->IncrementDragAngle( pDC, false );
+		else if( fk == FK_ROTATE_CCW )
+			m_dlist->IncrementDragAngle( pDC, true );
 		else if( fk == FK_SIDE )
 			m_dlist->FlipDragSide( pDC );
 		break;
 
 	case  CUR_DRAG_REF:
-		if( fk == FK_ROTATE_REF )
-			m_dlist->IncrementDragAngle( pDC );
-		break;
-
-	case  CUR_DRAG_VALUE:
-		if( fk == FK_ROTATE_VALUE )
-			m_dlist->IncrementDragAngle( pDC );
+		if( fk == FK_ROTATE_CW )
+			m_dlist->IncrementDragAngle( pDC, false );
+		else if( fk == FK_ROTATE_CCW )
+			m_dlist->IncrementDragAngle( pDC, true );
 		break;
 
 	case  CUR_DRAG_TEXT:
-		if( fk == FK_ROTATE_TEXT )
-			m_dlist->IncrementDragAngle( pDC );
+		if( fk == FK_ROTATE_CW )
+			m_dlist->IncrementDragAngle( pDC, false );
+		else if( fk == FK_ROTATE_CCW )
+			m_dlist->IncrementDragAngle( pDC, true );
 		break;
 
 	case  CUR_DRAG_BOARD:
@@ -3850,22 +3588,24 @@ void CFreePcbView::SetFKText( int mode )
 		else
 			m_fkey_option[2] = FK_GLUE_PART;
 		m_fkey_option[3] = FK_MOVE_PART;
+		m_fkey_option[4] = FK_ROTATE_CW;
+		m_fkey_option[5] = FK_ROTATE_CCW;
 		m_fkey_option[7] = FK_DELETE_PART;
 		m_fkey_option[8] = FK_REDO_RATLINES;
 		break;
 
 	case CUR_REF_SELECTED:
 		m_fkey_option[0] = FK_SET_PARAMS;
-		m_fkey_option[1] = FK_ROTATE_REF;
-		m_fkey_option[2] = FK_ROTATE_REF_CCW;
 		m_fkey_option[3] = FK_MOVE_REF;
+		m_fkey_option[4] = FK_ROTATE_CW;				// CPT2.  Reorganizing function keys for rotation.  Where possible F5=rotate cw, F6=rotate ccw
+		m_fkey_option[5] = FK_ROTATE_CCW;
 		break;
 
 	case CUR_VALUE_SELECTED:
 		m_fkey_option[0] = FK_SET_PARAMS;
-		m_fkey_option[1] = FK_ROTATE_VALUE;
-		m_fkey_option[2] = FK_ROTATE_VALUE_CCW;
 		m_fkey_option[3] = FK_MOVE_VALUE;
+		m_fkey_option[4] = FK_ROTATE_CW;
+		m_fkey_option[5] = FK_ROTATE_CCW;
 		break;
 
 	case CUR_PAD_SELECTED:
@@ -3881,6 +3621,8 @@ void CFreePcbView::SetFKText( int mode )
 	case CUR_TEXT_SELECTED:
 		m_fkey_option[0] = FK_EDIT_TEXT;
 		m_fkey_option[3] = FK_MOVE_TEXT;
+		m_fkey_option[4] = FK_ROTATE_CW;
+		m_fkey_option[5] = FK_ROTATE_CCW;
 		m_fkey_option[7] = FK_DELETE_TEXT;
 		break;
 
@@ -4021,24 +3763,6 @@ void CFreePcbView::SetFKText( int mode )
 			break;
 		}
 
-	/* CPT2 merging CUR_END_VTX_SELECTED with CUR_VTX_SELECTED
-	case CUR_END_VTX_SELECTED:
-		m_fkey_option[0] = FK_VERTEX_PROPERTIES;
-		m_fkey_option[1] = FK_ADD_SEGMENT;
-		m_fkey_option[2] = FK_ADD_CONNECT;
-		m_fkey_option[3] = FK_MOVE_VERTEX;
-		if( m_sel.First()->IsVia() )
-			m_fkey_option[4] = FK_DELETE_VIA;
-		else
-			m_fkey_option[4] = FK_ADD_VIA;
-		if (m_sel.First()->IsVia() || m_sel.First()->IsSlaveVtx())		// CPT2 added the slave-vtx option
-			m_fkey_option[5] = FK_UNROUTE_TRACE;
-		m_fkey_option[6] = FK_DELETE_VERTEX;
-		m_fkey_option[7] = FK_DELETE_CONNECT;
-		m_fkey_option[8] = FK_REDO_RATLINES;
-		break;
-	*/
-
 	case CUR_TEE_SELECTED:
 		// CPT2, case is new.
 		m_fkey_option[0] = FK_VERTEX_PROPERTIES;
@@ -4069,27 +3793,26 @@ void CFreePcbView::SetFKText( int mode )
 		break;
 
 	case CUR_GROUP_SELECTED:
-		m_fkey_option[2] = FK_ROTATE_GROUP;
 		m_fkey_option[3] = FK_MOVE_GROUP;
+		m_fkey_option[4] = FK_ROTATE_CW;
+		m_fkey_option[5] = FK_ROTATE_CCW;
 		m_fkey_option[7] = FK_DELETE_GROUP;
 		break;
 
 	case CUR_DRAG_PART:
 		m_fkey_option[1] = FK_SIDE;
-		m_fkey_option[2] = FK_ROTATE_PART;
-		m_fkey_option[3] = FK_ROTATE_PART_CCW;
+		m_fkey_option[2] = FK_ROTATE_CW;
+		m_fkey_option[3] = FK_ROTATE_CCW;
 		break;
 
 	case CUR_DRAG_REF:
-		m_fkey_option[2] = FK_ROTATE_REF;
-		break;
-
-	case CUR_DRAG_VALUE:
-		m_fkey_option[2] = FK_ROTATE_VALUE;
+		m_fkey_option[2] = FK_ROTATE_CW;
+		m_fkey_option[3] = FK_ROTATE_CCW;
 		break;
 
 	case CUR_DRAG_TEXT:
-		m_fkey_option[2] = FK_ROTATE_TEXT;
+		m_fkey_option[2] = FK_ROTATE_CW;
+		m_fkey_option[3] = FK_ROTATE_CCW;
 		break;
 
 	case CUR_DRAG_VTX:
@@ -4231,15 +3954,6 @@ int CFreePcbView::ShowSelectStatus()
 {
 // #define SHOW_UIDS	// show UIDs for selected element, mainly for debugging
 	CString uid_str;
-#ifdef SHOW_UIDS
-	if( m_sel_id.U3() != -1 )
-		uid_str.Format( ",uid %d %d %d", m_sel_id.U1() , m_sel_id.U2(), m_sel_id.U3() );
-	else if( m_sel_id.U2() != -1 && m_sel_id.U2() != m_sel_id.U1() )
-		uid_str.Format( ",uid %d %d", m_sel_id.U1() , m_sel_id.U2() );
-	else
-		uid_str.Format( ",uid %d", m_sel_id.U1() );
-#endif
-
 	CMainFrame * pMain = (CMainFrame*) AfxGetApp()->m_pMainWnd;
 	if( !pMain )
 		return 1;
@@ -4523,7 +4237,7 @@ int CFreePcbView::ShowSelectStatus()
 
 	case CUR_DRAG_REF:
 		s.LoadStringA(IDS_MovingRefTextForPart);
-		str.Format( s, sel->ToRefText()->m_str );
+		str.Format( s, sel->ToText()->m_str );
 		break;
 
 	case CUR_DRAG_VTX:
@@ -4826,6 +4540,8 @@ void CFreePcbView::HighlightSelection()
 														// selecting a part does highlight the ref and value)
 	else if( first->IsValueText() )
 		SetCursorMode( CUR_VALUE_SELECTED );
+	else if( first->IsText() )
+		SetCursorMode( CUR_TEXT_SELECTED );				// CPT2 NB check for IsRefText() and IsValueText() before checking IsText()...
 	else if( first->IsPin() )
 		SetCursorMode( CUR_PAD_SELECTED );
 	else if( cseg2 *s = first->ToSeg() )
@@ -4845,8 +4561,6 @@ void CFreePcbView::HighlightSelection()
 		// CPT:  account for the possibility of whole-trace selection.
 		// CPT2:  TODO figure out if this is salvageable
 		SetCursorMode( CUR_CONNECT_SELECTED );
-	else if( first->IsText() )
-		SetCursorMode( CUR_TEXT_SELECTED );
 	else
 		// nothing selected (CPT2: UNLIKELY I HOPE)
 		SetCursorMode( CUR_NONE_SELECTED );
@@ -5398,37 +5112,35 @@ void CFreePcbView::OnTextAdd()
 //
 void CFreePcbView::OnTextDelete()
 {
-#ifndef CPT2
-	SaveUndoInfoForText( m_sel_text, CTextList::UNDO_TEXT_DELETE, TRUE, m_doc->m_undo_list );
-	m_doc->m_tlist->RemoveText( m_sel_text );
+	ctext *t = m_sel.First()->ToText();
+	SaveUndoInfoForText( t, ctextlist::UNDO_TEXT_DELETE, TRUE, m_doc->m_undo_list );
+	m_doc->m_tlist->texts.Remove(t);
+	t->Undraw();
 	CancelSelection();
 	m_doc->ProjectModified( TRUE );
 	Invalidate( FALSE );
-#endif
 }
 
 // move text, enter with text selected
 //
 void CFreePcbView::OnTextMove()
 {
-#ifndef CPT2
 	CDC *pDC = GetDC();
 	pDC->SelectClipRgn( &m_pcb_rgn );
 	SetDCToWorldCoords( pDC );
 	// move cursor to text origin
-	CPoint p;
-	p.x  = m_sel_text->m_x;
-	p.y  = m_sel_text->m_y;
+	ctext *t = m_sel.First()->ToText();
+	SaveUndoInfoForText( t, ctextlist::UNDO_TEXT_DELETE, TRUE, m_doc->m_undo_list );
+	CPoint p (t->m_x, t->m_y);
 	CPoint cur_p = m_dlist->PCBToScreen( p );
 	SetCursorPos( cur_p.x, cur_p.y );
 	// start moving
 	CancelHighlight();
-	m_dragging_new_item = 0;
-	m_doc->m_tlist->StartDraggingText( pDC, m_sel_text );
+	m_dragging_new_item = false;
+	t->StartDragging(pDC);
 	SetCursorMode( CUR_DRAG_TEXT );
 	ReleaseDC( pDC );
 	Invalidate( FALSE );
-#endif
 }
 
 // glue part.  CPT2 updated (it was easy)
@@ -5502,7 +5214,7 @@ void CFreePcbView::OnPartOptimize()
 
 void CFreePcbView::OnPartProperties()
 {
-	// CPT2 TODO.  This used to be in class FreePcbDoc, but I'm thinking CFreePcbView (or perhaps CCommonView?) will be more logical.
+	// CPT2.  This used to be in class FreePcbDoc, but I'm thinking CFreePcbView is more logical.
 	cpart2 *part = m_sel.First()->ToPart();
 	partlist_info pl;
 	int ip = part->m_pl->ExportPartListInfo( &pl, part );
@@ -5538,20 +5250,17 @@ void CFreePcbView::OnPartProperties()
 //
 void CFreePcbView::OnRefMove()
 {
-#ifndef CPT2
-	// move reference ID
+	ctext *t = m_sel.First()->ToText();
 	CDC *pDC = GetDC();
 	pDC->SelectClipRgn( &m_pcb_rgn );
 	SetDCToWorldCoords( pDC );
-	// move cursor to part origin
 	CPoint cur_p = m_dlist->PCBToScreen( m_last_cursor_point );
 	SetCursorPos( cur_p.x, cur_p.y );
 	m_dragging_new_item = 0;
-	m_doc->m_plist->StartDraggingRefText( pDC, m_sel_part );
+	t->StartDragging( pDC );
 	SetCursorMode( CUR_DRAG_REF );
 	ReleaseDC( pDC );
 	Invalidate( FALSE );
-#endif
 }
 
 // optimize net for this pad
@@ -6152,94 +5861,6 @@ void CFreePcbView::OnVertexRemoveVia()
 	Invalidate( FALSE );
 }
 
-// append more segments to this stub trace
-//
-/* CPT2 Supplanted by OnVertexStartTrace
-void CFreePcbView::OnEndVertexAddSegments()
-{
-//	m_doc->m_nlist->SetNetVisibility( m_sel_net, TRUE );
-	SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_doc->m_undo_list );
-	CDC * pDC = GetDC();
-	SetDCToWorldCoords( pDC );
-	pDC->SelectClipRgn( &m_pcb_rgn );
-	// if this is the first vertex in a trace, reverse the trace 
-	// and reselect the last vertex
-	if( m_sel_id.IsVtx() && m_sel_id.I3() == 0 )
-	{
-		m_sel_id.Con()->ReverseDirection();
-		m_sel_id = m_sel_id.Con()->LastVtx()->Id();
-	}
-	CPoint p;
-	p = m_last_cursor_point;
-	m_sel_id.SetT3( ID_SEL_SEG );
-
-	// CPT.  Set m_active_width to the net default value:
-	int w;
-    w = m_doc->m_trace_w;
-    if (m_sel_net->def_w)
-        w = m_sel_net->def_w;
-    m_active_width = w;
-	// end CPT
-
-	m_snap_angle_ref.x = m_sel_vtx->x;
-	m_snap_angle_ref.y = m_sel_vtx->y;
-	m_doc->m_nlist->StartDraggingStub( pDC, m_sel_net, m_sel_ic, m_sel_is,
-		p.x, p.y, m_active_layer, w, m_active_layer, 2, m_inflection_mode );
-	SetCursorMode( CUR_DRAG_STUB );
-	ReleaseDC( pDC );
-	Invalidate( FALSE );
-}
-*/
-
-// convert stub trace to regular connection by adding ratline to a pad
-/* CPT2 obsolete.  Repalced all references with OnVertexStartRatline.
-void CFreePcbView::OnEndVertexAddConnection()
-{
-	OnVertexStartRatline();
-}
-*/
-
-// end vertex selected, delete it and the adjacent segment
-/* CPT2 obsolete.  Use OnVertexDelete()
-void CFreePcbView::OnEndVertexDelete()
-{
-#ifndef CPT2
-	SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_doc->m_undo_list );
-//	m_doc->m_nlist->SetNetVisibility( m_sel_net, TRUE );
-	m_doc->m_nlist->RemoveSegment( m_sel_net, m_sel_ic, m_sel_is-1, TRUE );
-	if( m_doc->m_vis[LAY_RAT_LINE] )
-		m_doc->m_nlist->OptimizeConnections(  m_sel_net, -1, m_doc->m_auto_ratline_disable,
-														m_doc->m_auto_ratline_min_pins, TRUE  );
-	CancelSelection();
-	m_doc->ProjectModified( TRUE );
-	Invalidate( FALSE );
-#endif
-}
-
-// edit the position of an end vertex
-// CPT2 Obsolete.  Use OnVertexProperties
-void CFreePcbView::OnEndVertexEdit()
-{
-#ifndef CPT2
-	DlgEditBoardCorner dlg;
-	CString str ((LPCSTR) IDS_EditEndVertexPosition);
-	int x = m_sel_vtx->x;
-	int y = m_sel_vtx->y;
-	dlg.Init( &str, m_doc->m_units, x, y );
-	int ret = dlg.DoModal();
-	if( ret == IDOK )
-	{
-		SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_doc->m_undo_list );
-		m_doc->m_nlist->MoveVertex( m_sel_net, m_sel_ic, m_sel_is,
-			dlg.X(), dlg.Y() );
-		m_doc->ProjectModified( TRUE );
-		m_doc->m_nlist->HighlightVertex( m_sel_net, m_sel_ic, m_sel_is );
-		Invalidate( FALSE );
-	}
-#endif
-}
-*/
-
 // finish routing a connection by making a segment to the destination pad
 // CPT2 converted, freely
 //
@@ -6343,43 +5964,43 @@ void CFreePcbView::OnRatlineUnlockConnection()
 //
 void CFreePcbView::OnTextEdit()
 {
-#ifndef CPT2
 	// create dialog and pass parameters
+	ctext *t = m_sel.First()->ToText();
 	CDlgAddText add_text_dlg;
-	add_text_dlg.Initialize( 0, m_doc->m_num_layers, 0, &m_sel_text->m_str,
-		m_doc->m_units, m_sel_text->m_layer, m_sel_text->m_mirror,
-			m_sel_text->m_bNegative, m_sel_text->m_angle, m_sel_text->m_font_size,
-			m_sel_text->m_stroke_width, m_sel_text->m_x, m_sel_text->m_y );
+	add_text_dlg.Initialize( 0, m_doc->m_num_layers, 0, &t->m_str,
+		m_doc->m_units, t->m_layer, t->m_bMirror,
+			t->m_bNegative, t->m_angle, t->m_font_size,
+			t->m_stroke_width, t->m_x, t->m_y );
 	int ret = add_text_dlg.DoModal();
 	if( ret == IDCANCEL )
 		return;
 
 	// now replace old text with new one
-	SaveUndoInfoForText( m_sel_text, CTextList::UNDO_TEXT_MODIFY, TRUE, m_doc->m_undo_list );
+	SaveUndoInfoForText( t, ctextlist::UNDO_TEXT_MODIFY, TRUE, m_doc->m_undo_list );
 	int x = add_text_dlg.m_x;
 	int y = add_text_dlg.m_y;
-	int mirror = add_text_dlg.m_bMirror;
-	BOOL bNegative = add_text_dlg.m_bNegative;
+	bool bMirror = add_text_dlg.m_bMirror;
+	bool bNegative = add_text_dlg.m_bNegative;
 	int angle = add_text_dlg.m_angle;
 	int font_size = add_text_dlg.m_height;
 	int stroke_width = add_text_dlg.m_width;
 	int layer = add_text_dlg.m_layer;
-	CString test_str = add_text_dlg.m_str;
+	CString str = add_text_dlg.m_str;
 	CancelHighlight();
-	CText * new_text = m_doc->m_tlist->AddText( x, y, angle, mirror, bNegative,
-		layer, font_size, stroke_width, &test_str );
-	new_text->m_uid = m_sel_text->m_uid;
-	m_doc->m_tlist->RemoveText( m_sel_text );
-	m_sel_text = new_text;
-	m_doc->m_tlist->HighlightText( m_sel_text );
-
+	ctext *t2 = m_doc->m_tlist->AddText(x, y, angle, bMirror, bNegative, layer, font_size, stroke_width, &str);
+	m_doc->m_tlist->texts.Remove(t);
+	// CPT2 TODO do we care enough to enable the following?
+	// t2->m_uid = t->m_uid;
+	t->Undraw();
+	t2->MustRedraw();
+	m_doc->Redraw();
+	SelectItem(t2);
 	// start dragging if requested in dialog
 	if( add_text_dlg.m_bDrag )
 		OnTextMove();
 	else
 		Invalidate( FALSE );
 	m_doc->ProjectModified( TRUE );
-#endif
 }
 
 // start adding board outline by dragging line for first side
@@ -6871,29 +6492,32 @@ void CFreePcbView::OnAreaCornerProperties()
 
 void CFreePcbView::OnRefProperties()
 {
-#ifndef CPT2
+	// CPT2 converted.  This now works for value texts too.
+	ctext *t = m_sel.First()->ToText();
+	cpart2 *part = t->GetPart();
 	CDlgRefText dlg;
-	dlg.Initialize( m_doc->m_plist, m_sel_part, &m_doc->m_footprint_cache_map );
+	dlg.Initialize( t, &m_doc->m_footprint_cache_map );
 	int ret = dlg.DoModal();
-	if( ret == IDOK )
-	{
-		// edit this part
-		SaveUndoInfoForPart( m_sel_part,
-			CPartList::UNDO_PART_MODIFY, NULL, TRUE, m_doc->m_undo_list );
-		m_sel_part->m_ref_layer = FlipLayer( m_sel_part->side, dlg.m_layer );
-		m_doc->m_plist->ResizeRefText( m_sel_part, dlg.m_height, dlg.m_width, dlg.m_vis );
-		m_doc->ProjectModified( TRUE );
-		CancelHighlight();
-		if( m_cursor_mode == CUR_PART_SELECTED )
-			m_doc->m_plist->SelectPart( m_sel_part );
-		else if( m_cursor_mode == CUR_REF_SELECTED 
-			&& m_sel_part->m_ref_size && m_sel_part->m_ref_vis )
-			m_doc->m_plist->SelectRefText( m_sel_part );
-		else
-			CancelSelection();
-		Invalidate( FALSE );
-	}
-#endif
+	if( ret != IDOK )
+		return;
+	SaveUndoInfoForPart( part, cpartlist::UNDO_PART_MODIFY, NULL, TRUE, m_doc->m_undo_list );		// CPT2 TODO constants like this should be in cpart2
+	CancelHighlight();
+	t->MustRedraw();
+	t->Resize(dlg.m_height, dlg.m_width);
+	t->m_layer = FlipLayer(part->side, dlg.m_layer);
+	t->m_bShown = dlg.m_vis;
+	t->m_str = dlg.m_str;
+	if (t->IsRefText())
+		part->ref_des = dlg.m_str;
+	else
+		part->value_text = dlg.m_str;
+	m_doc->Redraw();
+	m_doc->ProjectModified( TRUE );
+	if (dlg.m_vis)
+		HighlightSelection();
+	else
+		CancelSelection();
+	Invalidate( FALSE );
 }
 
 BOOL CFreePcbView::OnEraseBkgnd(CDC* pDC)
@@ -7820,44 +7444,25 @@ void CFreePcbView::OnPartChangeSide()
 
 // rotate part clockwise 90 degrees clockwise
 //
-void CFreePcbView::OnPartRotate()
-{
-#ifndef CPT2
-	SaveUndoInfoForPartAndNets( m_sel_part,
-		CPartList::UNDO_PART_MODIFY, NULL, TRUE, m_doc->m_undo_list );
-	CancelHighlight();
-	m_doc->m_plist->UndrawPart( m_sel_part );
-	m_sel_part->angle = (m_sel_part->angle + 90)%360;
-	m_doc->m_plist->DrawPart( m_sel_part );
-	m_doc->m_nlist->PartMoved( m_sel_part );
-	if( m_doc->m_vis[LAY_RAT_LINE] )
-		m_doc->m_nlist->OptimizeConnections( m_sel_part, m_doc->m_auto_ratline_disable, 
-										m_doc->m_auto_ratline_min_pins );
-	m_doc->m_plist->HighlightPart( m_sel_part );
-	ShowSelectStatus();
-	m_doc->ProjectModified( TRUE );
-	Invalidate( FALSE );
-#endif
-}
+void CFreePcbView::OnPartRotateCW()
+	{ OnPartRotate(90); }
 
 void CFreePcbView::OnPartRotateCCW()
-{
-#ifndef CPT2
-	SaveUndoInfoForPartAndNets( m_sel_part,
-		CPartList::UNDO_PART_MODIFY, NULL, TRUE, m_doc->m_undo_list );
+	{ OnPartRotate(270); }
+
+void CFreePcbView::OnPartRotate( int angle ) {
+	cpart2 *part = m_sel.First()->ToPart();
+	SaveUndoInfoForPartAndNets( part, cpartlist::UNDO_PART_MODIFY, NULL, TRUE, m_doc->m_undo_list );
 	CancelHighlight();
-	m_doc->m_plist->UndrawPart( m_sel_part );
-	m_sel_part->angle = (m_sel_part->angle + 270)%360;
-	m_doc->m_plist->DrawPart( m_sel_part );
-	m_doc->m_nlist->PartMoved( m_sel_part );
+	part->MustRedraw();
+	part->angle = (part->angle + angle) % 360;
+	part->PartMoved(1, 1);
 	if( m_doc->m_vis[LAY_RAT_LINE] )
-		m_doc->m_nlist->OptimizeConnections( m_sel_part, m_doc->m_auto_ratline_disable, 
-										m_doc->m_auto_ratline_min_pins );
-	m_doc->m_plist->HighlightPart( m_sel_part );
-	ShowSelectStatus();
+		part->OptimizeConnections( m_doc->m_auto_ratline_disable, m_doc->m_auto_ratline_min_pins );
+	m_doc->Redraw();
+	part->Highlight();
 	m_doc->ProjectModified( TRUE );
 	Invalidate( FALSE );
-#endif
 }
 
 
@@ -7879,13 +7484,14 @@ void CFreePcbView::OnConnectSetWidth()
 
 void CFreePcbView::OnSegmentAddVertex()
 {
-	CDC *pDC = GetDC();										// CPT2 TODO check that this dc gets released
+	CDC *pDC = GetDC();
 	pDC->SelectClipRgn( &m_pcb_rgn );
 	SetDCToWorldCoords( pDC );
 	CPoint p = m_last_mouse_point;
 	SetCursorMode( CUR_DRAG_VTX_INSERT );
 	cseg2 *seg = m_sel.First()->ToSeg();
 	seg->StartDraggingNewVertex( pDC, p.x, p.y, seg->m_layer, seg->m_width, 2 );
+	ReleaseDC(pDC);
 }
 
 void CFreePcbView::OnConnectUnroutetrace()
@@ -12012,120 +11618,44 @@ void CFreePcbView::OnAreaSideStyle()
 	Invalidate( FALSE );
 }
 
-// move text string for value
-//
-void CFreePcbView::OnValueMove()
-{
-	CDC *pDC = GetDC();
-	pDC->SelectClipRgn( &m_pcb_rgn );
-	SetDCToWorldCoords( pDC );
-	// move cursor to part origin
-	CPoint cur_p = m_dlist->PCBToScreen( m_last_cursor_point );
-	SetCursorPos( cur_p.x, cur_p.y );
-	m_dragging_new_item = 0;
-	m_doc->m_plist->StartDraggingValue( pDC, m_sel_part );
-	SetCursorMode( CUR_DRAG_VALUE );
-	ReleaseDC( pDC );
-	Invalidate( FALSE );
-}
-
-void CFreePcbView::OnValueProperties()
-{
-#ifndef CPT2
-	CDlgValueText dlg;
-	dlg.Initialize( m_doc->m_plist, m_sel_part );
-	int ret =  dlg.DoModal();
-	if( ret == IDOK )
-	{
-		// edit this part
-		SaveUndoInfoForPart( m_sel_part,
-			CPartList::UNDO_PART_MODIFY, NULL, TRUE, m_doc->m_undo_list ); 
-		int value_layer = dlg.m_layer;
-		value_layer = FlipLayer( m_sel_part->side, value_layer );
-		m_doc->m_plist->SetValue( m_sel_part, &m_sel_part->value, 
-			m_sel_part->m_value_xi, m_sel_part->m_value_yi, 
-			m_sel_part->m_value_angle,
-			dlg.m_height, dlg.m_width, dlg.m_vis, value_layer );
-		m_doc->ProjectModified( TRUE );
-		CancelHighlight();
-		if( m_cursor_mode == CUR_PART_SELECTED )
-			m_doc->m_plist->SelectPart( m_sel_part );
-		else if( m_cursor_mode == CUR_VALUE_SELECTED 
-			&& m_sel_part->m_value_size && m_sel_part->m_value_vis )
-			m_doc->m_plist->SelectValueText( m_sel_part );
-		else
-			CancelSelection();
-		Invalidate( FALSE );
-	}
-#endif
-}
-
-void CFreePcbView::OnValueShowPart()
-{
-	OnRefShowPart();
-}
-
-void CFreePcbView::OnPartEditValue()
-{
-	OnValueProperties();
-}
-
-
 void CFreePcbView::OnRefRotateCW()
-{
-#ifndef CPT2
-
-	SaveUndoInfoForPart( m_sel_part, CPartList::UNDO_PART_MODIFY, NULL, TRUE, m_doc->m_undo_list ); 
-	CancelHighlight();
-	m_doc->m_plist->UndrawPart( m_sel_part );
-	m_sel_part->m_ref_angle = (m_sel_part->m_ref_angle + 90)%360;
-	m_doc->m_plist->DrawPart( m_sel_part );
-	m_doc->m_plist->SelectRefText( m_sel_part );
-	m_doc->ProjectModified( TRUE );
-	Invalidate( FALSE );
-#endif
-}
+	{ OnRefRotate(90); }
 
 void CFreePcbView::OnRefRotateCCW()
+	{ OnRefRotate(270); }
+
+void CFreePcbView::OnRefRotate(int angle)
 {
-#ifndef CPT2
-	SaveUndoInfoForPart( m_sel_part, CPartList::UNDO_PART_MODIFY, NULL, TRUE, m_doc->m_undo_list ); 
+	// CPT2 converted.  This works for valuetexts also
+	ctext *t = m_sel.First()->ToText();
+	SaveUndoInfoForPart( t->GetPart(), CPartList::UNDO_PART_MODIFY, NULL, TRUE, m_doc->m_undo_list ); 
 	CancelHighlight();
-	m_doc->m_plist->UndrawPart( m_sel_part );
-	m_sel_part->m_ref_angle = (m_sel_part->m_ref_angle + 270)%360;
-	m_doc->m_plist->DrawPart( m_sel_part );
-	m_doc->m_plist->SelectRefText( m_sel_part );
+	t->MustRedraw();
+	t->m_angle = (t->m_angle + angle) % 360;
+	m_doc->Redraw();
+	HighlightSelection();
 	m_doc->ProjectModified( TRUE );
 	Invalidate( FALSE );
-#endif
 }
 
-void CFreePcbView::OnValueRotateCW()
-{
-#ifndef CPT2
-	SaveUndoInfoForPart( m_sel_part, CPartList::UNDO_PART_MODIFY, NULL, TRUE, m_doc->m_undo_list ); 
-	CancelHighlight();
-	m_doc->m_plist->UndrawPart( m_sel_part );
-	m_sel_part->m_value_angle = (m_sel_part->m_value_angle + 90)%360;
-	m_doc->m_plist->DrawPart( m_sel_part );
-	m_doc->m_plist->SelectValueText( m_sel_part );
-	m_doc->ProjectModified( TRUE );
-	Invalidate( FALSE );
-#endif
-}
+void CFreePcbView::OnTextRotateCW()
+	{ OnRefRotate(90); }
 
-void CFreePcbView::OnValueRotateCCW()
+void CFreePcbView::OnTextRotateCCW()
+	{ OnRefRotate(270); }
+
+void CFreePcbView::OnTextRotate(int angle)
 {
-#ifndef CPT2
-	SaveUndoInfoForPart( m_sel_part, CPartList::UNDO_PART_MODIFY, NULL, TRUE, m_doc->m_undo_list ); 
+	// CPT2 converted.  Barely different than OnRefRotate()
+	ctext *t = m_sel.First()->ToText();
+	SaveUndoInfoForText( t, ctextlist::UNDO_TEXT_DELETE, TRUE, m_doc->m_undo_list );
 	CancelHighlight();
-	m_doc->m_plist->UndrawPart( m_sel_part );
-	m_sel_part->m_value_angle = (m_sel_part->m_value_angle + 270)%360;
-	m_doc->m_plist->DrawPart( m_sel_part );
-	m_doc->m_plist->SelectValueText( m_sel_part );
+	t->MustRedraw();
+	t->m_angle = (t->m_angle + angle) % 360;
+	m_doc->Redraw();
+	HighlightSelection();
 	m_doc->ProjectModified( TRUE );
 	Invalidate( FALSE );
-#endif
 }
 
 
