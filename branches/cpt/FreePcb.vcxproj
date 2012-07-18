@@ -260,7 +260,6 @@
     <ClCompile Include="DlgShortcuts.cpp" />
     <ClCompile Include="DlgSideStyle.cpp" />
     <ClCompile Include="DlgSlot.cpp" />
-    <ClCompile Include="DlgValueText.cpp" />
     <ClCompile Include="DlgVia.cpp" />
     <ClCompile Include="DlgWizQuad.cpp" />
   </ItemGroup>
@@ -378,7 +377,6 @@
     <ClInclude Include="DlgShortcuts.h" />
     <ClInclude Include="DlgSideStyle.h" />
     <ClInclude Include="DlgSlot.h" />
-    <ClInclude Include="DlgValueText.h" />
     <ClInclude Include="DlgVia.h" />
     <ClInclude Include="DlgWizQuad.h" />
   </ItemGroup>

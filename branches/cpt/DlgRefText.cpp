@@ -1,9 +1,10 @@
 // DlgRefText.cpp : implementation file
-//
+// CPT2:  THIS DIALOG NOW COVERS NOT ONLY SITUATIONS WHERE USER HITS F1 WITH A REFERENCE-TEXT SELECTED, BUT ALSO
+// F1 FOR VALUE-TEXTS
 
 #include "stdafx.h"
 #include "FreePcb.h"
-#include "PartList.h"
+#include "PartListNew.h"
 #include "DlgRefText.h"
 #include ".\dlgreftext.h"
 
@@ -35,8 +36,15 @@ void CDlgRefText::DoDataExchange(CDataExchange* pDX)
 	if( !pDX->m_bSaveAndValidate )
 	{
 		// entry
-		m_edit_ref_des.EnableWindow( FALSE );
-		m_edit_ref_des.SetWindowText( m_part->ref_des );
+		// CPT2.  First set dialog's title based on whether it's a reference or a value being edited
+		CString title;
+		if (m_text->IsRefText())
+			title.LoadStringA(IDS_ReferenceTextProperties);
+		else
+			title.LoadStringA(IDS_ValueTextProperties);
+		SetWindowTextA(title);
+		m_edit_ref_des.EnableWindow( true );					// CPT2.  Now enabled, both for value texts and ref texts
+		m_edit_ref_des.SetWindowText( m_text->m_str );
 		m_combo_units.InsertString( 0, "MIL" );
 		m_combo_units.InsertString( 1, "MM" );
 
@@ -65,6 +73,33 @@ void CDlgRefText::DoDataExchange(CDataExchange* pDX)
 	{
 		// exit
 		GetFields();
+		m_edit_ref_des.GetWindowText( m_str );
+		if (m_str != m_text->m_str && m_text->IsRefText())
+		{
+			// CPT2. User wants to change text for a reference designator.  Certain checks must occur first (cf. the checks in DlgAddPart.cpp)
+			m_str.Trim();
+			CString ird ((LPCSTR) IDS_IllegalReferenceDesignator);
+			bool bOK = true;
+			if( m_str == "" )
+				bOK = false;
+			else if( m_str.FindOneOf( ". " ) != -1 )
+				ird += " " + m_str,
+				bOK = false;
+			else if ( m_text->doc->m_plist->GetPartByName(&m_str) )
+			{
+				CString duplicateRef ((LPCSTR) IDS_DuplicateReference);
+				ird.Format( duplicateRef, m_str );
+				bOK = false;
+			}
+			if (!bOK)
+			{
+				AfxMessageBox( ird );
+				pDX->PrepareEditCtrl( IDC_EDIT_REF_ID );
+				pDX->Fail();
+				return;
+			}
+		}
+
 		if( m_radio_def.GetCheck() )
 			m_width = m_def_width;
 	}
@@ -73,17 +108,17 @@ void CDlgRefText::DoDataExchange(CDataExchange* pDX)
 // the calling program should call this to set up dialog
 // and provide pointers to variables which will be modified
 //
-void CDlgRefText::Initialize( CPartList * plist, cpart * part, CMapStringToPtr * shape_cache_map )
+void CDlgRefText::Initialize( ctext *text, CMapStringToPtr * shape_cache_map )
 {
-	m_plist = plist;
-	m_part = part;
+	m_text = text;
 	m_footprint_cache_map = shape_cache_map;
-	m_vis = part->m_ref_vis;
+	cpart2 *part = text->GetPart();
+	m_vis = text->m_bShown;
 	m_units = part->shape->m_units;
-	m_width = m_part->m_ref_w;
-	m_height = m_part->m_ref_size;
+	m_width = text->m_stroke_width;
+	m_height = text->m_font_size;
 	m_def_width = m_height/10;
-	m_layer = FlipLayer( part->side, part->m_ref_layer );
+	m_layer = FlipLayer( part->side, text->m_layer );
 }
 
 BEGIN_MESSAGE_MAP(CDlgRefText, CDialog)
@@ -135,15 +170,14 @@ void CDlgRefText::GetFields()
 	CString str;
 	switch( m_combo_layer.GetCurSel() )
 	{
-	case 0: m_layer = LAY_SILK_TOP; break;
-	case 1: m_layer = LAY_SILK_BOTTOM; break;
-	case 2: m_layer = LAY_TOP_COPPER; break;
-	case 3: m_layer = LAY_BOTTOM_COPPER; break;
-	default: ASSERT(0); break;
+		case 0: m_layer = LAY_SILK_TOP; break;
+		case 1: m_layer = LAY_SILK_BOTTOM; break;
+		case 2: m_layer = LAY_TOP_COPPER; break;
+		case 3: m_layer = LAY_BOTTOM_COPPER; break;
+		default: ASSERT(0); break;
 	}
 	if( m_units == MIL )
 	{
-		m_combo_units.SetCurSel( 0 );
 		m_edit_height.GetWindowText( str );
 		m_height = atof( str ) * NM_PER_MIL;
 		m_edit_width.GetWindowText( str );
@@ -151,7 +185,6 @@ void CDlgRefText::GetFields()
 	}
 	else
 	{
-		m_combo_units.SetCurSel( 1 );
 		m_edit_height.GetWindowText( str );
 		m_height = atof( str ) * 1000000.0;
 		m_edit_width.GetWindowText( str );
@@ -174,6 +207,7 @@ void CDlgRefText::SetFields()
 	}
 	if( m_units == MIL )
 	{
+		m_combo_units.SetCurSel( 0 );
 		MakeCStringFromDouble( &str, m_height/NM_PER_MIL );
 		m_edit_height.SetWindowText( str );
 		MakeCStringFromDouble( &str, m_width/NM_PER_MIL );
@@ -183,6 +217,7 @@ void CDlgRefText::SetFields()
 	}
 	else
 	{
+		m_combo_units.SetCurSel( 1 );
 		MakeCStringFromDouble( &str, m_height/1000000.0 );
 		m_edit_height.SetWindowText( str );
 		MakeCStringFromDouble( &str, m_width/1000000.0 );

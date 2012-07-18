@@ -187,7 +187,7 @@ public:
 	virtual bool IsBoard() { return false; }
 	virtual bool IsOutline() { return false; }
 	virtual bool IsNet() { return false; }
-	virtual bool IsText() { return false; }			// Also false for creftext and cvaluetext
+	virtual bool IsText() { return false; }			// CPT2 true for ctext, creftext and cvaluetext
 	virtual bool IsRefText() { return false; }
 	virtual bool IsValueText() { return false; }
 	virtual bool IsCentroid() { return false; }
@@ -850,8 +850,8 @@ public:
 	CString m_str;
 	CArray<stroke> m_stroke;
 	CRect m_br;							// CPT2 added.  Bounding rectangle
-	// CDisplayList * m_dlist;			// CPT2 use doc->m_dlist (?)
 	SMFontUtil * m_smfontutil;
+	bool m_bShown;						// CPT2 added.  Normally true, but may be set false for reftext's and valuetext's that aren't visible
 
 	ctext( CFreePcbDoc *_doc, int _x, int _y, int _angle, 
 		BOOL _bMirror, BOOL _bNegative, int _layer, int _font_size, 
@@ -863,14 +863,18 @@ public:
 	ctext *ToText() { return this; }
 	int GetTypeBit() { return bitText; }
 	int GetLayer() { return m_layer; }
+	virtual cpart2 *GetPart() { return NULL; }
 
 	void Init( CDisplayList * dlist, int x, int y, int angle,					// TODO: rethink relationship with constructor. Removed tid arg.
 		int mirror, BOOL bNegative, int layer, int font_size, 
 		int stroke_width, SMFontUtil * smfontutil, CString * str_ptr );
 	void Copy(ctext *other);													// CPT2 new, done in cpp.
 	void Move( int x, int y, int angle, BOOL mirror, BOOL negative, int layer, int size=-1, int w=-1 );		// Done in cpp
-	void Move( int x, int y, int angle, int size=-1, int w=-1);												// Done in cpp
-	void Resize( int size, int w );																			// Done in cpp
+	void Move( int x, int y, int angle, int size=-1, int w=-1);										// Done in cpp
+	void Resize( int size, int w );																	// Done in cpp
+	void MoveRelative( int _x, int _y, int _angle=-1, int _size=-1, int _w=-1 );					// Used for reftexts and valuetexts. Done in cpp
+	CPoint GetAbsolutePoint();																		// Done in cpp.  Gets absolute position for reftexts and valuetexts.
+	CRect GetRect();																				// Done in cpp
 
 	// void Draw( CDisplayList * dlist, SMFontUtil * smfontutil );				// CPT2.  Probably dispensible
 	void GenerateStrokes();														// CPT2 new.  Helper for Draw().
@@ -880,8 +884,8 @@ public:
 	void Undraw();																// Done in cpp
 	void Highlight();															// Done in cpp
 	void SetVisible(bool bVis);													// Done in cpp
-	void StartDragging( CDC * pDC );
-	void CancelDragging();
+	void StartDragging( CDC * pDC );											// Done in cpp, derived from CTextList::StartDraggingText
+	void CancelDragging();														// Done in cpp, derived from CTextList::CancelDraggingText
 	// void GetBounds( CRect &br );												// CPT2.  Use new m_br
 };
 
@@ -892,13 +896,12 @@ public:
 
 	creftext( cpart2 *_part, int x, int y, int angle, 
 		BOOL bMirror, BOOL bNegative, int layer, int font_size, 
-		int stroke_width, SMFontUtil * smfontutil, CString * str_ptr );			// Done in cpp
-	bool IsValid();																// Done in cpp
-	bool IsText() { return false; }
+		int stroke_width, SMFontUtil * smfontutil, CString * str_ptr, bool bShown );			// Done in cpp
+	bool IsValid();																				// Done in cpp
 	bool IsRefText() { return true; }
-	ctext *ToText() { return NULL; }
 	creftext *ToRefText() { return this; }
 	int GetTypeBit() { return bitRefText; }
+	cpart2 *GetPart() { return part; }
 
 	int Draw() { return DrawRelativeTo(part); }
 };
@@ -910,13 +913,12 @@ public:
 
 	cvaluetext( cpart2 *_part, int x, int y, int angle, 
 		BOOL bMirror, BOOL bNegative, int layer, int font_size, 
-		int stroke_width, SMFontUtil * smfontutil, CString * str_ptr );			// Done in cpp
-	bool IsValid();																// Done in cpp
-	bool IsText() { return false; }
+		int stroke_width, SMFontUtil * smfontutil, CString * str_ptr, bool bShown );			// Done in cpp
+	bool IsValid();																				// Done in cpp
 	bool IsValueText() { return true; }
-	ctext *ToText() { return NULL; }
 	cvaluetext *ToValueText() { return this; }
 	int GetTypeBit() { return bitValueText; }
+	cpart2 *GetPart() { return part; }
 
 	int Draw() { return DrawRelativeTo(part); }
 };
@@ -985,7 +987,7 @@ public:
 	BOOL glued;
 
 	CString ref_des;	// ref designator such as "U3"
-	BOOL m_ref_vis;		// TRUE = ref shown
+	// BOOL m_ref_vis;	// CPT2 use m_ref->bShown
 	// int m_ref_xi;	// CPT2 Replaced by m_ref members..
 	// int m_ref_yi;	
 	// int m_ref_angle; 
@@ -995,7 +997,7 @@ public:
 	creftext *m_ref;	// CPT2 added. It's convenient to have an object for the ref-text on which we can invoke ctext methods.
 						// Note that m_ref.m_x, m_ref.m_y, etc. will be _relative_ parameters
 	CString value_text;
-	BOOL m_value_vis;	// TRUE = value shown
+	// BOOL m_value_vis; // CPT2 use m_value->bShown
 	// int m_value_xi;	// CPT2 Replaced by m_value members
 	// int m_value_yi; 
 	// int m_value_angle; 
@@ -1041,9 +1043,9 @@ public:
 	     		  int x, int y, int side, int angle, int visible, int glued );					// Done in cpp, Derived from CPartList::SetPartData
 	void SetValue( CString * value, int x, int y, int angle, int size, 
 				  int w, BOOL vis, int layer );													// Done in cpp, Derived from CPartList::SetValue
-	void MoveRefText( int _x, int _y, int _angle=-1, int _size=-1, int _w=-1 );					// Done in cpp, derived from CPartList::MoveRefText
+	// void MoveRefText( int _x, int _y, int _angle=-1, int _size=-1, int _w=-1 );					// Done in cpp, derived from CPartList::MoveRefText
 	void ResizeRefText(int size, int width, BOOL vis );											// Done in cpp, derived from CPartList::ResizeRefText()
-	void MoveValueText( int _x, int _y, int _angle=-1, int _size=-1, int _w=-1 );				// Done in cpp, derived from CPartList func
+	// void MoveValueText( int _x, int _y, int _angle=-1, int _size=-1, int _w=-1 );				// Done in cpp, derived from CPartList func
 	void InitPins();																			// Done in cpp. Basically all new
 
 	// cpin2 * PinByUID( int uid );		// CPT2. Use pins.FindByUID().
@@ -1055,9 +1057,9 @@ public:
 	CPoint GetCentroidPoint();			// CPT2 TODO derive from CPartList::GetCentroidPoint
 	CPoint GetGluePoint( int iglue );	// CPT2 TODO derive from CPartList::GetGluePoint()
 	// void SetAreaConnections();		// CPT2 PROBABLY SUPERSEDED
-	CPoint GetRefPoint();				// Done in cpp.  Derived from CPartList func.
-	CPoint GetValuePoint();				// Done in cpp.  Derived from CPartList func.
-	CRect GetValueRect();				// Done in cpp.  Derived from CPartList func.
+	// CPoint GetRefPoint();				// Done in cpp.  Derived from CPartList func.
+	// CPoint GetValuePoint();				// Done in cpp.  Derived from CPartList func.
+	// CRect GetValueRect();				// Done in cpp.  Derived from CPartList func.
 	int GetBoundingRect( CRect * part_r );			// Done in cpp. Derived from CPartList::GetPartBoundingRect()
 	void FootprintChanged( CShape * shape );		// Done in cpp, loosely derived from CPartList::PartFootprintChanged() & CNetList::PartFootprintChanged()
 

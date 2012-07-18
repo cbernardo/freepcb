@@ -1918,10 +1918,8 @@ cpart2::cpart2( cpartlist * pl )			// CPT2 TODO.  Will probably add more args...
 		pl->parts.Add(this);
 	x = y = side = angle = 0;
 	glued = false;
-	m_ref_vis = true;
-	m_ref = new creftext(this, 0, 0, 0, false, false, 0, 0, 0, doc->m_smfontutil, &CString(""));
-	m_value_vis = false;
-	m_value = new cvaluetext(this, 0, 0, 0, false, false, 0, 0, 0, doc->m_smfontutil, &CString(""));
+	m_ref = new creftext(this, 0, 0, 0, false, false, 0, 0, 0, doc->m_smfontutil, &CString(""), true);
+	m_value = new cvaluetext(this, 0, 0, 0, false, false, 0, 0, 0, doc->m_smfontutil, &CString(""), false);
 	m_tl = new ctextlist(doc);
 	shape = NULL;
 }
@@ -2132,74 +2130,13 @@ void cpart2::SetValue(CString *_value, int x, int y, int angle, int size, int w,
 	value_text = *_value;
 	m_value->m_layer = layer;
 	m_value->Move(x, y, angle, size, w);
-	m_value_vis = vis;
-}
-
-// Move ref text with given id to new position and angle
-// x and y are in absolute world coords
-// angle is relative to part angle
-// CPT2 derived from CPartList function.  "_angle", "_size", and "_w" are now -1 by default (=> no change)
-// TODO consolidate with value-text functions.
-void cpart2::MoveRefText( int _x, int _y, int _angle, int _size, int _w )
-{
-	// get position of new text box origin relative to part
-	CPoint part_org, tb_org;
-	tb_org.x = _x - x;
-	tb_org.y = _y - y;
-	
-	// correct for rotation of part
-	RotatePoint( &tb_org, 360-angle, zero );
-	
-	// correct for part on bottom of board (reverse relative x-axis)
-	if( side == 1 )
-		tb_org.x = -tb_org.x;
-	
-	// reset ref text parameters
-	m_ref->MustRedraw();
-	m_ref->m_x = tb_org.x;
-	m_ref->m_y = tb_org.y;
-	if (_angle!=-1) 
-		m_ref->m_angle = _angle % 360;
-	if (_size!=-1)
-		m_ref->m_font_size = _size;
-	if (_w!=-1)
-		m_ref->m_stroke_width = _w;
+	m_value->m_bShown = vis;
 }
 
 void cpart2::ResizeRefText(int size, int width, BOOL vis )
 {
 	m_ref->Move(m_ref->m_x, m_ref->m_y, m_ref->m_angle, size, width);
-	m_ref_vis = vis;
-}
-
-// Move value text with given id to new position and angle
-// x and y are in absolute world coords
-// angle is relative to part angle
-// CPT2 derived from CPartList function.  "_angle", "_size", and "_w" are now -1 by default (=> no change)
-void cpart2::MoveValueText( int _x, int _y, int _angle, int _size, int _w )
-{
-	// get position of new text box origin relative to part
-	CPoint part_org, tb_org;
-	tb_org.x = _x - x;
-	tb_org.y = _y - y;
-	
-	// correct for rotation of part
-	RotatePoint( &tb_org, 360-angle, zero );
-	
-	// correct for part on bottom of board (reverse relative x-axis)
-	if( side == 1 )
-		tb_org.x = -tb_org.x;
-	
-	// reset value text parameters
-	m_value->MustRedraw();
-	m_value->m_x = tb_org.x;
-	m_value->m_y = tb_org.y;
-	if (_angle!=-1) 
-		m_value->m_angle = _angle % 360;
-	if (_size!=-1)
-		m_value->m_font_size = _size;
-	if (_w!=-1)
-		m_value->m_stroke_width = _w;
+	m_ref->m_bShown = vis;
 }
 
 
@@ -2222,49 +2159,6 @@ cpin2 *cpart2::GetPinByName(CString *name)
 	return NULL;
 }
 
-CPoint cpart2::GetRefPoint()
-{
-	CPoint ref_pt;
-
-	// move origin of text box to position relative to part
-	ref_pt.x = m_ref->m_x;
-	ref_pt.y = m_ref->m_y;
-	// flip if part on bottom
-	if( side )
-		ref_pt.x = -ref_pt.x;
-	// rotate with part about part origin
-	RotatePoint( &ref_pt, angle, zero );
-	ref_pt.x += x;
-	ref_pt.y += y;
-	return ref_pt;
-}
-
-
-CPoint cpart2::GetValuePoint()
-{
-	CPoint val_pt;
-	// move origin of text box to position relative to part
-	val_pt.x = m_value->m_x;
-	val_pt.y = m_value->m_y;
-	// flip if part on bottom
-	if( side )
-		val_pt.x = -val_pt.x;
-	// rotate with part about part origin
-	RotatePoint( &val_pt, angle, zero );
-	val_pt.x += x;
-	val_pt.y += y;
-	return val_pt;
-}
-
-
-// get bounding rect of value text relative to part origin 
-// works even if part isn't drawn
-//
-CRect cpart2::GetValueRect()
-{
-	m_value->GenerateStrokes();
-	return m_value->m_br;
-}
 
 int cpart2::GetBoundingRect( CRect * part_r )
 {
@@ -2408,14 +2302,14 @@ int cpart2::Draw()
 
 	// draw ref designator text
 	m_ref->dl_el = m_ref->dl_sel = NULL;
-	if( m_ref_vis && m_ref->m_font_size )
+	if( m_ref->m_bShown && m_ref->m_font_size )
 		m_ref->DrawRelativeTo(this);
 	else
 		m_ref->Undraw();
 	
 	// draw value text
 	m_value->dl_el = m_value->dl_sel = NULL;
-	if( m_value_vis && m_value->m_font_size )
+	if( m_value->m_bShown && m_value->m_font_size )
 		m_value->DrawRelativeTo(this);
 	else
 		m_value->Undraw();
@@ -5212,6 +5106,7 @@ ctext::ctext( CFreePcbDoc *_doc, int _x, int _y, int _angle,
 	m_stroke_width = _stroke_width;
 	m_smfontutil = _smfontutil;
 	m_str = *_str;
+	m_bShown = true;
 }
 
 bool ctext::IsValid()
@@ -5247,15 +5142,68 @@ void ctext::Move( int x, int y, int angle, BOOL mirror, BOOL negative, int layer
 }
 
 void ctext::Move(int x, int y, int angle, int size, int w) 
-{
-	// CPT:  extra version of Move(); appropriate for ref and value-texts, where the layer doesn't change and the mirroring is by default
-	bool bMirror = m_layer==LAY_FP_SILK_BOTTOM || m_layer==LAY_FP_BOTTOM_COPPER;
-	Move(x, y, angle, bMirror, false, m_layer, size, w);
-}
+	// CPT:  extra version of Move(); appropriate for ref and value-texts, where the layer, mirroring, and negation don't change.
+	// NB DrawRelativeTo() will take care of automatic mirroring for ref and value-texts that wind up on the bottom layers.
+	{ Move(x, y, angle, false, false, m_layer, size, w); }
 
 void ctext::Resize(int size, int w)
 	{ Move (m_x, m_y, m_angle, m_bMirror, m_bNegative, m_layer, size, w); }
 
+void ctext::MoveRelative( int _x, int _y, int _angle, int _size, int _w )
+{
+	// CPT2 used for moving ref and value texts, whose coordinate values are relative to the parent part.
+	// _x and _y are in absolute world coords.
+	// angle is relative to part angle.  (Change? It's a bit confusing.)  "_angle", "_size", and "_w" are now -1 by default (=> no change)
+	// get position of new text box origin relative to part
+	cpart2 * part = GetPart();
+	CPoint part_org, tb_org;
+	tb_org.x = _x - part->x;
+	tb_org.y = _y - part->y;
+	
+	// correct for rotation of part
+	RotatePoint( &tb_org, 360-part->angle, zero );
+	
+	// correct for part on bottom of board (reverse relative x-axis)
+	if( part->side == 1 )
+		tb_org.x = -tb_org.x;
+	
+	// reset ref text parameters
+	MustRedraw();
+	m_x = tb_org.x;
+	m_y = tb_org.y;
+	if (_angle!=-1) 
+		m_angle = _angle % 360;
+	if (_size!=-1)
+		m_font_size = _size;
+	if (_w!=-1)
+		m_stroke_width = _w;
+}
+
+CPoint ctext::GetAbsolutePoint()
+{
+	// CPT2.  Used for reftexts and valuetexts, whose absolute position is computed relative to the parent part.
+	cpart2 *part = GetPart();
+	CPoint pt;
+
+	// move origin of text box to position relative to part
+	pt.x = m_x;
+	pt.y = m_y;
+	// flip if part on bottom
+	if( part->side )
+		pt.x = -pt.x;
+	// rotate with part about part origin
+	RotatePoint( &pt, part->angle, zero );
+	pt.x += part->x;
+	pt.y += part->y;
+	return pt;
+}
+
+CRect ctext::GetRect()
+{
+	// CPT2 utility.  Get bounding rectangle.  If this is a reftext or valuetext, the result is relative to the parent part.
+	GenerateStrokes();
+	return m_br;
+}
 
 void ctext::GenerateStrokes() {
 	// CPT2 new.  Helper for Draw(), though it might also be called independently of drawing.
@@ -5369,6 +5317,9 @@ void ctext::GenerateStrokesRelativeTo(cpart2 *part) {
 	double y_offset = 9.0*y_scale;
 	// Adjust layer value if part is on bottom
 	int layer = m_layer;
+	int bMirror = m_bMirror;
+	if (layer==LAY_SILK_BOTTOM || layer==LAY_BOTTOM_COPPER)
+		bMirror = !bMirror;
 	if (part->side)
 		if (layer==LAY_SILK_TOP) layer = LAY_SILK_BOTTOM;
 		else if (layer==LAY_TOP_COPPER) layer = LAY_BOTTOM_COPPER;
@@ -5389,7 +5340,7 @@ void ctext::GenerateStrokesRelativeTo(cpart2 *part) {
 		double coord[64][4];
 		double min_x, min_y, max_x, max_y;
 		int nstrokes;
-		if( !m_bMirror )
+		if( !bMirror )
 			nstrokes = smf->GetCharStrokes( m_str[ic], SIMPLEX, &min_x, &min_y, &max_x, &max_y,
 				coord, 64 );
 		else
@@ -5398,7 +5349,7 @@ void ctext::GenerateStrokesRelativeTo(cpart2 *part) {
 		// loop through strokes and create stroke structures
 		for( int is=0; is<nstrokes; is++ )
 		{
-			if( m_bMirror )
+			if( bMirror )
 			{
 				xi = (max_x - coord[is][0])*x_scale;
 				yi = coord[is][1]*y_scale + y_offset;
@@ -5425,8 +5376,7 @@ void ctext::GenerateStrokesRelativeTo(cpart2 *part) {
 			sf.x += m_x;
 			si.y += m_y;
 			sf.y += m_y;
-			// flip if part on bottom
-			if( part->side )
+			if (part->side)
 				si.x = -si.x,
 				sf.x = -sf.x;
 			// rotate with part about part origin
@@ -5476,6 +5426,8 @@ int ctext::Draw()
 		return NO_DLIST;
 	if (bDrawn)
 		return ALREADY_DRAWN;
+	if (!m_bShown)
+		return NOERR;
 
 	GenerateStrokes();													// Fills m_stroke and m_br
 	// Now draw each stroke
@@ -5500,6 +5452,8 @@ int ctext::DrawRelativeTo(cpart2 *part, bool bSelector)
 		return ALREADY_DRAWN;
 	if (m_str.GetLength()==0)
 		return EMPTY_TEXT;
+	if (!m_bShown)
+		return NOERR;
 
 	GenerateStrokesRelativeTo( part );													// Fills m_stroke and m_br
 	// Now draw each stroke
@@ -5545,21 +5499,42 @@ void ctext::SetVisible(bool bVis)
 		m_stroke[is].dl_el->visible = bVis;
 }
 
+void ctext::StartDragging( CDC * pDC )
+{
+	// CPT2 derived from CTextList::StartDraggingText
+	SetVisible(false);
+	CDisplayList *dl = doc->m_dlist;
+	dl->CancelHighlight();
+	dl->StartDraggingRectangle( pDC, 
+		dl->Get_x(dl_sel), dl->Get_y(dl_sel),
+		dl->Get_x(dl_sel) - dl->Get_x_org(dl_sel), dl->Get_y(dl_sel) - dl->Get_y_org(dl_sel),
+		dl->Get_xf(dl_sel) - dl->Get_x_org(dl_sel), dl->Get_yf(dl_sel) - dl->Get_y_org(dl_sel), 
+		0, LAY_RAT_LINE );
+}
+
+void ctext::CancelDragging()
+{
+	// CPT2 derived from CTextList::CancelDraggingText
+	doc->m_dlist->StopDragging();
+	SetVisible(true);
+}
+
+
 
 creftext::creftext( cpart2 *_part, int x, int y, int angle, 
 	BOOL bMirror, BOOL bNegative, int layer, int font_size, 
-	int stroke_width, SMFontUtil * smfontutil, CString * str_ptr ) :
+	int stroke_width, SMFontUtil * smfontutil, CString * str_ptr, bool bShown ) :
 		ctext(_part->doc, x, y, angle, bMirror, bNegative, layer, font_size,
 			stroke_width, smfontutil, str_ptr) 
-		{ part = _part; }
+		{ part = _part; m_bShown = bShown; }
 
 bool creftext::IsValid() { return part && part->IsValid(); }
 
 cvaluetext::cvaluetext( cpart2 *_part, int x, int y, int angle, 
 	BOOL bMirror, BOOL bNegative, int layer, int font_size, 
-	int stroke_width, SMFontUtil * smfontutil, CString * str_ptr ) :
+	int stroke_width, SMFontUtil * smfontutil, CString * str_ptr, bool bShown ) :
 		ctext(_part->doc, x, y, angle, bMirror, bNegative, layer, font_size,
 			stroke_width, smfontutil, str_ptr) 
-		{ part = _part; }
+		{ part = _part; m_bShown = bShown; }
 
 bool cvaluetext::IsValid() { return part && part->IsValid(); }

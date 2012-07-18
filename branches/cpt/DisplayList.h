@@ -332,7 +332,7 @@ public:
 	int StopDragging();
 	BOOL Dragging_third_segment() { return m_drag_style2 != DSS_NONE; };
 	void ChangeRoutingLayer( CDC * pDC, int layer1, int layer2, int w );
-	void IncrementDragAngle( CDC * pDC );
+	void IncrementDragAngle( CDC * pDC, bool bCCW = false );					// CPT2 added param
 	int MakeDragLineArray( int num_lines );
 	int MakeDragRatlineArray( int num_ratlines, int width );
 	int AddDragLine( CPoint pi, CPoint pf );

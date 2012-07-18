@@ -12,7 +12,7 @@ class CDlgRefText : public CDialog
 public:
 	CDlgRefText(CWnd* pParent = NULL);   // standard constructor
 	virtual ~CDlgRefText();
-	void Initialize( CPartList * plist, cpart * part, CMapStringToPtr * shape_cache_map );
+	void Initialize( ctext *text, CMapStringToPtr * shape_cache_map );
 	void GetFields();
 	void SetFields();
 
@@ -30,8 +30,8 @@ public:
 	int m_height;
 	int m_width;
 	int m_def_width;
-	CPartList * m_plist;
-	cpart * m_part;
+	CString m_str;									// CPT2. On exit, holds the contents of the m_edit_ref_des box.
+	ctext * m_text;
 	CMapStringToPtr * m_footprint_cache_map;
 	CEdit m_edit_ref_des;
 	CEdit m_edit_height;

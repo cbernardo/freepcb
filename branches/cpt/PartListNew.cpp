@@ -245,11 +245,11 @@ cpart2 * cpartlist::AddFromString( CString * str )
 	cpart2 * part = new cpart2(this);
 	part->SetData( s, &ref_des, &value, &package, x, y, side, angle, 1, glued );			// CPT2.  Also initializes pins and puts ref and value
 																							// into the positions indicated by the shape
-	part->m_ref_vis = ref_vis;
+	part->m_ref->m_bShown = ref_vis;
 	if (ref_specified)
 		part->m_ref->Move(ref_xi, ref_yi, ref_angle,
 				false, false, ref_layer, ref_size, ref_width);
-	part->m_value_vis = value_vis;
+	part->m_value->m_bShown = value_vis;
 	if (value_specified)
 		part->m_value->Move(value_xi, value_yi, value_angle, 
 				false, false, value_layer, value_size, value_width );
@@ -351,13 +351,13 @@ int cpartlist::ExportPartListInfo( partlist_info * pli, cpart2 *part0 )
 		pi->shape = part->shape;
 		pi->bShapeChanged = FALSE;
 		pi->ref_des = part->ref_des;
-		pi->ref_vis = part->m_ref_vis;
+		pi->ref_vis = part->m_ref->m_bShown;
 		pi->ref_layer = part->m_ref->m_layer;					// CPT2 added this for consistency
 		pi->ref_size = part->m_ref->m_font_size;				// CPT2 TODO why do we have ref size/width in partlistinfo, but not value size/width?
 		pi->ref_width = part->m_ref->m_stroke_width;
 		pi->package = part->package;
 		pi->value = part->value_text;
-		pi->value_vis = part->m_value_vis;
+		pi->value_vis = part->m_value->m_bShown;
 		pi->value_layer = part->m_value->m_layer;
 		pi->x = part->x;
 		pi->y = part->y;
@@ -499,9 +499,9 @@ void cpartlist::ImportPartListInfo( partlist_info * pl, int flags, CDlgLog * log
 					pi->part = old_part;
 					pi->ref_size = old_part->m_ref->m_font_size; 
 					pi->ref_width = old_part->m_ref->m_stroke_width;
-					pi->ref_vis = old_part->m_ref_vis;					// CPT
+					pi->ref_vis = old_part->m_ref->m_bShown;					// CPT
 					pi->value = old_part->value_text;
-					pi->value_vis = old_part->m_value_vis;
+					pi->value_vis = old_part->m_ref->m_bShown;
 					pi->x = old_part->x; 
 					pi->y = old_part->y;
 					pi->angle = old_part->angle;
@@ -513,9 +513,9 @@ void cpartlist::ImportPartListInfo( partlist_info * pl, int flags, CDlgLog * log
 					// use new footprint, but preserve position
 					pi->ref_size = old_part->m_ref->m_font_size; 
 					pi->ref_width = old_part->m_ref->m_stroke_width;
-					pi->ref_vis = old_part->m_ref_vis;					// CPT
+					pi->ref_vis = old_part->m_ref->m_bShown;					// CPT
 					pi->value = old_part->value_text;
-					pi->value_vis = old_part->m_value_vis;
+					pi->value_vis = old_part->m_value->m_bShown;
 					pi->x = old_part->x; 
 					pi->y = old_part->y;
 					pi->angle = old_part->angle;
@@ -632,8 +632,8 @@ void cpartlist::ImportPartListInfo( partlist_info * pl, int flags, CDlgLog * log
 			// The following line also positions ref and value according to "shape", if possible, and calls part->MustRedraw():
 			part->SetData( shape, &pi->ref_des, &pi->value, &pi->package, pi->x, pi->y,
 				pi->side, pi->angle, TRUE, FALSE );
-			part->m_ref_vis = pi->ref_vis;
-			part->m_value_vis = pi->value_vis;
+			part->m_ref->m_bShown = pi->ref_vis;
+			part->m_value->m_bShown = pi->value_vis;
 			// CPT2 TODO.  The point of the following line is to allow "phantom pins" (those within a net that refer to deleted parts)
 			// to be reattached when the part is reinstated.  Since I'm proposing that we drop phantom pins, I'm commenting it out.
 			// m_nlist->PartAdded( part );
@@ -653,13 +653,13 @@ void cpartlist::ImportPartListInfo( partlist_info * pl, int flags, CDlgLog * log
 					// change footprint to new one
 					part->FootprintChanged( pi->shape );
 			}
-			part->m_ref_vis = pi->ref_vis;
+			part->m_ref->m_bShown = pi->ref_vis;
 			part->m_ref->m_layer = pi->ref_layer;
 			part->m_ref->Resize( pi->ref_size, pi->ref_width );
 			if (part->ref_des != pi->ref_des)
 				part->ref_des = pi->ref_des,
 				part->m_ref->m_str = pi->ref_des;
-			part->m_value_vis = pi->value_vis;
+			part->m_value->m_bShown = pi->value_vis;
 			part->m_value->m_layer = pi->value_layer;
 			if( part->value_text != pi->value )
 				part->value_text = pi->value,
