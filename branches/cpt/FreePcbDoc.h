@@ -276,7 +276,6 @@ public:
 	//}}AFX_MSG
 	DECLARE_MESSAGE_MAP()
 public:
-	afx_msg void OnAddPart();
 	afx_msg void OnProjectNetlist();
 	afx_msg void OnFileOpen();
 	afx_msg void OnFileNew();

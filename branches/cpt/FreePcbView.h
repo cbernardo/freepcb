@@ -39,11 +39,6 @@ enum {
 	CUR_DRE_SELECTED,			// DRC error selected
 	CUR_GROUP_SELECTED,			// multiple parts selected
 	CUR_NUM_SELECTED_MODES,		// number of SELECTED modes
-	CUR_ADD_BOARD,		// dragging starting point of board outline
-	CUR_DRAG_BOARD_1,	// dragging first corner of board outline
-	CUR_DRAG_BOARD,		// dragging next corner of board outline
-	CUR_DRAG_BOARD_INSERT,	// dragging board corner being inserted
-	CUR_DRAG_BOARD_MOVE,	// dragging board corner being moved
 	CUR_DRAG_PART,		// dragging part
 	CUR_DRAG_REF,		// dragging ref text of part
 	// CUR_DRAG_VALUE,		// dragging value of part // CPT2 assimilated to CUR_DRAG_REF
@@ -54,18 +49,13 @@ enum {
 	// CUR_DRAG_END_VTX,	// dragging end vertex being moved // CPT2 phasing out
 	CUR_DRAG_TEXT,		// dragging text box
 	CUR_ADD_AREA,		// setting starting point for copper area
-	CUR_DRAG_AREA_1,	// dragging first corner for copper area
-	CUR_DRAG_AREA,		// dragging next corner for copper area
-	CUR_DRAG_AREA_INSERT,	// dragging area corner being inserted
-	CUR_DRAG_AREA_MOVE,		// dragging area corner being moved
-	CUR_ADD_AREA_CUTOUT,	// setting starting point for area cutout
-	CUR_DRAG_AREA_CUTOUT_1,	// dragging first corner for area cutout
-	CUR_DRAG_AREA_CUTOUT,	// dragging next corner for area cutout
+	CUR_DRAG_POLY_1,	// dragging first corner for polyline // CPT2 replaces old CUR_DRAG_AREA_1, CUR_DRAG_AREA_CUTOUT_1, CUR_DRAG_SMCUTOUT_1, CUR_DRAG_BOARD_1
+	CUR_DRAG_POLY,		// dragging next corner for polyline // CPT2 similarly
+	CUR_DRAG_POLY_INSERT,	// dragging polyline corner being inserted // CPT2 sim.
+	CUR_DRAG_POLY_MOVE,		// dragging polyline corner being moved // CPT2 sim.
+	CUR_ADD_POLY_CUTOUT,	// setting starting point for polyline cutout
 	CUR_ADD_SMCUTOUT,		// setting starting point of solder mask cutout
-	CUR_DRAG_SMCUTOUT_1,	// dragging first corner of solder mask cutout
-	CUR_DRAG_SMCUTOUT,		// dragging next corner of solder mask cutout
-	CUR_DRAG_SMCUTOUT_INSERT,	// dragging solder mask cutout corner being inserted
-	CUR_DRAG_SMCUTOUT_MOVE,		// dragging solder mask cutout corner being moved
+	CUR_ADD_BOARD,		// dragging starting point of board outline
 	CUR_DRAG_STUB,		// dragging ratline to next stub endpoint
 	CUR_DRAG_NEW_RAT,	// dragging ratline to new connection. CPT2 new name (clearer I think)
 	CUR_DRAG_RAT_PIN,	// dragging ratline to new end pin of trace
@@ -133,7 +123,7 @@ enum {
 	FK_SET_POSITION,
 	FK_DELETE_OUTLINE,
 	FK_DELETE_AREA,
-	FK_DELETE_CUTOUT,
+	FK_DELETE_CUTOUT,			// CPT2 now used only for deleting smcutouts (not area cutouts)
 	FK_ADD_SEGMENT,				// CPT2 supplanted by FK_START_TRACE.  But not removing definition (otherwise string-table of fk-texts has to change too)
 	FK_ADD_VIA,
 	FK_DELETE_VIA,
@@ -160,6 +150,11 @@ enum {
 	FK_SET_TRACE_WIDTH,
 	FK_ROTATE_CW,
 	FK_ROTATE_CCW,
+	FK_ADD_SMCUTOUT,
+	FK_ADD_BOARD,
+	FK_REMOVE_CONTOUR,
+	FK_EXCLUDE_RGN,
+	FK_EDIT_CUTOUT,
 	// end CPT
 
 	FK_NUM_OPTIONS,
@@ -356,7 +351,8 @@ public:
 	int m_polyline_style;			// STRAIGHT, ARC_CW or ARC_CCW
 	int m_polyline_hatch;			// NONE, DIAGONAL_FULL or DIAGONAL_EDGE
 	int m_polyline_layer;			// layer being drawn
-	cpolyline *m_tmp_poly;			// CPT2.  When dragging new cutouts, we put the evolving contour into its own temporary polyline.
+	cpolyline *m_tmp_poly;			// CPT2.  When dragging new polylines or cutouts, we put the evolving contour into this poly.
+	int m_poly_drag_mode;			// CPT2.  Equal to CUR_ADD_AREA, CUR_ADD_AREA_CUTOUT, CUR_ADD_SMCUTOUT, CUR_ADD_BOARD
 
 	// flag to disable context menu on right-click,
 	// if right-click handled some other way
@@ -442,7 +438,6 @@ public:
 	void SelectItem(cpcb_item *item);		// CPT2 
 	int ShowSelectStatus();
 	int ShowActiveLayer();
-	int SelectPart( cpart * part );
 	void CancelHighlight();		// AMW r272
 	void CancelSelection();
 	void HighlightNet( cnet * net, id * exclude_id=NULL );
@@ -485,8 +480,9 @@ public:
 	void SaveUndoInfoForAllNetsAndConnectionsAndAreas( BOOL new_event, CUndoList * list );
 	void SaveUndoInfoForAllNets( BOOL new_event, CUndoList * list );
 	void SaveUndoInfoForMoveOrigin( int x_off, int y_off, CUndoList * list );
-	void SaveUndoInfoForBoardOutlines( BOOL new_event, CUndoList * list );
-	void SaveUndoInfoForSMCutouts( BOOL new_event, CUndoList * list );
+	void SaveUndoInfoForPolylines( BOOL new_event, CUndoList * list );					// CPT2 will combine the actions of the following two functions:
+	// void SaveUndoInfoForBoardOutlines( BOOL new_event, CUndoList * list );
+	// void SaveUndoInfoForSMCutouts( BOOL new_event, CUndoList * list );
 	void SaveUndoInfoForText( ctext * text, int type, BOOL new_event, CUndoList * list );
 	void SaveUndoInfoForText( undo_text * u_text, int type, BOOL new_event, CUndoList * list );
 	void SaveUndoInfoForGroup( int type, carray<cpcb_item> *items, CUndoList * list );
@@ -497,7 +493,7 @@ public:
 	static void UndoGroupCallback( int type, void * ptr, BOOL undo );
 	void OnExternalChangeFootprint( CShape * fp );
 	void HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags);
-	void TryToReselectAreaCorner( int x, int y );
+	void TryToReselectCorner( int x, int y );
 	void ReselectNetItemIfConnectionsChanged( int new_ic );
 	int SelectObjPopup( CPoint const &point );												// CPT r294: removed args (use m_hit_info instead)
 	void OnVertexStartTrace(bool bResetActiveWidth);										// CPT2 versions with an extra param added
@@ -524,6 +520,7 @@ public:
 	afx_msg void OnTextAdd();
 	afx_msg void OnTextDelete();
 	afx_msg void OnTextMove();
+	afx_msg void OnAddPart();					// CPT2, formerly in CFreePcbDoc.
 	afx_msg void OnPartGlue();
 	afx_msg void OnPartUnglue();
 	afx_msg void OnPartProperties();			// CPT2, formerly in CFreePcbDoc.
@@ -552,11 +549,21 @@ public:
 	afx_msg void OnRatlineChangeEndPin();
 	afx_msg void OnTextEdit();
 	afx_msg void OnAddBoardOutline();
-	afx_msg void OnBoardCornerMove();
-	afx_msg void OnBoardCornerEdit();
-	afx_msg void OnBoardCornerDelete();
-	afx_msg void OnBoardSideAddCorner();
-	afx_msg void OnBoardDeleteOutline();
+	// CPT2:  Consolidated from OnBoard..., OnArea..., and OnSm... functions:
+	afx_msg void OnPolyDelete();
+	afx_msg void OnPolyCornerMove();
+	afx_msg void OnPolyCornerEdit();
+	afx_msg void OnPolyCornerDelete();
+	afx_msg void OnPolySideAddCorner();
+	afx_msg void OnPolySideConvertToStraightLine();
+	afx_msg void OnPolySideConvertToArcCw();
+	afx_msg void OnPolySideConvertToArcCcw();
+	void OnPolySideConvert(int style);					// CPT2, factored out the base of the previous 3 functions.
+	// afx_msg void OnBoardCornerMove();
+	// afx_msg void OnBoardCornerEdit();
+	// afx_msg void OnBoardCornerDelete();
+	// afx_msg void OnBoardSideAddCorner();
+	// afx_msg void OnBoardDeleteOutline();
 	afx_msg void OnPadStartTrace();
 	afx_msg void OnSegmentDelete();
 	// afx_msg void OnEndVertexMove();					// CPT2 phased out special end-vertex routines
@@ -564,25 +571,23 @@ public:
 	// afx_msg void OnEndVertexAddConnection();
 	// afx_msg void OnEndVertexDelete();
 	// afx_msg void OnEndVertexEdit();
-	afx_msg void OnAreaCornerMove();
-	afx_msg void OnAreaCornerDelete();
-	afx_msg void OnAreaCornerDeleteArea();
-	afx_msg void OnAreaSideAddCorner();
-	afx_msg void OnAreaSideDeleteArea();
+	// afx_msg void OnAreaCornerMove();
+	// afx_msg void OnAreaCornerDelete();
+	// afx_msg void OnAreaDelete();
+	// afx_msg void OnAreaSideAddCorner();
 	afx_msg void OnAddArea();
-	afx_msg void OnAreaAddCutout();
-	afx_msg void OnAreaDeleteCutout();
+	afx_msg void OnPolyAddCutout();
+	afx_msg void OnPolyDeleteCutout();
 	afx_msg void OnVertexAddVia();
 	afx_msg void OnVertexRemoveVia();
 	afx_msg void OnSegmentDeleteTrace();
-	afx_msg void OnAreaCornerProperties();
 	afx_msg void OnRefProperties();
 	afx_msg void OnVertexProperties();
 	afx_msg void OnTeeProperties();
 	afx_msg BOOL OnEraseBkgnd(CDC* pDC);
-	afx_msg void OnBoardSideConvertToStraightLine();
-	afx_msg void OnBoardSideConvertToArcCw();
-	afx_msg void OnBoardSideConvertToArcCcw();
+	// afx_msg void OnBoardSideConvertToStraightLine();
+	// afx_msg void OnBoardSideConvertToArcCw();
+	// afx_msg void OnBoardSideConvertToArcCcw();
 	afx_msg void OnUnrouteTrace();
 	afx_msg void OnViewEntireBoard();
 	afx_msg void OnViewAllElements();
@@ -598,13 +603,14 @@ public:
 	afx_msg void OnClearDRC();
 	afx_msg void OnViewAll();
 	afx_msg void OnAddSoldermaskCutout();
-	afx_msg void OnSmCornerMove();
-	afx_msg void OnSmCornerSetPosition();
-	afx_msg void OnSmCornerDeleteCorner();
-	afx_msg void OnSmCornerDeleteCutout();
-	afx_msg void OnSmSideInsertCorner();
+	// afx_msg void OnSmCornerMove();
+	// afx_msg void OnSmCornerSetPosition();
+	// afx_msg void OnSmCornerDeleteCorner();
+	// afx_msg void OnSmCornerDeleteCutout();
+	// afx_msg void OnSmSideInsertCorner();
 	afx_msg void OnSmSideHatchStyle();
-	afx_msg void OnSmSideDeleteCutout();
+	// afx_msg void OnSmSideDeleteCutout();
+	afx_msg void OnSmEdit();					// CPT2 new
 	afx_msg void OnPartChangeSide();
 	afx_msg void OnPartRotateCW();
 	afx_msg void OnNetSetWidth();
@@ -637,7 +643,7 @@ public:
 	afx_msg void OnEditCut();
 	afx_msg void OnGroupRotate();
 	afx_msg void OnRefShowPart();
-	afx_msg void OnAreaSideStyle();
+	// afx_msg void OnAreaSideStyle();		// CPT2 deprecated
 	afx_msg void OnPartRotateCCW();
 	afx_msg void OnRefRotateCW();
 	afx_msg void OnRefRotateCCW();
@@ -684,7 +690,7 @@ public:
 	void GetLayerLabel(int i, CString &label) {
 		// Get the layer label for the i-th line in the left pane display
 		CString s;
-		char lc = layer_char[i-LAY_TOP_COPPER];
+		char lc = layer_char[i-LAY_TOP_COPPER]; 
 		if (i==LAY_TOP_COPPER)
 			s.LoadStringA(IDS_TopCopper),
 			label.Format(s, lc, lc);
@@ -711,6 +717,9 @@ public:
 
 	void HandleShiftLayerKey(int layer, CDC *pDC);
 	void HandleNoShiftLayerKey(int layer, CDC *pDC);
+
+	void FinishAddPoly(ccontour *ctr);
+	void FinishAddPolyCutout(ccontour *ctr);
 };
 // end CPT
 

@@ -66,12 +66,8 @@ int m_layer_by_file_layer[MAX_LAYERS];
 IMPLEMENT_DYNCREATE(CFreePcbDoc, CDocument)
 
 BEGIN_MESSAGE_MAP(CFreePcbDoc, CDocument)
-	//{{AFX_MSG_MAP(CFreePcbDoc)
 	ON_COMMAND(ID_FILE_SAVE_AS, OnFileSaveAs)
 	ON_COMMAND(ID_FILE_SAVE, OnFileSave)
-	//}}AFX_MSG_MAP
-	ON_COMMAND(ID_ADD_PART, OnAddPart)
-	ON_COMMAND(ID_NONE_ADDPART, OnAddPart)
 	ON_COMMAND(ID_VIEW_NETLIST, OnProjectNetlist)
 	ON_COMMAND(ID_FILE_OPEN, OnFileOpen)
 	ON_COMMAND(ID_FILE_NEW, OnFileNew)
@@ -963,35 +959,6 @@ void CFreePcbDoc::OnFileSaveAs()
 			AfxMessageBox( s );
 		}
 	}
-}
-
-void CFreePcbDoc::OnAddPart()
-{
-#ifndef CPT2
-	// invoke dialog
-	CDlgAddPart dlg;
-	partlist_info pl;
-	m_plist->ExportPartListInfo( &pl, NULL );
-	dlg.Initialize( &pl, -1, TRUE, TRUE, FALSE, 0, &m_footprint_cache_map, 
-		&m_footlibfoldermap, m_units, m_dlg_log );
-	int ret = dlg.DoModal();
-	if( ret == IDOK )
-	{
-		// select new part, and start dragging it if requested
-		m_plist->ImportPartListInfo( &pl, 0 );
-		int n_parts = pl.GetSize();
-		cpart * part = m_plist->GetPartByName( pl[n_parts-1].ref_des );
-		ProjectModified( TRUE );
-		m_view->SaveUndoInfoForPart( part, 
-			CPartList::UNDO_PART_ADD, &part->ref_des, TRUE, m_undo_list );
-		m_view->SelectPart( part );
-		if( dlg.GetDragFlag() )
-		{
-			m_view->m_dragging_new_item = TRUE;
-			m_view->OnPartMove();
-		}
-	}
-#endif
 }
 
 void CFreePcbDoc::OnProjectNetlist()
@@ -4493,6 +4460,7 @@ void CFreePcbDoc::OnFileImportSes()
 
 void CFreePcbDoc::OnEditUndo()
 {
+	m_view->CancelSelection();					// CPT2 TODO temporary only
 #ifndef CPT2
 	if( m_undo_list->m_num_items > 0 )
 	{
@@ -4502,6 +4470,7 @@ void CFreePcbDoc::OnEditUndo()
 			while( m_undo_list->Pop() )
 			{
 			}
+			Redraw();							// CPT2
 			m_view->CancelSelection();
 			m_nlist->SetAreaConnections();
 			m_view->Invalidate();

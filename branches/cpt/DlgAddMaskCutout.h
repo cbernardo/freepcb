@@ -14,9 +14,8 @@ public:
 
 // Dialog Data
 	enum { IDD = IDD_ADD_MASK_CUTOUT };
-
-protected:
 	virtual void DoDataExchange(CDataExchange* pDX);    // DDX/DDV support
+	void Initialize( int layer, int hatch );
 
 	DECLARE_MESSAGE_MAP()
 public:

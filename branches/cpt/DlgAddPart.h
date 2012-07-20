@@ -90,6 +90,7 @@ public:
 	int m_x, m_y;
 	int m_angle;
 	int m_multiple_mask;
+	CString m_ref_des;													// CPT2, used when a single part is being created/edited
 
 private:
 	virtual BOOL OnInitDialog();

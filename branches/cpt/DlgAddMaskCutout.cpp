@@ -31,8 +31,10 @@ void CDlgAddMaskCutout::DoDataExchange(CDataExchange* pDX)
 		CString str1 ((LPCSTR) IDS_TopSolderMask), str2 ((LPCSTR) IDS_BottomSolderMask);
 		m_combo_layer.InsertString( 0, str1 );
 		m_combo_layer.InsertString( 1, str2 );
-		m_combo_layer.SetCurSel(0);
-		m_radio_none.SetCheck(1);
+		m_combo_layer.SetCurSel( m_layer==LAY_SM_TOP? 0: 1 );
+		m_radio_none.SetCheck( m_hatch == cpolyline::NO_HATCH );
+		m_radio_edge.SetCheck( m_hatch == cpolyline::DIAGONAL_EDGE );
+		m_radio_full.SetCheck( m_hatch == cpolyline::DIAGONAL_FULL );
 	}
 	else
 	{
@@ -54,6 +56,11 @@ void CDlgAddMaskCutout::DoDataExchange(CDataExchange* pDX)
 	}
 }
 
+void CDlgAddMaskCutout::Initialize( int layer, int hatch )
+{
+	m_layer = layer;
+	m_hatch = hatch;
+}
 
 BEGIN_MESSAGE_MAP(CDlgAddMaskCutout, CDialog)
 END_MESSAGE_MAP()

@@ -2928,9 +2928,9 @@ void ccorner::StartDragging( CDC * pDC, int x, int y, int crosshair )
 		dl->Set_visible(preSide->dl_el, 0);
 	if (postSide)
 		dl->Set_visible(postSide->dl_el, 0);
-	carea2 *a = GetArea();
-	for( int ih=0; ih < a->m_nhatch; ih++ )
-		dl->Set_visible( a->dl_hatch[ih], 0 );
+	cpolyline *poly = GetPolyline();
+	for( int ih=0; ih < poly->m_nhatch; ih++ )
+		dl->Set_visible( poly->dl_hatch[ih], 0 );
 
 	// see if corner is the first or last corner of an open contour
 	if (!preSide || !postSide)
@@ -3373,6 +3373,23 @@ bool cpolyline::TestPointInside(int x, int y)
 		return FALSE;
 }
 
+void cpolyline::GetSidesInRect( CRect *r, carray<cpcb_item> *arr)
+{
+	// CPT2 new, helper for CFreePcbView::SelectItemsInRect().
+	citer<ccontour> ictr (&contours);
+	for (ccontour *ctr = ictr.First(); ctr; ctr = ictr.Next())
+	{
+		citer<cside> is (&ctr->sides);
+		for (cside *s = is.First(); s; s = is.Next())
+		{
+			CPoint pre (s->preCorner->x, s->preCorner->y);
+			CPoint post (s->postCorner->x, s->postCorner->y);
+			if (r->PtInRect(pre) && r->PtInRect(post))
+				arr->Add(s);
+		}
+	}
+}
+
 // Test a polyline for self-intersection.
 // Returns:
 //	-1 if arcs intersect other sides
@@ -3710,217 +3727,6 @@ void cpolyline::Highlight()
 		c->Highlight();
 }
 
-int cpolyline::TestIntersection( cpolyline *poly2, bool bCheckArcIntersections )
-{
-	// Test for intersection of 2 copper areas
-	// returns: 0 if no intersection
-	//			1 if intersection
-	//			2 if arcs intersect.  But if bCheckArcIntersections is false, return 1 as soon as any intersection whatever is found
-	// CPT2 adapted from CNetList::TestAreaIntersection.  By adding the bCheckArcIntersections param, this covers CNetList::TestAreaIntersections too
-	// TODO I don't think this will work if poly2 is totally within this.  We might consider using 
-	//   the CMyBitmap class, or gpc?
-	// First see if polygons are on same layer
-	cpolyline *poly1 = this;
-	if( poly1->GetLayer() != poly2->GetLayer() )
-		return 0;
-
-	// test bounding rects
-	CRect b1 = poly1->GetCornerBounds();
-	CRect b2 = poly2->GetCornerBounds();
-	if(    b1.bottom > b2.top
-		|| b1.top < b2.bottom
-		|| b1.left > b2.right
-		|| b1.right < b2.left )
-		return 0;
-
-	// now test for intersecting segments
-	BOOL bInt = FALSE;
-	BOOL bArcInt = FALSE;
-	citer<ccontour> ictr1 (&poly1->contours);
-	for (ccontour *ctr1 = ictr1.First(); ctr1; ctr1 = ictr1.Next())
-	{
-		citer<cside> is1 (&ctr1->sides);
-		for (cside *s1 = is1.First(); s1; s1 = is1.Next())
-		{
-			int xi1 = s1->preCorner->x, yi1 = s1->preCorner->y;
-			int xf1 = s1->postCorner->x, yf1 = s1->postCorner->y;
-			int style1 = s1->m_style;
-			citer<ccontour> ictr2 (&poly2->contours);
-			for (ccontour *ctr2 = ictr2.First(); ctr2; ctr2 = ictr2.Next())
-			{
-				citer<cside> is2 (&ctr2->sides);
-				for (cside *s2 = is2.First(); s2; s2 = is2.Next())
-				{
-					int xi2 = s2->preCorner->x, yi2 = s2->preCorner->y;
-					int xf2 = s2->postCorner->x, yf2 = s2->postCorner->y;
-					int style2 = s2->m_style;
-					int n_int = FindSegmentIntersections( xi1, yi1, xf1, yf1, style1,
-									xi2, yi2, xf2, yf2, style2 );
-					if( n_int )
-					{
-						bInt = TRUE;
-						if (!bCheckArcIntersections)
-							return 1;
-						if( style1 != CPolyLine::STRAIGHT || style2 != CPolyLine::STRAIGHT )
-							return 2;
-						break;
-					}
-				}
-			}
-		}
-	}
-
-	if( !bInt )
-		return 0;
-	// An intersection found, but no arc-intersections:
-	return 1;
-}
-
-int cpolyline::CombinePolyline( cpolyline *poly2 )
-{
-	// CPT2. Adapted from CNetList::CombineAreas.  Unions "poly2" onto "this" polyline.  Does not deal with the removal of poly2 from the net in
-	// the case that this and poly2 are copper areas:
-	// that's the caller's job.  Assumes that the intersection check has already taken place.
-	// Returns 1 if we actually combine 'em, or 0 in the unusual cases where they're actually disjoint.
-	cpolyline * poly1 = this;
-	CArray<CArc> arc_array1;
-	CArray<CArc> arc_array2;
-	poly1->MakeGpcPoly( NULL, &arc_array1 );
-	poly2->MakeGpcPoly( NULL, &arc_array2 );
-	int n_ext_cont1 = 0;
-	for( int ic=0; ic<poly1->GetGpcPoly()->num_contours; ic++ )
-		if( !((poly1->GetGpcPoly()->hole)[ic]) )
-			n_ext_cont1++;
-	int n_ext_cont2 = 0;
-	for( int ic=0; ic<poly2->GetGpcPoly()->num_contours; ic++ )
-		if( !((poly2->GetGpcPoly()->hole)[ic]) )
-			n_ext_cont2++;
-
-	gpc_polygon * union_gpc = new gpc_polygon;
-	gpc_polygon_clip( GPC_UNION, poly1->GetGpcPoly(), poly2->GetGpcPoly(), union_gpc );
-
-	// get number of outside contours
-	int n_union_ext_cont = 0;
-	for( int ic=0; ic<union_gpc->num_contours; ic++ )
-		if( !((union_gpc->hole)[ic]) )
-			n_union_ext_cont++;
-
-	// if no intersection, free new gpc and return.  Somewhat unlikely since an intersection check has usually already occurred, but if areas
-	// meet at a single point it could happen.
-	if( n_union_ext_cont == n_ext_cont1 + n_ext_cont2 )
-	{
-		gpc_free_polygon( union_gpc );
-		delete union_gpc;
-		return 0;
-	}
-
-	// intersection, as expected.  Replace poly1/this with combined area
-	poly1->MustRedraw();
-	poly2->Undraw();
-	contours.RemoveAll();
-	for( int ic=0; ic<union_gpc->num_contours; ic++ )
-	{
-		ccontour *ctr = new ccontour(this, !union_gpc->hole[ic]);		// NB the new contour will be this->main if the current gpc contour is a non-hole
-		for( int i=0; i<union_gpc->contour[ic].num_vertices; i++ )
-		{
-			int x = union_gpc->contour[ic].vertex[i].x;
-			int y = union_gpc->contour[ic].vertex[i].y;
-			ccorner *c = new ccorner(ctr, x, y);			// Constructor adds corner to ctr->corners (and may also set ctr->head/tail if
-															// it was previously empty)
-			if (i>0)
-			{
-				cside *s = new cside(ctr, STRAIGHT);
-				ctr->AppendSideAndCorner(s, c, ctr->tail);
-			}
-		}
-		ctr->Close(STRAIGHT);
-	}
-
-	utility = 1;
-	RestoreArcs( &arc_array1 ); 
-	RestoreArcs( &arc_array2 );
-	gpc_free_polygon( union_gpc );
-	delete union_gpc;
-	return 1;
-}
-
-void cpolyline::RestoreArcs( CArray<CArc> *arc_array, carray<cpolyline> *pa )
-{
-	// Restore arcs to a polygon where they were replaced with steps
-	// If pa != NULL, also use polygons in pa array
-	// CPT2 converted.
-	carray<cpolyline> pa2;
-	pa2.Add(this);
-	if (pa)
-		pa2.Add(pa);
-
-	// find arcs and replace them
-	BOOL bFound;
-	int arc_start;
-	int arc_end;
-	for( int iarc=0; iarc<arc_array->GetSize(); iarc++ )
-	{
-		int arc_xi = (*arc_array)[iarc].xi;
-		int arc_yi = (*arc_array)[iarc].yi;
-		int arc_xf = (*arc_array)[iarc].xf;
-		int arc_yf = (*arc_array)[iarc].yf;
-		int n_steps = (*arc_array)[iarc].n_steps;
-		int style = (*arc_array)[iarc].style;
-		ccorner *arc_start = NULL, *arc_end = NULL;
-		// loop through polys
-		citer<cpolyline> ip (&pa2);
-		for (cpolyline *p = ip.First(); p; p = ip.Next())
-		{
-			citer<ccontour> ictr (&p->contours);
-			for (ccontour *ctr = ictr.First(); ctr; ctr = ictr.Next())
-			{
-				if (ctr->corners.GetSize() <= n_steps) continue;
-				citer<ccorner> ic (&ctr->corners);
-				for (ccorner *c = ic.First(); c; c = ic.Next())
-				{
-					if (c->x != arc_xi || c->y != arc_yi) continue;
-					// Check if we find a corner at location (arc_xf,arc_yf), either n_steps positions forward from c or n_steps positions back
-					ccorner *c2 = c;
-					for (int i=0; i<n_steps; i++)
-						c2 = c2->postSide->postCorner;
-					if (c2->x == arc_xf && c2->y == arc_yf) 
-					{
-						arc_start = c; arc_end = c2;
-						goto arc_found;
-					}
-					c2 = c;
-					for (int i=0; i<n_steps; i++)
-						c2 = c2->preSide->preCorner;
-					if (c2->x == arc_xf && c2->y == arc_yf)
-					{
-						arc_start = c2; arc_end = c;
-						style = style==ARC_CW? ARC_CCW: ARC_CW;						// Arc has been reversed, so flip cw & ccw
-						goto arc_found;
-					}
-				}
-			}
-		}
-		continue;
-
-		arc_found:
-		(*arc_array)[iarc].bFound = TRUE;											// Necessary?
-		ccontour *ctr = arc_start->contour;
-		ctr->poly->MustRedraw();
-		for (ccorner *c = arc_start; c != arc_end; c = c->postSide->postCorner)
-		{
-			if (c != arc_start) 
-				ctr->corners.Remove(c);
-			ctr->sides.Remove(c->postSide);
-		}
-		cside *new_side = new cside(ctr, style);
-		arc_start->postSide = new_side;
-		new_side->preCorner = arc_start;
-		arc_end->preSide = new_side;
-		new_side->postCorner = arc_end;
-	}
-}
-
-
 #define pi  3.14159265359
 
 void TestGpc()
@@ -4168,6 +3974,472 @@ void cpolyline::FreeGpcPoly()
 	m_gpc_poly->num_contours = 0;
 }
 
+void cpolyline::NormalizeWithGpc( bool bRetainArcs )
+{
+	// Use the General Polygon Clipping Library to clip "this"
+	// If this results in new polygons, create them (invoke cpolyline::CreateCompatible(), which
+	// will attach the same net/membership-list as "this").
+	// If bRetainArcs == TRUE, try to retain arcs in polys
+	// CPT2 converted.  NB does not do any drawing/undrawing.  TODO perhaps one day it would be nice to
+	// figure out a way to generalize this to any type of cpolyline.
+	CArray<CArc> arc_array;
+	if( bRetainArcs )
+		MakeGpcPoly( NULL, &arc_array );
+	else
+		MakeGpcPoly( NULL, NULL );
+
+	// now, recreate poly
+	// first, find outside contours and create new carea2's if necessary
+	int n_ext_cont = 0;
+	carray<cpolyline> arr;
+	for( int ic=0; ic<m_gpc_poly->num_contours; ic++ )
+	{
+		if( m_gpc_poly->hole[ic] ) continue;
+		cpolyline *poly;
+		n_ext_cont++;
+		if( n_ext_cont == 1 )
+			poly = this,
+			poly->MustRedraw(),
+			contours.RemoveAll();
+		else
+			poly = CreateCompatible(),
+			poly->MustRedraw(),
+			arr.Add(poly);
+		ccontour *ctr = new ccontour(poly, true);						// NB the new contour will be poly->main
+		for( int i=0; i<m_gpc_poly->contour[ic].num_vertices; i++ )
+		{
+			int x = m_gpc_poly->contour[ic].vertex[i].x;
+			int y = m_gpc_poly->contour[ic].vertex[i].y;
+			ccorner *c = new ccorner(ctr, x, y);						// Constructor adds corner to ctr->corners and will also set ctr->head/tail
+			if (i>0)
+			{
+				cside *s = new cside(ctr, STRAIGHT);
+				ctr->AppendSideAndCorner(s, c, ctr->tail);
+			}
+		}
+		ctr->Close(STRAIGHT);
+		}
+
+	// now add cutouts to the cpolylines
+	citer<cpolyline> ip (&arr);
+	for( int ic=0; ic<m_gpc_poly->num_contours; ic++ ) 
+	{
+		if( !m_gpc_poly->hole[ic] ) continue;
+		// Find external poly containing this cutout.
+		cpolyline *ext_poly = NULL;
+		if( n_ext_cont == 1 )
+			ext_poly = this;
+		else
+			// find the polygon that contains this hole
+			for( int i=0; i<m_gpc_poly->contour[ic].num_vertices && !ext_poly; i++ )
+			{
+				int x = m_gpc_poly->contour[ic].vertex[i].x;
+				int y = m_gpc_poly->contour[ic].vertex[i].y;
+				if( TestPointInside( x, y ) )
+					ext_poly = this;
+				else
+					for( cpolyline *poly = ip.First(); poly; poly = ip.Next() )
+						if( poly->TestPointInside( x, y ) )
+							{ ext_poly = poly; break; }
+			}
+		ASSERT( ext_poly );
+
+		ccontour *ctr = new ccontour(ext_poly, false);						// NB the new contour will not be the main one
+		for( int i=0; i<m_gpc_poly->contour[ic].num_vertices; i++ )
+		{
+			int x = m_gpc_poly->contour[ic].vertex[i].x;
+			int y = m_gpc_poly->contour[ic].vertex[i].y;
+			ccorner *c = new ccorner(ctr, x, y);							// Constructor adds corner to ctr->corners; on iteration 0 it sets ctr->head/tail
+			if (i>0)
+			{
+				cside *s = new cside(ctr, STRAIGHT);
+				ctr->AppendSideAndCorner(s, c, ctr->tail);
+			}
+		}
+		ctr->Close(STRAIGHT);
+	}
+	if( bRetainArcs )
+		RestoreArcs( &arc_array, &arr );
+	FreeGpcPoly();
+}
+
+int cpolyline::TestIntersection( cpolyline *poly2, bool bCheckArcIntersections )
+{
+	// Test for intersection of 2 copper areas
+	// returns: 0 if no intersection
+	//			1 if intersection
+	//			2 if arcs intersect.  But if bCheckArcIntersections is false, return 1 as soon as any intersection whatever is found
+	// CPT2 adapted from CNetList::TestAreaIntersection.  By adding the bCheckArcIntersections param, this covers CNetList::TestAreaIntersections too
+	// TODO I don't think this will work if poly2 is totally within this.  We might consider using 
+	//   the CMyBitmap class, or gpc?
+	// First see if polygons are on same layer
+	cpolyline *poly1 = this;
+	if( poly1->GetLayer() != poly2->GetLayer() )
+		return 0;
+
+	// test bounding rects
+	CRect b1 = poly1->GetCornerBounds();
+	CRect b2 = poly2->GetCornerBounds();
+	if(    b1.bottom > b2.top
+		|| b1.top < b2.bottom
+		|| b1.left > b2.right
+		|| b1.right < b2.left )
+		return 0;
+
+	// now test for intersecting segments
+	BOOL bInt = FALSE;
+	BOOL bArcInt = FALSE;
+	citer<ccontour> ictr1 (&poly1->contours);
+	for (ccontour *ctr1 = ictr1.First(); ctr1; ctr1 = ictr1.Next())
+	{
+		citer<cside> is1 (&ctr1->sides);
+		for (cside *s1 = is1.First(); s1; s1 = is1.Next())
+		{
+			int xi1 = s1->preCorner->x, yi1 = s1->preCorner->y;
+			int xf1 = s1->postCorner->x, yf1 = s1->postCorner->y;
+			int style1 = s1->m_style;
+			citer<ccontour> ictr2 (&poly2->contours);
+			for (ccontour *ctr2 = ictr2.First(); ctr2; ctr2 = ictr2.Next())
+			{
+				citer<cside> is2 (&ctr2->sides);
+				for (cside *s2 = is2.First(); s2; s2 = is2.Next())
+				{
+					int xi2 = s2->preCorner->x, yi2 = s2->preCorner->y;
+					int xf2 = s2->postCorner->x, yf2 = s2->postCorner->y;
+					int style2 = s2->m_style;
+					int n_int = FindSegmentIntersections( xi1, yi1, xf1, yf1, style1,
+									xi2, yi2, xf2, yf2, style2 );
+					if( n_int )
+					{
+						bInt = TRUE;
+						if (!bCheckArcIntersections)
+							return 1;
+						if( style1 != CPolyLine::STRAIGHT || style2 != CPolyLine::STRAIGHT )
+							return 2;
+						break;
+					}
+				}
+			}
+		}
+	}
+
+	if( !bInt )
+		return 0;
+	// An intersection found, but no arc-intersections:
+	return 1;
+}
+
+bool cpolyline::TestIntersections()
+{
+	// CPT2.  Generalizes old CNetList::TestAreaIntersections().  Returns true if "this" intersects any other polyline of the same type + layer.
+	// Invokes cpolyline::TestIntersection() with bTestArcIntersections set to false for efficiency.
+	carray<cpolyline> ia;
+	GetCompatiblePolylines(&ia);
+	citer<cpolyline> ip (&ia);
+	for (cpolyline *p = ip.First(); p; p = ip.Next())
+	{
+		if (p==this) continue;
+		if (TestIntersection(p, false)) return true;
+	}
+	return false;
+}
+
+int cpolyline::CombinePolyline( cpolyline *poly2 )
+{
+	// CPT2. Adapted from CNetList::CombineAreas.  Unions "poly2" onto "this" polyline.  Does not deal with the removal of poly2 from the net in
+	// the case that this and poly2 are copper areas:
+	// that's the caller's job.  Assumes that the intersection check has already taken place.
+	// Returns 1 if we actually combine 'em, or 0 in the unusual cases where they're actually disjoint.
+	cpolyline * poly1 = this;
+	CArray<CArc> arc_array1;
+	CArray<CArc> arc_array2;
+	poly1->MakeGpcPoly( NULL, &arc_array1 );
+	poly2->MakeGpcPoly( NULL, &arc_array2 );
+	int n_ext_cont1 = 0;
+	for( int ic=0; ic<poly1->GetGpcPoly()->num_contours; ic++ )
+		if( !((poly1->GetGpcPoly()->hole)[ic]) )
+			n_ext_cont1++;
+	int n_ext_cont2 = 0;
+	for( int ic=0; ic<poly2->GetGpcPoly()->num_contours; ic++ )
+		if( !((poly2->GetGpcPoly()->hole)[ic]) )
+			n_ext_cont2++;
+
+	gpc_polygon * union_gpc = new gpc_polygon;
+	gpc_polygon_clip( GPC_UNION, poly1->GetGpcPoly(), poly2->GetGpcPoly(), union_gpc );
+
+	// get number of outside contours
+	int n_union_ext_cont = 0;
+	for( int ic=0; ic<union_gpc->num_contours; ic++ )
+		if( !((union_gpc->hole)[ic]) )
+			n_union_ext_cont++;
+
+	// if no intersection, free new gpc and return.  Somewhat unlikely since an intersection check has usually already occurred, but if areas
+	// meet at a single point it could happen.
+	if( n_union_ext_cont == n_ext_cont1 + n_ext_cont2 )
+	{
+		gpc_free_polygon( union_gpc );
+		delete union_gpc;
+		return 0;
+	}
+
+	// intersection, as expected.  Replace poly1/this with combined area
+	poly1->MustRedraw();
+	poly2->Undraw();
+	contours.RemoveAll();
+	for( int ic=0; ic<union_gpc->num_contours; ic++ )
+	{
+		ccontour *ctr = new ccontour(this, !union_gpc->hole[ic]);		// NB the new contour will be this->main if the current gpc contour is a non-hole
+		for( int i=0; i<union_gpc->contour[ic].num_vertices; i++ )
+		{
+			int x = union_gpc->contour[ic].vertex[i].x;
+			int y = union_gpc->contour[ic].vertex[i].y;
+			ccorner *c = new ccorner(ctr, x, y);			// Constructor adds corner to ctr->corners (and may also set ctr->head/tail if
+															// it was previously empty)
+			if (i>0)
+			{
+				cside *s = new cside(ctr, STRAIGHT);
+				ctr->AppendSideAndCorner(s, c, ctr->tail);
+			}
+		}
+		ctr->Close(STRAIGHT);
+	}
+
+	utility = 1;
+	RestoreArcs( &arc_array1 ); 
+	RestoreArcs( &arc_array2 );
+	gpc_free_polygon( union_gpc );
+	delete union_gpc;
+	return 1;
+}
+
+int cpolyline::ClipPolygon( bool bMessageBoxArc, bool bMessageBoxInt, bool bRetainArcs )
+{	
+	// Process a polyline that has been modified, by clipping its polygon against itself.
+	// This may change the number of polylines in the parent list.
+	// If bMessageBoxInt == TRUE, shows message when clipping occurs.
+	// If bMessageBoxArc == TRUE, shows message when clipping can't be done due to arcs.
+	// Returns:
+	//	-1 if arcs intersect other sides, so polygon can't be clipped
+	//	 0 if no intersecting sides
+	//	 1 if intersecting sides
+	// Also sets poly->utility flags if polylines are modified
+	// CPT2 converted and generalized from old area-based function.  Subroutines take care of calling MustRedraw(), as appropriate.
+	int test = TestPolygon();				// this sets utility2 flag
+	if( test == -1 && !bRetainArcs )
+		test = 1;
+	if( test == -1 )
+	{
+		// arc intersections, don't clip unless bRetainArcs == FALSE
+		if( bMessageBoxArc && !bDontShowSelfIntersectionArcsWarning )
+		{
+			CString str, s ((LPCSTR) IDS_AreaOfNetHasArcsIntersectingOtherSides);		// CPT2 changed text to read "Polygon has arcs intersecting..."
+			str.Format( s, UID() );
+			CDlgMyMessageBox dlg;
+			dlg.Initialize( str );
+			dlg.DoModal();
+			bDontShowSelfIntersectionArcsWarning = dlg.bDontShowBoxState;
+		}
+		return -1;	// arcs intersect with other sides, error
+	}
+
+	if( test == 1 )
+	{
+		// non-arc intersections, clip the polygon
+		if( bMessageBoxInt && bDontShowSelfIntersectionWarning == FALSE)
+		{
+			CString str, s ((LPCSTR) IDS_AreaOfNetIsSelfIntersectingAndWillBeClipped);		// CPT2 changed text to read "Polygon is self-intersecting..."
+			str.Format( s, UID() );
+			CDlgMyMessageBox dlg;
+			dlg.Initialize( str );
+			dlg.DoModal();
+			bDontShowSelfIntersectionWarning = dlg.bDontShowBoxState;
+		}
+		NormalizeWithGpc( bRetainArcs );						// NB Routine will change "this", and will attach any new polylines in the appropriate places
+	}
+	return test;
+}
+
+void cpolyline::CombinePolylines( carray<cpolyline> *pa, BOOL bMessageBox, BOOL bUseUtility )
+{
+	// Static function; checks all polylines in "pa" for intersections, combining them if found
+	// If bUseUtility == TRUE, don't check areas if both utility flags are 0
+	// Sets utility flag = 1 for any areas modified, and calls virtual function Remove() as necessary.
+	// If an area has self-intersecting arcs, doesn't try to combine it
+	// CPT2 converted, generalized from old CNetList::CombinAllAreasInNet().  The subroutines are in charge of calling MustRedraw() for affected areas.
+	if (pa->GetSize()<2) return;
+
+	// start by testing all polylines to set utility2 flags.
+	citer<cpolyline> ip (pa);
+	for (cpolyline *p = ip.First(); p; p = ip.Next())
+		p->TestPolygon();
+	// now loop through all combinations
+	BOOL message_shown = FALSE, mod_p1;											
+	citer<cpolyline> ip1 (pa);
+	for (cpolyline *p1 = ip1.First(); p1; p1 = ip1.Next())
+	{
+		do {
+			CRect b1 = p1->GetCornerBounds();
+			mod_p1 = FALSE;
+			citer<cpolyline> ip2 (pa, p1);
+			ip2.Next();														// Advance to polyline AFTER p1.
+			for (cpolyline *p2 = ip2.Next(); p2; p2 = ip2.Next())
+			{
+				// if (p1->GetLayer() != p2->GetLayer()) continue;			// Should be safe to omit this check (pa was set up to contain polys all on one layer)
+				if (p1->utility2 == -1 || p2->utility2 == -1) continue;
+				CRect b2 = p2->GetCornerBounds();
+				if ( b1.left > b2.right || b1.right < b2.left
+						|| b1.bottom > b2.top || b1.top < b2.bottom ) continue;
+				if( bUseUtility && !p1->utility && !p2->utility ) continue;
+				// check p2 against p1 
+				int ret = p1->TestIntersection( p2, true );
+				if( ret == 1 )
+				{
+					ret = p1->CombinePolyline( p2 );
+					if (ret == 0) continue;
+					pa->Remove( p2 );
+					p2->Remove();												// Virtual func. undraws and detaches polyline from the appropriate arrays.
+					if( ret == 1 && bMessageBox && !bDontShowIntersectionWarning )
+					{
+						CString str, s ((LPCSTR) IDS_AreasOfNetIntersectAndWillBeCombined);	// Text now reads "Polylines %d and %d intersect and will be..."
+						str.Format( s, p1->UID(), p2->UID() );								// Just to provide a number, give 'em the uid's
+						CDlgMyMessageBox dlg;
+						dlg.Initialize( str );
+						dlg.DoModal();
+						bDontShowIntersectionWarning = dlg.bDontShowBoxState;
+					}
+					mod_p1 = TRUE;
+				}
+				else if( ret == 2 )
+				{
+					if( bMessageBox && !bDontShowIntersectionArcsWarning )
+					{
+						CString str, s ((LPCSTR) IDS_AreasOfNetIntersectButSomeOfTheIntersectingSidesAreArcs); // Now reads "Polylines %d and %d intersect but..."
+						str.Format( s, p1->UID(), p2->UID() );
+						CDlgMyMessageBox dlg;
+						dlg.Initialize( str );
+						dlg.DoModal();
+						bDontShowIntersectionArcsWarning = dlg.bDontShowBoxState;
+					}
+				}
+			}
+		}
+		while (mod_p1);		// if p1 is modified, we need to check it against all the other areas again.
+	}
+}
+
+
+bool cpolyline::PolygonModified( bool bMessageBoxArc, bool bMessageBoxInt )
+{	
+	// Process a polyline that has been modified, by clipping its polygon against
+	// itself and the polygons for any other areas on the same net.
+	// This may wind up adding or removing polylines from the parent array that contains "this".
+	// If bMessageBoxXXX == TRUE, shows message boxes when clipping occurs.
+	// Returns false if an error occured, i.e. if arcs intersect other sides, so polygon can't be clipped.
+	// CPT2 converted.  Subroutines take care of calling MustRedraw() on affected area(s), as needed.
+	if (IsValid())
+	{
+		int test = ClipPolygon( bMessageBoxArc, bMessageBoxInt );
+		if( test == -1 )
+		{
+			// CPT2 always gives an error msg in case of intersecting arcs:
+			CString s ((LPCSTR) IDS_ErrorUnableToClipPolygon);
+			AfxMessageBox( s );
+			return false;
+		}
+		// now see if we need to clip against other areas
+		BOOL bCheckAllAreas = test==1 || TestIntersections();
+		if( bCheckAllAreas )
+		{
+			carray<cpolyline> arr;
+			GetCompatiblePolylines( &arr );
+			CombinePolylines( &arr, bMessageBoxInt, false );			// CPT2 TODO. Changed bUseUtility param to false.  Need to figure out what it's all about
+		}
+	}
+	if (this->IsArea())
+		GetNet()->SetThermals();
+	return true;
+}
+
+void cpolyline::RestoreArcs( CArray<CArc> *arc_array, carray<cpolyline> *pa )
+{
+	// Restore arcs to a polygon where they were replaced with steps
+	// If pa != NULL, also use polygons in pa array
+	// CPT2 converted.
+	carray<cpolyline> pa2;
+	pa2.Add(this);
+	if (pa)
+		pa2.Add(pa);
+
+	// find arcs and replace them
+	BOOL bFound;
+	int arc_start;
+	int arc_end;
+	for( int iarc=0; iarc<arc_array->GetSize(); iarc++ )
+	{
+		int arc_xi = (*arc_array)[iarc].xi;
+		int arc_yi = (*arc_array)[iarc].yi;
+		int arc_xf = (*arc_array)[iarc].xf;
+		int arc_yf = (*arc_array)[iarc].yf;
+		int n_steps = (*arc_array)[iarc].n_steps;
+		int style = (*arc_array)[iarc].style;
+		ccorner *arc_start = NULL, *arc_end = NULL;
+		// loop through polys
+		citer<cpolyline> ip (&pa2);
+		for (cpolyline *p = ip.First(); p; p = ip.Next())
+		{
+			citer<ccontour> ictr (&p->contours);
+			for (ccontour *ctr = ictr.First(); ctr; ctr = ictr.Next())
+			{
+				if (ctr->corners.GetSize() <= n_steps) continue;
+				citer<ccorner> ic (&ctr->corners);
+				for (ccorner *c = ic.First(); c; c = ic.Next())
+				{
+					if (c->x != arc_xi || c->y != arc_yi) continue;
+					// Check if we find a corner at location (arc_xf,arc_yf), either n_steps positions forward from c or n_steps positions back
+					ccorner *c2 = c;
+					for (int i=0; i<n_steps; i++)
+						c2 = c2->postSide->postCorner;
+					if (c2->x == arc_xf && c2->y == arc_yf) 
+					{
+						arc_start = c; arc_end = c2;
+						goto arc_found;
+					}
+					c2 = c;
+					for (int i=0; i<n_steps; i++)
+						c2 = c2->preSide->preCorner;
+					if (c2->x == arc_xf && c2->y == arc_yf)
+					{
+						arc_start = c2; arc_end = c;
+						style = style==ARC_CW? ARC_CCW: ARC_CW;						// Arc has been reversed, so flip cw & ccw
+						goto arc_found;
+					}
+				}
+			}
+		}
+		continue;
+
+		arc_found:
+		(*arc_array)[iarc].bFound = TRUE;											// Necessary?
+		ccontour *ctr = arc_start->contour;
+		ctr->poly->MustRedraw();
+		for (ccorner *c = arc_start; c != arc_end; c = c->postSide->postCorner)
+		{
+			if (c != arc_start) 
+				ctr->corners.Remove(c);
+			ctr->sides.Remove(c->postSide);
+		}
+		cside *new_side = new cside(ctr, style);
+		arc_start->postSide = new_side;
+		new_side->preCorner = arc_start;
+		arc_end->preSide = new_side;
+		new_side->postCorner = arc_end;
+		// As a safety precaution, set contour's head and tail equal to arc_start.  (It's conceivable that the old head/tail was in the midst
+		// of the segments that are getting eliminated.)
+		ctr->head = ctr->tail = arc_start;
+	}
+}
+
+
 
 
 carea2::carea2(cnet2 *_net, int _layer, int _hatch, int _w, int _sel_box)
@@ -4205,214 +4477,82 @@ void carea2::SetNet( cnet2 *net )
 	m_net->areas.Add(this);
 }
 
-bool carea2::TestIntersections()
+void carea2::GetCompatiblePolylines( carray<cpolyline> *arr )
 {
-	// CPT2.  Covers old CNetList::TestAreaIntersections().  Returns true if "this" intersects any other area within the same net.
-	// Invokes cpolyline::TestIntersection() with bTestArcIntersections set to false for efficiency.
+	// CPT2 new.  Virtual function in class cpolyline.  The idea is to put into "arr" all other polylines that might potentially be merged with
+	// "this", in the event that they intersect.  For areas, this will be all the areas in the same net that are in the same layer.
 	citer<carea2> ia (&m_net->areas);
 	for (carea2 *a = ia.First(); a; a = ia.Next())
-	{
-		if (a==this) continue;
-		if (TestIntersection(a, false)) return true;
-	}
-	return false;
+		if (a->m_layer == m_layer)
+			arr->Add(a);
 }
 
-void carea2::NormalizeWithGpc( carray<carea2> *pa, bool bRetainArcs )
-{
-	// Use the General Polygon Clipping Library to clip contours
-	// If this results in new polygons, return them in carray pa.
-	// If bRetainArcs == TRUE, try to retain arcs in polys
-	// CPT2 converted.  NB does not do any drawing/undrawing.  TODO perhaps one day it would be nice to
-	// figure out a way to generalize this to any type of cpolyline.
-	CArray<CArc> arc_array;
-	if( bRetainArcs )
-		MakeGpcPoly( NULL, &arc_array );
-	else
-		MakeGpcPoly( NULL, NULL );
-
-	// now, recreate poly
-	// first, find outside contours and create new carea2's if necessary
-	int n_ext_cont = 0;
-	for( int ic=0; ic<m_gpc_poly->num_contours; ic++ )
-	{
-		if( m_gpc_poly->hole[ic] ) continue;
-		carea2 *poly;
-		n_ext_cont++;
-		if( n_ext_cont == 1 )
-			poly = this,
-			poly->MustRedraw(),
-			contours.RemoveAll();
-		else if (pa)
-			poly = new carea2(m_net, m_layer, m_hatch, m_w, m_sel_box),
-			poly->MustRedraw(),
-			pa->Add(poly);
-		else 
-			break;
-		ccontour *ctr = new ccontour(poly, true);						// NB the new contour will be poly->main
-		for( int i=0; i<m_gpc_poly->contour[ic].num_vertices; i++ )
-		{
-			int x = m_gpc_poly->contour[ic].vertex[i].x;
-			int y = m_gpc_poly->contour[ic].vertex[i].y;
-			ccorner *c = new ccorner(ctr, x, y);						// Constructor adds corner to ctr->corners and will also set ctr->head/tail
-			if (i>0)
-			{
-				cside *s = new cside(ctr, STRAIGHT);
-				ctr->AppendSideAndCorner(s, c, ctr->tail);
-			}
-		}
-		ctr->Close(STRAIGHT);
-		}
-
-	// now add cutouts to the carea2(s)
-	citer<carea2> ia (pa);
-	for( int ic=0; ic<m_gpc_poly->num_contours; ic++ ) 
-	{
-		if( !m_gpc_poly->hole[ic] ) continue;
-		// Find external poly containing this cutout.
-		carea2* ext_poly = NULL;
-		if( n_ext_cont == 1 )
-			ext_poly = this;
-		else
-			// find the polygon that contains this hole
-			for( int i=0; i<m_gpc_poly->contour[ic].num_vertices && !ext_poly; i++ )
-			{
-				int x = m_gpc_poly->contour[ic].vertex[i].x;
-				int y = m_gpc_poly->contour[ic].vertex[i].y;
-				if( TestPointInside( x, y ) )
-					ext_poly = this;
-				else
-					for( carea2 *a = ia.First(); a; a = ia.Next() )
-						if( a->TestPointInside( x, y ) )
-						{
-							ext_poly = a;
-							break;
-						}
-			}
-		ASSERT( ext_poly );
-		ccontour *ctr = new ccontour(ext_poly, false);						// NB the new contour will not be the main one
-		for( int i=0; i<m_gpc_poly->contour[ic].num_vertices; i++ )
-		{
-			int x = m_gpc_poly->contour[ic].vertex[i].x;
-			int y = m_gpc_poly->contour[ic].vertex[i].y;
-			ccorner *c = new ccorner(ctr, x, y);							// Constructor adds corner to ctr->corners and will also set ctr->head/tail
-			if (i>0)
-			{
-				cside *s = new cside(ctr, STRAIGHT);
-				ctr->AppendSideAndCorner(s, c, ctr->tail);
-			}
-		}
-		ctr->Close(STRAIGHT);
-	}
-	if( bRetainArcs )
-		// The type-casting of the second argument is a bit distasteful but should be safe (I think):
-		RestoreArcs( &arc_array, (carray<cpolyline>*) pa );
-	FreeGpcPoly();
-}
-
-
-// Process an area that has been modified, by clipping its polygon against itself.
-// This may change the number and order of copper areas in the net.
-// If bMessageBoxInt == TRUE, shows message when clipping occurs.
-// If bMessageBoxArc == TRUE, shows message when clipping can't be done due to arcs.
-// Returns:
-//	-1 if arcs intersect other sides, so polygon can't be clipped
-//	 0 if no intersecting sides
-//	 1 if intersecting sides
-// Also sets area->utility flags if areas are modified
-// CPT2 converted.  Subroutines take care of calling MustRedraw(), as appropriate.
-//
-int carea2::ClipPolygon( bool bMessageBoxArc, bool bMessageBoxInt, bool bRetainArcs )
-{	
-	int test = TestPolygon();				// this sets utility2 flag
-	if( test == -1 && !bRetainArcs )
-		test = 1;
-	if( test == -1 )
-	{
-		// arc intersections, don't clip unless bRetainArcs == FALSE
-		if( bMessageBoxArc && !bDontShowSelfIntersectionArcsWarning )
-		{
-			CString str, s ((LPCSTR) IDS_AreaOfNetHasArcsIntersectingOtherSides);
-			str.Format( s, UID(), m_net->name );
-			CDlgMyMessageBox dlg;
-			dlg.Initialize( str );
-			dlg.DoModal();
-			bDontShowSelfIntersectionArcsWarning = dlg.bDontShowBoxState;
-		}
-		return -1;	// arcs intersect with other sides, error
-	}
-
-	// mark all areas as unmodified except this one
-	m_net->areas.SetUtility(0);
-	utility = 1;
-
-	if( test == 1 )
-	{
-		// non-arc intersections, clip the polygon
-		if( bMessageBoxInt && bDontShowSelfIntersectionWarning == FALSE)
-		{
-			CString str, s ((LPCSTR) IDS_AreaOfNetIsSelfIntersectingAndWillBeClipped);
-			str.Format( s, UID(), m_net->name );
-			CDlgMyMessageBox dlg;
-			dlg.Initialize( str );
-			dlg.DoModal();
-			bDontShowSelfIntersectionWarning = dlg.bDontShowBoxState;
-		}
-	}
-//** TODO test for cutouts outside of area	
-	// CPT the next line "if (test==1)" was commented out --- surely a mistake??  If we run NormalizeWithGpc() below every time, weird things 
-	// seem to happen.  For instance, if we add a new vertex to an area edge-segment and the vertex is on the segment, it may get eliminated...
-	if( test == 1 )
-	{
-		carray<carea2> aa;
-		NormalizeWithGpc( &aa, bRetainArcs );				// NB Routine will change this, and will put any extra new areas into aa.
-		m_net->areas.Add( &aa );
-	}
-	return test;
-}
-
-
-int carea2::PolygonModified( bool bMessageBoxArc, bool bMessageBoxInt )
-{	
-	// Process an area that has been modified, by clipping its polygon against
-	// itself and the polygons for any other areas on the same net.
-	// This may change the number and order of copper areas in the net.
-	// If bMessageBox == TRUE, shows message boxes when clipping occurs.
-	// Returns:
-	//	-1 if arcs intersect other sides, so polygon can't be clipped
-	//	 0 if no intersecting sides
-	//	 1 if intersecting sides, polygon clipped
-	//
-	// clip polygon against itself
-	// CPT2 converted.  Subroutines take care of calling MustRedraw() on affected area(s), as needed.
-	int test = ClipPolygon( bMessageBoxArc, bMessageBoxInt );
-	if( test == -1 )
-		return test;
-	// now see if we need to clip against other areas
-	BOOL bCheckAllAreas = FALSE;
-	if( test == 1 )
-		bCheckAllAreas = TRUE;
-	else
-		bCheckAllAreas = TestIntersections();
-	if( bCheckAllAreas )
-		m_net->CombineAllAreas( bMessageBoxInt, TRUE );			// CPT2 TODO. Check into this bUseUtility param.
-	m_net->SetThermals();
-	return bCheckAllAreas? 1: 0;
-}
+cpolyline *carea2::CreateCompatible() 
+	// CPT2 new.  Virtual function in class cpolyline.  Returns a new polyline of the same specs as this (but with an empty contour array)
+	{ return new carea2(m_net, m_layer, m_hatch, m_w, m_sel_box); }
 
 
 
-csmcutout::csmcutout(CFreePcbDoc *_doc)
+csmcutout::csmcutout(CFreePcbDoc *_doc, int layer, int hatch)
 	: cpolyline(_doc)
-{
-	doc->others.Add(this);
+{ 
+	doc->others.Add(this); 
+	m_layer = layer; 
+	m_w = 2*NM_PER_MIL;
+	m_sel_box = 10*NM_PER_MIL;
+	m_hatch = hatch;
 }
+
+bool csmcutout::IsValid()
+	{ return doc->others.Contains(this); }
+
+void csmcutout::GetCompatiblePolylines( carray<cpolyline> *arr )
+{
+	// CPT2 new.  Virtual function in class cpolyline.  The idea is to put into "arr" all other polylines that might potentially be merged with
+	// "this", in the event that they intersect.  For smcutouts, this will be all the smc's in the doc in the same layer.
+	citer<cpcb_item> ii (&doc->others);
+	for (cpcb_item *i = ii.First(); i; i = ii.Next())
+		if (csmcutout *sm = i->ToSmCutout())
+			if (sm->m_layer == m_layer)
+				arr->Add(sm);
+}
+
+cpolyline *csmcutout::CreateCompatible() 
+	// CPT2 new.  Virtual function in class cpolyline.  Returns a new polyline of the same specs as this (but with an empty contour array)
+	{ return new csmcutout(doc, m_layer, m_hatch); }
+
+void csmcutout::Remove()
+{
+	Undraw();
+	doc->others.Remove(this);
+}
+
 
 cboard::cboard(CFreePcbDoc *_doc) 
 	: cpolyline(_doc)
-{
+{ 
 	doc->others.Add(this);
+	m_layer = LAY_BOARD_OUTLINE; 
+	m_w = 2*NM_PER_MIL;
+	m_sel_box = 10*NM_PER_MIL;
+	m_hatch = cpolyline::NO_HATCH;
 }
+
+bool cboard::IsValid()
+	{ return doc->others.Contains(this); }
+
+void cboard::Remove()
+{
+	Undraw();
+	doc->others.Remove(this);
+}
+
+void cboard::GetCompatiblePolylines( carray<cpolyline> *arr )
+	// CPT2 new.  Virtual function in class cpolyline.  For class cboard, this function is only useful (as far as I am aware)
+	// as a subroutine within CFreePcbView::TryToReselectCorner().  Therefore it should suffice to do the following, though 
+	// theoretically we could scan through doc->others and retrieve all other board outlines as well.
+	{ arr->Add(this); }
+
 
 coutline::coutline(CFreePcbDoc *_doc, int layer, int w)
 	: cpolyline(_doc)
@@ -4989,73 +5129,6 @@ void cnet2::OptimizeConnections( BOOL bBelowPinCount, int pin_count, BOOL bVisib
 #endif
 }
 
-void cnet2::CombineAllAreas( BOOL bMessageBox, BOOL bUseUtility )
-{
-	// Checks all copper areas in net for intersections, combining them if found
-	// If bUseUtility == TRUE, don't check areas if both utility flags are 0
-	// Sets utility flag = 1 for any areas modified
-	// If an area has self-intersecting arcs, doesn't try to combine it
-	// CPT2 converted.  The subroutines are in charge of calling MustRedraw() for affected areas.
-	if (NumAreas()<2) return;
-
-	// start by testing all area polygons to set utility2 flags.
-	citer<carea2> ia (&areas);
-	for (carea2 *a = ia.First(); a; a = ia.Next())
-		a->TestPolygon();
-	// now loop through all combinations
-	BOOL message_shown = FALSE, mod_a1;
-	citer<carea2> ia1 (&areas);
-	for (carea2 *a1 = ia1.First(); a1; a1 = ia1.Next())
-	{
-		do {
-			CRect b1 = a1->GetCornerBounds();
-			mod_a1 = FALSE;
-			citer<carea2> ia2 (&areas, a1);
-			ia2.Next();														// Advance to area AFTER a1.
-			for (carea2 *a2 = ia2.Next(); a2; a2 = ia2.Next())
-			{
-				if (a1->GetLayer() != a2->GetLayer()) continue;
-				if (a1->utility2 == -1 || a2->utility2 == -1) continue;
-				CRect b2 = a2->GetCornerBounds();
-				if ( b1.left > b2.right || b1.right < b2.left
-						|| b1.bottom > b2.top || b1.top < b2.bottom ) continue;
-				if( bUseUtility && !a1->utility && !a2->utility ) continue;
-				// check a2 against a1 
-				int ret = a1->TestIntersection( a2, true );
-				if( ret == 1 )
-				{
-					ret = a1->CombinePolyline( a2 );
-					if (ret == 0) continue;
-					areas.Remove( a2 );
-					if( ret == 1 && bMessageBox && !bDontShowIntersectionWarning )
-					{
-						CString str, s ((LPCSTR) IDS_AreasOfNetIntersectAndWillBeCombined);
-						str.Format( s, a1->UID(), a2->UID(), name );							// CPT2.  Just to provide a number, give 'em the uid's
-						CDlgMyMessageBox dlg;
-						dlg.Initialize( str );
-						dlg.DoModal();
-						bDontShowIntersectionWarning = dlg.bDontShowBoxState;
-					}
-					mod_a1 = TRUE;
-				}
-				else if( ret == 2 )
-				{
-					if( bMessageBox && !bDontShowIntersectionArcsWarning )
-					{
-						CString str, s ((LPCSTR) IDS_AreasOfNetIntersectButSomeOfTheIntersectingSidesAreArcs);
-						str.Format( s, a1->UID(), a2->UID(), name );
-						CDlgMyMessageBox dlg;
-						dlg.Initialize( str );
-						dlg.DoModal();
-						bDontShowIntersectionArcsWarning = dlg.bDontShowBoxState;
-					}
-				}
-			}
-		}
-		while (mod_a1);		// if a1 is modified, we need to check it against all the other areas again.
-	}
-}
-
 
 int cnet2::Draw() 
 {
@@ -5421,6 +5494,7 @@ void ctext::GenerateStrokesRelativeTo(cpart2 *part) {
 
 int ctext::Draw() 
 {
+	// CPT2 TODO.  Deal with drawing negative text.
 	CDisplayList *dl = doc->m_dlist;
 	if( !dl )
 		return NO_DLIST;

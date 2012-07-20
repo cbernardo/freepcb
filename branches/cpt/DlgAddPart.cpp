@@ -834,6 +834,7 @@ void CDlgAddPart::GetFields()
 		m_edit_y.GetWindowText( str );
 		m_y = atof( str ) * 1000000.0;
 	}
+	m_edit_ref_des.GetWindowTextA( m_ref_des );
 }
 
 void CDlgAddPart::SetFields()

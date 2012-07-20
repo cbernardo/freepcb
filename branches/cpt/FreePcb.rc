@@ -1833,7 +1833,7 @@ END
 
 IDD_ADD_MASK_CUTOUT DIALOGEX 0, 0, 172, 95
 STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
-CAPTION "Add Cutout to Solder Mask"
+CAPTION "Add/Edit Solder Mask Cutout"
 FONT 8, "MS Shell Dlg", 400, 0, 0x1
 BEGIN
     COMBOBOX        IDC_COMBO1,44,12,118,95,CBS_DROPDOWNLIST | CBS_SORT | WS_VSCROLL | WS_TABSTOP
@@ -3362,8 +3362,8 @@ BEGIN
     IDS_MovingPin           "Moving pin %s"
     IDS_PolylineCorner      "Polyline %d, corner %d"
     62261                   "straight"
-    IDS_ArcCw               "arc(cw)"
-    IDS_ArcCcw              "arc(ccw)"
+    IDS_ArcCw               "arc (cw)"
+    IDS_ArcCcw              "arc (ccw)"
     IDS_PolylineSideStyle   "Polyline %d, side %d, style = %s"
     IDS_DefaultPosition     "default position"
     IDS_Defined             "defined"
@@ -3556,16 +3556,16 @@ BEGIN
     IDS_ThisGroupContainsGluedPartsDoYouWantToUnglueThem 
                             "This group contains glued parts, do you want to unglue them ?  "
     IDS_SolderMaskCutoutCorner 
-                            "Solder mask cutout %d: %s, corner %d, x %s, y %s"
+                            "Solder mask cutout %d (%s), corner %d, x %s, y %s"
 END
 
 STRINGTABLE
 BEGIN
     IDS_Straight            "straight"
     IDS_SelectDefaultProjectFolder "Select default project folder"
-    IDS_SolderMaskCutoutSide "Solder mask cutout %d: %s, side %d of %d, %s"
-    IDS_BoardOutlineCorner  "board outline %d, corner %d, x %s, y %s"
-    IDS_BoardOutlineSide    "board outline %d, side %d of %d, %s"
+    IDS_SolderMaskCutoutSide "Solder mask cutout %d (%s), side %d (%s)"
+    IDS_BoardOutlineCorner  "board outline %d, %scorner %d, x %s, y %s"
+    IDS_BoardOutlineSide    "board outline %d, %sside %d (%s)"
     IDS_PartXYAngle         "part %s ""%s"", x %s, y %s, angle %d, %s"
     IDS_RefText             "ref text: %s"
     IDS_Value2              "value: %s"
@@ -3604,7 +3604,7 @@ BEGIN
                             "Placing first corner of board outline"
     IDS_PlacingSecondCornerOfBoardOutline 
                             "Placing second corner of board outline"
-    IDS_PlacingCornerOfBoardOutline "Placing corner %d of board outline"
+    IDS_PlacingCornerOfBoardOutline "Placing corner of board outline"
     IDS_InsertingCornerOfBoardOutline "Inserting corner %d of board outline"
     IDS_MovingCornerOfBoardOutline "Moving corner %d of board outline"
     IDS_MovingPart          "Moving part %s"
@@ -3613,7 +3613,7 @@ BEGIN
     IDS_MovingText          "Moving text ""%s"""
     IDS_PlacingFirstCornerOfCopperArea "Placing first corner of copper area"
     IDS_PlacingSecondCornerOfCopperArea "Placing second corner of copper area"
-    IDS_PlacingCornerOfCopperArea "Placing corner %d of copper area"
+    IDS_PlacingCornerOfCopperArea "Placing corner of copper area"
     IDS_InsertingCornerOfCopperArea "Inserting corner %d of copper area"
     IDS_MovingCornerOfCopperArea "Moving corner %d of copper area"
     IDS_AddingConnectionToPin "Adding connection to pin %s.%s"
@@ -3770,13 +3770,13 @@ END
 STRINGTABLE
 BEGIN
     IDS_AreaOfNetHasArcsIntersectingOtherSides 
-                            "Area %d of net ""%s"" has arcs intersecting other sides.\nThis may cause problems with other editing operations,\nsuch as adding cutouts. It can't be fixed automatically.\nManual correction is recommended.\n"
+                            "Polygon %d has arcs intersecting other sides.\nThis may cause problems with other editing operations,\nsuch as adding cutouts. It can't be fixed automatically.\nManual correction is recommended.\n"
     IDS_AreaOfNetIsSelfIntersectingAndWillBeClipped 
-                            "Area %d of net ""%s"" is self-intersecting and will be clipped.\nThis may result in splitting the area.\nIf the area is complex, this may take a few seconds."
+                            "Polygon %d is self-intersecting and will be clipped.\nThis may result in splitting the area.\nIf the area is complex, this may take a few seconds."
     IDS_AreasOfNetIntersectAndWillBeCombined 
-                            "Areas %d and %d of net ""%s"" intersect and will be combined.\nIf they are complex, this may take a few seconds."
+                            "Polygons %d and %d intersect and will be combined.\nIf they are complex, this may take a few seconds."
     IDS_AreasOfNetIntersectButSomeOfTheIntersectingSidesAreArcs 
-                            "Areas %d and %d of net ""%s"" intersect, but some of the intersecting sides are arcs.\nTherefore, these areas can't be combined."
+                            "Polygons %d and %d intersect, but some of the intersecting sides are arcs.\nTherefore, these areas can't be combined."
     IDS_NumNodes            "num nodes = %d\r\n"
     IDS_None                "none"
     IDS_Pin2                "pin"
@@ -4243,8 +4243,14 @@ BEGIN
     IDS_STRING63653         " CW"
     IDS_STRING63654         " Rotate"
     IDS_STRING63655         " CCW"
-    IDS_STRING63656         "****"
-    IDS_STRING63657         "****"
+    IDS_STRING63656         " Add SM"
+    IDS_STRING63657         " Cutout"
+    IDS_STRING63658         " Add PCB"
+    IDS_STRING63659         " Outline"
+    IDS_STRING63660         " Remove"
+    IDS_STRING63661         " Contour"
+    IDS_STRING63662         " Exclude"
+    IDS_STRING63663         " Region"
 END
 
 STRINGTABLE
@@ -4478,6 +4484,16 @@ BEGIN
                             "Deleting part ""%s.""  Do you wish to erase all traces emanating from this part?"
     IDS_ReferenceTextProperties "Reference Text Properties"
     IDS_ValueTextProperties "Value Text Properties"
+    IDS_PlacingCornerOfSolderMaskCutout "Placing Corner of Solder-Mask Cutout"
+    IDS_InsertingPolylineCorner "Inserting polyline corner"
+    IDS_MovingPolylineCorner "Moving polyline corner"
+    IDS_PlacingCornerOfPolygon "Placing corner of polygon"
+END
+
+STRINGTABLE
+BEGIN
+    IDS_STRING63664         " Edit SM"
+    IDS_STRING63665         " Cutout"
 END
 
 #endif    // English (United States) resources

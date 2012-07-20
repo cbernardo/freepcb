@@ -47,6 +47,17 @@ Draw() first checks the bDrawn flag, and if it's already drawn, it _simply retur
 have been undrawn by cpcb_item::MustRedraw().  In the event that (say) both a net and one of its constituent segments get added to CFreePcbDoc::redraw, 
 a real possibility, we save effort by just bailing out during CFreePcbDoc::Redraw's second attempt to draw the segment.
 
+I've now generalized the routines subordinate to the former carea2::PolygonModified;  they now work on any cpolyline.  So without hesitation I'm 
+invoking this new cpolyline::PolygonModified() each time user edits a sm-cutout.  I could readily do this for board outlines too, but I admit I'm 
+not entirely sure if this is desirable (my inexperience with PCB fabrication shows...).   Is it the case that user might want to have two board outlines 
+that share a common edge?  If so, then we don't want any sort of fancy merging of cboard polylines...
+
+Observe that the f-key menus for copper areas, sm-cutouts, and board-outlines have now become more consistent.  Also
+note that the nomenclature from the user's perspective has changed a little now that one can do everything with sm-cutout polylines that one can do
+with copper areas.  Instead of "adding a cutout" to an area or sm-cutout (the latter particularly confusing), the bottom pane of f-keys now says
+"F7 exclude region."  If one selects a corner/side of a hole, the command for removing the hole is no longer "F7 delete cutout" but 
+"F7 remove contour."
+
 // FreePCB : programming notes
 //
 
