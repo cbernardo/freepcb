@@ -1576,6 +1576,10 @@
 #define IDS_DeletingPartDoYouWishToEraseAllTraces 62672
 #define IDS_ReferenceTextProperties     62673
 #define IDS_ValueTextProperties         62674
+#define IDS_PlacingCornerOfSolderMaskCutout 62675
+#define IDS_InsertingPolylineCorner     62676
+#define IDS_MovingPolylineCorner        62677
+#define IDS_PlacingCornerOfPolygon      62678
 #define IDS_FkFpStr                     63000
 #define IDS_STRING63001                 63001
 #define IDS_STRING63002                 63002
@@ -1844,6 +1848,14 @@
 #define IDS_STRING63655                 63655
 #define IDS_STRING63656                 63656
 #define IDS_STRING63657                 63657
+#define IDS_STRING63658                 63658
+#define IDS_STRING63659                 63659
+#define IDS_STRING63660                 63660
+#define IDS_STRING63661                 63661
+#define IDS_STRING63662                 63662
+#define IDS_STRING63663                 63663
+#define IDS_STRING63664                 63664
+#define IDS_STRING63665                 63665
 #define IDS_SelMaskStr                  64000
 #define IDS_STRING64001                 64001
 #define IDS_STRING64002                 64002

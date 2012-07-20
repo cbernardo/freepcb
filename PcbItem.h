@@ -1245,12 +1245,6 @@ public:
 	CRect GetCornerBounds();						// Done in cpp
 	// CRect GetCornerBounds( int icont );			// Use ccontour::GetCornerBounds()
 	bool TestPointInside( int x, int y );			// Done in cpp
-	int TestPolygon();								// Done in cpp, derived from CNetList::TestAreaPolygon()
-	// BOOL TestPointInsideContour( int icont, int x, int y ); // Use ccontour fxn
-	int TestIntersection( cpolyline * poly2, bool bTestArcIntersections=true );		
-													// Done in cpp, derived from CNetList::TestAreaIntersection().
-	int CombinePolyline( cpolyline *poly2 );		// Done in cpp, derived from CNetList::CombineAreas
-	void RestoreArcs( CArray<CArc> *arc_array, carray<cpolyline> *pa=NULL );		// Done in cpp.  Originally in CPolyLine
 	// void AppendArc( int xi, int yi, int xf, int yf, int xc, int yc, int num );	// CPT2. TODO Needed?
 
 	// undo functions
@@ -1262,7 +1256,8 @@ public:
 	// id Id();
 	// int UID();   in base class
 	int NumCorners() { return main->NumCorners(); }
-	int NumSides();				
+	// int NumSides();				
+	void GetSidesInRect( CRect *r, carray<cpcb_item> *arr );				// CPT2 new, done in cpp.
 	bool IsClosed()
 		{ return main->head==main->tail; }
 	int NumContours() { return contours.GetSize(); }
@@ -1307,18 +1302,26 @@ public:
 	// void SetDisplayList( CDisplayList * dl );
 	void Offset(int dx, int dy);														// CPT2 TODO obsolete?
 
-	// GPC functions
+	// Functions for normalizing and combining intersecting polylines
+	virtual void GetCompatiblePolylines( carray<cpolyline> *arr ) { }					// CPT2 new, done in cpp
+	virtual cpolyline *CreateCompatible() { return NULL; }								// CPT2 new, done in cpp
 	void MakeGpcPoly( ccontour *ctr = NULL, CArray<CArc> * arc_array=NULL );			// Done in cpp, derived from CPolyline function
 	void FreeGpcPoly();																	// Done in cpp.
-	// void NormalizeWithGpc( carray<cpolyline> *pa=NULL, bool bRetainArcs=false );		// Moved this into class carea2.  Currently that's all we need.
-																						// But perhaps one day I should think up a way to generalize it for
-																						// other cpolyline types
-	// void RestoreArcs( CArray<CArc> *arc_array, carray<cpolyline> *pa=NULL );			// Also moved into class carea2.  Might also generalize one day
-//	cpolyline * MakePolylineForPad( int type, int x, int y, int w, int l, int r, int angle );
-//	void AddContourForPadClearance( int type, int x, int y, int w, 
-//						int l, int r, int angle, int fill_clearance,
-//						int hole_w, int hole_clearance, BOOL bThermal=FALSE, int spoke_w=0 );
-	void ClipGpcPolygon( gpc_op op, cpolyline * poly );
+	void NormalizeWithGpc( bool bRetainArcs=false );									// Done in cpp.  First version was in class carea2, am now generalizing
+	int TestPolygon();																	// Done in cpp, derived from CNetList::TestAreaPolygon()
+	// BOOL TestPointInsideContour( int icont, int x, int y );							// Use ccontour fxn
+	int TestIntersection( cpolyline * poly2, bool bTestArcIntersections=true );			// Done in cpp, derived from CNetList::TestAreaIntersection().
+	bool TestIntersections();															// Done in cpp.  First version was in carea2, now generalizing;
+																						//   covers the old CNetList::TestAreaIntersections().
+	int CombinePolyline( cpolyline *poly2 );											// Done in cpp, derived from CNetList::CombineAreas
+	void RestoreArcs( CArray<CArc> *arc_array, carray<cpolyline> *pa=NULL );			// Done in cpp.  Originally in CPolyLine
+	int ClipPolygon( bool bMessageBoxArc, bool bMessageBoxInt, bool bRetainArcs=true);	// Done in cpp.  Generalization of old carea2 func.
+	static void CombinePolylines( carray<cpolyline> *pa, BOOL bMessageBox, BOOL bUseUtility );
+																						// Done in cpp, generalization of old CNetList::CombineAllAreasInNet()
+	virtual bool PolygonModified( bool bMessageBoxArc, bool bMessageBoxInt );			// Done in cpp.  Generalization of old carea2 func.
+																						// Virtual, because at least for now cboard is overriding it (to
+																						// do nothing)
+	// void ClipGpcPolygon( gpc_op op, cpolyline * poly );								// CPT2, apparently obsolete
 
 	// PHP functions.  CPT2 TODO apparently obsolete.
 	int MakePhpPoly();
@@ -1349,15 +1352,11 @@ public:
 	int GetTypeBit() { return bitArea; }
 	cnet2 *GetNet() { return m_net; }
 
+	void GetCompatiblePolylines( carray<cpolyline> *arr );			// CPT2 new, done in cpp
+	cpolyline *CreateCompatible();									// CPT2 new, done in cpp
 	void Remove();													// Done in cpp
 	// int Complete( int style );									// CPT2 TODO consider dumping
 	void SetNet( cnet2 *net );										// Done in cpp
-	bool TestIntersections();										// Done in cpp, covers CNetList::TestAreaIntersections().
-	int ClipPolygon( bool bMessageBoxArc, bool bMessageBoxInt, bool bRetainArcs=true);	// Done in cpp
-	void NormalizeWithGpc( carray<carea2> *pa=NULL, bool bRetainArcs=false );			// Done in cpp.  Was originally in class CPolyLine, but for now I'm
-																						// content to move it into this subclass.
-	int PolygonModified( bool bMessageBoxArc, bool bMessageBoxInt );					// Done in cpp
-
 };
 
 
@@ -1365,13 +1364,16 @@ class csmcutout : public cpolyline
 {
 	// Represents solder-mask cutouts, which are always closed polylines
 public:
-	csmcutout(CFreePcbDoc *_doc);				// Done in cpp
+	csmcutout(CFreePcbDoc *_doc, int layer, int hatch);									// Done in cpp
 	~csmcutout() { }
 
-	bool IsValid() { return true; }				// CPT2 TODO
+	bool IsValid();																		// Done in cpp
 	bool IsSmCutout() { return true; }
 	csmcutout *ToSmCutout() { return this; }
 	int GetTypeBit() { return bitSmCutout; }
+	void Remove();																		// Done in cpp
+	cpolyline *CreateCompatible();														// CPT2 new, done in cpp
+	void GetCompatiblePolylines( carray<cpolyline> *arr );								// CPT2 new, done in cpp
 };
 
 
@@ -1382,10 +1384,14 @@ public:
 	cboard(CFreePcbDoc *_doc);					// Done in cpp
 	~cboard() { }
 
-	bool IsValid() { return true; }				// CPT2 TODO
+	bool IsValid();								// Done in cpp
 	bool IsBoard() { return true; }
 	cboard *ToBoard() { return this; }
 	int GetTypeBit() { return bitBoard; }
+	void Remove();								// Done in cpp
+	void GetCompatiblePolylines( carray<cpolyline> *arr );								// Done in cpp.
+	bool PolygonModified( bool bMessageBoxArc, bool bMessageBoxInt ) { return true; }	// Overriding virtual func in cpolyline.
+
 };
 
 class coutline : public cpolyline
@@ -1472,7 +1478,6 @@ public:
 	}
 	*/
 	int AddArea( int layer, int x, int y, int hatch, BOOL bDraw=TRUE );					// CPT2 TODO. Derive from CNetList::AddArea
-	void CombineAllAreas( BOOL bMessageBox, BOOL bUseUtility );							// Done in cpp, derived from CNetList func
 	void DrawAreas();																	// Done in cpp, new
 	void UndrawAreas();																	// Done in cpp, new
 

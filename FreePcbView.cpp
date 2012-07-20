@@ -103,6 +103,8 @@ BEGIN_MESSAGE_MAP(CFreePcbView, CView)
 //  ON_WM_SYSCOMMAND()
 ON_WM_CONTEXTMENU()
 ON_COMMAND(ID_PART_PROPERTIES, OnPartProperties)			// CPT2 used to be in CFreePcbDoc, trying it out here...
+ON_COMMAND(ID_ADD_PART, OnAddPart)							// CPT2 ditto
+ON_COMMAND(ID_NONE_ADDPART, OnAddPart)
 ON_COMMAND(ID_PART_MOVE, OnPartMove)
 ON_COMMAND(ID_NONE_ADDTEXT, OnTextAdd)
 ON_COMMAND(ID_TEXT_DELETE, OnTextDelete)
@@ -134,12 +136,12 @@ ON_COMMAND(ID_RATLINE_UNLOCKCONNECTION, OnRatlineUnlockConnection)
 ON_COMMAND(ID_TEXT_EDIT, OnTextEdit)
 ON_COMMAND(ID_ADD_BOARDOUTLINE, OnAddBoardOutline)
 ON_COMMAND(ID_NONE_ADDBOARDOUTLINE, OnAddBoardOutline)
-ON_COMMAND(ID_BOARDCORNER_MOVE, OnBoardCornerMove)
-ON_COMMAND(ID_BOARDCORNER_EDIT, OnBoardCornerEdit)
-ON_COMMAND(ID_BOARDCORNER_DELETECORNER, OnBoardCornerDelete)
-ON_COMMAND(ID_BOARDCORNER_DELETEOUTLINE, OnBoardDeleteOutline)
-ON_COMMAND(ID_BOARDSIDE_INSERTCORNER, OnBoardSideAddCorner)
-ON_COMMAND(ID_BOARDSIDE_DELETEOUTLINE, OnBoardDeleteOutline)
+ON_COMMAND(ID_BOARDCORNER_MOVE, OnPolyCornerMove)
+ON_COMMAND(ID_BOARDCORNER_EDIT, OnPolyCornerEdit)
+ON_COMMAND(ID_BOARDCORNER_DELETECORNER, OnPolyCornerDelete)
+ON_COMMAND(ID_BOARDCORNER_DELETEOUTLINE, OnPolyDelete)
+ON_COMMAND(ID_BOARDSIDE_INSERTCORNER, OnPolySideAddCorner)
+ON_COMMAND(ID_BOARDSIDE_DELETEOUTLINE, OnPolyDelete)
 ON_COMMAND(ID_PAD_STARTSTUBTRACE, OnPadStartTrace)
 ON_COMMAND(ID_SEGMENT_DELETE, OnSegmentDelete)
 ON_COMMAND(ID_ENDVERTEX_MOVE, OnVertexMove)
@@ -147,26 +149,26 @@ ON_COMMAND(ID_ENDVERTEX_ADDSEGMENTS, OnVertexStartTrace)
 ON_COMMAND(ID_ENDVERTEX_ADDCONNECTION, OnVertexStartRatline)
 ON_COMMAND(ID_ENDVERTEX_DELETE, OnVertexDelete)
 ON_COMMAND(ID_ENDVERTEX_EDIT, OnVertexProperties)
-ON_COMMAND(ID_AREACORNER_MOVE, OnAreaCornerMove)
-ON_COMMAND(ID_AREACORNER_DELETE, OnAreaCornerDelete)
-ON_COMMAND(ID_AREACORNER_DELETEAREA, OnAreaCornerDeleteArea)
-ON_COMMAND(ID_AREAEDGE_ADDCORNER, OnAreaSideAddCorner)
-ON_COMMAND(ID_AREAEDGE_DELETE, OnAreaSideDeleteArea)
-ON_COMMAND(ID_AREAEDGE_DELETECUTOUT, OnAreaDeleteCutout)
-ON_COMMAND(ID_AREACORNER_DELETECUTOUT, OnAreaDeleteCutout)
+ON_COMMAND(ID_AREACORNER_MOVE, OnPolyCornerMove)
+ON_COMMAND(ID_AREACORNER_DELETE, OnPolyCornerDelete)
+ON_COMMAND(ID_AREACORNER_DELETEAREA, OnPolyDelete)
+ON_COMMAND(ID_AREAEDGE_ADDCORNER, OnPolySideAddCorner)
+ON_COMMAND(ID_AREAEDGE_DELETE, OnPolyDelete)
+ON_COMMAND(ID_AREAEDGE_DELETECUTOUT, OnPolyDeleteCutout)
+ON_COMMAND(ID_AREACORNER_DELETECUTOUT, OnPolyDeleteCutout)
 ON_COMMAND(ID_ADD_AREA, OnAddArea)
 ON_COMMAND(ID_NONE_ADDCOPPERAREA, OnAddArea)
 ON_COMMAND(ID_ENDVERTEX_SETSIZE, OnVertexProperties)
 ON_MESSAGE( WM_USER_VISIBLE_GRID, OnChangeVisibleGrid )
 ON_COMMAND(ID_ADD_TEXT, OnTextAdd)
 ON_COMMAND(ID_SEGMENT_DELETETRACE, OnSegmentDeleteTrace)
-ON_COMMAND(ID_AREACORNER_PROPERTIES, OnAreaCornerProperties)
+ON_COMMAND(ID_AREACORNER_PROPERTIES, OnPolyCornerEdit)
 ON_COMMAND(ID_REF_PROPERTIES, OnRefProperties)
 ON_COMMAND(ID_VERTEX_PROPERITES, OnVertexProperties)
 ON_WM_ERASEBKGND()
-ON_COMMAND(ID_BOARDSIDE_CONVERTTOSTRAIGHTLINE, OnBoardSideConvertToStraightLine)
-ON_COMMAND(ID_BOARDSIDE_CONVERTTOARC_CW, OnBoardSideConvertToArcCw)
-ON_COMMAND(ID_BOARDSIDE_CONVERTTOARC_CCW, OnBoardSideConvertToArcCcw)
+ON_COMMAND(ID_BOARDSIDE_CONVERTTOSTRAIGHTLINE, OnPolySideConvertToStraightLine)
+ON_COMMAND(ID_BOARDSIDE_CONVERTTOARC_CW, OnPolySideConvertToArcCw)
+ON_COMMAND(ID_BOARDSIDE_CONVERTTOARC_CCW, OnPolySideConvertToArcCcw)
 ON_COMMAND(ID_SEGMENT_UNROUTETRACE, OnUnrouteTrace)
 ON_COMMAND(ID_VERTEX_UNROUTETRACE, OnUnrouteTrace)
 ON_COMMAND(ID_VIEW_ENTIREBOARD, OnViewEntireBoard)
@@ -184,17 +186,17 @@ ON_COMMAND(ID_NONE_DRC, OnDrc)
 ON_COMMAND(ID_NONE_CLEARDRCERRORS, OnClearDRC)
 ON_COMMAND(ID_NONE_VIEWALL, OnViewAll)
 ON_COMMAND(ID_ADD_SOLDERMASKCUTOUT, OnAddSoldermaskCutout)
-ON_COMMAND(ID_SMCORNER_MOVE, OnSmCornerMove)
-ON_COMMAND(ID_SMCORNER_SETPOSITION, OnSmCornerSetPosition)
-ON_COMMAND(ID_SMCORNER_DELETECORNER, OnSmCornerDeleteCorner)
-ON_COMMAND(ID_SMCORNER_DELETECUTOUT, OnSmCornerDeleteCutout)
-ON_COMMAND(ID_SMSIDE_INSERTCORNER, OnSmSideInsertCorner)
+ON_COMMAND(ID_SMCORNER_MOVE, OnPolyCornerMove)
+ON_COMMAND(ID_SMCORNER_SETPOSITION, OnPolyCornerEdit)
+ON_COMMAND(ID_SMCORNER_DELETECORNER, OnPolyCornerDelete)
+ON_COMMAND(ID_SMCORNER_DELETECUTOUT, OnPolyDelete)
+ON_COMMAND(ID_SMSIDE_INSERTCORNER, OnPolySideAddCorner)
 ON_COMMAND(ID_SMSIDE_HATCHSTYLE, OnSmSideHatchStyle)
-ON_COMMAND(ID_SMSIDE_DELETECUTOUT, OnSmSideDeleteCutout)
+ON_COMMAND(ID_SMSIDE_DELETECUTOUT, OnPolyDelete)
 ON_COMMAND(ID_PART_CHANGESIDE, OnPartChangeSide)
 ON_COMMAND(ID_PART_ROTATE, OnPartRotateCW)
-ON_COMMAND(ID_AREAEDGE_ADDCUTOUT, OnAreaAddCutout)
-ON_COMMAND(ID_AREACORNER_ADDCUTOUT, OnAreaAddCutout)
+ON_COMMAND(ID_AREAEDGE_ADDCUTOUT, OnPolyAddCutout)
+ON_COMMAND(ID_AREACORNER_ADDCUTOUT, OnPolyAddCutout)
 ON_COMMAND(ID_NET_SETWIDTH, OnNetSetWidth)
 ON_COMMAND(ID_CONNECT_SETWIDTH, OnConnectSetWidth)
 ON_COMMAND(ID_CONNECT_UNROUTETRACE, OnConnectUnroutetrace)
@@ -225,7 +227,7 @@ ON_COMMAND(ID_GROUP_ROTATE, OnGroupRotate)
 ON_WM_SETCURSOR()
 ON_WM_MOVE()
 ON_COMMAND(ID_REF_SHOWPART, OnRefShowPart)
-ON_COMMAND(ID_AREA_SIDESTYLE, OnAreaSideStyle)
+// ON_COMMAND(ID_AREA_SIDESTYLE, OnAreaSideStyle)					// CPT2 TODO when I get to context menus, I'll have to clean this up
 ON_COMMAND(ID_PART_ROTATECOUNTERCLOCKWISE, OnPartRotateCCW)
 ON_COMMAND(ID_REF_ROTATECW, OnRefRotateCW)
 ON_COMMAND(ID_REF_ROTATECCW, OnRefRotateCCW)
@@ -975,245 +977,74 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		Invalidate( FALSE );
 	}
 
-#ifndef CPT2
-	else if( m_cursor_mode == CUR_ADD_BOARD )
+	else if( m_cursor_mode == CUR_DRAG_POLY_MOVE )
 	{
-		// place first corner of board outline
-		pDC = GetDC();
-		SetDCToWorldCoords( pDC );
-		pDC->SelectClipRgn( &m_pcb_rgn );
-		CPoint p;
-		p = m_last_cursor_point;
-		// make new board outline
-		int ib = m_doc->m_board_outline.GetSize();
-		m_doc->m_board_outline.SetSize( ib+1 );
-		m_doc->m_board_outline[ib].SetDisplayList( m_dlist );
-		m_sel_id.SetI2( ib );
-		m_doc->m_board_outline[ib].Start( LAY_BOARD_OUTLINE, 1, 20*NM_PER_MIL, p.x, p.y,
-			0, &m_sel_id, NULL );
-		m_sel_id.SetT3( ID_SEL_CORNER );
-		m_sel_id.SetI3( 0 );
-		m_dlist->StartDraggingArc( pDC, m_polyline_style, p.x, p.y, p.x, p.y, LAY_SELECTION, 1, 2 );
-		SetCursorMode( CUR_DRAG_BOARD_1 );
-		m_doc->ProjectModified( TRUE );
-		Invalidate( FALSE );
-		m_snap_angle_ref = m_last_cursor_point;
-	}
-	else if( m_cursor_mode == CUR_DRAG_BOARD_1 )
-	{
-		// place second corner of board outline
-		pDC = GetDC();
-		SetDCToWorldCoords( pDC );
-		pDC->SelectClipRgn( &m_pcb_rgn );
-		CPoint p;
-		p = m_last_cursor_point;
-		m_doc->m_board_outline[m_sel_id.I2()].AppendCorner( p.x, p.y, m_polyline_style );
-		m_dlist->StartDraggingArc( pDC, m_polyline_style, p.x, p.y, p.x, p.y, LAY_SELECTION, 1, 2 );
-		m_sel_id.SetI3( m_sel_id.I3() + 1 );
-		SetCursorMode( CUR_DRAG_BOARD );
-		m_doc->ProjectModified( TRUE );
-		Invalidate( FALSE );
-		m_snap_angle_ref = m_last_cursor_point;
-	}
-	else if( m_cursor_mode == CUR_DRAG_BOARD )
-	{
-		// place subsequent corners of board outline
-		pDC = GetDC();
-		SetDCToWorldCoords( pDC );
-		pDC->SelectClipRgn( &m_pcb_rgn );
-		CPoint p;
-		p = m_last_cursor_point;
-		if( p.x == m_doc->m_board_outline[m_sel_id.I2()].X(0)
-			&& p.y == m_doc->m_board_outline[m_sel_id.I2()].Y(0) )
-		{
-			// this point is the start point, close the polyline and quit
-			SaveUndoInfoForBoardOutlines( TRUE, m_doc->m_undo_list );
-			m_doc->m_board_outline[m_sel_id.I2()].Close( m_polyline_style );
-			SetCursorMode( CUR_NONE_SELECTED );
-			m_doc->m_dlist->StopDragging();
-		}
+		// CPT2 generalized clause that deals with dragging corners of areas, sm-cutouts, and board-outlines alike.
+		ccorner *c = m_sel.First()->ToCorner();
+		cpolyline *poly = c->GetPolyline();
+		carea2 *a = poly->ToArea();
+		cnet2 *net = c->GetNet();
+		m_dlist->StopDragging();
+		if (a)
+			SaveUndoInfoForAllAreasInNet( net, TRUE, m_doc->m_undo_list );
 		else
-		{
-			// add corner to polyline
-			m_doc->m_board_outline[m_sel_id.I2()].AppendCorner( p.x, p.y, m_polyline_style );
-			m_dlist->StartDraggingArc( pDC, m_polyline_style, p.x, p.y, p.x, p.y, LAY_SELECTION, 1, 2 );
-			m_sel_id.SetI3( m_sel_id.I3() + 1 );
-			m_snap_angle_ref = m_last_cursor_point;
-		}
+			SaveUndoInfoForPolylines( TRUE, m_doc->m_undo_list );
+		CPoint p = m_last_cursor_point;
+		c->Move( p.x, p.y );
+		if (!poly->PolygonModified( FALSE, TRUE ))
+			m_doc->OnEditUndo();
+		else if( a && m_doc->m_vis[LAY_RAT_LINE] )
+			net->OptimizeConnections( m_doc->m_auto_ratline_disable, m_doc->m_auto_ratline_min_pins, TRUE );
+		m_doc->Redraw();
+		TryToReselectCorner( p.x, p.y );
 		m_doc->ProjectModified( TRUE );
 		Invalidate( FALSE );
 	}
-	else if( m_cursor_mode == CUR_DRAG_BOARD_INSERT )
+
+	else if( m_cursor_mode == CUR_DRAG_POLY_INSERT )
 	{
-		pDC = GetDC();
-		SetDCToWorldCoords( pDC );
-		pDC->SelectClipRgn( &m_pcb_rgn );
-		CPoint p;
-		p = m_last_cursor_point;
+		// CPT2 generalized clause that deals with inserting corners of areas, sm-cutouts, and board-outlines alike.
+		cside *s = m_sel.First()->ToSide();
+		cpolyline *poly = s->GetPolyline();
+		carea2 *a = poly->ToArea();
+		cnet2 *net = s->GetNet();
 		m_dlist->StopDragging();
-		SaveUndoInfoForBoardOutlines( TRUE, m_doc->m_undo_list );
-		m_doc->m_board_outline[m_sel_id.I2()].InsertCorner( m_sel_id.I3()+1, p.x, p.y );
-		m_doc->m_board_outline[m_sel_id.I2()].HighlightCorner( m_sel_id.I3()+1 );
-		SetCursorMode( CUR_BOARD_CORNER_SELECTED );
-		m_sel_id.Set( ID_BOARD, -1, ID_OUTLINE, -1, m_sel_id.I2(), ID_SEL_CORNER, -1, m_sel_id.I3()+1 );
+		if (a)
+			SaveUndoInfoForAllAreasInNet( net, TRUE, m_doc->m_undo_list );
+		else
+			SaveUndoInfoForPolylines( TRUE, m_doc->m_undo_list );
+		CPoint p = m_last_cursor_point;
+		s->InsertCorner( p.x, p.y );
+		if (!poly->PolygonModified( FALSE, TRUE ))
+			m_doc->OnEditUndo();
+		else if( a && m_doc->m_vis[LAY_RAT_LINE] )
+			net->OptimizeConnections( m_doc->m_auto_ratline_disable, m_doc->m_auto_ratline_min_pins, TRUE );
+		m_doc->Redraw();
+		CancelSelection();
 		m_doc->ProjectModified( TRUE );
 		Invalidate( FALSE );
 	}
-	else if( m_cursor_mode == CUR_DRAG_BOARD_MOVE )
-	{
-		pDC = GetDC();
-		SetDCToWorldCoords( pDC );
-		pDC->SelectClipRgn( &m_pcb_rgn );
-		CPoint p;
-		p = m_last_cursor_point;
-		m_dlist->StopDragging();
-		SaveUndoInfoForBoardOutlines( TRUE, m_doc->m_undo_list );
-		m_doc->m_board_outline[m_sel_id.I2()].MoveCorner( m_sel_id.I3(), p.x, p.y );
-		m_doc->m_board_outline[m_sel_id.I2()].HighlightCorner( m_sel_id.I3() );
-		SetCursorMode( CUR_BOARD_CORNER_SELECTED );
-		m_doc->ProjectModified( TRUE );
-		Invalidate( FALSE );
-	}
+
 	else if( m_cursor_mode == CUR_ADD_AREA )
 	{
 		pDC = GetDC();
 		SetDCToWorldCoords( pDC );
 		pDC->SelectClipRgn( &m_pcb_rgn );
-		CPoint p;
-		p = m_last_cursor_point;
-		int iarea = m_doc->m_nlist->AddArea( m_sel_net, m_active_layer, p.x, p.y, m_polyline_hatch );
-		m_sel_id.Set( m_sel_net->m_id.T1(), -1, ID_AREA, -1, iarea, ID_SEL_CORNER, -1, 1 );
-		m_dlist->StartDraggingArc( pDC, m_polyline_style, p.x, p.y, p.x, p.y, LAY_SELECTION, 1, 2 );
-		SetCursorMode( CUR_DRAG_AREA_1 );
-		m_doc->ProjectModified( TRUE );
-		Invalidate( FALSE );
-		m_snap_angle_ref = m_last_cursor_point;
-	}
-	else if( m_cursor_mode == CUR_DRAG_AREA_1 )
-	{
-		pDC = GetDC();
-		SetDCToWorldCoords( pDC );
-		pDC->SelectClipRgn( &m_pcb_rgn );
-		CPoint p;
-		p = m_last_cursor_point;
-		m_doc->m_nlist->AppendAreaCorner( m_sel_net, m_sel_ia, p.x, p.y, m_polyline_style );
-		m_dlist->StartDraggingArc( pDC, m_polyline_style, p.x, p.y, p.x, p.y, LAY_SELECTION, 1, 2 );
-		m_sel_id.SetI3( 2 );
-		SetCursorMode( CUR_DRAG_AREA );
-		m_doc->ProjectModified( TRUE );
-		Invalidate( FALSE );
-		m_snap_angle_ref = m_last_cursor_point;
-	}
-	else if( m_cursor_mode == CUR_DRAG_AREA )
-	{
-		pDC = GetDC();
-		SetDCToWorldCoords( pDC );
-		pDC->SelectClipRgn( &m_pcb_rgn );
-		CPoint p;
-		p = m_last_cursor_point;
-		if( p.x == m_sel_net->area[m_sel_id.I2()].X(0)
-			&& p.y == m_sel_net->area[m_sel_id.I2()].Y(0) )
-		{
-			// cursor point is first point, close area
-			SaveUndoInfoForAllAreasInNet( m_sel_net, TRUE, m_doc->m_undo_list );
-			m_doc->m_nlist->CompleteArea( m_sel_net, m_sel_ia, m_polyline_style );
-			m_doc->m_nlist->AreaPolygonModified( m_sel_net, m_sel_ia, TRUE, TRUE );
-			m_doc->m_dlist->StopDragging();
-			if( m_doc->m_vis[LAY_RAT_LINE] )
-				m_doc->m_nlist->OptimizeConnections( m_sel_net, -1, m_doc->m_auto_ratline_disable,
-													m_doc->m_auto_ratline_min_pins, TRUE );
-			CancelSelection();
-		}
-		else
-		{
-			// add cursor point
-			m_doc->m_nlist->AppendAreaCorner( m_sel_net, m_sel_ia, p.x, p.y, m_polyline_style );
-			m_dlist->StartDraggingArc( pDC, m_polyline_style, p.x, p.y, p.x, p.y, LAY_SELECTION, 1, 2 );
-			m_sel_id.SetI3( m_sel_id.I3() + 1 );
-			SetCursorMode( CUR_DRAG_AREA );
-			m_snap_angle_ref = m_last_cursor_point;
-		}
-		m_doc->ProjectModified( TRUE );
-		Invalidate( FALSE );
-	}
-#endif
-	else if( m_cursor_mode == CUR_DRAG_AREA_MOVE )
-	{
-		ccorner *c = m_sel.First()->ToCorner();
-		carea2 *a = c->GetArea();
-		cnet2 *net = c->GetNet();
-		SaveUndoInfoForAllAreasInNet( net, TRUE, m_doc->m_undo_list );
-		pDC = GetDC();
-		SetDCToWorldCoords( pDC );
-		pDC->SelectClipRgn( &m_pcb_rgn );
-		CPoint p;
-		p = m_last_cursor_point;
-		m_dlist->StopDragging();
-		c->Move( p.x, p.y );
-		int ret = a->PolygonModified( FALSE, TRUE );
-		m_doc->Redraw();
-		if( ret == -1 )
-		{
-			// error
-			CString s ((LPCSTR) IDS_ErrorUnableToClipPolygon);
-			AfxMessageBox( s );
-			CancelSelection();
-			m_doc->OnEditUndo();
-		}
-		else
-		{
-			TryToReselectAreaCorner( p.x, p.y );
-			if( m_doc->m_vis[LAY_RAT_LINE] )
-				net->OptimizeConnections( m_doc->m_auto_ratline_disable, m_doc->m_auto_ratline_min_pins, TRUE );
-		}
-		m_doc->ProjectModified( TRUE );
-		Invalidate( FALSE );
-	}
-
-	else if( m_cursor_mode == CUR_DRAG_AREA_INSERT )
-	{
-		cside *s = m_sel.First()->ToSide();
-		carea2 *a = s->GetArea();
-		cnet2 *net = a->m_net;
-		m_dlist->StopDragging();
-		SaveUndoInfoForAllAreasInNet( net, TRUE, m_doc->m_undo_list );
 		CPoint p = m_last_cursor_point;
-		a->MustRedraw();
-		s->InsertCorner( p.x, p.y );
-		int ret = a->PolygonModified( FALSE, TRUE );
-		if( ret == -1 )
-		{
-			// error
-			CString s ((LPCSTR) IDS_ErrorUnableToClipPolygon);
-			AfxMessageBox( s );
-			m_doc->OnEditUndo();
-		}
-		else if( m_doc->m_vis[LAY_RAT_LINE] )
-			net->OptimizeConnections( m_doc->m_auto_ratline_disable, m_doc->m_auto_ratline_min_pins, TRUE );
-		m_doc->Redraw();
-		TryToReselectAreaCorner( p.x, p.y );
-		m_doc->ProjectModified( TRUE );
-		Invalidate( FALSE );
-	}
-
-	else if( m_cursor_mode == CUR_ADD_AREA_CUTOUT )
-	{
-		pDC = GetDC();
-		SetDCToWorldCoords( pDC );
-		pDC->SelectClipRgn( &m_pcb_rgn );
-		CPoint p = m_last_cursor_point;
-		carea2 *a = m_sel.First()->GetArea();
-		m_tmp_poly = new cpolyline(a, false, true);
-		ccontour *ctr = new ccontour(m_tmp_poly, true);
+		cnet2 *net = m_sel.First()->ToNet();
+		carea2 *a = new carea2(net, m_active_layer, m_polyline_hatch, 2*NM_PER_MIL, 10*NM_PER_MIL);
+		m_tmp_poly = a;
+		ccontour *ctr = new ccontour(a, true);
 		ccorner *c = new ccorner(ctr, p.x, p.y);					// Constructor sets contour's head and tail
 		m_dlist->StartDraggingArc( pDC, m_polyline_style, p.x, p.y, p.x, p.y, LAY_RAT_LINE, 1, 2 );
-		SetCursorMode( CUR_DRAG_AREA_CUTOUT_1 );
+		SetCursorMode( CUR_DRAG_POLY_1 );
+		m_poly_drag_mode = CUR_ADD_AREA;
 		m_doc->ProjectModified( TRUE );
 		Invalidate( FALSE );
 		m_snap_angle_ref = m_last_cursor_point;
 	}
 
-	else if( m_cursor_mode == CUR_DRAG_AREA_CUTOUT_1 )
+	else if( m_cursor_mode == CUR_DRAG_POLY_1 )
 	{
 		pDC = GetDC();
 		SetDCToWorldCoords( pDC );
@@ -1226,13 +1057,13 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		ctr->AppendSideAndCorner(s, c, ctr->tail);
 		m_doc->Redraw();
 		m_dlist->StartDraggingArc( pDC, m_polyline_style, p.x, p.y, p.x, p.y, LAY_RAT_LINE, 1, 2 );
-		SetCursorMode( CUR_DRAG_AREA_CUTOUT );
+		SetCursorMode( CUR_DRAG_POLY );
 		m_doc->ProjectModified( TRUE );
 		Invalidate( FALSE );
 		m_snap_angle_ref = m_last_cursor_point;
 	}
 
-	else if( m_cursor_mode == CUR_DRAG_AREA_CUTOUT )
+	else if( m_cursor_mode == CUR_DRAG_POLY )
 	{
 		pDC = GetDC();
 		SetDCToWorldCoords( pDC );
@@ -1243,23 +1074,10 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		if( p.x == head->x && p.y == head->y )
 		{
 			// cursor point is back at first point, close contour and finish up
-			carea2 *a = m_sel.First()->GetArea();
-			a->MustRedraw();
-			m_tmp_poly->Undraw();
-			cnet2 *net = a->m_net;
-			SaveUndoInfoForAllAreasInNet( net, TRUE, m_doc->m_undo_list );
-			ctr->Close();
-			ctr->SetPoly(a);
-			int ret = a->PolygonModified( FALSE, FALSE );
-			if( ret == -1 )
-			{
-				CString s ((LPCSTR) IDS_ErrorUnableToClipPolygon);
-				AfxMessageBox( s );
-				m_doc->OnEditUndo();
-			}
-			else if( m_doc->m_vis[LAY_RAT_LINE] )
-				net->OptimizeConnections( m_doc->m_auto_ratline_disable, m_doc->m_auto_ratline_min_pins, TRUE  );
-			m_doc->Redraw();
+			if (m_poly_drag_mode == CUR_ADD_POLY_CUTOUT)
+				FinishAddPolyCutout( ctr );
+			else
+				FinishAddPoly( ctr );
 			m_doc->m_dlist->StopDragging();
 			CancelSelection();
 		}
@@ -1272,115 +1090,67 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 			ctr->AppendSideAndCorner(s, c, ctr->tail);
 			m_doc->Redraw();
 			m_dlist->StartDraggingArc( pDC, m_polyline_style, p.x, p.y, p.x, p.y, LAY_RAT_LINE, 1, 2 );
-			SetCursorMode( CUR_DRAG_AREA_CUTOUT );
 			m_snap_angle_ref = m_last_cursor_point;
 		}
 		m_doc->ProjectModified( TRUE );
 		Invalidate( FALSE );
 	}
-#ifndef CPT2
+
+	else if( m_cursor_mode == CUR_ADD_POLY_CUTOUT )
+	{
+		pDC = GetDC();
+		SetDCToWorldCoords( pDC );
+		pDC->SelectClipRgn( &m_pcb_rgn );
+		CPoint p = m_last_cursor_point;
+		cpolyline *poly = m_sel.First()->GetPolyline();
+		m_tmp_poly = new cpolyline(poly, false, true);
+		ccontour *ctr = new ccontour(m_tmp_poly, true);
+		ccorner *c = new ccorner(ctr, p.x, p.y);					// Constructor sets contour's head and tail
+		m_dlist->StartDraggingArc( pDC, m_polyline_style, p.x, p.y, p.x, p.y, LAY_RAT_LINE, 1, 2 );
+		SetCursorMode( CUR_DRAG_POLY_1 );
+		m_poly_drag_mode = CUR_ADD_POLY_CUTOUT;
+		m_doc->ProjectModified( TRUE );
+		Invalidate( FALSE );
+		m_snap_angle_ref = m_last_cursor_point;
+	}
+
 	else if( m_cursor_mode == CUR_ADD_SMCUTOUT )
 	{
 		// add poly for new cutout
 		pDC = GetDC();
 		SetDCToWorldCoords( pDC );
 		pDC->SelectClipRgn( &m_pcb_rgn );
-		CPoint p;
-		p = m_last_cursor_point;
-		int ism = m_doc->m_sm_cutout.GetSize();
-		m_doc->m_sm_cutout.SetSize( ism + 1 );
-		CPolyLine * p_sm = &m_doc->m_sm_cutout[ism];
-		p_sm->SetDisplayList( m_doc->m_dlist );
-		id id_sm( ID_MASK, -1, ID_MASK, -1, ism );
-		m_sel_id = id_sm;
-		p_sm->Start( m_polyline_layer, 0, 10*NM_PER_MIL, p.x, p.y, m_polyline_hatch, &m_sel_id, NULL );
-		m_sel_id.SetT3( ID_SEL_CORNER );
-		m_dlist->StartDraggingArc( pDC, m_polyline_style, p.x, p.y, p.x, p.y, LAY_SELECTION, 1, 2 );
-		m_sel_id.SetI3( 1 );
-		SetCursorMode( CUR_DRAG_SMCUTOUT_1 );
+		CPoint p = m_last_cursor_point;
+		csmcutout *sm = new csmcutout(m_doc, m_polyline_layer, m_polyline_hatch);
+		m_tmp_poly = sm;
+		ccontour *ctr = new ccontour(sm, true);
+		ccorner *c = new ccorner(ctr, p.x, p.y);					// Constructor sets contour's head and tail
+		m_dlist->StartDraggingArc( pDC, m_polyline_style, p.x, p.y, p.x, p.y, LAY_RAT_LINE, 1, 2 );
+		SetCursorMode( CUR_DRAG_POLY_1 );
+		m_poly_drag_mode = CUR_ADD_SMCUTOUT;
 		m_doc->ProjectModified( TRUE );
 		Invalidate( FALSE );
 		m_snap_angle_ref = m_last_cursor_point;
 	}
-	else if( m_cursor_mode == CUR_DRAG_SMCUTOUT_1 )
+
+	else if( m_cursor_mode == CUR_ADD_BOARD )
 	{
+		// place first corner of board outline
 		pDC = GetDC();
 		SetDCToWorldCoords( pDC );
 		pDC->SelectClipRgn( &m_pcb_rgn );
-		CPoint p;
-		p = m_last_cursor_point;
-		CPolyLine * p_sm = &m_doc->m_sm_cutout[m_sel_id.I2()];
-		p_sm->AppendCorner( p.x, p.y, m_polyline_style );
-		m_dlist->StartDraggingArc( pDC, m_polyline_style, p.x, p.y, p.x, p.y, LAY_SELECTION, 1, 2 );
-		m_sel_id.SetI3( 2 );
-		SetCursorMode( CUR_DRAG_SMCUTOUT );
+		CPoint p = m_last_cursor_point;
+		cboard *b = new cboard(m_doc);
+		m_tmp_poly = b;
+		ccontour *ctr = new ccontour(b, true);
+		ccorner *c = new ccorner(ctr, p.x, p.y);
+		m_dlist->StartDraggingArc( pDC, m_polyline_style, p.x, p.y, p.x, p.y, LAY_RAT_LINE, 1, 2 );
+		SetCursorMode( CUR_DRAG_POLY_1 );
+		m_poly_drag_mode = CUR_ADD_BOARD;
 		m_doc->ProjectModified( TRUE );
 		Invalidate( FALSE );
 		m_snap_angle_ref = m_last_cursor_point;
 	}
-	else if( m_cursor_mode == CUR_DRAG_SMCUTOUT )
-	{
-		pDC = GetDC();
-		SetDCToWorldCoords( pDC );
-		pDC->SelectClipRgn( &m_pcb_rgn );
-		CPoint p;
-		p = m_last_cursor_point;
-		CPolyLine * p_sm = &m_doc->m_sm_cutout[m_sel_id.I2()];
-		if( p.x == p_sm->X(0)
-			&& p.y == p_sm->Y(0) )
-		{
-			// cursor point is first point, close area
-			SaveUndoInfoForSMCutouts( TRUE, m_doc->m_undo_list );
-			p_sm->Close( m_polyline_style );
-			SetCursorMode( CUR_NONE_SELECTED );
-			m_doc->m_dlist->StopDragging();
-		}
-		else
-		{
-			// add cursor point
-			p_sm->AppendCorner( p.x, p.y, m_polyline_style );
-			m_dlist->StartDraggingArc( pDC, m_polyline_style, p.x, p.y, p.x, p.y, LAY_SELECTION, 1, 2 );
-			m_sel_id.SetI3( m_sel_id.I3() + 1 );
-			SetCursorMode( CUR_DRAG_SMCUTOUT );
-			m_snap_angle_ref = m_last_cursor_point;
-		}
-		m_doc->ProjectModified( TRUE );
-		Invalidate( FALSE );
-	}
-	else if( m_cursor_mode == CUR_DRAG_SMCUTOUT_MOVE )
-	{
-		SaveUndoInfoForSMCutouts( TRUE, m_doc->m_undo_list );
-		CPolyLine * poly = &m_doc->m_sm_cutout[m_sel_id.I2()];
-		pDC = GetDC();
-		SetDCToWorldCoords( pDC );
-		pDC->SelectClipRgn( &m_pcb_rgn );
-		CPoint p;
-		p = m_last_cursor_point;
-		m_dlist->StopDragging();
-		poly->MoveCorner( m_sel_id.I3(), p.x, p.y );
-		poly->HighlightCorner( m_sel_id.I3() );
-		SetCursorMode( CUR_SMCUTOUT_CORNER_SELECTED );
-		m_doc->ProjectModified( TRUE );
-		Invalidate( FALSE );
-	}
-	else if( m_cursor_mode == CUR_DRAG_SMCUTOUT_INSERT )
-	{
-		SaveUndoInfoForSMCutouts( TRUE, m_doc->m_undo_list );
-		CPolyLine * poly = &m_doc->m_sm_cutout[m_sel_id.I2()];
-		pDC = GetDC();
-		SetDCToWorldCoords( pDC );
-		pDC->SelectClipRgn( &m_pcb_rgn );
-		CPoint p;
-		p = m_last_cursor_point;
-		m_dlist->StopDragging();
-		poly->InsertCorner( m_sel_id.I3()+1, p.x, p.y );
-		poly->HighlightCorner( m_sel_id.I3()+1 );
-		m_sel_id.Set( ID_MASK, -1, ID_MASK, -1, m_sel_id.I2(), ID_SEL_CORNER, -1, m_sel_id.I3()+1 );
-		SetCursorMode( CUR_SMCUTOUT_CORNER_SELECTED );
-		m_doc->ProjectModified( TRUE );
-		Invalidate( FALSE );
-	}
-#endif
 
 	else if( m_cursor_mode == CUR_DRAG_VTX )
 	{
@@ -1431,36 +1201,10 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		seg->preVtx->Move( cpi.x, cpi.y );
 		seg->postVtx->Move( cpf.x, cpf.y );
 		m_doc->Redraw();
-		SetCursorMode( CUR_NONE_SELECTED );
+		CancelSelection();
 		m_doc->ProjectModified( TRUE );
 		Invalidate( FALSE );
 	}
-
-/* CPT2 phasing out CUR_END_VTX_SELECTED and CUR_DRAG_END_VTX
-	else if( m_cursor_mode == CUR_DRAG_END_VTX )
-	{
-		// move end-vertex of stub trace
-		m_doc->m_dlist->StopDragging();
-		SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_doc->m_undo_list );
-		CPoint p;
-		p = m_last_cursor_point;
-		int ic = m_sel_id.I2();
-		int ivtx = m_sel_id.I3();
-		m_doc->m_nlist->MoveVertex( m_sel_net, ic, ivtx, p.x, p.y );
-		SetCursorMode( CUR_END_VTX_SELECTED );
-		if( m_doc->m_vis[LAY_RAT_LINE] )
-		{
-			m_doc->m_nlist->OptimizeConnections( m_sel_net, m_sel_ic, m_doc->m_auto_ratline_disable,
-													m_doc->m_auto_ratline_min_pins, TRUE  );
-			if( m_sel_id.Resolve() )
-				SelectItem( m_sel_id );
-			else
-				CancelSelection();
-		}
-		m_doc->ProjectModified( TRUE );
-		Invalidate( FALSE );
-	}
-*/
 
 	else if( m_cursor_mode == CUR_DRAG_NEW_RAT )
 	{
@@ -2026,26 +1770,6 @@ void CFreePcbView::OnRButtonDown(UINT nFlags, CPoint point)
 	}
 
 #ifndef CPT2
-	else if( m_cursor_mode == CUR_ADD_SMCUTOUT
-		  || m_cursor_mode == CUR_DRAG_SMCUTOUT_1
-		  || (m_cursor_mode == CUR_DRAG_SMCUTOUT && m_sel_id.I3()<3) )
-	{
-		// dragging first, second or third corner of solder mask cutout
-		// delete it and cancel dragging
-		m_dlist->StopDragging();
-		if( m_cursor_mode != CUR_ADD_SMCUTOUT )
-			m_doc->m_sm_cutout.RemoveAt( m_sel_id.I2() );
-		CancelSelection();
-	}
-	else if( m_cursor_mode == CUR_DRAG_SMCUTOUT )
-	{
-		// dragging fourth or higher corner of solder mask cutout, close it
-		m_dlist->StopDragging();
-		SaveUndoInfoForSMCutouts( TRUE, m_doc->m_undo_list );
-		m_doc->m_sm_cutout[m_sel_id.I2()].Close( m_polyline_style );
-		m_doc->ProjectModified( TRUE );
-		CancelSelection();
-	}
 	else if( m_cursor_mode == CUR_DRAG_SMCUTOUT_INSERT )
 	{
 		m_dlist->StopDragging();
@@ -2060,26 +1784,6 @@ void CFreePcbView::OnRButtonDown(UINT nFlags, CPoint point)
 		poly->MakeVisible();
 		poly->HighlightCorner( m_sel_id.I3() );
 	}
-	else if( m_cursor_mode == CUR_ADD_BOARD
-		  || m_cursor_mode == CUR_DRAG_BOARD_1
-		  || (m_cursor_mode == CUR_DRAG_BOARD && m_doc->m_board_outline[m_sel_id.I2()].NumCorners()<3) )
-	{
-		// dragging first, second or third corner of board outline
-		// just delete it (if necessary) and cancel
-		m_dlist->StopDragging();
-		if( m_cursor_mode != CUR_ADD_BOARD )
-			m_doc->m_board_outline.RemoveAt( m_sel_id.I2() );	
-		CancelSelection();
-	}
-	else if( m_cursor_mode == CUR_DRAG_BOARD )
-	{
-		// dragging fourth or higher corner of board outline, close it
-		m_dlist->StopDragging();
-		SaveUndoInfoForBoardOutlines( TRUE, m_doc->m_undo_list );
-		m_doc->m_board_outline[m_sel_id.I2()].Close( m_polyline_style );
-		m_doc->ProjectModified( TRUE );
-		CancelSelection();
-	}
 	else if( m_cursor_mode == CUR_DRAG_BOARD_INSERT )
 	{
 		m_dlist->StopDragging();
@@ -2093,81 +1797,44 @@ void CFreePcbView::OnRButtonDown(UINT nFlags, CPoint point)
 		m_doc->m_board_outline[m_sel_id.I2()].MakeVisible();
 		m_doc->m_board_outline[m_sel_id.I2()].HighlightCorner( m_sel_id.I2() );
 	}
-	else if( m_cursor_mode == CUR_ADD_AREA )
-	{
-		m_dlist->StopDragging();
-		CancelSelection();
-	}
-	else if( m_cursor_mode == CUR_DRAG_AREA_1
-		  || (m_cursor_mode == CUR_DRAG_AREA && m_sel_id.I3()<3) )
-	{
-		m_dlist->StopDragging();
-		m_doc->m_nlist->RemoveArea( m_sel_net, m_sel_ia );
-		CancelSelection();
-	}
-	else if( m_cursor_mode == CUR_DRAG_AREA)
-	{
-		m_dlist->StopDragging();
-		SetCursorMode( CUR_NONE_SELECTED );
-		SaveUndoInfoForAllAreasInNet( m_sel_net, TRUE, m_doc->m_undo_list );
-		m_doc->m_nlist->CompleteArea( m_sel_net, m_sel_ia, m_polyline_style );
-		m_doc->m_nlist->AreaPolygonModified( m_sel_net, m_sel_ia, TRUE, TRUE );
-		CancelSelection();
-		if( m_doc->m_vis[LAY_RAT_LINE] )
-			m_doc->m_nlist->OptimizeConnections(  m_sel_net, -1, m_doc->m_auto_ratline_disable,
-														m_doc->m_auto_ratline_min_pins, TRUE  );
-		CancelSelection();
-	}
 #endif
-	else if( m_cursor_mode == CUR_DRAG_AREA_INSERT )
+	else if( m_cursor_mode == CUR_ADD_AREA || m_cursor_mode == CUR_ADD_POLY_CUTOUT
+			 || m_cursor_mode == CUR_ADD_SMCUTOUT || m_cursor_mode == CUR_ADD_BOARD )
+	{
+		m_dlist->StopDragging();
+		CancelSelection();
+	}
+	else if( m_cursor_mode == CUR_DRAG_POLY_INSERT )
 	{
 		cside *s = m_sel.First()->ToSide();
 		s->CancelDraggingNewCorner();
 		s->Highlight();
 	}
-	else if( m_cursor_mode == CUR_ADD_AREA_CUTOUT )
-	{
-		m_dlist->StopDragging();
-		CancelSelection();
-	}
-	else if( m_cursor_mode == CUR_DRAG_AREA_CUTOUT_1
-		  || (m_cursor_mode == CUR_DRAG_AREA_CUTOUT && m_tmp_poly->NumCorners()<3) )
-	{
-		m_dlist->StopDragging();
-		m_tmp_poly->Undraw();
-		CancelSelection();
-	}
-	else if( m_cursor_mode == CUR_DRAG_AREA_CUTOUT )
-	{
-		m_dlist->StopDragging();
-		SetCursorMode( CUR_NONE_SELECTED );
-		ccontour *ctr = m_tmp_poly->main;
-		carea2 *a = m_sel.First()->GetArea();
-		a->MustRedraw();
-		m_tmp_poly->Undraw();
-		cnet2 *net = a->m_net;
-		SaveUndoInfoForAllAreasInNet( net, TRUE, m_doc->m_undo_list );
-		ctr->Close();
-		ctr->SetPoly(a);
-		int ret = a->PolygonModified( FALSE, FALSE );
-		if( ret == -1 )
-		{
-			CString s ((LPCSTR) IDS_ErrorUnableToClipPolygon);
-			AfxMessageBox( s );
-			m_doc->OnEditUndo();
-		}
-		else if( m_doc->m_vis[LAY_RAT_LINE] )
-			net->OptimizeConnections( m_doc->m_auto_ratline_disable, m_doc->m_auto_ratline_min_pins, TRUE  );
-		m_doc->Redraw();
-		m_doc->m_dlist->StopDragging();
-		CancelSelection();
-	}
-	else if( m_cursor_mode == CUR_DRAG_AREA_MOVE )
+	else if( m_cursor_mode == CUR_DRAG_POLY_MOVE )
 	{
 		ccorner *c = m_sel.First()->ToCorner();
 		c->CancelDragging();
 		c->Highlight();
 	}
+	else if( m_cursor_mode == CUR_DRAG_POLY_1
+		  || (m_cursor_mode == CUR_DRAG_POLY && m_tmp_poly->NumCorners()<3) )
+	{
+		m_dlist->StopDragging();
+		m_tmp_poly->Undraw();
+		CancelSelection();
+	}
+	else if( m_cursor_mode == CUR_DRAG_POLY )
+	{
+		m_dlist->StopDragging();
+		ccontour *ctr = m_tmp_poly->main;
+		if (m_poly_drag_mode == CUR_ADD_POLY_CUTOUT)
+			FinishAddPolyCutout( ctr );
+		else
+			FinishAddPoly( ctr );
+		m_doc->m_dlist->StopDragging();
+		CancelSelection();
+	}
+
 #ifndef CPT2
 	else if( m_cursor_mode == CUR_DRAG_GROUP )
 	{
@@ -2559,7 +2226,11 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 		else if( fk == FK_ADD_TEXT )
 			OnTextAdd();
 		else if( fk == FK_ADD_PART )
-			m_doc->OnAddPart();
+			OnAddPart();
+		else if (fk == FK_ADD_SMCUTOUT)
+			OnAddSoldermaskCutout();
+		else if (fk == FK_ADD_BOARD)
+			OnAddBoardOutline();
 		else if( fk == FK_REDO_RATLINES )
 		{
 			SaveUndoInfoForAllNets( TRUE, m_doc->m_undo_list );
@@ -2971,144 +2642,55 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 			OnTextRotateCCW();
 		break;
 
-#ifndef CPT2							// TODO
-	case CUR_BOARD_CORNER_SELECTED:
-		if( fk == FK_ARROW )
-		{
-			if( !m_lastKeyWasArrow )
-			{
-				SaveUndoInfoForBoardOutlines( TRUE, m_doc->m_undo_list );
-				m_totalArrowMoveX = 0;
-				m_totalArrowMoveY = 0;
-				m_lastKeyWasArrow = TRUE;
-			}
-			CPolyLine * poly = &m_doc->m_board_outline[m_sel_id.I2()];
-			poly->MoveCorner( m_sel_is,
-				poly->X( m_sel_is ) + dx,
-				poly->Y( m_sel_is ) + dy );
-			CancelHighlight();
-			m_totalArrowMoveX += dx;
-			m_totalArrowMoveY += dy;
-			ShowRelativeDistance( poly->X( m_sel_is ), poly->Y( m_sel_is ),
-				m_totalArrowMoveX, m_totalArrowMoveY );
-			poly->HighlightCorner( m_sel_is );
-			m_doc->ProjectModified( TRUE );
-			Invalidate( FALSE );
-		}
-		else if( fk == FK_SET_POSITION )
-			OnBoardCornerEdit();
-		else if( fk == FK_MOVE_CORNER )
-			OnBoardCornerMove();
-		else if( fk == FK_DELETE_CORNER )
-			OnBoardCornerDelete();
-		else if( fk == FK_DELETE_OUTLINE || nChar == 46 )
-			OnBoardDeleteOutline();
-		break;
-
+	case CUR_AREA_SIDE_SELECTED:
 	case CUR_BOARD_SIDE_SELECTED:
+	case CUR_SMCUTOUT_SIDE_SELECTED:
 		// CPT
 		if( fk == FK_ARROW )
 			MoveGroup(dx, dy);
 		// end CPT
 		else if( fk == FK_POLY_STRAIGHT )
-			OnBoardSideConvertToStraightLine();
+			OnPolySideConvertToStraightLine();
 		else if( fk == FK_POLY_ARC_CW )
-			OnBoardSideConvertToArcCw();
+			OnPolySideConvertToArcCw();
 		else if( fk == FK_POLY_ARC_CCW )
-			OnBoardSideConvertToArcCcw();
+			OnPolySideConvertToArcCcw();
 		else if( fk == FK_ADD_CORNER )
-			OnBoardSideAddCorner();
-		else if( fk == FK_DELETE_OUTLINE || nChar == 46 )
-			OnBoardDeleteOutline();
+			OnPolySideAddCorner();
+		else if( fk == FK_DELETE_OUTLINE || fk == FK_DELETE_AREA )
+			OnPolyDelete();
+		else if( fk == FK_EDIT_AREA )
+			OnAreaEdit();
+		else if (fk == FK_EDIT_CUTOUT)
+			OnSmEdit();
+		else if( fk == FK_EXCLUDE_RGN )
+			OnPolyAddCutout();
+		else if( fk == FK_REMOVE_CONTOUR )
+			OnPolyDeleteCutout();
+		else if( nChar == 46 )
+		{
+			if (m_sel.First()->ToSide()->IsOnCutout())
+				OnPolyDeleteCutout();
+			else
+				OnPolyDelete();
+		}
 		break;
 
+	case CUR_AREA_CORNER_SELECTED:
+	case CUR_BOARD_CORNER_SELECTED:
 	case CUR_SMCUTOUT_CORNER_SELECTED:
 		if( fk == FK_ARROW )
 		{
-			if( !m_lastKeyWasArrow )
-			{
-				SaveUndoInfoForSMCutouts( TRUE, m_doc->m_undo_list );
-				m_totalArrowMoveX = 0;
-				m_totalArrowMoveY = 0;
-				m_lastKeyWasArrow = TRUE;
-			}
-			CPolyLine * poly = &m_doc->m_sm_cutout[m_sel_ic];
-			poly->MoveCorner( m_sel_is,
-				poly->X( m_sel_is ) + dx,
-				poly->Y( m_sel_is ) + dy );
-			CancelHighlight();
-			m_totalArrowMoveX += dx;
-			m_totalArrowMoveY += dy;
-			ShowRelativeDistance( poly->X( m_sel_is ), poly->Y( m_sel_is ),
-				m_totalArrowMoveX, m_totalArrowMoveY );
-			poly->HighlightCorner( m_sel_is );
-			m_doc->ProjectModified( TRUE );
-			Invalidate( FALSE );
-		}
-		else if( fk == FK_SET_POSITION )
-			OnSmCornerSetPosition();
-		else if( fk == FK_MOVE_CORNER )
-			OnSmCornerMove();
-		else if( fk == FK_DELETE_CORNER )
-			OnSmCornerDeleteCorner();
-		else if( fk == FK_DELETE_CUTOUT || nChar == 46 )
-			OnSmCornerDeleteCutout();
-		break;
-
-	case CUR_SMCUTOUT_SIDE_SELECTED:
-		{
-			CPolyLine * poly = &m_doc->m_sm_cutout[m_sel_id.I2()];
-			// CPT: enable arrow keys
-			if( fk == FK_ARROW )
-				MoveGroup(dx, dy);
-			// end CPT
-			else if( fk == FK_POLY_STRAIGHT )
-			{
-				CancelHighlight();
-				m_polyline_style = CPolyLine::STRAIGHT;
-				poly->SetSideStyle( m_sel_id.I3(), m_polyline_style );
-				SetFKText( m_cursor_mode );
-				poly->HighlightSide( m_sel_id.I3() );
-				Invalidate( FALSE );
-				m_doc->ProjectModified( TRUE );
-			}
-			else if( fk == FK_POLY_ARC_CW )
-			{
-				CancelHighlight();
-				m_polyline_style = CPolyLine::ARC_CW;
-				poly->SetSideStyle( m_sel_id.I3(), m_polyline_style );
-				SetFKText( m_cursor_mode );
-				poly->HighlightSide( m_sel_id.I3() );
-				Invalidate( FALSE );
-				m_doc->ProjectModified( TRUE );
-			}
-			else if( fk == FK_POLY_ARC_CCW )
-			{
-				CancelHighlight();
-				m_polyline_style = CPolyLine::ARC_CCW;
-				poly->SetSideStyle( m_sel_id.I3(), m_polyline_style );
-				SetFKText( m_cursor_mode );
-				poly->HighlightSide( m_sel_id.I3() );
-				Invalidate( FALSE );
-				m_doc->ProjectModified( TRUE );
-			}
-			else if( fk == FK_ADD_CORNER )
-				OnSmSideInsertCorner();
-			else if( fk == FK_DELETE_CUTOUT || nChar == 46 )
-				OnSmSideDeleteCutout();
-		}
-		break;
-#endif
-
-	case CUR_AREA_CORNER_SELECTED:
-		if( fk == FK_ARROW )
-		{
 			ccorner *c = m_sel.First()->ToCorner();
+			cpolyline *poly = c->GetPolyline();
 			cnet2 *net = c->GetNet();
-			carea2 *area = c->contour->poly->ToArea();
+			carea2 *a = poly->ToArea();
 			if( !m_lastKeyWasArrow )
 			{
-				SaveUndoInfoForAllAreasInNet( net, TRUE, m_doc->m_undo_list );
+				if (a)
+					SaveUndoInfoForAllAreasInNet( net, TRUE, m_doc->m_undo_list );
+				else
+					SaveUndoInfoForPolylines( TRUE, m_doc->m_undo_list );
 				m_totalArrowMoveX = 0;
 				m_totalArrowMoveY = 0;
 				m_lastKeyWasArrow = TRUE;
@@ -3116,20 +2698,13 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 			CancelHighlight();
 			p = CPoint (c->x+dx, c->y+dy);
 			c->Move( p.x, p.y );
-			int ret = area->PolygonModified( FALSE, TRUE );
-			if( ret == -1 )
-			{
+			if (!poly->PolygonModified( FALSE, TRUE ))
 				// error
-				CString s ((LPCSTR) IDS_ErrorUnableToClipPolygon);
-				AfxMessageBox( s );
-				CancelSelection();
 				m_doc->OnEditUndo();
-				m_doc->Redraw();
-			}
 			else
 			{
 				m_doc->Redraw();
-				TryToReselectAreaCorner( p.x, p.y );
+				TryToReselectCorner( p.x, p.y );
 				m_lastKeyWasArrow = true;
 				m_totalArrowMoveX += dx;
 				m_totalArrowMoveY += dy;
@@ -3140,61 +2715,23 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 		}
 		else if( fk == FK_EDIT_AREA )
 			OnAreaEdit();
+		else if (fk == FK_EDIT_CUTOUT)
+			OnSmEdit();
 		else if( fk == FK_SET_POSITION )
-			OnAreaCornerProperties();
+			OnPolyCornerEdit();
 		else if( fk == FK_MOVE_CORNER )
-			OnAreaCornerMove();
+			OnPolyCornerMove();
 		else if( fk == FK_DELETE_CORNER || nChar == 46 )
-			OnAreaCornerDelete();
-		else if( fk == FK_DELETE_AREA )
-			OnAreaCornerDeleteArea();
-		else if( fk == FK_AREA_CUTOUT )
-			OnAreaAddCutout();
-		else if( fk == FK_DELETE_CUTOUT )
-			OnAreaDeleteCutout();
+			OnPolyCornerDelete();
+		else if( fk == FK_DELETE_AREA || fk == FK_DELETE_OUTLINE )
+			OnPolyDelete();
+		else if( fk == FK_EXCLUDE_RGN )
+			OnPolyAddCutout();
+		else if( fk == FK_REMOVE_CONTOUR )
+			OnPolyDeleteCutout();
 		break;
 
-	case CUR_AREA_SIDE_SELECTED:
-		// CPT
-		if( fk == FK_ARROW )
-			MoveGroup(dx, dy);
-		// end CPT
-		else if( fk == FK_SIDE_STYLE )
-			OnAreaSideStyle();
-		else if( fk == FK_EDIT_AREA )
-			OnAreaEdit();
-		else if( fk == FK_POLY_ARC_CCW )
-		{
-			cside *s = m_sel.First()->ToSide();
-			cnet2 *net = s->GetNet();
-			carea2 *area = s->contour->poly->ToArea();
-			SaveUndoInfoForArea( area, CNetList::UNDO_AREA_MODIFY, TRUE, m_doc->m_undo_list );
-//			SaveUndoInfoForNetAndConnectionsAndArea( m_sel_net, m_sel_ia, CNetList::UNDO_AREA_MODIFY, TRUE, m_doc->m_undo_list );
-			m_polyline_style = cpolyline::ARC_CCW;
-			s->m_style = m_polyline_style;
-			net->SetThermals();
-			if( m_doc->m_vis[LAY_RAT_LINE] )
-				net->OptimizeConnections( m_doc->m_auto_ratline_disable, m_doc->m_auto_ratline_min_pins, TRUE  );
-			SetFKText( m_cursor_mode );
-			Invalidate( FALSE );
-			m_doc->ProjectModified( TRUE );
-		}
-		else if( fk == FK_ADD_CORNER )
-			OnAreaSideAddCorner();
-		else if( fk == FK_DELETE_AREA )
-			OnAreaSideDeleteArea();
-		else if( fk == FK_AREA_CUTOUT )
-			OnAreaAddCutout();
-		else if( fk == FK_DELETE_CUTOUT )
-			OnAreaDeleteCutout();
-		else if( nChar == 46 )
-		{
-			if (m_sel.First()->ToSide()->IsOnCutout())
-				OnAreaDeleteCutout();
-			else
-				OnAreaSideDeleteArea();
-		}
-		break;
+
 
 	case CUR_DRE_SELECTED:
 		if( nChar == 46 )
@@ -3292,54 +2829,8 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 			m_dlist->IncrementDragAngle( pDC, true );
 		break;
 
-	case  CUR_DRAG_BOARD:
-	case  CUR_DRAG_BOARD_1:
-		if( fk == FK_POLY_STRAIGHT )
-		{
-			m_polyline_style = CPolyLine::STRAIGHT;
-			m_dlist->SetDragArcStyle( m_polyline_style );
-			m_dlist->Drag( pDC, p.x, p.y );
-		}
-		else if( fk == FK_POLY_ARC_CW )
-		{
-			m_polyline_style = CPolyLine::ARC_CW;
-			m_dlist->SetDragArcStyle( m_polyline_style );
-			m_dlist->Drag( pDC, p.x, p.y );
-		}
-		else if( fk == FK_POLY_ARC_CCW )
-		{
-			m_polyline_style = CPolyLine::ARC_CCW;
-			m_dlist->SetDragArcStyle( m_polyline_style );
-			m_dlist->Drag( pDC, p.x, p.y );
-		}
-		break;
-
-	case  CUR_DRAG_AREA:
-	case  CUR_DRAG_AREA_1:
-	case  CUR_DRAG_AREA_CUTOUT:
-	case  CUR_DRAG_AREA_CUTOUT_1:
-		if( fk == FK_POLY_STRAIGHT )
-		{
-			m_polyline_style = CPolyLine::STRAIGHT;
-			m_dlist->SetDragArcStyle( m_polyline_style );
-			m_dlist->Drag( pDC, p.x, p.y );
-		}
-		else if( fk == FK_POLY_ARC_CW )
-		{
-			m_polyline_style = CPolyLine::ARC_CW;
-			m_dlist->SetDragArcStyle( m_polyline_style );
-			m_dlist->Drag( pDC, p.x, p.y );
-		}
-		else if( fk == FK_POLY_ARC_CCW )
-		{
-			m_polyline_style = CPolyLine::ARC_CCW;
-			m_dlist->SetDragArcStyle( m_polyline_style );
-			m_dlist->Drag( pDC, p.x, p.y );
-		}
-		break;
-
-	case  CUR_DRAG_SMCUTOUT:
-	case  CUR_DRAG_SMCUTOUT_1:
+	case  CUR_DRAG_POLY:
+	case  CUR_DRAG_POLY_1:
 		if( fk == FK_POLY_STRAIGHT )
 		{
 			m_polyline_style = CPolyLine::STRAIGHT;
@@ -3576,6 +3067,8 @@ void CFreePcbView::SetFKText( int mode )
 			m_fkey_option[1] = FK_ADD_AREA;
 			m_fkey_option[2] = FK_ADD_TEXT;
 			m_fkey_option[3] = FK_ADD_PART;
+			m_fkey_option[4] = FK_ADD_BOARD;				// CPT2 new
+			m_fkey_option[5] = FK_ADD_SMCUTOUT;				// CPT2 new
 			m_fkey_option[8] = FK_REDO_RATLINES;
 		}
 		break;
@@ -3626,25 +3119,6 @@ void CFreePcbView::SetFKText( int mode )
 		m_fkey_option[7] = FK_DELETE_TEXT;
 		break;
 
-	case CUR_SMCUTOUT_CORNER_SELECTED:
-		m_fkey_option[0] = FK_SET_POSITION;
-		m_fkey_option[3] = FK_MOVE_CORNER;
-		m_fkey_option[4] = FK_DELETE_CORNER;
-		m_fkey_option[7] = FK_DELETE_CUTOUT;
-		break;
-
-	case CUR_SMCUTOUT_SIDE_SELECTED:
-		m_fkey_option[0] = FK_POLY_STRAIGHT;
-		m_fkey_option[1] = FK_POLY_ARC_CW;
-		m_fkey_option[2] = FK_POLY_ARC_CCW;
-		{
-			int style = m_sel.First()->ToSide()->m_style;
-			if( style == CPolyLine::STRAIGHT )
-				m_fkey_option[3] = FK_ADD_CORNER;
-		}
-		m_fkey_option[7] = FK_DELETE_CUTOUT;
-		break;
-
 	case CUR_BOARD_CORNER_SELECTED:
 		m_fkey_option[0] = FK_SET_POSITION;
 		m_fkey_option[3] = FK_MOVE_CORNER;
@@ -3665,31 +3139,49 @@ void CFreePcbView::SetFKText( int mode )
 		break;
 
 	case CUR_AREA_CORNER_SELECTED:
+	case CUR_SMCUTOUT_CORNER_SELECTED:
+		// CPT2: Assimilated smcutout menu to the area menu.  To lessen confusion the f-key text "Add cutout" has been changed in
+		// all cases to "Exclude region", while "Delete cutout" has become "Remove contour"
 		m_fkey_option[0] = FK_SET_POSITION;
 		m_fkey_option[1] = FK_EDIT_AREA;
 		m_fkey_option[3] = FK_MOVE_CORNER;
 		m_fkey_option[4] = FK_DELETE_CORNER;
 		if (m_sel.First()->ToCorner()->IsOnCutout())
-			m_fkey_option[6] = FK_DELETE_CUTOUT;
+			m_fkey_option[6] = FK_REMOVE_CONTOUR;
 		else
-			m_fkey_option[6] = FK_AREA_CUTOUT;
-		m_fkey_option[7] = FK_DELETE_AREA;
+			m_fkey_option[6] = FK_EXCLUDE_RGN;
+		if (mode == CUR_AREA_CORNER_SELECTED)
+			m_fkey_option[7] = FK_DELETE_AREA;
+		else
+			m_fkey_option[7] = FK_DELETE_OUTLINE;
 		break;
 
 	case CUR_AREA_SIDE_SELECTED:
+	case CUR_SMCUTOUT_SIDE_SELECTED:
 		{
-			m_fkey_option[0] = FK_SIDE_STYLE;
-			m_fkey_option[1] = FK_EDIT_AREA;
+			// CPT2:  Also assimilated these 2 menus.
+			m_fkey_option[0] = FK_POLY_STRAIGHT;
+			m_fkey_option[1] = FK_POLY_ARC_CW;
+			m_fkey_option[2] = FK_POLY_ARC_CCW;
 			int style = m_sel.First()->ToSide()->m_style;
 			if( style == CPolyLine::STRAIGHT )
 				m_fkey_option[3] = FK_ADD_CORNER;
-			if( m_sel.First()->ToSide()->IsOnCutout() )
-				m_fkey_option[6] = FK_DELETE_CUTOUT;
+			if (mode == CUR_AREA_SIDE_SELECTED)
+				m_fkey_option[4] = FK_EDIT_AREA;
 			else
-				m_fkey_option[6] = FK_AREA_CUTOUT;
-			m_fkey_option[7] = FK_DELETE_AREA;
+				m_fkey_option[4] = FK_EDIT_CUTOUT;
+			if( m_sel.First()->ToSide()->IsOnCutout() )
+				m_fkey_option[6] = FK_REMOVE_CONTOUR;
+			else
+				m_fkey_option[6] = FK_EXCLUDE_RGN;
+			if (mode == CUR_AREA_SIDE_SELECTED)
+				m_fkey_option[7] = FK_DELETE_AREA;
+			else
+				m_fkey_option[7] = FK_DELETE_OUTLINE;
 			break;
 		}
+		break;
+
 
 	case CUR_SEG_SELECTED:
 		{
@@ -3842,55 +3334,13 @@ void CFreePcbView::SetFKText( int mode )
 		// END cpt
 		break;
 
-	case CUR_DRAG_SMCUTOUT_1:
-		m_fkey_option[0] = FK_POLY_STRAIGHT;
-		m_fkey_option[1] = FK_POLY_ARC_CW;
-		m_fkey_option[2] = FK_POLY_ARC_CCW;
-		break;
-
-	case CUR_DRAG_SMCUTOUT:
-		m_fkey_option[0] = FK_POLY_STRAIGHT;
-		m_fkey_option[1] = FK_POLY_ARC_CW;
-		m_fkey_option[2] = FK_POLY_ARC_CCW;
-		break;
-
-	case CUR_DRAG_AREA_1:
-		m_fkey_option[0] = FK_POLY_STRAIGHT;
-		m_fkey_option[1] = FK_POLY_ARC_CW;
-		m_fkey_option[2] = FK_POLY_ARC_CCW;
-		break;
-
-	case CUR_DRAG_AREA_CUTOUT:
-		m_fkey_option[0] = FK_POLY_STRAIGHT;
-		m_fkey_option[1] = FK_POLY_ARC_CW;
-		m_fkey_option[2] = FK_POLY_ARC_CCW;
-		break;
-
-	case CUR_DRAG_AREA_CUTOUT_1:
-		m_fkey_option[0] = FK_POLY_STRAIGHT;
-		m_fkey_option[1] = FK_POLY_ARC_CW;
-		m_fkey_option[2] = FK_POLY_ARC_CCW;
-		break;
-
-	case CUR_DRAG_AREA:
-		m_fkey_option[0] = FK_POLY_STRAIGHT;
-		m_fkey_option[1] = FK_POLY_ARC_CW;
-		m_fkey_option[2] = FK_POLY_ARC_CCW;
-		break;
-
-	case CUR_DRAG_BOARD:
-		m_fkey_option[0] = FK_POLY_STRAIGHT;
-		m_fkey_option[1] = FK_POLY_ARC_CW;
-		m_fkey_option[2] = FK_POLY_ARC_CCW;
-		break;
-
-	case CUR_DRAG_BOARD_1:
+	case CUR_DRAG_POLY:
+	case CUR_DRAG_POLY_1:
 		m_fkey_option[0] = FK_POLY_STRAIGHT;
 		m_fkey_option[1] = FK_POLY_ARC_CW;
 		m_fkey_option[2] = FK_POLY_ARC_CCW;
 		break;
 	}
-
 
 	// CPT: Lefthanded mode support:  if set, reverse key meanings
 	if (m_doc->m_bLefthanded) 
@@ -3973,65 +3423,48 @@ int CFreePcbView::ShowSelectStatus()
 	case CUR_DRE_SELECTED:
 		str.Format( "DRE %s", m_sel.First()->ToDRE()->str );
 		break;
+#endif
 
 	case CUR_SMCUTOUT_CORNER_SELECTED:
+	case CUR_BOARD_CORNER_SELECTED:
 		{
+			ccorner *c = m_sel.First()->ToCorner();
+			cpolyline *poly = c->GetPolyline();
 			CString lay_str;
-			CPolyLine * poly = &m_doc->m_sm_cutout[m_sel_id.I2()];
-			if( poly->Layer() == LAY_SM_TOP )
+			if( poly->GetLayer() == LAY_SM_TOP )
 				lay_str.LoadStringA(IDS_Top3);
-			else
+			else if (poly->GetLayer() == LAY_SM_BOTTOM)
 				lay_str.LoadStringA(IDS_Bottom2);
-			::MakeCStringFromDimension( &x_str, poly->X(m_sel_id.I3()), u, FALSE, FALSE, FALSE, u==MIL?1:3 );
-			::MakeCStringFromDimension( &y_str, poly->Y(m_sel_id.I3()), u, FALSE, FALSE, FALSE, u==MIL?1:3 );
-			CString s ((LPCSTR) IDS_SolderMaskCutoutCorner);
-			str.Format( s, m_sel_id.I2()+1, lay_str, m_sel_id.I3()+1, x_str, y_str, uid_str );
+			::MakeCStringFromDimension( &x_str, c->x, u, FALSE, FALSE, FALSE, u==MIL?1:3 );
+			::MakeCStringFromDimension( &y_str, c->y, u, FALSE, FALSE, FALSE, u==MIL?1:3 );
+			int rsrc = m_cursor_mode==CUR_SMCUTOUT_CORNER_SELECTED? IDS_SolderMaskCutoutCorner: IDS_BoardOutlineCorner;
+			CString s ((LPCSTR) rsrc);
+			str.Format( s, poly->UID(), lay_str, c->UID(), x_str, y_str, uid_str );
 		}
 		break;
 
 	case CUR_SMCUTOUT_SIDE_SELECTED:
-		{
-			CString style_str;
-			CPolyLine * poly = &m_doc->m_sm_cutout[m_sel_id.I2()];
-			if( poly->SideStyle( m_sel_id.I3() ) == CPolyLine::STRAIGHT )
-				style_str.LoadStringA(IDS_Straight);
-			else if( poly->SideStyle( m_sel_id.I3() ) == CPolyLine::ARC_CW )
-				style_str.LoadStringA(IDS_ArcCw);
-			else if( poly->SideStyle( m_sel_id.I3() ) == CPolyLine::ARC_CCW )
-				style_str.LoadStringA(IDS_ArcCcw);
-			CString lay_str;
-			if( poly->Layer() == LAY_SM_TOP )
-				lay_str.LoadStringA(IDS_Top3);
-			else
-				lay_str.LoadStringA(IDS_Bottom2);
-			CString s ((LPCSTR) IDS_SolderMaskCutoutSide);
-			str.Format( s, m_sel_id.I2()+1, lay_str, m_sel_id.I3()+1,
-				poly->NumCorners(), style_str, uid_str );
-		}
-		break;
-
-	case CUR_BOARD_CORNER_SELECTED: 
-		::MakeCStringFromDimension( &x_str, m_doc->m_board_outline[m_sel_id.I2()].X(m_sel_id.I3()), u, FALSE, FALSE, FALSE, u==MIL?1:3 );
-		::MakeCStringFromDimension( &y_str, m_doc->m_board_outline[m_sel_id.I2()].Y(m_sel_id.I3()), u, FALSE, FALSE, FALSE, u==MIL?1:3 );
-		s.LoadStringA(IDS_BoardOutlineCorner);
-		str.Format( s, m_sel_id.I2()+1, m_sel_id.I3()+1, x_str, y_str, uid_str );
-		break;
-
 	case CUR_BOARD_SIDE_SELECTED:
 		{
+			cside *side = m_sel.First()->ToSide();
+			cpolyline *poly = side->GetPolyline();
 			CString style_str;
-			if( m_doc->m_board_outline[m_sel_id.I2()].SideStyle( m_sel_id.I3() ) == CPolyLine::STRAIGHT )
+			if( side->m_style == cpolyline::STRAIGHT )
 				style_str.LoadStringA(IDS_Straight);
-			else if( m_doc->m_board_outline[m_sel_id.I2()].SideStyle( m_sel_id.I3() ) == CPolyLine::ARC_CW )
+			else if( side->m_style == cpolyline::ARC_CW )
 				style_str.LoadStringA(IDS_ArcCw);
-			else if( m_doc->m_board_outline[m_sel_id.I2()].SideStyle( m_sel_id.I3() ) == CPolyLine::ARC_CCW )
+			else if( side->m_style == cpolyline::ARC_CCW )
 				style_str.LoadStringA(IDS_ArcCcw);
-			s.LoadStringA(IDS_BoardOutlineSide);
-			str.Format( s, m_sel_id.I2()+1, m_sel_id.I3()+1,
-				m_doc->m_board_outline[m_sel_id.I2()].NumCorners(), style_str, uid_str );
+			CString lay_str;
+			if( poly->GetLayer() == LAY_SM_TOP )
+				lay_str.LoadStringA(IDS_Top3);
+			else if (poly->GetLayer() == LAY_SM_BOTTOM )
+				lay_str.LoadStringA(IDS_Bottom2);
+			int rsrc = m_cursor_mode==CUR_SMCUTOUT_SIDE_SELECTED? IDS_SolderMaskCutoutSide: IDS_BoardOutlineSide;
+			CString s ((LPCSTR) rsrc);
+			str.Format( s, poly->UID(), lay_str, side->UID(), style_str, uid_str );
 		}
 		break;
-#endif
 
 	case CUR_PART_SELECTED:
 		{
@@ -4157,13 +3590,6 @@ int CFreePcbView::ShowSelectStatus()
 		}
 		break;
 
-	/* CPT2 TODO confirm that this is obsolete
-	case CUR_NET_SELECTED:
-		s.LoadStringA(IDS_Net);
-		str.Format( s, m_sel_net->name );
-		break;
-	*/
-
 	case CUR_TEXT_SELECTED:
 		{
 			ctext *t = sel->ToText();
@@ -4205,20 +3631,12 @@ int CFreePcbView::ShowSelectStatus()
 		str.LoadStringA(IDS_GroupSelected);
 		break;
 
-	case CUR_ADD_BOARD:
-		str.LoadStringA(IDS_PlacingFirstCornerOfBoardOutline);
-		break;
-
-	case CUR_DRAG_BOARD_1:
-		str.LoadStringA(IDS_PlacingSecondCornerOfBoardOutline);
+	case CUR_DRAG_POLY:
+	case CUR_DRAG_POLY_1:
+		str.LoadStringA(IDS_PlacingCornerOfPolygon);
 		break;
 
 #ifndef CPT2
-	case CUR_DRAG_BOARD:
-		s.LoadStringA(IDS_PlacingCornerOfBoardOutline);
-		str.Format( s, m_sel_id.I3()+2 );
-		break;
-
 	case CUR_DRAG_BOARD_INSERT:
 		s.LoadStringA(IDS_InsertingCornerOfBoardOutline);
 		str.Format( s, m_sel_id.I3()+2 );
@@ -4254,22 +3672,13 @@ int CFreePcbView::ShowSelectStatus()
 		str.LoadStringA(IDS_PlacingFirstCornerOfCopperArea);
 		break;
 
-	case CUR_DRAG_AREA_1:
-		str.LoadStringA(IDS_PlacingSecondCornerOfCopperArea);
-		break;
-
-	case CUR_DRAG_AREA:
-		s.LoadStringA(IDS_PlacingCornerOfCopperArea);
+	case CUR_DRAG_POLY_INSERT:
+		s.LoadStringA(IDS_InsertingPolylineCorner);
 		str.Format( s, sel->UID() );
 		break;
 
-	case CUR_DRAG_AREA_INSERT:
-		s.LoadStringA(IDS_InsertingCornerOfCopperArea);
-		str.Format( s, sel->UID() );
-		break;
-
-	case CUR_DRAG_AREA_MOVE:
-		s.LoadStringA(IDS_MovingCornerOfCopperArea);
+	case CUR_DRAG_POLY_MOVE:
+		s.LoadStringA(IDS_MovingPolylineCorner);
 		str.Format( s, sel->UID() );
 		break;
 
@@ -4341,136 +3750,6 @@ BOOL CFreePcbView::OnMouseWheel(UINT nFlags, short zDelta, CPoint pt)
 	return CCommonView::OnMouseWheel(nFlags, zDelta, pt);
 }
 
-/* Old version, pre-CCommonView reorganization
-BOOL CFreePcbView::OnMouseWheel(UINT nFlags, short zDelta, CPoint pt)
-{
-#define MIN_WHEEL_DELAY 1.0
-
-	static struct _timeb current_time;
-	static struct _timeb last_time;
-	static int first_time = 1;
-	double diff;
-
-	// ignore if cursor not in window
-	CRect wr;
-	GetWindowRect( wr );
-	if( pt.x < wr.left || pt.x > wr.right || pt.y < wr.top || pt.y > wr.bottom )
-		return CView::OnMouseWheel(nFlags, zDelta, pt);
-
-	// ignore if we are dragging a selection rect
-	if( m_bDraggingRect )
-		return CView::OnMouseWheel(nFlags, zDelta, pt);
-
-	// get current time
-	_ftime( &current_time );
-
-	if( first_time )
-	{
-		diff = 999.0;
-		first_time = 0;
-	}
-	else
-	{
-		// get elapsed time since last wheel event
-		diff = difftime( current_time.time, last_time.time );
-		double diff_mil = (double)(current_time.millitm - last_time.millitm)*0.001;
-		diff = diff + diff_mil;
-	}
-
-	if( diff > MIN_WHEEL_DELAY )
-	{
-		// first wheel movement in a while
-		// center window on cursor then center cursor
-		CPoint p;
-		GetCursorPos( &p );		// cursor pos in screen coords
-		p = m_dlist->ScreenToPCB( p );
-		m_org_x = p.x - ((m_client_r.right-m_left_pane_w)*m_pcbu_per_pixel)/2;
-		m_org_y = p.y - ((m_client_r.bottom-m_bottom_pane_h)*m_pcbu_per_pixel)/2;
-		CRect screen_r;
-		GetWindowRect( &screen_r );
-		m_dlist->SetMapping( &m_client_r, &screen_r, m_left_pane_w, m_bottom_pane_h, m_pcbu_per_pixel, m_org_x, m_org_y );
-		Invalidate( FALSE );
-		p = m_dlist->PCBToScreen( p );
-		SetCursorPos( p.x, p.y - 4 );
-	}
-	else
-	{
-		// serial movements, zoom in or out
-		if( zDelta > 0 && m_pcbu_per_pixel > NM_PER_MIL/1000 )
-		{
-			// wheel pushed, zoom in then center world coords and cursor
-			CPoint p;
-			GetCursorPos( &p );		// cursor pos in screen coords
-			p = m_dlist->ScreenToPCB( p );	// convert to PCB coords
-			m_pcbu_per_pixel = m_pcbu_per_pixel/ZOOM_RATIO;
-			m_org_x = p.x - ((m_client_r.right-m_left_pane_w)*m_pcbu_per_pixel)/2;
-			m_org_y = p.y - ((m_client_r.bottom-m_bottom_pane_h)*m_pcbu_per_pixel)/2;
-			CRect screen_r;
-			GetWindowRect( &screen_r );
-			m_dlist->SetMapping( &m_client_r, &screen_r, m_left_pane_w, m_bottom_pane_h, m_pcbu_per_pixel, m_org_x, m_org_y );
-			Invalidate( FALSE );
-			p = m_dlist->PCBToScreen( p );
-			SetCursorPos( p.x, p.y - 4 );
-		}
-		else if( zDelta < 0 )
-		{
-			// wheel pulled, zoom out then center
-			// first, make sure that window boundaries will be OK
-			CPoint p;
-			GetCursorPos( &p );		// cursor pos in screen coords
-			p = m_dlist->ScreenToPCB( p );
-			int org_x = p.x - ((m_client_r.right-m_left_pane_w)*m_pcbu_per_pixel*ZOOM_RATIO)/2;
-			int org_y = p.y - ((m_client_r.bottom-m_bottom_pane_h)*m_pcbu_per_pixel*ZOOM_RATIO)/2;
-			int max_x = org_x + (m_client_r.right-m_left_pane_w)*m_pcbu_per_pixel*ZOOM_RATIO;
-			int max_y = org_y + (m_client_r.bottom-m_bottom_pane_h)*m_pcbu_per_pixel*ZOOM_RATIO;
-			if( org_x > -PCB_BOUND && org_x < PCB_BOUND && max_x > -PCB_BOUND && max_x < PCB_BOUND
-				&& org_y > -PCB_BOUND && org_y < PCB_BOUND && max_y > -PCB_BOUND && max_y < PCB_BOUND )
-			{
-				// OK, do it
-				m_org_x = org_x;
-				m_org_y = org_y;
-				m_pcbu_per_pixel = m_pcbu_per_pixel*ZOOM_RATIO;
-				CRect screen_r;
-				GetWindowRect( &screen_r );
-				m_dlist->SetMapping( &m_client_r, &screen_r, m_left_pane_w, m_bottom_pane_h, m_pcbu_per_pixel, m_org_x, m_org_y );
-				Invalidate( FALSE );
-				p = m_dlist->PCBToScreen( p );
-				SetCursorPos( p.x, p.y - 4 );
-			}
-		}
-	}
-	last_time = current_time;
-
-	return CView::OnMouseWheel(nFlags, zDelta, pt);
-}
-*/
-
-// SelectPart...this is called from FreePcbDoc when a new part is added
-// selects the new part as long as the cursor is not dragging something
-// CPT2.  TODO eliminate
-//
-int CFreePcbView::SelectPart( cpart * part )
-{
-#ifndef CPT2
-	if(	!CurDragging() )
-	{
-		// deselect previously selected item
-		if( m_sel_id.T1() )
-			CancelSelection();
-
-		// select part
-		m_sel_part = part;
-		m_sel_id = part->m_id;
-		m_sel_id.SetT2( ID_SEL_RECT );
-		m_doc->m_plist->SelectPart( m_sel_part );
-		SetCursorMode( CUR_PART_SELECTED );
-	}
-	m_lastKeyWasArrow = FALSE;
-	m_lastKeyWasGroupRotate=false;
-	Invalidate( FALSE );
-#endif
-	return 0;
-}
 
 // cancel any highlights
 //
@@ -4570,22 +3849,6 @@ void CFreePcbView::HighlightSelection()
 	Invalidate(false);
 }
 
-// highlight all segments, vertices and pads in net, except for excluded_id.
-// CPT2 supplanted with cnet2::Highlight(cpcb_item *except)
-//
-/*
-void CFreePcbView::HighlightNet( cnet * net, id * exclude_id ) 
-{
-#ifndef CPT2
-	if( net == NULL )
-		return;
-	m_doc->m_nlist->HighlightNet( net, exclude_id ); 
-	m_doc->m_plist->HighlightAllPadsOnNet( net ); 
-	m_bNetHighlighted = TRUE;
-#endif
-}
-*/
-
 // cancel net highlight, reselect selected item if not dragging
 // CPT2 updated.  TODO check that this is right
 void CFreePcbView::CancelHighlightNet()
@@ -4595,29 +3858,6 @@ void CFreePcbView::CancelHighlightNet()
 		HighlightSelection();
 	m_highlight_net = NULL;
 }
-
-// attempt to reselect area corner within currently selected net, based on position
-// should be used after areas are modified
-void CFreePcbView::TryToReselectAreaCorner( int x, int y )
-{
-	if (m_sel.IsEmpty()) return;
-	cnet2 *net = m_sel.First()->GetNet();
-	CancelHighlight();
-	citer<carea2> ia (&net->areas);
-	for (carea2 *a = ia.First(); a; a = ia.Next())
-	{
-		citer<ccontour> ictr (&a->contours);
-		for (ccontour *ctr = ictr.First(); ctr; ctr = ictr.Next())
-		{
-			citer<ccorner> ic (&ctr->corners);
-			for (ccorner *c = ic.First(); c; c = ic.Next())
-				if (c->x==x && c->y==y)
-					{ SelectItem(c); return; }
-		}
-	}
-	CancelSelection();
-}
-
 
 // set trace width using dialog
 // enter with:
@@ -4933,90 +4173,6 @@ void CFreePcbView::OnContextMenu(CWnd* pWnd, CPoint point )
 	}
 }
 
-// add copper area
-//
-void CFreePcbView::OnAddArea()
-{
-#ifndef CPT2
-	CDlgAddArea dlg;
-	dlg.Initialize( m_doc->m_nlist, m_doc->m_num_layers, NULL, m_active_layer, -1 );
-	int ret = dlg.DoModal();
-	if( ret == IDOK )
-	{
-		if( !dlg.m_net )
-		{
-			CString str, s ((LPCSTR) IDS_NetNotFound);
-			str.Format( s, dlg.m_net_name );
-			AfxMessageBox( str, MB_OK );
-		}
-		else
-		{
-			CDC *pDC = GetDC();
-			pDC->SelectClipRgn( &m_pcb_rgn );
-			SetDCToWorldCoords( pDC );
-			CancelHighlight();
-			SetCursorMode( CUR_ADD_AREA );
-			// make layer visible
-			m_active_layer = dlg.m_layer;
-			m_doc->m_vis[m_active_layer] = TRUE;
-			m_dlist->SetLayerVisible( m_active_layer, TRUE );
-			ShowActiveLayer();
-			m_sel_net = dlg.m_net;
-			m_dlist->StartDraggingArray( pDC, m_last_cursor_point.x,
-				m_last_cursor_point.y, 0, m_active_layer, 2 );
-			m_polyline_style = CPolyLine::STRAIGHT;
-			m_polyline_hatch = dlg.m_hatch;
-			Invalidate( FALSE );
-			ReleaseDC( pDC );
-		}
-	}
-#endif
-}
-
-// add copper area cutout
-// CPT2 converted
-void CFreePcbView::OnAreaAddCutout()
-{
-	CDC *pDC = GetDC();
-	pDC->SelectClipRgn( &m_pcb_rgn );
-	SetDCToWorldCoords( pDC );
-	CancelHighlight();
-	SetCursorMode( CUR_ADD_AREA_CUTOUT );
-	// make layer visible
-	carea2 *a = m_sel.First()->GetArea();
-	m_active_layer = a->m_layer;
-	m_doc->m_vis[m_active_layer] = TRUE;
-	m_dlist->SetLayerVisible( m_active_layer, TRUE );
-	ShowActiveLayer();
-	m_dlist->StartDraggingArray( pDC, m_last_cursor_point.x,
-		m_last_cursor_point.y, 0, m_active_layer, 2 );
-	m_polyline_style = cpcb_item::STRAIGHT;
-	Invalidate( FALSE );
-	ReleaseDC( pDC );
-}
-
-void CFreePcbView::OnAreaDeleteCutout()
-{
-	cpcb_item *first = m_sel.First();
-	carea2 *a = first->GetArea();
-	cnet2 *net = a->m_net;
-	ccontour *ctr = NULL;
-	if (ccorner *c = first->ToCorner())
-		ctr = c->contour;
-	else if (cside *s = first->ToSide())
-		ctr = s->contour;
-	ASSERT( ctr && ctr != ctr->poly->main );
-	SaveUndoInfoForArea( a, CNetList::UNDO_AREA_MODIFY, TRUE, m_doc->m_undo_list );
-	a->MustRedraw();
-	ctr->Remove();
-	net->SetThermals();
-	if( m_doc->m_vis[LAY_RAT_LINE] )
-		net->OptimizeConnections( m_doc->m_auto_ratline_disable, m_doc->m_auto_ratline_min_pins, TRUE  );
-	m_doc->Redraw();
-	CancelSelection();
-	Invalidate( FALSE );
-}
-
 // move part
 //
 void CFreePcbView::OnPartMove()
@@ -5053,7 +4209,6 @@ void CFreePcbView::OnPartMove()
 //
 void CFreePcbView::OnTextAdd()
 {
-#ifndef CPT2
 	// create, initialize and show dialog
 	CDlgAddText add_text_dlg;
 	CString str = "";
@@ -5061,51 +4216,49 @@ void CFreePcbView::OnTextAdd()
 			LAY_SILK_TOP, 0, 0, 0, 0, 0, 0, 0 );
 	add_text_dlg.m_num_layers = m_doc->m_num_layers;
 	add_text_dlg.m_bDrag = 1;
-	// defaults for dialog
 	int ret = add_text_dlg.DoModal();
 	if( ret == IDCANCEL )
 		return;
-	else
-	{
-		int x = add_text_dlg.m_x;
-		int y = add_text_dlg.m_y;
-		int mirror = add_text_dlg.m_bMirror;
-		BOOL bNegative = add_text_dlg.m_bNegative;
-		int angle = add_text_dlg.m_angle;
-		int font_size = add_text_dlg.m_height;
-		int stroke_width = add_text_dlg.m_width;
-		int layer = add_text_dlg.m_layer;
-		CString str = add_text_dlg.m_str;
-		m_doc->m_vis[layer] = TRUE;
-		m_dlist->SetLayerVisible( layer, TRUE );
 
-		// get cursor position and convert to PCB coords
+	int x = add_text_dlg.m_x;
+	int y = add_text_dlg.m_y;
+	int mirror = add_text_dlg.m_bMirror;
+	BOOL bNegative = add_text_dlg.m_bNegative;
+	int angle = add_text_dlg.m_angle;
+	int font_size = add_text_dlg.m_height;
+	int stroke_width = add_text_dlg.m_width;
+	int layer = add_text_dlg.m_layer;
+	str = add_text_dlg.m_str;
+	m_doc->m_vis[layer] = TRUE;
+	m_dlist->SetLayerVisible( layer, TRUE );
+
+	if( add_text_dlg.m_bDrag )
+	{
 		CPoint p;
 		GetCursorPos( &p );		// cursor pos in screen coords
 		p = m_dlist->ScreenToPCB( p );	// convert to PCB coords
+		x = p.x, y = p.y;
+	}
+
+	ctext *t = m_doc->m_tlist->AddText( x, y, angle, mirror, bNegative,
+			layer, font_size, stroke_width, &str );
+	t->Draw();
+	SelectItem(t);
+
+	if( add_text_dlg.m_bDrag )
+	{
 		// set pDC to PCB coords
 		CDC *pDC = GetDC();
 		pDC->SelectClipRgn( &m_pcb_rgn );
 		SetDCToWorldCoords( pDC );
-		if( add_text_dlg.m_bDrag )
-		{
-			m_sel_text = m_doc->m_tlist->AddText( p.x, p.y, angle, mirror, bNegative,
-				layer, font_size, stroke_width, &str );
-			m_dragging_new_item = 1;
-			m_doc->m_tlist->StartDraggingText( pDC, m_sel_text );
-			SetCursorMode( CUR_DRAG_TEXT );
-		}
-		else
-		{
-			m_sel_text = m_doc->m_tlist->AddText( x, y, angle, mirror, bNegative,
-				layer, font_size,  stroke_width, &str );
-			SaveUndoInfoForText( m_sel_text, CTextList::UNDO_TEXT_ADD, TRUE, m_doc->m_undo_list );
-			m_doc->m_tlist->HighlightText( m_sel_text );
-		}
+		m_dragging_new_item = 1;
+		t->StartDragging( pDC );
+		SetCursorMode( CUR_DRAG_TEXT );
 		ReleaseDC( pDC );
-		Invalidate( FALSE );
 	}
-#endif
+	else
+		SaveUndoInfoForText( t, CTextList::UNDO_TEXT_ADD, TRUE, m_doc->m_undo_list );
+	Invalidate( FALSE );
 }
 
 // delete text ... enter with text selected
@@ -6003,6 +5156,42 @@ void CFreePcbView::OnTextEdit()
 	m_doc->ProjectModified( TRUE );
 }
 
+
+// add copper area
+//
+void CFreePcbView::OnAddArea()
+{
+	CDlgAddArea dlg;
+	dlg.Initialize( m_doc->m_nlist, m_doc->m_num_layers, NULL, m_active_layer, -1 );
+	int ret = dlg.DoModal();
+	if( ret != IDOK ) 
+		return;
+
+	if( !dlg.m_net )
+	{
+		CString str, s ((LPCSTR) IDS_NetNotFound);
+		str.Format( s, dlg.m_net_name );
+		AfxMessageBox( str, MB_OK );
+		return;
+	}
+
+	CDC *pDC = GetDC();
+	pDC->SelectClipRgn( &m_pcb_rgn );
+	SetDCToWorldCoords( pDC );
+	SetCursorMode( CUR_ADD_AREA );
+	m_sel.Add(dlg.m_net);
+	// make layer visible
+	m_active_layer = dlg.m_layer;
+	m_doc->m_vis[m_active_layer] = TRUE;
+	m_dlist->SetLayerVisible( m_active_layer, TRUE );
+	ShowActiveLayer();
+	m_dlist->StartDraggingArray( pDC, m_last_cursor_point.x, m_last_cursor_point.y, 0, m_active_layer, 2 );
+	m_polyline_style = CPolyLine::STRAIGHT;
+	m_polyline_hatch = dlg.m_hatch;
+	Invalidate( FALSE );
+	ReleaseDC( pDC );
+}
+
 // start adding board outline by dragging line for first side
 //
 void CFreePcbView::OnAddBoardOutline()
@@ -6012,136 +5201,184 @@ void CFreePcbView::OnAddBoardOutline()
 	CDC *pDC = GetDC();
 	pDC->SelectClipRgn( &m_pcb_rgn );
 	SetDCToWorldCoords( pDC );
-	CPoint p = m_last_mouse_point;
-	CancelHighlight();
-	int ib = m_doc->m_board_outline.GetSize() - 1;
-	m_sel_id.Set( ID_BOARD, -1, ID_OUTLINE, -1, ib, ID_SEL_CORNER, -1, 0 );
-	m_polyline_style = CPolyLine::STRAIGHT;
-	m_dlist->StartDraggingArray( pDC, p.x, p.y, 0, LAY_BOARD_OUTLINE, 2 );
+	CancelSelection();
 	SetCursorMode( CUR_ADD_BOARD );
-	ReleaseDC( pDC );
+	m_dlist->StartDraggingArray( pDC, m_last_cursor_point.x, m_last_cursor_point.y, 0, LAY_BOARD_OUTLINE, 2 );
+	m_polyline_layer = LAY_BOARD_OUTLINE;
+	m_polyline_style = cpolyline::STRAIGHT;
+	m_polyline_hatch = cpolyline::NO_HATCH;
 	Invalidate( FALSE );
+	ReleaseDC( pDC );
 }
 
-// move a board outline corner
-//
-void CFreePcbView::OnBoardCornerMove()
+void CFreePcbView::OnAddSoldermaskCutout()
 {
-	CDC *pDC = GetDC();
-	pDC->SelectClipRgn( &m_pcb_rgn );
-	SetDCToWorldCoords( pDC );
-	CPoint p = m_last_mouse_point;
-	m_from_pt.x = m_doc->m_board_outline[m_sel_id.I2()].X( m_sel_id.I3() );
-	m_from_pt.y = m_doc->m_board_outline[m_sel_id.I2()].Y( m_sel_id.I3() );
-	m_doc->m_board_outline[m_sel_id.I2()].StartDraggingToMoveCorner( pDC, m_sel_id.I3(), p.x, p.y, 2 );
-	SetCursorMode( CUR_DRAG_BOARD_MOVE );
-	ReleaseDC( pDC );
-	Invalidate( FALSE );
-}
-
-// edit a board outline corner
-//
-void CFreePcbView::OnBoardCornerEdit()
-{
-	DlgEditBoardCorner dlg;
-	CString str ((LPCSTR) IDS_CornerPosition);
-	int x = m_doc->m_board_outline[m_sel_id.I2()].X(m_sel_id.I3());
-	int y = m_doc->m_board_outline[m_sel_id.I2()].Y(m_sel_id.I3());
-	dlg.Init( &str, m_doc->m_units, x, y );
+	CDlgAddMaskCutout dlg;
+	dlg.Initialize( LAY_SM_TOP, cpolyline::NO_HATCH );
 	int ret = dlg.DoModal();
-	if( ret == IDOK )
-	{
-		SaveUndoInfoForBoardOutlines( TRUE, m_doc->m_undo_list );
-		m_doc->m_board_outline[m_sel_id.I2()].MoveCorner( m_sel_id.I3(),
-			dlg.X(), dlg.Y() );
-		CancelSelection();
-		m_doc->ProjectModified( TRUE );
-		Invalidate( FALSE );
-	}
-}
-
-// delete a board corner
-//
-void CFreePcbView::OnBoardCornerDelete()
-{
-	if( m_doc->m_board_outline[m_sel_id.I2()].NumCorners() < 4 )
-	{
-		CString s ((LPCSTR) IDS_BoardOutlineHasTooFewCorners);
-		AfxMessageBox( s );
+	if( ret != IDOK ) 
 		return;
-	}
-	SaveUndoInfoForBoardOutlines( TRUE, m_doc->m_undo_list );
-	m_doc->m_board_outline[m_sel_id.I2()].DeleteCorner( m_sel_id.I3() );
+	// force layer visible
+	int il = dlg.m_layer;
+	m_doc->m_vis[il] = TRUE;
+	m_dlist->SetLayerVisible( il, TRUE );
+	CDC *pDC = GetDC();
+	pDC->SelectClipRgn( &m_pcb_rgn );
+	SetDCToWorldCoords( pDC );
 	CancelSelection();
-	m_doc->ProjectModified( TRUE );
+	SetCursorMode( CUR_ADD_SMCUTOUT );
+	m_polyline_layer = il;
+	m_dlist->StartDraggingArray( pDC, m_last_cursor_point.x, m_last_cursor_point.y, 0, il, 2 );
+	m_polyline_style = CPolyLine::STRAIGHT;
+	m_polyline_hatch = dlg.m_hatch;
 	Invalidate( FALSE );
+	ReleaseDC( pDC );
 }
 
-// insert a new corner in a side of a board outline
-//
-void CFreePcbView::OnBoardSideAddCorner()
+// add copper area cutout
+// CPT2 converted and generalized, so that smcutout cutouts are now possible
+void CFreePcbView::OnPolyAddCutout()
 {
 	CDC *pDC = GetDC();
 	pDC->SelectClipRgn( &m_pcb_rgn );
 	SetDCToWorldCoords( pDC );
-	CPoint p = m_last_mouse_point;
-	m_doc->m_board_outline[m_sel_id.I2()].StartDraggingToInsertCorner( pDC, m_sel_id.I3(), p.x, p.y, 2 );
-	SetCursorMode( CUR_DRAG_BOARD_INSERT );
+	CancelHighlight();
+	SetCursorMode( CUR_ADD_POLY_CUTOUT );
+	// make layer visible
+	cpolyline *poly = m_sel.First()->GetPolyline();
+	if (poly->IsArea())
+		// NB This doesn't work properly if poly is an csmcutout (those layers can't be the active layer)
+		m_active_layer = poly->GetLayer(),
+		m_doc->m_vis[m_active_layer] = TRUE,
+		m_dlist->SetLayerVisible( m_active_layer, TRUE ),
+		ShowActiveLayer();
+	m_dlist->StartDraggingArray( pDC, m_last_cursor_point.x,
+		m_last_cursor_point.y, 0, m_active_layer, 2 );
+	m_polyline_style = cpcb_item::STRAIGHT;
+	Invalidate( FALSE );
 	ReleaseDC( pDC );
+}
+
+void CFreePcbView::FinishAddPoly(ccontour *ctr)
+{
+	cpolyline *poly = ctr->GetPolyline();
+	carea2 *a = poly->ToArea();
+	cnet2 *net = poly->GetNet();
+	poly->MustRedraw();
+	if (a)
+		SaveUndoInfoForAllAreasInNet( net, TRUE, m_doc->m_undo_list );
+	else
+		SaveUndoInfoForPolylines( TRUE, m_doc->m_undo_list );
+	ctr->Close( m_polyline_style );
+	if (!poly->PolygonModified( FALSE, FALSE ))
+		m_doc->OnEditUndo();
+	else if( a && m_doc->m_vis[LAY_RAT_LINE] )
+		net->OptimizeConnections( m_doc->m_auto_ratline_disable, m_doc->m_auto_ratline_min_pins, TRUE  );
+	m_doc->Redraw();
+	CancelSelection();
+}
+
+void CFreePcbView::FinishAddPolyCutout(ccontour *ctr) 
+{
+	cpolyline *poly = m_sel.First()->GetPolyline();
+	carea2 *a = poly->ToArea();
+	cnet2 *net = poly->GetNet();
+	poly->MustRedraw();
+	m_tmp_poly->Undraw();
+	if (a)
+		SaveUndoInfoForAllAreasInNet( net, TRUE, m_doc->m_undo_list );
+	else
+		SaveUndoInfoForPolylines( TRUE, m_doc->m_undo_list );
+	ctr->Close( m_polyline_style );
+	ctr->SetPoly( poly );
+	if (!poly->PolygonModified( FALSE, FALSE ))
+		m_doc->OnEditUndo();
+	else if( a && m_doc->m_vis[LAY_RAT_LINE] )
+		net->OptimizeConnections( m_doc->m_auto_ratline_disable, m_doc->m_auto_ratline_min_pins, TRUE  );
+	m_doc->Redraw();
+	CancelSelection();
+}
+
+void CFreePcbView::OnPolyDelete()
+{
+	// CPT2 generalized function used for areas, smcutouts and board outlines.  Works whether the current selection is a corner or a side.
+	cpolyline *poly = m_sel.First()->GetPolyline();
+	carea2 *a = poly->ToArea();
+	cnet2 *net = poly->GetNet();
+	if (a)
+		SaveUndoInfoForArea( a, CNetList::UNDO_AREA_DELETE, TRUE, m_doc->m_undo_list );
+	else
+		SaveUndoInfoForPolylines( TRUE, m_doc->m_undo_list );
+	poly->Remove();
+	if (a)
+		net->OptimizeConnections( m_doc->m_auto_ratline_disable, m_doc->m_auto_ratline_min_pins, TRUE  ),
+		net->SetThermals();
+	m_doc->Redraw();
+	CancelSelection();
+	m_doc->ProjectModified( TRUE );
 	Invalidate( FALSE );
 }
 
-// delete entire board outline
-//
-void CFreePcbView::OnBoardDeleteOutline()
+void CFreePcbView::OnPolyDeleteCutout()
 {
-	SaveUndoInfoForBoardOutlines( TRUE, m_doc->m_undo_list );
-	m_doc->m_board_outline.RemoveAt( m_sel_id.I2() );
-	id new_id = m_sel_id;
-	for( int i=m_sel_id.I2(); i<m_doc->m_board_outline.GetSize(); i++ )
-	{
-		CPolyLine * poly = &m_doc->m_board_outline[i];
-		new_id.SetI2( i );
-		poly->SetParentId( &new_id );
-	}
-	m_doc->ProjectModified( TRUE );
+	// CPT2 generalized function.  Now both areas and smcutouts can have "cutouts" (new terminology for the user, hopefully less confusing: 
+	//  these are called "region exclusions" and the f-key that leads us here is called "remove contour")
+	cpcb_item *first = m_sel.First();
+	cpolyline *poly = first->GetPolyline();
+	carea2 *a = poly->ToArea();
+	cnet2 *net = poly->GetNet();
+	ccontour *ctr = NULL;
+	if (ccorner *c = first->ToCorner())
+		ctr = c->contour;
+	else if (cside *s = first->ToSide())
+		ctr = s->contour;
+	ASSERT( ctr && ctr != ctr->poly->main );
+	if (a)
+		SaveUndoInfoForAllAreasInNet( net, TRUE, m_doc->m_undo_list );
+	else
+		SaveUndoInfoForPolylines( TRUE, m_doc->m_undo_list );
+	poly->MustRedraw();
+	ctr->Remove();
+	if (!poly->PolygonModified( FALSE, FALSE ))
+		m_doc->OnEditUndo();
+	else if( a && m_doc->m_vis[LAY_RAT_LINE] )
+		net->OptimizeConnections( m_doc->m_auto_ratline_disable, m_doc->m_auto_ratline_min_pins, TRUE  );
+	m_doc->Redraw();
 	CancelSelection();
 	Invalidate( FALSE );
 }
 
-// move a copper area corner
-//
-void CFreePcbView::OnAreaCornerMove()
+
+void CFreePcbView::OnPolyCornerMove()
 {
+	// CPT2 consolidated function for moving the corner of any polyline object (area, smcutout, board outline)
 	CDC *pDC = GetDC();
 	pDC->SelectClipRgn( &m_pcb_rgn );
 	SetDCToWorldCoords( pDC );
 	ccorner *c = m_sel.First()->ToCorner();
-	carea2 *a = c->GetArea();
 	CPoint p = m_last_mouse_point;
 	m_from_pt.x = c->x;
 	m_from_pt.y = c->y;
 	c->StartDragging(pDC, p.x, p.y, 2);
-	SetCursorMode( CUR_DRAG_AREA_MOVE );
+	SetCursorMode( CUR_DRAG_POLY_MOVE );
 	ReleaseDC( pDC );
 	Invalidate( FALSE );
 }
 
-// delete a copper area corner
-//
-void CFreePcbView::OnAreaCornerDelete()
+void CFreePcbView::OnPolyCornerDelete()
 {
+	// delete a polyline corner (for areas, smcutouts, and board-outlines)
 	ccorner *c = m_sel.First()->ToCorner();
-	carea2 *a = c->GetArea();
-	cnet2 *net = a->m_net;
-	SaveUndoInfoForArea( a, CNetList::UNDO_AREA_MODIFY, TRUE, m_doc->m_undo_list );
-//		SaveUndoInfoForNetAndConnectionsAndArea( m_sel_net, m_sel_ia, CNetList::UNDO_AREA_MODIFY, TRUE, m_doc->m_undo_list );
-	c->Remove();							// NB could result in the removal of a contour or even the whole area
-	if (a->IsValid())
-		a->PolygonModified( false, true );
+	cpolyline *poly = c->GetPolyline();
+	carea2 *a = poly->ToArea();
+	cnet2 *net = c->GetNet();
+	if (a)
+		SaveUndoInfoForArea( a, CNetList::UNDO_AREA_MODIFY, TRUE, m_doc->m_undo_list );
 	else
-		net->SetThermals();
-	if( m_doc->m_vis[LAY_RAT_LINE] )
+		SaveUndoInfoForPolylines( TRUE, m_doc->m_undo_list );
+	c->Remove();							// NB could result in the removal of a contour or even the whole area
+	poly->PolygonModified( false, true );
+	if( a && m_doc->m_vis[LAY_RAT_LINE] )
 		net->OptimizeConnections( m_doc->m_auto_ratline_disable, m_doc->m_auto_ratline_min_pins, TRUE  );
 	m_doc->Redraw();
 	m_doc->ProjectModified( TRUE );
@@ -6149,43 +5386,148 @@ void CFreePcbView::OnAreaCornerDelete()
 	Invalidate( FALSE );
 }
 
-// delete entire area
-//
-void CFreePcbView::OnAreaCornerDeleteArea()
-	{ OnAreaSideDeleteArea(); }
-
 //insert a new corner in a side of a copper area
 //
-void CFreePcbView::OnAreaSideAddCorner()
+void CFreePcbView::OnPolySideAddCorner()
 {
+	// CPT2 consolidated function for inserting a corner on any polyline object (area, smcutout, board outline)
 	CDC *pDC = GetDC();
 	pDC->SelectClipRgn( &m_pcb_rgn );
 	SetDCToWorldCoords( pDC );
 	CPoint p = m_last_mouse_point;
 	cside *s = m_sel.First()->ToSide();
 	s->StartDraggingNewCorner( pDC, p.x, p.y, 2 );
-	SetCursorMode( CUR_DRAG_AREA_INSERT );
+	SetCursorMode( CUR_DRAG_POLY_INSERT );
 	ReleaseDC( pDC );
 	Invalidate( FALSE );
 }
 
-// delete entire area
-// CPT2 converted.  Works if area corner is selected also
-void CFreePcbView::OnAreaSideDeleteArea()
+void CFreePcbView::OnPolySideConvert(int style)
 {
-	carea2 *a = m_sel.First()->GetArea();
-	cnet2 *net = a->m_net;
-	SaveUndoInfoForArea( a, CNetList::UNDO_AREA_DELETE, TRUE, m_doc->m_undo_list );
-//	SaveUndoInfoForNetAndConnectionsAndArea( m_sel_net, m_sel_ia, CNetList::UNDO_AREA_DELETE, TRUE, m_doc->m_undo_list );
-	a->Remove();
-	if( m_doc->m_vis[LAY_RAT_LINE] )
-		net->OptimizeConnections( m_doc->m_auto_ratline_disable, m_doc->m_auto_ratline_min_pins, TRUE  );
+	cside *s = m_sel.First()->ToSide();
+	cpolyline *poly = s->GetPolyline();
+	carea2 *a = poly->ToArea();
+	cnet2 *net = s->GetNet();
+	if (a)
+		SaveUndoInfoForAllAreasInNet( net, TRUE, m_doc->m_undo_list );
+	else
+		SaveUndoInfoForPolylines( TRUE, m_doc->m_undo_list );
+	poly->MustRedraw();
+	s->m_style = style;
+	if (a)
+	{
+		// CPT2 I suppose I'll do this, though it's not likely to be important very often.
+		if (!a->PolygonModified( FALSE, TRUE ))
+			m_doc->OnEditUndo();
+		else if( m_doc->m_vis[LAY_RAT_LINE] )
+			net->OptimizeConnections( m_doc->m_auto_ratline_disable, m_doc->m_auto_ratline_min_pins, TRUE );
+	}
 	m_doc->Redraw();
-	CancelSelection();
+	HighlightSelection();
 	m_doc->ProjectModified( TRUE );
-	net->SetThermals();
 	Invalidate( FALSE );
 }
+
+void CFreePcbView::OnPolySideConvertToStraightLine()
+	{ OnPolySideConvert( cpolyline::STRAIGHT ); }
+
+void CFreePcbView::OnPolySideConvertToArcCw()
+	{ OnPolySideConvert( cpolyline::ARC_CW ); }
+
+void CFreePcbView::OnPolySideConvertToArcCcw()
+	{ OnPolySideConvert( cpolyline::ARC_CCW ); }
+
+void CFreePcbView::OnPolyCornerEdit()
+{
+	ccorner *c = m_sel.First()->ToCorner();
+	cpolyline *poly = c->GetPolyline();
+	carea2 *a = poly->ToArea();
+	DlgEditBoardCorner dlg;
+	CString str ((LPCSTR) IDS_CornerPosition);
+	dlg.Init( &str, m_doc->m_units, c->x, c->y );
+	int ret = dlg.DoModal();
+	if( ret != IDOK ) return;
+	if (a)
+		SaveUndoInfoForArea( a, CNetList::UNDO_AREA_MODIFY, TRUE, m_doc->m_undo_list );
+	else
+		SaveUndoInfoForPolylines( TRUE, m_doc->m_undo_list );
+	int x = dlg.X(), y = dlg.Y();
+	c->Move( x, y );
+	if (!poly->PolygonModified(false, true))				// CPT2 TODO figure out the system regarding which arg-values this function gets handed.
+		m_doc->OnEditUndo();
+	else if( a && m_doc->m_vis[LAY_RAT_LINE] )
+		a->m_net->OptimizeConnections( m_doc->m_auto_ratline_disable, m_doc->m_auto_ratline_min_pins, TRUE  );
+	m_doc->Redraw();
+	TryToReselectCorner( x, y );
+	HighlightSelection();
+	m_doc->ProjectModified( TRUE );
+	Invalidate( FALSE );
+}
+
+// attempt to reselect polyline corner within currently selected net, based on position
+// should be used after areas are modified
+void CFreePcbView::TryToReselectCorner( int x, int y )
+{
+	if (m_sel.IsEmpty()) return;
+	cpolyline *poly = m_sel.First()->GetPolyline();
+	CancelSelection();
+	if (!poly) return;
+	carray<cpolyline> arr;
+	poly->GetCompatiblePolylines( &arr );
+	citer<cpolyline> ip (&arr);
+	for (cpolyline *p = ip.First(); p; p = ip.Next())
+	{
+		citer<ccontour> ictr (&p->contours);
+		for (ccontour *ctr = ictr.First(); ctr; ctr = ictr.Next())
+		{
+			citer<ccorner> ic (&ctr->corners);
+			for (ccorner *c = ic.First(); c; c = ic.Next())
+				if (c->x==x && c->y==y)
+					{ SelectItem(c); return; }
+		}
+	}
+}
+
+
+// change hatch style for solder mask cutout.  CPT2 TODO Probably eliminable?
+void CFreePcbView::OnSmSideHatchStyle()
+{
+	CPolyLine * poly = &m_doc->m_sm_cutout[m_sel_id.I2()];
+	CDlgSetAreaHatch dlg;
+	dlg.Init( poly->GetHatch() );
+	int ret = dlg.DoModal();
+	if( ret == IDOK )
+	{
+		SaveUndoInfoForPolylines( TRUE, m_doc->m_undo_list );
+		int hatch = dlg.GetHatch();
+		poly->SetHatch( hatch );
+		m_doc->ProjectModified( TRUE );
+		Invalidate( FALSE );
+	}
+}
+
+void CFreePcbView::OnSmEdit()
+{
+	// CPT2 new.  Lets user edit the sm-cutout's hatching and layer.  Reuses the CDlgAddMaskCutout interface.
+	csmcutout *sm = m_sel.First()->GetPolyline()->ToSmCutout();
+	CDlgAddMaskCutout dlg;
+	dlg.Initialize(sm->m_layer, sm->m_hatch);
+	int ret = dlg.DoModal();
+	if( ret != IDOK ) 
+		return;
+	// force layer visible
+	int il = dlg.m_layer;
+	m_doc->m_vis[il] = TRUE;
+	m_dlist->SetLayerVisible( il, TRUE );
+	sm->MustRedraw();
+	sm->m_layer = il;
+	sm->m_hatch = dlg.m_hatch;
+	m_doc->Redraw();
+	m_doc->ProjectModified( TRUE );
+	Invalidate( FALSE );
+}
+
+
 
 // detect state where nothing is selected or being dragged
 //
@@ -6208,47 +5550,25 @@ BOOL CFreePcbView::CurDragging()
 	return( m_cursor_mode > CUR_NUM_SELECTED_MODES && m_cursor_mode < CUR_NUM_MODES );
 }
 
-// detect states using routing grid
+// detect states using routing grid.  CPT2 rejiggered
 //
 BOOL CFreePcbView::CurDraggingRouting()
 {
-	return( m_cursor_mode == CUR_DRAG_RAT
-		|| m_cursor_mode == CUR_DRAG_VTX
-		|| m_cursor_mode == CUR_DRAG_VTX_INSERT
-		|| m_cursor_mode == CUR_ADD_AREA
-		|| m_cursor_mode == CUR_DRAG_AREA_1
-		|| m_cursor_mode == CUR_DRAG_AREA
-		|| m_cursor_mode == CUR_DRAG_AREA_INSERT
-		|| m_cursor_mode == CUR_DRAG_AREA_MOVE
-		|| m_cursor_mode == CUR_ADD_AREA_CUTOUT
-		|| m_cursor_mode == CUR_DRAG_AREA_CUTOUT_1
-		|| m_cursor_mode == CUR_DRAG_AREA_CUTOUT
-		|| m_cursor_mode == CUR_ADD_SMCUTOUT
-		|| m_cursor_mode == CUR_DRAG_SMCUTOUT_1
-		|| m_cursor_mode == CUR_DRAG_SMCUTOUT
-		|| m_cursor_mode == CUR_DRAG_SMCUTOUT_INSERT
-		|| m_cursor_mode == CUR_DRAG_SMCUTOUT_MOVE
-		|| m_cursor_mode == CUR_DRAG_STUB
-		|| m_cursor_mode == CUR_MOVE_SEGMENT
-		|| m_cursor_mode == CUR_DRAG_VTX_INSERT
-		);
+	if (!CurDragging() || m_cursor_mode == CUR_DRAG_GROUP)
+		return false;
+	cpcb_item *first = m_sel.First();
+	if (first)
+		return first->IsNetItem() || first->IsSmCorner() || first->IsSmSide();
+	if (m_cursor_mode == CUR_DRAG_POLY_1 || m_cursor_mode == CUR_DRAG_POLY)
+		return m_poly_drag_mode == CUR_ADD_AREA || m_poly_drag_mode == CUR_ADD_SMCUTOUT || m_poly_drag_mode == CUR_ADD_POLY_CUTOUT;
+	return false;
 }
 
-// detect states using placement grid
+// detect states using placement grid.  CPT2 rejiggered
 //
 BOOL CFreePcbView::CurDraggingPlacement()
 {
-	return( m_cursor_mode == CUR_ADD_BOARD
-		|| m_cursor_mode == CUR_DRAG_BOARD_1
-		|| m_cursor_mode == CUR_DRAG_BOARD
-		|| m_cursor_mode == CUR_DRAG_BOARD_INSERT
-		|| m_cursor_mode == CUR_DRAG_BOARD_MOVE
-		|| m_cursor_mode == CUR_DRAG_PART
-		|| m_cursor_mode == CUR_DRAG_REF
-		|| m_cursor_mode == CUR_DRAG_TEXT
-		|| m_cursor_mode == CUR_DRAG_GROUP
-		|| m_cursor_mode == CUR_DRAG_GROUP_ADD
-		|| m_cursor_mode == CUR_MOVE_ORIGIN );
+	return CurDragging() && !CurDraggingRouting();
 }
 
 // snap cursor if required and set m_last_cursor_point
@@ -6320,12 +5640,8 @@ void CFreePcbView::SnapCursorPoint( CPoint wp, UINT nFlags )
 		if( m_doc->m_snap_angle && (wp != m_snap_angle_ref)
 			&& ( m_cursor_mode == CUR_DRAG_RAT
 			|| m_cursor_mode == CUR_DRAG_STUB
-			|| m_cursor_mode == CUR_DRAG_AREA_1
-			|| m_cursor_mode == CUR_DRAG_AREA
-			|| m_cursor_mode == CUR_DRAG_AREA_CUTOUT_1
-			|| m_cursor_mode == CUR_DRAG_AREA_CUTOUT
-			|| m_cursor_mode == CUR_DRAG_BOARD_1
-			|| m_cursor_mode == CUR_DRAG_BOARD ) )
+			|| m_cursor_mode == CUR_DRAG_POLY_1
+			|| m_cursor_mode == CUR_DRAG_POLY ))
 		{
 			// yes, check snap mode
 			if( m_snap_mode == SM_GRID_LINES )
@@ -6359,9 +5675,7 @@ void CFreePcbView::SnapCursorPoint( CPoint wp, UINT nFlags )
 				|| m_cursor_mode == CUR_DRAG_PART
 				|| m_cursor_mode == CUR_DRAG_VTX
 				|| m_cursor_mode == CUR_DRAG_TEE
-				|| m_cursor_mode ==  CUR_DRAG_BOARD_MOVE
-				|| m_cursor_mode == CUR_DRAG_AREA_MOVE
-				|| m_cursor_mode ==  CUR_DRAG_SMCUTOUT_MOVE
+				|| m_cursor_mode ==  CUR_DRAG_POLY_MOVE
 				|| m_cursor_mode ==  CUR_DRAG_MEASURE_2
 				|| m_cursor_mode == CUR_MOVE_SEGMENT
 				)
@@ -6453,8 +5767,8 @@ LONG CFreePcbView::OnChangeUnits( UINT wp, LONG lp )
 	ShowSelectStatus();
 	// CPT:
 	if( m_cursor_mode == CUR_DRAG_GROUP	|| m_cursor_mode == CUR_DRAG_GROUP_ADD || m_cursor_mode == CUR_DRAG_PART
-				|| m_cursor_mode == CUR_DRAG_VTX || m_cursor_mode ==  CUR_DRAG_BOARD_MOVE || m_cursor_mode == CUR_DRAG_AREA_MOVE
-				|| m_cursor_mode ==  CUR_DRAG_SMCUTOUT_MOVE || m_cursor_mode ==  CUR_DRAG_MEASURE_2 || m_cursor_mode == CUR_MOVE_SEGMENT)
+				|| m_cursor_mode == CUR_DRAG_VTX || m_cursor_mode ==  CUR_DRAG_POLY_MOVE 
+				|| m_cursor_mode ==  CUR_DRAG_MEASURE_2 || m_cursor_mode == CUR_MOVE_SEGMENT)
 		ShowRelativeDistance( m_last_cursor_point.x - m_from_pt.x, m_last_cursor_point.y - m_from_pt.y );
 	// End CPT
 	return 0;
@@ -6464,30 +5778,6 @@ LONG CFreePcbView::OnChangeUnits( UINT wp, LONG lp )
 void CFreePcbView::OnSegmentDeleteTrace()
 {
 	OnRatlineDeleteConnection();
-}
-
-void CFreePcbView::OnAreaCornerProperties()
-{
-	// reuse board corner dialog
-	ccorner *c = m_sel.First()->ToCorner();
-	carea2 *a = c->GetArea();
-	DlgEditBoardCorner dlg;
-	CString str ((LPCSTR) IDS_CornerPosition);
-	dlg.Init( &str, m_doc->m_units, c->x, c->y );
-	int ret = dlg.DoModal();
-	if( ret != IDOK ) return;
-	SaveUndoInfoForArea( a, CNetList::UNDO_AREA_MODIFY, TRUE, m_doc->m_undo_list );
-//		SaveUndoInfoForNetAndConnectionsAndArea( m_sel_net, m_sel_ia, CNetList::UNDO_AREA_MODIFY, TRUE, m_doc->m_undo_list );
-	int x = dlg.X(), y = dlg.Y();
-	c->Move( x, y );
-	a->PolygonModified(false, true);				// CPT2 TODO figure out the system regarding which arg-values this function gets handed.
-	if( m_doc->m_vis[LAY_RAT_LINE] )
-		a->m_net->OptimizeConnections( m_doc->m_auto_ratline_disable, m_doc->m_auto_ratline_min_pins, TRUE  );
-	m_doc->Redraw();
-	this->TryToReselectAreaCorner( x, y );
-	SetCursorMode( CUR_AREA_CORNER_SELECTED );
-	m_doc->ProjectModified( TRUE );
-	Invalidate( FALSE );
 }
 
 void CFreePcbView::OnRefProperties()
@@ -6527,35 +5817,6 @@ BOOL CFreePcbView::OnEraseBkgnd(CDC* pDC)
 	return FALSE;
 }
 
-void CFreePcbView::OnBoardSideConvertToStraightLine()
-{
-	m_doc->m_board_outline[m_sel_id.I2()].SetSideStyle( m_sel_id.I3(), CPolyLine::STRAIGHT );
-	m_doc->m_board_outline[m_sel_id.I2()].HighlightSide( m_sel_id.I3() );
-	ShowSelectStatus();
-	SetFKText( m_cursor_mode );
-	m_doc->ProjectModified( TRUE );
-	Invalidate( FALSE );
-}
-
-void CFreePcbView::OnBoardSideConvertToArcCw()
-{
-	m_doc->m_board_outline[m_sel_id.I2()].SetSideStyle( m_sel_id.I3(), CPolyLine::ARC_CW );
-	m_doc->m_board_outline[m_sel_id.I2()].HighlightSide( m_sel_id.I3() );
-	ShowSelectStatus();
-	SetFKText( m_cursor_mode );
-	m_doc->ProjectModified( TRUE );
-	Invalidate( FALSE );
-}
-
-void CFreePcbView::OnBoardSideConvertToArcCcw()
-{
-	m_doc->m_board_outline[m_sel_id.I2()].SetSideStyle( m_sel_id.I3(), CPolyLine::ARC_CCW );
-	m_doc->m_board_outline[m_sel_id.I2()].HighlightSide( m_sel_id.I3() );
-	ShowSelectStatus();
-	SetFKText( m_cursor_mode );
-	m_doc->ProjectModified( TRUE );
-	Invalidate( FALSE );
-}
 
 // unroute entire connection
 //
@@ -6906,7 +6167,7 @@ void CFreePcbView::SaveUndoInfoForMoveOrigin( int x_off, int y_off, CUndoList * 
 #endif
 }
 
-void CFreePcbView::SaveUndoInfoForBoardOutlines( BOOL new_event, CUndoList * list )
+/* void CFreePcbView::SaveUndoInfoForBoardOutlines( BOOL new_event, CUndoList * list )
 {
 #ifndef CPT2
 	// now push onto undo list
@@ -6936,9 +6197,11 @@ void CFreePcbView::SaveUndoInfoForBoardOutlines( BOOL new_event, CUndoList * lis
 	}
 #endif
 }
+*/
 
-void CFreePcbView::SaveUndoInfoForSMCutouts( BOOL new_event, CUndoList * list )
+void CFreePcbView::SaveUndoInfoForPolylines( BOOL new_event, CUndoList * list )
 {
+	// CPT2 TODO will combine the old SaveUndoInfoForSmCutouts and SaveUndoInfoForBoardOutlines
 #ifndef CPT2
 	// push undo info onto list
 	if( new_event )
@@ -7110,7 +6373,7 @@ void CFreePcbView::OnViewAllElements()
 	m_dlist->SetMapping( &m_client_r, &screen_r, m_left_pane_w, m_bottom_pane_h, m_pcbu_per_pixel,
 		m_org_x, m_org_y );
 	Invalidate( FALSE );
-	// end CPTm
+	// end CPT
 }
 
 void CFreePcbView::OnAreaEdgeHatchStyle()
@@ -7289,136 +6552,6 @@ void CFreePcbView::OnClearDRC()
 void CFreePcbView::OnViewAll()
 {
 	OnViewAllElements();
-}
-
-void CFreePcbView::OnAddSoldermaskCutout()
-{
-	CDlgAddMaskCutout dlg;
-	int ret = dlg.DoModal();
-	if( ret == IDOK )
-	{
-		// force layer visible
-		int il = dlg.m_layer;
-		m_doc->m_vis[il] = TRUE;
-		m_dlist->SetLayerVisible( il, TRUE );
-		// start dragging rectangle
-		CDC *pDC = GetDC();
-		pDC->SelectClipRgn( &m_pcb_rgn );
-		SetDCToWorldCoords( pDC );
-		CancelHighlight();
-		SetCursorMode( CUR_ADD_SMCUTOUT );
-		m_polyline_layer = il;
-		m_dlist->StartDraggingArray( pDC, m_last_cursor_point.x,
-			m_last_cursor_point.y, 0, il, 2 );
-		m_polyline_style = CPolyLine::STRAIGHT;
-		m_polyline_hatch = dlg.m_hatch;
-		Invalidate( FALSE );
-		ReleaseDC( pDC );
-	}
-}
-
-void CFreePcbView::OnSmCornerMove()
-{
-	CPolyLine * poly = &m_doc->m_sm_cutout[m_sel_id.I2()];
-	CDC *pDC = GetDC();
-	pDC->SelectClipRgn( &m_pcb_rgn );
-	SetDCToWorldCoords( pDC );
-	CPoint p = m_last_mouse_point;
-	m_from_pt.x = poly->X( m_sel_id.I3() );
-	m_from_pt.y = poly->Y( m_sel_id.I3() );
-	poly->StartDraggingToMoveCorner( pDC, m_sel_id.I3(), p.x, p.y, 2 );
-	SetCursorMode( CUR_DRAG_SMCUTOUT_MOVE );
-	ReleaseDC( pDC );
-	Invalidate( FALSE );
-}
-
-void CFreePcbView::OnSmCornerSetPosition()
-{
-	CPolyLine * poly = &m_doc->m_sm_cutout[m_sel_id.I2()];
-	DlgEditBoardCorner dlg;
-	CString str ((LPCSTR) IDS_CornerPosition);
-	int x = poly->X(m_sel_id.I3());
-	int y = poly->Y(m_sel_id.I3());
-	dlg.Init( &str, m_doc->m_units, x, y );
-	int ret = dlg.DoModal();
-	if( ret == IDOK )
-	{
-		SaveUndoInfoForSMCutouts( TRUE, m_doc->m_undo_list );
-		poly->MoveCorner( m_sel_id.I3(),
-			dlg.X(), dlg.Y() );
-		CancelSelection();
-		m_doc->ProjectModified( TRUE );
-		Invalidate( FALSE );
-	}
-}
-
-void CFreePcbView::OnSmCornerDeleteCorner()
-{
-	CPolyLine * poly = &m_doc->m_sm_cutout[m_sel_id.I2()];
-	if( poly->NumCorners() < 4 )
-	{
-		CString s ((LPCSTR) IDS_SolderMaskCutoutHasTooFewCorners);
-		AfxMessageBox( s );
-		return;
-	}
-	SaveUndoInfoForSMCutouts( TRUE, m_doc->m_undo_list );
-	poly->DeleteCorner( m_sel_id.I3() );
-	CancelSelection();
-	m_doc->ProjectModified( TRUE );
-	Invalidate( FALSE );
-}
-
-void CFreePcbView::OnSmCornerDeleteCutout()
-{
-	SaveUndoInfoForSMCutouts( TRUE, m_doc->m_undo_list );
-	m_doc->m_sm_cutout.RemoveAt( m_sel_id.I2() );
-	id new_id = m_sel_id;
-	for( int i=m_sel_id.I2(); i<m_doc->m_sm_cutout.GetSize(); i++ )
-	{
-		CPolyLine * poly = &m_doc->m_sm_cutout[i];
-		new_id.SetI2( i );
-		poly->SetParentId( &new_id );
-	}
-	m_doc->ProjectModified( TRUE );
-	CancelSelection();
-	Invalidate( FALSE );
-}
-
-// insert corner into solder mask cutout side and start dragging
-void CFreePcbView::OnSmSideInsertCorner()
-{
-	CPolyLine * poly = &m_doc->m_sm_cutout[m_sel_id.I2()];
-	CDC *pDC = GetDC();
-	pDC->SelectClipRgn( &m_pcb_rgn );
-	SetDCToWorldCoords( pDC );
-	CPoint p = m_last_mouse_point;
-	poly->StartDraggingToInsertCorner( pDC, m_sel_id.I3(), p.x, p.y, 2 );
-	SetCursorMode( CUR_DRAG_SMCUTOUT_INSERT );
-	ReleaseDC( pDC );
-	Invalidate( FALSE );
-
-}
-
-// change hatch style for solder mask cutout
-void CFreePcbView::OnSmSideHatchStyle()
-{
-	CPolyLine * poly = &m_doc->m_sm_cutout[m_sel_id.I2()];
-	CDlgSetAreaHatch dlg;
-	dlg.Init( poly->GetHatch() );
-	int ret = dlg.DoModal();
-	if( ret == IDOK )
-	{
-		SaveUndoInfoForSMCutouts( TRUE, m_doc->m_undo_list );
-		int hatch = dlg.GetHatch();
-		poly->SetHatch( hatch );
-		m_doc->ProjectModified( TRUE );
-		Invalidate( FALSE );
-	}
-}
-
-void CFreePcbView::OnSmSideDeleteCutout()
-{
-	OnSmCornerDeleteCutout();
 }
 
 // change side of part
@@ -7674,7 +6807,18 @@ void CFreePcbView::SelectItemsInRect( CRect r, BOOL bAddToGroup )
 	r.NormalizeRect();
 
 	// find parts in rect
-	if( m_sel_mask & (1<<SEL_MASK_PARTS ) )
+		sel_mask_btn_bits[SEL_MASK_PARTS] = bitPart;
+	sel_mask_btn_bits[SEL_MASK_REF] = bitRefText;
+	sel_mask_btn_bits[SEL_MASK_VALUE] = bitValueText;
+	sel_mask_btn_bits[SEL_MASK_PINS] = bitPin;
+	sel_mask_btn_bits[SEL_MASK_CON] = bitSeg;
+	sel_mask_btn_bits[SEL_MASK_VIA] = bitVia | bitTraceVtx | bitTee;
+	sel_mask_btn_bits[SEL_MASK_AREAS] = bitAreaCorner | bitAreaSide;
+	sel_mask_btn_bits[SEL_MASK_TEXT] = bitText;
+	sel_mask_btn_bits[SEL_MASK_SM] = bitSmCorner | bitSmSide;
+	sel_mask_btn_bits[SEL_MASK_BOARD] = bitBoardCorner | bitBoardSide;
+	sel_mask_btn_bits[SEL_MASK_DRC] = bitDRE;
+	if( m_sel_mask_bits & bitPart )
 	{
 		citer<cpart2> ip (&m_doc->m_plist->parts);
 		for (cpart2 *p = ip.First(); p; p = ip.Next())
@@ -7686,8 +6830,8 @@ void CFreePcbView::SelectItemsInRect( CRect r, BOOL bAddToGroup )
 		}
 	}
 
-	// find trace segments and vertices contained in rect
-	if( m_sel_mask & (1<<SEL_MASK_CON ) )
+	// find trace segments and vertices contained in rect.  CPT2 TODO vertices???
+	if( m_sel_mask_bits & bitSeg )
 	{
 		citer<cnet2> in (&m_doc->m_nlist->nets);
 		for (cnet2* net = in.First(); net; net = in.Next())
@@ -7714,7 +6858,7 @@ void CFreePcbView::SelectItemsInRect( CRect r, BOOL bAddToGroup )
 	}
 
 	// find texts in rect
-	if( m_sel_mask & (1<<SEL_MASK_TEXT ) )
+	if( m_sel_mask_bits & bitText )
 	{
 		citer<ctext> it (&m_doc->m_tlist->texts);
 		for (ctext *t = it.First(); t; t = it.Next())
@@ -7723,113 +6867,40 @@ void CFreePcbView::SelectItemsInRect( CRect r, BOOL bAddToGroup )
 	}
 
 	// find copper area sides in rect
-	if( m_sel_mask & (1<<SEL_MASK_AREAS ) )
+	if( m_sel_mask_bits & bitAreaSide )
 	{
 		citer<cnet2> in (&m_doc->m_nlist->nets);
 		for (cnet2* net = in.First(); net; net = in.Next())
 		{
 			citer<carea2> ia (&net->areas);
 			for (carea2 *a = ia.First(); a; a = ia.Next())
-			{
-				citer<ccontour> ictr (&a->contours);
-				for (ccontour *ctr = ictr.First(); ctr; ctr = ictr.Next())
-				{
-					citer<cside> is (&ctr->sides);
-					for (cside *s = is.First(); s; s = is.Next())
-					{
-						CPoint pre (s->preCorner->x, s->preCorner->y);
-						CPoint post (s->postCorner->x, s->postCorner->y);
-						if (r.PtInRect(pre) && r.PtInRect(post))
-							m_sel.Add(s);
-					}
-				}
-			}
+				a->GetSidesInRect( &r, &m_sel );
 		}
 	}
 
-#ifndef CPT2 // TODO later
 	// find solder mask cutout sides in rect
-	if( m_sel_mask & (1<<SEL_MASK_SM ) )
+	if( m_sel_mask_bits & bitSmSide )
 	{
-		for( int im=0; im<m_doc->m_sm_cutout.GetSize(); im++ )
+		citer<cpcb_item> ii (&m_doc->others);
+		for (cpcb_item *i = ii.First(); i; i = ii.Next())
 		{
-			CPolyLine * poly = &m_doc->m_sm_cutout[im];
-			for( int ic=0; ic<poly->NumContours(); ic++ )
-			{
-				int istart = poly->ContourStart(ic);
-				int iend = poly->ContourEnd(ic);
-				for( int is=istart; is<=iend; is++ )
-				{
-					int ic1, ic2;
-					ic1 = is;
-					if( is < iend )
-						ic2 = is+1;
-					else
-						ic2 = istart;
-					int x1 = poly->X(ic1);
-					int y1 = poly->Y(ic1);
-					int x2 = poly->X(ic2);
-					int y2 = poly->Y(ic2);
-					if( InRange( x1, r.left, r.right )
-						&& InRange( x2, r.left, r.right )
-						&& InRange( y1, r.top, r.bottom )
-						&& InRange( y2, r.top, r.bottom )
-						&& m_doc->m_vis[poly->Layer()] )
-					{
-						id sm_id = poly->Id();
-						sm_id.SetSubSubType( ID_SEL_SIDE, poly->SideUID(is) );
-						if( FindItemInGroup( poly, &sm_id ) == -1 )
-						{
-							m_sel_ids.Add( sm_id );
-							m_sel_ptrs.Add( NULL );
-						}
-					}
-				}
-			}
+			csmcutout *sm = i->ToSmCutout();
+			if (sm)
+				sm->GetSidesInRect( &r, &m_sel );
 		}
 	}
 
 	// find board outline sides in rect
-	if( m_sel_mask & (1<<SEL_MASK_BOARD ) )
+	if( m_sel_mask_bits & bitBoardSide )
 	{
-		for( int im=0; im<m_doc->m_board_outline.GetSize(); im++ )
+		citer<cpcb_item> ii (&m_doc->others);
+		for (cpcb_item *i = ii.First(); i; i = ii.Next())
 		{
-			CPolyLine * poly = &m_doc->m_board_outline[im];
-			for( int ic=0; ic<poly->NumContours(); ic++ )
-			{
-				int istart = poly->ContourStart(ic);
-				int iend = poly->ContourEnd(ic);
-				for( int is=istart; is<=iend; is++ )
-				{
-					int ic1, ic2;
-					ic1 = is;
-					if( is < iend )
-						ic2 = is+1;
-					else
-						ic2 = istart;
-					int x1 = poly->X(ic1);
-					int y1 = poly->Y(ic1);
-					int x2 = poly->X(ic2);
-					int y2 = poly->Y(ic2);
-					if( InRange( x1, r.left, r.right )
-						&& InRange( x2, r.left, r.right )
-						&& InRange( y1, r.top, r.bottom )
-						&& InRange( y2, r.top, r.bottom )
-						&& m_doc->m_vis[poly->Layer()] )
-					{
-						id bd_id = poly->Id();
-						bd_id.SetSubSubType( ID_SEL_SIDE, poly->SideUID(is) );
-						if( FindItemInGroup( poly, &bd_id ) == -1 )
-						{
-							m_sel_ids.Add( bd_id );
-							m_sel_ptrs.Add( NULL );
-						}
-					}
-				}
-			}
+			cboard *b = i->ToBoard();
+			if (b)
+				b->GetSidesInRect( &r, &m_sel );
 		}
 	}
-#endif
 
 	HighlightSelection();
 	m_lastKeyWasArrow = FALSE;
@@ -8806,15 +7877,9 @@ void CFreePcbView::OnAreaEdit()
 	}
 	a->m_layer = dlg.m_layer;
 	a->m_hatch = dlg.m_hatch;
-	ret = a->PolygonModified( FALSE, TRUE );		// Also calls net->SetThermals()
-	if( ret == -1 )
-	{
-		CString s ((LPCSTR) IDS_ErrorUnableToClipPolygonDueToIntersectingArc);
-		AfxMessageBox( s );
-		CancelSelection();
+	if (!a->PolygonModified( FALSE, TRUE ))		// Also calls net->SetThermals()
 		m_doc->OnEditUndo();
-	}
-	if( m_doc->m_vis[LAY_RAT_LINE] )
+	else if( m_doc->m_vis[LAY_RAT_LINE] )
 		net->OptimizeConnections( m_doc->m_auto_ratline_disable, m_doc->m_auto_ratline_min_pins, TRUE  );
 	m_doc->Redraw();
 	CancelSelection();
@@ -11591,6 +10656,7 @@ void CFreePcbView::OnRefShowPart()
 #endif
 }
 
+/*
 void CFreePcbView::OnAreaSideStyle()
 {
 	CDlgSideStyle dlg;
@@ -11603,13 +10669,8 @@ void CFreePcbView::OnAreaSideStyle()
 	SaveUndoInfoForArea( a, CNetList::UNDO_AREA_MODIFY, TRUE, m_doc->m_undo_list );
 	a->MustRedraw();
 	s->m_style = dlg.m_style;
-	ret = a->PolygonModified( FALSE, FALSE );
-	if( ret == -1 )
-	{
-		CString s ((LPCSTR) IDS_ErrorUnableToClipPolygon);
-		AfxMessageBox( s );
+	if (!a->PolygonModified( FALSE, FALSE ))
 		m_doc->OnEditUndo();
-	}
 	else if( m_doc->m_vis[LAY_RAT_LINE] )
 		net->OptimizeConnections(  m_doc->m_auto_ratline_disable, m_doc->m_auto_ratline_min_pins, TRUE );
 	m_doc->Redraw();
@@ -11617,6 +10678,7 @@ void CFreePcbView::OnAreaSideStyle()
 	m_doc->ProjectModified( TRUE );
 	Invalidate( FALSE );
 }
+*/
 
 void CFreePcbView::OnRefRotateCW()
 	{ OnRefRotate(90); }
@@ -11828,13 +10890,8 @@ void CFreePcbView::HandleShiftLayerKey(int layer, CDC *pDC) {
 		SaveUndoInfoForAllAreasInNet( net, TRUE, m_doc->m_undo_list );
 		a->MustRedraw();
 		a->m_layer = layer;
-		int ret = a->PolygonModified( TRUE, TRUE );
-		if( ret == -1 ) {
-			// error
-			CString s ((LPCSTR) IDS_ErrorUnableToClipPolygon);
-			AfxMessageBox( s );
+		if (!a->PolygonModified( TRUE, TRUE ))
 			m_doc->OnEditUndo();
-			}
 		else if( m_doc->m_vis[LAY_RAT_LINE] )
 			net->OptimizeConnections( m_doc->m_auto_ratline_disable, m_doc->m_auto_ratline_min_pins, TRUE  );
 		m_doc->Redraw();
@@ -11843,4 +10900,35 @@ void CFreePcbView::HandleShiftLayerKey(int layer, CDC *pDC) {
 		Invalidate( FALSE );
 		}
 	}		
+
+void CFreePcbView::OnAddPart()
+{
+	// CPT2 was in CFreePcbDoc, but CFreePcbView seems more logical to me.  CPT2 TODO There's gotta be a more efficient way to do this.
+	// invoke dialog
+	CDlgAddPart dlg;
+	partlist_info pl;
+	m_doc->m_plist->ExportPartListInfo( &pl, NULL );
+	dlg.Initialize( &pl, -1, TRUE, TRUE, FALSE, 0, &m_doc->m_footprint_cache_map, 
+		&m_doc->m_footlibfoldermap, m_units, m_doc->m_dlg_log );
+	int ret = dlg.DoModal();
+	if( ret != IDOK ) return;
+
+	// select new part, and start dragging it if requested
+	m_doc->m_plist->ImportPartListInfo( &pl, 0 );
+	m_doc->Redraw();
+	cpart2 *part = m_doc->m_plist->GetPartByName( &dlg.m_ref_des );
+	SaveUndoInfoForPart( part, CPartList::UNDO_PART_ADD, &part->ref_des, TRUE, m_doc->m_undo_list );
+	SelectItem( part );
+	m_doc->ProjectModified( TRUE );
+	if( dlg.GetDragFlag() )
+	{
+		CPoint p;
+		GetCursorPos( &p );		// cursor pos in screen coords
+		p = m_dlist->ScreenToPCB( p );	// convert to PCB coords
+		part->x = p.x, part->y = p.y;
+		m_dragging_new_item = TRUE;
+		OnPartMove();
+	}
+}
+
 // end CPT
