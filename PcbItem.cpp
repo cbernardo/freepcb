@@ -2802,6 +2802,43 @@ void cpart2::CancelDragging()
 	dl->StopDragging();
 }
 
+void cpart2::MakeString( CString * str )
+{
+	// CPT2 derived from old CPartList::SetPartString().  Used when saving to file, etc.
+	CString line;
+	line.Format( "part: %s\n", ref_des );  
+	*str = line;
+	if( shape )
+		line.Format( "  ref_text: %d %d %d %d %d %d %d\n", 
+					m_ref->m_font_size, m_ref->m_stroke_width, m_ref->m_angle%360,
+					m_ref->m_x, m_ref->m_y, m_ref->m_bShown,m_ref->m_layer );
+	else
+		line.Format( "  ref_text: \n" );
+	str->Append( line );
+	line.Format( "  package: \"%s\"\n", package );
+	str->Append( line );
+	if( value_text != "" ) 
+	{
+		if( shape )
+			line.Format( "  value: \"%s\" %d %d %d %d %d %d %d\n", 
+				value_text, m_value->m_font_size, m_value->m_stroke_width, m_value->m_angle%360,
+				m_value->m_x, m_value->m_y, m_value->m_bShown, m_value->m_layer );
+		else
+			line.Format( "  value: \"%s\"\n", value_text );
+		str->Append( line );
+	}
+	if( shape )
+		line.Format( "  shape: \"%s\"\n", shape->m_name );
+	else
+		line.Format( "  shape: \n" );
+	str->Append( line );
+	line.Format( "  pos: %d %d %d %d %d\n", x, y, side, angle%360, glued );
+	str->Append( line );
+
+	line.Format( "\n" );
+	str->Append( line );
+}
+
 
 /**********************************************************************************************/
 /*  RELATED TO cpolyline/carea2/csmcutout                                                      */
@@ -3305,6 +3342,15 @@ void cpolyline::Offset(int dx, int dy)
 			c->x += dx,
 			c->y += dy;
 	}
+}
+
+int cpolyline::NumCorners() 
+{
+	citer<ccontour> ictr (&contours);
+	int ret = 0;
+	for (ccontour *ctr = ictr.First(); ctr; ctr = ictr.Next())
+		ret += ctr->corners.GetSize();
+	return ret;
 }
 
 bool cpolyline::TestPointInside(int x, int y) 
@@ -4673,6 +4719,19 @@ void cnet2::AddPin( cpin2 *pin )
 	pin->net = this;
 }
 
+void cnet2::RemovePin( cpin2 *pin )
+{
+	// CPT2.  Descended from old cnet::RemovePin.  Detach pin from net, and delete any connections that lead into the pin.
+	carray<cvertex2> vtxs;
+	pin->GetVtxs(&vtxs);
+	citer<cvertex2> iv (&vtxs);
+	for (cvertex2 *v = iv.First(); v; v = iv.Next())
+		if (v->m_con->IsValid())
+			v->m_con->Remove();
+	pins.Remove(pin);
+	pin->net = NULL;
+}
+
 void cnet2::GetWidth( int * w, int * via_w, int * via_hole_w )
 {
 	// Get net's trace and via widths.  If no net-specific default value set, use the board defaults.
@@ -5592,7 +5651,6 @@ void ctext::CancelDragging()
 	doc->m_dlist->StopDragging();
 	SetVisible(true);
 }
-
 
 
 creftext::creftext( cpart2 *_part, int x, int y, int angle, 

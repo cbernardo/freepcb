@@ -1744,7 +1744,6 @@ CString CShape::GetPinNameByIndex( int ip )
 //
 int CShape::WriteFootprint( CStdioFile * file )
 {
-#ifndef CPT2
 	CString line;
 	CString key;
 	try
@@ -1783,12 +1782,12 @@ int CShape::WriteFootprint( CStdioFile * file )
 		file->WriteString( line );
 		int layer_index = 0;
 		line.Format( "  ref_text: %s %s %s %d %s %d\n", 
-			ws(m_ref_size,m_units), ws(m_ref_xi,m_units), ws(m_ref_yi,m_units), m_ref_angle, 
-			ws(m_ref_w,m_units), m_ref->m_layer );
+			ws(m_ref->m_font_size,m_units), ws(m_ref->m_x,m_units), ws(m_ref->m_y,m_units), m_ref->m_angle, 
+			ws(m_ref->m_stroke_width,m_units), m_ref->m_layer );
 		file->WriteString( line );
 		line.Format( "  value_text: %s %s %s %d %s %d\n", 
-			ws(m_value_size,m_units), ws(m_value_xi,m_units), ws(m_value_yi,m_units), m_value_angle, 
-			ws(m_value_w,m_units), m_value->m_layer );
+			ws(m_value->m_font_size,m_units), ws(m_value->m_x,m_units), ws(m_value->m_y,m_units), m_value->m_angle, 
+			ws(m_value->m_stroke_width,m_units), m_value->m_layer );
 		file->WriteString( line );
 		line.Format( "  centroid: %d %s %s %d\n", 
 			m_centroid_type, ws(m_centroid_x,m_units), ws(m_centroid_y,m_units), m_centroid_angle );
@@ -1799,110 +1798,109 @@ int CShape::WriteFootprint( CStdioFile * file )
 				m_glue[idot].type, ws(m_glue[idot].w,m_units), ws(m_glue[idot].x_rel,m_units), ws(m_glue[idot].y_rel,m_units) );
 			file->WriteString( line );
 		}
-		for( int it=0; it<m_tl->text_ptr.GetSize(); it++ )
-		{
-			CText * t = m_tl->text_ptr[it];
+		citer<ctext> it (&m_tl->texts);
+		for (ctext *t = it.First(); t; t = it.Next())
 			line.Format( "  text: \"%s\" %s %s %s %d %s %d %d\n", t->m_str,
 				ws(t->m_font_size,m_units), ws(t->m_x,m_units), ws(t->m_y,m_units), t->m_angle, 
-				ws(t->m_stroke_width,m_units), t->m_mirror, t->m_layer );
-				file->WriteString( line );  
-		}
-		for( int ip=0; ip<m_outline_poly.GetSize(); ip++ )
+				ws(t->m_stroke_width,m_units), t->m_bMirror, t->m_layer ),
+			file->WriteString( line ); 
+		citer<coutline> ip (&m_outline_poly);
+		for (coutline *p = ip.First(); p; p = ip.Next())
 		{
-			line.Format( "  outline_polyline: %s %s %s %d\n", ws(m_outline_poly[ip].W(),m_units),
-				ws(m_outline_poly[ip].X(0),m_units), ws(m_outline_poly[ip].Y(0),m_units),
-				m_outline_poly[ip].Layer() );
+			// CPT2 TODO NB assuming no secondary contours
+			ccorner *c = p->main->head;
+			line.Format( "  outline_polyline: %s %s %s %d\n", ws(p->m_w,m_units),
+				ws(c->x,m_units), ws(c->y,m_units),	p->m_layer );
 			file->WriteString( line );
-			int nc = m_outline_poly[ip].NumCorners();
-			for( int ic=1; ic<nc; ic++ )
+			while (c->postSide)
 			{
-				line.Format( "    next_corner: %s %s %d\n",
-					ws(m_outline_poly[ip].X(ic),m_units), ws(m_outline_poly[ip].Y(ic),m_units),
-					m_outline_poly[ip].SideStyle(ic-1) );
-				file->WriteString( line );
-			}
-			if( m_outline_poly[ip].Closed() )
-			{
-				line.Format( "    close_polyline: %d\n", m_outline_poly[ip].SideStyle(nc-1) );
+				c = c->postSide->postCorner; 
+				if (c==p->main->head)
+				{
+					line.Format( "    close_polyline: %d\n", c->preSide->m_style );
+					file->WriteString( line );
+					break;
+				}
+				line.Format( "    next_corner: %s %s %d\n",	ws(c->x,m_units), ws(c->y,m_units), c->preSide->m_style );
 				file->WriteString( line );
 			}
 		}
 
 		line.Format( "  n_pins: %d\n", m_padstack.GetSize() );
 		file->WriteString( line );
-		for( int ip=0; ip<m_padstack.GetSize(); ip++ )
+		citer<cpadstack> ips (&m_padstack);
+		for (cpadstack *ps = ips.First(); ps; ps = ips.Next())
 		{
-			cpadstack * p = &(m_padstack[ip]);
 			line.Format( "    pin: \"%s\" %s %s %s %d\n",
-				p->name, ws(p->hole_size,m_units), ws(p->x_rel,m_units), ws(p->y_rel,m_units), p->angle ); 
+				ps->name, ws(ps->hole_size,m_units), ws(ps->x_rel,m_units), ws(ps->y_rel,m_units), ps->angle ); 
 			file->WriteString( line );
 			//** for debugging, trap bad shapes
-			if( (p->top_mask.shape < PAD_DEFAULT && p->top_mask.shape > PAD_OCTAGON)
-				|| (p->top_paste.shape < PAD_DEFAULT && p->top_paste.shape > PAD_OCTAGON)
-				|| (p->bottom_mask.shape < PAD_DEFAULT && p->bottom_mask.shape > PAD_OCTAGON)
-				|| (p->bottom_paste.shape < PAD_DEFAULT && p->bottom_paste.shape > PAD_OCTAGON) )
+			if( (ps->top_mask.shape < PAD_DEFAULT && ps->top_mask.shape > PAD_OCTAGON)
+				|| (ps->top_paste.shape < PAD_DEFAULT && ps->top_paste.shape > PAD_OCTAGON)
+				|| (ps->bottom_mask.shape < PAD_DEFAULT && ps->bottom_mask.shape > PAD_OCTAGON)
+				|| (ps->bottom_paste.shape < PAD_DEFAULT && ps->bottom_paste.shape > PAD_OCTAGON) )
 			{
 				CString s ((LPCSTR) IDS_ErrorTryingToWriteBadPadShapeInFootprint);
 				AfxMessageBox( s );
 			}
 			//** end
-			if( p->hole_size || p->top.shape != PAD_NONE )
+			if( ps->hole_size || ps->top.shape != PAD_NONE )
 			{
-				if( p->top.connect_flag )
+				if( ps->top.connect_flag )
 					line.Format( "      top_pad: %d %s %s %s %s %d\n",
-						p->top.shape, ws(p->top.size_h,m_units), ws(p->top.size_l,m_units), 
-						ws(p->top.size_r,m_units), ws(p->top.radius,m_units), p->top.connect_flag );
+						ps->top.shape, ws(ps->top.size_h,m_units), ws(ps->top.size_l,m_units), 
+						ws(ps->top.size_r,m_units), ws(ps->top.radius,m_units), ps->top.connect_flag );
 				else
 					line.Format( "      top_pad: %d %s %s %s %s\n",
-						p->top.shape, ws(p->top.size_h,m_units), ws(p->top.size_l,m_units), 
-						ws(p->top.size_r,m_units), ws(p->top.radius,m_units) );
+						ps->top.shape, ws(ps->top.size_h,m_units), ws(ps->top.size_l,m_units), 
+						ws(ps->top.size_r,m_units), ws(ps->top.radius,m_units) );
 				file->WriteString( line );
 			}
-			if( p->top_mask.shape != PAD_DEFAULT )
+			if( ps->top_mask.shape != PAD_DEFAULT )
 			{
 				line.Format( "      top_mask: %d %s %s %s %s\n",
-					p->top_mask.shape, ws(p->top_mask.size_h,m_units), ws(p->top_mask.size_l,m_units), 
-					ws(p->top_mask.size_r,m_units), ws(p->top_mask.radius,m_units) );
+					ps->top_mask.shape, ws(ps->top_mask.size_h,m_units), ws(ps->top_mask.size_l,m_units), 
+					ws(ps->top_mask.size_r,m_units), ws(ps->top_mask.radius,m_units) );
 				file->WriteString( line );
 			}
-			if( p->top_paste.shape != PAD_DEFAULT )
+			if( ps->top_paste.shape != PAD_DEFAULT )
 			{
 				line.Format( "      top_paste: %d %s %s %s %s\n",
-					p->top_paste.shape, ws(p->top_paste.size_h,m_units), ws(p->top_paste.size_l,m_units), 
-					ws(p->top_paste.size_r,m_units), ws(p->top_paste.radius,m_units) );
+					ps->top_paste.shape, ws(ps->top_paste.size_h,m_units), ws(ps->top_paste.size_l,m_units), 
+					ws(ps->top_paste.size_r,m_units), ws(ps->top_paste.radius,m_units) );
 				file->WriteString( line );
 			}
-			if( p->hole_size )
+			if( ps->hole_size )
 			{
 				line.Format( "      inner_pad: %d %s %s %s %s %d\n",
-					p->inner.shape, ws(p->inner.size_h,m_units), ws(p->inner.size_l,m_units), 
-					ws(p->inner.size_r,m_units), ws(p->inner.radius,m_units), p->inner.connect_flag );
+					ps->inner.shape, ws(ps->inner.size_h,m_units), ws(ps->inner.size_l,m_units), 
+					ws(ps->inner.size_r,m_units), ws(ps->inner.radius,m_units), ps->inner.connect_flag );
 				file->WriteString( line );
 			}
-			if( p->hole_size || p->bottom.shape != PAD_NONE )
+			if( ps->hole_size || ps->bottom.shape != PAD_NONE )
 			{
-				if( p->bottom.connect_flag )
+				if( ps->bottom.connect_flag )
 					line.Format( "      bottom_pad: %d %s %s %s %s %d\n",
-						p->bottom.shape, ws(p->bottom.size_h,m_units), ws(p->bottom.size_l,m_units), 
-						ws(p->bottom.size_r,m_units), ws(p->bottom.radius,m_units), p->bottom.connect_flag );
+						ps->bottom.shape, ws(ps->bottom.size_h,m_units), ws(ps->bottom.size_l,m_units), 
+						ws(ps->bottom.size_r,m_units), ws(ps->bottom.radius,m_units), ps->bottom.connect_flag );
 				else
 					line.Format( "      bottom_pad: %d %s %s %s %s\n",
-						p->bottom.shape, ws(p->bottom.size_h,m_units), ws(p->bottom.size_l,m_units), 
-						ws(p->bottom.size_r,m_units), ws(p->bottom.radius,m_units) );
+						ps->bottom.shape, ws(ps->bottom.size_h,m_units), ws(ps->bottom.size_l,m_units), 
+						ws(ps->bottom.size_r,m_units), ws(ps->bottom.radius,m_units) );
 				file->WriteString( line );
 			}
-			if( p->bottom_mask.shape != PAD_DEFAULT )
+			if( ps->bottom_mask.shape != PAD_DEFAULT )
 			{
 				line.Format( "      bottom_mask: %d %s %s %s %s\n",
-					p->bottom_mask.shape, ws(p->bottom_mask.size_h,m_units), ws(p->bottom_mask.size_l,m_units), 
-					ws(p->bottom_mask.size_r,m_units), ws(p->bottom_mask.radius,m_units) );
+					ps->bottom_mask.shape, ws(ps->bottom_mask.size_h,m_units), ws(ps->bottom_mask.size_l,m_units), 
+					ws(ps->bottom_mask.size_r,m_units), ws(ps->bottom_mask.radius,m_units) );
 				file->WriteString( line );
 			}
-			if( p->bottom_paste.shape != PAD_DEFAULT )
+			if( ps->bottom_paste.shape != PAD_DEFAULT )
 			{
 				line.Format( "      bottom_paste: %d %s %s %s %s\n",
-					p->bottom_paste.shape, ws(p->bottom_paste.size_h,m_units), ws(p->bottom_paste.size_l,m_units), 
-					ws(p->bottom_paste.size_r,m_units), ws(p->bottom_paste.radius,m_units) );
+					ps->bottom_paste.shape, ws(ps->bottom_paste.size_h,m_units), ws(ps->bottom_paste.size_l,m_units), 
+					ws(ps->bottom_paste.size_r,m_units), ws(ps->bottom_paste.radius,m_units) );
 				file->WriteString( line );
 			}
 		}
@@ -1919,7 +1917,6 @@ int CShape::WriteFootprint( CStdioFile * file )
 			_sys_errlist[e->m_lOsError] );
 		return 1;
 	}
-#endif
 	return 0;
 }
 

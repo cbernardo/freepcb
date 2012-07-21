@@ -219,10 +219,10 @@ public:
 	int StopDragging();
 	void SetThermals();																// CPT2 new.  Updates the bNeedsThermal flags for all pins in all parts.
 	
-	int WriteParts( CStdioFile * file ) { return 0; }
-	int ReadParts( CStdioFile * file );
-	int GetNumFootprintInstances( CShape * shape ) { return 0; }
-	void PurgeFootprintCache();
+	int ReadParts( CStdioFile * file );													// Done in cpp
+	int WriteParts( CStdioFile * file );												// Done in cpp
+	int GetNumFootprintInstances( CShape * shape );										// Done in cpp
+	// void PurgeFootprintCache();														// CPT2 obsolete?
 	int ExportPartListInfo( partlist_info * pli, cpart2 *part0 );						// Done in cpp.  Converted from old CPartList func.
 	void ImportPartListInfo( partlist_info * pli, int flags, CDlgLog * log=NULL );		// Done in cpp.  Converted from old CPartList func.
 	int SetPartString( cpart * part, CString * str );

@@ -74,10 +74,10 @@ public:
 	void MakeLibraryMaps( CString * fullpath );
 	CPolyLine * GetBoardOutlineByUID( int uid, int * index=NULL );
 	CPolyLine * GetMaskCutoutByUID( int uid, int * index=NULL );
-	void ReadBoardOutline( CStdioFile * pcb_file, CArray<CPolyLine> * bd=NULL );
-	void WriteBoardOutline( CStdioFile * pcb_file, CArray<CPolyLine> * bd=NULL );
-	void ReadSolderMaskCutouts( CStdioFile * pcb_file, CArray<CPolyLine> * sm=NULL );
-	void WriteSolderMaskCutouts( CStdioFile * pcb_file, CArray<CPolyLine> * sm=NULL );
+	void ReadBoardOutline( CStdioFile * pcb_file );
+	void WriteBoardOutline( CStdioFile * pcb_file );
+	void ReadSolderMaskCutouts( CStdioFile * pcb_file );
+	void WriteSolderMaskCutouts( CStdioFile * pcb_file );
 	void ReadOptions( CStdioFile * pcb_file );
 	void WriteOptions( CStdioFile * pcb_file );
 	int ImportNetlist( CStdioFile * file, UINT flags, 
@@ -115,9 +115,9 @@ public:
 	cnetlist *m_nlist;			// CPT2.  Was CNetList, now cnetlist
 	cpartlist *m_plist;			// CPT2.  Was CPartList, now cpartlist
 	ctextlist * m_tlist;		// CPT2.  Was CTextList, now ctextlist
-	CArray<CPolyLine> m_board_outline;	// PCB outline. CPT2 TODO.  Change to carray<cboard>
+	// CArray<CPolyLine> m_board_outline;	// PCB outline. CPT2 supplanted by "others"
 	DRErrorList * m_drelist;		// CPT2 TODO: change to drelist or just carray<cdre>
-	CArray<CPolyLine> m_sm_cutout;	// array of soldermask cutouts. // CPT2 TODO:  change to carray<csmcutout>
+	// CArray<CPolyLine> m_sm_cutout;	// array of soldermask cutouts. // CPT2 supplanted by "others"
 	carray<cpcb_item> items;		// CPT2.  Master list of all created pcb-items.  GarbageCollect() will go through this list and clean up now and then.
 	carray<cpcb_item> others;		// CPT2.  All active pcb-items that belong to "other" categories (not net-items, part-items, or texts)
 	carray<cpcb_item> redraw;		// CPT2 r313.  My latest-n-greatest system for undrawing and redrawing (see notes.txt).
