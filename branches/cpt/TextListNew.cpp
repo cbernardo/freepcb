@@ -74,6 +74,34 @@ ctext *ctextlist::AddText( int x, int y, int angle, bool bMirror, bool bNegative
 	return text;
 }
 
+void ctextlist::WriteTexts( CStdioFile * file )
+{
+	try
+	{
+		// now write all text strings
+		file->WriteString( "[texts]\n\n" );
+		citer<ctext> it (&texts);
+		for (ctext *t = it.First(); t; t = it.Next())
+		{
+			CString line;
+			line.Format( "text: \"%s\" %d %d %d %d %d %d %d %d\n\n", t->m_str,
+				t->m_x, t->m_y, t->m_layer, t->m_angle, t->m_bMirror,
+				t->m_font_size, t->m_stroke_width, t->m_bNegative );
+			file->WriteString( line );
+		}
+		
+	}
+	catch( CFileException * e )
+	{
+		CString str, s ((LPCSTR) IDS_FileError1), s2 = ((LPCSTR) IDS_FileError2);
+		if( e->m_lOsError == -1 )
+			str.Format( s, e->m_cause );
+		else
+			str.Format( s2, e->m_cause, e->m_lOsError, _sys_errlist[e->m_lOsError] );
+	}
+}
+
+
 BOOL ctextlist::GetTextBoundaries( CRect * r )
 {
 	BOOL bValid = FALSE;

@@ -283,12 +283,8 @@ int cpartlist::ReadParts( CStdioFile * pcb_file )
 	while( 1 )
 	{
 		pos = pcb_file->GetPosition();
-		err = pcb_file->ReadString( in_str );
-		if( !err )
-		{
-			CString * err_str = new CString((LPCSTR) IDS_UnexpectedEOFInProjectFile);
-			throw err_str;
-		}
+		if (!pcb_file->ReadString( in_str ))
+			throw new CString((LPCSTR) IDS_UnexpectedEOFInProjectFile);
 		in_str.Trim();
 		if( in_str[0] == '[' && in_str != "[parts]" )
 		{
@@ -303,12 +299,8 @@ int cpartlist::ReadParts( CStdioFile * pcb_file )
 				str.Append( in_str );
 				str.Append( "\n" );
 				pos = pcb_file->GetPosition();
-				err = pcb_file->ReadString( in_str );
-				if( !err )
-				{
-					CString * err_str = new CString((LPCSTR) IDS_UnexpectedEOFInProjectFile);
-					throw err_str;
-				}
+				if (!pcb_file->ReadString( in_str ))
+					throw new CString((LPCSTR) IDS_UnexpectedEOFInProjectFile);
 				in_str.Trim();
 			} while( (in_str.Left(4) != "ref:" && in_str.Left(5) != "part:" )
 						&& in_str[0] != '[' );
@@ -320,6 +312,52 @@ int cpartlist::ReadParts( CStdioFile * pcb_file )
 	}
 	return 0;
 }
+
+int cpartlist::WriteParts( CStdioFile * file )
+{
+	// CPT2. Converted.
+	// CPT: Sort the part lines.
+	try
+	{
+		// now write all parts
+		CString line;
+		CArray<CString> lines;
+		line.Format( "[parts]\n\n" );
+		file->WriteString( line );
+		citer<cpart2> ip (&parts);
+		for (cpart2 * p = ip.First(); p; p = ip.Next())
+			p->MakeString( &line ),
+			lines.Add(line);
+		extern int strcmpNumeric(CString *s1, CString *s2);															// In FreePcbDoc.cpp
+		qsort(lines.GetData(), lines.GetSize(), sizeof(CString), (int (*)(const void*,const void*)) strcmpNumeric);			
+		for (int i=0; i<lines.GetSize(); i++)
+			file->WriteString( lines[i] );
+	}
+	// end CPT
+	catch( CFileException * e )
+	{
+		CString str, s ((LPCSTR) IDS_FileError1), s2 ((LPCSTR) IDS_FileError2);
+		if( e->m_lOsError == -1 )
+			str.Format( s, e->m_cause );
+		else
+			str.Format( s2, e->m_cause, e->m_lOsError, _sys_errlist[e->m_lOsError] );
+		return 1;
+	}
+
+	return 0;
+}
+
+
+int cpartlist::GetNumFootprintInstances( CShape * shape )
+{
+	int n = 0;
+	citer<cpart2> ip (&parts);
+	for (cpart2 *part = ip.First(); part; part = ip.Next())
+		if(  part->shape == shape  )
+			n++;
+	return n;
+}
+
 
 int cpartlist::FootprintLayer2Layer( int fp_layer )
 {

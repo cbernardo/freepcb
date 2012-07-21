@@ -155,7 +155,6 @@ CFreePcbDoc::CFreePcbDoc()
 #endif
 	m_pcb_filename = "";
 	m_pcb_full_path = "";
-	m_board_outline.RemoveAll();
 	m_project_open = FALSE;
 	m_project_modified = FALSE;
 	m_project_modified_since_autosave = FALSE;
@@ -194,8 +193,6 @@ CFreePcbDoc::~CFreePcbDoc()
 	clip_sm_cutout.RemoveAll();
 	clip_board_outline.RemoveAll();
 	// delete partlist, netlist, displaylist, etc.
-	m_sm_cutout.RemoveAll();
-	m_board_outline.RemoveAll();
 	delete m_drelist;
 	delete m_undo_list;
 	delete m_redo_list;
@@ -205,6 +202,7 @@ CFreePcbDoc::~CFreePcbDoc()
 	delete m_dlist;
 	delete m_dlist_fp;
 	delete m_smfontutil;
+	others.DestroyAll();
 	// delete all footprints from local cache
 	POSITION pos = m_footprint_cache_map.GetStartPosition();
 	while( pos != NULL )
@@ -482,10 +480,8 @@ void CFreePcbDoc::OnFileOpen()
 				FileLoadLibrary( pathname );
 		}
 		else
-		{
 			// read project file
 			FileOpen( pathname );
-		}
 	}
 	else
 	{
@@ -692,10 +688,9 @@ int CFreePcbDoc::FileClose()
 
 	// destroy existing project
 	// delete undo list, partlist, netlist, displaylist, etc.
-	m_sm_cutout.RemoveAll();
-	m_drelist->Clear();
+	others.RemoveAll();
+	m_drelist->Clear();					// CPT2 TODO...
 	ResetUndoState();
-	m_board_outline.RemoveAll();
 	m_nlist->RemoveAllNets();
 	m_plist->RemoveAllParts();
 	m_tlist->RemoveAllTexts();
@@ -870,8 +865,7 @@ BOOL CFreePcbDoc::FileSave( CString * folder, CString * filename,
 		}
 	}
 	CStdioFile pcb_file;
-	int err = pcb_file.Open( LPCSTR(full_path), CFile::modeCreate | CFile::modeWrite, NULL );
-	if( !err )
+	if (!pcb_file.Open( LPCSTR(full_path), CFile::modeCreate | CFile::modeWrite, NULL ))
 	{
 		// error opening file
 		CString mess, s ((LPCSTR) IDS_UnableToOpenFile);
@@ -879,35 +873,33 @@ BOOL CFreePcbDoc::FileSave( CString * folder, CString * filename,
 		AfxMessageBox( mess );
 		return FALSE;
 	} 
-	else
+	// write project to file
+	try
 	{
-		// write project to file
-		try
-		{
-			WriteOptions( &pcb_file );
-			WriteFootprints( &pcb_file );
-			WriteBoardOutline( &pcb_file );
-			WriteSolderMaskCutouts( &pcb_file );
-			m_plist->WriteParts( &pcb_file );
-			m_nlist->WriteNets( &pcb_file );
-			m_tlist->WriteTexts( &pcb_file );
-			pcb_file.WriteString( "[end]\n" );
-			pcb_file.Close();
-			theApp.AddMRUFile( &m_pcb_full_path );
-			bNoFilesOpened = FALSE;
-			m_auto_elapsed = 0;
-		}
-		catch( CString * err_str )
-		{
-			// error
-			AfxMessageBox( *err_str );
-			delete err_str;
-			CDC * pDC = m_view->GetDC();
-			m_view->OnDraw( pDC ) ;
-			m_view->ReleaseDC( pDC );
-			return FALSE;
-		}
+		WriteOptions( &pcb_file );
+		WriteFootprints( &pcb_file );
+		WriteBoardOutline( &pcb_file );
+		WriteSolderMaskCutouts( &pcb_file );
+		m_plist->WriteParts( &pcb_file );
+		m_nlist->WriteNets( &pcb_file );
+		m_tlist->WriteTexts( &pcb_file );
+		pcb_file.WriteString( "[end]\n" );
+		pcb_file.Close();
+		theApp.AddMRUFile( &m_pcb_full_path );
+		bNoFilesOpened = FALSE;
+		m_auto_elapsed = 0;
 	}
+	catch( CString * err_str )
+	{
+		// error
+		AfxMessageBox( *err_str );
+		delete err_str;
+		CDC * pDC = m_view->GetDC();
+		m_view->OnDraw( pDC ) ;
+		m_view->ReleaseDC( pDC );
+		return FALSE;
+	}
+
 	return TRUE;
 }
 
@@ -1153,30 +1145,31 @@ void CFreePcbDoc::ReadFootprints( CStdioFile * pcb_file,
 //
 // throws CString * exception on error
 //
-void CFreePcbDoc::WriteBoardOutline( CStdioFile * file, CArray<CPolyLine> * bbd )
+void CFreePcbDoc::WriteBoardOutline( CStdioFile * file )
 {
-	CString line;
-	CArray<CPolyLine> * bd = bbd;
-	if( bd == NULL )
-		bd = &m_board_outline;
-
+	// CPT2 converted
 	try
 	{
+		CString line;
 		line.Format( "[board]\n" );
 		file->WriteString( line );
-		for( int ib=0; ib<bd->GetSize(); ib++ )
+		citer<cpcb_item> ii (&others);
+		int ib = 0;
+		for (cpcb_item *i = ii.First(); i; i = ii.Next())
 		{
-			line.Format( "\noutline: %d %d\n", (*bd)[ib].NumCorners(), ib );
+			cboard *b = i->ToBoard();
+			if (!b) continue;
+			line.Format( "\noutline: %d %d\n", b->NumCorners(), ib++ );
 			file->WriteString( line );
-			for( int icor=0; icor<(*bd)[ib].NumCorners(); icor++ )
+			ccorner *c = b->main->head;
+			int icor = 1;
+			do 
 			{
-				line.Format( "  corner: %d %d %d %d\n", icor+1,
-					(*bd)[ib].X( icor ),
-					(*bd)[ib].Y( icor ),
-					(*bd)[ib].SideStyle( icor )
-					);
+				line.Format( "  corner: %d %d %d %d\n", icor++, c->x, c->y, c->postSide->m_style);
 				file->WriteString( line );
+				c = c->postSide->postCorner;
 			}
+			while (c!=b->main->head);
 		}
 		file->WriteString( "\n" );
 		return;
@@ -1192,36 +1185,41 @@ void CFreePcbDoc::WriteBoardOutline( CStdioFile * file, CArray<CPolyLine> * bbd 
 		throw err_str;
 	}
 }
-void CFreePcbDoc::WriteSolderMaskCutouts( CStdioFile * file, CArray<CPolyLine> * sm )
+void CFreePcbDoc::WriteSolderMaskCutouts( CStdioFile * file )
 {
-	CString line;
-	CArray<CPolyLine> * smc = sm;
-	if( sm == NULL )
-		smc = &m_sm_cutout;
-
+	// CPT2 TODO converted.  NB note that corners now need to be output with the endcontour bit indicated.  Does this imply the need for a new
+	// file-version number?
 	try
 	{
+		CString line;
 		line.Format( "[solder_mask_cutouts]\n\n" );
 		file->WriteString( line );
-		for( int i=0; i<smc->GetSize(); i++ )
+		citer<cpcb_item> ii (&others);
+		int i = 0;
+		for (cpcb_item *i = ii.First(); i; i = ii.Next())
 		{
-			line.Format( "sm_cutout: %d %d %d\n", (*smc)[i].NumCorners(),
-				(*smc)[i].GetHatch(), m_sm_cutout[i].Layer() );
+			csmcutout *sm = i->ToSmCutout();
+			if (!sm) continue;
+			line.Format( "sm_cutout: %d %d %d\n", sm->NumCorners(), sm->m_hatch, sm->m_layer );
 			file->WriteString( line );
-			for( int icor=0; icor<(*smc)[i].NumCorners(); icor++ )
+			int icor = 1;
+			citer<ccontour> ictr (&sm->contours);
+			for (ccontour *ctr = ictr.First(); ctr; ctr = ictr.Next())
 			{
-				line.Format( "  corner: %d %d %d %d\n", icor+1,
-					(*smc)[i].X( icor ),
-					(*smc)[i].Y( icor ),
-					(*smc)[i].SideStyle( icor )
-					);
-				file->WriteString( line );
-			}
-			file->WriteString( "\n" );
+				ccorner *c = ctr->head;
+				line.Format( "  corner: %d %d %d %d\n", icor++, c->x, c->y, c->postSide->m_style);
+				file->WriteString(line);
+				for (c = c->postSide->postCorner; c!=ctr->head; c = c->postSide->postCorner)
+				{
+					line.Format( "  corner: %d %d %d %d %d\n", icor++, c->x, c->y, 
+						c->postSide->m_style, c->postSide->postCorner==ctr->head);
+					file->WriteString(line);
+				}
+			} 
 		}
 		file->WriteString( "\n" );
-		return;
 	}
+
 	catch( CFileException * e )
 	{
 		CString * err_str = new CString, s ((LPCSTR) IDS_FileError1), s2 ((LPCSTR) IDS_FileError2);
@@ -1235,28 +1233,22 @@ void CFreePcbDoc::WriteSolderMaskCutouts( CStdioFile * file, CArray<CPolyLine> *
 }
 
 // read board outline from file
-//
 // throws CString * exception on error
+// CPT2 converted
 //
-void CFreePcbDoc::ReadBoardOutline( CStdioFile * pcb_file, CArray<CPolyLine> * bbd )
+void CFreePcbDoc::ReadBoardOutline( CStdioFile * pcb_file )
 {
-	int err, pos, np;
-	CArray<CString> p;
 	CString in_str, key_str;
+	CArray<CString> p;
 	int last_side_style = CPolyLine::STRAIGHT;
-	CArray<CPolyLine> * bd = bbd;
-	if( bd == NULL )
-		bd = &m_board_outline;
 
 	try
 	{
 		// find beginning of [board] section
 		do
 		{
-			err = pcb_file->ReadString( in_str );
-			if( !err )
+			if (!pcb_file->ReadString( in_str ))
 			{
-				// error reading pcb file
 				CString mess ((LPCSTR) IDS_UnableToFindBoardSectionInFile);
 				AfxMessageBox( mess );
 				return;
@@ -1268,13 +1260,9 @@ void CFreePcbDoc::ReadBoardOutline( CStdioFile * pcb_file, CArray<CPolyLine> * b
 		// get data
 		while( 1 )
 		{
-			pos = pcb_file->GetPosition();
-			err = pcb_file->ReadString( in_str );
-			if( !err )
-			{
-				CString * err_str = new CString((LPCSTR) IDS_UnexpectedEOFInProjectFile);
-				throw err_str;
-			}
+			int pos = pcb_file->GetPosition();
+			if (!pcb_file->ReadString( in_str ))
+				throw new CString((LPCSTR) IDS_UnexpectedEOFInProjectFile);
 			in_str.Trim();
 			if( in_str[0] == '[' )
 			{
@@ -1282,64 +1270,45 @@ void CFreePcbDoc::ReadBoardOutline( CStdioFile * pcb_file, CArray<CPolyLine> * b
 				pcb_file->Seek( pos, CFile::begin );
 				return;
 			}
-			np = ParseKeyString( &in_str, &key_str, &p );
-			if( np && key_str == "outline" )
+			int np = ParseKeyString( &in_str, &key_str, &p );
+			if( !np || key_str != "outline" )
+				continue;
+			if( np != 2 && np != 3 )
+				throw new CString((LPCSTR) IDS_ErrorParsingBoardSectionOfProjectFile);
+			int ncorners = my_atoi( &p[0] );
+			int ib = 0;
+			if( np == 3 )
+				ib = my_atoi( &p[1] );
+			cboard *b = new cboard(this);
+			ccontour *ctr = new ccontour(b, true);				// Adds ctr as b's main contour
+			for( int icor=0; icor<ncorners; icor++ )
 			{
-				if( np != 2 && np != 3 )
+				if (!pcb_file->ReadString( in_str ))
+					throw new CString((LPCSTR) IDS_UnexpectedEOFInProjectFile);
+				np = ParseKeyString( &in_str, &key_str, &p );
+				if( key_str != "corner" || np < 4 )
+					throw new CString((LPCSTR) IDS_ErrorParsingBoardSectionOfProjectFile);
+				int ncor = my_atoi( &p[0] );
+				if( (ncor-1) != icor )
+					throw new CString((LPCSTR) IDS_ErrorParsingBoardSectionOfProjectFile);
+				int x = my_atoi( &p[1] );
+				int y = my_atoi( &p[2] );
+				last_side_style = np >= 5? my_atoi( &p[3] ): cpolyline::STRAIGHT;
+				bool bContourWasEmpty = ctr->corners.IsEmpty();
+				ccorner *c = new ccorner(ctr, x, y);			// Constructor adds corner to ctr->corners (and may also set ctr->head/tail if
+																// it was previously empty)
+				if (!bContourWasEmpty)
 				{
-					CString * err_str = new CString((LPCSTR) IDS_ErrorParsingBoardSectionOfProjectFile);
-					throw err_str;
+					cside *s = new cside(ctr, last_side_style);
+					ctr->AppendSideAndCorner(s, c, ctr->tail);
 				}
-				int ncorners = my_atoi( &p[0] );
-				int ib = 0;
-				if( np == 3 )
-					ib = my_atoi( &p[1] );
-				for( int icor=0; icor<ncorners; icor++ )
-				{
-					err = pcb_file->ReadString( in_str );
-					if( !err )
-					{
-						CString * err_str = new CString((LPCSTR) IDS_UnexpectedEOFInProjectFile);
-						throw err_str;
-					}
-					np = ParseKeyString( &in_str, &key_str, &p );
-					if( key_str != "corner" || np < 4 )
-					{
-						CString * err_str = new CString((LPCSTR) IDS_ErrorParsingBoardSectionOfProjectFile);
-						throw err_str;
-					}
-					int ncor = my_atoi( &p[0] );
-					if( (ncor-1) != icor )
-					{
-						CString * err_str = new CString((LPCSTR) IDS_ErrorParsingBoardSectionOfProjectFile);
-						throw err_str;
-					}
-					int x = my_atoi( &p[1] );
-					int y = my_atoi( &p[2] );
-					if( icor == 0 )
-					{
-						// make new board outline
-						bd->SetSize( ib + 1 );
-						if( bbd )
-							(*bd)[ib].SetDisplayList( NULL );
-						else
-							(*bd)[ib].SetDisplayList( m_dlist );
-						id bid( ID_BOARD, -1, ID_OUTLINE, -1, ib );
-						(*bd)[ib].Start( LAY_BOARD_OUTLINE, 1, 20*NM_PER_MIL, x, y, 
-							0, &bid, NULL );
-					}
-					else
-						(*bd)[ib].AppendCorner( x, y, last_side_style );
-					if( np == 5 )
-						last_side_style = my_atoi( &p[3] );
-					else
-						last_side_style = CPolyLine::STRAIGHT;
-					if( icor == (ncorners-1) )
-						(*bd)[ib].Close( last_side_style );
-				}
+				if( icor == (ncorners-1) )
+					ctr->Close(last_side_style);
 			}
+			b->MustRedraw();
 		}
 	}
+
 	catch( CFileException * e )
 	{
 		CString * err_str = new CString, s ((LPCSTR) IDS_FileError1), s2 ((LPCSTR) IDS_FileError2);
@@ -1356,50 +1325,33 @@ void CFreePcbDoc::ReadBoardOutline( CStdioFile * pcb_file, CArray<CPolyLine> * b
 //
 // throws CString * exception on error
 //
-void CFreePcbDoc::ReadSolderMaskCutouts( CStdioFile * pcb_file, CArray<CPolyLine> * ssm )
+void CFreePcbDoc::ReadSolderMaskCutouts( CStdioFile * pcb_file )
 {
-	int err, pos, np;
-	CArray<CString> p;
 	CString in_str, key_str;
+	CArray<CString> p;
 	int last_side_style = CPolyLine::STRAIGHT;
-	CArray<CPolyLine> * sm = ssm;
-	if( sm == NULL )
-		sm = &m_sm_cutout;
 
 	try
 	{
-		// find beginning of [solder_mask_cutouts] section
-		int pos = pcb_file->GetPosition();
+		// find beginning of [board] section
 		do
 		{
-			err = pcb_file->ReadString( in_str );
-			if( !err )
+			if (!pcb_file->ReadString( in_str ))
 			{
-				// error reading pcb file
 				CString mess ((LPCSTR) IDS_UnableToFindSolderMaskCutoutsSectionInFile);
 				AfxMessageBox( mess );
 				return;
 			}
 			in_str.Trim();
 		}
-		while( in_str[0] != '[' );
-
-		if( in_str != "[solder_mask_cutouts]" )
-		{
-			pcb_file->Seek( pos, CFile::begin );
-			return;
-		}
+		while( in_str != "[solder_mask_cutouts]" );
 
 		// get data
 		while( 1 )
 		{
-			pos = pcb_file->GetPosition();
-			err = pcb_file->ReadString( in_str );
-			if( !err )
-			{
-				CString * err_str = new CString((LPCSTR) IDS_UnexpectedEOFInProjectFile);
-				throw err_str;
-			}
+			int pos = pcb_file->GetPosition();
+			if (!pcb_file->ReadString( in_str ))
+				throw new CString((LPCSTR) IDS_UnexpectedEOFInProjectFile);
 			in_str.Trim();
 			if( in_str[0] == '[' )
 			{
@@ -1407,63 +1359,49 @@ void CFreePcbDoc::ReadSolderMaskCutouts( CStdioFile * pcb_file, CArray<CPolyLine
 				pcb_file->Seek( pos, CFile::begin );
 				return;
 			}
-			np = ParseKeyString( &in_str, &key_str, &p );
-			if( np && key_str == "sm_cutout" )
+			int np = ParseKeyString( &in_str, &key_str, &p );
+			if (!np || key_str != "sm_cutout" )
+				continue;
+			if( np<4 )
+				throw new CString((LPCSTR) IDS_ErrorParsingSolderMaskCutoutsSectionOfProjectFile);
+			int ncorners = my_atoi( &p[0] );
+			int hatch = my_atoi( &p[1] );
+			int lay = my_atoi( &p[2] );
+			csmcutout *sm = new csmcutout(this, lay, hatch);
+			ccontour *ctr = new ccontour(sm, true);				// Adds ctr as b's main contour
+			for( int icor=0; icor<ncorners; icor++ )
 			{
-				if( np < 4 ) 
+				if (!pcb_file->ReadString( in_str ))
+					throw new CString((LPCSTR) IDS_UnexpectedEOFInProjectFile);
+				np = ParseKeyString( &in_str, &key_str, &p );
+				if( key_str != "corner" || np < 4 )
+					throw new CString((LPCSTR) IDS_ErrorParsingSolderMaskCutoutsSectionOfProjectFile);
+				int ncor = my_atoi( &p[0] );
+				if( (ncor-1) != icor )
+					throw new CString((LPCSTR) IDS_ErrorParsingSolderMaskCutoutsSectionOfProjectFile);
+				int x = my_atoi( &p[1] );
+				int y = my_atoi( &p[2] );
+				last_side_style = np >= 5? my_atoi( &p[3] ): cpolyline::STRAIGHT;
+				int end_cont = np >= 6? my_atoi( &p[4] ): 0;
+				bool bContourWasEmpty = ctr->corners.IsEmpty();
+				ccorner *c = new ccorner(ctr, x, y);			// Constructor adds corner to ctr->corners (and may also set ctr->head/tail if
+																// it was previously empty)
+				if (!bContourWasEmpty)
 				{
-					CString * err_str = new CString((LPCSTR) IDS_ErrorParsingSolderMaskCutoutsSectionOfProjectFile);
-					throw err_str;
+					cside *s = new cside(ctr, last_side_style);
+					ctr->AppendSideAndCorner(s, c, ctr->tail);
 				}
-				int ncorners = my_atoi( &p[0] );
-				int hatch = my_atoi( &p[1] );
-				int lay = my_atoi( &p[2] );
-				int ic = sm->GetSize();
-				sm->SetSize(ic+1);
-				for( int icor=0; icor<ncorners; icor++ )
+				if( icor == (ncorners-1) || end_cont )
 				{
-					err = pcb_file->ReadString( in_str );
-					if( !err )
-					{
-						CString * err_str = new CString((LPCSTR) IDS_UnexpectedEOFInProjectFile);
-						throw err_str;
-					}
-					np = ParseKeyString( &in_str, &key_str, &p );
-					if( key_str != "corner" || np < 4 )
-					{
-						CString * err_str = new CString((LPCSTR) IDS_ErrorParsingSolderMaskCutoutsSectionOfProjectFile);
-						throw err_str;
-					}
-					int ncor = my_atoi( &p[0] );
-					if( (ncor-1) != icor )
-					{
-						CString * err_str = new CString((LPCSTR) IDS_ErrorParsingSolderMaskCutoutsSectionOfProjectFile);
-						throw err_str;
-					}
-					int x = my_atoi( &p[1] );
-					int y = my_atoi( &p[2] );
-					id id_sm( ID_MASK, -1, ID_MASK, -1, ic );
-					if( icor == 0 )
-					{
-						// make new cutout 
-						(*sm)[ic].Start( lay, 0, 10*NM_PER_MIL, x, y, hatch, &id_sm, NULL );
-						if( ssm )
-							(*sm)[ic].SetDisplayList( NULL );
-						else
-							(*sm)[ic].SetDisplayList( m_dlist );
-					}
-					else
-						(*sm)[ic].AppendCorner( x, y, last_side_style );
-					if( np == 5 )
-						last_side_style = my_atoi( &p[3] );
-					else
-						last_side_style = CPolyLine::STRAIGHT;
-					if( icor == (ncorners-1) )
-						(*sm)[ic].Close( last_side_style );
+					ctr->Close(last_side_style);
+					if (icor<ncorners-1)
+						ctr = new ccontour(sm, false);			// Make a new secondary contour.  This is a CPT2 new option for sm-cutouts
 				}
 			}
+			sm->MustRedraw();
 		}
 	}
+
 	catch( CFileException * e )
 	{
 		CString * err_str = new CString, s ((LPCSTR) IDS_FileError1), s2 ((LPCSTR) IDS_FileError2);
@@ -2199,7 +2137,6 @@ void CFreePcbDoc::InitializeNewProject()
 	m_lib_dir = "..\\lib\\" ;
 	m_pcb_filename = "";
 	m_pcb_full_path = "";
-	m_board_outline.RemoveAll();
 	m_units = MIL;
 	m_num_copper_layers = 4;
 	m_plist->SetNumCopperLayers( m_num_copper_layers );
@@ -2212,7 +2149,7 @@ void CFreePcbDoc::InitializeNewProject()
 	m_bReversePgupPgdn = 0;
 	m_bLefthanded = 0;
 	m_bHighlightNet = 0;	
-	m_sm_cutout.RemoveAll();
+	others.RemoveAll();
 
 	// CPT compacted the code for embedded default layer colors, visibility, etc.
 	static unsigned int defaultLayerColors[] = {
@@ -3527,6 +3464,7 @@ undo_board_outline * CFreePcbDoc::CreateBoardOutlineUndoRecord( CPolyLine * poly
 //
 void CFreePcbDoc::BoardOutlineUndoCallback( int type, void * ptr, BOOL undo )
 {
+#ifndef CPT2
 	if( undo ) 
 	{
 		if( type == CFreePcbView::UNDO_BOARD_OUTLINE_CLEAR_ALL ) 
@@ -3569,6 +3507,7 @@ void CFreePcbDoc::BoardOutlineUndoCallback( int type, void * ptr, BOOL undo )
 		}
 	}
 	delete ptr;
+#endif
 }
 
 // create undo record for SM cutout
@@ -3599,6 +3538,7 @@ undo_sm_cutout * CFreePcbDoc::CreateSMCutoutUndoRecord( CPolyLine * poly )
 //
 void CFreePcbDoc::SMCutoutUndoCallback( int type, void * ptr, BOOL undo )
 {
+#ifndef CPT2
 	if( undo ) 
 	{
 		if( type == CFreePcbView::UNDO_SM_CUTOUT_CLEAR_ALL ) 
@@ -3633,6 +3573,7 @@ void CFreePcbDoc::SMCutoutUndoCallback( int type, void * ptr, BOOL undo )
 		}
 	}
 	delete ptr;
+#endif
 }
 
 // call dialog to create Gerber and drill files
@@ -4093,6 +4034,7 @@ void CFreePcbDoc::OnToolsCheckTraces()
 
 void CFreePcbDoc::OnEditPasteFromFile()
 {
+#ifndef CPT2
 	// force old-style file dialog by setting size of OPENFILENAME struct
 	CString s ((LPCSTR) IDS_AllFiles);
 	CFileDialog dlg( TRUE, NULL, NULL, OFN_HIDEREADONLY | OFN_EXPLORER, 
@@ -4193,6 +4135,7 @@ void CFreePcbDoc::OnEditPasteFromFile()
 		}
 		m_view->OnGroupPaste();
 	}
+#endif
 }
 
 // Purge footprunts from local cache unless they are used in
@@ -4200,12 +4143,10 @@ void CFreePcbDoc::OnEditPasteFromFile()
 //
 void CFreePcbDoc::PurgeFootprintCache()
 {
-	POSITION pos;
-	CString key;
-	void * ptr;
-
-	for( pos = m_footprint_cache_map.GetStartPosition(); pos != NULL; )
+	for( POSITION pos = m_footprint_cache_map.GetStartPosition(); pos != NULL; )
 	{
+		CString key;
+		void * ptr;
 		m_footprint_cache_map.GetNextAssoc( pos, key, ptr );
 		CShape * shape = (CShape*)ptr;
 		if( m_plist->GetNumFootprintInstances( shape ) == 0
@@ -4220,6 +4161,7 @@ void CFreePcbDoc::PurgeFootprintCache()
 
 CPolyLine * CFreePcbDoc::GetBoardOutlineByUID( int uid, int * index )
 {
+#ifndef CPT2
 	int nb = m_board_outline.GetSize();
 	for( int ib=0; ib<nb; ib++ )
 	{
@@ -4232,11 +4174,13 @@ CPolyLine * CFreePcbDoc::GetBoardOutlineByUID( int uid, int * index )
 	}
 	if( index )
 		*index = -1;
+#endif
 	return NULL;
 }
 
 CPolyLine * CFreePcbDoc::GetMaskCutoutByUID( int uid, int * index )
 {
+#ifndef CPT2
 	int nb = m_sm_cutout.GetSize();
 	for( int ib=0; ib<nb; ib++ )
 	{
@@ -4249,6 +4193,7 @@ CPolyLine * CFreePcbDoc::GetMaskCutoutByUID( int uid, int * index )
 	}
 	if( index )
 		*index = -1;
+#endif
 	return NULL;
 }
 
@@ -4261,6 +4206,7 @@ void CFreePcbDoc::OnFilePrint()
 
 void CFreePcbDoc::OnFileExportDsn()
 {
+#ifndef CPT2
 	if( m_project_modified )
 	{
 		CString s ((LPCSTR) IDS_ThisFunctionCreatesADsnFile);
@@ -4350,6 +4296,7 @@ void CFreePcbDoc::OnFileExportDsn()
 		EndWaitCursor();
 #endif
 	}
+#endif
 }
 
 void CFreePcbDoc::OnFileImportSes()
@@ -4513,6 +4460,7 @@ void CFreePcbDoc::ResetUndoState()
 
 void CFreePcbDoc::OnRepeatDrc()
 {
+#ifndef CPT2
 	if( m_vis[LAY_RAT_LINE] && !m_auto_ratline_disable )
 		m_nlist->OptimizeConnections();
 	m_drelist->Clear();
@@ -4524,6 +4472,7 @@ void CFreePcbDoc::OnRepeatDrc()
 	m_plist->DRC( m_dlg_log, m_num_copper_layers, m_units, 
 		m_dr.bCheckUnrouted, &m_board_outline, &m_dr, m_drelist );
 	m_view->Invalidate( FALSE );
+#endif
 }
 
 void CFreePcbDoc::OnFileGenerateReportFile()

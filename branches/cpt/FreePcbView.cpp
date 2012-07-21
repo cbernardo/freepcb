@@ -27,8 +27,6 @@
 
 // globals
 extern CFreePcbApp theApp;
-BOOL t_pressed = FALSE;
-BOOL n_pressed = FALSE;
 // CPT:  removed gShiftKeyDown global. Other globals moved into class CCommonView
 // BOOL gShiftKeyDown = FALSE;
 // int gTotalArrowMoveX = 0;
@@ -3960,6 +3958,7 @@ void CFreePcbView::OnContextMenu(CWnd* pWnd, CPoint point )
 		pPopup->TrackPopupMenu(TPM_LEFTALIGN | TPM_RIGHTBUTTON, point.x, point.y, pWnd );
 		break;
 
+#ifndef CPT2
 	case CUR_BOARD_CORNER_SELECTED:
 		pPopup = menu.GetSubMenu(CONTEXT_BOARD_CORNER);
 		ASSERT(pPopup != NULL);
@@ -4006,6 +4005,7 @@ void CFreePcbView::OnContextMenu(CWnd* pWnd, CPoint point )
 		}
 		pPopup->TrackPopupMenu(TPM_LEFTALIGN | TPM_RIGHTBUTTON, point.x, point.y, pWnd );
 		break;
+#endif
 
 	case CUR_PART_SELECTED:
 		pPopup = menu.GetSubMenu(CONTEXT_PART);
@@ -4148,6 +4148,7 @@ void CFreePcbView::OnContextMenu(CWnd* pWnd, CPoint point )
 		pPopup->TrackPopupMenu(TPM_LEFTALIGN | TPM_RIGHTBUTTON, point.x, point.y, pWnd );
 		break;
 
+#ifndef CPT2
 	case CUR_SMCUTOUT_SIDE_SELECTED:
 		pPopup = menu.GetSubMenu(CONTEXT_SM_SIDE);
 		ASSERT(pPopup != NULL);
@@ -4164,6 +4165,7 @@ void CFreePcbView::OnContextMenu(CWnd* pWnd, CPoint point )
 		}
 		pPopup->TrackPopupMenu(TPM_LEFTALIGN | TPM_RIGHTBUTTON, point.x, point.y, pWnd );
 		break;
+#endif
 
 	case CUR_GROUP_SELECTED:
 		pPopup = menu.GetSubMenu(CONTEXT_GROUP);
@@ -4454,6 +4456,7 @@ void CFreePcbView::OnPadStartTrace()
 	// NB it's unusual to have a vertex attached to a pin as the selection.
 	cconnect2 *new_c = new cconnect2 (net);
 	cvertex2 *new_v = new cvertex2 (new_c, pin->x, pin->y);
+	new_v->pin = pin;
 	new_c->Start(new_v);
 	m_sel.RemoveAll();
 	m_sel.Add(new_v);
@@ -4474,73 +4477,56 @@ void CFreePcbView::OnPadStartTrace()
 //
 void CFreePcbView::OnPadAddToNet()
 {
-#ifndef CPT2
+	cpin2 *pin = m_sel.First()->ToPin();
 	DlgAssignNet assign_net_dlg;
-	assign_net_dlg.m_map = &m_doc->m_nlist->m_map;
+	assign_net_dlg.m_nlist = m_doc->m_nlist;
 	int ret = assign_net_dlg.DoModal();
-	if( ret == IDOK )
+	if (ret != IDOK)
+		return;
+
+	CString name = assign_net_dlg.m_net_str;
+	name.Trim();
+	cnet2 *net = m_doc->m_nlist->GetNetPtrByName( &name );
+	if( !net )
 	{
-		CString name = assign_net_dlg.m_net_str;
-		void * ptr;
-		cnet * new_net = 0;
-		int test = m_doc->m_nlist->m_map.Lookup( name, ptr );
-		if( !test )
+		// create new net if legal string
+		if( name.GetLength() )
 		{
-			// create new net if legal string
-			name.Trim();
-			if( name.GetLength() )
-			{
-				new_net = m_doc->m_nlist->AddNet( (char*)(LPCTSTR)name, 10, 0, 0, 0 );
-				SaveUndoInfoForNetAndConnections( new_net, CNetList::UNDO_NET_ADD, TRUE, m_doc->m_undo_list );
-			}
-			else
-			{
-				// blank net name
-				CString s ((LPCSTR) IDS_IllegalNetName);
-				AfxMessageBox( s );
-				return;
-			}
+			net = new cnet2(m_doc, name, 0, 0, 0);
+			SaveUndoInfoForNetAndConnections( net, CNetList::UNDO_NET_ADD, TRUE, m_doc->m_undo_list );
 		}
 		else
 		{
-			// use selected net
-			new_net = (cnet*)ptr;
-			SaveUndoInfoForNetAndConnections( new_net, CNetList::UNDO_NET_MODIFY, TRUE, m_doc->m_undo_list );
+			// blank net name
+			CString s ((LPCSTR) IDS_IllegalNetName);
+			AfxMessageBox( s );
+			return;
 		}
-		// assign pin to net
-		if( new_net )
-		{
-			SaveUndoInfoForPart( m_sel_part,
-				CPartList::UNDO_PART_MODIFY, NULL, FALSE, m_doc->m_undo_list );
-			CString pin_name = m_sel_part->shape->GetPinNameByIndex( m_sel_id.I2() );
-			new_net->AddPin( &m_sel_part->ref_des, &pin_name );
-			if( m_doc->m_vis[LAY_RAT_LINE] )
-				m_doc->m_nlist->OptimizeConnections(  new_net, -1, m_doc->m_auto_ratline_disable,
-														m_doc->m_auto_ratline_min_pins, TRUE  );
-			SetFKText( m_cursor_mode );
-		}
-		m_doc->ProjectModified( TRUE );
-		Invalidate( FALSE );
 	}
-#endif
+	else
+		// use selected net
+		SaveUndoInfoForNetAndConnections( net, CNetList::UNDO_NET_MODIFY, TRUE, m_doc->m_undo_list );
+
+	// assign pin to net
+	SaveUndoInfoForPart( pin->part,	CPartList::UNDO_PART_MODIFY, NULL, FALSE, m_doc->m_undo_list );
+	net->AddPin(pin);
+	if( m_doc->m_vis[LAY_RAT_LINE] )
+		net->OptimizeConnections( m_doc->m_auto_ratline_disable, m_doc->m_auto_ratline_min_pins, TRUE  );
+	SetFKText( m_cursor_mode );
+	m_doc->ProjectModified( TRUE );
+	Invalidate( FALSE );
 }
 
 // remove this pad from net
 //
 void CFreePcbView::OnPadDetachFromNet()
 {
-#ifndef CPT2
-	cnet * pin_net = (cnet*)m_sel_part->pin[m_sel_id.I2()].net;
-	SaveUndoInfoForPartAndNets( m_sel_part,
-		CPartList::UNDO_PART_MODIFY, NULL, TRUE, m_doc->m_undo_list );
-	CString pin_name = m_sel_part->shape->GetPinNameByIndex(m_sel_id.I2());
-	cnet * net = m_doc->m_plist->GetPinNet( m_sel_part, m_sel_id.I2() );
-	m_doc->m_nlist->RemoveNetPin( m_sel_part, &pin_name );
-	m_doc->m_nlist->RemoveOrphanBranches( net, 0 );
+	cpin2 *pin = m_sel.First()->ToPin();
+	SaveUndoInfoForPartAndNets( pin->part, cpartlist::UNDO_PART_MODIFY, NULL, TRUE, m_doc->m_undo_list );
+	pin->net->RemovePin(pin);
 	SetFKText( m_cursor_mode );
 	m_doc->ProjectModified( TRUE );
 	Invalidate( FALSE );
-#endif
 }
 
 // connect this pad to another pad
@@ -5492,6 +5478,7 @@ void CFreePcbView::TryToReselectCorner( int x, int y )
 // change hatch style for solder mask cutout.  CPT2 TODO Probably eliminable?
 void CFreePcbView::OnSmSideHatchStyle()
 {
+#ifndef CPT2
 	CPolyLine * poly = &m_doc->m_sm_cutout[m_sel_id.I2()];
 	CDlgSetAreaHatch dlg;
 	dlg.Init( poly->GetHatch() );
@@ -5504,6 +5491,7 @@ void CFreePcbView::OnSmSideHatchStyle()
 		m_doc->ProjectModified( TRUE );
 		Invalidate( FALSE );
 	}
+#endif
 }
 
 void CFreePcbView::OnSmEdit()
@@ -6271,46 +6259,40 @@ void CFreePcbView::SaveUndoInfoForText( undo_text * u_text, int type, BOOL new_e
 
 void CFreePcbView::OnViewEntireBoard()
 {
-	if( m_doc->m_board_outline.GetSize() )
-	{
-		// get boundaries of board outline
-		int max_x = INT_MIN;
-		int min_x = INT_MAX;
-		int max_y = INT_MIN;
-		int min_y = INT_MAX;
-		for( int ib=0; ib<m_doc->m_board_outline.GetSize(); ib++ )
+	int nOutlines = 0;
+	int max_x = INT_MIN;
+	int min_x = INT_MAX;
+	int max_y = INT_MIN;
+	int min_y = INT_MAX;
+	citer<cpcb_item> ii (&m_doc->others);
+	for (cpcb_item *i = ii.First(); i; i = ii.Next())
+		if (cboard *b = i->ToBoard())
 		{
-			for( int ic=0; ic<m_doc->m_board_outline[0].NumCorners(); ic++ )
-			{
-				if( m_doc->m_board_outline[ib].X( ic ) > max_x )
-					max_x = m_doc->m_board_outline[ib].X( ic );
-				if( m_doc->m_board_outline[ib].X( ic ) < min_x )
-					min_x = m_doc->m_board_outline[ib].X( ic );
-				if( m_doc->m_board_outline[ib].Y( ic ) > max_y )
-					max_y = m_doc->m_board_outline[ib].Y( ic );
-				if( m_doc->m_board_outline[ib].Y( ic ) < min_y )
-					min_y = m_doc->m_board_outline[ib].Y( ic );
-			}
+			nOutlines++;
+			CRect r = b->GetBounds();
+			max_x = max(max_x, r.right);
+			min_x = min(min_x, r.left);
+			max_y = max(max_y, r.top);
+			min_y = min(min_y, r.bottom);
 		}
-		// reset window to enclose board outline
-//		m_org_x = min_x - (max_x - min_x)/20;	// in pcbu
-//		m_org_y = min_y - (max_y - min_y)/20;	// in pcbu
-		double x_pcbu_per_pixel = 1.1 * (double)(max_x - min_x)/(m_client_r.right - m_left_pane_w);
-		double y_pcbu_per_pixel = 1.1 * (double)(max_y - min_y)/(m_client_r.bottom - m_bottom_pane_h);
-		m_pcbu_per_pixel = max( x_pcbu_per_pixel, y_pcbu_per_pixel );
-		m_org_x = (max_x + min_x)/2 - (m_client_r.right - m_left_pane_w)/2 * m_pcbu_per_pixel;
-		m_org_y = (max_y + min_y)/2 - (m_client_r.bottom - m_bottom_pane_h)/2 * m_pcbu_per_pixel;
-		CRect screen_r;
-		GetWindowRect( &screen_r );		// in pixels
-		m_dlist->SetMapping( &m_client_r, &screen_r, m_left_pane_w, m_bottom_pane_h, m_pcbu_per_pixel,
-			m_org_x, m_org_y );
-		Invalidate( FALSE );
-	}
-	else
+	if (nOutlines==0)
 	{
 		CString s ((LPCSTR) IDS_BoardOutlineDoesNotExist);
 		AfxMessageBox( s );
+		return;
 	}
+
+	// reset window to enclose board outline
+	double x_pcbu_per_pixel = 1.1 * (double)(max_x - min_x)/(m_client_r.right - m_left_pane_w);
+	double y_pcbu_per_pixel = 1.1 * (double)(max_y - min_y)/(m_client_r.bottom - m_bottom_pane_h);
+	m_pcbu_per_pixel = max( x_pcbu_per_pixel, y_pcbu_per_pixel );
+	m_org_x = (max_x + min_x)/2 - (m_client_r.right - m_left_pane_w)/2 * m_pcbu_per_pixel;
+	m_org_y = (max_y + min_y)/2 - (m_client_r.bottom - m_bottom_pane_h)/2 * m_pcbu_per_pixel;
+	CRect screen_r;
+	GetWindowRect( &screen_r );		// in pixels
+	m_dlist->SetMapping( &m_client_r, &screen_r, m_left_pane_w, m_bottom_pane_h, m_pcbu_per_pixel,
+		m_org_x, m_org_y );
+	Invalidate( FALSE );
 }
 
 void CFreePcbView::OnViewAllElements()
@@ -6326,16 +6308,18 @@ void CFreePcbView::OnViewAllElements()
 	int min_x = r.left;
 	int max_y = r.top;
 	int min_y = r.bottom;
-	// board outline
-	for( int ib=0; ib<m_doc->m_board_outline.GetSize(); ib++ )
-	{
-		r = m_doc->m_board_outline[ib].GetBounds();
-		max_x = max( max_x, r.right );
-		min_x = min( min_x, r.left );
-		max_y = max( max_y, r.top );
-		min_y = min( min_y, r.bottom );
-		bOK = TRUE;
-	}
+	// board outline / sm-cutouts
+	citer<cpcb_item> ii (&m_doc->others);
+	for (cpcb_item *i = ii.First(); i; i = ii.Next())
+		if (cpolyline *p = i->ToPolyline())
+		{
+			r = p->GetBounds();
+			max_x = max( max_x, r.right );
+			min_x = min( min_x, r.left );
+			max_y = max( max_y, r.top );
+			min_y = min( min_y, r.bottom );
+			bOK = TRUE;
+		}
 	// nets
 	if( m_doc->m_nlist->GetNetBoundaries( &r ) )
 	{
@@ -6357,8 +6341,6 @@ void CFreePcbView::OnViewAllElements()
 	if( bOK )
 	{
 		// reset window
-//		m_org_x = min_x - (max_x - min_x)/20;	// NM
-//		m_org_y = min_y - (max_y - min_y)/20;	// NM
 		double x_pcbu_per_pixel = 1.1 * (double)(max_x - min_x)/(m_client_r.right - m_left_pane_w);
 		double y_pcbu_per_pixel = 1.1 * (double)(max_y - min_y)/(m_client_r.bottom - m_bottom_pane_h);
 		m_pcbu_per_pixel = max( x_pcbu_per_pixel, y_pcbu_per_pixel );
@@ -6777,6 +6759,7 @@ void CFreePcbView::OnToolsMoveOrigin()
 //
 void CFreePcbView::MoveOrigin( int x_off, int y_off )
 {
+#ifndef CPT2
 	for( int ib=0; ib<m_doc->m_board_outline.GetSize(); ib++ )
 		m_doc->m_board_outline[ib].MoveOrigin( x_off, y_off );
 	m_doc->m_plist->MoveOrigin( x_off, y_off );
@@ -6784,6 +6767,7 @@ void CFreePcbView::MoveOrigin( int x_off, int y_off )
 	m_doc->m_tlist->MoveOrigin( x_off, y_off );
 	for( int ism=0; ism<m_doc->m_sm_cutout.GetSize(); ism++ )
 		m_doc->m_sm_cutout[ism].MoveOrigin( x_off, y_off );
+#endif
 }
 
 void CFreePcbView::OnLButtonDown(UINT nFlags, CPoint point)
@@ -9328,6 +9312,7 @@ void CFreePcbView::OnGroupPaste()
 
 void CFreePcbView::OnGroupSaveToFile()
 {
+#ifndef CPT2
 	// Copy group to pseudo-clipboard.  CPT:  took advantage of return value from new DoGroupCopy()...
 	if (!DoGroupCopy()) return;
 
@@ -9396,6 +9381,7 @@ void CFreePcbView::OnGroupSaveToFile()
 			}
 		}
 	}
+#endif
 }
 
 void CFreePcbView::OnEditCopy()

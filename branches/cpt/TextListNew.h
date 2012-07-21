@@ -121,7 +121,7 @@ public:
 	// void MoveText( CText * text, int x, int y, int angle,		// CPT2.  Use ctext::Move
 	//    BOOL mirror, BOOL negative, int layer );
 	void ReadTexts( CStdioFile * file );							// Done in cpp
-	int WriteTexts( CStdioFile * file ) { return 0; }				// TODO
+	void WriteTexts( CStdioFile * file );							// Done in cpp
 	void MoveOrigin( int x_off, int y_off ) { }						// TODO
 	// CText * GetText( int uid, int * index=NULL );				// CPT2.  Use texts.FindByUID(uid)
 	// int GetNumTexts(){ return text_ptr.GetSize();};				// CPT2.  Use texts.GetSize()

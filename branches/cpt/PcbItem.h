@@ -1069,6 +1069,8 @@ public:
 	void SetVisible(bool bVis);         // CPT2 TODO derive from CPartList::MakePartVisible()
 	void StartDragging( CDC * pDC, BOOL bRatlines, BOOL bBelowPinCount, int pin_count );		// Done in cpp, derived from CPartList::StartDraggingPart
 	void CancelDragging();
+
+	void MakeString( CString *str );	// Done in cpp, derived from old CPartList::SetPartString().
 };
 
 
@@ -1255,7 +1257,7 @@ public:
 	// access functions
 	// id Id();
 	// int UID();   in base class
-	int NumCorners() { return main->NumCorners(); }
+	int NumCorners();														// Total corners in all contours.  Done in cpp.
 	// int NumSides();				
 	void GetSidesInRect( CRect *r, carray<cpcb_item> *arr );				// CPT2 new, done in cpp.
 	bool IsClosed()

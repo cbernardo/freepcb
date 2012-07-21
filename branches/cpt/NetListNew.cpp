@@ -112,16 +112,10 @@ void cnetlist::ReadNets( CStdioFile * pcb_file, double read_version, int * layer
 			for( int ip=0; ip<npins; ip++ )
 			{
 				if (!pcb_file->ReadString( in_str ))
-				{
-					CString * err_str = new CString((LPCSTR) IDS_UnexpectedEOFInProjectFile);
-					throw err_str;
-				}
+					throw new CString((LPCSTR) IDS_UnexpectedEOFInProjectFile);
 				np = ParseKeyString( &in_str, &key_str, &p );
 				if( key_str != "pin" || np < 3 )
-				{
-					CString * err_str = new CString((LPCSTR) IDS_ErrorParsingNetsSectionOfProjectFile);
-					throw err_str;
-				}
+					throw new CString((LPCSTR) IDS_ErrorParsingNetsSectionOfProjectFile);
 				CString pin_str = p[1].Left(CShape::MAX_PIN_NAME_SIZE);
 				int dot_pos = pin_str.FindOneOf( "." );
 				CString ref_str = pin_str.Left( dot_pos );
@@ -153,16 +147,10 @@ void cnetlist::ReadNets( CStdioFile * pcb_file, double read_version, int * layer
 			for( int ic=0; ic<nconnects; ic++ )
 			{
 				if (!pcb_file->ReadString( in_str ))
-				{
-					CString * err_str = new CString((LPCSTR) IDS_UnexpectedEOFInProjectFile);
-					throw err_str;
-				}
+					throw new CString((LPCSTR) IDS_UnexpectedEOFInProjectFile);
 				np = ParseKeyString( &in_str, &key_str, &p );
 				if( key_str != "connect" || np < 6 )
-				{
-					CString * err_str = new CString((LPCSTR) IDS_ErrorParsingNetsSectionOfProjectFile);
-					throw err_str;
-				}
+					throw new CString((LPCSTR) IDS_ErrorParsingNetsSectionOfProjectFile);
 
 				// Create the connect with one vertex in it.  More precise data gets loaded later.
 				cconnect2 *c = new cconnect2(net);
@@ -344,22 +332,13 @@ void cnetlist::ReadNets( CStdioFile * pcb_file, double read_version, int * layer
 			for( int ia=0; ia<nareas; ia++ )
 			{
 				if (!pcb_file->ReadString( in_str ))
-				{
-					CString * err_str = new CString((LPCSTR) IDS_UnexpectedEOFInProjectFile);
-					throw err_str;
-				}
+					throw new CString((LPCSTR) IDS_UnexpectedEOFInProjectFile);
 				np = ParseKeyString( &in_str, &key_str, &p );
 				if( key_str != "area" || np < 4 )
-				{
-					CString * err_str = new CString((LPCSTR) IDS_ErrorParsingNetsSectionOfProjectFile);
-					throw err_str;
-				}
+					throw new CString((LPCSTR) IDS_ErrorParsingNetsSectionOfProjectFile);
 				int na = my_atoi( &p[0] );
 				if( (na-1) != ia )
-				{
-					CString * err_str = new CString((LPCSTR) IDS_ErrorParsingNetsSectionOfProjectFile);
-					throw err_str;
-				}
+					throw new CString((LPCSTR) IDS_ErrorParsingNetsSectionOfProjectFile);
 				int ncorners = my_atoi( &p[1] );
 				int file_layer = my_atoi( &p[2] );
 				int layer = in_layer[file_layer]; 
@@ -411,5 +390,99 @@ void cnetlist::ReadNets( CStdioFile * pcb_file, double read_version, int * layer
 			net->SetThermals();
 			net->MustRedraw();
 		}
+	}
+}
+
+void cnetlist::WriteNets( CStdioFile * file )
+{
+	CString line;
+	try
+	{
+		line.Format( "[nets]\n\n" );
+		file->WriteString( line );
+		citer<cnet2> in (&nets);
+		for (cnet2 *net = in.First(); net; net = in.Next())
+		{
+			line.Format( "net: \"%s\" %d %d %d %d %d %d %d\n", 
+							net->name, net->NumPins(), net->NumCons(), net->NumAreas(),
+							net->def_w, net->def_via_w, net->def_via_hole_w,
+							net->bVisible );
+			file->WriteString( line );
+			// CPT2.  First assign ID numbers to each tee (put 'em in the utility field)
+			citer<ctee> it (&net->tees);
+			int i = 1;
+			for (ctee *t = it.First(); t; t = it.Next())
+				t->utility = i++;
+
+			// CPT2.  Now output net's pins.  Note that we put the pin's index number (0-based) into the utility field for use when outputting connects
+			i = 0;
+			citer<cpin2> ip (&net->pins);
+			for (cpin2 *p = ip.First(); p; p = ip.Next(), i++)
+			{
+				p->utility = i;
+				line.Format( "  pin: %d %s.%s\n", i+1, p->part->ref_des, p->pin_name );
+				file->WriteString( line );
+			}
+
+			i = 0;
+			citer<cconnect2> ic (&net->connects);
+			for (cconnect2 *c = ic.First(); c; c = ic.Next(), i++)
+			{
+				int start_pin = c->head->pin? c->head->pin->utility: -1;
+				int end_pin = c->tail->pin? c->tail->pin->utility: -1;
+				line.Format( "  connect: %d %d %d %d %d\n", i+1, start_pin, end_pin, c->NumSegs(), c->locked );
+				file->WriteString( line );
+				int is = 0;
+				for (cvertex2 *v = c->head; v!=c->tail; v = v->postSeg->postVtx, is++)
+				{
+					line.Format( "    vtx: %d %d %d %d %d %d %d %d\n", 
+						is+1, v->x, v->y, v->pin? v->pin->pad_layer: 0, v->force_via_flag, 
+						v->via_w, v->via_hole_w, v->tee? v->tee->utility: 0 );
+					file->WriteString( line );
+					cseg2 *s = v->postSeg;
+					line.Format( "    seg: %d %d %d 0 0\n", is+1, s->m_layer, s->m_width );
+					file->WriteString( line );
+				}
+				// last vertex
+				cvertex2 *v = c->tail;
+				line.Format( "    vtx: %d %d %d %d %d %d %d %d\n", 
+					is+1, v->x, v->y, v->pin? v->pin->pad_layer: 0, v->force_via_flag, 
+					v->via_w, v->via_hole_w, v->tee? v->tee->utility: 0 );
+				file->WriteString( line );
+			}
+
+			i = 0;
+			citer<carea2> ia (&net->areas);
+			for (carea2 *a = ia.First(); a; a = ia.Next(), i++)
+			{
+				line.Format( "  area: %d %d %d %d\n", i+1, a->NumCorners(), 
+					a->m_layer, a->m_hatch );
+				file->WriteString( line );
+				int icor = 1;
+				citer<ccontour> ictr (&a->contours);
+				for (ccontour *ctr = ictr.First(); ctr; ctr = ictr.Next())
+				{
+					ccorner *c = ctr->head;
+					line.Format( "  corner: %d %d %d %d\n", icor++, c->x, c->y, c->postSide->m_style);
+					file->WriteString(line);
+					for (c = c->postSide->postCorner; c!=ctr->head; c = c->postSide->postCorner)
+					{
+						line.Format( "  corner: %d %d %d %d %d\n", icor++, c->x, c->y, 
+							c->postSide->m_style, c->postSide->postCorner==ctr->head);
+						file->WriteString(line);
+					}
+				} 
+			}
+			file->WriteString( "\n" );
+		}
+	}
+
+	catch( CFileException * e )
+	{
+		CString str, s ((LPCSTR) IDS_FileError1), s2 ((LPCSTR) IDS_FileError2);
+		if( e->m_lOsError == -1 )
+			str.Format( s, e->m_cause );
+		else
+			str.Format( s2, e->m_cause, e->m_lOsError, _sys_errlist[e->m_lOsError] );
 	}
 }

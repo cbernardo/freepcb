@@ -358,8 +358,8 @@ public:
 	void SetThermals();																					// CPT2 new.
 
 	// I/O  functions
-	int WriteNets( CStdioFile * file ) { return 0; }
 	void ReadNets( CStdioFile * pcb_file, double read_version, int * layers=NULL );			// Done in cpp.
+	void WriteNets( CStdioFile * file );														// Done in cpp.
 	void ExportNetListInfo( netlist_info * nl ) { }
 	void ImportNetListInfo( netlist_info * nl, int flags, CDlgLog * log,
 		int def_w, int def_w_v, int def_w_v_h );
