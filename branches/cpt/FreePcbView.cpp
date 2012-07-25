@@ -384,19 +384,6 @@ void CFreePcbView::OnEndPrinting(CDC* /*pDC*/, CPrintInfo* /*pInfo*/)
 	// TODO: add cleanup after printing
 }
 
-
-/////////////////////////////////////////////////////////////////////////////
-// CFreePcbView message handlers
-
-
-void CFreePcbView::SelectItem(cpcb_item *item) 
-{
-	// CPT2.  Convenience method that clears the selection array, adds "item" as its sole new member, then calls HighlightSelection()
-	m_sel.RemoveAll();
-	m_sel.Add(item);
-	HighlightSelection();
-}
-
 // Displays a popup menu for the mouse hits in hit_info
 //
 // Param:
@@ -665,16 +652,6 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 			// E.g. if user clicks a vertex, then ctrl-clicks something else, the vertex can't be part of a group-select
 			m_sel.RemoveAll();
 
-		/* CPT2.  The following superfluous (with ctrl down, pins and ref text are always masked anyway).
-		int old_mask = m_sel_mask_bits;
-		if(bCtrlKeyDown && m_mask_id[SEL_MASK_PARTS].T1() == ID_NONE )
-		{
-			// if control key pressed and parts masked, also mask pins and ref
-			m_mask_id[SEL_MASK_PINS].SetT1( ID_NONE );
-			m_mask_id[SEL_MASK_REF].SetT1( ID_NONE );
-		}
-		*/
-
 		// Search for selectors overlapping the click point, and choose among them depending on user's number of multiple clicks
 		CPoint p = m_dlist->WindowToPCB( point );
 		int nHits = m_hit_info.GetCount();										// Might reuse the previous contents of m_hit_info...
@@ -691,12 +668,6 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		else
 			m_sel_offset++;						// Try next member of m_hit_info
 
-#ifndef CPT2
-		// restore mask
-		m_mask_id[SEL_MASK_PINS] = old_mask_pins;
-		m_mask_id[SEL_MASK_REF] = old_mask_ref;
-#endif
-
 		if( bShiftKeyDown )
 			if( nHits>0 )
 				m_sel_offset = SelectObjPopup( point );
@@ -707,8 +678,8 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		{
 			// Something to select!
 			cpcb_item *item = m_hit_info[m_sel_offset].item;
-			m_sel_layer = m_hit_info[m_sel_offset].layer;
-			m_sel_prev = item;								// CPT
+			m_sel_layer = m_hit_info[m_sel_offset].layer;				// CPT2 TODO check if this is needed
+			m_sel_prev = item;											// CPT
 
 #ifndef CPT2
 			// check for second pad selected while holding down 's'
@@ -1297,8 +1268,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 					if( ret != IDOK )
 					{
 						m_doc->m_dlist->StopDragging();
-						m_doc->m_dlist->StopDragging();
-						SetCursorMode( CUR_PAD_SELECTED );
+						HighlightSelection();
 						goto goodbye;
 					}
 					CString name = assign_net_dlg.m_net_str;
@@ -2862,7 +2832,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 	// end CPT
 
 	ReleaseDC( pDC );
-	if( m_lastKeyWasArrow==FALSE && m_lastKeyWasGroupRotate==false )
+	if( !m_lastKeyWasArrow && !m_lastKeyWasGroupRotate )
 		ShowSelectStatus();
 }
 
@@ -2982,55 +2952,6 @@ void CFreePcbView::OnMouseMove(UINT nFlags, CPoint point)
 // Utility functions
 //
 
-// Set the device context to world coords
-//
-
-// Set cursor mode, update function key menu if necessary
-void CFreePcbView::SetCursorMode( int mode )
-{
-	// CPT2.  Removed:
-	// if( mode != m_cursor_mode )
-	// FK buttons can sometimes vary even when the mode doesn't change.
-		SetFKText( mode );
-		m_cursor_mode = mode;
-		ShowSelectStatus();
-		/*  CPT removed.  Want to allow copy/paste when single item is selected
-		//** AMW r284: reinserted since edit commands never enabled */
-		/* CPT fixed problem by removing other cases where edit-copy and edit-paste were disabled.  These should now always be enabled, and if
-		   users try to use them in a bogus way, they get an error msg.
-		if( mode == CUR_GROUP_SELECTED )
-		{
-			CWnd* pMain = AfxGetMainWnd();
-			if (pMain != NULL)
-			{
-				CMenu* pMenu = pMain->GetMenu();
-				CMenu* submenu = pMenu->GetSubMenu(1);	// "Edit" submenu
-				submenu->EnableMenuItem( ID_EDIT_COPY, MF_BYCOMMAND | MF_ENABLED );
-				submenu->EnableMenuItem( ID_EDIT_CUT, MF_BYCOMMAND | MF_ENABLED );
-				submenu->EnableMenuItem( ID_EDIT_SAVEGROUPTOFILE, MF_BYCOMMAND | MF_ENABLED );
-				pMain->DrawMenuBar();
-			}
-		}
-		else
-		{
-			CWnd* pMain = AfxGetMainWnd();
-			if (pMain != NULL)
-			{
-				CMenu* pMenu = pMain->GetMenu();
-				CMenu* submenu = pMenu->GetSubMenu(1);	// "Edit" submenu
-				submenu->EnableMenuItem( ID_EDIT_COPY, MF_BYCOMMAND | MF_DISABLED | MF_GRAYED );
-				submenu->EnableMenuItem( ID_EDIT_CUT, MF_BYCOMMAND | MF_DISABLED | MF_GRAYED );
-				submenu->EnableMenuItem( ID_EDIT_SAVEGROUPTOFILE, MF_BYCOMMAND | MF_DISABLED | MF_GRAYED );
-				pMain->DrawMenuBar();
-			}
-		}
-		*/
-		if( CurDragging() )
-			SetMainMenu( FALSE );
-		else if( m_doc->m_project_open )
-			SetMainMenu( TRUE );
-}
-
 
 // Set function key shortcut text
 //
@@ -3141,9 +3062,9 @@ void CFreePcbView::SetFKText( int mode )
 		// CPT2: Assimilated smcutout menu to the area menu.  To lessen confusion the f-key text "Add cutout" has been changed in
 		// all cases to "Exclude region", while "Delete cutout" has become "Remove contour"
 		m_fkey_option[0] = FK_SET_POSITION;
-		m_fkey_option[1] = FK_EDIT_AREA;
 		m_fkey_option[3] = FK_MOVE_CORNER;
-		m_fkey_option[4] = FK_DELETE_CORNER;
+		m_fkey_option[4] = FK_EDIT_AREA;			// CPT2 was F2, now F5 to be consistent with selected sides
+		m_fkey_option[5] = FK_DELETE_CORNER;
 		if (m_sel.First()->ToCorner()->IsOnCutout())
 			m_fkey_option[6] = FK_REMOVE_CONTOUR;
 		else
@@ -3472,7 +3393,7 @@ int CFreePcbView::ShowSelectStatus()
 				side.LoadStringA(IDS_Bottom);
 			::MakeCStringFromDimension( &x_str, part->x, u, FALSE, FALSE, FALSE, u==MIL?1:3 );
 			::MakeCStringFromDimension( &y_str, part->y, u, FALSE, FALSE, FALSE, u==MIL?1:3 );
-			int rep_angle = ::GetReportedAngleForPart( part->angle, part->shape->m_centroid_angle, part->side );
+			int rep_angle = ::GetReportedAngleForPart( part->angle, part->shape->m_centroid->m_angle, part->side );
 			s.LoadStringA(IDS_PartXYAngle);
 			str.Format( s, part->ref_des, part->shape->m_name, x_str, y_str, rep_angle, side );
 		}
@@ -3787,6 +3708,7 @@ void CFreePcbView::HighlightSelection()
 {
 	// CPT2 Was named HighlightGroup(), but renamed since it works regardless of how many items are in m_sel.
 	// Now also sets the cursor mode based on what's in m_sel.  Also checks that the items in the selection are all valid, removing the invalid ones.
+	// r317 Now a virtual function within CCommonView.
 	CancelHighlight();
 	citer<cpcb_item> ii (&m_sel);
 	for (cpcb_item *i = ii.First(); i; i = ii.Next())
@@ -4337,6 +4259,7 @@ void CFreePcbView::OnPartDelete()
 	// seems to leave in place notional pins within nets that refer to parts no longer in existence.  I'm not clear why that would be useful, and I 
 	// can imagine it possibly causing trouble in some circumstances.
 	// Here's a proposal for a distinction that I think might be more useful.
+	// CPT2 TODO:  If there are no emanating traces, don't ask
 	CString mess, s ((LPCSTR) IDS_DeletingPartDoYouWishToEraseAllTraces);
 	mess.Format( s, part->ref_des );
 	int ret = AfxMessageBox( mess, MB_YESNOCANCEL );
@@ -4441,9 +4364,21 @@ void CFreePcbView::OnPadStartTrace()
 	cnet2 *net = pin->net;
 	if( !net )
 	{
-		CString s ((LPCSTR) IDS_PadMustBeAssignedToANetBeforeAddingTrace);
-		AfxMessageBox( s, MB_OK );
-		return;
+		// CPT2 new.  User can pick the net now.
+		DlgAssignNet assign_net_dlg;
+		assign_net_dlg.m_nlist = m_doc->m_nlist;
+		int ret = assign_net_dlg.DoModal();
+		if( ret != IDOK )
+			return;
+		CString name = assign_net_dlg.m_net_str;
+		net = m_doc->m_nlist->GetNetPtrByName(&name);
+		if( !net )
+		{
+			// make new net
+			net = new cnet2(m_doc, name, 0, 0, 0);
+			SaveUndoInfoForNetAndConnections( net, CNetList::UNDO_NET_ADD, FALSE, m_doc->m_undo_list );
+		}
+		net->AddPin(pin);
 	}
 
 	SaveUndoInfoForNetAndConnections( net, CNetList::UNDO_NET_MODIFY, TRUE, m_doc->m_undo_list );
@@ -5402,7 +5337,7 @@ void CFreePcbView::OnPolySideConvert(int style)
 	s->m_style = style;
 	if (a)
 	{
-		// CPT2 I suppose I'll do this, though it's not likely to be important very often.
+		// CPT2 I suppose I'll do this, though it's not likely to be important very often:
 		if (!a->PolygonModified( FALSE, TRUE ))
 			m_doc->OnEditUndo();
 		else if( m_doc->m_vis[LAY_RAT_LINE] )
@@ -5796,13 +5731,6 @@ void CFreePcbView::OnRefProperties()
 	else
 		CancelSelection();
 	Invalidate( FALSE );
-}
-
-BOOL CFreePcbView::OnEraseBkgnd(CDC* pDC)
-{
-	// Erase the left and bottom panes, the PCB area is always redrawn
-	m_left_pane_invalid = TRUE;
-	return FALSE;
 }
 
 
@@ -6264,17 +6192,16 @@ void CFreePcbView::OnViewEntireBoard()
 	int min_x = INT_MAX;
 	int max_y = INT_MIN;
 	int min_y = INT_MAX;
-	citer<cpcb_item> ii (&m_doc->others);
-	for (cpcb_item *i = ii.First(); i; i = ii.Next())
-		if (cboard *b = i->ToBoard())
-		{
-			nOutlines++;
-			CRect r = b->GetBounds();
-			max_x = max(max_x, r.right);
-			min_x = min(min_x, r.left);
-			max_y = max(max_y, r.top);
-			min_y = min(min_y, r.bottom);
-		}
+	citer<cboard> ib (&m_doc->boards);
+	for (cboard *b = ib.First(); b; b = ib.Next())
+	{
+		nOutlines++;
+		CRect r = b->GetBounds();
+		max_x = max(max_x, r.right);
+		min_x = min(min_x, r.left);
+		max_y = max(max_y, r.top);
+		min_y = min(min_y, r.bottom);
+	}
 	if (nOutlines==0)
 	{
 		CString s ((LPCSTR) IDS_BoardOutlineDoesNotExist);
@@ -6309,17 +6236,26 @@ void CFreePcbView::OnViewAllElements()
 	int max_y = r.top;
 	int min_y = r.bottom;
 	// board outline / sm-cutouts
-	citer<cpcb_item> ii (&m_doc->others);
-	for (cpcb_item *i = ii.First(); i; i = ii.Next())
-		if (cpolyline *p = i->ToPolyline())
-		{
-			r = p->GetBounds();
-			max_x = max( max_x, r.right );
-			min_x = min( min_x, r.left );
-			max_y = max( max_y, r.top );
-			min_y = min( min_y, r.bottom );
-			bOK = TRUE;
-		}
+	citer<cboard> ib (&m_doc->boards);
+	for (cboard *b = ib.First(); b; b = ib.Next())
+	{
+		r = b->GetBounds();
+		max_x = max( max_x, r.right );
+		min_x = min( min_x, r.left );
+		max_y = max( max_y, r.top );
+		min_y = min( min_y, r.bottom );
+		bOK = TRUE;
+	}
+	citer<csmcutout> ism (&m_doc->smcutouts);
+	for (csmcutout *sm = ism.First(); sm; sm = ism.Next())
+	{
+		r = sm->GetBounds();
+		max_x = max( max_x, r.right );
+		min_x = min( min_x, r.left );
+		max_y = max( max_y, r.top );
+		min_y = min( min_y, r.bottom );
+		bOK = TRUE;
+	}
 	// nets
 	if( m_doc->m_nlist->GetNetBoundaries( &r ) )
 	{
@@ -6379,7 +6315,8 @@ void CFreePcbView::OnPartEditFootprint()
 
 void CFreePcbView::OnPartEditThisFootprint()
 {
-	m_doc->m_edit_footprint = TRUE;
+	cpart2 *part = m_sel.First()->ToPart();
+	m_doc->m_edit_footprint = part->shape;
 	theApp.OnViewFootprint();
 }
 
@@ -6387,77 +6324,73 @@ void CFreePcbView::OnPartEditThisFootprint()
 //
 void CFreePcbView::OnExternalChangeFootprint( CShape * fp )
 {
-#ifndef CPT2
+	cpart2 *part = m_sel.First()->ToPart();
 	CString str, s ((LPCSTR) IDS_DoYouWishToReplaceTheFootprintOfPart);
-	str.Format( s, m_sel_part->ref_des, fp->m_name );
+	str.Format( s, part->ref_des, fp->m_name );
 	int ret = AfxMessageBox( str, MB_YESNO );
-	if( ret == IDYES )
+	if (ret != IDYES)
+		return;
+	// OK, see if a footprint of the same name is already in the cache
+	void * ptr;
+	BOOL found = m_doc->m_footprint_cache_map.Lookup( fp->m_name, ptr );
+	if( found )
 	{
-		// OK, see if a footprint of the same name is already in the cache
-		void * ptr;
-		BOOL found = m_doc->m_footprint_cache_map.Lookup( fp->m_name, ptr );
-		if( found )
+		// see how many parts are using it, not counting the current one
+		CShape * old_fp = (CShape*)ptr;
+		int num = m_doc->m_plist->GetNumFootprintInstances( old_fp );
+		if( part->shape == old_fp )
+			num--;
+		if( num <= 0 )
 		{
-			// see how many parts are using it, not counting the current one
-			CShape * old_fp = (CShape*)ptr;
-			int num = m_doc->m_plist->GetNumFootprintInstances( old_fp );
-			if( m_sel_part->shape == old_fp )
-				num--;
-			if( num <= 0 )
-			{
-				// go ahead and replace it
-				m_doc->m_plist->UndrawPart( m_sel_part );
-				old_fp->Copy( fp );
-				m_doc->m_plist->PartFootprintChanged( m_sel_part, old_fp );
-				m_doc->ResetUndoState();
-			}
-			else
-			{
-				// offer to overwrite or rename it
-				CDlgDupFootprintName dlg;
-				CString mess, s ((LPCSTR) IDS_WarningAFootprintNamedIsAlreadyInUse);
-				mess.Format( s, fp->m_name );
-				dlg.Initialize( &mess, &m_doc->m_footprint_cache_map );
-				int ret = dlg.DoModal();
-				if( ret == IDOK )
-				{
-					// clicked "OK"
-					if( dlg.m_replace_all_flag )
-					{
-						// replace all instances of footprint
-						old_fp->Copy( fp );
-						m_doc->m_plist->FootprintChanged( old_fp );
-						m_doc->ResetUndoState();
-					}
-					else
-					{
-						// assign new name to footprint and put in cache
-						CShape * shape = new CShape;
-						shape->Copy( fp );
-						shape->m_name = *dlg.GetNewName();
-						m_doc->m_footprint_cache_map.SetAt( shape->m_name, shape );
-						m_doc->m_plist->PartFootprintChanged( m_sel_part, shape );
-						m_doc->ResetUndoState();
-					}
-				}
-			}
+			// go ahead and replace it
+			old_fp->Copy( fp );
+			part->ChangeFootprint( fp );
 		}
 		else
 		{
-			// footprint name not found in cache, add the new footprint
-			CShape * shape = new CShape;
-			shape->Copy( fp );
-			m_doc->m_footprint_cache_map.SetAt( shape->m_name, shape );
-			m_doc->m_plist->PartFootprintChanged( m_sel_part, shape );
-			m_doc->ResetUndoState();
+			// offer to overwrite or rename it
+			CDlgDupFootprintName dlg;
+			CString mess, s ((LPCSTR) IDS_WarningAFootprintNamedIsAlreadyInUse);
+			mess.Format( s, fp->m_name );
+			dlg.Initialize( &mess, &m_doc->m_footprint_cache_map );
+			int ret = dlg.DoModal();
+			if( ret != IDOK )
+				return;
+			if( dlg.m_replace_all_flag )
+			{
+				// replace all instances of footprint.  CPT2 bugfix:  must invoke ChangeFootprint() explicitly for 
+				// all parts with the old fp, not just "part"
+				old_fp->Copy( fp );
+				citer<cpart2> ip (&m_doc->m_plist->parts);
+				for (cpart2 *p = ip.First(); p; p = ip.Next())
+					if (p->shape == old_fp)
+						p->ChangeFootprint( old_fp );
+			}
+			else
+			{
+				// assign new name to footprint and put in cache
+				CShape * shape = new CShape( m_doc );
+				shape->Copy( fp );
+				shape->m_name = *dlg.GetNewName();
+				m_doc->m_footprint_cache_map.SetAt( shape->m_name, shape );
+				part->ChangeFootprint( shape );
+			}
 		}
-		m_doc->ProjectModified( TRUE );
-		CancelHighlight();
-		m_doc->m_plist->SelectRefText( m_sel_part );
-		m_doc->m_plist->HighlightPart( m_sel_part );
-		Invalidate( FALSE );
 	}
-#endif
+	else
+	{
+		// footprint name not found in cache, add the new footprint
+		CShape * shape = new CShape( m_doc );
+		shape->Copy( fp );
+		m_doc->m_footprint_cache_map.SetAt( shape->m_name, shape );
+		part->ChangeFootprint( shape );
+	}
+
+	m_doc->ResetUndoState();
+	m_doc->ProjectModified( TRUE );
+	m_doc->Redraw();
+	HighlightSelection();
+	Invalidate( FALSE );
 }
 
 // find a part in the layout, center window on it and select it
@@ -6865,25 +6798,17 @@ void CFreePcbView::SelectItemsInRect( CRect r, BOOL bAddToGroup )
 	// find solder mask cutout sides in rect
 	if( m_sel_mask_bits & bitSmSide )
 	{
-		citer<cpcb_item> ii (&m_doc->others);
-		for (cpcb_item *i = ii.First(); i; i = ii.Next())
-		{
-			csmcutout *sm = i->ToSmCutout();
-			if (sm)
-				sm->GetSidesInRect( &r, &m_sel );
-		}
+		citer<csmcutout> ism (&m_doc->smcutouts);
+		for (csmcutout *sm = ism.First(); sm; sm = ism.Next())
+			sm->GetSidesInRect( &r, &m_sel );
 	}
 
 	// find board outline sides in rect
 	if( m_sel_mask_bits & bitBoardSide )
 	{
-		citer<cpcb_item> ii (&m_doc->others);
-		for (cpcb_item *i = ii.First(); i; i = ii.Next())
-		{
-			cboard *b = i->ToBoard();
-			if (b)
-				b->GetSidesInRect( &r, &m_sel );
-		}
+		citer<cboard> ib (&m_doc->boards);
+		for (cboard *b = ib.First(); b; b = ib.Next())
+			b->GetSidesInRect( &r, &m_sel );
 	}
 
 	HighlightSelection();

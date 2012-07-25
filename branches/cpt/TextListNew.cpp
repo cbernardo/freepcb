@@ -101,6 +101,14 @@ void ctextlist::WriteTexts( CStdioFile * file )
 	}
 }
 
+void ctextlist::MoveOrigin( int x_off, int y_off )
+{
+	citer<ctext> it (&texts);
+	for (ctext *t = it.First(); t; t = it.Next())
+		t->MustRedraw(),
+		t->m_x += x_off,
+		t->m_y += y_off;
+}
 
 BOOL ctextlist::GetTextBoundaries( CRect * r )
 {

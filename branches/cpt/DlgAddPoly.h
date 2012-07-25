@@ -11,18 +11,18 @@ class CDlgAddPoly : public CDialog
 public:
 	CDlgAddPoly(CWnd* pParent = NULL);   // standard constructor
 	virtual ~CDlgAddPoly();
-	void Initialize( BOOL bNewPoly, int layer_index, int units,
+	void Initialize( BOOL bNewPoly, int layer, int units,
 		int width, BOOL bClosed, carray<cpadstack> * padstack );
-	int GetWidth(){ return m_width; };
-	int GetLayerIndex(){ return m_layer_index; };
-	int GetClosedFlag(){ return m_closed_flag; };
-	CString GetPinName(){ return m_pin_name; };
+	int GetWidth(){ return m_width; }
+	int GetLayer(){ return m_layer; }							// CPT2.  Was GetLayerIndex(), this is more useful.
+	int GetClosedFlag(){ return m_closed_flag; }
+	CString GetPinName(){ return m_pin_name; }
 
 // Dialog Data
 	enum { IDD = IDD_ADD_POLY };
 
 protected:
-	virtual void DoDataExchange(CDataExchange* pDX);    // DDX/DDV support
+	virtual void DoDataExchange(CDataExchange* pDX);			// DDX/DDV support
 
 	DECLARE_MESSAGE_MAP()
 private:
@@ -37,6 +37,7 @@ private:
 	int m_units;
 	int m_width;
 	int m_layer_index;
+	int m_layer;						// CPT2 new.  Set on exit to indicate the actual FP layer requested
 	BOOL m_bClosed;
 	CComboBox m_combo_units;
 	afx_msg void OnCbnSelchangeComboAddPolyUnits();

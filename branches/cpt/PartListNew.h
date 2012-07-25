@@ -175,9 +175,9 @@ public:
 	// int DrawPart( cpart * el );														// CPT2. Use cpart2::Draw
 	// int UndrawPart( cpart * el );													// CPT2. Use cpart2::Undraw
 	static int FootprintLayer2Layer( int fp_layer );		 							// Done in cpp (identical to old version)
-	// void PartFootprintChanged( cpart * part, CShape * shape );						// CPT2. Use cpart2::FootprintChanged
-	void FootprintChanged( CShape * shape );
-	void RefTextSizeChanged( CShape * shape );
+	// void PartFootprintChanged( cpart * part, CShape * shape );						// CPT2. Use cpart2::ChangeFootprint
+	// void ChangeFootprint( CShape * shape );
+	// void RefTextSizeChanged( CShape * shape );
 	int RotatePoint( CPoint * p, int angle, CPoint org );
 	int RotateRect( CRect * r, int angle, CPoint p );
 	// int GetSide( cpart * part );								// CPT2 Use cpart2 functions for the following 9
@@ -201,22 +201,23 @@ public:
 	void SetPinAnnularRing( int ring ) { m_annular_ring = ring; }
 	// int GetPartBoundingRect( cpart * part, CRect * part_r );			// CPT2 This is barely used.  Anyway, move it to cpart2...
 	int GetPartBoundaries( CRect * part_r );							// Done in cpp  
-	int GetPinConnectionStatus( cpart * part, CString * pin_name, int layer );
-	int GetPadDrawInfo( cpart * part, int ipin, int layer, 
+	// int GetPinConnectionStatus( cpart * part, CString * pin_name, int layer );	// CPT2 probably defunct
+	/* int GetPadDrawInfo( cpart * part, int ipin, int layer,						// Ditto
 							  BOOL bUse_TH_thermals, BOOL bUse_SMT_thermals,
 							  int mask_clearance, int paste_mask_shrink,
 							  int * type=0, int * x=0, int * y=0, int * w=0, int * l=0, int * r=0, int * hole=0,
 							  int * angle=0, cnet ** net=0, 
 							  int * connection_status=0, int * pad_connect_flag=0, 
 							  int * clearance_type=0 );
+	*/
 	// int StartDraggingPart( CDC * pDC, cpart * part, BOOL bRatlines,  // CPT2 use part2::StartDragging()
 	//							 BOOL bBelowPinCount, int pin_count );
-	int StartDraggingRefText( CDC * pDC, cpart * part );
-	int StartDraggingValue( CDC * pDC, cpart * part ) { return 0; }
-	int CancelDraggingPart( cpart * part );
-	int CancelDraggingRefText( cpart * part );
-	int CancelDraggingValue( cpart * part );
-	int StopDragging();
+	// int StartDraggingRefText( CDC * pDC, cpart * part );
+	// int StartDraggingValue( CDC * pDC, cpart * part ) { return 0; }
+	// int CancelDraggingPart( cpart * part );
+	// int CancelDraggingRefText( cpart * part );
+	// int CancelDraggingValue( cpart * part );
+	// int StopDragging();
 	void SetThermals();																// CPT2 new.  Updates the bNeedsThermal flags for all pins in all parts.
 	
 	int ReadParts( CStdioFile * file );													// Done in cpp

@@ -12,8 +12,7 @@ public:
 	enum { ADD, EDIT };		// modes
 	CDlgAddPin(CWnd* pParent = NULL);   // standard constructor 
 	virtual ~CDlgAddPin();
-	void InitDialog( CEditShape * fp, int mode, 
-		int pin_num, int units );
+	void InitDialog( CEditShape * fp, cpadstack *ps0, carray<cpadstack> *new_pins, int units );
 //	void EnableFields();
 
 	CEditShape * m_fp;	// original footprint
@@ -28,9 +27,9 @@ protected:
 
 	DECLARE_MESSAGE_MAP()
 public:
-	int m_mode;				// ADD or EDIT
-	int m_units;			// MIL or MM
-	int m_pin_num;			// pin num to EDIT
+	int m_units;						// MIL or MM
+	cpadstack *m_ps0;					// CPT2.  Incoming pin if we're editing;  NULL if we're adding
+	carray<cpadstack> *m_new_pins;		// CPT2.  List to contain all the new pins on exit.
 	CString m_pin_name;
 	int m_num_pins;
 	int m_increment;

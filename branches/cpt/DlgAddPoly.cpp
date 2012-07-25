@@ -6,6 +6,9 @@
 #include "DlgAddPoly.h"
 
 static int gLastLayerIndex = -1;
+static int gLastWidth = -1;																// CPT2, in order to implement Initialize() in the way the comments describe
+static int gDlgAddPolyLayers[] =														// CPT2, improved the behavior of layers in this dlg.
+	{ LAY_FP_SILK_TOP, LAY_FP_SILK_BOTTOM, LAY_FP_TOP_COPPER, LAY_FP_BOTTOM_COPPER };
 
 // CDlgAddPoly dialog
 
@@ -23,7 +26,6 @@ CDlgAddPoly::~CDlgAddPoly()
 
 void CDlgAddPoly::DoDataExchange(CDataExchange* pDX)
 {
-#ifndef CPT2
 	CDialog::DoDataExchange(pDX);
 	DDX_Control(pDX, IDC_RADIO_OPEN, m_radio_open);
 	DDX_Control(pDX, IDC_RADIO_CLOSED, m_radio_closed);
@@ -46,10 +48,10 @@ void CDlgAddPoly::DoDataExchange(CDataExchange* pDX)
 		for (int i=0; i<4; i++)
 			s.LoadStringA(IDS_TopSilk+i),
 			m_combo_layer.InsertString( i, s );
-		for( int ip=0; ip<m_padstack->GetSize(); ip++ )
-		{
-			m_combo_pin_name.InsertString( ip, (*m_padstack)[ip].name );
-		}
+		citer<cpadstack> ips (m_padstack);
+		int i = 0;
+		for (cpadstack *ps = ips.First(); ps; ps = ips.Next())
+			m_combo_pin_name.InsertString( i++, ps->name );
 		SetFields();
 	}
 	else
@@ -65,43 +67,39 @@ void CDlgAddPoly::DoDataExchange(CDataExchange* pDX)
 			pDX->Fail();
 		}
 		gLastLayerIndex = m_layer_index;
+		gLastWidth = m_width;
+		m_layer = gDlgAddPolyLayers[m_layer_index];
 	}
-#endif
 }
 
 // initialize parameters
 // if bNewPoly, this is a new polyline
-// if layer_index == -1, use layer used last time, or 0
+// if layer == -1, use layer used last time, or 0 (LAY_FP_TOP_SILK)
 // if width == -1, use width used last time, or 10 mils
 // if bNewPoly, assume closed
-void CDlgAddPoly::Initialize( BOOL bNewPoly, int layer_index, int units, 
+void CDlgAddPoly::Initialize( BOOL bNewPoly, int layer, int units, 
 							 int width, BOOL bClosed, carray<cpadstack> * padstack )
 {
 	m_bNewPoly = bNewPoly;
 	m_units = units;
-	if( layer_index == -1 )
-	{
-		if( gLastLayerIndex == -1 )
-		{
-			m_layer_index = 0;
-		}
-		else
-		{
-			m_layer_index = gLastLayerIndex;
-		}
-	}
+	// Get layer index value (within gDlgAddPolyLayers)
+	if( layer == -1 )
+		m_layer_index = gLastLayerIndex == -1? 0: gLastLayerIndex;
 	else
 	{
-		m_layer_index = layer_index;
+		for (m_layer_index=0; m_layer_index<4; m_layer_index++)
+			if (gDlgAddPolyLayers[m_layer_index] == layer)
+				break;
+		if (m_layer_index==4) m_layer_index = 0;
 	}
+	if (width==-1)
+		m_width = gLastWidth==-1? 10*NM_PER_MIL: gLastWidth;
+	else
+		m_width = width;
 	if( bNewPoly )
-	{
 		m_closed_flag = 1;
-	}
 	else
-	{
 		m_closed_flag = bClosed;
-	}
 	m_padstack = padstack;
 }
 
@@ -114,7 +112,6 @@ END_MESSAGE_MAP()
 
 void CDlgAddPoly::GetFields()
 {
-#ifndef CPT2
 	CString str;
 	if( m_units == MIL )
 	{
@@ -130,14 +127,9 @@ void CDlgAddPoly::GetFields()
 	m_closed_flag = m_radio_closed.GetCheck();
 	int pin_name_index = m_combo_pin_name.GetCurSel();
 	if( pin_name_index == CB_ERR )
-	{
 		m_pin_name = "";
-	}
 	else
-	{
-		m_pin_name = (*m_padstack)[pin_name_index].name;
-	}
-#endif
+		m_combo_pin_name.GetWindowTextA( m_pin_name );				// CPT2 TODO.  Does not appear to be doing anything useful at this point
 }
 
 void CDlgAddPoly::SetFields()

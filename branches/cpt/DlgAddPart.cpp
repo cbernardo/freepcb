@@ -172,7 +172,7 @@ void CDlgAddPart::DoDataExchange(CDataExchange* pDX)
 							else
 							{
 								// assign new name to footprint and put in cache
-								CShape * shape = new CShape;
+								CShape * shape = new CShape (m_shape.m_doc);
 								shape->Copy( &m_shape );
 								shape->m_name = *dlg.GetNewName();	
 								m_footprint_cache_map->SetAt( shape->m_name, shape );
@@ -203,7 +203,7 @@ void CDlgAddPart::DoDataExchange(CDataExchange* pDX)
 					AfxMessageBox( msg );
 					pDX->Fail();
 				}
-				CShape * shape = new CShape;
+				CShape * shape = new CShape( m_shape.m_doc );
 				shape->Copy( &m_shape );
 				shape->m_name = foot_str;	// in case it was renamed
 				m_footprint_cache_map->SetAt( foot_str, shape );
@@ -316,7 +316,7 @@ void CDlgAddPart::DoDataExchange(CDataExchange* pDX)
 			(*m_pl)[m_ip].side = side;
 			int cent_angle = 0;
 			if( (*m_pl)[m_ip].shape )
-				cent_angle = (*m_pl)[m_ip].shape->m_centroid_angle;
+				cent_angle = (*m_pl)[m_ip].shape->m_centroid->m_angle;
 			(*m_pl)[m_ip].angle = ::GetPartAngleForReportedAngle( m_combo_angle.GetCurSel()*90, 
 				cent_angle, side );
 			(*m_pl)[m_ip].deleted = FALSE;
@@ -547,7 +547,7 @@ BOOL CDlgAddPart::OnInitDialog()
 		m_list_side.SetCurSel( pi->side );
 		int cent_angle = 0;
 		if( pi->shape )
-			cent_angle = pi->shape->m_centroid_angle;
+			cent_angle = pi->shape->m_centroid->m_angle;
 		int angle = GetReportedAngleForPart( (*m_pl)[m_ip].angle, 
 			cent_angle, (*m_pl)[m_ip].side );
 		m_combo_angle.SetCurSel( angle/90 );

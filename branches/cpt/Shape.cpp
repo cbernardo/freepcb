@@ -28,26 +28,31 @@ cpad::cpad()
 
 BOOL cpad::operator==(cpad p)
 { 
-	return( shape==p.shape 
+	return shape==p.shape 
 			&& size_l==p.size_l 
 			&& size_r==p.size_r
 			&& size_h==p.size_h
 			&& (shape!=PAD_RRECT || radius==p.radius)
-			&& connect_flag == p.connect_flag
-			); 
+			&& connect_flag == p.connect_flag;
 }
 
 // class cpadstack  (Renamed by CPT2, was "padstack")
 cpadstack::cpadstack(CFreePcbDoc *_doc)
 	: cpcb_item (_doc)
 { 
-	exists = FALSE;
+	exists = false;
 	top_mask.shape = PAD_DEFAULT;
 	top_paste.shape = PAD_DEFAULT;
 	inner.shape = PAD_NONE;
 	bottom_mask.shape = PAD_DEFAULT;
 	bottom_paste.shape = PAD_DEFAULT;
+	dl_el = dl_sel = top.dl_el = inner.dl_el = bottom.dl_el = top_mask.dl_el = 
+		top_paste.dl_el = bottom_mask.dl_el = bottom_paste.dl_el = NULL;
 }
+
+cpadstack::cpadstack( cpadstack *src )
+	: cpcb_item (src->doc)
+	{ Copy(src); }
 
 BOOL cpadstack::operator==(cpadstack p)
 { 
@@ -120,6 +125,33 @@ CRect cpadstack::GetBounds()
 	return r;
 }
 
+bool cpadstack::IsValid() 
+{
+	if (doc && doc->m_edit_footprint)
+		return doc->m_edit_footprint->m_padstack.Contains(this);
+	return false;
+}
+
+void cpadstack::Copy( cpadstack *src, bool bCopyName )
+{
+	if (bCopyName)
+		name = src->name;
+	hole_size = src->hole_size;	
+	x_rel = src->x_rel, y_rel = src->y_rel;
+	angle = src->angle;
+	exists = src->exists;
+	top = src->top;
+	top_mask = src->top_mask;
+	top_paste = src->top_paste;
+	bottom = src->bottom;
+	bottom_mask = src->bottom_mask;
+	bottom_paste = src->bottom_paste;
+	inner = src->inner;
+	dl_el = dl_sel = top.dl_el = inner.dl_el = bottom.dl_el = top_mask.dl_el = 
+		top_paste.dl_el = bottom_mask.dl_el = bottom_paste.dl_el = NULL;
+}
+
+
 // class CShape
 // this constructor creates an empty shape
 // CPT2 converted
@@ -128,10 +160,11 @@ CShape::CShape(CFreePcbDoc *doc)
 {
 	m_doc = doc;
 	CString strRef ("REF");
-	m_ref = new ctext(doc, 0, 0, 0, false, false, LAY_FP_SILK_TOP, 0, 0, 0, &strRef); 
+	m_ref = new creftext(doc, 0, 0, 0, false, false, LAY_FP_SILK_TOP, 0, 0, 0, &strRef, true); 
 	CString strValue ("VALUE");
-	m_value = new ctext(doc, 0, 0, 0, false, false, LAY_FP_SILK_TOP, 0, 0, 0, &strValue);
+	m_value = new cvaluetext(doc, 0, 0, 0, false, false, LAY_FP_SILK_TOP, 0, 0, 0, &strValue, true);
 	m_tl = new ctextlist(doc);
+	m_centroid = new ccentroid(doc);
 	Clear();
 } 
 
@@ -140,9 +173,12 @@ CShape::CShape(CFreePcbDoc *doc)
 CShape::~CShape()
 {
 	Clear();
+	/* CPT2 TODO.  I'm thinking screw it, let the garbage collector do the following.  We'll see once I've got that up and running.
 	delete m_ref;
 	delete m_value;
 	delete m_tl;
+	delete m_centroid;
+	*/
 }
 
 void CShape::Clear()
@@ -156,23 +192,23 @@ void CShape::Clear()
 	m_sel_xi = m_sel_yi = 0;
 	m_sel_xf = m_sel_yf = 500*NM_PER_MIL;
 	m_ref->Move(100*NM_PER_MIL, 200*NM_PER_MIL, 0, false, false, LAY_FP_SILK_TOP, 100*NM_PER_MIL, 10*NM_PER_MIL);
-	m_value->Move(100*NM_PER_MIL, 200*NM_PER_MIL, 0, false, false, LAY_FP_SILK_TOP, 100*NM_PER_MIL, 10*NM_PER_MIL);
-	m_centroid_type = CENTROID_DEFAULT;
-	m_centroid_x = 0;
-	m_centroid_y = 0;
-	m_centroid_angle = 0;
-	m_padstack.RemoveAll();
-	m_outline_poly.RemoveAll();
+	GenerateValueParams();
+	m_centroid->m_type = CENTROID_DEFAULT;
+	m_centroid->m_x = 0;
+	m_centroid->m_y = 0;
+	m_centroid->m_angle = 0;
+	m_padstack.RemoveAll();					// CPT2 TODO: DestroyAll()?
+	m_outline_poly.RemoveAll();				// Ditto
 	m_tl->RemoveAllTexts();
-	m_glue.SetSize(0);
+	m_glues.RemoveAll();					// CPT2 TODO: DestroyAll()?
 }
 
 // function to create shape from definition string
 // returns 0 if successful
+// CPT2 converted
 //
 int CShape::MakeFromString( CString name, CString str )
 {
-#ifndef CPT2
 	enum {	
 		MAX_PARAMS = 40,
 		MAX_CHARS_PER_PARAM = 20
@@ -397,48 +433,45 @@ int CShape::MakeFromString( CString name, CString str )
 		// number of pins, must be second param
 		else if( ip == 1 )
 		{
-			if( p[0] >= '0' && p[0] <= '9' )
+			if (p[0]<'0' || p[0]>'9')
+				return 1;
+			npins = atoi( p );
+			if( npins<0 || npins>10000 )
+				return 1;										// out of range
+			if( package == DIP || package == SOIC )
 			{
-				npins = atoi( p );
-				if( npins<0 || npins>10000 )
-					return 1;					// out of range
-				if( package == DIP || package == SOIC )
+				npins_x = npins/2;
+				npins_y = 0;	// not used for DIP or SOIC
+			}
+			else if( package == PLCC || package == QFP )
+			{
+				npins_x = npins/4;
+				npins_y = npins/4;
+			}
+			else if( package == HDR || package == CHIP )
+			{
+				if( npins == 1 )
 				{
-					npins_x = npins/2;
-					npins_y = 0;	// not used for DIP or SOIC
-				}
-				else if( package == PLCC || package == QFP )
-				{
-					npins_x = npins/4;
-					npins_y = npins/4;
-				}
-				else if( package == HDR || package == CHIP )
-				{
-					if( npins == 1 )
-					{
-						npins_x = 1;
-						npins_y = 1;
-					}
-					else
-					{
-						npins_x = npins/2;
-						npins_y = 2;
-					}
-				}
-				else if( package == HOLE )
-				{
-					npins = 1;
 					npins_x = 1;
 					npins_y = 1;
 				}
-				else if( package == SIP )
+				else
 				{
-					npins_x = npins;
-					npins_y = 1;
+					npins_x = npins/2;
+					npins_y = 2;
 				}
 			}
-			else
-				return 1;
+			else if( package == HOLE )
+			{
+				npins = 1;
+				npins_x = 1;
+				npins_y = 1;
+			}
+			else if( package == SIP )
+			{
+				npins_x = npins;
+				npins_y = 1;
+			}
 		}
 
 		// units
@@ -463,13 +496,9 @@ int CShape::MakeFromString( CString name, CString str )
 		{
 			npins_x = atoi( p1 );
 			if( package == PLCC || package == QFP )
-			{
 				npins_y = (npins-2*npins_x)/2;
-			}
 			else if( package == HDR || package == CHIP )
-			{
 				npins_y = npins/npins_x;
-			}
 		}
 
 		// starting corner
@@ -536,9 +565,7 @@ int CShape::MakeFromString( CString name, CString str )
 		
 		// pin row offsets (or use defaults)
 		else if( p[0] == 'R' && p[1] == 'L' )
-		{
 			offset_left = GetDimensionFromString( &p2 );
-		}
 		else if( p[0] == 'R' && p[1] == 'R' )
 		{
 			offset_right = GetDimensionFromString( &p2 );
@@ -546,9 +573,7 @@ int CShape::MakeFromString( CString name, CString str )
 				return 1;
 		}
 		else if( p[0] == 'R' && p[1] == 'B' )
-		{
 			offset_bottom = GetDimensionFromString( &p2 );
-		}
 		else if( p[0] == 'R' && p[1] == 'T' )
 		{
 			offset_top = GetDimensionFromString( &p2 );
@@ -584,25 +609,17 @@ int CShape::MakeFromString( CString name, CString str )
 		
 		// pad lengths
 		else if( p[0] == 'P' && p[1] == 'E' )
-		{
 			pad_len_ext = GetDimensionFromString( &p2 );
-		}
 		else if( p[0] == 'P' && param[ip][1] == 'I' )
-		{
 			pad_len_int = GetDimensionFromString( &p2 );
-		}
 		
 		// pad radius
 		else if( p[0] == 'P' && p[1] == 'R' )
-		{
 			pad_radius = GetDimensionFromString( &p2 );
-		}
 		
 		// hole width
 		else if( param[ip][0] == 'H' && param[ip][1] == 'W' )
-		{
 			pad_hole_w = GetDimensionFromString( &p2 );
-		}
 		
 		// text size
 		else if( param[ip][0] == 'T' && param[ip][1] == 'S' )
@@ -643,7 +660,6 @@ int CShape::MakeFromString( CString name, CString str )
 #undef MAX_PARAMS
 #undef MAX_CHARS_PER_PARAM
 
-	// now generate part outline and ref text
 	int pad_len = pad_w/2;
 	int pad_wid = pad_w/2;
 	if( pad_shape == NONE )
@@ -656,8 +672,8 @@ int CShape::MakeFromString( CString name, CString str )
 	if( pad_wid == 0 || pad_len == 0 )
 		return 1;
 
-	// create array of padstacks
-	m_padstack.SetSize( npins );
+	// CREATE ARRAY OF PADSTACKS
+	int pin1x = 0, pin1y = 0;									// CPT2.  In the case of GRID patterns, may have to do an offset relative to pin 1 at the end
 	if( pattern == EDGE )
 	{
 		// edge pattern, such as DIP, SOIC, PLCC, etc.
@@ -692,18 +708,15 @@ int CShape::MakeFromString( CString name, CString str )
 			if( i >= npins )
 				i = i - npins;
 
-			// set pin name
-			CString name;
-			name.Format( "%d", i+1 );
-			m_padstack[i].name = name; 
+			cpadstack *ps = new cpadstack(m_doc);
+			m_padstack.Add(ps);
+			// set pin name, and store the 0-based pin number in utility field
+			ps->name.Format( "%d", i+1 );
+			ps->utility = i;
 
 			// set hole width and determine TH or SMT
-			int pad_type;
-			if( pad_hole_w )
-				pad_type = TH;
-			else
-				pad_type = SMT;
-			m_padstack[i].hole_size = pad_hole_w;
+			int pad_type = pad_hole_w? TH: SMT;
+			ps->hole_size = pad_hole_w;
 
 			// now set pin positions for bottom, left, top and right rows
 			// and create padstack array
@@ -711,30 +724,30 @@ int CShape::MakeFromString( CString name, CString str )
 			if( ip<npins_x )
 			{
 				// bottom row of pins, left->right
-				m_padstack[i].angle = 270;
-				m_padstack[i].y_rel = -offset_bottom;
-				m_padstack[i].x_rel = ip*pin_spacing_x;
+				ps->angle = 270;
+				ps->y_rel = -offset_bottom;
+				ps->x_rel = ip*pin_spacing_x;
 			}
 			else if( ip>=npins_x && ip<(npins_x+npins_y) )
 			{
 				// right row of pins
-				m_padstack[i].angle = 180;
-				m_padstack[i].y_rel = (ip-npins_x)*pin_spacing_y;
-				m_padstack[i].x_rel = offset_right;
+				ps->angle = 180;
+				ps->y_rel = (ip-npins_x)*pin_spacing_y;
+				ps->x_rel = offset_right;
 			}
 			else if( ip>=(npins_x+npins_y) && ip<(2*npins_x+npins_y) )
 			{
 				// top row of pins
-				m_padstack[i].angle = 90;
-				m_padstack[i].y_rel = offset_top;
-				m_padstack[i].x_rel = (2*npins_x+npins_y-ip-1)*pin_spacing_x;
+				ps->angle = 90;
+				ps->y_rel = offset_top;
+				ps->x_rel = (2*npins_x+npins_y-ip-1)*pin_spacing_x;
 			}
 			else
 			{
 				// left row of pins
-				m_padstack[i].angle = 0;
-				m_padstack[i].y_rel = (2*npins_x+2*npins_y-ip-1)*pin_spacing_y;
-				m_padstack[i].x_rel = -offset_left;
+				ps->angle = 0;
+				ps->y_rel = (2*npins_x+2*npins_y-ip-1)*pin_spacing_y;
+				ps->x_rel = -offset_left;
 			}
 			if( pad_shape == RNDSQ1 || pad_shape == SQUARE
 				|| pad_shape == ROUND || pad_shape == OCTAGON )
@@ -744,34 +757,34 @@ int CShape::MakeFromString( CString name, CString str )
 					type = PAD_SQUARE;
 				else if( pad_shape == OCTAGON )
 					type = PAD_OCTAGON;
-				m_padstack[i].top.shape = type;
-				m_padstack[i].top.size_h = pad_w;
+				ps->top.shape = type;
+				ps->top.size_h = pad_w;
 				if( pad_type == SMT )
 				{
-					m_padstack[i].bottom.shape = PAD_NONE;
-					m_padstack[i].inner.shape = PAD_NONE;
+					ps->bottom.shape = PAD_NONE;
+					ps->inner.shape = PAD_NONE;
 				}
 				else
 				{
-					m_padstack[i].bottom = m_padstack[i].top;
-					m_padstack[i].inner.shape = PAD_ROUND;
-					m_padstack[i].inner.size_h = pad_w;
+					ps->bottom = ps->top;
+					ps->inner.shape = PAD_ROUND;
+					ps->inner.size_h = pad_w;
 				}
 			}
 			else if( pad_shape == ROUND || pad_shape == RNDSQ1 )
 			{
-				m_padstack[i].top.shape = PAD_ROUND;
-				m_padstack[i].top.size_h = pad_w;
+				ps->top.shape = PAD_ROUND;
+				ps->top.size_h = pad_w;
 				if( pad_type == SMT )
 				{
-					m_padstack[i].bottom.shape = PAD_NONE;
-					m_padstack[i].inner.shape = PAD_NONE;
+					ps->bottom.shape = PAD_NONE;
+					ps->inner.shape = PAD_NONE;
 				}
 				else
 				{
-					m_padstack[i].bottom = m_padstack[i].top;
-					m_padstack[i].inner.shape = PAD_ROUND;
-					m_padstack[i].inner.size_h = pad_w;
+					ps->bottom = ps->top;
+					ps->inner.shape = PAD_ROUND;
+					ps->inner.size_h = pad_w;
 				}
 			}
 			else if( pad_shape == RECT || pad_shape == OVAL )
@@ -781,84 +794,80 @@ int CShape::MakeFromString( CString name, CString str )
 					type = PAD_OVAL;
 				if( pad_type == SMT )
 				{
-					m_padstack[i].top.shape = type;
-					m_padstack[i].top.size_h = pad_w;
-					m_padstack[i].top.size_l = pad_len_ext;
-					m_padstack[i].top.size_r = pad_len_int;
-					m_padstack[i].bottom.shape = PAD_NONE;
-					m_padstack[i].inner.shape = PAD_NONE;
+					ps->top.shape = type;
+					ps->top.size_h = pad_w;
+					ps->top.size_l = pad_len_ext;
+					ps->top.size_r = pad_len_int;
+					ps->bottom.shape = PAD_NONE;
+					ps->inner.shape = PAD_NONE;
 				}
 				else
 				{
-					m_padstack[i].top.shape = type;
-					m_padstack[i].top.size_h = pad_w;
-					m_padstack[i].top.size_l = pad_len_ext;
-					m_padstack[i].top.size_r = pad_len_int;
-					m_padstack[i].bottom = m_padstack[i].top;
-					m_padstack[i].inner.shape = PAD_ROUND;
-					m_padstack[i].inner.size_h = min(pad_w,pad_len_ext+pad_len_int);
+					ps->top.shape = type;
+					ps->top.size_h = pad_w;
+					ps->top.size_l = pad_len_ext;
+					ps->top.size_r = pad_len_int;
+					ps->bottom = ps->top;
+					ps->inner.shape = PAD_ROUND;
+					ps->inner.size_h = min(pad_w,pad_len_ext+pad_len_int);
 				}
 			}
 			else if( pad_shape == RRECT )
 			{
 				if( pad_type == SMT )
 				{
-					m_padstack[i].top.shape = PAD_RRECT;
-					m_padstack[i].top.size_h = pad_w;
-					m_padstack[i].top.size_l = pad_len_ext;
-					m_padstack[i].top.size_r = pad_len_int;
-					m_padstack[i].top.radius = pad_radius;
-					m_padstack[i].bottom.shape = PAD_NONE;
-					m_padstack[i].inner.shape = PAD_NONE;
+					ps->top.shape = PAD_RRECT;
+					ps->top.size_h = pad_w;
+					ps->top.size_l = pad_len_ext;
+					ps->top.size_r = pad_len_int;
+					ps->top.radius = pad_radius;
+					ps->bottom.shape = PAD_NONE;
+					ps->inner.shape = PAD_NONE;
 				}
 				else
 				{
-					m_padstack[i].top.shape = PAD_RRECT;
-					m_padstack[i].top.size_h = pad_w;
-					m_padstack[i].top.size_l = pad_len_ext;
-					m_padstack[i].top.size_r = pad_len_int;
-					m_padstack[i].top.radius = pad_radius;
-					m_padstack[i].bottom = m_padstack[i].top;
-					m_padstack[i].inner.shape = PAD_ROUND;
-					m_padstack[i].inner.size_h = min(pad_w,pad_len_ext+pad_len_int);
+					ps->top.shape = PAD_RRECT;
+					ps->top.size_h = pad_w;
+					ps->top.size_l = pad_len_ext;
+					ps->top.size_r = pad_len_int;
+					ps->top.radius = pad_radius;
+					ps->bottom = ps->top;
+					ps->inner.shape = PAD_ROUND;
+					ps->inner.size_h = min(pad_w,pad_len_ext+pad_len_int);
 				}
 			}
 			else if( pad_shape == NONE )
 			{
 				if( pad_type == SMT )
 				{
-					m_padstack[i].top.shape = PAD_NONE;
-					m_padstack[i].top.size_h = 0;
-					m_padstack[i].top.size_l = 0;
-					m_padstack[i].top.size_r = 0;
-					m_padstack[i].bottom.shape = PAD_NONE;
-					m_padstack[i].inner.shape = PAD_NONE;
+					ps->top.shape = PAD_NONE;
+					ps->top.size_h = 0;
+					ps->top.size_l = 0;
+					ps->top.size_r = 0;
+					ps->bottom.shape = PAD_NONE;
+					ps->inner.shape = PAD_NONE;
 				}
 				else
 				{
-					m_padstack[i].top.shape = PAD_NONE;
-					m_padstack[i].top.size_h = 0;
-					m_padstack[i].top.size_l = 0;
-					m_padstack[i].top.size_r = 0;
-					m_padstack[i].inner = m_padstack[i].top;
-					m_padstack[i].bottom = m_padstack[i].top;
+					ps->top.shape = PAD_NONE;
+					ps->top.size_h = 0;
+					ps->top.size_l = 0;
+					ps->top.size_r = 0;
+					ps->inner = ps->top;
+					ps->bottom = ps->top;
 				}
 			}
 		}
 	}
+
 	else if( pattern == GRID )
 	{
 		// grid pattern, such as HDR
-		int pad_type;
-		if( pad_hole_w )
-			pad_type = TH;
-		else
-			pad_type = SMT;
+		int pad_type = pad_hole_w? TH: SMT;
 		for( int ih=0; ih<npins_x; ih++ )
-		{
 			for( int iv=0; iv<npins_y; iv++ )
 			{
-				// get actual pin number
+				// get actual pin number, and [CPT2] create padstack object
 				int ip;
 				if( pin_dir == LRBT )
 					ip = ih + iv*npins_x; 
@@ -875,151 +884,131 @@ int CShape::MakeFromString( CString name, CString str )
 				else if( pin_dir == TBLR )
 					ip = (npins_y-iv-1) + ih*npins_y; 
 				else if( pin_dir == TBRL )
-					ip = (npins_y-iv-1) + (npins_x-ih-1)*npins_y; 
+					ip = (npins_y-iv-1) + (npins_x-ih-1)*npins_y;
+				cpadstack *ps = new cpadstack(m_doc);
+				m_padstack.Add(ps);
+				// CPT2 Name the padstack (used to be done later, but why not now?).  Also store 0-based pin # in utility field.
+				ps->name.Format( "%d", ip+1 );
+				ps->utility = ip;
+
+				ps->x_rel = ih * pin_spacing_x;
+				ps->y_rel = iv * pin_spacing_y;
 				// if RECT pads are used, assume that there are 2 rows
+				ps->angle = 0;
 				if( pad_shape == RECT )
 				{
 					if( npins_x == 2 )
-					{
 						if( ih == 0 )
-							m_padstack[ip].angle = 0;
+							ps->angle = 0;
 						else
-							m_padstack[ip].angle = 180;
-					}
+							ps->angle = 180;
 					else if( npins_y == 2 )
-					{
 						if( iv == 0 )
-							m_padstack[ip].angle = 270;
+							ps->angle = 270;
 						else
-							m_padstack[ip].angle = 90;
-					}
+							ps->angle = 90;
 				}
-				else
-					m_padstack[ip].angle = 0;
-				m_padstack[ip].x_rel = ih * pin_spacing_x;
-				m_padstack[ip].y_rel = iv * pin_spacing_y;
-				m_padstack[ip].hole_size = pad_hole_w;
+				if (ip==0)
+					pin1x = ps->x_rel,
+					pin1y = ps->y_rel;
+				ps->hole_size = pad_hole_w;
 				if( pad_shape == RNDSQ1 || pad_shape == ROUND || pad_shape == SQUARE || pad_shape == OCTAGON )
 				{
 					if( (ip==0 && pad_shape == RNDSQ1) || pad_shape == SQUARE )
-						m_padstack[ip].top.shape = PAD_SQUARE;
+						ps->top.shape = PAD_SQUARE;
 					else if( pad_shape == OCTAGON )
-						m_padstack[ip].top.shape = PAD_OCTAGON;
+						ps->top.shape = PAD_OCTAGON;
 					else
-						m_padstack[ip].top.shape = PAD_ROUND;
-					m_padstack[ip].top.size_h = pad_w;
+						ps->top.shape = PAD_ROUND;
+					ps->top.size_h = pad_w;
 					if( pad_type == SMT )
 					{
-						m_padstack[ip].bottom.shape = PAD_NONE;
-						m_padstack[ip].inner.shape = PAD_NONE;
+						ps->bottom.shape = PAD_NONE;
+						ps->inner.shape = PAD_NONE;
 					}
 					else
 					{
-						m_padstack[ip].bottom = m_padstack[ip].top;
-						m_padstack[ip].inner.shape = PAD_NONE;
-//						m_padstack[ip].inner.size_h = pad_w;
+						ps->bottom = ps->top;
+						ps->inner.shape = PAD_NONE;
+//						ps->inner.size_h = pad_w;
 					}
 				}
 				else if( pad_shape == RECT || pad_shape == OVAL )
 				{
 					if( pad_shape == RECT )
-						m_padstack[ip].top.shape = PAD_RECT;
+						ps->top.shape = PAD_RECT;
 					else
-						m_padstack[ip].top.shape = PAD_OVAL;
-					m_padstack[ip].top.size_h = pad_w;
-					m_padstack[ip].top.size_l = pad_len_ext;
-					m_padstack[ip].top.size_r = pad_len_int;
+						ps->top.shape = PAD_OVAL;
+					ps->top.size_h = pad_w;
+					ps->top.size_l = pad_len_ext;
+					ps->top.size_r = pad_len_int;
 					if( pad_type == SMT )
 					{
-						m_padstack[ip].bottom.shape = PAD_NONE;
-						m_padstack[ip].inner.shape = PAD_NONE;
+						ps->bottom.shape = PAD_NONE;
+						ps->inner.shape = PAD_NONE;
 					}
 					else
 					{
-						m_padstack[ip].bottom = m_padstack[ip].top;
-						m_padstack[ip].inner.shape = PAD_NONE;
-//						m_padstack[ip].inner.size_h = pad_w;
+						ps->bottom = ps->top;
+						ps->inner.shape = PAD_NONE;
+//						ps->inner.size_h = pad_w;
 					}
 				}
 				else if( pad_shape == RRECT )
 				{
-					m_padstack[ip].top.shape = PAD_RRECT;
-					m_padstack[ip].top.size_h = pad_w;
-					m_padstack[ip].top.size_l = pad_len_ext;
-					m_padstack[ip].top.size_r = pad_len_int;
-					m_padstack[ip].top.radius = pad_radius;
+					ps->top.shape = PAD_RRECT;
+					ps->top.size_h = pad_w;
+					ps->top.size_l = pad_len_ext;
+					ps->top.size_r = pad_len_int;
+					ps->top.radius = pad_radius;
 					if( pad_type == SMT )
 					{
-						m_padstack[ip].bottom.shape = PAD_NONE;
-						m_padstack[ip].inner.shape = PAD_NONE;
+						ps->bottom.shape = PAD_NONE;
+						ps->inner.shape = PAD_NONE;
 					}
 					else
 					{
-						m_padstack[ip].bottom = m_padstack[ip].top;
-						m_padstack[ip].inner.shape = PAD_NONE;
-//						m_padstack[ip].inner.size_h = pad_w;
+						ps->bottom = ps->top;
+						ps->inner.shape = PAD_NONE;
+//						ps->inner.size_h = pad_w;
 					}
 				}
 			}
-		}
-		// now adjust offsets for pin 1 position, which may not be 0,0
-		for( int ip=1; ip<npins; ip++ )
-		{
-			m_padstack[ip].x_rel = m_padstack[ip].x_rel - m_padstack[0].x_rel;
-			m_padstack[ip].y_rel = m_padstack[ip].y_rel - m_padstack[0].y_rel;
-		}
-		for( int ip=0; ip<m_outline_poly.GetSize(); ip++ )
-			m_outline_poly[ip]->Offset(-m_padstack[0].x_rel, -m_padstack[0].y_rel);
-
-		m_ref_xi -= m_padstack[0].x_rel;
-		m_ref_yi -= m_padstack[0].y_rel;
-		m_padstack[0].x_rel = 0;
-		m_padstack[0].y_rel = 0;
 	}
 	else
 		ASSERT(0);	// no pattern
 
+	// CREATE REF-TEXT BOXES AND OUTLINE.  CPT2 TODO better positioning of ref-text
 	CRect pad_rect = GetBounds();
-	m_outline_poly.SetSize(1);
+	// Certain ref-text params are common to all patterns:
+	m_ref->m_angle = 0;
+	m_ref->m_font_size = ref_text_size;
+	m_ref->m_stroke_width = m_ref->m_font_size/10;
 	if( package == HOLE )
-	{
-		// create ref text box
-		m_ref_size = ref_text_size;
-		m_ref_xi = pin_spacing_x;
-		m_ref_yi = pin_spacing_x;
-		m_ref_angle = 0;
-		m_ref_w = m_ref_size/10;
-	}
+		m_ref->m_x = m_ref->m_y = pin_spacing_x;
 	else if( package == DIP || package == SOIC )
 	{
-		// create ref text box
-		m_ref_size = ref_text_size;
-		m_ref_xi = pin_spacing_x;
-		m_ref_yi = pin_spacing_x;
-		m_ref_angle = 0;
-		m_ref_w = m_ref_size/10;
-
-		// create part outline
-		m_outline_poly[0].Start( 0, 7*PCBU_PER_MIL, 7*PCBU_PER_MIL, 0, pad_len_int+offset_top/12, 0, 0, 0 );
-		m_outline_poly[0].AppendCorner( (npins_x-1)*pin_spacing_x, pad_len_int+offset_top/12 );
-		m_outline_poly[0].AppendCorner( (npins_x-1)*pin_spacing_x, 11*offset_top/12-pad_len_int );
-		m_outline_poly[0].AppendCorner( 0, 11*offset_top/12-pad_len_int );
-		m_outline_poly[0].AppendCorner( 0, 7*offset_top/12 );
-		m_outline_poly[0].AppendCorner( pin_spacing_x/4, 7*offset_top/12 );
-		m_outline_poly[0].AppendCorner( pin_spacing_x/4, 5*offset_top/12 );
-		m_outline_poly[0].AppendCorner( 0, 5*offset_top/12 );
-		m_outline_poly[0].Close();
+		m_ref->m_x = m_ref->m_y = pin_spacing_x;
+		coutline *o = new coutline(m_doc, LAY_FP_SILK_TOP, 7*PCBU_PER_MIL);			// CPT2 changed layer
+		m_outline_poly.Add(o);
+		ccontour *ctr = new ccontour(o, true);
+		ctr->AppendCorner( 0, pad_len_int+offset_top/12 );
+		ctr->AppendCorner( (npins_x-1)*pin_spacing_x, pad_len_int+offset_top/12 );
+		ctr->AppendCorner( (npins_x-1)*pin_spacing_x, 11*offset_top/12-pad_len_int );
+		ctr->AppendCorner( 0, 11*offset_top/12-pad_len_int );
+		ctr->AppendCorner( 0, 7*offset_top/12 );
+		ctr->AppendCorner( pin_spacing_x/4, 7*offset_top/12 );
+		ctr->AppendCorner( pin_spacing_x/4, 5*offset_top/12 );
+		ctr->AppendCorner( 0, 5*offset_top/12 );
+		ctr->Close();
 	}
 	else if( package == PLCC || package == QFP )
 	{
-		// create ref text box
-		m_ref_size = ref_text_size;
-		m_ref_xi = offset_right/4;
-		m_ref_yi = offset_top/2;
-		m_ref_angle = 0;
-		m_ref_w = m_ref_size/10;
-
-		// create part outline
+		m_ref->m_x = offset_right/4;
+		m_ref->m_y = offset_top/2;
+		coutline *o = new coutline(m_doc, LAY_FP_SILK_TOP, 7*PCBU_PER_MIL);
+		m_outline_poly.Add(o);
+		ccontour *ctr = new ccontour(o, true);
 		int xf = (npins_x-1)*pin_spacing_x;
 		int yf = (npins_y-1)*pin_spacing_y;
 		int corner = pin_spacing_x;
@@ -1028,85 +1017,97 @@ int CShape::MakeFromString( CString name, CString str )
 		if( pin_start == P1BL )
 		{
 			// notch bottom-left corner
-			m_outline_poly[0].Start( 0, 7*PCBU_PER_MIL, 0, 0, corner, 0, 0, 0 );
-			m_outline_poly[0].AppendCorner( corner, 0 );
+			ctr->AppendCorner( 0, corner );
+			ctr->AppendCorner( corner, 0 );
 		}
 		else
-			m_outline_poly[0].Start( 0, 7*PCBU_PER_MIL, 0, 0, 0, 0, 0, 0 );
+			ctr->AppendCorner( 0, 0 );
 		if( pin_start == P1BC )
 		{
 			// notch bottom side
-			m_outline_poly[0].AppendCorner( xf/2-notch_w, 0 );
-			m_outline_poly[0].AppendCorner( xf/2-notch_w, notch );
-			m_outline_poly[0].AppendCorner( xf/2+notch_w, notch );
-			m_outline_poly[0].AppendCorner( xf/2+notch_w, 0 );
+			ctr->AppendCorner( xf/2-notch_w, 0 );
+			ctr->AppendCorner( xf/2-notch_w, notch );
+			ctr->AppendCorner( xf/2+notch_w, notch );
+			ctr->AppendCorner( xf/2+notch_w, 0 );
 		}
 		if( pin_start == P1BR )
 		{
 			// notch bottom-right corner
-			m_outline_poly[0].AppendCorner( xf-corner, 0 );
-			m_outline_poly[0].AppendCorner( xf, corner );
+			ctr->AppendCorner( xf-corner, 0 );
+			ctr->AppendCorner( xf, corner );
 		}
 		else
-			m_outline_poly[0].AppendCorner( xf, 0 );
+			ctr->AppendCorner( xf, 0 );
 		if( pin_start == P1RC )
 		{
 			// notch right side
-			m_outline_poly[0].AppendCorner( xf,		yf/2-notch_w ); 
-			m_outline_poly[0].AppendCorner( xf-notch, yf/2-notch_w ); 
-			m_outline_poly[0].AppendCorner( xf-notch, yf/2+notch_w ); 
-			m_outline_poly[0].AppendCorner( xf,		yf/2+notch_w ); 
+			ctr->AppendCorner( xf, yf/2-notch_w ); 
+			ctr->AppendCorner( xf-notch, yf/2-notch_w ); 
+			ctr->AppendCorner( xf-notch, yf/2+notch_w ); 
+			ctr->AppendCorner( xf, yf/2+notch_w ); 
 		}
 		if( pin_start == P1TR )
 		{
 			// notch top-right corner
-			m_outline_poly[0].AppendCorner( xf, yf-corner ); 
-			m_outline_poly[0].AppendCorner( xf-corner, yf ); 
+			ctr->AppendCorner( xf, yf-corner ); 
+			ctr->AppendCorner( xf-corner, yf ); 
 		}
 		else
-			m_outline_poly[0].AppendCorner( xf, yf ); 
+			ctr->AppendCorner( xf, yf ); 
 		if( pin_start == P1TC )
 		{
 			// notch top side
-			m_outline_poly[0].AppendCorner( xf/2+notch_w, yf ); 
-			m_outline_poly[0].AppendCorner( xf/2+notch_w, yf-notch ); 
-			m_outline_poly[0].AppendCorner( xf/2-notch_w, yf-notch ); 
-			m_outline_poly[0].AppendCorner( xf/2-notch_w, yf ); 
+			ctr->AppendCorner( xf/2+notch_w, yf ); 
+			ctr->AppendCorner( xf/2+notch_w, yf-notch ); 
+			ctr->AppendCorner( xf/2-notch_w, yf-notch ); 
+			ctr->AppendCorner( xf/2-notch_w, yf ); 
 		}
 		if( pin_start == P1TL )
 		{
 			// notch top-left corner
-			m_outline_poly[0].AppendCorner( 0+corner, yf ); 
-			m_outline_poly[0].AppendCorner( 0, yf-corner ); 
+			ctr->AppendCorner( 0+corner, yf ); 
+			ctr->AppendCorner( 0, yf-corner ); 
 		}
 		else
-			m_outline_poly[0].AppendCorner( 0, yf); 
+			ctr->AppendCorner( 0, yf); 
 		if( pin_start == P1LC )
 		{
 			// notch left side
-			m_outline_poly[0].AppendCorner( 0,		yf/2+notch_w );
-			m_outline_poly[0].AppendCorner( notch,	yf/2+notch_w );
-			m_outline_poly[0].AppendCorner( notch,	yf/2-notch_w );
-			m_outline_poly[0].AppendCorner( 0,		yf/2-notch_w );
+			ctr->AppendCorner( 0, yf/2+notch_w );
+			ctr->AppendCorner( notch, yf/2+notch_w );
+			ctr->AppendCorner( notch, yf/2-notch_w );
+			ctr->AppendCorner( 0, yf/2-notch_w );
 		}
-		m_outline_poly[0].Close();
+		ctr->Close();
 	}
 	else if( package == HDR || package == CHIP || package == SIP )
 	{
-		// create ref text box
-		m_ref_size = ref_text_size;
-		m_ref_xi = offset_right/4;
-		m_ref_yi = offset_top/2;
-		m_ref_angle = 0;
-		m_ref_w = m_ref_size/10;
-
+		m_ref->m_x = offset_right/4;
+		m_ref->m_y = offset_top/2;
 		// create part outline with 7 mil line width and 13 mil clearance
+		coutline *o = new coutline(m_doc, LAY_FP_SILK_TOP, 7*PCBU_PER_MIL);				// CPT2 changed layer
+		m_outline_poly.Add(o);
+		ccontour *ctr = new ccontour(o, true);
 		int clear = 13*PCBU_PER_MIL;
-		m_outline_poly[0].Start( 0, 7*PCBU_PER_MIL, 0, pad_rect.left-clear, pad_rect.bottom-clear, 0, 0, 0 ); 
-		m_outline_poly[0].AppendCorner( pad_rect.right+clear, pad_rect.bottom-clear ); 
-		m_outline_poly[0].AppendCorner( pad_rect.right+clear, pad_rect.top+clear ); 
-		m_outline_poly[0].AppendCorner( pad_rect.left-clear, pad_rect.top+clear ); 
-		m_outline_poly[0].Close();
+		ctr->AppendCorner( pad_rect.left-clear, pad_rect.bottom-clear ); 
+		ctr->AppendCorner( pad_rect.right+clear, pad_rect.bottom-clear ); 
+		ctr->AppendCorner( pad_rect.right+clear, pad_rect.top+clear ); 
+		ctr->AppendCorner( pad_rect.left-clear, pad_rect.top+clear ); 
+		ctr->Close();
+	}
+
+	// If necessary, adjust offsets for pin 1 position, which may not be 0,0.  CPT2 bug fix:  used to be done _before_ the outline poly was created.
+	if (pin1x || pin1y)
+	{
+		citer<cpadstack> ips (&m_padstack);
+		for (cpadstack *ps = ips.First(); ps; ps = ips.Next())
+			ps->x_rel -= pin1x,
+			ps->y_rel -= pin1y;
+		citer<coutline> io (&m_outline_poly);
+		for (coutline *o = io.First(); o; o = io.Next())
+			o->Offset(-pin1x, -pin1y);
+		m_ref->m_x -= pin1x;
+		m_ref->m_y -= pin1y;
 	}
 
 	// now set selection rectangle
@@ -1116,22 +1117,14 @@ int CShape::MakeFromString( CString name, CString str )
 	m_sel_xf = br.right + 10*NM_PER_MIL;
 	m_sel_yf = br.top + 10*NM_PER_MIL;
 
-	// now set pin names
-	for( int ip=0; ip<m_padstack.GetSize(); ip++ )
-	{
-		CString str;
-		str.Format( "%d", ip+1 );
-		m_padstack[ip].name = str;
-	}
-
 	m_name = name.Left(MAX_NAME_SIZE);	// this is the limit
 	m_units = units;
 	CPoint c = GetDefaultCentroid();
-	m_centroid_type = CENTROID_DEFAULT;
-	m_centroid_x = c.x;
-	m_centroid_y = c.y;
-	m_centroid_angle = 0;
-#endif
+	m_centroid->m_type = CENTROID_DEFAULT;
+	m_centroid->m_x = c.x;
+	m_centroid->m_y = c.y;
+	m_centroid->m_angle = 0;
+	GenerateValueParams();				// CPT2 added.
 	return 0;
 }
 
@@ -1162,6 +1155,8 @@ int CShape::MakeFromFile( CStdioFile * in_file, CString name,
 	int n_glue = 0;
 	coutline *currPoly = NULL;			// CPT2
 	cpadstack *currPs = NULL;
+	extern CFreePcbApp theApp;
+	m_doc = theApp.m_doc;				// CPT2.  REALLY want m_doc to be a legit value from the get-go.
 
 	p.SetSize( 10 );
 	// if in_file exists, use it, otherwise open file
@@ -1326,22 +1321,22 @@ int CShape::MakeFromFile( CStdioFile * in_file, CString name,
 			}
 			else if( key_str == "centroid" && np >= 4 )
 			{
-				m_centroid_type = (CENTROID_TYPE)my_atoi( &p[0] );
-				m_centroid_x = GetDimensionFromString( &p[1], m_units);
-				m_centroid_y = GetDimensionFromString( &p[2], m_units);
-				m_centroid_angle = 0;
+				m_centroid->m_type = (CENTROID_TYPE)my_atoi( &p[0] );
+				m_centroid->m_x = GetDimensionFromString( &p[1], m_units);
+				m_centroid->m_y = GetDimensionFromString( &p[2], m_units);
+				m_centroid->m_angle = 0;
 				if( np >= 5 )
-					m_centroid_angle = my_atoi( &p[3] );
+					m_centroid->m_angle = my_atoi( &p[3] );
 				bCentroidFound = TRUE;
 			}
 			else if( key_str == "adhesive" && np >= 5 )
 			{
-				m_glue.SetSize(n_glue+1);
-				m_glue[n_glue].type = (GLUE_POS_TYPE)my_atoi( &p[0] );
-				m_glue[n_glue].w = GetDimensionFromString( &p[1], m_units);
-				m_glue[n_glue].x_rel = GetDimensionFromString( &p[2], m_units);
-				m_glue[n_glue].y_rel = GetDimensionFromString( &p[3], m_units);
-				n_glue++;
+				GLUE_POS_TYPE type = (GLUE_POS_TYPE)my_atoi( &p[0] );
+				int w = GetDimensionFromString( &p[1], m_units);
+				int x = GetDimensionFromString( &p[2], m_units);
+				int y = GetDimensionFromString( &p[3], m_units);
+				cglue *g = new cglue(m_doc, type, w, x, y);
+				m_glues.Add(g);
 			}
 			else if( key_str == "text" && np >= 7 )
 			{
@@ -1525,10 +1520,10 @@ int CShape::MakeFromFile( CStdioFile * in_file, CString name,
 normal_return:
 		// eliminate any polylines with only one corner
 		// CPT2
-		citer<coutline> ip (&m_outline_poly);
-		for (coutline *p = ip.First(); p; p = ip.Next())
-			if( p->main->corners.GetSize() == 1 )
-				m_outline_poly.Remove(p);
+		citer<coutline> io (&m_outline_poly);
+		for (coutline *o = io.First(); o; o = io.Next())
+			if( o->NumCorners() == 1 )
+				m_outline_poly.Remove(o);
 		// NM deprecated
 		if( m_units == NM )
 			m_units = MM;
@@ -1536,10 +1531,10 @@ normal_return:
 		if( !bCentroidFound )
 		{
 			CPoint c = GetDefaultCentroid();
-			m_centroid_type = CENTROID_DEFAULT;
-			m_centroid_x = c.x;
-			m_centroid_y = c.y;
-			m_centroid_angle = 0;
+			m_centroid->m_type = CENTROID_DEFAULT;
+			m_centroid->m_x = c.x;
+			m_centroid->m_y = c.y;
+			m_centroid->m_angle = 0;
 		}
 		if( !bValue )
 			GenerateValueParams();
@@ -1587,47 +1582,35 @@ void CShape::Copy( CShape * src )
 	m_sel_yi = src->m_sel_yi;
 	m_sel_xf = src->m_sel_xf;
 	m_sel_yf = src->m_sel_yf;
-	// reference designator text
+	// reference designator and value text
 	m_ref->Copy( src->m_ref );
-	m_ref->SetDoc( m_doc );
-	// value text
 	m_value->Copy( src->m_value );
-	m_value->SetDoc( m_doc );
-	// centroid.  TODO change to ccentroid object
-	m_centroid_type = src->m_centroid_type;
-	m_centroid_x = src->m_centroid_x;
-	m_centroid_y = src->m_centroid_y;
-	m_centroid_angle = src->m_centroid_angle;
+	// centroid.
+	m_centroid->m_type = src->m_centroid->m_type;
+	m_centroid->m_x = src->m_centroid->m_x;
+	m_centroid->m_y = src->m_centroid->m_y;
+	m_centroid->m_angle = src->m_centroid->m_angle;
 	// padstacks
 	m_padstack.RemoveAll();
 	citer<cpadstack> ips (&src->m_padstack);
 	for (cpadstack *ps = ips.First(); ps; ps = ips.Next())
-	{
-		cpadstack *ps2 = new cpadstack(*ps);
-		ps2->SetDoc( m_doc );
-		m_padstack.Add( ps2 );
-	}
+		m_padstack.Add( new cpadstack(ps) );
 	// outline polys
 	m_outline_poly.RemoveAll();
-	citer<coutline> ip (&src->m_outline_poly);
-	for (coutline *p = ip.First(); p; p = ip.Next())
-	{
-		coutline *p2 = new coutline(p);
-		p2->SetDoc( m_doc );
-		m_outline_poly.Add( p2 );
-	}
+	citer<coutline> io (&src->m_outline_poly);
+	for (coutline *o = io.First(); o; o = io.Next())
+		m_outline_poly.Add( new coutline(o) );
 	// texts
 	m_tl->RemoveAllTexts();
-	m_tl->m_doc = m_doc;
 	citer<ctext> it (&src->m_tl->texts);
 	for (ctext *t = it.First(); t; t = it.Next())
 		m_tl->AddText( t->m_x, t->m_y, t->m_angle, t->m_bMirror, t->m_bNegative, 
 			t->m_layer, t->m_font_size, t->m_stroke_width, &t->m_str );
-	// glue spots.  CPT2 TODO will change to cadhesive objects presumably.
-	int nd = src->m_glue.GetSize();
-	m_glue.SetSize( nd );
-	for( int id=0; id<nd; id++ )
-		m_glue[id] = src->m_glue[id];
+	// glue spots.
+	m_glues.RemoveAll();
+	citer<cglue> ig (&src->m_glues);
+	for (cglue *g = ig.First(); g; g = ig.Next())
+		m_glues.Add( new cglue(g) );
 }
 
 BOOL CShape::Compare( CShape * shape )
@@ -1790,12 +1773,13 @@ int CShape::WriteFootprint( CStdioFile * file )
 			ws(m_value->m_stroke_width,m_units), m_value->m_layer );
 		file->WriteString( line );
 		line.Format( "  centroid: %d %s %s %d\n", 
-			m_centroid_type, ws(m_centroid_x,m_units), ws(m_centroid_y,m_units), m_centroid_angle );
+			m_centroid->m_type, ws(m_centroid->m_x,m_units), ws(m_centroid->m_y,m_units), m_centroid->m_angle );
 		file->WriteString( line );
-		for( int idot=0; idot<m_glue.GetSize(); idot++ )
+		citer<cglue> ig (&m_glues);
+		for (cglue *g = ig.First(); g; g = ig.Next())
 		{
 			line.Format( "  adhesive: %d %s %s %s\n", 
-				m_glue[idot].type, ws(m_glue[idot].w,m_units), ws(m_glue[idot].x_rel,m_units), ws(m_glue[idot].y_rel,m_units) );
+				g->type, ws(g->w,m_units), ws(g->x,m_units), ws(g->y,m_units) );
 			file->WriteString( line );
 		}
 		citer<ctext> it (&m_tl->texts);
@@ -1804,18 +1788,18 @@ int CShape::WriteFootprint( CStdioFile * file )
 				ws(t->m_font_size,m_units), ws(t->m_x,m_units), ws(t->m_y,m_units), t->m_angle, 
 				ws(t->m_stroke_width,m_units), t->m_bMirror, t->m_layer ),
 			file->WriteString( line ); 
-		citer<coutline> ip (&m_outline_poly);
-		for (coutline *p = ip.First(); p; p = ip.Next())
+		citer<coutline> io (&m_outline_poly);
+		for (coutline *o = io.First(); o; o = io.Next())
 		{
 			// CPT2 TODO NB assuming no secondary contours
-			ccorner *c = p->main->head;
-			line.Format( "  outline_polyline: %s %s %s %d\n", ws(p->m_w,m_units),
-				ws(c->x,m_units), ws(c->y,m_units),	p->m_layer );
+			ccorner *c = o->main->head;
+			line.Format( "  outline_polyline: %s %s %s %d\n", ws(o->m_w,m_units),
+				ws(c->x,m_units), ws(c->y,m_units),	o->m_layer );
 			file->WriteString( line );
 			while (c->postSide)
 			{
 				c = c->postSide->postCorner; 
-				if (c==p->main->head)
+				if (c==o->main->head)
 				{
 					line.Format( "    close_polyline: %d\n", c->preSide->m_style );
 					file->WriteString( line );
@@ -2181,13 +2165,13 @@ HENHMETAFILE CShape::CreateMetafile( CMetaFileDC * mfDC, CDC * pDC, CRect const 
 	}
 
 	// draw part outline
-	citer<coutline> ip (&m_outline_poly);
-	for (coutline *p = ip.First(); p; p = ip.Next())
+	citer<coutline> io (&m_outline_poly);
+	for (coutline *o = io.First(); o; o = io.Next())
 	{
-		int thickness = p->m_w/NM_PER_MIL;
+		int thickness = o->m_w/NM_PER_MIL;
 		CPen silk_pen( PS_SOLID, thickness, C_RGB::yellow );
 		mfDC->SelectObject( &silk_pen );
-		citer<ccontour> ictr (&p->contours);
+		citer<ccontour> ictr (&o->contours);
 		for (ccontour *ctr = ictr.First(); ctr; ctr = ictr.Next())
 		{
 			citer<cside> is (&ctr->sides);
@@ -2320,14 +2304,14 @@ CRect CShape::GetBounds( BOOL bIncludeLineWidths )
 {
 	CRect br = GetAllPadBounds();
 
-	citer<coutline> ip (&m_outline_poly);
-	for (coutline *p = ip.First(); p; p = ip.Next())
+	citer<coutline> io (&m_outline_poly);
+	for (coutline *o = io.First(); o; o = io.Next())
 	{
 		CRect polyr;
 		if( bIncludeLineWidths )
-			polyr = p->GetBounds();
+			polyr = o->GetBounds();
 		else
-			polyr = p->GetCornerBounds();
+			polyr = o->GetCornerBounds();
 		br.left = min( br.left, polyr.left ); 
 		br.bottom = min( br.bottom, polyr.bottom ); 
 		br.right = max( br.right, polyr.right ); 
@@ -2370,30 +2354,39 @@ CRect CShape::GetCornerBounds()
 
 // constructor
 //
-CEditShape::CEditShape()
-{ 
-	m_dlist = NULL; 
-	Clear(); 
+CEditShape::CEditShape( CShape *src )
+	: CShape (src->m_doc)
+{
+	Clear();
+	Copy(src);
+}
+
+CEditShape::CEditShape( CFreePcbDoc *doc, CString *name )
+	: CShape (doc)
+{
+	Clear();
+	m_name = *name;
 }
 
 // destructor
 //
 CEditShape::~CEditShape()
 {
-	Clear();
+	// Clear();						// CPT2 TODO.  Removed this (was causing a crash).  Need to think about more.
 }
 
 // draw footprint into display list
-// CPT2 updated.  TODO probably remove args from arg list.
+// CPT2 updated.
 //
-void CEditShape::Draw( CDisplayList * dlist, SMFontUtil * fontutil )
+void CEditShape::Draw()
 {
+	CDisplayList *dlist = m_doc->m_dlist;
+	SMFontUtil *smf = m_doc->m_smfontutil;
 	// first, undraw
 	Undraw();
 
 	// draw pins.  CPT2 Note that for each padstack ps we use drawing elements ps->top.dl_el, ps->inner.dl_el, etc.  We also use ps->dl_el to represent the
 	// hole (if any), plus of course ps->dl_sel for the selector.
-	m_dlist = dlist;
 	citer<cpadstack> ips (&m_padstack);
 	for (cpadstack *ps = ips.First(); ps; ps = ips.Next())
 	{
@@ -2545,74 +2538,30 @@ void CEditShape::Draw( CDisplayList * dlist, SMFontUtil * fontutil )
 	}
 
 	// draw ref designator text
-	m_ref->Draw();
+	m_ref->DrawRelativeTo( NULL );								// CPT2: DrawRelativeTo( NULL ) ensures that text on the bottom layers gets mirrored
 	// draw value text (CPT: only if height is >0)
 	if (m_value->m_font_size)
-		m_value->Draw();
+		m_value->DrawRelativeTo( NULL );
 
 	// now draw outline polylines
-	citer<coutline> ip (&m_outline_poly);
-	for (coutline *p = ip.First(); p; p = ip.Next())
+	citer<coutline> io (&m_outline_poly);
+	for (coutline *o = io.First(); o; o = io.Next())
 	{
-		int sel_box_size = max( p->m_w, 5*NM_PER_MIL );
-		p->SetSelBoxSize( sel_box_size );
-		p->Draw();
+		int sel_box_size = max( o->m_w, 5*NM_PER_MIL );
+		o->SetSelBoxSize( sel_box_size );
+		o->Draw();
 	}
 
 	// draw text
 	citer<ctext> it (&m_tl->texts);
 	for (ctext *t = it.First(); t; t = it.Next())
-		t->Draw();
+		t->DrawRelativeTo( NULL );
 
-#ifndef CPT2 // TODO
-	// draw centroid
-	id c_id( ID_FP, -1, ID_CENTROID, -1, -1, ID_CENT );
-	int axis_offset_x = 0;
-	int axis_offset_y = 0;
-	if( m_centroid_angle == 0 )
-		axis_offset_x = CENTROID_WIDTH;
-	else if( m_centroid_angle == 90 )
-		axis_offset_y = CENTROID_WIDTH;
-	else if( m_centroid_angle == 180 )
-		axis_offset_x = -CENTROID_WIDTH;
-	else if( m_centroid_angle == 270 )
-		axis_offset_y = -CENTROID_WIDTH;
-	m_centroid_el = m_dlist->Add( c_id, NULL, LAY_FP_CENTROID, DL_CENTROID, TRUE, 
-		CENTROID_WIDTH, 0, 0, m_centroid_x, m_centroid_y, 
-		m_centroid_x+axis_offset_x, m_centroid_y + axis_offset_y, 
-		0, 0, 0 ); 
-	c_id.SetSubSubType( ID_SEL_CENT ); 
-	m_centroid_sel = m_dlist->AddSelector( c_id, NULL, LAY_FP_CENTROID, DL_HOLLOW_RECT, 
-		TRUE, 0, 0, 
-		m_centroid_x-CENTROID_WIDTH/2, 
-		m_centroid_y-CENTROID_WIDTH/2, 
-		m_centroid_x+CENTROID_WIDTH/2, 
-		m_centroid_y+CENTROID_WIDTH/2, 
-		0, 0, 0 );
-
-	// draw glue spots
-	int ndots = m_glue.GetSize();
-	m_dot_el.SetSize( ndots );
-	m_dot_sel.SetSize( ndots );
-	for( int idot=0; idot<ndots; idot++ )
-	{
-		glue * g = &m_glue[idot];
-		int w = g->w;
-		if( w == 0 )
-			w = DEFAULT_GLUE_WIDTH;
-		id g_id( ID_FP, -1, ID_GLUE, -1, idot, ID_SPOT );
-		m_dot_el[idot] = m_dlist->Add( g_id, NULL, LAY_FP_DOT, DL_CIRC, TRUE, 
-			w, 0, 0, g->x_rel, g->y_rel, 0, 0, 0, 0 );									// CPT r292 arg-list bug fix
-		g_id.SetSubSubType( ID_SEL_SPOT );
-		m_dot_sel[idot] = m_dlist->AddSelector( g_id, NULL, LAY_FP_DOT, DL_HOLLOW_RECT, 
-			TRUE, 0, 0, 
-			g->x_rel-w/2, 
-			g->y_rel-w/2, 
-			g->x_rel+w/2, 
-			g->y_rel+w/2, 
-			0, 0, 0 );
-	}
-#endif
+	// draw centroid and glue-spots
+	m_centroid->Draw();
+	citer<cglue> ig (&m_glues);
+	for (cglue *g = ig.First(); g; g = ig.Next())
+		g->Draw();
 }
 
 void CEditShape::Clear()
@@ -2630,21 +2579,20 @@ void CEditShape::Copy( CShape * shape )
 void CEditShape::Undraw()
 {
 	// CPT2 converted
-	if( !m_dlist )
-		return;
+	CDisplayList *dl = m_doc->m_dlist;
 
 	citer<cpadstack> ips (&m_padstack);
 	for (cpadstack *ps = ips.First(); ps; ps = ips.Next())
 	{
-		m_dlist->Remove( ps->dl_el );
-		m_dlist->Remove( ps->dl_sel );
-		m_dlist->Remove( ps->top.dl_el );
-		m_dlist->Remove( ps->inner.dl_el );
-		m_dlist->Remove( ps->bottom.dl_el );
-		m_dlist->Remove( ps->top_mask.dl_el );
-		m_dlist->Remove( ps->top_paste.dl_el );
-		m_dlist->Remove( ps->bottom_mask.dl_el );
-		m_dlist->Remove( ps->bottom_paste.dl_el );
+		dl->Remove( ps->dl_el );
+		dl->Remove( ps->dl_sel );
+		dl->Remove( ps->top.dl_el );
+		dl->Remove( ps->inner.dl_el );
+		dl->Remove( ps->bottom.dl_el );
+		dl->Remove( ps->top_mask.dl_el );
+		dl->Remove( ps->top_paste.dl_el );
+		dl->Remove( ps->bottom_mask.dl_el );
+		dl->Remove( ps->bottom_paste.dl_el );
 		ps->dl_el = ps->dl_sel = ps->top.dl_el = ps->inner.dl_el =
 			ps->bottom.dl_el = ps->top_mask.dl_el = ps->top_paste.dl_el =
 			ps->bottom_mask.dl_el = ps->bottom_paste.dl_el = NULL;
@@ -2653,262 +2601,85 @@ void CEditShape::Undraw()
 	m_ref->Undraw();
 	m_value->Undraw();
 
-	citer<coutline> ip (&m_outline_poly);
-	for (coutline *p = ip.First(); p; p = ip.Next())
-		p->Undraw();
+	citer<coutline> io (&m_outline_poly);
+	for (coutline *o = io.First(); o; o = io.Next())
+		o->Undraw();
 
 	citer<ctext> it (&m_tl->texts);
 	for (ctext *t = it.First(); t; t = it.Next())
 		t->Undraw();
 
-#ifndef CPT2 // TODO
-	m_dlist->Remove( m_centroid_el );
-	m_dlist->Remove( m_centroid_sel );
-
-	for( int ispot=0; ispot<m_glue.GetSize(); ispot++ )
-	{
-		m_dlist->Remove( m_dot_el[ispot] );
-		m_dlist->Remove( m_dot_sel[ispot] );
-	}
-	m_dot_el.RemoveAll();
-	m_dot_sel.RemoveAll();
-	m_dlist = NULL;
-#endif
+	m_centroid->Undraw();
+	citer<cglue> ig (&m_glues);
+	for (cglue *g = ig.First(); g; g = ig.Next())
+		g->Undraw();
 }
 
-// Select part pad
-//
-/* CPT2 replaced with cpadstack::Highlight()
-void CEditShape::HighlightPad( int i )
-{
-	// select it by making its selection rectangle visible
-	m_dlist->Highlight( DL_RECT_X, 
-		m_dlist->Get_x(m_pad_sel[i]), 
-		m_dlist->Get_y(m_pad_sel[i]),
-		m_dlist->Get_xf(m_pad_sel[i]), 
-		m_dlist->Get_yf(m_pad_sel[i]), 
-		1 );
-}
-*/
-
-// Start dragging pad
-//
-void CEditShape::StartDraggingPad( CDC * pDC, int i )
-{
-#ifndef CPT2	// TODO, will put into class cpadstack
-	// make pad invisible
-	m_dlist->Set_visible( m_hole_el[i], 0 );
-	m_dlist->Set_visible( m_pad_top_el[i], 0 );
-	m_dlist->Set_visible( m_pad_inner_el[i], 0 );
-	m_dlist->Set_visible( m_pad_bottom_el[i], 0 );
-	// cancel selection 
-	m_dlist->CancelHighlight();
-	// drag
-	CRect r = GetPadBounds( i );
-	int x = m_padstack[i].x_rel;
-	int y = m_padstack[i].y_rel;
-	m_dlist->StartDraggingRectangle( pDC, 
-						x, 
-						y,
-						r.left - x, 
-						r.bottom - y,
-						r.right - x, 
-						r.top - y,
-						0, LAY_FP_SELECTION );
-#endif
-}
-
-// Cancel dragging pad
-//
-void CEditShape::CancelDraggingPad( int i )
-{
-#ifndef CPT2	// TODO, put into class cpadstack
-	// make pad visible
-	m_dlist->Set_visible( m_hole_el[i], 1 );
-	m_dlist->Set_visible( m_pad_top_el[i], 1 );
-	m_dlist->Set_visible( m_pad_inner_el[i], 1 );
-	m_dlist->Set_visible( m_pad_bottom_el[i], 1 );
-	// drag
-	m_dlist->StopDragging();
-#endif
-}
 
 // Start dragging row of pads
 //
-void CEditShape::StartDraggingPadRow( CDC * pDC, int i, int num )
+void CEditShape::StartDraggingPadRow( CDC * pDC, carray<cpadstack> *row )
 {
-#ifndef CPT2	// TODO, must figure out how rows will work
-	// cancel selection 
-	m_dlist->CancelHighlight();
+	CDisplayList *dl = m_doc->m_dlist;
+	dl->CancelHighlight();
 	// make pads invisible
-	for( int ip=i; ip<(i+num); ip++ )
+	citer<cpadstack> ips (row);
+	for (cpadstack *ps = ips.First(); ps; ps = ips.Next())
 	{
-		m_dlist->Set_visible( m_hole_el[ip], 0 );
-		m_dlist->Set_visible( m_pad_top_el[ip], 0 );
-		m_dlist->Set_visible( m_pad_inner_el[ip], 0 );
-		m_dlist->Set_visible( m_pad_bottom_el[ip], 0 );
+		dl->Set_visible( ps->dl_el, 0 );
+		dl->Set_visible( ps->top.dl_el, 0 );			// CPT2 TODO how 'bout the other layers?
+		dl->Set_visible( ps->inner.dl_el, 0 );
+		dl->Set_visible( ps->bottom.dl_el, 0 );
 	}
-	// drag
-	CRect r = GetPadRowBounds( i, num );
-	int x = m_padstack[i].x_rel;
-	int y = m_padstack[i].y_rel;
-	m_dlist->StartDraggingRectangle( pDC, 
-						x, 
-						y,
-						r.left - x, 
-						r.bottom - y,
-						r.right - x, 
-						r.top - y,
-						0, LAY_FP_SELECTION );
-#endif
+	// drag.  CPT2 First get pad row bounds (used to be a separate function, but why bother?)
+	CRect rr;
+	rr.left = rr.bottom = INT_MAX;
+	rr.right = rr.top = INT_MIN;
+	for (cpadstack *ps = ips.First(); ps; ps = ips.Next())
+	{
+		CRect r = ps->GetBounds();
+		rr.left = min( r.left, rr.left );
+		rr.bottom = min( r.bottom, rr.bottom );
+		rr.right = max( r.right, rr.right );
+		rr.top = max( r.top, rr.top );
+	}
+	int x = row->First()->x_rel;
+	int y = row->First()->y_rel;
+	dl->StartDraggingRectangle( pDC, x, y,
+						rr.left - x, rr.bottom - y, rr.right - x, rr.top - y,
+						0, LAY_SELECTION );
 }
 
 // Cancel dragging row of pads
 //
-void CEditShape::CancelDraggingPadRow( int i, int num )
+void CEditShape::CancelDraggingPadRow( carray<cpadstack> *row )
 {
-#ifndef CPT2	// TODO, must figure rows out
 	// make pad visible
-	for( int ip=i; ip<(i+num); ip++ )
+	CDisplayList *dl = m_doc->m_dlist;
+	citer<cpadstack> ips (row);
+	for (cpadstack *ps = ips.First(); ps; ps = ips.Next())
 	{
-		m_dlist->Set_visible( m_hole_el[ip], 1 );
-		m_dlist->Set_visible( m_pad_top_el[ip], 1 );
-		m_dlist->Set_visible( m_pad_inner_el[ip], 1 );
-		m_dlist->Set_visible( m_pad_bottom_el[ip], 1 );
+		dl->Set_visible( ps->dl_el, 1 );
+		dl->Set_visible( ps->top.dl_el, 1 );
+		dl->Set_visible( ps->inner.dl_el, 1 );
+		dl->Set_visible( ps->bottom.dl_el, 1 );
 	}
-	// drag
-	m_dlist->StopDragging();
-#endif
+	dl->StopDragging();
 }
 
-// Select glue spot
-//
-void CEditShape::SelectAdhesive( int idot )
-{
-	// select it by making its selection rectangle visible
-	m_dlist->Highlight( DL_HOLLOW_RECT, 
-		m_dlist->Get_x( m_dot_sel[idot] ), 
-		m_dlist->Get_y( m_dot_sel[idot] ),
-		m_dlist->Get_xf( m_dot_sel[idot] ), 
-		m_dlist->Get_yf( m_dot_sel[idot] ), 
-		1 );
-}
-
-// Start dragging glue spot
-//
-void CEditShape::StartDraggingAdhesive( CDC * pDC, int idot )
-{
-	glue * g = &m_glue[idot];
-	// make glue spot invisible
-	m_dlist->Set_visible( m_dot_el[idot], 0 );
-	// cancel selection 
-	m_dlist->CancelHighlight();
-	// drag
-	int w = g->w;
-	if( w == 0 )
-		w = DEFAULT_GLUE_WIDTH;
-	m_dlist->StartDraggingRectangle( pDC, 
-		g->x_rel, 
-		g->y_rel,
-		- w/2, 
-		- w/2,
-		w/2, 
-		w/2,
-		0, LAY_FP_SELECTION );
-}
-
-// Cancel dragging glue spot
-//
-void CEditShape::CancelDraggingAdhesive( int idot )
-{
-	// make glue spot visible
-	m_dlist->Set_visible( m_dot_el[idot], 1 );
-	// stop dragging
-	m_dlist->StopDragging();
-}
-
-// Select centroid
-//
-void CEditShape::SelectCentroid()
-{
-	// select it by making its selection rectangle visible
-	m_dlist->Highlight( DL_HOLLOW_RECT, 
-		m_dlist->Get_x(m_centroid_sel), 
-		m_dlist->Get_y(m_centroid_sel),
-		m_dlist->Get_xf(m_centroid_sel), 
-		m_dlist->Get_yf(m_centroid_sel), 
-		1 );
-}
-
-// Start dragging centroid
-//
-void CEditShape::StartDraggingCentroid( CDC * pDC )
-{
-	// make centroid invisible
-	m_dlist->Set_visible( m_centroid_el, 0 );
-	// cancel selection 
-	m_dlist->CancelHighlight();
-	// make graphic to drag
-	m_dlist->MakeDragLineArray( 8 );
-	int w = CENTROID_WIDTH;
-	int xa = 0, ya = 0;
-	if( m_centroid_angle == 0 )
-		xa += w;
-	else if( m_centroid_angle == 90 )
-		ya -= w;
-	else if( m_centroid_angle == 180 )
-		xa -= w;
-	else if( m_centroid_angle == 270 )
-		ya += w;
-	m_dlist->AddDragLine( CPoint(-w/2, -w/2), CPoint(+w/2, -w/2) );
-	m_dlist->AddDragLine( CPoint(+w/2, -w/2), CPoint(+w/2, +w/2) );
-	m_dlist->AddDragLine( CPoint(+w/2, +w/2), CPoint(-w/2, +w/2) );
-	m_dlist->AddDragLine( CPoint(-w/2, +w/2), CPoint(-w/2, -w/2) );
-	m_dlist->AddDragLine( CPoint(0, 0), CPoint(xa, ya) );
-	// drag
-	m_dlist->StartDraggingArray( pDC, m_centroid_x, m_centroid_y, 0, LAY_FP_SELECTION );
-#if 0
-	m_dlist->StartDraggingRectangle( pDC, 
-						m_centroid_x, 
-						m_centroid_y,
-						- CENTROID_WIDTH/2, 
-						- CENTROID_WIDTH/2,
-						CENTROID_WIDTH/2, 
-						CENTROID_WIDTH/2,
-						0, LAY_FP_SELECTION );
-#endif
-}
-
-// Cancel dragging centroid
-//
-void CEditShape::CancelDraggingCentroid()
-{
-	// make centroid visible
-	m_dlist->Set_visible( m_centroid_el, 1 );
-	// stop dragging
-	m_dlist->StopDragging();
-}
 
 void CEditShape::ShiftToInsertPadName( CString * astr, int n )
 {
-#ifndef CPT2
+	// CPT2 converted.  User wants to give a new pin the name "astr+n".  Check if this would result in a conflict;  if so, shift the old pin's name
+	// up by one.
 	CString test;
 	test.Format( "%s%d", *astr, n );
-	int index = GetPinIndexByName( test );	 // see if pin name already exists
-	if( index == -1 )
-	{
+	cpadstack *ps = GetPadstackByName( &test );
+	if (!ps)
 		// no conflict, shift not needed
 		return;
-	}
-	else
-	{
-		// pin name exists, shift it up by one
-		ShiftToInsertPadName( astr, n+1 );
-		CString new_name;
-		new_name.Format( "%s%d", *astr, n+1 );
-		m_padstack[index].name = new_name;
-	}
-#endif
+	ShiftToInsertPadName( astr, n+1 );
+	ps->name.Format( "%s%d", *astr, n+1 );
 }
 
 // Generate selection rectangle from footprint elements
@@ -2920,8 +2691,7 @@ BOOL CEditShape::GenerateSelectionRectangle( CRect * r )
 	if( num_elements == 0 )
 		return FALSE;
 
-	CRect br;
-	br = GetBounds( TRUE );
+	CRect br = GetBounds( TRUE );
 
 	br.left -= 10*NM_PER_MIL;
 	br.right += 10*NM_PER_MIL;

@@ -71,11 +71,13 @@ public:
 	carray<cpcb_item> m_sel;	// CPT2.  Will replace the following 2 items
 	id m_sel_id;			// id of selected item
 	id m_sel_uid;			// uid of selected item
-	int m_sel_layer;		// layer of selected item
+	int m_sel_layer;		// layer of selected item. CPT2 TODO probably obsolete
 	int m_sel_offset;		// CPT:  new system for processing repeated clicks in the same place --- see CDisplayList::TestSelect()
 	id m_sel_id_prev;		// CPT: ditto.  See e.g. CFreePcbView::OnLButtonUp().  Also used when user repeatedly hits 'T'
 	int m_cursor_mode_prev;	// CPT: ditto
 	cpcb_item *m_sel_prev;	// CPT2 was void*
+	cpolyline *m_tmp_poly;	// CPT2.  When dragging new polylines or cutouts, we put the evolving contour into this poly.
+	int m_poly_drag_mode;	// CPT2.  Equal to CUR_ADD_AREA, CUR_ADD_AREA_CUTOUT, CUR_ADD_SMCUTOUT, CUR_ADD_BOARD
 
 	// active layer for placement and (perhaps) routing
 	int m_active_layer;
@@ -164,6 +166,7 @@ public:
 	virtual int GetMaskNamesID() = 0;
 	virtual int GetMaskBtnBits(int i) = 0;				// CPT2
 	// Display:
+	void SetCursorMode( int mode );
 	int ShowCursor();
 	void ShowRelativeDistance( int dx, int dy );
 	void ShowRelativeDistance( int x, int y, int dx, int dy );
@@ -171,9 +174,11 @@ public:
 	void DrawLeftPane(CDC *pDC);
 	void DrawBottomPane(CDC *pDC);
 	// User input response:
+	void SelectItem(cpcb_item *item);
 	virtual void CancelSelection() = 0;
 	bool CheckBottomPaneClick(CPoint &point);
 	bool CheckLeftPaneClick(CPoint &point);
+	void RightClickSelect(CPoint &point);
 	virtual BOOL OnMouseWheel(UINT nFlags, short zDelta, CPoint pt);
 	virtual void OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags) = 0;
 	virtual void HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags) = 0;
@@ -182,6 +187,17 @@ public:
 	virtual void HandleNoShiftLayerKey(int layer, CDC *pDC) { }
 	void HandlePanAndZoom(int nChar, CPoint &p);
 	void HandleCtrlFKey(int nChar);
+	// CPT2 r317, made the following 10 virtual
+	virtual void SetFKText( int mode ) = 0;
+	virtual int ShowSelectStatus() = 0;
+	virtual BOOL CurNone() = 0;
+	virtual BOOL CurSelected() = 0;
+	virtual BOOL CurDragging() = 0;
+	virtual BOOL CurDraggingPlacement() = 0;
+	virtual void SnapCursorPoint( CPoint wp, UINT nFlags ) = 0;
+	virtual void CancelHighlight() = 0;
+	virtual	void HighlightSelection() = 0;
+	virtual void SetMainMenu( BOOL bAll ) { }
 
 	afx_msg void OnSysKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags);
 	afx_msg void OnSysKeyUp(UINT nChar, UINT nRepCnt, UINT nFlags);

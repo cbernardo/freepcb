@@ -122,7 +122,6 @@ CDlgAddPin::~CDlgAddPin()
 
 void CDlgAddPin::DoDataExchange(CDataExchange* pDX)
 {
-#ifndef CPT2
 	CDialog::DoDataExchange(pDX); 
 	DDX_Control(pDX, IDC_RADIO_ADD_PIN, m_radio_add_pin);
 	DDX_Control(pDX, IDC_RADIO_ADD_ROW, m_radio_add_row);
@@ -263,24 +262,22 @@ void CDlgAddPin::DoDataExchange(CDataExchange* pDX)
 		if( m_fp->GetNumPins() )
 		{
 			CArray<CString> pin_name;
-			pin_name.SetSize( m_fp->GetNumPins() );
-			for( int i=0; i<m_fp->GetNumPins(); i++ )
-			{
-				pin_name[i] = m_fp->m_padstack[i].name;
-			}
+			citer<cpadstack> ips (&m_fp->m_padstack);
+			for (cpadstack *ps = ips.First(); ps; ps = ips.Next())
+				pin_name.Add(ps->name);
 			::SortByName( &pin_name );
 			int ipp = 0; 
-			for( int i=0; i<m_fp->GetNumPins(); i++ )
+			for( int i=0; i<pin_name.GetSize(); i++ )
 			{
 				m_combo_same_as_pin.InsertString( i, pin_name[i] );
-				if( m_mode == ADD || pin_name[i] != m_fp->m_padstack[m_pin_num].name )
+				if( !m_ps0 || pin_name[i] != m_ps0->name )
 					m_list_pins.InsertString( ipp++, pin_name[i] );
 			}
 		} 
-		if( m_mode == ADD && m_fp->GetNumPins() )
+
+		if( !m_ps0 && m_fp->GetNumPins() )
 		{
 			// add pin, pins already defined
-			m_pin_num = m_fp->GetNumPins();
 			str.Format( "%d", m_fp->GetNumPins()+1 );
 			m_edit_pin_name.SetWindowText( str );
 			m_combo_same_as_pin.SetCurSel( 0 );
@@ -289,10 +286,9 @@ void CDlgAddPin::DoDataExchange(CDataExchange* pDX)
 			m_radio_drag.SetCheck( 1 );
 			OnBnClickedRadioDragPin();
 		}
-		else if( m_mode == ADD )
+		else if( !m_ps0 )
 		{
 			// add pin, no pins already defined
-			m_pin_num = 0;
 			m_edit_pin_name.SetWindowText( "1" );
 			m_check_same_as_pin.EnableWindow( FALSE );
 			m_combo_same_as_pin.EnableWindow( FALSE );
@@ -301,12 +297,12 @@ void CDlgAddPin::DoDataExchange(CDataExchange* pDX)
 			m_radio_drag.SetCheck( 1 );
 			OnBnClickedRadioDragPin();
 		}
-		else if( m_mode == EDIT )
+		else if( m_ps0 )
 		{
 			// edit existing pin
-			m_edit_pin_name.SetWindowText( m_fp->GetPinNameByIndex( m_pin_num ) );
+			m_edit_pin_name.SetWindowText( m_ps0->name );
 			m_check_same_as_pin.SetCheck(1);
-			m_combo_same_as_pin.SetCurSel( m_pin_num );
+			m_combo_same_as_pin.SetCurSel(0);  // CPT2 TODO was "m_pin_num".  Figure out the proper translation...
 			m_check_same_as_pin.SetCheck(0);
 			OnChange();
 			m_radio_add_pin.SetCheck( 0 );
@@ -318,66 +314,65 @@ void CDlgAddPin::DoDataExchange(CDataExchange* pDX)
 			OnBnClickedRadioSetPinPos();
 			GetFields();
 			CString flag_str;
-			cpadstack * ps = &m_fp->m_padstack[m_pin_num];
-			m_x = ps->x_rel;
-			m_y = ps->y_rel;
-			m_hole_diam = ps->hole_size;
+			m_x = m_ps0->x_rel;
+			m_y = m_ps0->y_rel;
+			m_hole_diam = m_ps0->hole_size;
 			if( m_hole_diam != 0 )
 				m_padstack_type = 1;
 			else
 			{
-				if( ps->top.shape != PAD_NONE )
+				if( m_ps0->top.shape != PAD_NONE )
 					m_padstack_type = 0;
 				else
 					m_padstack_type = 2;
 			}
-			m_top_shape = ps->top.shape;
-			m_top_width = ps->top.size_h;
-			m_top_length = ps->top.size_l*2;
-			m_top_radius = ps->top.radius;
-			m_top_flags = ps->top.connect_flag;
-			m_top_mask_shape = ps->top_mask.shape;
-			m_top_mask_width = ps->top_mask.size_h;
-			m_top_mask_length = ps->top_mask.size_l*2;
-			m_top_mask_radius = ps->top_mask.radius;
-			m_top_paste_shape = ps->top_paste.shape;
-			m_top_paste_width = ps->top_paste.size_h;
-			m_top_paste_length = ps->top_paste.size_l*2;
-			m_top_paste_radius = ps->top_paste.radius;
-			m_inner_shape = ps->inner.shape;
-			m_inner_width = ps->inner.size_h;
-			m_inner_length = ps->inner.size_l*2;
-			m_inner_radius = ps->inner.radius;
-			m_inner_flags = ps->inner.connect_flag;
-			m_bottom_shape = ps->bottom.shape;
-			m_bottom_width = ps->bottom.size_h;
-			m_bottom_length = ps->bottom.size_l*2;
-			m_bottom_radius = ps->bottom.radius;
-			m_bottom_flags = ps->bottom.connect_flag;
-			m_bottom_mask_shape = ps->bottom_mask.shape;
-			m_bottom_mask_width = ps->bottom_mask.size_h;
-			m_bottom_mask_length = ps->bottom_mask.size_l*2;
-			m_bottom_mask_radius = ps->bottom_mask.radius;
-			m_bottom_paste_shape = ps->bottom_paste.shape;
-			m_bottom_paste_width = ps->bottom_paste.size_h;
-			m_bottom_paste_length = ps->bottom_paste.size_l*2;
-			m_bottom_paste_radius = ps->bottom_paste.radius;
+			m_top_shape = m_ps0->top.shape;
+			m_top_width = m_ps0->top.size_h;
+			m_top_length = m_ps0->top.size_l*2;
+			m_top_radius = m_ps0->top.radius;
+			m_top_flags = m_ps0->top.connect_flag;
+			m_top_mask_shape = m_ps0->top_mask.shape;
+			m_top_mask_width = m_ps0->top_mask.size_h;
+			m_top_mask_length = m_ps0->top_mask.size_l*2;
+			m_top_mask_radius = m_ps0->top_mask.radius;
+			m_top_paste_shape = m_ps0->top_paste.shape;
+			m_top_paste_width = m_ps0->top_paste.size_h;
+			m_top_paste_length = m_ps0->top_paste.size_l*2;
+			m_top_paste_radius = m_ps0->top_paste.radius;
+			m_inner_shape = m_ps0->inner.shape;
+			m_inner_width = m_ps0->inner.size_h;
+			m_inner_length = m_ps0->inner.size_l*2;
+			m_inner_radius = m_ps0->inner.radius;
+			m_inner_flags = m_ps0->inner.connect_flag;
+			m_bottom_shape = m_ps0->bottom.shape;
+			m_bottom_width = m_ps0->bottom.size_h;
+			m_bottom_length = m_ps0->bottom.size_l*2;
+			m_bottom_radius = m_ps0->bottom.radius;
+			m_bottom_flags = m_ps0->bottom.connect_flag;
+			m_bottom_mask_shape = m_ps0->bottom_mask.shape;
+			m_bottom_mask_width = m_ps0->bottom_mask.size_h;
+			m_bottom_mask_length = m_ps0->bottom_mask.size_l*2;
+			m_bottom_mask_radius = m_ps0->bottom_mask.radius;
+			m_bottom_paste_shape = m_ps0->bottom_paste.shape;
+			m_bottom_paste_width = m_ps0->bottom_paste.size_h;
+			m_bottom_paste_length = m_ps0->bottom_paste.size_l*2;
+			m_bottom_paste_radius = m_ps0->bottom_paste.radius;
 			m_bottom_same_as_top = FALSE;
 			if( m_hole_diam
-				&& ps->top == ps->bottom
-				&& ps->top_mask == ps->bottom_mask
-				&& ps->top_paste == ps->bottom_paste
-				)
+				&& m_ps0->top == m_ps0->bottom
+				&& m_ps0->top_mask == m_ps0->bottom_mask
+				&& m_ps0->top_paste == m_ps0->bottom_paste )
 			{
 				m_bottom_same_as_top = TRUE;
 			}
-			if( ps->angle == 90 || ps->angle == 270 )
+			if( m_ps0->angle == 90 || m_ps0->angle == 270 )
 				m_pad_orient = 1;
 			else
 				m_pad_orient = 0;
 		}
 		SetFields();
 	}
+
 	else
 	{
 		// outgoing
@@ -395,7 +390,7 @@ void CDlgAddPin::DoDataExchange(CDataExchange* pDX)
 			AfxMessageBox( s1 );
 			pDX->Fail();
 		}
-		if( m_mode == ADD )
+		if( !m_ps0 )
 		{
 			if( m_num_pins > 1 && m_row_spacing == 0 )
 			{
@@ -444,24 +439,21 @@ void CDlgAddPin::DoDataExchange(CDataExchange* pDX)
 		if( m_padstack_type == 0 || m_padstack_type == 1 )
 		{
 			if( m_top_shape == PAD_RRECT && 
-				( m_top_radius > m_top_length/2 )
-				|| ( m_top_radius > m_top_width/2 ) )
+				( m_top_radius > m_top_length/2 ||  m_top_radius > m_top_width/2 ) )
 			{
 				CString s ((LPCSTR) IDS_RadiusOfTopRoundedRect);
 				AfxMessageBox( s );
 				pDX->Fail();
 			}
 			if( m_top_mask_shape == PAD_RRECT && 
-				( m_top_mask_radius > m_top_mask_length/2 )
-				|| ( m_top_mask_radius > m_top_mask_width/2 ) )
+				( m_top_mask_radius > m_top_mask_length/2 || m_top_mask_radius > m_top_mask_width/2 ) )
 			{
 				CString s ((LPCSTR) IDS_RadiusOfTopMask);
 				AfxMessageBox( s );
 				pDX->Fail();
 			}
 			if( m_top_paste_shape == PAD_RRECT && 
-				( m_top_paste_radius > m_top_paste_length/2 )
-				|| ( m_top_paste_radius > m_top_paste_width/2 ) )
+				( m_top_paste_radius > m_top_paste_length/2 || m_top_paste_radius > m_top_paste_width/2 ) )
 			{
 				CString s ((LPCSTR) IDS_RadiusOfTopPaste);
 				AfxMessageBox( s );
@@ -471,8 +463,7 @@ void CDlgAddPin::DoDataExchange(CDataExchange* pDX)
 		if( m_padstack_type == 1 )
 		{
 			if( m_inner_shape == PAD_RRECT && 
-				( m_inner_radius > m_inner_length/2 )
-				|| ( m_inner_radius > m_inner_width/2 ) )
+				( m_inner_radius > m_inner_length/2 || m_inner_radius > m_inner_width/2 ) )
 			{
 				CString s ((LPCSTR) IDS_RadiusOfInnerRoundedRect);
 				AfxMessageBox( s );
@@ -482,24 +473,21 @@ void CDlgAddPin::DoDataExchange(CDataExchange* pDX)
 		if( m_padstack_type == 1 || m_padstack_type == 2 )
 		{
 			if( m_bottom_shape == PAD_RRECT && 
-				( m_bottom_radius > m_bottom_length/2 )
-				|| ( m_bottom_radius > m_bottom_width/2 ) )
+				( m_bottom_radius > m_bottom_length/2 || m_bottom_radius > m_bottom_width/2 ) )
 			{
 				CString s ((LPCSTR) IDS_RadiusOfBottomRoundedRect);
 				AfxMessageBox( s );
 				pDX->Fail();
 			}
 			if( m_bottom_mask_shape == PAD_RRECT && 
-				( m_bottom_mask_radius > m_bottom_mask_length/2 )
-				|| ( m_bottom_mask_radius > m_bottom_mask_width/2 ) )
+				( m_bottom_mask_radius > m_bottom_mask_length/2 || m_bottom_mask_radius > m_bottom_mask_width/2 ) )
 			{
 				CString s ((LPCSTR) IDS_RadiusOfBottomMask);
 				AfxMessageBox( s );
 				pDX->Fail();
 			}
 			if( m_bottom_paste_shape == PAD_RRECT && 
-				( m_bottom_paste_radius > m_bottom_paste_length/2 )
-				|| ( m_bottom_paste_radius > m_bottom_paste_width/2 ) )
+				( m_bottom_paste_radius > m_bottom_paste_length/2 || m_bottom_paste_radius > m_bottom_paste_width/2 ) )
 			{
 				CString s ((LPCSTR) IDS_RadiusOfBottomPaste);
 				AfxMessageBox( s );
@@ -518,18 +506,13 @@ void CDlgAddPin::DoDataExchange(CDataExchange* pDX)
 				pDX->Fail();
 			}
 			// check for conflicts
-			int npins = m_fp->m_padstack.GetSize();
-			for( int i=0; i<npins; i++ )
-			{
-				if( astr == m_fp->m_padstack[i].name )
+			citer<cpadstack> ips (&m_fp->m_padstack);
+			for (cpadstack *ps = ips.First(); ps; ps = ips.Next())
+				if( astr==ps->name && ps!=m_ps0 )
 				{
-					if( (m_mode == EDIT && i != m_pin_num) || m_mode == ADD )
-					{
-						conflict = TRUE;
-						break;
-					}
+					conflict = TRUE;
+					break;
 				}
-			}
 			if( conflict )
 			{
 				CString s ((LPCSTR) IDS_PinNameIsAlreadyInUse);
@@ -542,21 +525,17 @@ void CDlgAddPin::DoDataExchange(CDataExchange* pDX)
 		{
 			// pin name ends in a number, allow insertion
 			int npins = m_fp->m_padstack.GetSize();
-			for( int ip=0; ip<m_num_pins; ip++ )
+			for( int ip=0; ip<m_num_pins && !conflict; ip++ )
 			{
 				CString pin_name;
 				pin_name.Format( "%s%d", astr, n+ip*m_increment );
-				for( int i=0; i<npins; i++ )
-				{
-					if( pin_name == m_fp->m_padstack[i].name )
+				citer<cpadstack> ips (&m_fp->m_padstack);
+				for (cpadstack *ps = ips.First(); ps; ps = ips.Next())
+					if( pin_name == ps->name && ps!=m_ps0 )
 					{
-						if( (m_mode == EDIT && i != (m_pin_num)) || m_mode == ADD )
-						{
-							conflict = TRUE;
-							break;
-						}
+						conflict = TRUE;
+						break;
 					}
-				}
 			}
 			if( conflict )
 			{
@@ -578,13 +557,13 @@ void CDlgAddPin::DoDataExchange(CDataExchange* pDX)
 		// check if we will be dragging
 		m_drag_flag = m_radio_drag.GetCheck();
 		// now insert padstacks
-		cpadstack ps;
-		ps.hole_size = m_hole_diam;
+		cpadstack *ps = new cpadstack (m_fp->m_doc);
+		ps->hole_size = m_hole_diam;
 		if( m_padstack_type == 0 || m_padstack_type == 2 )
-			ps.hole_size = 0;
-		ps.angle = 0;
+			ps->hole_size = 0;
+		ps->angle = 0;
 		if( m_pad_orient == 1 )
-			ps.angle = 90;
+			ps->angle = 90;
 		if( m_padstack_type == 0 )
 		{
 			m_inner_shape = PAD_NONE;
@@ -595,44 +574,44 @@ void CDlgAddPin::DoDataExchange(CDataExchange* pDX)
 			m_top_shape = PAD_NONE;
 			m_inner_shape = PAD_NONE;
 		}
-		ps.top.shape = m_top_shape;
-		ps.top.size_h = m_top_width;
-		ps.top.size_l = m_top_length/2; 
-		ps.top.size_r = m_top_length/2;
-		ps.top.radius = m_top_radius;
-		ps.top.connect_flag = m_top_flags;
-		ps.top_mask.shape = m_top_mask_shape;
-		ps.top_mask.size_h = m_top_mask_width;
-		ps.top_mask.size_l = m_top_mask_length/2; 
-		ps.top_mask.size_r = m_top_mask_length/2;
-		ps.top_mask.radius = m_top_mask_radius;
-		ps.top_paste.shape = m_top_paste_shape;
-		ps.top_paste.size_h = m_top_paste_width;
-		ps.top_paste.size_l = m_top_paste_length/2; 
-		ps.top_paste.size_r = m_top_paste_length/2;
-		ps.top_paste.radius = m_top_paste_radius;
-		ps.inner.shape = m_inner_shape;
-		ps.inner.size_h = m_inner_width;
-		ps.inner.size_l = m_inner_length/2; 
-		ps.inner.size_r = m_inner_length/2;
-		ps.inner.radius = m_inner_radius;
-		ps.inner.connect_flag = m_inner_flags;
-		ps.bottom.shape = m_bottom_shape;
-		ps.bottom.size_h = m_bottom_width;
-		ps.bottom.size_l = m_bottom_length/2; 
-		ps.bottom.size_r = m_bottom_length/2;
-		ps.bottom.radius = m_bottom_radius;
-		ps.bottom.connect_flag = m_bottom_flags;
-		ps.bottom_mask.shape = m_bottom_mask_shape;
-		ps.bottom_mask.size_h = m_bottom_mask_width;
-		ps.bottom_mask.size_l = m_bottom_mask_length/2; 
-		ps.bottom_mask.size_r = m_bottom_mask_length/2;
-		ps.bottom_mask.radius = m_bottom_mask_radius;
-		ps.bottom_paste.shape = m_bottom_paste_shape;
-		ps.bottom_paste.size_h = m_bottom_paste_width;
-		ps.bottom_paste.size_l = m_bottom_paste_length/2; 
-		ps.bottom_paste.size_r = m_bottom_paste_length/2;
-		ps.bottom_paste.radius = m_bottom_paste_radius;
+		ps->top.shape = m_top_shape;
+		ps->top.size_h = m_top_width;
+		ps->top.size_l = m_top_length/2; 
+		ps->top.size_r = m_top_length/2;
+		ps->top.radius = m_top_radius;
+		ps->top.connect_flag = m_top_flags;
+		ps->top_mask.shape = m_top_mask_shape;
+		ps->top_mask.size_h = m_top_mask_width;
+		ps->top_mask.size_l = m_top_mask_length/2; 
+		ps->top_mask.size_r = m_top_mask_length/2;
+		ps->top_mask.radius = m_top_mask_radius;
+		ps->top_paste.shape = m_top_paste_shape;
+		ps->top_paste.size_h = m_top_paste_width;
+		ps->top_paste.size_l = m_top_paste_length/2; 
+		ps->top_paste.size_r = m_top_paste_length/2;
+		ps->top_paste.radius = m_top_paste_radius;
+		ps->inner.shape = m_inner_shape;
+		ps->inner.size_h = m_inner_width;
+		ps->inner.size_l = m_inner_length/2; 
+		ps->inner.size_r = m_inner_length/2;
+		ps->inner.radius = m_inner_radius;
+		ps->inner.connect_flag = m_inner_flags;
+		ps->bottom.shape = m_bottom_shape;
+		ps->bottom.size_h = m_bottom_width;
+		ps->bottom.size_l = m_bottom_length/2; 
+		ps->bottom.size_r = m_bottom_length/2;
+		ps->bottom.radius = m_bottom_radius;
+		ps->bottom.connect_flag = m_bottom_flags;
+		ps->bottom_mask.shape = m_bottom_mask_shape;
+		ps->bottom_mask.size_h = m_bottom_mask_width;
+		ps->bottom_mask.size_l = m_bottom_mask_length/2; 
+		ps->bottom_mask.size_r = m_bottom_mask_length/2;
+		ps->bottom_mask.radius = m_bottom_mask_radius;
+		ps->bottom_paste.shape = m_bottom_paste_shape;
+		ps->bottom_paste.size_h = m_bottom_paste_width;
+		ps->bottom_paste.size_l = m_bottom_paste_length/2; 
+		ps->bottom_paste.size_r = m_bottom_paste_length/2;
+		ps->bottom_paste.radius = m_bottom_paste_radius;
 		
 		int adj_x;
 		switch(m_padstack_type)
@@ -658,16 +637,16 @@ void CDlgAddPin::DoDataExchange(CDataExchange* pDX)
 
 		switch(m_x_edge)
 		{
-			case 0: ps.x_rel = m_x + adj_x;	break;
-			case 1:	ps.x_rel = m_x;			break;
-			case 2: ps.x_rel = m_x - adj_x;	break;
+			case 0: ps->x_rel = m_x + adj_x;	break;
+			case 1:	ps->x_rel = m_x;			break;
+			case 2: ps->x_rel = m_x - adj_x;	break;
 		}
 
 		switch(m_y_edge)
 		{
-			case 0: ps.y_rel = m_y - adj_y;	break;
-			case 1:	ps.y_rel = m_y;			break;
-			case 2: ps.y_rel = m_y + adj_y;	break;
+			case 0: ps->y_rel = m_y - adj_y;	break;
+			case 1:	ps->y_rel = m_y;			break;
+			case 2: ps->y_rel = m_y + adj_y;	break;
 		}
 
 		// apply to other pins if requested
@@ -682,8 +661,7 @@ void CDlgAddPin::DoDataExchange(CDataExchange* pDX)
 				if( m_list_pins.GetSel( ip ) )
 				{
 					m_list_pins.GetText( ip, str );
-					int i = m_fp->GetPinIndexByName( str );
-					cpadstack * sel_ps = &m_fp->m_padstack[i];
+					cpadstack *sel_ps =  m_fp->GetPadstackByName( &str );
 					if( sel_ps->hole_size == 0 )
 					{
 						if( sel_ps->top.shape != PAD_NONE )
@@ -705,48 +683,38 @@ void CDlgAddPin::DoDataExchange(CDataExchange* pDX)
 				if( m_list_pins.GetSel( ip ) )
 				{
 					m_list_pins.GetText( ip, str );
-					int i = m_fp->GetPinIndexByName( str );
-					if( i == -1 )
-						ASSERT(0);
+					cpadstack *sel_ps = m_fp->GetPadstackByName( &str );
+					ASSERT( sel_ps );
+					sel_ps->angle = ps->angle;
+					sel_ps->hole_size = ps->hole_size;
+					sel_ps->inner = ps->inner;
+					if( ps->hole_size == 0 && sel_ps->hole_size == 0
+						&& bPreserveLayer 
+						&& (ps->top.shape == PAD_NONE && sel_ps->top.shape != PAD_NONE
+						|| ps->bottom.shape == PAD_NONE && sel_ps->bottom.shape != PAD_NONE) )
+					{
+						// preserve pad layer by reversing assignment
+						sel_ps->top = ps->bottom;
+						sel_ps->top_mask = ps->bottom_mask;
+						sel_ps->top_paste = ps->bottom_paste;
+						sel_ps->bottom = ps->top;
+						sel_ps->bottom_mask = ps->top_mask;
+						sel_ps->bottom_paste = ps->top_paste;
+					}
 					else
 					{
-						cpadstack * sel_ps = &m_fp->m_padstack[i];
-						sel_ps->angle = ps.angle;
-						sel_ps->hole_size = ps.hole_size;
-						sel_ps->inner = ps.inner;
-						if( ps.hole_size == 0 && sel_ps->hole_size == 0
-							&& bPreserveLayer 
-							&& (ps.top.shape == PAD_NONE && sel_ps->top.shape != PAD_NONE
-							|| ps.bottom.shape == PAD_NONE && sel_ps->bottom.shape != PAD_NONE) )
-						{
-							// preserve pad layer by reversing assignment
-							sel_ps->top = ps.bottom;
-							sel_ps->top_mask = ps.bottom_mask;
-							sel_ps->top_paste = ps.bottom_paste;
-							sel_ps->bottom = ps.top;
-							sel_ps->bottom_mask = ps.top_mask;
-							sel_ps->bottom_paste = ps.top_paste;
-						}
-						else
-						{
-							// just copy pad layer
-							sel_ps->top = ps.top;
-							sel_ps->top_mask = ps.top_mask;
-							sel_ps->top_paste = ps.top_paste;
-							sel_ps->bottom = ps.bottom;
-							sel_ps->bottom_mask = ps.bottom_mask;
-							sel_ps->bottom_paste = ps.bottom_paste;
-						}
+						// just copy pad layer
+						sel_ps->top = ps->top;
+						sel_ps->top_mask = ps->top_mask;
+						sel_ps->top_paste = ps->top_paste;
+						sel_ps->bottom = ps->bottom;
+						sel_ps->bottom_mask = ps->bottom_mask;
+						sel_ps->bottom_paste = ps->bottom_paste;
 					}
 				}
 			}
 		}
-		// add or replace selected pin
-		if( m_mode == EDIT )
-		{
-			// remove pin
-			m_fp->m_padstack.RemoveAt(m_pin_num);
-		}
+
 		// add pins to footprint
 		int dx = 0;
 		int dy = 0;
@@ -756,23 +724,30 @@ void CDlgAddPin::DoDataExchange(CDataExchange* pDX)
 			dy = m_row_spacing;
 		if( m_num_pins > 1 )
 		{
+			ASSERT(!m_ps0);
 			for( int ip=0; ip<m_num_pins; ip++ )
 			{
-				ps.name.Format( "%s%d", astr, n+ip*m_increment );
 				m_fp->ShiftToInsertPadName( &astr, n+ip*m_increment );
-				m_fp->m_padstack.InsertAt(  m_pin_num+ip, ps );
-				ps.x_rel += dx;
-				ps.y_rel += dy;
+				if (ip>0)
+					ps = new cpadstack (ps),
+					ps->x_rel += dx,
+					ps->y_rel += dy;
+				ps->name.Format( "%s%d", astr, n+ip*m_increment );
+				m_fp->m_padstack.Add( ps );
+				m_new_pins->Add( ps );
 			}
 		}
+		else if (m_ps0)
+			ps->name = m_pin_name,
+			m_ps0->Copy( ps ),
+			m_new_pins->Add( m_ps0 ),
+			delete ps;
 		else
-		{
-			ps.name.Format( m_pin_name );						// CPT --- maybe will help with my mystery pin name bug
-			m_fp->ShiftToInsertPadName( &astr, n );
-			m_fp->m_padstack.InsertAt(  m_pin_num, ps );
-		}
+			m_fp->ShiftToInsertPadName( &astr, n ),
+			ps->name.Format( "%s%d", astr, n ),						// CPT --- maybe will help with my mystery pin name bug
+			m_fp->m_padstack.Add(  ps ),
+			m_new_pins->Add( ps );
 	}
-#endif
 }
 
 
@@ -812,17 +787,14 @@ BEGIN_MESSAGE_MAP(CDlgAddPin, CDialog)
 END_MESSAGE_MAP()
 
 
-void CDlgAddPin::InitDialog( CEditShape * fp, int mode, int pin_num, int units )
+void CDlgAddPin::InitDialog( CEditShape * fp, cpadstack *ps0, carray<cpadstack> *new_pins, int units )
 {
+	ASSERT(fp);
+	m_fp = fp;
+	m_ps0 = ps0;
+	m_new_pins = new_pins;
+	m_new_pins->RemoveAll();
 	m_units = units;
-	m_mode = mode;
-	if( m_mode == EDIT)
-		m_pin_num = pin_num;
-	if( fp )
-		m_fp = fp;
-	else
-		ASSERT(0);
-	return;
 }
 
 // CDlgAddPin message handlers
@@ -901,7 +873,7 @@ void CDlgAddPin::SetFields()
 	if( m_units == MIL )
 		max_dp = 0;
 	else
-		max_dp =4;
+		max_dp = 4;
 
 	// "same as pin" stuff
 	m_same_as_pin_flag = m_check_same_as_pin.GetCheck(); 
@@ -1084,7 +1056,6 @@ void CDlgAddPin::SetFields()
 //
 void CDlgAddPin::GetFields()
 {
-#ifndef CPT2
 	CString str;
 	int val;
 	double mult = NM_PER_MIL;
@@ -1099,8 +1070,7 @@ void CDlgAddPin::GetFields()
 	{
 		// set all parameters to be the same as another pin
 		m_combo_same_as_pin.GetWindowText( m_same_as_pin_name );
-		int ip = m_fp->GetPinIndexByName( m_same_as_pin_name );
-		cpadstack * copy_ps = &m_fp->m_padstack[ip];
+		cpadstack *copy_ps = m_fp->GetPadstackByName( &m_same_as_pin_name );
 		m_pad_orient = 0;
 		if( copy_ps->hole_size )
 			m_padstack_type = 1;
@@ -1275,7 +1245,6 @@ void CDlgAddPin::GetFields()
 
 	// row orientation
 	m_row_orient = m_combo_row_orient.GetCurSel();
-#endif
 }
 
 void CDlgAddPin::OnChange()

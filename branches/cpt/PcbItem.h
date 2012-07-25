@@ -44,7 +44,7 @@ class ctext;				// TODO: rename ctext
 class creftext;
 class cvaluetext;
 class ccentroid;
-class cadhesive;
+class cglue;
 class cdre;
 class cpadstack;
 
@@ -90,13 +90,15 @@ enum typebits {
 	bitRefText =		0x1000000,
 	bitValueText =		0x2000000,
 	bitCentroid =		0x4000000,		// Fp editor only...
-	bitAdhesive =		0x8000000,		// Fp editor only...
+	bitGlue =		0x8000000,		// Fp editor only...
 	bitDRE =			0x10000000,
-	bitPadstack =		0x20000000,
+	bitPadstack =		0x20000000,		// Fp editor only...
 	bitOther =			0x80000000,
 	bitsNetItem = bitVia | bitPinVtx | bitTraceVtx | bitTeeVtx | bitTee | bitSeg | bitConnect |
 				  bitAreaCorner | bitAreaSide | bitArea,
 	bitsPartItem = bitPin | bitPart,
+	bitsFootItem = bitOutlineCorner | bitOutlineSide | bitOutline | bitText | bitRefText | bitValueText | 
+				   bitCentroid | bitGlue | bitPadstack,
 	bitsSelectableForGroup = bitVia | bitSeg | bitConnect | bitPart | bitText | bitAreaSide | bitSmSide | bitBoardSide
 };
 
@@ -125,7 +127,7 @@ class cpcb_item
 	friend class carray<creftext>;
 	friend class carray<cvaluetext>;
 	friend class carray<ccentroid>;
-	friend class carray<cadhesive>;
+	friend class carray<cglue>;
 	friend class carray<cdre>;
 	friend class carray<cpadstack>;
 
@@ -148,13 +150,14 @@ protected:
 												// removed from any carrays to which it belongs.
 public:
 	int UID() { return m_uid; }
-	void SetDoc(CFreePcbDoc *doc);				// Done in cpp.
+	// void SetDoc(CFreePcbDoc *doc);			// Done in cpp.  CPT2 r317 maybe dump...
 	void MustRedraw();							// CPT2 r313.  My latest-n-greatest new system for drawing/undrawing (see notes.txt). Done in cpp
+	bool IsHit(int x, int y);					// Done in cpp.
+	bool IsDrawn() { return bDrawn; }
 
 	// Virtual functions:
 	virtual	int Draw() { return NOERR; }
 	virtual void Undraw() { }
-	bool IsDrawn() { return bDrawn; }
 	virtual void Highlight() { }
 	virtual bool IsValid() { return false; }	// Or make it pure virtual.
 
@@ -191,7 +194,7 @@ public:
 	virtual bool IsRefText() { return false; }
 	virtual bool IsValueText() { return false; }
 	virtual bool IsCentroid() { return false; }
-	virtual bool IsAdhesive() { return false; }
+	virtual bool IsGlue() { return false; }
 	virtual bool IsDRE() { return false; }
 	virtual bool IsPadstack() { return false; }
 
@@ -199,6 +202,7 @@ public:
 	bool IsPartItem() { return (GetTypeBit() & bitsPartItem) != 0; }
 	bool IsNetItem() { return (GetTypeBit() & bitsNetItem) != 0; }
 	bool IsSelectableForGroup() { return (GetTypeBit() & bitsSelectableForGroup) != 0; }
+	bool IsFootItem() { return (GetTypeBit() & bitsFootItem) != 0; }
 
 	// Type casting functions.  All return null by default, but are overridden to return type-cast pointers in specified derived classes
 	virtual cvertex2 *ToVertex() { return NULL; }
@@ -220,7 +224,7 @@ public:
 	virtual creftext *ToRefText() { return NULL; }
 	virtual cvaluetext *ToValueText() { return NULL; }
 	virtual ccentroid *ToCentroid() { return NULL; }
-	virtual cadhesive *ToAdhesive() { return NULL; }
+	virtual cglue *ToGlue() { return NULL; }
 	virtual cdre *ToDRE() { return NULL; }
 	virtual cpadstack *ToPadstack() { return NULL; }
 
@@ -262,7 +266,7 @@ class carray_link
 	friend class carray<creftext>;
 	friend class carray<cvaluetext>;
 	friend class carray<ccentroid>;
-	friend class carray<cadhesive>;
+	friend class carray<cglue>;
 	friend class carray<cdre>;
 	friend class carray<cpadstack>;
 
@@ -897,6 +901,9 @@ public:
 	creftext( cpart2 *_part, int x, int y, int angle, 
 		BOOL bMirror, BOOL bNegative, int layer, int font_size, 
 		int stroke_width, SMFontUtil * smfontutil, CString * str_ptr, bool bShown );			// Done in cpp
+	creftext( CFreePcbDoc *doc, int x, int y, int angle, 
+		BOOL bMirror, BOOL bNegative, int layer, int font_size, 
+		int stroke_width, SMFontUtil * smfontutil, CString * str_ptr, bool bShown );			// Done in cpp
 	bool IsValid();																				// Done in cpp
 	bool IsRefText() { return true; }
 	creftext *ToRefText() { return this; }
@@ -914,6 +921,9 @@ public:
 	cvaluetext( cpart2 *_part, int x, int y, int angle, 
 		BOOL bMirror, BOOL bNegative, int layer, int font_size, 
 		int stroke_width, SMFontUtil * smfontutil, CString * str_ptr, bool bShown );			// Done in cpp
+	cvaluetext( CFreePcbDoc *doc, int x, int y, int angle, 
+		BOOL bMirror, BOOL bNegative, int layer, int font_size, 
+		int stroke_width, SMFontUtil * smfontutil, CString * str_ptr, bool bShown );
 	bool IsValid();																				// Done in cpp
 	bool IsValueText() { return true; }
 	cvaluetext *ToValueText() { return this; }
@@ -1061,7 +1071,7 @@ public:
 	// CPoint GetValuePoint();				// Done in cpp.  Derived from CPartList func.
 	// CRect GetValueRect();				// Done in cpp.  Derived from CPartList func.
 	int GetBoundingRect( CRect * part_r );			// Done in cpp. Derived from CPartList::GetPartBoundingRect()
-	void FootprintChanged( CShape * shape );		// Done in cpp, loosely derived from CPartList::PartFootprintChanged() & CNetList::PartFootprintChanged()
+	void ChangeFootprint( CShape * shape );		// Done in cpp, loosely derived from CPartList::PartFootprintChanged() & CNetList::PartFootprintChanged()
 
 	int Draw();							// Done in cpp
 	void Undraw();						// Done in cpp
@@ -1135,6 +1145,7 @@ public:
 	bool IsOnCutout();								// Done in cpp
 
 	void InsertCorner(int x, int y);				// Done in cpp
+	bool Remove( carray<cpolyline> *arr );			// CPT2 new, done in cpp
 	void Highlight();		// Done in cpp, derived from cpolyline::HighlightSide()
 	void SetVisible();		// CPT2
 	void SetStyle();
@@ -1172,6 +1183,7 @@ public:
 	
 	int NumCorners() { return corners.GetSize(); }
 	void AppendSideAndCorner( cside *s, ccorner *c, ccorner *after );		// Done in cpp
+	void AppendCorner(int x, int y, int style = STRAIGHT);					// Done in cpp
 	void Close(int style = STRAIGHT);										// Done in cpp
 	void Unclose();															// Done in cpp
 	CRect GetCornerBounds();												// Done in cpp
@@ -1217,29 +1229,29 @@ public:
 	// functions for creating and modifying polyline
 	virtual void Remove() { }														// CPT2 new.  Check out the versions in derived classes.
 	void MarkConstituents();														// CPT2. Done in cpp.
-	void Clear();																	// CPT2 TODO maybe obsolete?
-	void Start( int layer, int w, int sel_box, int x, int y,
-		int hatch, id * id, void * ptr, BOOL bDraw=TRUE );							// CPT2 TODO maybe obsolete?
-	void AppendCorner( int x, int y, int style = STRAIGHT );							// CPT2 TODO Probably move into ccontour.
-	void InsertCorner( ccorner *c, int x, int y, int style = STRAIGHT );				// CPT2 TODO Probably move into ccontour.  Insert prior to "c"
+	// void Clear();																// CPT2 TODO maybe obsolete?
+	// void Start( int layer, int w, int sel_box, int x, int y,
+	//	int hatch, id * id, void * ptr, BOOL bDraw=TRUE );							// CPT2 TODO maybe obsolete?
+	// void AppendCorner( int x, int y, int style = STRAIGHT );							// CPT2 TODO Probably move into ccontour.
+	// void InsertCorner( ccorner *c, int x, int y, int style = STRAIGHT );				// CPT2 TODO Probably move into ccontour.  Insert prior to "c"
 	// void DeleteCorner( ccorner *c );													// Moved into ccorner
 	// BOOL MoveCorner( ccorner *c, int x, int y, BOOL bEnforceCircularArcs=FALSE );	// Moved into ccorner
-	void Close( int style = STRAIGHT );													// CPT2 TODO maybe obsolete?
+	// void Close( int style = STRAIGHT );													// CPT2 TODO maybe obsolete?
 
 	// void RemoveContour( ccontour *ctr );												// Moved into ccontour
 	// drawing functions
 	// void HighlightSide( int is );													// Change to cside::Highlight();
 	// void HighlightCorner( int ic );													// sim.
-	void StartDraggingToInsertCorner( CDC * pDC, ccorner *c, int x, int y, int crosshair = 1 ); // Arg change
+	// void StartDraggingToInsertCorner( CDC * pDC, ccorner *c, int x, int y, int crosshair = 1 ); // Arg change
 	// void StartDraggingToMoveCorner( CDC * pDC, ccorner *c, int x, int y, int crosshair = 1 );	// CPT2 Moved to ccorner
-	void CancelDraggingToInsertCorner( ccorner *c );											// Arg change
+	// void CancelDraggingToInsertCorner( ccorner *c );											// Arg change
 	// void CancelDraggingToMoveCorner( ccorner *c );												// CPT2 Moved to ccorner
 	int Draw();																					// Done in cpp.  Old arg removed.
 	void Undraw();																				// Done in cpp
 	void Hatch();																				// Done in cpp
 	void Highlight();																			// Done in cpp
 	void MakeVisible( BOOL visible = TRUE );
-	void MoveOrigin( int x_off, int y_off );
+	// void MoveOrigin( int x_off, int y_off );		// Same as Offset
 	// void SetSideVisible( int is, int visible );  // Use cside::SetVisible()
 
 	// misc. functions
@@ -1258,7 +1270,7 @@ public:
 	// id Id();
 	// int UID();   in base class
 	int NumCorners();														// Total corners in all contours.  Done in cpp.
-	// int NumSides();				
+	int NumSides();				
 	void GetSidesInRect( CRect *r, carray<cpcb_item> *arr );				// CPT2 new, done in cpp.
 	bool IsClosed()
 		{ return main->head==main->tail; }
@@ -1297,10 +1309,11 @@ public:
 	// void SetUtility( int ic, int utility ){ corner[ic].utility = utility; }  // Use corner->utility = ...
 	void SetLayer( int layer );
 	void SetW( int w );
-	void SetSideStyle( int is, int style, BOOL bDraw=TRUE );
+	// void SetSideStyle( int is, int style, BOOL bDraw=TRUE );
 	void SetSelBoxSize( int sel_box ) { m_sel_box = sel_box; }
 	void SetHatch( int hatch )
-		{ Undraw(); m_hatch = hatch; Draw(); };
+		{ Undraw(); m_hatch = hatch; Draw(); }
+	bool SetClosed( bool bClosed );														// CPT2 descended from CPolyLine function
 	// void SetDisplayList( CDisplayList * dl );
 	void Offset(int dx, int dy);														// CPT2 TODO obsolete?
 
@@ -1404,9 +1417,13 @@ public:
 	coutline(coutline *src):
 		cpolyline(src) { }
 	~coutline() { }
+
+	bool IsValid();										// Done in cpp
 	bool IsOutline() { return true; }
 	coutline *ToOutline() { return this; }
 	int GetTypeBit() { return bitOutline; }
+	cpolyline *CreateCompatible();						// CPT2 new, done in cpp
+
 };
 
 /**********************************************************************************************/
@@ -1537,33 +1554,71 @@ public:
 
 
 /**********************************************************************************************/
-/*  OTHERS: cadhesive, ccentroid                                                       */
+/*  OTHERS: cglue, ccentroid                                                       */
 /**********************************************************************************************/
+
+// centroid types
+enum CENTROID_TYPE
+{
+	CENTROID_DEFAULT = 0,	// center of pads
+	CENTROID_DEFINED		// defined by user
+};
 
 class ccentroid : public cpcb_item
 {
 public:
 	// Represents centroids within footprints.
+	CENTROID_TYPE m_type;
+	int m_x, m_y;
+	int m_angle;				// angle of centroid (CCW)
+
 	ccentroid(CFreePcbDoc *_doc) 
 		: cpcb_item (_doc)
 		{ }
 	~ccentroid() { }
+	bool IsValid();
 	bool IsCentroid() { return true; }
 	ccentroid *ToCentroid() { return this; }
 	int GetTypeBit() { return bitCentroid; }
+	int Draw();
+	void Undraw();
+	void Highlight();
+	void StartDragging( CDC *pDC );
+	void CancelDragging();
 };
 
-class cadhesive : public cpcb_item
+// glue spot position types 
+enum GLUE_POS_TYPE
+{
+	GLUE_POS_CENTROID,	// at centroid
+	GLUE_POS_DEFINED	// defined by user
+};
+
+
+class cglue : public cpcb_item
 {
 public:
-	// Represents adhesive dots within footprints.
-	cadhesive(CFreePcbDoc *_doc) 
+	// Represents adhesive dots within footprints.  Incorporates the old struct "glue"
+	GLUE_POS_TYPE type;
+	int w, x, y;
+
+	cglue(CFreePcbDoc *_doc, GLUE_POS_TYPE _type, int _w, int _x, int _y) 
 		: cpcb_item (_doc)
-		{ }
-	~cadhesive() { }
-	bool IsAdhesive() { return true; }
-	cadhesive *ToAdhesive() { return this; }
-	int GetTypeBit() { return bitAdhesive; }
+		{ type = _type; w = _w; x = _x; y = _y; }
+	cglue(cglue *src)
+		: cpcb_item (src->doc)
+		{ type = src->type; w = src->w; x = src->x; y = src->y; }
+	~cglue() { }
+
+	bool IsValid();
+	bool IsGlue() { return true; }
+	cglue *ToGlue() { return this; }
+	int GetTypeBit() { return bitGlue; }
+	int Draw();
+	void Undraw();
+	void Highlight();
+	void StartDragging( CDC *pDC );
+	void CancelDragging();
 };
 
 class cdre : public cpcb_item
