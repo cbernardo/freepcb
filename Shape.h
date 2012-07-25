@@ -42,32 +42,11 @@ enum
 	PART_ERR_TOO_MANY_PINS
 };
 
-// centroid types
-enum CENTROID_TYPE
-{
-	CENTROID_DEFAULT = 0,	// center of pads
-	CENTROID_DEFINED		// defined by user
-};
-
-// glue spot position types 
-enum GLUE_POS_TYPE
-{
-	GLUE_POS_CENTROID,	// at centroid
-	GLUE_POS_DEFINED	// defined by user
-};
-
 // structure describing pad flags
 struct flag
 {
 	unsigned int mask : 1;
 	unsigned int area : 2;
-};
-
-// structure describing adhesive spot
-struct glue
-{
-	GLUE_POS_TYPE type;
-	int w, x_rel, y_rel;
 };
 
 // structure describing stroke (ie. line segment)
@@ -90,7 +69,7 @@ struct mtg_hole
 
 // CPT2.  I am adjusting classes pad and padstack so that the latter in particular becomes part of the new class hierarchy.  This
 // will be useful when converting the footprint editor UI;  instead of using cpin2's to represent pins, as happens in the main
-// view, padstacks will represent the pins user sees.
+// editor, padstacks will represent the pins user sees.
 // In honor of this change I'm renaming pad to cpad and padstack to cpadstack.
 class cpad
 {
@@ -118,12 +97,15 @@ public:
 	BOOL exists;		// only used when converting Ivex footprints or editing
 
 	cpadstack(CFreePcbDoc *_doc);
-	BOOL operator==(cpadstack p);
-	CRect GetBounds();							// CPT2 done in cpp, derived from CShape::GetPadBounds
-	void Highlight();
+	cpadstack(cpadstack *src);
+	BOOL operator==(cpadstack p);				// CPT2 TODO check if it's needed
+	bool IsValid();								// CPT2 done in cpp.
 	bool IsPadstack() { return true; }
 	cpadstack *ToPadstack() { return this; }
 	int GetTypeBit() { return bitPadstack; }
+	CRect GetBounds();							// CPT2 done in cpp, derived from CShape::GetPadBounds
+	void Highlight();
+	void Copy(cpadstack *src, bool bCopyName=true);
 };
 
 // CShape class represents a footprint
@@ -150,13 +132,11 @@ public:
 	ctext *m_value;										// CPT:  New system!
 	// int m_value_size, m_value_xi, m_value_yi, m_value_angle;	// value text
 	// int m_value_w;												// thickness of stroke for value text
-	CENTROID_TYPE m_centroid_type;		// type of centroid
-	int m_centroid_x, m_centroid_y;		// position of centroid
-	int m_centroid_angle;				// angle of centroid (CCW)
+	ccentroid *m_centroid;
 	carray<cpadstack> m_padstack;		// array of padstacks for shape.  CPT2: was CArray<padstack>.  TODO rename padstacks
-	carray<coutline> m_outline_poly;	// CPT2: was CArray<CPolyLine>.  TODO Rename outline_polys
+	carray<coutline> m_outline_poly;	// CPT2: was CArray<CPolyLine>.  TODO Rename outlines
 	ctextlist *m_tl;					// CPT2.  Used to be CTextList*
-	CArray<glue> m_glue;				// array of adhesive dots
+	carray<cglue> m_glues;				// array of adhesive dots.  CPT2 converted from old type (CArray<glue>)
 
 public:
 	CShape(CFreePcbDoc *doc = NULL);
@@ -175,7 +155,7 @@ public:
 	CRect GetPadRowBounds( int i, int num );				// CPT2 TODO figure out
 	CPoint GetDefaultCentroid();
 	CRect GetAllPadBounds();
-	void Copy( CShape * shape );	// copy all data from shape
+	void Copy( CShape * shape );	// copy all data from shape.  CPT2 deprecated, let's see if CEditShape::CEditShape( CShape* ) can take its place
 	BOOL Compare( CShape * shape );	// compare shapes, return true if same
 	//	HENHMETAFILE CreateMetafile( CMetaFileDC * mfDC, CDC * pDC, int x_size, int y_size );
 	HENHMETAFILE CreateMetafile( CMetaFileDC * mfDC, CDC * pDC, CRect const &window, 
@@ -192,29 +172,30 @@ public:
 class CEditShape : public CShape
 {
 public:
-	CEditShape();
+	CEditShape( CShape * shape );									// CPT r317 new.  Create a copy of "shape" for editing
+	CEditShape ( CFreePcbDoc *doc, CString *name );					// CPT r317 new.  Create a blank shape with the given name
 	~CEditShape();
 	void Clear();
-	void Draw( CDisplayList * dlist, SMFontUtil * fontutil );
+	void Draw();													// CPT2 removed args.
 	void Undraw();
 	void Copy( CShape * shape );
 	// void HighlightPad( int i );									// CPT2 use cpadstack::Highlight
-	void StartDraggingPad( CDC * pDC, int i );
-	void CancelDraggingPad( int i );
-	void StartDraggingPadRow( CDC * pDC, int i, int num );
-	void CancelDraggingPadRow( int i, int num );
-	void SelectAdhesive( int idot );
-	void StartDraggingAdhesive( CDC * pDC, int idot );
-	void CancelDraggingAdhesive( int idot );
-	void SelectCentroid();
-	void StartDraggingCentroid( CDC * pDC );
-	void CancelDraggingCentroid();
-	void ShiftToInsertPadName( CString * astr, int n );
+	// void StartDraggingPad( CDC * pDC, int i );					// CPT2 use cpadstack::StartDragging
+	// void CancelDraggingPad( int i );								// CPT2 use cpadstack::CancelDragging
+	void StartDraggingPadRow( CDC * pDC, carray<cpadstack> *row );	// CPT2 converted (arg change)
+	void CancelDraggingPadRow( carray<cpadstack> *row );			// CPT2 converted (new arg)
+	// void SelectAdhesive( int idot );								// CPT2 use CFootprintView::SelectItem(glue)
+	// void StartDraggingAdhesive( CDC * pDC, int idot );			// CPT2 use cglue::StartDragging
+	// void CancelDraggingAdhesive( int idot );						// CPT2 use cglue::CancelDragging
+	// void SelectCentroid();										// CPT2 use CFootprintView::SelectItem(centroid)
+	// void StartDraggingCentroid( CDC * pDC );						// CPT2 use ccentroid::StartDragging
+	// void CancelDraggingCentroid();								// CPT2 use ccentroid::CancelDragging
+	void ShiftToInsertPadName( CString * astr, int n );				// CPT2 converted
 	BOOL GenerateSelectionRectangle( CRect * r );
 
 public:
-	CDisplayList * m_dlist;
-	// CPT2 the following are replaced by drawing elements within individual cpadstack or cpad objects
+	// CDisplayList * m_dlist;					// Safer to use m_doc->m_dlist
+	// CPT2 the following are replaced by drawing elements within individual cpadstack/cpad/ccentroid/cglue objects
 	// CArray<dl_element*> m_hole_el;			// hole display element 
 	// CArray<dl_element*> m_pad_top_el;		// top pad display element 
 	// CArray<dl_element*> m_pad_inner_el;		// inner pad display element 
@@ -224,8 +205,8 @@ public:
 	// CArray<dl_element*> m_pad_bottom_mask_el;
 	// CArray<dl_element*> m_pad_bottom_paste_el;
 	// CArray<dl_element*> m_pad_sel;		// pad selector
-	dl_element * m_centroid_el;			// centroid
-	dl_element * m_centroid_sel;		// centroid selector
-	CArray<dl_element*> m_dot_el;		// adhesive dots
-	CArray<dl_element*> m_dot_sel;		// adhesive dot selectors
+	// dl_element * m_centroid_el;			// centroid
+	// dl_element * m_centroid_sel;		// centroid selector
+	// CArray<dl_element*> m_dot_el;		// adhesive dots
+	// CArray<dl_element*> m_dot_sel;		// adhesive dot selectors
 };

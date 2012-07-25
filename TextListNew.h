@@ -122,7 +122,7 @@ public:
 	//    BOOL mirror, BOOL negative, int layer );
 	void ReadTexts( CStdioFile * file );							// Done in cpp
 	void WriteTexts( CStdioFile * file );							// Done in cpp
-	void MoveOrigin( int x_off, int y_off ) { }						// TODO
+	void MoveOrigin( int x_off, int y_off );						// Done in cpp
 	// CText * GetText( int uid, int * index=NULL );				// CPT2.  Use texts.FindByUID(uid)
 	// int GetNumTexts(){ return text_ptr.GetSize();};				// CPT2.  Use texts.GetSize()
 	BOOL GetTextBoundaries( CRect * r );							// Done in cpp

@@ -111,7 +111,7 @@ private:
 	afx_msg void OnEnChangeEditWizHd();
 	afx_msg void OnBnClickedWizButtonExit();
 	CButton m_button_preview;
-	afx_msg void OnBnClickedButton2();
+	afx_msg void OnBnClickedButtonPreview();
 	CStatic m_preview;
 public:
 	int m_units;	// dimensional units (MM or MIL)

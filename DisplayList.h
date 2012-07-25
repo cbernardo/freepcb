@@ -141,7 +141,6 @@ private:
 	int m_order_for_layer[MAX_LAYERS];	// draw order for each layer
 
 	// window parameters
-	int m_pcbu_per_wu;	// i.e. nm per world unit
 	CRect m_client_r;	// client rect (pixels)
 	CRect m_screen_r;	// client rect (screen coords)
 	int m_pane_org_x;	// left border of drawing pane (pixels)
@@ -151,6 +150,7 @@ private:
 	CDC *memDC2;		// CPT experimental
 
 public:
+	int m_pcbu_per_wu;	// i.e. nm per world unit.  CPT2 made public (what an anarchist)
 	BOOL m_vis[MAX_LAYERS];		// layer visibility flags
 
 	double m_scale;		// world units per pixel

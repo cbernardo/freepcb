@@ -351,8 +351,6 @@ public:
 	int m_polyline_style;			// STRAIGHT, ARC_CW or ARC_CCW
 	int m_polyline_hatch;			// NONE, DIAGONAL_FULL or DIAGONAL_EDGE
 	int m_polyline_layer;			// layer being drawn
-	cpolyline *m_tmp_poly;			// CPT2.  When dragging new polylines or cutouts, we put the evolving contour into this poly.
-	int m_poly_drag_mode;			// CPT2.  Equal to CUR_ADD_AREA, CUR_ADD_AREA_CUTOUT, CUR_ADD_SMCUTOUT, CUR_ADD_BOARD
 
 	// flag to disable context menu on right-click,
 	// if right-click handled some other way
@@ -431,14 +429,12 @@ public:
 	virtual ~CFreePcbView();
 	void OnNewProject();					// CPT.  Used to be called InitializeView().
 
-	void SetMainMenu( BOOL bAll );
-	void SetCursorMode( int mode );
 	void SetFKText( int mode );
 	//BOOL SelectItem( id sid );
-	void SelectItem(cpcb_item *item);		// CPT2 
+	// void SelectItem(cpcb_item *item);		// CPT2 --- r317, now in CCommonView
 	int ShowSelectStatus();
 	int ShowActiveLayer();
-	void CancelHighlight();		// AMW r272
+	void CancelHighlight();						// AMW r272
 	void CancelSelection();
 	void HighlightNet( cnet * net, id * exclude_id=NULL );
 	void CancelHighlightNet();
@@ -454,7 +450,6 @@ public:
 	void RotateGroup();
 	void DeleteGroup(  CArray<void*> * grp_ptr, CArray<id> * grp_id );
 	void FindGroupCenter();
-	void HighlightSelection();										// CPT2.  Changed name from HighlightGroup() and rewrote
 	int FindItemInGroup( void * ptr, id * tid );	
 	BOOL GluedPartsInGroup();
 	void UngluePartsInGroup();
@@ -584,7 +579,6 @@ public:
 	afx_msg void OnRefProperties();
 	afx_msg void OnVertexProperties();
 	afx_msg void OnTeeProperties();
-	afx_msg BOOL OnEraseBkgnd(CDC* pDC);
 	// afx_msg void OnBoardSideConvertToStraightLine();
 	// afx_msg void OnBoardSideConvertToArcCw();
 	// afx_msg void OnBoardSideConvertToArcCcw();
@@ -720,6 +714,8 @@ public:
 
 	void FinishAddPoly(ccontour *ctr);
 	void FinishAddPolyCutout(ccontour *ctr);
+	void SetMainMenu( BOOL bAll );
+	void HighlightSelection();
 };
 // end CPT
 

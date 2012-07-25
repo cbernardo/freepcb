@@ -46,6 +46,7 @@ cpcb_item::~cpcb_item()
 	}
 }
 
+/* CPT2 maybe dumpable...
 void cpcb_item::SetDoc(CFreePcbDoc *_doc)
 {
 	if (doc) 
@@ -54,6 +55,7 @@ void cpcb_item::SetDoc(CFreePcbDoc *_doc)
 	if (doc)
 		doc->items.Add(this);
 }
+*/
 
 void cpcb_item::MustRedraw()
 {
@@ -63,6 +65,17 @@ void cpcb_item::MustRedraw()
 		doc->redraw.Add(this);
 }
 
+bool cpcb_item::IsHit(int x, int y)
+{
+	// CPT2 new.  Return true if this item's selector contains (x,y), which is in pcb units
+	if (!dl_sel || !dl_sel->visible) 
+		return false;
+	int pcbu_per_wu = doc->m_dlist->m_pcbu_per_wu;
+	double xx = double(x)/pcbu_per_wu;				// CPT (was int, which caused range issues)
+	double yy = double(y)/pcbu_per_wu;				// CPT (was int)
+	double d;
+	return dl_sel->IsHit(xx, yy, d);
+}
 
 carea2 *cpcb_item::GetArea() 
 {
@@ -984,7 +997,7 @@ void ctee::StartDragging( CDC * pDC, int x, int y, int crosshair )
 		dl->AddDragRatline( pi, pf );
 	}
 	SetVisible( FALSE );
-	dl->StartDraggingArray( pDC, 0, 0, 0, LAY_RAT_LINE );
+	dl->StartDraggingArray( pDC, 0, 0, 0, LAY_SELECTION );
 }
 
 void ctee::CancelDragging()
@@ -2174,11 +2187,11 @@ int cpart2::GetBoundingRect( CRect * part_r )
 	return 1;
 }
 
-void cpart2::FootprintChanged(CShape *_shape)
+void cpart2::ChangeFootprint(CShape *_shape)
 {
 	// CPT2.  Loosely derived from CPartList::PartFootprintChanged && CNetList::PartFootprintChanged.
-	// Setup pins corresponding to the new shape, reusing old pins where possible.  Mark used pins with
-	// a utility value of 1.  Pins that are unused at the end get axed.
+	// The passed-in shape is the one that will replace this->shape.  Setup pins corresponding to the new shape, reusing old pins where 
+	// possible.  Mark used pins with a utility value of 1.  Pins that are unused at the end get axed.
 	MustRedraw();
 	carray<cnet2> nets;									// Maintain a list of attached nets so that we can redraw them afterwards
 	citer<cpin2> ip (&pins);
@@ -2317,8 +2330,8 @@ int cpart2::Draw()
 	// draw part outline (code similar to but sadly not identical to cpolyline::Draw())
 	CPoint si, sf;
 	m_outline_stroke.SetSize(0);
-	citer<coutline> ip (&shape->m_outline_poly);
-	for (cpolyline *poly = ip.First(); poly; poly = ip.Next())
+	citer<coutline> io (&shape->m_outline_poly);
+	for (cpolyline *poly = io.First(); poly; poly = io.Next())
 	{
 		int shape_layer = poly->GetLayer();
 		int poly_layer = cpartlist::FootprintLayer2Layer( shape_layer );
@@ -2772,7 +2785,7 @@ void cpart2::StartDragging( CDC * pDC, BOOL bRatlines, BOOL bBelowPinCount, int 
 	int vert = 0;
 	if( angle == 90 || angle == 270 )
 		vert = 1;
-	dl->StartDraggingArray( pDC, x, y, vert, LAY_RAT_LINE );				// CPT2, was LAY_SELECTION: came out invisible (at least with my color settings)
+	dl->StartDraggingArray( pDC, x, y, vert, LAY_SELECTION );
 }
 
 void cpart2::CancelDragging()
@@ -2876,6 +2889,7 @@ int ccorner::GetTypeBit()
 	if (contour->poly->IsArea()) return bitAreaCorner;
 	if (contour->poly->IsSmCutout()) return bitSmCorner;
 	if (contour->poly->IsBoard()) return bitBoardCorner;
+	if (contour->poly->IsOutline()) return bitOutlineCorner;
 	return bitOther;
 }
 
@@ -2975,10 +2989,16 @@ void ccorner::StartDragging( CDC * pDC, int x, int y, int crosshair )
 		int style, xi, yi;
 		cside *side;
 		if (!preSide)
-			style = postSide->m_style==ARC_CW? ARC_CCW: ARC_CW,		// Reverse arc since we are drawing from corner 1 to 0
-			xi = postSide->postCorner->x,
-			yi = postSide->postCorner->y,
+		{
+			style = postSide->m_style;
+			if (style==ARC_CW) 
+				style = ARC_CCW;
+			else if (style==ARC_CCW) 
+				style = ARC_CW;								// Reverse arc since we are drawing from corner 1 to 0
+			xi = postSide->postCorner->x;
+			yi = postSide->postCorner->y;
 			side = postSide;
+		}
 		else
 			style = preSide->m_style,
 			xi = preSide->preCorner->x,
@@ -3006,8 +3026,7 @@ void ccorner::StartDragging( CDC * pDC, int x, int y, int crosshair )
 		int xf = postSide->postCorner->x;
 		int yf = postSide->postCorner->y;
 		dl->StartDraggingLineVertex( pDC, x, y, xi, yi, xf, yf, 
-			LAY_RAT_LINE, LAY_RAT_LINE,							// CPT2: Used to have LAY_SELECTION instead of LAY_RAT_LINE, sometimes invisible as a result 
-			1, 1, style1, style2, 0, 0, 0, 0, crosshair );
+			LAY_SELECTION, LAY_SELECTION, 1, 1, style1, style2, 0, 0, 0, 0, crosshair );
 	}
 }
 
@@ -3021,9 +3040,9 @@ void ccorner::CancelDragging()
 		dl->Set_visible(preSide->dl_el, 1);
 	if (postSide)
 		dl->Set_visible(postSide->dl_el, 1);
-	carea2 *a = GetArea();
-	for( int ih=0; ih < a->m_nhatch; ih++ )
-		dl->Set_visible( a->dl_hatch[ih], 1 );
+	cpolyline *poly = GetPolyline();
+	for( int ih=0; ih < poly->m_nhatch; ih++ )
+		dl->Set_visible( poly->dl_hatch[ih], 1 );
 }
 
 
@@ -3054,6 +3073,7 @@ int cside::GetTypeBit()
 	if (contour->poly->IsArea()) return bitAreaSide;
 	if (contour->poly->IsSmCutout()) return bitSmSide;
 	if (contour->poly->IsBoard()) return bitBoardSide;
+	if (contour->poly->IsOutline()) return bitOutlineSide;
 	return bitOther;
 }
 
@@ -3085,11 +3105,57 @@ void cside::Highlight()
 
 void cside::InsertCorner(int x, int y)
 {
-	// CPT2 new.  Add an intermediate corner into this side.  "this" gets reused as the second of the 2 half-sides, and the style of both are made straight.
+	// CPT2 new.  Add an intermediate corner into this side.  "this" gets reused as the second of the 2 half-sides, and the styles of both are made straight.
 	ccorner *c = new ccorner(contour, x, y);
 	cside *s = new cside(contour, STRAIGHT);
 	m_style = STRAIGHT;
 	contour->AppendSideAndCorner(s, c, preCorner);
+}
+
+bool cside::Remove( carray<cpolyline> *arr ) 
+{
+	// CPT2 new.  Remove this side from its parent contour (which must be the main contour in the polyline).  This can easily result in a whole 
+	// new polyline getting created (by means of virtual function cpolyline::CreateCompatible()).  Said new polyline gets added to "arr".  It can
+	// also result in the whole original polyline disappearing, in which case it is removed from "arr".
+	cpolyline *poly = GetPolyline();
+	if (poly->contours.GetSize() > 1) return false;
+	contour->sides.Remove(this);
+	preCorner->postSide = postCorner->preSide = NULL;
+	if (contour->sides.IsEmpty())
+		arr->Remove(poly);
+	else if (contour->head == contour->tail) 
+		// Break a closed contour.
+		contour->head = postCorner,
+		contour->tail = preCorner;
+	else if (!preCorner->preSide)
+		// Eliminate 1st seg of open contour.
+		contour->head = postCorner,
+		contour->corners.Remove(preCorner);
+	else if (!postCorner->postSide)
+		// Eliminate last seg of open contour.
+		contour->tail = preCorner,
+		contour->corners.Remove(postCorner);
+	else
+	{
+		// Break!
+		cpolyline *poly2 = poly->CreateCompatible();
+		arr->Add(poly2);
+		ccontour *ctr2 = new ccontour(poly2, true);
+		ctr2->head = postCorner;
+		ctr2->tail = contour->tail;
+		contour->tail = preCorner;
+		for (ccorner *c = postCorner; 1; c = c->postSide->postCorner)
+		{
+			contour->corners.Remove(c);
+			ctr2->corners.Add(c);
+			c->contour = ctr2;
+			if (!c->postSide) break;
+			contour->sides.Remove(c->postSide);
+			ctr2->sides.Add(c->postSide);
+			c->postSide->contour = ctr2;
+		}
+	}
+	return true;
 }
 
 void cside::StartDraggingNewCorner( CDC * pDC, int x, int y, int crosshair )
@@ -3101,7 +3167,7 @@ void cside::StartDraggingNewCorner( CDC * pDC, int x, int y, int crosshair )
 	int xi = preCorner->x, yi = preCorner->y;
 	int xf = postCorner->x, yf = postCorner->y;
 	dl->StartDraggingLineVertex( pDC, x, y, xi, yi, xf, yf, 
-		LAY_RAT_LINE, LAY_RAT_LINE, 1, 1, DSS_STRAIGHT, DSS_STRAIGHT,
+		LAY_SELECTION, LAY_SELECTION, 1, 1, DSS_STRAIGHT, DSS_STRAIGHT,
 		0, 0, 0, 0, crosshair );
 	dl->CancelHighlight();
 	dl->Set_visible( dl_el, 0 );
@@ -3205,6 +3271,20 @@ void ccontour::AppendSideAndCorner( cside *s, ccorner *c, ccorner *after )
 		tail = c;
 }
 
+void ccontour::AppendCorner( int x, int y, int style )
+{
+	// CPT2 convenience method, basically a wrapper around AppendSideAndCorner()
+	if (poly)
+		poly->MustRedraw();
+	bool bWasEmpty = corners.IsEmpty();
+	ccorner *c = new ccorner(this, x, y);
+	if (bWasEmpty)
+		// First corner only. ccorner::ccorner has now setup this->head/tail, so we're done
+		return;
+	cside *s = new cside(this, style);
+	AppendSideAndCorner(s, c, tail);
+}
+
 void ccontour::Close(int style)
 {
 	if (head==tail) return;
@@ -3220,7 +3300,13 @@ void ccontour::Close(int style)
 
 void ccontour::Unclose()
 {
-	// TODO.  Write something analogous...
+	if (head!=tail || sides.GetSize()<2) return;
+	if (poly)
+		poly->MustRedraw();
+	tail = tail->preSide->preCorner;
+	sides.Remove(tail->postSide);
+	tail->postSide = NULL;
+	head->preSide = NULL;
 }
 
 CRect ccontour::GetCornerBounds()
@@ -3351,6 +3437,32 @@ int cpolyline::NumCorners()
 	for (ccontour *ctr = ictr.First(); ctr; ctr = ictr.Next())
 		ret += ctr->corners.GetSize();
 	return ret;
+}
+
+int cpolyline::NumSides() 
+{
+	citer<ccontour> ictr (&contours);
+	int ret = 0;
+	for (ccontour *ctr = ictr.First(); ctr; ctr = ictr.Next())
+		ret += ctr->sides.GetSize();
+	return ret;
+}
+
+bool cpolyline::SetClosed(bool bClose)
+{
+	if (contours.GetSize()>1) 
+		return false;
+	if (bClose)
+		if (IsClosed()) 
+			return false;
+		else
+			main->Close(STRAIGHT);
+	else
+		if (!IsClosed())
+			return false;
+		else
+			main->Unclose();
+	return true;
 }
 
 bool cpolyline::TestPointInside(int x, int y) 
@@ -3704,6 +3816,8 @@ int cpolyline::Draw()
 
 		// Draw sides and side selectors
 		citer<cside> is (&ctr->sides);
+		int side_sel_w = IsOutline()? m_w: m_w*4;						// CPT2 For areas, smcutouts, and board-outlines, we want the side selectors to be 
+																		// wider for improved visibility.  But not with fp-editor outlines...
 		for (cside *s = is.First(); s; s = is.Next())
 		{
 			int xi = s->preCorner->x, yi = s->preCorner->y;
@@ -3722,7 +3836,7 @@ int cpolyline::Draw()
 				1, m_w, 0, 0, xi, yi, xf, yf, 0, 0 );	
 			if( m_sel_box )
 				s->dl_sel = dl->AddSelector( s, m_layer, g_type, 
-					1, m_w*4, 0, xi, yi, xf, yf, 0, 0 );				// CPT2 Quadrupled the selector width for visibility when highlighting
+					1, side_sel_w, 0, xi, yi, xf, yf, 0, 0 );
 		}
 	}
 
@@ -4542,7 +4656,7 @@ cpolyline *carea2::CreateCompatible()
 csmcutout::csmcutout(CFreePcbDoc *_doc, int layer, int hatch)
 	: cpolyline(_doc)
 { 
-	doc->others.Add(this); 
+	doc->smcutouts.Add(this); 
 	m_layer = layer; 
 	m_w = 2*NM_PER_MIL;
 	m_sel_box = 10*NM_PER_MIL;
@@ -4550,17 +4664,16 @@ csmcutout::csmcutout(CFreePcbDoc *_doc, int layer, int hatch)
 }
 
 bool csmcutout::IsValid()
-	{ return doc->others.Contains(this); }
+	{ return doc->smcutouts.Contains(this); }
 
 void csmcutout::GetCompatiblePolylines( carray<cpolyline> *arr )
 {
 	// CPT2 new.  Virtual function in class cpolyline.  The idea is to put into "arr" all other polylines that might potentially be merged with
 	// "this", in the event that they intersect.  For smcutouts, this will be all the smc's in the doc in the same layer.
-	citer<cpcb_item> ii (&doc->others);
-	for (cpcb_item *i = ii.First(); i; i = ii.Next())
-		if (csmcutout *sm = i->ToSmCutout())
-			if (sm->m_layer == m_layer)
-				arr->Add(sm);
+	citer<csmcutout> ism (&doc->smcutouts);
+	for (csmcutout *sm = ism.First(); sm; sm = ism.Next())
+		if (sm->m_layer == m_layer)
+			arr->Add(sm);
 }
 
 cpolyline *csmcutout::CreateCompatible() 
@@ -4570,14 +4683,14 @@ cpolyline *csmcutout::CreateCompatible()
 void csmcutout::Remove()
 {
 	Undraw();
-	doc->others.Remove(this);
+	doc->smcutouts.Remove(this);
 }
 
 
 cboard::cboard(CFreePcbDoc *_doc) 
 	: cpolyline(_doc)
 { 
-	doc->others.Add(this);
+	doc->boards.Add(this);
 	m_layer = LAY_BOARD_OUTLINE; 
 	m_w = 2*NM_PER_MIL;
 	m_sel_box = 10*NM_PER_MIL;
@@ -4585,12 +4698,12 @@ cboard::cboard(CFreePcbDoc *_doc)
 }
 
 bool cboard::IsValid()
-	{ return doc->others.Contains(this); }
+	{ return doc->boards.Contains(this); }
 
 void cboard::Remove()
 {
 	Undraw();
-	doc->others.Remove(this);
+	doc->boards.Remove(this);
 }
 
 void cboard::GetCompatiblePolylines( carray<cpolyline> *arr )
@@ -4604,11 +4717,21 @@ coutline::coutline(CFreePcbDoc *_doc, int layer, int w)
 	: cpolyline(_doc)
 {
 	if (doc)
-		doc->others.Add(this);
+		doc->outlines.Add(this);
 	m_layer = layer;
 	m_w = w;
 }
 
+bool coutline::IsValid() 
+{
+	if (doc && doc->m_edit_footprint)
+		return doc->m_edit_footprint->m_outline_poly.Contains(this);
+	return false;
+}
+
+cpolyline *coutline::CreateCompatible() 
+	// CPT2 new.  Virtual function in class cpolyline.  Returns a new polyline of the same specs as this (but with an empty contour array)
+	{ return new coutline(doc, m_layer, m_w); }
 
 
 /**********************************************************************************************/
@@ -5222,7 +5345,7 @@ void cnet2::Undraw()
 }
 
 /**********************************************************************************************/
-/*  OTHERS: ctext, cadhesive, ccentroid                                                       */
+/*  OTHERS: ctext, cglue, ccentroid                                                       */
 /**********************************************************************************************/
 
 ctext::ctext( CFreePcbDoc *_doc, int _x, int _y, int _angle, 
@@ -5241,8 +5364,14 @@ ctext::ctext( CFreePcbDoc *_doc, int _x, int _y, int _angle,
 	m_bShown = true;
 }
 
-bool ctext::IsValid()
-	{ return doc->m_tlist->texts.Contains(this); }
+bool ctext::IsValid() 
+{
+	CShape *fp = doc? doc->m_edit_footprint: NULL;
+	if (fp)
+		return fp->m_tl->texts.Contains(this);
+	else
+		return doc->m_tlist->texts.Contains(this); 
+}
 
 void ctext::Copy( ctext *other )
 {
@@ -5404,6 +5533,7 @@ void ctext::GenerateStrokes() {
 			s->yi = m_y + si.y;
 			s->xf = m_x + sf.x;
 			s->yf = m_y + sf.y;
+			s->layer = m_layer;
 			// update bounding rectangle
 			ymin = min( ymin, s->yi - s->w );
 			ymin = min( ymin, s->yf - s->w );
@@ -5437,22 +5567,29 @@ void ctext::GenerateStrokesRelativeTo(cpart2 *part) {
 	// Somewhat descended from the old GenerateStrokesFromPartString() in PartList.cpp.
 	// Used for texts (including reftexts and valuetexts) whose position is relative to "part".
 	// Generate strokes and put them in m_stroke.  Also setup the bounding rectangle member m_br.
+	// If "part" is null, then we're in the footprint editor.  The only way calling GenerateStrokes() differs 
+	// from GenerateStrokesRelativeTo(NULL) is that in the latter we make sure that text on the bottom silk or bottom copper
+	// gets mirrored.
 	// TODO consider caching
-	SMFontUtil *smf = m_smfontutil;
-	if (smf==NULL) 
-		// May happen if "this" is a text belonging to a footprint
-		smf = part->doc->m_smfontutil;
+	SMFontUtil *smf = doc->m_smfontutil;
 	m_stroke.SetSize( 1000 );
 	CPoint si, sf;
 	double x_scale = (double)m_font_size/22.0;
 	double y_scale = (double)m_font_size/22.0;
 	double y_offset = 9.0*y_scale;
+	int partX = part? part->x: 0;
+	int partY = part? part->y: 0;
+	int partAngle = part? part->angle: 0;
 	// Adjust layer value if part is on bottom
 	int layer = m_layer;
-	int bMirror = m_bMirror;
-	if (layer==LAY_SILK_BOTTOM || layer==LAY_BOTTOM_COPPER)
+	int bMirror = m_bMirror, bOnBottom;
+	if (part) 
+		bOnBottom = layer==LAY_SILK_BOTTOM || layer==LAY_BOTTOM_COPPER;
+	else
+		bOnBottom = layer==LAY_FP_SILK_BOTTOM || layer==LAY_FP_BOTTOM_COPPER;
+	if (bOnBottom)
 		bMirror = !bMirror;
-	if (part->side)
+	if (part && part->side)
 		if (layer==LAY_SILK_TOP) layer = LAY_SILK_BOTTOM;
 		else if (layer==LAY_TOP_COPPER) layer = LAY_BOTTOM_COPPER;
 		else if (layer==LAY_SILK_BOTTOM) layer = LAY_SILK_TOP;
@@ -5508,19 +5645,19 @@ void ctext::GenerateStrokesRelativeTo(cpart2 *part) {
 			sf.x += m_x;
 			si.y += m_y;
 			sf.y += m_y;
-			if (part->side)
+			if (part && part->side)
 				si.x = -si.x,
 				sf.x = -sf.x;
 			// rotate with part about part origin
-			RotatePoint( &si, part->angle, zero );
-			RotatePoint( &sf, part->angle, zero );
+			RotatePoint( &si, partAngle, zero );
+			RotatePoint( &sf, partAngle, zero );
 			// add part's (x,y), then add stroke to array
 			stroke * s = &m_stroke[i];
 			s->w = m_stroke_width;
-			s->xi = part->x + si.x;
-			s->yi = part->y + si.y;
-			s->xf = part->x + sf.x;
-			s->yf = part->y + sf.y;
+			s->xi = partX + si.x;
+			s->yi = partY + si.y;
+			s->xf = partX + sf.x;
+			s->yf = partY + sf.y;
 			s->layer = layer;
 			// update bounding rectangle
 			ymin = min( ymin, s->yi - s->w );
@@ -5642,7 +5779,7 @@ void ctext::StartDragging( CDC * pDC )
 		dl->Get_x(dl_sel), dl->Get_y(dl_sel),
 		dl->Get_x(dl_sel) - dl->Get_x_org(dl_sel), dl->Get_y(dl_sel) - dl->Get_y_org(dl_sel),
 		dl->Get_xf(dl_sel) - dl->Get_x_org(dl_sel), dl->Get_yf(dl_sel) - dl->Get_y_org(dl_sel), 
-		0, LAY_RAT_LINE );
+		0, LAY_SELECTION );
 }
 
 void ctext::CancelDragging()
@@ -5660,7 +5797,20 @@ creftext::creftext( cpart2 *_part, int x, int y, int angle,
 			stroke_width, smfontutil, str_ptr) 
 		{ part = _part; m_bShown = bShown; }
 
-bool creftext::IsValid() { return part && part->IsValid(); }
+creftext::creftext( CFreePcbDoc *doc, int x, int y, int angle, 
+	BOOL bMirror, BOOL bNegative, int layer, int font_size, 
+	int stroke_width, SMFontUtil * smfontutil, CString * str_ptr, bool bShown ) :
+		ctext(doc, x, y, angle, bMirror, bNegative, layer, font_size,
+			stroke_width, smfontutil, str_ptr) 
+		{ part = NULL; m_bShown = bShown; }
+
+
+bool creftext::IsValid() 
+{ 
+	if (doc->m_edit_footprint)
+		return doc->m_edit_footprint->m_ref == this;
+	return part && part->IsValid(); 
+}
 
 cvaluetext::cvaluetext( cpart2 *_part, int x, int y, int angle, 
 	BOOL bMirror, BOOL bNegative, int layer, int font_size, 
@@ -5669,4 +5819,183 @@ cvaluetext::cvaluetext( cpart2 *_part, int x, int y, int angle,
 			stroke_width, smfontutil, str_ptr) 
 		{ part = _part; m_bShown = bShown; }
 
-bool cvaluetext::IsValid() { return part && part->IsValid(); }
+cvaluetext::cvaluetext( CFreePcbDoc *doc, int x, int y, int angle, 
+	BOOL bMirror, BOOL bNegative, int layer, int font_size, 
+	int stroke_width, SMFontUtil * smfontutil, CString * str_ptr, bool bShown ) :
+		ctext(doc, x, y, angle, bMirror, bNegative, layer, font_size,
+			stroke_width, smfontutil, str_ptr) 
+		{ part = NULL; m_bShown = bShown; }
+
+
+bool cvaluetext::IsValid() 
+{ 
+	if (doc->m_edit_footprint)
+		return doc->m_edit_footprint->m_value == this;
+	return part && part->IsValid(); 
+}
+
+
+bool ccentroid::IsValid()
+	{ return doc && doc->m_edit_footprint && doc->m_edit_footprint->m_centroid == this; }
+
+int ccentroid::Draw()
+{
+	CDisplayList *dl = doc->m_dlist;
+	if( !dl )
+		return NO_DLIST;
+	if (bDrawn)
+		return ALREADY_DRAWN;
+	int axis_offset_x = 0;
+	int axis_offset_y = 0;
+	if( m_angle == 0 )
+		axis_offset_x = CENTROID_WIDTH;
+	else if( m_angle == 90 )
+		axis_offset_y = CENTROID_WIDTH;
+	else if( m_angle == 180 )
+		axis_offset_x = -CENTROID_WIDTH;
+	else if( m_angle == 270 )
+		axis_offset_y = -CENTROID_WIDTH;
+	dl_el = dl->AddMain( this, LAY_FP_CENTROID, DL_CENTROID, TRUE, 
+		CENTROID_WIDTH, 0, 0, m_x, m_y, 
+		m_x+axis_offset_x, m_y + axis_offset_y, 0, 0, 0 ); 
+	dl_sel = dl->AddSelector( this, LAY_FP_CENTROID, DL_HOLLOW_RECT, TRUE, 0, 0, 
+		m_x-CENTROID_WIDTH/2, m_y-CENTROID_WIDTH/2, m_x+CENTROID_WIDTH/2, m_y+CENTROID_WIDTH/2, 0, 0, 0 );
+	bDrawn = true;
+	return NOERR;
+}
+
+void ccentroid::Undraw()
+{
+	CDisplayList *dl = doc->m_dlist;
+	if( !dl ) return;
+	dl->Remove( dl_el );
+	dl->Remove( dl_sel );
+	dl_el = dl_sel = NULL;
+	bDrawn = false;
+}
+
+void ccentroid::Highlight()
+{
+	CDisplayList *dl = doc->m_dlist;
+	if (!dl) return;
+	dl->Highlight( DL_HOLLOW_RECT, 
+		dl->Get_x(dl_sel), dl->Get_y(dl_sel),
+		dl->Get_xf(dl_sel), dl->Get_yf(dl_sel), 1 );
+}
+
+void ccentroid::StartDragging( CDC * pDC )
+{
+	// CPT2 Derived from old CEditShape::StartDraggingCentroid()
+	CDisplayList *dl = doc->m_dlist;
+	// make centroid invisible
+	dl->Set_visible( dl_el, 0 );
+	dl->CancelHighlight();
+	dl->StartDraggingRectangle( pDC, m_x, m_y,
+						-CENTROID_WIDTH/2, -CENTROID_WIDTH/2,
+						CENTROID_WIDTH/2, CENTROID_WIDTH/2,
+						0, LAY_FP_SELECTION );
+#if 0
+	// CPT2 the following old code produces results that look just like what StartDraggingRectangle() did, so I'd say go with the simpler option...
+	dl->MakeDragLineArray( 8 );
+	int w = CENTROID_WIDTH;
+	int xa = 0, ya = 0;
+	if( m_angle == 0 )
+		xa += w;
+	else if( m_angle == 90 )
+		ya -= w;
+	else if( m_angle == 180 )
+		xa -= w;
+	else if( m_angle == 270 )
+		ya += w;
+	dl->AddDragLine( CPoint(-w/2, -w/2), CPoint(+w/2, -w/2) );
+	dl->AddDragLine( CPoint(+w/2, -w/2), CPoint(+w/2, +w/2) );
+	dl->AddDragLine( CPoint(+w/2, +w/2), CPoint(-w/2, +w/2) );
+	dl->AddDragLine( CPoint(-w/2, +w/2), CPoint(-w/2, -w/2) );
+	dl->AddDragLine( CPoint(0, 0), CPoint(xa, ya) );
+	// drag
+	dl->StartDraggingArray( pDC, m_x, m_y, 0, LAY_FP_SELECTION );
+#endif
+}
+
+// Cancel dragging centroid
+//
+void ccentroid::CancelDragging()
+{
+	CDisplayList *dl = doc->m_dlist;
+	dl->Set_visible( dl_el, 1 );
+	// stop dragging
+	dl->StopDragging();
+}
+
+
+bool cglue::IsValid()
+	{ return doc && doc->m_edit_footprint && doc->m_edit_footprint->m_glues.Contains(this); }
+
+int cglue::Draw()
+{
+	// Draw the glue.  Note that this routine is responsible for placing centroid-positioned glues properly.
+	CDisplayList *dl = doc->m_dlist;
+	if( !dl )
+		return NO_DLIST;
+	if (bDrawn)
+		return ALREADY_DRAWN;
+	int w0 = w;
+	if( w0 == 0 )
+		w0 = DEFAULT_GLUE_WIDTH;
+	int x0 = x, y0 = y;
+	if (type==GLUE_POS_CENTROID)
+	{
+		ccentroid *c = doc->m_edit_footprint->m_centroid;
+		x0 = c->m_x, y0 = c->m_y;
+	}
+	dl_el = dl->AddMain( this, LAY_FP_DOT, DL_CIRC, TRUE, w0, 0, 0, x0, y0, 0, 0, 0, 0 );
+	dl_sel = dl->AddSelector( this, LAY_FP_DOT, DL_HOLLOW_RECT, TRUE, 0, 0, 
+		x0 - w0/2, y0 - w0/2, x0 + w0/2, y0 + w0/2, 0, 0, 0 );
+	bDrawn = true;
+	return NOERR;
+}
+
+void cglue::Undraw()
+{
+	CDisplayList *dl = doc->m_dlist;
+	if( !dl ) return;
+	dl->Remove( dl_el );
+	dl->Remove( dl_sel );
+	dl_el = dl_sel = NULL;
+	bDrawn = false;
+}
+
+void cglue::Highlight()
+{
+	CDisplayList *dl = doc->m_dlist;
+	if (!dl) return;
+	dl->Highlight( DL_HOLLOW_RECT, 
+		dl->Get_x(dl_sel), dl->Get_y(dl_sel),
+		dl->Get_xf(dl_sel), dl->Get_yf(dl_sel), 1 );
+}
+
+
+// Start dragging glue spot
+//
+void cglue::StartDragging( CDC * pDC )
+{
+	// make glue spot invisible
+	CDisplayList *dl = doc->m_dlist;
+	dl->Set_visible( dl_el, 0 );
+	dl->CancelHighlight();
+	int w0 = w;
+	if( w0 == 0 )
+		w0 = DEFAULT_GLUE_WIDTH;
+	dl->StartDraggingRectangle( pDC, x, y, -w0/2, -w0/2, w0/2, w0/2, 0, LAY_FP_SELECTION );
+}
+
+// Cancel dragging glue spot
+//
+void cglue::CancelDragging()
+{
+	CDisplayList *dl = doc->m_dlist;
+	dl->Set_visible( dl_el, 1 );
+	// stop dragging
+	dl->StopDragging();
+}
+

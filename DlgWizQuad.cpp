@@ -61,7 +61,7 @@ void CDlgWizQuad::DoDataExchange(CDataExchange* pDX)
 	DDX_Control(pDX, IDC_COMBO_WIZ_TYPE, m_combo_type);
 	DDX_Control(pDX, IDC_WIZ_BUTTON_SAVE, m_button_save);
 	DDX_Control(pDX, ID_WIZ_BUTTON_EXIT, m_button_exit);
-	DDX_Control(pDX, IDC_BUTTON2, m_button_preview);
+	DDX_Control(pDX, IDC_BUTTON_PREVIEW, m_button_preview);
 	DDX_Control(pDX, IDC_STATIC_WIZ_PREVIEW, m_preview);
 	DDX_Control(pDX, IDC_EDIT_RAD, m_edit_radius);
 	if( !pDX->m_bSaveAndValidate )
@@ -165,7 +165,7 @@ BEGIN_MESSAGE_MAP(CDlgWizQuad, CDialog)
 	ON_CBN_SELCHANGE(IDC_COMBO_PIN1, OnCbnSelchangeComboPin1)
 	ON_EN_CHANGE(IDC_EDIT_WIZ_HD, OnEnChangeEditWizHd)
 	ON_BN_CLICKED(ID_WIZ_BUTTON_EXIT, OnBnClickedWizButtonExit)
-	ON_BN_CLICKED(IDC_BUTTON2, OnBnClickedButton2)
+	ON_BN_CLICKED(IDC_BUTTON_PREVIEW, OnBnClickedButtonPreview)
 END_MESSAGE_MAP()
 
 
@@ -669,6 +669,8 @@ void CDlgWizQuad::OnCbnSelchangeComboWizUnits()
 		m_mult = 1000000;
 	}
 	// reset all dimensions
+	// CPT2 TODO.  I don't like this automatic conversion business.  When I start entering numbers, then belatedly realize I have mils where I
+	// really want mm, it's annoying that then, because of the auto-conversion, I have to type all the numbers again.
 	FormatDimensionString( &str, m_hd, m_units );
 	m_edit_hd.SetWindowText( str );
 	FormatDimensionString( &str, m_x, m_units );
@@ -746,7 +748,7 @@ void CDlgWizQuad::OnBnClickedWizButtonExit()
 	OnCancel();
 }
 
-void CDlgWizQuad::OnBnClickedButton2()
+void CDlgWizQuad::OnBnClickedButtonPreview()
 {
 	if( !MakeFootprint() )
 		return;
@@ -764,7 +766,6 @@ void CDlgWizQuad::OnBnClickedButton2()
 
 BOOL CDlgWizQuad::MakeFootprint()
 {
-#ifndef CPT2
 	CString str_name;
 	CString str;
 	CString str_E;
@@ -779,8 +780,11 @@ BOOL CDlgWizQuad::MakeFootprint()
 
 	OnCbnSelchangeComboPin1();
 
-	// create footprint and call Save dialog
+	// create footprint and call Save dialog.
 	m_footprint.Clear();
+	extern CFreePcbApp theApp;						// CPT2:  must make sure footprint refers to the current doc
+	CFreePcbDoc *doc = theApp.m_doc;
+	m_footprint.m_doc = doc;
 	m_footprint.m_name = "";
 
 	// first check for legal parameters
@@ -901,19 +905,18 @@ BOOL CDlgWizQuad::MakeFootprint()
 		m_footprint.Clear();
 		m_footprint.m_name = m_str_name; 
 		m_footprint.m_units = m_units;
-		m_footprint.m_ref_size = 50*NM_PER_MIL; 
-		m_footprint.m_ref_xi = 0; 
-		m_footprint.m_ref_yi = m_y/2 + 10*NM_PER_MIL; 
-		m_footprint.m_ref_angle = 0;	
-		m_footprint.m_ref_w = 7*NM_PER_MIL;
+		m_footprint.m_ref->m_font_size = 50*NM_PER_MIL; 
+		m_footprint.m_ref->m_x = 0; 
+		m_footprint.m_ref->m_y = m_y/2 + 10*NM_PER_MIL; 
+		m_footprint.m_ref->m_angle = 0;	
+		m_footprint.m_ref->m_stroke_width = 7*NM_PER_MIL;
 		m_footprint.m_sel_xi = -m_x;
 		m_footprint.m_sel_yi = -m_y/2 - 10*NM_PER_MIL;
 		m_footprint.m_sel_xf = m_e * (m_hpins-1) + m_x; 
 		m_footprint.m_sel_yf = m_y/2 + 10*NM_PER_MIL;
-		m_footprint.m_padstack.SetSize( m_npins ); 
 		for( int i=0; i<m_npins; i++ )
 		{
-			padstack * ps = &m_footprint.m_padstack[i];
+			cpadstack * ps = new cpadstack(doc);
 			ps->hole_size = 0;
 			ps->angle = 90;
 			ps->y_rel = 0;
@@ -1040,48 +1043,42 @@ BOOL CDlgWizQuad::MakeFootprint()
 			m_footprint.Clear();
 			return FALSE;
 		}
-		int iv, ih;
+		// CPT2.  Note that MakeFromString() set the utility value for each pin in m_footprint, equal to that pin's (0-based) ordinal number
 		if ( m_type == BGA )
 		{
-			// rename pins
-			for( int ip=0; ip<m_footprint.GetNumPins(); ip++ )
+			// rename pins and modify pad shape for SQ1 patterns
+			int ip_A1 = (m_vpins-1)*m_hpins;
+			citer<cpadstack> ips (&m_footprint.m_padstack);
+			for (cpadstack *ps = ips.First(); ps; ps = ips.Next())
 			{
-				iv = m_vpins - ip/m_hpins - 1;
-				ih = ip%m_hpins;
-				CString pin_name;
-				pin_name.Format( "%s%d", &bga_row_name[iv][0], ih+1 );
-				m_footprint.m_padstack[ip].name = pin_name;
+				int iv = m_vpins - ps->utility/m_hpins - 1;
+				int ih = ps->utility % m_hpins;
+				ps->name.Format( "%s%d", &bga_row_name[iv][0], ih+1 );
+				if (m_shape == SQ1)
+					if (ps->utility==0)
+						ps->top.shape = ps->inner.shape = ps->bottom.shape = PAD_ROUND;
+					else if (ps->utility==ip_A1)
+						ps->top.shape = ps->bottom.shape = PAD_SQUARE,
+						ps->inner.shape = PAD_ROUND;
 			}
-			// modify pad
-			if( m_shape == SQ1 )
-			{
-				m_footprint.m_padstack[0].top.shape = PAD_ROUND;
-				m_footprint.m_padstack[0].inner.shape = PAD_ROUND;
-				m_footprint.m_padstack[0].bottom.shape = PAD_ROUND;
-				int ip_A1 = (m_vpins-1)*m_hpins;
-				m_footprint.m_padstack[ip_A1].top.shape = PAD_SQUARE;
-				m_footprint.m_padstack[ip_A1].inner.shape = PAD_ROUND;
-				m_footprint.m_padstack[ip_A1].bottom.shape = PAD_SQUARE;
-			}
-			// modify outline
-			CPolyLine * poly = &m_footprint.m_outline_poly[0];
-			int xc = poly->X(3);
-			int yc = poly->Y(3);
-			poly->DeleteCorner(3);
+			// modify outline.  CPT2 an ugly business...
 			int chamfer = m_e;
 			int enlarge = m_e/2;
-			poly->InsertCorner( 3, xc + chamfer, yc );
-			poly->InsertCorner( 4, xc, yc - chamfer );
-			poly->SetX( 0, poly->X(0) - enlarge );
-			poly->SetY( 0, poly->Y(0) - enlarge );
-			poly->SetX( 1, poly->X(1) + enlarge);
-			poly->SetY( 1, poly->Y(1) - enlarge );
-			poly->SetX( 2, poly->X(2) + enlarge );
-			poly->SetY( 2, poly->Y(2) + enlarge );
-			poly->SetX( 3, poly->X(3) - enlarge );
-			poly->SetY( 3, poly->Y(3) + enlarge );
-			poly->SetX( 4, poly->X(4) - enlarge );
-			poly->SetY( 4, poly->Y(4) + enlarge );
+			ccontour *ctr = m_footprint.m_outline_poly.First()->main;
+			ccorner *c = ctr->head;
+			c->x -= enlarge;					// Bottom left
+			c->y -= enlarge;
+			c = c->postSide->postCorner;
+			c->x += enlarge;					// Bottom right
+			c->y -= enlarge;
+			c = c->postSide->postCorner;
+			c->x += enlarge;					// Top right
+			c->y += enlarge;
+			c = c->postSide->postCorner;
+			int tlx = c->x, tly = c->y;			// Top left (add an extra corner for chamfering)
+			c->x = tlx+chamfer-enlarge;
+			c->y = tly+enlarge;
+			c->postSide->InsertCorner( tlx-enlarge, tly-chamfer+enlarge );
 			m_footprint.m_sel_xi -= enlarge;
 			m_footprint.m_sel_yi -= enlarge;
 			m_footprint.m_sel_xf += enlarge;
@@ -1089,7 +1086,6 @@ BOOL CDlgWizQuad::MakeFootprint()
 		}
 	}
 
-#endif
 	// Yay!
 	return TRUE;
 }

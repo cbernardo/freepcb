@@ -256,6 +256,105 @@ BEGIN
     END
 END
 
+IDR_MAINFRAME_DRAG MENU
+BEGIN
+    POPUP "&File", GRAYED
+    BEGIN
+        MENUITEM "&New\tCtrl+N",                ID_FILE_NEW
+        MENUITEM "&Open...\tCtrl+O",            ID_FILE_OPEN
+        MENUITEM "&Save\tCtrl+S",               ID_FILE_SAVE
+        MENUITEM "Save &As...",                 ID_FILE_SAVE_AS
+        MENUITEM "Close",                       57602
+        MENUITEM SEPARATOR
+        MENUITEM "Import netlist...",           244
+        MENUITEM "Export netlist...",           ID_FILE_EXPORTNETLIST
+        MENUITEM SEPARATOR
+        MENUITEM "Convert library...",          250
+        MENUITEM SEPARATOR
+        MENUITEM "Generate CAM files...",       ID_FILE_GENERATECADFILES
+        MENUITEM "Generate report file...",     ID_FILE_GENERATEREPORTFILE32910
+        MENUITEM SEPARATOR
+        MENUITEM "Open Footprint Editor...",    ID_FILE_OPENFOOTPRINTEDITOR
+        MENUITEM SEPARATOR
+        MENUITEM "Export .dsn file...",         32886
+        MENUITEM "Import .ses file...",         ID_SES_FILE_IMPORT
+        MENUITEM SEPARATOR
+        MENUITEM "&Print...\tCtrl+P",           ID_FILE_PRINT, GRAYED
+        MENUITEM "Print Pre&view",              ID_FILE_PRINT_PREVIEW, GRAYED
+        MENUITEM "P&rint Setup...",             ID_FILE_PRINT_SETUP, GRAYED
+        MENUITEM SEPARATOR
+        MENUITEM "Recent File",                 ID_FILE_MRU_FILE1, GRAYED
+        MENUITEM SEPARATOR
+        MENUITEM "E&xit",                       ID_APP_EXIT
+        MENUITEM SEPARATOR
+    END
+    POPUP "&Edit", GRAYED
+    BEGIN
+        MENUITEM "&Undo\tCtrl+Z",               ID_EDIT_UNDO
+        MENUITEM "&Redo\tCtrl+Shift+Z",         ID_EDIT_REDO
+        MENUITEM SEPARATOR
+        MENUITEM "Cu&t\tCtrl+X",                ID_EDIT_CUT
+        MENUITEM "&Copy\tCtrl+C",               ID_EDIT_COPY
+        MENUITEM "&Paste\tCtrl+V",              ID_EDIT_PASTE
+        MENUITEM SEPARATOR
+        MENUITEM "Save group to file...",       ID_EDIT_SAVEGROUPTOFILE
+        MENUITEM "Paste group from file...",    ID_EDIT_PASTEFROMFILE
+    END
+    POPUP "&View", GRAYED
+    BEGIN
+        MENUITEM "Show board outline",          ID_VIEW_ENTIREBOARD
+        MENUITEM "Show all ",                   ID_VIEW_ALLELEMENTS
+        MENUITEM "Show part...",                ID_VIEW_FINDPART
+        MENUITEM SEPARATOR
+        MENUITEM "Layers...",                   ID_VIEW_LAYERS
+        MENUITEM SEPARATOR
+        MENUITEM "Show Log...",                 ID_VIEW_LOG
+    END
+    POPUP "Project", GRAYED
+    BEGIN
+        MENUITEM "Options...",                  ID_PROJECT_OPTIONS
+        MENUITEM "Parts...",                    ID_VIEW_PARTLIST
+        MENUITEM "Nets...",                     ID_VIEW_NETLIST
+    END
+    POPUP "Tools", GRAYED
+    BEGIN
+        MENUITEM "Move origin",                 ID_TOOLS_MOVEORIGIN
+        MENUITEM SEPARATOR
+        MENUITEM "Footprint Wizard",            ID_TOOLS_FOOTPRINTWIZARD
+        MENUITEM "Footprint Editor",            1155
+        MENUITEM SEPARATOR
+        MENUITEM "Check parts and nets",        ID_TOOLS_CHECK_PARTS_NETS
+        MENUITEM "Check traces",                ID_TOOLS_CHECKTRACES
+        MENUITEM "Check Connectivity",          ID_TOOLS_CHECK_CONNECTIVITY
+        MENUITEM "Check Copper Areas",          ID_TOOLS_CHECKCOPPERAREAS
+        MENUITEM SEPARATOR
+        MENUITEM "Design Rule Check",           ID_TOOLS_DRC
+        MENUITEM "Repeat &DRC\tCtrl+D",         ID_TOOLS_REPEATDRC
+        MENUITEM "Clear DRC Errors",            ID_TOOLS_CLEAR_DRC
+        MENUITEM SEPARATOR
+        MENUITEM "FreeRoute autorouter...",     ID_TOOLS_OPENONLINEAUTOROUTER
+    END
+    POPUP "Add", GRAYED
+    BEGIN
+        MENUITEM "Board Outline",               ID_ADD_BOARDOUTLINE
+        MENUITEM "Part",                        ID_ADD_PART
+        MENUITEM "Net",                         ID_ADD_NET
+        MENUITEM "Copper Area",                 ID_ADD_AREA
+        MENUITEM "Text",                        ID_ADD_TEXT
+        MENUITEM "Solder Mask Cutout",          ID_ADD_SOLDERMASKCUTOUT
+    END
+    POPUP "&Help", GRAYED
+    BEGIN
+        MENUITEM "FreePCB User Guide (HTML)",   ID_HELP_USERGUIDE
+        MENUITEM "FreePCB User Guide (PDF)",    ID_HELP_USERGUIDE_PDF
+        MENUITEM "FreePCB website",             ID_HELP_GOTOWEBSITE
+        MENUITEM "FreeRouting website",         ID_HELP_FREEROUTINGWEBSITE
+        MENUITEM "Keyboard shortcuts",          ID_HELP_KEYBOARDSHORTCUTS
+        MENUITEM "&About FreePcb...",           ID_APP_ABOUT
+    END
+END
+
+
 IDR_FOOTPRINT MENU
 BEGIN
     POPUP "&File"
@@ -290,7 +389,7 @@ BEGIN
     BEGIN
         MENUITEM "Pin",                         ID_ADD_PIN
         MENUITEM "Polyline",                    ID_ADD_POLYLINE
-        MENUITEM "Text",                        ID_ADD_TEXT32805
+        MENUITEM "Text",                        ID_FP_ADDTEXT
         MENUITEM "Adhesive spot",               ID_ADD_ADHESIVESPOT
         MENUITEM "Hole",                        ID_ADD_HOLE, GRAYED
         MENUITEM "Routed Slot",                 ID_ADD_SLOT, GRAYED
@@ -537,8 +636,9 @@ BEGIN
     POPUP "None"
     BEGIN
         MENUITEM "Add Pin",                     ID_FP_ADD_PIN
-        MENUITEM "Add Polyline",                ID_FP_ADD_POLY
+        MENUITEM "Add Outline",                 ID_FP_ADD_POLY
         MENUITEM "Add Text",                    ID_FP_ADD_TEXT
+        MENUITEM "Add Adhesive",                ID_NONE_ADDADHESIVE
         MENUITEM SEPARATOR
         MENUITEM "Move Origin",                 ID_NONE_MOVEORIGIN
         MENUITEM SEPARATOR
@@ -546,40 +646,44 @@ BEGIN
     END
     POPUP "FP_pad"
     BEGIN
-        MENUITEM "Move",                        ID_FP_MOVE
-        MENUITEM "Edit properties",             ID_FP_EDITPROPERTIES
+        MENUITEM "Move",                        ID_FP_PAD_MOVE
+        MENUITEM "Rotate",                      ID_FP_PAD_ROTATE
+        MENUITEM "Edit properties",             ID_FP_PAD_EDIT
         MENUITEM SEPARATOR
-        MENUITEM "Delete",                      ID_FP_DELETE
+        MENUITEM "Delete",                      ID_FP_PAD_DELETE
     END
     POPUP "FP_side"
     BEGIN
         MENUITEM "Insert Corner",               ID_FP_INSERTCORNER
         MENUITEM "Convert to Straight",         ID_FP_CONVERTTOSTRAIGHT
         MENUITEM "Convert to Arc(cw)",          ID_FP_CONVERTTOARC
-        MENUITEM "Convert to Arc(ccw)",         ID_FP_CONVERTTOARC32778
+        MENUITEM "Convert to Arc(ccw)",         ID_FP_CONVERTTOARCCCW
         MENUITEM SEPARATOR
-        MENUITEM "Polyline properties...",      ID_FP_POLYLINEPROPERTIES
+        MENUITEM "Outline properties...",       ID_FP_POLYLINEPROPERTIES
         MENUITEM SEPARATOR
-        MENUITEM "Delete Polyline",             ID_FP_DELETEOUTLINE
+        MENUITEM "Delete Side",                 ID_FP_DELETESIDE
+        MENUITEM "Delete Outline",              ID_FP_DELETEOUTLINE
     END
     POPUP "FP_corner"
     BEGIN
-        MENUITEM "Move",                        ID_FP_MOVE32780
+        MENUITEM "Move",                        ID_FP_MOVECORNER
         MENUITEM "Set Position",                ID_FP_SETPOSITION
         MENUITEM SEPARATOR
-        MENUITEM "Polyline properties...",      ID_FP_POLYLINEPROPERTIES
+        MENUITEM "Outline properties...",       ID_FP_POLYLINEPROPERTIES
         MENUITEM SEPARATOR
         MENUITEM "Delete Corner",               ID_FP_DELETECORNER
-        MENUITEM "Delete Polyline",             ID_FP_DELETEPOLYLINE
+        MENUITEM "Delete Outline",              ID_FP_DELETEOUTLINE
     END
     POPUP "FP_ref"
     BEGIN
-        MENUITEM "Edit properties",             ID_FP_CHANGESIZE_REF
-        MENUITEM "Move",                        ID_FP_MOVE_REF
+        MENUITEM "Edit properties",             ID_FP_TEXT_EDIT
+        MENUITEM "Rotate",                      ID_FP_TEXT_ROTATE
+        MENUITEM "Move",                        ID_FP_TEXT_MOVE
     END
     POPUP "FP_text"
     BEGIN
         MENUITEM "Edit properties",             ID_FP_TEXT_EDIT
+        MENUITEM "Rotate",                      ID_FP_TEXT_ROTATE
         MENUITEM "Move",                        ID_FP_TEXT_MOVE
         MENUITEM SEPARATOR
         MENUITEM "Delete",                      ID_FP_TEXT_DELETE
@@ -599,161 +703,9 @@ BEGIN
     END
     POPUP "FP_value"
     BEGIN
-        MENUITEM "Edit properties",             ID_FP_EDIT
-        MENUITEM "Move",                        ID_FP_MOVE32923
-    END
-END
-
-IDR_MAINFRAME_DRAG MENU
-BEGIN
-    POPUP "&File", GRAYED
-    BEGIN
-        MENUITEM "&New\tCtrl+N",                ID_FILE_NEW
-        MENUITEM "&Open...\tCtrl+O",            ID_FILE_OPEN
-        MENUITEM "&Save\tCtrl+S",               ID_FILE_SAVE
-        MENUITEM "Save &As...",                 ID_FILE_SAVE_AS
-        MENUITEM "Close",                       57602
-        MENUITEM SEPARATOR
-        MENUITEM "Import netlist...",           244
-        MENUITEM "Export netlist...",           ID_FILE_EXPORTNETLIST
-        MENUITEM SEPARATOR
-        MENUITEM "Convert library...",          250
-        MENUITEM SEPARATOR
-        MENUITEM "Generate CAM files...",       ID_FILE_GENERATECADFILES
-        MENUITEM "Generate report file...",     ID_FILE_GENERATEREPORTFILE32910
-        MENUITEM SEPARATOR
-        MENUITEM "Open Footprint Editor...",    ID_FILE_OPENFOOTPRINTEDITOR
-        MENUITEM SEPARATOR
-        MENUITEM "Export .dsn file...",         32886
-        MENUITEM "Import .ses file...",         ID_SES_FILE_IMPORT
-        MENUITEM SEPARATOR
-        MENUITEM "&Print...\tCtrl+P",           ID_FILE_PRINT, GRAYED
-        MENUITEM "Print Pre&view",              ID_FILE_PRINT_PREVIEW, GRAYED
-        MENUITEM "P&rint Setup...",             ID_FILE_PRINT_SETUP, GRAYED
-        MENUITEM SEPARATOR
-        MENUITEM "Recent File",                 ID_FILE_MRU_FILE1, GRAYED
-        MENUITEM SEPARATOR
-        MENUITEM "E&xit",                       ID_APP_EXIT
-        MENUITEM SEPARATOR
-    END
-    POPUP "&Edit", GRAYED
-    BEGIN
-        MENUITEM "&Undo\tCtrl+Z",               ID_EDIT_UNDO
-        MENUITEM "&Redo\tCtrl+Shift+Z",         ID_EDIT_REDO
-        MENUITEM SEPARATOR
-        MENUITEM "Cu&t\tCtrl+X",                ID_EDIT_CUT
-        MENUITEM "&Copy\tCtrl+C",               ID_EDIT_COPY
-        MENUITEM "&Paste\tCtrl+V",              ID_EDIT_PASTE
-        MENUITEM SEPARATOR
-        MENUITEM "Save group to file...",       ID_EDIT_SAVEGROUPTOFILE
-        MENUITEM "Paste group from file...",    ID_EDIT_PASTEFROMFILE
-    END
-    POPUP "&View", GRAYED
-    BEGIN
-        MENUITEM "Show board outline",          ID_VIEW_ENTIREBOARD
-        MENUITEM "Show all ",                   ID_VIEW_ALLELEMENTS
-        MENUITEM "Show part...",                ID_VIEW_FINDPART
-        MENUITEM SEPARATOR
-        MENUITEM "Layers...",                   ID_VIEW_LAYERS
-        MENUITEM SEPARATOR
-        MENUITEM "Show Log...",                 ID_VIEW_LOG
-    END
-    POPUP "Project", GRAYED
-    BEGIN
-        MENUITEM "Options...",                  ID_PROJECT_OPTIONS
-        MENUITEM "Parts...",                    ID_VIEW_PARTLIST
-        MENUITEM "Nets...",                     ID_VIEW_NETLIST
-    END
-    POPUP "Tools", GRAYED
-    BEGIN
-        MENUITEM "Move origin",                 ID_TOOLS_MOVEORIGIN
-        MENUITEM SEPARATOR
-        MENUITEM "Footprint Wizard",            ID_TOOLS_FOOTPRINTWIZARD
-        MENUITEM "Footprint Editor",            1155
-        MENUITEM SEPARATOR
-        MENUITEM "Check parts and nets",        ID_TOOLS_CHECK_PARTS_NETS
-        MENUITEM "Check traces",                ID_TOOLS_CHECKTRACES
-        MENUITEM "Check Connectivity",          ID_TOOLS_CHECK_CONNECTIVITY
-        MENUITEM "Check Copper Areas",          ID_TOOLS_CHECKCOPPERAREAS
-        MENUITEM SEPARATOR
-        MENUITEM "Design Rule Check",           ID_TOOLS_DRC
-        MENUITEM "Repeat &DRC\tCtrl+D",         ID_TOOLS_REPEATDRC
-        MENUITEM "Clear DRC Errors",            ID_TOOLS_CLEAR_DRC
-        MENUITEM SEPARATOR
-        MENUITEM "FreeRoute autorouter...",     ID_TOOLS_OPENONLINEAUTOROUTER
-    END
-    POPUP "Add", GRAYED
-    BEGIN
-        MENUITEM "Board Outline",               ID_ADD_BOARDOUTLINE
-        MENUITEM "Part",                        ID_ADD_PART
-        MENUITEM "Net",                         ID_ADD_NET
-        MENUITEM "Copper Area",                 ID_ADD_AREA
-        MENUITEM "Text",                        ID_ADD_TEXT
-        MENUITEM "Solder Mask Cutout",          ID_ADD_SOLDERMASKCUTOUT
-    END
-    POPUP "&Help", GRAYED
-    BEGIN
-        MENUITEM "FreePCB User Guide (HTML)",   ID_HELP_USERGUIDE
-        MENUITEM "FreePCB User Guide (PDF)",    ID_HELP_USERGUIDE_PDF
-        MENUITEM "FreePCB website",             ID_HELP_GOTOWEBSITE
-        MENUITEM "FreeRouting website",         ID_HELP_FREEROUTINGWEBSITE
-        MENUITEM "Keyboard shortcuts",          ID_HELP_KEYBOARDSHORTCUTS
-        MENUITEM "&About FreePcb...",           ID_APP_ABOUT
-    END
-END
-
-IDR_FOOTPRINT_DRAG MENU
-BEGIN
-    POPUP "&File", GRAYED
-    BEGIN
-        MENUITEM "New Footprint",               ID_FOOTPRINT_FILE_NEW
-        MENUITEM "Import footprint...",         ID_FOOTPRINT_FILE_IMPORT
-        MENUITEM "Save Footprint As...",        ID_FOOTPRINT_FILE_SAVE_AS
-        MENUITEM SEPARATOR
-        MENUITEM "&Print...\tCtrl+P",           ID_FILE_PRINT, INACTIVE
-        MENUITEM "Print Pre&view",              ID_FILE_PRINT_PREVIEW, INACTIVE
-        MENUITEM "P&rint Setup...",             ID_FILE_PRINT_SETUP, INACTIVE
-        MENUITEM SEPARATOR
-        MENUITEM "Return to PCB layout",        ID_FOOTPRINT_FILE_CLOSE
-    END
-    POPUP "&Edit", GRAYED
-    BEGIN
-        MENUITEM "&Undo\tCtrl+Z",               ID_EDIT_UNDO
-        MENUITEM "&Redo\tCtrl+Shift+Z",         ID_EDIT_REDO
-        MENUITEM SEPARATOR
-        MENUITEM "Cu&t\tCtrl+X",                ID_EDIT_CUT, INACTIVE
-        MENUITEM "&Copy\tCtrl+C",               ID_EDIT_COPY, INACTIVE
-        MENUITEM "&Paste\tCtrl+V",              ID_EDIT_PASTE, INACTIVE
-    END
-    POPUP "&View", GRAYED
-    BEGIN
-        MENUITEM "Entire Footprint",            ID_VIEW_ENTIREFOOTPRINT
-        MENUITEM "Reveal Value Text",           ID_VIEW_REVEALVALUETEXT
-        MENUITEM "Visible Grid Values...",      ID_VIEW_FPVISIBLEGRIDVALUES
-        MENUITEM "Placement Grid Values...",    ID_VIEW_FPPLACEMENTGRIDVALUES
-    END
-    POPUP "Add", GRAYED
-    BEGIN
-        MENUITEM "Pin",                         ID_ADD_PIN
-        MENUITEM "Polyline",                    ID_ADD_POLYLINE
-        MENUITEM "Text",                        ID_ADD_TEXT32805
-        MENUITEM "Value",                       ID_ADD_VALUETEXT
-        MENUITEM "Adhesive spot",               ID_ADD_ADHESIVESPOT
-        MENUITEM "Hole",                        ID_ADD_HOLE
-        MENUITEM "Routed Slot",                 ID_ADD_SLOT
-    END
-    POPUP "Tools", GRAYED
-    BEGIN
-        MENUITEM "Move origin",                 ID_TOOLS_MOVEORIGIN_FP
-        MENUITEM SEPARATOR
-        MENUITEM "Footprint Wizard...",         ID_FP_TOOLS_FOOTPRINTWIZARD
-        MENUITEM "Make PDF from Library File...", ID_TOOLS_FOOTPRINTLIBRARYMANAGER
-        MENUITEM SEPARATOR
-        MENUITEM "Return to PCB layout",        ID_FP_TOOLS_RETURN
-    END
-    POPUP "&Help", GRAYED
-    BEGIN
-        MENUITEM "&About FreePcb...",           ID_APP_ABOUT
+        MENUITEM "Edit properties",             ID_FP_TEXT_EDIT
+        MENUITEM "Rotate",                      ID_FP_TEXT_ROTATE
+        MENUITEM "Move",                        ID_FP_TEXT_MOVE
     END
 END
 
@@ -1459,7 +1411,7 @@ BEGIN
     EDITTEXT        IDC_EDIT_Z2,102,236,36,12,ES_AUTOHSCROLL
     PUSHBUTTON      "Save",IDC_WIZ_BUTTON_SAVE,66,263,50,14
     PUSHBUTTON      "Exit",ID_WIZ_BUTTON_EXIT,171,264,50,14
-    PUSHBUTTON      "Preview",IDC_BUTTON2,341,263,50,14
+    PUSHBUTTON      "Preview",IDC_BUTTON_PREVIEW,341,263,50,14
     LTEXT           "Name",IDC_STATIC,12,12,19,8
     LTEXT           "Units",IDC_STATIC,240,12,17,8
     GROUPBOX        "Number of pins",IDC_STATIC,12,30,414,48
@@ -1627,7 +1579,7 @@ END
 
 IDD_ADD_POLY DIALOGEX 0, 0, 172, 169
 STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
-CAPTION "Add Polyline to Footprint"
+CAPTION "Add/Edit Footprint Outline"
 FONT 8, "MS Shell Dlg", 400, 0, 0x1
 BEGIN
     CONTROL         "Open",IDC_RADIO_OPEN,"Button",BS_AUTORADIOBUTTON,12,6,33,10
@@ -3639,7 +3591,7 @@ BEGIN
     IDS_VertexPosition      "Vertex Position"
     IDS_BoardOutlineDoesNotExist "Board outline does not exist"
     IDS_DoYouWishToReplaceTheFootprintOfPart 
-                            "Do you wish to replace the footprint of part ""%s""\nwith the new footprint ""%s"" ?"
+                            "Do you wish to alter part ""%s,""\nusing your modified form of footprint ""%s"" ?"
     IDS_WarningAFootprintNamedIsAlreadyInUse 
                             "Warning: A footprint named ""%s""\r\nis already in use by other parts.\r\nLoading this new footprint will overwrite the old one\r\nunless you change its name\r\n"
     IDS_SorryThisPartDoesntHaveAFootprint 
@@ -3940,7 +3892,7 @@ BEGIN
     IDS_STRING63024         " Add"
     IDS_STRING63025         " Text"
     IDS_STRING63026         " Add"
-    IDS_STRING63027         " Polyline"
+    IDS_STRING63027         " Outline"
     IDS_STRING63028         " Recalc."
     IDS_STRING63029         " Ratlines"
     IDS_STRING63030         " Add"
@@ -4018,7 +3970,7 @@ END
 STRINGTABLE
 BEGIN
     IDS_STRING63088         " Delete"
-    IDS_STRING63089         " Polyline"
+    IDS_STRING63089         " Outline"
     IDS_STRING63090         " Edit"
     IDS_STRING63091         " Centroid"
     IDS_STRING63092         " Move"
@@ -4041,8 +3993,14 @@ BEGIN
     IDS_STRING63105         " Adhesive"
     IDS_STRING63106         " Delete"
     IDS_STRING63107         " Adhesive"
-    IDS_STRING63108         " ****"
-    IDS_STRING63109         " ****"
+    IDS_STRING63108         " Add"
+    IDS_STRING63109         " Adhesive"
+    63110                   " Edit"
+    63111                   " Outline"
+    IDS_STRING130           " Delete"
+    IDS_STRING63113         " Side"
+    63114                   " ****"
+    63115                   " ****"
 END
 
 STRINGTABLE

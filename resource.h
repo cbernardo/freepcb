@@ -132,7 +132,6 @@
 #define ID_CONVERT                      251
 #define IDR_MAINFRAME_DRAG              251
 #define IDD_IVEX_DIALOG                 252
-#define IDR_FOOTPRINT_DRAG              252
 #define IDC_EDIT_INFILE                 253
 #define IDC_BUTTON_INFILE               254
 #define IDC_EDIT_OUTFILE                255
@@ -745,6 +744,7 @@
 #define IDC_BUTTON_LAYER_14             1444
 #define IDC_CHECK_AUTO_HIGHLIGHT_NET    1444
 #define IDC_BUTTON_LAYER_15             1445
+#define IDC_BUTTON_PREVIEW              1445
 #define IDC_BUTTON_LAYER_16             1446
 #define IDC_BUTTON_LAYER_17             1447
 #define IDC_BUTTON_LAYER_18             1448
@@ -805,9 +805,9 @@
 #define ID_FP_INSERTCORNER              32775
 #define ID_FP_CONVERTTOSTRAIGHT         32776
 #define ID_FP_CONVERTTOARC              32777
-#define ID_FP_CONVERTTOARC32778         32778
+#define ID_FP_CONVERTTOARCCCW           32778
 #define ID_FP_DELETEOUTLINE             32779
-#define ID_FP_MOVE32780                 32780
+#define ID_FP_MOVECORNER                32780
 #define ID_FP_SETPOSITION               32781
 #define ID_FP_DELETECORNER              32782
 #define ID_FP_DELETEPOLYLINE            32783
@@ -825,7 +825,7 @@
 #define ID_TOOLS_CLEAR_DRC              32802
 #define ID_TOOLS_SHOWDRCERRORLIST       32803
 #define ID_VIEW_FINDPART                32804
-#define ID_ADD_TEXT32805                32805
+#define ID_FP_ADDTEXT                   32805
 #define ID_FP_TEXT_DELETE               32809
 #define ID_FP_TEXT_MOVE                 32810
 #define ID_FP_TEXT_EDIT                 32811
@@ -964,6 +964,19 @@
 #define ID_TEE_DELETE                   32955
 #define ID_TEE_UNROUTETRACE             32956
 #define ID_TEE_SETSIZE                  32957
+#define ID_NONE_ADDADHESIVE             32958
+#define ID_FP_ROTATE                    32959
+#define ID_FP_DELETESIDE                32960
+#define ID_FP_ROTATE32961               32961
+#define ID_FP_REFROTATE                 32962
+#define ID_FP_ROTATE32963               32963
+#define ID_FP_TEXTROTATE                32964
+#define ID_FP_ROTATE32965               32965
+#define ID_FP_TEXT_ROTATE               32966
+#define ID_FP_PAD_ROTATE                32967
+#define ID_FP_PAD_EDIT                  32968
+#define ID_FP_PAD_MOVE                  32969
+#define ID_FP_PAD_DELETE                32970
 #define IDS_AppName                     61999
 #define IDS_IllegalNetName              62000
 #define IDS_TopSolderMask               62001
@@ -1353,7 +1366,7 @@
 #define IDS_BoardOutlineHasTooFewCorners 62440
 #define IDS_VertexPosition              62441
 #define IDS_BoardOutlineDoesNotExist    62442
-#define IDS_DoYouWishToReplaceTheFootprintOfPart 62443
+#define IDS_DoYouWishToReplaceTheFootprintOfPart 62679
 #define IDS_WarningAFootprintNamedIsAlreadyInUse 62444
 #define IDS_SorryThisPartDoesntHaveAFootprint 62445
 #define IDS_SorryThisPartDoesntExist    62446
@@ -1690,6 +1703,8 @@
 #define IDS_STRING63107                 63107
 #define IDS_STRING63108                 63108
 #define IDS_STRING63109                 63109
+#define IDS_STRING130                   63112
+#define IDS_STRING63113                 63113
 #define IDS_FkStr                       63500
 #define IDS_STRING63501                 63501
 #define IDS_STRING63502                 63502
@@ -1929,8 +1944,8 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_3D_CONTROLS                     1
 #define _APS_NEXT_RESOURCE_VALUE        353
-#define _APS_NEXT_COMMAND_VALUE         32958
-#define _APS_NEXT_CONTROL_VALUE         1445
+#define _APS_NEXT_COMMAND_VALUE         32971
+#define _APS_NEXT_CONTROL_VALUE         1446
 #define _APS_NEXT_SYMED_VALUE           106
 #endif
 #endif

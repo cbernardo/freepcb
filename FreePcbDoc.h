@@ -115,11 +115,11 @@ public:
 	cnetlist *m_nlist;			// CPT2.  Was CNetList, now cnetlist
 	cpartlist *m_plist;			// CPT2.  Was CPartList, now cpartlist
 	ctextlist * m_tlist;		// CPT2.  Was CTextList, now ctextlist
-	// CArray<CPolyLine> m_board_outline;	// PCB outline. CPT2 supplanted by "others"
+	carray<cboard> boards;
+	carray<csmcutout> smcutouts;
+	carray<coutline> outlines;		// CPT2 maybe...  Still have to figure out the memory management of entities within CShapes.
 	DRErrorList * m_drelist;		// CPT2 TODO: change to drelist or just carray<cdre>
-	// CArray<CPolyLine> m_sm_cutout;	// array of soldermask cutouts. // CPT2 supplanted by "others"
 	carray<cpcb_item> items;		// CPT2.  Master list of all created pcb-items.  GarbageCollect() will go through this list and clean up now and then.
-	carray<cpcb_item> others;		// CPT2.  All active pcb-items that belong to "other" categories (not net-items, part-items, or texts)
 	carray<cpcb_item> redraw;		// CPT2 r313.  My latest-n-greatest system for undrawing and redrawing (see notes.txt).
 
 	CFreePcbView * m_view;		// pointer to CFreePcbView 
@@ -134,7 +134,7 @@ public:
 								// files created with this version
 	double m_read_version;		// the version from the project file
 	BOOL bNoFilesOpened;		// TRUE if no files have been opened
-	BOOL m_edit_footprint;		// TRUE to edit footprint of selected part
+	CShape * m_edit_footprint;	// Set if we're editing the footprint of a selected part.  CPT2 was BOOL, made it more informative...
 	BOOL m_project_open;		// FALSE if no project open
 	BOOL m_project_modified;	// FALSE if project not modified since loaded
 	BOOL m_project_modified_since_autosave;	// FALSE if project not modified since loaded

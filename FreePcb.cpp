@@ -97,7 +97,7 @@ BOOL CFreePcbApp::InitInstance()
 	VERIFY( m_main.LoadMenu( IDR_MAINFRAME ) );
 	VERIFY( m_main_drag.LoadMenu( IDR_MAINFRAME_DRAG ) );
 	VERIFY( m_foot.LoadMenu( IDR_FOOTPRINT ) );
-	VERIFY( m_foot_drag.LoadMenu( IDR_FOOTPRINT_DRAG ) );
+	// VERIFY( m_foot_drag.LoadMenu( IDR_FOOTPRINT_DRAG ) );		// CPT2 obsolete?
 
 	// Parse command line for standard shell commands, DDE, file open
 	CCommandLineInfo cmdInfo;
@@ -280,8 +280,8 @@ BOOL CFreePcbApp::SwitchToView( CRuntimeClass * pNewViewClass )
 			&& (m_doc->m_footprint_modified || m_doc->m_footprint_name_changed) )
 		{
 			// yes, make a copy of the footprint from the editor
-			temp_footprint = new CShape;
-			temp_footprint->Copy( &m_View_fp->m_fp );
+			temp_footprint = new CShape (m_View_fp->m_fp->m_doc);
+			temp_footprint->Copy( m_View_fp->m_fp );
 		}
 		// destroy old footprint view
 		pOldActiveView->DestroyWindow();
@@ -310,7 +310,7 @@ BOOL CFreePcbApp::SwitchToView( CRuntimeClass * pNewViewClass )
 			m_View->OnExternalChangeFootprint( temp_footprint );
 			delete temp_footprint;
 		}
-		m_doc->m_edit_footprint = FALSE;		// clear this flag for next time
+		m_doc->m_edit_footprint = NULL;		// clear this flag for next time
 	}
 
 	else
@@ -321,14 +321,11 @@ BOOL CFreePcbApp::SwitchToView( CRuntimeClass * pNewViewClass )
 		m_doc->m_dlist = m_doc->m_dlist_fp;												// CPT2.  Ensures that we draw to the fp display-list
 		if( m_View->m_cursor_mode == CUR_PART_SELECTED && m_doc->m_edit_footprint )
 		{
-			cpart2 *part = m_View->m_sel.First()->ToPart();
-			m_View_fp->InitInstance( part->shape );
-			units = part->shape->m_units;
+			m_View_fp->InitInstance( m_doc->m_edit_footprint );
+			units = m_doc->m_edit_footprint->m_units;
 		}
 		else
-		{
 			m_View_fp->InitInstance( NULL );
-		}
 		// restore toolbar stuff
 		CMainFrame * frm = (CMainFrame*)AfxGetMainWnd();
 		frm->m_wndMyToolBar.SetLists( &m_doc->m_fp_visible_grid, &m_doc->m_fp_part_grid, NULL,
@@ -343,7 +340,7 @@ BOOL CFreePcbApp::SwitchToView( CRuntimeClass * pNewViewClass )
 	client_rect.top += 24;		// leave room for toolbar
 	client_rect.bottom -= 18;	// leave room for status bar
 	pNewView->MoveWindow( client_rect, 1 );
-
+	m_View->InvalidateLeftPane();
 	return TRUE;
 }
 

@@ -689,7 +689,7 @@ void cpartlist::ImportPartListInfo( partlist_info * pl, int flags, CDlgLog * log
 				ASSERT( part->shape != NULL );
 				if( pi->shape && !(flags & KEEP_FP) )
 					// change footprint to new one
-					part->FootprintChanged( pi->shape );
+					part->ChangeFootprint( pi->shape );
 			}
 			part->m_ref->m_bShown = pi->ref_vis;
 			part->m_ref->m_layer = pi->ref_layer;

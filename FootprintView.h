@@ -29,8 +29,8 @@ enum {
 	CUR_FP_ADHESIVE_SELECTED,	// glue spot
 	CUR_FP_NUM_SELECTED_MODES,	// number of selection modes
 	CUR_FP_DRAG_PAD,			// dragging pad to move it
-	CUR_FP_DRAG_REF,			// dragging ref text to move it
-	CUR_FP_DRAG_VALUE,			// dragging value text to move it
+	// CUR_FP_DRAG_REF,			// dragging ref text to move it     // CPT2 Deprecated (use CUR_FP_DRAG_TEXT)
+	// CUR_FP_DRAG_VALUE,		// dragging value text to move it	// CPT2 Deprecated (use CUR_FP_DRAG_TEXT)
 	CUR_FP_ADD_POLY,			// dragging first corner of new poly
 	CUR_FP_DRAG_POLY_1,			// dragging second corner of new poly
 	CUR_FP_DRAG_POLY,			// dragging next corner of new poly
@@ -51,14 +51,14 @@ enum {
 	FK_FP_ROTATE_PAD,
 	FK_FP_ROTATE_REF,
 	FK_FP_SIDE,
-	FK_FP_ROUTE,
+	FK_FP_ROUTE,				// CPT2 odd that this is here...
 	FK_FP_UNROUTE,
 	FK_FP_REROUTE,
 	FK_FP_COMPLETE,
 	FK_FP_ADD_PAD,
 	FK_FP_ADD_NET,
 	FK_FP_ADD_TEXT,
-	FK_FP_ADD_POLYLINE,
+	FK_FP_ADD_OUTLINE,
 	FK_FP_REDO_RATLINES,
 	FK_FP_ADD_AREA,
 	FK_FP_DELETE_PAD,
@@ -89,7 +89,7 @@ enum {
 	FK_FP_START_STUB,
 	FK_FP_EDIT_TEXT,
 	FK_FP_SET_POSITION,
-	FK_FP_DELETE_POLYLINE,
+	FK_FP_DELETE_OUTLINE,
 	FK_FP_EDIT_CENTROID,
 	FK_FP_MOVE_CENTROID,
 	FK_FP_MOVE_VALUE,
@@ -99,70 +99,11 @@ enum {
 	FK_FP_EDIT_ADHESIVE,
 	FK_FP_MOVE_ADHESIVE,
 	FK_FP_DELETE_ADHESIVE,
+	FK_FP_ADD_ADHESIVE,								// CPT2 added
+	FK_FP_EDIT_OUTLINE,								// CPT2 added
+	FK_FP_DELETE_SIDE,
 	FK_FP_NUM_OPTIONS
 };
-
-// function key menu strings
-/* 
-static char fk_fp_str[FK_FP_NUM_OPTIONS*2+2][32] = 
-{ 
-	"",			"",
-	" Move",	" Pad",
-	" Move",	" Ref Text",
-	" Rotate",	" Pad",
-	" Rotate",	" Ref Text",
-	" Change",	" Side",
-	" Route",	" Segment",
-	" Unroute",	" Segment",
-	" Reroute",	" Segment",
-	" Complete"," Segment",
-	" Add",		" Pin",
-	" Add",		" Net",
-	" Add",		" Text",
-	" Add",		" Polyline",
-	" Recalc.",	" Ratlines",
-	" Add",		" Area",
-	" Delete",  " Pad",
-	" Delete",  " Vertex",
-	" Move",	" Vertex",
-	" Move",	" Corner",
-	" Add",		" Corner",
-	" Delete",	" Corner",
-	" Connect",	" Pin",
-	" Detach",	" Net",
-	" Set",		" Net",
-	" Delete",	" Connect",
-	" Force",	" Via",
-	" Set",		" Width",
-	" Lock",	" Connect",
-	" Unlock",	" Connect",
-	" Move",	" Text",
-	" Rotate",	" Text",
-	" Delete",	" Text",
-	" Straight"," Line",
-	" Arc",		" (CW)",
-	" Arc",		" (CCW)",
-	" Edit",	" Pad",
-	" Glue",	" Part",
-	" Unglue",	" Part",
-	" Undo",	"",
-	" Edit",	" Params",
-	" Start",	" Stub",
-	" Edit",	" Text",
-	" Set",		" Position",
-	" Delete",	" Polyline",
-	" Edit",	" Centroid",
-	" Move",	" Centroid",
-	" Move",	" Value",
-	" Rotate",	" Value",
-	" Return",	" to PCB",
-	" Rotate",	" Axis",
-	" Edit",	" Adhesive",
-	" Move",	" Adhesive",
-	" Delete",	" Adhesive",
-	" ****",	" ****"
-};
-*/
 
 class CFootprintView : public CCommonView
 {
@@ -172,10 +113,8 @@ public: // create from serialization only
 
 // member variables
 public:
-	// flag to indicate that a newly-created item is being dragged,
-	// as opposed to an existing item
-	// if so, right-clicking or ESC will delete item not restore it
-	int m_drag_num_pads;
+	carray<cpadstack> m_pad_row;					// CPT2 new, gets filled by DlgAddPin with one or more new padstacks.
+	// int m_drag_num_pads;							// CPT2: use m_pad_row.GetSize()
 
 	// mode for drawing new polyline segments
 	BOOL m_polyline_closed_flag;
@@ -188,12 +127,13 @@ public:
 	int m_disable_context_menu;
 
 	// selected item
+	// CPT2 TODO the next 2 are DOOMED
 	CText * m_sel_text;	// pointer to selected text
 	void *m_sel_ptr;	// CPT:  pointer to selected ANYTHING (but in practice I think it will always be equal to m_sel_text)
 	static int sel_mask_btn_bits[16];	// CPT2.  New system for masking selections.  Each left-pane button corresponds to 1+ bits for types of pcb-items...
 
 	// footprint
-	CEditShape m_fp;	// footprint being edited
+	CEditShape *m_fp;	// footprint being edited
 
 	// undo stack
 	CArray<CEditShape*> undo_stack;
@@ -217,21 +157,12 @@ public:
 	// CPoint ScreenToPCB( CPoint point );		// CPT eliminated
 	// CPoint PCBToScreen( CPoint point );
 	// CPoint WindowToPCB( CPoint point );
-	void SetCursorMode( int mode );
-	void SetFKText( int mode );
 	void FinishArrowKey(int x, int y, int dx, int dy);   // CPT helper function for HandleKeyPress()
 	void HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags);
-	int ShowSelectStatus();
 	int ShowActiveLayer();
 	void SetWindowTitle( CString * str );
-	void CancelSelection();
 	int SetWidth( int mode );
 	int GetWidthsForSegment( int * w, int * via_w, int * via_hole_w );
-	BOOL CurNone();
-	BOOL CurSelected();
-	BOOL CurDragging();
-	BOOL CurDraggingPlacement();
-	void SnapCursorPoint( CPoint wp );
 	void FootprintModified( BOOL flag, BOOL force = FALSE, BOOL clear_redo=TRUE );
 	void FootprintNameChanged( CString * str );
 	void MoveOrigin( int x, int y );
@@ -258,42 +189,41 @@ public:
 //	afx_msg void OnSysChar(UINT nChar, UINT nRepCnt, UINT nFlags);
 //	afx_msg void OnSysCommand(UINT nID, LPARAM lParam);
 	afx_msg void OnContextMenu(CWnd* /*pWnd*/, CPoint /*point*/);
-	afx_msg void OnPadMove( int i, int num = 1 );
-	afx_msg void OnPadEdit( int i );
-	afx_msg void OnPadDelete( int i );
-	afx_msg void OnRefMove();
-	afx_msg void OnAddBoardOutline();
-	afx_msg void OnPolylineCornerMove();
-	afx_msg void OnPolylineCornerEdit();
-	afx_msg void OnPolylineCornerDelete();
-	afx_msg void OnPolylineSideAddCorner();
-	afx_msg void OnPolylineDelete();
+	afx_msg void OnPadMove();							// CPT2 changed args
+	void OnPadMoveRow();								// CPT2 new, takes care of dragging a row of padstacks
+	afx_msg void OnPadEdit();							// CPT2 changed arg
+	afx_msg void OnPadDelete();							// CPT2 changed arg
+	afx_msg void OnPadRotate();							// CPT2 new.
+	// afx_msg void OnRefMove();						// CPT2 folded into OnFpTextMove
+	afx_msg void OnOutlineCornerMove();
+	afx_msg void OnOutlineCornerEdit();
+	afx_msg void OnOutlineCornerDelete();
+	afx_msg void OnOutlineSideAddCorner();
+	afx_msg void OnOutlineDelete();
 	LONG OnChangeVisibleGrid( UINT wp, LONG lp );
 	LONG OnChangePlacementGrid( UINT wp, LONG lp );
 	LONG OnChangeSnapAngle( UINT wp, LONG lp );
 	LONG OnChangeUnits( UINT wp, LONG lp );
-	afx_msg void OnRefProperties();
-	afx_msg BOOL OnEraseBkgnd(CDC* pDC);
-	afx_msg void OnPolylineSideConvertToStraightLine();
-	afx_msg void OnPolylineSideConvertToArcCw();
-	afx_msg void OnPolylineSideConvertToArcCcw();
+	// afx_msg void OnRefProperties();
+	afx_msg void OnOutlineSideConvertToStraightLine();
+	afx_msg void OnOutlineSideConvertToArcCw();
+	afx_msg void OnOutlineSideConvertToArcCcw();
+	void OnOutlineSideConvert(int style);				// CPT2 factored out the common base of the previous 3 functions
 	afx_msg void OnAddPin();
 	afx_msg void OnFootprintFileSaveAs();
-	afx_msg void OnAddPolyline();
-	afx_msg void OnEditPolyline();
+	afx_msg void OnAddOutline();
+	afx_msg void OnOutlineEdit();
 	afx_msg void OnFootprintFileImport();
 	afx_msg void OnFootprintFileClose();
 	afx_msg void OnFootprintFileNew();
 	afx_msg void OnViewEntireFootprint();
 	afx_msg void OnEditUndo();
-	afx_msg void OnFpMove();
-	afx_msg void OnFpEditproperties();
-	afx_msg void OnFpDelete();
-	afx_msg void OnFpToolsFootprintwizard();
+	afx_msg void OnFpToolsFootprintWizard();
 	afx_msg void OnToolsFootprintLibraryManager();
 	afx_msg void OnAddText();
 	afx_msg void OnFpTextEdit();
 	afx_msg void OnFpTextMove();
+	afx_msg void OnFpTextRotate();
 	afx_msg void OnFpTextDelete();
 	afx_msg void OnToolsMoveOriginFP();
 	afx_msg void OnEditRedo();
@@ -302,9 +232,9 @@ public:
 	afx_msg void OnAddSlot();
 	afx_msg void OnAddHole();
 	//  CPT supplanted: afx_msg void OnAddValueText();
-	afx_msg void OnValueEdit();
-	afx_msg void OnValueMove();
-	afx_msg void OnValueReveal();			// CPT
+	// afx_msg void OnValueEdit();						// CPT2 folded into OnFpTextProperties
+	// afx_msg void OnValueMove();						// CPT2 folded into OnFpTextMove
+	afx_msg void OnValueReveal();						// CPT
 	afx_msg void OnAddAdhesive();
 	afx_msg void OnAdhesiveEdit();
 	afx_msg void OnAdhesiveMove();
@@ -315,6 +245,7 @@ public:
 	void UnitToggle(bool bShiftKeyDown);
 	afx_msg void OnViewPlacementGrid();
 	afx_msg void OnViewVisibleGrid();
+	afx_msg void OnOutlineSideDelete();					// CPT2 new.  TODO add to context menu.
 
 	// CPT:  virtual functions from CCommonView:
 	bool IsFreePcbView() { return false; }
@@ -344,7 +275,16 @@ public:
 		m_active_layer = layer;
 		ShowActiveLayer();
 		}
-
+	void SetFKText( int mode );
+	int ShowSelectStatus();
+	void CancelSelection();
+	BOOL CurNone();
+	BOOL CurSelected();
+	BOOL CurDragging();
+	BOOL CurDraggingPlacement();
+	void SnapCursorPoint( CPoint wp, UINT nFlags  );
+	void HighlightSelection();
+	void CancelHighlight();
 };
 
 #endif // !defined(AFX_FREEPCBVIEW_H__BE1CA173_E2B9_4252_8422_0B9767B01566__INCLUDED_)

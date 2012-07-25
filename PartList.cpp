@@ -798,8 +798,8 @@ CPoint CPartList::GetCentroidPoint( cpart * part )
 		ASSERT(0);
 	// get coords relative to part origin
 	CPoint pp;
-	pp.x = part->shape->m_centroid_x;
-	pp.y = part->shape->m_centroid_y;
+	pp.x = part->shape->m_centroid->m_x;
+	pp.y = part->shape->m_centroid->m_y;
 	// flip if part on bottom
 	if( part->side )
 	{
@@ -824,6 +824,7 @@ CPoint CPartList::GetCentroidPoint( cpart * part )
 //
 CPoint CPartList::GetGluePoint( cpart * part, int iglue )
 {
+#ifndef CPT2
 	if( part->shape == NULL )
 		ASSERT(0);
 	if( iglue >= part->shape->m_glue.GetSize() )
@@ -850,6 +851,9 @@ CPoint CPartList::GetGluePoint( cpart * part, int iglue )
 	pp.x = part->x + pp.x;
 	pp.y = part->y + pp.y;
 	return pp;
+#else
+	return NULL;
+#endif
 }
 
 // Get pin layer

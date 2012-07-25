@@ -58,6 +58,18 @@ with copper areas.  Instead of "adding a cutout" to an area or sm-cutout (the la
 "F7 exclude region."  If one selects a corner/side of a hole, the command for removing the hole is no longer "F7 delete cutout" but 
 "F7 remove contour."
 
+Previously when CShapes were created they were very frequently constructed with m_doc NULL.  This has been causing various headaches when switching
+into the footprint editor, so I'm trying now to get these m_doc members setup to match the doc fields of all the pcb-items on the board.  In a somewhat
+related change, I'm changing CFootprintView::m_fp to a pointer, which makes it easier to set up its m_doc member properly with a constructor.
+We'll see how well all this pans out down the line...
+
+NB drawing and undrawing are simpler in the footprint editor than in the main editor.  Just 
+undraw the whole footprint, make whatever changes, then redraw the whole footprint.
+That first step can often be omitted if no objects are getting detached from the fp, because CEditShape::Draw() calls Undraw() first by default.
+
+I've attempted to improve the behavior of right-clicking.  Now a right-click will select an appropriate object right away, without having to do a 
+left-click first.  See CCommonView::RightClickSelect().
+
 // FreePCB : programming notes
 //
 

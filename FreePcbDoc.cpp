@@ -175,6 +175,7 @@ CFreePcbDoc::CFreePcbDoc()
 	m_import_flags = IMPORT_PARTS | IMPORT_NETS | KEEP_FP | KEEP_NETS | KEEP_TRACES | KEEP_STUBS | KEEP_AREAS;
 	m_num_copper_layers = 1;
 	m_num_layers = m_num_copper_layers + LAY_TOP_COPPER;
+	m_edit_footprint = NULL;											// CPT2
 
 	// initialize pseudo-clipboard
 	clip_plist = new CPartList( NULL );
@@ -202,7 +203,9 @@ CFreePcbDoc::~CFreePcbDoc()
 	delete m_dlist;
 	delete m_dlist_fp;
 	delete m_smfontutil;
-	others.DestroyAll();
+	boards.DestroyAll();
+	smcutouts.DestroyAll();
+
 	// delete all footprints from local cache
 	POSITION pos = m_footprint_cache_map.GetStartPosition();
 	while( pos != NULL )
@@ -688,7 +691,8 @@ int CFreePcbDoc::FileClose()
 
 	// destroy existing project
 	// delete undo list, partlist, netlist, displaylist, etc.
-	others.RemoveAll();
+	smcutouts.DestroyAll();
+	boards.DestroyAll();
 	m_drelist->Clear();					// CPT2 TODO...
 	ResetUndoState();
 	m_nlist->RemoveAllNets();
@@ -1028,7 +1032,7 @@ CShape * CFreePcbDoc::GetFootprintPtr( CString name )
 		else
 		{
 			// make shape from library file and put into cache
-			CShape * shape = new CShape;
+			CShape * shape = new CShape(this);
 			CString lib_name = *project_footlibfolder->GetFullPath();
 			err = shape->MakeFromFile( NULL, name, file_name, offset ); 
 			if( err )
@@ -1130,8 +1134,8 @@ void CFreePcbDoc::ReadFootprints( CStdioFile * pcb_file,
 			if( name.Left(1) == '\"' )
 				name = name.Right( name.GetLength() - 1 );
 			name = name.Left( CShape::MAX_NAME_SIZE );
-			CShape * s = new CShape;
-			pcb_file->Seek( pos, CFile::begin );	// back up
+			CShape * s = new CShape(this);							// CPT2.  Proposed new policy on CShape::m_doc (see notes.txt)
+			pcb_file->Seek( pos, CFile::begin );					// back up
 			err = s->MakeFromFile( pcb_file, "", "", 0 );
 			if( !err )
 				use_map->SetAt( name, s );
@@ -1153,13 +1157,11 @@ void CFreePcbDoc::WriteBoardOutline( CStdioFile * file )
 		CString line;
 		line.Format( "[board]\n" );
 		file->WriteString( line );
-		citer<cpcb_item> ii (&others);
-		int ib = 0;
-		for (cpcb_item *i = ii.First(); i; i = ii.Next())
+		citer<cboard> ib (&boards);
+		int i = 1;
+		for (cboard *b = ib.First(); b; b = ib.Next())
 		{
-			cboard *b = i->ToBoard();
-			if (!b) continue;
-			line.Format( "\noutline: %d %d\n", b->NumCorners(), ib++ );
+			line.Format( "\noutline: %d %d\n", b->NumCorners(), i++ );
 			file->WriteString( line );
 			ccorner *c = b->main->head;
 			int icor = 1;
@@ -1194,12 +1196,9 @@ void CFreePcbDoc::WriteSolderMaskCutouts( CStdioFile * file )
 		CString line;
 		line.Format( "[solder_mask_cutouts]\n\n" );
 		file->WriteString( line );
-		citer<cpcb_item> ii (&others);
-		int i = 0;
-		for (cpcb_item *i = ii.First(); i; i = ii.Next())
+		citer<csmcutout> ism (&smcutouts);
+		for (csmcutout *sm = ism.First(); sm; sm = ism.Next())
 		{
-			csmcutout *sm = i->ToSmCutout();
-			if (!sm) continue;
 			line.Format( "sm_cutout: %d %d %d\n", sm->NumCorners(), sm->m_hatch, sm->m_layer );
 			file->WriteString( line );
 			int icor = 1;
@@ -1480,12 +1479,8 @@ void CFreePcbDoc::ReadOptions( CStdioFile * pcb_file )
 		while( 1 )
 		{
 			pos = pcb_file->GetPosition();
-			err = pcb_file->ReadString( in_str );
-			if( !err )
-			{
-				CString * err_str = new CString((LPCSTR) IDS_UnexpectedEOFInProjectFile);
-				throw err_str;
-			}
+			if (!pcb_file->ReadString( in_str ))
+				throw new CString((LPCSTR) IDS_UnexpectedEOFInProjectFile);
 			in_str.Trim();
 			if( in_str[0] == '[' )
 			{
@@ -1495,13 +1490,9 @@ void CFreePcbDoc::ReadOptions( CStdioFile * pcb_file )
 			}
 			np = ParseKeyString( &in_str, &key_str, &p );
 			if( np == 2 && key_str == "project_name" )
-			{
 				m_name = p[0];
-			}
 			else if( np == 2 && key_str == "version" )
-			{
 				m_read_version = my_atof( &p[0] );
-			}
 			else if( np == 2 && key_str == "file_version" )
 			{
 				double file_version = my_atof( &p[0] );
@@ -1518,53 +1509,33 @@ void CFreePcbDoc::ReadOptions( CStdioFile * pcb_file )
 				}
 			}
 			else if( np && key_str == "parent_folder" )
-			{
 				m_parent_folder = p[0];
-			}
 			// CPT.  The parent_folder vs path_to_folder distinction is unclear to me.
 			else if( np && key_str == "path_to_folder" )
 				m_path_to_folder = p[0];
 			else if( np && key_str == "library_folder" )
-			{
 				m_lib_dir = p[0];
-			}
 			else if( np && key_str == "full_library_folder" )
-			{
 				m_full_lib_dir = p[0];
-			}
 			else if( np && key_str == "CAM_folder" )
-			{
 				m_cam_full_path = p[0];
-			}
 			else if( np && key_str == "netlist_file_path" )
-			{
 				m_netlist_full_path = p[0];
-			}
 			else if( np && key_str == "ses_file_path" )
-			{
 				m_ses_full_path = p[0];
-			}
 			else if( np && key_str == "dsn_flags" )
-			{
 				m_dsn_flags = my_atoi( &p[0] );
-			}
 			else if( np && key_str == "dsn_bounds_poly" )
-			{
 				m_dsn_bounds_poly = my_atoi( &p[0] );
-			}
 			else if( np && key_str == "dsn_signals_poly" )
-			{
 				m_dsn_signals_poly = my_atoi( &p[0] );
-			}
 			else if( np && key_str == "SMT_connect_copper" )
 			{
 				m_bSMT_copper_connect = my_atoi( &p[0] );
 				m_nlist->SetSMTconnect( m_bSMT_copper_connect );
 			}
 			else if( np && key_str == "default_glue_width" )
-			{
 				m_default_glue_w = my_atoi( &p[0] );
-			}
 			else if( np && key_str == "n_copper_layers" )
 			{
 				m_num_copper_layers = my_atoi( &p[0] );
@@ -1573,22 +1544,13 @@ void CFreePcbDoc::ReadOptions( CStdioFile * pcb_file )
 				m_num_layers = m_num_copper_layers + LAY_TOP_COPPER;
 			}
 			else if( np && key_str == "autosave_interval" )
-			{
 				m_auto_interval = my_atoi( &p[0] );
-			}
 			else if( np && key_str == "auto_ratline_disable" )
-			{
 				m_auto_ratline_disable = my_atoi( &p[0] );
-			}
-
 			else if( np && key_str == "auto_ratline_disable_min_pins" )
-			{
 				m_auto_ratline_min_pins = my_atoi( &p[0] );
-			}
 			else if( np && key_str == "netlist_import_flags" )
-			{
 				m_import_flags = my_atoi( &p[0] );
-			}
 			else if( np && key_str == "units" )
 			{
 				if( p[0] == "MM" )
@@ -1620,9 +1582,7 @@ void CFreePcbDoc::ReadOptions( CStdioFile * pcb_file )
 				AddGridVal(m_routing_grid_hidden, p, np);
 
 			else if( np && key_str == "snap_angle" )
-			{
 				m_snap_angle = my_atof( &p[0] );
-			}
 
 			else if( np && key_str == "fp_visible_grid_spacing" )
 				m_fp_visual_grid_spacing = my_atof( &p[0] );
@@ -1639,135 +1599,71 @@ void CFreePcbDoc::ReadOptions( CStdioFile * pcb_file )
 				AddGridVal(m_fp_part_grid_hidden, p, np);
 
 			else if( np && key_str == "fp_snap_angle" )
-			{
 				m_fp_snap_angle = my_atof( &p[0] );
-			}
 			// CAM stuff
 			else if( np && key_str == "fill_clearance" )
-			{
 				m_fill_clearance = my_atoi( &p[0] );
-			}
 			else if( np && key_str == "mask_clearance" )
-			{
 				m_mask_clearance = my_atoi( &p[0] );
-			}
 			else if( np && key_str == "thermal_width" )
-			{
 				m_thermal_width = my_atoi( &p[0] );
-			}
 			else if( np && key_str == "min_silkscreen_width" )
-			{
 				m_min_silkscreen_stroke_wid = my_atoi( &p[0] );
-			}
 			else if( np && key_str == "pilot_diameter" )
-			{
 				m_pilot_diameter = my_atoi( &p[0] );
-			}
 			else if( np && key_str == "board_outline_width" )
-			{
 				m_outline_width = my_atoi( &p[0] );
-			}
 			else if( np && key_str == "hole_clearance" )
-			{
 				m_hole_clearance = my_atoi( &p[0] );
-			}
 			else if( np && key_str == "annular_ring_for_pins" )
-			{
 				m_annular_ring_pins = my_atoi( &p[0] );
-			}
 			else if( np && key_str == "annular_ring_for_vias" )
-			{
 				m_annular_ring_vias = my_atoi( &p[0] );
-			}
 			else if( np && key_str == "shrink_paste_mask" )
-			{
 				m_paste_shrink = my_atoi( &p[0] );
-			}
 			else if( np && key_str == "cam_flags" )
-			{
 				m_cam_flags = my_atoi( &p[0] );
-			}
 			else if( np && key_str == "cam_layers" )
-			{
 				m_cam_layers = my_atoi( &p[0] );
-			}
 			else if( np && key_str == "cam_drill_file" )
-			{
 				m_cam_drill_file = my_atoi( &p[0] );
-			}
 			else if( np && key_str == "cam_units" )
-			{
 				m_cam_units = my_atoi( &p[0] );
-			}
 			else if( np && key_str == "cam_n_x" )
-			{
 				m_n_x = my_atoi( &p[0] );
-			}
 			else if( np && key_str == "cam_n_y" )
-			{
 				m_n_y = my_atoi( &p[0] );
-			}
 			else if( np && key_str == "cam_space_x" )
-			{
 				m_space_x = my_atoi( &p[0] );
-			}
 			else if( np && key_str == "cam_space_y" )
-			{
 				m_space_y = my_atoi( &p[0] );
-			}
 			else if( np && key_str == "report_options" )
-			{
 				m_report_flags = my_atoi( &p[0] );
-			}
 			// DRC stuff
 			else if( np && key_str == "drc_check_unrouted" )
-			{
 				m_dr.bCheckUnrouted = my_atoi( &p[0] );
-			}
 			else if( np && key_str == "drc_trace_width" )
-			{
 				m_dr.trace_width = my_atoi( &p[0] );
-			}
 			else if( np && key_str == "drc_pad_pad" )
-			{
 				m_dr.pad_pad = my_atoi( &p[0] );
-			}
 			else if( np && key_str == "drc_pad_trace" )
-			{
 				m_dr.pad_trace = my_atoi( &p[0] );
-			}
 			else if( np && key_str == "drc_trace_trace" )
-			{
 				m_dr.trace_trace = my_atoi( &p[0] );
-			}
 			else if( np && key_str == "drc_hole_copper" )
-			{
 				m_dr.hole_copper = my_atoi( &p[0] );
-			}
 			else if( np && key_str == "drc_annular_ring_pins" )
-			{
 				m_dr.annular_ring_pins = my_atoi( &p[0] );
-			}
 			else if( np && key_str == "drc_annular_ring_vias" )
-			{
 				m_dr.annular_ring_vias = my_atoi( &p[0] );
-			}
 			else if( np && key_str == "drc_board_edge_copper" )
-			{
 				m_dr.board_edge_copper = my_atoi( &p[0] );
-			}
 			else if( np && key_str == "drc_board_edge_hole" )
-			{
 				m_dr.board_edge_hole = my_atoi( &p[0] );
-			}
 			else if( np && key_str == "drc_hole_hole" )
-			{
 				m_dr.hole_hole = my_atoi( &p[0] );
-			}
 			else if( np && key_str == "drc_copper_copper" )
-			{
 				m_dr.copper_copper = my_atoi( &p[0] );
-			}
 			else if( np && key_str == "default_trace_width" )
 			{
 				m_trace_w = my_atoi( &p[0] );
@@ -1875,6 +1771,7 @@ void CFreePcbDoc::ReadOptions( CStdioFile * pcb_file )
 			else if (np && key_str == "highlight_net")
 				m_bHighlightNet = my_atoi(&p[0]);
 		}
+
 		if( m_fp_visible_grid.GetSize() == 0 )
 		{
 			m_fp_visual_grid_spacing = m_visual_grid_spacing;
@@ -1899,8 +1796,14 @@ void CFreePcbDoc::ReadOptions( CStdioFile * pcb_file )
 		frm->m_wndMyToolBar.SetLists( &m_visible_grid, &m_part_grid, &m_routing_grid,
 			m_visual_grid_spacing, m_part_grid_spacing, m_routing_grid_spacing, m_snap_angle, m_units );
 		m_dlist->SetVisibleGrid( TRUE, m_visual_grid_spacing );
-		return;
+		// CPT2 TODO.  The best color choice for LAY_SELECTION & LAY_FP_SELECTION is a bit of a tricky issue.  Currently the only use for these
+		// colors is when user is dragging.  If, say, the background is white and the selection layer is black, then because of the
+		// XOR drawing that occurs during dragging, the result is invisible!  To overcome this sort of problem I have (for now) the following kludge:
+		for (int j=0; j<3; j++)
+			m_rgb[LAY_SELECTION][j] = m_rgb[LAY_RAT_LINE][j],
+			m_fp_rgb[LAY_FP_SELECTION][j] = m_rgb[LAY_RAT_LINE][j];
 	}
+
 	catch( CFileException * e )
 	{
 		CString * err_str = new CString, s ((LPCSTR) IDS_FileError1), s2 ((LPCSTR) IDS_FileError2);
@@ -2149,11 +2052,10 @@ void CFreePcbDoc::InitializeNewProject()
 	m_bReversePgupPgdn = 0;
 	m_bLefthanded = 0;
 	m_bHighlightNet = 0;	
-	others.RemoveAll();
 
 	// CPT compacted the code for embedded default layer colors, visibility, etc.
 	static unsigned int defaultLayerColors[] = {
-		0xffffff, 0x000000, 0xffffff, 0xffffff, // selection WHITE, backgrnd BLACK, vis grid WHITE, highlight WHITE
+		0xff00ff, 0x000000, 0xffffff, 0xffffff, // selection VIOLET, backgrnd BLACK, vis grid WHITE, highlight WHITE
 		0xff8040, 0x0000ff, 0xff00ff, 0xffff00, // DRE orange, board outline BLUE, ratlines VIOLET, top silk YELLOW
 		0xffc0c0, 0xa0a0a0, 0x5f5f5f, 0x0000ff, // bottom silk PINK, top sm cutout LT GRAY, bottom sm cutout DK GRAY, thru-hole pads BLUE
 		0x00ff00, 0xff0000, 0x408040, 0x804040, // top copper GREEN, bottom copper RED, inner 1, inner 2
@@ -2161,7 +2063,7 @@ void CFreePcbDoc::InitializeNewProject()
 	};
 
 	static unsigned int defaultFpLayerColors[] = {
-		0xffffff, 0x000000, 0xffffff, 0xffffff, // selection WHITE, backgrnd BLACK, vis grid WHITE, highlight WHITE
+		0xff00ff, 0x000000, 0xffffff, 0xffffff, // selection VIOLET, backgrnd BLACK, vis grid WHITE, highlight WHITE
 		0xffff00, 0xffffff, 0xff8040, 0x0000ff, // silk top YELLOW, centroid WHITE, dot ORANGE, pad-thru BLUE
 		0x007f00, 0x007f00, 0x7f0000, 0x7f0000, // Top mask+paste DK GREEN, bottom mask+paste DK RED
 		0x00ff00, 0x5f5f5f, 0xff0000            // top copper GREEN, inner copper GRAY, bottom copper RED
@@ -2459,6 +2361,13 @@ void CFreePcbDoc::OnViewLayers()
 		m_fp_rgb[LAY_FP_BOTTOM_PASTE][2] = m_fp_rgb[LAY_FP_BOTTOM_MASK][2];
 		m_fp_vis[LAY_FP_TOP_PASTE] = m_fp_vis[LAY_FP_TOP_MASK];
 		m_fp_vis[LAY_FP_BOTTOM_PASTE] = m_fp_vis[LAY_FP_BOTTOM_MASK];
+
+		// CPT2 TODO.  The best color choice for LAY_SELECTION & LAY_FP_SELECTION is a bit of a tricky issue.  Currently the only use for these
+		// colors is when user is dragging.  If, say, the background is white and the selection layer is black, then because of the
+		// XOR drawing that occurs during dragging, the result is invisible!  To overcome this sort of problem I have (for now) the following kludge:
+		for (int j=0; j<3; j++)
+			m_rgb[LAY_SELECTION][j] = m_rgb[LAY_RAT_LINE][j],
+			m_fp_rgb[LAY_FP_SELECTION][j] = m_rgb[LAY_RAT_LINE][j];
 
 		if (dlg.fColorsDefault) {		
 			// User wants to apply settings to future new projects

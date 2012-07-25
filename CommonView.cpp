@@ -530,6 +530,29 @@ bool CCommonView::CheckLeftPaneClick(CPoint &point) {
 	return true;
 }
 
+void CCommonView::RightClickSelect( CPoint &point )
+{
+	// CPT2 new helper for CFreePcbView::OnContextMenu() and CFootprintView::OnContextMenu().
+	// Change the current selection (and selection mode) based on where user right-clicked.  But if an item is already selected and the 
+	// right-click is within that object, no change is needed
+	bool bNoChange = false;
+	CPoint p = point;
+	ScreenToClient(&p);								// API requires this conversion within OnContextMenu
+	p = m_dlist->WindowToPCB( p );
+	if (cpcb_item *first = m_sel.First())
+		bNoChange = first->IsHit(p.x, p.y);
+	if (!bNoChange)
+	{
+		CancelSelection();
+		int nHits = m_dlist->TestSelect(p.x, p.y, &m_hit_info, m_sel_mask_bits, false);
+		if (nHits)
+		{
+			cpcb_item *item = m_hit_info[0].item;
+			if( item->IsFootItem() )									// Pretty unlikely that this test would fail...
+				SelectItem(item);
+		}
+	}
+}
 
 BOOL CCommonView::OnMouseWheel(UINT nFlags, short zDelta, CPoint pt) 
 {
@@ -768,6 +791,26 @@ void CCommonView::PlacementGridDown() {
 	CMainFrame * frm = (CMainFrame*)AfxGetMainWnd();
 	frm->m_wndMyToolBar.PlacementGridDown();
 	}
+
+void CCommonView::SelectItem(cpcb_item *item) 
+{
+	// CPT2.  Convenience method that clears the selection array, adds "item" as its sole new member, then calls HighlightSelection()
+	m_sel.RemoveAll();
+	m_sel.Add(item);
+	HighlightSelection();
+}
+
+// Set cursor mode, update function key menu if necessary
+void CCommonView::SetCursorMode( int mode )
+{
+	SetFKText( mode );
+	m_cursor_mode = mode;
+	ShowSelectStatus();
+	if( CurDragging() )
+		SetMainMenu( FALSE );
+	else if( m_doc->m_project_open )
+		SetMainMenu( TRUE );
+}
 
 
 void CCommonView::SnapToAngle(CPoint &wp, int grid_spacing) {
