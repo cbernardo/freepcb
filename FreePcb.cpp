@@ -305,11 +305,8 @@ BOOL CFreePcbApp::SwitchToView( CRuntimeClass * pNewViewClass )
 		if(	m_View->m_cursor_mode == CUR_PART_SELECTED 
 			&& m_doc->m_edit_footprint
 			&& (m_doc->m_footprint_modified || m_doc->m_footprint_name_changed) )
-		{
-			// now offer to replace the footprint of the selected part 
-			m_View->OnExternalChangeFootprint( temp_footprint );
-			delete temp_footprint;
-		}
+				// now offer to replace the footprint of the selected part 
+				m_View->OnExternalChangeFootprint( temp_footprint );
 		m_doc->m_edit_footprint = NULL;		// clear this flag for next time
 	}
 

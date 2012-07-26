@@ -70,6 +70,10 @@ That first step can often be omitted if no objects are getting detached from the
 I've attempted to improve the behavior of right-clicking.  Now a right-click will select an appropriate object right away, without having to do a 
 left-click first.  See CCommonView::RightClickSelect().
 
+Terminological proposal:  I'm developing the opinion that the UI should use "connect"/"connection" to mean
+a linear succession of vertices/segs, and "trace" to mean the opposite of "ratline" (i.e., a routed seg).  I've taken the liberty of
+altering UI elements accordingly, and am now offering the 'C' key as an alternate to 'T'. 
+
 // FreePCB : programming notes
 //
 

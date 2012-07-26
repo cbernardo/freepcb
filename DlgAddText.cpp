@@ -61,7 +61,16 @@ void CDlgAddText::DoDataExchange(CDataExchange* pDX)
 			AfxMessageBox( s );
 			pDX->Fail();
 		}
+
 		GetFields();
+		if (m_height==0)
+		{
+			// CPT2 new restriction.  Let 'em hide it if they don't want to see it.
+			CString s ((LPCSTR) IDS_TextHeightZeroIsNotPermitted);
+			AfxMessageBox( s );
+			pDX->Fail();
+		}
+
 		int ia = m_list_angle.GetCurSel();
 		m_angle = ia*90;
 		int ilay = m_layer_list.GetCurSel();

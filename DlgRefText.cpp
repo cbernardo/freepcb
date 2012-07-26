@@ -73,6 +73,13 @@ void CDlgRefText::DoDataExchange(CDataExchange* pDX)
 	{
 		// exit
 		GetFields();
+		if (m_height==0)
+		{
+			// CPT2 new restriction.  Let 'em hide it if they don't want to see it.
+			CString s ((LPCSTR) IDS_TextHeightZeroIsNotPermitted);
+			AfxMessageBox( s );
+			pDX->Fail();
+		}
 		m_edit_ref_des.GetWindowText( m_str );
 		if (m_str != m_text->m_str && m_text->IsRefText())
 		{

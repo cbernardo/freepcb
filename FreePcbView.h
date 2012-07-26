@@ -487,6 +487,7 @@ public:
 	void * CreateGroupDescriptor( CUndoList * list, CArray<void*> * grp_ptr, CArray<id> * grp_id, int type );
 	static void UndoGroupCallback( int type, void * ptr, BOOL undo );
 	void OnExternalChangeFootprint( CShape * fp );
+	void FinishArrowKey(int x, int y, int dx, int dy);										// CPT2 new helper for HandleKeyPress().
 	void HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags);
 	void TryToReselectCorner( int x, int y );
 	void ReselectNetItemIfConnectionsChanged( int new_ic );
@@ -519,6 +520,8 @@ public:
 	afx_msg void OnPartGlue();
 	afx_msg void OnPartUnglue();
 	afx_msg void OnPartProperties();			// CPT2, formerly in CFreePcbDoc.
+	afx_msg void OnPartRefProperties();			// CPT2 new
+	afx_msg void OnPartValueProperties();		// CPT2 new
 	afx_msg void OnPartDelete();
 	afx_msg void OnPartOptimize();
 	afx_msg void OnRefMove();
@@ -538,7 +541,7 @@ public:
 	afx_msg void OnTeeDelete(); 
 	afx_msg void OnRatlineComplete();
 	afx_msg void OnRatlineSetWidth();
-	afx_msg void OnRatlineDeleteConnection();
+	afx_msg void OnDeleteConnection();
 	afx_msg void OnRatlineLockConnection();
 	afx_msg void OnRatlineUnlockConnection();
 	afx_msg void OnRatlineChangeEndPin();
@@ -575,7 +578,6 @@ public:
 	afx_msg void OnPolyDeleteCutout();
 	afx_msg void OnVertexAddVia();
 	afx_msg void OnVertexRemoveVia();
-	afx_msg void OnSegmentDeleteTrace();
 	afx_msg void OnRefProperties();
 	afx_msg void OnVertexProperties();
 	afx_msg void OnTeeProperties();
@@ -594,7 +596,8 @@ public:
 	afx_msg void OnFootprintEditor();
 	afx_msg void OnCheckPartsAndNets();
 	afx_msg void OnDrc();
-	afx_msg void OnClearDRC();
+	afx_msg void OnClearDrc();
+	afx_msg void OnRepeatDrc();
 	afx_msg void OnViewAll();
 	afx_msg void OnAddSoldermaskCutout();
 	// afx_msg void OnSmCornerMove();
@@ -602,7 +605,6 @@ public:
 	// afx_msg void OnSmCornerDeleteCorner();
 	// afx_msg void OnSmCornerDeleteCutout();
 	// afx_msg void OnSmSideInsertCorner();
-	afx_msg void OnSmSideHatchStyle();
 	// afx_msg void OnSmSideDeleteCutout();
 	afx_msg void OnSmEdit();					// CPT2 new
 	afx_msg void OnPartChangeSide();
@@ -610,7 +612,6 @@ public:
 	afx_msg void OnNetSetWidth();
 	afx_msg void OnConnectSetWidth();
 	afx_msg void OnConnectUnroutetrace();
-	afx_msg void OnConnectDeletetrace();
 	afx_msg void OnSegmentChangeLayer();
 	afx_msg void OnConnectChangeLayer();
 	afx_msg void OnNetChangeLayer();

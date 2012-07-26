@@ -132,6 +132,8 @@ void CDlgWizQuad::Initialize( CMapStringToPtr * shape_cache_map,
 							BOOL enable_save,
 							CDlgLog * log )
 {
+	extern CFreePcbApp theApp;
+	m_footprint = new CShape (theApp.m_doc);
 	m_enable_save = enable_save;
 	m_footprint_cache_map = shape_cache_map;
 	m_footlibfoldermap = footlibfoldermap;
@@ -712,23 +714,19 @@ void CDlgWizQuad::OnBnClickedButtonSave()
 {
 	// try to make the footprint
 	if( !MakeFootprint() )
-	{
 		return;
-	}
 
 	if( m_enable_save )
 	{
 		// if saving is enabled, do it
 		CDlgSaveFootprint dlg;
-		dlg.Initialize( &m_str_name, &m_footprint, m_units, "", 
+		dlg.Initialize( &m_str_name, m_footprint, m_units, "", 
 			m_footprint_cache_map, m_footlibfoldermap, m_dlg_log );	
 		int test = dlg.DoModal();
 	}
 	else
-	{
 		// otherwise, we are done
 		OnOK();
-	}
 }
 
 void CDlgWizQuad::OnCbnSelchangeComboPin1()
@@ -758,7 +756,7 @@ void CDlgWizQuad::OnBnClickedButtonPreview()
 	CDC * pDC = this->GetDC();
 	CRect rw;
 	m_preview.GetClientRect( &rw );
-	HENHMETAFILE hMF = m_footprint.CreateMetafile( &m_mfDC, pDC, rw );
+	HENHMETAFILE hMF = m_footprint->CreateMetafile( &m_mfDC, pDC, rw );
 	m_preview.SetEnhMetaFile( hMF );
 	ReleaseDC( pDC );
 	DeleteEnhMetaFile( hMF );
@@ -781,11 +779,8 @@ BOOL CDlgWizQuad::MakeFootprint()
 	OnCbnSelchangeComboPin1();
 
 	// create footprint and call Save dialog.
-	m_footprint.Clear();
-	extern CFreePcbApp theApp;						// CPT2:  must make sure footprint refers to the current doc
-	CFreePcbDoc *doc = theApp.m_doc;
-	m_footprint.m_doc = doc;
-	m_footprint.m_name = "";
+	m_footprint->Clear();
+	m_footprint->m_name = "";
 
 	// first check for legal parameters
 	m_edit_name.GetWindowText( m_str_name );
@@ -902,21 +897,21 @@ BOOL CDlgWizQuad::MakeFootprint()
 		}
 
 		// make footprint directly
-		m_footprint.Clear();
-		m_footprint.m_name = m_str_name; 
-		m_footprint.m_units = m_units;
-		m_footprint.m_ref->m_font_size = 50*NM_PER_MIL; 
-		m_footprint.m_ref->m_x = 0; 
-		m_footprint.m_ref->m_y = m_y/2 + 10*NM_PER_MIL; 
-		m_footprint.m_ref->m_angle = 0;	
-		m_footprint.m_ref->m_stroke_width = 7*NM_PER_MIL;
-		m_footprint.m_sel_xi = -m_x;
-		m_footprint.m_sel_yi = -m_y/2 - 10*NM_PER_MIL;
-		m_footprint.m_sel_xf = m_e * (m_hpins-1) + m_x; 
-		m_footprint.m_sel_yf = m_y/2 + 10*NM_PER_MIL;
+		m_footprint->Clear();
+		m_footprint->m_name = m_str_name; 
+		m_footprint->m_units = m_units;
+		m_footprint->m_ref->m_font_size = 50*NM_PER_MIL; 
+		m_footprint->m_ref->m_x = 0; 
+		m_footprint->m_ref->m_y = m_y/2 + 10*NM_PER_MIL; 
+		m_footprint->m_ref->m_angle = 0;	
+		m_footprint->m_ref->m_stroke_width = 7*NM_PER_MIL;
+		m_footprint->m_sel_xi = -m_x;
+		m_footprint->m_sel_yi = -m_y/2 - 10*NM_PER_MIL;
+		m_footprint->m_sel_xf = m_e * (m_hpins-1) + m_x; 
+		m_footprint->m_sel_yf = m_y/2 + 10*NM_PER_MIL;
 		for( int i=0; i<m_npins; i++ )
 		{
-			cpadstack * ps = new cpadstack(doc);
+			cpadstack * ps = new cpadstack (m_footprint->m_doc);
 			ps->hole_size = 0;
 			ps->angle = 90;
 			ps->y_rel = 0;
@@ -1034,13 +1029,13 @@ BOOL CDlgWizQuad::MakeFootprint()
 		str += "HW" + str_hd;
 
 		// OK, go for it
-		int err = m_footprint.MakeFromString( m_str_name, str );
+		int err = m_footprint->MakeFromString( m_str_name, str );
 		if( err )
 		{
 			CString err_str, s ((LPCSTR) IDS_CShapeMakeFromStringFailed);
 			err_str.Format(s, str); 
 			AfxMessageBox( err_str );
-			m_footprint.Clear();
+			m_footprint->Clear();
 			return FALSE;
 		}
 		// CPT2.  Note that MakeFromString() set the utility value for each pin in m_footprint, equal to that pin's (0-based) ordinal number
@@ -1048,7 +1043,7 @@ BOOL CDlgWizQuad::MakeFootprint()
 		{
 			// rename pins and modify pad shape for SQ1 patterns
 			int ip_A1 = (m_vpins-1)*m_hpins;
-			citer<cpadstack> ips (&m_footprint.m_padstack);
+			citer<cpadstack> ips (&m_footprint->m_padstack);
 			for (cpadstack *ps = ips.First(); ps; ps = ips.Next())
 			{
 				int iv = m_vpins - ps->utility/m_hpins - 1;
@@ -1064,7 +1059,7 @@ BOOL CDlgWizQuad::MakeFootprint()
 			// modify outline.  CPT2 an ugly business...
 			int chamfer = m_e;
 			int enlarge = m_e/2;
-			ccontour *ctr = m_footprint.m_outline_poly.First()->main;
+			ccontour *ctr = m_footprint->m_outline_poly.First()->main;
 			ccorner *c = ctr->head;
 			c->x -= enlarge;					// Bottom left
 			c->y -= enlarge;
@@ -1079,10 +1074,10 @@ BOOL CDlgWizQuad::MakeFootprint()
 			c->x = tlx+chamfer-enlarge;
 			c->y = tly+enlarge;
 			c->postSide->InsertCorner( tlx-enlarge, tly-chamfer+enlarge );
-			m_footprint.m_sel_xi -= enlarge;
-			m_footprint.m_sel_yi -= enlarge;
-			m_footprint.m_sel_xf += enlarge;
-			m_footprint.m_sel_yf += enlarge;
+			m_footprint->m_sel_xi -= enlarge;
+			m_footprint->m_sel_yi -= enlarge;
+			m_footprint->m_sel_xf += enlarge;
+			m_footprint->m_sel_yf += enlarge;
 		}
 	}
 

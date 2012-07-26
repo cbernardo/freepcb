@@ -59,8 +59,7 @@ void cpcb_item::SetDoc(CFreePcbDoc *_doc)
 
 void cpcb_item::MustRedraw()
 {
-	if (bDrawn)
-		Undraw();
+	Undraw();
 	if (doc)
 		doc->redraw.Add(this);
 }
@@ -1182,7 +1181,7 @@ void cseg2::Unroute(int dx, int dy, int end)
 	// Old CNetList::UnrouteSegment().  Ditched the return value, which was confusing and unused.
 	bool bUnrouted = UnrouteWithoutMerge( dx, dy, end );
 	if (bUnrouted)
-		m_con->MergeUnroutedSegments();
+		m_con->MergeUnroutedSegments();				// This routine calls MustRedraw() for the whole connection.
 }
 
 bool cseg2::UnrouteWithoutMerge(int dx, int dy, int end) 
@@ -1438,21 +1437,6 @@ int cseg2::Draw()
 	dl_sel = dl->AddSelector( this, m_layer, DL_LINE, vis, 
 		m_width, 0, preVtx->x, preVtx->y, postVtx->x, postVtx->y, 0, 0 );
 	bDrawn = true;
-	return NOERR;
-}
-
-int cseg2::DrawWithEndpoints()
-{
-	int err = Draw();
-	if (err!=NOERR) return err;
-	if (preVtx->tee)
-		preVtx->tee->Draw();
-	else
-		preVtx->Draw();
-	if (postVtx->tee)
-		postVtx->tee->Draw();
-	else
-		postVtx->Draw();
 	return NOERR;
 }
 
@@ -1959,13 +1943,15 @@ void cpart2::Move( int _x, int _y, int _angle, int _side )
 
 // Part moved, so unroute starting and ending segments of connections
 // to this part, and update positions of endpoints
-// Undraw and Redraw any changed connections
-// CPT:  added dx and dy params indicating how much the part moved (both are 1 by default).  If, say, dx==0
+// CPT:  added dx and dy params whereby caller may indicate how much the part moved (both are 1 by default).  If, say, dx==0
 // and an attached seg is vertical, then we don't have to unroute it.
 // CPT2:  Derived from CNetList::PartMoved.
 
 void cpart2::PartMoved( int dx, int dy )
 {
+	// We need to ensure that the part is redrawn first, so that the pins have correct x/y values (critical in what follows):
+	doc->Redraw();
+
 	// first, mark all nets unmodified
 	doc->m_nlist->nets.SetUtility(0);
 
@@ -1984,6 +1970,7 @@ void cpart2::PartMoved( int dx, int dy )
 			{
 				cvertex2 *head = c->head;
 				head->postSeg->Unroute( dx, dy, 0 );
+				head->postSeg->MustRedraw();				// Even if it wasn't unrouted...
 				head->x = head->pin->x;
 				head->y = head->pin->y;
 				net->utility = 1;	// mark net modified
@@ -2008,6 +1995,7 @@ void cpart2::PartMoved( int dx, int dy )
 				// end pin is on part, unroute last segment
 				cvertex2 *tail = c->tail;
 				tail->preSeg->Unroute( dx, dy, 1 );
+				tail->preSeg->MustRedraw();
 				tail->x = tail->pin->x;
 				tail->y = tail->pin->y;
 				net->utility = 1;	// mark net modified
@@ -2025,21 +2013,15 @@ void cpart2::Remove(bool bEraseTraces, bool bErasePart)
 		Undraw(),
 		m_pl->parts.Remove(this);
 
-	// Figure out which nets are going to be affected by this part's disappearance, and mark 'em for redrawing
-	m_pl->m_nlist->nets.SetUtility(0);
-	citer<cpin2> ipin (&pins);
-	for (cpin2 *pin = ipin.First(); pin; pin = ipin.Next())
-		if (pin->net)
-			pin->net->utility = 1,
-			pin->net->MustRedraw();
-
-	// Now go through the pins again.  If bEraseTraces, rip out connects attached to each one.  Otherwise, gather a list of vertices associated
+	// Now go through the pins.  If bEraseTraces, rip out connects attached to each one.  Otherwise, gather a list of vertices associated
 	// with each one (such vertices will later get united into a tee).  TODO for each pin, consider maintaining a list of vtxs associated with it
 	// at all times?
+	citer<cpin2> ipin (&pins);
 	carray<cvertex2> vtxs;
 	for (cpin2 *pin = ipin.First(); pin; pin = ipin.Next())
 	{
 		if (!pin->net) continue;
+		pin->net->MustRedraw();
 		if (bEraseTraces)
 		{
 			citer<cconnect2> ic (&pin->net->connects);
@@ -2051,25 +2033,19 @@ void cpart2::Remove(bool bEraseTraces, bool bErasePart)
 		{
 			// Make a list of vertices that are attached to the current pin.
 			pin->GetVtxs(&vtxs);
-			if (vtxs.GetSize()==0) 
-				continue;
-			if (vtxs.GetSize()==1)
-			{
-				// 1 vertex on this pin.  If the incoming seg is a ratline, erase it.  Otherwise, keep it and just clear the vtx's "pin" value.
-				cvertex2 *v = vtxs.First();
+			if (vtxs.IsEmpty()) continue;
+			// Loop thru each vtx, and if the incoming seg is a ratline, erase it (and the vertex).  Otherwise, null out the vtx's "pin" member, and
+			// assign it instead to a new tee structure.
+			ctee *tee = new ctee(pin->net);
+			citer<cvertex2> iv (&vtxs);
+			for (cvertex2 *v = iv.First(); v; v = iv.Next())
 				if (v->preSeg && v->preSeg->m_layer == LAY_RAT_LINE)
 					v->preSeg->RemoveBreak();
 				else if (v->postSeg && v->postSeg->m_layer == LAY_RAT_LINE)
 					v->postSeg->RemoveBreak();
 				else
-					v->pin = NULL;
-			}
-			// 2+ vertices on this pin.  Go thru the list, null out their "pin" values, and assign them instead to a new tee structure.
-			ctee *tee = new ctee(pin->net);
-			citer<cvertex2> iv (&vtxs);
-			for (cvertex2 *v = iv.First(); v; v = iv.Next())
-				v->pin = NULL,
-				tee->Add(v);
+					v->pin = NULL,
+					tee->Add(v);
 			tee->Adjust();
 		}
 	}
@@ -2191,7 +2167,8 @@ void cpart2::ChangeFootprint(CShape *_shape)
 {
 	// CPT2.  Loosely derived from CPartList::PartFootprintChanged && CNetList::PartFootprintChanged.
 	// The passed-in shape is the one that will replace this->shape.  Setup pins corresponding to the new shape, reusing old pins where 
-	// possible.  Mark used pins with a utility value of 1.  Pins that are unused at the end get axed.
+	// possible.  Mark used pins with
+	// a utility value of 1.  Pins that are unused at the end get axed.
 	MustRedraw();
 	carray<cnet2> nets;									// Maintain a list of attached nets so that we can redraw them afterwards
 	citer<cpin2> ip (&pins);

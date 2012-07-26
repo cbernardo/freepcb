@@ -11,8 +11,7 @@ class CDlgVia : public CDialog
 public:
 	CDlgVia(CWnd* pParent = NULL);   // standard constructor
 	virtual ~CDlgVia();
-	void Initialize( int via_w, int via_hole_w, 
-		CPoint pt, int units );
+	void Initialize( int via_w, int via_hole_w, CPoint pt, int units );
 	void GetFields();
 	void SetFields();
 	CPoint pt(){ return m_pt; };

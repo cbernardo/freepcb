@@ -139,7 +139,7 @@ public:
 	carray<cglue> m_glues;				// array of adhesive dots.  CPT2 converted from old type (CArray<glue>)
 
 public:
-	CShape(CFreePcbDoc *doc = NULL);
+	CShape(CFreePcbDoc *doc); 
 	~CShape();
 	void Clear();
 	int MakeFromString( CString name, CString str );

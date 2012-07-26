@@ -21,7 +21,7 @@ public:
 	enum { IDD = IDD_WIZ_QUAD };
 
 
-	CShape m_footprint;
+	CShape *m_footprint;								// CPT2 was CShape, changed to CShape* (otherwise initialization doesn't work right)
 	CString m_str_name;
 
 protected:

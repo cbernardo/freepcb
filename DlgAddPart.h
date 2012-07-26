@@ -33,7 +33,7 @@ private:
 	int m_ihead;
 	int m_ifoot;
 	BOOL m_in_cache;	// true if new footprint selected from cache
-	CShape m_shape;
+	CShape *m_shape;	// CPT2 was CShape, now CShape*.
 	BOOL m_drag_flag;
 	BOOL m_offboard_flag;
 	partlist_info * m_pl;

@@ -21,7 +21,7 @@ CDlgImportFootprint::CDlgImportFootprint(CWnd* pParent /*=NULL*/)
 	m_footprint_name = "";
 	m_footprint_filename = "";
 	m_footprint_folder = "";
-	m_shape.m_name = "";
+	m_shape = NULL;
 }
 
 CDlgImportFootprint::~CDlgImportFootprint()
@@ -55,6 +55,8 @@ END_MESSAGE_MAP()
 void CDlgImportFootprint::InitInstance( CMapStringToPtr * shape_cache_map,
 							 CFootLibFolderMap * foldermap, CDlgLog * log )
 {
+	extern CFreePcbApp theApp;
+	m_shape = new CShape( theApp.m_doc );
 	m_footprint_cache_map = shape_cache_map;
 	m_foldermap = foldermap;
 	CString * path_str = foldermap->GetLastFolder();
@@ -68,7 +70,6 @@ BOOL CDlgImportFootprint::OnInitDialog()
 	InitPartLibTree();
 	return TRUE;  // return TRUE unless you set the focus to a control
 }
-
 
 
 void CDlgImportFootprint::OnBnClickedButtonBrowseLibFolder()
@@ -131,7 +132,7 @@ void CDlgImportFootprint::OnTvnSelchangedPartLibTree(NMHDR *pNMHDR, LRESULT *pRe
 		if( bInCache && m_in_cache )
 		{
 			// found it, make shape
-			m_shape.Copy( (CShape*)ptr );
+			m_shape->Copy( (CShape*)ptr );
 			m_footprint_filename = "";
 			m_footprint_folder = "";
 		}
@@ -141,7 +142,7 @@ void CDlgImportFootprint::OnTvnSelchangedPartLibTree(NMHDR *pNMHDR, LRESULT *pRe
 			CString * lib_file_name = m_footlibfolder->GetLibraryFullPath( m_ilib );
 			int offset = m_footlibfolder->GetFootprintOffset( m_ilib, m_ifoot );
 			// make shape from library file
-			int err = m_shape.MakeFromFile( NULL, m_footprint_name, *lib_file_name, offset ); 
+			int err = m_shape->MakeFromFile( NULL, m_footprint_name, *lib_file_name, offset ); 
 			if( err )
 			{
 				// unable to make shape
@@ -155,15 +156,15 @@ void CDlgImportFootprint::OnTvnSelchangedPartLibTree(NMHDR *pNMHDR, LRESULT *pRe
 		CDC * pDC = this->GetDC();
 		CRect rw;
 		m_preview.GetClientRect( &rw );
-		HENHMETAFILE hMF = m_shape.CreateMetafile( &m_mfDC, pDC, rw );
+		HENHMETAFILE hMF = m_shape->CreateMetafile( &m_mfDC, pDC, rw );
 		m_preview.SetEnhMetaFile( hMF );
 		ReleaseDC( pDC );
 		DeleteEnhMetaFile( hMF );
 
 		// update text strings
-		m_edit_author.SetWindowText( m_shape.m_author );
-		m_edit_source.SetWindowText( m_shape.m_source );
-		m_edit_desc.SetWindowText( m_shape.m_desc );
+		m_edit_author.SetWindowText( m_shape->m_author );
+		m_edit_source.SetWindowText( m_shape->m_source );
+		m_edit_desc.SetWindowText( m_shape->m_desc );
 	}
 	*pResult = 0;
 }
