@@ -49,15 +49,15 @@ void CDlgVia::DoDataExchange(CDataExchange* pDX)
 		CString str;
 		m_edit_via_w.GetWindowText( str );
 		m_via_w = GetDimensionFromString( &str );
-		if( m_via_w <= 0 )
+		if( m_via_w < 0 )									// CPT2 via width of 0 is now OK
 		{
 			CString s ((LPCSTR) IDS_IllegalViaWidth);
-			AfxMessageBox( s );
+			AfxMessageBox( s ); 
 			pDX->Fail();
 		}
 		m_edit_hole_w.GetWindowText( str );
 		m_via_hole_w = GetDimensionFromString( &str );
-		if( m_via_hole_w <= 0 )
+		if( m_via_hole_w < 0 )								// CPT2 via hole width of 0 is now OK
 		{
 			CString s ((LPCSTR) IDS_IllegalViaHoleWidth);
 			AfxMessageBox( s );

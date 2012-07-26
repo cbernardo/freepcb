@@ -707,7 +707,6 @@ public:
 	int SetLayer( int _layer );									// Done in cpp, derived from CNetList::ChangeSegmentLayer
 
 	int Draw();													// Done in cpp
-	int DrawWithEndpoints();									// CPT2 new, done in cpp
 	void Undraw();												// Done in cpp
 	void Highlight( bool bThin );								// Done in cpp (derived from CNetList::HighlightSegment)
 	void Highlight()											// CPT2 This form of the function overrides the base-class virtual func.  (Best system?)
@@ -1048,7 +1047,7 @@ public:
 	void Remove(bool bEraseTraces, bool bErasePart=true);			// Done in cpp.
 
 	void Move( int x, int y, int angle, int side );												// Done in cpp, derived from CPartList::Move
-	void PartMoved( int dx, int dy );															// Done in cpp, derived from CNetList::PartMoved
+	void PartMoved( int dx=1, int dy=1 );														// Done in cpp, derived from CNetList::PartMoved
 	void SetData( CShape * shape, CString * ref_des, CString *value_txt, CString * package, 
 	     		  int x, int y, int side, int angle, int visible, int glued );					// Done in cpp, Derived from CPartList::SetPartData
 	void SetValue( CString * value, int x, int y, int angle, int size, 

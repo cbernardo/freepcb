@@ -32,9 +32,9 @@ public:
 	CString m_footprint_name;
 	CString m_footprint_filename;
 	CString m_footprint_folder;
-	CShape m_shape;
+	CShape *m_shape;					// CPT2 was CShape, changed to CShape* (otherwise initialization doesn't work right)
 	BOOL m_in_cache;
-	int m_ilib;		// indices into libraries
+	int m_ilib;							// indices into libraries
 	int m_ihead;
 	int m_ifoot;
 

@@ -549,6 +549,7 @@ void CFootprintView::OnLButtonDblClk(UINT nFlags, CPoint point)
 //
 void CFootprintView::OnRButtonDown(UINT nFlags, CPoint point) 
 {
+	// ALSO USED TO CANCEL DRAGGING WHEN THE ESC KEY IS HIT.  (Sub-optimal system?)
 	m_disable_context_menu = 1;
 	if( m_cursor_mode == CUR_FP_DRAG_PAD )	
 	{
@@ -665,7 +666,6 @@ void CFootprintView::OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags)
 void CFootprintView::FinishArrowKey(int x, int y, int dx, int dy) {
 	// CPT: Helper for HandleKeyPress() below.  When user hits an arrow key, that routine moves the
 	// relevant part, then calls here to redisplay and tidy up.
-	// CPT2 TODO can there be a similar function in CFreePcbView?
 	m_dlist->CancelHighlight();
 	m_fp->Draw();
 	m_sel.First()->Highlight();							// Works well enough since fp editor only allows single item selection (for now)
@@ -1757,10 +1757,10 @@ void CFootprintView::OnFootprintFileImport()
 	int ret = dlg.DoModal();
 
 	// now import if OK
-	if( ret == IDOK && dlg.m_footprint_name != "" && dlg.m_shape.m_name != "" )
+	if( ret == IDOK && dlg.m_footprint_name != "" && dlg.m_shape->m_name != "" )
 	{
 		m_dlist->CancelHighlight();					// CPT
-		m_fp->Copy( &dlg.m_shape );
+		m_fp->Copy( dlg.m_shape );
 		m_fp->Draw();
 
 		// update window title and units
@@ -2035,7 +2035,7 @@ void CFootprintView::OnFpToolsFootprintWizard()
 	{
 		// import wizard-created footprint
 		m_fp->Clear();
-		m_fp->Copy( &dlg.m_footprint );
+		m_fp->Copy( dlg.m_footprint );
 		m_fp->Draw();
 		SetWindowTitle( &m_fp->m_name );
 		FootprintModified( TRUE, TRUE );

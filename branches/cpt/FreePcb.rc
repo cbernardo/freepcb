@@ -354,7 +354,6 @@ BEGIN
     END
 END
 
-
 IDR_FOOTPRINT MENU
 BEGIN
     POPUP "&File"
@@ -419,6 +418,7 @@ BEGIN
         MENUITEM "Add Text",                    ID_NONE_ADDTEXT
         MENUITEM "Add Copper Area",             ID_NONE_ADDCOPPERAREA
         MENUITEM "Add Board Outline",           ID_NONE_ADDBOARDOUTLINE
+        MENUITEM "Add Solder-Mask Cutout",      ID_NONE_ADDSMCUTOUT
         MENUITEM SEPARATOR
         MENUITEM "Footprint Wizard",            ID_NONE_FOOTPRINTWIZARD
         MENUITEM "Footprint Editor",            ID_NONE_FOOTPRINTEDITOR
@@ -457,8 +457,8 @@ BEGIN
     BEGIN
         MENUITEM "Attach to Net",               ID_PAD_ADDTONET
         MENUITEM "Detach from Net",             ID_PAD_DETACHFROMNET
-        MENUITEM "Connect to Pin",              ID_PAD_CONNECTTOPIN
-        MENUITEM "Start Stub Trace",            ID_PAD_STARTSTUBTRACE
+        MENUITEM "Start Ratline",               ID_PAD_CONNECTTOPIN
+        MENUITEM "Start Trace",                 ID_PAD_STARTSTUBTRACE
         MENUITEM "Optimize Ratlines",           ID_PAD_OPTIMIZERATLINES
     END
     POPUP "Segment"
@@ -469,10 +469,10 @@ BEGIN
         MENUITEM "Add Vertex",                  ID_SEGMENT_ADDVERTEX
         MENUITEM SEPARATOR
         MENUITEM "Unroute Segment",             ID_SEGMENT_UNROUTE
-        MENUITEM "Unroute Trace",               ID_SEGMENT_UNROUTETRACE
+        MENUITEM "Unroute Connection",          ID_SEGMENT_UNROUTETRACE
         MENUITEM SEPARATOR
         MENUITEM "Delete Segment",              ID_SEGMENT_DELETE
-        MENUITEM "Delete Connection",           ID_SEGMENT_DELETETRACE
+        MENUITEM "Delete Connection",           ID_SEGMENT_DELETECONNECTION
     END
     POPUP "Ratline"
     BEGIN
@@ -481,12 +481,12 @@ BEGIN
         MENUITEM "Lock Connection",             ID_RATLINE_LOCKCONNECTION
         MENUITEM "Unlock Connection",           ID_RATLINE_UNLOCKCONNECTION
         MENUITEM "Optimize Net",                ID_RATLINE_OPTIMIZE
-        MENUITEM "Set Width",                   ID_RATLINE_SETWIDTH
         MENUITEM "Change Pin",                  ID_RATLINE_CHANGEPIN
         MENUITEM SEPARATOR
-        MENUITEM "Delete Connection",           ID_RATLINE_DELETECONNECTION
+        MENUITEM "Delete Segment",              ID_SEGMENT_DELETE
+        MENUITEM "Delete Connection",           ID_DELETECONNECTION
     END
-    POPUP "Vertex"
+    POPUP "Defunct"
     BEGIN
         MENUITEM "Move",                        ID_VERTEX_MOVE
         MENUITEM "Set Position",                ID_VERTEX_PROPERITES
@@ -509,25 +509,27 @@ BEGIN
         MENUITEM "Move Corner",                 ID_AREACORNER_MOVE
         MENUITEM "Set Corner Position",         ID_AREACORNER_PROPERTIES
         MENUITEM SEPARATOR
-        MENUITEM "Add Area Cutout",             ID_AREACORNER_ADDCUTOUT
         MENUITEM "Add Similar Area",            ID_AREACORNER_ADDNEWAREA
-        MENUITEM "Edit Area Params",            ID_AREACORNER_CHANGELAYER
+        MENUITEM "Edit Area Params",            ID_AREACORNER_EDITAREA
         MENUITEM SEPARATOR
         MENUITEM "Delete Corner",               ID_AREACORNER_DELETE
-        MENUITEM "Delete Cutout",               ID_AREACORNER_DELETECUTOUT
+        MENUITEM "Exclude Region",              ID_AREACORNER_ADDCUTOUT
+        MENUITEM "Remove Contour",              ID_AREACORNER_DELETECUTOUT
         MENUITEM "Delete Area",                 ID_AREACORNER_DELETEAREA
     END
     POPUP "Area Edge"
     BEGIN
-        MENUITEM "Set Side Style",              ID_AREA_SIDESTYLE
-        MENUITEM "Insert Corner",               ID_AREAEDGE_ADDCORNER
+        MENUITEM "Insert Corner",               ID_POLYSIDE_INSERTCORNER
+        MENUITEM "Convert to Straight",         ID_POLYSIDE_CONVERTTOSTRAIGHT
+        MENUITEM "Convert to Arc(cw)",          ID_POLYSIDE_CONVERTTOARC_CW
+        MENUITEM "Convert to Arc(ccw)",         ID_POLYSIDE_CONVERTTOARC_CCW
         MENUITEM SEPARATOR
-        MENUITEM "Add Area Cutout",             ID_AREAEDGE_ADDCUTOUT
+        MENUITEM "Edit Area Params",            ID_AREAEDGE_EDITAREA
         MENUITEM "Add Similar Area",            ID_AREAEDGE_ADDNEWAREA
-        MENUITEM "Edit Area Params",            ID_AREAEDGE_CHANGELAYER
         MENUITEM "Apply Clearances",            ID_AREAEDGE_APPLYCLEARANCES
         MENUITEM SEPARATOR
-        MENUITEM "Delete Cutout",               ID_AREAEDGE_DELETECUTOUT
+        MENUITEM "Exclude Region",              ID_POLYSIDE_EXCLUDEREGION
+        MENUITEM "Remove Contour",              ID_POLYSIDE_REMOVECONTOUR
         MENUITEM "Delete Area",                 ID_AREAEDGE_DELETE
     END
     POPUP "Board Corner"
@@ -540,28 +542,30 @@ BEGIN
     END
     POPUP "Board Side"
     BEGIN
-        MENUITEM "Insert Corner",               ID_BOARDSIDE_INSERTCORNER
-        MENUITEM "Convert to Straight",         ID_BOARDSIDE_CONVERTTOSTRAIGHTLINE
-        MENUITEM "Convert to Arc(cw)",          ID_BOARDSIDE_CONVERTTOARC_CW
-        MENUITEM "Convert to Arc(ccw)",         ID_BOARDSIDE_CONVERTTOARC_CCW
+        MENUITEM "Insert Corner",               ID_POLYSIDE_INSERTCORNER
+        MENUITEM "Convert to Straight",         ID_POLYSIDE_CONVERTTOSTRAIGHT
+        MENUITEM "Convert to Arc(cw)",          ID_POLYSIDE_CONVERTTOARC_CW
+        MENUITEM "Convert to Arc(ccw)",         ID_POLYSIDE_CONVERTTOARC_CCW
         MENUITEM SEPARATOR
         MENUITEM "Delete Outline",              206
     END
-    POPUP "End Vertex"
+    POPUP "Vertex"
     BEGIN
-        MENUITEM "Move",                        ID_ENDVERTEX_MOVE
-        MENUITEM "Add Via",                     ID_ENDVERTEX_ADDVIA
-        MENUITEM "Remove Via",                  ID_ENDVERTEX_REMOVEVIA
-        MENUITEM "Set Position",                ID_ENDVERTEX_EDIT
-        MENUITEM "Set Via Size",                ID_ENDVERTEX_SETSIZE
+        MENUITEM "Move",                        ID_VERTEX_MOVE
+        MENUITEM "Set Position",                ID_VERTEX_EDIT
+        MENUITEM "Add Via",                     ID_VERTEX_ADDVIA
+        MENUITEM "Remove Via",                  ID_VERTEX_REMOVEVIA
+        MENUITEM "Set Via Size",                ID_VERTEX_SETSIZE
         MENUITEM SEPARATOR
-        MENUITEM "Add Segments",                ID_ENDVERTEX_ADDSEGMENTS
+        MENUITEM "Start Trace",                 ID_VERTEX_STARTTRACE
+        MENUITEM "Start Ratline",               ID_VERTEX_STARTRATLINE
         MENUITEM SEPARATOR
-        MENUITEM "Connect to Pin",              ID_ENDVERTEX_ADDCONNECTION
+        MENUITEM "Unroute Connection",          ID_VERTEX_UNROUTECONNECTION
         MENUITEM SEPARATOR
-        MENUITEM "Delete",                      ID_ENDVERTEX_DELETE
+        MENUITEM "Delete Vertex",               ID_VERTEX_DELETE
+        MENUITEM "Delete Connection",           ID_VERTEX_DELETECONNECTION
     END
-    POPUP "FP_pad"
+    POPUP "Defunct"
     BEGIN
         MENUITEM "Move",                        ID_FP_MOVE
         MENUITEM "Edit properties",             ID_FP_EDITPROPERTIES
@@ -573,26 +577,36 @@ BEGIN
         MENUITEM "Move",                        ID_SMCORNER_MOVE
         MENUITEM "Set Position",                ID_SMCORNER_SETPOSITION
         MENUITEM SEPARATOR
+        MENUITEM "Edit SM Cutout Params",       ID_SMCORNER_PROPERTIES
+        MENUITEM SEPARATOR
         MENUITEM "Delete Corner",               ID_SMCORNER_DELETECORNER
-        MENUITEM "Delete Cutout",               ID_SMCORNER_DELETECUTOUT
+        MENUITEM "Exclude Region",              ID_SMCORNER_EXCLUDEREGION
+        MENUITEM "Remove Contour",              ID_SMCORNER_REMOVECONTOUR
+        MENUITEM "Delete SM Cutout",            ID_SMCORNER_DELETECUTOUT
     END
     POPUP "SM Side"
     BEGIN
-        MENUITEM "Insert Corner",               ID_SMSIDE_INSERTCORNER
-        MENUITEM "Hatch style",                 ID_SMSIDE_HATCHSTYLE
+        MENUITEM "Insert Corner",               ID_POLYSIDE_INSERTCORNER
+        MENUITEM "Convert to Straight",         ID_POLYSIDE_CONVERTTOSTRAIGHT
+        MENUITEM "Convert to Arc(cw)",          ID_POLYSIDE_CONVERTTOARC_CW
+        MENUITEM "Convert to Arc(ccw)",         ID_POLYSIDE_CONVERTTOARC_CCW
         MENUITEM SEPARATOR
-        MENUITEM "Delete Cutout",               ID_SMSIDE_DELETECUTOUT
+        MENUITEM "Edit SM Cutout Params",       ID_SMSIDE_EDITCUTOUTPARAMS
+        MENUITEM SEPARATOR
+        MENUITEM "Exclude Region",              ID_POLYSIDE_EXCLUDEREGION
+        MENUITEM "Remove Contour",              ID_POLYSIDE_REMOVECONTOUR
+        MENUITEM "Delete SM Cutout",            ID_SMSIDE_DELETECUTOUT
     END
     POPUP "Connect"
     BEGIN
         MENUITEM "Set Width",                   ID_CONNECT_SETWIDTH
-        MENUITEM "Change layer",                ID_CONNECT_CHANGELAYER
+        MENUITEM "Change Layer",                ID_CONNECT_CHANGELAYER
         MENUITEM SEPARATOR
-        MENUITEM "Unroute trace",               ID_CONNECT_UNROUTETRACE
+        MENUITEM "Unroute Connection",          ID_CONNECT_UNROUTETRACE
         MENUITEM SEPARATOR
-        MENUITEM "Delete trace",                ID_CONNECT_DELETETRACE
+        MENUITEM "Delete Connection",           ID_CONNECT_DELETETRACE
     END
-    POPUP "Net"
+    POPUP "Defunct Net"
     BEGIN
         MENUITEM "Set Width",                   ID_NET_SETWIDTH
         MENUITEM "Change Layer",                ID_NET_CHANGELAYER
@@ -612,22 +626,24 @@ BEGIN
     END
     POPUP "Value"
     BEGIN
-        MENUITEM "Edit properties",             ID_VALUE_CHANGESIZE
-        MENUITEM "Rotate CW",                   ID_VALUE_ROTATECW
-        MENUITEM "Rotate CCW",                  ID_VALUE_ROTATECCW
-        MENUITEM "Move",                        ID_VALUE_MOVE
-        MENUITEM "Show Part",                   ID_VALUE_SHOWPART
+        MENUITEM "Edit properties",             ID_REF_PROPERTIES
+        MENUITEM "Rotate CW",                   ID_REF_ROTATECW
+        MENUITEM "Rotate CCW",                  ID_REF_ROTATECCW
+        MENUITEM "Move",                        ID_REF_MOVE
+        MENUITEM "Show Part",                   ID_REF_SHOWPART
     END
     POPUP "Tee"
     BEGIN
         MENUITEM "Move",                        ID_TEE_MOVE
         MENUITEM "Set Position",                ID_TEE_SETPOSITION
+        MENUITEM "Add Via",                     ID_TEE_ADDVIA
+        MENUITEM "Remove Via",                  ID_TEE_REMOVEVIA
         MENUITEM "Set Via Size",                ID_TEE_SETSIZE
         MENUITEM SEPARATOR
-        MENUITEM "Connect to Pin",              ID_TEE_CONNECTTOPIN
+        MENUITEM "Start Ratline",               ID_TEE_STARTRATLINE
+        MENUITEM "Start Trace",                 ID_TEE_STARTTRACE
         MENUITEM SEPARATOR
         MENUITEM "Delete Tee",                  ID_TEE_DELETE
-        MENUITEM "Unroute Trace",               ID_TEE_UNROUTETRACE
     END
 END
 
@@ -843,7 +859,7 @@ BEGIN
     EDITTEXT        IDC_EDIT_VIA_HOLE,166,106,24,12,ES_AUTOHSCROLL
     CONTROL         "for this net",IDC_DEF_NET,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,12,144,123,10
     CONTROL         "for this segment",IDC_APPLY_SEG,"Button",BS_AUTORADIOBUTTON | WS_GROUP,12,180,68,10
-    CONTROL         "for this trace",IDC_APPLY_CON,"Button",BS_AUTORADIOBUTTON,12,192,57,10
+    CONTROL         "for this connection",IDC_APPLY_CON,"Button",BS_AUTORADIOBUTTON,12,192,75,10
     CONTROL         "for this net",IDC_APPLY_NET,"Button",BS_AUTORADIOBUTTON,12,204,51,10
     DEFPUSHBUTTON   "OK",IDOK,24,228,50,14
     PUSHBUTTON      "Cancel",IDCANCEL,126,228,50,14
@@ -1229,7 +1245,7 @@ STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSM
 CAPTION "Reference Text Properties"
 FONT 8, "MS Shell Dlg", 400, 0, 0x1
 BEGIN
-    EDITTEXT        IDC_EDIT_REF_ID,70,10,30,12,ES_AUTOHSCROLL
+    EDITTEXT        IDC_EDIT_REF_ID,49,10,30,12,ES_AUTOHSCROLL
     CONTROL         "Visible",IDC_CHECK_VISIBLE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,18,32,35,10
     EDITTEXT        IDC_EDIT_CHAR_HEIGHT,75,79,30,12,ES_AUTOHSCROLL
     COMBOBOX        IDC_COMBO_REF_TEXT_UNITS,131,78,36,75,CBS_DROPDOWNLIST | CBS_SORT | WS_VSCROLL | WS_TABSTOP
@@ -1241,9 +1257,9 @@ BEGIN
     PUSHBUTTON      "Cancel",IDCANCEL,113,149,50,14
     LTEXT           "Character height",IDC_STATIC,18,80,55,8
     GROUPBOX        "Stroke width",IDC_STATIC,12,97,156,42
-    LTEXT           "Part reference",IDC_STATIC,18,12,48,8
+    LTEXT           "Text",IDC_STATIC,18,12,16,8
     LTEXT           "Units",IDC_STATIC,113,80,17,8
-    COMBOBOX        IDC_COMBO_LAYER_REF,48,52,102,48,CBS_DROPDOWNLIST | CBS_SORT | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        IDC_COMBO_LAYER_REF,49,52,102,48,CBS_DROPDOWNLIST | CBS_SORT | WS_VSCROLL | WS_TABSTOP
     LTEXT           "Layer",IDC_STATIC,18,54,19,8
 END
 
@@ -1805,7 +1821,7 @@ FONT 8, "MS Shell Dlg", 400, 0, 0x1
 BEGIN
     COMBOBOX        IDC_COMBO1,60,12,108,174,CBS_DROPDOWNLIST | CBS_SORT | WS_VSCROLL | WS_TABSTOP
     CONTROL         "this segment",IDC_RADIO_SEGMENT,"Button",BS_AUTORADIOBUTTON,18,42,57,10
-    CONTROL         "this trace",IDC_RADIO_TRACE,"Button",BS_AUTORADIOBUTTON,18,54,46,10
+    CONTROL         "this connection",IDC_RADIO_TRACE,"Button",BS_AUTORADIOBUTTON,18,54,64,10
     CONTROL         "this net",IDC_RADIO_NET,"Button",BS_AUTORADIOBUTTON,18,66,40,10
     DEFPUSHBUTTON   "OK",IDOK,24,93,50,14
     PUSHBUTTON      "Cancel",IDCANCEL,108,93,50,14
@@ -3590,8 +3606,6 @@ BEGIN
     IDS_BoardOutlineHasTooFewCorners "Board outline has too few corners"
     IDS_VertexPosition      "Vertex Position"
     IDS_BoardOutlineDoesNotExist "Board outline does not exist"
-    IDS_DoYouWishToReplaceTheFootprintOfPart 
-                            "Do you wish to alter part ""%s,""\nusing your modified form of footprint ""%s"" ?"
     IDS_WarningAFootprintNamedIsAlreadyInUse 
                             "Warning: A footprint named ""%s""\r\nis already in use by other parts.\r\nLoading this new footprint will overwrite the old one\r\nunless you change its name\r\n"
     IDS_SorryThisPartDoesntHaveAFootprint 
@@ -3599,6 +3613,20 @@ BEGIN
     IDS_SorryThisPartDoesntExist "Sorry, this part doesn't exist"
     IDS_SolderMaskCutoutHasTooFewCorners 
                             "Solder mask cutout has too few corners"
+END
+
+STRINGTABLE
+BEGIN
+    IDS_DeletingPartDoYouWishToEraseAllTraces 
+                            "Deleting part ""%s.""  Do you wish to erase all connections emanating from this part?"
+    IDS_ReferenceTextProperties "Reference Text Properties"
+    IDS_ValueTextProperties "Value Text Properties"
+    IDS_PlacingCornerOfSolderMaskCutout "Placing Corner of Solder-Mask Cutout"
+    IDS_InsertingPolylineCorner "Inserting polyline corner"
+    IDS_MovingPolylineCorner "Moving polyline corner"
+    IDS_PlacingCornerOfPolygon "Placing corner of polygon"
+    IDS_DoYouWishToReplaceTheFootprintOfPart 
+                            "Do you wish to alter part ""%s,""\nusing your modified form of footprint ""%s"" ?"
 END
 
 STRINGTABLE
@@ -4082,19 +4110,19 @@ BEGIN
     IDS_STRING63558         " Set"
     IDS_STRING63559         " Net"
     IDS_STRING63560         " Delete"
-    IDS_STRING63561         " Trace"
+    IDS_STRING63561         " Connect"
     IDS_STRING63562         " Force"
     IDS_STRING63563         " Via"
     IDS_STRING63564         " Set"
     IDS_STRING63565         " Width"
     IDS_STRING63566         " Lock"
-    IDS_STRING63567         "Trace"
+    IDS_STRING63567         "Connect"
 END
 
 STRINGTABLE
 BEGIN
     IDS_STRING63568         " Unlock"
-    IDS_STRING63569         "Trace"
+    IDS_STRING63569         "Connect"
     IDS_STRING63570         " Move"
     IDS_STRING63571         " Text"
     IDS_STRING63572         " Rotate"
@@ -4154,7 +4182,7 @@ END
 STRINGTABLE
 BEGIN
     IDS_STRING63616         " Unroute"
-    IDS_STRING63617         " Trace"
+    IDS_STRING63617         " Connect"
     IDS_STRING63618         " Change"
     IDS_STRING63619         " Pin"
     IDS_STRING63620         " Add"
@@ -4438,20 +4466,12 @@ END
 
 STRINGTABLE
 BEGIN
-    IDS_DeletingPartDoYouWishToEraseAllTraces 
-                            "Deleting part ""%s.""  Do you wish to erase all traces emanating from this part?"
-    IDS_ReferenceTextProperties "Reference Text Properties"
-    IDS_ValueTextProperties "Value Text Properties"
-    IDS_PlacingCornerOfSolderMaskCutout "Placing Corner of Solder-Mask Cutout"
-    IDS_InsertingPolylineCorner "Inserting polyline corner"
-    IDS_MovingPolylineCorner "Moving polyline corner"
-    IDS_PlacingCornerOfPolygon "Placing corner of polygon"
-END
-
-STRINGTABLE
-BEGIN
     IDS_STRING63664         " Edit SM"
     IDS_STRING63665         " Cutout"
+    63666                   " ****"
+    63667                   " ****"
+    63668                   " ****"
+    63669                   " ****"
 END
 
 #endif    // English (United States) resources

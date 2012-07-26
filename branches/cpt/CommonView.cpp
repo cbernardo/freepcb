@@ -539,18 +539,18 @@ void CCommonView::RightClickSelect( CPoint &point )
 	CPoint p = point;
 	ScreenToClient(&p);								// API requires this conversion within OnContextMenu
 	p = m_dlist->WindowToPCB( p );
-	if (cpcb_item *first = m_sel.First())
+	cpcb_item *first = m_sel.First();
+	if (m_sel.GetSize()>1 || first && first->IsConnect())
+		// When groups and connects are selected, the right-click won't change the selection
+		bNoChange = true;
+	else if (first)
 		bNoChange = first->IsHit(p.x, p.y);
 	if (!bNoChange)
 	{
 		CancelSelection();
 		int nHits = m_dlist->TestSelect(p.x, p.y, &m_hit_info, m_sel_mask_bits, false);
 		if (nHits)
-		{
-			cpcb_item *item = m_hit_info[0].item;
-			if( item->IsFootItem() )									// Pretty unlikely that this test would fail...
-				SelectItem(item);
-		}
+			SelectItem( m_hit_info[0].item );
 	}
 }
 

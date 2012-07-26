@@ -24,6 +24,7 @@ CDlgAddPart::CDlgAddPart(CWnd* pParent /*=NULL*/)
 {
 	m_footprint_cache_map = 0;
 	m_units = MIL;
+	m_shape = NULL;
 }
 
 CDlgAddPart::~CDlgAddPart()
@@ -120,8 +121,8 @@ void CDlgAddPart::DoDataExchange(CDataExchange* pDX)
 				// however, it is possible that the footprint was selected from a library
 				// file and might not match the footprint in the cache
 				CShape * cache_shape = (CShape*)ptr;	// footprint from cache
-				BOOL bFootprintUnchanged = cache_shape->Compare( &m_shape );
-				if( m_in_cache || bFootprintUnchanged || m_shape.m_name == "EMPTY_SHAPE" )
+				BOOL bFootprintUnchanged = cache_shape->Compare( m_shape );
+				if( m_in_cache || bFootprintUnchanged || m_shape->m_name == "EMPTY_SHAPE" )
 				{
 					// the new footprint is already in the cache, because:
 					//	it was selected from the cache, 
@@ -159,7 +160,7 @@ void CDlgAddPart::DoDataExchange(CDataExchange* pDX)
 							if( dlg.m_replace_all_flag )
 							{
 								// replace all instances of footprint
-								cache_shape->Copy( &m_shape );
+								cache_shape->Copy( m_shape );
 								for( int i=0; i<m_pl->GetSize(); i++ )
 								{
 									part_info * pi = &(*m_pl)[i];
@@ -172,8 +173,8 @@ void CDlgAddPart::DoDataExchange(CDataExchange* pDX)
 							else
 							{
 								// assign new name to footprint and put in cache
-								CShape * shape = new CShape (m_shape.m_doc);
-								shape->Copy( &m_shape );
+								CShape * shape = new CShape (m_shape->m_doc);
+								shape->Copy( m_shape );
 								shape->m_name = *dlg.GetNewName();	
 								m_footprint_cache_map->SetAt( shape->m_name, shape );
 								ptr = shape;
@@ -188,7 +189,7 @@ void CDlgAddPart::DoDataExchange(CDataExchange* pDX)
 					else
 					{
 						// replace the footprint in the cache
-						cache_shape->Copy( &m_shape );
+						cache_shape->Copy( m_shape );
 						if( !m_new_part && m_ip != -1 )
 							(*m_pl)[m_ip].bShapeChanged = TRUE;
 					}
@@ -197,14 +198,14 @@ void CDlgAddPart::DoDataExchange(CDataExchange* pDX)
 			else
 			{
 				// shape not in cache
-				if( m_shape.m_name == "EMPTY_SHAPE" )
+				if( m_shape->m_name == "EMPTY_SHAPE" )
 				{
 					CString msg ((LPCSTR) IDS_ErrorNoFootprintSelected);
 					AfxMessageBox( msg );
 					pDX->Fail();
 				}
-				CShape * shape = new CShape( m_shape.m_doc );
-				shape->Copy( &m_shape );
+				CShape * shape = new CShape( m_shape->m_doc );
+				shape->Copy( m_shape );
 				shape->m_name = foot_str;	// in case it was renamed
 				m_footprint_cache_map->SetAt( foot_str, shape );
 				ptr = shape;
@@ -364,6 +365,8 @@ void CDlgAddPart::Initialize( partlist_info * pl,
 							 int units,
 							 CDlgLog * log )
 {
+	extern CFreePcbApp theApp;
+	m_shape = new CShape (theApp.m_doc);
 	m_units = units;  
 	m_pl = pl;
 	m_ip = i;
@@ -698,7 +701,7 @@ void CDlgAddPart::OnTvnSelchangedPartLibTree(NMHDR *pNMHDR, LRESULT *pResult)
 			BOOL found = m_footprint_cache_map->Lookup( m_footprint_name, ptr );
 			if( !found )
 				ASSERT(0);
-			m_shape.Copy( (CShape*)ptr );
+			m_shape->Copy( (CShape*)ptr );
 		}
 		else
 		{
@@ -706,7 +709,7 @@ void CDlgAddPart::OnTvnSelchangedPartLibTree(NMHDR *pNMHDR, LRESULT *pResult)
 			CString * lib_file_name = m_folder->GetLibraryFullPath( m_ilib );
 			int offset = m_folder->GetFootprintOffset( m_ilib, m_ifoot );
 			// make shape from library file
-			int err = m_shape.MakeFromFile( NULL, m_footprint_name, *lib_file_name, offset ); 
+			int err = m_shape->MakeFromFile( NULL, m_footprint_name, *lib_file_name, offset ); 
 			if( err )
 			{
 				// unable to make shape
@@ -720,13 +723,13 @@ void CDlgAddPart::OnTvnSelchangedPartLibTree(NMHDR *pNMHDR, LRESULT *pResult)
 		m_preview.GetClientRect( &rw );
 		int x_size = rw.right - rw.left;
 		int y_size = rw.bottom - rw.top;
-		HENHMETAFILE hMF = m_shape.CreateMetafile( &m_mfDC, pDC, CRect(0, 0, x_size, y_size) );
+		HENHMETAFILE hMF = m_shape->CreateMetafile( &m_mfDC, pDC, CRect(0, 0, x_size, y_size) );
 		m_preview.SetEnhMetaFile( hMF );
 		ReleaseDC( pDC );
 		// update text strings
-		m_edit_author.SetWindowText( m_shape.m_author );
-		m_edit_source.SetWindowText( m_shape.m_source );
-		m_edit_desc.SetWindowText( m_shape.m_desc );
+		m_edit_author.SetWindowText( m_shape->m_author );
+		m_edit_source.SetWindowText( m_shape->m_source );
+		m_edit_desc.SetWindowText( m_shape->m_desc );
 	}
 	*pResult = 0;
 }
