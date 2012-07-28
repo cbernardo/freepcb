@@ -2966,7 +2966,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 	if (nChar==VK_OEM_2 || nChar==VK_DIVIDE) 
 	{
 		// CPT. Slash key => toggle units
-		UnitToggle(bShiftKeyDown);
+		UnitToggle(bShiftKeyDown);		
 		return;
 	}
 	// end CPT
@@ -3382,7 +3382,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 			}
 			CancelHighlight();
 
-			// 1. Move the line defined by the segment
+			// Move the line defined by the segment
 			m_last_pt.x = m_sel_prev_vtx->x;
 			m_last_pt.y = m_sel_prev_vtx->y;
 
@@ -3948,6 +3948,14 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 		break;
 
 	case CUR_DRAG_TRACE:
+        if (fk==FK_ACTIVE_WIDTH_UP || fk==FK_ARROW && dy>0)     // F2 or up-arrow
+            ActiveWidthUp(pDC);
+        else if (fk==FK_ACTIVE_WIDTH_DOWN || fk==FK_ARROW && dy<0)   // F1 or down-arrow
+            ActiveWidthDown(pDC);
+		else if (fk==FK_RGRID_UP)
+			RoutingGridUp();
+		else if (fk==FK_RGRID_DOWN)
+			RoutingGridDown();
 		break;
 
 	// CPT:
@@ -4660,7 +4668,7 @@ int CFreePcbView::SegmentMovable(void)
 //
 int CFreePcbView::ShowSelectStatus()
 {
-#define SHOW_UIDS	// show UIDs for selected element, mainly for debugging
+// AMW2 #define SHOW_UIDS	// show UIDs for selected element, mainly for debugging
 	CString uid_str;
 #ifdef SHOW_UIDS
 	if( m_sel_id.U3() != -1 )
@@ -7127,6 +7135,10 @@ LONG CFreePcbView::OnChangeUnits( UINT wp, LONG lp )
 	}
 	else
 		ASSERT(0);
+	//** AMW2 CCommonView::m_units was never getting set
+	m_units = m_Doc->m_units;
+	ShowCursor();
+	// **
 	// CPT: m_Doc->ProjectModified( TRUE );
 	SetFocus();
 	ShowSelectStatus();

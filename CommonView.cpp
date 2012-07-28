@@ -223,8 +223,17 @@ int CCommonView::ShowCursor()
 		return 1;
 
 	CString str;
-	CPoint p;
-	p = m_last_cursor_point;
+
+	// AMW2 enforce limits of +/- 32 inches
+	if( m_last_cursor_point.x > 32000*PCBU_PER_MIL )
+		m_last_cursor_point.x = 32000*PCBU_PER_MIL;
+	else if( m_last_cursor_point.x < -32000*PCBU_PER_MIL )
+		m_last_cursor_point.x = -32000*PCBU_PER_MIL;
+	if( m_last_cursor_point.y > 32000*PCBU_PER_MIL )
+		m_last_cursor_point.y = 32000*PCBU_PER_MIL;
+	else if( m_last_cursor_point.y < -32000*PCBU_PER_MIL )
+		m_last_cursor_point.y = -32000*PCBU_PER_MIL;
+
 	if( m_units == MIL )  
 	{
 		str.Format( "X: %8.1f", (double)m_last_cursor_point.x/PCBU_PER_MIL );

@@ -532,7 +532,8 @@ void ChangeAperture( CAperture * new_ap,			// new aperture
 // write the Gerber file for a layer
 // assumes that the file is already open for writing
 // returns 0 if successful
-// AMW2: modified to look for vias on first vertex of connection
+//
+// AMW2: modified to handle vias on first vertex of connection
 //
 int WriteGerberFile( CStdioFile * f, int flags, int layer,
 					CDlgLog * log, int paste_mask_shrink,
@@ -2001,21 +2002,17 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 					CIterator_cconnect iter_con(net);
 					for( cconnect * c=iter_con.GetFirst(); c; c=iter_con.GetNext() )
 					{
-//						int ic = iter_con.GetIndex();
-//						int nsegs = c->NumSegs();
-						CIterator_cseg iter_seg( c );
-						for( cseg * s=iter_seg.GetFirst(); s; s=iter_seg.GetNext() )
+						CIterator_cvertex iter_vtx( c );
+						for( cvertex * v=iter_vtx.GetFirst(); v; v=iter_vtx.GetNext() )
 						{
-							// get segment
-							cvertex * post_vtx = &s->GetPostVtx();
-							if( post_vtx->via_w )
+							if( v->via_w )
 							{
 								// via exists
 								CAperture via_ap( CAperture::AP_CIRCLE, pilot_diameter, 0 );
 								ChangeAperture( &via_ap, &current_ap, &ap_array, PASS0, f );
 								// flash the via
 								if( PASS1 )
-									::WriteMoveTo( f, post_vtx->x, post_vtx->y, LIGHT_FLASH );
+									::WriteMoveTo( f, v->x, v->y, LIGHT_FLASH );
 							}
 						}
 					}

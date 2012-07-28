@@ -1,11 +1,7 @@
 // PolyLine.cpp ... implementation of CPolyLine class
 
 #include "stdafx.h"
-#include "math.h"
 #include "PolyLine.h"
-//#include "FreePcb.h"
-//#include "utility.h"
-//#include "layers.h"
 #include "php_polygon.h"
 #include "php_polygon_vertex.h"
 

@@ -1,25 +1,28 @@
 I'm restarting this TODO list on July 11, 2012
 ----------------------------------------------
 
-TODO
-----
-
--	when clicking on a vertex with connected segments, the segments get selected first
-	which is very annoying
+BUGS
+----	
+-	CFileDialog not working properly in Windows 7
 -	DRC not working
 -	DRC needs to be updated to check copper text and graphics
 -	many improvements are needed to footprint editor
 -	when routing a trace and clicking on a vertex or segment of another trace,
-	there should be a dialog to confirm connection, for pins just connect with no dialog
+	there should be a dialog to confirm connection, for pins it is OK to connect with no dialog
 -	View->Find_Part should offer to center on part, or start moving it in the current viewport
 -	need to update User Guide
 -	put layer translation tables back in for backwards compatibility
 
+FIXED
+-----
+-	toggling mm/mil doesn't work
+-	cursor x, y could exceed -32 to 32 inch range
+-	when clicking on a vertex with connected segments, the segments get selected first
+	which is very annoying
+-	ditto for corners of polygons
+-	F-keys to inc/dec width and grid don't work when routing stub trace
 
-To think about
---------------
-
--	don't unroute traces when moving a part
+OTHER ITEMS
+-----------
 -	add bDrawn flag to items to control redrawing
--	similarly, add flags for setting area connections and optimizing connections
 -	reorganize handling of events in FreePCBView depending on state
