@@ -7,8 +7,6 @@
 //
 
 #include "stdafx.h"
-#include <math.h>
-#include <stdlib.h>
 #include "DlgMyMessageBox.h"
 #include "gerber.h"
 #include "utility.h"
@@ -1232,15 +1230,9 @@ void cconnect::Draw()
 		int ic = m_net->ConIndexByPtr( this );
 		CIterator_cseg iter_seg( this );
 		for( cseg * s=iter_seg.GetFirst(); s; s=iter_seg.GetNext() )
-		{
 			s->Draw();
-		}
-		int nvtx = NumSegs()+1;
-		if( nvtx > 1 )
-		{
-			for( int iv=0; iv<nvtx; iv++ )
-				m_net->m_nlist->ReconcileVia( m_net, ic, iv );
-		}
+		for( int iv=0; iv<NumVtxs(); iv++ )
+			m_net->m_nlist->ReconcileVia( m_net, ic, iv );
 		m_bDrawn = TRUE;
 	}
 }
@@ -1612,12 +1604,14 @@ bool cnet::RemoveSegAndVertexByIndex( cconnect * c, int is )
 	return bConRemoved;
 }
 
+// AMW2 modified to allow stitch vertex
 // AMW r267 modified
 //
 bool cnet::RemoveVertexAndSegByIndex( cconnect * c, int is )
 {
 	bool bConRemoved = FALSE;
-	if( c->NumSegs() < 2 )
+	// AMW2 traces can now have no segments (ie. just one vertex if it has a via
+	if( c->NumSegs() == 1 && ( c->SegByIndex(is).GetPostVtx().via_w == 0 || c->SegByIndex(is).GetPostVtx().tee_ID != 0 ) )
 	{
 		// remove entire connection
 		RemoveConnectAdjustTees( c );
@@ -1625,6 +1619,7 @@ bool cnet::RemoveVertexAndSegByIndex( cconnect * c, int is )
 	}
 	else
 	{
+		// just remove this segment and preceding vertex
 		c->vtx.RemoveAt( is );
 		c->seg.RemoveAt( is );
 		if( is == 0 )
@@ -1633,9 +1628,10 @@ bool cnet::RemoveVertexAndSegByIndex( cconnect * c, int is )
 			c->FirstVtx()->tee_ID = 0;
 			c->start_pin = cconnect::NO_END;
 			// if new first segment is unrouted, remove it too
-			if( c->SegByIndex(0).m_layer == LAY_RAT_LINE )
+			if( c->NumSegs() > 0 )
 			{
-				bool bConRemoved = RemoveVertexAndSegByIndex( c, 0 );
+				if( c->SegByIndex(0).m_layer == LAY_RAT_LINE )
+					bool bConRemoved = RemoveVertexAndSegByIndex( c, 0 );
 			}
 		}
 	}
@@ -1938,6 +1934,7 @@ void cnet::MergeConnections( cconnect * c1, cconnect * c2 )
 	RemoveConnect( c2 );
 }
 
+// AMW2 modified to allow stitch vias
 // remove a segment from connection
 // if this splits the connection, make new one
 // handle any tee-vertices
@@ -1958,8 +1955,19 @@ bool cnet::RemoveSegmentAdjustTees( cseg * s )
 	int ns = c->NumSegs();
 	if( ns == 1 )
 	{
-		RemoveConnectAdjustTees( c );
-		return TRUE;
+		// special case of just one segment in trace, if it ends in a non-tee vertex, remove it
+		// otherwise, remove entire trace
+		if( s->GetPostVtx().via_w && s->GetPostVtx().tee_ID == 0 )
+		{
+			RemoveVertexAndSegByIndex( c, 0 );
+			if( cid.Resolve() && bWasDrawn )
+				cid.Con()->Draw();
+		}
+		else
+		{
+			RemoveConnectAdjustTees( c );
+			return TRUE;
+		}
 	}
 	else if( is == 0 )
 	{

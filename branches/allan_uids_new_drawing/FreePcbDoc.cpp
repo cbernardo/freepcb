@@ -3,10 +3,6 @@
 #pragma once
 
 #include "stdafx.h"
-#include <direct.h>
-#include <shlwapi.h>
-#include <sys/types.h>
-#include <sys/stat.h>
 #include "PcbFont.h"
 #include "DlgAddPart.h"
 #include "DlgEditNet.h"
@@ -1493,7 +1489,7 @@ void CFreePcbDoc::ReadSolderMaskCutouts( CStdioFile * pcb_file, CArray<CPolyLine
 					}
 					int x = my_atoi( &p[1] );
 					int y = my_atoi( &p[2] );
-					id id_sm( ID_MASK, -1, ID_MASK, -1, ic );
+					id id_sm( ID_MASK, -1, ID_OUTLINE, -1, ic );	// AMW2
 					if( icor == 0 )
 					{
 						// make new cutout 

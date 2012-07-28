@@ -5,9 +5,6 @@
 // circle, annulus, etc.
 //
 #include "stdafx.h"
-#include <math.h>
-#include "memdc.h"
-
 #include "dle_arc.h"
 #include "dle_centroid.h"
 #include "dle_circle.h"
@@ -893,7 +890,8 @@ int CompareHits(const CHitInfo *h1, const CHitInfo *h2)
 int CDisplayList::TestSelect( int x, int y, CArray<CHitInfo> *hit_info,
 	id * include_id, int n_include_ids, bool bCtrl )
 {
-	if(!m_vis[LAY_SELECTION] ) return -1;				// CPT: irrelevant??
+	if(!m_vis[LAY_SELECTION] ) 
+		return -1;				// CPT: irrelevant??
 
 	double xx = double(x)/m_pcbu_per_wu;				// CPT (was int, which caused range issues)
 	double yy = double(y)/m_pcbu_per_wu;				// CPT (was int)
@@ -955,22 +953,23 @@ int CDisplayList::TestSelect( int x, int y, CArray<CHitInfo> *hit_info,
 				continue;
 		}
 
-		// AMW2: fixed bug where priority was assigned after this_hit written to array
+		// AMW2 fixed bug where priority was assigned AFTER this_hit written to array 
+		// AMW2 also modified priorities slightly
 		// OK, valid hit, now add to final array hit_info, and assign priority
 		// start with reversed layer drawing order * 10
 		// i.e. last drawn = highest priority
 		int priority = (MAX_LAYERS - m_order_for_layer[this_hit.layer])*10;
 		// bump priority for small items which may be overlapped by larger items on same layer
-		if( this_hit.ID.T1() == ID_PART && this_hit.ID.T2() == ID_REF_TXT && this_hit.ID.T3() == ID_SEL_TXT )
-			priority++;
-		else if( this_hit.ID.T1() == ID_PART && this_hit.ID.T2() == ID_VALUE_TXT && this_hit.ID.T3() == ID_SEL_TXT )
-			priority++;
-		else if( this_hit.ID.T1() == ID_BOARD && this_hit.ID.T2() == ID_OUTLINE && this_hit.ID.T3() == ID_SEL_CORNER )
-			priority++;
-		else if( this_hit.ID.T1() == ID_NET && this_hit.ID.T2() == ID_AREA && this_hit.ID.T3() == ID_SEL_CORNER )
-			priority++;
+		if( this_hit.ID.T3() == ID_SEL_CORNER )
+			priority += 5;
 		else if( this_hit.ID.T1() == ID_NET && this_hit.ID.T2() == ID_CONNECT && this_hit.ID.T3() == ID_SEL_VERTEX )
-			priority++;
+			priority += 4;
+		else if( this_hit.ID.T1() == ID_NET && this_hit.ID.T2() == ID_CONNECT && this_hit.ID.T3() == ID_SEL_SEG )
+			priority += 3;
+		else if( this_hit.ID.T1() == ID_PART && this_hit.ID.T2() == ID_REF_TXT && this_hit.ID.T3() == ID_SEL_TXT )
+			priority += 2;
+		else if( this_hit.ID.T1() == ID_PART && this_hit.ID.T2() == ID_VALUE_TXT && this_hit.ID.T3() == ID_SEL_TXT )
+			priority += 2;
 		this_hit.priority = priority;
 		hit_info->Add(this_hit);
 	}

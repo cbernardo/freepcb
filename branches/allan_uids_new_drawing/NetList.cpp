@@ -10,7 +10,6 @@ static char THIS_FILE[]=__FILE__;
 
 extern Cuid pcb_cuid;
 
-//#define PROFILE		//** AMW2 profiles calls to OptimizeConnections() for "GND"  
 BOOL bDontShowSelfIntersectionWarning = FALSE;
 BOOL bDontShowSelfIntersectionArcsWarning = FALSE;
 BOOL bDontShowIntersectionWarning = FALSE;
@@ -2285,70 +2284,315 @@ void CNetList::OptimizeConnections( cpart * part, BOOL bBelowPinCount, int pin_c
 }
 
 
-// helper functions for OptimizeConnections() 
+// AMW2 recursive helper functions for OptimizeConnections() 
+//
+//#define TRACE_OPTIMIZER		// for debugging
 
-void CNetList::AnalyzeArea( CMap<int, int, int, int> * pins_connected,
+void CNetList::AnalyzeArea( CMap<int, int, int, int> * pins_analyzed,
+							CMap<int, int, int, int> * pins_connected,
 							CMap<int, int, int, int> * cons_analyzed,  
 							CMap<int, int, int, int> * cons_connected,	
 							CMap<int, int, int, int> * areas_analyzed,	
 							CMap<int, int, int, int> * areas_connected,	
-							cnet * net, int ipin, int ia, int level )
+							CMap<int, int, int, int> * tees_connected,					
+							cnet * net, int ia, int level )
 {
 	int dummy;
 
+#ifdef TRACE_OPTIMIZER
 	for( int i=0; i<level; i++ )
 		TRACE( "  " );
-	TRACE( "Analyze area %d containing pin %d:\n", ia+1, ipin );
+	TRACE( "Area %d connected: check all pins and vertices in area\n", ia+1 );
+#endif
 	areas_analyzed->SetAt( ia, ia );
 	carea * a = net->AreaByIndex(ia);
 	// find other pins in this area
 	for( int iap=0; iap<a->NumPins(); iap++ )
 	{
 		int ia_net_pin = a->pin[iap];
-		if( ia_net_pin != ipin )
+		cpin * a_net_pin = net->PinByIndex(ia_net_pin);
+		pins_connected->SetAt( ia_net_pin, ia_net_pin );
+#ifdef TRACE_OPTIMIZER
+		for( int i=0; i<level+1; i++ )
+			TRACE( "  " );
+		TRACE( "Area %d contains pin %d, check all other areas and cons for pin\n", 
+			ia+1, ia_net_pin+1 );
+#endif
+		// find any areas that contain this pin
+		for( int ia_test=0; ia_test<net->NumAreas(); ia_test++ )
 		{
-			pins_connected->SetAt( ia_net_pin, ia_net_pin );
+			if( !areas_analyzed->Lookup( ia_test, dummy ) )
+			{
+				carea * a_test = net->AreaByIndex(ia_test);
+				if( a_test->ContainsPin(ia_net_pin) )
+				{
+#ifdef TRACE_OPTIMIZER
+					for( int i=0; i<level+2; i++ )
+						TRACE( "  " );
+					TRACE( "Pin %d found in area %d\n", ia_net_pin+1, ia_test+1 );
+#endif
+					areas_connected->SetAt( ia_test, ia_test );
+					AnalyzeArea( pins_analyzed,
+						pins_connected,
+						cons_analyzed,  
+						cons_connected,	
+						areas_analyzed,	
+						areas_connected,	
+						tees_connected,	
+						net, ia_test, level+3 );
+				}
+			}
+		}
+		// find any connections that contain this pin
+		for( int ic_test=0; ic_test<net->NumCons(); ic_test++ )
+		{
+			if( cons_analyzed->Lookup( ic_test, dummy ) )
+			{
+			}
+			else
+			{
+				cconnect * c_test = net->ConByIndex(ic_test);
+				if( a_net_pin == c_test->StartPin() || a_net_pin == c_test->EndPin() )
+				{
+#ifdef TRACE_OPTIMIZER
+					for( int i=0; i<level+2; i++ )
+						TRACE( "  " );
+					TRACE( "Pin %d found in con %d\n", ia_net_pin+1, ic_test+1 );
+#endif
+					cons_connected->SetAt( ic_test, ic_test );
+					AnalyzeCon( pins_analyzed,
+						pins_connected,
+						cons_analyzed,  
+						cons_connected,	
+						areas_analyzed,	
+						areas_connected,
+						tees_connected,
+						net, ic_test, level+3 );
+				}
+			}
+		}
+	}
+	// find connections with vertices in this area
+	for( int iv=0; iv<a->NumVertices(); iv++ )
+	{
+		int vc = a->vcon[iv];
+		if( !cons_analyzed->Lookup( iv, dummy ) )
+		{
+#ifdef TRACE_OPTIMIZER
+			for( int i=0; i<level+2; i++ )
+				TRACE( "  " );
+			TRACE( "Area %d contains vertex in con %d\n", 
+				ia, vc );
+#endif
+			cons_connected->SetAt( vc, vc );
+			AnalyzeCon( pins_analyzed,
+				pins_connected,
+				cons_analyzed,  
+				cons_connected,	
+				areas_analyzed,	
+				areas_connected,
+				tees_connected,
+				net, vc, level+3 );
+		}
+	}
+	areas_connected->SetAt( ia, ia );
+}
+
+void CNetList::AnalyzeCon( CMap<int, int, int, int> * pins_analyzed,
+							CMap<int, int, int, int> * pins_connected,
+							CMap<int, int, int, int> * cons_analyzed,  
+							CMap<int, int, int, int> * cons_connected,	
+							CMap<int, int, int, int> * areas_analyzed,	
+							CMap<int, int, int, int> * areas_connected,	
+							CMap<int, int, int, int> * tees_connected,	
+							cnet * net, int ic, int level )
+{
+	int dummy;
+
+#ifdef TRACE_OPTIMIZER
+	for( int i=0; i<level; i++ )
+		TRACE( "  " );
+	TRACE( "Con %d connected: check all pins and vertices\n", ic+1 );
+#endif
+	cons_analyzed->SetAt( ic, ic );
+	cconnect * c = net->ConByIndex(ic);
+	for( int i=0; i<2; i++ )
+	{
+		cpin * c_net_pin = c->StartPin();
+		if( i == 1 )
+			c_net_pin = c->EndPin();
+		if( c_net_pin )
+		{
+			int ic_net_pin = c_net_pin->Index();
+			pins_connected->SetAt( ic_net_pin, ic_net_pin );
+#ifdef TRACE_OPTIMIZER
 			for( int i=0; i<level+1; i++ )
 				TRACE( "  " );
-			TRACE( "Area %d contains pin %d\n", ia+1, ia_net_pin );
+			TRACE( "Pin %d found in con %d, check other areas and cons for pin\n", ic_net_pin+1, ic+1 );
+#endif
 			// find any areas that contain this pin
 			for( int ia_test=0; ia_test<net->NumAreas(); ia_test++ )
 			{
 				if( areas_analyzed->Lookup( ia_test, dummy ) )
 				{
+#ifdef TRACE_OPTIMIZER
+					for( int i=0; i<level+2; i++ )
+						TRACE( "  " );
+					TRACE( "Area %d already analyzed\n", ia_test+1 );
+#endif
 				}
 				else
 				{
 					carea * a_test = net->AreaByIndex(ia_test);
-					if( a_test->ContainsPin(ia_net_pin) )
+					if( a_test->ContainsPin(ic_net_pin) )
 					{
+#ifdef TRACE_OPTIMIZER
 						for( int i=0; i<level+2; i++ )
 							TRACE( "  " );
-						TRACE( "Area %d contains pin %d\n", ia_test+1, ia_net_pin );
+						TRACE( "Pin %d found in area %d, analyze area\n", ic_net_pin+1, ia_test+1 );
+#endif
 						areas_connected->SetAt( ia_test, ia_test );
-						pins_connected->SetAt( ia_net_pin, ia_net_pin );
-						AnalyzeArea( pins_connected,
-								cons_analyzed,  
-								cons_connected,	
-								areas_analyzed,	
-								areas_connected,	
-								net, ia_net_pin, ia_test, level+3 );
+						AnalyzeArea( pins_analyzed,
+							pins_connected,
+							cons_analyzed,  
+							cons_connected,	
+							areas_analyzed,	
+							areas_connected,	
+							tees_connected,
+							net, ia_test, level+3 );
 					}
-					else
+				}
+			}
+			// find any connections that contain this pin
+			for( int ic_test=0; ic_test<net->NumCons(); ic_test++ )
+			{
+				if( cons_analyzed->Lookup( ic_test, dummy ) )
+				{
+#ifdef TRACE_OPTIMIZER
+					for( int i=0; i<level+2; i++ )
+						TRACE( "  " );
+					TRACE( "Con %d already analyzed\n", ic_test+1 );
+#endif
+				}
+				else
+				{
+					cconnect * c_test = net->ConByIndex(ic_test);
+					if( c_net_pin == c_test->StartPin() || c_net_pin == c_test->EndPin() )
 					{
+#ifdef TRACE_OPTIMIZER
+						for( int i=0; i<level+2; i++ )
+							TRACE( "  " );
+						TRACE( "Pin %d found in con %d, analyze con\n", ic_net_pin+1, ic_test+1 );
+#endif
+						cons_connected->SetAt( ic_test, ic_test );
+						AnalyzeCon( pins_analyzed,
+							pins_connected,
+							cons_analyzed,  
+							cons_connected,	
+							areas_analyzed,	
+							areas_connected,	
+							tees_connected,
+							net, ic_test, level+3 );
 					}
 				}
 			}
 		}
 	}
+	// check vertices for tee_ids or connections to copper areas
+	for( int iv=0; iv<c->NumVtxs(); iv++ )
+	{
+		cvertex * v = &c->VtxByIndex(iv);
+		if( v->tee_ID )
+		{
+			int tee_id = abs( v->tee_ID );
+			// find any other connections that contain this tee_id
+			tees_connected->SetAt( tee_id, tee_id );
+#ifdef TRACE_OPTIMIZER
+			for( int i=0; i<level+1; i++ )
+				TRACE( "  " );
+			TRACE( "Tee %d found in con %d, check other cons for tee\n", tee_id, ic+1 );
+#endif
+			for( int ic_test=0; ic_test<net->NumCons(); ic_test++ )
+			{
+				if( cons_analyzed->Lookup( ic_test, dummy ) )
+				{
+#ifdef TRACE_OPTIMIZER
+					for( int i=0; i<level+2; i++ )
+						TRACE( "  " );
+					TRACE( "Con %d already analyzed\n", ic_test+1 );
+#endif
+				}
+				else
+				{
+					cconnect * c_test = net->ConByIndex(ic_test);
+					if( tee_id == abs(c_test->FirstVtx()->tee_ID) || tee_id == abs(c_test->LastVtx()->tee_ID) )
+					{
+#ifdef TRACE_OPTIMIZER
+						for( int i=0; i<level+2; i++ )
+							TRACE( "  " );
+						TRACE( "Tee %d found in con %d, analyze con\n", tee_id, ic_test+1 );
+#endif
+						cons_connected->SetAt( ic_test, ic_test );
+						// also mark pins as connected
+						if( c_test->StartPin() )
+							pins_connected->SetAt( c_test->StartPin()->Index(), c_test->StartPin()->Index() );
+						if( c_test->EndPin() )
+							pins_connected->SetAt( c_test->EndPin()->Index(), c_test->EndPin()->Index() );
+						AnalyzeCon( pins_analyzed,
+							pins_connected,
+							cons_analyzed,  
+							cons_connected,	
+							areas_analyzed,	
+							areas_connected,	
+							tees_connected,
+							net, ic_test, level+3 );
+					}
+				}
+			}
+		}
+	}
+	// now test for any connections to areas
+	for( int ia=0; ia<net->NumAreas(); ia++ )
+	{
+		if( !areas_analyzed->Lookup( ia, dummy ) )
+		{
+			carea * a = net->AreaByIndex(ia);
+			for( int iv=0; iv<c->NumVtxs(); iv++ )
+			{
+				cvertex * v = &c->VtxByIndex(iv);
+				if( v->IsConnectedToArea(a) )
+				{
+#ifdef TRACE_OPTIMIZER
+					for( int i=0; i<level+2; i++ )
+						TRACE( "  " );
+					TRACE( "Vertex in con %d found in area %d, analyze area\n", ic+1, ia+1 );
+#endif
+					areas_connected->SetAt( ia, ia );
+					AnalyzeArea( pins_analyzed,
+						pins_connected,
+						cons_analyzed,  
+						cons_connected,	
+						areas_analyzed,	
+						areas_connected,	
+						tees_connected,
+						net, ia, level+3 );
+					break;
+				}
+			}
+		}
+	}
+	cons_connected->SetAt( ic, ic );
 }
 
+// AMW2 changed this to handle new routing 
 // optimize the unrouted connections for a net
 // if ic_track >= 0, returns new ic corresponding to old ic or -1 if unable
 //
 int CNetList::OptimizeConnections( cnet * net, int ic_track, BOOL bBelowPinCount, 
 								  int pin_count, BOOL bVisibleNetsOnly )
 {
+#define PROFILE		//** AMW2 profiles calls to OptimizeConnections() for "GND"  
+
 #ifdef PROFILE
 	StartTimer();	//****
 #endif
@@ -2403,6 +2647,9 @@ int CNetList::OptimizeConnections( cnet * net, int ic_track, BOOL bBelowPinCount
 
 
 	//** AMW2 new algorithm
+#ifdef TRACE_OPTIMIZER
+	TRACE( "\n**************** Optimize connections for net %s ********************\n", net->name );
+#endif
 	int dummy;
 	CMap<int, int, int, int> pins_analyzed;  // list of all pins analyzed
 	CIterator_cpin iter_cpin(net);
@@ -2418,277 +2665,108 @@ int CNetList::OptimizeConnections( cnet * net, int ic_track, BOOL bBelowPinCount
 		// skip pins that have already been analyzed through connections to earlier pins
 		if( pins_analyzed.Lookup( ipin, dummy ) )
 			continue;
-		pins_analyzed.SetAt( ipin, ipin );
 
 		// look for all connections to this pin, or to any pin, tee or area connected to this pin
-//		CMap<int, int, int, int> cons_eliminated;  // list of connections that can't connect to this pin
 		CMap<int, int, int, int> pins_connected;	// list of pins connected to this pin
-		CMap<int, int, int, int> areas_analyzed;	// list of areas connected to this pin
-		CMap<int, int, int, int> areas_connected;	// list of areas connected to this pin
-		CMap<int, int, int, int> cons_analyzed;    // list of connections analyzed
-		CMap<int, int, int, int> cons_connected;   // list of connections that do connect to this pin
-		CMap<int, int, int, int> tee_ids_connected;	// list of tee_ids connected to this pin
+		CMap<int, int, int, int> areas_analyzed;	
+		CMap<int, int, int, int> areas_connected;	
+		CMap<int, int, int, int> cons_analyzed;     
+		CMap<int, int, int, int> cons_connected;    
+		CMap<int, int, int, int> tees_connected;	
 
-		TRACE( "Pin %d:\n", ipin );
+#ifdef TRACE_OPTIMIZER
+		TRACE( "Pin %d: check all areas and cons for pin\n", ipin+1 );
+#endif
 		// analyze all areas that contain this pin
 		for( int ia=0; ia<net->NumAreas(); ia++ )
 		{
-			bool bPinInArea = FALSE;
-			carea * a = net->AreaByIndex(ia);
-			for( int iap=0; iap<a->NumPins(); iap++ )
+			if( areas_analyzed.Lookup( ia, dummy ) )
 			{
-				int ia_pin =  a->pin[iap];
-				if( ia_pin == ipin )
+			}
+			else
+			{
+				bool bPinInArea = FALSE;
+				carea * a = net->AreaByIndex(ia);
+				for( int iap=0; iap<a->NumPins(); iap++ )
 				{
-					bPinInArea = TRUE;
-					break;
+					int ia_pin =  a->pin[iap];
+					if( ia_pin == ipin )
+					{
+						bPinInArea = TRUE;
+						break;
+					}
+				}
+				if( bPinInArea && !areas_analyzed.Lookup( ia, dummy ) )
+				{
+					areas_connected.SetAt( ia, ia );
+					pins_connected.SetAt( ipin, ipin );
+#ifdef TRACE_OPTIMIZER
+					TRACE( "  Area %d contains pin %d:\n", ia+1, ipin+1 );
+#endif
+					AnalyzeArea( &pins_analyzed, 
+							&pins_connected, 
+							&cons_analyzed, 
+							&cons_connected, 								
+							&areas_analyzed, 
+							&areas_connected,
+							&tees_connected,
+							net, ia, 2 );
 				}
 			}
-			if( bPinInArea && !areas_analyzed.Lookup( ia, dummy ) )
+		}
+		// analyze all cons that contain this pin
+		for( int ic=0; ic<net->NumCons(); ic++ )
+		{
+			if( cons_analyzed.Lookup( ic, dummy ) )
 			{
-				areas_connected.SetAt( ia, ia );
-				pins_connected.SetAt( ipin, ipin );
-				for( int i=0; i<1; i++ )
-					TRACE( "  " );
-				TRACE( "Area %d contains pin %d\n", ia+1, ipin );
-				AnalyzeArea( &pins_connected, &cons_analyzed, &cons_connected, 
-							&areas_analyzed, &areas_connected, net, ipin, ia, 2 );
+			}
+			else
+			{
+				cconnect * c = net->ConByIndex(ic);
+				if( &net->pin[ipin] == c->StartPin() || &net->pin[ipin] == c->EndPin() )
+				{
+#ifdef TRACE_OPTIMIZER
+					TRACE( "  Con %d contains pin %d:\n", ic+1, ipin+1 );
+#endif
+					AnalyzeCon( &pins_analyzed, 
+							&pins_connected,
+							&cons_analyzed,  
+							&cons_connected,	
+							&areas_analyzed,	
+							&areas_connected,	
+							&tees_connected,
+							net, ic, 2 );
+				}
 			}
 		}
+
+		// mark all connected pins analyzed
 		for( int ip=0; ip<net->NumPins(); ip++ )
 		{
 			if( pins_connected.Lookup( ip, dummy ) )
 				pins_analyzed.SetAt( ip, ip );
 		}
-		TRACE( "Areas connected: " );
+#ifdef TRACE_OPTIMIZER
+		TRACE( "  Areas connected: " );
 		for( int ia=0; ia<net->NumAreas(); ia++ )
 		{
 			if( areas_connected.Lookup( ia, dummy ) )
 				TRACE( "%d ", ia+1 );
 		}
+		TRACE( "     Cons connected: " );
+		for( int ic=0; ic<net->NumCons(); ic++ )
+		{
+			if( cons_connected.Lookup( ic, dummy ) )
+				TRACE( "%d ", ic+1 );
+		}
 		TRACE( "     Pins connected: " );
 		for( int ip=0; ip<net->NumPins(); ip++ )
 		{
 			if( pins_connected.Lookup( ip, dummy ) )
-				TRACE( "%d ", ip );
+				TRACE( "%d ", ip+1 );
 		}
-		TRACE( "\n" );
-
-#if 0
-	// AMW r289: Programming note:
-	// The following code figures out which pins are connected to each other through
-	// existing traces, tees and copper areas, and therefore don't need new ratlines.
-	// Previously, when every connection had to start on a pin,
-	// this was pretty easy to do since the levels of branching were limited.
-	// Now that traces can be routed between other traces and copper areas pretty much ad lib,
-	// it is more complicated. Probably the best approach would be some sort of recursive
-	// tree-following or grid-following algorithm, but since I am lazy and modifying existing
-	// code, I am using a different method of starting with a pin,
-	// iterating through all the connections in the net (multiple times if necessary),
-	// and building maps of the connected pins, tees and copper areas, so I can eventually
-	// identify every connected pin. Hopefully, this won't be too inefficient.
-	int dummy;
-	CMap<int, int, int, int> pins_analyzed;  // list of all pins analyzed
-	CIterator_cpin iter_cpin(net);
-	for( cpin * pin=iter_cpin.GetFirst(); pin; pin=iter_cpin.GetNext() )
-	{
-		// skip pins on parts that have no footprint
-		part_pin * pp = pin->GetPartPin();
-		if( !pp )
-			continue;
-
-		// skip pins that have already been analyzed through connections to earlier pins
-		int ipin = pin->Index();
-		if( pins_analyzed.Lookup( ipin, dummy ) )
-			continue;
-		pins_analyzed.SetAt( ipin, ipin );
-
-		// look for all connections to this pin, or to any pin, tee or area connected to this pin
-		CMap<int, int, int, int> cons_eliminated;  // list of connections that don't connect to this pin
-		CMap<int, int, int, int> cons_connected;   // list of connections that do connect to this pin
-		CMap<int, int, int, int> tee_ids_connected;	// list of tee_ids connected to this pin
-		CMap<int, int, int, int> pins_connected;	// list of pins connected to this pin
-		CMap<int, int, int, int> areas_connected;	// list of areas connected to this pin
-
-#if 0	//** AMW2 changed to test for num_new_connected_items
-		int num_new_connections = 1;
-		while( num_new_connections )	// iterate as long as we are still finding new connections
-		{
-			num_new_connections = 0;
+		TRACE( "\n\n" );
 #endif
-
-		//** AMW2 added search of areas
-		int num_new_connected_items = 1;
-		while( num_new_connected_items )	// iterate as long as we are still finding new connections
-		{
-			num_new_connected_items = 0;
-			for( int ia=0; ia<net->NumAreas(); ia++ )
-			{
-				carea * a = net->AreaByIndex(ia);
-				// see if area connects to this pin or any pins or vertices that connect to this pin
-				bool bAreaConnected = FALSE;
-				if( areas_connected.Lookup( ia, dummy ) )
-				{
-					// area already known to be connected
-					bAreaConnected = TRUE;
-				}
-				else
-				{
-					// check for pins
-					for( int iap=0; iap<a->NumPins(); iap++ )
-					{
-						cpin * apin = a->PinByIndex(iap);
-						int iapin = apin->Index();
-						if( iapin == ipin  || pins_connected.Lookup( iapin, dummy ) )
-						{
-							bAreaConnected = TRUE;
-							break;	
-						}
-					}
-					if( !bAreaConnected )
-					{
-						// check vertices
-						for( int iav=0; iav<a->NumVertices(); iav++ )
-						{
-							int icon = a->vcon[iav];
-							if( cons_connected.Lookup( icon, dummy ) )
-							{
-								bAreaConnected = TRUE;
-								break;
-							}
-						}
-					}
-				}
-				if( bAreaConnected )
-				{
-					if( !areas_connected.Lookup( ia, dummy) )
-					{
-						// new connected area, add area and all pins to list
-						num_new_connected_items++;
-						areas_connected.SetAt( ia, ia );
-						for( int iap=0; iap<a->NumPins(); iap++ )
-						{
-							cpin * apin = a->PinByIndex(iap);		// get pin from area
-							int iapin = apin->Index();				// index of pin in net
-							pins_connected.SetAt( iapin, iapin );
-						}
-					}
-				}
-			}
-			//** end AMW2
-			for( cconnect * c=iter_con.GetFirst(); c; c=iter_con.GetNext() )
-			{
-				int ic = c->Index();
-				if( cons_eliminated.Lookup( ic, dummy ) )	// already eliminated
-					continue;
-				if( cons_connected.Lookup( ic, dummy ) )	// already analyzed
-					continue;
-				// see if this connection can be eliminated, 
-				// or is connected to a pin, tee or area that connects to the pin being analyzed
-				bool bConEliminated = TRUE;
-				bool bConConnected = FALSE;
-				CIterator_cvertex iter_vtx(c);
-				for( cvertex * v=iter_vtx.GetFirst(); v; v=iter_vtx.GetNext() )
-				{
-					if( v->GetType() == cvertex::V_PIN )
-					{
-						// vertex is a pin
-						cpin * v_pin = v->GetNetPin();
-						if( v_pin == pin )
-						{
-							// pin being analyzed
-							bConEliminated = FALSE;
-							bConConnected = TRUE;
-							break;
-						}
-						else if( pins_connected.Lookup( v_pin->Index(), dummy ) )
-						{
-							// pin connected to pin being analyzed
-							bConEliminated = FALSE;
-							bConConnected = TRUE;
-							break;
-						}
-						else
-						{
-							// other pin, might connect in later iterations
-							bConEliminated = FALSE;
-						}
-					}
-					else if( v->GetType() == cvertex::V_TEE || v->GetType() == cvertex::V_SLAVE )
-					{
-						// vertex is a tee, might connect
-						bConEliminated = FALSE;
-						if( tee_ids_connected.Lookup( abs(v->tee_ID), dummy ) )
-							bConConnected = TRUE;	// does connect
-					}
-					CArray<int> ca;		// array of indices to copper areas
-					if( v->GetConnectedAreas( &ca ) > 0 )
-					{
-						// connected to copper area(s), might connect
-						bConEliminated = FALSE;
-						for( int iarray=0; iarray<ca.GetSize(); iarray++ )
-						{
-							// get copper area
-							int ia = ca[iarray];
-							if( areas_connected.Lookup( ia, dummy ) )
-								bConConnected = TRUE;	// does connect
-						}
-					}
-				}
-				if( bConEliminated )
-				{
-					// don't need to look at this connection any more
-					cons_eliminated.SetAt( ic, ic );
-				}
-				else if( bConConnected )
-				{
-					cons_connected.SetAt( ic, ic );
-
-//** AMW2					num_new_connections++;
-					num_new_connected_items++;			//** end AMW2
-
-					// add pins. tees and areas to maps of connected items
-					for( cvertex * v=iter_vtx.GetFirst(); v; v=iter_vtx.GetNext() )
-					{
-						if( v->GetType() == cvertex::V_PIN )
-						{
-							// vertex is a pin
-							cpin * v_pin = v->GetNetPin();
-							if( v_pin != pin )
-							{
-								// connected
-								pins_connected.SetAt( v_pin->Index(), v_pin->Index() );
-								pins_analyzed.SetAt( v_pin->Index(), v_pin->Index() );
-							}
-						}
-						else if( v->GetType() == cvertex::V_TEE || v->GetType() == cvertex::V_SLAVE )
-						{
-							// vertex is a tee
-							tee_ids_connected.SetAt( abs(v->tee_ID), abs(v->tee_ID) );
-						}
-						CArray<int> ca;		// array of indices to copper areas
-						if( v->GetConnectedAreas( &ca ) > 0 )
-						{
-							// vertex connected to copper area(s), add to map
-							for( int iarray=0; iarray<ca.GetSize(); iarray++ )
-							{
-								// get copper area(s)
-								int ia = ca[iarray];
-								areas_connected.SetAt( ia, ia );
-								// get pins attached to copper area
-								carea* a = net->AreaByIndex(ia);
-								for( int ip=0; ip<a->NumPins(); ip++ )
-								{
-									cpin * pin = a->PinByIndex(ip);
-									ipin = pin->Index();
-									pins_connected.SetAt( ipin, ipin );
-								}
-							}
-						}
-					}
-				}
-			}	// end connection loop
-		}	// end while loop
 
 		// now loop through all connected pins and mark them as connected
 		int m_pins = pins_connected.GetCount();
@@ -2704,8 +2782,6 @@ int CNetList::OptimizeConnections( cnet * net, int ic_track, BOOL bBelowPinCount
 				AddPinsToGrid( grid, p1, p2, npins );
 			}
 		}
-#endif
-
 	}	// end loop through net pins
 
 
@@ -2714,6 +2790,7 @@ int CNetList::OptimizeConnections( cnet * net, int ic_track, BOOL bBelowPinCount
 	StartTimer();
 #endif
 
+//#if 0
 	// now optimize the unrouted and unlocked connections
 	long num_loops = 0;
 	int n_optimized = 0;
@@ -2833,6 +2910,7 @@ int CNetList::OptimizeConnections( cnet * net, int ic_track, BOOL bBelowPinCount
 	}
 
 	free( grid );
+//#endif
 
 	// find ic_track if still present, and return index
 	int ic_new = -1;
@@ -2849,9 +2927,9 @@ int CNetList::OptimizeConnections( cnet * net, int ic_track, BOOL bBelowPinCount
 	if( net->name == "GND" )
 	{
 		CString mess;
-		mess.Format( "net \"%s\", %d pins\nloops = %ld\ntime1 = %f\ntime2 = %f", 
+		mess.Format( "net \"%s\", %d pins\nloops = %ld\ntime1 = %f\ntime2 = %f\n", 
 			net->name, net->pin.GetSize(), num_loops, time1, time2 );
-		AfxMessageBox( mess );
+		TRACE( mess );
 	}
 #endif
 
@@ -3363,40 +3441,33 @@ int CNetList::CancelDraggingSegmentNewVertex( cnet * net, int ic, int iseg )
 	return 0;
 }
 
+// AMW2 fixed to handle vias on the beggining and end of trace
 // returns: VIA_NO_CONNECT if no via
 //			VIA_TRACE if via connects to a trace segment on this layer
 //			VIA_AREA if via connects to copper area
 //
 int CNetList::GetViaConnectionStatus( cnet * net, int ic, int iv, int layer )
 {
-	/*  CPT:  This was causing a crash during DRC check... must have Allan check it out.  Note that we have "if (iv==0)" 6 lines down...
-	if( iv == 0 )
-		ASSERT(0);
-	*/
-
 	int status = VIA_NO_CONNECT;
 	cconnect * c = net->connect[ic];
 	cvertex * v = &c->vtx[iv];
 
-	// check for end vertices of traces to pads
-	if( iv == 0 )
-		return status;
-	if( c->end_pin != cconnect::NO_END  && iv == (c->NumSegs() + 1) )
-		return status;
-
-	// check for normal via pad
+	// check for normal vertex, no via
 	if( v->via_w == 0 && v->tee_ID == 0 )
 		return status;
 
-	// check for via pad at end of branch
-	if( v->tee_ID != 0 && iv == c->NumSegs() && c->seg[iv-1].m_layer == layer )
+	// check for tee
+	if( v->tee_ID )
 		if( !TeeViaNeeded( net, v->tee_ID, NULL ) )
 			return status;
 
 	// check for trace connection to via pad
 	c = net->connect[ic];
-	if( c->seg[iv-1].m_layer == layer )
-		status |= VIA_TRACE;
+	if( iv != 0 )
+	{
+		if( c->seg[iv-1].m_layer == layer )
+			status |= VIA_TRACE;
+	}
 	if( iv < c->NumSegs() )
 		if( c->seg[iv].m_layer == layer )
 			status |= VIA_TRACE;
@@ -3422,8 +3493,9 @@ int CNetList::GetViaConnectionStatus( cnet * net, int ic, int iv, int layer )
 	return status;
 }
 
+// AMW2 fixed to handle vias on the beggining and end of trace
 // get via parameters for vertex
-// note: if the vertex is the end-vertex of a branch, the via parameters
+// note: if the vertex is a slave tee-vertex, the via parameters
 // will be taken from the tee-vertex that the branch connects to
 //
 void CNetList::GetViaPadInfo( cnet * net, int ic, int iv, int layer,
@@ -4027,7 +4099,7 @@ int CNetList::ReconcileVia( cnet * net, int ic, int ivtx, BOOL bDrawVertex )
 {
 	cconnect * c = net->connect[ic];
 	cvertex * v = &c->vtx[ivtx];
-#if 0	// AMW2, this "quickie" defeats the whole purpose of this function if there is aprevious via
+#if 0	// AMW2, this "quickie" defeats the purpose of this function if there is a previous via
 	// CPT r295, quickie optimization:  if v already has a set via-width, bail out.
 	if (v->via_w && v->via_hole_w)
 	{

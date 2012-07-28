@@ -350,13 +350,23 @@ public:
 	BOOL TeeViaNeeded( cnet * net, int id, cvertex ** v );
 	BOOL RemoveOrphanBranches( cnet * net, int id, BOOL bRemoveSegs=FALSE );
 
-	// helper functions
-void AnalyzeArea( CMap<int, int, int, int> * pins_connected,
+	// AMW2 helper functions for OptimizeConnections()
+	void AnalyzeArea( CMap<int, int, int, int> * pins_analyzed,
+			CMap<int, int, int, int> * pins_connected,
 			CMap<int, int, int, int> * cons_analyzed,  
 			CMap<int, int, int, int> * cons_connected,	
 			CMap<int, int, int, int> * areas_analyzed,	
 			CMap<int, int, int, int> * areas_connected,					
-			cnet * net, int ipin, int ia, int level );
+			CMap<int, int, int, int> * tees_connected,					
+			cnet * net, int ia, int level );
+	void AnalyzeCon( CMap<int, int, int, int> * pins_analyzed,
+			CMap<int, int, int, int> * pins_connected,
+			CMap<int, int, int, int> * cons_analyzed,  
+			CMap<int, int, int, int> * cons_connected,	
+			CMap<int, int, int, int> * areas_analyzed,	
+			CMap<int, int, int, int> * areas_connected,					
+			CMap<int, int, int, int> * tees_connected,					
+			cnet * net, int ic, int level );
 
 private:
 	CDisplayList * m_dlist;

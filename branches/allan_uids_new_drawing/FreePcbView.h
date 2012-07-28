@@ -64,7 +64,7 @@ enum {
 	CUR_DRAG_SMCUTOUT,			// dragging next corner of solder mask cutout
 	CUR_DRAG_SMCUTOUT_INSERT,	// dragging solder mask cutout corner being inserted
 	CUR_DRAG_SMCUTOUT_MOVE,		// dragging solder mask cutout corner being moved
-	CUR_DRAG_TRACE,				// dragging ratline to next stub endpoint
+	CUR_DRAG_TRACE,				// dragging new segment of stub trace
 	CUR_DRAG_CONNECT,			// dragging ratline to new connection
 	CUR_DRAG_RAT_PIN,			// dragging ratline to new end pin of trace
 	CUR_MOVE_ORIGIN,			// dragging new origin
