@@ -555,8 +555,8 @@ public:
 	afx_msg void OnAddArea();
 	afx_msg void OnAreaAddCutout();
 	afx_msg void OnAreaDeleteCutout();
-	afx_msg void OnEndVertexAddVia();
-	afx_msg void OnEndVertexRemoveVia();
+	afx_msg void OnVertexAddVia();
+	afx_msg void OnVertexRemoveVia();
 	afx_msg void OnSegmentDeleteTrace();
 	afx_msg void OnAreaCornerProperties();
 	afx_msg void OnRefProperties();

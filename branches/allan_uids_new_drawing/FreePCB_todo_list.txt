@@ -2,7 +2,11 @@ I'm restarting this TODO list on July 11, 2012
 ----------------------------------------------
 
 BUGS
-----	
+----
+-	need to clean up code for moving tee-vertex with via
+-	routing angle not initialized on starting program
+-	when deleting group, some ratlines remain
+-	SetAreaConnections() not called on every edit	
 -	CFileDialog not working properly in Windows 7
 -	DRC not working
 -	DRC needs to be updated to check copper text and graphics
@@ -12,6 +16,8 @@ BUGS
 -	View->Find_Part should offer to center on part, or start moving it in the current viewport
 -	need to update User Guide
 -	put layer translation tables back in for backwards compatibility
+-	Project Options should set project folder (as before)
+-	CAM dialog should warn if CAM folder not in Project folder
 
 FIXED
 -----

@@ -148,8 +148,8 @@ ON_COMMAND(ID_AREAEDGE_DELETECUTOUT, OnAreaDeleteCutout)
 ON_COMMAND(ID_AREACORNER_DELETECUTOUT, OnAreaDeleteCutout)
 ON_COMMAND(ID_ADD_AREA, OnAddArea)
 ON_COMMAND(ID_NONE_ADDCOPPERAREA, OnAddArea)
-ON_COMMAND(ID_ENDVERTEX_ADDVIA, OnEndVertexAddVia)
-ON_COMMAND(ID_ENDVERTEX_REMOVEVIA, OnEndVertexRemoveVia)
+ON_COMMAND(ID_ENDVERTEX_ADDVIA, OnVertexAddVia)
+ON_COMMAND(ID_ENDVERTEX_REMOVEVIA, OnVertexRemoveVia)
 ON_COMMAND(ID_ENDVERTEX_SETSIZE, OnVertexProperties)
 ON_MESSAGE( WM_USER_VISIBLE_GRID, OnChangeVisibleGrid )
 ON_COMMAND(ID_ADD_TEXT, OnTextAdd)
@@ -1598,7 +1598,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		m_Doc->m_sm_cutout.SetSize( ism + 1 );
 		CPolyLine * p_sm = &m_Doc->m_sm_cutout[ism];
 		p_sm->SetDisplayList( m_Doc->m_dlist );
-		id id_sm( ID_MASK, -1, ID_MASK, -1, ism );
+		id id_sm( ID_MASK, -1, ID_OUTLINE, -1, ism );
 		m_sel_id = id_sm;
 		p_sm->Start( m_polyline_layer, 0, 10*NM_PER_MIL, p.x, p.y, m_polyline_hatch, &m_sel_id, NULL );
 		m_sel_id.SetT3( ID_SEL_CORNER );
@@ -1682,7 +1682,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		m_dlist->StopDragging();
 		poly->InsertCorner( m_sel_id.I3()+1, p.x, p.y );
 		poly->HighlightCorner( m_sel_id.I3()+1 );
-		m_sel_id.Set( ID_MASK, -1, ID_MASK, -1, m_sel_id.I2(), ID_SEL_CORNER, -1, m_sel_id.I3()+1 );
+		m_sel_id.Set( ID_MASK, -1, ID_OUTLINE, -1, m_sel_id.I2(), ID_SEL_CORNER, -1, m_sel_id.I3()+1 );
 		SetCursorMode( CUR_SMCUTOUT_CORNER_SELECTED );
 		m_Doc->ProjectModified( TRUE );
 		Invalidate( FALSE );
@@ -2678,7 +2678,7 @@ void CFreePcbView::OnRButtonDown(UINT nFlags, CPoint point)
 			if( !test )
 			{
 				// add a via and optimize
-				OnEndVertexAddVia();	// this also optimizes and selects via
+				OnVertexAddVia();	// this also optimizes and selects via
 			}
 			else
 			{
@@ -2836,7 +2836,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 	{
 		// force via at a vertex
 		SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_Doc->m_undo_list );
-		m_Doc->m_nlist->ForceVia( m_sel_net, m_sel_ic, m_sel_iv, FALSE );
+		m_Doc->m_nlist->ForceVia( m_sel_net, m_sel_ic, m_sel_iv, TRUE );
 		if( m_Doc->m_vis[LAY_RAT_LINE] )
 		{
 			m_Doc->m_nlist->OptimizeConnections( m_sel_net, m_sel_ic, m_Doc->m_auto_ratline_disable,
@@ -2855,7 +2855,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 	{
 		// unforce via
 		SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_Doc->m_undo_list );
-		m_Doc->m_nlist->UnforceVia( m_sel_net, m_sel_ic, m_sel_iv );
+		m_Doc->m_nlist->UnforceVia( m_sel_net, m_sel_ic, m_sel_iv, TRUE );
 		if( m_cursor_mode == CUR_END_VTX_SELECTED
 			&& m_sel_vtx->tee_ID == 0 )
 		{
@@ -3567,9 +3567,9 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 		else if( fk == FK_ADD_SEGMENT )
 			OnEndVertexAddSegments();
 		else if( fk == FK_ADD_VIA )
-			OnEndVertexAddVia();
+			OnVertexAddVia();
 		else if( fk == FK_DELETE_VIA )
-			OnEndVertexRemoveVia();
+			OnVertexRemoveVia();
 		else if( fk == FK_DELETE_CONNECT )
 			OnSegmentDeleteTrace();
 		else if( fk == FK_REDO_RATLINES )
@@ -6435,15 +6435,14 @@ void CFreePcbView::OnEndVertexMove()
 }
 
 
-// force a via on end vertex
+// force a via on vertex
 //
-void CFreePcbView::OnEndVertexAddVia()
+void CFreePcbView::OnVertexAddVia()
 {
 //	m_Doc->m_nlist->SetNetVisibility( m_sel_net, TRUE );
 	SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_Doc->m_undo_list );
 	m_Doc->m_nlist->ForceVia( m_sel_net, m_sel_ic, m_sel_is );
 	SetFKText( m_cursor_mode );
-#if 0 //** debugging 
 	if( m_Doc->m_vis[LAY_RAT_LINE] ) 
 	{
 		m_Doc->m_nlist->OptimizeConnections( m_sel_net, m_sel_ic, m_Doc->m_auto_ratline_disable,
@@ -6453,34 +6452,46 @@ void CFreePcbView::OnEndVertexAddVia()
 		else
 			CancelSelection();
 	}
-#endif //** debugging
 	m_Doc->ProjectModified( TRUE );
 	Invalidate( FALSE );
 }
 
-// remove forced via on end vertex
+// remove forced via on vertex
 //
-void CFreePcbView::OnEndVertexRemoveVia()
+void CFreePcbView::OnVertexRemoveVia()
 {
 //	m_Doc->m_nlist->SetNetVisibility( m_sel_net, TRUE );
 	SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_Doc->m_undo_list );
 	m_Doc->m_nlist->UnforceVia( m_sel_net, m_sel_ic, m_sel_is, FALSE );
-	if( m_sel_prev_seg->m_layer == LAY_RAT_LINE )
+	// AMW2 modified for new routing
+	cvertex * v = m_sel_id.Vtx();
+	cconnect * c = v->m_con;
+	if( c->NumSegs() == 0 )
 	{
-		m_Doc->m_nlist->RemoveSegment( m_sel_net, m_sel_ic, m_sel_is-1, TRUE );
-		CancelSelection();
+		// free via
+		m_sel_net->RemoveConnect( c );
 	}
-	SetFKText( m_cursor_mode );
+	else if( m_sel_id.Vtx()->Index() == 0 )
+	{
+		// start via
+		if( m_sel_id.Con()->FirstSeg().m_layer == LAY_RAT_LINE )
+			m_sel_net->RemoveSegAndVertexByIndex( c, 0);
+	}
+	else
+	{
+		// end via
+		if( m_sel_id.Con()->LastSeg().m_layer == LAY_RAT_LINE )
+			m_sel_net->RemoveSegAndVertexByIndex( c, v->Index()-1 );
+	}
+	// see if vertex still exists
+	if( m_sel_id.Resolve() )
+		SelectItem( m_sel_id );
+	else
+		CancelSelection();
 	m_Doc->ProjectModified( TRUE );
 	if( m_Doc->m_vis[LAY_RAT_LINE] )
-	{
 		m_Doc->m_nlist->OptimizeConnections( m_sel_net, m_sel_ic, m_Doc->m_auto_ratline_disable,
-														m_Doc->m_auto_ratline_min_pins, TRUE  );
-		if( m_sel_id.Resolve() )
-			SelectItem( m_sel_id );
-		else
-			CancelSelection();
-	}
+												m_Doc->m_auto_ratline_min_pins, TRUE  );
 	Invalidate( FALSE );
 }
 
@@ -8430,7 +8441,7 @@ void CFreePcbView::SelectItemsInRect( CRect r, BOOL bAddToGroup )
 							m_sel_ptrs.Add( net );
 						}
 					}
-					if( bPreV && (pre_v->tee_ID || pre_v->via_w) )
+					if( bPreV && ( pre_v->tee_ID > 0 || pre_v->via_w > 0 ) )
 					{
 						id vid = pre_v->Id();
 						if( FindItemInGroup( net, &vid ) == -1 )
@@ -8439,7 +8450,7 @@ void CFreePcbView::SelectItemsInRect( CRect r, BOOL bAddToGroup )
 							m_sel_ptrs.Add( net );
 						}
 					}
-					if( bPostV && (post_v->tee_ID || post_v->via_w) )
+					if( bPostV && ( post_v->tee_ID > 0 || post_v->via_w > 0 ) )
 					{
 						id vid = post_v->Id();;
 						if( FindItemInGroup( net, &vid ) == -1 )
@@ -8865,14 +8876,14 @@ void CFreePcbView::CancelDraggingGroup()
 //			a->SetSideVisible( sid.I3(), TRUE );
 			a->MakeVisible( TRUE );
 		}
-		else if( sid.T1() == ID_MASK && sid.T2() == ID_MASK
+		else if( sid.T1() == ID_MASK && sid.T2() == ID_OUTLINE
 			&& sid.T3() == ID_SEL_SIDE )
 		{
 			CPolyLine * poly = &m_Doc->m_sm_cutout[sid.I2()];
 //			poly->SetSideVisible( sid.I3(), TRUE );
 			poly->MakeVisible( TRUE );
 		}
-		else if( sid.T1() == ID_BOARD && sid.T2() == ID_BOARD
+		else if( sid.T1() == ID_BOARD && sid.T2() == ID_OUTLINE
 			&& sid.T3() == ID_SEL_SIDE )
 		{
 			CPolyLine * poly = &m_Doc->m_board_outline[sid.I2()];
@@ -8954,7 +8965,7 @@ void CFreePcbView::MoveGroup( int dx, int dy )
 				poly->Undraw();
 			}
 		}
-		else if( sid.T1() == ID_MASK && sid.T2() == ID_MASK && sid.T3() == ID_SEL_SIDE )
+		else if( sid.T1() == ID_MASK && sid.T2() == ID_OUTLINE && sid.T3() == ID_SEL_SIDE )
 		{
 			CPolyLine * poly = &m_Doc->m_sm_cutout[sid.I2()];
 			poly->SetUtility(1);
@@ -8975,8 +8986,8 @@ void CFreePcbView::MoveGroup( int dx, int dy )
 	{
 		id sid = m_sel_ids[i];
 		bool bOK = sid.Resolve();
-//** 		if( !bOK )
-//**			ASSERT(0);
+ 		if( !bOK )
+			ASSERT(0);
 		if( sid.IsSeg() )
 		{
 			// segment
@@ -9039,7 +9050,7 @@ void CFreePcbView::MoveGroup( int dx, int dy )
 			}
 		}
 		// sm_cutout side
-		else if( sid.T1() == ID_MASK && sid.T2() == ID_MASK && sid.T3() == ID_SEL_SIDE )
+		else if( sid.T1() == ID_MASK && sid.T2() == ID_OUTLINE && sid.T3() == ID_SEL_SIDE )
 		{
 			CPolyLine * poly = &m_Doc->m_sm_cutout[sid.I2()];
 			int icontour = poly->Contour(0);
@@ -9065,7 +9076,7 @@ void CFreePcbView::MoveGroup( int dx, int dy )
 			}
 		}
 		// board outline side
-		else if( sid.T1() == ID_BOARD && sid.T2() == ID_BOARD && sid.T3() == ID_SEL_SIDE )
+		else if( sid.T1() == ID_BOARD && sid.T2() == ID_OUTLINE && sid.T3() == ID_SEL_SIDE )
 		{
 			CPolyLine * poly = &m_Doc->m_board_outline[sid.I2()];
 			int icontour = poly->Contour(0);
@@ -9114,7 +9125,7 @@ void CFreePcbView::MoveGroup( int dx, int dy )
 				}
 			}
 		}
-		else if( sid.T1() == ID_MASK && sid.T2() == ID_MASK && sid.T3() == ID_SEL_SIDE )
+		else if( sid.T1() == ID_MASK && sid.T2() == ID_OUTLINE && sid.T3() == ID_SEL_SIDE )
 		{
 			CPolyLine * poly = &m_Doc->m_sm_cutout[sid.I2()];
 			if( poly->Utility() )
@@ -9516,9 +9527,9 @@ void CFreePcbView::HighlightGroup()
 			m_Doc->m_tlist->HighlightText( (CText*)m_sel_ptrs[i] );
 		else if( sid.T1() == ID_NET && sid.T2() == ID_AREA && sid.T3() == ID_SEL_SIDE )
 			((cnet*)m_sel_ptrs[i])->area[sid.I2()].HighlightSide(sid.I3());
-		else if( sid.T1() == ID_MASK && sid.T2() == ID_MASK && sid.T3() == ID_SEL_SIDE )
+		else if( sid.T1() == ID_MASK && sid.T2() == ID_OUTLINE && sid.T3() == ID_SEL_SIDE )
 			m_Doc->m_sm_cutout[sid.I2()].HighlightSide(sid.I3());
-		else if( sid.T1() == ID_BOARD && sid.T2() == ID_BOARD && sid.T3() == ID_SEL_SIDE )
+		else if( sid.T1() == ID_BOARD && sid.T2() == ID_OUTLINE && sid.T3() == ID_SEL_SIDE )
 			m_Doc->m_board_outline[sid.I2()].HighlightSide(sid.I3());
 		else
 			ASSERT(0);
@@ -10046,7 +10057,7 @@ bool CFreePcbView::DoGroupCopy()
 	for( int i=0; i<m_sel_ids.GetSize(); i++ )
 	{
 		id sid = m_sel_ids[i];
-		if( sid.T1() == ID_MASK && sid.T2() == ID_MASK && sid.T3() == ID_SEL_SIDE )
+		if( sid.T1() == ID_MASK && sid.T2() == ID_OUTLINE && sid.T3() == ID_SEL_SIDE )
 		{
 			m_Doc->m_sm_cutout[sid.I2()].SetUtility( sid.I3(), 1 );
 		}
@@ -10087,7 +10098,7 @@ bool CFreePcbView::DoGroupCopy()
 	for( int i=0; i<m_sel_ids.GetSize(); i++ )
 	{
 		id sid = m_sel_ids[i];
-		if( sid.T1() == ID_BOARD && sid.T2() == ID_BOARD && sid.T3() == ID_SEL_SIDE )
+		if( sid.T1() == ID_BOARD && sid.T2() == ID_OUTLINE && sid.T3() == ID_SEL_SIDE )
 		{
 			m_Doc->m_board_outline[sid.I2()].SetUtility( sid.I3(), 1 );
 		}
@@ -10258,6 +10269,7 @@ void CFreePcbView::DeleteGroup( CArray<void*> * grp_ptr, CArray<id> * grp_id )
 		for( int is=0; is<m_Doc->m_board_outline[ibd].NumSides(); is++ )
 			m_Doc->m_board_outline[ibd].SetUtility( is, 0 );
 
+	// AMW2 
 	// unroute selected trace segments
 	for( int i=0; i<(*grp_id).GetSize(); i++ )
 	{
@@ -11237,7 +11249,7 @@ void CFreePcbView::RotateGroup()
 				poly->Undraw();
 			}
 		}
-		else if( sid.T1() == ID_MASK && sid.T2() == ID_MASK && sid.T3() == ID_SEL_SIDE )
+		else if( sid.T1() == ID_MASK && sid.T2() == ID_OUTLINE && sid.T3() == ID_SEL_SIDE )
 		{
 			CPolyLine * poly = &m_Doc->m_sm_cutout[sid.I2()];
 			poly->SetUtility(1);
@@ -11329,7 +11341,7 @@ void CFreePcbView::RotateGroup()
 			}
 		}
 		// sm_cutout side
-		else if( sid.T1() == ID_MASK && sid.T2() == ID_MASK && sid.T3() == ID_SEL_SIDE )
+		else if( sid.T1() == ID_MASK && sid.T2() == ID_OUTLINE && sid.T3() == ID_SEL_SIDE )
 		{
 			CPolyLine * poly = &m_Doc->m_sm_cutout[sid.I2()];
 			int icontour = poly->Contour(0);
@@ -11357,7 +11369,7 @@ void CFreePcbView::RotateGroup()
 			}
 		}
 		// board outline side
-		else if( sid.T1() == ID_BOARD && sid.T2() == ID_BOARD && sid.T3() == ID_SEL_SIDE )
+		else if( sid.T1() == ID_BOARD && sid.T2() == ID_OUTLINE && sid.T3() == ID_SEL_SIDE )
 		{
 			CPolyLine * poly = &m_Doc->m_board_outline[sid.I2()];
 			int icontour = poly->Contour(0);
@@ -11409,7 +11421,7 @@ void CFreePcbView::RotateGroup()
 				}
 			}
 		}
-		else if( sid.T1() == ID_MASK && sid.T2() == ID_MASK && sid.T3() == ID_SEL_SIDE )
+		else if( sid.T1() == ID_MASK && sid.T2() == ID_OUTLINE && sid.T3() == ID_SEL_SIDE )
 		{
 			CPolyLine * poly = &m_Doc->m_sm_cutout[sid.I2()];
 			if( poly->Utility() )
@@ -11910,7 +11922,7 @@ void CFreePcbView::FindGroupCenter()
 					int y2 = poly->Y(ic2);
 					if( m_Doc->m_vis[poly->Layer()] )
 					{
-						id smid( ID_MASK, -1, ID_MASK, -1, im, 
+						id smid( ID_MASK, -1, ID_OUTLINE, -1, im, 
 							ID_SEL_SIDE, -1, is );
 						if( FindItemInGroup( poly, &smid ) != -1 )
 						{
@@ -11948,7 +11960,7 @@ void CFreePcbView::FindGroupCenter()
 					int y2 = poly->Y(ic2);
 					if( m_Doc->m_vis[poly->Layer()] )
 					{
-						id bd_id( ID_BOARD, ID_BOARD, im, ID_SEL_SIDE, is );
+						id bd_id( ID_BOARD, ID_OUTLINE, im, ID_SEL_SIDE, is );
 						if( FindItemInGroup( poly, &bd_id ) != -1 )
 						{
 							groupAverageX+=x1+x2;

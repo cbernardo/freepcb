@@ -4290,7 +4290,7 @@ BEGIN
     IDS_RoutingWidth        "120"
     IDS_AngleWidth          "50"
     IDS_LeftPaneWidth       "125"
-    IDS_FKeyWidth           "70"
+    IDS_FKeyWidth           "%s, x %s, y %s, forced via %s/%s"
 END
 
 STRINGTABLE
@@ -4335,6 +4335,7 @@ BEGIN
     IDS_STRING64529         "inner 16"
     IDS_STRING64530         "undefined"
     IDS_STRING64531         "undefined"
+    IDS_Forced              "Forced"
 END
 
 STRINGTABLE
@@ -4479,6 +4480,7 @@ BEGIN
     IDS_FontFileDidNotOpen  "Font file did not open\nLoadOldStyleFile"
     IDS_ErrorNetConnectionSegmentWithInvalidPtrToConnect 
                             "ERROR: Net ""%s"": connection %d segment %d with invalid ptr to connect\r\n"
+    IDS_XYViaForced         "%s, x %s, y %s, forced via %s/%s"
 END
 
 #endif    // English (United States) resources
