@@ -632,6 +632,8 @@ int cvertex::Index()
 	return m_con->VtxIndexByPtr( this );
 }
 
+// AMW2 changed to never draw slave vertices
+//
 void cvertex::Draw()
 {
 	cconnect * c = m_con;
@@ -859,10 +861,19 @@ void cvertex::GetStatusStr( CString * str )
 	::MakeCStringFromDimension( &y_str, y, u, FALSE, FALSE, FALSE, u==MIL?1:3 );
 	if( via_w )
 	{
+		// AMW2 added "forced" string for forced via
 		::MakeCStringFromDimension( &via_w_str, via_w, u, FALSE, FALSE, FALSE, u==MIL?1:3 );
 		::MakeCStringFromDimension( &via_hole_str, via_hole_w, u, FALSE, FALSE, FALSE, u==MIL?1:3 );
-		CString s ((LPCSTR) IDS_XYVia);
-		str->Format( s, type_str, x_str, y_str, via_w_str, via_hole_str );
+		if( force_via_flag )
+		{
+			CString s ((LPCSTR) IDS_XYViaForced);
+			str->Format( s, type_str, x_str, y_str, via_w_str, via_hole_str );
+		}
+		else
+		{
+			CString s ((LPCSTR) IDS_XYVia);
+			str->Format( s, type_str, x_str, y_str, via_w_str, via_hole_str );
+		}
 	}
 	else
 	{

@@ -756,14 +756,14 @@ int CPolyLine::RestoreArcs( CArray<CArc> * arc_array, CArray<CPolyLine*> * pa )
 //
 // if polyline is board outline, enter with:
 //	id.t1 = ID_BOARD
-//	id.SetT2( ID_OUTLINE
-//	id.I2() = index to outline
+//	id.t2 = ID_OUTLINE
+//	id.i2 = index to outline
 //	ptr = NULL
 //
 // if polyline is copper area, enter with:
 //	id.t1 = ID_NET;
-//	id.SetT2( ID_AREA
-//	id.I2() = index to area
+//	id.t2 = ID_AREA
+//	id.i2 = index to area
 //	ptr = pointer to net
 //
 void CPolyLine::Start( int layer, int w, int sel_box, int x, int y, 
@@ -773,7 +773,7 @@ void CPolyLine::Start( int layer, int w, int sel_box, int x, int y,
 	m_w = w;
 	m_sel_box = sel_box;
 
-	// set id, using the one provided
+	// set parent id, if provided
 	if( set_id )
 		m_parent_id = *set_id;
 	else
@@ -1577,6 +1577,7 @@ void CPolyLine::SetUID( int uid )
 {
 	Undraw();
 	m_uid = uid;
+	m_parent_id.SetU2( uid );	// AMW2 added
 	if( m_dlist )
 	{
 		Draw();

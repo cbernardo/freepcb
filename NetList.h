@@ -270,7 +270,6 @@ public:
 	int RehookPartsToNet( cnet * net );
 	void PartAdded( cpart * part );
 	int PartMoved( cpart * part, int dx = 1, int dy = 1 );			// CPT added optional params
-//	int PartMoved( cpart * part );
 	int PartFootprintChanged( cpart * part );
 	int PartDeleted( cpart * part, BOOL bSetAreas=TRUE );
 	int PartDisconnected( cpart * part, BOOL bSetAreas=TRUE );
@@ -347,7 +346,7 @@ public:
 	BOOL FindTeeVertex( int id, cnet ** net, int * ic=NULL, int * iv=NULL );
 	int RemoveTee( cnet * net, int id );
 	int RemoveTeeIfNoBranches( cnet * net, int id );
-	BOOL TeeViaNeeded( cnet * net, int id, cvertex ** v );
+	BOOL TeeViaNeeded( cnet * net, int id, cvertex ** v, int * via_w, int * via_hole_w  );
 	BOOL RemoveOrphanBranches( cnet * net, int id, BOOL bRemoveSegs=FALSE );
 
 	// AMW2 helper functions for OptimizeConnections()

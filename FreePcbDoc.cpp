@@ -3635,7 +3635,7 @@ void CFreePcbDoc::BoardOutlineUndoCallback( int type, void * ptr, BOOL undo )
 			poly->SetDisplayList( this_Doc->m_dlist );
 			poly->SetFromUndo( un_poly );
 #if 0
-			id bd_id( ID_BOARD, ID_BOARD, i );
+			id bd_id( ID_BOARD, ID_OUTLINE, i );
 			poly->Start( un_poly->layer, un_poly->width, un_poly->sel_box, 
 				un_corner[0].x, un_corner[0].y, un_poly->hatch, &bd_id, NULL );
 			pcb_cuid.ReplaceUID( poly->GetUID(0), un_corner[0].uid );
@@ -3703,7 +3703,7 @@ void CFreePcbDoc::SMCutoutUndoCallback( int type, void * ptr, BOOL undo )
 			this_Doc->m_sm_cutout.SetSize(i+1);
 			CPolyLine * poly = &this_Doc->m_sm_cutout[i];
 			poly->SetDisplayList( this_Doc->m_dlist );
-			id sm_id( ID_MASK, -1, ID_MASK, -1, i );
+			id sm_id( ID_MASK, -1, ID_OUTLINE, -1, i );
 			poly->Start( un_sm->layer, 1, 10*NM_PER_MIL, 
 				corner[0].x, corner[0].y, un_sm->hatch_style, &sm_id, NULL );
 			poly->SetCornerUID( 0, corner[0].uid );

@@ -3458,7 +3458,7 @@ int CNetList::GetViaConnectionStatus( cnet * net, int ic, int iv, int layer )
 
 	// check for tee
 	if( v->tee_ID )
-		if( !TeeViaNeeded( net, v->tee_ID, NULL ) )
+		if( !TeeViaNeeded( net, v->tee_ID, NULL, NULL, NULL ) )
 			return status;
 
 	// check for trace connection to via pad
@@ -4093,13 +4093,17 @@ void CNetList::CalcViaWidths(cnet *net, int w, int *via_w, int *via_hole_w) {
   }
 
 // Reconcile via with preceding and following segments
+// Assumes that the via or connected segments may have changed
 // CPT r295: if a via is needed,  determine the size now, based on the segments' widths and possibly the net 
 // defaults.
 int CNetList::ReconcileVia( cnet * net, int ic, int ivtx, BOOL bDrawVertex )
 {
 	cconnect * c = net->connect[ic];
 	cvertex * v = &c->vtx[ivtx];
-#if 0	// AMW2, this "quickie" defeats the purpose of this function if there is a previous via
+	int new_v_w = 0;
+	int new_v_h_w = 0;
+
+#if 0	// AMW2, this "quickie" defeats the purpose of the function if there is a previous via
 	// CPT r295, quickie optimization:  if v already has a set via-width, bail out.
 	if (v->via_w && v->via_hole_w)
 	{
@@ -4107,20 +4111,35 @@ int CNetList::ReconcileVia( cnet * net, int ic, int ivtx, BOOL bDrawVertex )
 			v->Draw();
 		return 0;
 	}
+	// end CPT
 #endif
 
-	cseg * s1 = ivtx==0? NULL: &c->seg[ivtx-1];
-	cseg * s2 = ivtx==c->NumSegs()? NULL: &c->seg[ivtx];
-	// end CPT
-	cvertex * v_draw = v;
+	v->Undraw();
+
 	// see if via needed
 	BOOL via_needed = FALSE;
 	if( v->GetType() == cvertex::V_PIN )
+	{
 		// pin vertices never get vias
 		via_needed = FALSE;
-	else if( v->force_via_flag ) 
+	}
+	else if( v->force_via_flag )
+	{
 		via_needed = TRUE;
-	else if( v->GetType() == cvertex::V_TEE || v->GetType() == cvertex::V_SLAVE )
+	}
+	if( v->GetType() == cvertex::V_SLAVE )
+	{
+		// slave never gets a via, but master should be reconciled too
+		via_needed = FALSE;
+		int master_ic, master_iv;
+		if( FindTeeVertexInNet( net,abs(v->tee_ID), &master_ic, &master_iv ) )
+		{
+			ReconcileVia( net, master_ic, master_iv, bDrawVertex );
+		}
+		else
+			ASSERT(0);
+	}
+	else if( v->GetType() == cvertex::V_TEE )
 	{
 		if( ivtx != 0 && ivtx != c->NumSegs() )
 		{
@@ -4128,8 +4147,10 @@ int CNetList::ReconcileVia( cnet * net, int ic, int ivtx, BOOL bDrawVertex )
 			// TODO: I should fix this
 			// ASSERT(0);
 		}
-		else if( TeeViaNeeded( net, abs( v->tee_ID ), &v_draw ) )
+		else if( TeeViaNeeded( net, abs( v->tee_ID ), &v, &new_v_w, &new_v_h_w ) )
+		{
 			via_needed = TRUE;
+		}
 	}
 	else if( v->GetType() == cvertex::V_TRACE )
 	{
@@ -4137,44 +4158,53 @@ int CNetList::ReconcileVia( cnet * net, int ic, int ivtx, BOOL bDrawVertex )
 			ASSERT(0);
 		else
 		{
+			cseg * s1 = ivtx==0? NULL: &c->seg[ivtx-1];
+			cseg * s2 = ivtx==c->NumSegs()? NULL: &c->seg[ivtx];
 			c->vtx[ivtx].pad_layer = 0;
 			if(	   s1->m_layer != s2->m_layer 
 				&& s1->m_layer != LAY_RAT_LINE 
 				&& s2->m_layer != LAY_RAT_LINE )
+			{
+				int seg_v_w, seg_v_h_w;
+				CalcViaWidths( net, s1->m_width, &new_v_w, &new_v_h_w );
+				CalcViaWidths( net, s1->m_width, &seg_v_w, &seg_v_h_w );
+				new_v_w = max(new_v_w, seg_v_w );
+				new_v_h_w = max(new_v_h_w, seg_v_h_w );
 				via_needed = TRUE;
+			}
 		}
 	}
 
 	if( via_needed )
 	{
 		// CPT r295: via needed. Calculate its default width, based on the widths of the adjacent segs and possibly the net defaults.
-		int via_w = 0, via_hole_w = 0, vw2, vhw2;
-		if (s1)
-			CalcViaWidths(net, s1->m_width, &via_w, &via_hole_w);
-		if (s2) 
+		if( new_v_w <= 0 || new_v_h_w <= 0 )
 		{
-			CalcViaWidths(net, s2->m_width, &vw2, &vhw2);
-			if (vw2 > via_w) 
-				via_w = vw2, via_hole_w = vhw2;
+			if( net->def_via_w > 0 && net->def_via_hole_w > 0 )
+			{
+				new_v_w = net->def_via_w;
+				new_v_h_w = net->def_via_hole_w;
+			}
+			else
+			{
+				new_v_w = m_def_via_w;
+				new_v_h_w = m_def_via_hole_w;
+			}
 		}
-		if (via_w<=0 || via_hole_w<=0)
-			// Use defaults...
-			via_w = net->def_via_w==0? m_def_via_w: net->def_via_w,
-			via_hole_w = net->def_via_hole_w==0? m_def_via_hole_w: net->def_via_hole_w;
-		v_draw->via_w = via_w;
-		v_draw->via_hole_w = via_hole_w;
+		v->via_w = new_v_w;
+		v->via_hole_w = new_v_h_w;
 		// End CPT
 	}
 	else
 	{
 		// via not needed
-		v_draw->via_w = 0;
-		v_draw->via_hole_w = 0;
+		v->via_w = 0;
+		v->via_hole_w = 0;
 	}
 
 	if( m_dlist && bDrawVertex && v->GetType() != cvertex::V_PIN )
 	{
-		v_draw->Draw();
+		v->Draw();
 	}
 	return 0;
 }
@@ -6943,11 +6973,14 @@ int CNetList::RemoveTee( cnet * net, int id )
 }
 
 // see if a tee vertex needs a via
-// also returns pointer to master vertex for tee
+// also returns pointer to master vertex for tee and suggested widths 
 //
-BOOL CNetList::TeeViaNeeded( cnet * net, int id, cvertex ** v_master )
+BOOL CNetList::TeeViaNeeded( cnet * net, int id, cvertex ** v_master, int * via_w, int * via_hole_w )
 {
 	int layer = 0;
+	int v_w = 0;
+	int v_h_w = 0;
+	int seg_v_w, seg_v_h_w;
 	for( int ic=0; ic<net->NumCons(); ic++ )
 	{
 		cconnect * c = net->connect[ic];
@@ -6967,31 +7000,47 @@ BOOL CNetList::TeeViaNeeded( cnet * net, int id, cvertex ** v_master )
 					if( iv > 0 )
 					{
 						// test layer of segment pre-via
-						int seg_layer = c->seg[iv-1].m_layer;	
+						cseg * s = &c->SegByIndex(iv-1);
+						int seg_layer = s->m_layer;	
 						if( seg_layer >= LAY_TOP_COPPER )
 						{
 							if( layer == 0 )
 								layer = seg_layer;
 							else if( layer != seg_layer )
+							{
+								CalcViaWidths( net, s->m_width, &seg_v_w, &seg_v_h_w );
+								v_w = max( v_w, seg_v_w );
+								v_h_w = max( v_h_w, seg_v_h_w );
 								return TRUE;
+							}
 						}
 					}
 					if( iv == 0 )
 					{
 						// test layer of segment post-via
-						int seg_layer = c->seg[iv].m_layer;	
+						cseg * s = &c->SegByIndex(iv);
+						int seg_layer = s->m_layer;	
 						if( seg_layer >= LAY_TOP_COPPER )
 						{
 							if( layer == 0 )
 								layer = seg_layer;
 							else if( layer != seg_layer )
+							{
+								CalcViaWidths( net, s->m_width, &seg_v_w, &seg_v_h_w );
+								v_w = max( v_w, seg_v_w );
+								v_h_w = max( v_h_w, seg_v_h_w );
 								return TRUE;
+							}
 						}
 					}
 				}
 			}
 		}
 	}
+	if( via_w )
+		*via_w = v_w;
+	if( via_hole_w )
+		*via_hole_w = v_h_w;
 	return FALSE;
 }
 

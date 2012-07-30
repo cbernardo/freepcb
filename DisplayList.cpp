@@ -946,8 +946,8 @@ int CDisplayList::TestSelect( int x, int y, CArray<CHitInfo> *hit_info,
 			else if (type == ID_NET && st == ID_CONNECT && sst == ID_SEL_VERTEX
 					&& (net->ConByIndex(i)->VtxByIndex(ii).tee_ID || net->ConByIndex(i)->VtxByIndex(ii).force_via_flag) ) ;
 			else if (type == ID_NET && st == ID_AREA && sst == ID_SEL_SIDE) ;
-			else if (type == ID_MASK && st == ID_MASK && sst == ID_SEL_SIDE) ;
-			else if (type == ID_BOARD && st == ID_BOARD && sst == ID_SEL_SIDE) ;
+			else if (type == ID_MASK && st == ID_OUTLINE && sst == ID_SEL_SIDE) ;
+			else if (type == ID_BOARD && st == ID_OUTLINE && sst == ID_SEL_SIDE) ;
 			else
 				// Not a valid group member!
 				continue;

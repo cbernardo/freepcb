@@ -1565,6 +1565,8 @@
 #define IDS_FontFileDidNotOpen          62666
 #define IDS_STRING129                   62667
 #define IDS_ErrorNetConnectionSegmentWithInvalidPtrToConnect 62667
+#define IDS_XYVia2                      62668
+#define IDS_XYViaForced                 62668
 #define IDS_FkFpStr                     63000
 #define IDS_STRING63001                 63001
 #define IDS_STRING63002                 63002
@@ -1871,6 +1873,7 @@
 #define IDS_STRING64529                 64529
 #define IDS_STRING64530                 64530
 #define IDS_STRING64531                 64531
+#define IDS_Forced                      64532
 #define IDS_FpLayerStr                  64600
 #define IDS_STRING64601                 64601
 #define IDS_STRING64602                 64602
