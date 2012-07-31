@@ -558,7 +558,6 @@ public:
 	// CPT2: put into cpin2 (?) int pad_layer;				// layer of pad if this is first or last vertex, otherwise 0
 	int force_via_flag;			// force a via even if no layer change
 	int via_w, via_hole_w;		// via width and hole width (via_w==0 means no via)
-	int utility2;				// used for various functions
 	CArray<dl_element*> dl_els;	// CPT2 renamed;  contains one dl_element per layer
 	dl_element * dl_hole;		// hole in via
 	dl_element * dl_thermal;	// CPT2 new.  
@@ -613,7 +612,7 @@ public:
 	void StartDragging( CDC * pDC, int x, int y, int crosshair = 1 );			// Done in cpp, derived from CNetList::StartDraggingVertex
 	void CancelDragging();														// Done in cpp, derived from CNetList::CancelDraggingVertex
 	void Move( int x, int y );													// Done in cpp, derived from CNetList::MoveVertex
-	int GetViaConnectionStatus( int layer );									// Done in cpp
+	int GetViaConnectionStatus( int layer );									// CPT2 TODO eliminate?
 	bool SetNeedsThermal();														// Done in cpp.  New.  Sets the bNeedsThermal flag, depending on net areas
 																				// that overlap this point.
 };
@@ -720,7 +719,7 @@ public:
 	bool InsertSegment(int x, int y, int layer, int width, int dir );  // Done in cpp, derived from CNetList::InsertSegment()
 	int Route( int layer, int width );								// Done in cpp
 	void Unroute(int dx=1, int dy=1, int end=0);					// Done in cpp
-	bool UnrouteWithoutMerge(int dx, int dy, int end);				// Done in cpp
+	bool UnrouteWithoutMerge(int dx=1, int dy=1, int end=0);		// Done in cpp
 	bool RemoveMerge(int end);										// Done in cpp
 	bool RemoveBreak();												// Done in cpp
 
@@ -871,7 +870,7 @@ public:
 	void Init( CDisplayList * dlist, int x, int y, int angle,					// TODO: rethink relationship with constructor. Removed tid arg.
 		int mirror, BOOL bNegative, int layer, int font_size, 
 		int stroke_width, SMFontUtil * smfontutil, CString * str_ptr );
-	void Copy(ctext *other);													// CPT2 new, done in cpp.
+	void Copy(ctext *other);																				// CPT2 new, done in cpp.
 	void Move( int x, int y, int angle, BOOL mirror, BOOL negative, int layer, int size=-1, int w=-1 );		// Done in cpp
 	void Move( int x, int y, int angle, int size=-1, int w=-1);										// Done in cpp
 	void Resize( int size, int w );																	// Done in cpp
@@ -1056,6 +1055,7 @@ public:
 	void ResizeRefText(int size, int width, BOOL vis );											// Done in cpp, derived from CPartList::ResizeRefText()
 	// void MoveValueText( int _x, int _y, int _angle=-1, int _size=-1, int _w=-1 );				// Done in cpp, derived from CPartList func
 	void InitPins();																			// Done in cpp. Basically all new
+	CRect CalcSelectionRect();
 
 	// cpin2 * PinByUID( int uid );		// CPT2. Use pins.FindByUID().
 	// int GetNumRefStrokes();			// CPT2. Use m_ref.m_stroke.GetSize()
@@ -1075,7 +1075,7 @@ public:
 	int Draw();							// Done in cpp
 	void Undraw();						// Done in cpp
 	void Highlight();					// Done in cpp, derived from CPartList::HighlightPart()
-	void SetVisible(bool bVis);         // CPT2 TODO derive from CPartList::MakePartVisible()
+	void SetVisible(bool bVis);         // Done in cpp
 	void StartDragging( CDC * pDC, BOOL bRatlines, BOOL bBelowPinCount, int pin_count );		// Done in cpp, derived from CPartList::StartDraggingPart
 	void CancelDragging();
 
@@ -1195,8 +1195,6 @@ class cpolyline: public cpcb_item
 {
 public:
 	// CDisplayList * m_dlist;		// display list // CPT2 use doc->m_dlist (?)
-
-	cpcb_item *parent;			// CPT2.  TODO Probably obsolete...
 	ccontour *main;				// CPT2
 	carray<ccontour> contours;	// CPT2.  All contours, including main
 	// id m_parent_id;			// id of the parent of the polyline
@@ -1208,7 +1206,6 @@ public:
 	int m_nhatch;				// number of hatch lines
 	bool m_bTemporary;			// CPT2 Set for CFreePcbView::m_tmp_poly.
 	CArray <dl_element*>  dl_hatch;	// hatch lines.  Use CArray with dl-elements generally?
-	int utility2;
 	gpc_polygon * m_gpc_poly;	// polygon in gpc format
 	polygon * m_php_poly;
 
@@ -1227,7 +1224,7 @@ public:
 
 	// functions for creating and modifying polyline
 	virtual void Remove() { }														// CPT2 new.  Check out the versions in derived classes.
-	void MarkConstituents();														// CPT2. Done in cpp.
+	void MarkConstituents(int util);												// CPT2. Done in cpp.
 	// void Clear();																// CPT2 TODO maybe obsolete?
 	// void Start( int layer, int w, int sel_box, int x, int y,
 	//	int hatch, id * id, void * ptr, BOOL bDraw=TRUE );							// CPT2 TODO maybe obsolete?
@@ -1249,7 +1246,7 @@ public:
 	void Undraw();																				// Done in cpp
 	void Hatch();																				// Done in cpp
 	void Highlight();																			// Done in cpp
-	void MakeVisible( BOOL visible = TRUE );
+	void SetVisible( BOOL visible = TRUE );
 	// void MoveOrigin( int x_off, int y_off );		// Same as Offset
 	// void SetSideVisible( int is, int visible );  // Use cside::SetVisible()
 
@@ -1314,7 +1311,9 @@ public:
 		{ Undraw(); m_hatch = hatch; Draw(); }
 	bool SetClosed( bool bClosed );														// CPT2 descended from CPolyLine function
 	// void SetDisplayList( CDisplayList * dl );
-	void Offset(int dx, int dy);														// CPT2 TODO obsolete?
+	void Offset(int dx, int dy);														// Done in cpp
+	void Copy(cpolyline *src);															// CPT2 new, done in cpp
+	void AddSidesTo(carray<cpcb_item> *arr);											// CPT2 new, done in cpp
 
 	// Functions for normalizing and combining intersecting polylines
 	virtual void GetCompatiblePolylines( carray<cpolyline> *arr ) { }					// CPT2 new, done in cpp
@@ -1330,8 +1329,8 @@ public:
 	int CombinePolyline( cpolyline *poly2 );											// Done in cpp, derived from CNetList::CombineAreas
 	void RestoreArcs( CArray<CArc> *arc_array, carray<cpolyline> *pa=NULL );			// Done in cpp.  Originally in CPolyLine
 	int ClipPolygon( bool bMessageBoxArc, bool bMessageBoxInt, bool bRetainArcs=true);	// Done in cpp.  Generalization of old carea2 func.
-	static void CombinePolylines( carray<cpolyline> *pa, BOOL bMessageBox, BOOL bUseUtility );
-																						// Done in cpp, generalization of old CNetList::CombineAllAreasInNet()
+	static void CombinePolylines( carray<cpolyline> *pa, BOOL bMessageBox );			// Done in cpp, generalization of old CNetList::CombineAllAreasInNet()
+																						// Testing it out minus the old bUseUtility param.
 	virtual bool PolygonModified( bool bMessageBoxArc, bool bMessageBoxInt );			// Done in cpp.  Generalization of old carea2 func.
 																						// Virtual, because at least for now cboard is overriding it (to
 																						// do nothing)
@@ -1444,11 +1443,10 @@ public:
 	int def_via_w;				// default via width
 	int def_via_hole_w;			// default via hole width
 	bool bVisible;				// FALSE to hide ratlines and make unselectable.  CPT2 TODO put in base class?
-	int utility2;				// used to keep track of which nets have been optimized
 	// CDisplayList * m_dlist;		// CDisplayList to use	// CPT2 use doc->m_dlist (?)
 	cnetlist * m_nlist;			// parent netlist
 
-	cnet2( CFreePcbDoc *_doc, CString _name, int _def_w, int _def_via_w, int _def_via_hole_w );			// Done in cpp
+	cnet2( cnetlist *_nlist, CString _name, int _def_w, int _def_via_w, int _def_via_hole_w );			// Done in cpp
 	~cnet2()
 	{
 		citer<cpin2> ip (&pins);
@@ -1459,6 +1457,7 @@ public:
 	bool IsValid();
 	bool IsNet() { return true; }
 	cnet2 *ToNet() { return this; }
+	cnet2 *GetNet() { return this; }
 	int GetTypeBit() { return bitNet; }
 	void GetStatusStr( CString * str );
 

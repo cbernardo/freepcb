@@ -186,13 +186,8 @@ public:
 	void SetSMTconnect( BOOL bSMTconnect ) { m_bSMT_connect = bSMTconnect; }
 
 	// functions for nets and pins
-	void MarkAllNets( int utility )
-	{
-		citer<cnet2> in (&nets);
-		for (cnet2 *n = in.First(); n; n = in.Next())
-			n->utility = utility;
-	}
-	void MoveOrigin( int x_off, int y_off ) { }
+	void MarkAllNets( int utility );													// Done in cpp
+	void MoveOrigin( int dx, int dy );													// Done in cpp
 	cnet2 * GetNetPtrByName( CString * name )
 	{
 		citer<cnet2> in (&nets);
@@ -204,7 +199,7 @@ public:
 	// cnet2 * AddNet( CString name, int def_width, int def_via_w, int def_via_hole_w ) // CPT2, just use cnet2::cnet2( cnetlist, ....) 
 																						// NB old unused max_pins arg is gone for good.
 	// void RemoveNet( cnet2 * net ); // CPT2 Use "nets.Remove(net)"
-	void RemoveAllNets() { nets.RemoveAll(); }
+	// void RemoveAllNets()															// CPT2 use nets.RemoveAll()
 	// void RemoveNetPin( cpart2 * part, CString * pin_name, BOOL bSetAreas=TRUE ); // CPT2 just use cnet2::RemovePin( pin, bSetAreas );
 	// void DisconnectNetPin( cpart2 * part, CString * pin_name, BOOL bSetAreas=TRUE ); // CPT2 use cpin2::Disconnect( bSetAreas )
 	// void DisconnectNetPin( cnet2 * net, CString * ref_des, CString * pin_name, BOOL bSetAreas=TRUE ); // CPT2 use cpin2::Disconnect( bSetAreas ) plus:
@@ -359,11 +354,11 @@ public:
 
 	// I/O  functions
 	void ReadNets( CStdioFile * pcb_file, double read_version, int * layers=NULL );			// Done in cpp.
-	void WriteNets( CStdioFile * file );														// Done in cpp.
-	void ExportNetListInfo( netlist_info * nl ) { }
+	void WriteNets( CStdioFile * file );													// Done in cpp.
+	void ExportNetListInfo( netlist_info * nl );
 	void ImportNetListInfo( netlist_info * nl, int flags, CDlgLog * log,
 		int def_w, int def_w_v, int def_w_v_h );
-	void Copy( cnetlist * nl );
+	void Copy( cnetlist * nl );																// Done in cpp
 	void RestoreConnectionsAndAreas( cnetlist * old_nl, int flags, CDlgLog * log=NULL );
 	void ReassignCopperLayers( int n_new_layers, int * layer ) { }
 	void ImportNetRouting( CString * name, CArray<cnode> * nodes, 

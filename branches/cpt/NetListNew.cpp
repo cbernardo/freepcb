@@ -1,6 +1,7 @@
 #include "stdafx.h"
 #include "FreePcbDoc.h"
 #include "NetListNew.h"
+#include "PartListNew.h"
 
 cnetlist::cnetlist( CFreePcbDoc * _doc )
 	{ 
@@ -107,7 +108,7 @@ void cnetlist::ReadNets( CStdioFile * pcb_file, double read_version, int * layer
 			int visible = 1;
 			if( np > 8 )
 				visible = my_atoi( &p[7] );
-			cnet2 *net = new cnet2( m_doc, net_name, def_width, def_via_w, def_via_hole_w );
+			cnet2 *net = new cnet2( this, net_name, def_width, def_via_w, def_via_hole_w );
 			net->bVisible = visible;
 			for( int ip=0; ip<npins; ip++ )
 			{
@@ -484,5 +485,328 @@ void cnetlist::WriteNets( CStdioFile * file )
 			str.Format( s, e->m_cause );
 		else
 			str.Format( s2, e->m_cause, e->m_lOsError, _sys_errlist[e->m_lOsError] );
+	}
+}
+
+void cnetlist::Copy(cnetlist *src)
+{
+#ifndef CPT2
+	// CPT2 loosely based on old CNetList func.  Copies all pcb-items from src netlist into this one.
+	nets.RemoveAll();
+	citer<cnet2> in (&src->nets);
+	for (cnet2 *net = in.First(); net; net = in.Next())
+	{
+		cnet2 *net2 = new cnet2(net->doc, net->name, net->def_w, net->def_via_w, net->def_via_hole_w);
+		citer<cconnect2> ic (&net->connects);
+		for (cconnect2 *c = ic.First(); c; c = ic.Next())
+		{
+			cconnect2 *c2 = new cconnect2(net2);
+			cvertex2 *head = c->head;
+		cvertex2 *head2 = new cvertex2(c2, head->x, head->y);
+		if (head->pin)
+			head2->pin = pl2->GetPinByNames( &head->pin->part->ref_des, &head->pin->pin_name );		// Might be null, which is now legal.
+		if (head->tee)
+		{
+			int util = head->tee->utility;
+			if (!util)
+				util = head->tee->utility = nextTeeNum++;
+			ctee *tee2 = net2->tees.FindByUtility( util );
+			if (!tee2)
+				tee2 = new ctee(net2), 
+				tee2->utility = util;
+			head2->tee = tee2;
+		}
+		if (head->utility)
+			// Head vertex of source connect must be a selected via.  Copy the via params over to head2.
+			head2->force_via_flag = true,				// ??
+			head2->via_w = head->via_w,
+			head2->via_hole_w = head->via_hole_w;
+
+		c2->Start(head2);
+		cvertex2 *v = head;
+		while (v->postSeg) 
+		{
+			v = v->postSeg->postVtx;
+			int layer = v->preSeg->m_layer, width = v->preSeg->m_width;
+			if (!v->preSeg->utility)
+				layer = LAY_RAT_LINE,													// Source seg not selected, so copy it as a ratline.
+				width = 0;
+			c2->AppendSegment(v->x, v->y, layer, width);
+			if (v->utility)
+				// Source vertex must be a selected via.  Copy via params:
+				c2->tail->force_via_flag = true,			// ??
+				c2->tail->via_w = v->via_w,
+				c2->tail->via_hole_w = v->via_hole_w;
+		}
+
+
+	}
+#endif
+}
+
+void cnetlist::ExportNetListInfo( netlist_info * nl )
+{
+	// make copy of netlist data so that it can be edited
+	int i = 0;
+	nl->SetSize( nets.GetSize() );
+	citer<cnet2> in (&nets);
+	for (cnet2 *net = in.First(); net; net = in.Next(), i++)
+	{
+		net_info *ni = &(*nl)[i];
+		ni->name = net->name;
+		ni->net = net;
+		ni->visible = net->bVisible;
+		ni->w = net->def_w;
+		ni->v_w = net->def_via_w;
+		ni->v_h_w = net->def_via_hole_w;
+		ni->apply_trace_width = FALSE;
+		ni->apply_via_width = FALSE;
+		ni->modified = FALSE;
+		ni->deleted = FALSE;
+		ni->ref_des.SetSize(0);
+		ni->pin_name.SetSize(0);
+		// now make copy of pin arrays
+		ni->ref_des.SetSize( net->NumPins() );
+		ni->pin_name.SetSize( net->NumPins() );
+		citer<cpin2> ip (&net->pins);
+		int j = 0;
+		for (cpin2 *pin = ip.First(); pin; pin = ip.Next(), j++)
+		{
+			ni->ref_des[j] = pin->part->ref_des;
+			ni->pin_name[j] = pin->pin_name;
+		}
+	}
+}
+
+// import netlist_info data back into netlist
+//
+void cnetlist::ImportNetListInfo( netlist_info * nl, int flags, CDlgLog * log,
+								 int def_w, int def_w_v, int def_w_v_h )
+{
+	// CPT2 TODO deal with redrawing issues.
+	CString mess;
+	// loop through netlist_info and remove any nets that flagged for deletion
+	int n_info_nets = nl->GetSize();
+	for( int i=0; i<n_info_nets; i++ )
+	{
+		net_info *ni = &(*nl)[i];
+		cnet2 *net = ni->net;
+		if( ni->deleted && net )
+		{
+			// net was deleted, remove it
+			if( log )
+			{
+				CString s ((LPCSTR) IDS_RemovingNet);
+				mess.Format( s, net->name );
+				log->AddLine( mess );
+			}
+			nets.Remove(net);
+			ni->net = NULL;
+		}
+	}
+
+	// now handle any nets that were renamed 
+	// assumes that the new name is not a duplicate
+	for( int i=0; i<n_info_nets; i++ )
+	{
+		net_info *ni = &(*nl)[i];
+		cnet2 *net = ni->net;
+		if( net )
+			net->name = ni->name;
+	}
+
+	// now check for existing nets that are not in netlist_info
+	citer<cnet2> in (&nets);
+	for (cnet2 *net = in.First(); net; net = in.Next())
+	{
+		// check if in netlist_info
+		BOOL bFound = FALSE;
+		for( int i=0; i<nl->GetSize(); i++ )
+			if( net->name == (*nl)[i].name )
+			{
+				bFound = TRUE;
+				break;
+			}
+		if( bFound ) continue;
+		// net is not in netlist_info
+		if( (flags & KEEP_NETS) && log )
+		{
+			CString s ((LPCSTR) IDS_KeepingNetNotInImportedNetlist);
+			mess.Format( s, net->name );
+			log->AddLine( mess );
+		}
+		else if (!(flags & KEEP_NETS))
+		{
+			if( log )
+			{
+				CString s ((LPCSTR) IDS_RemovingNet);
+				mess.Format( s, net->name );
+				log->AddLine( mess );
+			}
+			nets.Remove(net);
+		}
+	}
+
+	// now reloop, adding and modifying nets and deleting pins as needed
+	for( int i=0; i<n_info_nets; i++ )
+	{
+		net_info *ni = &(*nl)[i];
+		// ignore info nets marked for deletion
+		if( ni->deleted )
+			continue;
+		if( ni->w == -1 )
+			ni->w = 0;
+		if( ni->v_w == -1 )
+			ni->v_w = 0;
+		if( ni->v_h_w == -1 )
+			ni->v_h_w = 0;
+
+		// try to find existing net with this name
+		cnet2 *net = ni->net;												// net from netlist_info (may be NULL)
+		cnet2 *old_net = GetNetPtrByName( &ni->name );
+		if( !net && !old_net )
+		{
+			// no existing net, add to netlist
+			cnet2 *net = new cnet2(this, ni->name, ni->w, ni->v_w, ni->v_h_w );
+			ni->net = net;
+		}
+		else if( !net && old_net )
+		{
+			// no net from netlist_info but existing net with same name
+			// use existing net and modify it
+			ni->modified = TRUE;
+			net = old_net;
+			ni->net = net;
+		}
+		else
+			// net from netlist_info and existing net have the same name.  Ensure they're actually identical
+			ASSERT( net == old_net );
+
+		net->name = ni->name;
+		// now loop through net pins, deleting any which were removed
+		citer<cpin2> ip (&net->pins);
+		for (cpin2 *pin = ip.First(); pin; pin = ip.Next())
+		{
+			CString ref_des = pin->part->ref_des;
+			CString pin_name = pin->pin_name;
+			BOOL pin_present = FALSE;
+			for( int ip = 0; ip < ni->ref_des.GetSize(); ip++ )
+				if( ref_des == ni->ref_des[ip] && pin_name == ni->pin_name[ip] )
+				{
+					// pin in net found in netlist_info
+					pin_present = TRUE;
+					break;
+				}
+			if( pin_present ) 
+				continue;
+
+			// pin in net but not in netlist_info 
+			if( flags & KEEP_PARTS_AND_CON )
+			{
+				// we may want to preserve this pin.  CPT2 TODO figure out what's going on here
+				if( !pin->part->bPreserve )
+					net->pins.Remove(pin);
+			}
+			else
+			{
+				// delete it from net
+				if( log )
+				{
+					CString s ((LPCSTR) IDS_RemovingPinFromNet);
+					mess.Format( s, ref_des, pin_name, net->name  );
+					log->AddLine( mess );
+				}
+				net->pins.Remove(pin);
+			}
+		}
+	}
+
+	// now reloop and add any pins that were added to netlist_info
+	for( int i=0; i<n_info_nets; i++ )
+	{
+		net_info *ni = &(*nl)[i];
+		cnet2 * net = ni->net;
+		if( net && !ni->deleted && ni->modified )
+		{
+			// loop through local pins, adding any new ones to net
+			int n_local_pins = ni->ref_des.GetSize();
+			for( int ipl=0; ipl<n_local_pins; ipl++ )
+			{
+				cpin2 *pin = m_plist->GetPinByNames( &ni->ref_des[i], &ni->pin_name[i] );
+				if (pin->net == net) continue;
+				net->AddPin( pin );						// Takes care of detaching pin from its old net, if any
+				if( log )
+				{
+					CString s ((LPCSTR) IDS_AddingPinToNet);
+					mess.Format( s,	(*nl)[i].ref_des[ipl], (*nl)[i].pin_name[ipl], net->name );
+					log->AddLine( mess );
+				}
+			}
+		}
+	}
+
+	// now set visibility and apply new widths, if requested
+	for( int i=0; i<n_info_nets; i++ )
+	{
+		net_info *ni = &(*nl)[i];
+		cnet2 *net = ni->net;
+		if (!net) 
+			continue;
+		net->bVisible = ni->visible;
+		if( ni->apply_trace_width )
+			net->def_w = ni->w? ni->w: def_w;
+		if( ni->apply_via_width )
+			net->def_via_w = ni->v_w? ni->v_w: def_w_v,
+			net->def_via_hole_w = ni->v_h_w? ni->v_h_w: def_w_v_h;
+	}
+}
+
+
+
+void cnetlist::MarkAllNets(int utility)
+{
+	// CPT2 like the CNetList func, set the utility flag on the net and its constituents.  I mark the pins in the net also, 
+	// though I'm not sure if that's so necessary/desirable.
+	citer<cnet2> in (&nets);
+	for (cnet2 *n = in.First(); n; n = in.Next()) 
+	{
+		n->utility = utility;
+		citer<cconnect2> ic (&n->connects);
+		for (cconnect2 *c = ic.First(); c; c = ic.Next()) 
+		{
+			c->utility = utility;
+			citer<cvertex2> iv (&c->vtxs);
+			for (cvertex2 *v = iv.First(); v; v = iv.Next()) 
+				v->utility = utility;
+			citer<cseg2> is (&c->segs);
+			for (cseg2 *s = is.First(); s; s = is.Next())
+				s->utility = utility;
+		}
+		citer<carea2> ia (&n->areas);
+		for (carea2 *a = ia.First(); a; a = ia.Next())
+			a->MarkConstituents(utility);
+		n->pins.SetUtility(utility);
+		n->tees.SetUtility(utility);
+	}
+}
+
+void cnetlist::MoveOrigin(int dx, int dy)
+{
+	// CPT2 derived from CNetList func. of the same name
+	citer<cnet2> in (&nets);
+	for (cnet2 *n = in.First(); n; n = in.Next())
+	{
+		n->MustRedraw();
+		citer<cconnect2> ic (&n->connects);
+		for (cconnect2 *c = ic.First(); c; c = ic.Next())
+		{
+			citer<cvertex2> iv (&c->vtxs);
+			for (cvertex2 *v = iv.First(); v; v = iv.Next())
+				v->x += dx,
+				v->y += dy;
+		}
+		citer<carea2> ia (&n->areas);
+		for (carea2 *a = ia.First(); a; a = ia.Next())
+			a->Offset(dx, dy);
 	}
 }

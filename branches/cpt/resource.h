@@ -600,8 +600,6 @@
 #define IDC_COMBO_GROUP_UNITS           1335
 #define IDC_EDIT_GROUP_X                1336
 #define IDC_EDIT_GROUP_Y                1337
-#define IDC_RADIO_RETAIN_ALL            1338
-#define IDC_RADIO_RETAIN_TRACES         1339
 #define IDC_CHECK_KEEP_TRACES           1340
 #define IDC_CHECK_KEEP_STUBS            1341
 #define IDC_CHECK_KEEP_AREAS            1342
@@ -746,6 +744,7 @@
 #define IDC_BUTTON_LAYER_15             1445
 #define IDC_BUTTON_PREVIEW              1445
 #define IDC_BUTTON_LAYER_16             1446
+#define IDC_CHECK_IGNORE_EMPTY_NETS     1446
 #define IDC_BUTTON_LAYER_17             1447
 #define IDC_BUTTON_LAYER_18             1448
 #define IDC_BUTTON_LAYER_19             1449
@@ -1023,6 +1022,8 @@
 #define ID_POLYSIDE_EXCLUDEREGION       33014
 #define ID_POLYSIDE_REMOVECONTOUR       33015
 #define ID_POLYSIDE_CONVERTTOSTRAIGHTLINE 33016
+#define ID_GROUP_ROTATECCW              33017
+#define ID_GROUP_ROTATE_CCW             33018
 #define IDS_AppName                     61999
 #define IDS_IllegalNetName              62000
 #define IDS_TopSolderMask               62001
@@ -1990,8 +1991,8 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_3D_CONTROLS                     1
 #define _APS_NEXT_RESOURCE_VALUE        353
-#define _APS_NEXT_COMMAND_VALUE         33017
-#define _APS_NEXT_CONTROL_VALUE         1446
+#define _APS_NEXT_COMMAND_VALUE         33019
+#define _APS_NEXT_CONTROL_VALUE         1447
 #define _APS_NEXT_SYMED_VALUE           106
 #endif
 #endif

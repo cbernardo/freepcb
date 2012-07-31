@@ -12,13 +12,6 @@ cpartlist::cpartlist( CFreePcbDoc *_doc )
 	m_footprint_cache_map = NULL;
 }
 
-void cpartlist::RemoveAllParts()
-{
-	citer<cpart2> ip (&parts);
-	for (cpart2 *p = ip.First(); p; p = ip.Next())
-		p->Remove(false);
-}
-
 cpart2 *cpartlist::GetPartByName( CString *ref_des )
 {
 	// Find part in partlist by ref-des
@@ -106,6 +99,15 @@ void cpartlist::SetThermals()
 		for (cpin2 *pin = ipin.First(); pin; pin = ipin.Next())
 			pin->SetNeedsThermal();
 	}
+}
+
+cpart2 *cpartlist::Add( CShape * shape, CString * ref_des, CString *value_text, CString * package, 
+	int x, int y, int side, int angle, int visible, int glued )
+{
+	// CPT2.  Derived from old cpartlist func.  Removed uid and ref_vis args.
+	cpart2 *part = new cpart2(this);
+	part->SetData(shape, ref_des, value_text, package, x, y, side, angle, visible, glued);
+	return part;
 }
 
 cpart2 * cpartlist::AddFromString( CString * str )
@@ -722,3 +724,27 @@ void cpartlist::ImportPartListInfo( partlist_info * pl, int flags, CDlgLog * log
 	free( grid );
 }
 
+void cpartlist::MoveOrigin( int dx, int dy )
+{
+	// CPT2 derived from function of the same name in CPartlist.
+	citer<cpart2> ip (&parts);
+	for (cpart2 *p = ip.First(); p; p = ip.Next())
+		if (p->shape)
+		{
+			p->MustRedraw();
+			p->x += dx;
+			p->y += dy;
+			// Pins will get repositioned when we draw
+		}
+}
+
+void cpartlist::MarkAllParts( int util )
+{
+	// CPT2 derived from old CPartList func.  But I also mark the pins within each part, just for completeness (worth it?)
+	citer<cpart2> ip (&parts);
+	for (cpart2 *p = ip.First(); p; p = ip.Next())
+	{
+		p->utility = util;
+		p->pins.SetUtility(util);
+	}
+}

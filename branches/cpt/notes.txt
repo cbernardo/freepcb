@@ -74,6 +74,21 @@ Terminological proposal:  I'm developing the opinion that the UI should use "con
 a linear succession of vertices/segs, and "trace" to mean the opposite of "ratline" (i.e., a routed seg).  I've taken the liberty of
 altering UI elements accordingly, and am now offering the 'C' key as an alternate to 'T'. 
 
+Group delete possibility:  should we invoke RemoveBreak() for each segment in the group, rather than unrouting them as is currently done?  At 
+the moment, I'm permitting ratlines to be members of the selected group, and in that case particularly the proposed behavior seems more
+natural.
+
+Group copy:  have lifted the restrictions that used to exist on copying from connects attached to pins not in the group. 
+
+Group copy/paste:  I propose that if any side of an area/smcutout is selected, then the whole area will be pasted (more consistent with the way
+that selecting a polyline side, elsewhere in the program, permits operations on the whole polyline).
+Once the paste is complete, we now invoke PolygonModified() for each selected polyline.  Similar deal within routine CFreePcbView::MoveGroup().  
+Made a slight rewording within the paste-group dialog box --- I think the new checkbox 
+"Ignore group nets that include no routed traces or areas" is a little clearer and more accurate than the old radio buttons 
+"Nets assigned to pins: Retain All --- Retain if pin connected to a trace in the group".
+
+
+
 // FreePCB : programming notes
 //
 

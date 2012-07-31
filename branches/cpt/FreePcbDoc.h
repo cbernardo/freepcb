@@ -75,9 +75,9 @@ public:
 	CPolyLine * GetBoardOutlineByUID( int uid, int * index=NULL );
 	CPolyLine * GetMaskCutoutByUID( int uid, int * index=NULL );
 	void ReadBoardOutline( CStdioFile * pcb_file );
-	void WriteBoardOutline( CStdioFile * pcb_file );
+	void WriteBoardOutline( CStdioFile * pcb_file, carray<cboard> *boards = NULL );
 	void ReadSolderMaskCutouts( CStdioFile * pcb_file );
-	void WriteSolderMaskCutouts( CStdioFile * pcb_file );
+	void WriteSolderMaskCutouts( CStdioFile * pcb_file, carray<csmcutout> *smcutouts = NULL );
 	void ReadOptions( CStdioFile * pcb_file );
 	void WriteOptions( CStdioFile * pcb_file );
 	int ImportNetlist( CStdioFile * file, UINT flags, 
@@ -173,12 +173,12 @@ public:
 	BOOL m_auto_ratline_disable;
 	int m_auto_ratline_min_pins;
 
-	// pseudo-clipboard
-	CPartList * clip_plist;
-	CNetList * clip_nlist;
-	CTextList * clip_tlist;
-	CArray<CPolyLine> clip_sm_cutout;
-	CArray<CPolyLine> clip_board_outline;
+	// pseudo-clipboard.  CPT2 changed to the new object types:
+	cpartlist *clip_plist;
+	cnetlist *clip_nlist;
+	ctextlist *clip_tlist;
+	carray<csmcutout> clip_smcutouts;
+	carray<cboard> clip_boards;
 
 	// define world units for CDisplayList
 	int m_pcbu_per_wu;

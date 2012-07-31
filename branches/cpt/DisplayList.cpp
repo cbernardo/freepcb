@@ -1710,6 +1710,8 @@ void CDisplayList::ChangeRoutingLayer( CDC * pDC, int layer1, int layer2, int ww
 
 	int old_ROP2 = pDC->GetROP2();
 	pDC->SetROP2( R2_XORPEN );
+	// CPT2 TODO anytime we draw with the XOR pen, set the pen color to background-color XOR layer-color.  This will produce better results
+	// when the background color is not black.
 
 	if( m_drag_shape == DS_LINE_VERTEX )
 	{

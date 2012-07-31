@@ -4584,6 +4584,7 @@ BOOL CNetList::GetNetVisibility( cnet * net )
 //
 void CNetList::ExportNetListInfo( netlist_info * nl )
 {
+#ifndef CPT2
 	// make copy of netlist data so that it can be edited
 	POSITION pos;
 	CString name;
@@ -4617,6 +4618,7 @@ void CNetList::ExportNetListInfo( netlist_info * nl )
 		}
 		i++;
 	}
+#endif
 }
 
 // import netlist_info data back into netlist
@@ -4624,6 +4626,7 @@ void CNetList::ExportNetListInfo( netlist_info * nl )
 void CNetList::ImportNetListInfo( netlist_info * nl, int flags, CDlgLog * log,
 								 int def_w, int def_w_v, int def_w_v_h )
 {
+#ifndef CPT2
 	CString mess;
 
 	// loop through netlist_info and remove any nets that flagged for deletion
@@ -4905,6 +4908,7 @@ void CNetList::ImportNetListInfo( netlist_info * nl, int flags, CDlgLog * log,
 		}
 	}
 	CleanUpAllConnections();
+#endif
 }
 
 // Copy all data from another netlist (except UIDs and display elements)

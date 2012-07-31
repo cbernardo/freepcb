@@ -114,7 +114,7 @@ public:
 					bool bNegative,	int layer, 
 					int font_size, int stroke_width, CString * str_ptr );
 	// int RemoveText( CText * text );								// CPT2.  Use texts.Remove(text)
-	void RemoveAllTexts() { texts.RemoveAll(); }
+	// void RemoveAllTexts() { texts.RemoveAll(); }
 	// void HighlightText( CText * text );							// CPT2.  Use ctext::Highlight
 	// void StartDraggingText( CDC * pDC, CText * text );			// CPT2.  Use ctext::StartDragging
 	// void CancelDraggingText( CText * text );						// CPT2.  Use ctext::CancelDragging
@@ -122,7 +122,7 @@ public:
 	//    BOOL mirror, BOOL negative, int layer );
 	void ReadTexts( CStdioFile * file );							// Done in cpp
 	void WriteTexts( CStdioFile * file );							// Done in cpp
-	void MoveOrigin( int x_off, int y_off );						// Done in cpp
+	void MoveOrigin( int dx, int dy );								// Done in cpp
 	// CText * GetText( int uid, int * index=NULL );				// CPT2.  Use texts.FindByUID(uid)
 	// int GetNumTexts(){ return text_ptr.GetSize();};				// CPT2.  Use texts.GetSize()
 	BOOL GetTextBoundaries( CRect * r );							// Done in cpp

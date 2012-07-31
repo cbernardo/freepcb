@@ -318,7 +318,7 @@ void cvertex2::SetViaWidth()
 
 void cvertex2::ReconcileVia()
 {
-	// CPT2.  Gets an appropriate width for a via on this vertex, if any.  NB DOESN'T DO ANY DRAWING ANY MORE (see proposed policy in notes.txt)
+	// CPT2.  Gets an appropriate width for a via on this vertex, if any.  Calls MustRedraw() as appropriate
 	if (tee)
 		{ tee->ReconcileVia(); return; }
 
@@ -415,7 +415,6 @@ void cvertex2::Move( int _x, int _y )
 {
 	if (tee)
 		{ tee->Move(_x, _y); return; }
-	doc->m_dlist->StopDragging();
 	m_con->MustRedraw();						// CPT2 crude but probably adequate.
 	x = _x;
 	y = _y;
@@ -873,7 +872,6 @@ void ctee::Move(int _x, int _y)
 	cvertex2 *first = vtxs.First();
 	cnet2 *net = first->m_net;
 	net->MustRedraw();								// Maybe overkill but simple.
-	doc->m_dlist->StopDragging();
 	citer<cvertex2> iv (&vtxs);
 	for (cvertex2 *v = iv.First(); v; v = iv.Next())
 		v->x = _x, v->y = _y;
@@ -1192,6 +1190,7 @@ bool cseg2::UnrouteWithoutMerge(int dx, int dy, int end)
 	// dx, dy and end arguments are 1/1/0 by default.  If, say, dx==0, dy==100000, end==1, then caller is about
 	// to move a group/part to which the segment's end #1 is attached (by distance (0,100000)).  If the segment is itself vertical
 	// (or nearly so) then we don't really need to unroute, and we return false.
+	if (m_layer == LAY_RAT_LINE) return false;
 	bool bUnroute = true;
 	int xi = preVtx->x, yi = preVtx->y;
 	int xf = postVtx->x, yf = postVtx->y;
@@ -1311,6 +1310,13 @@ bool cseg2::RemoveBreak()
 		// It's just possible that the original connect was a circle.  Having removed "this", it's now two connects with a single tee uniting their 
 		// endpoints.  By calling Adjust() on that tee we'll get the two connects united into a single line.
 		headT->Adjust();
+
+	// Deal with dangling ratlines that the removal of this seg may have left behind:
+	if (preVtx->preSeg->m_layer == LAY_RAT_LINE)
+		preVtx->preSeg->RemoveBreak();
+	if (postVtx->postSeg->m_layer == LAY_RAT_LINE)
+		postVtx->postSeg->RemoveBreak();
+
 	return false;
 }
 
@@ -1633,8 +1639,9 @@ void cconnect2::CombineWith(cconnect2 *c2, cvertex2 *v1, cvertex2 *v2)
 
 void cconnect2::MergeUnroutedSegments() 
 {
-	if (segs.GetSize() < 2) return;
 	MustRedraw();
+	if (segs.GetSize() == 0) 
+		{ this->Remove(); return; }
 	cvertex2 *v = head->postSeg->postVtx, *next;
 	for ( ; v->postSeg; v = next)
 	{
@@ -1649,6 +1656,24 @@ void cconnect2::MergeUnroutedSegments()
 			vtxs.Remove(v);
 		}
 	}
+	// CPT2 experimental: let this routine tend to eliminating end ratline segs that don't connect to a pin/tee/via.
+	if (head->postSeg->m_layer == LAY_RAT_LINE && head->IsLooseEnd())
+		head->postSeg->RemoveBreak();
+	if (!IsValid())
+		// RemoveBreak() deleted the whole connection!
+		return;
+	if (tail->preSeg && tail->preSeg->m_layer == LAY_RAT_LINE && tail->IsLooseEnd())
+		tail->preSeg->RemoveBreak();
+	if (!IsValid())
+		return;
+	if (segs.GetSize()==0)
+		this->Remove();
+	if (segs.GetSize()==1 && segs.First()->m_layer == LAY_RAT_LINE) 
+		// Subtlety:  can't have a single-ratline connect that connects identical pins/tees
+		if (head->pin && head->pin==tail->pin)
+			this->Remove();
+		else if (head->tee && head->tee==tail->tee)
+			this->Remove();
 }
 
 int cconnect2::Draw()
@@ -1674,7 +1699,7 @@ int cconnect2::Draw()
 void cconnect2::Undraw()
 {
 	CDisplayList *dl = doc->m_dlist;
-	if( !dl || !IsDrawn() ) return;
+	if( !dl ) return;
 	citer<cseg2> is (&segs);
 	for (cseg2 *s = is.First(); s; s = is.Next())
 		s->Undraw();
@@ -1840,9 +1865,7 @@ void cpin2::SetPosition()
 	pp.y = ps->y_rel;
 	// flip if part on bottom
 	if( part->side )
-	{
 		pp.x = -pp.x;
-	}
 	// rotate if necess.
 	int angle = part->angle;
 	if( angle > 0 )
@@ -2021,6 +2044,7 @@ void cpart2::Remove(bool bEraseTraces, bool bErasePart)
 	for (cpin2 *pin = ipin.First(); pin; pin = ipin.Next())
 	{
 		if (!pin->net) continue;
+		pin->net->pins.Remove(pin);							// CPT2 Prevent phantom pins in nets!
 		pin->net->MustRedraw();
 		if (bEraseTraces)
 		{
@@ -2039,9 +2063,9 @@ void cpart2::Remove(bool bEraseTraces, bool bErasePart)
 			ctee *tee = new ctee(pin->net);
 			citer<cvertex2> iv (&vtxs);
 			for (cvertex2 *v = iv.First(); v; v = iv.Next())
-				if (v->preSeg && v->preSeg->m_layer == LAY_RAT_LINE)
+				if (v->preSeg && v->preSeg->IsValid() && v->preSeg->m_layer == LAY_RAT_LINE)
 					v->preSeg->RemoveBreak();
-				else if (v->postSeg && v->postSeg->m_layer == LAY_RAT_LINE)
+				else if (v->postSeg && v->postSeg->IsValid() && v->postSeg->m_layer == LAY_RAT_LINE)
 					v->postSeg->RemoveBreak();
 				else
 					v->pin = NULL,
@@ -2128,6 +2152,33 @@ void cpart2::ResizeRefText(int size, int width, BOOL vis )
 	m_ref->m_bShown = vis;
 }
 
+CRect cpart2::CalcSelectionRect()
+{
+	CRect sel;
+	if( !side )
+	{
+		// part on top
+		sel.left = shape->m_sel_xi; 
+		sel.right = shape->m_sel_xf;
+		sel.bottom = shape->m_sel_yi;
+		sel.top = shape->m_sel_yf;
+	}
+	else
+	{
+		// part on bottom
+		sel.right = - shape->m_sel_xi;
+		sel.left = - shape->m_sel_xf;
+		sel.bottom = shape->m_sel_yi;
+		sel.top = shape->m_sel_yf;
+	}
+	if( angle > 0 )
+		RotateRect( &sel, angle, zero );
+	sel.left += x;
+	sel.right += x;
+	sel.bottom += y;
+	sel.top += y;
+	return sel;
+}
 
 void cpart2::InitPins()
 {
@@ -2151,6 +2202,7 @@ cpin2 *cpart2::GetPinByName(CString *name)
 
 int cpart2::GetBoundingRect( CRect * part_r )
 {
+	// CPT2 TODO this function is kind of a loser, since it only works for drawn parts.  Phase it out in favor of CalcSelectionRect()...
 	CRect r;
 	if( !shape || !dl_sel ) 
 		return 0;
@@ -2226,7 +2278,7 @@ void cpart2::ChangeFootprint(CShape *_shape)
 			p->Disconnect();
 
 	// Dump texts from the old footprint and add texts from the new one:
-	m_tl->RemoveAllTexts();
+	m_tl->texts.RemoveAll();
 	citer<ctext> it (&shape->m_tl->texts);
 	for (ctext *txt = it.First(); txt; txt = it.Next()) 
 	{
@@ -2265,30 +2317,12 @@ int cpart2::Draw()
 		return ALREADY_DRAWN;
 
 	// draw selection rectangle (layer = top or bottom copper, depending on side)
-	CRect sel;
-	if( !side )
-	{
-		// part on top
-		sel.left = shape->m_sel_xi; 
-		sel.right = shape->m_sel_xf;
-		sel.bottom = shape->m_sel_yi;
-		sel.top = shape->m_sel_yf;
-	}
-	else
-	{
-		// part on bottom
-		sel.right = - shape->m_sel_xi;
-		sel.left = - shape->m_sel_xf;
-		sel.bottom = shape->m_sel_yi;
-		sel.top = shape->m_sel_yf;
-	}
-	if( angle > 0 )
-		RotateRect( &sel, angle, zero );
+	CRect sel = CalcSelectionRect();
 	dl_sel = dl->AddSelector( this, LAY_SELECTION, DL_HOLLOW_RECT, 1,
-		0, 0, x + sel.left, y + sel.bottom, x + sel.right, y + sel.top, x, y );
-	dl->Set_sel_vert( dl_sel, 0 );													// CPT2 TODO function should be in dl_element
+		0, 0, sel.left, sel.bottom, sel.right, sel.top, x, y );
+	/* dl->Set_sel_vert( dl_sel, 0 );											// CPT2 TODO this function appears axeable
 	if( angle == 90 || angle ==  270 )
-		dl->Set_sel_vert( dl_sel, 1 );
+		dl->Set_sel_vert( dl_sel, 1 ); */
 
 	// draw ref designator text
 	m_ref->dl_el = m_ref->dl_sel = NULL;
@@ -3315,6 +3349,7 @@ void ccontour::SetPoly( cpolyline *_poly )
 
 void ccontour::Remove()
 {
+	poly->MustRedraw();
 	if (this ==  poly->main)
 		poly->Remove();
 	else
@@ -3355,16 +3390,16 @@ cpolyline::cpolyline(cpolyline *src, bool bCopyContours, bool bTemporary)
 	}
 }
 
-void cpolyline::MarkConstituents()
+void cpolyline::MarkConstituents(int util)
 {
 	// Mark the utility flags on this polyline and on its constituent contours, sides, and corners.
-	utility = 1;
+	utility = util;
 	citer<ccontour> ictr (&contours);
 	for (ccontour *ctr = ictr.First(); ctr; ctr = ictr.Next())
 	{
-		ctr->utility = 1;
-		ctr->sides.SetUtility(1);
-		ctr->corners.SetUtility(1);
+		ctr->utility = util;
+		ctr->sides.SetUtility(util);
+		ctr->corners.SetUtility(util);
 	}
 }
 
@@ -3440,6 +3475,33 @@ bool cpolyline::SetClosed(bool bClose)
 		else
 			main->Unclose();
 	return true;
+}
+
+void cpolyline::Copy(cpolyline *src)
+{
+	// CPT2 new.  Give this polyline copies of the contours found in "src".  Used when copying to the clipboard
+	contours.RemoveAll();
+	citer<ccontour> ictr (&src->contours);
+	for (ccontour *ctr = ictr.First(); ctr; ctr = ictr.Next())
+	{
+		if (ctr->NumCorners()<2) continue;
+		ccontour *ctr2 = new ccontour(this, ctr==src->main);
+		ccorner *c = ctr->head;
+		ctr2->AppendCorner( c->x, c->y );
+		for (c = c->postSide->postCorner; c!=ctr->tail; c = c->postSide->postCorner)
+			ctr2->AppendCorner( c->x, c->y, c->preSide->m_style );
+		if (ctr->head == ctr->tail)
+			ctr2->Close( ctr->head->preSide->m_style );
+	}
+}
+
+void cpolyline::AddSidesTo(carray<cpcb_item> *arr)
+{
+	// CPT2 new.  Append the sides within this polyline to "arr".
+	citer<ccontour> ictr (&contours);
+	for (ccontour *ctr = ictr.First(); ctr; ctr = ictr.Next())
+		// Typecast is surely safe.
+		arr->Add((carray<cpcb_item>*) &ctr->sides);
 }
 
 bool cpolyline::TestPointInside(int x, int y) 
@@ -3530,7 +3592,7 @@ void cpolyline::GetSidesInRect( CRect *r, carray<cpcb_item> *arr)
 //	-1 if arcs intersect other sides
 //	 0 if no intersecting sides
 //	 1 if intersecting sides, but no intersecting arcs
-// Also sets utility2 flag of area with return value
+// Also sets utility flag of area with return value
 //
 int cpolyline::TestPolygon()
 {	
@@ -3539,7 +3601,7 @@ int cpolyline::TestPolygon()
 	// first, check for sides intersecting other sides, especially arcs 
 	BOOL bInt = FALSE;
 	BOOL bArcInt = FALSE;
-	// make bounding rect for each contour.  CPT2 for each contour, store an index into "cr" in the utility field.
+	// make bounding rect for each contour.  CPT2 for each contour, store an index into "cr" temporarily in the utility field.
 	CArray<CRect> cr;
 	int i=0;
 	citer<ccontour> ictr (&contours);
@@ -3593,12 +3655,12 @@ int cpolyline::TestPolygon()
 
 	finish:
 	if( bArcInt )
-		utility2 = -1;
+		utility = -1;
 	else if( bInt )
-		utility2 = 1;
+		utility = 1;
 	else 
-		utility2 = 0;
-	return utility2;
+		utility = 0;
+	return utility;
 }
 
 void cpolyline::Hatch()
@@ -3863,6 +3925,20 @@ void cpolyline::Highlight()
 	for (ccontour *c = ic.First(); c; c = ic.Next())
 		c->Highlight();
 }
+
+void cpolyline::SetVisible( BOOL visible ) 
+{	
+	CDisplayList *dl = doc->m_dlist;
+	citer<ccontour> ictr (&contours);
+	for (ccontour *ctr = ictr.First(); ctr; ctr = ictr.Next())
+	{
+		citer<cside> is (&ctr->sides);
+		for (cside *s = is.First(); s; s = is.Next())
+			dl->Set_visible( s->dl_el, visible ); 
+	}
+	for( int ih=0; ih<m_nhatch; ih++ )
+		dl->Set_visible( dl_hatch[ih], visible ); 
+} 
 
 #define pi  3.14159265359
 
@@ -4361,7 +4437,7 @@ int cpolyline::ClipPolygon( bool bMessageBoxArc, bool bMessageBoxInt, bool bReta
 	//	 1 if intersecting sides
 	// Also sets poly->utility flags if polylines are modified
 	// CPT2 converted and generalized from old area-based function.  Subroutines take care of calling MustRedraw(), as appropriate.
-	int test = TestPolygon();				// this sets utility2 flag
+	int test = TestPolygon();				// this sets utility flag
 	if( test == -1 && !bRetainArcs )
 		test = 1;
 	if( test == -1 )
@@ -4396,16 +4472,16 @@ int cpolyline::ClipPolygon( bool bMessageBoxArc, bool bMessageBoxInt, bool bReta
 	return test;
 }
 
-void cpolyline::CombinePolylines( carray<cpolyline> *pa, BOOL bMessageBox, BOOL bUseUtility )
+void cpolyline::CombinePolylines( carray<cpolyline> *pa, BOOL bMessageBox )
 {
 	// Static function; checks all polylines in "pa" for intersections, combining them if found
-	// If bUseUtility == TRUE, don't check areas if both utility flags are 0
+	// CPT2 NB trying it out without the old bUseUtility param
 	// Sets utility flag = 1 for any areas modified, and calls virtual function Remove() as necessary.
 	// If an area has self-intersecting arcs, doesn't try to combine it
 	// CPT2 converted, generalized from old CNetList::CombinAllAreasInNet().  The subroutines are in charge of calling MustRedraw() for affected areas.
 	if (pa->GetSize()<2) return;
 
-	// start by testing all polylines to set utility2 flags.
+	// start by testing all polylines to set utility flags.
 	citer<cpolyline> ip (pa);
 	for (cpolyline *p = ip.First(); p; p = ip.Next())
 		p->TestPolygon();
@@ -4422,11 +4498,12 @@ void cpolyline::CombinePolylines( carray<cpolyline> *pa, BOOL bMessageBox, BOOL 
 			for (cpolyline *p2 = ip2.Next(); p2; p2 = ip2.Next())
 			{
 				// if (p1->GetLayer() != p2->GetLayer()) continue;			// Should be safe to omit this check (pa was set up to contain polys all on one layer)
-				if (p1->utility2 == -1 || p2->utility2 == -1) continue;
+				if (p1->utility == -1 || p2->utility == -1) continue;
 				CRect b2 = p2->GetCornerBounds();
 				if ( b1.left > b2.right || b1.right < b2.left
 						|| b1.bottom > b2.top || b1.top < b2.bottom ) continue;
-				if( bUseUtility && !p1->utility && !p2->utility ) continue;
+				// CPT2 obsolete I think:  (plus, having dumped the old utility2 field), I have other uses for "utility" now)
+				// if( bUseUtility && !p1->utility && !p2->utility ) continue;
 				// check p2 against p1 
 				int ret = p1->TestIntersection( p2, true );
 				if( ret == 1 )
@@ -4489,7 +4566,7 @@ bool cpolyline::PolygonModified( bool bMessageBoxArc, bool bMessageBoxInt )
 		{
 			carray<cpolyline> arr;
 			GetCompatiblePolylines( &arr );
-			CombinePolylines( &arr, bMessageBoxInt, false );			// CPT2 TODO. Changed bUseUtility param to false.  Need to figure out what it's all about
+			CombinePolylines( &arr, bMessageBoxInt );
 		}
 	}
 	if (this->IsArea())
@@ -4715,10 +4792,10 @@ cpolyline *coutline::CreateCompatible()
 /*  RELATED TO cnet2                                                                           */
 /**********************************************************************************************/
 
-cnet2::cnet2( CFreePcbDoc *_doc, CString _name, int _def_w, int _def_via_w, int _def_via_hole_w )
-	: cpcb_item (_doc)
+cnet2::cnet2( cnetlist *_nlist, CString _name, int _def_w, int _def_via_w, int _def_via_hole_w )
+	: cpcb_item (_nlist->m_doc)
 {
-	m_nlist = doc->m_nlist;
+	m_nlist = _nlist;
 	m_nlist->nets.Add(this);
 	name = _name;
 	def_w = _def_w;
@@ -4805,16 +4882,25 @@ void cnet2::Highlight(cpcb_item *exclude)
 
 cpin2 *cnet2::AddPin( CString * ref_des, CString * pin_name )
 {
-	// CPT2.  TODO no check if pin was previously assigned to another net.  Change?  Plus, deal with set_areas
 	cpin2 *pin = doc->m_plist->GetPinByNames(ref_des, pin_name);
 	if (!pin) return NULL;
-	pins.Add(pin);
-	pin->net = this;
+	AddPin(pin);
 	return pin;
 }
 
 void cnet2::AddPin( cpin2 *pin )
 {
+	if (pin->net == this)
+		return;
+	if (pin->net)
+	{
+		// Must rip out connects attached to this pin, since they're within the wrong net
+		citer<cconnect2> ic (&pin->net->connects);
+		for (cconnect2 *c = ic.First(); c; c = ic.Next())
+			if (c->head->pin == pin || c->tail->pin == pin)
+				c->Remove();
+		pin->net->pins.Remove(pin);
+	}
 	pins.Add(pin);
 	pin->net = this;
 }
@@ -5364,6 +5450,7 @@ void ctext::Copy( ctext *other )
 	m_stroke_width = other->m_stroke_width;
 	m_smfontutil = other->m_smfontutil;
 	m_str = other->m_str;
+	m_bShown = other->m_bShown;
 }
 
 void ctext::Move( int x, int y, int angle, BOOL mirror, BOOL negative, int layer, int size, int w )
