@@ -12,7 +12,7 @@ class CDlgGroupPaste : public CDialog
 public:
 	CDlgGroupPaste(CWnd* pParent = NULL);   // standard constructor
 	virtual ~CDlgGroupPaste();
-	void Initialize( CNetList * grp_nlist );
+	void Initialize( cnetlist *grp_nlist );
 	void SetFields();
 
 	int m_units;
@@ -24,7 +24,7 @@ public:
 	int m_pin_net_option;	// 0=retain all, 1=only for pins with traces
 	double m_dx, m_dy;
 	int m_sort_type;
-	CNetList * m_grp_nlist;
+	cnetlist *m_grp_nlist;
 
 // Dialog Data
 	enum { IDD = IDD_GROUP_PASTE };
@@ -43,6 +43,7 @@ public:
 	CListCtrl m_list_ctrl;
 	CButton m_radio_use_suffix;
 	CButton m_radio_make_new_names;
+	CButton m_check_ignore_empty_nets;
 	afx_msg void OnBnClickedRadioUseGroupRef();
 	afx_msg void OnBnClickedRadioUseNextRef();
 	afx_msg void OnBnClickedRadioAddRefOffset();
@@ -58,9 +59,7 @@ public:
 	CEdit m_edit_y;
 	CComboBox m_combo_units;
 	afx_msg void OnCbnSelchangeComboGroupUnits();
-	CButton m_radio_retain_all_nets;
-	CButton m_radio_retain_traces;
-	afx_msg void OnBnClickedRadioRetainAll();
-	afx_msg void OnBnClickedRadioRetainTraces();
 	afx_msg void OnLvnColumnClickListSelectGroupNets(NMHDR *pNMHDR, LRESULT *pResult);
+	afx_msg void OnBnClickedCheckAt();
+	afx_msg void OnBnClickedCheckIgnoreEmptyNets();
 };

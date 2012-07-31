@@ -120,8 +120,7 @@ void CDlgGroupPaste::DoDataExchange(CDataExchange* pDX)
 	DDX_Control(pDX, IDC_EDIT_GROUP_X, m_edit_x);
 	DDX_Control(pDX, IDC_EDIT_GROUP_Y, m_edit_y);
 	DDX_Control(pDX, IDC_COMBO_GROUP_UNITS, m_combo_units);
-	DDX_Control(pDX, IDC_RADIO_RETAIN_ALL, m_radio_retain_all_nets);
-	DDX_Control(pDX, IDC_RADIO_RETAIN_TRACES, m_radio_retain_traces);
+	DDX_Control(pDX, IDC_CHECK_IGNORE_EMPTY_NETS, m_check_ignore_empty_nets);
 	DDX_Text( pDX, IDC_EDIT_GROUP_X, m_dx );
 	DDX_Text( pDX, IDC_EDIT_GROUP_Y, m_dy );
 	DDX_Text( pDX, IDC_EDIT_REF_OFFSET, m_ref_offset );
@@ -133,7 +132,6 @@ void CDlgGroupPaste::DoDataExchange(CDataExchange* pDX)
 		m_radio_use_selected_nets.SetCheck(1);
 		m_radio_use_suffix.SetCheck(1);
 		m_radio_drag.SetCheck(1);
-		m_radio_retain_all_nets.SetCheck(1);
 		m_combo_units.AddString( "MM" );
 		m_combo_units.AddString( "MIL" );
 		m_combo_units.SelectString( 0, "MIL" );
@@ -192,10 +190,9 @@ void CDlgGroupPaste::DoDataExchange(CDataExchange* pDX)
 		for( int iItem=0; iItem<m_list_ctrl.GetItemCount(); iItem++ )
 		{
 			int i = m_list_ctrl.GetItemData( iItem ); 
-			CString * net_name = &::gnl[i].name;
-			cnet * grp_net = m_grp_nlist->GetNetPtrByName( net_name );
-			if( grp_net == NULL )
-				ASSERT(0);
+			CString *net_name = &::gnl[i].name;
+			cnet2 *grp_net = m_grp_nlist->GetNetPtrByName( net_name );
+			ASSERT( grp_net != NULL );
 			grp_net->utility = ListView_GetCheckState( m_list_ctrl, iItem );
 		}
 		::gnl.SetSize(0);
@@ -215,12 +212,11 @@ BEGIN_MESSAGE_MAP(CDlgGroupPaste, CDialog)
 	ON_BN_CLICKED(IDC_RADIO_DRAG, OnBnClickedRadioDrag)
 	ON_BN_CLICKED(IDC_RADIO_OFFSET, OnBnClickedRadioOffset)
 	ON_CBN_SELCHANGE(IDC_COMBO_GROUP_UNITS, OnCbnSelchangeComboGroupUnits)
-	ON_BN_CLICKED(IDC_RADIO_RETAIN_ALL, OnBnClickedRadioRetainAll)
-	ON_BN_CLICKED(IDC_RADIO_RETAIN_TRACES, OnBnClickedRadioRetainTraces)
 	ON_NOTIFY(LVN_COLUMNCLICK, IDC_LIST_SELECT_GROUP_NETS, OnLvnColumnClickListSelectGroupNets)
+	ON_BN_CLICKED(IDC_CHECK_IGNORE_EMPTY_NETS, &CDlgGroupPaste::OnBnClickedCheckIgnoreEmptyNets)
 END_MESSAGE_MAP()
 
-void CDlgGroupPaste::Initialize( CNetList * grp_nlist )
+void CDlgGroupPaste::Initialize( cnetlist *grp_nlist )
 {
 	m_grp_nlist = grp_nlist;
 	m_ref_offset = 0;
@@ -276,84 +272,46 @@ void CDlgGroupPaste::SetFields()
 		m_combo_units.EnableWindow(1);
 	}
 	if( m_radio_use_suffix.GetCheck() )
-	{
 		m_net_rename_option = 0;
-	}
 	else if( m_radio_make_new_names.GetCheck() )
-	{
 		m_net_rename_option = 1;
-	}
-	if( m_radio_retain_all_nets.GetCheck() )
-	{
-		m_pin_net_option = 0;
-	}
-	else
-	{
+	if( m_check_ignore_empty_nets.GetCheck() )
 		m_pin_net_option = 1;
-	}
+	else
+		m_pin_net_option = 0;
 }
 
 // CDlgGroupPaste message handlers
 
 void CDlgGroupPaste::OnBnClickedRadioUseGroupRef()
-{
-	SetFields();
-}
+	{ SetFields(); }
 
 void CDlgGroupPaste::OnBnClickedRadioUseNextRef()
-{
-	SetFields();
-}
+	{ SetFields(); }
 
 void CDlgGroupPaste::OnBnClickedRadioAddRefOffset()
-{
-	SetFields();
-}
+	{ SetFields(); }
 
 void CDlgGroupPaste::OnBnClickedRadioUseGroupNets()
-{
-	SetFields();
-}
+	{ SetFields(); }
 
 void CDlgGroupPaste::OnBnClickedRadioUseSelectedNets()
-{
-	SetFields();
-}
+	{ SetFields(); }
 
 void CDlgGroupPaste::OnBnClickedRadioUseSuffix()
-{
-	SetFields();
-}
+	{ SetFields(); }
 
 void CDlgGroupPaste::OnBnClickedRadioMakeNewNames()
-{
-	SetFields();
-}
+	{ SetFields(); }
 
 void CDlgGroupPaste::OnBnClickedRadioDrag()
-{
-	SetFields();
-}
+	{ SetFields(); }
 
 void CDlgGroupPaste::OnBnClickedRadioOffset()
-{
-	SetFields();
-}
+	{ SetFields(); }
 
 void CDlgGroupPaste::OnCbnSelchangeComboGroupUnits()
-{
-	// TODO: Add your control notification handler code here
-}
-
-void CDlgGroupPaste::OnBnClickedRadioRetainAll()
-{
-	// TODO: Add your control notification handler code here
-}
-
-void CDlgGroupPaste::OnBnClickedRadioRetainTraces()
-{
-	// TODO: Add your control notification handler code here
-}
+	{ }
 
 void CDlgGroupPaste::OnLvnColumnClickListSelectGroupNets(NMHDR *pNMHDR, LRESULT *pResult)
 {
@@ -401,3 +359,6 @@ void CDlgGroupPaste::OnLvnColumnClickListSelectGroupNets(NMHDR *pNMHDR, LRESULT 
 	}
 	*pResult = 0;
 }
+
+void CDlgGroupPaste::OnBnClickedCheckIgnoreEmptyNets()
+	{ }

@@ -146,14 +146,14 @@ public:
 	cpin2 * GetPinByNames ( CString *ref_des, CString *pin_name);										// Done in cpp
 
 	// cpart * Add( int uid=-1 );					// CPT2 ditch?
-	cpart2 * Add( CShape * shape, CString * ref_des, CString * package, 
-		int x, int y, int side, int angle, int visible, int glued, bool ref_vis ) { return NULL; }		// CPT2.  Removed uid arg.
+	cpart2 * Add( CShape * shape, CString * ref_des, CString *value_text, CString * package, 
+		int x, int y, int side, int angle, int visible, int glued );									// Done in cpp.  Removed uid and ref_vis args
 	cpart2 * AddFromString( CString * str );															// Done in cpp
 	// int SetPartData( cpart * part, CShape * shape, CString * ref_des, CString * package, 
 	//				int x, int y, int side, int angle, int visible, int glued, bool ref_vis  );			// CPT2.  Use cpart2::SetData
-	// void MarkAllParts( int mark );								// use parts.SetUtility()
+	void MarkAllParts( int util );
 	// int Remove( cpart * element );								// CPT2.  Use cpart2::Remove().
-	void RemoveAllParts();											// Done in cpp
+	// void RemoveAllParts();										// CPT2.  Use parts.RemoveAll().  Assuming that nets will be getting axed too.
 	// int HighlightPart( cpart * part );							// CPT2. Use cpart2::Highlight()
 	// void MakePartVisible( cpart * part, BOOL bVisible );			// CPT2. Use cpart2::SetVisible()
 
@@ -164,7 +164,7 @@ public:
 	// int HighlightPad( cpart * part, int i );											// CPT2 Use cpin2::Highlight
 	void HighlightAllPadsOnNet( cnet * net );
 	// BOOL TestHitOnPad( cpart * part, CString * pin_name, int x, int y, int layer );	// CPT2 Use cpin2::TestHit
-	void MoveOrigin( int x_off, int y_off ) { }
+	void MoveOrigin( int dx, int dy );													// Done in cpp
 	// int Move( cpart * part, int x, int y, int angle, int side );						// CPT2 Use cpart2::Move
 	// int MoveRefText( cpart * part, int x, int y, int angle, int size, int w );		// CPT2 Use cpart2::MoveRefText
 	// int MoveValueText( cpart * part, int x, int y, int angle, int size, int w );		// CPT2 Use cPart2::MoveValueText

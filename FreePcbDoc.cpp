@@ -176,21 +176,16 @@ CFreePcbDoc::CFreePcbDoc()
 	m_edit_footprint = NULL;											// CPT2
 
 	// initialize pseudo-clipboard
-	clip_plist = new CPartList( NULL );
-	clip_nlist = new CNetList( NULL, clip_plist, this );
+	clip_plist = new cpartlist( this );
+	clip_nlist = new cnetlist( this );
 	clip_plist->UseNetList( clip_nlist );
 	clip_plist->SetShapeCacheMap( &m_footprint_cache_map );
-	clip_tlist = new CTextList( NULL, m_smfontutil );
+	clip_tlist = new ctextlist( this );
 }
 
 CFreePcbDoc::~CFreePcbDoc()
 {
-	// delete group clipboard
-	delete clip_nlist;
-	delete clip_plist;
-	delete clip_tlist;
-	clip_sm_cutout.RemoveAll();
-	clip_board_outline.RemoveAll();
+	// CPT2 TODO I think this is only invoked when program is shutting down (check), so it's not worth putting a lot of effort into it...
 	// delete partlist, netlist, displaylist, etc.
 	delete m_drelist;
 	delete m_undo_list;
@@ -203,6 +198,12 @@ CFreePcbDoc::~CFreePcbDoc()
 	delete m_smfontutil;
 	boards.DestroyAll();
 	smcutouts.DestroyAll();
+	// Delete clipboard objects
+	delete clip_nlist;
+	delete clip_plist;
+	delete clip_tlist;
+	clip_boards.DestroyAll();
+	clip_smcutouts.DestroyAll();
 
 	// delete all footprints from local cache
 	POSITION pos = m_footprint_cache_map.GetStartPosition();
@@ -689,20 +690,20 @@ int CFreePcbDoc::FileClose()
 
 	// destroy existing project
 	// delete undo list, partlist, netlist, displaylist, etc.
-	smcutouts.DestroyAll();
-	boards.DestroyAll();
-	m_drelist->Clear();					// CPT2 TODO...
 	ResetUndoState();
-	m_nlist->RemoveAllNets();
-	m_plist->RemoveAllParts();
-	m_tlist->RemoveAllTexts();
+	m_nlist->nets.RemoveAll();
+	m_plist->parts.RemoveAll();
+	m_tlist->texts.RemoveAll();
 	m_dlist->RemoveAll();
+	smcutouts.RemoveAll();
+	boards.RemoveAll();
+	m_drelist->Clear();					// CPT2 TODO...
 	// clear clipboard
-	clip_nlist->RemoveAllNets();
-	clip_plist->RemoveAllParts();
-	clip_tlist->RemoveAllTexts();
-	clip_sm_cutout.RemoveAll();
-	clip_board_outline.SetSize(0);
+	clip_nlist->nets.RemoveAll();
+	clip_plist->parts.RemoveAll();
+	clip_tlist->texts.RemoveAll();
+	clip_smcutouts.RemoveAll();
+	clip_boards.RemoveAll();
 
 	// delete all shapes from local cache
 	POSITION pos = m_footprint_cache_map.GetStartPosition();
@@ -1147,15 +1148,17 @@ void CFreePcbDoc::ReadFootprints( CStdioFile * pcb_file,
 //
 // throws CString * exception on error
 //
-void CFreePcbDoc::WriteBoardOutline( CStdioFile * file )
+void CFreePcbDoc::WriteBoardOutline( CStdioFile * file, carray<cboard> *boards0 )
 {
 	// CPT2 converted
 	try
 	{
+		if (!boards0) 
+			boards0 = &this->boards;
 		CString line;
 		line.Format( "[board]\n" );
 		file->WriteString( line );
-		citer<cboard> ib (&boards);
+		citer<cboard> ib (boards0);
 		int i = 1;
 		for (cboard *b = ib.First(); b; b = ib.Next())
 		{
@@ -1185,16 +1188,18 @@ void CFreePcbDoc::WriteBoardOutline( CStdioFile * file )
 		throw err_str;
 	}
 }
-void CFreePcbDoc::WriteSolderMaskCutouts( CStdioFile * file )
+void CFreePcbDoc::WriteSolderMaskCutouts( CStdioFile * file, carray<csmcutout> *smcutouts0 )
 {
 	// CPT2 TODO converted.  NB note that corners now need to be output with the endcontour bit indicated.  Does this imply the need for a new
 	// file-version number?
 	try
 	{
+		if (!smcutouts0)
+			smcutouts0 = &smcutouts;
 		CString line;
 		line.Format( "[solder_mask_cutouts]\n\n" );
 		file->WriteString( line );
-		citer<csmcutout> ism (&smcutouts);
+		citer<csmcutout> ism (smcutouts0);
 		for (csmcutout *sm = ism.First(); sm; sm = ism.Next())
 		{
 			line.Format( "sm_cutout: %d %d %d\n", sm->NumCorners(), sm->m_hatch, sm->m_layer );
@@ -3626,11 +3631,11 @@ void CFreePcbDoc::OnProjectOptions()
 				m_num_layers = m_num_copper_layers + LAY_TOP_COPPER;
 			}
 			// clear clipboard
-			clip_sm_cutout.SetSize(0);
-			clip_board_outline.SetSize(0);
-			clip_tlist->RemoveAllTexts();
-			clip_nlist->RemoveAllNets();
-			clip_plist->RemoveAllParts();
+			clip_nlist->nets.RemoveAll();
+			clip_plist->parts.RemoveAll();
+			clip_tlist->texts.RemoveAll();
+			clip_smcutouts.RemoveAll();
+			clip_boards.RemoveAll();
 		}
 		else if( m_num_copper_layers < dlg.GetNumCopperLayers() )
 		{
@@ -3966,11 +3971,11 @@ void CFreePcbDoc::OnEditPasteFromFile()
 			return;
 		}
 		// clear clipboard objects to hold group
-		clip_nlist->RemoveAllNets();
-		clip_plist->RemoveAllParts();
-		clip_tlist->RemoveAllTexts();
-		clip_sm_cutout.RemoveAll();
-		clip_board_outline.RemoveAll();
+		clip_nlist->nets.RemoveAll();
+		clip_plist->parts.RemoveAll();
+		clip_tlist->texts.RemoveAll();
+		clip_smcutouts.RemoveAll();
+		clip_boards.RemoveAll();
 		CMapStringToPtr cache_map;		// incoming footprints
 		try
 		{
@@ -4532,7 +4537,7 @@ void CFreePcbDoc::FileLoadLibrary( LPCTSTR pathname )
 		void * ptr;
 		LPCSTR p;
 		CShape *shape;
-		CString ref;
+		CString ref, val = "";
 		int i=1, x=0, y=0, max_height=0;
 		for( pos = m_footprint_cache_map.GetStartPosition(); pos != NULL; )
 		{
@@ -4540,7 +4545,7 @@ void CFreePcbDoc::FileLoadLibrary( LPCTSTR pathname )
 			p = (LPCSTR)key;
 			shape = (CShape*)ptr;
 			ref.Format( "LIB_%d", i );
-			cpart2 * part = m_plist->Add( shape, &ref, NULL, x, y, 0, 0, 1, 0, 1 );
+			cpart2 * part = m_plist->Add( shape, &ref, &val, NULL, x, y, 0, 0, 1, 0 );
 			// get bounding rectangle of pads and outline
 			CRect shape_r = part->shape->GetBounds();
 			int height = shape_r.top - shape_r.bottom;

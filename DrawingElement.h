@@ -52,7 +52,7 @@ protected:
 public:										// CPT2: was protected, causing pains in my tail.  Maybe change later...
 	CDisplayList * dlist;
 
-	int sel_vert;     // for selection rectangles, 1 if part is vertical
+	int sel_vert;     // for selection rectangles, 1 if part is vertical.  CPT2 TODO did a search and it appears totally unused;  eliminate
 	int w;            // width (for round or square shapes)
 	int holew;        // hole width (for round holes)
 	int clearancew;   // clearance width (for lines and pads)

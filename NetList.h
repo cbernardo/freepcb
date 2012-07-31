@@ -133,7 +133,7 @@ struct undo_net {
 // or importing/exporting netlists
 struct net_info {
 	CString name;
-	cnet * net;
+	cnet2 * net;					// CPT2 changed to cnet2*
 	BOOL visible;
 	int w;
 	int v_w;

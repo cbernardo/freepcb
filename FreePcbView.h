@@ -450,7 +450,7 @@ public:
 	void RotateGroup();
 	void DeleteGroup(  CArray<void*> * grp_ptr, CArray<id> * grp_id );
 	void FindGroupCenter();
-	int FindItemInGroup( void * ptr, id * tid );	
+	// int FindItemInGroup( void * ptr, id * tid );					// CPT2 obsolete
 	BOOL GluedPartsInGroup();
 	void UngluePartsInGroup();
 	int SegmentMovable();
@@ -494,8 +494,6 @@ public:
 	int SelectObjPopup( CPoint const &point );												// CPT r294: removed args (use m_hit_info instead)
 	void OnVertexStartTrace(bool bResetActiveWidth);										// CPT2 versions with an extra param added
 	void OnRatlineRoute(bool bResetActiveWidth);											// CPT2 ditto
-	bool DoGroupCopy();																		// CPT added:  OnGroupCopy() wraps around this.  But it's 
-																							// nice to have a bool return value here.
 
 protected:
 
@@ -636,9 +634,13 @@ public:
 	afx_msg void OnEditCopy();
 	afx_msg void OnEditPaste();
 	afx_msg void OnEditCut();
-	afx_msg void OnGroupRotate();
+	void OnGroupRotate( bool bCcw );						// CPT2 newly implemented cw vs. ccw option
+	afx_msg void OnGroupRotate()
+		{ OnGroupRotate(false); }
+	afx_msg void OnGroupRotateCCW()	
+		{ OnGroupRotate(true); }
 	afx_msg void OnRefShowPart();
-	// afx_msg void OnAreaSideStyle();		// CPT2 deprecated
+	// afx_msg void OnAreaSideStyle();						// CPT2 deprecated
 	afx_msg void OnPartRotateCCW();
 	afx_msg void OnRefRotateCW();
 	afx_msg void OnRefRotateCCW();

@@ -197,10 +197,10 @@ void CShape::Clear()
 	m_centroid->m_x = 0;
 	m_centroid->m_y = 0;
 	m_centroid->m_angle = 0;
-	m_padstack.RemoveAll();					// CPT2 TODO: DestroyAll()?
-	m_outline_poly.RemoveAll();				// Ditto
-	m_tl->RemoveAllTexts();
-	m_glues.RemoveAll();					// CPT2 TODO: DestroyAll()?
+	m_padstack.RemoveAll();	
+	m_outline_poly.RemoveAll();
+	m_tl->texts.RemoveAll();
+	m_glues.RemoveAll();
 }
 
 // function to create shape from definition string
@@ -1601,7 +1601,7 @@ void CShape::Copy( CShape * src )
 	for (coutline *o = io.First(); o; o = io.Next())
 		m_outline_poly.Add( new coutline(o) );
 	// texts
-	m_tl->RemoveAllTexts();
+	m_tl->texts.RemoveAll();
 	citer<ctext> it (&src->m_tl->texts);
 	for (ctext *t = it.First(); t; t = it.Next())
 		m_tl->AddText( t->m_x, t->m_y, t->m_angle, t->m_bMirror, t->m_bNegative, 
