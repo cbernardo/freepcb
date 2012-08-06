@@ -734,9 +734,14 @@ void CDisplayList::Draw( CDC * dDC )
 			pDC->MoveTo( m_drag_xb, m_drag_yb );
 
 			// draw first segment
-			CPen pen0( PS_SOLID, m_drag_w0, m_rgb[m_drag_layer_0] );
-			CPen * old_pen = pDC->SelectObject( &pen0 );
-			pDC->LineTo( m_drag_xi, m_drag_yi );
+			if (m_drag_style0 == DSS_NONE)
+				pDC->MoveTo( m_drag_xi, m_drag_yi );
+			else
+			{
+				CPen pen0( PS_SOLID, m_drag_w0, m_rgb[m_drag_layer_0] );
+				CPen * old_pen = pDC->SelectObject( &pen0 );
+				pDC->LineTo( m_drag_xi, m_drag_yi );
+			}
 
 			// draw second segment
 			CPen pen1( PS_SOLID, m_drag_w1, m_rgb[m_drag_layer_1] );

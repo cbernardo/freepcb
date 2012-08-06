@@ -772,8 +772,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		side &= 1;
 
 		// save undo info for part and attached nets
-		if( !m_dragging_new_item )
-			SaveUndoInfoForPartAndNets( part, CPartList::UNDO_PART_MODIFY, NULL, TRUE, m_doc->m_undo_list );
+		part->SaveUndoInfo();
 		m_dragging_new_item = FALSE;
 
 		// now move it
@@ -783,11 +782,9 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		part->PartMoved( dx, dy );																	// CPT bug fix #29
 		if( m_doc->m_vis[LAY_RAT_LINE] )
 			part->OptimizeConnections( m_doc->m_auto_ratline_disable, m_doc->m_auto_ratline_min_pins );
-		m_doc->Redraw();
-		part->Highlight();
-		SetFKText( m_cursor_mode );
 		m_doc->ProjectModified( TRUE );
-		Invalidate( FALSE );
+		SetFKText( m_cursor_mode );
+		part->Highlight();
 	}
 
 	else if( m_cursor_mode == CUR_DRAG_GROUP || m_cursor_mode == CUR_DRAG_GROUP_ADD )
@@ -795,15 +792,13 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		// complete move
 		m_doc->m_dlist->StopDragging();
 		if( m_cursor_mode == CUR_DRAG_GROUP )
-			SaveUndoInfoForGroup( UNDO_GROUP_MODIFY, &m_sel, m_doc->m_undo_list );
+			SaveUndoInfoForGroup();
 		MoveGroup( m_last_cursor_point.x - m_from_pt.x, m_last_cursor_point.y - m_from_pt.y );
-		m_doc->Redraw();
-		HighlightSelection();
 		m_dlist->SetLayerVisible( LAY_RAT_LINE, m_doc->m_vis[LAY_RAT_LINE] );
 		if( m_doc->m_vis[LAY_RAT_LINE] )
 			m_doc->m_nlist->OptimizeConnections( m_doc->m_auto_ratline_disable, m_doc->m_auto_ratline_min_pins );	// CPT2 TODO eliminate args for these funcs.
 		m_doc->ProjectModified( TRUE );
-		Invalidate( FALSE );
+		HighlightSelection();
 	}
 
 	else if( m_cursor_mode == CUR_MOVE_ORIGIN )
@@ -812,11 +807,10 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		CancelSelection();
 		CPoint p = m_dlist->WindowToPCB( point );
 		m_doc->m_dlist->StopDragging();
-		SaveUndoInfoForMoveOrigin( -m_last_cursor_point.x, -m_last_cursor_point.y, m_doc->m_undo_list );
+		m_doc->CreateMoveOriginUndoRecord( -m_last_cursor_point.x, -m_last_cursor_point.y );
 		MoveOrigin( -m_last_cursor_point.x, -m_last_cursor_point.y );
-		OnViewAllElements();
 		m_doc->ProjectModified( TRUE );
-		Invalidate( FALSE );
+		OnViewAllElements();
 	}
 
 	else if( m_cursor_mode == CUR_DRAG_REF )
@@ -830,15 +824,13 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		if( part->side && drag_angle )
 			drag_angle = 360 - drag_angle;
 		int angle = (t->m_angle + drag_angle) % 360;
-		// save undo info
-		SaveUndoInfoForPart( part, cpartlist::UNDO_PART_MODIFY, NULL, TRUE, m_doc->m_undo_list );
+		// save undo info  NB can save it for the reftext object only, no need to save the rest of the part.
+		t->SaveUndoInfo();
 		// now move it
 		t->MustRedraw();
 		t->MoveRelative( m_last_cursor_point.x, m_last_cursor_point.y, angle );
-		m_doc->Redraw();
-		HighlightSelection();
 		m_doc->ProjectModified( TRUE );
-		Invalidate( FALSE );
+		HighlightSelection();
 	}
 
 	else if( m_cursor_mode == CUR_DRAG_RAT )
@@ -906,7 +898,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		if (!bRatlineFinished)
 		{
 			// trace was not terminated, insert segment and continue routing
-			SaveUndoInfoForNetAndConnections( net, CNetList::UNDO_NET_MODIFY, TRUE, m_doc->m_undo_list );
+			c->SaveUndoInfo();
 			CPoint pi = m_snap_angle_ref;
 			CPoint pf = m_last_cursor_point;
 			CPoint pp = GetInflectionPoint( pi, pf, m_inflection_mode );
@@ -925,38 +917,28 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 			}
 		}
 
-		m_doc->Redraw();
 		if (bRatlineFinished)
 			goto cancel_selection_and_goodbye;
+		m_doc->ProjectModified( TRUE );
 		rat->StartDragging( pDC, m_last_cursor_point.x, m_last_cursor_point.y, 
 							m_active_layer,	LAY_SELECTION, m_active_width, m_active_layer, m_dir, 2 );
 		if( highlight_net0 )							// AMW r274
 			m_highlight_net = highlight_net0,
 			m_highlight_net->Highlight( rat );
 		m_snap_angle_ref = m_last_cursor_point;
-		m_doc->ProjectModified( TRUE );
-		Invalidate( FALSE );
 	}
 
 	else if( m_cursor_mode == CUR_DRAG_VTX_INSERT )
 	{
 		// add trace segment and vertex
-		pDC = GetDC();								// CPT2 TODO ReleaseDC?  Actually, can I dump these 3 lines?
-		SetDCToWorldCoords( pDC );
-		pDC->SelectClipRgn( &m_pcb_rgn );
 		m_dlist->StopDragging();
-
-		// make undo record
 		cseg2 *seg = m_sel.First()->ToSeg();
 		cconnect2 *c = seg->m_con;
-		cnet2 *net = seg->m_net;
-		SaveUndoInfoForNetAndConnections( net, CNetList::UNDO_NET_MODIFY, TRUE, m_doc->m_undo_list );
+		c->SaveUndoInfo();
 		seg->InsertSegment( m_last_cursor_point.x, m_last_cursor_point.y,
 			seg->m_layer, seg->m_width, 0 );
-		m_doc->Redraw();
-		CancelSelection();
 		m_doc->ProjectModified( TRUE );
-		Invalidate( FALSE );
+		CancelSelection();
 	}
 
 	else if( m_cursor_mode == CUR_DRAG_POLY_MOVE )
@@ -964,23 +946,17 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		// CPT2 generalized clause that deals with dragging corners of areas, sm-cutouts, and board-outlines alike.
 		ccorner *c = m_sel.First()->ToCorner();
 		cpolyline *poly = c->GetPolyline();
-		carea2 *a = poly->ToArea();
 		cnet2 *net = c->GetNet();
 		m_dlist->StopDragging();
-		if (a)
-			SaveUndoInfoForAllAreasInNet( net, TRUE, m_doc->m_undo_list );
-		else
-			SaveUndoInfoForPolylines( TRUE, m_doc->m_undo_list );
+		poly->SaveUndoInfo();
 		CPoint p = m_last_cursor_point;
 		c->Move( p.x, p.y );
 		if (!poly->PolygonModified( FALSE, TRUE ))
 			m_doc->OnEditUndo();
-		else if( a && m_doc->m_vis[LAY_RAT_LINE] )
+		else if( poly->IsArea() && m_doc->m_vis[LAY_RAT_LINE] )
 			net->OptimizeConnections( m_doc->m_auto_ratline_disable, m_doc->m_auto_ratline_min_pins, TRUE );
-		m_doc->Redraw();
-		TryToReselectCorner( p.x, p.y );
 		m_doc->ProjectModified( TRUE );
-		Invalidate( FALSE );
+		TryToReselectCorner( p.x, p.y );
 	}
 
 	else if( m_cursor_mode == CUR_DRAG_POLY_INSERT )
@@ -988,23 +964,17 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		// CPT2 generalized clause that deals with inserting corners of areas, sm-cutouts, and board-outlines alike.
 		cside *s = m_sel.First()->ToSide();
 		cpolyline *poly = s->GetPolyline();
-		carea2 *a = poly->ToArea();
 		cnet2 *net = s->GetNet();
 		m_dlist->StopDragging();
-		if (a)
-			SaveUndoInfoForAllAreasInNet( net, TRUE, m_doc->m_undo_list );
-		else
-			SaveUndoInfoForPolylines( TRUE, m_doc->m_undo_list );
+		poly->SaveUndoInfo();
 		CPoint p = m_last_cursor_point;
 		s->InsertCorner( p.x, p.y );
 		if (!poly->PolygonModified( FALSE, TRUE ))
 			m_doc->OnEditUndo();
-		else if( a && m_doc->m_vis[LAY_RAT_LINE] )
+		else if( poly->IsArea() && m_doc->m_vis[LAY_RAT_LINE] )
 			net->OptimizeConnections( m_doc->m_auto_ratline_disable, m_doc->m_auto_ratline_min_pins, TRUE );
-		m_doc->Redraw();
-		CancelSelection();
 		m_doc->ProjectModified( TRUE );
-		Invalidate( FALSE );
+		CancelSelection();
 	}
 
 	else if( m_cursor_mode == CUR_ADD_AREA )
@@ -1015,14 +985,13 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		CPoint p = m_last_cursor_point;
 		cnet2 *net = m_sel.First()->GetNet();
 		carea2 *a = new carea2(net, m_active_layer, m_polyline_hatch, 2*NM_PER_MIL, 10*NM_PER_MIL);
-		m_tmp_poly = a;
 		ccontour *ctr = new ccontour(a, true);
 		ccorner *c = new ccorner(ctr, p.x, p.y);					// Constructor sets contour's head and tail
 		m_dlist->StartDraggingArc( pDC, m_polyline_style, p.x, p.y, p.x, p.y, LAY_RAT_LINE, 1, 2 );
 		SetCursorMode( CUR_DRAG_POLY_1 );
+		m_drag_contour = ctr;
 		m_poly_drag_mode = CUR_ADD_AREA;
 		m_doc->ProjectModified( TRUE );
-		Invalidate( FALSE );
 		m_snap_angle_ref = m_last_cursor_point;
 	}
 
@@ -1032,16 +1001,13 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		SetDCToWorldCoords( pDC );
 		pDC->SelectClipRgn( &m_pcb_rgn );
 		CPoint p = m_last_cursor_point;
-		m_tmp_poly->MustRedraw();
-		ccontour *ctr = m_tmp_poly->main;
-		ccorner *c = new ccorner(ctr, p.x, p.y);
-		cside *s = new cside(ctr, m_polyline_style);
-		ctr->AppendSideAndCorner(s, c, ctr->tail);
+		ccontour *ctr = m_drag_contour;
+		ctr->AppendCorner(p.x, p.y, m_polyline_style);
 		m_doc->Redraw();
 		m_dlist->StartDraggingArc( pDC, m_polyline_style, p.x, p.y, p.x, p.y, LAY_RAT_LINE, 1, 2 );
 		SetCursorMode( CUR_DRAG_POLY );
-		m_doc->ProjectModified( TRUE );
-		Invalidate( FALSE );
+		m_doc->ProjectModified( true, true );			// CPT2 second arg indicates that this change gets combined with the earlier changes in a single
+														// undo record
 		m_snap_angle_ref = m_last_cursor_point;
 	}
 
@@ -1051,31 +1017,27 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		SetDCToWorldCoords( pDC );
 		pDC->SelectClipRgn( &m_pcb_rgn );
 		CPoint p = m_last_cursor_point;
-		ccontour *ctr = m_tmp_poly->main;
+		ccontour *ctr = m_drag_contour;
 		ccorner *head = ctr->head;
 		if( p.x == head->x && p.y == head->y )
 		{
 			// cursor point is back at first point, close contour and finish up
 			if (m_poly_drag_mode == CUR_ADD_POLY_CUTOUT)
-				FinishAddPolyCutout( ctr );
+				FinishAddPolyCutout();
 			else
-				FinishAddPoly( ctr );
+				FinishAddPoly();
 			m_doc->m_dlist->StopDragging();
 			CancelSelection();
 		}
 		else
 		{
 			// add cursor point
-			m_tmp_poly->MustRedraw();
-			ccorner *c = new ccorner(ctr, p.x, p.y);
-			cside *s = new cside(ctr, m_polyline_style);
-			ctr->AppendSideAndCorner(s, c, ctr->tail);
+			ctr->AppendCorner(p.x, p.y, m_polyline_style);
 			m_doc->Redraw();
 			m_dlist->StartDraggingArc( pDC, m_polyline_style, p.x, p.y, p.x, p.y, LAY_RAT_LINE, 1, 2 );
 			m_snap_angle_ref = m_last_cursor_point;
 		}
-		m_doc->ProjectModified( TRUE );
-		Invalidate( FALSE );
+		m_doc->ProjectModified( true, true );
 	}
 
 	else if( m_cursor_mode == CUR_ADD_POLY_CUTOUT )
@@ -1085,14 +1047,14 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		pDC->SelectClipRgn( &m_pcb_rgn );
 		CPoint p = m_last_cursor_point;
 		cpolyline *poly = m_sel.First()->GetPolyline();
-		m_tmp_poly = new cpolyline(poly, false, true);
-		ccontour *ctr = new ccontour(m_tmp_poly, true);
+		poly->MustRedraw();
+		ccontour *ctr = new ccontour(poly, false);
 		ccorner *c = new ccorner(ctr, p.x, p.y);					// Constructor sets contour's head and tail
 		m_dlist->StartDraggingArc( pDC, m_polyline_style, p.x, p.y, p.x, p.y, LAY_RAT_LINE, 1, 2 );
 		SetCursorMode( CUR_DRAG_POLY_1 );
+		m_drag_contour = ctr;
 		m_poly_drag_mode = CUR_ADD_POLY_CUTOUT;
 		m_doc->ProjectModified( TRUE );
-		Invalidate( FALSE );
 		m_snap_angle_ref = m_last_cursor_point;
 	}
 
@@ -1104,14 +1066,13 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		pDC->SelectClipRgn( &m_pcb_rgn );
 		CPoint p = m_last_cursor_point;
 		csmcutout *sm = new csmcutout(m_doc, m_polyline_layer, m_polyline_hatch);
-		m_tmp_poly = sm;
 		ccontour *ctr = new ccontour(sm, true);
 		ccorner *c = new ccorner(ctr, p.x, p.y);					// Constructor sets contour's head and tail
 		m_dlist->StartDraggingArc( pDC, m_polyline_style, p.x, p.y, p.x, p.y, LAY_RAT_LINE, 1, 2 );
 		SetCursorMode( CUR_DRAG_POLY_1 );
+		m_drag_contour = ctr;
 		m_poly_drag_mode = CUR_ADD_SMCUTOUT;
 		m_doc->ProjectModified( TRUE );
-		Invalidate( FALSE );
 		m_snap_angle_ref = m_last_cursor_point;
 	}
 
@@ -1123,14 +1084,13 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		pDC->SelectClipRgn( &m_pcb_rgn );
 		CPoint p = m_last_cursor_point;
 		cboard *b = new cboard(m_doc);
-		m_tmp_poly = b;
 		ccontour *ctr = new ccontour(b, true);
 		ccorner *c = new ccorner(ctr, p.x, p.y);
 		m_dlist->StartDraggingArc( pDC, m_polyline_style, p.x, p.y, p.x, p.y, LAY_RAT_LINE, 1, 2 );
 		SetCursorMode( CUR_DRAG_POLY_1 );
+		m_drag_contour = ctr;
 		m_poly_drag_mode = CUR_ADD_BOARD;
 		m_doc->ProjectModified( TRUE );
-		Invalidate( FALSE );
 		m_snap_angle_ref = m_last_cursor_point;
 	}
 
@@ -1138,18 +1098,14 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 	{
 		// move vertex by modifying adjacent segments
 		cvertex2 *vtx = m_sel.First()->ToVertex();
-		cconnect2 *c = vtx->m_con;
-		cnet2 *net = vtx->m_net;
 		vtx->CancelDragging();
-		SaveUndoInfoForNetAndConnections( net, CNetList::UNDO_NET_MODIFY, TRUE, m_doc->m_undo_list );
+		vtx->m_con->SaveUndoInfo();
 		CPoint p = m_last_cursor_point;
 		vtx->Move( p.x, p.y );
 		if( m_doc->m_vis[LAY_RAT_LINE] )
-			net->OptimizeConnections( m_doc->m_auto_ratline_disable, m_doc->m_auto_ratline_min_pins, TRUE  );
-		m_doc->Redraw();
-		HighlightSelection();
+			vtx->m_net->OptimizeConnections( m_doc->m_auto_ratline_disable, m_doc->m_auto_ratline_min_pins, TRUE  );
 		m_doc->ProjectModified( TRUE );
-		Invalidate( FALSE );
+		HighlightSelection();
 	}
 
 	else if( m_cursor_mode == CUR_DRAG_TEE )
@@ -1158,15 +1114,13 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		ctee *tee = m_sel.First()->ToTee();
 		cnet2 *net = tee->GetNet();
 		tee->CancelDragging();
-		SaveUndoInfoForNetAndConnections( net, CNetList::UNDO_NET_MODIFY, TRUE, m_doc->m_undo_list );
+		net->SaveUndoInfo( cnet2::SAVE_CONNECTS );
 		CPoint p = m_last_cursor_point;
 		tee->Move( p.x, p.y );
 		if( m_doc->m_vis[LAY_RAT_LINE] )
 			net->OptimizeConnections( m_doc->m_auto_ratline_disable, m_doc->m_auto_ratline_min_pins, TRUE  );
-		m_doc->Redraw();
-		HighlightSelection();
 		m_doc->ProjectModified( TRUE );
-		Invalidate( FALSE );
+		HighlightSelection();
 	}
 
 	else if( m_cursor_mode == CUR_MOVE_SEGMENT )
@@ -1176,16 +1130,14 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		cseg2 *seg = m_sel.First()->ToSeg();
 		cconnect2 *c = seg->m_con;
 		cnet2 *net = seg->m_net;
-		SaveUndoInfoForNetAndConnections( net, CNetList::UNDO_NET_MODIFY, TRUE, m_doc->m_undo_list );
+		net->SaveUndoInfo( cnet2::SAVE_CONNECTS );		// Saves the whole net because of the possibility that one endpt is a tee
 		CPoint cpi, cpf;
 		m_doc->m_dlist->Get_Endpoints(&cpi, &cpf);
 		ASSERT(cpi != cpf);								// Should be at least one grid snap apart.
 		seg->preVtx->Move( cpi.x, cpi.y );
 		seg->postVtx->Move( cpf.x, cpf.y );
-		m_doc->Redraw();
-		CancelSelection();
 		m_doc->ProjectModified( TRUE );
-		Invalidate( FALSE );
+		CancelSelection();
 	}
 
 	else if( m_cursor_mode == CUR_DRAG_NEW_RAT )
@@ -1222,21 +1174,20 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 					goto cancel_selection_and_goodbye;
 				}
 				// add ratline from vertex to pin
-				SaveUndoInfoForNetAndConnections( v->m_net, CNetList::UNDO_NET_MODIFY, TRUE, m_doc->m_undo_list );
-				SaveUndoInfoForPartAndNets( pin->part, CPartList::UNDO_PART_MODIFY, NULL, FALSE, m_doc->m_undo_list );
 				cnet2 *net = v->m_net;
 				if( !pin->net )
+					pin->part->SaveUndoInfo(),
 					net->AddPin( pin );
+				net->SaveUndoInfo( cnet2::SAVE_CONNECTS );
 				cseg2 *rat_seg = v->AddRatlineToPin( pin );
 				m_doc->m_dlist->StopDragging();
-				m_doc->Redraw();
-				SelectItem(rat_seg);
 				/* CPT2 seems undesirable to me
 				if( highlight_net0 )
 					m_highlight_net = highlight_net0,
 					highlight_net0->Highlight();
 				*/
 				m_doc->ProjectModified( TRUE );
+				SelectItem(rat_seg);
 			}
 
 			else if( hit->IsPin() && sel0->IsPin() )
@@ -1254,23 +1205,22 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 				if( p0==p1 )
 					goto goodbye;
 				// we can connect these pins
-				SaveUndoInfoForPart( p0->part, CPartList::UNDO_PART_MODIFY, NULL, TRUE, m_doc->m_undo_list );
-				SaveUndoInfoForPart( p1->part, CPartList::UNDO_PART_MODIFY, NULL, FALSE, m_doc->m_undo_list );
 				if( p0->net != p1->net )
 				{
 					// one pin is unassigned, assign it to the other pin's net
 					if( !p0->net )
 					{
-						SaveUndoInfoForNetAndConnections( p1->net, CNetList::UNDO_NET_MODIFY, FALSE, m_doc->m_undo_list );
+						p0->SaveUndoInfo();
 						p1->net->AddPin( p0 );
 					}
 					else if( !p1->net )
 					{
-						SaveUndoInfoForNetAndConnections( p0->net, CNetList::UNDO_NET_MODIFY, FALSE, m_doc->m_undo_list );
+						p1->SaveUndoInfo();
 						p0->net->AddPin( p1 );
 					}
 					else
 						ASSERT(0);
+
 				}
 				else if( !p0->net && !p1->net )
 				{
@@ -1286,10 +1236,11 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 					}
 					CString name = assign_net_dlg.m_net_str;
 					cnet2 *net = m_doc->m_nlist->GetNetPtrByName(&name);
+					p0->SaveUndoInfo();
+					p1->SaveUndoInfo();
 					if( net )
 					{
 						// assign pins to existing net
-						SaveUndoInfoForNetAndConnections( net, CNetList::UNDO_NET_MODIFY, FALSE, m_doc->m_undo_list );
 						net->AddPin(p0);
 						net->AddPin(p1);
 					}
@@ -1297,28 +1248,26 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 					{
 						// make new net
 						net = new cnet2(m_doc->m_nlist, name, 0, 0, 0);
-						SaveUndoInfoForNetAndConnections( net, CNetList::UNDO_NET_ADD, FALSE, m_doc->m_undo_list );
 						net->AddPin(p0);
 						net->AddPin(p1);
 					}
 				}
-				cseg2 *rat_seg = p0->AddRatlineToPin( p1 );
 				m_doc->m_dlist->StopDragging();
-				rat_seg->Draw();
-				SelectItem(rat_seg);
+				p0->net->SaveUndoInfo( cnet2::SAVE_CONNECTS );
+				cseg2 *rat_seg = p0->AddRatlineToPin( p1 );
+				rat_seg->MustRedraw();
 				/* CPT2 seems undesirable to me
 				if( highlight_net0 )
 					m_highlight_net = highlight_net0,
 					highlight_net0->Highlight();
 				*/
 				m_doc->ProjectModified( TRUE );
-				Invalidate( FALSE );
+				SelectItem(rat_seg);
 			}
 
 			else if( hit->IsVertex() && sel0->IsVertex() )
 			{
 				cvertex2 *v1 = hit->ToVertex(), *v2 = sel0->ToVertex();
-				// see if we are trying to connect a pin to itself
 				if( v1->m_net != v2->m_net )
 				{
 					CString s ((LPCSTR) IDS_YouAreTryingToConnectTracesOnDifferentNets);
@@ -1329,7 +1278,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 					goto goodbye;
 				
 				// OK, we should be able to do this, save undo info
-				SaveUndoInfoForNetAndConnections( v1->m_net, CNetList::UNDO_NET_MODIFY, TRUE, m_doc->m_undo_list );
+				v1->m_net->SaveUndoInfo( cnet2::SAVE_CONNECTS );
 				cconnect2 *c1 = v1->m_con;
 				cnet2 *net = v1->m_net;
 				ctee *adjust_at_end = NULL;
@@ -1362,15 +1311,13 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 				v1->tee->Adjust();
 				v2->tee->Adjust();
 				m_doc->m_dlist->StopDragging();
-				m_doc->Redraw();
-				SelectItem(rat_seg);
 				/* CPT2 seems undesirable to me
 				if( highlight_net0 )
 					m_highlight_net = highlight_net0,
 					highlight_net0->Highlight(); 
 				*/
 				m_doc->ProjectModified( TRUE );
-				Invalidate( FALSE );
+				SelectItem(rat_seg);
 			}
 		}
 	}
@@ -1401,13 +1348,13 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 			if (!new_pin->net)
 			{
 				// unassigned pin, assign it
-				SaveUndoInfoForPart( new_pin->part, CPartList::UNDO_PART_MODIFY, NULL, TRUE, m_doc->m_undo_list );
-				SaveUndoInfoForNetAndConnections( net, CNetList::UNDO_NET_MODIFY, FALSE, m_doc->m_undo_list );
+				new_pin->SaveUndoInfo();
+				net->SaveUndoInfo( cnet2::SAVE_CONNECTS );
 				net->AddPin(new_pin);
 			}
 			else
 				// pin already assigned to this net
-				SaveUndoInfoForNetAndConnections( net, CNetList::UNDO_NET_MODIFY, TRUE, m_doc->m_undo_list );
+				rat->m_con->SaveUndoInfo();
 			rat->MustRedraw();
 			cvertex2 *pin_end = rat->preVtx->pin? rat->preVtx: rat->postVtx;
 			pin_end->pin = new_pin;
@@ -1415,10 +1362,8 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		}
 		m_dlist->Set_visible( rat->dl_el, TRUE );
 		m_dlist->StopDragging();
-		m_doc->Redraw();
-		HighlightSelection();
 		m_doc->ProjectModified( TRUE );
-		Invalidate( FALSE );
+		HighlightSelection();
 	}
 
 	else if( m_cursor_mode == CUR_DRAG_STUB )			// CPT2 used to be called CUR_DRAG_TRACE, renamed (less confusing I think)
@@ -1427,11 +1372,6 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		cconnect2 *con0 = vtx0->m_con;
 		cvertex2 *tail0 = con0->tail;					// (The vertex that will be the start of the new seg)
 		cnet2 *net = vtx0->m_net;
- 		if( vtx0->preSeg )
-			// if first vertex, we have already saved undo info,
-			// otherwise save it here
-			SaveUndoInfoForNetAndConnections( net, CNetList::UNDO_NET_MODIFY, TRUE, m_doc->m_undo_list );
-
 		// test for hit on vertex or pin
 		CDisplayList *dl = m_doc->m_dlist;
 		CPoint p = m_last_cursor_point;
@@ -1460,9 +1400,12 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 					if( !pin->net )
 					{
 						// unassigned pin, assign it
-						SaveUndoInfoForPart( pin->part,	CPartList::UNDO_PART_MODIFY, NULL, FALSE, m_doc->m_undo_list );
+						pin->part->SaveUndoInfo();
+						net->SaveUndoInfo();
 						net->AddPin( pin );
 					}
+					else
+						con0->SaveUndoInfo();
 					// Go for it
 					CPoint pi = m_snap_angle_ref;
 					CPoint pf = m_last_cursor_point;
@@ -1477,10 +1420,8 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 					tail0->ReconcileVia();
 					// Cleanup
 					m_dlist->StopDragging();
-					m_doc->Redraw();
-					CancelSelection();
 					m_doc->ProjectModified( TRUE );
-					Invalidate( FALSE );
+					CancelSelection();
 					goto goodbye;
 				}
 			}
@@ -1505,6 +1446,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 					CPoint pi = m_snap_angle_ref;
 					CPoint pf = m_last_cursor_point;
 					CPoint pp = GetInflectionPoint( pi, pf, m_inflection_mode );
+					net->SaveUndoInfo();
 					if( pp != pi )
 						con0->AppendSegment( pp.x, pp.y, m_active_layer, m_active_width ) ;
 					con0->AppendSegment( pf.x, pf.y, m_active_layer, m_active_width );
@@ -1527,10 +1469,8 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 					m_dlist->StopDragging();
 					if( m_doc->m_vis[LAY_RAT_LINE] )
 						net->OptimizeConnections(  m_doc->m_auto_ratline_disable, m_doc->m_auto_ratline_min_pins, TRUE  );
-					m_doc->Redraw();
-					CancelSelection();
 					m_doc->ProjectModified( TRUE );
-					Invalidate( FALSE );
+					CancelSelection();
 					goto goodbye;
 				}
 			}
@@ -1543,21 +1483,19 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		CPoint pi = m_snap_angle_ref;
 		CPoint pf = m_last_cursor_point;
 		CPoint pp = GetInflectionPoint( pi, pf, m_inflection_mode );
+		con0->SaveUndoInfo();
 		if( pp != pi )
 			con0->AppendSegment( pp.x, pp.y, m_active_layer, m_active_width ) ;
 		con0->AppendSegment( pf.x, pf.y, m_active_layer, m_active_width );
 		tail0->ReconcileVia();
 		// Cleanup
 		m_dlist->StopDragging();
-		m_doc->Redraw();
 		CPoint p0 = m_last_cursor_point;
-		// AMW r275 The following statement calls m_dlist->CancelHighlight()
 		con0->tail->StartDraggingStub( pDC, p0.x, p0.y, m_active_layer, m_active_width, m_active_layer, 2, m_inflection_mode );
 		m_snap_angle_ref = m_last_cursor_point;
+		m_doc->ProjectModified( TRUE );
 		if( m_highlight_net )					// AMW r275 re-highlight net
 			m_highlight_net->Highlight();
-		m_doc->ProjectModified( TRUE );
-		Invalidate( FALSE );
 	}
 
 	else if( m_cursor_mode == CUR_DRAG_TEXT )
@@ -1565,23 +1503,15 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		CPoint p = m_last_cursor_point;
 		m_dlist->StopDragging();
 		ctext *t = m_sel.First()->ToText();
-		if( !m_dragging_new_item )
-			SaveUndoInfoForText( t, ctextlist::UNDO_TEXT_MODIFY, TRUE, m_doc->m_undo_list );
 		int angle = t->m_angle + m_dlist->GetDragAngle();
 		if( angle>270 )
 			angle = angle - 360;
-		int mirror = (t->m_bMirror + m_dlist->GetDragSide())%2;
+		int mirror = (t->m_bMirror + m_dlist->GetDragSide()) % 2;
 		t->MustRedraw();
 		t->Move( m_last_cursor_point.x, m_last_cursor_point.y, angle, mirror, t->m_bNegative, t->m_layer );
-		m_doc->Redraw();
-		if( m_dragging_new_item )
-		{
-			SaveUndoInfoForText( t, ctextlist::UNDO_TEXT_ADD, TRUE, m_doc->m_undo_list );
-			m_dragging_new_item = FALSE;
-		}
-		SelectItem(t);
 		m_doc->ProjectModified( TRUE );
-		Invalidate( FALSE );
+		SelectItem(t);
+		m_dragging_new_item = FALSE;
 	}
 
 #ifndef CPT2
@@ -1602,8 +1532,8 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 
 cancel_selection_and_goodbye:
 	m_dlist->StopDragging();
-	CancelSelection();
 	m_doc->ProjectModified( TRUE );
+	CancelSelection();
 	Invalidate( FALSE );
 
 goodbye:
@@ -1704,11 +1634,7 @@ void CFreePcbView::OnRButtonDown(UINT nFlags, CPoint point)
 			SelectItem(tail);
 		}
 		else
-		{
-			sel->m_con->Remove();
-			CancelSelection();
-		}
-		Invalidate( FALSE );
+			m_doc->UndoNoRedo();
 	}
 
 	else if( m_cursor_mode == CUR_DRAG_RAT )
@@ -1750,21 +1676,19 @@ void CFreePcbView::OnRButtonDown(UINT nFlags, CPoint point)
 		c->Highlight();
 	}
 	else if( m_cursor_mode == CUR_DRAG_POLY_1
-		  || (m_cursor_mode == CUR_DRAG_POLY && m_tmp_poly->NumCorners()<3) )
+		  || (m_cursor_mode == CUR_DRAG_POLY && m_drag_contour->NumCorners()<3) )
 	{
 		m_dlist->StopDragging();
-		m_tmp_poly->Undraw();
+		m_drag_contour->GetPolyline()->Undraw();
 		CancelSelection();
 	}
 	else if( m_cursor_mode == CUR_DRAG_POLY )
 	{
-		m_dlist->StopDragging();
-		ccontour *ctr = m_tmp_poly->main;
 		if (m_poly_drag_mode == CUR_ADD_POLY_CUTOUT)
-			FinishAddPolyCutout( ctr );
+			FinishAddPolyCutout();
 		else
-			FinishAddPoly( ctr );
-		m_doc->m_dlist->StopDragging();
+			FinishAddPoly();
+		m_dlist->StopDragging();
 		CancelSelection();
 	}
 
@@ -1861,37 +1785,34 @@ void CFreePcbView::OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags)
 
 void CFreePcbView::FinishArrowKey(int x, int y, int dx, int dy) 
 {
-	// CPT: Helper for HandleKeyPress() below.  When user hits an arrow key, that routine moves the
+	// CPT2: Helper for HandleKeyPress() below.  When user hits an arrow key, that routine moves the
 	// relevant part, then calls here to redisplay and tidy up.
 	if (!m_lastKeyWasArrow)
 		m_totalArrowMoveX = 0,
 		m_totalArrowMoveY = 0;
 	m_totalArrowMoveX += dx;
 	m_totalArrowMoveY += dy;
-	m_doc->Redraw();
+	// CPT2:  The second arg in ProjectModified() means that repeated arrow hits get combined into a single undo event:
+	m_doc->ProjectModified( true, m_lastKeyWasArrow );		
 	HighlightSelection();
-	m_lastKeyWasArrow = true;					// HighlightSelection cleared this flag, so reset it.
 	if (x==INT_MAX)
 		// Show dx/dy only
 		ShowRelativeDistance(m_totalArrowMoveX, m_totalArrowMoveY);
 	else
 		ShowRelativeDistance(x, y, m_totalArrowMoveX, m_totalArrowMoveY);
-	m_doc->ProjectModified( TRUE );
-	Invalidate(false);
+	m_lastKeyWasArrow = true;
 }
 
 // Key on keyboard pressed down
-// CPT2 converted.  But notice that undo functions are still in the old format and are therefore disabled
+// CPT2 converted.
 
 void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 {
 	if( m_bDraggingRect )
 		return;
 
-	// CPT: different way of dealing with gShiftKeyDown
 	bool bShiftKeyDown = (GetKeyState(VK_SHIFT)&0x8000) != 0;
 	bool bCtrlKeyDown = (GetKeyState(VK_CONTROL)&0x8000) != 0;
-	// end CPT
 
 #ifdef ALLOW_CURVED_SEGMENTS
 	if( nChar == 'C' && m_cursor_mode == CUR_SEG_SELECTED )
@@ -2052,11 +1973,11 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 			cseg2 *remove = m_dir==0? seg->preVtx->preSeg: seg->postVtx->postSeg;
 			if (remove)
 			{
-				SaveUndoInfoForNetAndConnections( net, CNetList::UNDO_NET_MODIFY, TRUE, m_doc->m_undo_list );
+				c->SaveUndoInfo();
 				m_active_layer = remove->m_layer;
 				CancelSelection();
 				remove->RemoveMerge(!m_dir);
-				m_doc->Redraw();
+				m_doc->ProjectModified(true);
 				SelectItem(seg);
 				cvertex2 *start = m_dir==0? seg->preVtx: seg->postVtx;
 				m_last_mouse_point.x = start->x;
@@ -2074,6 +1995,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 			cvertex2 *sel = m_sel.First()->ToVertex();
 			cconnect2 *c = sel->m_con;
 			cnet2 *net = sel->m_net;
+			c->SaveUndoInfo();
 			CancelHighlight();
 			m_dlist->StopDragging();
 			bool bConnectRemoved = false;
@@ -2081,10 +2003,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 				c->Remove(),
 				bConnectRemoved = true;
 			else
-			{
-				SaveUndoInfoForNetAndConnections( net, CNetList::UNDO_NET_MODIFY, TRUE, m_doc->m_undo_list );
 				bConnectRemoved = c->tail->preSeg->RemoveBreak();
-			}
 			m_doc->Redraw();
 			if (bConnectRemoved)
 				CancelSelection();
@@ -2190,7 +2109,8 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 			OnAddBoardOutline();
 		else if( fk == FK_REDO_RATLINES )
 		{
-			SaveUndoInfoForAllNets( TRUE, m_doc->m_undo_list );
+			// CPT2 TODO think about undo in relation to OptimizeConnections:
+			// SaveUndoInfoForAllNets( TRUE, m_doc->m_undo_list );
 			//			StartTimer();
 			m_doc->m_nlist->OptimizeConnections();
 			//			double time = GetElapsedTime();
@@ -2211,8 +2131,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 				else
 					return;
 			}
-			if( !m_lastKeyWasArrow )
-				SaveUndoInfoForPartAndNets( part, CPartList::UNDO_PART_MODIFY, NULL, TRUE, m_doc->m_undo_list );
+			part->SaveUndoInfo();
 			CancelHighlight();
 			part->Move( part->x+dx, part->y+dy, part->angle, part->side );
 			part->PartMoved( dx, dy );	// CPT
@@ -2247,9 +2166,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 		if( fk == FK_ARROW )
 		{
 			ctext *t = m_sel.First()->ToText();
-			cpart2 *part = t->GetPart();
-			if( !m_lastKeyWasArrow )
-				SaveUndoInfoForPart( part, CPartList::UNDO_PART_MODIFY, NULL, TRUE, m_doc->m_undo_list );
+			t->SaveUndoInfo();
 			CancelHighlight();
 			CPoint ref_pt = t->GetAbsolutePoint();
 			ref_pt.x += dx;
@@ -2292,18 +2209,11 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 		if( fk == FK_ARROW )
 		{
 			cseg2 *seg = m_sel.First()->ToSeg();
-			// CPT2 TODO.  The old code was:
-			// if (!SegmentMovable())
-			//	 { PlaySound( TEXT("CriticalStop"), 0, 0 ); break; }
-			// I'm hoping the following will suffice, but time will tell
 			if (seg->preVtx->pin || seg->postVtx->pin || seg->preVtx->tee || seg->postVtx->tee)
 			{
 				PlaySound( TEXT("CriticalStop"), 0, 0 );
 				break;
 			}
-
-			if( !m_lastKeyWasArrow )
-				SaveUndoInfoForNetAndConnections( seg->m_net, CNetList::UNDO_NET_MODIFY, TRUE, m_doc->m_undo_list );
 			CancelHighlight();
 
 			// 1. Move the line defined by the segment.
@@ -2376,6 +2286,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 			if (bOK)
 			{
 				//	Move both vetices to the new position:
+				seg->m_con->SaveUndoInfo();
 				seg->preVtx->Move( i_nudge_xi, i_nudge_yi );
 				seg->postVtx->Move( i_nudge_xf, i_nudge_yf );
 			}
@@ -2409,8 +2320,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 		if( fk == FK_ARROW )
 		{
 			cvertex2 *vtx = m_sel.First()->ToVertex();
-			if( !m_lastKeyWasArrow )
-				SaveUndoInfoForNetAndConnections( vtx->m_net, CNetList::UNDO_NET_MODIFY, TRUE, m_doc->m_undo_list );
+			vtx->m_con->SaveUndoInfo();
 			CancelHighlight();
 			vtx->Move( vtx->x + dx, vtx->y + dy );
 			FinishArrowKey(vtx->x, vtx->y, dx, dy);
@@ -2445,8 +2355,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 			ctee *tee = m_sel.First()->ToTee();
 			cvertex2 *first = tee->vtxs.First();
 			ASSERT(first);
-			if( !m_lastKeyWasArrow )
-				SaveUndoInfoForNetAndConnections( first->m_net, CNetList::UNDO_NET_MODIFY, TRUE, m_doc->m_undo_list );
+			first->m_net->SaveUndoInfo( cnet2::SAVE_CONNECTS );
 			CancelHighlight();
 			tee->Move( first->x + dx, first->y + dy );
 			FinishArrowKey( first->x, first->y, dx, dy );
@@ -2512,8 +2421,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 		if( fk == FK_ARROW )
 		{
 			ctext *text = m_sel.First()->ToText();
-			if( !m_lastKeyWasArrow )
-				SaveUndoInfoForText( text, CTextList::UNDO_TEXT_MODIFY, TRUE, m_doc->m_undo_list );
+			text->SaveUndoInfo();
 			CancelHighlight();
 			text->Move( text->m_x + dx, text->m_y + dy,
 						text->m_angle, text->m_bMirror,	text->m_bNegative, text->m_layer );
@@ -2538,11 +2446,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 		{
 			cside *s = m_sel.First()->ToSide();
 			cpolyline *poly = s->GetPolyline();
-			cnet2 *net = s->GetNet();
-			if (poly->IsArea())
-				SaveUndoInfoForAllAreasInNet( net, TRUE, m_doc->m_undo_list );
-			else
-				SaveUndoInfoForPolylines( TRUE, m_doc->m_undo_list );
+			poly->SaveUndoInfo();
 			MoveGroup(dx, dy);
 			FinishArrowKey(INT_MAX, INT_MAX, dx, dy);
 		}
@@ -2580,13 +2484,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 		{
 			ccorner *c = m_sel.First()->ToCorner();
 			cpolyline *poly = c->GetPolyline();
-			cnet2 *net = c->GetNet();
-			carea2 *a = poly->ToArea();
-			if( !m_lastKeyWasArrow )
-				if (a)
-					SaveUndoInfoForAllAreasInNet( net, TRUE, m_doc->m_undo_list );
-				else
-					SaveUndoInfoForPolylines( TRUE, m_doc->m_undo_list );
+			poly->SaveUndoInfo();
 			CancelHighlight();
 			p = CPoint (c->x+dx, c->y+dy);
 			c->Move( p.x, p.y );
@@ -2599,8 +2497,6 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 				TryToReselectCorner( p.x, p.y );
 				FinishArrowKey(p.x, p.y, dx, dy);
 			}
-			m_doc->ProjectModified( TRUE );
-			Invalidate( FALSE );
 		}
 		else if( fk == FK_EDIT_AREA )
 			OnAreaEdit();
@@ -2646,7 +2542,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 					if( ret != IDYES )
 						return;
 				}
-				SaveUndoInfoForGroup( UNDO_GROUP_MODIFY, &m_sel, m_doc->m_undo_list );
+				SaveUndoInfoForGroup();
 			}
 			MoveGroup( dx, dy );
 			FinishArrowKey(INT_MAX, INT_MAX, dx, dy);
@@ -3665,6 +3561,7 @@ void CFreePcbView::HighlightSelection()
 		// nothing selected (CPT2: UNLIKELY I HOPE)
 		SetCursorMode( CUR_NONE_SELECTED );
 
+	ShowSelectStatus();
 	m_lastKeyWasArrow = FALSE;
 	m_lastKeyWasGroupRotate = false;
 	Invalidate(false);
@@ -3726,9 +3623,14 @@ void CFreePcbView::SetWidth( int mode )
 		w = 0;
 	else if( dlg.m_tv == 2 )
 		via_w = 0;
-	SaveUndoInfoForNetAndConnections( net, CNetList::UNDO_NET_MODIFY, TRUE, m_doc->m_undo_list );
 
-	// set default values for net or connection
+	// Save undo info (for the whole net, the connect, or just the seg as appropriate)
+	if (dlg.m_apply == 3 || dlg.m_def == 2)
+		net->SaveUndoInfo( cnet2::SAVE_CONNECTS );
+	else
+		c->SaveUndoInfo();
+
+	// set default values for net or connection.
 	if( dlg.m_def == 2 )
 	{
 		// set default for net
@@ -3740,6 +3642,7 @@ void CFreePcbView::SetWidth( int mode )
 			net->def_via_hole_w = via_hole_w;
 		}
 	}
+
 	// apply new widths to net, connection or segment
 	if( dlg.m_apply == 3 )
 		// apply width to net
@@ -3750,9 +3653,7 @@ void CFreePcbView::SetWidth( int mode )
 	else if( dlg.m_apply == 1 )
 		// apply width to segment
 		seg->SetWidth( w, via_w, via_hole_w );
-	m_doc->Redraw();
 	m_doc->ProjectModified( TRUE );
-	Invalidate( FALSE );
 }
 
 // context-sensitive menu invoked by right-click
@@ -4039,7 +3940,8 @@ void CFreePcbView::OnTextAdd()
 
 	ctext *t = m_doc->m_tlist->AddText( x, y, angle, mirror, bNegative,
 			layer, font_size, stroke_width, &str );
-	t->Draw();
+	t->MustRedraw();
+	m_doc->ProjectModified(true);
 	SelectItem(t);
 
 	if( add_text_dlg.m_bDrag )
@@ -4053,9 +3955,6 @@ void CFreePcbView::OnTextAdd()
 		SetCursorMode( CUR_DRAG_TEXT );
 		ReleaseDC( pDC );
 	}
-	else
-		SaveUndoInfoForText( t, CTextList::UNDO_TEXT_ADD, TRUE, m_doc->m_undo_list );
-	Invalidate( FALSE );
 }
 
 // delete text ... enter with text selected
@@ -4063,12 +3962,11 @@ void CFreePcbView::OnTextAdd()
 void CFreePcbView::OnTextDelete()
 {
 	ctext *t = m_sel.First()->ToText();
-	SaveUndoInfoForText( t, ctextlist::UNDO_TEXT_DELETE, TRUE, m_doc->m_undo_list );
+	t->SaveUndoInfo();
 	m_doc->m_tlist->texts.Remove(t);
 	t->Undraw();
-	CancelSelection();
 	m_doc->ProjectModified( TRUE );
-	Invalidate( FALSE );
+	CancelSelection();
 }
 
 // move text, enter with text selected
@@ -4080,7 +3978,7 @@ void CFreePcbView::OnTextMove()
 	SetDCToWorldCoords( pDC );
 	// move cursor to text origin
 	ctext *t = m_sel.First()->ToText();
-	SaveUndoInfoForText( t, ctextlist::UNDO_TEXT_DELETE, TRUE, m_doc->m_undo_list );
+	t->SaveUndoInfo();
 	CPoint p (t->m_x, t->m_y);
 	CPoint cur_p = m_dlist->PCBToScreen( p );
 	SetCursorPos( cur_p.x, cur_p.y );
@@ -4098,7 +3996,7 @@ void CFreePcbView::OnTextMove()
 void CFreePcbView::OnPartGlue()
 {
 	cpart2 *part = m_sel.First()->ToPart();
-	SaveUndoInfoForPart( part, CPartList::UNDO_PART_MODIFY, NULL, TRUE, m_doc->m_undo_list );
+	part->SaveUndoInfo(false);
 	part->glued = 1;
 	SetFKText( m_cursor_mode );
 	m_doc->ProjectModified( TRUE );
@@ -4109,7 +4007,7 @@ void CFreePcbView::OnPartGlue()
 void CFreePcbView::OnPartUnglue()
 {
 	cpart2 *part = m_sel.First()->ToPart();
-	SaveUndoInfoForPart( part, CPartList::UNDO_PART_MODIFY, NULL, TRUE, m_doc->m_undo_list );
+	part->SaveUndoInfo(false);
 	part->glued = 0;
 	SetFKText( m_cursor_mode );
 	m_doc->ProjectModified( TRUE );
@@ -4138,17 +4036,14 @@ void CFreePcbView::OnPartDelete()
 	int ret = AfxMessageBox( mess, MB_YESNOCANCEL );
 	if( ret == IDCANCEL )
 		return;
-	// save undo info
-	SaveUndoInfoForPartAndNets( part, CPartList::UNDO_PART_DELETE, NULL, TRUE, m_doc->m_undo_list );
+	part->SaveUndoInfo();
 	// now do it
 	if( ret == IDYES )
 		part->Remove(true);
 	else if( ret == IDNO )
 		part->Remove(false);
-	m_doc->Redraw();
-	CancelSelection();
 	m_doc->ProjectModified( TRUE );
-	Invalidate( FALSE );
+	CancelSelection();
 }
 
 // optimize all nets to part
@@ -4174,27 +4069,16 @@ void CFreePcbView::OnPartProperties()
 	dlg.Initialize( &pl, ip, TRUE, FALSE, FALSE, 0, &m_doc->m_footprint_cache_map, 
 		&m_doc->m_footlibfoldermap, m_units, m_doc->m_dlg_log );
 	int ret = dlg.DoModal();
-	if( ret == IDOK )
-	{
-		// note: part must be selected in view
-		CShape * old_shape = part->shape;
-		CString old_ref_des = part->ref_des;
-		// see if ref_des has changed
-		CString new_ref_des = pl[ip].ref_des;
-		SaveUndoInfoForPartAndNets( part, CPartList::UNDO_PART_MODIFY, &new_ref_des, TRUE, m_doc->m_undo_list );
-		m_doc->m_plist->ImportPartListInfo( &pl, 0 );
-		m_doc->Redraw();
-		SelectItem( part );
-		if( dlg.GetDragFlag() )
-			ASSERT(0);	// not allowed
-		else
-		{
-			if( m_doc->m_vis[LAY_RAT_LINE] && !m_doc->m_auto_ratline_disable )
-				m_doc->m_nlist->OptimizeConnections();
-			Invalidate( FALSE );
-			m_doc->ProjectModified( TRUE );
-		}
-	}
+	if( ret != IDOK )
+		return;
+	part->SaveUndoInfo();
+	m_doc->m_plist->ImportPartListInfo( &pl, 0 );
+	if( dlg.GetDragFlag() )
+		ASSERT(0);														// CPT2 TODO.  Investigate why this is.
+	if( m_doc->m_vis[LAY_RAT_LINE] && !m_doc->m_auto_ratline_disable )
+		m_doc->m_nlist->OptimizeConnections();
+	m_doc->ProjectModified( TRUE );
+	HighlightSelection();
 }
 
 void CFreePcbView::OnPartRefProperties()
@@ -4272,15 +4156,15 @@ void CFreePcbView::OnPadStartTrace()
 		CString name = assign_net_dlg.m_net_str;
 		net = m_doc->m_nlist->GetNetPtrByName(&name);
 		if( !net )
-		{
 			// make new net
 			net = new cnet2(m_doc->m_nlist, name, 0, 0, 0);
-			SaveUndoInfoForNetAndConnections( net, CNetList::UNDO_NET_ADD, FALSE, m_doc->m_undo_list );
-		}
+		else
+			net->SaveUndoInfo( cnet2::SAVE_CONNECTS );
 		net->AddPin(pin);
 	}
+	else
+		net->SaveUndoInfo();
 
-	SaveUndoInfoForNetAndConnections( net, CNetList::UNDO_NET_MODIFY, TRUE, m_doc->m_undo_list );
 	CDC * pDC = GetDC();
 	SetDCToWorldCoords( pDC );
 	pDC->SelectClipRgn( &m_pcb_rgn );
@@ -4305,6 +4189,7 @@ void CFreePcbView::OnPadStartTrace()
 	ShowSelectStatus();
 	Invalidate( FALSE );
 	ReleaseDC( pDC );
+	// NB note that m_doc->ProjectModified() is not called.  So an undo record won't be saved until after the first seg is created.
 }
 
 // attach this pad to a net
@@ -4325,10 +4210,7 @@ void CFreePcbView::OnPadAddToNet()
 	{
 		// create new net if legal string
 		if( name.GetLength() )
-		{
 			net = new cnet2(m_doc->m_nlist, name, 0, 0, 0);
-			SaveUndoInfoForNetAndConnections( net, CNetList::UNDO_NET_ADD, TRUE, m_doc->m_undo_list );
-		}
 		else
 		{
 			// blank net name
@@ -4339,16 +4221,15 @@ void CFreePcbView::OnPadAddToNet()
 	}
 	else
 		// use selected net
-		SaveUndoInfoForNetAndConnections( net, CNetList::UNDO_NET_MODIFY, TRUE, m_doc->m_undo_list );
+		net->SaveUndoInfo( cnet2::SAVE_NET_ONLY );
 
 	// assign pin to net
-	SaveUndoInfoForPart( pin->part,	CPartList::UNDO_PART_MODIFY, NULL, FALSE, m_doc->m_undo_list );
+	pin->SaveUndoInfo();
 	net->AddPin(pin);
 	if( m_doc->m_vis[LAY_RAT_LINE] )
 		net->OptimizeConnections( m_doc->m_auto_ratline_disable, m_doc->m_auto_ratline_min_pins, TRUE  );
 	SetFKText( m_cursor_mode );
 	m_doc->ProjectModified( TRUE );
-	Invalidate( FALSE );
 }
 
 // remove this pad from net
@@ -4356,11 +4237,11 @@ void CFreePcbView::OnPadAddToNet()
 void CFreePcbView::OnPadDetachFromNet()
 {
 	cpin2 *pin = m_sel.First()->ToPin();
-	SaveUndoInfoForPartAndNets( pin->part, cpartlist::UNDO_PART_MODIFY, NULL, TRUE, m_doc->m_undo_list );
+	pin->SaveUndoInfo();
+	pin->net->SaveUndoInfo( cnet2::SAVE_CONNECTS );
 	pin->net->RemovePin(pin);
 	SetFKText( m_cursor_mode );
 	m_doc->ProjectModified( TRUE );
-	Invalidate( FALSE );
 }
 
 // connect this pad to another pad
@@ -4416,7 +4297,7 @@ void CFreePcbView::OnVertexStartTrace(bool bResetActiveWidth)
 	if (sel0->IsTee())
 		v = sel0->ToTee()->vtxs.First();
 	cnet2 *net = v->m_net;
-	SaveUndoInfoForNetAndConnections( net, CNetList::UNDO_NET_MODIFY, TRUE, m_doc->m_undo_list );
+	net->SaveUndoInfo( cnet2::SAVE_CONNECTS );
 	CDC * pDC = GetDC();
 	SetDCToWorldCoords( pDC );
 	pDC->SelectClipRgn( &m_pcb_rgn );
@@ -4450,6 +4331,7 @@ void CFreePcbView::OnVertexStartTrace(bool bResetActiveWidth)
 	// end CPT
 	CPoint p = m_last_cursor_point;
 	new_v->StartDraggingStub( pDC, p.x, p.y, m_active_layer, m_active_width, m_active_layer, 2, m_inflection_mode );
+	m_doc->Redraw();
 	if( m_doc->m_bHighlightNet )
 		m_highlight_net = net,
 		net->Highlight();
@@ -4458,6 +4340,7 @@ void CFreePcbView::OnVertexStartTrace(bool bResetActiveWidth)
 	ShowSelectStatus();
 	Invalidate( FALSE );
 	ReleaseDC( pDC );
+	// Note that m_doc->ProjectModified() is not called, so the undo record will not be created until after the first seg is built.
 }
 
 // set width for this segment (not a ratline)
@@ -4467,9 +4350,7 @@ void CFreePcbView::OnSegmentSetWidth()
 {
 	cseg2 *seg = m_sel.First()->ToSeg();
 	SetWidth( 0 );
-	CancelHighlight();
 	seg->Highlight();
-	Invalidate( FALSE );
 }
 
 // unroute this segment, convert to a ratline
@@ -4479,9 +4360,8 @@ void CFreePcbView::OnSegmentUnroute()
 {
 	cseg2 *seg = m_sel.First()->ToSeg();
 	cconnect2 *c = seg->m_con;
-	cnet2 *net = seg->m_net;
 	// save undo info for connection
-	SaveUndoInfoForNetAndConnections( net, CNetList::UNDO_NET_MODIFY, TRUE, m_doc->m_undo_list );
+	c->SaveUndoInfo();
 
 	// edit connection segment
 	// see if segments to pin also need to be unrouted
@@ -4510,10 +4390,8 @@ void CFreePcbView::OnSegmentUnroute()
 	}
 	*/
 	seg->Unroute();
-	m_doc->Redraw();
-	HighlightSelection();
 	m_doc->ProjectModified( TRUE );
-	Invalidate( FALSE );
+	HighlightSelection();
 }
 
 // delete this segment
@@ -4521,14 +4399,10 @@ void CFreePcbView::OnSegmentUnroute()
 void CFreePcbView::OnSegmentDelete()
 {
 	cseg2 *seg = m_sel.First()->ToSeg();
-	cnet2 *net = seg->m_net;
-	SaveUndoInfoForNetAndConnections( net, CNetList::UNDO_NET_MODIFY, TRUE, m_doc->m_undo_list );
-	seg->RemoveBreak();
-	m_doc->Redraw();
-	CancelSelection();
-	ShowSelectStatus();
+	seg->m_con->SaveUndoInfo();
+	seg->RemoveBreak();								// Takes care of undrawing
 	m_doc->ProjectModified( TRUE );
-	Invalidate( FALSE );
+	CancelSelection();
 }
 
 // route this ratline.  CPT2 converted
@@ -4640,25 +4514,21 @@ void CFreePcbView::OnRatlineChangeEndPin()
 void CFreePcbView::OnVertexProperties()
 {
 	cvertex2 *vtx = m_sel.First()->ToVertex();
-	cconnect2 *c = vtx->m_con;
-	cnet2 *net = vtx->m_net;
-	SaveUndoInfoForNetAndConnections( net, CNetList::UNDO_NET_MODIFY, TRUE, m_doc->m_undo_list );
 	CPoint v_pt( vtx->x, vtx->y );
 	CDlgVia dlg = new CDlgVia;
 	dlg.Initialize( vtx->via_w, vtx->via_hole_w, v_pt, m_doc->m_units );
 	int ret = dlg.DoModal();
 	if( ret != IDOK )
 		return;
+	CancelHighlight();
+	vtx->m_con->SaveUndoInfo();
 	vtx->via_w = dlg.m_via_w;
 	vtx->via_hole_w = dlg.m_via_hole_w;
 	if (vtx->via_w)
 		vtx->force_via_flag = 1;					// So that ReconcileVia() won't tamper with the via.
-	CancelHighlight();
 	vtx->Move( dlg.pt().x, dlg.pt().y );
-	m_doc->Redraw();
 	m_doc->ProjectModified( TRUE );
-	vtx->Highlight();
-	Invalidate( FALSE );
+	HighlightSelection();
 }
 
 // change tee/tee-via properties
@@ -4669,25 +4539,22 @@ void CFreePcbView::OnTeeProperties()
 	ctee *tee = m_sel.First()->ToTee();
 	if (tee->vtxs.GetSize()==0) return;				// Weird...
 	cnet2 *net = tee->GetNet();
-	SaveUndoInfoForNetAndConnections( net, CNetList::UNDO_NET_MODIFY, TRUE, m_doc->m_undo_list );
 	CPoint v_pt( tee->vtxs.First()->x, tee->vtxs.First()->y );
 	CDlgVia dlg = new CDlgVia;
 	dlg.Initialize( tee->via_w, tee->via_hole_w, v_pt, m_doc->m_units );
 	int ret = dlg.DoModal();
-	if( ret == IDOK )
-	{
-		CancelHighlight();
-		tee->MustRedraw();
-		tee->via_w = dlg.m_via_w;
-		tee->via_hole_w = dlg.m_via_hole_w;
-		if (tee->via_w)
-			tee->ForceVia();						// So that ReconcileVia() won't tamper with the via.
-		tee->Move( dlg.pt().x, dlg.pt().y );
-		m_doc->Redraw();
-		m_doc->ProjectModified( TRUE );
-		tee->Highlight();
-	}
-	Invalidate( FALSE );
+	if( ret != IDOK )
+		return;
+	CancelHighlight();
+	net->SaveUndoInfo( cnet2::SAVE_CONNECTS );
+	tee->MustRedraw();
+	tee->via_w = dlg.m_via_w;
+	tee->via_hole_w = dlg.m_via_hole_w;
+	if (tee->via_w)
+		tee->ForceVia();						// So that ReconcileVia() won't tamper with the via.
+	tee->Move( dlg.pt().x, dlg.pt().y );
+	m_doc->ProjectModified( TRUE );
+	tee->Highlight();
 }
 
 // move this vertex
@@ -4732,17 +4599,15 @@ void CFreePcbView::OnTeeMove()
 void CFreePcbView::OnVertexDelete()
 {
 	cpcb_item *sel0 = m_sel.First();
-	cvertex2 * v = sel0->ToVertex();
-	cconnect2 * c = v->m_con;
+	cvertex2 *v = sel0->ToVertex();
+	cconnect2 *c = v->m_con;
 	cnet2 *net = v->m_net;
-	SaveUndoInfoForNetAndConnections( net, CNetList::UNDO_NET_MODIFY, TRUE, m_doc->m_undo_list );
+	c->SaveUndoInfo();
 	v->Remove();
 	if( m_doc->m_vis[LAY_RAT_LINE] )
 		net->m_nlist->OptimizeConnections( m_doc->m_auto_ratline_disable, m_doc->m_auto_ratline_min_pins, TRUE  );
-	m_doc->Redraw();
-	CancelSelection();
 	m_doc->ProjectModified( TRUE );
-	Invalidate( FALSE );
+	CancelSelection();
 }
 
 // delete this tee
@@ -4757,14 +4622,12 @@ void CFreePcbView::OnTeeDelete()
 	int ret = AfxMessageBox( s,	MB_OKCANCEL );
 	if( ret == IDCANCEL )
 		return;
-	SaveUndoInfoForNetAndConnections( net, CNetList::UNDO_NET_MODIFY, TRUE, m_doc->m_undo_list );
+	net->SaveUndoInfo();
 	tee->Remove(true);
 	if( m_doc->m_vis[LAY_RAT_LINE] )
 		net->m_nlist->OptimizeConnections( m_doc->m_auto_ratline_disable, m_doc->m_auto_ratline_min_pins, TRUE  );
-	m_doc->Redraw();
-	CancelSelection();
 	m_doc->ProjectModified( TRUE );
-	Invalidate( FALSE );
+	CancelSelection();
 }
 
 // force a via on any vertex
@@ -4774,37 +4637,31 @@ void CFreePcbView::OnVertexAddVia()
 {
 	cpcb_item *sel = m_sel.First();
 	cnet2 *net = sel->GetNet();
-	SaveUndoInfoForNetAndConnections( net, CNetList::UNDO_NET_MODIFY, TRUE, m_doc->m_undo_list );
-	sel->ForceVia();																							// CPT2 changed arg to true
+	sel->SaveUndoInfo();
+	sel->ForceVia();
 	if( m_doc->m_vis[LAY_RAT_LINE] )
-		net->OptimizeConnections( m_doc->m_auto_ratline_disable,	m_doc->m_auto_ratline_min_pins, TRUE  );	// CPT2 TODO still disabled
-	m_doc->Redraw();
-	HighlightSelection();
-	ShowSelectStatus();
-	SetFKText( m_cursor_mode );
+		net->OptimizeConnections( m_doc->m_auto_ratline_disable, m_doc->m_auto_ratline_min_pins, TRUE  );		// CPT2 TODO still disabled
 	m_doc->ProjectModified( TRUE );
-	Invalidate( FALSE );
+	HighlightSelection();
+	SetFKText( m_cursor_mode );
 }
 
-// remove forced via on end vertex
-// CPT2 updated.  Used code from the 'U' clause of HandleKeyPress()
+// remove forced via on vertex
+// CPT2 updated.  Used code from the 'U' clause of HandleKeyPress().  Works on tees.
 
 void CFreePcbView::OnVertexRemoveVia()
 {
 	cpcb_item *sel = m_sel.First();
 	cnet2 *net = sel->GetNet();
-	SaveUndoInfoForNetAndConnections( net, CNetList::UNDO_NET_MODIFY, TRUE, m_doc->m_undo_list );
+	sel->SaveUndoInfo();
 	sel->UnforceVia();																							// CPT2 changed arg to true
 	if (!sel->IsTee())
 		sel->GetConnect()->MergeUnroutedSegments();
 	if( m_doc->m_vis[LAY_RAT_LINE] )
 		net->OptimizeConnections( m_doc->m_auto_ratline_disable, m_doc->m_auto_ratline_min_pins, TRUE  );
-	m_doc->Redraw();
-	HighlightSelection();
-	ShowSelectStatus();
-	SetFKText( m_cursor_mode );
 	m_doc->ProjectModified( TRUE );
-	Invalidate( FALSE );
+	HighlightSelection();
+	SetFKText( m_cursor_mode );
 }
 
 // finish routing a connection by making a segment to the destination pad
@@ -4817,7 +4674,7 @@ void CFreePcbView::OnRatlineComplete()
 	cvertex2 *end = m_dir==0? seg->postVtx: seg->preVtx;
 	cconnect2 *c = seg->m_con;
 	cnet2 *net = seg->m_net;
-	SaveUndoInfoForNetAndConnections( net, CNetList::UNDO_NET_MODIFY, TRUE, m_doc->m_undo_list );
+	c->SaveUndoInfo();
 	// CPT2 TODO.  I'm trying using FinishRouting() instead of cseg2::Route().  This gives us inflection points rather than just a 
 	// straight line.  Desirable?
 	bool bValid = true;
@@ -4841,13 +4698,11 @@ void CFreePcbView::OnRatlineComplete()
 		if (m_active_width == 0)
 			m_active_width = net->def_w? net->def_w: m_doc->m_trace_w;
 		FinishRouting(seg);
-		m_doc->Redraw();
 		seg->CancelDragging();
 		CancelSelection();
 	}
 	else
 		PlaySound( TEXT("CriticalStop"), 0, 0 );
-	Invalidate( FALSE );
 	m_doc->ProjectModified( TRUE );
 }
 
@@ -4876,12 +4731,10 @@ void CFreePcbView::OnDeleteConnection()
 		if( ret == IDNO )
 			return;
 	}
-	SaveUndoInfoForNetAndConnections( net, CNetList::UNDO_NET_MODIFY, TRUE, m_doc->m_undo_list );
+	net->SaveUndoInfo( cnet2::SAVE_CONNECTS );
 	c->Remove();
-	m_doc->Redraw();
-	CancelSelection();
 	m_doc->ProjectModified( TRUE );
-	Invalidate( FALSE );
+	CancelSelection();
 }
 
 // lock a connection CPT2 converted
@@ -4889,7 +4742,7 @@ void CFreePcbView::OnDeleteConnection()
 void CFreePcbView::OnRatlineLockConnection()
 {
 	cconnect2 *c = m_sel.First()->GetConnect();
-	SaveUndoInfoForNetAndConnections( c->m_net, CNetList::UNDO_NET_MODIFY, TRUE, m_doc->m_undo_list );
+	c->SaveUndoInfo();
 	c->locked = 1;
 	ShowSelectStatus();
 	SetFKText( m_cursor_mode );
@@ -4901,7 +4754,7 @@ void CFreePcbView::OnRatlineLockConnection()
 void CFreePcbView::OnRatlineUnlockConnection()
 {
 	cconnect2 *c = m_sel.First()->GetConnect();
-	SaveUndoInfoForNetAndConnections( c->m_net, CNetList::UNDO_NET_MODIFY, TRUE, m_doc->m_undo_list );
+	c->SaveUndoInfo();
 	c->locked = 0;
 	ShowSelectStatus();
 	SetFKText( m_cursor_mode );
@@ -4924,31 +4777,31 @@ void CFreePcbView::OnTextEdit()
 		return;
 
 	// now replace old text with new one
-	SaveUndoInfoForText( t, ctextlist::UNDO_TEXT_MODIFY, TRUE, m_doc->m_undo_list );
-	int x = add_text_dlg.m_x;
-	int y = add_text_dlg.m_y;
-	bool bMirror = add_text_dlg.m_bMirror;
-	bool bNegative = add_text_dlg.m_bNegative;
-	int angle = add_text_dlg.m_angle;
-	int font_size = add_text_dlg.m_height;
-	int stroke_width = add_text_dlg.m_width;
-	int layer = add_text_dlg.m_layer;
-	CString str = add_text_dlg.m_str;
+	t->SaveUndoInfo();
 	CancelHighlight();
-	ctext *t2 = m_doc->m_tlist->AddText(x, y, angle, bMirror, bNegative, layer, font_size, stroke_width, &str);
-	m_doc->m_tlist->texts.Remove(t);
-	// CPT2 TODO do we care enough to enable the following?
-	// t2->m_uid = t->m_uid;
-	t->Undraw();
-	t2->MustRedraw();
-	m_doc->Redraw();
-	SelectItem(t2);
+	t->MustRedraw();
+	t->m_x = add_text_dlg.m_x;
+	t->m_y = add_text_dlg.m_y;
+	t->m_bMirror = add_text_dlg.m_bMirror;
+	t->m_bNegative = add_text_dlg.m_bNegative;
+	t->m_angle = add_text_dlg.m_angle;
+	t->m_font_size = add_text_dlg.m_height;
+	t->m_stroke_width = add_text_dlg.m_width;
+	t->m_layer = add_text_dlg.m_layer;
+	t->m_str = add_text_dlg.m_str;
+	m_doc->ProjectModified( TRUE );
+	HighlightSelection();
 	// start dragging if requested in dialog
 	if( add_text_dlg.m_bDrag )
-		OnTextMove();
-	else
-		Invalidate( FALSE );
-	m_doc->ProjectModified( TRUE );
+	{
+		CDC *pDC = GetDC();							// CPT2 TODO move this whole pDC business down into the StartDragging routines...
+		pDC->SelectClipRgn( &m_pcb_rgn );
+		SetDCToWorldCoords( pDC );
+		m_dragging_new_item = 1;
+		t->StartDragging( pDC );
+		SetCursorMode( CUR_DRAG_TEXT );
+		ReleaseDC( pDC );
+	}
 }
 
 
@@ -5041,6 +4894,7 @@ void CFreePcbView::OnPolyAddCutout()
 	SetCursorMode( CUR_ADD_POLY_CUTOUT );
 	// make layer visible
 	cpolyline *poly = m_sel.First()->GetPolyline();
+	poly->SaveUndoInfo();
 	if (poly->IsArea())
 		// NB This doesn't work properly if poly is an csmcutout (those layers can't be the active layer)
 		m_active_layer = poly->GetLayer(),
@@ -5054,43 +4908,39 @@ void CFreePcbView::OnPolyAddCutout()
 	ReleaseDC( pDC );
 }
 
-void CFreePcbView::FinishAddPoly(ccontour *ctr)
+void CFreePcbView::FinishAddPoly()
 {
+	ccontour *ctr = m_drag_contour;
 	cpolyline *poly = ctr->GetPolyline();
-	carea2 *a = poly->ToArea();
 	cnet2 *net = poly->GetNet();
 	poly->MustRedraw();
-	if (a)
-		SaveUndoInfoForAllAreasInNet( net, TRUE, m_doc->m_undo_list );
-	else
-		SaveUndoInfoForPolylines( TRUE, m_doc->m_undo_list );
+	poly->SaveUndoInfo();
 	ctr->Close( m_polyline_style );
 	if (!poly->PolygonModified( FALSE, FALSE ))
 		m_doc->OnEditUndo();
-	else if( a && m_doc->m_vis[LAY_RAT_LINE] )
+	else if( poly->IsArea() && m_doc->m_vis[LAY_RAT_LINE] )
 		net->OptimizeConnections( m_doc->m_auto_ratline_disable, m_doc->m_auto_ratline_min_pins, TRUE  );
-	m_doc->Redraw();
+	m_doc->ProjectModified(true, true);			// CPT2 takes care of creating an undo record, indicating that poly is a new creation.
+												// Second arg indicates that we combine the current changes (the final side creation) with the
+												// previous changes (the actual polyline creation) in a single undo record.
 	CancelSelection();
 }
 
-void CFreePcbView::FinishAddPolyCutout(ccontour *ctr) 
+void CFreePcbView::FinishAddPolyCutout() 
 {
+	ccontour *ctr = m_drag_contour;
 	cpolyline *poly = m_sel.First()->GetPolyline();
-	carea2 *a = poly->ToArea();
 	cnet2 *net = poly->GetNet();
 	poly->MustRedraw();
-	m_tmp_poly->Undraw();
-	if (a)
-		SaveUndoInfoForAllAreasInNet( net, TRUE, m_doc->m_undo_list );
-	else
-		SaveUndoInfoForPolylines( TRUE, m_doc->m_undo_list );
+	poly->SaveUndoInfo();
+	poly->Undraw();
 	ctr->Close( m_polyline_style );
 	ctr->SetPoly( poly );
 	if (!poly->PolygonModified( FALSE, FALSE ))
 		m_doc->OnEditUndo();
-	else if( a && m_doc->m_vis[LAY_RAT_LINE] )
+	else if( poly->IsArea() && m_doc->m_vis[LAY_RAT_LINE] )
 		net->OptimizeConnections( m_doc->m_auto_ratline_disable, m_doc->m_auto_ratline_min_pins, TRUE  );
-	m_doc->Redraw();
+	m_doc->ProjectModified( true, true );
 	CancelSelection();
 }
 
@@ -5098,20 +4948,14 @@ void CFreePcbView::OnPolyDelete()
 {
 	// CPT2 generalized function used for areas, smcutouts and board outlines.  Works whether the current selection is a corner or a side.
 	cpolyline *poly = m_sel.First()->GetPolyline();
-	carea2 *a = poly->ToArea();
 	cnet2 *net = poly->GetNet();
-	if (a)
-		SaveUndoInfoForArea( a, CNetList::UNDO_AREA_DELETE, TRUE, m_doc->m_undo_list );
-	else
-		SaveUndoInfoForPolylines( TRUE, m_doc->m_undo_list );
+	poly->SaveUndoInfo();
 	poly->Remove();
-	if (a)
+	if (poly->IsArea())
 		net->OptimizeConnections( m_doc->m_auto_ratline_disable, m_doc->m_auto_ratline_min_pins, TRUE  ),
 		net->SetThermals();
-	m_doc->Redraw();
-	CancelSelection();
 	m_doc->ProjectModified( TRUE );
-	Invalidate( FALSE );
+	CancelSelection();
 }
 
 void CFreePcbView::OnPolyDeleteCutout()
@@ -5120,7 +4964,6 @@ void CFreePcbView::OnPolyDeleteCutout()
 	//  these are called "region exclusions" and the f-key that leads us here is called "remove contour")
 	cpcb_item *first = m_sel.First();
 	cpolyline *poly = first->GetPolyline();
-	carea2 *a = poly->ToArea();
 	cnet2 *net = poly->GetNet();
 	ccontour *ctr = NULL;
 	if (ccorner *c = first->ToCorner())
@@ -5128,19 +4971,15 @@ void CFreePcbView::OnPolyDeleteCutout()
 	else if (cside *s = first->ToSide())
 		ctr = s->contour;
 	ASSERT( ctr && ctr != ctr->poly->main );
-	if (a)
-		SaveUndoInfoForAllAreasInNet( net, TRUE, m_doc->m_undo_list );
-	else
-		SaveUndoInfoForPolylines( TRUE, m_doc->m_undo_list );
+	poly->SaveUndoInfo();
 	poly->MustRedraw();
 	ctr->Remove();
 	if (!poly->PolygonModified( FALSE, FALSE ))
 		m_doc->OnEditUndo();
-	else if( a && m_doc->m_vis[LAY_RAT_LINE] )
+	else if( poly->IsArea() && m_doc->m_vis[LAY_RAT_LINE] )
 		net->OptimizeConnections( m_doc->m_auto_ratline_disable, m_doc->m_auto_ratline_min_pins, TRUE  );
-	m_doc->Redraw();
+	m_doc->ProjectModified( true );
 	CancelSelection();
-	Invalidate( FALSE );
 }
 
 
@@ -5165,20 +5004,14 @@ void CFreePcbView::OnPolyCornerDelete()
 	// delete a polyline corner (for areas, smcutouts, and board-outlines)
 	ccorner *c = m_sel.First()->ToCorner();
 	cpolyline *poly = c->GetPolyline();
-	carea2 *a = poly->ToArea();
 	cnet2 *net = c->GetNet();
-	if (a)
-		SaveUndoInfoForArea( a, CNetList::UNDO_AREA_MODIFY, TRUE, m_doc->m_undo_list );
-	else
-		SaveUndoInfoForPolylines( TRUE, m_doc->m_undo_list );
+	poly->SaveUndoInfo();
 	c->Remove();							// NB could result in the removal of a contour or even the whole area
 	poly->PolygonModified( false, true );
-	if( a && m_doc->m_vis[LAY_RAT_LINE] )
+	if( poly->IsArea() && m_doc->m_vis[LAY_RAT_LINE] )
 		net->OptimizeConnections( m_doc->m_auto_ratline_disable, m_doc->m_auto_ratline_min_pins, TRUE  );
-	m_doc->Redraw();
 	m_doc->ProjectModified( TRUE );
 	CancelSelection();
-	Invalidate( FALSE );
 }
 
 //insert a new corner in a side of a copper area
@@ -5200,27 +5033,20 @@ void CFreePcbView::OnPolySideAddCorner()
 void CFreePcbView::OnPolySideConvert(int style)
 {
 	cside *s = m_sel.First()->ToSide();
+	if (s->m_style == style)
+		return;
 	cpolyline *poly = s->GetPolyline();
-	carea2 *a = poly->ToArea();
 	cnet2 *net = s->GetNet();
-	if (a)
-		SaveUndoInfoForAllAreasInNet( net, TRUE, m_doc->m_undo_list );
-	else
-		SaveUndoInfoForPolylines( TRUE, m_doc->m_undo_list );
+	poly->SaveUndoInfo();
 	poly->MustRedraw();
 	s->m_style = style;
-	if (a)
-	{
-		// CPT2 I suppose I'll do this, though it's not likely to be important very often:
-		if (!a->PolygonModified( FALSE, TRUE ))
-			m_doc->OnEditUndo();
-		else if( m_doc->m_vis[LAY_RAT_LINE] )
-			net->OptimizeConnections( m_doc->m_auto_ratline_disable, m_doc->m_auto_ratline_min_pins, TRUE );
-	}
-	m_doc->Redraw();
-	HighlightSelection();
+	// CPT2 I suppose I'll do PolygonModified(), though it's not likely to be important very often:
+	if (!poly->PolygonModified( FALSE, TRUE ))
+		m_doc->OnEditUndo();
+	else if( poly->IsArea() && m_doc->m_vis[LAY_RAT_LINE] )
+		net->OptimizeConnections( m_doc->m_auto_ratline_disable, m_doc->m_auto_ratline_min_pins, TRUE );
 	m_doc->ProjectModified( TRUE );
-	Invalidate( FALSE );
+	HighlightSelection();
 }
 
 void CFreePcbView::OnPolySideConvertToStraightLine()
@@ -5236,27 +5062,21 @@ void CFreePcbView::OnPolyCornerEdit()
 {
 	ccorner *c = m_sel.First()->ToCorner();
 	cpolyline *poly = c->GetPolyline();
-	carea2 *a = poly->ToArea();
 	DlgEditBoardCorner dlg;
 	CString str ((LPCSTR) IDS_CornerPosition);
 	dlg.Init( &str, m_doc->m_units, c->x, c->y );
 	int ret = dlg.DoModal();
 	if( ret != IDOK ) return;
-	if (a)
-		SaveUndoInfoForArea( a, CNetList::UNDO_AREA_MODIFY, TRUE, m_doc->m_undo_list );
-	else
-		SaveUndoInfoForPolylines( TRUE, m_doc->m_undo_list );
+	poly->SaveUndoInfo();
 	int x = dlg.X(), y = dlg.Y();
 	c->Move( x, y );
 	if (!poly->PolygonModified(false, true))				// CPT2 TODO figure out the system regarding which arg-values this function gets handed.
 		m_doc->OnEditUndo();
-	else if( a && m_doc->m_vis[LAY_RAT_LINE] )
-		a->m_net->OptimizeConnections( m_doc->m_auto_ratline_disable, m_doc->m_auto_ratline_min_pins, TRUE  );
-	m_doc->Redraw();
+	else if( poly->IsArea() && m_doc->m_vis[LAY_RAT_LINE] )
+		poly->GetNet()->OptimizeConnections( m_doc->m_auto_ratline_disable, m_doc->m_auto_ratline_min_pins, TRUE  );
+	m_doc->ProjectModified( TRUE );
 	TryToReselectCorner( x, y );
 	HighlightSelection();
-	m_doc->ProjectModified( TRUE );
-	Invalidate( FALSE );
 }
 
 // attempt to reselect polyline corner within currently selected net, based on position
@@ -5301,12 +5121,11 @@ void CFreePcbView::OnSmEdit()
 	int il = dlg.m_layer;
 	m_doc->m_vis[il] = TRUE;
 	m_dlist->SetLayerVisible( il, TRUE );
+	sm->SaveUndoInfo();
 	sm->MustRedraw();
 	sm->m_layer = il;
 	sm->m_hatch = dlg.m_hatch;
-	m_doc->Redraw();
 	m_doc->ProjectModified( TRUE );
-	Invalidate( FALSE );
 }
 
 
@@ -5478,7 +5297,6 @@ LONG CFreePcbView::OnChangeVisibleGrid( UINT wp, LONG lp )
 	else
 		ASSERT(0);
 	m_dlist->SetVisibleGrid( TRUE, m_doc->m_visual_grid_spacing );
-	Invalidate( FALSE );
 	m_doc->ProjectModified( TRUE );
 	SetFocus();
 	return 0;
@@ -5566,7 +5384,7 @@ void CFreePcbView::OnRefProperties()
 	int ret = dlg.DoModal();
 	if( ret != IDOK )
 		return;
-	SaveUndoInfoForPart( part, cpartlist::UNDO_PART_MODIFY, NULL, TRUE, m_doc->m_undo_list );		// CPT2 TODO constants like this should be in cpart2
+	part->SaveUndoInfo(false);
 	CancelHighlight();
 	t->MustRedraw();
 	t->Resize(dlg.m_height, dlg.m_width);
@@ -5577,13 +5395,11 @@ void CFreePcbView::OnRefProperties()
 		part->ref_des = dlg.m_str;
 	else
 		part->value_text = dlg.m_str;
-	m_doc->Redraw();
 	m_doc->ProjectModified( TRUE );
 	if (dlg.m_vis && t->m_str != "")
 		HighlightSelection();
 	else
 		CancelSelection();
-	Invalidate( FALSE );
 }
 
 
@@ -5592,8 +5408,7 @@ void CFreePcbView::OnRefProperties()
 void CFreePcbView::OnUnrouteTrace()
 {
 	cconnect2 *c = m_sel.First()->GetConnect();
-	cnet2 *net = c->m_net;
-	SaveUndoInfoForNetAndConnections( net, CNetList::UNDO_NET_MODIFY, TRUE, m_doc->m_undo_list );
+	c->SaveUndoInfo();
 	c->MustRedraw();
 	c->vtxs.RemoveAll();
 	c->vtxs.Add(c->head); c->vtxs.Add(c->tail);
@@ -5603,438 +5418,32 @@ void CFreePcbView::OnUnrouteTrace()
 	seg->preVtx = c->head;
 	c->tail->preSeg = seg;
 	seg->postVtx = c->tail;
-	m_doc->Redraw();
-	SelectItem(seg);
 	m_doc->ProjectModified( TRUE );
-	Invalidate( FALSE );
+	SelectItem(seg);
 }
 
-// save undo info for a group, for UNDO_GROUP_MODIFY or UNDO_GROUP_DELETE
-//
-void CFreePcbView::SaveUndoInfoForGroup( int type, carray<cpcb_item> *items, CUndoList * list )
+
+void CFreePcbView::SaveUndoInfoForGroup()
 {
-#ifndef CPT2
-	if( type != UNDO_GROUP_MODIFY && type != UNDO_GROUP_DELETE )
-		ASSERT(0);
-
-	void * ptr;
-
-	// first, mark all nets as unselected and set new_event flag
-	m_doc->m_nlist->MarkAllNets(0);
-	list->NewEvent();
-
-	// save info for all relevant nets
-	for( int i=0; i<ids->GetSize(); i++ )
+	// CPT2. Reused the name of the old function, but completely readapted to the new undo system.
+	citer<cpcb_item> ii (&m_sel);
+	for (cpcb_item *i = ii.First(); i; i = ii.Next())
 	{
-		id sid = (*ids)[i];
-		if( sid.T1() == ID_PART )
+		if (i->GetConnect())
+			i->GetConnect()->SaveUndoInfo();
+		else if (i->GetPolyline())
+			i->GetPolyline()->SaveUndoInfo();
+		else if (cpart2 *part = i->ToPart())
 		{
-			cpart * part = (cpart*)(*ptrs)[i];
-			for( int ip=0; ip<part->pin.GetSize(); ip++ )
-			{
-				cnet * net = (cnet*)part->pin[ip].net;
-				if( net )
-				{
-					if( net->utility == FALSE )
-					{
-						// unsaved
-						SaveUndoInfoForNetAndConnectionsAndAreas( net, FALSE, list );
-						net->utility = TRUE;
-					}
-				}
-			}
+			part->SaveUndoInfo();
+			citer<cpin2> ipin (&part->pins);
+			for (cpin2 *pin = ipin.First(); pin; pin = ipin.Next())
+				if (pin->net)
+					pin->net->SaveUndoInfo( cnet2::SAVE_CONNECTS );
 		}
-		else if( sid.T1() == ID_NET )
-		{
-			cnet * net = (cnet*)(*ptrs)[i];
-			if( net )
-			{
-				if( net->utility == FALSE )
-				{
-					// unsaved
-					SaveUndoInfoForNetAndConnectionsAndAreas( net, FALSE, list );
-					net->utility = TRUE;
-				}
-			}
-		}
-	}
-	// save undo info for all parts and texts in group
-	for( int i=0; i<ids->GetSize(); i++ )
-	{
-		id sid = (*ids)[i];
-		if( sid.T1() == ID_PART )
-		{
-			cpart * part = (cpart*)(*ptrs)[i];
-			SaveUndoInfoForPart( part,
-				CPartList::UNDO_PART_MODIFY, NULL, FALSE, list );
-		}
-		else if( sid.T1() == ID_TEXT )
-		{
-			CText * text = (CText*)(*ptrs)[i];
-			if( type == UNDO_GROUP_MODIFY )
-				SaveUndoInfoForText( text, CTextList::UNDO_TEXT_MODIFY, FALSE, list );
-			else if( type == UNDO_GROUP_DELETE )
-				SaveUndoInfoForText( text, CTextList::UNDO_TEXT_DELETE, FALSE, list );
-		}
-	}
-	// save undo info for all sm cutouts
-	SaveUndoInfoForSMCutouts( FALSE, list );
-	// save undo info for all board outlines
-	SaveUndoInfoForBoardOutlines( FALSE, list );
-
-	// now save undo descriptor );
-	ptr = (void*)CreateGroupDescriptor( list, ptrs, ids, type );
-	list->Push( UNDO_GROUP, ptr, &UndoGroupCallback );
-#endif
-}
-
-// save undo info for two existing parts and all nets connected to them,
-// assuming that the parts will be modified (not deleted or added)
-//
-void CFreePcbView::SaveUndoInfoFor2PartsAndNets( cpart2 * part1, cpart2 * part2, BOOL new_event, CUndoList * list )
-{
-#ifndef CPT2
-	void * ptr;
-	cpart * part;
-
-	if( new_event )
-		list->NewEvent();
-	for( int i=0; i<2; i++ )
-	{
-		if( i==0 )
-			part = part1;
 		else
-			part = part2;
-		for( int ip=0; ip<part->pin.GetSize(); ip++ )
-		{
-			cnet * net = (cnet*)part->pin[ip].net;
-			if( net )
-				net->utility = 0;
-		}
-		for( int ip=0; ip<part->pin.GetSize(); ip++ )
-		{
-			cnet * net = (cnet*)part->pin[ip].net;
-			if( net )
-			{
-				if( net->utility == 0 )
-				{
-					for( int ic=0; ic<net->NumCons(); ic++ )
-					{
-						undo_con * u_con = m_doc->m_nlist->CreateConnectUndoRecord( net, ic );
-						list->Push( CNetList::UNDO_CONNECT_MODIFY, u_con,
-							&m_doc->m_nlist->ConnectUndoCallback, u_con->size );
-					}
-					undo_net * u_net = m_doc->m_nlist->CreateNetUndoRecord( net );
-					list->Push( CNetList::UNDO_NET_MODIFY, u_net,
-						&m_doc->m_nlist->NetUndoCallback, u_net->size );
-					net->utility = 1;
-				}
-			}
-		}
+			i->SaveUndoInfo();
 	}
-	// now save undo info for parts
-	undo_part * u_part1 = m_doc->m_plist->CreatePartUndoRecord( part1, NULL );
-	list->Push( CPartList::UNDO_PART_MODIFY, u_part1,
-		&m_doc->m_plist->PartUndoCallback, u_part1->size );
-	undo_part * u_part2 = m_doc->m_plist->CreatePartUndoRecord( part2, NULL );
-	list->Push( CPartList::UNDO_PART_MODIFY, u_part2,
-		&m_doc->m_plist->PartUndoCallback, u_part2->size );
-	// now save undo descriptor
-	if( new_event )
-	{
-		ptr = CreateUndoDescriptor( list, 0, &part1->ref_des, &part2->ref_des, 0, 0, NULL, NULL );
-		list->Push( UNDO_2_PARTS_AND_NETS, ptr, &UndoCallback );
-	}
-#endif
-}
-
-// save undo info for net, all connections and all areas
-//
-void CFreePcbView::SaveUndoInfoForNetAndConnectionsAndAreas( cnet2 * net, BOOL new_event, CUndoList * list )
-{
-#ifndef CPT2
-	if( new_event )
-		ASSERT( 0 );
-	SaveUndoInfoForNetAndConnections( net,
-		CNetList::UNDO_NET_MODIFY, new_event, list );
-	for( int ia=0; ia<net->NumAreas(); ia++ )
-		SaveUndoInfoForArea( net, ia, CNetList::UNDO_AREA_MODIFY, FALSE, list );
-#endif
-}
-
-// save undo info for net, all connections and
-// a single copper area
-// type may be:
-//	CNetList::UNDO_AREA_MODIFY	if area will be modified
-//	CNetList::UNDO_AREA_DELETE	if area will be deleted
-//
-void CFreePcbView::SaveUndoInfoForNetAndConnectionsAndArea( cnet2 * net, carea2 * area,
-														   int type, BOOL new_event, CUndoList * list )
-{
-#ifndef CPT2
-	if( new_event )
-	{
-		list->NewEvent();
-	}
-	SaveUndoInfoForArea( net, iarea, type, FALSE, m_doc->m_undo_list );
-	SaveUndoInfoForNetAndConnections( net,
-		CNetList::UNDO_NET_MODIFY, FALSE, m_doc->m_undo_list );
-	// now save undo descriptor
-	if( new_event )
-	{
-		void * ptr = CreateUndoDescriptor( list, type, &net->name, NULL, iarea, 0, NULL, NULL );
-		list->Push( UNDO_NET_AND_CONNECTIONS_AND_AREA, ptr, &UndoCallback );
-	}
-#endif
-}
-
-// save undo info for a copper area to be modified or deleted
-// type may be:
-//	CNetList::UNDO_AREA_ADD	if area will be added
-//	CNetList::UNDO_AREA_MODIFY	if area will be modified
-//	CNetList::UNDO_AREA_DELETE	if area will be deleted
-//
-void CFreePcbView::SaveUndoInfoForArea( carea2 * area, int type, BOOL new_event, CUndoList * list )
-{
-#ifndef CPT2
-	void *ptr;
-	if( new_event )
-	{
-		list->NewEvent();
-		SaveUndoInfoForNet( net, CNetList::UNDO_NET_OPTIMIZE, FALSE, list );
-	}
-	int nc = 1;
-	if( type != CNetList::UNDO_AREA_ADD )
-	{
-		nc = net->area[iarea].NumContours();
-		if( !net->area[iarea].Closed() )
-			nc--;
-	}
-	if( nc > 0 )
-	{
-		undo_area * undo = m_doc->m_nlist->CreateAreaUndoRecord( net, iarea, type );
-		list->Push( type, (void*)undo, &m_doc->m_nlist->AreaUndoCallback, undo->size );
-	}
-	// now save undo descriptor
-	if( new_event )
-	{
-		ptr = CreateUndoDescriptor( list, type, &net->name, NULL, iarea, 0, NULL, NULL );
-		list->Push( UNDO_AREA, ptr, &UndoCallback );
-	}
-#endif
-}
-
-// save undo info for all of the areas in a net
-//
-void CFreePcbView::SaveUndoInfoForAllAreasInNet( cnet2 * net, BOOL new_event, CUndoList * list )
-{
-#ifndef CPT2
-	if( new_event )
-	{
-		list->NewEvent();		// flag new undo event
-		SaveUndoInfoForNet( net, CNetList::UNDO_NET_OPTIMIZE, FALSE, list );
-	}
-	for( int ia=net->area.GetSize()-1; ia>=0; ia-- )
-		SaveUndoInfoForArea( net, ia, CNetList::UNDO_AREA_DELETE, FALSE, list );
-	undo_area * u_area = m_doc->m_nlist->CreateAreaUndoRecord( net, 0, CNetList::UNDO_AREA_CLEAR_ALL );
-	list->Push( CNetList::UNDO_AREA_CLEAR_ALL, u_area, &m_doc->m_nlist->AreaUndoCallback, u_area->size );
-	// now save undo descriptor
-	if( new_event )
-	{
-		void * ptr = CreateUndoDescriptor( list, 0, &net->name, NULL, 0, 0, NULL, NULL );
-		list->Push( UNDO_ALL_AREAS_IN_NET, ptr, &UndoCallback );
-	}
-#endif
-}
-
-// save undo info for all of the areas in two nets
-//
-void CFreePcbView::SaveUndoInfoForAllAreasIn2Nets( cnet2 * net1, cnet2 * net2, BOOL new_event, CUndoList * list )
-{
-#ifndef CPT2
-	if( new_event )
-	{
-		list->NewEvent();		// flag new undo event
-		SaveUndoInfoForNet( net1, CNetList::UNDO_NET_OPTIMIZE, FALSE, list );
-		SaveUndoInfoForNet( net2, CNetList::UNDO_NET_OPTIMIZE, FALSE, list );
-	}
-	SaveUndoInfoForAllAreasInNet( net1, FALSE, list );
-	SaveUndoInfoForAllAreasInNet( net2, FALSE, list );
-	// now save undo descriptor
-	if( new_event )
-	{
-		void * ptr = CreateUndoDescriptor( list, 0, &net1->name, &net2->name, 0, 0, NULL, NULL );
-		list->Push( UNDO_ALL_AREAS_IN_2_NETS, ptr, &UndoCallback );
-	}
-#endif
-}
-
-// save undo info for all nets (but not areas)
-//
-void CFreePcbView::SaveUndoInfoForAllNets( BOOL new_event, CUndoList * list )
-{
-#ifndef CPT2
-	POSITION pos;
-	CString name;
-	CMapStringToPtr * m_map = &m_doc->m_nlist->m_map;
-	void * net_ptr;
-	if( new_event )
-		list->NewEvent();		// flag new undo event
-	// traverse map of nets
-	for( pos = m_map->GetStartPosition(); pos != NULL; )
-	{
-		// next net
-		m_map->GetNextAssoc( pos, name, net_ptr );
-		cnet * net = (cnet*)net_ptr;
-		void * ptr;
-		// loop through all connections in net
-		for( int ic=0; ic<net->NumCons(); ic++ )
-		{
-			undo_con * u_con = m_doc->m_nlist->CreateConnectUndoRecord( net, ic );
-			list->Push( CNetList::UNDO_CONNECT_MODIFY, u_con,
-				&m_doc->m_nlist->ConnectUndoCallback, u_con->size );
-		}
-		undo_net * u_net = m_doc->m_nlist->CreateNetUndoRecord( net );
-		list->Push( CNetList::UNDO_NET_MODIFY, u_net,
-			&m_doc->m_nlist->NetUndoCallback, u_net->size );
-	}
-#endif
-}
-
-// save undo info for all nets including areas
-//
-void CFreePcbView::SaveUndoInfoForAllNetsAndConnectionsAndAreas( BOOL new_event, CUndoList * list )
-{
-#ifndef CPT2
-	POSITION pos;
-	CString name;
-	CMapStringToPtr * m_map = &m_doc->m_nlist->m_map;
-	void * net_ptr;
-	if( new_event )
-		list->NewEvent();		// flag new undo event
-	// traverse map of nets
-	for( pos = m_map->GetStartPosition(); pos != NULL; )
-	{
-		// next net
-		m_map->GetNextAssoc( pos, name, net_ptr );
-		cnet * net = (cnet*)net_ptr;
-		SaveUndoInfoForNetAndConnectionsAndAreas( net, FALSE, list );
-	}
-#endif
-}
-
-void CFreePcbView::SaveUndoInfoForMoveOrigin( int x_off, int y_off, CUndoList * list )
-{
-#ifndef CPT2
-	// now push onto undo list
-	undo_move_origin * undo = m_doc->CreateMoveOriginUndoRecord( x_off, y_off );
-	list->NewEvent();
-	list->Push( 0, (void*)undo, &m_doc->MoveOriginUndoCallback );
-	// save top-level descriptor
-	void * ptr = CreateUndoDescriptor( list, 0, NULL, NULL, x_off, y_off, NULL, NULL );
-	list->Push( UNDO_MOVE_ORIGIN, ptr, &UndoCallback );
-#endif
-}
-
-/* void CFreePcbView::SaveUndoInfoForBoardOutlines( BOOL new_event, CUndoList * list )
-{
-#ifndef CPT2
-	// now push onto undo list
-	if( new_event )
-		list->NewEvent();		// flag new undo event
-
-	// get number of closed board outlines
-	int n_closed = 0;
-	for( int i=0; i<m_doc->m_board_outline.GetSize(); i++ )
-	{
-		CPolyLine * poly = &m_doc->m_board_outline[i];
-		if( poly->Closed() )
-			n_closed = i+1;
-	}
-	// push all board outlines onto undo list
-	for( int i=0; i<n_closed; i++ )
-	{
-		CPolyLine * poly = &m_doc->m_board_outline[i];
-		undo_board_outline * undo = m_doc->CreateBoardOutlineUndoRecord( poly );
-		list->Push( UNDO_BOARD, (void*)undo, &m_doc->BoardOutlineUndoCallback );
-	}
-	list->Push( UNDO_BOARD_OUTLINE_CLEAR_ALL, NULL, &m_doc->BoardOutlineUndoCallback );
-	if( new_event )
-	{
-		void * ptr = CreateUndoDescriptor( list, 0, NULL, NULL, 0, 0, NULL, NULL );
-		list->Push( UNDO_ALL_BOARD_OUTLINES, ptr, &UndoCallback );
-	}
-#endif
-}
-*/
-
-void CFreePcbView::SaveUndoInfoForPolylines( BOOL new_event, CUndoList * list )
-{
-	// CPT2 TODO will combine the old SaveUndoInfoForSmCutouts and SaveUndoInfoForBoardOutlines
-#ifndef CPT2
-	// push undo info onto list
-	if( new_event )
-		list->NewEvent();		// flag new undo event
-	// get last closed cutout
-	int i;
-	int n_closed = 0;
-	for( i=0; i<m_doc->m_sm_cutout.GetSize(); i++ )
-	{
-		CPolyLine * poly = &m_doc->m_sm_cutout[i];
-		if( poly->Closed() )
-			n_closed = i+1;
-		else
-			break;
-	}
-	// push all closed cutouts onto undo list
-	for( i=0; i<n_closed; i++ )
-	{
-		CPolyLine * poly = &m_doc->m_sm_cutout[i];
-		undo_sm_cutout * undo = m_doc->CreateSMCutoutUndoRecord( poly );
-		list->Push( UNDO_SM_CUTOUT, (void*)undo, &m_doc->SMCutoutUndoCallback );
-	}
-	// create UNDO_SM_CUTOUT_CLEAR_ALL record and push it
-	list->Push( UNDO_SM_CUTOUT_CLEAR_ALL, NULL, &m_doc->SMCutoutUndoCallback );
-	// now push top-level callback for redoing
-	if( new_event )
-	{
-		void * ptr = CreateUndoDescriptor( list, 0, NULL, NULL, 0, 0, NULL, NULL );
-		list->Push( UNDO_ALL_SM_CUTOUTS, ptr, &UndoCallback );
-	}
-#endif
-}
-
-void CFreePcbView::SaveUndoInfoForText( ctext * text, int type, BOOL new_event, CUndoList * list )
-{
-#ifndef CPT2
-	// create new undo record and push onto undo list
-	undo_text * undo = m_doc->m_tlist->CreateUndoRecord( text );
-	if( new_event )
-		list->NewEvent();		// flag new undo event
-	list->Push( type, (void*)undo, &m_doc->m_tlist->TextUndoCallback );
-	if( new_event )
-	{
-		void * ptr = CreateUndoDescriptor( list, type, NULL, NULL, 0, 0, NULL, (void *)undo );
-		list->Push( UNDO_TEXT, ptr, &UndoCallback );
-	}
-#endif
-}
-
-void CFreePcbView::SaveUndoInfoForText( undo_text * u_text, int type, BOOL new_event, CUndoList * list )
-{
-#ifndef CPT2
-	// copy undo record and push onto undo list
-	undo_text * undo = new undo_text;
-	*undo = *u_text;
-	if( new_event )
-		list->NewEvent();		// flag new undo event
-	list->Push( type, (void*)undo, &m_doc->m_tlist->TextUndoCallback );
-	if( new_event )
-	{
-		void * ptr = CreateUndoDescriptor( list, type, NULL, NULL, 0, 0, NULL, (void*)undo );
-		list->Push( UNDO_TEXT, ptr, &UndoCallback );
-	}
-#endif
 }
 
 
@@ -6157,7 +5566,6 @@ void CFreePcbView::OnAreaEdgeHatchStyle()
 		int hatch = dlg.GetHatch();
 		m_sel_net->area[m_sel_id.I2()].SetHatch( hatch );
 		m_doc->ProjectModified( TRUE );
-		Invalidate( FALSE );
 	}
 }
 
@@ -6239,11 +5647,9 @@ void CFreePcbView::OnExternalChangeFootprint( CShape * fp )
 		part->ChangeFootprint( shape );
 	}
 
-	m_doc->ResetUndoState();
+	m_doc->ResetUndoState();							// CPT2 TODO.  Might be able to overcome this limitation.
 	m_doc->ProjectModified( TRUE );
-	m_doc->Redraw();
 	HighlightSelection();
-	Invalidate( FALSE );
 }
 
 // find a part in the layout, center window on it and select it
@@ -6317,7 +5723,7 @@ void CFreePcbView::OnViewAll()
 void CFreePcbView::OnPartChangeSide()
 {
 	cpart2 *part = m_sel.First()->ToPart();
-	SaveUndoInfoForPartAndNets( part, CPartList::UNDO_PART_MODIFY, NULL, TRUE, m_doc->m_undo_list );
+	part->SaveUndoInfo();
 	CancelHighlight();
 	// CPT2 TODO.  I'm not thrilled by how the part has been getting translated when this operation occurs.  It results from the fact that (roughly) a 
 	// part on top at (x,y) stretches to the right of (x,y) while a part on bottom at (x,y) stretches to the left (an unfortunate situation that 
@@ -6332,10 +5738,8 @@ void CFreePcbView::OnPartChangeSide()
 	part->PartMoved();
 	if( m_doc->m_vis[LAY_RAT_LINE] )
 		part->OptimizeConnections( m_doc->m_auto_ratline_disable, m_doc->m_auto_ratline_min_pins );
-	m_doc->Redraw();
-	HighlightSelection();
 	m_doc->ProjectModified( TRUE );
-	Invalidate( FALSE );
+	HighlightSelection();
 }
 
 // rotate part clockwise 90 degrees clockwise
@@ -6348,17 +5752,15 @@ void CFreePcbView::OnPartRotateCCW()
 
 void CFreePcbView::OnPartRotate( int angle ) {
 	cpart2 *part = m_sel.First()->ToPart();
-	SaveUndoInfoForPartAndNets( part, cpartlist::UNDO_PART_MODIFY, NULL, TRUE, m_doc->m_undo_list );
+	part->SaveUndoInfo();
 	CancelHighlight();
 	part->MustRedraw();
 	part->angle = (part->angle + angle) % 360;
 	part->PartMoved(1, 1);
 	if( m_doc->m_vis[LAY_RAT_LINE] )
 		part->OptimizeConnections( m_doc->m_auto_ratline_disable, m_doc->m_auto_ratline_min_pins );
-	m_doc->Redraw();
-	part->Highlight();
 	m_doc->ProjectModified( TRUE );
-	Invalidate( FALSE );
+	HighlightSelection();
 }
 
 
@@ -6415,10 +5817,10 @@ void CFreePcbView::ChangeTraceLayer( int mode, int old_layer )
 	if( ret != IDOK ) return;
 
 	int err = 0;
-	SaveUndoInfoForNetAndConnections( net, CNetList::UNDO_NET_MODIFY, TRUE, m_doc->m_undo_list );
 	// CPT2 NB in the following SetLayer() calls MustRedraw() for the appropriate items
 	if( dlg.m_apply_to == 0 )
 	{
+		c->SaveUndoInfo();
 		err = seg->SetLayer( dlg.m_new_layer );
 		if( err )
 		{
@@ -6428,6 +5830,7 @@ void CFreePcbView::ChangeTraceLayer( int mode, int old_layer )
 	}
 	else if( dlg.m_apply_to == 1 )
 	{
+		c->SaveUndoInfo();
 		citer<cseg2> is (&c->segs);
 		for (cseg2 *s = is.First(); s; s = is.Next())
 			if( s->m_layer >= LAY_TOP_COPPER )
@@ -6440,6 +5843,7 @@ void CFreePcbView::ChangeTraceLayer( int mode, int old_layer )
 	}
 	else if( dlg.m_apply_to == 2 )
 	{
+		net->SaveUndoInfo();
 		citer<cconnect2> ic (&net->connects);
 		for (cconnect2 *c = ic.First(); c; c = ic.Next())
 		{
@@ -6454,9 +5858,7 @@ void CFreePcbView::ChangeTraceLayer( int mode, int old_layer )
 			AfxMessageBox( s );
 		}
 	}
-	m_doc->Redraw();
 	m_doc->ProjectModified( TRUE );
-	Invalidate( FALSE );
 }
 
 void CFreePcbView::OnNetEditnet()
@@ -6511,10 +5913,10 @@ void CFreePcbView::OnToolsMoveOrigin()
 	}
 	else
 	{
-		SaveUndoInfoForMoveOrigin( -dlg.m_x, -dlg.m_x, m_doc->m_undo_list );
+		m_doc->CreateMoveOriginUndoRecord( -dlg.m_x, -dlg.m_x );
 		MoveOrigin( -dlg.m_x, -dlg.m_y );
+		m_doc->ProjectModified(true);
 		OnViewAllElements();
-		Invalidate( FALSE );
 	}
 }
 
@@ -6654,7 +6056,7 @@ void CFreePcbView::SelectItemsInRect( CRect r, BOOL bAddToGroup )
 void CFreePcbView::FinishRouting(cseg2 *rat)
 {
 	// CPT2: new helper for when user completes routing a ratline (while mode==CUR_DRAG_RAT, hitting F4 or clicking the dest. pin)
-	SaveUndoInfoForNetAndConnections( rat->m_net, CNetList::UNDO_NET_MODIFY, TRUE, m_doc->m_undo_list );
+	rat->m_con->SaveUndoInfo();
 	CPoint pi = m_snap_angle_ref;
 	CPoint pf = m_last_cursor_point;
 	CPoint pp = GetInflectionPoint( pi, pf, m_inflection_mode );
@@ -7424,9 +6826,8 @@ void CFreePcbView::OnGroupCut()
 void CFreePcbView::OnGroupDelete()
 {
 	DeleteGroup( &m_sel_ptrs, &m_sel_ids );
-	m_doc->Redraw();
-	CancelSelection();
 	m_doc->ProjectModified( TRUE );
+	CancelSelection();
 }
 
 void CFreePcbView::DeleteGroup( CArray<void*> * grp_ptr, CArray<id> * grp_id )
@@ -7434,64 +6835,12 @@ void CFreePcbView::DeleteGroup( CArray<void*> * grp_ptr, CArray<id> * grp_id )
 	// CPT2 TODO I'm proposing a new system with areas/smcutouts/board outlines.
 	// If any side on a main contour is selected, delete the whole polyline.  Otherwise, if a side on a secondary (cutout) contour is selected,
 	// delete that contour only.  More consistent with what happens when you select a single side.
-
-	// create undo descriptor before deletion
-	undo_group_descriptor * undo = (undo_group_descriptor*)CreateGroupDescriptor( m_doc->m_undo_list,
-		grp_ptr, grp_id, UNDO_GROUP_DELETE );
-
-	// CPT2. Generate a list of nets and parts that need to be saved for undoing.  Also, make a list of areas that will be affected, and mark their
-	// utility bits depending on whether the whole area will be deleted or just a subset of the contours.  Finally, 
-	// set flag bSmOrBoard if any sm-cutout or board-outline whatever is getting changed.
-	carray<cnet2> undoNets;
-	carray<cpart2> undoParts;
-	carray<carea2> undoAreas;
-	enum { bitDeleteAll = 1, bitDeleteContour = 2 };
-	bool bSmOrBoard = false;
-	citer<cpcb_item> ii (&m_sel);
-	for (cpcb_item *i = ii.First(); i; i = ii.Next())
-		if (cpart2 *part = i->ToPart())
-		{
-			undoParts.Add(part);
-			citer<cpin2> ip (&part->pins);
-			for (cpin2 *pin = ip.First(); pin; pin = ip.Next())
-				if (pin->net)
-					undoNets.Add(pin->net);
-		}
-		else if (cside *s = i->ToSide())
-			if (carea2 *a = s->GetArea())
-			{
-				int bit = s->IsOnCutout()? bitDeleteContour: bitDeleteAll;
-				if (!undoAreas.Contains(a))
-					undoAreas.Add(a),
-					a->utility = bit;
-				else
-					a->utility |= bit;
-			}
-			else
-				bSmOrBoard = true;
-		else if (cnet2 *net = i->GetNet())
-			undoNets.Add(net);
-
-	// save undo info for nets (the connect info), parts, areas, and smcutouts/board-outlines
-	m_doc->m_undo_list->NewEvent();
-	citer<cnet2> in (&undoNets);
-	for (cnet2 *net = in.First(); net; net = in.Next())
-		SaveUndoInfoForNetAndConnections( net, CNetList::UNDO_NET_MODIFY, FALSE, m_doc->m_undo_list );
-	citer<cpart2> ipart (&undoParts);
-	for (cpart2 *part = ipart.First(); part; part = ipart.Next())
-		SaveUndoInfoForPart( part, CPartList::UNDO_PART_DELETE, NULL, FALSE, m_doc->m_undo_list );
-	citer<carea2> ia (&undoAreas);
-	for (carea2 *area = ia.First(); area; area = ia.Next())
-	{
-		int type = area->utility & bitDeleteAll? cnetlist::UNDO_AREA_DELETE: cnetlist::UNDO_AREA_MODIFY;
-		SaveUndoInfoForArea( area, type, FALSE, m_doc->m_undo_list );
-	}
-	if (bSmOrBoard)
-		SaveUndoInfoForPolylines( FALSE, m_doc->m_undo_list );
+	SaveUndoInfoForGroup();
 
 	// unroute selected trace segments + vias, and [CPT2] gather a list of affected connects
 	// CPT2 TODO consider running RemoveBreak() for all selected segments, instead of the following unrouting business.
 	carray<cconnect2> changedCons;
+	citer<cpcb_item> ii (&m_sel);
 	for (cpcb_item *i = ii.First(); i; i = ii.Next())
 		if (cseg2 *seg = i->ToSeg())
 		{
@@ -7509,6 +6858,8 @@ void CFreePcbView::DeleteGroup( CArray<void*> * grp_ptr, CArray<id> * grp_id )
 	citer<cconnect2> ic (&changedCons);
 	for (cconnect2 *c = ic.First(); c; c = ic.Next())
 	{
+		if (!c->IsValid())
+			continue;						// c might have gotten merged into a different connect during an earlier iteration of this loop
 		c->MustRedraw();
 		c->MergeUnroutedSegments();
 	}
@@ -7527,13 +6878,9 @@ void CFreePcbView::DeleteGroup( CArray<void*> * grp_ptr, CArray<id> * grp_id )
 			part->Remove(false);
 		else if (ctext *t = i->ToText())
 		{
-			SaveUndoInfoForText( t, CTextList::UNDO_TEXT_DELETE, FALSE, m_doc->m_undo_list );
 			m_doc->m_tlist->texts.Remove(t);
 			t->Undraw();
 		}
-
-	// clean up
-	m_doc->m_undo_list->Push( UNDO_GROUP, (void*)undo, &UndoGroupCallback );
 }
 
 void CFreePcbView::OnGroupPaste()
@@ -7560,10 +6907,8 @@ void CFreePcbView::OnGroupPaste()
 	if (ret != IDOK)
 		return;
 	CancelSelection();
-	m_doc->m_undo_list->NewEvent();
 	pl->MarkAllParts( 0 );										// newly added parts & pins will be distinguished by values >0 in "utility"
 	pl2->MarkAllParts( 0 );										// We also want to ensure that clipboard pins initially have 0 in "utility"
-	nl->MarkAllNets( 0 );										// project nets will get marked when their undo info is saved
 	int min_x = INT_MAX;										// lowest-left point for dragging group
 	int min_y = INT_MAX;
 	int min_d = INT_MAX;										// CPT2 changed: min_d was double to prevent overflow, 
@@ -7615,7 +6960,6 @@ void CFreePcbView::OnGroupPaste()
 		cpart2 *part = pl->Add( part2->shape, &new_ref, &part2->value_text, &part2->package, 
 					   part2->x + dlg.m_dx, part2->y + dlg.m_dy, part2->side, part2->angle, 
 					   1, 0 );
-		SaveUndoInfoForPart( part, CPartList::UNDO_PART_ADD, &part->ref_des, FALSE, m_doc->m_undo_list );
 		part->MustRedraw();
 		// set ref text parameters
 		part->m_ref->Copy( part2->m_ref );
@@ -7704,22 +7048,15 @@ void CFreePcbView::OnGroupPaste()
 				new_name = net2->name + g_suffix;
 			// add new net
 			net = new cnet2(nl, new_name, net2->def_w, net2->def_via_w, net2->def_via_hole_w );
-			SaveUndoInfoForNet( net, CNetList::UNDO_NET_ADD, FALSE, m_doc->m_undo_list );
 		}
 		else
 		{
 			// merge group net with project net of same name if possible
 			net = nl->GetNetPtrByName( &net2->name );
 			if( !net )
-			{
 				// no project net with the same name
 				net = new cnet2(nl, net2->name, net2->def_w, net2->def_via_w, net2->def_via_hole_w );
-				SaveUndoInfoForNet( net, CNetList::UNDO_NET_ADD, FALSE, m_doc->m_undo_list );
-			}
-			else if( net->utility == 0 )
-				SaveUndoInfoForNetAndConnectionsAndAreas( net, FALSE, m_doc->m_undo_list );
 		}
-		net->utility = 1;	// mark project net as having its undo info saved
 		net->MustRedraw();
 
 		// attach pins (belonging to newly-pasted parts) to the project net, based on the pins attached to the clipboard net.
@@ -7838,8 +7175,6 @@ void CFreePcbView::OnGroupPaste()
 	}
 
 	// add sm_cutouts + boards
-	if (sm2->GetSize() || bd2->GetSize())
-		SaveUndoInfoForPolylines( FALSE, m_doc->m_undo_list );
 	citer<csmcutout> ism2 (sm2);
 	for (csmcutout *sm2 = ism2.First(); sm2; sm2 = ism2.Next())
 	{
@@ -7886,7 +7221,6 @@ void CFreePcbView::OnGroupPaste()
 	{
 		ctext *t = tl->AddText( t2->m_x+dlg.m_dx, t2->m_y+dlg.m_dy, t2->m_angle, t2->m_bMirror, t2->m_bNegative, 
 			t2->m_layer, t2->m_font_size, t2->m_stroke_width, &t2->m_str );
-		SaveUndoInfoForText( t, CTextList::UNDO_TEXT_ADD, FALSE, m_doc->m_undo_list );
 		t->MustRedraw();
 		m_sel.Add( t );
 		// update lower-left corner
@@ -8060,16 +7394,16 @@ void CFreePcbView::OnAreaEdit()
 	if( ret != IDOK ) 
 		return;
 	
+	a->SaveUndoInfo();
 	a->MustRedraw();
 	cnet2 *net = dlg.m_net;
-	if( old_net == net )
-		SaveUndoInfoForAllAreasInNet( old_net, TRUE, m_doc->m_undo_list );
-	else
+	if( old_net != net )
 	{
 		// move area to new net
-		SaveUndoInfoForAllAreasIn2Nets( old_net, net, TRUE, m_doc->m_undo_list );
+		net->SaveUndoInfo( cnet2::SAVE_AREAS );
+		old_net->SaveUndoInfo( cnet2::SAVE_AREAS );
 		a->SetNet(net);
-		old_net->SetThermals();
+		old_net->SetThermals();					// CPT2 TODO deal with the issue of thermals when undoing.
 	}
 	a->m_layer = dlg.m_layer;
 	a->m_hatch = dlg.m_hatch;
@@ -8077,10 +7411,8 @@ void CFreePcbView::OnAreaEdit()
 		m_doc->OnEditUndo();
 	else if( m_doc->m_vis[LAY_RAT_LINE] )
 		net->OptimizeConnections( m_doc->m_auto_ratline_disable, m_doc->m_auto_ratline_min_pins, TRUE  );
-	m_doc->Redraw();
-	CancelSelection();
 	m_doc->ProjectModified( TRUE );
-	Invalidate( FALSE );
+	CancelSelection();
 }
 
 void CFreePcbView::OnAreaEdgeApplyClearances()
@@ -8128,387 +7460,6 @@ void CFreePcbView::ReselectNetItemIfConnectionsChanged( int new_ic )
 #endif
 }
 
-// save undo info for part, prior to editing operation
-// type may be:
-//	UNDO_PART_DELETE	if part will be deleted
-//	UNDO_PART_MODIFY	if part will be modified (e.g. moved)
-//	UNDO_PART_ADD		if part will be added
-// for UNDO_PART_ADD, use reference designator to identify part, ignore cpart * part
-// on callback, ref_des will be used to find part, then name will be changed to part->ref_des
-//
-void CFreePcbView::SaveUndoInfoForPart( cpart2 * part, int type, CString * ref_des, BOOL new_event, CUndoList * list )
-{
-#ifndef CPT2
-	undo_part * u_part;
-	if( new_event )
-		list->NewEvent();
-	if( type == CPartList::UNDO_PART_ADD )
-		u_part = m_doc->m_plist->CreatePartUndoRecord( NULL, ref_des );
-	else if( ref_des )
-		u_part = m_doc->m_plist->CreatePartUndoRecord( part, ref_des );
-	else
-		u_part = m_doc->m_plist->CreatePartUndoRecord( part, &part->ref_des );
-
-	list->Push( type, u_part, &m_doc->m_plist->PartUndoCallback, u_part->size );
-
-	void * ptr;
-	if( new_event )
-	{
-		if( type == CPartList::UNDO_PART_ADD )
-			ptr = CreateUndoDescriptor( list, type, ref_des, NULL, 0, 0, ref_des, NULL );
-		else if( ref_des )
-			ptr = CreateUndoDescriptor( list, type, &part->ref_des, NULL, 0, 0, ref_des, NULL );
-		else
-			ptr = CreateUndoDescriptor( list, type, &part->ref_des, NULL, 0, 0, &part->ref_des, NULL );
-		list->Push( UNDO_PART, ptr, &UndoCallback );
-	}
-#endif
-}
-
-// save undo info for a part and all nets connected to it
-// type may be:
-//	UNDO_PART_DELETE	if part will be deleted
-//	UNDO_PART_MODIFY	if part will be modified (e.g. moved or ref_des changed)
-// note that the ref_des may be different than the part->ref_des
-// on callback, ref_des will be used to find part, then name will be changed to part->ref_des
-//
-void CFreePcbView::SaveUndoInfoForPartAndNets( cpart2 * part, int type, CString * ref_des, BOOL new_event, CUndoList * list )
-{
-#ifndef CPT2
-	void * ptr;
-	if( new_event )
-		list->NewEvent();
-	// set utility = 0 for all nets affected
-	for( int ip=0; ip<part->pin.GetSize(); ip++ )
-	{
-		cnet * net = (cnet*)part->pin[ip].net;
-		if( net )
-			net->utility = 0;
-	}
-	// save undo info for all nets affected
-	for( int ip=0; ip<part->pin.GetSize(); ip++ )
-	{
-		cnet * net = (cnet*)part->pin[ip].net;
-		if( net )
-		{
-			if( net->utility == 0 )
-			{
-				SaveUndoInfoForNetAndConnections( net, CNetList::UNDO_NET_MODIFY, FALSE, list );
-				net->utility = 1;
-			}
-		}
-	}
-	// save undo info for part
-	SaveUndoInfoForPart( part, type, ref_des, FALSE, list );
-
-	// save top-level descriptor
-	if( new_event )
-	{
-		if( ref_des )
-			ptr = CreateUndoDescriptor( list, type, &part->ref_des, NULL, 0, 0, ref_des, NULL );
-		else
-			ptr = CreateUndoDescriptor( list, type, &part->ref_des, NULL, 0, 0, &part->ref_des, NULL );
-		list->Push( UNDO_PART_AND_NETS, ptr, &UndoCallback );
-	}
-#endif
-}
-
-// save undo info for a net (not connections or areas)
-//
-void CFreePcbView::SaveUndoInfoForNet( cnet2 * net, int type, BOOL new_event, CUndoList * list )
-{
-#ifndef CPT2
-	void * ptr;
-	if( new_event )
-		list->NewEvent();
-	undo_net * u_net = m_doc->m_nlist->CreateNetUndoRecord( net );
-	list->Push( type, u_net, &m_doc->m_nlist->NetUndoCallback, u_net->size );
-#endif
-}
-
-// save undo info for a net and connections, not areas
-//
-void CFreePcbView::SaveUndoInfoForNetAndConnections( cnet2 * net, int type, BOOL new_event, CUndoList * list )
-{
-#ifndef CPT2
-	void * ptr;
-	if( new_event )
-		list->NewEvent();
-	if( type != CNetList::UNDO_NET_ADD )
-		for( int ic=net->NumCons()-1; ic>=0; ic-- )
-		{
-			cconnect * c = net->ConByIndex(ic);
-			SaveUndoInfoForConnection( net, ic, FALSE, list );
-		}
-	SaveUndoInfoForNet( net, type, FALSE, list );
-	if( new_event )
-	{
-		ptr = CreateUndoDescriptor( list, type, &net->name, NULL, 0, 0, NULL, NULL );
-		list->Push( UNDO_NET_AND_CONNECTIONS, ptr, &UndoCallback );
-	}
-#endif
-}
-
-// save undo info for a connection
-// Note: this is now ONLY called from other Undo functions, it should never be used on its own
-//
-void CFreePcbView::SaveUndoInfoForConnection( cconnect2 * con, BOOL new_event, CUndoList * list )
-{
-#ifndef CPT2
-	if( new_event )
-		list->NewEvent();
-	undo_con * u_con = m_doc->m_nlist->CreateConnectUndoRecord( net, ic );
-	list->Push( CNetList::UNDO_CONNECT_MODIFY, u_con,
-		&m_doc->m_nlist->ConnectUndoCallback, u_con->size );
-#endif
-}
-
-// top-level description of undo operation
-// list is the CUndoList that it will be pushed to
-//
-
-void * CFreePcbView::CreateUndoDescriptor( CUndoList * list, int type, CString * name1, CString * name2,
-										  int int1, int int2, CString * str1, void * ptr )
-{
-	undo_descriptor * u_d = new undo_descriptor;
-	u_d->view = this;
-	u_d->list = list;
-	u_d->type = type;
-	if( name1 )
-		u_d->name1 = *name1;
-	if( name2 )
-		u_d->name2 = *name2;
-	u_d->int1 = int1;
-	u_d->int2 = int2;
-	if( str1 )
-		u_d->str1 = *str1;
-	u_d->ptr = ptr;
-	return (void*)u_d;
-}
-
-// initial callback from undo/redo stack
-// used to push redo/undo info onto the other stack
-// note this is a static function (i.e. global)
-//
-void CFreePcbView::UndoCallback( int type, void * ptr, BOOL undo )
-{
-#ifndef CPT2
-
-	undo_descriptor * u_d = (undo_descriptor*)ptr;
-	if( undo )
-	{
-		CFreePcbView * view = u_d->view;
-		// if callback was from undo_list, push info to redo list, and vice versa
-		CUndoList * redo_list;
-		if( u_d->list == view->m_doc->m_undo_list )
-			redo_list = view->m_doc->m_redo_list;
-		else
-			redo_list = view->m_doc->m_undo_list;
-		undo_text * u_text = (undo_text *)u_d->ptr;
-		// save undo/redo info
-		if( type == UNDO_PART )
-		{
-			cpart * part = view->m_doc->m_plist->GetPartByName( u_d->str1 );	//use new ref des
-			if( u_d->type == CPartList::UNDO_PART_ADD )
-			{
-				view->SaveUndoInfoForPartAndNets( part, CPartList::UNDO_PART_DELETE, &u_d->str1, TRUE, redo_list );
-			}
-			else if( u_d->type == CPartList::UNDO_PART_MODIFY )
-			{
-				view->SaveUndoInfoForPart( part, CPartList::UNDO_PART_MODIFY, NULL, TRUE, redo_list );
-			}
-		}
-		else if( type == UNDO_PART_AND_NETS )
-		{
-			cpart * part = view->m_doc->m_plist->GetPartByName( u_d->str1 );
-			if(u_d->type == CPartList::UNDO_PART_DELETE )
-				view->SaveUndoInfoForPart( NULL, CPartList::UNDO_PART_ADD, &u_d->name1, TRUE, redo_list );
-			else if( u_d->type == CPartList::UNDO_PART_MODIFY )
-				view->SaveUndoInfoForPartAndNets( part, CPartList::UNDO_PART_MODIFY, &u_d->name1, TRUE, redo_list );
-		}
-		else if( type == UNDO_2_PARTS_AND_NETS )
-		{
-			cpart * part = view->m_doc->m_plist->GetPartByName( u_d->name1 );
-			cpart * part2 = view->m_doc->m_plist->GetPartByName( u_d->name2 );
-			view->SaveUndoInfoFor2PartsAndNets( part, part2, TRUE, redo_list );
-		}
-		else if( type == UNDO_NET_AND_CONNECTIONS )
-		{
-			cnet * net = view->m_doc->m_nlist->GetNetPtrByName( &u_d->name1 );
-			view->SaveUndoInfoForNetAndConnections( net, CNetList::UNDO_NET_MODIFY, TRUE, redo_list );
-		}
-		else if( type == UNDO_AREA )
-		{
-			cnet * net = view->m_doc->m_nlist->GetNetPtrByName( &u_d->name1 );
-			if( u_d->type == CNetList::UNDO_AREA_ADD )
-				view->SaveUndoInfoForArea( net, u_d->int1, CNetList::UNDO_AREA_DELETE, TRUE, redo_list );
-			else if( u_d->type == CNetList::UNDO_AREA_DELETE )
-				view->SaveUndoInfoForArea( net, u_d->int1, CNetList::UNDO_AREA_ADD, TRUE, redo_list );
-			else if( type == UNDO_AREA )
-				view->SaveUndoInfoForArea( net, u_d->int1, CNetList::UNDO_AREA_MODIFY, TRUE, redo_list );
-		}
-		else if( type == UNDO_ALL_AREAS_IN_NET )
-		{
-			cnet * net = view->m_doc->m_nlist->GetNetPtrByName( &u_d->name1 );
-			view->SaveUndoInfoForAllAreasInNet( net, TRUE, redo_list );
-		}
-		else if( type == UNDO_ALL_AREAS_IN_2_NETS )
-		{
-			cnet * net1 = view->m_doc->m_nlist->GetNetPtrByName( &u_d->name1 );
-			cnet * net2 = view->m_doc->m_nlist->GetNetPtrByName( &u_d->name2 );
-			view->SaveUndoInfoForAllAreasIn2Nets( net1, net2, TRUE, redo_list );
-		}
-		else if( type == UNDO_ALL_BOARD_OUTLINES )
-		{
-			view->SaveUndoInfoForBoardOutlines( TRUE, redo_list );
-		}
-		else if( type == UNDO_ALL_SM_CUTOUTS )
-		{
-			view->SaveUndoInfoForSMCutouts( TRUE, redo_list );
-		}
-		else if( type == UNDO_TEXT )
-		{
-			if( u_d->type == CTextList::UNDO_TEXT_ADD )
-				view->SaveUndoInfoForText( u_text, CTextList::UNDO_TEXT_DELETE, TRUE, redo_list );
-			else if( u_d->type == CTextList::UNDO_TEXT_MODIFY )
-			{
-				int uid = u_text->m_uid;
-				CText * text = view->m_doc->m_tlist->GetText( uid );
-				if( !text )
-					ASSERT(0);	// uid not found
-				view->SaveUndoInfoForText( text, CTextList::UNDO_TEXT_MODIFY, TRUE, redo_list );
-			}
-			else if( u_d->type == CTextList::UNDO_TEXT_DELETE )
-				view->SaveUndoInfoForText( u_text, CTextList::UNDO_TEXT_ADD, TRUE, redo_list );
-		}
-		else if( type == UNDO_MOVE_ORIGIN )
-		{
-			view->SaveUndoInfoForMoveOrigin( -u_d->int1, -u_d->int2, redo_list );
-		}
-		else
-			ASSERT(0);
-	}
-	delete(u_d);	// delete the undo record
-#endif
-}
-
-// callback for undoing group operations
-// note this is a static function (i.e. global)
-//
-void CFreePcbView::UndoGroupCallback( int type, void * ptr, BOOL undo )
-{
-#ifndef CPT2
-	undo_group_descriptor * u_d = (undo_group_descriptor*)ptr;
-	if( undo )
-	{
-		CFreePcbView * view = u_d->view;
-		CFreePcbDoc * doc = view->m_doc;
-		// if callback was from undo_list, push info to redo list, and vice versa
-		CUndoList * redo_list;
-		if( u_d->list == view->m_doc->m_undo_list )
-			redo_list = view->m_doc->m_redo_list;
-		else
-			redo_list = view->m_doc->m_undo_list;
-		if( u_d->type == UNDO_GROUP_MODIFY || u_d->type == UNDO_GROUP_ADD )
-		{
-			// reconstruct pointers from names of items (since they may have changed)
-			// and save the current status of the group
-			int n_items = u_d->m_ids.GetSize();
-			CArray<void*> ptrs;
-			ptrs.SetSize( n_items );
-			for( int i=0; i<n_items; i++ )
-			{
-				CString * str_ptr = &u_d->str[i];
-				id this_id = u_d->m_ids[i];
-				if( this_id.T1() == ID_PART )
-				{
-					cpart * part = doc->m_plist->GetPartByName( *str_ptr );
-					if( part )
-						ptrs[i] = (void*)part;
-					else
-						ASSERT(0);	// couldn't find part
-				}
-				else if( this_id.T1() == ID_NET )
-				{
-					cnet * net = doc->m_nlist->GetNetPtrByName( str_ptr );
-					if( net )
-						ptrs[i] = (void*)net;
-					else
-						ASSERT(0);	// couldn't find net
-				}
-				else if( this_id.T1() == ID_TEXT )
-				{
-					CText * text = doc->m_tlist->GetText( this_id.U1()  );
-					if( text )
-						ptrs[i] = (void*)text;
-					else
-						ASSERT(0);	// couldn't find text
-				}
-			}
-			if( u_d->type == UNDO_GROUP_MODIFY )
-				view->SaveUndoInfoForGroup( u_d->type, &ptrs, &u_d->m_ids, redo_list );
-			else if( u_d->type == UNDO_GROUP_ADD )
-			{
-				// delete group
-				view->DeleteGroup( &ptrs, &u_d->m_ids );
-			}
-		}
-		else if( u_d->type == UNDO_GROUP_DELETE )
-		{
-			// just copy the undo record with type UNDO_GROUP_ADD
-			undo_group_descriptor * new_u_d = new undo_group_descriptor;
-			new_u_d->list = redo_list;
-			new_u_d->type = UNDO_GROUP_ADD;
-			new_u_d->view = u_d->view;
-			int n_items = u_d->m_ids.GetSize();
-			new_u_d->str.SetSize( n_items );
-			new_u_d->m_ids.SetSize( n_items );
-			for( int i=0; i<n_items; i++ )
-			{
-				new_u_d->m_ids[i] = u_d->m_ids[i];
-				new_u_d->str[i] = u_d->str[i];
-			}
-			redo_list->NewEvent();
-			redo_list->Push( UNDO_GROUP, (void*)new_u_d, &view->UndoGroupCallback );
-		}
-	}
-	delete(u_d);	// delete the undo record
-#endif
-}
-
-// create descriptor used for undo/redo of groups
-// mainly a list of the items in the group
-// since pointers cannot be used for undo/redo since they may change,
-// net names, reference designators and guids are saved as strings
-//
-void * CFreePcbView::CreateGroupDescriptor( CUndoList * list, CArray<void*> * ptrs, CArray<id> * ids, int type )
-{
-	undo_group_descriptor * undo = new undo_group_descriptor;
-	int n_items = ids->GetSize();
-	undo->view = this;
-	undo->list = list;
-	undo->type = type;
-	undo->str.SetSize( n_items );
-	undo->m_ids.SetSize( n_items );
-	for( int i=0; i<n_items; i++ )
-	{
-		id this_id = (*ids)[i];
-		undo->m_ids[i] = this_id;
-		if( this_id.T1() == ID_PART )
-		{
-			cpart * part = (cpart*)(*ptrs)[i];
-			undo->str[i] = part->ref_des;
-		}
-		else if( this_id.T1() == ID_NET )
-		{
-			cnet * net = (cnet*)(*ptrs)[i];
-			undo->str[i] = net->name;
-		}
-	}
-	return undo;
-}
-
-
 void CFreePcbView::OnGroupRotate(bool bCcw) 
 {
 	CancelHighlight();
@@ -8521,7 +7472,7 @@ void CFreePcbView::OnGroupRotate(bool bCcw)
 			if( ret != IDYES )
 				return;
 		}
-		SaveUndoInfoForGroup( UNDO_GROUP_MODIFY, &m_sel, m_doc->m_undo_list );
+		SaveUndoInfoForGroup();
 		m_lastKeyWasGroupRotate=true;
 	}
 	RotateGroup();
@@ -8529,37 +7480,45 @@ void CFreePcbView::OnGroupRotate(bool bCcw)
 		// A cheap-n-cheesy way to implement ccw rotation:
 		RotateGroup(),
 		RotateGroup();
-	m_doc->Redraw();
 	// CPT2 HighlightSelection may be changing groupAverageX/Y slightly, but in the event of repeated rotations this is undesirable.  Therefore save
 	// and restore the current values.
 	int groupAverageXOld = groupAverageX, groupAverageYOld = groupAverageY;
-	HighlightSelection();
 	groupAverageX = groupAverageXOld, groupAverageY = groupAverageYOld;
 	m_doc->ProjectModified( TRUE );
-	Invalidate( FALSE );
+	HighlightSelection();
 }
 
 // enable/disable the main menu
-// used when dragging
+// used when dragging.  CPT2 slight reorganization
 //
-void CFreePcbView::SetMainMenu( BOOL bAll )
+void CFreePcbView::SetMainMenu()
 {
-	CFrameWnd * pMainWnd = (CFrameWnd*)AfxGetMainWnd();
-	if( bAll )
+	if (!m_doc->m_project_open)
+		return;
+	CFrameWnd * pMain = (CFrameWnd*)AfxGetMainWnd();
+	if( !CurDragging() )
 	{
-		pMainWnd->SetMenu(&theApp.m_main);
-		if( m_doc->m_project_modified )
-			m_doc->ProjectModified( TRUE, FALSE );
+		pMain->SetMenu(&theApp.m_main);
+		CMenu* pMenu = pMain->GetMenu();
+		CMenu* submenu = pMenu->GetSubMenu(1);	// "Edit" submenu
+		if (m_doc->m_undo_pos == 0)
+			submenu->EnableMenuItem( ID_EDIT_UNDO, MF_BYCOMMAND | MF_DISABLED | MF_GRAYED );	
+		else
+			submenu->EnableMenuItem( ID_EDIT_UNDO, MF_BYCOMMAND | MF_ENABLED );	
+		if( m_doc->m_undo_pos == m_doc->m_undo_records.GetSize() )
+			submenu->EnableMenuItem( ID_EDIT_REDO, MF_BYCOMMAND | MF_DISABLED | MF_GRAYED );	
+		else
+			submenu->EnableMenuItem( ID_EDIT_REDO, MF_BYCOMMAND | MF_ENABLED );	
+		pMain->DrawMenuBar();
 	}
 	else
-		pMainWnd->SetMenu(&theApp.m_main_drag);
-	return;
+		pMain->SetMenu(&theApp.m_main_drag);
 }
 
 void CFreePcbView::OnRefShowPart()
 {
 	creftext *t = m_sel.First()->ToRefText();
-	cpart2 *part = t->part;
+	cpart2 *part = t->m_part;
 	CancelSelection();
 	dl_element * dl_sel = part->dl_sel;
 	int xc = (m_dlist->Get_x( dl_sel ) + m_dlist->Get_xf( dl_sel ))/2;
@@ -8586,34 +7545,29 @@ void CFreePcbView::OnRefRotate(int angle)
 {
 	// CPT2 converted.  This works for valuetexts also
 	ctext *t = m_sel.First()->ToText();
-	SaveUndoInfoForPart( t->GetPart(), CPartList::UNDO_PART_MODIFY, NULL, TRUE, m_doc->m_undo_list ); 
+	t->SaveUndoInfo();
 	CancelHighlight();
 	t->MustRedraw();
 	t->m_angle = (t->m_angle + angle) % 360;
-	m_doc->Redraw();
-	HighlightSelection();
 	m_doc->ProjectModified( TRUE );
-	Invalidate( FALSE );
+	HighlightSelection();
 }
 
 void CFreePcbView::OnTextRotateCW()
-	{ OnRefRotate(90); }
+	{ OnTextRotate(90); }
 
 void CFreePcbView::OnTextRotateCCW()
-	{ OnRefRotate(270); }
+	{ OnTextRotate(270); }
 
 void CFreePcbView::OnTextRotate(int angle)
 {
 	// CPT2 converted.  Barely different than OnRefRotate()
 	ctext *t = m_sel.First()->ToText();
-	SaveUndoInfoForText( t, ctextlist::UNDO_TEXT_DELETE, TRUE, m_doc->m_undo_list );
-	CancelHighlight();
+	t->SaveUndoInfo();
 	t->MustRedraw();
 	t->m_angle = (t->m_angle + angle) % 360;
-	m_doc->Redraw();
-	HighlightSelection();
 	m_doc->ProjectModified( TRUE );
-	Invalidate( FALSE );
+	HighlightSelection();
 }
 
 
@@ -8759,17 +7713,15 @@ void CFreePcbView::HandleShiftLayerKey(int layer, CDC *pDC) {
 	if( m_cursor_mode == CUR_SEG_SELECTED )	{
 		cseg2 *seg = m_sel.First()->ToSeg();
 		seg->MustRedraw();
-		SaveUndoInfoForNetAndConnections( net, CNetList::UNDO_NET_MODIFY, TRUE, m_doc->m_undo_list );
+		seg->m_con->SaveUndoInfo();
 		seg->m_layer = layer;
 		seg->preVtx->ReconcileVia();
 		seg->postVtx->ReconcileVia();
-		m_doc->Redraw();		
 		m_doc->ProjectModified( TRUE );
-		Invalidate( FALSE );
 		}
 	else if( m_cursor_mode == CUR_CONNECT_SELECTED ) {
 		cconnect2 *c = m_sel.First()->GetConnect();
-		SaveUndoInfoForNetAndConnections( net, CNetList::UNDO_NET_MODIFY, TRUE, m_doc->m_undo_list );
+		c->SaveUndoInfo();
 		c->MustRedraw();
 		citer<cseg2> is (&c->segs);
 		for (cseg2 *s = is.First(); s; s = is.Next())
@@ -8777,23 +7729,19 @@ void CFreePcbView::HandleShiftLayerKey(int layer, CDC *pDC) {
 		citer<cvertex2> iv (&c->vtxs);
 		for (cvertex2 *v = iv.First(); v; v = iv.Next())
 			v->ReconcileVia();
-		m_doc->Redraw();
 		m_doc->ProjectModified( TRUE );
-		Invalidate( FALSE );
 		}
 	else if( m_cursor_mode == CUR_AREA_CORNER_SELECTED || m_cursor_mode == CUR_AREA_SIDE_SELECTED ) {
 		carea2 *a = m_sel.First()->GetArea();
-		SaveUndoInfoForAllAreasInNet( net, TRUE, m_doc->m_undo_list );
+		a->SaveUndoInfo();
 		a->MustRedraw();
 		a->m_layer = layer;
 		if (!a->PolygonModified( TRUE, TRUE ))
 			m_doc->OnEditUndo();
 		else if( m_doc->m_vis[LAY_RAT_LINE] )
 			net->OptimizeConnections( m_doc->m_auto_ratline_disable, m_doc->m_auto_ratline_min_pins, TRUE  );
-		m_doc->Redraw();
-		HighlightSelection();
 		m_doc->ProjectModified( TRUE );
-		Invalidate( FALSE );
+		HighlightSelection();
 		}
 	}		
 
@@ -8811,11 +7759,9 @@ void CFreePcbView::OnAddPart()
 
 	// select new part, and start dragging it if requested
 	m_doc->m_plist->ImportPartListInfo( &pl, 0 );
-	m_doc->Redraw();
 	cpart2 *part = m_doc->m_plist->GetPartByName( &dlg.m_ref_des );
-	SaveUndoInfoForPart( part, CPartList::UNDO_PART_ADD, &part->ref_des, TRUE, m_doc->m_undo_list );
-	SelectItem( part );
 	m_doc->ProjectModified( TRUE );
+	SelectItem( part );
 	if( dlg.GetDragFlag() )
 	{
 		CPoint p;

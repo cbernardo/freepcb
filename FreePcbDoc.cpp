@@ -159,8 +159,6 @@ CFreePcbDoc::CFreePcbDoc()
 	m_footprint_modified = FALSE;
 	m_footprint_name_changed = FALSE;
 	theApp.m_doc = this;
-	m_undo_list = new CUndoList( 10000 );
-	m_redo_list = new CUndoList( 10000 );
 	this_Doc = this;
 	m_auto_interval = 0;
 	m_auto_elapsed = 0;
@@ -188,8 +186,6 @@ CFreePcbDoc::~CFreePcbDoc()
 	// CPT2 TODO I think this is only invoked when program is shutting down (check), so it's not worth putting a lot of effort into it...
 	// delete partlist, netlist, displaylist, etc.
 	delete m_drelist;
-	delete m_undo_list;
-	delete m_redo_list;
 	delete m_nlist;
 	delete m_plist;
 	delete m_tlist;
@@ -654,6 +650,7 @@ BOOL CFreePcbDoc::FileOpen( LPCTSTR fn, BOOL bLibrary )
 		m_view->ReleaseDC( pDC );
 		m_plist->CheckForProblemFootprints();
 		bNoFilesOpened = FALSE;
+		ResetUndoState();						// CPT2 --- important under the new system to do this AFTER all the new objects are loaded.
 		return TRUE;
 	}
 	catch( CString * err_str )
@@ -664,6 +661,7 @@ BOOL CFreePcbDoc::FileOpen( LPCTSTR fn, BOOL bLibrary )
 		CDC * pDC = m_view->GetDC();
 		m_view->OnDraw( pDC );
 		m_view->ReleaseDC( pDC );
+		redraw.RemoveAll();						// CPT2 bug fix.  Clear out stuff from the corrupt file that was slated for drawing
 		return FALSE;
 	}
 }
@@ -2261,19 +2259,17 @@ void CFreePcbDoc::InitializeNewProject()
 	m_nlist->SetViaAnnularRing( m_annular_ring_vias );
 }
 
-// Call this function when the project is modified,
-// or to clear the modified flags
+// Call this function whenever a user operation is finished,
+// or to clear the modified flags.  CPT2 also takes care of closing out the operation's undo record, and as a convenience it also
+// calls Redraw().
 //
-void CFreePcbDoc::ProjectModified( BOOL flag, BOOL b_clear_redo )
+void CFreePcbDoc::ProjectModified( BOOL flag, BOOL bCombineWithPreviousUndo )
 {
+	CWnd* pMain = AfxGetMainWnd();
 	if( flag )
 	{
-		// set modified flag
-		if( b_clear_redo && m_redo_list->m_num_items > 0 )
-		{
-			// can't redo after a new operation
-			m_redo_list->Clear();
-		}
+		Redraw();
+		FinishUndoRecord( bCombineWithPreviousUndo );						// CPT2.  The new undo system...
 		if( m_project_modified )
 		{
 			// flag already set
@@ -2297,27 +2293,15 @@ void CFreePcbDoc::ProjectModified( BOOL flag, BOOL b_clear_redo )
 		int len = m_window_title.GetLength();
 		if( len > 1 && m_window_title[len-1] == '*' )
 		{
-			CWnd* pMain = AfxGetMainWnd();
 			m_window_title = m_window_title.Left(len-1);
 			pMain->SetWindowText( m_window_title );
 		}
-		m_undo_list->Clear();
-		m_redo_list->Clear();
+		ResetUndoState();
 	}
 	// enable/disable menu items
-	CWnd* pMain = AfxGetMainWnd();
 	pMain->SetWindowText( m_window_title );
-	CMenu* pMenu = pMain->GetMenu();
-	CMenu* submenu = pMenu->GetSubMenu(1);	// "Edit" submenu
-	if( m_undo_list->m_num_items == 0 )
-		submenu->EnableMenuItem( ID_EDIT_UNDO, MF_BYCOMMAND | MF_DISABLED | MF_GRAYED );	
-	else
-		submenu->EnableMenuItem( ID_EDIT_UNDO, MF_BYCOMMAND | MF_ENABLED );	
-	if( m_redo_list->m_num_items == 0 )
-		submenu->EnableMenuItem( ID_EDIT_REDO, MF_BYCOMMAND | MF_DISABLED | MF_GRAYED );	
-	else
-		submenu->EnableMenuItem( ID_EDIT_REDO, MF_BYCOMMAND | MF_ENABLED );	
-	pMain->DrawMenuBar();
+	m_view->SetMainMenu();
+	m_view->Invalidate(false);
 }
 
 void CFreePcbDoc::OnViewLayers()
@@ -3331,162 +3315,6 @@ void CFreePcbDoc::OnFileConvert()
 	dlg.DoModal();
 }
 
-// create undo record for moving origin
-//
-undo_move_origin * CFreePcbDoc::CreateMoveOriginUndoRecord( int x_off, int y_off )
-{
-	// create undo record 
-	undo_move_origin * undo = new undo_move_origin;
-	undo->x_off = x_off;
-	undo->y_off = y_off;
-	return undo;
-}
-
-// undo operation on move origin
-//
-void CFreePcbDoc::MoveOriginUndoCallback( int type, void * ptr, BOOL undo )
-{
-	if( undo )
-	{
-		// restore previous origin
-		undo_move_origin * un_mo = (undo_move_origin*)ptr;
-		int x_off = un_mo->x_off;
-		int y_off = un_mo->y_off;
-		this_Doc->m_view->MoveOrigin( -x_off, -y_off );
-		this_Doc->m_view->Invalidate( FALSE );
-	}
-	delete ptr;
-}
-
-// create undo record for board outline
-//
-undo_board_outline * CFreePcbDoc::CreateBoardOutlineUndoRecord( CPolyLine * poly )
-{
-	// create undo record for board outline
-	undo_board_outline * undo;
-	int size = poly->SizeOfUndoRecord();
-	undo = (undo_board_outline*)malloc( sizeof(undo_board_outline) + size );
-	//** if there were any variables of undo_board_outline, they would be set here
-	undo_poly * un_poly = (undo_poly*)((UINT)undo + sizeof(undo_board_outline));
-	poly->CreatePolyUndoRecord( un_poly ); 
-	return undo;
-}
-
-// undo operation on board outline
-//
-void CFreePcbDoc::BoardOutlineUndoCallback( int type, void * ptr, BOOL undo )
-{
-#ifndef CPT2
-	if( undo ) 
-	{
-		if( type == CFreePcbView::UNDO_BOARD_OUTLINE_CLEAR_ALL ) 
-		{
-			// remove all outlines
-			this_Doc->m_board_outline.RemoveAll();
-		}
-		else
-		{
-			// add outline from undo record
-			undo_board_outline * un_bd = (undo_board_outline*)ptr;
-			undo_poly * un_poly = (undo_poly*)((UINT)un_bd + sizeof(undo_board_outline));
-			undo_corner * un_corner = (undo_corner*)((UINT)un_poly + sizeof(undo_poly));
-			// create new outline
-			int i = this_Doc->m_board_outline.GetSize();
-			this_Doc->m_board_outline.SetSize(i+1);
-			CPolyLine * poly = &this_Doc->m_board_outline[i];
-			poly->SetDisplayList( this_Doc->m_dlist );
-			poly->SetFromUndo( un_poly );
-#if 0
-			id bd_id( ID_BOARD, ID_BOARD, i );
-			poly->Start( un_poly->layer, un_poly->width, un_poly->sel_box, 
-				un_corner[0].x, un_corner[0].y, un_poly->hatch, &bd_id, NULL );
-			pcb_cuid.ReplaceUID( poly->GetUID(0), un_corner[0].uid );
-			poly->SetUID( 0, un_corner[0].uid );
-			int nc = un_poly->ncorners;
-			for( int ic=1; ic<nc; ic++ )
-			{
-				poly->AppendCorner( un_corner[ic].x, un_corner[ic].y, un_corner[ic-1].side_style );
-				pcb_cuid.ReplaceUID( poly->GetUID(ic), un_corner[ic].uid );
-				poly->SetUID( ic, un_corner[ic].uid ); 
-				pcb_cuid.ReplaceUID( poly->SideUID(ic-1), un_corner[ic-1].side_uid );
-				poly->SetSideUID( ic-1, un_corner[ic-1].side_uid ); 
-			}
-			poly->Close( un_corner[nc-1].side_style );
-			pcb_cuid.ReplaceUID( poly->SideUID(nc-1), un_corner[nc-1].side_uid );
-			poly->SetSideUID( nc-1, un_corner[nc-1].side_uid ); 
-			poly->Draw(); 
-#endif
-		}
-	}
-	delete ptr;
-#endif
-}
-
-// create undo record for SM cutout
-// only include closed polys
-//
-undo_sm_cutout * CFreePcbDoc::CreateSMCutoutUndoRecord( CPolyLine * poly )
-{
-	// create undo record for sm cutout
-	undo_sm_cutout * undo;
-	int ncorners = poly->NumCorners();
-	undo = (undo_sm_cutout*)malloc( sizeof(undo_sm_cutout)+ncorners*sizeof(undo_corner));
-	undo->layer = poly->Layer();
-	undo->hatch_style = poly->GetHatch();
-	undo->ncorners = poly->NumCorners();
-	undo_corner * corner = (undo_corner*)((UINT)undo + sizeof(undo_sm_cutout));
-	for( int ic=0; ic<ncorners; ic++ )
-	{
-		corner[ic].uid = poly->CornerUID( ic );
-		corner[ic].x = poly->X( ic );
-		corner[ic].y = poly->Y( ic );
-		corner[ic].side_uid = poly->SideUID( ic );
-		corner[ic].side_style = poly->SideStyle( ic );
-	}
-	return undo;
-}
-
-// undo operation on solder mask cutout
-//
-void CFreePcbDoc::SMCutoutUndoCallback( int type, void * ptr, BOOL undo )
-{
-#ifndef CPT2
-	if( undo ) 
-	{
-		if( type == CFreePcbView::UNDO_SM_CUTOUT_CLEAR_ALL ) 
-		{
-			// remove all cutouts
-			this_Doc->m_sm_cutout.RemoveAll();
-		}
-		else
-		{
-			// restore cutout from undo record
-			undo_sm_cutout * un_sm = (undo_sm_cutout*)ptr;
-			undo_corner * corner = (undo_corner*)((UINT)un_sm + sizeof(undo_sm_cutout));
-			int i = this_Doc->m_sm_cutout.GetSize();
-			this_Doc->m_sm_cutout.SetSize(i+1);
-			CPolyLine * poly = &this_Doc->m_sm_cutout[i];
-			poly->SetDisplayList( this_Doc->m_dlist );
-			id sm_id( ID_MASK, -1, ID_MASK, -1, i );
-			poly->Start( un_sm->layer, 1, 10*NM_PER_MIL, 
-				corner[0].x, corner[0].y, un_sm->hatch_style, &sm_id, NULL );
-			poly->SetCornerUID( 0, corner[0].uid );
-
-			for( int ic=1; ic<un_sm->ncorners; ic++ )
-			{
-				poly->AppendCorner( corner[ic].x, corner[ic].y, corner[ic-1].side_style );
-				poly->SetCornerUID( ic, corner[ic].uid );
-				poly->SetSideUID( ic-1, corner[ic].side_uid );
-			}
-
-			poly->Close( corner[un_sm->ncorners-1].side_style );
-			poly->SetSideUID(un_sm->ncorners-1, corner[un_sm->ncorners-1].side_uid );
-			poly->Draw();
-		}
-	}
-	delete ptr;
-#endif
-}
 
 // call dialog to create Gerber and drill files
 void CFreePcbDoc::OnFileGenerateCadFiles()
@@ -4317,56 +4145,148 @@ void CFreePcbDoc::OnFileImportSes()
 	}
 }
 
+void CFreePcbDoc::ResetUndoState()
+{
+	for (int i=0; i<m_undo_items.GetSize(); i++)
+		delete m_undo_items[i];
+	m_undo_items.RemoveAll();
+	for (int i=0; i<m_undo_records.GetSize(); i++)
+		delete m_undo_records[i];
+	m_undo_records.RemoveAll();
+	m_undo_pos = 0;
+	m_undo_last_uid = cpcb_item::GetNextUid();
+}
+
+void CFreePcbDoc::FinishUndoRecord(bool bCombineWithPrevious)
+{
+	// The user operation has just finished.  Create a bundle containing all of the undo items that have been created by cpcb_item::SaveUndoInfo().
+	// We have to clear duplicates out of that CArray (unlike with carray's, that's not automatic).
+	// If bCombineWithPrevious is true, we combine this operation's undo items with the items in the previously created undo record, so that
+	//   hitting ctrl-z jumps user all the way back to the state before this routine's previous invocation.
+	CArray<cundo_item*> uitems;
+	items.SetUtility(0);
+	if (bCombineWithPrevious && m_undo_pos>0)
+	{
+		cundo_record *rec = m_undo_records[m_undo_pos-1];
+		for (int i=0; i<rec->nItems; i++)
+		{
+			cundo_item *uitem = rec->items[i];
+			cpcb_item *item = cpcb_item::FindByUid( uitem->UID() );
+			uitems.Add(uitem),
+			item->utility = 1;
+		}
+	}
+	for (int i=0; i<m_undo_items.GetSize(); i++)
+	{
+		cundo_item *uitem = m_undo_items[i];
+		int uid = uitem->UID();
+		cpcb_item *item = cpcb_item::FindByUid( uid );
+		if (item->utility)
+			delete uitem;
+		else if (uid < m_undo_last_uid)
+			uitems.Add(uitem),
+			item->utility = 1;
+		else
+			// It can happen that SaveUndoInfo() has been called on an item that was created since the last user op ended.  We will add entries
+			// for these to uitems, but later...
+			;
+	}
+	// Determine which objects have been created since the last time this routine was invoked.  They will get added to the record as cundo_items with
+	// the bWasCreated bit set.
+	int next_uid = cpcb_item::GetNextUid();
+	for (int i = m_undo_last_uid; i < next_uid; i++)
+	{
+		// Validity check ensures, for instance, that objects created on the clipboard are left out of account:
+		cpcb_item *item = cpcb_item::FindByUid(i);
+		if (item->IsValid())
+			uitems.Add( new cundo_item(this, i, true) );
+	}
+	m_undo_last_uid = next_uid;					// For next time...
+	m_undo_items.RemoveAll();
+	if (uitems.GetSize()==0)
+		return;
+	// Create the record!
+	cundo_record *rec = new cundo_record (&uitems);
+	// Clear out any redo records from m_undo_records (those at or beyond position m_undo_pos), then add "rec" to the end of the reduced list.
+	if (bCombineWithPrevious)
+		m_undo_pos--,
+		m_undo_records[m_undo_pos]->nItems = 0;						// So that "delete m_undo_records[m_undo_pos]" below doesn't clobber the undo-items.
+	for (int i=m_undo_pos; i < m_undo_records.GetSize(); i++)
+		delete m_undo_records[i];
+	m_undo_records.SetSize( m_undo_pos );
+	if (m_undo_pos >= UNDO_MAX)
+		delete m_undo_records[0],
+		m_undo_records.RemoveAt(0),
+		m_undo_pos--;
+	m_undo_records.Add( rec );
+	m_undo_pos++;
+}
+
+void CFreePcbDoc::CreateMoveOriginUndoRecord( int dx, int dy )
+{
+	cundo_record *rec = new cundo_record (dx, dy);					// Theoretically we should have cmoveorigin_undo_record as a subclass of
+																	// cundo_record, but screw it...
+	// Add record to the undo list just as in FinishUndoRecord
+	for (int i=m_undo_pos; i < m_undo_records.GetSize(); i++)
+		delete m_undo_records[i];
+	m_undo_records.SetSize( m_undo_pos );
+	if (m_undo_pos >= UNDO_MAX)
+		delete m_undo_records[0],
+		m_undo_records.RemoveAt(0),
+		m_undo_pos--;
+	m_undo_records.Add( rec );
+	m_undo_pos++;
+}
+
+
 void CFreePcbDoc::OnEditUndo()
 {
-	m_view->CancelSelection();					// CPT2 TODO temporary only
-#ifndef CPT2
-	if( m_undo_list->m_num_items > 0 )
-	{
-		// undo last operation unless dragging something
-		if( !m_view->CurDragging() )
-		{
-			while( m_undo_list->Pop() )
-			{
-			}
-			Redraw();							// CPT2
-			m_view->CancelSelection();
-			m_nlist->SetAreaConnections();
-			m_view->Invalidate();
-		}
-		m_bLastPopRedo = FALSE;
-		ProjectModified( TRUE, FALSE );
-	}
-#endif
+	// CPT2 converted to the new system.  Routine hands off almost immediately to cundo_record::Execute()
+	if (m_undo_items.GetSize() > 0)
+		// Maybe the programmer forgot to call FinishUndoRecord()???  Finish up the undo record now anyway
+		FinishUndoRecord();
+	if (m_undo_pos <= 0) 
+		// Silent failure
+		return;
+	m_view->CancelSelection();
+	cundo_record *rec = m_undo_records[m_undo_pos-1];
+	bool bMoveOrigin = rec->Execute( cundo_record::OP_UNDO );
+	// On exit, rec will have been converted to a redo record.
+	m_undo_pos--;
+	ProjectModified(true);
+	if (bMoveOrigin)
+		m_view->OnViewAllElements();
 }
 
 void CFreePcbDoc::OnEditRedo()
 {
-#ifndef CPT2
-	if( m_redo_list->m_num_items > 0 )
-	{
-		// redo last operation unless dragging something
-		m_bLastPopRedo = TRUE;
-		if( !m_view->CurDragging() )
-		{
-			while( m_redo_list->Pop() )
-			{
-			}
-			m_view->CancelSelection();
-			m_nlist->SetAreaConnections();
-			m_view->Invalidate();
-		}
-		m_bLastPopRedo = TRUE;
-		ProjectModified( TRUE, FALSE );
-	}
-#endif
+	if (m_undo_pos >= m_undo_records.GetSize())
+		return;
+	m_view->CancelSelection();
+	cundo_record *rec = m_undo_records[m_undo_pos];
+	bool bMoveOrigin = rec->Execute( cundo_record::OP_REDO );
+	// On exit, rec will have been converted back to an undo record.
+	m_undo_pos++;
+	ProjectModified(true);
+	if (bMoveOrigin)
+		m_view->OnViewAllElements();
 }
 
-void CFreePcbDoc::ResetUndoState()
+void CFreePcbDoc::UndoNoRedo()
 {
-	m_undo_list->Clear();
-	m_redo_list->Clear();
-	m_bLastPopRedo = FALSE;
+	// CPT2.  Similar to OnEditUndo(), but used only occasionally, e.g. when user aborts a just-started operation like dragging a stub.
+	if (m_undo_items.GetSize() > 0)
+		FinishUndoRecord();
+	if (m_undo_pos <= 0) 
+		return;
+	m_view->CancelSelection();
+	cundo_record *rec = m_undo_records[m_undo_pos-1];
+	rec->Execute( cundo_record::OP_UNDO_NO_REDO );
+	// rec is unchanged on exit, but is now garbage.
+	delete rec;
+	m_undo_records.RemoveAt(m_undo_pos-1);
+	m_undo_pos--;
+	ProjectModified(true);
 }
 
 

@@ -47,66 +47,6 @@ struct undo_move_origin {
 
 class CFreePcbDoc : public CDocument
 {
-protected: // create from serialization only
-	CFreePcbDoc();
-	DECLARE_DYNCREATE(CFreePcbDoc)
-
-// Overrides
-public:
-	virtual BOOL OnNewDocument();
-	virtual void Serialize(CArchive& ar);
-	virtual BOOL OnSaveDocument(LPCTSTR lpszPathName);
-
-// Implementation
-	virtual ~CFreePcbDoc();
-	void OnTimer();
-	BOOL FileOpen( LPCTSTR fn, BOOL bLibrary=FALSE );
-	int FileClose();
-	void FileLoadLibrary( LPCTSTR pathname );
-	void ProjectModified( BOOL flag, BOOL b_clear_redo=TRUE );
-	void InitializeNewProject();
-	void SendInitialUpdate();
-	void ReadFootprints( CStdioFile * pcb_file, 
-		CMapStringToPtr * cache_map=NULL,
-		BOOL bFindSection=TRUE );
-	int WriteFootprints( CStdioFile * file, CMapStringToPtr * cache_map=NULL );
-	CShape * GetFootprintPtr( CString name );
-	void MakeLibraryMaps( CString * fullpath );
-	CPolyLine * GetBoardOutlineByUID( int uid, int * index=NULL );
-	CPolyLine * GetMaskCutoutByUID( int uid, int * index=NULL );
-	void ReadBoardOutline( CStdioFile * pcb_file );
-	void WriteBoardOutline( CStdioFile * pcb_file, carray<cboard> *boards = NULL );
-	void ReadSolderMaskCutouts( CStdioFile * pcb_file );
-	void WriteSolderMaskCutouts( CStdioFile * pcb_file, carray<csmcutout> *smcutouts = NULL );
-	void ReadOptions( CStdioFile * pcb_file );
-	void WriteOptions( CStdioFile * pcb_file );
-	int ImportNetlist( CStdioFile * file, UINT flags, 
-						partlist_info * pl, netlist_info * nl );
-	int ImportPADSPCBNetlist( CStdioFile * file, UINT flags, 
-							   partlist_info * pl, netlist_info * nl );
-	int ExportPADSPCBNetlist( CStdioFile * file, UINT flags, 
-							   partlist_info * pl, netlist_info * nl );
-	void ImportSessionFile( CString * filepath, CDlgLog * log=NULL, BOOL bVerbose=TRUE );
-	undo_move_origin * CreateMoveOriginUndoRecord( int x_off, int y_off );
-	static void MoveOriginUndoCallback( int type, void * ptr, BOOL undo );
-	undo_board_outline * CreateBoardOutlineUndoRecord( CPolyLine * poly );
-	static void BoardOutlineUndoCallback( int type, void * ptr, BOOL undo );
-	undo_sm_cutout * CreateSMCutoutUndoRecord( CPolyLine * poly );
-	static void SMCutoutUndoCallback( int last_flag, void * ptr, BOOL undo );
-	void OnFileAutoOpen( LPCTSTR fn );
-	BOOL FileSave( CString * folder, CString * filename, 
-		CString * old_folder, CString * old_filename,
-		BOOL bBackup=TRUE );
-	BOOL AutoSave();
-	void SetFileLayerMap( int file_layer, int layer );
-	void PurgeFootprintCache();
-	void ResetUndoState();
-
-#ifdef _DEBUG
-	virtual void AssertValid() const;
-	virtual void Dump(CDumpContext& dc) const;
-#endif
-
 public:
 	// Collections of pcb-items and drawing elements:
 	CDisplayList * m_dlist;		// current display list.  CPT2: new.  Sometimes this is equal to m_dlist_pcb, sometimes m_dlist_fp.
@@ -154,9 +94,12 @@ public:
 	CString m_netlist_full_path;	// last netlist loaded
 
 	// undo and redo stacks and state
-	BOOL m_bLastPopRedo;		// flag that last stack op was pop redo
-	CUndoList * m_undo_list;	// undo stack
-	CUndoList * m_redo_list;	// redo stack
+	CArray<cundo_item*> m_undo_items;		// CPT2 new undo system.  Altered items accumulate in here during a user operation, then get combined
+											// into a new cundo_record by FinishUndoRecord().
+	CArray<cundo_record*> m_undo_records;	// CPT2 The main list that both undo and redo operations refer to.
+	int m_undo_pos;							// CPT2 Offset into m_undo_items, marking the dividing line between undo and redo records.
+	int m_undo_last_uid;					// CPT2 FinishUndoRecord() refers to this to determine which cpcb_items are newly created since it was last invoked
+	enum { UNDO_MAX = 100 };
 
 	// autorouter file parameters
 	int m_dsn_flags;			// options for DSN export
@@ -266,6 +209,66 @@ public:
 
 	// Brian's stuff
 	int m_thermal_clearance;
+
+
+protected: // create from serialization only
+	CFreePcbDoc();
+	DECLARE_DYNCREATE(CFreePcbDoc)
+
+// Overrides
+public:
+	virtual BOOL OnNewDocument();
+	virtual void Serialize(CArchive& ar);
+	virtual BOOL OnSaveDocument(LPCTSTR lpszPathName);
+
+// Implementation
+	virtual ~CFreePcbDoc();
+	void OnTimer();
+	BOOL FileOpen( LPCTSTR fn, BOOL bLibrary=FALSE );
+	int FileClose();
+	void FileLoadLibrary( LPCTSTR pathname );
+	void ProjectModified( BOOL flag, BOOL bCombineWithPreviousUndo = false );		// CPT2 changed second arg
+	void InitializeNewProject();
+	void SendInitialUpdate();
+	void ReadFootprints( CStdioFile * pcb_file, 
+		CMapStringToPtr * cache_map=NULL,
+		BOOL bFindSection=TRUE );
+	int WriteFootprints( CStdioFile * file, CMapStringToPtr * cache_map=NULL );
+	CShape * GetFootprintPtr( CString name );
+	void MakeLibraryMaps( CString * fullpath );
+	CPolyLine * GetBoardOutlineByUID( int uid, int * index=NULL );
+	CPolyLine * GetMaskCutoutByUID( int uid, int * index=NULL );
+	void ReadBoardOutline( CStdioFile * pcb_file );
+	void WriteBoardOutline( CStdioFile * pcb_file, carray<cboard> *boards = NULL );
+	void ReadSolderMaskCutouts( CStdioFile * pcb_file );
+	void WriteSolderMaskCutouts( CStdioFile * pcb_file, carray<csmcutout> *smcutouts = NULL );
+	void ReadOptions( CStdioFile * pcb_file );
+	void WriteOptions( CStdioFile * pcb_file );
+	int ImportNetlist( CStdioFile * file, UINT flags, 
+						partlist_info * pl, netlist_info * nl );
+	int ImportPADSPCBNetlist( CStdioFile * file, UINT flags, 
+							   partlist_info * pl, netlist_info * nl );
+	int ExportPADSPCBNetlist( CStdioFile * file, UINT flags, 
+							   partlist_info * pl, netlist_info * nl );
+	void ImportSessionFile( CString * filepath, CDlgLog * log=NULL, BOOL bVerbose=TRUE );
+	void OnFileAutoOpen( LPCTSTR fn );
+	BOOL FileSave( CString * folder, CString * filename, 
+		CString * old_folder, CString * old_filename,
+		BOOL bBackup=TRUE );
+	BOOL AutoSave();
+	void SetFileLayerMap( int file_layer, int layer );
+	void PurgeFootprintCache();
+
+	void ResetUndoState();											// CPT2:  Reused the name, but transformed it into the new system.
+	void FinishUndoRecord(bool bCombineWithPrevious=false);			// CPT2:  Critical part of the new architecture (see UndoNew.cpp)
+	void CreateMoveOriginUndoRecord( int x_off, int y_off );		// CPT2:  Reused the name.
+	void UndoNoRedo();												// CPT2:  Used occasionally, e.g. when user aborts a just-started operation 
+																	// like dragging a stub
+
+#ifdef _DEBUG
+	virtual void AssertValid() const;
+	virtual void Dump(CDumpContext& dc) const;
+#endif
 
 
 // Generated message map functions

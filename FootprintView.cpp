@@ -405,12 +405,12 @@ void CFootprintView::OnLButtonDown(UINT nFlags, CPoint point)
 		CPoint p = m_last_cursor_point;
 		coutline *o = new coutline(m_doc, m_polyline_layer, m_polyline_width);
 		m_fp->m_outline_poly.Add(o);
-		m_tmp_poly = o;
 		m_sel.Add(o);
 		ccontour *ctr = new ccontour(o, true);
 		ccorner *c = new ccorner(ctr, p.x, p.y);					// Constructor sets contour's head and tail
 		m_dlist->StartDraggingArc( pDC, m_polyline_style, p.x, p.y, p.x, p.y, LAY_FP_SELECTION, 1, 2 );
 		SetCursorMode( CUR_FP_DRAG_POLY_1 );
+		m_drag_contour = ctr;
 		m_poly_drag_mode = CUR_FP_ADD_POLY;
 		FootprintModified( TRUE );
 		Invalidate( FALSE );
@@ -424,8 +424,8 @@ void CFootprintView::OnLButtonDown(UINT nFlags, CPoint point)
 		SetDCToWorldCoords( pDC );
 		pDC->SelectClipRgn( &m_pcb_rgn );
 		CPoint p = m_last_cursor_point;
-		m_tmp_poly->Undraw();
-		ccontour *ctr = m_tmp_poly->main;
+		m_drag_contour->GetPolyline()->Undraw();
+		ccontour *ctr = m_drag_contour;
 		ccorner *c = new ccorner(ctr, p.x, p.y);
 		cside *s = new cside(ctr, m_polyline_style);
 		ctr->AppendSideAndCorner(s, c, ctr->tail);
@@ -445,8 +445,8 @@ void CFootprintView::OnLButtonDown(UINT nFlags, CPoint point)
 		pDC->SelectClipRgn( &m_pcb_rgn );
 		CPoint p = m_last_cursor_point;
 		PushUndo();
-		m_tmp_poly->Undraw();
-		ccontour *ctr = m_tmp_poly->main;
+		ccontour *ctr = m_drag_contour;
+		ctr->GetPolyline()->Undraw();
 		ccorner *head = ctr->head;
 		if( p.x == head->x && p.y == head->y )
 		{
@@ -459,7 +459,7 @@ void CFootprintView::OnLButtonDown(UINT nFlags, CPoint point)
 		else
 		{
 			// add cursor point
-			m_tmp_poly->MustRedraw();
+			ctr->GetPolyline()->MustRedraw();
 			ccorner *c = new ccorner(ctr, p.x, p.y);
 			cside *s = new cside(ctr, m_polyline_style);
 			ctr->AppendSideAndCorner(s, c, ctr->tail);
@@ -572,8 +572,8 @@ void CFootprintView::OnRButtonDown(UINT nFlags, CPoint point)
 		m_dlist->StopDragging();
 		OnOutlineDelete();
 	}
-	else if( m_cursor_mode == CUR_FP_DRAG_POLY && m_polyline_closed_flag && m_tmp_poly->NumCorners()<3
-			 || m_cursor_mode == CUR_FP_DRAG_POLY && !m_polyline_closed_flag && m_tmp_poly->NumCorners()<2 )
+	else if( m_cursor_mode == CUR_FP_DRAG_POLY && m_polyline_closed_flag && m_drag_contour->NumCorners()<3
+			 || m_cursor_mode == CUR_FP_DRAG_POLY && !m_polyline_closed_flag && m_drag_contour->NumCorners()<2 )
 	{
 		m_dlist->StopDragging();
 		OnOutlineDelete();
@@ -581,11 +581,11 @@ void CFootprintView::OnRButtonDown(UINT nFlags, CPoint point)
 	else if( m_cursor_mode == CUR_FP_DRAG_POLY )
 	{
 		m_dlist->StopDragging();
-		m_tmp_poly->Undraw();
+		m_drag_contour->GetPolyline()->Undraw();
 		if( m_polyline_closed_flag )
 		{
 			PushUndo();
-			m_tmp_poly->main->Close( m_polyline_style );
+			m_drag_contour->Close( m_polyline_style );
 		}
 		m_fp->Draw();
 		CancelSelection();

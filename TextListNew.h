@@ -102,32 +102,17 @@ public:
 	CDisplayList * m_dlist;
 	CFreePcbDoc *m_doc;												// CPT2.  Added
 
-	// CArray<CText*> text_ptr;										// CPT2 replaced by "texts"
-	// CDLinkList m_iterator_list;									// CPT2. Doomed
-
 	// member functions
 	ctextlist( CFreePcbDoc *_doc );
 	~ctextlist() { }
 	
-	// void SetIDType( int type, int subtype );						// CPT2.  Doomed
 	ctext * AddText( int x, int y, int angle, bool bMirror, 
 					bool bNegative,	int layer, 
-					int font_size, int stroke_width, CString * str_ptr );
-	// int RemoveText( CText * text );								// CPT2.  Use texts.Remove(text)
-	// void RemoveAllTexts() { texts.RemoveAll(); }
-	// void HighlightText( CText * text );							// CPT2.  Use ctext::Highlight
-	// void StartDraggingText( CDC * pDC, CText * text );			// CPT2.  Use ctext::StartDragging
-	// void CancelDraggingText( CText * text );						// CPT2.  Use ctext::CancelDragging
-	// void MoveText( CText * text, int x, int y, int angle,		// CPT2.  Use ctext::Move
-	//    BOOL mirror, BOOL negative, int layer );
+					int font_size, int stroke_width, CString * str_ptr, cpart2 *part = NULL );
 	void ReadTexts( CStdioFile * file );							// Done in cpp
 	void WriteTexts( CStdioFile * file );							// Done in cpp
 	void MoveOrigin( int dx, int dy );								// Done in cpp
-	// CText * GetText( int uid, int * index=NULL );				// CPT2.  Use texts.FindByUID(uid)
-	// int GetNumTexts(){ return text_ptr.GetSize();};				// CPT2.  Use texts.GetSize()
 	BOOL GetTextBoundaries( CRect * r );							// Done in cpp
-	// BOOL GetTextRectOnPCB( CText * t, CRect * r );				// CPT2.  Use ctext::GetRectOnPCB()
 	void ReassignCopperLayers( int n_new_layers, int * layer ) { }	// TODO
-	// undo_text * CreateUndoRecord( CText * text );				// CPT2.  Use ctext::CreateUndoRecord
 	static void TextUndoCallback( int type, void * ptr, BOOL undo ) { } // CPT2 TODO
 };

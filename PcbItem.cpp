@@ -16,17 +16,46 @@ class CFreePcbDoc;
 class cpcb_item;
 
 int cpcb_item::next_uid = 1;
+int cpcb_item::uid_hash_sz = 0x2000;
+cpcb_item **cpcb_item::uid_hash = NULL;
 
 cpcb_item::cpcb_item(CFreePcbDoc *_doc)
 {
 	carray_list = NULL; 
+	if (!uid_hash)
+	{
+		// First ever item creation.  Initialize uid_hash table.
+		int sz = uid_hash_sz * sizeof(cpcb_item*);
+		uid_hash = (cpcb_item**) HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sz);
+	}
 	m_uid = next_uid++;
 	doc = _doc;
-	if (doc)
-		doc->items.Add(this);						// NB if doc is NULL, this will not be garbage-collected (must delete by hand)
+	doc->items.Add(this);
 	dl_el = dl_sel = NULL;
 	utility = 0;
 	bDrawn = false;
+	// Enter item into uid_hash table.  It's an incredibly simple hash function:  just extract the lower few bits, depending on uid_hash_sz, which
+	// must be a power of 2.  Given how objects are allocated and eventually die, this function should work as well as any.
+	int hashVal = m_uid & (uid_hash_sz-1);
+	uid_hash_next = uid_hash[hashVal];
+	uid_hash[hashVal] = this;
+}
+
+cpcb_item::cpcb_item(CFreePcbDoc *_doc, int _uid)
+{
+	// Constructor used only during undo operations, for recreating items that user removed and that were subsequently garbage-collected.
+	// Creates an empty object with the specified uid.  See the constructors cvertex2::cvertex2(_doc, _uid), etc.
+	carray_list = NULL;
+	m_uid = _uid;
+	doc = _doc;
+	doc->items.Add(this);
+	dl_el = dl_sel = NULL;
+	utility = 0;
+	bDrawn = false;
+	// Enter item into uid_hash table.
+	int hashVal = m_uid & (uid_hash_sz-1);
+	uid_hash_next = uid_hash[hashVal];
+	uid_hash[hashVal] = this;
 }
 
 cpcb_item::~cpcb_item()
@@ -44,24 +73,66 @@ cpcb_item::~cpcb_item()
 		next = link->next;
 		delete link;
 	}
+	// Item is also removed from the uid-hash table.
+	cpcb_item *i, *prev = NULL;
+	int hashVal = m_uid & (uid_hash_sz-1);
+	for (i = uid_hash[hashVal]; i; i = i->uid_hash_next)
+	{
+		if (i==this)
+		{
+			if (prev)
+				prev->uid_hash_next = i->uid_hash_next;
+			else
+				uid_hash[hashVal] = i->uid_hash_next;
+			break;
+		}
+		prev = i;
+	}
 }
 
-/* CPT2 maybe dumpable...
-void cpcb_item::SetDoc(CFreePcbDoc *_doc)
+cpcb_item *cpcb_item::FindByUid(int uid)
 {
-	if (doc) 
-		doc->items.Remove(this);
-	doc = _doc;
-	if (doc)
-		doc->items.Add(this);
+	// CPT2 new.  Static function.  Looks in static uid_hash[], using an extremely simple hash function (extract lower few bits).
+	for (cpcb_item *i = uid_hash[uid & (uid_hash_sz-1)]; i; i = i->uid_hash_next)
+		if (i->m_uid == uid)
+			return i;
+	return NULL;
 }
-*/
 
 void cpcb_item::MustRedraw()
 {
 	Undraw();
 	if (doc)
 		doc->redraw.Add(this);
+}
+
+void cpcb_item::SaveUndoInfo()
+{
+	// Default behavior, overridden in complex classes like cconnect2 and cnet2
+	doc->m_undo_items.Add( this->MakeUndoItem() );
+}
+
+void cpcb_item::RemoveForUndo()
+{
+	// On a prior editing operation, user created this object, but now undo needs to get rid of it.  It should suffice to detach the object
+	// from any carrays in which it exists (for instance, we remove a net from its netlist).  We can assume that any other pcb-items that 
+	// reference this now-defunct object will be getting revised by this same undo operation.
+	for (carray_link *link = carray_list, *next; link; link = next)
+	{
+		carray<cpcb_item> *arr = (carray<cpcb_item>*) link->arr;
+		int off = link->off;
+		ASSERT(arr->heap[off]==this);				// For now...
+		arr->heap[off] = (cpcb_item*) arr->free;	// Add "off" to arr's free-offset list
+		arr->free = off;
+		arr->flags[off>>3] &= ~(1 << (off&7));
+		arr->nItems--;
+		next = link->next;
+		delete link;
+	}
+	carray_list = NULL;
+	// However, we may as well leave this item in doc->items.   There's a chance it might get recycled later (if user hits redo).  If not,
+	// the garbage collector will clean it out eventually.
+	doc->items.Add(this);
 }
 
 bool cpcb_item::IsHit(int x, int y)
@@ -156,6 +227,19 @@ cvertex2::cvertex2(cconnect2 *c, int _x, int _y):				// Added args
 	force_via_flag = via_w = via_hole_w = 0;
 	dl_hole = dl_thermal = NULL;
 	SetNeedsThermal();
+}
+
+cvertex2::cvertex2(CFreePcbDoc *_doc, int _uid):
+	cpcb_item(_doc, _uid)
+{
+	// This constructor (like its analogues in the other cpcb_item classes) is used only during undo operations, where a blank object gets constructed
+	// with a particular uid before being filled in
+	m_con = NULL;
+	m_net = NULL;
+	tee = NULL;
+	pin = NULL;
+	preSeg = postSeg = NULL;
+	dl_hole = dl_thermal = NULL;
 }
 
 bool cvertex2::IsValid()
@@ -705,6 +789,12 @@ ctee::ctee(cnet2 *n)
 	dl_hole = dl_thermal = NULL;
 }
 
+ctee::ctee(CFreePcbDoc *_doc, int _uid):
+	cpcb_item(_doc, _uid)
+{
+	dl_hole = dl_thermal = NULL;
+}
+
 int ctee::GetLayer()
 {
 	// If this has a via, return LAY_PAD_THRU.
@@ -748,6 +838,13 @@ void ctee::GetStatusStr( CString * str )
 
 }
 
+void ctee::SaveUndoInfo()
+{
+	doc->m_undo_items.Add( new cutee(this) );
+	citer<cvertex2> iv (&vtxs);
+	for (cvertex2 *v = iv.First(); v; v = iv.Next())
+		doc->m_undo_items.Add( new cuvertex(v) );
+}
 
 void ctee::Remove(bool bRemoveVtxs)
 {
@@ -786,6 +883,7 @@ bool ctee::Adjust()
 		{ Remove(); return true; }
 	citer<cvertex2> iv (&vtxs);
 	cvertex2 *v0 = iv.First(), *v1 = iv.Next();
+	v0->m_net->SaveUndoInfo( cnet2::SAVE_CONNECTS );
 	if (nItems == 1)
 	{
 		Remove();
@@ -881,9 +979,9 @@ void ctee::Move(int _x, int _y)
 int ctee::Draw()
 {
 	cvertex2 *v = vtxs.First();
-	int x = v->x, y = v->y;
 	if (!v) 
 		return NOERR;				// Weird...
+	int x = v->x, y = v->y;
 	cnetlist * nl = v->m_net->m_nlist;
 	CDisplayList *dl = doc->m_dlist;
 	if (!dl) 
@@ -1021,7 +1119,15 @@ cseg2::cseg2(cconnect2 *c, int _layer, int _width)							// CPT2 added args.  Re
 	m_net = c->m_net;
 	m_layer = _layer;
 	m_width = _width;
-	m_curve = m_selected = 0;
+	m_curve = 0;
+	preVtx = postVtx = NULL;
+}
+
+cseg2::cseg2(CFreePcbDoc *_doc, int _uid):
+	cpcb_item(_doc, _uid)
+{
+	m_con = NULL;
+	m_net = NULL;
 	preVtx = postVtx = NULL;
 }
 
@@ -1165,7 +1271,6 @@ int cseg2::Route( int layer, int width )
 	// modify segment parameters
 	m_layer = layer;
 	m_width = width;
-	m_selected = 0;
 
 	// now adjust vias
 	preVtx->ReconcileVia();
@@ -1481,8 +1586,14 @@ cconnect2::cconnect2( cnet2 * _net )
 	locked = 0;
 }
 
+cconnect2::cconnect2(CFreePcbDoc *_doc, int _uid):
+	cpcb_item(_doc, _uid)
+{
+	m_net = NULL;
+}
+
 bool cconnect2::IsValid()
-	{ return m_net->connects.Contains(this); }
+	{ return m_net->IsValid() && m_net->connects.Contains(this); }
 
 void cconnect2::GetStatusStr( CString * str )
 {
@@ -1499,6 +1610,23 @@ void cconnect2::GetStatusStr( CString * str )
 	tail->GetTypeStatusStr( &to_str );
 	CString s ((LPCSTR) IDS_FromTo);
 	str->Format( s, net_str, type_str, from_str, to_str, locked_str );
+}
+
+void cconnect2::SaveUndoInfo()
+{
+	// CPT2 In the case of higher-level entities like cconnect2 and cnet2, save all the constituents as well (it might be possible to
+	// do something more economical, but this is simplest at least for now).
+	doc->m_undo_items.Add( new cuconnect(this) );
+	citer<cseg2> is (&segs);
+	for (cseg2 *s = is.First(); s; s = is.Next())
+		doc->m_undo_items.Add( new cuseg(s) );			// NB CFreePcbDoc::FinishUndoRecord() will have to check for dupes.
+	citer<cvertex2> iv (&vtxs);
+	for (cvertex2 *v = iv.First(); v; v = iv.Next())
+		doc->m_undo_items.Add( new cuvertex(v) );
+	if (head->tee)
+		doc->m_undo_items.Add( new cutee(head->tee) );
+	if (tail->tee)
+		doc->m_undo_items.Add( new cutee(tail->tee) );
 }
 
 void cconnect2::SetWidth( int w, int via_w, int via_hole_w )
@@ -1659,12 +1787,12 @@ void cconnect2::MergeUnroutedSegments()
 	// CPT2 experimental: let this routine tend to eliminating end ratline segs that don't connect to a pin/tee/via.
 	if (head->postSeg->m_layer == LAY_RAT_LINE && head->IsLooseEnd())
 		head->postSeg->RemoveBreak();
-	if (!IsValid())
+	if (!m_net->connects.Contains(this))
 		// RemoveBreak() deleted the whole connection!
 		return;
 	if (tail->preSeg && tail->preSeg->m_layer == LAY_RAT_LINE && tail->IsLooseEnd())
 		tail->preSeg->RemoveBreak();
-	if (!IsValid())
+	if (!m_net->connects.Contains(this))
 		return;
 	if (segs.GetSize()==0)
 		this->Remove();
@@ -1746,9 +1874,18 @@ cpin2::cpin2(cpart2 *_part, cpadstack *_ps, cnet2 *_net)					// CPT2. Added args
 	bNeedsThermal = false;
 }
 
+cpin2::cpin2(CFreePcbDoc *_doc, int _uid):
+	cpcb_item(_doc, _uid)
+{
+	part = NULL;
+	ps = NULL;
+	net = NULL;
+	dl_hole = dl_thermal = NULL;
+}
+
 bool cpin2::IsValid()
 {
-	if (!part->IsValid()) return false;
+	if (!part || !part->IsValid()) return false;
 	return part->pins.Contains(this);
 }
 
@@ -1944,8 +2081,35 @@ cpart2::cpart2( cpartlist * pl )			// CPT2 TODO.  Will probably add more args...
 	shape = NULL;
 }
 
+cpart2::cpart2(CFreePcbDoc *_doc, int _uid):
+	cpcb_item(_doc, _uid)
+{
+	m_pl = NULL;
+	m_ref = NULL;
+	m_value = NULL;
+	m_tl = new ctextlist(doc);
+	shape = NULL;
+}
+
 bool cpart2::IsValid()
 	{ return doc->m_plist->parts.Contains(this); }
+
+void cpart2::SaveUndoInfo(bool bSaveAttachedNets)
+{
+	doc->m_undo_items.Add( new cupart(this) );
+	citer<cpin2> ipin (&pins);
+	for (cpin2 *pin = ipin.First(); pin; pin = ipin.Next())
+	{
+		doc->m_undo_items.Add( new cupin(pin) );
+		if (bSaveAttachedNets && pin->net)
+			pin->net->SaveUndoInfo( cnet2::SAVE_CONNECTS );
+	}
+	doc->m_undo_items.Add( new cureftext(m_ref) );
+	doc->m_undo_items.Add( new cuvaluetext(m_value) );
+	citer<ctext> it (&m_tl->texts);
+	for (ctext *t = it.First(); t; t = it.Next())
+		doc->m_undo_items.Add( new cutext(t) );
+}
 
 void cpart2::Move( int _x, int _y, int _angle, int _side )
 {
@@ -2128,7 +2292,7 @@ void cpart2::SetData(CShape * _shape, CString * _ref_des, CString * _value_text,
 		{
 			layer = cpartlist::FootprintLayer2Layer( txt->m_layer );
 			m_tl->AddText(txt->m_x, txt->m_y, txt->m_angle, txt->m_bMirror, txt->m_bNegative, 
-							layer, txt->m_font_size, txt->m_stroke_width, &txt->m_str);
+							layer, txt->m_font_size, txt->m_stroke_width, &txt->m_str, this);
 		}
 	}
 
@@ -2284,7 +2448,7 @@ void cpart2::ChangeFootprint(CShape *_shape)
 	{
 		int layer = cpartlist::FootprintLayer2Layer( txt->m_layer );
 		m_tl->AddText(txt->m_x, txt->m_y, txt->m_angle, txt->m_bMirror, txt->m_bNegative, 
-							layer, txt->m_font_size, txt->m_stroke_width, &txt->m_str);
+							layer, txt->m_font_size, txt->m_stroke_width, &txt->m_str, this);
 	}
 }
 
@@ -2864,6 +3028,7 @@ void cpart2::MakeString( CString * str )
 }
 
 
+
 /**********************************************************************************************/
 /*  RELATED TO cpolyline/carea2/csmcutout                                                      */
 /**********************************************************************************************/
@@ -2876,6 +3041,13 @@ ccorner::ccorner(ccontour *_contour, int _x, int _y)
 		contour->head = contour->tail = this;
 	contour->corners.Add(this);
 	x = _x; y = _y; 
+	preSide = postSide = NULL;
+}
+
+ccorner::ccorner(CFreePcbDoc *_doc, int _uid):
+	cpcb_item(_doc, _uid)
+{
+	contour = NULL;
 	preSide = postSide = NULL;
 }
 
@@ -3066,6 +3238,12 @@ cside::cside(ccontour *_contour, int _style)
 	preCorner = postCorner = NULL;
 }
 
+cside::cside(CFreePcbDoc *_doc, int _uid):
+	cpcb_item(_doc, _uid)
+{
+	contour = NULL;
+	preCorner = postCorner = NULL;
+}
 bool cside::IsValid() 
 {
 	if (!contour->poly->IsValid()) return false;
@@ -3215,6 +3393,13 @@ ccontour::ccontour(cpolyline *_poly, bool bMain)
 	head = tail = NULL;
 }
 
+ccontour::ccontour(CFreePcbDoc *_doc, int _uid):
+	cpcb_item(_doc, _uid)
+{
+	poly = NULL;
+	head = tail = NULL;
+}
+
 ccontour::ccontour(cpolyline *_poly, ccontour *src)
 	: cpcb_item (_poly->doc)
 {
@@ -3261,6 +3446,17 @@ bool ccontour::IsValid()
 cnet2 *ccontour::GetNet() { return poly->GetNet(); }
 
 int ccontour::GetLayer() { return poly->m_layer; }
+
+void ccontour::SaveUndoInfo()
+{
+	doc->m_undo_items.Add( new cucontour(this) );
+	citer<ccorner> ic (&corners);
+	for (ccorner *c = ic.First(); c; c = ic.Next())
+		doc->m_undo_items.Add( new cucorner(c) );
+	citer<cside> is (&sides);
+	for (cside *s = is.First(); s; s = is.Next())
+		doc->m_undo_items.Add( new cuside(s) );
+}
 
 void ccontour::AppendSideAndCorner( cside *s, ccorner *c, ccorner *after )
 {
@@ -3367,7 +3563,15 @@ cpolyline::cpolyline(CFreePcbDoc *_doc)
 	m_php_poly = NULL;			// CPT2 TODO for now. 
 }
 
-cpolyline::cpolyline(cpolyline *src, bool bCopyContours, bool bTemporary)
+cpolyline::cpolyline(CFreePcbDoc *_doc, int _uid):
+	cpcb_item(_doc, _uid)
+{
+	main = NULL;
+	m_gpc_poly = new gpc_polygon;
+	m_gpc_poly->num_contours = 0;
+}
+
+cpolyline::cpolyline(cpolyline *src, bool bCopyContours)
 	: cpcb_item (src->doc)
 {
 	main = NULL;
@@ -3377,7 +3581,6 @@ cpolyline::cpolyline(cpolyline *src, bool bCopyContours, bool bTemporary)
 	m_hatch = src->m_hatch;
 	m_nhatch = src->m_nhatch;					// CPT2.  I guess...
 	m_gpc_poly = NULL, m_php_poly = NULL;
-	m_bTemporary = bTemporary;
 	if (!src->main || !bCopyContours)
 		return;
 	citer<ccontour> ictr (&src->contours);
@@ -3587,6 +3790,18 @@ void cpolyline::GetSidesInRect( CRect *r, carray<cpcb_item> *arr)
 	}
 }
 
+bool cpolyline::IsClosed()
+{
+	// CPT2.  Trying a new definition of closedness.  Every contour within the polyline must have head equal to tail, and further no contour
+	// can consist of one corner.  This will work decently when user is dragging a new cutout contour and it is still incomplete --- Hatch() will
+	// then consider the polyline open and bail out.
+	citer<ccontour> ictr (&contours);
+	for (ccontour *ctr = ictr.First(); ctr; ctr = ictr.Next())
+		if (ctr->head != ctr->tail || ctr->NumCorners()<2)
+			return false;
+	return true;
+}
+
 // Test a polyline for self-intersection.
 // Returns:
 //	-1 if arcs intersect other sides
@@ -3671,7 +3886,7 @@ void cpolyline::Hatch()
 		return;
 	}
 
-	CDisplayList *dl = doc->m_dlist;			// CPT2 TODO.  Think about.  Make it an arg for the function?
+	CDisplayList *dl = doc->m_dlist;
 	if (!dl || !IsClosed()) return;
 	enum {
 		MAXPTS = 100,
@@ -4566,6 +4781,9 @@ bool cpolyline::PolygonModified( bool bMessageBoxArc, bool bMessageBoxInt )
 		{
 			carray<cpolyline> arr;
 			GetCompatiblePolylines( &arr );
+			citer<cpolyline> ip (&arr);
+			for (cpolyline *poly = ip.First(); poly; poly = ip.Next())
+				poly->SaveUndoInfo();
 			CombinePolylines( &arr, bMessageBoxInt );
 		}
 	}
@@ -4667,10 +4885,24 @@ carea2::carea2(cnet2 *_net, int _layer, int _hatch, int _w, int _sel_box)
 	m_sel_box = _sel_box;
 }
 
+carea2::carea2(CFreePcbDoc *_doc, int _uid):
+	cpolyline(_doc, _uid)
+{
+	m_net = NULL;
+}
+
 bool carea2::IsValid()
 {
 	if (!m_net->IsValid()) return false;
 	return m_net->areas.Contains(this);
+}
+
+void carea2::SaveUndoInfo()
+{
+	doc->m_undo_items.Add( new cuarea(this) );
+	citer<ccontour> ictr (&contours);
+	for (ccontour *ctr = ictr.First(); ctr; ctr = ictr.Next())
+		ctr->SaveUndoInfo();
 }
 
 void carea2::Remove()
@@ -4717,8 +4949,20 @@ csmcutout::csmcutout(CFreePcbDoc *_doc, int layer, int hatch)
 	m_hatch = hatch;
 }
 
+csmcutout::csmcutout(CFreePcbDoc *_doc, int _uid):
+	cpolyline(_doc, _uid)
+	{ }
+
 bool csmcutout::IsValid()
 	{ return doc->smcutouts.Contains(this); }
+
+void csmcutout::SaveUndoInfo()
+{
+	doc->m_undo_items.Add( new cusmcutout(this) );
+	citer<ccontour> ictr (&contours);
+	for (ccontour *ctr = ictr.First(); ctr; ctr = ictr.Next())
+		ctr->SaveUndoInfo();
+}
 
 void csmcutout::GetCompatiblePolylines( carray<cpolyline> *arr )
 {
@@ -4733,6 +4977,7 @@ void csmcutout::GetCompatiblePolylines( carray<cpolyline> *arr )
 cpolyline *csmcutout::CreateCompatible() 
 	// CPT2 new.  Virtual function in class cpolyline.  Returns a new polyline of the same specs as this (but with an empty contour array)
 	{ return new csmcutout(doc, m_layer, m_hatch); }
+
 
 void csmcutout::Remove()
 {
@@ -4751,8 +4996,20 @@ cboard::cboard(CFreePcbDoc *_doc)
 	m_hatch = cpolyline::NO_HATCH;
 }
 
+cboard::cboard(CFreePcbDoc *_doc, int _uid):
+	cpolyline(_doc, _uid)
+	{ }
+
 bool cboard::IsValid()
 	{ return doc->boards.Contains(this); }
+
+void cboard::SaveUndoInfo()
+{
+	doc->m_undo_items.Add( new cuboard(this) );
+	citer<ccontour> ictr (&contours);
+	for (ccontour *ctr = ictr.First(); ctr; ctr = ictr.Next())
+		ctr->SaveUndoInfo();
+}
 
 void cboard::Remove()
 {
@@ -4803,6 +5060,12 @@ cnet2::cnet2( cnetlist *_nlist, CString _name, int _def_w, int _def_via_w, int _
 	bVisible = true;	
 }
 
+cnet2::cnet2(CFreePcbDoc *_doc, int _uid):
+	cpcb_item(_doc, _uid)
+{
+	m_nlist = NULL;
+}
+
 bool cnet2::IsValid()
 	{ return doc->m_nlist->nets.Contains(this); }
 
@@ -4810,6 +5073,28 @@ void cnet2::GetStatusStr( CString * str )
 {
 	CString s ((LPCSTR) IDS_Net2);
 	str->Format( s, name ); 
+}
+
+void cnet2::SaveUndoInfo(int mode)
+{
+	// "mode", which is SAVE_ALL by default, can also have the value SAVE_CONNECTS, SAVE_AREAS, or SAVE_NET_ONLY
+	doc->m_undo_items.Add( new cunet(this) );
+	if (mode == SAVE_ALL || mode == SAVE_CONNECTS)
+	{
+		citer<cconnect2> ic (&connects);
+		for (cconnect2 *c = ic.First(); c; c = ic.Next())
+			c->SaveUndoInfo();
+		citer<ctee> it (&tees);
+		for (ctee *t = it.First(); t; t = it.Next())
+			t->SaveUndoInfo();
+	}
+	if (mode == SAVE_ALL || mode == SAVE_AREAS)
+	{
+		citer<carea2> ia (&areas);
+		for (carea2 *a = ia.First(); a; a = ia.Next())
+			a->SaveUndoInfo();
+	}
+	// CPT2 TODO consider if we want an option to save pin info too.
 }
 
 void cnet2::SetVisible( bool _bVisible )
@@ -4974,6 +5259,7 @@ void cnet2::SetThermals()
 	for (cpin2 *p = ip.First(); p; p = ip.Next())
 		p->SetNeedsThermal();
 }
+
 
 cvertex2 *cnet2::TestHitOnVertex(int layer, int x, int y) 
 {
@@ -5425,13 +5711,24 @@ ctext::ctext( CFreePcbDoc *_doc, int _x, int _y, int _angle,
 	m_smfontutil = _smfontutil;
 	m_str = *_str;
 	m_bShown = true;
+	m_part = NULL;
 }
+
+ctext::ctext(CFreePcbDoc *_doc, int _uid):
+	cpcb_item(_doc, _uid)
+{ 
+	m_smfontutil = NULL;
+	m_part = NULL;
+}
+
 
 bool ctext::IsValid() 
 {
 	CShape *fp = doc? doc->m_edit_footprint: NULL;
 	if (fp)
 		return fp->m_tl->texts.Contains(this);
+	else if (m_part)
+		return m_part->IsValid() && m_part->m_tl->texts.Contains(this);
 	else
 		return doc->m_tlist->texts.Contains(this); 
 }
@@ -5492,7 +5789,7 @@ void ctext::MoveRelative( int _x, int _y, int _angle, int _size, int _w )
 	if( part->side == 1 )
 		tb_org.x = -tb_org.x;
 	
-	// reset ref text parameters
+	// reset text parameters
 	MustRedraw();
 	m_x = tb_org.x;
 	m_y = tb_org.y;
@@ -5854,48 +6151,54 @@ void ctext::CancelDragging()
 }
 
 
-creftext::creftext( cpart2 *_part, int x, int y, int angle, 
+creftext::creftext( cpart2 *part, int x, int y, int angle, 
 	BOOL bMirror, BOOL bNegative, int layer, int font_size, 
 	int stroke_width, SMFontUtil * smfontutil, CString * str_ptr, bool bShown ) :
-		ctext(_part->doc, x, y, angle, bMirror, bNegative, layer, font_size,
+		ctext(part->doc, x, y, angle, bMirror, bNegative, layer, font_size,
 			stroke_width, smfontutil, str_ptr) 
-		{ part = _part; m_bShown = bShown; }
+		{ m_part = part; m_bShown = bShown; }
 
 creftext::creftext( CFreePcbDoc *doc, int x, int y, int angle, 
 	BOOL bMirror, BOOL bNegative, int layer, int font_size, 
 	int stroke_width, SMFontUtil * smfontutil, CString * str_ptr, bool bShown ) :
 		ctext(doc, x, y, angle, bMirror, bNegative, layer, font_size,
 			stroke_width, smfontutil, str_ptr) 
-		{ part = NULL; m_bShown = bShown; }
+		{ m_part = NULL; m_bShown = bShown; }
+creftext::creftext(CFreePcbDoc *_doc, int _uid):
+	ctext(_doc, _uid)
+		{ m_part = NULL; }
 
 
 bool creftext::IsValid() 
 { 
 	if (doc->m_edit_footprint)
 		return doc->m_edit_footprint->m_ref == this;
-	return part && part->IsValid(); 
+	return m_part && m_part->IsValid(); 
 }
 
-cvaluetext::cvaluetext( cpart2 *_part, int x, int y, int angle, 
+cvaluetext::cvaluetext( cpart2 *part, int x, int y, int angle, 
 	BOOL bMirror, BOOL bNegative, int layer, int font_size, 
 	int stroke_width, SMFontUtil * smfontutil, CString * str_ptr, bool bShown ) :
-		ctext(_part->doc, x, y, angle, bMirror, bNegative, layer, font_size,
+		ctext(part->doc, x, y, angle, bMirror, bNegative, layer, font_size,
 			stroke_width, smfontutil, str_ptr) 
-		{ part = _part; m_bShown = bShown; }
+		{ m_part = part; m_bShown = bShown; }
 
 cvaluetext::cvaluetext( CFreePcbDoc *doc, int x, int y, int angle, 
 	BOOL bMirror, BOOL bNegative, int layer, int font_size, 
 	int stroke_width, SMFontUtil * smfontutil, CString * str_ptr, bool bShown ) :
 		ctext(doc, x, y, angle, bMirror, bNegative, layer, font_size,
 			stroke_width, smfontutil, str_ptr) 
-		{ part = NULL; m_bShown = bShown; }
+		{ m_part = NULL; m_bShown = bShown; }
 
+cvaluetext::cvaluetext(CFreePcbDoc *_doc, int _uid):
+	ctext(_doc, _uid)
+		{ m_part = NULL; }
 
 bool cvaluetext::IsValid() 
 { 
 	if (doc->m_edit_footprint)
 		return doc->m_edit_footprint->m_value == this;
-	return part && part->IsValid(); 
+	return m_part && m_part->IsValid(); 
 }
 
 

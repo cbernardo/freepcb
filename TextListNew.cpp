@@ -67,9 +67,10 @@ void ctextlist::ReadTexts( CStdioFile * pcb_file )
 }
 
 ctext *ctextlist::AddText( int x, int y, int angle, bool bMirror, bool bNegative, int layer, 
-					int font_size, int stroke_width, CString * str_ptr )
+					int font_size, int stroke_width, CString * str_ptr, cpart2 *part )
 {
 	ctext * text = new ctext(m_doc, x, y, angle, bMirror, bNegative, layer, font_size, stroke_width, m_smfontutil, str_ptr);
+	text->m_part = part;
 	texts.Add(text);
 	return text;
 }
