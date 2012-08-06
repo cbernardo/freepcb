@@ -76,8 +76,8 @@ public:
 	id m_sel_id_prev;		// CPT: ditto.  See e.g. CFreePcbView::OnLButtonUp().  Also used when user repeatedly hits 'T'
 	int m_cursor_mode_prev;	// CPT: ditto
 	cpcb_item *m_sel_prev;	// CPT2 was void*
-	cpolyline *m_tmp_poly;	// CPT2.  When dragging new polylines or cutouts, we put the evolving contour into this poly.
 	int m_poly_drag_mode;	// CPT2.  Equal to CUR_ADD_AREA, CUR_ADD_AREA_CUTOUT, CUR_ADD_SMCUTOUT, CUR_ADD_BOARD
+	ccontour *m_drag_contour;	// When user drags out a new contour (main contour or cutout), this points to the contour in question.
 
 	// active layer for placement and (perhaps) routing
 	int m_active_layer;
@@ -197,7 +197,7 @@ public:
 	virtual void SnapCursorPoint( CPoint wp, UINT nFlags ) = 0;
 	virtual void CancelHighlight() = 0;
 	virtual	void HighlightSelection() = 0;
-	virtual void SetMainMenu( BOOL bAll ) { }
+	virtual void SetMainMenu() { }
 
 	afx_msg void OnSysKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags);
 	afx_msg void OnSysKeyUp(UINT nChar, UINT nRepCnt, UINT nFlags);

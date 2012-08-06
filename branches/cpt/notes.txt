@@ -87,7 +87,12 @@ Made a slight rewording within the paste-group dialog box --- I think the new ch
 "Ignore group nets that include no routed traces or areas" is a little clearer and more accurate than the old radio buttons 
 "Nets assigned to pins: Retain All --- Retain if pin connected to a trace in the group".
 
+r322 introduces a brand-new system for undo/redo, described at the top of UndoNew.h.  Should be robust once I have the garbage collector in place,
+but that will require some testing.
 
+Note that in r322 CFreePcbDoc::ProjectModified(true) has been assigned some more duties appropriate to the finishing up of a user operation: 
+namely, it invokes both CFreePcbDoc::Redraw(), and FinishUndoRecord() (a crucial piece of the new undo architecture).  It also calls Invalidate(false) as
+well as CCommonView::SetMainMenu().
 
 // FreePCB : programming notes
 //

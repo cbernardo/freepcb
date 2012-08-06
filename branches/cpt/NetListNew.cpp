@@ -160,6 +160,7 @@ void cnetlist::ReadNets( CStdioFile * pcb_file, double read_version, int * layer
 				int start_pin = my_atoi( &p[1] );
 				int end_pin = my_atoi( &p[2] );
 				cpin2 *pin0 = NULL, *pin1 = NULL;
+				// CPT2 TODO Guess I'd better silently ignore these phantom pins, for backwards compatibility with old files.
 				if (start_pin != cconnect::NO_END)
 				{
 					pin0 = net->pins.FindByUtility(start_pin);
@@ -810,3 +811,4 @@ void cnetlist::MoveOrigin(int dx, int dy)
 			a->Offset(dx, dy);
 	}
 }
+

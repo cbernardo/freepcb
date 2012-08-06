@@ -806,10 +806,7 @@ void CCommonView::SetCursorMode( int mode )
 	SetFKText( mode );
 	m_cursor_mode = mode;
 	ShowSelectStatus();
-	if( CurDragging() )
-		SetMainMenu( FALSE );
-	else if( m_doc->m_project_open )
-		SetMainMenu( TRUE );
+	SetMainMenu();
 }
 
 

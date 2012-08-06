@@ -5321,6 +5321,7 @@ void CNetList::RestoreConnectionsAndAreas( CNetList * old_nl, int flags, CDlgLog
 
 undo_con * CNetList::CreateConnectUndoRecord( cnet * net, int icon, BOOL set_areas )
 {
+#ifndef CPT2
 	// calculate size needed, get memory
 	cconnect * c = net->connect[icon];
 	int seg_offset = sizeof(undo_con);
@@ -5359,6 +5360,8 @@ undo_con * CNetList::CreateConnectUndoRecord( cnet * net, int icon, BOOL set_are
 	}
 	con->nlist = this;
 	return con;
+#endif
+	return NULL;
 }
 
 // callback function for undoing connections
@@ -5366,6 +5369,7 @@ undo_con * CNetList::CreateConnectUndoRecord( cnet * net, int icon, BOOL set_are
 //
 void CNetList::ConnectUndoCallback( int type, void * ptr, BOOL undo )
 {
+#ifndef CPT2
 	if( undo )
 	{
 		undo_con * con = (undo_con*)ptr;
@@ -5387,6 +5391,7 @@ void CNetList::ConnectUndoCallback( int type, void * ptr, BOOL undo )
 		}
 	}
 	free( ptr );
+#endif
 }
 
 // Create undo record for a net
@@ -5396,6 +5401,7 @@ void CNetList::ConnectUndoCallback( int type, void * ptr, BOOL undo )
 //
 undo_net * CNetList::CreateNetUndoRecord( cnet * net )
 {
+#ifndef CPT2
 	int size = sizeof(undo_net) + net->NumPins()*sizeof(undo_pin);
 	undo_net * undo = (undo_net*)malloc( size );
 	strcpy( undo->name, net->name );
@@ -5411,6 +5417,8 @@ undo_net * CNetList::CreateNetUndoRecord( cnet * net )
 	undo->m_id = net->m_id;
 	undo->size = size;
 	return undo;
+#endif
+	return NULL;
 }
 
 // callback function for undoing modifications to a net or adding a net
@@ -5420,6 +5428,7 @@ undo_net * CNetList::CreateNetUndoRecord( cnet * net )
 //
 void CNetList::NetUndoCallback( int type, void * ptr, BOOL undo )
 {
+#ifndef CPT2
 	if( undo )
 	{
 		// remove all connections from net 
@@ -5467,6 +5476,7 @@ void CNetList::NetUndoCallback( int type, void * ptr, BOOL undo )
 			nl->SetAreaConnections( net );
 	}
 	free( ptr );
+#endif
 }
 
 // create undo record for area
@@ -5474,6 +5484,7 @@ void CNetList::NetUndoCallback( int type, void * ptr, BOOL undo )
 //
 undo_area * CNetList::CreateAreaUndoRecord( cnet * net, int iarea, int type )
 {
+#ifndef CPT2
 	undo_area * un_a;
 	if( type == CNetList::UNDO_AREA_ADD || type == CNetList::UNDO_AREA_CLEAR_ALL )
 	{
@@ -5499,6 +5510,8 @@ undo_area * CNetList::CreateAreaUndoRecord( cnet * net, int iarea, int type )
 	undo_poly * un_poly = (undo_poly*)((UINT)un_a + sizeof(undo_area));
 	a->CreatePolyUndoRecord( un_poly );
 	return un_a;
+#endif
+	return NULL;
 }
 
 // callback function for undoing areas
@@ -5506,6 +5519,7 @@ undo_area * CNetList::CreateAreaUndoRecord( cnet * net, int iarea, int type )
 //
 void CNetList::AreaUndoCallback( int type, void * ptr, BOOL undo )
 {
+#ifndef CPT2
 	if( undo )
 	{
 		undo_area * un_a = (undo_area*)ptr;
@@ -5549,6 +5563,7 @@ void CNetList::AreaUndoCallback( int type, void * ptr, BOOL undo )
 			ASSERT(0);
 	}
 	free( ptr );
+#endif
 }
 
 // cross-check netlist with partlist, report results in logstr

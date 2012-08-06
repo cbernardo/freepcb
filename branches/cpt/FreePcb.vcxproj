@@ -196,7 +196,7 @@
     </ClCompile>
     <ClCompile Include="TextList.cpp" />
     <ClCompile Include="TextListNew.cpp" />
-    <ClCompile Include="UndoList.cpp" />
+    <ClCompile Include="UndoNew.cpp" />
     <ClCompile Include="utility.cpp" />
     <ClCompile Include="drawing_element\dle_arc.cpp" />
     <ClCompile Include="drawing_element\dle_centroid.cpp" />
@@ -314,7 +314,7 @@
     <ClInclude Include="StdAfx.h" />
     <ClInclude Include="TextList.h" />
     <ClInclude Include="TextListNew.h" />
-    <ClInclude Include="UndoList.h" />
+    <ClInclude Include="UndoNew.h" />
     <ClInclude Include="utility.h" />
     <ClInclude Include="drawing_element\dle_arc.h" />
     <ClInclude Include="drawing_element\dle_centroid.h" />

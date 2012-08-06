@@ -271,26 +271,6 @@ const char sel_mask_str[NUM_SEL_MASKS][32] =
 };
 */
 
-// descriptor for undo/redo
-struct undo_descriptor {
-	CFreePcbView * view;	// the view class
-	CUndoList * list;		// undo or redo list
-	int type;				// type of operation
-	CString name1, name2;	// can be used for parts, nets, etc.
-	int int1, int2;			// parameter
-	CString str1;			// parameter
-	void * ptr;				// careful with this
-};
-
-// group descriptor
-struct undo_group_descriptor {
-	CFreePcbView * view;	// the view class
-	CUndoList * list;		// undo or redo list
-	int type;				// type of operation
-	CArray<CString> str;	// array strings with names of items in group
-	CArray<id> m_ids;		// array of item ids
-};
-
 class CFreePcbView : public CCommonView
 {
 public:
@@ -450,6 +430,7 @@ public:
 	void RotateGroup();
 	void DeleteGroup(  CArray<void*> * grp_ptr, CArray<id> * grp_id );
 	void FindGroupCenter();
+	void SaveUndoInfoForGroup();														// CPT2 Preserved the name, but converted the func to the new system
 	// int FindItemInGroup( void * ptr, id * tid );					// CPT2 obsolete
 	BOOL GluedPartsInGroup();
 	void UngluePartsInGroup();
@@ -460,32 +441,6 @@ public:
 	BOOL CurDraggingRouting();
 	BOOL CurDraggingPlacement();
 	void SnapCursorPoint( CPoint wp, UINT nFlags );
-	// CPT2 Modified arg lists for the SaveUndo functions.  TODO revise (still blanked out)
-	void SaveUndoInfoForPart( cpart2 * part, int type, CString * new_ref_des, BOOL new_event, CUndoList * list );
-	void SaveUndoInfoForPartAndNets( cpart2 * part, int type, CString * new_ref_des, BOOL new_event, CUndoList * list );
-	void SaveUndoInfoFor2PartsAndNets( cpart2 * part1, cpart2 * part2, BOOL new_event, CUndoList * list );
-	void SaveUndoInfoForNet( cnet2 * net, int type, BOOL new_event, CUndoList * list );
-	void SaveUndoInfoForNetAndConnections( cnet2 * net, int type, BOOL new_event, CUndoList * list );
-	void SaveUndoInfoForConnection( cconnect2 *con, BOOL new_event, CUndoList * list );
-	void SaveUndoInfoForArea( carea2 *area, int type, BOOL new_event, CUndoList * list );
-	void SaveUndoInfoForAllAreasInNet( cnet2 * net, BOOL new_event, CUndoList * list );
-	void SaveUndoInfoForAllAreasIn2Nets( cnet2 * net1, cnet2 * net2, BOOL new_event, CUndoList * list );
-	void SaveUndoInfoForNetAndConnectionsAndArea( cnet2 * net, carea2 *area, int type, BOOL new_event, CUndoList * list );
-	void SaveUndoInfoForNetAndConnectionsAndAreas( cnet2 * net, BOOL new_event, CUndoList * list );
-	void SaveUndoInfoForAllNetsAndConnectionsAndAreas( BOOL new_event, CUndoList * list );
-	void SaveUndoInfoForAllNets( BOOL new_event, CUndoList * list );
-	void SaveUndoInfoForMoveOrigin( int x_off, int y_off, CUndoList * list );
-	void SaveUndoInfoForPolylines( BOOL new_event, CUndoList * list );					// CPT2 will combine the actions of the following two functions:
-	// void SaveUndoInfoForBoardOutlines( BOOL new_event, CUndoList * list );
-	// void SaveUndoInfoForSMCutouts( BOOL new_event, CUndoList * list );
-	void SaveUndoInfoForText( ctext * text, int type, BOOL new_event, CUndoList * list );
-	void SaveUndoInfoForText( undo_text * u_text, int type, BOOL new_event, CUndoList * list );
-	void SaveUndoInfoForGroup( int type, carray<cpcb_item> *items, CUndoList * list );
-	void *  CreateUndoDescriptor( CUndoList * list, int type,
-		CString * name1, CString * name2, int int1, int int2, CString * str1, void * ptr );
-	static void UndoCallback( int type, void * ptr, BOOL undo );
-	void * CreateGroupDescriptor( CUndoList * list, CArray<void*> * grp_ptr, CArray<id> * grp_id, int type );
-	static void UndoGroupCallback( int type, void * ptr, BOOL undo );
 	void OnExternalChangeFootprint( CShape * fp );
 	void FinishArrowKey(int x, int y, int dx, int dy);										// CPT2 new helper for HandleKeyPress().
 	void HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags);
@@ -715,9 +670,9 @@ public:
 	void HandleShiftLayerKey(int layer, CDC *pDC);
 	void HandleNoShiftLayerKey(int layer, CDC *pDC);
 
-	void FinishAddPoly(ccontour *ctr);
-	void FinishAddPolyCutout(ccontour *ctr);
-	void SetMainMenu( BOOL bAll );
+	void FinishAddPoly();
+	void FinishAddPolyCutout();
+	void SetMainMenu();
 	void HighlightSelection();
 };
 // end CPT

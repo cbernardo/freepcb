@@ -81,7 +81,7 @@ struct undo_pin {
 
 struct undo_area {
 	int size;
-	CNetList * nlist;
+	cnetlist * nlist;
 	char net_name[MAX_NET_NAME_SIZE+1];
 	int iarea;
 	id m_id;
@@ -106,7 +106,7 @@ struct undo_vtx {
 struct undo_con {
 	int uid;
 	int size;
-	CNetList * nlist;
+	cnetlist * nlist;
 	char net_name[MAX_NET_NAME_SIZE+1];
 	int start_pin, end_pin;		// indexes into net.pin array
 	int nsegs;					// # elements in seg array
@@ -120,11 +120,11 @@ struct undo_con {
 
 struct undo_net {
 	int size;
-	CNetList * nlist;
+	cnetlist * nlist;
 	char name[MAX_NET_NAME_SIZE+1];
 	int npins;
 	int m_uid;
-	id m_id;
+	// id m_id; // CPT2 removed
 	// array of undo_pin structs start here
 };
 
