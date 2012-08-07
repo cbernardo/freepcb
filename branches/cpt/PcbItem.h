@@ -15,7 +15,6 @@
 #include "DisplayList.h"
 // #include "PartList.h"
 #include "PolyLine.h"
-#include "UndoList.h"
 #include "UndoNew.h"
 // #include "LinkList.h"
 // #include "Cuid.h"
@@ -1351,7 +1350,7 @@ public:
 	cnetlist * m_nlist;			// parent netlist
 
 	cnet2( cnetlist *_nlist, CString _name, int _def_w, int _def_via_w, int _def_via_hole_w );			// Done in cpp
-	cnet2(CFreePcbDoc *_doc, int _uid);
+	cnet2(CFreePcbDoc *_doc, int _uid); 
 
 	bool IsValid();
 	bool IsNet() { return true; }

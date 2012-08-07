@@ -506,3 +506,13 @@ void DRErrorList::MakeHollowCircles()
 		}
 	}
 }
+
+
+void cdrelist::Clear()
+{
+	// CPT2 new.  Undraw and then remove from "this" all design-rule-error objects.
+	citer<cdre> id (&dres);
+	for (cdre* d = id.First(); d; d = id.Next())
+		d->Undraw();
+	dres.RemoveAll();
+}

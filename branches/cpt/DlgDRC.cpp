@@ -4,6 +4,7 @@
 #include "stdafx.h"
 #include "FreePcb.h"
 #include "DlgDRC.h"
+#include "PartListNew.h"
 
 #define nm_per_mil 25400.0 
 
@@ -60,28 +61,20 @@ END_MESSAGE_MAP()
 
 // Initialize
 //
-void DlgDRC::Initialize( int units, 
-						DesignRules * dr, 
-						CPartList * pl, 
-						CNetList * nl, 
-						DRErrorList * drelist, 
-						int copper_layers, 
-						CArray<CPolyLine> * board_outline,
-						int CAM_annular_ring_pins,
-						int CAM_annular_ring_vias,
-						CDlgLog * log )
+void DlgDRC::Initialize( CFreePcbDoc *doc )
 {
-	m_units = units; 
-	m_dr = dr;
-	m_dr_local = *dr;
-	m_pl = pl;
-	m_nl = nl;
-	m_copper_layers = copper_layers;
-	m_board_outline = board_outline;
-	m_CAM_annular_ring_pins = CAM_annular_ring_pins;
-	m_CAM_annular_ring_vias = CAM_annular_ring_vias;
-	m_drelist = drelist;
-	m_dlg_log = log;
+	m_doc = doc;
+	m_units = doc->m_units; 
+	m_dr = &doc->m_dr;
+	m_dr_local = doc->m_dr;
+	m_pl = doc->m_plist;
+	m_nl = doc->m_nlist;
+	m_copper_layers = doc->m_num_copper_layers;
+	m_board_outline = &doc->boards;
+	m_CAM_annular_ring_pins = doc->m_annular_ring_pins;
+	m_CAM_annular_ring_vias = doc->m_annular_ring_vias;
+	m_drelist = doc->m_drelist;
+	m_dlg_log = doc->m_dlg_log;
 }
 
 void DlgDRC::GetFields()
@@ -253,10 +246,7 @@ void DlgDRC::CheckDesign()
 	m_dlg_log->Clear();
 	m_dlg_log->UpdateWindow();
 	m_drelist->Clear();
-	m_pl->DRC( m_dlg_log, m_copper_layers, 
-		m_units, m_check_show_unrouted.GetCheck(),
-		m_board_outline,
-		&m_dr_local, m_drelist ); 
+	m_doc->DRC( m_units, m_check_show_unrouted.GetCheck(), &m_dr_local ); 
 }
 
 void DlgDRC::OnBnClickedCancel()

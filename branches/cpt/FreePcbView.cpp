@@ -1731,7 +1731,7 @@ void CFreePcbView::OnKeyUp(UINT nChar, UINT nRepCnt, UINT nFlags)
 	if( nChar == 'D' )
 	{
 		// 'd'
-		m_doc->m_drelist->MakeHollowCircles();
+		// m_doc->m_drelist->MakeHollowCircles();		// CPT2 TODO.
 		Invalidate( FALSE );
 	}
 	else if( nChar == 16 || nChar == 17 )
@@ -1757,7 +1757,7 @@ void CFreePcbView::OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags)
 	if( nChar == 'D' )
 	{
 		// 'd'
-		m_doc->m_drelist->MakeSolidCircles();
+		// m_doc->m_drelist->MakeSolidCircles();	// CPT2 TODO
 		Invalidate( FALSE );
 	}
 	else if( nChar == 16 || nChar == 17 )

@@ -19,7 +19,6 @@
 #include "DisplayList.h"
 #include "PartList.h"
 #include "PolyLine.h"
-#include "UndoList.h"
 #include "LinkList.h"
 #include "Cuid.h"
 #include "Net.h"

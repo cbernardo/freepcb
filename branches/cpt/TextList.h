@@ -8,7 +8,6 @@
 #include "DisplayList.h"
 #include "PcbFont.h"
 #include "smfontutil.h"
-#include "UndoList.h"
 #include "LinkList.h"
 
 class CTextList;
