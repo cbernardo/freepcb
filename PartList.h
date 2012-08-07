@@ -7,7 +7,6 @@
 #include "Shape.h"
 #include "smfontutil.h"
 #include "DlgLog.h"
-#include "UndoList.h"
 #include "Cuid.h"
 
 #define MAX_REF_DES_SIZE 39

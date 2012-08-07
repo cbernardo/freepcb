@@ -1,6 +1,8 @@
 //
 #pragma once
 
+class cdre;
+
 struct DesignRules
 {
 	BOOL bCheckUnrouted;
@@ -89,4 +91,21 @@ public:
 	CNetList * m_nlist;
 	CDisplayList * m_dlist;
 	CPtrList list;
+};
+
+class cdrelist
+{
+public:
+	// Updated version of class DRErrorList.
+	CFreePcbDoc *doc;
+	carray<cdre> dres;
+
+	cdrelist(CFreePcbDoc *_doc)
+		{ doc = _doc; }
+	~cdrelist() { }
+	cdre * Add( long index, int t2, CString * str, 
+		CString * name1, CString * name2, id id1, id id2,
+		int x1, int y1, int x2, int y2, int w, int layer );
+	void Clear();											// Undraw all members, then remove 'em.
+
 };

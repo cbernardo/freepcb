@@ -7,7 +7,6 @@
 #include "Shape.h"
 #include "smfontutil.h"
 #include "DlgLog.h"
-#include "UndoList.h"
 #include "Cuid.h"
 #include "PcbItem.h"
 
@@ -229,15 +228,13 @@ public:
 	int SetPartString( cpart * part, CString * str );
 	int CheckPartlist( CString * logstr ) { return 0; }
 	BOOL CheckForProblemFootprints() { return false; }
+	/* I'm moving the DRC functions to CFreePcbDoc (makes more sense to me) 
 	void DRC( CDlgLog * log, int copper_layers, 
 		int units, BOOL check_unrouted,
 		CArray<CPolyLine> * board_outline,
 		DesignRules * dr, DRErrorList * DRElist ) { }
 	// CPT new helper for DRC():
-	void CheckBrokenArea(carea *a, cnet *net, CDlgLog * log, int units, DRErrorList * drelist, long &nerrors);
+	void CheckBrokenArea(carea *a, cnet *net, CDlgLog * log, int units, DRErrorList * drelist, long &nerrors); */
 	// end CPT
-
-	undo_part * CreatePartUndoRecord( cpart * part, CString * new_ref_des ) { return NULL; }
-	static void PartUndoCallback( int type, void * ptr, BOOL undo ) { }
 };
  

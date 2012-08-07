@@ -14,8 +14,6 @@
 #include "PcbFont.h"
 #include "SMfontutil.h"
 #include "SMcharacter.h"
-#include "UndoBuffer.h"
-#include "UndoList.h"
 #include "FootprintLib.h"
 #include "DlgDRC.h"
 #include "DesignRules.h"
@@ -58,7 +56,7 @@ public:
 	carray<cboard> boards;
 	carray<csmcutout> smcutouts;
 	carray<coutline> outlines;		// CPT2 maybe...  Still have to figure out the memory management of entities within CShapes.
-	DRErrorList * m_drelist;		// CPT2 TODO: change to drelist or just carray<cdre>
+	cdrelist * m_drelist;			// CPT2.  Was DREList, now cdrelist
 	carray<cpcb_item> items;		// CPT2.  Master list of all created pcb-items.  GarbageCollect() will go through this list and clean up now and then.
 	carray<cpcb_item> redraw;		// CPT2 r313.  My latest-n-greatest system for undrawing and redrawing (see notes.txt).
 
@@ -236,8 +234,6 @@ public:
 	int WriteFootprints( CStdioFile * file, CMapStringToPtr * cache_map=NULL );
 	CShape * GetFootprintPtr( CString name );
 	void MakeLibraryMaps( CString * fullpath );
-	CPolyLine * GetBoardOutlineByUID( int uid, int * index=NULL );
-	CPolyLine * GetMaskCutoutByUID( int uid, int * index=NULL );
 	void ReadBoardOutline( CStdioFile * pcb_file );
 	void WriteBoardOutline( CStdioFile * pcb_file, carray<cboard> *boards = NULL );
 	void ReadSolderMaskCutouts( CStdioFile * pcb_file );
@@ -264,6 +260,9 @@ public:
 	void CreateMoveOriginUndoRecord( int x_off, int y_off );		// CPT2:  Reused the name.
 	void UndoNoRedo();												// CPT2:  Used occasionally, e.g. when user aborts a just-started operation 
 																	// like dragging a stub
+	// The following 2 were in CPartList, but I thought they made more sense here:
+	void DRC( int units, BOOL check_unrouted, DesignRules * dr );
+	void CheckBrokenArea(carea *a, cnet *net, CDlgLog * log, int units, DRErrorList * drelist, long &nerrors); 
 
 #ifdef _DEBUG
 	virtual void AssertValid() const;

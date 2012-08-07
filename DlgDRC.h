@@ -12,16 +12,7 @@ class DlgDRC : public CDialog
 public:
 	DlgDRC(CWnd* pParent = NULL);   // standard constructor
 	virtual ~DlgDRC(); 
-	void Initialize( int units, 
-		DesignRules * dr, 
-		CPartList * pl, 
-		CNetList * nl, 
-		DRErrorList * drelist,
-		int copper_layers, 
-		CArray<CPolyLine> * board_outline,
-		int CAM_annular_ring_pins,
-		int CAM_annular_ring_vias,
-		CDlgLog * log );
+	void Initialize( CFreePcbDoc *doc );
 	void GetFields();
 	void SetFields();
 	void CheckDesign();
@@ -34,15 +25,16 @@ protected:
 
 	DECLARE_MESSAGE_MAP()
 public:
+	CFreePcbDoc *m_doc;				// CPT2 Including this member, and deriving other members like m_pl from it.
 	int m_units; 
 	DesignRules m_dr_local;
 	DesignRules * m_dr;
-	CPartList * m_pl;
-	CNetList * m_nl;
+	cpartlist * m_pl;
+	cnetlist * m_nl;
+	carray<cboard> * m_board_outline;
+	cdrelist * m_drelist;
 	CDlgLog * m_dlg_log;
-	DRErrorList * m_drelist;
 	int m_copper_layers;
-	CArray<CPolyLine> * m_board_outline;
 	int m_CAM_annular_ring_pins;
 	int m_CAM_annular_ring_vias;
 	CComboBox m_combo_units;

@@ -420,19 +420,21 @@ CText * id::Text()
 
 CPolyLine * id::BoardOutline()
 {
-	if( t1 == ID_BOARD && t2 == ID_OUTLINE )
+/*	if( t1 == ID_BOARD && t2 == ID_OUTLINE )
 	{
 		return pcb->GetBoardOutlineByUID( u2 );
 	}
+*/
 	return NULL;
 }
 
 CPolyLine * id::MaskOutline()
 {
-	if( t1 == ID_MASK && t2 == ID_OUTLINE )
+/*	if( t1 == ID_MASK && t2 == ID_OUTLINE )
 	{
 		return pcb->GetMaskCutoutByUID( u2 );
 	}
+*/
 	return NULL;
 }
 
