@@ -111,12 +111,6 @@ struct drc_pin {
 class cpartlist
 {
 public:
-	enum {
-		NOT_CONNECTED = 0,		// pin not attached to net
-		ON_NET = 1,				// pin is attached to a net
-		TRACE_CONNECT = 2,		// pin connects to trace on this layer
-		AREA_CONNECT = 4		// pin connects to copper area on this layer
-	};
 	carray<cpart2> parts;
 	CFreePcbDoc *m_doc;			// CPT2
 	int m_layers;

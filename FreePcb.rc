@@ -3626,6 +3626,7 @@ BEGIN
     IDS_PlacingCornerOfPolygon "Placing corner of polygon"
     IDS_DoYouWishToReplaceTheFootprintOfPart 
                             "Do you wish to alter part ""%s,""\nusing your modified form of footprint ""%s"" ?"
+    IDS_Connection          "connection"
 END
 
 STRINGTABLE
@@ -4255,7 +4256,7 @@ END
 
 STRINGTABLE
 BEGIN
-    IDS_AppName             "CPT2.5"
+    IDS_AppName             "CPT2.6"
 END
 
 STRINGTABLE

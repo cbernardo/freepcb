@@ -245,7 +245,6 @@ void DlgDRC::CheckDesign()
 	m_dlg_log->BringWindowToTop();
 	m_dlg_log->Clear();
 	m_dlg_log->UpdateWindow();
-	m_drelist->Clear();
 	m_doc->DRC( m_units, m_check_show_unrouted.GetCheck(), &m_dr_local ); 
 }
 

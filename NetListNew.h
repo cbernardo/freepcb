@@ -363,14 +363,6 @@ public:
 	void ImportNetRouting( CString * name, CArray<cnode> * nodes, 
 		CArray<cpath> * paths, int tolerance, CDlgLog * log=NULL, BOOL bVerbose=TRUE ) { }
 
-	// undo functions
-	undo_con * CreateConnectUndoRecord( cnet2 * net, int icon, BOOL set_areas=TRUE );
-	undo_area * CreateAreaUndoRecord( cnet2 * net, int iarea, int type );
-	undo_net * CreateNetUndoRecord( cnet2 * net );
-	static void ConnectUndoCallback( int type, void * ptr, BOOL undo );
-	static void AreaUndoCallback( int type, void * ptr, BOOL undo );
-	static void NetUndoCallback( int type, void * ptr, BOOL undo );
-
 	// functions for tee_IDs
 	/* CPT2 All obsolete
 	void ClearTeeIDs();

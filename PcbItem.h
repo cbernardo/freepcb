@@ -164,7 +164,7 @@ public:
 
 	// Virtual functions:
 	virtual	int Draw() { return NOERR; }
-	virtual void Undraw() { }
+	virtual void Undraw();							// Default behavior:  done in cpp
 	virtual void Highlight() { }
 	virtual bool IsValid() { return false; }		// Or make it pure virtual.
 	virtual cundo_item *MakeUndoItem() { return NULL; }		
@@ -551,6 +551,7 @@ class cvertex2: public cpcb_item
 {
 public:
 	enum {
+		// Return values for GetViaConnectionStatus().
 		VIA_NO_CONNECT = 0,
 		VIA_TRACE = 1,
 		VIA_AREA = 2
@@ -622,7 +623,9 @@ public:
 	void StartDragging( CDC * pDC, int x, int y, int crosshair = 1 );			// Done in cpp, derived from CNetList::StartDraggingVertex
 	void CancelDragging();														// Done in cpp, derived from CNetList::CancelDraggingVertex
 	void Move( int x, int y );													// Done in cpp, derived from CNetList::MoveVertex
-	int GetViaConnectionStatus( int layer );									// CPT2 TODO eliminate?
+	int GetViaConnectionStatus( int layer );									// Done in cpp, derived from CNetList func.
+	void GetViaPadInfo( int layer, int *pad_w, int *pad_hole_w, 
+		int *connect_status );													// Done in cpp, derived from CNetList func.
 	bool SetNeedsThermal();														// Done in cpp.  New.  Sets the bNeedsThermal flag, depending on net areas
 																				// that overlap this point.
 };
@@ -708,7 +711,6 @@ public:
 	int SetLayer( int _layer );									// Done in cpp, derived from CNetList::ChangeSegmentLayer
 
 	int Draw();													// Done in cpp
-	void Undraw();												// Done in cpp
 	void Highlight( bool bThin );								// Done in cpp (derived from CNetList::HighlightSegment)
 	void Highlight()											// CPT2 This form of the function overrides the base-class virtual func.  (Best system?)
 		{ Highlight(false); }
@@ -717,6 +719,7 @@ public:
 	int Index();													// CPT2:  maybe, maybe not...
 	void GetStatusStr( CString * str, int width );					// CPT added width param
 	void GetStatusStr( CString *str ) { GetStatusStr(str, 0); }
+	void GetBoundingRect( CRect *br );								// CPT2 new, helper for DRC
 	void Divide( cvertex2 *v, cseg2 *s, int dir );					// Done in cpp
 	bool InsertSegment(int x, int y, int layer, int width, int dir );  // Done in cpp, derived from CNetList::InsertSegment()
 	int Route( int layer, int width );								// Done in cpp
@@ -922,6 +925,17 @@ public:
 /*  RELATED TO cpin2/cpart2                                                                     */
 /**********************************************************************************************/
 
+// struct used for DRC to store pin info
+struct drc_pin {
+	int hole_size;	// hole diameter or 0
+	int min_x;		// bounding rect of padstack
+	int max_x;
+	int min_y;
+	int max_y;
+	int max_r;		// max. radius of padstack
+	int layers;		// bit mask of layers with pads
+};
+
 // cpin2: describes a pin in a net.  Folded the old part_pin into this.
 class cpin2 : public cpcb_item
 {
@@ -935,10 +949,19 @@ public:
 							// Constructor sets this based on ps. Possible values LAY_PAD_THRU, LAY_TOP_COPPER, LAY_BOTTOM_COPPER
 	cnet2 * net;			// pointer to net, or NULL if not assigned.
 	bool bNeedsThermal;		// CPT2 new.  Set to true if there's an areas from the same network that occupies this same point.
-	// drc_pin drc;			// drc info.  CPT2 TODO.  Was causing problems with the #$*& preprocessor, put the issue off for another day...
 	dl_element * dl_hole;	// pointer to graphic element for hole
 	CArray<dl_element*> dl_els;	// array of pointers to graphic elements for pads
 	dl_element *dl_thermal; // CPT2 new.  The thermal drawn with this pin.
+	drc_pin drc;			// drc info.
+
+	enum {
+		// Return vals for GetConnectionStatus().
+		NOT_CONNECTED = 0,		// pin not attached to net
+		ON_NET = 1,				// pin is attached to a net
+		TRACE_CONNECT = 2,		// pin connects to trace on this layer
+		AREA_CONNECT = 4		// pin connects to copper area on this layer
+	};
+
 
 	cpin2(cpart2 *_part, cpadstack *_ps, cnet2 *_net);					// CPT2. Added args. Done in cpp
 	cpin2(CFreePcbDoc *_doc, int _uid);
@@ -960,9 +983,14 @@ public:
 	void SetPosition();												// Done in cpp.  New, but related to CPartList::GetPinPoint
 	bool SetNeedsThermal();											// Done in cpp.  New, but related to CNetList::SetAreaConnections
 	// void SetThermalVisible(int layer, bool bVisible) { }			// CPT2.  TODO figure this out.
-	// void Initialize( cnet2 * net );  // Put in constructor
-	void Disconnect() ;												// Done in cpp
+	void Disconnect();												// Done in cpp
 	cseg2 *AddRatlineToPin( cpin2 *p2 );
+
+	bool GetDrawInfo(int layer,	bool bUse_TH_thermals, bool bUse_SMT_thermals,		// Done in cpp, derived from CPartList::GetPadDrawInfo().  Used during DRC
+		  int mask_clearance, int paste_mask_shrink,
+		  int * type=0, int * w=0, int * l=0, int * r=0, int * hole=0,										// CPT2 got rid of "x" and "y" args
+		  int * connection_status=0, int * pad_connect_flag=0, int * clearance_type=0 );
+	int GetConnectionStatus( int layer );											// Done in cpp, derived from CPartList::GetPinConnectionStatus().
 };
 
 
@@ -1013,7 +1041,7 @@ public:
 		{ return new cupart(this); }
 	void SaveUndoInfo(bool bSaveAttachedConnects = true);
 
-	void Move( int x, int y, int angle, int side );												// Done in cpp, derived from CPartList::Move
+	void Move( int x, int y, int angle = -1, int side = -1);									// Done in cpp, derived from CPartList::Move
 	void PartMoved( int dx=1, int dy=1 );														// Done in cpp, derived from CNetList::PartMoved
 	void SetData( CShape * shape, CString * ref_des, CString *value_txt, CString * package, 
 	     		  int x, int y, int side, int angle, int visible, int glued );					// Done in cpp, Derived from CPartList::SetPartData
@@ -1041,6 +1069,7 @@ public:
 	void CancelDragging();
 
 	void MakeString( CString *str );	// Done in cpp, derived from old CPartList::SetPartString().
+	void GetDRCInfo();					// CPT2 new.  Extracted some of the code formerly in DRC().
 };
 
 
@@ -1446,7 +1475,6 @@ public:
 	ccentroid *ToCentroid() { return this; }
 	int GetTypeBit() { return bitCentroid; }
 	int Draw();
-	void Undraw();
 	void Highlight();
 	void StartDragging( CDC *pDC );
 	void CancelDragging();
@@ -1479,7 +1507,6 @@ public:
 	cglue *ToGlue() { return this; }
 	int GetTypeBit() { return bitGlue; }
 	int Draw();
-	void Undraw();
 	void Highlight();
 	void StartDragging( CDC *pDC );
 	void CancelDragging();
@@ -1527,19 +1554,27 @@ public:
 		COPPERAREA_BROKEN,					// CPT
 		UNROUTED
 	};
-
-	int layer;					// layer (if pad error)
+	
+	int index;					// CPT2 new
 	int type;					// id, using subtypes above
 	CString str;				// descriptive string
-	CString name1, name2;		// names of nets or parts tested
-	cpcb_item *item1, *item2;	// ids of items tested
+	cpcb_item *item1, *item2;	// items tested
 	int x, y;					// position of error
+	int w;						// width of circle (CPT2 new)
+	int layer;					// layer (if pad error)
 
-	cdre(CFreePcbDoc *_doc) 
-		: cpcb_item(_doc)
-		{ }
+	cdre(CFreePcbDoc *_doc, int _index, int _type, CString *_str, cpcb_item *_item1, cpcb_item *_item2, 
+		int _x, int _y, int _w, int _layer=0);
+	cdre(CFreePcbDoc *_doc, int _uid);
+
 	bool IsDRE() { return true; }
 	cdre *ToDRE() { return this; }
 	int GetTypeBit() { return bitDRE; }
+	bool IsValid();
+	cundo_item *MakeUndoItem()
+		{ return new cudre(this); }
+
+	int Draw();
+	void Highlight();
 };
 

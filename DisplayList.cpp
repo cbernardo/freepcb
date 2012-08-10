@@ -34,6 +34,9 @@
 dl_element::dl_element()
 {
 	prev = next = NULL;
+	// CPT2 added some more zeroing for safety
+	holew = w = clearancew = 0;
+	radius = layer = orig_layer = 0;
 }
 
 
@@ -485,13 +488,18 @@ void CDisplayList::Set_id( dl_element * el, id * id )
 	if( el)
 		el->id = *id;
 }
+/*
+CPT2:  With Brian's new object-oriented way of doing things, this routine doesn't work at all.
+The only time it was actually used was in DRErrorList::MakeSolidCircles and DRErrorList::MakeHollowCircles.
+I've made a kludgy change to the drawing of hollow circles in order to get those routines working more-or-less as before
+
 void CDisplayList::Set_gtype( dl_element * el, int gtype )
 {
 	if( el )
 		el->gtype = gtype;
 }
 
-
+*/
 
 void CDisplayList::Move( dl_element * el, int dx, int dy )
 {

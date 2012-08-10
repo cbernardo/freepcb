@@ -21,6 +21,7 @@ struct DesignRules
 
 class DRError
 {
+	// CPT2 this class is on the way out... it's contents are moving over to cdre (see PcbItem.h)
 public:
 	DRError();
 	~DRError();
@@ -103,9 +104,12 @@ public:
 	cdrelist(CFreePcbDoc *_doc)
 		{ doc = _doc; }
 	~cdrelist() { }
-	cdre * Add( long index, int t2, CString * str, 
-		CString * name1, CString * name2, id id1, id id2,
+	cdre * Add( int type, CString * str, cpcb_item *item1, cpcb_item *item2,
 		int x1, int y1, int x2, int y2, int w, int layer );
-	void Clear();											// Undraw all members, then remove 'em.
-
+	void Remove( cdre *dre );									// Undraw a single member, then remove it.
+	void Clear();												// Undraw all members, then remove 'em.
+	int GetSize() 
+		{ return dres.GetSize(); }
+	void MakeHollowCircles();
+	void MakeSolidCircles();
 };

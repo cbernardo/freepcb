@@ -260,9 +260,19 @@ public:
 	void CreateMoveOriginUndoRecord( int x_off, int y_off );		// CPT2:  Reused the name.
 	void UndoNoRedo();												// CPT2:  Used occasionally, e.g. when user aborts a just-started operation 
 																	// like dragging a stub
-	// The following 2 were in CPartList, but I thought they made more sense here:
+
+	// CPT2 DRC() used to be in CPartList, but I thought they made more sense here.  I also broke DRC() into helper routines for readability.
 	void DRC( int units, BOOL check_unrouted, DesignRules * dr );
-	void CheckBrokenArea(carea *a, cnet *net, CDlgLog * log, int units, DRErrorList * drelist, long &nerrors); 
+	void DRCPin( cpin2 *pin, int units, DesignRules *dr );
+	void DRCPinsAndCopperGraphics( cpart2 *part1, cpart2 *part2, int units, DesignRules *dr );
+	void DRCPinAndPin( cpin2 *pin1, cpin2 *pin2, int units, DesignRules *dr, int clearance );
+	void DRCArea( carea2 *a, int units, DesignRules *dr );
+	void DRCConnect( cconnect2 *c, int units, DesignRules *dr );
+	void DRCConnectAndConnect( cconnect2 *c1, cconnect2 *c2, int units, DesignRules *dr, int clearance );
+	void DRCAreaAndArea( carea2 *a1, carea2 *a2, int units, DesignRules *dr );
+	void DRCSegmentAndVia( cseg2 *seg, cvertex2 *vtx, int units, DesignRules *dr );
+	void DRCViaAndVia(cvertex2 *vtx1, cvertex2 *vtx2, int units, DesignRules *dr);
+	void DRCUnrouted(int units);
 
 #ifdef _DEBUG
 	virtual void AssertValid() const;

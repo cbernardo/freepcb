@@ -700,3 +700,39 @@ bool cundo_record::Execute( int op )
 		items[i] = redoItems[i];
 	return false;
 }
+
+cudre::cudre( cdre *d )
+	: cundo_item (d->doc, d->UID())
+{
+	index = d->index;
+	type = d->type;
+	str = d->str;
+	item1 = d->item1->UID();
+	item2 = d->item1->UID();
+	x = d->x, y = d->y;
+	w = d->w;
+	layer = d->layer;
+}
+
+void cudre::CreateTarget()
+	{ target = new cdre(m_doc, m_uid); }
+
+void cudre::FixTarget()
+{
+	cdre *d = target->ToDRE();
+	d->index = index;
+	d->type = type;
+	d->str = str;
+	d->item1 = item1==-1? NULL: cpcb_item::FindByUid(item1);
+	d->item2 = item2==-1? NULL: cpcb_item::FindByUid(item2);
+	d->x = x, d->y = y;
+	d->w = w;
+	d->layer = layer;
+}
+
+void cudre::AddToLists()
+{
+	cdre *d = target->ToDRE();
+	m_doc->m_drelist->dres.Add( d );
+}
+

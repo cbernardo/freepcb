@@ -687,10 +687,10 @@ int CFreePcbDoc::FileClose()
 	m_nlist->nets.RemoveAll();
 	m_plist->parts.RemoveAll();
 	m_tlist->texts.RemoveAll();
-	m_dlist->RemoveAll();
 	smcutouts.RemoveAll();
 	boards.RemoveAll();
-	m_drelist->Clear();
+	m_drelist->dres.RemoveAll();
+	m_dlist->RemoveAll();
 	// clear clipboard
 	clip_nlist->nets.RemoveAll();
 	clip_plist->parts.RemoveAll();
@@ -3553,6 +3553,7 @@ void CFreePcbDoc::OnToolsCheckPartsAndNets()
 
 void CFreePcbDoc::OnToolsDrc()
 {
+	m_view->CancelSelection();
 	DlgDRC dlg;
 	if( m_vis[LAY_RAT_LINE] && !m_auto_ratline_disable )
 		m_nlist->OptimizeConnections();
@@ -3563,18 +3564,18 @@ void CFreePcbDoc::OnToolsDrc()
 	m_annular_ring_vias = dlg.m_CAM_annular_ring_vias;
 	ProjectModified( TRUE );
 	m_view->BringWindowToTop();
-	m_view->Invalidate( FALSE );
 }
 
 void CFreePcbDoc::OnToolsClearDrc()
 {
+	m_view->CancelSelection();
 	if( m_view->m_cursor_mode == CUR_DRE_SELECTED )
 	{
 		m_view->CancelSelection();
 		m_view->SetCursorMode( CUR_NONE_SELECTED );
 	}
 	m_drelist->Clear();
-	m_view->Invalidate( FALSE );
+	ProjectModified( true );
 }
 
 void CFreePcbDoc::OnToolsShowDRCErrorlist()
@@ -4236,7 +4237,7 @@ void CFreePcbDoc::UndoNoRedo()
 
 void CFreePcbDoc::OnRepeatDrc()
 {
-#ifndef CPT2
+	m_view->CancelSelection();
 	if( m_vis[LAY_RAT_LINE] && !m_auto_ratline_disable )
 		m_nlist->OptimizeConnections();
 	m_drelist->Clear();
@@ -4244,11 +4245,9 @@ void CFreePcbDoc::OnRepeatDrc()
 	m_dlg_log->UpdateWindow();
 	m_dlg_log->BringWindowToTop(); 
 	m_dlg_log->Clear();
-	m_dlg_log->UpdateWindow(); 
-	m_plist->DRC( m_dlg_log, m_num_copper_layers, m_units, 
-		m_dr.bCheckUnrouted, &m_board_outline, &m_dr, m_drelist );
-	m_view->Invalidate( FALSE );
-#endif
+	m_dlg_log->UpdateWindow();
+	DRC( m_units, m_dr.bCheckUnrouted, &m_dr );
+	ProjectModified( true );
 }
 
 void CFreePcbDoc::OnFileGenerateReportFile()
@@ -4650,7 +4649,7 @@ void CFreePcbDoc::Redraw()
 	redraw.RemoveAll();
 }
 
-/*  CPT2
+#ifndef CPT2
 void CFreePcbDoc::GarbageCollect() {
 	// Part of my proposed new architecture is to take some of the hassle out of memory management for pcb-items by using garbage collection.
 	// Each time an item is constructed, it is added to the "items" array.  If an item goes out of use, one does not have to "delete" it;
@@ -4702,19 +4701,18 @@ void CFreePcbDoc::GarbageCollect() {
 		if (!i.utility)
 			delete i;
 	}
-
-*/
+#endif
 
 
 // Design rule check.  CPT2:  was in CPartList, now here.
 //
 void CFreePcbDoc::DRC( int units, BOOL check_unrouted, DesignRules * dr )
 {
-#ifndef CPT2
 	CString d_str, x_str, y_str;
-	CString str;
-	CString str2;
-	long nerrors = 0;
+	CString str, str2;
+	CDlgLog *log = m_dlg_log;
+	int num_layers = LAY_TOP_COPPER + m_num_copper_layers;
+	m_drelist->Clear();
 
 	// iterate through parts, setting DRC params and
 	// checking for following errors:
@@ -4726,274 +4724,18 @@ void CFreePcbDoc::DRC( int units, BOOL check_unrouted, DesignRules * dr )
 	str.LoadString( IDS_CheckingParts );
 	if( log )
 		log->AddLine( str );
-	cpart * part = GetFirstPart();
-	while( part )
+	citer<cpart2> ip (&m_plist->parts);
+	for (cpart2 *part = ip.First(); part; part = ip.Next())
 	{
-		CShape * s = part->shape;
-		if( s )
-		{
-			// set DRC params for part
-			// i.e. bounding rectangle and layer mask
-			part->hole_flag = FALSE;
-			part->min_x = INT_MAX;
-			part->max_x = INT_MIN;
-			part->min_y = INT_MAX;
-			part->max_y = INT_MIN;
-			part->layers = 0;
+		if (!part->shape) continue;
+		// set DRC params for part
+		// i.e. bounding rectangle and layer mask.  GetDRCInfo() also sets these params for each pin.
+		part->GetDRCInfo();
 
-			// iterate through copper graphics elements
-			for( int igr=0; igr<part->m_outline_stroke.GetSize(); igr++ )
-			{
-				stroke * stk = &part->m_outline_stroke[igr];
-				int il = stk->layer - LAY_TOP_COPPER;
-				if( il >= 0 )
-				{
-					int layer_bit = 1<<il;
-					part->layers |= layer_bit;
-					part->min_x = min( part->min_x, stk->xi - stk->w/2 );
-					part->max_x = max( part->max_x, stk->xi + stk->w/2 );
-					part->min_x = min( part->min_x, stk->xf - stk->w/2 );
-					part->max_x = max( part->max_x, stk->xf + stk->w/2 );
-					part->min_y = min( part->min_y, stk->yi - stk->w/2 );
-					part->max_y = max( part->max_y, stk->yi + stk->w/2 );
-					part->min_y = min( part->min_y, stk->yf - stk->w/2 );
-					part->max_y = max( part->max_y, stk->yf + stk->w/2 );
-				}
-			}
-
-			// iterate through pins in part, set DRC info for each pin
-			for( int ip=0; ip<s->GetNumPins(); ip++ )
-			{
-				drc_pin * drp = &part->pin[ip].drc;
-				drp->hole_size = 0;
-				drp->min_x = INT_MAX;
-				drp->max_x = INT_MIN;
-				drp->min_y = INT_MAX;
-				drp->max_y = INT_MIN;
-				drp->max_r = INT_MIN;
-				drp->layers = 0;
-
-				id id1 = part->m_id;
-				id1.SetT2( ID_PAD );
-				id1.SetI2( ip );
-
-				// iterate through copper layers
-				for( int il=0; il<copper_layers; il++ )
-				{
-					int layer = LAY_TOP_COPPER + il;
-					int layer_bit = 1<<il;
-
-					// get test pad info
-					int x, y, w, l, r, type, hole, connect, angle;
-					cnet * net;
-					BOOL bPad = GetPadDrawInfo( part, ip, layer, 0, 0, 0, 0,
-						&type, &x, &y, &w, &l, &r, &hole, &angle,
-						&net, &connect );
-					if( bPad )
-					{
-						// pad or hole present
-						if( hole )
-						{
-							drp->hole_size = hole;
-							drp->min_x = min( drp->min_x, x - hole/2 );
-							drp->max_x = max( drp->max_x, x + hole/2 );
-							drp->min_y = min( drp->min_y, y - hole/2 );
-							drp->max_y = max( drp->max_y, y + hole/2 );
-							drp->max_r = max( drp->max_r, hole/2 );
-							part->min_x = min( part->min_x, x - hole/2 );
-							part->max_x = max( part->max_x, x + hole/2 );
-							part->min_y = min( part->min_y, y - hole/2 );
-							part->max_y = max( part->max_y, y + hole/2 );
-							part->hole_flag = TRUE;
-							// test clearance to board edge
-							for( int ib=0; ib<board_outline->GetSize(); ib++ )
-							{
-								CPolyLine * b = &(*board_outline)[ib];
-								for( int ibc=0; ibc<b->NumCorners(); ibc++ )
-								{
-									int x1 = b->X(ibc);
-									int y1 = b->Y(ibc);
-									int x2 = b->X(0);
-									int y2 = b->Y(0);
-									if( ibc != b->NumCorners()-1 )
-									{
-										x2 = b->X(ibc+1);
-										y2 = b->Y(ibc+1);
-									}
-									// for now, only works for straight board edge segments
-									if( b->SideStyle(ibc) == CPolyLine::STRAIGHT )
-									{
-										int d = ::GetClearanceBetweenLineSegmentAndPad( x1, y1, x2, y2, 0,
-											PAD_ROUND, x, y, hole, 0, 0, 0 );
-										if( d < dr->board_edge_copper )
-										{
-											// BOARDEDGE_PADHOLE error
-											::MakeCStringFromDimension( &d_str, d, units, TRUE, TRUE, TRUE, 1 );
-											::MakeCStringFromDimension( &x_str, x, units, FALSE, TRUE, TRUE, 1 );
-											::MakeCStringFromDimension( &y_str, y, units, FALSE, TRUE, TRUE, 1 );
-											CString s0 ((LPCSTR) IDS_PadHoleToBoardEdgeEquals);
-											str.Format( s0, nerrors+1, part->ref_des, s->m_padstack[ip].name, d_str, x_str, y_str );
-											DRError * dre = drelist->Add( nerrors, DRError::BOARDEDGE_PADHOLE, &str,
-												&part->ref_des, NULL, id1, id1, x, y, 0, 0, w+20*NM_PER_MIL, 0 );
-											if( dre )
-											{
-												nerrors++;
-												if( log )
-													log->AddLine( str );
-											}
-										}
-									}
-								}
-							}
-							// test clearance from graphic elements
-							for( int igr=0; igr<part->m_outline_stroke.GetSize(); igr++ )
-							{
-								stroke * stk = &part->m_outline_stroke[igr];
-								if( stk->layer == layer )
-								{
-									int d = ::GetClearanceBetweenLineSegmentAndPad( stk->xi, stk->yi, stk->xf, stk->yf, stk->w,
-										PAD_ROUND, x, y, hole, 0, 0, 0 );
-									if( d <= dr->hole_copper )
-									{
-										// COPPERGRAPHIC_PADHOLE error
-										::MakeCStringFromDimension( &d_str, d, units, TRUE, TRUE, TRUE, 1 );
-										::MakeCStringFromDimension( &x_str, x, units, FALSE, TRUE, TRUE, 1 );
-										::MakeCStringFromDimension( &y_str, y, units, FALSE, TRUE, TRUE, 1 );
-										CString s0 ((LPCSTR) IDS_PadHoleToCopperGraphics);
-										str.Format( s0, nerrors+1, part->ref_des, s->m_padstack[ip].name, 
-											part->ref_des, s->m_padstack[ip].name, d_str, x_str, y_str );
-										DRError * dre = drelist->Add( nerrors, DRError::COPPERGRAPHIC_PADHOLE, &str,
-											&part->ref_des, NULL, id1, id1, x, y, 0, 0, w+20*NM_PER_MIL, 0 );
-										if( dre )
-										{
-											nerrors++;
-											if( log )
-												log->AddLine( str );
-										}
-									}
-								}
-							}
-						}
-						if( type != PAD_NONE )
-						{
-							int wid = w;
-							int len = wid;
-							if( type == PAD_RECT || type == PAD_RRECT || type == PAD_OVAL )
-								len = l;
-							if( angle == 90 )
-							{
-								wid = len;
-								len = w;
-							}
-							drp->min_x = min( drp->min_x, x - len/2 );
-							drp->max_x = max( drp->max_x, x + len/2 );
-							drp->min_y = min( drp->min_y, y - wid/2 );
-							drp->max_y = max( drp->max_y, y + wid/2 );
-							drp->max_r = max( drp->max_r, Distance( 0, 0, len/2, wid/2 ) );
-							part->min_x = min( part->min_x, x - len/2 );
-							part->max_x = max( part->max_x, x + len/2 );
-							part->min_y = min( part->min_y, y - wid/2 );
-							part->max_y = max( part->max_y, y + wid/2 );
-							drp->layers |= layer_bit;
-							part->layers |= layer_bit;
-							if( hole && part->pin[ip].net )
-							{
-								// test annular ring
-								int d = (w - hole)/2;
-								if( type == PAD_RECT || type == PAD_RRECT || type == PAD_OVAL )
-									d = (min(w,l) - hole)/2;
-								if( d < dr->annular_ring_pins )
-								{
-									// RING_PAD
-									::MakeCStringFromDimension( &d_str, d, units, TRUE, TRUE, TRUE, 1 );
-									::MakeCStringFromDimension( &x_str, x, units, FALSE, TRUE, TRUE, 1 );
-									::MakeCStringFromDimension( &y_str, y, units, FALSE, TRUE, TRUE, 1 );
-									CString s0 ((LPCSTR) IDS_AnnularRingEquals);
-									str.Format( s0, nerrors+1, part->ref_des, s->m_padstack[ip].name, d_str, x_str, y_str );
-									DRError * dre = drelist->Add( nerrors, DRError::RING_PAD, &str,
-										&part->ref_des, NULL, id1, id1, x, y, 0, 0, w+20*NM_PER_MIL, 0 );
-									if( dre )
-									{
-										nerrors++;
-										if( log )
-											log->AddLine( str );
-									}
-								}
-							}
-							// test clearance to board edge
-							for( int ib=0; ib<board_outline->GetSize(); ib++ )
-							{
-								CPolyLine * b = &(*board_outline)[ib];
-								for( int ibc=0; ibc<b->NumCorners(); ibc++ )
-								{
-									int x1 = b->X(ibc);
-									int y1 = b->Y(ibc);
-									int x2 = b->X(0);
-									int y2 = b->Y(0);
-									if( ibc != b->NumCorners()-1 )
-									{
-										x2 = b->X(ibc+1);
-										y2 = b->Y(ibc+1);
-									}
-									// for now, only works for straight board edge segments
-									if( b->SideStyle(ibc) == CPolyLine::STRAIGHT )
-									{
-										int d = ::GetClearanceBetweenLineSegmentAndPad( x1, y1, x2, y2, 0,
-											type, x, y, w, l, r, angle );
-										if( d < dr->board_edge_copper )
-										{
-											// BOARDEDGE_PAD error
-											::MakeCStringFromDimension( &d_str, d, units, TRUE, TRUE, TRUE, 1 );
-											::MakeCStringFromDimension( &x_str, x, units, FALSE, TRUE, TRUE, 1 );
-											::MakeCStringFromDimension( &y_str, y, units, FALSE, TRUE, TRUE, 1 );
-											CString s0 ((LPCSTR) IDS_PadToBoardEdgeEquals);
-											str.Format( s0, nerrors+1, part->ref_des, s->m_padstack[ip].name, d_str, x_str, y_str );
-											DRError * dre = drelist->Add( nerrors, DRError::BOARDEDGE_PAD, &str,
-												&part->ref_des, NULL, id1, id1, x, y, 0, 0, w+20*NM_PER_MIL, 0 );
-											if( dre )
-											{
-												nerrors++;
-												if( log )
-													log->AddLine( str );
-											}
-										}
-									}
-								}
-							}
-							// test clearance from graphic elements
-							for( int igr=0; igr<part->m_outline_stroke.GetSize(); igr++ )
-							{
-								stroke * stk = &part->m_outline_stroke[igr];
-								if( stk->layer == layer )
-								{
-									int d = ::GetClearanceBetweenLineSegmentAndPad( stk->xi, stk->yi, stk->xf, stk->yf, stk->w,
-										type, x, y, w, l, r, angle );
-									if( d <= dr->copper_copper )
-									{
-										// COPPERGRAPHIC_PAD error
-										::MakeCStringFromDimension( &d_str, d, units, TRUE, TRUE, TRUE, 1 );
-										::MakeCStringFromDimension( &x_str, x, units, FALSE, TRUE, TRUE, 1 );
-										::MakeCStringFromDimension( &y_str, y, units, FALSE, TRUE, TRUE, 1 );
-										CString s0 ((LPCSTR) IDS_PadToCopperGraphics);
-										str.Format( s0, nerrors+1, part->ref_des, s->m_padstack[ip].name, 
-											part->ref_des, s->m_padstack[ip].name, d_str, x_str, y_str );
-										DRError * dre = drelist->Add( nerrors, DRError::COPPERGRAPHIC_PAD, &str,
-											&part->ref_des, NULL, id1, id1, x, y, 0, 0, w+20*NM_PER_MIL, 0 );
-										if( dre )
-										{
-											nerrors++;
-											if( log )
-												log->AddLine( str );
-										}
-									}
-								}
-							}
-						}
-					}
-				}
-			}
-		}
-		part = GetNextPart( part );
+		// Check for errors involving each pin in turn
+		citer<cpin2> ipin (&part->pins);
+		for (cpin2 *pin = ipin.First(); pin; pin = ipin.Next())
+			DRCPin(pin, units, dr);
 	}
 
 	// iterate through parts again, checking against all other parts
@@ -5003,252 +4745,43 @@ void CFreePcbDoc::DRC( int units, BOOL check_unrouted, DesignRules * dr )
 	//	PAD_PAD
 	//	COPPERGRAPHIC_PAD,			
 	//	COPPERGRAPHIC_PADHOLE,
-	int t_part_index = -1;	// use index to avoid duplicate tests
-	for( cpart * t_part=GetFirstPart(); t_part; t_part=GetNextPart(t_part) )
-	{
-		t_part_index++;		
-		CShape * t_s = t_part->shape;
-		if( t_s )
+	// CPT2 to ensure that no duplicate tests occur, only compare part1 with p2 if part1 has the lesser UID
+	citer<cpart2> ipart1 (&m_plist->parts);
+	citer<cpart2> ipart2 (&m_plist->parts);
+	for (cpart2 *part1 = ipart1.First(); part1; part1 = ipart1.Next())
+		for (cpart2 *part2 = ipart2.First(); part2; part2 = ipart2.Next())
 		{
-			// now iterate through parts that follow in the partlist
-			int part_index = -1;
-			for( cpart * part=GetFirstPart(); part; part=GetNextPart(part) )
-			{
-				part_index++;
-				CShape * s = part->shape;
-				if( s )
-				{
-					// now see if part and t_part elements might intersect
-					// get max. clearance violation
-					int clr = max( dr->pad_pad, dr->hole_copper );
-					clr = max( clr, dr->hole_hole );
-					clr = max( clr, dr->copper_copper );
+			if (!part1->shape || !part2->shape) continue;
+			if (part1->UID() >= part2->UID()) continue;
+			// now see if part1 and part2 elements might intersect
+			// get max. clearance violation
+			int clr = max( dr->pad_pad, dr->hole_copper );
+			clr = max( clr, dr->hole_hole );
+			clr = max( clr, dr->copper_copper );
+			// now check for clearance of rectangles
+			if( part1->min_x - part2->max_x > clr )
+				continue;	
+			if( part2->min_x - part1->max_x > clr )
+				continue;
+			if( part1->min_y - part2->max_y > clr )
+				continue;
+			if( part2->min_y - part1->max_y > clr )
+				continue;
+			// If parts have no elements on common layers and no holes, we can skip comparing 'em
+			if( !(part1->layers & part2->layers) )
+				if( !part1->hole_flag && !part2->hole_flag ) 
+					continue;
 
-					// now check for clearance of rectangles
-					if( part->min_x - t_part->max_x > clr )
-						continue;	// next part
-					if( t_part->min_x - part->max_x > clr )
-						continue;	// next part
-					if( part->min_y - t_part->max_y > clr )
-						continue;	// next part
-					if( t_part->min_y - part->max_y > clr )
-						continue;	// next part
-
-					// see if elements on same layers
-					if( !(part->layers & t_part->layers) )
-					{
-						// no elements on same layers, check for holes
-						if( !part->hole_flag && !t_part->hole_flag ) 
-							continue;	// no, go to next part
-					}
-
-					// we need to test elements in these parts
-					// iterate through pins in t_part
-					for( int t_ip=0; t_ip<t_s->GetNumPins(); t_ip++ )
-					{
-						cpadstack * t_ps = &t_s->m_padstack[t_ip];
-						part_pin * t_pin = &t_part->pin[t_ip];
-						drc_pin * t_drp = &t_pin->drc;
-						id id1 = part->m_id;
-						id1.SetT2( ID_PAD );
-						id1.SetI2( t_ip );
-
-						// iterate through copper graphic elements in part
-						// first, get mask of all copper layers used by elements
-						int graph_lay_mask = 0;
-						for( int igr=0; igr<part->m_outline_stroke.GetSize(); igr++ )
-						{
-							stroke * stk = &part->m_outline_stroke[igr];
-							int il = stk->layer - LAY_TOP_COPPER;
-							if( il >= 0 )
-							{
-								int lay_mask = 1<<il;
-								graph_lay_mask |= lay_mask;
-							}
-						}
-						if( graph_lay_mask != 0 )
-						{
-							// iterate through all copper layers
-							for( int il=0; il<copper_layers; il++ )
-							{
-								int lay_mask = 1<<il;
-								if( lay_mask & graph_lay_mask )
-								{
-									// there are graphics strokes on this layer
-									int layer = il + LAY_TOP_COPPER;
-									// check pads
-									int t_pad_x, t_pad_y, t_pad_w, t_pad_l, t_pad_r;
-									int t_pad_type, t_pad_hole, t_pad_connect, t_pad_angle;
-									cnet * t_pad_net;
-									BOOL t_bPad = GetPadDrawInfo( t_part, t_ip, layer, 0, 0, 0, 0,
-										&t_pad_type, &t_pad_x, &t_pad_y, &t_pad_w, &t_pad_l, &t_pad_r, 
-										&t_pad_hole, &t_pad_angle,
-										&t_pad_net, &t_pad_connect );
-									if( t_bPad )
-									{
-										for( int igr=0; igr<part->m_outline_stroke.GetSize(); igr++ )
-										{
-											stroke * stk = &part->m_outline_stroke[igr];
-											if( stk->layer == layer )
-											{
-												//** TODO: test for hole-copper violation
-												//** TODO: test for pad-copper violation
-											}
-										}
-									}
-								}
-							}
-						}
-
-						// if part follows t_part in list, iterate through pins in part
-						if( part_index > t_part_index )
-						{
-							for( int ip=0; ip<s->GetNumPins(); ip++ )
-							{
-								cpadstack * ps = &s->m_padstack[ip];
-								part_pin * pin = &part->pin[ip];
-								drc_pin * drp = &pin->drc;
-								id id2 = part->m_id;
-								id2.SetT2( ID_PAD );
-								id2.SetI2( ip );
-
-								// test for hole-hole violation
-								if( drp->hole_size && t_drp->hole_size )
-								{
-									// test for hole-to-hole violation
-									int dist = Distance( pin->x, pin->y, t_pin->x, t_pin->y );
-									int h_h = max( 0, dist - (ps->hole_size + t_ps->hole_size)/2 );
-									if( h_h < dr->hole_hole )
-									{
-										// PADHOLE_PADHOLE
-										::MakeCStringFromDimension( &d_str, h_h, units, TRUE, TRUE, TRUE, 1 );
-										::MakeCStringFromDimension( &x_str, pin->x, units, FALSE, TRUE, TRUE, 1 );
-										::MakeCStringFromDimension( &y_str, pin->y, units, FALSE, TRUE, TRUE, 1 );
-										CString s0 ((LPCSTR) IDS_PadHoleToPadeHoleEquals);
-										str.Format( s0, nerrors+1, part->ref_des, s->m_padstack[ip].name,
-											t_part->ref_des, t_s->m_padstack[t_ip].name,
-											d_str, x_str, y_str );
-										DRError * dre = drelist->Add( nerrors, DRError::PADHOLE_PADHOLE, &str,
-											&t_part->ref_des, &part->ref_des, id1, id2, 
-											pin->x, pin->y, t_pin->x, t_pin->y, 0, 0 );
-										if( dre )
-										{
-											nerrors++;
-											if( log )
-												log->AddLine( str );
-										}
-									}
-								}
-
-								// see if pads on same layers
-								if( !(drp->layers & t_drp->layers) )
-								{
-									// no, see if either has a hole
-									if( !drp->hole_size && !t_drp->hole_size )
-									{
-										// no, go to next pin
-										continue;
-									}
-								}
-
-								// see if padstacks might intersect
-								if( drp->min_x - t_drp->max_x > clr )
-									continue;	// no, next pin
-								if( t_drp->min_x - drp->max_x > clr )
-									continue;	// no, next pin
-								if( drp->min_y - t_drp->max_y > clr )
-									continue;	// no, next pin
-								if( t_drp->min_y - drp->max_y > clr )
-									continue;	// no, next pin
-
-								// OK, pads might be too close
-								// check for pad clearance violations on each layer
-								for( int il=0; il<copper_layers; il++ )
-								{
-									int layer = il + LAY_TOP_COPPER;
-									int t_pad_x, t_pad_y, t_pad_w, t_pad_l, t_pad_r;
-									int t_pad_type, t_pad_hole, t_pad_connect, t_pad_angle;
-									cnet * t_pad_net;
-
-									// test for pad-pad violation
-									BOOL t_bPad = GetPadDrawInfo( t_part, t_ip, layer, 0, 0, 0, 0,
-										&t_pad_type, &t_pad_x, &t_pad_y, &t_pad_w, &t_pad_l, &t_pad_r, 
-										&t_pad_hole, &t_pad_angle,
-										&t_pad_net, &t_pad_connect );
-									if( t_bPad )
-									{
-										// get pad info for pin
-										int pad_x, pad_y, pad_w, pad_l, pad_r;
-										int pad_type, pad_hole, pad_connect, pad_angle;
-										cnet * pad_net;
-										BOOL bPad = GetPadDrawInfo( part, ip, layer, 0, 0, 0, 0, 
-											&pad_type, &pad_x, &pad_y, &pad_w, &pad_l, &pad_r, 
-											&pad_hole, &pad_angle, &pad_net, &pad_connect );
-										if( bPad )
-										{
-											if( pad_hole )
-											{
-												// test for pad-padhole violation
-												int dist = GetClearanceBetweenPads( t_pad_type, t_pad_x, t_pad_y, 
-													t_pad_w, t_pad_l, t_pad_r, t_pad_angle,
-													PAD_ROUND, pad_x, pad_y, pad_hole, 0, 0, 0 );
-												if( dist < dr->hole_copper )
-												{
-													// PAD_PADHOLE 
-													::MakeCStringFromDimension( &d_str, dist, units, TRUE, TRUE, TRUE, 1 );
-													::MakeCStringFromDimension( &x_str, pad_x, units, FALSE, TRUE, TRUE, 1 );
-													::MakeCStringFromDimension( &y_str, pad_y, units, FALSE, TRUE, TRUE, 1 );
-													CString s0 ((LPCSTR) IDS_PadHoleToPadEquals);
-													str.Format( s0, nerrors+1, part->ref_des, s->m_padstack[ip].name,
-														t_part->ref_des, t_s->m_padstack[t_ip].name,
-														d_str, x_str, y_str );
-													DRError * dre = drelist->Add( nerrors, DRError::PAD_PADHOLE, &str, 
-														&t_part->ref_des, &part->ref_des, id1, id2, 
-														pad_x, pad_y, t_pad_x, t_pad_y, 0, layer );
-													if( dre )
-													{
-														nerrors++;
-														if( log )
-															log->AddLine( str );
-													}
-													break;		// skip any more layers, go to next pin
-												}
-											}
-											// test for pad-pad violation
-											int dist = GetClearanceBetweenPads( t_pad_type, t_pad_x, t_pad_y, 
-												t_pad_w, t_pad_l, t_pad_r, t_pad_angle,
-												pad_type, pad_x, pad_y, pad_w, pad_l, pad_r, pad_angle );
-											if( dist < dr->pad_pad )
-											{
-												// PAD_PAD 
-												::MakeCStringFromDimension( &d_str, dist, units, TRUE, TRUE, TRUE, 1 );
-												::MakeCStringFromDimension( &x_str, pad_x, units, FALSE, TRUE, TRUE, 1 );
-												::MakeCStringFromDimension( &y_str, pad_y, units, FALSE, TRUE, TRUE, 1 );
-												CString s0 ((LPCSTR) IDS_PadToPadEquals);
-												str.Format( s0, nerrors+1, part->ref_des, s->m_padstack[ip].name,
-													t_part->ref_des, t_s->m_padstack[t_ip].name,
-													d_str, x_str, y_str );
-												DRError * dre = drelist->Add( nerrors, DRError::PAD_PAD, &str, 
-													&t_part->ref_des, &part->ref_des, id1, id2, 
-													pad_x, pad_y, t_pad_x, t_pad_y, 0, layer );
-												if( dre )
-												{
-													nerrors++;
-													if( log )
-														log->AddLine( str );
-												}
-												break;		// skip any more layers, go to next pin
-											}
-										}
-									}
-								}
-							}
-						}
-					}
-				}
-			}
+			// we need to test elements in these parts.  Compare pins with copper-graphics, then pins with pins.
+			DRCPinsAndCopperGraphics(part1, part2, units, dr);
+			DRCPinsAndCopperGraphics(part2, part1, units, dr);
+			citer<cpin2> ipin1 (&part1->pins);
+			citer<cpin2> ipin2 (&part2->pins);
+			for (cpin2 *pin1 = ipin1.First(); pin1; pin1 = ipin1.Next())
+				for (cpin2 *pin2 = ipin2.First(); pin2; pin2 = ipin2.Next())
+					DRCPinAndPin( pin1, pin2, units, dr, clr );
 		}
-	}
+	
 
 	// iterate through all nets
 	// check for following errors:
@@ -5265,746 +4798,15 @@ void CFreePcbDoc::DRC( int units, BOOL check_unrouted, DesignRules * dr )
 	str.LoadStringA( IDS_CheckingNetsAndParts );
 	if( log )
 		log->AddLine( str );
-	POSITION pos;
-	void * ptr;
-	CString name;
-	for( pos = m_nlist->m_map.GetStartPosition(); pos != NULL; )
+	citer<cnet2> in (&m_nlist->nets);
+	for (cnet2 *net = in.First(); net; net = in.Next())
 	{
-		m_nlist->m_map.GetNextAssoc( pos, name, ptr );
-		cnet * net = (cnet*)ptr;
-		// iterate through copper areas, checking for BOARDEDGE_COPPERAREA errors
-		for( int ia=0; ia<net->NumAreas(); ia++ )
-		{
-			carea * a = &net->area[ia];
-			// iterate through contours
-			for( int icont=0; icont<a->NumContours(); icont++ )
-			{
-				// iterate through corners and sides
-				int istart = a->ContourStart(icont);
-				int iend = a->ContourEnd(icont);
-				for( int ic=istart; ic<=iend; ic++ )
-				{
-					id id_a = net->m_id;
-					id_a.SetT2( ID_AREA );
-					id_a.SetI2( ia );
-					id_a.SetT3( ID_SIDE );
-					id_a.SetI3( ic );
-					int x1 = a->X(ic);
-					int y1 = a->Y(ic);
-					int x2, y2;
-					if( ic < iend )
-					{
-						x2 = a->X(ic+1);
-						y2 = a->Y(ic+1);
-					}
-					else
-					{
-						x2 = a->X(istart);
-						y2 = a->Y(istart);
-					}
-					int style = a->SideStyle(ic);
-
-					// test clearance to board edge
-					// iterate through board outlines
-					for( int ib=0; ib<board_outline->GetSize(); ib++ )
-					{
-						CPolyLine * b = &(*board_outline)[ib];
-						// iterate through sides
-						for( int ibc=0; ibc<b->NumCorners(); ibc++ )
-						{
-							int bx1 = b->X(ibc);
-							int by1 = b->Y(ibc);
-							int bx2 = b->X(0);
-							int by2 = b->Y(0);
-							if( ibc != b->NumCorners()-1 )
-							{
-								bx2 = b->X(ibc+1);
-								by2 = b->Y(ibc+1);
-							}
-							int bstyle = b->SideStyle(ibc);
-							int x, y;
-							int d = ::GetClearanceBetweenSegments( bx1, by1, bx2, by2, bstyle, 0,
-								x1, y1, x2, y2, style, 0, dr->board_edge_copper, &x, &y );
-							if( d < dr->board_edge_copper )
-							{
-								// BOARDEDGE_COPPERAREA error
-								::MakeCStringFromDimension( &d_str, d, units, TRUE, TRUE, TRUE, 1 );
-								::MakeCStringFromDimension( &x_str, x, units, FALSE, TRUE, TRUE, 1 );
-								::MakeCStringFromDimension( &y_str, y, units, FALSE, TRUE, TRUE, 1 );
-								CString s ((LPCSTR) IDS_CopperAreaToBoardEdgeEquals);
-								str.Format( s, nerrors+1, net->name, d_str, x_str, y_str );
-								DRError * dre = drelist->Add( nerrors, DRError::BOARDEDGE_COPPERAREA, &str,
-									&net->name, NULL, id_a, id_a, x, y, 0, 0, 0, 0 );
-								if( dre )
-								{
-									nerrors++;
-									if( log )
-										log->AddLine( str );
-								}
-							}
-						}
-					}
-				}
-			}
-		}
-		// iterate through all connections
-		CIterator_cconnect iter_con(net);
-		for( cconnect * c=iter_con.GetFirst(); c; c=iter_con.GetNext() )
-		{
-			int ic = iter_con.GetIndex();
-			// get DRC info for this connection
-			// iterate through all segments and vertices
-			c->min_x = INT_MAX;		// bounding box for connection
-			c->max_x = INT_MIN;
-			c->min_y = INT_MAX;
-			c->max_y = INT_MIN;
-			c->vias_present = FALSE;
-			c->seg_layers = 0;
-			int max_trace_w = 0;	// maximum trace width for connection
-			CIterator_cseg iter_seg(c);
-			for( cseg * s=iter_seg.GetFirst(); s; s=iter_seg.GetNext() )
-			{
-				int is = iter_seg.GetIndex();
-				id id_seg = net->m_id;
-				id_seg.SetT2( ID_CONNECT );
-				id_seg.SetI2( ic );
-				id_seg.SetT3( ID_SEG );
-				id_seg.SetI3( is );
-				int x1 = s->GetPreVtx().x;
-				int y1 = s->GetPreVtx().y;
-				int x2 = s->GetPostVtx().x;
-				int y2 = s->GetPostVtx().y;
-				int w = s->m_width;
-				int layer = s->m_layer;
-				if( s->m_layer >= LAY_TOP_COPPER )
-				{
-					int layer_bit = s->m_layer - LAY_TOP_COPPER;
-					c->seg_layers |= 1<<layer_bit;
-				}
-				// add segment to bounding box
-				int seg_min_x = min( x1, x2 );
-				int seg_min_y = min( y1, y2 );
-				int seg_max_x = max( x1, x2 );
-				int seg_max_y = max( y1, y2 );
-				c->min_x = min( c->min_x, seg_min_x - w/2 );
-				c->max_x = max( c->max_x, seg_max_x + w/2 );
-				c->min_y = min( c->min_y, seg_min_y - w/2 );
-				c->max_y = max( c->max_y, seg_max_y + w/2 );
-				// test trace width
-				// CPT: noticed a dre for a ratline with width 1 nm (not sure how that width got set...)  Anyway, no width errors for ratlines:
-				if( w > 0 && w < dr->trace_width && c->SegByIndex(is).m_layer!=LAY_RAT_LINE)		
-				{
-					// TRACE_WIDTH error
-					int x = (x1+x2)/2;
-					int y = (y1+y2)/2;
-					::MakeCStringFromDimension( &d_str, w, units, TRUE, TRUE, TRUE, 1 );
-					::MakeCStringFromDimension( &x_str, x, units, FALSE, TRUE, TRUE, 1 );
-					::MakeCStringFromDimension( &y_str, y, units, FALSE, TRUE, TRUE, 1 );
-					CString s ((LPCSTR) IDS_TraceWidthEquals);
-					str.Format( s, nerrors+1, net->name, d_str, x_str, y_str );
-					DRError * dre = drelist->Add( nerrors, DRError::TRACE_WIDTH, &str, 
-						&net->name, NULL, id_seg, id_seg, x, y, 0, 0, 0, layer );
-					if( dre )
-					{
-						nerrors++;
-						if( log )
-							log->AddLine( str );
-					}
-				}
-				// test clearance to board edge
-				if( w > 0 )
-				{
-					for( int ib=0; ib<board_outline->GetSize(); ib++ )
-					{
-						CPolyLine * b = &(*board_outline)[ib];
-						for( int ibc=0; ibc<b->NumCorners(); ibc++ )
-						{
-							int bx1 = b->X(ibc);
-							int by1 = b->Y(ibc);
-							int bx2 = b->X(0);
-							int by2 = b->Y(0);
-							if( ibc != b->NumCorners()-1 )
-							{
-								bx2 = b->X(ibc+1);
-								by2 = b->Y(ibc+1);
-							}
-							int bstyle = b->SideStyle(ibc);
-							int x, y;
-							int d = ::GetClearanceBetweenSegments( bx1, by1, bx2, by2, bstyle, 0,
-								x1, y1, x2, y2, CPolyLine::STRAIGHT, w, dr->board_edge_copper, &x, &y );
-							if( d < dr->board_edge_copper )
-							{
-								// BOARDEDGE_SEG error
-								::MakeCStringFromDimension( &d_str, d, units, TRUE, TRUE, TRUE, 1 );
-								::MakeCStringFromDimension( &x_str, x, units, FALSE, TRUE, TRUE, 1 );
-								::MakeCStringFromDimension( &y_str, y, units, FALSE, TRUE, TRUE, 1 );
-								CString s ((LPCSTR) IDS_TraceToBoardEdgeEquals);
-								str.Format( s, nerrors+1, net->name, d_str, x_str, y_str );
-								DRError * dre = drelist->Add( nerrors, DRError::BOARDEDGE_SEG, &str,
-									&net->name, NULL, id_seg, id_seg, x, y, 0, 0, 0, layer );
-								if( dre )
-								{
-									nerrors++;
-									if( log )
-										log->AddLine( str );
-								}
-							}
-						}
-					}
-				}
-			}
-			for( int iv=0; iv<c->NumSegs()+1; iv++ )
-			{
-				cvertex * vtx = &c->VtxByIndex(iv);
-				if( vtx->via_w )
-				{
-					// via present
-					id id_via = net->m_id;
-					id_via.SetT2( ID_CONNECT );
-					id_via.SetI2( ic );
-					id_via.SetT3( ID_VIA );
-					id_via.SetI3( iv );
-					c->vias_present = TRUE;
-					int min_via_w = INT_MAX;	// minimum via pad diameter
-					int max_via_w = INT_MIN;	// maximum via_pad diameter
-					for( int il=0; il<copper_layers; il++ )
-					{
-						int layer = il + LAY_TOP_COPPER;
-						int test;
-						int pad_w;
-						int hole_w;
-						m_nlist->GetViaPadInfo( net, ic, iv, layer, 
-							&pad_w, &hole_w, &test );
-						if( pad_w > 0 )
-							min_via_w = min( min_via_w, pad_w );
-						max_via_w = max( max_via_w, pad_w );
-					}
-					if( max_via_w == 0 )
-						ASSERT(0);
-					c->min_x = min( c->min_x, vtx->x - max_via_w/2 );
-					c->max_x = max( c->max_x, vtx->x + max_via_w/2 );
-					c->min_y = min( c->min_y, vtx->y - max_via_w/2 );
-					c->max_y = max( c->max_y, vtx->y + max_via_w/2 );
-					int d = (min_via_w - vtx->via_hole_w)/2;
-					if( d < dr->annular_ring_vias )
-					{
-						// RING_VIA
-						::MakeCStringFromDimension( &d_str, d, units, TRUE, TRUE, TRUE, 1 );
-						::MakeCStringFromDimension( &x_str, vtx->x, units, FALSE, TRUE, TRUE, 1 );
-						::MakeCStringFromDimension( &y_str, vtx->y, units, FALSE, TRUE, TRUE, 1 );
-						CString s ((LPCSTR) IDS_ViaAnnularRingEquals);
-						str.Format( s, nerrors+1, net->name, d_str, x_str, y_str );
-						DRError * dre = drelist->Add( nerrors, DRError::RING_VIA, &str, 
-							&net->name, NULL, id_via, id_via, vtx->x, vtx->y, 0, 0, vtx->via_w+20*NM_PER_MIL, 0 );
-						if( dre )
-						{
-							nerrors++;
-							if( log )
-								log->AddLine( str );
-						}
-					}
-					// test clearance to board edge
-					for( int ib=0; ib<board_outline->GetSize(); ib++ )
-					{
-						CPolyLine * b = &(*board_outline)[ib];
-						for( int ibc=0; ibc<b->NumCorners(); ibc++ )
-						{
-							int bx1 = b->X(ibc);
-							int by1 = b->Y(ibc);
-							int bx2 = b->X(0);
-							int by2 = b->Y(0);
-							if( ibc != b->NumCorners()-1 )
-							{
-								bx2 = b->X(ibc+1);
-								by2 = b->Y(ibc+1);
-							}
-							//** for now, only works for straight board edge segments
-							if( b->SideStyle(ibc) == CPolyLine::STRAIGHT )
-							{
-								int d = ::GetClearanceBetweenLineSegmentAndPad( bx1, by1, bx2, by2, 0,
-									PAD_ROUND, vtx->x, vtx->y, max_via_w, 0, 0, 0 );
-								if( d < dr->board_edge_copper )
-								{
-									// BOARDEDGE_VIA error
-									::MakeCStringFromDimension( &d_str, d, units, TRUE, TRUE, TRUE, 1 );
-									::MakeCStringFromDimension( &x_str, vtx->x, units, FALSE, TRUE, TRUE, 1 );
-									::MakeCStringFromDimension( &y_str, vtx->y, units, FALSE, TRUE, TRUE, 1 );
-									CString s ((LPCSTR) IDS_ViaToBoardEdgeEquals);
-									str.Format( s, nerrors+1, net->name, d_str, x_str, y_str );
-									DRError * dre = drelist->Add( nerrors, DRError::BOARDEDGE_VIA, &str,
-										&net->name, NULL, id_via, id_via, vtx->x, vtx->y, 0, 0, vtx->via_w+20*NM_PER_MIL, 0 );
-									if( dre )
-									{
-										nerrors++;
-										if( log )
-											log->AddLine( str );
-									}
-								}
-								int dh = ::GetClearanceBetweenLineSegmentAndPad( bx1, by1, bx2, by2, 0,
-									PAD_ROUND, vtx->x, vtx->y, vtx->via_hole_w, 0, 0, 0 );
-								if( dh < dr->board_edge_hole )
-								{
-									// BOARDEDGE_VIAHOLE error
-									::MakeCStringFromDimension( &d_str, d, units, TRUE, TRUE, TRUE, 1 );
-									::MakeCStringFromDimension( &x_str, vtx->x, units, FALSE, TRUE, TRUE, 1 );
-									::MakeCStringFromDimension( &y_str, vtx->y, units, FALSE, TRUE, TRUE, 1 );
-									CString s ((LPCSTR) IDS_ViaHoleToBoardEdgeEquals);
-									str.Format( s, nerrors+1, net->name, d_str, x_str, y_str );
-									DRError * dre = drelist->Add( nerrors, DRError::BOARDEDGE_VIAHOLE, &str,
-										&net->name, NULL, id_via, id_via, vtx->x, vtx->y, 0, 0, vtx->via_w+20*NM_PER_MIL, 0 );
-									if( dre )
-									{
-										nerrors++;
-										if( log )
-											log->AddLine( str );
-									}
-								}
-							}
-						}
-					}
-				}
-			}
-			// iterate through all parts, checking for
-			//	SEG_PAD, VIA_PAD, SEG_COPPERGRAPHIC, VIA_COPPERGRAPHIC errors
-			cpart * part = GetFirstPart();
-			for( ; part; part = GetNextPart( part ) )
-			{
-				CShape * s = part->shape;
-
-				// if not on same layers, can't conflict
-				if( !part->hole_flag && !c->vias_present && !(part->layers & c->seg_layers) )
-					continue;	// next part
-
-				// if bounding boxes don't overlap, can't conflict
-				if( part->min_x - c->max_x > dr->pad_trace )
-					continue;	// next part
-				if( c->min_x - part->max_x > dr->pad_trace )
-					continue;	// next part
-				if( part->min_y - c->max_y > dr->pad_trace )
-					continue;	// next part
-				if( c->min_y - part->max_y > dr->pad_trace )
-					continue;	// next part
-
-				// OK, now we have to test each pad
-				for( int ip=0; ip<part->shape->GetNumPins(); ip++ )
-				{
-					cpadstack * ps = &s->m_padstack[ip];
-					part_pin * pin = &part->pin[ip];
-					drc_pin * drp = &pin->drc;
-					id id_pad = part->m_id;
-					id_pad.SetT2( ID_PAD );
-					id_pad.SetI2( ip );
-
-					// if pin and connection bounds are separated enough, skip pin
-					if( drp->min_x - c->max_x > dr->pad_trace )
-						continue;	// no, next pin
-					if( c->min_x - drp->max_x > dr->pad_trace )
-						continue;	// no, next pin
-					if( drp->min_y - c->max_y > dr->pad_trace )
-						continue;	// no, next pin
-					if( c->min_y - drp->max_y > dr->pad_trace )
-						continue;	// no, next pin
-
-					// possible clearance violation, now test pad against each segment and via on each layer
-					int pad_x, pad_y, pad_w, pad_l, pad_r;
-					int pad_type, pad_hole, pad_connect, pad_angle;
-					cnet * pad_net;
-					BOOL bPad;
-					BOOL pin_info_valid = FALSE;
-					int pin_info_layer = 0;
-
-					CIterator_cseg iter_seg(c);
-					for( cseg * s=iter_seg.GetFirst(); s; s=iter_seg.GetNext() )
-					{
-						int is = iter_seg.GetIndex();
-						cvertex * pre_vtx = &s->GetPreVtx();
-						cvertex * post_vtx = &s->GetPostVtx();
-						cvertex * pre_vtx_test = &s->GetPreVtx();
-						cvertex * post_vtx_test = &s->GetPostVtx();
-						int w = s->m_width;
-						int xi = pre_vtx->x;
-						int yi = pre_vtx->y;
-						int xf = post_vtx->x;
-						int yf = post_vtx->y;
-						int min_x = min( xi, xf ) - w/2;
-						int max_x = max( xi, xf ) + w/2;
-						int min_y = min( yi, yf ) - w/2;
-						int max_y = max( yi, yf ) + w/2;
-						// ids
-						id id_seg = net->m_id;
-						id_seg.SetT2( ID_CONNECT );
-						id_seg.SetI2( ic );
-						id_seg.SetT3( ID_SEG );
-						id_seg.SetI3( is );
-						id id_via = net->m_id;
-						id_via.SetT2( ID_CONNECT );
-						id_via.SetI2( ic );
-						id_via.SetT3( ID_VIA );
-						id_via.SetI3( is+1 );
-
-						// check all layers
-						for( int il=0; il<copper_layers; il++ )
-						{
-							int layer = il + LAY_TOP_COPPER;
-							int layer_bit = 1<<il;
-
-							if( s->m_layer == layer )
-							{
-								// check segment clearances
-								cnet * pin_net = part->pin[ip].net;
-								if( drp->hole_size && net != pin_net )
-								{
-									// pad has hole, check segment to pad_hole clearance
-									if( !(pin_info_valid && layer == pin_info_layer) )
-									{
-										bPad = GetPadDrawInfo( part, ip, layer, 0, 0, 0, 0,
-											&pad_type, &pad_x, &pad_y, &pad_w, &pad_l, &pad_r, 
-											&pad_hole, &pad_angle, &pad_net, &pad_connect );
-										pin_info_valid = TRUE;
-										pin_info_layer = layer;
-									}
-									int d = GetClearanceBetweenLineSegmentAndPad( xi, yi, xf, yf, w,
-										PAD_ROUND, pad_x, pad_y, pad_hole, 0, 0, 0 );
-									if( d < dr->hole_copper ) 
-									{
-										// SEG_PADHOLE
-										::MakeCStringFromDimension( &d_str, d, units, TRUE, TRUE, TRUE, 1 );
-										::MakeCStringFromDimension( &x_str, pad_x, units, FALSE, TRUE, TRUE, 1 );
-										::MakeCStringFromDimension( &y_str, pad_y, units, FALSE, TRUE, TRUE, 1 );
-										CString s ((LPCSTR) IDS_TraceToPadHoleEquals);
-										str.Format( s, nerrors+1, net->name, part->ref_des, ps->name,
-											d_str, x_str, y_str );
-										DRError * dre = drelist->Add( nerrors, DRError::SEG_PAD, &str, 
-											&net->name, &part->ref_des, id_seg, id_pad, pad_x, pad_y, pad_x, pad_y, 
-											max(pad_w,pad_l)+20*NM_PER_MIL, layer );
-										if( dre )
-										{
-											nerrors++;
-											if( log )
-												log->AddLine( str );
-										}
-									}
-								}
-								if( layer_bit & drp->layers )
-								{
-									// pad is on this layer
-									// get pad info for pin if necessary
-									if( !(pin_info_valid && layer == pin_info_layer) )
-									{
-										bPad = GetPadDrawInfo( part, ip, layer, 0, 0, 0, 0, 
-											&pad_type, &pad_x, &pad_y, &pad_w, &pad_l, &pad_r,
-											&pad_hole, &pad_angle, &pad_net, &pad_connect );
-										pin_info_valid = TRUE;
-										pin_info_layer = layer;
-									}
-									if( bPad && pad_type != PAD_NONE && net != pad_net )
-									{
-										// check segment to pad clearance
-										int d = GetClearanceBetweenLineSegmentAndPad( xi, yi, xf, yf, w,
-											pad_type, pad_x, pad_y, pad_w, pad_l, pad_r, pad_angle );
-										if( d < dr->pad_trace ) 
-										{
-											// SEG_PAD
-											::MakeCStringFromDimension( &d_str, d, units, TRUE, TRUE, TRUE, 1 );
-											::MakeCStringFromDimension( &x_str, pad_x, units, FALSE, TRUE, TRUE, 1 );
-											::MakeCStringFromDimension( &y_str, pad_y, units, FALSE, TRUE, TRUE, 1 );
-											CString s ((LPCSTR) IDS_TraceToPadEquals);
-											str.Format( s, nerrors+1, net->name, part->ref_des, ps->name,
-												d_str, x_str, y_str );
-											DRError * dre = drelist->Add( nerrors, DRError::SEG_PAD, &str, 
-												&net->name, &part->ref_des, id_seg, id_pad, pad_x, pad_y, pad_x, pad_y, 
-												max(pad_w,pad_l)+20*NM_PER_MIL, layer );
-											if( dre )
-											{
-												nerrors++;
-												if( log )
-													log->AddLine( str );
-											}
-										}
-									}
-								}
-							}
-							// get next via
-							if( post_vtx->via_w )
-							{
-								// via exists
-								int test;
-								int via_w;
-								int via_hole_w;
-								m_nlist->GetViaPadInfo( net, ic, is+1, layer, 
-									&via_w, &via_hole_w, &test );
-								int w = 0;
-								if( via_w )
-								{
-									// check via_pad to pin_pad clearance
-									if( !(pin_info_valid && layer == pin_info_layer) )
-									{
-										bPad = GetPadDrawInfo( part, ip, layer, 0, 0, 0, 0, 
-											&pad_type, &pad_x, &pad_y, &pad_w, &pad_l, &pad_r, 
-											&pad_hole, &pad_angle, &pad_net, &pad_connect );
-										pin_info_valid = TRUE;
-										pin_info_layer = layer;
-									}
-									if( bPad && pad_type != PAD_NONE && pad_net != net )
-									{
-										int d = GetClearanceBetweenPads( PAD_ROUND, xf, yf, via_w, 0, 0, 0,
-											pad_type, pad_x, pad_y, pad_w, pad_l, pad_r, pad_angle );
-										if( d < dr->pad_trace )
-										{
-											// VIA_PAD
-											::MakeCStringFromDimension( &d_str, d, units, TRUE, TRUE, TRUE, 1 );
-											::MakeCStringFromDimension( &x_str, pad_x, units, FALSE, TRUE, TRUE, 1 );
-											::MakeCStringFromDimension( &y_str, pad_y, units, FALSE, TRUE, TRUE, 1 );
-											CString s ((LPCSTR) IDS_ViaPadToPadEquals);
-											str.Format( s, nerrors+1, net->name, part->ref_des, ps->name,
-												d_str, x_str, y_str );
-											DRError * dre = drelist->Add( nerrors, DRError::VIA_PAD, &str, 
-												&net->name, &part->ref_des, id_via, id_pad, xf, yf, pad_x, pad_y, 0, layer );
-											if( dre )
-											{
-												nerrors++;
-												if( log )
-													log->AddLine( str );
-											}
-											break;  // skip more layers
-										}
-									}
-									if( drp->hole_size && pad_net != net )
-									{
-										// pin has a hole, check via_pad to pin_hole clearance
-										int d = Distance( xf, yf, pin->x, pin->y );
-										d = max( 0, d - drp->hole_size/2 - via_w/2 );
-										if( d < dr->hole_copper )
-										{
-											// VIA_PADHOLE
-											::MakeCStringFromDimension( &d_str, d, units, TRUE, TRUE, TRUE, 1 );
-											::MakeCStringFromDimension( &x_str, pad_x, units, FALSE, TRUE, TRUE, 1 );
-											::MakeCStringFromDimension( &y_str, pad_y, units, FALSE, TRUE, TRUE, 1 );
-											CString s ((LPCSTR) IDS_ViaPadToPadHoleEquals);
-											str.Format( s, nerrors+1, net->name, part->ref_des, ps->name,
-												d_str, x_str, y_str );
-											DRError * dre = drelist->Add( nerrors, DRError::VIA_PAD, &str, 
-												&net->name, &part->ref_des, id_via, id_pad, xf, yf, pad_x, pad_y, 0, layer );
-											if( dre )
-											{
-												nerrors++;
-												if( log )
-													log->AddLine( str );
-											}
-											break;  // skip more layers
-										}
-									}
-								}
-								if( !(pin_info_valid && layer == pin_info_layer) )
-								{
-									bPad = GetPadDrawInfo( part, ip, layer, 0, 0, 0, 0,
-										&pad_type, &pad_x, &pad_y, &pad_w, &pad_l, &pad_r,
-										&pad_hole, &pad_angle, &pad_net, &pad_connect );
-									pin_info_valid = TRUE;
-									pin_info_layer = layer;
-								}
-								if( bPad && pad_type != PAD_NONE && pad_net != net )
-								{
-									// check via_hole to pin_pad clearance
-									int d = GetClearanceBetweenPads( PAD_ROUND, xf, yf, post_vtx->via_hole_w, 0, 0, 0,
-										pad_type, pad_x, pad_y, pad_w, pad_l, pad_r, pad_angle );
-									if( d < dr->hole_copper )
-									{
-										// VIAHOLE_PAD
-										::MakeCStringFromDimension( &d_str, d, units, TRUE, TRUE, TRUE, 1 );
-										::MakeCStringFromDimension( &x_str, pad_x, units, FALSE, TRUE, TRUE, 1 );
-										::MakeCStringFromDimension( &y_str, pad_y, units, FALSE, TRUE, TRUE, 1 );
-										CString s ((LPCSTR) IDS_ViaHoleToPadEquals);
-										str.Format( s, nerrors+1, net->name, part->ref_des, ps->name,
-											d_str, x_str, y_str );
-										DRError * dre = drelist->Add( nerrors, DRError::VIA_PAD, &str, 
-											&net->name, &part->ref_des, id_via, id_pad, xf, yf, pad_x, pad_y, 0, layer );
-										if( dre )
-										{
-											nerrors++;
-											if( log )
-												log->AddLine( str );
-										}
-										break;  // skip more layers
-									}
-								}
-								if( drp->hole_size && layer == LAY_TOP_COPPER )
-								{
-									// pin has a hole, check via_hole to pin_hole clearance
-									int d = Distance( xf, yf, pin->x, pin->y );
-									d = max( 0, d - drp->hole_size/2 - post_vtx->via_hole_w/2 );
-									if( d < dr->hole_hole )
-									{
-										// VIAHOLE_PADHOLE
-										::MakeCStringFromDimension( &d_str, d, units, TRUE, TRUE, TRUE, 1 );
-										::MakeCStringFromDimension( &x_str, pad_x, units, FALSE, TRUE, TRUE, 1 );
-										::MakeCStringFromDimension( &y_str, pad_y, units, FALSE, TRUE, TRUE, 1 );
-										CString s ((LPCSTR) IDS_ViaHoleToPadHoleEquals);
-										str.Format( s, nerrors+1, net->name, part->ref_des, ps->name,
-											d_str, x_str, y_str );
-										DRError * dre = drelist->Add( nerrors, DRError::VIA_PAD, &str, 
-											&net->name, &part->ref_des, id_via, id_pad, xf, yf, pad_x, pad_y, 0, layer );
-										if( dre )
-										{
-											nerrors++;
-											if( log )
-												log->AddLine( str );
-										}
-										break;  // skip more layers
-									}
-								}
-							}
-						}
-					}
-				}
-
-				// test each copper graphic stroke
-				int n_ref = part->GetNumRefStrokes();
-				int n_value = part->GetNumValueStrokes();
-				int n_outline = part->GetNumOutlineStrokes();
-				int n_total_strokes = n_ref + n_value + n_outline;
-				for( int istk=0; istk<n_total_strokes; istk++ )
-				{
-					// get stroke to test
-					stroke * test_stroke;
-					if( istk < n_ref )
-						test_stroke = &part->ref_text_stroke[istk];
-					else if( istk < (n_ref + n_value) )
-						test_stroke = &part->value_stroke[istk-n_ref];
-					else if( istk < (n_ref + n_value + n_outline) )
-						test_stroke = &part->m_outline_stroke[istk-n_ref-n_value];
-					int cglayer = test_stroke->layer;
-					int cgxi = test_stroke->xi;
-					int cgyi = test_stroke->yi;
-					int cgxf = test_stroke->xf;
-					int cgyf = test_stroke->yf;
-					int cgstyle;
-					if( test_stroke->type == DL_LINE )
-						cgstyle = CPolyLine::STRAIGHT;
-					else if( test_stroke->type == DL_ARC_CW )
-						cgstyle = CPolyLine::ARC_CW;
-					else if( test_stroke->type == DL_ARC_CCW )
-						cgstyle = CPolyLine::ARC_CCW;
-					else
-						ASSERT(0);
-
-					// test against each segment in connection
-					CIterator_cseg iter_seg(c);
-					for( cseg * s=iter_seg.GetFirst(); s; s=iter_seg.GetNext() )
-					{
-						int is = iter_seg.GetIndex();
-						cvertex * pre_vtx = &s->GetPreVtx();
-						cvertex * post_vtx = &s->GetPostVtx();
-						int w = s->m_width;
-						int xi = pre_vtx->x;
-						int yi = pre_vtx->y;
-						int xf = post_vtx->x;
-						int yf = post_vtx->y;
-						int min_x = min( xi, xf ) - w/2;
-						int max_x = max( xi, xf ) + w/2;
-						int min_y = min( yi, yf ) - w/2;
-						int max_y = max( yi, yf ) + w/2;
-						// ids
-						id id_seg = net->m_id;
-						id_seg.SetT2( ID_CONNECT );
-						id_seg.SetI2( ic );
-						id_seg.SetT3( ID_SEG );
-						id_seg.SetI3( is );
-						id id_via = net->m_id;
-						id_via.SetT2( ID_CONNECT );
-						id_via.SetI2( ic );
-						id_via.SetT3( ID_VIA );
-						id_via.SetI3( is+1 );
-
-						if( s->m_layer == test_stroke->layer )
-						{
-							// check segment clearances
-							int x, y;
-							int d = ::GetClearanceBetweenSegments( cgxi, cgyi, cgxf, cgyf, cgstyle, 0,
-								xi, yi, xf, yf, CPolyLine::STRAIGHT, w,
-								dr->board_edge_copper, &x, &y );
-							if( d < dr->copper_copper )
-							{
-								// COPPERGRAPHIC_SEG error
-								::MakeCStringFromDimension( &d_str, d, units, TRUE, TRUE, TRUE, 1 );
-								::MakeCStringFromDimension( &x_str, x, units, FALSE, TRUE, TRUE, 1 );
-								::MakeCStringFromDimension( &y_str, y, units, FALSE, TRUE, TRUE, 1 );
-								CString s0 ((LPCSTR) IDS_TraceToCopperGraphic);
-								str.Format( s0, nerrors+1, net->name, d_str, x_str, y_str );
-								DRError * dre = drelist->Add( nerrors, DRError::COPPERGRAPHIC_SEG, &str,
-									&net->name, NULL, id_seg, id_seg, x, y, 0, 0, 0, cglayer );
-								if( dre )
-								{
-									nerrors++;
-									if( log )
-										log->AddLine( str );
-								}
-							}
-						}
-							// get next via
-						if( post_vtx->via_w )
-						{
-							// via exists
-							int x = post_vtx->x;
-							int y = post_vtx->y;
-							int test;
-							int via_w;
-							int via_hole_w;
-							m_nlist->GetViaPadInfo( net, ic, is+1, test_stroke->layer, 
-								&via_w, &via_hole_w, &test );
-							if( via_w )
-							{
-								// check via
-								int d = GetClearanceBetweenLineSegmentAndPad( cgxi, cgyi, cgxf, cgyf, w,
-									PAD_ROUND, x, y, via_w, 0, 0, 0 );
-								if( d < dr->copper_copper )
-								{
-									// COPPERGRAPHIC_SEG error
-									::MakeCStringFromDimension( &d_str, d, units, TRUE, TRUE, TRUE, 1 );
-									::MakeCStringFromDimension( &x_str, x, units, FALSE, TRUE, TRUE, 1 );
-									::MakeCStringFromDimension( &y_str, y, units, FALSE, TRUE, TRUE, 1 );
-									CString s0 ((LPCSTR) IDS_ViaToCopperGraphic);
-									str.Format( s0,	nerrors+1, net->name, d_str, x_str, y_str );
-									DRError * dre = drelist->Add( nerrors, DRError::COPPERGRAPHIC_VIA, &str,
-										&net->name, NULL, id_seg, id_seg, post_vtx->x, post_vtx->y, 
-										0, 0, 0, cglayer );
-									if( dre )
-									{
-										nerrors++;
-										if( log )
-											log->AddLine( str );
-									}
-								}
-							}
-							if( via_hole_w )
-							{
-								// check via hole
-								int d = GetClearanceBetweenLineSegmentAndPad( cgxi, cgyi, cgxf, cgyf, w,
-									PAD_ROUND, x, y, via_hole_w, 0, 0, 0 );
-								if( d < dr->hole_copper )
-								{
-									// COPPERGRAPHIC_VIAHOLE error
-									::MakeCStringFromDimension( &d_str, d, units, TRUE, TRUE, TRUE, 1 );
-									::MakeCStringFromDimension( &x_str, x, units, FALSE, TRUE, TRUE, 1 );
-									::MakeCStringFromDimension( &y_str, y, units, FALSE, TRUE, TRUE, 1 );
-									CString s0 ((LPCSTR) IDS_ViaHoleToCopperGraphic);
-									str.Format( s0, nerrors+1, net->name, d_str, x_str, y_str );
-									DRError * dre = drelist->Add( nerrors, DRError::COPPERGRAPHIC_VIAHOLE, &str,
-										&net->name, NULL, id_seg, id_seg, post_vtx->x, post_vtx->y, 
-										0, 0, 0, cglayer );
-									if( dre )
-									{
-										nerrors++;
-										if( log )
-											log->AddLine( str );
-									}
-								}
-							}
-						}
-					}
-				}
-			}
-		}
+		citer<carea2> ia (&net->areas);
+		for (carea2 *a = ia.First(); a; a = ia.Next())
+			DRCArea( a, units, dr );
+		citer<cconnect2> ic (&net->connects);
+		for (cconnect2 *c = ic.First(); c; c = ic.Next())
+			DRCConnect(c, units, dr);
 	}
 
 	// now check nets against other nets
@@ -6021,615 +4823,1354 @@ void CFreePcbDoc::DRC( int units, BOOL check_unrouted, DesignRules * dr )
 	if( log )
 		log->AddLine( str );
 	// get max clearance
-	int cl = max( dr->hole_copper, dr->hole_hole );
-	cl = max( cl, dr->trace_trace );
-	// iterate through all nets
-	for( pos = m_nlist->m_map.GetStartPosition(); pos != NULL; )
-	{
-		m_nlist->m_map.GetNextAssoc( pos, name, ptr );
-		cnet * net = (cnet*)ptr;
-		// iterate through all connections
-		CIterator_cconnect iter_con(net);
-		for( cconnect * c=iter_con.GetFirst(); c; c=iter_con.GetNext() )
+	int clr = max( dr->hole_copper, dr->hole_hole );
+	clr = max( clr, dr->trace_trace );
+	// iterate through all nets.  CPT2 reduce redundancy by only comparing net1 with net2 when net1 has the lesser UID
+	citer<cnet2> in1 (&m_nlist->nets);
+	citer<cnet2> in2 (&m_nlist->nets);
+	for (cnet2 *net1 = in1.First(); net1; net1 = in1.Next())
+		for (cnet2 *net2 = in2.First(); net2; net2 = in2.Next())
 		{
-			int ic = iter_con.GetIndex();
+			if (net1->UID() >= net2->UID())
+				continue;
+			citer<cconnect2> ic1 (&net1->connects);
+			citer<cconnect2> ic2 (&net2->connects);
+			for (cconnect2 *c1 = ic1.First(); c1; c1 = ic1.Next())
+				for (cconnect2 *c2 = ic2.First(); c2; c2 = ic2.Next())
+					DRCConnectAndConnect(c1, c2, units, dr, clr);
 
-			// iterate through all nets again
-			POSITION pos2 = pos;
-			void * ptr2;
-			CString name2;
-			while( pos2 != NULL )
-			{
-				m_nlist->m_map.GetNextAssoc( pos2, name2, ptr2 );
-				cnet * net2 = (cnet*)ptr2;
-				// iterate through all connections
-				CIterator_cconnect iter_con2(net2);
-				for( cconnect * c2=iter_con2.GetFirst(); c2; c2=iter_con2.GetNext() )
-				{
-					int ic2 = iter_con2.GetIndex();
-
-					// look for possible clearance violations between c and c2
-					if( c->min_x - c2->max_x > cl )
-						continue;	// no, next connection
-					if( c->min_y - c2->max_y > cl )
-						continue;	// no, next connection
-					if( c2->min_x - c->max_x > cl )
-						continue;	// no, next connection
-					if( c2->min_y - c->max_y > cl )
-						continue;	// no, next connection
-
-					// now we have to test all segments and vias in c
-					CIterator_cseg iter_seg(c);
-					for( cseg * s=iter_seg.GetFirst(); s; s=iter_seg.GetNext() )
-					{
-						// get next segment and via
-						int is = iter_seg.GetIndex();
-						cvertex * pre_vtx = &s->GetPreVtx();
-						cvertex * post_vtx = &s->GetPostVtx();
-						int seg_w = s->m_width;
-						int vw = post_vtx->via_w;
-						int max_w = max( seg_w, vw );
-						int xi = pre_vtx->x;
-						int yi = pre_vtx->y;
-						int xf = post_vtx->x;
-						int yf = post_vtx->y;
-						// get bounding rect for segment and vias
-						int min_x = min( xi, xf ) - max_w/2;
-						int max_x = max( xi, xf ) + max_w/2;
-						int min_y = min( yi, yf ) - max_w/2;
-						int max_y = max( yi, yf ) + max_w/2;
-						// ids
-						id id_seg1( ID_NET, -1, ID_CONNECT, -1, ic, ID_SEG, -1, is );
-						id id_via1( ID_NET, -1, ID_CONNECT, -1, ic, ID_VIA, -1, is+1 );
-
-						// iterate through all segments and vias in c2
-						CIterator_cseg iter_seg2(c2);
-						for( cseg * s2=iter_seg2.GetFirst(); s2; s2=iter_seg2.GetNext() )
-						{
-							// get next segment and via
-							int is2 = iter_seg2.GetIndex();
-							cvertex * pre_vtx2 = &s2->GetPreVtx();
-							cvertex * post_vtx2 = &s2->GetPostVtx();
-							int seg_w2 = s2->m_width;
-							int vw2 = post_vtx2->via_w;
-							int max_w2 = max( seg_w2, vw2 );
-							int xi2 = pre_vtx2->x;
-							int yi2 = pre_vtx2->y;
-							int xf2 = post_vtx2->x;
-							int yf2 = post_vtx2->y;
-							// get bounding rect for this segment and attached vias
-							int min_x2 = min( xi2, xf2 ) - max_w2/2;
-							int max_x2 = max( xi2, xf2 ) + max_w2/2;
-							int min_y2 = min( yi2, yf2 ) - max_w2/2;
-							int max_y2 = max( yi2, yf2 ) + max_w2/2;
-							// ids
-							id id_seg2( ID_NET, -1, ID_CONNECT, -1, ic2, ID_SEG, -1, is2 );
-							id id_via2( ID_NET, -1, ID_CONNECT, -1, ic2, ID_VIA, -1, is2+1 );
-
-							// see if segment bounding rects are too close
-							if( min_x - max_x2 > cl )
-								continue;	// no, next segment
-							if( min_y - max_y2 > cl )
-								continue;
-							if( min_x2 - max_x > cl )
-								continue;
-							if( min_y2 - max_y > cl )
-								continue;
-
-							// check if segments on same layer
-							if( s->m_layer == s2->m_layer && s->m_layer >= LAY_TOP_COPPER ) 
-							{
-								// yes, test clearances between segments
-								int xx, yy; 
-								int d = ::GetClearanceBetweenSegments( xi, yi, xf, yf, CPolyLine::STRAIGHT, seg_w, 
-									xi2, yi2, xf2, yf2, CPolyLine::STRAIGHT, seg_w2, dr->trace_trace, &xx, &yy );
-								if( d < dr->trace_trace )
-								{
-									// SEG_SEG
-									::MakeCStringFromDimension( &d_str, d, units, TRUE, TRUE, TRUE, 1 );
-									::MakeCStringFromDimension( &x_str, xx, units, FALSE, TRUE, TRUE, 1 );
-									::MakeCStringFromDimension( &y_str, yy, units, FALSE, TRUE, TRUE, 1 );
-									CString s0 ((LPCSTR) IDS_TraceToTraceEquals);
-									str.Format( s0, nerrors+1, net->name, net2->name,
-										d_str, x_str, y_str );
-									DRError * dre = drelist->Add( nerrors, DRError::SEG_SEG, &str, 
-										&net->name, &net2->name, id_seg1, id_seg2, xx, yy, xx, yy, 0, s->m_layer );
-									if( dre )
-									{
-										nerrors++;
-										if( log )
-											log->AddLine( str );
-									}
-								}
-							}
-							// test clearances between net->segment and net2->via
-							int layer = s->m_layer;
-							if( layer >= LAY_TOP_COPPER && post_vtx2->via_w )
-							{
-								// via exists
-								int test = m_nlist->GetViaConnectionStatus( net2, ic2, is2+1, layer );
-								int via_w2 = post_vtx2->via_w;	// normal via pad
-								if( layer > LAY_BOTTOM_COPPER && test == CNetList::VIA_NO_CONNECT )
-								{
-									// inner layer and no trace or thermal, so no via pad
-									via_w2 = 0;
-								}
-								else if( layer > LAY_BOTTOM_COPPER && (test & CNetList::VIA_AREA) && !(test & CNetList::VIA_TRACE) )
-								{
-									// inner layer with small thermal, use annular ring
-									via_w2 = post_vtx2->via_hole_w + 2*dr->annular_ring_vias;
-								}
-								// check clearance
-								if( via_w2 )
-								{
-									// check clearance between segment and via pad
-									int d = GetClearanceBetweenLineSegmentAndPad( xi, yi, xf, yf, seg_w,
-										PAD_ROUND, post_vtx2->x, post_vtx2->y, post_vtx2->via_w, 0, 0, 0 );
-									if( d < dr->trace_trace )
-									{
-										// SEG_VIA
-										::MakeCStringFromDimension( &d_str, d, units, TRUE, TRUE, TRUE, 1 );
-										::MakeCStringFromDimension( &x_str, post_vtx2->x, units, FALSE, TRUE, TRUE, 1 );
-										::MakeCStringFromDimension( &y_str, post_vtx2->y, units, FALSE, TRUE, TRUE, 1 );
-										CString s0 ((LPCSTR) IDS_TraceToViaPadEquals);
-										str.Format( s0, nerrors+1, net->name, net2->name,
-											d_str, x_str, y_str );
-										DRError * dre = drelist->Add( nerrors, DRError::SEG_VIA, &str, 
-											&net->name, &net2->name, id_seg1, id_via2, xf2, yf2, xf2, yf2, 0, s->m_layer );
-										if( dre )
-										{
-											nerrors++;
-											if( log )
-												log->AddLine( str );
-										}
-									}
-								}
-								// check clearance between segment and via hole
-								int d = GetClearanceBetweenLineSegmentAndPad( xi, yi, xf, yf, seg_w,
-									PAD_ROUND, post_vtx2->x, post_vtx2->y, post_vtx2->via_hole_w, 0, 0, 0 );
-								if( d < dr->hole_copper )
-								{
-									// SEG_VIAHOLE
-									::MakeCStringFromDimension( &d_str, d, units, TRUE, TRUE, TRUE, 1 );
-									::MakeCStringFromDimension( &x_str, post_vtx2->x, units, FALSE, TRUE, TRUE, 1 );
-									::MakeCStringFromDimension( &y_str, post_vtx2->y, units, FALSE, TRUE, TRUE, 1 );
-									CString s0 ((LPCSTR) IDS_TraceToViaHoleEquals);
-									str.Format( s0, nerrors+1, net->name, net2->name,
-										d_str, x_str, y_str );
-									DRError * dre = drelist->Add( nerrors, DRError::SEG_VIAHOLE, &str, 
-										&net->name, &net2->name, id_seg1, id_via2, xf2, yf2, xf2, yf2, 0, s->m_layer );
-									if( dre )
-									{
-										nerrors++;
-										if( log )
-											log->AddLine( str );
-									}
-								}
-							}
-							// test clearances between net2->segment and net->via
-							layer = s2->m_layer;
-							if( post_vtx->via_w )
-							{
-								// via exists
-								int test = m_nlist->GetViaConnectionStatus( net, ic, is+1, layer );
-								int via_w = post_vtx->via_w;	// normal via pad
-								if( layer > LAY_BOTTOM_COPPER && test == CNetList::VIA_NO_CONNECT )
-								{
-									// inner layer and no trace or thermal, so no via pad
-									via_w = 0;
-								}
-								else if( layer > LAY_BOTTOM_COPPER && (test & CNetList::VIA_AREA) && !(test & CNetList::VIA_TRACE) )
-								{
-									// inner layer with small thermal, use annular ring
-									via_w = post_vtx->via_hole_w + 2*dr->annular_ring_vias;
-								}
-								// check clearance
-								if( via_w )
-								{
-									// check clearance between net2->segment and net->via_pad
-									if( layer >= LAY_TOP_COPPER )
-									{
-										int d = GetClearanceBetweenLineSegmentAndPad( xi2, yi2, xf2, yf2, seg_w2,
-											PAD_ROUND, post_vtx->x, post_vtx->y, post_vtx->via_w, 0, 0, 0 );
-										if( d < dr->trace_trace )
-										{
-											// SEG_VIA
-											::MakeCStringFromDimension( &d_str, d, units, TRUE, TRUE, TRUE, 1 );
-											::MakeCStringFromDimension( &x_str, post_vtx->x, units, FALSE, TRUE, TRUE, 1 );
-											::MakeCStringFromDimension( &y_str, post_vtx->y, units, FALSE, TRUE, TRUE, 1 );
-											CString s ((LPCSTR) IDS_ViaPadToTraceEquals);
-											str.Format( s, nerrors+1, net->name, net2->name,
-												d_str, x_str, y_str );
-											DRError * dre = drelist->Add( nerrors, DRError::SEG_VIA, &str, 
-												&net2->name, &net->name, id_seg2, id_via1, xf, yf, xf, yf, 
-												post_vtx->via_w+20*NM_PER_MIL, 0 );
-											if( dre )
-											{
-												nerrors++;
-												if( log )
-													log->AddLine( str );
-											}
-										}
-									}
-								}
-								// check clearance between net2->segment and net->via_hole
-								if( layer >= LAY_TOP_COPPER )
-								{
-									int d = GetClearanceBetweenLineSegmentAndPad( xi2, yi2, xf2, yf2, seg_w2,
-										PAD_ROUND, post_vtx->x, post_vtx->y, post_vtx->via_hole_w, 0, 0, 0 );
-									if( d < dr->hole_copper )
-									{
-										// SEG_VIAHOLE
-										::MakeCStringFromDimension( &d_str, d, units, TRUE, TRUE, TRUE, 1 );
-										::MakeCStringFromDimension( &x_str, post_vtx->x, units, FALSE, TRUE, TRUE, 1 );
-										::MakeCStringFromDimension( &y_str, post_vtx->y, units, FALSE, TRUE, TRUE, 1 );
-										CString s ((LPCSTR) IDS_TraceToViaHoleEquals);
-										str.Format( s, nerrors+1, net2->name, net->name,
-											d_str, x_str, y_str );
-										DRError * dre = drelist->Add( nerrors, DRError::SEG_VIAHOLE, &str, 
-											&net2->name, &net->name, id_seg2, id_via1, xf, yf, xf, yf, 
-											post_vtx->via_w+20*NM_PER_MIL, 0 );
-										if( dre )
-										{
-											nerrors++;
-											if( log )
-												log->AddLine( str );
-										}
-									}
-								}
-								// test clearances between net->via and net2->via
-								if( post_vtx->via_w && post_vtx2->via_w )
-								{
-									for( int layer=LAY_TOP_COPPER; layer<(LAY_TOP_COPPER+copper_layers); layer++ )
-									{
-										// get size of net->via_pad
-										int test = m_nlist->GetViaConnectionStatus( net, ic, is+1, layer );
-										int via_w = post_vtx->via_w;	// normal via pad
-										if( layer > LAY_BOTTOM_COPPER && test == CNetList::VIA_NO_CONNECT )
-										{
-											// inner layer and no trace or thermal, so no via pad
-											via_w = 0;
-										}
-										else if( layer > LAY_BOTTOM_COPPER && (test & CNetList::VIA_AREA) && !(test & CNetList::VIA_TRACE) )
-										{
-											// inner layer with small thermal, use annular ring
-											via_w = post_vtx->via_hole_w + 2*dr->annular_ring_vias;
-										}
-										// get size of net2->via_pad
-										test = m_nlist->GetViaConnectionStatus( net2, ic2, is2+1, layer );
-										int via_w2 = post_vtx2->via_w;	// normal via pad
-										if( layer > LAY_BOTTOM_COPPER && test == CNetList::VIA_NO_CONNECT )
-										{
-											// inner layer and no trace or thermal, so no via pad
-											via_w2 = 0;
-										}
-										else if( layer > LAY_BOTTOM_COPPER && (test & CNetList::VIA_AREA) && !(test & CNetList::VIA_TRACE) )
-										{
-											// inner layer with small thermal, use annular ring
-											via_w2 = post_vtx2->via_hole_w + 2*dr->annular_ring_vias;
-										}
-										if( via_w && via_w2 )
-										{
-											//check net->via_pad to net2->via_pad clearance
-											int d = GetClearanceBetweenPads( PAD_ROUND, post_vtx->x, post_vtx->y, post_vtx->via_w, 0, 0, 0, 
-												PAD_ROUND, post_vtx2->x, post_vtx2->y, post_vtx2->via_w, 0, 0, 0 );
-											if( d < dr->trace_trace )
-											{
-												// VIA_VIA
-												::MakeCStringFromDimension( &d_str, d, units, TRUE, TRUE, TRUE, 1 );
-												::MakeCStringFromDimension( &x_str, post_vtx->x, units, FALSE, TRUE, TRUE, 1 );
-												::MakeCStringFromDimension( &y_str, post_vtx->y, units, FALSE, TRUE, TRUE, 1 );
-												CString s ((LPCSTR) IDS_ViaPadToViaPadEquals);
-												str.Format( s, nerrors+1, net->name, net2->name,
-													d_str, x_str, y_str );
-												DRError * dre = drelist->Add( nerrors, DRError::VIA_VIA, &str, 
-													&net->name, &net2->name, id_via1, id_via2, xf, yf, xf2, yf2, 0, layer );
-												if( dre )
-												{
-													nerrors++;
-													if( log )
-														log->AddLine( str );
-												}
-											}
-											// check net->via to net2->via_hole clearance
-											d = GetClearanceBetweenPads( PAD_ROUND, post_vtx->x, post_vtx->y, post_vtx->via_w, 0, 0, 0,
-												PAD_ROUND, post_vtx2->x, post_vtx2->y, post_vtx2->via_hole_w, 0, 0, 0 );
-											if( d < dr->hole_copper )
-											{
-												// VIA_VIAHOLE
-												::MakeCStringFromDimension( &d_str, d, units, TRUE, TRUE, TRUE, 1 );
-												::MakeCStringFromDimension( &x_str, post_vtx->x, units, FALSE, TRUE, TRUE, 1 );
-												::MakeCStringFromDimension( &y_str, post_vtx->y, units, FALSE, TRUE, TRUE, 1 );
-												CString s ((LPCSTR) IDS_ViaPadToViaHoleEquals);
-												str.Format( s, nerrors+1, net->name, net2->name,
-													d_str, x_str, y_str );
-												DRError * dre = drelist->Add( nerrors, DRError::VIA_VIAHOLE, &str, 
-													&net->name, &net2->name, id_via1, id_via2, xf, yf, xf2, yf2, 0, layer );
-												if( dre )
-												{
-													nerrors++;
-													if( log )
-														log->AddLine( str );
-												}
-											}
-											// check net2->via to net->via_hole clearance
-											d = GetClearanceBetweenPads( PAD_ROUND, post_vtx->x, post_vtx->y, post_vtx->via_hole_w, 0, 0, 0,
-												PAD_ROUND, post_vtx2->x, post_vtx2->y, post_vtx2->via_w, 0, 0, 0 );
-											if( d < dr->hole_copper )
-											{
-												// VIA_VIAHOLE
-												::MakeCStringFromDimension( &d_str, d, units, TRUE, TRUE, TRUE, 1 );
-												::MakeCStringFromDimension( &x_str, post_vtx->x, units, FALSE, TRUE, TRUE, 1 );
-												::MakeCStringFromDimension( &y_str, post_vtx->y, units, FALSE, TRUE, TRUE, 1 );
-												CString s ((LPCSTR) IDS_ViaPadToViaHoleEquals);
-												str.Format( s, nerrors+1, net2->name, net->name,
-													d_str, x_str, y_str );
-												DRError * dre = drelist->Add( nerrors, DRError::VIA_VIAHOLE, &str, 
-													&net2->name, &net->name, id_via2, id_via1, xf, yf, xf2, yf2, 0, layer );
-												if( dre )
-												{
-													nerrors++;
-													if( log )
-														log->AddLine( str );
-												}
-											}
-										}
-									}
-									// check net->via_hole to net2->via_hole clearance
-									int d = GetClearanceBetweenPads( PAD_ROUND, post_vtx->x, post_vtx->y, post_vtx->via_hole_w, 0, 0, 0,
-										PAD_ROUND, post_vtx2->x, post_vtx2->y, post_vtx2->via_hole_w, 0, 0,0  );
-									if( d < dr->hole_hole )
-									{
-										// VIA_VIAHOLE
-										::MakeCStringFromDimension( &d_str, d, units, TRUE, TRUE, TRUE, 1 );
-										::MakeCStringFromDimension( &x_str, post_vtx->x, units, FALSE, TRUE, TRUE, 1 );
-										::MakeCStringFromDimension( &y_str, post_vtx->y, units, FALSE, TRUE, TRUE, 1 );
-										CString s ((LPCSTR) IDS_ViaHoleToViaHoleEquals);
-										str.Format( s, nerrors+1, net2->name, net->name,
-											d_str, x_str, y_str );
-										DRError * dre = drelist->Add( nerrors, DRError::VIAHOLE_VIAHOLE, &str, 
-											&net->name, &net2->name, id_via1, id_via2, xf, yf, xf2, yf2, 0, 0 );
-										if( dre )
-										{
-											nerrors++;
-											if( log )
-												log->AddLine( str );
-										}
-									}
-								}
-							}
-						}
-					}
-				}
-			}
+			// now test areas in net1 versus areas in net2
+			citer<carea2> ia1 (&net1->areas);
+			citer<carea2> ia2 (&net2->areas);
+			for (carea2 *a1 = ia1.First(); a1; a1 = ia1.Next())
+				for (carea2 *a2 = ia2.First(); a2; a2 = ia2.Next())
+					DRCAreaAndArea(a1, a2, units, dr);
 		}
-		// now iterate through all areas
-		for( int ia=0; ia<net->NumAreas(); ia++ )
-		{
-			carea * a = &net->area[ia];
-			// iterate through all nets again
-			POSITION pos2 = pos;
-			void * ptr2;
-			CString name2;
-			while( pos2 != NULL )
-			{
-				m_nlist->m_map.GetNextAssoc( pos2, name2, ptr2 );
-				cnet * net2 = (cnet*)ptr2;
-				for( int ia2=0; ia2<net2->NumAreas(); ia2++ )
-				{
-					carea * a2 = &net2->area[ia2];
-					// test for same layer
-					if( a->Layer() == a2->Layer() ) 
-					{
-						// test for points inside one another
-						for( int ic=0; ic<a->NumCorners(); ic++ )
-						{
-							int x = a->X(ic);
-							int y = a->Y(ic);
-							if( a2->TestPointInside( x, y ) )
-							{
-								// COPPERAREA_COPPERAREA error
-								id id_a = net->m_id;
-								id_a.SetT2( ID_AREA );
-								id_a.SetI2( ia );
-								id_a.SetT3( ID_SEL_CORNER );
-								id_a.SetI3( ic );
-								CString s ((LPCSTR) IDS_CopperAreaInsideCopperArea);
-								str.Format( s, nerrors+1, net->name, net2->name );
-								DRError * dre = drelist->Add( nerrors, DRError::COPPERAREA_INSIDE_COPPERAREA, &str,
-									&net->name, &net2->name, id_a, id_a, x, y, x, y, 0, 0 );
-								if( dre )
-								{
-									nerrors++;
-									if( log )
-										log->AddLine( str );
-								}
-							}
-						}
-						for( int ic2=0; ic2<a2->NumCorners(); ic2++ )
-						{
-							int x = a2->X(ic2);
-							int y = a2->Y(ic2);
-							if( a->TestPointInside( x, y ) )
-							{
-								// COPPERAREA_COPPERAREA error
-								id id_a = net2->m_id;
-								id_a.SetT2( ID_AREA );
-								id_a.SetI2( ia2 );
-								id_a.SetT3( ID_SEL_CORNER );
-								id_a.SetI3( ic2 );
-								CString s ((LPCSTR) IDS_CopperAreaInsideCopperArea);
-								str.Format( s, nerrors+1, net2->name, net->name );
-								DRError * dre = drelist->Add( nerrors, DRError::COPPERAREA_INSIDE_COPPERAREA, &str,
-									&net2->name, &net->name, id_a, id_a, x, y, x, y, 0, 0 );
-								if( dre )
-								{
-									nerrors++;
-									if( log )
-										log->AddLine( str );
-								}
-							}
-						}
-						// now test spacing between areas
-						for( int icont=0; icont<a->NumContours(); icont++ )
-						{
-							int ic_start = a->ContourStart( icont );
-							int ic_end = a->ContourEnd( icont );
-							for( int ic=ic_start; ic<=ic_end; ic++ ) 
-							{
-								id id_a = net->m_id;
-								id_a.SetT2( ID_AREA );
-								id_a.SetI2( ia );
-								id_a.SetT3( ID_SIDE );
-								id_a.SetI3( ic );
-								int ax1 = a->X(ic);
-								int ay1 = a->Y(ic);
-								int ax2, ay2;
-								if( ic == ic_end )
-								{
-									ax2 = a->X(ic_start);
-									ay2 = a->Y(ic_start);
-								}
-								else
-								{
-									ax2 = a->X(ic+1);
-									ay2 = a->Y(ic+1);
-								}
-								int astyle = a->SideStyle(ic);
-								for( int icont2=0; icont2<a2->NumContours(); icont2++ )
-								{
-									int ic_start2 = a2->ContourStart( icont2 );
-									int ic_end2 = a2->ContourEnd( icont2 );
-									for( int ic2=ic_start2; ic2<=ic_end2; ic2++ )
-									{
-										id id_b = net2->m_id;
-										id_b.SetT2( ID_AREA );
-										id_b.SetI2( ia2 );
-										id_b.SetT3( ID_SIDE );
-										id_b.SetI3( ic2 );
-										int bx1 = a2->X(ic2);
-										int by1 = a2->Y(ic2);
-										int bx2, by2;
-										if( ic2 == ic_end2 )
-										{
-											bx2 = a2->X(ic_start2);
-											by2 = a2->Y(ic_start2);
-										}
-										else
-										{
-											bx2 = a2->X(ic2+1);
-											by2 = a2->Y(ic2+1);
-										}
-										int bstyle = a2->SideStyle(ic2);
-										int x, y;
-										int d = ::GetClearanceBetweenSegments( bx1, by1, bx2, by2, bstyle, 0,
-											ax1, ay1, ax2, ay2, astyle, 0, dr->copper_copper, &x, &y );
-										if( d < dr->copper_copper )
-										{
-											// COPPERAREA_COPPERAREA error
-											::MakeCStringFromDimension( &d_str, d, units, TRUE, TRUE, TRUE, 1 );
-											::MakeCStringFromDimension( &x_str, x, units, FALSE, TRUE, TRUE, 1 );
-											::MakeCStringFromDimension( &y_str, y, units, FALSE, TRUE, TRUE, 1 );
-											CString s ((LPCSTR) IDS_CopperAreaToCopperArea);
-											str.Format( s, nerrors+1, net->name, net2->name, d_str, x_str, y_str );
-											DRError * dre = drelist->Add( nerrors, DRError::COPPERAREA_COPPERAREA, &str,
-												&net->name, &net2->name, id_a, id_b, x, y, x, y, 0, 0 );
-											if( dre )
-											{
-												nerrors++;
-												if( log )
-													log->AddLine( str );
-											}
-										}
-									}
-								}
-							}
-						}
-					}
-				}
-			}
 
-			// CPT: new broken area check (function defined below)
-			CheckBrokenArea(a, net, log, units, drelist, nerrors);
-		}
-	}
 	// now check for unrouted connections, if requested
 	if( check_unrouted )
-	{
-		for( pos = m_nlist->m_map.GetStartPosition(); pos != NULL; )
-		{
-			m_nlist->m_map.GetNextAssoc( pos, name, ptr );
-			cnet * net = (cnet*)ptr;
-			// iterate through all connections
-			// now check connections
-			CIterator_cconnect iter_con(net);
-			for( cconnect * c=iter_con.GetFirst(); c; c=iter_con.GetNext() )
-			{
-				int ic = iter_con.GetIndex();
+		DRCUnrouted(units);
 
-				// check for unrouted or partially routed connection
-				BOOL bUnrouted = FALSE;
-				for( int is=0; is<c->NumSegs(); is++ )
-				{
-					if( c->SegByIndex(is).m_layer == LAY_RAT_LINE )
-					{
-						bUnrouted = TRUE;
-						break;
-					}
-				}
-				if( bUnrouted )
-				{
-					// unrouted or partially routed connection
-					CString start_pin, end_pin;
-					cpin * p1 = c->StartPin();
-					cpart * start_part = p1->part;
-					start_pin = p1->ref_des + "." + p1->pin_name;
-					cpin * p2 = c->EndPin();
-					if( p2 == NULL )
-					{
-						CString s ((LPCSTR) IDS_PartiallyRoutedStubTrace);
-						str.Format( s, nerrors+1, net->name, start_pin );
-						CPoint pt = GetPinPoint( start_part, p1->pin_name );
-						id id_a = net->m_id;
-						DRError * dre = drelist->Add( nerrors, DRError::UNROUTED, &str,
-							&net->name, NULL, id_a, id_a, pt.x, pt.y, pt.x, pt.y, 0, 0 );
-						if( dre )
-						{
-							nerrors++;
-							if( log )
-								log->AddLine( str );
-						}
-					}
-					else
-					{
-						end_pin = p2->ref_des + "." + p2->pin_name;
-						if( c->NumSegs() > 1 )
-						{
-							CString s ((LPCSTR) IDS_PartiallyRoutedConnection);
-							str.Format( s, nerrors+1, net->name, start_pin, end_pin );
-						}
-						else
-						{
-							CString s ((LPCSTR) IDS_UnroutedConnection);
-							str.Format( s, nerrors+1, net->name, start_pin, end_pin );
-						}
-						CPoint pt = GetPinPoint( start_part, p1->pin_name );
-						id id_a = net->m_id;
-						DRError * dre = drelist->Add( nerrors, DRError::UNROUTED, &str,
-							&net->name, NULL, id_a, id_a, pt.x, pt.y, pt.x, pt.y, 0, 0 );
-						if( dre )
-						{
-							nerrors++;
-							if( log )
-								log->AddLine( str );
-						}
-					}
-				}
-			}
-		}
-	}
 	str.LoadStringA(IDS_Done4);
 	if( log )
 		log->AddLine( str );
-#endif
+}
+
+void CFreePcbDoc::DRCPin( cpin2 *pin, int units, DesignRules *dr )
+{
+	// CPT2 new helper for DRC.  Set pin's DRC info and possibly update pin->part's DRC info as well.
+	// Then check for BOARDEDGE_PADHOLE, COPPERGRAPHIC_PADHOLE, RING_PAD, BOARDEDGE_PAD, and COPPERGRAPHIC_PAD errors
+	CString d_str, x_str, y_str, str;
+	drc_pin * drp = &pin->drc;
+	cpart2 *part = pin->part;
+	CDlgLog *log = m_dlg_log;
+	int x = pin->x, y = pin->y;
+	// CPT2.  Improved way of determining the diameter of dre circles that may need to be drawn:
+	int dia = max(drp->max_x - drp->min_x, drp->max_y - drp->min_y);
+	dia += 20*NM_PER_MIL;
+
+	int hole = pin->ps->hole_size;
+	if (hole)
+	{
+		// test clearance to board edge
+		citer<cboard> ib (&boards);
+		for (cboard *b = ib.First(); b; b = ib.Next())
+		{
+			citer<cside> is (&b->main->sides);
+			for (cside *s = is.First(); s; s = is.Next())
+			{
+				int x1 = s->preCorner->x, y1 = s->preCorner->y;
+				int x2 = s->postCorner->x, y2 = s->postCorner->y;
+				// for now, only works for straight board edge segments
+				if( s->m_style != CPolyLine::STRAIGHT )
+					continue;
+				int d = ::GetClearanceBetweenLineSegmentAndPad( x1, y1, x2, y2, 0,
+					PAD_ROUND, x, y, hole, 0, 0 );
+				if( d < dr->board_edge_copper )
+				{
+					// BOARDEDGE_PADHOLE error
+					::MakeCStringFromDimension( &d_str, d, units, TRUE, TRUE, TRUE, 1 );
+					::MakeCStringFromDimension( &x_str, x, units, FALSE, TRUE, TRUE, 1 );
+					::MakeCStringFromDimension( &y_str, y, units, FALSE, TRUE, TRUE, 1 );
+					CString s0 ((LPCSTR) IDS_PadHoleToBoardEdgeEquals);
+					str.Format( s0, m_drelist->GetSize()+1, part->ref_des, pin->pin_name, d_str, x_str, y_str );
+					cdre * dre = m_drelist->Add( cdre::BOARDEDGE_PADHOLE, &str,	pin, NULL, x, y, 0, 0, dia, 0 );
+					if( dre && log )
+						log->AddLine( str );
+				}
+			}
+		}
+		// test clearance from graphic elements
+		for( int igr=0; igr<part->m_outline_stroke.GetSize(); igr++ )
+		{
+			stroke * stk = &part->m_outline_stroke[igr];
+			if (stk->layer < LAY_TOP_COPPER)
+				continue;
+			int d = ::GetClearanceBetweenLineSegmentAndPad( stk->xi, stk->yi, stk->xf, stk->yf, stk->w,
+				PAD_ROUND, x, y, hole, 0, 0 );
+			if( d <= dr->hole_copper )
+			{
+				// COPPERGRAPHIC_PADHOLE error
+				::MakeCStringFromDimension( &d_str, d, units, TRUE, TRUE, TRUE, 1 );
+				::MakeCStringFromDimension( &x_str, x, units, FALSE, TRUE, TRUE, 1 );
+				::MakeCStringFromDimension( &y_str, y, units, FALSE, TRUE, TRUE, 1 );
+				CString s0 ((LPCSTR) IDS_PadHoleToCopperGraphics);
+				str.Format( s0, m_drelist->GetSize()+1, part->ref_des, pin->pin_name, 
+					part->ref_des, pin->pin_name, d_str, x_str, y_str );
+				cdre *dre = m_drelist->Add( cdre::COPPERGRAPHIC_PADHOLE, &str, pin, NULL, x, y, 0, 0, dia, 0 );
+				if( dre && log)
+					log->AddLine( str );
+			}
+		}
+	}
+
+	// iterate through copper layers
+	for( int layer = LAY_TOP_COPPER; layer < LAY_TOP_COPPER+m_num_copper_layers; layer++ )
+	{
+		// get test pad info
+		int wid, len, r, type, hole, connect;
+		BOOL bPad = pin->GetDrawInfo( layer, 0, 0, 0, 0,
+			&type, &wid, &len, &r, &hole, &connect );
+		if (!bPad) continue;
+
+		/*** Check for errors involving the pad ***/
+		if( type == PAD_NONE )
+			continue;
+		if( hole && pin->net )
+		{
+			// test annular ring
+			int d = (wid - hole)/2;
+			if( type == PAD_RECT || type == PAD_RRECT || type == PAD_OVAL )
+				d = (min(wid,len) - hole)/2;
+			if( d < dr->annular_ring_pins )
+			{
+				// RING_PAD
+				::MakeCStringFromDimension( &d_str, d, units, TRUE, TRUE, TRUE, 1 );
+				::MakeCStringFromDimension( &x_str, x, units, FALSE, TRUE, TRUE, 1 );
+				::MakeCStringFromDimension( &y_str, y, units, FALSE, TRUE, TRUE, 1 );
+				CString s0 ((LPCSTR) IDS_AnnularRingEquals);
+				str.Format( s0, m_drelist->GetSize()+1, part->ref_des, pin->pin_name, d_str, x_str, y_str );
+				cdre * dre = m_drelist->Add( cdre::RING_PAD, &str, pin, NULL, x, y, 0, 0, dia, 0 );
+				if( dre && log)
+					log->AddLine( str );
+			}
+		}
+		// test clearance to board edge
+		citer<cboard> ib (&boards);
+		for (cboard *b = ib.First(); b; b = ib.Next())
+		{
+			citer<ccorner> ic (&b->main->corners);
+			for (ccorner *c = ic.First(); c; c = ic.Next())
+			{
+				int x1 = c->x;
+				int y1 = c->y;
+				int x2 = c->postSide->postCorner->x;
+				int y2 = c->postSide->postCorner->y;
+				// for now, only works for straight board edge segments
+				if( c->postSide->m_style != CPolyLine::STRAIGHT )
+					continue;
+				int d = ::GetClearanceBetweenLineSegmentAndPad( x1, y1, x2, y2, 0,
+					type, x, y, wid, len, r );
+				if( d < dr->board_edge_copper )
+				{
+					// BOARDEDGE_PAD error
+					::MakeCStringFromDimension( &d_str, d, units, TRUE, TRUE, TRUE, 1 );
+					::MakeCStringFromDimension( &x_str, x, units, FALSE, TRUE, TRUE, 1 );
+					::MakeCStringFromDimension( &y_str, y, units, FALSE, TRUE, TRUE, 1 );
+					CString s0 ((LPCSTR) IDS_PadToBoardEdgeEquals);
+					str.Format( s0, m_drelist->GetSize()+1, part->ref_des, pin->pin_name, d_str, x_str, y_str );
+					cdre * dre = m_drelist->Add( cdre::BOARDEDGE_PAD, &str, pin, NULL, x, y, 0, 0, dia, 0 );
+					if( dre && log )
+						log->AddLine( str );
+				}
+			}
+		}
+		// test clearance from graphic elements
+		for( int igr=0; igr<part->m_outline_stroke.GetSize(); igr++ )
+		{
+			stroke * stk = &part->m_outline_stroke[igr];
+			if( stk->layer != layer )
+				continue;
+			int d = ::GetClearanceBetweenLineSegmentAndPad( stk->xi, stk->yi, stk->xf, stk->yf, stk->w,
+				type, x, y, wid, len, r );
+			if( d <= dr->copper_copper )
+			{
+				// COPPERGRAPHIC_PAD error
+				::MakeCStringFromDimension( &d_str, d, units, TRUE, TRUE, TRUE, 1 );
+				::MakeCStringFromDimension( &x_str, x, units, FALSE, TRUE, TRUE, 1 );
+				::MakeCStringFromDimension( &y_str, y, units, FALSE, TRUE, TRUE, 1 );
+				CString s0 ((LPCSTR) IDS_PadToCopperGraphics);
+				str.Format( s0, m_drelist->GetSize()+1, part->ref_des, pin->pin_name, 
+					part->ref_des, pin->pin_name, d_str, x_str, y_str );
+				cdre * dre = m_drelist->Add( DRError::COPPERGRAPHIC_PAD, &str,
+					pin, NULL, x, y, 0, 0, dia, 0 );
+				if( dre && log )
+						log->AddLine( str );
+			}
+		}
+	}
+}
+
+void CFreePcbDoc::DRCPinsAndCopperGraphics( cpart2 *part1, cpart2 *part2, int units, DesignRules *dr )
+{
+	// CPT2 new helper routine.  Compare the pins on part1 with the copper graphics for part2.  UNFINISHED.
+	// First, iterate through copper graphic elements in part2 and get a mask of copper layers used.
+	int graph_lay_mask = 0;
+	for( int igr=0; igr<part2->m_outline_stroke.GetSize(); igr++ )
+	{
+		stroke * stk = &part2->m_outline_stroke[igr];
+		if (stk->layer >= LAY_TOP_COPPER)
+			graph_lay_mask |= 1<<stk->layer;
+	}
+	if (graph_lay_mask==0) 
+		return;
+
+	citer<cpin2> ipin1 (&part1->pins);
+	for (cpin2 *pin1 = ipin1.First(); pin1; pin1 = ipin1.Next())
+	{
+		drc_pin *drp1 = &pin1->drc;
+		// CPT2.  Improved way of determining the diameter of dre circles that may need to be drawn:
+		int dia = max(drp1->max_x - drp1->min_x, drp1->max_y - drp1->min_y);
+		dia += 20*NM_PER_MIL;
+
+		// iterate through all copper layers
+		for( int layer = LAY_TOP_COPPER; layer < LAY_TOP_COPPER+m_num_copper_layers; layer++ )
+		{
+			if (!((1<<layer) & graph_lay_mask ))
+				continue;
+			// there are graphics strokes on this layer.  Check the pin's pad
+			int pad1_w, pad1_l, pad1_r, pad1_type, pad1_hole, pad1_connect;
+			bool bPad1 = pin1->GetDrawInfo( layer, 0, 0, 0, 0,
+				&pad1_type, &pad1_w, &pad1_l, &pad1_r, &pad1_hole, &pad1_connect );
+			if( !bPad1 ) 
+				continue;
+			for( int igr=0; igr<part2->m_outline_stroke.GetSize(); igr++ )
+			{
+				stroke * stk = &part2->m_outline_stroke[igr];
+				if( stk->layer != layer )
+					continue;
+				//** TODO: test for hole-copper violation
+				//** TODO: test for pad-copper violation
+			}
+		}
+	}
+}
+
+void CFreePcbDoc::DRCPinAndPin( cpin2 *pin1, cpin2 *pin2, int units, DesignRules *dr, int clearance )
+{
+	CString d_str, x_str, y_str, str;
+	drc_pin *drp1 = &pin1->drc, *drp2 = &pin2->drc;
+	cpart2 *part1 = pin1->part, *part2 = pin2->part;
+	CDlgLog *log = m_dlg_log;
+
+	if( drp1->hole_size && drp2->hole_size )
+	{
+		// test for hole-to-hole violation
+		int dist = Distance( pin1->x, pin1->y, pin2->x, pin2->y );
+		int h_h = max( 0, dist - (pin1->ps->hole_size + pin2->ps->hole_size)/2 );
+		if( h_h < dr->hole_hole )
+		{
+			// PADHOLE_PADHOLE
+			::MakeCStringFromDimension( &d_str, h_h, units, TRUE, TRUE, TRUE, 1 );
+			::MakeCStringFromDimension( &x_str, pin2->x, units, FALSE, TRUE, TRUE, 1 );
+			::MakeCStringFromDimension( &y_str, pin2->y, units, FALSE, TRUE, TRUE, 1 );
+			CString s0 ((LPCSTR) IDS_PadHoleToPadeHoleEquals);
+			str.Format( s0, m_drelist->GetSize(), part2->ref_des, pin2->pin_name, part1->ref_des, pin1->pin_name,
+				d_str, x_str, y_str );
+			cdre *dre = m_drelist->Add( cdre::PADHOLE_PADHOLE, &str, pin2, pin1, pin2->x, pin2->y, pin1->x, pin1->y, 0, 0 );
+			if( dre && log )
+				log->AddLine( str );
+		}
+	}
+
+	// see if pads on same layers
+	if( !(drp1->layers & drp2->layers) )
+		// no, see if either has a hole
+		if( !drp1->hole_size && !drp2->hole_size )
+			// no, go to next pin
+			return;
+
+	// see if padstacks might intersect
+	if( drp1->min_x - drp2->max_x > clearance )
+		return;
+	if( drp2->min_x - drp1->max_x > clearance )
+		return;
+	if( drp1->min_y - drp2->max_y > clearance )
+		return;
+	if( drp2->min_y - drp1->max_y > clearance )
+		return;
+
+	// OK, pads might be too close
+	// check for pad clearance violations on each layer
+	for( int layer = LAY_TOP_COPPER; layer < LAY_TOP_COPPER+m_num_copper_layers; layer++ )
+	{
+		int pad1_w, pad1_l, pad1_r, pad1_type, pad1_hole, pad1_connect;
+		bool bPad1 = pin1->GetDrawInfo( layer, 0, 0, 0, 0,
+			&pad1_type, &pad1_w, &pad1_l, &pad1_r, &pad1_hole, &pad1_connect );
+		if( !bPad1 )
+			continue;
+		int pad2_w, pad2_l, pad2_r, pad2_type, pad2_hole, pad2_connect;
+		bool bPad2 = pin2->GetDrawInfo( layer, 0, 0, 0, 0, 
+			&pad2_type, &pad2_w, &pad2_l, &pad2_r, &pad2_hole, &pad2_connect );
+		if( !bPad2 )
+			continue;
+		if( pad2_hole )
+		{
+			// test for pad-padhole violation
+			int dist = GetClearanceBetweenPads( pad1_type, pin1->x, pin1->y, pad1_w, pad1_l, pad1_r, 
+				PAD_ROUND, pin2->x, pin2->y, pad2_hole, 0, 0 );
+			if( dist < dr->hole_copper )
+			{
+				// PAD_PADHOLE 
+				::MakeCStringFromDimension( &d_str, dist, units, TRUE, TRUE, TRUE, 1 );
+				::MakeCStringFromDimension( &x_str, pin1->x, units, FALSE, TRUE, TRUE, 1 );
+				::MakeCStringFromDimension( &y_str, pin1->y, units, FALSE, TRUE, TRUE, 1 );
+				CString s0 ((LPCSTR) IDS_PadHoleToPadEquals);
+				str.Format( s0, m_drelist->GetSize()+1, part2->ref_des, pin2->pin_name,
+					part1->ref_des, pin1->pin_name,	d_str, x_str, y_str );
+				cdre * dre = m_drelist->Add( cdre::PAD_PADHOLE, &str, pin2, pin1, 
+					pin2->x, pin2->y, pin1->x, pin1->y, 0, layer );
+				if( dre && log )
+					log->AddLine( str );
+				return;							// skip any more layers, go to next pin
+			}
+		}
+		// test for pad-pad violation
+		int dist = GetClearanceBetweenPads( pad1_type, pin1->x, pin1->y, pad1_w, pad1_l, pad1_r,
+			pad2_type, pin2->x, pin2->y, pad2_w, pad2_l, pad2_r );
+		if( dist < dr->pad_pad )
+		{
+			// PAD_PAD 
+			::MakeCStringFromDimension( &d_str, dist, units, TRUE, TRUE, TRUE, 1 );
+			::MakeCStringFromDimension( &x_str, pin1->x, units, FALSE, TRUE, TRUE, 1 );
+			::MakeCStringFromDimension( &y_str, pin1->y, units, FALSE, TRUE, TRUE, 1 );
+			CString s0 ((LPCSTR) IDS_PadToPadEquals);
+			str.Format( s0, m_drelist->GetSize()+1, part2->ref_des, pin2->pin_name,
+				part1->ref_des, pin1->pin_name, d_str, x_str, y_str );
+			cdre * dre = m_drelist->Add( cdre::PAD_PAD, &str, pin2, pin1, 
+				pin2->x, pin2->y, pin1->x, pin1->y, 0, layer );
+			if( dre && log )
+				log->AddLine( str );
+			return;								// skip any more layers, go to next pin
+		}
+	}
+}
+
+void CFreePcbDoc::DRCArea(carea2 *a, int units, DesignRules *dr)
+{
+	// CPT2 new helper for DRC.  Check a, and look for BOARDEDGE_COPPERAREA violations.  Also incorporates the old CPT routine
+	// CheckBrokenArea().
+	// CPT2 TODO wouldn't it suffice to check the main contour only?  Of course (either way) this method of checking could fail if the area
+	// completely contains the whole board --- but do we really care?
+	CString d_str, x_str, y_str, str;
+	CDlgLog *log = m_dlg_log;
+	int layer = a->m_layer;
+	cnet2 *net = a->m_net;
+
+	citer<ccontour> ictr (&a->contours);
+	for (ccontour *ctr = ictr.First(); ctr; ctr = ictr.Next())
+	{
+		citer<cside> is (&ctr->sides);
+		for (cside *s = is.First(); s; s = is.Next())
+		{
+			int x1 = s->preCorner->x, y1 = s->preCorner->y;
+			int x2 = s->postCorner->x, y2 = s->postCorner->y;
+			// iterate through board outlines
+			citer<cboard> ib (&boards);
+			for (cboard *b = ib.First(); b; b = ib.Next())
+			{
+				citer<cside> ibs (&b->main->sides);
+				for (cside *bs = ibs.First(); bs; bs = ibs.Next())
+				{
+					int bx1 = bs->preCorner->x, by1 = bs->postCorner->y;
+					int bx2 = bs->postCorner->x, by2 = bs->postCorner->y;
+					int x, y;
+					int d = ::GetClearanceBetweenSegments( bx1, by1, bx2, by2, bs->m_style, 0,
+						x1, y1, x2, y2, s->m_style, 0, dr->board_edge_copper, &x, &y );
+					if( d < dr->board_edge_copper )
+					{
+						// BOARDEDGE_COPPERAREA error
+						::MakeCStringFromDimension( &d_str, d, units, TRUE, TRUE, TRUE, 1 );
+						::MakeCStringFromDimension( &x_str, x, units, FALSE, TRUE, TRUE, 1 );
+						::MakeCStringFromDimension( &y_str, y, units, FALSE, TRUE, TRUE, 1 );
+						CString str0 ((LPCSTR) IDS_CopperAreaToBoardEdgeEquals);
+						str.Format( str0, m_drelist->GetSize()+1, a->m_net->name, d_str, x_str, y_str );
+						cdre * dre = m_drelist->Add( cdre::BOARDEDGE_COPPERAREA, &str, s, NULL, x, y, 0, 0, 0, 0 );
+						if( dre && log )
+							log->AddLine( str );
+					}
+				}
+			}
+		}
+	}
+
+	// CPT: check for areas that have been broken or nearly broken by the clearances for traces from other nets (formerly routine CheckBrokenAreas()).
+	// Create a "bitmap" (just a 2-d array of 1-byte flags, indicating whether a given location is part of the area's copper).
+	// NB class CMyBitmap is found in utility.h.
+	// Get area's bounds and dimensions in nm.
+	CRect bounds = a->GetCornerBounds();
+	int wNm = bounds.right - bounds.left, hNm = bounds.top - bounds.bottom;
+	// Determine the granularity of the bitmap.  By default it's 10 mils per pixel, but that value may increase if area is big
+	int gran = 10*NM_PER_MIL;	
+	int w = wNm/gran, h = hNm/gran;
+	while (w*h>1000000)
+		w /= 2, h /= 2, gran *= 2;
+	w += 3, h += 3;												// A little extra wiggle room...
+	int x0 = bounds.left - gran, y0 = bounds.bottom - gran;
+	int xSample = 0, ySample = 0;								// Set below:  an arbitrarily chosen edge-corner position
+	CMyBitmap *bmp  = new CMyBitmap(w, h);
+
+	// Draw the area's edges onto bmp, filling the relevant pixels in with byte value xEdge for outer edges
+	// (edges belonging to a's contour #0) or xHole for edges of the area's holes (contours 1, 2, ...)
+	#define xEdge 0x01
+	#define xHole 0x02
+	for (ccontour *ctr = ictr.First(); ctr; ctr = ictr.Next()) 
+	{
+		citer<cside> is (&ctr->sides);
+		for (cside *s = is.First(); s; s = is.Next())
+		{
+			int x1 = s->preCorner->x, y1 = s->preCorner->y;
+			if (!xSample)
+				xSample = x1, ySample = y1;
+			int x2 = s->postCorner->x, y2 = s->postCorner->y;
+			x1 = (x1-x0)/gran, y1 = (y1-y0)/gran;
+			x2 = (x2-x0)/gran, y2 = (y2-y0)/gran;
+			char val = ctr==a->main? xEdge: xHole;
+			int style = s->m_style;
+			if (style==cpolyline::STRAIGHT)
+				bmp->Line(x1,y1, x2,y2, val);
+			else
+				bmp->Arc(x1,y1, x2,y2, style==cpolyline::ARC_CW, val);
+		}
+	}
+
+	// Now draw on the bitmap any segments that are in the correct layer but belong to nets other than a's.
+	#define xSeg 0x03
+	citer<cnet2> in (&m_nlist->nets);
+	for (cnet2 *net2 = in.First(); net2; net2 = in.Next())
+	{
+		if (net2 == net) 
+			continue;
+		citer<cconnect2> ic (&net2->connects);
+		for (cconnect2 *c2 = ic.First(); c2; c2 = ic.Next())
+		{
+			citer<cseg2> is (&c2->segs);
+			for (cseg2 *s = is.First(); s; s = is.Next())
+			{
+				if (s->m_layer!=layer) 
+					continue;
+				int x1 = s->preVtx->x, y1 = s->preVtx->y;
+				int x2 = s->postVtx->x, y2 = s->postVtx->y;
+				x1 = (x1-x0)/gran, y1 = (y1-y0)/gran;
+				x2 = (x2-x0)/gran, y2 = (y2-y0)/gran;
+				bmp->Line(x1,y1, x2,y2, xSeg);
+			}
+		}
+	}
+
+	// Now scan the bitmap's rows, looking for one where the initial pixel values are 0/xSeg, 0/xSeg, ..., 0/xSeg, xEdge, 0.
+	// The last pixel there is surely in the area's interior.  If we don't find such a pixel, the area is weirdly scrawny:  generate 
+	// a DRC warning and bail out.
+	int xInt = -1, yInt = -1;
+	for (int y=1; y<h-1; y++) 
+	{
+		int x=0;
+		while (x<w && (bmp->Get(x,y)==0 || bmp->Get(x,y)==xSeg)) x++;
+		if (x>=w-2) 
+			continue;
+		if (bmp->Get(x,y)==xEdge && bmp->Get(x+1,y)==0) 
+			{ xInt = x+1, yInt = y; break; }
+	}
+	if (xInt==-1) 
+	{
+		CString s ((LPCSTR) IDS_WarningCopperAreaIsTooNarrow), str;
+		::MakeCStringFromDimension( &x_str, xSample, units, FALSE, TRUE, TRUE, 1 );
+		::MakeCStringFromDimension( &y_str, ySample, units, FALSE, TRUE, TRUE, 1 );
+		str.Format( s, m_drelist->GetSize()+1, net->name, x_str, y_str );
+		cdre * dre = m_drelist->Add( cdre::COPPERAREA_BROKEN, &str, a, NULL, xSample, ySample, xSample, ySample, 0, 0 );
+		if (dre && log) 
+			log->AddLine( str );
+		delete(bmp);
+		return;
+	}
+
+	// Flood-fill the area's interior, starting from the just-found point (xInt,yInt)
+	#define xInterior 0x04
+	bmp->FloodFill(xInt,yInt, xInterior);
+
+	// Now scan the bitmap for any xEdge/xHole pixels that are not adjacent to an xInterior, and convert them to value xBad.
+	//  If the area is nicely connected, then only a few odd corner pixels will be xBad
+	#define xBad 0x05
+	for (int y=1; y<h-1; y++) 
+		for (int x=1; x<w-1; x++) 
+		{
+			if (bmp->Get(x,y) != xEdge && bmp->Get(x,y) != xHole) continue;
+			if (bmp->Get(x-1,y) != xInterior && bmp->Get(x+1,y) != xInterior &&
+				bmp->Get(x,y-1) != xInterior && bmp->Get(x,y+1) != xInterior) 
+					bmp->Set(x,y, xBad);
+		}
+
+	// Now determine the connected components among the xBad pixels.  Each component that contains more than 2 (?) pixels results in
+	// its own DRE.
+	#define xBad2 0x06
+	for (int y=1; y<h-1; y++) 
+		for (int x=1; x<w-1; x++) 
+		{
+			if (bmp->Get(x,y) != xBad) continue;
+			int nPix = bmp->FloodFill(x, y, xBad2);
+			if (nPix<3) continue;
+			int x2 = x*gran + x0, y2 = y*gran + y0;
+			CString s ((LPCSTR) IDS_WarningCopperAreaIsTooNarrow), str;
+			::MakeCStringFromDimension( &x_str, x2, units, FALSE, TRUE, TRUE, 1 );
+			::MakeCStringFromDimension( &y_str, y2, units, FALSE, TRUE, TRUE, 1 );
+			str.Format( s, m_drelist->GetSize()+1, net->name, x_str, y_str );
+			cdre * dre = m_drelist->Add( cdre::COPPERAREA_BROKEN, &str, a, NULL, x2, y2, x2, y2, 0, 0 );
+			if ( dre && log )
+				log->AddLine( str );
+		}
+	
+	// Done!
+	delete(bmp);
+}
+
+
+void CFreePcbDoc::DRCConnect(cconnect2 *c, int units, DesignRules *dr)
+{
+	CString d_str, x_str, y_str, str;
+	cnet2 *net = c->m_net;
+	CDlgLog *log = m_dlg_log;
+	int num_layers = LAY_TOP_COPPER + m_num_copper_layers;
+
+	// get DRC info for this connection
+	c->min_x = INT_MAX;		// bounding box for connection
+	c->max_x = INT_MIN;
+	c->min_y = INT_MAX;
+	c->max_y = INT_MIN;
+	c->vias_present = FALSE;
+	c->seg_layers = 0;
+	int max_trace_w = 0;	// maximum trace width for connection
+
+	/*** iterate through connect's segs ***/
+	citer<cseg2> is (&c->segs);
+	for (cseg2 *s = is.First(); s; s = is.Next())
+	{
+		int x1 = s->preVtx->x, y1 = s->preVtx->y;
+		int x2 = s->postVtx->x, y2 = s->postVtx->y;
+		int w = s->m_width;
+		int layer = s->m_layer;
+		if (layer == LAY_RAT_LINE)
+			// CPT2:  Neither TRACE_WIDTH nor BOARDEDGE_SEG matter for ratlines:
+			continue;
+		if( layer >= LAY_TOP_COPPER )
+			c->seg_layers |= 1<<layer;
+		// add segment to bounding box
+		int seg_min_x = min( x1, x2 );
+		int seg_min_y = min( y1, y2 );
+		int seg_max_x = max( x1, x2 );
+		int seg_max_y = max( y1, y2 );
+		c->min_x = min( c->min_x, seg_min_x - w/2 );
+		c->max_x = max( c->max_x, seg_max_x + w/2 );
+		c->min_y = min( c->min_y, seg_min_y - w/2 );
+		c->max_y = max( c->max_y, seg_max_y + w/2 );
+		// test trace width
+		if (w==0)
+			continue;											// CPT2: the old code effectively did this.  Desirable?
+		if( w < dr->trace_width )		
+		{
+			// TRACE_WIDTH error
+			int x = (x1+x2)/2, y = (y1+y2)/2;
+			::MakeCStringFromDimension( &d_str, w, units, TRUE, TRUE, TRUE, 1 );
+			::MakeCStringFromDimension( &x_str, x, units, FALSE, TRUE, TRUE, 1 );
+			::MakeCStringFromDimension( &y_str, y, units, FALSE, TRUE, TRUE, 1 );
+			CString str0 ((LPCSTR) IDS_TraceWidthEquals);
+			str.Format( str0, m_drelist->GetSize()+1, net->name, d_str, x_str, y_str );
+			cdre * dre = m_drelist->Add( cdre::TRACE_WIDTH, &str, s, NULL, x, y, 0, 0, 0, layer );
+			if( dre && log )
+				log->AddLine( str );
+		}
+		// test clearance to board edge
+		citer<cboard> ib (&boards);
+		for (cboard *b = ib.First(); b; b = ib.Next())
+		{
+			citer<cside> ibs (&b->main->sides);
+			for (cside *bs = ibs.First(); bs; bs = ibs.Next())
+			{
+				int bx1 = bs->preCorner->x, by1 = bs->preCorner->y;
+				int bx2 = bs->postCorner->x, by2 = bs->postCorner->y;
+				int x, y;
+				int d = ::GetClearanceBetweenSegments( bx1, by1, bx2, by2, bs->m_style, 0,
+					x1, y1, x2, y2, CPolyLine::STRAIGHT, w, dr->board_edge_copper, &x, &y );
+				if( d < dr->board_edge_copper )
+				{
+					// BOARDEDGE_SEG error
+					::MakeCStringFromDimension( &d_str, d, units, TRUE, TRUE, TRUE, 1 );
+					::MakeCStringFromDimension( &x_str, x, units, FALSE, TRUE, TRUE, 1 );
+					::MakeCStringFromDimension( &y_str, y, units, FALSE, TRUE, TRUE, 1 );
+					CString str0 ((LPCSTR) IDS_TraceToBoardEdgeEquals);
+					str.Format( str0, m_drelist->GetSize()+1, net->name, d_str, x_str, y_str );
+					cdre * dre = m_drelist->Add( cdre::BOARDEDGE_SEG, &str, s, NULL, x, y, 0, 0, 0, layer );
+					if( dre && log )
+						log->AddLine( str );
+				}
+			}
+		}
+	}
+
+	/*** iterate through connect's vertices (vias in particular) ***/
+	citer<cvertex2> iv (&c->vtxs);
+	for (cvertex2 *vtx = iv.First(); vtx; vtx = iv.Next())
+	{
+		if (!vtx->via_w) 
+			continue;
+		// via present
+		c->vias_present = TRUE;
+		int min_via_w = INT_MAX;				// minimum via pad diameter
+		int max_via_w = INT_MIN;				// maximum via_pad diameter
+		int hole_w;								// CPT2 added (we may as well use the returned hole value from GetViaPadInfo(), which is the same for all layers)
+		int dia = vtx->via_w + 20*NM_PER_MIL;	// Diameter for displayed dre circles, should any be generated
+		// CPT2 TODO The following computation of max_via_w and min_via_w seems like a charade:
+		for( int layer = LAY_TOP_COPPER; layer < num_layers; layer++ )
+		{
+			int test, pad_w;
+			vtx->GetViaPadInfo( layer, &pad_w, &hole_w, &test );
+			if( pad_w > 0 )
+				min_via_w = min( min_via_w, pad_w );
+			max_via_w = max( max_via_w, pad_w );
+		}
+		if( max_via_w == 0 )
+			ASSERT(0);
+		c->min_x = min( c->min_x, vtx->x - max_via_w/2 );
+		c->max_x = max( c->max_x, vtx->x + max_via_w/2 );
+		c->min_y = min( c->min_y, vtx->y - max_via_w/2 );
+		c->max_y = max( c->max_y, vtx->y + max_via_w/2 );
+		int d = (min_via_w - hole_w)/2;
+		if( d < dr->annular_ring_vias )
+		{
+			// RING_VIA
+			::MakeCStringFromDimension( &d_str, d, units, TRUE, TRUE, TRUE, 1 );
+			::MakeCStringFromDimension( &x_str, vtx->x, units, FALSE, TRUE, TRUE, 1 );
+			::MakeCStringFromDimension( &y_str, vtx->y, units, FALSE, TRUE, TRUE, 1 );
+			CString s ((LPCSTR) IDS_ViaAnnularRingEquals);
+			str.Format( s, m_drelist->GetSize()+1, net->name, d_str, x_str, y_str );
+			cdre * dre = m_drelist->Add( cdre::RING_VIA, &str, vtx, NULL, vtx->x, vtx->y, 0, 0, dia, 0 );
+			if( dre && log )
+				log->AddLine( str );
+		}
+		// test clearance to board edge
+		citer<cboard> ib (&boards);
+		for (cboard *b = ib.First(); b; b = ib.Next())
+		{
+			citer<cside> ibs (&b->main->sides);
+			for (cside *bs = ibs.First(); bs; bs = ibs.Next())
+			{
+				int bx1 = bs->preCorner->x, by1 = bs->preCorner->y;
+				int bx2 = bs->postCorner->x, by2 = bs->postCorner->y;
+				//** for now, only works for straight board edge segments
+				if (bs->m_style != cpolyline::STRAIGHT )
+					continue;
+				int d = ::GetClearanceBetweenLineSegmentAndPad( bx1, by1, bx2, by2, 0,
+					PAD_ROUND, vtx->x, vtx->y, max_via_w, 0, 0 );
+				if( d < dr->board_edge_copper )
+				{
+					// BOARDEDGE_VIA error
+					::MakeCStringFromDimension( &d_str, d, units, TRUE, TRUE, TRUE, 1 );
+					::MakeCStringFromDimension( &x_str, vtx->x, units, FALSE, TRUE, TRUE, 1 );
+					::MakeCStringFromDimension( &y_str, vtx->y, units, FALSE, TRUE, TRUE, 1 );
+					CString s ((LPCSTR) IDS_ViaToBoardEdgeEquals);
+					str.Format( s, m_drelist->GetSize()+1, net->name, d_str, x_str, y_str );
+					cdre * dre = m_drelist->Add( cdre::BOARDEDGE_VIA, &str, vtx, NULL,
+						vtx->x, vtx->y, 0, 0, dia, 0 );
+					if( dre && log )
+						log->AddLine( str );
+				}
+				int dh = ::GetClearanceBetweenLineSegmentAndPad( bx1, by1, bx2, by2, 0,
+					PAD_ROUND, vtx->x, vtx->y, hole_w, 0, 0 );
+				if( dh < dr->board_edge_hole )
+				{
+					// BOARDEDGE_VIAHOLE error
+					::MakeCStringFromDimension( &d_str, d, units, TRUE, TRUE, TRUE, 1 );
+					::MakeCStringFromDimension( &x_str, vtx->x, units, FALSE, TRUE, TRUE, 1 );
+					::MakeCStringFromDimension( &y_str, vtx->y, units, FALSE, TRUE, TRUE, 1 );
+					CString s ((LPCSTR) IDS_ViaHoleToBoardEdgeEquals);
+					str.Format( s, m_drelist->GetSize()+1, net->name, d_str, x_str, y_str );
+					cdre * dre = m_drelist->Add( cdre::BOARDEDGE_VIAHOLE, &str, vtx, NULL, 
+						vtx->x, vtx->y, 0, 0, dia, 0 );
+					if( dre && log )
+						log->AddLine( str );
+				}
+			}
+		}
+	}
+
+	/*** iterate through all parts, checking for
+			SEG_PAD, VIA_PAD, SEG_COPPERGRAPHIC, VIA_COPPERGRAPHIC errors  */
+	citer<cpart2> ip (&m_plist->parts);
+	for (cpart2 *part = ip.First(); part; part = ip.Next())
+	{
+		if (!part->shape) 
+			continue;										// CPT2 this wasn't there before, but surely it makes sense?
+		// if not on same layers, can't conflict
+		if( !part->hole_flag && !c->vias_present && !(part->layers & c->seg_layers) )
+			continue;
+
+		// if bounding boxes don't overlap, can't conflict
+		if( part->min_x - c->max_x > dr->pad_trace )
+			continue;
+		if( c->min_x - part->max_x > dr->pad_trace )
+			continue;
+		if( part->min_y - c->max_y > dr->pad_trace )
+			continue;
+		if( c->min_y - part->max_y > dr->pad_trace )
+			continue;
+
+		// OK, now we have to test each pad
+		citer<cpin2> ipin (&part->pins);
+		for (cpin2 *pin = ipin.First(); pin; pin = ipin.Next())
+		{
+			drc_pin * drp = &pin->drc;
+			// if pin and connection bounds are separated enough, skip pin
+			if( drp->min_x - c->max_x > dr->pad_trace )
+				continue;
+			if( c->min_x - drp->max_x > dr->pad_trace )
+				continue;
+			if( drp->min_y - c->max_y > dr->pad_trace )
+				continue;
+			if( c->min_y - drp->max_y > dr->pad_trace )
+				continue;
+			if( net == pin->net )
+				// This condition existed in the code before, somewhat obscured.  But [CPT2 TODO] 
+				// is it really tolerable to have a seg pass through a pin-hole from the same net?
+				continue;
+			// CPT2.  Improved way of determining the diameter of dre circles that may need to be drawn:
+			int dia = max(drp->max_x - drp->min_x, drp->max_y - drp->min_y);
+			dia += 20*NM_PER_MIL;
+
+			// possible clearance violation, now test pad against each segment and via on each layer
+			bool bPad[MAX_LAYERS];
+			int pad_w[MAX_LAYERS], pad_l[MAX_LAYERS], pad_r[MAX_LAYERS];
+			int pad_type[MAX_LAYERS], pad_hole[MAX_LAYERS], pad_connect[MAX_LAYERS];
+			for (int i = LAY_TOP_COPPER; i < num_layers; i++)
+				bPad[i] = pin->GetDrawInfo( i, 0, 0, 0, 0, &pad_type[i], &pad_w[i], &pad_l[i], &pad_r[i],
+											&pad_hole[i], &pad_connect[i] );
+
+			// CPT2: old code did a single loop through segs, and checked each seg's postVtx for via violations.  But this had the
+			// effect that the head of a connect wouldn't get checked.  Therefore I've split it into 2 loops.
+			citer<cseg2> is (&c->segs);
+			for (cseg2 *s = is.First(); s; s = is.Next())
+			{
+				int layer = s->m_layer;
+				if (layer < LAY_TOP_COPPER)						// e.g., a ratline
+					continue;
+				int w = s->m_width;
+				int xi = s->preVtx->x, yi = s->preVtx->y;
+				int xf = s->postVtx->x, yf = s->postVtx->y;
+				int min_x = min( xi, xf ) - w/2;
+				int max_x = max( xi, xf ) + w/2;
+				int min_y = min( yi, yf ) - w/2;
+				int max_y = max( yi, yf ) + w/2;
+
+				if( drp->hole_size )
+				{
+					int d = GetClearanceBetweenLineSegmentAndPad( xi, yi, xf, yf, w,
+							PAD_ROUND, pin->x, pin->y, pad_hole[layer], 0, 0 );
+					if (d < dr->hole_copper ) 
+					{
+						// SEG_PADHOLE
+						::MakeCStringFromDimension( &d_str, d, units, TRUE, TRUE, TRUE, 1 );
+						::MakeCStringFromDimension( &x_str, pin->x, units, FALSE, TRUE, TRUE, 1 );
+						::MakeCStringFromDimension( &y_str, pin->y, units, FALSE, TRUE, TRUE, 1 );
+						CString str0 ((LPCSTR) IDS_TraceToPadHoleEquals);
+						str.Format( str0, m_drelist->GetSize()+1, net->name, part->ref_des, pin->pin_name,
+							d_str, x_str, y_str );
+						cdre * dre = m_drelist->Add( cdre::SEG_PAD, &str, s, pin, pin->x, pin->y, pin->x, pin->y, 
+							dia, layer );
+						if( dre && log )
+							log->AddLine( str );
+					}
+				}
+
+				if( ((1<<layer) & drp->layers) && bPad[layer] && pad_type[layer] != PAD_NONE )
+				{
+					// pin has a pad on seg's layer (and boy did we check thoroughly)
+					// check segment to pad clearance
+					int d = GetClearanceBetweenLineSegmentAndPad( xi, yi, xf, yf, w,
+						pad_type[layer], pin->x, pin->y, pad_w[layer], pad_l[layer], pad_r[layer] );
+					if( d < dr->pad_trace ) 
+					{
+						// SEG_PAD
+						::MakeCStringFromDimension( &d_str, d, units, TRUE, TRUE, TRUE, 1 );
+						::MakeCStringFromDimension( &x_str, pin->x, units, FALSE, TRUE, TRUE, 1 );
+						::MakeCStringFromDimension( &y_str, pin->y, units, FALSE, TRUE, TRUE, 1 );
+						CString str0 ((LPCSTR) IDS_TraceToPadEquals);
+						str.Format( str0, m_drelist->GetSize()+1, net->name, part->ref_des, pin->pin_name,
+							d_str, x_str, y_str );
+						cdre * dre = m_drelist->Add( cdre::SEG_PAD, &str, s, pin, pin->x, pin->y, pin->x, pin->y, 
+							dia, layer );
+						if( dre && log )
+							log->AddLine( str );
+					}
+				}
+			}		
+					
+			citer<cvertex2> iv (&c->vtxs);
+			for (cvertex2* v = iv.First(); v; v= iv.Next())
+			{
+				if (!v->via_w) continue;
+				for (int layer = LAY_TOP_COPPER; layer < num_layers; layer++)
+				{
+					// compare via and pin on each of the various layers
+					int test, via_w, via_hole_w;
+					v->GetViaPadInfo( layer, &via_w, &via_hole_w, &test );
+					if (!via_w)
+						continue;
+					if( bPad[layer] && pad_type[layer] != PAD_NONE )
+					{
+						// pin has a pad on this layer.  check via_pad to pin_pad clearance
+						int d = GetClearanceBetweenPads( PAD_ROUND, v->x, v->y, via_w, 0, 0,
+							pad_type[layer], pin->x, pin->y, pad_w[layer], pad_l[layer], pad_r[layer] );
+						if( d < dr->pad_trace )
+						{
+							// VIA_PAD
+							::MakeCStringFromDimension( &d_str, d, units, TRUE, TRUE, TRUE, 1 );
+							::MakeCStringFromDimension( &x_str, pin->x, units, FALSE, TRUE, TRUE, 1 );
+							::MakeCStringFromDimension( &y_str, pin->y, units, FALSE, TRUE, TRUE, 1 );
+							CString str0 ((LPCSTR) IDS_ViaPadToPadEquals);
+							str.Format( str0, m_drelist->GetSize()+1, net->name, part->ref_des, pin->pin_name,
+								d_str, x_str, y_str );
+							cdre * dre = m_drelist->Add( cdre::VIA_PAD, &str, v, pin, v->x, v->y, pin->x, pin->y, 0, layer );
+							if( dre && log )
+								log->AddLine( str );
+							break;  // skip more layers
+						}
+						// also check via-hole to pin-pad clearance (CPT2 moved this here from further below)
+						d = GetClearanceBetweenPads( PAD_ROUND, v->x, v->y, via_hole_w, 0, 0,
+							pad_type[layer], pin->x, pin->y, pad_w[layer], pad_l[layer], pad_r[layer] );
+						if( d < dr->hole_copper )
+						{
+							// VIAHOLE_PAD
+							::MakeCStringFromDimension( &d_str, d, units, TRUE, TRUE, TRUE, 1 );
+							::MakeCStringFromDimension( &x_str, pin->x, units, FALSE, TRUE, TRUE, 1 );
+							::MakeCStringFromDimension( &y_str, pin->y, units, FALSE, TRUE, TRUE, 1 );
+							CString s ((LPCSTR) IDS_ViaHoleToPadEquals);
+							str.Format( s, m_drelist->GetSize()+1, net->name, part->ref_des, pin->pin_name,
+								d_str, x_str, y_str );
+							cdre * dre = m_drelist->Add( cdre::VIA_PAD, &str, v, pin, v->x, v->y, pin->x, pin->y, 0, layer );
+							if( dre && log )
+								log->AddLine( str );
+							break;  // skip more layers
+						}
+					}
+					if( drp->hole_size )
+					{
+						// pin has a hole, check via_pad to pin_hole clearance
+						int d = Distance( v->x, v->y, pin->x, pin->y );
+						d = max( 0, d - drp->hole_size/2 - via_w/2 );
+						if( d < dr->hole_copper )
+						{
+							// VIA_PADHOLE
+							::MakeCStringFromDimension( &d_str, d, units, TRUE, TRUE, TRUE, 1 );
+							::MakeCStringFromDimension( &x_str, pin->x, units, FALSE, TRUE, TRUE, 1 );
+							::MakeCStringFromDimension( &y_str, pin->y, units, FALSE, TRUE, TRUE, 1 );
+							CString s ((LPCSTR) IDS_ViaPadToPadHoleEquals);
+							str.Format( s, m_drelist->GetSize()+1, net->name, part->ref_des, pin->pin_name,
+								d_str, x_str, y_str );
+							cdre * dre = m_drelist->Add( cdre::VIA_PAD, &str, v, pin, v->x, v->y, pin->x, pin->y, 0, layer );
+							if( dre && log )
+								log->AddLine( str );
+							break;  // skip more layers
+						}
+					}
+				}
+				if( drp->hole_size )
+				{
+					// final comparison between pin and via:  hole vs. hole
+					int d = Distance( v->x, v->y, pin->x, pin->y );
+					d = max( 0, d - drp->hole_size/2 - v->via_hole_w/2 );
+					if( d < dr->hole_hole )
+					{
+						// VIAHOLE_PADHOLE
+						::MakeCStringFromDimension( &d_str, d, units, TRUE, TRUE, TRUE, 1 );
+						::MakeCStringFromDimension( &x_str, pin->x, units, FALSE, TRUE, TRUE, 1 );
+						::MakeCStringFromDimension( &y_str, pin->y, units, FALSE, TRUE, TRUE, 1 );
+						CString s ((LPCSTR) IDS_ViaHoleToPadHoleEquals);
+						str.Format( s, m_drelist->GetSize()+1, net->name, part->ref_des, pin->pin_name,
+							d_str, x_str, y_str );
+						cdre * dre = m_drelist->Add( cdre::VIA_PAD, &str, v, pin, v->x, v->y, pin->x, pin->y, 0, LAY_TOP_COPPER );
+						if( dre && log )
+							log->AddLine( str );
+					}
+				}
+			}
+		}
+
+		// test each copper graphic stroke
+		CArray<stroke> *ref_strokes = &part->m_ref->m_stroke;
+		CArray<stroke> *value_strokes = &part->m_value->m_stroke;
+		CArray<stroke> *outline_strokes = &part->m_outline_stroke;
+		int n_ref = ref_strokes->GetSize(), n_value = value_strokes->GetSize(), n_outline = outline_strokes->GetSize();
+		int n_total_strokes = n_ref + n_value + n_outline;
+		for( int istk=0; istk<n_total_strokes; istk++ )
+		{
+			// get stroke to test
+			stroke * test_stroke;
+			if( istk < n_ref )
+				test_stroke = &(*ref_strokes)[istk];
+			else if( istk < n_ref + n_value )
+				test_stroke = &(*value_strokes)[istk-n_ref];
+			else 
+				test_stroke = &(*outline_strokes)[istk-n_ref-n_value];
+			int cglayer = test_stroke->layer;
+			if (cglayer < LAY_TOP_COPPER) continue;
+			int cgxi = test_stroke->xi;
+			int cgyi = test_stroke->yi;
+			int cgxf = test_stroke->xf;
+			int cgyf = test_stroke->yf;
+			int cgstyle;
+			if( test_stroke->type == DL_LINE )
+				cgstyle = cpolyline::STRAIGHT;
+			else if( test_stroke->type == DL_ARC_CW )
+				cgstyle = cpolyline::ARC_CW;
+			else if( test_stroke->type == DL_ARC_CCW )
+				cgstyle = cpolyline::ARC_CCW;
+			else
+				ASSERT(0);
+
+			// test against each segment in connection
+			citer<cseg2> is (&c->segs);
+			for (cseg2 *s = is.First(); s; s = is.Next())
+			{
+				if (s->m_layer != test_stroke->layer)
+					continue;
+				int w = s->m_width;
+				int xi = s->preVtx->x, yi = s->preVtx->y;
+				int xf = s->postVtx->x, yf = s->postVtx->y;
+				int min_x = min( xi, xf ) - w/2;
+				int max_x = max( xi, xf ) + w/2;
+				int min_y = min( yi, yf ) - w/2;
+				int max_y = max( yi, yf ) + w/2;
+				// check segment clearances
+				int x, y;
+				int d = ::GetClearanceBetweenSegments( cgxi, cgyi, cgxf, cgyf, cgstyle, 0,
+					xi, yi, xf, yf, CPolyLine::STRAIGHT, w,	dr->board_edge_copper, &x, &y );
+				if( d < dr->copper_copper )
+				{
+					// COPPERGRAPHIC_SEG error
+					::MakeCStringFromDimension( &d_str, d, units, TRUE, TRUE, TRUE, 1 );
+					::MakeCStringFromDimension( &x_str, x, units, FALSE, TRUE, TRUE, 1 );
+					::MakeCStringFromDimension( &y_str, y, units, FALSE, TRUE, TRUE, 1 );
+					CString s0 ((LPCSTR) IDS_TraceToCopperGraphic);
+					str.Format( s0, m_drelist->GetSize()+1, net->name, d_str, x_str, y_str );
+					cdre * dre = m_drelist->Add( cdre::COPPERGRAPHIC_SEG, &str, s, NULL, x, y, 0, 0, 0, cglayer );
+					if( dre && log )
+						log->AddLine( str );
+				}
+			}
+			// test against each via in connection
+			citer<cvertex2> iv (&c->vtxs);
+			for (cvertex2 *v = iv.First(); v; v = iv.Next())
+			{
+				if (!v->via_w) 
+					continue;
+				int test, via_w, via_hole_w;
+				int dia = v->via_w + 20*NM_PER_MIL;									// Diameter for display dre's, if any get generated
+				v->GetViaPadInfo( test_stroke->layer, &via_w, &via_hole_w, &test );
+				if( via_w )
+				{
+					// check via
+					int d = GetClearanceBetweenLineSegmentAndPad( cgxi, cgyi, cgxf, cgyf, test_stroke->w,
+						PAD_ROUND, v->x, v->y, via_w, 0, 0 );
+					if( d < dr->copper_copper )
+					{
+						// COPPERGRAPHIC_VIA error
+						::MakeCStringFromDimension( &d_str, d, units, TRUE, TRUE, TRUE, 1 );
+						::MakeCStringFromDimension( &x_str, v->x, units, FALSE, TRUE, TRUE, 1 );
+						::MakeCStringFromDimension( &y_str, v->y, units, FALSE, TRUE, TRUE, 1 );
+						CString s0 ((LPCSTR) IDS_ViaToCopperGraphic);
+						str.Format( s0,	m_drelist->GetSize()+1, net->name, d_str, x_str, y_str );
+						cdre * dre = m_drelist->Add( cdre::COPPERGRAPHIC_VIA, &str, v, NULL, v->x, v->y, 
+							0, 0, dia, cglayer );
+						if( dre && log )
+							log->AddLine( str );
+					}
+				}
+				if( via_hole_w )
+				{
+					// check via hole
+					int d = GetClearanceBetweenLineSegmentAndPad( cgxi, cgyi, cgxf, cgyf, test_stroke->w,
+						PAD_ROUND, v->x, v->y, via_hole_w, 0, 0 );
+					if( d < dr->hole_copper )
+					{
+						// COPPERGRAPHIC_VIAHOLE error
+						::MakeCStringFromDimension( &d_str, d, units, TRUE, TRUE, TRUE, 1 );
+						::MakeCStringFromDimension( &x_str, v->x, units, FALSE, TRUE, TRUE, 1 );
+						::MakeCStringFromDimension( &y_str, v->y, units, FALSE, TRUE, TRUE, 1 );
+						CString s0 ((LPCSTR) IDS_ViaHoleToCopperGraphic);
+						str.Format( s0, m_drelist->GetSize()+1, net->name, d_str, x_str, y_str );
+						cdre * dre = m_drelist->Add( cdre::COPPERGRAPHIC_VIAHOLE, &str, v, NULL, v->x, v->y,
+							0, 0, dia, cglayer );
+						if( dre && log )
+							log->AddLine( str );
+					}
+				}
+			}
+		}
+	}
+}
+
+void CFreePcbDoc::DRCConnectAndConnect( cconnect2 *c1, cconnect2 *c2, int units, DesignRules *dr, int clearance )
+{
+	// CPT2 new helper for DRC().  Look for DRC violations involving c1 and c2 (which will belong to different nets)
+	if( c1->min_x - c2->max_x > clearance )
+		return;
+	if( c1->min_y - c2->max_y > clearance )
+		return;
+	if( c2->min_x - c1->max_x > clearance )
+		return;
+	if( c2->min_y - c1->max_y > clearance )
+		return;
+	CString d_str, x_str, y_str, str;
+	CDlgLog *log = m_dlg_log;
+	cnet2 *net1 = c1->m_net, *net2 = c2->m_net;
+
+	// now we have to compare all segments and vias in c1 against those in c2
+	citer<cseg2> is1 (&c1->segs);
+	citer<cseg2> is2 (&c2->segs);
+	for (cseg2 *s1 = is1.First(); s1; s1 = is1.Next())
+	{
+		// Get bounding rect for seg, including the vias on its endpoints
+		CRect br1, br2;
+		s1->GetBoundingRect( &br1 );
+		int xi1 = s1->preVtx->x, yi1 = s1->preVtx->y;
+		int xf1 = s1->postVtx->x, yf1 = s1->postVtx->y;
+		for (cseg2 *s2 = is2.First(); s2; s2 = is2.Next())
+		{
+			s2->GetBoundingRect( &br2 );
+			int xi2 = s2->preVtx->x, yi2 = s2->preVtx->y;
+			int xf2 = s2->postVtx->x, yf2 = s2->postVtx->y;
+			// see if segment bounding rects are disjoint
+			if( br1.left - br2.right > clearance )
+				continue;
+			if( br2.left - br1.right > clearance )
+				continue;
+			if( br1.bottom - br2.top > clearance )
+				continue;
+			if( br2.bottom - br1.top > clearance )
+				continue;
+
+			if( s1->m_layer == s2->m_layer && s1->m_layer >= LAY_TOP_COPPER ) 
+			{
+				// test clearances between segments on the same layer
+				int xx, yy; 
+				int d = ::GetClearanceBetweenSegments( xi1, yi1, xf1, yf1, cpolyline::STRAIGHT, s1->m_width, 
+					xi2, yi2, xf2, yf2, cpolyline::STRAIGHT, s2->m_width, dr->trace_trace, &xx, &yy );
+				if( d < dr->trace_trace )
+				{
+					// SEG_SEG
+					::MakeCStringFromDimension( &d_str, d, units, TRUE, TRUE, TRUE, 1 );
+					::MakeCStringFromDimension( &x_str, xx, units, FALSE, TRUE, TRUE, 1 );
+					::MakeCStringFromDimension( &y_str, yy, units, FALSE, TRUE, TRUE, 1 );
+					CString s0 ((LPCSTR) IDS_TraceToTraceEquals);
+					str.Format( s0, m_drelist->GetSize()+1, net1->name, net2->name,
+						d_str, x_str, y_str );
+					cdre * dre = m_drelist->Add( cdre::SEG_SEG, &str, s1, s2, xx, yy, xx, yy, 0, s1->m_layer );
+					if( dre && log )
+						log->AddLine( str );
+				}
+			}
+
+			// test clearances between segments and vias.  In all cases look at the postVtx;  if either seg is first in the
+			// connect, look at their preVtx's also
+			DRCSegmentAndVia(s1, s2->postVtx, units, dr);
+			DRCSegmentAndVia(s2, s1->postVtx, units, dr);
+			if (!s1->preVtx->preSeg)
+				DRCSegmentAndVia(s2, s1->preVtx, units, dr);
+			if (!s2->preVtx->preSeg)
+				DRCSegmentAndVia(s1, s2->preVtx, units, dr);
+			// test clearances between postVtx vias.  In case either seg is first in the connect, compare preVtx vias also
+			DRCViaAndVia(s1->postVtx, s2->postVtx, units, dr);
+			if (!s1->preVtx->preSeg)
+				DRCViaAndVia(s1->preVtx, s2->postVtx, units, dr);
+			if (!s2->preVtx->preSeg)
+				DRCViaAndVia(s1->postVtx, s2->preVtx, units, dr);
+			if (!s1->preVtx->preSeg && !s2->preVtx->preSeg)
+				DRCViaAndVia(s1->preVtx, s2->preVtx, units, dr);
+		}
+	}
+}
+
+
+
+void CFreePcbDoc::DRCSegmentAndVia(cseg2 *seg, cvertex2 *vtx, int units, DesignRules *dr)
+{
+	// CPT2 new helper routine for DRC().  Compare seg and vtx (checking first that seg is not a ratline and vtx is a via), and generate
+	// any d-r errors that may come up.
+	CString d_str, x_str, y_str, str;
+	CDlgLog *log = m_dlg_log;
+	int layer = seg->m_layer;
+	if (layer < LAY_TOP_COPPER)
+		return;															// e.g., a ratline
+	if (!vtx->via_w)
+		return;
+	int xi = seg->preVtx->x, yi = seg->preVtx->y;
+	int xf = seg->postVtx->x, yf = seg->postVtx->y;
+	int test = vtx->GetViaConnectionStatus( layer );
+	int via_w  = vtx->via_w;											// normal via pad
+	int dia = via_w + 20*NM_PER_MIL;									// Diameter for displayed dre circles, should any be generated
+	if( layer > LAY_BOTTOM_COPPER && test == cvertex2::VIA_NO_CONNECT )
+		// inner layer and no trace or thermal, so no via pad
+		via_w = 0;
+	else if( layer > LAY_BOTTOM_COPPER && (test & CNetList::VIA_AREA) && !(test & CNetList::VIA_TRACE) )
+		// inner layer with small thermal, use annular ring
+		via_w = vtx->via_hole_w + 2*dr->annular_ring_vias;
+
+	// check clearance
+	if( via_w )
+	{
+		// check clearance between segment and via pad
+		int d = GetClearanceBetweenLineSegmentAndPad( xi, yi, xf, yf, seg->m_width,
+			PAD_ROUND, vtx->x, vtx->y, vtx->via_w, 0, 0 );
+		if( d < dr->trace_trace )
+		{
+			// SEG_VIA
+			::MakeCStringFromDimension( &d_str, d, units, TRUE, TRUE, TRUE, 1 );
+			::MakeCStringFromDimension( &x_str, vtx->x, units, FALSE, TRUE, TRUE, 1 );
+			::MakeCStringFromDimension( &y_str, vtx->y, units, FALSE, TRUE, TRUE, 1 );
+			CString s0 ((LPCSTR) IDS_TraceToViaPadEquals);
+			str.Format( s0, m_drelist->GetSize()+1, seg->m_net->name, vtx->m_net->name,
+				d_str, x_str, y_str );
+			cdre * dre = m_drelist->Add( cdre::SEG_VIA, &str, seg, vtx, vtx->x, vtx->y, vtx->x, vtx->y, dia, seg->m_layer );
+			if( dre && log )
+				log->AddLine( str );
+		}
+	}
+
+	// check clearance between segment and via hole
+	int d = GetClearanceBetweenLineSegmentAndPad( xi, yi, xf, yf, seg->m_width,
+		PAD_ROUND, vtx->x, vtx->y, vtx->via_hole_w, 0, 0 );
+	if( d < dr->hole_copper )
+	{
+		// SEG_VIAHOLE
+		::MakeCStringFromDimension( &d_str, d, units, TRUE, TRUE, TRUE, 1 );
+		::MakeCStringFromDimension( &x_str, vtx->x, units, FALSE, TRUE, TRUE, 1 );
+		::MakeCStringFromDimension( &y_str, vtx->y, units, FALSE, TRUE, TRUE, 1 );
+		CString s0 ((LPCSTR) IDS_TraceToViaHoleEquals);
+		str.Format( s0, m_drelist->GetSize()+1, seg->m_net->name, vtx->m_net->name,
+			d_str, x_str, y_str );
+		cdre * dre = m_drelist->Add( cdre::SEG_VIAHOLE, &str, seg, vtx, vtx->x, vtx->y, vtx->x, vtx->y, dia, seg->m_layer );
+		if( dre && log )
+			log->AddLine( str );
+	}
+}
+
+void CFreePcbDoc::DRCViaAndVia(cvertex2 *vtx1, cvertex2 *vtx2, int units, DesignRules *dr)
+{
+	if( !vtx1->via_w || !vtx2->via_w )
+		return;
+	CString d_str, x_str, y_str, str;
+	CDlgLog *log = m_dlg_log;
+
+	for( int layer = LAY_TOP_COPPER; layer < LAY_TOP_COPPER+m_num_copper_layers; layer++ )
+	{
+		// get size of vtx1's via pad on this layer
+		int test = vtx1->GetViaConnectionStatus( layer );
+		int via_w1 = vtx1->via_w;	// normal via pad
+		if( layer > LAY_BOTTOM_COPPER && test == cvertex2::VIA_NO_CONNECT )
+			// inner layer and no trace or thermal, so no via pad
+			via_w1 = 0;
+		else if( layer > LAY_BOTTOM_COPPER && (test & cvertex2::VIA_AREA) && !(test & cvertex2::VIA_TRACE) )
+			// inner layer with small thermal, use annular ring
+			via_w1 = vtx1->via_hole_w + 2*dr->annular_ring_vias;
+		// get size of vtx2's via pad on this layer
+		test = vtx2->GetViaConnectionStatus( layer );
+		int via_w2 = vtx2->via_w;	// normal via pad
+		if( layer > LAY_BOTTOM_COPPER && test == cvertex2::VIA_NO_CONNECT )
+			// inner layer and no trace or thermal, so no via pad
+			via_w2 = 0;
+		else if( layer > LAY_BOTTOM_COPPER && (test & cvertex2::VIA_AREA) && !(test & cvertex2::VIA_TRACE) )
+			// inner layer with small thermal, use annular ring
+			via_w2 = vtx2->via_hole_w + 2*dr->annular_ring_vias;
+		if( !via_w1 || !via_w2 )
+			continue;
+
+		// check clearance between pads
+		int d = GetClearanceBetweenPads( PAD_ROUND, vtx1->x, vtx1->y, vtx1->via_w, 0, 0, 
+			PAD_ROUND, vtx2->x, vtx2->y, vtx2->via_w, 0, 0 );
+		if( d < dr->trace_trace )
+		{
+			// VIA_VIA
+			::MakeCStringFromDimension( &d_str, d, units, TRUE, TRUE, TRUE, 1 );
+			::MakeCStringFromDimension( &x_str, vtx1->x, units, FALSE, TRUE, TRUE, 1 );
+			::MakeCStringFromDimension( &y_str, vtx1->y, units, FALSE, TRUE, TRUE, 1 );
+			CString s ((LPCSTR) IDS_ViaPadToViaPadEquals);
+			str.Format( s, m_drelist->GetSize()+1, vtx1->m_net->name, vtx2->m_net->name,
+				d_str, x_str, y_str );
+			cdre * dre = m_drelist->Add( cdre::VIA_VIA, &str, vtx1, vtx2, vtx1->x, vtx1->y, vtx2->x, vtx2->y, 0, layer );
+			if( dre && log )
+				log->AddLine( str );
+		}
+		// check vtx1's pad versus vtx2's hole
+		d = GetClearanceBetweenPads( PAD_ROUND, vtx1->x, vtx1->y, vtx1->via_w, 0, 0, 
+			PAD_ROUND, vtx2->x, vtx2->y, vtx2->via_hole_w, 0, 0 );
+		if( d < dr->hole_copper )
+		{
+			// VIA_VIAHOLE
+			::MakeCStringFromDimension( &d_str, d, units, TRUE, TRUE, TRUE, 1 );
+			::MakeCStringFromDimension( &x_str, vtx1->x, units, FALSE, TRUE, TRUE, 1 );
+			::MakeCStringFromDimension( &y_str, vtx1->y, units, FALSE, TRUE, TRUE, 1 );
+			CString s ((LPCSTR) IDS_ViaPadToViaHoleEquals);
+			str.Format( s, m_drelist->GetSize()+1, vtx1->m_net->name, vtx2->m_net->name,
+				d_str, x_str, y_str );
+			cdre * dre = m_drelist->Add( cdre::VIA_VIAHOLE, &str, vtx1, vtx2, vtx1->x, vtx1->y, vtx2->x, vtx2->y, 0, layer );
+			if( dre && log )
+				log->AddLine( str );
+		}
+		// check vtx2's pad versus vtx1's hole
+		d = GetClearanceBetweenPads( PAD_ROUND, vtx1->x, vtx1->y, vtx1->via_hole_w, 0, 0,
+			PAD_ROUND, vtx2->x, vtx2->y, vtx2->via_w, 0, 0 );
+		if( d < dr->hole_copper )
+		{
+			// VIA_VIAHOLE
+			::MakeCStringFromDimension( &d_str, d, units, TRUE, TRUE, TRUE, 1 );
+			::MakeCStringFromDimension( &x_str, vtx2->x, units, FALSE, TRUE, TRUE, 1 );
+			::MakeCStringFromDimension( &y_str, vtx2->y, units, FALSE, TRUE, TRUE, 1 );
+			CString s ((LPCSTR) IDS_ViaPadToViaHoleEquals);
+			str.Format( s, m_drelist->GetSize()+1, vtx2->m_net->name, vtx1->m_net->name,
+				d_str, x_str, y_str );
+			cdre * dre = m_drelist->Add( cdre::VIA_VIAHOLE, &str, vtx2, vtx1, vtx2->x, vtx2->y, vtx1->x, vtx1->y, 0, layer );
+			if( dre && log )
+				log->AddLine( str );
+		}
+	}
+
+	// compare via holes for clearance
+	int d = GetClearanceBetweenPads( PAD_ROUND, vtx1->x, vtx1->y, vtx1->via_hole_w, 0, 0, 
+		PAD_ROUND, vtx2->x, vtx2->y, vtx2->via_hole_w, 0, 0  );
+	if( d < dr->hole_hole )
+	{
+		// VIA_VIAHOLE
+		::MakeCStringFromDimension( &d_str, d, units, TRUE, TRUE, TRUE, 1 );
+		::MakeCStringFromDimension( &x_str, vtx1->x, units, FALSE, TRUE, TRUE, 1 );
+		::MakeCStringFromDimension( &y_str, vtx1->y, units, FALSE, TRUE, TRUE, 1 );
+		CString s ((LPCSTR) IDS_ViaHoleToViaHoleEquals);
+		str.Format( s, m_drelist->GetSize()+1, vtx1->m_net->name, vtx2->m_net->name,
+			d_str, x_str, y_str );
+		cdre * dre = m_drelist->Add( cdre::VIAHOLE_VIAHOLE, &str, vtx1, vtx2, vtx1->x, vtx1->y, vtx2->x, vtx2->y, 0, 0 );
+		if( dre && log )
+			log->AddLine( str );
+	}
+}
+
+void CFreePcbDoc::DRCAreaAndArea( carea2 *a1, carea2 *a2, int units, DesignRules *dr )
+{
+	if (a1->m_layer!= a2->m_layer)
+		return;
+	CString d_str, x_str, y_str, str;
+	CDlgLog *log = m_dlg_log;
+	cnet2 *net1 = a1->m_net, *net2 = a2->m_net;
+
+	// Test spacing between areas.  Check all pairs of sides from all contours
+	bool bErrorFound = false;
+	citer<ccontour> ictr1 (&a1->contours);
+	citer<ccontour> ictr2 (&a2->contours);
+	for (ccontour *ctr1 = ictr1.First(); ctr1; ctr1 = ictr1.Next())
+		for (ccontour *ctr2 = ictr2.First(); ctr2; ctr2 = ictr2.Next())
+		{
+			citer<cside> is1 (&ctr1->sides);
+			citer<cside> is2 (&ctr2->sides);
+			for (cside *s1 = is1.First(); s1; s1 = is1.Next())
+				for (cside *s2 = is2.First(); s2; s2 = is2.Next())
+				{
+					int xi1 = s1->preCorner->x, yi1 = s1->preCorner->y;
+					int xf1 = s1->postCorner->x, yf1 = s1->postCorner->y;
+					int xi2 = s2->preCorner->x, yi2 = s2->preCorner->y;
+					int xf2 = s2->postCorner->x, yf2 = s2->postCorner->y;
+					int x, y;
+					int d = ::GetClearanceBetweenSegments( xi1, yi1, xf1, yf1, s1->m_style, 0,
+						xi2, yi2, xf2, yf2, s2->m_style, 0, dr->copper_copper, &x, &y );
+					if( d < dr->copper_copper )
+					{
+						// COPPERAREA_COPPERAREA error
+						::MakeCStringFromDimension( &d_str, d, units, TRUE, TRUE, TRUE, 1 );
+						::MakeCStringFromDimension( &x_str, x, units, FALSE, TRUE, TRUE, 1 );
+						::MakeCStringFromDimension( &y_str, y, units, FALSE, TRUE, TRUE, 1 );
+						CString str0 ((LPCSTR) IDS_CopperAreaToCopperArea);
+						str.Format( str0, m_drelist->GetSize()+1, net1->name, net2->name, d_str, x_str, y_str );
+						cdre * dre = m_drelist->Add( cdre::COPPERAREA_COPPERAREA, &str, s1, s2, x, y, x, y, 0, 0 );
+						if( dre && log )
+							log->AddLine( str );
+						bErrorFound = true;
+					}
+				}
+		}
+					
+	// For completeness, test if a1 has a main-contour point inside a2, or vice versa.  This covers cases where one area is totally
+	// contained within another.  CPT2 optimization:  Don't bother if a clearance error for a1 and a2 was already found.
+	if (bErrorFound) return;
+	citer<ccorner> ic1 (&a1->main->corners);
+	for (ccorner *c1 = ic1.First(); c1; c1 = ic1.Next())
+		if( a2->TestPointInside( c1->x, c1->y ) )
+		{
+			// COPPERAREA_COPPERAREA error
+			CString s ((LPCSTR) IDS_CopperAreaInsideCopperArea);
+			str.Format( s, m_drelist->GetSize()+1, net1->name, net2->name );
+			cdre * dre = m_drelist->Add( cdre::COPPERAREA_INSIDE_COPPERAREA, &str, a1, a2, c1->x, c1->y, c1->x, c1->y, 0, 0 );
+			if( dre && log )
+				log->AddLine( str );
+			break;								// One corner error of this sort suffices.
+		}
+	citer<ccorner> ic2 (&a2->main->corners);
+	for (ccorner *c2 = ic2.First(); c2; c2 = ic2.Next())
+		if( a1->TestPointInside( c2->x, c2->y ) )
+		{
+			// COPPERAREA_COPPERAREA error
+			CString s ((LPCSTR) IDS_CopperAreaInsideCopperArea);
+			str.Format( s, m_drelist->GetSize()+1, net2->name, net1->name );
+			cdre * dre = m_drelist->Add( cdre::COPPERAREA_INSIDE_COPPERAREA, &str, a1, a2, c2->x, c2->y, c2->x, c2->y, 0, 0 );
+			if( dre && log )
+				log->AddLine( str );
+			break;								// One corner error of this sort suffices.
+		}
+}
+
+void CFreePcbDoc::DRCUnrouted(int units) 
+{
+	// CPT2 new helper for DRC().  Check for any unrouted connections
+	CDlgLog *log = m_dlg_log;
+	citer<cnet2> in (&m_nlist->nets);
+	for (cnet2 *net = in.First(); net; net = in.Next())
+	{
+		citer<cconnect2> ic (&net->connects);
+		for (cconnect2 *c = ic.First(); c; c = ic.Next())
+		{
+			// check for unrouted or partially routed connection
+			bool bUnrouted = false;
+			citer<cseg2> is (&c->segs);
+			for (cseg2 *s = is.First(); s; s = is.Next())
+				if( s->m_layer == LAY_RAT_LINE )
+					{ bUnrouted = TRUE;	break; }
+			if( !bUnrouted )
+				continue;
+			// unrouted or partially routed connection
+			CString from_str, to_str, str;
+			c->head->GetTypeStatusStr( &from_str );
+			c->tail->GetTypeStatusStr( &to_str );
+			if( c->NumSegs() > 1 )
+			{
+				CString s ((LPCSTR) IDS_PartiallyRoutedConnection);
+				str.Format( s, m_drelist->GetSize()+1, net->name, from_str, to_str );
+			}
+			else
+			{
+				CString s ((LPCSTR) IDS_UnroutedConnection);
+				str.Format( s, m_drelist->GetSize()+1, net->name, from_str, to_str );
+			}
+			// Draw the dre circle halfway along the first seg:
+			cvertex2 *v1 = c->head, *v2 = v1->postSeg->postVtx;
+			int x = (v1->x + v2->x) / 2;
+			int y = (v1->y + v2->y) / 2;
+			cdre * dre = m_drelist->Add( cdre::UNROUTED, &str, c, NULL, x, y, x, y, 0, 0 );
+			if( dre && log )
+				log->AddLine( str );
+		}
+	}
 }

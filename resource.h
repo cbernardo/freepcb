@@ -1640,6 +1640,7 @@
 #define IDS_MovingPolylineCorner        62677
 #define IDS_PlacingCornerOfPolygon      62678
 #define IDS_DoYouWishToReplaceTheFootprintOfPart 62679
+#define IDS_Connection                  62680
 #define IDS_FkFpStr                     63000
 #define IDS_STRING63001                 63001
 #define IDS_STRING63002                 63002
