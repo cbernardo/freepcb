@@ -111,11 +111,11 @@ BOOL TestForIntersectionOfStraightLineSegments( int x1i, int y1i, int x1f, int y
 									   int * x=NULL, int * y=NULL, double * dist=NULL );
 void GetPadElements( int type, int x, int y, int wid, int len, int radius, int angle,
 					int * nr, my_rect r[], int * nc, my_circle c[], int * ns, my_seg s[] );
-int GetClearanceBetweenPads( int type1, int x1, int y1, int w1, int l1, int r1, int angle1,
-							 int type2, int x2, int y2, int w2, int l2, int r2, int angle2 );
+int GetClearanceBetweenPads( int type1, int x1, int y1, int w1, int l1, int r1, 
+							 int type2, int x2, int y2, int w2, int l2, int r2 );				// CPT2 removed angle args
 int GetClearanceBetweenLineSegmentAndPad( int x1, int y1, int x2, int y2, int w,
 								  int type, int x, int y, int wid, int len, 
-								  int radius, int angle );
+								  int radius );
 int GetClearanceBetweenSegments( int x1i, int y1i, int x1f, int y1f, int style1, int w1,
 								   int x2i, int y2i, int x2f, int y2f, int style2, int w2,
 								   int min_cl, int * x, int * y );

@@ -365,7 +365,8 @@ public:
 	void Set_radius( dl_element * el, int radius );
 	void Set_mode( dl_element * el, int mode );
 	void Set_pass( dl_element * el, int pass );
-	void Set_gtype( dl_element * el, int gtype );
+	// void Set_gtype( dl_element * el, int gtype );			// CPT2 This no longer worked, given Brian's object-oriented system.  See comments 
+	//                                                          // next to the old function definition in DisplayList.cpp
 	void Move( dl_element * el, int dx, int dy );
 
 	// get element parameters

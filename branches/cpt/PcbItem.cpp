@@ -106,6 +106,17 @@ void cpcb_item::MustRedraw()
 		doc->redraw.Add(this);
 }
 
+void cpcb_item::Undraw()
+{
+	// Default behavior, often overridden
+	CDisplayList *dl = doc->m_dlist;
+	if( !dl ) return;
+	dl->Remove( dl_el );
+	dl->Remove( dl_sel );
+	dl_el = dl_sel = NULL;
+	bDrawn = false;
+}
+
 void cpcb_item::SaveUndoInfo()
 {
 	// Default behavior, overridden in complex classes like cconnect2 and cnet2
@@ -411,51 +422,6 @@ void cvertex2::ReconcileVia()
 	else if (via_w || via_hole_w)
 		via_w = via_hole_w = 0,
 		MustRedraw();
-}
-
-int cvertex2::GetViaConnectionStatus( int layer )
-{
-#ifndef CPT2
-	// Derived from old CNetList function. CPT2 TODO possibly obsolete
-	int status = VIA_NO_CONNECT;
-
-	// check for end vertices of traces to pads.  CPT2 TODO:  I think I got the intent of the old routine, but need to check.
-	if (!preSeg && pin) return status;
-	if (!postSeg && pin) return status;
-
-	// check for normal via pad (?)
-	if( via_w == 0 && !tee ) return status;
-
-	// check for via pad at end of branch
-	if( tee && !postSeg && preSeg->m_layer == layer )
-		if( !IsViaNeeded() )
-			return status;
-	// CPT2 do the same at beginning of connect, given the new freedom with endpoints
-	if (tee && !preSeg && postSeg->m_layer == layer)
-		if (!IsViaNeeded())
-			return status;
-
-	// check for trace connection to via pad
-	if( preSeg && preSeg->m_layer == layer )
-		status |= VIA_TRACE;
-	if( postSeg && postSeg->m_layer == layer )
-		status |= VIA_TRACE;
-
-	// see if it connects to any area in this net on this layer
-	citer<carea2> ia (&m_net->areas);
-	for( carea2 *a = ia.First(); a; a = ia.Next() )
-		if( a->GetLayer() == layer )
-		{
-			// area is on this layer, loop through via connections to area
-			citer<cvertex2> iv (&a->vtxs);
-			for( cvertex2 *v = iv.First(); v; v = iv.Next() )
-				if( v == this )
-					// via connects to area
-					status |= VIA_AREA;
-		}
-	return status;
-#endif
-	return 0;
 }
 
 bool cvertex2::TestHit(int _x, int _y, int _layer)
@@ -764,6 +730,76 @@ void cvertex2::SetVisible( bool bVis )
 	if (dl_thermal)
 		dl_thermal->visible = bVis;
 }
+
+
+int cvertex2::GetViaConnectionStatus( int layer )
+{
+	// CPT2 derived from old CNetList function.
+	int status = VIA_NO_CONNECT;
+	// check for end vertices of traces to pads
+	/* CPT2. Old code had:
+	if( iv == 0 )
+		return status;
+	if( c->end_pin != cconnect::NO_END  && iv == (c->NumSegs() + 1) )
+		return status;
+	I couldn't figure out the logic behind this...
+	*/
+
+	// check for normal via pad
+	if (via_w == 0 && !tee)
+		return status;
+	if (tee && tee->via_w == 0)
+		return status;
+
+	// check for trace connection to via pad
+	if (tee)
+	{
+		citer<cvertex2> iv (&tee->vtxs);
+		for (cvertex2 *v = iv.First(); v; v = iv.Next())
+			if (v->preSeg && v->preSeg->m_layer == layer)
+				{ status |= VIA_TRACE; break; }
+			else if (v->postSeg && v->postSeg->m_layer == layer)
+				{ status |= VIA_TRACE; break; }
+	}
+	else if (preSeg && preSeg->m_layer == layer)
+		status |= VIA_TRACE;
+	else if (postSeg && postSeg->m_layer == layer)
+		status |= VIA_TRACE;
+
+	// see if it connects to any area in this net on this layer
+	citer<carea2> ia (&m_net->areas);
+	for (carea2 *a = ia.First(); a; a = ia.Next())
+		if( a->m_layer == layer && a->TestPointInside(x, y))
+			{ status |= VIA_AREA; break; }
+	return status;
+}
+
+void cvertex2::GetViaPadInfo( int layer, int * pad_w, int * pad_hole_w, int * connect_status )
+{
+	// get via parameters for vertex
+	// note: if the vertex is the end-vertex of a branch, the via parameters
+	// will be taken from the tee-vertex that the branch connects to
+	// CPT2 converted from CNetList func.  CPT2 TODO I tweaked the logic in this a bit, because I couldn't see the reasoning behind the old routine.
+	//  I'm still not too certain about what's best here.
+	int con_stat = GetViaConnectionStatus( layer );
+	int w = via_w;
+	int hole_w = via_hole_w;
+	if (tee)
+		w = tee->via_w,
+		hole_w = tee->via_hole_w;
+	if (con_stat == VIA_NO_CONNECT)
+		w = 0;
+	if( layer > LAY_BOTTOM_COPPER && w > 0 )
+		w = hole_w + 2*doc->m_nlist->m_annular_ring;
+
+	if( pad_w )
+		*pad_w = w;
+	if( pad_hole_w )
+		*pad_hole_w = hole_w;
+	if( connect_status )
+		*connect_status = con_stat;
+}
+
 
 bool cvertex2::SetNeedsThermal()
 {
@@ -1147,6 +1183,27 @@ void cseg2::GetStatusStr( CString * str, int width )
 	::MakeCStringFromDimension( &w_str, width, u, FALSE, FALSE, FALSE, u==MIL?1:3 );
 	CString s ((LPCSTR) IDS_SegmentW);
 	str->Format( s, w_str );
+}
+
+void cseg2::GetBoundingRect( CRect *br )
+{
+	// CPT2 new, helper for DRC.  Return a bounding rectangle for this seg, including the vias on the head/tail. 
+	int preW = preVtx->tee? preVtx->tee->via_w: preVtx->via_w;
+	preW = max(preW, m_width);
+	int postW = postVtx->tee? postVtx->tee->via_w: postVtx->via_w;
+	postW = max(postW, m_width);
+	int preXMax = preVtx->x + preW/2;
+	int preXMin = preVtx->x - preW/2;
+	int preYMax = preVtx->y + preW/2;
+	int preYMin = preVtx->y - preW/2;
+	int postXMax = postVtx->x + postW/2;
+	int postXMin = postVtx->x - postW/2;
+	int postYMax = postVtx->y + postW/2;
+	int postYMin = postVtx->y - postW/2;
+	br->left = min(preXMin, postXMin);
+	br->right = max(preXMax, postXMax);
+	br->bottom = min(preYMin, postYMin);
+	br->top = max(preYMax, postYMax);
 }
 
 void cseg2::SetConnect(cconnect2 *c)
@@ -1551,17 +1608,6 @@ int cseg2::Draw()
 	return NOERR;
 }
 
-void cseg2::Undraw()
-{
-	CDisplayList *dl = doc->m_dlist;
-	if (!dl || !bDrawn) return;
-	dl->Remove( dl_el );
-	dl->Remove( dl_sel );
-	dl_el = NULL;
-	dl_sel = NULL;
-	bDrawn = false;
-}
-
 void cseg2::Highlight( bool bThin )
 {
 	CDisplayList *dl = doc->m_dlist;
@@ -1602,7 +1648,7 @@ void cconnect2::GetStatusStr( CString * str )
 	if( NumSegs() == 1 && head->postSeg->m_layer == LAY_RAT_LINE )
 		type_str.LoadStringA(IDS_Ratline);
 	else
-		type_str.LoadStringA(IDS_Trace);
+		type_str.LoadStringA(IDS_Connection);
 	locked_str = "";
 	if( head->pin && tail->pin && locked)
 		locked_str = " (L)";
@@ -2019,7 +2065,8 @@ void cpin2::SetPosition()
 
 bool cpin2::SetNeedsThermal()
 {
-	// CPT2 new, but related to the old CNetList::SetAreaConnections.  Sets bNeedsThermal to true if some net area overlaps this pin
+	// CPT2 new, but related to the old CNetList::SetAreaConnections.  Sets bNeedsThermal to true if some net area overlaps this pin.
+	// CPT2 TODO needs an SMT check?
 	bool bOldVal = bNeedsThermal;
 	bNeedsThermal = false;
 	if (net) 
@@ -2064,6 +2111,247 @@ cseg2 *cpin2::AddRatlineToPin( cpin2 *p2 )
 	v1->pin = p1;
 	c->tail->pin = p2;
 	return c->head->postSeg;
+}
+
+bool cpin2::GetDrawInfo(int layer,	bool bUse_TH_thermals, bool bUse_SMT_thermals,  int mask_clearance, int paste_mask_shrink,
+					  int * type, int * w, int * l, int * r, int * hole,
+					  int * connection_status, int * pad_connect_flag, int * clearance_type )
+{
+	// CPT2 derived from CPartList::GetPadDrawInfo().  Used during DRC to determine the pin's pad info on a particular layer.
+	// Got rid of some args that are no longer useful.  In particular got rid of "angle" and am just returning directly the
+	// correct width and length, depending on the angle.
+	CShape * s = part->shape;
+	if( !s )
+		return false;
+
+	// get pin and padstack info
+	BOOL bUseDefault = FALSE; // if TRUE, use copper pad for mask
+	int connect_status = GetConnectionStatus( layer );
+	// set default return values for no pad and no hole
+	bool ret_code = false;
+	int ttype = PAD_NONE;
+	int ww = 0;
+	int ll = 0;
+	int rr = 0;
+	int angle = (ps->angle + part->angle) % 180;
+	int hole_size = ps->hole_size;
+	int clear_type = CLEAR_NORMAL;	
+	int connect_flag = PAD_CONNECT_DEFAULT;
+
+	// get pad info
+	cpad * p = NULL;
+	if( (layer == LAY_TOP_COPPER && part->side == 0 )
+		|| (layer == LAY_BOTTOM_COPPER && part->side == 1 ) ) 
+		// top copper pad is on this layer 
+		p = &ps->top;
+	else if( (layer == LAY_MASK_TOP && part->side == 0 )
+		|| (layer == LAY_MASK_BOTTOM && part->side == 1 ) ) 
+	{
+		// top mask pad is on this layer 
+		if( ps->top_mask.shape != PAD_DEFAULT )
+			p = &ps->top_mask;
+		else
+		{
+			bUseDefault = TRUE;		// get mask pad from copper pad
+			p = &ps->top;
+		}
+	}
+	else if( (layer == LAY_PASTE_TOP && part->side == 0 )
+		|| (layer == LAY_PASTE_BOTTOM && part->side == 1 ) ) 
+	{
+		// top paste pad is on this layer 
+		if( ps->top_paste.shape != PAD_DEFAULT )
+			p = &ps->top_paste;
+		else
+		{
+			bUseDefault = TRUE;
+			p = &ps->top;
+		}
+	}
+	else if( (layer == LAY_TOP_COPPER && part->side == 1 )
+			|| (layer == LAY_BOTTOM_COPPER && part->side == 0 ) ) 
+		// bottom copper pad is on this layer
+		p = &ps->bottom;
+	else if( (layer == LAY_MASK_TOP && part->side == 1 )
+		|| (layer == LAY_MASK_BOTTOM && part->side == 0 ) ) 
+	{
+		// bottom mask pad is on this layer 
+		if( ps->bottom_mask.shape != PAD_DEFAULT )
+			p = &ps->bottom_mask;
+		else
+		{
+			bUseDefault = TRUE;
+			p = &ps->bottom;
+		}
+	}
+	else if( (layer == LAY_PASTE_TOP && part->side == 1 )
+		|| (layer == LAY_PASTE_BOTTOM && part->side == 0 ) ) 
+	{
+		// bottom paste pad is on this layer 
+		if( ps->bottom_paste.shape != PAD_DEFAULT )
+			p = &ps->bottom_paste;
+		else
+		{
+			bUseDefault = TRUE;
+			p = &ps->bottom;
+		}
+	}
+	else if( layer > LAY_BOTTOM_COPPER && ps->hole_size > 0 )
+		// inner pad is on this layer
+		p = &ps->inner;
+
+	// now set parameters for return
+	if( p )
+		connect_flag = p->connect_flag;
+	if( p == NULL )
+		// no pad definition, return defaults
+		;
+	else if( p->shape == PAD_NONE && ps->hole_size == 0 )
+		// no hole, no pad, return defaults
+		;
+	else if( p->shape == PAD_NONE )
+	{
+		// hole, no pad
+		ret_code = true;
+		if( connect_status > ON_NET )
+		{
+			// connected to copper area or trace
+			// make annular ring
+			ret_code = true;
+			ttype = PAD_ROUND;
+			ww = 2*doc->m_annular_ring_pins + hole_size;
+		}
+		else if( ( layer == LAY_MASK_TOP || layer == LAY_MASK_BOTTOM ) && bUseDefault )
+		{
+			// if solder mask layer and no mask pad defined, treat hole as pad to get clearance
+			ret_code = true;
+			ttype = PAD_ROUND;
+			ww = hole_size;
+		}
+	}
+	else if( p->shape != PAD_NONE )
+	{
+		// normal pad
+		ret_code = true;
+		ttype = p->shape;
+		ww = p->size_h;
+		ll = 2*p->size_l;
+		rr = p->radius;
+	}
+	else
+		ASSERT(0);	// error
+
+	// adjust mask and paste pads if necessary
+	if( (layer == LAY_MASK_TOP || layer == LAY_MASK_BOTTOM) && bUseDefault )
+	{
+		ww += 2*mask_clearance;
+		ll += 2*mask_clearance;
+		rr += mask_clearance;
+	}
+	else if( (layer == LAY_PASTE_TOP || layer == LAY_PASTE_BOTTOM) && bUseDefault )
+	{
+		if( ps->hole_size == 0 )
+		{
+			ww -= 2*paste_mask_shrink;
+			ll -= 2*paste_mask_shrink;
+			rr -= paste_mask_shrink;
+			if( rr < 0 )
+				rr = 0;
+			if( ww <= 0 || ll <= 0 )
+			{
+				ww = 0;
+				ll = 0;
+				ret_code = 0;
+			}
+		}
+		else
+		{
+			ww = ll = 0;	// no paste for through-hole pins
+			ret_code = 0;
+		}
+	}
+
+	// if copper layer connection, decide on thermal
+	if( layer >= LAY_TOP_COPPER && (connect_status & AREA_CONNECT) )
+	{
+		// copper area connection, thermal or not?
+		if( p->connect_flag == PAD_CONNECT_NEVER )
+			ASSERT(0);										// shouldn't happen, this is an error by GetConnectionStatus(...)
+		else if( p->connect_flag == PAD_CONNECT_NOTHERMAL )
+			clear_type = CLEAR_NONE;
+		else if( p->connect_flag == PAD_CONNECT_THERMAL )
+			clear_type = CLEAR_THERMAL;
+		else if( p->connect_flag == PAD_CONNECT_DEFAULT )
+		{
+			if( bUse_TH_thermals && ps->hole_size )
+				clear_type = CLEAR_THERMAL;
+			else if( bUse_SMT_thermals && !ps->hole_size )
+				clear_type = CLEAR_THERMAL;
+			else
+				clear_type = CLEAR_NONE;
+		}
+		else
+			ASSERT(0);
+	}
+
+	// CPT2 Get length and width right, depending on angle (used to be done within DRC(), but I think it makes more sense here)
+	if( ttype != PAD_RECT && ttype != PAD_RRECT && ttype != PAD_OVAL )
+		ll = ww;
+	int tmp;
+	if( angle == 90 )
+		tmp = ll, ll = ww, ww = tmp;
+
+	if( type )
+		*type = ttype;
+	if( w )
+		*w = ww;
+	if( l )
+		*l = ll;
+	if( r )
+		*r = rr;
+	if( hole )
+		*hole = hole_size;
+	if( connection_status )
+		*connection_status = connect_status;
+	if( pad_connect_flag )
+		*pad_connect_flag = connect_flag;
+	if( clearance_type )
+		*clearance_type = clear_type;
+	return ret_code;
+
+}
+
+int cpin2::GetConnectionStatus( int layer )
+{
+	// CPT2 derived from CPartList::GetPinConnectionStatus
+	// checks to see if a pin is connected to a trace or a copper area on a
+	// particular layer
+	//
+	// returns: ON_NET | TRACE_CONNECT | AREA_CONNECT
+	// where:
+	//		ON_NET = 1 if pin is on a net
+	//		TRACE_CONNECT = 2 if pin connects to a trace
+	//		AREA_CONNECT = 4 if pin connects to copper area
+	if( !net )
+		return NOT_CONNECTED;
+	int status = ON_NET;
+
+	// now check for traces
+	citer<cconnect2> ic (&net->connects);
+	for (cconnect2 *c = ic.First(); c; c = ic.Next())
+	{
+		if (c->head->pin == this && c->head->postSeg->m_layer == layer)
+			{ status |= TRACE_CONNECT; break; }
+		if (c->tail->pin == this && c->tail->preSeg->m_layer == layer)
+			{ status |= TRACE_CONNECT; break; }
+	}
+	// now check for connection to copper area
+	citer<carea2> ia (&net->areas);
+	for (carea2 *a = ia.First(); a; a = ia.Next())
+		if (a->m_layer == layer && a->TestPointInside(x, y))
+			{ status |= AREA_CONNECT; break; }
+
+	return status;
 }
 
 
@@ -2113,12 +2401,15 @@ void cpart2::SaveUndoInfo(bool bSaveAttachedNets)
 
 void cpart2::Move( int _x, int _y, int _angle, int _side )
 {
+	// Move part (includes resetting pin positions and undrawing).  If _angle and/or _side are -1 (the default values), don't change 'em.
 	MustRedraw();
 	// move part
 	x = _x;
 	y = _y;
-	angle = _angle % 360;
-	side = _side;
+	if (_angle != -1)
+		angle = _angle % 360;
+	if (_side != -1)
+		side = _side;
 	// calculate new pin positions
 	if( shape )
 	{
@@ -3027,6 +3318,89 @@ void cpart2::MakeString( CString * str )
 	str->Append( line );
 }
 
+void cpart2::GetDRCInfo()
+{
+	// CPT2 new, extracted from parts of the old CPartList::DRC().  Fill in the drc-related fields for this part and for all its pins.
+	if (!shape)
+		return;
+	hole_flag = FALSE;
+	min_x = INT_MAX;
+	max_x = INT_MIN;
+	min_y = INT_MAX;
+	max_y = INT_MIN;
+	// CPT2 NB the "layers" bitmask used to be the "or" of 1<<(layer-LAY_TOP_COPPER) for each layer touched by the part.  I've gotten rid of the
+	// "-LAY_TOP_COPPER" business.  Since there are a max of 32 layers anyway, shouldn't be a problem with bit overflow.
+	layers = 0;
+
+	// iterate through copper graphics elements
+	for( int igr = 0; igr < m_outline_stroke.GetSize(); igr++ )
+	{
+		stroke * stk = &m_outline_stroke[igr];
+		if( stk->layer >= LAY_TOP_COPPER )
+		{
+			layers |= 1<<(stk->layer);
+			min_x = min( min_x, stk->xi - stk->w/2 );
+			max_x = max( max_x, stk->xi + stk->w/2 );
+			min_x = min( min_x, stk->xf - stk->w/2 );
+			max_x = max( max_x, stk->xf + stk->w/2 );
+			min_y = min( min_y, stk->yi - stk->w/2 );
+			max_y = max( max_y, stk->yi + stk->w/2 );
+			min_y = min( min_y, stk->yf - stk->w/2 );
+			max_y = max( max_y, stk->yf + stk->w/2 );
+		}
+	}
+
+	citer<cpin2> ipin (&pins);
+	for (cpin2 *pin = ipin.First(); pin; pin = ipin.Next())
+	{
+		drc_pin * drp = &pin->drc;
+		int x = pin->x, y = pin->y;
+
+		drp->hole_size = 0;
+		drp->min_x = INT_MAX;
+		drp->max_x = INT_MIN;
+		drp->min_y = INT_MAX;
+		drp->max_y = INT_MIN;
+		drp->max_r = INT_MIN;
+		drp->layers = 0;
+		int hole = pin->ps->hole_size;
+		if (hole)
+		{
+			drp->hole_size = hole;
+			drp->min_x = min( drp->min_x, x - hole/2 );
+			drp->max_x = max( drp->max_x, x + hole/2 );
+			drp->min_y = min( drp->min_y, y - hole/2 );
+			drp->max_y = max( drp->max_y, y + hole/2 );
+			drp->max_r = max( drp->max_r, hole/2 );
+			min_x = min( min_x, x - hole/2 );
+			max_x = max( max_x, x + hole/2 );
+			min_y = min( min_y, y - hole/2 );
+			max_y = max( max_y, y + hole/2 );
+			hole_flag = TRUE;
+		}
+		int num_layers = LAY_TOP_COPPER + doc->m_num_copper_layers;
+		for( int layer = LAY_TOP_COPPER; layer < num_layers; layer++ )
+		{
+			// Check pads on each layer.
+			int wid, len, r, type, hole, connect;
+			BOOL bPad = pin->GetDrawInfo( layer, 0, 0, 0, 0,
+				&type, &wid, &len, &r, &hole, &connect );
+			if (!bPad || type == PAD_NONE )
+				continue;
+			drp->min_x = min( drp->min_x, x - len/2 );
+			drp->max_x = max( drp->max_x, x + len/2 );
+			drp->min_y = min( drp->min_y, y - wid/2 );
+			drp->max_y = max( drp->max_y, y + wid/2 );
+			drp->max_r = max( drp->max_r, Distance( 0, 0, len/2, wid/2 ) );
+			min_x = min( min_x, x - len/2 );
+			max_x = max( max_x, x + len/2 );
+			min_y = min( min_y, y - wid/2 );
+			max_y = max( max_y, y + wid/2 );
+			drp->layers |= 1<<layer;
+			layers |= 1<<layer;
+		}
+	}
+}
 
 
 /**********************************************************************************************/
@@ -5895,6 +6269,7 @@ void ctext::GenerateStrokes() {
 			s->xf = m_x + sf.x;
 			s->yf = m_y + sf.y;
 			s->layer = m_layer;
+			s->type = DL_LINE;
 			// update bounding rectangle
 			ymin = min( ymin, s->yi - s->w );
 			ymin = min( ymin, s->yf - s->w );
@@ -6020,6 +6395,7 @@ void ctext::GenerateStrokesRelativeTo(cpart2 *part) {
 			s->xf = partX + sf.x;
 			s->yf = partY + sf.y;
 			s->layer = layer;
+			s->type = DL_LINE;
 			// update bounding rectangle
 			ymin = min( ymin, s->yi - s->w );
 			ymin = min( ymin, s->yf - s->w );
@@ -6231,16 +6607,6 @@ int ccentroid::Draw()
 	return NOERR;
 }
 
-void ccentroid::Undraw()
-{
-	CDisplayList *dl = doc->m_dlist;
-	if( !dl ) return;
-	dl->Remove( dl_el );
-	dl->Remove( dl_sel );
-	dl_el = dl_sel = NULL;
-	bDrawn = false;
-}
-
 void ccentroid::Highlight()
 {
 	CDisplayList *dl = doc->m_dlist;
@@ -6322,15 +6688,6 @@ int cglue::Draw()
 	return NOERR;
 }
 
-void cglue::Undraw()
-{
-	CDisplayList *dl = doc->m_dlist;
-	if( !dl ) return;
-	dl->Remove( dl_el );
-	dl->Remove( dl_sel );
-	dl_el = dl_sel = NULL;
-	bDrawn = false;
-}
 
 void cglue::Highlight()
 {
@@ -6366,3 +6723,52 @@ void cglue::CancelDragging()
 	dl->StopDragging();
 }
 
+
+cdre::cdre(CFreePcbDoc *_doc, int _index, int _type, CString *_str, cpcb_item *_item1, cpcb_item *_item2, 
+		   int _x, int _y, int _w, int _layer) 
+	: cpcb_item(_doc)
+{ 
+	index = _index;
+	type = _type;
+	str = *_str;
+	item1 = _item1; 
+	item2 = _item2;
+	x = _x, y = _y;
+	w = _w;
+	layer = _layer;
+}
+
+cdre::cdre(CFreePcbDoc *_doc, int _uid):
+	cpcb_item(_doc, _uid)
+{ 
+	item1 = item2 = NULL;
+}
+
+bool cdre::IsValid()
+{
+	return doc->m_drelist->dres.Contains(this);
+}
+
+int cdre::Draw()
+{
+	CDisplayList *dl = doc->m_dlist;
+	if( !dl )
+		return NO_DLIST;
+	if (bDrawn)
+		return ALREADY_DRAWN;
+	dl_el = dl->AddMain( this, LAY_DRC_ERROR, DL_HOLLOW_CIRC, 1, w, 0, 0, x, y, 0, 0, x, y ); 
+	dl_sel = dl->AddSelector( this, LAY_DRC_ERROR, DL_HOLLOW_CIRC, 1, w, 0, x, y, 0, 0, x, y ); 
+	bDrawn = true;
+	return NOERR;
+}
+
+void cdre::Highlight()
+{
+	CDisplayList *dl = doc->m_dlist;
+	if( !dl ) return;
+	if( !dl_sel ) return;
+	dl->Highlight( DL_HOLLOW_CIRC, 
+		dl->Get_x( dl_sel ), dl->Get_y( dl_sel ),
+		dl->Get_xf( dl_sel ), dl->Get_yf( dl_sel ),
+		dl->Get_w( dl_sel ) );
+}

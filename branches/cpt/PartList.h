@@ -90,16 +90,6 @@ enum
 	PL_ERR
 };
 
-// struct used for DRC to store pin info
-struct drc_pin {
-	int hole_size;	// hole diameter or 0
-	int min_x;		// bounding rect of padstack
-	int max_x;
-	int min_y;
-	int max_y;
-	int max_r;		// max. radius of padstack
-	int layers;		// bit mask of layers with pads
-};
 
 // class part_pin represents a pin on a part
 class part_pin 

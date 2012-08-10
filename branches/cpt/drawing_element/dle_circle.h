@@ -19,7 +19,7 @@ class CDLE_HOLLOW_CIRC : public CDLE_Symmetric
 {
 protected:
 	virtual void _Draw(CDrawInfo &di, bool);
-	virtual int  _IsHit(CPoint &point);
+	virtual int  _IsHit(double x, double y, double &d);
 };
 
 #endif /* !_DLE_CIRCLE_H ] */

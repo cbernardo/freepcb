@@ -40,6 +40,7 @@ class cunet;
 class cutext;	
 class cureftext;
 class cuvaluetext;
+class cudre;
 
 class cpcb_item;
 class cvertex2;
@@ -59,6 +60,7 @@ class cnet2;
 class ctext;
 class creftext;
 class cvaluetext; 
+class cdre;
 
 class CFreePcbDoc;
 class cpartlist;
@@ -361,7 +363,22 @@ public:
 	void AddToLists();
 };
 
+class cudre: public cundo_item
+{
+public:
+	int index;					// It's probably not really necessary to store most of this stuff, other than str, x, y, and w.
+	int type;
+	CString str;
+	int item1, item2;
+	int x, y;
+	int w;
+	int layer;
 
+	cudre(cdre *d);
+	void CreateTarget();
+	void FixTarget();
+	void AddToLists();
+};
 
 class cundo_record 
 {

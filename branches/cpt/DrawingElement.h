@@ -31,24 +31,6 @@ public:
 		DL_VALUE, DL_VALUE_SEL, DL_HATCH, DL_OTHER };				// Values for "usage" 
 	int gtype;		// type of primitive
 	int visible;	// 0 to hide
-
-	dl_element();
-
-	// CPT: reworked the following 6 declarations a bit:
-	void Draw(CDrawInfo &di);
-	virtual void DrawHiliteSeg (CDrawInfo &di) { }						// CPT: Does nothing except with CDLE_LINE objects.
-	// LATER?  void _DrawClearance(CDrawInfo &di);
-    void DrawThermalRelief(CDrawInfo &di);
-	int IsHit(double x, double y, double &d) ;							// CPT: changed args.  Renamed with capital letter (consistency rules!)
-	int GetBoundingRect(CRect &rect)  { return _GetBoundingRect(rect); }
-
-protected:
-	virtual void _Draw(CDrawInfo &di, bool fHiliteSegs) {}
-    virtual void _DrawThermalRelief(CDrawInfo &di) {}
-
-	virtual int  _IsHit(double x, double y, double &d) { return 0; }
-	virtual int  _GetBoundingRect(CRect &rect)  { return 0; }
-
 public:										// CPT2: was protected, causing pains in my tail.  Maybe change later...
 	CDisplayList * dlist;
 
@@ -66,6 +48,25 @@ public:										// CPT2: was protected, causing pains in my tail.  Maybe change
 	                  // only be drawn if this layer is visible
 	dl_element *prev, *next;			// CPT.  I'm phasing out references to CDLinkList, and am implementing the linked lists this way.
 	CDisplayLayer *displayLayer;		// CPT
+
+
+	dl_element();
+
+	// CPT: reworked the following 6 declarations a bit:
+	void Draw(CDrawInfo &di);
+	virtual void DrawHiliteSeg (CDrawInfo &di) { }						// CPT: Does nothing except with CDLE_LINE objects.
+	// LATER?  void _DrawClearance(CDrawInfo &di);
+    void DrawThermalRelief(CDrawInfo &di);
+	int IsHit(double x, double y, double &d) ;							// CPT: changed args.  Renamed with capital letter (consistency rules!)
+	int GetBoundingRect(CRect &rect)  { return _GetBoundingRect(rect); }
+
+protected:
+	virtual void _Draw(CDrawInfo &di, bool fHiliteSegs) {}
+    virtual void _DrawThermalRelief(CDrawInfo &di) {}
+
+	virtual int _IsHit(double x, double y, double &d) { return 0; }
+	virtual int _GetBoundingRect(CRect &rect)  { return 0; }
+
 	void Unhook();						// CPT.  Used to be called Remove(), but this name is more descriptive.
 
 };

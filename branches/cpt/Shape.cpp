@@ -41,9 +41,11 @@ cpadstack::cpadstack(CFreePcbDoc *_doc)
 	: cpcb_item (_doc)
 { 
 	exists = false;
+	top.shape = PAD_NONE;
 	top_mask.shape = PAD_DEFAULT;
 	top_paste.shape = PAD_DEFAULT;
 	inner.shape = PAD_NONE;
+	bottom.shape = PAD_NONE;
 	bottom_mask.shape = PAD_DEFAULT;
 	bottom_paste.shape = PAD_DEFAULT;
 	dl_el = dl_sel = top.dl_el = inner.dl_el = bottom.dl_el = top_mask.dl_el = 

@@ -1742,13 +1742,14 @@ void GetPadElements( int type, int x, int y, int wid, int len, int radius, int a
 // Find distance from a straight line segment to a pad
 //
 int GetClearanceBetweenLineSegmentAndPad( int x1, int y1, int x2, int y2, int w,
-								  int type, int x, int y, int wid, int len, int radius, int angle )
+								  int type, int x, int y, int wid, int len, int radius )
 {
+	// CPT2 got rid of "angle" arg.  wid and len just have to be right.
 	if( type == PAD_NONE )
 		return INT_MAX;
 
 	// test for segment entirely within pad
-	if( 0 == GetPointToPadDistance( CPoint(x1,y1), type, x, y, wid, len, radius, angle ) )
+	if( 0 == GetPointToPadDistance( CPoint(x1,y1), type, x, y, wid, len, radius, 0 ) )
 		return 0;
 
 	// now get distance from elements of pad outline
@@ -1756,7 +1757,7 @@ int GetClearanceBetweenLineSegmentAndPad( int x1, int y1, int x2, int y2, int w,
 	my_circle c[4];
 	my_rect r[2];
 	my_seg s[8];
-	GetPadElements( type, x, y, wid, len, radius, angle,
+	GetPadElements( type, x, y, wid, len, radius, 0,
 					&nr, r, &nc, c, &ns, s );
 	int dist = INT_MAX;
 	for( int ic=0; ic<nc; ic++ )
@@ -2052,10 +2053,10 @@ double GetPointToPadDistance( CPoint p,
 //	x, y = center position
 //	w, l = width and length
 //  r = corner radius
-//	angle = 0 or 90 (if 0, pad length is along x-axis)
+//	angle = 0 or 90 (if 0, pad length is along x-axis)  CPT2 got rid of these args:  caller should have w and l correct for the angle
 //
-int GetClearanceBetweenPads( int type1, int x1, int y1, int w1, int l1, int r1, int angle1,
-							 int type2, int x2, int y2, int w2, int l2, int r2, int angle2 )
+int GetClearanceBetweenPads( int type1, int x1, int y1, int w1, int l1, int r1,
+							 int type2, int x2, int y2, int w2, int l2, int r2 )
 {
 	if( type1 == PAD_NONE )
 		return INT_MAX;
@@ -2070,16 +2071,16 @@ int GetClearanceBetweenPads( int type1, int x1, int y1, int w1, int l1, int r1, 
 
 	// first, test for one pad entirely within the other
 	if( GetPointToPadDistance( CPoint(x1,y1), 
-				type2, x2, y2, w2, l2, r2, angle2 ) == 0 )
+				type2, x2, y2, w2, l2, r2, 0 ) == 0 )
 	return 0;
 	if( GetPointToPadDistance( CPoint(x2,y2), 
-				type1, x1, y1, w1, l1, r1, angle1 ) == 0 )
+				type1, x1, y1, w1, l1, r1, 0 ) == 0 )
 	return 0;
 
 	// now find distance from every element of pad1 to every element of pad2
-	GetPadElements( type1, x1, y1, w1, l1, r1, angle1,
+	GetPadElements( type1, x1, y1, w1, l1, r1, 0,
 					&nr, r, &nc, c, &ns, s );
-	GetPadElements( type2, x2, y2, w2, l2, r2, angle2,
+	GetPadElements( type2, x2, y2, w2, l2, r2, 0,
 					&nrr, rr, &ncc, cc, &nss, ss );
 	for( int ic=0; ic<nc; ic++ )
 	{
