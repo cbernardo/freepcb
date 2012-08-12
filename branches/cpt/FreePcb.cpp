@@ -9,6 +9,8 @@
 #include "freepcb.h"
 //#include "QAFDebug.h"
 
+// STL
+#include <vector>
 #ifdef _DEBUG
 #define new DEBUG_NEW
 #undef THIS_FILE
@@ -297,7 +299,7 @@ BOOL CFreePcbApp::SwitchToView( CRuntimeClass * pNewViewClass )
 		CMainFrame * frm = (CMainFrame*)AfxGetMainWnd();
 		frm->m_wndMyToolBar.SetLists( &m_doc->m_visible_grid, &m_doc->m_part_grid, &m_doc->m_routing_grid,
 			m_doc->m_visual_grid_spacing, m_doc->m_part_grid_spacing, m_doc->m_routing_grid_spacing, 
-			m_doc->m_snap_angle, m_doc->m_units );
+			m_doc->m_snap_angle, m_doc->m_view->m_units );
 		m_View->m_dlist->SetVisibleGrid( 1, m_doc->m_visual_grid_spacing );
 		frm->SetWindowText( m_doc->m_window_title ); 
 		m_View->ShowSelectStatus();

@@ -62,17 +62,8 @@ void CDlgExportOptions::Initialize( int select )
 	m_select = select;
 }
 
-#if 0
-BOOL CMyFileDialogExport::OnInitDialog()
-{
-	CFileDialog::OnInitDialog(); //Call base class method first
-	return TRUE;
-}
-#endif
-
 
 BEGIN_MESSAGE_MAP(CDlgExportOptions, CDialog)
 END_MESSAGE_MAP()
 
-// CMyFileDialogExport message handlers
 

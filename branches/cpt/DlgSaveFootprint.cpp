@@ -41,10 +41,10 @@ void CDlgSaveFootprint::DoDataExchange(CDataExchange* pDX)
 		CDC * pDC = this->GetDC();
 		CRect rw;
 		m_preview.GetClientRect( &rw );
-		HENHMETAFILE hMF = m_footprint->CreateMetafile( &m_mfDC, pDC, rw );
-		m_preview.SetEnhMetaFile( hMF );
+		m_hMF = m_footprint->CreateMetafile( &m_mfDC, pDC, rw );
+		m_preview.SetEnhMetaFile( m_hMF );
 		ReleaseDC( pDC );
-		DeleteEnhMetaFile( hMF );
+		// DeleteEnhMetaFile( hMF );				// CPT2 deleting now means it never gets drawn.  So I reworked a bit (new m_hMF member in this class...)
 		// initialize other fields
 		if( m_units == MM )  
 			m_static_units.SetWindowText( " mm" );
@@ -62,6 +62,9 @@ void CDlgSaveFootprint::DoDataExchange(CDataExchange* pDX)
 		m_edit_folder.SetWindowText( *def_lib );
 		InitFileList();
 	}
+	else
+		// outgoing
+		DeleteEnhMetaFile( m_hMF );
 }
 
 void CDlgSaveFootprint::Initialize( CString * name, 
@@ -188,9 +191,7 @@ void CDlgSaveFootprint::OnBnClickedOk()
 		mess.Format( s,	m_name, fn );
 		int ret = AfxMessageBox( mess, MB_OKCANCEL );
 		if( ret == IDOK )
-		{
 			replace = TRUE;
-		}
 		else
 			return;
 	}
@@ -201,12 +202,14 @@ void CDlgSaveFootprint::OnBnClickedOk()
 		mess.Format( s,	m_name, fn );
 		int ret = AfxMessageBox( mess, MB_YESNO );
 		if( ret == IDYES )
-		{
 			return;
-		}
 	}
-	// OK, save it
-
+	// OK, save it.  CPT2.  See if the the folder is within "\Program Files".  If this is the case 
+	// and the save fails, give user a warning (some versions of Windows write protect this folder --- curse you, MS).
+	extern CFreePcbApp theApp;
+	int version = theApp.m_doc->m_WindowsMajorVersion;
+	CString topFolder = file_path.Left(16).Right(13).MakeLower();
+	bool bProgramFilesWarning = topFolder=="program files";
 	BOOL file_exists = ( m_folder->SearchFileName( &file_path ) != -1 );
 	if( !file_exists )
 	{
@@ -215,8 +218,10 @@ void CDlgSaveFootprint::OnBnClickedOk()
 		BOOL ok = f.Open( file_path, CFile::modeCreate | CFile::modeWrite );
 		if( !ok )
 		{
-			CString s ((LPCSTR) IDS_UnableToOpenFile), mess;
+			CString s ((LPCSTR) IDS_UnableToOpenFile), s2 ((LPCSTR) IDS_NoteThatFolderProgramFilesIsWriteProtected), mess;
 			mess.Format(s, file_path);
+			if (bProgramFilesWarning)
+				mess += "\n\n" + s2;
 			AfxMessageBox( mess );
 			return;
 		}
@@ -245,10 +250,7 @@ void CDlgSaveFootprint::OnBnClickedOk()
 				bInserted = TRUE;
 			}
 			else
-			{
-				// write line
 				fout->WriteString( in_str + "\n" );
-			}
 		}
 		delete fin;
 		delete fout;
@@ -256,6 +258,9 @@ void CDlgSaveFootprint::OnBnClickedOk()
 		if( err )
 		{
 			CString s ((LPCSTR) IDS_FileSystemErrorUnableToModifyLibrary);
+			CString s2 ((LPCSTR) IDS_NoteThatFolderProgramFilesIsWriteProtected);
+			if (bProgramFilesWarning)
+				s += "\n\n" + s2;
 			AfxMessageBox( s );
 			return;
 		}
@@ -265,6 +270,9 @@ void CDlgSaveFootprint::OnBnClickedOk()
 			if( err )
 			{
 				CString s ((LPCSTR) IDS_FileSystemErrorUnableToModifyLibrary2);
+				CString s2 ((LPCSTR) IDS_NoteThatFolderProgramFilesIsWriteProtected);
+				if (bProgramFilesWarning)
+					s += "\n\n" + s2;
 				AfxMessageBox( s );
 				return;
 			}
@@ -309,11 +317,9 @@ void CDlgSaveFootprint::OnBnClickedOk()
 				bInserted = TRUE;
 			}
 			else
-			{
 				// finished inserting, this was no the last footprint
 				// copy subsequent lines
 				fout->WriteString( in_str + "\n" );
-			}
 		}
 		delete fin;
 		delete fout;
@@ -321,6 +327,9 @@ void CDlgSaveFootprint::OnBnClickedOk()
 		if( err )
 		{
 			CString s ((LPCSTR) IDS_FileSystemErrorUnableToModifyLibrary);
+			CString s2 ((LPCSTR) IDS_NoteThatFolderProgramFilesIsWriteProtected);
+			if (bProgramFilesWarning)
+				s += "\n\n" + s2;
 			AfxMessageBox( s );
 			return;
 		}
@@ -330,6 +339,9 @@ void CDlgSaveFootprint::OnBnClickedOk()
 			if( err )
 			{
 				CString s ((LPCSTR) IDS_FileSystemErrorUnableToModifyLibrary2);
+				CString s2 ((LPCSTR) IDS_NoteThatFolderProgramFilesIsWriteProtected);
+				if (bProgramFilesWarning)
+					s += "\n\n" + s2;
 				AfxMessageBox( s );
 				return;
 			}

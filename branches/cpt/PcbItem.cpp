@@ -276,7 +276,7 @@ int cvertex2::GetLayer()
 
 void cvertex2::GetStatusStr( CString * str )
 {
-	int u = doc->m_units;
+	int u = doc->m_view->m_units;
 	CString type_str, x_str, y_str, via_w_str, via_hole_str, s;
 	if( pin )
 		type_str.LoadStringA(IDS_PinVertex);	// should never happen
@@ -853,7 +853,7 @@ void ctee::GetStatusStr( CString * str )
 	if (!v) 
 		{ *str = "???"; return; }
 
-	int u = doc->m_units;
+	int u = doc->m_view->m_units;
 	CString type_str, x_str, y_str, via_w_str, via_hole_str, s;
 	s.LoadStringA(IDS_TVertex),
 	type_str.Format( s, UID() );
@@ -1177,7 +1177,7 @@ bool cseg2::IsValid()
 // CPT:  added width param.  If this is 0 (the default) replace it with this->m_width
 void cseg2::GetStatusStr( CString * str, int width )
 {
-	int u = doc->m_units;
+	int u = doc->m_view->m_units;
 	if (width==0) width = m_width;
 	CString w_str;
 	::MakeCStringFromDimension( &w_str, width, u, FALSE, FALSE, FALSE, u==MIL?1:3 );

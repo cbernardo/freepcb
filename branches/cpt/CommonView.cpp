@@ -76,7 +76,6 @@ CCommonView::CCommonView()
 	m_bottom_pane_h = 40;	// the bottom pane on screen is this high (pixels)
 	m_memDC_created = FALSE;
 	m_dragging_new_item = FALSE;
-	m_units = MIL;
 	m_cursor_mode = -1;												// CPT.  Ensures that SetFKText() will get called by InitInstance(),  no matter what.
 	m_sel_offset = -1;
 	}

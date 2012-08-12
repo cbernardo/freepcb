@@ -30,6 +30,7 @@
     <ConfigurationType>Application</ConfigurationType>
     <UseOfMfc>Dynamic</UseOfMfc>
     <CharacterSet>MultiByte</CharacterSet>
+    <UseOfAtl>Dynamic</UseOfAtl>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
@@ -140,7 +141,7 @@
     <Link>
       <AdditionalOptions>/MACHINE:I386 %(AdditionalOptions)</AdditionalOptions>
       <AdditionalDependencies>winmm.lib;rpcrt4.lib;clibpdf.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <OutputFile>.\Release/FreePcb.exe</OutputFile>
+      <OutputFile>.\Release/FreePcbCPT.exe</OutputFile>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <AdditionalLibraryDirectories>./libs/Release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <ProgramDatabaseFile>.\Release/FreePcb.pdb</ProgramDatabaseFile>
@@ -171,8 +172,6 @@
     <ClCompile Include="ivex_mod_file.cpp" />
     <ClCompile Include="layers.cpp" />
     <ClCompile Include="MainFrm.cpp" />
-    <ClCompile Include="MyFileDialog.cpp" />
-    <ClCompile Include="MyFileDialogExport.cpp" />
     <ClCompile Include="MyToolBar.cpp" />
     <ClCompile Include="Net.cpp" />
     <ClCompile Include="NetListNew.cpp" />
@@ -290,8 +289,6 @@
     <ClInclude Include="layers.h" />
     <ClInclude Include="LinkList.h" />
     <ClInclude Include="MainFrm.h" />
-    <ClInclude Include="MyFileDialog.h" />
-    <ClInclude Include="MyFileDialogExport.h" />
     <ClInclude Include="MyToolBar.h" />
     <ClInclude Include="Net.h" />
     <ClInclude Include="NetListNew.h" />

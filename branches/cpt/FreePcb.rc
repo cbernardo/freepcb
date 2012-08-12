@@ -358,15 +358,15 @@ IDR_FOOTPRINT MENU
 BEGIN
     POPUP "&File"
     BEGIN
-        MENUITEM "New Footprint",               ID_FOOTPRINT_FILE_NEW
-        MENUITEM "Import footprint...",         ID_FOOTPRINT_FILE_IMPORT
-        MENUITEM "Save Footprint As...",        ID_FOOTPRINT_FILE_SAVE_AS
+        MENUITEM "&New Footprint",              ID_FOOTPRINT_FILE_NEW
+        MENUITEM "&Import footprint...",        ID_FOOTPRINT_FILE_IMPORT
+        MENUITEM "Save Footprint &As...",       ID_FOOTPRINT_FILE_SAVE_AS
         MENUITEM SEPARATOR
         MENUITEM "&Print...\tCtrl+P",           ID_FILE_PRINT, INACTIVE
         MENUITEM "Print Pre&view",              ID_FILE_PRINT_PREVIEW, INACTIVE
         MENUITEM "P&rint Setup...",             ID_FILE_PRINT_SETUP, INACTIVE
         MENUITEM SEPARATOR
-        MENUITEM "Return to PCB layout",        ID_FOOTPRINT_FILE_CLOSE
+        MENUITEM "&Return to PCB layout",       ID_FOOTPRINT_FILE_CLOSE
     END
     POPUP "&Edit"
     BEGIN
@@ -400,7 +400,7 @@ BEGIN
         MENUITEM "Footprint Wizard...",         ID_FP_TOOLS_FOOTPRINTWIZARD
         MENUITEM "Make PDF from Library File...", ID_TOOLS_FOOTPRINTLIBRARYMANAGER
         MENUITEM SEPARATOR
-        MENUITEM "Return to PCB layout",        ID_FP_TOOLS_RETURN
+        MENUITEM "&Return to PCB layout",       ID_FP_TOOLS_RETURN
     END
     POPUP "&Help"
     BEGIN
@@ -2295,20 +2295,20 @@ BEGIN
     PUSHBUTTON      "Cancel",IDCANCEL,259,159,50,14
 END
 
-IDD_PREFS DIALOGEX 0, 0, 248, 186
+IDD_PREFS DIALOGEX 0, 0, 270, 239
 STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Preferences"
 FONT 8, "MS Shell Dlg", 400, 0, 0x1
 BEGIN
     CONTROL         "Reverse PgUp and PgDn",IDC_REVERSE_PGUP_PGDN,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,22,16,94,10
-    DEFPUSHBUTTON   "OK",IDOK,35,160,50,14
-    PUSHBUTTON      "Cancel",IDCANCEL,162,160,50,14
+    DEFPUSHBUTTON   "OK",IDOK,45,208,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,174,208,50,14
     CONTROL         "Enable",IDC_CHECK_AUTOSAVE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,22,124,37,10
-    EDITTEXT        IDC_EDIT_AUTO_INTERVAL,140,123,24,12,ES_AUTOHSCROLL
+    EDITTEXT        IDC_EDIT_AUTO_INTERVAL,213,123,24,12,ES_AUTOHSCROLL
     LTEXT           "pins",IDC_STATIC,173,91,14,8
-    LTEXT           "Interval (minutes)",IDC_STATIC,76,125,58,8
-    GROUPBOX        "Autosave",IDC_STATIC,10,113,222,27
-    GROUPBOX        "Automatic recalculation of ratlines after edits",IDC_STATIC,10,78,222,30
+    LTEXT           "Interval (minutes)",IDC_STATIC,149,125,58,8
+    GROUPBOX        "Autosave",IDC_STATIC,10,113,248,30
+    GROUPBOX        "Automatic recalculation of ratlines after edits",IDC_STATIC,10,78,247,30
     CONTROL         "Disable for nets with more than ",IDC_CHECK_AUTORAT_DISABLE,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,22,90,118,10
     EDITTEXT        IDC_EDIT_MIN_PINS,140,89,29,12,ES_AUTOHSCROLL
@@ -2317,6 +2317,10 @@ BEGIN
     CONTROL         "Highlight net on starting trace or ratline",IDC_CHECK_AUTO_HIGHLIGHT_NET,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,22,48,142,10
     LTEXT           "(can always toggle on and off with ""n"" while routing)",IDC_STATIC,47,60,168,8
+    EDITTEXT        IDC_EDIT_PREFS_DEFAULTCFG,21,175,180,12,ES_AUTOHSCROLL
+    PUSHBUTTON      "Browse",IDC_BUTTON_PREFS_BROWSE,208,174,30,14
+    GROUPBOX        "Folder for file ""default.cfg""",IDC_STATIC,9,148,249,50
+    LTEXT           "(Preferences are stored there;  avoid folders that are write-protected)",IDC_STATIC,14,158,228,8
 END
 
 IDD_GRIDVALS DIALOGEX 0, 0, 286, 321
@@ -2838,7 +2842,6 @@ BEGIN
 
     IDD_PREFS, DIALOG
     BEGIN
-        BOTTOMMARGIN, 165
     END
 END
 #endif    // APSTUDIO_INVOKED
@@ -3366,7 +3369,7 @@ END
 
 STRINGTABLE
 BEGIN
-    IDS_FileOpenDialogErrorCode "File Open Dialog error code = %ulx\n"
+    IDS_FileOpenDialogErrorCode "File Open Dialog error code = %d\n"
     IDS_ProjectModifiedSaveIt "Project modified, save it ? "
     IDS_ProjectFolder       "Project Folder"
     IDS_UnableToCreateAutosaveFolder "Unable to create autosave folder ""%s"""
@@ -3627,6 +3630,12 @@ BEGIN
     IDS_DoYouWishToReplaceTheFootprintOfPart 
                             "Do you wish to alter part ""%s,""\nusing your modified form of footprint ""%s"" ?"
     IDS_Connection          "connection"
+    IDS_SelectFolderForDefaultCfg "Select Folder for Default.cfg"
+    IDS_CantWriteToFolder   "Can't write to folder ""%s""."
+    IDS_WarningFileDefaultCfgIsStoredInAFolder 
+                            "Warning:  File ""default.cfg,"" where all of your settings are kept, is stored in a folder that is write-protected.  You should choose a different location at the bottom of the following dialog box..."
+    IDS_NoteThatFolderProgramFilesIsWriteProtected 
+                            "Note that folder ""\\Program Files"" is write-protected under some versions of Windows."
 END
 
 STRINGTABLE
