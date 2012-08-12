@@ -309,7 +309,6 @@ void CFreePcbView::OnNewProject()
 	m_bLButtonDown = FALSE;
 	m_inflection_mode = IM_90_45;
 	m_snap_mode = SM_GRID_POINTS;
-	m_units = m_doc->m_units;
 	m_highlight_net = NULL;		// AMW
 }
 
@@ -3133,7 +3132,7 @@ int CFreePcbView::ShowSelectStatus()
 	if( !pMain )
 		return 1;
 
-	int u = m_doc->m_units;
+	int u = m_units;
 	CString x_str, y_str, w_str, hole_str, via_w_str, via_hole_str;
 	CString str, s;
 	cpcb_item *sel = m_sel.First();
@@ -3266,7 +3265,7 @@ int CFreePcbView::ShowSelectStatus()
 			CString con_str, w_str, s;
 			cconnect2 *c = sel->ToVertex()->m_con;
 			c->GetStatusStr( &con_str );
-			::MakeCStringFromDimension( &w_str, m_active_width, m_doc->m_units, FALSE, FALSE, FALSE, u==MIL?1:3 );
+			::MakeCStringFromDimension( &w_str, m_active_width, m_units, FALSE, FALSE, FALSE, u==MIL?1:3 );
 			s.LoadStringA(IDS_W);
 			str.Format(s, con_str, w_str);
 			break;
@@ -3906,7 +3905,7 @@ void CFreePcbView::OnTextAdd()
 	// create, initialize and show dialog
 	CDlgAddText add_text_dlg;
 	CString str = "";
-	add_text_dlg.Initialize( 0, m_doc->m_num_layers, 1, &str, m_doc->m_units,
+	add_text_dlg.Initialize( 0, m_doc->m_num_layers, 1, &str, m_units,
 			LAY_SILK_TOP, 0, 0, 0, 0, 0, 0, 0 );
 	add_text_dlg.m_num_layers = m_doc->m_num_layers;
 	add_text_dlg.m_bDrag = 1;
@@ -4512,7 +4511,7 @@ void CFreePcbView::OnVertexProperties()
 	cvertex2 *vtx = m_sel.First()->ToVertex();
 	CPoint v_pt( vtx->x, vtx->y );
 	CDlgVia dlg = new CDlgVia;
-	dlg.Initialize( vtx->via_w, vtx->via_hole_w, v_pt, m_doc->m_units );
+	dlg.Initialize( vtx->via_w, vtx->via_hole_w, v_pt, m_units );
 	int ret = dlg.DoModal();
 	if( ret != IDOK )
 		return;
@@ -4537,7 +4536,7 @@ void CFreePcbView::OnTeeProperties()
 	cnet2 *net = tee->GetNet();
 	CPoint v_pt( tee->vtxs.First()->x, tee->vtxs.First()->y );
 	CDlgVia dlg = new CDlgVia;
-	dlg.Initialize( tee->via_w, tee->via_hole_w, v_pt, m_doc->m_units );
+	dlg.Initialize( tee->via_w, tee->via_hole_w, v_pt, m_units );
 	int ret = dlg.DoModal();
 	if( ret != IDOK )
 		return;
@@ -4765,7 +4764,7 @@ void CFreePcbView::OnTextEdit()
 	ctext *t = m_sel.First()->ToText();
 	CDlgAddText add_text_dlg;
 	add_text_dlg.Initialize( 0, m_doc->m_num_layers, 0, &t->m_str,
-		m_doc->m_units, t->m_layer, t->m_bMirror,
+		m_units, t->m_layer, t->m_bMirror,
 			t->m_bNegative, t->m_angle, t->m_font_size,
 			t->m_stroke_width, t->m_x, t->m_y );
 	int ret = add_text_dlg.DoModal();
@@ -5060,7 +5059,7 @@ void CFreePcbView::OnPolyCornerEdit()
 	cpolyline *poly = c->GetPolyline();
 	DlgEditBoardCorner dlg;
 	CString str ((LPCSTR) IDS_CornerPosition);
-	dlg.Init( &str, m_doc->m_units, c->x, c->y );
+	dlg.Init( &str, m_units, c->x, c->y );
 	int ret = dlg.DoModal();
 	if( ret != IDOK ) return;
 	poly->SaveUndoInfo();
@@ -5223,11 +5222,11 @@ void CFreePcbView::SnapCursorPoint( CPoint wp, UINT nFlags )
 		{
 			grid_spacing = m_doc->m_routing_grid_spacing;
 		}
-		else if( m_doc->m_units == MIL )
+		else if( m_units == MIL )
 		{
 			grid_spacing = m_doc->m_pcbu_per_wu;
 		}
-		else if( m_doc->m_units == MM )
+		else if( m_units == MM )
 		{
 			grid_spacing = m_doc->m_pcbu_per_wu;               
 		}
@@ -5352,9 +5351,9 @@ LONG CFreePcbView::OnChangeUnits( UINT wp, LONG lp )
 	if( wp == WM_BY_INDEX )
 	{
 		if( lp == 0 )
-			m_doc->m_units = MIL;
+			m_units = MIL;
 		else
-			m_doc->m_units = MM;
+			m_units = MM;
 	}
 	else
 		ASSERT(0);
@@ -5874,7 +5873,7 @@ void CFreePcbView::OnNetEditnet()
 	}
 	if( inet == -1 )
 		ASSERT(0);
-	dlg.Initialize( &nl, inet, m_doc->m_plist, FALSE, TRUE, m_doc->m_units,
+	dlg.Initialize( &nl, inet, m_doc->m_plist, FALSE, TRUE, m_units,
 		&m_doc->m_w, &m_doc->m_v_w, &m_doc->m_v_h_w );
 	int ret = dlg.DoModal();
 	if( ret == IDOK )
@@ -5891,7 +5890,7 @@ void CFreePcbView::OnNetEditnet()
 void CFreePcbView::OnToolsMoveOrigin()
 {
 	CDlgMoveOrigin dlg;
-	dlg.Initialize( m_doc->m_units );
+	dlg.Initialize( m_units );
 	int ret = dlg.DoModal();
 	if( ret != IDOK )
 		return;
@@ -7262,7 +7261,8 @@ void CFreePcbView::OnGroupSaveToFile()
 	// Copy group to pseudo-clipboard.
 	OnGroupCopy();
 	CString s ((LPCSTR) IDS_PCBFiles);
-	CFileDialog dlg( 0, "fpc", NULL, 0,	s, NULL, OPENFILENAME_SIZE_VERSION_500 );
+	CFileDialog dlg( 0, "fpc", NULL, 0,
+		s, NULL, OPENFILENAME_SIZE_VERSION_500 );
 	// get folder of most-recent file or project folder
 	CString MRFile = theApp.GetMRUFile();
 	CString MRFolder;
@@ -7274,8 +7274,9 @@ void CFreePcbView::OnGroupSaveToFile()
 	else
 		dlg.m_ofn.lpstrInitialDir = m_doc->m_parent_folder;
 	int err = dlg.DoModal();
-	if (err != IDOK)
+	if( err != IDOK )
 		return;
+	
 	CString pathname = dlg.GetPathName();
 	// write project file
 	CStdioFile pcb_file;

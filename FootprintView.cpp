@@ -175,7 +175,6 @@ void CFootprintView::InitInstance( CShape * fp )
 	EnableRedo( FALSE );
 
 	// set up footprint to be edited (if provided).  Correct the value of m_doc->m_edit_footprint (probably equal to "fp" previously)
-	m_units = m_doc->m_fp_units;
 	if (m_fp) 
 		delete m_fp;
 	if( fp )
@@ -186,7 +185,7 @@ void CFootprintView::InitInstance( CShape * fp )
 		else
 			m_units = MIL;
 		CMainFrame * frm = (CMainFrame*)AfxGetMainWnd();
-		frm->m_wndMyToolBar.SetUnits( m_units );
+		frm->m_wndMyToolBar.SetUnits(m_units );
 		OnViewEntireFootprint();
 	}
 	else
@@ -2254,7 +2253,7 @@ int CFootprintView::ShowActiveLayer()
 void CFootprintView::OnToolsMoveOriginFP()
 {
 	CDlgMoveOrigin dlg;
-	dlg.Initialize( m_doc->m_units );
+	dlg.Initialize( m_units );
 	int ret = dlg.DoModal();
 	if( ret != IDOK )
 		return;
@@ -2560,47 +2559,51 @@ extern void ReadFileLines(CString &fname, CArray<CString> &lines);  // In FreePc
 extern void WriteFileLines(CString &fname, CArray<CString> &lines);
 extern void ReplaceLines(CArray<CString> &oldLines, CArray<CString> &newLines, char *key);
 
-void CFootprintView::OnViewVisibleGrid() {
+void CFootprintView::OnViewVisibleGrid() 
+{
 	CArray<double> &arr = m_doc->m_fp_visible_grid, &hidden = m_doc->m_fp_visible_grid_hidden;
 	CDlgGridVals dlg (&arr, &hidden, IDS_EditFootprintVisibleGridValues);
 	int ret = dlg.DoModal();
-	if( ret == IDOK ) {
-		CMainFrame * frm = (CMainFrame*)AfxGetMainWnd();
-		frm->m_wndMyToolBar.SetLists( &m_doc->m_fp_visible_grid, &m_doc->m_fp_part_grid, NULL,
-				m_doc->m_fp_visual_grid_spacing, m_doc->m_fp_part_grid_spacing, 0, m_doc->m_fp_snap_angle, -1 );
-		m_doc->ProjectModified(true);
-		if (dlg.bSetDefault) {
-			CArray<CString> oldLines, newLines;
-			CString fn = m_doc->m_app_dir + "\\" + "default.cfg";
-			ReadFileLines(fn, oldLines);
-			m_doc->CollectOptionsStrings(newLines);
-			ReplaceLines(oldLines, newLines, "fp_visible_grid_item");
-			ReplaceLines(oldLines, newLines, "fp_visible_grid_hidden");
-			WriteFileLines(fn, oldLines);
-			}
-		}
+	if( ret != IDOK ) 
+		return;
+	CMainFrame * frm = (CMainFrame*)AfxGetMainWnd();
+	frm->m_wndMyToolBar.SetLists( &m_doc->m_fp_visible_grid, &m_doc->m_fp_part_grid, NULL,
+			m_doc->m_fp_visual_grid_spacing, m_doc->m_fp_part_grid_spacing, 0, m_doc->m_fp_snap_angle, -1 );
+	m_doc->ProjectModified(true);
+	if (dlg.bSetDefault) 
+	{
+		CArray<CString> oldLines, newLines;
+		CString fn = m_doc->m_app_dir + "\\" + "default.cfg";
+		ReadFileLines(fn, oldLines);
+		m_doc->CollectOptionsStrings(newLines);
+		ReplaceLines(oldLines, newLines, "fp_visible_grid_item");
+		ReplaceLines(oldLines, newLines, "fp_visible_grid_hidden");
+		WriteFileLines(fn, oldLines);
 	}
+}
 
-void CFootprintView::OnViewPlacementGrid() {
+void CFootprintView::OnViewPlacementGrid() 
+{
 	CArray<double> &arr = m_doc->m_fp_part_grid, &hidden = m_doc->m_fp_part_grid_hidden;
 	CDlgGridVals dlg (&arr, &hidden, IDS_EditFootprintPlacementGridValues);
 	int ret = dlg.DoModal();
-	if( ret == IDOK ) {
-		CMainFrame * frm = (CMainFrame*)AfxGetMainWnd();
-		frm->m_wndMyToolBar.SetLists( &m_doc->m_fp_visible_grid, &m_doc->m_fp_part_grid, NULL,
-				m_doc->m_fp_visual_grid_spacing, m_doc->m_fp_part_grid_spacing, 0, m_doc->m_fp_snap_angle, -1 );
-		m_doc->ProjectModified(true);
-		if (dlg.bSetDefault) {
-			CArray<CString> oldLines, newLines;
-			CString fn = m_doc->m_app_dir + "\\" + "default.cfg";
-			ReadFileLines(fn, oldLines);
-			m_doc->CollectOptionsStrings(newLines);
-			ReplaceLines(oldLines, newLines, "fp_placement_grid_item");
-			ReplaceLines(oldLines, newLines, "fp_placement_grid_hidden");
-			WriteFileLines(fn, oldLines);
-			}
-		}
+	if( ret != IDOK ) 
+		return;
+	CMainFrame * frm = (CMainFrame*)AfxGetMainWnd();
+	frm->m_wndMyToolBar.SetLists( &m_doc->m_fp_visible_grid, &m_doc->m_fp_part_grid, NULL,
+			m_doc->m_fp_visual_grid_spacing, m_doc->m_fp_part_grid_spacing, 0, m_doc->m_fp_snap_angle, -1 );
+	m_doc->ProjectModified(true);
+	if (dlg.bSetDefault) 
+	{
+		CArray<CString> oldLines, newLines;
+		CString fn = m_doc->m_app_dir + "\\" + "default.cfg";
+		ReadFileLines(fn, oldLines);
+		m_doc->CollectOptionsStrings(newLines);
+		ReplaceLines(oldLines, newLines, "fp_placement_grid_item");
+		ReplaceLines(oldLines, newLines, "fp_placement_grid_hidden");
+		WriteFileLines(fn, oldLines);
 	}
+}
 
 void CFootprintView::HighlightSelection()
 {

@@ -71,6 +71,7 @@ public:
 	double m_file_version;		// the oldest version of FreePCB that can read
 								// files created with this version
 	double m_read_version;		// the version from the project file
+	int m_WindowsMajorVersion;	// CPT2 added, seemed helpful
 	BOOL bNoFilesOpened;		// TRUE if no files have been opened
 	CShape * m_edit_footprint;	// Set if we're editing the footprint of a selected part.  CPT2 was BOOL, made it more informative...
 	BOOL m_project_open;		// FALSE if no project open
@@ -82,6 +83,7 @@ public:
 	CString m_fp_window_title;	// window title for footprint editor
 	CString m_name;				// project name
 	CString m_app_dir;			// application directory (full path) 
+	CString m_defaultcfg_dir;	// CPT2 new.  A value read off the registry;  then we look in that dir for our default.cfg options file.
 	CString m_lib_dir;			// path to default library folder (may be relative)
 	CString m_full_lib_dir;		// full path to default library folder
 	CString m_parent_folder;	// path to parent of project folders (may be relative)
@@ -125,7 +127,7 @@ public:
 	int m_pcbu_per_wu;
 
 	// grids and units for pcb editor
-	int m_units;					// MM or MIL
+	// int m_units;					// MM or MIL					// CPT2 Think I'll abandon this and use CCommonView::m_units instead
 	double m_visual_grid_spacing;	// grid spacing
 	double m_part_grid_spacing;		// grid spacing
 	double m_routing_grid_spacing;	// grid spacing
@@ -251,7 +253,12 @@ public:
 	BOOL FileSave( CString * folder, CString * filename, 
 		CString * old_folder, CString * old_filename,
 		BOOL bBackup=TRUE );
-	BOOL AutoSave();
+	BOOL AutoSave(); 
+	// I created the following routine while struggling to understand the misbehavior of the CFileDialog interface.  (Turns out the solution is
+	// just to build in release mode rather than debug mode --- debug object code and common control routines apparently conflict pretty badly.)
+	// Anyway, during the process I figured out (with considerable difficulty) how to use the new Vista-style common controls.  Though it turns out not
+	// to be necessary, I'm leaving the code in as a comment, so that we can potentially use it one day...
+	// bool GetFileName(bool bSave, CString initial, int titleRsrc, int filterRsrc, WCHAR *defaultExt, WCHAR *result, int *offFileName = NULL);  
 	void SetFileLayerMap( int file_layer, int layer );
 	void PurgeFootprintCache();
 
@@ -261,7 +268,7 @@ public:
 	void UndoNoRedo();												// CPT2:  Used occasionally, e.g. when user aborts a just-started operation 
 																	// like dragging a stub
 
-	// CPT2 DRC() used to be in CPartList, but I thought they made more sense here.  I also broke DRC() into helper routines for readability.
+	// CPT2 DRC() used to be in CPartList, but I thought it made more sense here.  I also broke DRC() into helper routines for readability.
 	void DRC( int units, BOOL check_unrouted, DesignRules * dr );
 	void DRCPin( cpin2 *pin, int units, DesignRules *dr );
 	void DRCPinsAndCopperGraphics( cpart2 *part1, cpart2 *part2, int units, DesignRules *dr );
@@ -305,7 +312,7 @@ public:
 	afx_msg void OnFileExport();
 	afx_msg void OnToolsCheckPartsAndNets();
 	afx_msg void OnToolsDrc();
-	afx_msg void OnToolsClearDrc();
+	afx_msg void OnToolsClearDrc(); 
 	afx_msg void OnToolsShowDRCErrorlist();
 	afx_msg void OnToolsCheckConnectivity();
 	afx_msg void OnViewLog();
@@ -327,8 +334,10 @@ public:
 	afx_msg void OnViewVisibleGrid();
 	afx_msg void OnViewPlacementGrid();
 	void CollectOptionsStrings(CArray<CString> &arr);
+	// CPT2
 	void Redraw();												// CPT2 r313, latest-n-greatest system for undrawing/redrawing (see notes.txt)
 	void GarbageCollect();
+	void CheckDefaultCfg();
 	// end CPT
 };
 

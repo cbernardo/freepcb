@@ -51,4 +51,5 @@ public:
 	CDlgLog * m_dlg_log;
 	afx_msg void OnBnClickedButtonBrowse();
 	CStatic m_static_units;
+	HENHMETAFILE m_hMF;				// CPT2 added
 };

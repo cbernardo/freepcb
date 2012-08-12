@@ -40,6 +40,8 @@
 #include "DlgExportOptions.h"	// CPT
 #include "PartListNew.h"		// CPT2
 #include "TextListNew.h"
+#include <Shtypes.h>
+#include <Shobjidl.h>
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -135,8 +137,8 @@ CFreePcbDoc::CFreePcbDoc()
 	m_smfontutil = new SMFontUtil( &m_app_dir );
 	m_pcbu_per_wu = 25400;	// default nm per world unit
 	DWORD dwVersion = ::GetVersion();
-	DWORD dwWindowsMajorVersion =  (DWORD)(LOBYTE(LOWORD(dwVersion)));
-	if( dwWindowsMajorVersion > 4 )
+	m_WindowsMajorVersion =  (DWORD)(LOBYTE(LOWORD(dwVersion)));
+	if( m_WindowsMajorVersion > 4 )
 		m_pcbu_per_wu = 2540;		// if Win2000 or XP or vista
 	m_dlist = m_dlist_pcb = new CDisplayList( m_pcbu_per_wu, m_smfontutil );
 	m_dlist_fp = new CDisplayList( m_pcbu_per_wu, m_smfontutil );
@@ -390,7 +392,7 @@ void CFreePcbDoc::OnFileNew()
 		if (dlg.m_default) 
 		{
 			CArray<CString> oldLines, newLines;
-			CString fn = m_app_dir + "\\" + "default.cfg";
+			CString fn = m_defaultcfg_dir + "\\" + "default.cfg";
 			ReadFileLines(fn, oldLines);
 			CollectOptionsStrings(newLines);
 			ReplaceLines(oldLines, newLines, "path_to_folder");
@@ -426,6 +428,72 @@ void CFreePcbDoc::OnFileNew()
 	}
 }
 
+// I created the following routine while struggling to understand the misbehavior of the CFileDialog interface.  (Turns out the solution is
+// just to build in release mode rather than debug mode --- debug object code and common control routines apparently conflict pretty badly.)
+// Anyway, during the process I figured out (with considerable difficulty) how to use the new Vista-style common controls.  Though it turns out not
+// to be necessary, I'm leaving the code in as a comment, so that we can potentially use it one day...
+/*
+bool CFreePcbDoc::GetFileName(bool bSave, CString initial, int titleRsrc, int filterRsrc, WCHAR *defaultExt, WCHAR *result, int *offFileName)
+{
+	USES_CONVERSION;
+	IFileDialog* pfod = 0;
+	HRESULT hr = ::CoCreateInstance(CLSID_FileOpenDialog, NULL, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&pfod));
+	if (!SUCCEEDED(hr))
+		return false;
+
+    // New dialog starting with Vista/Windows 7
+    // Set the file types to display.
+    COMDLG_FILTERSPEC*  pOpenTypes = new COMDLG_FILTERSPEC[2];
+    pOpenTypes[0].pszName = L"FreePCB Files";
+    pOpenTypes[0].pszSpec = L"*.fpc";
+	pOpenTypes[1].pszName = L"All files";
+	pOpenTypes[1].pszSpec = L"*.*";
+    hr = pfod->SetFileTypes(2, pOpenTypes);
+    if (!SUCCEEDED(hr))
+		{ pfod->Release(); return false; }
+    hr = pfod->SetFileTypeIndex(0);
+    if (!SUCCEEDED(hr))
+		{ pfod->Release(); return false; }
+
+    //  pfod->SetFileName(strFile);
+    //  pfod->SetTitle(strTitle);
+
+	// Ensure the dialog only returns file system paths, + other options flags.
+	DWORD dwFlags;
+	hr = pfod->GetOptions(&dwFlags);
+    if (!SUCCEEDED(hr))
+		{ pfod->Release(); return false; }
+    dwFlags |= FOS_FORCEFILESYSTEM;
+    // if(nFlags & OFN_FILEMUSTEXIST)
+    //    dwFlags |= FOS_FILEMUSTEXIST;
+    // if(nFlags & OFN_PATHMUSTEXIST)
+    //    dwFlags |= FOS_PATHMUSTEXIST;
+    hr = pfod->SetOptions(dwFlags);
+    if (!SUCCEEDED(hr))
+		{ pfod->Release(); return false; }
+	hr = pfod->Show(0);
+    if (!SUCCEEDED(hr))
+		{ pfod->Release(); return false; }
+    // Obtain the result once the user clicks the 'Open' button. The result is an IShellItem object.
+    IShellItem *psiResult;
+    hr = pfod->GetResult(&psiResult);
+    if (!SUCCEEDED(hr))
+		{ pfod->Release(); return false; }
+	// Obtain the file-path from the shell-item.
+    PWSTR pszFilePath = NULL;
+	hr = psiResult->GetDisplayName(SIGDN_FILESYSPATH, &pszFilePath);
+    if (!SUCCEEDED(hr))
+		{ pfod->Release(); psiResult->Release(); return false; }
+
+	// Copy pszFilePath into the return array/CString or whatever...
+
+    CoTaskMemFree(pszFilePath);
+    psiResult->Release();
+    pfod->Release();
+	return true;
+}
+*/
+
 void CFreePcbDoc::OnFileOpen()
 {
 	if( theApp.m_view_mode == CFreePcbApp::FOOTPRINT )
@@ -441,12 +509,9 @@ void CFreePcbDoc::OnFileOpen()
 	InitializeNewProject();		// set defaults
 
 	// get project file name
-	// force old-style file dialog by setting size of OPENFILENAME struct (for Win98)
 	CString s ((LPCSTR) IDS_PCBFiles);
 	CFileDialog dlg( 1, "fpc", LPCTSTR(m_pcb_filename), 0, 
 		s, NULL, OPENFILENAME_SIZE_VERSION_500 );
-	dlg.AssertValid();
-
 	// get folder of most-recent file or project folder
 	CString MRFile = theApp.GetMRUFile();
 	CString MRFolder;
@@ -462,8 +527,7 @@ void CFreePcbDoc::OnFileOpen()
 	if( err == IDOK )
 	{
 		CString pathname = dlg.GetPathName();
-		CString filename = dlg.GetFileName();
-		if( filename.Right(4) == ".fpl" )
+		if( pathname.Right(4) == ".fpl" )
 		{
 			CString mess ((LPCSTR) IDS_YouAreOpeningAFileWithExtensionFPL); 
 			int ret = AfxMessageBox( mess, MB_YESNOCANCEL );
@@ -636,13 +700,12 @@ BOOL CFreePcbDoc::FileOpen( LPCTSTR fn, BOOL bLibrary )
 		m_view->m_cursor_mode = 999;
 		m_view->SetCursorMode( CUR_NONE_SELECTED );
 		m_view->InvalidateLeftPane();
-		m_view->Invalidate( FALSE );
 		ProjectModified( FALSE );
 		m_view->OnViewAllElements();
 		m_auto_elapsed = 0;
-		CDC * pDC = m_view->GetDC();
-		m_view->OnDraw( pDC );
-		m_view->ReleaseDC( pDC );
+//		CDC * pDC = m_view->GetDC();
+//		m_view->OnDraw( pDC );
+//		m_view->ReleaseDC( pDC );
 		m_plist->CheckForProblemFootprints();
 		bNoFilesOpened = FALSE;
 		ResetUndoState();						// CPT2 --- important under the new system to do this AFTER all the new objects are loaded.
@@ -901,7 +964,6 @@ BOOL CFreePcbDoc::FileSave( CString * folder, CString * filename,
 
 void CFreePcbDoc::OnFileSaveAs() 
 {
-	// force old-style file dialog by setting size of OPENFILENAME struct
 	CString s ((LPCSTR) IDS_PCBFiles);
 	CFileDialog dlg( 0, "fpc", LPCTSTR(m_pcb_filename), OFN_OVERWRITEPROMPT,							// CPT changed arg
 		s, NULL, OPENFILENAME_SIZE_VERSION_500 );
@@ -919,33 +981,33 @@ void CFreePcbDoc::OnFileSaveAs()
 	else
 		dlg.m_ofn.lpstrInitialDir = m_parent_folder;
 	int err = dlg.DoModal();
-	if( err == IDOK )
+	if( err != IDOK )
+		return;
+
+	// get new filename and folder
+	CString new_pathname = dlg.GetPathName();
+	CString new_filename = dlg.GetFileName();
+	int fnl = new_filename.GetLength();
+	CString new_folder = new_pathname.Left( new_pathname.GetLength() - fnl - 1 );
+	// write project file
+	BOOL ok = FileSave( &new_folder, &new_filename, &m_path_to_folder, &m_pcb_filename );
+	if( ok )
 	{
-		// get new filename and folder
-		CString new_pathname = dlg.GetPathName();
-		CString new_filename = dlg.GetFileName();
-		int fnl = new_filename.GetLength();
-		CString new_folder = new_pathname.Left( new_pathname.GetLength() - fnl - 1 );
-		// write project file
-		BOOL ok = FileSave( &new_folder, &new_filename, &m_path_to_folder, &m_pcb_filename );
-		if( ok )
-		{
-			// update member variables, MRU files and window title
-			m_pcb_filename = new_filename;
-			m_pcb_full_path = new_pathname;
-			m_path_to_folder = new_folder;
-			theApp.AddMRUFile( &m_pcb_full_path );
-			CString s1 ((LPCSTR) IDS_AppName);
-			m_window_title = s1 + " - " + m_pcb_filename;
-			CWnd* pMain = AfxGetMainWnd();
-			pMain->SetWindowText( m_window_title );
-			ProjectModified( FALSE );
-		}
-		else
-		{
-			CString s ((LPCSTR) IDS_FileSaveFailed);
-			AfxMessageBox( s );
-		}
+		// update member variables, MRU files and window title
+		m_pcb_filename = new_filename;
+		m_pcb_full_path = new_pathname;
+		m_path_to_folder = new_folder;
+		theApp.AddMRUFile( &m_pcb_full_path );
+		CString s1 ((LPCSTR) IDS_AppName);
+		m_window_title = s1 + " - " + m_pcb_filename;
+		CWnd* pMain = AfxGetMainWnd();
+		pMain->SetWindowText( m_window_title );
+		ProjectModified( FALSE );
+	}
+	else
+	{
+		CString s ((LPCSTR) IDS_FileSaveFailed);
+		AfxMessageBox( s );
 	}
 }
 
@@ -1446,7 +1508,6 @@ void CFreePcbDoc::ReadOptions( CStdioFile * pcb_file )
 	m_fp_part_grid.SetSize( 0 );
 	m_fp_part_grid_hidden.SetSize( 0 );
 	m_name = "";
-	m_auto_interval = 0;
 	m_dr.bCheckUnrouted = FALSE;
 	for( int i=0; i<MAX_LAYERS; i++ )
 		m_layer_by_file_layer[i] = i;
@@ -1550,9 +1611,9 @@ void CFreePcbDoc::ReadOptions( CStdioFile * pcb_file )
 			else if( np && key_str == "units" )
 			{
 				if( p[0] == "MM" )
-					m_units = MM;
+					m_view->m_units = MM;
 				else
-					m_units = MIL;
+					m_view->m_units = MIL;
 			}
 
 			// CPT: factored out shared code.  Allowed for "hidden" grid items. 
@@ -1790,7 +1851,7 @@ void CFreePcbDoc::ReadOptions( CStdioFile * pcb_file )
 		qsort(m_fp_visible_grid.GetData(), m_fp_visible_grid.GetSize(), sizeof(double), (int (*)(const void*,const void*)) CompareGridVals);
 		qsort(m_fp_part_grid.GetData(), m_fp_part_grid.GetSize(), sizeof(double), (int (*)(const void*,const void*)) CompareGridVals);
 		frm->m_wndMyToolBar.SetLists( &m_visible_grid, &m_part_grid, &m_routing_grid,
-			m_visual_grid_spacing, m_part_grid_spacing, m_routing_grid_spacing, m_snap_angle, m_units );
+			m_visual_grid_spacing, m_part_grid_spacing, m_routing_grid_spacing, m_snap_angle, m_view->m_units );
 		m_dlist->SetVisibleGrid( TRUE, m_visual_grid_spacing );
 		// CPT2 TODO.  The best color choice for LAY_SELECTION & LAY_FP_SELECTION is a bit of a tricky issue.  Currently the only use for these
 		// colors is when user is dragging.  If, say, the background is white and the selection layer is black, then because of the
@@ -1869,7 +1930,7 @@ void CFreePcbDoc::CollectOptionsStrings(CArray<CString> &arr) {
 
 	line.Format( "netlist_import_flags: %d\n", m_import_flags );
 	arr.Add( line );
-	if( m_units == MIL )
+	if( m_view->m_units == MIL )
 		arr.Add( "units: MIL\n\n" );
 	else
 		arr.Add( "units: MM\n\n" );
@@ -2036,7 +2097,6 @@ void CFreePcbDoc::InitializeNewProject()
 	m_lib_dir = "..\\lib\\" ;
 	m_pcb_filename = "";
 	m_pcb_full_path = "";
-	m_units = MIL;
 	m_num_copper_layers = 4;
 	m_plist->SetNumCopperLayers( m_num_copper_layers );
 	m_nlist->SetNumCopperLayers( m_num_copper_layers );
@@ -2224,7 +2284,13 @@ void CFreePcbDoc::InitializeNewProject()
 	view->OnNewProject();								// CPT renamed function
 
 	// now try to find global options file
-	CString fn = m_app_dir + "\\" + "default.cfg";
+	// CPT2 because Win7 now write-protects files in \Program Files (curse you, MS), we need to give user an option to change the location of
+	// default.cfg.  This is a setting that will have to go in the registry (no better choice, evidently).
+	m_defaultcfg_dir = theApp.GetProfileString(_T("Settings"),_T("DefaultCfgDir"));
+	if (m_defaultcfg_dir == "")
+		m_defaultcfg_dir = m_app_dir;
+	CheckDefaultCfg();
+	CString fn = m_defaultcfg_dir + "\\default.cfg";
 	CStdioFile file;
 	if( !file.Open( fn, CFile::modeRead | CFile::typeText ) )
 	{
@@ -2354,7 +2420,7 @@ void CFreePcbDoc::OnViewLayers()
 		if (dlg.fColorsDefault) {		
 			// User wants to apply settings to future new projects
 			CArray<CString> oldLines, newLines;
-			CString fn = m_app_dir + "\\" + "default.cfg";
+			CString fn = m_defaultcfg_dir + "\\" + "default.cfg";
 			ReadFileLines(fn, oldLines);
 			CollectOptionsStrings(newLines);
 			ReplaceLines(oldLines, newLines, "layer_info");
@@ -2394,7 +2460,6 @@ void CFreePcbDoc::OnProjectPartlist()
 #endif
 }
 
-// CPT:  since MS broke CFileDialog::SetTemplate(), I had to rewrite this (as in OnFileImport(), qv)
 void CFreePcbDoc::OnFileExport()
 {
 	CString s ((LPCSTR) IDS_AllFiles);
@@ -2402,44 +2467,39 @@ void CFreePcbDoc::OnFileExport()
 		OFN_HIDEREADONLY | OFN_EXPLORER | OFN_OVERWRITEPROMPT, 
 		s, NULL, OPENFILENAME_SIZE_VERSION_500 );
 	int ret = dlg.DoModal();
-	if( ret == IDOK )
+	if( ret != IDOK )
+		return;
+
+	CString str = dlg.GetPathName();
+	CStdioFile file;
+	if( !file.Open( str, CFile::modeWrite | CFile::modeCreate ) )
 	{
-		CString str = dlg.GetPathName();
-		CStdioFile file;
-		if( !file.Open( str, CFile::modeWrite | CFile::modeCreate ) )
-		{
-			CString s ((LPCSTR) IDS_UnableToOpenFile2);
-			AfxMessageBox( s );
-		}
+		CString s ((LPCSTR) IDS_UnableToOpenFile2);
+		AfxMessageBox( s );
+	}
+	else
+	{
+		CDlgExportOptions dlg2;
+		dlg2.Initialize(EXPORT_PARTS | EXPORT_NETS); 
+		int ret = dlg2.DoModal();
+		if (ret==IDCANCEL) return;
+		partlist_info pl;
+		netlist_info nl;
+		m_plist->ExportPartListInfo( &pl, NULL );
+		m_nlist->ExportNetListInfo( &nl );
+		if( dlg2.m_format == CMyFileDialog::PADSPCB )
+			ExportPADSPCBNetlist( &file, dlg2.m_select, &pl, &nl );
 		else
-		{
-			CDlgExportOptions dlg2;
-			dlg2.Initialize(EXPORT_PARTS | EXPORT_NETS); 
-			ret = dlg2.DoModal();
-			if (ret==IDCANCEL) return;
-			partlist_info pl;
-			netlist_info nl;
-			m_plist->ExportPartListInfo( &pl, NULL );
-			m_nlist->ExportNetListInfo( &nl );
-			if( dlg2.m_format == CMyFileDialog::PADSPCB )
-				ExportPADSPCBNetlist( &file, dlg2.m_select, &pl, &nl );
-			else
-				ASSERT(0);
-			file.Close();
-		}
+			ASSERT(0);
+		file.Close();
 	}
 }
-// end CPT
 
-// CPT:  Under Vista, good old MS has broken the CFileDialog::SetTemplate function.  Ultimately I decided to rewrite this to put 
-// the options that were formerly in the open-file dialog into the import-options dialog
 
 void CFreePcbDoc::OnFileImport()
 {
 #ifndef CPT2
 	CString s ((LPCSTR) IDS_AllFiles), s2 ((LPCSTR) IDS_ImportNetListFile);
-	// NB CPT.  This works more or less, but MS has done its best to wreck CFileDialog and its behavior is pretty spotty...  Might have to consider
-	// other options long term
 	CFileDialog dlg( TRUE , NULL, (LPCTSTR)m_netlist_full_path , OFN_HIDEREADONLY, 
 		s, NULL, OPENFILENAME_SIZE_VERSION_500 );
 	dlg.m_ofn.lpstrTitle = s2;
@@ -3488,7 +3548,7 @@ void CFreePcbDoc::OnProjectOptions()
 		if (dlg.m_default) 
 		{
 			CArray<CString> oldLines, newLines;
-			CString fn = m_app_dir + "\\" + "default.cfg";
+			CString fn = m_defaultcfg_dir + "\\" + "default.cfg";
 			ReadFileLines(fn, oldLines);
 			CollectOptionsStrings(newLines);
 			ReplaceLines(oldLines, newLines, "path_to_folder");
@@ -3759,7 +3819,6 @@ void CFreePcbDoc::OnToolsCheckTraces()
 void CFreePcbDoc::OnEditPasteFromFile()
 {
 #ifndef CPT2
-	// force old-style file dialog by setting size of OPENFILENAME struct
 	CString s ((LPCSTR) IDS_AllFiles);
 	CFileDialog dlg( TRUE, NULL, NULL, OFN_HIDEREADONLY | OFN_EXPLORER, 
 		s, NULL, OPENFILENAME_SIZE_VERSION_500 );
@@ -4246,7 +4305,7 @@ void CFreePcbDoc::OnRepeatDrc()
 	m_dlg_log->BringWindowToTop(); 
 	m_dlg_log->Clear();
 	m_dlg_log->UpdateWindow();
-	DRC( m_units, m_dr.bCheckUnrouted, &m_dr );
+	DRC( m_view->m_units, m_dr.bCheckUnrouted, &m_dr );
 	ProjectModified( true );
 }
 
@@ -4485,22 +4544,25 @@ void CFreePcbDoc::OnFileSaveLibrary()
 
 // CPT (all that follows)
 
-void ReadFileLines(CString &fname, CArray<CString> &lines) {
+void ReadFileLines(CString &fname, CArray<CString> &lines) 
+{
 	// Helper function used when making modifications to default.cfg.  Bug fix #28
 	lines.RemoveAll();
 	CStdioFile file;
 	CString line;
 	int ok = file.Open( LPCSTR(fname), CFile::modeRead | CFile::typeText, NULL );
 	if (!ok) return;
-	while (1)	{
+	while (1)	
+	{
 		if (!file.ReadString( line )) break;
 		line.Trim(),
 		lines.Add(line + "\n");
-		}
-	file.Close();
 	}
+	file.Close();
+}
 
-void WriteFileLines(CString &fname, CArray<CString> &lines) {
+void WriteFileLines(CString &fname, CArray<CString> &lines) 
+{
 	// Helper function used when making modifications to default.cfg
 	CStdioFile file;
 	int ok = file.Open( LPCSTR(fname), CFile::modeCreate | CFile::modeWrite | CFile::typeText, NULL );
@@ -4508,131 +4570,149 @@ void WriteFileLines(CString &fname, CArray<CString> &lines) {
 	for (int i=0; i<lines.GetSize(); i++)
 		file.WriteString(lines[i]);
 	file.Close();
-	}
+}
 
-void ReplaceLines(CArray<CString> &oldLines, CArray<CString> &newLines, char *key) {
+void ReplaceLines(CArray<CString> &oldLines, CArray<CString> &newLines, char *key) 
+{
 	// Another helper for making modifications to default.cfg. Look through "oldLines" and eliminate all entries beginning with "key" (if any).
 	// Then append to oldLines all members of newLines beginning with that key.  Must ensure that the [end] line is still at the end...
 	int keyLgth = strlen(key);
-	for (int i=0; i<oldLines.GetSize(); i++) {
+	for (int i=0; i<oldLines.GetSize(); i++) 
+	{
 		CString str = oldLines[i].TrimLeft();
 		if (str.Left(keyLgth) == key || str.Left(5) == "[end]")
 			oldLines.RemoveAt(i),
 			i--;
-		}
+	}
 	if (oldLines.GetSize()==0)
 		oldLines.Add("[options]\n");
-	for (int i=0; i<newLines.GetSize(); i++) {
+	for (int i=0; i<newLines.GetSize(); i++) 
+	{
 		CString str = newLines[i].TrimLeft();
 		if (str.Left(keyLgth) == key)
 			oldLines.Add(str);
-		}
-	oldLines.Add("[end]\n");
 	}
+	oldLines.Add("[end]\n");
+}
 
 
-void CFreePcbDoc::OnToolsPreferences() {
+void CFreePcbDoc::OnToolsPreferences() 
+{
 	CDlgPrefs dlg;
 	dlg.doc = this;
 	dlg.Init( m_bReversePgupPgdn, m_bLefthanded, m_bHighlightNet, m_auto_interval, 
 		m_auto_ratline_disable, m_auto_ratline_min_pins); 
 	int ret = dlg.DoModal();
-	if( ret == IDOK ) {
-		m_bReversePgupPgdn = dlg.m_bReverse;
-		m_bLefthanded = dlg.m_bLefthanded;
-		m_bHighlightNet = dlg.m_bHighlightNet;
-		m_auto_interval = dlg.m_auto_interval;
-		m_auto_ratline_disable = dlg.m_bAuto_Ratline_Disable;
-		m_auto_ratline_min_pins = dlg.m_auto_ratline_min_pins;
-		// Save these values to default.cfg
-		CString line;
-		CArray<CString> oldLines, newLines;
-		line.Format( "autosave_interval: \"%d\"\n", m_auto_interval );
-		newLines.Add( line );
-		line.Format( "auto_ratline_disable: \"%d\"\n", m_auto_ratline_disable );
-		newLines.Add( line );
-		line.Format( "auto_ratline_disable_min_pins: \"%d\"\n", m_auto_ratline_min_pins );
-		newLines.Add( line );
-		line.Format( "reverse_pgup_pgdn: \"%d\"\n", m_bReversePgupPgdn);
-		newLines.Add( line );
-		line.Format( "lefthanded_mode: \"%d\"\n", m_bLefthanded);
-		newLines.Add( line );
-		line.Format( "highlight_net: \"%d\"\n", m_bHighlightNet);
-		newLines.Add( line );
-		CString fn = m_app_dir + "\\" + "default.cfg";
-		ReadFileLines(fn, oldLines);
-		ReplaceLines(oldLines, newLines, "autosave_interval");
-		ReplaceLines(oldLines, newLines, "auto_ratline_disable");
-		ReplaceLines(oldLines, newLines, "auto_ratline_disable_min_pins");
-		ReplaceLines(oldLines, newLines, "reverse_pgup_pgdn");
-		ReplaceLines(oldLines, newLines, "lefthanded_mode");
-		ReplaceLines(oldLines, newLines, "highlight_net");
-		WriteFileLines(fn, oldLines);
-		m_view->SetFKText(m_view->m_cursor_mode);					// In case user changed the left-handed mode...
-		}
-	}
+	if( ret != IDOK ) 
+		return;
+	m_bReversePgupPgdn = dlg.m_bReverse;
+	m_bLefthanded = dlg.m_bLefthanded;
+	m_bHighlightNet = dlg.m_bHighlightNet;
+	m_auto_interval = dlg.m_auto_interval;
+	m_auto_ratline_disable = dlg.m_bAuto_Ratline_Disable;
+	m_auto_ratline_min_pins = dlg.m_auto_ratline_min_pins;
 
-void CFreePcbDoc::OnViewRoutingGrid() {
+	// CPT2.  Deal with changes to default.cfg directory.  This feature became necessary when good 'old MS decided with Win7 to write-protect 
+	// everything within the C:\Program Files folder.  Assumes that CDlgPrefs already did a check on the writeability of the new dir.
+	CString oldDir = m_defaultcfg_dir;
+	CString newDir = dlg.m_defaultcfg_dir;
+	CString oldFn = oldDir + "\\default.cfg";
+	CString newFn = newDir + "\\default.cfg";
+	m_defaultcfg_dir = newDir;
+	theApp.WriteProfileStringA(_T("Settings"),_T("DefaultCfgDir"), newDir);
+	
+	// Save other values to default.cfg
+	CString line;
+	CArray<CString> oldLines, newLines;
+	line.Format( "autosave_interval: \"%d\"\n", m_auto_interval );
+	newLines.Add( line );
+	line.Format( "auto_ratline_disable: \"%d\"\n", m_auto_ratline_disable );
+	newLines.Add( line );
+	line.Format( "auto_ratline_disable_min_pins: \"%d\"\n", m_auto_ratline_min_pins );
+	newLines.Add( line );
+	line.Format( "reverse_pgup_pgdn: \"%d\"\n", m_bReversePgupPgdn);
+	newLines.Add( line );
+	line.Format( "lefthanded_mode: \"%d\"\n", m_bLefthanded);
+	newLines.Add( line );
+	line.Format( "highlight_net: \"%d\"\n", m_bHighlightNet);
+	newLines.Add( line );
+	ReadFileLines(oldFn, oldLines);
+	ReplaceLines(oldLines, newLines, "autosave_interval");
+	ReplaceLines(oldLines, newLines, "auto_ratline_disable");
+	ReplaceLines(oldLines, newLines, "auto_ratline_disable_min_pins");
+	ReplaceLines(oldLines, newLines, "reverse_pgup_pgdn");
+	ReplaceLines(oldLines, newLines, "lefthanded_mode");
+	ReplaceLines(oldLines, newLines, "highlight_net");
+	WriteFileLines(newFn, oldLines);
+	m_view->SetFKText(m_view->m_cursor_mode);					// In case user changed the left-handed mode...
+}
+
+void CFreePcbDoc::OnViewRoutingGrid() 
+{
 	CDlgGridVals dlg (&m_routing_grid, &m_routing_grid_hidden, IDS_EditRoutingGridValues);
 	int ret = dlg.DoModal();
-	if( ret == IDOK ) {
-		// CDlgGridVals::DoDataExchange() already updated m_routing_grid and m_routing_grid_hidden.  We just need to change the
-		// ToolBar lists:
-		CMainFrame * frm = (CMainFrame*)AfxGetMainWnd();
-		frm->m_wndMyToolBar.SetLists( &m_visible_grid, &m_part_grid, &m_routing_grid,
-			m_visual_grid_spacing, m_part_grid_spacing, m_routing_grid_spacing, m_snap_angle, m_units );
-		ProjectModified(true);
-		if (dlg.bSetDefault) {
-			CArray<CString> oldLines, newLines;
-			CString fn = m_app_dir + "\\" + "default.cfg";
-			ReadFileLines(fn, oldLines);
-			CollectOptionsStrings(newLines);
-			ReplaceLines(oldLines, newLines, "routing_grid_item");
-			ReplaceLines(oldLines, newLines, "routing_grid_hidden");
-			WriteFileLines(fn, oldLines);
-			}
-		}
+	if( ret != IDOK ) 
+		return;
+	// CDlgGridVals::DoDataExchange() already updated m_routing_grid and m_routing_grid_hidden.  We just need to change the
+	// ToolBar lists:
+	CMainFrame * frm = (CMainFrame*)AfxGetMainWnd();
+	frm->m_wndMyToolBar.SetLists( &m_visible_grid, &m_part_grid, &m_routing_grid,
+		m_visual_grid_spacing, m_part_grid_spacing, m_routing_grid_spacing, m_snap_angle, m_view->m_units );
+	ProjectModified(true);
+	if (dlg.bSetDefault) 
+	{
+		CArray<CString> oldLines, newLines;
+		CString fn = m_defaultcfg_dir + "\\" + "default.cfg";
+		ReadFileLines(fn, oldLines);
+		CollectOptionsStrings(newLines);
+		ReplaceLines(oldLines, newLines, "routing_grid_item");
+		ReplaceLines(oldLines, newLines, "routing_grid_hidden");
+		WriteFileLines(fn, oldLines);
 	}
+}
 
-void CFreePcbDoc::OnViewPlacementGrid() {
+void CFreePcbDoc::OnViewPlacementGrid() 
+{
 	CDlgGridVals dlg (&m_part_grid, &m_part_grid_hidden, IDS_EditPlacementGridValues);
 	int ret = dlg.DoModal();
-	if( ret == IDOK ) {
-		CMainFrame * frm = (CMainFrame*)AfxGetMainWnd();
-		frm->m_wndMyToolBar.SetLists( &m_visible_grid, &m_part_grid, &m_routing_grid,
-			m_visual_grid_spacing, m_part_grid_spacing, m_routing_grid_spacing, m_snap_angle, m_units );
-		ProjectModified(true);
-		if (dlg.bSetDefault) {
-			CArray<CString> oldLines, newLines;
-			CString fn = m_app_dir + "\\" + "default.cfg";
-			ReadFileLines(fn, oldLines);
-			CollectOptionsStrings(newLines);
-			ReplaceLines(oldLines, newLines, "placement_grid_item");
-			ReplaceLines(oldLines, newLines, "placement_grid_hidden");
-			WriteFileLines(fn, oldLines);
-			}
-		}
+	if( ret != IDOK ) 
+		return;
+	CMainFrame * frm = (CMainFrame*)AfxGetMainWnd();
+	frm->m_wndMyToolBar.SetLists( &m_visible_grid, &m_part_grid, &m_routing_grid,
+		m_visual_grid_spacing, m_part_grid_spacing, m_routing_grid_spacing, m_snap_angle, m_view->m_units );
+	ProjectModified(true);
+	if (dlg.bSetDefault) 
+	{
+		CArray<CString> oldLines, newLines;
+		CString fn = m_defaultcfg_dir + "\\" + "default.cfg";
+		ReadFileLines(fn, oldLines);
+		CollectOptionsStrings(newLines);
+		ReplaceLines(oldLines, newLines, "placement_grid_item");
+		ReplaceLines(oldLines, newLines, "placement_grid_hidden");
+		WriteFileLines(fn, oldLines);
 	}
+}
 
 void CFreePcbDoc::OnViewVisibleGrid() {
 	CDlgGridVals dlg (&m_visible_grid, &m_visible_grid_hidden, IDS_EditVisibleGridValues);
 	int ret = dlg.DoModal();
-	if( ret == IDOK ) {
-		CMainFrame * frm = (CMainFrame*)AfxGetMainWnd();
-		frm->m_wndMyToolBar.SetLists( &m_visible_grid, &m_part_grid, &m_routing_grid,
-			m_visual_grid_spacing, m_part_grid_spacing, m_routing_grid_spacing, m_snap_angle, m_units );
-		ProjectModified(true);
-		if (dlg.bSetDefault) {
-			CArray<CString> oldLines, newLines;
-			CString fn = m_app_dir + "\\" + "default.cfg";
-			ReadFileLines(fn, oldLines);
-			CollectOptionsStrings(newLines);
-			ReplaceLines(oldLines, newLines, "visible_grid_item");
-			ReplaceLines(oldLines, newLines, "visible_grid_hidden");
-			WriteFileLines(fn, oldLines);
-			}
-		}
+	if( ret != IDOK ) 
+		return;
+	CMainFrame * frm = (CMainFrame*)AfxGetMainWnd();
+	frm->m_wndMyToolBar.SetLists( &m_visible_grid, &m_part_grid, &m_routing_grid,
+		m_visual_grid_spacing, m_part_grid_spacing, m_routing_grid_spacing, m_snap_angle, m_view->m_units );
+	ProjectModified(true);
+	if (dlg.bSetDefault) 
+	{
+		CArray<CString> oldLines, newLines;
+		CString fn = m_defaultcfg_dir + "\\" + "default.cfg";
+		ReadFileLines(fn, oldLines);
+		CollectOptionsStrings(newLines);
+		ReplaceLines(oldLines, newLines, "visible_grid_item");
+		ReplaceLines(oldLines, newLines, "visible_grid_hidden");
+		WriteFileLines(fn, oldLines);
 	}
+}
 
 // end CPT
 
@@ -6173,4 +6253,17 @@ void CFreePcbDoc::DRCUnrouted(int units)
 				log->AddLine( str );
 		}
 	}
+}
+
+void CFreePcbDoc::CheckDefaultCfg()
+{
+	HANDLE h = CreateFile(m_defaultcfg_dir + "\\default.cfg", GENERIC_WRITE, 0, NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+	if (h == INVALID_HANDLE_VALUE)
+	{
+		CString str ((LPCSTR) IDS_WarningFileDefaultCfgIsStoredInAFolder);
+		AfxMessageBox(str);
+		OnToolsPreferences();
+	}
+	else
+		CloseHandle(h);
 }

@@ -4,6 +4,7 @@
 #include "FreePcb.h"
 #include "DlgPrefs.h"
 #include "afxdialogex.h"
+#include "PathDialog.h"
 
 
 // CDlgPrefs dialog
@@ -41,6 +42,7 @@ void CDlgPrefs::DoDataExchange(CDataExchange* pDX) {
 	DDX_Text(pDX, IDC_EDIT_AUTO_INTERVAL, m_auto_interval );
 	DDX_Control(pDX, IDC_CHECK_AUTORAT_DISABLE, m_check_disable_auto_rats);
 	DDX_Control(pDX, IDC_EDIT_MIN_PINS, m_edit_min_pins);
+	DDX_Control(pDX, IDC_EDIT_PREFS_DEFAULTCFG, m_edit_defaultcfg);
 	if (m_check_disable_auto_rats.GetCheck()) 
 		DDX_Text(pDX, IDC_EDIT_MIN_PINS, m_auto_ratline_min_pins ),
 		DDV_MinMaxInt(pDX, m_auto_ratline_min_pins, 0, 10000 );
@@ -53,6 +55,19 @@ void CDlgPrefs::DoDataExchange(CDataExchange* pDX) {
 		m_bHighlightNet = m_check_highlight_net.GetCheck();
 		// convert minutes to seconds
 		m_auto_interval *= 60;
+		m_edit_defaultcfg.GetWindowTextA(m_defaultcfg_dir);
+		if (m_defaultcfg_dir.Right(1)=="\\")
+			m_defaultcfg_dir.Left( m_defaultcfg_dir.GetLength()-1 );
+		HANDLE h = CreateFile(m_defaultcfg_dir + "\\default.cfg", GENERIC_WRITE, 0, NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+		if (h == INVALID_HANDLE_VALUE)
+		{
+			CString str, str0 ((LPCSTR) IDS_CantWriteToFolder);
+			str.Format(str0, m_defaultcfg_dir);
+			AfxMessageBox(str);
+			pDX->Fail();
+		}
+		else
+			CloseHandle(h);
 	}
 }
 
@@ -61,6 +76,7 @@ BEGIN_MESSAGE_MAP(CDlgPrefs, CDialogEx)
 	ON_BN_CLICKED(IDC_CHECK_AUTOSAVE, OnBnClickedCheckAutosave)
 	ON_BN_CLICKED(IDC_CHECK_AUTORAT_DISABLE, OnBnClickedCheckAutoRatDisable)
 	ON_EN_CHANGE(IDC_EDIT_AUTO_INTERVAL, &CDlgPrefs::OnEnChangeEditAutoInterval)
+	ON_BN_CLICKED(IDC_BUTTON_PREFS_BROWSE, OnBnClickedBrowse)
 END_MESSAGE_MAP()
 
 
@@ -83,6 +99,11 @@ BOOL CDlgPrefs::OnInitDialog()
 
 	m_check_disable_auto_rats.SetCheck( m_bAuto_Ratline_Disable );
 	m_edit_min_pins.EnableWindow( m_bAuto_Ratline_Disable );
+	extern CFreePcbApp theApp;
+	CString dir = theApp.GetProfileString(_T("Settings"),_T("DefaultCfgDir"));
+	if (dir == "")
+		dir = theApp.m_doc->m_app_dir;
+	m_edit_defaultcfg.SetWindowTextA( dir );
 	return TRUE;
 }
 
@@ -112,4 +133,18 @@ void CDlgPrefs::OnEnChangeEditAutoInterval()
 	// with the ENM_CHANGE flag ORed into the mask.
 
 	// TODO:  Add your control notification handler code here
+}
+
+void CDlgPrefs::OnBnClickedBrowse()
+{
+	CString open ((LPCSTR) IDS_OpenFolder), select ((LPCSTR) IDS_SelectFolderForDefaultCfg);
+	CString path_str;
+	m_edit_defaultcfg.GetWindowTextA( path_str );
+	CPathDialog dlg( open, select, path_str );
+	int ret = dlg.DoModal();
+	if( ret == IDOK )
+	{
+		path_str = dlg.GetPathName();
+		m_edit_defaultcfg.SetWindowText( path_str );
+	}
 }

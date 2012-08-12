@@ -746,7 +746,9 @@
 #define IDC_BUTTON_LAYER_16             1446
 #define IDC_CHECK_IGNORE_EMPTY_NETS     1446
 #define IDC_BUTTON_LAYER_17             1447
+#define IDC_BUTTON_PREFS_BROWSE         1447
 #define IDC_BUTTON_LAYER_18             1448
+#define IDC_EDIT_PREFS_DEFAULTCFG       1448
 #define IDC_BUTTON_LAYER_19             1449
 #define IDC_BUTTON_LAYER_20             1450
 #define IDC_BUTTON_LAYER_21             1451
@@ -1641,6 +1643,10 @@
 #define IDS_PlacingCornerOfPolygon      62678
 #define IDS_DoYouWishToReplaceTheFootprintOfPart 62679
 #define IDS_Connection                  62680
+#define IDS_SelectFolderForDefaultCfg   62681
+#define IDS_CantWriteToFolder           62682
+#define IDS_WarningFileDefaultCfgIsStoredInAFolder 62683
+#define IDS_NoteThatFolderProgramFilesIsWriteProtected 62684
 #define IDS_FkFpStr                     63000
 #define IDS_STRING63001                 63001
 #define IDS_STRING63002                 63002
@@ -1993,7 +1999,7 @@
 #define _APS_3D_CONTROLS                     1
 #define _APS_NEXT_RESOURCE_VALUE        353
 #define _APS_NEXT_COMMAND_VALUE         33019
-#define _APS_NEXT_CONTROL_VALUE         1447
+#define _APS_NEXT_CONTROL_VALUE         1449
 #define _APS_NEXT_SYMED_VALUE           106
 #endif
 #endif

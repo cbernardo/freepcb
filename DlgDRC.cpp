@@ -64,7 +64,7 @@ END_MESSAGE_MAP()
 void DlgDRC::Initialize( CFreePcbDoc *doc )
 {
 	m_doc = doc;
-	m_units = doc->m_units; 
+	m_units = doc->m_view->m_units; 
 	m_dr = &doc->m_dr;
 	m_dr_local = doc->m_dr;
 	m_pl = doc->m_plist;
