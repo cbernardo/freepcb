@@ -339,7 +339,6 @@ BOOL CFreePcbApp::SwitchToView( CRuntimeClass * pNewViewClass )
 	client_rect.top += 24;		// leave room for toolbar
 	client_rect.bottom -= 18;	// leave room for status bar
 	pNewView->MoveWindow( client_rect, 1 );
-	m_View->InvalidateLeftPane();
 	return TRUE;
 }
 
