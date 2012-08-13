@@ -2382,7 +2382,7 @@ void CFreePcbDoc::OnViewLayers()
 		// Set footprint layer colors & visibility.  Some of these are borrowed from the main screen layer values; others are based on the last
 		// four rows of the layer-dialog
 		static int fpLayerMap[] = {	LAY_SELECTION, LAY_BACKGND, LAY_VISIBLE_GRID, LAY_HILITE, LAY_SILK_TOP, -1, -1, LAY_PAD_THRU, 
-			-1, -1, -1, -1, LAY_TOP_COPPER, LAY_BOTTOM_COPPER+1, LAY_BOTTOM_COPPER };
+			-1, -1, -1, -1, -1, LAY_TOP_COPPER, LAY_BOTTOM_COPPER+1, LAY_BOTTOM_COPPER };
 		for (int i=0; i<NUM_FP_LAYERS; i++) {
 			int mainLayer = fpLayerMap[i];
 			if (mainLayer!=-1)

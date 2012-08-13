@@ -68,6 +68,9 @@ private:
 	CEdit m_edit_lib;
 	CDlgLog * m_dlg_log;
 	CComboBox m_combo_angle;
+	int m_x_initial;				// CPT2.  Stores the initial value of m_x (we must take note if it changes)
+	int m_y_initial;				// CPT2.  Similar
+	int m_units_initial;			// CPT2.  Similar
 
 public:
 	void Initialize( partlist_info * pl,
