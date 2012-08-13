@@ -180,7 +180,6 @@ void CCommonView::BaseInit()
 	m_org_x = -100.0*PCBU_PER_MIL;			// lower left corner of window
 	m_org_y = -100.0*PCBU_PER_MIL;
 	m_doc->m_fp_snap_angle = 45;
-	m_left_pane_invalid = TRUE;
 	CancelSelection();
 	m_sel_mask = 0xffff;
 	m_sel_mask_bits = 0xffffffff;
@@ -255,130 +254,148 @@ void CCommonView::ShowRelativeDistance( int x, int y, int dx, int dy )
 
 void CCommonView::DrawLeftPane(CDC *pDC) {
 	#define VSTEP 14
+	// CPT2 now incorporates double-buffering.  Tried to reuse m_memDC but ran into intractible problems with SelectClipRgn (stupid Windows).
+	CDC memDC;
+	memDC.CreateCompatibleDC( pDC );
+	CBitmap bitmap;
+	bitmap.CreateCompatibleBitmap( pDC, m_client_r.right, m_client_r.bottom );
+	memDC.SelectObject(bitmap);
+
 	CRect r = m_client_r;
 	int y_off = 10;
 	int x_off = 10;
-	if( m_left_pane_invalid )
+	// erase previous contents
+	CBrush brush( RGB(255, 255, 255) );
+	CPen pen( PS_SOLID, 1, RGB(255, 255, 255) );
+	CBrush * old_brush = memDC.SelectObject( &brush );
+	CPen * old_pen = memDC.SelectObject( &pen );
+	// erase left pane
+	r.right = m_left_pane_w;
+	r.bottom -= m_bottom_pane_h;
+	memDC.Rectangle( &r );
+	memDC.SelectObject( old_brush );
+	memDC.SelectObject( old_pen );
+	CFont * old_font = memDC.SelectObject( &m_small_font );
+	// CPT: modified so that "Selection" is no longer one of the displayed layers
+	for( int i=1; i<GetNLayers(); i++ )
 	{
-		m_left_pane_invalid = FALSE;
-		// erase previous contents
-		CBrush brush( RGB(255, 255, 255) );
-		CPen pen( PS_SOLID, 1, RGB(255, 255, 255) );
-		CBrush * old_brush = pDC->SelectObject( &brush );
-		CPen * old_pen = pDC->SelectObject( &pen );
-		// erase left pane
-		r.right = m_left_pane_w;
-		r.bottom -= m_bottom_pane_h;
-		pDC->Rectangle( &r );
-		pDC->SelectObject( old_brush );
-		pDC->SelectObject( old_pen );
-		CFont * old_font = pDC->SelectObject( &m_small_font );
-		// CPT: modified so that "Selection" is no longer one of the displayed layers
-		for( int i=1; i<GetNLayers(); i++ )
+		// i = position index
+		r.SetRect( x_off, (i-1)*VSTEP+y_off, x_off+12, (i-1)*VSTEP+12+y_off );
+		// il = true layer num since copper layers are displayed out of order
+		int il = GetLayerNum(i);
+		CBrush brush( RGB(GetLayerRGB(il,0), GetLayerRGB(il,1), GetLayerRGB(il,2)));
+		if( GetLayerVis(il) )
 		{
-			// i = position index
-			r.SetRect( x_off, (i-1)*VSTEP+y_off, x_off+12, (i-1)*VSTEP+12+y_off );
-			// il = true layer num since copper layers are displayed out of order
-			int il = GetLayerNum(i);
-			CBrush brush( RGB(GetLayerRGB(il,0), GetLayerRGB(il,1), GetLayerRGB(il,2)));
-			if( GetLayerVis(il) )
-			{
-				// if layer is visible, draw colored rectangle
-				CBrush * old_brush = pDC->SelectObject( &brush );
-				pDC->Rectangle( &r );
-				pDC->SelectObject( old_brush );
-			}
-			else
-			{
-				// if layer is invisible, draw box with X
-				pDC->Rectangle( &r );
-				pDC->MoveTo( r.left, r.top );
-				pDC->LineTo( r.right, r.bottom );
-				pDC->MoveTo( r.left, r.bottom );
-				pDC->LineTo( r.right, r.top );
-			}
-			r.left += 20;
-			r.right += 120;
-			r.bottom += 5;
-			// CPT
-			CString label;
-			GetLayerLabel(i, label);
-			pDC->DrawText( label, -1, &r, 0 );
-			CRect ar = r;
-			ar.left = 2;
-			ar.right = 8;
-			ar.bottom -= 5;
-			if( il == m_active_layer )
-			{
-				// draw arrowhead
-				pDC->MoveTo( ar.left, ar.top+1 );
-				pDC->LineTo( ar.right-1, (ar.top+ar.bottom)/2 );
-				pDC->LineTo( ar.left, ar.bottom-1 );
-				pDC->LineTo( ar.left, ar.top+1 );
-			}
-			else
-			{
-				// erase arrowhead
-				pDC->FillSolidRect( &ar, RGB(255,255,255) );
-			}
+			// if layer is visible, draw colored rectangle
+			CBrush * old_brush = memDC.SelectObject( &brush );
+			memDC.Rectangle( &r );
+			memDC.SelectObject( old_brush );
 		}
-		r.left = x_off;
-		r.bottom += VSTEP*2;
-		r.top += VSTEP*2;
-		CString s ((LPCSTR) IDS_SelectionMask);
-		pDC->DrawText( s, -1, &r, DT_TOP );
-		y_off = r.bottom;
-		for( int i=0; i<GetNMasks(); i++ )
+		else
 		{
-			// i = position index
-			r.left = x_off;
-			r.right = x_off+12;
-			r.top = i*VSTEP+y_off;
-			r.bottom = i*VSTEP+12+y_off;
-			CBrush green_brush( RGB(0, 255, 0) );
-			CBrush red_brush( RGB(255, 0, 0) );
-			if( m_sel_mask & (1<<i) )
-			{
-				// if mask is selected is visible, draw green rectangle
-				CBrush * old_brush = pDC->SelectObject( &green_brush );
-				pDC->Rectangle( &r );
-				pDC->SelectObject( old_brush );
-			}
-			else
-			{
-				// if mask not selected, draw red
-				CBrush * old_brush = pDC->SelectObject( &red_brush );
-				pDC->Rectangle( &r );
-				pDC->SelectObject( old_brush );
-			}
-			r.left += 20;
-			r.right += 120;
-			r.bottom += 5;
-			// CPT
-			int id = GetMaskNamesID();
-			CString label, s ((LPCSTR) (id+i));
-			label.Format("%s. A%c", s, i<9? '1'+i: i==9? '0': '-');
-			pDC->DrawText( label, -1, &r, DT_TOP );
+			// if layer is invisible, draw box with X
+			memDC.Rectangle( &r );
+			memDC.MoveTo( r.left, r.top );
+			memDC.LineTo( r.right, r.bottom );
+			memDC.MoveTo( r.left, r.bottom );
+			memDC.LineTo( r.right, r.top );
 		}
+		r.left += 20;
+		r.right += 120;
+		r.bottom += 5;
 		// CPT
-		r.left = x_off;
-		r.bottom += VSTEP*2;
-		r.top += VSTEP*2;
-		int id = GetLeftPaneKeyID();
-		for (int i=0; i<9; i++) 
+		CString label;
+		GetLayerLabel(i, label);
+		memDC.DrawText( label, -1, &r, 0 );
+		CRect ar = r;
+		ar.left = 2;
+		ar.right = 8;
+		ar.bottom -= 5;
+		if( il == m_active_layer )
 		{
-			s.LoadStringA(id+i);
-			pDC->DrawText( s, -1, &r, DT_TOP );
-			int step = i%3==2? VSTEP*3/2: VSTEP;
-			r.bottom += step;
-			r.top += step;
+			// draw arrowhead
+			memDC.MoveTo( ar.left, ar.top+1 );
+			memDC.LineTo( ar.right-1, (ar.top+ar.bottom)/2 );
+			memDC.LineTo( ar.left, ar.bottom-1 );
+			memDC.LineTo( ar.left, ar.top+1 );
+		}
+		else
+		{
+			// erase arrowhead
+			memDC.FillSolidRect( &ar, RGB(255,255,255) );
 		}
 	}
+	r.left = x_off;
+	r.bottom += VSTEP*2;
+	r.top += VSTEP*2;
+	CString s ((LPCSTR) IDS_SelectionMask);
+	memDC.DrawText( s, -1, &r, DT_TOP );
+	y_off = r.bottom;
+	for( int i=0; i<GetNMasks(); i++ )
+	{
+		// i = position index
+		r.left = x_off;
+		r.right = x_off+12;
+		r.top = i*VSTEP+y_off;
+		r.bottom = i*VSTEP+12+y_off;
+		CBrush green_brush( RGB(0, 255, 0) );
+		CBrush red_brush( RGB(255, 0, 0) );
+		if( m_sel_mask & (1<<i) )
+		{
+			// if mask is selected is visible, draw green rectangle
+			CBrush * old_brush = memDC.SelectObject( &green_brush );
+			memDC.Rectangle( &r );
+			memDC.SelectObject( old_brush );
+		}
+		else
+		{
+			// if mask not selected, draw red
+			CBrush * old_brush = memDC.SelectObject( &red_brush );
+			memDC.Rectangle( &r );
+			memDC.SelectObject( old_brush );
+		}
+		r.left += 20;
+		r.right += 120;
+		r.bottom += 5;
+		// CPT
+		int id = GetMaskNamesID();
+		CString label, s ((LPCSTR) (id+i));
+		label.Format("%s. A%c", s, i<9? '1'+i: i==9? '0': '-');
+		memDC.DrawText( label, -1, &r, DT_TOP );
+	}
+	// CPT
+	r.left = x_off;
+	r.bottom += VSTEP*2;
+	r.top += VSTEP*2;
+	int id = GetLeftPaneKeyID();
+	for (int i=0; i<9; i++) 
+	{
+		s.LoadStringA(id+i);
+		memDC.DrawText( s, -1, &r, DT_TOP );
+		int step = i%3==2? VSTEP*3/2: VSTEP;
+		r.bottom += step;
+		r.top += step;
+	}
+	
+	// BitBlt from memDC to pDC.  Then restore mapping mode on m_memDC
+	r = m_client_r;
+	r.right = m_left_pane_w;
+	r.bottom -= m_bottom_pane_h;
+	pDC->BitBlt(r.left, r.top, r.Width(), r.Height(), &memDC, r.left, r.top, SRCCOPY);
+	memDC.DeleteDC();
+	bitmap.DeleteObject();
 }
 
 void CCommonView::DrawBottomPane(CDC *pDC)
 {
-	CFont * old_font = pDC->SelectObject( &m_small_font );
+	// CPT2 added double-buffering as in DrawLeftPane().
+	CDC memDC;
+	memDC.CreateCompatibleDC( pDC );
+	CBitmap bitmap;
+	bitmap.CreateCompatibleBitmap( pDC, m_client_r.right, m_client_r.bottom );
+	memDC.SelectObject(bitmap);
+
+	CFont * old_font = memDC.SelectObject( &m_small_font );
 
 	// get client rectangle
 	GetClientRect( &m_client_r );
@@ -386,13 +403,13 @@ void CCommonView::DrawBottomPane(CDC *pDC)
 	// Erase bottom pane (in case left pane overflowed)
 	CBrush brush( RGB(255, 255, 255) );
 	CPen pen( PS_SOLID, 1, RGB(255, 255, 255) );
-	CBrush * old_brush = pDC->SelectObject( &brush );
-	CPen * old_pen = pDC->SelectObject( &pen );
+	CBrush * old_brush = memDC.SelectObject( &brush );
+	CPen * old_pen = memDC.SelectObject( &pen );
 	CRect r (m_client_r);
 	r.top = r.bottom-m_bottom_pane_h;
-	pDC->Rectangle( &r );
-	pDC->SelectObject(old_brush);
-	pDC->SelectObject(old_pen);
+	memDC.Rectangle( &r );
+	memDC.SelectObject(old_brush);
+	memDC.SelectObject(old_pen);
 
 	// draw labels for function keys at bottom of client area.  CPT:  adjusted the positions of the gaps in lefthanded mode
 	for (int ifn=0; ifn<9; ifn++)
@@ -406,26 +423,33 @@ void CCommonView::DrawBottomPane(CDC *pDC)
 			m_client_r.bottom-FKEY_OFFSET_Y-FKEY_R_H,
 			left + FKEY_R_W,
 			m_client_r.bottom-FKEY_OFFSET_Y );
-		pDC->Rectangle( &r );
-		pDC->MoveTo( r.left+FKEY_SEP_W, r.top );
-		pDC->LineTo( r.left+FKEY_SEP_W, r.top + FKEY_R_H/2 + 1 );
-		pDC->MoveTo( r.left, r.top + FKEY_R_H/2 );
-		pDC->LineTo( r.left+FKEY_SEP_W, r.top + FKEY_R_H/2 );
+		memDC.Rectangle( &r );
+		memDC.MoveTo( r.left+FKEY_SEP_W, r.top );
+		memDC.LineTo( r.left+FKEY_SEP_W, r.top + FKEY_R_H/2 + 1 );
+		memDC.MoveTo( r.left, r.top + FKEY_R_H/2 );
+		memDC.LineTo( r.left+FKEY_SEP_W, r.top + FKEY_R_H/2 );
 		r.top += 1;
 		r.left += 2;
 		char fkstr[3] = "F1";
 		fkstr[1] = '1' + ifn;
-		pDC->DrawText( fkstr, -1, &r, 0 );
+		memDC.DrawText( fkstr, -1, &r, 0 );
 		r.left += FKEY_SEP_W;
 		CString str1 ((LPCSTR) m_fkey_rsrc[2*ifn]);
 		CString str2 ((LPCSTR) m_fkey_rsrc[2*ifn+1]);
-		pDC->DrawText( str1, -1, &r, 0 );
+		memDC.DrawText( str1, -1, &r, 0 );
 		r.top += FKEY_R_H/2 - 2;
-		pDC->DrawText( str2, -1, &r, 0 );
+		memDC.DrawText( str2, -1, &r, 0 );
 	}
 	// end CPT
+	memDC.SelectObject( old_font );
 
-	pDC->SelectObject( old_font );
+	// BitBlt from memDC to pDC:
+	r = m_client_r;
+	r.top = r.bottom-m_bottom_pane_h;
+	pDC->DPtoLP(r);
+	pDC->BitBlt(r.left, r.top, r.Width(), r.Height(), &memDC, r.left, r.top, SRCCOPY);
+	memDC.DeleteDC();
+	bitmap.DeleteObject();
 }
 
 
@@ -461,7 +485,6 @@ bool CCommonView::CheckBottomPaneClick(CPoint &point) {
 bool CCommonView::CheckLeftPaneClick(CPoint &point) {
 	if( point.x >= m_left_pane_w ) return false;
 	// clicked in left pane
-	InvalidateLeftPane();
 	CRect r = m_client_r;
 	int y_off = 10;
 	int x_off = 10;
@@ -653,7 +676,6 @@ bool CCommonView::HandleLayerKey(UINT nChar, bool bShiftKeyDown, bool bCtrlKeyDo
 	int l = ch - layer_char;
 	int layer = GetLayerNum(l + GetTopCopperLayer());
 	if( layer >= GetNLayers() ) return true;
-	InvalidateLeftPane();
 	Invalidate(FALSE);
 	if (bCtrlKeyDown) 
 	{
@@ -731,7 +753,6 @@ void CCommonView::HandleCtrlFKey(int nChar) {
 	int layer = nChar-110;
 	int vis = ToggleLayerVis(layer);
 	m_dlist->SetLayerVisible( layer, vis );
-	InvalidateLeftPane();
 	Invalidate( FALSE );
 }
 
@@ -761,7 +782,6 @@ void CCommonView::OnSysKeyUp(UINT nChar, UINT nRepCnt, UINT nFlags)
 		else if (nChar==VK_OEM_MINUS) sel = 10;
 		m_sel_mask ^= (1<<sel);
 		m_sel_mask_bits ^= GetMaskBtnBits(sel);
-		InvalidateLeftPane();
 		Invalidate( FALSE );
 		return;
 		}

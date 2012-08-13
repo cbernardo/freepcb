@@ -109,7 +109,6 @@ public:
 	int m_bottom_pane_h;	// height of pane at bottom of screen for key assignments, etc.
 	int m_fkey_w;			// CPT: Width of f-key boxes.
 	CRgn m_pcb_rgn;			// region for the pcb
-	BOOL m_left_pane_invalid;	// flag to erase and redraw left pane
 
 	// memory DC and bitmap
 	BOOL m_memDC_created;
@@ -170,7 +169,6 @@ public:
 	int ShowCursor();
 	void ShowRelativeDistance( int dx, int dy );
 	void ShowRelativeDistance( int x, int y, int dx, int dy );
-	void InvalidateLeftPane() { m_left_pane_invalid = TRUE; }
 	void DrawLeftPane(CDC *pDC);
 	void DrawBottomPane(CDC *pDC);
 	// User input response:

@@ -699,7 +699,6 @@ BOOL CFreePcbDoc::FileOpen( LPCTSTR fn, BOOL bLibrary )
 		// force redraw of function key text
 		m_view->m_cursor_mode = 999;
 		m_view->SetCursorMode( CUR_NONE_SELECTED );
-		m_view->InvalidateLeftPane();
 		ProjectModified( FALSE );
 		m_view->OnViewAllElements();
 		m_auto_elapsed = 0;
@@ -2433,7 +2432,6 @@ void CFreePcbDoc::OnViewLayers()
 			m_dlist->SetLayerRGB( i, C_RGB(m_rgb[i][0],m_rgb[i][1],m_rgb[i][2]) );
 			m_dlist->SetLayerVisible( i, m_vis[i] );
 		}
-		view->m_left_pane_invalid = TRUE;	// force erase of left pane
 		view->CancelSelection();
 		ProjectModified( TRUE );
 		view->Invalidate( FALSE );
@@ -3567,7 +3565,6 @@ void CFreePcbDoc::OnProjectOptions()
 
 		if( m_vis[LAY_RAT_LINE] && !m_auto_ratline_disable )
 			m_nlist->OptimizeConnections();
-		m_view->InvalidateLeftPane();
 		m_view->Invalidate( FALSE );
 		m_project_open = TRUE;
 
@@ -5518,7 +5515,7 @@ void CFreePcbDoc::DRCConnect(cconnect2 *c, int units, DesignRules *dr)
 			max_via_w = max( max_via_w, pad_w );
 		}
 		if( max_via_w == 0 )
-			ASSERT(0);
+			ASSERT(0);										// CPT2 TODO I'm getting this sometimes!
 		c->min_x = min( c->min_x, vtx->x - max_via_w/2 );
 		c->max_x = max( c->max_x, vtx->x + max_via_w/2 );
 		c->min_y = min( c->min_y, vtx->y - max_via_w/2 );

@@ -1079,7 +1079,6 @@ void CFootprintView::SetFKText( int mode )
 		m_fkey_rsrc[2*i+1] = IDS_FkFpStr+index+1;
 	}
 
-	InvalidateLeftPane();
 	Invalidate( FALSE );
 }
 

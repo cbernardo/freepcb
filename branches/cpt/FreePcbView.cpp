@@ -340,6 +340,8 @@ void CFreePcbView::OnDraw(CDC* pDC)
 	}
 
 	// CPT - moved code to draw left pane into DrawLeftPane()
+	// CPT2 NB got rid of the old stuff with InvalidateLeftPane(), which wasn't working so well.  I've added double-buffering during
+	// DrawLeftPane() and DrawBottomPane() to prevent flicker.
 	// draw stuff on left pane
 	DrawLeftPane(pDC);
 	// draw function keys on bottom pane
@@ -3082,7 +3084,6 @@ void CFreePcbView::SetFKText( int mode )
 	}
 	// end CPT
 
-	InvalidateLeftPane();
 	Invalidate( FALSE );
 }
 
@@ -6228,8 +6229,8 @@ void CFreePcbView::MoveGroup( int dx, int dy )
 	UngluePartsInGroup();
 
 	// Start by clearing utility flags for all pcb items.  NB not doing any undrawing yet
-	// Also NB the old routine used both item->utility and item->utility2 flags.  I'm going to use 3 bits within item->utility instead:
-	enum { bitSel = 1, bitMoved = 2, bitOther = 4 };
+	// Also NB the old routine used both item->utility and item->utility2 flags.  I'm going to use 2 bits within item->utility instead:
+	enum { bitSel = 1, bitMoved = 2 };
 	m_doc->m_nlist->MarkAllNets(0);
 	m_doc->m_plist->MarkAllParts(0);
 	citer<cboard> ib (&m_doc->boards);
@@ -6305,12 +6306,10 @@ void CFreePcbView::MoveGroup( int dx, int dy )
 		// move part
 		part->Move( part->x+dx, part->y+dy, part->angle, part->side );
 		// find segments which connect to this part and move them
-		// use net->utility's bitOther to avoid repeats
 		citer<cpin2> ipin (&part->pins);
 		for (cpin2 *pin = ipin.First(); pin; pin = ipin.Next())
 		{
-			if (!pin->net || (pin->net->utility & bitOther)) continue;
-			pin->net->utility |= bitOther;
+			if (!pin->net) continue;
 			citer<cconnect2> ic (&pin->net->connects);
 			for (cconnect2 *c = ic.First(); c; c = ic.Next())
 			{
@@ -6418,8 +6417,8 @@ void CFreePcbView::RotateGroup()
 	UngluePartsInGroup();
 
 	// Start by clearing utility flags for all pcb items.  NB not doing any undrawing yet
-	// Also NB the old routine used both item->utility and item->utility2 flags.  I'm going to use 3 bits within item->utility instead:
-	enum { bitSel = 1, bitMoved = 2, bitOther = 4 };
+	// Also NB the old routine used both item->utility and item->utility2 flags.  I'm going to use 2 bits within item->utility instead:
+	enum { bitSel = 1, bitMoved = 2 };
 	m_doc->m_nlist->MarkAllNets(0);
 	m_doc->m_plist->MarkAllParts(0);
 	citer<cboard> ib (&m_doc->boards);
@@ -6498,12 +6497,10 @@ void CFreePcbView::RotateGroup()
 		part->Move( groupAverageX + part->y - groupAverageY, groupAverageY - part->x + groupAverageX, 
 					(part->angle+90) % 360, part->side );
 		// find segments which connect to this part and move them
-		// use net->utility's bitOther to avoid repeats
 		citer<cpin2> ipin (&part->pins);
 		for (cpin2 *pin = ipin.First(); pin; pin = ipin.Next())
 		{
-			if (!pin->net || (pin->net->utility & bitOther)) continue;
-			pin->net->utility |= bitOther;
+			if (!pin->net) continue;
 			citer<cconnect2> ic (&pin->net->connects);
 			for (cconnect2 *c = ic.First(); c; c = ic.Next())
 			{

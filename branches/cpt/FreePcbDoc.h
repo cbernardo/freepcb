@@ -71,7 +71,7 @@ public:
 	double m_file_version;		// the oldest version of FreePCB that can read
 								// files created with this version
 	double m_read_version;		// the version from the project file
-	int m_WindowsMajorVersion;	// CPT2 added, seemed helpful
+	int m_WindowsMajorVersion;	// CPT2 added, seemed helpful 
 	BOOL bNoFilesOpened;		// TRUE if no files have been opened
 	CShape * m_edit_footprint;	// Set if we're editing the footprint of a selected part.  CPT2 was BOOL, made it more informative...
 	BOOL m_project_open;		// FALSE if no project open
