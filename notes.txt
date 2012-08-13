@@ -94,6 +94,9 @@ Note that in r322 CFreePcbDoc::ProjectModified(true) has been assigned some more
 namely, it invokes both CFreePcbDoc::Redraw(), and FinishUndoRecord() (a crucial piece of the new undo architecture).  It also calls Invalidate(false) as
 well as CCommonView::SetMainMenu().
 
+
+// Add to SVN notes:
+
 // FreePCB : programming notes
 //
 

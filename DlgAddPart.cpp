@@ -458,10 +458,10 @@ BOOL CDlgAddPart::OnInitDialog()
 			}
 		}
 		m_edit_package.SetWindowText( "" );
-		m_units = MIL;
+		m_units = m_units_initial = MIL;
 		m_combo_units.SetCurSel(0);
-		m_x = 0;
-		m_y = 0;
+		m_x = m_x_initial = 0;
+		m_y = m_y_initial = 0;
 		m_edit_x.SetWindowText( "0" );
 		m_edit_y.SetWindowText( "0" );
 		m_combo_angle.SetCurSel( 0 );
@@ -518,8 +518,9 @@ BOOL CDlgAddPart::OnInitDialog()
 			m_combo_units.SetCurSel(0);
 		else
 			m_combo_units.SetCurSel(1);
-		m_x = 0;
-		m_y = 0;
+		m_units_initial = m_units;
+		m_x = m_x_initial = 0;
+		m_y = m_y_initial = 0;
 		SetFields();
 		m_radio_set.EnableWindow( 0 );
 		m_radio_drag.EnableWindow( 0 );
@@ -544,8 +545,9 @@ BOOL CDlgAddPart::OnInitDialog()
 			m_combo_units.SetCurSel(0);
 		else
 			m_combo_units.SetCurSel(1);
-		m_x = (*m_pl)[m_ip].x;
-		m_y = (*m_pl)[m_ip].y;
+		m_units_initial = m_units;
+		m_x = m_x_initial = (*m_pl)[m_ip].x;
+		m_y = m_y_initial = (*m_pl)[m_ip].y;
 		SetFields();
 		m_list_side.SetCurSel( pi->side );
 		int cent_angle = 0;
@@ -822,20 +824,34 @@ void CDlgAddPart::OnCbnSelchangeComboAddPartUnits()
 
 void CDlgAddPart::GetFields()
 {
-	CString str;
+	CString strX, strY, strXInit, strYInit;
 	if( m_units == MIL )
 	{
-		m_edit_x.GetWindowText( str );
-		m_x = atof( str ) * NM_PER_MIL;
-		m_edit_y.GetWindowText( str );
-		m_y = atof( str ) * NM_PER_MIL;
+		// CPT2.  Modified this to ensure that we revert to the initial values of m_x and m_y if the text/units are the same as they were initially.
+		// Before, rounding errors could cause the part to move a tiny amount. 
+		m_edit_x.GetWindowText( strX );
+		m_edit_y.GetWindowText( strY );
+		MakeCStringFromDouble( &strXInit, m_x_initial/NM_PER_MIL );
+		MakeCStringFromDouble( &strYInit, m_y_initial/NM_PER_MIL );
+		if (m_units_initial==m_units && strX==strXInit && strY==strYInit)
+			m_x = m_x_initial,
+			m_y = m_y_initial;
+		else
+			m_x = atof( strX ) * NM_PER_MIL,
+			m_y = atof( strY ) * NM_PER_MIL;
 	}
 	else
 	{
-		m_edit_x.GetWindowText( str );
-		m_x = atof( str ) * 1000000.0;
-		m_edit_y.GetWindowText( str );
-		m_y = atof( str ) * 1000000.0;
+		m_edit_x.GetWindowText( strX );
+		m_edit_y.GetWindowText( strY );
+		MakeCStringFromDouble( &strXInit, m_x_initial/1000000. );
+		MakeCStringFromDouble( &strYInit, m_y_initial/1000000. );
+		if (m_units_initial==m_units && strX==strXInit && strY==strYInit)
+			m_x = m_x_initial,
+			m_y = m_y_initial;
+		else
+			m_x = atof( strX ) * 1000000.,
+			m_y = atof( strY ) * 1000000.;
 	}
 	m_edit_ref_des.GetWindowTextA( m_ref_des );
 }

@@ -1975,7 +1975,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 			{
 				c->SaveUndoInfo();
 				m_active_layer = remove->m_layer;
-				CancelSelection();
+				CancelHighlight();
 				remove->RemoveMerge(!m_dir);
 				m_doc->ProjectModified(true);
 				SelectItem(seg);

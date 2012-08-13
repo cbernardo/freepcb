@@ -440,7 +440,7 @@ void CCommonView::DrawBottomPane(CDC *pDC)
 		r.top += FKEY_R_H/2 - 2;
 		memDC.DrawText( str2, -1, &r, 0 );
 	}
-	// end CPT
+	// end CPT 
 	memDC.SelectObject( old_font );
 
 	// BitBlt from memDC to pDC:
