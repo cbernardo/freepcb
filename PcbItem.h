@@ -848,7 +848,7 @@ public:
 	bool IsText() { return true; }
 	ctext *ToText() { return this; }
 	int GetTypeBit() { return bitText; }
-	int GetLayer() { return m_layer; }
+	int GetLayer();																// Done in cpp:  NB now takes into account the side of any containing part
 	cundo_item *MakeUndoItem()
 		{ return new cutext(this); }
 	cpart2 *GetPart() { return m_part; }
@@ -1056,9 +1056,9 @@ public:
 	int GetNumOutlineStrokes();
 	void OptimizeConnections( BOOL bBelowPinCount, int pin_count, BOOL bVisibleNetsOnly=TRUE );	// Done in cpp, derived from old CNetList function
 	cpin2 *GetPinByName(CString *name);	// Done in cpp, new
-	CPoint GetCentroidPoint();			// CPT2 TODO derive from CPartList::GetCentroidPoint
-	CPoint GetGluePoint( int iglue );	// CPT2 TODO derive from CPartList::GetGluePoint()
-	int GetBoundingRect( CRect * part_r );			// Done in cpp. Derived from CPartList::GetPartBoundingRect()
+	CPoint GetCentroidPoint();			// Done in cpp, derived from CPartList::GetCentroidPoint
+	CPoint GetGluePoint( cglue *g );	// Done in cpp, derived from CPartList::GetGluePoint()
+	int GetBoundingRect( CRect * part_r );		// Done in cpp. Derived from CPartList::GetPartBoundingRect()
 	void ChangeFootprint( CShape * shape );		// Done in cpp, loosely derived from CPartList::PartFootprintChanged() & CNetList::PartFootprintChanged()
 
 	int Draw();							// Done in cpp
@@ -1183,7 +1183,7 @@ public:
 	void Close(int style = STRAIGHT);										// Done in cpp
 	void Unclose();															// Done in cpp
 	CRect GetCornerBounds();												// Done in cpp
-	BOOL TestPointInside( int x, int y );									// CPT2 Needed?
+	bool TestPointInside( int x, int y );									// Done in cpp
 	void SetPoly( cpolyline *_poly );										// Done in cpp
 	void Remove();															// Done in cpp, derived from CPolyLine::RemoveContour
 };

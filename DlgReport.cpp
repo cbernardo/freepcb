@@ -7,6 +7,8 @@
 #include "FreePcbDoc.h"
 #include "Gerber.h"
 #include "Net_iter.h"
+#include "PartListNew.h"
+#include "NetListNew.h"
 
 // CDlgReport dialog
 
@@ -59,14 +61,12 @@ void CDlgReport::DoDataExchange(CDataExchange* pDX)
 
 void CDlgReport::Initialize( CFreePcbDoc * doc )
 {
-#ifndef CPT2
 	m_doc = doc;
 	m_pl = doc->m_plist;
 	m_nl = doc->m_nlist;
 	m_flags = doc->m_report_flags;
 	m_ccw = (m_flags & CW)/CW;		// set to 0 to use CCW (default)
 	m_top = 1 - (m_flags & TOP)/TOP;	// set to 1 to use bottom (default)
-#endif
 }
 
 
@@ -78,18 +78,17 @@ END_MESSAGE_MAP()
 
 // CDlgReport message handlers
 
-// global helper for qsort(), for quicksort of array of string pointers
+// global helper for qsort(), for quicksort of array of part pointers
 //
 int mycompare( const void *arg1, const void *arg2 )
 {
-	CString * str1 = *(CString**)arg1;
-	CString * str2 = *(CString**)arg2;
-	return str1->CompareNoCase( *str2 );		
+	cpart2 * p1 = *(cpart2**)arg1;
+	cpart2* p2 = *(cpart2**)arg2;
+	return p1->ref_des.CompareNoCase( p2->ref_des );		
 }
 
 void CDlgReport::OnBnClickedOk()
 {
-#ifndef CPT2
 	CString line, str1, str2, str3, str4, str_units;
 	int dp;			// decimal places for dimensions
 	m_flags = 0;
@@ -160,16 +159,17 @@ void CDlgReport::OnBnClickedOk()
 		mess.Format(s, m_doc->m_num_copper_layers);
 		file.WriteString( mess );
 		s.LoadStringA(IDS_NumberOfBoardOutlines);
-		mess.Format(s, m_doc->m_board_outline.GetSize());
+		mess.Format(s, m_doc->boards.GetSize());
 		file.WriteString( mess );
 		CRect all_board_bounds;
 		all_board_bounds.left = INT_MAX;
 		all_board_bounds.bottom = INT_MAX;
 		all_board_bounds.right = INT_MIN;
 		all_board_bounds.top = INT_MIN;
-		for( int ib=0; ib<m_doc->m_board_outline.GetSize(); ib++ )
+		citer<cboard> ib (&m_doc->boards);
+		for (cboard *b = ib.First(); b; b = ib.Next())
 		{
-			CRect r = m_doc->m_board_outline[ib].GetBounds();
+			CRect r = b->GetBounds();
 			all_board_bounds.left = min( all_board_bounds.left, r.left );
 			all_board_bounds.right = max( all_board_bounds.right, r.right );
 			all_board_bounds.bottom = min( all_board_bounds.bottom, r.bottom );
@@ -183,37 +183,36 @@ void CDlgReport::OnBnClickedOk()
 		mess.Format(s, str1, str2);
 		file.WriteString( mess );
 	}
+
 	int num_parts = 0;
 	int num_parts_with_fp = 0;
 	int num_pins = 0;
 	int num_th_pins = 0;
 	int num_nets = 0;
 	int num_vias = 0;
-	cpart * part = m_pl->GetFirstPart();
-	while( part )
+	citer<cpart2> ip (&m_pl->parts);
+	for (cpart2 *part = ip.First(); part; part = ip.Next())
 	{
 		num_parts++;
-		if( part->shape )
+		if( !part->shape )
+			continue;
+		num_parts_with_fp++;
+		citer<cpin2> ipin (&part->pins);
+		for (cpin2 *pin = ipin.First(); pin; pin = ipin.Next())
 		{
-			num_parts_with_fp++;
-			int npins = part->shape->GetNumPins();
-			for( int ip=0; ip<npins; ip++ )
+			num_pins++;
+			int hole_size = pin->ps->hole_size;
+			if( hole_size > 0 )
 			{
-				num_pins++;
-				int hole_size = part->shape->m_padstack[ip].hole_size;
-				if( hole_size > 0 )
-				{
-					int num_holes;
-					BOOL bFound = hole_size_map.Lookup( hole_size, num_holes );
-					if( bFound )
-						hole_size_map.SetAt( hole_size, num_holes+1 );
-					else
-						hole_size_map.SetAt( hole_size, 1 );
-					num_th_pins++;
-				}
+				int num_holes;
+				BOOL bFound = hole_size_map.Lookup( hole_size, num_holes );
+				if( bFound )
+					hole_size_map.SetAt( hole_size, num_holes+1 );
+				else
+					hole_size_map.SetAt( hole_size, 1 );
+				num_th_pins++;
 			}
 		}
-		part = m_pl->GetNextPart( part );
 	}
 	if( !(m_flags & NO_PCB_STATS) )
 	{
@@ -228,15 +227,16 @@ void CDlgReport::OnBnClickedOk()
 		line.Format( s,	num_pins, num_th_pins, num_pins-num_th_pins );
 		file.WriteString( line );
 	}
-	CIterator_cnet iter_net(m_nl);
-	for( cnet * net = iter_net.GetFirst(); net; net=iter_net.GetNext() )
+
+	citer<cnet2> in (&m_nl->nets);
+	for (cnet2 *net = in.First(); net; net = in.Next())
 	{
 		num_nets++;
-		CIterator_cconnect iter_con(net);
-		for( cconnect * c=iter_con.GetFirst(); c; c=iter_con.GetNext() )
+		citer<cconnect2> ic (&net->connects);
+		for (cconnect2 *c = ic.First(); c; c = ic.Next())
 		{
-			CIterator_cvertex iter_vtx( c );
-			for( cvertex * v=iter_vtx.GetFirst(); v; v=iter_vtx.GetNext() )
+			citer<cvertex2> iv (&c->vtxs);
+			for (cvertex2 *v = iv.First(); v; v = iv.Next())
 			{
 				int hole_size = v->via_hole_w; 
 				if( hole_size > 0 )
@@ -288,19 +288,15 @@ void CDlgReport::OnBnClickedOk()
 	}
 	if( !(m_flags & NO_PARTS_LIST) )
 	{
-		// make array of pointers to ref_des strings, used for sorting
-		int nparts = m_pl->GetNumParts();
-		CString ** ref_ptr = (CString**)malloc( nparts * sizeof(CString*) );
-		cpart * part = m_pl->GetFirstPart();
-		int ip = 0;
-		while( part )
-		{
-			ref_ptr[ip] = &part->ref_des;
-			ip++;
-			part = m_pl->GetNextPart( part );
-		}
+		// make array of pointers to all parts, used for sorting
+		int nparts = m_pl->parts.GetSize();
+		cpart2 ** parts = (cpart2**) malloc( nparts * sizeof(cpart2*) );
+		citer<cpart2> ip (&m_pl->parts);
+		int i = 0;
+		for (cpart2 *p = ip.First(); p; p = ip.Next())
+			parts[i++] = p;
 		// quicksort
-		qsort( ref_ptr, nparts, sizeof(CString*), mycompare );
+		qsort( parts, nparts, sizeof(cpart2*), mycompare );
 		// make arrays of strings for table
 		CArray <CString> ref_des, package, value, footprint, pins, holes; 
 		CArray <CString> side, angle, c_x, c_y, p1_x, p1_y;
@@ -360,15 +356,12 @@ void CDlgReport::OnBnClickedOk()
 			dp = 3;
 		else
 			ASSERT(0);
-		for( int ip=0; ip<m_pl->GetNumParts(); ip++ )
+		for( int ip = 0; ip < nparts; ip++ )
 		{
-			part = m_pl->GetPartByName( *ref_ptr[ip] );
-			if( !part )
-				ASSERT(0);
-			ref_ptr[ip] = &part->ref_des;
+			cpart2 *part = parts[ip];
 			ref_des[ip] = part->ref_des;
 			package[ip] = part->package;
-			value[ip] = part->value;
+			value[ip] = part->value_text;
 			footprint[ip] = "";
 			pins[ip] = "";
 			holes[ip] = "";
@@ -381,16 +374,15 @@ void CDlgReport::OnBnClickedOk()
 			{
 				BOOL bSMT = TRUE;
 				int nholes = 0;
-				for( int ipin=0; ipin<part->shape->GetNumPins(); ipin++ )
-				{
-					if( part->shape->m_padstack[ipin].hole_size > 0 )
+				citer<cpin2> ipin (&part->pins);
+				for (cpin2 *pin = ipin.First(); pin; pin = ipin.Next())
+					if( pin->ps->hole_size > 0 )
 					{
 						bSMT = FALSE;
 						nholes++;
 					}
-				}
 				footprint.SetAtGrow( ip, part->shape->m_name );
-				str1.Format( "%d", part->shape->GetNumPins() );
+				str1.Format( "%d", part->pins.GetSize() );
 				pins[ip] = str1;
 				str1.Format( "%d", nholes );
 				holes[ip] = str1;
@@ -399,68 +391,79 @@ void CDlgReport::OnBnClickedOk()
 				else
 					str1.LoadStringA(IDS_Bottom);
 				side[ip] = str1;
-				int a = ::GetReportedAngleForPart( part->angle, 
-				part->shape->m_centroid_angle, part->side );				
+				int a = ::GetReportedAngleForPart( part->angle, part->shape->m_centroid->m_angle, part->side );				
 				if( m_flags & CW )
 					a = ccw(a);		// degrees cw
 				if( !(m_flags & TOP) && (a == 0 || a == 180) )
 					a = 180 - a;	// viewed from bottom, flipped left-right
 				str1.Format( "%d", a );
 				angle[ip] = str1;
-				CPoint centroid_pt = m_pl->GetCentroidPoint( part );
+				CPoint centroid_pt = part->GetCentroidPoint();
 				::MakeCStringFromDimension( &str1, centroid_pt.x, m_units, FALSE, FALSE, TRUE, dp );
 				c_x[ip] = str1;
 				::MakeCStringFromDimension( &str1, centroid_pt.y, m_units, FALSE, FALSE, TRUE, dp );
 				c_y[ip] = str1;
-				int index_p1 = part->shape->GetPinIndexByName( "1" );
-				if( index_p1 == -1 )
-					index_p1 = part->shape->GetPinIndexByName( "A1" );
-				if( index_p1 != -1 )
+				cpin2 *pin1 = part->GetPinByName( &CString("1") );
+				if( !pin1 )
+					pin1 = part->GetPinByName( &CString("A1") );
+				if( pin1 )
 				{
-					CPoint pt1 = m_pl->GetPinPoint( part, index_p1 );
+					CPoint pt1 (pin1->x, pin1->y );
 					::MakeCStringFromDimension( &str1, pt1.x, m_units, FALSE, FALSE, TRUE, dp );
 					p1_x[ip] = str1;
 					::MakeCStringFromDimension( &str1, pt1.y, m_units, FALSE, FALSE, TRUE, dp );
 					p1_y[ip] = str1;
 				}
-				int ndots = part->shape->m_glue.GetSize();
+
+				int ndots = part->shape->m_glues.GetSize();
 				if( ndots == 0 && bSMT )
 					ndots = 1;
-				maxnum_dots = max( maxnum_dots, ndots );
-				CArray< CString > * g_w_str = &dot_w[ip];	// pointer to array of glue widths
-				CArray< CString > * g_x_str = &dot_x[ip];	// pointer to array of glue x
-				CArray< CString > * g_y_str = &dot_y[ip];	// pointer to array of glue y
+				maxnum_dots = ndots;
+				CArray<CString> * g_w_str = &dot_w[ip];	// pointer to array of glue widths
+				CArray<CString> * g_x_str = &dot_x[ip];	// pointer to array of glue x
+				CArray<CString> * g_y_str = &dot_y[ip];	// pointer to array of glue y
 				g_w_str->SetSize( ndots );
 				g_x_str->SetSize( ndots );
 				g_y_str->SetSize( ndots );
-				for( int idot=0; idot<ndots; idot++ ) 
+				if (part->shape->m_glues.GetSize()==0 && bSMT)
 				{
-					int g_w;
-					CPoint g_pt;
-					if( part->shape->m_glue.GetSize() == 0 )
-					{
-						g_w = m_doc->m_default_glue_w;
-						g_pt = m_pl->GetCentroidPoint( part );
-					}
-					else
-					{
-						g_w = part->shape->m_glue[idot].w;
-						if( g_w == 0 )
-							g_w = m_doc->m_default_glue_w;
-						g_pt = m_pl->GetGluePoint( part, idot );
-					}
+					int g_w = m_doc->m_default_glue_w;
+					CPoint g_pt = part->GetCentroidPoint();
 					CString temp;
 					::MakeCStringFromDimension( &temp, g_w, m_units, FALSE, FALSE, TRUE, dp );
-					(*g_w_str)[idot] = temp;
+					(*g_w_str)[0] = temp;
 					maxlen_dot_w = max( maxlen_dot_w, temp.GetLength() );
 					::MakeCStringFromDimension( &temp, g_pt.x, m_units, FALSE, FALSE, TRUE, dp );
-					(*g_x_str)[idot] = temp;
+					(*g_x_str)[0] = temp;
 					maxlen_dot_x = max( maxlen_dot_x, temp.GetLength() );
 					::MakeCStringFromDimension( &temp, g_pt.y, m_units, FALSE, FALSE, TRUE, dp );
-					(*g_y_str)[idot] = temp;
+					(*g_y_str)[0] = temp;
 					maxlen_dot_y = max( maxlen_dot_y, temp.GetLength() );
 				}
+				else
+				{
+					citer<cglue> ig (&part->shape->m_glues);
+					int idot = 0;
+					for (cglue *g = ig.First(); g; g = ig.Next(), idot++)
+					{
+						int g_w = g->w;
+						if( g_w == 0 )
+							g_w = m_doc->m_default_glue_w;
+						CPoint g_pt = part->GetGluePoint( g );
+						CString temp;
+						::MakeCStringFromDimension( &temp, g_w, m_units, FALSE, FALSE, TRUE, dp );
+						(*g_w_str)[idot] = temp;
+						maxlen_dot_w = max( maxlen_dot_w, temp.GetLength() );
+						::MakeCStringFromDimension( &temp, g_pt.x, m_units, FALSE, FALSE, TRUE, dp );
+						(*g_x_str)[idot] = temp;
+						maxlen_dot_x = max( maxlen_dot_x, temp.GetLength() );
+						::MakeCStringFromDimension( &temp, g_pt.y, m_units, FALSE, FALSE, TRUE, dp );
+						(*g_y_str)[idot] = temp;
+						maxlen_dot_y = max( maxlen_dot_y, temp.GetLength() );
+					}
+				}
 			}
+
 			maxlen_ref_des = max( maxlen_ref_des, ref_des[ip].GetLength() );
 			maxlen_package = max( maxlen_package, package[ip].GetLength() );
 			maxlen_value = max( maxlen_value, value[ip].GetLength() );
@@ -472,6 +475,7 @@ void CDlgReport::OnBnClickedOk()
 			maxlen_p1_x = max( maxlen_p1_x, p1_x[ip].GetLength() );
 			maxlen_p1_y = max( maxlen_p1_y, p1_y[ip].GetLength() );
 		}
+
 		CString format_str;
 		format_str.Format( "%%%ds  %%%ds  %%%ds  %%%ds  %%%ds  %%%ds  %%%ds  %%%ds  %%%ds  %%%ds  %%%ds  %%%ds", 
 			maxlen_ref_des, maxlen_package, maxlen_value, maxlen_footprint, maxlen_pins, maxlen_holes,
@@ -650,6 +654,7 @@ void CDlgReport::OnBnClickedOk()
 		line.Format(s, str_paste_shrink);
 		file.WriteString( line );
 	}
+
 	if( !(m_flags & NO_DRC_PARAMS) )  
 	{
 		CString s ((LPCSTR) IDS_DRCSettings);
@@ -721,6 +726,7 @@ void CDlgReport::OnBnClickedOk()
 		line.Format(s, str_min_copper_copper);
 		file.WriteString( line );
 	}
+
 	if( m_flags & (DRC_LIST | CONNECTIVITY_LIST) )
 	{
 		BOOL bDrc = m_flags & DRC_LIST;
@@ -729,17 +735,15 @@ void CDlgReport::OnBnClickedOk()
 		DesignRules dr = m_doc->m_dr;
 		dr.bCheckUnrouted = bCon;
 		m_doc->m_drelist->Clear();
-		m_pl->DRC( NULL, m_doc->m_num_copper_layers, m_units, TRUE, 
-			&m_doc->m_board_outline, &dr, m_doc->m_drelist );
+		m_doc->DRC( m_units, TRUE, &dr );
 		if( bDrc )
 		{
 			CString s ((LPCSTR) IDS_DRCErrors);
 			file.WriteString( s );
 		}
-		POSITION pos;
-		for( pos = m_doc->m_drelist->list.GetHeadPosition(); pos != NULL; )
+		citer<cdre> id (&m_doc->m_drelist->dres);
+		for (cdre *dre = id.First(); dre; dre = id.Next())
 		{
-			DRError * dre = (DRError*)m_doc->m_drelist->list.GetNext( pos );
 			CString str = dre->str, s ((LPCSTR) IDS_RoutedConnectionFrom);
 			BOOL bConError = (str.Find( s ) != -1);
 			if( bConError && bCon && !bConHeading )
@@ -759,8 +763,8 @@ void CDlgReport::OnBnClickedOk()
 		m_doc->m_drelist->Clear();
 	}
 	file.Close();
+	// CPT2 TODO provide some user feedback that it's been done
 	OnOK();
-#endif
 }
 
 void CDlgReport::OnBnClickedCancel()

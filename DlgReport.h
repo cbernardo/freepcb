@@ -34,8 +34,8 @@ protected:
 	DECLARE_MESSAGE_MAP()
 public:
 	CFreePcbDoc * m_doc;
-	CPartList * m_pl;
-	CNetList * m_nl;
+	cpartlist * m_pl;
+	cnetlist * m_nl;
 	int m_flags;
 	int m_units;
 	int m_top;

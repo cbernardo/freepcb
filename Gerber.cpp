@@ -2,11 +2,17 @@
 //
 #include "stdafx.h"
 #include "Gerber.h"
+#include "PcbItem.h"
+#include "PartListNew.h"
+#include "NetListNew.h"
+#include "TextListNew.h"
 
 #define pi  3.14159265359
 
 #define CLEARANCE_POLY_STROKE_MILS 1
 
+// CPT2 obsolete:
+/*
 class c_cutout {
 public:
 	cnet * net;
@@ -14,12 +20,16 @@ public:
 //	int ic;
 };
 
+
 class c_area {
 public:
+	carea2 *a;
+
 	cnet * net;
 	int ia;
 	CArray< c_cutout > containers;
 };
+*/
 
 // constructor
 CAperture::CAperture()
@@ -236,13 +246,12 @@ void WritePolygonSide( CStdioFile * f, int x1, int y1, int x2, int y2, int style
 // draw clearance for a pad or trace segment in intersecting areas in foreign nets
 // enter with shape = pad shape or -1 for trace segment
 //
-void DrawClearanceInForeignAreas( cnet * net, int shape,
+void DrawClearanceInForeignAreas( cnet2 *net, int shape,
 									int w, int xi, int yi, int xf, int yf,	// for line segment
 									int wid, int len, int radius, int angle, // for pad
 								    CStdioFile * f, int flags, int layer,
 									int fill_clearance,
-								    CArray<cnet*> * area_net_list,
-									CArray<carea*> * area_list
+									carray<carea2> *area_list
 									)
 {
 	double seg_angle, cw;
@@ -258,63 +267,34 @@ void DrawClearanceInForeignAreas( cnet * net, int shape,
 	gpc_vertex_list gpc_contour;
 	gpc_polygon gpc_seg_poly;
 	// now loop through all areas in foreign nets
-	for( int ia=0; ia<area_list->GetSize(); ia++ ) 
+	citer<carea2> ia (area_list);
+	for (carea2 *area = ia.First(); area; area = ia.Next())
 	{
-		if( (*area_net_list)[ia] != net )
+		if (area->m_net == net)
+			continue;
+		// foreign net, see if possible intersection
+		BOOL bIntersection = FALSE;
+		if( shape == PAD_NONE )
+			ASSERT(0);
+		else if( shape == -1 )
 		{
-			// foreign net, see if possible intersection
-			cnet * area_net = (*area_net_list)[ia];
-			carea * area = (*area_list)[ia];
-			CPolyLine * p = area;
-			BOOL bIntersection = FALSE;
-			if( shape == PAD_NONE )
-				ASSERT(0);
-			else if( shape == -1 )
-			{
-				// trace segment
-				if( p->TestPointInside( xi, yi ) )
+			// trace segment
+			if( area->TestPointInside( xi, yi ) )
+				bIntersection = TRUE;
+			if( !bIntersection )
+				if( area->TestPointInside( xf, yf ) )
 					bIntersection = TRUE;
-				if( !bIntersection )
-					if( p->TestPointInside( xf, yf ) )
-						bIntersection = TRUE;
-				if( !bIntersection )
-				{
-					int min_d = fill_clearance;
-					for( int icont=0; icont<p->NumContours(); icont++ )
-					{
-						int cont_start = p->ContourStart(icont);
-						int cont_end = p->ContourEnd(icont);
-						for( int is=cont_start; is<=cont_end; is++ )
-						{
-							int ic2 = is+1;
-							if( ic2 > cont_end )
-								ic2 = cont_start;
-							int d = GetClearanceBetweenSegments( xi, yi, xf, yf, CPolyLine::STRAIGHT, w,
-								p->X(is), p->Y(is), p->X(ic2), p->Y(ic2), p->SideStyle(is), 0, 
-								min_d, NULL, NULL );
-							if( d < min_d )
-							{
-								bIntersection = TRUE;
-								break;
-							}
-						}
-					}
-				}
-			}
-			else if( shape == PAD_ROUND || shape == PAD_OCTAGON  )
+			if( !bIntersection )
 			{
-				int min_d = wid/2 + fill_clearance;
-				for( int icont=0; icont<p->NumContours(); icont++ )
+				int min_d = fill_clearance;
+				citer<ccontour> ictr (&area->contours);
+				for (ccontour *ctr = ictr.First(); ctr && !bIntersection; ctr = ictr.Next())
 				{
-					int cont_start = p->ContourStart(icont);
-					int cont_end = p->ContourEnd(icont);
-					for( int is=cont_start; is<=cont_end; is++ )
+					citer<cside> is (&ctr->sides);
+					for (cside *s = is.First(); s; s = is.Next())
 					{
-						int ic2 = is+1;
-						if( ic2 > cont_end )
-							ic2 = cont_start;
-						int d = GetClearanceBetweenSegments( xi, yi, xi+10, yi+10, CPolyLine::STRAIGHT, w,
-							p->X(is), p->Y(is), p->X(ic2), p->Y(ic2), p->SideStyle(is), 0, 
+						int d = GetClearanceBetweenSegments( xi, yi, xf, yf, cpolyline::STRAIGHT, w,
+							s->preCorner->x, s->preCorner->y, s->postCorner->x, s->postCorner->y, s->m_style, 0, 
 							min_d, NULL, NULL );
 						if( d < min_d )
 						{
@@ -322,180 +302,195 @@ void DrawClearanceInForeignAreas( cnet * net, int shape,
 							break;
 						}
 					}
-					if( bIntersection )
-						break;
 				}
+			}
+		}
+		else if( shape == PAD_ROUND || shape == PAD_OCTAGON  )
+		{
+			int min_d = wid/2 + fill_clearance;
+			citer<ccontour> ictr (&area->contours);
+			for (ccontour *ctr = ictr.First(); ctr && !bIntersection; ctr = ictr.Next())
+			{
+				citer<cside> is (&ctr->sides);
+				for (cside *s = is.First(); s; s = is.Next())
+				{
+					int d = GetClearanceBetweenSegments( xi, yi, xi+10, yi+10, CPolyLine::STRAIGHT, w,
+						s->preCorner->x, s->preCorner->y, s->postCorner->x, s->postCorner->y, s->m_style, 0, 
+						min_d, NULL, NULL );
+					if( d < min_d )
+					{
+						bIntersection = TRUE;
+						break;
+					}
+				}
+			}
+		}
+		else
+		{
+			int min_d;
+			if( shape == PAD_SQUARE )
+				min_d = sqrt((double)2.0*wid*wid)/2 + fill_clearance;
+			else
+				min_d = sqrt((double)wid*wid +(double)len*len)/2 + fill_clearance;
+			citer<ccontour> ictr (&area->contours);
+			for (ccontour *ctr = ictr.First(); ctr && !bIntersection; ctr = ictr.Next())
+			{
+				citer<cside> is (&ctr->sides);
+				for (cside *s = is.First(); s; s = is.Next())
+				{
+					int d = GetClearanceBetweenSegments( xi, yi, xi+10, yi+10, CPolyLine::STRAIGHT, w,
+						s->preCorner->x, s->preCorner->y, s->postCorner->x, s->postCorner->y, s->m_style, 0, 
+						min_d, NULL, NULL );
+					if( d < min_d )
+					{
+						bIntersection = TRUE;
+						break;
+					}
+				}
+			}
+		}
+
+		if( !bIntersection )
+			continue;
+		if( !bClearanceMade ) 
+		{
+			// construct a gpc_poly for the clearance
+			if( shape == -1 )
+			{
+				int npoints = 18;	// number of points in poly
+				gpc_contour.num_vertices = npoints;
+				gpc_contour.vertex = (gpc_vertex*)calloc( 2 * npoints, sizeof(double) );
+				if( !gpc_contour.vertex )
+					ASSERT(0);
+				double x,y;
+				// create points around beginning of segment
+				double angle = seg_angle + pi/2.0;		// rotate 90 degrees ccw
+				double angle_step = pi/(npoints/2-1);
+				for( int i=0; i<npoints/2; i++ )
+				{
+					x = xi + cw*cos(angle);
+					y = yi + cw*sin(angle);
+					gpc_contour.vertex[i].x = x;
+					gpc_contour.vertex[i].y = y;
+					angle += angle_step;
+				}
+				// create points around end of segment
+				angle = seg_angle - pi/2.0;
+				for( int i=npoints/2; i<npoints; i++ )
+				{
+					x = xf + cw*cos(angle);
+					y = yf + cw*sin(angle);
+					gpc_contour.vertex[i].x = x;
+					gpc_contour.vertex[i].y = y;
+					angle += angle_step;
+				}
+				gpc_seg_poly.num_contours = 1;
+				gpc_seg_poly.hole = new int;
+				gpc_seg_poly.hole[0] = 0;
+				gpc_seg_poly.contour = &gpc_contour;
+				bClearanceMade = TRUE;
+			}
+			else if( shape == PAD_ROUND || shape == PAD_OCTAGON )
+			{
+				// round clearance
+				int npoints = 32;	// number of points in poly
+				gpc_contour.num_vertices = npoints;
+				gpc_contour.vertex = (gpc_vertex*)calloc( 2 * npoints, sizeof(double) );
+				if( !gpc_contour.vertex )
+					ASSERT(0);
+				double x,y;
+				// create points around pad
+				double angle = 0.0;
+				double angle_step = pi/(npoints/2);
+				cw = wid/2 + fill_clearance;
+				for( int i=0; i<npoints; i++ )
+				{
+					x = xi + cw*cos(angle);
+					y = yi + cw*sin(angle);
+					gpc_contour.vertex[i].x = x;
+					gpc_contour.vertex[i].y = y;
+					angle += angle_step;
+				}
+				gpc_seg_poly.num_contours = 1;
+				gpc_seg_poly.hole = new int;
+				gpc_seg_poly.hole[0] = 0;
+				gpc_seg_poly.contour = &gpc_contour;
+				bClearanceMade = TRUE;
 			}
 			else
 			{
-				int min_d;
+				int npoints = 4;	// number of points in poly 
+				gpc_contour.num_vertices = npoints;
+				gpc_contour.vertex = (gpc_vertex*)calloc( 2 * npoints, sizeof(double) );
+				if( !gpc_contour.vertex ) 
+					ASSERT(0);
+				int dx = len/2 + fill_clearance;
+				int dy = wid/2 + fill_clearance;
 				if( shape == PAD_SQUARE )
-					min_d = sqrt((double)2.0*wid*wid)/2 + fill_clearance;
-				else
-					min_d = sqrt((double)wid*wid +(double)len*len)/2 + fill_clearance;
-				for( int icont=0; icont<p->NumContours(); icont++ )
+					dy = dx;
+				if( angle % 180 )
 				{
-					int cont_start = p->ContourStart(icont);
-					int cont_end = p->ContourEnd(icont);
-					for( int is=cont_start; is<=cont_end; is++ )
-					{
-						int ic2 = is+1;
-						if( ic2 > cont_end )
-							ic2 = cont_start;
-						int d = GetClearanceBetweenSegments( xi, yi, xi+10, yi+10, CPolyLine::STRAIGHT, w,
-							p->X(is), p->Y(is), p->X(ic2), p->Y(ic2), p->SideStyle(is), 0, 
-							min_d, NULL, NULL );
-						if( d < min_d )
-						{
-							bIntersection = TRUE;
-							break;
-						}
-					}
-					if( bIntersection )
-						break;
+					int t = dx;
+					dx = dy;
+					dy = t;
 				}
-			}
-			if( bIntersection )
-			{
-				if( !bClearanceMade ) 
-				{
-					// construct a gpc_poly for the clearance
-					if( shape == -1 )
-					{
-						int npoints = 18;	// number of points in poly
-						gpc_contour.num_vertices = npoints;
-						gpc_contour.vertex = (gpc_vertex*)calloc( 2 * npoints, sizeof(double) );
-						if( !gpc_contour.vertex )
-							ASSERT(0);
-						double x,y;
-						// create points around beginning of segment
-						double angle = seg_angle + pi/2.0;		// rotate 90 degrees ccw
-						double angle_step = pi/(npoints/2-1);
-						for( int i=0; i<npoints/2; i++ )
-						{
-							x = xi + cw*cos(angle);
-							y = yi + cw*sin(angle);
-							gpc_contour.vertex[i].x = x;
-							gpc_contour.vertex[i].y = y;
-							angle += angle_step;
-						}
-						// create points around end of segment
-						angle = seg_angle - pi/2.0;
-						for( int i=npoints/2; i<npoints; i++ )
-						{
-							x = xf + cw*cos(angle);
-							y = yf + cw*sin(angle);
-							gpc_contour.vertex[i].x = x;
-							gpc_contour.vertex[i].y = y;
-							angle += angle_step;
-						}
-						gpc_seg_poly.num_contours = 1;
-						gpc_seg_poly.hole = new int;
-						gpc_seg_poly.hole[0] = 0;
-						gpc_seg_poly.contour = &gpc_contour;
-						bClearanceMade = TRUE;
-					}
-					else if( shape == PAD_ROUND || shape == PAD_OCTAGON )
-					{
-						// round clearance
-						int npoints = 32;	// number of points in poly
-						gpc_contour.num_vertices = npoints;
-						gpc_contour.vertex = (gpc_vertex*)calloc( 2 * npoints, sizeof(double) );
-						if( !gpc_contour.vertex )
-							ASSERT(0);
-						double x,y;
-						// create points around pad
-						double angle = 0.0;
-						double angle_step = pi/(npoints/2);
-						cw = wid/2 + fill_clearance;
-						for( int i=0; i<npoints; i++ )
-						{
-							x = xi + cw*cos(angle);
-							y = yi + cw*sin(angle);
-							gpc_contour.vertex[i].x = x;
-							gpc_contour.vertex[i].y = y;
-							angle += angle_step;
-						}
-						gpc_seg_poly.num_contours = 1;
-						gpc_seg_poly.hole = new int;
-						gpc_seg_poly.hole[0] = 0;
-						gpc_seg_poly.contour = &gpc_contour;
-						bClearanceMade = TRUE;
-					}
-					else
-					{
-						int npoints = 4;	// number of points in poly 
-						gpc_contour.num_vertices = npoints;
-						gpc_contour.vertex = (gpc_vertex*)calloc( 2 * npoints, sizeof(double) );
-						if( !gpc_contour.vertex ) 
-							ASSERT(0);
-						int dx = len/2 + fill_clearance;
-						int dy = wid/2 + fill_clearance;
-						if( shape == PAD_SQUARE )
-							dy = dx;
-						if( angle % 180 )
-						{
-							int t = dx;
-							dx = dy;
-							dy = t;
-						}
-						// create points around pad
-						gpc_contour.vertex[0].x = xi + dx;
-						gpc_contour.vertex[0].y = yi + dy;
-						gpc_contour.vertex[1].x = xi + dx;
-						gpc_contour.vertex[1].y = yi - dy;
-						gpc_contour.vertex[2].x = xi - dx;
-						gpc_contour.vertex[2].y = yi - dy;
-						gpc_contour.vertex[3].x = xi - dx;
-						gpc_contour.vertex[3].y = yi + dy;
-						gpc_seg_poly.num_contours = 1;
-						gpc_seg_poly.hole = new int;
-						gpc_seg_poly.hole[0] = 0;
-						gpc_seg_poly.contour = &gpc_contour;
-						bClearanceMade = TRUE;
-					}
-				}
-				// intersect area and clearance polys
-				gpc_polygon gpc_intersection;
-				gpc_intersection.num_contours = 0;
-				gpc_intersection.hole = NULL;
-				gpc_intersection.contour = NULL;
-				// make area GpcPoly if not already made, including cutouts
-				if( area->GetGpcPoly()->num_contours == 0 )
-					area->MakeGpcPoly( -1 );
-				gpc_polygon_clip( GPC_INT, &gpc_seg_poly, area->GetGpcPoly(),
-					&gpc_intersection );
-				int ncontours = gpc_intersection.num_contours;
-				for( int ic=0; ic<ncontours; ic++ )
-				{
-					// draw clearance
-					gpc_vertex * gpv = gpc_intersection.contour[ic].vertex;
-					int nv = gpc_intersection.contour[ic].num_vertices;
-					if( nv )
-					{
-						f->WriteString( "G36*\n" );
-						WriteMoveTo( f, gpv[0].x, gpv[0].y, LIGHT_OFF );
-						for( int iv=1; iv<nv; iv++ )
-							WriteMoveTo( f, gpv[iv].x, gpv[iv].y, LIGHT_ON );
-						WriteMoveTo( f, gpv[0].x, gpv[0].y, LIGHT_ON );
-						f->WriteString( "G37*\n" );
-						// now stroke outline to remove any truncation artifacts
-						// assumes aperture is already set to 
-						// CLEARANCE_POLY_STROKE_MILS*NM_PER_MIL
-						WriteMoveTo( f, gpv[0].x, gpv[0].y, LIGHT_OFF );
-						for( int iv=1; iv<nv; iv++ )
-							WriteMoveTo( f, gpv[iv].x, gpv[iv].y, LIGHT_ON );
-						WriteMoveTo( f, gpv[0].x, gpv[0].y, LIGHT_ON );
-					}
-				}
-				for( int ic=0; ic<ncontours; ic++ )
-					free( gpc_intersection.contour[ic].vertex );
-				// free intersection
-				free( gpc_intersection.hole );
-				free( gpc_intersection.contour );
+				// create points around pad
+				gpc_contour.vertex[0].x = xi + dx;
+				gpc_contour.vertex[0].y = yi + dy;
+				gpc_contour.vertex[1].x = xi + dx;
+				gpc_contour.vertex[1].y = yi - dy;
+				gpc_contour.vertex[2].x = xi - dx;
+				gpc_contour.vertex[2].y = yi - dy;
+				gpc_contour.vertex[3].x = xi - dx;
+				gpc_contour.vertex[3].y = yi + dy;
+				gpc_seg_poly.num_contours = 1;
+				gpc_seg_poly.hole = new int;
+				gpc_seg_poly.hole[0] = 0;
+				gpc_seg_poly.contour = &gpc_contour;
+				bClearanceMade = TRUE;
 			}
 		}
+
+		// intersect area and clearance polys
+		gpc_polygon gpc_intersection;
+		gpc_intersection.num_contours = 0;
+		gpc_intersection.hole = NULL;
+		gpc_intersection.contour = NULL;
+		// make area GpcPoly if not already made, including cutouts
+		if( area->GetGpcPoly()->num_contours == 0 )
+			area->MakeGpcPoly();
+		gpc_polygon_clip( GPC_INT, &gpc_seg_poly, area->GetGpcPoly(),
+			&gpc_intersection );
+		int ncontours = gpc_intersection.num_contours;
+		for( int ic=0; ic<ncontours; ic++ )
+		{
+			// draw clearance
+			gpc_vertex * gpv = gpc_intersection.contour[ic].vertex;
+			int nv = gpc_intersection.contour[ic].num_vertices;
+			if( nv )
+			{
+				f->WriteString( "G36*\n" );
+				WriteMoveTo( f, gpv[0].x, gpv[0].y, LIGHT_OFF );
+				for( int iv=1; iv<nv; iv++ )
+					WriteMoveTo( f, gpv[iv].x, gpv[iv].y, LIGHT_ON );
+				WriteMoveTo( f, gpv[0].x, gpv[0].y, LIGHT_ON );
+				f->WriteString( "G37*\n" );
+				// now stroke outline to remove any truncation artifacts
+				// assumes aperture is already set to 
+				// CLEARANCE_POLY_STROKE_MILS*NM_PER_MIL
+				WriteMoveTo( f, gpv[0].x, gpv[0].y, LIGHT_OFF );
+				for( int iv=1; iv<nv; iv++ )
+					WriteMoveTo( f, gpv[iv].x, gpv[iv].y, LIGHT_ON );
+				WriteMoveTo( f, gpv[0].x, gpv[0].y, LIGHT_ON );
+			}
+		}
+		for( int ic=0; ic<ncontours; ic++ )
+			free( gpc_intersection.contour[ic].vertex );
+		// free intersection
+		free( gpc_intersection.hole );
+		free( gpc_intersection.contour );
 	}
+
 	if( bClearanceMade )
 	{
 		free( gpc_contour.vertex );
@@ -510,7 +505,7 @@ void DrawClearanceInForeignAreas( cnet * net, int shape,
 void ChangeAperture( CAperture * new_ap,			// new aperture
 					CAperture * current_ap,			// current aperture
 					aperture_array * ap_array,		// array of apertures
-					BOOL PASS0,						// flag for PASS0
+					BOOL pass0,						// flag for PASS0
 					CStdioFile * f )				// file to write to
 {
 	int current_iap;
@@ -519,8 +514,8 @@ void ChangeAperture( CAperture * new_ap,			// new aperture
 	if( !(*current_ap).Equals( new_ap ) )
 	{
 		// change aperture
-		current_iap = new_ap->FindInArray( ap_array, PASS0 );
-		if( !PASS0 )
+		current_iap = new_ap->FindInArray( ap_array, pass0 );
+		if( !pass0 )
 		{
 			*current_ap = *new_ap;
 			line.Format( "G54D%2d*\n", current_iap+10 );
@@ -539,14 +534,13 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 					int min_silkscreen_stroke_wid, int thermal_wid,
 					int outline_width, int hole_clearance,
 					int n_x, int n_y, int step_x, int step_y,
-					CArray<CPolyLine> * bd, CArray<CPolyLine> * sm, CPartList * pl, 
-					CNetList * nl, CTextList * tl, CDisplayList * dl )
+					carray<cboard> * bd, carray<csmcutout> * sm, cpartlist * pl, 
+					cnetlist * nl, ctextlist * tl, CDisplayList * dl )
 {
 #define LAYER_TEXT_HEIGHT			100*NM_PER_MIL	// for layer ID sring
 #define	LAYER_TEXT_STROKE_WIDTH		10*NM_PER_MIL
 #define PASS0 (ipass==0)	
 #define PASS1 (ipass==1)
-#ifndef CPT2
 	BOOL bUsePinThermals = !(flags & GERBER_NO_PIN_THERMALS);
 
 	aperture_array ap_array;
@@ -560,20 +554,20 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 	CString str;
 
 	// get boundaries of board outline (in nm)
-	for( int ib=0; ib<bd->GetSize(); ib++ ) 
+	citer<cboard> ib (bd);
+	for( cboard *b = ib.First(); b; b = ib.Next() ) 
 	{
-		for( int ic=0; ic<(*bd)[ib].NumCorners(); ic++ )
+		citer<ccorner> ic (&b->main->corners);
+		for (ccorner *c = ic.First(); c; c = ic.Next())
 		{
-			int x = (*bd)[ib].X(ic);
-			if( x < bd_min_x )
-				bd_min_x = x;
-			if( x > bd_max_x )
-				bd_max_x = x;
-			int y = (*bd)[ib].Y(ic);
-			if( y < bd_min_y )
-				bd_min_y = y;
-			if( y > bd_max_y )
-				bd_max_y = y;
+			if( c->x < bd_min_x )
+				bd_min_x = c->x;
+			if( c->x > bd_max_x )
+				bd_max_x = c->x;
+			if( c->y < bd_min_y )
+				bd_min_y = c->y;
+			if( c->y > bd_max_y )
+				bd_max_y = c->y;
 		}
 	}
 
@@ -724,9 +718,7 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 		if( tl && (flags & GERBER_LAYER_TEXT) )
 		{
 			if( PASS1 )
-			{
 				f->WriteString( "\nG04 Draw Layer Name*\n" );
-			}			
 			CString str = "";
 			switch( layer )
 			{
@@ -742,21 +734,18 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 			}
 			if( layer > LAY_BOTTOM_COPPER )
 				str.Format( "Inner %d Copper Layer", layer - LAY_BOTTOM_COPPER );
-			CText * t = tl->AddText( bd_min_x, bd_min_y-LAYER_TEXT_HEIGHT*2, 0, 0, 0, 
-				LAY_SILK_TOP, LAYER_TEXT_HEIGHT, LAYER_TEXT_STROKE_WIDTH, &str );
+			ctext *t = new ctext (tl->m_doc, bd_min_x, bd_min_y-LAYER_TEXT_HEIGHT*2, 0, 0, 0, 
+				LAY_SILK_TOP, LAYER_TEXT_HEIGHT, LAYER_TEXT_STROKE_WIDTH, tl->m_smfontutil, &str );
 			// draw text
 			int w = t->m_stroke_width;
 			CAperture text_ap( CAperture::AP_CIRCLE, w, 0 );
 			ChangeAperture( &text_ap, &current_ap, &ap_array, PASS0, f );
 			if( PASS1 )
-			{
 				for( int istroke=0; istroke<t->m_stroke.GetSize(); istroke++ )
 				{
 					::WriteMoveTo( f, t->m_stroke[istroke].xi, t->m_stroke[istroke].yi, LIGHT_OFF );
 					::WriteMoveTo( f, t->m_stroke[istroke].xf, t->m_stroke[istroke].yf, LIGHT_ON );
 				}
-			}
-			tl->RemoveText( t );
 		}
 
 		// step and repeat for panelization
@@ -783,780 +772,555 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 			ChangeAperture( &bd_ap, &current_ap, &ap_array, PASS0, f );
 			if( PASS1 )
 			{
-				for( int ib=0; ib<bd->GetSize(); ib++ )
+				citer<cboard> ib (bd);
+				for (cboard *b = ib.First(); b; b = ib.Next())
 				{
-					CPolyLine * b = &(*bd)[ib];
-					int nc = b->NumCorners();
 					// turn on linear interpolation, move to first corner
-					::WriteMoveTo( f, b->X(0), b->Y(0), LIGHT_OFF );
-					for( int ic=1; ic<nc; ic++ )
+					ccorner *head = b->main->head;
+					::WriteMoveTo( f, head->x, head->y, LIGHT_OFF );
+					int index = 1;
+					for (cside *s = head->postSide; 1; s = s->postCorner->postSide)
 					{
-						int x = b->X(ic);
-						int y = b->Y(ic);
-						::WritePolygonSide( f, b->X(ic-1), b->Y(ic-1),
-							b->X(ic), b->Y(ic), b->SideStyle(ic-1), 10, LIGHT_ON ); 
-						line.Format( "G04 end of side %d*\n", ic );
+						::WritePolygonSide( f, s->preCorner->x, s->preCorner->y,
+							s->postCorner->x, s->postCorner->y, s->m_style, 10, LIGHT_ON ); 
+						if (s->postCorner == head)
+							break;
+						line.Format( "G04 end of side %d*\n", index++ );
 						f->WriteString( line );
-
 					}
-					::WritePolygonSide( f, b->X(nc-1), b->Y(nc-1), 
-						b->X(0), b->Y(0), b->SideStyle(nc-1), 10, LIGHT_ON ); 
 				}
 			}
 		}
-		// establish nesting order of copper areas and cutouts:
-		//	- for each area, tabulate all cutouts that contain it
-		//	LOOP:
-		//	- draw all areas that are only contained by cutouts that are already drawn
-		//	- draw cutouts for those areas
-		//  END_LOOP:
-		//
-		// loop through all nets and add areas to lists
-		BOOL areas_present = FALSE;
-		int num_area_nets = 0;		// 0, 1 or 2 (2 if more than 1) 
-		int num_areas = 0;
-		cnet * first_area_net = NULL;
-		CArray<cnet*> area_net_list;
-		CArray<carea*> area_list;
-		CIterator_cnet iter_net(nl);
-		cnet * net = iter_net.GetFirst();
-		while( net )
+		// establish nesting order of copper areas within the layer.
+		// CPT2 trying a slightly modified algorithm.  In the following description "drawn" and "undrawn" are metaphorical terms;  actual
+		// drawing occurs later.
+		// 1. Set utility value on all areas to 0 ("undrawn").
+		// 2. Loop through undrawn areas.  For each, see if there exists an undrawn area containing it.  Those which have no such container get 
+		//    marked with utility value 1 (drawn), and get added to "draw_list".    
+		// 3. If at the end there are remaining undrawn areas (contained within the cutout of some other area), go back to 2.
+		carray<cnet2> area_net_list;
+		carray<carea2> area_list;
+		carray<carea2> draw_list;
+		citer<cnet2> in (&nl->nets);
+		for (cnet2 *net = in.First(); net; net = in.Next())
 		{
-			// loop through all areas
-			for( int ia=0; ia<net->NumAreas(); ia++ )
+			citer<carea2> ia (&net->areas);
+			for (carea2 *a = ia.First(); a; a = ia.Next())
 			{
-				CPolyLine * p = &net->area[ia];
-				if( p->Layer() == layer )
-				{
-					// area on this layer, add to lists
-					areas_present = TRUE;
-					area_net_list.Add( net );
-					area_list.Add( &net->area[ia] );
-					num_areas++;
-					// keep track of whether we have areas on separate nets
-					if( num_area_nets == 0 )
-					{
-						num_area_nets = 1;
-						first_area_net = net;
-					}
-					else if( num_area_nets == 1 && net != first_area_net )
-						num_area_nets = 2;
-				}
+				if (a->m_layer != layer)
+					continue;
+				// area on this layer, add to lists
+				area_net_list.Add( net );				// NB takes advantage of carray::Add's uniqueness check
+				area_list.Add( a );
+				a->utility = 0;
 			}
-			net = iter_net.GetNext();
 		}
 
 		if( PASS1 )
 		{
-			CArray< c_area > ca;
-			cnet * net = iter_net.GetFirst();
-			while( net ) 
+			bool bUndrawnAreas;
+			do
 			{
-				// loop through all areas
-				for( int ia=0; ia<net->NumAreas(); ia++ )
+				bUndrawnAreas = false;
+				citer<carea2> ia1 (&area_list), ia2 (&area_list);
+				for (carea2 *a1 = ia1.First(); a1; a1 = ia1.Next())
 				{
-					net->area[ia].utility = INT_MAX;		// mark as undrawn
-					CPolyLine * p = &net->area[ia];
-					if( p->Layer() == layer )
+					if (a1->utility)
+						continue;
+					int x = a1->main->head->x;
+					int y = a1->main->head->y;
+					// Area not yet "drawn";  see if it lies within any other undrawn area.  If not, we can "draw" it now.
+					bool bContainedInUndrawn = false;
+					for (carea2 *a2 = ia2.First(); a2; a2 = ia2.Next())
 					{
-						// area on this layer, add to lists
-						areas_present = TRUE;
-						area_net_list.Add( net );
-						area_list.Add( &net->area[ia] );
-						// keep track of whether we have areas on separate nets
-						if( num_area_nets == 0 )
-						{
-							num_area_nets = 1;
-							first_area_net = net;
-						}
-						else if( num_area_nets == 1 && net != first_area_net )
-							num_area_nets = 2;
-						// now find any cutouts that contain this area
-						double x = p->X(0);
-						double y = p->Y(0);
-						int ica = ca.GetSize();
-						ca.SetSize(ica+1);
-						ca[ica].net = net;
-						ca[ica].ia = ia;
-						carea * a = &net->area[ia];
-						// loop through all nets to find cutouts
-						CIterator_cnet iter_net_cutout(nl);
-						cnet * cutout_net = iter_net_cutout.GetFirst();
-						while( cutout_net )
-						{
-							// loop through all areas to find cutouts
-							for( int cutout_ia=0; cutout_ia<cutout_net->NumAreas(); cutout_ia++ )
-							{
-								carea * cutout_a = &cutout_net->area[cutout_ia];
-								CPolyLine * cutout_p = cutout_a;
-								if( cutout_p->Layer() == layer )
-								{
-									// loop through all cutouts
-									for( int cutout_ic=0; cutout_ic<cutout_p->NumContours()-1; cutout_ic++ )
-									{
-										// test whether area (net, ia) is contained by
-										// cutout_ic in area (cut_net, cut_ia)
-										BOOL b = cutout_p->TestPointInsideContour( cutout_ic+1, x, y );
-										if( b )
-										{
-											// yes, enter it in array 
-											int ci = ca[ica].containers.GetSize();
-											ca[ica].containers.SetSize(ci+1);
-											ca[ica].containers[ci].net = cutout_net;
-											ca[ica].containers[ci].ia = cutout_ia;
-//											ca[ica].containers[ci].ic = cutout_ic;
-											break;	// don't need to test more cutouts for this area
-										}
-									}
-								}
-							}
-							cutout_net = iter_net_cutout.GetNext();
-						}
+						if (a2==a1 || a2->utility)
+							continue;
+						citer<ccontour> ictr (&a2->contours);
+						for (ccontour *ctr = ictr.First(); ctr; ctr = ictr.Next())
+							if (ctr!=a2->main && ctr->TestPointInside(x, y))
+								{ bContainedInUndrawn = true; goto testEnd; }
 					}
-				}
-				net = iter_net.GetNext();
-			}
-
-			// set order for drawing areas, save in net->area[ia].utility
-			int area_pass = 0;
-			int ndrawn = 0;
-			int ca_size = ca.GetSize();
-			while( ca.GetSize() > 0 )
-			{
-				// loop through all areas in ca, draw those that are contained by
-				// areas that are already drawn
-				area_pass++;
-				int nca = ca.GetSize();
-				for( int ica=nca-1; ica>=0; ica-- )
-				{
-					cnet * net = ca[ica].net;
-					int ia = ca[ica].ia;
-					BOOL bDrawIt = TRUE;
-					// test whether all areas that contain it have been drawn in previous pass
-					int ncontainers = ca[ica].containers.GetSize();
-					for( int ic=0; ic<ncontainers; ic++ ) 
-					{
-						cnet * cutout_net = ca[ica].containers[ic].net;
-						int cutout_ia = ca[ica].containers[ic].ia;
-						int cutout_area_pass = cutout_net->area[cutout_ia].utility;
-						if( cutout_area_pass >= area_pass )
-						{
-							bDrawIt = FALSE;
-							break;	// no, can't draw this area
-						}
-					}
-					if( bDrawIt )
-					{
-						net->area[ia].utility = area_pass;	// mark as drawn in this pass
-						ca.RemoveAt(ica);	// remove from list
-						ndrawn++;
-					}
+					
+					testEnd:
+					if (bContainedInUndrawn)
+						bUndrawnAreas = true;
+					else
+						a1->utility = 1,
+						draw_list.Add(a1);
 				}
 			}
-			ca.RemoveAll();
+			while (bUndrawnAreas);
 
-			// now actually draw copper areas and cutouts
-			area_pass = 0;
-			int n_undrawn = 1;
+			// now actually draw copper areas and cutouts.  We rely on the fact that when we iterate through carray draw_list, we'll go in the order
+			// in which areas were added (this, because we've never removed any items from draw_list).
+			citer<carea2> ia (&draw_list);
 			BOOL bLastLayerNegative = FALSE;
-			while( n_undrawn )
+			for (carea2 *a = ia.First(); a; a = ia.Next())
 			{
-				n_undrawn = 0;
-				area_pass++;
-				// draw areas
 				current_ap.m_type = CAperture::AP_NONE;	// force selection of aperture
-				net = iter_net.GetFirst();
-				while( net )
+				// draw outline polygon
+				// make GpcPoly for outer contour of area
+				a->MakeGpcPoly();
+				// draw area's main contour
+				f->WriteString( "\nG04 ----------------------- Draw copper area (positive)*\n" );
+				if( bLastLayerNegative )
 				{
-					for( int ia=0; ia<net->NumAreas(); ia++ )
-					{
-						carea * a = &net->area[ia];
-						if( a->Layer() == layer )
-						{
-							if ( a->utility == area_pass )
-							{
-								// draw outline polygon
-								// make GpcPoly for outer contour of area
-								a->MakeGpcPoly();
-								// draw area
-								areas_present = TRUE;
-								f->WriteString( "\nG04 ----------------------- Draw copper area (positive)*\n" );
-								if( bLastLayerNegative )
-								{
-									f->WriteString( "%LPD*%\n" );
-									bLastLayerNegative = FALSE;
-								}
-								f->WriteString( "G36*\n" );
-								int x, y, style;
-								int last_x = a->X(0);
-								int last_y = a->Y(0);
-								::WriteMoveTo( f, last_x, last_y, LIGHT_OFF );
-								int nc = a->ContourSize(0);
-								for( int ic=1; ic<nc; ic++ )
-								{
-									x = a->X(ic);
-									y = a->Y(ic);
-									style = a->SideStyle(ic-1);
-									::WritePolygonSide( f, last_x, last_y, x, y, style, 10, LIGHT_ON );
-									last_x = x;
-									last_y = y;
-								}
-								x = a->X(0);
-								y = a->Y(0);
-								style = a->SideStyle(nc-1);
-								::WritePolygonSide( f, last_x, last_y, x, y, style, 10, LIGHT_ON );
-								f->WriteString( "G37*\n" );
-							}
-							else if( a->utility > area_pass )
-								n_undrawn++;
-						}
-					}
-					net = iter_net.GetNext();
+					f->WriteString( "%LPD*%\n" );
+					bLastLayerNegative = FALSE;
 				}
-				// draw area cutouts
-				current_ap.m_type = CAperture::AP_NONE;	// force selection of aperture
-				net = iter_net.GetFirst();
-				while( net )
+				f->WriteString( "G36*\n" );
+				ccorner *head = a->main->head;
+				::WriteMoveTo( f, head->x, head->y, LIGHT_OFF );
+				for (cside *s = head->postSide; 1; s = s->postCorner->postSide )
 				{
-					for( int ia=0; ia<net->NumAreas(); ia++ )
+					::WritePolygonSide( f, s->preCorner->x, s->preCorner->y, s->postCorner->x, s->postCorner->y,
+						s->m_style, 10, LIGHT_ON );
+					if (s->postCorner==head) 
+						break; 
+				}
+				f->WriteString( "G37*\n" );
+
+				// Now draw the cutouts if any
+				citer<ccontour> ictr (&a->contours);
+				for (ccontour *ctr = ictr.First(); ctr; ctr = ictr.Next())
+				{
+					if (ctr == a->main)
+						continue;
+					// draw it
+					f->WriteString( "\nG04 -------------------- Draw copper area cutout (negative)*\n" );
+					if( !bLastLayerNegative )
 					{
-						carea * a = &net->area[ia];
-						if ( a->utility == area_pass && a->Layer() == layer )
-						{
-							// draw cutout polygons
-							// make clearances for area cutouts
-							CPolyLine * p = &net->area[ia];
-							if( p->Layer() == layer )
-							{
-								for( int icont=1; icont<p->NumContours(); icont++ )
-								{
-									int ic_st = p->ContourStart( icont );
-									int ic_end = p->ContourEnd( icont );
-									// draw it
-									f->WriteString( "\nG04 -------------------- Draw copper area cutout (negative)*\n" );
-									if( !bLastLayerNegative )
-									{
-										f->WriteString( "%LPC*%\n" );
-										bLastLayerNegative = TRUE;
-									}
-									f->WriteString( "G36*\n" );
-									int x, y, style;
-									int last_x = net->area[ia].X(ic_st);
-									int last_y = net->area[ia].Y(ic_st);
-									::WriteMoveTo( f, last_x, last_y, LIGHT_OFF );
-									for( int ic=ic_st+1; ic<=ic_end; ic++ )
-									{
-										x = net->area[ia].X(ic);
-										y = net->area[ia].Y(ic);
-										style = net->area[ia].SideStyle(ic-1);
-										::WritePolygonSide( f, last_x, last_y, x, y, style, 10, LIGHT_ON );
-										last_x = x;
-										last_y = y;
-									}
-									x = net->area[ia].X(ic_st);
-									y = net->area[ia].Y(ic_st);
-									style = net->area[ia].SideStyle(ic_end);
-									::WritePolygonSide( f, last_x, last_y, x, y, style, 10, LIGHT_ON );
-									f->WriteString( "G37*\n" );
-								}
-							}
-						}
+						f->WriteString( "%LPC*%\n" );
+						bLastLayerNegative = TRUE;
 					}
-					net = iter_net.GetNext();
+					f->WriteString( "G36*\n" );
+					ccorner *head = ctr->head;
+					::WriteMoveTo( f, head->x, head->y, LIGHT_OFF );
+					for (cside *s = head->postSide; 1; s = s->postCorner->postSide )
+					{
+						::WritePolygonSide( f, s->preCorner->x, s->preCorner->y, s->postCorner->x, s->postCorner->y,
+							s->m_style, 10, LIGHT_ON );
+						if (s->postCorner==head) 
+							break; 
+					}
+					f->WriteString( "G37*\n" );
 				}
 			}
 		}
 
-		if( areas_present )
+		if( area_list.GetSize() )
 		{
 			// ********** draw pad, trace, and via clearances and thermals ***********
+			// CPT2 NB.  Old code had checks of the form "if (pl)" and "if (nl)".  I omitted them (really can't imagine when they'd be necessary)
 			// first, remove all GpcPolys
-			net = iter_net.GetFirst();
-			while( net )
-			{
-				for( int ia=0; ia<net->NumAreas(); ia++ )
-				{
-					carea * a = &net->area[ia];
-					CPolyLine * p = a;
-					p->FreeGpcPoly();
-				}
-				net = iter_net.GetNext();
-			}
+			citer<carea2> ia (&area_list);
+			for (carea2 *a = ia.First(); a; a = ia.Next())
+				a->FreeGpcPoly();
 			if( PASS1 ) 
 			{
 				f->WriteString( "\nG04 -------------------- Draw copper area clearances (negative)*\n" );
 				f->WriteString( "%LPC*%\n" );
 				current_ap.m_type = CAperture::AP_NONE;	// force selection of aperture
+				f->WriteString( "\nG04 Draw clearances for pads*\n" );
 			}
-			if( pl ) 
-			{
-				// iterate through all parts for pad clearances and thermals
-				if( PASS1 )
-				{
-					f->WriteString( "\nG04 Draw clearances for pads*\n" );
-				}
-				cpart * part = pl->m_start.next;
-				while( part->next != 0 ) 
-				{
-					CShape * s = part->shape;
-					if( s )
-					{
-						// iterate through all pins
-						for( int ip=0; ip<s->GetNumPins(); ip++ )
-						{
-							// get pad info
-							int pad_type, pad_x, pad_y, pad_w, pad_l, pad_r, pad_hole, pad_angle;
-							cnet * pad_net;
-							int pad_connect_status, pad_connect_flag, clearance_type ;
-							BOOL bPad = pl->GetPadDrawInfo( part, ip, layer,
-								!(flags & GERBER_NO_PIN_THERMALS), 
-								!(flags & GERBER_NO_SMT_THERMALS),
-								mask_clearance, paste_mask_shrink,
-								&pad_type, &pad_x, &pad_y, &pad_w, &pad_l, &pad_r, &pad_hole, &pad_angle,
-								&pad_net, &pad_connect_status, &pad_connect_flag, &clearance_type );
 
-							if( bPad ) 
+			citer<cpart2> ip (&pl->parts);
+			for (cpart2 *part = ip.First(); part; part = ip.Next())
+			{
+				if (!part->shape)
+					continue;
+				citer<cpin2> ipin (&part->pins);
+				for (cpin2 *pin = ipin.First(); pin; pin = ipin.Next())
+				{
+					// get pad info
+					int pad_type, pad_w, pad_l, pad_r, pad_hole;
+					int pad_connect_status, pad_connect_flag, clearance_type ;
+					BOOL bPad = pin->GetDrawInfo( layer, !(flags & GERBER_NO_PIN_THERMALS), !(flags & GERBER_NO_SMT_THERMALS),
+						mask_clearance, paste_mask_shrink,
+						&pad_type, &pad_w, &pad_l, &pad_r, &pad_hole, &pad_connect_status, &pad_connect_flag, &clearance_type );
+					if (!bPad)
+						continue;
+					// pad or hole exists on this layer
+					// parameters for clearance on adjacent areas (if needed)
+					int area_pad_type = PAD_NONE;
+					int area_pad_wid = 0;
+					int area_pad_len = 0;
+					int area_pad_radius = 0;
+					int area_pad_clearance = 0;
+					// parameters for clearance aperture
+					int type = CAperture::AP_NONE;
+					int size1=0, size2=0, size3=0; 
+					if( pad_type == PAD_NONE && pad_hole > 0 )
+					{
+						// through-hole pin, no pad, just annular ring and hole
+						if( pad_connect_status & CPartList::AREA_CONNECT )
+						{
+							// hole connects to copper area
+							if( flags & GERBER_NO_PIN_THERMALS || pad_connect_flag == PAD_CONNECT_NOTHERMAL )
 							{
-								// pad or hole exists on this layer
-								// parameters for clearance on adjacent areas (if needed)
-								int area_pad_type = PAD_NONE;
-								int area_pad_wid = 0;
-								int area_pad_len = 0;
-								int area_pad_radius = 0;
-								int area_pad_angle = 0;
-								int area_pad_clearance = 0;
-								// parameters for clearance aperture
-								int type = CAperture::AP_NONE;
-								int size1=0, size2=0, size3=0; 
-								if( pad_type == PAD_NONE && pad_hole > 0 )
+								// no thermal, no clearance needed except on adjacent areas for hole
+								area_pad_type = PAD_ROUND;
+								area_pad_wid = pad_hole + 2*hole_clearance;
+								area_pad_clearance = 0;
+								// testing
+								if( clearance_type != CLEAR_NONE )
+									ASSERT(0);
+							}
+							else
+							{
+								// make thermal for annular ring and hole
+								type = CAperture::AP_THERMAL;
+								size1 = max( pad_w + 2*fill_clearance, pad_hole + 2*hole_clearance );
+								size2 = pad_w;	// inner diameter
+								area_pad_type = PAD_ROUND;
+								area_pad_wid = size1;
+								area_pad_clearance = 0;
+								// testing
+								if( clearance_type != CLEAR_THERMAL )
+									ASSERT(0);
+							}
+						}
+						else
+						{
+							// no area connection, just make clearance for annular ring and hole
+							type = CAperture::AP_CIRCLE;
+							size1 = max( pad_w + 2*fill_clearance, pad_hole + 2*hole_clearance );
+							// testing
+							if( clearance_type != CLEAR_NORMAL )
+								ASSERT(0);
+						}
+					}
+					else if( pad_type != PAD_NONE )
+					{
+						if( pad_connect_status & cpin2::AREA_CONNECT ) 
+						{
+							// pad connects to copper area, make clearance or thermal
+							// see if we need to make a thermal
+							BOOL bMakeThermal = (clearance_type == CLEAR_THERMAL);
+							if( pad_type == PAD_ROUND )
+							{
+								size1 = max( pad_w + 2*fill_clearance, pad_hole + 2*hole_clearance );
+								if( bMakeThermal )
 								{
-									// through-hole pin, no pad, just annular ring and hole
-									if( pad_connect_status & CPartList::AREA_CONNECT )
+									// make thermal for pad
+									type = CAperture::AP_THERMAL;
+									size2 = pad_w;	// inner diameter
+								}
+								// make clearance for adjacent areas
+								area_pad_type = pad_type;
+								area_pad_wid = size1;
+							}
+							else if( pad_type == PAD_OCTAGON )
+							{
+								size1 = (max( pad_w + 2*fill_clearance, pad_hole + 2*hole_clearance ))/cos_oct;
+								if( bMakeThermal )
+								{
+									// make thermal for pad
+									type = CAperture::AP_THERMAL; 
+									size2 = pad_w;	// inner diameter
+								}
+								area_pad_type = pad_type;
+								area_pad_wid = size1;
+							}
+							else if( pad_type == PAD_RECT || pad_type == PAD_RRECT || pad_type == PAD_OVAL 
+								|| pad_type == PAD_SQUARE )
+							{
+								if( bMakeThermal )
+								{
+									// make thermal for pad
+									// can't use an aperture for this pad, need to draw a polygon
+									// if hole, check hole clearance
+									int x1, x2, y1, y2;
+									if( pad_type == PAD_RECT || pad_type == PAD_RRECT || pad_type == PAD_OVAL )
 									{
-										// hole connects to copper area
-										if( flags & GERBER_NO_PIN_THERMALS || pad_connect_flag == PAD_CONNECT_NOTHERMAL )
-										{
-											// no thermal, no clearance needed except on adjacent areas for hole
-											area_pad_type = PAD_ROUND;
-											area_pad_wid = pad_hole + 2*hole_clearance;
-											area_pad_clearance = 0;
-											// testing
-											if( clearance_type != CLEAR_NONE )
-												ASSERT(0);
-										}
-										else
-										{
-											// make thermal for annular ring and hole
-											type = CAperture::AP_THERMAL;
-											size1 = max( pad_w + 2*fill_clearance, pad_hole + 2*hole_clearance );
-											size2 = pad_w;	// inner diameter
-											area_pad_type = PAD_ROUND;
-											area_pad_wid = size1;
-											area_pad_clearance = 0;
-											// testing
-											if( clearance_type != CLEAR_THERMAL )
-												ASSERT(0);
-										}
+										// CPT2 TODO must test this (old code with its pad_angle business was the opposite of what I expected)
+										x1 = pin->x - pad_l/2;
+										x2 = pin->x + pad_l/2;
+										y1 = pin->y - pad_w/2;
+										y2 = pin->y + pad_w/2;
 									}
 									else
 									{
-										// no area connection, just make clearance for annular ring and hole
-										type = CAperture::AP_CIRCLE;
-										size1 = max( pad_w + 2*fill_clearance, pad_hole + 2*hole_clearance );
-										// testing
-										if( clearance_type != CLEAR_NORMAL )
-											ASSERT(0);
+										x1 = pin->x - pad_w/2;
+										x2 = pin->x + pad_w/2;
+										y1 = pin->y - pad_w/2;
+										y2 = pin->y + pad_w/2;
+									}
+									int x_clearance = fill_clearance;
+									int y_clearance = fill_clearance;
+									if( pad_hole )
+									{
+										// if necessary, adjust for hole clearance
+										x_clearance = max( fill_clearance, hole_clearance+pad_hole/2-((x2-x1)/2));
+										y_clearance = max( fill_clearance, hole_clearance+pad_hole/2-((y2-y1)/2));
+									}
+									// add clearance
+									x1 -= x_clearance;
+									x2 += x_clearance;
+									y1 -= y_clearance;
+									y2 += y_clearance;
+									// make thermal for pad
+									type = CAperture::AP_RECT_THERMAL;   
+									size1 = x2 - x1;	// width
+									size2 = y2 - y1;	// height
+									size3 = thermal_wid;
+								}
+								area_pad_type = pad_type;
+								area_pad_wid = pad_w;
+								area_pad_len = pad_l;
+								area_pad_clearance = fill_clearance;
+							}
+						}
+						else
+						{
+							// pad doesn't connect to area, make clearance for pad and hole
+							size1 = max ( pad_w + 2*fill_clearance, pad_hole + 2*hole_clearance );
+							size2 = 0;
+							if( pad_type == PAD_ROUND )
+							{
+								type = CAperture::AP_CIRCLE;
+							}
+							else if( pad_type == PAD_SQUARE )
+							{
+								type = CAperture::AP_SQUARE;
+							}
+							else if( pad_type == PAD_OCTAGON )
+							{
+								type = CAperture::AP_OCTAGON;
+							}
+							else if( pad_type == PAD_OVAL || pad_type == PAD_RECT || pad_type == PAD_RRECT ) 
+							{
+								if( pad_type == PAD_OVAL )
+									type = CAperture::AP_OVAL;
+								if( pad_type == PAD_RECT )
+									type = CAperture::AP_RECT;
+								if( pad_type == PAD_RRECT )
+									type = CAperture::AP_RRECT;
+								size2 = max ( pad_l + 2*fill_clearance, pad_hole + 2*hole_clearance );
+								if( pad_type == PAD_RRECT )
+									size3 = pad_r + fill_clearance;
+							}
+						}
+					}
+					// now flash the aperture
+					if( type != CAperture::AP_NONE )  
+					{
+						CAperture pad_ap( type, size1, size2, size3 );
+						ChangeAperture( &pad_ap, &current_ap, &ap_array, PASS0, f );
+						if( PASS1 )
+						{
+							// now flash the pad
+							::WriteMoveTo( f, pin->x, pin->y, LIGHT_FLASH );
+						}
+					}
+					// now create clearances on adjacent areas for pins connected
+					// to copper area
+					if( area_pad_type != PAD_NONE ) 
+					{
+						int type = CAperture::AP_CIRCLE;
+						int size1 = CLEARANCE_POLY_STROKE_MILS*NM_PER_MIL;
+						CAperture pad_ap( type, size1, 0 );
+						ChangeAperture( &pad_ap, &current_ap, &ap_array, PASS0, f );
+						if( PASS1 ) 
+						{
+							DrawClearanceInForeignAreas( pin->net, area_pad_type, 0, pin->x, pin->y,
+								0, 0, area_pad_wid, area_pad_len, area_pad_radius, 0,
+								f, flags, layer, area_pad_clearance, &area_list );
+						}
+					}
+				}
+			}
+
+			// iterate through all nets and draw trace and via clearances.
+			// CPT2:  we'll do trace clearances in one loop, and vias in a separate one afterwards.  Old code had
+			// the problem that vias at the head of a connect wouldn't get done.
+			if( PASS1 )
+				f->WriteString( "\nG04 Draw clearances for traces and vias*\n" );
+			citer<cnet2> in (&nl->nets);
+			for (cnet2 *net = in.First(); net; net = in.Next())
+			{
+				citer<cconnect2> ic (&net->connects);
+				for (cconnect2 *c = ic.First(); c; c = ic.Next())
+				{
+					citer<cseg2> is (&c->segs);
+					for (cseg2 *s = is.First(); s; s = is.Next())
+					{
+						if (s->m_layer != layer)
+							continue;
+						int xi = s->preVtx->x, yi = s->preVtx->y;
+						int xf = s->postVtx->x, yf = s->postVtx->y;
+						if( area_net_list.GetSize() == 1 && area_net_list.First() != net ) 
+						{
+							// all areas on this layer belong to a single net, which is not s's net:  draw clearance
+							int type = CAperture::AP_CIRCLE;
+							int size1 = s->m_width + 2*fill_clearance;
+							CAperture seg_ap( type, size1, 0 );
+							ChangeAperture( &seg_ap, &current_ap, &ap_array, PASS0, f );
+							if( PASS1 )
+							{
+								WriteMoveTo( f, xi, yi, LIGHT_OFF );
+								WriteMoveTo( f, xf, yf, LIGHT_ON );
+							}
+						}
+						else if( area_net_list.GetSize() > 1 )
+						{
+							// test for segment intersection with area on own net
+							BOOL bIntOwnNet = FALSE;
+							citer<carea2> ia (&net->areas);
+							for (carea2 *a = ia.First(); a; a = ia.Next())
+							{
+								if( a->TestPointInside( xi, yi ) || a->TestPointInside( xi, yi ) )
+									{ bIntOwnNet = TRUE; break; }
+								citer<ccontour> ictr (&a->contours);
+								for (ccontour *ctr = ictr.First(); ctr; ctr = ictr.Next())
+								{
+									citer<cside> is (&ctr->sides);
+									for (cside *sd = is.First(); sd; sd = is.Next())
+									{
+										// test for clearance from area sides < fill_clearance
+										int x2i = sd->preCorner->x, y2i = sd->preCorner->y;
+										int x2f = sd->postCorner->x, y2f = sd->postCorner->y;
+										int style2 = sd->m_style;
+										int d = ::GetClearanceBetweenSegments( xi, yi, xf, yf, CPolyLine::STRAIGHT, s->m_width,
+											x2i, y2i, x2f, y2f, style2, 0, fill_clearance, 0, 0 );
+										if( d < fill_clearance )
+											{ bIntOwnNet = TRUE; goto end_loop; }
 									}
 								}
-								else if( pad_type != PAD_NONE )
+							}
+
+							end_loop:
+							if( bIntOwnNet )
+							{
+								// set aperture for stroke outline
+								int type = CAperture::AP_CIRCLE;
+								int size1 = CLEARANCE_POLY_STROKE_MILS*NM_PER_MIL;
+								CAperture seg_ap( type, size1, 0 );
+								ChangeAperture( &seg_ap, &current_ap, &ap_array, PASS0, f );
+								if( PASS1 )
 								{
-									if( pad_connect_status & CPartList::AREA_CONNECT ) 
-									{
-										// pad connects to copper area, make clearance or thermal
-										// see if we need to make a thermal
-										BOOL bMakeThermal = (clearance_type == CLEAR_THERMAL);
-										if( pad_type == PAD_ROUND )
-										{
-											size1 = max( pad_w + 2*fill_clearance, pad_hole + 2*hole_clearance );
-											if( bMakeThermal )
-											{
-												// make thermal for pad
-												type = CAperture::AP_THERMAL;
-												size2 = pad_w;	// inner diameter
-											}
-											// make clearance for adjacent areas
-											area_pad_type = pad_type;
-											area_pad_wid = size1;
-										}
-										else if( pad_type == PAD_OCTAGON )
-										{
-											size1 = (max( pad_w + 2*fill_clearance, pad_hole + 2*hole_clearance ))/cos_oct;
-											if( bMakeThermal )
-											{
-												// make thermal for pad
-												type = CAperture::AP_THERMAL; 
-												size2 = pad_w;	// inner diameter
-											}
-											area_pad_type = pad_type;
-											area_pad_wid = size1;
-										}
-										else if( pad_type == PAD_RECT || pad_type == PAD_RRECT || pad_type == PAD_OVAL 
-											|| pad_type == PAD_SQUARE )
-										{
-											if( bMakeThermal )
-											{
-												// make thermal for pad
-												// can't use an aperture for this pad, need to draw a polygon
-												// if hole, check hole clearance
-												int x1, x2, y1, y2;
-												if( pad_type == PAD_RECT || pad_type == PAD_RRECT || pad_type == PAD_OVAL )
-												{
-													if( pad_angle == 90 )
-													{
-														x1 = pad_x - pad_w/2;
-														x2 = pad_x + pad_w/2;
-														y1 = pad_y - pad_l/2;
-														y2 = pad_y + pad_l/2;
-													}
-													else if( pad_angle == 0 ) 
-													{
-														x1 = pad_x - pad_l/2;
-														x2 = pad_x + pad_l/2;
-														y1 = pad_y - pad_w/2;
-														y2 = pad_y + pad_w/2;
-													}
-													else
-														ASSERT(0);
-												}
-												else
-												{
-													x1 = pad_x - pad_w/2;
-													x2 = pad_x + pad_w/2;
-													y1 = pad_y - pad_w/2;
-													y2 = pad_y + pad_w/2;
-												}
-												int x_clearance = fill_clearance;
-												int y_clearance = fill_clearance;
-												if( pad_hole )
-												{
-													// if necessary, adjust for hole clearance
-													x_clearance = max( fill_clearance, hole_clearance+pad_hole/2-((x2-x1)/2));
-													y_clearance = max( fill_clearance, hole_clearance+pad_hole/2-((y2-y1)/2));
-												}
-												// add clearance
-												x1 -= x_clearance;
-												x2 += x_clearance;
-												y1 -= y_clearance;
-												y2 += y_clearance;
-												// make thermal for pad
-												type = CAperture::AP_RECT_THERMAL;   
-												size1 = x2 - x1;	// width
-												size2 = y2 - y1;	// height
-												size3 = thermal_wid;
-											}
-											area_pad_type = pad_type;
-											area_pad_wid = pad_w;
-											area_pad_len = pad_l;
-											area_pad_angle = pad_angle;
-											area_pad_clearance = fill_clearance;
-										}
-									}
-									else
-									{
-										// pad doesn't connect to area, make clearance for pad and hole
-										size1 = max ( pad_w + 2*fill_clearance, pad_hole + 2*hole_clearance );
-										size2 = 0;
-										if( pad_type == PAD_ROUND )
-										{
-											type = CAperture::AP_CIRCLE;
-										}
-										else if( pad_type == PAD_SQUARE )
-										{
-											type = CAperture::AP_SQUARE;
-										}
-										else if( pad_type == PAD_OCTAGON )
-										{
-											type = CAperture::AP_OCTAGON;
-										}
-										else if( pad_type == PAD_OVAL || pad_type == PAD_RECT || pad_type == PAD_RRECT ) 
-										{
-											if( pad_type == PAD_OVAL )
-												type = CAperture::AP_OVAL;
-											if( pad_type == PAD_RECT )
-												type = CAperture::AP_RECT;
-											if( pad_type == PAD_RRECT )
-												type = CAperture::AP_RRECT;
-											size2 = max ( pad_l + 2*fill_clearance, pad_hole + 2*hole_clearance );
-											if( pad_type == PAD_RRECT )
-												size3 = pad_r + fill_clearance;
-											if( pad_angle == 90 )
-											{
-												int temp = size1;
-												size1 = size2;
-												size2 = temp;
-											}
-										}
-									}
-								}
-								// now flash the aperture
-								if( type != CAperture::AP_NONE )  
-								{
-									CAperture pad_ap( type, size1, size2, size3 );
-									ChangeAperture( &pad_ap, &current_ap, &ap_array, PASS0, f );
-									if( PASS1 )
-									{
-										// now flash the pad
-										::WriteMoveTo( f, part->pin[ip].x, part->pin[ip].y, LIGHT_FLASH );
-									}
-								}
-								// now create clearances on adjacent areas for pins connected
-								// to copper area
-								if( area_pad_type != PAD_NONE ) 
-								{
+									// handle segment that crosses from an area on its own net to
+									// an area on a foreign net
 									int type = CAperture::AP_CIRCLE;
 									int size1 = CLEARANCE_POLY_STROKE_MILS*NM_PER_MIL;
 									CAperture pad_ap( type, size1, 0 );
 									ChangeAperture( &pad_ap, &current_ap, &ap_array, PASS0, f );
 									if( PASS1 ) 
-									{
-										DrawClearanceInForeignAreas( pad_net, area_pad_type, 0, pad_x, pad_y,
-											0, 0, area_pad_wid, area_pad_len, area_pad_radius, area_pad_angle,
-											f, flags, layer, area_pad_clearance,
-											&area_net_list, &area_list );
-									}
+										DrawClearanceInForeignAreas( net, -1, s->m_width, xi, yi, xf, yf,
+											0, 0, 0, 0, f, flags, layer, fill_clearance, 
+											&area_list );
 								}
 							}
-						}
-					}
-					part = part->next;
-				}
-			} // end if pl
-			if( nl ) 
-			{
-				// iterate through all nets and draw trace and via clearances
-				if( PASS1 )
-				{
-					f->WriteString( "\nG04 Draw clearances for traces*\n" );
-				}
-				net = iter_net.GetFirst();
-				while( net )
-				{
-					CIterator_cconnect iter_con(net);
-					for( cconnect * c=iter_con.GetFirst(); c; c=iter_con.GetNext() )
-					{
-						int ic = iter_con.GetIndex();
-//						int nsegs = c->NumSegs();
-						CIterator_cseg iter_seg( c );
-						for( cseg * s=iter_seg.GetFirst(); s; s=iter_seg.GetNext() )
-						{
-							// get segment and vertices
-							int is = iter_seg.GetIndex();
-							cvertex * pre_vtx = &s->GetPreVtx();
-							cvertex * post_vtx = &s->GetPostVtx();
-							double xi = pre_vtx->x;
-							double yi = pre_vtx->y;
-							double xf = post_vtx->x;
-							double yf = post_vtx->y;
-							int test;
-							int pad_w;
-							int hole_w;
-							nl->GetViaPadInfo( net, ic, is+1, layer, 
-								&pad_w, &hole_w, &test );
-							// flash the via clearance if necessary
-							if( hole_w > 0 && layer >= LAY_TOP_COPPER )
+							else
 							{
-								// this is a copper layer
-								// set aperture to draw normal via clearance
-								int type = CAperture::AP_CIRCLE;
-								int size1 = max( pad_w + 2*fill_clearance, hole_w + 2*hole_clearance );
-								int size2 = 0;
-								// set parameters for no foreign area clearance
-								int area_pad_type = PAD_NONE;
-								int area_pad_wid = 0;
-								int area_pad_len = 0;
-								int area_pad_radius = 0;
-								int area_pad_angle = 0;
-								int area_pad_clearance = 0;
-								if( pad_w == 0 )
-								{
-									// no pad, just make hole clearance 
-									type = CAperture::AP_CIRCLE;
-									size1 = hole_w + 2*hole_clearance;
-								}
-								else if( test & CNetList::VIA_AREA )
-								{
-									// inner layer and connected to copper area
-									if( flags & GERBER_NO_VIA_THERMALS )
-									{
-										// no thermal, therefore no clearance
-										type = CAperture::AP_NONE;
-										// except on adjacent foreign nets
-										area_pad_type = PAD_ROUND;
-										area_pad_wid = max( pad_w + 2*fill_clearance, hole_w + 2*hole_clearance );
-									}
-									else
-									{
-										// thermal
-										type = CAperture::AP_THERMAL;
-										size1 = max( pad_w + 2*fill_clearance, hole_w + 2*hole_clearance );
-										size2 = pad_w;
-										area_pad_type = PAD_ROUND;
-										area_pad_wid = size1;
-									}
-								}
-								if( type != CAperture::AP_NONE )
-								{
-									CAperture via_ap( type, size1, size2 );
-									ChangeAperture( &via_ap, &current_ap, &ap_array, PASS0, f );
-									if( PASS1 )
-									{
-										// flash the via clearance
-										WriteMoveTo( f, post_vtx->x, post_vtx->y, LIGHT_FLASH );
-									}
-								}
-								if( area_pad_type == PAD_ROUND && num_area_nets > 1 )
-								{
-									int type = CAperture::AP_CIRCLE;
-									int size1 = CLEARANCE_POLY_STROKE_MILS*NM_PER_MIL;
-									CAperture stroke_ap( type, size1, 0 );
-									ChangeAperture( &stroke_ap, &current_ap, &ap_array, PASS0, f );
-									if( PASS1 )
-									{
-										DrawClearanceInForeignAreas( net, area_pad_type, 0,
-											xf, yf, 0, 0, area_pad_wid, 0, 0, 0,
-											f, flags, layer, 0, &area_net_list, &area_list );
-									}
-								}
-							}
-
-							if( s->m_layer == layer && num_area_nets == 1 && net != first_area_net ) 
-							{
-								// segment is on this layer and there is a single copper area
-								// on this layer not on the same net, draw clearance
-								int type = CAperture::AP_CIRCLE;
-								int size1 = s->m_width + 2*fill_clearance;
-								CAperture seg_ap( type, size1, 0 );
+								// segment does not intersect area on own net, just make clearance
+								int w = s->m_width + 2*fill_clearance;
+								CAperture seg_ap( CAperture::AP_CIRCLE, w, 0 );
 								ChangeAperture( &seg_ap, &current_ap, &ap_array, PASS0, f );
 								if( PASS1 )
 								{
-									WriteMoveTo( f, xi, yi, LIGHT_OFF );
-									WriteMoveTo( f, xf, yf, LIGHT_ON );
-								}
-							}
-							else if( s->m_layer == layer && num_area_nets > 1 )
-							{
-								// test for segment intersection with area on own net
-								BOOL bIntOwnNet = FALSE;
-								for( int ia=0; ia<net->NumAreas(); ia++ )
-								{
-									CPolyLine * poly = &net->area[ia]; 
-									if( poly->TestPointInside( xi, yi ) )
-									{
-										bIntOwnNet = TRUE;
-										break;
-									}
-									if( poly->TestPointInside( xf, yf ) )
-									{
-										bIntOwnNet = TRUE;
-										break;
-									}
-									for( int icont=0; icont<poly->NumContours(); icont++ )
-									{
-										int cont_start = poly->ContourStart(icont);
-										int cont_end = poly->ContourEnd(icont);
-										for( int is=cont_start; is<=cont_end; is++ )
-										{
-											// test for clearance from area sides < fill_clearance
-											int x2i = poly->X(is);
-											int y2i = poly->Y(is);
-											int ic2 = is+1;
-											if( ic2 > cont_end )
-												ic2 = cont_start;
-											int x2f = poly->X(ic2);
-											int y2f = poly->Y(ic2);
-											int style2 = poly->SideStyle( is );
-											int d = ::GetClearanceBetweenSegments( xi, yi, xf, yf, CPolyLine::STRAIGHT, s->m_width,
-												x2i, y2i, x2f, y2f, style2, 0, fill_clearance, 0, 0 );
-											if( d < fill_clearance )
-											{
-												bIntOwnNet = TRUE;
-												break;
-											}
-										}
-										if( bIntOwnNet )
-											break;
-									}
-								}
-								if( bIntOwnNet )
-								{
-									// set aperture for stroke outline
-									int type = CAperture::AP_CIRCLE;
-									int size1 = CLEARANCE_POLY_STROKE_MILS*NM_PER_MIL;
-									CAperture seg_ap( type, size1, 0 );
-									ChangeAperture( &seg_ap, &current_ap, &ap_array, PASS0, f );
-									if( PASS1 )
-									{
-										// handle segment that crosses from an area on its own net to
-										// an area on a foreign net
-										int type = CAperture::AP_CIRCLE;
-										int size1 = CLEARANCE_POLY_STROKE_MILS*NM_PER_MIL;
-										CAperture pad_ap( type, size1, 0 );
-										ChangeAperture( &pad_ap, &current_ap, &ap_array, PASS0, f );
-										if( PASS1 ) 
-										{
-											DrawClearanceInForeignAreas( net, -1, s->m_width, xi, yi, xf, yf,
-												0, 0, 0, 0, f, flags, layer, fill_clearance, 
-												&area_net_list, &area_list );
-										}
-									}
-								}
-								else
-								{
-									// segment does not intersect area on own net, just make clearance
-									int w = s->m_width + 2*fill_clearance;
-									CAperture seg_ap( CAperture::AP_CIRCLE, w, 0 );
-									ChangeAperture( &seg_ap, &current_ap, &ap_array, PASS0, f );
-									if( PASS1 )
-									{
-										WriteMoveTo( f, pre_vtx->x, pre_vtx->y, LIGHT_OFF );
-										WriteMoveTo( f, post_vtx->x, post_vtx->y, LIGHT_ON );
-									}
+									WriteMoveTo( f, s->preVtx->x, s->preVtx->y, LIGHT_OFF );
+									WriteMoveTo( f, s->postVtx->x, s->postVtx->y, LIGHT_ON );
 								}
 							}
 						}
 					}
-					net = iter_net.GetNext();
-				}
-			}		
-			if( tl )
-			{
-				// draw clearances for text
-				if( PASS1 )
-				{
-					f->WriteString( "\nG04 Draw clearances for text*\n" );
-				}
-				for( int it=0; it<tl->text_ptr.GetSize(); it++ )
-				{
-					CText * t = tl->text_ptr[it];
-					if( t->m_layer == layer )
+
+					// Now check connect's vias.  Note that vias on tees may have their clearances drawn repeatedly (oh well)
+					citer<cvertex2> iv (&c->vtxs);
+					for (cvertex2 *v = iv.First(); v; v = iv.Next())
 					{
-						// draw text
-						int w = t->m_stroke_width + 2*fill_clearance;
-						if( t->m_bNegative )
-							w = t->m_stroke_width;	// if negative text, just draw the text
-						CAperture text_ap( CAperture::AP_CIRCLE, w, 0 );
-						ChangeAperture( &text_ap, &current_ap, &ap_array, PASS0, f );
-						if( PASS1 )
+						int test;
+						int pad_w;
+						int hole_w;
+						v->GetViaPadInfo( layer, &pad_w, &hole_w, &test );
+						// flash the via clearance if necessary
+						if (hole_w == 0 || layer < LAY_TOP_COPPER)
+							continue;
+						// this is a copper layer
+						// set aperture to draw normal via clearance
+						int type = CAperture::AP_CIRCLE;
+						int size1 = max( pad_w + 2*fill_clearance, hole_w + 2*hole_clearance );
+						int size2 = 0;
+						// set parameters for no foreign area clearance
+						int area_pad_type = PAD_NONE;
+						int area_pad_wid = 0;
+						int area_pad_len = 0;
+						int area_pad_radius = 0;
+						int area_pad_angle = 0;
+						int area_pad_clearance = 0;
+						if( pad_w == 0 )
 						{
-							for( int istroke=0; istroke<t->m_stroke.GetSize(); istroke++ )
+							// no pad, just make hole clearance 
+							type = CAperture::AP_CIRCLE;
+							size1 = hole_w + 2*hole_clearance;
+						}
+						else if( test & cvertex2::VIA_AREA )
+						{
+							// inner layer and connected to copper area
+							if( flags & GERBER_NO_VIA_THERMALS )
 							{
-								::WriteMoveTo( f, t->m_stroke[istroke].xi, t->m_stroke[istroke].yi, LIGHT_OFF );
-								::WriteMoveTo( f, t->m_stroke[istroke].xf, t->m_stroke[istroke].yf, LIGHT_ON );
+								// no thermal, therefore no clearance
+								type = CAperture::AP_NONE;
+								// except on adjacent foreign nets
+								area_pad_type = PAD_ROUND;
+								area_pad_wid = max( pad_w + 2*fill_clearance, hole_w + 2*hole_clearance );
 							}
+							else
+							{
+								// thermal
+								type = CAperture::AP_THERMAL;
+								size1 = max( pad_w + 2*fill_clearance, hole_w + 2*hole_clearance );
+								size2 = pad_w;
+								area_pad_type = PAD_ROUND;
+								area_pad_wid = size1;
+							}
+						}
+						if( type != CAperture::AP_NONE )
+						{
+							CAperture via_ap( type, size1, size2 );
+							ChangeAperture( &via_ap, &current_ap, &ap_array, PASS0, f );
+							if( PASS1 )
+								// flash the via clearance
+								WriteMoveTo( f, v->x, v->y, LIGHT_FLASH );
+						}
+						if( area_pad_type == PAD_ROUND )
+						{
+							int type = CAperture::AP_CIRCLE;
+							int size1 = CLEARANCE_POLY_STROKE_MILS*NM_PER_MIL;
+							CAperture stroke_ap( type, size1, 0 );
+							ChangeAperture( &stroke_ap, &current_ap, &ap_array, PASS0, f );
+							if( PASS1 )
+								DrawClearanceInForeignAreas( net, area_pad_type, 0,
+									v->x, v->y, 0, 0, area_pad_wid, 0, 0, 0,
+									f, flags, layer, 0, &area_list );
 						}
 					}
 				}
-			} // end loop through nets
+			}
+
+			// draw clearances for text
+			if( PASS1 )
+				f->WriteString( "\nG04 Draw clearances for text*\n" );
+			citer<ctext> it (&tl->texts);
+			for (ctext *t = it.First(); t; t = it.Next())
+				if( t->m_layer == layer )
+				{
+					// draw text
+					int w = t->m_stroke_width + 2*fill_clearance;
+					if( t->m_bNegative )
+						w = t->m_stroke_width;	// if negative text, just draw the text
+					CAperture text_ap( CAperture::AP_CIRCLE, w, 0 );
+					ChangeAperture( &text_ap, &current_ap, &ap_array, PASS0, f );
+					if( PASS1 )
+					{
+						for( int istroke=0; istroke<t->m_stroke.GetSize(); istroke++ )
+						{
+							::WriteMoveTo( f, t->m_stroke[istroke].xi, t->m_stroke[istroke].yi, LIGHT_OFF );
+							::WriteMoveTo( f, t->m_stroke[istroke].xf, t->m_stroke[istroke].yf, LIGHT_ON );
+						}
+					}
+				}
 		}
 
 		// ********************** draw pads, vias and traces **************************
@@ -1567,354 +1331,340 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 			current_ap.m_type = CAperture::AP_NONE;	// force selection of aperture
 		}
 		// draw pads, silkscreen items, reference designators and value
-		if( pl )
+		// iterate through all parts and draw pads
+		citer<cpart2> ip (&pl->parts);
+		for (cpart2 *part = ip.First(); part; part = ip.Next())
 		{
-			// iterate through all parts and draw pads
-			cpart * part = pl->m_start.next;
-			while( part->next != 0 )
+			if (!part->shape)
+				continue;
+			if( PASS1 )
 			{
-				CShape * s = part->shape;
-				if( s )
+				line.Format( "G04 Draw part %s*\n", part->ref_des ); 
+				f->WriteString( line );
+			}
+			citer<cpin2> ipin (&part->pins);
+			for (cpin2 *pin = ipin.First(); pin; pin = ipin.Next())
+			{
+				// get pad info
+				int pad_w, pad_l, pad_r, pad_type, pad_hole, pad_connect;
+				BOOL bPad = pin->GetDrawInfo( layer, 0, 0, mask_clearance, paste_mask_shrink,
+					&pad_type, &pad_w, &pad_l, &pad_r, &pad_hole, &pad_connect );
+				if (!bPad || pad_type == PAD_NONE || pad_w == 0)
+					continue;
+				// draw pad
+				int type, size1, size2, size3;
+				if( pad_type == PAD_ROUND || pad_type == PAD_SQUARE 
+					|| pad_type == PAD_OCTAGON || pad_type == PAD_OVAL
+					|| pad_type == PAD_RECT || pad_type == PAD_RRECT )
 				{
+					type = CAperture::AP_CIRCLE;
+					size1 = pad_w;
+					size2 = 0;
+					size3 = 0;
+					if( pad_type == PAD_SQUARE )
+						type = CAperture::AP_SQUARE;
+					else if( pad_type == PAD_OCTAGON )
+						type = CAperture::AP_OCTAGON;
+					else if( pad_type == PAD_OVAL || pad_type == PAD_RECT || pad_type == PAD_RRECT )
+					{
+						if( pad_type == PAD_OVAL )
+							type = CAperture::AP_OVAL;
+						if( pad_type == PAD_RECT )
+							type = CAperture::AP_RECT;
+						if( pad_type == PAD_RRECT )
+							type = CAperture::AP_RRECT;
+						size2 = pad_l; 
+						size3 = pad_r;
+					}
+					CAperture pad_ap( type, size1, size2, size3 ); 
+					ChangeAperture( &pad_ap, &current_ap, &ap_array, PASS0, f );
 					if( PASS1 )
-					{
-						line.Format( "G04 Draw part %s*\n", part->ref_des ); 
-						f->WriteString( line );
-					}
-					for( int ip=0; ip<s->GetNumPins(); ip++ )
-					{
-						// get pad info
-						int pad_x;
-						int pad_y;
-						int pad_w;
-						int pad_l;
-						int pad_r;
-						int pad_type;
-						int pad_hole;
-						int pad_connect;
-						int pad_angle;
-						cnet * pad_net;
-						BOOL bPad = pl->GetPadDrawInfo( part, ip, layer,
-							0, 0,
-							mask_clearance, paste_mask_shrink,
-							&pad_type, &pad_x, &pad_y, &pad_w, &pad_l, &pad_r, &pad_hole, &pad_angle,
-							&pad_net, &pad_connect );
-
-						// draw pad
-						if( bPad && pad_type != PAD_NONE && pad_w > 0 )
-						{
-							int type, size1, size2, size3;
-							if( pad_type == PAD_ROUND || pad_type == PAD_SQUARE 
-								|| pad_type == PAD_OCTAGON || pad_type == PAD_OVAL
-								|| pad_type == PAD_RECT || pad_type == PAD_RRECT )
-							{
-								type = CAperture::AP_CIRCLE;
-								size1 = pad_w;
-								size2 = 0;
-								size3 = 0;
-								if( pad_type == PAD_SQUARE )
-									type = CAperture::AP_SQUARE;
-								else if( pad_type == PAD_OCTAGON )
-									type = CAperture::AP_OCTAGON;
-								else if( pad_type == PAD_OVAL || pad_type == PAD_RECT || pad_type == PAD_RRECT )
-								{
-									if( pad_type == PAD_OVAL )
-										type = CAperture::AP_OVAL;
-									if( pad_type == PAD_RECT )
-										type = CAperture::AP_RECT;
-									if( pad_type == PAD_RRECT )
-										type = CAperture::AP_RRECT;
-									size2 = pad_l; 
-									size3 = pad_r;
-									if( pad_angle == 90 )
-									{
-										int temp = size1;
-										size1 = size2;
-										size2 = temp;
-									}
-								}
-								CAperture pad_ap( type, size1, size2, size3 ); 
-								ChangeAperture( &pad_ap, &current_ap, &ap_array, PASS0, f );
-								if( PASS1 )
-								{
-									// now flash the pad
-									::WriteMoveTo( f, pad_x, pad_y, LIGHT_FLASH );
-								}
-							}
-						}
-					}
+						// now flash the pad
+						::WriteMoveTo( f, pin->x, pin->y, LIGHT_FLASH );
 				}
-				// draw part outline and text strings if any strokes on this layer
-				BOOL bOnLayer = FALSE;
-				int nstrokes = part->m_outline_stroke.GetSize();
+			}
+			// draw part outline and text strings if any strokes on this layer
+			BOOL bOnLayer = FALSE;
+			int nstrokes = part->m_outline_stroke.GetSize();
+			for( int ips=0; ips<nstrokes; ips++ )
+				if( part->m_outline_stroke[ips].layer == layer )
+					{ bOnLayer = TRUE; break; }
+			if( bOnLayer )
+			{
+				if( PASS1 )
+				{
+					line.Format( "G04 draw outline and text for part %s*\n", part->ref_des ); 
+					f->WriteString( line );
+				}
 				for( int ips=0; ips<nstrokes; ips++ )
 				{
 					if( part->m_outline_stroke[ips].layer == layer )
 					{
-						bOnLayer = TRUE;
-						break;
-					}
-				}
-				if( bOnLayer )
-				{
-					if( PASS1 )
-					{
-						line.Format( "G04 draw outline and text for part %s*\n", part->ref_des ); 
-						f->WriteString( line );
-					}
-					if( nstrokes )
-					{
-						for( int ips=0; ips<nstrokes; ips++ )
-						{
-							if( part->m_outline_stroke[ips].layer == layer )
-							{
-								int s_w = max( part->m_outline_stroke[ips].w, min_silkscreen_stroke_wid );
-								CAperture outline_ap( CAperture::AP_CIRCLE, s_w, 0 );
-								ChangeAperture( &outline_ap, &current_ap, &ap_array, PASS0, f );
-								if( PASS1 )
-								{
-									// move to start of stroke
-									::WriteMoveTo( f, part->m_outline_stroke[ips].xi, 
-										part->m_outline_stroke[ips].yi, LIGHT_OFF );
-									int type;
-									if( part->m_outline_stroke[ips].type == DL_LINE )
-										type = CPolyLine::STRAIGHT;
-									else if( part->m_outline_stroke[ips].type == DL_ARC_CW )
-										type = CPolyLine::ARC_CW;
-									else if( part->m_outline_stroke[ips].type == DL_ARC_CCW )
-										type = CPolyLine::ARC_CCW;
-									else
-										ASSERT(0);
-									::WritePolygonSide( f, 
-										part->m_outline_stroke[ips].xi, 
-										part->m_outline_stroke[ips].yi, 
-										part->m_outline_stroke[ips].xf, 
-										part->m_outline_stroke[ips].yf, 
-										type, 10, LIGHT_ON );
-								}
-							}
-						}
-					}
-				}
-				// draw reference designator text
-				if( part->m_ref_size && part->m_ref_vis 
-					&& (pl->GetRefPCBLayer( part ) == layer) )
-				{
-					if( PASS1 )
-					{
-						line.Format( "G04 draw reference designator for part %s*\n", part->ref_des ); 
-						f->WriteString( line );
-					}
-					int s_w = max( part->m_ref_w, min_silkscreen_stroke_wid );
-					CAperture ref_ap( CAperture::AP_CIRCLE, s_w, 0 );
-					ChangeAperture( &ref_ap, &current_ap, &ap_array, PASS0, f );
-					if( PASS1 )
-					{
-						for( int istroke=0; istroke<part->ref_text_stroke.GetSize(); istroke++ )
-						{
-							::WriteMoveTo( f, part->ref_text_stroke[istroke].xi, 
-								part->ref_text_stroke[istroke].yi, LIGHT_OFF );
-							::WriteMoveTo( f, part->ref_text_stroke[istroke].xf, 
-								part->ref_text_stroke[istroke].yf, LIGHT_ON );
-						}
-					}
-				}
-				// draw value text
-				if( part->m_value_size && part->m_value_vis 
-					&& (pl->GetValuePCBLayer(part) == layer) )
-				{
-					if( PASS1 )
-					{
-						line.Format( "G04 draw value for part %s*\n", part->ref_des ); 
-						f->WriteString( line );
-					}
-					int s_w = max( part->m_ref_w, min_silkscreen_stroke_wid );
-					CAperture value_ap( CAperture::AP_CIRCLE, s_w, 0 );
-					ChangeAperture( &value_ap, &current_ap, &ap_array, PASS0, f );
-					if( PASS1 )
-					{
-						for( int istroke=0; istroke<part->value_stroke.GetSize(); istroke++ )
-						{
-							::WriteMoveTo( f, part->value_stroke[istroke].xi, 
-								part->value_stroke[istroke].yi, LIGHT_OFF );
-							::WriteMoveTo( f, part->value_stroke[istroke].xf, 
-								part->value_stroke[istroke].yf, LIGHT_ON );
-						}
-					}
-				}
-				// go to next part
-				part = part->next;
-			}
-		}
-		// draw vias and traces
-		if( nl )
-		{
-			// iterate through all nets
-			if( PASS1 )
-			{
-				f->WriteString( "\nG04 Draw traces*\n" );
-			}
-			POSITION pos;
-			CString name;
-			void * ptr;
-			net = iter_net.GetFirst();
-			while( net )
-			{
-				CIterator_cconnect iter_con(net);
-				for( cconnect * c=iter_con.GetFirst(); c; c=iter_con.GetNext() )
-				{
-					int ic = iter_con.GetIndex();
-//					int nsegs = c->NumSegs();
-					CIterator_cseg iter_seg( c );
-					for( cseg * s=iter_seg.GetFirst(); s; s=iter_seg.GetNext() )
-					{
-						// get segment info
-						int is = iter_seg.GetIndex();
-						cvertex * pre_vtx = &s->GetPreVtx();
-						cvertex * post_vtx = &s->GetPostVtx();
-						// get following via info
-						int test, pad_w, hole_w;
-						nl->GetViaPadInfo( net, ic, is+1, layer,
-							&pad_w, &hole_w, &test );
-						if( s->m_layer == layer )
-						{
-							// segment is on this layer, draw it
-							int w = s->m_width;
-							CAperture seg_ap( CAperture::AP_CIRCLE, w, 0 );
-							ChangeAperture( &seg_ap, &current_ap, &ap_array, PASS0, f );
-							if( PASS1 )
-							{
-								WriteMoveTo( f, pre_vtx->x, pre_vtx->y, LIGHT_OFF );
-								WriteMoveTo( f, post_vtx->x, post_vtx->y, LIGHT_ON );
-							}
-						}
-						if( pad_w )
-						{
-							// via exists
-							CAperture via_ap( CAperture::AP_CIRCLE, 0, 0 );
-							int w = 0;
-							if( layer == LAY_MASK_TOP || layer == LAY_MASK_BOTTOM )
-							{
-								if( !(flags & GERBER_MASK_VIAS) )
-								{
-									// solder mask layer, add mask clearance
-									w = pad_w + 2*mask_clearance;
-								}
-							}
-							else if( layer >= LAY_TOP_COPPER )
-							{
-								// copper layer, set aperture
-								w = pad_w;							
-							}
-							if( w )
-							{
-								via_ap.m_size1 = w;
-								ChangeAperture( &via_ap, &current_ap, &ap_array, PASS0, f );
-								// flash the via
-								if( PASS1 )
-								{
-									WriteMoveTo( f, post_vtx->x, post_vtx->y, LIGHT_FLASH );
-								}
-							}
-						}
-					}
-				}
-				net = iter_net.GetNext();
-			}
-		}
-		// draw text
-		if( tl )
-		{
-			if( PASS1 )
-			{
-				f->WriteString( "\nG04 Draw Text*\n" );
-			}
-			for( int it=0; it<tl->text_ptr.GetSize(); it++ )
-			{
-				CText * t = tl->text_ptr[it];
-				if( !t->m_bNegative && t->m_font_size )
-				{
-					if( t->m_layer == layer )
-					{
-						// draw text
-						int w = t->m_stroke_width;
-						if( layer == LAY_SILK_TOP || layer == LAY_SILK_BOTTOM )
-							w = max( t->m_stroke_width, min_silkscreen_stroke_wid );
-						CAperture text_ap( CAperture::AP_CIRCLE, w, 0 );
-						ChangeAperture( &text_ap, &current_ap, &ap_array, PASS0, f );
+						int s_w = max( part->m_outline_stroke[ips].w, min_silkscreen_stroke_wid );
+						CAperture outline_ap( CAperture::AP_CIRCLE, s_w, 0 );
+						ChangeAperture( &outline_ap, &current_ap, &ap_array, PASS0, f );
 						if( PASS1 )
 						{
-							for( int istroke=0; istroke<t->m_stroke.GetSize(); istroke++ )
-							{
-								::WriteMoveTo( f, t->m_stroke[istroke].xi, t->m_stroke[istroke].yi, LIGHT_OFF );
-								::WriteMoveTo( f, t->m_stroke[istroke].xf, t->m_stroke[istroke].yf, LIGHT_ON );
-							}
+							// move to start of stroke
+							::WriteMoveTo( f, part->m_outline_stroke[ips].xi, 
+								part->m_outline_stroke[ips].yi, LIGHT_OFF );
+							int type;
+							if( part->m_outline_stroke[ips].type == DL_LINE )
+								type = CPolyLine::STRAIGHT;
+							else if( part->m_outline_stroke[ips].type == DL_ARC_CW )
+								type = CPolyLine::ARC_CW;
+							else if( part->m_outline_stroke[ips].type == DL_ARC_CCW )
+								type = CPolyLine::ARC_CCW;
+							else
+								ASSERT(0);
+							::WritePolygonSide( f, 
+								part->m_outline_stroke[ips].xi, 
+								part->m_outline_stroke[ips].yi, 
+								part->m_outline_stroke[ips].xf, 
+								part->m_outline_stroke[ips].yf, 
+								type, 10, LIGHT_ON );
 						}
 					}
+				}
+			}
+			// draw reference designator text
+			if( part->m_ref->m_font_size && part->m_ref->m_bShown && part->m_ref->GetLayer() == layer)
+			{
+				if( PASS1 )
+				{
+					line.Format( "G04 draw reference designator for part %s*\n", part->ref_des ); 
+					f->WriteString( line );
+				}
+				int s_w = max( part->m_ref->m_stroke_width, min_silkscreen_stroke_wid );
+				CAperture ref_ap( CAperture::AP_CIRCLE, s_w, 0 );
+				ChangeAperture( &ref_ap, &current_ap, &ap_array, PASS0, f );
+				if( PASS1 )
+					for( int istroke=0; istroke<part->m_ref->m_stroke.GetSize(); istroke++ )
+					{
+						::WriteMoveTo( f, part->m_ref->m_stroke[istroke].xi, part->m_ref->m_stroke[istroke].yi, LIGHT_OFF );
+						::WriteMoveTo( f, part->m_ref->m_stroke[istroke].xf, part->m_ref->m_stroke[istroke].yf, LIGHT_ON );
+					}
+			}
+			// draw value text
+			if( part->m_value->m_font_size && part->m_value->m_bShown && part->m_value->GetLayer() == layer)
+			{
+				if( PASS1 )
+				{
+					line.Format( "G04 draw value for part %s*\n", part->ref_des ); 
+					f->WriteString( line );
+				}
+				int s_w = max( part->m_value->m_stroke_width, min_silkscreen_stroke_wid );
+				CAperture value_ap( CAperture::AP_CIRCLE, s_w, 0 );
+				ChangeAperture( &value_ap, &current_ap, &ap_array, PASS0, f );
+				if( PASS1 )
+					for( int istroke=0; istroke<part->m_value->m_stroke.GetSize(); istroke++ )
+					{
+						::WriteMoveTo( f, part->m_value->m_stroke[istroke].xi, part->m_value->m_stroke[istroke].yi, LIGHT_OFF );
+						::WriteMoveTo( f, part->m_value->m_stroke[istroke].xf, part->m_value->m_stroke[istroke].yf, LIGHT_ON );
+					}
+			}
+		}
+
+		// draw vias and traces
+		if( PASS1 )
+			f->WriteString( "\nG04 Draw traces*\n" );
+		for (cnet2 *net = in.First(); net; net = in.Next())
+		{
+			citer<cconnect2> ic (&net->connects);
+			for (cconnect2 *c = ic.First(); c; c = ic.Next())
+			{
+				citer<cseg2> is (&c->segs);
+				for (cseg2 *s = is.First(); s; s = is.Next())
+					if( s->m_layer == layer )
+					{
+						// segment is on this layer, draw it
+						int w = s->m_width;
+						CAperture seg_ap( CAperture::AP_CIRCLE, w, 0 );
+						ChangeAperture( &seg_ap, &current_ap, &ap_array, PASS0, f );
+						if( PASS1 )
+						{
+							WriteMoveTo( f, s->preVtx->x, s->preVtx->y, LIGHT_OFF );
+							WriteMoveTo( f, s->postVtx->x, s->postVtx->y, LIGHT_ON );
+						}
+					}
+				citer<cvertex2> iv (&c->vtxs);
+				for (cvertex2 *v = iv.First(); v; v = iv.Next())
+				{
+					// get following via info
+					int test, pad_w, hole_w;
+					v->GetViaPadInfo( layer, &pad_w, &hole_w, &test );
+					if( !pad_w )
+						continue;
+					// via exists
+					CAperture via_ap( CAperture::AP_CIRCLE, 0, 0 );
+					int w = 0;
+					if( layer == LAY_MASK_TOP || layer == LAY_MASK_BOTTOM )
+					{
+						if( !(flags & GERBER_MASK_VIAS) )
+							// solder mask layer, add mask clearance
+							w = pad_w + 2*mask_clearance;
+					}
+					else if( layer >= LAY_TOP_COPPER )
+					{
+						// copper layer, set aperture
+						w = pad_w;							
+					}
+					if( !w )
+						continue;
+					via_ap.m_size1 = w;
+					ChangeAperture( &via_ap, &current_ap, &ap_array, PASS0, f );
+					// flash the via
+					if( PASS1 )
+						WriteMoveTo( f, v->x, v->y, LIGHT_FLASH );
 				}
 			}
 		}
 
-		// draw solder mask cutouts
-		if( sm && (layer == LAY_MASK_TOP || layer == LAY_MASK_BOTTOM ) )
+		// draw text
+		if( PASS1 )
+			f->WriteString( "\nG04 Draw Text*\n" );
+		citer<ctext> it (&tl->texts);
+		for (ctext *t = it.First(); t; t = it.Next())
+			if( !t->m_bNegative && t->m_font_size && t->m_layer == layer )
+			{
+				// draw text
+				int w = t->m_stroke_width;
+				if( layer == LAY_SILK_TOP || layer == LAY_SILK_BOTTOM )
+					w = max( t->m_stroke_width, min_silkscreen_stroke_wid );
+				CAperture text_ap( CAperture::AP_CIRCLE, w, 0 );
+				ChangeAperture( &text_ap, &current_ap, &ap_array, PASS0, f );
+				if( PASS1 )
+					for( int istroke=0; istroke<t->m_stroke.GetSize(); istroke++ )
+					{
+						::WriteMoveTo( f, t->m_stroke[istroke].xi, t->m_stroke[istroke].yi, LIGHT_OFF );
+						::WriteMoveTo( f, t->m_stroke[istroke].xf, t->m_stroke[istroke].yf, LIGHT_ON );
+					}
+			}
+
+		// draw solder mask cutouts.  CPT2.  Now that smcutouts are generalized polylines, we have to do a nesting check like we did with copper areas.
+		if (layer == LAY_MASK_TOP || layer == LAY_MASK_BOTTOM)
 		{
 			if( !(flags & GERBER_NO_CLEARANCE_SMCUTOUTS) )
 			{
-				// stroke outline with aperture to create clearance
+				// we will draw stroke outline with aperture to create clearance
 				CAperture sm_ap( CAperture::AP_CIRCLE, mask_clearance*2, 0 );
 				ChangeAperture( &sm_ap, &current_ap, &ap_array, PASS0, f );
 			}
-			if( PASS1 )
+
+			if( !PASS1 )
+				continue;
+			f->WriteString( "\nG04 Draw solder mask cutouts*\n" );
+			carray<csmcutout> sm_list;
+			carray<csmcutout> draw_list;
+			citer<csmcutout> ism0 (sm);
+			for (csmcutout *sm0 = ism0.First(); sm0; sm0 = ism0.Next())
 			{
-				f->WriteString( "\nG04 Draw solder mask cutouts*\n" );
-				for( int i=0; i<sm->GetSize(); i++ )
+				if (sm0->m_layer != layer)
+					continue;
+				sm_list.Add( sm0 );
+				sm0->utility = 0;
+			}
+
+			bool bUndrawnSms;
+			do
+			{
+				bUndrawnSms = false;
+				citer<csmcutout> ism1 (&sm_list), ism2 (&sm_list);
+				for (csmcutout *sm1 = ism1.First(); sm1; sm1 = ism1.Next())
 				{
-					CPolyLine * poly = &(*sm)[i];
-					if( ( layer == LAY_MASK_TOP && poly->Layer() == LAY_SM_TOP  ) 
-						|| ( layer == LAY_MASK_BOTTOM && poly->Layer() == LAY_SM_BOTTOM ) )
+					if (sm1->utility)
+						continue;
+					int x = sm1->main->head->x;
+					int y = sm1->main->head->y;
+					// Sm not yet "drawn";  see if it lies within any other undrawn sm.  If not, we can "draw" it now.
+					bool bContainedInUndrawn = false;
+					for (csmcutout *sm2 = ism2.First(); sm2; sm2 = ism2.Next())
 					{
-						// draw cutout on this layer
-						f->WriteString( "G36*\n" );
-						int x, y, style;
-						int last_x = poly->X(0);
-						int last_y = poly->Y(0);
-						::WriteMoveTo( f, last_x, last_y, LIGHT_OFF );
-						int nc = poly->ContourSize(0);
-						for( int ic=1; ic<nc; ic++ )
-						{
-							x = poly->X(ic);
-							y = poly->Y(ic);
-							style = poly->SideStyle(ic-1);
-							::WritePolygonSide( f, last_x, last_y, x, y, style, 10, LIGHT_ON );
-							last_x = x;
-							last_y = y;
-						}
-						x = poly->X(0);
-						y = poly->Y(0);
-						style = poly->SideStyle(nc-1);
-						::WritePolygonSide( f, last_x, last_y, x, y, style, 10, LIGHT_ON );
-						f->WriteString( "G37*\n" );
-						if( !(flags & GERBER_NO_CLEARANCE_SMCUTOUTS) )
-						{
-							// stroke outline with aperture to create clearance
-							last_x = poly->X(0);
-							last_y = poly->Y(0);
-							::WriteMoveTo( f, last_x, last_y, LIGHT_OFF );
-							nc = poly->ContourSize(0);
-							for( int ic=1; ic<nc; ic++ )
-							{
-								x = poly->X(ic);
-								y = poly->Y(ic);
-								style = poly->SideStyle(ic-1);
-								::WritePolygonSide( f, last_x, last_y, x, y, style, 10, LIGHT_ON );
-								last_x = x;
-								last_y = y;
-							}
-							x = poly->X(0);
-							y = poly->Y(0);
-							style = poly->SideStyle(nc-1);
-							::WritePolygonSide( f, last_x, last_y, x, y, style, 10, LIGHT_ON );
-						}
+						if (sm2==sm1 || sm2->utility)
+							continue;
+						citer<ccontour> ictr (&sm2->contours);
+						for (ccontour *ctr = ictr.First(); ctr; ctr = ictr.Next())
+							if (ctr!=sm2->main && ctr->TestPointInside(x, y))
+								{ bContainedInUndrawn = true; goto testEnd2; }
+					}
+					
+					testEnd2:
+					if (bContainedInUndrawn)
+						bUndrawnSms = true;
+					else
+						sm1->utility = 1,
+						draw_list.Add(sm1);
+				}
+			}
+			while (bUndrawnSms);
+
+			// now actually draw smcutouts.  We rely on the fact that when we iterate through carray draw_list, we'll go in the order
+			// in which sm's were added (this, because we've never removed any items from draw_list).
+			// Note that positive and negative are opposite compared to the case of copper areas.
+			citer<csmcutout> ism1 (&draw_list);
+			BOOL bLastLayerNegative = FALSE;
+			for (csmcutout *sm1 = ism1.First(); sm1; sm1 = ism1.Next())
+			{
+				current_ap.m_type = CAperture::AP_NONE;	// force selection of aperture
+				// draw outline polygon
+				// make GpcPoly for outer contour of sm.  CPT2 TODO consider dumping
+				sm1->MakeGpcPoly();
+				// draw area's main contour
+				f->WriteString( "\nG04 ----------------------- Draw smcutout (negative)*\n" );
+				if( !bLastLayerNegative )
+				{
+					f->WriteString( "%LPC*%\n" );
+					bLastLayerNegative = true;
+				}
+				f->WriteString( "G36*\n" );
+				ccorner *head = sm1->main->head;
+				::WriteMoveTo( f, head->x, head->y, LIGHT_OFF );
+				for (cside *s = head->postSide; 1; s = s->postCorner->postSide )
+				{
+					::WritePolygonSide( f, s->preCorner->x, s->preCorner->y, s->postCorner->x, s->postCorner->y,
+						s->m_style, 10, LIGHT_ON );
+					if (s->postCorner==head) 
+						break; 
+				}
+				f->WriteString( "G37*\n" );
+
+				// Now draw the sub-cutouts if any
+				citer<ccontour> ictr (&sm1->contours);
+				for (ccontour *ctr = ictr.First(); ctr; ctr = ictr.Next())
+				{
+					if (ctr == sm1->main)
+						continue;
+					// draw it
+					f->WriteString( "\nG04 -------------------- Draw smcutout (positive)*\n" );
+					if( bLastLayerNegative )
+					{
+						f->WriteString( "%LPD*%\n" );
+						bLastLayerNegative = false;
+					}
+					f->WriteString( "G36*\n" );
+					ccorner *head = ctr->head;
+					::WriteMoveTo( f, head->x, head->y, LIGHT_OFF );
+					for (cside *s = head->postSide; 1; s = s->postCorner->postSide )
+					{
+						::WritePolygonSide( f, s->preCorner->x, s->preCorner->y, s->postCorner->x, s->postCorner->y,
+							s->m_style, 10, LIGHT_ON );
+						if (s->postCorner==head) 
+							break; 
+					}
+					f->WriteString( "G37*\n" );
+				}
+
+				// Draw main contour with aperature for clearance
+				if( !(flags & GERBER_NO_CLEARANCE_SMCUTOUTS) )
+				{
+					ccorner *head = sm1->main->head;
+					::WriteMoveTo( f, head->x, head->y, LIGHT_OFF );
+					for (cside *s = head->postSide; 1; s = s->postCorner->postSide )
+					{
+						::WritePolygonSide( f, s->preCorner->x, s->preCorner->y, s->postCorner->x, s->postCorner->y,
+							s->m_style, 10, LIGHT_ON );
+						if (s->postCorner==head) 
+							break; 
 					}
 				}
 			}
@@ -1929,78 +1679,49 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 				f->WriteString( "%LPC*%\n" );
 				current_ap.m_type = CAperture::AP_NONE;	// force selection of aperture
 			}
-			if( pl )
+			// iterate through all parts
+			citer<cpart2> ip (&pl->parts);
+			for (cpart2 *part = ip.First(); part; part = ip.Next())
 			{
-				// iterate through all parts
-				cpart * part = pl->m_start.next;
-				while( part->next != 0 )
-				{
-					CShape * s = part->shape;
-					if( s )
-					{
-						if( PASS1 )
-						{
-							line.Format( "G04 draw pilot holes for part %s*\n", part->ref_des ); 
-							f->WriteString( line );
-						}
-						for( int ip=0; ip<s->GetNumPins(); ip++ )
-						{
-							pad * p = 0;
-							padstack * ps = &s->m_padstack[ip];
-							if( ps->hole_size )
-							{
-								p = &ps->top;
-								// check current aperture and change if needed
-								CAperture pad_ap( CAperture::AP_CIRCLE, pilot_diameter, 0 );
-								ChangeAperture( &pad_ap, &current_ap, &ap_array, PASS0, f );
-								// now flash the pad
-								if( PASS1 )
-								{
-									::WriteMoveTo( f, part->pin[ip].x, part->pin[ip].y, LIGHT_FLASH );
-								}
-							}
-						}
-					}
-					// go to next part
-					part = part->next;
-				}
-			}
-			// draw pilot holes for vias
-			if( nl )
-			{
-				// iterate through all nets
+				if (!part->shape)
+					continue;
 				if( PASS1 )
 				{
-					f->WriteString( "\nG04 Draw pilot holes for vias*\n" );
+					line.Format( "G04 draw pilot holes for part %s*\n", part->ref_des ); 
+					f->WriteString( line );
 				}
-				POSITION pos;
-				CString name;
-				void * ptr;
-				net = iter_net.GetFirst();
-				while( net )
-				{
-					CIterator_cconnect iter_con(net);
-					for( cconnect * c=iter_con.GetFirst(); c; c=iter_con.GetNext() )
+				citer<cpin2> ipin (&part->pins);
+				for (cpin2 *pin = ipin.First(); pin; pin = ipin.Next())
+					if( pin->ps->hole_size )
 					{
-//						int ic = iter_con.GetIndex();
-//						int nsegs = c->NumSegs();
-						CIterator_cseg iter_seg( c );
-						for( cseg * s=iter_seg.GetFirst(); s; s=iter_seg.GetNext() )
-						{
-							// get segment
-							cvertex * post_vtx = &s->GetPostVtx();
-							if( post_vtx->via_w )
-							{
-								// via exists
-								CAperture via_ap( CAperture::AP_CIRCLE, pilot_diameter, 0 );
-								ChangeAperture( &via_ap, &current_ap, &ap_array, PASS0, f );
-								// flash the via
-								if( PASS1 )
-									::WriteMoveTo( f, post_vtx->x, post_vtx->y, LIGHT_FLASH );
-							}
-						}
+						// check current aperture and change if needed
+						CAperture pad_ap( CAperture::AP_CIRCLE, pilot_diameter, 0 );
+						ChangeAperture( &pad_ap, &current_ap, &ap_array, PASS0, f );
+						// now flash the pad
+						if( PASS1 )
+							::WriteMoveTo( f, pin->x, pin->y, LIGHT_FLASH );
 					}
-					net = iter_net.GetNext();
+			}
+			// draw pilot holes for vias
+			// iterate through all nets
+			if( PASS1 )
+				f->WriteString( "\nG04 Draw pilot holes for vias*\n" );
+			citer<cnet2> in (&nl->nets);
+			for (cnet2 *net = in.First(); net; net = in.Next())
+			{
+				citer<cconnect2> ic (&net->connects);
+				for (cconnect2 *c = ic.First(); c; c = ic.Next())
+				{
+					citer<cvertex2> iv (&c->vtxs);
+					for (cvertex2 *v = iv.First(); v; v = iv.Next())
+						if( v->via_w )
+						{
+							// via exists:  flash it
+							CAperture via_ap( CAperture::AP_CIRCLE, pilot_diameter, 0 );
+							ChangeAperture( &via_ap, &current_ap, &ap_array, PASS0, f );
+							if( PASS1 )
+								::WriteMoveTo( f, v->x, v->y, LIGHT_FLASH );
+						}
 				}
 			}
 		}
@@ -2008,12 +1729,12 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 		// end of file
 		if( PASS1 )
 			f->WriteString( "M00*\n" );
-
 	}	// end of pass
-#endif
+
 	return 0;
 }
 
+/* CPT2 TODO Obsolete?
 // find value in CArray<int> and return position in array
 // if not found, add to array if add_ok = TRUE, otherwise return -1
 //
@@ -2025,86 +1746,77 @@ int AddToArray( int value, CArray<int,int> * array )
 	array->Add( value );
 	return array->GetSize()-1;
 }
+*/
+
+class Triple 
+{
+	// CPT2 helper class for WriteDrillFile().  
+public:
+	int diameter;
+	int x, y;
+	Triple( int _diameter=0, int _x=0, int _y=0 )
+		{ diameter = _diameter; x = _x; y = _y; }
+};
+
+int CompareTriples(const Triple *t1, const Triple *t2) 
+	{ return t1->diameter < t2->diameter? -1: 1; }
 
 // write NC drill file
 //
-int WriteDrillFile( CStdioFile * file, CPartList * pl, CNetList * nl, CArray<CPolyLine> * bd,
+int WriteDrillFile( CStdioFile * file, cpartlist * pl, cnetlist * nl, carray<cboard> * bd,
 				   int n_x, int n_y, int space_x, int space_y )
 {
-#ifndef CPT2
-	CArray<int,int> diameter;
-	diameter.SetSize(0);
+	CArray<Triple> data;
 
-	// first, find all hole diameters for parts
-	if( pl )
+	// first, find gather hole data for parts
+	citer<cpart2> ip (&pl->parts);
+	for (cpart2 *part = ip.First(); part; part = ip.Next())
 	{
-		// iterate through all parts
-		cpart * part = pl->m_start.next;
-		while( part->next != 0 )
+		if (!part->shape)
+			continue;
+		citer<cpin2> ipin (&part->pins);
+		for (cpin2 *pin = ipin.First(); pin; pin = ipin.Next())
+			if( pin->ps->hole_size )
+				data.Add( Triple(pin->ps->hole_size, pin->x, pin->y) ) ;
+	}
+	// gather hole data for vias
+	citer<cnet2> in (&nl->nets);
+	for (cnet2 *net = in.First(); net; net = in.Next())
+	{
+		citer<cconnect2> ic (&net->connects);
+		for (cconnect2 *c = ic.First(); c; c = ic.Next())
 		{
-			CShape * s = part->shape;
-			if( s )
-			{
-				// get all pins
-				for( int ip=0; ip<s->GetNumPins(); ip++ )
-				{
-					padstack * ps = &s->m_padstack[ip];
-					if( ps->hole_size )
-						::AddToArray( ps->hole_size/NM_PER_MIL, &diameter );
-				}
-			}
-			// go to next part
-			part = part->next;
+			citer<cvertex2> iv (&c->vtxs);
+			for (cvertex2 *v = iv.First(); v; v = iv.Next())
+				if( v->via_w  && v->via_hole_w )
+					data.Add( Triple( v->via_hole_w, v->x, v->y ));
 		}
 	}
-	// now find hole diameters for vias
-	if( nl )
-	{
-		// iterate through all nets
-		// traverse map
-		POSITION pos;
-		CString name;
-		void * ptr;
-		for( pos = nl->m_map.GetStartPosition(); pos != NULL; )
-		{
-			nl->m_map.GetNextAssoc( pos, name, ptr );
-			cnet * net = (cnet*)ptr;
-			CIterator_cconnect iter_con(net);
-			for( cconnect * c=iter_con.GetFirst(); c; c=iter_con.GetNext() )
-			{
-//				int nsegs = c->NumSegs();
-				CIterator_cseg iter_seg( c );
-				for( cseg * s=iter_seg.GetFirst(); s; s=iter_seg.GetNext() )
-				{
-					cvertex * v = &s->GetPostVtx();
-					if( v->via_w )
-					{
-						// via
-						int w = v->via_w;
-						int h_w = v->via_hole_w;
-						if( w && h_w )
-							::AddToArray( h_w/NM_PER_MIL, &diameter );
-					}
-				}
-			}
-		}
-	}
+	// Sort in ascending hole size order:
+	qsort(data.GetData(), data.GetSize(), sizeof(Triple), (int (*)(const void*,const void*)) CompareTriples);
 
 	// now, write data to file
 	CString str;
-	for( int id=0; id<diameter.GetSize(); id++ )
+	int prev = -1, index = 1;
+	for( int id=0; id<data.GetSize(); id++ )
 	{
+		int dia = data[id].diameter;
+		if (dia==prev) continue;
+		prev = dia;
 		str.Format( ";Holesize %d = %6.1f PLATED MILS\n", 
-			id+1, (double)diameter[id] );
+			index++, (double)dia / NM_PER_MIL );
 		file->WriteString( str );
 	}
 	file->WriteString( "M48\n" );	// start header
 	file->WriteString( "INCH,00.0000\n" );	// format (inch,retain all zeros,2.4)
-	for( int id=0; id<diameter.GetSize(); id++ )
+	prev = -1, index = 1;
+	for( int id=0; id<data.GetSize(); id++ )
 	{
 		// write hole sizes
-		int d = diameter[id];
-		str.Format( "T%02dC%5.3f\n", id+1, (double)diameter[id]/1000.0 ); 
+		int dia = data[id].diameter;
+		if (dia==prev) continue;
+		prev = dia;
+		str.Format( "T%02dC%5.3f\n", index++, (double)dia / (1000.0*NM_PER_MIL) ); 
 		file->WriteString( str );
 	}
 	file->WriteString( "%\n" );		// start data
@@ -2116,110 +1828,45 @@ int WriteDrillFile( CStdioFile * file, CPartList * pl, CNetList * nl, CArray<CPo
 	int bd_min_y = INT_MAX;
 	int bd_max_x = INT_MIN;
 	int bd_max_y = INT_MIN;
-	for( int ib=0; ib<bd->GetSize(); ib++ ) 
+	citer<cboard> ib (bd);
+	for (cboard *b = ib.First(); b; b = ib.Next())
 	{
-		for( int ic=0; ic<(*bd)[ib].NumCorners(); ic++ )
+		citer<ccorner> ic (&b->main->corners);
+		for (ccorner *c = ic.First(); c; c = ic.Next())
 		{
-			int x = (*bd)[ib].X(ic);
-			if( x < bd_min_x )
-				bd_min_x = x;
-			if( x > bd_max_x )
-				bd_max_x = x;
-			int y = (*bd)[ib].Y(ic);
-			if( y < bd_min_y )
-				bd_min_y = y;
-			if( y > bd_max_y )
-				bd_max_y = y;
+			if( c->x < bd_min_x )
+				bd_min_x = c->x;
+			if( c->x > bd_max_x )
+				bd_max_x = c->x;
+			if( c->y < bd_min_y )
+				bd_min_y = c->y;
+			if( c->y > bd_max_y )
+				bd_max_y = c->y;
 		}
 	}
 	int x_step = bd_max_x - bd_min_x + space_x;
 	int y_step = bd_max_y - bd_min_y + space_y;
-	for( int id=0; id<diameter.GetSize(); id++ )
+	prev = -1, index = 1;
+	for( int id=0; id<data.GetSize(); id++ )
 	{
 		// now write hole size and all holes
-		int d = diameter[id];
-		str.Format( "T%02d\n", id+1 ); 
-		file->WriteString( str );
+		int dia = data[id].diameter;
+		if (dia!=prev)
+			str.Format( "T%02d\n", index++ ),
+			file->WriteString( str );
+		prev = dia;
 		// loop for panelization
 		for( int ix=0; ix<n_x; ix++ )
-		{
-			int x_offset = ix * x_step;
-			for( int iy=0; iy<n_y; iy++ )
+			for (int iy=0; iy<n_y; iy++ )
 			{
+				int x_offset = ix * x_step;
 				int y_offset = iy * y_step;
-				if( pl )
-				{
-					// iterate through all parts
-					cpart * part = pl->m_start.next;
-					while( part->next != 0 )
-					{
-						CShape * s = part->shape;
-						if( s )
-						{
-							// get all pins
-							for( int ip=0; ip<s->GetNumPins(); ip++ )
-							{
-								padstack * ps = &s->m_padstack[ip];
-								if( ps->hole_size )
-								{
-									part_pin * p = &part->pin[ip];
-									if( d == ps->hole_size/NM_PER_MIL )
-									{
-										str.Format( "X%.6dY%.6d\n", 
-											(p->x + x_offset)/(NM_PER_MIL/10), 
-											(p->y + y_offset)/(NM_PER_MIL/10) );
-										file->WriteString( str );
-									}
-								}
-							}
-						}
-						// go to next part
-						part = part->next;
-					}
-				}
-				// now find hole diameters for vias
-				if( nl )
-				{
-					// iterate through all nets
-					// traverse map
-					POSITION pos;
-					CString name;
-					void * ptr;
-					CIterator_cnet iter_net(nl);
-					for( cnet * net=iter_net.GetFirst(); net; net=iter_net.GetNext() )
-					{
-						CIterator_cconnect iter_con(net);
-						for( cconnect * c=iter_con.GetFirst(); c; c=iter_con.GetNext() )
-						{
-//							int nsegs = c->NumSegs();
-							CIterator_cseg iter_seg( c );
-							for( cseg * s=iter_seg.GetFirst(); s; s=iter_seg.GetNext() )
-							{
-								cvertex * v = &s->GetPostVtx();
-								if( v->via_w )
-								{
-									// via
-									int h_w = v->via_hole_w;
-									if( h_w )
-									{
-										if( d == h_w/NM_PER_MIL )
-										{
-											str.Format( "X%.6dY%.6d\n", 
-												(v->x + x_offset)/(NM_PER_MIL/10), 
-												(v->y + y_offset)/(NM_PER_MIL/10) );
-											file->WriteString( str );
-										}
-									}
-								}
-							}
-						}
-					}
-				}
+				str.Format( "X%.6dY%.6d\n", (data[id].x + x_offset) / (NM_PER_MIL/10), 
+											(data[id].y + y_offset) / (NM_PER_MIL/10) );
+				file->WriteString( str );
 			}
-		}
 	}
 	file->WriteString( "M30\n" );	// program end
-#endif
 	return 0;
 }
 

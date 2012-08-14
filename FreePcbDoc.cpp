@@ -161,7 +161,7 @@ CFreePcbDoc::CFreePcbDoc()
 	m_auto_elapsed = 0;
 	m_dlg_log = NULL;
 	bNoFilesOpened = TRUE;
-	m_version = 1.360;
+	m_version = 1.400;													// CPT2 TODO discuss...
 	m_file_version = 1.344;
 	m_dlg_log = new CDlgLog;
 	m_dlg_log->Create( IDD_LOG );
@@ -3372,8 +3372,7 @@ void CFreePcbDoc::OnFileConvert()
 // call dialog to create Gerber and drill files
 void CFreePcbDoc::OnFileGenerateCadFiles()
 {
-#ifndef CPT2
-	if( m_board_outline.GetSize() == 0 )
+	if( boards.GetSize() == 0 )
 	{
 		CString s ((LPCSTR) IDS_ABoardOutlineMustBePresentForCAM);
 		AfxMessageBox( s );
@@ -3403,8 +3402,8 @@ void CFreePcbDoc::OnFileGenerateCadFiles()
 		m_cam_flags,
 		m_cam_layers,
 		m_cam_drill_file,
-		&m_board_outline, 
-		&m_sm_cutout,
+		&boards,
+		&smcutouts,
 		&m_bShowMessageForClearance,
 		m_plist, 
 		m_nlist, 
@@ -3456,7 +3455,6 @@ void CFreePcbDoc::OnFileGenerateCadFiles()
 		m_space_y = dlg.m_space_y;
 		m_bShowMessageForClearance = dlg.m_bShowMessageForClearance;
 	}
-#endif
 }
 
 void CFreePcbDoc::OnToolsFootprintwizard()
@@ -4312,9 +4310,7 @@ void CFreePcbDoc::OnFileGenerateReportFile()
 	dlg.Initialize( this ); 
 	int ret = dlg.DoModal();
 	if( ret = IDOK )
-	{
 		m_report_flags = dlg.m_flags;	// update flags
-	}
 }
 
 void CFreePcbDoc::OnProjectCombineNets()

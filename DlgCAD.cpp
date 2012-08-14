@@ -10,6 +10,8 @@
 #include "PathDialog.h"
 #include "RTcall.h"
 #include ".\dlgcad.h"
+#include "PartListNew.h"
+#include "NetListNew.h"
 
 // CDlgCAD dialog
 
@@ -207,9 +209,9 @@ void CDlgCAD::Initialize( double version, CString * folder, CString * project_fo
 						 int annular_ring_pins, int annular_ring_vias, int shrink_paste,
 						 int n_x, int n_y, int space_x, int space_y,
 						 int flags, int layers, int drill_file,
-						 CArray<CPolyLine> * bd, CArray<CPolyLine> * sm, 
+						 carray<cboard> * bd, carray<csmcutout> * sm, 
 						 BOOL * bShowMessageForClearance,
-						 CPartList * pl, CNetList * nl, CTextList * tl, CDisplayList * dl,
+						 cpartlist * pl, cnetlist * nl, ctextlist * tl, CDisplayList * dl,
 						 CDlgLog * log )
 {
 	m_bShowMessageForClearance = *bShowMessageForClearance;
@@ -339,137 +341,112 @@ void CDlgCAD::OnBnClickedGo()
 	{
 		CString gerber_name = "";
 		int layer = 0;
-		if( i<(m_num_copper_layers+4) || i>19 )
+		if (i >= m_num_copper_layers+4 && i <= 19)
+			continue;
+		if (!(m_layers & (1<<i)))
+			continue;
+		switch(i)
 		{
-			switch(i)
-			{
-			case 0: if( m_layers & (1<<i) )
-					{ gerber_name = "top_silk.grb"; layer = LAY_SILK_TOP; } 
-					break;
-			case 1: if( m_layers & (1<<i) )
-					{ gerber_name = "bottom_silk.grb"; layer = LAY_SILK_BOTTOM; } 
-					break;
-			case 2: if( m_layers & (1<<i) )
-					{ gerber_name = "top_solder_mask.grb"; layer = LAY_MASK_TOP; } 
-					break;
-			case 3: if( m_layers & (1<<i) )
-					{ gerber_name = "bottom_solder_mask.grb"; layer = LAY_MASK_BOTTOM; } 
-					break;
-			case 4: if( m_layers & (1<<i) )
-					{ gerber_name = "top_copper.grb"; layer = LAY_TOP_COPPER; } 
-					break;
-			case 5: if( m_layers & (1<<i) )
-					{ gerber_name = "bottom_copper.grb"; layer = LAY_BOTTOM_COPPER; } 
-					break;
-			case 6: if( m_layers & (1<<i) )
-					{ gerber_name = "inner_copper_1.grb"; layer = LAY_BOTTOM_COPPER+1; } 
-					break;
-			case 7: if( m_layers & (1<<i) )
-					{ gerber_name = "inner_copper_2.grb"; layer = LAY_BOTTOM_COPPER+2; } 
-					break;
-			case 8: if( m_layers & (1<<i) )
-					{ gerber_name = "inner_copper_3.grb"; layer = LAY_BOTTOM_COPPER+3; } 
-					break;
-			case 9: if( m_layers & (1<<i) )
-					{ gerber_name = "inner_copper_4.grb"; layer = LAY_BOTTOM_COPPER+4; } 
-					break;
-			case 10: if( m_layers & (1<<i) )
-					 { gerber_name = "inner_copper_5.grb"; layer = LAY_BOTTOM_COPPER+5; } 
-					 break;
-			case 11: if( m_layers & (1<<i) )
-					 { gerber_name = "inner_copper_6.grb"; layer = LAY_BOTTOM_COPPER+6; } 
-					 break;
-			case 12: if( m_layers & (1<<i) )
-					 { gerber_name = "inner_copper_7.grb"; layer = LAY_BOTTOM_COPPER+7; } 
-					 break;
-			case 13: if( m_layers & (1<<i) )
-					 { gerber_name = "inner_copper_8.grb"; layer = LAY_BOTTOM_COPPER+8; } 
-					 break;
-			case 14: if( m_check_inner9.GetCheck() )
-					 { gerber_name = "inner_copper_9.grb"; layer = LAY_BOTTOM_COPPER+9; } 
-					 break;
-			case 15: if( m_layers & (1<<i) )
-					 { gerber_name = "inner_copper_10.grb"; layer = LAY_BOTTOM_COPPER+10; } 
-					 break;
-			case 16: if( m_layers & (1<<i) )
-					 { gerber_name = "inner_copper_11.grb"; layer = LAY_BOTTOM_COPPER+11; } 
-					 break;
-			case 17: if( m_layers & (1<<i) )
-					 { gerber_name = "inner_copper_12.grb"; layer = LAY_BOTTOM_COPPER+12; } 
-					 break;
-			case 18: if( m_check_inner13.GetCheck() )
-					 { gerber_name = "inner_copper_13.grb"; layer = LAY_BOTTOM_COPPER+13; } 
-					 break;
-			case 19: if( m_layers & (1<<i) )
-					 { gerber_name = "inner_copper_14.grb"; layer = LAY_BOTTOM_COPPER+14; } 
-					 break;
-			case 20: if( m_layers & (1<<i) )
-					 { gerber_name = "board_outline.grb"; layer = LAY_BOARD_OUTLINE; } 
-					 break;
-			case 21: if( m_layers & (1<<i) )
-					 { gerber_name = "top_paste_mask.grb"; layer = LAY_PASTE_TOP; } 
-					 break;
-			case 22: if( m_layers & (1<<i) )
-					 { gerber_name = "bottom_paste_mask.grb"; layer = LAY_PASTE_BOTTOM; } 
-					 break;
-			default: ASSERT(0); 
+		case 0: gerber_name = "top_silk.grb"; layer = LAY_SILK_TOP;
 				break;
-			}
+		case 1: gerber_name = "bottom_silk.grb"; layer = LAY_SILK_BOTTOM;
+				break;
+		case 2: gerber_name = "top_solder_mask.grb"; layer = LAY_MASK_TOP;
+				break;
+		case 3: gerber_name = "bottom_solder_mask.grb"; layer = LAY_MASK_BOTTOM;
+				break;
+		case 4: gerber_name = "top_copper.grb"; layer = LAY_TOP_COPPER;
+				break;
+		case 5: gerber_name = "bottom_copper.grb"; layer = LAY_BOTTOM_COPPER;
+				break;
+		case 6: gerber_name = "inner_copper_1.grb"; layer = LAY_BOTTOM_COPPER+1;
+				break;
+		case 7: gerber_name = "inner_copper_2.grb"; layer = LAY_BOTTOM_COPPER+2;
+				break;
+		case 8: gerber_name = "inner_copper_3.grb"; layer = LAY_BOTTOM_COPPER+3;
+				break;
+		case 9: gerber_name = "inner_copper_4.grb"; layer = LAY_BOTTOM_COPPER+4;
+				break;
+		case 10: gerber_name = "inner_copper_5.grb"; layer = LAY_BOTTOM_COPPER+5;
+				 break;
+		case 11: gerber_name = "inner_copper_6.grb"; layer = LAY_BOTTOM_COPPER+6;
+				 break;
+		case 12: gerber_name = "inner_copper_7.grb"; layer = LAY_BOTTOM_COPPER+7;
+				 break;
+		case 13: gerber_name = "inner_copper_8.grb"; layer = LAY_BOTTOM_COPPER+8;
+				 break;
+		case 14: gerber_name = "inner_copper_9.grb"; layer = LAY_BOTTOM_COPPER+9;
+				 break;
+		case 15: gerber_name = "inner_copper_10.grb"; layer = LAY_BOTTOM_COPPER+10;
+				 break;
+		case 16: gerber_name = "inner_copper_11.grb"; layer = LAY_BOTTOM_COPPER+11;
+				 break;
+		case 17: gerber_name = "inner_copper_12.grb"; layer = LAY_BOTTOM_COPPER+12;
+				 break;
+		case 18: gerber_name = "inner_copper_13.grb"; layer = LAY_BOTTOM_COPPER+13;
+					break;
+		case 19: gerber_name = "inner_copper_14.grb"; layer = LAY_BOTTOM_COPPER+14;
+				 break;
+		case 20: gerber_name = "board_outline.grb"; layer = LAY_BOARD_OUTLINE;
+				 break;
+		case 21: gerber_name = "top_paste_mask.grb"; layer = LAY_PASTE_TOP;
+				 break;
+		case 22: gerber_name = "bottom_paste_mask.grb"; layer = LAY_PASTE_BOTTOM;
+				 break;
 		}
-		if( layer )
+		if( !layer )
+			continue;					// Mighty mighty unlikely...
+		// write the gerber file
+		m_pl->m_annular_ring = m_annular_ring_pins;
+		m_nl->m_annular_ring = m_annular_ring_vias;
+		CString f_str = m_folder + "\\" + gerber_name;
+		CStdioFile f;
+		int ok = f.Open( f_str, CFile::modeCreate | CFile::modeWrite );
+		if( !ok )
 		{
-			// write the gerber file
-			m_pl->SetPinAnnularRing( m_annular_ring_pins );
-			m_nl->SetViaAnnularRing( m_annular_ring_vias );
-			CString f_str = m_folder + "\\" + gerber_name;
-			CStdioFile f;
-			int ok = f.Open( f_str, CFile::modeCreate | CFile::modeWrite );
-			if( !ok )
+			CString log_message, s ((LPCSTR) IDS_ErrorUnableToOpenFile);
+			log_message.Format( s, f_str );
+			m_dlg_log->AddLine( log_message );
+			errors = TRUE;
+		}
+		else
+		{
+			CString log_message;
+			log_message.Format( "Writing file: \"%s\"\r\n", f_str );
+			m_dlg_log->AddLine( log_message );
+			CString line;
+			line.Format( "G04 FreePCB version %5.3f*\n", m_version );
+			f.WriteString( line );
+			line.Format( "G04 %s*\n", f_str );
+			f.WriteString( line );
+			::WriteGerberFile( &f, m_flags, layer, 
+				m_dlg_log, m_paste_shrink,
+				m_fill_clearance, m_mask_clearance, m_pilot_diameter,
+				m_min_silkscreen_width, m_thermal_width,
+				m_outline_width, m_hole_clearance,
+				m_n_x, m_n_y, m_space_x, m_space_y,
+				m_bd, m_sm, m_pl, m_nl, m_tl, m_dl );
+			f.WriteString( "M02*\n" );	// end of job
+			f.Close();
+		}
+		if( m_flags & GERBER_RENDER_ALL )
+		{
+			// create command-line to render layer
+			int nlines = commands.GetSize();
+			commands.SetSize( nlines + 1 );
+			CString mirror_str = "";
+			if( layer == LAY_SILK_BOTTOM
+				|| layer == LAY_SM_BOTTOM
+				|| layer == LAY_BOTTOM_COPPER
+				|| layer == LAY_MASK_BOTTOM
+				|| layer == LAY_PASTE_BOTTOM )
 			{
-				CString log_message, s ((LPCSTR) IDS_ErrorUnableToOpenFile);
-				log_message.Format( s, f_str );
-				m_dlg_log->AddLine( log_message );
-				errors = TRUE;
+				if( m_flags & GERBER_MIRROR_BOTTOM_PNG ) 
+					mirror_str = "--mirror ";
 			}
-			else
-			{
-				CString log_message;
-				log_message.Format( "Writing file: \"%s\"\r\n", f_str );
-				m_dlg_log->AddLine( log_message );
-				CString line;
-				line.Format( "G04 FreePCB version %5.3f*\n", m_version );
-				f.WriteString( line );
-				line.Format( "G04 %s*\n", f_str );
-				f.WriteString( line );
-				::WriteGerberFile( &f, m_flags, layer, 
-					m_dlg_log, m_paste_shrink,
-					m_fill_clearance, m_mask_clearance, m_pilot_diameter,
-					m_min_silkscreen_width, m_thermal_width,
-					m_outline_width, m_hole_clearance,
-					m_n_x, m_n_y, m_space_x, m_space_y,
-					m_bd, m_sm, m_pl, m_nl, m_tl, m_dl );
-				f.WriteString( "M02*\n" );	// end of job
-				f.Close();
-			}
-			if( m_flags & GERBER_RENDER_ALL )
-			{
-				// create command-line to render layer
-				int nlines = commands.GetSize();
-				commands.SetSize( nlines + 1 );
-				CString mirror_str = "";
-				if( layer == LAY_SILK_BOTTOM
-					|| layer == LAY_SM_BOTTOM
-					|| layer == LAY_BOTTOM_COPPER
-					|| layer == LAY_MASK_BOTTOM
-					|| layer == LAY_PASTE_BOTTOM )
-				{
-					if( m_flags & GERBER_MIRROR_BOTTOM_PNG ) 
-						mirror_str = "--mirror ";
-				}
-				CString command_str = m_app_folder + "\\GerberRender.exe -r 600 " + mirror_str
-					+ gerber_name + " " + gerber_name.Left( gerber_name.GetLength()-4 ) + ".png";
-				commands[nlines] = command_str;
-			}
+			CString command_str = m_app_folder + "\\GerberRender.exe -r 600 " + mirror_str
+				+ gerber_name + " " + gerber_name.Left( gerber_name.GetLength()-4 ) + ".png";
+			commands[nlines] = command_str;
 		}
 	}
 	CString s1 ((LPCSTR) IDS_ErrorsOccurredDuringCreationOfGerber);
@@ -688,6 +665,7 @@ void CDlgCAD::SetFields()
 	MakeCStringFromDouble( &str, m_space_y/mult );
 	m_edit_space_y.SetWindowText( str );
 }
+
 void CDlgCAD::OnCbnSelchangeComboCadUnits()
 {
 	GetFields();
