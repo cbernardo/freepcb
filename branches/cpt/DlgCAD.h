@@ -21,9 +21,9 @@ public:
 		int annular_ring_pins, int annular_ring_vias, int shrink_paste,
 		int n_x, int n_y, int space_x, int space_y,
 		int flags, int layers, int drill_file,
-		CArray<CPolyLine> * bd, CArray<CPolyLine> * sm, 
+		carray<cboard> * bd, carray<csmcutout> * sm, 
 		BOOL * bShowMessageForClearance,
-		CPartList * pl, CNetList * nl, CTextList * tl, CDisplayList * dl,
+		cpartlist * pl, cnetlist * nl, ctextlist * tl, CDisplayList * dl,
 		CDlgLog * log );
 	void SetFields();
 	void GetFields();
@@ -80,11 +80,11 @@ public:
 	int m_flags;
 	int m_layers;
 	int m_drill_file;
-	CArray<CPolyLine> * m_bd;
-	CArray<CPolyLine> * m_sm;
-	CPartList * m_pl; 
-	CNetList * m_nl; 
-	CTextList * m_tl; 
+	carray<cboard> * m_bd;
+	carray<csmcutout> * m_sm;
+	cpartlist * m_pl; 
+	cnetlist * m_nl; 
+	ctextlist * m_tl; 
 	CDisplayList * m_dl;
 	CDlgLog * m_dlg_log;
 	CString m_folder;

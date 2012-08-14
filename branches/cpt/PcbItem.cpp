@@ -2670,6 +2670,53 @@ int cpart2::GetBoundingRect( CRect * part_r )
 	return 1;
 }
 
+CPoint cpart2::GetCentroidPoint()
+{
+	if( shape == NULL )
+		ASSERT(0);
+	// get coords relative to part origin
+	CPoint pp;
+	pp.x = shape->m_centroid->m_x;
+	pp.y = shape->m_centroid->m_y;
+	// flip if part on bottom
+	if( side )
+		pp.x = -pp.x;
+	// rotate if necess.
+	if( angle > 0 )
+	{
+		CPoint org (0, 0);
+		RotatePoint( &pp, angle, org );
+	}
+	// add coords of part origin
+	pp.x = x + pp.x;
+	pp.y = y + pp.y;
+	return pp;
+}
+
+// Get glue spot info from part
+//
+CPoint cpart2::GetGluePoint( cglue *g )
+{
+	if( shape == NULL )
+		ASSERT(0);
+	// get coords relative to part origin
+	CPoint pp (g->x, g->y);
+	// flip if part on bottom
+	if( side )
+		pp.x = -pp.x;
+	// rotate if necess.
+	if( angle > 0 )
+	{
+		CPoint org (0, 0);
+		RotatePoint( &pp, angle, org );
+	}
+	// add coords of part origin
+	pp.x += x; 
+	pp.y += y;
+	return pp;
+}
+
+
 void cpart2::ChangeFootprint(CShape *_shape)
 {
 	// CPT2.  Loosely derived from CPartList::PartFootprintChanged && CNetList::PartFootprintChanged.
@@ -3926,6 +3973,63 @@ void ccontour::Remove()
 		poly->contours.Remove(this);
 }
 
+bool ccontour::TestPointInside(int x, int y) 
+{
+	enum { MAXPTS = 100 };
+	ASSERT( head==tail );
+
+	// define line passing through (x,y), with slope = 2/3;
+	// get intersection points
+	double xx[MAXPTS], yy[MAXPTS];
+	double slope = (double)2.0/3.0;
+	double a = y - slope*x;
+	int nloops = 0;
+	int npts;
+	// make this a loop so if my homebrew algorithm screws up, we try it again
+	do
+	{
+		// now find all intersection points of line with contour sides
+		npts = 0;
+		citer<cside> is (&sides);
+		for (cside *s = is.First(); s; s = is.Next())
+		{
+			double x, y, x2, y2;
+			int ok = FindLineSegmentIntersection( a, slope, 
+				s->preCorner->x, s->preCorner->y,
+				s->postCorner->x, s->postCorner->y,
+				s->m_style,
+				&x, &y, &x2, &y2 );
+			if( ok )
+			{
+				xx[npts] = (int)x;
+				yy[npts] = (int)y;
+				npts++;
+				ASSERT( npts<MAXPTS );	// overflow
+			}
+			if( ok == 2 )
+			{
+				xx[npts] = (int)x2;
+				yy[npts] = (int)y2;
+				npts++;
+				ASSERT( npts<MAXPTS );	// overflow
+			}
+		}
+		nloops++;
+		a += PCBU_PER_MIL/100;
+	} while( npts%2 != 0 && nloops < 3 );
+	ASSERT( npts%2==0 );	// odd number of intersection points, error
+
+	// count intersection points to right of (x,y), if odd (x,y) is inside polyline
+	int ncount = 0;
+	for( int ip=0; ip<npts; ip++ )
+		if( xx[ip] == x && yy[ip] == y )
+			return FALSE;	// (x,y) is on a side, call it outside
+		else if( xx[ip] > x )
+			ncount++;
+	return ncount%2 != 0;
+}
+
+
 
 cpolyline::cpolyline(CFreePcbDoc *_doc)
 	: cpcb_item (_doc)
@@ -4101,8 +4205,9 @@ bool cpolyline::TestPointInside(int x, int y)
 		citer<ccontour> ic (&contours);
 		for (ccontour *c = ic.First(); c; c = ic.Next())
 		{
-			cside *s0 = c->head->postSide, *s = s0;
-			do {
+			citer<cside> is (&c->sides);
+			for (cside *s = is.First(); s; s = is.Next())
+			{
 				double x, y, x2, y2;
 				int ok = FindLineSegmentIntersection( a, slope, 
 					s->preCorner->x, s->preCorner->y,
@@ -4123,9 +4228,7 @@ bool cpolyline::TestPointInside(int x, int y)
 					npts++;
 					ASSERT( npts<MAXPTS );	// overflow
 				}
-				s = s->postCorner->postSide;
 			}
-			while (s!=s0);
 		}
 		nloops++;
 		a += PCBU_PER_MIL/100;
@@ -4135,16 +4238,11 @@ bool cpolyline::TestPointInside(int x, int y)
 	// count intersection points to right of (x,y), if odd (x,y) is inside polyline
 	int ncount = 0;
 	for( int ip=0; ip<npts; ip++ )
-	{
 		if( xx[ip] == x && yy[ip] == y )
 			return FALSE;	// (x,y) is on a side, call it outside
 		else if( xx[ip] > x )
 			ncount++;
-	}
-	if( ncount%2 )
-		return TRUE;
-	else
-		return FALSE;
+	return ncount%2 != 0;
 }
 
 void cpolyline::GetSidesInRect( CRect *r, carray<cpcb_item> *arr)
@@ -6105,6 +6203,18 @@ bool ctext::IsValid()
 		return m_part->IsValid() && m_part->m_tl->texts.Contains(this);
 	else
 		return doc->m_tlist->texts.Contains(this); 
+}
+
+int ctext::GetLayer()
+{
+	// CPT2.  Now takes into account the possibility that there's a containing part on the bottom side.
+	int layer = m_layer;
+	if (m_part && m_part->side)
+		if (layer==LAY_SILK_TOP) layer = LAY_SILK_BOTTOM;
+		else if (layer==LAY_TOP_COPPER) layer = LAY_BOTTOM_COPPER;
+		else if (layer==LAY_SILK_BOTTOM) layer = LAY_SILK_TOP;
+		else if (layer==LAY_BOTTOM_COPPER) layer = LAY_TOP_COPPER;
+	return layer;
 }
 
 void ctext::Copy( ctext *other )
