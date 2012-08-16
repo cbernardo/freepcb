@@ -383,7 +383,7 @@ int CompareGridVals(const double *gv1, const double *gv2) {
 	else return *gv1<*gv2? 1: -1;
 	}
 
-int strcmpNumeric(CString *s1, CString *s2) {
+int CompareNumeric(CString *s1, CString *s2) {
 	// CPT: String comparison where IC9 comes before IC10, etc.  Alpha comparison is caseless.  Used when exporting netlists and (eventually)
 	// when saving .fpc's.  Was originally in FreePcbDoc.cpp, but this seems a better place.
 	int lgth1 = s1->GetLength(), lgth2 = s2->GetLength();

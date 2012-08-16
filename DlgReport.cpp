@@ -9,6 +9,7 @@
 #include "Net_iter.h"
 #include "PartListNew.h"
 #include "NetListNew.h"
+#include "utility.h"
 
 // CDlgReport dialog
 
@@ -84,7 +85,7 @@ int mycompare( const void *arg1, const void *arg2 )
 {
 	cpart2 * p1 = *(cpart2**)arg1;
 	cpart2* p2 = *(cpart2**)arg2;
-	return p1->ref_des.CompareNoCase( p2->ref_des );		
+	return CompareNumeric(&p1->ref_des, &p2->ref_des );		
 }
 
 void CDlgReport::OnBnClickedOk()

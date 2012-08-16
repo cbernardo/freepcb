@@ -68,7 +68,7 @@ void MakeCStringFromDimension( CString * str, int dim, int units, BOOL append_un
 double GetDimensionFromString( CString * str, int def_units=MIL, BOOL bRound10=TRUE, BOOL bNegateMm=FALSE );
 void MakeCStringFromGridVal(CString *str, double val);  
 int CompareGridVals(const double *gv1, const double *gv2); 
-int strcmpNumeric(CString *s1, CString *s2);
+int CompareNumeric(CString *s1, CString *s2);
 // end CPT
 
 void MakeCStringFromDouble( CString * str, double d );

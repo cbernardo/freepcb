@@ -639,7 +639,7 @@ bool cundo_record::Execute( int op )
 	if (moveOriginDx || moveOriginDy)
 	{
 		extern CFreePcbApp theApp;
-		CFreePcbView *view = theApp.m_View;
+		CFreePcbView *view = theApp.m_view;
 		view->MoveOrigin(-moveOriginDx, -moveOriginDy);
 		moveOriginDx = -moveOriginDx;							// Negating these turns an undo record into a redo, and vice-versa.
 		moveOriginDy = -moveOriginDy;

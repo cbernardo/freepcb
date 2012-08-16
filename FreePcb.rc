@@ -206,14 +206,13 @@ BEGIN
         MENUITEM SEPARATOR
         MENUITEM "Show Log...",                 ID_VIEW_LOG
     END
-    POPUP "Project"
+    POPUP "&Project"
     BEGIN
         MENUITEM "Options...",                  ID_PROJECT_OPTIONS
         MENUITEM "Parts...",                    ID_VIEW_PARTLIST
         MENUITEM "Nets...",                     ID_VIEW_NETLIST
-        MENUITEM "Combine Nets...",             ID_PROJECT_COMBINENETS
     END
-    POPUP "Tools"
+    POPUP "&Tools"
     BEGIN
         MENUITEM "Move origin",                 ID_TOOLS_MOVEORIGIN
         MENUITEM SEPARATOR
@@ -233,7 +232,7 @@ BEGIN
         MENUITEM SEPARATOR
         MENUITEM "Preferences...",              ID_TOOLS_PREFERENCES
     END
-    POPUP "Add"
+    POPUP "&Add"
     BEGIN
         MENUITEM "Board Outline",               ID_ADD_BOARDOUTLINE
         MENUITEM "Part",                        ID_ADD_PART
@@ -920,9 +919,10 @@ BEGIN
     DEFPUSHBUTTON   "OK",IDOK,71,274,50,14
     PUSHBUTTON      "Cancel",IDCANCEL,231,274,50,14
     GROUPBOX        "Single net selected",IDC_STATIC,6,96,84,48
-    GROUPBOX        "Multiple nets selected",IDC_STATIC,6,156,84,48
+    GROUPBOX        "Multiple nets selected",IDC_STATIC,6,156,84,68
     PUSHBUTTON      "Delete",IDC_BUTTON_DELETE2,30,126,36,13
     PUSHBUTTON      "Delete",IDC_BUTTON_DELETE,18,186,60,13
+    PUSHBUTTON      "Combine",IDC_BUTTON_COMBINE,18,205,60,13
 END
 
 IDD_EDIT_NET DIALOGEX 0, 0, 226, 242
@@ -940,7 +940,7 @@ BEGIN
     EDITTEXT        IDC_EDIT_VIA_HOLE_W,152,65,34,12,ES_AUTOHSCROLL
     CONTROL         "Apply to already routed traces",IDC_CHECK1,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,12,81,114,10
     LISTBOX         IDC_LIST_PIN,12,114,90,96,LBS_SORT | LBS_MULTIPLESEL | LBS_NOINTEGRALHEIGHT | WS_VSCROLL | WS_TABSTOP
-    PUSHBUTTON      "Delete Pin(s)",IDC_BUTTON_DELETE,120,138,53,12
+    PUSHBUTTON      "Detach Pin(s)",IDC_BUTTON_DELETE,120,138,53,12
     PUSHBUTTON      "Add Pin",IDC_BUTTON_ADD,120,167,37,12
     EDITTEXT        IDC_EDIT_ADD_PIN,165,167,40,12,ES_AUTOHSCROLL
     DEFPUSHBUTTON   "OK",ID_MY_OK,30,222,50,14
@@ -2250,10 +2250,10 @@ STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSM
 CAPTION "Combine Nets"
 FONT 8, "MS Shell Dlg", 400, 0, 0x1
 BEGIN
-    CONTROL         "",IDC_LIST_NET,"SysListView32",LVS_REPORT | LVS_SHOWSELALWAYS | LVS_ALIGNLEFT | WS_BORDER | WS_TABSTOP,12,24,276,126
+    CONTROL         "",IDC_LIST_NET,"SysListView32",LVS_REPORT | LVS_SINGLESEL | LVS_SHOWSELALWAYS | LVS_ALIGNLEFT | WS_BORDER | WS_TABSTOP,12,24,276,126
     DEFPUSHBUTTON   "OK",IDOK,60,162,50,14
     PUSHBUTTON      "Cancel",IDCANCEL,192,162,50,14
-    LTEXT           "Select nets to combine, then click ""OK""",IDC_STATIC,12,6,288,8
+    LTEXT           "Select which name the combined net will have, then click ""OK""",IDC_STATIC,12,6,288,8
 END
 
 IDD_CHOOSE_NET DIALOGEX 0, 0, 196, 71
@@ -3061,7 +3061,7 @@ END
 STRINGTABLE
 BEGIN
     IDS_RenderingPngFiles   "*********** RENDERING .PNG FILES FOR LAYERS ************\r\n"
-    IDS_Done                "************************* DONE *************************\r\n"
+    IDS_Done                "\r\n************************* DONE *************************\r\n"
     IDS_SelectFolder        "Select Folder"
     IDS_SetCAMOutputFolder  "Set CAM output folder"
     IDS_WarningYourDesignRule 
@@ -3636,6 +3636,9 @@ BEGIN
                             "Warning:  File ""default.cfg,"" where all of your settings are kept, is stored in a folder that is write-protected.  You should choose a different location at the bottom of the following dialog box..."
     IDS_NoteThatFolderProgramFilesIsWriteProtected 
                             "Note that folder ""\\Program Files"" is write-protected under some versions of Windows."
+    IDS_ErrorNetConnectionVertexWithInvalidPtrToConnect 
+                            "ERROR: Net ""%s"": connection %d vertex %d with invalid ptr to connect\r\n"
+    IDS_RemovingEmptyTeeStructure "Removing empty tee structure (#%d)"
 END
 
 STRINGTABLE
@@ -4265,7 +4268,7 @@ END
 
 STRINGTABLE
 BEGIN
-    IDS_AppName             "CPT2.7"
+    IDS_AppName             "CPT2.9"
 END
 
 STRINGTABLE

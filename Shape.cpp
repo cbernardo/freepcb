@@ -162,19 +162,29 @@ CShape::CShape(CFreePcbDoc *doc)
 {
 	m_doc = doc;
 	CString strRef ("REF");
-	m_ref = new creftext(doc, 0, 0, 0, false, false, LAY_FP_SILK_TOP, 0, 0, 0, &strRef, true); 
+	m_ref = new creftext(doc, 100*NM_PER_MIL, 200*NM_PER_MIL, 0, false, false, LAY_FP_SILK_TOP, 0, 0, 0, &strRef, true); 
 	CString strValue ("VALUE");
-	m_value = new cvaluetext(doc, 0, 0, 0, false, false, LAY_FP_SILK_TOP, 0, 0, 0, &strValue, true);
+	m_value = new cvaluetext(doc, -100*NM_PER_MIL, 200*NM_PER_MIL, 0, false, false, LAY_FP_SILK_TOP, 0, 0, 0, &strValue, true);
 	m_tl = new ctextlist(doc);
 	m_centroid = new ccentroid(doc);
-	Clear();
+	m_name = "EMPTY_SHAPE";
+	m_author = "";
+	m_source = "";
+	m_desc = "";
+	m_units = MIL;
+	m_sel_xi = m_sel_yi = 0;
+	m_sel_xf = m_sel_yf = 500*NM_PER_MIL;
+	m_centroid->m_type = CENTROID_DEFAULT;
+	m_centroid->m_x = 0;
+	m_centroid->m_y = 0;
+	m_centroid->m_angle = 0;
 } 
 
 // destructor
 //
 CShape::~CShape()
 {
-	Clear();
+	// Clear(); // Not sure about this.
 	/* CPT2 TODO.  I'm thinking screw it, let the garbage collector do the following.  We'll see once I've got that up and running.
 	delete m_ref;
 	delete m_value;

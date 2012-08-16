@@ -95,7 +95,6 @@ BEGIN_MESSAGE_MAP(CFreePcbDoc, CDocument)
 	ON_COMMAND(ID_SES_FILE_IMPORT, OnFileImportSes)
 	ON_COMMAND(ID_EDIT_REDO, OnEditRedo)
 	ON_COMMAND(ID_FILE_GENERATEREPORTFILE, OnFileGenerateReportFile)
-	ON_COMMAND(ID_PROJECT_COMBINENETS, OnProjectCombineNets)
 	ON_COMMAND(ID_FILE_LOADLIBRARYASPROJECT, OnFileLoadLibrary)
 	ON_COMMAND(ID_FILE_SAVEPROJECTASLIBRARY, OnFileSaveLibrary)
 	// CPT
@@ -283,7 +282,7 @@ void CFreePcbDoc::OnFileNew()
 {
 	if( theApp.m_view_mode == CFreePcbApp::FOOTPRINT )
 	{
-		theApp.m_View_fp->OnFootprintFileNew();
+		theApp.m_view_fp->OnFootprintFileNew();
 		return;
 	}
 
@@ -498,7 +497,7 @@ void CFreePcbDoc::OnFileOpen()
 {
 	if( theApp.m_view_mode == CFreePcbApp::FOOTPRINT )
 	{
-		theApp.m_View_fp->OnFootprintFileImport();
+		theApp.m_view_fp->OnFootprintFileImport();
 		return;
 	}
 
@@ -821,7 +820,7 @@ void CFreePcbDoc::OnFileSave()
 {
 	if( theApp.m_view_mode == CFreePcbApp::FOOTPRINT )
 	{
-		theApp.m_View_fp->OnFootprintFileSaveAs();
+		theApp.m_view_fp->OnFootprintFileSaveAs();
 		return;
 	}
 
@@ -1012,22 +1011,21 @@ void CFreePcbDoc::OnFileSaveAs()
 
 void CFreePcbDoc::OnProjectNetlist()
 {
-#ifndef CPT2
-	CFreePcbView * view = (CFreePcbView*)m_view;
+	CFreePcbView * view = m_view;
 	CDlgNetlist dlg;
 	dlg.Initialize( m_nlist, m_plist, &m_w, &m_v_w, &m_v_h_w );
 	int ret = dlg.DoModal();
 	if( ret == IDOK )
 	{
+		// CPT2 TODO definitely want to enable undo here
 		ResetUndoState();
-		m_nlist->ImportNetListInfo( dlg.m_nl, 0, NULL, m_trace_w, m_via_w, m_via_hole_w );
+		m_nlist->ImportNetListInfo( dlg.m_nli, 0, NULL, m_trace_w, m_via_w, m_via_hole_w );
 		ProjectModified( TRUE );
 		view->CancelSelection();
 		if( m_vis[LAY_RAT_LINE] && !m_auto_ratline_disable )
 			m_nlist->OptimizeConnections();
 		view->Invalidate( FALSE );
 	}
-#endif
 }
 
 // write footprint info from local cache to file
@@ -1361,6 +1359,8 @@ void CFreePcbDoc::ReadBoardOutline( CStdioFile * pcb_file )
 				if( icor == (ncorners-1) )
 					ctr->Close(last_side_style);
 			}
+			if (ncorners<3)
+				boards.Remove(b);								// CPT2 a little sanity check, inspired by Dustin S.
 			b->MustRedraw();
 		}
 	}
@@ -1454,6 +1454,8 @@ void CFreePcbDoc::ReadSolderMaskCutouts( CStdioFile * pcb_file )
 						ctr = new ccontour(sm, false);			// Make a new secondary contour.  This is a CPT2 new option for sm-cutouts
 				}
 			}
+			if (ncorners<3)
+				smcutouts.Remove(sm);							// CPT2 a little sanity check inspired by Dustin S's problem.
 			sm->MustRedraw();
 		}
 	}
@@ -2440,13 +2442,13 @@ void CFreePcbDoc::OnViewLayers()
 
 void CFreePcbDoc::OnProjectPartlist()
 {
-#ifndef CPT2
 	CDlgPartlist dlg;
 	dlg.Initialize( m_plist, &m_footprint_cache_map, &m_footlibfoldermap, 
-		m_units, m_dlg_log );
+		m_view->m_units, m_dlg_log );
 	int ret = dlg.DoModal();
 	if( ret == IDOK )
 	{
+		// CPT2 TODO want to enable undo here
 		ResetUndoState();
 		CFreePcbView * view = (CFreePcbView*)m_view;
 		view->CancelSelection();
@@ -2455,7 +2457,6 @@ void CFreePcbDoc::OnProjectPartlist()
 		ProjectModified( TRUE );
 		view->Invalidate( FALSE );
 	}
-#endif
 }
 
 void CFreePcbDoc::OnFileExport()
@@ -3073,7 +3074,7 @@ int CFreePcbDoc::ExportPADSPCBNetlist( CStdioFile * file, UINT flags,
 			str.Format( "%s %s\n", pi->ref_des, str2 );
 			parts.Add( str );
 		}
-		qsort(parts.GetData(), parts.GetSize(), sizeof(CString), (int (*)(const void*,const void*)) strcmpNumeric);			
+		qsort(parts.GetData(), parts.GetSize(), sizeof(CString), (int (*)(const void*,const void*)) CompareNumeric);			
 		for (int i=0; i<parts.GetSize(); i++) 
 			file->WriteString(parts[i]);
 	}
@@ -3097,7 +3098,7 @@ int CFreePcbDoc::ExportPADSPCBNetlist( CStdioFile * file, UINT flags,
 				pin_str.Format( "%s.%s ", ni->ref_des[ip], ni->pin_name[ip] );
 				pins.Add(pin_str);
 			}
-			qsort(pins.GetData(), pins.GetSize(), sizeof(CString), (int (*)(const void*,const void*)) strcmpNumeric);			
+			qsort(pins.GetData(), pins.GetSize(), sizeof(CString), (int (*)(const void*,const void*)) CompareNumeric);			
 			for (int i=0; i<np; i++) 
 			{
 				if (!(i%8)) str += "\n  ";
@@ -3106,7 +3107,7 @@ int CFreePcbDoc::ExportPADSPCBNetlist( CStdioFile * file, UINT flags,
 			nets.Add(str);
 		}
 
-		qsort(nets.GetData(), nets.GetSize(), sizeof(CString), (int (*)(const void*,const void*)) strcmpNumeric);			
+		qsort(nets.GetData(), nets.GetSize(), sizeof(CString), (int (*)(const void*,const void*)) CompareNumeric);			
 		for (int i=0; i<nets.GetSize(); i++) 
 			file->WriteString(nets[i]),
 			file->WriteString("\n");
@@ -3590,7 +3591,6 @@ void CFreePcbDoc::OnTimer()
 }
 
 
-
 void CFreePcbDoc::OnToolsCheckPartsAndNets()
 {
 	// open log
@@ -3659,6 +3659,8 @@ void CFreePcbDoc::OnToolsCheckConnectivity()
 		str.LoadStringA(IDS_NoUnroutedConnections);
 		m_dlg_log->AddLine( str );
 	}
+	else
+		ResetUndoState();					// CPT2, just to be safe in the case that fixes were applied
 }
 
 void CFreePcbDoc::OnViewLog()
@@ -3670,7 +3672,6 @@ void CFreePcbDoc::OnViewLog()
 
 void CFreePcbDoc::OnToolsCheckCopperAreas()
 {
-#ifndef CPT2
 	CString str;
  
 	m_dlg_log->ShowWindow( SW_SHOW );   
@@ -3679,118 +3680,110 @@ void CFreePcbDoc::OnToolsCheckCopperAreas()
 	m_dlg_log->Clear();
 	m_dlg_log->UpdateWindow();
 	m_view->CancelSelection();
-	CIterator_cnet iter_net(m_nlist);
-	cnet * net = iter_net.GetFirst(); 
-	BOOL new_event = TRUE; 
-	while( net ) 
+	citer<cnet2> in (&m_nlist->nets);
+	for (cnet2 *net = in.First(); net; net = in.Next())
 	{
-		if( net->NumAreas() > 0 )
+		if( net->NumAreas() == 0 )
+			continue;
+		CString s ((LPCSTR) IDS_NetAreas);
+		str.Format( s, net->name, net->NumAreas() ); 
+		m_dlg_log->AddLine( str );
+		net->SaveUndoInfo( cnet2::SAVE_AREAS );
+
+		citer<carea2> ia (&net->areas);
+		for (carea2 *a = ia.First(); a; a = ia.Next())
 		{
-			CString s ((LPCSTR) IDS_NetAreas);
-			str.Format( s, net->name, net->NumAreas() ); 
-			m_dlg_log->AddLine( str );
-			m_view->SaveUndoInfoForAllAreasInNet( net, new_event, m_undo_list ); 
-			new_event = FALSE;
-			// check for minimum number of corners and closed contours
-			for( int ia=0; ia<net->NumAreas(); ia++ )
+			// CPT2 in addition to giving messages, I'll have these errant areas removed:
+			int nc = a->NumCorners();
+			if( nc < 3 )
 			{
-				int nc = net->area[ia].NumCorners();
-				if( nc < 3 )
+				s.LoadStringA(IDS_AreaHasOnlyCorners);
+				str.Format( s, a->UID(), nc );
+				m_dlg_log->AddLine( str );
+				a->Remove();
+			}
+			else if( !a->IsClosed() )
+			{
+				s.LoadStringA(IDS_AreaIsNotClosed);
+				str.Format( s, a->UID() );
+				m_dlg_log->AddLine( str );
+				a->Remove();
+			}
+		}
+		// check all areas in net for self-intersection. CPT2 I like to think that, what with PolygonModified() getting called more often nowadays,
+		// these checks will be generally redundant.
+		for (carea2 *a = ia.First(); a; a = ia.Next())
+		{
+			int ret = a->ClipPolygon( FALSE, FALSE );
+			if( ret == -1 )
+			{
+				s.LoadStringA(IDS_AreaIsSelfIntersecting);
+				str.Format( s, a->UID() );
+				m_dlg_log->AddLine( str );
+			}
+			if( ret == 0 )
+			{
+				s.LoadStringA(IDS_AreaIsOK);
+				str.Format( s, a->UID() );
+				m_dlg_log->AddLine( str );
+			}
+			else if( ret == 1 )
+			{
+				s.LoadStringA(IDS_AreaIsSelfIntersecting2);
+				str.Format( s, a->UID() );
+				m_dlg_log->AddLine( str );
+			}
+		}
+		// check all areas in net for intersection. 
+		bool mod_a1;
+		citer<carea2> ia1 (&net->areas);
+		for (carea2 *a1 = ia1.First(); a1; a1 = ia1.Next())
+		{
+			do {
+				CRect b1 = a1->GetCornerBounds();
+				mod_a1 = FALSE;
+				citer<carea2> ia2 (&net->areas, a1);
+				ia2.Next();														// Advance to polyline AFTER a1.
+				for (carea2 *a2 = ia2.Next(); a2; a2 = ia2.Next())
 				{
-					s.LoadStringA(IDS_AreaHasOnlyCorners);
-					str.Format( s, ia+1, nc );
-					m_dlg_log->AddLine( str );
-				}
-				else
-				{
-					if( !net->area[ia].Closed() )
+					CRect b2 = a2->GetCornerBounds();
+					if ( b1.left > b2.right || b1.right < b2.left
+							|| b1.bottom > b2.top || b1.top < b2.bottom ) continue;
+					int ret = a1->TestIntersection( a2, true );
+					if( ret == 1 && (a1->utility == -1 || a2->utility == -1) )
 					{
-						s.LoadStringA(IDS_AreaIsNotClosed);
-						str.Format( s, ia+1 );
+						s.LoadStringA(IDS_AreasIntersectButCantBeCombined);
+						str.Format( s, a1->UID(), a2->UID(), a1->UID() );
+						m_dlg_log->AddLine( str );
+					}
+					else if( ret == 1 )
+					{
+						ret = a1->CombinePolyline( a2 );
+						if (ret == 0) continue;
+						a2->Remove();												// Virtual func. undraws and detaches area from net->areas
+						s.LoadStringA(IDS_AreasIntersectAndHaveBeenCombined);
+						str.Format( s, a1->UID(), a2->UID() );
+						m_dlg_log->AddLine( str );
+						mod_a1 = TRUE;
+					}
+					else if( ret == 2 )
+					{
+						s.LoadStringA(IDS_AreasHaveAnIntersectingArc);
+						str.Format( s, a1->UID(), a2->UID() );
 						m_dlg_log->AddLine( str );
 					}
 				}
 			}
-			// check all areas in net for self-intersection
-			for( int ia=0; ia<net->NumAreas(); ia++ )
-			{
-				int ret = m_nlist->ClipAreaPolygon( net, ia, FALSE, FALSE );
-				if( ret == -1 )
-				{
-					s.LoadStringA(IDS_AreaIsSelfIntersecting);
-					str.Format( s, ia+1 );
-					m_dlg_log->AddLine( str );
-				}
-				if( ret == 0 )
-				{
-					s.LoadStringA(IDS_AreaIsOK);
-					str.Format( s, ia+1 );
-					m_dlg_log->AddLine( str );
-				}
-				else if( ret == 1 )
-				{
-					s.LoadStringA(IDS_AreaIsSelfIntersecting2);
-					str.Format( s, ia+1 );
-					m_dlg_log->AddLine( str );
-				}
-			}
-			// check all areas in net for intersection
-			if( net->NumAreas() > 1 )
-			{
-				for( int ia1=0; ia1<net->NumAreas()-1; ia1++ ) 
-				{
-					BOOL mod_ia1 = FALSE;
-					for( int ia2=net->NumAreas()-1; ia2 > ia1; ia2-- )
-					{
-						if( net->area[ia1].Layer() == net->area[ia2].Layer() )
-						{
-							// check ia2 against 1a1 
-							int ret = m_nlist->TestAreaIntersection( net, ia1, ia2 );
-							if( ret == 2 ) 
-							{
-								s.LoadStringA(IDS_AreasHaveAnIntersectingArc);
-								str.Format( s, ia1+1, ia2+1 );
-								m_dlg_log->AddLine( str );
-							}
-							else if( ret == 1 && net->area[ia1].utility2 == -1 )
-							{
-								s.LoadStringA(IDS_AreasIntersectButCantBeCombined);
-								str.Format( s, ia1+1, ia2+1, ia1+1 );
-								m_dlg_log->AddLine( str );
-							}
-							else if( ret == 1 && net->area[ia2].utility2 == -1 )
-							{
-								s.LoadStringA(IDS_AreasIntersectButCantBeCombined);
-								str.Format( s, ia1+1, ia2+1, ia1+1 );
-								m_dlg_log->AddLine( str );
-							}
-							else if( ret == 1 )
-							{
-								ret = m_nlist->CombineAreas( net, ia1, ia2 );
-								if( ret == 1 )
-								{
-									s.LoadStringA(IDS_AreasIntersectAndHaveBeenCombined);
-									str.Format( s, ia1+1, ia2+1 );
-									m_dlg_log->AddLine( str );
-									mod_ia1 = TRUE;
-								}
-							}
-						}
-					}
-					if( mod_ia1 )
-						ia1--;		// if modified, we need to check it again
-				}
-			}
+			while (mod_a1);		// if a1 is modified, we need to check it against all the other areas again.
 		}
-		net = iter_net.GetNext();
 	}
+
 	str.LoadStringA(IDS_Done);
 	m_dlg_log->AddLine( str );
-	if( m_vis[LAY_RAT_LINE] && !m_auto_ratline_disable )
-		m_nlist->OptimizeConnections();
+	// if( m_vis[LAY_RAT_LINE] && !m_auto_ratline_disable )
+	//	m_nlist->OptimizeConnections();
 	ProjectModified( TRUE );
 	m_view->Invalidate( FALSE );
-#endif
 }
 
 void CFreePcbDoc::OnToolsCheckTraces()
@@ -3809,6 +3802,7 @@ void CFreePcbDoc::OnToolsCheckTraces()
 	m_dlg_log->AddLine( str );
 	s.LoadStringA(IDS_Done);
 	m_dlg_log->AddLine(s);
+	Redraw();
 }
 
 void CFreePcbDoc::OnEditPasteFromFile()
@@ -4313,86 +4307,6 @@ void CFreePcbDoc::OnFileGenerateReportFile()
 		m_report_flags = dlg.m_flags;	// update flags
 }
 
-void CFreePcbDoc::OnProjectCombineNets()
-{
-#ifndef CPT2
-	CDlgNetCombine dlg;
-	dlg.Initialize( m_nlist, m_plist );
-	int ret = dlg.DoModal();
-	if( ret == IDOK )
-	{
-		// copy existing netlist
-		CNetList * old_nlist = new CNetList( NULL, NULL, this );	// save to fix traces
-		old_nlist->Copy( m_nlist );
-		// combine nets under new name
-		CString c_name = dlg.m_new_name;
-		if( c_name == "" )
-			ASSERT(0);
-		CArray<CString> * names = &dlg.m_names;
-		netlist_info nl_info;
-		m_nlist->ExportNetListInfo( &nl_info );
-		// now combine the nets
-		// first, find the net and index for the combined net
-		int c_index = -1;
-		cnet * c_net = NULL;
-		for( int in=0; in<nl_info.GetSize(); in++ )
-		{
-			CString nl_name = nl_info[in].name;
-			if( nl_name == c_name )
-			{
-				c_index = in;
-				c_net = nl_info[in].net;
-				break;
-			}
-		}
-		if( c_index == -1 )
-			ASSERT(0);
-		// now, combine the other nets
-		for( int i=0; i<names->GetSize(); i++ )
-		{
-			CString name = (*names)[i];		// net name to combine
-			int nl_index = -1;
-			if( name != c_name )
-			{
-				// combine this net
-				for( int in=0; in<nl_info.GetSize(); in++ )
-				{
-					CString nl_name = nl_info[in].name;
-					if( nl_name == name )
-					{
-						nl_index = in;
-						break;
-					}
-				}
-				if( nl_index == -1 )
-					ASSERT(0);
-				for( int ip=0; ip<nl_info[nl_index].pin_name.GetSize(); ip++ )
-				{
-					CString * pname = &nl_info[nl_index].pin_name[ip];
-					CString * pref = &nl_info[nl_index].ref_des[ip];
-					int ipp = nl_info[c_index].pin_name.GetSize();
-					nl_info[c_index].pin_name.SetAtGrow( ipp, *pname );
-					nl_info[c_index].ref_des.SetAtGrow( ipp, *pref );
-					nl_info[c_index].modified = TRUE;
-				}
-				nl_info[nl_index].deleted = TRUE;
-			}
-		}
-		// show log dialog
-		m_dlg_log->ShowWindow( SW_SHOW );
-		m_dlg_log->UpdateWindow();
-		m_dlg_log->BringWindowToTop();
-		m_dlg_log->Clear();
-		m_dlg_log->UpdateWindow();
-
-		m_nlist->ImportNetListInfo( &nl_info, 0, m_dlg_log, 0, 0, 0 );
-		m_import_flags = KEEP_TRACES | KEEP_STUBS | KEEP_AREAS	| KEEP_PARTS_AND_CON;
-		m_nlist->RestoreConnectionsAndAreas( old_nlist, m_import_flags, NULL );
-		delete old_nlist;
-	}
-#endif
-}
-
 void CFreePcbDoc::OnFileLoadLibrary()
 {
 	if( FileClose() == IDCANCEL )
@@ -4485,7 +4399,7 @@ void CFreePcbDoc::FileLoadLibrary( LPCTSTR pathname )
 			// move part so upper-left corner is at x,y
 			part->Move( x - shape_r.left, y - shape_r.top - 2*refFontSz, 0, 0 );
 			// make ref invisible
-			part->ResizeRefText( refFontSz, refStroke, 0 );
+			part->m_ref->m_bShown = false;
 			// move value to top of part
 			part->SetValue( &shape->m_name, 
 				shape_r.left, shape_r.top + refStroke, 0, 
@@ -6224,19 +6138,14 @@ void CFreePcbDoc::DRCUnrouted(int units)
 			if( !bUnrouted )
 				continue;
 			// unrouted or partially routed connection
-			CString from_str, to_str, str;
+			CString from_str, to_str, str, str0;
 			c->head->GetTypeStatusStr( &from_str );
 			c->tail->GetTypeStatusStr( &to_str );
 			if( c->NumSegs() > 1 )
-			{
-				CString s ((LPCSTR) IDS_PartiallyRoutedConnection);
-				str.Format( s, m_drelist->GetSize()+1, net->name, from_str, to_str );
-			}
+				str0.LoadStringA( IDS_PartiallyRoutedConnection );
 			else
-			{
-				CString s ((LPCSTR) IDS_UnroutedConnection);
-				str.Format( s, m_drelist->GetSize()+1, net->name, from_str, to_str );
-			}
+				str0.LoadStringA( IDS_UnroutedConnection );
+			str.Format( str0, m_drelist->GetSize()+1, net->name, from_str, to_str );
 			// Draw the dre circle halfway along the first seg:
 			cvertex2 *v1 = c->head, *v2 = v1->postSeg->postVtx;
 			int x = (v1->x + v2->x) / 2;

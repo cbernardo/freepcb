@@ -220,15 +220,14 @@ public:
 	int ExportPartListInfo( partlist_info * pli, cpart2 *part0 );						// Done in cpp.  Converted from old CPartList func.
 	void ImportPartListInfo( partlist_info * pli, int flags, CDlgLog * log=NULL );		// Done in cpp.  Converted from old CPartList func.
 	int SetPartString( cpart * part, CString * str );
-	int CheckPartlist( CString * logstr ) { return 0; }
+	int CheckPartlist( CString * logstr );
 	BOOL CheckForProblemFootprints() { return false; }
 	/* I'm moving the DRC functions to CFreePcbDoc (makes more sense to me) 
 	void DRC( CDlgLog * log, int copper_layers, 
 		int units, BOOL check_unrouted,
 		CArray<CPolyLine> * board_outline,
-		DesignRules * dr, DRErrorList * DRElist ) { }
-	// CPT new helper for DRC():
-	void CheckBrokenArea(carea *a, cnet *net, CDlgLog * log, int units, DRErrorList * drelist, long &nerrors); */
+		DesignRules * dr, DRErrorList * DRElist );
+	*/
 	// end CPT
 };
  

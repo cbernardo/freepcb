@@ -140,6 +140,7 @@ struct net_info {
 	BOOL apply_trace_width;
 	BOOL apply_via_width;
 	BOOL deleted;
+	int merge_into;					// CPT2 new, allows for combining nets from the DlgNetlist.
 	BOOL modified;
 	CArray<CString> ref_des;
 	CArray<CString> pin_name;

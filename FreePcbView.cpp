@@ -4026,12 +4026,15 @@ void CFreePcbView::OnPartDelete()
 	// seems to leave in place notional pins within nets that refer to parts no longer in existence.  I'm not clear why that would be useful, and I 
 	// can imagine it possibly causing trouble in some circumstances.
 	// Here's a proposal for a distinction that I think might be more useful.
-	// CPT2 TODO:  If there are no emanating traces, don't ask
-	CString mess, s ((LPCSTR) IDS_DeletingPartDoYouWishToEraseAllTraces);
-	mess.Format( s, part->ref_des );
-	int ret = AfxMessageBox( mess, MB_YESNOCANCEL );
-	if( ret == IDCANCEL )
-		return;
+	int ret = IDNO;
+	if (part->IsAttachedToConnects()) 
+	{
+		CString mess, s ((LPCSTR) IDS_DeletingPartDoYouWishToEraseAllTraces);
+		mess.Format( s, part->ref_des );
+		ret = AfxMessageBox( mess, MB_YESNOCANCEL );
+		if( ret == IDCANCEL )
+			return;
+	}
 	part->SaveUndoInfo();
 	// now do it
 	if( ret == IDYES )
@@ -4345,6 +4348,7 @@ void CFreePcbView::OnVertexStartTrace(bool bResetActiveWidth)
 void CFreePcbView::OnSegmentSetWidth()
 {
 	cseg2 *seg = m_sel.First()->ToSeg();
+	CancelHighlight();
 	SetWidth( 0 );
 	seg->Highlight();
 }
