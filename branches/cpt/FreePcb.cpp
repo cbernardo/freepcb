@@ -117,8 +117,8 @@ BOOL CFreePcbApp::InitInstance()
 	// set pointers to document and view
 	CMainFrame * pMainWnd = (CMainFrame*)AfxGetMainWnd();
 	m_doc = (CFreePcbDoc*)pMainWnd->GetActiveDocument();
-	m_View = (CFreePcbView*)pMainWnd->GetActiveView();
-	m_View->InitInstance();
+	m_view = (CFreePcbView*)pMainWnd->GetActiveView();
+	m_view->InitInstance();
 
 	// set initial view mode
 	m_view_mode = PCB;
@@ -235,7 +235,7 @@ BOOL CFreePcbApp::SwitchToView( CRuntimeClass * pNewViewClass )
 	bool bSwitchToPcb = pNewViewClass == RUNTIME_CLASS( CFreePcbView );
 	CView * pNewView;
 	if( bSwitchToPcb )
-		pNewView = m_View;
+		pNewView = m_view;
 	else
 	{
 		// Switch to footprint:
@@ -243,7 +243,7 @@ BOOL CFreePcbApp::SwitchToView( CRuntimeClass * pNewViewClass )
 		context.m_pNewViewClass = pNewViewClass;
 		context.m_pCurrentDoc = m_doc;
 		pNewView = STATIC_DOWNCAST(CView, pMainWnd->CreateView(&context));
-		m_View_fp = (CFootprintView*)pNewView;
+		m_view_fp = (CFootprintView*)pNewView;
 	}
 	if (!pNewView) return false;
 
@@ -277,13 +277,14 @@ BOOL CFreePcbApp::SwitchToView( CRuntimeClass * pNewViewClass )
 	{
 		// first, see if we were editing the footprint of the selected part
 		CShape * temp_footprint;
-		if(	m_View->m_cursor_mode == CUR_PART_SELECTED 
-			&& m_doc->m_edit_footprint
-			&& (m_doc->m_footprint_modified || m_doc->m_footprint_name_changed) )
+		bool bModifiedSelPartFootprint = m_view->m_cursor_mode == CUR_PART_SELECTED 
+											&& m_doc->m_edit_footprint
+											&& (m_doc->m_footprint_modified || m_doc->m_footprint_name_changed);
+		if (bModifiedSelPartFootprint)
 		{
 			// yes, make a copy of the footprint from the editor
-			temp_footprint = new CShape (m_View_fp->m_fp->m_doc);
-			temp_footprint->Copy( m_View_fp->m_fp );
+			temp_footprint = new CShape (m_view_fp->m_fp->m_doc);
+			temp_footprint->Copy( m_view_fp->m_fp );
 		}
 		// destroy old footprint view
 		pOldActiveView->DestroyWindow();
@@ -295,41 +296,39 @@ BOOL CFreePcbApp::SwitchToView( CRuntimeClass * pNewViewClass )
 		}
 		// CPT2.  Ensure that all drawing henceforth goes to the main pcb's display-list:
 		m_doc->m_dlist = m_doc->m_dlist_pcb;
+		m_doc->m_edit_footprint = NULL;		// clear this flag for next time
 		// restore toolbar stuff
 		CMainFrame * frm = (CMainFrame*)AfxGetMainWnd();
 		frm->m_wndMyToolBar.SetLists( &m_doc->m_visible_grid, &m_doc->m_part_grid, &m_doc->m_routing_grid,
 			m_doc->m_visual_grid_spacing, m_doc->m_part_grid_spacing, m_doc->m_routing_grid_spacing, 
 			m_doc->m_snap_angle, m_doc->m_view->m_units );
-		m_View->m_dlist->SetVisibleGrid( 1, m_doc->m_visual_grid_spacing );
+		m_view->m_dlist->SetVisibleGrid( 1, m_doc->m_visual_grid_spacing );
 		frm->SetWindowText( m_doc->m_window_title ); 
-		m_View->ShowSelectStatus();
-		m_View->ShowActiveLayer();
-		if(	m_View->m_cursor_mode == CUR_PART_SELECTED 
-			&& m_doc->m_edit_footprint
-			&& (m_doc->m_footprint_modified || m_doc->m_footprint_name_changed) )
-				// now offer to replace the footprint of the selected part 
-				m_View->OnExternalChangeFootprint( temp_footprint );
-		m_doc->m_edit_footprint = NULL;		// clear this flag for next time
+		m_view->ShowSelectStatus();
+		m_view->ShowActiveLayer();
+		if(	bModifiedSelPartFootprint )
+			// now offer to replace the footprint of the selected part 
+			m_view->OnExternalChangeFootprint( temp_footprint );
 	}
 
 	else
 	{
 		// switching to footprint view, create it
 		int units = MIL;
-		m_View_fp = (CFootprintView*)pNewView;
+		m_view_fp = (CFootprintView*)pNewView;
 		m_doc->m_dlist = m_doc->m_dlist_fp;												// CPT2.  Ensures that we draw to the fp display-list
-		if( m_View->m_cursor_mode == CUR_PART_SELECTED && m_doc->m_edit_footprint )
+		if( m_view->m_cursor_mode == CUR_PART_SELECTED && m_doc->m_edit_footprint )
 		{
-			m_View_fp->InitInstance( m_doc->m_edit_footprint );
+			m_view_fp->InitInstance( m_doc->m_edit_footprint );
 			units = m_doc->m_edit_footprint->m_units;
 		}
 		else
-			m_View_fp->InitInstance( NULL );
+			m_view_fp->InitInstance( NULL );
 		// restore toolbar stuff
 		CMainFrame * frm = (CMainFrame*)AfxGetMainWnd();
 		frm->m_wndMyToolBar.SetLists( &m_doc->m_fp_visible_grid, &m_doc->m_fp_part_grid, NULL,
 			m_doc->m_fp_visual_grid_spacing, m_doc->m_fp_part_grid_spacing, 0, m_doc->m_fp_snap_angle, units );
-		m_View_fp->m_dlist->SetVisibleGrid( 1, m_doc->m_fp_visual_grid_spacing );
+		m_view_fp->m_dlist->SetVisibleGrid( 1, m_doc->m_fp_visual_grid_spacing );
 	}
 
 	// resize window in case it changed

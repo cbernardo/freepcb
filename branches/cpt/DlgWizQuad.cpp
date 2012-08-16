@@ -240,7 +240,7 @@ void CDlgWizQuad::OnCbnSelchangeComboWizShape()
 	}
 	else if( index==shpRoundedRect )
 	{
-		m_shape = RRECT;
+		m_shape = nliECT;
 		m_edit_x.EnableWindow(1);
 		m_edit_y.EnableWindow(1);
 		m_edit_radius.EnableWindow(1);
@@ -337,7 +337,7 @@ void CDlgWizQuad::OnEnChangeEditWizX()
 	CString str;
 	m_edit_x.GetWindowText( str );
 	m_x = atof( str ) * m_mult;
-	if( m_shape != RECT && m_shape != RRECT && m_shape != OVAL ) 
+	if( m_shape != RECT && m_shape != nliECT && m_shape != OVAL ) 
 	{
 		m_edit_y.SetWindowText( str );
 		m_y = m_x;
@@ -836,19 +836,19 @@ BOOL CDlgWizQuad::MakeFootprint()
 		AfxMessageBox( s );
 		return FALSE;
 	}
-	if( m_y <= 0  && (m_shape == RECT || m_shape == RRECT || m_shape == OVAL ) )
+	if( m_y <= 0  && (m_shape == RECT || m_shape == nliECT || m_shape == OVAL ) )
 	{
 		CString s ((LPCSTR) IDS_IllegalPadLengthY);
 		AfxMessageBox( s ); 
 		return FALSE;
 	}
-	if( m_r <= 0  && m_shape == RRECT )
+	if( m_r <= 0  && m_shape == nliECT )
 	{
 		CString s ((LPCSTR) IDS_IllegalPadCornerRadius);
 		AfxMessageBox( s );
 		return FALSE;
 	}
-	if( m_r > 0.5*min(m_y,m_x) && m_shape == RRECT )
+	if( m_r > 0.5*min(m_y,m_x) && m_shape == nliECT )
 	{
 		CString s ((LPCSTR) IDS_PadCornerRadiusTooLarge);
 		AfxMessageBox( s );
@@ -885,7 +885,7 @@ BOOL CDlgWizQuad::MakeFootprint()
 		int pad_type;
 		if( m_shape == RECT )
 			pad_type = PAD_RECT;
-		else if( m_shape == RRECT )
+		else if( m_shape == nliECT )
 			pad_type = PAD_RRECT;
 		else if( m_shape == OVAL )
 			pad_type = PAD_OVAL;
@@ -1012,7 +1012,7 @@ BOOL CDlgWizQuad::MakeFootprint()
 			str += "ROUND_";
 		else if( m_shape == OCTAGON )
 			str += "OCTAGON_";
-		else if( m_shape == RRECT )
+		else if( m_shape == nliECT )
 			str += "RNDRECT_";
 		else if( m_shape == OVAL )
 			str += "OVAL_";
@@ -1022,9 +1022,9 @@ BOOL CDlgWizQuad::MakeFootprint()
 			ASSERT(0);
 		str += "PH" + str_E + "_";
 		str += "PW" + str_X + "_";
-		if( m_shape == RECT || m_shape == OVAL || m_shape == RRECT )
+		if( m_shape == RECT || m_shape == OVAL || m_shape == nliECT )
 			str += "PE" + str_Y + "_PI" + str_Y + "_";
-		if( m_shape == RRECT )
+		if( m_shape == nliECT )
 			str += "PR" + str_R + "_";
 		str += "HW" + str_hd;
 

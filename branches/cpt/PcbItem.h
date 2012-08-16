@@ -1047,11 +1047,10 @@ public:
 	     		  int x, int y, int side, int angle, int visible, int glued );					// Done in cpp, Derived from CPartList::SetPartData
 	void SetValue( CString * value, int x, int y, int angle, int size, 
 				  int w, BOOL vis, int layer );													// Done in cpp, Derived from CPartList::SetValue
-	// void MoveRefText( int _x, int _y, int _angle=-1, int _size=-1, int _w=-1 );					// Done in cpp, derived from CPartList::MoveRefText
-	void ResizeRefText(int size, int width, BOOL vis );											// Done in cpp, derived from CPartList::ResizeRefText()
-	// void MoveValueText( int _x, int _y, int _angle=-1, int _size=-1, int _w=-1 );				// Done in cpp, derived from CPartList func
+	// void MoveRefText( int _x, int _y, int _angle=-1, int _size=-1, int _w=-1 );				// Done in cpp, derived from CPartList::MoveRefText
+	// void ResizeRefText(int size, int width, BOOL vis );											// Done in cpp, derived from CPartList::ResizeRefText()
+	// void MoveValueText( int _x, int _y, int _angle=-1, int _size=-1, int _w=-1 );			// Done in cpp, derived from CPartList func
 	void InitPins();																			// Done in cpp. Basically all new
-	CRect CalcSelectionRect();
 
 	int GetNumOutlineStrokes();
 	void OptimizeConnections( BOOL bBelowPinCount, int pin_count, BOOL bVisibleNetsOnly=TRUE );	// Done in cpp, derived from old CNetList function
@@ -1059,6 +1058,8 @@ public:
 	CPoint GetCentroidPoint();			// Done in cpp, derived from CPartList::GetCentroidPoint
 	CPoint GetGluePoint( cglue *g );	// Done in cpp, derived from CPartList::GetGluePoint()
 	int GetBoundingRect( CRect * part_r );		// Done in cpp. Derived from CPartList::GetPartBoundingRect()
+	CRect CalcSelectionRect();
+	bool IsAttachedToConnects();				// Done in cpp
 	void ChangeFootprint( CShape * shape );		// Done in cpp, loosely derived from CPartList::PartFootprintChanged() & CNetList::PartFootprintChanged()
 
 	int Draw();							// Done in cpp
@@ -1294,6 +1295,8 @@ public:
 	cundo_item *MakeUndoItem()
 		{ return new cuarea(this); }
 	void SaveUndoInfo();
+	
+	int Draw();
 
 	void GetCompatiblePolylines( carray<cpolyline> *arr );			// CPT2 new, done in cpp
 	cpolyline *CreateCompatible();									// CPT2 new, done in cpp
@@ -1375,7 +1378,6 @@ public:
 	int def_via_w;				// default via width
 	int def_via_hole_w;			// default via hole width
 	bool bVisible;				// FALSE to hide ratlines and make unselectable.  CPT2 TODO put in base class?
-	// CDisplayList * m_dlist;		// CDisplayList to use	// CPT2 use doc->m_dlist (?)
 	cnetlist * m_nlist;			// parent netlist
 
 	cnet2( cnetlist *_nlist, CString _name, int _def_w, int _def_via_w, int _def_via_hole_w );			// Done in cpp
@@ -1402,41 +1404,33 @@ public:
 	// pins
 	int NumPins() { return pins.GetSize(); }
 	void SetVertexToPin( cvertex2 *v, cpin2 *p );					// Arg change
-	// int TestHitOnAnyPad( int x, int y, int layer );				// CPT2 TODO adapt from CNetList function
 	cvertex2 *TestHitOnVertex(int layer, int x, int y);				// Done in cpp, derived from old CNetList function
-
 	// connections
 	int NumCons() { return connects.GetSize(); }
-
 	// copper areas
 	int NumAreas() { return areas.GetSize(); }
-	// int AddArea( int layer, int x, int y, int hatch, BOOL bDraw=TRUE );					// CPT2 TODO. Derive from CNetList::AddArea
 	void DrawAreas();																	// Done in cpp, new
 	void UndrawAreas();																	// Done in cpp, new
 
 	// methods that edit objects
+	void Remove();																		// Done in cpp.
+	void MergeWith( cnet2 *n2 );														// Done in cpp.
 	// pins
-	cpin2 *AddPin( CString * ref_des, CString * pin_name );										// Done in cpp.  Removed bSetAreas param
-	void AddPin( cpin2 *pin );																	// Done in cpp
-	void RemovePin( cpin2 *pin );																// CPT2
-	void SetWidth( int w, int via_w, int via_hole_w )
-	{
-		citer<cconnect2> ic (&connects);
-		for (cconnect2 *c = ic.First(); c; c = ic.Next())
-			c->SetWidth(w, via_w, via_hole_w);
-	}
-	void GetWidth( int * w, int *via_w=NULL, int *via_hole_w=NULL);			// Done in cpp, derived from old CNetList::GetWidths()
+	cpin2 *AddPin( CString * ref_des, CString * pin_name );								// Done in cpp.  Removed bSetAreas param
+	void AddPin( cpin2 *pin );															// Done in cpp
+	void RemovePin( cpin2 *pin );														// CPT2
+	void SetWidth( int w, int via_w, int via_hole_w );						// Done in cpp
+	void GetWidth( int *w, int *via_w=NULL, int *via_hole_w=NULL);			// Done in cpp, derived from old CNetList::GetWidths()
 	void CalcViaWidths(int w, int *via_w, int *via_hole_w);					// Done in cpp
 	void SetThermals();														// Done in cpp
-
 	// connections
 	cconnect2 * AddConnect( int * ic=NULL );
 	cconnect2 * AddConnectFromPin( int p1, int * ic=NULL );
 	cconnect2 * AddConnectFromPinToPin( int p1, int p2, int * ic=NULL );
 	void MergeConnections( cconnect2 * c1, cconnect2 * c2 );
-
-	void CleanUpConnections( CString * logstr=NULL );				// CPT2 TODO adapt from CNetList::CleanUpConnections(cnet*,CString*)
+	void CleanUpConnections( CString * logstr=NULL );						// CPT2 TODO adapt from CNetList::CleanUpConnections(cnet*,CString*)
 	void OptimizeConnections(BOOL bBelowPinCount, int pin_count, BOOL bVisibleNetsOnly=TRUE );  // CPT2 TODO:  derive from old CNetList functions
+
 	carea2 *NetAreaFromPoint( int x, int y, int layer )								// CPT2 replaces CNetList::TestPointInArea
 	{
 		citer<carea2> ia (&areas);

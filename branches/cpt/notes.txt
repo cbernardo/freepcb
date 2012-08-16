@@ -96,6 +96,8 @@ well as CCommonView::SetMainMenu().
 
 
 // Add to SVN notes:
+// r329 Fixed bug involving weird text appearing when returning from footprint editor
+// r329 Allowed the reading of docs with "phantom pins" (they're just ignored).
 
 // FreePCB : programming notes
 //
@@ -434,8 +436,8 @@ int CPartList::WriteParts( CStdioFile * file )
 			lines.Add(test);
 			el = el->next;
 		}
-		extern int strcmpNumeric(CString *s1, CString *s2);				// In FreePcbDoc.cpp
-		qsort(lines.GetData(), lines.GetSize(), sizeof(CString), (int (*)(const void*,const void*)) strcmpNumeric);			
+		extern int CompareNumeric(CString *s1, CString *s2);				// In utility.cpp
+		qsort(lines.GetData(), lines.GetSize(), sizeof(CString), (int (*)(const void*,const void*)) CompareNumeric);			
 		for (int i=0; i<lines.GetSize(); i++)
 			file->WriteString( lines[i] );
 	}

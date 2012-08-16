@@ -330,8 +330,8 @@ int cpartlist::WriteParts( CStdioFile * file )
 		for (cpart2 * p = ip.First(); p; p = ip.Next())
 			p->MakeString( &line ),
 			lines.Add(line);
-		extern int strcmpNumeric(CString *s1, CString *s2);															// In FreePcbDoc.cpp
-		qsort(lines.GetData(), lines.GetSize(), sizeof(CString), (int (*)(const void*,const void*)) strcmpNumeric);			
+		extern int CompareNumeric(CString *s1, CString *s2);															// In utility.cpp
+		qsort(lines.GetData(), lines.GetSize(), sizeof(CString), (int (*)(const void*,const void*)) CompareNumeric);			
 		for (int i=0; i<lines.GetSize(); i++)
 			file->WriteString( lines[i] );
 	}
@@ -747,4 +747,85 @@ void cpartlist::MarkAllParts( int util )
 		p->utility = util;
 		p->pins.SetUtility(util);
 	}
+}
+
+int cpartlist::CheckPartlist( CString * logstr )
+{
+	int nerrors = 0;
+	int nwarnings = 0;
+	CString str;
+	CMapStringToPtr map;
+	void * ptr;
+
+	CString s ((LPCSTR) IDS_CheckingParts2);
+	*logstr += s;
+
+	// first, check for duplicate parts
+	citer<cpart2> ip (&parts);
+	for (cpart2 *part = ip.First(); part; part = ip.Next())
+	{
+		CString ref_des = part->ref_des;
+		BOOL test = map.Lookup( ref_des, ptr );
+		if( test )
+		{
+			CString s ((LPCSTR) IDS_PartDuplicated);
+			str.Format( s, ref_des );
+			*logstr += str;
+			nerrors++;
+		}
+		else
+			map.SetAt( ref_des, NULL );
+	}
+
+	// now check all parts.  CPT2 a lot of these errors seem very very unlikely under the new system.  The appropriate response to a lot of them
+	// should probably be ASSERT(0).
+	for (cpart2 *part = ip.First(); part; part = ip.Next())
+	{
+		str = "";
+		CString * ref_des = &part->ref_des;
+		if( !part->shape )
+		{
+			// no footprint
+			CString s ((LPCSTR) IDS_WarningPartHasNoFootprint);
+			str.Format( s, *ref_des );
+			*logstr += str;
+			nwarnings++;
+			continue;
+		}
+
+		citer<cpin2> ipin (&part->pins);
+		for (cpin2 *pin = ipin.First(); pin; pin = ipin.Next())
+		{
+			// check this pin
+			if( !pin->net )
+				// part->pin->net is NULL, pin unconnected
+				// this is not an error
+				continue;
+			else if (!m_nlist->nets.Contains( pin->net ))
+			{
+				// part->pin->net doesn't exist in netlist
+				CString s ((LPCSTR) IDS_ErrorPartPinConnectedToNetWhichDoesntExist);
+				str.Format( s, ref_des, pin->pin_name, pin->net->name );
+				*logstr += str;
+				nerrors++;
+			}
+			// try to find pin in pin list for net
+			else if (!pin->net->pins.Contains(pin))
+			{
+				// pin not found
+				CString s ((LPCSTR) IDS_ErrorPartPinConnectedToNetButPinNotInNet);
+				str.Format( s, ref_des, pin->pin_name, pin->net->name );
+				*logstr += str;
+				nerrors++;
+			}
+			else 
+				// OK
+				;
+		}
+	}
+	CString s0 ((LPCSTR) IDS_ErrorsWarnings);
+	str.Format( s0, nerrors, nwarnings );
+	*logstr += str;
+
+	return nerrors;
 }

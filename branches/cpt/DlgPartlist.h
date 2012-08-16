@@ -23,13 +23,13 @@ protected:
 public:
 	virtual BOOL OnInitDialog();
 	void DrawListCtrl();
-	void Initialize( CPartList * plist,
+	void Initialize( cpartlist * plist,
 			CMapStringToPtr * shape_cache_map,
 			CFootLibFolderMap * footlibfoldermap,
 			int units, CDlgLog * log );
 	void SaveSelections();
 	void RestoreSelections();
-	CPartList * m_plist;
+	cpartlist * m_plist;
 	CMapStringToPtr * m_footprint_cache_map;
 	CFootLibFolderMap * m_footlibfoldermap;
 	int m_units;

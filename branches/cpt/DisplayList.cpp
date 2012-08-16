@@ -185,10 +185,11 @@ void CDisplayList::SetMapping( CRect *client_r, CRect *screen_r, int pane_org_x,
 	else
 		mult = m_pcbu_per_wu;
 
-	if( ext_x*mult/div > INT_MAX )
-		ASSERT(0);
-	if( ext_y*mult/div > INT_MAX )
-		ASSERT(0);
+	// CPT2 rather than crash when these values are out of range, we'll try our best to accommodate:
+	while ( ext_x*mult/div > INT_MAX )
+		div *= 2;
+	while ( ext_y*mult/div > INT_MAX )
+		div *= 2;
 	w_ext_x = ext_x*mult/div;
 	v_ext_x = rw*mult/div;
 	w_ext_y = ext_y*mult/div;

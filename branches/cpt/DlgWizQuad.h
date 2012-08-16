@@ -29,7 +29,7 @@ protected:
 
 	DECLARE_MESSAGE_MAP()
 private:
-	enum{ ROUND, SQUARE, SQ1, OCTAGON, RECT, RRECT, OVAL, NONE };
+	enum{ ROUND, SQUARE, SQ1, OCTAGON, RECT, nliECT, OVAL, NONE };
 	enum{ TOP_CENTER, BOTTOM_LEFT, TOP_LEFT };
 	enum{ SIP, DIP, QUAD, HDR1, HDR2, BGA, EDGE, EDGE2 };
 	CMapStringToPtr * m_footprint_cache_map;

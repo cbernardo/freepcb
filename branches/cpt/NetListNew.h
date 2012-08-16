@@ -219,8 +219,8 @@ public:
 	// int SetNetWidth( cnet2 * net, int w, int via_w, int via_hole_w ); // CPT2 use cnet2::SetWidth()
 	// void SetNetVisibility( cnet2 * net, BOOL visible ); // CPT2 use cnet2::SetVisible
 	// BOOL GetNetVisibility( cnet2 * net ); // CPT2 use cnet2::GetVisible
-	int CheckNetlist( CString * logstr ) { return 0; }
-	int CheckConnectivity( CString * logstr ) { return 0; }
+	int CheckNetlist( CString * logstr );
+	int CheckConnectivity( CString * logstr );
 	// void HighlightNetConnections( cnet2 * net, id * exclude_id=NULL );       // CPT2 use cnet2::HighlightConnections()
 	// void HighlightNet( cnet2 * net, id * exclude_id=NULL );			        // CPT2 use cnet2::Highlight()
 	// void GetWidths( cnet2 * net, int * w, int * via_w, int * via_hole_w );   // CPT2 use cnet2::GetWidths()
@@ -239,7 +239,7 @@ public:
 	//	cpart2 * part, CString * pin_name );								// CPT2 use cconnect2::ChangePin()
 	// void HighlightConnection( cnet2 * net, int ic, id * exclude_id=NULL ); // CPT2 use cconnect2::Highlight().  TODO Can we ditch exclude_id param?
 	// void CleanUpConnections( cnet2 * net, CString * logstr=NULL );		// CPT2 use cnet2::CleanUpConnections()
-	void CleanUpAllConnections( CString * logstr=NULL ) { }
+	void CleanUpAllConnections( CString * logstr=NULL );					// CPT2 done in cpp
 
 	// functions for segments.
 	// CPT r295 note that via_w and via_hole_w params are NO LONGER USED.

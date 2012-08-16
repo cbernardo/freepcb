@@ -5,6 +5,7 @@
 #include "FreePcb.h"
 #include "DlgPartlist.h"
 #include "DlgAddPart.h"
+#include "PartListNew.h"
 
 //global partlist_info so that sorting callbacks will work
 partlist_info pl;
@@ -170,7 +171,7 @@ void CDlgPartlist::DrawListCtrl()
 	RestoreSelections();
 }
 
-void CDlgPartlist::Initialize( CPartList * plist,
+void CDlgPartlist::Initialize( cpartlist * plist,
 			CMapStringToPtr * shape_cache_map,
 			CFootLibFolderMap * footlibfoldermap,
 			int units, CDlgLog * log )

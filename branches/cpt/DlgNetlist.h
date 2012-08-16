@@ -22,16 +22,15 @@ protected:
 
 	DECLARE_MESSAGE_MAP()
 public:
-	int m_visible_state;
 	int m_item_selected;
 	CArray<int> *m_w;		// array of default widths
 	CArray<int> *m_v_w;		// array of via widths (matching m_w[] entries)
 	CArray<int> *m_v_h_w;	// array of via hole widths
-	CNetList * m_nlist;
-	CPartList * m_plist;
-	netlist_info * m_nl;
+	cnetlist * m_nlist;
+	cpartlist * m_plist;
+	netlist_info * m_nli;
 
-	void Initialize( CNetList * nlist, CPartList * plist,
+	void Initialize( cnetlist * nlist, cpartlist * plist,
 		CArray<int> * w, CArray<int> * v_w, CArray<int> * v_h_w ); 
 private:
 	int m_sort_type;
@@ -45,6 +44,7 @@ private:
 	CButton m_button_edit;
 	CButton m_button_add;
 	CButton m_button_nl_width;
+	CButton m_button_combine;					// CPT2 added
 	CButton m_button_select_all;
 	CButton m_OK;
 	CButton m_cancel;
@@ -54,6 +54,7 @@ private:
 	afx_msg void OnBnClickedButtonEdit();
 	afx_msg void OnBnClickedButtonSelectAll();
 	afx_msg void OnBnClickedButtonNLWidth();
+	afx_msg void OnBnClickedButtonCombine();	// CPT2 added
 	afx_msg void OnBnClickedOk();
 	afx_msg void OnBnClickedCancel();
 	afx_msg void OnBnClickedDeleteNetsWithNoPins();

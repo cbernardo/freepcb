@@ -325,7 +325,6 @@ public:
 	afx_msg void OnEditRedo();
 	afx_msg void OnRepeatDrc();
 	afx_msg void OnFileGenerateReportFile();
-	afx_msg void OnProjectCombineNets();
 	afx_msg void OnFileLoadLibrary();
 	afx_msg void OnFileSaveLibrary();
 	// CPT

@@ -329,6 +329,7 @@
 #define IDC_BUTTON_NL_WIDTH             1043
 #define IDC_BUTTON_VAL_INVIS            1043
 #define IDC_RADIO_SET_WIDTH             1044
+#define IDC_BUTTON_COMBINE              1044
 #define IDC_BUTTON_DELETE2              1045
 #define IDC_RADIO_DEF                   1049
 #define IDC_RADIO_SET                   1050
@@ -1647,6 +1648,9 @@
 #define IDS_CantWriteToFolder           62682
 #define IDS_WarningFileDefaultCfgIsStoredInAFolder 62683
 #define IDS_NoteThatFolderProgramFilesIsWriteProtected 62684
+#define IDS_ErrorNetConnectionVertexWithInvalidPtrToConnect 62685
+#define IDS_STRING131                   62686
+#define IDS_RemovingEmptyTeeStructure   62686
 #define IDS_FkFpStr                     63000
 #define IDS_STRING63001                 63001
 #define IDS_STRING63002                 63002

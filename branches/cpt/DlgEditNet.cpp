@@ -5,6 +5,8 @@
 #include "FreePcb.h"
 #include "DlgEditNet.h"
 #include ".\dlgeditnet.h"
+#include "PartListNew.h"
+#include "NetListNew.h"
 
 
 // CDlgEditNet dialog
@@ -75,9 +77,9 @@ void CDlgEditNet::DoDataExchange(CDataExchange* pDX)
 		}
 		m_def_v_h_w = i*NM_PER_MIL; 
 		m_visible = m_check_visible.GetState();
-		for( int in=0; in<m_nl->GetSize(); in++ )
+		for( int in=0; in<m_nli->GetSize(); in++ )
 		{
-			if( m_name == (*m_nl)[in].name && m_in != in && !(*m_nl)[in].deleted )
+			if( in != m_in && m_name == (*m_nli)[in].name && !(*m_nli)[in].deleted )
 			{
 				CString s ((LPCSTR) IDS_DuplicateNetName);
 				AfxMessageBox( s );
@@ -89,24 +91,25 @@ void CDlgEditNet::DoDataExchange(CDataExchange* pDX)
 		if( m_new_net )
 		{
 			// add entry to netlist_info for new net, set index m_in
-			int num_nets = m_nl->GetSize();
-			m_nl->SetSize( num_nets + 1 );
+			int num_nets = m_nli->GetSize();
+			m_nli->SetSize( num_nets + 1 );
 			m_in = num_nets;
-			(*m_nl)[m_in].net = NULL;
+			(*m_nli)[m_in].net = NULL;
 		}
-		(*m_nl)[m_in].apply_trace_width = m_check_apply.GetCheck();
-		(*m_nl)[m_in].apply_via_width = m_check_apply.GetCheck();
-		(*m_nl)[m_in].modified = TRUE;
-		(*m_nl)[m_in].name = m_name;
-		(*m_nl)[m_in].visible = m_visible;
-		(*m_nl)[m_in].w = m_def_w;
-		(*m_nl)[m_in].v_w = m_def_v_w;
-		(*m_nl)[m_in].v_h_w = m_def_v_h_w;
+		net_info *ni = &(*m_nli)[m_in];
+		ni->apply_trace_width = m_check_apply.GetCheck();
+		ni->apply_via_width = m_check_apply.GetCheck();
+		ni->modified = TRUE;
+		ni->name = m_name;
+		ni->visible = m_visible;
+		ni->w = m_def_w;
+		ni->v_w = m_def_v_w;
+		ni->v_h_w = m_def_v_h_w;
 		if( m_pins_edited )
 		{
 			int npins = m_list_pins.GetCount();
-			(*m_nl)[m_in].ref_des.SetSize( npins );
-			(*m_nl)[m_in].pin_name.SetSize( npins );
+			ni->ref_des.SetSize( npins );
+			ni->pin_name.SetSize( npins );
 			for( int i=0; i<npins; i++ )
 			{
 				// now parse pin string from listbox
@@ -122,24 +125,21 @@ void CDlgEditNet::DoDataExchange(CDataExchange* pDX)
 				CString refstr = str.Left(dot_pos);
 				CString pinstr = str.Right( len - dot_pos - 1 );
 				int pin = atoi( pinstr );
-				(*m_nl)[m_in].ref_des[i] = refstr;
-				(*m_nl)[m_in].pin_name[i] = pinstr;
+				ni->ref_des[i] = refstr;
+				ni->pin_name[i] = pinstr;
 				// now remove pin from other net, if necessary
-				for( int in=0; in<m_nl->GetSize(); in++ )
+				for( int in=0; in<m_nli->GetSize(); in++ )
 				{
-					if( (*m_nl)[in].deleted == FALSE && m_in != in )
-					{
-						for( int ip=0; ip<(*m_nl)[in].ref_des.GetSize(); ip++ )
-						{
-							if( refstr == (*m_nl)[in].ref_des[ip]
-							&& pinstr == (*m_nl)[in].pin_name[ip] )
+					net_info *ni = &(*m_nli)[in];
+					if( in != m_in && !ni->deleted )
+						for( int ip = 0; ip < ni->ref_des.GetSize(); ip++ )
+							if( refstr == ni->ref_des[ip] && pinstr == ni->pin_name[ip] )
 							{
-								(*m_nl)[in].modified = TRUE;
-								(*m_nl)[in].ref_des.RemoveAt( ip );
-								(*m_nl)[in].pin_name.RemoveAt( ip);
+								ni->modified = TRUE;
+								ni->ref_des.RemoveAt( ip );
+								ni->pin_name.RemoveAt( ip );
+								break;
 							}
-						}
-					}
 				}
 			}
 		}
@@ -150,14 +150,16 @@ void CDlgEditNet::DoDataExchange(CDataExchange* pDX)
 		m_def_w = m_def_w/NM_PER_MIL;
 		m_def_v_w = m_def_v_w/NM_PER_MIL;
 		m_def_v_h_w = m_def_v_h_w/NM_PER_MIL;
-		// default is to apply new trace width
-		m_check_apply.SetCheck(1);
+		// default is to apply new trace width.
+		// CPT2 I changed this.  If you want to just rename a net or the like, it's all too easy to mistakenly change all 
+		// the trace widths this way...
+		m_check_apply.SetCheck(0);
 	}
 }
 
 void CDlgEditNet::Initialize( netlist_info * nl,
 							 int i,
-							 CPartList * plist,
+							 cpartlist * plist,
 							 BOOL new_net,
 							 BOOL visible,
 							 int units,
@@ -166,7 +168,7 @@ void CDlgEditNet::Initialize( netlist_info * nl,
 							 CArray<int> * v_h_w )
 {
 	m_units = units;
-	m_nl = nl;
+	m_nli = nl;
 	m_in = i;
 	m_plist = plist;
 	m_visible = visible;
@@ -235,7 +237,6 @@ void CDlgEditNet::OnBnClickedButtonDelete()
 
 void CDlgEditNet::OnBnClickedButtonAdd()
 {
-#ifndef CPT2
 	CString str;
 
 	m_edit_addpin.GetWindowText( str );
@@ -260,7 +261,7 @@ void CDlgEditNet::OnBnClickedButtonAdd()
 		if( dot_pos >= 2 && dot_pos < (len-1) )
 		{
 			CString refstr = str.Left( dot_pos );
-			cpart * part = m_plist->GetPartByName( refstr );
+			cpart2 * part = m_plist->GetPartByName( &refstr );
 			if( !part )
 			{
 				CString s ((LPCSTR) IDS_PartDoesNotExist);
@@ -282,30 +283,24 @@ void CDlgEditNet::OnBnClickedButtonAdd()
 				AfxMessageBox( s1 );
 				return;
 			}
-			int pin_index = part->shape->GetPinIndexByName( pinstr );
-			if( pin_index == -1 )
+			cpin2 *pin = part->GetPinByName( &pinstr );
+			if( !pin )
 			{
 				CString s ((LPCSTR) IDS_PinNotFoundInFootprint);
 				str.Format( s, pinstr, part->shape->m_name );
 				AfxMessageBox( str );
 				return;
 			}
-			// now search for pin in m_nl
+			// now search for pin in m_nli
 			int i_found = -1;
-			for( int i=0; i<m_nl->GetSize(); i++ )
+			for( int i=0; i<m_nli->GetSize(); i++ )
 			{
-				if( (*m_nl)[i].deleted == FALSE )
-				{
-					for( int ip=0; ip<(*m_nl)[i].ref_des.GetSize(); ip++ )
-					{
-						if( refstr == (*m_nl)[i].ref_des[ip]
-						&& pinstr == (*m_nl)[i].pin_name[ip] )
-						{
-							i_found = i;
-							break;
-						}
-					}
-				}
+				net_info *ni = &(*m_nli)[i];
+				if( ni->deleted )
+					continue;
+				for( int ip = 0; ip < ni->ref_des.GetSize(); ip++ )
+					if( refstr == ni->ref_des[ip] && pinstr == ni->pin_name[ip] )
+						{ i_found = i; break; }
 			}
 			if( i_found != -1 )
 			{
@@ -318,7 +313,7 @@ void CDlgEditNet::OnBnClickedButtonAdd()
 				else
 				{
 					CString mess, s ((LPCSTR) IDS_PinIsAssignedToNet);
-					mess.Format( s, refstr, pinstr, (*m_nl)[i_found].name, (*m_nl)[i_found].name );
+					mess.Format( s, refstr, pinstr, (*m_nli)[i_found].name, (*m_nli)[i_found].name );
 					int ret = AfxMessageBox( mess, MB_OKCANCEL );
 					if( ret != IDOK )
 						return;
@@ -331,15 +326,14 @@ void CDlgEditNet::OnBnClickedButtonAdd()
 			m_edit_addpin.SetWindowText( "" );
 		}
 	}
-#endif
 }
 
 // enter with the following variables set up by calling function:
 //	m_new_net = TRUE to add net, FALSE to edit net
 //	m_name = pointer to CString with net name (or "" if adding new net)
-//  m_use_nl_not_nlist = TRUE to use m_nl, FALSE to use m_nlist for net info
-//	m_nl = pointer to net_info array 
-//	m_in = index into m_nl for this net
+//  m_use_nl_not_nlist = TRUE to use m_nli, FALSE to use m_nlist for net info
+//	m_nli = pointer to net_info array 
+//	m_in = index into m_nli for this net
 //	m_plist = pointer to partlist
 //	m_w = pointer to CArray of trace widths
 //	m_v_w = pointer to CArray of via pad widths
@@ -372,10 +366,10 @@ BOOL CDlgEditNet::OnInitDialog()
 	// set up list box for pins
 	if( !m_new_net )
 	{
-		int npins = (*m_nl)[m_in].ref_des.GetSize();
+		int npins = (*m_nli)[m_in].ref_des.GetSize();
 		for( int i=0; i<npins; i++ )
 		{
-			str.Format( "%s.%s", (*m_nl)[m_in].ref_des[i], (*m_nl)[m_in].pin_name[i] ); 
+			str.Format( "%s.%s", (*m_nli)[m_in].ref_des[i], (*m_nli)[m_in].pin_name[i] ); 
 			m_list_pins.InsertString( i, str );
 		}
 	}

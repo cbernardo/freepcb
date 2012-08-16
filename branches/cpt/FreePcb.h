@@ -67,8 +67,8 @@ public:
 	};
 	CFreePcbApp();
 	CFreePcbDoc * m_doc;
-	CFreePcbView * m_View;
-	CFootprintView * m_View_fp;
+	CFreePcbView * m_view;
+	CFootprintView * m_view_fp;
 	CSingleDocTemplate * m_pDocTemplate;
 	BOOL SwitchToView( CRuntimeClass * pNewViewClass );
 	CString GetMRUFile();

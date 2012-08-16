@@ -122,20 +122,13 @@ void cnetlist::ReadNets( CStdioFile * pcb_file, double read_version, int * layer
 				CString ref_str = pin_str.Left( dot_pos );
 				CString pin_num_str = pin_str.Right( pin_str.GetLength()-dot_pos-1 );
 				cpin2 * pin = net->AddPin( &ref_str, &pin_num_str );
-				if (!pin)
-				{
-					CString s ((LPCSTR) IDS_FatalErrorInNetPinDoesntExist), *err_str = new CString();
-					err_str->Format(s, net_name, pin_num_str, ref_str );	
-					throw err_str;
-				}
-				else if( !pin->part )
-				{
-					CString s ((LPCSTR) IDS_FatalErrorInNetPartDoesntExist), *err_str = new CString();
-					err_str->Format(s, net_name, ref_str);
-					throw err_str;
-				}
+				// CPT2.  If pin isn't found, just silently ignore it.  I used to error out when this happened, but old files can have nets
+				//  that contain "phantom pins,"  and we'd better tolerate them for backwards compatibility.
+				if (!pin || !pin->part)
+					;
 				else if( !pin->part->shape )
 				{
+					// Mighty mighty unlikely, but I guess I'll keep this clause...
 					CString s ((LPCSTR) IDS_FatalErrorInNetPartDoesntHaveAFootprint), *err_str = new CString();
 					err_str->Format(s, net_name, ref_str);
 					throw err_str;
@@ -160,29 +153,12 @@ void cnetlist::ReadNets( CStdioFile * pcb_file, double read_version, int * layer
 				int start_pin = my_atoi( &p[1] );
 				int end_pin = my_atoi( &p[2] );
 				cpin2 *pin0 = NULL, *pin1 = NULL;
-				// CPT2 TODO Guess I'd better silently ignore these phantom pins, for backwards compatibility with old files.
 				if (start_pin != cconnect::NO_END)
-				{
 					pin0 = net->pins.FindByUtility(start_pin);
-					if (!pin0)
-					{
-						CString s ((LPCSTR) IDS_FatalErrorInNetConnectNonexistentPin), *err_str = new CString();
-						err_str->Format(s, net_name, ic+1, start_pin );
-						throw err_str;
-					}
-				}
+					// CPT2 We tolerate it if FindByUtility() fails and pin0 is NULL...
 				v0->pin = pin0;
 				if (end_pin != cconnect::NO_END)
-				{
 					pin1 = net->pins.FindByUtility(end_pin);
-					if (!pin1)
-					{
-						CString s ((LPCSTR) IDS_FatalErrorInNetConnectNonexistentPin), *err_str = new CString();
-						err_str->Format(s, net_name, ic+1, end_pin );
-						throw err_str;
-					}
-				}
-				// Additional error checks that used to occur here have moved to the loop above...
 				int nsegs = my_atoi( &p[3] );
 				c->locked = my_atoi( &p[4] );
 				
@@ -564,6 +540,7 @@ void cnetlist::ExportNetListInfo( netlist_info * nl )
 		ni->apply_via_width = FALSE;
 		ni->modified = FALSE;
 		ni->deleted = FALSE;
+		ni->merge_into = -1;								// CPT2 new member.  Default value = -1.
 		ni->ref_des.SetSize(0);
 		ni->pin_name.SetSize(0);
 		// now make copy of pin arrays
@@ -584,9 +561,12 @@ void cnetlist::ExportNetListInfo( netlist_info * nl )
 void cnetlist::ImportNetListInfo( netlist_info * nl, int flags, CDlgLog * log,
 								 int def_w, int def_w_v, int def_w_v_h )
 {
-	// CPT2 TODO deal with redrawing issues.
 	CString mess;
-	// loop through netlist_info and remove any nets that flagged for deletion
+	// Mark all nets for redrawing.  CPT2 TODO think about undo issues
+	citer<cnet2> in (&nets);
+	for (cnet2 *net = in.First(); net; net = in.Next())
+		net->MustRedraw();
+	// loop through netlist_info and remove any nets that are flagged for deletion
 	int n_info_nets = nl->GetSize();
 	for( int i=0; i<n_info_nets; i++ )
 	{
@@ -601,8 +581,26 @@ void cnetlist::ImportNetListInfo( netlist_info * nl, int flags, CDlgLog * log,
 				mess.Format( s, net->name );
 				log->AddLine( mess );
 			}
-			nets.Remove(net);
-			ni->net = NULL;
+			if (ni->merge_into >= 0)
+			{
+				// CPT2 new.  Rather than simply delete the current net, combine it into the one indicated at position 
+				// "ni->merge_into" of the netlist-info table.
+				int mi = ni->merge_into;
+				while ((*nl)[mi].merge_into >= 0)
+					mi = (*nl)[mi].merge_into;				// It's possible user merged repeatedly during the life of DlgNetlist
+				net_info *ni2 = &(*nl)[mi];
+				if (ni2->deleted || !ni2->net)
+					// It appears user deleted the combined net after requesting the merge...
+					net->Remove();
+				else
+					net->MergeWith(ni2->net);
+				ni->net = NULL;
+			}
+			else
+			{
+				net->Remove();
+				ni->net = NULL;
+			}
 		}
 	}
 
@@ -617,7 +615,6 @@ void cnetlist::ImportNetListInfo( netlist_info * nl, int flags, CDlgLog * log,
 	}
 
 	// now check for existing nets that are not in netlist_info
-	citer<cnet2> in (&nets);
 	for (cnet2 *net = in.First(); net; net = in.Next())
 	{
 		// check if in netlist_info
@@ -644,7 +641,7 @@ void cnetlist::ImportNetListInfo( netlist_info * nl, int flags, CDlgLog * log,
 				mess.Format( s, net->name );
 				log->AddLine( mess );
 			}
-			nets.Remove(net);
+			net->Remove();
 		}
 	}
 
@@ -655,36 +652,43 @@ void cnetlist::ImportNetListInfo( netlist_info * nl, int flags, CDlgLog * log,
 		// ignore info nets marked for deletion
 		if( ni->deleted )
 			continue;
-		if( ni->w == -1 )
-			ni->w = 0;
-		if( ni->v_w == -1 )
-			ni->v_w = 0;
-		if( ni->v_h_w == -1 )
-			ni->v_h_w = 0;
-
+	
 		// try to find existing net with this name
 		cnet2 *net = ni->net;												// net from netlist_info (may be NULL)
 		cnet2 *old_net = GetNetPtrByName( &ni->name );
 		if( !net && !old_net )
 		{
 			// no existing net, add to netlist
-			cnet2 *net = new cnet2(this, ni->name, ni->w, ni->v_w, ni->v_h_w );
-			ni->net = net;
-		}
-		else if( !net && old_net )
-		{
-			// no net from netlist_info but existing net with same name
-			// use existing net and modify it
-			ni->modified = TRUE;
-			net = old_net;
+			if( ni->w == -1 )
+				ni->w = 0;
+			if( ni->v_w == -1 )
+				ni->v_w = 0;
+			if( ni->v_h_w == -1 )
+				ni->v_h_w = 0;
+			net = new cnet2(this, ni->name, ni->w, ni->v_w, ni->v_h_w );
 			ni->net = net;
 		}
 		else
-			// net from netlist_info and existing net have the same name.  Ensure they're actually identical
-			ASSERT( net == old_net );
+		{
+			if (!net)
+				// no net from netlist_info but there's an existing net (old_net) with the same name
+				// use existing net and modify it
+				ni->modified = TRUE,
+				ni->net = net = old_net;
+			else
+				// old_net is non-null, and it SHOULD be identical to the net from netlist_info
+				ASSERT( net == old_net );
+			// Change existing width values if requested
+			if( ni->w != -1 )
+				net->def_w = ni->w;
+			if( ni->v_w != -1 )
+				net->def_via_w = ni->v_w;
+			if( ni->v_h_w != -1 )
+				net->def_via_hole_w = ni->v_h_w;
+		}
 
 		net->name = ni->name;
-		// now loop through net pins, deleting any which were removed
+		// now loop through net pins, detaching any which were removed from the net_info structure
 		citer<cpin2> ip (&net->pins);
 		for (cpin2 *pin = ip.First(); pin; pin = ip.Next())
 		{
@@ -704,9 +708,9 @@ void cnetlist::ImportNetListInfo( netlist_info * nl, int flags, CDlgLog * log,
 			// pin in net but not in netlist_info 
 			if( flags & KEEP_PARTS_AND_CON )
 			{
-				// we may want to preserve this pin.  CPT2 TODO figure out what's going on here
+				// we may want to preserve this pin.
 				if( !pin->part->bPreserve )
-					net->pins.Remove(pin);
+					net->RemovePin(pin);
 			}
 			else
 			{
@@ -717,7 +721,7 @@ void cnetlist::ImportNetListInfo( netlist_info * nl, int flags, CDlgLog * log,
 					mess.Format( s, ref_des, pin_name, net->name  );
 					log->AddLine( mess );
 				}
-				net->pins.Remove(pin);
+				net->RemovePin(pin);
 			}
 		}
 	}
@@ -733,13 +737,14 @@ void cnetlist::ImportNetListInfo( netlist_info * nl, int flags, CDlgLog * log,
 			int n_local_pins = ni->ref_des.GetSize();
 			for( int ipl=0; ipl<n_local_pins; ipl++ )
 			{
-				cpin2 *pin = m_plist->GetPinByNames( &ni->ref_des[i], &ni->pin_name[i] );
+				cpin2 *pin = m_plist->GetPinByNames( &ni->ref_des[ipl], &ni->pin_name[ipl] );
+				ASSERT(pin);
 				if (pin->net == net) continue;
 				net->AddPin( pin );						// Takes care of detaching pin from its old net, if any
 				if( log )
 				{
 					CString s ((LPCSTR) IDS_AddingPinToNet);
-					mess.Format( s,	(*nl)[i].ref_des[ipl], (*nl)[i].pin_name[ipl], net->name );
+					mess.Format( s,	ni->ref_des[ipl], ni->pin_name[ipl], net->name );
 					log->AddLine( mess );
 				}
 			}
@@ -755,10 +760,9 @@ void cnetlist::ImportNetListInfo( netlist_info * nl, int flags, CDlgLog * log,
 			continue;
 		net->bVisible = ni->visible;
 		if( ni->apply_trace_width )
-			net->def_w = ni->w? ni->w: def_w;
+			net->SetWidth(ni->w, 0, 0);
 		if( ni->apply_via_width )
-			net->def_via_w = ni->v_w? ni->v_w: def_w_v,
-			net->def_via_hole_w = ni->v_h_w? ni->v_h_w: def_w_v_h;
+			net->SetWidth(0, ni->v_w, ni->v_h_w);
 	}
 }
 
@@ -809,6 +813,249 @@ void cnetlist::MoveOrigin(int dx, int dy)
 		citer<carea2> ia (&n->areas);
 		for (carea2 *a = ia.First(); a; a = ia.Next())
 			a->Offset(dx, dy);
+	}
+}
+
+int cnetlist::CheckNetlist( CString * logstr )
+{
+	// CPT2 converted.  A lot of these errors seem extremely implausible under the new system.  And if a user gets one of these messages,
+	// they're not likely to have much clue what to do about it (except save a backup copy, bail out, and hope for the best I guess).
+	CString str;
+	int nwarnings = 0;
+	int nerrors = 0;
+	int nfixed = 0;
+	CMapStringToPtr net_map;
+	CMapStringToPtr pin_map;
+	void *ptr;
+
+	str.LoadStringA(IDS_CheckingNets);
+	*logstr += str;
+
+	citer<cnet2> in (&nets);
+	for (cnet2 *net = in.First(); net; net = in.Next())
+	{
+		CString net_name = net->name;
+		if( net_map.Lookup( net_name, ptr ) )
+		{
+			CString s ((LPCSTR) IDS_ErrorNetIsDuplicate);
+			str.Format( s, net_name );
+			*logstr += str;
+			nerrors++;
+		}
+		else
+			net_map.SetAt( net_name, NULL );
+		int npins = net->pins.GetSize();
+		if( npins == 0 )
+		{
+			CString s ((LPCSTR) IDS_WarningNetHasNoPins);
+			str.Format( s, net->name );
+			*logstr += str;
+			nwarnings++;
+		}
+		else if( npins == 1 )
+		{
+			CString s ((LPCSTR) IDS_WarningNetHasSinglePin);
+			str.Format( s, net->name );
+			*logstr += str;
+			nwarnings++;
+		}
+		citer<cpin2> ipin (&net->pins);
+		for (cpin2 *pin = ipin.First(); pin; pin = ipin.Next())
+		{
+			if( !pin->part )
+			{
+				// CPT2 colossally unlikely if not impossible.  We've got some sort of phantom pin, which I've outlawed.
+				CString s ((LPCSTR) IDS_WarningNetPinNotConnectedPartDoesntExist);
+				str.Format( s, net->name, "???", pin->pin_name, net->name );
+				*logstr += str;
+				nerrors++;
+				continue;
+			}
+			CString * ref_des = &pin->part->ref_des;
+			CString * pin_name = &pin->pin_name;
+			CString pin_id = *ref_des + "." + *pin_name;
+			if (pin->net != net)
+			{
+				CString s ((LPCSTR) IDS_ErrorNetPinAlreadyAssignedToNet);
+				str.Format( s, net->name, pin_id, pin->net? pin->net->name: "(0)" );
+				*logstr += str;
+				nerrors++;
+			}
+			BOOL test = pin_map.Lookup( pin_id, ptr );
+			if( test )
+			{
+				// CPT2 this error is _really_ weird under the new system (I should practically ASSERT(0)).  The only way I can imagine it
+				// happening is that the partlist is somehow corrupt.  The only fix I'll attempt is to do net->pins.Remove(pin).
+				CString s ((LPCSTR) IDS_ErrorNetPinIsDuplicate);
+				str.Format( s, net->name, pin_id );
+				*logstr += str;
+				net->pins.Remove(pin);
+				*logstr += str;
+				nerrors++;
+				continue;		// no further testing on this pin
+			}
+			else
+				pin_map.SetAt( pin_id, net );
+
+			if (!m_plist->parts.Contains(pin->part))
+			{
+				// net->pin->ref_des not found in partlist
+				CString s ((LPCSTR) IDS_ErrorNetPinConnectedButPartNotInPartlist);
+				str.Format( s, net->name, *ref_des, *pin_name );
+				*logstr += str;
+				nerrors++;
+			}
+			/*
+			Like some of the other checks that used to be here, the following is something that I can let cpartlist::CheckPartlist() take care of.
+			if( !pin->part->shape )
+			{
+				// part matches, but no footprint
+				CString s ((LPCSTR) IDS_WarningNetPinConnectedButPartDoesntHaveFootprint);
+				str.Format( s, net->name, *ref_des, *pin_name );
+				*logstr += str;
+				nwarnings++;
+			}
+			*/
+			else if( !pin->part->pins.Contains(pin) )
+			{
+				// net->pin->pin_name doesn't exist in part
+				CString s ((LPCSTR) IDS_WarningNetPinConnectedButPartDoesntHavePin);
+				str.Format( s, net->name, *ref_des, *pin_name );
+				*logstr += str;
+				nwarnings++;
+			}
+			else
+				// OK, all is well, peace on earth
+				;
+		}
+
+		// now check connections
+		citer<cconnect2> ic (&net->connects);
+		for (cconnect2 *c = ic.First(); c; c = ic.Next())
+		{
+			citer<cseg2> is (&c->segs);
+			for (cseg2 *s = is.First(); s; s = is.Next())
+				if( s->m_con != c )
+				{
+					CString str0 ((LPCSTR) IDS_ErrorNetConnectionSegmentWithInvalidPtrToConnect);
+					str.Format( str0, net->name, c->UID(), s->UID() );
+					*logstr += str;
+					nerrors++;
+				}
+
+			citer<cvertex2> iv (&c->vtxs);
+			for (cvertex2 *v = iv.First(); v; v = iv.Next())
+				if( v->m_con != c )
+				{
+					CString str0 ((LPCSTR) IDS_ErrorNetConnectionVertexWithInvalidPtrToConnect);
+					str.Format( str0, net->name, c->UID(), v->UID() );
+					*logstr += str;
+					nerrors++;
+				}
+
+			if( c->NumSegs() == 0 )
+			{
+				CString s ((LPCSTR) IDS_ErrorNetConnectionWithNoSegments);
+				str.Format( s, net->name );
+				*logstr += str;
+				c->Remove();
+				str.LoadStringA(IDS_FixedConnectionRemoved);
+				*logstr += str;
+				nerrors++;
+				nfixed++;
+			}
+		}
+	}
+	CString s ((LPCSTR) IDS_ErrorsFixedWarnings);
+	str.Format( s, nerrors, nfixed, nwarnings );
+	*logstr += str;
+	return nerrors;
+}
+
+int cnetlist::CheckConnectivity( CString * logstr )
+{
+	CString str;
+	int nwarnings = 0;
+	int nerrors = 0;
+	int nfixed = 0;
+
+	citer<cnet2> in (&nets);
+	for (cnet2 *net = in.First(); net; net = in.Next())
+	{
+		CString net_name = net->name;
+		// now check connections
+		citer<cconnect2> ic (&net->connects);
+		for (cconnect2 *c = ic.First(); c; c = ic.Next())
+		{
+			if( c->NumSegs() == 0 )
+			{
+				CString s ((LPCSTR) IDS_ErrorNetConnectionWithNoSegments);
+				str.Format( s, net->name );
+				*logstr += str;
+				c->Remove();
+				str.LoadStringA(IDS_FixedConnectionRemoved);
+				*logstr += str;
+				nerrors++;
+				nfixed++;
+			} 
+			else if( c->head->pin && c->head->pin == c->tail->pin )
+			{
+				CString s ((LPCSTR) IDS_ErrorNetConnectionFromPinToItself);
+				str.Format( s, net->name );
+				*logstr += str;
+				c->Remove();
+				str.LoadStringA(IDS_FixedConnectionRemoved);
+				*logstr += str;
+				nerrors++;
+				nfixed++;
+			}
+			else
+			{
+				bool bUnrouted = false;
+				citer<cseg2> is (&c->segs);
+				for (cseg2 *s = is.First(); s; s = is.Next())
+					if( s->m_layer == LAY_RAT_LINE )
+						{ bUnrouted = TRUE;	break; }
+				if (!bUnrouted)
+					continue;
+				CString from_str, to_str, str, str0;
+				c->head->GetTypeStatusStr( &from_str );
+				c->tail->GetTypeStatusStr( &to_str );
+				if( c->NumSegs() > 1 )
+					str0.LoadStringA(IDS_PartiallyRoutedConnection);
+				else
+					str0.LoadStringA(IDS_UnroutedConnection);
+				str.Format( str0, 1, net->name, from_str, to_str );
+				*logstr += str;
+				nerrors++;
+			}
+		}
+	}
+	return nerrors;
+}
+
+void cnetlist::CleanUpAllConnections( CString * logstr )
+{
+	CString str, s;
+	citer<cnet2> in (&nets);
+	for (cnet2 *net = in.First(); net; net = in.Next())
+		net->CleanUpConnections( logstr );
+
+	// CPT2 Old code checked tee-ids, which is now an obsolete issue.  However I might as well check for tees with 0 vertices, 
+	// and remove them.
+	if( logstr )
+		s.LoadStringA(IDS_CheckingTeesAndBranches),
+		*logstr += s;
+	for (cnet2 *net = in.First(); net; net = in.Next())
+	{
+		citer<ctee> it (&net->tees);
+		for (ctee *t = it.First(); t; t = it.Next())
+			if (t->vtxs.GetSize()==0)
+			{
+				s.LoadStringA(IDS_RemovingEmptyTeeStructure);
+				str.Format(s, t->UID());
+				net->tees.Remove(t);
+			}
 	}
 }
 

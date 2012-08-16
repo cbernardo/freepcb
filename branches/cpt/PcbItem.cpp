@@ -642,6 +642,8 @@ int cvertex2::Draw()
 		return NOERR;					// CPT2.  Similarly, draw the pin and its selector, not the vtx.
 	if (bDrawn)
 		return ALREADY_DRAWN;
+	if (!m_net->bVisible)
+		return NOERR;
 
 	// draw via if via_w > 0
 	if( via_w )
@@ -1017,6 +1019,8 @@ int ctee::Draw()
 	cvertex2 *v = vtxs.First();
 	if (!v) 
 		return NOERR;				// Weird...
+	if (!v->m_net->bVisible)
+		return NOERR;
 	int x = v->x, y = v->y;
 	cnetlist * nl = v->m_net->m_nlist;
 	CDisplayList *dl = doc->m_dlist;
@@ -1594,6 +1598,8 @@ int cseg2::Draw()
 		return NO_DLIST;
 	if (bDrawn) 
 		return ALREADY_DRAWN;
+	if (!m_net->bVisible)
+		return NOERR;
 	int vis = m_layer == LAY_RAT_LINE? m_net->bVisible: 1;
 	int shape = DL_LINE;
 	if( m_curve == CW )
@@ -1855,6 +1861,7 @@ int cconnect2::Draw()
 	// Draw individual constituents.  The bDrawn flag for the object itself is probably irrelevant.
 	CDisplayList *dl = doc->m_dlist;
 	if (!dl) return NO_DLIST;
+	if (!m_net->bVisible) return NOERR;
 
 	citer<cseg2> is (&segs);
 	for (cseg2 *s = is.First(); s; s = is.Next())
@@ -2601,11 +2608,13 @@ void cpart2::SetValue(CString *_value, int x, int y, int angle, int size, int w,
 	m_value->m_bShown = vis;
 }
 
+/*
 void cpart2::ResizeRefText(int size, int width, BOOL vis )
 {
 	m_ref->Move(m_ref->m_x, m_ref->m_y, m_ref->m_angle, size, width);
 	m_ref->m_bShown = vis;
 }
+*/
 
 CRect cpart2::CalcSelectionRect()
 {
@@ -2716,6 +2725,22 @@ CPoint cpart2::GetGluePoint( cglue *g )
 	return pp;
 }
 
+bool cpart2::IsAttachedToConnects()
+{
+	// CPT2 new.  Return true if there are connects attached to any of this part's pins.
+	citer<cpin2> ipin (&pins);
+	for (cpin2 *pin = ipin.First(); pin; pin = ipin.Next())
+	{
+		if (!pin->net) continue;
+		citer<cconnect2> ic (&pin->net->connects);
+		for (cconnect2 *c = ic.First(); c; c = ic.Next())
+			if (c->head->pin && c->head->pin->part==this)
+				return true;
+			else if (c->tail->pin && c->tail->pin->part==this)
+				return true;
+	}
+	return false;
+}
 
 void cpart2::ChangeFootprint(CShape *_shape)
 {
@@ -4643,7 +4668,7 @@ void TestGpc()
 	gpc_vertex_list * g_v_list = new gpc_vertex_list;
 	g_v_list->vertex = (gpc_vertex*)calloc( sizeof(gpc_vertex), 6 );
 	g_v_list->num_vertices = 6;
-	static int x[] = { 100, 200, 100, 100, 0,   100 };
+	static int x[] = { 100, 200, 100, 100, 0,   100 }; 
 	static int y[] = { 100, 0,   0,   100, 200, 200 };
 	for (int i=0; i<6; i++)
 		g_v_list->vertex[i].x = x[i],
@@ -5377,6 +5402,13 @@ void carea2::SaveUndoInfo()
 		ctr->SaveUndoInfo();
 }
 
+int carea2::Draw()
+{
+	if (!m_net->bVisible)
+		return NOERR;
+	return cpolyline::Draw();
+}
+
 void carea2::Remove()
 {
 	// CPT2. User wants to delete area, so detach it from the network (garbage collector will later delete this object and its
@@ -5637,6 +5669,47 @@ void cnet2::Highlight(cpcb_item *exclude)
 		a->Highlight();
 }
 
+void cnet2::Remove()
+{
+	Undraw();
+	m_nlist->nets.Remove(this);
+	citer<cpin2> ipin (&pins);
+	for (cpin2 *pin = ipin.First(); pin; pin = ipin.Next())
+		pin->net = NULL;
+	// Member connects, areas, and tees are no longer valid and will be garbage-collected...
+}
+
+void cnet2::MergeWith(cnet2 *n2)
+{
+	// CPT2 new.  Merge this net into n2, moving over all connects, areas, pins, and tees.
+	m_nlist->nets.Remove(this);
+	citer<cconnect2> ic (&connects);
+	for (cconnect2 *c = ic.First(); c; c = ic.Next())
+	{
+		c->m_net = n2;
+		citer<cseg2> is (&c->segs);
+		for (cseg2 *s = is.First(); s; s = is.Next())
+			s->m_net = n2;
+		citer<cvertex2> iv (&c->vtxs);
+		for (cvertex2 *v = iv.First(); v; v = iv.Next())
+			v->m_net = n2;
+	}
+	n2->connects.Add(&connects);
+	connects.RemoveAll();
+	citer<carea2> ia (&areas);
+	for (carea2 *a = ia.First(); a; a = ia.Next())
+		a->m_net = n2;
+	n2->areas.Add(&areas);
+	areas.RemoveAll();
+	citer<cpin2> ipin (&pins);
+	for (cpin2 *pin = ipin.First(); pin; pin = ipin.Next())
+		pin->net = n2;
+	n2->pins.Add(&pins);
+	pins.RemoveAll();
+	n2->tees.Add(&tees);
+	tees.RemoveAll();
+}
+
 cpin2 *cnet2::AddPin( CString * ref_des, CString * pin_name )
 {
 	cpin2 *pin = doc->m_plist->GetPinByNames(ref_des, pin_name);
@@ -5673,6 +5746,13 @@ void cnet2::RemovePin( cpin2 *pin )
 			v->m_con->Remove();
 	pins.Remove(pin);
 	pin->net = NULL;
+}
+
+void cnet2::SetWidth( int w, int via_w, int via_hole_w )
+{
+	citer<cconnect2> ic (&connects);
+	for (cconnect2 *c = ic.First(); c; c = ic.Next())
+		c->SetWidth(w, via_w, via_hole_w);
 }
 
 void cnet2::GetWidth( int * w, int * via_w, int * via_hole_w )
@@ -6136,6 +6216,8 @@ void cnet2::OptimizeConnections( BOOL bBelowPinCount, int pin_count, BOOL bVisib
 int cnet2::Draw() 
 {
 	// CPT2 TODO decide what to do if anything about bDrawn flag.
+	if (!bVisible)
+		return NOERR;
 	citer<cconnect2> ic (&connects);
 	for (cconnect2 *c = ic.First(); c; c = ic.Next())
 		c->Draw();
@@ -6163,6 +6245,135 @@ void cnet2::Undraw()
 	citer<ctee> it (&tees);
 	for (ctee *t = it.First(); t; t = it.Next())
 		t->Undraw();
+}
+
+void cnet2::CleanUpConnections( CString * logstr )
+{
+	citer<cconnect2> ic (&connects);
+	for (cconnect2 *c = ic.First(); c; c = ic.Next())
+	{
+		BOOL bConnectionRemoved = FALSE;
+		c->MustRedraw();
+		citer<cseg2> is (&c->segs);
+		for (cseg2 *s = is.First(); s; s = is.Next())
+		{
+			// check for zero-length segment
+			if (s->preVtx->x != s->postVtx->x || s->preVtx->y != s->postVtx->y)
+				continue;
+			// yes, analyze segment
+			enum { UNDEF=0, THRU_PIN, SMT_PIN, VIA, TEE, SEGMENT, END_STUB };
+			int pre_type = UNDEF;	// type of preceding item
+			int pre_layer = UNDEF;	// layer if SEGMENT or SMT_PIN
+			int post_type = UNDEF;	// type of following item
+			int post_layer = UNDEF;	// layer if SEGMENT or SMT_PIN
+			int layer = s->m_layer;
+			// analyze start of segment
+			if( !s->preVtx->preSeg )
+			{
+				// first segment
+				if (s->preVtx->pin)
+					pre_layer = s->preVtx->pin->pad_layer,
+					pre_type = pre_layer==LAY_PAD_THRU? THRU_PIN: SMT_PIN;
+				else if (s->preVtx->tee)
+					pre_type = TEE;
+				else if (s->preVtx->via_w)
+					pre_type = VIA;
+				else
+					pre_type = END_STUB;
+			}
+			else
+			{
+				// not first segment
+				pre_layer = s->preVtx->preSeg->m_layer;	// preceding layer
+				if( s->preVtx->via_w )
+					pre_type = VIA;				// starts on a via
+				else
+					pre_type = SEGMENT;			// starts on a segment
+			}
+			// analyze end of segment
+			if( !s->postVtx->postSeg )
+			{
+				// last segment
+				if (s->postVtx->pin)
+					post_layer = s->postVtx->pin->pad_layer,
+					post_type = post_layer==LAY_PAD_THRU? THRU_PIN: SMT_PIN;
+				else if (s->postVtx->tee)
+					post_type = TEE;
+				else if (s->postVtx->via_w)
+					post_type = VIA;
+			}
+			else
+			{
+				// not last segment
+				post_layer = s->postVtx->postSeg->m_layer;
+				if( s->postVtx->via_w )
+					post_type = VIA;
+				else
+					post_type = SEGMENT;
+			}
+			// Obtain descriptor strings for pre- and post-vertices
+			CString strPre, strPost;
+			s->preVtx->GetStatusStr( &strPre );
+			s->postVtx->GetStatusStr( &strPost );
+
+			// OK, now see if we can remove the zero-length segment by removing
+			// the starting vertex
+			BOOL bRemove = FALSE;
+			if( pre_type == SEGMENT && pre_layer == layer
+				|| pre_type == SEGMENT && layer == LAY_RAT_LINE
+				|| pre_type == VIA && post_type == VIA 
+				|| pre_type == VIA && post_type == THRU_PIN
+				|| post_type == END_STUB ) 
+				s->preVtx->Remove(),
+				bRemove = true;
+			else if( post_type == SEGMENT && post_layer == layer
+				|| post_type == SEGMENT && layer == LAY_RAT_LINE
+				|| post_type == VIA && pre_type == THRU_PIN )
+				s->postVtx->Remove(),
+				bRemove = true;
+			if( bRemove  && logstr )
+			{
+				CString str, s ((LPCSTR) IDS_NetTraceRemovingZeroLength);
+				str.Format( s, this->name, strPre, strPost ); 
+				*logstr += str;
+			}
+		}
+
+		// look for segments on same layer, with same width, not separated by a via.  (Actually loop thru verts to find these situations.)
+		citer<cvertex2> iv (&c->vtxs);
+		for (cvertex2 *v = iv.First(); v; v = iv.Next())
+		{
+			if (!v->preSeg || !v->postSeg)
+				continue;
+			if (v->preSeg->m_layer != v->postSeg->m_layer)
+				continue;
+			if (v->preSeg->m_width != v->postSeg->m_width)
+				continue;
+			if (v->via_w)
+				continue;
+			// see if colinear
+			double dx1 = v->x - v->preSeg->preVtx->x;
+			double dy1 = v->y - v->preSeg->preVtx->y;
+			double dx2 = v->postSeg->postVtx->x - v->x;
+			double dy2 = v->postSeg->postVtx->y - v->y;
+			if( dy1*dx2 == dy2*dx1 && (dx1*dx2>0.0 || dy1*dy2>0.0) )
+			{
+				// yes, combine these segments
+				if( logstr )
+				{
+					CString str, s ((LPCSTR) IDS_NetTraceCombiningColinear);
+					CString strHead, strTail;
+					c->head->GetStatusStr( &strHead );
+					c->tail->GetStatusStr( &strTail );
+					str.Format( s, this->name, strHead, strTail ); 
+					*logstr += str;
+				}
+				v->Remove();
+			}
+			// CPT2 old code checked for non-branch stubs with a single unrouted segment and no end-via.  I'm hoping to let
+			// MergeUnroutedSegments to take care of these situations instead.
+		}
+	}
 }
 
 /**********************************************************************************************/
