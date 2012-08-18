@@ -172,7 +172,7 @@ ON_COMMAND(ID_RATLINE_DELETECONNECTION, OnDeleteConnection)
 ON_COMMAND(ID_RATLINE_LOCKCONNECTION, OnRatlineLockConnection)
 ON_COMMAND(ID_RATLINE_UNLOCKCONNECTION, OnRatlineUnlockConnection)
 ON_COMMAND(ID_RATLINE_ROUTE, OnRatlineRoute)
-ON_COMMAND(ID_RATLINE_OPTIMIZE, OnRatlineOptimize)
+ON_COMMAND(ID_RATLINE_OPTIMIZE, OnOptimize)
 ON_COMMAND(ID_RATLINE_CHANGEPIN, OnRatlineChangeEndPin)
 ON_COMMAND(ID_VERTEX_MOVE, OnVertexMove)
 ON_COMMAND(ID_VERTEX_EDIT, OnVertexProperties)
@@ -779,11 +779,11 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 
 		// now move it
 		part->glued = 0;
-		int dx = m_last_cursor_point.x - m_from_pt.x, dy = m_last_cursor_point.y - m_from_pt.y;		// CPT bug fix #29
+		int dx = m_last_cursor_point.x - m_from_pt.x, dy = m_last_cursor_point.y - m_from_pt.y;
 		part->Move( m_last_cursor_point.x, m_last_cursor_point.y, angle, side );
-		part->PartMoved( dx, dy );																	// CPT bug fix #29
+		part->PartMoved( dx, dy );
 		if( m_doc->m_vis[LAY_RAT_LINE] )
-			part->OptimizeConnections( m_doc->m_auto_ratline_disable, m_doc->m_auto_ratline_min_pins );
+			part->OptimizeConnections();
 		m_doc->ProjectModified( TRUE );
 		SetFKText( m_cursor_mode );
 		part->Highlight();
@@ -798,7 +798,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		MoveGroup( m_last_cursor_point.x - m_from_pt.x, m_last_cursor_point.y - m_from_pt.y );
 		m_dlist->SetLayerVisible( LAY_RAT_LINE, m_doc->m_vis[LAY_RAT_LINE] );
 		if( m_doc->m_vis[LAY_RAT_LINE] )
-			m_doc->m_nlist->OptimizeConnections( m_doc->m_auto_ratline_disable, m_doc->m_auto_ratline_min_pins );	// CPT2 TODO eliminate args for these funcs.
+			m_doc->m_nlist->OptimizeConnections();
 		m_doc->ProjectModified( TRUE );
 		HighlightSelection();
 	}
@@ -956,7 +956,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		if (!poly->PolygonModified( FALSE, TRUE ))
 			m_doc->OnEditUndo();
 		else if( poly->IsArea() && m_doc->m_vis[LAY_RAT_LINE] )
-			net->OptimizeConnections( m_doc->m_auto_ratline_disable, m_doc->m_auto_ratline_min_pins, TRUE );
+			net->OptimizeConnections();
 		m_doc->ProjectModified( TRUE );
 		TryToReselectCorner( p.x, p.y );
 	}
@@ -974,7 +974,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		if (!poly->PolygonModified( FALSE, TRUE ))
 			m_doc->OnEditUndo();
 		else if( poly->IsArea() && m_doc->m_vis[LAY_RAT_LINE] )
-			net->OptimizeConnections( m_doc->m_auto_ratline_disable, m_doc->m_auto_ratline_min_pins, TRUE );
+			net->OptimizeConnections();
 		m_doc->ProjectModified( TRUE );
 		CancelSelection();
 	}
@@ -1105,7 +1105,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		CPoint p = m_last_cursor_point;
 		vtx->Move( p.x, p.y );
 		if( m_doc->m_vis[LAY_RAT_LINE] )
-			vtx->m_net->OptimizeConnections( m_doc->m_auto_ratline_disable, m_doc->m_auto_ratline_min_pins, TRUE  );
+			vtx->m_net->OptimizeConnections();
 		m_doc->ProjectModified( TRUE );
 		HighlightSelection();
 	}
@@ -1120,7 +1120,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		CPoint p = m_last_cursor_point;
 		tee->Move( p.x, p.y );
 		if( m_doc->m_vis[LAY_RAT_LINE] )
-			net->OptimizeConnections( m_doc->m_auto_ratline_disable, m_doc->m_auto_ratline_min_pins, TRUE  );
+			net->OptimizeConnections();
 		m_doc->ProjectModified( TRUE );
 		HighlightSelection();
 	}
@@ -1470,7 +1470,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 					// Cleanup
 					m_dlist->StopDragging();
 					if( m_doc->m_vis[LAY_RAT_LINE] )
-						net->OptimizeConnections(  m_doc->m_auto_ratline_disable, m_doc->m_auto_ratline_min_pins, TRUE  );
+						net->OptimizeConnections();
 					m_doc->ProjectModified( TRUE );
 					CancelSelection();
 					goto goodbye;
@@ -1630,8 +1630,8 @@ void CFreePcbView::OnRButtonDown(UINT nFlags, CPoint point)
 			cvertex2 *tail = sel->m_con->tail;
 			if ( net->NetAreaFromPoint(tail->x, tail->y, LAY_PAD_THRU) )		// "LAY_PAD_THRU" so that we find areas on any layer at (tail->x,tail->y)
 				tail->ForceVia();
-			if( m_doc->m_vis[LAY_RAT_LINE] )
-				net->OptimizeConnections( m_doc->m_auto_ratline_disable, m_doc->m_auto_ratline_min_pins, TRUE  );
+			// if( m_doc->m_vis[LAY_RAT_LINE] )			
+			//	net->OptimizeConnections();										// CPT2 seems like this might cause trouble with undo?
 			m_doc->Redraw();
 			SelectItem(tail);
 		}
@@ -2109,12 +2109,8 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 			OnAddBoardOutline();
 		else if( fk == FK_REDO_RATLINES )
 		{
-			// CPT2 TODO think about undo in relation to OptimizeConnections:
-			// SaveUndoInfoForAllNets( TRUE, m_doc->m_undo_list );
-			//			StartTimer();
-			m_doc->m_nlist->OptimizeConnections();
-			//			double time = GetElapsedTime();
-			Invalidate( FALSE );
+			m_doc->m_nlist->OptimizeConnections();					// Takes care of saving its own undo info
+			m_doc->ProjectModified( true );
 		}
 		break;
 
@@ -2136,7 +2132,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 			part->Move( part->x+dx, part->y+dy, part->angle, part->side );
 			part->PartMoved( dx, dy );	// CPT
 			if( m_doc->m_vis[LAY_RAT_LINE] )
-				part->OptimizeConnections( m_doc->m_auto_ratline_disable, m_doc->m_auto_ratline_min_pins );
+				part->OptimizeConnections();
 			FinishArrowKey(part->x, part->y, dx, dy);
 		}
 		else if( fk == FK_DELETE_PART || nChar == 46 )
@@ -2202,7 +2198,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 		else if( fk == FK_DELETE_CONNECT )
 			OnDeleteConnection();
 		else if( fk == FK_REDO_RATLINES )
-			OnRatlineOptimize();
+			OnOptimize();
 		break;
 
 	case  CUR_SEG_SELECTED:
@@ -2313,7 +2309,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 		else if( fk == FK_DELETE_CONNECT )
 			OnDeleteConnection();
 		else if( fk == FK_REDO_RATLINES )
-			OnRatlineOptimize();
+			OnOptimize();
 		break;
 
 	case  CUR_VTX_SELECTED:
@@ -2346,7 +2342,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 		else if( fk == FK_DELETE_CONNECT )
 			OnDeleteConnection();
 		else if( fk == FK_REDO_RATLINES )
-			OnRatlineOptimize();
+			OnOptimize();
 		break;
 
 	case CUR_TEE_SELECTED:
@@ -2373,7 +2369,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 		else if( fk == FK_DELETE_VERTEX || nChar == 46 )
 			OnTeeDelete();
 		else if( fk == FK_REDO_RATLINES )
-			OnRatlineOptimize();
+			OnOptimize();
 		else if( fk == FK_ADD_VIA )
 			OnVertexAddVia();
 		else if( fk == FK_DELETE_VIA )
@@ -2388,7 +2384,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 		else if( fk == FK_UNROUTE_TRACE )
 			OnUnrouteTrace();
 		else if( fk == FK_REDO_RATLINES )
-			OnRatlineOptimize();
+			OnOptimize();
 		else if( fk == FK_DELETE_CONNECT || nChar == 46 )
 			OnDeleteConnection();
 		break;
@@ -2401,7 +2397,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 		else if( fk == FK_EDIT_NET )
 			OnNetEditnet();
 		else if( fk == FK_REDO_RATLINES )
-			OnRatlineOptimize();
+			OnOptimize();
 		break;
 
 	case  CUR_PAD_SELECTED:
@@ -4049,13 +4045,9 @@ void CFreePcbView::OnPartDelete()
 //
 void CFreePcbView::OnPartOptimize()
 {
-#ifndef CPT2
-	SaveUndoInfoForPartAndNets( m_sel_part,
-		CPartList::UNDO_PART_MODIFY, NULL, TRUE, m_doc->m_undo_list );
-	m_doc->m_nlist->OptimizeConnections( m_sel_part, FALSE, -1 );
+	cpart2 *part = m_sel.First()->ToPart();
+	part->OptimizeConnections( FALSE );
 	m_doc->ProjectModified( TRUE );
-	Invalidate( FALSE );
-#endif
 }
 
 void CFreePcbView::OnPartProperties()
@@ -4127,15 +4119,11 @@ void CFreePcbView::OnRefMove()
 //
 void CFreePcbView::OnPadOptimize()
 {
-#ifndef CPT2
-	cnet * pin_net = (cnet*)m_sel_part->pin[m_sel_id.I2()].net;
-	if( pin_net )
-	{
-		m_doc->m_nlist->OptimizeConnections( pin_net, -1, FALSE, -1, FALSE );
-		m_doc->ProjectModified( TRUE );
-		Invalidate( FALSE );
-	}
-#endif
+	cpin2 *pin = m_sel.First()->ToPin();
+	if (!pin->net)
+		return;
+	pin->net->OptimizeConnections( false );
+	m_doc->ProjectModified( TRUE );
 }
 
 // start stub trace from this pad
@@ -4226,7 +4214,7 @@ void CFreePcbView::OnPadAddToNet()
 	pin->SaveUndoInfo();
 	net->AddPin(pin);
 	if( m_doc->m_vis[LAY_RAT_LINE] )
-		net->OptimizeConnections( m_doc->m_auto_ratline_disable, m_doc->m_auto_ratline_min_pins, TRUE  );
+		net->OptimizeConnections();
 	SetFKText( m_cursor_mode );
 	m_doc->ProjectModified( TRUE );
 }
@@ -4473,14 +4461,15 @@ void CFreePcbView::OnRatlineRoute(bool bResetActiveWidth)
 
 // optimize this connection
 //
-void CFreePcbView::OnRatlineOptimize()
+void CFreePcbView::OnOptimize()
 {
-#ifndef CPT2
-	int new_ic = m_doc->m_nlist->OptimizeConnections( m_sel_net, m_sel_ic, FALSE, -1, FALSE  );
-	ReselectNetItemIfConnectionsChanged( new_ic );
+	// CPT2 used when a net-item (seg, vertex, etc.) is selected and user hits F9.
+	cnet2 *net = m_sel.First()->GetNet();
+	net->OptimizeConnections( FALSE );
+	if (!m_sel.First()->IsValid())
+		// OptimizeConnections() could have clobbered the selected item, if it's a ratline.
+		CancelSelection();
 	m_doc->ProjectModified( TRUE );
-	Invalidate( FALSE );
-#endif
 }
 
 // change end-pin for ratline
@@ -4605,7 +4594,7 @@ void CFreePcbView::OnVertexDelete()
 	c->SaveUndoInfo();
 	v->Remove();
 	if( m_doc->m_vis[LAY_RAT_LINE] )
-		net->m_nlist->OptimizeConnections( m_doc->m_auto_ratline_disable, m_doc->m_auto_ratline_min_pins, TRUE  );
+		net->OptimizeConnections();
 	m_doc->ProjectModified( TRUE );
 	CancelSelection();
 }
@@ -4625,7 +4614,7 @@ void CFreePcbView::OnTeeDelete()
 	net->SaveUndoInfo();
 	tee->Remove(true);
 	if( m_doc->m_vis[LAY_RAT_LINE] )
-		net->m_nlist->OptimizeConnections( m_doc->m_auto_ratline_disable, m_doc->m_auto_ratline_min_pins, TRUE  );
+		net->OptimizeConnections();
 	m_doc->ProjectModified( TRUE );
 	CancelSelection();
 }
@@ -4640,7 +4629,7 @@ void CFreePcbView::OnVertexAddVia()
 	sel->SaveUndoInfo();
 	sel->ForceVia();
 	if( m_doc->m_vis[LAY_RAT_LINE] )
-		net->OptimizeConnections( m_doc->m_auto_ratline_disable, m_doc->m_auto_ratline_min_pins, TRUE  );		// CPT2 TODO still disabled
+		net->OptimizeConnections();
 	m_doc->ProjectModified( TRUE );
 	HighlightSelection();
 	SetFKText( m_cursor_mode );
@@ -4658,7 +4647,7 @@ void CFreePcbView::OnVertexRemoveVia()
 	if (!sel->IsTee())
 		sel->GetConnect()->MergeUnroutedSegments();
 	if( m_doc->m_vis[LAY_RAT_LINE] )
-		net->OptimizeConnections( m_doc->m_auto_ratline_disable, m_doc->m_auto_ratline_min_pins, TRUE  );
+		net->OptimizeConnections();
 	m_doc->ProjectModified( TRUE );
 	HighlightSelection();
 	SetFKText( m_cursor_mode );
@@ -4919,7 +4908,7 @@ void CFreePcbView::FinishAddPoly()
 	if (!poly->PolygonModified( FALSE, FALSE ))
 		m_doc->OnEditUndo();
 	else if( poly->IsArea() && m_doc->m_vis[LAY_RAT_LINE] )
-		net->OptimizeConnections( m_doc->m_auto_ratline_disable, m_doc->m_auto_ratline_min_pins, TRUE  );
+		net->OptimizeConnections();
 	m_doc->ProjectModified(true, true);			// CPT2 takes care of creating an undo record, indicating that poly is a new creation.
 												// Second arg indicates that we combine the current changes (the final side creation) with the
 												// previous changes (the actual polyline creation) in a single undo record.
@@ -4939,7 +4928,7 @@ void CFreePcbView::FinishAddPolyCutout()
 	if (!poly->PolygonModified( FALSE, FALSE ))
 		m_doc->OnEditUndo();
 	else if( poly->IsArea() && m_doc->m_vis[LAY_RAT_LINE] )
-		net->OptimizeConnections( m_doc->m_auto_ratline_disable, m_doc->m_auto_ratline_min_pins, TRUE  );
+		net->OptimizeConnections();
 	m_doc->ProjectModified( true, true );
 	CancelSelection();
 }
@@ -4952,7 +4941,7 @@ void CFreePcbView::OnPolyDelete()
 	poly->SaveUndoInfo();
 	poly->Remove();
 	if (poly->IsArea())
-		net->OptimizeConnections( m_doc->m_auto_ratline_disable, m_doc->m_auto_ratline_min_pins, TRUE  ),
+		net->OptimizeConnections(),
 		net->SetThermals();
 	m_doc->ProjectModified( TRUE );
 	CancelSelection();
@@ -4977,7 +4966,7 @@ void CFreePcbView::OnPolyDeleteCutout()
 	if (!poly->PolygonModified( FALSE, FALSE ))
 		m_doc->OnEditUndo();
 	else if( poly->IsArea() && m_doc->m_vis[LAY_RAT_LINE] )
-		net->OptimizeConnections( m_doc->m_auto_ratline_disable, m_doc->m_auto_ratline_min_pins, TRUE  );
+		net->OptimizeConnections();
 	m_doc->ProjectModified( true );
 	CancelSelection();
 }
@@ -5009,7 +4998,7 @@ void CFreePcbView::OnPolyCornerDelete()
 	c->Remove();							// NB could result in the removal of a contour or even the whole area
 	poly->PolygonModified( false, true );
 	if( poly->IsArea() && m_doc->m_vis[LAY_RAT_LINE] )
-		net->OptimizeConnections( m_doc->m_auto_ratline_disable, m_doc->m_auto_ratline_min_pins, TRUE  );
+		net->OptimizeConnections();
 	m_doc->ProjectModified( TRUE );
 	CancelSelection();
 }
@@ -5044,7 +5033,7 @@ void CFreePcbView::OnPolySideConvert(int style)
 	if (!poly->PolygonModified( FALSE, TRUE ))
 		m_doc->OnEditUndo();
 	else if( poly->IsArea() && m_doc->m_vis[LAY_RAT_LINE] )
-		net->OptimizeConnections( m_doc->m_auto_ratline_disable, m_doc->m_auto_ratline_min_pins, TRUE );
+		net->OptimizeConnections();
 	m_doc->ProjectModified( TRUE );
 	HighlightSelection();
 }
@@ -5073,7 +5062,7 @@ void CFreePcbView::OnPolyCornerEdit()
 	if (!poly->PolygonModified(false, true))				// CPT2 TODO figure out the system regarding which arg-values this function gets handed.
 		m_doc->OnEditUndo();
 	else if( poly->IsArea() && m_doc->m_vis[LAY_RAT_LINE] )
-		poly->GetNet()->OptimizeConnections( m_doc->m_auto_ratline_disable, m_doc->m_auto_ratline_min_pins, TRUE  );
+		poly->GetNet()->OptimizeConnections();
 	m_doc->ProjectModified( TRUE );
 	TryToReselectCorner( x, y );
 	HighlightSelection();
@@ -5737,7 +5726,7 @@ void CFreePcbView::OnPartChangeSide()
 	part->y += bounds1.bottom - bounds2.bottom;
 	part->PartMoved();
 	if( m_doc->m_vis[LAY_RAT_LINE] )
-		part->OptimizeConnections( m_doc->m_auto_ratline_disable, m_doc->m_auto_ratline_min_pins );
+		part->OptimizeConnections();
 	m_doc->ProjectModified( TRUE );
 	HighlightSelection();
 }
@@ -5758,7 +5747,7 @@ void CFreePcbView::OnPartRotate( int angle ) {
 	part->angle = (part->angle + angle) % 360;
 	part->PartMoved(1, 1);
 	if( m_doc->m_vis[LAY_RAT_LINE] )
-		part->OptimizeConnections( m_doc->m_auto_ratline_disable, m_doc->m_auto_ratline_min_pins );
+		part->OptimizeConnections();
 	m_doc->ProjectModified( TRUE );
 	HighlightSelection();
 }
@@ -7252,7 +7241,7 @@ void CFreePcbView::OnGroupPaste()
 	{
 		citer<cnet2> in (&nl->nets);
 		for (cnet2 *net = in.First(); net; net = in.Next())
-			net->OptimizeConnections( m_doc->m_auto_ratline_disable, m_doc->m_auto_ratline_min_pins, TRUE ); 
+			net->OptimizeConnections(); 
 	}
 	m_doc->ProjectModified( TRUE );
 }
@@ -7408,7 +7397,7 @@ void CFreePcbView::OnAreaEdit()
 	if (!a->PolygonModified( FALSE, TRUE ))		// Also calls net->SetThermals()
 		m_doc->OnEditUndo();
 	else if( m_doc->m_vis[LAY_RAT_LINE] )
-		net->OptimizeConnections( m_doc->m_auto_ratline_disable, m_doc->m_auto_ratline_min_pins, TRUE  );
+		net->OptimizeConnections();
 	m_doc->ProjectModified( TRUE );
 	CancelSelection();
 }
@@ -7737,7 +7726,7 @@ void CFreePcbView::HandleShiftLayerKey(int layer, CDC *pDC) {
 		if (!a->PolygonModified( TRUE, TRUE ))
 			m_doc->OnEditUndo();
 		else if( m_doc->m_vis[LAY_RAT_LINE] )
-			net->OptimizeConnections( m_doc->m_auto_ratline_disable, m_doc->m_auto_ratline_min_pins, TRUE  );
+			net->OptimizeConnections();
 		m_doc->ProjectModified( TRUE );
 		HighlightSelection();
 		}

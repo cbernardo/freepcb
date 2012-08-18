@@ -214,13 +214,13 @@ BEGIN
     END
     POPUP "&Tools"
     BEGIN
-        MENUITEM "Move origin",                 ID_TOOLS_MOVEORIGIN
+        MENUITEM "Move Origin",                 ID_TOOLS_MOVEORIGIN
         MENUITEM SEPARATOR
         MENUITEM "Footprint Wizard",            ID_TOOLS_FOOTPRINTWIZARD
         MENUITEM "Footprint Editor",            1155
         MENUITEM SEPARATOR
-        MENUITEM "Check parts and nets",        ID_TOOLS_CHECK_PARTS_NETS
-        MENUITEM "Check traces",                ID_TOOLS_CHECKTRACES
+        MENUITEM "Check Parts and Nets",        ID_TOOLS_CHECK_PARTS_NETS
+        MENUITEM "Check Traces",                ID_TOOLS_CHECKTRACES
         MENUITEM "Check Connectivity",          ID_TOOLS_CHECK_CONNECTIVITY
         MENUITEM "Check Copper Areas",          ID_TOOLS_CHECKCOPPERAREAS
         MENUITEM SEPARATOR
@@ -228,7 +228,7 @@ BEGIN
         MENUITEM "Repeat &DRC\tCtrl+D",         ID_TOOLS_REPEATDRC
         MENUITEM "Clear DRC Errors",            ID_TOOLS_CLEAR_DRC
         MENUITEM SEPARATOR
-        MENUITEM "FreeRoute autorouter...",     ID_TOOLS_OPENONLINEAUTOROUTER
+        MENUITEM "FreeRoute Autorouter...",     ID_TOOLS_OPENONLINEAUTOROUTER
         MENUITEM SEPARATOR
         MENUITEM "Preferences...",              ID_TOOLS_PREFERENCES
     END

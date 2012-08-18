@@ -230,7 +230,7 @@ public:
 	// int RemoveNetConnect( cnet2 * net, int ic, BOOL set_areas=TRUE ); // CPT2 use cconnect2::Remove() 
 	// int UnrouteNetConnect( cnet2 * net, int ic ); // CPT2 use cconnect2::Unroute()
 	// int SetConnectionWidth( cnet2 * net, int ic, int w, int via_w, int via_hole_w ); // CPT2 use cconnect2::SetWidth()
-	void OptimizeConnections( BOOL bBelowPinCount=FALSE, int pin_count=0, BOOL bVisibleNetsOnly=TRUE ) { } // CPT2 TODO. Slight changes
+	void OptimizeConnections( BOOL bLimitPinCount=TRUE, BOOL bVisibleNetsOnly=TRUE ); // Done in cpp
 	// int OptimizeConnections( cnet2 * net, int ic, BOOL bBelowPinCount, int pin_count, BOOL bVisibleNetsOnly=TRUE );  // CPT2 use cnet2::OptimizeConnections
 	// void OptimizeConnections( cpart2 * part, BOOL bBelowPinCount, int pin_count, BOOL bVisibleNetsOnly=TRUE ); // CPT2 use cpart2::OptimizeConnections
 	// BOOL TestHitOnConnectionEndPad( int x, int y, cnet2 * net, int ic, int layer, int dir ); // CPT2 use cconnect2::TestHitOnEndPad() 

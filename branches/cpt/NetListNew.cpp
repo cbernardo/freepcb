@@ -56,6 +56,13 @@ BOOL cnetlist::GetNetBoundaries( CRect * r )
 	return bValid;
 }
 
+void cnetlist::OptimizeConnections( BOOL bLimitPinCount, BOOL bVisibleNetsOnly )
+{
+	citer<cnet2> in (&nets);
+	for (cnet2 *net = in.First(); net; net = in.Next())
+		net->OptimizeConnections(bLimitPinCount, bVisibleNetsOnly);
+}
+
 void cnetlist::ReadNets( CStdioFile * pcb_file, double read_version, int * layer )
 {
 	int err, pos, np;

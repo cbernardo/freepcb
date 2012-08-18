@@ -1942,6 +1942,10 @@ bool cpin2::IsValid()
 	return part->pins.Contains(this);
 }
 
+void cpin2::MustRedraw()
+	// Override the default behavior of cpcb_item::MustRedraw()
+	{ part->MustRedraw(); }
+
 void cpin2::Disconnect() 
 {
 	// Detach pin from its part, and whichever net it's attached to.  Rip out any attached connections completely.
@@ -2815,7 +2819,7 @@ void cpart2::ChangeFootprint(CShape *_shape)
 	}
 }
 
-void cpart2::OptimizeConnections(BOOL bBelowPinCount, int pin_count, BOOL bVisibleNetsOnly )
+void cpart2::OptimizeConnections(BOOL bLimitPinCount, BOOL bVisibleNetsOnly )
 {
 	if (!shape) return;
 
@@ -2828,7 +2832,7 @@ void cpart2::OptimizeConnections(BOOL bBelowPinCount, int pin_count, BOOL bVisib
 	// optimize each net and mark it optimized so it won't be repeated
 	for (cpin2 *pin = ip.First(); pin; pin = ip.Next())
 		if (pin->net && !pin->net->utility)
-			pin->net->OptimizeConnections(bBelowPinCount, pin_count, bVisibleNetsOnly),
+			pin->net->OptimizeConnections(bLimitPinCount, bVisibleNetsOnly),
 			pin->net->utility = 1;
 }
 
@@ -4212,6 +4216,7 @@ void cpolyline::AddSidesTo(carray<cpcb_item> *arr)
 
 bool cpolyline::TestPointInside(int x, int y) 
 {
+	// CPT2 TODO.  Optimize this by caching a bounding rectangle for each area.
 	enum { MAXPTS = 100 };
 	ASSERT( IsClosed() );
 
@@ -5842,374 +5847,181 @@ cvertex2 *cnet2::TestHitOnVertex(int layer, int x, int y)
 	return NULL;
 }
 
-void cnet2::OptimizeConnections( BOOL bBelowPinCount, int pin_count, BOOL bVisibleNetsOnly )
+carea2 *cnet2::NetAreaFromPoint( int x, int y, int layer )
 {
-	// CPT2 TODO.  Derive from CNetList::OptimizeConnections.  I think we can ditch the ic_track argument of the old routine. 
-#ifdef PROFILE
-	StartTimer();	//****
-#endif
-#ifndef CPT2
-	// see if we need to do this
-	if( bVisibleNetsOnly && net->visible == 0 )
-		return ic_track;
-	if( bBelowPinCount && net->NumPins() >= pin_count )
-		return ic_track;
+	// CPT2 replaces CNetList::TestPointInArea.  CPT2 TODO.  This routine is kind of a dud, inasmuch as if layer==LAY_PAD_THRU there may
+	// be more than one appropriate area to return.  Probably I can phase this turkey out...
+	citer<carea2> ia (&areas);
+	for (carea2 *a = ia.First(); a; a = ia.Next())
+		if ((a->GetLayer()==layer || layer==LAY_PAD_THRU) && a->TestPointInside(x, y))
+			return a;
+	return NULL;
+}
 
-	// record id of connection to track
-	id id_track;
-	if( ic_track != -1 )
-		id_track = net->ConByIndex( ic_track )->Id();
+inline void ReassignComponents(cpcb_item *i1, cpcb_item *i2, int *reassign)
+{
+	// CPT2 helper for OptimizeConnections().  See the comments there for the details of my new algorithm.  Basically i1->utility
+	//   and i2->utility represent numbers for connected components within their net.  When we determine that i1 and i2 touch, we call this
+	//   routine to ensure that both get assigned the same component number.  Use the smallest number available, and use table "reassign" to 
+	//   make a note of how these component numbers are getting merged together.
+	// First: ensure, by consulting reassign[], that the component numbers in pin->utility 
+	//   and a->utility are as small as they can be, given our present state of knowledge
+	while (reassign[i1->utility])
+		i1->utility = reassign[i1->utility];
+	while (reassign[i2->utility])
+		i2->utility = reassign[i2->utility];
+	if (i1->utility < i2->utility)
+		// Note that we not only set reassign[i2->utility], but we also change i2->utility to the lesser value:
+		reassign[i2->utility] = i1->utility,
+		i2->utility = i1->utility;
+	else if (i2->utility < i1->utility)
+		reassign[i1->utility] = i2->utility,
+		i1->utility = i2->utility;
+}
 
-	// get number of pins N and make grid[NxN] array and pair[N*2] array
-	int npins = net->NumPins();
-	char * grid = (char*)calloc( npins*npins, sizeof(char) );
-	for( int ip=0; ip<npins; ip++ )
-		grid[ip*npins+ip] = 1;
-	CArray<int> pair;			// use CArray because size is unknown,
-	pair.SetSize( 2*npins );	// although this should be plenty
 
-	// go through net, deleting unrouted and unlocked connections 
-	// unless they end on a tee or end-vertex
-	CIterator_cconnect iter_con( net );
-	for( cconnect * c=iter_con.GetFirst(); c; c=iter_con.GetNext() )
-	{
+class TwoPinsAndDistance 
+{
+	// CPT2 helper class used in OptimizeConnections().  In truth "d2" is the distance squared, just to save a little time on a sqrt
+	// op that's not necessary
+public:
+	cpin2 *pin1, *pin2;
+	double d2;
+	TwoPinsAndDistance()
+		{ pin1 = pin2 = NULL; }
+	TwoPinsAndDistance( cpin2 *_pin1, cpin2 *_pin2 )
+	{ 
+		pin1 = _pin1; pin2 = _pin2; 
+		double dx = pin1->x - pin2->x, dy = pin1->y - pin2->y;
+		d2 = dx*dx + dy*dy;
+	}
+};
+
+int ComparePinDistances(const TwoPinsAndDistance *pd1, const TwoPinsAndDistance *pd2)
+	// Used by qsort.
+	{ return pd1->d2 < pd2->d2? -1: 1; }
+
+
+void cnet2::OptimizeConnections( BOOL bLimitPinCount, BOOL bVisibleNetsOnly )
+{
+	// CPT2. Derived from CNetList::OptimizeConnections.  I think we can ditch the ic_track argument of the old routine. 
+	if( bVisibleNetsOnly && !bVisible )
+		return;
+	if( bLimitPinCount && doc->m_auto_ratline_disable && NumPins() >= doc->m_auto_ratline_min_pins )
+		return;
+
+	// go through net, deleting unlocked connections that consist of a single ratline linking 2 pins.
+	citer<cconnect2> ic (&connects);
+	for (cconnect2 *c = ic.First(); c; c = ic.Next())
 		if( c->NumSegs() == 0 )
+			// CPT2:  guess I'll tolerate it, and will comment out the old code's ASSERT(0);
+			c->SaveUndoInfo(),
+			c->Remove();
+		else if (!c->locked && c->NumSegs() == 1 && c->head->postSeg->m_layer == LAY_RAT_LINE && c->head->pin && c->tail->pin)
+			c->SaveUndoInfo(),
+			c->Remove();
+
+	// CPT2 trying a slightly different algorithm.  The goal is to divide up the pins, connects, and areas into connected components.  
+	// First assign distinct component numbers 1, 2, 3, ..., to each of these items, storing the numbers in the utility fields;  also 
+	// set up an array reassign[] of size equal to the number of items, initially zeroed out.  Then examine all the possible ways pairs
+	// of these items can touch:  pins & areas;  connects & pins; connects & other connects; connects & areas.  If x touches y, where 
+	// x has component number cx and y has component number cy, then we'll want to ensure that components cx and cy are united under a single
+	// number that is as small as possible.  Roughly speaking, we'll set reassign[cx] = cy if cy<cx, or reassign[cy] = cx otherwise.  Once 
+	// we're done we loop through items again and update component numbers by looking at reassign[] and tracing a chain downwards.  The end result 
+	// will be that all items that are connected, directly or indirectly, will have a common minimal component number.
+	int comp = 1;
+	citer<cpin2> ipin (&pins);
+	for (cpin2 *pin = ipin.First(); pin; pin = ipin.Next())
+		pin->utility = comp++;
+	for (cconnect2 *c = ic.First(); c; c = ic.Next())
+		c->utility = comp++;
+	citer<carea2> ia (&areas);
+	for (carea2 *a = ia.First(); a; a = ia.Next())
+		a->utility = comp++;
+	
+	int *reassign = (int*) HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, comp*sizeof(int));
+	for (cpin2 *pin = ipin.First(); pin; pin = ipin.Next())
+		for (carea2 *a = ia.First(); a; a = ia.Next())
+			if (pin->pad_layer==LAY_PAD_THRU || pin->pad_layer==a->m_layer)
+				if (a->TestPointInside(pin->x, pin->y))
+					// "pin" and "a" touch!  Reassign component numbers so that both get a shared (minimal) value
+					ReassignComponents(a, pin, reassign);
+	
+	for (cconnect2 *c = ic.First(); c; c = ic.Next())
+	{
+		for (int end=0; end<2; end++) 
 		{
-			// this is an error, fix it
-			ASSERT(0);
-			net->RemoveConnectAdjustTees( c );
-		}
-		else
-		{
-			// flag routed or partially routed connections
-			int routed = 0;
-			if( c->NumSegs() > 1						// at least partially routed
-				|| c->seg[0].m_layer != LAY_RAT_LINE	// first segment routed
-				|| c->end_pin == cconnect::NO_END		// ends on stub or tee-vertex
-				|| c->start_pin == cconnect::NO_END		// starts on stub or tee-vertex
-				)
-				routed = 1;
-			if( !routed && !c->locked )
+			cvertex2 *v = end==0? c->head: c->tail;
+			if (cpin2 *pin = v->pin)
+				// c and pin touch (obviously):
+				ReassignComponents(c, pin, reassign);
+			else if (v->tee)
 			{
-				// unrouted and unlocked, so delete connection, adjust tees
-				net->RemoveConnectAdjustTees( c );
+				citer<cvertex2> iv2 (&v->tee->vtxs);
+				for (cvertex2 *v2 = iv2.First(); v2; v2 = iv2.Next())
+					if (v2->m_con != c)
+						// c and v2->m_con touch!
+						ReassignComponents(c, v2->m_con, reassign);
 			}
 		}
-	}
-
-
-	// AMW r289: Programming note:
-	// The following code figures out which pins are connected to each other through
-	// existing traces, tees and copper areas, and therefore don't need new ratlines.
-	// Previously, when every connection had to start on a pin,
-	// this was pretty easy to do since the levels of branching were limited.
-	// Now that traces can be routed between other traces and copper areas pretty much ad lib,
-	// it is more complicated. Probably the best approach would be some sort of recursive
-	// tree-following or grid-following algorithm, but since I am lazy and modifying existing
-	// code, I am using a different method of starting with a pin,
-	// iterating through all the connections in the net (multiple times if necessary),
-	// and building maps of the connected pins, tees and copper areas, so I can eventually
-	// identify every connected pin. Hopefully, this won't be too inefficient.
-	int dummy;
-	CMap<int, int, int, int> pins_analyzed;  // list of all pins analyzed
-	CIterator_cpin iter_cpin(net);
-	for( cpin * pin=iter_cpin.GetFirst(); pin; pin=iter_cpin.GetNext() )
-	{
-		// skip pins that have already been analyzed through connections to earlier pins
-		int ipin = pin->Index();
-		if( pins_analyzed.Lookup( ipin, dummy ) )
-			continue;
-		pins_analyzed.SetAt( ipin, ipin );
-
-		// look for all connections to this pin, or to any pin, tee or area connected to this pin
-		CMap<int, int, int, int> cons_eliminated;  // list of connections that don't connect to this pin
-		CMap<int, int, int, int> cons_connected;   // list of connections that do connect to this pin
-		CMap<int, int, int, int> tee_ids_connected;	// list of tee_ids connected to this pin
-		CMap<int, int, int, int> pins_connected;	// list of pins connected to this pin
-		CMap<int, int, int, int> areas_connected;	// list of areas connected to this pin
-		int num_new_connections = 1;
-		while( num_new_connections )	// iterate as long as we are still finding new connections
-		{
-			num_new_connections = 0;
-			for( cconnect * c=iter_con.GetFirst(); c; c=iter_con.GetNext() )
-			{
-				int ic = c->Index();
-				if( cons_eliminated.Lookup( ic, dummy ) )	// already eliminated
+		// NB to see that an area and a connect touch, we only look at the connect's vertices.  Now it's possible to have a 
+		// segment slice through near a corner of an area, with no vertices lying in the area, but I'm going to ignore
+		// that possibility ;)
+		citer<cvertex2> iv (&c->vtxs);
+		for (cvertex2 *v = iv.First(); v; v = iv.Next())
+			for (carea2 *a = ia.First(); a; a = ia.Next())
+				if (a->utility == c->utility)
+					// Already determined that area and connect are in the same component
 					continue;
-				if( cons_connected.Lookup( ic, dummy ) )	// already analyzed
-					continue;
-				// see if this connection can be eliminated, 
-				// or is connected to a pin, tee or area that connects to the pin being analyzed
-				bool bConEliminated = TRUE;
-				bool bConConnected = FALSE;
-				CIterator_cvertex iter_vtx(c);
-				for( cvertex * v=iter_vtx.GetFirst(); v; v=iter_vtx.GetNext() )
-				{
-					if( v->GetType() == cvertex::V_PIN )
-					{
-						// vertex is a pin
-						cpin * v_pin = v->GetNetPin();
-						if( v_pin == pin )
-						{
-							// pin being analyzed
-							bConEliminated = FALSE;
-							bConConnected = TRUE;
-							break;
-						}
-						else if( pins_connected.Lookup( v_pin->Index(), dummy ) )
-						{
-							// pin connected to pin being analyzed
-							bConEliminated = FALSE;
-							bConConnected = TRUE;
-							break;
-						}
-						else
-						{
-							// other pin, might connect in later iterations
-							bConEliminated = FALSE;
-						}
-					}
-					else if( v->GetType() == cvertex::V_TEE || v->GetType() == cvertex::V_SLAVE )
-					{
-						// vertex is a tee, might connect
-						bConEliminated = FALSE;
-						if( tee_ids_connected.Lookup( abs(v->tee_ID), dummy ) )
-							bConConnected = TRUE;	// does connect
-					}
-					CArray<int> ca;		// array of indices to copper areas
-					if( v->GetConnectedAreas( &ca ) > 0 )
-					{
-						// connected to copper area(s), might connect
-						bConEliminated = FALSE;
-						for( int iarray=0; iarray<ca.GetSize(); iarray++ )
-						{
-							// get copper area
-							int ia = ca[iarray];
-							if( areas_connected.Lookup( ia, dummy ) )
-								bConConnected = TRUE;	// does connect
-						}
-					}
-				}
-				if( bConEliminated )
-				{
-					// don't need to look at this connection any more
-					cons_eliminated.SetAt( ic, ic );
-				}
-				else if( bConConnected )
-				{
-					cons_connected.SetAt( ic, ic );
-					num_new_connections++;
-					// add pins. tees and areas to maps of connected items
-					for( cvertex * v=iter_vtx.GetFirst(); v; v=iter_vtx.GetNext() )
-					{
-						if( v->GetType() == cvertex::V_PIN )
-						{
-							// vertex is a pin
-							cpin * v_pin = v->GetNetPin();
-							if( v_pin != pin )
-							{
-								// connected
-								pins_connected.SetAt( v_pin->Index(), v_pin->Index() );
-								pins_analyzed.SetAt( v_pin->Index(), v_pin->Index() );
-							}
-						}
-						else if( v->GetType() == cvertex::V_TEE || v->GetType() == cvertex::V_SLAVE )
-						{
-							// vertex is a tee
-							tee_ids_connected.SetAt( abs(v->tee_ID), abs(v->tee_ID) );
-						}
-						CArray<int> ca;		// array of indices to copper areas
-						if( v->GetConnectedAreas( &ca ) > 0 )
-						{
-							// vertex connected to copper area(s), add to map
-							for( int iarray=0; iarray<ca.GetSize(); iarray++ )
-							{
-								// get copper area(s)
-								int ia = ca[iarray];
-								areas_connected.SetAt( ia, ia );
-								// get pins attached to copper area
-								carea* a = net->AreaByIndex(ia);
-								for( int ip=0; ip<a->NumPins(); ip++ )
-								{
-									cpin * pin = a->PinByIndex(ip);
-									ipin = pin->Index();
-									pins_connected.SetAt( ipin, ipin );
-								}
-							}
-						}
-					}
-				}
-			}	// end connection loop
-		}	// end while loop
-
-		// now loop through all connected pins and mark them as connected
-		int m_pins = pins_connected.GetCount();
-		if( m_pins > 0 )
-		{
-			int p1 = pin->Index();
-			POSITION pos = pins_connected.GetStartPosition();
-			int    nKey, nValue;
-			while (pos != NULL)
-			{
-				pins_connected.GetNextAssoc( pos, nKey, nValue );
-				int p2 = nValue;
-				AddPinsToGrid( grid, p1, p2, npins );
-			}
-		}
-
-	}	// end loop through net pins
-
-
-#ifdef PROFILE
-	double time1 = GetElapsedTime();
-	StartTimer();
-#endif
-
-	// now optimize the unrouted and unlocked connections
-	long num_loops = 0;
-	int n_optimized = 0;
-	int min_p1, min_p2, flag;
-	double min_dist;
-
-	// create arrays of pin params for efficiency
-	CArray<BOOL>legal;
-	CArray<double>x, y;
-	CArray<double>d;
-	x.SetSize(npins);
-	y.SetSize(npins);
-	d.SetSize(npins*npins);
-	legal.SetSize(npins);
-	CPoint p;
-	for( int ip=0; ip<npins; ip++ )
-	{
-		legal[ip] = FALSE;
-		cpart * part = net->pin[ip].part;
-		if( part )
-			if( part->shape )
-			{
-				{
-					CString pin_name = net->pin[ip].pin_name;
-					int pin_index = part->shape->GetPinIndexByName( pin_name );
-					if( pin_index != -1 )
-					{
-						p = m_plist->GetPinPoint( net->pin[ip].part, pin_name );
-						x[ip] = p.x;
-						y[ip] = p.y;
-						legal[ip] = TRUE;
-					}
-				}
-			}
-	}
-	for( int p1=0; p1<npins; p1++ )
-	{
-		for( int p2=0; p2<p1; p2++ )
-		{
-			if( legal[p1] && legal[p2] )
-			{
-				double dist = sqrt((x[p1]-x[p2])*(x[p1]-x[p2])+(y[p1]-y[p2])*(y[p1]-y[p2]));
-				d[p1*npins+p2] = dist;
-				d[p2*npins+p1] = dist;
-			}
-		}
+				else if (v->via_w || v->preSeg && v->preSeg->m_layer == a->m_layer
+						          || v->postSeg && v->postSeg->m_layer == a->m_layer)
+					if (a->TestPointInside(v->x, v->y))
+						// c and a touch!
+						ReassignComponents(c, a, reassign);
 	}
 
-	// make array of distances for all pin pairs p1 and p2
-	// where p2<p1 and index = (p1)*(p1-1)/2
-	// first, get number of legal pins
-	int n_legal = 0;
-	for( int p1=0; p1<npins; p1++ )
-		if( legal[p1] )
-			n_legal++;
+	// Now get the correct, minimal component numbers for every pin (we don't actually care about the other items any more)
+	for (cpin2 *pin = ipin.First(); pin; pin = ipin.Next())
+		while (reassign[pin->utility])
+			pin->utility = reassign[pin->utility];
+	// Count the distinct components (note that this messes up reassign[], but we're basically done with that anyway)
+	int numComponents = 0;
+	for (cpin2 *pin = ipin.First(); pin; pin = ipin.Next())
+		if (!reassign[pin->utility])
+			numComponents++,
+			reassign[pin->utility] = 1;
+	HeapFree(GetProcessHeap(), 0, reassign);
+	if (numComponents<2)
+		return;
 
-	int n_elements = (n_legal*(n_legal-1))/2;
-	int * numbers = (int*)calloc( sizeof(int), n_elements );
-	int * index = (int*)calloc( sizeof(int), n_elements );
-	int i = 0;
-	for( int p1=1; p1<npins; p1++ )
+	// Generate a table of distances between pins and sort it.  Don't bother to compute in the case where pins belong to the same component.
+	CArray<TwoPinsAndDistance> ptbl;
+	for (cpin2 *pin = ipin.First(); pin; pin = ipin.Next())
 	{
-		for( int p2=0; p2<p1; p2++ )
-		{
-			if( legal[p1] && legal[p2] )
-			{
-				index[i] = p1*npins + p2;
-				double number = d[p1*npins+p2];
-				if( number > INT_MAX )
-					ASSERT(0);
-				numbers[i] = number;
-				i++;
-				if( i > n_elements )
-					ASSERT(0);
-			}
-		}
+		citer<cpin2> ipin2 (&pins, pin);
+		ipin2.Next();															// Advance ipin2 to the pin AFTER "pin"
+		for (cpin2 *pin2 = ipin2.Next(); pin2; pin2 = ipin2.Next())
+			if (pin->utility != pin2->utility)
+				ptbl.Add( TwoPinsAndDistance(pin, pin2) );
 	}
-	// sort
-	::q_sort(numbers, index, 0, n_elements - 1);
-	for( int i=0; i<n_elements; i++ )
+	qsort(ptbl.GetData(), ptbl.GetSize(), sizeof(TwoPinsAndDistance), (int (*)(const void*,const void*)) ComparePinDistances);
+
+	// Time to create the new ratlines!  Scan thru ptbl in distance order, and make a connection each time 
+	// we get a pair of pins in different components.
+	int pos = 0;
+	while (numComponents>1)
 	{
-		int dd = numbers[i];
-		int p1 = index[i]/npins;
-		int p2 = index[i]%npins;
-		if( i>0 )
-		{
-			if( dd < numbers[i-1] )
-				ASSERT(0);
-		}
+		TwoPinsAndDistance *pd;
+		for (pd = &ptbl[pos++]; pd->pin1->utility==pd->pin2->utility; pd = &ptbl[pos++])
+			;
+		pd->pin1->AddRatlineToPin( pd->pin2 );
+		// Merge component of pd->pin2 into the component of pd->pin1
+		int pin1component = pd->pin1->utility, pin2component = pd->pin2->utility;
+		for (cpin2 *pin = ipin.First(); pin; pin = ipin.Next())
+			if (pin->utility == pin2component)
+				pin->utility = pin1component;
+		numComponents--;
 	}
-
-	// now make connections, shortest first
-	for( int i=0; i<n_elements; i++ )
-	{
-		int p1 = index[i]/npins;
-		int p2 = index[i]%npins;
-		// find shortest connection between unconnected pins
-		if( legal[p1] && legal[p2] && !grid[p1*npins+p2] )
-		{
-			// connect p1 to p2
-			AddPinsToGrid( grid, p1, p2, npins );
-			pair.SetAtGrow(n_optimized*2, p1);	
-			pair.SetAtGrow(n_optimized*2+1, p2);		
-			n_optimized++;
-		}
-	}
-	free( numbers );
-	free( index );
-
-//#if 0
-	// add new optimized connections
-	for( int ic=0; ic<n_optimized; ic++ )
-	{
-		// make new connection with a single unrouted segment
-		int p1 = pair[ic*2];
-		int p2 = pair[ic*2+1];
-		net->AddConnectFromPinToPin( p1, p2 );
-	}
-//#endif
-
-	free( grid );
-
-	// find ic_track if still present, and return index
-	int ic_new = -1;
-	if( ic_track >= 0 )
-	{
-		if( id_track.Resolve() )
-		{
-			ic_new = id_track.I2();
-		}
-	}
-
-#ifdef PROFILE
-	double time2 = GetElapsedTime();
-	if( net->name == "GND" )
-	{
-		CString mess;
-		mess.Format( "net \"%s\", %d pins\nloops = %ld\ntime1 = %f\ntime2 = %f", 
-			net->name, net->npins, num_loops, time1, time2 );
-		AfxMessageBox( mess );
-	}
-#endif
-
-	return ic_new;
-#endif
 }
 
 
