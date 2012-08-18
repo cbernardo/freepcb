@@ -4819,7 +4819,7 @@ void CPartList::DRC( CDlgLog * log, int copper_layers,
 							}
 						}
 							// get next via
-						if( post_vtx->via_w )
+						if( post_vtx->via_w && test_stroke->layer >= LAY_TOP_COPPER )	// AMW2 added test for stroke on copper layer
 						{
 							// via exists
 							int x = post_vtx->x;
