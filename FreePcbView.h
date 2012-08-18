@@ -485,7 +485,7 @@ public:
 	afx_msg void OnSegmentSetWidth();
 	afx_msg void OnSegmentUnroute();
 	afx_msg void OnRatlineRoute();
-	afx_msg void OnRatlineOptimize();
+	afx_msg void OnOptimize();
 	afx_msg void OnVertexMove();
 	afx_msg void OnTeeMove();
 	afx_msg void OnVertexStartRatline();

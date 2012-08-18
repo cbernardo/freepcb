@@ -157,7 +157,6 @@ public:
 	int UID() { return m_uid; }
 	static cpcb_item *FindByUid(int uid);		// Done in cpp.
 	static int GetNextUid() { return next_uid; }
-	void MustRedraw();							// CPT2 r313.  My latest-n-greatest new system for drawing/undrawing (see notes.txt). Done in cpp
 	bool IsHit(int x, int y);					// Done in cpp.
 	bool IsDrawn() { return bDrawn; }
 	void RemoveForUndo();						// Done in cpp.
@@ -165,6 +164,8 @@ public:
 	// Virtual functions:
 	virtual	int Draw() { return NOERR; }
 	virtual void Undraw();							// Default behavior:  done in cpp
+	virtual void MustRedraw();						// CPT2 r313.  My latest-n-greatest new system for drawing/undrawing (see notes.txt). Done in cpp
+													// Overridden in cpin2 [only?]
 	virtual void Highlight() { }
 	virtual bool IsValid() { return false; }		// Or make it pure virtual.
 	virtual cundo_item *MakeUndoItem() { return NULL; }		
@@ -973,6 +974,7 @@ public:
 	cnet2 *GetNet() { return net; }
 	cundo_item *MakeUndoItem()
 		{ return new cupin(this); }
+	void MustRedraw();												// Override the default behavior of cpcb_item::MustRedraw()
 	int GetLayer() { return pad_layer; }
 	int GetWidth();													// Done in cpp
 	void GetVtxs(carray<cvertex2> *vtxs);							// Done in cpp, CPT2 new.
@@ -1053,7 +1055,7 @@ public:
 	void InitPins();																			// Done in cpp. Basically all new
 
 	int GetNumOutlineStrokes();
-	void OptimizeConnections( BOOL bBelowPinCount, int pin_count, BOOL bVisibleNetsOnly=TRUE );	// Done in cpp, derived from old CNetList function
+	void OptimizeConnections( BOOL bLimitPinCount=TRUE, BOOL bVisibleNetsOnly=TRUE );	// Done in cpp, derived from old CNetList function
 	cpin2 *GetPinByName(CString *name);	// Done in cpp, new
 	CPoint GetCentroidPoint();			// Done in cpp, derived from CPartList::GetCentroidPoint
 	CPoint GetGluePoint( cglue *g );	// Done in cpp, derived from CPartList::GetGluePoint()
@@ -1409,8 +1411,9 @@ public:
 	int NumCons() { return connects.GetSize(); }
 	// copper areas
 	int NumAreas() { return areas.GetSize(); }
-	void DrawAreas();																	// Done in cpp, new
-	void UndrawAreas();																	// Done in cpp, new
+	// void DrawAreas();																// Done in cpp, new
+	// void UndrawAreas();																// Done in cpp, new
+	carea2 *NetAreaFromPoint( int x, int y, int layer );							// CPT2 replaces CNetList::TestPointInArea
 
 	// methods that edit objects
 	void Remove();																		// Done in cpp.
@@ -1419,26 +1422,17 @@ public:
 	cpin2 *AddPin( CString * ref_des, CString * pin_name );								// Done in cpp.  Removed bSetAreas param
 	void AddPin( cpin2 *pin );															// Done in cpp
 	void RemovePin( cpin2 *pin );														// CPT2
-	void SetWidth( int w, int via_w, int via_hole_w );						// Done in cpp
-	void GetWidth( int *w, int *via_w=NULL, int *via_hole_w=NULL);			// Done in cpp, derived from old CNetList::GetWidths()
-	void CalcViaWidths(int w, int *via_w, int *via_hole_w);					// Done in cpp
-	void SetThermals();														// Done in cpp
+	void SetWidth( int w, int via_w, int via_hole_w );									// Done in cpp
+	void GetWidth( int *w, int *via_w=NULL, int *via_hole_w=NULL);						// Done in cpp, derived from old CNetList::GetWidths()
+	void CalcViaWidths(int w, int *via_w, int *via_hole_w);								// Done in cpp
+	void SetThermals();																	// Done in cpp
 	// connections
 	cconnect2 * AddConnect( int * ic=NULL );
 	cconnect2 * AddConnectFromPin( int p1, int * ic=NULL );
 	cconnect2 * AddConnectFromPinToPin( int p1, int p2, int * ic=NULL );
 	void MergeConnections( cconnect2 * c1, cconnect2 * c2 );
-	void CleanUpConnections( CString * logstr=NULL );						// CPT2 TODO adapt from CNetList::CleanUpConnections(cnet*,CString*)
-	void OptimizeConnections(BOOL bBelowPinCount, int pin_count, BOOL bVisibleNetsOnly=TRUE );  // CPT2 TODO:  derive from old CNetList functions
-
-	carea2 *NetAreaFromPoint( int x, int y, int layer )								// CPT2 replaces CNetList::TestPointInArea
-	{
-		citer<carea2> ia (&areas);
-		for (carea2 *a = ia.First(); a; a = ia.Next())
-			if ((a->GetLayer()==layer || layer==LAY_PAD_THRU) && a->TestPointInside(x, y))
-				return a;
-		return NULL;
-	}
+	void CleanUpConnections( CString * logstr=NULL );
+	void OptimizeConnections(BOOL bLimitPinCount=TRUE, BOOL bVisibleNetsOnly=TRUE );  // Done in cpp, derived from old CNetList
 };
 
 

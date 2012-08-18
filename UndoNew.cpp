@@ -676,15 +676,15 @@ bool cundo_record::Execute( int op )
 		if (!items[i]->target)
 			items[i]->CreateTarget();
 
-	// Step 4.  Undraw and remove the bWasCreated itmes.  Mark the others for redrawing, and revise their contents on the basis of the data within the 
+	// Step 4.  Undraw and remove the bWasCreated items.  Mark the others for redrawing, and revise their contents on the basis of the data within the 
 	// undo-items.
 	for (int i=0; i<nItems; i++)
 		if (items[i]->m_bWasCreated)
 			items[i]->target->Undraw(),
 			items[i]->target->RemoveForUndo();
 		else
-			items[i]->target->MustRedraw(),
-			items[i]->FixTarget();
+			items[i]->FixTarget(),
+			items[i]->target->MustRedraw();
 
 	// Step 5.  Invoke AddToLists for all items, other than the bWasCreated ones which are now destroyed:
 	for (int i=0; i<nItems; i++)
