@@ -1,6 +1,6 @@
 #pragma once
 #include "afxwin.h"
-#include "NetListNew.h"
+#include "Net.h"
 
 
 // CDlgEditNet dialog

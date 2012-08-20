@@ -4,8 +4,7 @@
 #include "stdafx.h"
 #include "FreePcb.h"
 #include "DlgFindPart.h"
-#include ".\dlgfindpart.h"
-#include "PartListNew.h"
+#include "Part.h"
 
 
 // CDlgFindPart dialog

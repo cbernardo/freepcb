@@ -5,7 +5,7 @@
 #include "FreePcb.h"
 #include "DlgPartlist.h"
 #include "DlgAddPart.h"
-#include "PartListNew.h"
+#include "Part.h"
 
 //global partlist_info so that sorting callbacks will work.  CPT2:  now a static in the CDlgPartlist namespace.
 partlist_info CDlgPartlist::pli;

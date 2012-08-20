@@ -5,8 +5,8 @@
 #include "FreePcb.h"
 #include "DlgEditNet.h"
 #include ".\dlgeditnet.h"
-#include "PartListNew.h"
-#include "NetListNew.h"
+#include "Part.h"
+#include "Net.h"
 
 
 // CDlgEditNet dialog

@@ -4,9 +4,8 @@
 
 #include "stdafx.h"
 #include "FreePcb.h"
-#include "PartListNew.h"
+#include "Part.h"
 #include "DlgRefText.h"
-#include ".\dlgreftext.h"
 
 
 // CDlgRefText dialog

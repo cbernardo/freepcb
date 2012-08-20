@@ -131,11 +131,14 @@ int GetArcIntersections( EllipseKH * el1, EllipseKH * el2,
 						double * x1=NULL, double * y1=NULL, 
 						double * x2=NULL, double * y2=NULL );						
 CPoint GetInflectionPoint( CPoint pi, CPoint pf, int mode );
-
-// quicksort (2-way or 3-way)
-void quickSort(int numbers[], int index[], int array_size);
-void q_sort(int numbers[], int index[], int left, int right);
-void q_sort_3way( int a[], int b[], int left, int right );
+double DistancePointEllipse (		// CPT2:  was in ellipse_newton.cpp/h, didn't think it deserved its own file
+		 double dU, double dV,		// test point (u,v)
+		 double dA, double dB,		// ellipse is (x/a)^2 + (y/b)^2 = 1
+		 const double dEpsilon,		// zero tolerance for Newton’s method
+		 const int iMax,			// maximum iterations in Newton’s method
+		 int& riIFinal,				// number of iterations used
+		 double& rdX, double& rdY	// a closest point (x,y)
+		 );
 
 class CMyBitmap {
 	// CPT.  A handy class used during the new PartList::CheckBrokenArea() (itself a helper for PartList::DRC()).

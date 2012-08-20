@@ -4,7 +4,7 @@
 #include "stdafx.h"
 #include "FreePcb.h"
 #include "DlgDRC.h"
-#include "PartListNew.h"
+#include "Part.h"
 
 #define nm_per_mil 25400.0 
 

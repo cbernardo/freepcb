@@ -1,5 +1,5 @@
 #pragma once
-#include "NetListNew.h"
+#include "Net.h"
 
 // DlgAssignNet dialog
 

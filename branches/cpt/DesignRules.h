@@ -1,7 +1,7 @@
-//
-#pragma once
+//  DesignRules.h.  Header file for classes related to design-rule checking, including cdre (which descends from cpcb_item), cdrelist, and DesignRules.
 
-class cdre;
+#pragma once
+#include "PcbItem.h"
 
 struct DesignRules
 {
@@ -19,14 +19,12 @@ struct DesignRules
 	int copper_copper;
 };
 
-/*
-class DRError
+class cdre : public cpcb_item
 {
-	// CPT2 this class is on the way out... it's contents are moving over to cdre (see PcbItem.h)
 public:
-	DRError();
-	~DRError();
-	enum {				// subtypes of errors 
+	// Represents Design Rule Check error items.  Incorporates old class DRError
+	enum {				
+		// subtypes of errors 
 		PAD_PAD = 1,				
 		PAD_PADHOLE,		
 		PADHOLE_PADHOLE,	
@@ -63,36 +61,46 @@ public:
 		COPPERAREA_BROKEN,					// CPT
 		UNROUTED
 	};
-	int layer;				// layer (if pad error)
-	CString str;			// descriptive string
-	CString name1, name2;	// names of nets or parts tested
-	int x, y;				// position of error
-	dl_element * dl_el;		// DRC graphic
-	dl_element * dl_sel;	// DRC graphic selector
-};
-*/
+	
+	int index;					// CPT2 new
+	int type;					// id, using subtypes above
+	CString str;				// descriptive string
+	cpcb_item *item1, *item2;	// items tested
+	int x, y;					// position of error
+	int w;						// width of circle (CPT2 new)
+	int layer;					// layer (if pad error)
 
-class DRErrorList
+	cdre(CFreePcbDoc *_doc, int _index, int _type, CString *_str, cpcb_item *_item1, cpcb_item *_item2, 
+		int _x, int _y, int _w, int _layer=0);
+	cdre(CFreePcbDoc *_doc, int _uid);
+
+	bool IsDRE() { return true; }
+	cdre *ToDRE() { return this; }
+	int GetTypeBit() { return bitDRE; }
+	bool IsValid();
+	cundo_item *MakeUndoItem()
+		{ return new cudre(this); }
+
+	int Draw();
+	void Highlight();
+};
+
+class cdrelist
 {
-#ifndef CPT2
 public:
-	DRErrorList();
-	~DRErrorList();
-	void SetLists( CPartList * pl, CNetList * nl, CDisplayList * dl );
-	void Clear();
-	DRError * Add( long index, int t2, CString * str, 
-		CString * name1, CString * name2, id id1, id id2,
+	// Updated version of class DRErrorList.
+	CFreePcbDoc *doc;
+	carray<cdre> dres;
+
+	cdrelist(CFreePcbDoc *_doc)
+		{ doc = _doc; }
+	~cdrelist() { }
+	cdre * Add( int type, CString * str, cpcb_item *item1, cpcb_item *item2,
 		int x1, int y1, int x2, int y2, int w, int layer );
-	void Remove( DRError * dre );
-	void Highlight( DRError * dre );
-	void MakeSolidCircles();
+	void Remove( cdre *dre );									// Undraw a single member, then remove it.
+	void Clear();												// Undraw all members, then remove 'em.
+	int GetSize() 
+		{ return dres.GetSize(); }
 	void MakeHollowCircles();
-
-public:
-	CPartList * m_plist;
-	CNetList * m_nlist;
-	CDisplayList * m_dlist;
-	CPtrList list;
-#endif
+	void MakeSolidCircles();
 };
-

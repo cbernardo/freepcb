@@ -1,4 +1,5 @@
-// Shape.cpp : implementation of CShape class
+// Shape.cpp : implementation of CShape class.  Also includes classes cpad, stroke, cpadstack, ccentroid and cglue (the
+// last 3 descendants of cpcb_item)
 //
 #include "stdafx.h"
 #include "afx.h"
@@ -151,6 +152,152 @@ void cpadstack::Copy( cpadstack *src, bool bCopyName )
 	inner = src->inner;
 	dl_el = dl_sel = top.dl_el = inner.dl_el = bottom.dl_el = top_mask.dl_el = 
 		top_paste.dl_el = bottom_mask.dl_el = bottom_paste.dl_el = NULL;
+}
+
+
+bool ccentroid::IsValid()
+	{ return doc && doc->m_edit_footprint && doc->m_edit_footprint->m_centroid == this; }
+
+int ccentroid::Draw()
+{
+	CDisplayList *dl = doc->m_dlist;
+	if( !dl )
+		return NO_DLIST;
+	if (bDrawn)
+		return ALREADY_DRAWN;
+	int axis_offset_x = 0;
+	int axis_offset_y = 0;
+	if( m_angle == 0 )
+		axis_offset_x = CENTROID_WIDTH;
+	else if( m_angle == 90 )
+		axis_offset_y = CENTROID_WIDTH;
+	else if( m_angle == 180 )
+		axis_offset_x = -CENTROID_WIDTH;
+	else if( m_angle == 270 )
+		axis_offset_y = -CENTROID_WIDTH;
+	dl_el = dl->AddMain( this, LAY_FP_CENTROID, DL_CENTROID, TRUE, 
+		CENTROID_WIDTH, 0, 0, m_x, m_y, 
+		m_x+axis_offset_x, m_y + axis_offset_y, 0, 0, 0 ); 
+	dl_sel = dl->AddSelector( this, LAY_FP_CENTROID, DL_HOLLOW_RECT, TRUE, 0, 0, 
+		m_x-CENTROID_WIDTH/2, m_y-CENTROID_WIDTH/2, m_x+CENTROID_WIDTH/2, m_y+CENTROID_WIDTH/2, 0, 0, 0 );
+	bDrawn = true;
+	return NOERR;
+}
+
+void ccentroid::Highlight()
+{
+	CDisplayList *dl = doc->m_dlist;
+	if (!dl) return;
+	dl->Highlight( DL_HOLLOW_RECT, 
+		dl->Get_x(dl_sel), dl->Get_y(dl_sel),
+		dl->Get_xf(dl_sel), dl->Get_yf(dl_sel), 1 );
+}
+
+void ccentroid::StartDragging( CDC * pDC )
+{
+	// CPT2 Derived from old CEditShape::StartDraggingCentroid()
+	CDisplayList *dl = doc->m_dlist;
+	// make centroid invisible
+	dl->Set_visible( dl_el, 0 );
+	dl->CancelHighlight();
+	dl->StartDraggingRectangle( pDC, m_x, m_y,
+						-CENTROID_WIDTH/2, -CENTROID_WIDTH/2,
+						CENTROID_WIDTH/2, CENTROID_WIDTH/2,
+						0, LAY_FP_SELECTION );
+#if 0
+	// CPT2 the following old code produces results that look just like what StartDraggingRectangle() did, so I'd say go with the simpler option...
+	dl->MakeDragLineArray( 8 );
+	int w = CENTROID_WIDTH;
+	int xa = 0, ya = 0;
+	if( m_angle == 0 )
+		xa += w;
+	else if( m_angle == 90 )
+		ya -= w;
+	else if( m_angle == 180 )
+		xa -= w;
+	else if( m_angle == 270 )
+		ya += w;
+	dl->AddDragLine( CPoint(-w/2, -w/2), CPoint(+w/2, -w/2) );
+	dl->AddDragLine( CPoint(+w/2, -w/2), CPoint(+w/2, +w/2) );
+	dl->AddDragLine( CPoint(+w/2, +w/2), CPoint(-w/2, +w/2) );
+	dl->AddDragLine( CPoint(-w/2, +w/2), CPoint(-w/2, -w/2) );
+	dl->AddDragLine( CPoint(0, 0), CPoint(xa, ya) );
+	// drag
+	dl->StartDraggingArray( pDC, m_x, m_y, 0, LAY_FP_SELECTION );
+#endif
+}
+
+// Cancel dragging centroid
+//
+void ccentroid::CancelDragging()
+{
+	CDisplayList *dl = doc->m_dlist;
+	dl->Set_visible( dl_el, 1 );
+	// stop dragging
+	dl->StopDragging();
+}
+
+
+bool cglue::IsValid()
+	{ return doc && doc->m_edit_footprint && doc->m_edit_footprint->m_glues.Contains(this); }
+
+int cglue::Draw()
+{
+	// Draw the glue.  Note that this routine is responsible for placing centroid-positioned glues properly.
+	CDisplayList *dl = doc->m_dlist;
+	if( !dl )
+		return NO_DLIST;
+	if (bDrawn)
+		return ALREADY_DRAWN;
+	int w0 = w;
+	if( w0 == 0 )
+		w0 = DEFAULT_GLUE_WIDTH;
+	int x0 = x, y0 = y;
+	if (type==GLUE_POS_CENTROID)
+	{
+		ccentroid *c = doc->m_edit_footprint->m_centroid;
+		x0 = c->m_x, y0 = c->m_y;
+	}
+	dl_el = dl->AddMain( this, LAY_FP_DOT, DL_CIRC, TRUE, w0, 0, 0, x0, y0, 0, 0, 0, 0 );
+	dl_sel = dl->AddSelector( this, LAY_FP_DOT, DL_HOLLOW_RECT, TRUE, 0, 0, 
+		x0 - w0/2, y0 - w0/2, x0 + w0/2, y0 + w0/2, 0, 0, 0 );
+	bDrawn = true;
+	return NOERR;
+}
+
+
+void cglue::Highlight()
+{
+	CDisplayList *dl = doc->m_dlist;
+	if (!dl) return;
+	dl->Highlight( DL_HOLLOW_RECT, 
+		dl->Get_x(dl_sel), dl->Get_y(dl_sel),
+		dl->Get_xf(dl_sel), dl->Get_yf(dl_sel), 1 );
+}
+
+
+// Start dragging glue spot
+//
+void cglue::StartDragging( CDC * pDC )
+{
+	// make glue spot invisible
+	CDisplayList *dl = doc->m_dlist;
+	dl->Set_visible( dl_el, 0 );
+	dl->CancelHighlight();
+	int w0 = w;
+	if( w0 == 0 )
+		w0 = DEFAULT_GLUE_WIDTH;
+	dl->StartDraggingRectangle( pDC, x, y, -w0/2, -w0/2, w0/2, w0/2, 0, LAY_FP_SELECTION );
+}
+
+// Cancel dragging glue spot
+//
+void cglue::CancelDragging()
+{
+	CDisplayList *dl = doc->m_dlist;
+	dl->Set_visible( dl_el, 1 );
+	// stop dragging
+	dl->StopDragging();
 }
 
 
