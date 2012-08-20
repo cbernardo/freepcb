@@ -170,7 +170,6 @@
 #define IDD_IMPORT_FOOTPRINT            297
 #define ID_FILE_OPENFOOTPRINTEDITOR     297
 #define ID_Menu298                      298
-#define ID_AREAEDGE_HATCHSTYLE          299
 #define IDD_DIALOG3                     301
 #define IDD_SET_AREA_HATCH              303
 #define ID_PROJECT_OPTIONS              304

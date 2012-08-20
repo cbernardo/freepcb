@@ -114,7 +114,6 @@ public: // create from serialization only
 // member variables
 public:
 	carray<cpadstack> m_pad_row;					// CPT2 new, gets filled by DlgAddPin with one or more new padstacks.
-	// int m_drag_num_pads;							// CPT2: use m_pad_row.GetSize()
 
 	// mode for drawing new polyline segments
 	BOOL m_polyline_closed_flag;
@@ -127,9 +126,6 @@ public:
 	int m_disable_context_menu;
 
 	// selected item
-	// CPT2 TODO the next 2 are DOOMED
-	CText * m_sel_text;	// pointer to selected text
-	void *m_sel_ptr;	// CPT:  pointer to selected ANYTHING (but in practice I think it will always be equal to m_sel_text)
 	static int sel_mask_btn_bits[16];	// CPT2.  New system for masking selections.  Each left-pane button corresponds to 1+ bits for types of pcb-items...
 
 	// footprint
@@ -186,15 +182,12 @@ protected:
 	afx_msg void OnLButtonDblClk(UINT nFlags, CPoint point);
 	DECLARE_MESSAGE_MAP()
 public:
-//	afx_msg void OnSysChar(UINT nChar, UINT nRepCnt, UINT nFlags);
-//	afx_msg void OnSysCommand(UINT nID, LPARAM lParam);
 	afx_msg void OnContextMenu(CWnd* /*pWnd*/, CPoint /*point*/);
 	afx_msg void OnPadMove();							// CPT2 changed args
 	void OnPadMoveRow();								// CPT2 new, takes care of dragging a row of padstacks
 	afx_msg void OnPadEdit();							// CPT2 changed arg
 	afx_msg void OnPadDelete();							// CPT2 changed arg
 	afx_msg void OnPadRotate();							// CPT2 new.
-	// afx_msg void OnRefMove();						// CPT2 folded into OnFpTextMove
 	afx_msg void OnOutlineCornerMove();
 	afx_msg void OnOutlineCornerEdit();
 	afx_msg void OnOutlineCornerDelete();
@@ -204,7 +197,6 @@ public:
 	LONG OnChangePlacementGrid( UINT wp, LONG lp );
 	LONG OnChangeSnapAngle( UINT wp, LONG lp );
 	LONG OnChangeUnits( UINT wp, LONG lp );
-	// afx_msg void OnRefProperties();
 	afx_msg void OnOutlineSideConvertToStraightLine();
 	afx_msg void OnOutlineSideConvertToArcCw();
 	afx_msg void OnOutlineSideConvertToArcCcw();
@@ -231,9 +223,6 @@ public:
 	afx_msg void OnCentroidMove();
 	afx_msg void OnAddSlot();
 	afx_msg void OnAddHole();
-	//  CPT supplanted: afx_msg void OnAddValueText();
-	// afx_msg void OnValueEdit();						// CPT2 folded into OnFpTextProperties
-	// afx_msg void OnValueMove();						// CPT2 folded into OnFpTextMove
 	afx_msg void OnValueReveal();						// CPT
 	afx_msg void OnAddAdhesive();
 	afx_msg void OnAdhesiveEdit();

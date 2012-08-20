@@ -97,17 +97,6 @@ well as CCommonView::SetMainMenu().
 Regarding phantom pins, as of r329 I no longer bail out with an error if they're found in a document being loaded.  Instead, the program just
 ignores them.
 
-// Add to SVN notes:
-// r329 Fixed bug involving weird text appearing when returning from footprint editor
-// r329 Allowed the reading of docs with "phantom pins" (they're just ignored).
-// r332 import/export netlists, dsn/ses + ivex.
-// r332 CFreePcbView::SelectObjPopup.  Now in CCommonView, so it works in the fp editor
-// r332 Measurement mode
-// r332 OnViewFindPart
-// r332 CFreePcbDoc::OnEditPasteFromFile
-// r332 DlgLibraryManager stuff
-
-
 
 // FreePCB : programming notes
 //

@@ -9,8 +9,6 @@
 #pragma once
 #define CPT2 0
 
-#include "NetList.h"
-#include "TextList.h"
 #include "PcbFont.h"
 #include "SMfontutil.h"
 #include "SMcharacter.h"
@@ -20,6 +18,7 @@
 //#include "QAFDebug.h"
 #include "PcbItem.h"
 #include "NetListNew.h"
+#include "PartListNew.h"
 #include "TextListNew.h"
 
 class CFreePcbDoc;

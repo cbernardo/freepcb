@@ -1,6 +1,6 @@
 #pragma once
 #include "afxwin.h"
-#include "Netlist.h"
+#include "NetListNew.h"
 
 
 // CDlgAddArea dialog

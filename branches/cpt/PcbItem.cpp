@@ -7,10 +7,10 @@
 #include "PartListNew.h"
 #include "TextListNew.h"
 
-extern BOOL bDontShowSelfIntersectionWarning;		// CPT2 TODO make these "sticky" by putting settings into default.cfg.
-extern BOOL bDontShowSelfIntersectionArcsWarning;
-extern BOOL bDontShowIntersectionWarning;
-extern BOOL bDontShowIntersectionArcsWarning;
+BOOL bDontShowSelfIntersectionWarning = false;		// CPT2 TODO make these "sticky" by putting settings into default.cfg.
+BOOL bDontShowSelfIntersectionArcsWarning = false;
+BOOL bDontShowIntersectionWarning = false;
+BOOL bDontShowIntersectionArcsWarning = false;
 
 class CFreePcbDoc;
 class cpcb_item;
@@ -1723,7 +1723,7 @@ void cconnect2::Remove()
 
 void cconnect2::Start( cvertex2 *v )
 {
-	// CPT2 new.  After this routine, connect will consist of a single vertex (v) and no segs.
+	// CPT2 new.  After this routine, connect will consist of a single vertex (v) and no segs.  Assumes v was constructed so that it points to "this"
 	MustRedraw();
 	vtxs.RemoveAll();
 	segs.RemoveAll();
@@ -3767,11 +3767,11 @@ void cside::Highlight()
 	if( !dl ) return;
 	if( !dl_sel ) return;
 	int s;
-	if( m_style == CPolyLine::STRAIGHT )
+	if( m_style == cpolyline::STRAIGHT )
 		s = DL_LINE;
-	else if( m_style == CPolyLine::ARC_CW )
+	else if( m_style == cpolyline::ARC_CW )
 		s = DL_ARC_CW;
-	else if( m_style == CPolyLine::ARC_CCW )
+	else if( m_style == cpolyline::ARC_CCW )
 		s = DL_ARC_CCW;
 	dl->Highlight( s, 
 		dl->Get_x( dl_sel ), dl->Get_y( dl_sel ),
@@ -4104,7 +4104,6 @@ cpolyline::cpolyline(CFreePcbDoc *_doc)
 	m_layer = m_w = m_sel_box = m_hatch = m_nhatch = 0;
 	m_gpc_poly = new gpc_polygon;
 	m_gpc_poly->num_contours = 0;
-	m_php_poly = NULL;			// CPT2 TODO for now. 
 }
 
 cpolyline::cpolyline(CFreePcbDoc *_doc, int _uid):
@@ -4124,7 +4123,7 @@ cpolyline::cpolyline(cpolyline *src, bool bCopyContours)
 	m_sel_box = src->m_sel_box;
 	m_hatch = src->m_hatch;
 	m_nhatch = src->m_nhatch;					// CPT2.  I guess...
-	m_gpc_poly = NULL, m_php_poly = NULL;
+	m_gpc_poly = NULL;
 	if (!src->main || !bCopyContours)
 		return;
 	citer<ccontour> ictr (&src->contours);
@@ -4397,7 +4396,7 @@ int cpolyline::TestPolygon()
 					if( !ret ) continue;
 					// intersection between non-adjacent sides
 					bInt = TRUE;
-					if( style1 != CPolyLine::STRAIGHT || style2 != CPolyLine::STRAIGHT )
+					if( style1 != cpolyline::STRAIGHT || style2 != cpolyline::STRAIGHT )
 					{
 						bArcInt = TRUE;
 						goto finish;
@@ -4811,7 +4810,7 @@ void cpolyline::MakeGpcPoly( ccontour *ctr0, CArray<CArc> * arc_array )
 				double xo, yo, theta1, theta2, a, b;
 				a = fabs( (double)(x1 - x2) );
 				b = fabs( (double)(y1 - y2) );
-				if( style == CPolyLine::ARC_CW )
+				if( style == cpolyline::ARC_CW )
 				{
 					// clockwise arc (ie.quadrant of ellipse)
 					int i=0, j=0;
@@ -5081,7 +5080,7 @@ int cpolyline::TestIntersection( cpolyline *poly2, bool bCheckArcIntersections )
 						bInt = TRUE;
 						if (!bCheckArcIntersections)
 							return 1;
-						if( style1 != CPolyLine::STRAIGHT || style2 != CPolyLine::STRAIGHT )
+						if( style1 != cpolyline::STRAIGHT || style2 != cpolyline::STRAIGHT )
 							return 2;
 						break;
 					}
@@ -5864,7 +5863,7 @@ void cnet2::SetThermals()
 
 cvertex2 *cnet2::TestHitOnVertex(int layer, int x, int y) 
 {
-	// TODO maybe obsolete.  Frequently cvertex2::TestForHit() does the trick.
+	// CPT2 TODO maybe obsolete.  Frequently cvertex2::TestForHit() does the trick.
 	// Test for a hit on a vertex in a trace within this net/layer.
 	// If layer == 0, ignore layer.  New return value: returns the hit vertex, or 0 if no vtx is near (x,y) on layer
 	citer<cconnect2> ic (&connects);
@@ -6250,6 +6249,176 @@ void cnet2::CleanUpConnections( CString * logstr )
 		}
 	}
 }
+
+
+
+void cnet2::ImportRouting( CArray<cnode> * nodes, CArray<cpath> * paths,
+							int tolerance, CDlgLog * log, bool bVerbose )
+{
+	// unroute all traces
+	MustRedraw();
+	connects.RemoveAll();
+
+	// add all pins in net to list of nodes
+	citer<cpin2> ipin (&pins);
+	for (cpin2 *pin = ipin.First(); pin; pin = ipin.Next())
+	{
+		int inode = nodes->GetSize();
+		nodes->SetSize( inode+1 );
+		cnode * node = &(*nodes)[inode];
+		node->layer = pin->pad_layer;
+		node->type = NPIN;
+		node->x = pin->x;
+		node->y = pin->y;
+		node->pin = pin;
+	}
+	// now hook up paths and nodes
+	for( int ipath=0; ipath<paths->GetSize(); ipath++ )
+	{
+		cpath * path = &(*paths)[ipath];
+		for( int iend=0; iend<2; iend++ )
+		{
+			cpath_pt * pt = &path->pt[0];	// first point in path
+			if( iend == 1 )
+				pt = &path->pt[path->pt.GetSize()-1];	// last point
+			// search all nodes for match
+			BOOL bMatch = FALSE;
+			for( int inode=0; inode<nodes->GetSize(); inode++ )
+			{
+				cnode * node = &(*nodes)[inode];
+				if( abs(pt->x-node->x)<tolerance && abs(pt->y-node->y)<tolerance 
+					&& ( path->layer == node->layer || node->layer == LAY_PAD_THRU ) )
+				{
+					// match, hook it up
+					int ip = node->path_index.GetSize();
+					node->path_index.SetSize(ip+1);
+					node->path_end.SetSize(ip+1);
+					node->path_index[ip] = ipath;
+					node->path_end[ip] = iend;
+					pt->inode = inode;
+					pt->x = node->x;
+					pt->y = node->y;
+					bMatch = TRUE;
+					break;
+				}
+			}
+			if( !bMatch )
+			{
+				// node not found, make new junction node
+				int inode = nodes->GetSize();
+				nodes->SetSize(inode+1);
+				cnode * node = &(*nodes)[inode];
+				node->layer = path->layer;
+				node->type = NJUNCTION;
+				node->x = pt->x;
+				node->y = pt->y;
+				int ip = node->path_index.GetSize();
+				node->path_index.SetSize(ip+1);
+				node->path_end.SetSize(ip+1);
+				node->path_index[ip] = ipath;
+				node->path_end[ip] = iend;
+				pt->inode = inode;
+			}
+		}
+	}
+
+	// CPT2.  Go through the nodes again.  For those that have >2 emerging paths and that are not pins, create a tee structure.
+	for( int inode=0; inode<nodes->GetSize(); inode++ )
+	{
+		cnode * node = &(*nodes)[inode];
+		if (!node->pin && node->path_index.GetSize() > 2)
+			node->tee = new ctee(this);
+	}
+
+	// dump data
+	CString mess, str;
+	if( log )
+	{
+		CString s ((LPCSTR) IDS_RoutingNet);
+		mess.Format( s, *name );
+		log->AddLine( mess );
+		if( bVerbose )
+		{
+			s.LoadStringA(IDS_NumNodes);
+			mess.Format( s, nodes->GetSize() );
+			log->AddLine( mess );
+			for( int inode=0; inode<nodes->GetSize(); inode++ )
+			{
+				cnode * node = &(*nodes)[inode];
+				CString type_str ((LPCSTR) IDS_None);
+				if( node->type == NPIN )
+					type_str.LoadStringA(IDS_Pin2);
+				else if( node->type == NVIA )
+					type_str.LoadStringA(IDS_Via);
+				else if( node->type == NJUNCTION )
+					type_str.LoadStringA(IDS_Junction);
+				s.LoadStringA(IDS_NodeXYLayerNpaths);
+				mess.Format( s, inode, type_str, node->x/NM_PER_MIL, node->y/NM_PER_MIL, node->layer, node->path_index.GetSize() );
+				log->AddLine( mess );
+			}
+		}
+	}
+
+	// start routing.  CPT2 new system.  Loop thru all paths, looking for ones that haven't been incorporated into the net (bUsed==false), and
+	// which have on at least one end a pin or tee.  Starting from the pin/tee, trace forward thru vias until one hits another pin or tee, or a loose end.  
+	// That's the new connect.  Along the way, mark the paths as bUsed.
+	for (int ip = 0; ip < paths->GetSize(); ip++)
+	{
+		cpath *path = &(*paths)[ip];
+		if (path->bUsed) continue;
+		int inode0 = path->GetInode(0), inode1 = path->GetInode(1);
+		cnode *node0 = &(*nodes)[inode0], *node1 = &(*nodes)[inode1];
+		if (!node0->pin && !node0->tee && !node1->pin && !node1->tee)
+			continue;
+		cpath *p = path;
+		int end = node0->pin || node0->tee? 0: 1;
+		cnode *node = end==0? node0: node1;
+		cconnect2 *c = new cconnect2(this);
+		cvertex2 *v = new cvertex2(c, node->x, node->y);
+		v->pin = node->pin;
+		v->tee = node->tee;
+		c->Start(v);
+		while (1)
+		{
+			p->bUsed = true;
+			int n_pts = path->pt.GetSize();
+			for( int j = 1; j < n_pts-1; j++ )
+			{
+				int next_pt = end==0? j: n_pts-1-j;
+				int x = p->pt[next_pt].x;
+				int y = p->pt[next_pt].y;
+				c->AppendSegment(x, y, p->layer, p->width);
+			}
+			int inode = p->GetInode(1-end);
+			node = &(*nodes)[inode];
+			c->AppendSegment(node->x, node->y, p->layer, p->width);
+			c->tail->pin = node->pin;
+			c->tail->tee = node->tee;
+			if (node->via_w)
+				c->tail->via_w = node->via_w,
+				c->tail->via_hole_w = def_via_hole_w,
+				c->tail->force_via_flag = true;				// Force all vias
+			if (node->pin || node->tee) 
+				break;
+			if (node->path_index.GetSize() == 1)
+				break;										// Stub trace...
+			ASSERT(node->path_index.GetSize() == 2);
+			// Determine the path to go to next, and which end coincides with "node"
+			cpath *p0 = &(*paths)[node->path_index[0]];
+			cpath *p1 = &(*paths)[node->path_index[1]];
+			p = p0==p? p1: p0;
+			end = p->GetInode(0)==inode? 0: 1;
+		}
+	}
+
+	if( log ) 
+	{
+		CString s ((LPCSTR) IDS_SuccessAllPathsRouted);
+		log->AddLine( s );
+	}
+}
+
+
 
 /**********************************************************************************************/
 /*  OTHERS: ctext, cglue, ccentroid                                                       */

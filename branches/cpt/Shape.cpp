@@ -1389,7 +1389,7 @@ int CShape::MakeFromFile( CStdioFile * in_file, CString name,
 			{
 				int x = GetDimensionFromString( &p[0], m_units);
 				int y = GetDimensionFromString( &p[1], m_units);
-				int style = CPolyLine::STRAIGHT;
+				int style = cpolyline::STRAIGHT;
 				if( np >= 4 )
 					style = my_atoi( &p[2] );
 				ccontour *ctr = currPoly->main;
@@ -1399,7 +1399,7 @@ int CShape::MakeFromFile( CStdioFile * in_file, CString name,
 			}
 			else if( key_str == "close_polyline" && np >= 2 )
 			{
-				int style = CPolyLine::STRAIGHT;
+				int style = cpolyline::STRAIGHT;
 				if( np >= 2 )
 					style = my_atoi( &p[0] );
 				currPoly->main->Close(style);

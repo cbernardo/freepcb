@@ -2,13 +2,12 @@
 #define _DRAWINGELEMENT_H
 
 #include "afxwin.h"
-#include "ids.h"
 #include "layers.h"
 // #include "LinkList.h"
-#include "PcbItem.h"
 
 struct CDrawInfo;
 class CDisplayList;
+class cpcb_item;
 
 // this structure contains an element of the display list
 // CPT:  no longer derived from CDLinkList.
@@ -19,8 +18,6 @@ class dl_element
 
 public:
 	int magic;
-	id id;			// identifier (see ids.h)						// CPT2 will phase out in favor of member "item"
-	void * ptr;		// pointer to object drawing this element		// CPT2 ditto
 	cpcb_item *item;												// CPT2.
 	int usage;														// CPT2. A given pcb-item may have various types of drawing-elements associated
 																	// with it (e.g. most have a main element and a selector;  parts have ref and value 

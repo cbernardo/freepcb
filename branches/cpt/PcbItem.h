@@ -13,19 +13,16 @@
 #include <afxcoll.h>
 #include <afxtempl.h>
 #include "DisplayList.h"
-// #include "PartList.h"
-#include "PolyLine.h"
 #include "UndoNew.h"
-// #include "LinkList.h"
-// #include "Cuid.h"
-// #include "PartListNew.h"		// CPT2
+#include "DlgLog.h"
+#include "gpc_232.h"
 
 class cpcb_item;
 class carray_link;
 template <class T> class carray;  // NB "T" is expected to be a cpcb_item class
 template <class T> class citer;	  // Ditto
 
-class cvertex2;
+class cvertex2; 
 class ctee;
 class cseg2;
 class cconnect2;
@@ -755,6 +752,10 @@ public:
 		ROUTE_FORWARD = 0,
 		ROUTE_BACKWARD
 	};
+	enum {
+		NO_END = -1				// Leftover from the old architecture, only used now when reading in nets from files 
+	};
+
 
 	cnet2 * m_net;				// parent net
 	carray<cseg2> segs;			// array of segments. NB not necessarily in geometrical order
@@ -1057,9 +1058,6 @@ public:
 	     		  int x, int y, int side, int angle, int visible, int glued );					// Done in cpp, Derived from CPartList::SetPartData
 	void SetValue( CString * value, int x, int y, int angle, int size, 
 				  int w, BOOL vis, int layer );													// Done in cpp, Derived from CPartList::SetValue
-	// void MoveRefText( int _x, int _y, int _angle=-1, int _size=-1, int _w=-1 );				// Done in cpp, derived from CPartList::MoveRefText
-	// void ResizeRefText(int size, int width, BOOL vis );											// Done in cpp, derived from CPartList::ResizeRefText()
-	// void MoveValueText( int _x, int _y, int _angle=-1, int _size=-1, int _w=-1 );			// Done in cpp, derived from CPartList func
 	void InitPins();																			// Done in cpp. Basically all new
 
 	int GetNumOutlineStrokes();
@@ -1189,7 +1187,7 @@ public:
 			s->Highlight();
 	}
 	
-	int NumCorners() { return corners.GetSize(); }
+	int NumCorners() { return corners.GetSize(); } 
 	void AppendSideAndCorner( cside *s, ccorner *c, ccorner *after );		// Done in cpp
 	void AppendCorner(int x, int y, int style = STRAIGHT);					// Done in cpp
 	void Close(int style = STRAIGHT);										// Done in cpp
@@ -1198,6 +1196,17 @@ public:
 	bool TestPointInside( int x, int y );									// Done in cpp
 	void SetPoly( cpolyline *_poly );										// Done in cpp
 	void Remove();															// Done in cpp, derived from CPolyLine::RemoveContour
+};
+
+class CArc {
+	// Helper class for gpc conversion routines in cpolyline.
+public: 
+	enum{ MAX_STEP = 50*25400 };	// max step is 20 mils
+	enum{ MIN_STEPS = 18 };		// min step is 5 degrees
+	int style;
+	int xi, yi, xf, yf;
+	int n_steps;	// number of straight-line segments in gpc_poly 
+	BOOL bFound;
 };
 
 class cpolyline: public cpcb_item
@@ -1212,7 +1221,6 @@ public:
 	int m_nhatch;				// number of hatch lines
 	CArray <dl_element*>  dl_hatch;	// hatch lines.  Use CArray with dl-elements generally?
 	gpc_polygon * m_gpc_poly;	// polygon in gpc format
-	polygon * m_php_poly;		// CPT2 TODO dump...
 
 public:
 	// constructors/destructor
@@ -1373,6 +1381,51 @@ public:
 /*  RELATED TO cnet2                                                                           */
 /**********************************************************************************************/
 
+// these definitions are for ImportSessionFile()
+//
+enum NODE_TYPE { NONE, NPIN, NVIA, NJUNCTION };
+
+class cnode 
+{
+public:
+	NODE_TYPE type;
+	int x, y, layer, via_w;
+	cpin2 *pin;
+	ctee *tee;
+	CArray<int> path_index;
+	CArray<int> path_end;  // 0 or 1
+
+	cnode()
+		{ pin = NULL; tee = NULL; }
+};
+
+class cpath_pt 
+{
+public:
+	int x, y, inode;
+};
+
+class cpath 
+{
+public:
+	int layer, width;
+	CArray<cpath_pt> pt;
+	// int n_used;		// number of times used
+	bool bUsed;
+
+	int GetInode( int iend )
+	{ 
+		// return inode at end of path
+		int last_pt = pt.GetSize()-1;
+		if(iend)
+			return pt[last_pt].inode; 
+		else 
+			return pt[0].inode; 
+	};
+};
+//
+// end definitions for ImportSessionFile()
+
 // cnet2: describes a net
 class cnet2: public cpcb_item
 {
@@ -1407,18 +1460,15 @@ public:
 	void Highlight(cpcb_item *exclude);								// Done in cpp
 	void Highlight() { Highlight(NULL); }							// Also overrides base-class func.
 	bool GetVisible() { return bVisible; }
-	void SetVisible( bool _bVis );								// Done in cpp
+	void SetVisible( bool _bVis );									// Done in cpp
 
 	// pins
 	int NumPins() { return pins.GetSize(); }
-	void SetVertexToPin( cvertex2 *v, cpin2 *p );					// Arg change
 	cvertex2 *TestHitOnVertex(int layer, int x, int y);				// Done in cpp, derived from old CNetList function
 	// connections
 	int NumCons() { return connects.GetSize(); }
 	// copper areas
 	int NumAreas() { return areas.GetSize(); }
-	// void DrawAreas();																// Done in cpp, new
-	// void UndrawAreas();																// Done in cpp, new
 	carea2 *NetAreaFromPoint( int x, int y, int layer );							// CPT2 replaces CNetList::TestPointInArea
 
 	// methods that edit objects
@@ -1434,11 +1484,11 @@ public:
 	void SetThermals();																	// Done in cpp
 	// connections
 	void AddConnect( cconnect2 *c );													// Done in cpp
-	// cconnect2 * AddConnectFromPin( int p1, int * ic=NULL );
-	// cconnect2 * AddConnectFromPinToPin( int p1, int p2, int * ic=NULL );
-	// void MergeConnections( cconnect2 * c1, cconnect2 * c2 );
 	void CleanUpConnections( CString * logstr=NULL );									// Done in cpp, derived from old CNetList func.
-	void OptimizeConnections(BOOL bLimitPinCount=TRUE, BOOL bVisibleNetsOnly=TRUE );	// Done in cpp, derived from old CNetList
+	void OptimizeConnections(BOOL bLimitPinCount=TRUE, BOOL bVisibleNetsOnly=TRUE );	// Done in cpp, derived from old CNetList func.
+	void ImportRouting( CArray<cnode> * nodes, CArray<cpath> * paths,					// Done in cpp, derived from old CNetList::ImportNetRouting
+							int tolerance, CDlgLog * log, bool bVerbose );
+
 };
 
 
@@ -1572,3 +1622,22 @@ public:
 	void Highlight();
 };
 
+class cdrelist
+{
+public:
+	// Updated version of class DRErrorList.
+	CFreePcbDoc *doc;
+	carray<cdre> dres;
+
+	cdrelist(CFreePcbDoc *_doc)
+		{ doc = _doc; }
+	~cdrelist() { }
+	cdre * Add( int type, CString * str, cpcb_item *item1, cpcb_item *item2,
+		int x1, int y1, int x2, int y2, int w, int layer );
+	void Remove( cdre *dre );									// Undraw a single member, then remove it.
+	void Clear();												// Undraw all members, then remove 'em.
+	int GetSize() 
+		{ return dres.GetSize(); }
+	void MakeHollowCircles();
+	void MakeSolidCircles();
+};

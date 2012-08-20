@@ -69,11 +69,7 @@ public:
 
 	// selected items
 	carray<cpcb_item> m_sel;	// CPT2.  Will replace the following 2 items
-	id m_sel_id;			// id of selected item
-	id m_sel_uid;			// uid of selected item
-	int m_sel_layer;		// layer of selected item. CPT2 TODO probably obsolete
 	int m_sel_offset;		// CPT:  new system for processing repeated clicks in the same place --- see CDisplayList::TestSelect()
-	id m_sel_id_prev;		// CPT: ditto.  See e.g. CFreePcbView::OnLButtonUp().  Also used when user repeatedly hits 'T'
 	int m_cursor_mode_prev;	// CPT: ditto
 	cpcb_item *m_sel_prev;	// CPT2 was void*
 	int m_poly_drag_mode;	// CPT2.  Equal to CUR_ADD_AREA, CUR_ADD_AREA_CUTOUT, CUR_ADD_SMCUTOUT, CUR_ADD_BOARD
@@ -128,8 +124,6 @@ public:
 	int m_sel_mask;							// CPT2.  As before, this indicates which buttons in the left pane are on and which off
 	int m_sel_mask_bits;					// CPT2.  This value is a function of the previous:  each left-pane button corresponds to 1 or more bits whose
 											// meanings are given in cpcb_item's enum of type-bits.  (See cpcb_item::GetTypeBit()).
-	// id m_mask_id[NUM_SEL_MASKS];			// ditto
-	// id m_mask_default_id[NUM_SEL_MASKS];	// ditto
 
 	// Constructor, low-level stuff:
 	CCommonView();

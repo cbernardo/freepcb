@@ -160,11 +160,11 @@ void cnetlist::ReadNets( CStdioFile * pcb_file, double read_version, int * layer
 				int start_pin = my_atoi( &p[1] );
 				int end_pin = my_atoi( &p[2] );
 				cpin2 *pin0 = NULL, *pin1 = NULL;
-				if (start_pin != cconnect::NO_END)
+				if (start_pin != cconnect2::NO_END)
 					pin0 = net->pins.FindByUtility(start_pin);
 					// CPT2 We tolerate it if FindByUtility() fails and pin0 is NULL...
 				v0->pin = pin0;
-				if (end_pin != cconnect::NO_END)
+				if (end_pin != cconnect2::NO_END)
 					pin1 = net->pins.FindByUtility(end_pin);
 				int nsegs = my_atoi( &p[3] );
 				c->locked = my_atoi( &p[4] );
@@ -330,7 +330,7 @@ void cnetlist::ReadNets( CStdioFile * pcb_file, double read_version, int * layer
 				int hatch = 1;
 				if( np == 5 )
 					hatch = my_atoi( &p[3] );
-				int last_side_style = CPolyLine::STRAIGHT;
+				int last_side_style = cpolyline::STRAIGHT;
 				carea2 *a = new carea2(net, layer, hatch, 2*NM_PER_MIL, 10*NM_PER_MIL);
 				ccontour *ctr = new ccontour(a, true);				// Adds ctr as a's main contour
 
@@ -347,7 +347,7 @@ void cnetlist::ReadNets( CStdioFile * pcb_file, double read_version, int * layer
 
 					int x = my_atoi( &p[1] );
 					int y = my_atoi( &p[2] );
-					last_side_style = np >= 5? my_atoi( &p[3] ): CPolyLine::STRAIGHT;
+					last_side_style = np >= 5? my_atoi( &p[3] ): cpolyline::STRAIGHT;
 					int end_cont = np >= 6? my_atoi( &p[4] ): 0;
 					bool bContourWasEmpty = ctr->corners.IsEmpty();
 					ccorner *c = new ccorner(ctr, x, y);			// Constructor adds corner to ctr->corners (and may also set ctr->head/tail if
@@ -1078,5 +1078,62 @@ void cnetlist::CleanUpAllConnections( CString * logstr )
 				net->tees.Remove(t);
 			}
 	}
+}
+
+void cnetlist::ReassignCopperLayers( int n_new_layers, int * layer )
+{
+	// reassign copper elements to new layers
+	// enter with layer[] = table of new copper layers for each old copper layer
+	if( m_layers < 1 || m_layers > 16 )
+		ASSERT(0);
+	citer<cnet2> in (&nets);
+	for (cnet2 *net = in.First(); net; net = in.Next())
+	{
+		net->MustRedraw();
+		citer<cconnect2> ic (&net->connects);
+		for (cconnect2 *c = ic.First(); c; c = ic.Next())
+		{
+			citer<cseg2> is (&c->segs);
+			for (cseg2 *s = is.First(); s; s = is.Next())
+			{
+				int old_layer = s->m_layer;
+				if( old_layer >= LAY_TOP_COPPER )
+				{
+					int index = old_layer - LAY_TOP_COPPER;
+					int new_layer = layer[index];
+					if( new_layer == -1 )
+						// delete this layer
+						s->UnrouteWithoutMerge();
+					else
+						s->m_layer = new_layer + LAY_TOP_COPPER;
+				}
+			}
+			// check for first or last segments connected to SMT pins
+			int pad_layer1 = c->head->pin? c->head->pin->pad_layer: LAY_PAD_THRU;
+			cseg2 *seg1 = c->head->postSeg;
+			if( pad_layer1 != LAY_PAD_THRU && seg1->m_layer != pad_layer1 )
+				seg1->UnrouteWithoutMerge();
+			int pad_layer2 = c->tail->pin? c->tail->pin->pad_layer: LAY_PAD_THRU;
+			cseg2 *seg2 = c->tail->preSeg;
+			if (pad_layer2 != LAY_PAD_THRU && seg2->m_layer != pad_layer2 )
+				seg2->UnrouteWithoutMerge();
+			c->MergeUnroutedSegments();
+		}
+		net->CleanUpConnections();
+		
+		citer<carea2> ia (&net->areas);
+		for (carea2 *a = ia.First(); a; a = ia.Next())
+		{
+			int old_layer = a->m_layer;
+			int index = old_layer - LAY_TOP_COPPER;
+			int new_layer = layer[index];
+			if( new_layer == -1 )
+				a->Remove();
+			else
+				a->m_layer = new_layer + LAY_TOP_COPPER,
+				a->PolygonModified(false, false);
+		}
+	}
+	m_layers = n_new_layers;
 }
 

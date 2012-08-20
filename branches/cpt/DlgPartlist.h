@@ -1,7 +1,6 @@
 #pragma once
 #include "afxcmn.h"
 #include "afxwin.h"
-#include "Partlist.h"
 
 // CDlgPartlist dialog
 

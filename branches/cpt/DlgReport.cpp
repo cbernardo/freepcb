@@ -6,7 +6,6 @@
 #include "DlgReport.h"
 #include "FreePcbDoc.h"
 #include "Gerber.h"
-#include "Net_iter.h"
 #include "PartListNew.h"
 #include "NetListNew.h"
 #include "utility.h"
