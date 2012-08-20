@@ -29,9 +29,6 @@ void CDlgImportOptions::DoDataExchange(CDataExchange* pDX)
 	DDX_Control(pDX, IDC_RADIO3, m_radio_keep_fp);
 	DDX_Control(pDX, IDC_RADIO6, m_radio_remove_nets);
 	DDX_Control(pDX, IDC_RADIO5, m_radio_keep_nets);
-	DDX_Control(pDX, IDC_CHECK_KEEP_TRACES, m_check_keep_traces);
-	DDX_Control(pDX, IDC_CHECK_KEEP_STUBS, m_check_keep_stubs);
-	DDX_Control(pDX, IDC_CHECK_KEEP_AREAS, m_check_keep_areas);
 	DDX_Control(pDX, ID_SAVE_AND_IMPORT, m_button_save_and_import);
 	// CPT:
 	DDX_Control( pDX, IDC_RADIO_PARTS, m_radio_parts );
@@ -47,29 +44,20 @@ void CDlgImportOptions::DoDataExchange(CDataExchange* pDX)
 		m_radio_padspcb.SetCheck(TRUE);
 		EnableDisableButtons();
 
-		if( m_flags & IMPORT_PARTS )
-		{
-			if( m_flags & KEEP_PARTS_AND_CON )
-				m_radio_keep_parts_and_connections.SetCheck( TRUE );
-			else if( m_flags & KEEP_PARTS_NO_CON )
-				m_radio_keep_parts_no_connections.SetCheck( TRUE );
-			else
-				m_radio_remove_parts.SetCheck( TRUE );
-			if( m_flags & KEEP_FP )
-				m_radio_keep_fp.SetCheck( TRUE );
-			else
-				m_radio_change_fp.SetCheck( TRUE );
-		}
-		if( m_flags & IMPORT_NETS )
-		{
-			if( m_flags & KEEP_NETS )
-				m_radio_keep_nets.SetCheck( TRUE );
-			else
-				m_radio_remove_nets.SetCheck( TRUE );
-			m_check_keep_traces.SetCheck( m_flags & KEEP_TRACES );
-			m_check_keep_stubs.SetCheck( m_flags & KEEP_STUBS );
-			m_check_keep_areas.SetCheck( m_flags & KEEP_AREAS );
-		}
+		if( m_flags & KEEP_PARTS_AND_CON )
+			m_radio_keep_parts_and_connections.SetCheck( TRUE );
+		else if( m_flags & KEEP_PARTS_NO_CON )
+			m_radio_keep_parts_no_connections.SetCheck( TRUE );
+		else
+			m_radio_remove_parts.SetCheck( TRUE );
+		if( m_flags & KEEP_FP )
+			m_radio_keep_fp.SetCheck( TRUE );
+		else
+		m_radio_change_fp.SetCheck( TRUE );
+		if( m_flags & KEEP_NETS )
+			m_radio_keep_nets.SetCheck( TRUE );
+		else
+			m_radio_remove_nets.SetCheck( TRUE );
 	}
 
 	else
@@ -91,15 +79,9 @@ void CDlgImportOptions::DoDataExchange(CDataExchange* pDX)
 		}
 		if( m_flags & IMPORT_NETS )
 		{
-			m_flags &= ~(KEEP_NETS | KEEP_TRACES | KEEP_STUBS | KEEP_AREAS);
+			m_flags &= ~KEEP_NETS;
 			if( m_radio_keep_nets.GetCheck() )
 				m_flags |= KEEP_NETS;
-			if( m_check_keep_traces.GetCheck() )
-				m_flags |= KEEP_TRACES;
-			if( m_check_keep_stubs.GetCheck() )
-				m_flags |= KEEP_STUBS;
-			if( m_check_keep_areas.GetCheck() )
-				m_flags |= KEEP_AREAS;
 		}
 	}
 }
@@ -116,6 +98,9 @@ END_MESSAGE_MAP()
 void CDlgImportOptions::Initialize( int flags )
 {
 	m_flags = flags;
+	// CPT2 deal with possibility that neither IMPORT_NETS flag nor IMPORT_PARTS is set:
+	if (!(m_flags & (IMPORT_NETS|IMPORT_PARTS)))
+		m_flags |= IMPORT_PARTS|IMPORT_NETS;
 }
 
 // CDlgImportOptions message handlers
@@ -145,10 +130,11 @@ void CDlgImportOptions::SetPartsNetsFlags() {
 	}
 
 void CDlgImportOptions::EnableDisableButtons() {
-	// Enable and disable buttons depending on the states of the IMPORT_PARTS and IMPORT_NETS flags
+	// Enable and disable buttons depending on the states of the IMPORT_PARTS and IMPORT_NETS flags.  Assumes at least one of those is set.
 	bool fPartsOnly = !(m_flags & IMPORT_NETS);
 	bool fNetsOnly = !(m_flags & IMPORT_PARTS);
 	bool fPartsAndNets = !fPartsOnly && !fNetsOnly;
+
 	m_radio_parts.SetCheck(fPartsOnly);
 	m_radio_nets.SetCheck(fNetsOnly);
 	m_radio_parts_and_nets.SetCheck(fPartsAndNets);
@@ -170,16 +156,10 @@ void CDlgImportOptions::EnableDisableButtons() {
 	if( m_flags & IMPORT_NETS ) {
 		m_radio_keep_nets.EnableWindow( 1 );
 		m_radio_remove_nets.EnableWindow( 1 );
-		m_check_keep_traces.EnableWindow( 1 );
-		m_check_keep_stubs.EnableWindow( 1 );
-		m_check_keep_areas.EnableWindow( 1 );
 		}
 	else {
 		m_radio_keep_nets.EnableWindow( 0 );
 		m_radio_remove_nets.EnableWindow( 0 );
-		m_check_keep_traces.EnableWindow( 0 );
-		m_check_keep_stubs.EnableWindow( 0 );
-		m_check_keep_areas.EnableWindow( 0 );
 		}
 	}
 

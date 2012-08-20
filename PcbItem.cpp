@@ -1257,6 +1257,21 @@ int cseg2::SetLayer( int layer )
 	return 0;
 }
 
+char cseg2::GetDirectionLabel()
+{
+	// CPT2 new.  Used for making labels when user does a shift-click.  Return char is '-', '/', '|', or '\' depending on the direction of the seg
+	double dx = preVtx->x - postVtx->x;
+	double dy = preVtx->y - postVtx->y;
+	double slope = dx==0? 1000: dy/dx;
+	if (fabs(slope) > 3)
+		return '|';
+	else if (fabs(slope) < .33)
+		return '-';
+	else if (slope > 0)
+		return '/';
+	else
+		return '\\';
+}
 
 void cseg2::Divide( cvertex2 *v, cseg2 *s, int dir )
 {
@@ -2817,6 +2832,12 @@ void cpart2::ChangeFootprint(CShape *_shape)
 		m_tl->AddText(txt->m_x, txt->m_y, txt->m_angle, txt->m_bMirror, txt->m_bNegative, 
 							layer, txt->m_font_size, txt->m_stroke_width, &txt->m_str, this);
 	}
+
+	// If old ref or value text had font-size 0, potentially we should change that (otherwise these can become permanently invisible)
+	if (m_ref->m_font_size == 0)
+		m_ref->m_font_size = shape->m_ref->m_font_size;
+	if (m_value->m_font_size == 0)
+		m_value->m_font_size = shape->m_value->m_font_size;
 }
 
 void cpart2::OptimizeConnections(BOOL bLimitPinCount, BOOL bVisibleNetsOnly )
@@ -3723,6 +3744,22 @@ cpolyline *cside::GetPolyline() { return contour->poly; }
 bool cside::IsOnCutout()
 	// Return true if this side lies on a secondary contour within the polyline
 	{ return contour->poly->main!=contour; }
+
+char cside::GetDirectionLabel()
+{
+	// CPT2 new.  Used for making labels when user does a shift-click.  Return char is '-', '/', '|', or '\' depending on the direction of the side
+	double dx = preCorner->x - postCorner->x;
+	double dy = preCorner->y - postCorner->y;
+	double slope = dx==0? 1000: dy/dx;
+	if (fabs(slope) > 3)
+		return '|';
+	else if (fabs(slope) < .33)
+		return '-';
+	else if (slope > 0)
+		return '/';
+	else
+		return '\\';
+}
 
 void cside::Highlight()
 {
@@ -5576,6 +5613,7 @@ cnet2::cnet2(CFreePcbDoc *_doc, int _uid):
 }
 
 bool cnet2::IsValid()
+	// Note that items on the clipboard are not "valid".
 	{ return doc->m_nlist->nets.Contains(this); }
 
 void cnet2::GetStatusStr( CString * str )
@@ -5586,7 +5624,7 @@ void cnet2::GetStatusStr( CString * str )
 
 void cnet2::SaveUndoInfo(int mode)
 {
-	// "mode", which is SAVE_ALL by default, can also have the value SAVE_CONNECTS, SAVE_AREAS, or SAVE_NET_ONLY
+	// "mode", which is SAVE_ALL by default, can also have the value SAVE_CONNECTS, SAVE_AREAS, SAVE_NET_ONLY, 
 	doc->m_undo_items.Add( new cunet(this) );
 	if (mode == SAVE_ALL || mode == SAVE_CONNECTS)
 	{
@@ -5603,7 +5641,13 @@ void cnet2::SaveUndoInfo(int mode)
 		for (carea2 *a = ia.First(); a; a = ia.Next())
 			a->SaveUndoInfo();
 	}
-	// CPT2 TODO consider if we want an option to save pin info too.
+	if (mode == SAVE_ALL)
+	{
+		// CPT2 now we can save undo info for pins too.
+		citer<cpin2> ipin (&pins);
+		for (cpin2 *pin = ipin.First(); pin; pin = ipin.Next())
+			pin->SaveUndoInfo();
+	}
 }
 
 void cnet2::SetVisible( bool _bVisible )
@@ -6057,6 +6101,25 @@ void cnet2::Undraw()
 	citer<ctee> it (&tees);
 	for (ctee *t = it.First(); t; t = it.Next())
 		t->Undraw();
+}
+
+
+void cnet2::AddConnect( cconnect2 *c )
+{
+	// CPT2 new.  Used when importing from netlist files, when connects may get transferred from one net to another.
+	// It's caller's responsibility to make sure that tees and pins associated with c are properly attached to this net.
+	if (c->m_net == this && connects.Contains(c))
+		return;											// Nothing to do!
+	if (c->m_net && c->m_net->connects.Contains(c))
+		c->m_net->connects.Remove(c);
+	connects.Add(c);
+	c->m_net = this;
+	citer<cvertex2> iv (&c->vtxs);
+	for (cvertex2 *v = iv.First(); v; v = iv.Next())
+		v->m_net = this;
+	citer<cseg2> is (&c->segs);
+	for (cseg2 *s = is.First(); s; s = is.Next())
+		s->m_net = this;
 }
 
 void cnet2::CleanUpConnections( CString * logstr )

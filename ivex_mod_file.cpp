@@ -31,25 +31,23 @@ struct mod_padstack {
 };
 typedef mod_padstack ps;
 
-ps * current_ps;
+ps * mod_ps;
 
-// FreePCB shape
 
 // this is the main conversion function
 //
 int ConvertIvex( CStdioFile * mod_file, CStdioFile * lib_file, CEdit * edit_ctrl )
 {
-#ifndef CPT2
 	// state-machine
 	enum { IDLE,	// idle (i.e. no state)
 		PAD_STACK,	// parsing pad stack
 		MODULE		// parsing module
 	};
 
-	CArray<mtg_hole> m_mtg_hole;	
-	CShape s;
-	s.m_padstack.SetSize(0);
-	s.m_outline_poly.SetSize(0);
+	CArray<mtg_hole> m_mtg_hole;
+	extern CFreePcbApp theApp;
+	CFreePcbDoc *doc = theApp.m_doc;
+	CShape s (doc);
 	m_mtg_hole.SetSize(0);
 	s.m_author = "Ivex";
 
@@ -183,15 +181,13 @@ int ConvertIvex( CStdioFile * mod_file, CStdioFile * lib_file, CEdit * edit_ctrl
 				// start new module (i.e. footprint) definition
 				state = MODULE;
 				s.m_units = units;
-				s.m_padstack.SetSize(0);
-				s.m_outline_poly.SetSize(0);
 				m_mtg_hole.SetSize(0);
 				// default ref text params
-				s.m_ref_size = 50 * NM_PER_MIL;
-				s.m_ref_xi = 50 * NM_PER_MIL;
-				s.m_ref_yi = 50 * NM_PER_MIL;
-				s.m_ref_angle = 0;
-				s.m_ref_w = 7 * NM_PER_MIL;
+				s.m_ref->m_font_size = 50 * NM_PER_MIL;
+				s.m_ref->m_x = 50 * NM_PER_MIL;
+				s.m_ref->m_y = 50 * NM_PER_MIL;
+				s.m_ref->m_angle = 0;
+				s.m_ref->m_stroke_width = 7 * NM_PER_MIL;
 				// track min and max dimensions to create selection rectangle
 				min_x = INT_MAX;
 				max_x = INT_MIN;
@@ -204,59 +200,52 @@ int ConvertIvex( CStdioFile * mod_file, CStdioFile * lib_file, CEdit * edit_ctrl
 				state = IDLE;
 				// check for all pins defined
 				BOOL error = FALSE;
-				for( int ip=0; ip<s.m_padstack.GetSize(); ip++ )
-				{
-					if( !s.m_padstack[ip].exists )
-					{
-						error = TRUE;
-						break;
-					}
-				}
+				citer<cpadstack> ips (&s.m_padstack);
+				for (cpadstack *ps = ips.First(); ps; ps = ips.Next())
+					if( !ps->exists )
+						{ error = TRUE; break; }
 				if( !error )
 				{
 					// convert mounting holes to pads
-					int ip = s.m_padstack.GetSize();
-					s.m_padstack.SetSize( ip + m_mtg_hole.GetSize() );
 					for( int ih=0; ih<m_mtg_hole.GetSize(); ih++ )
 					{
-						s.m_padstack[ip].exists = 1;
-						s.m_padstack[ip].name.Format( "MH%d", ih+1 );
-						s.m_padstack[ip].hole_size = m_mtg_hole[ih].diam;
-						s.m_padstack[ip].x_rel = m_mtg_hole[ih].x;
-						s.m_padstack[ip].y_rel = m_mtg_hole[ih].y;
-						s.m_padstack[ip].angle = 0;
-						s.m_padstack[ip].top.shape = m_mtg_hole[ih].pad_shape;
-						s.m_padstack[ip].top.size_h = m_mtg_hole[ih].pad_diam;
-						s.m_padstack[ip].top.size_l = 0;
-						s.m_padstack[ip].top.size_r = 0;
+						cpadstack *ps = new cpadstack(doc);
+						ps->exists = 1;
+						ps->name.Format( "MH%d", ih+1 );
+						ps->hole_size = m_mtg_hole[ih].diam;
+						ps->x_rel = m_mtg_hole[ih].x;
+						ps->y_rel = m_mtg_hole[ih].y;
+						ps->angle = 0;
+						ps->top.shape = m_mtg_hole[ih].pad_shape;
+						ps->top.size_h = m_mtg_hole[ih].pad_diam;
+						ps->top.size_l = 0;
+						ps->top.size_r = 0;
 						int inner_pad_diam;
 						if( m_mtg_hole[ih].pad_shape == PAD_NONE )
-							s.m_padstack[ip].inner.shape = PAD_NONE;
+							ps->inner.shape = PAD_NONE;
 						else
 						{
-							s.m_padstack[ip].inner.shape = PAD_ROUND;
+							ps->inner.shape = PAD_ROUND;
 							inner_pad_diam = m_mtg_hole[ih].diam + 20*NM_PER_MIL;
 							if( inner_pad_diam < m_mtg_hole[ih].pad_diam )
-								s.m_padstack[ip].inner.size_h = inner_pad_diam;
+								ps->inner.size_h = inner_pad_diam;
 							else
-								s.m_padstack[ip].inner.size_h = m_mtg_hole[ih].pad_diam;
-							s.m_padstack[ip].inner.size_l = 0;
-							s.m_padstack[ip].inner.size_r = 0;
+								ps->inner.size_h = m_mtg_hole[ih].pad_diam;
+							ps->inner.size_l = 0;
+							ps->inner.size_r = 0;
 						}
-						s.m_padstack[ip].bottom.shape = m_mtg_hole[ih].pad_shape;
-						s.m_padstack[ip].bottom.size_h = m_mtg_hole[ih].pad_diam;
-						s.m_padstack[ip].bottom.size_l = 0;
-						s.m_padstack[ip].bottom.size_r = 0;
-						ip++;
+						ps->bottom.shape = m_mtg_hole[ih].pad_shape;
+						ps->bottom.size_h = m_mtg_hole[ih].pad_diam;
+						ps->bottom.size_l = 0;
+						ps->bottom.size_r = 0;
+						s.m_padstack.Add(ps);
 					}
 					m_mtg_hole.RemoveAll();
 					// make sure selection rectangle surrounds pads
-					for( int ip=0; ip<s.m_padstack.GetSize(); ip++ )
+					for (cpadstack *ps = ips.First(); ps; ps = ips.Next())
 					{
-						int x = s.m_padstack[ip].x_rel;
-						int y = s.m_padstack[ip].y_rel;
-						int dx = s.m_padstack[ip].top.size_h/2;
-						int dy = s.m_padstack[ip].top.size_h/2;
+						int x = ps->x_rel, y = ps->y_rel;
+						int dx = ps->top.size_h/2, dy = dx;
 						if( (x+dx) > max_x )
 							max_x = x + dx;
 						if( (x-dx) < min_x )
@@ -296,12 +285,14 @@ int ConvertIvex( CStdioFile * mod_file, CStdioFile * lib_file, CEdit * edit_ctrl
 					int xf = my_atof(&p[3]) * mult;
 					int yf = -(my_atof(&p[4]) * mult);
 					int np = s.m_outline_poly.GetSize();
-					s.m_outline_poly.SetSize(np+1);
-					s.m_outline_poly[np].Start( 0, 7*NM_PER_MIL, 0, xi, yi, 0, NULL, NULL );
-					s.m_outline_poly[np].AppendCorner( xf, yi );
-					s.m_outline_poly[np].AppendCorner( xf, yf );
-					s.m_outline_poly[np].AppendCorner( xi, yf );
-					s.m_outline_poly[np].Close();
+					coutline *out = new coutline(doc, LAY_FP_SILK_TOP, 7*NM_PER_MIL);
+					s.m_outline_poly.Add(out);
+					ccontour *ctr = new ccontour(out, true);
+					ctr->AppendCorner( xi, yi );
+					ctr->AppendCorner( xf, yi );
+					ctr->AppendCorner( xf, yf );
+					ctr->AppendCorner( xi, yf );
+					ctr->Close();
 					if( xi > max_x )
 						max_x = xi;
 					if( xi < min_x )
@@ -326,9 +317,11 @@ int ConvertIvex( CStdioFile * mod_file, CStdioFile * lib_file, CEdit * edit_ctrl
 					int xf = my_atof(&p[3]) * mult;
 					int yf = -(my_atof(&p[4]) * mult);
 					int np = s.m_outline_poly.GetSize();
-					s.m_outline_poly.SetSize(np+1);
-					s.m_outline_poly[np].Start( 0, 7*NM_PER_MIL, 0, xi, yi, 0, NULL, NULL );
-					s.m_outline_poly[np].AppendCorner( xf, yf );
+					coutline *out = new coutline(doc, LAY_FP_SILK_TOP, 7*NM_PER_MIL);
+					s.m_outline_poly.Add(out);
+					ccontour *ctr = new ccontour(out, true);
+					ctr->AppendCorner( xi, yi );
+					ctr->AppendCorner( xf, yf );
 					if( xi > max_x )
 						max_x = xi;
 					if( xi < min_x )
@@ -353,27 +346,28 @@ int ConvertIvex( CStdioFile * mod_file, CStdioFile * lib_file, CEdit * edit_ctrl
 					int yc = -(my_atof(&p[2]) * mult);
 					int r = my_atof(&p[3]) * mult;
 					int quadrant = my_atoi(&p[4]);
-					int np = s.m_outline_poly.GetSize();
-					s.m_outline_poly.SetSize(np+1);
+					coutline *out = new coutline(doc, LAY_FP_SILK_TOP, 7*NM_PER_MIL);
+					s.m_outline_poly.Add(out);
+					ccontour *ctr = new ccontour(out, true);
 					if( quadrant == 1 )
 					{
-						s.m_outline_poly[np].Start( 0, 7*NM_PER_MIL, 0, xc+r, yc, 0, NULL, NULL );
-						s.m_outline_poly[np].AppendCorner( xc, yc+r, CPolyLine::ARC_CCW );
+						ctr->AppendCorner( xc+r, yc );
+						ctr->AppendCorner( xc, yc+r, cpolyline::ARC_CCW );
 					}
 					else if( quadrant == 2 )
 					{
-						s.m_outline_poly[np].Start( 0, 7*NM_PER_MIL, 0, xc, yc+r, 0, NULL, NULL );
-						s.m_outline_poly[np].AppendCorner( xc-r, yc, CPolyLine::ARC_CCW);
+						ctr->AppendCorner( xc, yc+r );
+						ctr->AppendCorner( xc-r, yc, cpolyline::ARC_CCW );
 					}
 					else if( quadrant == 3 )
 					{
-						s.m_outline_poly[np].Start( 0, 7*NM_PER_MIL, 0, xc-r, yc, 0, NULL, NULL );
-						s.m_outline_poly[np].AppendCorner( xc, yc-r, CPolyLine::ARC_CCW );
+						ctr->AppendCorner( xc-r, yc );
+						ctr->AppendCorner( xc, yc-r, cpolyline::ARC_CCW );
 					}
 					else
 					{
-						s.m_outline_poly[np].Start( 0, 7*NM_PER_MIL, 0, xc, yc-r, 0, NULL, NULL );
-						s.m_outline_poly[np].AppendCorner( xc+r, yc, CPolyLine::ARC_CCW );
+						ctr->AppendCorner( xc, yc-r );
+						ctr->AppendCorner( xc+r, yc, cpolyline::ARC_CCW );
 					}
 					if( xc+r > max_x )
 						max_x = xc+r;
@@ -390,13 +384,14 @@ int ConvertIvex( CStdioFile * mod_file, CStdioFile * lib_file, CEdit * edit_ctrl
 					int xc = my_atof(&p[1]) * mult;
 					int yc = -(my_atof(&p[2]) * mult);
 					int r = my_atof(&p[3]) * mult;
-					int np = s.m_outline_poly.GetSize();
-					s.m_outline_poly.SetSize(np+1);
-					s.m_outline_poly[np].Start( 0, 7*NM_PER_MIL, 0, xc+r, yc, 0, NULL, NULL );
-					s.m_outline_poly[np].AppendCorner( xc, yc+r, CPolyLine::ARC_CCW );
-					s.m_outline_poly[np].AppendCorner( xc-r, yc, CPolyLine::ARC_CCW );
-					s.m_outline_poly[np].AppendCorner( xc, yc-r, CPolyLine::ARC_CCW );
-					s.m_outline_poly[np].Close( CPolyLine::ARC_CCW );
+					coutline *out = new coutline(doc, LAY_FP_SILK_TOP, 7*NM_PER_MIL);
+					s.m_outline_poly.Add(out);
+					ccontour *ctr = new ccontour(out, true);
+					ctr->AppendCorner( xc+r, yc );
+					ctr->AppendCorner( xc, yc+r, cpolyline::ARC_CCW );
+					ctr->AppendCorner( xc-r, yc, cpolyline::ARC_CCW );
+					ctr->AppendCorner( xc, yc-r, cpolyline::ARC_CCW );
+					ctr->Close( cpolyline::ARC_CCW );
 					if( xc+r > max_x )
 						max_x = xc+r;
 					if( xc-r < min_x )
@@ -448,18 +443,17 @@ int ConvertIvex( CStdioFile * mod_file, CStdioFile * lib_file, CEdit * edit_ctrl
 					int x = my_atof(&p[0]) * mult;
 					int y = -(my_atof(&p[1]) * mult);
 					int angle = my_atof(&p[2]);
-					s.m_ref_size = 50 * NM_PER_MIL;
-					s.m_ref_xi = x;
-					s.m_ref_yi = y;
-					s.m_ref_angle = angle;
-					s.m_ref_w = 7 * NM_PER_MIL;
+					s.m_ref->m_font_size = 50 * NM_PER_MIL;
+					s.m_ref->m_x = x;
+					s.m_ref->m_y = y;
+					s.m_ref->m_angle = angle;
+					s.m_ref->m_stroke_width = 7 * NM_PER_MIL;
 				}
 			}
 			else if( state == MODULE && keystr == "PAD" 
 				&& ( p[0] == "DEF" || p[0] == "STEP" ) )
 			{
 				// add pad to shape
-//				int pin_num;
 				CString pin_str;
 				if( p[0] == "DEF" )
 				{
@@ -471,7 +465,7 @@ int ConvertIvex( CStdioFile * mod_file, CStdioFile * lib_file, CEdit * edit_ctrl
 					BOOL found = mod_padstack_map.Lookup( pad_name, ptr );
 					if( !found )
 						ASSERT(0);
-					current_ps = (mod_padstack *)ptr;
+					mod_ps = (mod_padstack *)ptr;
 					pin_str = p[5];
 				}
 				else if( p[0] == "STEP" )
@@ -491,38 +485,38 @@ int ConvertIvex( CStdioFile * mod_file, CStdioFile * lib_file, CEdit * edit_ctrl
 				}
 				if( pin_str != "" )
 				{
-					int pin_num = s.m_padstack.GetSize() + 1;
-					s.m_padstack.SetSize(pin_num);
-					s.m_padstack[pin_num-1].exists = TRUE;
-					s.m_padstack[pin_num-1].name = pin_str;
-					s.m_padstack[pin_num-1].hole_size = current_ps->hole_diam;
-					s.m_padstack[pin_num-1].x_rel = current_x;
-					s.m_padstack[pin_num-1].y_rel = -(current_y);	// since Ivex reverses y-axis
-					s.m_padstack[pin_num-1].angle = current_angle;
-					s.m_padstack[pin_num-1].top.shape = PAD_NONE;
-					s.m_padstack[pin_num-1].inner.shape = PAD_NONE;
-					s.m_padstack[pin_num-1].bottom.shape = PAD_NONE;
-					if( current_ps->entry[0].layer_mask & (LAY_T | LAY_C) )
+					cpadstack *ps = new cpadstack(doc);
+					s.m_padstack.Add(ps);
+					ps->exists = 1;
+					ps->name = pin_str;
+					ps->hole_size = mod_ps->hole_diam;
+					ps->x_rel = current_x;
+					ps->y_rel = -(current_y);	// since Ivex reverses y-axis
+					ps->angle = current_angle;
+					ps->top.shape = PAD_NONE;
+					ps->inner.shape = PAD_NONE;
+					ps->bottom.shape = PAD_NONE;
+					if( mod_ps->entry[0].layer_mask & (LAY_T | LAY_C) )
 					{
-						s.m_padstack[pin_num-1].top.shape = current_ps->entry[0].pad_shape;
-						s.m_padstack[pin_num-1].top.size_l = current_ps->entry[0].x_wid/2;
-						s.m_padstack[pin_num-1].top.size_r = current_ps->entry[0].x_wid/2;
-						s.m_padstack[pin_num-1].top.size_h = current_ps->entry[0].y_wid;
+						ps->top.shape = mod_ps->entry[0].pad_shape;
+						ps->top.size_l = mod_ps->entry[0].x_wid/2;
+						ps->top.size_r = mod_ps->entry[0].x_wid/2;
+						ps->top.size_h = mod_ps->entry[0].y_wid;
 					}
-					if( current_ps->entry[0].layer_mask & LAY_I || current_ps->hole_diam > 0 )
+					if( mod_ps->entry[0].layer_mask & LAY_I || mod_ps->hole_diam > 0 )
 					{
 						// inner pads are forced round
-						s.m_padstack[pin_num-1].inner.shape = PAD_ROUND;
-						s.m_padstack[pin_num-1].inner.size_l = current_ps->entry[0].x_wid/2;
-						s.m_padstack[pin_num-1].inner.size_r = current_ps->entry[0].x_wid/2;
-						s.m_padstack[pin_num-1].inner.size_h = current_ps->entry[0].y_wid;
+						ps->inner.shape = PAD_ROUND;
+						ps->inner.size_l = mod_ps->entry[0].x_wid/2;
+						ps->inner.size_r = mod_ps->entry[0].x_wid/2;
+						ps->inner.size_h = mod_ps->entry[0].y_wid;
 					}
-					if( current_ps->entry[0].layer_mask & LAY_B )
+					if( mod_ps->entry[0].layer_mask & LAY_B )
 					{
-						s.m_padstack[pin_num-1].bottom.shape = current_ps->entry[0].pad_shape;
-						s.m_padstack[pin_num-1].bottom.size_l = current_ps->entry[0].x_wid/2;
-						s.m_padstack[pin_num-1].bottom.size_r = current_ps->entry[0].x_wid/2;
-						s.m_padstack[pin_num-1].bottom.size_h = current_ps->entry[0].y_wid;
+						ps->bottom.shape = mod_ps->entry[0].pad_shape;
+						ps->bottom.size_l = mod_ps->entry[0].x_wid/2;
+						ps->bottom.size_r = mod_ps->entry[0].x_wid/2;
+						ps->bottom.size_h = mod_ps->entry[0].y_wid;
 					}
 				}
 				else
@@ -545,9 +539,7 @@ int ConvertIvex( CStdioFile * mod_file, CStdioFile * lib_file, CEdit * edit_ctrl
 	{
 		mod_padstack_map.GetNextAssoc( pos, key, ptr );
 		delete ptr;
-		return 0;
 	}
-#endif
 	return 0;
 }
 

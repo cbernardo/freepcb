@@ -155,17 +155,17 @@ BEGIN
         MENUITEM "&Open...\tCtrl+O",            ID_FILE_OPEN
         MENUITEM "&Save\tCtrl+S",               ID_FILE_SAVE
         MENUITEM "Save &As...",                 ID_FILE_SAVE_AS
-        MENUITEM "Close",                       57602
+        MENUITEM "&Close",                      57602
         MENUITEM SEPARATOR
-        MENUITEM "Import netlist...",           244
-        MENUITEM "Export netlist...",           ID_FILE_EXPORTNETLIST
+        MENUITEM "&Import netlist...",          244
+        MENUITEM "&Export netlist...",          ID_FILE_EXPORTNETLIST
         MENUITEM SEPARATOR
-        MENUITEM "Load library as project...",  ID_FILE_LOADLIBRARYASPROJECT, GRAYED
-        MENUITEM "Save project as library...",  ID_FILE_SAVEPROJECTASLIBRARY, GRAYED
+        MENUITEM "Load Library as Project...",  ID_FILE_LOADLIBRARYASPROJECT, GRAYED
+        MENUITEM "Save Project as Library...",  ID_FILE_SAVEPROJECTASLIBRARY, GRAYED
         MENUITEM "Convert library...",          250
         MENUITEM SEPARATOR
-        MENUITEM "Generate CAM files...",       ID_FILE_GENERATECADFILES
-        MENUITEM "Generate report file...",     ID_FILE_GENERATEREPORTFILE
+        MENUITEM "&Generate CAM files...",      ID_FILE_GENERATECADFILES
+        MENUITEM "Generate &Report File...",    ID_FILE_GENERATEREPORTFILE
         MENUITEM SEPARATOR
         MENUITEM "Open Footprint Editor...",    ID_FILE_OPENFOOTPRINTEDITOR
         MENUITEM SEPARATOR
@@ -174,7 +174,7 @@ BEGIN
         MENUITEM SEPARATOR
         MENUITEM "&Print...\tCtrl+P",           ID_FILE_PRINT, GRAYED
         MENUITEM "Print Pre&view",              ID_FILE_PRINT_PREVIEW, GRAYED
-        MENUITEM "P&rint Setup...",             ID_FILE_PRINT_SETUP, GRAYED
+        MENUITEM "Print Setup...",              ID_FILE_PRINT_SETUP, GRAYED
         MENUITEM SEPARATOR
         MENUITEM "Recent File",                 ID_FILE_MRU_FILE1, GRAYED
         MENUITEM SEPARATOR
@@ -190,56 +190,56 @@ BEGIN
         MENUITEM "&Copy\tCtrl+C",               ID_EDIT_COPY
         MENUITEM "&Paste\tCtrl+V",              ID_EDIT_PASTE, GRAYED
         MENUITEM SEPARATOR
-        MENUITEM "Save group to file...",       ID_EDIT_SAVEGROUPTOFILE
-        MENUITEM "Paste group from file...",    ID_EDIT_PASTEFROMFILE
+        MENUITEM "&Save Group to File...",      ID_EDIT_SAVEGROUPTOFILE
+        MENUITEM "Paste &Group from File...",   ID_EDIT_PASTEFROMFILE
     END
     POPUP "&View"
     BEGIN
-        MENUITEM "Show board outline",          ID_VIEW_ENTIREBOARD
-        MENUITEM "Show all ",                   ID_VIEW_ALLELEMENTS
-        MENUITEM "Show part...",                ID_VIEW_FINDPART
+        MENUITEM "Show &Board Outline",         ID_VIEW_ENTIREBOARD
+        MENUITEM "Show &All ",                  ID_VIEW_ALLELEMENTS
+        MENUITEM "&Show Part...",               ID_VIEW_FINDPART
         MENUITEM SEPARATOR
-        MENUITEM "Layers...",                   ID_VIEW_LAYERS
-        MENUITEM "Visible Grid Values...",      ID_VIEW_VISIBLEGRIDVALUES
-        MENUITEM "Placement Grid Values...",    ID_VIEW_PLACEMENTGRIDVALUES
-        MENUITEM "Routing Grid Values...",      ID_VIEW_ROUTINGGRIDVALUES
+        MENUITEM "&Layers...",                  ID_VIEW_LAYERS
+        MENUITEM "&Visible Grid Values...",     ID_VIEW_VISIBLEGRIDVALUES
+        MENUITEM "&Placement Grid Values...",   ID_VIEW_PLACEMENTGRIDVALUES
+        MENUITEM "&Routing Grid Values...",     ID_VIEW_ROUTINGGRIDVALUES
         MENUITEM SEPARATOR
         MENUITEM "Show Log...",                 ID_VIEW_LOG
     END
     POPUP "&Project"
     BEGIN
-        MENUITEM "Options...",                  ID_PROJECT_OPTIONS
-        MENUITEM "Parts...",                    ID_VIEW_PARTLIST
-        MENUITEM "Nets...",                     ID_VIEW_NETLIST
+        MENUITEM "&Options...",                 ID_PROJECT_OPTIONS
+        MENUITEM "&Parts...",                   ID_VIEW_PARTLIST
+        MENUITEM "&Nets...",                    ID_VIEW_NETLIST
     END
     POPUP "&Tools"
     BEGIN
-        MENUITEM "Move Origin",                 ID_TOOLS_MOVEORIGIN
+        MENUITEM "&Move Origin",                ID_TOOLS_MOVEORIGIN
         MENUITEM SEPARATOR
-        MENUITEM "Footprint Wizard",            ID_TOOLS_FOOTPRINTWIZARD
-        MENUITEM "Footprint Editor",            1155
+        MENUITEM "Footprint &Wizard",           ID_TOOLS_FOOTPRINTWIZARD
+        MENUITEM "Footprint &Editor",           1155
         MENUITEM SEPARATOR
         MENUITEM "Check Parts and Nets",        ID_TOOLS_CHECK_PARTS_NETS
         MENUITEM "Check Traces",                ID_TOOLS_CHECKTRACES
         MENUITEM "Check Connectivity",          ID_TOOLS_CHECK_CONNECTIVITY
         MENUITEM "Check Copper Areas",          ID_TOOLS_CHECKCOPPERAREAS
         MENUITEM SEPARATOR
-        MENUITEM "Design Rule Check",           ID_TOOLS_DRC
-        MENUITEM "Repeat &DRC\tCtrl+D",         ID_TOOLS_REPEATDRC
-        MENUITEM "Clear DRC Errors",            ID_TOOLS_CLEAR_DRC
+        MENUITEM "&Design Rule Check",          ID_TOOLS_DRC
+        MENUITEM "&Repeat DRC\tCtrl+D",         ID_TOOLS_REPEATDRC
+        MENUITEM "&Clear DRC Errors",           ID_TOOLS_CLEAR_DRC
         MENUITEM SEPARATOR
-        MENUITEM "FreeRoute Autorouter...",     ID_TOOLS_OPENONLINEAUTOROUTER
+        MENUITEM "&FreeRoute Autorouter...",    ID_TOOLS_OPENONLINEAUTOROUTER
         MENUITEM SEPARATOR
-        MENUITEM "Preferences...",              ID_TOOLS_PREFERENCES
+        MENUITEM "&Preferences...",             ID_TOOLS_PREFERENCES
     END
     POPUP "&Add"
     BEGIN
-        MENUITEM "Board Outline",               ID_ADD_BOARDOUTLINE
-        MENUITEM "Part",                        ID_ADD_PART
-        MENUITEM "Net",                         ID_ADD_NET
-        MENUITEM "Copper Area",                 ID_ADD_AREA
-        MENUITEM "Text",                        ID_ADD_TEXT
-        MENUITEM "Solder Mask Cutout",          ID_ADD_SOLDERMASKCUTOUT
+        MENUITEM "&Board Outline",              ID_ADD_BOARDOUTLINE
+        MENUITEM "&Part",                       ID_ADD_PART
+        MENUITEM "&Net",                        ID_ADD_NET
+        MENUITEM "&Copper Area",                ID_ADD_AREA
+        MENUITEM "&Text",                       ID_ADD_TEXT
+        MENUITEM "&Solder Mask Cutout",         ID_ADD_SOLDERMASKCUTOUT
     END
     POPUP "&Help"
     BEGIN
@@ -247,10 +247,10 @@ BEGIN
         MENUITEM "FreePCB User Guide Supplement (PDF)", ID_HELP_USERGUIDESUPPLEMENT_PDF
         MENUITEM "FpcROUTE User Guide (PDF)",   ID_HELP_FPCROUTE
         MENUITEM SEPARATOR
-        MENUITEM "FreePCB website",             ID_HELP_GOTOWEBSITE
-        MENUITEM "FreeRouting website",         ID_HELP_FREEROUTINGWEBSITE
+        MENUITEM "FreePCB Website",             ID_HELP_GOTOWEBSITE
+        MENUITEM "FreeRouting Website",         ID_HELP_FREEROUTINGWEBSITE
         MENUITEM SEPARATOR
-        MENUITEM "Keyboard shortcuts",          ID_HELP_KEYBOARDSHORTCUTS
+        MENUITEM "Keyboard Shortcuts",          ID_HELP_KEYBOARDSHORTCUTS
         MENUITEM "&About FreePcb...",           ID_APP_ABOUT
     END
 END
@@ -386,18 +386,18 @@ BEGIN
     POPUP "Add"
     BEGIN
         MENUITEM "Pin",                         ID_ADD_PIN
-        MENUITEM "Polyline",                    ID_ADD_POLYLINE
+        MENUITEM "Outline Polyline",            ID_ADD_POLYLINE
         MENUITEM "Text",                        ID_FP_ADDTEXT
-        MENUITEM "Adhesive spot",               ID_ADD_ADHESIVESPOT
+        MENUITEM "Adhesive Spot",               ID_ADD_ADHESIVESPOT
         MENUITEM "Hole",                        ID_ADD_HOLE, GRAYED
         MENUITEM "Routed Slot",                 ID_ADD_SLOT, GRAYED
     END
     POPUP "Tools"
     BEGIN
-        MENUITEM "Move origin",                 ID_TOOLS_MOVEORIGIN_FP
+        MENUITEM "&Move Origin",                ID_TOOLS_MOVEORIGIN_FP
         MENUITEM SEPARATOR
-        MENUITEM "Footprint Wizard...",         ID_FP_TOOLS_FOOTPRINTWIZARD
-        MENUITEM "Make PDF from Library File...", ID_TOOLS_FOOTPRINTLIBRARYMANAGER
+        MENUITEM "&Footprint Wizard...",        ID_FP_TOOLS_FOOTPRINTWIZARD
+        MENUITEM "Make &PDF from Library File...", ID_TOOLS_FOOTPRINTLIBRARYMANAGER
         MENUITEM SEPARATOR
         MENUITEM "&Return to PCB layout",       ID_FP_TOOLS_RETURN
     END
@@ -1264,19 +1264,6 @@ BEGIN
     LTEXT           "Layer",IDC_STATIC,18,54,19,8
 END
 
-IDD_IMPORT DIALOGEX 0, 0, 284, 116
-STYLE DS_SETFONT | DS_FIXEDSYS | WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS
-FONT 8, "MS Shell Dlg", 400, 0, 0x1
-BEGIN
-    CONTROL         "Parts only",IDC_RADIO_PARTS,"Button",BS_AUTORADIOBUTTON | WS_GROUP,18,12,48,10
-    CONTROL         "Nets only",IDC_RADIO_NETS,"Button",BS_AUTORADIOBUTTON,18,24,46,10
-    CONTROL         "Parts and Nets",IDC_RADIO_PARTSANDNETS,"Button",BS_AUTORADIOBUTTON,18,36,63,10
-    CONTROL         "PADS-PCB",IDC_RADIO_PADSPCB,"Button",BS_AUTORADIOBUTTON | WS_GROUP,18,72,49,10
-    GROUPBOX        "Import",IDC_STATIC,6,0,90,54
-    GROUPBOX        "Format",IDC_STATIC,6,60,90,42
-    CONTROL         "FreePCB",IDC_RADIO_FREEPCB,"Button",BS_AUTORADIOBUTTON | WS_DISABLED,18,85,43,10
-END
-
 IDD_IVEX_DIALOG DIALOGEX 0, 0, 320, 274
 STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_VISIBLE | WS_CAPTION | WS_SYSMENU
 EXSTYLE WS_EX_APPWINDOW
@@ -1740,7 +1727,7 @@ END
 
 IDD_SHOW_PART DIALOGEX 0, 0, 186, 77
 STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
-CAPTION "1"
+CAPTION "Find part:"
 FONT 8, "MS Shell Dlg", 400, 0, 0x1
 BEGIN
     COMBOBOX        IDC_COMBO1,90,18,84,234,CBS_DROPDOWN | CBS_SORT | WS_VSCROLL | WS_TABSTOP
@@ -1767,14 +1754,14 @@ BEGIN
     PUSHBUTTON      "Cancel",IDCANCEL,129,115,104,14
 END
 
-IDD_IMPORT_OPTIONS DIALOGEX 0, 0, 292, 314
+IDD_IMPORT_OPTIONS DIALOGEX 0, 0, 292, 271
 STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Import Options"
 FONT 8, "MS Shell Dlg", 400, 0, 0x1
 BEGIN
-    DEFPUSHBUTTON   "Import",IDOK,12,290,50,14
-    PUSHBUTTON      "Save project with these settings then import",ID_SAVE_AND_IMPORT,72,290,150,14
-    PUSHBUTTON      "Cancel",IDCANCEL,234,290,50,14
+    DEFPUSHBUTTON   "Import",IDOK,12,233,50,14
+    PUSHBUTTON      "Save project with these settings then import",ID_SAVE_AND_IMPORT,72,233,150,14
+    PUSHBUTTON      "Cancel",IDCANCEL,234,233,50,14
     GROUPBOX        "For parts in project but not in netlist file",IDC_STATIC,6,68,279,54
     CONTROL         "Remove parts",IDC_RADIO_REMOVE_PARTS,"Button",BS_AUTORADIOBUTTON | WS_GROUP,12,80,61,10
     CONTROL         "Keep parts but remove connections to nets",IDC_RADIO_KEEP_PARTS_NO_CONNECTIONS,
@@ -1784,13 +1771,8 @@ BEGIN
     GROUPBOX        "For parts in project whose package or footprint doesn't match netlist file",IDC_STATIC,9,126,276,42
     CONTROL         "Change footprints",IDC_RADIO4,"Button",BS_AUTORADIOBUTTON | WS_GROUP,12,140,74,10
     CONTROL         "Keep footprints",IDC_RADIO3,"Button",BS_AUTORADIOBUTTON,12,152,65,10
-    GROUPBOX        "For nets in project that are not in netlist file",IDC_STATIC,6,176,279,42
     CONTROL         "Remove nets",IDC_RADIO6,"Button",BS_AUTORADIOBUTTON | WS_GROUP,12,188,58,10
     CONTROL         "Keep nets",IDC_RADIO5,"Button",BS_AUTORADIOBUTTON,12,200,48,10
-    GROUPBOX        "For traces and copper areas connected to pins whose nets have changed",IDC_STATIC,6,224,279,54
-    CONTROL         "Retain traces",IDC_CHECK_KEEP_TRACES,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,12,236,59,10
-    CONTROL         "Retain stubs",IDC_CHECK_KEEP_STUBS,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,12,248,56,10
-    CONTROL         "Retain areas if possible",IDC_CHECK_KEEP_AREAS,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,12,260,90,10
     CONTROL         "Parts only",IDC_RADIO_PARTS,"Button",BS_AUTORADIOBUTTON | WS_GROUP,12,18,48,10
     CONTROL         "Nets only",IDC_RADIO_NETS,"Button",BS_AUTORADIOBUTTON,12,30,46,10
     CONTROL         "Parts and Nets",IDC_RADIO_PARTSANDNETS,"Button",BS_AUTORADIOBUTTON,12,42,63,10
@@ -1798,6 +1780,7 @@ BEGIN
     GROUPBOX        "Import",IDC_STATIC,6,7,144,54
     GROUPBOX        "Format",IDC_STATIC,155,7,130,54
     CONTROL         "FreePCB",IDC_RADIO_FREEPCB,"Button",BS_AUTORADIOBUTTON | WS_DISABLED,166,30,43,10
+    GROUPBOX        "For nets in project that are not in netlist file",IDC_STATIC,6,176,279,40
 END
 
 IDD_ADD_MASK_CUTOUT DIALOGEX 0, 0, 172, 95
@@ -1859,37 +1842,36 @@ BEGIN
     LTEXT           "Home",IDC_STATIC,6,42,19,8
     LTEXT           "ESC",IDC_STATIC,6,54,14,8
     LTEXT           "1234567890qwerty",IDC_STATIC,6,66,63,8
-    LTEXT           "t",IDC_STATIC,6,90,8,8
+    LTEXT           "c",IDC_STATIC,6,90,8,8
     LTEXT           "n",IDC_STATIC,6,102,8,8
-    LTEXT           "s",IDC_STATIC,6,114,8,8
-    LTEXT           "SHIFT",IDC_STATIC,6,186,20,8
+    LTEXT           "SHIFT",IDC_STATIC,6,175,20,8
     LTEXT           "- center on cursor",IDC_STATIC,42,6,92,8
     LTEXT           "- center on cursor and zoom in",IDC_STATIC,42,18,117,8
     LTEXT           "- center on cursor and zoom out",IDC_STATIC,42,30,117,8
     LTEXT           "- show all items in layout",IDC_STATIC,42,42,117,8
     LTEXT           "- cancel selection or drawing operation",IDC_STATIC,42,54,165,8
     LTEXT           "- set routing layer (1 to 16)",IDC_STATIC,72,66,138,8
-    LTEXT           "- with segment or vertex selected, press to highlight entire trace",IDC_STATIC,42,90,231,8
+    LTEXT           "- with segment or vertex selected, press to highlight entire connection",IDC_STATIC,42,90,231,8
     LTEXT           "- with pin, segment or vertex selected, press to highlight entire net",IDC_STATIC,42,102,230,8
-    LTEXT           "- with pin selected, hold down and select another pin to swap connections",IDC_STATIC,42,114,231,8
-    LTEXT           "- when using arrows, hold down to move in steps of 1 mil or 0.01 mm",IDC_STATIC,42,186,240,8
-    LTEXT           "arrows",IDC_STATIC,6,174,23,8
-    LTEXT           "- move selected item(s) one grid step",IDC_STATIC,42,174,153,8
+    LTEXT           "- when using arrows, hold down to move in steps of 1 mil or 0.01 mm",IDC_STATIC,42,175,240,8
+    LTEXT           "arrows",IDC_STATIC,6,163,23,8
+    LTEXT           "- move selected item(s) one grid step",IDC_STATIC,42,163,153,8
     LTEXT           "CTRL",IDC_STATIC,6,210,18,8
     LTEXT           "- hold down when selecting items to add/remove from group",IDC_STATIC,42,210,225,8
-    LTEXT           "d",IDC_STATIC,6,126,8,8
-    LTEXT           "- hold down to magnify DRC erors",IDC_STATIC,42,126,104,8
+    LTEXT           "d",IDC_STATIC,6,115,8,8
+    LTEXT           "- hold down to magnify DRC erors",IDC_STATIC,42,115,104,8
     LTEXT           "Backspace",IDC_STATIC,6,222,34,8
     LTEXT           "- while routing, back up one segment",IDC_STATIC,43,222,164,8
-    LTEXT           "f",IDC_STATIC,6,138,8,8
-    LTEXT           "- with vertex selected, force a via",IDC_STATIC,42,138,110,8
-    LTEXT           "u",IDC_STATIC,6,150,8,8
-    LTEXT           "- with vertex selected, unforce a via",IDC_STATIC,42,150,118,8
-    LTEXT           "- when routing from off-grid point, hold down to reverse trace angles",IDC_STATIC,42,196,234,8
-    LTEXT           "m",IDC_STATIC,6,163,8,8
-    LTEXT           "- press to enter ""measurement"" mode",IDC_STATIC,42,163,164,8
+    LTEXT           "f",IDC_STATIC,6,127,8,8
+    LTEXT           "- with vertex selected, force a via",IDC_STATIC,42,127,110,8
+    LTEXT           "u",IDC_STATIC,6,139,8,8
+    LTEXT           "- with vertex selected, unforce a via",IDC_STATIC,42,139,118,8
+    LTEXT           "- when routing from off-grid point, hold down to reverse trace angles",IDC_STATIC,42,185,234,8
+    LTEXT           "m",IDC_STATIC,6,152,8,8
+    LTEXT           "- press to enter ""measurement"" mode",IDC_STATIC,42,152,164,8
     LTEXT           "SHIFT-1234567890qwerty",IDC_STATIC,6,78,86,8
     LTEXT           "- change layer of trace or copper area",IDC_STATIC,96,78,168,8
+    LTEXT           "- hold down when selecting items to see a menu of possibilities",IDC_STATIC,42,196,234,8
 END
 
 IDD_MY_MESSAGE DIALOGEX 0, 0, 244, 101
@@ -2286,15 +2268,6 @@ BEGIN
     PUSHBUTTON      "Bottom",IDC_BUTTON10,18,108,54,12
 END
 
-IDD_DIALOG6 DIALOGEX 0, 0, 316, 180
-STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
-CAPTION "Dialog"
-FONT 8, "MS Shell Dlg", 400, 0, 0x1
-BEGIN
-    DEFPUSHBUTTON   "OK",IDOK,205,159,50,14
-    PUSHBUTTON      "Cancel",IDCANCEL,259,159,50,14
-END
-
 IDD_PREFS DIALOGEX 0, 0, 270, 239
 STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Preferences"
@@ -2519,14 +2492,6 @@ BEGIN
         TOPMARGIN, 7
     END
 
-    IDD_IMPORT, DIALOG
-    BEGIN
-        LEFTMARGIN, 7
-        RIGHTMARGIN, 277
-        TOPMARGIN, 7
-        BOTTOMMARGIN, 109
-    END
-
     IDD_IVEX_DIALOG, DIALOG
     BEGIN
         RIGHTMARGIN, 319
@@ -2653,7 +2618,7 @@ BEGIN
         LEFTMARGIN, 7
         RIGHTMARGIN, 285
         TOPMARGIN, 7
-        BOTTOMMARGIN, 267
+        BOTTOMMARGIN, 247
     END
 
     IDD_ADD_MASK_CUTOUT, DIALOG
@@ -2830,14 +2795,6 @@ BEGIN
         RIGHTMARGIN, 273
         TOPMARGIN, 7
         BOTTOMMARGIN, 287
-    END
-
-    IDD_DIALOG6, DIALOG
-    BEGIN
-        LEFTMARGIN, 7
-        RIGHTMARGIN, 309
-        TOPMARGIN, 7
-        BOTTOMMARGIN, 173
     END
 
     IDD_PREFS, DIALOG
@@ -3639,6 +3596,8 @@ BEGIN
     IDS_ErrorNetConnectionVertexWithInvalidPtrToConnect 
                             "ERROR: Net ""%s"": connection %d vertex %d with invalid ptr to connect\r\n"
     IDS_RemovingEmptyTeeStructure "Removing empty tee structure (#%d)"
+    IDS_WhileImportingNetIgnoredInvalidPin 
+                            "  While importing net ""%s"", ignored invalid pin %s.%s\r\n"
 END
 
 STRINGTABLE
@@ -3700,8 +3659,8 @@ STRINGTABLE
 BEGIN
     IDS_KeepingNetNotInImportedNetlist 
                             "  Keeping net ""%s"", not in imported netlist\r\n"
-    IDS_RemovingPinFromNet  "    Removing pin %s.%s from net ""%s""\r\n"
-    IDS_AddingPinToNet      "    Adding pin %s.%s to net ""%s""\r\n"
+    IDS_RemovingPinFromNet  "  Removing pin %s.%s from net ""%s""\r\n"
+    IDS_AddingPinToNet      "  Adding pin %s.%s to net ""%s""\r\n"
     IDS_MovingStubTraceToNewNet 
                             "  Moving stub trace from %s.%s to new net ""%s""\r\n"
     IDS_MovingBranchToNewNet 
@@ -4268,7 +4227,7 @@ END
 
 STRINGTABLE
 BEGIN
-    IDS_AppName             "CPT2.9"
+    IDS_AppName             "CPT2.10"
 END
 
 STRINGTABLE
@@ -4484,6 +4443,15 @@ BEGIN
     63667                   " ****"
     63668                   " ****"
     63669                   " ****"
+END
+
+STRINGTABLE
+BEGIN
+    IDS_CreatingPartWithFootprint 
+                            "  Creating part ""%s"" with footprint ""%s""\r\n"
+    IDS_TeeVertex           "TEE-VERTEX"
+    IDS_Padstack            "PADSTACK %s"
+    IDS_Outline             "OUTLINE"
 END
 
 #endif    // English (United States) resources

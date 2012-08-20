@@ -106,7 +106,7 @@ public:
 	afx_msg void OnFileMruFile2();
 	afx_msg void OnFileMruFile3();
 	afx_msg void OnFileMruFile4();
-	afx_msg void OnHelpKeyboardshortcuts();
+	afx_msg void OnHelpKeyboardShortcuts();
 	afx_msg void OnToolsOpenOnlineAutorouter();
 	afx_msg void OnHelpFreeRoutingWebsite();
 	afx_msg void OnHelpUserGuidePdf();

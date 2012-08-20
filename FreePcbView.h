@@ -445,8 +445,7 @@ public:
 	void FinishArrowKey(int x, int y, int dx, int dy);										// CPT2 new helper for HandleKeyPress().
 	void HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags);
 	void TryToReselectCorner( int x, int y );
-	void ReselectNetItemIfConnectionsChanged( int new_ic );
-	int SelectObjPopup( CPoint const &point );												// CPT r294: removed args (use m_hit_info instead)
+	// CPT2 defunct: void ReselectNetItemIfConnectionsChanged( int new_ic );
 	void OnVertexStartTrace(bool bResetActiveWidth);										// CPT2 versions with an extra param added
 	void OnRatlineRoute(bool bResetActiveWidth);											// CPT2 ditto
 

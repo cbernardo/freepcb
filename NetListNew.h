@@ -354,10 +354,10 @@ public:
 	// I/O  functions
 	void ReadNets( CStdioFile * pcb_file, double read_version, int * layers=NULL );			// Done in cpp.
 	void WriteNets( CStdioFile * file );													// Done in cpp.
-	void ExportNetListInfo( netlist_info * nl );
-	void ImportNetListInfo( netlist_info * nl, int flags, CDlgLog * log,
+	void ExportNetListInfo( netlist_info * nli );
+	void ImportNetListInfo( netlist_info * nli, int flags, CDlgLog * log,
 		int def_w, int def_w_v, int def_w_v_h );
-	void Copy( cnetlist * nl );																// Done in cpp
+	void Copy( cnetlist * nli );																// Done in cpp
 	void RestoreConnectionsAndAreas( cnetlist * old_nl, int flags, CDlgLog * log=NULL );
 	void ReassignCopperLayers( int n_new_layers, int * layer ) { }
 	void ImportNetRouting( CString * name, CArray<cnode> * nodes, 

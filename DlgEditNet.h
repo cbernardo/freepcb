@@ -12,8 +12,8 @@ class CDlgEditNet : public CDialog
 public:
 	CDlgEditNet(CWnd* pParent = NULL); 
 	virtual ~CDlgEditNet();
-	void Initialize( netlist_info * nl,	// netlist_info struct
-				int i,					// index into nl (ignored if new net)
+	void Initialize( netlist_info * nli,	// netlist_info struct
+				int i,					// index into nli (ignored if new net)
 				cpartlist * plist,		// partlist
 				BOOL new_net,			// flag for new net
 				BOOL visible,			// visibility flag

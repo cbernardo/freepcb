@@ -185,6 +185,8 @@ public:
 	virtual void HandleNoShiftLayerKey(int layer, CDC *pDC) { }
 	void HandlePanAndZoom(int nChar, CPoint &p);
 	void HandleCtrlFKey(int nChar);
+	int SelectObjPopup( CPoint const &point );
+
 	// CPT2 r317, made the following 10 virtual
 	virtual void SetFKText( int mode ) = 0;
 	virtual int ShowSelectStatus() = 0;

@@ -267,7 +267,8 @@ void CFootprintView::OnEndPrinting(CDC* /*pDC*/, CPrintInfo* /*pInfo*/)
 //
 void CFootprintView::OnLButtonDown(UINT nFlags, CPoint point) 
 {
-	m_last_click = point;					// CPT
+	bool bShiftKeyDown = (nFlags & MK_SHIFT) != 0;
+	m_last_click = point;
 	CDC * pDC = NULL;						// !! remember to ReleaseDC() at end, if necessary
 	// CPT:  not sure why we need pDC at all (some clauses below change its clipping, but does it really matter?). CPT2 TODO figure it out
 	m_lastKeyWasArrow = FALSE;				// cancel series of arrow keys
@@ -286,11 +287,9 @@ void CFootprintView::OnLButtonDown(UINT nFlags, CPoint point)
 		m_sel.RemoveAll();
 		CPoint p = m_dlist->WindowToPCB( point );
 		int nHits = m_hit_info.GetCount();										// Might reuse the previous contents of m_hit_info...
-		// CPT2 TODO implement shift-click
-		// if( bShiftKeyDown )
-		// 	nHits = m_dlist->TestSelect(p.x, p.y, &m_hit_info, 0xffffffff, 0);	// NB: No masking of results
-		// else 
-		if (m_sel_offset==-1)
+		if( bShiftKeyDown )
+		 	nHits = m_dlist->TestSelect(p.x, p.y, &m_hit_info, 0xffffffff, 0);	// NB: No masking of results
+		else if (m_sel_offset==-1)
 			// Series of clicks is just beginning: calculate m_hit_info, and select the zero-th of those (highest priority)
 			nHits = m_dlist->TestSelect(p.x, p.y, &m_hit_info, m_sel_mask_bits, false),
 			m_sel_offset = nHits==0? -1: 0;
@@ -301,13 +300,11 @@ void CFootprintView::OnLButtonDown(UINT nFlags, CPoint point)
 		else
 			m_sel_offset++;						// Try next member of m_hit_info
 
-#ifndef CPT2
 		if( bShiftKeyDown )
 			if( nHits>0 )
 				m_sel_offset = SelectObjPopup( point );
 			else
 				m_sel_offset = -1;
-#endif
 
 		if( m_sel_offset >= 0 )
 		{

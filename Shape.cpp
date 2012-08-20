@@ -1627,7 +1627,6 @@ void CShape::Copy( CShape * src )
 
 BOOL CShape::Compare( CShape * shape )
 {
-#ifndef CPT2
 	// parameters
 	if( m_name != shape->m_name 
 		|| m_author != shape->m_author 
@@ -1637,68 +1636,72 @@ BOOL CShape::Compare( CShape * shape )
 		|| m_sel_yi != shape->m_sel_yi 
 		|| m_sel_xf != shape->m_sel_xf 
 		|| m_sel_yf != shape->m_sel_yf 
-		|| m_ref_size != shape->m_ref_size 
-		|| m_ref_w != shape->m_ref_w 
-		|| m_ref_xi != shape->m_ref_xi 
-		|| m_ref_yi != shape->m_ref_yi 
-		|| m_ref_angle != shape->m_ref_angle 
+		|| m_ref->m_font_size != shape->m_ref->m_font_size 
+		|| m_ref->m_stroke_width != shape->m_ref->m_stroke_width 
+		|| m_ref->m_x != shape->m_ref->m_x 
+		|| m_ref->m_y != shape->m_ref->m_y 
+		|| m_ref->m_angle != shape->m_ref->m_angle 
 		|| m_ref->m_layer != shape->m_ref->m_layer 
-		|| m_value_size != shape->m_value_size 
-		|| m_value_w != shape->m_value_w 
-		|| m_value_xi != shape->m_value_xi 
-		|| m_value_yi != shape->m_value_yi 
-		|| m_value_angle != shape->m_value_angle 
+		|| m_value->m_font_size != shape->m_value->m_font_size 
+		|| m_value->m_stroke_width != shape->m_value->m_stroke_width 
+		|| m_value->m_x != shape->m_value->m_x 
+		|| m_value->m_y != shape->m_value->m_y 
+		|| m_value->m_angle != shape->m_value->m_angle 
 		|| m_value->m_layer != shape->m_value->m_layer 
 		)
 			return FALSE;
 
-	// padstacks
+	// padstacks.  If one shape has the same padstacks, but in a different order, tough luck...
 	int np = m_padstack.GetSize();
 	if( np != shape->m_padstack.GetSize() )
 		return FALSE;
-	for( int i=0; i<np; i++ )
+	citer<cpadstack> ips1 (&m_padstack), ips2 (&shape->m_padstack);
+	for (cpadstack *ps1 = ips1.First(), *ps2 = ips2.First(); ps1; ps1 = ips1.Next(), ps2 = ips2.Next())
 	{
-		if(  !(m_padstack[i] == shape->m_padstack[i]) )
+		if(  !(*ps1 == *ps2) )
 			return FALSE;
 	}
 	// outline polys
 	np = m_outline_poly.GetSize();
 	if( np != shape->m_outline_poly.GetSize() )
 		return FALSE;
-	for( int ip=0; ip<np; ip++ )
+	citer<coutline> io1 (&m_outline_poly), io2 (&shape->m_outline_poly);
+	for (coutline *o1 = io1.First(), *o2 = io2.First(); o1; o1 = io1.Next(), o2 = io2.Next())
 	{
-		if (m_outline_poly[ip].Layer() != shape->m_outline_poly[ip].Layer() ) return FALSE;
-		if (m_outline_poly[ip].Closed() != shape->m_outline_poly[ip].Closed() ) return FALSE;
-		if (m_outline_poly[ip].GetHatch() != shape->m_outline_poly[ip].GetHatch() ) return FALSE;
-		if (m_outline_poly[ip].W() != shape->m_outline_poly[ip].W() ) return FALSE;
-		if (m_outline_poly[ip].NumCorners() != shape->m_outline_poly[ip].NumCorners() ) return FALSE;
-		for( int ic=0; ic<m_outline_poly[ip].NumCorners(); ic++ )
+		if (o1->m_layer != o2->m_layer) return false;
+		if (o1->m_hatch != o2->m_hatch) return false;
+		if (o1->m_w != o2->m_w) return false;
+		if (o1->contours.GetSize() != o2->contours.GetSize()) return false;
+		citer<ccontour> ictr1 (&o1->contours), ictr2 (&o2->contours);
+		for (ccontour *ctr1 = ictr1.First(), *ctr2 = ictr2.First(); ctr1; ctr1 = ictr1.Next(), ctr2 = ictr2.Next())
 		{
-			if (m_outline_poly[ip].X(ic) != shape->m_outline_poly[ip].X(ic) ) return FALSE;
-			if (m_outline_poly[ip].Y(ic) != shape->m_outline_poly[ip].Y(ic) ) return FALSE;
-			if( ic<(m_outline_poly[ip].NumCorners()-1) || m_outline_poly[ip].Closed() )
-				if (m_outline_poly[ip].SideStyle(ic) != shape->m_outline_poly[ip].SideStyle(ic) ) return FALSE;
+			if (ctr1->NumCorners() != ctr2->NumCorners()) return false;
+			if (ctr1->sides.GetSize() != ctr2->sides.GetSize()) return false;		// Will distinguish a closed ctr from and open one
+			if (ctr1->sides.GetSize()==0) continue;									// :(
+			// Traverse in geometrical order:
+			cside *s1 = ctr1->head->postSide, *s2 = ctr2->head->postSide;
+			for ( ; s1->postCorner!=ctr1->tail; s1 = s1->postCorner->postSide, s2 = s2->postCorner->postSide)
+				if (s1->preCorner->x != s2->preCorner->x) return false;
+				else if (s1->preCorner->y != s2->preCorner->y) return false;
+			if (ctr1->tail->x != ctr2->tail->x) return false;
+			if (ctr1->tail->y != ctr2->tail->y) return false;
 		}
 	}
 	// text
-	int nt = m_tl->text_ptr.GetSize();
-	if( nt != shape->m_tl->text_ptr.GetSize() )
-		return FALSE;
-	for( int it=0; it<m_tl->text_ptr.GetSize(); it++ )
-	{
-		CText * t = m_tl->text_ptr[it];
-		CText * t2 = shape->m_tl->text_ptr[it];
-		if( t->m_x != t2->m_x
-			|| t->m_y != t2->m_y
-			|| t->m_layer != t2->m_layer
-			|| t->m_angle != t2->m_angle
-			|| t->m_mirror != t2->m_mirror
-			|| t->m_font_size != t2->m_font_size
-			|| t->m_stroke_width != t2->m_stroke_width
-			|| t->m_str != t2->m_str )
-			return FALSE;
-	}
-#endif
+	if (m_tl->texts.GetSize() != shape->m_tl->texts.GetSize()) return false;
+	citer<ctext> it1 (&m_tl->texts), it2 (&shape->m_tl->texts);
+	for (ctext *t1 = it1.First(), *t2 = it2.First(); t1; t1 = it1.Next(), t2 = it2.Next())
+		if (t1->m_x != t2->m_x
+			|| t1->m_y != t2->m_y
+			|| t1->m_layer != t2->m_layer
+			|| t1->m_angle != t2->m_angle
+			|| t1->m_bMirror != t2->m_bMirror
+			|| t1->m_bNegative != t2->m_bNegative
+			|| t1->m_font_size != t2->m_font_size
+			|| t1->m_stroke_width != t2->m_stroke_width
+			|| t1->m_str != t2->m_str )
+			return false;
+
 	return TRUE;
 }
 
@@ -2292,10 +2295,10 @@ CRect CShape::GetAllPadBounds()
 
 // Get bounding rectangle of row of pads
 //
+/* CPT2 obsolete 
 CRect CShape::GetPadRowBounds( int i, int num )
 {
 	CRect rr;
-#ifndef CPT2
 	rr.left = rr.bottom = INT_MAX;
 	rr.right = rr.top = INT_MIN;
 	for( int ip=i; ip<(i+num); ip++ )
@@ -2306,9 +2309,9 @@ CRect CShape::GetPadRowBounds( int i, int num )
 		rr.right = max( r.right, rr.right );
 		rr.top = max( r.top, rr.top );
 	}
-#endif
 	return rr;
 }
+*/
 
 // Get bounding rectangle of footprint
 //

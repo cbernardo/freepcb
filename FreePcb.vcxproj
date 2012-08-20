@@ -277,6 +277,7 @@
     <ClInclude Include="DrawingElement.h" />
     <ClInclude Include="ellipse_newton.h" />
     <ClInclude Include="file_io.h" />
+    <ClInclude Include="flags.h" />
     <ClInclude Include="FootprintLib.h" />
     <ClInclude Include="FootprintView.h" />
     <ClInclude Include="FreePcb.h" />

@@ -1148,4 +1148,225 @@ void CCommonView::SnapToGridLine(CPoint &wp, int grid_spacing) {
 }
 
 
+int CompareHitsForShiftClick(const CHitInfo *h1, const CHitInfo *h2)
+{
+	// CPT2.  Hits can be sorted this way when user does a shift-click.  See SelectObjPopup() below.
+	cpcb_item *item1 = h1->item, *item2 = h2->item;
+	int bit1 = item1->GetTypeBit(), bit2 = item2->GetTypeBit();
+	if (bit1<bit2) return -1;
+	if (bit1>bit2) return 1;
+	if (cseg2 *seg1 = item1->ToSeg())
+	{
+		cseg2 *seg2 = item2->ToSeg();
+		char dir1 = seg1->GetDirectionLabel(), dir2 = seg2->GetDirectionLabel();
+		if (dir1<dir2) return -1;
+		if (dir1>dir2) return 1;
+		int x1 = (seg1->preVtx->x + seg1->postVtx->x) / 2;
+		int y1 = (seg1->preVtx->y + seg1->postVtx->y) / 2;
+		int x2 = (seg2->preVtx->x + seg2->postVtx->x) / 2;
+		int y2 = (seg2->preVtx->y + seg2->postVtx->y) / 2;
+		if (dir1=='|')
+			return y1<y2? 1: -1;
+		return x1<x2? -1: 1;
+	}
+	if (cside *s1 = item1->ToSide())
+	{
+		cside *s2 = item2->ToSide();
+		char dir1 = s1->GetDirectionLabel(), dir2 = s2->GetDirectionLabel();
+		if (dir1<dir2) return -1;
+		if (dir1>dir2) return 1;
+		int x1 = (s1->preCorner->x + s1->postCorner->x) / 2;
+		int y1 = (s1->preCorner->y + s1->postCorner->y) / 2;
+		int x2 = (s2->preCorner->x + s2->postCorner->x) / 2;
+		int y2 = (s2->preCorner->y + s2->postCorner->y) / 2;
+		if (dir1=='|')
+			return y1<y2? 1: -1;
+		return x1<x2? -1: 1;
+	}
+	return item1->UID() < item2->UID()? -1: 1;
+}
+
+
+// Displays a popup menu for the mouse hits in hit_info
+//
+// Param:
+//	point    - current mouse position (relative to client window)
+// CPT r294: removed hit-info args (using m_hit_info instead).  Reorganized and tidied up.
+int CCommonView::SelectObjPopup( CPoint const &point )
+{
+	CDC *winDC = GetDC();
+
+	CDC dc;
+	dc.CreateCompatibleDC(winDC);
+	dc.SetMapMode(MM_TEXT);
+	dc.SetWindowExt( 1,1 );
+	dc.SetWindowOrg( 0,0 );
+	dc.SetViewportExt( 1,1 );
+	dc.SetViewportOrg( 0,0 );
+
+	// CPT2 sort hits by the method in CompareHitsForShiftClick, which seems most helpful.
+	int num_hits = m_hit_info.GetCount();
+	qsort(m_hit_info.GetData(), num_hits, sizeof(CHitInfo), (int (*)(const void*,const void*)) CompareHitsForShiftClick);
+	int sel = 0;
+	if (num_hits>25) num_hits = 25;					// m_hit_info has unlimited size...
+
+	// Create bitmap array
+	CArray<CBitmap> bitmaps;
+	bitmaps.SetSize(num_hits);
+	CString str;
+	CMenu file_menu;
+	file_menu.CreatePopupMenu();
+
+	for( int idx = 0; idx < num_hits; idx++ )
+	{
+		CHitInfo *pInfo = &m_hit_info[idx];
+		cpcb_item *item = pInfo->item;
+		int layer = item->GetLayer();
+
+		CRect r(0,0, 139,23);
+		CBitmap *pBitmap = &bitmaps[idx];
+		pBitmap->CreateCompatibleBitmap(winDC, r.Width()+1, r.Height()+1);
+		CBitmap *pOldBitmap = dc.SelectObject(pBitmap);
+		COLORREF layer_color = C_RGB( m_doc->m_rgb[ layer ][0],
+										m_doc->m_rgb[ layer ][1],
+										m_doc->m_rgb[ layer ][2] );
+		COLORREF text_color  = C_RGB(m_doc->m_rgb[ LAY_BACKGND ][0],
+										m_doc->m_rgb[ LAY_BACKGND ][1],
+										m_doc->m_rgb[ LAY_BACKGND ][2] );
+
+		dc.FillSolidRect(r, layer_color);
+		dc.SetTextColor(text_color);
+
+		if (cpin2 *pin = item->ToPin())
+		{
+			CString s ((LPCSTR) IDS_Pin3);
+			str.Format( s, pin->part->ref_des, pin->pin_name );
+		}
+		else if (cpadstack *ps = item->ToPadstack())
+		{
+			// FP editor only
+			CString s ((LPCSTR) IDS_Padstack);
+			str.Format( s, ps->name );
+		}
+		else if (cpart2 *part = item->ToPart())
+		{
+			str = "";
+			CShape *shape = part->shape;
+			if( shape )
+			{
+				CMetaFileDC m_mfDC;
+
+				CRect shape_bounds = shape->GetBounds();
+				int dx = -shape_bounds.Height() / NM_PER_MIL;
+
+				// Scale part bitmap height between 40 and 128 for better readability
+				r.bottom = 32 + dx / 11;
+				if( r.bottom > 128 ) r.bottom = 128;
+
+				// Trade in the default bitmap for the new one
+				dc.SelectObject(pOldBitmap);
+				pBitmap->DeleteObject();
+				pBitmap->CreateCompatibleBitmap(winDC, r.Width()+1, r.Height()+1);
+				dc.SelectObject(pBitmap);
+
+				// Draw the shape with actual ref_des & no selection rectangle
+				HENHMETAFILE hMF = shape->CreateMetafile( &m_mfDC, winDC, r, part->ref_des, FALSE );
+				dc.PlayMetaFile( hMF, r );
+				DeleteEnhMetaFile( hMF );
+			}
+		}
+		else if (creftext *t = item->ToRefText())
+		{
+			CString s ((LPCSTR) IDS_Ref3);
+			str.Format(s, t->m_str);
+		}
+		else if (cvaluetext *t = item->ToValueText())
+		{
+			CString s ((LPCSTR) IDS_Value3);
+			str.Format(s, t->m_str);
+		}
+		else if (cseg2 * seg = item->ToSeg())
+		{
+			str.LoadStringA(IDS_Segment3);
+			str += " ";
+			str += seg->GetDirectionLabel();
+		}
+		else if (cvertex2 *v = item->ToVertex())
+		{
+			if (v->via_w)
+				str.LoadStringA(IDS_Via3);
+			else
+				str.LoadStringA(IDS_Vertex3);
+		}
+		else if (item->IsTee())
+			str.LoadStringA(IDS_TeeVertex);
+		else if (cside *s = item->ToSide())
+		{
+			if (s->IsAreaSide())
+				str.LoadStringA(IDS_Copper3);
+			else if (s->IsBoardSide())
+				str.LoadStringA(IDS_Board);
+			else
+				str.LoadStringA( s->IsSmSide()? IDS_Cutout3: IDS_Outline );
+			str += CString ((LPCSTR) IDS_Side3);
+			str += " ";
+			str += s->GetDirectionLabel();
+		}
+		else if (item->IsAreaCorner())
+		{
+			str.LoadStringA(IDS_Copper3);
+			str += CString ((LPCSTR) IDS_Corner3);
+		}
+		else if (item->IsBoardCorner())
+		{
+			str.LoadStringA(IDS_Board);
+			str += CString ((LPCSTR) IDS_Corner3);
+		}
+		else if (item->IsSmCorner())
+		{
+			str.LoadStringA(IDS_Cutout3);
+			str += CString ((LPCSTR) IDS_Corner3);
+		}
+		else if (ctext *t = item->ToText())
+		{
+			CString s ((LPCSTR) IDS_Text3);
+			str.Format(s, t->m_str);
+		}
+		else if (item->IsDRE())
+			str.LoadStringA(IDS_DRC3);
+		else if (item->IsCentroid())
+			str.LoadStringA(IDS_Centroid3);
+		else if (item->IsGlue())
+			str.LoadStringA(IDS_GlueSpot3);
+		else
+			str = "Unknown";
+
+		if( str.GetLength() > 0 )
+			dc.TextOut( 10,3, str );
+
+		// Draw bounding box around the bitmap
+		dc.MoveTo(r.left,r.top);
+		dc.LineTo(r.right,r.top);
+		dc.LineTo(r.right,r.bottom);
+		dc.LineTo(r.left,r.bottom);
+		dc.LineTo(r.left,r.top);
+		dc.SelectObject(pOldBitmap);
+
+		file_menu.AppendMenu( MF_STRING, idx + 1, pBitmap );
+	}
+
+	if (num_hits > 0)
+	{
+		CRect r;
+		GetWindowRect(r);
+		sel = file_menu.TrackPopupMenu(TPM_LEFTALIGN | TPM_RIGHTBUTTON | TPM_RETURNCMD, point.x + r.left + 5, point.y + r.top + 5, this);
+	}
+
+	// Release GDI objects
+	bitmaps.RemoveAll();
+	ReleaseDC(&dc);
+	ReleaseDC(winDC);
+
+	return (sel - 1);
+}
 

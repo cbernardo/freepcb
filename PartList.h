@@ -294,8 +294,8 @@ public:
 	int ReadParts( CStdioFile * file );
 	int GetNumFootprintInstances( CShape * shape );
 	void PurgeFootprintCache();
-	int ExportPartListInfo( partlist_info * pl, cpart * part );
-	void ImportPartListInfo( partlist_info * pl, int flags, CDlgLog * log=NULL );
+	int ExportPartListInfo( partlist_info * pli, cpart * part );
+	void ImportPartListInfo( partlist_info * pli, int flags, CDlgLog * log=NULL );
 	int SetPartString( cpart * part, CString * str );
 	int CheckPartlist( CString * logstr );
 	BOOL CheckForProblemFootprints();

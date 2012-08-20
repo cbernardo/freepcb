@@ -318,8 +318,8 @@ public:
 	// I/O  functions
 	int WriteNets( CStdioFile * file );
 	void ReadNets( CStdioFile * pcb_file, double read_version, int * layers=NULL );
-	void ExportNetListInfo( netlist_info * nl );
-	void ImportNetListInfo( netlist_info * nl, int flags, CDlgLog * log,
+	void ExportNetListInfo( netlist_info * nli );
+	void ImportNetListInfo( netlist_info * nli, int flags, CDlgLog * log,
 		int def_w, int def_w_v, int def_w_v_h );
 	void Copy( CNetList * nl );
 	void RestoreConnectionsAndAreas( CNetList * old_nl, int flags, CDlgLog * log=NULL );

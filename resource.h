@@ -123,7 +123,6 @@
 #define ID_FILE_IMPORT246               246
 #define IDD_DIALOG1                     247
 #define IDD_TEST                        247
-#define IDD_IMPORT                      247
 #define ID_VIEW_PCB_EDITOR              248
 #define IDR_FOOTPRINT                   249
 #define ID_ADD_PIN                      249
@@ -214,7 +213,6 @@
 #define IDD_DIALOG5                     349
 #define IDD_CHOOSE_NET                  349
 #define IDD_SAVE_LIB                    350
-#define IDD_DIALOG6                     351
 #define IDD_GRIDVALS                    352
 #define IDD_ADD_GRIDVAL                 353
 #define IDD_PREFS                       354
@@ -601,9 +599,6 @@
 #define IDC_COMBO_GROUP_UNITS           1335
 #define IDC_EDIT_GROUP_X                1336
 #define IDC_EDIT_GROUP_Y                1337
-#define IDC_CHECK_KEEP_TRACES           1340
-#define IDC_CHECK_KEEP_STUBS            1341
-#define IDC_CHECK_KEEP_AREAS            1342
 #define IDC_STATIC_1                    1343
 #define IDC_STATIC_2                    1344
 #define IDC_STATIC_3                    1345
@@ -1649,8 +1644,12 @@
 #define IDS_WarningFileDefaultCfgIsStoredInAFolder 62683
 #define IDS_NoteThatFolderProgramFilesIsWriteProtected 62684
 #define IDS_ErrorNetConnectionVertexWithInvalidPtrToConnect 62685
-#define IDS_STRING131                   62686
 #define IDS_RemovingEmptyTeeStructure   62686
+#define IDS_WhileImportingNetIgnoredInvalidPin 62687
+#define IDS_CreatingPartWithFootprint   62688
+#define IDS_TeeVertex                   62689
+#define IDS_Padstack                    62690
+#define IDS_Outline                     62691
 #define IDS_FkFpStr                     63000
 #define IDS_STRING63001                 63001
 #define IDS_STRING63002                 63002
