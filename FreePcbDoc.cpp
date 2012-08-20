@@ -38,8 +38,8 @@
 #include "DlgGridVals.h"
 #include "DlgAddGridVal.h"
 #include "DlgExportOptions.h"	// CPT
-#include "PartListNew.h"		// CPT2
-#include "TextListNew.h"
+#include "Part.h"
+#include "Text.h"
 #include <Shtypes.h>
 #include <Shobjidl.h>
 

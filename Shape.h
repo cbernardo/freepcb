@@ -1,14 +1,11 @@
-// Shape.h : interface for the CShape class
-//
+// Shape.h : interface for the CShape class.  Also includes classes cpad, stroke, cpadstack, ccentroid and cglue (the
+// last 3 descendants of cpcb_item)
+
 #pragma once
 
 #include "stdafx.h"
 #include "DisplayList.h"
 #include "SMFontUtil.h"
-#include "PcbItem.h"
-#include "TextListNew.h"
-
-class ctextlist;
 
 #define CENTROID_WIDTH 40*NM_PER_MIL	// width of centroid symbol
 #define DEFAULT_GLUE_WIDTH 15*NM_PER_MIL	// width of default glue spot
@@ -64,11 +61,6 @@ struct mtg_hole
 	int x, y, diam, pad_diam;
 };
 
-
-// CPT2.  I am adjusting classes pad and padstack so that the latter in particular becomes part of the new class hierarchy.  This
-// will be useful when converting the footprint editor UI;  instead of using cpin2's to represent pins, as happens in the main
-// editor, padstacks will represent the pins user sees.
-// In honor of this change I'm renaming pad to cpad and padstack to cpadstack.
 class cpad
 {
 public:
@@ -105,6 +97,67 @@ public:
 	void Highlight();
 	void Copy(cpadstack *src, bool bCopyName=true);
 };
+
+// centroid types
+enum CENTROID_TYPE
+{
+	CENTROID_DEFAULT = 0,	// center of pads
+	CENTROID_DEFINED		// defined by user
+};
+
+class ccentroid : public cpcb_item
+{
+public:
+	// Represents centroids within footprints.
+	CENTROID_TYPE m_type;
+	int m_x, m_y;
+	int m_angle;				// angle of centroid (CCW)
+
+	ccentroid(CFreePcbDoc *_doc) 
+		: cpcb_item (_doc)
+		{ }
+	bool IsValid();
+	bool IsCentroid() { return true; }
+	ccentroid *ToCentroid() { return this; }
+	int GetTypeBit() { return bitCentroid; }
+	int Draw();
+	void Highlight();
+	void StartDragging( CDC *pDC );
+	void CancelDragging();
+};
+
+// glue spot position types 
+enum GLUE_POS_TYPE
+{
+	GLUE_POS_CENTROID,	// at centroid
+	GLUE_POS_DEFINED	// defined by user
+};
+
+
+class cglue : public cpcb_item
+{
+public:
+	// Represents adhesive dots within footprints.
+	GLUE_POS_TYPE type;
+	int w, x, y;
+
+	cglue(CFreePcbDoc *_doc, GLUE_POS_TYPE _type, int _w, int _x, int _y) 
+		: cpcb_item (_doc)
+		{ type = _type; w = _w; x = _x; y = _y; }
+	cglue(cglue *src)
+		: cpcb_item (src->doc)
+		{ type = src->type; w = src->w; x = src->x; y = src->y; }
+
+	bool IsValid();
+	bool IsGlue() { return true; }
+	cglue *ToGlue() { return this; }
+	int GetTypeBit() { return bitGlue; }
+	int Draw();
+	void Highlight();
+	void StartDragging( CDC *pDC );
+	void CancelDragging();
+};
+
 
 // CShape class represents a footprint
 //

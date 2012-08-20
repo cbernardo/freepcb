@@ -62,6 +62,11 @@
 #include "DlgMyMessageBox.h"
 #include "MyToolBar.h" 
 #include "assert.h"
+#include "PcbItem.h"
+#include "Part.h"
+#include "Net.h"
+#include "Text.h"
+#include "Polyline.h"
 
 #define ASSERT(f) assert(f)	//changed ASSERT() to work in release versions if NDEBUG undefined
 

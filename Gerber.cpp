@@ -3,9 +3,9 @@
 #include "stdafx.h"
 #include "Gerber.h"
 #include "PcbItem.h"
-#include "PartListNew.h"
-#include "NetListNew.h"
-#include "TextListNew.h"
+#include "Part.h"
+#include "Net.h"
+#include "Text.h"
 #include "gpc_232.h"
 
 #define pi  3.14159265359

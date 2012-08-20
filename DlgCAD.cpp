@@ -10,8 +10,8 @@
 #include "PathDialog.h"
 #include "RTcall.h"
 #include ".\dlgcad.h"
-#include "PartListNew.h"
-#include "NetListNew.h"
+#include "Part.h"
+#include "Net.h"
 
 // CDlgCAD dialog
 

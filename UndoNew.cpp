@@ -2,10 +2,10 @@
 #include <math.h>
 #include <stdlib.h>
 #include "PcbItem.h"
-#include "NetListNew.h"
+#include "Net.h"
 #include "FreePcbDoc.h"
-#include "PartListNew.h"
-#include "TextListNew.h"
+#include "Part.h"
+#include "Text.h"
 
 extern BOOL bDontShowSelfIntersectionWarning;		// CPT2 TODO make these "sticky" by putting settings into default.cfg.
 extern BOOL bDontShowSelfIntersectionArcsWarning;

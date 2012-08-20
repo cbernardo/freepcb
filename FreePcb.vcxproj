@@ -158,7 +158,6 @@
     <ClCompile Include="DlgGridVals.cpp" />
     <ClCompile Include="DlgPrefs.cpp" />
     <ClCompile Include="DrawingElement.cpp" />
-    <ClCompile Include="ellipse_newton.cpp" />
     <ClCompile Include="file_io.cpp" />
     <ClCompile Include="FootprintLib.cpp" />
     <ClCompile Include="FootprintView.cpp" />
@@ -171,10 +170,11 @@
     <ClCompile Include="layers.cpp" />
     <ClCompile Include="MainFrm.cpp" />
     <ClCompile Include="MyToolBar.cpp" />
-    <ClCompile Include="NetListNew.cpp" />
-    <ClCompile Include="PartListNew.cpp" />
+    <ClCompile Include="Net.cpp" />
+    <ClCompile Include="Part.cpp" />
     <ClCompile Include="PathDialog.cpp" />
     <ClCompile Include="PcbItem.cpp" />
+    <ClCompile Include="Polyline.cpp" />
     <ClCompile Include="QAFDebug.cpp" />
     <ClCompile Include="RTcall.cpp" />
     <ClCompile Include="Shape.cpp" />
@@ -184,7 +184,7 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="TextListNew.cpp" />
+    <ClCompile Include="Text.cpp" />
     <ClCompile Include="UndoNew.cpp" />
     <ClCompile Include="utility.cpp" />
     <ClCompile Include="drawing_element\dle_arc.cpp" />
@@ -264,7 +264,6 @@
     <ClInclude Include="DlgGridVals.h" />
     <ClInclude Include="DlgPrefs.h" />
     <ClInclude Include="DrawingElement.h" />
-    <ClInclude Include="ellipse_newton.h" />
     <ClInclude Include="file_io.h" />
     <ClInclude Include="flags.h" />
     <ClInclude Include="FootprintLib.h" />
@@ -278,10 +277,11 @@
     <ClInclude Include="layers.h" />
     <ClInclude Include="MainFrm.h" />
     <ClInclude Include="MyToolBar.h" />
-    <ClInclude Include="NetListNew.h" />
-    <ClInclude Include="PartListNew.h" />
+    <ClInclude Include="Net.h" />
+    <ClInclude Include="Part.h" />
     <ClInclude Include="PathDialog.h" />
     <ClInclude Include="PcbItem.h" />
+    <ClInclude Include="Polyline.h" />
     <ClInclude Include="QAFDebug.h" />
     <ClInclude Include="Resource.h" />
     <ClInclude Include="resource1.h" />
@@ -290,7 +290,7 @@
     <ClInclude Include="smcharacter.h" />
     <ClInclude Include="smfontutil.h" />
     <ClInclude Include="StdAfx.h" />
-    <ClInclude Include="TextListNew.h" />
+    <ClInclude Include="Text.h" />
     <ClInclude Include="UndoNew.h" />
     <ClInclude Include="utility.h" />
     <ClInclude Include="drawing_element\dle_arc.h" />

@@ -17,9 +17,9 @@
 #include "DesignRules.h"
 //#include "QAFDebug.h"
 #include "PcbItem.h"
-#include "NetListNew.h"
-#include "PartListNew.h"
-#include "TextListNew.h"
+#include "Net.h"
+#include "Part.h"
+#include "Text.h"
 
 class CFreePcbDoc;
 class CFreePcbView;

@@ -22,7 +22,7 @@
 #include "DlgAreaLayer.h"
 #include "DlgGroupPaste.h"
 #include "DlgSideStyle.h"
-#include "PartListNew.h"
+#include "Part.h"
 
 
 // globals

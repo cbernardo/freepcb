@@ -5,7 +5,6 @@
 #include <math.h>
 #include <time.h>
 #include "DisplayList.h" 
-#include "ellipse_newton.h"
  
 // globals for timer functions
 LARGE_INTEGER PerfFreq, tStart, tStop; 
@@ -1145,6 +1144,179 @@ BOOL TestForIntersectionOfStraightLineSegments( int x1i, int y1i, int x1f, int y
 	return FALSE;
 }
 
+
+// CPT2 DistancePointEllipseSpecial() and DistancePointEllipse() used to be in a separate file ellipse_newton.cpp, but I've moved them here.
+
+double DistancePointEllipseSpecial (double dU, double dV, double dA,
+									double dB, const double dEpsilon, const int iMax, int& riIFinal,
+									double& rdX, double& rdY)
+{
+	// initial guess
+	double dT = dB*(dV - dB);
+
+	// Newton’s method
+	int i;
+	for (i = 0; i < iMax; i++)
+	{
+		double dTpASqr = dT + dA*dA;
+		double dTpBSqr = dT + dB*dB;
+		double dInvTpASqr = 1.0/dTpASqr;
+
+		double dInvTpBSqr = 1.0/dTpBSqr;
+		double dXDivA = dA*dU*dInvTpASqr;
+		double dYDivB = dB*dV*dInvTpBSqr;
+		double dXDivASqr = dXDivA*dXDivA;
+		double dYDivBSqr = dYDivB*dYDivB;
+		double dF = dXDivASqr + dYDivBSqr - 1.0;
+		if (dF < dEpsilon)
+		{
+			// F(t0) is close enough to zero, terminate the iteration
+			rdX = dXDivA*dA;
+			rdY = dYDivB*dB;
+			riIFinal = i;
+			break;
+		}
+		double dFDer = 2.0*(dXDivASqr*dInvTpASqr + dYDivBSqr*dInvTpBSqr);
+		double dRatio = dF/dFDer;
+		if (dRatio < dEpsilon)
+		{
+			// t1-t0 is close enough to zero, terminate the iteration
+			rdX = dXDivA*dA;
+			rdY = dYDivB*dB;
+			riIFinal = i;
+			break;
+		}
+		dT += dRatio;
+	}
+	if (i == iMax)
+	{
+		// method failed to converge, let caller know
+		riIFinal = -1;
+		return -FLT_MAX;
+	}
+	double dDelta0 = rdX - dU, dDelta1 = rdY - dV;
+	return sqrt(dDelta0*dDelta0 + dDelta1*dDelta1);
+}
+
+double DistancePointEllipse (
+							 double dU, double dV, // test point (u,v)
+							 double dA, double dB, // ellipse is (x/a)^2 + (y/b)^2 = 1
+							 const double dEpsilon, // zero tolerance for Newton’s method
+							 const int iMax, // maximum iterations in Newton’s method
+							 int& riIFinal, // number of iterations used
+							 double& rdX, double& rdY) // a closest point (x,y)
+{
+	// special case of circle
+	if (fabs(dA-dB) < dEpsilon)
+	{
+		double dLength = sqrt(dU*dU+dV*dV);
+
+		return fabs(dLength - dA);
+	}
+	// reflect U = -U if necessary, clamp to zero if necessary
+	bool bXReflect;
+	if (dU > dEpsilon)
+	{
+		bXReflect = false;
+	}
+	else if (dU < -dEpsilon)
+	{
+		bXReflect = true;
+		dU = -dU;
+	}
+	else
+	{
+		bXReflect = false;
+		dU = 0.0;
+	}
+	// reflect V = -V if necessary, clamp to zero if necessary
+	bool bYReflect;
+	if (dV > dEpsilon)
+	{
+		bYReflect = false;
+	}
+	else if (dV < -dEpsilon)
+	{
+		bYReflect = true;
+		dV = -dV;
+	}
+	else
+	{
+		bYReflect = false;
+		dV = 0.0;
+	}
+	// transpose if necessary
+	double dSave;
+	bool bTranspose;
+	if (dA >= dB)
+	{
+		bTranspose = false;
+	}
+	else
+	{
+		bTranspose = true;
+		dSave = dA;
+		dA = dB;
+		dB = dSave;
+		dSave = dU;
+		dU = dV;
+
+		dV = dSave;
+	}
+	double dDistance;
+	if (dU != 0.0)
+	{
+		if (dV != 0.0)
+		{
+			dDistance = DistancePointEllipseSpecial(dU,dV,dA,dB,dEpsilon,iMax,
+				riIFinal,rdX,rdY);
+		}
+		else
+		{
+			double dBSqr = dB*dB;
+			if (dU < dA - dBSqr/dA)
+			{
+				double dASqr = dA*dA;
+				rdX = dASqr*dU/(dASqr-dBSqr);
+				double dXDivA = rdX/dA;
+				rdY = dB*sqrt(fabs(1.0-dXDivA*dXDivA));
+				double dXDelta = rdX - dU;
+				dDistance = sqrt(dXDelta*dXDelta+rdY*rdY);
+				riIFinal = 0;
+			}
+			else
+			{
+				dDistance = fabs(dU - dA);
+				rdX = dA;
+				rdY = 0.0;
+				riIFinal = 0;
+			}
+		}
+	}
+	else
+	{
+		dDistance = fabs(dV - dB);
+		rdX = 0.0;
+		rdY = dB;
+		riIFinal = 0;
+	}
+	if (bTranspose)
+	{
+		dSave = rdX;
+		rdX = rdY;
+		rdY = dSave;
+	}
+	if (bYReflect)
+	{
+		rdY = -rdY;
+	}
+
+	if (bXReflect)
+	{
+		rdX = -rdX;
+	}
+	return dDistance;
+}
 // these functions are for profiling
 //
 void DunselFunction() { return; }
@@ -1203,106 +1375,6 @@ double GetElapsedTime()
 	else
 		time = ((double)(tStop.LowPart - tStart.LowPart))/Freq.LowPart;
 	return time;
-}
-
-// quicksort algorithm
-// sorts array numbers[], also moves elements of another array index[]
-//
-#define Q3WAY
-void quickSort(int numbers[], int index[], int array_size)
-{
-#ifdef Q3WAY
-  q_sort_3way(numbers, index, 0, array_size - 1);
-#else
-  q_sort(numbers, index, 0, array_size - 1);
-#endif
-}
-
-// standard quicksort
-//
-void q_sort(int numbers[], int index[], int left, int right)
-{
-	int pivot, pivot_index, l_hold, r_hold;
-
-	l_hold = left;
-	r_hold = right;
-	pivot = numbers[left];
-	pivot_index = index[left];
-	while (left < right)
-	{
-		while ((numbers[right] >= pivot) && (left < right))
-			right--;
-		if (left != right)
-		{
-			numbers[left] = numbers[right];
-			index[left] = index[right];
-			left++;
-		}
-		while ((numbers[left] <= pivot) && (left < right))
-			left++;
-		if (left != right)
-		{
-			numbers[right] = numbers[left];
-			index[right] = index[left];
-			right--;
-		}
-	}
-	numbers[left] = pivot;
-	index[left] = pivot_index;
-
-	pivot = left;
-	left = l_hold;
-	right = r_hold;
-	if (left < pivot)
-		q_sort(numbers, index, left, pivot-1);
-	if (right > pivot)
-		q_sort(numbers, index, pivot+1, right);
-}
-
-// 3-way quicksort...useful where there are duplicate values
-//
-void q_sort_3way( int a[], int b[], int l, int r )
-{
-	#define EXCH(i,j) {int temp=a[i]; a[i]=a[j]; a[j]=temp; temp=b[i]; b[i]=b[j]; b[j]=temp;}
-
-	int i = l - 1;
-	int j = r;
-	int p = l - 1;
-	int q = r;
-	int v = a[r];
-
-	if( r <= l )
-		return;
-
-	for(;;)
-	{
-		while( a[++i] < v );
-		while( v < a[--j] )
-			if( j == 1 )
-				break;
-		if( i >= j )
-			break;
-		EXCH( i, j );
-		if( a[i] == v )
-		{
-			p++;
-			EXCH( p, i );
-		}
-		if( v == a[j] )
-		{
-			q--;
-			EXCH( j, q );
-		}
-	}
-	EXCH( i, r );
-	j = i - 1;
-	i = i + 1;
-	for( int k=l; k<p; k++, j-- )
-		EXCH( k, j );
-	for( int k=r-1; k>q; k--, i++ )
-		EXCH( i, k );
-	q_sort_3way( a, b, l, j );
-	q_sort_3way( a, b, i, r );
 }
 
 // convert angle in degrees from CW to CCW
