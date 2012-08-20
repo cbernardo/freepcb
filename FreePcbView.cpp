@@ -227,7 +227,6 @@ ON_COMMAND(ID_AREAEDGE_ADDNEWAREA, OnAddSimilarArea)
 ON_COMMAND(ID_AREAEDGE_EDITAREA, OnAreaEdit)
 ON_COMMAND(ID_AREAEDGE_APPLYCLEARANCES, OnAreaEdgeApplyClearances)
 ON_COMMAND(ID_AREAEDGE_DELETE, OnPolyDelete)
-ON_COMMAND(ID_AREAEDGE_HATCHSTYLE, OnAreaEdgeHatchStyle)			// CPT2 TODO Defunct?
 ON_COMMAND(ID_SMCORNER_MOVE, OnPolyCornerMove)
 ON_COMMAND(ID_SMCORNER_SETPOSITION, OnPolyCornerEdit)
 ON_COMMAND(ID_SMCORNER_EXCLUDEREGION, OnPolyAddCutout)
@@ -302,7 +301,6 @@ void CFreePcbView::OnNewProject()
 {
 	BaseInit();
 	// CFreePcbView specific defaults
-	m_sel_layer = 0;
 	m_dir = 0;
 	m_active_layer = LAY_TOP_COPPER;
 	m_bDraggingRect = FALSE;
@@ -492,7 +490,6 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		{
 			// Something to select!
 			cpcb_item *item = m_hit_info[m_sel_offset].item;
-			m_sel_layer = m_hit_info[m_sel_offset].layer;				// CPT2 TODO check if this is needed
 			m_sel_prev = item;											// CPT
 
 #ifndef CPT2
@@ -2399,19 +2396,19 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 	case  CUR_DRAG_POLY_1:
 		if( fk == FK_POLY_STRAIGHT )
 		{
-			m_polyline_style = CPolyLine::STRAIGHT;
+			m_polyline_style = cpolyline::STRAIGHT;
 			m_dlist->SetDragArcStyle( m_polyline_style );
 			m_dlist->Drag( pDC, p.x, p.y );
 		}
 		else if( fk == FK_POLY_ARC_CW )
 		{
-			m_polyline_style = CPolyLine::ARC_CW;
+			m_polyline_style = cpolyline::ARC_CW;
 			m_dlist->SetDragArcStyle( m_polyline_style );
 			m_dlist->Drag( pDC, p.x, p.y );
 		}
 		else if( fk == FK_POLY_ARC_CCW )
 		{
-			m_polyline_style = CPolyLine::ARC_CCW;
+			m_polyline_style = cpolyline::ARC_CCW;
 			m_dlist->SetDragArcStyle( m_polyline_style );
 			m_dlist->Drag( pDC, p.x, p.y );
 		}
@@ -2646,7 +2643,7 @@ void CFreePcbView::SetFKText( int mode )
 			m_fkey_option[1] = FK_POLY_ARC_CW;
 			m_fkey_option[2] = FK_POLY_ARC_CCW;
 			int style = m_sel.First()->ToSide()->m_style;
-			if( style == CPolyLine::STRAIGHT )
+			if( style == cpolyline::STRAIGHT )
 				m_fkey_option[3] = FK_ADD_CORNER;
 			m_fkey_option[7] = FK_DELETE_OUTLINE;
 			break;
@@ -2678,7 +2675,7 @@ void CFreePcbView::SetFKText( int mode )
 			m_fkey_option[1] = FK_POLY_ARC_CW;
 			m_fkey_option[2] = FK_POLY_ARC_CCW;
 			int style = m_sel.First()->ToSide()->m_style;
-			if( style == CPolyLine::STRAIGHT )
+			if( style == cpolyline::STRAIGHT )
 				m_fkey_option[3] = FK_ADD_CORNER;
 			if (mode == CUR_AREA_SIDE_SELECTED)
 				m_fkey_option[4] = FK_EDIT_AREA;
@@ -3638,7 +3635,7 @@ void CFreePcbView::OnContextMenu(CWnd* pWnd, CPoint point )
 				pPopup->EnableMenuItem( ID_POLYSIDE_CONVERTTOARC_CW, MF_GRAYED );
 				pPopup->EnableMenuItem( ID_POLYSIDE_INSERTCORNER, MF_GRAYED );
 			}
-			else if( style == CPolyLine::ARC_CCW )
+			else if( style == cpolyline::ARC_CCW )
 			{
 				pPopup->EnableMenuItem( ID_POLYSIDE_CONVERTTOARC_CCW, MF_GRAYED );
 				pPopup->EnableMenuItem( ID_POLYSIDE_INSERTCORNER, MF_GRAYED );
@@ -3950,7 +3947,7 @@ void CFreePcbView::OnPadStartTrace()
 	m_snap_angle_ref.x = pin->x;
 	m_snap_angle_ref.y = pin->y;
 	// now add new connection and first vertex.  The 1st vertex becomes the selection, which we refer to when we get to OnLButtonUp again
-	// NB it's unusual to have a vertex attached to a pin as the selection.
+	// NB it's unusual to have as the selection a vertex belonging to a pin.
 	cconnect2 *new_c = new cconnect2 (net);
 	cvertex2 *new_v = new cvertex2 (new_c, pin->x, pin->y);
 	new_v->pin = pin;
@@ -3958,6 +3955,8 @@ void CFreePcbView::OnPadStartTrace()
 	m_sel.RemoveAll();
 	m_sel.Add(new_v);
 	net->GetWidth( &m_active_width );								// AMW r267 added
+	if (pin->pad_layer != LAY_PAD_THRU)
+		m_active_layer = pin->pad_layer;							// CPT2 bug fix, added this
 	CPoint p = m_last_cursor_point;
 	new_v->StartDraggingStub( pDC, p.x, p.y, m_active_layer, m_active_width, m_active_layer, 2, m_inflection_mode );
 	if( m_doc->m_bHighlightNet )
@@ -4615,7 +4614,7 @@ void CFreePcbView::OnAddArea()
 	m_dlist->SetLayerVisible( m_active_layer, TRUE );
 	ShowActiveLayer();
 	m_dlist->StartDraggingArray( pDC, m_last_cursor_point.x, m_last_cursor_point.y, 0, m_active_layer, 2 );
-	m_polyline_style = CPolyLine::STRAIGHT;
+	m_polyline_style = cpolyline::STRAIGHT;
 	m_polyline_hatch = dlg.m_hatch;
 	Invalidate( FALSE );
 	ReleaseDC( pDC );
@@ -4658,7 +4657,7 @@ void CFreePcbView::OnAddSoldermaskCutout()
 	SetCursorMode( CUR_ADD_SMCUTOUT );
 	m_polyline_layer = il;
 	m_dlist->StartDraggingArray( pDC, m_last_cursor_point.x, m_last_cursor_point.y, 0, il, 2 );
-	m_polyline_style = CPolyLine::STRAIGHT;
+	m_polyline_style = cpolyline::STRAIGHT;
 	m_polyline_hatch = dlg.m_hatch;
 	Invalidate( FALSE );
 	ReleaseDC( pDC );
@@ -5335,19 +5334,6 @@ void CFreePcbView::OnViewAllElements()
 		m_org_x, m_org_y );
 	Invalidate( FALSE );
 	// end CPT
-}
-
-void CFreePcbView::OnAreaEdgeHatchStyle()
-{
-	CDlgSetAreaHatch dlg;
-	dlg.Init( m_sel_net->area[m_sel_id.I2()].GetHatch() );
-	int ret = dlg.DoModal();
-	if( ret == IDOK )
-	{
-		int hatch = dlg.GetHatch();
-		m_sel_net->area[m_sel_id.I2()].SetHatch( hatch );
-		m_doc->ProjectModified( TRUE );
-	}
 }
 
 void CFreePcbView::OnPartEditFootprint()
@@ -6457,7 +6443,7 @@ void CFreePcbView::OnGroupCopy()
 			}
 		}
 		else if (ctext *t = i->ToText())
-			// add text string to group textlist
+			// add text string to clipboard textlist
 			tl2->AddText( t->m_x, t->m_y, t->m_angle, t->m_bMirror,  t->m_bNegative,
 				t->m_layer, t->m_font_size, t->m_stroke_width, &t->m_str );
 
@@ -6594,12 +6580,12 @@ void CFreePcbView::OnGroupCut()
 //
 void CFreePcbView::OnGroupDelete()
 {
-	DeleteGroup( &m_sel_ptrs, &m_sel_ids );
+	DeleteGroup();
 	m_doc->ProjectModified( TRUE );
 	CancelSelection();
 }
 
-void CFreePcbView::DeleteGroup( CArray<void*> * grp_ptr, CArray<id> * grp_id )
+void CFreePcbView::DeleteGroup()
 {
 	// CPT2 TODO I'm proposing a new system with areas/smcutouts/board outlines.
 	// If any side on a main contour is selected, delete the whole polyline.  Otherwise, if a side on a secondary (cutout) contour is selected,
@@ -7148,7 +7134,7 @@ void CFreePcbView::OnAddSimilarArea()
 	ShowActiveLayer();
 	m_dlist->StartDraggingArray( pDC, m_last_cursor_point.x,
 		m_last_cursor_point.y, 0, m_active_layer, 2 );
-	m_polyline_style = CPolyLine::STRAIGHT;
+	m_polyline_style = cpolyline::STRAIGHT;
 	m_polyline_hatch = a->m_hatch;
 	Invalidate( FALSE );
 	ReleaseDC( pDC );
@@ -7431,7 +7417,7 @@ void CFreePcbView::HandleNoShiftLayerKey(int layer, CDC *pDC)
 
 	cvertex2 *start = NULL;
 	if (m_cursor_mode == CUR_DRAG_STUB) 
-		start = m_sel.First()->ToVertex();
+		start = m_sel.First()->GetConnect()->tail;
 	else if (m_cursor_mode == CUR_DRAG_RAT)
 	{
 		cseg2 *rat = m_sel.First()->ToSeg();

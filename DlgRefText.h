@@ -1,6 +1,5 @@
 #pragma once
 #include "afxwin.h"
-#include "PartList.h"
 #include "resource.h"
 
 // CDlgRefText dialog

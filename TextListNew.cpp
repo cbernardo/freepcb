@@ -6,10 +6,8 @@ ctextlist::ctextlist( CFreePcbDoc *_doc )
 	{ 
 		m_doc = _doc;
 		if (_doc)
-			m_dlist = m_doc->m_dlist,
 			m_smfontutil = m_doc->m_smfontutil;
 		else
-			m_dlist = NULL,
 			m_smfontutil = NULL;
 	}	
 
@@ -130,5 +128,34 @@ BOOL ctextlist::GetTextBoundaries( CRect * r )
 	return bValid;
 }
 
+
+void ctextlist::ReassignCopperLayers( int n_new_layers, int * layer )
+{
+	citer<ctext> it (&texts);
+	for (ctext *t = it.First(); t; t = it.Next())
+	{
+		int old_layer = t->m_layer;
+		if( old_layer >= LAY_TOP_COPPER )
+		{
+			int index = old_layer - LAY_TOP_COPPER;
+			int new_layer = layer[index];
+			if( new_layer == old_layer )
+				// do nothing
+				;
+			else if( new_layer == -1 )
+			{
+				// delete this text
+				t->Undraw();
+				texts.Remove(t);
+			}
+			else
+			{
+				// move to new layer
+				t->MustRedraw();
+				t->m_layer = new_layer + LAY_TOP_COPPER;
+			}
+		}
+	}
+}
 
 

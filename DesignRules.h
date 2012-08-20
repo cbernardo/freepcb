@@ -19,6 +19,7 @@ struct DesignRules
 	int copper_copper;
 };
 
+/*
 class DRError
 {
 	// CPT2 this class is on the way out... it's contents are moving over to cdre (see PcbItem.h)
@@ -63,17 +64,17 @@ public:
 		UNROUTED
 	};
 	int layer;				// layer (if pad error)
-	id m_id;				// id, using subtypes above
 	CString str;			// descriptive string
 	CString name1, name2;	// names of nets or parts tested
-	id id1, id2;			// ids of items tested
 	int x, y;				// position of error
 	dl_element * dl_el;		// DRC graphic
 	dl_element * dl_sel;	// DRC graphic selector
 };
+*/
 
 class DRErrorList
 {
+#ifndef CPT2
 public:
 	DRErrorList();
 	~DRErrorList();
@@ -92,24 +93,6 @@ public:
 	CNetList * m_nlist;
 	CDisplayList * m_dlist;
 	CPtrList list;
+#endif
 };
 
-class cdrelist
-{
-public:
-	// Updated version of class DRErrorList.
-	CFreePcbDoc *doc;
-	carray<cdre> dres;
-
-	cdrelist(CFreePcbDoc *_doc)
-		{ doc = _doc; }
-	~cdrelist() { }
-	cdre * Add( int type, CString * str, cpcb_item *item1, cpcb_item *item2,
-		int x1, int y1, int x2, int y2, int w, int layer );
-	void Remove( cdre *dre );									// Undraw a single member, then remove it.
-	void Clear();												// Undraw all members, then remove 'em.
-	int GetSize() 
-		{ return dres.GetSize(); }
-	void MakeHollowCircles();
-	void MakeSolidCircles();
-};

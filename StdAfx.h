@@ -45,11 +45,8 @@
 
 #include "MainFrm.h"
 #include "FreePcb.h"
-#include "NetList.h"
-#include "Net.h"
-#include "Net.h"
 #include "DisplayList.h"
-#include "PartList.h"
+#include "DrawingElement.h"
 #include "FreePcbView.h"
 #include "FreePcbDoc.h"
 #include "FootprintView.h"
@@ -59,15 +56,12 @@
 #include "Shape.h"
 #include "PcbFont.h"
 #include "smfontutil.h"
-#include "TextList.h"
 #include "resource.h"
 #include "flags.h" 
 #include "DlgLog.h" 
-#include "PolyLine.h"
-#include "ids.h"
-#include "Net_iter.h"
 #include "DlgMyMessageBox.h"
 #include "MyToolBar.h" 
+#include "assert.h"
 
 #define ASSERT(f) assert(f)	//changed ASSERT() to work in release versions if NDEBUG undefined
 

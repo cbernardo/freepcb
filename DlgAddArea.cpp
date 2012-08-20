@@ -5,11 +5,10 @@
 #include "FreePcb.h"
 #include "DlgAddArea.h"
 #include "layers.h"
-#include "Net_iter.h"
 
 // globals
-int gHatch = CPolyLine::NO_HATCH;
-
+int gHatch = cpolyline::NO_HATCH;
+	
 // CDlgAddArea dialog
 
 IMPLEMENT_DYNAMIC(CDlgAddArea, CDialog)
@@ -56,11 +55,11 @@ void CDlgAddArea::DoDataExchange(CDataExchange* pDX)
 		m_list_layer.SetCurSel( m_layer - LAY_TOP_COPPER );
 		if( m_hatch == -1 )
 			m_hatch = gHatch;	
-		if( m_hatch == CPolyLine::NO_HATCH )
+		if( m_hatch == cpolyline::NO_HATCH )
 			m_radio_none.SetCheck( 1 );
-		else if( m_hatch == CPolyLine::DIAGONAL_EDGE )
+		else if( m_hatch == cpolyline::DIAGONAL_EDGE )
 			m_radio_edge.SetCheck( 1 );
-		else if( m_hatch == CPolyLine::DIAGONAL_FULL )
+		else if( m_hatch == cpolyline::DIAGONAL_FULL )
 			m_radio_full.SetCheck( 1 );
 	}
 	else
@@ -80,11 +79,11 @@ void CDlgAddArea::DoDataExchange(CDataExchange* pDX)
 			pDX->Fail();
 		}
 		if( m_radio_none.GetCheck() )
-			m_hatch = CPolyLine::NO_HATCH;
+			m_hatch = cpolyline::NO_HATCH;
 		else if( m_radio_full.GetCheck() )
-			m_hatch = CPolyLine::DIAGONAL_FULL;
+			m_hatch = cpolyline::DIAGONAL_FULL;
 		else if( m_radio_edge.GetCheck() )
-			m_hatch = CPolyLine::DIAGONAL_EDGE;
+			m_hatch = cpolyline::DIAGONAL_EDGE;
 		else 
 			ASSERT(0);
 		if( bNewArea )

@@ -2,6 +2,7 @@
 #include "stdafx.h"
 #include "DesignRules.h"
 #include "afxwin.h"
+#include "PcbItem.h"
 
 // DlgDRC dialog
 

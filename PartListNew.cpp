@@ -2,6 +2,9 @@
 #include "PartListNew.h"
 
 
+BOOL g_bShow_header_28mil_hole_warning = TRUE;	
+BOOL g_bShow_SIP_28mil_hole_warning = TRUE;							// CPT2 TODO used?
+
 cpartlist::cpartlist( CFreePcbDoc *_doc )
 {
 	m_doc = _doc;
@@ -848,3 +851,25 @@ int cpartlist::CheckPartlist( CString * logstr )
 
 	return nerrors;
 }
+
+bool cpartlist::CheckForProblemFootprints()
+{
+	BOOL bHeaders_28mil_holes = FALSE;   
+	citer<cpart2> ip (&parts);
+	for (cpart2 *part = ip.First(); part; part = ip.Next())
+		if( part->shape && part->shape->m_name.Right(7) == "HDR-100")
+			if (cpadstack *ps = part->shape->m_padstack.First())
+				if (ps->hole_size == 28*NM_PER_MIL )
+					{ bHeaders_28mil_holes = TRUE; break; }
+
+	if( g_bShow_header_28mil_hole_warning && bHeaders_28mil_holes )   
+	{
+		CDlgMyMessageBox dlg;
+		CString s ((LPCSTR) IDS_WarningYouAreLoadingFootprintsForThroughHoleHeaders);
+		dlg.Initialize( s );
+		dlg.DoModal();
+		g_bShow_header_28mil_hole_warning = !dlg.bDontShowBoxState;
+	}
+	return bHeaders_28mil_holes;
+}
+

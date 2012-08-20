@@ -8,6 +8,7 @@
 //
 // constructor
 //
+/*
 DRError::DRError()
 {
 }
@@ -24,6 +25,7 @@ DRError::~DRError()
 //
 // constructor
 //
+/*
 DRErrorList::DRErrorList()
 {
 	m_dlist = NULL;
@@ -502,6 +504,7 @@ void DRErrorList::MakeHollowCircles()
 #endif
 }
 
+*/
 
 cdre *cdrelist::Add( int type, CString * str, cpcb_item *item1, cpcb_item *item2,
 		int x1, int y1, int x2, int y2, int w, int layer )
@@ -517,7 +520,7 @@ cdre *cdrelist::Add( int type, CString * str, cpcb_item *item1, cpcb_item *item2
 	}
 
 	// first check for redundant error.  CPT: allow repeats of COPPERAREA_BROKEN errors
-	if( type != DRError::COPPERAREA_BROKEN )	
+	if( type != cdre::COPPERAREA_BROKEN )	
 	{
 		citer<cdre> id (&dres);
 		for (cdre *dre = id.First(); dre; dre = id.Next())
@@ -539,7 +542,7 @@ cdre *cdrelist::Add( int type, CString * str, cpcb_item *item1, cpcb_item *item2
 			}
 
 			// if RING_PAD error on same pad, don't add it
-			if( type == cdre::RING_PAD && dre->type == DRError::RING_PAD )		// CPT2 second clause was dre->m_id.T3().  Check if I've translated right...
+			if( type == cdre::RING_PAD && dre->type == cdre::RING_PAD )		// CPT2 second clause was dre->m_id.T3().  Check if I've translated right...
 				if( item1 == dre->item1 )
 					return NULL;
 

@@ -3,10 +3,8 @@
 #pragma once
 
 #include "stdafx.h"
-#include "PolyLine.h"
 #include "DisplayList.h"
 #include "SMFontUtil.h"
-#include "TextList.h"
 #include "PcbItem.h"
 #include "TextListNew.h"
 

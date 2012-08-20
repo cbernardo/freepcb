@@ -6,6 +6,7 @@
 #include "PartListNew.h"
 #include "NetListNew.h"
 #include "TextListNew.h"
+#include "gpc_232.h"
 
 #define pi  3.14159265359
 
@@ -134,7 +135,7 @@ void WriteMoveTo( CStdioFile * f, int x, int y, int light_state )
 	f->WriteString( str );
 }
 
-// draw one side of a CPolyLine by writing commands to Gerber file
+// draw one side of a cpolyline by writing commands to Gerber file
 // the side may be straight or an arc
 // arc is aproximated by straight-line segments
 // assumes that plotter already at x1, y1
@@ -151,13 +152,13 @@ void WritePolygonSide( CStdioFile * f, int x1, int y1, int x2, int y2, int style
 	a = fabs( (double)(x1 - x2) );
 	b = fabs( (double)(y1 - y2) );
 
-	if( style == CPolyLine::STRAIGHT )
+	if( style == cpolyline::STRAIGHT )
 	{
 		// just draw a straight line with linear interpolation
 		WriteMoveTo( f, x2, y2, light_state );
 		return;
 	}
-	else if( style == CPolyLine::ARC_CW )
+	else if( style == cpolyline::ARC_CW )
 	{
 		// clockwise arc (ie.quadrant of ellipse)
 		int i=0, j=0;
@@ -193,7 +194,7 @@ void WritePolygonSide( CStdioFile * f, int x1, int y1, int x2, int y2, int style
 			theta2 = 0.0;
 		}
 	}
-	else if( style == CPolyLine::ARC_CCW )
+	else if( style == cpolyline::ARC_CCW )
 	{
 		// counter-clockwise arc
 		int i=0, j=0;
@@ -314,7 +315,7 @@ void DrawClearanceInForeignAreas( cnet2 *net, int shape,
 				citer<cside> is (&ctr->sides);
 				for (cside *s = is.First(); s; s = is.Next())
 				{
-					int d = GetClearanceBetweenSegments( xi, yi, xi+10, yi+10, CPolyLine::STRAIGHT, w,
+					int d = GetClearanceBetweenSegments( xi, yi, xi+10, yi+10, cpolyline::STRAIGHT, w,
 						s->preCorner->x, s->preCorner->y, s->postCorner->x, s->postCorner->y, s->m_style, 0, 
 						min_d, NULL, NULL );
 					if( d < min_d )
@@ -338,7 +339,7 @@ void DrawClearanceInForeignAreas( cnet2 *net, int shape,
 				citer<cside> is (&ctr->sides);
 				for (cside *s = is.First(); s; s = is.Next())
 				{
-					int d = GetClearanceBetweenSegments( xi, yi, xi+10, yi+10, CPolyLine::STRAIGHT, w,
+					int d = GetClearanceBetweenSegments( xi, yi, xi+10, yi+10, cpolyline::STRAIGHT, w,
 						s->preCorner->x, s->preCorner->y, s->postCorner->x, s->postCorner->y, s->m_style, 0, 
 						min_d, NULL, NULL );
 					if( d < min_d )
@@ -953,7 +954,7 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 					if( pad_type == PAD_NONE && pad_hole > 0 )
 					{
 						// through-hole pin, no pad, just annular ring and hole
-						if( pad_connect_status & CPartList::AREA_CONNECT )
+						if( pad_connect_status & cpin2::AREA_CONNECT )
 						{
 							// hole connects to copper area
 							if( flags & GERBER_NO_PIN_THERMALS || pad_connect_flag == PAD_CONNECT_NOTHERMAL )
@@ -1181,7 +1182,7 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 										int x2i = sd->preCorner->x, y2i = sd->preCorner->y;
 										int x2f = sd->postCorner->x, y2f = sd->postCorner->y;
 										int style2 = sd->m_style;
-										int d = ::GetClearanceBetweenSegments( xi, yi, xf, yf, CPolyLine::STRAIGHT, s->m_width,
+										int d = ::GetClearanceBetweenSegments( xi, yi, xf, yf, cpolyline::STRAIGHT, s->m_width,
 											x2i, y2i, x2f, y2f, style2, 0, fill_clearance, 0, 0 );
 										if( d < fill_clearance )
 											{ bIntOwnNet = TRUE; goto end_loop; }
@@ -1410,11 +1411,11 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 								part->m_outline_stroke[ips].yi, LIGHT_OFF );
 							int type;
 							if( part->m_outline_stroke[ips].type == DL_LINE )
-								type = CPolyLine::STRAIGHT;
+								type = cpolyline::STRAIGHT;
 							else if( part->m_outline_stroke[ips].type == DL_ARC_CW )
-								type = CPolyLine::ARC_CW;
+								type = cpolyline::ARC_CW;
 							else if( part->m_outline_stroke[ips].type == DL_ARC_CCW )
-								type = CPolyLine::ARC_CCW;
+								type = cpolyline::ARC_CCW;
 							else
 								ASSERT(0);
 							::WritePolygonSide( f, 

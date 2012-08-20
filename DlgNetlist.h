@@ -1,6 +1,6 @@
 #pragma once
 #include "afxcmn.h"
-#include "NetList.h"
+#include "NetListNew.h"
 #include "afxwin.h"
 
 

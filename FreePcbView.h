@@ -10,7 +10,6 @@
 #include "stdafx.h"
 #include "DisplayList.h"
 #include "FreePcbDoc.h"
-#include "ids.h"
 #include "CommonView.h"
 
 class CFreePcbView; 
@@ -337,39 +336,11 @@ public:
 	int m_disable_context_menu;
 
 	// selected items
-	// CPT2.  THE FOLLOWING 6 ITEMS WILL ALL BE SUPPLANTED BY CCommonView::m_sel
-	cpart * m_sel_part;		// pointer to part, if selected
-	cnet * m_sel_net;		// pointer to net, if selected
-	CText * m_sel_text;		// pointer to text, if selected
-	DRError * m_sel_dre;	// pointer to DRC error, if selected
-	CArray<id> m_sel_ids;	// array of multiple selections
-	CArray<void*> m_sel_ptrs;	// array of pointers to selected items
 	static int sel_mask_btn_bits[16];	// CPT2.  New system for masking selections.  Each left-pane button corresponds to 1+ bits for types of pcb-items...
 
 	// highlight flags
 	cnet2 *m_highlight_net;			// CPT2.  Replaces:
 	// bool m_bNetHighlighted;	    // current net is highlighted (not selected)
-
-#define m_sel_ic m_sel_id.I2()							// index of selected connection
-#define m_sel_ia m_sel_id.I2()							// index of selected area
-#define m_sel_is m_sel_id.I3()						// index of selected side, segment, or corner
-#define m_sel_iv m_sel_id.I3()						// index of selected vertex
-
-#define m_sel_con (m_sel_net->ConByIndex(m_sel_ic))	// selected connection
-
-#define m_sel_seg (&m_sel_con->SegByIndex(m_sel_is))			// selected side or segment
-#define m_sel_prev_seg (&m_sel_con->SegByIndex(m_sel_is-1))			// selected side or segment
-#define m_sel_next_seg (&m_sel_con->SegByIndex(m_sel_is+1))			// selected side or segment
-
-#define m_sel_vtx (&m_sel_con->VtxByIndex(m_sel_is))			// selected vertex
-#define m_sel_prev_vtx (&m_sel_con->VtxByIndex(m_sel_is-1))	// last vertex
-#define m_sel_next_vtx (&m_sel_con->VtxByIndex(m_sel_is+1))	// next vertex
-#define m_sel_next_next_vtx (&m_sel_con->VtxByIndex(m_sel_is+2))	// next vertex after that
-
-#define m_sel_con_last_vtx (&m_sel_con->VtxByIndex(m_sel_con->NumSegs()))
-
-#define m_sel_con_start_pin (&m_sel_net->pin[m_sel_con->start_pin])
-#define m_sel_con_end_pin (&m_sel_net->pin[m_sel_con->end_pin])
 
 	// direction of routing
 	int m_dir;			// 0 = forward, 1 = back
@@ -410,16 +381,12 @@ public:
 	void OnNewProject();					// CPT.  Used to be called InitializeView().
 
 	void SetFKText( int mode );
-	//BOOL SelectItem( id sid );
-	// void SelectItem(cpcb_item *item);		// CPT2 --- r317, now in CCommonView
 	int ShowSelectStatus();
 	int ShowActiveLayer();
 	void CancelHighlight();						// AMW r272
 	void CancelSelection();
-	void HighlightNet( cnet * net, id * exclude_id=NULL );
 	void CancelHighlightNet();
 	void SetWidth( int mode );
-	// int GetWidthsForSegment( int * w, int * via_w, int * via_hole_w );	// CPT2 moved to cnet2::GetWidths
 	void ChangeTraceLayer( int mode, int old_layer=0 );
 	void MoveOrigin( int x_off, int y_off );
 	void SelectItemsInRect( CRect r, BOOL bAddToGroup );
@@ -428,10 +395,9 @@ public:
 	void CancelDraggingGroup();
 	void MoveGroup( int dx, int dy );
 	void RotateGroup();
-	void DeleteGroup(  CArray<void*> * grp_ptr, CArray<id> * grp_id );
+	void DeleteGroup();
 	void FindGroupCenter();
 	void SaveUndoInfoForGroup();														// CPT2 Preserved the name, but converted the func to the new system
-	// int FindItemInGroup( void * ptr, id * tid );					// CPT2 obsolete
 	BOOL GluedPartsInGroup();
 	void UngluePartsInGroup();
 	int SegmentMovable();
@@ -445,7 +411,6 @@ public:
 	void FinishArrowKey(int x, int y, int dx, int dy);										// CPT2 new helper for HandleKeyPress().
 	void HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags);
 	void TryToReselectCorner( int x, int y );
-	// CPT2 defunct: void ReselectNetItemIfConnectionsChanged( int new_ic );
 	void OnVertexStartTrace(bool bResetActiveWidth);										// CPT2 versions with an extra param added
 	void OnRatlineRoute(bool bResetActiveWidth);											// CPT2 ditto
 
@@ -539,7 +504,6 @@ public:
 	afx_msg void OnUnrouteTrace();
 	afx_msg void OnViewEntireBoard();
 	afx_msg void OnViewAllElements();
-	afx_msg void OnAreaEdgeHatchStyle();
 	afx_msg void OnPartEditFootprint();
 	afx_msg void OnPartEditThisFootprint();
 	afx_msg void OnKeyUp(UINT nChar, UINT nRepCnt, UINT nFlags);

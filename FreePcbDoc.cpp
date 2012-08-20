@@ -50,8 +50,6 @@ static char THIS_FILE[] = __FILE__;
 #endif
 
 extern CFreePcbApp theApp;
-extern Cuid pcb_cuid;
-
 CFreePcbDoc * this_Doc;		// global for callback
 
 BOOL m_bShowMessageForClearance = TRUE;
@@ -701,9 +699,6 @@ BOOL CFreePcbDoc::FileOpen( LPCTSTR fn, BOOL bLibrary )
 		ProjectModified( FALSE );
 		m_view->OnViewAllElements();
 		m_auto_elapsed = 0;
-//		CDC * pDC = m_view->GetDC();
-//		m_view->OnDraw( pDC );
-//		m_view->ReleaseDC( pDC );
 		m_plist->CheckForProblemFootprints();
 		bNoFilesOpened = FALSE;
 		ResetUndoState();						// CPT2 --- important under the new system to do this AFTER all the new objects are loaded.
@@ -2830,7 +2825,8 @@ void CFreePcbDoc::ImportSessionFile( CString * filepath, CDlgLog * log, BOOL bVe
 				if( ENDSTATE )
 				{
 					// end of data for this net, route project
-					m_nlist->ImportNetRouting( &net_name, &nodes, &paths, mult, log, bVerbose );
+					cnet2 *net = m_nlist->GetNetPtrByName( &net_name );
+					net->ImportRouting( &nodes, &paths, mult, log, bVerbose );
 					state = NETWORK_OUT;
 				}
 				else if( field[0] == "(via" )
@@ -2851,15 +2847,12 @@ void CFreePcbDoc::ImportSessionFile( CString * filepath, CDlgLog * log, BOOL bVe
 						nodes[inode].y = mult * my_atoi( &via_y_str );
 						nodes[inode].layer = LAY_PAD_THRU;
 						nodes[inode].via_w = (int)ptr;
-						nodes[inode].bUsed = FALSE;
 					}
 					else
 						ASSERT(0);
 				}
 				else if( field[0] == "(wire" )
-				{
 					state = WIRE;
-				}
 			}
 			// IDLE -> ROUTES -> NETWORK_OUT -> NET -> VIA
 			else if( state == VIA )
@@ -2882,7 +2875,7 @@ void CFreePcbDoc::ImportSessionFile( CString * filepath, CDlgLog * log, BOOL bVe
 					paths.SetSize( ipath+1 );
 					paths[ipath].layer = GetSessionLayer( &layer_str );
 					paths[ipath].width = mult * my_atoi( &width_str );
-					paths[ipath].n_used = 0;
+					paths[ipath].bUsed = false;
 				}
 			}
 			// IDLE -> ROUTES -> NETWORK_OUT -> NET -> WIRE -> PATH
@@ -2983,7 +2976,6 @@ int CFreePcbDoc::ImportNetlist( CStdioFile * file, UINT flags,
 		else if( instr == "[nets]" && nli && (flags & IMPORT_NETS) )
 		{
 			// read nets
-			cnet * net = 0;
 			int num_pins = 0;
 			while( 1 )
 			{
@@ -3536,91 +3528,89 @@ void CFreePcbDoc::OnProjectOptions()
 	// end CPT
 
 	int ret = dlg.DoModal();
-	if( ret == IDOK )  
+	if( ret != IDOK )
+		return;
+	// set options from dialog
+	BOOL bResetAreaConnections = m_bSMT_copper_connect != dlg.m_bSMT_connect_copper;
+	m_bSMT_copper_connect = dlg.m_bSMT_connect_copper;
+	m_nlist->SetSMTconnect( m_bSMT_copper_connect );
+	m_default_glue_w = dlg.GetGlueWidth();
+	// deal with decreased number of layers
+	if( m_num_copper_layers > dlg.GetNumCopperLayers() )
 	{
-		// set options from dialog
-		BOOL bResetAreaConnections = m_bSMT_copper_connect != dlg.m_bSMT_connect_copper;
-		m_bSMT_copper_connect = dlg.m_bSMT_connect_copper;
-		m_nlist->SetSMTconnect( m_bSMT_copper_connect );
-		m_default_glue_w = dlg.GetGlueWidth();
-		// deal with decreased number of layers
-		if( m_num_copper_layers > dlg.GetNumCopperLayers() )
+		// decreasing number of layers, offer to reassign them
+		CDlgReassignLayers rel_dlg;
+		rel_dlg.Initialize( m_num_copper_layers, dlg.GetNumCopperLayers() );
+		int ret = rel_dlg.DoModal();
+		if( ret == IDOK )
 		{
-			// decreasing number of layers, offer to reassign them
-			CDlgReassignLayers rel_dlg;
-			rel_dlg.Initialize( m_num_copper_layers, dlg.GetNumCopperLayers() );
-			int ret = rel_dlg.DoModal();
-			if( ret == IDOK )
-			{
-				// reassign copper layers
-				m_nlist->ReassignCopperLayers( dlg.GetNumCopperLayers(), rel_dlg.new_layer );
-				m_tlist->ReassignCopperLayers( dlg.GetNumCopperLayers(), rel_dlg.new_layer );
-				m_num_copper_layers = dlg.GetNumCopperLayers();
-				m_num_layers = m_num_copper_layers + LAY_TOP_COPPER;
-			}
-			// clear clipboard
-			clip_nlist->nets.RemoveAll();
-			clip_plist->parts.RemoveAll();
-			clip_tlist->texts.RemoveAll();
-			clip_smcutouts.RemoveAll();
-			clip_boards.RemoveAll();
-		}
-		else if( m_num_copper_layers < dlg.GetNumCopperLayers() )
-		{
-			// increasing number of layers, don't reassign
-			for( int il=m_num_copper_layers; il<dlg.GetNumCopperLayers(); il++ )
-				m_vis[LAY_TOP_COPPER+il] = 1;
+			// reassign copper layers
+			m_nlist->ReassignCopperLayers( dlg.GetNumCopperLayers(), rel_dlg.new_layer );
+			m_tlist->ReassignCopperLayers( dlg.GetNumCopperLayers(), rel_dlg.new_layer );
 			m_num_copper_layers = dlg.GetNumCopperLayers();
 			m_num_layers = m_num_copper_layers + LAY_TOP_COPPER;
 		}
-		m_nlist->SetNumCopperLayers( m_num_copper_layers );
-		m_plist->SetNumCopperLayers( m_num_copper_layers );
-
-		m_name = dlg.GetName();
-		m_lib_dir = dlg.GetLibFolder();							// CPT added (not sure why it wasn't there before...)
-		if( m_full_lib_dir != dlg.GetLibFolder() )
-		{
-			m_full_lib_dir = dlg.GetLibFolder();
-			m_footlibfoldermap.SetDefaultFolder( &m_full_lib_dir );		
-			m_footlibfoldermap.SetLastFolder( &m_full_lib_dir );		
-		}
-		m_trace_w = dlg.GetTraceWidth();
-		m_via_w = dlg.GetViaWidth();
-		m_via_hole_w = dlg.GetViaHoleWidth();
-		m_nlist->SetWidths( m_trace_w, m_via_w, m_via_hole_w );
-
-		// CPT: option to save dlg results to default.cfg:
-		if (dlg.m_default) 
-		{
-			CArray<CString> oldLines, newLines;
-			CString fn = m_defaultcfg_dir + "\\" + "default.cfg";
-			ReadFileLines(fn, oldLines);
-			CollectOptionsStrings(newLines);
-			ReplaceLines(oldLines, newLines, "path_to_folder");
-			ReplaceLines(oldLines, newLines, "library_folder");
-			ReplaceLines(oldLines, newLines, "n_copper_layers");
-			ReplaceLines(oldLines, newLines, "SMT_connect_copper");
-			ReplaceLines(oldLines, newLines, "default_glue_width");
-			ReplaceLines(oldLines, newLines, "default_trace_width");
-			ReplaceLines(oldLines, newLines, "default_via_pad_width");
-			ReplaceLines(oldLines, newLines, "default_via_hole_width");
-			ReplaceLines(oldLines, newLines, "n_width_menu");
-			ReplaceLines(oldLines, newLines, "width_menu_item");
-			WriteFileLines(fn, oldLines);
-		}
-		// end CPT
-
-		if( m_vis[LAY_RAT_LINE] && !m_auto_ratline_disable )
-			m_nlist->OptimizeConnections();
-		m_view->Invalidate( FALSE );
-		m_project_open = TRUE;
-
-		// force redraw of function key text
-		m_view->m_cursor_mode = 999;
-		m_view->CancelSelection();
-		ProjectModified( TRUE );
-		ResetUndoState();
+		// clear clipboard
+		clip_nlist->nets.RemoveAll();
+		clip_plist->parts.RemoveAll();
+		clip_tlist->texts.RemoveAll();
+		clip_smcutouts.RemoveAll();
+		clip_boards.RemoveAll();
 	}
+	else if( m_num_copper_layers < dlg.GetNumCopperLayers() )
+	{
+		// increasing number of layers, don't reassign
+		for( int il=m_num_copper_layers; il<dlg.GetNumCopperLayers(); il++ )
+			m_vis[LAY_TOP_COPPER+il] = 1;
+		m_num_copper_layers = dlg.GetNumCopperLayers();
+		m_num_layers = m_num_copper_layers + LAY_TOP_COPPER;
+	}
+	m_nlist->SetNumCopperLayers( m_num_copper_layers );
+	m_plist->SetNumCopperLayers( m_num_copper_layers );
+
+	m_name = dlg.GetName();
+	m_lib_dir = dlg.GetLibFolder();							// CPT added (not sure why it wasn't there before...)
+	if( m_full_lib_dir != dlg.GetLibFolder() )
+	{
+		m_full_lib_dir = dlg.GetLibFolder();
+		m_footlibfoldermap.SetDefaultFolder( &m_full_lib_dir );		
+		m_footlibfoldermap.SetLastFolder( &m_full_lib_dir );		
+	}
+	m_trace_w = dlg.GetTraceWidth();
+	m_via_w = dlg.GetViaWidth();
+	m_via_hole_w = dlg.GetViaHoleWidth();
+	m_nlist->SetWidths( m_trace_w, m_via_w, m_via_hole_w );
+
+	// CPT: option to save dlg results to default.cfg:
+	if (dlg.m_default) 
+	{
+		CArray<CString> oldLines, newLines;
+		CString fn = m_defaultcfg_dir + "\\" + "default.cfg";
+		ReadFileLines(fn, oldLines);
+		CollectOptionsStrings(newLines);
+		ReplaceLines(oldLines, newLines, "path_to_folder");
+		ReplaceLines(oldLines, newLines, "library_folder");
+		ReplaceLines(oldLines, newLines, "n_copper_layers");
+		ReplaceLines(oldLines, newLines, "SMT_connect_copper");
+		ReplaceLines(oldLines, newLines, "default_glue_width");
+		ReplaceLines(oldLines, newLines, "default_trace_width");
+		ReplaceLines(oldLines, newLines, "default_via_pad_width");
+		ReplaceLines(oldLines, newLines, "default_via_hole_width");
+		ReplaceLines(oldLines, newLines, "n_width_menu");
+		ReplaceLines(oldLines, newLines, "width_menu_item");
+		WriteFileLines(fn, oldLines);
+	}
+	// end CPT
+
+	if( m_vis[LAY_RAT_LINE] && !m_auto_ratline_disable )
+		m_nlist->OptimizeConnections();
+	m_project_open = TRUE;
+
+	// force redraw of function key text
+	m_view->m_cursor_mode = 999;
+	m_view->CancelSelection();
+	ProjectModified( TRUE );
+	ResetUndoState();
 }
 
 // come here from MainFrm on timer event
@@ -4105,105 +4095,105 @@ void CFreePcbDoc::OnFileImportSes()
 	CDlgImportSes dlg;
 	dlg.Initialize( &m_ses_full_path, &m_pcb_full_path );
 	int ret = dlg.DoModal(); 
-	if( ret == IDOK )
+	if( ret != IDOK )
+		return;
+	m_dlg_log->ShowWindow( SW_SHOW );   
+	m_dlg_log->UpdateWindow();
+	m_dlg_log->BringWindowToTop(); 
+	m_dlg_log->Clear();
+	m_dlg_log->UpdateWindow(); 
+	// save current project if modified (including dialog parameters)
+	if( dlg.m_ses_filepath != m_ses_full_path )
 	{
-		m_dlg_log->ShowWindow( SW_SHOW );   
-		m_dlg_log->UpdateWindow();
-		m_dlg_log->BringWindowToTop(); 
-		m_dlg_log->Clear();
-		m_dlg_log->UpdateWindow(); 
-		// save current project if modified (including dialog parameters)
-		if( dlg.m_ses_filepath != m_ses_full_path )
-		{
-			m_ses_full_path = dlg.m_ses_filepath;
-			ProjectModified( TRUE );
-		}
-		if( m_project_modified )
-		{
-			CString s ((LPCSTR) IDS_ProjectModifiedSaveBeforeImport);
-			int ret = AfxMessageBox( s, MB_YESNO );
-			if( ret = IDYES )
-			{
-				OnFileSave();
-			}
-			else
-				ProjectModified( FALSE );
-		}
-		CString temp_file_name = "~temp$$$.fpc";   
-		CString temp_routed_file_name = "~temp$$$_routed.fpc";
-		CString temp_file_path = m_path_to_folder + "\\" + temp_file_name;
-		CString temp_routed_file_path = m_path_to_folder + "\\" + temp_routed_file_name;
-		struct _stat buf;
-		int err = _stat( temp_file_path, &buf );
-		if( !err )
-		{
-			CString s ((LPCSTR) IDS_Delete2), mess;
-			mess.Format(s, temp_file_path);
-			m_dlg_log->AddLine( mess );  
-			remove( temp_file_path );
-		}
-		err = _stat( dlg.m_routed_pcb_filepath, &buf );
-		if( !err )
-		{
-			CString s ((LPCSTR) IDS_Delete2), mess;
-			mess.Format(s, dlg.m_routed_pcb_filepath);
-			m_dlg_log->AddLine( mess );  
-			remove( dlg.m_routed_pcb_filepath );
-		}
 		m_ses_full_path = dlg.m_ses_filepath;
-
-		// save project as temporary file
-		CString s ((LPCSTR) IDS_Save), mess;
-		mess.Format(s, temp_file_path);
-		m_dlg_log->AddLine( mess );
-		CString old_pcb_filename = m_pcb_filename;
-		CString old_pcb_full_path = m_pcb_full_path;
-		m_pcb_filename = temp_file_name;
-		m_pcb_full_path = temp_file_path;
-		OnFileSave();
-
-		// import session file
-		CString verbose = "";
-		if( dlg.m_bVerbose )
-			verbose = "-V ";
-		CString commandLine = "\"" + m_app_dir + "\\fpcroute.exe\" -B " + verbose + "\"" +
-			temp_file_path + "\" \"" + m_ses_full_path + "\""; 
-		s.LoadStringA(IDS_Run);
-		mess.Format(s, commandLine);
-		m_dlg_log->AddLine( mess );  
-		RunConsoleProcess( commandLine, m_dlg_log );
-		err = _stat( temp_routed_file_path, &buf );
-		if( err )
-		{
-			s.LoadStringA(IDS_FpcRouteFailedToCreate);
-			mess.Format(s, temp_routed_file_path);
-			m_dlg_log->AddLine( mess );  
-			return;
-		}
-		s.LoadStringA(IDS_Rename);
-		mess.Format(s, temp_routed_file_path, dlg.m_routed_pcb_filepath);
-		m_dlg_log->AddLine( mess );  
-		err = rename( temp_routed_file_path, dlg.m_routed_pcb_filepath ); 
-		if( err )
-		{
-			s.LoadStringA(IDS_RenamingProjectFileFailed);
-			mess.Format(s, temp_routed_file_path, dlg.m_routed_pcb_filepath); 
-			m_dlg_log->AddLine( mess );
-		}
-		CString old_ses_full_path = m_ses_full_path;
-		s.LoadStringA(IDS_Load);
-		mess.Format(s, dlg.m_routed_pcb_filepath);
-		m_dlg_log->AddLine( mess );  
-		OnFileAutoOpen( dlg.m_routed_pcb_filepath );
-		m_ses_full_path = old_ses_full_path;
-		s.LoadStringA(IDS_Reimport);
-		mess.Format(s, m_ses_full_path);
-		m_dlg_log->AddLine( mess );  
-		ImportSessionFile( &m_ses_full_path, m_dlg_log, dlg.m_bVerbose );
-		s.LoadStringA(IDS_Done);
-		m_dlg_log->AddLine( s );  
 		ProjectModified( TRUE );
 	}
+	if( m_project_modified )
+	{
+		CString s ((LPCSTR) IDS_ProjectModifiedSaveBeforeImport);
+		int ret = AfxMessageBox( s, MB_YESNO );
+		if( ret = IDYES )
+		{
+			OnFileSave();
+		}
+		else
+			ProjectModified( FALSE );
+	}
+	CString temp_file_name = "~temp$$$.fpc";   
+	CString temp_routed_file_name = "~temp$$$_routed.fpc";
+	CString temp_file_path = m_path_to_folder + "\\" + temp_file_name;
+	CString temp_routed_file_path = m_path_to_folder + "\\" + temp_routed_file_name;
+	struct _stat buf;
+	int err = _stat( temp_file_path, &buf );
+	if( !err )
+	{
+		CString s ((LPCSTR) IDS_Delete2), mess;
+		mess.Format(s, temp_file_path);
+		m_dlg_log->AddLine( mess );  
+		remove( temp_file_path );
+	}
+	err = _stat( dlg.m_routed_pcb_filepath, &buf );
+	if( !err )
+	{
+		CString s ((LPCSTR) IDS_Delete2), mess;
+		mess.Format(s, dlg.m_routed_pcb_filepath);
+		m_dlg_log->AddLine( mess );  
+		remove( dlg.m_routed_pcb_filepath );
+	}
+	m_ses_full_path = dlg.m_ses_filepath;
+
+	// save project as temporary file
+	CString s ((LPCSTR) IDS_Save), mess;
+	mess.Format(s, temp_file_path);
+	m_dlg_log->AddLine( mess );
+	CString old_pcb_filename = m_pcb_filename;
+	CString old_pcb_full_path = m_pcb_full_path;
+	m_pcb_filename = temp_file_name;
+	m_pcb_full_path = temp_file_path;
+	OnFileSave();
+
+	// import session file
+	CString verbose = "";
+	if( dlg.m_bVerbose )
+		verbose = "-V ";
+	CString commandLine = "\"" + m_app_dir + "\\fpcroute.exe\" -B " + verbose + "\"" +
+		temp_file_path + "\" \"" + m_ses_full_path + "\""; 
+	s.LoadStringA(IDS_Run);
+	mess.Format(s, commandLine);
+	m_dlg_log->AddLine( mess );  
+	RunConsoleProcess( commandLine, m_dlg_log );
+	err = _stat( temp_routed_file_path, &buf );
+	if( err )
+	{
+		s.LoadStringA(IDS_FpcRouteFailedToCreate);
+		mess.Format(s, temp_routed_file_path);
+		m_dlg_log->AddLine( mess );  
+		return;
+	}
+	s.LoadStringA(IDS_Rename);
+	mess.Format(s, temp_routed_file_path, dlg.m_routed_pcb_filepath);
+	m_dlg_log->AddLine( mess );  
+	err = rename( temp_routed_file_path, dlg.m_routed_pcb_filepath ); 
+	if( err )
+	{
+		s.LoadStringA(IDS_RenamingProjectFileFailed);
+		mess.Format(s, temp_routed_file_path, dlg.m_routed_pcb_filepath); 
+		m_dlg_log->AddLine( mess );
+	}
+	CString old_ses_full_path = m_ses_full_path;
+	s.LoadStringA(IDS_Load);
+	mess.Format(s, dlg.m_routed_pcb_filepath);
+	m_dlg_log->AddLine( mess );  
+	OnFileAutoOpen( dlg.m_routed_pcb_filepath );
+	m_ses_full_path = old_ses_full_path;
+	s.LoadStringA(IDS_Reimport);
+	mess.Format(s, m_ses_full_path);
+	m_dlg_log->AddLine( mess );  
+	ImportSessionFile( &m_ses_full_path, m_dlg_log, dlg.m_bVerbose );
+	s.LoadStringA(IDS_Done);
+	m_dlg_log->AddLine( s );  
+	ProjectModified( TRUE );
+	ResetUndoState();
 }
 
 void CFreePcbDoc::ResetUndoState()
@@ -4930,7 +4920,7 @@ void CFreePcbDoc::DRCPin( cpin2 *pin, int units, DesignRules *dr )
 				int x1 = s->preCorner->x, y1 = s->preCorner->y;
 				int x2 = s->postCorner->x, y2 = s->postCorner->y;
 				// for now, only works for straight board edge segments
-				if( s->m_style != CPolyLine::STRAIGHT )
+				if( s->m_style != cpolyline::STRAIGHT )
 					continue;
 				int d = ::GetClearanceBetweenLineSegmentAndPad( x1, y1, x2, y2, 0,
 					PAD_ROUND, x, y, hole, 0, 0 );
@@ -5015,7 +5005,7 @@ void CFreePcbDoc::DRCPin( cpin2 *pin, int units, DesignRules *dr )
 				int x2 = c->postSide->postCorner->x;
 				int y2 = c->postSide->postCorner->y;
 				// for now, only works for straight board edge segments
-				if( c->postSide->m_style != CPolyLine::STRAIGHT )
+				if( c->postSide->m_style != cpolyline::STRAIGHT )
 					continue;
 				int d = ::GetClearanceBetweenLineSegmentAndPad( x1, y1, x2, y2, 0,
 					type, x, y, wid, len, r );
@@ -5050,7 +5040,7 @@ void CFreePcbDoc::DRCPin( cpin2 *pin, int units, DesignRules *dr )
 				CString s0 ((LPCSTR) IDS_PadToCopperGraphics);
 				str.Format( s0, m_drelist->GetSize()+1, part->ref_des, pin->pin_name, 
 					part->ref_des, pin->pin_name, d_str, x_str, y_str );
-				cdre * dre = m_drelist->Add( DRError::COPPERGRAPHIC_PAD, &str,
+				cdre * dre = m_drelist->Add( cdre::COPPERGRAPHIC_PAD, &str,
 					pin, NULL, x, y, 0, 0, dia, 0 );
 				if( dre && log )
 						log->AddLine( str );
@@ -5447,7 +5437,7 @@ void CFreePcbDoc::DRCConnect(cconnect2 *c, int units, DesignRules *dr)
 				int bx2 = bs->postCorner->x, by2 = bs->postCorner->y;
 				int x, y;
 				int d = ::GetClearanceBetweenSegments( bx1, by1, bx2, by2, bs->m_style, 0,
-					x1, y1, x2, y2, CPolyLine::STRAIGHT, w, dr->board_edge_copper, &x, &y );
+					x1, y1, x2, y2, cpolyline::STRAIGHT, w, dr->board_edge_copper, &x, &y );
 				if( d < dr->board_edge_copper )
 				{
 					// BOARDEDGE_SEG error
@@ -5799,7 +5789,7 @@ void CFreePcbDoc::DRCConnect(cconnect2 *c, int units, DesignRules *dr)
 				// check segment clearances
 				int x, y;
 				int d = ::GetClearanceBetweenSegments( cgxi, cgyi, cgxf, cgyf, cgstyle, 0,
-					xi, yi, xf, yf, CPolyLine::STRAIGHT, w,	dr->board_edge_copper, &x, &y );
+					xi, yi, xf, yf, cpolyline::STRAIGHT, w,	dr->board_edge_copper, &x, &y );
 				if( d < dr->copper_copper )
 				{
 					// COPPERGRAPHIC_SEG error
@@ -5967,7 +5957,7 @@ void CFreePcbDoc::DRCSegmentAndVia(cseg2 *seg, cvertex2 *vtx, int units, DesignR
 	if( layer > LAY_BOTTOM_COPPER && test == cvertex2::VIA_NO_CONNECT )
 		// inner layer and no trace or thermal, so no via pad
 		via_w = 0;
-	else if( layer > LAY_BOTTOM_COPPER && (test & CNetList::VIA_AREA) && !(test & CNetList::VIA_TRACE) )
+	else if( layer > LAY_BOTTOM_COPPER && (test & cvertex2::VIA_AREA) && !(test & cvertex2::VIA_TRACE) )
 		// inner layer with small thermal, use annular ring
 		via_w = vtx->via_hole_w + 2*dr->annular_ring_vias;
 

@@ -147,7 +147,6 @@ CFootprintView::CFootprintView()
 {
 	m_active_layer = LAY_FP_TOP_COPPER;
 	m_cursor_mode = -1;			// CPT.  Ensures that SetFKText() will get called by InitInstance(),  no matter what.
-	m_sel_ptr = m_sel_text = 0;
 	// set up array of mask ids
 	// CPT2.  Set for new system.
 	sel_mask_btn_bits[FP_SEL_MASK_REF] = bitRefText;
@@ -310,7 +309,6 @@ void CFootprintView::OnLButtonDown(UINT nFlags, CPoint point)
 		{
 			// Something to select!
 			cpcb_item *item = m_hit_info[m_sel_offset].item;
-			m_sel_layer = m_hit_info[m_sel_offset].layer;				// CPT2 TODO check if this is needed
 			m_sel_prev = item;											// CPT
 			if( item->IsFootItem() )									// Pretty unlikely that this test would fail...
 				SelectItem(item);
@@ -908,19 +906,19 @@ void CFootprintView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 	case CUR_FP_DRAG_POLY:
 		if( fk == FK_FP_POLY_STRAIGHT )
 		{
-			m_polyline_style = CPolyLine::STRAIGHT;
+			m_polyline_style = cpolyline::STRAIGHT;
 			m_dlist->SetDragArcStyle( m_polyline_style );
 			m_dlist->Drag( pDC, p.x, p.y );
 		}
 		else if( fk == FK_FP_POLY_ARC_CW )
 		{
-			m_polyline_style = CPolyLine::ARC_CW;
+			m_polyline_style = cpolyline::ARC_CW;
 			m_dlist->SetDragArcStyle( m_polyline_style );
 			m_dlist->Drag( pDC, p.x, p.y );
 		}
 		else if( fk == FK_FP_POLY_ARC_CCW )
 		{
-			m_polyline_style = CPolyLine::ARC_CCW;
+			m_polyline_style = cpolyline::ARC_CCW;
 			m_dlist->SetDragArcStyle( m_polyline_style );
 			m_dlist->Drag( pDC, p.x, p.y );
 		}
@@ -1247,7 +1245,7 @@ void CFootprintView::OnContextMenu(CWnd* pWnd, CPoint point )
 				pPopup->EnableMenuItem( ID_FP_CONVERTTOARC, MF_GRAYED );
 				pPopup->EnableMenuItem( ID_FP_INSERTCORNER, MF_GRAYED );
 			}
-			else if( style == CPolyLine::ARC_CCW )
+			else if( style == cpolyline::ARC_CCW )
 			{
 				pPopup->EnableMenuItem( ID_FP_CONVERTTOARCCCW, MF_GRAYED );
 				pPopup->EnableMenuItem( ID_FP_INSERTCORNER, MF_GRAYED );
@@ -1716,7 +1714,7 @@ void CFootprintView::OnAddOutline()
 	CPoint p = m_last_mouse_point;
 	m_dlist->CancelHighlight();
 	m_polyline_closed_flag = dlg.GetClosedFlag();
-	m_polyline_style = CPolyLine::STRAIGHT;
+	m_polyline_style = cpolyline::STRAIGHT;
 	m_polyline_width = dlg.GetWidth();
 	m_polyline_layer = dlg.GetLayer();
 	m_dlist->StartDraggingArray( pDC, p.x, p.y, 0, LAY_FP_SELECTION );
@@ -2520,7 +2518,6 @@ void CFootprintView::OnAdhesiveDrag()
 	pDC->SelectClipRgn( &m_pcb_rgn );
 	SetDCToWorldCoords( pDC );
 	// move cursor to dot
-	int idot = m_sel_id.I2();
 	CPoint p (g->x, g->y);
 	m_from_pt = p;
 	CPoint cur_p = m_dlist->PCBToScreen( p );

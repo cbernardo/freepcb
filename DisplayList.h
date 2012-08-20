@@ -4,11 +4,11 @@
 #include <afxcoll.h>
 #include <afxtempl.h>
 #include "afxwin.h"
-#include "ids.h"
 #include "layers.h"
-#include "LinkList.h"
 #include "rgb.h"
 #include "smfontutil.h"
+
+class cnet2;
 
 //#define DL_MAX_LAYERS 32
 #define DL_MAGIC		2674
@@ -121,8 +121,6 @@ class CHitInfo
 public:
 	int layer;
 	cpcb_item *item;			// CPT2.  TODO: get rid of ID and ptr
-	id  ID;
-	void *ptr;
 	int priority;
 	double dist;			// CPT r294
 };
@@ -252,7 +250,7 @@ public:
 	void Scale_pcbu_to_wu(CRect &rect);
 	void Scale_wu_to_pixels(CRect &rect);
 
-	dl_element * CreateDLE( id id, void * ptr, int layer, int gtype, int visible,
+	/* dl_element * CreateDLE( id id, void * ptr, int layer, int gtype, int visible,
 	                        int w, int holew, int clearancew,
 	                        int x, int y, int xf, int yf, int xo, int yo, int radius,
 	                        int orig_layer );
@@ -269,10 +267,11 @@ public:
 								int w, int holew,
 								int x, int y, int xf, int yf, int xo, int yo,
 								int radius=0 );
+	*/
 	void Add( dl_element * element );
 
 	// BEGIN CPT2.  Versions of the above routines that use cpcb_item pointers instead of id's.
-	dl_element * CreateDLE( cpcb_item *item, int usage, int layer, int gtype, int visible,
+	dl_element * CreateDLE( cpcb_item *item, int usage, int layer, int gtype, int visible,					// CPT2 TODO dump the usage business?
 	                        int w, int holew, int clearancew,
 	                        int x, int y, int xf, int yf, int xo, int yo, int radius,
 	                        int orig_layer );
@@ -292,7 +291,7 @@ public:
     // Remove elements
 	void RemoveAll();
 	void RemoveAllFromLayer( int layer );
-	id Remove( dl_element * element );
+	void Remove( dl_element * element );
 
 	void Draw( CDC * pDC );
 	int Highlight( int gtype, int x, int y, int xf, int yf, int w, int orig_layer=LAY_SELECTION );
@@ -360,7 +359,6 @@ public:
 	void Set_y( dl_element * el, int y );
 	void Set_xf( dl_element * el, int xf );
 	void Set_yf( dl_element * el, int yf );
-	void Set_id( dl_element * el, id * id );
 	void Set_layer( dl_element * el, int layer );
 	void Set_radius( dl_element * el, int radius );
 	void Set_mode( dl_element * el, int mode );
@@ -388,7 +386,6 @@ public:
 	int Get_mode( dl_element * el );
 	int Get_pass( dl_element * el );
 	void Get_Endpoints(CPoint *cpi, CPoint *cpf);
-	id Get_id( dl_element * el );
 
 	int TestForHits( double x, double y, CArray<CHitInfo> *hitInfo );			// CPT:  previously in Brian's CDL_job.  r294: altered args.
 };

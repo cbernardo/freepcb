@@ -46,11 +46,11 @@ void CDlgAddMaskCutout::DoDataExchange(CDataExchange* pDX)
 		else
 			ASSERT(0);
 		if( m_radio_none.GetCheck() )
-			m_hatch = CPolyLine::NO_HATCH;
+			m_hatch = cpolyline::NO_HATCH;
 		else if( m_radio_edge.GetCheck() )
-			m_hatch = CPolyLine::DIAGONAL_EDGE;
+			m_hatch = cpolyline::DIAGONAL_EDGE;
 		else if( m_radio_full.GetCheck() )
-			m_hatch = CPolyLine::DIAGONAL_FULL;
+			m_hatch = cpolyline::DIAGONAL_FULL;
 		else
 			ASSERT(0);
 	}

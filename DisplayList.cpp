@@ -83,29 +83,20 @@ CDisplayList::~CDisplayList()
 
 // Remove element from list, return id
 //
-id CDisplayList::Remove( dl_element * element )
+void CDisplayList::Remove( dl_element * element )
 {
 	if( !element )
-	{
-		id no_id;
-		return no_id;
-	}
+		return;
 	if( element->magic != DL_MAGIC )
 	{
 		ASSERT(0);
-		id no_id;
-		return no_id;
+		return;
 	}
 
 	// CPT:  new system replacing Brian's.  "element" will unhook itself from its linked list:
 	element->Unhook();
 	// end CPT
-
-	// destroy element
-	id el_id = element->id;
 	delete( element );
-
-	return el_id;
 }
 
 void CDisplayList::RemoveAllFromLayer( int layer )
@@ -251,90 +242,7 @@ dl_element * CDisplayList::CreateDLE( int gtype )
 }
 
 
-dl_element * CDisplayList::CreateDLE( id id, void * ptr, int layer, int gtype, int visible,
-                                      int w, int holew, int clearancew,
-                                      int x, int y, int xf, int yf, int xo, int yo, int radius,
-                                      int orig_layer )
-{
-	// create new element
-	dl_element * new_element = CreateDLE( gtype );
-
-#if 0	// code added by Brian, doesn't work in fp_editor
-	if( layer == LAY_RAT_LINE )
-	{
-		new_element->w = m_ratline_w;
-	}
-	else
-	{
-		new_element->w = (w < 0) ? w : w / m_pcbu_per_wu;
-	}
-#endif
-
-	// now copy data from entry into element
-	new_element->id         = id;
-	new_element->ptr        = ptr;
-	new_element->visible    = visible;
-	new_element->w			= w			 / m_pcbu_per_wu;
-	new_element->holew      = holew      / m_pcbu_per_wu;
-	new_element->clearancew = clearancew / m_pcbu_per_wu;
-	new_element->i.x        = x          / m_pcbu_per_wu;
-	new_element->i.y        = y          / m_pcbu_per_wu;
-	new_element->f.x        = xf         / m_pcbu_per_wu;
-	new_element->f.y        = yf         / m_pcbu_per_wu;
-	new_element->org.x      = xo         / m_pcbu_per_wu;
-	new_element->org.y      = yo         / m_pcbu_per_wu;
-	new_element->radius     = radius     / m_pcbu_per_wu;
-	new_element->sel_vert   = 0;
-	new_element->layer      = layer;
-	new_element->orig_layer = orig_layer;
-
-	return new_element;
-}
-
-
-// Add entry to end of list, returns pointer to element created.
-//
-// Dimensional units for input parameters are PCBU
-//
-dl_element * CDisplayList::Add( id id, void * ptr, int layer, int gtype, int visible,
-	                            int w, int holew, int clearancew,
-                                int x, int y, int xf, int yf, int xo, int yo,
-	                            int radius, int orig_layer )
-{
-	// create new element
-	dl_element * new_element = CreateDLE( id, ptr, layer, gtype, visible,
-	                                      w, holew, clearancew,
-	                                      x,y, xf,yf, xo,yo, radius,
-	                                      orig_layer );
-	layers[layer].Add(new_element);										// CPT:  new system replacing Brian's
-	return new_element;
-}
-
-// add graphics element used for selection
-//
-dl_element * CDisplayList::AddSelector( id id, void * ptr, int layer, int gtype, int visible,
-							   int w, int holew, int x, int y, int xf, int yf, int xo, int yo,
-							   int radius )
-{
-	// create new element
-	//** for debugging
-	if( gtype == DL_HOLLOW_RECT )
-	{
-		int w_in_mils = abs(x-xf)/PCBU_PER_MIL;	
-		w_in_mils = w_in_mils;
-	}
-	//**
-	dl_element * new_element = CreateDLE( id, ptr, layer, gtype, visible,
-	                                      w, holew, 0,
-	                                      x,y, xf,yf, xo,yo, radius,
-	                                      layer );
-
-	layers[LAY_SELECTION].Add(new_element);
-	return new_element;
-}
-
-
-// BEGIN CPT2.  As I begin contemplating the phase-out of class id, I need versions of dl-elements that make use of cpcb_item pointers instead.
+// BEGIN CPT2.  With the passing of class id, I need versions of dl-elements that make use of cpcb_item pointers instead.
 
 dl_element * CDisplayList::CreateDLE( cpcb_item *item, int usage, int layer, int gtype, int visible,
 								int w, int holew, int clearancew,
@@ -484,11 +392,7 @@ void CDisplayList::Set_radius( dl_element * el, int radius )
 	if( el)
 		el->radius = radius/m_pcbu_per_wu;
 }
-void CDisplayList::Set_id( dl_element * el, id * id )
-{
-	if( el)
-		el->id = *id;
-}
+
 /*
 CPT2:  With Brian's new object-oriented way of doing things, this routine doesn't work at all.
 The only time it was actually used was in DRErrorList::MakeSolidCircles and DRErrorList::MakeHollowCircles.
@@ -515,7 +419,6 @@ void CDisplayList::Move( dl_element * el, int dx, int dy )
 
 // get element parameters in PCBU
 //
-void * CDisplayList::Get_ptr( dl_element * el ) { return el->ptr; }
 int CDisplayList::Get_gtype( dl_element * el ) { return el->gtype; }
 int CDisplayList::Get_visible( dl_element * el ) { return el->visible; }
 int CDisplayList::Get_sel_vert( dl_element * el ) { return el->sel_vert; }
@@ -529,7 +432,6 @@ int CDisplayList::Get_xf( dl_element * el ) { return el->f.x*m_pcbu_per_wu; }
 int CDisplayList::Get_yf( dl_element * el ) { return el->f.y*m_pcbu_per_wu; }
 int CDisplayList::Get_radius( dl_element * el ) { return el->radius*m_pcbu_per_wu; }
 int CDisplayList::Get_layer( dl_element * el ) { return el->layer; }
-id  CDisplayList::Get_id( dl_element * el ) { return el->id; }
 
 void CDisplayList::Get_Endpoints(CPoint *cpi, CPoint *cpf)
 {
@@ -1093,19 +995,19 @@ int CDisplayList::StartDraggingRatLine( CDC * pDC, int x, int y, int xi, int yi,
 	return 0;
 }
 
-// set style of arc being dragged, using CPolyLine styles
+// set style of arc being dragged, using cpolyline styles
 //
 void CDisplayList::SetDragArcStyle( int style )
 {
-	if( style == CPolyLine::STRAIGHT )
+	if( style == cpolyline::STRAIGHT )
 		m_drag_shape = DS_ARC_STRAIGHT;
-	else if( style == CPolyLine::ARC_CW )
+	else if( style == cpolyline::ARC_CW )
 		m_drag_shape = DS_ARC_CW;
-	else if( style == CPolyLine::ARC_CCW )
+	else if( style == cpolyline::ARC_CCW )
 		m_drag_shape = DS_ARC_CCW;
 }
 
-// Start dragging arc endpoint, using style from CPolyLine
+// Start dragging arc endpoint, using style from cpolyline
 // Use the layer color and width w
 //
 int CDisplayList::StartDraggingArc( CDC * pDC, int style, int xx, int yy, int xi, int yi, int layer, int w, int crosshair )
@@ -1115,11 +1017,11 @@ int CDisplayList::StartDraggingArc( CDC * pDC, int style, int xx, int yy, int xi
 
 	// set up for dragging
 	m_drag_flag = 1;
-	if( style == CPolyLine::STRAIGHT )
+	if( style == cpolyline::STRAIGHT )
 		m_drag_shape = DS_ARC_STRAIGHT;
-	else if( style == CPolyLine::ARC_CW )
+	else if( style == cpolyline::ARC_CW )
 		m_drag_shape = DS_ARC_CW;
-	else if( style == CPolyLine::ARC_CCW )
+	else if( style == cpolyline::ARC_CCW )
 		m_drag_shape = DS_ARC_CCW;
 	m_drag_x = x;	// position of endpoint (at cursor)
 	m_drag_y = y;
@@ -2023,8 +1925,7 @@ int CDisplayList::AddDragRatline( CPoint pi, CPoint pf )
 //
 int CDisplayList::Highlight( int gtype, int x, int y, int xf, int yf, int w, int orig_layer )
 {
-	id h_id;
-	Add( h_id, NULL, LAY_HILITE, gtype, 1, w, 0, 0, x, y, xf, yf, x, y, 0, orig_layer );
+	Add( NULL, 0, LAY_HILITE, gtype, 1, w, 0, 0, x, y, xf, yf, x, y, 0, orig_layer );
 	return 0;
 }
 
@@ -2236,8 +2137,6 @@ int CDisplayList::TestForHits( double x, double y, CArray<CHitInfo> *hitInfo )
 			CHitInfo hit;
 			hit.layer = el->layer;
 			hit.item = el->item;						// CPT2.
-			hit.ID = el->id;
-			hit.ptr = el->ptr;
 			hit.dist = d;								// CPT r294.  Introduced distance values into CHitInfo;  el->IsHit() now provides these.
 			hitInfo->Add(hit);
 		}

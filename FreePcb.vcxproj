@@ -151,7 +151,6 @@
   <ItemGroup>
     <ClCompile Include="afxasert.cpp" />
     <ClCompile Include="CommonView.cpp" />
-    <ClCompile Include="Cuid.cpp" />
     <ClCompile Include="DesignRules.cpp" />
     <ClCompile Include="DisplayList.cpp" />
     <ClCompile Include="DlgAddGridVal.cpp" />
@@ -168,22 +167,14 @@
     <ClCompile Include="FreePcbView.cpp" />
     <ClCompile Include="Gerber.cpp" />
     <ClCompile Include="gpc_232.cpp" />
-    <ClCompile Include="ids.cpp" />
     <ClCompile Include="ivex_mod_file.cpp" />
     <ClCompile Include="layers.cpp" />
     <ClCompile Include="MainFrm.cpp" />
     <ClCompile Include="MyToolBar.cpp" />
-    <ClCompile Include="Net.cpp" />
     <ClCompile Include="NetListNew.cpp" />
-    <ClCompile Include="Net_iter.cpp" />
-    <ClCompile Include="NetList.cpp" />
-    <ClCompile Include="PartList.cpp" />
     <ClCompile Include="PartListNew.cpp" />
     <ClCompile Include="PathDialog.cpp" />
     <ClCompile Include="PcbItem.cpp" />
-    <ClCompile Include="php_polygon.cpp" />
-    <ClCompile Include="php_polygon_vertex.cpp" />
-    <ClCompile Include="PolyLine.cpp" />
     <ClCompile Include="QAFDebug.cpp" />
     <ClCompile Include="RTcall.cpp" />
     <ClCompile Include="Shape.cpp" />
@@ -193,7 +184,6 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="TextList.cpp" />
     <ClCompile Include="TextListNew.cpp" />
     <ClCompile Include="UndoNew.cpp" />
     <ClCompile Include="utility.cpp" />
@@ -267,7 +257,6 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="CommonView.h" />
-    <ClInclude Include="Cuid.h" />
     <ClInclude Include="DesignRules.h" />
     <ClInclude Include="DisplayList.h" />
     <ClInclude Include="DlgAddGridVal.h" />
@@ -285,23 +274,14 @@
     <ClInclude Include="FreePcbView.h" />
     <ClInclude Include="Gerber.h" />
     <ClInclude Include="gpc_232.h" />
-    <ClInclude Include="ids.h" />
     <ClInclude Include="ivex_mod_file.h" />
     <ClInclude Include="layers.h" />
-    <ClInclude Include="LinkList.h" />
     <ClInclude Include="MainFrm.h" />
     <ClInclude Include="MyToolBar.h" />
-    <ClInclude Include="Net.h" />
     <ClInclude Include="NetListNew.h" />
-    <ClInclude Include="Net_iter.h" />
-    <ClInclude Include="NetList.h" />
-    <ClInclude Include="PartList.h" />
     <ClInclude Include="PartListNew.h" />
     <ClInclude Include="PathDialog.h" />
     <ClInclude Include="PcbItem.h" />
-    <ClInclude Include="php_polygon.h" />
-    <ClInclude Include="php_polygon_vertex.h" />
-    <ClInclude Include="PolyLine.h" />
     <ClInclude Include="QAFDebug.h" />
     <ClInclude Include="Resource.h" />
     <ClInclude Include="resource1.h" />
@@ -310,7 +290,6 @@
     <ClInclude Include="smcharacter.h" />
     <ClInclude Include="smfontutil.h" />
     <ClInclude Include="StdAfx.h" />
-    <ClInclude Include="TextList.h" />
     <ClInclude Include="TextListNew.h" />
     <ClInclude Include="UndoNew.h" />
     <ClInclude Include="utility.h" />

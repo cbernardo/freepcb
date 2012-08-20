@@ -27,19 +27,19 @@ void CDlgSetAreaHatch::DoDataExchange(CDataExchange* pDX)
 	if( pDX->m_bSaveAndValidate )
 	{
 		if( m_radio_none.GetCheck() )
-			m_hatch = CPolyLine::NO_HATCH;
+			m_hatch = cpolyline::NO_HATCH;
 		else if( m_radio_full.GetCheck() )
-			m_hatch = CPolyLine::DIAGONAL_FULL;
+			m_hatch = cpolyline::DIAGONAL_FULL;
 		else if( m_radio_edge.GetCheck() )
-			m_hatch = CPolyLine::DIAGONAL_EDGE;
+			m_hatch = cpolyline::DIAGONAL_EDGE;
 	}
 	else
 	{
-		if( m_hatch == CPolyLine::NO_HATCH )
+		if( m_hatch == cpolyline::NO_HATCH )
 			m_radio_none.SetCheck(1);
-		else if( m_hatch == CPolyLine::DIAGONAL_FULL )
+		else if( m_hatch == cpolyline::DIAGONAL_FULL )
 			m_radio_full.SetCheck(1);
-		else if( m_hatch == CPolyLine::DIAGONAL_EDGE )
+		else if( m_hatch == cpolyline::DIAGONAL_EDGE )
 			m_radio_edge.SetCheck(1);
 	}
 }
