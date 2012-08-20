@@ -354,7 +354,7 @@ END_MESSAGE_MAP()
 
 // initialize dialog
 //	
-void CDlgAddPart::Initialize( partlist_info * pl, 
+void CDlgAddPart::Initialize( partlist_info * pli, 
 							 int i, 
 							 BOOL standalone,
 							 BOOL new_part,
@@ -368,7 +368,7 @@ void CDlgAddPart::Initialize( partlist_info * pl,
 	extern CFreePcbApp theApp;
 	m_shape = new CShape (theApp.m_doc);
 	m_units = units;  
-	m_pl = pl;
+	m_pl = pli;
 	m_ip = i;
 	m_standalone = standalone;
 	m_new_part = new_part;

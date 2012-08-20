@@ -236,18 +236,18 @@ public:
 	int WriteFootprints( CStdioFile * file, CMapStringToPtr * cache_map=NULL );
 	CShape * GetFootprintPtr( CString name );
 	void MakeLibraryMaps( CString * fullpath );
-	void ReadBoardOutline( CStdioFile * pcb_file );
+	void ReadBoardOutline( CStdioFile * pcb_file);
 	void WriteBoardOutline( CStdioFile * pcb_file, carray<cboard> *boards = NULL );
 	void ReadSolderMaskCutouts( CStdioFile * pcb_file );
 	void WriteSolderMaskCutouts( CStdioFile * pcb_file, carray<csmcutout> *smcutouts = NULL );
 	void ReadOptions( CStdioFile * pcb_file );
 	void WriteOptions( CStdioFile * pcb_file );
 	int ImportNetlist( CStdioFile * file, UINT flags, 
-						partlist_info * pl, netlist_info * nl );
+						partlist_info * pli, netlist_info * nli );
 	int ImportPADSPCBNetlist( CStdioFile * file, UINT flags, 
-							   partlist_info * pl, netlist_info * nl );
+							   partlist_info * pli, netlist_info * nli );
 	int ExportPADSPCBNetlist( CStdioFile * file, UINT flags, 
-							   partlist_info * pl, netlist_info * nl );
+							   partlist_info * pli, netlist_info * nli );
 	void ImportSessionFile( CString * filepath, CDlgLog * log=NULL, BOOL bVerbose=TRUE );
 	void OnFileAutoOpen( LPCTSTR fn );
 	BOOL FileSave( CString * folder, CString * filename, 

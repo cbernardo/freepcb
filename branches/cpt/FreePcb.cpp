@@ -39,7 +39,7 @@ BEGIN_MESSAGE_MAP(CFreePcbApp, CWinApp)
 	ON_COMMAND(ID_FILE_MRU_FILE2, OnFileMruFile2)
 	ON_COMMAND(ID_FILE_MRU_FILE3, OnFileMruFile3)
 	ON_COMMAND(ID_FILE_MRU_FILE4, OnFileMruFile4)
-	ON_COMMAND(ID_HELP_KEYBOARDSHORTCUTS, OnHelpKeyboardshortcuts)
+	ON_COMMAND(ID_HELP_KEYBOARDSHORTCUTS, OnHelpKeyboardShortcuts)
 	ON_COMMAND(ID_TOOLS_OPENONLINEAUTOROUTER, OnToolsOpenOnlineAutorouter)
 	ON_COMMAND(ID_HELP_FREEROUTINGWEBSITE, OnHelpFreeRoutingWebsite)
 	ON_COMMAND(ID_HELP_USERGUIDE_PDF, OnHelpUserGuidePdf)
@@ -420,7 +420,7 @@ void CFreePcbApp::AddMRUFile( CString * str )
 	(*CWinApp::m_pRecentFileList).Add( *str );
 }
 
-void CFreePcbApp::OnHelpKeyboardshortcuts()
+void CFreePcbApp::OnHelpKeyboardShortcuts()
 {
 	CDlgShortcuts dlg = new CDlgShortcuts;
 	dlg.DoModal();

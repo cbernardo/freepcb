@@ -427,6 +427,14 @@ public:
 		maxOff = free = -1;							// Ensures that if array fills up again, iteration through it will be efficient.
 	}
 
+	void TransferTo(carray<T> *arr)
+	{
+		// Move the contents of this into "arr", removing all from this carray afterwards.
+		arr->RemoveAll();
+		arr->Add(this);
+		RemoveAll();
+	}
+
 	int GetSize() { return nItems; }
 	bool IsEmpty() { return nItems==0; }
 	
@@ -721,6 +729,7 @@ public:
 	void GetStatusStr( CString * str, int width );					// CPT added width param
 	void GetStatusStr( CString *str ) { GetStatusStr(str, 0); }
 	void GetBoundingRect( CRect *br );								// CPT2 new, helper for DRC
+	char GetDirectionLabel();										// Done in cpp
 	void Divide( cvertex2 *v, cseg2 *s, int dir );					// Done in cpp
 	bool InsertSegment(int x, int y, int layer, int width, int dir );  // Done in cpp, derived from CNetList::InsertSegment()
 	int Route( int layer, int width );								// Done in cpp
@@ -831,7 +840,6 @@ public:
 	bool m_bNegative;
 	int m_font_size;
 	int m_stroke_width;
-	// int m_nchars;					// CPT2 Ditched
 	CString m_str;
 	CArray<stroke> m_stroke;
 	CRect m_br;							// CPT2 added.  Bounding rectangle
@@ -1139,6 +1147,7 @@ public:
 	bool IsOnCutout();								// Done in cpp
 	cundo_item *MakeUndoItem()
 		{ return new cuside(this); }
+	char GetDirectionLabel();						// Done in cpp
 
 	void InsertCorner(int x, int y);				// Done in cpp
 	bool Remove( carray<cpolyline> *arr );			// CPT2 new, done in cpp
@@ -1194,11 +1203,8 @@ public:
 class cpolyline: public cpcb_item
 {
 public:
-	// CDisplayList * m_dlist;		// display list // CPT2 use doc->m_dlist (?)
-	ccontour *main;				// CPT2
+	ccontour *main;				// CPT2.  The primary, outer contour.
 	carray<ccontour> contours;	// CPT2.  All contours, including main
-	// id m_parent_id;			// id of the parent of the polyline
-	// void * m_ptr;			// pointer to parent object (or NULL)
 	int m_layer;				// layer to draw on
 	int m_w;					// line width
 	int m_sel_box;				// corner selection box width/2
@@ -1383,7 +1389,7 @@ public:
 	cnetlist * m_nlist;			// parent netlist
 
 	cnet2( cnetlist *_nlist, CString _name, int _def_w, int _def_via_w, int _def_via_hole_w );			// Done in cpp
-	cnet2(CFreePcbDoc *_doc, int _uid); 
+	cnet2( CFreePcbDoc *_doc, int _uid ); 
 
 	bool IsValid();
 	bool IsNet() { return true; }
@@ -1427,12 +1433,12 @@ public:
 	void CalcViaWidths(int w, int *via_w, int *via_hole_w);								// Done in cpp
 	void SetThermals();																	// Done in cpp
 	// connections
-	cconnect2 * AddConnect( int * ic=NULL );
-	cconnect2 * AddConnectFromPin( int p1, int * ic=NULL );
-	cconnect2 * AddConnectFromPinToPin( int p1, int p2, int * ic=NULL );
-	void MergeConnections( cconnect2 * c1, cconnect2 * c2 );
-	void CleanUpConnections( CString * logstr=NULL );
-	void OptimizeConnections(BOOL bLimitPinCount=TRUE, BOOL bVisibleNetsOnly=TRUE );  // Done in cpp, derived from old CNetList
+	void AddConnect( cconnect2 *c );													// Done in cpp
+	// cconnect2 * AddConnectFromPin( int p1, int * ic=NULL );
+	// cconnect2 * AddConnectFromPinToPin( int p1, int p2, int * ic=NULL );
+	// void MergeConnections( cconnect2 * c1, cconnect2 * c2 );
+	void CleanUpConnections( CString * logstr=NULL );									// Done in cpp, derived from old CNetList func.
+	void OptimizeConnections(BOOL bLimitPinCount=TRUE, BOOL bVisibleNetsOnly=TRUE );	// Done in cpp, derived from old CNetList
 };
 
 

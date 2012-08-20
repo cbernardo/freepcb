@@ -5067,6 +5067,7 @@ void CNetList::ReassignCopperLayers( int n_new_layers, int * layer )
 //
 void CNetList::RestoreConnectionsAndAreas( CNetList * old_nl, int flags, CDlgLog * log )
 {
+#ifndef CPT2
 	// loop through old nets
 	old_nl->MarkAllNets( 0 );
 	CIterator_cnet iter_net(old_nl);
@@ -5317,6 +5318,7 @@ void CNetList::RestoreConnectionsAndAreas( CNetList * old_nl, int flags, CDlgLog
 		}
 		old_net = iter_net.GetNext();	
 	}
+#endif
 }
 
 undo_con * CNetList::CreateConnectUndoRecord( cnet * net, int icon, BOOL set_areas )

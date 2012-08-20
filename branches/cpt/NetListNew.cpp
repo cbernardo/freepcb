@@ -472,9 +472,10 @@ void cnetlist::WriteNets( CStdioFile * file )
 	}
 }
 
+/*
+CPT2 TODO I think this is no longer needed
 void cnetlist::Copy(cnetlist *src)
 {
-#ifndef CPT2
 	// CPT2 loosely based on old CNetList func.  Copies all pcb-items from src netlist into this one.
 	nets.RemoveAll();
 	citer<cnet2> in (&src->nets);
@@ -525,18 +526,18 @@ void cnetlist::Copy(cnetlist *src)
 
 
 	}
-#endif
 }
+*/
 
-void cnetlist::ExportNetListInfo( netlist_info * nl )
+void cnetlist::ExportNetListInfo( netlist_info * nli )
 {
 	// make copy of netlist data so that it can be edited
 	int i = 0;
-	nl->SetSize( nets.GetSize() );
+	nli->SetSize( nets.GetSize() );
 	citer<cnet2> in (&nets);
 	for (cnet2 *net = in.First(); net; net = in.Next(), i++)
 	{
-		net_info *ni = &(*nl)[i];
+		net_info *ni = &(*nli)[i];
 		ni->name = net->name;
 		ni->net = net;
 		ni->visible = net->bVisible;
@@ -565,19 +566,30 @@ void cnetlist::ExportNetListInfo( netlist_info * nl )
 
 // import netlist_info data back into netlist
 //
-void cnetlist::ImportNetListInfo( netlist_info * nl, int flags, CDlgLog * log,
+void cnetlist::ImportNetListInfo( netlist_info * nli, int flags, CDlgLog * log,
 								 int def_w, int def_w_v, int def_w_v_h )
 {
 	CString mess;
-	// Mark all nets for redrawing.  CPT2 TODO think about undo issues
+	// Mark all existing nets for redrawing.  CPT2 TODO think about undo issues
 	citer<cnet2> in (&nets);
 	for (cnet2 *net = in.First(); net; net = in.Next())
 		net->MustRedraw();
+
+	// CPT2 when importing from a netlist file,  go through and try to find pre-existing nets with the names indicated 
+	// in nli's entries, and enter them into the net_info::net field.
+	if (flags & IMPORT_FROM_NETLIST_FILE)
+		for (int i=0; i<nli->GetSize(); i++)
+		{
+			net_info *ni = &(*nli)[i];
+			if (ni->net) continue;
+			ni->net = GetNetPtrByName( &ni->name );					// CPT2 TODO rename GetNetByName
+		}
+
 	// loop through netlist_info and remove any nets that are flagged for deletion
-	int n_info_nets = nl->GetSize();
+	int n_info_nets = nli->GetSize();
 	for( int i=0; i<n_info_nets; i++ )
 	{
-		net_info *ni = &(*nl)[i];
+		net_info *ni = &(*nli)[i];
 		cnet2 *net = ni->net;
 		if( ni->deleted && net )
 		{
@@ -590,12 +602,13 @@ void cnetlist::ImportNetListInfo( netlist_info * nl, int flags, CDlgLog * log,
 			}
 			if (ni->merge_into >= 0)
 			{
-				// CPT2 new.  Rather than simply delete the current net, combine it into the one indicated at position 
+				// CPT2 new.  This option comes up when we're emerging from the DlgNetlist and user requested the combining of existing nets.
+				//  Rather than simply delete the current net, combine it into the one indicated at position 
 				// "ni->merge_into" of the netlist-info table.
 				int mi = ni->merge_into;
-				while ((*nl)[mi].merge_into >= 0)
-					mi = (*nl)[mi].merge_into;				// It's possible user merged repeatedly during the life of DlgNetlist
-				net_info *ni2 = &(*nl)[mi];
+				while ((*nli)[mi].merge_into >= 0)
+					mi = (*nli)[mi].merge_into;				// It's possible user merged repeatedly during the life of DlgNetlist
+				net_info *ni2 = &(*nli)[mi];
 				if (ni2->deleted || !ni2->net)
 					// It appears user deleted the combined net after requesting the merge...
 					net->Remove();
@@ -615,7 +628,7 @@ void cnetlist::ImportNetListInfo( netlist_info * nl, int flags, CDlgLog * log,
 	// assumes that the new name is not a duplicate
 	for( int i=0; i<n_info_nets; i++ )
 	{
-		net_info *ni = &(*nl)[i];
+		net_info *ni = &(*nli)[i];
 		cnet2 *net = ni->net;
 		if( net )
 			net->name = ni->name;
@@ -626,8 +639,8 @@ void cnetlist::ImportNetListInfo( netlist_info * nl, int flags, CDlgLog * log,
 	{
 		// check if in netlist_info
 		BOOL bFound = FALSE;
-		for( int i=0; i<nl->GetSize(); i++ )
-			if( net->name == (*nl)[i].name )
+		for( int i=0; i<nli->GetSize(); i++ )
+			if( net->name == (*nli)[i].name )
 			{
 				bFound = TRUE;
 				break;
@@ -655,7 +668,7 @@ void cnetlist::ImportNetListInfo( netlist_info * nl, int flags, CDlgLog * log,
 	// now reloop, adding and modifying nets and deleting pins as needed
 	for( int i=0; i<n_info_nets; i++ )
 	{
-		net_info *ni = &(*nl)[i];
+		net_info *ni = &(*nli)[i];
 		// ignore info nets marked for deletion
 		if( ni->deleted )
 			continue;
@@ -713,13 +726,7 @@ void cnetlist::ImportNetListInfo( netlist_info * nl, int flags, CDlgLog * log,
 				continue;
 
 			// pin in net but not in netlist_info 
-			if( flags & KEEP_PARTS_AND_CON )
-			{
-				// we may want to preserve this pin.
-				if( !pin->part->bPreserve )
-					net->RemovePin(pin);
-			}
-			else
+			if( !(flags & KEEP_PARTS_AND_CON) || !pin->part->bPreserve )
 			{
 				// delete it from net
 				if( log )
@@ -736,7 +743,7 @@ void cnetlist::ImportNetListInfo( netlist_info * nl, int flags, CDlgLog * log,
 	// now reloop and add any pins that were added to netlist_info
 	for( int i=0; i<n_info_nets; i++ )
 	{
-		net_info *ni = &(*nl)[i];
+		net_info *ni = &(*nli)[i];
 		cnet2 * net = ni->net;
 		if( net && !ni->deleted && ni->modified )
 		{
@@ -745,7 +752,14 @@ void cnetlist::ImportNetListInfo( netlist_info * nl, int flags, CDlgLog * log,
 			for( int ipl=0; ipl<n_local_pins; ipl++ )
 			{
 				cpin2 *pin = m_plist->GetPinByNames( &ni->ref_des[ipl], &ni->pin_name[ipl] );
-				ASSERT(pin);
+				if (!pin)
+				{
+					// This could happen if we're importing from a netlist file that refers to a bogus pin.  Ignore...
+					CString s ((LPCSTR) IDS_WhileImportingNetIgnoredInvalidPin);
+					mess.Format(s, net->name, ni->ref_des[ipl], ni->pin_name[ipl]);
+					log->AddLine(mess);
+					continue;
+				}
 				if (pin->net == net) continue;
 				net->AddPin( pin );						// Takes care of detaching pin from its old net, if any
 				if( log )
@@ -761,7 +775,7 @@ void cnetlist::ImportNetListInfo( netlist_info * nl, int flags, CDlgLog * log,
 	// now set visibility and apply new widths, if requested
 	for( int i=0; i<n_info_nets; i++ )
 	{
-		net_info *ni = &(*nl)[i];
+		net_info *ni = &(*nli)[i];
 		cnet2 *net = ni->net;
 		if (!net) 
 			continue;

@@ -402,210 +402,6 @@ void CFreePcbView::OnEndPrinting(CDC* /*pDC*/, CPrintInfo* /*pInfo*/)
 	// TODO: add cleanup after printing
 }
 
-// Displays a popup menu for the mouse hits in hit_info
-//
-// Param:
-//	point    - current mouse position (relative to client window)
-// CPT r294: removed hit-info args (using m_hit_info instead).  Reorganized and tidied up.
-int CFreePcbView::SelectObjPopup( CPoint const &point )
-{
-#ifndef CPT2
-	CDC *winDC = GetDC();
-
-	CDC dc;
-	dc.CreateCompatibleDC(winDC);
-	dc.SetMapMode(MM_TEXT);
-	dc.SetWindowExt( 1,1 );
-	dc.SetWindowOrg( 0,0 );
-	dc.SetViewportExt( 1,1 );
-	dc.SetViewportOrg( 0,0 );
-
-	int sel = 0;
-	int num_hits = m_hit_info.GetCount();
-	if (num_hits>25) num_hits = 25;					// m_hit_info has unlimited size...
-
-	// Create bitmap array
-	CArray<CBitmap> bitmaps;
-	bitmaps.SetSize(num_hits);
-	CString str;
-	CMenu file_menu;
-	file_menu.CreatePopupMenu();
-
-	for( int idx = 0; idx < num_hits; idx++ )
-	{
-		CHitInfo *pInfo = &m_hit_info[idx];
-
-		// Don't display masked items.  CPT r294:  obsolete, removed
-		// if( info.priority < 0 )
-		//    break;
-
-		CRect r(0,0, 139,23);
-		CBitmap *pBitmap = &bitmaps[idx];
-		pBitmap->CreateCompatibleBitmap(winDC, r.Width()+1, r.Height()+1);
-		CBitmap *pOldBitmap = dc.SelectObject(pBitmap);
-		COLORREF layer_color = C_RGB( m_doc->m_rgb[ pInfo->layer ][0],
-										m_doc->m_rgb[ pInfo->layer ][1],
-										m_doc->m_rgb[ pInfo->layer ][2] );
-		COLORREF text_color  = C_RGB(m_doc->m_rgb[ LAY_BACKGND ][0],
-										m_doc->m_rgb[ LAY_BACKGND ][1],
-										m_doc->m_rgb[ LAY_BACKGND ][2] );
-
-		dc.FillSolidRect(r, layer_color);
-		dc.SetTextColor(text_color);
-
-		if( pInfo->ID.T1() == ID_BOARD )
-		{
-			str.LoadStringA(IDS_Board);
-			if( pInfo->ID.T3() == ID_SEL_SIDE )
-			{
-				CString s ((LPCSTR) IDS_Side3);
-				str += s;
-			}
-			else if( pInfo->ID.T3() == ID_SEL_CORNER )
-			{
-				CString s ((LPCSTR) IDS_Corner3);
-				str += s;
-			}
-		}
-		else if( pInfo->ID.T1() == ID_PART )
-		{
-			cpart *part = (cpart*)pInfo->ptr;
-
-			if( pInfo->ID.T2() == ID_SEL_PAD )
-			{
-				CString s ((LPCSTR) IDS_Pin3);
-				str.Format( s, part->ref_des, part->shape->GetPinNameByIndex(pInfo->ID.I2()) );
-			}
-			else if( pInfo->ID.T2() == ID_SEL_RECT )
-			{
-				str = "";
-				CShape *shape = part->shape;
-				if( shape )
-				{
-					CMetaFileDC m_mfDC;
-
-					CRect shape_bounds = shape->GetBounds();
-					int dx = -shape_bounds.Height() / NM_PER_MIL;
-
-					// Scale part bitmap height between 40 and 128 for better readability
-					r.bottom = 32 + dx / 11;
-					if( r.bottom > 128 ) r.bottom = 128;
-
-					// Trade in the default bitmap for the new one
-					dc.SelectObject(pOldBitmap);
-					pBitmap->DeleteObject();
-					pBitmap->CreateCompatibleBitmap(winDC, r.Width()+1, r.Height()+1);
-					dc.SelectObject(pBitmap);
-
-					// Draw the shape with actual ref_des & no selection rectangle
-					HENHMETAFILE hMF = shape->CreateMetafile( &m_mfDC, winDC, r, part->ref_des, FALSE );
-					dc.PlayMetaFile( hMF, r );
-					DeleteEnhMetaFile( hMF );
-				}
-			}
-			else if( pInfo->ID.T2() == ID_REF_TXT )
-			{
-				CString s ((LPCSTR) IDS_Ref3);
-				str.Format(s, part->ref_des);
-			}
-			else if( pInfo->ID.T2() == ID_VALUE_TXT )
-			{
-				CString s ((LPCSTR) IDS_Value3);
-				str.Format(s, part->value);
-			}
-		}
-		else if( pInfo->ID.T1() == ID_NET )
-		{
-			cnet *net = (cnet*)pInfo->ptr;
-
-			if( pInfo->ID.T2() == ID_CONNECT )
-			{
-				if( pInfo->ID.T3() == ID_SEL_SEG )
-					str.LoadStringA(IDS_Segment3);
-				else if( pInfo->ID.T3() == ID_SEL_VERTEX )
-				{
-					if( net->ConByIndex(pInfo->ID.I2())->VtxByIndex(pInfo->ID.I3()).via_w )
-						str.LoadStringA(IDS_Via3);
-					else
-						str.LoadStringA(IDS_Vertex3);
-				}
-			}
-			else if( pInfo->ID.T2() == ID_AREA )
-			{
-				str.LoadStringA(IDS_Copper3);
-				if( pInfo->ID.T3() == ID_SEL_SIDE )
-				{
-					CString s ((LPCSTR) IDS_Side3);
-					str += s;
-				}
-				else if( pInfo->ID.T3() == ID_SEL_CORNER )
-				{
-					CString s ((LPCSTR) IDS_Corner3);
-					str += s;
-				}
-			}
-		}
-		else if( pInfo->ID.T1() == ID_TEXT )
-		{
-			CText *text = (CText*)pInfo->ptr;
-			CString s ((LPCSTR) IDS_Text3);
-			str.Format(s, text->m_str);
-		}
-		else if( pInfo->ID.T1() == ID_DRC )
-			str.LoadStringA(IDS_DRC3);
-		else if( pInfo->ID.T1() == ID_MASK )
-		{
-			str.LoadStringA(IDS_Cutout3);
-			if( pInfo->ID.T3() == ID_SEL_SIDE )
-			{
-				CString s ((LPCSTR) IDS_Side3);
-				str += s;
-			}
-			else if( pInfo->ID.T3() == ID_SEL_CORNER )
-			{
-				CString s ((LPCSTR) IDS_Corner3);
-				str += s;
-			}
-		}
-		else if( pInfo->ID.T1() == ID_CENTROID )
-			str.LoadStringA(IDS_Centroid3);
-		else if( pInfo->ID.T1() == ID_GLUE )
-			str.LoadStringA(IDS_GlueSpot3);
-		else
-			str = "Unknown";
-
-		if( str.GetLength() > 0 )
-			dc.TextOut( 10,3, str );
-
-		// Draw bounding box around the bitmap
-		dc.MoveTo(r.left,r.top);
-		dc.LineTo(r.right,r.top);
-		dc.LineTo(r.right,r.bottom);
-		dc.LineTo(r.left,r.bottom);
-		dc.LineTo(r.left,r.top);
-		dc.SelectObject(pOldBitmap);
-
-		file_menu.AppendMenu( MF_STRING, idx + 1, pBitmap );
-	}
-
-	if (num_hits > 0)
-	{
-		CRect r;
-		GetWindowRect(r);
-		sel = file_menu.TrackPopupMenu(TPM_LEFTALIGN | TPM_RIGHTBUTTON | TPM_RETURNCMD, point.x + r.left + 5, point.y + r.top + 5, this);
-	}
-
-	// Release GDI objects
-	bitmaps.RemoveAll();
-	ReleaseDC(&dc);
-	ReleaseDC(winDC);
-
-	return (sel - 1);
-#else
-	return 0;
-#endif
-}
-
 
 // Left mouse button released, we should probably do something
 //
@@ -1403,7 +1199,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 					{
 						// unassigned pin, assign it
 						pin->part->SaveUndoInfo();
-						net->SaveUndoInfo();
+						net->SaveUndoInfo( cnet2::SAVE_CONNECTS );
 						net->AddPin( pin );
 					}
 					else
@@ -1448,7 +1244,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 					CPoint pi = m_snap_angle_ref;
 					CPoint pf = m_last_cursor_point;
 					CPoint pp = GetInflectionPoint( pi, pf, m_inflection_mode );
-					net->SaveUndoInfo();
+					net->SaveUndoInfo( cnet2::SAVE_CONNECTS );
 					if( pp != pi )
 						con0->AppendSegment( pp.x, pp.y, m_active_layer, m_active_width ) ;
 					con0->AppendSegment( pf.x, pf.y, m_active_layer, m_active_width );
@@ -1516,7 +1312,6 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		m_dragging_new_item = FALSE;
 	}
 
-#ifndef CPT2
 	else if( m_cursor_mode == CUR_DRAG_MEASURE_1 )
 	{
 		m_from_pt = m_last_cursor_point;
@@ -1529,7 +1324,6 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		m_dlist->StopDragging();
 		SetCursorMode( CUR_NONE_SELECTED );
 	}
-#endif
 	goto goodbye;
 
 cancel_selection_and_goodbye:
@@ -1703,13 +1497,11 @@ void CFreePcbView::OnRButtonDown(UINT nFlags, CPoint point)
 		m_dlist->SetLayerVisible( LAY_RAT_LINE, m_doc->m_vis[LAY_RAT_LINE] );
 		m_doc->OnEditUndo();
 	}
-#ifndef CPT2
 	else if( m_cursor_mode == CUR_DRAG_MEASURE_1 || m_cursor_mode == CUR_DRAG_MEASURE_2 )
 	{
 		m_dlist->StopDragging();
 		SetCursorMode( CUR_NONE_SELECTED );
 	}
-#endif
 	else if( m_cursor_mode == CUR_MOVE_ORIGIN )					// CPT2 added (oversight)
 	{
 		m_dlist->StopDragging();
@@ -4054,16 +3846,16 @@ void CFreePcbView::OnPartProperties()
 {
 	// CPT2.  This used to be in class FreePcbDoc, but I'm thinking CFreePcbView is more logical.
 	cpart2 *part = m_sel.First()->ToPart();
-	partlist_info pl;
-	int ip = part->m_pl->ExportPartListInfo( &pl, part );
+	partlist_info pli;
+	int ip = part->m_pl->ExportPartListInfo( &pli, part );
 	CDlgAddPart dlg;
-	dlg.Initialize( &pl, ip, TRUE, FALSE, FALSE, 0, &m_doc->m_footprint_cache_map, 
+	dlg.Initialize( &pli, ip, TRUE, FALSE, FALSE, 0, &m_doc->m_footprint_cache_map, 
 		&m_doc->m_footlibfoldermap, m_units, m_doc->m_dlg_log );
 	int ret = dlg.DoModal();
 	if( ret != IDOK )
 		return;
 	part->SaveUndoInfo();
-	m_doc->m_plist->ImportPartListInfo( &pl, 0 );
+	m_doc->m_plist->ImportPartListInfo( &pli, 0 );
 	if( dlg.GetDragFlag() )
 		ASSERT(0);														// CPT2 TODO.  Investigate why this is.
 	if( m_doc->m_vis[LAY_RAT_LINE] && !m_doc->m_auto_ratline_disable )
@@ -4150,7 +3942,7 @@ void CFreePcbView::OnPadStartTrace()
 		net->AddPin(pin);
 	}
 	else
-		net->SaveUndoInfo();
+		net->SaveUndoInfo( cnet2::SAVE_CONNECTS );
 
 	CDC * pDC = GetDC();
 	SetDCToWorldCoords( pDC );
@@ -4611,7 +4403,7 @@ void CFreePcbView::OnTeeDelete()
 	int ret = AfxMessageBox( s,	MB_OKCANCEL );
 	if( ret == IDCANCEL )
 		return;
-	net->SaveUndoInfo();
+	net->SaveUndoInfo( cnet2::SAVE_CONNECTS );
 	tee->Remove(true);
 	if( m_doc->m_vis[LAY_RAT_LINE] )
 		net->OptimizeConnections();
@@ -5645,46 +5437,37 @@ void CFreePcbView::OnExternalChangeFootprint( CShape * fp )
 //
 void CFreePcbView::OnViewFindpart()
 {
-#ifndef CPT2
 	CDlgFindPart dlg;
 	dlg.Initialize( m_doc->m_plist );
 	int ret = dlg.DoModal();
-	if( ret == IDOK )
+	if (ret != IDOK)
+		return;
+	CString * ref_des = &dlg.sel_ref_des;
+	cpart2 * part = m_doc->m_plist->GetPartByName( ref_des );
+	if( !part )
 	{
-		CString * ref_des = &dlg.sel_ref_des;
-		cpart * part = m_doc->m_plist->GetPartByName( *ref_des );
-		if( part )
-		{
-			if( part->shape )
-			{
-				dl_element * dl_sel = part->dl_sel;
-				int xc = (m_dlist->Get_x( dl_sel ) + m_dlist->Get_xf( dl_sel ))/2;
-				int yc = (m_dlist->Get_y( dl_sel ) + m_dlist->Get_yf( dl_sel ))/2;
-				m_org_x = xc - ((m_client_r.right-m_left_pane_w)*m_pcbu_per_pixel)/2;
-				m_org_y = yc - ((m_client_r.bottom-m_bottom_pane_h)*m_pcbu_per_pixel)/2;
-				CRect screen_r;
-				GetWindowRect( &screen_r );
-				m_dlist->SetMapping( &m_client_r, &screen_r, m_left_pane_w, m_bottom_pane_h, m_pcbu_per_pixel,
-					m_org_x, m_org_y );
-				CPoint p(xc, yc);
-				p = m_dlist->PCBToScreen( p );
-				SetCursorPos( p.x, p.y - 4 );
-				SelectPart( part );
-				Invalidate( FALSE );
-			}
-			else
-			{
-				CString s ((LPCSTR) IDS_SorryThisPartDoesntHaveAFootprint);
-				AfxMessageBox( s );
-			}
-		}
-		else
-		{
-			CString s ((LPCSTR) IDS_SorryThisPartDoesntExist);
-			AfxMessageBox( s );
-		}
+		AfxMessageBox( CString((LPCSTR) IDS_SorryThisPartDoesntExist) );
+		return;
 	}
-#endif
+	if (!part->shape)
+	{
+		AfxMessageBox( CString((LPCSTR) IDS_SorryThisPartDoesntHaveAFootprint) );
+		return;
+	}
+	dl_element * dl_sel = part->dl_sel;
+	int xc = (m_dlist->Get_x( dl_sel ) + m_dlist->Get_xf( dl_sel ))/2;
+	int yc = (m_dlist->Get_y( dl_sel ) + m_dlist->Get_yf( dl_sel ))/2;
+	m_org_x = xc - ((m_client_r.right-m_left_pane_w)*m_pcbu_per_pixel)/2;
+	m_org_y = yc - ((m_client_r.bottom-m_bottom_pane_h)*m_pcbu_per_pixel)/2;
+	CRect screen_r;
+	GetWindowRect( &screen_r );
+	m_dlist->SetMapping( &m_client_r, &screen_r, m_left_pane_w, m_bottom_pane_h, m_pcbu_per_pixel,
+		m_org_x, m_org_y );
+	CPoint p(xc, yc);
+	p = m_dlist->PCBToScreen( p );
+	SetCursorPos( p.x, p.y - 4 );
+	SelectItem( part );
+	Invalidate( FALSE );
 }
 
 void CFreePcbView::OnFootprintWizard()
@@ -5832,7 +5615,7 @@ void CFreePcbView::ChangeTraceLayer( int mode, int old_layer )
 	}
 	else if( dlg.m_apply_to == 2 )
 	{
-		net->SaveUndoInfo();
+		net->SaveUndoInfo( cnet2::SAVE_CONNECTS );
 		citer<cconnect2> ic (&net->connects);
 		for (cconnect2 *c = ic.First(); c; c = ic.Next())
 		{
@@ -5852,14 +5635,15 @@ void CFreePcbView::ChangeTraceLayer( int mode, int old_layer )
 
 void CFreePcbView::OnNetEditnet()
 {
+	// CPT2 TODO evidently obsolete since nets can't be selected now, only highlighted
 #ifndef CPT2
 	CDlgEditNet dlg;
-	netlist_info nl;
-	m_doc->m_nlist->ExportNetListInfo( &nl );
+	netlist_info nli;
+	m_doc->m_nlist->ExportNetListInfo( &nli );
 	int inet = -1;
-	for( int i=0; i<nl.GetSize(); i++ )
+	for( int i=0; i<nli.GetSize(); i++ )
 	{
-		if( nl[i].net == m_sel_net )
+		if( nli[i].net == m_sel_net )
 		{
 			inet = i;
 			break;
@@ -5867,14 +5651,14 @@ void CFreePcbView::OnNetEditnet()
 	}
 	if( inet == -1 )
 		ASSERT(0);
-	dlg.Initialize( &nl, inet, m_doc->m_plist, FALSE, TRUE, m_units,
+	dlg.Initialize( &nli, inet, m_doc->m_plist, FALSE, TRUE, m_units,
 		&m_doc->m_w, &m_doc->m_v_w, &m_doc->m_v_h_w );
 	int ret = dlg.DoModal();
 	if( ret == IDOK )
 	{
 		m_doc->ResetUndoState();
 		CancelSelection();
-		m_doc->m_nlist->ImportNetListInfo( &nl, 0, NULL,
+		m_doc->m_nlist->ImportNetListInfo( &nli, 0, NULL,
 			m_doc->m_trace_w, m_doc->m_via_w, m_doc->m_via_hole_w );
 		Invalidate( FALSE );
 	}
@@ -7001,7 +6785,7 @@ void CFreePcbView::OnGroupPaste()
 						{ bRouted = true; goto routedLoopEnd; }
 			}
 			routedLoopEnd:
-			// Only paste in net2 if it contains routed segs or areas within net2
+			// Only paste in net2 if it contains routed segs or areas
 			if (!bRouted && net2->NumAreas()==0)
 				continue;
 		}
@@ -7415,38 +7199,6 @@ void CFreePcbView::OnAreaEdgeApplyClearances()
 #endif
 }
 
-void CFreePcbView::ReselectNetItemIfConnectionsChanged( int new_ic )
-{
-#ifndef CPT2
-
-	if( new_ic >= 0 && new_ic < m_sel_net->NumCons()
-		&& (m_cursor_mode == CUR_SEG_SELECTED
-		|| m_cursor_mode == CUR_RAT_SELECTED
-		|| m_cursor_mode == CUR_VTX_SELECTED
-		|| m_cursor_mode == CUR_TEE_SELECTED
-		|| m_cursor_mode == CUR_CONNECT_SELECTED
-		|| m_cursor_mode == CUR_NET_SELECTED ) )
-	{
-		CancelHighlight();
-		m_sel_id.SetI2( new_ic );
-		if( m_cursor_mode == CUR_SEG_SELECTED )
-			m_doc->m_nlist->HighlightSegment( m_sel_net, m_sel_ic, m_sel_is );
-		else if( m_cursor_mode == CUR_RAT_SELECTED )
-			m_doc->m_nlist->HighlightSegment( m_sel_net, m_sel_ic, m_sel_is );
-		else if( m_cursor_mode == CUR_VTX_SELECTED )
-			m_doc->m_nlist->HighlightVertex( m_sel_net, m_sel_ic, m_sel_iv );
-		else if( m_cursor_mode == CUR_END_VTX_SELECTED )
-			m_doc->m_nlist->HighlightVertex( m_sel_net, m_sel_ic, m_sel_iv );
-		else if( m_cursor_mode == CUR_CONNECT_SELECTED )
-			m_doc->m_nlist->HighlightConnection( m_sel_net, m_sel_ic );
-		else if( m_cursor_mode == CUR_NET_SELECTED )
-			m_doc->m_nlist->HighlightNet( m_sel_net );
-	}
-	else
-		CancelSelection();
-#endif
-}
-
 void CFreePcbView::OnGroupRotate(bool bCcw) 
 {
 	CancelHighlight();
@@ -7737,15 +7489,15 @@ void CFreePcbView::OnAddPart()
 	// CPT2 was in CFreePcbDoc, but CFreePcbView seems more logical to me.  CPT2 TODO There's gotta be a more efficient way to do this.
 	// invoke dialog
 	CDlgAddPart dlg;
-	partlist_info pl;
-	m_doc->m_plist->ExportPartListInfo( &pl, NULL );
-	dlg.Initialize( &pl, -1, TRUE, TRUE, FALSE, 0, &m_doc->m_footprint_cache_map, 
+	partlist_info pli;
+	m_doc->m_plist->ExportPartListInfo( &pli, NULL );
+	dlg.Initialize( &pli, -1, TRUE, TRUE, FALSE, 0, &m_doc->m_footprint_cache_map, 
 		&m_doc->m_footlibfoldermap, m_units, m_doc->m_dlg_log );
 	int ret = dlg.DoModal();
 	if( ret != IDOK ) return;
 
 	// Create part from the partlist generated by the dlg.  If we're going to be dragging, move part (and its pins) under user's cursor right away.
-	m_doc->m_plist->ImportPartListInfo( &pl, 0 );
+	m_doc->m_plist->ImportPartListInfo( &pli, 0 );
 	cpart2 *part = m_doc->m_plist->GetPartByName( &dlg.m_ref_des );
 	if (dlg.GetDragFlag())
 	{

@@ -73,7 +73,7 @@ private:
 	int m_units_initial;			// CPT2.  Similar
 
 public:
-	void Initialize( partlist_info * pl,
+	void Initialize( partlist_info * pli,
 		int i, 
 		BOOL standalone,
 		BOOL new_part,

@@ -30,9 +30,6 @@ public:
 	CButton m_radio_keep_fp;
 	CButton m_radio_remove_nets;
 	CButton m_radio_keep_nets;
-	CButton m_check_keep_traces;
-	CButton m_check_keep_stubs;
-	CButton m_check_keep_areas;
 	CButton m_button_save_and_import;
 	// CPT added (used to be in file-open dialog):
 	CButton m_radio_parts;

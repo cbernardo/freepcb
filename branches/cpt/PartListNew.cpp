@@ -410,7 +410,7 @@ int cpartlist::ExportPartListInfo( partlist_info * pli, cpart2 *part0 )
 	return ret;
 }
 
-void cpartlist::ImportPartListInfo( partlist_info * pl, int flags, CDlgLog * log )
+void cpartlist::ImportPartListInfo( partlist_info * pli, int flags, CDlgLog * log )
 {
 	// CPT2 converted.  Routine relies on lower-level subroutines to call Undraw() or MustRedraw(), as appropriate, for individual parts and 
 	// attached nets.
@@ -425,9 +425,9 @@ void cpartlist::ImportPartListInfo( partlist_info * pl, int flags, CDlgLog * log
 
 	// first, look for parts in project whose ref_des has been changed
 	/* CPT2 obsolete
-	for( int i=0; i<pl->GetSize(); i++ )
+	for( int i=0; i<pli->GetSize(); i++ )
 	{
-		part_info * pi = &(*pl)[i];
+		part_info * pi = &(*pli)[i];
 		if( pi->part )
 		{
 			if( pi->ref_des != pi->part->ref_des )
@@ -439,6 +439,16 @@ void cpartlist::ImportPartListInfo( partlist_info * pl, int flags, CDlgLog * log
 	}
 	*/
 
+	// CPT2 when importing from netlist file,  go through and try to find pre-existing parts with the names indicated 
+	// in pli's entries, and enter them into the part_info::part field.
+	if (flags & IMPORT_FROM_NETLIST_FILE)
+		for (int i=0; i<pli->GetSize(); i++)
+		{
+			part_info *pi = &(*pli)[i];
+			if (pi->part) continue;
+			pi->part = GetPartByName( &pi->ref_des );
+		}
+
 	// now find parts in project that are not in partlist_info
 	// loop through all parts in project
 	citer<cpart2> ip (&parts);
@@ -447,9 +457,9 @@ void cpartlist::ImportPartListInfo( partlist_info * pl, int flags, CDlgLog * log
 		// loop through the partlist_info array
 		BOOL bFound = FALSE;
 		part->bPreserve = FALSE;
-		for( int i=0; i<pl->GetSize(); i++ )
+		for( int i=0; i<pli->GetSize(); i++ )
 		{
-			part_info * pi = &(*pl)[i];
+			part_info * pi = &(*pli)[i];
 			if( pi->part == part )
 			{
 				// part exists in partlist_info.  CPT2 TODO Before this check was based on comparing ref-designators, but I think this
@@ -494,15 +504,15 @@ void cpartlist::ImportPartListInfo( partlist_info * pl, int flags, CDlgLog * log
 					mess.Format( s, part->ref_des );
 					log->AddLine( mess );
 				}
-				part->Remove(false);			// CPT2 I guess...
+				part->Remove(true);			// CPT2 I guess...
 			}
 		}
 	}
 
 	// loop through partlist_info array, changing partlist as necessary
-	for( int i=0; i<pl->GetSize(); i++ )
+	for( int i=0; i<pli->GetSize(); i++ )
 	{
-		part_info * pi = &(*pl)[i];
+		part_info * pi = &(*pli)[i];
 		if( pi->part == 0 && pi->deleted )
 			// new part was added but then deleted, ignore it
 			continue;
@@ -524,7 +534,7 @@ void cpartlist::ImportPartListInfo( partlist_info * pl, int flags, CDlgLog * log
 		if( pi->part == 0 )
 		{
 			// the partlist_info does not include a pointer to an existing part
-			// the part might not exist in the project, or we are importing a netlist file
+			// the part might not exist in the project
 			cpart2 * old_part = GetPartByName( &pi->ref_des );
 			if( old_part && old_part->shape)
 			{
@@ -586,11 +596,18 @@ void cpartlist::ImportPartListInfo( partlist_info * pl, int flags, CDlgLog * log
 				// remove old part (which did not have a footprint)
 				if( log && old_part->package != pi->package )
 				{
-					CString s ((LPCSTR) IDS_ChangingFootprintOfPart);
+					CString s ((LPCSTR) IDS_ChangingFootprintOfPart);						// CPT2 TODO figure out what's going on with footprints & pkgs.
 					mess.Format( s, old_part->ref_des, old_part->package, pi->package );
 					log->AddLine( mess );
 				}
 				old_part->Remove(true);
+			}
+			else
+			{
+				// Will create part from scratch!
+				CString s ((LPCSTR) IDS_CreatingPartWithFootprint);
+				mess.Format( s, pi->ref_des, pi->shape->m_name );
+				log->AddLine( mess );
 			}
 
 			if( pi->shape && pi->bOffBoard )
@@ -666,7 +683,6 @@ void cpartlist::ImportPartListInfo( partlist_info * pl, int flags, CDlgLog * log
 				pi->y -= pi->shape->m_sel_yi;
 			}
 			
-			// Create new part!
 			cpart2 *part = new cpart2(this);
 			CShape *shape = pi->shape;
 			// The following line also positions ref and value according to "shape", if possible, and calls part->MustRedraw():
@@ -684,7 +700,6 @@ void cpartlist::ImportPartListInfo( partlist_info * pl, int flags, CDlgLog * log
 			// part existed before but may have been modified
 			cpart2 *part = pi->part;
 			part->MustRedraw();
-			part->package = pi->package;
 			if( part->shape != pi->shape || pi->bShapeChanged )
 			{
 				// footprint was changed
@@ -693,6 +708,10 @@ void cpartlist::ImportPartListInfo( partlist_info * pl, int flags, CDlgLog * log
 					// change footprint to new one
 					part->ChangeFootprint( pi->shape );
 			}
+			// CPT2:  if importing from netlist file, then the only worthwhile data in "pi" is the shape.  Ignore the rest...
+			if (flags & IMPORT_FROM_NETLIST_FILE)
+				continue;
+			part->package = pi->package;
 			part->m_ref->m_bShown = pi->ref_vis;
 			part->m_ref->m_layer = pi->ref_layer;
 			part->m_ref->Resize( pi->ref_size, pi->ref_width );

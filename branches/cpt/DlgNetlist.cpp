@@ -325,7 +325,7 @@ void CDlgNetlist::OnBnClickedButtonEdit()
 		int ret = dlg.DoModal();
 		if( ret == IDOK )
 		{
-			// implement edits into nl and update m_list_ctrl
+			// implement edits into nli and update m_list_ctrl
 			DrawListCtrl();
 			OnNMClickListNet(NULL, NULL);			// CPT2, to ensure appropriate buttons are disabled.
 		}

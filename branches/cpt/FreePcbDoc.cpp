@@ -164,7 +164,7 @@ CFreePcbDoc::CFreePcbDoc()
 	m_file_version = 1.344;
 	m_dlg_log = new CDlgLog;
 	m_dlg_log->Create( IDD_LOG );
-	m_import_flags = IMPORT_PARTS | IMPORT_NETS | KEEP_FP | KEEP_NETS | KEEP_TRACES | KEEP_STUBS | KEEP_AREAS;
+	m_import_flags = IMPORT_PARTS | IMPORT_NETS | KEEP_FP | KEEP_NETS;
 	m_num_copper_layers = 1;
 	m_num_layers = m_num_copper_layers + LAY_TOP_COPPER;
 	m_edit_footprint = NULL;											// CPT2
@@ -1015,18 +1015,19 @@ void CFreePcbDoc::OnProjectNetlist()
 	CDlgNetlist dlg;
 	dlg.Initialize( m_nlist, m_plist, &m_w, &m_v_w, &m_v_h_w );
 	int ret = dlg.DoModal();
-	if( ret == IDOK )
-	{
-		// CPT2 TODO definitely want to enable undo here
-		ResetUndoState();
-		m_nlist->ImportNetListInfo( dlg.m_nli, 0, NULL, m_trace_w, m_via_w, m_via_hole_w );
-		ProjectModified( TRUE );
-		view->CancelSelection();
-		if( m_vis[LAY_RAT_LINE] && !m_auto_ratline_disable )
-			m_nlist->OptimizeConnections();
-		view->Invalidate( FALSE );
-	}
+	if( ret != IDOK )
+		return;
+	// CPT2 new:  save undo info --- there's quite a lot of it
+	citer<cnet2> in (&m_nlist->nets);
+	for (cnet2 *net = in.First(); net; net = in.Next())
+		net->SaveUndoInfo();																// NB this saves pin info too...
+	m_nlist->ImportNetListInfo( dlg.m_nli, 0, NULL, m_trace_w, m_via_w, m_via_hole_w );
+	if( m_vis[LAY_RAT_LINE] && !m_auto_ratline_disable )
+		m_nlist->OptimizeConnections();
+	view->CancelSelection();
+	ProjectModified( TRUE );
 }
+
 
 // write footprint info from local cache to file
 //
@@ -1294,7 +1295,7 @@ void CFreePcbDoc::ReadBoardOutline( CStdioFile * pcb_file )
 {
 	CString in_str, key_str;
 	CArray<CString> p;
-	int last_side_style = CPolyLine::STRAIGHT;
+	int last_side_style = cpolyline::STRAIGHT;
 
 	try
 	{
@@ -1385,7 +1386,7 @@ void CFreePcbDoc::ReadSolderMaskCutouts( CStdioFile * pcb_file )
 {
 	CString in_str, key_str;
 	CArray<CString> p;
-	int last_side_style = CPolyLine::STRAIGHT;
+	int last_side_style = cpolyline::STRAIGHT;
 
 	try
 	{
@@ -2279,7 +2280,7 @@ void CFreePcbDoc::InitializeNewProject()
 
 	// netlist import options
 	m_netlist_full_path = "";
-	m_import_flags = IMPORT_PARTS | IMPORT_NETS | KEEP_TRACES | KEEP_STUBS | KEEP_AREAS;
+	m_import_flags = IMPORT_PARTS | IMPORT_NETS;
 
 	CFreePcbView * view = (CFreePcbView*)m_view;
 	view->OnNewProject();								// CPT renamed function
@@ -2446,156 +2447,203 @@ void CFreePcbDoc::OnProjectPartlist()
 	dlg.Initialize( m_plist, &m_footprint_cache_map, &m_footlibfoldermap, 
 		m_view->m_units, m_dlg_log );
 	int ret = dlg.DoModal();
-	if( ret == IDOK )
-	{
-		// CPT2 TODO want to enable undo here
-		ResetUndoState();
-		CFreePcbView * view = (CFreePcbView*)m_view;
-		view->CancelSelection();
-		if( m_vis[LAY_RAT_LINE] && !m_auto_ratline_disable )
-			m_nlist->OptimizeConnections();
-		ProjectModified( TRUE );
-		view->Invalidate( FALSE );
-	}
+	if( ret != IDOK )
+		return;
+	// CPT2 we now call ImportPartListInfo from here (before it was done from CDlgPartlist::DoDataExchange)
+	// One day maybe I'll allow undo from here, though I think that will probably involve saving undo info for CShapes
+	m_plist->ImportPartListInfo( &CDlgPartlist::pli, 0 );
+	ResetUndoState();
+	m_view->CancelSelection();
+	if( m_vis[LAY_RAT_LINE] && !m_auto_ratline_disable )
+		m_nlist->OptimizeConnections();
+	ProjectModified( TRUE );
 }
 
 void CFreePcbDoc::OnFileExport()
 {
 	CString s ((LPCSTR) IDS_AllFiles);
-	CFileDialog dlg( FALSE, NULL, NULL, 
-		OFN_HIDEREADONLY | OFN_EXPLORER | OFN_OVERWRITEPROMPT, 
+	CFileDialog dlg( FALSE, NULL, NULL, OFN_HIDEREADONLY | OFN_EXPLORER | OFN_OVERWRITEPROMPT, 
 		s, NULL, OPENFILENAME_SIZE_VERSION_500 );
 	int ret = dlg.DoModal();
 	if( ret != IDOK )
 		return;
-
 	CString str = dlg.GetPathName();
 	CStdioFile file;
 	if( !file.Open( str, CFile::modeWrite | CFile::modeCreate ) )
 	{
 		CString s ((LPCSTR) IDS_UnableToOpenFile2);
 		AfxMessageBox( s );
+		return;
 	}
+	CDlgExportOptions dlg2;
+	dlg2.Initialize(EXPORT_PARTS | EXPORT_NETS); 
+	ret = dlg2.DoModal();
+	if (ret != IDOK) 
+		return;
+	
+	// Go for it!
+	partlist_info pli;
+	netlist_info nli;
+	m_plist->ExportPartListInfo( &pli, NULL );
+	m_nlist->ExportNetListInfo( &nli );
+	if( dlg2.m_format == CMyFileDialog::PADSPCB )
+		ExportPADSPCBNetlist( &file, dlg2.m_select, &pli, &nli );
 	else
-	{
-		CDlgExportOptions dlg2;
-		dlg2.Initialize(EXPORT_PARTS | EXPORT_NETS); 
-		int ret = dlg2.DoModal();
-		if (ret==IDCANCEL) return;
-		partlist_info pl;
-		netlist_info nl;
-		m_plist->ExportPartListInfo( &pl, NULL );
-		m_nlist->ExportNetListInfo( &nl );
-		if( dlg2.m_format == CMyFileDialog::PADSPCB )
-			ExportPADSPCBNetlist( &file, dlg2.m_select, &pl, &nl );
-		else
-			ASSERT(0);
-		file.Close();
-	}
+		ASSERT(0);
+	file.Close();
 }
 
 
 void CFreePcbDoc::OnFileImport()
 {
-#ifndef CPT2
 	CString s ((LPCSTR) IDS_AllFiles), s2 ((LPCSTR) IDS_ImportNetListFile);
 	CFileDialog dlg( TRUE , NULL, (LPCTSTR)m_netlist_full_path , OFN_HIDEREADONLY, 
 		s, NULL, OPENFILENAME_SIZE_VERSION_500 );
 	dlg.m_ofn.lpstrTitle = s2;
 	int ret = dlg.DoModal();
-	if( ret == IDOK )
-	{ 
-		CString str = dlg.GetPathName(); 
-		CStdioFile file;
-		if( !file.Open( str, CFile::modeRead ) )
-		{
-			CString s ((LPCSTR) IDS_UnableToOpenFile2);
-			AfxMessageBox( s );
-		}
-		else
-		{
-			ResetUndoState();	
-			partlist_info pl;
-			netlist_info nl;
-			m_netlist_full_path = str;	// save path for next time
-			// CPT: Do the option dlg even if there are no parts and/or nets in project 
-			CDlgImportOptions dlg_options;
-			dlg_options.Initialize( m_import_flags );
-			int ret = dlg_options.DoModal();
-			if( ret == IDCANCEL )
-				return;
-			else
-				m_import_flags = IMPORT_FROM_NETLIST_FILE | dlg_options.m_flags;
-			if( m_import_flags & SAVE_BEFORE_IMPORT )
-			{
-				// save project
-				OnFileSave();
-			}
-			// show log dialog
-			m_dlg_log->ShowWindow( SW_SHOW );
-			m_dlg_log->UpdateWindow();
-			m_dlg_log->BringWindowToTop();
-			m_dlg_log->Clear();
-			m_dlg_log->UpdateWindow();
+	if (ret != IDOK )
+		return;
+	CString str = dlg.GetPathName(); 
+	CStdioFile file;
+	if( !file.Open( str, CFile::modeRead ) )
+	{
+		CString s ((LPCSTR) IDS_UnableToOpenFile2);
+		AfxMessageBox( s );
+		return;
+	}
+	// CPT: Do the option dlg even if there are no parts and/or nets in project.
+	// CPT2 TODO.  Make sure dlg items are disabled if existing partlist/netlist are empty.
+	CDlgImportOptions dlg_options;
+	dlg_options.Initialize( m_import_flags );
+	ret = dlg_options.DoModal();
+	if( ret == IDCANCEL )
+		return;
+	m_netlist_full_path = str;	// save path for next time
 
-			// import the netlist file
-			CString line;
-			if( dlg_options.m_format == CMyFileDialog::PADSPCB )
-			{
-				CString s ((LPCSTR) IDS_ReadingNetlistFile);
-				line.Format( s, str ); 
-				m_dlg_log->AddLine( line );
-				int err = ImportPADSPCBNetlist( &file, m_import_flags, &pl, &nl );
-				if( err == NOT_PADSPCB_FILE )
-				{
-					m_dlg_log->ShowWindow( SW_HIDE );
-					CString mess ((LPCSTR) IDS_WarningThisDoesNotAppearToBeALegalPADSPCB);
-					int ret = AfxMessageBox( mess, MB_OK );
-					return;
-				}
-			}
-			else
-				ASSERT(0);
-			if( m_import_flags & IMPORT_PARTS )
-			{
-				line.LoadStringA(IDS_ImportingPartsIntoProject);
-				m_dlg_log->AddLine( line );
-				m_plist->ImportPartListInfo( &pl, m_import_flags, m_dlg_log );
-			}
-			if( m_import_flags & IMPORT_NETS )
-			{
-				line.LoadStringA(IDS_ImportingNetsIntoProject);
-				m_dlg_log->AddLine( line );
-				CNetList * old_nlist = new CNetList( NULL, m_plist, this ); 
-				old_nlist->Copy( m_nlist );
-				m_nlist->ImportNetListInfo( &nl, m_import_flags, m_dlg_log, 0, 0, 0 );
-				line.LoadStringA(IDS_MovingTracesAndCopperAreas);
-				m_dlg_log->AddLine( line );
-				m_nlist->RestoreConnectionsAndAreas( old_nlist, m_import_flags, m_dlg_log );
-				delete old_nlist;
-				// rehook all parts to nets after destroying old_nlist
-				CIterator_cnet iter_net(m_nlist);
-				for( cnet * net=iter_net.GetFirst(); net; net=iter_net.GetNext() )
-					m_nlist->RehookPartsToNet( net );
-			}
-			// clean up
-			CString str = "\r\n";
-			m_nlist->CleanUpAllConnections( &str );
-			m_dlg_log->AddLine( str );
-			line.LoadStringA(IDS_Done);
-			m_dlg_log->AddLine( line );
-			// finish up
-			m_nlist->OptimizeConnections( FALSE );
-			m_view->OnViewAllElements();
-			ProjectModified( TRUE );
-			m_view->Invalidate( FALSE );
-			// make sure log is visible
-			m_dlg_log->ShowWindow( SW_SHOW );
-			m_dlg_log->UpdateWindow();
-			m_dlg_log->BringWindowToTop();
+	// Go for it!  First read the netlist file into partlist_info + netlist_info structures.
+	m_import_flags = IMPORT_FROM_NETLIST_FILE | dlg_options.m_flags;
+	partlist_info pli;
+	netlist_info nli;
+	CString line;
+	if( dlg_options.m_format == CMyFileDialog::PADSPCB )
+	{
+		CString s ((LPCSTR) IDS_ReadingNetlistFile);
+		line.Format( s, str ); 
+		m_dlg_log->AddLine( line );
+		int err = ImportPADSPCBNetlist( &file, m_import_flags, &pli, &nli );
+		if( err == NOT_PADSPCB_FILE )
+		{
+			m_dlg_log->ShowWindow( SW_HIDE );
+			CString mess ((LPCSTR) IDS_WarningThisDoesNotAppearToBeALegalPADSPCB);
+			int ret = AfxMessageBox( mess, MB_OK );
+			return;
 		}
 	}
-#endif
+	else
+		ASSERT(0);
+	m_view->CancelSelection();
+	ResetUndoState();	
+	if( m_import_flags & SAVE_BEFORE_IMPORT )
+		// save project
+		OnFileSave();
+	// show log dialog
+	m_dlg_log->ShowWindow( SW_SHOW );
+	m_dlg_log->BringWindowToTop();
+	m_dlg_log->Clear();
+	m_dlg_log->UpdateWindow();
+
+	if( m_import_flags & IMPORT_PARTS )
+	{
+		line.LoadStringA(IDS_ImportingPartsIntoProject);
+		m_dlg_log->AddLine( line );
+		m_plist->ImportPartListInfo( &pli, m_import_flags, m_dlg_log );
+	}
+	if( m_import_flags & IMPORT_NETS )
+	{
+		line.LoadStringA(IDS_ImportingNetsIntoProject);
+		m_dlg_log->AddLine( line );
+
+		// CPT2.  Detach all connects and tees from the existing nets, but save the connects in a temporary array for potential 
+		// reattachment later (at which time tees may also get reinstated).  Areas remain in their nets no matter what (differs from the old version).
+		carray<cconnect2> oldConnects;
+		citer<cnet2> in (&m_nlist->nets);
+		for (cnet2 *net = in.First(); net; net = in.Next())
+			net->MustRedraw(),
+			oldConnects.Add( &net->connects ),
+			net->connects.RemoveAll(),
+			net->tees.RemoveAll();
+		m_nlist->ImportNetListInfo( &nli, m_import_flags, m_dlg_log, 0, 0, 0 );
+		// Now reattach old connects where we can.
+		citer<cconnect2> ic (&oldConnects);
+		for (cconnect2 *c = ic.First(); c; c = ic.Next())
+		{
+			if (c->head->pin && c->tail->pin)
+			{
+				// Pin-to-pin connect:  if both pins are on the same (new) net, add the connect to that net;  otherwise dump it.
+				cnet2 *net = c->head->pin->net;
+				if (net && net == c->tail->pin->net)
+					net->AddConnect(c);
+			}
+			else if (c->head->pin && c->tail->tee)
+			{
+				// Pin-to-tee connect.  Keep only if the pin is still on c's original net.
+				cnet2 *net = c->head->pin->net;
+				if (net == c->m_net)
+					net->connects.Add(c),						// No need for net->AddConnect(), since c->m_net isn't changing
+					net->tees.Add(c->tail->tee);
+			}
+			else if (c->tail->pin && c->head->tee)
+			{
+				// Tee-to-pin connect.  Keep only if the pin is still on c's original net.
+				cnet2 *net = c->tail->pin->net;
+				if (net == c->m_net)
+					net->connects.Add(c),
+					net->tees.Add(c->head->tee);
+			}
+			else if (c->head->pin)
+			{
+				// Pin-to-loose-end connect:  keep it if pin is on some (new) net
+				cnet2 *net = c->head->pin->net;
+				if (net)
+					net->AddConnect(c);
+			}
+			else if (c->tail->pin)
+			{
+				// Loose-end-to-pin connect:  keep if pin is on a net
+				cnet2 *net = c->tail->pin->net;
+				if (net)
+					net->AddConnect(c);
+			}
+			else
+			{
+				// Tee-to-tee, tee-to-loose-end, or loose-end-to-loose-end.  Keep it on the net it had before, if that still exists.
+				cnet2 *net = c->m_net;
+				if (net->IsValid())
+				{
+					net->connects.Add(c);
+					if (c->head->tee) 
+						net->tees.Add(c->head->tee);
+					if (c->tail->tee)
+						net->tees.Add(c->tail->tee);
+				}
+			}
+		}
+	}
+
+	// clean up
+	str = "\r\n";
+	m_nlist->CleanUpAllConnections( &str );
+	m_dlg_log->AddLine( str );
+	line.LoadStringA(IDS_Done);
+	m_dlg_log->AddLine( line );
+	// finish up
+	m_nlist->OptimizeConnections( FALSE );
+	m_view->OnViewAllElements();
+	ProjectModified( TRUE );
+	// make sure log is visible
+	m_dlg_log->ShowWindow( SW_SHOW );
+	m_dlg_log->UpdateWindow();
+	m_dlg_log->BringWindowToTop();
 }
 
 int GetSessionLayer( CString * ses_str )
@@ -2864,7 +2912,7 @@ void CFreePcbDoc::ImportSessionFile( CString * filepath, CDlgLog * log, BOOL bVe
 // enter with file already open
 //
 int CFreePcbDoc::ImportNetlist( CStdioFile * file, UINT flags, 
-							   partlist_info * pl, netlist_info * nl )
+							   partlist_info * pli, netlist_info * nli )
 {
 	CString instr;
 	int err_flags = 0;
@@ -2877,7 +2925,7 @@ int CFreePcbDoc::ImportNetlist( CStdioFile * file, UINT flags,
 	instr.Trim();
 	while( 1 )
 	{
-		if( instr == "[parts]" && pl && (flags & IMPORT_PARTS) )
+		if( instr == "[parts]" && pli && (flags & IMPORT_PARTS) )
 		{
 			// read parts
 			int ipart = 0;
@@ -2901,38 +2949,38 @@ int CFreePcbDoc::ImportNetlist( CStdioFile * file, UINT flags,
 				else if( instr.GetLength() && instr[0] != '/' )
 				{
 					// get ref prefix, ref number and shape
-					pl->SetSize( ipart+1 );
+					pli->SetSize( ipart+1 );
 					CString ref_str( mystrtok( instr, " \t" ) );
 					CString shape_str( mystrtok( NULL, "\n\r" ) );
 					shape_str.Trim();
 					// find footprint, get from library if necessary
 					CShape * s = GetFootprintPtr( shape_str );
 					// add part to partlist_info
-					(*pl)[ipart].part = NULL;
-					(*pl)[ipart].ref_des = ref_str;
+					(*pli)[ipart].part = NULL;
+					(*pli)[ipart].ref_des = ref_str;
 					if( s )
 					{
-						(*pl)[ipart].ref_size = s->m_ref->m_font_size;
-						(*pl)[ipart].ref_width = s->m_ref->m_stroke_width;
+						(*pli)[ipart].ref_size = s->m_ref->m_font_size;
+						(*pli)[ipart].ref_width = s->m_ref->m_stroke_width;
 					}
 					else
 					{
-						(*pl)[ipart].ref_size = 0;
-						(*pl)[ipart].ref_width = 0;
+						(*pli)[ipart].ref_size = 0;
+						(*pli)[ipart].ref_width = 0;
 					}
-					(*pl)[ipart].package = shape_str;
-					(*pl)[ipart].shape = s;
-					(*pl)[ipart].x = 0;
-					(*pl)[ipart].y = 0;
-					(*pl)[ipart].angle = 0;
-					(*pl)[ipart].side = 0;
+					(*pli)[ipart].package = shape_str;
+					(*pli)[ipart].shape = s;
+					(*pli)[ipart].x = 0;
+					(*pli)[ipart].y = 0;
+					(*pli)[ipart].angle = 0;
+					(*pli)[ipart].side = 0;
 					if( !s )
 						err_flags |= FOOTPRINTS_NOT_FOUND;
 					ipart++;
 				}
 			}
 		}
-		else if( instr == "[nets]" && nl && (flags & IMPORT_NETS) )
+		else if( instr == "[nets]" && nli && (flags & IMPORT_NETS) )
 		{
 			// read nets
 			cnet * net = 0;
@@ -2959,21 +3007,21 @@ int CFreePcbDoc::ImportNetlist( CStdioFile * file, UINT flags,
 					if( (delim_pos = instr.Find( ":", 0 )) != -1 )
 					{
 						// new net, get net name
-						int inet = nl->GetSize();
-						nl->SetSize( inet+1 );
+						int inet = nli->GetSize();
+						nli->SetSize( inet+1 );
 						CString net_name( mystrtok( instr, ":" ) );
 						net_name.Trim();
 						if( net_name.GetLength() )
 						{
 							// add new net
-							(*nl)[inet].name = net_name;
-							(*nl)[inet].net = NULL;
-							(*nl)[inet].modified = TRUE;
-							(*nl)[inet].deleted = FALSE;
-							(*nl)[inet].visible = TRUE;
-							(*nl)[inet].w = 0;
-							(*nl)[inet].v_w = 0;
-							(*nl)[inet].v_h_w = 0;
+							(*nli)[inet].name = net_name;
+							(*nli)[inet].net = NULL;
+							(*nli)[inet].modified = TRUE;
+							(*nli)[inet].deleted = FALSE;
+							(*nli)[inet].visible = TRUE;
+							(*nli)[inet].w = 0;
+							(*nli)[inet].v_w = 0;
+							(*nli)[inet].v_h_w = 0;
 							instr = instr.Right( instr.GetLength()-delim_pos-1 );
 							num_pins = 0;
 						}
@@ -2989,8 +3037,8 @@ int CFreePcbDoc::ImportNetlist( CStdioFile * file, UINT flags,
 								{
 									CString ref_des = pin_cstr.Left( dot );
 									CString pin_num_cstr = pin_cstr.Right( pin_cstr.GetLength()-dot-1 );
-									(*nl)[inet].ref_des.Add( ref_des );
-									(*nl)[inet].pin_name.Add( pin_num_cstr );
+									(*nli)[inet].ref_des.Add( ref_des );
+									(*nli)[inet].pin_name.Add( pin_num_cstr );
 #if 0	// TODO: check for illegal pin names
 									}
 									else
@@ -3053,7 +3101,7 @@ int CFreePcbDoc::ImportNetlist( CStdioFile * file, UINT flags,
 // CPT:  added sorting so that results are more readable.
 
 int CFreePcbDoc::ExportPADSPCBNetlist( CStdioFile * file, UINT flags, 
-							   partlist_info * pl, netlist_info * nl )
+							   partlist_info * pli, netlist_info * nli )
 {
 	CString str, str2;
 	file->WriteString( "*PADS-PCB*\n" );
@@ -3061,9 +3109,9 @@ int CFreePcbDoc::ExportPADSPCBNetlist( CStdioFile * file, UINT flags,
 	{
 		file->WriteString( "*PART*\n" );
 		CArray<CString> parts;							// Will accumulate part strings in this array, and sort afterwards.
-		for( int i=0; i<pl->GetSize(); i++ )
+		for( int i=0; i<pli->GetSize(); i++ )
 		{
-			part_info * pi = &(*pl)[i];
+			part_info * pi = &(*pli)[i];
 			str2 = "";
 			if( flags & EXPORT_VALUES && pi->value != "" )
 				str2 = pi->value + "@";
@@ -3086,9 +3134,9 @@ int CFreePcbDoc::ExportPADSPCBNetlist( CStdioFile * file, UINT flags,
 		file->WriteString( "*NET*\n" );
 
 		CArray<CString> nets;							// Will accumulate net strings in this array, and sort afterwards.
-		for( int i=0; i<nl->GetSize(); i++ )
+		for( int i=0; i<nli->GetSize(); i++ )
 		{
-			net_info * ni = &(*nl)[i];
+			net_info * ni = &(*nli)[i];
 			str.Format( "*SIGNAL* %s", ni->name );
 			CArray<CString> pins;
 			int np = ni->pin_name.GetSize();
@@ -3121,7 +3169,7 @@ int CFreePcbDoc::ExportPADSPCBNetlist( CStdioFile * file, UINT flags,
 // enter with file already open
 //
 int CFreePcbDoc::ImportPADSPCBNetlist( CStdioFile * file, UINT flags, 
-							   partlist_info * pl, netlist_info * nl )
+							   partlist_info * pli, netlist_info * nli )
 {
 	CString instr, net_name, mess;
 	CMapStringToPtr part_map, net_map, pin_map;
@@ -3131,8 +3179,8 @@ int CFreePcbDoc::ImportPADSPCBNetlist( CStdioFile * file, UINT flags,
 	int line = 0;
 	BOOL not_eof;
 	int ipart;
-	if( pl )
-		ipart = pl->GetSize();
+	if( pli )
+		ipart = pli->GetSize();
 
 	// state machine
 	enum { IDLE, PARTS, NETS, SIGNAL };
@@ -3161,7 +3209,7 @@ int CFreePcbDoc::ImportPADSPCBNetlist( CStdioFile * file, UINT flags,
 			state = PARTS;
 		else if( instr.Left(5) == "*NET*" )
 			state = NETS;
-		else if( state == PARTS && pl && (flags & IMPORT_PARTS) )
+		else if( state == PARTS && pli && (flags & IMPORT_PARTS) )
 		{
 			// read parts
 			if( instr.GetLength() && instr[0] != '/' )
@@ -3192,7 +3240,7 @@ int CFreePcbDoc::ImportPADSPCBNetlist( CStdioFile * file, UINT flags,
 					continue;
 				}
 				// new part
-				pl->SetSize( ipart+1 );
+				pli->SetSize( ipart+1 );
 				CString shape_str( mystrtok( NULL, "\n\r" ) );
 				shape_str.Trim();
 				// check for "ssss@ffff" format
@@ -3201,7 +3249,7 @@ int CFreePcbDoc::ImportPADSPCBNetlist( CStdioFile * file, UINT flags,
 				{
 					CString value_str;
 					SplitString( &shape_str, &value_str, &shape_str, '@' );
-					(*pl)[ipart].value = value_str;
+					(*pli)[ipart].value = value_str;
 				}
 				if( shape_str.GetLength() > CShape::MAX_NAME_SIZE )
 				{
@@ -3219,31 +3267,31 @@ int CFreePcbDoc::ImportPADSPCBNetlist( CStdioFile * file, UINT flags,
 					m_dlg_log->AddLine( mess );
 				}
 				// add part to partlist_info
-				(*pl)[ipart].part = NULL;
-				(*pl)[ipart].ref_des = ref_str;
+				(*pli)[ipart].part = NULL;
+				(*pli)[ipart].ref_des = ref_str;
 				part_map.SetAt( ref_str, NULL );
 				if( s )
 				{
-					(*pl)[ipart].ref_size = s->m_ref->m_font_size;
-					(*pl)[ipart].ref_width = s->m_ref->m_stroke_width;
+					(*pli)[ipart].ref_size = s->m_ref->m_font_size;
+					(*pli)[ipart].ref_width = s->m_ref->m_stroke_width;
 				}
 				else
 				{
-					(*pl)[ipart].ref_size = 0;
-					(*pl)[ipart].ref_width = 0;
+					(*pli)[ipart].ref_size = 0;
+					(*pli)[ipart].ref_width = 0;
 				}
-				(*pl)[ipart].package = shape_str;
-				(*pl)[ipart].bOffBoard = TRUE;
-				(*pl)[ipart].shape = s;
-				(*pl)[ipart].angle = 0;
-				(*pl)[ipart].side = 0;
-				(*pl)[ipart].x = 0;
-				(*pl)[ipart].y = 0;
-				(*pl)[ipart].ref_vis = true;		// CPT
+				(*pli)[ipart].package = shape_str;
+				(*pli)[ipart].bOffBoard = TRUE;
+				(*pli)[ipart].shape = s;
+				(*pli)[ipart].angle = 0;
+				(*pli)[ipart].side = 0;
+				(*pli)[ipart].x = 0;
+				(*pli)[ipart].y = 0;
+				(*pli)[ipart].ref_vis = true;		// CPT
 				ipart++;
 			}
 		}
-		else if( instr.Left(8) == "*SIGNAL*" && nl && (flags & IMPORT_NETS) )
+		else if( instr.Left(8) == "*SIGNAL*" && nli && (flags & IMPORT_NETS) )
 		{
 			state = NETS;
 			net_name = instr.Right(instr.GetLength()-8);
@@ -3280,26 +3328,26 @@ int CFreePcbDoc::ImportPADSPCBNetlist( CStdioFile * file, UINT flags,
 					{
 						// add new net
 						net_map.SetAt( net_name, NULL );
-						inet = nl->GetSize();
-						nl->SetSize( inet+1 );
-						(*nl)[inet].name = net_name;
-						(*nl)[inet].net = NULL;
-						(*nl)[inet].apply_trace_width = FALSE;
-						(*nl)[inet].apply_via_width = FALSE;
-						(*nl)[inet].modified = TRUE;
-						(*nl)[inet].deleted = FALSE;
-						(*nl)[inet].visible = TRUE;
+						inet = nli->GetSize();
+						nli->SetSize( inet+1 );
+						(*nli)[inet].name = net_name;
+						(*nli)[inet].net = NULL;
+						(*nli)[inet].apply_trace_width = FALSE;
+						(*nli)[inet].apply_via_width = FALSE;
+						(*nli)[inet].modified = TRUE;
+						(*nli)[inet].deleted = FALSE;
+						(*nli)[inet].visible = TRUE;
 						// mark widths as undefined
-						(*nl)[inet].w = -1;
-						(*nl)[inet].v_w = -1;
-						(*nl)[inet].v_h_w = -1;
+						(*nli)[inet].w = -1;
+						(*nli)[inet].v_w = -1;
+						(*nli)[inet].v_h_w = -1;
 						npins = 0;
 						state = SIGNAL;
 					}
 				}
 			}
 		}
-		else if( state == SIGNAL  && nl && (flags & IMPORT_NETS) )
+		else if( state == SIGNAL  && nli && (flags & IMPORT_NETS) )
 		{
 			// add pins to net
 			char * pin = mystrtok( instr, " \t\n\r" );
@@ -3322,7 +3370,7 @@ int CFreePcbDoc::ImportPADSPCBNetlist( CStdioFile * file, UINT flags,
 							pin_map.SetAt( pin_cstr, NULL );
 							CString ref_des = pin_cstr.Left( dot );
 							CString pin_num_cstr = pin_cstr.Right( pin_cstr.GetLength()-dot-1 );
-							(*nl)[inet].ref_des.Add( ref_des );
+							(*nli)[inet].ref_des.Add( ref_des );
 							if( pin_num_cstr.GetLength() > CShape::MAX_PIN_NAME_SIZE )
 							{
 								CString mess, s ((LPCSTR) IDS_LinePinNameTooLong);
@@ -3330,7 +3378,7 @@ int CFreePcbDoc::ImportPADSPCBNetlist( CStdioFile * file, UINT flags,
 								m_dlg_log->AddLine( mess );
 								pin_num_cstr = pin_num_cstr.Left(CShape::MAX_PIN_NAME_SIZE);
 							}
-							(*nl)[inet].pin_name.Add( pin_num_cstr );
+							(*nli)[inet].pin_name.Add( pin_num_cstr );
 						}
 					}
 					else
@@ -3807,107 +3855,129 @@ void CFreePcbDoc::OnToolsCheckTraces()
 
 void CFreePcbDoc::OnEditPasteFromFile()
 {
-#ifndef CPT2
 	CString s ((LPCSTR) IDS_AllFiles);
 	CFileDialog dlg( TRUE, NULL, NULL, OFN_HIDEREADONLY | OFN_EXPLORER, 
 		s, NULL, OPENFILENAME_SIZE_VERSION_500 );
 	s.LoadStringA(IDS_PasteGroupFromFile);
 	dlg.m_ofn.lpstrTitle = s; 
 	int ret = dlg.DoModal();
-	if( ret == IDOK )
-	{ 
-		// read project file
-		ResetUndoState();
-		CString pathname = dlg.GetPathName();
-		CString filename = dlg.GetFileName();
-		CStdioFile pcb_file;
-		int err = pcb_file.Open( pathname, CFile::modeRead, NULL );
-		if( !err )
-		{
-			// error opening project file
-			CString mess, s ((LPCSTR) IDS_UnableToOpenFile);
-			mess.Format( s, pathname );
-			AfxMessageBox( mess );
-			return;
-		}
-		// clear clipboard objects to hold group
-		clip_nlist->nets.RemoveAll();
-		clip_plist->parts.RemoveAll();
-		clip_tlist->texts.RemoveAll();
-		clip_smcutouts.RemoveAll();
-		clip_boards.RemoveAll();
-		CMapStringToPtr cache_map;		// incoming footprints
-		try
-		{
-			// get layers
-			int fpos = 0;
-			CString in_str = "";
-			while( in_str.Left(16) != "n_copper_layers:" )
-			{
-				fpos = pcb_file.GetPosition();
-				pcb_file.ReadString( in_str );
-			}
-			int n_copper_layers = atoi( in_str.Right( in_str.GetLength()-16 ) );
-			if( n_copper_layers > m_num_copper_layers )
-			{
-				CString mess ((LPCSTR) IDS_TheGroupFileThatYouArePastingHasMoreLayers);
-				AfxMessageBox( mess, MB_OK );
-				pcb_file.Close();
-				return;
-			}
-
-			// read footprints
-			while( in_str.Left(12) != "[footprints]" )
-			{
-				fpos = pcb_file.GetPosition();
-				pcb_file.ReadString( in_str );
-			}
-			pcb_file.Seek( fpos, CFile::begin );
-			ReadFootprints( &pcb_file, &cache_map );
-			// copy footprints to project cache if necessary
-			void * ptr;
-			CShape * s;
-			POSITION pos;
-			CString key;
-			for( pos = cache_map.GetStartPosition(); pos != NULL; )
-			{
-				cache_map.GetNextAssoc( pos, key, ptr );
-				s = (CShape*)ptr;
-				if( !m_footprint_cache_map.Lookup( s->m_name, ptr ) )
-				{
-					// copy shape to project cache
-					m_footprint_cache_map.SetAt( s->m_name, s );
-				}
-				else
-				{
-					// delete duplicate shape
-					delete s;
-				}
-			}
-
-			// read board outline
-			ReadBoardOutline( &pcb_file, &clip_board_outline );
-
-			// read sm_cutouts
-			ReadSolderMaskCutouts( &pcb_file, &clip_sm_cutout );
-
-			// read parts, nets and texts
-			clip_plist->ReadParts( &pcb_file );
-			clip_nlist->ReadNets( &pcb_file, m_read_version );
-			clip_tlist->ReadTexts( &pcb_file );
-			pcb_file.Close();
-		}
-		catch( CString * err_str )
-		{
-			// parsing error
-			AfxMessageBox( *err_str );
-			delete err_str;
-			pcb_file.Close();
-			return;
-		}
-		m_view->OnGroupPaste();
+	if( ret != IDOK )
+		return;
+	// read project file
+	ResetUndoState();
+	CString pathname = dlg.GetPathName();
+	CString filename = dlg.GetFileName();
+	CStdioFile pcb_file;
+	int err = pcb_file.Open( pathname, CFile::modeRead, NULL );
+	if( !err )
+	{
+		// error opening project file
+		CString mess, s ((LPCSTR) IDS_UnableToOpenFile);
+		mess.Format( s, pathname );
+		AfxMessageBox( mess );
+		return;
 	}
-#endif
+	// clear clipboard objects to hold group
+	clip_nlist->nets.RemoveAll();
+	clip_plist->parts.RemoveAll();
+	clip_tlist->texts.RemoveAll();
+	clip_smcutouts.RemoveAll();
+	clip_boards.RemoveAll();
+	CMapStringToPtr cache_map;		// incoming footprints
+	try
+	{
+		// get layers
+		int fpos = 0;
+		CString in_str = "";
+		while( in_str.Left(16) != "n_copper_layers:" )
+		{
+			fpos = pcb_file.GetPosition();
+			pcb_file.ReadString( in_str );
+		}
+		int n_copper_layers = atoi( in_str.Right( in_str.GetLength()-16 ) );
+		if( n_copper_layers > m_num_copper_layers )
+		{
+			CString mess ((LPCSTR) IDS_TheGroupFileThatYouArePastingHasMoreLayers);
+			AfxMessageBox( mess, MB_OK );
+			pcb_file.Close();
+			return;
+		}
+
+		// read footprints
+		while( in_str.Left(12) != "[footprints]" )
+		{
+			fpos = pcb_file.GetPosition();
+			pcb_file.ReadString( in_str );
+		}
+		pcb_file.Seek( fpos, CFile::begin );
+		ReadFootprints( &pcb_file, &cache_map );
+		// copy footprints to project cache if necessary
+		void * ptr;
+		CShape * s;
+		POSITION pos;
+		CString key;
+		for( pos = cache_map.GetStartPosition(); pos != NULL; )
+		{
+			cache_map.GetNextAssoc( pos, key, ptr );
+			s = (CShape*)ptr;
+			if( !m_footprint_cache_map.Lookup( s->m_name, ptr ) )
+			{
+				// copy shape to project cache
+				m_footprint_cache_map.SetAt( s->m_name, s );
+			}
+			else
+			{
+				// delete duplicate shape
+				delete s;
+			}
+		}
+
+		// CPT2 here's a sleazy way to deal with reading in the file to the clipboard:  transfer the current contents of the main lists
+		// (m_plist, m_nlist, m_tlist, boards, smcutouts) to temporary locations.  Then read in the file to the main lists in the usual way,
+		// transfer from the main lists to the clipboard lists, and restore the original main lists.
+		carray<cpart2> tmpParts;
+		carray<cnet2> tmpNets;
+		carray<ctext> tmpTexts;
+		carray<cboard> tmpBoards;
+		carray<csmcutout> tmpSms;
+		m_plist->parts.TransferTo(&tmpParts);
+		m_nlist->nets.TransferTo(&tmpNets);
+		m_tlist->texts.TransferTo(&tmpTexts);
+		boards.TransferTo(&tmpBoards);
+		smcutouts.TransferTo(&tmpSms);
+		ReadBoardOutline( &pcb_file );
+		ReadSolderMaskCutouts( &pcb_file );
+		m_plist->ReadParts( &pcb_file );
+		m_nlist->ReadNets( &pcb_file, m_read_version );
+		m_tlist->ReadTexts( &pcb_file );
+		pcb_file.Close();
+		m_plist->parts.TransferTo(&clip_plist->parts);
+		m_nlist->nets.TransferTo(&clip_nlist->nets);
+		m_tlist->texts.TransferTo(&clip_tlist->texts);
+		boards.TransferTo(&clip_boards);
+		smcutouts.TransferTo(&clip_smcutouts);
+		// Better make sure that members of clip_plist and clip_nlist point to their parent lists correctly:
+		citer<cpart2> ip (&clip_plist->parts);
+		for (cpart2 *part = ip.First(); part; part = ip.Next())
+			part->m_pl = clip_plist;
+		citer<cnet2> in (&clip_nlist->nets);
+		for (cnet2 *net = in.First(); net; net = in.Next())
+			net->m_nlist = clip_nlist;
+		tmpParts.TransferTo(&m_plist->parts);
+		tmpNets.TransferTo(&m_nlist->nets);
+		tmpTexts.TransferTo(&m_tlist->texts);
+		tmpBoards.TransferTo(&boards);
+		tmpSms.TransferTo(&smcutouts);
+	}
+	catch( CString * err_str )
+	{
+		// parsing error
+		AfxMessageBox( *err_str );
+		delete err_str;
+		pcb_file.Close();
+		return;
+	}
+	m_view->OnGroupPaste();
 }
 
 // Purge footprunts from local cache unless they are used in
@@ -3932,7 +4002,6 @@ void CFreePcbDoc::PurgeFootprintCache()
 }
 
 
-
 void CFreePcbDoc::OnFilePrint()
 {
 	// TODO: Add your command handler code here
@@ -3940,7 +4009,6 @@ void CFreePcbDoc::OnFilePrint()
 
 void CFreePcbDoc::OnFileExportDsn()
 {
-#ifndef CPT2
 	if( m_project_modified )
 	{
 		CString s ((LPCSTR) IDS_ThisFunctionCreatesADsnFile);
@@ -3956,12 +4024,12 @@ void CFreePcbDoc::OnFileExportDsn()
 	if( dot_pos != -1 )
 		dsn_filepath = dsn_filepath.Left( dot_pos );
 	dsn_filepath += ".dsn";
-	int num_polys = m_board_outline.GetSize();
+	int num_polys = boards.GetSize();
 	if( m_dsn_signals_poly >= num_polys )
 		m_dsn_signals_poly = 0;
 	if( m_dsn_bounds_poly >= num_polys )
 		m_dsn_bounds_poly = 0;
-	dlg.Initialize( &dsn_filepath, m_board_outline.GetSize(), 
+	dlg.Initialize( &dsn_filepath, boards.GetSize(), 
 						m_dsn_bounds_poly, m_dsn_signals_poly, m_dsn_flags );
 	int ret = dlg.DoModal();
 	if( ret == IDOK )
@@ -4030,7 +4098,6 @@ void CFreePcbDoc::OnFileExportDsn()
 		EndWaitCursor();
 #endif
 	}
-#endif
 }
 
 void CFreePcbDoc::OnFileImportSes()
@@ -4432,20 +4499,14 @@ void CFreePcbDoc::FileLoadLibrary( LPCTSTR pathname )
 
 void CFreePcbDoc::OnFileSaveLibrary()
 {
-#ifndef CPT2
+	// CPT2 TODO this has never been fully implemented (menu item is always grayed out).
 	CDlgSaveLib dlg;
 	CArray<CString> names;
-	cpart * part = m_plist->GetFirstPart();
-	int i = 0;
-	while( part )
-	{
-		names.SetAtGrow( i, part->value );
-		part = m_plist->GetNextPart( part );
-		i++;
-	}
+	citer<cpart2> ip (&m_plist->parts);
+	for (cpart2 *part = ip.First(); part; part = ip.Next())
+		names.Add( part->ref_des );								// CPT2 was "part->value" in the old code, which I can't imagine was right???
 	dlg.Initialize( &names );
 	int ret = dlg.DoModal();
-#endif
 }
 
 

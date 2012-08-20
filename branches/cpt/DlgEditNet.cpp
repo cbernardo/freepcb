@@ -157,7 +157,7 @@ void CDlgEditNet::DoDataExchange(CDataExchange* pDX)
 	}
 }
 
-void CDlgEditNet::Initialize( netlist_info * nl,
+void CDlgEditNet::Initialize( netlist_info * nli,
 							 int i,
 							 cpartlist * plist,
 							 BOOL new_net,
@@ -168,7 +168,7 @@ void CDlgEditNet::Initialize( netlist_info * nl,
 							 CArray<int> * v_h_w )
 {
 	m_units = units;
-	m_nli = nl;
+	m_nli = nli;
 	m_in = i;
 	m_plist = plist;
 	m_visible = visible;
@@ -182,10 +182,10 @@ void CDlgEditNet::Initialize( netlist_info * nl,
 	}
 	else
 	{
-		m_name = (*nl)[i].name;
-		m_def_w = (*nl)[i].w;
-		m_def_v_w = (*nl)[i].v_w;
-		m_def_v_h_w = (*nl)[i].v_h_w;
+		m_name = (*nli)[i].name;
+		m_def_w = (*nli)[i].w;
+		m_def_v_w = (*nli)[i].v_w;
+		m_def_v_h_w = (*nli)[i].v_h_w;
 	}
 	m_w = w;
 	m_v_w = v_w;

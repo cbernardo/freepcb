@@ -73,7 +73,6 @@ void CDlgLibraryManager::OnBnClickedButtonMakePdf()
 	return;
 #endif
 //#if 0
-#ifndef CPT2
 	// set page size
 	double PageWidth;	
 	double PageHeight;	
@@ -174,82 +173,70 @@ void CDlgLibraryManager::OnBnClickedButtonMakePdf()
 		BOOL new_page_init = TRUE;
 
 		// now loop through all headings
+		extern CFreePcbApp theApp;
+		CFreePcbDoc *doc = theApp.m_doc;
 		for( int i=0; i<m_footlib->GetNumFootprints(ilib) ; i++ )
 		{
 			// get next footprint
-			CShape foot;
+			CShape foot (doc);
 			int err = foot.MakeFromFile( NULL, *m_footlib->GetFootprintName( ilib, i ), 
 				*m_footlib->GetLibraryFullPath(ilib), m_footlib->GetFootprintOffset( ilib, i ) );
 			if( err )
 				ASSERT(0);
-			// make array of padstack info
-			int num_padinfo = 0;
-			CArray<int> start_num;
-			CArray<int> num_same;
+			// make array of padstack info.  Each line may in these tables may represent >1 different identical padstacks (line_ct[line_num]
+			// teels us how many).
+			CArray<int> line_ct, line_start;
 			CArray<int> pad_shape;
 			CArray<int> pad_w;
 			CArray<int> pad_l;
 			CArray<int> pad_hole;
-			for( int ip=0; ip<foot.m_padstack.GetSize(); ip++ )
+			int shapePrev = -1, wPrev = -1, lPrev = -1, holePrev = -1;
+			int ct, start, index = 1, numPs = foot.m_padstack.GetSize();
+			citer<cpadstack> ips (&foot.m_padstack);
+			for (cpadstack *ps = ips.First(); ps; ps = ips.Next(), index++)
 			{
-				int this_pad_shape = foot.m_padstack[ip].top.shape;
-				int this_pad_w = foot.m_padstack[ip].top.size_h;
+				int this_pad_shape = ps->top.shape;
+				int this_pad_w = ps->top.size_h;
 				int this_pad_l = 0;
 				if( this_pad_shape == PAD_RECT || this_pad_shape == PAD_RRECT || this_pad_shape == PAD_OVAL )
-					this_pad_l = foot.m_padstack[ip].top.size_l + foot.m_padstack[ip].top.size_r;
-				int this_pad_hole = foot.m_padstack[ip].hole_size;
+					this_pad_l = ps->top.size_l + ps->top.size_r;
+				int this_pad_hole = ps->hole_size;
 				// now see if we need a new line in the pad table
-				BOOL new_pad_line = FALSE;
-				if( num_padinfo == 0 )
+				BOOL new_pad_line = this_pad_shape != shapePrev || this_pad_w != wPrev
+									|| this_pad_l != lPrev || this_pad_hole != holePrev;
+				if( new_pad_line && shapePrev!=-1 && (shapePrev!=PAD_NONE || holePrev!=0) )
 				{
-					new_pad_line = TRUE;
-				}
-				else
-				{
-					if(	   this_pad_shape != pad_shape[num_padinfo-1]
-					|| this_pad_w != pad_w[num_padinfo-1]
-					|| this_pad_l != pad_l[num_padinfo-1]
-					|| this_pad_hole != pad_hole[num_padinfo-1] )
-						new_pad_line = TRUE;
-				}
-				if( new_pad_line && num_padinfo )
-				{
-					// finish last info line
-					int the_num_same = ip - start_num[num_padinfo-1] + 1;
-					num_same.Add( the_num_same );
+					// finish previous info line
+					line_ct.Add(ct);
+					line_start.Add(start);
+					pad_shape.Add(shapePrev);
+					pad_w.Add(wPrev);
+					pad_l.Add(lPrev);
+					pad_hole.Add(holePrev);
 				}
 				if( new_pad_line )
 				{
 					// start new info line
-					start_num.Add( ip+1 );
-					pad_shape.Add( this_pad_shape );
-					pad_w.Add( this_pad_w );
-					pad_l.Add( this_pad_l );
-					pad_hole.Add( this_pad_hole );
-					num_padinfo = pad_shape.GetSize();
+					shapePrev = this_pad_shape;
+					wPrev = this_pad_w;
+					lPrev = this_pad_l;
+					holePrev = this_pad_hole;
+					ct = 1;
+					start = index;
 				}
-				if( ip == (foot.m_padstack.GetSize()-1) )
-				{
-					// last pin, finish last info line
-					int the_num_same = ip - start_num[num_padinfo-1] + 2;
-					num_same.Add( the_num_same );
-				}
+				else
+					ct++;
 			}
-			// now remove any lines for non-existent pads (i.e. pad shape = PAD_NONE and hole_size = 0)
-			for( int i=num_same.GetSize()-1; i>=0; i-- )
+			if( shapePrev!=-1 && (shapePrev!=PAD_NONE || holePrev!=0) )
 			{
-				if( pad_shape[i] == PAD_NONE && pad_hole[i] == 0 )
-				{
-					start_num.RemoveAt(i);
-					num_same.RemoveAt(i);
-					pad_shape.RemoveAt(i);
-					pad_w.RemoveAt(i);
-					pad_l.RemoveAt(i);
-					pad_hole.RemoveAt(i);
-				}
+				// finish last info line
+				line_ct.Add(ct);
+				line_start.Add(start);
+				pad_shape.Add(shapePrev);
+				pad_w.Add(wPrev);
+				pad_l.Add(lPrev);
+				pad_hole.Add(holePrev);
 			}
-			num_padinfo = pad_shape.GetSize();
-
 
 			// now split author, source and description strings into 2 lines if needed
 			CString author_1;
@@ -335,7 +322,7 @@ void CDlgLibraryManager::OnBnClickedButtonMakePdf()
 			}
 
 			// get height rquired for footprint info and see if we need a new page
-			int npadlines = num_padinfo;
+			int npadlines = line_start.GetSize();
 			float foot_height = NameLeadingPts/72.0 + (2+npadlines)*TableTextLeadingPts/72.0
 				+ 2*TextLeadingPts/72.0;
 			if( author_1 != "" )
@@ -484,12 +471,14 @@ void CDlgLibraryManager::OnBnClickedButtonMakePdf()
 				}
 				cpdf_textShow( pdf, x_str + " x " + y_str );
 			}
-			if( foot.GetNumPins() == 2 && foot.m_padstack[0].hole_size != 0 )
+			if( foot.GetNumPins() == 2 && foot.m_padstack.First()->hole_size != 0 )
 			{
 				CString pin_spacing_str;
 				double pin_spacing;
-				double dx = foot.m_padstack[0].x_rel - foot.m_padstack[1].x_rel;
-				double dy = foot.m_padstack[0].y_rel - foot.m_padstack[1].y_rel;
+				citer<cpadstack> ips (&foot.m_padstack);
+				cpadstack *ps0 = ips.First(), *ps1 = ips.Next();
+				double dx = ps0->x_rel - ps1->x_rel;
+				double dy = ps0->y_rel - ps1->y_rel;
 				if( dx == 0.0 )
 					pin_spacing = fabs(dy);
 				else if( dy == 0.0 )
@@ -548,10 +537,10 @@ void CDlgLibraryManager::OnBnClickedButtonMakePdf()
 			for( int i=0; i<npadlines; i++ )
 			{
 				CString pin_str;
-				if( num_same[i] > 1 )
-					pin_str.Format( "%d-%d", start_num[i], start_num[i]+num_same[i]-1 );
+				if( line_ct[i] > 1 )
+					pin_str.Format( "%d-%d", line_start[i], line_start[i]+line_ct[i]-1 );
 				else
-					pin_str.Format( "%d", start_num[i] );
+					pin_str.Format( "%d", line_start[i] );
 				CString type_str;
 				if( pad_hole[i] == 0 )
 					type_str = "SMT";
@@ -733,74 +722,55 @@ void CDlgLibraryManager::OnBnClickedButtonMakePdf()
 			float org_y = top_y - foot_top*scale;
 
 			// draw outline
-			for(int ip=0; ip<foot.m_outline_poly.GetSize(); ip++ )
+			citer<coutline> io (&foot.m_outline_poly);
+			for (coutline *poly = io.First(); poly; poly = io.Next())
 			{
-				float last_x, last_y;
-				CPolyLine * poly = &foot.m_outline_poly[ip];
-				int nsides = poly->NumCorners() - 1;
-				if( poly->Closed() )
-					nsides = poly->NumCorners();
 				cpdf_newpath( pdf );
-				last_x = org_x + poly->X(0)*scale/NM_PER_INCH;
-				last_y = org_y + poly->Y(0)*scale/NM_PER_INCH;
-				cpdf_moveto( pdf, last_x, last_y );
-				for( int is=0; is<nsides; is++ )
-				{
-					float x;
-					float y;
-					if( is == (nsides-1 ) && poly->Closed() )
+				citer<cside> is (&poly->main->sides);
+				for (cside *s = is.First(); s; s = is.Next())
 					{
-						// close poly
-						x = org_x + poly->X(0)*scale/NM_PER_INCH;
-						y = org_y + poly->Y(0)*scale/NM_PER_INCH;
-					}
-					else
-					{
-						// normal side
-						x = org_x + poly->X(is+1)*scale/NM_PER_INCH;
-						y = org_y + poly->Y(is+1)*scale/NM_PER_INCH;
-					}
-					if( poly->SideStyle(is) == CPolyLine::STRAIGHT )
-					{
+					float xi = org_x + s->preCorner->x*scale/NM_PER_INCH;
+					float yi = org_y + s->preCorner->y*scale/NM_PER_INCH;
+					float xf = org_x + s->postCorner->x*scale/NM_PER_INCH;
+					float yf = org_y + s->postCorner->y*scale/NM_PER_INCH;
+					cpdf_moveto( pdf, xi, yi );
+					if( s->m_style == cpolyline::STRAIGHT )
 						// straight line segment
-						cpdf_lineto( pdf, x, y );
-					}
-					else if( poly->SideStyle(is) == CPolyLine::ARC_CW )
+						cpdf_lineto( pdf, xf, yf );
+					else if( s->m_style == cpolyline::ARC_CW )
 					{
 						// ellipse quadrant, clockwise, start vertical
-						double x1 = last_x;
-						double y1 = last_y + (y-last_y)*2.0*MagicBezier;
-						double x2 = x - (x-last_x)*2.0*MagicBezier;
-						double y2 = y;
-						if( (x>last_x && y<last_y) || (x<last_x && y>last_y) )
+						double x1 = xi;
+						double y1 = yi + (yf-yi)*2.0*MagicBezier;
+						double x2 = xf - (xf-xi)*2.0*MagicBezier;
+						double y2 = yf;
+						if( (xf>xi && yf<yi) || (xf<xi && yf>yi) )
 						{
 							// ellipse quadrant, clockwise, start horizontal
-							x1 = last_x + (x-last_x)*2.0*MagicBezier;
-							y1 = last_y;
-							x2 = x;
-							y2 = y - (y-last_y)*2.0*MagicBezier;
+							x1 = xi + (xf-xi)*2.0*MagicBezier;
+							y1 = yi;
+							x2 = xf;
+							y2 = yf - (yf-yi)*2.0*MagicBezier;
 						}
-						cpdf_curveto( pdf, x1, y1, x2, y2, x, y );
+						cpdf_curveto( pdf, x1, y1, x2, y2, xf, yf );
 					}
-					else if( poly->SideStyle(is) == CPolyLine::ARC_CCW )
+					else if( s->m_style == cpolyline::ARC_CCW )
 					{
-						// ellipse quadrant, clockwise, start vertical
-						double x1 = last_x;
-						double y1 = last_y + (y-last_y)*2.0*MagicBezier;
-						double x2 = x - (x-last_x)*2.0*MagicBezier;
-						double y2 = y;
-						if( (x>last_x && y>last_y) || (x<last_x && y<last_y) )
+						// ellipse quadrant, counterclockwise, start vertical
+						double x1 = xi;
+						double y1 = yi + (yf-yi)*2.0*MagicBezier;
+						double x2 = xf - (xf-xi)*2.0*MagicBezier;
+						double y2 = yf;
+						if( (xf>xi && yf>yi) || (xf<xi && yf<yi) )
 						{
-							// ellipse quadrant, clockwise, start horizontal
-							x1 = last_x + (x-last_x)*2.0*MagicBezier;
-							y1 = last_y;
-							x2 = x;
-							y2 = y - (y-last_y)*2.0*MagicBezier;
+							// ellipse quadrant, counterclockwise, start horizontal
+							x1 = xi + (xf-xi)*2.0*MagicBezier;
+							y1 = yi;
+							x2 = xf;
+							y2 = yf - (yf-yi)*2.0*MagicBezier;
 						}
-						cpdf_curveto( pdf, x1, y1, x2, y2, x, y );
+						cpdf_curveto( pdf, x1, y1, x2, y2, xf, yf );
 					}
-					last_x = x;
-					last_y = y;
 				}		
 				cpdf_closepath( pdf );
 				cpdf_setlinewidth( pdf, 72.0*scale*poly->W()/NM_PER_INCH );
@@ -808,11 +778,10 @@ void CDlgLibraryManager::OnBnClickedButtonMakePdf()
 			}
 
 			// draw text
-			for(int it=0; it<foot.m_tl->text_ptr.GetSize(); it++ )
+			citer<ctext> it (&foot.m_tl->texts);
+			for (ctext *t = it.First(); t; t = it.Next())
 			{
-				CText * t = foot.m_tl->text_ptr[it];
-				SMFontUtil * smfontutil = ((CFreePcbApp*)AfxGetApp())->m_doc->m_smfontutil;					
-				t->Draw( NULL, smfontutil );
+				t->GenerateStrokes();
 				for( int is=0; is<t->m_stroke.GetSize(); is++ )
 				{
 					double xi = org_x + t->m_stroke[is].xi*scale/NM_PER_INCH;
@@ -824,15 +793,13 @@ void CDlgLibraryManager::OnBnClickedButtonMakePdf()
 					cpdf_setlinewidth( pdf, 72.0*scale*t->m_stroke_width/NM_PER_INCH );
 					cpdf_stroke( pdf );
 				}
-				t->Undraw();
 			}
 
 			// draw pads
 			cpdf_setlinecap( pdf, 1 );		// round end-caps 
 			cpdf_setlinewidth( pdf, 0.3 );	// 5 mil
-			for( int ip=0; ip<foot.GetNumPins(); ip++ )
+			for( cpadstack *ps = ips.First(); ps; ps = ips.Next())
 			{
-				padstack * ps = &foot.m_padstack[ip];
 				if( ps->hole_size )
 					cpdf_setrgbcolor( pdf, 0.0, 0.0, 1.0 );
 				else
@@ -975,7 +942,12 @@ void CDlgLibraryManager::OnBnClickedButtonMakePdf()
 		}
 		cpdf_close(pdf);			/* shut down */
 	}
-#endif
+
+	if( m_dlg_log )
+	{
+		CString s ((LPCSTR) IDS_Done);
+		m_dlg_log->AddLine( s );
+	}
 }
 
 void CDlgLibraryManager::Initialize( CFootLibFolderMap * foldermap, CDlgLog * log )

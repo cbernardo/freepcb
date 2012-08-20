@@ -7,8 +7,8 @@
 #include "DlgAddPart.h"
 #include "PartListNew.h"
 
-//global partlist_info so that sorting callbacks will work
-partlist_info pl;
+//global partlist_info so that sorting callbacks will work.  CPT2:  now a static in the CDlgPartlist namespace.
+partlist_info CDlgPartlist::pli;
 
 // columns for list
 enum {
@@ -37,29 +37,30 @@ enum {
 int CALLBACK ComparePartlist( LPARAM lp1, LPARAM lp2, LPARAM type )
 {
 	int ret = 0;
+	partlist_info &pli = CDlgPartlist::pli;
 	switch( type )
 	{
 		case SORT_UP_NAME:
 		case SORT_DOWN_NAME:
-			ret = (strcmp( ::pl[lp1].ref_des, ::pl[lp2].ref_des ));
+			ret = (strcmp( pli[lp1].ref_des, pli[lp2].ref_des ));
 			break;
 
 		case SORT_UP_PACKAGE:
 		case SORT_DOWN_PACKAGE:
-			ret = (strcmp( ::pl[lp1].package, ::pl[lp2].package ));
+			ret = (strcmp( pli[lp1].package, pli[lp2].package ));
 			break;
 
 		case SORT_UP_FOOTPRINT:
 		case SORT_DOWN_FOOTPRINT:
-			if( ::pl[lp1].shape && ::pl[lp2].shape )
-				ret = (strcmp( ::pl[lp1].shape->m_name, ::pl[lp2].shape->m_name ));
+			if( pli[lp1].shape && pli[lp2].shape )
+				ret = (strcmp( pli[lp1].shape->m_name, pli[lp2].shape->m_name ));
 			else
 				ret = 0;
 			break;
 
 		case SORT_UP_VALUE:
 		case SORT_DOWN_VALUE:
-			ret = (strcmp( ::pl[lp1].value, ::pl[lp2].value ));
+			ret = (strcmp( pli[lp1].value, pli[lp2].value ));
 			break;
 
 	}
@@ -101,9 +102,8 @@ void CDlgPartlist::DoDataExchange(CDataExchange* pDX)
 		{
 			int ip = m_list_ctrl.GetItemData( iItem );
 			BOOL iTest = ListView_GetCheckState( m_list_ctrl, iItem );
-			::pl[ip].value_vis = ListView_GetCheckState( m_list_ctrl, iItem );
+			pli[ip].value_vis = ListView_GetCheckState( m_list_ctrl, iItem );
 		}
-		m_plist->ImportPartListInfo( &::pl, 0 );
 	}
 	DDX_Control(pDX, IDC_CHECK1, m_check_footprint);
 	DDX_Control(pDX, IDC_CHECK2, m_check_package);
@@ -124,7 +124,7 @@ END_MESSAGE_MAP()
 BOOL CDlgPartlist::OnInitDialog()
 {
 	CDialog::OnInitDialog();
-	m_plist->ExportPartListInfo( &::pl, NULL );
+	m_plist->ExportPartListInfo( &pli, NULL );
 	m_sort_type = SORT_UP_NAME;
 	DrawListCtrl();
 	m_check_footprint.EnableWindow(0);
@@ -151,21 +151,21 @@ void CDlgPartlist::DrawListCtrl()
 	m_list_ctrl.InsertColumn( COL_FOOTPRINT, colNames[3], LVCFMT_LEFT, 150 );
 	m_list_ctrl.InsertColumn( COL_VALUE, colNames[4], LVCFMT_LEFT, 200 );
 
-	for( int i=0; i<::pl.GetSize(); i++ )
+	for( int i=0; i<pli.GetSize(); i++ )
 	{
 		lvitem.mask = LVIF_TEXT | LVIF_PARAM;
 		lvitem.pszText = "";
 		lvitem.lParam = i;
 		nItem = m_list_ctrl.InsertItem( i, "" );
 		m_list_ctrl.SetItemData( i, (LPARAM)i );
-		ListView_SetCheckState( m_list_ctrl, nItem, ::pl[i].value_vis );
-		m_list_ctrl.SetItem( i, COL_NAME, LVIF_TEXT, ::pl[i].ref_des, 0, 0, 0, 0 );
-		m_list_ctrl.SetItem( i, COL_PACKAGE, LVIF_TEXT, ::pl[i].package, 0, 0, 0, 0 );
-		if( ::pl[i].shape )
-			m_list_ctrl.SetItem( i, COL_FOOTPRINT, LVIF_TEXT, ::pl[i].shape->m_name, 0, 0, 0, 0 );
+		ListView_SetCheckState( m_list_ctrl, nItem, pli[i].value_vis );
+		m_list_ctrl.SetItem( i, COL_NAME, LVIF_TEXT, pli[i].ref_des, 0, 0, 0, 0 );
+		m_list_ctrl.SetItem( i, COL_PACKAGE, LVIF_TEXT, pli[i].package, 0, 0, 0, 0 );
+		if( pli[i].shape )
+			m_list_ctrl.SetItem( i, COL_FOOTPRINT, LVIF_TEXT, pli[i].shape->m_name, 0, 0, 0, 0 );
 		else
 			m_list_ctrl.SetItem( i, COL_FOOTPRINT, LVIF_TEXT, "", 0, 0, 0, 0 );
-		m_list_ctrl.SetItem( i, COL_VALUE, LVIF_TEXT, ::pl[i].value, 0, 0, 0, 0 );
+		m_list_ctrl.SetItem( i, COL_VALUE, LVIF_TEXT, pli[i].value, 0, 0, 0, 0 );
 	}
 	m_list_ctrl.SortItems( ::ComparePartlist, m_sort_type );	// resort 
 	RestoreSelections();
@@ -193,7 +193,7 @@ void CDlgPartlist::OnBnClickedButtonEdit()
 	for (int Item=0; Item<m_list_ctrl.GetItemCount(); Item++ )
 	{
 		int ip = m_list_ctrl.GetItemData( Item );
-		::pl[ip].value_vis = ListView_GetCheckState( m_list_ctrl, Item );
+		pli[ip].value_vis = ListView_GetCheckState( m_list_ctrl, Item );
 	}
 	// edit selected part(s)
 	int n_sel = m_list_ctrl.GetSelectedCount();
@@ -220,7 +220,7 @@ void CDlgPartlist::OnBnClickedButtonEdit()
 		AfxMessageBox( s );
 		return;
 	}
-	dlg.Initialize( &::pl, i, FALSE, FALSE, bMultiple, multiple_mask,
+	dlg.Initialize( &pli, i, FALSE, FALSE, bMultiple, multiple_mask,
 		m_footprint_cache_map, m_footlibfoldermap, m_units, m_dlg_log );
 	int ret = dlg.DoModal();
 	if( ret == IDOK )
@@ -238,14 +238,14 @@ void CDlgPartlist::OnBnClickedButtonEdit()
 				{
 					if( multiple_mask & MSK_FOOTPRINT )
 					{
-						::pl[ip].shape = ::pl[i].shape;
-						::pl[ip].ref_size = ::pl[i].ref_size;
-						::pl[ip].ref_width = ::pl[i].ref_width;
+						pli[ip].shape = pli[i].shape;
+						pli[ip].ref_size = pli[i].ref_size;
+						pli[ip].ref_width = pli[i].ref_width;
 					}
 					if( multiple_mask & MSK_PACKAGE )
-						::pl[ip].package = ::pl[i].package;
+						pli[ip].package = pli[i].package;
 					if( multiple_mask & MSK_VALUE )
-						::pl[ip].value = ::pl[i].value;
+						pli[ip].value = pli[i].value;
 				}
 			}
 		}
@@ -260,11 +260,11 @@ void CDlgPartlist::OnBnClickedButtonAdd()
 	for (int Item=0; Item<m_list_ctrl.GetItemCount(); Item++ )
 	{
 		int ip = m_list_ctrl.GetItemData( Item );
-		::pl[ip].value_vis = ListView_GetCheckState( m_list_ctrl, Item );
+		pli[ip].value_vis = ListView_GetCheckState( m_list_ctrl, Item );
 	}
 	// now add part
 	CDlgAddPart dlg;
-	dlg.Initialize( &::pl, -1, FALSE, TRUE, FALSE, 0,
+	dlg.Initialize( &pli, -1, FALSE, TRUE, FALSE, 0,
 		m_footprint_cache_map, m_footlibfoldermap, m_units, m_dlg_log );
 	int ret = dlg.DoModal();
 	if( ret == IDOK )
@@ -289,7 +289,7 @@ void CDlgPartlist::OnBnClickedButtonDelete()
 				ASSERT(0);
 			int iItem = m_list_ctrl.GetNextSelectedItem(pos);
 			int ip = m_list_ctrl.GetItemData( iItem );
-			::pl[ip].deleted = TRUE;
+			pli[ip].deleted = TRUE;
 			m_list_ctrl.DeleteItem( iItem );
 		}
 	}
@@ -345,7 +345,7 @@ void CDlgPartlist::OnBnClickedValueVisible()
 	{
 		int iItem = m_list_ctrl.GetNextSelectedItem(pos);
 		int ip = m_list_ctrl.GetItemData( iItem );
-		::pl[ip].value_vis = TRUE;
+		pli[ip].value_vis = TRUE;
 	}
 	DrawListCtrl();
 	RestoreSelections();
@@ -359,7 +359,7 @@ void CDlgPartlist::OnBnClickedValueInvisible()
 	{
 		int iItem = m_list_ctrl.GetNextSelectedItem(pos);
 		int ip = m_list_ctrl.GetItemData( iItem );
-		::pl[ip].value_vis = FALSE;
+		pli[ip].value_vis = FALSE;
 	}
 	DrawListCtrl();
 }
@@ -382,7 +382,7 @@ void CDlgPartlist::OnNMClickList1(NMHDR *pNMHDR, LRESULT *pResult)
 void CDlgPartlist::SaveSelections()
 {
 	int nItems = m_list_ctrl.GetItemCount();
-	bSelected.SetSize( ::pl.GetSize() );
+	bSelected.SetSize( pli.GetSize() );
 	for( int iItem=0; iItem<nItems; iItem++ )
 	{
 		int ip = m_list_ctrl.GetItemData( iItem );

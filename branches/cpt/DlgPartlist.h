@@ -50,4 +50,6 @@ public:
 	CButton m_check_package;
 	CButton m_check_value;
 	afx_msg void OnNMClickList1(NMHDR *pNMHDR, LRESULT *pResult);
+	static partlist_info pli;												// CPT this was in the global namespace, but it seemed better in here
+																			// (e.g. CFreePcbDoc::OnProjectPartlist() now accesses it directly)
 };
