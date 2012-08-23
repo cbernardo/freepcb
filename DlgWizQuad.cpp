@@ -127,15 +127,15 @@ void CDlgWizQuad::DoDataExchange(CDataExchange* pDX)
 }
 
 
-void CDlgWizQuad::Initialize( CMapStringToPtr * shape_cache_map,
+void CDlgWizQuad::Initialize( cshapelist *cache_shapes,
 							CFootLibFolderMap * footlibfoldermap, 
 							BOOL enable_save,
 							CDlgLog * log )
 {
 	extern CFreePcbApp theApp;
-	m_footprint = new CShape (theApp.m_doc);
+	m_footprint = new cshape (theApp.m_doc);
 	m_enable_save = enable_save;
-	m_footprint_cache_map = shape_cache_map;
+	m_cache_shapes = cache_shapes;
 	m_footlibfoldermap = footlibfoldermap;
 	m_dlg_log = log;
 }
@@ -721,7 +721,7 @@ void CDlgWizQuad::OnBnClickedButtonSave()
 		// if saving is enabled, do it
 		CDlgSaveFootprint dlg;
 		dlg.Initialize( &m_str_name, m_footprint, m_units, "", 
-			m_footprint_cache_map, m_footlibfoldermap, m_dlg_log );	
+			m_cache_shapes, m_footlibfoldermap, m_dlg_log );	
 		int test = dlg.DoModal();
 	}
 	else
@@ -911,7 +911,7 @@ BOOL CDlgWizQuad::MakeFootprint()
 		m_footprint->m_sel_yf = m_y/2 + 10*NM_PER_MIL;
 		for( int i=0; i<m_npins; i++ )
 		{
-			cpadstack * ps = new cpadstack (m_footprint->m_doc);
+			cpadstack * ps = new cpadstack (m_footprint);
 			ps->hole_size = 0;
 			ps->angle = 90;
 			ps->y_rel = 0;
@@ -1043,7 +1043,7 @@ BOOL CDlgWizQuad::MakeFootprint()
 		{
 			// rename pins and modify pad shape for SQ1 patterns
 			int ip_A1 = (m_vpins-1)*m_hpins;
-			citer<cpadstack> ips (&m_footprint->m_padstack);
+			citer<cpadstack> ips (&m_footprint->m_padstacks);
 			for (cpadstack *ps = ips.First(); ps; ps = ips.Next())
 			{
 				int iv = m_vpins - ps->utility/m_hpins - 1;
@@ -1059,7 +1059,7 @@ BOOL CDlgWizQuad::MakeFootprint()
 			// modify outline.  CPT2 an ugly business...
 			int chamfer = m_e;
 			int enlarge = m_e/2;
-			ccontour *ctr = m_footprint->m_outline_poly.First()->main;
+			ccontour *ctr = m_footprint->m_outlines.First()->main;
 			ccorner *c = ctr->head;
 			c->x -= enlarge;					// Bottom left
 			c->y -= enlarge;

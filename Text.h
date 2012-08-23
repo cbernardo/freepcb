@@ -6,7 +6,7 @@
 #include <afxtempl.h>
 #include "PcbItem.h"
 #include "DisplayList.h"
-#include "UndoNew.h"
+#include "Undo.h"
 #include "stdafx.h"
 #include "Shape.h"
 #include "PcbFont.h"					// CPT2 TODO used?
@@ -33,13 +33,14 @@ public:
 	bool m_bShown;						// CPT2 added.  Normally true, but may be set false for reftext's and valuetext's that aren't visible
 	cpart2 *m_part;						// CPT2 added.  Usually null, but for reftexts, valuetexts, and footprint text objects, it points to
 										// the containing part.
+	cshape *m_shape;					// CPT2 added.  Other texts are embedded within abstract footprint (cshape) objects
 
 	ctext( CFreePcbDoc *_doc, int _x, int _y, int _angle, 
 		BOOL _bMirror, BOOL _bNegative, int _layer, int _font_size, 
 		int _stroke_width, SMFontUtil *_smfontutil, CString * _str );
 	ctext(CFreePcbDoc *_doc, int _uid);
 
-	bool IsValid();																// Done in cpp
+	bool IsOnPcb();																// Done in cpp
 	bool IsText() { return true; }
 	ctext *ToText() { return this; }
 	int GetTypeBit() { return bitText; }
@@ -51,7 +52,7 @@ public:
 	void Init( CDisplayList * dlist, int x, int y, int angle,					// TODO: rethink relationship with constructor. Removed tid arg.
 		int mirror, BOOL bNegative, int layer, int font_size, 
 		int stroke_width, SMFontUtil * smfontutil, CString * str_ptr );
-	void Copy(ctext *other);																				// CPT2 new, done in cpp.
+	void Copy(ctext *src);																				// CPT2 new, done in cpp.
 	void Move( int x, int y, int angle, BOOL mirror, BOOL negative, int layer, int size=-1, int w=-1 );		// Done in cpp
 	void Move( int x, int y, int angle, int size=-1, int w=-1);										// Done in cpp
 	void Resize( int size, int w );																	// Done in cpp
@@ -83,7 +84,7 @@ public:
 		int stroke_width, SMFontUtil * smfontutil, CString * str_ptr, bool bShown );			// Done in cpp
 	creftext(CFreePcbDoc *_doc, int _uid);
 
-	bool IsValid();																				// Done in cpp
+	bool IsOnPcb();																				// Done in cpp
 	bool IsRefText() { return true; }
 	creftext *ToRefText() { return this; }
 	int GetTypeBit() { return bitRefText; }
@@ -104,7 +105,7 @@ public:
 		int stroke_width, SMFontUtil * smfontutil, CString * str_ptr, bool bShown );
 	cvaluetext(CFreePcbDoc *_doc, int _uid);
 
-	bool IsValid();																				// Done in cpp
+	bool IsOnPcb();																				// Done in cpp
 	bool IsValueText() { return true; }
 	cvaluetext *ToValueText() { return this; }
 	int GetTypeBit() { return bitValueText; }
@@ -130,7 +131,7 @@ public:
 	
 	ctext * AddText( int x, int y, int angle, bool bMirror, 
 					bool bNegative,	int layer, 
-					int font_size, int stroke_width, CString * str_ptr, cpart2 *part = NULL );
+					int font_size, int stroke_width, CString * str_ptr, cpart2 *part = NULL, cshape *shape = NULL );
 	void ReadTexts( CStdioFile * file );							// Done in cpp
 	void WriteTexts( CStdioFile * file );							// Done in cpp
 	void MoveOrigin( int dx, int dy );								// Done in cpp

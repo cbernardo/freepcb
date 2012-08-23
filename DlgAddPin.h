@@ -12,10 +12,10 @@ public:
 	enum { ADD, EDIT };		// modes
 	CDlgAddPin(CWnd* pParent = NULL);   // standard constructor 
 	virtual ~CDlgAddPin();
-	void InitDialog( CEditShape * fp, cpadstack *ps0, carray<cpadstack> *new_pins, int units );
+	void InitDialog( cshape * fp, cpadstack *ps0, carray<cpadstack> *new_pins, int units );
 //	void EnableFields();
 
-	CEditShape * m_fp;	// original footprint
+	cshape * m_fp;	// original footprint
 
 // Dialog Data
 	enum { IDD = IDD_ADD_PIN };
@@ -85,8 +85,6 @@ public:
 
 	CButton m_radio_add_pin;
 	CButton m_radio_add_row;
-	afx_msg void OnBnClickedRadioAddPin();
-	afx_msg void OnBnClickedRadioAddRow();
 	CComboBox m_combo_units;
 	CButton m_check_same_as_pin;
 	CButton m_radio_smt;
@@ -98,8 +96,6 @@ public:
 	CEdit m_edit_increment;
 	CEdit m_edit_hole_diam;
 	CButton m_radio_drag;
-	afx_msg void OnBnClickedRadioDragPin();
-	afx_msg void OnBnClickedRadioSetPinPos();
 	CEdit m_edit_pin_x;
 	CEdit m_edit_pin_y;
 	CComboBox m_combo_top_shape;
@@ -114,13 +110,11 @@ public:
 	CEdit m_edit_top_width3;
 	CEdit m_edit_top_length3;
 	CEdit m_edit_top_radius3;
-	afx_msg void OnBnClickedCheckInnerSameAs();
 	CComboBox m_combo_inner_shape;
 	CEdit m_edit_inner_width;
 	CEdit m_edit_inner_length;
 	CEdit m_edit_inner_radius;
 	CButton m_check_bottom_same_as;
-	afx_msg void OnBnClickedCheckBottomSameAs();
 	CComboBox m_combo_bottom_shape;
 	CEdit m_edit_bottom_width;
 	CEdit m_edit_bottom_length;
@@ -141,6 +135,12 @@ public:
 	CComboBox m_combo_y_edge;
 	CButton m_radio_set_pos;
 	CButton m_radio_connect[3][4];
+	afx_msg void OnBnClickedRadioAddPin();
+	afx_msg void OnBnClickedRadioAddRow();
+	afx_msg void OnBnClickedRadioDragPin();
+	afx_msg void OnBnClickedRadioSetPinPos();
+	afx_msg void OnBnClickedCheckInnerSameAs();
+	afx_msg void OnBnClickedCheckBottomSameAs();
 	afx_msg void OnCbnSelchangeComboPinUnits();
 	afx_msg void OnCbnSelchangeComboRowOrient();
 	afx_msg void OnChange();

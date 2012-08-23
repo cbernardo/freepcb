@@ -2,6 +2,7 @@
 
 #pragma once
 #include "PcbItem.h"
+#include "Undo.h"
 
 struct DesignRules
 {
@@ -77,7 +78,7 @@ public:
 	bool IsDRE() { return true; }
 	cdre *ToDRE() { return this; }
 	int GetTypeBit() { return bitDRE; }
-	bool IsValid();
+	bool IsOnPcb();
 	cundo_item *MakeUndoItem()
 		{ return new cudre(this); }
 

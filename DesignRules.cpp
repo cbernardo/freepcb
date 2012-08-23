@@ -23,7 +23,7 @@ cdre::cdre(CFreePcbDoc *_doc, int _uid):
 	item1 = item2 = NULL;
 }
 
-bool cdre::IsValid()
+bool cdre::IsOnPcb()
 {
 	return doc->m_drelist->dres.Contains(this);
 }

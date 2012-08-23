@@ -185,7 +185,7 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="Text.cpp" />
-    <ClCompile Include="UndoNew.cpp" />
+    <ClCompile Include="Undo.cpp" />
     <ClCompile Include="utility.cpp" />
     <ClCompile Include="drawing_element\dle_arc.cpp" />
     <ClCompile Include="drawing_element\dle_centroid.cpp" />
@@ -291,7 +291,7 @@
     <ClInclude Include="smfontutil.h" />
     <ClInclude Include="StdAfx.h" />
     <ClInclude Include="Text.h" />
-    <ClInclude Include="UndoNew.h" />
+    <ClInclude Include="Undo.h" />
     <ClInclude Include="utility.h" />
     <ClInclude Include="drawing_element\dle_arc.h" />
     <ClInclude Include="drawing_element\dle_centroid.h" />

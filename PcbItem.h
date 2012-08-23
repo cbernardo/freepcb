@@ -8,15 +8,29 @@
 //   deleted in the midst of a loop, citer can handle the situation gracefully;  (3) if a carray as
 //   a whole gets deleted in the midst of a loop, its members are detached and citer handles that too;  (4) removal of items 
 //   from a carray, and detection of their presence in the carray, are quick.
-// The descendant classes are declared in Part.h, Net.h, Polyline.h, Text.h, Shape.h
+// The descendant classes are declared in Part.h, Net.h, Polyline.h, Text.h, Shape.h.
 
 #pragma once
 #include <afxcoll.h>
 #include <afxtempl.h>
 #include "DisplayList.h"
-#include "UndoNew.h"
 #include "DlgLog.h"
 #include "gpc_232.h"
+
+// A couple of enum's relating to cglue and ccentroid (putting 'em here to appease the @$#% compiler)
+enum GLUE_POS_TYPE
+{
+	GLUE_POS_CENTROID,	// at centroid
+	GLUE_POS_DEFINED	// defined by user
+};
+
+// centroid types
+enum CENTROID_TYPE
+{
+	CENTROID_DEFAULT = 0,	// center of pads
+	CENTROID_DEFINED		// defined by user
+};
+
 
 class cpcb_item;
 class carray_link;
@@ -45,18 +59,14 @@ class ccentroid;
 class cglue;
 class cdre;
 class cpadstack;
+class cshape;
 
-class undo_con;
-class undo_seg;
-class undo_vtx;
-class undo_net;
-
-class cnetlist;
 class CFreePcbDoc;
 class cpartlist;
 class ctextlist;
-class Shape;
+class cnetlist;
 
+class cundo_item;
 struct stroke;
 
 enum typebits {
@@ -91,12 +101,12 @@ enum typebits {
 	bitGlue =			0x8000000,		// Fp editor only...
 	bitDRE =			0x10000000,
 	bitPadstack =		0x20000000,		// Fp editor only...
+	bitShape =          0x40000000,
 	bitOther =			0x80000000,
 	bitsNetItem = bitVia | bitPinVtx | bitTraceVtx | bitTeeVtx | bitTee | bitSeg | bitConnect |
 				  bitAreaCorner | bitAreaSide | bitArea,
 	bitsPartItem = bitPin | bitPart,
-	bitsFootItem = bitOutlineCorner | bitOutlineSide | bitOutline | bitText | bitRefText | bitValueText | 
-				   bitCentroid | bitGlue | bitPadstack,
+	bitsFootItem = bitOutlineCorner | bitOutlineSide | bitOutline | bitCentroid | bitGlue | bitPadstack | bitShape,
 	bitsSelectableForGroup = bitVia | bitSeg | bitConnect | bitPart | bitText | bitAreaSide | bitSmSide | bitBoardSide
 };
 
@@ -128,6 +138,7 @@ class cpcb_item
 	friend class carray<cglue>;
 	friend class carray<cdre>;
 	friend class carray<cpadstack>;
+	friend class carray<cshape>;
 	friend class cundo_record;
 
 	carray_link *carray_list;	// List of carray's into which this item has been added
@@ -155,7 +166,7 @@ public:
 	int UID() { return m_uid; }
 	static cpcb_item *FindByUid(int uid);		// Done in cpp.
 	static int GetNextUid() { return next_uid; }
-	bool IsHit(int x, int y);					// Done in cpp.
+	bool IsHit(int x, int y);					// Done in cpp. 
 	bool IsDrawn() { return bDrawn; }
 	void RemoveForUndo();						// Done in cpp.
 
@@ -165,7 +176,9 @@ public:
 	virtual void MustRedraw();						// CPT2 r313.  My latest-n-greatest new system for drawing/undrawing (see notes.txt). Done in cpp
 													// Overridden in cpin2 [only?]
 	virtual void Highlight() { }
-	virtual bool IsValid() { return false; }		// Or make it pure virtual.
+	virtual bool IsOnPcb() { return false; }		// Used to be called IsValid(), but this name seemed more descriptive.  E.g. items
+													// on the clipboard are perfectly "valid" (not subject to garbage-collection), but the
+													// drawing and undo routines should ignore them anyway.  NB particularly cshape::IsOnPcb().
 	virtual cundo_item *MakeUndoItem() { return NULL; }		
 	virtual void SaveUndoInfo();							// Most derived classes inherit the base-class version of the func.
 
@@ -205,12 +218,13 @@ public:
 	virtual bool IsGlue() { return false; }
 	virtual bool IsDRE() { return false; }
 	virtual bool IsPadstack() { return false; }
+	virtual bool IsShape() { return false; }
 
 	virtual int GetTypeBit() { return 0; }				// See "enum typebits" above for return values from the various derived classes
 	bool IsPartItem() { return (GetTypeBit() & bitsPartItem) != 0; }
 	bool IsNetItem() { return (GetTypeBit() & bitsNetItem) != 0; }
 	bool IsSelectableForGroup() { return (GetTypeBit() & bitsSelectableForGroup) != 0; }
-	bool IsFootItem() { return (GetTypeBit() & bitsFootItem) != 0; }
+	bool IsFootItem();
 
 	// Type casting functions.  All return null by default, but are overridden to return type-cast pointers in specified derived classes
 	virtual cvertex2 *ToVertex() { return NULL; }
@@ -235,6 +249,7 @@ public:
 	virtual cglue *ToGlue() { return NULL; }
 	virtual cdre *ToDRE() { return NULL; }
 	virtual cpadstack *ToPadstack() { return NULL; }
+	virtual cshape *ToShape() { return NULL; }
 
 	virtual cnet2 *GetNet() { return NULL; }					// Returns something for items that belong to a net.
 	virtual cconnect2 *GetConnect() { return NULL; }			// Similar
@@ -277,6 +292,7 @@ class carray_link
 	friend class carray<cglue>;
 	friend class carray<cdre>;
 	friend class carray<cpadstack>;
+	friend class carray<cshape>;
 
 	void *arr;									// Really a carray<T> pointer, for some T.
 	int off;

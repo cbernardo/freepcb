@@ -6,6 +6,7 @@
 #include "FreePcbDoc.h"
 #include "Part.h"
 #include "Text.h"
+#include "Shape.h"
 
 extern BOOL bDontShowSelfIntersectionWarning;		// CPT2 TODO make these "sticky" by putting settings into default.cfg.
 extern BOOL bDontShowSelfIntersectionArcsWarning;
@@ -32,6 +33,10 @@ class cpcb_item;
 #define ValueTextFromUid(uid) ((uid)==-1? NULL: cpcb_item::FindByUid(uid)->ToValueText())
 #define NetFromUid(uid) ((uid)==-1? NULL: cpcb_item::FindByUid(uid)->ToNet())
 #define PadstackFromUid(uid) ((uid)==-1? NULL: cpcb_item::FindByUid(uid)->ToPadstack())
+#define CentroidFromUid(uid) ((uid)==-1? NULL: cpcb_item::FindByUid(uid)->ToCentroid())
+#define GlueFromUid(uid) ((uid)==-1? NULL: cpcb_item::FindByUid(uid)->ToGlue())
+#define OutlineFromUid(uid) ((uid)==-1? NULL: cpcb_item::FindByUid(uid)->ToOutline())
+#define ShapeFromUid(uid) ((uid)==-1? NULL: cpcb_item::FindByUid(uid)->ToShape())
 
 #define mallocInt(sz) ((int*) malloc((sz) * sizeof(int)))  // A very old-fashioned sort of macro ;)  So shoot me...
 
@@ -213,6 +218,7 @@ cutext::cutext( ctext *t )
 	m_bShown = t->m_bShown;
 	m_smfontutil = t->m_smfontutil;
 	m_part = t->m_part? t->m_part->UID(): -1;
+	m_shape = t->m_shape? t->m_shape->UID(): -1;
 }
 
 void cutext::CreateTarget()
@@ -233,6 +239,7 @@ void cutext::FixTarget()
 	t->m_bShown = m_bShown;
 	t->m_smfontutil = m_smfontutil;
 	t->m_part = PartFromUid(m_part);
+	t->m_shape = ShapeFromUid(m_shape);
 }
 
 void cutext::AddToLists()
@@ -245,35 +252,13 @@ void cutext::AddToLists()
 		m_doc->m_tlist->texts.Add( t );
 }
 
-cureftext::cureftext( creftext *t )
-	: cutext (t)
-{
-	part = t->m_part->UID();
-}
 
 void cureftext::CreateTarget()
 	{ target = new creftext(m_doc, m_uid); }
 
-void cureftext::FixTarget()
-{
-	cutext::FixTarget();
-	target->ToRefText()->m_part = PartFromUid(part);
-}
-
-cuvaluetext::cuvaluetext( cvaluetext *t )
-	: cutext (t)
-{
-	part = t->m_part->UID();
-}
-
 void cuvaluetext::CreateTarget()
 	{ target = new cvaluetext(m_doc, m_uid); }
 
-void cuvaluetext::FixTarget()
-{
-	cutext::FixTarget();
-	target->ToValueText()->m_part = PartFromUid(part);
-}
 
 cupin::cupin( cpin2 *p )
 	: cundo_item (p->doc, p->UID())
@@ -337,7 +322,7 @@ cupart::cupart( cpart2 *p )
 	i = 0;
 	for (ctext *t = it.First(); t; t = it.Next(), i++)
 		texts[i] = t->UID();
-	shape = p->shape;
+	shape = p->shape? p->shape->UID(): -1;
 }
 
 void cupart::CreateTarget()
@@ -362,7 +347,7 @@ void cupart::FixTarget()
 	p->m_tl->texts.RemoveAll();
 	for (int i = 0; i < nTexts; i++)
 		p->m_tl->texts.Add( TextFromUid(texts[i]) );
-	p->shape = shape;
+	p->shape = ShapeFromUid(shape);
 }
 
 void cupart::AddToLists()
@@ -502,9 +487,7 @@ void cupolyline::FixTarget()
 
 cuarea::cuarea(carea2 *a)
 	: cupolyline (a)
-{
-	m_net = a->m_net->UID();
-}
+	{ m_net = a->m_net->UID(); }
 
 void cuarea::CreateTarget()
 	{ target = new carea2(m_doc, m_uid); }
@@ -545,6 +528,19 @@ void cuboard::AddToLists()
 {
 	cboard *b = target->ToBoard();
 	m_doc->boards.Add( b );
+}
+
+cuoutline::cuoutline(coutline *o)
+	: cupolyline (o)
+	{ shape = o->shape->UID(); }
+
+void cuoutline::CreateTarget()
+	{ target = new coutline(m_doc, m_uid); }
+
+void cuoutline::FixTarget()
+{
+	cupolyline::FixTarget();
+	target->ToOutline()->shape = ShapeFromUid( shape );
 }
 
 cunet::cunet(cnet2 *n)
@@ -614,6 +610,190 @@ void cunet::AddToLists()
 	n->m_nlist->nets.Add( n );
 }
 
+cudre::cudre( cdre *d )
+	: cundo_item (d->doc, d->UID())
+{
+	index = d->index;
+	type = d->type;
+	str = d->str;
+	item1 = d->item1->UID();
+	item2 = d->item1->UID();
+	x = d->x, y = d->y;
+	w = d->w;
+	layer = d->layer;
+}
+
+void cudre::CreateTarget()
+	{ target = new cdre(m_doc, m_uid); }
+
+void cudre::FixTarget()
+{
+	cdre *d = target->ToDRE();
+	d->index = index;
+	d->type = type;
+	d->str = str;
+	d->item1 = item1==-1? NULL: cpcb_item::FindByUid(item1);
+	d->item2 = item2==-1? NULL: cpcb_item::FindByUid(item2);
+	d->x = x, d->y = y;
+	d->w = w;
+	d->layer = layer;
+}
+
+void cudre::AddToLists()
+{
+	cdre *d = target->ToDRE();
+	m_doc->m_drelist->dres.Add( d );
+}
+
+cupadstack::cupadstack(cpadstack *ps)
+	: cundo_item (ps->doc, ps->UID())
+{
+	name = ps->name;
+	hole_size = ps->hole_size;
+	x_rel = ps->x_rel; y_rel = ps->y_rel;
+	angle = ps->angle;
+	ps->top.CopyToArray(top); ps->top_mask.CopyToArray(top_mask); ps->top_paste.CopyToArray(top_paste);
+	ps->bottom.CopyToArray(bottom); ps->bottom_mask.CopyToArray(bottom_mask); ps->bottom_paste.CopyToArray(bottom_paste);
+	ps->inner.CopyToArray(inner);
+	shape = ps->shape? ps->shape->UID(): -1;
+}
+
+void cupadstack::CreateTarget()
+	{ target = new cpadstack(m_doc, m_uid); }
+
+void cupadstack::FixTarget()
+{
+	cpadstack *ps = target->ToPadstack();
+	ps->name = name;
+	ps->hole_size = hole_size;
+	ps->x_rel = x_rel; ps->y_rel = y_rel;
+	ps->angle = angle;
+	ps->top.CopyFromArray(top); ps->top_mask.CopyFromArray(top_mask); ps->top_paste.CopyFromArray(top_paste);
+	ps->bottom.CopyFromArray(bottom); ps->bottom_mask.CopyFromArray(bottom_mask); ps->bottom_paste.CopyFromArray(bottom_paste);
+	ps->inner.CopyFromArray(inner);
+	ps->shape = ShapeFromUid(shape);
+}
+
+
+cucentroid::cucentroid(ccentroid *c)
+	: cundo_item (c->doc, c->UID())
+{
+	m_type = c->m_type;
+	m_x = c->m_x; m_y = c->m_y;
+	m_angle = c->m_angle;
+	m_shape = c->m_shape? c->m_shape->UID(): -1;
+}
+
+void cucentroid::CreateTarget()
+	{ target = new ccentroid(m_doc, m_uid); }
+
+void cucentroid::FixTarget()
+{
+	ccentroid *c = target->ToCentroid();
+	c->m_type = m_type;
+	c->m_x = m_x; c->m_y = m_y;
+	c->m_angle = m_angle;
+	c->m_shape = ShapeFromUid( m_shape );
+}
+
+
+cuglue::cuglue(cglue *g)
+	: cundo_item (g->doc, g->UID())
+{
+	type = g->type;
+	w = g->w; 
+	x = g->x; y = g->y;
+	shape = g->shape? g->shape->UID(): -1;
+}
+
+void cuglue::CreateTarget()
+	{ target = new cglue(m_doc, m_uid); }
+
+void cuglue::FixTarget()
+{
+	cglue *g = target->ToGlue();
+	g->type = type;
+	g->w = w;
+	g->x = x; g->y = y;
+	g->shape = ShapeFromUid( shape );
+}
+
+cushape::cushape( cshape *s )
+	: cundo_item (s->doc, s->UID())
+{	
+	m_name = s->m_name;
+	m_author = s->m_author;
+	m_source = s->m_source;
+	m_desc = s->m_desc;
+	m_units = s->m_units;
+	m_sel_xi = s->m_sel_xi, m_sel_yi = s->m_sel_yi;
+	m_sel_xf = s->m_sel_xf, m_sel_yf = s->m_sel_yf;
+	m_ref = s->m_ref->UID();
+	m_value = s->m_value->UID();
+	m_centroid = s->m_centroid->UID();
+	m_nPadstacks = s->m_padstacks.GetSize();
+	m_padstacks = mallocInt(m_nPadstacks);
+	citer<cpadstack> ips (&s->m_padstacks);
+	int i = 0;
+	for (cpadstack *ps = ips.First(); ps; ps = ips.Next(), i++)
+		m_padstacks[i] = ps->UID();
+	m_nOutlines = s->m_outlines.GetSize();
+	m_outlines = mallocInt(m_nOutlines);
+	citer<coutline> io (&s->m_outlines);
+	i = 0;
+	for (coutline *o = io.First(); o; o = io.Next(), i++)
+		m_outlines[i] = o->UID();
+	m_nTexts = s->m_tl->texts.GetSize();
+	m_texts = mallocInt(m_nTexts);
+	citer<ctext> it (&s->m_tl->texts);
+	i = 0;
+	for (ctext *t = it.First(); t; t = it.Next(), i++)
+		m_texts[i] = t->UID();
+	m_nGlues = s->m_glues.GetSize();
+	m_glues = mallocInt(m_nGlues);
+	citer<cglue> ig (&s->m_glues);
+	i = 0;
+	for (cglue *g = ig.First(); g; g = ig.Next(), i++)
+		m_glues[i] = g->UID();
+}
+
+void cushape::CreateTarget()
+	{ target = new cshape(m_doc, m_uid); }
+
+void cushape::FixTarget()
+{
+	cshape *s = target->ToShape();
+	s->m_name = m_name;
+	s->m_author = m_author;
+	s->m_source = m_source;
+	s->m_desc = m_desc;
+	s->m_units = m_units;
+	s->m_sel_xi = m_sel_xi, s->m_sel_yi = m_sel_yi;
+	s->m_sel_xf = m_sel_xf, s->m_sel_yf = m_sel_yf;
+	s->m_ref = RefTextFromUid(m_ref);
+	s->m_value = ValueTextFromUid(m_value);
+	s->m_centroid = CentroidFromUid(m_centroid);
+	s->m_padstacks.RemoveAll();
+	for (int i=0; i<m_nPadstacks; i++)
+		s->m_padstacks.Add( PadstackFromUid(m_padstacks[i]) );
+	s->m_outlines.RemoveAll();
+	for (int i=0; i<m_nOutlines; i++)
+		s->m_outlines.Add( OutlineFromUid(m_outlines[i]) );
+	s->m_tl->texts.RemoveAll();
+	for (int i=0; i<m_nTexts; i++)
+		s->m_tl->texts.Add( TextFromUid(m_texts[i]) );
+	s->m_glues.RemoveAll();
+	for (int i=0; i<m_nGlues; i++)
+		s->m_glues.Add( GlueFromUid(m_glues[i]) );
+}
+
+void cushape::AddToLists()
+{
+	cshape *s = target->ToShape();
+	m_doc->m_slist->shapes.Add( s );
+}
+
+
 
 cundo_record::cundo_record( CArray<cundo_item*> *_items )
 {
@@ -662,13 +842,21 @@ bool cundo_record::Execute( int op )
 			cpcb_item *t = items[i]->target;
 			CFreePcbDoc *doc = items[i]->m_doc;
 			int uid = items[i]->m_uid;
-			if (t && t->IsValid())
+			if (t && t->IsOnPcb())
 				redoItems.Add( t->MakeUndoItem() );
 			else
-				// From the point of view of the redo, undo will be creating the item with this uid from scratch;  therefore include a new undo_item with
-				// bWasCreated set.
+				// From the point of view of the redo, undo will be creating the item with this uid from scratch;  therefore 
+				// include a new undo_item with bWasCreated set.
 				redoItems.Add( new cundo_item (doc, uid, true) );
 		}
+
+	// Step 2a. Make sure all target objects are undrawn
+	for (int i=0; i<nItems; i++)
+	{
+		cpcb_item *t = items[i]->target;
+		if (t) 
+			t->Undraw();
+	}
 	
 	// Step 3. For any targets that are null, create replacement pcb-items.  These will be empty objects with no outgoing pointers at all, but 
 	//         their uid values will be set according to the undo-items' uids.
@@ -676,11 +864,10 @@ bool cundo_record::Execute( int op )
 		if (!items[i]->target)
 			items[i]->CreateTarget();
 
-	// Step 4.  Undraw and remove the bWasCreated items.  Mark the others for redrawing, and revise their contents on the basis of the data within the 
+	// Step 4.  Remove the bWasCreated items.  Mark the others for redrawing, and revise their contents on the basis of the data within the 
 	// undo-items.
 	for (int i=0; i<nItems; i++)
 		if (items[i]->m_bWasCreated)
-			items[i]->target->Undraw(),
 			items[i]->target->RemoveForUndo();
 		else
 			items[i]->FixTarget(),
@@ -699,40 +886,5 @@ bool cundo_record::Execute( int op )
 	for (int i=0; i<nItems; i++)
 		items[i] = redoItems[i];
 	return false;
-}
-
-cudre::cudre( cdre *d )
-	: cundo_item (d->doc, d->UID())
-{
-	index = d->index;
-	type = d->type;
-	str = d->str;
-	item1 = d->item1->UID();
-	item2 = d->item1->UID();
-	x = d->x, y = d->y;
-	w = d->w;
-	layer = d->layer;
-}
-
-void cudre::CreateTarget()
-	{ target = new cdre(m_doc, m_uid); }
-
-void cudre::FixTarget()
-{
-	cdre *d = target->ToDRE();
-	d->index = index;
-	d->type = type;
-	d->str = str;
-	d->item1 = item1==-1? NULL: cpcb_item::FindByUid(item1);
-	d->item2 = item2==-1? NULL: cpcb_item::FindByUid(item2);
-	d->x = x, d->y = y;
-	d->w = w;
-	d->layer = layer;
-}
-
-void cudre::AddToLists()
-{
-	cdre *d = target->ToDRE();
-	m_doc->m_drelist->dres.Add( d );
 }
 

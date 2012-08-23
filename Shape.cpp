@@ -1,4 +1,4 @@
-// Shape.cpp : implementation of CShape class.  Also includes classes cpad, stroke, cpadstack, ccentroid and cglue (the
+// Shape.cpp : implementation of cshape class.  Also includes classes cpad, stroke, cpadstack, ccentroid and cglue (the
 // last 3 descendants of cpcb_item)
 //
 #include "stdafx.h"
@@ -22,7 +22,8 @@ CString ws( int n, int units )
 // class cpad  (Renamed by CPT2, was "pad")
 cpad::cpad()
 {
-	radius = 0;
+	shape = PAD_NONE;
+	size_l = size_r = size_h = radius = 0;
 	connect_flag = 0;
 	dl_el = NULL;
 }
@@ -38,9 +39,11 @@ BOOL cpad::operator==(cpad p)
 }
 
 // class cpadstack  (Renamed by CPT2, was "padstack")
-cpadstack::cpadstack(CFreePcbDoc *_doc)
-	: cpcb_item (_doc)
+cpadstack::cpadstack(cshape *_shape)
+	: cpcb_item (_shape->doc)
 { 
+	shape = _shape;
+	shape->m_padstacks.Add(this);
 	exists = false;
 	top.shape = PAD_NONE;
 	top_mask.shape = PAD_DEFAULT;
@@ -53,24 +56,37 @@ cpadstack::cpadstack(CFreePcbDoc *_doc)
 		top_paste.dl_el = bottom_mask.dl_el = bottom_paste.dl_el = NULL;
 }
 
-cpadstack::cpadstack( cpadstack *src )
+cpadstack::cpadstack( cpadstack *src, cshape *_shape )
 	: cpcb_item (src->doc)
-	{ Copy(src); }
-
-BOOL cpadstack::operator==(cpadstack p)
 { 
-	return( name == p.name
-			&& angle==p.angle 
-			&& hole_size==p.hole_size 
-			&& x_rel==p.x_rel 
-			&& y_rel==p.y_rel
-			&& top==p.top
-			&& top_mask==p.top_mask
-			&& top_paste==p.top_paste
-			&& bottom==p.bottom
-			&& bottom_mask==p.bottom_mask
-			&& bottom_paste==p.bottom_paste
-			&& inner==p.inner				
+	Copy(src); 
+	shape = _shape;
+	shape->m_padstacks.Add(this);
+}
+
+cpadstack::cpadstack(CFreePcbDoc *_doc, int _uid)
+	: cpcb_item (_doc, _uid)
+{ 
+	shape = NULL;
+	dl_el = dl_sel = top.dl_el = inner.dl_el = bottom.dl_el = top_mask.dl_el = 
+		top_paste.dl_el = bottom_mask.dl_el = bottom_paste.dl_el = NULL;
+}
+
+
+bool cpadstack::SameAs( cpadstack *p )
+{ 
+	return( name == p->name
+			&& angle==p->angle 
+			&& hole_size==p->hole_size 
+			&& x_rel==p->x_rel 
+			&& y_rel==p->y_rel
+			&& top==p->top
+			&& top_mask==p->top_mask
+			&& top_paste==p->top_paste
+			&& bottom==p->bottom
+			&& bottom_mask==p->bottom_mask
+			&& bottom_paste==p->bottom_paste
+			&& inner==p->inner				
 			); 
 }
 
@@ -128,15 +144,12 @@ CRect cpadstack::GetBounds()
 	return r;
 }
 
-bool cpadstack::IsValid() 
-{
-	if (doc && doc->m_edit_footprint)
-		return doc->m_edit_footprint->m_padstack.Contains(this);
-	return false;
-}
+bool cpadstack::IsOnPcb() 
+	{ return shape->IsOnPcb() && shape->m_padstacks.Contains(this); }
 
 void cpadstack::Copy( cpadstack *src, bool bCopyName )
 {
+	// Copies the padstack.  Doesn't touch the "shape" pointer (caller must deal with it)
 	if (bCopyName)
 		name = src->name;
 	hole_size = src->hole_size;	
@@ -154,9 +167,15 @@ void cpadstack::Copy( cpadstack *src, bool bCopyName )
 		top_paste.dl_el = bottom_mask.dl_el = bottom_paste.dl_el = NULL;
 }
 
+ccentroid::ccentroid(cshape *s)
+	: cpcb_item (s->doc)
+{
+	m_shape = s;
+	m_shape->m_centroid = this; 
+}
 
-bool ccentroid::IsValid()
-	{ return doc && doc->m_edit_footprint && doc->m_edit_footprint->m_centroid == this; }
+bool ccentroid::IsOnPcb()
+	{ return m_shape->IsOnPcb() && m_shape->m_centroid == this; }
 
 int ccentroid::Draw()
 {
@@ -238,8 +257,26 @@ void ccentroid::CancelDragging()
 }
 
 
-bool cglue::IsValid()
-	{ return doc && doc->m_edit_footprint && doc->m_edit_footprint->m_glues.Contains(this); }
+cglue::cglue(cshape *_shape, GLUE_POS_TYPE _type, int _w, int _x, int _y) 
+	: cpcb_item (_shape->doc)
+{ 
+	type = _type; 
+	w = _w; x = _x; y = _y; 
+	shape = _shape; 
+	shape->m_glues.Add(this);
+}
+
+cglue::cglue(cglue *src, cshape *_shape )
+	: cpcb_item (src->doc)
+{ 
+	type = src->type; 
+	w = src->w; x = src->x; y = src->y;
+	shape = _shape;
+	shape->m_glues.Add(this);
+}
+
+bool cglue::IsOnPcb()
+	{ return shape->IsOnPcb() && shape->m_glues.Contains(this); }
 
 int cglue::Draw()
 {
@@ -301,23 +338,52 @@ void cglue::CancelDragging()
 }
 
 
-// class CShape
+// class cshape
 // this constructor creates an empty shape
 // CPT2 converted
 //
-CShape::CShape(CFreePcbDoc *doc)
+cshape::cshape(CFreePcbDoc *_doc)
+	: cpcb_item (_doc)
 {
-	m_doc = doc;
+	Clear();
+} 
+
+cshape::cshape( cshape *src )
+	: cpcb_item (src->doc)
+{
+	Clear();
+	Copy(src);
+}
+
+cshape::cshape(CFreePcbDoc *_doc, CString *_name)
+	: cpcb_item (_doc)
+{
+	Clear();
+	m_name = *_name;
+} 
+
+cshape::cshape(CFreePcbDoc *_doc, int uid)
+	: cpcb_item (_doc, uid)
+{
+	m_ref = NULL;
+	m_value = NULL;
+	m_tl = NULL;
+	m_centroid = NULL;
+}
+
+void cshape::Clear()
+{
+	// CPT2 converted
 	CString strRef ("REF");
 	m_ref = new creftext(doc, 100*NM_PER_MIL, 200*NM_PER_MIL, 0, false, false, LAY_FP_SILK_TOP, 0, 0, 0, &strRef, true); 
 	CString strValue ("VALUE");
 	m_value = new cvaluetext(doc, -100*NM_PER_MIL, 200*NM_PER_MIL, 0, false, false, LAY_FP_SILK_TOP, 0, 0, 0, &strValue, true);
 	m_tl = new ctextlist(doc);
-	m_centroid = new ccentroid(doc);
-	m_name = "EMPTY_SHAPE";
+	m_centroid = new ccentroid(this);
 	m_author = "";
 	m_source = "";
 	m_desc = "";
+	m_name = "EMPTY_SHAPE";
 	m_units = MIL;
 	m_sel_xi = m_sel_yi = 0;
 	m_sel_xf = m_sel_yf = 500*NM_PER_MIL;
@@ -325,48 +391,43 @@ CShape::CShape(CFreePcbDoc *doc)
 	m_centroid->m_x = 0;
 	m_centroid->m_y = 0;
 	m_centroid->m_angle = 0;
-} 
-
-// destructor
-//
-CShape::~CShape()
-{
-	// Clear(); // Not sure about this.
-	/* CPT2 TODO.  I'm thinking screw it, let the garbage collector do the following.  We'll see once I've got that up and running.
-	delete m_ref;
-	delete m_value;
-	delete m_tl;
-	delete m_centroid;
-	*/
-}
-
-void CShape::Clear()
-{
-	// CPT2 converted
-	m_name = "EMPTY_SHAPE";
-	m_author = "";
-	m_source = "";
-	m_desc = "";
-	m_units = MIL;
-	m_sel_xi = m_sel_yi = 0;
-	m_sel_xf = m_sel_yf = 500*NM_PER_MIL;
-	m_ref->Move(100*NM_PER_MIL, 200*NM_PER_MIL, 0, false, false, LAY_FP_SILK_TOP, 100*NM_PER_MIL, 10*NM_PER_MIL);
-	GenerateValueParams();
-	m_centroid->m_type = CENTROID_DEFAULT;
-	m_centroid->m_x = 0;
-	m_centroid->m_y = 0;
-	m_centroid->m_angle = 0;
-	m_padstack.RemoveAll();	
-	m_outline_poly.RemoveAll();
+	m_padstacks.RemoveAll();
+	m_outlines.RemoveAll();
 	m_tl->texts.RemoveAll();
 	m_glues.RemoveAll();
+}
+
+bool cshape::IsOnPcb()
+	// A shape is "on the pcb" if it's either the current focus of the fp editor, or if it's in the local cache.  Likewise 
+	// for footprint items like centroids within a shape.
+	{ return this == doc->m_edit_footprint || doc->m_slist->shapes.Contains(this); }
+
+
+void cshape::SaveUndoInfo()
+{
+	doc->m_undo_items.Add( new cushape(this) );
+	citer<cpadstack> ips (&m_padstacks);
+	for (cpadstack *ps = ips.First(); ps; ps = ips.Next())
+		doc->m_undo_items.Add( new cupadstack(ps) );
+	doc->m_undo_items.Add( new cutext(m_ref) );
+	doc->m_undo_items.Add( new cutext(m_value) );
+	citer<ctext> it (&m_tl->texts);
+	for (ctext *t = it.First(); t; t = it.Next())
+		doc->m_undo_items.Add( new cutext(t) );
+	citer<coutline> io (&m_outlines);
+	for (coutline *o = io.First(); o; o = io.Next())
+		doc->m_undo_items.Add( new cuoutline(o) );
+	citer<cglue> ig (&m_glues);
+	for (cglue *g = ig.First(); g; g = ig.Next())
+		doc->m_undo_items.Add( new cuglue(g) );
+	doc->m_undo_items.Add( new cucentroid(m_centroid) );
 }
 
 // function to create shape from definition string
 // returns 0 if successful
 // CPT2 converted
 //
-int CShape::MakeFromString( CString name, CString str )
+int cshape::MakeFromString( CString name, CString str )
 {
 	enum {	
 		MAX_PARAMS = 40,
@@ -867,8 +928,7 @@ int CShape::MakeFromString( CString name, CString str )
 			if( i >= npins )
 				i = i - npins;
 
-			cpadstack *ps = new cpadstack(m_doc);
-			m_padstack.Add(ps);
+			cpadstack *ps = new cpadstack(this);
 			// set pin name, and store the 0-based pin number in utility field
 			ps->name.Format( "%d", i+1 );
 			ps->utility = i;
@@ -1044,8 +1104,7 @@ int CShape::MakeFromString( CString name, CString str )
 					ip = (npins_y-iv-1) + ih*npins_y; 
 				else if( pin_dir == TBRL )
 					ip = (npins_y-iv-1) + (npins_x-ih-1)*npins_y;
-				cpadstack *ps = new cpadstack(m_doc);
-				m_padstack.Add(ps);
+				cpadstack *ps = new cpadstack(this);
 				// CPT2 Name the padstack (used to be done later, but why not now?).  Also store 0-based pin # in utility field.
 				ps->name.Format( "%d", ip+1 );
 				ps->utility = ip;
@@ -1148,8 +1207,8 @@ int CShape::MakeFromString( CString name, CString str )
 	else if( package == DIP || package == SOIC )
 	{
 		m_ref->m_x = m_ref->m_y = pin_spacing_x;
-		coutline *o = new coutline(m_doc, LAY_FP_SILK_TOP, 7*PCBU_PER_MIL);			// CPT2 changed layer
-		m_outline_poly.Add(o);
+		coutline *o = new coutline(this, LAY_FP_SILK_TOP, 7*PCBU_PER_MIL);			// CPT2 changed layer
+		m_outlines.Add(o);
 		ccontour *ctr = new ccontour(o, true);
 		ctr->AppendCorner( 0, pad_len_int+offset_top/12 );
 		ctr->AppendCorner( (npins_x-1)*pin_spacing_x, pad_len_int+offset_top/12 );
@@ -1165,8 +1224,8 @@ int CShape::MakeFromString( CString name, CString str )
 	{
 		m_ref->m_x = offset_right/4;
 		m_ref->m_y = offset_top/2;
-		coutline *o = new coutline(m_doc, LAY_FP_SILK_TOP, 7*PCBU_PER_MIL);
-		m_outline_poly.Add(o);
+		coutline *o = new coutline(this, LAY_FP_SILK_TOP, 7*PCBU_PER_MIL);
+		m_outlines.Add(o);
 		ccontour *ctr = new ccontour(o, true);
 		int xf = (npins_x-1)*pin_spacing_x;
 		int yf = (npins_y-1)*pin_spacing_y;
@@ -1244,8 +1303,8 @@ int CShape::MakeFromString( CString name, CString str )
 		m_ref->m_x = offset_right/4;
 		m_ref->m_y = offset_top/2;
 		// create part outline with 7 mil line width and 13 mil clearance
-		coutline *o = new coutline(m_doc, LAY_FP_SILK_TOP, 7*PCBU_PER_MIL);				// CPT2 changed layer
-		m_outline_poly.Add(o);
+		coutline *o = new coutline(this, LAY_FP_SILK_TOP, 7*PCBU_PER_MIL);				// CPT2 changed layer
+		m_outlines.Add(o);
 		ccontour *ctr = new ccontour(o, true);
 		int clear = 13*PCBU_PER_MIL;
 		ctr->AppendCorner( pad_rect.left-clear, pad_rect.bottom-clear ); 
@@ -1258,11 +1317,11 @@ int CShape::MakeFromString( CString name, CString str )
 	// If necessary, adjust offsets for pin 1 position, which may not be 0,0.  CPT2 bug fix:  used to be done _before_ the outline poly was created.
 	if (pin1x || pin1y)
 	{
-		citer<cpadstack> ips (&m_padstack);
+		citer<cpadstack> ips (&m_padstacks);
 		for (cpadstack *ps = ips.First(); ps; ps = ips.Next())
 			ps->x_rel -= pin1x,
 			ps->y_rel -= pin1y;
-		citer<coutline> io (&m_outline_poly);
+		citer<coutline> io (&m_outlines);
 		for (coutline *o = io.First(); o; o = io.Next())
 			o->Offset(-pin1x, -pin1y);
 		m_ref->m_x -= pin1x;
@@ -1301,7 +1360,7 @@ int CShape::MakeFromString( CString name, CString str )
 // returns 3 if unable to parse file
 // returns 4 if name doesn't match (if name is known)
 //
-int CShape::MakeFromFile( CStdioFile * in_file, CString name, 
+int cshape::MakeFromFile( CStdioFile * in_file, CString name, 
 						 CString file_path, int pos )
 {
 	CString key_str;
@@ -1315,8 +1374,9 @@ int CShape::MakeFromFile( CStdioFile * in_file, CString name,
 	coutline *currPoly = NULL;			// CPT2
 	cpadstack *currPs = NULL;
 	extern CFreePcbApp theApp;
-	m_doc = theApp.m_doc;				// CPT2.  REALLY want m_doc to be a legit value from the get-go.
+	doc = theApp.m_doc;					// CPT2.  REALLY want m_doc to be a legit value from the get-go.
 
+	Clear();
 	p.SetSize( 10 );
 	// if in_file exists, use it, otherwise open file
 	CStdioFile * file;
@@ -1494,8 +1554,7 @@ int CShape::MakeFromFile( CStdioFile * in_file, CString name,
 				int w = GetDimensionFromString( &p[1], m_units);
 				int x = GetDimensionFromString( &p[2], m_units);
 				int y = GetDimensionFromString( &p[3], m_units);
-				cglue *g = new cglue(m_doc, type, w, x, y);
-				m_glues.Add(g);
+				cglue *g = new cglue(this, type, w, x, y);
 			}
 			else if( key_str == "text" && np >= 7 )
 			{
@@ -1514,7 +1573,7 @@ int CShape::MakeFromFile( CStdioFile * in_file, CString name,
 				}
 				if( np >= 10 )
 					bNegative = my_atoi( &p[8] );
-				m_tl->AddText(x, y, angle, mirror, bNegative, layer, font_size, stroke_w, &p[0]);  
+				m_tl->AddText(x, y, angle, mirror, bNegative, layer, font_size, stroke_w, &p[0], NULL, this);
 			}
 			else if( (key_str == "outline_polygon" || key_str == "outline_polyline")
 				&& np >= 4 )
@@ -1527,8 +1586,8 @@ int CShape::MakeFromFile( CStdioFile * in_file, CString name,
 					poly_layer = my_atoi( &p[3] );
 				if( poly_layer < LAY_FP_SILK_TOP )
 					poly_layer = LAY_FP_SILK_TOP;
-				currPoly = new coutline (m_doc, poly_layer, w);
-				m_outline_poly.Add(currPoly);
+				currPoly = new coutline (this, poly_layer, w);
+				m_outlines.Add(currPoly);
 				ccontour *ctr = new ccontour(currPoly, true);			// Adds ctr as poly's main contour
 				ccorner *c = new ccorner(ctr, x, y);					// Constructor adds corner to ctr->corners and sets ctr->head/tail					{
 			}
@@ -1565,13 +1624,12 @@ int CShape::MakeFromFile( CStdioFile * in_file, CString name,
 					AfxMessageBox( mess );
 					pin_name = pin_name.Left(MAX_PIN_NAME_SIZE);
 				}
-				cpadstack *ps = new cpadstack(m_doc);
+				cpadstack *ps = new cpadstack(this);
 				ps->name = pin_name; 
 				ps->hole_size = GetDimensionFromString( &p[1], m_units); 
 				ps->x_rel = GetDimensionFromString( &p[2], m_units); 
 				ps->y_rel = GetDimensionFromString( &p[3], m_units); 
 				ps->angle = my_atoi( &p[4] );
-				m_padstack.Add(ps);
 				currPs = ps;
 			}
 			else if( key_str == "top_pad" && np >= 5 )
@@ -1679,10 +1737,10 @@ int CShape::MakeFromFile( CStdioFile * in_file, CString name,
 normal_return:
 		// eliminate any polylines with only one corner
 		// CPT2
-		citer<coutline> io (&m_outline_poly);
+		citer<coutline> io (&m_outlines);
 		for (coutline *o = io.First(); o; o = io.Next())
 			if( o->NumCorners() == 1 )
-				m_outline_poly.Remove(o);
+				m_outlines.Remove(o);
 		// NM deprecated
 		if( m_units == NM )
 			m_units = MM;
@@ -1719,15 +1777,15 @@ normal_return:
 }
 
 // copy another shape into this shape.
-// CPT2 converted after changing CShape members a bit.  Ensures that copies all have correct CFreePcbDoc pointers.
+// CPT2 converted after changing cshape members a bit.  Ensures that copies all have correct CFreePcbDoc pointers.
 //
-void CShape::Copy( CShape * src )
+void cshape::Copy( cshape * src )
 {
-	m_doc = src->m_doc;				// CPT2
-	if (!m_doc) 
+	doc = src->doc;				// CPT2
+	if (!doc) 
 	{
 		CMainFrame * pMainWnd = (CMainFrame*)AfxGetMainWnd();
-		m_doc = (CFreePcbDoc*)pMainWnd->GetActiveDocument();
+		doc = (CFreePcbDoc*)pMainWnd->GetActiveDocument();
 	}
 
 	// description
@@ -1744,35 +1802,37 @@ void CShape::Copy( CShape * src )
 	// reference designator and value text
 	m_ref->Copy( src->m_ref );
 	m_value->Copy( src->m_value );
+	m_ref->m_shape = m_value->m_shape = this;
 	// centroid.
 	m_centroid->m_type = src->m_centroid->m_type;
 	m_centroid->m_x = src->m_centroid->m_x;
 	m_centroid->m_y = src->m_centroid->m_y;
 	m_centroid->m_angle = src->m_centroid->m_angle;
+	m_centroid->m_shape = this;
 	// padstacks
-	m_padstack.RemoveAll();
-	citer<cpadstack> ips (&src->m_padstack);
+	m_padstacks.RemoveAll();
+	citer<cpadstack> ips (&src->m_padstacks);
 	for (cpadstack *ps = ips.First(); ps; ps = ips.Next())
-		m_padstack.Add( new cpadstack(ps) );
+		new cpadstack(ps, this);										// Takes care of adding new padstack to this->m_padstacks
 	// outline polys
-	m_outline_poly.RemoveAll();
-	citer<coutline> io (&src->m_outline_poly);
+	m_outlines.RemoveAll();
+	citer<coutline> io (&src->m_outlines);
 	for (coutline *o = io.First(); o; o = io.Next())
-		m_outline_poly.Add( new coutline(o) );
+		new coutline(o, this);											// Ditto
 	// texts
 	m_tl->texts.RemoveAll();
 	citer<ctext> it (&src->m_tl->texts);
 	for (ctext *t = it.First(); t; t = it.Next())
-		m_tl->AddText( t->m_x, t->m_y, t->m_angle, t->m_bMirror, t->m_bNegative, 
-			t->m_layer, t->m_font_size, t->m_stroke_width, &t->m_str );
+		ctext *t2 = m_tl->AddText( t->m_x, t->m_y, t->m_angle, t->m_bMirror, t->m_bNegative, 
+			t->m_layer, t->m_font_size, t->m_stroke_width, &t->m_str, NULL, this );
 	// glue spots.
 	m_glues.RemoveAll();
 	citer<cglue> ig (&src->m_glues);
 	for (cglue *g = ig.First(); g; g = ig.Next())
-		m_glues.Add( new cglue(g) );
+		new cglue(g, this);
 }
 
-BOOL CShape::Compare( CShape * shape )
+bool cshape::SameAs( cshape * shape )
 {
 	// parameters
 	if( m_name != shape->m_name 
@@ -1798,21 +1858,20 @@ BOOL CShape::Compare( CShape * shape )
 		)
 			return FALSE;
 
-	// padstacks.  If one shape has the same padstacks, but in a different order, tough luck...
-	int np = m_padstack.GetSize();
-	if( np != shape->m_padstack.GetSize() )
+	// padstacks.  If other shape has the same padstacks, but in a different order, tough luck...
+	int np = m_padstacks.GetSize();
+	if( np != shape->m_padstacks.GetSize() )
 		return FALSE;
-	citer<cpadstack> ips1 (&m_padstack), ips2 (&shape->m_padstack);
+	citer<cpadstack> ips1 (&m_padstacks), ips2 (&shape->m_padstacks);
 	for (cpadstack *ps1 = ips1.First(), *ps2 = ips2.First(); ps1; ps1 = ips1.Next(), ps2 = ips2.Next())
-	{
-		if(  !(*ps1 == *ps2) )
+		if( !ps1->SameAs(ps2) )
 			return FALSE;
-	}
+
 	// outline polys
-	np = m_outline_poly.GetSize();
-	if( np != shape->m_outline_poly.GetSize() )
+	np = m_outlines.GetSize();
+	if( np != shape->m_outlines.GetSize() )
 		return FALSE;
-	citer<coutline> io1 (&m_outline_poly), io2 (&shape->m_outline_poly);
+	citer<coutline> io1 (&m_outlines), io2 (&shape->m_outlines);
 	for (coutline *o1 = io1.First(), *o2 = io2.First(); o1; o1 = io1.Next(), o2 = io2.Next())
 	{
 		if (o1->m_layer != o2->m_layer) return false;
@@ -1852,42 +1911,24 @@ BOOL CShape::Compare( CShape * shape )
 	return TRUE;
 }
 
-int CShape::GetNumPins()
+int cshape::GetNumPins()
 {
-	return m_padstack.GetSize();
+	return m_padstacks.GetSize();
 }
 
-/* CPT2 deprecated
-int CShape::GetPinIndexByName( LPCTSTR name )
-{	
-	for( int ip=0; ip<m_padstack.GetSize(); ip++ )
-	{
-		if( m_padstack[ip].name == name )
-			return ip;
-	}
-	return -1;		// error
-}
-*/
-
-cpadstack *CShape::GetPadstackByName( CString *name )
+cpadstack *cshape::GetPadstackByName( CString *name )
 {
-	citer<cpadstack> ips (&m_padstack);
+	citer<cpadstack> ips (&m_padstacks);
 	for (cpadstack *ps = ips.First(); ps; ps = ips.Next())
 		if (ps->name == *name)
 			return ps;
 	return NULL;
 }
 
-/* CPT2 deprecated
-CString CShape::GetPinNameByIndex( int ip )
-{
-	return m_padstack[ip].name;
-}
-*/
 
 // write one footprint
 //
-int CShape::WriteFootprint( CStdioFile * file )
+int cshape::WriteFootprint( CStdioFile * file )
 {
 	CString line;
 	CString key;
@@ -1950,7 +1991,7 @@ int CShape::WriteFootprint( CStdioFile * file )
 				ws(t->m_font_size,m_units), ws(t->m_x,m_units), ws(t->m_y,m_units), t->m_angle, 
 				ws(t->m_stroke_width,m_units), t->m_bMirror, t->m_layer ),
 			file->WriteString( line ); 
-		citer<coutline> io (&m_outline_poly);
+		citer<coutline> io (&m_outlines);
 		for (coutline *o = io.First(); o; o = io.Next())
 		{
 			// CPT2 TODO NB assuming no secondary contours
@@ -1972,9 +2013,9 @@ int CShape::WriteFootprint( CStdioFile * file )
 			}
 		}
 
-		line.Format( "  n_pins: %d\n", m_padstack.GetSize() );
+		line.Format( "  n_pins: %d\n", m_padstacks.GetSize() );
 		file->WriteString( line );
-		citer<cpadstack> ips (&m_padstack);
+		citer<cpadstack> ips (&m_padstacks);
 		for (cpadstack *ps = ips.First(); ps; ps = ips.Next())
 		{
 			line.Format( "    pin: \"%s\" %s %s %s %d\n",
@@ -2069,7 +2110,7 @@ int CShape::WriteFootprint( CStdioFile * file )
 // create metafile and draw footprint into it
 // CPT2 converted
 //
-HENHMETAFILE CShape::CreateMetafile( CMetaFileDC * mfDC, CDC * pDC, CRect const &window, CString ref, int bDrawSelectionRect )
+HENHMETAFILE cshape::CreateMetafile( CMetaFileDC * mfDC, CDC * pDC, CRect const &window, CString ref, int bDrawSelectionRect )
 {
 	int x_size = window.Width();
 	int y_size = window.Height();
@@ -2150,7 +2191,7 @@ HENHMETAFILE CShape::CreateMetafile( CMetaFileDC * mfDC, CDC * pDC, CRect const 
 	// iterate twice to draw top copper over bottom copper
 	for( int ipass=0; ipass<2; ipass++ )
 	{
-		citer<cpadstack> ips (&m_padstack);
+		citer<cpadstack> ips (&m_padstacks);
 		for (cpadstack *ps = ips.First(); ps; ps = ips.Next())
 		{
 			int x = ps->x_rel/NM_PER_MIL;
@@ -2327,7 +2368,7 @@ HENHMETAFILE CShape::CreateMetafile( CMetaFileDC * mfDC, CDC * pDC, CRect const 
 	}
 
 	// draw part outline
-	citer<coutline> io (&m_outline_poly);
+	citer<coutline> io (&m_outlines);
 	for (coutline *o = io.First(); o; o = io.Next())
 	{
 		int thickness = o->m_w/NM_PER_MIL;
@@ -2412,9 +2453,9 @@ HENHMETAFILE CShape::CreateMetafile( CMetaFileDC * mfDC, CDC * pDC, CRect const 
 
 // Get default centroid
 // if no pads, returns (0,0)
-CPoint CShape::GetDefaultCentroid()
+CPoint cshape::GetDefaultCentroid()
 {
-	if( m_padstack.GetSize() == 0 )
+	if( m_padstacks.GetSize() == 0 )
 		return CPoint(0,0);
 	CRect r = GetAllPadBounds();
 	CPoint c( (r.left+r.right)/2, (r.top+r.bottom)/2 );
@@ -2423,12 +2464,12 @@ CPoint CShape::GetDefaultCentroid()
 
 // Get bounding rectangle of all pads
 // if no pads, returns with rect.left = INT_MAX:
-CRect CShape::GetAllPadBounds()
+CRect cshape::GetAllPadBounds()
 {
 	CRect r;
 	r.left = r.bottom = INT_MAX;
 	r.right = r.top = INT_MIN;
-	citer<cpadstack> ips (&m_padstack);
+	citer<cpadstack> ips (&m_padstacks);
 	for (cpadstack *ps = ips.First(); ps; ps = ips.Next())
 	{
 		CRect pad_r = ps->GetBounds();
@@ -2440,33 +2481,13 @@ CRect CShape::GetAllPadBounds()
 	return r;
 }
 
-// Get bounding rectangle of row of pads
-//
-/* CPT2 obsolete 
-CRect CShape::GetPadRowBounds( int i, int num )
-{
-	CRect rr;
-	rr.left = rr.bottom = INT_MAX;
-	rr.right = rr.top = INT_MIN;
-	for( int ip=i; ip<(i+num); ip++ )
-	{
-		CRect r = GetPadBounds( ip );
-		rr.left = min( r.left, rr.left );
-		rr.bottom = min( r.bottom, rr.bottom );
-		rr.right = max( r.right, rr.right );
-		rr.top = max( r.top, rr.top );
-	}
-	return rr;
-}
-*/
-
 // Get bounding rectangle of footprint
 //
-CRect CShape::GetBounds( BOOL bIncludeLineWidths )
+CRect cshape::GetBounds( BOOL bIncludeLineWidths )
 {
 	CRect br = GetAllPadBounds();
 
-	citer<coutline> io (&m_outline_poly);
+	citer<coutline> io (&m_outlines);
 	for (coutline *o = io.First(); o; o = io.Next())
 	{
 		CRect polyr;
@@ -2502,54 +2523,27 @@ CRect CShape::GetBounds( BOOL bIncludeLineWidths )
 
 // Get bounding rectangle of footprint, not including polyline widths
 //
-CRect CShape::GetCornerBounds()
+CRect cshape::GetCornerBounds()
 {
 	return GetBounds( FALSE );
 }
 
 
-//********************************************************
-//
-// Methods for CEditShape
-//
-//********************************************************
-
-// constructor
-//
-CEditShape::CEditShape( CShape *src )
-	: CShape (src->m_doc)
-{
-	Clear();
-	Copy(src);
-}
-
-CEditShape::CEditShape( CFreePcbDoc *doc, CString *name )
-	: CShape (doc)
-{
-	Clear();
-	m_name = *name;
-}
-
-// destructor
-//
-CEditShape::~CEditShape()
-{
-	// Clear();						// CPT2 TODO.  Removed this (was causing a crash).  Need to think about more.
-}
-
-// draw footprint into display list
+// draw footprint into display list (while Footprint Editor is active)
 // CPT2 updated.
 //
-void CEditShape::Draw()
+int cshape::Draw()
 {
-	CDisplayList *dlist = m_doc->m_dlist;
-	SMFontUtil *smf = m_doc->m_smfontutil;
-	// first, undraw
-	Undraw();
+	CDisplayList *dlist = doc->m_dlist;
+	SMFontUtil *smf = doc->m_smfontutil;
+	if( !dlist )
+		return NO_DLIST;
+	if (bDrawn)
+		Undraw();					// NB this is different from other classes' Draw(), because it's only done from the fp editor.
 
 	// draw pins.  CPT2 Note that for each padstack ps we use drawing elements ps->top.dl_el, ps->inner.dl_el, etc.  We also use ps->dl_el to represent the
 	// hole (if any), plus of course ps->dl_sel for the selector.
-	citer<cpadstack> ips (&m_padstack);
+	citer<cpadstack> ips (&m_padstacks);
 	for (cpadstack *ps = ips.First(); ps; ps = ips.Next())
 	{
 		CPoint pin (ps->x_rel, ps->y_rel);
@@ -2706,7 +2700,7 @@ void CEditShape::Draw()
 		m_value->DrawRelativeTo( NULL );
 
 	// now draw outline polylines
-	citer<coutline> io (&m_outline_poly);
+	citer<coutline> io (&m_outlines);
 	for (coutline *o = io.First(); o; o = io.Next())
 	{
 		int sel_box_size = max( o->m_w, 5*NM_PER_MIL );
@@ -2724,26 +2718,18 @@ void CEditShape::Draw()
 	citer<cglue> ig (&m_glues);
 	for (cglue *g = ig.First(); g; g = ig.Next())
 		g->Draw();
+
+	bDrawn = true;
+	return NOERR;
 }
 
-void CEditShape::Clear()
-{
-	Undraw();
-	CShape::Clear();
-}
-
-void CEditShape::Copy( CShape * shape )
-{
-	Undraw();
-	CShape::Copy( shape );
-}
-
-void CEditShape::Undraw()
+void cshape::Undraw()
 {
 	// CPT2 converted
-	CDisplayList *dl = m_doc->m_dlist;
+	CDisplayList *dl = doc->m_dlist;
+	if( !dl ) return;
 
-	citer<cpadstack> ips (&m_padstack);
+	citer<cpadstack> ips (&m_padstacks);
 	for (cpadstack *ps = ips.First(); ps; ps = ips.Next())
 	{
 		dl->Remove( ps->dl_el );
@@ -2763,7 +2749,7 @@ void CEditShape::Undraw()
 	m_ref->Undraw();
 	m_value->Undraw();
 
-	citer<coutline> io (&m_outline_poly);
+	citer<coutline> io (&m_outlines);
 	for (coutline *o = io.First(); o; o = io.Next())
 		o->Undraw();
 
@@ -2775,14 +2761,16 @@ void CEditShape::Undraw()
 	citer<cglue> ig (&m_glues);
 	for (cglue *g = ig.First(); g; g = ig.Next())
 		g->Undraw();
+
+	bDrawn = false;
 }
 
 
 // Start dragging row of pads
 //
-void CEditShape::StartDraggingPadRow( CDC * pDC, carray<cpadstack> *row )
+void cshape::StartDraggingPadRow( CDC * pDC, carray<cpadstack> *row )
 {
-	CDisplayList *dl = m_doc->m_dlist;
+	CDisplayList *dl = doc->m_dlist;
 	dl->CancelHighlight();
 	// make pads invisible
 	citer<cpadstack> ips (row);
@@ -2814,10 +2802,10 @@ void CEditShape::StartDraggingPadRow( CDC * pDC, carray<cpadstack> *row )
 
 // Cancel dragging row of pads
 //
-void CEditShape::CancelDraggingPadRow( carray<cpadstack> *row )
+void cshape::CancelDraggingPadRow( carray<cpadstack> *row )
 {
 	// make pad visible
-	CDisplayList *dl = m_doc->m_dlist;
+	CDisplayList *dl = doc->m_dlist;
 	citer<cpadstack> ips (row);
 	for (cpadstack *ps = ips.First(); ps; ps = ips.Next())
 	{
@@ -2830,7 +2818,7 @@ void CEditShape::CancelDraggingPadRow( carray<cpadstack> *row )
 }
 
 
-void CEditShape::ShiftToInsertPadName( CString * astr, int n )
+void cshape::ShiftToInsertPadName( CString * astr, int n )
 {
 	// CPT2 converted.  User wants to give a new pin the name "astr+n".  Check if this would result in a conflict;  if so, shift the old pin's name
 	// up by one.
@@ -2847,11 +2835,11 @@ void CEditShape::ShiftToInsertPadName( CString * astr, int n )
 // Generate selection rectangle from footprint elements
 // doesn't draw it
 //
-BOOL CEditShape::GenerateSelectionRectangle( CRect * r )
+bool cshape::GenerateSelectionRectangle( CRect * r )
 {
-	int num_elements = GetNumPins() + m_outline_poly.GetSize() + m_tl->texts.GetSize();
+	int num_elements = GetNumPins() + m_outlines.GetSize() + m_tl->texts.GetSize();
 	if( num_elements == 0 )
-		return FALSE;
+		return false;
 
 	CRect br = GetBounds( TRUE );
 
@@ -2864,11 +2852,11 @@ BOOL CEditShape::GenerateSelectionRectangle( CRect * r )
 	m_sel_xf = br.right;
 	m_sel_yi = br.bottom;
 	m_sel_yf = br.top;
-	return TRUE;
+	return true;
 }
 
 
-void CShape::GenerateValueParams() {
+void cshape::GenerateValueParams() {
 	// CPT:  factored-out helper function.  If value has been hidden or isn't specified, we call this function & position it relative to the ref-text
 	int ref_size = m_ref->m_font_size;
 	int ref_xi = m_ref->m_x, ref_yi = m_ref->m_y;
@@ -2897,4 +2885,77 @@ void CShape::GenerateValueParams() {
 	m_value->Move(value_xi, value_yi, ref_angle, false, false, LAY_FP_SILK_TOP, ref_size, m_ref->m_stroke_width);
 }
 
+
+cshape *cshapelist::GetShapeByName( CString *name )
+{
+	citer<cshape> is (&shapes);
+	for (cshape *s = is.First(); s; s = is.Next())
+		if (s->m_name == *name)
+			return s;
+	return NULL;
+}
+
+// write footprint info from this shapelist (the local cache) to file
+//
+void cshapelist::WriteShapes( CStdioFile * file )
+{
+	file->WriteString( "[footprints]\n\n" );
+	citer<cshape> is (&shapes);
+	for (cshape *s = is.First(); s; s = is.Next())
+		s->WriteFootprint( file );
+}
+
+// read footprint info into this list.  bFindSection is true by default
+void cshapelist::ReadShapes( CStdioFile * pcb_file, bool bFindSection )
+{
+	shapes.RemoveAll();
+	CString in_str;
+	if( bFindSection )
+	{
+		// find beginning of shapes section
+		do
+		{
+			if (!pcb_file->ReadString( in_str ))
+			{
+				// error reading pcb file
+				CString mess ((LPCSTR) IDS_UnableToFindFootprintsSectionInFile);
+				AfxMessageBox( mess );
+				return;
+			}
+			in_str.Trim();
+		}
+		while( in_str != "[shapes]" && in_str != "[footprints]" );
+	}
+
+	// get each shape and add it to the cache
+	while( 1 )
+	{
+		int pos = pcb_file->GetPosition();
+		if (!pcb_file->ReadString( in_str ))
+			if( bFindSection )
+				throw new CString( "unexpected EOF in project file" );
+			else
+				break;
+		in_str.Trim();
+		if( in_str[0] == '[' )
+		{
+			pcb_file->Seek( pos, CFile::begin );
+			break;		// next section, exit
+		}
+		else if( in_str.Left(5) == "name:" )
+		{
+			CString name = in_str.Right( in_str.GetLength()-5 );
+			name.Trim();
+			if( name.Right(1) == '\"' )
+				name = name.Left( name.GetLength() - 1 );
+			if( name.Left(1) == '\"' )
+				name = name.Right( name.GetLength() - 1 );
+			name = name.Left( cshape::MAX_NAME_SIZE );
+			cshape * s = new cshape (m_doc);
+			pcb_file->Seek( pos, CFile::begin );					// back up
+			if (!s->MakeFromFile( pcb_file, "", "", 0 ))
+				shapes.Add(s);
+		}
+	}
+}
 

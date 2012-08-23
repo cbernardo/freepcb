@@ -407,7 +407,7 @@ public:
 	BOOL CurDraggingRouting();
 	BOOL CurDraggingPlacement();
 	void SnapCursorPoint( CPoint wp, UINT nFlags );
-	void OnExternalChangeFootprint( CShape * fp );
+	void OnExternalChangeFootprint( cshape * fp );
 	void FinishArrowKey(int x, int y, int dx, int dy);										// CPT2 new helper for HandleKeyPress().
 	void HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags);
 	void TryToReselectCorner( int x, int y );

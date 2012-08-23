@@ -103,7 +103,6 @@ void CFootLibFolder::IndexLib( CString * file_name, CDlgLog * dlog )
 void CFootLibFolder::IndexAllLibs( CString * full_path, CDlgLog * dlg_log )
 {
 	Clear();
-	CDlgAddPart dlg;
 	m_full_path_to_folder = *full_path;
 
 	// start looking for library files

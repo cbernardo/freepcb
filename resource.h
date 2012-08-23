@@ -327,7 +327,9 @@
 #define IDC_BUTTON_VAL_INVIS            1043
 #define IDC_RADIO_SET_WIDTH             1044
 #define IDC_BUTTON_COMBINE              1044
+#define IDC_BUTTON_REF_VIS              1044
 #define IDC_BUTTON_DELETE2              1045
+#define IDC_BUTTON_REF_INVIS            1045
 #define IDC_RADIO_DEF                   1049
 #define IDC_RADIO_SET                   1050
 #define IDC_BUTTON_VISIBLE              1051
@@ -1649,6 +1651,15 @@
 #define IDS_TeeVertex                   62689
 #define IDS_Padstack                    62690
 #define IDS_Outline                     62691
+#define IDS_ErrorCouldntLocateFootprintName 62692
+#define IDS_STRING131                   62693
+#define IDS_WarningYouAreTryingToLoadAFootprint 62693
+#define IDS_PartListCols2               62694
+#define IDS_STRING62695                 62695
+#define IDS_STRING62696                 62696
+#define IDS_STRING62697                 62697
+#define IDS_STRING62698                 62698
+#define IDS_STRING62699                 62699
 #define IDS_FkFpStr                     63000
 #define IDS_STRING63001                 63001
 #define IDS_STRING63002                 63002

@@ -262,7 +262,7 @@ void CDlgAddPin::DoDataExchange(CDataExchange* pDX)
 		if( m_fp->GetNumPins() )
 		{
 			CArray<CString> pin_name;
-			citer<cpadstack> ips (&m_fp->m_padstack);
+			citer<cpadstack> ips (&m_fp->m_padstacks);
 			for (cpadstack *ps = ips.First(); ps; ps = ips.Next())
 				pin_name.Add(ps->name);
 			::SortByName( &pin_name );
@@ -506,7 +506,7 @@ void CDlgAddPin::DoDataExchange(CDataExchange* pDX)
 				pDX->Fail();
 			}
 			// check for conflicts
-			citer<cpadstack> ips (&m_fp->m_padstack);
+			citer<cpadstack> ips (&m_fp->m_padstacks);
 			for (cpadstack *ps = ips.First(); ps; ps = ips.Next())
 				if( astr==ps->name && ps!=m_ps0 )
 				{
@@ -524,12 +524,12 @@ void CDlgAddPin::DoDataExchange(CDataExchange* pDX)
 		else
 		{
 			// pin name ends in a number, allow insertion
-			int npins = m_fp->m_padstack.GetSize();
+			int npins = m_fp->m_padstacks.GetSize();
 			for( int ip=0; ip<m_num_pins && !conflict; ip++ )
 			{
 				CString pin_name;
 				pin_name.Format( "%s%d", astr, n+ip*m_increment );
-				citer<cpadstack> ips (&m_fp->m_padstack);
+				citer<cpadstack> ips (&m_fp->m_padstacks);
 				for (cpadstack *ps = ips.First(); ps; ps = ips.Next())
 					if( pin_name == ps->name && ps!=m_ps0 )
 					{
@@ -557,7 +557,7 @@ void CDlgAddPin::DoDataExchange(CDataExchange* pDX)
 		// check if we will be dragging
 		m_drag_flag = m_radio_drag.GetCheck();
 		// now insert padstacks
-		cpadstack *ps = new cpadstack (m_fp->m_doc);
+		cpadstack *ps = new cpadstack (m_fp);
 		ps->hole_size = m_hole_diam;
 		if( m_padstack_type == 0 || m_padstack_type == 2 )
 			ps->hole_size = 0;
@@ -729,23 +729,23 @@ void CDlgAddPin::DoDataExchange(CDataExchange* pDX)
 			{
 				m_fp->ShiftToInsertPadName( &astr, n+ip*m_increment );
 				if (ip>0)
-					ps = new cpadstack (ps),
+					ps = new cpadstack (ps, m_fp),
 					ps->x_rel += dx,
 					ps->y_rel += dy;
 				ps->name.Format( "%s%d", astr, n+ip*m_increment );
-				m_fp->m_padstack.Add( ps );
 				m_new_pins->Add( ps );
 			}
 		}
 		else if (m_ps0)
+			// use preexisting padstack
 			ps->name = m_pin_name,
 			m_ps0->Copy( ps ),
 			m_new_pins->Add( m_ps0 ),
-			delete ps;
+			m_fp->m_padstacks.Remove(ps);
 		else
 			m_fp->ShiftToInsertPadName( &astr, n ),
 			ps->name.Format( "%s%d", astr, n ),						// CPT --- maybe will help with my mystery pin name bug
-			m_fp->m_padstack.Add(  ps ),
+			m_fp->m_padstacks.Add(  ps ),
 			m_new_pins->Add( ps );
 	}
 }
@@ -787,7 +787,7 @@ BEGIN_MESSAGE_MAP(CDlgAddPin, CDialog)
 END_MESSAGE_MAP()
 
 
-void CDlgAddPin::InitDialog( CEditShape * fp, cpadstack *ps0, carray<cpadstack> *new_pins, int units )
+void CDlgAddPin::InitDialog( cshape * fp, cpadstack *ps0, carray<cpadstack> *new_pins, int units )
 {
 	ASSERT(fp);
 	m_fp = fp;

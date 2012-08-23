@@ -64,8 +64,8 @@ related change, I'm changing CFootprintView::m_fp to a pointer, which makes it e
 We'll see how well all this pans out down the line...
 
 NB drawing and undrawing are simpler in the footprint editor than in the main editor.  Just 
-undraw the whole footprint, make whatever changes, then redraw the whole footprint.
-That first step can often be omitted if no objects are getting detached from the fp, because CEditShape::Draw() calls Undraw() first by default.
+undraw the whole footprint, make whatever changes, then redraw the whole footprint.  As of r336, CFootprintView::PushUndo does an undraw as 
+a convenience, and CFootprintView::FootprintModified does a draw.
 
 I've attempted to improve the behavior of right-clicking.  Now a right-click will select an appropriate object right away, without having to do a 
 left-click first.  See CCommonView::RightClickSelect().
@@ -87,7 +87,7 @@ Made a slight rewording within the paste-group dialog box --- I think the new ch
 "Ignore group nets that include no routed traces or areas" is a little clearer and more accurate than the old radio buttons 
 "Nets assigned to pins: Retain All --- Retain if pin connected to a trace in the group".
 
-r322 introduces a brand-new system for undo/redo, described at the top of UndoNew.h.  Should be robust once I have the garbage collector in place,
+r322 introduces a brand-new system for undo/redo, described at the top of Undo.h.  Should be robust once I have the garbage collector in place,
 but that will require some testing.
 
 Note that in r322 CFreePcbDoc::ProjectModified(true) has been assigned some more duties appropriate to the finishing up of a user operation: 
@@ -97,6 +97,23 @@ well as CCommonView::SetMainMenu().
 Regarding phantom pins, as of r329 I no longer bail out with an error if they're found in a document being loaded.  Instead, the program just
 ignores them.
 
+Irritating discovery during r332:  all the trouble we've been having with CFileDialog is an artifact of compiling in Debug mode.  If you do
+a Release-version compile, all the flaky behavior disappears.  Thanks a lot, MS...  Did a lot of research before I figured that out, and
+made headway on understanding MS's preferred new API for selecting files.  Made some code sketches in case we want ever to move in that
+direction.
+
+As of r335 class cshape and the whole footprint machinery has been overhauled.  cshape 
+(formerly CShape) is now a descendant of cpcb_item, meaning that memory
+management for it and its constituents like cpadstack and ccentroid will adhere to the same system as everything else.  I decided I would make 
+this change prior to implementing the garbage collector, which I promise is soon.  The cache is no longer a 
+CMapStringToPtr type, but just a cshapelist, consisting basically of a carray<cshape> and
+going under the name CFreePcbDoc::m_slist;  although this is somewhat less efficient when it comes to finding footprints by name, I don't
+imagine that will cause much of an overall performance hit (if it does, class cshapelist can be souped up.)  A sizeable benefit to this 
+is that the undo machinery could be adapted to handle changes in the footprint cache.  Therefore, if you swap out some shapes, when returning
+from the fp editor or the DlgPartlist (say), these changes can now be undone.
+
+In related moves, the code when exiting DlgAddPart and DlgPartlist has been rearranged.  Formerly DlgAddPart::DoDataExchange on exit had the
+responsibility to load in fp's from libraries and reconcile name conflicts.  These jobs are now handled in cpartlist::ImportPartlistInfo().
 
 // FreePCB : programming notes
 //

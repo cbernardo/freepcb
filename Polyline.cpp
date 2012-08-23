@@ -32,10 +32,10 @@ ccorner::ccorner(CFreePcbDoc *_doc, int _uid):
 	preSide = postSide = NULL;
 }
 
-bool ccorner::IsValid() 
+bool ccorner::IsOnPcb() 
 {
-	if (!contour->poly->IsValid()) return false;
-	if (!contour->IsValid()) return false;
+	if (!contour->poly->IsOnPcb()) return false;
+	if (!contour->IsOnPcb()) return false;
 	return contour->corners.Contains(this);
 }
 
@@ -225,10 +225,9 @@ cside::cside(CFreePcbDoc *_doc, int _uid):
 	contour = NULL;
 	preCorner = postCorner = NULL;
 }
-bool cside::IsValid() 
+bool cside::IsOnPcb() 
 {
-	if (!contour->poly->IsValid()) return false;
-	if (!contour->IsValid()) return false;
+	if (!contour->IsOnPcb()) return false;
 	return contour->sides.Contains(this);
 }
 
@@ -437,8 +436,8 @@ ccontour::ccontour(cpolyline *_poly, ccontour *src)
 	}
 }
 
-bool ccontour::IsValid() 
-	{ return poly->contours.Contains(this); }
+bool ccontour::IsOnPcb() 
+	{ return poly->IsOnPcb() && poly->contours.Contains(this); }
 
 cnet2 *ccontour::GetNet() { return poly->GetNet(); }
 
@@ -1813,7 +1812,7 @@ bool cpolyline::PolygonModified( bool bMessageBoxArc, bool bMessageBoxInt )
 	// If bMessageBoxXXX == TRUE, shows message boxes when clipping occurs.
 	// Returns false if an error occured, i.e. if arcs intersect other sides, so polygon can't be clipped.
 	// CPT2 converted.  Subroutines take care of calling MustRedraw() on affected area(s), as needed.
-	if (IsValid())
+	if (IsOnPcb())
 	{
 		int test = ClipPolygon( bMessageBoxArc, bMessageBoxInt );
 		if( test == -1 )
@@ -1939,9 +1938,9 @@ carea2::carea2(CFreePcbDoc *_doc, int _uid):
 	m_net = NULL;
 }
 
-bool carea2::IsValid()
+bool carea2::IsOnPcb()
 {
-	if (!m_net->IsValid()) return false;
+	if (!m_net->IsOnPcb()) return false;
 	return m_net->areas.Contains(this);
 }
 
@@ -2008,7 +2007,7 @@ csmcutout::csmcutout(CFreePcbDoc *_doc, int _uid):
 	cpolyline(_doc, _uid)
 	{ }
 
-bool csmcutout::IsValid()
+bool csmcutout::IsOnPcb()
 	{ return doc->smcutouts.Contains(this); }
 
 void csmcutout::SaveUndoInfo()
@@ -2055,7 +2054,7 @@ cboard::cboard(CFreePcbDoc *_doc, int _uid):
 	cpolyline(_doc, _uid)
 	{ }
 
-bool cboard::IsValid()
+bool cboard::IsOnPcb()
 	{ return doc->boards.Contains(this); }
 
 void cboard::SaveUndoInfo()
@@ -2079,22 +2078,37 @@ void cboard::GetCompatiblePolylines( carray<cpolyline> *arr )
 	{ arr->Add(this); }
 
 
-coutline::coutline(CFreePcbDoc *_doc, int layer, int w)
-	: cpolyline(_doc)
+coutline::coutline(cshape *_shape, int layer, int w)
+	: cpolyline (_shape->doc)
 {
-	if (doc)
-		doc->outlines.Add(this);
 	m_layer = layer;
 	m_w = w;
+	shape = _shape;
+	shape->m_outlines.Add(this);
 }
 
-bool coutline::IsValid() 
+coutline::coutline(coutline *src, cshape *_shape)
+	: cpolyline(src) 
+{ 
+	shape = _shape;
+	shape->m_outlines.Add(this);
+}
+
+bool coutline::IsOnPcb() 
 {
-	if (doc && doc->m_edit_footprint)
-		return doc->m_edit_footprint->m_outline_poly.Contains(this);
-	return false;
+	return shape->IsOnPcb() && shape->m_outlines.Contains(this);
 }
 
 cpolyline *coutline::CreateCompatible() 
 	// CPT2 new.  Virtual function in class cpolyline.  Returns a new polyline of the same specs as this (but with an empty contour array)
-	{ return new coutline(doc, m_layer, m_w); }
+	{ return new coutline(shape, m_layer, m_w); }
+
+void coutline::SaveUndoInfo()
+{
+	doc->m_undo_items.Add( new cuoutline(this) );
+	citer<ccontour> ictr (&contours);
+	for (ccontour *ctr = ictr.First(); ctr; ctr = ictr.Next())
+		ctr->SaveUndoInfo();
+}
+
+

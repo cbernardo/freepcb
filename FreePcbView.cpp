@@ -2912,15 +2912,13 @@ int CFreePcbView::SegmentMovable(void)
 //
 int CFreePcbView::ShowSelectStatus()
 {
-// #define SHOW_UIDS	// show UIDs for selected element, mainly for debugging
-	CString uid_str;
 	CMainFrame * pMain = (CMainFrame*) AfxGetApp()->m_pMainWnd;
 	if( !pMain )
 		return 1;
 
 	int u = m_units;
 	CString x_str, y_str, w_str, hole_str, via_w_str, via_hole_str;
-	CString str, s;
+	CString str, str0;
 	cpcb_item *sel = m_sel.First();
 
 	switch( m_cursor_mode )
@@ -2946,8 +2944,8 @@ int CFreePcbView::ShowSelectStatus()
 			::MakeCStringFromDimension( &x_str, c->x, u, FALSE, FALSE, FALSE, u==MIL?1:3 );
 			::MakeCStringFromDimension( &y_str, c->y, u, FALSE, FALSE, FALSE, u==MIL?1:3 );
 			int rsrc = m_cursor_mode==CUR_SMCUTOUT_CORNER_SELECTED? IDS_SolderMaskCutoutCorner: IDS_BoardOutlineCorner;
-			CString s ((LPCSTR) rsrc);
-			str.Format( s, poly->UID(), lay_str, c->UID(), x_str, y_str, uid_str );
+			CString str0 ((LPCSTR) rsrc);
+			str.Format( str0, poly->UID(), lay_str, c->UID(), x_str, y_str, "" );
 		}
 		break;
 
@@ -2969,8 +2967,8 @@ int CFreePcbView::ShowSelectStatus()
 			else if (poly->GetLayer() == LAY_SM_BOTTOM )
 				lay_str.LoadStringA(IDS_Bottom2);
 			int rsrc = m_cursor_mode==CUR_SMCUTOUT_SIDE_SELECTED? IDS_SolderMaskCutoutSide: IDS_BoardOutlineSide;
-			CString s ((LPCSTR) rsrc);
-			str.Format( s, poly->UID(), lay_str, side->UID(), style_str, uid_str );
+			CString str0 ((LPCSTR) rsrc);
+			str.Format( str0, poly->UID(), lay_str, side->UID(), style_str, "" );
 		}
 		break;
 
@@ -2983,24 +2981,24 @@ int CFreePcbView::ShowSelectStatus()
 			::MakeCStringFromDimension( &x_str, part->x, u, FALSE, FALSE, FALSE, u==MIL?1:3 );
 			::MakeCStringFromDimension( &y_str, part->y, u, FALSE, FALSE, FALSE, u==MIL?1:3 );
 			int rep_angle = ::GetReportedAngleForPart( part->angle, part->shape->m_centroid->m_angle, part->side );
-			s.LoadStringA(IDS_PartXYAngle);
-			str.Format( s, part->ref_des, part->shape->m_name, x_str, y_str, rep_angle, side );
+			str0.LoadStringA(IDS_PartXYAngle);
+			str.Format( str0, part->ref_des, part->shape->m_name, x_str, y_str, rep_angle, side );
 		}
 		break;
 
 	case CUR_REF_SELECTED:
 		{
 			creftext *rt = sel->ToRefText();
-			s.LoadStringA(IDS_RefText);
-			str.Format( s, rt->m_str );
+			str0.LoadStringA(IDS_RefText);
+			str.Format( str0, rt->m_str );
 			break;
 		}
 
 	case CUR_VALUE_SELECTED:
 		{
 			cvaluetext *vt = sel->ToValueText();
-			s.LoadStringA(IDS_Value2);
-			str.Format( s, vt->m_str );
+			str0.LoadStringA(IDS_Value2);
+			str.Format( str0, vt->m_str );
 			break;
 		}
 
@@ -3012,16 +3010,16 @@ int CFreePcbView::ShowSelectStatus()
 			if( pin->net )
 			{
 				// pad attached to net
-				CString s ((LPCSTR) IDS_PinOnNet);
-				str.Format( s, pin->part->ref_des,
-					pin->pin_name, pin->net->name, x_str, y_str, uid_str );
+				CString str0 ((LPCSTR) IDS_PinOnNet);
+				str.Format( str0, pin->part->ref_des,
+					pin->pin_name, pin->net->name, x_str, y_str, "" );
 			}
 			else
 			{
 				// pad not attached to a net
-				CString s ((LPCSTR) IDS_PinUnconnected);
-				str.Format( s, pin->part->ref_des,
-					pin->pin_name, x_str, y_str, uid_str );
+				CString str0 ((LPCSTR) IDS_PinUnconnected);
+				str.Format( str0, pin->part->ref_des,
+					pin->pin_name, x_str, y_str, "" );
 			}
 			break;
 		}
@@ -3037,23 +3035,25 @@ int CFreePcbView::ShowSelectStatus()
 			// End CPT.
 
 			cseg2 *seg = sel->ToSeg();
-			CString con_str, seg_str;
-			seg->m_con->GetStatusStr( &con_str );
-			seg->GetStatusStr( &seg_str, width );			// CPT added arg
-			str = con_str + "; " + seg_str;
-			str = str + uid_str;
+			cconnect2 *con = seg->m_con;
+			con->GetStatusStr( &str );
+			if (!(con->NumSegs() == 1 && con->segs.First()->m_layer == LAY_RAT_LINE))
+			{
+				seg->GetStatusStr( &str0, width );			// CPT added arg
+				str += "; " + str0;
+			}
 			break;
 		}
 
 	case CUR_DRAG_STUB:
 		{
 			// CPT2.  In this mode, the selected object is always the starting vertex.  Just show connection info, plus active width
-			CString con_str, w_str, s;
+			CString con_str, w_str, str0;
 			cconnect2 *c = sel->ToVertex()->m_con;
 			c->GetStatusStr( &con_str );
 			::MakeCStringFromDimension( &w_str, m_active_width, m_units, FALSE, FALSE, FALSE, u==MIL?1:3 );
-			s.LoadStringA(IDS_W);
-			str.Format(s, con_str, w_str);
+			str0.LoadStringA(IDS_W);
+			str.Format(str0, con_str, w_str);
 			break;
 		}
 
@@ -3064,7 +3064,6 @@ int CFreePcbView::ShowSelectStatus()
 			v->m_con->GetStatusStr( &con_str );
 			v->GetStatusStr( &vtx_str );
 			str = con_str + "; " + vtx_str;
-			str = str + uid_str;
 			break;
 		}
 
@@ -3093,8 +3092,8 @@ int CFreePcbView::ShowSelectStatus()
 				len += sqrt( dx*dx + dy*dy );
 			}
 			::MakeCStringFromDimension( &len_str, (int)len, u, TRUE, TRUE, FALSE, u==MIL?1:3 );
-			CString s ((LPCSTR) IDS_Length);
-			str.Format(s, con_str, len_str);
+			CString str0 ((LPCSTR) IDS_Length);
+			str.Format(str0, con_str, len_str);
 		}
 		break;
 
@@ -3104,8 +3103,8 @@ int CFreePcbView::ShowSelectStatus()
 			CString neg_str = "";
 			if( t->m_bNegative )
 				neg_str.LoadStringA(IDS_Neg);
-			CString s ((LPCSTR) IDS_Text);
-			str.Format( s, t->m_str, neg_str );
+			CString str0 ((LPCSTR) IDS_Text);
+			str.Format( str0, t->m_str, neg_str );
 			break;
 		}
 
@@ -3116,8 +3115,8 @@ int CFreePcbView::ShowSelectStatus()
 			cnet2 *net = c->GetNet();
 			::MakeCStringFromDimension( &x_str, c->x, u, FALSE, FALSE, FALSE, u==MIL?1:3 );
 			::MakeCStringFromDimension( &y_str, c->y, u, FALSE, FALSE, FALSE, u==MIL?1:3 );
-			CString s ((LPCSTR) IDS_CopperAreaCorner);
-			str.Format( s, net->name, p->UID(), c->UID(), x_str, y_str, uid_str );
+			CString str0 ((LPCSTR) IDS_CopperAreaCorner);
+			str.Format( str0, net->name, p->UID(), c->UID(), x_str, y_str, "" );
 		}
 		break;
 
@@ -3127,11 +3126,11 @@ int CFreePcbView::ShowSelectStatus()
 			cpolyline *p = side->contour->poly;
 			cnet2 *net = side->GetNet();
 			if (!side->IsOnCutout()) 
-				s.LoadStringA(IDS_CopperAreaEdge),
-				str.Format( s, net->name, p->UID(), side->UID() );
+				str0.LoadStringA(IDS_CopperAreaEdge),
+				str.Format( str0, net->name, p->UID(), side->UID() );
 			else
-				s.LoadStringA(IDS_CopperAreaCutoutEdge),
-				str.Format( s, net->name, p->UID(), side->contour->UID(), side->UID() );
+				str0.LoadStringA(IDS_CopperAreaCutoutEdge),
+				str.Format( str0, net->name, p->UID(), side->contour->UID(), side->UID() );
 		}
 		break;
 
@@ -3145,23 +3144,23 @@ int CFreePcbView::ShowSelectStatus()
 		break;
 
 	case CUR_DRAG_PART:
-		s.LoadStringA(IDS_MovingPart);
-		str.Format( s, sel->ToPart()->ref_des );
+		str0.LoadStringA(IDS_MovingPart);
+		str.Format( str0, sel->ToPart()->ref_des );
 		break;
 
 	case CUR_DRAG_REF:
-		s.LoadStringA(IDS_MovingRefTextForPart);
-		str.Format( s, sel->ToText()->m_str );
+		str0.LoadStringA(IDS_MovingRefTextForPart);
+		str.Format( str0, sel->ToText()->m_str );
 		break;
 
 	case CUR_DRAG_VTX:
-		s.LoadStringA(IDS_RoutingNet);
-		str.Format( s, sel->GetNet()->name );
+		str0.LoadStringA(IDS_RoutingNet);
+		str.Format( str0, sel->GetNet()->name );
 		break;
 
 	case CUR_DRAG_TEXT:
-		s.LoadStringA(IDS_MovingText);
-		str.Format( s, sel->ToText()->m_str );
+		str0.LoadStringA(IDS_MovingText);
+		str.Format( str0, sel->ToText()->m_str );
 		break;
 
 	case CUR_ADD_AREA:
@@ -3169,22 +3168,22 @@ int CFreePcbView::ShowSelectStatus()
 		break;
 
 	case CUR_DRAG_POLY_INSERT:
-		s.LoadStringA(IDS_InsertingPolylineCorner);
-		str.Format( s, sel->UID() );
+		str0.LoadStringA(IDS_InsertingPolylineCorner);
+		str.Format( str0, sel->UID() );
 		break;
 
 	case CUR_DRAG_POLY_MOVE:
-		s.LoadStringA(IDS_MovingPolylineCorner);
-		str.Format( s, sel->UID() );
+		str0.LoadStringA(IDS_MovingPolylineCorner);
+		str.Format( str0, sel->UID() );
 		break;
 
 	case CUR_DRAG_NEW_RAT:
 		if( cpin2 *p = sel->ToPin() )
-			s.LoadStringA(IDS_AddingConnectionToPin),
-			str.Format( s, p->part->ref_des, p->pin_name );
+			str0.LoadStringA(IDS_AddingConnectionToPin),
+			str.Format( str0, p->part->ref_des, p->pin_name );
 		else if( sel->IsVertex() )
-			s.LoadStringA(IDS_AddingBranchToTrace),
-			str.Format( s, sel->GetNet()->name,	sel->UID() );
+			str0.LoadStringA(IDS_AddingBranchToTrace),
+			str.Format( str0, sel->GetNet()->name,	sel->UID() );
 		break;
 
 	case CUR_DRAG_MEASURE_1:
@@ -3206,14 +3205,14 @@ int CFreePcbView::ShowActiveLayer()
 	if( !pMain )
 		return 1;
 
-	CString str, s;
+	CString str, str0;
 	if( m_active_layer == LAY_TOP_COPPER )
 		str.LoadStringA( IDS_Top3 );
 	else if( m_active_layer == LAY_BOTTOM_COPPER )
 		str.LoadStringA( IDS_Bottom2 );
 	else if( m_active_layer > LAY_BOTTOM_COPPER )
-		s.LoadStringA(IDS_Inner2),
-		str.Format( s, m_active_layer - LAY_BOTTOM_COPPER );
+		str0.LoadStringA(IDS_Inner2),
+		str.Format( str0, m_active_layer - LAY_BOTTOM_COPPER );
 	pMain->DrawStatus( 4, &str );
 	for( int order=LAY_TOP_COPPER; order<LAY_TOP_COPPER+m_doc->m_num_copper_layers; order++ )
 	{
@@ -3289,7 +3288,7 @@ void CFreePcbView::HighlightSelection()
 	CancelHighlight();
 	citer<cpcb_item> ii (&m_sel);
 	for (cpcb_item *i = ii.First(); i; i = ii.Next())
-		if (i->IsValid())
+		if (i->IsOnPcb())
 			i->Highlight();
 		else
 			m_sel.Remove(i);
@@ -3846,7 +3845,7 @@ void CFreePcbView::OnPartProperties()
 	partlist_info pli;
 	int ip = part->m_pl->ExportPartListInfo( &pli, part );
 	CDlgAddPart dlg;
-	dlg.Initialize( &pli, ip, TRUE, FALSE, FALSE, 0, &m_doc->m_footprint_cache_map, 
+	dlg.Initialize( &pli, ip, TRUE, FALSE, FALSE, 0, m_doc->m_slist, 
 		&m_doc->m_footlibfoldermap, m_units, m_doc->m_dlg_log );
 	int ret = dlg.DoModal();
 	if( ret != IDOK )
@@ -3854,7 +3853,7 @@ void CFreePcbView::OnPartProperties()
 	part->SaveUndoInfo();
 	m_doc->m_plist->ImportPartListInfo( &pli, 0 );
 	if( dlg.GetDragFlag() )
-		ASSERT(0);														// CPT2 TODO.  Investigate why this is.
+		ASSERT(0);
 	if( m_doc->m_vis[LAY_RAT_LINE] && !m_doc->m_auto_ratline_disable )
 		m_doc->m_nlist->OptimizeConnections();
 	m_doc->ProjectModified( TRUE );
@@ -4257,7 +4256,7 @@ void CFreePcbView::OnOptimize()
 	// CPT2 used when a net-item (seg, vertex, etc.) is selected and user hits F9.
 	cnet2 *net = m_sel.First()->GetNet();
 	net->OptimizeConnections( FALSE );
-	if (!m_sel.First()->IsValid())
+	if (!m_sel.First()->IsOnPcb())
 		// OptimizeConnections() could have clobbered the selected item, if it's a ratline.
 		CancelSelection();
 	m_doc->ProjectModified( TRUE );
@@ -5160,7 +5159,7 @@ void CFreePcbView::OnRefProperties()
 	ctext *t = m_sel.First()->ToText();
 	cpart2 *part = t->GetPart();
 	CDlgRefText dlg;
-	dlg.Initialize( t, &m_doc->m_footprint_cache_map );
+	dlg.Initialize( t, m_doc->m_slist );
 	int ret = dlg.DoModal();
 	if( ret != IDOK )
 		return;
@@ -5350,7 +5349,7 @@ void CFreePcbView::OnPartEditThisFootprint()
 
 // Offer new footprint from the Footprint Editor
 //
-void CFreePcbView::OnExternalChangeFootprint( CShape * fp )
+void CFreePcbView::OnExternalChangeFootprint( cshape * fp )
 {
 	cpart2 *part = m_sel.First()->ToPart();
 	CString str, s ((LPCSTR) IDS_DoYouWishToReplaceTheFootprintOfPart);
@@ -5359,18 +5358,17 @@ void CFreePcbView::OnExternalChangeFootprint( CShape * fp )
 	if (ret != IDYES)
 		return;
 	// OK, see if a footprint of the same name is already in the cache
-	void * ptr;
-	BOOL found = m_doc->m_footprint_cache_map.Lookup( fp->m_name, ptr );
-	if( found )
+	cshape *cache_fp = m_doc->m_slist->GetShapeByName( &fp->m_name );
+	if( cache_fp )
 	{
 		// see how many parts are using it, not counting the current one
-		CShape * cache_fp = (CShape*)ptr;
 		int num = m_doc->m_plist->GetNumFootprintInstances( cache_fp );
 		if( part->shape == cache_fp )
 			num--;
 		if( num <= 0 )
 		{
-			// go ahead and replace it
+			// go ahead and replace it.  CPT2 SAVE SHAPE UNDO INFO
+			cache_fp->SaveUndoInfo();
 			cache_fp->Copy( fp );
 			part->ChangeFootprint( cache_fp );
 		}
@@ -5380,14 +5378,15 @@ void CFreePcbView::OnExternalChangeFootprint( CShape * fp )
 			CDlgDupFootprintName dlg;
 			CString mess, s ((LPCSTR) IDS_WarningAFootprintNamedIsAlreadyInUse);
 			mess.Format( s, fp->m_name );
-			dlg.Initialize( &mess, &m_doc->m_footprint_cache_map );
+			dlg.Initialize( &mess, m_doc->m_slist );
 			int ret = dlg.DoModal();
 			if( ret != IDOK )
 				return;
 			if( dlg.m_replace_all_flag )
 			{
 				// replace all instances of footprint.  CPT2 bugfix:  must invoke ChangeFootprint() explicitly for 
-				// all parts with the old fp, not just "part"
+				// all parts with the old fp, not just "part".  Also, SAVE SHAPE UNDO INFO:
+				cache_fp->SaveUndoInfo();
 				cache_fp->Copy( fp );
 				citer<cpart2> ip (&m_doc->m_plist->parts);
 				for (cpart2 *p = ip.First(); p; p = ip.Next())
@@ -5397,10 +5396,9 @@ void CFreePcbView::OnExternalChangeFootprint( CShape * fp )
 			else
 			{
 				// assign new name to footprint and put in cache
-				CShape * shape = new CShape( m_doc );
-				shape->Copy( fp );
+				cshape * shape = new cshape( fp );
 				shape->m_name = *dlg.GetNewName();
-				m_doc->m_footprint_cache_map.SetAt( shape->m_name, shape );
+				m_doc->m_slist->shapes.Add( shape );
 				part->ChangeFootprint( shape );
 			}
 		}
@@ -5408,13 +5406,12 @@ void CFreePcbView::OnExternalChangeFootprint( CShape * fp )
 	else
 	{
 		// footprint name not found in cache, add the new footprint
-		CShape * shape = new CShape( m_doc );
-		shape->Copy( fp );
-		m_doc->m_footprint_cache_map.SetAt( shape->m_name, shape );
+		cshape * shape = new cshape( fp );
+		m_doc->m_slist->shapes.Add( shape );
 		part->ChangeFootprint( shape );
 	}
 
-	m_doc->ResetUndoState();							// CPT2 TODO.  Might be able to overcome this limitation.
+	m_doc->m_nlist->OptimizeConnections();
 	m_doc->ProjectModified( TRUE );
 	HighlightSelection();
 }
@@ -6058,7 +6055,7 @@ void CFreePcbView::MoveGroup( int dx, int dy )
 	// relevant polys. HOWEVER, we do invoke PolygonModified() for areas and sm-cutouts that have changed
 	citer<cpolyline> ipoly (&changedPolys);
 	for (cpolyline *poly = ipoly.First(); poly; poly = ipoly.Next())
-		if (!poly->IsBoard() && poly->IsValid())
+		if (!poly->IsBoard() && poly->IsOnPcb())
 			poly->PolygonModified(false, false);
 	
 	// move parts in group
@@ -6248,7 +6245,7 @@ void CFreePcbView::RotateGroup()
 	// relevant polys. HOWEVER, we do invoke PolygonModified() for areas and sm-cutouts that have changed
 	citer<cpolyline> ipoly (&changedPolys);
 	for (cpolyline *poly = ipoly.First(); poly; poly = ipoly.Next())
-		if (!poly->IsBoard() && poly->IsValid())
+		if (!poly->IsBoard() && poly->IsOnPcb())
 			poly->PolygonModified(false, false);
 	
 	// move parts in group
@@ -6420,7 +6417,7 @@ void CFreePcbView::OnGroupCopy()
 		if (cpart2 *part = i->ToPart())
 		{
 			// add part to clipboard partlist
-			CShape * shape = part->shape;
+			cshape * shape = part->shape;
 			cpart2* part2 = pl2->Add( part->shape, &part->ref_des, &part->value_text, &part->package, part->x, part->y,
 				part->side, part->angle, 1, 0 );
 			// set ref text and value parameters
@@ -6613,7 +6610,7 @@ void CFreePcbView::DeleteGroup()
 	citer<cconnect2> ic (&changedCons);
 	for (cconnect2 *c = ic.First(); c; c = ic.Next())
 	{
-		if (!c->IsValid())
+		if (!c->IsOnPcb())
 			continue;						// c might have gotten merged into a different connect during an earlier iteration of this loop
 		c->MustRedraw();
 		c->MergeUnroutedSegments();
@@ -6621,7 +6618,7 @@ void CFreePcbView::DeleteGroup()
 
 	// remove polylines or their subcontours, parts, and texts
 	for (cpcb_item *i = ii.First(); i; i = ii.Next())
-		if (!i->IsValid())
+		if (!i->IsOnPcb())
 			// Presumably a side on a contour that's already been axed
 			continue;
 		else if (cside *s = i->ToSide())
@@ -6994,7 +6991,7 @@ void CFreePcbView::OnGroupPaste()
 		// Therefore now's the time to check the newly pasted polylines (areas/smcutouts) for overlaps:
 		citer<cpolyline> ip (&pastedPolys);
 		for (cpolyline *poly = ip.First(); poly; poly = ip.Next())
-			if (poly->IsValid())
+			if (poly->IsOnPcb())
 				poly->PolygonModified(true, true);
 	}
 	m_doc->Redraw();
@@ -7052,17 +7049,13 @@ void CFreePcbView::OnGroupSaveToFile()
 	try
 	{
 		// make map of all footprints used by group
-		CMapStringToPtr clip_cache_map;
+		cshapelist clip_shapes( m_doc );
 		citer<cpart2> ip (&m_doc->clip_plist->parts);
 		for (cpart2 *part = ip.First(); part; part = ip.Next())
-		{
-			void * vp;
-			if( part->shape )
-				if( !clip_cache_map.Lookup( part->shape->m_name, vp ) )
-					clip_cache_map.SetAt( part->shape->m_name, part->shape );
-		}
+			if (part->shape)
+				clip_shapes.shapes.Add( part->shape );
 		m_doc->WriteOptions( &pcb_file );
-		m_doc->WriteFootprints( &pcb_file, &clip_cache_map );
+		clip_shapes.WriteShapes( &pcb_file );
 		m_doc->WriteBoardOutline( &pcb_file, &m_doc->clip_boards );
 		m_doc->WriteSolderMaskCutouts( &pcb_file, &m_doc->clip_smcutouts );
 		m_doc->clip_plist->WriteParts( &pcb_file );
@@ -7242,7 +7235,8 @@ void CFreePcbView::SetMainMenu()
 
 void CFreePcbView::OnRefShowPart()
 {
-	creftext *t = m_sel.First()->ToRefText();
+	// CPT2 also works for value texts
+	ctext *t = m_sel.First()->ToText();
 	cpart2 *part = t->m_part;
 	CancelSelection();
 	dl_element * dl_sel = part->dl_sel;
@@ -7477,7 +7471,7 @@ void CFreePcbView::OnAddPart()
 	CDlgAddPart dlg;
 	partlist_info pli;
 	m_doc->m_plist->ExportPartListInfo( &pli, NULL );
-	dlg.Initialize( &pli, -1, TRUE, TRUE, FALSE, 0, &m_doc->m_footprint_cache_map, 
+	dlg.Initialize( &pli, -1, TRUE, TRUE, FALSE, 0, m_doc->m_slist, 
 		&m_doc->m_footlibfoldermap, m_units, m_doc->m_dlg_log );
 	int ret = dlg.DoModal();
 	if( ret != IDOK ) return;

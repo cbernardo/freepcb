@@ -1,5 +1,5 @@
-// Shape.h : interface for the CShape class.  Also includes classes cpad, stroke, cpadstack, ccentroid and cglue (the
-// last 3 descendants of cpcb_item)
+// Shape.h: header for the cshape class.  As of r335 I'm experimenting with making that class part of the cpcb_item hierarchy.
+// Also includes classes cpad, stroke, cpadstack, ccentroid and cglue (the last 3 descendants of cpcb_item)
 
 #pragma once
 
@@ -71,9 +71,25 @@ public:
 
 	cpad();
 	BOOL operator==(cpad p);
+	void CopyToArray(int *p)
+	{
+		// CPT2 Stupid business required in order to copy pads over into undo-items.  
+		p[0] = shape; 
+		p[1] = size_l; p[2] = size_r; p[3] = size_h;
+		p[4] = radius;
+		p[5] = connect_flag;
+	}
+	void CopyFromArray(int *p)
+	{
+		// CPT2 similarly
+		shape = p[0];
+		size_l = p[1]; size_r = p[2]; size_h = p[3];
+		radius = p[4];
+		connect_flag = p[5];
+	}
 };
 
-// cpadstack is pads and hole associated with a pin
+// A cpadstack is a set of pads and hole associated with a footprint/shape's pins
 class cpadstack: public cpcb_item
 {
 public:
@@ -84,25 +100,24 @@ public:
 	cpad top, top_mask, top_paste;
 	cpad bottom, bottom_mask, bottom_paste;
 	cpad inner;
+	cshape *shape;		// CPT2 new
 	BOOL exists;		// only used when converting Ivex footprints or editing
 
-	cpadstack(CFreePcbDoc *_doc);
-	cpadstack(cpadstack *src);
-	BOOL operator==(cpadstack p);				// CPT2 TODO check if it's needed
-	bool IsValid();								// CPT2 done in cpp.
+	cpadstack(cshape *_shape);
+	cpadstack(cpadstack *src, cshape *_shape);
+	cpadstack(CFreePcbDoc *_doc, int _uid);
+
+	bool IsOnPcb();								// CPT2 done in cpp.
 	bool IsPadstack() { return true; }
 	cpadstack *ToPadstack() { return this; }
 	int GetTypeBit() { return bitPadstack; }
-	CRect GetBounds();							// CPT2 done in cpp, derived from CShape::GetPadBounds
+	cundo_item *MakeUndoItem()
+		{ return new cupadstack(this); }
+
+	bool SameAs(cpadstack *ps);
+	CRect GetBounds();							// CPT2 done in cpp, derived from old CShape::GetPadBounds
 	void Highlight();
 	void Copy(cpadstack *src, bool bCopyName=true);
-};
-
-// centroid types
-enum CENTROID_TYPE
-{
-	CENTROID_DEFAULT = 0,	// center of pads
-	CENTROID_DEFINED		// defined by user
 };
 
 class ccentroid : public cpcb_item
@@ -112,27 +127,24 @@ public:
 	CENTROID_TYPE m_type;
 	int m_x, m_y;
 	int m_angle;				// angle of centroid (CCW)
+	cshape *m_shape;
 
-	ccentroid(CFreePcbDoc *_doc) 
-		: cpcb_item (_doc)
-		{ }
-	bool IsValid();
+	ccentroid(cshape *shape); 
+	ccentroid(CFreePcbDoc *_doc, int _uid)
+		: cpcb_item (_doc, _uid)
+		{ m_shape = NULL; }
+	bool IsOnPcb();
 	bool IsCentroid() { return true; }
 	ccentroid *ToCentroid() { return this; }
 	int GetTypeBit() { return bitCentroid; }
+	cundo_item *MakeUndoItem()
+		{ return new cucentroid(this); }
+
 	int Draw();
 	void Highlight();
 	void StartDragging( CDC *pDC );
 	void CancelDragging();
 };
-
-// glue spot position types 
-enum GLUE_POS_TYPE
-{
-	GLUE_POS_CENTROID,	// at centroid
-	GLUE_POS_DEFINED	// defined by user
-};
-
 
 class cglue : public cpcb_item
 {
@@ -140,18 +152,21 @@ public:
 	// Represents adhesive dots within footprints.
 	GLUE_POS_TYPE type;
 	int w, x, y;
+	cshape *shape;
 
-	cglue(CFreePcbDoc *_doc, GLUE_POS_TYPE _type, int _w, int _x, int _y) 
-		: cpcb_item (_doc)
-		{ type = _type; w = _w; x = _x; y = _y; }
-	cglue(cglue *src)
-		: cpcb_item (src->doc)
-		{ type = src->type; w = src->w; x = src->x; y = src->y; }
+	cglue(cshape *_shape, GLUE_POS_TYPE _type, int _w, int _x, int _y);
+	cglue(CFreePcbDoc *_doc, int _uid)
+		: cpcb_item (_doc, _uid)
+		{ shape = NULL; }
+	cglue(cglue *src, cshape *_shape);
 
-	bool IsValid();
+	bool IsOnPcb();
 	bool IsGlue() { return true; }
 	cglue *ToGlue() { return this; }
 	int GetTypeBit() { return bitGlue; }
+	cundo_item *MakeUndoItem()
+		{ return new cuglue(this); }
+
 	int Draw();
 	void Highlight();
 	void StartDragging( CDC *pDC );
@@ -159,9 +174,11 @@ public:
 };
 
 
-// CShape class represents a footprint
+// The cshape class represents a footprint.  As of r335, I'm merging it into the cpcb_item hierarchy.  This will make it easier to incorporate
+// the changing cast of footprints into the existing garbage-collection and undo machinery.   I'm ditching the old distinction between CShape
+// and CEditShape.
 //
-class CShape
+class cshape: public cpcb_item
 {
 	// if variables are added, remember to modify Copy!
 public:
@@ -169,7 +186,6 @@ public:
 	enum { MAX_PIN_NAME_SIZE = 39 };
 	enum { MAX_VALUE_SIZE = 39 };
 
-	CFreePcbDoc *m_doc;		// CPT2
 	CString m_name;			// name of shape (e.g. "DIP20")
 	CString m_author;
 	CString m_source;
@@ -177,87 +193,85 @@ public:
 	int m_units;			// units used for original definition (MM, NM or MIL)
 	int m_sel_xi, m_sel_yi, m_sel_xf, m_sel_yf;			// selection rectangle
 	// CPT2.  Reorganizing:  change m_ref and m_value to type ctext*, and get rid of m_ref_size, m_ref_xi, etc. (use m_ref->xi, etc., instead)
-	ctext *m_ref;										// CPT:  New system! Use the CText machinery to process "REF" and "VALUE"
-	// int m_ref_size, m_ref_xi, m_ref_yi, m_ref_angle;	// ref text params
-	// int m_ref_w;										// thickness of stroke for ref text
-	ctext *m_value;										// CPT:  New system!
-	// int m_value_size, m_value_xi, m_value_yi, m_value_angle;	// value text
-	// int m_value_w;												// thickness of stroke for value text
+	creftext *m_ref;	
+	cvaluetext *m_value;
 	ccentroid *m_centroid;
-	carray<cpadstack> m_padstack;		// array of padstacks for shape.  CPT2: was CArray<padstack>.  TODO rename padstacks
-	carray<coutline> m_outline_poly;	// CPT2: was CArray<CPolyLine>.  TODO Rename outlines
+	carray<cpadstack> m_padstacks;		// array of padstacks for shape.  CPT2: was CArray<padstack>.
+	carray<coutline> m_outlines;		// CPT2: was CArray<CPolyLine>.
 	ctextlist *m_tl;					// CPT2.  Used to be CTextList*
 	carray<cglue> m_glues;				// array of adhesive dots.  CPT2 converted from old type (CArray<glue>)
 
 public:
-	CShape(CFreePcbDoc *doc); 
-	~CShape();
+	cshape( CFreePcbDoc *doc );
+	cshape( cshape *src );										// Copy constructor (create a copy of "other" for editing)
+	cshape( CFreePcbDoc *doc, CString *name );					// CPT2 r317 new.  Create a blank shape with the given name
+	cshape( CFreePcbDoc *doc, int uid );						// For the sake of undo functionality
+	// ~cshape();
+
+	bool IsShape() { return true; }
+	cshape *ToShape() { return this; }
+	int GetTypeBit() { return bitShape; }
+	bool IsOnPcb();
+	cundo_item *MakeUndoItem()
+		{ return new cushape(this); }
+	void SaveUndoInfo();
+
 	void Clear();
 	int MakeFromString( CString name, CString str );
 	int MakeFromFile( CStdioFile * in_file, CString name, CString file_path, int pos );
 	int WriteFootprint( CStdioFile * file );
 	int GetNumPins();
-	// int GetPinIndexByName( LPCTSTR name );				// CPT2 deprecated
 	cpadstack *GetPadstackByName (CString *name);			// CPT2
-	// CString GetPinNameByIndex( int index );				// CPT2 deprecated
 	CRect GetBounds( BOOL bIncludeLineWidths=TRUE );
 	CRect GetCornerBounds();
-	// CRect GetPadBounds( int i );							// CPT2 use cpadstack::GetBounds
-	CRect GetPadRowBounds( int i, int num );				// CPT2 TODO figure out
+	// CRect GetPadRowBounds( int i, int num );				// CPT2 TODO figure out
 	CPoint GetDefaultCentroid();
 	CRect GetAllPadBounds();
-	void Copy( CShape * shape );	// copy all data from shape.  CPT2 deprecated, let's see if CEditShape::CEditShape( CShape* ) can take its place
-	BOOL Compare( CShape * shape );	// compare shapes, return true if same
-	//	HENHMETAFILE CreateMetafile( CMetaFileDC * mfDC, CDC * pDC, int x_size, int y_size );
+	void Copy( cshape * src );	// copy all data from shape.
+	bool SameAs( cshape * shape );	// compare shapes, return true if same
 	HENHMETAFILE CreateMetafile( CMetaFileDC * mfDC, CDC * pDC, CRect const &window, 
 		CString ref = "REF", int bDrawSelectionRect=1 );
-	// CPT:  the following is apparently leftover scrap?  Cull it out?
-	// HENHMETAFILE CreateWarningMetafile( CMetaFileDC * mfDC, CDC * pDC, int x_size, int y_size );
-	void GenerateValueParams();	// CPT
+	void GenerateValueParams();	
+	
+	int Draw();													// CPT2 removed args.
+	void Undraw();
+	void StartDraggingPadRow( CDC * pDC, carray<cpadstack> *row );	// CPT2 converted (arg change)
+	void CancelDraggingPadRow( carray<cpadstack> *row );			// CPT2 converted (new arg)
+	void ShiftToInsertPadName( CString * astr, int n );				// CPT2 converted
+	bool GenerateSelectionRectangle( CRect * r );					// Done in cpp
 };
 
+class cshapelist
+{
+	// CPT2 r335 new.  A list of cshapes, analogous to cpartlist, cnetlist, ctextlist.  An object of this type will take the place
+	// of CFreePcbDoc::m_footprint_cache_map.  For now the searching for footprints by name is probably less efficient than it was with
+	// the old CMapStringToPtr, but I can't imagine it being a big bottleneck.  (If it's essential more efficient searching can be 
+	// grafted into this class later.)
+public:
+	carray<cshape> shapes;
+	CFreePcbDoc *m_doc;			// CPT2
 
+	cshapelist( CFreePcbDoc *doc )
+		{ m_doc = doc; }
+	cshape *GetShapeByName( CString *name );
+	void ReadShapes( CStdioFile * file, bool bFindSection = true );
+	void WriteShapes( CStdioFile * file );
+};
 
+/*
 // CEditShape class represents a footprint whose elements can be edited
 //
 class CEditShape : public CShape
 {
 public:
-	CEditShape( CShape * shape );									// CPT r317 new.  Create a copy of "shape" for editing
-	CEditShape ( CFreePcbDoc *doc, CString *name );					// CPT r317 new.  Create a blank shape with the given name
 	~CEditShape();
 	void Clear();
 	void Draw();													// CPT2 removed args.
 	void Undraw();
 	void Copy( CShape * shape );
-	// void HighlightPad( int i );									// CPT2 use cpadstack::Highlight
-	// void StartDraggingPad( CDC * pDC, int i );					// CPT2 use cpadstack::StartDragging
-	// void CancelDraggingPad( int i );								// CPT2 use cpadstack::CancelDragging
 	void StartDraggingPadRow( CDC * pDC, carray<cpadstack> *row );	// CPT2 converted (arg change)
 	void CancelDraggingPadRow( carray<cpadstack> *row );			// CPT2 converted (new arg)
-	// void SelectAdhesive( int idot );								// CPT2 use CFootprintView::SelectItem(glue)
-	// void StartDraggingAdhesive( CDC * pDC, int idot );			// CPT2 use cglue::StartDragging
-	// void CancelDraggingAdhesive( int idot );						// CPT2 use cglue::CancelDragging
-	// void SelectCentroid();										// CPT2 use CFootprintView::SelectItem(centroid)
-	// void StartDraggingCentroid( CDC * pDC );						// CPT2 use ccentroid::StartDragging
-	// void CancelDraggingCentroid();								// CPT2 use ccentroid::CancelDragging
 	void ShiftToInsertPadName( CString * astr, int n );				// CPT2 converted
 	BOOL GenerateSelectionRectangle( CRect * r );
-
-public:
-	// CDisplayList * m_dlist;					// Safer to use m_doc->m_dlist
-	// CPT2 the following are replaced by drawing elements within individual cpadstack/cpad/ccentroid/cglue objects
-	// CArray<dl_element*> m_hole_el;			// hole display element 
-	// CArray<dl_element*> m_pad_top_el;		// top pad display element 
-	// CArray<dl_element*> m_pad_inner_el;		// inner pad display element 
-	// CArray<dl_element*> m_pad_bottom_el;	// bottom pad display element 
-	// CArray<dl_element*> m_pad_top_mask_el;
-	// CArray<dl_element*> m_pad_top_paste_el;
-	// CArray<dl_element*> m_pad_bottom_mask_el;
-	// CArray<dl_element*> m_pad_bottom_paste_el;
-	// CArray<dl_element*> m_pad_sel;		// pad selector
-	// dl_element * m_centroid_el;			// centroid
-	// dl_element * m_centroid_sel;		// centroid selector
-	// CArray<dl_element*> m_dot_el;		// adhesive dots
-	// CArray<dl_element*> m_dot_sel;		// adhesive dot selectors
 };
+*/

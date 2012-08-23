@@ -28,6 +28,7 @@ void CDlgSaveFootprint::DoDataExchange(CDataExchange* pDX)
 	DDX_Control(pDX, IDC_PREVIEW2, m_preview);
 	DDX_Control(pDX, IDC_EDIT_SAVE_NAME, m_edit_name);
 	DDX_Control(pDX, IDC_COMBO_LIBS, m_combo_lib);
+	DDX_CBString(pDX, IDC_COMBO_LIBS, m_combo_str);
 	DDX_Control(pDX, IDC_EDIT_AUTHOR, m_edit_author);
 	DDX_Control(pDX, IDC_EDIT_SOURCE, m_edit_source);
 	DDX_Control(pDX, IDC_EDIT_DESC, m_edit_desc);
@@ -61,53 +62,13 @@ void CDlgSaveFootprint::DoDataExchange(CDataExchange* pDX)
 		m_folder = m_foldermap->GetFolder( def_lib, m_dlg_log );
 		m_edit_folder.SetWindowText( *def_lib );
 		InitFileList();
+		return;
 	}
-	else
-		// outgoing
-		DeleteEnhMetaFile( m_hMF );
-}
 
-void CDlgSaveFootprint::Initialize( CString * name, 
-								    CShape * footprint,							 
-								    int units,	
-									LPCTSTR default_file_name,
-									CMapStringToPtr * shape_cache_map,
-									CFootLibFolderMap * footlibfoldermap,
-									CDlgLog * log )
-
-{
-	m_name = *name;
-	m_units = units;
-	if( default_file_name != "" )
-		m_default_filename = default_file_name;
-	else
-		m_default_filename = gLastFileName;
-	m_footprint = footprint;
-	m_footprint_cache_map = shape_cache_map;
-	m_foldermap = footlibfoldermap;
-	CString * last_folder_str = footlibfoldermap->GetLastFolder();
-	m_dlg_log = log;
-	m_folder = footlibfoldermap->GetFolder( last_folder_str, m_dlg_log );
-}
-
-BEGIN_MESSAGE_MAP(CDlgSaveFootprint, CDialog)
-	ON_CBN_SELCHANGE(IDC_COMBO_LIBS, OnCbnSelchangeComboLibs)
-	ON_BN_CLICKED(IDOK, OnBnClickedOk)
-	ON_BN_CLICKED(IDC_BUTTON_SAVE_FP_BROWSE, OnBnClickedButtonBrowse)
-END_MESSAGE_MAP()
-
-
-// CDlgSaveFootprint message handlers
-
-void CDlgSaveFootprint::OnCbnSelchangeComboLibs()
-{
-	int ilib = m_combo_lib.GetCurSel();
-}
-
-void CDlgSaveFootprint::OnBnClickedOk()
-{
-	// update name and other strings
-	// check folder name
+	// Outgoing.  CPT2.  This code used to be part of OnBnClickedOk(), but for reasons that defy understanding that was 
+	// resulting in the IDC_COMBO_LIBS combo box getting read incorrectly when user typed in custom text.  (It was also preventing 
+	// DoDataExchange() from getting called altogether.)  So let's see if it works here.  You'd think MS could come up with an API that
+	// didn't involve such mystifying juggling of 50 different routines every time you enter or leave a dialog...
 	m_edit_folder.GetWindowText( m_folder_name );
 	if( *m_folder->GetFullPath() != m_folder_name )
 	{
@@ -146,10 +107,10 @@ void CDlgSaveFootprint::OnBnClickedOk()
 	}
 	m_edit_name.GetWindowText( m_name );
 	m_name.Replace( '\"', '\'' );			// replace any " with '
-	if( m_name.GetLength() > CShape::MAX_NAME_SIZE )
+	if( m_name.GetLength() > cshape::MAX_NAME_SIZE )
 	{
 		CString s ((LPCSTR) IDS_NameTooLong), mess;
-		mess.Format( s,	CShape::MAX_NAME_SIZE );
+		mess.Format( s,	cshape::MAX_NAME_SIZE );
 		AfxMessageBox( mess );
 		return;
 	}
@@ -166,8 +127,7 @@ void CDlgSaveFootprint::OnBnClickedOk()
 	m_footprint->m_desc = m_desc.Trim();
 
 	// get footprint name, file name
-	CString file_name;
-	m_combo_lib.GetWindowText( file_name );
+	CString file_name = m_combo_str;										// Received during the DDX_CBString above
 	CString file_path = *m_folder->GetFullPath() + "\\" + file_name;
 
 	// save file name and folder
@@ -349,6 +309,55 @@ void CDlgSaveFootprint::OnBnClickedOk()
 	}
 	// now index the file
 	m_folder->IndexLib( &file_name );
+	// outgoing
+	DeleteEnhMetaFile( m_hMF );
+}
+
+void CDlgSaveFootprint::Initialize( CString * name, 
+								    cshape * footprint,							 
+								    int units,	
+									LPCTSTR default_file_name,
+									cshapelist * cache_shapes,
+									CFootLibFolderMap * footlibfoldermap,
+									CDlgLog * log )
+
+{
+	m_name = *name;
+	m_units = units;
+	if( default_file_name != "" )
+		m_default_filename = default_file_name;
+	else
+		m_default_filename = gLastFileName;
+	m_footprint = footprint;
+	m_cache_shapes = cache_shapes;
+	m_foldermap = footlibfoldermap;
+	CString * last_folder_str = footlibfoldermap->GetLastFolder();
+	m_dlg_log = log;
+	m_folder = footlibfoldermap->GetFolder( last_folder_str, m_dlg_log );
+}
+
+BEGIN_MESSAGE_MAP(CDlgSaveFootprint, CDialog)
+	ON_CBN_SELCHANGE(IDC_COMBO_LIBS, OnCbnSelchangeComboLibs)
+	ON_BN_CLICKED(IDOK, OnBnClickedOk)
+	ON_BN_CLICKED(IDC_BUTTON_SAVE_FP_BROWSE, OnBnClickedButtonBrowse)
+END_MESSAGE_MAP()
+
+
+// CDlgSaveFootprint message handlers
+
+BOOL CDlgSaveFootprint::OnInitDialog()
+{
+	CDialog::OnInitDialog();
+	return TRUE;
+}
+
+void CDlgSaveFootprint::OnCbnSelchangeComboLibs()
+{
+	int ilib = m_combo_lib.GetCurSel();
+}
+
+void CDlgSaveFootprint::OnBnClickedOk()
+{
 	OnOK();
 }
 
@@ -359,6 +368,7 @@ void CDlgSaveFootprint::OnBnClickedButtonBrowse()
 	int ret = dlg.DoModal();
 	if( ret == IDOK )
 	{
+		// CPT2 TODO we sould allow for refreshing of an already loaded folder in case it changed externally.
 		CString path_str = dlg.GetPathName();
 		m_edit_folder.SetWindowText( path_str );
 		m_folder = m_foldermap->GetFolder( &path_str, m_dlg_log );

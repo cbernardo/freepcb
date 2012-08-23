@@ -116,7 +116,7 @@ void cpcb_item::Undraw()
 
 void cpcb_item::SaveUndoInfo()
 {
-	// Default behavior, overridden in complex classes like cconnect2 and cnet2
+	// Default behavior, overridden in complex classes like cconnect2, cnet2, cpart2, and cshape
 	doc->m_undo_items.Add( this->MakeUndoItem() );
 }
 
@@ -162,6 +162,13 @@ carea2 *cpcb_item::GetArea()
 	return NULL;
 }
 
+bool cpcb_item::IsFootItem() 
+{ 
+	if (GetTypeBit() & bitsFootItem) return true;
+	if (ctext *t = this->ToText())
+		return t->m_shape != NULL;
+	return false;
+}
 
 /*
 void cpcb_item::GarbageCollect() {

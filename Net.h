@@ -6,7 +6,7 @@
 #include <afxtempl.h>
 #include "PcbItem.h"
 #include "DisplayList.h"
-#include "UndoNew.h"
+#include "Undo.h"
 #include "stdafx.h"
 #include "Shape.h"
 #include "smfontutil.h"
@@ -51,7 +51,7 @@ public:
 	// ~cvertex2()											// Because of garbage collection, we don't need fancy destructors for these classes,
 	//  	{ }												// thank goodness
 
-	bool IsValid();											// Done in cpp
+	bool IsOnPcb();											// Done in cpp
 	bool IsVertex() { return true; }
 	bool IsVia();											// Done in cpp
 	bool IsSlaveVtx() { return tee!=NULL; }
@@ -118,7 +118,7 @@ public:
 	ctee(cnet2 *n);							// Done in cpp
 	ctee(CFreePcbDoc *_doc, int _uid);
 
-	bool IsValid() { return vtxs.GetSize()>0; }			// TODO Adequate?
+	bool IsOnPcb() { return vtxs.GetSize()>0; }			// TODO Adequate?
 	bool IsTee() { return true; }
 	ctee *ToTee() { return this; }
 	bool IsVia() { return via_w > 0; }
@@ -171,7 +171,7 @@ public:
 	cseg2(cconnect2 *c, int _layer, int _width);							// CPT2 added args.  Replaces Initialize().  Done in cpp
 	cseg2(CFreePcbDoc *_doc, int _uid);
 
-	bool IsValid();												// Done in cpp
+	bool IsOnPcb();												// Done in cpp
 	bool IsSeg() { return true; }
 	cseg2 *ToSeg() { return this; }
 	int GetTypeBit() { return bitSeg; }
@@ -246,7 +246,7 @@ public:
 	cconnect2( cnet2 * _net );	// Done in cpp
 	cconnect2(CFreePcbDoc *_doc, int _uid);
 
-	bool IsValid();
+	bool IsOnPcb();
 	bool IsConnect() { return true; }
 	cconnect2 *ToConnect() { return this; }
 	int GetTypeBit() { return bitConnect; }			// Rarely used since connects don't have selector elements.
@@ -359,7 +359,7 @@ public:
 	cnet2( cnetlist *_nlist, CString _name, int _def_w, int _def_via_w, int _def_via_hole_w );			// Done in cpp
 	cnet2( CFreePcbDoc *_doc, int _uid ); 
 
-	bool IsValid();
+	bool IsOnPcb();
 	bool IsNet() { return true; }
 	cnet2 *ToNet() { return this; }
 	cnet2 *GetNet() { return this; }
