@@ -378,21 +378,21 @@ BEGIN
     END
     POPUP "&View"
     BEGIN
-        MENUITEM "Entire Footprint",            ID_VIEW_ENTIREFOOTPRINT
-        MENUITEM "Reveal Value Text",           ID_VIEW_REVEALVALUETEXT
-        MENUITEM "Visible Grid Values...",      ID_VIEW_FPVISIBLEGRIDVALUES
-        MENUITEM "Placement Grid Values...",    ID_VIEW_FPPLACEMENTGRIDVALUES
+        MENUITEM "&Entire Footprint",           ID_VIEW_ENTIREFOOTPRINT
+        MENUITEM "&Reveal Value Text",          ID_VIEW_REVEALVALUETEXT
+        MENUITEM "&Visible Grid Values...",     ID_VIEW_FPVISIBLEGRIDVALUES
+        MENUITEM "&Placement Grid Values...",   ID_VIEW_FPPLACEMENTGRIDVALUES
     END
-    POPUP "Add"
+    POPUP "&Add"
     BEGIN
-        MENUITEM "Pin",                         ID_ADD_PIN
-        MENUITEM "Outline Polyline",            ID_ADD_POLYLINE
-        MENUITEM "Text",                        ID_FP_ADDTEXT
-        MENUITEM "Adhesive Spot",               ID_ADD_ADHESIVESPOT
-        MENUITEM "Hole",                        ID_ADD_HOLE, GRAYED
-        MENUITEM "Routed Slot",                 ID_ADD_SLOT, GRAYED
+        MENUITEM "&Pin",                        ID_ADD_PIN
+        MENUITEM "&Outline Polyline",           ID_ADD_POLYLINE
+        MENUITEM "&Text",                       ID_FP_ADDTEXT
+        MENUITEM "&Adhesive Spot",              ID_ADD_ADHESIVESPOT
+        MENUITEM "&Hole",                       ID_ADD_HOLE, GRAYED
+        MENUITEM "&Routed Slot",                ID_ADD_SLOT, GRAYED
     END
-    POPUP "Tools"
+    POPUP "&Tools"
     BEGIN
         MENUITEM "&Move Origin",                ID_TOOLS_MOVEORIGIN_FP
         MENUITEM SEPARATOR
@@ -1222,23 +1222,25 @@ BEGIN
     GROUPBOX        "",IDC_STATIC,8,20,30,197
 END
 
-IDD_PARTLIST DIALOGEX 0, 0, 491, 314
+IDD_PARTLIST DIALOGEX 0, 0, 527, 314
 STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "View/Edit Part List"
 FONT 8, "MS Shell Dlg", 400, 0, 0x1
 BEGIN
-    CONTROL         "",IDC_LIST1,"SysListView32",LVS_REPORT | LVS_SHOWSELALWAYS | LVS_ALIGNLEFT | WS_BORDER | WS_TABSTOP,92,12,386,276
-    PUSHBUTTON      "Add New Part",IDC_BUTTON_ADD,12,24,66,14
-    PUSHBUTTON      "Edit",IDC_BUTTON_EDIT,16,66,54,12
+    CONTROL         "",IDC_LIST1,"SysListView32",LVS_REPORT | LVS_SHOWSELALWAYS | LVS_ALIGNLEFT | WS_BORDER | WS_TABSTOP,92,12,428,276
+    PUSHBUTTON      "Add New Part",IDC_BUTTON_ADD,8,24,71,14
+    PUSHBUTTON      "Edit",IDC_BUTTON_EDIT,12,66,62,12
     CONTROL         "Footprint",IDC_CHECK1,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,24,84,45,10
     CONTROL         "Package",IDC_CHECK2,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,24,96,43,10
     CONTROL         "Value",IDC_CHECK3,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,24,108,33,10
-    PUSHBUTTON      "Delete",IDC_BUTTON_DELETE,16,127,54,12
-    PUSHBUTTON      "Value visible",IDC_BUTTON_VAL_VIS,16,145,54,12
-    PUSHBUTTON      "Value invisible",IDC_BUTTON_VAL_INVIS,16,163,54,12
-    DEFPUSHBUTTON   "OK",IDOK,115,294,50,14
-    PUSHBUTTON      "Cancel",IDCANCEL,324,294,50,14
-    GROUPBOX        "For selected part(s)",IDC_STATIC,6,48,74,138
+    PUSHBUTTON      "Delete",IDC_BUTTON_DELETE,12,127,62,12
+    PUSHBUTTON      "Reference visible",IDC_BUTTON_REF_VIS,12,145,62,12
+    PUSHBUTTON      "Ref invisible",IDC_BUTTON_REF_INVIS,12,163,62,12
+    DEFPUSHBUTTON   "OK",IDOK,134,294,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,343,294,50,14
+    GROUPBOX        "For selected part(s)",IDC_STATIC,6,48,74,176
+    PUSHBUTTON      "Value visible",IDC_BUTTON_VAL_VIS,12,182,62,12
+    PUSHBUTTON      "Value invisible",IDC_BUTTON_VAL_INVIS,12,200,62,12
 END
 
 IDD_REF_TEXT DIALOGEX 0, 0, 179, 177
@@ -1672,20 +1674,20 @@ BEGIN
     LTEXT           "Units",IDC_STATIC,18,91,17,8
 END
 
-IDD_DUP_FP_NAME DIALOGEX 0, 0, 206, 161
+IDD_DUP_FP_NAME DIALOGEX 0, 0, 255, 161
 STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Duplicate Footprint Name"
 FONT 8, "MS Shell Dlg", 400, 0, 0x1
 BEGIN
-    CONTROL         "replace footprint for all parts",IDC_RADIO_REPLACE_ALL,
-                    "Button",BS_AUTORADIOBUTTON | WS_GROUP,12,78,108,10
-    CONTROL         "replace footprint for this part only, using new name",IDC_RADIO_REPLACE_THIS,
-                    "Button",BS_AUTORADIOBUTTON,12,96,181,10
-    EDITTEXT        IDC_EDIT_NEW_FP_NAME,48,108,114,12,ES_AUTOHSCROLL
-    DEFPUSHBUTTON   "OK",IDOK,36,138,50,14
-    PUSHBUTTON      "Cancel",IDCANCEL,120,138,50,14
-    EDITTEXT        IDC_EDIT_DUP_MESSAGE,12,12,180,48,ES_MULTILINE | ES_AUTOHSCROLL | ES_READONLY
-    GROUPBOX        "Select Action",IDC_STATIC,6,66,192,66
+    CONTROL         "replace all instances of the footprint",IDC_RADIO_REPLACE_ALL,
+                    "Button",BS_AUTORADIOBUTTON | WS_GROUP,12,78,131,10
+    CONTROL         "give a different name to the new footprint:",IDC_RADIO_REPLACE_THIS,
+                    "Button",BS_AUTORADIOBUTTON,12,96,154,10
+    EDITTEXT        IDC_EDIT_NEW_FP_NAME,48,108,158,12,ES_AUTOHSCROLL
+    DEFPUSHBUTTON   "OK",IDOK,60,138,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,144,138,50,14
+    EDITTEXT        IDC_EDIT_DUP_MESSAGE,12,12,236,48,ES_MULTILINE | ES_AUTOHSCROLL | ES_READONLY
+    GROUPBOX        "Select Action",IDC_STATIC,6,66,242,66
 END
 
 IDD_DRC DIALOGEX 0, 0, 164, 282
@@ -2479,8 +2481,8 @@ BEGIN
 
     IDD_PARTLIST, DIALOG
     BEGIN
-        LEFTMARGIN, 7
-        RIGHTMARGIN, 484
+        LEFTMARGIN, 6
+        RIGHTMARGIN, 520
         TOPMARGIN, 7
         BOTTOMMARGIN, 307
     END
@@ -2584,7 +2586,7 @@ BEGIN
     IDD_DUP_FP_NAME, DIALOG
     BEGIN
         LEFTMARGIN, 7
-        RIGHTMARGIN, 199
+        RIGHTMARGIN, 248
         TOPMARGIN, 7
         BOTTOMMARGIN, 154
     END
@@ -2936,7 +2938,7 @@ BEGIN
     IDS_IllegalReferenceDesignator "Illegal reference designator"
     IDS_DuplicateReference  "Duplicate reference: %s already used"
     IDS_ValueCannotContainAt "Value cannot contain ""@"""
-    IDS_WarningAFootprint   "Warning: A footprint named ""%s""\r\nis already in use by other parts.\r\nLoading this new footprint will overwrite the old one\r\nunless you change its name\r\n"
+    IDS_WarningAFootprint   "Warning: A footprint named ""%s""\r\nis already in use by other parts.\r\nLoading this new footprint will overwrite the old one\r\nunless you change its name.\r\n"
     IDS_ErrorNoFootprintSelected "Error: No footprint selected"
     IDS_WarningSHasFewerPins 
                             "Warning: %s has fewer pins than %s\nDo you really want to replace it ? "
@@ -3566,7 +3568,7 @@ BEGIN
     IDS_VertexPosition      "Vertex Position"
     IDS_BoardOutlineDoesNotExist "Board outline does not exist"
     IDS_WarningAFootprintNamedIsAlreadyInUse 
-                            "Warning: A footprint named ""%s""\r\nis already in use by other parts.\r\nLoading this new footprint will overwrite the old one\r\nunless you change its name\r\n"
+                            "Warning: A footprint named ""%s""\r\nis already in use by other parts.\r\nLoading this new footprint will overwrite the old one\r\nunless you change its name.\r\n"
     IDS_SorryThisPartDoesntHaveAFootprint 
                             "Sorry, this part doesn't have a footprint"
     IDS_SorryThisPartDoesntExist "Sorry, this part doesn't exist"
@@ -4227,7 +4229,7 @@ END
 
 STRINGTABLE
 BEGIN
-    IDS_AppName             "CPT2.12"
+    IDS_AppName             "CPT2.13"
 END
 
 STRINGTABLE
@@ -4452,6 +4454,16 @@ BEGIN
     IDS_TeeVertex           "TEE-VERTEX"
     IDS_Padstack            "PADSTACK %s"
     IDS_Outline             "OUTLINE"
+    IDS_ErrorCouldntLocateFootprintName 
+                            "Error:  Couldn't locate footprint name"
+    IDS_WarningYouAreTryingToLoadAFootprint 
+                            "Warning: You are trying to load a footprint named ""%s""\r\nfrom library ""%s,""\r\nbut this name is already in use by other parts.\r\nLoading this new footprint will overwrite the old one\r\nunless you change its name\r\n"
+    IDS_PartListCols2       "Ref Vis"
+    IDS_STRING62695         "Value Vis"
+    IDS_STRING62696         "Name"
+    IDS_STRING62697         "Package"
+    IDS_STRING62698         "Footprint"
+    IDS_STRING62699         "Value"
 END
 
 #endif    // English (United States) resources

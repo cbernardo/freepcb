@@ -142,8 +142,8 @@ CFreePcbDoc::CFreePcbDoc()
 	m_plist = new cpartlist( this );
 	m_nlist = new cnetlist( this );
 	m_plist->UseNetList( m_nlist );
-	m_plist->SetShapeCacheMap( &m_footprint_cache_map );
 	m_tlist = new ctextlist( this );
+	m_slist = new cshapelist( this );
 	m_drelist = new cdrelist( this );
 	m_pcb_filename = "";
 	m_pcb_full_path = "";
@@ -171,7 +171,7 @@ CFreePcbDoc::CFreePcbDoc()
 	clip_plist = new cpartlist( this );
 	clip_nlist = new cnetlist( this );
 	clip_plist->UseNetList( clip_nlist );
-	clip_plist->SetShapeCacheMap( &m_footprint_cache_map );
+	// clip_plist->SetShapeCacheMap( &m_footprint_cache_map );
 	clip_tlist = new ctextlist( this );
 }
 
@@ -183,6 +183,7 @@ CFreePcbDoc::~CFreePcbDoc()
 	delete m_nlist;
 	delete m_plist;
 	delete m_tlist;
+	delete m_slist;
 	delete m_dlist;
 	delete m_dlist_fp;
 	delete m_smfontutil;
@@ -195,18 +196,6 @@ CFreePcbDoc::~CFreePcbDoc()
 	clip_boards.DestroyAll();
 	clip_smcutouts.DestroyAll();
 
-	// delete all footprints from local cache
-	POSITION pos = m_footprint_cache_map.GetStartPosition();
-	while( pos != NULL )
-	{
-		void * ptr;
-		CShape * shape;
-		CString string;
-		m_footprint_cache_map.GetNextAssoc( pos, string, ptr );
-		shape = (CShape*)ptr;
-		delete shape;
-	}
-	m_footprint_cache_map.RemoveAll();
 	// delete log window
 	if( m_dlg_log )
 	{
@@ -612,7 +601,7 @@ BOOL CFreePcbDoc::FileOpen( LPCTSTR fn, BOOL bLibrary )
 			ReadOptions( &pcb_file );
 			m_plist->SetPinAnnularRing( m_annular_ring_pins );
 			m_nlist->SetViaAnnularRing( m_annular_ring_vias );
-			ReadFootprints( &pcb_file );
+			m_slist->ReadShapes( &pcb_file );
 			ReadBoardOutline( &pcb_file );
 			ReadSolderMaskCutouts( &pcb_file );
 			m_plist->ReadParts( &pcb_file );
@@ -634,10 +623,8 @@ BOOL CFreePcbDoc::FileOpen( LPCTSTR fn, BOOL bLibrary )
 			MakeLibraryMaps( &m_full_lib_dir );
 		}
 		else
-		{
 			// read library as project
-			ReadFootprints( &pcb_file, NULL, FALSE );
-		}
+			m_slist->ReadShapes( &pcb_file, false );
 		m_pcb_full_path = fn;
 		int fpl = m_pcb_full_path.GetLength();
 		int isep = m_pcb_full_path.ReverseFind( '\\' );
@@ -743,6 +730,7 @@ int CFreePcbDoc::FileClose()
 	m_nlist->nets.RemoveAll();
 	m_plist->parts.RemoveAll();
 	m_tlist->texts.RemoveAll();
+	m_slist->shapes.RemoveAll();
 	smcutouts.RemoveAll();
 	boards.RemoveAll();
 	m_drelist->dres.RemoveAll();
@@ -754,18 +742,6 @@ int CFreePcbDoc::FileClose()
 	clip_smcutouts.RemoveAll();
 	clip_boards.RemoveAll();
 
-	// delete all shapes from local cache
-	POSITION pos = m_footprint_cache_map.GetStartPosition();
-	while( pos != NULL )
-	{
-		void * ptr;
-		CShape * shape;
-		CString string;
-		m_footprint_cache_map.GetNextAssoc( pos, string, ptr );
-		shape = (CShape*)ptr;
-		delete shape;
-	}
-	m_footprint_cache_map.RemoveAll();
 	CWnd* pMain = AfxGetMainWnd();
 	if (pMain != NULL)
 	{
@@ -929,7 +905,7 @@ BOOL CFreePcbDoc::FileSave( CString * folder, CString * filename,
 	try
 	{
 		WriteOptions( &pcb_file );
-		WriteFootprints( &pcb_file );
+		m_slist->WriteShapes( &pcb_file );
 		WriteBoardOutline( &pcb_file );
 		WriteSolderMaskCutouts( &pcb_file );
 		m_plist->WriteParts( &pcb_file );
@@ -1024,172 +1000,43 @@ void CFreePcbDoc::OnProjectNetlist()
 }
 
 
-// write footprint info from local cache to file
-//
-int CFreePcbDoc::WriteFootprints( CStdioFile * file, CMapStringToPtr * cache_map )
-{
-	CMapStringToPtr * use_map = cache_map;
-	if( use_map == NULL )
-		use_map = &m_footprint_cache_map;
-
-	void * ptr;
-	CShape * s;
-	POSITION pos;
-	CString key;
-
-	file->WriteString( "[footprints]\n\n" );
-	for( pos = use_map->GetStartPosition(); pos != NULL; )
-	{
-		use_map->GetNextAssoc( pos, key, ptr );
-		s = (CShape*)ptr;
-		s->WriteFootprint( file );
-	}
-	return 0;
-}
-
 // get shape from cache
 // if necessary, make shape from library file and put into cache first
 // returns NULL if shape not found
 //
-CShape * CFreePcbDoc::GetFootprintPtr( CString name )
+cshape * CFreePcbDoc::GetFootprintPtr( CString *name )
 {
 	// lookup shape, first in cache
-	void * ptr;
-	int err = m_footprint_cache_map.Lookup( name, ptr );
+	cshape *s = m_slist->GetShapeByName( name );
+	if (s)
+		return s;
+	// not in cache, lookup in library file
+	int ilib;
+	CString file_name;
+	int offset;
+	CString * project_lib_folder_str = m_footlibfoldermap.GetDefaultFolder();
+	CFootLibFolder * project_footlibfolder = m_footlibfoldermap.GetFolder( project_lib_folder_str, m_dlg_log );
+	BOOL ok = project_footlibfolder->GetFootprintInfo( name, NULL, &ilib, NULL, &file_name, &offset );
+	if( !ok )
+		// unable to find shape
+		return NULL;
+
+	// make shape from library file and put into cache
+	cshape * shape = new cshape(this);
+	CString lib_name = *project_footlibfolder->GetFullPath();
+	int err = shape->MakeFromFile( NULL, *name, file_name, offset ); 
 	if( err )
 	{
-		// found in cache
-		return (CShape*)ptr; 
+		// failed
+		CString mess, s ((LPCSTR) IDS_UnableToMakeShapeFromFile);
+		mess.Format( s, name );
+		AfxMessageBox( mess );
+		return NULL;
 	}
-	else
-	{
-		// not in cache, lookup in library file
-		int ilib;
-		CString file_name;
-		int offset;
-		CString * project_lib_folder_str;
-		project_lib_folder_str = m_footlibfoldermap.GetDefaultFolder();
-		CFootLibFolder * project_footlibfolder = m_footlibfoldermap.GetFolder( project_lib_folder_str, m_dlg_log );
-		BOOL ok = project_footlibfolder->GetFootprintInfo( &name, NULL, &ilib, NULL, &file_name, &offset );
-		if( !ok )
-		{
-			// unable to find shape, return NULL
-			return NULL;
-		}
-		else
-		{
-			// make shape from library file and put into cache
-			CShape * shape = new CShape(this);
-			CString lib_name = *project_footlibfolder->GetFullPath();
-			err = shape->MakeFromFile( NULL, name, file_name, offset ); 
-			if( err )
-			{
-				// failed
-				CString mess, s ((LPCSTR) IDS_UnableToMakeShapeFromFile);
-				mess.Format( s, name );
-				AfxMessageBox( mess );
-				return NULL;
-			}
-			else
-			{
-				// success, put into cache and return pointer
-				m_footprint_cache_map.SetAt( name, shape );
-				ProjectModified( TRUE );
-				return shape;
-			}
-		}
-	}
-	return NULL;
-}
-
-// read shapes from file
-//
-void CFreePcbDoc::ReadFootprints( CStdioFile * pcb_file, 
-								  CMapStringToPtr * cache_map,
-								  BOOL bFindSection )
-{
-	// set up cache map to use
-	CMapStringToPtr * use_map = cache_map;
-	if( use_map == NULL )
-		use_map = &m_footprint_cache_map;
-
-	// find beginning of shapes section
-	ULONGLONG pos;
-	int err;
-	CString key_str;
-	CString in_str;
-	CArray<CString> p;
-
-	// delete all shapes from local cache
-	POSITION mpos = use_map->GetStartPosition();
-	while( mpos != NULL )
-	{
-		void * ptr;
-		CShape * shape;
-		CString string;
-		use_map->GetNextAssoc( mpos, string, ptr );
-		shape = (CShape*)ptr;
-		delete shape;
-	}
-	use_map->RemoveAll();
-
-	if( bFindSection )
-	{
-		// find beginning of shapes section
-		do
-		{
-			err = pcb_file->ReadString( in_str );
-			if( !err )
-			{
-				// error reading pcb file
-				CString mess ((LPCSTR) IDS_UnableToFindFootprintsSectionInFile);
-				AfxMessageBox( mess );
-				return;
-			}
-			in_str.Trim();
-		}
-		while( in_str != "[shapes]" && in_str != "[footprints]" );
-	}
-
-	// get each shape and add it to the cache
-	while( 1 )
-	{
-		pos = pcb_file->GetPosition();
-		err = pcb_file->ReadString( in_str );
-		if( !err )
-		{
-			if( bFindSection )
-			{
-				CString * err_str = new CString( "unexpected EOF in project file" );
-				throw err_str;
-			}
-			else
-				break;
-		}
-		in_str.Trim();
-		if( in_str[0] == '[' )
-		{
-			pcb_file->Seek( pos, CFile::begin );
-			break;		// next section, exit
-		}
-		else if( in_str.Left(5) == "name:" )
-		{
-			CString name = in_str.Right( in_str.GetLength()-5 );
-			name.Trim();
-			if( name.Right(1) == '\"' )
-				name = name.Left( name.GetLength() - 1 );
-			if( name.Left(1) == '\"' )
-				name = name.Right( name.GetLength() - 1 );
-			name = name.Left( CShape::MAX_NAME_SIZE );
-			CShape * s = new CShape(this);							// CPT2.  Proposed new policy on CShape::m_doc (see notes.txt)
-			pcb_file->Seek( pos, CFile::begin );					// back up
-			err = s->MakeFromFile( pcb_file, "", "", 0 );
-			if( !err )
-				use_map->SetAt( name, s );
-			else
-				delete s;
-		}
-	}
+	// success, put into cache and return pointer
+	m_slist->shapes.Add( shape );
+	ProjectModified( TRUE );
+	return shape;
 }
 
 // write board outline to file
@@ -2439,15 +2286,14 @@ void CFreePcbDoc::OnViewLayers()
 void CFreePcbDoc::OnProjectPartlist()
 {
 	CDlgPartlist dlg;
-	dlg.Initialize( m_plist, &m_footprint_cache_map, &m_footlibfoldermap, 
+	dlg.Initialize( m_plist, m_slist, &m_footlibfoldermap, 
 		m_view->m_units, m_dlg_log );
 	int ret = dlg.DoModal();
 	if( ret != IDOK )
 		return;
-	// CPT2 we now call ImportPartListInfo from here (before it was done from CDlgPartlist::DoDataExchange)
-	// One day maybe I'll allow undo from here, though I think that will probably involve saving undo info for CShapes
+	// CPT2 we now call ImportPartListInfo from here (before it was done from CDlgPartlist::DoDataExchange).
+	// NB ImportPartListInfo now saves all the undo info we need.
 	m_plist->ImportPartListInfo( &CDlgPartlist::pli, 0 );
-	ResetUndoState();
 	m_view->CancelSelection();
 	if( m_vis[LAY_RAT_LINE] && !m_auto_ratline_disable )
 		m_nlist->OptimizeConnections();
@@ -2537,7 +2383,6 @@ void CFreePcbDoc::OnFileImport()
 	else
 		ASSERT(0);
 	m_view->CancelSelection();
-	ResetUndoState();	
 	if( m_import_flags & SAVE_BEFORE_IMPORT )
 		// save project
 		OnFileSave();
@@ -2613,7 +2458,7 @@ void CFreePcbDoc::OnFileImport()
 			{
 				// Tee-to-tee, tee-to-loose-end, or loose-end-to-loose-end.  Keep it on the net it had before, if that still exists.
 				cnet2 *net = c->m_net;
-				if (net->IsValid())
+				if (net->IsOnPcb())
 				{
 					net->connects.Add(c);
 					if (c->head->tee) 
@@ -2634,6 +2479,7 @@ void CFreePcbDoc::OnFileImport()
 	// finish up
 	m_nlist->OptimizeConnections( FALSE );
 	m_view->OnViewAllElements();
+	ResetUndoState();	
 	ProjectModified( TRUE );
 	// make sure log is visible
 	m_dlg_log->ShowWindow( SW_SHOW );
@@ -2946,8 +2792,8 @@ int CFreePcbDoc::ImportNetlist( CStdioFile * file, UINT flags,
 					CString ref_str( mystrtok( instr, " \t" ) );
 					CString shape_str( mystrtok( NULL, "\n\r" ) );
 					shape_str.Trim();
-					// find footprint, get from library if necessary
-					CShape * s = GetFootprintPtr( shape_str );
+					// find footprint, get from library if necessary.  CPT2 TODO here are the null shapes.  Disable?
+					cshape * s = GetFootprintPtr( &shape_str );
 					// add part to partlist_info
 					(*pli)[ipart].part = NULL;
 					(*pli)[ipart].ref_des = ref_str;
@@ -3243,15 +3089,15 @@ int CFreePcbDoc::ImportPADSPCBNetlist( CStdioFile * file, UINT flags,
 					SplitString( &shape_str, &value_str, &shape_str, '@' );
 					(*pli)[ipart].value = value_str;
 				}
-				if( shape_str.GetLength() > CShape::MAX_NAME_SIZE )
+				if( shape_str.GetLength() > cshape::MAX_NAME_SIZE )
 				{
 					CString mess, s ((LPCSTR) IDS_LinePackageNameTooLong);
 					mess.Format( s,	line, shape_str );
 					m_dlg_log->AddLine( mess );
-					shape_str = shape_str.Left(CShape::MAX_NAME_SIZE);
+					shape_str = shape_str.Left(cshape::MAX_NAME_SIZE);
 				}
 				// find footprint, get from library if necessary
-				CShape * s = GetFootprintPtr( shape_str );
+				cshape * s = GetFootprintPtr( &shape_str );
 				if( s == NULL )
 				{
 					CString mess, s ((LPCSTR) IDS_LinePartFootprintNotFound);
@@ -3363,12 +3209,12 @@ int CFreePcbDoc::ImportPADSPCBNetlist( CStdioFile * file, UINT flags,
 							CString ref_des = pin_cstr.Left( dot );
 							CString pin_num_cstr = pin_cstr.Right( pin_cstr.GetLength()-dot-1 );
 							(*nli)[inet].ref_des.Add( ref_des );
-							if( pin_num_cstr.GetLength() > CShape::MAX_PIN_NAME_SIZE )
+							if( pin_num_cstr.GetLength() > cshape::MAX_PIN_NAME_SIZE )
 							{
 								CString mess, s ((LPCSTR) IDS_LinePinNameTooLong);
 								mess.Format( s,	line, pin_num_cstr );
 								m_dlg_log->AddLine( mess );
-								pin_num_cstr = pin_num_cstr.Left(CShape::MAX_PIN_NAME_SIZE);
+								pin_num_cstr = pin_num_cstr.Left(cshape::MAX_PIN_NAME_SIZE);
 							}
 							(*nli)[inet].pin_name.Add( pin_num_cstr );
 						}
@@ -3501,7 +3347,7 @@ void CFreePcbDoc::OnFileGenerateCadFiles()
 void CFreePcbDoc::OnToolsFootprintwizard()
 {
 	CDlgWizQuad dlg;
-	dlg.Initialize( &m_footprint_cache_map, &m_footlibfoldermap, TRUE, m_dlg_log );
+	dlg.Initialize( m_slist, &m_footlibfoldermap, TRUE, m_dlg_log );
 	dlg.DoModal();
 }
 
@@ -3827,7 +3673,6 @@ void CFreePcbDoc::OnToolsCheckCopperAreas()
 void CFreePcbDoc::OnToolsCheckTraces()
 {
 	CString str;
-	ResetUndoState();
 	m_view->CancelSelection();
 	m_dlg_log->ShowWindow( SW_SHOW );   
 	m_dlg_log->UpdateWindow();
@@ -3840,6 +3685,7 @@ void CFreePcbDoc::OnToolsCheckTraces()
 	m_dlg_log->AddLine( str );
 	s.LoadStringA(IDS_Done);
 	m_dlg_log->AddLine(s);
+	ResetUndoState();
 	Redraw();
 }
 
@@ -3854,7 +3700,7 @@ void CFreePcbDoc::OnEditPasteFromFile()
 	if( ret != IDOK )
 		return;
 	// read project file
-	ResetUndoState();
+	ResetUndoState();									// CPT2 TODO ok to omit?
 	CString pathname = dlg.GetPathName();
 	CString filename = dlg.GetFileName();
 	CStdioFile pcb_file;
@@ -3873,7 +3719,7 @@ void CFreePcbDoc::OnEditPasteFromFile()
 	clip_tlist->texts.RemoveAll();
 	clip_smcutouts.RemoveAll();
 	clip_boards.RemoveAll();
-	CMapStringToPtr cache_map;		// incoming footprints
+	cshapelist tmp_shapes (this);
 	try
 	{
 		// get layers
@@ -3900,27 +3746,13 @@ void CFreePcbDoc::OnEditPasteFromFile()
 			pcb_file.ReadString( in_str );
 		}
 		pcb_file.Seek( fpos, CFile::begin );
-		ReadFootprints( &pcb_file, &cache_map );
+		tmp_shapes.ReadShapes( &pcb_file );
 		// copy footprints to project cache if necessary
-		void * ptr;
-		CShape * s;
-		POSITION pos;
-		CString key;
-		for( pos = cache_map.GetStartPosition(); pos != NULL; )
-		{
-			cache_map.GetNextAssoc( pos, key, ptr );
-			s = (CShape*)ptr;
-			if( !m_footprint_cache_map.Lookup( s->m_name, ptr ) )
-			{
-				// copy shape to project cache
-				m_footprint_cache_map.SetAt( s->m_name, s );
-			}
-			else
-			{
-				// delete duplicate shape
-				delete s;
-			}
-		}
+		// CPT2 TODO I can see potential trouble here if there are shared names but different shapes (from different libraries, say)
+		citer<cshape> is (&tmp_shapes.shapes);
+		for (cshape *s = is.First(); s; s = is.Next())
+			if (!m_slist->GetShapeByName( &s->m_name ))
+				m_slist->shapes.Add(s);
 
 		// CPT2 here's a sleazy way to deal with reading in the file to the clipboard:  transfer the current contents of the main lists
 		// (m_plist, m_nlist, m_tlist, boards, smcutouts) to temporary locations.  Then read in the file to the main lists in the usual way,
@@ -3970,25 +3802,16 @@ void CFreePcbDoc::OnEditPasteFromFile()
 	m_view->OnGroupPaste();
 }
 
-// Purge footprunts from local cache unless they are used in
+// Purge footprints from local cache unless they are used in
 // partlist or clipboard
 //
 void CFreePcbDoc::PurgeFootprintCache()
 {
-	for( POSITION pos = m_footprint_cache_map.GetStartPosition(); pos != NULL; )
-	{
-		CString key;
-		void * ptr;
-		m_footprint_cache_map.GetNextAssoc( pos, key, ptr );
-		CShape * shape = (CShape*)ptr;
-		if( m_plist->GetNumFootprintInstances( shape ) == 0
-			&& clip_plist->GetNumFootprintInstances( shape ) == 0 )
-		{
-			// purge this footprint
-			delete shape;
-			m_footprint_cache_map.RemoveKey( key );
-		}
-	}
+	citer<cshape> is (&m_slist->shapes);
+	for (cshape *s = is.First(); s; s = is.Next())
+		if( m_plist->GetNumFootprintInstances( s ) == 0 && clip_plist->GetNumFootprintInstances( s ) == 0 )
+			s->SaveUndoInfo(),
+			m_slist->shapes.Remove(s);
 }
 
 
@@ -4216,7 +4039,9 @@ void CFreePcbDoc::FinishUndoRecord(bool bCombineWithPrevious)
 	//   hitting ctrl-z jumps user all the way back to the state before this routine's previous invocation.
 	CArray<cundo_item*> uitems;
 	items.SetUtility(0);
-	if (bCombineWithPrevious && m_undo_pos>0)
+	if (m_undo_pos==0)
+		bCombineWithPrevious = false;
+	if (bCombineWithPrevious)
 	{
 		cundo_record *rec = m_undo_records[m_undo_pos-1];
 		for (int i=0; i<rec->nItems; i++)
@@ -4247,9 +4072,10 @@ void CFreePcbDoc::FinishUndoRecord(bool bCombineWithPrevious)
 	int next_uid = cpcb_item::GetNextUid();
 	for (int i = m_undo_last_uid; i < next_uid; i++)
 	{
-		// Validity check ensures, for instance, that objects created on the clipboard are left out of account:
+		// Calling IsOnPcb() ensures, for instance, that objects created on the clipboard are left out of account.  Also this way we
+		// ignore the substantial number of temporary cshapes that may get created (during the fp editor or the DlgAddPart, say).
 		cpcb_item *item = cpcb_item::FindByUid(i);
-		if (item->IsValid())
+		if (item->IsOnPcb())
 			uitems.Add( new cundo_item(this, i, true) );
 	}
 	m_undo_last_uid = next_uid;					// For next time...
@@ -4414,6 +4240,8 @@ void CFreePcbDoc::OnFileLoadLibrary()
 }
 void CFreePcbDoc::FileLoadLibrary( LPCTSTR pathname )
 {
+	// CPT2 This is associated with a menu item that is permanently gray, it appears.  I'll think about re-implementing later...
+#ifndef CPT2
 	BOOL bOK = FileOpen( pathname, TRUE );
 	if( bOK )
 	{
@@ -4485,6 +4313,7 @@ void CFreePcbDoc::FileLoadLibrary( LPCTSTR pathname )
 		m_view->OnViewAllElements();
 		ProjectModified( FALSE );
 	}
+#endif
 }
 
 void CFreePcbDoc::OnFileSaveLibrary()
@@ -4680,9 +4509,10 @@ void CFreePcbDoc::Redraw()
 	// routine after all the modifications of the cpcb_item hierarchy requested by user have been completed.  At that time, this routine 
 	// runs through carray this->redraw, a list that has been built up during the course of the modifications by routine cpcb_item::MustRedraw().
 	// After double-checking that each item is still valid, routine invokes Draw() on each one.  At the end redraw gets cleared out.
+	// Note that this routine is used only in the main editor.
 	citer<cpcb_item> ii (&redraw);
 	for (cpcb_item *i = ii.First(); i; i = ii.Next())
-		if (i->IsValid())
+		if (i->IsOnPcb() && !i->IsFootItem())
 			i->Draw();
 	redraw.RemoveAll();
 }

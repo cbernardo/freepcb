@@ -178,7 +178,7 @@ void CDlgLibraryManager::OnBnClickedButtonMakePdf()
 		for( int i=0; i<m_footlib->GetNumFootprints(ilib) ; i++ )
 		{
 			// get next footprint
-			CShape foot (doc);
+			cshape foot (doc);
 			int err = foot.MakeFromFile( NULL, *m_footlib->GetFootprintName( ilib, i ), 
 				*m_footlib->GetLibraryFullPath(ilib), m_footlib->GetFootprintOffset( ilib, i ) );
 			if( err )
@@ -191,8 +191,8 @@ void CDlgLibraryManager::OnBnClickedButtonMakePdf()
 			CArray<int> pad_l;
 			CArray<int> pad_hole;
 			int shapePrev = -1, wPrev = -1, lPrev = -1, holePrev = -1;
-			int ct, start, index = 1, numPs = foot.m_padstack.GetSize();
-			citer<cpadstack> ips (&foot.m_padstack);
+			int ct, start, index = 1, numPs = foot.m_padstacks.GetSize();
+			citer<cpadstack> ips (&foot.m_padstacks);
 			for (cpadstack *ps = ips.First(); ps; ps = ips.Next(), index++)
 			{
 				int this_pad_shape = ps->top.shape;
@@ -471,11 +471,11 @@ void CDlgLibraryManager::OnBnClickedButtonMakePdf()
 				}
 				cpdf_textShow( pdf, x_str + " x " + y_str );
 			}
-			if( foot.GetNumPins() == 2 && foot.m_padstack.First()->hole_size != 0 )
+			if( foot.GetNumPins() == 2 && foot.m_padstacks.First()->hole_size != 0 )
 			{
 				CString pin_spacing_str;
 				double pin_spacing;
-				citer<cpadstack> ips (&foot.m_padstack);
+				citer<cpadstack> ips (&foot.m_padstacks);
 				cpadstack *ps0 = ips.First(), *ps1 = ips.Next();
 				double dx = ps0->x_rel - ps1->x_rel;
 				double dy = ps0->y_rel - ps1->y_rel;
@@ -722,7 +722,7 @@ void CDlgLibraryManager::OnBnClickedButtonMakePdf()
 			float org_y = top_y - foot_top*scale;
 
 			// draw outline
-			citer<coutline> io (&foot.m_outline_poly);
+			citer<coutline> io (&foot.m_outlines);
 			for (coutline *poly = io.First(); poly; poly = io.Next())
 			{
 				cpdf_newpath( pdf );

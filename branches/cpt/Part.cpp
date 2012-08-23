@@ -8,6 +8,7 @@
 #include "Net.h"
 #include "FreePcbDoc.h"
 #include "Text.h"
+#include "DlgDupFootprintName.h"
 
 BOOL g_bShow_header_28mil_hole_warning = TRUE;	
 BOOL g_bShow_SIP_28mil_hole_warning = TRUE;							// CPT2 TODO used?
@@ -42,9 +43,9 @@ cpin2::cpin2(CFreePcbDoc *_doc, int _uid):
 	dl_hole = dl_thermal = NULL;
 }
 
-bool cpin2::IsValid()
+bool cpin2::IsOnPcb()
 {
-	if (!part || !part->IsValid()) return false;
+	if (!part || !part->IsOnPcb()) return false;
 	return part->pins.Contains(this);
 }
 
@@ -237,7 +238,7 @@ bool cpin2::GetDrawInfo(int layer,	bool bUse_TH_thermals, bool bUse_SMT_thermals
 	// CPT2 derived from CPartList::GetPadDrawInfo().  Used during DRC to determine the pin's pad info on a particular layer.
 	// Got rid of some args that are no longer useful.  In particular got rid of "angle" and am just returning directly the
 	// correct width and length, depending on the angle.
-	CShape * s = part->shape;
+	cshape * s = part->shape;
 	if( !s )
 		return false;
 
@@ -496,7 +497,7 @@ cpart2::cpart2(CFreePcbDoc *_doc, int _uid):
 	shape = NULL;
 }
 
-bool cpart2::IsValid()
+bool cpart2::IsOnPcb()
 	{ return doc->m_plist->parts.Contains(this); }
 
 void cpart2::SaveUndoInfo(bool bSaveAttachedNets)
@@ -506,6 +507,7 @@ void cpart2::SaveUndoInfo(bool bSaveAttachedNets)
 	for (cpin2 *pin = ipin.First(); pin; pin = ipin.Next())
 	{
 		doc->m_undo_items.Add( new cupin(pin) );
+		// CPT2 TODO we can probably just save undo info for individual connects (including any terminal tees).
 		if (bSaveAttachedNets && pin->net)
 			pin->net->SaveUndoInfo( cnet2::SAVE_CONNECTS );
 	}
@@ -571,11 +573,11 @@ void cpart2::PartMoved( int dx, int dy )
 				net->utility = 1;	// mark net modified
 				// CPT2 TODO decide if it's really safe to dump the following:
 				/*
-				if( part->shape->m_padstack[pin_index1].hole_size )
+				if( part->shape->m_padstacks[pin_index1].hole_size )
 					// through-hole pad
 					v0->pad_layer = LAY_PAD_THRU;
-				else if( part->side == 0 && part->shape->m_padstack[pin_index1].top.shape != PAD_NONE
-					|| part->side == 1 && part->shape->m_padstack[pin_index1].bottom.shape != PAD_NONE )
+				else if( part->side == 0 && part->shape->m_padstacks[pin_index1].top.shape != PAD_NONE
+					|| part->side == 1 && part->shape->m_padstacks[pin_index1].bottom.shape != PAD_NONE )
 					// SMT pad on top
 					v0->pad_layer = LAY_TOP_COPPER;
 				else
@@ -635,9 +637,9 @@ void cpart2::Remove(bool bEraseTraces, bool bErasePart)
 			ctee *tee = new ctee(pin->net);
 			citer<cvertex2> iv (&vtxs);
 			for (cvertex2 *v = iv.First(); v; v = iv.Next())
-				if (v->preSeg && v->preSeg->IsValid() && v->preSeg->m_layer == LAY_RAT_LINE)
+				if (v->preSeg && v->preSeg->IsOnPcb() && v->preSeg->m_layer == LAY_RAT_LINE)
 					v->preSeg->RemoveBreak();
-				else if (v->postSeg && v->postSeg->IsValid() && v->postSeg->m_layer == LAY_RAT_LINE)
+				else if (v->postSeg && v->postSeg->IsOnPcb() && v->postSeg->m_layer == LAY_RAT_LINE)
 					v->postSeg->RemoveBreak();
 				else
 					v->pin = NULL,
@@ -647,7 +649,7 @@ void cpart2::Remove(bool bEraseTraces, bool bErasePart)
 	}
 }
 
-void cpart2::SetData(CShape * _shape, CString * _ref_des, CString * _value_text, CString * _package, 
+void cpart2::SetData(cshape * _shape, CString * _ref_des, CString * _value_text, CString * _package, 
 					 int _x, int _y, int _side, int _angle, int _visible, int _glued  )
 {
 	// Derived from old CPartList::SetPartData.  Initializes data members, including "pins".  Ref and value-text related
@@ -758,7 +760,7 @@ void cpart2::InitPins()
 {
 	// CPT2 New.  Initialize pins carray based on the padstacks in the shape.
 	ASSERT(shape);
-	citer<cpadstack> ips (&shape->m_padstack);
+	citer<cpadstack> ips (&shape->m_padstacks);
 	for (cpadstack *ps = ips.First(); ps; ps = ips.Next())
 		pins.Add( new cpin2(this, ps, NULL) );
 }
@@ -852,13 +854,15 @@ bool cpart2::IsAttachedToConnects()
 	return false;
 }
 
-void cpart2::ChangeFootprint(CShape *_shape)
+void cpart2::ChangeFootprint(cshape *_shape)
 {
 	// CPT2.  Loosely derived from CPartList::PartFootprintChanged && CNetList::PartFootprintChanged.
-	// The passed-in shape is the one that will replace this->shape.  Setup pins corresponding to the new shape, reusing old pins where 
-	// possible.  Mark used pins with
+	// The passed-in shape is the one that will replace this->shape (NB might be the same pointer as before with different contents).  
+	// Setup pins corresponding to the new shape, reusing old pins where possible.  Mark used pins with
 	// a utility value of 1.  Pins that are unused at the end get axed.
 	MustRedraw();
+	SaveUndoInfo(true);									// For safety, save the part and its attached nets.  Caller must save undo info for shapes as
+														// needed.
 	carray<cnet2> nets;									// Maintain a list of attached nets so that we can redraw them afterwards
 	citer<cpin2> ip (&pins);
 	for (cpin2 *p = ip.First(); p; p = ip.Next())
@@ -868,9 +872,9 @@ void cpart2::ChangeFootprint(CShape *_shape)
 
 	shape = _shape;
 	pins.SetUtility(0);
-	int cPins = shape->m_padstack.GetSize();
+	int cPins = shape->m_padstacks.GetSize();
 	carray<cvertex2> vtxs;
-	citer<cpadstack> ips (&shape->m_padstack);
+	citer<cpadstack> ips (&shape->m_padstacks);
 	for (cpadstack *ps = ips.First(); ps; ps = ips.Next())
 	{
 		cpin2 *old = GetPinByName(&ps->name);
@@ -895,11 +899,14 @@ void cpart2::ChangeFootprint(CShape *_shape)
 				// Pin's position has changed.  Find vertices associated with it, and unroute their adjacent segs as needed
 				p->GetVtxs(&vtxs);
 				citer<cvertex2> iv (&vtxs);
-				for (cvertex2 *v = iv.First(); v; v = iv.Next())
+				for (cvertex2 *v = iv.First(); v; v = iv.Next()) 
+				{
+					v->x = p->x, v->y = p->y;
 					if (v->preSeg && v->preSeg->m_layer!=LAY_RAT_LINE)
 						v->preSeg->Unroute();
 					else if (v->postSeg && v->postSeg->m_layer!=LAY_RAT_LINE)
 						v->postSeg->Unroute();
+				}
 			}
 		}
 		else
@@ -984,7 +991,7 @@ int cpart2::Draw()
 	// draw part outline (code similar to but sadly not identical to cpolyline::Draw())
 	CPoint si, sf;
 	m_outline_stroke.SetSize(0);
-	citer<coutline> io (&shape->m_outline_poly);
+	citer<coutline> io (&shape->m_outlines);
 	for (cpolyline *poly = io.First(); poly; poly = io.Next())
 	{
 		int shape_layer = poly->GetLayer();
@@ -1599,7 +1606,6 @@ cpartlist::cpartlist( CFreePcbDoc *_doc )
 	m_layers = m_doc->m_num_copper_layers;
 	m_annular_ring = m_doc->m_annular_ring_pins;					// (CPT2 TODO check)
 	m_nlist = NULL;
-	m_footprint_cache_map = NULL;
 }
 
 cpart2 *cpartlist::GetPartByName( CString *ref_des )
@@ -1691,7 +1697,7 @@ void cpartlist::SetThermals()
 	}
 }
 
-cpart2 *cpartlist::Add( CShape * shape, CString * ref_des, CString *value_text, CString * package, 
+cpart2 *cpartlist::Add( cshape * shape, CString * ref_des, CString *value_text, CString * package, 
 	int x, int y, int side, int angle, int visible, int glued )
 {
 	// CPT2.  Derived from old cpartlist func.  Removed uid and ref_vis args.
@@ -1703,7 +1709,7 @@ cpart2 *cpartlist::Add( CShape * shape, CString * ref_des, CString *value_text, 
 cpart2 * cpartlist::AddFromString( CString * str )
 {
 	// set defaults
-	CShape * s = NULL;
+	cshape * s = NULL;
 	CString in_str, key_str;
 	CArray<CString> p;
 	int pos = 0;
@@ -1799,18 +1805,14 @@ cpart2 * cpartlist::AddFromString( CString * str )
 				package = p[0];
 			else
 				package = "";
-			package = package.Left(CShape::MAX_NAME_SIZE);
+			package = package.Left(cshape::MAX_NAME_SIZE);
 		}
 		else if( np >= 2 && key_str == "shape" )
 		{
 			// lookup shape in cache
-			s = NULL;
-			void * ptr;
 			CString name = p[0];
-			name = name.Left(CShape::MAX_NAME_SIZE);
-			if ( m_footprint_cache_map->Lookup( name, ptr ) )
-				// found in cache
-				s = (CShape*)ptr; 
+			name = name.Left(cshape::MAX_NAME_SIZE);
+			s = m_doc->m_slist->GetShapeByName( &name );
 		}
 		else if( key_str == "pos" )
 		{
@@ -1940,7 +1942,7 @@ int cpartlist::WriteParts( CStdioFile * file )
 }
 
 
-int cpartlist::GetNumFootprintInstances( CShape * shape )
+int cpartlist::GetNumFootprintInstances( cshape * shape )
 {
 	int n = 0;
 	citer<cpart2> ip (&parts);
@@ -1979,16 +1981,19 @@ int cpartlist::ExportPartListInfo( partlist_info * pli, cpart2 *part0 )
 		pi->part = part;
 		if (part==part0) ret = i;
 		pi->shape = part->shape;
-		pi->bShapeChanged = FALSE;
+		pi->bShapeChanged = false;
+		pi->shape_file_name = "";								// CPT2 added.  "" signifies that it's a shape from the cache.
+		pi->package = part->package;
 		pi->ref_des = part->ref_des;
 		pi->ref_vis = part->m_ref->m_bShown;
 		pi->ref_layer = part->m_ref->m_layer;					// CPT2 added this for consistency
-		pi->ref_size = part->m_ref->m_font_size;				// CPT2 TODO why do we have ref size/width in partlistinfo, but not value size/width?
+		pi->ref_size = part->m_ref->m_font_size;
 		pi->ref_width = part->m_ref->m_stroke_width;
-		pi->package = part->package;
 		pi->value = part->value_text;
 		pi->value_vis = part->m_value->m_bShown;
 		pi->value_layer = part->m_value->m_layer;
+		pi->value_size = part->m_value->m_font_size;			// CPT2 added for consistency
+		pi->value_width = part->m_value->m_stroke_width;		// Ditto
 		pi->x = part->x;
 		pi->y = part->y;
 		pi->angle = part->angle;
@@ -2003,7 +2008,7 @@ int cpartlist::ExportPartListInfo( partlist_info * pli, cpart2 *part0 )
 void cpartlist::ImportPartListInfo( partlist_info * pli, int flags, CDlgLog * log )
 {
 	// CPT2 converted.  Routine relies on lower-level subroutines to call Undraw() or MustRedraw(), as appropriate, for individual parts and 
-	// attached nets.
+	// attached nets.  Also saves undo info now as necessary, including undo info for shapes.
 	CString mess; 
 
 	// grid for positioning parts off-board
@@ -2013,34 +2018,130 @@ void cpartlist::ImportPartListInfo( partlist_info * pli, int flags, CDlgLog * lo
 	BOOL * grid = (BOOL*)calloc( GRID_X*GRID_Y, sizeof(BOOL) );
 	int grid_num = 0;
 
-	// first, look for parts in project whose ref_des has been changed
-	/* CPT2 obsolete
-	for( int i=0; i<pli->GetSize(); i++ )
-	{
-		part_info * pi = &(*pli)[i];
-		if( pi->part )
-		{
-			if( pi->ref_des != pi->part->ref_des )
-			{
-				m_nlist->PartRefChanged( &pi->part->ref_des, &pi->ref_des );
-				pi->part->ref_des = pi->ref_des;
-			}
-		}
-	}
-	*/
-
 	// CPT2 when importing from netlist file,  go through and try to find pre-existing parts with the names indicated 
 	// in pli's entries, and enter them into the part_info::part field.
 	if (flags & IMPORT_FROM_NETLIST_FILE)
 		for (int i=0; i<pli->GetSize(); i++)
 		{
 			part_info *pi = &(*pli)[i];
-			if (pi->part) continue;
-			pi->part = GetPartByName( &pi->ref_des );
+			if (!pi->part)
+				pi->part = GetPartByName( &pi->ref_des );
 		}
 
+	// CPT2 before changing any footprints, warn user if the number of pins will be decreasing in any case.  Use shape->utility to 
+	// prevent an excess of repeated warnings.
+	m_doc->m_slist->shapes.SetUtility(0);
+	for (int i=0; i<pli->GetSize(); i++)
+	{
+		part_info *pi = &(*pli)[i];
+		if (pi->part && pi->part->shape && pi->shape && !pi->part->shape->utility)
+		{
+			int n_new_pins = pi->shape->m_padstacks.GetSize();
+			int n_old_pins = pi->part->shape->m_padstacks.GetSize();
+			if( n_new_pins < n_old_pins )
+			{
+				pi->part->shape->utility = 1;
+				CString mess, mess0 ((LPCSTR) IDS_WarningSHasFewerPins);
+				mess.Format( mess0,	pi->shape->m_name, pi->part->shape->m_name );
+				int ret = AfxMessageBox( mess, MB_YESNO );
+				if( ret != IDYES)
+					return;
+			}
+		}
+	}
+	
+	// CPT2 go through the shapes in partlist-info and add as necessary into the cache.  When we load a shape from a library, be 
+	// on the lookout for conflicts with shapes already present in the cache having the same name; do a DlgDupFootprintName as appropriate.
+	// This process used to occur during the exit from DlgAddPart, but I think it's better to do it here.
+	for (int i=0; i<pli->GetSize(); i++)
+	{
+		part_info *pi = &(*pli)[i];
+		if (!pi->shape) 
+			continue;
+		if (pi->shape_file_name == "") 
+			// shape comes from the cache, so don't worry about it.
+			continue;
+		// See if there are other entries in pli that have a cache-shape with the same name as pi->shape
+		CString name = pi->shape->m_name, file_name = pi->shape_file_name;
+		cshape *cache_shape = NULL;											// One way or another this var will get filled eventually.
+		bool bCacheShapeChanged = false;
+		for (int j=0; j<pli->GetSize(); j++)
+		{
+			part_info *pi2 = &(*pli)[j];
+			if (pi2->shape && pi2->shape_file_name=="" && pi2->shape->m_name == pi->shape->m_name)
+				{ cache_shape = pi2->shape; break; }
+		}
+		if (cache_shape && cache_shape->SameAs(pi->shape))
+			// If the cache shape is identical to the library shape, we can just substitute the former in for the latter (see the loop further down)
+			;
+		else if (cache_shape)
+		{
+			// Conflict!  Display dialog to warn user about overwriting the old footprint
+			CDlgDupFootprintName dlg;
+			CString mess, w ((LPCSTR) IDS_WarningYouAreTryingToLoadAFootprint);
+			mess.Format( w, name, file_name );
+			dlg.Initialize( &mess, m_doc->m_slist );
+			int ret = dlg.DoModal();
+			if (ret == IDCANCEL)
+			{
+				// Ugh, it's possible user made some changes to the cache on a previous iteration and only now decides to bail out.  
+				// Hopefully an UndoNoRedo will clean things up:
+				if (m_doc->m_undo_items.GetSize() > 0)
+					m_doc->UndoNoRedo();
+				return;
+			}
+			// clicked "OK"
+			if( dlg.m_replace_all_flag )
+			{
+				// replace all instances of footprint.  CPT2 SAVE UNDO INFO
+				cache_shape->SaveUndoInfo();
+				cache_shape->Copy( pi->shape );
+				bCacheShapeChanged = true;
+			}
+			else
+			{
+				// assign new name to footprint and put in cache
+				pi->shape->m_name = *dlg.GetNewName();
+				m_doc->m_slist->shapes.Add( pi->shape );
+				cache_shape = pi->shape;
+				pi->shape_file_name = "";
+			}
+		}
+		else if (cache_shape = m_doc->m_slist->GetShapeByName( &name ))
+		{
+			// Even though no entry in pli references a cache-shape named "name", there's still some old shape hanging around in the cache 
+			// thus named. Simply alter and reuse the old shape:
+			cache_shape->SaveUndoInfo();
+			cache_shape->Copy( pi->shape );
+			bCacheShapeChanged = true;
+		}
+		else 
+			// pi->shape has no conflicts at all.  Add it to the cache.
+			m_doc->m_slist->shapes.Add( pi->shape ),
+			cache_shape = pi->shape,
+			pi->shape_file_name = "";
+
+		// If the internals of cache_shape got changed, make sure we mark the bShapeChanged bit for any part_info
+		// whose part had that shape on entry.
+		if (bCacheShapeChanged)
+			for( int j=0; j<pli->GetSize(); j++ )
+			{
+				part_info * pi2 = &(*pli)[j];
+				if (pi2->part && pi2->part->shape == cache_shape)
+					pi2->bShapeChanged = true;
+			}
+		// Loop through pli one more time (starting from position i) and look for all references to shapes named 
+		// "name," from library "file_name".  Substitute in pointers to cache_shape.
+		for (int j=i; j<pli->GetSize(); j++)
+		{
+			part_info * pi2 = &(*pli)[j];
+			if (pi2->shape && pi2->shape->m_name == name && pi2->shape_file_name == file_name)
+				pi2->shape = cache_shape,
+				pi2->shape_file_name = "";
+		}
+	}
+
 	// now find parts in project that are not in partlist_info
-	// loop through all parts in project
 	citer<cpart2> ip (&parts);
 	for (cpart2 *part = ip.First(); part; part = ip.Next())
 	{
@@ -2052,8 +2153,8 @@ void cpartlist::ImportPartListInfo( partlist_info * pli, int flags, CDlgLog * lo
 			part_info * pi = &(*pli)[i];
 			if( pi->part == part )
 			{
-				// part exists in partlist_info.  CPT2 TODO Before this check was based on comparing ref-designators, but I think this
-				// check will work better in case we're changing the part's ref-des only.
+				// part exists in partlist_info.  CPT2 Before, this check was based on comparing ref-designators, but I think a
+				// check based on object-pointers will work better in case we're changing the part's ref-des only.
 				bFound = TRUE;
 				break;
 			}
@@ -2083,6 +2184,7 @@ void cpartlist::ImportPartListInfo( partlist_info * pli, int flags, CDlgLog * lo
 					mess.Format( s, part->ref_des );
 					log->AddLine( mess );
 				}
+				part->SaveUndoInfo();
 				part->Remove(true, false);
 			}
 			else
@@ -2094,6 +2196,7 @@ void cpartlist::ImportPartListInfo( partlist_info * pli, int flags, CDlgLog * lo
 					mess.Format( s, part->ref_des );
 					log->AddLine( mess );
 				}
+				part->SaveUndoInfo();
 				part->Remove(true);			// CPT2 I guess...
 			}
 		}
@@ -2109,17 +2212,21 @@ void cpartlist::ImportPartListInfo( partlist_info * pli, int flags, CDlgLog * lo
 		if( pi->part != 0 && pi->deleted )
 		{
 			// old part was deleted, remove it
+			pi->part->SaveUndoInfo();
 			pi->part->Remove(true);
 			continue;
 		}
 
+		/* CPT2 I think this is dispensible.  Is the possibility of null-shaped parts even real any more??
 		if( pi->part && !pi->part->shape && (pi->shape || pi->bShapeChanged == TRUE) )
 		{
 			// old part exists, but it had a null footprint that has now changed.
 			// Remove old part (we'll create the new one from scratch)
+			pi->part->SaveUndoInfo();
 			pi->part->Remove(true);
 			pi->part = NULL;
 		}
+		*/
 
 		if( pi->part == 0 )
 		{
@@ -2141,6 +2248,8 @@ void cpartlist::ImportPartListInfo( partlist_info * pli, int flags, CDlgLog * lo
 					pi->ref_width = old_part->m_ref->m_stroke_width;
 					pi->ref_vis = old_part->m_ref->m_bShown;					// CPT
 					pi->value = old_part->value_text;
+					pi->value_size = old_part->m_value->m_font_size; 
+					pi->value_width = old_part->m_value->m_stroke_width;
 					pi->value_vis = old_part->m_ref->m_bShown;
 					pi->x = old_part->x; 
 					pi->y = old_part->y;
@@ -2155,6 +2264,8 @@ void cpartlist::ImportPartListInfo( partlist_info * pli, int flags, CDlgLog * lo
 					pi->ref_width = old_part->m_ref->m_stroke_width;
 					pi->ref_vis = old_part->m_ref->m_bShown;					// CPT
 					pi->value = old_part->value_text;
+					pi->value_size = old_part->m_value->m_font_size; 
+					pi->value_width = old_part->m_value->m_stroke_width;
 					pi->value_vis = old_part->m_value->m_bShown;
 					pi->x = old_part->x; 
 					pi->y = old_part->y;
@@ -2178,6 +2289,7 @@ void cpartlist::ImportPartListInfo( partlist_info * pli, int flags, CDlgLog * lo
 						mess.Format( s, old_part->ref_des, old_part->shape->m_name, pi->package );
 						log->AddLine( mess );
 					}
+					old_part->SaveUndoInfo();
 					old_part->Remove(true);
 				}
 			}
@@ -2190,9 +2302,10 @@ void cpartlist::ImportPartListInfo( partlist_info * pli, int flags, CDlgLog * lo
 					mess.Format( s, old_part->ref_des, old_part->package, pi->package );
 					log->AddLine( mess );
 				}
+				old_part->SaveUndoInfo();
 				old_part->Remove(true);
 			}
-			else
+			else if (log)
 			{
 				// Will create part from scratch!
 				CString s ((LPCSTR) IDS_CreatingPartWithFootprint);
@@ -2274,7 +2387,7 @@ void cpartlist::ImportPartListInfo( partlist_info * pli, int flags, CDlgLog * lo
 			}
 			
 			cpart2 *part = new cpart2(this);
-			CShape *shape = pi->shape;
+			cshape *shape = pi->shape;
 			// The following line also positions ref and value according to "shape", if possible, and calls part->MustRedraw():
 			part->SetData( shape, &pi->ref_des, &pi->value, &pi->package, pi->x, pi->y,
 				pi->side, pi->angle, TRUE, FALSE );
@@ -2290,6 +2403,7 @@ void cpartlist::ImportPartListInfo( partlist_info * pli, int flags, CDlgLog * lo
 			// part existed before but may have been modified
 			cpart2 *part = pi->part;
 			part->MustRedraw();
+			part->SaveUndoInfo();
 			if( part->shape != pi->shape || pi->bShapeChanged )
 			{
 				// footprint was changed
@@ -2310,6 +2424,7 @@ void cpartlist::ImportPartListInfo( partlist_info * pli, int flags, CDlgLog * lo
 				part->m_ref->m_str = pi->ref_des;
 			part->m_value->m_bShown = pi->value_vis;
 			part->m_value->m_layer = pi->value_layer;
+			part->m_value->Resize( pi->value_size, pi->value_width );
 			if( part->value_text != pi->value )
 				part->value_text = pi->value,
 				part->m_value->m_str = pi->value;
@@ -2445,7 +2560,7 @@ bool cpartlist::CheckForProblemFootprints()
 	citer<cpart2> ip (&parts);
 	for (cpart2 *part = ip.First(); part; part = ip.Next())
 		if( part->shape && part->shape->m_name.Right(7) == "HDR-100")
-			if (cpadstack *ps = part->shape->m_padstack.First())
+			if (cpadstack *ps = part->shape->m_padstacks.First())
 				if (ps->hole_size == 28*NM_PER_MIL )
 					{ bHeaders_28mil_holes = TRUE; break; }
 

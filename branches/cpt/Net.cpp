@@ -40,10 +40,10 @@ cvertex2::cvertex2(CFreePcbDoc *_doc, int _uid):
 	dl_hole = dl_thermal = NULL;
 }
 
-bool cvertex2::IsValid()
+bool cvertex2::IsOnPcb()
 {
-	if (!m_net->IsValid()) return false;
-	if (!m_con->IsValid()) return false;
+	if (!m_net->IsOnPcb()) return false;
+	if (!m_con->IsOnPcb()) return false;
 	return m_con->vtxs.Contains(this);
 }
 
@@ -958,10 +958,10 @@ cseg2::cseg2(CFreePcbDoc *_doc, int _uid):
 	preVtx = postVtx = NULL;
 }
 
-bool cseg2::IsValid()
+bool cseg2::IsOnPcb()
 {
-	if (!m_net->IsValid()) return false;
-	if (!m_con->IsValid()) return false;
+	if (!m_net->IsOnPcb()) return false;
+	if (!m_con->IsOnPcb()) return false;
 	return m_con->segs.Contains(this);
 }
 
@@ -1446,8 +1446,8 @@ cconnect2::cconnect2(CFreePcbDoc *_doc, int _uid):
 	m_net = NULL;
 }
 
-bool cconnect2::IsValid()
-	{ return m_net->IsValid() && m_net->connects.Contains(this); }
+bool cconnect2::IsOnPcb()
+	{ return m_net->IsOnPcb() && m_net->connects.Contains(this); }
 
 void cconnect2::GetStatusStr( CString * str )
 {
@@ -1728,8 +1728,8 @@ cnet2::cnet2(CFreePcbDoc *_doc, int _uid):
 	m_nlist = NULL;
 }
 
-bool cnet2::IsValid()
-	// Note that items on the clipboard are not "valid".
+bool cnet2::IsOnPcb()
+	// Note that items on the clipboard will return false
 	{ return doc->m_nlist->nets.Contains(this); }
 
 void cnet2::GetStatusStr( CString * str )
@@ -1907,7 +1907,7 @@ void cnet2::RemovePin( cpin2 *pin )
 	pin->GetVtxs(&vtxs);
 	citer<cvertex2> iv (&vtxs);
 	for (cvertex2 *v = iv.First(); v; v = iv.Next())
-		if (v->m_con->IsValid())
+		if (v->m_con->IsOnPcb())
 			v->m_con->Remove();
 	pins.Remove(pin);
 	pin->net = NULL;
@@ -2663,7 +2663,7 @@ void cnetlist::ReadNets( CStdioFile * pcb_file, double read_version, int * layer
 				np = ParseKeyString( &in_str, &key_str, &p );
 				if( key_str != "pin" || np < 3 )
 					throw new CString((LPCSTR) IDS_ErrorParsingNetsSectionOfProjectFile);
-				CString pin_str = p[1].Left(CShape::MAX_PIN_NAME_SIZE);
+				CString pin_str = p[1].Left(cshape::MAX_PIN_NAME_SIZE);
 				int dot_pos = pin_str.FindOneOf( "." );
 				CString ref_str = pin_str.Left( dot_pos );
 				CString pin_num_str = pin_str.Right( pin_str.GetLength()-dot_pos-1 );

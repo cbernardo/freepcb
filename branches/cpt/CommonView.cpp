@@ -1251,7 +1251,7 @@ int CCommonView::SelectObjPopup( CPoint const &point )
 		else if (cpart2 *part = item->ToPart())
 		{
 			str = "";
-			CShape *shape = part->shape;
+			cshape *shape = part->shape;
 			if( shape )
 			{
 				CMetaFileDC m_mfDC;

@@ -10,6 +10,8 @@
 extern CString gLastFileName;		// last file name imported
 extern CString gLastFolderName;		// last folder name imported
 extern BOOL gLocalCacheExpanded;
+extern CArray<cshape*> gTempCachePtrs;
+
 
 // CDlgImportFootprint dialog
 
@@ -52,12 +54,12 @@ END_MESSAGE_MAP()
 // CDlgImportFootprint message handlers
 
 
-void CDlgImportFootprint::InitInstance( CMapStringToPtr * shape_cache_map,
+void CDlgImportFootprint::InitInstance( cshapelist * cache_shapes,
 							 CFootLibFolderMap * foldermap, CDlgLog * log )
 {
 	extern CFreePcbApp theApp;
-	m_shape = new CShape( theApp.m_doc );
-	m_footprint_cache_map = shape_cache_map;
+	m_shape = new cshape ( theApp.m_doc );
+	m_cache_shapes = cache_shapes;
 	m_foldermap = foldermap;
 	CString * path_str = foldermap->GetLastFolder();
 	m_footlibfolder = foldermap->GetFolder( path_str, log );
@@ -95,62 +97,36 @@ void CDlgImportFootprint::OnTvnSelchangedPartLibTree(NMHDR *pNMHDR, LRESULT *pRe
 {
 	LPNMTREEVIEW pNMTreeView = reinterpret_cast<LPNMTREEVIEW>(pNMHDR);
 	UINT32 lp = pNMTreeView->itemNew.lParam;
+	LPSTR text = pNMTreeView->itemNew.pszText;
 	m_ilib = -1;
 	m_ihead = -1;
 	m_ifoot = -1;
 	if( lp != -1 )
 	{
+		// Determine the library + footprint name on the basis of the lParam.
 		m_ilib = (lp>>24) & 0xff;
 		m_ihead = (lp>>16) & 0xff;
 		m_ifoot = lp & 0xffff;
-		CString str = "";
-		if( m_ilib == 0 )
-		{
-			m_in_cache = TRUE;
-			POSITION pos;
-			CString key;
-			void * ptr;
-			pos = m_footprint_cache_map->GetStartPosition();
-			for( int i=0; i<=m_ifoot; i++ )
-			{
-				m_footprint_cache_map->GetNextAssoc( pos, key, ptr );
-			}
-			str = key;
-		}
+		m_in_cache = m_ilib == 0;
+		if( m_in_cache )
+			m_shape->Copy( gTempCachePtrs[m_ifoot] ),
+			m_footprint_filename = "",
+			m_footprint_folder = "";
 		else
 		{
 			m_ilib--;
-			m_in_cache = FALSE;
-			str = *m_footlibfolder->GetFootprintName( m_ilib, m_ifoot );
-		}
-		m_footprint_name = str;
-
-		// draw footprint preview in control
-		void * ptr;
-		// lookup shape in cache
-		BOOL bInCache = m_footprint_cache_map->Lookup( m_footprint_name, ptr );
-		if( bInCache && m_in_cache )
-		{
-			// found it, make shape
-			m_shape->Copy( (CShape*)ptr );
-			m_footprint_filename = "";
-			m_footprint_folder = "";
-		}
-		else
-		{
-			// not in cache, get from library file
 			CString * lib_file_name = m_footlibfolder->GetLibraryFullPath( m_ilib );
 			int offset = m_footlibfolder->GetFootprintOffset( m_ilib, m_ifoot );
 			// make shape from library file
-			int err = m_shape->MakeFromFile( NULL, m_footprint_name, *lib_file_name, offset ); 
+			CString name = *m_footlibfolder->GetFootprintName( m_ilib, m_ifoot );
+			int err = m_shape->MakeFromFile( NULL, name, *lib_file_name, offset ); 
 			if( err )
-			{
 				// unable to make shape
 				ASSERT(0);
-			}
-			BOOL bOK = ::SplitString( lib_file_name, 
-				&m_footprint_folder, &m_footprint_filename, '\\', TRUE );
+			BOOL bOK = ::SplitString( lib_file_name, &m_footprint_folder, &m_footprint_filename, '\\', TRUE );
 		}
+		m_footprint_name = m_shape->m_name;
+	
 		// now draw preview of footprint
 		CMetaFileDC m_mfDC;
 		CDC * pDC = this->GetDC();
@@ -174,7 +150,6 @@ void CDlgImportFootprint::OnTvnSelchangedPartLibTree(NMHDR *pNMHDR, LRESULT *pRe
 void CDlgImportFootprint::InitPartLibTree()
 {
 	CString str;
-	LPCSTR p;
 
 	// initialize folder name
 	m_edit_library_folder.SetWindowText( *m_footlibfolder->GetFullPath() );
@@ -200,20 +175,17 @@ void CDlgImportFootprint::InitPartLibTree()
 		part_tree.SetItemState( hLocal, TVIS_EXPANDED, TVIS_EXPANDED );
 
 	// insert cached footprints
-	POSITION pos;
-	CString key;
-	void * ptr;
+	citer<cshape> is (&m_cache_shapes->shapes);
 	int i = 0;
-	for( pos = m_footprint_cache_map->GetStartPosition(); pos != NULL; )
+	gTempCachePtrs.RemoveAll();
+	for (cshape *s = is.First(); s; s = is.Next(), i++)
 	{
-		m_footprint_cache_map->GetNextAssoc( pos, key, ptr );
-		p = (LPCSTR)key;
 		tvInsert.hInsertAfter = 0;
 		tvInsert.hParent = hLocal;
-		tvInsert.item.pszText = (LPSTR)p;
+		tvInsert.item.pszText = (LPSTR)(LPCSTR) (s->m_name);
 		tvInsert.item.lParam = (LPARAM)i;
+		gTempCachePtrs.Add( s );
 		pCtrl->InsertItem(&tvInsert);
-		i++;
 	}
 
 	// insert all library names
@@ -226,9 +198,8 @@ void CDlgImportFootprint::InitPartLibTree()
 	{
 		// put library filename into Tree
 		str = *m_footlibfolder->GetLibraryFileName( ilib );
-		p = (LPCSTR)str;
 		tvInsert.hParent = NULL;
-		tvInsert.item.pszText = (LPSTR)p;
+		tvInsert.item.pszText = (LPSTR)(LPCSTR) str;
 		if( ilib == 0 )
 			tvInsert.hInsertAfter = hLocal;
 		else
@@ -246,9 +217,8 @@ void CDlgImportFootprint::InitPartLibTree()
 		{
 			// put footprint into tree
 			str = *m_footlibfolder->GetFootprintName( ilib, i );
-			p = (LPCSTR)str;
 			tvInsert.hParent = hLib;
-			tvInsert.item.pszText = (LPSTR)p;
+			tvInsert.item.pszText = (LPSTR)(LPCSTR) str;
 			UINT32 lp = (ilib+1)*0x1000000 + i;
 			tvInsert.item.lParam = (LPARAM)lp;
 			tvInsert.hInsertAfter = 0;

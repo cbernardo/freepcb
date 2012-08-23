@@ -11,7 +11,7 @@ class CDlgRefText : public CDialog
 public:
 	CDlgRefText(CWnd* pParent = NULL);   // standard constructor
 	virtual ~CDlgRefText();
-	void Initialize( ctext *text, CMapStringToPtr * shape_cache_map );
+	void Initialize( ctext *text, cshapelist *cache_shapes );				// CPT2 TODO why the second argument anyway?
 	void GetFields();
 	void SetFields();
 
@@ -31,7 +31,7 @@ public:
 	int m_def_width;
 	CString m_str;									// CPT2. On exit, holds the contents of the m_edit_ref_des box.
 	ctext * m_text;
-	CMapStringToPtr * m_footprint_cache_map;
+	cshapelist * m_cache_shapes;
 	CEdit m_edit_ref_des;
 	CEdit m_edit_height;
 	CButton m_radio_set;

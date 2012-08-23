@@ -12,9 +12,9 @@ class CDlgSaveFootprint : public CDialog
 public:
 	CDlgSaveFootprint(CWnd* pParent = NULL);   // standard constructor
 	virtual ~CDlgSaveFootprint();
-	void Initialize( CString * name, CShape * footprint, int units,							 
+	void Initialize( CString * name, cshape * footprint, int units,							 
 					LPCTSTR default_file_name,
-					CMapStringToPtr * shape_cache_map,
+					cshapelist * cache_shapes,
 					CFootLibFolderMap * footlibfoldermap,
 					CDlgLog * log );
 	void InitFileList();
@@ -25,14 +25,15 @@ public:
 
 protected:
 	virtual void DoDataExchange(CDataExchange* pDX);    // DDX/DDV support
+	virtual BOOL OnInitDialog();
 
 	DECLARE_MESSAGE_MAP()
 public:
-	CMapStringToPtr * m_footprint_cache_map;
+	cshapelist *m_cache_shapes;
 	CFootLibFolderMap * m_foldermap;
 	CFootLibFolder * m_folder;
 	CStatic m_preview;
-	CShape * m_footprint;
+	cshape * m_footprint;
 	int m_units;
 	CString m_default_filename;
 	CString m_folder_name;
@@ -42,6 +43,7 @@ public:
 	CString m_desc;
 	CEdit m_edit_name;
 	CComboBox m_combo_lib;
+	CString m_combo_str;
 	afx_msg void OnCbnSelchangeComboLibs();
 	afx_msg void OnBnClickedOk();
 	CEdit m_edit_source;

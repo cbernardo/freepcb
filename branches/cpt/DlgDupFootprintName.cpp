@@ -47,10 +47,9 @@ void CDlgDupFootprintName::DoDataExchange(CDataExchange* pDX)
 				AfxMessageBox( s );
 				pDX->Fail();
 			}
-			void * ptr;
-			if( m_footprint_cache_map->Lookup( m_new_name_str, ptr ) )
+			if( m_cache_shapes->GetShapeByName( &m_new_name_str ) )
 			{
-				// blank name
+				// already-used name
 				CString s ((LPCSTR) IDS_NewFootprintNameIsAlreadyInUse);
 				AfxMessageBox( s );
 				pDX->Fail();
@@ -68,11 +67,10 @@ END_MESSAGE_MAP()
 
 // initialize the dialog
 //
-void CDlgDupFootprintName::Initialize( CString * message, 
-									  CMapStringToPtr * shape_cache_map )
+void CDlgDupFootprintName::Initialize( CString * message, cshapelist * cache_shapes )
 {
 	m_str = message;
-	m_footprint_cache_map = shape_cache_map;
+	m_cache_shapes = cache_shapes;
 }
 
 

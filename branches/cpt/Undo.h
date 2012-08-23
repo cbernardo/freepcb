@@ -1,4 +1,4 @@
-// UndoNew.h:  CPT2 new system for undo/redo.  More-or-less as in the old system, we have for each pcb-item class a 
+// Undo.h:  CPT2 new system for undo/redo.  More-or-less as in the old system, we have for each pcb-item class a 
 // corresponding undo-item class.   Class cuvertex, for instance, mirrors cvertex2.  The main difference in
 // the data structure is that where cvertex2 has pointers to other pcb-item objects (segments, connects),
 // cuvertex has in their place uid values.  Using uid's makes it possible for an undo operation to reinsert into
@@ -36,11 +36,16 @@ class cupolyline;
 class cuarea;
 class cusmcutout;
 class cuboard;
+class cuoutline;
 class cunet;
 class cutext;	
 class cureftext;
 class cuvaluetext;
 class cudre;
+class cupadstack;
+class cucentroid;
+class cuglue;
+class cushape;
 
 class cpcb_item;
 class cvertex2;
@@ -56,11 +61,17 @@ class cpolyline;
 class carea2;
 class csmcutout;
 class cboard;
+class coutline;
 class cnet2;
 class ctext;
 class creftext;
 class cvaluetext; 
 class cdre;
+class cpad;
+class cpadstack;
+class ccentroid;
+class cglue;
+class cshape;
 
 class CFreePcbDoc;
 class cpartlist;
@@ -180,7 +191,8 @@ public:
 	CString m_str;
 	bool m_bShown;
 	int m_part;
-	SMFontUtil * m_smfontutil;
+	int m_shape;
+	SMFontUtil * m_smfontutil;				// Worth the trouble?
 
 	cutext( ctext *t );
 	void CreateTarget();
@@ -191,21 +203,19 @@ public:
 class cureftext: public cutext
 {
 public:
-	int part;
-
-	cureftext( creftext *t );
+	cureftext( creftext *t )
+		: cutext( (ctext*) t )
+		{ }
 	void CreateTarget();
-	void FixTarget();
 };
 
 class cuvaluetext: public cutext
 {
 public:
-	int part;
-
-	cuvaluetext( cvaluetext *t );
+	cuvaluetext( cvaluetext *t )
+		: cutext( (ctext*) t )
+		{ }
 	void CreateTarget();
-	void FixTarget();
 };
 
 
@@ -242,7 +252,7 @@ public:
 	CString value_text;
 	int m_value;
 	int nTexts, *texts;
-	class CShape *shape;				// CPT2 TODO check that we can rely on these pointers...
+	int shape;
 
 	cupart( cpart2 *p );
 	~cupart()
@@ -340,6 +350,16 @@ public:
 	void AddToLists();
 };
 
+class cuoutline : public cupolyline
+{
+public:
+	int shape; 
+
+	cuoutline(coutline *o);
+	void CreateTarget();
+	void FixTarget();
+	// void AddToLists();		// Not needed.  A cuoutline gets added to an undo record only if its parent cushape gets included to.
+};
 
 class cunet: public cundo_item
 {
@@ -353,7 +373,7 @@ public:
 	int def_via_w;
 	int def_via_hole_w;
 	bool bVisible;
-	cnetlist * m_nlist;			// One pointer that I think we can rely on to remain constant
+	cnetlist * m_nlist;			// One pointer that I think we can rely on to remain constant.  Probably don't need it anyway...
 
 	cunet(cnet2 *n);
 	~cunet()
@@ -379,6 +399,82 @@ public:
 	void FixTarget();
 	void AddToLists();
 };
+
+class cupadstack: public cundo_item
+{
+public:
+	CString name;
+	int hole_size;
+	int x_rel, y_rel;
+	int angle;
+	int shape;
+	/* Bloody C++ compiler makes it near-impossible to do the following (cpad has to be defined, and trying to get the .h's included in the 
+	   right order defeated me).  When is C++ going to adopt a Java-style preprocessor so we can avoid this nonsense? 
+			cpad top, top_mask, top_paste;
+			cpad bottom, bottom_mask, bottom_paste;
+			cpad inner;
+	Here's the stupid workaround: */
+	int top[6], top_mask[6], top_paste[6];
+	int bottom[6], bottom_mask[6], bottom_paste[6];
+	int inner[6];
+
+	cupadstack(cpadstack *ps);
+	void CreateTarget();
+	void FixTarget();
+	// void AddToLists();		// Not needed --- a cupadstack is added to an undo record only if its parent cushape is there too
+};
+
+class cucentroid: public cundo_item
+{
+public:
+	CENTROID_TYPE m_type;
+	int m_x, m_y;
+	int m_angle;
+	int m_shape;
+
+	cucentroid(ccentroid *c);
+	void CreateTarget();
+	void FixTarget();
+};
+
+class cuglue: public cundo_item
+{
+public:
+	GLUE_POS_TYPE type;
+	int w, x, y;
+	int shape;
+
+	cuglue(cglue *g);
+	void CreateTarget();
+	void FixTarget();
+	// void AddToLists();		// Not needed -- a cuglue will only be added to an undo record if the parent cushape is present also
+};
+
+
+class cushape: public cundo_item
+{
+public:
+	CString m_name;
+	CString m_author;
+	CString m_source;
+	CString m_desc;
+	int m_units;
+	int m_sel_xi, m_sel_yi, m_sel_xf, m_sel_yf;
+	int m_ref;
+	int m_value;
+	int m_centroid;
+	int m_nPadstacks, *m_padstacks;
+	int m_nOutlines, *m_outlines;
+	int m_nTexts, *m_texts;
+	int m_nGlues, *m_glues;
+
+	cushape(cshape *s);
+	void CreateTarget();
+	void FixTarget();
+	void AddToLists();
+};
+
+
 
 class cundo_record 
 {

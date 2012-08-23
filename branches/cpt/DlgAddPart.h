@@ -33,16 +33,18 @@ private:
 	int m_ihead;
 	int m_ifoot;
 	BOOL m_in_cache;	// true if new footprint selected from cache
-	CShape *m_shape;	// CPT2 was CShape, now CShape*.
+	cshape *m_shape;			// CPT2 was CShape, now cshape*.  Set on entry if we're editing, null if we're adding;  
+								// set when "OK" is hit, either way
+	CString m_shape_file_name;	// CPT2 new.  Informs the caller about the selected shape's library file ("" => local cache)
 	BOOL m_drag_flag;
 	BOOL m_offboard_flag;
 	partlist_info * m_pl;
-	int m_ip;
-	BOOL m_standalone;
+	int m_ip;					// The index of the single pre-existing item being edited, if appropriate
+	BOOL m_standalone;			// False if we're being called from DlgPartlist, true otherwise
 	BOOL m_new_part;
 	BOOL m_multiple;
 	CComboBox m_combo_shape;
-	CMapStringToPtr * m_footprint_cache_map;
+	cshapelist * m_cache_shapes;
 	CFootLibFolderMap * m_footlibfoldermap;
 	CFootLibFolder * m_folder;
 	CTreeCtrl part_tree;
@@ -51,7 +53,6 @@ private:
 	CEdit m_edit_footprint;
 	CEdit m_edit_value;
 	CButton m_check_value_visible;
-	// CPT:
 	CButton m_check_ref_visible;
 	CButton m_radio_drag;
 	CButton m_radio_offboard;
@@ -79,7 +80,7 @@ public:
 		BOOL new_part,
 		BOOL multiple,
 		int multiple_mask,
-		CMapStringToPtr * shape_cache_map,
+		cshapelist * cache_shapes,
 		CFootLibFolderMap * footlibfoldermap,
 		int units,
 		CDlgLog * log );

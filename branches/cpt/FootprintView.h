@@ -129,15 +129,15 @@ public:
 	static int sel_mask_btn_bits[16];	// CPT2.  New system for masking selections.  Each left-pane button corresponds to 1+ bits for types of pcb-items...
 
 	// footprint
-	CEditShape *m_fp;	// footprint being edited
+	cshape *m_fp;	// footprint being edited
 
 	// undo stack
-	CArray<CEditShape*> undo_stack;
-	CArray<CEditShape*> redo_stack;
+	CArray<cshape*> undo_stack;
+	CArray<cshape*> redo_stack;
 
 // Operations
 public:
-	void InitInstance( CShape * fp );
+	void InitInstance( cshape * fp );
 
 // Overrides
 	public:
@@ -159,7 +159,7 @@ public:
 	void SetWindowTitle( CString * str );
 	int SetWidth( int mode );
 	int GetWidthsForSegment( int * w, int * via_w, int * via_hole_w );
-	void FootprintModified( BOOL flag, BOOL force = FALSE, BOOL clear_redo=TRUE );
+	void FootprintModified( BOOL flag, BOOL clear_redo=TRUE );
 	void FootprintNameChanged( CString * str );
 	void MoveOrigin( int x, int y );
 	void ClearUndo();

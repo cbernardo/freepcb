@@ -25,6 +25,7 @@ ctext::ctext( CFreePcbDoc *_doc, int _x, int _y, int _angle,
 	m_str = *_str;
 	m_bShown = true;
 	m_part = NULL;
+	m_shape = NULL;
 }
 
 ctext::ctext(CFreePcbDoc *_doc, int _uid):
@@ -32,16 +33,16 @@ ctext::ctext(CFreePcbDoc *_doc, int _uid):
 { 
 	m_smfontutil = NULL;
 	m_part = NULL;
+	m_shape = NULL;
 }
 
 
-bool ctext::IsValid() 
+bool ctext::IsOnPcb() 
 {
-	CShape *fp = doc? doc->m_edit_footprint: NULL;
-	if (fp)
-		return fp->m_tl->texts.Contains(this);
+	if (m_shape)
+		return m_shape->IsOnPcb() && m_shape->m_tl->texts.Contains(this);
 	else if (m_part)
-		return m_part->IsValid() && m_part->m_tl->texts.Contains(this);
+		return m_part->IsOnPcb() && m_part->m_tl->texts.Contains(this);
 	else
 		return doc->m_tlist->texts.Contains(this); 
 }
@@ -58,21 +59,23 @@ int ctext::GetLayer()
 	return layer;
 }
 
-void ctext::Copy( ctext *other )
+void ctext::Copy( ctext *src )
 {
-	// CPT2 new.  Copy the contents of "other" into "this"
+	// CPT2 new.  Copy the contents of "src" into "this".  Includes the "m_part" and "m_shape" members (caller might want to override that)
 	MustRedraw();
-	m_x = other->m_x;
-	m_y = other->m_y;
-	m_angle = other->m_angle;
-	m_bMirror = other->m_bMirror; 
-	m_bNegative = other->m_bNegative;
-	m_layer = other->m_layer;
-	m_font_size = other->m_font_size;
-	m_stroke_width = other->m_stroke_width;
-	m_smfontutil = other->m_smfontutil;
-	m_str = other->m_str;
-	m_bShown = other->m_bShown;
+	m_x = src->m_x;
+	m_y = src->m_y;
+	m_angle = src->m_angle;
+	m_bMirror = src->m_bMirror; 
+	m_bNegative = src->m_bNegative;
+	m_layer = src->m_layer;
+	m_font_size = src->m_font_size;
+	m_stroke_width = src->m_stroke_width;
+	m_smfontutil = src->m_smfontutil;
+	m_str = src->m_str;
+	m_bShown = src->m_bShown;
+	m_part = src->m_part;
+	m_shape = src->m_shape;
 }
 
 void ctext::Move( int x, int y, int angle, BOOL mirror, BOOL negative, int layer, int size, int w )
@@ -496,11 +499,11 @@ creftext::creftext(CFreePcbDoc *_doc, int _uid):
 		{ m_part = NULL; }
 
 
-bool creftext::IsValid() 
-{ 
-	if (doc->m_edit_footprint)
-		return doc->m_edit_footprint->m_ref == this;
-	return m_part && m_part->IsValid(); 
+bool creftext::IsOnPcb() 
+{
+	if (m_shape)
+		return m_shape->IsOnPcb() && m_shape->m_ref == this;
+	return m_part && m_part->IsOnPcb() && m_part->m_ref == this; 
 }
 
 cvaluetext::cvaluetext( cpart2 *part, int x, int y, int angle, 
@@ -521,11 +524,11 @@ cvaluetext::cvaluetext(CFreePcbDoc *_doc, int _uid):
 	ctext(_doc, _uid)
 		{ m_part = NULL; }
 
-bool cvaluetext::IsValid() 
+bool cvaluetext::IsOnPcb() 
 { 
-	if (doc->m_edit_footprint)
-		return doc->m_edit_footprint->m_value == this;
-	return m_part && m_part->IsValid(); 
+	if (m_shape)
+		return m_shape->IsOnPcb() && m_shape->m_value == this;
+	return m_part && m_part->IsOnPcb() && m_part->m_value == this; 
 }
 
 
@@ -592,10 +595,11 @@ void ctextlist::ReadTexts( CStdioFile * pcb_file )
 }
 
 ctext *ctextlist::AddText( int x, int y, int angle, bool bMirror, bool bNegative, int layer, 
-					int font_size, int stroke_width, CString * str_ptr, cpart2 *part )
+					int font_size, int stroke_width, CString * str_ptr, cpart2 *part, cshape *shape )
 {
 	ctext * text = new ctext(m_doc, x, y, angle, bMirror, bNegative, layer, font_size, stroke_width, m_smfontutil, str_ptr);
 	text->m_part = part;
+	text->m_shape = shape;
 	texts.Add(text);
 	return text;
 }

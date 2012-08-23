@@ -6,7 +6,7 @@
 #include <afxtempl.h>
 #include "PcbItem.h"
 #include "DisplayList.h"
-#include "UndoNew.h"
+#include "Undo.h"
 #include "stdafx.h"
 
 
@@ -21,7 +21,7 @@ public:
 	ccorner(ccontour *_contour, int _x, int _y);		// Done in cpp
 	ccorner(CFreePcbDoc *_doc, int _uid);
 
-	bool IsValid();										// Done in cpp
+	bool IsOnPcb();										// Done in cpp
 	bool IsCorner() { return true; }
 	bool IsAreaCorner();								// Done in cpp
 	bool IsBoardCorner();								// Done in cpp
@@ -55,7 +55,7 @@ public:
 	cside(ccontour *_contour, int _style);
 	cside(CFreePcbDoc *_doc, int _uid);
 
-	bool IsValid();
+	bool IsOnPcb();
 	bool IsSide() { return true; }
 	bool IsAreaSide();								// Done in cpp
 	bool IsBoardSide();								// Done in cpp
@@ -93,7 +93,7 @@ public:
 	ccontour(cpolyline *_poly, ccontour *src);								// Copy constructor, done in cpp
 	ccontour(CFreePcbDoc *_doc, int _uid);
 
-	bool IsValid();															// Done in cpp
+	bool IsOnPcb();															// Done in cpp
 	bool IsContour() { return true; }
 	ccontour *ToContour() { return this; }
 	int GetTypeBit() { return bitContour; }
@@ -227,7 +227,7 @@ public:
 	carea2(cnet2 *_net, int layer, int hatch, int w, int sel_box);	// Done in cpp
 	carea2(CFreePcbDoc *_doc, int _uid);
 
-	bool IsValid();
+	bool IsOnPcb();
 	bool IsArea() { return true; }
 	carea2 *ToArea() { return this; }
 	int GetTypeBit() { return bitArea; }
@@ -254,7 +254,7 @@ public:
 	csmcutout(CFreePcbDoc *_doc, int _uid);
 	~csmcutout() { }
 
-	bool IsValid();																		// Done in cpp
+	bool IsOnPcb();																		// Done in cpp
 	bool IsSmCutout() { return true; }
 	csmcutout *ToSmCutout() { return this; }
 	int GetTypeBit() { return bitSmCutout; }
@@ -274,7 +274,7 @@ public:
 	cboard(CFreePcbDoc *_doc);					// Done in cpp
 	cboard(CFreePcbDoc *_doc, int _uid);
 
-	bool IsValid();								// Done in cpp
+	bool IsOnPcb();								// Done in cpp
 	bool IsBoard() { return true; }
 	cboard *ToBoard() { return this; }
 	int GetTypeBit() { return bitBoard; }
@@ -290,14 +290,21 @@ class coutline : public cpolyline
 {
 public:
 	// Represents outlines within footprints.  These don't have to be closed.
-	coutline(CFreePcbDoc *_doc, int layer, int w);		// Done in cpp
-	coutline(coutline *src):
-		cpolyline(src) { }
+	cshape *shape;
 
-	bool IsValid();										// Done in cpp
+	coutline(cshape *_shape, int layer, int w);			// Done in cpp
+	coutline(coutline *src, cshape *_shape);
+	coutline(CFreePcbDoc *_doc, int uid)
+		: cpolyline(_doc, uid) 
+		{ shape = NULL; }
+
+	bool IsOnPcb();										// Done in cpp
 	bool IsOutline() { return true; }
 	coutline *ToOutline() { return this; }
 	int GetTypeBit() { return bitOutline; }
+	cundo_item *MakeUndoItem()
+		{ return new cuoutline(this); }
+	void SaveUndoInfo();
 	cpolyline *CreateCompatible();						// CPT2 new, done in cpp
 };
 

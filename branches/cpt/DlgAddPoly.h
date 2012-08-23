@@ -26,7 +26,7 @@ protected:
 
 	DECLARE_MESSAGE_MAP()
 private:
-	carray<cpadstack> * m_padstack;
+	carray<cpadstack> * m_padstacks;
 	void SetFields();
 	void GetFields();
 	BOOL m_bNewPoly;

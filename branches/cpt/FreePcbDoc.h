@@ -54,7 +54,8 @@ public:
 	ctextlist * m_tlist;		// CPT2.  Was CTextList, now ctextlist
 	carray<cboard> boards;
 	carray<csmcutout> smcutouts;
-	carray<coutline> outlines;		// CPT2 maybe...  Still have to figure out the memory management of entities within CShapes.
+	cshapelist *m_slist;
+	// carray<coutline> outlines;		// CPT2 maybe...  Still have to figure out the memory management of entities within CShapes.
 	cdrelist * m_drelist;			// CPT2.  Was DREList, now cdrelist
 	carray<cpcb_item> items;		// CPT2.  Master list of all created pcb-items.  GarbageCollect() will go through this list and clean up now and then.
 	carray<cpcb_item> redraw;		// CPT2 r313.  My latest-n-greatest system for undrawing and redrawing (see notes.txt).
@@ -64,7 +65,7 @@ public:
 	SMFontUtil * m_smfontutil;	// Hershey font utility
 	int m_file_close_ret;		// return value from OnFileClose() dialog
 	CFootLibFolderMap m_footlibfoldermap;
-	CMapStringToPtr m_footprint_cache_map;	// map of footprints cached in memory
+	// CMapStringToPtr m_footprint_cache_map;	// map of footprints cached in memory
 
 	double m_version;			// version number, such as "1.105"
 	double m_file_version;		// the oldest version of FreePCB that can read
@@ -72,7 +73,7 @@ public:
 	double m_read_version;		// the version from the project file
 	int m_WindowsMajorVersion;	// CPT2 added, seemed helpful 
 	BOOL bNoFilesOpened;		// TRUE if no files have been opened
-	CShape * m_edit_footprint;	// Set if we're editing the footprint of a selected part.  CPT2 was BOOL, made it more informative...
+	cshape * m_edit_footprint;	// Set if we're editing the footprint of a selected part.  CPT2 was BOOL, made it more informative...
 	BOOL m_project_open;		// FALSE if no project open
 	BOOL m_project_modified;	// FALSE if project not modified since loaded
 	BOOL m_project_modified_since_autosave;	// FALSE if project not modified since loaded
@@ -92,7 +93,7 @@ public:
 	CString m_cam_full_path;	// full path to CAM file folder
 	CString m_netlist_full_path;	// last netlist loaded
 
-	// undo and redo stacks and state
+	// undo/redo list and state
 	CArray<cundo_item*> m_undo_items;		// CPT2 new undo system.  Altered items accumulate in here during a user operation, then get combined
 											// into a new cundo_record by FinishUndoRecord().
 	CArray<cundo_record*> m_undo_records;	// CPT2 The main list that both undo and redo operations refer to.
@@ -229,11 +230,9 @@ public:
 	void ProjectModified( BOOL flag, BOOL bCombineWithPreviousUndo = false );		// CPT2 changed second arg
 	void InitializeNewProject();
 	void SendInitialUpdate();
-	void ReadFootprints( CStdioFile * pcb_file, 
-		CMapStringToPtr * cache_map=NULL,
-		BOOL bFindSection=TRUE );
-	int WriteFootprints( CStdioFile * file, CMapStringToPtr * cache_map=NULL );
-	CShape * GetFootprintPtr( CString name );
+	// void ReadFootprints( CStdioFile * pcb_file, CMapStringToPtr * cache_map=NULL, BOOL bFindSection=TRUE );
+	// int WriteFootprints( CStdioFile * file, CMapStringToPtr * cache_map=NULL ); // CPT2 replace with cshapelist::WriteShapes().
+	cshape * GetFootprintPtr( CString *name );
 	void MakeLibraryMaps( CString * fullpath );
 	void ReadBoardOutline( CStdioFile * pcb_file);
 	void WriteBoardOutline( CStdioFile * pcb_file, carray<cboard> *boards = NULL );

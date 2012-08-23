@@ -6,7 +6,7 @@
 #include <afxtempl.h>
 #include "PcbItem.h"
 #include "DisplayList.h"
-#include "UndoNew.h"
+#include "Undo.h"
 #include "stdafx.h"
 #include "Shape.h"
 #include "smfontutil.h"
@@ -64,7 +64,7 @@ public:
 	cpin2(cpart2 *_part, cpadstack *_ps, cnet2 *_net);					// CPT2. Added args. Done in cpp
 	cpin2(CFreePcbDoc *_doc, int _uid);
 
-	bool IsValid();													// Done in cpp
+	bool IsOnPcb();													// Done in cpp
 	bool IsPin() { return true; }
 	cpin2 *ToPin() { return this; }
 	int GetTypeBit() { return bitPin; }
@@ -113,7 +113,7 @@ public:
 	ctextlist *m_tl;		// CPT2 added.  Objects for each of the texts derived from the footprint.
 
 	CString package;						// package (from original imported netlist, may be "")
-	class CShape * shape;					// pointer to the footprint of the part, may be NULL
+	cshape * shape;							// pointer to the footprint of the part, may be NULL.  CPT2 I have yet to see a case where it is null, though.
 	CArray<stroke> m_outline_stroke;		// array of outline strokes
 
 	// drc info
@@ -131,7 +131,7 @@ public:
 	cpart2( cpartlist * pl );										// Done in cpp.
 	cpart2(CFreePcbDoc *_doc, int _uid);
 
-	bool IsValid();													// Done in cpp
+	bool IsOnPcb();													// Done in cpp
 	bool IsPart() { return true; }
 	cpart2 *ToPart() { return this; }
 	int GetTypeBit() { return bitPart; }
@@ -142,7 +142,7 @@ public:
 
 	void Move( int x, int y, int angle = -1, int side = -1);									// Done in cpp, derived from CPartList::Move
 	void PartMoved( int dx=1, int dy=1 );														// Done in cpp, derived from CNetList::PartMoved
-	void SetData( CShape * shape, CString * ref_des, CString *value_txt, CString * package, 
+	void SetData( cshape * shape, CString * ref_des, CString *value_txt, CString * package, 
 	     		  int x, int y, int side, int angle, int visible, int glued );					// Done in cpp, Derived from CPartList::SetPartData
 	void SetValue( CString * value, int x, int y, int angle, int size, 
 				  int w, BOOL vis, int layer );													// Done in cpp, Derived from CPartList::SetValue
@@ -156,7 +156,7 @@ public:
 	int GetBoundingRect( CRect * part_r );		// Done in cpp. Derived from CPartList::GetPartBoundingRect()
 	CRect CalcSelectionRect();
 	bool IsAttachedToConnects();				// Done in cpp
-	void ChangeFootprint( CShape * shape );		// Done in cpp, loosely derived from CPartList::PartFootprintChanged() & CNetList::PartFootprintChanged()
+	void ChangeFootprint( cshape * shape );		// Done in cpp, loosely derived from CPartList::PartFootprintChanged() & CNetList::PartFootprintChanged()
 
 	int Draw();							// Done in cpp
 	void Undraw();						// Done in cpp
@@ -182,14 +182,18 @@ typedef struct {
 	int ref_size;		// size of ref text characters
 	int ref_width;		// stroke width of ref text characters
 	int ref_layer;		// ref layer
-	CString package;	// package (from original imported netlist, don't edit)
-	CString value;		// value (from original imported netlist, don't edit)
-	BOOL value_vis;		// visibility of value
 	BOOL ref_vis;		// CPT: visibility of ref text
+	CString value;		// value (from original imported netlist, don't edit)
+	int value_size;		// CPT2 added for consistency
+	int value_width;	// CPT2 Ditto
 	int value_layer;	// value layer
-	CShape * shape;		// pointer to shape (may be edited)
+	BOOL value_vis;		// visibility of value
+	CString package;	// package (from original imported netlist, don't edit)
+	cshape * shape;		// pointer to shape (may be edited)
+	bool bShapeChanged;	// Set if "part->shape" gets its internals modified.
+	CString shape_file_name;	// CPT2 new.  Indicates which library file the shape came from.  Most often "", signifying the local cache,
+						// but if user goes to the DlgAddPart it may change.
 	BOOL deleted;		// flag to indicate that part was deleted
-	BOOL bShapeChanged;	// flag to indicate that the shape has changed
 	BOOL bOffBoard;		// flag to indicate that position has not been set
 	int x, y;			// position (may be edited)
 	int angle, side;	// angle and side (may be edited)
@@ -217,19 +221,19 @@ public:
 	int m_annular_ring;
 	cnetlist * m_nlist;
 	CDisplayList * m_dlist;
-	CMapStringToPtr * m_footprint_cache_map;
+	// CMapStringToPtr * m_footprint_cache_map;
 
 	cpartlist( CFreePcbDoc *doc );
 	~cpartlist() { }
 
 	void UseNetList( cnetlist * nlist ) { m_nlist = nlist; };
-	void SetShapeCacheMap( CMapStringToPtr * shape_cache_map )
-		{ m_footprint_cache_map = shape_cache_map; };
+	// void SetShapeCacheMap( CMapStringToPtr * shape_cache_map )
+	//	{ m_footprint_cache_map = shape_cache_map; };
 
 	cpart2 * GetPartByName( CString *ref_des );	
 	cpin2 * GetPinByNames ( CString *ref_des, CString *pin_name);
 
-	cpart2 * Add( CShape * shape, CString * ref_des, CString *value_text, CString * package, 
+	cpart2 * Add( cshape * shape, CString * ref_des, CString *value_text, CString * package, 
 		int x, int y, int side, int angle, int visible, int glued );
 	cpart2 * AddFromString( CString * str );
 	void MarkAllParts( int util );
@@ -242,7 +246,7 @@ public:
 	
 	int ReadParts( CStdioFile * file );													// Done in cpp
 	int WriteParts( CStdioFile * file );												// Done in cpp
-	int GetNumFootprintInstances( CShape * shape );										// Done in cpp
+	int GetNumFootprintInstances( cshape * shape );										// Done in cpp
 	int ExportPartListInfo( partlist_info * pli, cpart2 *part0 );						// Done in cpp.  Converted from old CPartList func.
 	void ImportPartListInfo( partlist_info * pli, int flags, CDlgLog * log=NULL );		// Done in cpp.  Converted from old CPartList func.
 	int CheckPartlist( CString * logstr );

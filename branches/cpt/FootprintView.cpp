@@ -167,18 +167,16 @@ CFootprintView::CFootprintView()
 // Don't try to draw window until this function has been called
 // Enter with fp = pointer to footprint to be edited, or NULL 
 //
-void CFootprintView::InitInstance( CShape * fp )
+void CFootprintView::InitInstance( cshape * fp )
 {
 	BaseInit();
 	EnableUndo( FALSE );
 	EnableRedo( FALSE );
 
 	// set up footprint to be edited (if provided).  Correct the value of m_doc->m_edit_footprint (probably equal to "fp" previously)
-	if (m_fp) 
-		delete m_fp;
 	if( fp )
 	{
-		m_fp = new CEditShape( fp );
+		m_fp = new cshape( fp );
 		if( m_fp->m_units == NM || m_fp->m_units == MM )
 			m_units = MM;
 		else
@@ -190,7 +188,7 @@ void CFootprintView::InitInstance( CShape * fp )
 	else
 	{
 		CString s ((LPCSTR) IDS_Untitled);
-		m_fp = new CEditShape( theApp.m_doc, &s );
+		m_fp = new cshape( theApp.m_doc, &s );
 	}
 	m_doc->m_edit_footprint = m_fp;
 	SetWindowTitle( &m_fp->m_name );
@@ -215,7 +213,7 @@ void CFootprintView::InitInstance( CShape * fp )
 
 CFootprintView::~CFootprintView()
 {
-	delete m_fp;
+	//	delete m_fp;
 }
 
 
@@ -342,10 +340,9 @@ void CFootprintView::OnLButtonDown(UINT nFlags, CPoint point)
 			first->angle = angle;
 		}
 		m_dragging_new_item = FALSE;
-		m_fp->Draw();
+		FootprintModified( TRUE );
 		SetCursorMode( CUR_FP_PAD_SELECTED );
 		first->Highlight();
-		FootprintModified( TRUE );
 	}
 
 	else if( m_cursor_mode == CUR_FP_DRAG_POLY_MOVE )
@@ -368,9 +365,8 @@ void CFootprintView::OnLButtonDown(UINT nFlags, CPoint point)
 			CString s ((LPCSTR) IDS_ArcsWithEndpointsNotAt45DegreeAngles);
 			AfxMessageBox( s );
 		}
-		m_fp->Draw();
-		HighlightSelection();
 		FootprintModified( TRUE );
+		HighlightSelection();
 	}
 
 	else if( m_cursor_mode == CUR_FP_DRAG_POLY_INSERT )
@@ -380,14 +376,12 @@ void CFootprintView::OnLButtonDown(UINT nFlags, CPoint point)
 		pDC = GetDC();
 		SetDCToWorldCoords( pDC );
 		pDC->SelectClipRgn( &m_pcb_rgn );
-		m_fp->Undraw();
 		CPoint p = m_last_cursor_point;
 		cside *s = m_sel.First()->ToSide();
 		s->CancelDraggingNewCorner();
 		s->InsertCorner( p.x, p.y );
-		m_fp->Draw();
-		SelectItem(s->preCorner);					// CPT2 Selects the new corner
 		FootprintModified( TRUE );
+		SelectItem(s->preCorner);					// CPT2 Selects the new corner
 	}
 
 	else if( m_cursor_mode == CUR_FP_ADD_POLY )
@@ -397,8 +391,8 @@ void CFootprintView::OnLButtonDown(UINT nFlags, CPoint point)
 		SetDCToWorldCoords( pDC );
 		pDC->SelectClipRgn( &m_pcb_rgn );
 		CPoint p = m_last_cursor_point;
-		coutline *o = new coutline(m_doc, m_polyline_layer, m_polyline_width);
-		m_fp->m_outline_poly.Add(o);
+		coutline *o = new coutline(m_fp, m_polyline_layer, m_polyline_width);
+		m_fp->m_outlines.Add(o);
 		m_sel.Add(o);
 		ccontour *ctr = new ccontour(o, true);
 		ccorner *c = new ccorner(ctr, p.x, p.y);					// Constructor sets contour's head and tail
@@ -407,7 +401,6 @@ void CFootprintView::OnLButtonDown(UINT nFlags, CPoint point)
 		m_drag_contour = ctr;
 		m_poly_drag_mode = CUR_FP_ADD_POLY;
 		FootprintModified( TRUE );
-		Invalidate( FALSE );
 		m_snap_angle_ref = m_last_cursor_point;
 	}
 
@@ -418,16 +411,14 @@ void CFootprintView::OnLButtonDown(UINT nFlags, CPoint point)
 		SetDCToWorldCoords( pDC );
 		pDC->SelectClipRgn( &m_pcb_rgn );
 		CPoint p = m_last_cursor_point;
-		m_drag_contour->GetPolyline()->Undraw();
+		PushUndo();
 		ccontour *ctr = m_drag_contour;
 		ccorner *c = new ccorner(ctr, p.x, p.y);
 		cside *s = new cside(ctr, m_polyline_style);
 		ctr->AppendSideAndCorner(s, c, ctr->tail);
-		m_fp->Draw();
+		FootprintModified( TRUE );
 		m_dlist->StartDraggingArc( pDC, m_polyline_style, p.x, p.y, p.x, p.y, LAY_FP_SELECTION, 1, 2 );
 		SetCursorMode( CUR_FP_DRAG_POLY );
-		FootprintModified( TRUE );
-		Invalidate( FALSE );
 		m_snap_angle_ref = m_last_cursor_point;
 	}
 
@@ -446,23 +437,21 @@ void CFootprintView::OnLButtonDown(UINT nFlags, CPoint point)
 		{
 			// cursor point is back at first point, close contour and finish up
 			ctr->Close( m_polyline_style );
-			m_fp->Draw();
+			FootprintModified( TRUE );
 			m_doc->m_dlist->StopDragging();
 			CancelSelection();
 		}
 		else
 		{
 			// add cursor point
-			ctr->GetPolyline()->MustRedraw();
+			// ctr->GetPolyline()->MustRedraw();
 			ccorner *c = new ccorner(ctr, p.x, p.y);
 			cside *s = new cside(ctr, m_polyline_style);
 			ctr->AppendSideAndCorner(s, c, ctr->tail);
-			m_fp->Draw();
+			FootprintModified( TRUE );
 			m_dlist->StartDraggingArc( pDC, m_polyline_style, p.x, p.y, p.x, p.y, LAY_SELECTION, 1, 2 );
 			m_snap_angle_ref = m_last_cursor_point;
 		}
-		FootprintModified( TRUE );
-		Invalidate( FALSE );
 	}
 
 	else if( m_cursor_mode == CUR_FP_DRAG_TEXT )
@@ -479,10 +468,9 @@ void CFootprintView::OnLButtonDown(UINT nFlags, CPoint point)
 		// int mirror = (old_mirror + m_dlist->GetDragSide())%2;
 		int layer = t->m_layer;
 		t->Move( p.x, p.y, angle, false, negative, layer );
-		m_fp->Draw();
+		FootprintModified( TRUE );
 		HighlightSelection();
 		m_dragging_new_item = FALSE;
-		FootprintModified( TRUE );
 	}
 
 	else if( m_cursor_mode == CUR_FP_MOVE_ORIGIN )
@@ -491,8 +479,8 @@ void CFootprintView::OnLButtonDown(UINT nFlags, CPoint point)
 		m_dlist->StopDragging();
 		PushUndo();
 		MoveOrigin( p.x, p.y );
-		CancelSelection();
 		FootprintModified( TRUE );
+		CancelSelection();
 		OnViewEntireFootprint();
 	}
 
@@ -505,9 +493,8 @@ void CFootprintView::OnLButtonDown(UINT nFlags, CPoint point)
 		c->m_x = p.x;
 		c->m_y = p.y;
 		c->m_type = CENTROID_DEFINED;
-		m_fp->Draw();
-		HighlightSelection();
 		FootprintModified( TRUE );
+		HighlightSelection();
 	}
 
 	else if( m_cursor_mode == CUR_FP_DRAG_ADHESIVE )
@@ -517,9 +504,8 @@ void CFootprintView::OnLButtonDown(UINT nFlags, CPoint point)
 		g->CancelDragging();
 		PushUndo();
 		g->x = p.x, g->y = p.y;						// We can assumes that g->type is already GLUE_POS_DEFINED
-		m_fp->Draw();
-		HighlightSelection();
 		FootprintModified( TRUE );
+		HighlightSelection();
 		m_dragging_new_item = FALSE;
 	}
 
@@ -575,15 +561,13 @@ void CFootprintView::OnRButtonDown(UINT nFlags, CPoint point)
 	else if( m_cursor_mode == CUR_FP_DRAG_POLY )
 	{
 		m_dlist->StopDragging();
-		m_drag_contour->GetPolyline()->Undraw();
 		if( m_polyline_closed_flag )
 		{
 			PushUndo();
 			m_drag_contour->Close( m_polyline_style );
+			FootprintModified( TRUE );
+			CancelSelection();
 		}
-		m_fp->Draw();
-		CancelSelection();
-		FootprintModified( TRUE );
 	}
 	else if( m_cursor_mode == CUR_FP_DRAG_POLY_INSERT )
 	{
@@ -661,8 +645,6 @@ void CFootprintView::FinishArrowKey(int x, int y, int dx, int dy) {
 	// CPT: Helper for HandleKeyPress() below.  When user hits an arrow key, that routine moves the
 	// relevant part, then calls here to redisplay and tidy up.
 	m_dlist->CancelHighlight();
-	m_fp->Draw();
-	m_sel.First()->Highlight();							// Works well enough since fp editor only allows single item selection (for now)
 	if (!m_lastKeyWasArrow)
 		m_totalArrowMoveX = 0,
 		m_totalArrowMoveY = 0,
@@ -675,7 +657,7 @@ void CFootprintView::FinishArrowKey(int x, int y, int dx, int dy) {
 	else
 		ShowRelativeDistance(x, y, m_totalArrowMoveX, m_totalArrowMoveY);
 	FootprintModified( TRUE );
-	Invalidate(false);
+	m_sel.First()->Highlight();							// Works well enough since fp editor only allows single item selection (for now)
 }
 
 // Key on keyboard pressed down
@@ -782,8 +764,8 @@ void CFootprintView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 	case CUR_FP_TEXT_SELECTED:
 		if (fk==FK_ARROW) 
 		{
-			PushUndo();
 			ctext *t = m_sel.First()->ToText();
+			PushUndo();
 			t->Move(t->m_x + dx, t->m_y + dy, t->m_angle);
 			FinishArrowKey(t->m_x, t->m_y, dx, dy);
 		}
@@ -793,15 +775,15 @@ void CFootprintView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 			OnFpTextMove();
 		else if (fk == FK_FP_ROTATE_TEXT)
 			OnFpTextRotate();															// CPT2 new F-key.
-		else if( fk == FK_FP_DELETE_CORNER || nChar == 46 )
+		else if( fk == FK_FP_DELETE_TEXT || nChar == 46 )
 			OnFpTextDelete();
 		break;
 
 	case CUR_FP_POLY_CORNER_SELECTED:
 		if (fk==FK_ARROW) 
 		{
-			PushUndo();
 			ccorner *c = m_sel.First()->ToCorner();
+			PushUndo();
 			c->Move( c->x + dx, c->y + dy );
 			FinishArrowKey(c->x, c->y, dx, dy);
 		}
@@ -826,8 +808,8 @@ void CFootprintView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 	case CUR_FP_POLY_SIDE_SELECTED:
 		if (fk==FK_ARROW) 
 		{
-			PushUndo();
 			cside *s = m_sel.First()->ToSide();
+			PushUndo();
 			int x1 = s->preCorner->x, y1 = s->preCorner->y;
 			int x2 = s->postCorner->x, y2 = s->postCorner->y;
 			s->preCorner->Move( x1+dx, y1+dy );
@@ -1257,7 +1239,7 @@ void CFootprintView::OnContextMenu(CWnd* pWnd, CPoint point )
 		pPopup = menu.GetSubMenu(CONTEXT_FP_CORNER);
 		ASSERT(pPopup != NULL);
 		/* CPT2 lifted restriction
-			if( m_fp.m_outline_poly[m_sel_id.I2()].NumCorners() < 4 )
+			if( m_fp.m_outlines[m_sel_id.I2()].NumCorners() < 4 )
 				pPopup->EnableMenuItem( ID_FP_DELETECORNER, MF_GRAYED );
 		*/
 		break;
@@ -1295,11 +1277,9 @@ void CFootprintView::OnPadDelete()
 {
 	cpadstack *ps = m_sel.First()->ToPadstack();
 	PushUndo();
-	CancelSelection();
-	m_fp->Undraw();
-	m_fp->m_padstack.Remove(ps);
-	m_fp->Draw();
+	m_fp->m_padstacks.Remove(ps);
 	FootprintModified( TRUE );
+	CancelSelection();
 }
 
 // edit pad
@@ -1320,7 +1300,6 @@ void CFootprintView::OnPadEdit()
 	int ret = dlg.DoModal();
 	if( ret == IDOK )
 	{
-		// if OK, footprint has already been undrawn by dlg.  
 		if( dlg.m_drag_flag )
 		{
 			// if dragging, move pad back to original position and start
@@ -1333,12 +1312,9 @@ void CFootprintView::OnPadEdit()
 			return;
 		}
 		else
-		{
-			// not dragging, just redraw
-			m_fp->Draw();
+			// not dragging, just redraw and mark modified flag
 			FootprintModified( TRUE );
-		}
-		SelectItem( m_pad_row.First() );
+		SelectItem( m_pad_row.First() );								// CPT2 TODO when group selection is enabled, this must change...
 	}
 	else
 		Undo();	// restore to original state
@@ -1384,10 +1360,8 @@ void CFootprintView::OnPadRotate()
 	PushUndo();
 	ps->angle = (ps->angle + 90) % 360;
 	m_dlist->CancelHighlight();
-	m_fp->Draw();
-	HighlightSelection();
 	FootprintModified( TRUE );
-	Invalidate(false);
+	HighlightSelection();
 }
 
 
@@ -1395,10 +1369,9 @@ void CFootprintView::OnOutlineDelete()
 {
 	PushUndo();
 	coutline *o = m_sel.First()->GetPolyline()->ToOutline();
-	o->Undraw();
-	m_fp->m_outline_poly.Remove(o);
-	CancelSelection();
+	m_fp->m_outlines.Remove(o);
 	FootprintModified( TRUE );
+	CancelSelection();
 }
 
 // move an outline polyline corner
@@ -1431,12 +1404,9 @@ void CFootprintView::OnOutlineCornerEdit()
 	if( ret != IDOK ) 
 		return;
 	PushUndo();
-	m_fp->Undraw();
 	c->Move(dlg.X(), dlg.Y());
-	m_fp->Draw();
-	HighlightSelection();
-	Invalidate( FALSE );
 	FootprintModified( TRUE );
+	HighlightSelection();
 }
 
 // delete an outline polyline board corner
@@ -1448,12 +1418,9 @@ void CFootprintView::OnOutlineCornerDelete()
 	if (poly->NumCorners()<3 || poly->NumCorners()==3 && poly->IsClosed())
 		{ OnOutlineDelete(); return; }
 	PushUndo();
-	m_fp->Undraw();
 	c->Remove();
-	m_fp->Draw();
-	CancelSelection();
 	FootprintModified( TRUE );
-	Invalidate( FALSE );
+	CancelSelection();
 }
 
 // insert a new corner in a side of a polyline
@@ -1477,10 +1444,8 @@ void CFootprintView::OnOutlineSideConvert(int style)
 	cpolyline *poly = s->GetPolyline();
 	PushUndo();
 	s->m_style = style;
-	m_fp->Draw();
-	HighlightSelection();
 	FootprintModified( TRUE );
-	Invalidate( FALSE );
+	HighlightSelection();
 }
 
 void CFootprintView::OnOutlineSideConvertToStraightLine()
@@ -1497,13 +1462,10 @@ void CFootprintView::OnOutlineSideDelete()
 	// CPT2 r317 new feature.
 	cside *s = m_sel.First()->ToSide();
 	PushUndo();
-	m_fp->Undraw();
 	// NB the following typecast from carray<coutline>* to carray<cpolyline>* is distasteful but hopefully safe:
-	s->Remove( (carray<cpolyline>*) &m_fp->m_outline_poly );
-	m_fp->Draw();
-	CancelSelection();
+	s->Remove( (carray<cpolyline>*) &m_fp->m_outlines );
 	FootprintModified( TRUE );
-	Invalidate( FALSE );
+	CancelSelection();
 }
 
 // detect state where nothing is selected or being dragged
@@ -1637,6 +1599,7 @@ LONG CFootprintView::OnChangeUnits( UINT wp, LONG lp )
 		ASSERT(0);
 	// CPT: FootprintModified(TRUE);
 	SetFocus();
+	Invalidate(false);
 	return 0;
 }
 
@@ -1669,7 +1632,8 @@ void CFootprintView::OnAddPin()
 		return;
 	}
 	else
-		m_fp->Draw();
+		FootprintModified( true ),
+		SelectItem( m_pad_row.First());			// CPT2 TODO when multi-selection is enabled, improve this...
 }
 
 void CFootprintView::OnFootprintFileSaveAs()
@@ -1689,7 +1653,7 @@ void CFootprintView::OnFootprintFileSaveAs()
 	// now save it
 	CDlgSaveFootprint dlg;
 	dlg.Initialize( &str_name, m_fp, m_units, "",
-		&m_doc->m_footprint_cache_map, &m_doc->m_footlibfoldermap, m_doc->m_dlg_log );	
+		m_doc->m_slist, &m_doc->m_footlibfoldermap, m_doc->m_dlg_log );	
 	int ret = dlg.DoModal();
 	if( ret == IDOK )	
 	{
@@ -1703,7 +1667,7 @@ void CFootprintView::OnFootprintFileSaveAs()
 void CFootprintView::OnAddOutline()
 {
 	CDlgAddPoly dlg;
-	dlg.Initialize( TRUE, -1, m_units, -1, TRUE, &m_fp->m_padstack );
+	dlg.Initialize( TRUE, -1, m_units, -1, TRUE, &m_fp->m_padstacks );
 	int ret = dlg.DoModal();
 	if (ret!=IDOK) 
 		return;
@@ -1727,26 +1691,23 @@ void CFootprintView::OnOutlineEdit()
 {
 	cpolyline *poly = m_sel.First()->GetPolyline();
 	CDlgAddPoly dlg;
-	dlg.Initialize( FALSE, poly->m_layer, m_units, poly->m_w, poly->IsClosed(), &m_fp->m_padstack );
+	dlg.Initialize( FALSE, poly->m_layer, m_units, poly->m_w, poly->IsClosed(), &m_fp->m_padstacks );
 	int ret = dlg.DoModal();
 	if( ret != IDOK )
 		return;
 	// change polyline properties
 	PushUndo();
-	poly->Undraw();
 	poly->m_w = dlg.GetWidth();
 	poly->m_layer = dlg.GetLayer();
 	poly->SetClosed( dlg.GetClosedFlag() );
-	m_fp->Draw();
-	HighlightSelection();
 	FootprintModified( TRUE );
-	Invalidate( FALSE );
+	HighlightSelection();
 }
 
 void CFootprintView::OnFootprintFileImport()
 {
 	CDlgImportFootprint dlg;
-	dlg.InitInstance( &m_doc->m_footprint_cache_map, &m_doc->m_footlibfoldermap, m_doc->m_dlg_log );
+	dlg.InitInstance( m_doc->m_slist, &m_doc->m_footlibfoldermap, m_doc->m_dlg_log );
 	int ret = dlg.DoModal();
 
 	// now import if OK
@@ -1778,7 +1739,7 @@ void CFootprintView::OnFootprintFileClose()
 
 	// reset selection rectangle
 	CRect br = m_fp->GetAllPadBounds();
-	citer<coutline> io (&m_fp->m_outline_poly);
+	citer<coutline> io (&m_fp->m_outlines);
 	for (coutline *o = io.First(); o; o = io.Next())
 	{
 		CRect polyr = o->GetBounds();
@@ -1829,15 +1790,11 @@ void CFootprintView::OnFootprintFileNew()
 	Invalidate( FALSE );
 }
 
-void CFootprintView::FootprintModified( BOOL flag, BOOL force, BOOL clear_redo )
+void CFootprintView::FootprintModified( BOOL flag, BOOL clear_redo )
 {
 	// if requested, clear redo stack (this is the default)
 	if( clear_redo )
 		ClearRedo();
-
-	// see if we need to do anything
-	if( flag == m_doc->m_footprint_modified && !force )
-		return;	// no!
 
 	// OK, set state and window title
 	m_doc->m_footprint_modified = flag;
@@ -1855,6 +1812,8 @@ void CFootprintView::FootprintModified( BOOL flag, BOOL force, BOOL clear_redo )
 	}
 	CMainFrame * pMain = (CMainFrame*)AfxGetMainWnd();
 	pMain->SetWindowText( m_doc->m_fp_window_title );
+	m_fp->Draw();
+	Invalidate(false);
 }
 
 void CFootprintView::FootprintNameChanged( CString * str )
@@ -1907,30 +1866,23 @@ void CFootprintView::OnViewEntireFootprint()
 
 void CFootprintView::ClearUndo()
 {
-	int n = undo_stack.GetSize();
-	for( int i=0; i<n; i++ )
-		delete undo_stack[i];
 	undo_stack.RemoveAll();
 	EnableUndo( FALSE );
 }
 
 void CFootprintView::ClearRedo()
 {
-	int n = redo_stack.GetSize();
-	for( int i=0; i<n; i++ )
-		delete redo_stack[i];
 	redo_stack.RemoveAll();
 	EnableRedo( FALSE );
 }
 
 void CFootprintView::PushUndo()
 {
+	// CPT2 as a convenience I've added a footprint undraw here:
+	m_fp->Undraw();
 	if( undo_stack.GetSize() > 100 )
-	{
-		delete undo_stack[0];
 		undo_stack.RemoveAt( 0 );
-	}
-	CEditShape * sh = new CEditShape( m_fp );
+	cshape * sh = new cshape( m_fp );
 	undo_stack.Add( sh );
 	EnableUndo( TRUE );
 }
@@ -1938,11 +1890,8 @@ void CFootprintView::PushUndo()
 void CFootprintView::PushRedo()
 {
 	if( redo_stack.GetSize() > 100 )
-	{
-		delete redo_stack[0];
 		redo_stack.RemoveAt( 0 );
-	}
-	CEditShape * sh = new CEditShape (m_fp);
+	cshape * sh = new cshape (m_fp);
 	redo_stack.Add( sh );
 	EnableRedo( TRUE );
 }
@@ -1964,15 +1913,15 @@ void CFootprintView::UndoNoRedo()
 	if( n )
 	{
 		CancelSelection();
+		m_fp->Undraw();
 		m_fp->Clear();
-		CEditShape * sh = undo_stack[n-1];
+		cshape * sh = undo_stack[n-1];
 		m_fp->Copy( sh );
 		m_fp->Draw();
-		delete sh;
 		undo_stack.SetSize( n-1 );
 	}
 	EnableUndo( undo_stack.GetSize() );
-	FootprintModified( TRUE, 0, 0 );	// don't clear redo stack
+	FootprintModified( TRUE, FALSE );	// don't clear redo stack
 	Invalidate( FALSE );
 }
 
@@ -1983,15 +1932,15 @@ void CFootprintView::Redo()
 	if( n )
 	{
 		CancelSelection();
+		m_fp->Undraw();
 		m_fp->Clear();
-		CEditShape * sh = redo_stack[n-1];
+		cshape * sh = redo_stack[n-1];
 		m_fp->Copy( sh );
 		m_fp->Draw();
-		delete sh;
 		redo_stack.SetSize( n-1 );
 	}
 	EnableRedo( redo_stack.GetSize() );
-	FootprintModified( TRUE, 0, 0 ); 	// don't clear redo stack
+	FootprintModified( TRUE, FALSE ); 	// don't clear redo stack
 	Invalidate( FALSE );
 }
 
@@ -2017,21 +1966,23 @@ void CFootprintView::OnFpToolsFootprintWizard()
 			return;
 		else if( ret == IDYES )
 			OnFootprintFileSaveAs();
+		else
+			CancelHighlight();
 	}
 
 	// OK, launch wizard
 	CDlgWizQuad dlg;
-	dlg.Initialize( &m_doc->m_footprint_cache_map, &m_doc->m_footlibfoldermap, 
+	dlg.Initialize( m_doc->m_slist, &m_doc->m_footlibfoldermap, 
 		FALSE, m_doc->m_dlg_log );
 	int ret = dlg.DoModal();
 	if( ret == IDOK )
 	{
 		// import wizard-created footprint
+		m_fp->Undraw();
 		m_fp->Clear();
 		m_fp->Copy( dlg.m_footprint );
-		m_fp->Draw();
 		SetWindowTitle( &m_fp->m_name );
-		FootprintModified( TRUE, TRUE );
+		FootprintModified( TRUE );
 		// switch to wizard units
 		CMainFrame * frm = (CMainFrame*)AfxGetMainWnd();
 		frm->m_wndMyToolBar.SetUnits( dlg.m_units );
@@ -2079,8 +2030,8 @@ void CFootprintView::OnAddText()
 
 	PushUndo();
 	ctext *t = m_fp->m_tl->AddText( x, y, angle, FALSE, FALSE, 
-		layer, font_size, stroke_width, &str );
-	m_fp->Draw();
+		layer, font_size, stroke_width, &str, NULL, m_fp );
+	FootprintModified(true);
 	SelectItem(t);
 	// set pDC to PCB coords
 	if( dlg.m_bDrag )
@@ -2093,6 +2044,7 @@ void CFootprintView::OnAddText()
 		SetCursorMode( CUR_FP_DRAG_TEXT );
 		ReleaseDC( pDC );
 	}
+
 }
 
 // move text
@@ -2119,11 +2071,9 @@ void CFootprintView::OnFpTextRotate()
 {
 	ctext *t = m_sel.First()->ToText();
 	PushUndo(); 
-	m_fp->Undraw();
 	t->m_angle = (t->m_angle + 90) % 360;
-	m_fp->Draw();
-	HighlightSelection();
 	FootprintModified( TRUE );
+	HighlightSelection();
 	Invalidate( FALSE );
 }
 
@@ -2133,11 +2083,9 @@ void CFootprintView::OnFpTextDelete()
 	if (t->IsRefText() || t->IsValueText())
 		return;
 	PushUndo(); 
-	m_fp->Undraw();
 	m_fp->m_tl->texts.Remove(t);
-	m_fp->Draw();
-	CancelSelection();
 	FootprintModified( TRUE );
+	CancelSelection();
 	Invalidate( FALSE );
 }
 
@@ -2162,7 +2110,6 @@ void CFootprintView::OnFpTextEdit()
 	else
 	{
 		PushUndo();
-		m_fp->Undraw();
 		t->m_layer = dlg.m_layer;
 		t->m_x = dlg.m_x;
 		t->m_y = dlg.m_y;
@@ -2176,7 +2123,6 @@ void CFootprintView::OnFpTextEdit()
 		else
 			CancelSelection();
 	}
-	Invalidate( FALSE );
 	FootprintModified(TRUE);											// CPT
 	EnableRevealValue();
 }
@@ -2187,9 +2133,7 @@ void CFootprintView::OnValueReveal()
 	// CPT:  new function for revealing hidden (i.e. size 0) value text
 	PushUndo();
 	CancelSelection();
-	m_fp->Undraw();
 	m_fp->GenerateValueParams();
-	m_fp->Draw();
 	FootprintModified(true);
 	EnableRevealValue();
 	OnViewEntireFootprint();
@@ -2265,16 +2209,14 @@ void CFootprintView::OnToolsMoveOriginFP()
 	}
 	else
 	{
-		PushUndo();
-		CancelSelection();
 		MoveOrigin( dlg.m_x, dlg.m_y );
 		OnViewEntireFootprint();
+		CancelSelection();
 	}
 }
 
 void CFootprintView::MoveOrigin( int x, int y )
 {
-	m_fp->Undraw(); 
 	m_fp->m_sel_xi -= x;
 	m_fp->m_sel_xf -= x;
 	m_fp->m_sel_yi -= y;
@@ -2285,11 +2227,11 @@ void CFootprintView::MoveOrigin( int x, int y )
 	m_fp->m_value->m_y -= y;
 	m_fp->m_centroid->m_x -= x; 
 	m_fp->m_centroid->m_y -= y;
-	citer<cpadstack> ips (&m_fp->m_padstack);
+	citer<cpadstack> ips (&m_fp->m_padstacks);
 	for (cpadstack *ps = ips.First(); ps; ps = ips.Next())
 		ps->x_rel -= x,
 		ps->y_rel -= y;
-	citer<coutline> io (&m_fp->m_outline_poly);
+	citer<coutline> io (&m_fp->m_outlines);
 	for (coutline *o = io.First(); o; o = io.Next())
 		o->Offset( -x, -y );
 	m_fp->m_tl->MoveOrigin( -x, -y );
@@ -2298,8 +2240,6 @@ void CFootprintView::MoveOrigin( int x, int y )
 		if (g->type==GLUE_POS_DEFINED)
 			g->x -= x,
 			g->y -= y;
-	m_fp->Draw();
-	FootprintModified( TRUE );
 }
 
 void CFootprintView::EnableUndo( BOOL bEnable )
@@ -2433,7 +2373,7 @@ void CFootprintView::OnAddAdhesive()
 	if( ret != IDOK )
 		return;
 	PushUndo();		// save state before creation of dot
-	cglue *g = new cglue(m_doc, dlg.m_pos_type, dlg.m_w, dlg.m_x, dlg.m_y);
+	cglue *g = new cglue(m_fp, dlg.m_pos_type, dlg.m_w, dlg.m_x, dlg.m_y);
 	m_fp->m_glues.Add(g);
 	m_fp->Draw();
 	SelectItem(g);
@@ -2533,7 +2473,6 @@ void CFootprintView::OnAdhesiveDelete()
 {
 	cglue *g = m_sel.First()->ToGlue();
 	PushUndo();
-	m_fp->Undraw();
 	m_fp->m_glues.Remove(g);
 	m_fp->Draw();
 	CancelSelection();
@@ -2606,7 +2545,7 @@ void CFootprintView::HighlightSelection()
 	CancelHighlight();
 	citer<cpcb_item> ii (&m_sel);
 	for (cpcb_item *i = ii.First(); i; i = ii.Next())
-		if (i->IsValid())
+		if (i->IsOnPcb())
 			i->Highlight();
 		else
 			m_sel.Remove(i);
