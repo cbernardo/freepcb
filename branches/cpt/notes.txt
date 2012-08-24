@@ -64,7 +64,7 @@ related change, I'm changing CFootprintView::m_fp to a pointer, which makes it e
 We'll see how well all this pans out down the line...
 
 NB drawing and undrawing are simpler in the footprint editor than in the main editor.  Just 
-undraw the whole footprint, make whatever changes, then redraw the whole footprint.  As of r336, CFootprintView::PushUndo does an undraw as 
+undraw the whole footprint, make whatever changes, then redraw the whole footprint.  As of r335, CFootprintView::PushUndo does an undraw as 
 a convenience, and CFootprintView::FootprintModified does a draw.
 
 I've attempted to improve the behavior of right-clicking.  Now a right-click will select an appropriate object right away, without having to do a 
@@ -94,13 +94,13 @@ Note that in r322 CFreePcbDoc::ProjectModified(true) has been assigned some more
 namely, it invokes both CFreePcbDoc::Redraw(), and FinishUndoRecord() (a crucial piece of the new undo architecture).  It also calls Invalidate(false) as
 well as CCommonView::SetMainMenu().
 
-Regarding phantom pins, as of r329 I no longer bail out with an error if they're found in a document being loaded.  Instead, the program just
-ignores them.
-
-Irritating discovery during r332:  all the trouble we've been having with CFileDialog is an artifact of compiling in Debug mode.  If you do
+Irritating discovery during r325:  all the trouble we've been having with CFileDialog is an artifact of compiling in Debug mode.  If you do
 a Release-version compile, all the flaky behavior disappears.  Thanks a lot, MS...  Did a lot of research before I figured that out, and
 made headway on understanding MS's preferred new API for selecting files.  Made some code sketches in case we want ever to move in that
 direction.
+
+Regarding phantom pins, as of r329 I no longer bail out with an error if they're found in a document being loaded.  Instead, the program just
+ignores them.
 
 As of r335 class cshape and the whole footprint machinery has been overhauled.  cshape 
 (formerly CShape) is now a descendant of cpcb_item, meaning that memory

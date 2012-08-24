@@ -497,6 +497,10 @@ cpart2::cpart2(CFreePcbDoc *_doc, int _uid):
 	shape = NULL;
 }
 
+cpart2::~cpart2()
+	// Because of garbage collection, we don't have to worry about calling destructors for any referenced cpcb_items.
+	{ delete m_tl; }
+
 bool cpart2::IsOnPcb()
 	{ return doc->m_plist->parts.Contains(this); }
 
@@ -631,10 +635,11 @@ void cpart2::Remove(bool bEraseTraces, bool bErasePart)
 		{
 			// Make a list of vertices that are attached to the current pin.
 			pin->GetVtxs(&vtxs);
-			if (vtxs.IsEmpty()) continue;
-			// Loop thru each vtx, and if the incoming seg is a ratline, erase it (and the vertex).  Otherwise, null out the vtx's "pin" member, and
-			// assign it instead to a new tee structure.
-			ctee *tee = new ctee(pin->net);
+			int nVtxs = vtxs.GetSize();
+			if (nVtxs==0) continue;
+			// Loop thru each vtx, and if the incoming seg is a ratline, erase it (and the vertex).  Otherwise, null out the vtx's "pin" member.
+			// Before r336 I tried some fancy business with combining left-over vtxs into a tee, but that caused many headaches and ultimately
+			// didn't seem  worth the trouble.
 			citer<cvertex2> iv (&vtxs);
 			for (cvertex2 *v = iv.First(); v; v = iv.Next())
 				if (v->preSeg && v->preSeg->IsOnPcb() && v->preSeg->m_layer == LAY_RAT_LINE)
@@ -642,9 +647,7 @@ void cpart2::Remove(bool bEraseTraces, bool bErasePart)
 				else if (v->postSeg && v->postSeg->IsOnPcb() && v->postSeg->m_layer == LAY_RAT_LINE)
 					v->postSeg->RemoveBreak();
 				else
-					v->pin = NULL,
-					tee->Add(v);
-			tee->Adjust();
+					v->pin = NULL;
 		}
 	}
 }
@@ -754,6 +757,15 @@ CRect cpart2::CalcSelectionRect()
 	sel.bottom += y;
 	sel.top += y;
 	return sel;
+}
+
+void cpart2::MarkConstituents(int util)
+{
+	utility = util;
+	pins.SetUtility(util);
+	m_ref->utility = util;
+	m_value->utility = util;
+	m_tl->texts.SetUtility(util);
 }
 
 void cpart2::InitPins()

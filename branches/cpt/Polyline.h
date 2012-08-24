@@ -15,7 +15,6 @@ class ccorner: public cpcb_item
 public:
 	int x, y;
 	ccontour *contour;				// CPT2.
-	// dl_element * dl_corner_sel;  // Use cpcb_item::dl_sel
 	cside *preSide, *postSide;		// CPT2
 
 	ccorner(ccontour *_contour, int _x, int _y);		// Done in cpp
@@ -48,8 +47,6 @@ class cside: public cpcb_item
 public:
 	int m_style;					// TODO change to style?
 	ccontour *contour;				// CPT2
-	// dl_element * dl_side;		// Use base dl_el
-	// dl_element * dl_side_sel;	// Use base dl_sel
 	ccorner *preCorner, *postCorner;
 
 	cside(ccontour *_contour, int _style);
@@ -151,6 +148,7 @@ public:
 	cpolyline(CFreePcbDoc *_doc);														// Done in cpp
 	cpolyline(cpolyline *src, bool bCopyContours=true);									// Done in cpp
 	cpolyline(CFreePcbDoc *_doc, int _uid);
+	~cpolyline();
 
 	bool IsPolyline() { return true; }
 	cpolyline *ToPolyline() { return this; }
@@ -212,10 +210,6 @@ public:
 	virtual bool PolygonModified( bool bMessageBoxArc, bool bMessageBoxInt );			// Done in cpp.  Generalization of old carea2 func.
 																						// Virtual, because at least for now cboard is overriding it (to
 																						// do nothing)
-	// PHP functions.  CPT2 TODO apparently obsolete.
-	int MakePhpPoly();
-	void FreePhpPoly();
-	void ClipPhpPolygon( int php_op, cpolyline * poly );
 };
 
 // carea2: describes a copper area in a net.
@@ -252,7 +246,6 @@ class csmcutout : public cpolyline
 public:
 	csmcutout(CFreePcbDoc *_doc, int layer, int hatch);									// Done in cpp
 	csmcutout(CFreePcbDoc *_doc, int _uid);
-	~csmcutout() { }
 
 	bool IsOnPcb();																		// Done in cpp
 	bool IsSmCutout() { return true; }

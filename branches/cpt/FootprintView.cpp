@@ -830,7 +830,6 @@ void CFootprintView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 			OnOutlineEdit();
 		else if (fk == FK_FP_DELETE_SIDE || nChar == 46)						// CPT2 new.
 			OnOutlineSideDelete();
-		FootprintModified( TRUE );
 		break;
 
 	case CUR_FP_CENTROID_SELECTED:

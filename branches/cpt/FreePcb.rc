@@ -1917,9 +1917,9 @@ BEGIN
     LTEXT           "Static",IDC_STATIC_MYMESSAGE_2,24,12,276,54
 END
 
-IDD_GROUP_PASTE DIALOGEX 0, 0, 298, 420
+IDD_GROUP_PASTE DIALOGEX 0, 0, 298, 403
 STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
-CAPTION "Paste Group"
+CAPTION "Paste Items from the Clipboard"
 FONT 8, "MS Shell Dlg", 400, 0, 0x1
 BEGIN
     CONTROL         "Use next available number for each part",IDC_RADIO_USE_NEXT_REF,
@@ -1928,14 +1928,14 @@ BEGIN
                     "Button",BS_AUTORADIOBUTTON,24,54,233,10
     CONTROL         "Add fixed offset of",IDC_RADIO_ADD_REF_OFFSET,"Button",BS_AUTORADIOBUTTON,24,66,77,10
     EDITTEXT        IDC_EDIT_REF_OFFSET,101,66,30,12,ES_AUTOHSCROLL
-    CONTROL         "Merge group nets with project nets of same name",IDC_RADIO_USE_GROUP_NETS,
-                    "Button",BS_AUTORADIOBUTTON | WS_GROUP,24,123,175,10
+    CONTROL         "Merge clipboard nets with project nets of same name",IDC_RADIO_USE_GROUP_NETS,
+                    "Button",BS_AUTORADIOBUTTON | WS_GROUP,24,123,185,10
     CONTROL         "Use checkboxes in list below to select nets to merge, rename the rest",IDC_RADIO_USE_SELECTED_NETS,
                     "Button",BS_AUTORADIOBUTTON,24,135,238,10
     CONTROL         "",IDC_LIST_SELECT_GROUP_NETS,"SysListView32",LVS_REPORT | LVS_SHOWSELALWAYS | LVS_ALIGNLEFT | WS_BORDER | WS_TABSTOP,36,147,240,148
     LTEXT           "Rename unselected nets:",IDC_STATIC,36,298,82,8
-    CONTROL         "Add ""_$Gn"" suffix, where n is incremented for each group pasted",IDC_RADIO_USE_SUFFIX,
-                    "Button",BS_AUTORADIOBUTTON | WS_GROUP,36,310,225,10
+    CONTROL         "Add ""_$Gn"" suffix, where n is incremented each time you paste",IDC_RADIO_USE_SUFFIX,
+                    "Button",BS_AUTORADIOBUTTON | WS_GROUP,36,310,218,10
     CONTROL         "Generate new names with ""Nnnnnn"" format",IDC_RADIO_MAKE_NEW_NAMES,
                     "Button",BS_AUTORADIOBUTTON,36,320,155,10
     CONTROL         "Drag to position",IDC_RADIO_DRAG,"Button",BS_AUTORADIOBUTTON | WS_GROUP,12,339,67,10
@@ -1946,14 +1946,14 @@ BEGIN
     COMBOBOX        IDC_COMBO_GROUP_UNITS,252,351,36,44,CBS_DROPDOWNLIST | CBS_SORT | WS_VSCROLL | WS_TABSTOP
     DEFPUSHBUTTON   "OK",IDOK,54,372,50,14
     PUSHBUTTON      "Cancel",IDCANCEL,192,372,50,14
-    LTEXT           "You are pasting a group of parts and trace segments into the project.",IDC_STATIC,12,6,224,8
-    GROUPBOX        "Group parts",IDC_STATIC,12,30,276,53
-    GROUPBOX        "Group nets (pin connections, traces, copper areas)",IDC_STATIC,12,87,276,246
+    LTEXT           "You are pasting one or more items from the clipboard into the project.",IDC_STATIC,12,6,224,8
+    GROUPBOX        "Clipboard parts",IDC_STATIC,12,30,276,53
+    GROUPBOX        "Clipboard nets (pin connections, traces, copper areas)",IDC_STATIC,12,87,276,246
     LTEXT           "Y",IDC_STATIC,174,353,8,8
     LTEXT           "Units",IDC_STATIC,233,353,17,8
-    LTEXT           "You must choose how to handle the parts and nets in the group.",IDC_STATIC,12,18,207,8
-    CONTROL         "Ignore group nets that include no routed traces or areas",IDC_CHECK_IGNORE_EMPTY_NETS,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,24,102,197,10
+    LTEXT           "You must choose how to handle the parts and nets that are being imported.",IDC_STATIC,12,18,244,8
+    CONTROL         "Ignore clipboard nets that include no routed traces or areas",IDC_CHECK_IGNORE_EMPTY_NETS,
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,24,102,207,10
 END
 
 IDD_REASSIGN_LAYERS DIALOGEX 0, 0, 184, 346
@@ -2684,7 +2684,7 @@ BEGIN
         LEFTMARGIN, 7
         RIGHTMARGIN, 291
         TOPMARGIN, 7
-        BOTTOMMARGIN, 413
+        BOTTOMMARGIN, 396
     END
 
     IDD_REASSIGN_LAYERS, DIALOG
@@ -4464,6 +4464,9 @@ BEGIN
     IDS_STRING62697         "Package"
     IDS_STRING62698         "Footprint"
     IDS_STRING62699         "Value"
+    IDS_NoticeConflictsWereFoundBetweenTheFootprints 
+                            "\r\nNotice:  Conflicts were found between the footprints of parts you are\r\npasting and the footprints of parts already on the board.  Therefore new \r\nfootprint name(s) have been created for the following new part(s):\r\n"
+    IDS_PartFootprint       "   %s - footprint ""%s""\r\n"
 END
 
 #endif    // English (United States) resources

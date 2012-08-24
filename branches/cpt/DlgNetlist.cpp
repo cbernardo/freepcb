@@ -1,6 +1,8 @@
 // DlgNetlist.cpp : implementation file
 //
 
+// CPT2 TODO make improvements to the UI like the ones in DlgPartlist (double-clicking, reselecting the OK button, maybe others...)
+
 #include "stdafx.h"
 #include "FreePcb.h"
 #include "DlgNetlist.h"

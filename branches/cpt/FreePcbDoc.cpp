@@ -171,8 +171,8 @@ CFreePcbDoc::CFreePcbDoc()
 	clip_plist = new cpartlist( this );
 	clip_nlist = new cnetlist( this );
 	clip_plist->UseNetList( clip_nlist );
-	// clip_plist->SetShapeCacheMap( &m_footprint_cache_map );
 	clip_tlist = new ctextlist( this );
+	clip_slist = new cshapelist( this );
 }
 
 CFreePcbDoc::~CFreePcbDoc()
@@ -2166,8 +2166,11 @@ void CFreePcbDoc::InitializeNewProject()
 
 // Call this function whenever a user operation is finished,
 // or to clear the modified flags.  CPT2 also takes care of closing out the operation's undo record, and as a convenience it also
-// calls Redraw().
+// calls Redraw().  Finally, it also launches garbage collection every so often.
 //
+int gGarbageCollectCt = 0;
+const int gGarbageCollectFreq = 50;
+
 void CFreePcbDoc::ProjectModified( BOOL flag, BOOL bCombineWithPreviousUndo )
 {
 	CWnd* pMain = AfxGetMainWnd();
@@ -2207,6 +2210,10 @@ void CFreePcbDoc::ProjectModified( BOOL flag, BOOL bCombineWithPreviousUndo )
 	pMain->SetWindowText( m_window_title );
 	m_view->SetMainMenu();
 	m_view->Invalidate(false);
+	// Maybe garbage collect!
+	if (++gGarbageCollectCt == gGarbageCollectFreq)
+		gGarbageCollectCt = 0,
+		GarbageCollect();
 }
 
 void CFreePcbDoc::OnViewLayers()
@@ -3713,13 +3720,13 @@ void CFreePcbDoc::OnEditPasteFromFile()
 		AfxMessageBox( mess );
 		return;
 	}
-	// clear clipboard objects to hold group
+	// clear clipboard lists to accommodate the incoming file.
+	clip_slist->shapes.RemoveAll();
 	clip_nlist->nets.RemoveAll();
 	clip_plist->parts.RemoveAll();
 	clip_tlist->texts.RemoveAll();
 	clip_smcutouts.RemoveAll();
 	clip_boards.RemoveAll();
-	cshapelist tmp_shapes (this);
 	try
 	{
 		// get layers
@@ -3739,40 +3746,29 @@ void CFreePcbDoc::OnEditPasteFromFile()
 			return;
 		}
 
-		// read footprints
-		while( in_str.Left(12) != "[footprints]" )
-		{
-			fpos = pcb_file.GetPosition();
-			pcb_file.ReadString( in_str );
-		}
-		pcb_file.Seek( fpos, CFile::begin );
-		tmp_shapes.ReadShapes( &pcb_file );
-		// copy footprints to project cache if necessary
-		// CPT2 TODO I can see potential trouble here if there are shared names but different shapes (from different libraries, say)
-		citer<cshape> is (&tmp_shapes.shapes);
-		for (cshape *s = is.First(); s; s = is.Next())
-			if (!m_slist->GetShapeByName( &s->m_name ))
-				m_slist->shapes.Add(s);
-
 		// CPT2 here's a sleazy way to deal with reading in the file to the clipboard:  transfer the current contents of the main lists
-		// (m_plist, m_nlist, m_tlist, boards, smcutouts) to temporary locations.  Then read in the file to the main lists in the usual way,
+		// (m_slist, m_plist, m_nlist, m_tlist, boards, smcutouts) to temporary locations.  Then read in the file to the main lists in the usual way,
 		// transfer from the main lists to the clipboard lists, and restore the original main lists.
+		carray<cshape> tmpShapes;
 		carray<cpart2> tmpParts;
 		carray<cnet2> tmpNets;
 		carray<ctext> tmpTexts;
 		carray<cboard> tmpBoards;
 		carray<csmcutout> tmpSms;
+		m_slist->shapes.TransferTo(&tmpShapes);
 		m_plist->parts.TransferTo(&tmpParts);
 		m_nlist->nets.TransferTo(&tmpNets);
 		m_tlist->texts.TransferTo(&tmpTexts);
 		boards.TransferTo(&tmpBoards);
 		smcutouts.TransferTo(&tmpSms);
+		m_slist->ReadShapes( &pcb_file );
 		ReadBoardOutline( &pcb_file );
 		ReadSolderMaskCutouts( &pcb_file );
 		m_plist->ReadParts( &pcb_file );
 		m_nlist->ReadNets( &pcb_file, m_read_version );
 		m_tlist->ReadTexts( &pcb_file );
 		pcb_file.Close();
+		m_slist->shapes.TransferTo(&clip_slist->shapes);
 		m_plist->parts.TransferTo(&clip_plist->parts);
 		m_nlist->nets.TransferTo(&clip_nlist->nets);
 		m_tlist->texts.TransferTo(&clip_tlist->texts);
@@ -3785,6 +3781,7 @@ void CFreePcbDoc::OnEditPasteFromFile()
 		citer<cnet2> in (&clip_nlist->nets);
 		for (cnet2 *net = in.First(); net; net = in.Next())
 			net->m_nlist = clip_nlist;
+		tmpShapes.TransferTo(&m_slist->shapes);
 		tmpParts.TransferTo(&m_plist->parts);
 		tmpNets.TransferTo(&m_nlist->nets);
 		tmpTexts.TransferTo(&m_tlist->texts);
@@ -4036,8 +4033,8 @@ void CFreePcbDoc::FinishUndoRecord(bool bCombineWithPrevious)
 	// The user operation has just finished.  Create a bundle containing all of the undo items that have been created by cpcb_item::SaveUndoInfo().
 	// We have to clear duplicates out of that CArray (unlike with carray's, that's not automatic).
 	// If bCombineWithPrevious is true, we combine this operation's undo items with the items in the previously created undo record, so that
-	//   hitting ctrl-z jumps user all the way back to the state before this routine's previous invocation.
-	CArray<cundo_item*> uitems;
+	//   hitting ctrl-z jumps user all the way back to the state before this routine's previous invocation (useful e.g. with arrow keys).
+	CArray<cundo_item*> uitems;						// Will hold the culled-out list of items, possibly merged with the previous record's items
 	items.SetUtility(0);
 	if (m_undo_pos==0)
 		bCombineWithPrevious = false;
@@ -4517,59 +4514,61 @@ void CFreePcbDoc::Redraw()
 	redraw.RemoveAll();
 }
 
-#ifndef CPT2
+
 void CFreePcbDoc::GarbageCollect() {
-	// Part of my proposed new architecture is to take some of the hassle out of memory management for pcb-items by using garbage collection.
+	// CPT2 Part of my new architecture is to take some of the hassle out of memory management for pcb-items by using garbage collection.
 	// Each time an item is constructed, it is added to the "items" array.  If an item goes out of use, one does not have to "delete" it;
 	// just unhook it from its parent entity or array.  When garbage collection time comes, we'll first clear the utility bits on all members of
 	// "items".  Then we'll scan through the doc's netlist (recursing through connects, segs, vtxs, tees, areas), partlist (recursing through pins), 
-	// textlist, and otherlist, marking utility bits as we go.  At the end, items with clear utility bits can be deleted.
-	citer<cpcb_item> ii (&items);
-	for (cpcb_item *i = ii.First(); i; i = ii.Next())
-		i->utility = 0;
+	// textlist, smcutout-list, board-list and shape-list, marking utility bits as we go.  Also do the same for the clipboard lists.
+	// At the end, items with clear utility bits can be deleted.
+	items.SetUtility(0);
 
 	citer<cnet2> in (&m_nlist->nets);
-	for (cnet2 *n = in.First(); n; n = in.Next()) {
-		n->utility = 1;
-		citer<cconnect2> ic (&n->connects);
-		for (cconnect2 *c = ic.First(); c; c = ic.Next()) {
-			c->utility = 1;
-			citer<cvertex2> iv (&c->vtxs);
-			for (cvertex2 *v = iv.First(); v; v = iv.Next()) {
-				v->utility = 1;
-				if (v->tee) v->tee->utility = 1;
-				}
-			citer<cseg2> is (&c->segs);
-			for (cseg2 *s = is.First(); s; s = is.Next())
-				s->utility = 1;
-			}
-		citer<carea2> ia (&n->areas);
-		for (carea2 *a = ia.First(); a; a = ia.Next())
-			a->MarkConstituents();
-		}
+	for (cnet2 *n = in.First(); n; n = in.Next()) 
+		n->MarkConstituents(1);
 	citer<cpart2> ip (&m_plist->parts);
-	for (cpart2 *p = ip.First(); p; p = ip.Next()) {
-		p->utility = 1;
-		citer<cpin2> ipin (&p->pins);
-		for (cpin2 *pin = ipin.First(); pin; pin = ipin.Next())
-			pin->utility = 1;
-		}
-	citer<ctext> it (&m_tlist->texts);
-	for (ctext *t = it.First(); t; t = it.Next()) 
-		t->utility = 1;
-	citer<cpcb_item> ii2 (&others);
-	for (cpcb_item *i = ii2.First(); i; i = ii2.Next()) {
-		if (cpolyline *p = i->ToPolyline())
-			p->MarkConstituents();
-		else
-			p->utility = 1;
+	for (cpart2 *p = ip.First(); p; p = ip.Next())
+		p->MarkConstituents(1);
+	m_tlist->texts.SetUtility(1);
+	citer<csmcutout> ism (&smcutouts);
+	for (csmcutout *sm = ism.First(); sm; sm = ism.Next())
+		sm->MarkConstituents(1);
+	citer<cboard> ib (&boards);
+	for (cboard *b = ib.First(); b; b = ib.Next())
+		b->MarkConstituents(1);
+	citer<cshape> is (&m_slist->shapes);
+	for (cshape *s = is.First(); s; s = is.Next())
+		s->MarkConstituents(1);
+
+	citer<cnet2> in2 (&clip_nlist->nets);
+	for (cnet2 *n2 = in2.First(); n2; n2 = in2.Next()) 
+		n2->MarkConstituents(1);
+	citer<cpart2> ip2 (&clip_plist->parts);
+	for (cpart2 *p2 = ip2.First(); p2; p2 = ip2.Next())
+		p2->MarkConstituents(1);
+	clip_tlist->texts.SetUtility(1);
+	citer<csmcutout> ism2 (&clip_smcutouts);
+	for (csmcutout *sm2 = ism2.First(); sm2; sm2 = ism2.Next())
+		sm2->MarkConstituents(1);
+	citer<cboard> ib2 (&clip_boards);
+	for (cboard *b2 = ib2.First(); b2; b2 = ib2.Next())
+		b2->MarkConstituents(1);
+	citer<cshape> is2 (&clip_slist->shapes);
+	for (cshape *s2 = is2.First(); s2; s2 = is2.Next())
+		s2->MarkConstituents(1);
 
 	// Do the deletions of unused items!
+	int dbgTotal = items.GetSize();
+	int dbgDeleted = 0;
+	citer<cpcb_item> ii (&items);
 	for (cpcb_item *i = ii.First(); i; i = ii.Next())
-		if (!i.utility)
-			delete i;
+		if (!i->utility)
+			delete i,
+			dbgDeleted++;
+	// CPT2 TODO consider growing the uid hash table if necessary.
+	int dbgRemaining = dbgTotal-dbgDeleted;
 	}
-#endif
 
 
 // Design rule check.  CPT2:  was in CPartList, now here.

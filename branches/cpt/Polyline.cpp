@@ -632,7 +632,8 @@ cpolyline::cpolyline(cpolyline *src, bool bCopyContours)
 	m_sel_box = src->m_sel_box;
 	m_hatch = src->m_hatch;
 	m_nhatch = src->m_nhatch;					// CPT2.  I guess...
-	m_gpc_poly = NULL;
+	m_gpc_poly = new gpc_polygon;
+	m_gpc_poly->num_contours = 0;
 	if (!src->main || !bCopyContours)
 		return;
 	citer<ccontour> ictr (&src->contours);
@@ -643,6 +644,12 @@ cpolyline::cpolyline(cpolyline *src, bool bCopyContours)
 		if (ctr==src->main) 
 			main = ctr2;
 	}
+}
+
+cpolyline::~cpolyline()
+{
+	FreeGpcPoly();
+	delete m_gpc_poly;
 }
 
 void cpolyline::MarkConstituents(int util)

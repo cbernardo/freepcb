@@ -130,6 +130,7 @@ public:
 
 	cpart2( cpartlist * pl );										// Done in cpp.
 	cpart2(CFreePcbDoc *_doc, int _uid);
+	~cpart2();
 
 	bool IsOnPcb();													// Done in cpp
 	bool IsPart() { return true; }
@@ -147,6 +148,7 @@ public:
 	void SetValue( CString * value, int x, int y, int angle, int size, 
 				  int w, BOOL vis, int layer );													// Done in cpp, Derived from CPartList::SetValue
 	void InitPins();																			// Done in cpp. Basically all new
+	void MarkConstituents(int util);
 
 	int GetNumOutlineStrokes();
 	void OptimizeConnections( BOOL bLimitPinCount=TRUE, BOOL bVisibleNetsOnly=TRUE );	// Done in cpp, derived from old CNetList function
@@ -216,23 +218,17 @@ class cpartlist
 {
 public:
 	carray<cpart2> parts;
-	CFreePcbDoc *m_doc;			// CPT2
+	CFreePcbDoc *m_doc;
 	int m_layers;
 	int m_annular_ring;
 	cnetlist * m_nlist;
 	CDisplayList * m_dlist;
-	// CMapStringToPtr * m_footprint_cache_map;
 
 	cpartlist( CFreePcbDoc *doc );
-	~cpartlist() { }
 
-	void UseNetList( cnetlist * nlist ) { m_nlist = nlist; };
-	// void SetShapeCacheMap( CMapStringToPtr * shape_cache_map )
-	//	{ m_footprint_cache_map = shape_cache_map; };
-
+	void UseNetList( cnetlist * nlist ) { m_nlist = nlist; }
 	cpart2 * GetPartByName( CString *ref_des );	
-	cpin2 * GetPinByNames ( CString *ref_des, CString *pin_name);
-
+	cpin2 * GetPinByNames ( CString *ref_des, CString *pin_name );
 	cpart2 * Add( cshape * shape, CString * ref_des, CString *value_text, CString * package, 
 		int x, int y, int side, int angle, int visible, int glued );
 	cpart2 * AddFromString( CString * str );

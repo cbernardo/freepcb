@@ -273,112 +273,53 @@ const char sel_mask_str[NUM_SEL_MASKS][32] =
 class CFreePcbView : public CCommonView
 {
 public:
-	enum {		
-		// undo types
-		UNDO_PART = 1,			// redo for ADD
-		UNDO_PART_AND_NETS,		// redo for DELETE and MODIFY
-		UNDO_2_PARTS_AND_NETS,	// redo
-		UNDO_NET,				// debug flag
-		UNDO_NET_AND_CONNECTIONS,	// redo for MODIFY
-		UNDO_CONNECTION,		// debug flag
-		UNDO_AREA,				// redo for ADD, DELETE, MODIFY
-		UNDO_ALL_AREAS_IN_NET,	// redo
-		UNDO_ALL_AREAS_IN_2_NETS,	// redo
-		UNDO_NET_AND_CONNECTIONS_AND_AREA,	// debug flag
-		UNDO_NET_AND_CONNECTIONS_AND_AREAS,	// ASSERT
-		UNDO_ALL_NETS_AND_CONNECTIONS_AND_AREAS, // debug flag
-		UNDO_ALL_NETS,			// debug flag
-		UNDO_MOVE_ORIGIN,		// redo
-		UNDO_ALL_BOARD_OUTLINES,	// redo
-		UNDO_ALL_SM_CUTOUTS,		// redo
-		UNDO_TEXT,					// redo
-		UNDO_GROUP,
-		// lower-level
-		UNDO_BOARD_OUTLINE_CLEAR_ALL,	
-		UNDO_BOARD,		
-		UNDO_SM_CUTOUT_CLEAR_ALL,
-		UNDO_SM_CUTOUT,
-		UNDO_GROUP_MODIFY,
-		UNDO_GROUP_DELETE,
-		UNDO_GROUP_ADD
-	};
 
-public: // create from serialization only
-	CFreePcbView();
-	DECLARE_DYNCREATE(CFreePcbView)
-
-// Attributes
-public:
-	CFreePcbDoc* GetDocument();
-
-// member variables
-public:
-	// flag to indicate that a newly-created item is being dragged,
-	// as opposed to an existing item
-	// if so, right-clicking or ESC will delete item not restore it
-	BOOL m_dragging_new_item;
-
-	// parameters for dragging selection rectangle
+	// member variables
+	// parameters related to mouse motion and dragging
 	BOOL m_bLButtonDown;
 	BOOL m_bDraggingRect;
 	CPoint m_start_pt;
 	CRect m_drag_rect, m_last_drag_rect;
 	BOOL m_bDontDrawDragRect;					// CPT true after an autoscroll but before repainting occurs
 	CRect m_sel_rect;							// rectangle used for selection
+	BOOL m_dragging_new_item;					// flag to indicate that a newly-created item is being dragged, as opposed to an existing item
+												// if so, right-clicking or ESC will delete item not restore it
+	DWORD m_last_autoscroll;					// Tick count when an autoscroll last occurred.
+	CPoint m_to_pt;								// for dragging segment, endpoint of this segment
+	CPoint m_last_pt;							// for dragging segment
+	CPoint m_next_pt;							// for dragging segment
+	int m_disable_context_menu;					// flag to disable context menu on right-click, if right-click handled some other way
+	// grid stuff
+	int m_snap_mode;							// snap mode
+	int m_inflection_mode;						// inflection mode for routing
+
+	// selected and highlighted items
+	static int sel_mask_btn_bits[16];	// CPT2.  New system for masking selections.  Each left-pane button corresponds to 1+ bits for types of pcb-items...
+	cnet2 *m_highlight_net;
+
+	// Related to routing
+	int m_dir;						// routing direction: 0 = forward, 1 = back
+    int m_active_width;             // Width for upcoming segs during routing mode (in nm)
 
 	// mode for drawing new polyline segments
 	int m_polyline_style;			// STRAIGHT, ARC_CW or ARC_CCW
 	int m_polyline_hatch;			// NONE, DIAGONAL_FULL or DIAGONAL_EDGE
 	int m_polyline_layer;			// layer being drawn
 
-	// flag to disable context menu on right-click,
-	// if right-click handled some other way
-	int m_disable_context_menu;
 
-	// selected items
-	static int sel_mask_btn_bits[16];	// CPT2.  New system for masking selections.  Each left-pane button corresponds to 1+ bits for types of pcb-items...
-
-	// highlight flags
-	cnet2 *m_highlight_net;			// CPT2.  Replaces:
-	// bool m_bNetHighlighted;	    // current net is highlighted (not selected)
-
-	// direction of routing
-	int m_dir;			// 0 = forward, 1 = back
-
-// CPT
-    int m_active_width;             // Width for upcoming segs during routing mode (in nm)
-	DWORD m_last_autoscroll;		// Tick count when an autoscroll last occurred.
-// end CPT
-
-	// grid stuff
-	int m_snap_mode;			// snap mode
-	int m_inflection_mode;		// inflection mode for routing
-
-	// starting point for a new copper area 
-	int m_area_start_x;
-	int m_area_start_y;
-	
-	// mouse
-	CPoint m_to_pt;				// for dragging segment, endpoint of this segment
-	CPoint m_last_pt;			// for dragging segment
-	CPoint m_next_pt;			// for dragging segment
-
-// Operations
 public:
-	void InitInstance();
+	DECLARE_DYNCREATE(CFreePcbView)
+	CFreePcbView();
+	virtual ~CFreePcbView();
 
-// Overrides
-	public:
+	CFreePcbDoc* GetDocument();
+	void InitInstance();
+	void OnNewProject();					// CPT.  Used to be called InitializeView().
+
 	virtual void OnDraw(CDC* pDC);  // overridden to draw this view
-	protected:
 	virtual BOOL OnPreparePrinting(CPrintInfo* pInfo);
 	virtual void OnBeginPrinting(CDC* pDC, CPrintInfo* pInfo);
 	virtual void OnEndPrinting(CDC* pDC, CPrintInfo* pInfo);
-
-// Implementation
-public:
-	virtual ~CFreePcbView();
-	void OnNewProject();					// CPT.  Used to be called InitializeView().
 
 	void SetFKText( int mode );
 	int ShowSelectStatus();
@@ -414,19 +355,15 @@ public:
 	void OnVertexStartTrace(bool bResetActiveWidth);										// CPT2 versions with an extra param added
 	void OnRatlineRoute(bool bResetActiveWidth);											// CPT2 ditto
 
-protected:
-
 // Generated message map functions
 protected:
-	//{{AFX_MSG(CFreePcbView)
+	DECLARE_MESSAGE_MAP()
 	afx_msg void OnLButtonDown(UINT nFlags, CPoint point);
 	afx_msg void OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags);
 	afx_msg void OnMouseMove(UINT nFlags, CPoint point);
 	afx_msg void OnRButtonDown(UINT nFlags, CPoint point);
 	afx_msg void OnLButtonDblClk(UINT nFlags, CPoint point);
 	afx_msg BOOL OnMouseWheel(UINT nFlags, short zDelta, CPoint pt);
-	//}}AFX_MSG
-	DECLARE_MESSAGE_MAP()
 public:
 	afx_msg void OnContextMenu(CWnd* /*pWnd*/, CPoint /*point*/);
 	afx_msg void OnPartMove();
@@ -474,22 +411,8 @@ public:
 	afx_msg void OnPolySideConvertToArcCw();
 	afx_msg void OnPolySideConvertToArcCcw();
 	void OnPolySideConvert(int style);					// CPT2, factored out the base of the previous 3 functions.
-	// afx_msg void OnBoardCornerMove();
-	// afx_msg void OnBoardCornerEdit();
-	// afx_msg void OnBoardCornerDelete();
-	// afx_msg void OnBoardSideAddCorner();
-	// afx_msg void OnBoardDeleteOutline();
 	afx_msg void OnPadStartTrace();
 	afx_msg void OnSegmentDelete();
-	// afx_msg void OnEndVertexMove();					// CPT2 phased out special end-vertex routines
-	// afx_msg void OnEndVertexAddSegments();
-	// afx_msg void OnEndVertexAddConnection();
-	// afx_msg void OnEndVertexDelete();
-	// afx_msg void OnEndVertexEdit();
-	// afx_msg void OnAreaCornerMove();
-	// afx_msg void OnAreaCornerDelete();
-	// afx_msg void OnAreaDelete();
-	// afx_msg void OnAreaSideAddCorner();
 	afx_msg void OnAddArea();
 	afx_msg void OnPolyAddCutout();
 	afx_msg void OnPolyDeleteCutout();
@@ -498,9 +421,6 @@ public:
 	afx_msg void OnRefProperties();
 	afx_msg void OnVertexProperties();
 	afx_msg void OnTeeProperties();
-	// afx_msg void OnBoardSideConvertToStraightLine();
-	// afx_msg void OnBoardSideConvertToArcCw();
-	// afx_msg void OnBoardSideConvertToArcCcw();
 	afx_msg void OnUnrouteTrace();
 	afx_msg void OnViewEntireBoard();
 	afx_msg void OnViewAllElements();
@@ -516,12 +436,6 @@ public:
 	afx_msg void OnRepeatDrc();
 	afx_msg void OnViewAll();
 	afx_msg void OnAddSoldermaskCutout();
-	// afx_msg void OnSmCornerMove();
-	// afx_msg void OnSmCornerSetPosition();
-	// afx_msg void OnSmCornerDeleteCorner();
-	// afx_msg void OnSmCornerDeleteCutout();
-	// afx_msg void OnSmSideInsertCorner();
-	// afx_msg void OnSmSideDeleteCutout();
 	afx_msg void OnSmEdit();					// CPT2 new
 	afx_msg void OnPartChangeSide();
 	afx_msg void OnPartRotateCW();
@@ -558,7 +472,6 @@ public:
 	afx_msg void OnGroupRotateCCW()	
 		{ OnGroupRotate(true); }
 	afx_msg void OnRefShowPart();
-	// afx_msg void OnAreaSideStyle();						// CPT2 deprecated
 	afx_msg void OnPartRotateCCW();
 	afx_msg void OnRefRotateCW();
 	afx_msg void OnRefRotateCCW();
@@ -566,19 +479,15 @@ public:
 	afx_msg void OnTextRotateCCW();			// CPT2
 	afx_msg void OnSegmentMove();
 
-// CPT:
+	// CPT:
 	void OnPartRotate(int angle);			// Helper for OnPartRotateCW and OnPartRotateCCW.
 	void OnRefRotate(int angle);			// Sim.
 	void OnTextRotate(int angle);
     void ActiveWidthUp(CDC * pDC);
     void ActiveWidthDown(CDC * pDC);
-
 	void RoutingGridUp();
 	void RoutingGridDown();
 	void UnitToggle(bool bShiftKeyDown);
-	// bool ConvertSelectionToGroup(bool bChangeMode);			// CPT2 obsolete
-	// void ConvertSelectionToGroupAndMove(int dx, int dy);		// CPT2 obsolete
-	// void ConvertSingletonGroup();							// CPT2 obsolete
 	void ToggleSelectionState(cpcb_item *item);					// CPT2 updated arg
 
 	// CPT:  virtual functions from CCommonView:

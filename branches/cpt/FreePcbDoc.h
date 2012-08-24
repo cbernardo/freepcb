@@ -122,6 +122,7 @@ public:
 	ctextlist *clip_tlist;
 	carray<csmcutout> clip_smcutouts;
 	carray<cboard> clip_boards;
+	cshapelist *clip_slist;											// CPT2 new in r336.
 
 	// define world units for CDisplayList
 	int m_pcbu_per_wu;
@@ -135,7 +136,6 @@ public:
 	CArray<double> m_visible_grid;	// array of choices for visible grid
 	CArray<double> m_part_grid;		// array of choices for placement grid
 	CArray<double> m_routing_grid;	// array of choices for routing grid
-
 	// CPT.  Allow for "hidden" grid values (which are seen as unchecked items in the grid-values dialogs)
 	CArray<double> m_visible_grid_hidden;
 	CArray<double> m_part_grid_hidden;	
@@ -149,7 +149,6 @@ public:
 	int m_fp_snap_angle;				// 0, 45 or 90
 	CArray<double> m_fp_visible_grid;	// array of choices for visible grid
 	CArray<double> m_fp_part_grid;		// array of choices for placement grid
-
 	// CPT.  Allow for "hidden" grid values (which are seen as unchecked items in the grid-values dialogs)
 	CArray<double> m_fp_visible_grid_hidden;
 	CArray<double> m_fp_part_grid_hidden;	
@@ -252,11 +251,13 @@ public:
 		CString * old_folder, CString * old_filename,
 		BOOL bBackup=TRUE );
 	BOOL AutoSave(); 
+
 	// I created the following routine while struggling to understand the misbehavior of the CFileDialog interface.  (Turns out the solution is
 	// just to build in release mode rather than debug mode --- debug object code and common control routines apparently conflict pretty badly.)
 	// Anyway, during the process I figured out (with considerable difficulty) how to use the new Vista-style common controls.  Though it turns out not
 	// to be necessary, I'm leaving the code in as a comment, so that we can potentially use it one day...
 	// bool GetFileName(bool bSave, CString initial, int titleRsrc, int filterRsrc, WCHAR *defaultExt, WCHAR *result, int *offFileName = NULL);  
+	
 	void SetFileLayerMap( int file_layer, int layer );
 	void PurgeFootprintCache();
 
