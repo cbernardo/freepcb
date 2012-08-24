@@ -140,6 +140,7 @@ class cpcb_item
 	friend class carray<cpadstack>;
 	friend class carray<cshape>;
 	friend class cundo_record;
+	friend class CFreePcbDoc;
 
 	carray_link *carray_list;	// List of carray's into which this item has been added
 	int m_uid;
@@ -160,7 +161,7 @@ public:
 protected:
 	cpcb_item(CFreePcbDoc *_doc);				// Done in the .cpp.
 	cpcb_item(CFreePcbDoc *_doc, int _uid);		// Done in cpp.  Used only during undo operations.
-	~cpcb_item();								// Done in cpp.  When an item is destroyed, references to it are automatically
+	virtual ~cpcb_item();						// Done in cpp.  When an item is destroyed, references to it are automatically
 												// removed from any carrays to which it belongs.
 public:
 	int UID() { return m_uid; }
@@ -332,7 +333,8 @@ public:
 
 	~carray()
 	{
-		// Destructor must remove all references to this from its member items.  But it doesn't destroy the members.
+		// Frees up heap and flags, and safely removes all references to this from its member items.  But it doesn't destroy the members.
+		// NB check out how this destructor is invoked within ~cpart2 and the like...
 		RemoveAll();
 		HeapFree(GetProcessHeap(), 0, heap);
 		HeapFree(GetProcessHeap(), 0, flags);
@@ -340,6 +342,7 @@ public:
 		for (citer<T> *iter = iters; iter; iter = iter->nextIter)
 			iter->arr = NULL;
 	}
+	
 
 	void Add(T* item)
 	{

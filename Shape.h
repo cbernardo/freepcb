@@ -206,7 +206,7 @@ public:
 	cshape( cshape *src );										// Copy constructor (create a copy of "other" for editing)
 	cshape( CFreePcbDoc *doc, CString *name );					// CPT2 r317 new.  Create a blank shape with the given name
 	cshape( CFreePcbDoc *doc, int uid );						// For the sake of undo functionality
-	// ~cshape();
+	~cshape();
 
 	bool IsShape() { return true; }
 	cshape *ToShape() { return this; }
@@ -217,6 +217,7 @@ public:
 	void SaveUndoInfo();
 
 	void Clear();
+	void MarkConstituents(int util);
 	int MakeFromString( CString name, CString str );
 	int MakeFromFile( CStdioFile * in_file, CString name, CString file_path, int pos );
 	int WriteFootprint( CStdioFile * file );
@@ -258,20 +259,3 @@ public:
 	void WriteShapes( CStdioFile * file );
 };
 
-/*
-// CEditShape class represents a footprint whose elements can be edited
-//
-class CEditShape : public CShape
-{
-public:
-	~CEditShape();
-	void Clear();
-	void Draw();													// CPT2 removed args.
-	void Undraw();
-	void Copy( CShape * shape );
-	void StartDraggingPadRow( CDC * pDC, carray<cpadstack> *row );	// CPT2 converted (arg change)
-	void CancelDraggingPadRow( carray<cpadstack> *row );			// CPT2 converted (new arg)
-	void ShiftToInsertPadName( CString * astr, int n );				// CPT2 converted
-	BOOL GenerateSelectionRectangle( CRect * r );
-};
-*/

@@ -127,7 +127,6 @@ public:
 
 	// member functions
 	ctextlist( CFreePcbDoc *_doc );
-	~ctextlist() { }
 	
 	ctext * AddText( int x, int y, int angle, bool bMirror, 
 					bool bNegative,	int layer, 

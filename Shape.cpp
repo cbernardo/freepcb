@@ -367,9 +367,15 @@ cshape::cshape(CFreePcbDoc *_doc, int uid)
 {
 	m_ref = NULL;
 	m_value = NULL;
-	m_tl = NULL;
+	m_tl = new ctextlist(doc);
 	m_centroid = NULL;
 }
+
+cshape::~cshape()
+{
+	delete m_tl;
+}
+
 
 void cshape::Clear()
 {
@@ -397,8 +403,22 @@ void cshape::Clear()
 	m_glues.RemoveAll();
 }
 
+void cshape::MarkConstituents(int util)
+{
+	utility = util;
+	m_ref->utility = util;
+	m_value->utility = util;
+	m_centroid->utility = util;
+	m_padstacks.SetUtility(util);
+	citer<coutline> io (&m_outlines);
+	for (coutline *o = io.First(); o; o = io.Next())
+		o->MarkConstituents(util);
+	m_tl->texts.SetUtility(util);
+	m_glues.SetUtility(util);
+}
+
 bool cshape::IsOnPcb()
-	// A shape is "on the pcb" if it's either the current focus of the fp editor, or if it's in the local cache.  Likewise 
+	// A shape is "on the pcb" if it's either the current focus of the fp editor, or if it's in the local cache (doc->m_slist).  Analogously 
 	// for footprint items like centroids within a shape.
 	{ return this == doc->m_edit_footprint || doc->m_slist->shapes.Contains(this); }
 
@@ -416,7 +436,7 @@ void cshape::SaveUndoInfo()
 		doc->m_undo_items.Add( new cutext(t) );
 	citer<coutline> io (&m_outlines);
 	for (coutline *o = io.First(); o; o = io.Next())
-		doc->m_undo_items.Add( new cuoutline(o) );
+		o->SaveUndoInfo();
 	citer<cglue> ig (&m_glues);
 	for (cglue *g = ig.First(); g; g = ig.Next())
 		doc->m_undo_items.Add( new cuglue(g) );

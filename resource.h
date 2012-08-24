@@ -1660,6 +1660,8 @@
 #define IDS_STRING62697                 62697
 #define IDS_STRING62698                 62698
 #define IDS_STRING62699                 62699
+#define IDS_NoticeConflictsWereFoundBetweenTheFootprints 62700
+#define IDS_PartFootprint               62701
 #define IDS_FkFpStr                     63000
 #define IDS_STRING63001                 63001
 #define IDS_STRING63002                 63002

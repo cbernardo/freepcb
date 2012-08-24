@@ -475,7 +475,6 @@ void cvertex2::Undraw()
 	CDisplayList *dl = doc->m_dlist;
 	if (!dl || !IsDrawn()) return;
 	for( int i=0; i<dl_els.GetSize(); i++ )
-		//	m_con->m_net->m_dlist->Remove( dl_el[i] );				// CPT2.  Was this way.  Not sure why...
 		dl->Remove( dl_els[i] );
 	dl_els.RemoveAll();
 	dl->Remove( dl_sel );
@@ -609,6 +608,9 @@ bool cvertex2::SetNeedsThermal()
 ctee::ctee(cnet2 *n)
 	: cpcb_item (n->doc)
 { 
+// CPT2 TODO test code, remove
+if (UID()==858)
+via_w = 1;
 	via_w = via_hole_w = 0; 
 	n->tees.Add(this);
 	dl_hole = dl_thermal = NULL;
@@ -1495,6 +1497,7 @@ void cconnect2::Remove()
 	// CPT2. User wants to delete connection, so detach it from the network (garbage collector will later delete this object and its
 	// constituents for good).
 	// Any tee structures attached at either end get cleaned up.
+	m_net->SaveUndoInfo( cnet2::SAVE_CONNECTS );						// Playing it safe...
 	Undraw();
 	m_net->connects.Remove(this);
 	if (head->tee && head->tee==tail->tee)
@@ -1832,6 +1835,28 @@ void cnet2::Highlight(cpcb_item *exclude)
 	citer<carea2> ia (&areas);
 	for (carea2 *a = ia.First(); a; a = ia.Next())
 		a->Highlight();
+}
+
+void cnet2::MarkConstituents(int util)
+{
+	// CPT2 new. Set utility on all constituents (connects, vtxs, segs, tees, areas).
+	utility = util;
+	citer<cconnect2> ic (&connects);
+	for (cconnect2 *c = ic.First(); c; c = ic.Next()) {
+		c->utility = util;
+		citer<cvertex2> iv (&c->vtxs);
+		for (cvertex2 *v = iv.First(); v; v = iv.Next()) {
+			v->utility = util;
+			if (v->tee) v->tee->utility = 1;
+			}
+		citer<cseg2> is (&c->segs);
+		for (cseg2 *s = is.First(); s; s = is.Next())
+			s->utility = util;
+		}
+	citer<carea2> ia (&areas);
+	for (carea2 *a = ia.First(); a; a = ia.Next())
+		a->MarkConstituents(util);
+	tees.SetUtility(util);
 }
 
 void cnet2::Remove()

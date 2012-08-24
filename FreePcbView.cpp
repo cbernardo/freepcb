@@ -5208,10 +5208,14 @@ void CFreePcbView::SaveUndoInfoForGroup()
 	citer<cpcb_item> ii (&m_sel);
 	for (cpcb_item *i = ii.First(); i; i = ii.Next())
 	{
-		if (i->GetConnect())
-			i->GetConnect()->SaveUndoInfo();
-		else if (i->GetPolyline())
-			i->GetPolyline()->SaveUndoInfo();
+		if (cconnect2 *c = i->GetConnect())
+			// As a precaution, save the whole net if either end vertex is a tee
+			if (c->head->tee || c->tail->tee)
+				c->m_net->SaveUndoInfo( cnet2::SAVE_CONNECTS );
+			else
+				c->SaveUndoInfo();
+		else if (cpolyline *poly = i->GetPolyline())
+			poly->SaveUndoInfo();
 		else if (cpart2 *part = i->ToPart())
 		{
 			part->SaveUndoInfo();
@@ -6385,13 +6389,15 @@ void CFreePcbView::OnGroupCopy()
 	m_doc->clip_tlist->texts.RemoveAll();
 	m_doc->clip_smcutouts.RemoveAll();
 	m_doc->clip_boards.RemoveAll();
+	m_doc->clip_slist->shapes.RemoveAll();
 
-	// set clipboard pointers (all clipboard items are marked with '2')
+	// set clipboard pointers (all clipboard item variables are marked with '2')
 	cpartlist *pl2 = m_doc->clip_plist;
 	cnetlist *nl2 = m_doc->clip_nlist;
-	ctextlist * tl2 = m_doc->clip_tlist;
+	ctextlist *tl2 = m_doc->clip_tlist;
 	carray<csmcutout> *sm2 = &m_doc->clip_smcutouts;
 	carray<cboard> *bd2 = &m_doc->clip_boards;
+	cshapelist *sl2 = m_doc->clip_slist;
 
 	// Set the utility flag for all items that are selected (it's the segs and vias whose utilities we'll be looking at)
 	m_doc->m_nlist->MarkAllNets( 0 );
@@ -6554,8 +6560,27 @@ void CFreePcbView::OnGroupCopy()
 			t2->Adjust();
 	}
 
+	// CPT2 r336.  Gather a new list of clipboard shapes:  make copies from the main slist (footprint cache), for each footprint referenced by parts
+	// on the clipboard
+	CMapPtrToPtr smap;										// Will track the relationship between shapes and their new copies.
+	citer<cpart2> ip2 (&pl2->parts);
+	carray<cshape> shapes;
+	for (cpart2 *p2 = ip2.First(); p2; p2 = ip2.Next())
+		if (p2->shape)
+			shapes.Add(p2->shape);							// Culls duplicates
+	citer<cshape> is (&shapes);
+	for (cshape *s = is.First(); s; s = is.Next())
+	{
+		cshape *s2 = new cshape(s);
+		sl2->shapes.Add( s2 );
+		smap.SetAt(s, s2);
+	}
+	// Go through the clipboard parts, and change their shape members to point to the copies.
+	for (cpart2 *p2 = ip2.First(); p2; p2 = ip2.Next())
+		p2->shape = (cshape*) smap[p2->shape];
+
 	// NB at this point there's going to be a bunch of garbage in m_doc->redraw, clipboard items on which MustRedraw() got called.  Just empty 
-	// that array out.
+	// that array out.  (Not strictly necessary since m_doc->Redraw() checks that what it draws is actually on the board, but still...)
 	m_doc->redraw.RemoveAll();
 	CWnd* pMain = AfxGetMainWnd();
 	if (pMain != NULL)
@@ -6589,32 +6614,18 @@ void CFreePcbView::DeleteGroup()
 	// delete that contour only.  More consistent with what happens when you select a single side.
 	SaveUndoInfoForGroup();
 
-	// unroute selected trace segments + vias, and [CPT2] gather a list of affected connects
-	// CPT2 TODO consider running RemoveBreak() for all selected segments, instead of the following unrouting business.
-	carray<cconnect2> changedCons;
+	// CPT2 r336.  I'm taking the plunge and ditching the old system, where selected segments were not truly deleted, but just got unrouted.
+	//  Instead let's do a RemoveBreak for each selected segment.   In this loop we'll also look for
+	//  selected vias, and unforce them.  (NB a via that is attached to a single selected seg is doomed to destruction by 
+	//  RemoveBreak(), regardless of whether it is selected.)
 	citer<cpcb_item> ii (&m_sel);
 	for (cpcb_item *i = ii.First(); i; i = ii.Next())
 		if (cseg2 *seg = i->ToSeg())
-		{
-			seg->UnrouteWithoutMerge();
-			changedCons.Add(seg->m_con);
-		}
+			seg->RemoveBreak();									// Takes care of all MustRedraw()'s
 		else if (cvertex2 *vtx = i->ToVertex())
-		{
-			// Unforce via
-			vtx->force_via_flag = 0;
-			changedCons.Add(vtx->m_con);
-		}
-	// CPT2. Old code searched here for non-branch stub traces with no end via and removed trailing unrouted segments.
-	// I'll try letting MergeUnroutedSegments(), which now gets invoked for each altered connect, take care of it instead:
-	citer<cconnect2> ic (&changedCons);
-	for (cconnect2 *c = ic.First(); c; c = ic.Next())
-	{
-		if (!c->IsOnPcb())
-			continue;						// c might have gotten merged into a different connect during an earlier iteration of this loop
-		c->MustRedraw();
-		c->MergeUnroutedSegments();
-	}
+			vtx->force_via_flag = 0,
+			vtx->ReconcileVia();								// Takes care of MustRedraw()
+	// I believe (fingers crossed) that the previous lines will have left things in a tidy state (no dangling or unmerged adjacent ratlines)
 
 	// remove polylines or their subcontours, parts, and texts
 	for (cpcb_item *i = ii.First(); i; i = ii.Next())
@@ -6635,14 +6646,29 @@ void CFreePcbView::DeleteGroup()
 		}
 }
 
+int GetGNumber(CString *s)
+{
+	// Helper function for OnGroupPaste:  given string s, see if it ends with a substring of the form "_$Gxxx".  If so, return xxx's numeric 
+	// value; otherwise return -1.
+	int n = s->ReverseFind( '_' );
+	if (n <= 0) return -1;
+	CString prefix;
+	CString test_suffix = s->Right( s->GetLength() - n - 1 );
+	int g_num = ParseRef( &test_suffix, &prefix );
+	if( prefix == "$G" )
+		return g_num;
+	return -1;
+}
+
 void CFreePcbView::OnGroupPaste()
 {
-	// pointers to clipboard lists (all clipboard items are marked with '2')
+	// pointers to clipboard lists (all clipboard item variables are marked with '2')
 	cpartlist *pl2 = m_doc->clip_plist;
 	ctextlist *tl2 = m_doc->clip_tlist;
-	cnetlist *nl2 = m_doc->clip_nlist;					// CPT2 TODO old code made a copy of the clipboard net.  Unsure why, let's see if we can do without...
+	cnetlist *nl2 = m_doc->clip_nlist;
 	carray<csmcutout> *sm2 = &m_doc->clip_smcutouts;
 	carray<cboard> *bd2 = &m_doc->clip_boards;
+	cshapelist *sl2 = m_doc->clip_slist;
 
 	// pointers to project lists
 	cpartlist *pl = m_doc->m_plist;
@@ -6650,6 +6676,7 @@ void CFreePcbView::OnGroupPaste()
 	ctextlist *tl = m_doc->m_tlist;
 	carray<csmcutout> *sm = &m_doc->smcutouts;
 	carray<cboard> *bd = &m_doc->boards;
+	cshapelist *sl = m_doc->m_slist;
 
 	// get paste options
 	CDlgGroupPaste dlg;
@@ -6658,6 +6685,67 @@ void CFreePcbView::OnGroupPaste()
 	int ret = dlg.DoModal();
 	if (ret != IDOK)
 		return;
+
+	// First off, go through and compare the shapes in sl2 with the existing shapes in main shape-list sl.  If necessary, add new shapes to sl,
+	// and reconcile conflicts (different shapes, same name) as needed.  We may need new shape names, and for that we'll want a "g-suffix" 
+	// of the form _$Gxxx (which may also be used in the naming of new nets).  Note that this all happens without the user having had any 
+	// choice about it during the CDlgGroupPaste:  I'm hoping they'll be OK with that (not THAT frequent an occurrence, and it's better than the 
+	// crashes/unpredictable behavior that must have arisen before when (say) people copied, edited a footprint, and then
+	// pasted).  
+	CString g_suffix;
+	// get highest group suffix already in project, checking both nets and shapes.  CPT2 r336 in fact, check numbers for both project and clipboard...
+	int max_g_num = 0, g;
+	citer<cnet2> in (&nl->nets);
+	for (cnet2 *net = in.First(); net; net = in.Next())
+		g = GetGNumber(&net->name),
+		max_g_num = max(g, max_g_num);
+	citer<cnet2> in2 (&nl2->nets);
+	for (cnet2 *net2 = in2.First(); net2; net2 = in2.Next())
+		g = GetGNumber(&net2->name),
+		max_g_num = max(g, max_g_num);
+	citer<cshape> is (&sl->shapes);
+	for (cshape *s = is.First(); s; s = is.Next())
+		g = GetGNumber(&s->m_name),
+		max_g_num = max(g, max_g_num);
+	citer<cshape> is2 (&sl2->shapes);
+	for (cshape *s2 = is2.First(); s2; s2 = is2.Next())
+		g = GetGNumber(&s2->m_name),
+		max_g_num = max(g, max_g_num);
+	g_suffix.Format( "_$G%d", max_g_num + 1 );
+	// Do the shape comparisons:
+	CMapPtrToPtr smap;
+	bool bFirstConflict = true;
+	for (cshape *s2 = is2.First(); s2; s2 = is2.Next())
+	{
+		cshape *s = sl->GetShapeByName(&s2->m_name);
+		if (!s)
+			// No conflict at all.  Make a new copy of s2, put it in the cache, and add an entry to smap (later, pasted
+			// parts referring to s2 will need to reference the new copy)
+			s = new cshape(s2),
+			sl->shapes.Add(s),
+			smap.SetAt(s2, s);
+		else if (s->SameAs(s2))
+			// No need to change cache.  But parts on the clipboard will need to reference s rather than s2.
+			smap.SetAt(s2, s);
+		else 
+		{
+			// Conflict!  Make a new copy of s2 with a new g-suffixed name.  Put it in the cache and smap as usual.  Show user a log display.
+			s = new cshape(s2);
+			s->m_name = s2->m_name + g_suffix;
+			sl->shapes.Add(s);
+			smap.SetAt(s2, s);
+			if (bFirstConflict)
+			{
+				bFirstConflict = false;
+				CString line((LPCSTR) IDS_NoticeConflictsWereFoundBetweenTheFootprints);
+				m_doc->m_dlg_log->Clear();
+				m_doc->m_dlg_log->AddLine( line );
+				m_doc->m_dlg_log->ShowWindow( SW_SHOW );
+			}
+			// When parts are pasted in (below) we'll send the info about them to the log
+		}
+	}
+
 	CancelSelection();
 	pl->MarkAllParts( 0 );										// newly added parts & pins will be distinguished by values >0 in "utility"
 	pl2->MarkAllParts( 0 );										// We also want to ensure that clipboard pins initially have 0 in "utility"
@@ -6708,8 +6796,17 @@ void CFreePcbView::OnGroupPaste()
 			AfxMessageBox( mess );
 		}
 		
-		// add new part "part" in the project, derived from "part2" on the clipboard
-		cpart2 *part = pl->Add( part2->shape, &new_ref, &part2->value_text, &part2->package, 
+		// add new part "part" in the project, derived from "part2" on the clipboard.  The shape will be the one corresponding to
+		// part2->shape, as set up in "smap" earlier:
+		cshape *shape = (cshape*) smap[part2->shape];
+		if (shape->m_name != part2->shape->m_name)
+		{
+			// This was an incoming shape with a name-conflict:  add the information about it to the log:
+			CString line, str0 ((LPCSTR) IDS_PartFootprint);
+			line.Format(str0, new_ref, shape->m_name);
+			m_doc->m_dlg_log->AddLine(line);
+		}
+		cpart2 *part = pl->Add( shape, &new_ref, &part2->value_text, &part2->package, 
 					   part2->x + dlg.m_dx, part2->y + dlg.m_dy, part2->side, part2->angle, 
 					   1, 0 );
 		part->MustRedraw();
@@ -6728,31 +6825,10 @@ void CFreePcbView::OnGroupPaste()
 		// Add part to new selection
 		m_sel.Add(part);
 	}
+	m_doc->m_dlg_log->AddLine("\r\n\r\n");					// Separate any messages just produced from future messages
 
-	// add nets from clipboard, renaming as necessary
-	CString g_suffix;
-	if( dlg.m_net_rename_option == 0 )
-	{
-		// get highest group suffix already in project
-		int max_g_num = 0;
-		citer<cnet2> in (&nl->nets);
-		for (cnet2 *net = in.First(); net; net = in.Next())
-		{
-			int n = net->name.ReverseFind( '_' );
-			if( n > 0 )
-			{
-				CString prefix;
-				CString test_suffix = net->name.Right( net->name.GetLength() - n - 1 );
-				int g_num = ParseRef( &test_suffix, &prefix );
-				if( prefix == "$G" )
-					max_g_num = max( g_num, max_g_num );
-			}
-		}
-		g_suffix.Format( "_$G%d", max_g_num + 1 );
-	}
 
 	// now loop through all nets on clipboard and add or merge with project
-	citer<cnet2> in2 (&nl2->nets);
 	for (cnet2 *net2 = in2.First(); net2; net2 = in2.Next())
 	{
 		if( dlg.m_pin_net_option == 1 )
@@ -6776,10 +6852,9 @@ void CFreePcbView::OnGroupPaste()
 		// OK, add this net to project
 		// utility flag is set in the Group Paste dialog for nets which
 		// should be merged (i.e. not renamed)
-		cnet2 *net;
+		cnet2 *net = nl->GetNetPtrByName( &net2->name );
 		if( dlg.m_net_name_option == 1 && net2->utility == 0 )
 		{
-			// rename net
 			CString new_name;
 			if( dlg.m_net_rename_option == 1 )
 			{
@@ -6801,14 +6876,12 @@ void CFreePcbView::OnGroupPaste()
 			// add new net
 			net = new cnet2(nl, new_name, net2->def_w, net2->def_via_w, net2->def_via_hole_w );
 		}
+		else if( !net )
+			// no project net with the same name, so create a new one
+			net = new cnet2(nl, net2->name, net2->def_w, net2->def_via_w, net2->def_via_hole_w );
 		else
-		{
-			// merge group net with project net of same name if possible
-			net = nl->GetNetPtrByName( &net2->name );
-			if( !net )
-				// no project net with the same name
-				net = new cnet2(nl, net2->name, net2->def_w, net2->def_via_w, net2->def_via_hole_w );
-		}
+			// will merge clipboard net into existing project net...
+			;
 		net->MustRedraw();
 
 		// attach pins (belonging to newly-pasted parts) to the project net, based on the pins attached to the clipboard net.
@@ -7048,14 +7121,8 @@ void CFreePcbView::OnGroupSaveToFile()
 	// write clipboard to file
 	try
 	{
-		// make map of all footprints used by group
-		cshapelist clip_shapes( m_doc );
-		citer<cpart2> ip (&m_doc->clip_plist->parts);
-		for (cpart2 *part = ip.First(); part; part = ip.Next())
-			if (part->shape)
-				clip_shapes.shapes.Add( part->shape );
 		m_doc->WriteOptions( &pcb_file );
-		clip_shapes.WriteShapes( &pcb_file );
+		m_doc->clip_slist->WriteShapes( &pcb_file );
 		m_doc->WriteBoardOutline( &pcb_file, &m_doc->clip_boards );
 		m_doc->WriteSolderMaskCutouts( &pcb_file, &m_doc->clip_smcutouts );
 		m_doc->clip_plist->WriteParts( &pcb_file );

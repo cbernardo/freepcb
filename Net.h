@@ -48,8 +48,6 @@ public:
 
 	cvertex2(cconnect2 *c, int _x=0, int _y=0);				// CPT2 Added args. Done in cpp
 	cvertex2(CFreePcbDoc *_doc, int _uid);
-	// ~cvertex2()											// Because of garbage collection, we don't need fancy destructors for these classes,
-	//  	{ }												// thank goodness
 
 	bool IsOnPcb();											// Done in cpp
 	bool IsVertex() { return true; }
@@ -171,7 +169,7 @@ public:
 	cseg2(cconnect2 *c, int _layer, int _width);							// CPT2 added args.  Replaces Initialize().  Done in cpp
 	cseg2(CFreePcbDoc *_doc, int _uid);
 
-	bool IsOnPcb();												// Done in cpp
+	bool IsOnPcb();
 	bool IsSeg() { return true; }
 	cseg2 *ToSeg() { return this; }
 	int GetTypeBit() { return bitSeg; }
@@ -356,7 +354,7 @@ public:
 	bool bVisible;				// FALSE to hide ratlines and make unselectable.  CPT2 TODO put in base class?
 	cnetlist * m_nlist;			// parent netlist
 
-	cnet2( cnetlist *_nlist, CString _name, int _def_w, int _def_via_w, int _def_via_hole_w );			// Done in cpp
+	cnet2( cnetlist *_nlist, CString _name, int _def_w, int _def_via_w, int _def_via_hole_w );
 	cnet2( CFreePcbDoc *_doc, int _uid ); 
 
 	bool IsOnPcb();
@@ -387,6 +385,7 @@ public:
 	carea2 *NetAreaFromPoint( int x, int y, int layer );							// CPT2 replaces CNetList::TestPointInArea
 
 	// methods that edit objects
+	void MarkConstituents(int util);												// Set utility on all constituents (connects, vtxs, segs, tees, areas).
 	void Remove();																		// Done in cpp.
 	void MergeWith( cnet2 *n2 );														// Done in cpp.
 	// pins
@@ -433,20 +432,18 @@ typedef CArray<net_info> netlist_info;
 // Class cnetlist.  Basically a souped-up carray<cnet2>.
 class cnetlist  
 {
-	friend class cnet2;
 public:
 	carray<cnet2> nets;	
 	CFreePcbDoc *m_doc;
 	CDisplayList * m_dlist;
 	cpartlist * m_plist;
-	int m_layers;						// number of copper layers
+	int m_layers;											// number of copper layers.  CPT2 TODO probably dump (look at m_doc->m_num_copper_layers)
 	int m_def_w, m_def_via_w, m_def_via_hole_w;
 	int m_annular_ring;
 	BOOL m_bSMT_connect;
 
-
 	cnetlist( CFreePcbDoc * _doc ) ;													// CPT2:  Changed param
-	~cnetlist() { }																		// CPT2 TODO
+
 	void SetNumCopperLayers( int layers ) { m_layers = layers; }
 	int GetNumCopperLayers() { return m_layers; }
 	void SetWidths( int w, int via_w, int via_hole_w ) 
@@ -468,10 +465,9 @@ public:
 	BOOL GetNetBoundaries( CRect * r );											// Done in cpp
 
 	void OptimizeConnections( BOOL bLimitPinCount=TRUE, BOOL bVisibleNetsOnly=TRUE ); // Done in cpp
-	void CleanUpAllConnections( CString * logstr=NULL );					// CPT2 done in cpp
+	void CleanUpAllConnections( CString * logstr=NULL );
 
 	// functions related to parts. CPT2 TODO think these through more
-	int RehookPartsToNet( cnet2 * net );
 	void SwapPins( cpart2 * part1, CString * pin_name1,
 						cpart2 * part2, CString * pin_name2 );								// CPT2 TODO.  'S' key was disabled in allan_uids_new_drawing branch.
 																							// Bring it back some time?
