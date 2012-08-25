@@ -1951,7 +1951,7 @@ BEGIN
     GROUPBOX        "Clipboard nets (pin connections, traces, copper areas)",IDC_STATIC,12,87,276,246
     LTEXT           "Y",IDC_STATIC,174,353,8,8
     LTEXT           "Units",IDC_STATIC,233,353,17,8
-    LTEXT           "You must choose how to handle the parts and nets that are being imported.",IDC_STATIC,12,18,244,8
+    LTEXT           "You must choose how to handle the parts and nets that are being transfered.",IDC_STATIC,12,18,250,8
     CONTROL         "Ignore clipboard nets that include no routed traces or areas",IDC_CHECK_IGNORE_EMPTY_NETS,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,24,102,207,10
 END

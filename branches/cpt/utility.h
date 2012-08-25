@@ -82,7 +82,6 @@ void GetStringFromGuid( GUID * guid, CString * str );
 BOOL SplitString( CString * str, CString * a, CString * b, char split_at, BOOL bReverseFind=FALSE );
 
 // for profiling
-void CalibrateTimer();
 void StartTimer();
 double GetElapsedTime();
 

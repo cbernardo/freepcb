@@ -473,7 +473,7 @@ cupolyline::cupolyline(cpolyline *poly)
 
 void cupolyline::FixTarget()
 {
-	// This routine also suffices for cusmcutout and cuboard, and it's almost sufficient for cuarea.
+	// This routine also suffices for cusmcutout and cuboard, and it's almost sufficient for cuarea and cuoutline.
 	cpolyline *p = target->ToPolyline();
 	p->main = ContourFromUid(main);
 	p->contours.RemoveAll();
@@ -867,7 +867,11 @@ bool cundo_record::Execute( int op )
 	// Step 4.  Remove the bWasCreated items.  Mark the others for redrawing, and revise their contents on the basis of the data within the 
 	// undo-items.
 	for (int i=0; i<nItems; i++)
-		if (items[i]->m_bWasCreated)
+		if (!items[i]->target)
+			// It's _just_ possible that CreateTarget failed to do anything in step 3, probably because we have a bWasCreated cundo_item for an
+			// object that was later deleted.  Just ignore these cases...
+			;
+		else if (items[i]->m_bWasCreated)
 			items[i]->target->RemoveForUndo();
 		else
 			items[i]->FixTarget(),

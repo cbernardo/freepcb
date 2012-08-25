@@ -4034,7 +4034,8 @@ void CFreePcbDoc::FinishUndoRecord(bool bCombineWithPrevious)
 	// We have to clear duplicates out of that CArray (unlike with carray's, that's not automatic).
 	// If bCombineWithPrevious is true, we combine this operation's undo items with the items in the previously created undo record, so that
 	//   hitting ctrl-z jumps user all the way back to the state before this routine's previous invocation (useful e.g. with arrow keys).
-	CArray<cundo_item*> uitems;						// Will hold the culled-out list of items, possibly merged with the previous record's items
+	// "uitems" will hold the culled-out list of items, possibly merged with the previous record's items:
+	CArray<cundo_item*> uitems;
 	items.SetUtility(0);
 	if (m_undo_pos==0)
 		bCombineWithPrevious = false;
@@ -4045,22 +4046,29 @@ void CFreePcbDoc::FinishUndoRecord(bool bCombineWithPrevious)
 		{
 			cundo_item *uitem = rec->items[i];
 			cpcb_item *item = cpcb_item::FindByUid( uitem->UID() );
-			uitems.Add(uitem),
-			item->utility = 1;
+			uitems.Add(uitem);
+			// Set the utility of "item" so that another cundo_item for it (from m_undo_items) won't be added to uitems in the next loop.
+			// It's _just_ possible that "item" will be null because the object got removed and then garbage-collected (e.g. with a group
+			//  selected, user is hitting arrow keys repeatedly, and an area in the group gets merged into some other area).  If so, we
+			//  can be confident that no cundo_item for the object is in m_undo_items, because SaveUndoInfo() won't have been invoked on a
+			//  garbage-collected item.  Therefore don't worry about the utility bit in that case:
+			if (item)
+				item->utility = 1;
 		}
 	}
-	for (int i=0; i<m_undo_items.GetSize(); i++)
+	for (int i=0; i<m_undo_items.GetSize(); i++) 
 	{
 		cundo_item *uitem = m_undo_items[i];
 		int uid = uitem->UID();
 		cpcb_item *item = cpcb_item::FindByUid( uid );
+		ASSERT(item);
 		if (item->utility)
 			delete uitem;
 		else if (uid < m_undo_last_uid)
 			uitems.Add(uitem),
 			item->utility = 1;
 		else
-			// It can happen that SaveUndoInfo() has been called on an item that was created since the last user op ended.  We will add entries
+			// It can happen that SaveUndoInfo() has been called on items that were created since the previous user op ended.  We will add entries
 			// for these to uitems, but later...
 			;
 	}
@@ -4072,6 +4080,7 @@ void CFreePcbDoc::FinishUndoRecord(bool bCombineWithPrevious)
 		// Calling IsOnPcb() ensures, for instance, that objects created on the clipboard are left out of account.  Also this way we
 		// ignore the substantial number of temporary cshapes that may get created (during the fp editor or the DlgAddPart, say).
 		cpcb_item *item = cpcb_item::FindByUid(i);
+		ASSERT(item);
 		if (item->IsOnPcb())
 			uitems.Add( new cundo_item(this, i, true) );
 	}

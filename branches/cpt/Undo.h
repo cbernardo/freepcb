@@ -122,9 +122,9 @@ public:
 	int via_w, via_hole_w;
 
 	cuvertex( cvertex2 *v );
-	void CreateTarget();
-	void FixTarget();
-	void AddToLists();
+	virtual void CreateTarget();
+	virtual void FixTarget();
+	virtual void AddToLists();
 };
 
 class cutee: public cundo_item 
@@ -137,9 +137,9 @@ public:
 	cutee( ctee *t );
 	~cutee()
 		{ free(vtxs); }
-	void CreateTarget();
-	void FixTarget();
-	void AddToLists();
+	virtual void CreateTarget();
+	virtual void FixTarget();
+	virtual void AddToLists();
 };
 
 
@@ -155,9 +155,9 @@ public:
 	int preVtx, postVtx;
 
 	cuseg( cseg2 *s );	
-	void CreateTarget();
-	void FixTarget();
-	void AddToLists();
+	virtual void CreateTarget();
+	virtual void FixTarget();
+	virtual void AddToLists();
 };
 
 class cuconnect: public cundo_item
@@ -172,9 +172,9 @@ public:
 	cuconnect( cconnect2 *c );
 	~cuconnect()
 		{ free(segs); free(vtxs); }
-	void CreateTarget();
-	void FixTarget();
-	void AddToLists();
+	virtual void CreateTarget();
+	virtual void FixTarget();
+	virtual void AddToLists();
 };
 
 
@@ -195,9 +195,9 @@ public:
 	SMFontUtil * m_smfontutil;				// Worth the trouble?
 
 	cutext( ctext *t );
-	void CreateTarget();
-	void FixTarget();
-	void AddToLists();
+	virtual void CreateTarget();
+	virtual void FixTarget();
+	virtual void AddToLists();
 };
 
 class cureftext: public cutext
@@ -206,7 +206,7 @@ public:
 	cureftext( creftext *t )
 		: cutext( (ctext*) t )
 		{ }
-	void CreateTarget();
+	virtual void CreateTarget();
 };
 
 class cuvaluetext: public cutext
@@ -215,7 +215,7 @@ public:
 	cuvaluetext( cvaluetext *t )
 		: cutext( (ctext*) t )
 		{ }
-	void CreateTarget();
+	virtual void CreateTarget();
 };
 
 
@@ -231,9 +231,9 @@ public:
 	bool bNeedsThermal;	
 
 	cupin( cpin2 *pin );
-	void CreateTarget();
-	void FixTarget();
-	void AddToLists();
+	virtual void CreateTarget();
+	virtual void FixTarget();
+	virtual void AddToLists();
 };
 
 
@@ -257,9 +257,9 @@ public:
 	cupart( cpart2 *p );
 	~cupart()
 		{ free(pins); }
-	void CreateTarget();
-	void FixTarget();
-	void AddToLists();
+	virtual void CreateTarget();
+	virtual void FixTarget();
+	virtual void AddToLists();
 };
 
 
@@ -271,9 +271,9 @@ public:
 	int preSide, postSide;
 
 	cucorner(ccorner *c);
-	void CreateTarget();
-	void FixTarget();
-	void AddToLists();
+	virtual void CreateTarget();
+	virtual void FixTarget();
+	virtual void AddToLists();
 };
 
 class cuside: public cundo_item
@@ -284,9 +284,9 @@ public:
 	int preCorner, postCorner;
 
 	cuside(cside *s);
-	void CreateTarget();
-	void FixTarget();
-	void AddToLists();
+	virtual void CreateTarget();
+	virtual void FixTarget();
+	virtual void AddToLists();
 };
 
 class cucontour: public cundo_item
@@ -300,9 +300,9 @@ public:
 	cucontour(ccontour *ctr);
 	~cucontour()
 		{ free(corners); free(sides); }
-	void CreateTarget();
-	void FixTarget();
-	void AddToLists();
+	virtual void CreateTarget();
+	virtual void FixTarget();
+	virtual void AddToLists();
 };
 
 class cupolyline: public cundo_item
@@ -318,7 +318,7 @@ public:
 	cupolyline(cpolyline *poly);
 	~cupolyline()
 		{ free(contours); }
-	void FixTarget();
+	virtual void FixTarget();
 };
 
 class cuarea : public cupolyline
@@ -327,9 +327,9 @@ public:
 	int m_net;
 
 	cuarea(carea2 *a);
-	void CreateTarget();
-	void FixTarget();
-	void AddToLists();
+	virtual void CreateTarget();
+	virtual void FixTarget();
+	virtual void AddToLists();
 };
 
 
@@ -337,8 +337,8 @@ class cusmcutout : public cupolyline
 {
 public:
 	cusmcutout(csmcutout *sm);
-	void CreateTarget();
-	void AddToLists();
+	virtual void CreateTarget();
+	virtual void AddToLists();
 };
 
 
@@ -346,8 +346,8 @@ class cuboard : public cupolyline
 {
 public:
 	cuboard(cboard *b);
-	void CreateTarget();
-	void AddToLists();
+	virtual void CreateTarget();
+	virtual void AddToLists();
 };
 
 class cuoutline : public cupolyline
@@ -356,9 +356,9 @@ public:
 	int shape; 
 
 	cuoutline(coutline *o);
-	void CreateTarget();
-	void FixTarget();
-	// void AddToLists();		// Not needed.  A cuoutline gets added to an undo record only if its parent cushape gets included to.
+	virtual void CreateTarget();
+	virtual void FixTarget();
+	// virtual void AddToLists();		// Not needed.  A cuoutline gets added to an undo record only if its parent cushape gets included to.
 };
 
 class cunet: public cundo_item
@@ -378,9 +378,9 @@ public:
 	cunet(cnet2 *n);
 	~cunet()
 		{ free(connects); free(pins); free(areas); free(tees); }
-	void CreateTarget();
-	void FixTarget();
-	void AddToLists();
+	virtual void CreateTarget();
+	virtual void FixTarget();
+	virtual void AddToLists();
 };
 
 class cudre: public cundo_item
@@ -395,9 +395,9 @@ public:
 	int layer;
 
 	cudre(cdre *d);
-	void CreateTarget();
-	void FixTarget();
-	void AddToLists();
+	virtual void CreateTarget();
+	virtual void FixTarget();
+	virtual void AddToLists();
 };
 
 class cupadstack: public cundo_item
@@ -419,9 +419,9 @@ public:
 	int inner[6];
 
 	cupadstack(cpadstack *ps);
-	void CreateTarget();
-	void FixTarget();
-	// void AddToLists();		// Not needed --- a cupadstack is added to an undo record only if its parent cushape is there too
+	virtual void CreateTarget();
+	virtual void FixTarget();
+	// virtual void AddToLists();		// Not needed --- a cupadstack is added to an undo record only if its parent cushape is there too
 };
 
 class cucentroid: public cundo_item
@@ -433,8 +433,8 @@ public:
 	int m_shape;
 
 	cucentroid(ccentroid *c);
-	void CreateTarget();
-	void FixTarget();
+	virtual void CreateTarget();
+	virtual void FixTarget();
 };
 
 class cuglue: public cundo_item
@@ -445,9 +445,9 @@ public:
 	int shape;
 
 	cuglue(cglue *g);
-	void CreateTarget();
-	void FixTarget();
-	// void AddToLists();		// Not needed -- a cuglue will only be added to an undo record if the parent cushape is present also
+	virtual void CreateTarget();
+	virtual void FixTarget();
+	// virtual void AddToLists();		// Not needed -- a cuglue will only be added to an undo record if the parent cushape is present also
 };
 
 
@@ -469,9 +469,9 @@ public:
 	int m_nGlues, *m_glues;
 
 	cushape(cshape *s);
-	void CreateTarget();
-	void FixTarget();
-	void AddToLists();
+	virtual void CreateTarget();
+	virtual void FixTarget();
+	virtual void AddToLists();
 };
 
 

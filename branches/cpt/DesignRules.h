@@ -78,7 +78,7 @@ public:
 	bool IsDRE() { return true; }
 	cdre *ToDRE() { return this; }
 	int GetTypeBit() { return bitDRE; }
-	bool IsOnPcb();
+	virtual bool IsOnPcb();
 	cundo_item *MakeUndoItem()
 		{ return new cudre(this); }
 

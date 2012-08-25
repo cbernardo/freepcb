@@ -64,7 +64,7 @@ public:
 	cpin2(cpart2 *_part, cpadstack *_ps, cnet2 *_net);					// CPT2. Added args. Done in cpp
 	cpin2(CFreePcbDoc *_doc, int _uid);
 
-	bool IsOnPcb();													// Done in cpp
+	virtual bool IsOnPcb();													// Done in cpp
 	bool IsPin() { return true; }
 	cpin2 *ToPin() { return this; }
 	int GetTypeBit() { return bitPin; }
@@ -132,7 +132,7 @@ public:
 	cpart2(CFreePcbDoc *_doc, int _uid);
 	~cpart2();
 
-	bool IsOnPcb();													// Done in cpp
+	virtual bool IsOnPcb();													// Done in cpp
 	bool IsPart() { return true; }
 	cpart2 *ToPart() { return this; }
 	int GetTypeBit() { return bitPart; }
