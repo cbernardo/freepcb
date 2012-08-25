@@ -255,7 +255,6 @@ CFreePcbView::CFreePcbView()
 {
 	m_bDraggingRect = FALSE;
 	m_bLButtonDown = FALSE;
-	CalibrateTimer();
 	m_lastKeyWasArrow = m_lastKeyWasGroupRotate = FALSE;		// CPT
 	m_highlight_net = NULL;
 
@@ -1362,7 +1361,7 @@ void CFreePcbView::OnRButtonDown(UINT nFlags, CPoint point)
 		if( m_dragging_new_item )
 		{
 			CancelSelection();
-			m_doc->OnEditUndo();	// remove the part
+			m_doc->UndoNoRedo();	// remove the part
 		}
 		else
 			part->Highlight();
@@ -1492,7 +1491,7 @@ void CFreePcbView::OnRButtonDown(UINT nFlags, CPoint point)
 	{
 		CancelDraggingGroup();
 		m_dlist->SetLayerVisible( LAY_RAT_LINE, m_doc->m_vis[LAY_RAT_LINE] );
-		m_doc->OnEditUndo();
+		m_doc->UndoNoRedo();
 	}
 	else if( m_cursor_mode == CUR_DRAG_MEASURE_1 || m_cursor_mode == CUR_DRAG_MEASURE_2 )
 	{
@@ -3287,12 +3286,11 @@ void CFreePcbView::HighlightSelection()
 	// r317 Now a virtual function within CCommonView.
 	CancelHighlight();
 	citer<cpcb_item> ii (&m_sel);
-	for (cpcb_item *i = ii.First(); i; i = ii.Next())
+	for (cpcb_item *i = ii.First(); i; i = ii.Next())	
 		if (i->IsOnPcb())
 			i->Highlight();
 		else
 			m_sel.Remove(i);
-
 	cpcb_item *first = m_sel.First();
 	if (m_sel.GetSize()==0)
 		SetCursorMode( CUR_NONE_SELECTED );
@@ -4934,7 +4932,7 @@ BOOL CFreePcbView::CurDragging()
 //
 BOOL CFreePcbView::CurDraggingRouting()
 {
-	if (!CurDragging() || m_cursor_mode == CUR_DRAG_GROUP)
+	if (!CurDragging() || m_cursor_mode == CUR_DRAG_GROUP || m_cursor_mode == CUR_DRAG_GROUP_ADD)
 		return false;
 	cpcb_item *first = m_sel.First();
 	if (first)
@@ -5992,7 +5990,7 @@ void CFreePcbView::MoveGroup( int dx, int dy )
 {
 	UngluePartsInGroup();
 
-	// Start by clearing utility flags for all pcb items.  NB not doing any undrawing yet
+	// Start by clearing utility flags for all pcb items.  NB not doing any undrawing yet.  CPT2 TODO hourglass cursor?
 	// Also NB the old routine used both item->utility and item->utility2 flags.  I'm going to use 2 bits within item->utility instead:
 	enum { bitSel = 1, bitMoved = 2 };
 	m_doc->m_nlist->MarkAllNets(0);
@@ -6609,7 +6607,7 @@ void CFreePcbView::OnGroupDelete()
 
 void CFreePcbView::DeleteGroup()
 {
-	// CPT2 TODO I'm proposing a new system with areas/smcutouts/board outlines.
+	// CPT2 TODO Hourglass cursor?  I'm proposing a new system with areas/smcutouts/board outlines.
 	// If any side on a main contour is selected, delete the whole polyline.  Otherwise, if a side on a secondary (cutout) contour is selected,
 	// delete that contour only.  More consistent with what happens when you select a single side.
 	SaveUndoInfoForGroup();
@@ -6810,10 +6808,12 @@ void CFreePcbView::OnGroupPaste()
 					   part2->x + dlg.m_dx, part2->y + dlg.m_dy, part2->side, part2->angle, 
 					   1, 0 );
 		part->MustRedraw();
-		// set ref text parameters
+		// set ref and value text parameters
 		part->m_ref->Copy( part2->m_ref );
 		part->m_ref->m_str = new_ref;
+		part->m_ref->m_part = part;							// CPT2 omitting this was a nasty little bug to track down
 		part->m_value->Copy( part2->m_value );
+		part->m_value->m_part = part;
 		// Set utility values so that we can later correlate part and part2
 		part->utility = part2->utility = partId;
 		// find closest part to lower left corner.  CPT2 the /2 prevents overflow:
@@ -7066,9 +7066,16 @@ void CFreePcbView::OnGroupPaste()
 		for (cpolyline *poly = ip.First(); poly; poly = ip.Next())
 			if (poly->IsOnPcb())
 				poly->PolygonModified(true, true);
+		if( m_doc->m_vis[LAY_RAT_LINE] )
+		{
+			citer<cnet2> in (&nl->nets);
+			for (cnet2 *net = in.First(); net; net = in.Next())
+				net->OptimizeConnections(); 
+		}
 	}
-	m_doc->Redraw();
+	m_doc->ProjectModified(true);
 	HighlightSelection();
+	
 	if (!dlg.m_position_option)
 	{
 		// User requested group dragging
@@ -7077,13 +7084,6 @@ void CFreePcbView::OnGroupPaste()
 		else
 			StartDraggingGroup( TRUE, min_x, min_y );
 	}
-	else if( m_doc->m_vis[LAY_RAT_LINE] )
-	{
-		citer<cnet2> in (&nl->nets);
-		for (cnet2 *net = in.First(); net; net = in.Next())
-			net->OptimizeConnections(); 
-	}
-	m_doc->ProjectModified( TRUE );
 }
 
 void CFreePcbView::OnGroupSaveToFile()

@@ -107,7 +107,7 @@ public:
 	cpadstack(cpadstack *src, cshape *_shape);
 	cpadstack(CFreePcbDoc *_doc, int _uid);
 
-	bool IsOnPcb();								// CPT2 done in cpp.
+	virtual bool IsOnPcb();								// CPT2 done in cpp.
 	bool IsPadstack() { return true; }
 	cpadstack *ToPadstack() { return this; }
 	int GetTypeBit() { return bitPadstack; }
@@ -133,7 +133,7 @@ public:
 	ccentroid(CFreePcbDoc *_doc, int _uid)
 		: cpcb_item (_doc, _uid)
 		{ m_shape = NULL; }
-	bool IsOnPcb();
+	virtual bool IsOnPcb();
 	bool IsCentroid() { return true; }
 	ccentroid *ToCentroid() { return this; }
 	int GetTypeBit() { return bitCentroid; }
@@ -160,7 +160,7 @@ public:
 		{ shape = NULL; }
 	cglue(cglue *src, cshape *_shape);
 
-	bool IsOnPcb();
+	virtual bool IsOnPcb();
 	bool IsGlue() { return true; }
 	cglue *ToGlue() { return this; }
 	int GetTypeBit() { return bitGlue; }
@@ -211,7 +211,7 @@ public:
 	bool IsShape() { return true; }
 	cshape *ToShape() { return this; }
 	int GetTypeBit() { return bitShape; }
-	bool IsOnPcb();
+	virtual bool IsOnPcb();
 	cundo_item *MakeUndoItem()
 		{ return new cushape(this); }
 	void SaveUndoInfo();

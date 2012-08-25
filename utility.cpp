@@ -8,8 +8,6 @@
  
 // globals for timer functions
 LARGE_INTEGER PerfFreq, tStart, tStop; 
-int PerfFreqAdjust;
-int OverheadTicks;
 
 // function to find inflection-pont to create a "dogleg" of two straight-line segments
 // where one segment is vertical or horizontal and the other is at 45 degrees or 90 degrees
@@ -1318,32 +1316,12 @@ double DistancePointEllipse (
 	return dDistance;
 }
 // these functions are for profiling
-//
-void DunselFunction() { return; }
-
-void CalibrateTimer()
-{
-	void (*pFunc)() = DunselFunction;
-
-	if( QueryPerformanceFrequency( &PerfFreq ) )
-	{
-		// use hires timer
-		PerfFreqAdjust = 0;
-		int High32 = PerfFreq.HighPart;
-		int Low32 = PerfFreq.LowPart;
-		while( High32 )
-		{
-			High32 >>= 1;
-			PerfFreqAdjust++;
-		}
-		return;
-	}
-	else
-		ASSERT(0);
-}
+// CPT2 simplified
 
 void StartTimer()
 {
+	if( !QueryPerformanceFrequency( &PerfFreq ) )
+		ASSERT(0);
 	SetThreadPriority( GetCurrentThread(), THREAD_PRIORITY_TIME_CRITICAL );
 	QueryPerformanceCounter( &tStart );
 }
@@ -1352,29 +1330,10 @@ double GetElapsedTime()
 {
 	QueryPerformanceCounter( &tStop );
 	SetThreadPriority( GetCurrentThread(), THREAD_PRIORITY_NORMAL );
-
-	double time;
-	int ReduceMag = 0;
-	LARGE_INTEGER Freq = PerfFreq;
-	unsigned int High32 = tStop.HighPart - tStart.HighPart;
-	while( High32 )
-	{
-		High32 >>= 1;
-		ReduceMag++;
-	}
-	if( PerfFreqAdjust || ReduceMag )
-	{
-		if( PerfFreqAdjust > ReduceMag )
-			ReduceMag = PerfFreqAdjust;
-		tStart.QuadPart = Int64ShrlMod32( tStart.QuadPart, ReduceMag );
-		tStop.QuadPart = Int64ShrlMod32( tStop.QuadPart, ReduceMag );
-		Freq.QuadPart = Int64ShrlMod32( Freq.QuadPart, ReduceMag );
-	}
-	if( Freq.LowPart == 0 )
-		time = 0.0;
-	else
-		time = ((double)(tStop.LowPart - tStart.LowPart))/Freq.LowPart;
-	return time;
+	double start = (double) tStart.QuadPart;
+	double stop = (double) tStop.QuadPart;
+	double freq = (double) PerfFreq.QuadPart;
+	return (stop-start)/freq;
 }
 
 // convert angle in degrees from CW to CCW

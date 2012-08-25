@@ -608,9 +608,6 @@ bool cvertex2::SetNeedsThermal()
 ctee::ctee(cnet2 *n)
 	: cpcb_item (n->doc)
 { 
-// CPT2 TODO test code, remove
-if (UID()==858)
-via_w = 1;
 	via_w = via_hole_w = 0; 
 	n->tees.Add(this);
 	dl_hole = dl_thermal = NULL;
@@ -1229,6 +1226,9 @@ bool cseg2::RemoveBreak()
 		{ m_con->Remove(); return true; }
 	
 	m_con->MustRedraw();
+	if (!m_con->segs.Contains(this))
+		// Can happen during group deletions:
+		return false;
 	m_con->segs.Remove(this);
 	if (!preVtx->preSeg)
 	{

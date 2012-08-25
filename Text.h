@@ -40,7 +40,7 @@ public:
 		int _stroke_width, SMFontUtil *_smfontutil, CString * _str );
 	ctext(CFreePcbDoc *_doc, int _uid);
 
-	bool IsOnPcb();																// Done in cpp
+	virtual bool IsOnPcb();																// Done in cpp
 	bool IsText() { return true; }
 	ctext *ToText() { return this; }
 	int GetTypeBit() { return bitText; }
@@ -84,7 +84,7 @@ public:
 		int stroke_width, SMFontUtil * smfontutil, CString * str_ptr, bool bShown );			// Done in cpp
 	creftext(CFreePcbDoc *_doc, int _uid);
 
-	bool IsOnPcb();																				// Done in cpp
+	virtual bool IsOnPcb();																				// Done in cpp
 	bool IsRefText() { return true; }
 	creftext *ToRefText() { return this; }
 	int GetTypeBit() { return bitRefText; }
@@ -105,7 +105,7 @@ public:
 		int stroke_width, SMFontUtil * smfontutil, CString * str_ptr, bool bShown );
 	cvaluetext(CFreePcbDoc *_doc, int _uid);
 
-	bool IsOnPcb();																				// Done in cpp
+	virtual bool IsOnPcb();																				// Done in cpp
 	bool IsValueText() { return true; }
 	cvaluetext *ToValueText() { return this; }
 	int GetTypeBit() { return bitValueText; }
