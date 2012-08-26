@@ -114,11 +114,11 @@ void CDlgRefText::DoDataExchange(CDataExchange* pDX)
 // the calling program should call this to set up dialog
 // and provide pointers to variables which will be modified
 //
-void CDlgRefText::Initialize( ctext *text, cshapelist * cache_shapes )
+void CDlgRefText::Initialize( CText *text, CShapeList * cache_shapes )
 {
 	m_text = text;
 	m_cache_shapes = cache_shapes;
-	cpart2 *part = text->GetPart();
+	CPart *part = text->GetPart();
 	m_vis = text->m_bShown;
 	m_units = part->shape->m_units;
 	m_width = text->m_stroke_width;

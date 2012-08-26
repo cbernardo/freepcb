@@ -561,7 +561,7 @@ void CCommonView::RightClickSelect( CPoint &point )
 	CPoint p = point;
 	ScreenToClient(&p);								// API requires this conversion within OnContextMenu
 	p = m_dlist->WindowToPCB( p );
-	cpcb_item *first = m_sel.First();
+	CPcbItem *first = m_sel.First();
 	if (m_sel.GetSize()>1 || first && first->IsConnect())
 		// When groups and connects are selected, the right-click won't change the selection
 		bNoChange = true;
@@ -811,7 +811,7 @@ void CCommonView::PlacementGridDown() {
 	frm->m_wndMyToolBar.PlacementGridDown();
 	}
 
-void CCommonView::SelectItem(cpcb_item *item) 
+void CCommonView::SelectItem(CPcbItem *item) 
 {
 	// CPT2.  Convenience method that clears the selection array, adds "item" as its sole new member, then calls HighlightSelection()
 	m_sel.RemoveAll();
@@ -1151,13 +1151,13 @@ void CCommonView::SnapToGridLine(CPoint &wp, int grid_spacing) {
 int CompareHitsForShiftClick(const CHitInfo *h1, const CHitInfo *h2)
 {
 	// CPT2.  Hits can be sorted this way when user does a shift-click.  See SelectObjPopup() below.
-	cpcb_item *item1 = h1->item, *item2 = h2->item;
+	CPcbItem *item1 = h1->item, *item2 = h2->item;
 	int bit1 = item1->GetTypeBit(), bit2 = item2->GetTypeBit();
 	if (bit1<bit2) return -1;
 	if (bit1>bit2) return 1;
-	if (cseg2 *seg1 = item1->ToSeg())
+	if (CSeg *seg1 = item1->ToSeg())
 	{
-		cseg2 *seg2 = item2->ToSeg();
+		CSeg *seg2 = item2->ToSeg();
 		char dir1 = seg1->GetDirectionLabel(), dir2 = seg2->GetDirectionLabel();
 		if (dir1<dir2) return -1;
 		if (dir1>dir2) return 1;
@@ -1169,9 +1169,9 @@ int CompareHitsForShiftClick(const CHitInfo *h1, const CHitInfo *h2)
 			return y1<y2? 1: -1;
 		return x1<x2? -1: 1;
 	}
-	if (cside *s1 = item1->ToSide())
+	if (CSide *s1 = item1->ToSide())
 	{
-		cside *s2 = item2->ToSide();
+		CSide *s2 = item2->ToSide();
 		char dir1 = s1->GetDirectionLabel(), dir2 = s2->GetDirectionLabel();
 		if (dir1<dir2) return -1;
 		if (dir1>dir2) return 1;
@@ -1220,7 +1220,7 @@ int CCommonView::SelectObjPopup( CPoint const &point )
 	for( int idx = 0; idx < num_hits; idx++ )
 	{
 		CHitInfo *pInfo = &m_hit_info[idx];
-		cpcb_item *item = pInfo->item;
+		CPcbItem *item = pInfo->item;
 		int layer = item->GetLayer();
 
 		CRect r(0,0, 139,23);
@@ -1237,21 +1237,21 @@ int CCommonView::SelectObjPopup( CPoint const &point )
 		dc.FillSolidRect(r, layer_color);
 		dc.SetTextColor(text_color);
 
-		if (cpin2 *pin = item->ToPin())
+		if (CPin *pin = item->ToPin())
 		{
 			CString s ((LPCSTR) IDS_Pin3);
 			str.Format( s, pin->part->ref_des, pin->pin_name );
 		}
-		else if (cpadstack *ps = item->ToPadstack())
+		else if (CPadstack *ps = item->ToPadstack())
 		{
 			// FP editor only
 			CString s ((LPCSTR) IDS_Padstack);
 			str.Format( s, ps->name );
 		}
-		else if (cpart2 *part = item->ToPart())
+		else if (CPart *part = item->ToPart())
 		{
 			str = "";
-			cshape *shape = part->shape;
+			CShape *shape = part->shape;
 			if( shape )
 			{
 				CMetaFileDC m_mfDC;
@@ -1275,23 +1275,23 @@ int CCommonView::SelectObjPopup( CPoint const &point )
 				DeleteEnhMetaFile( hMF );
 			}
 		}
-		else if (creftext *t = item->ToRefText())
+		else if (CRefText *t = item->ToRefText())
 		{
 			CString s ((LPCSTR) IDS_Ref3);
 			str.Format(s, t->m_str);
 		}
-		else if (cvaluetext *t = item->ToValueText())
+		else if (CValueText *t = item->ToValueText())
 		{
 			CString s ((LPCSTR) IDS_Value3);
 			str.Format(s, t->m_str);
 		}
-		else if (cseg2 * seg = item->ToSeg())
+		else if (CSeg * seg = item->ToSeg())
 		{
 			str.LoadStringA(IDS_Segment3);
 			str += " ";
 			str += seg->GetDirectionLabel();
 		}
-		else if (cvertex2 *v = item->ToVertex())
+		else if (CVertex *v = item->ToVertex())
 		{
 			if (v->via_w)
 				str.LoadStringA(IDS_Via3);
@@ -1300,7 +1300,7 @@ int CCommonView::SelectObjPopup( CPoint const &point )
 		}
 		else if (item->IsTee())
 			str.LoadStringA(IDS_TeeVertex);
-		else if (cside *s = item->ToSide())
+		else if (CSide *s = item->ToSide())
 		{
 			if (s->IsAreaSide())
 				str.LoadStringA(IDS_Copper3);
@@ -1327,7 +1327,7 @@ int CCommonView::SelectObjPopup( CPoint const &point )
 			str.LoadStringA(IDS_Cutout3);
 			str += CString ((LPCSTR) IDS_Corner3);
 		}
-		else if (ctext *t = item->ToText())
+		else if (CText *t = item->ToText())
 		{
 			CString s ((LPCSTR) IDS_Text3);
 			str.Format(s, t->m_str);

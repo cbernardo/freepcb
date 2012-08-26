@@ -1,13 +1,13 @@
 // PcbItem.h:  The base class for all the items that
-//   appear on a PCB.  By having a single base class, cpcb_item, and using pointers to objects 
+//   appear on a PCB.  By having a single base class, CPcbItem, and using pointers to objects 
 //   belonging to derived classes, it was possible to supplant the old system of id's.
-// Also included are new template classes, carray<T> and citer<T>;  we can rely mostly on them
-//   instead of CArray<T>/CArray<T*> and the various old CIter_XXX classes.  carray and citer have a number of
-//   safety features, including: (1) if a member of a carray gets deleted, references to it 
-//   in the carray will be removed automatically;  (2) if a member of a carray gets detached or
-//   deleted in the midst of a loop, citer can handle the situation gracefully;  (3) if a carray as
-//   a whole gets deleted in the midst of a loop, its members are detached and citer handles that too;  (4) removal of items 
-//   from a carray, and detection of their presence in the carray, are quick.
+// Also included are new template classes, CHeap<T> and CIter<T>;  we can rely mostly on them
+//   instead of CArray<T>/CArray<T*> and the various old CIter_XXX classes.  CHeap and CIter have a number of
+//   safety features, including: (1) if a member of a CHeap gets deleted, references to it 
+//   in the CHeap will be removed automatically;  (2) if a member of a CHeap gets detached or
+//   deleted in the midst of a loop, CIter can handle the situation gracefully;  (3) if a CHeap as
+//   a whole gets deleted in the midst of a loop, its members are detached and CIter handles that too;  (4) removal of items 
+//   from a CHeap, and detection of their presence in the CHeap, are quick.
 // The descendant classes are declared in Part.h, Net.h, Polyline.h, Text.h, Shape.h.
 
 #pragma once
@@ -17,7 +17,7 @@
 #include "DlgLog.h"
 #include "gpc_232.h"
 
-// A couple of enum's relating to cglue and ccentroid (putting 'em here to appease the @$#% compiler)
+// A couple of enum's relating to CGlue and CCentroid (putting 'em here to appease the @$#% compiler)
 enum GLUE_POS_TYPE
 {
 	GLUE_POS_CENTROID,	// at centroid
@@ -32,41 +32,41 @@ enum CENTROID_TYPE
 };
 
 
-class cpcb_item;
-class carray_link;
-template <class T> class carray;  // NB "T" is expected to be a cpcb_item class
-template <class T> class citer;	  // Ditto
+class CPcbItem;
+class CHeapLink;
+template <class T> class CHeap;  // NB "T" is expected to be a CPcbItem class
+template <class T> class CIter;	  // Ditto
 
-class cvertex2; 
-class ctee;
-class cseg2;
-class cconnect2;
-class cpin2;
-class cpart2;
-class ccorner;	
-class cside;	
-class ccontour;
-class cpolyline;
-class carea2;
-class csmcutout;
-class cboard;
-class coutline;
-class cnet2;
-class ctext;	
-class creftext;
-class cvaluetext;
-class ccentroid;
-class cglue;
-class cdre;
-class cpadstack;
-class cshape;
+class CVertex; 
+class CTee;
+class CSeg;
+class CConnect;
+class CPin;
+class CPart;
+class CCorner;	
+class CSide;	
+class CContour;
+class CPolyline;
+class CArea;
+class CSmCutout;
+class CBoard;
+class COutline;
+class CNet;
+class CText;	
+class CRefText;
+class CValueText;
+class CCentroid;
+class CGlue;
+class CDre;
+class CPadstack;
+class CShape;
 
 class CFreePcbDoc;
-class cpartlist;
-class ctextlist;
-class cnetlist;
+class CPartList;
+class CTextList;
+class CNetList;
 
-class cundo_item;
+class CUndoItem;
 struct stroke;
 
 enum typebits {
@@ -110,48 +110,48 @@ enum typebits {
 	bitsSelectableForGroup = bitVia | bitSeg | bitConnect | bitPart | bitText | bitAreaSide | bitSmSide | bitBoardSide
 };
 
-class cpcb_item 
+class CPcbItem 
 {
 	// THE BASE CLASS FOR EVERY ITEM ON A PCB.  
-	// Best way I could figure out to give the various carray types access to cpcb_item's innards was to list 'em as friends 1 by 1.
+	// Best way I could figure out to give the various CHeap types access to CPcbItem's innards was to list 'em as friends 1 by 1.
 	// An ugly PITA, but I suppose necessary:
-	friend class carray<cpcb_item>;
-	friend class carray<cvertex2>;
-	friend class carray<ctee>;
-	friend class carray<cseg2>;
-	friend class carray<cconnect2>;
-	friend class carray<cpin2>;
-	friend class carray<cpart2>;
-	friend class carray<ccorner>;
-	friend class carray<cside>;
-	friend class carray<ccontour>;
-	friend class carray<cpolyline>;
-	friend class carray<carea2>;
-	friend class carray<csmcutout>;
-	friend class carray<cboard>;
-	friend class carray<coutline>;
-	friend class carray<cnet2>;
-	friend class carray<ctext>;
-	friend class carray<creftext>;
-	friend class carray<cvaluetext>;
-	friend class carray<ccentroid>;
-	friend class carray<cglue>;
-	friend class carray<cdre>;
-	friend class carray<cpadstack>;
-	friend class carray<cshape>;
-	friend class cundo_record;
+	friend class CHeap<CPcbItem>;
+	friend class CHeap<CVertex>;
+	friend class CHeap<CTee>;
+	friend class CHeap<CSeg>;
+	friend class CHeap<CConnect>;
+	friend class CHeap<CPin>;
+	friend class CHeap<CPart>;
+	friend class CHeap<CCorner>;
+	friend class CHeap<CSide>;
+	friend class CHeap<CContour>;
+	friend class CHeap<CPolyline>;
+	friend class CHeap<CArea>;
+	friend class CHeap<CSmCutout>;
+	friend class CHeap<CBoard>;
+	friend class CHeap<COutline>;
+	friend class CHeap<CNet>;
+	friend class CHeap<CText>;
+	friend class CHeap<CRefText>;
+	friend class CHeap<CValueText>;
+	friend class CHeap<CCentroid>;
+	friend class CHeap<CGlue>;
+	friend class CHeap<CDre>;
+	friend class CHeap<CPadstack>;
+	friend class CHeap<CShape>;
+	friend class CUndoRecord;
 	friend class CFreePcbDoc;
 
-	carray_link *carray_list;	// List of carray's into which this item has been added
+	CHeapLink *carray_list;	// List of CHeap's into which this item has been added
 	int m_uid;
 	static int next_uid;
-	static cpcb_item **uid_hash;			// Hash table (with an incredibly simple hash function).  Used by FindByUid(), qv.
+	static CPcbItem **uid_hash;			// Hash table (with an incredibly simple hash function).  Used by FindByUid(), qv.
 	static int uid_hash_sz;					// Size of uid_hash, initially 0x2000.  Must be a power of 2.
-	cpcb_item *uid_hash_next;				// Linked lists for hash conflicts.
+	CPcbItem *uid_hash_next;				// Linked lists for hash conflicts.
 public:
 	CFreePcbDoc *doc;
-	dl_element *dl_el;
-	dl_element *dl_sel;
+	CDLElement *dl_el;
+	CDLElement *dl_sel;
 	int utility;
 	bool bDrawn;
 	enum { NOERR = 0, NO_DLIST, NO_FOOTPRINT, ALREADY_DRAWN, EMPTY_TEXT };
@@ -159,13 +159,13 @@ public:
 	enum { NO_HATCH, DIAGONAL_FULL, DIAGONAL_EDGE }; // polyline hatch styles
 
 protected:
-	cpcb_item(CFreePcbDoc *_doc);
-	cpcb_item(CFreePcbDoc *_doc, int _uid);		// Used only during undo operations.
-	virtual ~cpcb_item();						// When an item is destroyed, references to it are automatically
+	CPcbItem(CFreePcbDoc *_doc);
+	CPcbItem(CFreePcbDoc *_doc, int _uid);		// Used only during undo operations.
+	virtual ~CPcbItem();						// When an item is destroyed, references to it are automatically
 												// removed from any carrays to which it belongs.
 public:
 	int UID() { return m_uid; }
-	static cpcb_item *FindByUid(int uid);
+	static CPcbItem *FindByUid(int uid);
 	static int GetNextUid() { return next_uid; }
 	bool IsHit(int x, int y);
 	bool IsDrawn() { return bDrawn; }
@@ -175,12 +175,12 @@ public:
 	virtual	int Draw() { return NOERR; }
 	virtual void Undraw();							// Default behavior:  done in cpp
 	virtual void MustRedraw();						// CPT2 r313.  My latest-n-greatest new system for drawing/undrawing (see notes.txt). Done in cpp
-													// Overridden in cpin2 [only?]
+													// Overridden in CPin [only?]
 	virtual void Highlight() { }
 	virtual bool IsOnPcb() { return false; }		// Used to be called IsValid(), but this name seemed more descriptive.  E.g. items
 													// on the clipboard are perfectly "valid" (not subject to garbage-collection), but the
-													// drawing and undo routines should ignore them anyway.  Check out particularly cshape::IsOnPcb().
-	virtual cundo_item *MakeUndoItem() { return NULL; }		
+													// drawing and undo routines should ignore them anyway.  Check out particularly CShape::IsOnPcb().
+	virtual CUndoItem *MakeUndoItem() { return NULL; }		
 	virtual void SaveUndoInfo();							// Most derived classes inherit the base-class version of the func.
 
 	// Type identification functions.  All return false by default, but are overridden in specified derived classes.
@@ -212,7 +212,7 @@ public:
 	virtual bool IsBoard() { return false; }
 	virtual bool IsOutline() { return false; }
 	virtual bool IsNet() { return false; }
-	virtual bool IsText() { return false; }			// CPT2 true for ctext, creftext and cvaluetext
+	virtual bool IsText() { return false; }			// CPT2 true for CText, CRefText and CValueText
 	virtual bool IsRefText() { return false; }
 	virtual bool IsValueText() { return false; }
 	virtual bool IsCentroid() { return false; }
@@ -228,88 +228,88 @@ public:
 	bool IsFootItem();
 
 	// Type casting functions.  All return null by default, but are overridden to return type-cast pointers in specified derived classes
-	virtual cvertex2 *ToVertex() { return NULL; }
-	virtual ctee *ToTee() { return NULL; }
-	virtual cseg2 *ToSeg() { return NULL; }
-	virtual cconnect2 *ToConnect() { return NULL; }
-	virtual cpin2 *ToPin() { return NULL; }
-	virtual cpart2 *ToPart() { return NULL; }
-	virtual ccorner *ToCorner() { return NULL; }
-	virtual cside *ToSide() { return NULL; }
-	virtual ccontour *ToContour() { return NULL; }
-	virtual cpolyline *ToPolyline() { return NULL; }
-	virtual carea2 *ToArea() { return NULL; }
-	virtual csmcutout *ToSmCutout() { return NULL; }
-	virtual cboard *ToBoard() { return NULL; }
-	virtual coutline *ToOutline() { return NULL; }
-	virtual cnet2 *ToNet() { return NULL; }
-	virtual ctext *ToText() { return NULL; }
-	virtual creftext *ToRefText() { return NULL; }
-	virtual cvaluetext *ToValueText() { return NULL; }
-	virtual ccentroid *ToCentroid() { return NULL; }
-	virtual cglue *ToGlue() { return NULL; }
-	virtual cdre *ToDRE() { return NULL; }
-	virtual cpadstack *ToPadstack() { return NULL; }
-	virtual cshape *ToShape() { return NULL; }
+	virtual CVertex *ToVertex() { return NULL; }
+	virtual CTee *ToTee() { return NULL; }
+	virtual CSeg *ToSeg() { return NULL; }
+	virtual CConnect *ToConnect() { return NULL; }
+	virtual CPin *ToPin() { return NULL; }
+	virtual CPart *ToPart() { return NULL; }
+	virtual CCorner *ToCorner() { return NULL; }
+	virtual CSide *ToSide() { return NULL; }
+	virtual CContour *ToContour() { return NULL; }
+	virtual CPolyline *ToPolyline() { return NULL; }
+	virtual CArea *ToArea() { return NULL; }
+	virtual CSmCutout *ToSmCutout() { return NULL; }
+	virtual CBoard *ToBoard() { return NULL; }
+	virtual COutline *ToOutline() { return NULL; }
+	virtual CNet *ToNet() { return NULL; }
+	virtual CText *ToText() { return NULL; }
+	virtual CRefText *ToRefText() { return NULL; }
+	virtual CValueText *ToValueText() { return NULL; }
+	virtual CCentroid *ToCentroid() { return NULL; }
+	virtual CGlue *ToGlue() { return NULL; }
+	virtual CDre *ToDRE() { return NULL; }
+	virtual CPadstack *ToPadstack() { return NULL; }
+	virtual CShape *ToShape() { return NULL; }
 
-	virtual cnet2 *GetNet() { return NULL; }					// Returns something for items that belong to a net.
-	virtual cconnect2 *GetConnect() { return NULL; }			// Similar
-	virtual cpolyline *GetPolyline() { return NULL; }
-	carea2 *GetArea();											// In cpp
+	virtual CNet *GetNet() { return NULL; }					// Returns something for items that belong to a net.
+	virtual CConnect *GetConnect() { return NULL; }			// Similar
+	virtual CPolyline *GetPolyline() { return NULL; }
+	CArea *GetArea();											// In cpp
 	virtual int GetLayer() { return -1; }
 	virtual void GetStatusStr( CString *str ) { *str = ""; }
-	virtual void ForceVia() { }									// Implemented in cvertex2 and ctee
-	virtual void UnforceVia() { }								// Implemented in cvertex2 and ctee
+	virtual void ForceVia() { }									// Implemented in CVertex and CTee
+	virtual void UnforceVia() { }								// Implemented in CVertex and CTee
 };
 
-class carray_link
+class CHeapLink
 {
-	// Used in forging linked lists of carray<T> pointers (which are declared below as void pointers for simplicity).  When a cpcb_item is
-	// added to a carray, one of these links is hooked to its carray_list.  In that way we know which carrays it belongs to (I don't foresee
+	// Used in forging linked lists of CHeap<T> pointers (which are declared below as void pointers for simplicity).  When a CPcbItem is
+	// added to a CHeap, one of these links is hooked to its carray_list.  In that way we know which carrays it belongs to (I don't foresee
 	// many items belonging to more than 1 or 2 arrays in general).  We can also use the "off" member of this structure to determine what position
 	// the item has in the indicated array.
-	// Same dumb business with friends as in cpcb_item :(
-	friend class cpcb_item;
-	friend class carray<cpcb_item>;
-	friend class carray<cvertex2>;
-	friend class carray<ctee>;
-	friend class carray<cseg2>;
-	friend class carray<cconnect2>;
-	friend class carray<cpin2>;
-	friend class carray<cpart2>;
-	friend class carray<ccorner>;
-	friend class carray<cside>;
-	friend class carray<ccontour>;
-	friend class carray<cpolyline>;
-	friend class carray<carea2>;
-	friend class carray<csmcutout>;
-	friend class carray<cboard>;
-	friend class carray<coutline>;
-	friend class carray<cnet2>;
-	friend class carray<ctext>;
-	friend class carray<creftext>;
-	friend class carray<cvaluetext>;
-	friend class carray<ccentroid>;
-	friend class carray<cglue>;
-	friend class carray<cdre>;
-	friend class carray<cpadstack>;
-	friend class carray<cshape>;
+	// Same dumb business with friends as in CPcbItem :(
+	friend class CPcbItem;
+	friend class CHeap<CPcbItem>;
+	friend class CHeap<CVertex>;
+	friend class CHeap<CTee>;
+	friend class CHeap<CSeg>;
+	friend class CHeap<CConnect>;
+	friend class CHeap<CPin>;
+	friend class CHeap<CPart>;
+	friend class CHeap<CCorner>;
+	friend class CHeap<CSide>;
+	friend class CHeap<CContour>;
+	friend class CHeap<CPolyline>;
+	friend class CHeap<CArea>;
+	friend class CHeap<CSmCutout>;
+	friend class CHeap<CBoard>;
+	friend class CHeap<COutline>;
+	friend class CHeap<CNet>;
+	friend class CHeap<CText>;
+	friend class CHeap<CRefText>;
+	friend class CHeap<CValueText>;
+	friend class CHeap<CCentroid>;
+	friend class CHeap<CGlue>;
+	friend class CHeap<CDre>;
+	friend class CHeap<CPadstack>;
+	friend class CHeap<CShape>;
 
-	void *arr;									// Really a carray<T> pointer, for some T.
+	void *arr;									// Really a CHeap<T> pointer, for some T.
 	int off;
-	carray_link *next;
+	CHeapLink *next;
 };
 
 
-template <class T> class carray 
+template <class T> class CHeap 
 {
-	// An array designed to hold items in classes derived from cpcb_item.  Note that entries in these arrays are pointers, not objects (so 
-	// that carray<cpin2> is more like CArray<cpin2*> than CArray<cpin2>).  Each cpcb_item has an attached linked list of the carrays to which it
-	// belongs, which allows various maintenance chores to be done automatically.  When an item is removed from a carray, the slot it occupied
+	// An array designed to hold items in classes derived from CPcbItem.  Note that entries in these arrays are pointers, not objects (so 
+	// that CHeap<CPin> is more like CArray<CPin*> than CArray<CPin>).  Each CPcbItem has an attached linked list of the carrays to which it
+	// belongs, which allows various maintenance chores to be done automatically.  When an item is removed from a CHeap, the slot it occupied
 	// is marked as free and linked to a list for later reuse.
 	// For ease of reference and for a potential inline speed-boost, I put the code here in the .h
-	friend class cpcb_item;
-	friend class citer<T>;
+	friend class CPcbItem;
+	friend class CIter<T>;
 	T **heap;					// Expandable array of data pointers.
 	unsigned char *flags;		// Bitset, indicating which elements of "heap" contain valid entries.  A zero bit indicates a free slot.
 								// Bits beyond position "maxOff" are undefined.
@@ -317,10 +317,10 @@ template <class T> class carray
 	int nItems;					// Number of filled slots
 	int free;					// The head of the free slot list (an index into "heap").  -1 => everything through maxOff is filled
 	int maxOff;					// Maximum offset among the slots that are either filled, or hooked to the free list
-	citer<T> *iters;			// Linked list of iterators that are actively looping through this.  Typically I don't expect more than 1 or 2...
+	CIter<T> *iters;			// Linked list of iterators that are actively looping through this.  Typically I don't expect more than 1 or 2...
 
 public:
-	carray(int nHeapInit = 16)
+	CHeap(int nHeapInit = 16)
 	{
 		// Create the array, with the given number of initial entries in the heap.
 		heap = (T**) HeapAlloc(GetProcessHeap(), 0, nHeapInit*sizeof(T**));
@@ -331,15 +331,15 @@ public:
 		iters = NULL;
 	}
 
-	~carray()
+	~CHeap()
 	{
 		// Frees up heap and flags, and safely removes all references to this from its member items.  But it doesn't destroy the members.
-		// NB check out how this destructor is invoked within ~cpart2 and the like...
+		// NB check out how this destructor is invoked within ~CPart and the like...
 		RemoveAll();
 		HeapFree(GetProcessHeap(), 0, heap);
 		HeapFree(GetProcessHeap(), 0, flags);
 		// Blank out references to this from active iterators:
-		for (citer<T> *iter = iters; iter; iter = iter->nextIter)
+		for (CIter<T> *iter = iters; iter; iter = iter->nextIter)
 			iter->arr = NULL;
 	}
 	
@@ -347,8 +347,8 @@ public:
 	void Add(T* item)
 	{
 		// NB If item is null, we get a crash.  OK?
-		// Add item to this carray.  But first check if the item already belongs to this, and return silently if so
-		for (carray_link *link = item->carray_list; link; link = link->next)
+		// Add item to this CHeap.  But first check if the item already belongs to this, and return silently if so
+		for (CHeapLink *link = item->carray_list; link; link = link->next)
 			if (link->arr==this) return;
 		// See if heap needs to expand.  It grows by a factor of ~1.5 each time:
 		if (nItems==nHeap)
@@ -371,10 +371,10 @@ public:
 			free = *(int*) (heap+off);
 		else
 			off = ++maxOff;
-		// Add item!  Then create a carray_link that connects the item with this carray.
+		// Add item!  Then create a CHeapLink that connects the item with this CHeap.
 		heap[off] = item;
 		flags[off>>3] |= 1<<(off&7);						// Set flag for "off"
-		carray_link *link = new carray_link();
+		CHeapLink *link = new CHeapLink();
 		link->off = off;
 		link->arr = this;
 		link->next = item->carray_list;
@@ -382,7 +382,7 @@ public:
 		nItems++;
 	}
 
-	void Add(carray<T> *arr) 
+	void Add(CHeap<T> *arr) 
 	{
 		// Append the members of "arr" onto this.
 		for (int i=0; i<=arr->maxOff; i++) 
@@ -394,14 +394,14 @@ public:
 	{
 		// Return true if "item" is in the array.  NB if item is null, return false. (?)
 		if (!item) return false;
-		for (carray_link *link = item->carray_list; link; link = link->next)
+		for (CHeapLink *link = item->carray_list; link; link = link->next)
 			if (link->arr == this) return true;
 		return false;
 	}
 
 	int OffsetOf(T* item)
 	{
-		for (carray_link *link = item->carray_list; link; link = link->next)
+		for (CHeapLink *link = item->carray_list; link; link = link->next)
 			if (link->arr == this) return link->off;
 		return INT_MAX;
 	}
@@ -409,7 +409,7 @@ public:
 	void Remove(T* item)
 	{
 		// Remove "item" from this.  If item isn't in the list, do an ASSERT (?).  If item is null, crash (?)
-		carray_link *link, *prev = NULL;
+		CHeapLink *link, *prev = NULL;
 		for (link = item->carray_list; link; prev = link, link = link->next)
 			if (link->arr == this) break;
 		ASSERT(link!=0);
@@ -444,9 +444,9 @@ public:
 		maxOff = free = -1;							// Ensures that if array fills up again, iteration through it will be efficient.
 	}
 
-	void TransferTo(carray<T> *arr)
+	void TransferTo(CHeap<T> *arr)
 	{
-		// Move the contents of this into "arr", removing all from this carray afterwards.
+		// Move the contents of this into "arr", removing all from this CHeap afterwards.
 		arr->RemoveAll();
 		arr->Add(this);
 		RemoveAll();
@@ -475,7 +475,7 @@ public:
 
 	void SetUtility(int utility)
 	{
-		// Mark utility value for all members of the carray
+		// Mark utility value for all members of the CHeap
 		for (int i=0; i<=maxOff; i++)
 			if (flags[i>>3] & (1<<(i&7)))
 				heap[i]->utility = utility;
@@ -493,7 +493,7 @@ public:
 
 	bool ReadItems(T** out, int ct) 
 	{
-		// Read "ct" items from the carray into "out". Return false if ct is too large.  Maybe unneeded.
+		// Read "ct" items from the CHeap into "out". Return false if ct is too large.  Maybe unneeded.
 		if (ct>nItems) return false;
 		int j = 0;
 		for (int i=0; j<ct; i++)
@@ -504,21 +504,21 @@ public:
 };
 
 
-template <class T> class citer
+template <class T> class CIter
 {
-	// Use these classes to iterate through the members of a carray<T>.  That way we can handle it gracefully if an item is removed from the array 
+	// Use these classes to iterate through the members of a CHeap<T>.  That way we can handle it gracefully if an item is removed from the array 
 	//  from within the loop, and even if the array as a whole is destroyed.
 	// Sample usage:
-	//		citer<cseg2> iseg (con->m_segs);
-	//		for (cseg2 *seg = iseg.First(); seg; seg = iseg.Next())
+	//		CIter<CSeg> iseg (con->segs);
+	//		for (CSeg *seg = iseg.First(); seg; seg = iseg.Next())
 	//			...
-	friend class carray<T>;
-	carray<T> *arr;
+	friend class CHeap<T>;
+	CHeap<T> *arr;
 	int nextOff;								// Next offset at which Next() will seek a new entry.
-	citer<T> *nextIter;							// Active iterators for a particular array are linked (singly) in a list.
+	CIter<T> *nextIter;							// Active iterators for a particular array are linked (singly) in a list.
 
 public:
-	citer(carray<T> *arr0)
+	CIter(CHeap<T> *arr0)
 	{
 		arr = arr0;
 		nextOff = 0;
@@ -526,7 +526,7 @@ public:
 		nextIter = arr->iters;
 		arr->iters = this;
 	}
-	citer(carray<T> *arr0, T *at) 
+	CIter(CHeap<T> *arr0, T *at) 
 	{
 		// Iterate through, starting at the position of "at". If "at" is not in the array, advance iterator past the end
 		arr = arr0;
@@ -535,7 +535,7 @@ public:
 		arr->iters = this;
 	}
 
-	~citer()
+	~CIter()
 	{
 		// Remove this iterator from its array's list of iterators.  Since the list is singly-linked, the process may be inefficient;  
 		//   but I expect the list to be very short and the overall savings should outweight the penalty.
@@ -544,8 +544,8 @@ public:
 			arr->iters = nextIter;
 		else 
 		{
-			citer<T> *prev = NULL;
-			for (citer<T> *iter = arr->iters; iter; iter = iter->nextIter)
+			CIter<T> *prev = NULL;
+			for (CIter<T> *iter = arr->iters; iter; iter = iter->nextIter)
 				if (iter->nextIter==this) 
 					{ prev = iter; break; }
 			ASSERT(prev!=NULL);

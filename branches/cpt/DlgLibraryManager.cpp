@@ -178,7 +178,7 @@ void CDlgLibraryManager::OnBnClickedButtonMakePdf()
 		for( int i=0; i<m_footlib->GetNumFootprints(ilib) ; i++ )
 		{
 			// get next footprint
-			cshape foot (doc);
+			CShape foot (doc);
 			int err = foot.MakeFromFile( NULL, *m_footlib->GetFootprintName( ilib, i ), 
 				*m_footlib->GetLibraryFullPath(ilib), m_footlib->GetFootprintOffset( ilib, i ) );
 			if( err )
@@ -192,8 +192,8 @@ void CDlgLibraryManager::OnBnClickedButtonMakePdf()
 			CArray<int> pad_hole;
 			int shapePrev = -1, wPrev = -1, lPrev = -1, holePrev = -1;
 			int ct, start, index = 1, numPs = foot.m_padstacks.GetSize();
-			citer<cpadstack> ips (&foot.m_padstacks);
-			for (cpadstack *ps = ips.First(); ps; ps = ips.Next(), index++)
+			CIter<CPadstack> ips (&foot.m_padstacks);
+			for (CPadstack *ps = ips.First(); ps; ps = ips.Next(), index++)
 			{
 				int this_pad_shape = ps->top.shape;
 				int this_pad_w = ps->top.size_h;
@@ -475,8 +475,8 @@ void CDlgLibraryManager::OnBnClickedButtonMakePdf()
 			{
 				CString pin_spacing_str;
 				double pin_spacing;
-				citer<cpadstack> ips (&foot.m_padstacks);
-				cpadstack *ps0 = ips.First(), *ps1 = ips.Next();
+				CIter<CPadstack> ips (&foot.m_padstacks);
+				CPadstack *ps0 = ips.First(), *ps1 = ips.Next();
 				double dx = ps0->x_rel - ps1->x_rel;
 				double dy = ps0->y_rel - ps1->y_rel;
 				if( dx == 0.0 )
@@ -722,22 +722,22 @@ void CDlgLibraryManager::OnBnClickedButtonMakePdf()
 			float org_y = top_y - foot_top*scale;
 
 			// draw outline
-			citer<coutline> io (&foot.m_outlines);
-			for (coutline *poly = io.First(); poly; poly = io.Next())
+			CIter<COutline> io (&foot.m_outlines);
+			for (COutline *poly = io.First(); poly; poly = io.Next())
 			{
 				cpdf_newpath( pdf );
-				citer<cside> is (&poly->main->sides);
-				for (cside *s = is.First(); s; s = is.Next())
+				CIter<CSide> is (&poly->main->sides);
+				for (CSide *s = is.First(); s; s = is.Next())
 					{
 					float xi = org_x + s->preCorner->x*scale/NM_PER_INCH;
 					float yi = org_y + s->preCorner->y*scale/NM_PER_INCH;
 					float xf = org_x + s->postCorner->x*scale/NM_PER_INCH;
 					float yf = org_y + s->postCorner->y*scale/NM_PER_INCH;
 					cpdf_moveto( pdf, xi, yi );
-					if( s->m_style == cpolyline::STRAIGHT )
+					if( s->m_style == CPolyline::STRAIGHT )
 						// straight line segment
 						cpdf_lineto( pdf, xf, yf );
-					else if( s->m_style == cpolyline::ARC_CW )
+					else if( s->m_style == CPolyline::ARC_CW )
 					{
 						// ellipse quadrant, clockwise, start vertical
 						double x1 = xi;
@@ -754,7 +754,7 @@ void CDlgLibraryManager::OnBnClickedButtonMakePdf()
 						}
 						cpdf_curveto( pdf, x1, y1, x2, y2, xf, yf );
 					}
-					else if( s->m_style == cpolyline::ARC_CCW )
+					else if( s->m_style == CPolyline::ARC_CCW )
 					{
 						// ellipse quadrant, counterclockwise, start vertical
 						double x1 = xi;
@@ -778,8 +778,8 @@ void CDlgLibraryManager::OnBnClickedButtonMakePdf()
 			}
 
 			// draw text
-			citer<ctext> it (&foot.m_tl->texts);
-			for (ctext *t = it.First(); t; t = it.Next())
+			CIter<CText> it (&foot.m_tl->texts);
+			for (CText *t = it.First(); t; t = it.Next())
 			{
 				t->GenerateStrokes();
 				for( int is=0; is<t->m_stroke.GetSize(); is++ )
@@ -798,7 +798,7 @@ void CDlgLibraryManager::OnBnClickedButtonMakePdf()
 			// draw pads
 			cpdf_setlinecap( pdf, 1 );		// round end-caps 
 			cpdf_setlinewidth( pdf, 0.3 );	// 5 mil
-			for( cpadstack *ps = ips.First(); ps; ps = ips.Next())
+			for( CPadstack *ps = ips.First(); ps; ps = ips.Next())
 			{
 				if( ps->hole_size )
 					cpdf_setrgbcolor( pdf, 0.0, 0.0, 1.0 );

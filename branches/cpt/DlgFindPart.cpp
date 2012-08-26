@@ -28,8 +28,8 @@ void CDlgFindPart::DoDataExchange(CDataExchange* pDX)
 		// incoming.  CPT2 Sort names in a CArray<CString> first.  It's really stupid, but I couldn't get the built-in
 		// sorting of combo-boxes to work.  Damnable MSDN dox...
 		CArray<CString> names;
-		citer<cpart2> ip (&m_pl->parts);
-		for (cpart2 *part = ip.First(); part; part = ip.Next())
+		CIter<CPart> ip (&m_pl->parts);
+		for (CPart *part = ip.First(); part; part = ip.Next())
 			names.Add( part->ref_des );
 		qsort(names.GetData(), names.GetSize(), sizeof(CString), (int (*)(const void*,const void*)) CompareNumeric);
 		for (int i=0; i<names.GetSize(); i++)
@@ -49,7 +49,7 @@ END_MESSAGE_MAP()
 
 // CDlgFindPart message handlers
 
-void CDlgFindPart::Initialize( cpartlist * pl )
+void CDlgFindPart::Initialize( CPartList * pl )
 {
 	m_pl = pl;
 }

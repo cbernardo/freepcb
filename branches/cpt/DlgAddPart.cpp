@@ -10,7 +10,7 @@
 
 // save expanded state of local cache
 BOOL gLocalCacheExpanded = FALSE;
-CArray<cshape*> gTempCachePtrs;
+CArray<CShape*> gTempCachePtrs;
 
 // global for last ref des
 CString last_ref_des = "";
@@ -220,7 +220,7 @@ void CDlgAddPart::Initialize( partlist_info * pli,
 							 BOOL new_part,
 							 BOOL multiple,
 							 int multiple_mask,
-							 cshapelist * cache_shapes,
+							 CShapeList * cache_shapes,
 							 CFootLibFolderMap * footlibfoldermap,
 							 int units,
 							 CDlgLog * log )
@@ -460,10 +460,10 @@ void CDlgAddPart::InitPartLibTree()
 		part_tree.SetItemState( hLocal, TVIS_EXPANDED, TVIS_EXPANDED );
 
 	// insert cached footprints
-	citer<cshape> is (&m_cache_shapes->shapes);
+	CIter<CShape> is (&m_cache_shapes->shapes);
 	gTempCachePtrs.RemoveAll();
 	int i = 0;
-	for (cshape *s = is.First(); s; s = is.Next(), i++)
+	for (CShape *s = is.First(); s; s = is.Next(), i++)
 	{
 		tvInsert.hInsertAfter = 0;
 		tvInsert.hParent = hLocal;
@@ -537,7 +537,7 @@ void CDlgAddPart::OnTvnSelchangedPartLibTree(NMHDR *pNMHDR, LRESULT *pResult)
 			m_shape_file_name = *m_folder->GetLibraryFullPath( m_ilib );
 			int offset = m_folder->GetFootprintOffset( m_ilib, m_ifoot );
 			extern CFreePcbApp theApp;
-			m_shape = new cshape (theApp.m_doc);
+			m_shape = new CShape (theApp.m_doc);
 			int err = m_shape->MakeFromFile( NULL, m_footprint_name, m_shape_file_name, offset ); 
 			if( err )
 				// unable to make shape

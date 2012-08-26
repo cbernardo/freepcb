@@ -10,7 +10,7 @@
 extern CString gLastFileName;		// last file name imported
 extern CString gLastFolderName;		// last folder name imported
 extern BOOL gLocalCacheExpanded;
-extern CArray<cshape*> gTempCachePtrs;
+extern CArray<CShape*> gTempCachePtrs;
 
 
 // CDlgImportFootprint dialog
@@ -54,11 +54,11 @@ END_MESSAGE_MAP()
 // CDlgImportFootprint message handlers
 
 
-void CDlgImportFootprint::InitInstance( cshapelist * cache_shapes,
+void CDlgImportFootprint::InitInstance( CShapeList * cache_shapes,
 							 CFootLibFolderMap * foldermap, CDlgLog * log )
 {
 	extern CFreePcbApp theApp;
-	m_shape = new cshape ( theApp.m_doc );
+	m_shape = new CShape ( theApp.m_doc );
 	m_cache_shapes = cache_shapes;
 	m_foldermap = foldermap;
 	CString * path_str = foldermap->GetLastFolder();
@@ -175,10 +175,10 @@ void CDlgImportFootprint::InitPartLibTree()
 		part_tree.SetItemState( hLocal, TVIS_EXPANDED, TVIS_EXPANDED );
 
 	// insert cached footprints
-	citer<cshape> is (&m_cache_shapes->shapes);
+	CIter<CShape> is (&m_cache_shapes->shapes);
 	int i = 0;
 	gTempCachePtrs.RemoveAll();
-	for (cshape *s = is.First(); s; s = is.Next(), i++)
+	for (CShape *s = is.First(); s; s = is.Next(), i++)
 	{
 		tvInsert.hInsertAfter = 0;
 		tvInsert.hParent = hLocal;

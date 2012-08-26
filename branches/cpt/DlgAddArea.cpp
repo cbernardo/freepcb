@@ -7,7 +7,7 @@
 #include "layers.h"
 
 // globals
-int gHatch = cpolyline::NO_HATCH;
+int gHatch = CPolyline::NO_HATCH;
 	
 // CDlgAddArea dialog
 
@@ -32,8 +32,8 @@ void CDlgAddArea::DoDataExchange(CDataExchange* pDX)
 	if( !pDX->m_bSaveAndValidate )
 	{
 		// incoming, initialize net list
-		citer<cnet2> in (&m_nlist->nets);
-		for (cnet2 *net = in.First(); net; net = in.Next())
+		CIter<CNet> in (&m_nlist->nets);
+		for (CNet *net = in.First(); net; net = in.Next())
 			m_combo_net.AddString( net->name );
 		if( m_net )
 		{
@@ -55,11 +55,11 @@ void CDlgAddArea::DoDataExchange(CDataExchange* pDX)
 		m_list_layer.SetCurSel( m_layer - LAY_TOP_COPPER );
 		if( m_hatch == -1 )
 			m_hatch = gHatch;	
-		if( m_hatch == cpolyline::NO_HATCH )
+		if( m_hatch == CPolyline::NO_HATCH )
 			m_radio_none.SetCheck( 1 );
-		else if( m_hatch == cpolyline::DIAGONAL_EDGE )
+		else if( m_hatch == CPolyline::DIAGONAL_EDGE )
 			m_radio_edge.SetCheck( 1 );
-		else if( m_hatch == cpolyline::DIAGONAL_FULL )
+		else if( m_hatch == CPolyline::DIAGONAL_FULL )
 			m_radio_full.SetCheck( 1 );
 	}
 	else
@@ -79,11 +79,11 @@ void CDlgAddArea::DoDataExchange(CDataExchange* pDX)
 			pDX->Fail();
 		}
 		if( m_radio_none.GetCheck() )
-			m_hatch = cpolyline::NO_HATCH;
+			m_hatch = CPolyline::NO_HATCH;
 		else if( m_radio_full.GetCheck() )
-			m_hatch = cpolyline::DIAGONAL_FULL;
+			m_hatch = CPolyline::DIAGONAL_FULL;
 		else if( m_radio_edge.GetCheck() )
-			m_hatch = cpolyline::DIAGONAL_EDGE;
+			m_hatch = CPolyline::DIAGONAL_EDGE;
 		else 
 			ASSERT(0);
 		if( bNewArea )
@@ -98,8 +98,8 @@ END_MESSAGE_MAP()
 
 // CDlgAddArea message handlers
 
-void CDlgAddArea::Initialize( cnetlist * nl, int nlayers, 
-							 cnet2 * net, int layer, int hatch )
+void CDlgAddArea::Initialize( CNetList * nl, int nlayers, 
+							 CNet * net, int layer, int hatch )
 {
 	m_nlist = nl;
 	m_num_layers = nlayers;

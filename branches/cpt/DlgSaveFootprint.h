@@ -12,9 +12,9 @@ class CDlgSaveFootprint : public CDialog
 public:
 	CDlgSaveFootprint(CWnd* pParent = NULL);   // standard constructor
 	virtual ~CDlgSaveFootprint();
-	void Initialize( CString * name, cshape * footprint, int units,							 
+	void Initialize( CString * name, CShape * footprint, int units,							 
 					LPCTSTR default_file_name,
-					cshapelist * cache_shapes,
+					CShapeList * cache_shapes,
 					CFootLibFolderMap * footlibfoldermap,
 					CDlgLog * log );
 	void InitFileList();
@@ -29,11 +29,11 @@ protected:
 
 	DECLARE_MESSAGE_MAP()
 public:
-	cshapelist *m_cache_shapes;
+	CShapeList *m_cache_shapes;
 	CFootLibFolderMap * m_foldermap;
 	CFootLibFolder * m_folder;
 	CStatic m_preview;
-	cshape * m_footprint;
+	CShape * m_footprint;
 	int m_units;
 	CString m_default_filename;
 	CString m_folder_name;

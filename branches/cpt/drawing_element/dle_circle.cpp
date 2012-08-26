@@ -69,7 +69,7 @@ void CDLE_HOLLOW_CIRC::_Draw(CDrawInfo &di, bool)
 {
 	if( onScreen() )
 	{
-		// CPT2.  Kludgy new way to switch between hollow and solid --- used by cdrelist::MakeSolidCircles().  If holew is non-zero, draw the circle solid.
+		// CPT2.  Kludgy new way to switch between hollow and solid --- used by CDreList::MakeSolidCircles().  If holew is non-zero, draw the circle solid.
 		if (holew==0)
 			di.DC->SelectObject( GetStockObject( HOLLOW_BRUSH ) );
 		di.DC->Ellipse( i.x - w/2, i.y - w/2, i.x + w/2, i.y + w/2 );

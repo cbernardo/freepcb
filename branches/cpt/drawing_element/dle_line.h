@@ -4,7 +4,7 @@
 #include "DrawingElement.h"
 
 // line segment with round end-caps
-class CDLE_LINE : public dl_element
+class CDLE_LINE : public CDLElement
 {
 protected:
 	virtual void DrawHiliteSeg(CDrawInfo &di) 

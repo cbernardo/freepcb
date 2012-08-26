@@ -31,7 +31,7 @@
 #define DL_MAX_LAYERS	32
 #define HILITE_POINT_W	10	// size/2 of selection box for points (mils)
 
-dl_element::dl_element()
+CDLElement::CDLElement()
 {
 	prev = next = NULL;
 	// CPT2 added some more zeroing for safety
@@ -83,7 +83,7 @@ CDisplayList::~CDisplayList()
 
 // Remove element from list, return id
 //
-void CDisplayList::Remove( dl_element * element )
+void CDisplayList::Remove( CDLElement * element )
 {
 	if( !element )
 		return;
@@ -103,7 +103,7 @@ void CDisplayList::RemoveAllFromLayer( int layer )
 {
 	// CPT: new system replacing Brian's.  Delete all elements from linked list layers[layer].elements:
 	CDisplayLayer *dl = &layers[layer];
-	for (dl_element *el = dl->elements, *next; el; el = next)
+	for (CDLElement *el = dl->elements, *next; el; el = next)
 		next = el->next,
 		delete el;
 	dl->elements = NULL;
@@ -203,10 +203,10 @@ void CDisplayList::Scale_pcbu_to_wu(CRect &rect)
 }
 
 
-dl_element * CDisplayList::CreateDLE( int gtype )
+CDLElement * CDisplayList::CreateDLE( int gtype )
 {
 	// create new element and link into list
-	dl_element * new_element;
+	CDLElement * new_element;
 
 	switch( gtype )
 	{
@@ -230,7 +230,7 @@ dl_element * CDisplayList::CreateDLE( int gtype )
 		case DL_CENTROID:       new_element = new CDLE_CENTROID;       break;
 		case DL_X:              new_element = new CDLE_X;              break;
 
-		default:                new_element = new dl_element;          break;
+		default:                new_element = new CDLElement;          break;
 	}
 
 	// now copy data from entry into element
@@ -242,15 +242,15 @@ dl_element * CDisplayList::CreateDLE( int gtype )
 }
 
 
-// BEGIN CPT2.  With the passing of class id, I need versions of dl-elements that make use of cpcb_item pointers instead.
+// BEGIN CPT2.  With the passing of class id, I need versions of dl-elements that make use of CPcbItem pointers instead.
 
-dl_element * CDisplayList::CreateDLE( cpcb_item *item, int usage, int layer, int gtype, int visible,
+CDLElement * CDisplayList::CreateDLE( CPcbItem *item, int usage, int layer, int gtype, int visible,
 								int w, int holew, int clearancew,
 								int x, int y, int xf, int yf, int xo, int yo, int radius,
 								int orig_layer )
 {
 	// create new element
-	dl_element * new_element = CreateDLE( gtype );
+	CDLElement * new_element = CreateDLE( gtype );
 	// now copy data from entry into element
 	new_element->item       = item;
 	new_element->usage      = usage;
@@ -273,12 +273,12 @@ dl_element * CDisplayList::CreateDLE( cpcb_item *item, int usage, int layer, int
 }
 
 
-dl_element * CDisplayList::Add( cpcb_item *item, int usage, int layer, int gtype, int visible,
+CDLElement * CDisplayList::Add( CPcbItem *item, int usage, int layer, int gtype, int visible,
 	                            int w, int holew, int clearancew,
                                 int x, int y, int xf, int yf, int xo, int yo,
 	                            int radius, int orig_layer )
 {
-	dl_element * new_element = CreateDLE( item, usage, layer, gtype, visible,
+	CDLElement * new_element = CreateDLE( item, usage, layer, gtype, visible,
 	                                      w, holew, clearancew,
 	                                      x,y, xf,yf, xo,yo, radius,
 	                                      orig_layer );
@@ -286,13 +286,13 @@ dl_element * CDisplayList::Add( cpcb_item *item, int usage, int layer, int gtype
 	return new_element;
 }
 
-dl_element * CDisplayList::AddMain( cpcb_item *item, int layer, int gtype, int visible,
+CDLElement * CDisplayList::AddMain( CPcbItem *item, int layer, int gtype, int visible,
 	                            int w, int holew, int clearancew,
                                 int x, int y, int xf, int yf, int xo, int yo,
 	                            int radius, int orig_layer )
 {
-	// CPT2 convenience method similar to Add(), so that we don't have to type "dl_element::DL_MAIN" every time we're creating a plain-vanilla dl-element
-	dl_element * new_element = CreateDLE( item, dl_element::DL_MAIN, layer, gtype, visible,
+	// CPT2 convenience method similar to Add(), so that we don't have to type "CDLElement::DL_MAIN" every time we're creating a plain-vanilla dl-element
+	CDLElement * new_element = CreateDLE( item, CDLElement::DL_MAIN, layer, gtype, visible,
 	                                      w, holew, clearancew,
 	                                      x,y, xf,yf, xo,yo, radius,
 	                                      orig_layer );
@@ -302,11 +302,11 @@ dl_element * CDisplayList::AddMain( cpcb_item *item, int layer, int gtype, int v
 
 // add graphics element used for selection.  Another convenience method similar to Add()
 //
-dl_element * CDisplayList::AddSelector( cpcb_item *item, int layer, int gtype, int visible,
+CDLElement * CDisplayList::AddSelector( CPcbItem *item, int layer, int gtype, int visible,
 							   int w, int holew, int x, int y, int xf, int yf, int xo, int yo,
 							   int radius )
 {
-	dl_element * new_element = CreateDLE( item, dl_element::DL_SEL, layer, gtype, visible,
+	CDLElement * new_element = CreateDLE( item, CDLElement::DL_SEL, layer, gtype, visible,
 	                                      w, holew, 0,
 	                                      x,y, xf,yf, xo,yo, radius,
 	                                      layer );
@@ -317,7 +317,7 @@ dl_element * CDisplayList::AddSelector( cpcb_item *item, int layer, int gtype, i
 
 // END CPT2
 
-void CDisplayList::Add( dl_element * element )
+void CDisplayList::Add( CDLElement * element )
 {
 	layers[element->layer].Add(element);								// CPT:  new system replacing Brian's
 }
@@ -327,67 +327,67 @@ void CDisplayList::Add( dl_element * element )
 
 // set element parameters in PCBU
 //
-void CDisplayList::Set_visible( dl_element * el, int visible )
+void CDisplayList::Set_visible( CDLElement * el, int visible )
 {
 	if( el)
 		el->visible = visible;
 }
-void CDisplayList::Set_sel_vert( dl_element * el, int sel_vert )
+void CDisplayList::Set_sel_vert( CDLElement * el, int sel_vert )
 {
 	if( el)
 		el->sel_vert = sel_vert;
 }
-void CDisplayList::Set_w( dl_element * el, int w )
+void CDisplayList::Set_w( CDLElement * el, int w )
 {
 	if( el)
 		el->w = w/m_pcbu_per_wu;
 }
-void CDisplayList::Set_clearance( dl_element * el, int clearance )
+void CDisplayList::Set_clearance( CDLElement * el, int clearance )
 {
 	if( el)
 		el->clearancew = clearance/m_pcbu_per_wu;
 }
-void CDisplayList::Set_holew( dl_element * el, int holew )
+void CDisplayList::Set_holew( CDLElement * el, int holew )
 {
 	if( el)
 		el->holew = holew/m_pcbu_per_wu;
 }
-void CDisplayList::Set_x_org( dl_element * el, int x_org )
+void CDisplayList::Set_x_org( CDLElement * el, int x_org )
 {
 	if( el)
 		el->org.x = x_org/m_pcbu_per_wu;
 }
-void CDisplayList::Set_y_org( dl_element * el, int y_org )
+void CDisplayList::Set_y_org( CDLElement * el, int y_org )
 {
 	if( el)
 		el->org.y = y_org/m_pcbu_per_wu;
 }
-void CDisplayList::Set_x( dl_element * el, int x )
+void CDisplayList::Set_x( CDLElement * el, int x )
 {
 	if( el)
 		el->i.x = x/m_pcbu_per_wu;
 }
-void CDisplayList::Set_y( dl_element * el, int y )
+void CDisplayList::Set_y( CDLElement * el, int y )
 {
 	if( el)
 		el->i.y = y/m_pcbu_per_wu;
 }
-void CDisplayList::Set_xf( dl_element * el, int xf )
+void CDisplayList::Set_xf( CDLElement * el, int xf )
 {
 	if( el)
 		el->f.x = xf/m_pcbu_per_wu;
 }
-void CDisplayList::Set_yf( dl_element * el, int yf )
+void CDisplayList::Set_yf( CDLElement * el, int yf )
 {
 	if( el)
 		el->f.y = yf/m_pcbu_per_wu;
 }
-void CDisplayList::Set_layer( dl_element * el, int layer )
+void CDisplayList::Set_layer( CDLElement * el, int layer )
 {
 	if( el)
 		el->layer = layer;
 }
-void CDisplayList::Set_radius( dl_element * el, int radius )
+void CDisplayList::Set_radius( CDLElement * el, int radius )
 {
 	if( el)
 		el->radius = radius/m_pcbu_per_wu;
@@ -398,7 +398,7 @@ CPT2:  With Brian's new object-oriented way of doing things, this routine doesn'
 The only time it was actually used was in DRErrorList::MakeSolidCircles and DRErrorList::MakeHollowCircles.
 I've made a kludgy change to the drawing of hollow circles in order to get those routines working more-or-less as before
 
-void CDisplayList::Set_gtype( dl_element * el, int gtype )
+void CDisplayList::Set_gtype( CDLElement * el, int gtype )
 {
 	if( el )
 		el->gtype = gtype;
@@ -406,7 +406,7 @@ void CDisplayList::Set_gtype( dl_element * el, int gtype )
 
 */
 
-void CDisplayList::Move( dl_element * el, int dx, int dy )
+void CDisplayList::Move( CDLElement * el, int dx, int dy )
 {
 	el->i.x += dx;
 	el->i.y += dy;
@@ -419,19 +419,19 @@ void CDisplayList::Move( dl_element * el, int dx, int dy )
 
 // get element parameters in PCBU
 //
-int CDisplayList::Get_gtype( dl_element * el ) { return el->gtype; }
-int CDisplayList::Get_visible( dl_element * el ) { return el->visible; }
-int CDisplayList::Get_sel_vert( dl_element * el ) { return el->sel_vert; }
-int CDisplayList::Get_w( dl_element * el ) { return el->w*m_pcbu_per_wu; }
-int CDisplayList::Get_holew( dl_element * el ) { return el->holew*m_pcbu_per_wu; }
-int CDisplayList::Get_x_org( dl_element * el ) { return el->org.x*m_pcbu_per_wu; }
-int CDisplayList::Get_y_org( dl_element * el ) { return el->org.y*m_pcbu_per_wu; }
-int CDisplayList::Get_x( dl_element * el ) { return el->i.x*m_pcbu_per_wu; }
-int CDisplayList::Get_y( dl_element * el ) { return el->i.y*m_pcbu_per_wu; }
-int CDisplayList::Get_xf( dl_element * el ) { return el->f.x*m_pcbu_per_wu; }
-int CDisplayList::Get_yf( dl_element * el ) { return el->f.y*m_pcbu_per_wu; }
-int CDisplayList::Get_radius( dl_element * el ) { return el->radius*m_pcbu_per_wu; }
-int CDisplayList::Get_layer( dl_element * el ) { return el->layer; }
+int CDisplayList::Get_gtype( CDLElement * el ) { return el->gtype; }
+int CDisplayList::Get_visible( CDLElement * el ) { return el->visible; }
+int CDisplayList::Get_sel_vert( CDLElement * el ) { return el->sel_vert; }
+int CDisplayList::Get_w( CDLElement * el ) { return el->w*m_pcbu_per_wu; }
+int CDisplayList::Get_holew( CDLElement * el ) { return el->holew*m_pcbu_per_wu; }
+int CDisplayList::Get_x_org( CDLElement * el ) { return el->org.x*m_pcbu_per_wu; }
+int CDisplayList::Get_y_org( CDLElement * el ) { return el->org.y*m_pcbu_per_wu; }
+int CDisplayList::Get_x( CDLElement * el ) { return el->i.x*m_pcbu_per_wu; }
+int CDisplayList::Get_y( CDLElement * el ) { return el->i.y*m_pcbu_per_wu; }
+int CDisplayList::Get_xf( CDLElement * el ) { return el->f.x*m_pcbu_per_wu; }
+int CDisplayList::Get_yf( CDLElement * el ) { return el->f.y*m_pcbu_per_wu; }
+int CDisplayList::Get_radius( CDLElement * el ) { return el->radius*m_pcbu_per_wu; }
+int CDisplayList::Get_layer( CDLElement * el ) { return el->layer; }
 
 void CDisplayList::Get_Endpoints(CPoint *cpi, CPoint *cpf)
 {
@@ -878,7 +878,7 @@ int CompareHits(const CHitInfo *h1, const CHitInfo *h2) {
 //
 // CPT: also removed references to Brian's CDL_job classes, and tidied up.
 
-int CDisplayList::TestSelect( int x, int y, CArray<CHitInfo> *hit_info, int maskBits, bool bCtrl, cnet2 *net, int layer )
+int CDisplayList::TestSelect( int x, int y, CArray<CHitInfo> *hit_info, int maskBits, bool bCtrl, CNet *net, int layer )
 {
 	if(!m_vis[LAY_SELECTION] ) return -1;				// CPT: irrelevant??
 
@@ -894,7 +894,7 @@ int CDisplayList::TestSelect( int x, int y, CArray<CHitInfo> *hit_info, int mask
 	for( int i=0; i<num_hits; i++ )
 	{
 		CHitInfo *this_hit = &hit_info0[i];
-		cpcb_item *this_item = this_hit->item;
+		CPcbItem *this_item = this_hit->item;
 		if (bCtrl && !this_item->IsSelectableForGroup()) 
 			continue;
 		if (!(this_item->GetTypeBit() & maskBits)) 
@@ -995,19 +995,19 @@ int CDisplayList::StartDraggingRatLine( CDC * pDC, int x, int y, int xi, int yi,
 	return 0;
 }
 
-// set style of arc being dragged, using cpolyline styles
+// set style of arc being dragged, using CPolyline styles
 //
 void CDisplayList::SetDragArcStyle( int style )
 {
-	if( style == cpolyline::STRAIGHT )
+	if( style == CPolyline::STRAIGHT )
 		m_drag_shape = DS_ARC_STRAIGHT;
-	else if( style == cpolyline::ARC_CW )
+	else if( style == CPolyline::ARC_CW )
 		m_drag_shape = DS_ARC_CW;
-	else if( style == cpolyline::ARC_CCW )
+	else if( style == CPolyline::ARC_CCW )
 		m_drag_shape = DS_ARC_CCW;
 }
 
-// Start dragging arc endpoint, using style from cpolyline
+// Start dragging arc endpoint, using style from CPolyline
 // Use the layer color and width w
 //
 int CDisplayList::StartDraggingArc( CDC * pDC, int style, int xx, int yy, int xi, int yi, int layer, int w, int crosshair )
@@ -1017,11 +1017,11 @@ int CDisplayList::StartDraggingArc( CDC * pDC, int style, int xx, int yy, int xi
 
 	// set up for dragging
 	m_drag_flag = 1;
-	if( style == cpolyline::STRAIGHT )
+	if( style == CPolyline::STRAIGHT )
 		m_drag_shape = DS_ARC_STRAIGHT;
-	else if( style == cpolyline::ARC_CW )
+	else if( style == CPolyline::ARC_CW )
 		m_drag_shape = DS_ARC_CW;
-	else if( style == cpolyline::ARC_CCW )
+	else if( style == CPolyline::ARC_CCW )
 		m_drag_shape = DS_ARC_CCW;
 	m_drag_x = x;	// position of endpoint (at cursor)
 	m_drag_y = y;
@@ -2103,10 +2103,10 @@ void CDisplayLayer::Draw(CDrawInfo &di, bool bHiliteSegs)
 	}
 
 	if (bHiliteSegs)
-		for (dl_element *el = elements; el; el = el->next)
+		for (CDLElement *el = elements; el; el = el->next)
 			el->DrawHiliteSeg(di);
 	else
-		for (dl_element *el = elements; el; el = el->next)
+		for (CDLElement *el = elements; el; el = el->next)
 			el->Draw(di);
 
 	// Restore original drawing objects
@@ -2131,7 +2131,7 @@ int CDisplayList::TestForHits( double x, double y, CArray<CHitInfo> *hitInfo )
 {
 	double d;
 	// traverse the list, looking for selection shapes
-	for (dl_element *el = layers[LAY_SELECTION].elements; el; el = el->next) {
+	for (CDLElement *el = layers[LAY_SELECTION].elements; el; el = el->next) {
 		if( el->IsHit(x, y, d) )
 		{
 			CHitInfo hit;

@@ -113,7 +113,7 @@ public: // create from serialization only
 
 // member variables
 public:
-	carray<cpadstack> m_pad_row;					// CPT2 new, gets filled by DlgAddPin with one or more new padstacks.
+	CHeap<CPadstack> m_pad_row;					// CPT2 new, gets filled by DlgAddPin with one or more new padstacks.
 
 	// mode for drawing new polyline segments
 	BOOL m_polyline_closed_flag;
@@ -129,15 +129,15 @@ public:
 	static int sel_mask_btn_bits[16];	// CPT2.  New system for masking selections.  Each left-pane button corresponds to 1+ bits for types of pcb-items...
 
 	// footprint
-	cshape *m_fp;	// footprint being edited
+	CShape *m_fp;	// footprint being edited
 
 	// undo stack
-	CArray<cshape*> undo_stack;
-	CArray<cshape*> redo_stack;
+	CArray<CShape*> undo_stack;
+	CArray<CShape*> redo_stack;
 
 // Operations
 public:
-	void InitInstance( cshape * fp );
+	void InitInstance( CShape * fp );
 
 // Overrides
 	public:

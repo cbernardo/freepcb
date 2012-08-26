@@ -1,4 +1,4 @@
-//  DesignRules.h.  Header file for classes related to design-rule checking, including cdre (which descends from cpcb_item), cdrelist, and DesignRules.
+//  DesignRules.h.  Header file for classes related to design-rule checking, including CDre (which descends from CPcbItem), CDreList, and DesignRules.
 
 #pragma once
 #include "PcbItem.h"
@@ -20,7 +20,7 @@ struct DesignRules
 	int copper_copper;
 };
 
-class cdre : public cpcb_item
+class CDre : public CPcbItem
 {
 public:
 	// Represents Design Rule Check error items.  Incorporates old class DRError
@@ -66,39 +66,39 @@ public:
 	int index;					// CPT2 new
 	int type;					// id, using subtypes above
 	CString str;				// descriptive string
-	cpcb_item *item1, *item2;	// items tested
+	CPcbItem *item1, *item2;	// items tested
 	int x, y;					// position of error
 	int w;						// width of circle (CPT2 new)
 	int layer;					// layer (if pad error)
 
-	cdre(CFreePcbDoc *_doc, int _index, int _type, CString *_str, cpcb_item *_item1, cpcb_item *_item2, 
+	CDre(CFreePcbDoc *_doc, int _index, int _type, CString *_str, CPcbItem *_item1, CPcbItem *_item2, 
 		int _x, int _y, int _w, int _layer=0);
-	cdre(CFreePcbDoc *_doc, int _uid);
+	CDre(CFreePcbDoc *_doc, int _uid);
 
 	bool IsDRE() { return true; }
-	cdre *ToDRE() { return this; }
+	CDre *ToDRE() { return this; }
 	int GetTypeBit() { return bitDRE; }
 	virtual bool IsOnPcb();
-	cundo_item *MakeUndoItem()
-		{ return new cudre(this); }
+	CUndoItem *MakeUndoItem()
+		{ return new CUDre(this); }
 
 	int Draw();
 	void Highlight();
 };
 
-class cdrelist
+class CDreList
 {
 public:
 	// Updated version of class DRErrorList.
 	CFreePcbDoc *doc;
-	carray<cdre> dres;
+	CHeap<CDre> dres;
 
-	cdrelist(CFreePcbDoc *_doc)
+	CDreList(CFreePcbDoc *_doc)
 		{ doc = _doc; }
-	~cdrelist() { }
-	cdre * Add( int type, CString * str, cpcb_item *item1, cpcb_item *item2,
+	~CDreList() { }
+	CDre * Add( int type, CString * str, CPcbItem *item1, CPcbItem *item2,
 		int x1, int y1, int x2, int y2, int w, int layer );
-	void Remove( cdre *dre );									// Undraw a single member, then remove it.
+	void Remove( CDre *dre );									// Undraw a single member, then remove it.
 	void Clear();												// Undraw all members, then remove 'em.
 	int GetSize() 
 		{ return dres.GetSize(); }

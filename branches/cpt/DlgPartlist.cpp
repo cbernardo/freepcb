@@ -173,8 +173,8 @@ void CDlgPartlist::DrawListCtrl(bool bSetup)
 	RestoreSelections();
 }
 
-void CDlgPartlist::Initialize( cpartlist * plist,
-			cshapelist * cache_shapes,
+void CDlgPartlist::Initialize( CPartList * plist,
+			CShapeList * cache_shapes,
 			CFootLibFolderMap * footlibfoldermap,
 			int units, CDlgLog * log )
 {
@@ -214,7 +214,7 @@ void CDlgPartlist::OnBnClickedButtonEdit()
 		ASSERT(0);
 	int iItem = m_list_ctrl.GetNextSelectedItem(pos);
 	int i = m_list_ctrl.GetItemData( iItem );
-	cshape *oldShape = pli[i].shape;
+	CShape *oldShape = pli[i].shape;
 	CString oldPackage = pli[i].package;
 	CDlgAddPart dlg;
 	dlg.Initialize( &pli, i, FALSE, FALSE, bMultiple, multiple_mask,

@@ -33,7 +33,7 @@ private:
 	int m_ihead;
 	int m_ifoot;
 	BOOL m_in_cache;	// true if new footprint selected from cache
-	cshape *m_shape;			// CPT2 was CShape, now cshape*.  Set on entry if we're editing, null if we're adding;  
+	CShape *m_shape;			// CPT2 was CShape, now CShape*.  Set on entry if we're editing, null if we're adding;  
 								// set when "OK" is hit, either way
 	CString m_shape_file_name;	// CPT2 new.  Informs the caller about the selected shape's library file ("" => local cache)
 	BOOL m_drag_flag;
@@ -44,7 +44,7 @@ private:
 	BOOL m_new_part;
 	BOOL m_multiple;
 	CComboBox m_combo_shape;
-	cshapelist * m_cache_shapes;
+	CShapeList * m_cache_shapes;
 	CFootLibFolderMap * m_footlibfoldermap;
 	CFootLibFolder * m_folder;
 	CTreeCtrl part_tree;
@@ -80,7 +80,7 @@ public:
 		BOOL new_part,
 		BOOL multiple,
 		int multiple_mask,
-		cshapelist * cache_shapes,
+		CShapeList * cache_shapes,
 		CFootLibFolderMap * footlibfoldermap,
 		int units,
 		CDlgLog * log );

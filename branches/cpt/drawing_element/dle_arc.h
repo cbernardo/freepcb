@@ -4,7 +4,7 @@
 #include "DrawingElement.h"
 
 // arc base class
-class CDLE_ARC : public dl_element
+class CDLE_ARC : public CDLElement
 {
 protected:
     int onScreen(void);

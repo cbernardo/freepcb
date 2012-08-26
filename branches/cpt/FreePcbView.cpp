@@ -488,7 +488,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		if( m_sel_offset >= 0 )
 		{
 			// Something to select!
-			cpcb_item *item = m_hit_info[m_sel_offset].item;
+			CPcbItem *item = m_hit_info[m_sel_offset].item;
 			m_sel_prev = item;											// CPT
 
 #ifndef CPT2
@@ -553,7 +553,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 	else if( m_cursor_mode == CUR_DRAG_PART )
 	{
 		// complete move
-		cpart2 *part = m_sel.First()->ToPart();
+		CPart *part = m_sel.First()->ToPart();
 		SetCursorMode( CUR_PART_SELECTED );
 		CPoint p = m_dlist->WindowToPCB( point );
 		part->CancelDragging();
@@ -610,8 +610,8 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 	else if( m_cursor_mode == CUR_DRAG_REF )
 	{
 		// complete move
-		ctext *t = m_sel.First()->ToText();
-		cpart2 *part = t->GetPart();
+		CText *t = m_sel.First()->ToText();
+		CPart *part = t->GetPart();
 		m_doc->m_dlist->StopDragging();
 		int drag_angle = m_dlist->GetDragAngle();
 		// if part on bottom of board, drag angle is CCW instead of CW
@@ -630,11 +630,11 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 	else if( m_cursor_mode == CUR_DRAG_RAT )
 	{
 		// routing a ratline, add segment(s)
-		cnet2 *highlight_net0 = m_highlight_net;        // AMW r274 save previous state
+		CNet *highlight_net0 = m_highlight_net;        // AMW r274 save previous state
 		CancelHighlight();
-		cseg2 *rat = m_sel.First()->ToSeg();
-		cconnect2 *c = rat->m_con;
-		cnet2 *net = rat->m_net;
+		CSeg *rat = m_sel.First()->ToSeg();
+		CConnect *c = rat->m_con;
+		CNet *net = rat->m_net;
 		CPoint p = m_last_cursor_point;
 
 		pDC = GetDC();
@@ -643,8 +643,8 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 //			m_dlist->StopDragging();
 
 		// test for reaching destination of ratline (which might be a pin-vtx, a tee-vtx, or any other vtx)
-		cvertex2 *start = m_dir==0? rat->preVtx: rat->postVtx;
-		cvertex2 *dest = m_dir==0? rat->postVtx: rat->preVtx;
+		CVertex *start = m_dir==0? rat->preVtx: rat->postVtx;
+		CVertex *dest = m_dir==0? rat->postVtx: rat->preVtx;
 		// If destination is a pin, we have to take layers into account when deciding if we've hit it.  OW, don't care about layers:
 		int test_layer = dest->pin? m_active_layer: 0;
 		bool bHit = dest->TestHit( p.x, p.y, test_layer ), bRatlineFinished = false;
@@ -659,7 +659,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 			// routing ratline at end of trace, test for hit on any pad in net
 			CArray<CHitInfo> hit_info;
 			int num_hits = m_dlist->TestSelect(p.x, p.y, &hit_info,	bitPin);
-			cpin2 *pin = num_hits? hit_info[0].item->ToPin(): NULL;
+			CPin *pin = num_hits? hit_info[0].item->ToPin(): NULL;
 			if (pin && pin->net != net)
 			{
 				// pin assigned to different net, can't connect it
@@ -726,8 +726,8 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 	{
 		// add trace segment and vertex
 		m_dlist->StopDragging();
-		cseg2 *seg = m_sel.First()->ToSeg();
-		cconnect2 *c = seg->m_con;
+		CSeg *seg = m_sel.First()->ToSeg();
+		CConnect *c = seg->m_con;
 		c->SaveUndoInfo();
 		seg->InsertSegment( m_last_cursor_point.x, m_last_cursor_point.y,
 			seg->m_layer, seg->m_width, 0 );
@@ -738,9 +738,9 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 	else if( m_cursor_mode == CUR_DRAG_POLY_MOVE )
 	{
 		// CPT2 generalized clause that deals with dragging corners of areas, sm-cutouts, and board-outlines alike.
-		ccorner *c = m_sel.First()->ToCorner();
-		cpolyline *poly = c->GetPolyline();
-		cnet2 *net = c->GetNet();
+		CCorner *c = m_sel.First()->ToCorner();
+		CPolyline *poly = c->GetPolyline();
+		CNet *net = c->GetNet();
 		m_dlist->StopDragging();
 		poly->SaveUndoInfo();
 		CPoint p = m_last_cursor_point;
@@ -756,9 +756,9 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 	else if( m_cursor_mode == CUR_DRAG_POLY_INSERT )
 	{
 		// CPT2 generalized clause that deals with inserting corners of areas, sm-cutouts, and board-outlines alike.
-		cside *s = m_sel.First()->ToSide();
-		cpolyline *poly = s->GetPolyline();
-		cnet2 *net = s->GetNet();
+		CSide *s = m_sel.First()->ToSide();
+		CPolyline *poly = s->GetPolyline();
+		CNet *net = s->GetNet();
 		m_dlist->StopDragging();
 		poly->SaveUndoInfo();
 		CPoint p = m_last_cursor_point;
@@ -777,10 +777,10 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		SetDCToWorldCoords( pDC );
 		pDC->SelectClipRgn( &m_pcb_rgn );
 		CPoint p = m_last_cursor_point;
-		cnet2 *net = m_sel.First()->GetNet();
-		carea2 *a = new carea2(net, m_active_layer, m_polyline_hatch, 2*NM_PER_MIL, 10*NM_PER_MIL);
-		ccontour *ctr = new ccontour(a, true);
-		ccorner *c = new ccorner(ctr, p.x, p.y);					// Constructor sets contour's head and tail
+		CNet *net = m_sel.First()->GetNet();
+		CArea *a = new CArea(net, m_active_layer, m_polyline_hatch, 2*NM_PER_MIL, 10*NM_PER_MIL);
+		CContour *ctr = new CContour(a, true);
+		CCorner *c = new CCorner(ctr, p.x, p.y);					// Constructor sets contour's head and tail
 		m_dlist->StartDraggingArc( pDC, m_polyline_style, p.x, p.y, p.x, p.y, LAY_RAT_LINE, 1, 2 );
 		SetCursorMode( CUR_DRAG_POLY_1 );
 		m_drag_contour = ctr;
@@ -795,7 +795,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		SetDCToWorldCoords( pDC );
 		pDC->SelectClipRgn( &m_pcb_rgn );
 		CPoint p = m_last_cursor_point;
-		ccontour *ctr = m_drag_contour;
+		CContour *ctr = m_drag_contour;
 		ctr->AppendCorner(p.x, p.y, m_polyline_style);
 		m_doc->Redraw();
 		m_dlist->StartDraggingArc( pDC, m_polyline_style, p.x, p.y, p.x, p.y, LAY_RAT_LINE, 1, 2 );
@@ -811,8 +811,8 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		SetDCToWorldCoords( pDC );
 		pDC->SelectClipRgn( &m_pcb_rgn );
 		CPoint p = m_last_cursor_point;
-		ccontour *ctr = m_drag_contour;
-		ccorner *head = ctr->head;
+		CContour *ctr = m_drag_contour;
+		CCorner *head = ctr->head;
 		if( p.x == head->x && p.y == head->y )
 		{
 			// cursor point is back at first point, close contour and finish up
@@ -840,10 +840,10 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		SetDCToWorldCoords( pDC );
 		pDC->SelectClipRgn( &m_pcb_rgn );
 		CPoint p = m_last_cursor_point;
-		cpolyline *poly = m_sel.First()->GetPolyline();
+		CPolyline *poly = m_sel.First()->GetPolyline();
 		poly->MustRedraw();
-		ccontour *ctr = new ccontour(poly, false);
-		ccorner *c = new ccorner(ctr, p.x, p.y);					// Constructor sets contour's head and tail
+		CContour *ctr = new CContour(poly, false);
+		CCorner *c = new CCorner(ctr, p.x, p.y);					// Constructor sets contour's head and tail
 		m_dlist->StartDraggingArc( pDC, m_polyline_style, p.x, p.y, p.x, p.y, LAY_RAT_LINE, 1, 2 );
 		SetCursorMode( CUR_DRAG_POLY_1 );
 		m_drag_contour = ctr;
@@ -859,9 +859,9 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		SetDCToWorldCoords( pDC );
 		pDC->SelectClipRgn( &m_pcb_rgn );
 		CPoint p = m_last_cursor_point;
-		csmcutout *sm = new csmcutout(m_doc, m_polyline_layer, m_polyline_hatch);
-		ccontour *ctr = new ccontour(sm, true);
-		ccorner *c = new ccorner(ctr, p.x, p.y);					// Constructor sets contour's head and tail
+		CSmCutout *sm = new CSmCutout(m_doc, m_polyline_layer, m_polyline_hatch);
+		CContour *ctr = new CContour(sm, true);
+		CCorner *c = new CCorner(ctr, p.x, p.y);					// Constructor sets contour's head and tail
 		m_dlist->StartDraggingArc( pDC, m_polyline_style, p.x, p.y, p.x, p.y, LAY_RAT_LINE, 1, 2 );
 		SetCursorMode( CUR_DRAG_POLY_1 );
 		m_drag_contour = ctr;
@@ -877,9 +877,9 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		SetDCToWorldCoords( pDC );
 		pDC->SelectClipRgn( &m_pcb_rgn );
 		CPoint p = m_last_cursor_point;
-		cboard *b = new cboard(m_doc);
-		ccontour *ctr = new ccontour(b, true);
-		ccorner *c = new ccorner(ctr, p.x, p.y);
+		CBoard *b = new CBoard(m_doc);
+		CContour *ctr = new CContour(b, true);
+		CCorner *c = new CCorner(ctr, p.x, p.y);
 		m_dlist->StartDraggingArc( pDC, m_polyline_style, p.x, p.y, p.x, p.y, LAY_RAT_LINE, 1, 2 );
 		SetCursorMode( CUR_DRAG_POLY_1 );
 		m_drag_contour = ctr;
@@ -891,7 +891,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 	else if( m_cursor_mode == CUR_DRAG_VTX )
 	{
 		// move vertex by modifying adjacent segments
-		cvertex2 *vtx = m_sel.First()->ToVertex();
+		CVertex *vtx = m_sel.First()->ToVertex();
 		vtx->CancelDragging();
 		vtx->m_con->SaveUndoInfo();
 		CPoint p = m_last_cursor_point;
@@ -905,10 +905,10 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 	else if( m_cursor_mode == CUR_DRAG_TEE )
 	{
 		// move tee by modifying adjacent segments
-		ctee *tee = m_sel.First()->ToTee();
-		cnet2 *net = tee->GetNet();
+		CTee *tee = m_sel.First()->ToTee();
+		CNet *net = tee->GetNet();
 		tee->CancelDragging();
-		net->SaveUndoInfo( cnet2::SAVE_CONNECTS );
+		net->SaveUndoInfo( CNet::SAVE_CONNECTS );
 		CPoint p = m_last_cursor_point;
 		tee->Move( p.x, p.y );
 		if( m_doc->m_vis[LAY_RAT_LINE] )
@@ -921,10 +921,10 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 	{
 		// move vertex by modifying adjacent segments and reconciling via
 		m_doc->m_dlist->StopDragging();
-		cseg2 *seg = m_sel.First()->ToSeg();
-		cconnect2 *c = seg->m_con;
-		cnet2 *net = seg->m_net;
-		net->SaveUndoInfo( cnet2::SAVE_CONNECTS );		// Saves the whole net because of the possibility that one endpt is a tee
+		CSeg *seg = m_sel.First()->ToSeg();
+		CConnect *c = seg->m_con;
+		CNet *net = seg->m_net;
+		net->SaveUndoInfo( CNet::SAVE_CONNECTS );		// Saves the whole net because of the possibility that one endpt is a tee
 		CPoint cpi, cpf;
 		m_doc->m_dlist->Get_Endpoints(&cpi, &cpf);
 		ASSERT(cpi != cpf);								// Should be at least one grid snap apart.
@@ -939,7 +939,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		// dragging ratline to make a new connection from vertex or pin
 		// test for hit on pin
 		// CPT2 not thrilled by keeping the net highlight after a new ratline is made:
-		// cnet2 *highlight_net0 = m_highlight_net;	// AMW r275 save previous state
+		// CNet *highlight_net0 = m_highlight_net;	// AMW r275 save previous state
 		CancelHighlight();
 		CPoint p = m_dlist->WindowToPCB( point );
 		CArray<CHitInfo> hit_info;
@@ -947,8 +947,8 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		if( num_hits )
 		{
 			// we have a hit
-			cpcb_item *hit = hit_info[0].item;
-			cpcb_item *sel0 = m_sel.First();
+			CPcbItem *hit = hit_info[0].item;
+			CPcbItem *sel0 = m_sel.First();
 			if (hit->IsTee())
 				hit = hit->ToTee()->vtxs.First();
 			if (sel0->IsTee())
@@ -957,8 +957,8 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 			if( hit->IsVertex() && sel0->IsPin() || hit->IsPin() && sel0->IsVertex() )
 			{
 				// connecting from vertex to pin, or from pin to vertex, sort it out
-				cpin2 *pin = hit->IsPin()? hit->ToPin(): sel0->ToPin();
-				cvertex2 *v = hit->IsVertex()? hit->ToVertex(): sel0->ToVertex();
+				CPin *pin = hit->IsPin()? hit->ToPin(): sel0->ToPin();
+				CVertex *v = hit->IsVertex()? hit->ToVertex(): sel0->ToVertex();
 				// now do it
 				if( pin->net && pin->net != v->m_net )
 				{
@@ -968,12 +968,12 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 					goto cancel_selection_and_goodbye;
 				}
 				// add ratline from vertex to pin
-				cnet2 *net = v->m_net;
+				CNet *net = v->m_net;
 				if( !pin->net )
 					pin->part->SaveUndoInfo(),
 					net->AddPin( pin );
-				net->SaveUndoInfo( cnet2::SAVE_CONNECTS );
-				cseg2 *rat_seg = v->AddRatlineToPin( pin );
+				net->SaveUndoInfo( CNet::SAVE_CONNECTS );
+				CSeg *rat_seg = v->AddRatlineToPin( pin );
 				m_doc->m_dlist->StopDragging();
 				/* CPT2 seems undesirable to me
 				if( highlight_net0 )
@@ -987,7 +987,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 			else if( hit->IsPin() && sel0->IsPin() )
 			{
 				// connecting pin to pin
-				cpin2 *p0 = hit->ToPin(), *p1 = sel0->ToPin();
+				CPin *p0 = hit->ToPin(), *p1 = sel0->ToPin();
 				if( p0->net && p1->net && p0->net != p1->net) 
 				{
 					// pins assigned to different nets, can't connect them
@@ -1029,7 +1029,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 						goto goodbye;
 					}
 					CString name = assign_net_dlg.m_net_str;
-					cnet2 *net = m_doc->m_nlist->GetNetPtrByName(&name);
+					CNet *net = m_doc->m_nlist->GetNetPtrByName(&name);
 					p0->SaveUndoInfo();
 					p1->SaveUndoInfo();
 					if( net )
@@ -1041,14 +1041,14 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 					else
 					{
 						// make new net
-						net = new cnet2(m_doc->m_nlist, name, 0, 0, 0);
+						net = new CNet(m_doc->m_nlist, name, 0, 0, 0);
 						net->AddPin(p0);
 						net->AddPin(p1);
 					}
 				}
 				m_doc->m_dlist->StopDragging();
-				p0->net->SaveUndoInfo( cnet2::SAVE_CONNECTS );
-				cseg2 *rat_seg = p0->AddRatlineToPin( p1 );
+				p0->net->SaveUndoInfo( CNet::SAVE_CONNECTS );
+				CSeg *rat_seg = p0->AddRatlineToPin( p1 );
 				rat_seg->MustRedraw();
 				/* CPT2 seems undesirable to me
 				if( highlight_net0 )
@@ -1061,7 +1061,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 
 			else if( hit->IsVertex() && sel0->IsVertex() )
 			{
-				cvertex2 *v1 = hit->ToVertex(), *v2 = sel0->ToVertex();
+				CVertex *v1 = hit->ToVertex(), *v2 = sel0->ToVertex();
 				if( v1->m_net != v2->m_net )
 				{
 					CString s ((LPCSTR) IDS_YouAreTryingToConnectTracesOnDifferentNets);
@@ -1072,10 +1072,10 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 					goto goodbye;
 				
 				// OK, we should be able to do this, save undo info
-				v1->m_net->SaveUndoInfo( cnet2::SAVE_CONNECTS );
-				cconnect2 *c1 = v1->m_con;
-				cnet2 *net = v1->m_net;
-				ctee *adjust_at_end = NULL;
+				v1->m_net->SaveUndoInfo( CNet::SAVE_CONNECTS );
+				CConnect *c1 = v1->m_con;
+				CNet *net = v1->m_net;
+				CTee *adjust_at_end = NULL;
 				if (c1 == v2->m_con && c1->head->tee && c1->tail->tee==c1->head->tee)
 					// Slight subtlety if v1 and v2 are on the same connect, and the connect is a closed loop.  In that case, the tee that joins
 					// the head and tail of the connect may need adjustment at the end
@@ -1087,17 +1087,17 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 					v2->SplitConnect();
 				// v1 and v2 are now both end vertices, possibly with tee!=NULL.  
 				// Create the new ratline as its own connect, join it to v1 and v2 with tees, then Adjust() the tees.
-				cconnect2 *new_c = new cconnect2 (net);
-				cvertex2 *new_v = new cvertex2 (new_c, v1->x, v1->y);
+				CConnect *new_c = new CConnect (net);
+				CVertex *new_v = new CVertex (new_c, v1->x, v1->y);
 				new_c->Start(new_v);
 				new_c->AppendSegment(v2->x, v2->y, LAY_RAT_LINE, 0);
-				cseg2 *rat_seg = new_v->postSeg;
+				CSeg *rat_seg = new_v->postSeg;
 				if (!v1->tee)
-					v1->tee = new ctee(net),
+					v1->tee = new CTee(net),
 					v1->tee->Add(v1);
 				v1->tee->Add(new_v);
 				if (!v2->tee)
-					v2->tee = new ctee(net),
+					v2->tee = new CTee(net),
 					v2->tee->Add(v2);
 				v2->tee->Add(new_c->tail);
 				if (adjust_at_end && adjust_at_end != v1->tee && adjust_at_end != v2->tee)
@@ -1119,13 +1119,13 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 	else if( m_cursor_mode == CUR_DRAG_RAT_PIN )
 	{
 		// dragging ratline to change end pin of trace
-		cseg2 *rat = m_sel.First()->ToSeg();
-		cnet2 *net = rat->GetNet();
+		CSeg *rat = m_sel.First()->ToSeg();
+		CNet *net = rat->GetNet();
 		// see if pad selected
 		CPoint p = m_dlist->WindowToPCB( point );
 		m_sel_offset = -1;						// CPT r294
 		CArray<CHitInfo> hit_info;
-		cpin2 *new_pin = NULL;
+		CPin *new_pin = NULL;
 		int num_hits = m_dlist->TestSelect( p.x, p.y, &hit_info, bitPin );
 		if (num_hits)
 			new_pin = hit_info[0].item->ToPin();
@@ -1143,14 +1143,14 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 			{
 				// unassigned pin, assign it
 				new_pin->SaveUndoInfo();
-				net->SaveUndoInfo( cnet2::SAVE_CONNECTS );
+				net->SaveUndoInfo( CNet::SAVE_CONNECTS );
 				net->AddPin(new_pin);
 			}
 			else
 				// pin already assigned to this net
 				rat->m_con->SaveUndoInfo();
 			rat->MustRedraw();
-			cvertex2 *pin_end = rat->preVtx->pin? rat->preVtx: rat->postVtx;
+			CVertex *pin_end = rat->preVtx->pin? rat->preVtx: rat->postVtx;
 			pin_end->pin = new_pin;
 			pin_end->Move( new_pin->x, new_pin->y );
 		}
@@ -1162,10 +1162,10 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 
 	else if( m_cursor_mode == CUR_DRAG_STUB )			// CPT2 used to be called CUR_DRAG_TRACE, renamed (less confusing I think)
 	{
-		cvertex2 *vtx0 = m_sel.First()->ToVertex();		// (The vertex where user first started the stub)
-		cconnect2 *con0 = vtx0->m_con;
-		cvertex2 *tail0 = con0->tail;					// (The vertex that will be the start of the new seg)
-		cnet2 *net = vtx0->m_net;
+		CVertex *vtx0 = m_sel.First()->ToVertex();		// (The vertex where user first started the stub)
+		CConnect *con0 = vtx0->m_con;
+		CVertex *tail0 = con0->tail;					// (The vertex that will be the start of the new seg)
+		CNet *net = vtx0->m_net;
 		// test for hit on vertex or pin
 		CDisplayList *dl = m_doc->m_dlist;
 		CPoint p = m_last_cursor_point;
@@ -1175,10 +1175,10 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		if( num_hits )
 		{
 			// hit pin or vertex
-			cpcb_item *hit = hit_info[0].item;
+			CPcbItem *hit = hit_info[0].item;
 			if (hit->IsTee())
 				hit = hit->ToTee()->vtxs.First();
-			if( cpin2 *pin = hit->ToPin() )
+			if( CPin *pin = hit->ToPin() )
 			{
 				// hit on pin, see if we can connect to it
 				if (pin->TestHit(p.x, p.y, m_active_layer))								// Have to make sure layer is OK, in case pin is SMT.
@@ -1195,7 +1195,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 					{
 						// unassigned pin, assign it
 						pin->part->SaveUndoInfo();
-						net->SaveUndoInfo( cnet2::SAVE_CONNECTS );
+						net->SaveUndoInfo( CNet::SAVE_CONNECTS );
 						net->AddPin( pin );
 					}
 					else
@@ -1220,7 +1220,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 				}
 			}
 
-			else if( cvertex2 *vtx1 = hit->ToVertex() )
+			else if( CVertex *vtx1 = hit->ToVertex() )
 			{
 				if (vtx1->m_net == net) 
 				{
@@ -1240,21 +1240,21 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 					CPoint pi = m_snap_angle_ref;
 					CPoint pf = m_last_cursor_point;
 					CPoint pp = GetInflectionPoint( pi, pf, m_inflection_mode );
-					net->SaveUndoInfo( cnet2::SAVE_CONNECTS );
+					net->SaveUndoInfo( CNet::SAVE_CONNECTS );
 					if( pp != pi )
 						con0->AppendSegment( pp.x, pp.y, m_active_layer, m_active_width ) ;
 					con0->AppendSegment( pf.x, pf.y, m_active_layer, m_active_width );
 					CPoint vtx1_point (vtx1->x, vtx1->y);
 					if( pf != vtx1_point )
 						con0->AppendSegment( vtx1->x, vtx1->y, m_active_layer, m_active_width );
-					cvertex2 *tail1 = con0->tail;
+					CVertex *tail1 = con0->tail;
 					tail1->pin = pin;
 					// CPT2 attach tail1 to vtx1 with a (possibly new) tee.  Afterwards Adjust() the tee (in case vtx1 was an end-vtx)
 					if (vtx1->preSeg && vtx1->postSeg)
 						// Mid-trace vertex:  split trace (SplitConnect() will set vtx1->tee)
 						vtx1->SplitConnect();
 					else if (!vtx1->tee)
-						vtx1->tee = new ctee (net),
+						vtx1->tee = new CTee (net),
 						vtx1->tee->Add(vtx1);
 					vtx1->tee->Add(tail1);
 					vtx1->tee->Adjust();					// Also reconciles the via
@@ -1296,7 +1296,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 	{
 		CPoint p = m_last_cursor_point;
 		m_dlist->StopDragging();
-		ctext *t = m_sel.First()->ToText();
+		CText *t = m_sel.First()->ToText();
 		int angle = t->m_angle + m_dlist->GetDragAngle();
 		if( angle>270 )
 			angle = angle - 360;
@@ -1352,11 +1352,11 @@ void CFreePcbView::OnRButtonDown(UINT nFlags, CPoint point)
 	// ALSO USED TO CANCEL DRAGGING WHEN THE ESC KEY IS HIT.  (Sub-optimal system?)
 	m_sel_offset = -1;							// CPT r294:  the current series of left-clicks has been interrupted...
 	m_disable_context_menu = 1;
-	cpcb_item *sel0 = m_sel.First();
+	CPcbItem *sel0 = m_sel.First();
 
 	if( m_cursor_mode == CUR_DRAG_PART )
 	{
-		cpart2 *part = m_sel.First()->ToPart();
+		CPart *part = m_sel.First()->ToPart();
 		part->CancelDragging();
 		if( m_dragging_new_item )
 		{
@@ -1370,39 +1370,39 @@ void CFreePcbView::OnRButtonDown(UINT nFlags, CPoint point)
 
 	else if( m_cursor_mode == CUR_DRAG_REF )
 	{
-		ctext *t = m_sel.First()->ToText();
+		CText *t = m_sel.First()->ToText();
 		t->CancelDragging();
 		t->Highlight();
 	}
 
 	else if( m_cursor_mode == CUR_DRAG_RAT_PIN )
 	{
-		cseg2 *rat = m_sel.First()->ToSeg();
+		CSeg *rat = m_sel.First()->ToSeg();
 		rat->CancelDragging();
 		rat->Highlight();
 	}
 
 	else if( m_cursor_mode == CUR_DRAG_VTX )
 	{
-		cvertex2 *vtx = m_sel.First()->ToVertex();
+		CVertex *vtx = m_sel.First()->ToVertex();
 		vtx->CancelDragging();
 		vtx->Highlight();
 	}
 	else if( m_cursor_mode == CUR_DRAG_TEE )
 	{
-		ctee *tee = m_sel.First()->ToTee();
+		CTee *tee = m_sel.First()->ToTee();
 		tee->CancelDragging();
 		tee->Highlight();
 	}
 	else if( m_cursor_mode == CUR_MOVE_SEGMENT )
 	{
-		cseg2 *seg = m_sel.First()->ToSeg();
+		CSeg *seg = m_sel.First()->ToSeg();
 		seg->CancelMoving();
 		seg->Highlight();
 	}
 	else if( m_cursor_mode == CUR_DRAG_VTX_INSERT )
 	{
-		cseg2 *seg = m_sel.First()->ToSeg();
+		CSeg *seg = m_sel.First()->ToSeg();
 		seg->CancelDraggingNewVertex();
 		seg->Highlight();
 	}
@@ -1413,11 +1413,11 @@ void CFreePcbView::OnRButtonDown(UINT nFlags, CPoint point)
 	{
 		m_dlist->StopDragging();
 		CancelHighlight();
-		cvertex2 *sel = m_sel.First()->ToVertex();
-		cnet2 *net = sel->m_net;
+		CVertex *sel = m_sel.First()->ToVertex();
+		CNet *net = sel->m_net;
 		if (sel->m_con->NumSegs() > 0)
 		{
-			cvertex2 *tail = sel->m_con->tail;
+			CVertex *tail = sel->m_con->tail;
 			if ( net->NetAreaFromPoint(tail->x, tail->y, LAY_PAD_THRU) )		// "LAY_PAD_THRU" so that we find areas on any layer at (tail->x,tail->y)
 				tail->ForceVia();
 			// if( m_doc->m_vis[LAY_RAT_LINE] )			
@@ -1432,14 +1432,14 @@ void CFreePcbView::OnRButtonDown(UINT nFlags, CPoint point)
 	else if( m_cursor_mode == CUR_DRAG_RAT )
 	{
 		m_dlist->CancelHighlight();
-		cseg2 *rat = m_sel.First()->ToSeg();
+		CSeg *rat = m_sel.First()->ToSeg();
 		rat->CancelDragging();
 		rat->Highlight();
 	}
 
 	else if( m_cursor_mode == CUR_DRAG_TEXT )
 	{
-		ctext *t = m_sel.First()->ToText();
+		CText *t = m_sel.First()->ToText();
 		t->CancelDragging();
 		if( m_dragging_new_item )
 		{
@@ -1457,13 +1457,13 @@ void CFreePcbView::OnRButtonDown(UINT nFlags, CPoint point)
 	}
 	else if( m_cursor_mode == CUR_DRAG_POLY_INSERT )
 	{
-		cside *s = m_sel.First()->ToSide();
+		CSide *s = m_sel.First()->ToSide();
 		s->CancelDraggingNewCorner();
 		s->Highlight();
 	}
 	else if( m_cursor_mode == CUR_DRAG_POLY_MOVE )
 	{
-		ccorner *c = m_sel.First()->ToCorner();
+		CCorner *c = m_sel.First()->ToCorner();
 		c->CancelDragging();
 		c->Highlight();
 	}
@@ -1755,10 +1755,10 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 		if( m_cursor_mode == CUR_DRAG_RAT )
 		{
 			// backup, if possible, by removing preceding segment (merging it into the ratline).  Also change active layer
-			cseg2 *seg = m_sel.First()->ToSeg();
-			cconnect2 *c = seg->m_con;
-			cnet2 *net = seg->m_net;
-			cseg2 *remove = m_dir==0? seg->preVtx->preSeg: seg->postVtx->postSeg;
+			CSeg *seg = m_sel.First()->ToSeg();
+			CConnect *c = seg->m_con;
+			CNet *net = seg->m_net;
+			CSeg *remove = m_dir==0? seg->preVtx->preSeg: seg->postVtx->postSeg;
 			if (remove)
 			{
 				c->SaveUndoInfo();
@@ -1767,7 +1767,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 				remove->RemoveMerge(!m_dir);
 				m_doc->ProjectModified(true);
 				SelectItem(seg);
-				cvertex2 *start = m_dir==0? seg->preVtx: seg->postVtx;
+				CVertex *start = m_dir==0? seg->preVtx: seg->postVtx;
 				m_last_mouse_point.x = start->x;
 				m_last_mouse_point.y = start->y;
 				CPoint p = m_dlist->PCBToScreen( m_last_mouse_point );
@@ -1780,9 +1780,9 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 		else if( m_cursor_mode == CUR_DRAG_STUB )
 		{
 			// routing stub trace
-			cvertex2 *sel = m_sel.First()->ToVertex();
-			cconnect2 *c = sel->m_con;
-			cnet2 *net = sel->m_net;
+			CVertex *sel = m_sel.First()->ToVertex();
+			CConnect *c = sel->m_con;
+			CNet *net = sel->m_net;
 			c->SaveUndoInfo();
 			CancelHighlight();
 			m_dlist->StopDragging();
@@ -1905,7 +1905,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 	case CUR_PART_SELECTED:
 		if( fk == FK_ARROW )
 		{
-			cpart2 *part = m_sel.First()->ToPart();
+			CPart *part = m_sel.First()->ToPart();
 			if( part->glued )
 			{
 				CString s ((LPCSTR) IDS_ThisPartIsGluedDoYouWantToUnglueIt);
@@ -1949,7 +1949,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 	case CUR_VALUE_SELECTED:
 		if( fk == FK_ARROW )
 		{
-			ctext *t = m_sel.First()->ToText();
+			CText *t = m_sel.First()->ToText();
 			t->SaveUndoInfo();
 			CancelHighlight();
 			CPoint ref_pt = t->GetAbsolutePoint();
@@ -1992,7 +1992,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 	case  CUR_SEG_SELECTED:
 		if( fk == FK_ARROW )
 		{
-			cseg2 *seg = m_sel.First()->ToSeg();
+			CSeg *seg = m_sel.First()->ToSeg();
 			if (seg->preVtx->pin || seg->postVtx->pin || seg->preVtx->tee || seg->postVtx->tee)
 			{
 				PlaySound( TEXT("CriticalStop"), 0, 0 );
@@ -2008,8 +2008,8 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 
 			// CPT2.  The old code was I think problematic for the case that this seg is at the beginning of a trace.
 			// Let's try:
-			cseg2 *prev = seg->preVtx->preSeg;
-			cseg2 *next = seg->postVtx->postSeg;
+			CSeg *prev = seg->preVtx->preSeg;
+			CSeg *next = seg->postVtx->postSeg;
 			if (prev)
 				m_last_pt.x = prev->preVtx->x,
 				m_last_pt.y = prev->preVtx->y;
@@ -2103,7 +2103,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 	case  CUR_VTX_SELECTED:
 		if( fk == FK_ARROW )
 		{
-			cvertex2 *vtx = m_sel.First()->ToVertex();
+			CVertex *vtx = m_sel.First()->ToVertex();
 			vtx->m_con->SaveUndoInfo();
 			CancelHighlight();
 			vtx->Move( vtx->x + dx, vtx->y + dy );
@@ -2136,10 +2136,10 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 	case CUR_TEE_SELECTED:
 		if( fk == FK_ARROW )
 		{
-			ctee *tee = m_sel.First()->ToTee();
-			cvertex2 *first = tee->vtxs.First();
+			CTee *tee = m_sel.First()->ToTee();
+			CVertex *first = tee->vtxs.First();
 			ASSERT(first);
-			first->m_net->SaveUndoInfo( cnet2::SAVE_CONNECTS );
+			first->m_net->SaveUndoInfo( CNet::SAVE_CONNECTS );
 			CancelHighlight();
 			tee->Move( first->x + dx, first->y + dy );
 			FinishArrowKey( first->x, first->y, dx, dy );
@@ -2204,7 +2204,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 	case CUR_TEXT_SELECTED:
 		if( fk == FK_ARROW )
 		{
-			ctext *text = m_sel.First()->ToText();
+			CText *text = m_sel.First()->ToText();
 			text->SaveUndoInfo();
 			CancelHighlight();
 			text->Move( text->m_x + dx, text->m_y + dy,
@@ -2228,8 +2228,8 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 	case CUR_SMCUTOUT_SIDE_SELECTED:
 		if( fk == FK_ARROW )
 		{
-			cside *s = m_sel.First()->ToSide();
-			cpolyline *poly = s->GetPolyline();
+			CSide *s = m_sel.First()->ToSide();
+			CPolyline *poly = s->GetPolyline();
 			poly->SaveUndoInfo();
 			MoveGroup(dx, dy);
 			FinishArrowKey(INT_MAX, INT_MAX, dx, dy);
@@ -2266,8 +2266,8 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 	case CUR_SMCUTOUT_CORNER_SELECTED:
 		if( fk == FK_ARROW )
 		{
-			ccorner *c = m_sel.First()->ToCorner();
-			cpolyline *poly = c->GetPolyline();
+			CCorner *c = m_sel.First()->ToCorner();
+			CPolyline *poly = c->GetPolyline();
 			poly->SaveUndoInfo();
 			CancelHighlight();
 			p = CPoint (c->x+dx, c->y+dy);
@@ -2305,7 +2305,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 	case CUR_DRE_SELECTED:
 		if( nChar == 46 )
 		{
-			cdre *d = m_sel.First()->ToDRE();
+			CDre *d = m_sel.First()->ToDRE();
 			m_doc->m_drelist->Remove( d );
 			m_doc->ProjectModified(true);
 			CancelSelection();
@@ -2395,19 +2395,19 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 	case  CUR_DRAG_POLY_1:
 		if( fk == FK_POLY_STRAIGHT )
 		{
-			m_polyline_style = cpolyline::STRAIGHT;
+			m_polyline_style = CPolyline::STRAIGHT;
 			m_dlist->SetDragArcStyle( m_polyline_style );
 			m_dlist->Drag( pDC, p.x, p.y );
 		}
 		else if( fk == FK_POLY_ARC_CW )
 		{
-			m_polyline_style = cpolyline::ARC_CW;
+			m_polyline_style = CPolyline::ARC_CW;
 			m_dlist->SetDragArcStyle( m_polyline_style );
 			m_dlist->Drag( pDC, p.x, p.y );
 		}
 		else if( fk == FK_POLY_ARC_CCW )
 		{
-			m_polyline_style = cpolyline::ARC_CCW;
+			m_polyline_style = CPolyline::ARC_CCW;
 			m_dlist->SetDragArcStyle( m_polyline_style );
 			m_dlist->Drag( pDC, p.x, p.y );
 		}
@@ -2528,7 +2528,7 @@ void CFreePcbView::OnMouseMove(UINT nFlags, CPoint point)
 	int num_hits = m_dlist->TestSelect( p.x, p.y, &hit_info, bitPin );
 	if( num_hits > 0 )
 	{
-		cpin2 *pin = hit_info[0].item->ToPin();			// hit_info[0] is the highest-priority hit
+		CPin *pin = hit_info[0].item->ToPin();			// hit_info[0] is the highest-priority hit
 		if (pin)
 			// hit on pin
 			pin_name = connect_to + pin->part->ref_des + "." + pin->pin_name + "?";
@@ -2642,7 +2642,7 @@ void CFreePcbView::SetFKText( int mode )
 			m_fkey_option[1] = FK_POLY_ARC_CW;
 			m_fkey_option[2] = FK_POLY_ARC_CCW;
 			int style = m_sel.First()->ToSide()->m_style;
-			if( style == cpolyline::STRAIGHT )
+			if( style == CPolyline::STRAIGHT )
 				m_fkey_option[3] = FK_ADD_CORNER;
 			m_fkey_option[7] = FK_DELETE_OUTLINE;
 			break;
@@ -2674,7 +2674,7 @@ void CFreePcbView::SetFKText( int mode )
 			m_fkey_option[1] = FK_POLY_ARC_CW;
 			m_fkey_option[2] = FK_POLY_ARC_CCW;
 			int style = m_sel.First()->ToSide()->m_style;
-			if( style == cpolyline::STRAIGHT )
+			if( style == CPolyline::STRAIGHT )
 				m_fkey_option[3] = FK_ADD_CORNER;
 			if (mode == CUR_AREA_SIDE_SELECTED)
 				m_fkey_option[4] = FK_EDIT_AREA;
@@ -2695,8 +2695,8 @@ void CFreePcbView::SetFKText( int mode )
 
 	case CUR_SEG_SELECTED:
 		{
-			cseg2 *seg = m_sel.First()->ToSeg();
-			cconnect2 *con = seg->m_con;
+			CSeg *seg = m_sel.First()->ToSeg();
+			CConnect *con = seg->m_con;
 			m_fkey_option[0] = FK_SET_WIDTH;
 			m_fkey_option[1] = FK_CHANGE_LAYER;
 			m_fkey_option[2] = FK_ADD_VERTEX;
@@ -2718,8 +2718,8 @@ void CFreePcbView::SetFKText( int mode )
 
 	case CUR_RAT_SELECTED:
 		{
-			cseg2 *seg = m_sel.First()->ToSeg();
-			cconnect2 *c = seg->m_con;
+			CSeg *seg = m_sel.First()->ToSeg();
+			CConnect *c = seg->m_con;
 			m_fkey_option[0] = FK_SET_TRACE_WIDTH;
 			if( c->locked )
 				m_fkey_option[2] = FK_UNLOCK_CONNECT;
@@ -2747,8 +2747,8 @@ void CFreePcbView::SetFKText( int mode )
 
 	case CUR_VTX_SELECTED:
 		{
-			cvertex2 *vtx = m_sel.First()->ToVertex();
-			cconnect2 *con = vtx->m_con;
+			CVertex *vtx = m_sel.First()->ToVertex();
+			CConnect *con = vtx->m_con;
 			m_fkey_option[0] = FK_VERTEX_PROPERTIES;
 			m_fkey_option[1] = FK_START_TRACE;
 			m_fkey_option[2] = FK_ADD_CONNECT;
@@ -2918,7 +2918,7 @@ int CFreePcbView::ShowSelectStatus()
 	int u = m_units;
 	CString x_str, y_str, w_str, hole_str, via_w_str, via_hole_str;
 	CString str, str0;
-	cpcb_item *sel = m_sel.First();
+	CPcbItem *sel = m_sel.First();
 
 	switch( m_cursor_mode )
 	{
@@ -2933,8 +2933,8 @@ int CFreePcbView::ShowSelectStatus()
 	case CUR_SMCUTOUT_CORNER_SELECTED:
 	case CUR_BOARD_CORNER_SELECTED:
 		{
-			ccorner *c = m_sel.First()->ToCorner();
-			cpolyline *poly = c->GetPolyline();
+			CCorner *c = m_sel.First()->ToCorner();
+			CPolyline *poly = c->GetPolyline();
 			CString lay_str;
 			if( poly->GetLayer() == LAY_SM_TOP )
 				lay_str.LoadStringA(IDS_Top3);
@@ -2951,14 +2951,14 @@ int CFreePcbView::ShowSelectStatus()
 	case CUR_SMCUTOUT_SIDE_SELECTED:
 	case CUR_BOARD_SIDE_SELECTED:
 		{
-			cside *side = m_sel.First()->ToSide();
-			cpolyline *poly = side->GetPolyline();
+			CSide *side = m_sel.First()->ToSide();
+			CPolyline *poly = side->GetPolyline();
 			CString style_str;
-			if( side->m_style == cpolyline::STRAIGHT )
+			if( side->m_style == CPolyline::STRAIGHT )
 				style_str.LoadStringA(IDS_Straight);
-			else if( side->m_style == cpolyline::ARC_CW )
+			else if( side->m_style == CPolyline::ARC_CW )
 				style_str.LoadStringA(IDS_ArcCw);
-			else if( side->m_style == cpolyline::ARC_CCW )
+			else if( side->m_style == CPolyline::ARC_CCW )
 				style_str.LoadStringA(IDS_ArcCcw);
 			CString lay_str;
 			if( poly->GetLayer() == LAY_SM_TOP )
@@ -2973,7 +2973,7 @@ int CFreePcbView::ShowSelectStatus()
 
 	case CUR_PART_SELECTED:
 		{
-			cpart2 *part = sel->ToPart();
+			CPart *part = sel->ToPart();
 			CString side ((LPCSTR) IDS_Top);
 			if( part->side )
 				side.LoadStringA(IDS_Bottom);
@@ -2987,7 +2987,7 @@ int CFreePcbView::ShowSelectStatus()
 
 	case CUR_REF_SELECTED:
 		{
-			creftext *rt = sel->ToRefText();
+			CRefText *rt = sel->ToRefText();
 			str0.LoadStringA(IDS_RefText);
 			str.Format( str0, rt->m_str );
 			break;
@@ -2995,7 +2995,7 @@ int CFreePcbView::ShowSelectStatus()
 
 	case CUR_VALUE_SELECTED:
 		{
-			cvaluetext *vt = sel->ToValueText();
+			CValueText *vt = sel->ToValueText();
 			str0.LoadStringA(IDS_Value2);
 			str.Format( str0, vt->m_str );
 			break;
@@ -3003,7 +3003,7 @@ int CFreePcbView::ShowSelectStatus()
 
 	case CUR_PAD_SELECTED:
 		{
-			cpin2 *pin = sel->ToPin();
+			CPin *pin = sel->ToPin();
 			::MakeCStringFromDimension( &x_str, pin->x, u, FALSE, FALSE, FALSE, u==MIL?1:3 );
 			::MakeCStringFromDimension( &y_str, pin->y, u, FALSE, FALSE, FALSE, u==MIL?1:3 );
 			if( pin->net )
@@ -3033,8 +3033,8 @@ int CFreePcbView::ShowSelectStatus()
                 width = m_active_width;
 			// End CPT.
 
-			cseg2 *seg = sel->ToSeg();
-			cconnect2 *con = seg->m_con;
+			CSeg *seg = sel->ToSeg();
+			CConnect *con = seg->m_con;
 			con->GetStatusStr( &str );
 			if (!(con->NumSegs() == 1 && con->segs.First()->m_layer == LAY_RAT_LINE))
 			{
@@ -3048,7 +3048,7 @@ int CFreePcbView::ShowSelectStatus()
 		{
 			// CPT2.  In this mode, the selected object is always the starting vertex.  Just show connection info, plus active width
 			CString con_str, w_str, str0;
-			cconnect2 *c = sel->ToVertex()->m_con;
+			CConnect *c = sel->ToVertex()->m_con;
 			c->GetStatusStr( &con_str );
 			::MakeCStringFromDimension( &w_str, m_active_width, m_units, FALSE, FALSE, FALSE, u==MIL?1:3 );
 			str0.LoadStringA(IDS_W);
@@ -3059,7 +3059,7 @@ int CFreePcbView::ShowSelectStatus()
 	case CUR_VTX_SELECTED:
 		{
 			CString con_str, vtx_str;
-			cvertex2 *v = sel->ToVertex();
+			CVertex *v = sel->ToVertex();
 			v->m_con->GetStatusStr( &con_str );
 			v->GetStatusStr( &vtx_str );
 			str = con_str + "; " + vtx_str;
@@ -3077,14 +3077,14 @@ int CFreePcbView::ShowSelectStatus()
 
 	case CUR_CONNECT_SELECTED:
 		{
-			cconnect2 *c = sel->ToConnect();
+			CConnect *c = sel->ToConnect();
 			CString con_str;
 			c->GetStatusStr( &con_str );
 			// get length of trace
 			CString len_str;
 			double len = 0;
-			citer<cseg2> is (&c->segs);
-			for (cseg2 *s = is.First(); s; s = is.Next())
+			CIter<CSeg> is (&c->segs);
+			for (CSeg *s = is.First(); s; s = is.Next())
 			{
 				double dx = s->preVtx->x - s->postVtx->x;
 				double dy = s->preVtx->y - s->postVtx->y;
@@ -3098,7 +3098,7 @@ int CFreePcbView::ShowSelectStatus()
 
 	case CUR_TEXT_SELECTED:
 		{
-			ctext *t = sel->ToText();
+			CText *t = sel->ToText();
 			CString neg_str = "";
 			if( t->m_bNegative )
 				neg_str.LoadStringA(IDS_Neg);
@@ -3109,9 +3109,9 @@ int CFreePcbView::ShowSelectStatus()
 
 	case CUR_AREA_CORNER_SELECTED:
 		{
-			ccorner *c = sel->ToCorner();
-			cpolyline *p = c->contour->poly;
-			cnet2 *net = c->GetNet();
+			CCorner *c = sel->ToCorner();
+			CPolyline *p = c->contour->poly;
+			CNet *net = c->GetNet();
 			::MakeCStringFromDimension( &x_str, c->x, u, FALSE, FALSE, FALSE, u==MIL?1:3 );
 			::MakeCStringFromDimension( &y_str, c->y, u, FALSE, FALSE, FALSE, u==MIL?1:3 );
 			CString str0 ((LPCSTR) IDS_CopperAreaCorner);
@@ -3121,9 +3121,9 @@ int CFreePcbView::ShowSelectStatus()
 
 	case CUR_AREA_SIDE_SELECTED:
 		{
-			cside *side = sel->ToSide();
-			cpolyline *p = side->contour->poly;
-			cnet2 *net = side->GetNet();
+			CSide *side = sel->ToSide();
+			CPolyline *p = side->contour->poly;
+			CNet *net = side->GetNet();
 			if (!side->IsOnCutout()) 
 				str0.LoadStringA(IDS_CopperAreaEdge),
 				str.Format( str0, net->name, p->UID(), side->UID() );
@@ -3177,7 +3177,7 @@ int CFreePcbView::ShowSelectStatus()
 		break;
 
 	case CUR_DRAG_NEW_RAT:
-		if( cpin2 *p = sel->ToPin() )
+		if( CPin *p = sel->ToPin() )
 			str0.LoadStringA(IDS_AddingConnectionToPin),
 			str.Format( str0, p->part->ref_des, p->pin_name );
 		else if( sel->IsVertex() )
@@ -3258,7 +3258,7 @@ void CFreePcbView::CancelHighlight()
 //
 void CFreePcbView::CancelSelection()
 {
-	cnet2 *highlight_net0 = m_highlight_net;
+	CNet *highlight_net0 = m_highlight_net;
 	CancelHighlight();
 
 	/* CPT2 see proposal in notes.txt
@@ -3285,13 +3285,13 @@ void CFreePcbView::HighlightSelection()
 	// Now also sets the cursor mode based on what's in m_sel.  Also checks that the items in the selection are all valid, removing the invalid ones.
 	// r317 Now a virtual function within CCommonView.
 	CancelHighlight();
-	citer<cpcb_item> ii (&m_sel);
-	for (cpcb_item *i = ii.First(); i; i = ii.Next())	
+	CIter<CPcbItem> ii (&m_sel);
+	for (CPcbItem *i = ii.First(); i; i = ii.Next())	
 		if (i->IsOnPcb())
 			i->Highlight();
 		else
 			m_sel.Remove(i);
-	cpcb_item *first = m_sel.First();
+	CPcbItem *first = m_sel.First();
 	if (m_sel.GetSize()==0)
 		SetCursorMode( CUR_NONE_SELECTED );
 	else if (m_sel.GetSize()>=2)
@@ -3308,7 +3308,7 @@ void CFreePcbView::HighlightSelection()
 	else if( first->IsSmSide() )
 		SetCursorMode( CUR_SMCUTOUT_SIDE_SELECTED );
 	else if( first->IsPart() )
-		SetCursorMode( CUR_PART_SELECTED );				// CPT2 TODO Make sure cpart2::Highlight has dealt with ref text and value text
+		SetCursorMode( CUR_PART_SELECTED );				// CPT2 TODO Make sure CPart::Highlight has dealt with ref text and value text
 	else if( first->IsRefText() )
 		SetCursorMode( CUR_REF_SELECTED );				// CPT2 NB ref and value-text selection is independent of part selection (except that 
 														// selecting a part does highlight the ref and value)
@@ -3318,12 +3318,12 @@ void CFreePcbView::HighlightSelection()
 		SetCursorMode( CUR_TEXT_SELECTED );				// CPT2 NB check for IsRefText() and IsValueText() before checking IsText()...
 	else if( first->IsPin() )
 		SetCursorMode( CUR_PAD_SELECTED );
-	else if( cseg2 *s = first->ToSeg() )
+	else if( CSeg *s = first->ToSeg() )
 		if (s->m_layer == LAY_RAT_LINE)
 			SetCursorMode( CUR_RAT_SELECTED );
 		else
 			SetCursorMode( CUR_SEG_SELECTED );
-	else if( cvertex2 *v = first->ToVertex() )
+	else if( CVertex *v = first->ToVertex() )
 		SetCursorMode( CUR_VTX_SELECTED );
 	else if ( first->IsTee())
 		SetCursorMode( CUR_TEE_SELECTED );
@@ -3372,9 +3372,9 @@ void CFreePcbView::SetWidth( int mode )
 	dlg.m_init_via_w = m_doc->m_via_w;
 	dlg.m_init_via_hole_w = m_doc->m_via_hole_w;
 
-	cnet2 *net = m_sel.First()->GetNet();
-	cconnect2 *c = m_sel.First()->GetConnect();
-	cseg2 * seg = m_sel.First()->ToSeg();
+	CNet *net = m_sel.First()->GetNet();
+	CConnect *c = m_sel.First()->GetConnect();
+	CSeg * seg = m_sel.First()->ToSeg();
 	if( mode == 0 )
 	{
 		int seg_w = seg->m_width;
@@ -3404,7 +3404,7 @@ void CFreePcbView::SetWidth( int mode )
 
 	// Save undo info (for the whole net, the connect, or just the seg as appropriate)
 	if (dlg.m_apply == 3 || dlg.m_def == 2)
-		net->SaveUndoInfo( cnet2::SAVE_CONNECTS );
+		net->SaveUndoInfo( CNet::SAVE_CONNECTS );
 	else
 		c->SaveUndoInfo();
 
@@ -3496,8 +3496,8 @@ void CFreePcbView::OnContextMenu(CWnd* pWnd, CPoint point )
 		{
 			pPopup = menu.GetSubMenu(CONTEXT_SEGMENT);
 			ASSERT(pPopup != NULL);
-			cseg2 *seg = m_sel.First()->ToSeg();
-			cconnect2 *con = seg->m_con;
+			CSeg *seg = m_sel.First()->ToSeg();
+			CConnect *con = seg->m_con;
 			if (seg->preVtx->pin || seg->postVtx->pin || seg->preVtx->tee || seg->postVtx->tee)
 				pPopup->EnableMenuItem( ID_SEGMENT_MOVE, MF_GRAYED );
 			if (seg->preVtx->IsLooseEnd() || seg->postVtx->IsLooseEnd())
@@ -3511,8 +3511,8 @@ void CFreePcbView::OnContextMenu(CWnd* pWnd, CPoint point )
 		{
 			pPopup = menu.GetSubMenu(CONTEXT_RATLINE);
 			ASSERT(pPopup != NULL);
-			cseg2 *seg = m_sel.First()->ToSeg();
-			cconnect2 *con = seg->m_con;
+			CSeg *seg = m_sel.First()->ToSeg();
+			CConnect *con = seg->m_con;
 			if( con->locked )
 				pPopup->EnableMenuItem( ID_RATLINE_LOCKCONNECTION, MF_GRAYED );
 			else
@@ -3528,8 +3528,8 @@ void CFreePcbView::OnContextMenu(CWnd* pWnd, CPoint point )
 		{
 			pPopup = menu.GetSubMenu(CONTEXT_VERTEX);
 			ASSERT(pPopup != NULL);
-			cvertex2 *vtx = m_sel.First()->ToVertex();
-			cconnect2 *con = vtx->m_con;
+			CVertex *vtx = m_sel.First()->ToVertex();
+			CConnect *con = vtx->m_con;
 			if( vtx->IsVia() )
 				pPopup->EnableMenuItem( ID_VERTEX_ADDVIA, MF_GRAYED );
 			else
@@ -3544,7 +3544,7 @@ void CFreePcbView::OnContextMenu(CWnd* pWnd, CPoint point )
 		{
 			pPopup = menu.GetSubMenu(CONTEXT_TEE);
 			ASSERT(pPopup != NULL);
-			ctee *tee = m_sel.First()->ToTee();
+			CTee *tee = m_sel.First()->ToTee();
 			if( tee->IsVia() )
 				pPopup->EnableMenuItem( ID_TEE_ADDVIA, MF_GRAYED );
 			else
@@ -3557,7 +3557,7 @@ void CFreePcbView::OnContextMenu(CWnd* pWnd, CPoint point )
 		{
 			pPopup = menu.GetSubMenu(CONTEXT_CONNECT);
 			ASSERT(pPopup != NULL);
-			cconnect2 *con = m_sel.First()->GetConnect();
+			CConnect *con = m_sel.First()->GetConnect();
 			if (con->head->IsLooseEnd() || con->tail->IsLooseEnd())
 				pPopup->EnableMenuItem( ID_CONNECT_UNROUTETRACE, MF_GRAYED );
 			break;
@@ -3609,14 +3609,14 @@ void CFreePcbView::OnContextMenu(CWnd* pWnd, CPoint point )
 				context = CONTEXT_BOARD_SIDE;
 			pPopup = menu.GetSubMenu( context );
 			ASSERT(pPopup != NULL);
-			cside *s = m_sel.First()->ToSide();
+			CSide *s = m_sel.First()->ToSide();
 			if (context != CONTEXT_BOARD_SIDE)
 				if (s->IsOnCutout())
 					pPopup->EnableMenuItem( ID_POLYSIDE_EXCLUDEREGION, MF_GRAYED );
 				else
 					pPopup->EnableMenuItem( ID_POLYSIDE_REMOVECONTOUR, MF_GRAYED );
 			int style = s->m_style;
-			if( style == cpolyline::STRAIGHT )
+			if( style == CPolyline::STRAIGHT )
 			{
 				int xi = s->preCorner->x, yi = s->preCorner->y;
 				int xf = s->postCorner->x, yf = s->postCorner->y;
@@ -3627,12 +3627,12 @@ void CFreePcbView::OnContextMenu(CWnd* pWnd, CPoint point )
 				}
 				pPopup->EnableMenuItem( ID_POLYSIDE_CONVERTTOSTRAIGHT, MF_GRAYED );
 			}
-			else if( style == cpolyline::ARC_CW )
+			else if( style == CPolyline::ARC_CW )
 			{
 				pPopup->EnableMenuItem( ID_POLYSIDE_CONVERTTOARC_CW, MF_GRAYED );
 				pPopup->EnableMenuItem( ID_POLYSIDE_INSERTCORNER, MF_GRAYED );
 			}
-			else if( style == cpolyline::ARC_CCW )
+			else if( style == CPolyline::ARC_CCW )
 			{
 				pPopup->EnableMenuItem( ID_POLYSIDE_CONVERTTOARC_CCW, MF_GRAYED );
 				pPopup->EnableMenuItem( ID_POLYSIDE_INSERTCORNER, MF_GRAYED );
@@ -3653,7 +3653,7 @@ void CFreePcbView::OnContextMenu(CWnd* pWnd, CPoint point )
 //
 void CFreePcbView::OnPartMove()
 {
-	cpart2 *part = m_sel.First()->ToPart();
+	CPart *part = m_sel.First()->ToPart();
 	// check for glue
 	if( part->glued )
 	{
@@ -3716,7 +3716,7 @@ void CFreePcbView::OnTextAdd()
 		x = p.x, y = p.y;
 	}
 
-	ctext *t = m_doc->m_tlist->AddText( x, y, angle, mirror, bNegative,
+	CText *t = m_doc->m_tlist->AddText( x, y, angle, mirror, bNegative,
 			layer, font_size, stroke_width, &str );
 	t->MustRedraw();
 	m_doc->ProjectModified(true);
@@ -3739,7 +3739,7 @@ void CFreePcbView::OnTextAdd()
 //
 void CFreePcbView::OnTextDelete()
 {
-	ctext *t = m_sel.First()->ToText();
+	CText *t = m_sel.First()->ToText();
 	t->SaveUndoInfo();
 	m_doc->m_tlist->texts.Remove(t);
 	t->Undraw();
@@ -3755,7 +3755,7 @@ void CFreePcbView::OnTextMove()
 	pDC->SelectClipRgn( &m_pcb_rgn );
 	SetDCToWorldCoords( pDC );
 	// move cursor to text origin
-	ctext *t = m_sel.First()->ToText();
+	CText *t = m_sel.First()->ToText();
 	t->SaveUndoInfo();
 	CPoint p (t->m_x, t->m_y);
 	CPoint cur_p = m_dlist->PCBToScreen( p );
@@ -3773,7 +3773,7 @@ void CFreePcbView::OnTextMove()
 //
 void CFreePcbView::OnPartGlue()
 {
-	cpart2 *part = m_sel.First()->ToPart();
+	CPart *part = m_sel.First()->ToPart();
 	part->SaveUndoInfo(false);
 	part->glued = 1;
 	SetFKText( m_cursor_mode );
@@ -3784,7 +3784,7 @@ void CFreePcbView::OnPartGlue()
 //
 void CFreePcbView::OnPartUnglue()
 {
-	cpart2 *part = m_sel.First()->ToPart();
+	CPart *part = m_sel.First()->ToPart();
 	part->SaveUndoInfo(false);
 	part->glued = 0;
 	SetFKText( m_cursor_mode );
@@ -3795,7 +3795,7 @@ void CFreePcbView::OnPartUnglue()
 //
 void CFreePcbView::OnPartDelete()
 {
-	cpart2 *part = m_sel.First()->ToPart();
+	CPart *part = m_sel.First()->ToPart();
 	if( part->glued )
 	{
 		CString s ((LPCSTR) IDS_ThisPartIsGluedDoYouWantToUnglueIt);
@@ -3831,7 +3831,7 @@ void CFreePcbView::OnPartDelete()
 //
 void CFreePcbView::OnPartOptimize()
 {
-	cpart2 *part = m_sel.First()->ToPart();
+	CPart *part = m_sel.First()->ToPart();
 	part->OptimizeConnections( FALSE );
 	m_doc->ProjectModified( TRUE );
 }
@@ -3839,7 +3839,7 @@ void CFreePcbView::OnPartOptimize()
 void CFreePcbView::OnPartProperties()
 {
 	// CPT2.  This used to be in class FreePcbDoc, but I'm thinking CFreePcbView is more logical.
-	cpart2 *part = m_sel.First()->ToPart();
+	CPart *part = m_sel.First()->ToPart();
 	partlist_info pli;
 	int ip = part->m_pl->ExportPartListInfo( &pli, part );
 	CDlgAddPart dlg;
@@ -3861,7 +3861,7 @@ void CFreePcbView::OnPartProperties()
 void CFreePcbView::OnPartRefProperties()
 {
 	// CPT2 new.  For use in the part context menu
-	cpart2 *part = m_sel.First()->ToPart();
+	CPart *part = m_sel.First()->ToPart();
 	part->MustRedraw();
 	part->m_ref->m_bShown = true;
 	m_doc->Redraw();
@@ -3872,7 +3872,7 @@ void CFreePcbView::OnPartRefProperties()
 void CFreePcbView::OnPartValueProperties()
 {
 	// CPT2 new.  For use in the part context menu
-	cpart2 *part = m_sel.First()->ToPart();
+	CPart *part = m_sel.First()->ToPart();
 	part->MustRedraw();
 	part->m_value->m_bShown = true;
 	if (part->m_value->m_font_size == 0)
@@ -3888,7 +3888,7 @@ void CFreePcbView::OnPartValueProperties()
 //
 void CFreePcbView::OnRefMove()
 {
-	ctext *t = m_sel.First()->ToText();
+	CText *t = m_sel.First()->ToText();
 	CDC *pDC = GetDC();
 	pDC->SelectClipRgn( &m_pcb_rgn );
 	SetDCToWorldCoords( pDC );
@@ -3905,7 +3905,7 @@ void CFreePcbView::OnRefMove()
 //
 void CFreePcbView::OnPadOptimize()
 {
-	cpin2 *pin = m_sel.First()->ToPin();
+	CPin *pin = m_sel.First()->ToPin();
 	if (!pin->net)
 		return;
 	pin->net->OptimizeConnections( false );
@@ -3916,8 +3916,8 @@ void CFreePcbView::OnPadOptimize()
 // CPT2 converted.  Quite similar to OnVertexStartTrace().
 void CFreePcbView::OnPadStartTrace()
 {
-	cpin2 *pin = m_sel.First()->ToPin();
-	cnet2 *net = pin->net;
+	CPin *pin = m_sel.First()->ToPin();
+	CNet *net = pin->net;
 	if( !net )
 	{
 		// CPT2 new.  User can pick the net now.
@@ -3930,13 +3930,13 @@ void CFreePcbView::OnPadStartTrace()
 		net = m_doc->m_nlist->GetNetPtrByName(&name);
 		if( !net )
 			// make new net
-			net = new cnet2(m_doc->m_nlist, name, 0, 0, 0);
+			net = new CNet(m_doc->m_nlist, name, 0, 0, 0);
 		else
-			net->SaveUndoInfo( cnet2::SAVE_CONNECTS );
+			net->SaveUndoInfo( CNet::SAVE_CONNECTS );
 		net->AddPin(pin);
 	}
 	else
-		net->SaveUndoInfo( cnet2::SAVE_CONNECTS );
+		net->SaveUndoInfo( CNet::SAVE_CONNECTS );
 
 	CDC * pDC = GetDC();
 	SetDCToWorldCoords( pDC );
@@ -3945,8 +3945,8 @@ void CFreePcbView::OnPadStartTrace()
 	m_snap_angle_ref.y = pin->y;
 	// now add new connection and first vertex.  The 1st vertex becomes the selection, which we refer to when we get to OnLButtonUp again
 	// NB it's unusual to have as the selection a vertex belonging to a pin.
-	cconnect2 *new_c = new cconnect2 (net);
-	cvertex2 *new_v = new cvertex2 (new_c, pin->x, pin->y);
+	CConnect *new_c = new CConnect (net);
+	CVertex *new_v = new CVertex (new_c, pin->x, pin->y);
 	new_v->pin = pin;
 	new_c->Start(new_v);
 	m_sel.RemoveAll();
@@ -3971,7 +3971,7 @@ void CFreePcbView::OnPadStartTrace()
 //
 void CFreePcbView::OnPadAddToNet()
 {
-	cpin2 *pin = m_sel.First()->ToPin();
+	CPin *pin = m_sel.First()->ToPin();
 	DlgAssignNet assign_net_dlg;
 	assign_net_dlg.m_nlist = m_doc->m_nlist;
 	int ret = assign_net_dlg.DoModal();
@@ -3980,12 +3980,12 @@ void CFreePcbView::OnPadAddToNet()
 
 	CString name = assign_net_dlg.m_net_str;
 	name.Trim();
-	cnet2 *net = m_doc->m_nlist->GetNetPtrByName( &name );
+	CNet *net = m_doc->m_nlist->GetNetPtrByName( &name );
 	if( !net )
 	{
 		// create new net if legal string
 		if( name.GetLength() )
-			net = new cnet2(m_doc->m_nlist, name, 0, 0, 0);
+			net = new CNet(m_doc->m_nlist, name, 0, 0, 0);
 		else
 		{
 			// blank net name
@@ -3996,7 +3996,7 @@ void CFreePcbView::OnPadAddToNet()
 	}
 	else
 		// use selected net
-		net->SaveUndoInfo( cnet2::SAVE_NET_ONLY );
+		net->SaveUndoInfo( CNet::SAVE_NET_ONLY );
 
 	// assign pin to net
 	pin->SaveUndoInfo();
@@ -4011,9 +4011,9 @@ void CFreePcbView::OnPadAddToNet()
 //
 void CFreePcbView::OnPadDetachFromNet()
 {
-	cpin2 *pin = m_sel.First()->ToPin();
+	CPin *pin = m_sel.First()->ToPin();
 	pin->SaveUndoInfo();
-	pin->net->SaveUndoInfo( cnet2::SAVE_CONNECTS );
+	pin->net->SaveUndoInfo( CNet::SAVE_CONNECTS );
 	pin->net->RemovePin(pin);
 	SetFKText( m_cursor_mode );
 	m_doc->ProjectModified( TRUE );
@@ -4024,7 +4024,7 @@ void CFreePcbView::OnPadDetachFromNet()
 //
 void CFreePcbView::OnPadStartRatline()
 {
-	cpin2 *pin = m_sel.First()->ToPin();
+	CPin *pin = m_sel.First()->ToPin();
 	CDC *pDC = GetDC();
 	pDC->SelectClipRgn( &m_pcb_rgn );
 	SetDCToWorldCoords( pDC );
@@ -4043,8 +4043,8 @@ void CFreePcbView::OnPadStartRatline()
 //
 void CFreePcbView::OnVertexStartRatline()
 {
-	cpcb_item *sel0 = m_sel.First();
-	cvertex2 *v = sel0->ToVertex();
+	CPcbItem *sel0 = m_sel.First();
+	CVertex *v = sel0->ToVertex();
 	if (sel0->IsTee())
 		v = sel0->ToTee()->vtxs.First();
 	CDC *pDC = GetDC();
@@ -4067,12 +4067,12 @@ void CFreePcbView::OnVertexStartTrace() { OnVertexStartTrace(true); }
 
 void CFreePcbView::OnVertexStartTrace(bool bResetActiveWidth)
 {
-	cpcb_item *sel0 = m_sel.First();
-	cvertex2 *v = sel0->ToVertex();
+	CPcbItem *sel0 = m_sel.First();
+	CVertex *v = sel0->ToVertex();
 	if (sel0->IsTee())
 		v = sel0->ToTee()->vtxs.First();
-	cnet2 *net = v->m_net;
-	net->SaveUndoInfo( cnet2::SAVE_CONNECTS );
+	CNet *net = v->m_net;
+	net->SaveUndoInfo( CNet::SAVE_CONNECTS );
 	CDC * pDC = GetDC();
 	SetDCToWorldCoords( pDC );
 	pDC->SelectClipRgn( &m_pcb_rgn );
@@ -4081,12 +4081,12 @@ void CFreePcbView::OnVertexStartTrace(bool bResetActiveWidth)
 	// now add new connection and first vertex.  The 1st vertex becomes the selection, which we refer to when we get to OnLButtonUp again
 	if (v->preSeg && v->postSeg)
 		v->SplitConnect();
-	cconnect2 *new_c;
-	cvertex2 *new_v;
+	CConnect *new_c;
+	CVertex *new_v;
 	if (v->tee) 
 	{
-		new_c = new cconnect2 (net);
-		new_v = new cvertex2 (new_c, v->x, v->y);
+		new_c = new CConnect (net);
+		new_v = new CVertex (new_c, v->x, v->y);
 		new_c->Start(new_v);
 		v->tee->Add(new_v);
 		m_sel.RemoveAll();
@@ -4123,7 +4123,7 @@ void CFreePcbView::OnVertexStartTrace(bool bResetActiveWidth)
 //
 void CFreePcbView::OnSegmentSetWidth()
 {
-	cseg2 *seg = m_sel.First()->ToSeg();
+	CSeg *seg = m_sel.First()->ToSeg();
 	CancelHighlight();
 	SetWidth( 0 );
 	seg->Highlight();
@@ -4134,8 +4134,8 @@ void CFreePcbView::OnSegmentSetWidth()
 //
 void CFreePcbView::OnSegmentUnroute()
 {
-	cseg2 *seg = m_sel.First()->ToSeg();
-	cconnect2 *c = seg->m_con;
+	CSeg *seg = m_sel.First()->ToSeg();
+	CConnect *c = seg->m_con;
 	// save undo info for connection
 	c->SaveUndoInfo();
 
@@ -4174,7 +4174,7 @@ void CFreePcbView::OnSegmentUnroute()
 //
 void CFreePcbView::OnSegmentDelete()
 {
-	cseg2 *seg = m_sel.First()->ToSeg();
+	CSeg *seg = m_sel.First()->ToSeg();
 	seg->m_con->SaveUndoInfo();
 	seg->RemoveBreak();								// Takes care of undrawing
 	m_doc->ProjectModified( TRUE );
@@ -4187,9 +4187,9 @@ void CFreePcbView::OnRatlineRoute() { OnRatlineRoute(true); }			// CPT2.  Need a
 
 void CFreePcbView::OnRatlineRoute(bool bResetActiveWidth)
 {
-	cseg2 *seg = m_sel.First()->ToSeg();
-	cnet2 *net = seg->m_net;
-	cvertex2 *preVtx = seg->preVtx, *postVtx = seg->postVtx;
+	CSeg *seg = m_sel.First()->ToSeg();
+	CNet *net = seg->m_net;
+	CVertex *preVtx = seg->preVtx, *postVtx = seg->postVtx;
 	CDC *pDC = GetDC();
 	pDC->SelectClipRgn( &m_pcb_rgn );
 	SetDCToWorldCoords( pDC );
@@ -4252,7 +4252,7 @@ void CFreePcbView::OnRatlineRoute(bool bResetActiveWidth)
 void CFreePcbView::OnOptimize()
 {
 	// CPT2 used when a net-item (seg, vertex, etc.) is selected and user hits F9.
-	cnet2 *net = m_sel.First()->GetNet();
+	CNet *net = m_sel.First()->GetNet();
 	net->OptimizeConnections( FALSE );
 	if (!m_sel.First()->IsOnPcb())
 		// OptimizeConnections() could have clobbered the selected item, if it's a ratline.
@@ -4265,8 +4265,8 @@ void CFreePcbView::OnOptimize()
 void CFreePcbView::OnRatlineChangeEndPin()
 {
 	// CPT2 converted.  Somewhat similar to OnVertexStartRatline
-	cseg2 *seg = m_sel.First()->ToSeg();
-	cvertex2 *pin_end, *no_pin_end;
+	CSeg *seg = m_sel.First()->ToSeg();
+	CVertex *pin_end, *no_pin_end;
 	if (seg->preVtx->pin)
 		pin_end = seg->preVtx, 
 		no_pin_end = seg->postVtx;
@@ -4290,7 +4290,7 @@ void CFreePcbView::OnRatlineChangeEndPin()
 //
 void CFreePcbView::OnVertexProperties()
 {
-	cvertex2 *vtx = m_sel.First()->ToVertex();
+	CVertex *vtx = m_sel.First()->ToVertex();
 	CPoint v_pt( vtx->x, vtx->y );
 	CDlgVia dlg = new CDlgVia;
 	dlg.Initialize( vtx->via_w, vtx->via_hole_w, v_pt, m_units );
@@ -4313,9 +4313,9 @@ void CFreePcbView::OnVertexProperties()
 //
 void CFreePcbView::OnTeeProperties()
 {
-	ctee *tee = m_sel.First()->ToTee();
+	CTee *tee = m_sel.First()->ToTee();
 	if (tee->vtxs.GetSize()==0) return;				// Weird...
-	cnet2 *net = tee->GetNet();
+	CNet *net = tee->GetNet();
 	CPoint v_pt( tee->vtxs.First()->x, tee->vtxs.First()->y );
 	CDlgVia dlg = new CDlgVia;
 	dlg.Initialize( tee->via_w, tee->via_hole_w, v_pt, m_units );
@@ -4323,7 +4323,7 @@ void CFreePcbView::OnTeeProperties()
 	if( ret != IDOK )
 		return;
 	CancelHighlight();
-	net->SaveUndoInfo( cnet2::SAVE_CONNECTS );
+	net->SaveUndoInfo( CNet::SAVE_CONNECTS );
 	tee->MustRedraw();
 	tee->via_w = dlg.m_via_w;
 	tee->via_hole_w = dlg.m_via_hole_w;
@@ -4339,7 +4339,7 @@ void CFreePcbView::OnTeeProperties()
 //
 void CFreePcbView::OnVertexMove()
 {
-	cvertex2 *vtx = m_sel.First()->ToVertex();
+	CVertex *vtx = m_sel.First()->ToVertex();
 	CDC *pDC = GetDC();
 	pDC->SelectClipRgn( &m_pcb_rgn );
 	SetDCToWorldCoords( pDC );
@@ -4355,7 +4355,7 @@ void CFreePcbView::OnVertexMove()
 
 void CFreePcbView::OnTeeMove()
 {
-	ctee *tee = m_sel.First()->ToTee();
+	CTee *tee = m_sel.First()->ToTee();
 	if (tee->vtxs.GetSize()==0) return;					// Weird...
 	CDC *pDC = GetDC();
 	pDC->SelectClipRgn( &m_pcb_rgn );
@@ -4375,10 +4375,10 @@ void CFreePcbView::OnTeeMove()
 //
 void CFreePcbView::OnVertexDelete()
 {
-	cpcb_item *sel0 = m_sel.First();
-	cvertex2 *v = sel0->ToVertex();
-	cconnect2 *c = v->m_con;
-	cnet2 *net = v->m_net;
+	CPcbItem *sel0 = m_sel.First();
+	CVertex *v = sel0->ToVertex();
+	CConnect *c = v->m_con;
+	CNet *net = v->m_net;
 	c->SaveUndoInfo();
 	v->Remove();
 	if( m_doc->m_vis[LAY_RAT_LINE] )
@@ -4392,14 +4392,14 @@ void CFreePcbView::OnVertexDelete()
 //
 void CFreePcbView::OnTeeDelete()
 {
-	ctee *tee = m_sel.First()->ToTee();
-	cnet2 *net = tee->GetNet();
+	CTee *tee = m_sel.First()->ToTee();
+	CNet *net = tee->GetNet();
 	// ask to confirm
 	CString s ((LPCSTR) IDS_YouAreDeletingATeeVertexContinue);
 	int ret = AfxMessageBox( s,	MB_OKCANCEL );
 	if( ret == IDCANCEL )
 		return;
-	net->SaveUndoInfo( cnet2::SAVE_CONNECTS );
+	net->SaveUndoInfo( CNet::SAVE_CONNECTS );
 	tee->Remove(true);
 	if( m_doc->m_vis[LAY_RAT_LINE] )
 		net->OptimizeConnections();
@@ -4412,8 +4412,8 @@ void CFreePcbView::OnTeeDelete()
 
 void CFreePcbView::OnVertexAddVia()
 {
-	cpcb_item *sel = m_sel.First();
-	cnet2 *net = sel->GetNet();
+	CPcbItem *sel = m_sel.First();
+	CNet *net = sel->GetNet();
 	sel->SaveUndoInfo();
 	sel->ForceVia();
 	if( m_doc->m_vis[LAY_RAT_LINE] )
@@ -4428,8 +4428,8 @@ void CFreePcbView::OnVertexAddVia()
 
 void CFreePcbView::OnVertexRemoveVia()
 {
-	cpcb_item *sel = m_sel.First();
-	cnet2 *net = sel->GetNet();
+	CPcbItem *sel = m_sel.First();
+	CNet *net = sel->GetNet();
 	sel->SaveUndoInfo();
 	sel->UnforceVia();																							// CPT2 changed arg to true
 	if (!sel->IsTee())
@@ -4446,13 +4446,13 @@ void CFreePcbView::OnVertexRemoveVia()
 //
 void CFreePcbView::OnRatlineComplete()
 {
-	cseg2 *seg = m_sel.First()->ToSeg();
-	cvertex2 *start = m_dir==0? seg->preVtx: seg->postVtx;
-	cvertex2 *end = m_dir==0? seg->postVtx: seg->preVtx;
-	cconnect2 *c = seg->m_con;
-	cnet2 *net = seg->m_net;
+	CSeg *seg = m_sel.First()->ToSeg();
+	CVertex *start = m_dir==0? seg->preVtx: seg->postVtx;
+	CVertex *end = m_dir==0? seg->postVtx: seg->preVtx;
+	CConnect *c = seg->m_con;
+	CNet *net = seg->m_net;
 	c->SaveUndoInfo();
-	// CPT2 TODO.  I'm trying using FinishRouting() instead of cseg2::Route().  This gives us inflection points rather than just a 
+	// CPT2 TODO.  I'm trying using FinishRouting() instead of CSeg::Route().  This gives us inflection points rather than just a 
 	// straight line.  Desirable?
 	bool bValid = true;
 	if (start->pin)
@@ -4499,8 +4499,8 @@ void CFreePcbView::OnRatlineSetWidth()
 //
 void CFreePcbView::OnDeleteConnection()
 {
-	cconnect2 *c = m_sel.First()->GetConnect();
-	cnet2 *net = c->m_net;
+	CConnect *c = m_sel.First()->GetConnect();
+	CNet *net = c->m_net;
 	if( c->locked )
 	{
 		CString s ((LPCSTR) IDS_YouAreTryingToDeleteALockedConnection);
@@ -4508,7 +4508,7 @@ void CFreePcbView::OnDeleteConnection()
 		if( ret == IDNO )
 			return;
 	}
-	net->SaveUndoInfo( cnet2::SAVE_CONNECTS );
+	net->SaveUndoInfo( CNet::SAVE_CONNECTS );
 	c->Remove();
 	m_doc->ProjectModified( TRUE );
 	CancelSelection();
@@ -4518,7 +4518,7 @@ void CFreePcbView::OnDeleteConnection()
 //
 void CFreePcbView::OnRatlineLockConnection()
 {
-	cconnect2 *c = m_sel.First()->GetConnect();
+	CConnect *c = m_sel.First()->GetConnect();
 	c->SaveUndoInfo();
 	c->locked = 1;
 	ShowSelectStatus();
@@ -4530,7 +4530,7 @@ void CFreePcbView::OnRatlineLockConnection()
 //
 void CFreePcbView::OnRatlineUnlockConnection()
 {
-	cconnect2 *c = m_sel.First()->GetConnect();
+	CConnect *c = m_sel.First()->GetConnect();
 	c->SaveUndoInfo();
 	c->locked = 0;
 	ShowSelectStatus();
@@ -4543,7 +4543,7 @@ void CFreePcbView::OnRatlineUnlockConnection()
 void CFreePcbView::OnTextEdit()
 {
 	// create dialog and pass parameters
-	ctext *t = m_sel.First()->ToText();
+	CText *t = m_sel.First()->ToText();
 	CDlgAddText add_text_dlg;
 	add_text_dlg.Initialize( 0, m_doc->m_num_layers, 0, &t->m_str,
 		m_units, t->m_layer, t->m_bMirror,
@@ -4611,7 +4611,7 @@ void CFreePcbView::OnAddArea()
 	m_dlist->SetLayerVisible( m_active_layer, TRUE );
 	ShowActiveLayer();
 	m_dlist->StartDraggingArray( pDC, m_last_cursor_point.x, m_last_cursor_point.y, 0, m_active_layer, 2 );
-	m_polyline_style = cpolyline::STRAIGHT;
+	m_polyline_style = CPolyline::STRAIGHT;
 	m_polyline_hatch = dlg.m_hatch;
 	Invalidate( FALSE );
 	ReleaseDC( pDC );
@@ -4630,8 +4630,8 @@ void CFreePcbView::OnAddBoardOutline()
 	SetCursorMode( CUR_ADD_BOARD );
 	m_dlist->StartDraggingArray( pDC, m_last_cursor_point.x, m_last_cursor_point.y, 0, LAY_BOARD_OUTLINE, 2 );
 	m_polyline_layer = LAY_BOARD_OUTLINE;
-	m_polyline_style = cpolyline::STRAIGHT;
-	m_polyline_hatch = cpolyline::NO_HATCH;
+	m_polyline_style = CPolyline::STRAIGHT;
+	m_polyline_hatch = CPolyline::NO_HATCH;
 	Invalidate( FALSE );
 	ReleaseDC( pDC );
 }
@@ -4639,7 +4639,7 @@ void CFreePcbView::OnAddBoardOutline()
 void CFreePcbView::OnAddSoldermaskCutout()
 {
 	CDlgAddMaskCutout dlg;
-	dlg.Initialize( LAY_SM_TOP, cpolyline::NO_HATCH );
+	dlg.Initialize( LAY_SM_TOP, CPolyline::NO_HATCH );
 	int ret = dlg.DoModal();
 	if( ret != IDOK ) 
 		return;
@@ -4654,7 +4654,7 @@ void CFreePcbView::OnAddSoldermaskCutout()
 	SetCursorMode( CUR_ADD_SMCUTOUT );
 	m_polyline_layer = il;
 	m_dlist->StartDraggingArray( pDC, m_last_cursor_point.x, m_last_cursor_point.y, 0, il, 2 );
-	m_polyline_style = cpolyline::STRAIGHT;
+	m_polyline_style = CPolyline::STRAIGHT;
 	m_polyline_hatch = dlg.m_hatch;
 	Invalidate( FALSE );
 	ReleaseDC( pDC );
@@ -4670,26 +4670,26 @@ void CFreePcbView::OnPolyAddCutout()
 	CancelHighlight();
 	SetCursorMode( CUR_ADD_POLY_CUTOUT );
 	// make layer visible
-	cpolyline *poly = m_sel.First()->GetPolyline();
+	CPolyline *poly = m_sel.First()->GetPolyline();
 	poly->SaveUndoInfo();
 	if (poly->IsArea())
-		// NB This doesn't work properly if poly is an csmcutout (those layers can't be the active layer)
+		// NB This doesn't work properly if poly is an CSmCutout (those layers can't be the active layer)
 		m_active_layer = poly->GetLayer(),
 		m_doc->m_vis[m_active_layer] = TRUE,
 		m_dlist->SetLayerVisible( m_active_layer, TRUE ),
 		ShowActiveLayer();
 	m_dlist->StartDraggingArray( pDC, m_last_cursor_point.x,
 		m_last_cursor_point.y, 0, m_active_layer, 2 );
-	m_polyline_style = cpcb_item::STRAIGHT;
+	m_polyline_style = CPcbItem::STRAIGHT;
 	Invalidate( FALSE );
 	ReleaseDC( pDC );
 }
 
 void CFreePcbView::FinishAddPoly()
 {
-	ccontour *ctr = m_drag_contour;
-	cpolyline *poly = ctr->GetPolyline();
-	cnet2 *net = poly->GetNet();
+	CContour *ctr = m_drag_contour;
+	CPolyline *poly = ctr->GetPolyline();
+	CNet *net = poly->GetNet();
 	poly->MustRedraw();
 	poly->SaveUndoInfo();
 	ctr->Close( m_polyline_style );
@@ -4705,9 +4705,9 @@ void CFreePcbView::FinishAddPoly()
 
 void CFreePcbView::FinishAddPolyCutout() 
 {
-	ccontour *ctr = m_drag_contour;
-	cpolyline *poly = m_sel.First()->GetPolyline();
-	cnet2 *net = poly->GetNet();
+	CContour *ctr = m_drag_contour;
+	CPolyline *poly = m_sel.First()->GetPolyline();
+	CNet *net = poly->GetNet();
 	poly->MustRedraw();
 	poly->SaveUndoInfo();
 	poly->Undraw();
@@ -4724,8 +4724,8 @@ void CFreePcbView::FinishAddPolyCutout()
 void CFreePcbView::OnPolyDelete()
 {
 	// CPT2 generalized function used for areas, smcutouts and board outlines.  Works whether the current selection is a corner or a side.
-	cpolyline *poly = m_sel.First()->GetPolyline();
-	cnet2 *net = poly->GetNet();
+	CPolyline *poly = m_sel.First()->GetPolyline();
+	CNet *net = poly->GetNet();
 	poly->SaveUndoInfo();
 	poly->Remove();
 	if (poly->IsArea())
@@ -4739,13 +4739,13 @@ void CFreePcbView::OnPolyDeleteCutout()
 {
 	// CPT2 generalized function.  Now both areas and smcutouts can have "cutouts" (new terminology for the user, hopefully less confusing: 
 	//  these are called "region exclusions" and the f-key that leads us here is called "remove contour")
-	cpcb_item *first = m_sel.First();
-	cpolyline *poly = first->GetPolyline();
-	cnet2 *net = poly->GetNet();
-	ccontour *ctr = NULL;
-	if (ccorner *c = first->ToCorner())
+	CPcbItem *first = m_sel.First();
+	CPolyline *poly = first->GetPolyline();
+	CNet *net = poly->GetNet();
+	CContour *ctr = NULL;
+	if (CCorner *c = first->ToCorner())
 		ctr = c->contour;
-	else if (cside *s = first->ToSide())
+	else if (CSide *s = first->ToSide())
 		ctr = s->contour;
 	ASSERT( ctr && ctr != ctr->poly->main );
 	poly->SaveUndoInfo();
@@ -4766,7 +4766,7 @@ void CFreePcbView::OnPolyCornerMove()
 	CDC *pDC = GetDC();
 	pDC->SelectClipRgn( &m_pcb_rgn );
 	SetDCToWorldCoords( pDC );
-	ccorner *c = m_sel.First()->ToCorner();
+	CCorner *c = m_sel.First()->ToCorner();
 	CPoint p = m_last_mouse_point;
 	m_from_pt.x = c->x;
 	m_from_pt.y = c->y;
@@ -4779,9 +4779,9 @@ void CFreePcbView::OnPolyCornerMove()
 void CFreePcbView::OnPolyCornerDelete()
 {
 	// delete a polyline corner (for areas, smcutouts, and board-outlines)
-	ccorner *c = m_sel.First()->ToCorner();
-	cpolyline *poly = c->GetPolyline();
-	cnet2 *net = c->GetNet();
+	CCorner *c = m_sel.First()->ToCorner();
+	CPolyline *poly = c->GetPolyline();
+	CNet *net = c->GetNet();
 	poly->SaveUndoInfo();
 	c->Remove();							// NB could result in the removal of a contour or even the whole area
 	poly->PolygonModified( false, true );
@@ -4800,7 +4800,7 @@ void CFreePcbView::OnPolySideAddCorner()
 	pDC->SelectClipRgn( &m_pcb_rgn );
 	SetDCToWorldCoords( pDC );
 	CPoint p = m_last_mouse_point;
-	cside *s = m_sel.First()->ToSide();
+	CSide *s = m_sel.First()->ToSide();
 	s->StartDraggingNewCorner( pDC, p.x, p.y, 2 );
 	SetCursorMode( CUR_DRAG_POLY_INSERT );
 	ReleaseDC( pDC );
@@ -4809,11 +4809,11 @@ void CFreePcbView::OnPolySideAddCorner()
 
 void CFreePcbView::OnPolySideConvert(int style)
 {
-	cside *s = m_sel.First()->ToSide();
+	CSide *s = m_sel.First()->ToSide();
 	if (s->m_style == style)
 		return;
-	cpolyline *poly = s->GetPolyline();
-	cnet2 *net = s->GetNet();
+	CPolyline *poly = s->GetPolyline();
+	CNet *net = s->GetNet();
 	poly->SaveUndoInfo();
 	poly->MustRedraw();
 	s->m_style = style;
@@ -4827,18 +4827,18 @@ void CFreePcbView::OnPolySideConvert(int style)
 }
 
 void CFreePcbView::OnPolySideConvertToStraightLine()
-	{ OnPolySideConvert( cpolyline::STRAIGHT ); }
+	{ OnPolySideConvert( CPolyline::STRAIGHT ); }
 
 void CFreePcbView::OnPolySideConvertToArcCw()
-	{ OnPolySideConvert( cpolyline::ARC_CW ); }
+	{ OnPolySideConvert( CPolyline::ARC_CW ); }
 
 void CFreePcbView::OnPolySideConvertToArcCcw()
-	{ OnPolySideConvert( cpolyline::ARC_CCW ); }
+	{ OnPolySideConvert( CPolyline::ARC_CCW ); }
 
 void CFreePcbView::OnPolyCornerEdit()
 {
-	ccorner *c = m_sel.First()->ToCorner();
-	cpolyline *poly = c->GetPolyline();
+	CCorner *c = m_sel.First()->ToCorner();
+	CPolyline *poly = c->GetPolyline();
 	DlgEditBoardCorner dlg;
 	CString str ((LPCSTR) IDS_CornerPosition);
 	dlg.Init( &str, m_units, c->x, c->y );
@@ -4861,20 +4861,20 @@ void CFreePcbView::OnPolyCornerEdit()
 void CFreePcbView::TryToReselectCorner( int x, int y )
 {
 	if (m_sel.IsEmpty()) return;
-	cpolyline *poly = m_sel.First()->GetPolyline();
+	CPolyline *poly = m_sel.First()->GetPolyline();
 	CancelSelection();
 	if (!poly) return;
 	bool lkwa = m_lastKeyWasArrow;
-	carray<cpolyline> arr;
+	CHeap<CPolyline> arr;
 	poly->GetCompatiblePolylines( &arr );
-	citer<cpolyline> ip (&arr);
-	for (cpolyline *p = ip.First(); p; p = ip.Next())
+	CIter<CPolyline> ip (&arr);
+	for (CPolyline *p = ip.First(); p; p = ip.Next())
 	{
-		citer<ccontour> ictr (&p->contours);
-		for (ccontour *ctr = ictr.First(); ctr; ctr = ictr.Next())
+		CIter<CContour> ictr (&p->contours);
+		for (CContour *ctr = ictr.First(); ctr; ctr = ictr.Next())
 		{
-			citer<ccorner> ic (&ctr->corners);
-			for (ccorner *c = ic.First(); c; c = ic.Next())
+			CIter<CCorner> ic (&ctr->corners);
+			for (CCorner *c = ic.First(); c; c = ic.Next())
 				if (c->x==x && c->y==y)
 				{
 					SelectItem(c); 
@@ -4888,7 +4888,7 @@ void CFreePcbView::TryToReselectCorner( int x, int y )
 void CFreePcbView::OnSmEdit()
 {
 	// CPT2 new.  Lets user edit the sm-cutout's hatching and layer.  Reuses the CDlgAddMaskCutout interface.
-	csmcutout *sm = m_sel.First()->GetPolyline()->ToSmCutout();
+	CSmCutout *sm = m_sel.First()->GetPolyline()->ToSmCutout();
 	CDlgAddMaskCutout dlg;
 	dlg.Initialize(sm->m_layer, sm->m_hatch);
 	int ret = dlg.DoModal();
@@ -4934,7 +4934,7 @@ BOOL CFreePcbView::CurDraggingRouting()
 {
 	if (!CurDragging() || m_cursor_mode == CUR_DRAG_GROUP || m_cursor_mode == CUR_DRAG_GROUP_ADD)
 		return false;
-	cpcb_item *first = m_sel.First();
+	CPcbItem *first = m_sel.First();
 	if (first)
 		return first->IsNetItem() || first->IsSmCorner() || first->IsSmSide();
 	if (m_cursor_mode == CUR_DRAG_POLY_1 || m_cursor_mode == CUR_DRAG_POLY)
@@ -5154,8 +5154,8 @@ LONG CFreePcbView::OnChangeUnits( UINT wp, LONG lp )
 void CFreePcbView::OnRefProperties()
 {
 	// CPT2 converted.  This now works for value texts too.
-	ctext *t = m_sel.First()->ToText();
-	cpart2 *part = t->GetPart();
+	CText *t = m_sel.First()->ToText();
+	CPart *part = t->GetPart();
 	CDlgRefText dlg;
 	dlg.Initialize( t, m_doc->m_slist );
 	int ret = dlg.DoModal();
@@ -5184,13 +5184,13 @@ void CFreePcbView::OnRefProperties()
 //
 void CFreePcbView::OnUnrouteTrace()
 {
-	cconnect2 *c = m_sel.First()->GetConnect();
+	CConnect *c = m_sel.First()->GetConnect();
 	c->SaveUndoInfo();
 	c->MustRedraw();
 	c->vtxs.RemoveAll();
 	c->vtxs.Add(c->head); c->vtxs.Add(c->tail);
 	c->segs.RemoveAll();
-	cseg2 *seg = new cseg2(c, LAY_RAT_LINE, 0);
+	CSeg *seg = new CSeg(c, LAY_RAT_LINE, 0);
 	c->head->postSeg = seg;
 	seg->preVtx = c->head;
 	c->tail->preSeg = seg;
@@ -5203,24 +5203,24 @@ void CFreePcbView::OnUnrouteTrace()
 void CFreePcbView::SaveUndoInfoForGroup()
 {
 	// CPT2. Reused the name of the old function, but completely readapted to the new undo system.
-	citer<cpcb_item> ii (&m_sel);
-	for (cpcb_item *i = ii.First(); i; i = ii.Next())
+	CIter<CPcbItem> ii (&m_sel);
+	for (CPcbItem *i = ii.First(); i; i = ii.Next())
 	{
-		if (cconnect2 *c = i->GetConnect())
+		if (CConnect *c = i->GetConnect())
 			// As a precaution, save the whole net if either end vertex is a tee
 			if (c->head->tee || c->tail->tee)
-				c->m_net->SaveUndoInfo( cnet2::SAVE_CONNECTS );
+				c->m_net->SaveUndoInfo( CNet::SAVE_CONNECTS );
 			else
 				c->SaveUndoInfo();
-		else if (cpolyline *poly = i->GetPolyline())
+		else if (CPolyline *poly = i->GetPolyline())
 			poly->SaveUndoInfo();
-		else if (cpart2 *part = i->ToPart())
+		else if (CPart *part = i->ToPart())
 		{
 			part->SaveUndoInfo();
-			citer<cpin2> ipin (&part->pins);
-			for (cpin2 *pin = ipin.First(); pin; pin = ipin.Next())
+			CIter<CPin> ipin (&part->pins);
+			for (CPin *pin = ipin.First(); pin; pin = ipin.Next())
 				if (pin->net)
-					pin->net->SaveUndoInfo( cnet2::SAVE_CONNECTS );
+					pin->net->SaveUndoInfo( CNet::SAVE_CONNECTS );
 		}
 		else
 			i->SaveUndoInfo();
@@ -5235,8 +5235,8 @@ void CFreePcbView::OnViewEntireBoard()
 	int min_x = INT_MAX;
 	int max_y = INT_MIN;
 	int min_y = INT_MAX;
-	citer<cboard> ib (&m_doc->boards);
-	for (cboard *b = ib.First(); b; b = ib.Next())
+	CIter<CBoard> ib (&m_doc->boards);
+	for (CBoard *b = ib.First(); b; b = ib.Next())
 	{
 		nOutlines++;
 		CRect r = b->GetBounds();
@@ -5279,8 +5279,8 @@ void CFreePcbView::OnViewAllElements()
 	int max_y = r.top;
 	int min_y = r.bottom;
 	// board outline / sm-cutouts
-	citer<cboard> ib (&m_doc->boards);
-	for (cboard *b = ib.First(); b; b = ib.Next())
+	CIter<CBoard> ib (&m_doc->boards);
+	for (CBoard *b = ib.First(); b; b = ib.Next())
 	{
 		r = b->GetBounds();
 		max_x = max( max_x, r.right );
@@ -5289,8 +5289,8 @@ void CFreePcbView::OnViewAllElements()
 		min_y = min( min_y, r.bottom );
 		bOK = TRUE;
 	}
-	citer<csmcutout> ism (&m_doc->smcutouts);
-	for (csmcutout *sm = ism.First(); sm; sm = ism.Next())
+	CIter<CSmCutout> ism (&m_doc->smcutouts);
+	for (CSmCutout *sm = ism.First(); sm; sm = ism.Next())
 	{
 		r = sm->GetBounds();
 		max_x = max( max_x, r.right );
@@ -5344,23 +5344,23 @@ void CFreePcbView::OnPartEditFootprint()
 
 void CFreePcbView::OnPartEditThisFootprint()
 {
-	cpart2 *part = m_sel.First()->ToPart();
+	CPart *part = m_sel.First()->ToPart();
 	m_doc->m_edit_footprint = part->shape;
 	theApp.OnViewFootprint();
 }
 
 // Offer new footprint from the Footprint Editor
 //
-void CFreePcbView::OnExternalChangeFootprint( cshape * fp )
+void CFreePcbView::OnExternalChangeFootprint( CShape * fp )
 {
-	cpart2 *part = m_sel.First()->ToPart();
+	CPart *part = m_sel.First()->ToPart();
 	CString str, s ((LPCSTR) IDS_DoYouWishToReplaceTheFootprintOfPart);
 	str.Format( s, part->ref_des, fp->m_name );
 	int ret = AfxMessageBox( str, MB_YESNO );
 	if (ret != IDYES)
 		return;
 	// OK, see if a footprint of the same name is already in the cache
-	cshape *cache_fp = m_doc->m_slist->GetShapeByName( &fp->m_name );
+	CShape *cache_fp = m_doc->m_slist->GetShapeByName( &fp->m_name );
 	if( cache_fp )
 	{
 		// see how many parts are using it, not counting the current one
@@ -5390,15 +5390,15 @@ void CFreePcbView::OnExternalChangeFootprint( cshape * fp )
 				// all parts with the old fp, not just "part".  Also, SAVE SHAPE UNDO INFO:
 				cache_fp->SaveUndoInfo();
 				cache_fp->Copy( fp );
-				citer<cpart2> ip (&m_doc->m_plist->parts);
-				for (cpart2 *p = ip.First(); p; p = ip.Next())
+				CIter<CPart> ip (&m_doc->m_plist->parts);
+				for (CPart *p = ip.First(); p; p = ip.Next())
 					if (p->shape == cache_fp)
 						p->ChangeFootprint( cache_fp );
 			}
 			else
 			{
 				// assign new name to footprint and put in cache
-				cshape * shape = new cshape( fp );
+				CShape * shape = new CShape( fp );
 				shape->m_name = *dlg.GetNewName();
 				m_doc->m_slist->shapes.Add( shape );
 				part->ChangeFootprint( shape );
@@ -5408,7 +5408,7 @@ void CFreePcbView::OnExternalChangeFootprint( cshape * fp )
 	else
 	{
 		// footprint name not found in cache, add the new footprint
-		cshape * shape = new cshape( fp );
+		CShape * shape = new CShape( fp );
 		m_doc->m_slist->shapes.Add( shape );
 		part->ChangeFootprint( shape );
 	}
@@ -5428,7 +5428,7 @@ void CFreePcbView::OnViewFindpart()
 	if (ret != IDOK)
 		return;
 	CString * ref_des = &dlg.sel_ref_des;
-	cpart2 * part = m_doc->m_plist->GetPartByName( ref_des );
+	CPart * part = m_doc->m_plist->GetPartByName( ref_des );
 	if( !part )
 	{
 		AfxMessageBox( CString((LPCSTR) IDS_SorryThisPartDoesntExist) );
@@ -5439,7 +5439,7 @@ void CFreePcbView::OnViewFindpart()
 		AfxMessageBox( CString((LPCSTR) IDS_SorryThisPartDoesntHaveAFootprint) );
 		return;
 	}
-	dl_element * dl_sel = part->dl_sel;
+	CDLElement * dl_sel = part->dl_sel;
 	int xc = (m_dlist->Get_x( dl_sel ) + m_dlist->Get_xf( dl_sel ))/2;
 	int yc = (m_dlist->Get_y( dl_sel ) + m_dlist->Get_yf( dl_sel ))/2;
 	m_org_x = xc - ((m_client_r.right-m_left_pane_w)*m_pcbu_per_pixel)/2;
@@ -5479,7 +5479,7 @@ void CFreePcbView::OnViewAll()
 // change side of part
 void CFreePcbView::OnPartChangeSide()
 {
-	cpart2 *part = m_sel.First()->ToPart();
+	CPart *part = m_sel.First()->ToPart();
 	part->SaveUndoInfo();
 	CancelHighlight();
 	// CPT2 TODO.  I'm not thrilled by how the part has been getting translated when this operation occurs.  It results from the fact that (roughly) a 
@@ -5508,7 +5508,7 @@ void CFreePcbView::OnPartRotateCCW()
 	{ OnPartRotate(270); }
 
 void CFreePcbView::OnPartRotate( int angle ) {
-	cpart2 *part = m_sel.First()->ToPart();
+	CPart *part = m_sel.First()->ToPart();
 	part->SaveUndoInfo();
 	CancelHighlight();
 	part->MustRedraw();
@@ -5544,7 +5544,7 @@ void CFreePcbView::OnSegmentAddVertex()
 	SetDCToWorldCoords( pDC );
 	CPoint p = m_last_mouse_point;
 	SetCursorMode( CUR_DRAG_VTX_INSERT );
-	cseg2 *seg = m_sel.First()->ToSeg();
+	CSeg *seg = m_sel.First()->ToSeg();
 	seg->StartDraggingNewVertex( pDC, p.x, p.y, seg->m_layer, seg->m_width, 2 );
 	ReleaseDC(pDC);
 }
@@ -5565,9 +5565,9 @@ void CFreePcbView::OnNetChangeLayer()
 //
 void CFreePcbView::ChangeTraceLayer( int mode, int old_layer )
 {
-	cnet2 *net = m_sel.First()->GetNet();
-	cconnect2 *c = m_sel.First()->GetConnect();
-	cseg2 *seg = m_sel.First()->ToSeg();
+	CNet *net = m_sel.First()->GetNet();
+	CConnect *c = m_sel.First()->GetConnect();
+	CSeg *seg = m_sel.First()->ToSeg();
 	CDlgChangeLayer dlg;
 	dlg.Initialize( mode, old_layer, m_doc->m_num_copper_layers );
 	int ret = dlg.DoModal();
@@ -5588,8 +5588,8 @@ void CFreePcbView::ChangeTraceLayer( int mode, int old_layer )
 	else if( dlg.m_apply_to == 1 )
 	{
 		c->SaveUndoInfo();
-		citer<cseg2> is (&c->segs);
-		for (cseg2 *s = is.First(); s; s = is.Next())
+		CIter<CSeg> is (&c->segs);
+		for (CSeg *s = is.First(); s; s = is.Next())
 			if( s->m_layer >= LAY_TOP_COPPER )
 				err += s->SetLayer( dlg.m_new_layer );
 		if( err )
@@ -5600,12 +5600,12 @@ void CFreePcbView::ChangeTraceLayer( int mode, int old_layer )
 	}
 	else if( dlg.m_apply_to == 2 )
 	{
-		net->SaveUndoInfo( cnet2::SAVE_CONNECTS );
-		citer<cconnect2> ic (&net->connects);
-		for (cconnect2 *c = ic.First(); c; c = ic.Next())
+		net->SaveUndoInfo( CNet::SAVE_CONNECTS );
+		CIter<CConnect> ic (&net->connects);
+		for (CConnect *c = ic.First(); c; c = ic.Next())
 		{
-			citer<cseg2> is (&c->segs);
-			for (cseg2 *s = is.First(); s; s = is.Next())
+			CIter<CSeg> is (&c->segs);
+			for (CSeg *s = is.First(); s; s = is.Next())
 				if (s->m_layer >= LAY_TOP_COPPER)
 					err += s->SetLayer( dlg.m_new_layer );
 		}
@@ -5686,12 +5686,12 @@ void CFreePcbView::MoveOrigin( int dx, int dy )
 	m_doc->m_plist->MoveOrigin( dx, dy );
 	m_doc->m_nlist->MoveOrigin( dx, dy );
 	m_doc->m_tlist->MoveOrigin( dx, dy );
-	citer<csmcutout> ism (&m_doc->smcutouts);
-	for (csmcutout *sm = ism.First(); sm; sm = ism.Next())
+	CIter<CSmCutout> ism (&m_doc->smcutouts);
+	for (CSmCutout *sm = ism.First(); sm; sm = ism.Next())
 		sm->MustRedraw(),
 		sm->Offset(dx, dy);
-	citer<cboard> ib (&m_doc->boards);
-	for (cboard *b = ib.First(); b; b = ib.Next())
+	CIter<CBoard> ib (&m_doc->boards);
+	for (CBoard *b = ib.First(); b; b = ib.Next())
 		b->MustRedraw(),
 		b->Offset(dx, dy);
 	m_doc->Redraw();
@@ -5731,8 +5731,8 @@ void CFreePcbView::SelectItemsInRect( CRect r, BOOL bAddToGroup )
 	sel_mask_btn_bits[SEL_MASK_DRC] = bitDRE;
 	if( m_sel_mask_bits & bitPart )
 	{
-		citer<cpart2> ip (&m_doc->m_plist->parts);
-		for (cpart2 *p = ip.First(); p; p = ip.Next())
+		CIter<CPart> ip (&m_doc->m_plist->parts);
+		for (CPart *p = ip.First(); p; p = ip.Next())
 		{
 			CRect pr;
 			if( p->GetBoundingRect( &pr ) )
@@ -5744,25 +5744,25 @@ void CFreePcbView::SelectItemsInRect( CRect r, BOOL bAddToGroup )
 	// find trace segments and vertices contained in rect.  CPT2 TODO vertices???
 	if( m_sel_mask_bits & bitSeg )
 	{
-		citer<cnet2> in (&m_doc->m_nlist->nets);
-		for (cnet2* net = in.First(); net; net = in.Next())
+		CIter<CNet> in (&m_doc->m_nlist->nets);
+		for (CNet* net = in.First(); net; net = in.Next())
 		{
-			citer<cconnect2> ic (&net->connects);
-			for (cconnect2 *c = ic.First(); c; c = ic.Next())
+			CIter<CConnect> ic (&net->connects);
+			for (CConnect *c = ic.First(); c; c = ic.Next())
 			{
-				citer<cseg2> is (&c->segs);
-				for (cseg2 *s = is.First(); s; s = is.Next())
+				CIter<CSeg> is (&c->segs);
+				for (CSeg *s = is.First(); s; s = is.Next())
 				{
 					if (!m_doc->m_vis[s->m_layer]) continue;
-					cvertex2 *pre = s->preVtx, *post = s->postVtx;
+					CVertex *pre = s->preVtx, *post = s->postVtx;
 					bool bPreInR = r.PtInRect( CPoint(pre->x, pre->y) );
 					bool bPostInR = r.PtInRect( CPoint(post->x, post->y) );
 					if (bPreInR && bPostInR && m_doc->m_vis[s->m_layer])
 						m_sel.Add(s);
 					if (bPreInR && pre->IsVia())
-						m_sel.Add(pre->tee? (cpcb_item*) pre->tee: pre);
+						m_sel.Add(pre->tee? (CPcbItem*) pre->tee: pre);
 					if (bPostInR && post->IsVia())
-						m_sel.Add(post->tee? (cpcb_item*) post->tee: post);
+						m_sel.Add(post->tee? (CPcbItem*) post->tee: post);
 				}
 			}
 		}
@@ -5771,8 +5771,8 @@ void CFreePcbView::SelectItemsInRect( CRect r, BOOL bAddToGroup )
 	// find texts in rect
 	if( m_sel_mask_bits & bitText )
 	{
-		citer<ctext> it (&m_doc->m_tlist->texts);
-		for (ctext *t = it.First(); t; t = it.Next())
+		CIter<CText> it (&m_doc->m_tlist->texts);
+		for (CText *t = it.First(); t; t = it.Next())
 			if (r.PtInRect(t->m_br.TopLeft()) && r.PtInRect(t->m_br.BottomRight()))
 				m_sel.Add(t);
 	}
@@ -5780,11 +5780,11 @@ void CFreePcbView::SelectItemsInRect( CRect r, BOOL bAddToGroup )
 	// find copper area sides in rect
 	if( m_sel_mask_bits & bitAreaSide )
 	{
-		citer<cnet2> in (&m_doc->m_nlist->nets);
-		for (cnet2* net = in.First(); net; net = in.Next())
+		CIter<CNet> in (&m_doc->m_nlist->nets);
+		for (CNet* net = in.First(); net; net = in.Next())
 		{
-			citer<carea2> ia (&net->areas);
-			for (carea2 *a = ia.First(); a; a = ia.Next())
+			CIter<CArea> ia (&net->areas);
+			for (CArea *a = ia.First(); a; a = ia.Next())
 				a->GetSidesInRect( &r, &m_sel );
 		}
 	}
@@ -5792,16 +5792,16 @@ void CFreePcbView::SelectItemsInRect( CRect r, BOOL bAddToGroup )
 	// find solder mask cutout sides in rect
 	if( m_sel_mask_bits & bitSmSide )
 	{
-		citer<csmcutout> ism (&m_doc->smcutouts);
-		for (csmcutout *sm = ism.First(); sm; sm = ism.Next())
+		CIter<CSmCutout> ism (&m_doc->smcutouts);
+		for (CSmCutout *sm = ism.First(); sm; sm = ism.Next())
 			sm->GetSidesInRect( &r, &m_sel );
 	}
 
 	// find board outline sides in rect
 	if( m_sel_mask_bits & bitBoardSide )
 	{
-		citer<cboard> ib (&m_doc->boards);
-		for (cboard *b = ib.First(); b; b = ib.Next())
+		CIter<CBoard> ib (&m_doc->boards);
+		for (CBoard *b = ib.First(); b; b = ib.Next())
 			b->GetSidesInRect( &r, &m_sel );
 	}
 
@@ -5811,7 +5811,7 @@ void CFreePcbView::SelectItemsInRect( CRect r, BOOL bAddToGroup )
 	// FindGroupCenter();						Put this into HighlightSelection()
 }
 
-void CFreePcbView::FinishRouting(cseg2 *rat)
+void CFreePcbView::FinishRouting(CSeg *rat)
 {
 	// CPT2: new helper for when user completes routing a ratline (while mode==CUR_DRAG_RAT, hitting F4 or clicking the dest. pin)
 	rat->m_con->SaveUndoInfo();
@@ -5857,30 +5857,30 @@ void CFreePcbView::StartDraggingGroup( BOOL bAdd, int x, int y )
 	int n_segs = 0;
 	int n_texts = 0;
 	int n_sides = 0;
-	citer<cpcb_item> ii (&m_sel);
-	for (cpcb_item *i = ii.First(); i; i = ii.Next())
-		if (cpart2 *p = i->ToPart())
+	CIter<CPcbItem> ii (&m_sel);
+	for (CPcbItem *i = ii.First(); i; i = ii.Next())
+		if (CPart *p = i->ToPart())
 		{
 			p->SetVisible(false);
 			n_parts++;
 		}
-		else if (cseg2 *s = i->ToSeg())
+		else if (CSeg *s = i->ToSeg())
 		{
 			s->SetVisible(false);
 			s->preVtx->SetVisible(false);
 			s->postVtx->SetVisible(false);
 			n_segs++;
 		}
-		else if (cvertex2 *v = i->ToVertex())
+		else if (CVertex *v = i->ToVertex())
 			// Presumably a via
 			v->SetVisible(false);
-		else if (cside *s = i->ToSide())
+		else if (CSide *s = i->ToSide())
 		{
-			cpolyline *p = s->GetPolyline();
+			CPolyline *p = s->GetPolyline();
 			p->SetVisible(false);
 			n_sides++;
 		}
-		else if( ctext *t = i->ToText() )
+		else if( CText *t = i->ToText() )
 		{
 			t->SetVisible(false);
 			n_texts++;
@@ -5888,8 +5888,8 @@ void CFreePcbView::StartDraggingGroup( BOOL bAdd, int x, int y )
 
 	// set up dragline array
 	m_dlist->MakeDragLineArray( n_parts*4 + n_segs + n_texts*4 + n_sides );
-	for (cpcb_item *i = ii.First(); i; i = ii.Next())
-		if (cpart2 *part = i->ToPart())
+	for (CPcbItem *i = ii.First(); i; i = ii.Next())
+		if (CPart *part = i->ToPart())
 		{
 			CRect r;
 			part->GetBoundingRect(&r);
@@ -5904,21 +5904,21 @@ void CFreePcbView::StartDraggingGroup( BOOL bAdd, int x, int y )
 			m_dlist->AddDragLine( p3, p4 );
 			m_dlist->AddDragLine( p4, p1 );
 		}
-		else if (cseg2 *s = i->ToSeg())
+		else if (CSeg *s = i->ToSeg())
 		{
-			cvertex2 *v1 = s->preVtx, *v2 = s->postVtx;
+			CVertex *v1 = s->preVtx, *v2 = s->postVtx;
 			CPoint p1( v1->x - m_from_pt.x, v1->y - m_from_pt.y );
 			CPoint p2( v2->x - m_from_pt.x, v2->y - m_from_pt.y );
 			m_dlist->AddDragLine( p1, p2 );
 		}
-		else if (cside *s = i->ToSide())
+		else if (CSide *s = i->ToSide())
 		{
-			ccorner *c1 = s->preCorner, *c2 = s->postCorner;
+			CCorner *c1 = s->preCorner, *c2 = s->postCorner;
 			CPoint p1( c1->x - m_from_pt.x, c1->y - m_from_pt.y );
 			CPoint p2( c2->x - m_from_pt.x, c2->y - m_from_pt.y );
 			m_dlist->AddDragLine( p1, p2 );
 		}
-		else if (ctext *t = i->ToText())
+		else if (CText *t = i->ToText())
 		{
 			CPoint p1( m_dlist->Get_x( t->dl_sel ), m_dlist->Get_y( t->dl_sel ) );
 			CPoint p2( m_dlist->Get_xf( t->dl_sel ), m_dlist->Get_y( t->dl_sel ) );
@@ -5949,22 +5949,22 @@ void CFreePcbView::CancelDraggingGroup()
 {
 	m_dlist->StopDragging();
 	// make elements visible again
-	citer<cpcb_item> ii (&m_sel);
-	for (cpcb_item *i = ii.First(); i; i = ii.Next())
-		if (cpart2 *part = i->ToPart())
+	CIter<CPcbItem> ii (&m_sel);
+	for (CPcbItem *i = ii.First(); i; i = ii.Next())
+		if (CPart *part = i->ToPart())
 			part->SetVisible(true);
-		else if (cseg2 *seg = i->ToSeg())
+		else if (CSeg *seg = i->ToSeg())
 		{
 			seg->SetVisible(true);
 			seg->preVtx->SetVisible(true);
 			seg->postVtx->SetVisible(true);
 		}
-		else if (cvertex2 *v = i->ToVertex())
+		else if (CVertex *v = i->ToVertex())
 			// Presumably a via
 			v->SetVisible(true);
-		else if (cside *s = i->ToSide())
+		else if (CSide *s = i->ToSide())
 			s->GetPolyline()->SetVisible(true);
-		else if (ctext *t = i->ToText())
+		else if (CText *t = i->ToText())
 			t->SetVisible(true);
 	HighlightSelection();
 	Invalidate( FALSE );
@@ -5995,11 +5995,11 @@ void CFreePcbView::MoveGroup( int dx, int dy )
 	enum { bitSel = 1, bitMoved = 2 };
 	m_doc->m_nlist->MarkAllNets(0);
 	m_doc->m_plist->MarkAllParts(0);
-	citer<cboard> ib (&m_doc->boards);
-	for (cboard *b = ib.First(); b; b = ib.Next())
+	CIter<CBoard> ib (&m_doc->boards);
+	for (CBoard *b = ib.First(); b; b = ib.Next())
 		b->MarkConstituents(0);
-	citer<csmcutout> ism (&m_doc->smcutouts);
-	for (csmcutout *sm = ism.First(); sm; sm = ism.Next())
+	CIter<CSmCutout> ism (&m_doc->smcutouts);
+	for (CSmCutout *sm = ism.First(); sm; sm = ism.Next())
 		sm->MarkConstituents(0);
 
 	// Mark all relevant parts and segments as selected.
@@ -6007,13 +6007,13 @@ void CFreePcbView::MoveGroup( int dx, int dy )
 	// CPT2 gather a new list of all vtxs that are going to move.  If a tee is going to move, add all its constituent vtxs.
 	// Secondly gather a list of polylines that are changing.
 	// Finally (in due course) gather a list of connects that are getting affected by the move.
-	carray<cvertex2> selVtxs;
-	carray<cconnect2> changedCons;
-	carray<cpolyline> changedPolys;
-	citer<cpcb_item> ii (&m_sel);
-	for (cpcb_item *i = ii.First(); i; i = ii.Next())
+	CHeap<CVertex> selVtxs;
+	CHeap<CConnect> changedCons;
+	CHeap<CPolyline> changedPolys;
+	CIter<CPcbItem> ii (&m_sel);
+	for (CPcbItem *i = ii.First(); i; i = ii.Next())
 	{
-		if (cseg2 *s = i->ToSeg())
+		if (CSeg *s = i->ToSeg())
 		{
 			// segment
 			s->utility = bitSel;
@@ -6026,19 +6026,19 @@ void CFreePcbView::MoveGroup( int dx, int dy )
 			else
 				selVtxs.Add( s->postVtx );
 		}
-		else if (cvertex2 *v = i->ToVertex())
+		else if (CVertex *v = i->ToVertex())
 			// vertex (presumably a via, and not a tee member)
 			selVtxs.Add(v);
-		else if (ctee *t = i->ToTee())
+		else if (CTee *t = i->ToTee())
 			// tee (presumably a via)
 			selVtxs.Add( &t->vtxs );
-		else if (cpart2 *p = i->ToPart())
+		else if (CPart *p = i->ToPart())
 			// part
 			p->utility = bitSel;
 
-		else if (ctext *t = i->ToText())
+		else if (CText *t = i->ToText())
 			t->Move( t->m_x+dx, t->m_y+dy, t->m_angle, t->m_bMirror, t->m_bNegative, t->m_layer );
-		else if (cside *s = i->ToSide())
+		else if (CSide *s = i->ToSide())
 		{
 			// polyline side.  CPT2 this clause works whether it's an area, smcutout, or board side.
 			changedPolys.Add( s->GetPolyline() );
@@ -6053,27 +6053,27 @@ void CFreePcbView::MoveGroup( int dx, int dy )
 			ASSERT(0);
 	}
 
-	// Old code used to redraw polylines here.  But CFreePcbDoc::Redraw() will do that, since ccorner::Move() invoked MustRedraw() for the
+	// Old code used to redraw polylines here.  But CFreePcbDoc::Redraw() will do that, since CCorner::Move() invoked MustRedraw() for the
 	// relevant polys. HOWEVER, we do invoke PolygonModified() for areas and sm-cutouts that have changed
-	citer<cpolyline> ipoly (&changedPolys);
-	for (cpolyline *poly = ipoly.First(); poly; poly = ipoly.Next())
+	CIter<CPolyline> ipoly (&changedPolys);
+	for (CPolyline *poly = ipoly.First(); poly; poly = ipoly.Next())
 		if (!poly->IsBoard() && poly->IsOnPcb())
 			poly->PolygonModified(false, false);
 	
 	// move parts in group
-	citer<cpart2> ip (&m_doc->m_plist->parts);
-	for (cpart2 *part = ip.First(); part; part = ip.Next()) 
+	CIter<CPart> ip (&m_doc->m_plist->parts);
+	for (CPart *part = ip.First(); part; part = ip.Next()) 
 	{
 		if (!(part->utility & bitSel)) continue;
 		// move part
 		part->Move( part->x+dx, part->y+dy, part->angle, part->side );
 		// find segments which connect to this part and move them
-		citer<cpin2> ipin (&part->pins);
-		for (cpin2 *pin = ipin.First(); pin; pin = ipin.Next())
+		CIter<CPin> ipin (&part->pins);
+		for (CPin *pin = ipin.First(); pin; pin = ipin.Next())
 		{
 			if (!pin->net) continue;
-			citer<cconnect2> ic (&pin->net->connects);
-			for (cconnect2 *c = ic.First(); c; c = ic.Next())
+			CIter<CConnect> ic (&pin->net->connects);
+			for (CConnect *c = ic.First(); c; c = ic.Next())
 			{
 				if (c->segs.IsEmpty()) continue;			// mighty unlikely but hey...
 				if (c->head->pin && c->head->pin->part == part)
@@ -6081,7 +6081,7 @@ void CFreePcbView::MoveGroup( int dx, int dy )
 					// Connect's head is on the part!  If first seg isn't selected, unroute it and move the head vtx.
 					// Refers to the position of c->head->pin, which was calculated by part->Move() above
 					changedCons.Add(c);
-					cseg2 *s = c->head->postSeg;
+					CSeg *s = c->head->postSeg;
 					if (!(s->utility & bitSel))
 						s->UnrouteWithoutMerge(dx, dy, 0),
 						c->head->Move(c->head->pin->x, c->head->pin->y);
@@ -6090,7 +6090,7 @@ void CFreePcbView::MoveGroup( int dx, int dy )
 				{
 					// connect's tail is on the part!  If last seg isn't selected, unroute it and move the tail vtx.
 					changedCons.Add(c);
-					cseg2 *s = c->tail->preSeg;
+					CSeg *s = c->tail->preSeg;
 					if (!(s->utility & bitSel))
 						s->UnrouteWithoutMerge(dx, dy, 1),
 						c->tail->Move(c->tail->pin->x, c->tail->pin->y);
@@ -6101,10 +6101,10 @@ void CFreePcbView::MoveGroup( int dx, int dy )
 
 	// Time to move affected vtxs, by looping thru selVtxs.  NB The old code checked the utility2 flag for each one to see if it moved already
 	//  (during the part-move above) but that's no longer necessary --- the part-moving code only changes vertices belonging to unselected segs.
-	citer<cvertex2> iv (&selVtxs);
-	for (cvertex2 *v = iv.First(); v; v = iv.Next())
+	CIter<CVertex> iv (&selVtxs);
+	for (CVertex *v = iv.First(); v; v = iv.Next())
 	{
-		cconnect2 *c = v->m_con;
+		CConnect *c = v->m_con;
 		changedCons.Add( c );
 		// if adjacent segments were not selected, unroute them.  CPT r295 do this _before_ moving the vertex
 		if (v->preSeg && !(v->preSeg->utility & bitSel))
@@ -6134,8 +6134,8 @@ void CFreePcbView::MoveGroup( int dx, int dy )
 	}
 
 	// Loop thru all altered connects, merging unrouted segments and marking for redrawing
-	citer<cconnect2> ic (&changedCons);
-	for (cconnect2 *c = ic.First(); c; c = ic.Next())
+	CIter<CConnect> ic (&changedCons);
+	for (CConnect *c = ic.First(); c; c = ic.Next())
 	{
 		c->MustRedraw();
 		c->MergeUnroutedSegments();
@@ -6155,9 +6155,9 @@ void CFreePcbView::MoveGroup( int dx, int dy )
 //
 BOOL CFreePcbView::GluedPartsInGroup()
 {
-	citer<cpcb_item> ii (&m_sel);
-	for (cpcb_item *i = ii.First(); i; i = ii.Next())
-		if (cpart2 *p = i->ToPart())
+	CIter<CPcbItem> ii (&m_sel);
+	for (CPcbItem *i = ii.First(); i; i = ii.Next())
+		if (CPart *p = i->ToPart())
 			if (p->glued)
 				return true;
 	return false;
@@ -6167,9 +6167,9 @@ BOOL CFreePcbView::GluedPartsInGroup()
 //
 void CFreePcbView::UngluePartsInGroup()
 {
-	citer<cpcb_item> ii (&m_sel);
-	for (cpcb_item *i = ii.First(); i; i = ii.Next())
-		if (cpart2 *p = i->ToPart())
+	CIter<CPcbItem> ii (&m_sel);
+	for (CPcbItem *i = ii.First(); i; i = ii.Next())
+		if (CPart *p = i->ToPart())
 			p->glued = false;
 }
 
@@ -6183,11 +6183,11 @@ void CFreePcbView::RotateGroup()
 	enum { bitSel = 1, bitMoved = 2 };
 	m_doc->m_nlist->MarkAllNets(0);
 	m_doc->m_plist->MarkAllParts(0);
-	citer<cboard> ib (&m_doc->boards);
-	for (cboard *b = ib.First(); b; b = ib.Next())
+	CIter<CBoard> ib (&m_doc->boards);
+	for (CBoard *b = ib.First(); b; b = ib.Next())
 		b->MarkConstituents(0);
-	citer<csmcutout> ism (&m_doc->smcutouts);
-	for (csmcutout *sm = ism.First(); sm; sm = ism.Next())
+	CIter<CSmCutout> ism (&m_doc->smcutouts);
+	for (CSmCutout *sm = ism.First(); sm; sm = ism.Next())
 		sm->MarkConstituents(0);
 
 	// Mark all relevant parts and segments as selected.
@@ -6195,13 +6195,13 @@ void CFreePcbView::RotateGroup()
 	// CPT2 gather a new list of all vtxs that are going to move.  If a tee is going to move, add all its constituent vtxs.
 	// Secondly gather a list of polylines that are changing.
 	// Finally (in due course) gather a list of connects that are getting affected by the move.
-	carray<cvertex2> selVtxs;
-	carray<cconnect2> changedCons;
-	carray<cpolyline> changedPolys;
-	citer<cpcb_item> ii (&m_sel);
-	for (cpcb_item *i = ii.First(); i; i = ii.Next())
+	CHeap<CVertex> selVtxs;
+	CHeap<CConnect> changedCons;
+	CHeap<CPolyline> changedPolys;
+	CIter<CPcbItem> ii (&m_sel);
+	for (CPcbItem *i = ii.First(); i; i = ii.Next())
 	{
-		if (cseg2 *s = i->ToSeg())
+		if (CSeg *s = i->ToSeg())
 		{
 			// segment
 			s->utility = bitSel;
@@ -6214,20 +6214,20 @@ void CFreePcbView::RotateGroup()
 			else
 				selVtxs.Add( s->postVtx );
 		}
-		else if (cvertex2 *v = i->ToVertex())
+		else if (CVertex *v = i->ToVertex())
 			// vertex (presumably a via, and not a tee member)
 			selVtxs.Add(v);
-		else if (ctee *t = i->ToTee())
+		else if (CTee *t = i->ToTee())
 			// tee (presumably a via)
 			selVtxs.Add( &t->vtxs );
-		else if (cpart2 *p = i->ToPart())
+		else if (CPart *p = i->ToPart())
 			// part
 			p->utility = bitSel;
 
-		else if (ctext *t = i->ToText())
+		else if (CText *t = i->ToText())
 			t->Move( groupAverageX + t->m_y - groupAverageY, groupAverageY - t->m_x + groupAverageX, (t->m_angle+90)%360,
 				t->m_bMirror, t->m_bNegative, t->m_layer );
-		else if (cside *s = i->ToSide())
+		else if (CSide *s = i->ToSide())
 		{
 			// polyline side.  CPT2 this clause works whether it's an area, smcutout, or board side.
 			changedPolys.Add( s->GetPolyline() );
@@ -6243,35 +6243,35 @@ void CFreePcbView::RotateGroup()
 			ASSERT(0);
 	}
 
-	// Old code used to redraw polylines here.  But CFreePcbDoc::Redraw() will do that, since ccorner::Move() invoked MustRedraw() for the
+	// Old code used to redraw polylines here.  But CFreePcbDoc::Redraw() will do that, since CCorner::Move() invoked MustRedraw() for the
 	// relevant polys. HOWEVER, we do invoke PolygonModified() for areas and sm-cutouts that have changed
-	citer<cpolyline> ipoly (&changedPolys);
-	for (cpolyline *poly = ipoly.First(); poly; poly = ipoly.Next())
+	CIter<CPolyline> ipoly (&changedPolys);
+	for (CPolyline *poly = ipoly.First(); poly; poly = ipoly.Next())
 		if (!poly->IsBoard() && poly->IsOnPcb())
 			poly->PolygonModified(false, false);
 	
 	// move parts in group
-	citer<cpart2> ip (&m_doc->m_plist->parts);
-	for (cpart2 *part = ip.First(); part; part = ip.Next()) 
+	CIter<CPart> ip (&m_doc->m_plist->parts);
+	for (CPart *part = ip.First(); part; part = ip.Next()) 
 	{
 		if (!(part->utility & bitSel)) continue;
 		// move part
 		part->Move( groupAverageX + part->y - groupAverageY, groupAverageY - part->x + groupAverageX, 
 					(part->angle+90) % 360, part->side );
 		// find segments which connect to this part and move them
-		citer<cpin2> ipin (&part->pins);
-		for (cpin2 *pin = ipin.First(); pin; pin = ipin.Next())
+		CIter<CPin> ipin (&part->pins);
+		for (CPin *pin = ipin.First(); pin; pin = ipin.Next())
 		{
 			if (!pin->net) continue;
-			citer<cconnect2> ic (&pin->net->connects);
-			for (cconnect2 *c = ic.First(); c; c = ic.Next())
+			CIter<CConnect> ic (&pin->net->connects);
+			for (CConnect *c = ic.First(); c; c = ic.Next())
 			{
 				if (c->segs.IsEmpty()) continue;			// mighty unlikely but hey...
 				if (c->head->pin && c->head->pin->part == part)
 				{
 					// connect's head is on the part!  If first seg isn't selected, unroute it and move the head vtx
 					changedCons.Add(c);
-					cseg2 *s = c->head->postSeg;
+					CSeg *s = c->head->postSeg;
 					if (!(s->utility & bitSel))
 						s->UnrouteWithoutMerge(),
 						c->head->Move(c->head->pin->x, c->head->pin->y);
@@ -6280,7 +6280,7 @@ void CFreePcbView::RotateGroup()
 				{
 					// connect's tail is on the part!  If last seg isn't selected, unroute it and move the tail vtx
 					changedCons.Add(c);
-					cseg2 *s = c->tail->preSeg;
+					CSeg *s = c->tail->preSeg;
 					if (!(s->utility & bitSel))
 						s->UnrouteWithoutMerge(),
 						c->tail->Move(c->tail->pin->x, c->tail->pin->y);
@@ -6291,10 +6291,10 @@ void CFreePcbView::RotateGroup()
 
 	// Time to move affected vtxs, by looping thru selVtxs.  NB The old code checked the utility2 flag for each one to see if it moved already
 	//  (during the part-move above) but that's no longer necessary --- the part-moving code only changes vertices belonging to unselected segs.
-	citer<cvertex2> iv (&selVtxs);
-	for (cvertex2 *v = iv.First(); v; v = iv.Next())
+	CIter<CVertex> iv (&selVtxs);
+	for (CVertex *v = iv.First(); v; v = iv.Next())
 	{
-		cconnect2 *c = v->m_con;
+		CConnect *c = v->m_con;
 		changedCons.Add( c );
 		// if adjacent segments were not selected, unroute them.  CPT r295 do this _before_ moving the vertex
 		if (v->preSeg && !(v->preSeg->utility & bitSel))
@@ -6325,8 +6325,8 @@ void CFreePcbView::RotateGroup()
 	}
 
 	// Loop thru all altered connects, merging unrouted segments and marking for redrawing
-	citer<cconnect2> ic (&changedCons);
-	for (cconnect2 *c = ic.First(); c; c = ic.Next())
+	CIter<CConnect> ic (&changedCons);
+	for (CConnect *c = ic.First(); c; c = ic.Next())
 	{
 		c->MustRedraw();
 		c->MergeUnroutedSegments();
@@ -6345,24 +6345,24 @@ void CFreePcbView::FindGroupCenter()
 	
 	// Old routine looped thru parts, then segments, then texts, looking for group members, but it should work just as well simply 
 	// to loop thru the group:
-	citer<cpcb_item> ii (&m_sel);
-	for (cpcb_item *i = ii.First(); i; i = ii.Next())
-		if (cpart2 *p = i->ToPart())
+	CIter<CPcbItem> ii (&m_sel);
+	for (CPcbItem *i = ii.First(); i; i = ii.Next())
+		if (CPart *p = i->ToPart())
 			groupAverageX += p->x,
 			groupAverageY += p->y;
-		else if (cseg2 *s = i->ToSeg())
+		else if (CSeg *s = i->ToSeg())
 			groupAverageX += (s->preVtx->x + s->postVtx->x) / 2,
 			groupAverageY += (s->preVtx->y + s->postVtx->y) / 2;
-		else if (cvertex2 *v = i->ToVertex())
+		else if (CVertex *v = i->ToVertex())
 			groupAverageX += v->x,
 			groupAverageY += v->y;
-		else if (ctee *t = i->ToTee())
+		else if (CTee *t = i->ToTee())
 			groupAverageX += t->vtxs.First()->x,
 			groupAverageY += t->vtxs.First()->y;
-		else if (ctext *t = i->ToText())
+		else if (CText *t = i->ToText())
 			groupAverageX += t->m_x,
 			groupAverageY += t->m_y;
-		else if (cside *s = i->ToSide())
+		else if (CSide *s = i->ToSide())
 			groupAverageX += (s->preCorner->x + s->postCorner->x) / 2,
 			groupAverageY += (s->preCorner->y + s->postCorner->y) / 2;
 
@@ -6390,82 +6390,82 @@ void CFreePcbView::OnGroupCopy()
 	m_doc->clip_slist->shapes.RemoveAll();
 
 	// set clipboard pointers (all clipboard item variables are marked with '2')
-	cpartlist *pl2 = m_doc->clip_plist;
-	cnetlist *nl2 = m_doc->clip_nlist;
-	ctextlist *tl2 = m_doc->clip_tlist;
-	carray<csmcutout> *sm2 = &m_doc->clip_smcutouts;
-	carray<cboard> *bd2 = &m_doc->clip_boards;
-	cshapelist *sl2 = m_doc->clip_slist;
+	CPartList *pl2 = m_doc->clip_plist;
+	CNetList *nl2 = m_doc->clip_nlist;
+	CTextList *tl2 = m_doc->clip_tlist;
+	CHeap<CSmCutout> *sm2 = &m_doc->clip_smcutouts;
+	CHeap<CBoard> *bd2 = &m_doc->clip_boards;
+	CShapeList *sl2 = m_doc->clip_slist;
 
 	// Set the utility flag for all items that are selected (it's the segs and vias whose utilities we'll be looking at)
 	m_doc->m_nlist->MarkAllNets( 0 );
 	m_sel.SetUtility( 1 );
 	// Gather a list of connects whose segments/vias are involved in the copy.  Also, gather a list of polylines that will be copied.
-	carray<cconnect2> copyCons;
-	carray<cpolyline> copyPolys;
-	citer<cpcb_item> ii (&m_sel);
-	for (cpcb_item *i = ii.First(); i; i = ii.Next())
+	CHeap<CConnect> copyCons;
+	CHeap<CPolyline> copyPolys;
+	CIter<CPcbItem> ii (&m_sel);
+	for (CPcbItem *i = ii.First(); i; i = ii.Next())
 		if (i->IsSeg() || i->IsVertex())
 			copyCons.Add( i->GetConnect() );
-		else if (ctee *t = i->ToTee())
+		else if (CTee *t = i->ToTee())
 		{
-			citer<cvertex2> iv (&t->vtxs);
-			for (cvertex2 *v = iv.First(); v; v = iv.Next())
+			CIter<CVertex> iv (&t->vtxs);
+			for (CVertex *v = iv.First(); v; v = iv.Next())
 				copyCons.Add( v->m_con );
 		}
 		else if (i->IsSide())
 			copyPolys.Add( i->GetPolyline() );
 
 	// add all parts and text from group
-	for (cpcb_item *i = ii.First(); i; i = ii.Next())
-		if (cpart2 *part = i->ToPart())
+	for (CPcbItem *i = ii.First(); i; i = ii.Next())
+		if (CPart *part = i->ToPart())
 		{
 			// add part to clipboard partlist
-			cshape * shape = part->shape;
-			cpart2* part2 = pl2->Add( part->shape, &part->ref_des, &part->value_text, &part->package, part->x, part->y,
+			CShape * shape = part->shape;
+			CPart* part2 = pl2->Add( part->shape, &part->ref_des, &part->value_text, &part->package, part->x, part->y,
 				part->side, part->angle, 1, 0 );
 			// set ref text and value parameters
 			part2->m_ref->Copy( part->m_ref );
 			part2->m_value->Copy( part->m_value );
 			// attach clipboard part's pins to the appropriate clipboard nets (pins were already created during creation of part2)
-			citer<cpin2> ip (&part->pins);
-			for (cpin2 *pin = ip.First(); pin; pin = ip.Next())
+			CIter<CPin> ip (&part->pins);
+			for (CPin *pin = ip.First(); pin; pin = ip.Next())
 			{
-				cnet2 * net = pin->net;
+				CNet * net = pin->net;
 				if (!net) continue;
 				// add net to clipboard netlist if not already added
-				cnet2 *net2 = nl2->GetNetPtrByName( &net->name );
+				CNet *net2 = nl2->GetNetPtrByName( &net->name );
 				if( !net2 )
-					net2 = new cnet2(nl2, net->name, net->def_w, net->def_via_w, net->def_via_hole_w);
+					net2 = new CNet(nl2, net->name, net->def_w, net->def_via_w, net->def_via_hole_w);
 				// add pin to net
-				cpin2 *pin2 = part2->GetPinByName( &pin->pin_name );
+				CPin *pin2 = part2->GetPinByName( &pin->pin_name );
 				ASSERT(pin2);
 				net2->AddPin(pin2);
 			}
 		}
-		else if (ctext *t = i->ToText())
+		else if (CText *t = i->ToText())
 			// add text string to clipboard textlist
 			tl2->AddText( t->m_x, t->m_y, t->m_angle, t->m_bMirror,  t->m_bNegative,
 				t->m_layer, t->m_font_size, t->m_stroke_width, &t->m_str );
 
 	// Copy all the polylines
-	citer<cpolyline> ipoly (&copyPolys);
-	for (cpolyline *poly = ipoly.First(); poly; poly = ipoly.Next())
+	CIter<CPolyline> ipoly (&copyPolys);
+	for (CPolyline *poly = ipoly.First(); poly; poly = ipoly.Next())
 	{
-		cpolyline *poly2;
-		if (carea2 *a = poly->ToArea())
+		CPolyline *poly2;
+		if (CArea *a = poly->ToArea())
 		{
-			cnet2 *net = a->m_net;
-			cnet2 *net2 = nl2->GetNetPtrByName( &net->name );
+			CNet *net = a->m_net;
+			CNet *net2 = nl2->GetNetPtrByName( &net->name );
 			if( !net2 )
-				net2 = new cnet2(nl2, net->name, net->def_w, net->def_via_w, net->def_via_hole_w);
-			poly2 = new carea2(net2, a->m_layer, a->m_hatch, a->m_w, a->m_sel_box);
+				net2 = new CNet(nl2, net->name, net->def_w, net->def_via_w, net->def_via_hole_w);
+			poly2 = new CArea(net2, a->m_layer, a->m_hatch, a->m_w, a->m_sel_box);
 		}
-		else if (csmcutout *sm = poly->ToSmCutout())
-			poly2 = new csmcutout(m_doc, sm->m_layer, sm->m_hatch),
+		else if (CSmCutout *sm = poly->ToSmCutout())
+			poly2 = new CSmCutout(m_doc, sm->m_layer, sm->m_hatch),
 			sm2->Add(poly2->ToSmCutout());
-		else if (cboard *b = poly->ToBoard())
-			poly2 = new cboard(m_doc),
+		else if (CBoard *b = poly->ToBoard())
+			poly2 = new CBoard(m_doc),
 			bd2->Add(poly2->ToBoard());
 		poly2->Copy( poly );
 	}
@@ -6474,17 +6474,17 @@ void CFreePcbView::OnGroupCopy()
 	// that are not selected will be copied as ratlines.  At the end, MergeUnroutedSegments() will combine ratlines as needed and also snip off 
 	// any ratlines with loose ends.
 	int nextTeeNum = 1;
-	citer<cconnect2> ic (&copyCons);
-	for (cconnect2 *c = ic.First(); c; c = ic.Next())
+	CIter<CConnect> ic (&copyCons);
+	for (CConnect *c = ic.First(); c; c = ic.Next())
 	{
 		if (c->NumSegs() == 0) continue;									// Unlikely but hey...
-		cnet2 *net = c->m_net;
-		cnet2 *net2 = nl2->GetNetPtrByName( &net->name );
+		CNet *net = c->m_net;
+		CNet *net2 = nl2->GetNetPtrByName( &net->name );
 		if( !net2 )
-			net2 = new cnet2(nl2, net->name, net->def_w, net->def_via_w, net->def_via_hole_w);
-		cconnect2 *c2 = new cconnect2(net2);
-		cvertex2 *head = c->head;
-		cvertex2 *head2 = new cvertex2(c2, head->x, head->y);
+			net2 = new CNet(nl2, net->name, net->def_w, net->def_via_w, net->def_via_hole_w);
+		CConnect *c2 = new CConnect(net2);
+		CVertex *head = c->head;
+		CVertex *head2 = new CVertex(c2, head->x, head->y);
 		if (head->pin)
 			head2->pin = pl2->GetPinByNames( &head->pin->part->ref_des, &head->pin->pin_name );		// Might be null, which is now legal.
 		if (head->tee)
@@ -6492,9 +6492,9 @@ void CFreePcbView::OnGroupCopy()
 			int util = head->tee->utility;
 			if (!util)
 				util = head->tee->utility = nextTeeNum++;
-			ctee *tee2 = net2->tees.FindByUtility( util );
+			CTee *tee2 = net2->tees.FindByUtility( util );
 			if (!tee2)
-				tee2 = new ctee(net2), 
+				tee2 = new CTee(net2), 
 				tee2->utility = util;
 			tee2->Add(head2);
 		}
@@ -6505,7 +6505,7 @@ void CFreePcbView::OnGroupCopy()
 			head2->via_hole_w = head->via_hole_w;
 
 		c2->Start(head2);
-		cvertex2 *v = head;
+		CVertex *v = head;
 		while (v->postSeg) 
 		{
 			v = v->postSeg->postVtx;
@@ -6521,7 +6521,7 @@ void CFreePcbView::OnGroupCopy()
 				c2->tail->via_hole_w = v->via_hole_w;
 		}
 
-		cvertex2 *tail = c->tail, *tail2 = c2->tail;
+		CVertex *tail = c->tail, *tail2 = c2->tail;
 		if (tail->pin)
 			tail2->pin = pl2->GetPinByNames( &tail->pin->part->ref_des, &tail->pin->pin_name );		// Might be null, which is now legal.
 		if (tail->tee)
@@ -6529,9 +6529,9 @@ void CFreePcbView::OnGroupCopy()
 			int util = tail->tee->utility;
 			if (!util)
 				util = tail->tee->utility = nextTeeNum++;
-			ctee *tee2 = net2->tees.FindByUtility( util );
+			CTee *tee2 = net2->tees.FindByUtility( util );
 			if (!tee2)
-				tee2 = new ctee(net2), 
+				tee2 = new CTee(net2), 
 				tee2->utility = util;
 			tee2->Add(tail2);
 		}
@@ -6539,43 +6539,43 @@ void CFreePcbView::OnGroupCopy()
 
 	// Go thru all the clipboard nets.  Within a net, scan through the connects, and call MergeUnroutedSegments() for each;
 	// then reconcile vias for all vertices.  At the end, adjust all tees within the net.
-	citer<cnet2> in2 (&nl2->nets);
-	for (cnet2 *net2 = in2.First(); net2; net2 = in2.Next())
+	CIter<CNet> in2 (&nl2->nets);
+	for (CNet *net2 = in2.First(); net2; net2 = in2.Next())
 	{
-		citer<cconnect2> ic2 (&net2->connects);
-		for (cconnect2 *c2 = ic2.First(); c2; c2 = ic2.Next())
+		CIter<CConnect> ic2 (&net2->connects);
+		for (CConnect *c2 = ic2.First(); c2; c2 = ic2.Next())
 		{
 			c2->MergeUnroutedSegments();
 			if (!net2->connects.Contains(c2)) 
 				// c2 got clobbered completely by MergeUnroutedSegments()
 				continue;
-			citer<cvertex2> iv2 (&c2->vtxs);
-			for (cvertex2 *v2 = iv2.First(); v2; v2 = iv2.Next())
+			CIter<CVertex> iv2 (&c2->vtxs);
+			for (CVertex *v2 = iv2.First(); v2; v2 = iv2.Next())
 				v2->ReconcileVia();
 		}
-		citer<ctee> it2 (&net2->tees);
-		for (ctee *t2 = it2.First(); t2; t2 = it2.Next())
+		CIter<CTee> it2 (&net2->tees);
+		for (CTee *t2 = it2.First(); t2; t2 = it2.Next())
 			t2->Adjust();
 	}
 
 	// CPT2 r336.  Gather a new list of clipboard shapes:  make copies from the main slist (footprint cache), for each footprint referenced by parts
 	// on the clipboard
 	CMapPtrToPtr smap;										// Will track the relationship between shapes and their new copies.
-	citer<cpart2> ip2 (&pl2->parts);
-	carray<cshape> shapes;
-	for (cpart2 *p2 = ip2.First(); p2; p2 = ip2.Next())
+	CIter<CPart> ip2 (&pl2->parts);
+	CHeap<CShape> shapes;
+	for (CPart *p2 = ip2.First(); p2; p2 = ip2.Next())
 		if (p2->shape)
 			shapes.Add(p2->shape);							// Culls duplicates
-	citer<cshape> is (&shapes);
-	for (cshape *s = is.First(); s; s = is.Next())
+	CIter<CShape> is (&shapes);
+	for (CShape *s = is.First(); s; s = is.Next())
 	{
-		cshape *s2 = new cshape(s);
+		CShape *s2 = new CShape(s);
 		sl2->shapes.Add( s2 );
 		smap.SetAt(s, s2);
 	}
 	// Go through the clipboard parts, and change their shape members to point to the copies.
-	for (cpart2 *p2 = ip2.First(); p2; p2 = ip2.Next())
-		p2->shape = (cshape*) smap[p2->shape];
+	for (CPart *p2 = ip2.First(); p2; p2 = ip2.Next())
+		p2->shape = (CShape*) smap[p2->shape];
 
 	// NB at this point there's going to be a bunch of garbage in m_doc->redraw, clipboard items on which MustRedraw() got called.  Just empty 
 	// that array out.  (Not strictly necessary since m_doc->Redraw() checks that what it draws is actually on the board, but still...)
@@ -6616,28 +6616,28 @@ void CFreePcbView::DeleteGroup()
 	//  Instead let's do a RemoveBreak for each selected segment.   In this loop we'll also look for
 	//  selected vias, and unforce them.  (NB a via that is attached to a single selected seg is doomed to destruction by 
 	//  RemoveBreak(), regardless of whether it is selected.)
-	citer<cpcb_item> ii (&m_sel);
-	for (cpcb_item *i = ii.First(); i; i = ii.Next())
-		if (cseg2 *seg = i->ToSeg())
+	CIter<CPcbItem> ii (&m_sel);
+	for (CPcbItem *i = ii.First(); i; i = ii.Next())
+		if (CSeg *seg = i->ToSeg())
 			seg->RemoveBreak();									// Takes care of all MustRedraw()'s
-		else if (cvertex2 *vtx = i->ToVertex())
+		else if (CVertex *vtx = i->ToVertex())
 			vtx->force_via_flag = 0,
 			vtx->ReconcileVia();								// Takes care of MustRedraw()
 	// I believe (fingers crossed) that the previous lines will have left things in a tidy state (no dangling or unmerged adjacent ratlines)
 
 	// remove polylines or their subcontours, parts, and texts
-	for (cpcb_item *i = ii.First(); i; i = ii.Next())
+	for (CPcbItem *i = ii.First(); i; i = ii.Next())
 		if (!i->IsOnPcb())
 			// Presumably a side on a contour that's already been axed
 			continue;
-		else if (cside *s = i->ToSide())
+		else if (CSide *s = i->ToSide())
 			if (s->IsOnCutout())
 				s->contour->Remove();
 			else
 				s->contour->poly->Remove();
-		else if (cpart2 *part = i->ToPart())
+		else if (CPart *part = i->ToPart())
 			part->Remove(false);
-		else if (ctext *t = i->ToText())
+		else if (CText *t = i->ToText())
 		{
 			m_doc->m_tlist->texts.Remove(t);
 			t->Undraw();
@@ -6661,20 +6661,20 @@ int GetGNumber(CString *s)
 void CFreePcbView::OnGroupPaste()
 {
 	// pointers to clipboard lists (all clipboard item variables are marked with '2')
-	cpartlist *pl2 = m_doc->clip_plist;
-	ctextlist *tl2 = m_doc->clip_tlist;
-	cnetlist *nl2 = m_doc->clip_nlist;
-	carray<csmcutout> *sm2 = &m_doc->clip_smcutouts;
-	carray<cboard> *bd2 = &m_doc->clip_boards;
-	cshapelist *sl2 = m_doc->clip_slist;
+	CPartList *pl2 = m_doc->clip_plist;
+	CTextList *tl2 = m_doc->clip_tlist;
+	CNetList *nl2 = m_doc->clip_nlist;
+	CHeap<CSmCutout> *sm2 = &m_doc->clip_smcutouts;
+	CHeap<CBoard> *bd2 = &m_doc->clip_boards;
+	CShapeList *sl2 = m_doc->clip_slist;
 
 	// pointers to project lists
-	cpartlist *pl = m_doc->m_plist;
-	cnetlist *nl = m_doc->m_nlist;
-	ctextlist *tl = m_doc->m_tlist;
-	carray<csmcutout> *sm = &m_doc->smcutouts;
-	carray<cboard> *bd = &m_doc->boards;
-	cshapelist *sl = m_doc->m_slist;
+	CPartList *pl = m_doc->m_plist;
+	CNetList *nl = m_doc->m_nlist;
+	CTextList *tl = m_doc->m_tlist;
+	CHeap<CSmCutout> *sm = &m_doc->smcutouts;
+	CHeap<CBoard> *bd = &m_doc->boards;
+	CShapeList *sl = m_doc->m_slist;
 
 	// get paste options
 	CDlgGroupPaste dlg;
@@ -6693,33 +6693,33 @@ void CFreePcbView::OnGroupPaste()
 	CString g_suffix;
 	// get highest group suffix already in project, checking both nets and shapes.  CPT2 r336 in fact, check numbers for both project and clipboard...
 	int max_g_num = 0, g;
-	citer<cnet2> in (&nl->nets);
-	for (cnet2 *net = in.First(); net; net = in.Next())
+	CIter<CNet> in (&nl->nets);
+	for (CNet *net = in.First(); net; net = in.Next())
 		g = GetGNumber(&net->name),
 		max_g_num = max(g, max_g_num);
-	citer<cnet2> in2 (&nl2->nets);
-	for (cnet2 *net2 = in2.First(); net2; net2 = in2.Next())
+	CIter<CNet> in2 (&nl2->nets);
+	for (CNet *net2 = in2.First(); net2; net2 = in2.Next())
 		g = GetGNumber(&net2->name),
 		max_g_num = max(g, max_g_num);
-	citer<cshape> is (&sl->shapes);
-	for (cshape *s = is.First(); s; s = is.Next())
+	CIter<CShape> is (&sl->shapes);
+	for (CShape *s = is.First(); s; s = is.Next())
 		g = GetGNumber(&s->m_name),
 		max_g_num = max(g, max_g_num);
-	citer<cshape> is2 (&sl2->shapes);
-	for (cshape *s2 = is2.First(); s2; s2 = is2.Next())
+	CIter<CShape> is2 (&sl2->shapes);
+	for (CShape *s2 = is2.First(); s2; s2 = is2.Next())
 		g = GetGNumber(&s2->m_name),
 		max_g_num = max(g, max_g_num);
 	g_suffix.Format( "_$G%d", max_g_num + 1 );
 	// Do the shape comparisons:
 	CMapPtrToPtr smap;
 	bool bFirstConflict = true;
-	for (cshape *s2 = is2.First(); s2; s2 = is2.Next())
+	for (CShape *s2 = is2.First(); s2; s2 = is2.Next())
 	{
-		cshape *s = sl->GetShapeByName(&s2->m_name);
+		CShape *s = sl->GetShapeByName(&s2->m_name);
 		if (!s)
 			// No conflict at all.  Make a new copy of s2, put it in the cache, and add an entry to smap (later, pasted
 			// parts referring to s2 will need to reference the new copy)
-			s = new cshape(s2),
+			s = new CShape(s2),
 			sl->shapes.Add(s),
 			smap.SetAt(s2, s);
 		else if (s->SameAs(s2))
@@ -6728,7 +6728,7 @@ void CFreePcbView::OnGroupPaste()
 		else 
 		{
 			// Conflict!  Make a new copy of s2 with a new g-suffixed name.  Put it in the cache and smap as usual.  Show user a log display.
-			s = new cshape(s2);
+			s = new CShape(s2);
 			s->m_name = s2->m_name + g_suffix;
 			sl->shapes.Add(s);
 			smap.SetAt(s2, s);
@@ -6751,12 +6751,12 @@ void CFreePcbView::OnGroupPaste()
 	int min_y = INT_MAX;
 	int min_d = INT_MAX;										// CPT2 changed: min_d was double to prevent overflow, 
 																// but there was a bug (overflow was still possible in the old code)
-	carray<cpolyline> pastedPolys;								// Maintain a list of pasted-in areas/smcutouts.
+	CHeap<CPolyline> pastedPolys;								// Maintain a list of pasted-in areas/smcutouts.
 
 	// add parts from clipboard, renaming if necessary
-	citer<cpart2> ip2 (&pl2->parts);
+	CIter<CPart> ip2 (&pl2->parts);
 	int partId = 1;
-	for (cpart2 *part2 = ip2.First(); part2; part2 = ip2.Next(), partId++)
+	for (CPart *part2 = ip2.First(); part2; part2 = ip2.Next(), partId++)
 	{
 		CString conflicted_ref;
 		CString prefix2;
@@ -6777,8 +6777,8 @@ void CFreePcbView::OnGroupPaste()
 		{
 			// use next available ref
 			int max_num = 0;
-			citer<cpart2> ip (&pl->parts);
-			for (cpart2 *part = ip.First(); part; part = ip.Next())
+			CIter<CPart> ip (&pl->parts);
+			for (CPart *part = ip.First(); part; part = ip.Next())
 			{
 				CString prefix;
 				int i = ParseRef( &part->ref_des, &prefix );
@@ -6796,7 +6796,7 @@ void CFreePcbView::OnGroupPaste()
 		
 		// add new part "part" in the project, derived from "part2" on the clipboard.  The shape will be the one corresponding to
 		// part2->shape, as set up in "smap" earlier:
-		cshape *shape = (cshape*) smap[part2->shape];
+		CShape *shape = (CShape*) smap[part2->shape];
 		if (shape->m_name != part2->shape->m_name)
 		{
 			// This was an incoming shape with a name-conflict:  add the information about it to the log:
@@ -6804,7 +6804,7 @@ void CFreePcbView::OnGroupPaste()
 			line.Format(str0, new_ref, shape->m_name);
 			m_doc->m_dlg_log->AddLine(line);
 		}
-		cpart2 *part = pl->Add( shape, &new_ref, &part2->value_text, &part2->package, 
+		CPart *part = pl->Add( shape, &new_ref, &part2->value_text, &part2->package, 
 					   part2->x + dlg.m_dx, part2->y + dlg.m_dy, part2->side, part2->angle, 
 					   1, 0 );
 		part->MustRedraw();
@@ -6829,17 +6829,17 @@ void CFreePcbView::OnGroupPaste()
 
 
 	// now loop through all nets on clipboard and add or merge with project
-	for (cnet2 *net2 = in2.First(); net2; net2 = in2.Next())
+	for (CNet *net2 = in2.First(); net2; net2 = in2.Next())
 	{
 		if( dlg.m_pin_net_option == 1 )
 		{
 			// If user chose option 1, check if there are routed segments in net2
 			bool bRouted = false;
-			citer<cconnect2> ic2 (&net2->connects);
-			for (cconnect2 *c2 = ic2.First(); c2; c2 = ic2.Next())
+			CIter<CConnect> ic2 (&net2->connects);
+			for (CConnect *c2 = ic2.First(); c2; c2 = ic2.Next())
 			{
-				citer<cseg2> is2 (&c2->segs);
-				for (cseg2 *s2 = is2.First(); s2; s2 = is2.Next())
+				CIter<CSeg> is2 (&c2->segs);
+				for (CSeg *s2 = is2.First(); s2; s2 = is2.Next())
 					if (s2->m_width > 0)
 						{ bRouted = true; goto routedLoopEnd; }
 			}
@@ -6852,7 +6852,7 @@ void CFreePcbView::OnGroupPaste()
 		// OK, add this net to project
 		// utility flag is set in the Group Paste dialog for nets which
 		// should be merged (i.e. not renamed)
-		cnet2 *net = nl->GetNetPtrByName( &net2->name );
+		CNet *net = nl->GetNetPtrByName( &net2->name );
 		if( dlg.m_net_name_option == 1 && net2->utility == 0 )
 		{
 			CString new_name;
@@ -6860,8 +6860,8 @@ void CFreePcbView::OnGroupPaste()
 			{
 				// get next "Nnnnnn" net name
 				int max_num = 0;
-				citer<cnet2> in (&nl->nets);
-				for (cnet2 *net = in.First(); net; net = in.Next())
+				CIter<CNet> in (&nl->nets);
+				for (CNet *net = in.First(); net; net = in.Next())
 				{
 					CString prefix;
 					int num = ParseRef( &net->name, &prefix );
@@ -6874,20 +6874,20 @@ void CFreePcbView::OnGroupPaste()
 				// add group suffix
 				new_name = net2->name + g_suffix;
 			// add new net
-			net = new cnet2(nl, new_name, net2->def_w, net2->def_via_w, net2->def_via_hole_w );
+			net = new CNet(nl, new_name, net2->def_w, net2->def_via_w, net2->def_via_hole_w );
 		}
 		else if( !net )
 			// no project net with the same name, so create a new one
-			net = new cnet2(nl, net2->name, net2->def_w, net2->def_via_w, net2->def_via_hole_w );
+			net = new CNet(nl, net2->name, net2->def_w, net2->def_via_w, net2->def_via_hole_w );
 		else
 			// will merge clipboard net into existing project net...
 			;
 		net->MustRedraw();
 
 		// attach pins (belonging to newly-pasted parts) to the project net, based on the pins attached to the clipboard net.
-		citer<cpin2> ipin2 (&net2->pins);
+		CIter<CPin> ipin2 (&net2->pins);
 		int pinId = 1;
-		for (cpin2 *pin2 = ipin2.First(); pin2; pin2 = ipin2.Next())
+		for (CPin *pin2 = ipin2.First(); pin2; pin2 = ipin2.Next())
 		{
 			/* CPT2 TODO I propose that "dlg.m_pin_net_option==1" now simply means that group nets are not imported in at all if they have no
 			   routed segs or areas.  That functionality was taken care of above.  The following additional condition is unnecessary under
@@ -6898,8 +6898,8 @@ void CFreePcbView::OnGroupPaste()
 				// only add pin2 if it's connected to a [routed] trace.  CPT2 Maybe include pasted pin in "net" if it has just a ratline
 				// attached.
 				bAdd = false;
-				citer<cconnect2> ic2 (&net2->connects);
-				for (cconnect2 *c2 = ic2.First(); c2; c2 = ic2.Next())
+				CIter<CConnect> ic2 (&net2->connects);
+				for (CConnect *c2 = ic2.First(); c2; c2 = ic2.Next())
 					if (c2->head->pin == pin2 || c2->tail->pin == pin2)
 						{ bAdd = true; break; }
 			}
@@ -6908,35 +6908,35 @@ void CFreePcbView::OnGroupPaste()
 			*/
 			// Find the (new) part in the project correponding to pin2's part.  Use utility fields (set during part-pasting, above) 
 			// to make the match, since ref-designators may not match up.
-			cpart2 *part = pl->parts.FindByUtility( pin2->part->utility );
+			CPart *part = pl->parts.FindByUtility( pin2->part->utility );
 			ASSERT( part!=NULL );
-			cpin2 *pin = part->GetPinByName( &pin2->pin_name );
+			CPin *pin = part->GetPinByName( &pin2->pin_name );
 			// Store correlated values in "utility" so that we can match pins up when importing actual connects.
 			pin->utility = pin2->utility = pinId++;
 			net->AddPin(pin);
 		}
 
 		// add tees to the project net based on the tees in the clipboard net
-		citer<ctee> it2 (&net2->tees);
+		CIter<CTee> it2 (&net2->tees);
 		int teeId = 1;
-		for (ctee *tee2 = it2.First(); tee2; tee2 = it2.Next())
+		for (CTee *tee2 = it2.First(); tee2; tee2 = it2.Next())
 		{
-			ctee *tee = new ctee(net);
+			CTee *tee = new CTee(net);
 			tee->utility = tee2->utility = teeId++;
 		}
 
 		// create connects for the project net, based on the clipboard connects.
 		int dx = dlg.m_dx, dy = dlg.m_dy;
-		citer<cconnect2> ic2 (&net2->connects);
-		for (cconnect2 *c2 = ic2.First(); c2; c2 = ic2.Next())
+		CIter<CConnect> ic2 (&net2->connects);
+		for (CConnect *c2 = ic2.First(); c2; c2 = ic2.Next())
 		{
-			cconnect2 *c = new cconnect2(net);
-			cvertex2 *head = new cvertex2(c, c2->head->x + dx, c2->head->y + dy);
+			CConnect *c = new CConnect(net);
+			CVertex *head = new CVertex(c, c2->head->x + dx, c2->head->y + dy);
 			head->force_via_flag = c2->head->force_via_flag;
 			head->via_w = c2->head->via_w;
 			head->via_hole_w = c2->head->via_hole_w;
 			c->Start(head);
-			cvertex2 *v2 = c2->head;
+			CVertex *v2 = c2->head;
 			while (v2->postSeg) 
 			{
 				v2 = v2->postSeg->postVtx;
@@ -6956,18 +6956,18 @@ void CFreePcbView::OnGroupPaste()
 			// Likewise attach tees
 			if (c2->head->tee)
 			{
-				ctee *tee = net->tees.FindByUtility( c2->head->tee->utility );
+				CTee *tee = net->tees.FindByUtility( c2->head->tee->utility );
 				tee->Add(c->head);
 			}
 			if (c2->tail->tee)
 			{
-				ctee *tee = net->tees.FindByUtility( c2->tail->tee->utility );
+				CTee *tee = net->tees.FindByUtility( c2->tail->tee->utility );
 				tee->Add(c->tail);
 			}
 
 			// update lower-left corner
-			citer<cvertex2> iv (&c->vtxs);
-			for (cvertex2 *v = iv.First(); v; v = iv.Next())
+			CIter<CVertex> iv (&c->vtxs);
+			for (CVertex *v = iv.First(); v; v = iv.Next())
 			{
 				int d = v->x/2 + v->y/2;
 				if( d < min_d )
@@ -6978,17 +6978,17 @@ void CFreePcbView::OnGroupPaste()
 		}
 
 		// copy in net2's copper areas
-		citer<carea2> ia2 (&net2->areas);
-		for (carea2 *a2 = ia2.First(); a2; a2 = ia2.Next())
+		CIter<CArea> ia2 (&net2->areas);
+		for (CArea *a2 = ia2.First(); a2; a2 = ia2.Next())
 		{
-			carea2 *a = new carea2(net, a2->m_layer, a2->m_hatch, a2->m_w, a2->m_sel_box);
+			CArea *a = new CArea(net, a2->m_layer, a2->m_hatch, a2->m_w, a2->m_sel_box);
 			a->Copy( a2 );
 			a->Offset( dx, dy );
 			a->AddSidesTo( &m_sel );
 			pastedPolys.Add(a);
 			// Update lower-left corner
-			citer<ccorner> ic (&a->main->corners);
-			for (ccorner *c = ic.First(); c; c = ic.Next())
+			CIter<CCorner> ic (&a->main->corners);
+			for (CCorner *c = ic.First(); c; c = ic.Next())
 			{
 				int d = c->x/2 + c->y/2;
 				if( d < min_d )
@@ -7000,18 +7000,18 @@ void CFreePcbView::OnGroupPaste()
 	}
 
 	// add sm_cutouts + boards
-	citer<csmcutout> ism2 (sm2);
-	for (csmcutout *sm2 = ism2.First(); sm2; sm2 = ism2.Next())
+	CIter<CSmCutout> ism2 (sm2);
+	for (CSmCutout *sm2 = ism2.First(); sm2; sm2 = ism2.Next())
 	{
-		csmcutout *sm = new csmcutout(m_doc, sm2->m_layer, sm2->m_hatch);
+		CSmCutout *sm = new CSmCutout(m_doc, sm2->m_layer, sm2->m_hatch);
 		sm->Copy( sm2 );
 		sm->Offset(dlg.m_dx, dlg.m_dy);
 		sm->MustRedraw();
 		sm->AddSidesTo( &m_sel );
 		pastedPolys.Add(sm);
 		// Update lower-left corner
-		citer<ccorner> ic (&sm->main->corners);
-		for (ccorner *c = ic.First(); c; c = ic.Next())
+		CIter<CCorner> ic (&sm->main->corners);
+		for (CCorner *c = ic.First(); c; c = ic.Next())
 		{
 			int d = c->x/2 + c->y/2;
 			if( d < min_d )
@@ -7020,17 +7020,17 @@ void CFreePcbView::OnGroupPaste()
 				min_y = c->y;
 		}
 	}
-	citer<cboard> ib2 (bd2);
-	for (cboard *b2 = ib2.First(); b2; b2 = ib2.Next())
+	CIter<CBoard> ib2 (bd2);
+	for (CBoard *b2 = ib2.First(); b2; b2 = ib2.Next())
 	{
-		cboard *b = new cboard(m_doc);
+		CBoard *b = new CBoard(m_doc);
 		b->Copy( b2 );
 		b->Offset(dlg.m_dx, dlg.m_dy);
 		b->MustRedraw();
 		b->AddSidesTo( &m_sel );
 		// Update lower-left corner
-		citer<ccorner> ic (&b->main->corners);
-		for (ccorner *c = ic.First(); c; c = ic.Next())
+		CIter<CCorner> ic (&b->main->corners);
+		for (CCorner *c = ic.First(); c; c = ic.Next())
 		{
 			int d = c->x/2 + c->y/2;
 			if( d < min_d )
@@ -7041,10 +7041,10 @@ void CFreePcbView::OnGroupPaste()
 	}
 
 	// add text
-	citer<ctext> it2 (&tl2->texts);
-	for (ctext *t2 = it2.First(); t2; t2 = it2.Next())
+	CIter<CText> it2 (&tl2->texts);
+	for (CText *t2 = it2.First(); t2; t2 = it2.Next())
 	{
-		ctext *t = tl->AddText( t2->m_x+dlg.m_dx, t2->m_y+dlg.m_dy, t2->m_angle, t2->m_bMirror, t2->m_bNegative, 
+		CText *t = tl->AddText( t2->m_x+dlg.m_dx, t2->m_y+dlg.m_dy, t2->m_angle, t2->m_bMirror, t2->m_bNegative, 
 			t2->m_layer, t2->m_font_size, t2->m_stroke_width, &t2->m_str );
 		t->MustRedraw();
 		m_sel.Add( t );
@@ -7062,14 +7062,14 @@ void CFreePcbView::OnGroupPaste()
 	{
 		// CPT2 new feature.  This paste involves no dragging (user specified dx/dy).  
 		// Therefore now's the time to check the newly pasted polylines (areas/smcutouts) for overlaps:
-		citer<cpolyline> ip (&pastedPolys);
-		for (cpolyline *poly = ip.First(); poly; poly = ip.Next())
+		CIter<CPolyline> ip (&pastedPolys);
+		for (CPolyline *poly = ip.First(); poly; poly = ip.Next())
 			if (poly->IsOnPcb())
 				poly->PolygonModified(true, true);
 		if( m_doc->m_vis[LAY_RAT_LINE] )
 		{
-			citer<cnet2> in (&nl->nets);
-			for (cnet2 *net = in.First(); net; net = in.Next())
+			CIter<CNet> in (&nl->nets);
+			for (CNet *net = in.First(); net; net = in.Next())
 				net->OptimizeConnections(); 
 		}
 	}
@@ -7182,7 +7182,7 @@ void CFreePcbView::OnEditCut()
 
 void CFreePcbView::OnAddSimilarArea()
 {
-	carea2 *a = m_sel.First()->GetArea();
+	CArea *a = m_sel.First()->GetArea();
 	CDC *pDC = GetDC();
 	pDC->SelectClipRgn( &m_pcb_rgn );
 	SetDCToWorldCoords( pDC );
@@ -7194,7 +7194,7 @@ void CFreePcbView::OnAddSimilarArea()
 	ShowActiveLayer();
 	m_dlist->StartDraggingArray( pDC, m_last_cursor_point.x,
 		m_last_cursor_point.y, 0, m_active_layer, 2 );
-	m_polyline_style = cpolyline::STRAIGHT;
+	m_polyline_style = CPolyline::STRAIGHT;
 	m_polyline_hatch = a->m_hatch;
 	Invalidate( FALSE );
 	ReleaseDC( pDC );
@@ -7203,8 +7203,8 @@ void CFreePcbView::OnAddSimilarArea()
 void CFreePcbView::OnAreaEdit()
 {
 	// CPT2 converted.
-	carea2 *a = m_sel.First()->GetArea();
-	cnet2 *old_net = a->m_net;
+	CArea *a = m_sel.First()->GetArea();
+	CNet *old_net = a->m_net;
 	CDlgAddArea dlg;
 	dlg.Initialize( m_doc->m_nlist, m_doc->m_num_layers, old_net, a->m_layer, a->m_hatch );
 	int ret = dlg.DoModal();
@@ -7213,12 +7213,12 @@ void CFreePcbView::OnAreaEdit()
 	
 	a->SaveUndoInfo();
 	a->MustRedraw();
-	cnet2 *net = dlg.m_net;
+	CNet *net = dlg.m_net;
 	if( old_net != net )
 	{
 		// move area to new net
-		net->SaveUndoInfo( cnet2::SAVE_AREAS );
-		old_net->SaveUndoInfo( cnet2::SAVE_AREAS );
+		net->SaveUndoInfo( CNet::SAVE_AREAS );
+		old_net->SaveUndoInfo( CNet::SAVE_AREAS );
 		a->SetNet(net);
 		old_net->SetThermals();					// CPT2 TODO deal with the issue of thermals when undoing.
 	}
@@ -7303,10 +7303,10 @@ void CFreePcbView::SetMainMenu()
 void CFreePcbView::OnRefShowPart()
 {
 	// CPT2 also works for value texts
-	ctext *t = m_sel.First()->ToText();
-	cpart2 *part = t->m_part;
+	CText *t = m_sel.First()->ToText();
+	CPart *part = t->m_part;
 	CancelSelection();
-	dl_element * dl_sel = part->dl_sel;
+	CDLElement * dl_sel = part->dl_sel;
 	int xc = (m_dlist->Get_x( dl_sel ) + m_dlist->Get_xf( dl_sel ))/2;
 	int yc = (m_dlist->Get_y( dl_sel ) + m_dlist->Get_yf( dl_sel ))/2;
 	m_org_x = xc - ((m_client_r.right-m_left_pane_w)*m_pcbu_per_pixel)/2;
@@ -7330,7 +7330,7 @@ void CFreePcbView::OnRefRotateCCW()
 void CFreePcbView::OnRefRotate(int angle)
 {
 	// CPT2 converted.  This works for valuetexts also
-	ctext *t = m_sel.First()->ToText();
+	CText *t = m_sel.First()->ToText();
 	t->SaveUndoInfo();
 	CancelHighlight();
 	t->MustRedraw();
@@ -7348,7 +7348,7 @@ void CFreePcbView::OnTextRotateCCW()
 void CFreePcbView::OnTextRotate(int angle)
 {
 	// CPT2 converted.  Barely different than OnRefRotate()
-	ctext *t = m_sel.First()->ToText();
+	CText *t = m_sel.First()->ToText();
 	t->SaveUndoInfo();
 	t->MustRedraw();
 	t->m_angle = (t->m_angle + angle) % 360;
@@ -7364,7 +7364,7 @@ void CFreePcbView::OnSegmentMove()
 	pDC->SelectClipRgn( &m_pcb_rgn );
 	SetDCToWorldCoords( pDC );
 
-	cseg2 *seg = m_sel.First()->ToSeg();
+	CSeg *seg = m_sel.First()->ToSeg();
 	m_dragging_new_item = 0;
 	// CPT2 NB before there was code to set m_last_pt and m_next_pt, but I'm letting cseg::StartMoving() deal with those variables instead.
 	m_from_pt.x = seg->preVtx->x;
@@ -7390,7 +7390,7 @@ void CFreePcbView::ActiveWidthUp(CDC * pDC) {
   int cWidths = m_doc->m_w.GetSize();
   #define widthAt(i) (m_doc->m_w.GetAt(i))
   int defaultW = m_doc->m_trace_w;
-  cnet2 *net = m_sel.First()->GetNet();
+  CNet *net = m_sel.First()->GetNet();
   if (net->def_w) defaultW = net->def_w;
   int i;
   for (i=0; i<cWidths; i++)
@@ -7411,7 +7411,7 @@ void CFreePcbView::ActiveWidthDown(CDC * pDC) {
   int cWidths = m_doc->m_w.GetSize();
   #define widthAt(i) (m_doc->m_w.GetAt(i))
   int defaultW = m_doc->m_trace_w;
-  cnet2 *net = m_sel.First()->GetNet();
+  CNet *net = m_sel.First()->GetNet();
   if (net->def_w) defaultW = net->def_w;
   int i;
   for (i=cWidths-1; i>=0; i--)
@@ -7441,7 +7441,7 @@ void CFreePcbView::UnitToggle(bool bShiftKeyDown) {
 	frm->m_wndMyToolBar.UnitToggle(bShiftKeyDown, &(m_doc->m_visible_grid), &(m_doc->m_part_grid), &(m_doc->m_routing_grid));
 	}
 
-void CFreePcbView::ToggleSelectionState(cpcb_item *item) 
+void CFreePcbView::ToggleSelectionState(CPcbItem *item) 
 {
 	// CPT2 updated arg & rewrote.  Included a few things from the old version of SelectItem().
 	// If the item specified is part of the selection group, remove it from the selection group.  Otherwise,
@@ -7476,12 +7476,12 @@ void CFreePcbView::HandleNoShiftLayerKey(int layer, CDC *pDC)
 		return;
 	}
 
-	cvertex2 *start = NULL;
+	CVertex *start = NULL;
 	if (m_cursor_mode == CUR_DRAG_STUB) 
 		start = m_sel.First()->GetConnect()->tail;
 	else if (m_cursor_mode == CUR_DRAG_RAT)
 	{
-		cseg2 *rat = m_sel.First()->ToSeg();
+		CSeg *rat = m_sel.First()->ToSeg();
 		start = m_dir==0? rat->preVtx: rat->postVtx;
 	}
 	if (start && start->pin && start->pin->pad_layer!=LAY_PAD_THRU)
@@ -7495,9 +7495,9 @@ void CFreePcbView::HandleNoShiftLayerKey(int layer, CDC *pDC)
 }
 
 void CFreePcbView::HandleShiftLayerKey(int layer, CDC *pDC) {
-	cnet2 *net = m_sel.First()->GetNet();
+	CNet *net = m_sel.First()->GetNet();
 	if( m_cursor_mode == CUR_SEG_SELECTED )	{
-		cseg2 *seg = m_sel.First()->ToSeg();
+		CSeg *seg = m_sel.First()->ToSeg();
 		seg->MustRedraw();
 		seg->m_con->SaveUndoInfo();
 		seg->m_layer = layer;
@@ -7506,19 +7506,19 @@ void CFreePcbView::HandleShiftLayerKey(int layer, CDC *pDC) {
 		m_doc->ProjectModified( TRUE );
 		}
 	else if( m_cursor_mode == CUR_CONNECT_SELECTED ) {
-		cconnect2 *c = m_sel.First()->GetConnect();
+		CConnect *c = m_sel.First()->GetConnect();
 		c->SaveUndoInfo();
 		c->MustRedraw();
-		citer<cseg2> is (&c->segs);
-		for (cseg2 *s = is.First(); s; s = is.Next())
+		CIter<CSeg> is (&c->segs);
+		for (CSeg *s = is.First(); s; s = is.Next())
 			s->m_layer = layer;
-		citer<cvertex2> iv (&c->vtxs);
-		for (cvertex2 *v = iv.First(); v; v = iv.Next())
+		CIter<CVertex> iv (&c->vtxs);
+		for (CVertex *v = iv.First(); v; v = iv.Next())
 			v->ReconcileVia();
 		m_doc->ProjectModified( TRUE );
 		}
 	else if( m_cursor_mode == CUR_AREA_CORNER_SELECTED || m_cursor_mode == CUR_AREA_SIDE_SELECTED ) {
-		carea2 *a = m_sel.First()->GetArea();
+		CArea *a = m_sel.First()->GetArea();
 		a->SaveUndoInfo();
 		a->MustRedraw();
 		a->m_layer = layer;
@@ -7545,7 +7545,7 @@ void CFreePcbView::OnAddPart()
 
 	// Create part from the partlist generated by the dlg.  If we're going to be dragging, move part (and its pins) under user's cursor right away.
 	m_doc->m_plist->ImportPartListInfo( &pli, 0 );
-	cpart2 *part = m_doc->m_plist->GetPartByName( &dlg.m_ref_des );
+	CPart *part = m_doc->m_plist->GetPartByName( &dlg.m_ref_des );
 	if (dlg.GetDragFlag())
 	{
 		CPoint p;

@@ -14,7 +14,7 @@ public:
 	virtual ~CDlgEditNet();
 	void Initialize( netlist_info * nli,	// netlist_info struct
 				int i,					// index into nli (ignored if new net)
-				cpartlist * plist,		// partlist
+				CPartList * plist,		// partlist
 				BOOL new_net,			// flag for new net
 				BOOL visible,			// visibility flag
 				int units,				// MIL or MM
@@ -32,7 +32,7 @@ protected:
 	CString m_name;
 	BOOL m_new_net;
 	CArray<net_info> *m_nli;
-	cpartlist * m_plist;
+	CPartList * m_plist;
 	int m_in;
 	BOOL m_visible;
 	int m_def_w;

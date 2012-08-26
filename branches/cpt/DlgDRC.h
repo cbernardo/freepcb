@@ -30,10 +30,10 @@ public:
 	int m_units; 
 	DesignRules m_dr_local;
 	DesignRules * m_dr;
-	cpartlist * m_pl;
-	cnetlist * m_nl;
-	carray<cboard> * m_board_outline;
-	cdrelist * m_drelist;
+	CPartList * m_pl;
+	CNetList * m_nl;
+	CHeap<CBoard> * m_board_outline;
+	CDreList * m_drelist;
 	CDlgLog * m_dlg_log;
 	int m_copper_layers;
 	int m_CAM_annular_ring_pins;

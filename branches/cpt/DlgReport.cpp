@@ -82,8 +82,8 @@ END_MESSAGE_MAP()
 //
 int mycompare( const void *arg1, const void *arg2 )
 {
-	cpart2 * p1 = *(cpart2**)arg1;
-	cpart2* p2 = *(cpart2**)arg2;
+	CPart * p1 = *(CPart**)arg1;
+	CPart* p2 = *(CPart**)arg2;
 	return CompareNumeric(&p1->ref_des, &p2->ref_des );		
 }
 
@@ -166,8 +166,8 @@ void CDlgReport::OnBnClickedOk()
 		all_board_bounds.bottom = INT_MAX;
 		all_board_bounds.right = INT_MIN;
 		all_board_bounds.top = INT_MIN;
-		citer<cboard> ib (&m_doc->boards);
-		for (cboard *b = ib.First(); b; b = ib.Next())
+		CIter<CBoard> ib (&m_doc->boards);
+		for (CBoard *b = ib.First(); b; b = ib.Next())
 		{
 			CRect r = b->GetBounds();
 			all_board_bounds.left = min( all_board_bounds.left, r.left );
@@ -190,15 +190,15 @@ void CDlgReport::OnBnClickedOk()
 	int num_th_pins = 0;
 	int num_nets = 0;
 	int num_vias = 0;
-	citer<cpart2> ip (&m_pl->parts);
-	for (cpart2 *part = ip.First(); part; part = ip.Next())
+	CIter<CPart> ip (&m_pl->parts);
+	for (CPart *part = ip.First(); part; part = ip.Next())
 	{
 		num_parts++;
 		if( !part->shape )
 			continue;
 		num_parts_with_fp++;
-		citer<cpin2> ipin (&part->pins);
-		for (cpin2 *pin = ipin.First(); pin; pin = ipin.Next())
+		CIter<CPin> ipin (&part->pins);
+		for (CPin *pin = ipin.First(); pin; pin = ipin.Next())
 		{
 			num_pins++;
 			int hole_size = pin->ps->hole_size;
@@ -228,15 +228,15 @@ void CDlgReport::OnBnClickedOk()
 		file.WriteString( line );
 	}
 
-	citer<cnet2> in (&m_nl->nets);
-	for (cnet2 *net = in.First(); net; net = in.Next())
+	CIter<CNet> in (&m_nl->nets);
+	for (CNet *net = in.First(); net; net = in.Next())
 	{
 		num_nets++;
-		citer<cconnect2> ic (&net->connects);
-		for (cconnect2 *c = ic.First(); c; c = ic.Next())
+		CIter<CConnect> ic (&net->connects);
+		for (CConnect *c = ic.First(); c; c = ic.Next())
 		{
-			citer<cvertex2> iv (&c->vtxs);
-			for (cvertex2 *v = iv.First(); v; v = iv.Next())
+			CIter<CVertex> iv (&c->vtxs);
+			for (CVertex *v = iv.First(); v; v = iv.Next())
 			{
 				int hole_size = v->via_hole_w; 
 				if( hole_size > 0 )
@@ -290,13 +290,13 @@ void CDlgReport::OnBnClickedOk()
 	{
 		// make array of pointers to all parts, used for sorting
 		int nparts = m_pl->parts.GetSize();
-		cpart2 ** parts = (cpart2**) malloc( nparts * sizeof(cpart2*) );
-		citer<cpart2> ip (&m_pl->parts);
+		CPart ** parts = (CPart**) malloc( nparts * sizeof(CPart*) );
+		CIter<CPart> ip (&m_pl->parts);
 		int i = 0;
-		for (cpart2 *p = ip.First(); p; p = ip.Next())
+		for (CPart *p = ip.First(); p; p = ip.Next())
 			parts[i++] = p;
 		// quicksort
-		qsort( parts, nparts, sizeof(cpart2*), mycompare );
+		qsort( parts, nparts, sizeof(CPart*), mycompare );
 		// make arrays of strings for table
 		CArray <CString> ref_des, package, value, footprint, pins, holes; 
 		CArray <CString> side, angle, c_x, c_y, p1_x, p1_y;
@@ -358,7 +358,7 @@ void CDlgReport::OnBnClickedOk()
 			ASSERT(0);
 		for( int ip = 0; ip < nparts; ip++ )
 		{
-			cpart2 *part = parts[ip];
+			CPart *part = parts[ip];
 			ref_des[ip] = part->ref_des;
 			package[ip] = part->package;
 			value[ip] = part->value_text;
@@ -374,8 +374,8 @@ void CDlgReport::OnBnClickedOk()
 			{
 				BOOL bSMT = TRUE;
 				int nholes = 0;
-				citer<cpin2> ipin (&part->pins);
-				for (cpin2 *pin = ipin.First(); pin; pin = ipin.Next())
+				CIter<CPin> ipin (&part->pins);
+				for (CPin *pin = ipin.First(); pin; pin = ipin.Next())
 					if( pin->ps->hole_size > 0 )
 					{
 						bSMT = FALSE;
@@ -403,7 +403,7 @@ void CDlgReport::OnBnClickedOk()
 				c_x[ip] = str1;
 				::MakeCStringFromDimension( &str1, centroid_pt.y, m_units, FALSE, FALSE, TRUE, dp );
 				c_y[ip] = str1;
-				cpin2 *pin1 = part->GetPinByName( &CString("1") );
+				CPin *pin1 = part->GetPinByName( &CString("1") );
 				if( !pin1 )
 					pin1 = part->GetPinByName( &CString("A1") );
 				if( pin1 )
@@ -442,9 +442,9 @@ void CDlgReport::OnBnClickedOk()
 				}
 				else
 				{
-					citer<cglue> ig (&part->shape->m_glues);
+					CIter<CGlue> ig (&part->shape->m_glues);
 					int idot = 0;
-					for (cglue *g = ig.First(); g; g = ig.Next(), idot++)
+					for (CGlue *g = ig.First(); g; g = ig.Next(), idot++)
 					{
 						int g_w = g->w;
 						if( g_w == 0 )
@@ -741,8 +741,8 @@ void CDlgReport::OnBnClickedOk()
 			CString s ((LPCSTR) IDS_DRCErrors);
 			file.WriteString( s );
 		}
-		citer<cdre> id (&m_doc->m_drelist->dres);
-		for (cdre *dre = id.First(); dre; dre = id.Next())
+		CIter<CDre> id (&m_doc->m_drelist->dres);
+		for (CDre *dre = id.First(); dre; dre = id.Next())
 		{
 			CString str = dre->str, s ((LPCSTR) IDS_RoutedConnectionFrom);
 			BOOL bConError = (str.Find( s ) != -1);

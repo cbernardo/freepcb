@@ -21,7 +21,7 @@ protected:
 	DECLARE_MESSAGE_MAP()
 public:
 	CComboBox m_combo_ref_des;
-	cpartlist * m_pl;
+	CPartList * m_pl;
 	CString sel_ref_des;
-	void Initialize( cpartlist * pl );
+	void Initialize( CPartList * pl );
 };

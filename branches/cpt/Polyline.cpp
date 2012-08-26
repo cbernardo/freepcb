@@ -1,5 +1,5 @@
-// Polyline.cpp --- source file for classes related most closely to polylines, all of which are descendants of cpcb_item:
-//  ccorner, cside, ccontour, cpolyline, carea, csmcutout, cboard, coutline
+// Polyline.cpp --- source file for classes related most closely to polylines, all of which are descendants of CPcbItem:
+//  CCorner, CSide, CContour, CPolyline, CArea, CSmCutout, CBoard, COutline
 
 #include "stdafx.h"
 #include <math.h>
@@ -14,8 +14,8 @@ BOOL bDontShowIntersectionWarning = false;
 BOOL bDontShowIntersectionArcsWarning = false;
 
 
-ccorner::ccorner(ccontour *_contour, int _x, int _y)
-	: cpcb_item (_contour->doc)
+CCorner::CCorner(CContour *_contour, int _x, int _y)
+	: CPcbItem (_contour->doc)
 {
 	contour = _contour;
 	if (contour->corners.IsEmpty())
@@ -25,30 +25,30 @@ ccorner::ccorner(ccontour *_contour, int _x, int _y)
 	preSide = postSide = NULL;
 }
 
-ccorner::ccorner(CFreePcbDoc *_doc, int _uid):
-	cpcb_item(_doc, _uid)
+CCorner::CCorner(CFreePcbDoc *_doc, int _uid):
+	CPcbItem(_doc, _uid)
 {
 	contour = NULL;
 	preSide = postSide = NULL;
 }
 
-bool ccorner::IsOnPcb() 
+bool CCorner::IsOnPcb() 
 {
 	if (!contour->poly->IsOnPcb()) return false;
 	if (!contour->IsOnPcb()) return false;
 	return contour->corners.Contains(this);
 }
 
-bool ccorner::IsAreaCorner() { return contour->poly->IsArea(); }
-bool ccorner::IsBoardCorner() { return contour->poly->IsBoard(); }
-bool ccorner::IsSmCorner() { return contour->poly->IsSmCutout(); }
-bool ccorner::IsOutlineCorner() { return contour->poly->IsOutline(); }
-cnet2 *ccorner::GetNet() { return contour->GetNet(); }
-int ccorner::GetLayer() { return contour->poly->m_layer; }
-cpolyline *ccorner::GetPolyline() { return contour->poly; }
+bool CCorner::IsAreaCorner() { return contour->poly->IsArea(); }
+bool CCorner::IsBoardCorner() { return contour->poly->IsBoard(); }
+bool CCorner::IsSmCorner() { return contour->poly->IsSmCutout(); }
+bool CCorner::IsOutlineCorner() { return contour->poly->IsOutline(); }
+CNet *CCorner::GetNet() { return contour->GetNet(); }
+int CCorner::GetLayer() { return contour->poly->m_layer; }
+CPolyline *CCorner::GetPolyline() { return contour->poly; }
 
 
-int ccorner::GetTypeBit() 
+int CCorner::GetTypeBit() 
 {														// Later:  put in .cpp file.  There wouldn't be this nonsense in Java...
 	if (contour->poly->IsArea()) return bitAreaCorner;
 	if (contour->poly->IsSmCutout()) return bitSmCorner;
@@ -57,14 +57,14 @@ int ccorner::GetTypeBit()
 	return bitOther;
 }
 
-bool ccorner::IsOnCutout()
+bool CCorner::IsOnCutout()
 	// Return true if this side lies on a secondary contour within the polyline
 	{ return contour->poly->main!=contour; }
 
-void ccorner::Remove() 
+void CCorner::Remove() 
 {
 	// CPT2 derived loosely from old CPolyLine::DeleteCorner
-	cpolyline *poly = GetPolyline();
+	CPolyline *poly = GetPolyline();
 	poly->MustRedraw();
 	contour->corners.Remove(this);
 	if (contour->NumCorners() < 2)
@@ -88,7 +88,7 @@ void ccorner::Remove()
 	else 
 	{
 		// Normal middle corner
-		ccorner *next = postSide->postCorner;
+		CCorner *next = postSide->postCorner;
 		if (this == contour->head)
 			contour->head = contour->tail = next;
 		contour->sides.Remove(postSide);
@@ -97,7 +97,7 @@ void ccorner::Remove()
 	}
 }
 
-void ccorner::Highlight()
+void CCorner::Highlight()
 {
 	CDisplayList *dl = doc->m_dlist;
 	if( !dl ) return;
@@ -108,21 +108,21 @@ void ccorner::Highlight()
 		dl->Get_w( dl_sel ) );
 }
 
-bool ccorner::Move( int _x, int _y, BOOL bEnforceCircularArcs )
+bool CCorner::Move( int _x, int _y, BOOL bEnforceCircularArcs )
 {
 	// move corner of polyline
 	// if bEnforceCircularArcs == TRUE, convert adjacent sides to STRAIGHT if angle not
 	// a multiple of 45 degrees and return TRUE, otherwise return FALSE
 	// CPT2 derived from CPolyLine::MoveCorner().
-	cpolyline *poly = contour->poly;
+	CPolyline *poly = contour->poly;
 	poly->MustRedraw();
 	x = _x;
 	y = _y;
 	BOOL bReturn = FALSE;
 	if( bEnforceCircularArcs )
 	{
-		ccorner *prev = preSide? preSide->preCorner: NULL;
-		ccorner *next = postSide? postSide->postCorner: NULL;
+		CCorner *prev = preSide? preSide->preCorner: NULL;
+		CCorner *next = postSide? postSide->postCorner: NULL;
 		if (prev && abs(prev->x - x) != abs(prev->y - y))
 			preSide->m_style = STRAIGHT,
 			bReturn = TRUE;
@@ -133,7 +133,7 @@ bool ccorner::Move( int _x, int _y, BOOL bEnforceCircularArcs )
 	return bReturn;
 }
 
-void ccorner::StartDragging( CDC * pDC, int x, int y, int crosshair )
+void CCorner::StartDragging( CDC * pDC, int x, int y, int crosshair )
 {
 	CDisplayList *dl = doc->m_dlist;
 	ASSERT(dl);
@@ -143,7 +143,7 @@ void ccorner::StartDragging( CDC * pDC, int x, int y, int crosshair )
 		dl->Set_visible(preSide->dl_el, 0);
 	if (postSide)
 		dl->Set_visible(postSide->dl_el, 0);
-	cpolyline *poly = GetPolyline();
+	CPolyline *poly = GetPolyline();
 	for( int ih=0; ih < poly->m_nhatch; ih++ )
 		dl->Set_visible( poly->dl_hatch[ih], 0 );
 
@@ -151,7 +151,7 @@ void ccorner::StartDragging( CDC * pDC, int x, int y, int crosshair )
 	if (!preSide || !postSide)
 	{
 		int style, xi, yi;
-		cside *side;
+		CSide *side;
 		if (!preSide)
 		{
 			style = postSide->m_style;
@@ -194,7 +194,7 @@ void ccorner::StartDragging( CDC * pDC, int x, int y, int crosshair )
 	}
 }
 
-void ccorner::CancelDragging()
+void CCorner::CancelDragging()
 {
 	// CPT2:  Derived from CPolyLine::CancelDraggingToMoveCorner.  Stop dragging, make sides and hatching visible again
 	CDisplayList *dl = doc->m_dlist;
@@ -204,14 +204,14 @@ void ccorner::CancelDragging()
 		dl->Set_visible(preSide->dl_el, 1);
 	if (postSide)
 		dl->Set_visible(postSide->dl_el, 1);
-	cpolyline *poly = GetPolyline();
+	CPolyline *poly = GetPolyline();
 	for( int ih=0; ih < poly->m_nhatch; ih++ )
 		dl->Set_visible( poly->dl_hatch[ih], 1 );
 }
 
 
-cside::cside(ccontour *_contour, int _style)
-	: cpcb_item(_contour->doc)
+CSide::CSide(CContour *_contour, int _style)
+	: CPcbItem(_contour->doc)
 { 
 	contour = _contour;
 	contour->sides.Add(this);
@@ -219,25 +219,25 @@ cside::cside(ccontour *_contour, int _style)
 	preCorner = postCorner = NULL;
 }
 
-cside::cside(CFreePcbDoc *_doc, int _uid):
-	cpcb_item(_doc, _uid)
+CSide::CSide(CFreePcbDoc *_doc, int _uid):
+	CPcbItem(_doc, _uid)
 {
 	contour = NULL;
 	preCorner = postCorner = NULL;
 }
-bool cside::IsOnPcb() 
+bool CSide::IsOnPcb() 
 {
 	if (!contour->IsOnPcb()) return false;
 	return contour->sides.Contains(this);
 }
 
-bool cside::IsAreaSide() { return contour->poly->IsArea(); }
-bool cside::IsBoardSide() { return contour->poly->IsBoard(); }
-bool cside::IsSmSide() { return contour->poly->IsSmCutout(); }
-bool cside::IsOutlineSide() { return contour->poly->IsOutline(); }
-int cside::GetLayer() { return contour->poly->m_layer; }
+bool CSide::IsAreaSide() { return contour->poly->IsArea(); }
+bool CSide::IsBoardSide() { return contour->poly->IsBoard(); }
+bool CSide::IsSmSide() { return contour->poly->IsSmCutout(); }
+bool CSide::IsOutlineSide() { return contour->poly->IsOutline(); }
+int CSide::GetLayer() { return contour->poly->m_layer; }
 
-int cside::GetTypeBit() 
+int CSide::GetTypeBit() 
 {
 	if (contour->poly->IsArea()) return bitAreaSide;
 	if (contour->poly->IsSmCutout()) return bitSmSide;
@@ -246,15 +246,15 @@ int cside::GetTypeBit()
 	return bitOther;
 }
 
-cnet2 *cside::GetNet() { return contour->GetNet(); }
+CNet *CSide::GetNet() { return contour->GetNet(); }
 
-cpolyline *cside::GetPolyline() { return contour->poly; }
+CPolyline *CSide::GetPolyline() { return contour->poly; }
 
-bool cside::IsOnCutout()
+bool CSide::IsOnCutout()
 	// Return true if this side lies on a secondary contour within the polyline
 	{ return contour->poly->main!=contour; }
 
-char cside::GetDirectionLabel()
+char CSide::GetDirectionLabel()
 {
 	// CPT2 new.  Used for making labels when user does a shift-click.  Return char is '-', '/', '|', or '\' depending on the direction of the side
 	double dx = preCorner->x - postCorner->x;
@@ -270,17 +270,17 @@ char cside::GetDirectionLabel()
 		return '\\';
 }
 
-void cside::Highlight()
+void CSide::Highlight()
 {
 	CDisplayList *dl = doc->m_dlist;
 	if( !dl ) return;
 	if( !dl_sel ) return;
 	int s;
-	if( m_style == cpolyline::STRAIGHT )
+	if( m_style == CPolyline::STRAIGHT )
 		s = DL_LINE;
-	else if( m_style == cpolyline::ARC_CW )
+	else if( m_style == CPolyline::ARC_CW )
 		s = DL_ARC_CW;
-	else if( m_style == cpolyline::ARC_CCW )
+	else if( m_style == CPolyline::ARC_CCW )
 		s = DL_ARC_CCW;
 	dl->Highlight( s, 
 		dl->Get_x( dl_sel ), dl->Get_y( dl_sel ),
@@ -288,21 +288,21 @@ void cside::Highlight()
 		dl->Get_w( dl_sel ) );
 }
 
-void cside::InsertCorner(int x, int y)
+void CSide::InsertCorner(int x, int y)
 {
 	// CPT2 new.  Add an intermediate corner into this side.  "this" gets reused as the second of the 2 half-sides, and the styles of both are made straight.
-	ccorner *c = new ccorner(contour, x, y);
-	cside *s = new cside(contour, STRAIGHT);
+	CCorner *c = new CCorner(contour, x, y);
+	CSide *s = new CSide(contour, STRAIGHT);
 	m_style = STRAIGHT;
 	contour->AppendSideAndCorner(s, c, preCorner);
 }
 
-bool cside::Remove( carray<cpolyline> *arr ) 
+bool CSide::Remove( CHeap<CPolyline> *arr ) 
 {
 	// CPT2 new.  Remove this side from its parent contour (which must be the main contour in the polyline).  This can easily result in a whole 
-	// new polyline getting created (by means of virtual function cpolyline::CreateCompatible()).  Said new polyline gets added to "arr".  It can
+	// new polyline getting created (by means of virtual function CPolyline::CreateCompatible()).  Said new polyline gets added to "arr".  It can
 	// also result in the whole original polyline disappearing, in which case it is removed from "arr".
-	cpolyline *poly = GetPolyline();
+	CPolyline *poly = GetPolyline();
 	if (poly->contours.GetSize() > 1) return false;
 	contour->sides.Remove(this);
 	preCorner->postSide = postCorner->preSide = NULL;
@@ -323,13 +323,13 @@ bool cside::Remove( carray<cpolyline> *arr )
 	else
 	{
 		// Break!
-		cpolyline *poly2 = poly->CreateCompatible();
+		CPolyline *poly2 = poly->CreateCompatible();
 		arr->Add(poly2);
-		ccontour *ctr2 = new ccontour(poly2, true);
+		CContour *ctr2 = new CContour(poly2, true);
 		ctr2->head = postCorner;
 		ctr2->tail = contour->tail;
 		contour->tail = preCorner;
-		for (ccorner *c = postCorner; 1; c = c->postSide->postCorner)
+		for (CCorner *c = postCorner; 1; c = c->postSide->postCorner)
 		{
 			contour->corners.Remove(c);
 			ctr2->corners.Add(c);
@@ -343,7 +343,7 @@ bool cside::Remove( carray<cpolyline> *arr )
 	return true;
 }
 
-void cside::StartDraggingNewCorner( CDC * pDC, int x, int y, int crosshair )
+void CSide::StartDraggingNewCorner( CDC * pDC, int x, int y, int crosshair )
 {
 	// CPT2, derived from CPolyLine::StartDraggingToInsertCorner
 	CDisplayList *dl = doc->m_dlist;
@@ -356,13 +356,13 @@ void cside::StartDraggingNewCorner( CDC * pDC, int x, int y, int crosshair )
 		0, 0, 0, 0, crosshair );
 	dl->CancelHighlight();
 	dl->Set_visible( dl_el, 0 );
-	cpolyline *p = GetPolyline();
+	CPolyline *p = GetPolyline();
 	for( int ih=0; ih < p->m_nhatch; ih++ )
 		dl->Set_visible( p->dl_hatch[ih], 0 );
 }
 
 //
-void cside::CancelDraggingNewCorner()
+void CSide::CancelDraggingNewCorner()
 {
 	// CPT2 derived from CPolyLine::CancelDraggingToInsertCorner
 	CDisplayList *dl = doc->m_dlist;
@@ -370,7 +370,7 @@ void cside::CancelDraggingNewCorner()
 
 	dl->StopDragging();
 	dl->Set_visible( dl_el, 1 );
-	cpolyline *p = GetPolyline();
+	CPolyline *p = GetPolyline();
 	for( int ih=0; ih < p->m_nhatch; ih++ )
 		dl->Set_visible( p->dl_hatch[ih], 1 );
 }
@@ -379,8 +379,8 @@ void cside::CancelDraggingNewCorner()
 
 
 
-ccontour::ccontour(cpolyline *_poly, bool bMain)
-	: cpcb_item (_poly->doc)
+CContour::CContour(CPolyline *_poly, bool bMain)
+	: CPcbItem (_poly->doc)
 {
 	poly = _poly;
 	if (bMain) 
@@ -389,15 +389,15 @@ ccontour::ccontour(cpolyline *_poly, bool bMain)
 	head = tail = NULL;
 }
 
-ccontour::ccontour(CFreePcbDoc *_doc, int _uid):
-	cpcb_item(_doc, _uid)
+CContour::CContour(CFreePcbDoc *_doc, int _uid):
+	CPcbItem(_doc, _uid)
 {
 	poly = NULL;
 	head = tail = NULL;
 }
 
-ccontour::ccontour(cpolyline *_poly, ccontour *src)
-	: cpcb_item (_poly->doc)
+CContour::CContour(CPolyline *_poly, CContour *src)
+	: CPcbItem (_poly->doc)
 {
 	// Create a new contour with the same points/sides as "src", but belonging to poly "_poly"
 	poly = _poly;
@@ -409,20 +409,20 @@ ccontour::ccontour(cpolyline *_poly, ccontour *src)
 		return;
 
 	// Loop thru src's corners and sides in geometrical order.  Must take care since src's head and tail may be the same.
-	cside *preSide = NULL;
-	for (ccorner *c = src->head; 1; c = c->postSide->postCorner)
+	CSide *preSide = NULL;
+	for (CCorner *c = src->head; 1; c = c->postSide->postCorner)
 	{
-		ccorner *c2 = new ccorner(this, c->x, c->y);
+		CCorner *c2 = new CCorner(this, c->x, c->y);
 		corners.Add(c2);
 		c2->preSide = preSide;
 		if (preSide)
 			preSide->postCorner = c2;
 		if (c==src->head) 
 			head = c2;
-		cside *s = c->postSide;
+		CSide *s = c->postSide;
 		if (!s) 
 			{ tail = c2; break; }
-		cside *s2 = new cside(this, s->m_style);
+		CSide *s2 = new CSide(this, s->m_style);
 		sides.Add(s2);
 		c2->postSide = s2;
 		s2->preCorner = c2;
@@ -436,33 +436,33 @@ ccontour::ccontour(cpolyline *_poly, ccontour *src)
 	}
 }
 
-bool ccontour::IsOnPcb() 
+bool CContour::IsOnPcb() 
 	{ return poly->IsOnPcb() && poly->contours.Contains(this); }
 
-cnet2 *ccontour::GetNet() { return poly->GetNet(); }
+CNet *CContour::GetNet() { return poly->GetNet(); }
 
-int ccontour::GetLayer() { return poly->m_layer; }
+int CContour::GetLayer() { return poly->m_layer; }
 
-void ccontour::SaveUndoInfo()
+void CContour::SaveUndoInfo()
 {
-	doc->m_undo_items.Add( new cucontour(this) );
-	citer<ccorner> ic (&corners);
-	for (ccorner *c = ic.First(); c; c = ic.Next())
-		doc->m_undo_items.Add( new cucorner(c) );
-	citer<cside> is (&sides);
-	for (cside *s = is.First(); s; s = is.Next())
-		doc->m_undo_items.Add( new cuside(s) );
+	doc->m_undo_items.Add( new CUContour(this) );
+	CIter<CCorner> ic (&corners);
+	for (CCorner *c = ic.First(); c; c = ic.Next())
+		doc->m_undo_items.Add( new CUCorner(c) );
+	CIter<CSide> is (&sides);
+	for (CSide *s = is.First(); s; s = is.Next())
+		doc->m_undo_items.Add( new CUSide(s) );
 }
 
-void ccontour::AppendSideAndCorner( cside *s, ccorner *c, ccorner *after )
+void CContour::AppendSideAndCorner( CSide *s, CCorner *c, CCorner *after )
 {
 	// Append s+c into this connection after corner "after".  Assumes that s+c were constructed so that they point to "this"
-	// Very similar to cconnect2::AppendSegAndVertex.
+	// Very similar to CConnect::AppendSegAndVertex.
 	if (poly)
 		poly->MustRedraw();
 	corners.Add(c);
 	sides.Add(s);
-	cside *nextSide = after->postSide;
+	CSide *nextSide = after->postSide;
 	after->postSide = s;
 	s->preCorner = after;
 	s->postCorner = c;
@@ -474,26 +474,26 @@ void ccontour::AppendSideAndCorner( cside *s, ccorner *c, ccorner *after )
 		tail = c;
 }
 
-void ccontour::AppendCorner( int x, int y, int style )
+void CContour::AppendCorner( int x, int y, int style )
 {
 	// CPT2 convenience method, basically a wrapper around AppendSideAndCorner()
 	if (poly)
 		poly->MustRedraw();
 	bool bWasEmpty = corners.IsEmpty();
-	ccorner *c = new ccorner(this, x, y);
+	CCorner *c = new CCorner(this, x, y);
 	if (bWasEmpty)
-		// First corner only. ccorner::ccorner has now setup this->head/tail, so we're done
+		// First corner only. CCorner::CCorner has now setup this->head/tail, so we're done
 		return;
-	cside *s = new cside(this, style);
+	CSide *s = new CSide(this, style);
 	AppendSideAndCorner(s, c, tail);
 }
 
-void ccontour::Close(int style)
+void CContour::Close(int style)
 {
 	if (head==tail) return;
 	if (poly)
 		poly->MustRedraw();
-	cside *s = new cside(this, style);
+	CSide *s = new CSide(this, style);
 	s->preCorner = tail;
 	s->postCorner = head;
 	tail->postSide = s;
@@ -501,7 +501,7 @@ void ccontour::Close(int style)
 	tail = head;
 }
 
-void ccontour::Unclose()
+void CContour::Unclose()
 {
 	if (head!=tail || sides.GetSize()<2) return;
 	if (poly)
@@ -512,13 +512,13 @@ void ccontour::Unclose()
 	head->preSide = NULL;
 }
 
-CRect ccontour::GetCornerBounds()
+CRect CContour::GetCornerBounds()
 {
 	CRect r;
 	r.left = r.bottom = INT_MAX;
 	r.right = r.top = INT_MIN;
-	citer<ccorner> ic (&corners);
-	for (ccorner *c = ic.First(); c; c = ic.Next())
+	CIter<CCorner> ic (&corners);
+	for (CCorner *c = ic.First(); c; c = ic.Next())
 	{
 		r.left = min( r.left, c->x );
 		r.right = max( r.right, c->x );
@@ -528,7 +528,7 @@ CRect ccontour::GetCornerBounds()
 	return r;
 }
 
-void ccontour::SetPoly( cpolyline *_poly )
+void CContour::SetPoly( CPolyline *_poly )
 {
 	// CPT2 new.  Reassign this to a different polyline as a secondary contour (used when creating new cutouts).    
 	if (poly)
@@ -539,7 +539,7 @@ void ccontour::SetPoly( cpolyline *_poly )
 	poly->MustRedraw();
 }
 
-void ccontour::Remove()
+void CContour::Remove()
 {
 	poly->MustRedraw();
 	if (this ==  poly->main)
@@ -548,7 +548,7 @@ void ccontour::Remove()
 		poly->contours.Remove(this);
 }
 
-bool ccontour::TestPointInside(int x, int y) 
+bool CContour::TestPointInside(int x, int y) 
 {
 	enum { MAXPTS = 100 };
 	ASSERT( head==tail );
@@ -565,8 +565,8 @@ bool ccontour::TestPointInside(int x, int y)
 	{
 		// now find all intersection points of line with contour sides
 		npts = 0;
-		citer<cside> is (&sides);
-		for (cside *s = is.First(); s; s = is.Next())
+		CIter<CSide> is (&sides);
+		for (CSide *s = is.First(); s; s = is.Next())
 		{
 			double x, y, x2, y2;
 			int ok = FindLineSegmentIntersection( a, slope, 
@@ -606,8 +606,8 @@ bool ccontour::TestPointInside(int x, int y)
 
 
 
-cpolyline::cpolyline(CFreePcbDoc *_doc)
-	: cpcb_item (_doc)
+CPolyline::CPolyline(CFreePcbDoc *_doc)
+	: CPcbItem (_doc)
 { 
 	main = NULL;
 	m_layer = m_w = m_sel_box = m_hatch = m_nhatch = 0;
@@ -615,16 +615,16 @@ cpolyline::cpolyline(CFreePcbDoc *_doc)
 	m_gpc_poly->num_contours = 0;
 }
 
-cpolyline::cpolyline(CFreePcbDoc *_doc, int _uid):
-	cpcb_item(_doc, _uid)
+CPolyline::CPolyline(CFreePcbDoc *_doc, int _uid):
+	CPcbItem(_doc, _uid)
 {
 	main = NULL;
 	m_gpc_poly = new gpc_polygon;
 	m_gpc_poly->num_contours = 0;
 }
 
-cpolyline::cpolyline(cpolyline *src, bool bCopyContours)
-	: cpcb_item (src->doc)
+CPolyline::CPolyline(CPolyline *src, bool bCopyContours)
+	: CPcbItem (src->doc)
 {
 	main = NULL;
 	m_layer = src->m_layer;
@@ -636,28 +636,28 @@ cpolyline::cpolyline(cpolyline *src, bool bCopyContours)
 	m_gpc_poly->num_contours = 0;
 	if (!src->main || !bCopyContours)
 		return;
-	citer<ccontour> ictr (&src->contours);
-	for (ccontour *ctr = ictr.First(); ctr; ctr = ictr.Next())
+	CIter<CContour> ictr (&src->contours);
+	for (CContour *ctr = ictr.First(); ctr; ctr = ictr.Next())
 	{
-		ccontour *ctr2 = new ccontour(this, ctr);
+		CContour *ctr2 = new CContour(this, ctr);
 		contours.Add(ctr2);
 		if (ctr==src->main) 
 			main = ctr2;
 	}
 }
 
-cpolyline::~cpolyline()
+CPolyline::~CPolyline()
 {
 	FreeGpcPoly();
 	delete m_gpc_poly;
 }
 
-void cpolyline::MarkConstituents(int util)
+void CPolyline::MarkConstituents(int util)
 {
 	// Mark the utility flags on this polyline and on its constituent contours, sides, and corners.
 	utility = util;
-	citer<ccontour> ictr (&contours);
-	for (ccontour *ctr = ictr.First(); ctr; ctr = ictr.Next())
+	CIter<CContour> ictr (&contours);
+	for (CContour *ctr = ictr.First(); ctr; ctr = ictr.Next())
 	{
 		ctr->utility = util;
 		ctr->sides.SetUtility(util);
@@ -665,13 +665,13 @@ void cpolyline::MarkConstituents(int util)
 	}
 }
 
-CRect cpolyline::GetCornerBounds()
+CRect CPolyline::GetCornerBounds()
 {
 	CRect r;
 	r.left = r.bottom = INT_MAX;
 	r.right = r.top = INT_MIN;
-	citer<ccontour> ictr (&contours);
-	for (ccontour *ctr = ictr.First(); ctr; ctr = ictr.Next())
+	CIter<CContour> ictr (&contours);
+	for (CContour *ctr = ictr.First(); ctr; ctr = ictr.Next())
 	{
 		CRect r2 = ctr->GetCornerBounds();
 		r.left = min(r.left, r2.left);
@@ -682,7 +682,7 @@ CRect cpolyline::GetCornerBounds()
 	return r;
 }
 
-CRect cpolyline::GetBounds()
+CRect CPolyline::GetBounds()
 {
 	CRect r = GetCornerBounds();
 	r.left -= m_w/2;
@@ -692,37 +692,37 @@ CRect cpolyline::GetBounds()
 	return r;
 }
 
-void cpolyline::Offset(int dx, int dy) 
+void CPolyline::Offset(int dx, int dy) 
 {
-	citer<ccontour> ictr (&contours);
-	for (ccontour *ctr = ictr.First(); ctr; ctr = ictr.Next())
+	CIter<CContour> ictr (&contours);
+	for (CContour *ctr = ictr.First(); ctr; ctr = ictr.Next())
 	{
-		citer<ccorner> ic (&ctr->corners);
-		for (ccorner *c = ic.First(); c; c = ic.Next())
+		CIter<CCorner> ic (&ctr->corners);
+		for (CCorner *c = ic.First(); c; c = ic.Next())
 			c->x += dx,
 			c->y += dy;
 	}
 }
 
-int cpolyline::NumCorners() 
+int CPolyline::NumCorners() 
 {
-	citer<ccontour> ictr (&contours);
+	CIter<CContour> ictr (&contours);
 	int ret = 0;
-	for (ccontour *ctr = ictr.First(); ctr; ctr = ictr.Next())
+	for (CContour *ctr = ictr.First(); ctr; ctr = ictr.Next())
 		ret += ctr->corners.GetSize();
 	return ret;
 }
 
-int cpolyline::NumSides() 
+int CPolyline::NumSides() 
 {
-	citer<ccontour> ictr (&contours);
+	CIter<CContour> ictr (&contours);
 	int ret = 0;
-	for (ccontour *ctr = ictr.First(); ctr; ctr = ictr.Next())
+	for (CContour *ctr = ictr.First(); ctr; ctr = ictr.Next())
 		ret += ctr->sides.GetSize();
 	return ret;
 }
 
-bool cpolyline::SetClosed(bool bClose)
+bool CPolyline::SetClosed(bool bClose)
 {
 	if (contours.GetSize()>1) 
 		return false;
@@ -739,16 +739,16 @@ bool cpolyline::SetClosed(bool bClose)
 	return true;
 }
 
-void cpolyline::Copy(cpolyline *src)
+void CPolyline::Copy(CPolyline *src)
 {
 	// CPT2 new.  Give this polyline copies of the contours found in "src".  Used when copying to the clipboard
 	contours.RemoveAll();
-	citer<ccontour> ictr (&src->contours);
-	for (ccontour *ctr = ictr.First(); ctr; ctr = ictr.Next())
+	CIter<CContour> ictr (&src->contours);
+	for (CContour *ctr = ictr.First(); ctr; ctr = ictr.Next())
 	{
 		if (ctr->NumCorners()<2) continue;
-		ccontour *ctr2 = new ccontour(this, ctr==src->main);
-		ccorner *c = ctr->head;
+		CContour *ctr2 = new CContour(this, ctr==src->main);
+		CCorner *c = ctr->head;
 		ctr2->AppendCorner( c->x, c->y );
 		for (c = c->postSide->postCorner; c!=ctr->tail; c = c->postSide->postCorner)
 			ctr2->AppendCorner( c->x, c->y, c->preSide->m_style );
@@ -757,16 +757,16 @@ void cpolyline::Copy(cpolyline *src)
 	}
 }
 
-void cpolyline::AddSidesTo(carray<cpcb_item> *arr)
+void CPolyline::AddSidesTo(CHeap<CPcbItem> *arr)
 {
 	// CPT2 new.  Append the sides within this polyline to "arr".
-	citer<ccontour> ictr (&contours);
-	for (ccontour *ctr = ictr.First(); ctr; ctr = ictr.Next())
+	CIter<CContour> ictr (&contours);
+	for (CContour *ctr = ictr.First(); ctr; ctr = ictr.Next())
 		// Typecast is surely safe.
-		arr->Add((carray<cpcb_item>*) &ctr->sides);
+		arr->Add((CHeap<CPcbItem>*) &ctr->sides);
 }
 
-bool cpolyline::TestPointInside(int x, int y) 
+bool CPolyline::TestPointInside(int x, int y) 
 {
 	// CPT2 TODO.  Optimize this by caching a bounding rectangle for each area.
 	enum { MAXPTS = 100 };
@@ -784,11 +784,11 @@ bool cpolyline::TestPointInside(int x, int y)
 	{
 		// now find all intersection points of line with polyline sides
 		npts = 0;
-		citer<ccontour> ic (&contours);
-		for (ccontour *c = ic.First(); c; c = ic.Next())
+		CIter<CContour> ic (&contours);
+		for (CContour *c = ic.First(); c; c = ic.Next())
 		{
-			citer<cside> is (&c->sides);
-			for (cside *s = is.First(); s; s = is.Next())
+			CIter<CSide> is (&c->sides);
+			for (CSide *s = is.First(); s; s = is.Next())
 			{
 				double x, y, x2, y2;
 				int ok = FindLineSegmentIntersection( a, slope, 
@@ -827,14 +827,14 @@ bool cpolyline::TestPointInside(int x, int y)
 	return ncount%2 != 0;
 }
 
-void cpolyline::GetSidesInRect( CRect *r, carray<cpcb_item> *arr)
+void CPolyline::GetSidesInRect( CRect *r, CHeap<CPcbItem> *arr)
 {
 	// CPT2 new, helper for CFreePcbView::SelectItemsInRect().
-	citer<ccontour> ictr (&contours);
-	for (ccontour *ctr = ictr.First(); ctr; ctr = ictr.Next())
+	CIter<CContour> ictr (&contours);
+	for (CContour *ctr = ictr.First(); ctr; ctr = ictr.Next())
 	{
-		citer<cside> is (&ctr->sides);
-		for (cside *s = is.First(); s; s = is.Next())
+		CIter<CSide> is (&ctr->sides);
+		for (CSide *s = is.First(); s; s = is.Next())
 		{
 			CPoint pre (s->preCorner->x, s->preCorner->y);
 			CPoint post (s->postCorner->x, s->postCorner->y);
@@ -844,13 +844,13 @@ void cpolyline::GetSidesInRect( CRect *r, carray<cpcb_item> *arr)
 	}
 }
 
-bool cpolyline::IsClosed()
+bool CPolyline::IsClosed()
 {
 	// CPT2.  Trying a new definition of closedness.  Every contour within the polyline must have head equal to tail, and further no contour
 	// can consist of one corner.  This will work decently when user is dragging a new cutout contour and it is still incomplete --- Hatch() will
 	// then consider the polyline open and bail out.
-	citer<ccontour> ictr (&contours);
-	for (ccontour *ctr = ictr.First(); ctr; ctr = ictr.Next())
+	CIter<CContour> ictr (&contours);
+	for (CContour *ctr = ictr.First(); ctr; ctr = ictr.Next())
 		if (ctr->head != ctr->tail || ctr->NumCorners()<2)
 			return false;
 	return true;
@@ -863,7 +863,7 @@ bool cpolyline::IsClosed()
 //	 1 if intersecting sides, but no intersecting arcs
 // Also sets utility flag of area with return value
 //
-int cpolyline::TestPolygon()
+int CPolyline::TestPolygon()
 {	
 	ASSERT(IsClosed());
 
@@ -873,26 +873,26 @@ int cpolyline::TestPolygon()
 	// make bounding rect for each contour.  CPT2 for each contour, store an index into "cr" temporarily in the utility field.
 	CArray<CRect> cr;
 	int i=0;
-	citer<ccontour> ictr (&contours);
-	for (ccontour *ctr = ictr.First(); ctr; ctr = ictr.Next())
+	CIter<CContour> ictr (&contours);
+	for (CContour *ctr = ictr.First(); ctr; ctr = ictr.Next())
 	{
 		CRect r = ctr->GetCornerBounds();
 		cr.Add(r);
 		ctr->utility = i++;
 	}
-	for (ccontour *ctr1 = ictr.First(); ctr1; ctr1 = ictr.Next())
+	for (CContour *ctr1 = ictr.First(); ctr1; ctr1 = ictr.Next())
 	{
-		citer<cside> is1 (&ctr1->sides);
-		for (cside *s1 = is1.First(); s1; s1 = is1.Next())
+		CIter<CSide> is1 (&ctr1->sides);
+		for (CSide *s1 = is1.First(); s1; s1 = is1.Next())
 		{
 			CRect r1 = cr[ctr1->utility];
-			cside *s1prev = s1->preCorner->preSide;
-			cside *s1next = s1->postCorner->postSide;
+			CSide *s1prev = s1->preCorner->preSide;
+			CSide *s1next = s1->postCorner->postSide;
 			int style1 = s1->m_style;
 			int x1i = s1->preCorner->x, y1i = s1->preCorner->y;
 			int x1f = s1->postCorner->x, y1f = s1->postCorner->y;
-			citer<ccontour> ictr2 (&contours, ctr1);
-			for (ccontour *ctr2 = ictr2.Next(); ctr2; ctr2 = ictr2.Next())
+			CIter<CContour> ictr2 (&contours, ctr1);
+			for (CContour *ctr2 = ictr2.Next(); ctr2; ctr2 = ictr2.Next())
 			{
 				CRect r2 = cr[ctr2->utility];
 				if( r1.left > r2.right
@@ -901,8 +901,8 @@ int cpolyline::TestPolygon()
 					|| r2.bottom > r1.top )
 						// rectangles don't overlap, do nothing
 						continue;
-				citer<cside> is2 (&ctr2->sides);
-				for (cside *s2 = is2.First(); s2; s2 = is2.Next())
+				CIter<CSide> is2 (&ctr2->sides);
+				for (CSide *s2 = is2.First(); s2; s2 = is2.Next())
 				{
 					if (s1==s2 || s1prev==s2 || s1next==s2) continue;
 					int style2 = s2->m_style;
@@ -912,7 +912,7 @@ int cpolyline::TestPolygon()
 					if( !ret ) continue;
 					// intersection between non-adjacent sides
 					bInt = TRUE;
-					if( style1 != cpolyline::STRAIGHT || style2 != cpolyline::STRAIGHT )
+					if( style1 != CPolyline::STRAIGHT || style2 != CPolyline::STRAIGHT )
 					{
 						bArcInt = TRUE;
 						goto finish;
@@ -932,7 +932,7 @@ int cpolyline::TestPolygon()
 	return utility;
 }
 
-void cpolyline::Hatch()
+void CPolyline::Hatch()
 {
 	if( m_hatch == NO_HATCH )
 	{
@@ -1002,11 +1002,11 @@ void cpolyline::Hatch()
 		do
 		{
 			npts = 0;
-			citer<ccontour> ictr (&contours);
-			for (ccontour *ctr = ictr.First(); ctr; ctr = ictr.Next())
+			CIter<CContour> ictr (&contours);
+			for (CContour *ctr = ictr.First(); ctr; ctr = ictr.Next())
 			{
-				citer<cside> is (&ctr->sides);
-				for (cside *s = is.First(); s; s = is.Next())
+				CIter<CSide> is (&ctr->sides);
+				for (CSide *s = is.First(); s; s = is.Next())
 				{
 					double x, y, x2, y2;
 					int ok = FindLineSegmentIntersection( a, slope, 
@@ -1065,7 +1065,7 @@ void cpolyline::Hatch()
 			double dx = xx[ip+1] - xx[ip];
 			if( m_hatch == DIAGONAL_FULL || fabs(dx) < 40*NM_PER_MIL )
 			{
-				dl_element * el = dl->Add( this, dl_element::DL_HATCH, m_layer, DL_LINE, 1, 0, 0, 0,
+				CDLElement * el = dl->Add( this, CDLElement::DL_HATCH, m_layer, DL_LINE, 1, 0, 0, 0,
 					xx[ip], yy[ip], xx[ip+1], yy[ip+1], 0, 0 );
 				dl_hatch.SetAtGrow(nhatch, el);
 				nhatch++;
@@ -1082,10 +1082,10 @@ void cpolyline::Hatch()
 				double x2 = xx[ip+1] - dx;
 				double y1 = yy[ip] + dx*slope;
 				double y2 = yy[ip+1] - dx*slope;
-				dl_element * el = dl->Add( this, dl_element::DL_HATCH, m_layer, DL_LINE, 1, 0, 0, 0,
+				CDLElement * el = dl->Add( this, CDLElement::DL_HATCH, m_layer, DL_LINE, 1, 0, 0, 0,
 					xx[ip], yy[ip], x1, y1, 0, 0 );
 				dl_hatch.SetAtGrow(nhatch, el);
-				el = dl->Add( this, dl_element::DL_HATCH, m_layer, DL_LINE, 1, 0, 0, 0, 
+				el = dl->Add( this, CDLElement::DL_HATCH, m_layer, DL_LINE, 1, 0, 0, 0, 
 					xx[ip+1], yy[ip+1], x2, y2, 0, 0 );
 				dl_hatch.SetAtGrow(nhatch+1, el);
 				nhatch += 2;
@@ -1097,7 +1097,7 @@ void cpolyline::Hatch()
 }
 
 
-int cpolyline::Draw()
+int CPolyline::Draw()
 {
 	int i_start_contour = 0;
 	CDisplayList *dl = doc->m_dlist;
@@ -1106,14 +1106,14 @@ int cpolyline::Draw()
 	if (bDrawn) 
 		return ALREADY_DRAWN;
 
-	citer<ccontour> ictr (&contours);
-	for (ccontour *ctr = ictr.First(); ctr; ctr = ictr.Next())
+	CIter<CContour> ictr (&contours);
+	for (CContour *ctr = ictr.First(); ctr; ctr = ictr.Next())
 	{
 		// Draw corner selectors:
 		if( m_sel_box )
 		{
-			citer<ccorner> ic (&ctr->corners);
-			for (ccorner *c = ic.First(); c; c = ic.Next())
+			CIter<CCorner> ic (&ctr->corners);
+			for (CCorner *c = ic.First(); c; c = ic.Next())
 			{
 				int x = c->x, y = c->y;
 				c->dl_sel = dl->AddSelector( c, m_layer, DL_HOLLOW_RECT, 
@@ -1123,10 +1123,10 @@ int cpolyline::Draw()
 		}
 
 		// Draw sides and side selectors
-		citer<cside> is (&ctr->sides);
+		CIter<CSide> is (&ctr->sides);
 		int side_sel_w = IsOutline()? m_w: m_w*4;						// CPT2 For areas, smcutouts, and board-outlines, we want the side selectors to be 
 																		// wider for improved visibility.  But not with fp-editor outlines...
-		for (cside *s = is.First(); s; s = is.Next())
+		for (CSide *s = is.First(); s; s = is.Next())
 		{
 			int xi = s->preCorner->x, yi = s->preCorner->y;
 			int xf = s->postCorner->x, yf = s->postCorner->y;
@@ -1156,23 +1156,23 @@ int cpolyline::Draw()
 
 // undraw polyline by removing all graphic elements from display list
 //
-void cpolyline::Undraw()
+void CPolyline::Undraw()
 {
 	CDisplayList *dl = doc->m_dlist;
 	if (!dl || !IsDrawn()) return;
 
-	citer<ccontour> ictr (&contours);
-	for (ccontour *ctr = ictr.First(); ctr; ctr = ictr.Next())
+	CIter<CContour> ictr (&contours);
+	for (CContour *ctr = ictr.First(); ctr; ctr = ictr.Next())
 	{
-		citer<cside> is (&ctr->sides);
-		for (cside *s = is.First(); s; s = is.Next())
+		CIter<CSide> is (&ctr->sides);
+		for (CSide *s = is.First(); s; s = is.Next())
 		{
 			dl->Remove( s->dl_el );
 			dl->Remove( s->dl_sel );
 			s->dl_el = s->dl_sel = NULL;
 		}
-		citer<ccorner> ic (&ctr->corners);
-		for (ccorner *c = ic.First(); c; c = ic.Next())
+		CIter<CCorner> ic (&ctr->corners);
+		for (CCorner *c = ic.First(); c; c = ic.Next())
 		{
 			dl->Remove( c->dl_sel );
 			c->dl_sel = NULL;
@@ -1188,21 +1188,21 @@ void cpolyline::Undraw()
 	bDrawn = false;
 }
 
-void cpolyline::Highlight()
+void CPolyline::Highlight()
 {
-	citer<ccontour> ic (&contours);
-	for (ccontour *c = ic.First(); c; c = ic.Next())
+	CIter<CContour> ic (&contours);
+	for (CContour *c = ic.First(); c; c = ic.Next())
 		c->Highlight();
 }
 
-void cpolyline::SetVisible( BOOL visible ) 
+void CPolyline::SetVisible( BOOL visible ) 
 {	
 	CDisplayList *dl = doc->m_dlist;
-	citer<ccontour> ictr (&contours);
-	for (ccontour *ctr = ictr.First(); ctr; ctr = ictr.Next())
+	CIter<CContour> ictr (&contours);
+	for (CContour *ctr = ictr.First(); ctr; ctr = ictr.Next())
 	{
-		citer<cside> is (&ctr->sides);
-		for (cside *s = is.First(); s; s = is.Next())
+		CIter<CSide> is (&ctr->sides);
+		for (CSide *s = is.First(); s; s = is.Next())
 			dl->Set_visible( s->dl_el, visible ); 
 	}
 	for( int ih=0; ih<m_nhatch; ih++ )
@@ -1237,7 +1237,7 @@ void TestGpc()
 	gpc_polygon_clip( GPC_UNION, gpc2, gpc, result );
 }
 
-void cpolyline::MakeGpcPoly( ccontour *ctr0, CArray<CArc> * arc_array )
+void CPolyline::MakeGpcPoly( CContour *ctr0, CArray<CArc> * arc_array )
 {
 	// make a gpc_polygon for a closed polyline contour
 	// approximates arcs with multiple straight-line segments
@@ -1261,16 +1261,16 @@ void cpolyline::MakeGpcPoly( ccontour *ctr0, CArray<CArc> * arc_array )
 		arc_array->SetSize(0);
 	int iarc = 0;
 
-	// Create a temporary carray of contours in which the external (main) contour is guaranteed to come first:
-	carray<ccontour> tmp;
+	// Create a temporary CHeap of contours in which the external (main) contour is guaranteed to come first:
+	CHeap<CContour> tmp;
 	tmp.Add(main);
-	citer<ccontour> ictr0 (&contours);
-	for (ccontour *ctr = ictr0.First(); ctr; ctr = ictr0.Next())
+	CIter<CContour> ictr0 (&contours);
+	for (CContour *ctr = ictr0.First(); ctr; ctr = ictr0.Next())
 		if (ctr!=main)
 			tmp.Add(ctr);
 	// Now go thru the contours in the preferred order.
-	citer<ccontour> ictr (&tmp);
-	for (ccontour *ctr = ictr.First(); ctr; ctr = ictr.Next())
+	CIter<CContour> ictr (&tmp);
+	for (CContour *ctr = ictr.First(); ctr; ctr = ictr.Next())
 	{
 		if (ctr0 && ctr!=ctr0) 
 			continue;
@@ -1283,8 +1283,8 @@ void cpolyline::MakeGpcPoly( ccontour *ctr0, CArray<CArc> * arc_array )
 		ASSERT( ctr->sides.GetSize()>0 );
 		// first, calculate number of vertices in contour (including extra vertices inserted into arcs)
 		int n_vertices = 0;
-		citer<cside> is (&ctr->sides);
-		for (cside *s = is.First(); s; s = is.Next())
+		CIter<CSide> is (&ctr->sides);
+		for (CSide *s = is.First(); s; s = is.Next())
 		{
 			if (s->m_style == STRAIGHT)
 				n_vertices++;
@@ -1306,7 +1306,7 @@ void cpolyline::MakeGpcPoly( ccontour *ctr0, CArray<CArc> * arc_array )
 		g_v_list->vertex = (gpc_vertex*)calloc( sizeof(gpc_vertex), n_vertices );
 		g_v_list->num_vertices = n_vertices;
 		int ivtx = 0;
-		ccorner *c = ctr->head;
+		CCorner *c = ctr->head;
 		do
 		{
 			int style = c->postSide->m_style;
@@ -1326,7 +1326,7 @@ void cpolyline::MakeGpcPoly( ccontour *ctr0, CArray<CArc> * arc_array )
 				double xo, yo, theta1, theta2, a, b;
 				a = fabs( (double)(x1 - x2) );
 				b = fabs( (double)(y1 - y2) );
-				if( style == cpolyline::ARC_CW )
+				if( style == CPolyline::ARC_CW )
 				{
 					// clockwise arc (ie.quadrant of ellipse)
 					int i=0, j=0;
@@ -1445,7 +1445,7 @@ void cpolyline::MakeGpcPoly( ccontour *ctr0, CArray<CArc> * arc_array )
 	}
 }
 
-void cpolyline::FreeGpcPoly()
+void CPolyline::FreeGpcPoly()
 {
 	if( m_gpc_poly->num_contours )
 	{
@@ -1456,14 +1456,14 @@ void cpolyline::FreeGpcPoly()
 	m_gpc_poly->num_contours = 0;
 }
 
-void cpolyline::NormalizeWithGpc( bool bRetainArcs )
+void CPolyline::NormalizeWithGpc( bool bRetainArcs )
 {
 	// Use the General Polygon Clipping Library to clip "this"
-	// If this results in new polygons, create them (invoke cpolyline::CreateCompatible(), which
+	// If this results in new polygons, create them (invoke CPolyline::CreateCompatible(), which
 	// will attach the same net/membership-list as "this").
 	// If bRetainArcs == TRUE, try to retain arcs in polys
 	// CPT2 converted.  NB does not do any drawing/undrawing.  TODO perhaps one day it would be nice to
-	// figure out a way to generalize this to any type of cpolyline.
+	// figure out a way to generalize this to any type of CPolyline.
 	CArray<CArc> arc_array;
 	if( bRetainArcs )
 		MakeGpcPoly( NULL, &arc_array );
@@ -1471,13 +1471,13 @@ void cpolyline::NormalizeWithGpc( bool bRetainArcs )
 		MakeGpcPoly( NULL, NULL );
 
 	// now, recreate poly
-	// first, find outside contours and create new carea2's if necessary
+	// first, find outside contours and create new CArea's if necessary
 	int n_ext_cont = 0;
-	carray<cpolyline> arr;
+	CHeap<CPolyline> arr;
 	for( int ic=0; ic<m_gpc_poly->num_contours; ic++ )
 	{
 		if( m_gpc_poly->hole[ic] ) continue;
-		cpolyline *poly;
+		CPolyline *poly;
 		n_ext_cont++;
 		if( n_ext_cont == 1 )
 			poly = this,
@@ -1487,15 +1487,15 @@ void cpolyline::NormalizeWithGpc( bool bRetainArcs )
 			poly = CreateCompatible(),
 			poly->MustRedraw(),
 			arr.Add(poly);
-		ccontour *ctr = new ccontour(poly, true);						// NB the new contour will be poly->main
+		CContour *ctr = new CContour(poly, true);						// NB the new contour will be poly->main
 		for( int i=0; i<m_gpc_poly->contour[ic].num_vertices; i++ )
 		{
 			int x = m_gpc_poly->contour[ic].vertex[i].x;
 			int y = m_gpc_poly->contour[ic].vertex[i].y;
-			ccorner *c = new ccorner(ctr, x, y);						// Constructor adds corner to ctr->corners and will also set ctr->head/tail
+			CCorner *c = new CCorner(ctr, x, y);						// Constructor adds corner to ctr->corners and will also set ctr->head/tail
 			if (i>0)
 			{
-				cside *s = new cside(ctr, STRAIGHT);
+				CSide *s = new CSide(ctr, STRAIGHT);
 				ctr->AppendSideAndCorner(s, c, ctr->tail);
 			}
 		}
@@ -1503,12 +1503,12 @@ void cpolyline::NormalizeWithGpc( bool bRetainArcs )
 		}
 
 	// now add cutouts to the cpolylines
-	citer<cpolyline> ip (&arr);
+	CIter<CPolyline> ip (&arr);
 	for( int ic=0; ic<m_gpc_poly->num_contours; ic++ ) 
 	{
 		if( !m_gpc_poly->hole[ic] ) continue;
 		// Find external poly containing this cutout.
-		cpolyline *ext_poly = NULL;
+		CPolyline *ext_poly = NULL;
 		if( n_ext_cont == 1 )
 			ext_poly = this;
 		else
@@ -1520,21 +1520,21 @@ void cpolyline::NormalizeWithGpc( bool bRetainArcs )
 				if( TestPointInside( x, y ) )
 					ext_poly = this;
 				else
-					for( cpolyline *poly = ip.First(); poly; poly = ip.Next() )
+					for( CPolyline *poly = ip.First(); poly; poly = ip.Next() )
 						if( poly->TestPointInside( x, y ) )
 							{ ext_poly = poly; break; }
 			}
 		ASSERT( ext_poly );
 
-		ccontour *ctr = new ccontour(ext_poly, false);						// NB the new contour will not be the main one
+		CContour *ctr = new CContour(ext_poly, false);						// NB the new contour will not be the main one
 		for( int i=0; i<m_gpc_poly->contour[ic].num_vertices; i++ )
 		{
 			int x = m_gpc_poly->contour[ic].vertex[i].x;
 			int y = m_gpc_poly->contour[ic].vertex[i].y;
-			ccorner *c = new ccorner(ctr, x, y);							// Constructor adds corner to ctr->corners; on iteration 0 it sets ctr->head/tail
+			CCorner *c = new CCorner(ctr, x, y);							// Constructor adds corner to ctr->corners; on iteration 0 it sets ctr->head/tail
 			if (i>0)
 			{
-				cside *s = new cside(ctr, STRAIGHT);
+				CSide *s = new CSide(ctr, STRAIGHT);
 				ctr->AppendSideAndCorner(s, c, ctr->tail);
 			}
 		}
@@ -1545,7 +1545,7 @@ void cpolyline::NormalizeWithGpc( bool bRetainArcs )
 	FreeGpcPoly();
 }
 
-int cpolyline::TestIntersection( cpolyline *poly2, bool bCheckArcIntersections )
+int CPolyline::TestIntersection( CPolyline *poly2, bool bCheckArcIntersections )
 {
 	// Test for intersection of 2 copper areas
 	// returns: 0 if no intersection
@@ -1555,7 +1555,7 @@ int cpolyline::TestIntersection( cpolyline *poly2, bool bCheckArcIntersections )
 	// TODO I don't think this will work if poly2 is totally within this.  We might consider using 
 	//   the CMyBitmap class, or gpc?
 	// First see if polygons are on same layer
-	cpolyline *poly1 = this;
+	CPolyline *poly1 = this;
 	if( poly1->GetLayer() != poly2->GetLayer() )
 		return 0;
 
@@ -1571,20 +1571,20 @@ int cpolyline::TestIntersection( cpolyline *poly2, bool bCheckArcIntersections )
 	// now test for intersecting segments
 	BOOL bInt = FALSE;
 	BOOL bArcInt = FALSE;
-	citer<ccontour> ictr1 (&poly1->contours);
-	for (ccontour *ctr1 = ictr1.First(); ctr1; ctr1 = ictr1.Next())
+	CIter<CContour> ictr1 (&poly1->contours);
+	for (CContour *ctr1 = ictr1.First(); ctr1; ctr1 = ictr1.Next())
 	{
-		citer<cside> is1 (&ctr1->sides);
-		for (cside *s1 = is1.First(); s1; s1 = is1.Next())
+		CIter<CSide> is1 (&ctr1->sides);
+		for (CSide *s1 = is1.First(); s1; s1 = is1.Next())
 		{
 			int xi1 = s1->preCorner->x, yi1 = s1->preCorner->y;
 			int xf1 = s1->postCorner->x, yf1 = s1->postCorner->y;
 			int style1 = s1->m_style;
-			citer<ccontour> ictr2 (&poly2->contours);
-			for (ccontour *ctr2 = ictr2.First(); ctr2; ctr2 = ictr2.Next())
+			CIter<CContour> ictr2 (&poly2->contours);
+			for (CContour *ctr2 = ictr2.First(); ctr2; ctr2 = ictr2.Next())
 			{
-				citer<cside> is2 (&ctr2->sides);
-				for (cside *s2 = is2.First(); s2; s2 = is2.Next())
+				CIter<CSide> is2 (&ctr2->sides);
+				for (CSide *s2 = is2.First(); s2; s2 = is2.Next())
 				{
 					int xi2 = s2->preCorner->x, yi2 = s2->preCorner->y;
 					int xf2 = s2->postCorner->x, yf2 = s2->postCorner->y;
@@ -1596,7 +1596,7 @@ int cpolyline::TestIntersection( cpolyline *poly2, bool bCheckArcIntersections )
 						bInt = TRUE;
 						if (!bCheckArcIntersections)
 							return 1;
-						if( style1 != cpolyline::STRAIGHT || style2 != cpolyline::STRAIGHT )
+						if( style1 != CPolyline::STRAIGHT || style2 != CPolyline::STRAIGHT )
 							return 2;
 						break;
 					}
@@ -1611,14 +1611,14 @@ int cpolyline::TestIntersection( cpolyline *poly2, bool bCheckArcIntersections )
 	return 1;
 }
 
-bool cpolyline::TestIntersections()
+bool CPolyline::TestIntersections()
 {
 	// CPT2.  Generalizes old CNetList::TestAreaIntersections().  Returns true if "this" intersects any other polyline of the same type + layer.
-	// Invokes cpolyline::TestIntersection() with bTestArcIntersections set to false for efficiency.
-	carray<cpolyline> ia;
+	// Invokes CPolyline::TestIntersection() with bTestArcIntersections set to false for efficiency.
+	CHeap<CPolyline> ia;
 	GetCompatiblePolylines(&ia);
-	citer<cpolyline> ip (&ia);
-	for (cpolyline *p = ip.First(); p; p = ip.Next())
+	CIter<CPolyline> ip (&ia);
+	for (CPolyline *p = ip.First(); p; p = ip.Next())
 	{
 		if (p==this) continue;
 		if (TestIntersection(p, false)) return true;
@@ -1626,13 +1626,13 @@ bool cpolyline::TestIntersections()
 	return false;
 }
 
-int cpolyline::CombinePolyline( cpolyline *poly2 )
+int CPolyline::CombinePolyline( CPolyline *poly2 )
 {
 	// CPT2. Adapted from CNetList::CombineAreas.  Unions "poly2" onto "this" polyline.  Does not deal with the removal of poly2 from the net in
 	// the case that this and poly2 are copper areas:
 	// that's the caller's job.  Assumes that the intersection check has already taken place.
 	// Returns 1 if we actually combine 'em, or 0 in the unusual cases where they're actually disjoint.
-	cpolyline * poly1 = this;
+	CPolyline * poly1 = this;
 	CArray<CArc> arc_array1;
 	CArray<CArc> arc_array2;
 	poly1->MakeGpcPoly( NULL, &arc_array1 );
@@ -1670,16 +1670,16 @@ int cpolyline::CombinePolyline( cpolyline *poly2 )
 	contours.RemoveAll();
 	for( int ic=0; ic<union_gpc->num_contours; ic++ )
 	{
-		ccontour *ctr = new ccontour(this, !union_gpc->hole[ic]);		// NB the new contour will be this->main if the current gpc contour is a non-hole
+		CContour *ctr = new CContour(this, !union_gpc->hole[ic]);		// NB the new contour will be this->main if the current gpc contour is a non-hole
 		for( int i=0; i<union_gpc->contour[ic].num_vertices; i++ )
 		{
 			int x = union_gpc->contour[ic].vertex[i].x;
 			int y = union_gpc->contour[ic].vertex[i].y;
-			ccorner *c = new ccorner(ctr, x, y);			// Constructor adds corner to ctr->corners (and may also set ctr->head/tail if
+			CCorner *c = new CCorner(ctr, x, y);			// Constructor adds corner to ctr->corners (and may also set ctr->head/tail if
 															// it was previously empty)
 			if (i>0)
 			{
-				cside *s = new cside(ctr, STRAIGHT);
+				CSide *s = new CSide(ctr, STRAIGHT);
 				ctr->AppendSideAndCorner(s, c, ctr->tail);
 			}
 		}
@@ -1694,7 +1694,7 @@ int cpolyline::CombinePolyline( cpolyline *poly2 )
 	return 1;
 }
 
-int cpolyline::ClipPolygon( bool bMessageBoxArc, bool bMessageBoxInt, bool bRetainArcs )
+int CPolyline::ClipPolygon( bool bMessageBoxArc, bool bMessageBoxInt, bool bRetainArcs )
 {	
 	// Process a polyline that has been modified, by clipping its polygon against itself.
 	// This may change the number of polylines in the parent list.
@@ -1741,7 +1741,7 @@ int cpolyline::ClipPolygon( bool bMessageBoxArc, bool bMessageBoxInt, bool bReta
 	return test;
 }
 
-void cpolyline::CombinePolylines( carray<cpolyline> *pa, BOOL bMessageBox )
+void CPolyline::CombinePolylines( CHeap<CPolyline> *pa, BOOL bMessageBox )
 {
 	// Static function; checks all polylines in "pa" for intersections, combining them if found
 	// CPT2 NB trying it out without the old bUseUtility param
@@ -1751,20 +1751,20 @@ void cpolyline::CombinePolylines( carray<cpolyline> *pa, BOOL bMessageBox )
 	if (pa->GetSize()<2) return;
 
 	// start by testing all polylines to set utility flags.
-	citer<cpolyline> ip (pa);
-	for (cpolyline *p = ip.First(); p; p = ip.Next())
+	CIter<CPolyline> ip (pa);
+	for (CPolyline *p = ip.First(); p; p = ip.Next())
 		p->TestPolygon();
 	// now loop through all combinations
 	BOOL message_shown = FALSE, mod_p1;											
-	citer<cpolyline> ip1 (pa);
-	for (cpolyline *p1 = ip1.First(); p1; p1 = ip1.Next())
+	CIter<CPolyline> ip1 (pa);
+	for (CPolyline *p1 = ip1.First(); p1; p1 = ip1.Next())
 	{
 		do {
 			CRect b1 = p1->GetCornerBounds();
 			mod_p1 = FALSE;
-			citer<cpolyline> ip2 (pa, p1);
+			CIter<CPolyline> ip2 (pa, p1);
 			ip2.Next();														// Advance to polyline AFTER p1.
-			for (cpolyline *p2 = ip2.Next(); p2; p2 = ip2.Next())
+			for (CPolyline *p2 = ip2.Next(); p2; p2 = ip2.Next())
 			{
 				// if (p1->GetLayer() != p2->GetLayer()) continue;			// Should be safe to omit this check (pa was set up to contain polys all on one layer)
 				if (p1->utility == -1 || p2->utility == -1) continue;
@@ -1811,7 +1811,7 @@ void cpolyline::CombinePolylines( carray<cpolyline> *pa, BOOL bMessageBox )
 }
 
 
-bool cpolyline::PolygonModified( bool bMessageBoxArc, bool bMessageBoxInt )
+bool CPolyline::PolygonModified( bool bMessageBoxArc, bool bMessageBoxInt )
 {	
 	// Process a polyline that has been modified, by clipping its polygon against
 	// itself and the polygons for any other areas on the same net.
@@ -1833,10 +1833,10 @@ bool cpolyline::PolygonModified( bool bMessageBoxArc, bool bMessageBoxInt )
 		BOOL bCheckAllAreas = test==1 || TestIntersections();
 		if( bCheckAllAreas )
 		{
-			carray<cpolyline> arr;
+			CHeap<CPolyline> arr;
 			GetCompatiblePolylines( &arr );
-			citer<cpolyline> ip (&arr);
-			for (cpolyline *poly = ip.First(); poly; poly = ip.Next())
+			CIter<CPolyline> ip (&arr);
+			for (CPolyline *poly = ip.First(); poly; poly = ip.Next())
 				poly->SaveUndoInfo();
 			CombinePolylines( &arr, bMessageBoxInt );
 		}
@@ -1846,12 +1846,12 @@ bool cpolyline::PolygonModified( bool bMessageBoxArc, bool bMessageBoxInt )
 	return true;
 }
 
-void cpolyline::RestoreArcs( CArray<CArc> *arc_array, carray<cpolyline> *pa )
+void CPolyline::RestoreArcs( CArray<CArc> *arc_array, CHeap<CPolyline> *pa )
 {
 	// Restore arcs to a polygon where they were replaced with steps
 	// If pa != NULL, also use polygons in pa array
 	// CPT2 converted.
-	carray<cpolyline> pa2;
+	CHeap<CPolyline> pa2;
 	pa2.Add(this);
 	if (pa)
 		pa2.Add(pa);
@@ -1868,21 +1868,21 @@ void cpolyline::RestoreArcs( CArray<CArc> *arc_array, carray<cpolyline> *pa )
 		int arc_yf = (*arc_array)[iarc].yf;
 		int n_steps = (*arc_array)[iarc].n_steps;
 		int style = (*arc_array)[iarc].style;
-		ccorner *arc_start = NULL, *arc_end = NULL;
+		CCorner *arc_start = NULL, *arc_end = NULL;
 		// loop through polys
-		citer<cpolyline> ip (&pa2);
-		for (cpolyline *p = ip.First(); p; p = ip.Next())
+		CIter<CPolyline> ip (&pa2);
+		for (CPolyline *p = ip.First(); p; p = ip.Next())
 		{
-			citer<ccontour> ictr (&p->contours);
-			for (ccontour *ctr = ictr.First(); ctr; ctr = ictr.Next())
+			CIter<CContour> ictr (&p->contours);
+			for (CContour *ctr = ictr.First(); ctr; ctr = ictr.Next())
 			{
 				if (ctr->corners.GetSize() <= n_steps) continue;
-				citer<ccorner> ic (&ctr->corners);
-				for (ccorner *c = ic.First(); c; c = ic.Next())
+				CIter<CCorner> ic (&ctr->corners);
+				for (CCorner *c = ic.First(); c; c = ic.Next())
 				{
 					if (c->x != arc_xi || c->y != arc_yi) continue;
 					// Check if we find a corner at location (arc_xf,arc_yf), either n_steps positions forward from c or n_steps positions back
-					ccorner *c2 = c;
+					CCorner *c2 = c;
 					for (int i=0; i<n_steps; i++)
 						c2 = c2->postSide->postCorner;
 					if (c2->x == arc_xf && c2->y == arc_yf) 
@@ -1906,15 +1906,15 @@ void cpolyline::RestoreArcs( CArray<CArc> *arc_array, carray<cpolyline> *pa )
 
 		arc_found:
 		(*arc_array)[iarc].bFound = TRUE;											// Necessary?
-		ccontour *ctr = arc_start->contour;
+		CContour *ctr = arc_start->contour;
 		ctr->poly->MustRedraw();
-		for (ccorner *c = arc_start; c != arc_end; c = c->postSide->postCorner)
+		for (CCorner *c = arc_start; c != arc_end; c = c->postSide->postCorner)
 		{
 			if (c != arc_start) 
 				ctr->corners.Remove(c);
 			ctr->sides.Remove(c->postSide);
 		}
-		cside *new_side = new cside(ctr, style);
+		CSide *new_side = new CSide(ctr, style);
 		arc_start->postSide = new_side;
 		new_side->preCorner = arc_start;
 		arc_end->preSide = new_side;
@@ -1928,8 +1928,8 @@ void cpolyline::RestoreArcs( CArray<CArc> *arc_array, carray<cpolyline> *pa )
 
 
 
-carea2::carea2(cnet2 *_net, int _layer, int _hatch, int _w, int _sel_box)
-	: cpolyline(_net->doc)
+CArea::CArea(CNet *_net, int _layer, int _hatch, int _w, int _sel_box)
+	: CPolyline(_net->doc)
 { 
 	m_layer = _layer;
 	m_hatch = _hatch;
@@ -1939,34 +1939,34 @@ carea2::carea2(cnet2 *_net, int _layer, int _hatch, int _w, int _sel_box)
 	m_sel_box = _sel_box;
 }
 
-carea2::carea2(CFreePcbDoc *_doc, int _uid):
-	cpolyline(_doc, _uid)
+CArea::CArea(CFreePcbDoc *_doc, int _uid):
+	CPolyline(_doc, _uid)
 {
 	m_net = NULL;
 }
 
-bool carea2::IsOnPcb()
+bool CArea::IsOnPcb()
 {
 	if (!m_net->IsOnPcb()) return false;
 	return m_net->areas.Contains(this);
 }
 
-void carea2::SaveUndoInfo()
+void CArea::SaveUndoInfo()
 {
-	doc->m_undo_items.Add( new cuarea(this) );
-	citer<ccontour> ictr (&contours);
-	for (ccontour *ctr = ictr.First(); ctr; ctr = ictr.Next())
+	doc->m_undo_items.Add( new CUArea(this) );
+	CIter<CContour> ictr (&contours);
+	for (CContour *ctr = ictr.First(); ctr; ctr = ictr.Next())
 		ctr->SaveUndoInfo();
 }
 
-int carea2::Draw()
+int CArea::Draw()
 {
 	if (!m_net->bVisible)
 		return NOERR;
-	return cpolyline::Draw();
+	return CPolyline::Draw();
 }
 
-void carea2::Remove()
+void CArea::Remove()
 {
 	// CPT2. User wants to delete area, so detach it from the network (garbage collector will later delete this object and its
 	// constituents for good).
@@ -1975,7 +1975,7 @@ void carea2::Remove()
 	m_net->SetThermals();
 }
 
-void carea2::SetNet( cnet2 *net )
+void CArea::SetNet( CNet *net )
 {
 	// CPT2 new.  Assign this area to the given net.  Does not deal with potential changes to thermals.
 	if (m_net) 
@@ -1984,24 +1984,24 @@ void carea2::SetNet( cnet2 *net )
 	m_net->areas.Add(this);
 }
 
-void carea2::GetCompatiblePolylines( carray<cpolyline> *arr )
+void CArea::GetCompatiblePolylines( CHeap<CPolyline> *arr )
 {
-	// CPT2 new.  Virtual function in class cpolyline.  The idea is to put into "arr" all other polylines that might potentially be merged with
+	// CPT2 new.  Virtual function in class CPolyline.  The idea is to put into "arr" all other polylines that might potentially be merged with
 	// "this", in the event that they intersect.  For areas, this will be all the areas in the same net that are in the same layer.
-	citer<carea2> ia (&m_net->areas);
-	for (carea2 *a = ia.First(); a; a = ia.Next())
+	CIter<CArea> ia (&m_net->areas);
+	for (CArea *a = ia.First(); a; a = ia.Next())
 		if (a->m_layer == m_layer)
 			arr->Add(a);
 }
 
-cpolyline *carea2::CreateCompatible() 
-	// CPT2 new.  Virtual function in class cpolyline.  Returns a new polyline of the same specs as this (but with an empty contour array)
-	{ return new carea2(m_net, m_layer, m_hatch, m_w, m_sel_box); }
+CPolyline *CArea::CreateCompatible() 
+	// CPT2 new.  Virtual function in class CPolyline.  Returns a new polyline of the same specs as this (but with an empty contour array)
+	{ return new CArea(m_net, m_layer, m_hatch, m_w, m_sel_box); }
 
 
 
-csmcutout::csmcutout(CFreePcbDoc *_doc, int layer, int hatch)
-	: cpolyline(_doc)
+CSmCutout::CSmCutout(CFreePcbDoc *_doc, int layer, int hatch)
+	: CPolyline(_doc)
 { 
 	doc->smcutouts.Add(this); 
 	m_layer = layer; 
@@ -2010,83 +2010,83 @@ csmcutout::csmcutout(CFreePcbDoc *_doc, int layer, int hatch)
 	m_hatch = hatch;
 }
 
-csmcutout::csmcutout(CFreePcbDoc *_doc, int _uid):
-	cpolyline(_doc, _uid)
+CSmCutout::CSmCutout(CFreePcbDoc *_doc, int _uid):
+	CPolyline(_doc, _uid)
 	{ }
 
-bool csmcutout::IsOnPcb()
+bool CSmCutout::IsOnPcb()
 	{ return doc->smcutouts.Contains(this); }
 
-void csmcutout::SaveUndoInfo()
+void CSmCutout::SaveUndoInfo()
 {
-	doc->m_undo_items.Add( new cusmcutout(this) );
-	citer<ccontour> ictr (&contours);
-	for (ccontour *ctr = ictr.First(); ctr; ctr = ictr.Next())
+	doc->m_undo_items.Add( new CUSmCutout(this) );
+	CIter<CContour> ictr (&contours);
+	for (CContour *ctr = ictr.First(); ctr; ctr = ictr.Next())
 		ctr->SaveUndoInfo();
 }
 
-void csmcutout::GetCompatiblePolylines( carray<cpolyline> *arr )
+void CSmCutout::GetCompatiblePolylines( CHeap<CPolyline> *arr )
 {
-	// CPT2 new.  Virtual function in class cpolyline.  The idea is to put into "arr" all other polylines that might potentially be merged with
+	// CPT2 new.  Virtual function in class CPolyline.  The idea is to put into "arr" all other polylines that might potentially be merged with
 	// "this", in the event that they intersect.  For smcutouts, this will be all the smc's in the doc in the same layer.
-	citer<csmcutout> ism (&doc->smcutouts);
-	for (csmcutout *sm = ism.First(); sm; sm = ism.Next())
+	CIter<CSmCutout> ism (&doc->smcutouts);
+	for (CSmCutout *sm = ism.First(); sm; sm = ism.Next())
 		if (sm->m_layer == m_layer)
 			arr->Add(sm);
 }
 
-cpolyline *csmcutout::CreateCompatible() 
-	// CPT2 new.  Virtual function in class cpolyline.  Returns a new polyline of the same specs as this (but with an empty contour array)
-	{ return new csmcutout(doc, m_layer, m_hatch); }
+CPolyline *CSmCutout::CreateCompatible() 
+	// CPT2 new.  Virtual function in class CPolyline.  Returns a new polyline of the same specs as this (but with an empty contour array)
+	{ return new CSmCutout(doc, m_layer, m_hatch); }
 
 
-void csmcutout::Remove()
+void CSmCutout::Remove()
 {
 	Undraw();
 	doc->smcutouts.Remove(this);
 }
 
 
-cboard::cboard(CFreePcbDoc *_doc) 
-	: cpolyline(_doc)
+CBoard::CBoard(CFreePcbDoc *_doc) 
+	: CPolyline(_doc)
 { 
 	doc->boards.Add(this);
 	m_layer = LAY_BOARD_OUTLINE; 
 	m_w = 2*NM_PER_MIL;
 	m_sel_box = 10*NM_PER_MIL;
-	m_hatch = cpolyline::NO_HATCH;
+	m_hatch = CPolyline::NO_HATCH;
 }
 
-cboard::cboard(CFreePcbDoc *_doc, int _uid):
-	cpolyline(_doc, _uid)
+CBoard::CBoard(CFreePcbDoc *_doc, int _uid):
+	CPolyline(_doc, _uid)
 	{ }
 
-bool cboard::IsOnPcb()
+bool CBoard::IsOnPcb()
 	{ return doc->boards.Contains(this); }
 
-void cboard::SaveUndoInfo()
+void CBoard::SaveUndoInfo()
 {
-	doc->m_undo_items.Add( new cuboard(this) );
-	citer<ccontour> ictr (&contours);
-	for (ccontour *ctr = ictr.First(); ctr; ctr = ictr.Next())
+	doc->m_undo_items.Add( new CUBoard(this) );
+	CIter<CContour> ictr (&contours);
+	for (CContour *ctr = ictr.First(); ctr; ctr = ictr.Next())
 		ctr->SaveUndoInfo();
 }
 
-void cboard::Remove()
+void CBoard::Remove()
 {
 	Undraw();
 	doc->boards.Remove(this);
 }
 
-void cboard::GetCompatiblePolylines( carray<cpolyline> *arr )
-	// CPT2 new.  Virtual function in class cpolyline.  For class cboard, this function is only useful (as far as I am aware)
+void CBoard::GetCompatiblePolylines( CHeap<CPolyline> *arr )
+	// CPT2 new.  Virtual function in class CPolyline.  For class CBoard, this function is only useful (as far as I am aware)
 	// as a subroutine within CFreePcbView::TryToReselectCorner().  Therefore it should suffice to do the following, though 
 	// theoretically we could scan through doc->others and retrieve all other board outlines as well.
 	{ arr->Add(this); }
 
 
-coutline::coutline(cshape *_shape, int layer, int w)
-	: cpolyline (_shape->doc)
+COutline::COutline(CShape *_shape, int layer, int w)
+	: CPolyline (_shape->doc)
 {
 	m_layer = layer;
 	m_w = w;
@@ -2094,27 +2094,27 @@ coutline::coutline(cshape *_shape, int layer, int w)
 	shape->m_outlines.Add(this);
 }
 
-coutline::coutline(coutline *src, cshape *_shape)
-	: cpolyline(src) 
+COutline::COutline(COutline *src, CShape *_shape)
+	: CPolyline(src) 
 { 
 	shape = _shape;
 	shape->m_outlines.Add(this);
 }
 
-bool coutline::IsOnPcb() 
+bool COutline::IsOnPcb() 
 {
 	return shape->IsOnPcb() && shape->m_outlines.Contains(this);
 }
 
-cpolyline *coutline::CreateCompatible() 
-	// CPT2 new.  Virtual function in class cpolyline.  Returns a new polyline of the same specs as this (but with an empty contour array)
-	{ return new coutline(shape, m_layer, m_w); }
+CPolyline *COutline::CreateCompatible() 
+	// CPT2 new.  Virtual function in class CPolyline.  Returns a new polyline of the same specs as this (but with an empty contour array)
+	{ return new COutline(shape, m_layer, m_w); }
 
-void coutline::SaveUndoInfo()
+void COutline::SaveUndoInfo()
 {
-	doc->m_undo_items.Add( new cuoutline(this) );
-	citer<ccontour> ictr (&contours);
-	for (ccontour *ctr = ictr.First(); ctr; ctr = ictr.Next())
+	doc->m_undo_items.Add( new CUOutline(this) );
+	CIter<CContour> ictr (&contours);
+	for (CContour *ctr = ictr.First(); ctr; ctr = ictr.Next())
 		ctr->SaveUndoInfo();
 }
 

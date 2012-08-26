@@ -11,7 +11,7 @@ class CDlgWizQuad : public CDialog
 public:
 	CDlgWizQuad(CWnd* pParent = NULL);   // standard constructor
 	virtual ~CDlgWizQuad();
-	void Initialize( cshapelist *cache_shapes,
+	void Initialize( CShapeList *cache_shapes,
 					 CFootLibFolderMap * footlibfoldermap, 
 					 BOOL enable_save,
 					 CDlgLog * log );
@@ -21,7 +21,7 @@ public:
 	enum { IDD = IDD_WIZ_QUAD };
 
 
-	cshape *m_footprint;
+	CShape *m_footprint;
 	CString m_str_name;
 
 protected:
@@ -32,7 +32,7 @@ private:
 	enum{ ROUND, SQUARE, SQ1, OCTAGON, RECT, nliECT, OVAL, NONE };
 	enum{ TOP_CENTER, BOTTOM_LEFT, TOP_LEFT };
 	enum{ SIP, DIP, QUAD, HDR1, HDR2, BGA, EDGE, EDGE2 };
-	cshapelist * m_cache_shapes;
+	CShapeList * m_cache_shapes;
 	CFootLibFolderMap * m_footlibfoldermap;
 	void FormatDimensionString( CString * str, int dim, int units );
 	void ReviseDependentVariables();

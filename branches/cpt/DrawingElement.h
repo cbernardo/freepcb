@@ -7,18 +7,18 @@
 
 struct CDrawInfo;
 class CDisplayList;
-class cpcb_item;
+class CPcbItem;
 
 // this structure contains an element of the display list
 // CPT:  no longer derived from CDLinkList.
-class dl_element
+class CDLElement
 {
 	friend class CDisplayList;
 	friend class CDisplayLayer;
 
 public:
 	int magic;
-	cpcb_item *item;												// CPT2.
+	CPcbItem *item;												// CPT2.
 	int usage;														// CPT2. A given pcb-item may have various types of drawing-elements associated
 																	// with it (e.g. most have a main element and a selector;  parts have ref and value 
 																	// elements, etc.)
@@ -43,11 +43,11 @@ public:										// CPT2: was protected, causing pains in my tail.  Maybe change
 	int orig_layer;   // for elements on highlight layer,
 	                  // the original layer, the highlight will
 	                  // only be drawn if this layer is visible
-	dl_element *prev, *next;			// CPT.  I'm phasing out references to CDLinkList, and am implementing the linked lists this way.
+	CDLElement *prev, *next;			// CPT.  I'm phasing out references to CDLinkList, and am implementing the linked lists this way.
 	CDisplayLayer *displayLayer;		// CPT
 
 
-	dl_element();
+	CDLElement();
 
 	// CPT: reworked the following 6 declarations a bit:
 	void Draw(CDrawInfo &di);
@@ -69,7 +69,7 @@ protected:
 };
 
 // n-sided with equal length sides
-class CDLE_Symmetric : public dl_element
+class CDLE_Symmetric : public CDLElement
 {
 protected:
     int onScreen(void) ;
@@ -77,7 +77,7 @@ protected:
 };
 
 // rectangular
-class CDLE_Rectangular : public dl_element
+class CDLE_Rectangular : public CDLElement
 {
 protected:
     int onScreen(void) ;
