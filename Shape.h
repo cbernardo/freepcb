@@ -93,21 +93,21 @@ public:
 class cpadstack: public cpcb_item
 {
 public:
-	CString name;		// identifier such as "1" or "B24"
-	int hole_size;		// 0 = no hole (i.e SMT)
-	int x_rel, y_rel;	// position relative to part origin
-	int angle;			// orientation: 0=left, 90=top, 180=right, 270=bottom
+	CString name;					// identifier such as "1" or "B24"
+	int hole_size;					// 0 = no hole (i.e SMT)
+	int x_rel, y_rel;				// position relative to part origin
+	int angle;						// orientation: 0=left, 90=top, 180=right, 270=bottom
 	cpad top, top_mask, top_paste;
 	cpad bottom, bottom_mask, bottom_paste;
 	cpad inner;
-	cshape *shape;		// CPT2 new
-	BOOL exists;		// only used when converting Ivex footprints or editing
+	cshape *shape;					// CPT2 new
+	BOOL exists;					// only used when converting Ivex footprints or editing
 
 	cpadstack(cshape *_shape);
 	cpadstack(cpadstack *src, cshape *_shape);
 	cpadstack(CFreePcbDoc *_doc, int _uid);
 
-	virtual bool IsOnPcb();								// CPT2 done in cpp.
+	virtual bool IsOnPcb();
 	bool IsPadstack() { return true; }
 	cpadstack *ToPadstack() { return this; }
 	int GetTypeBit() { return bitPadstack; }
@@ -115,7 +115,7 @@ public:
 		{ return new cupadstack(this); }
 
 	bool SameAs(cpadstack *ps);
-	CRect GetBounds();							// CPT2 done in cpp, derived from old CShape::GetPadBounds
+	CRect GetBounds();
 	void Highlight();
 	void Copy(cpadstack *src, bool bCopyName=true);
 };
@@ -182,24 +182,25 @@ class cshape: public cpcb_item
 {
 	// if variables are added, remember to modify Copy!
 public:
-	enum { MAX_NAME_SIZE = 59 };	// max. characters
+	enum { MAX_NAME_SIZE = 59 };
 	enum { MAX_PIN_NAME_SIZE = 39 };
 	enum { MAX_VALUE_SIZE = 39 };
 
-	CString m_name;			// name of shape (e.g. "DIP20")
+	CString m_name;										// name of shape (e.g. "DIP20")
 	CString m_author;
 	CString m_source;
 	CString m_desc;
-	int m_units;			// units used for original definition (MM, NM or MIL)
+	int m_units;										// units used for original definition (MM, NM or MIL)
 	int m_sel_xi, m_sel_yi, m_sel_xf, m_sel_yf;			// selection rectangle
-	// CPT2.  Reorganizing:  change m_ref and m_value to type ctext*, and get rid of m_ref_size, m_ref_xi, etc. (use m_ref->xi, etc., instead)
+	// CPT2.  Reorganizing:  change m_ref and m_value to type creftext*/cvaluetext*, and 
+	// get rid of m_ref_size, m_ref_xi, etc. (use m_ref->xi, etc., instead)
 	creftext *m_ref;	
 	cvaluetext *m_value;
 	ccentroid *m_centroid;
-	carray<cpadstack> m_padstacks;		// array of padstacks for shape.  CPT2: was CArray<padstack>.
-	carray<coutline> m_outlines;		// CPT2: was CArray<CPolyLine>.
-	ctextlist *m_tl;					// CPT2.  Used to be CTextList*
-	carray<cglue> m_glues;				// array of adhesive dots.  CPT2 converted from old type (CArray<glue>)
+	carray<cpadstack> m_padstacks;						// array of padstacks for shape.  CPT2: was CArray<padstack>.
+	carray<coutline> m_outlines;						// CPT2: was CArray<CPolyLine>.
+	ctextlist *m_tl;
+	carray<cglue> m_glues;								// array of adhesive dots.  CPT2 converted from old type (CArray<glue>)
 
 public:
 	cshape( CFreePcbDoc *doc );
@@ -222,30 +223,30 @@ public:
 	int MakeFromFile( CStdioFile * in_file, CString name, CString file_path, int pos );
 	int WriteFootprint( CStdioFile * file );
 	int GetNumPins();
-	cpadstack *GetPadstackByName (CString *name);			// CPT2
+	cpadstack *GetPadstackByName (CString *name);					// CPT2
 	CRect GetBounds( BOOL bIncludeLineWidths=TRUE );
 	CRect GetCornerBounds();
-	// CRect GetPadRowBounds( int i, int num );				// CPT2 TODO figure out
 	CPoint GetDefaultCentroid();
 	CRect GetAllPadBounds();
-	void Copy( cshape * src );	// copy all data from shape.
-	bool SameAs( cshape * shape );	// compare shapes, return true if same
+	void Copy( cshape * src );										// copy all data from shape.
+	bool SameAs( cshape * shape );									// compare shapes, return true if same
 	HENHMETAFILE CreateMetafile( CMetaFileDC * mfDC, CDC * pDC, CRect const &window, 
 		CString ref = "REF", int bDrawSelectionRect=1 );
 	void GenerateValueParams();	
 	
-	int Draw();													// CPT2 removed args.
+	int Draw();														// CPT2 removed args.
 	void Undraw();
-	void StartDraggingPadRow( CDC * pDC, carray<cpadstack> *row );	// CPT2 converted (arg change)
+	void StartDraggingPadRow( CDC * pDC, carray<cpadstack> *row );
 	void CancelDraggingPadRow( carray<cpadstack> *row );			// CPT2 converted (new arg)
 	void ShiftToInsertPadName( CString * astr, int n );				// CPT2 converted
-	bool GenerateSelectionRectangle( CRect * r );					// Done in cpp
+	bool GenerateSelectionRectangle( CRect * r );
 };
 
 class cshapelist
 {
 	// CPT2 r335 new.  A list of cshapes, analogous to cpartlist, cnetlist, ctextlist.  An object of this type will take the place
-	// of CFreePcbDoc::m_footprint_cache_map.  For now the searching for footprints by name is probably less efficient than it was with
+	// of CFreePcbDoc::m_footprint_cache_map, under the name m_slist.  For now the searching for footprints by name is probably less 
+	// efficient than it was with
 	// the old CMapStringToPtr, but I can't imagine it being a big bottleneck.  (If it's essential more efficient searching can be 
 	// grafted into this class later.)
 public:

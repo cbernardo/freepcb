@@ -525,7 +525,6 @@ BEGIN
         MENUITEM SEPARATOR
         MENUITEM "Edit Area Params",            ID_AREAEDGE_EDITAREA
         MENUITEM "Add Similar Area",            ID_AREAEDGE_ADDNEWAREA
-        MENUITEM "Apply Clearances",            ID_AREAEDGE_APPLYCLEARANCES
         MENUITEM SEPARATOR
         MENUITEM "Exclude Region",              ID_POLYSIDE_EXCLUDEREGION
         MENUITEM "Remove Contour",              ID_POLYSIDE_REMOVECONTOUR
@@ -4229,7 +4228,7 @@ END
 
 STRINGTABLE
 BEGIN
-    IDS_AppName             "CPT2.13"
+    IDS_AppName             "CPT2.14"
 END
 
 STRINGTABLE

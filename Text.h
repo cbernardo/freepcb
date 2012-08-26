@@ -40,37 +40,35 @@ public:
 		int _stroke_width, SMFontUtil *_smfontutil, CString * _str );
 	ctext(CFreePcbDoc *_doc, int _uid);
 
-	virtual bool IsOnPcb();																// Done in cpp
+	virtual bool IsOnPcb();
 	bool IsText() { return true; }
 	ctext *ToText() { return this; }
 	int GetTypeBit() { return bitText; }
-	int GetLayer();																// Done in cpp:  NB now takes into account the side of any containing part
+	int GetLayer();																// NB now takes into account the side of any containing part
 	cundo_item *MakeUndoItem()
 		{ return new cutext(this); }
 	cpart2 *GetPart() { return m_part; }
 
-	void Init( CDisplayList * dlist, int x, int y, int angle,					// TODO: rethink relationship with constructor. Removed tid arg.
+	void Init( CDisplayList * dlist, int x, int y, int angle,
 		int mirror, BOOL bNegative, int layer, int font_size, 
 		int stroke_width, SMFontUtil * smfontutil, CString * str_ptr );
-	void Copy(ctext *src);																				// CPT2 new, done in cpp.
-	void Move( int x, int y, int angle, BOOL mirror, BOOL negative, int layer, int size=-1, int w=-1 );		// Done in cpp
-	void Move( int x, int y, int angle, int size=-1, int w=-1);										// Done in cpp
-	void Resize( int size, int w );																	// Done in cpp
-	void MoveRelative( int _x, int _y, int _angle=-1, int _size=-1, int _w=-1 );					// Used for reftexts and valuetexts. Done in cpp
-	CPoint GetAbsolutePoint();																		// Done in cpp.  Gets absolute position for reftexts and valuetexts.
-	CRect GetRect();																				// Done in cpp
+	void Copy(ctext *src);
+	void Move( int x, int y, int angle, BOOL mirror, BOOL negative, int layer, int size=-1, int w=-1 );
+	void Move( int x, int y, int angle, int size=-1, int w=-1);
+	void Resize( int size, int w );						
+	void MoveRelative( int _x, int _y, int _angle=-1, int _size=-1, int _w=-1 );					// Used for reftexts and valuetexts
+	CPoint GetAbsolutePoint();																		// Gets absolute position for reftexts and valuetexts.
+	CRect GetRect();
 
-	// void Draw( CDisplayList * dlist, SMFontUtil * smfontutil );				// CPT2.  Probably dispensible
 	void GenerateStrokes();														// CPT2 new.  Helper for Draw().
-	int Draw();																	// Done in cpp
+	int Draw();
 	void GenerateStrokesRelativeTo( cpart2 *p );								// CPT2 new.  Helper for DrawRelativeTo().
-	int DrawRelativeTo( cpart2 *p, bool bSelector=true );						// CPT2 new.  Done in cpp
-	void Undraw();																// Done in cpp
-	void Highlight();															// Done in cpp
-	void SetVisible(bool bVis);													// Done in cpp
-	void StartDragging( CDC * pDC );											// Done in cpp, derived from CTextList::StartDraggingText
-	void CancelDragging();														// Done in cpp, derived from CTextList::CancelDraggingText
-	// void GetBounds( CRect &br );												// CPT2.  Use new m_br
+	int DrawRelativeTo( cpart2 *p, bool bSelector=true );						// CPT2 new.
+	void Undraw();
+	void Highlight();
+	void SetVisible(bool bVis);
+	void StartDragging( CDC * pDC );
+	void CancelDragging();
 };
 
 class creftext: public ctext
@@ -78,13 +76,13 @@ class creftext: public ctext
 public:
 	creftext( cpart2 *_part, int x, int y, int angle, 
 		BOOL bMirror, BOOL bNegative, int layer, int font_size, 
-		int stroke_width, SMFontUtil * smfontutil, CString * str_ptr, bool bShown );			// Done in cpp
+		int stroke_width, SMFontUtil * smfontutil, CString * str_ptr, bool bShown );
 	creftext( CFreePcbDoc *doc, int x, int y, int angle, 
 		BOOL bMirror, BOOL bNegative, int layer, int font_size, 
-		int stroke_width, SMFontUtil * smfontutil, CString * str_ptr, bool bShown );			// Done in cpp
+		int stroke_width, SMFontUtil * smfontutil, CString * str_ptr, bool bShown );
 	creftext(CFreePcbDoc *_doc, int _uid);
 
-	virtual bool IsOnPcb();																				// Done in cpp
+	virtual bool IsOnPcb();
 	bool IsRefText() { return true; }
 	creftext *ToRefText() { return this; }
 	int GetTypeBit() { return bitRefText; }
@@ -99,13 +97,13 @@ class cvaluetext: public ctext
 public:
 	cvaluetext( cpart2 *_part, int x, int y, int angle, 
 		BOOL bMirror, BOOL bNegative, int layer, int font_size, 
-		int stroke_width, SMFontUtil * smfontutil, CString * str_ptr, bool bShown );			// Done in cpp
+		int stroke_width, SMFontUtil * smfontutil, CString * str_ptr, bool bShown );
 	cvaluetext( CFreePcbDoc *doc, int x, int y, int angle, 
 		BOOL bMirror, BOOL bNegative, int layer, int font_size, 
 		int stroke_width, SMFontUtil * smfontutil, CString * str_ptr, bool bShown );
 	cvaluetext(CFreePcbDoc *_doc, int _uid);
 
-	virtual bool IsOnPcb();																				// Done in cpp
+	virtual bool IsOnPcb();
 	bool IsValueText() { return true; }
 	cvaluetext *ToValueText() { return this; }
 	int GetTypeBit() { return bitValueText; }
@@ -131,10 +129,10 @@ public:
 	ctext * AddText( int x, int y, int angle, bool bMirror, 
 					bool bNegative,	int layer, 
 					int font_size, int stroke_width, CString * str_ptr, cpart2 *part = NULL, cshape *shape = NULL );
-	void ReadTexts( CStdioFile * file );							// Done in cpp
-	void WriteTexts( CStdioFile * file );							// Done in cpp
-	void MoveOrigin( int dx, int dy );								// Done in cpp
-	BOOL GetTextBoundaries( CRect * r );							// Done in cpp
+	void ReadTexts( CStdioFile * file );
+	void WriteTexts( CStdioFile * file );
+	void MoveOrigin( int dx, int dy );
+	BOOL GetTextBoundaries( CRect * r );
 	void ReassignCopperLayers( int n_new_layers, int * layer );
 };
 

@@ -360,8 +360,6 @@ void CFreePcbDoc::OnFileNew()
 
 		// set options from dialog
 		m_num_copper_layers = dlg.GetNumCopperLayers();
-		m_plist->SetNumCopperLayers( m_num_copper_layers );
-		m_nlist->SetNumCopperLayers( m_num_copper_layers );
 		m_nlist->SetSMTconnect( m_bSMT_copper_connect );
 		m_num_layers = m_num_copper_layers + LAY_TOP_COPPER;
 		m_trace_w = dlg.GetTraceWidth();
@@ -599,8 +597,6 @@ BOOL CFreePcbDoc::FileOpen( LPCTSTR fn, BOOL bLibrary )
 			CArray<CString> p;
 
 			ReadOptions( &pcb_file );
-			m_plist->SetPinAnnularRing( m_annular_ring_pins );
-			m_nlist->SetViaAnnularRing( m_annular_ring_vias );
 			m_slist->ReadShapes( &pcb_file );
 			ReadBoardOutline( &pcb_file );
 			ReadSolderMaskCutouts( &pcb_file );
@@ -1440,8 +1436,6 @@ void CFreePcbDoc::ReadOptions( CStdioFile * pcb_file )
 			else if( np && key_str == "n_copper_layers" )
 			{
 				m_num_copper_layers = my_atoi( &p[0] );
-				m_plist->SetNumCopperLayers( m_num_copper_layers );
-				m_nlist->SetNumCopperLayers( m_num_copper_layers );
 				m_num_layers = m_num_copper_layers + LAY_TOP_COPPER;
 			}
 			else if( np && key_str == "autosave_interval" )
@@ -1942,8 +1936,6 @@ void CFreePcbDoc::InitializeNewProject()
 	m_pcb_filename = "";
 	m_pcb_full_path = "";
 	m_num_copper_layers = 4;
-	m_plist->SetNumCopperLayers( m_num_copper_layers );
-	m_nlist->SetNumCopperLayers( m_num_copper_layers );
 	m_nlist->SetSMTconnect( m_bSMT_copper_connect );
 	m_num_layers = m_num_copper_layers + LAY_TOP_COPPER;
 	m_auto_ratline_disable = FALSE;
@@ -2160,8 +2152,6 @@ void CFreePcbDoc::InitializeNewProject()
 			throw err_str;
 		}
 	}
-	m_plist->SetPinAnnularRing( m_annular_ring_pins );
-	m_nlist->SetViaAnnularRing( m_annular_ring_vias );
 }
 
 // Call this function whenever a user operation is finished,
@@ -3337,8 +3327,6 @@ void CFreePcbDoc::OnFileGenerateCadFiles()
 		m_hole_clearance = dlg.m_hole_clearance;
 		m_annular_ring_pins = dlg.m_annular_ring_pins;
 		m_annular_ring_vias = dlg.m_annular_ring_vias;
-		m_plist->SetPinAnnularRing( m_annular_ring_pins );
-		m_nlist->SetViaAnnularRing( m_annular_ring_vias );
 		m_paste_shrink = dlg.m_paste_shrink;
 		m_cam_flags = dlg.m_flags;
 		m_cam_layers = dlg.m_layers;
@@ -3418,8 +3406,6 @@ void CFreePcbDoc::OnProjectOptions()
 		m_num_copper_layers = dlg.GetNumCopperLayers();
 		m_num_layers = m_num_copper_layers + LAY_TOP_COPPER;
 	}
-	m_nlist->SetNumCopperLayers( m_num_copper_layers );
-	m_plist->SetNumCopperLayers( m_num_copper_layers );
 
 	m_name = dlg.GetName();
 	m_lib_dir = dlg.GetLibFolder();							// CPT added (not sure why it wasn't there before...)
@@ -5298,28 +5284,16 @@ void CFreePcbDoc::DRCConnect(cconnect2 *c, int units, DesignRules *dr)
 	{
 		if (!vtx->via_w) 
 			continue;
-		// via present
-		c->vias_present = TRUE;
-		int min_via_w = INT_MAX;				// minimum via pad diameter
-		int max_via_w = INT_MIN;				// maximum via_pad diameter
-		int hole_w;								// CPT2 added (we may as well use the returned hole value from GetViaPadInfo(), which is the same for all layers)
-		int dia = vtx->via_w + 20*NM_PER_MIL;	// Diameter for displayed dre circles, should any be generated
-		// CPT2 TODO The following computation of max_via_w and min_via_w seems like a charade:
-		for( int layer = LAY_TOP_COPPER; layer < num_layers; layer++ )
-		{
-			int test, pad_w;
-			vtx->GetViaPadInfo( layer, &pad_w, &hole_w, &test );
-			if( pad_w > 0 )
-				min_via_w = min( min_via_w, pad_w );
-			max_via_w = max( max_via_w, pad_w );
-		}
-		if( max_via_w == 0 )
-			ASSERT(0);										// CPT2 TODO I'm getting this sometimes!
-		c->min_x = min( c->min_x, vtx->x - max_via_w/2 );
-		c->max_x = max( c->max_x, vtx->x + max_via_w/2 );
-		c->min_y = min( c->min_y, vtx->y - max_via_w/2 );
-		c->max_y = max( c->max_y, vtx->y + max_via_w/2 );
-		int d = (min_via_w - hole_w)/2;
+		// via present.  CPT2 old code had a complex way of checking via-widths on each layer, but the results were never different from the
+		// following.  (Are there plans one day for vias with custom widths on _each layer_?)
+		int hole_w = vtx->tee? vtx->tee->via_hole_w: vtx->via_hole_w;
+		int via_w = vtx->tee? vtx->tee->via_w: vtx->via_w;
+		int dia = vtx->via_w + 20*NM_PER_MIL;					// Diameter for displayed dre circles, should any be generated
+		c->min_x = min( c->min_x, vtx->x - via_w/2 );
+		c->max_x = max( c->max_x, vtx->x + via_w/2 );
+		c->min_y = min( c->min_y, vtx->y - via_w/2 );
+		c->max_y = max( c->max_y, vtx->y + via_w/2 );
+		int d = (via_w - hole_w)/2;
 		if( d < dr->annular_ring_vias )
 		{
 			// RING_VIA
@@ -5345,7 +5319,7 @@ void CFreePcbDoc::DRCConnect(cconnect2 *c, int units, DesignRules *dr)
 				if (bs->m_style != cpolyline::STRAIGHT )
 					continue;
 				int d = ::GetClearanceBetweenLineSegmentAndPad( bx1, by1, bx2, by2, 0,
-					PAD_ROUND, vtx->x, vtx->y, max_via_w, 0, 0 );
+					PAD_ROUND, vtx->x, vtx->y, via_w, 0, 0 );
 				if( d < dr->board_edge_copper )
 				{
 					// BOARDEDGE_VIA error

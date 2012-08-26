@@ -435,7 +435,7 @@ int cvertex2::Draw()
 	// draw via if via_w > 0
 	if( via_w )
 	{
-		int n_layers = nl->GetNumCopperLayers();
+		int n_layers = doc->m_num_copper_layers;
 		dl_els.SetSize( n_layers );
 		for( int il=0; il<n_layers; il++ )
 		{
@@ -578,7 +578,7 @@ void cvertex2::GetViaPadInfo( int layer, int * pad_w, int * pad_hole_w, int * co
 	if (con_stat == VIA_NO_CONNECT)
 		w = 0;
 	if( layer > LAY_BOTTOM_COPPER && w > 0 )
-		w = hole_w + 2*doc->m_nlist->m_annular_ring;
+		w = hole_w + 2*doc->m_annular_ring_vias;
 
 	if( pad_w )
 		*pad_w = w;
@@ -618,6 +618,9 @@ ctee::ctee(CFreePcbDoc *_doc, int _uid):
 {
 	dl_hole = dl_thermal = NULL;
 }
+
+bool ctee::IsOnPcb() 
+	{ return vtxs.GetSize()>0 && vtxs.First()->IsOnPcb(); }
 
 int ctee::GetLayer()
 {
@@ -821,7 +824,7 @@ int ctee::Draw()
 	// draw via if via_w > 0
 	if( via_w )
 	{
-		int n_layers = nl->GetNumCopperLayers();
+		int n_layers = doc->m_num_copper_layers;
 		dl_els.SetSize( n_layers );
 		for( int il=0; il<n_layers; il++ )
 		{
@@ -2823,6 +2826,20 @@ void cnetlist::ReadNets( CStdioFile * pcb_file, double read_version, int * layer
 
 					c->AppendSegAndVertex(seg, v, c->tail);
 
+					if (v->tee && is!=nsegs-1)
+					{
+						// CPT2.  Deal with old file versions, where there can be tees mid-connect.  Start a new connect object...
+						cconnect2 *c2 = new cconnect2(net);
+						cvertex2 *v2 = new cvertex2(c2, v->x, v->y);
+						v2->force_via_flag = v->force_via_flag;
+						v2->via_w = v->via_w;
+						v2->via_hole_w = v->via_hole_w;
+						v2->tee = v->tee;
+						v->tee->vtxs.Add(v2);
+						c2->Start(v2);
+						c = c2;
+					}
+
 					/** this code is for bug in versions before 1.313. CPT2 TODO:  Figure it out
 					if( force_via_flag )
 					{
@@ -2832,39 +2849,7 @@ void cnetlist::ReadNets( CStdioFile * pcb_file, double read_version, int * layer
 							ForceVia( net, ic, is+1 );
 					}
 					*/
-
-					/* CPT2.  Don't get.  I'm just assigning the width values for v during this very iteration (above)
-					if( is != 0 )
-					{
-						// set widths of preceding vertex
-						net->connect[ic]->vtx[is].via_w = pre_via_w;
-						net->connect[ic]->vtx[is].via_hole_w = pre_via_hole_w;
-					}
-					pre_via_w = via_w;
-					pre_via_hole_w = via_hole_w;
-					*/
 				}
-
-				/* CPT2 TODO
-				// connection created
-				// if older version of fpc file, split at tees if needed
-				if( read_version < 1.360 )
-				{
-					cconnect * c = net->ConByIndex( ic );
-					// iterate through vertices in reverse
-					for( int iv=c->NumVtxs()-2; iv>0; iv-- )
-					{
-						cvertex * v = &c->VtxByIndex( iv );
-						if( v->tee_ID )
-						{
-							// split into 2 connections
-							net->SplitConnectAtVtx( v->Id() );
-							nconnects++;
-							ic++;
-						}
-					}
-				}
-				*/
 			} // end for(ic)
 
 			for( int ia=0; ia<nareas; ia++ )
@@ -2924,6 +2909,10 @@ void cnetlist::ReadNets( CStdioFile * pcb_file, double read_version, int * layer
 			for (carea2 *a = ia.First(); a; a = ia.Next())
 				if (a->main->corners.GetSize() < 3)
 					a->Remove();
+
+			citer<ctee> it (&net->tees);
+			for (ctee *t = it.First(); t; t = it.Next())
+				t->ReconcileVia();
 			
 			net->SetThermals();
 			net->MustRedraw();
@@ -3637,7 +3626,8 @@ void cnetlist::ReassignCopperLayers( int n_new_layers, int * layer )
 {
 	// reassign copper elements to new layers
 	// enter with layer[] = table of new copper layers for each old copper layer
-	if( m_layers < 1 || m_layers > 16 )
+	int nLayers = m_doc->m_num_copper_layers;
+	if( nLayers < 1 || nLayers > 16 )
 		ASSERT(0);
 	citer<cnet2> in (&nets);
 	for (cnet2 *net = in.First(); net; net = in.Next())
@@ -3687,6 +3677,5 @@ void cnetlist::ReassignCopperLayers( int n_new_layers, int * layer )
 				a->PolygonModified(false, false);
 		}
 	}
-	m_layers = n_new_layers;
 }
 
