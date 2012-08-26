@@ -1,5 +1,5 @@
-// Text.cpp --- source file for classes related most closely to text, many of which are descendants of cpcb_item:
-//  ctext, creftext, cvaluetext, ctextlist
+// Text.cpp --- source file for classes related most closely to text, many of which are descendants of CPcbItem:
+//  CText, CRefText, CValueText, CTextList
 
 #include "stdafx.h"
 #include <math.h>
@@ -10,10 +10,10 @@
 #include "FreePcbDoc.h"
 
 
-ctext::ctext( CFreePcbDoc *_doc, int _x, int _y, int _angle, 
+CText::CText( CFreePcbDoc *_doc, int _x, int _y, int _angle, 
 	BOOL _bMirror, BOOL _bNegative, int _layer, int _font_size, 
-	int _stroke_width, SMFontUtil *_smfontutil, CString * _str )			// CPT2 Removed selType/selSubtype args.  Will use derived creftext and cvaluetext
-	: cpcb_item (_doc)														// classes in place of this business.
+	int _stroke_width, SMFontUtil *_smfontutil, CString * _str )			// CPT2 Removed selType/selSubtype args.  Will use derived CRefText and CValueText
+	: CPcbItem (_doc)														// classes in place of this business.
 {
 	m_x = _x, m_y = _y;
 	m_angle = _angle;
@@ -28,8 +28,8 @@ ctext::ctext( CFreePcbDoc *_doc, int _x, int _y, int _angle,
 	m_shape = NULL;
 }
 
-ctext::ctext(CFreePcbDoc *_doc, int _uid):
-	cpcb_item(_doc, _uid)
+CText::CText(CFreePcbDoc *_doc, int _uid):
+	CPcbItem(_doc, _uid)
 { 
 	m_smfontutil = NULL;
 	m_part = NULL;
@@ -37,7 +37,7 @@ ctext::ctext(CFreePcbDoc *_doc, int _uid):
 }
 
 
-bool ctext::IsOnPcb() 
+bool CText::IsOnPcb() 
 {
 	if (m_shape)
 		return m_shape->IsOnPcb() && m_shape->m_tl->texts.Contains(this);
@@ -47,7 +47,7 @@ bool ctext::IsOnPcb()
 		return doc->m_tlist->texts.Contains(this); 
 }
 
-int ctext::GetLayer()
+int CText::GetLayer()
 {
 	// CPT2.  Now takes into account the possibility that there's a containing part on the bottom side.
 	int layer = m_layer;
@@ -59,7 +59,7 @@ int ctext::GetLayer()
 	return layer;
 }
 
-void ctext::Copy( ctext *src )
+void CText::Copy( CText *src )
 {
 	// CPT2 new.  Copy the contents of "src" into "this".  Includes the "m_part" and "m_shape" members (caller might want to override that)
 	MustRedraw();
@@ -78,7 +78,7 @@ void ctext::Copy( ctext *src )
 	m_shape = src->m_shape;
 }
 
-void ctext::Move( int x, int y, int angle, BOOL mirror, BOOL negative, int layer, int size, int w )
+void CText::Move( int x, int y, int angle, BOOL mirror, BOOL negative, int layer, int size, int w )
 {
 	MustRedraw();
 	m_x = x;
@@ -91,21 +91,21 @@ void ctext::Move( int x, int y, int angle, BOOL mirror, BOOL negative, int layer
 	if (w>=0) m_stroke_width = w;
 }
 
-void ctext::Move(int x, int y, int angle, int size, int w) 
+void CText::Move(int x, int y, int angle, int size, int w) 
 	// CPT:  extra version of Move(); appropriate for ref and value-texts, where the layer, mirroring, and negation don't change.
 	// NB DrawRelativeTo() will take care of automatic mirroring for ref and value-texts that wind up on the bottom layers.
 	{ Move(x, y, angle, false, false, m_layer, size, w); }
 
-void ctext::Resize(int size, int w)
+void CText::Resize(int size, int w)
 	{ Move (m_x, m_y, m_angle, m_bMirror, m_bNegative, m_layer, size, w); }
 
-void ctext::MoveRelative( int _x, int _y, int _angle, int _size, int _w )
+void CText::MoveRelative( int _x, int _y, int _angle, int _size, int _w )
 {
 	// CPT2 used for moving ref and value texts, whose coordinate values are relative to the parent part.
 	// _x and _y are in absolute world coords.
 	// angle is relative to part angle.  (Change? It's a bit confusing.)  "_angle", "_size", and "_w" are now -1 by default (=> no change)
 	// get position of new text box origin relative to part
-	cpart2 * part = GetPart();
+	CPart * part = GetPart();
 	CPoint part_org, tb_org;
 	tb_org.x = _x - part->x;
 	tb_org.y = _y - part->y;
@@ -129,10 +129,10 @@ void ctext::MoveRelative( int _x, int _y, int _angle, int _size, int _w )
 		m_stroke_width = _w;
 }
 
-CPoint ctext::GetAbsolutePoint()
+CPoint CText::GetAbsolutePoint()
 {
 	// CPT2.  Used for reftexts and valuetexts, whose absolute position is computed relative to the parent part.
-	cpart2 *part = GetPart();
+	CPart *part = GetPart();
 	CPoint pt;
 
 	// move origin of text box to position relative to part
@@ -148,14 +148,14 @@ CPoint ctext::GetAbsolutePoint()
 	return pt;
 }
 
-CRect ctext::GetRect()
+CRect CText::GetRect()
 {
 	// CPT2 utility.  Get bounding rectangle.  If this is a reftext or valuetext, the result is relative to the parent part.
 	GenerateStrokes();
 	return m_br;
 }
 
-void ctext::GenerateStrokes() {
+void CText::GenerateStrokes() {
 	// CPT2 new.  Helper for Draw(), though it might also be called independently of drawing.
 	// Generate strokes and put them in m_stroke.  Also setup the bounding rectangle member m_br.
 	// TODO consider caching
@@ -252,7 +252,7 @@ void ctext::GenerateStrokes() {
 	m_br.top = ymax + m_stroke_width/2;
 }
 
-void ctext::GenerateStrokesRelativeTo(cpart2 *part) {
+void CText::GenerateStrokesRelativeTo(CPart *part) {
 	// CPT2 new.  Helper for DrawRelativeTo(), though it might also be called independently of drawing.
 	// Somewhat descended from the old GenerateStrokesFromPartString() in PartList.cpp.
 	// Used for texts (including reftexts and valuetexts) whose position is relative to "part".
@@ -379,7 +379,7 @@ void ctext::GenerateStrokesRelativeTo(cpart2 *part) {
 }
 
 
-int ctext::Draw() 
+int CText::Draw() 
 {
 	// CPT2 TODO.  Deal with drawing negative text.
 	CDisplayList *dl = doc->m_dlist;
@@ -404,7 +404,7 @@ int ctext::Draw()
 	return NOERR;
 }
 
-int ctext::DrawRelativeTo(cpart2 *part, bool bSelector) 
+int CText::DrawRelativeTo(CPart *part, bool bSelector) 
 {
 	CDisplayList *dl = doc->m_dlist;
 	if( !dl )
@@ -431,7 +431,7 @@ int ctext::DrawRelativeTo(cpart2 *part, bool bSelector)
 	return NOERR;
 }
 
-void ctext::Undraw()
+void CText::Undraw()
 {
 	CDisplayList *dl = doc->m_dlist;
 	if( !dl || !IsDrawn() ) return;
@@ -445,7 +445,7 @@ void ctext::Undraw()
 	bDrawn = false;
 }
 
-void ctext::Highlight()
+void CText::Highlight()
 {
 	CDisplayList *dl = doc->m_dlist;
 	if (!dl) return;
@@ -454,13 +454,13 @@ void ctext::Highlight()
 		dl->Get_xf(dl_sel), dl->Get_yf(dl_sel), 1 );
 }
 
-void ctext::SetVisible(bool bVis)
+void CText::SetVisible(bool bVis)
 {
 	for( int is=0; is<m_stroke.GetSize(); is++ )
 		m_stroke[is].dl_el->visible = bVis;
 }
 
-void ctext::StartDragging( CDC * pDC )
+void CText::StartDragging( CDC * pDC )
 {
 	// CPT2 derived from CTextList::StartDraggingText
 	SetVisible(false);
@@ -473,7 +473,7 @@ void ctext::StartDragging( CDC * pDC )
 		0, LAY_SELECTION );
 }
 
-void ctext::CancelDragging()
+void CText::CancelDragging()
 {
 	// CPT2 derived from CTextList::CancelDraggingText
 	doc->m_dlist->StopDragging();
@@ -481,50 +481,50 @@ void ctext::CancelDragging()
 }
 
 
-creftext::creftext( cpart2 *part, int x, int y, int angle, 
+CRefText::CRefText( CPart *part, int x, int y, int angle, 
 	BOOL bMirror, BOOL bNegative, int layer, int font_size, 
 	int stroke_width, SMFontUtil * smfontutil, CString * str_ptr, bool bShown ) :
-		ctext(part->doc, x, y, angle, bMirror, bNegative, layer, font_size,
+		CText(part->doc, x, y, angle, bMirror, bNegative, layer, font_size,
 			stroke_width, smfontutil, str_ptr) 
 		{ m_part = part; m_bShown = bShown; }
 
-creftext::creftext( CFreePcbDoc *doc, int x, int y, int angle, 
+CRefText::CRefText( CFreePcbDoc *doc, int x, int y, int angle, 
 	BOOL bMirror, BOOL bNegative, int layer, int font_size, 
 	int stroke_width, SMFontUtil * smfontutil, CString * str_ptr, bool bShown ) :
-		ctext(doc, x, y, angle, bMirror, bNegative, layer, font_size,
+		CText(doc, x, y, angle, bMirror, bNegative, layer, font_size,
 			stroke_width, smfontutil, str_ptr) 
 		{ m_part = NULL; m_bShown = bShown; }
-creftext::creftext(CFreePcbDoc *_doc, int _uid):
-	ctext(_doc, _uid)
+CRefText::CRefText(CFreePcbDoc *_doc, int _uid):
+	CText(_doc, _uid)
 		{ m_part = NULL; }
 
 
-bool creftext::IsOnPcb() 
+bool CRefText::IsOnPcb() 
 {
 	if (m_shape)
 		return m_shape->IsOnPcb() && m_shape->m_ref == this;
 	return m_part && m_part->IsOnPcb() && m_part->m_ref == this; 
 }
 
-cvaluetext::cvaluetext( cpart2 *part, int x, int y, int angle, 
+CValueText::CValueText( CPart *part, int x, int y, int angle, 
 	BOOL bMirror, BOOL bNegative, int layer, int font_size, 
 	int stroke_width, SMFontUtil * smfontutil, CString * str_ptr, bool bShown ) :
-		ctext(part->doc, x, y, angle, bMirror, bNegative, layer, font_size,
+		CText(part->doc, x, y, angle, bMirror, bNegative, layer, font_size,
 			stroke_width, smfontutil, str_ptr) 
 		{ m_part = part; m_bShown = bShown; }
 
-cvaluetext::cvaluetext( CFreePcbDoc *doc, int x, int y, int angle, 
+CValueText::CValueText( CFreePcbDoc *doc, int x, int y, int angle, 
 	BOOL bMirror, BOOL bNegative, int layer, int font_size, 
 	int stroke_width, SMFontUtil * smfontutil, CString * str_ptr, bool bShown ) :
-		ctext(doc, x, y, angle, bMirror, bNegative, layer, font_size,
+		CText(doc, x, y, angle, bMirror, bNegative, layer, font_size,
 			stroke_width, smfontutil, str_ptr) 
 		{ m_part = NULL; m_bShown = bShown; }
 
-cvaluetext::cvaluetext(CFreePcbDoc *_doc, int _uid):
-	ctext(_doc, _uid)
+CValueText::CValueText(CFreePcbDoc *_doc, int _uid):
+	CText(_doc, _uid)
 		{ m_part = NULL; }
 
-bool cvaluetext::IsOnPcb() 
+bool CValueText::IsOnPcb() 
 { 
 	if (m_shape)
 		return m_shape->IsOnPcb() && m_shape->m_value == this;
@@ -532,7 +532,7 @@ bool cvaluetext::IsOnPcb()
 }
 
 
-ctextlist::ctextlist( CFreePcbDoc *_doc )
+CTextList::CTextList( CFreePcbDoc *_doc )
 	{ 
 		m_doc = _doc;
 		if (_doc)
@@ -541,7 +541,7 @@ ctextlist::ctextlist( CFreePcbDoc *_doc )
 			m_smfontutil = NULL;
 	}	
 
-void ctextlist::ReadTexts( CStdioFile * pcb_file )
+void CTextList::ReadTexts( CStdioFile * pcb_file )
 {
 	int pos, err, np;
 	CString in_str, key_str;
@@ -587,31 +587,31 @@ void ctextlist::ReadTexts( CStdioFile * pcb_file )
 			int font_size = my_atoi( &p[6] );
 			int stroke_width = my_atoi( &p[7] );
 			BOOL negative = np>9? my_atoi( &p[8] ): false;
-			ctext *text = new ctext(m_doc, x, y, angle, mirror, negative, layer, font_size, stroke_width, m_smfontutil, &str);
+			CText *text = new CText(m_doc, x, y, angle, mirror, negative, layer, font_size, stroke_width, m_smfontutil, &str);
 			texts.Add(text);
 			text->MustRedraw();
 		}
 	}
 }
 
-ctext *ctextlist::AddText( int x, int y, int angle, bool bMirror, bool bNegative, int layer, 
-					int font_size, int stroke_width, CString * str_ptr, cpart2 *part, cshape *shape )
+CText *CTextList::AddText( int x, int y, int angle, bool bMirror, bool bNegative, int layer, 
+					int font_size, int stroke_width, CString * str_ptr, CPart *part, CShape *shape )
 {
-	ctext * text = new ctext(m_doc, x, y, angle, bMirror, bNegative, layer, font_size, stroke_width, m_smfontutil, str_ptr);
+	CText * text = new CText(m_doc, x, y, angle, bMirror, bNegative, layer, font_size, stroke_width, m_smfontutil, str_ptr);
 	text->m_part = part;
 	text->m_shape = shape;
 	texts.Add(text);
 	return text;
 }
 
-void ctextlist::WriteTexts( CStdioFile * file )
+void CTextList::WriteTexts( CStdioFile * file )
 {
 	try
 	{
 		// now write all text strings
 		file->WriteString( "[texts]\n\n" );
-		citer<ctext> it (&texts);
-		for (ctext *t = it.First(); t; t = it.Next())
+		CIter<CText> it (&texts);
+		for (CText *t = it.First(); t; t = it.Next())
 		{
 			CString line;
 			line.Format( "text: \"%s\" %d %d %d %d %d %d %d %d\n\n", t->m_str,
@@ -631,21 +631,21 @@ void ctextlist::WriteTexts( CStdioFile * file )
 	}
 }
 
-void ctextlist::MoveOrigin( int dx, int dy )
+void CTextList::MoveOrigin( int dx, int dy )
 {
-	citer<ctext> it (&texts);
-	for (ctext *t = it.First(); t; t = it.Next())
+	CIter<CText> it (&texts);
+	for (CText *t = it.First(); t; t = it.Next())
 		t->MustRedraw(),
 		t->m_x += dx,
 		t->m_y += dy;
 }
 
-BOOL ctextlist::GetTextBoundaries( CRect * r )
+BOOL CTextList::GetTextBoundaries( CRect * r )
 {
 	BOOL bValid = FALSE;
 	CRect br (INT_MAX, INT_MIN, INT_MIN, INT_MAX);
-	citer<ctext> it (&texts);
-	for (ctext *t = it.First(); t; t = it.Next())
+	CIter<CText> it (&texts);
+	for (CText *t = it.First(); t; t = it.Next())
 	{
 		t->GenerateStrokes();							// In case it's not been drawn
 		br.bottom = min(br.bottom, t->m_br.bottom);
@@ -660,10 +660,10 @@ BOOL ctextlist::GetTextBoundaries( CRect * r )
 }
 
 
-void ctextlist::ReassignCopperLayers( int n_new_layers, int * layer )
+void CTextList::ReassignCopperLayers( int n_new_layers, int * layer )
 {
-	citer<ctext> it (&texts);
-	for (ctext *t = it.First(); t; t = it.Next())
+	CIter<CText> it (&texts);
+	for (CText *t = it.First(); t; t = it.Next())
 	{
 		int old_layer = t->m_layer;
 		if( old_layer >= LAY_TOP_COPPER )

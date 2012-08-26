@@ -47,7 +47,7 @@ int ConvertIvex( CStdioFile * mod_file, CStdioFile * lib_file, CEdit * edit_ctrl
 	CArray<mtg_hole> m_mtg_hole;
 	extern CFreePcbApp theApp;
 	CFreePcbDoc *doc = theApp.m_doc;
-	cshape s (doc);
+	CShape s (doc);
 	m_mtg_hole.SetSize(0);
 	s.m_author = "Ivex";
 
@@ -200,8 +200,8 @@ int ConvertIvex( CStdioFile * mod_file, CStdioFile * lib_file, CEdit * edit_ctrl
 				state = IDLE;
 				// check for all pins defined
 				BOOL error = FALSE;
-				citer<cpadstack> ips (&s.m_padstacks);
-				for (cpadstack *ps = ips.First(); ps; ps = ips.Next())
+				CIter<CPadstack> ips (&s.m_padstacks);
+				for (CPadstack *ps = ips.First(); ps; ps = ips.Next())
 					if( !ps->exists )
 						{ error = TRUE; break; }
 				if( !error )
@@ -209,7 +209,7 @@ int ConvertIvex( CStdioFile * mod_file, CStdioFile * lib_file, CEdit * edit_ctrl
 					// convert mounting holes to pads
 					for( int ih=0; ih<m_mtg_hole.GetSize(); ih++ )
 					{
-						cpadstack *ps = new cpadstack(&s);
+						CPadstack *ps = new CPadstack(&s);
 						ps->exists = 1;
 						ps->name.Format( "MH%d", ih+1 );
 						ps->hole_size = m_mtg_hole[ih].diam;
@@ -242,7 +242,7 @@ int ConvertIvex( CStdioFile * mod_file, CStdioFile * lib_file, CEdit * edit_ctrl
 					}
 					m_mtg_hole.RemoveAll();
 					// make sure selection rectangle surrounds pads
-					for (cpadstack *ps = ips.First(); ps; ps = ips.Next())
+					for (CPadstack *ps = ips.First(); ps; ps = ips.Next())
 					{
 						int x = ps->x_rel, y = ps->y_rel;
 						int dx = ps->top.size_h/2, dy = dx;
@@ -285,9 +285,9 @@ int ConvertIvex( CStdioFile * mod_file, CStdioFile * lib_file, CEdit * edit_ctrl
 					int xf = my_atof(&p[3]) * mult;
 					int yf = -(my_atof(&p[4]) * mult);
 					int np = s.m_outlines.GetSize();
-					coutline *out = new coutline(&s, LAY_FP_SILK_TOP, 7*NM_PER_MIL);
+					COutline *out = new COutline(&s, LAY_FP_SILK_TOP, 7*NM_PER_MIL);
 					s.m_outlines.Add(out);
-					ccontour *ctr = new ccontour(out, true);
+					CContour *ctr = new CContour(out, true);
 					ctr->AppendCorner( xi, yi );
 					ctr->AppendCorner( xf, yi );
 					ctr->AppendCorner( xf, yf );
@@ -317,9 +317,9 @@ int ConvertIvex( CStdioFile * mod_file, CStdioFile * lib_file, CEdit * edit_ctrl
 					int xf = my_atof(&p[3]) * mult;
 					int yf = -(my_atof(&p[4]) * mult);
 					int np = s.m_outlines.GetSize();
-					coutline *out = new coutline(&s, LAY_FP_SILK_TOP, 7*NM_PER_MIL);
+					COutline *out = new COutline(&s, LAY_FP_SILK_TOP, 7*NM_PER_MIL);
 					s.m_outlines.Add(out);
-					ccontour *ctr = new ccontour(out, true);
+					CContour *ctr = new CContour(out, true);
 					ctr->AppendCorner( xi, yi );
 					ctr->AppendCorner( xf, yf );
 					if( xi > max_x )
@@ -346,28 +346,28 @@ int ConvertIvex( CStdioFile * mod_file, CStdioFile * lib_file, CEdit * edit_ctrl
 					int yc = -(my_atof(&p[2]) * mult);
 					int r = my_atof(&p[3]) * mult;
 					int quadrant = my_atoi(&p[4]);
-					coutline *out = new coutline(&s, LAY_FP_SILK_TOP, 7*NM_PER_MIL);
+					COutline *out = new COutline(&s, LAY_FP_SILK_TOP, 7*NM_PER_MIL);
 					s.m_outlines.Add(out);
-					ccontour *ctr = new ccontour(out, true);
+					CContour *ctr = new CContour(out, true);
 					if( quadrant == 1 )
 					{
 						ctr->AppendCorner( xc+r, yc );
-						ctr->AppendCorner( xc, yc+r, cpolyline::ARC_CCW );
+						ctr->AppendCorner( xc, yc+r, CPolyline::ARC_CCW );
 					}
 					else if( quadrant == 2 )
 					{
 						ctr->AppendCorner( xc, yc+r );
-						ctr->AppendCorner( xc-r, yc, cpolyline::ARC_CCW );
+						ctr->AppendCorner( xc-r, yc, CPolyline::ARC_CCW );
 					}
 					else if( quadrant == 3 )
 					{
 						ctr->AppendCorner( xc-r, yc );
-						ctr->AppendCorner( xc, yc-r, cpolyline::ARC_CCW );
+						ctr->AppendCorner( xc, yc-r, CPolyline::ARC_CCW );
 					}
 					else
 					{
 						ctr->AppendCorner( xc, yc-r );
-						ctr->AppendCorner( xc+r, yc, cpolyline::ARC_CCW );
+						ctr->AppendCorner( xc+r, yc, CPolyline::ARC_CCW );
 					}
 					if( xc+r > max_x )
 						max_x = xc+r;
@@ -384,14 +384,14 @@ int ConvertIvex( CStdioFile * mod_file, CStdioFile * lib_file, CEdit * edit_ctrl
 					int xc = my_atof(&p[1]) * mult;
 					int yc = -(my_atof(&p[2]) * mult);
 					int r = my_atof(&p[3]) * mult;
-					coutline *out = new coutline(&s, LAY_FP_SILK_TOP, 7*NM_PER_MIL);
+					COutline *out = new COutline(&s, LAY_FP_SILK_TOP, 7*NM_PER_MIL);
 					s.m_outlines.Add(out);
-					ccontour *ctr = new ccontour(out, true);
+					CContour *ctr = new CContour(out, true);
 					ctr->AppendCorner( xc+r, yc );
-					ctr->AppendCorner( xc, yc+r, cpolyline::ARC_CCW );
-					ctr->AppendCorner( xc-r, yc, cpolyline::ARC_CCW );
-					ctr->AppendCorner( xc, yc-r, cpolyline::ARC_CCW );
-					ctr->Close( cpolyline::ARC_CCW );
+					ctr->AppendCorner( xc, yc+r, CPolyline::ARC_CCW );
+					ctr->AppendCorner( xc-r, yc, CPolyline::ARC_CCW );
+					ctr->AppendCorner( xc, yc-r, CPolyline::ARC_CCW );
+					ctr->Close( CPolyline::ARC_CCW );
 					if( xc+r > max_x )
 						max_x = xc+r;
 					if( xc-r < min_x )
@@ -485,7 +485,7 @@ int ConvertIvex( CStdioFile * mod_file, CStdioFile * lib_file, CEdit * edit_ctrl
 				}
 				if( pin_str != "" )
 				{
-					cpadstack *ps = new cpadstack(&s);
+					CPadstack *ps = new CPadstack(&s);
 					ps->exists = 1;
 					ps->name = pin_str;
 					ps->hole_size = mod_ps->hole_diam;

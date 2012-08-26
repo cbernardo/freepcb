@@ -1,15 +1,15 @@
 // Undo.h:  CPT2 new system for undo/redo.  More-or-less as in the old system, we have for each pcb-item class a 
-// corresponding undo-item class.   Class cuvertex, for instance, mirrors cvertex2.  The main difference in
-// the data structure is that where cvertex2 has pointers to other pcb-item objects (segments, connects),
-// cuvertex has in their place uid values.  Using uid's makes it possible for an undo operation to reinsert into
+// corresponding undo-item class.   Class CUVertex, for instance, mirrors CVertex.  The main difference in
+// the data structure is that where CVertex has pointers to other pcb-item objects (segments, connects),
+// CUVertex has in their place uid values.  Using uid's makes it possible for an undo operation to reinsert into
 // the overall PCB hierarchy objects that were previously deleted completely, with their out-going and incoming pointers all reset correctly.
 
 // The protocol for using the undo system is inspired by my latest drawing system.  Before making a change to the global pcb hierarchy,
 // call SaveUndoInfo for the object(s), low- or high-level, that are going to be changing.  This will create objects of the types 
 // defined below, and add them to a list of new undo-items stored within the main CFreePcbDoc (CFreePcbDoc::undo_items).  
 // When the user's sequence of changes is finished, 
-// call CFreePcbDoc::FinishUndoRecord, which will generate a complete cundo_record on the basis of the stored undo-items, and also on the basis of
-// new objects that it detects have been created.  The cundo_record then gets added to the main undo list.
+// call CFreePcbDoc::FinishUndoRecord, which will generate a complete CUndoRecord on the basis of the stored undo-items, and also on the basis of
+// new objects that it detects have been created.  The CUndoRecord then gets added to the main undo list.
 
 // The main undo list CFreePcbDoc::m_undo_records contains both undo and redo records.  Entries at positions less than CFreePcbDoc::m_undo_pos are
 // undo records, those in positions at or above there are redos.  When user hits ctrl-z, the entry at m_undo_pos-1 is read in for processing,
@@ -22,78 +22,78 @@
 #include <afxtempl.h>
 #include "PcbItem.h"
 
-class cundo_item;
-class cuvertex;
-class cutee;
-class cuseg;
-class cuconnect;
-class cupin;
-class cupart;
-class cucorner;
-class cuside;
-class cucontour;
-class cupolyline;
-class cuarea;
-class cusmcutout;
-class cuboard;
-class cuoutline;
-class cunet;
-class cutext;	
-class cureftext;
-class cuvaluetext;
-class cudre;
-class cupadstack;
-class cucentroid;
-class cuglue;
-class cushape;
+class CUndoItem;
+class CUVertex;
+class CUTee;
+class CUSeg;
+class CUConnect;
+class CUPin;
+class CUPart;
+class CUCorner;
+class CUSide;
+class CUContour;
+class CUPolyline;
+class CUArea;
+class CUSmCutout;
+class CUBoard;
+class CUOutline;
+class CUNet;
+class CUText;	
+class CURefText;
+class CUValueText;
+class CUDre;
+class CUPadstack;
+class CUCentroid;
+class CUGlue;
+class CUShape;
 
-class cpcb_item;
-class cvertex2;
-class ctee;
-class cseg2;
-class cconnect2;
-class cpin2;
-class cpart2;
-class ccorner;
-class cside;
-class ccontour;
-class cpolyline;
-class carea2;
-class csmcutout;
-class cboard;
-class coutline;
-class cnet2;
-class ctext;
-class creftext;
-class cvaluetext; 
-class cdre;
-class cpad;
-class cpadstack;
-class ccentroid;
-class cglue;
-class cshape;
+class CPcbItem;
+class CVertex;
+class CTee;
+class CSeg;
+class CConnect;
+class CPin;
+class CPart;
+class CCorner;
+class CSide;
+class CContour;
+class CPolyline;
+class CArea;
+class CSmCutout;
+class CBoard;
+class COutline;
+class CNet;
+class CText;
+class CRefText;
+class CValueText; 
+class CDre;
+class CPad;
+class CPadstack;
+class CCentroid;
+class CGlue;
+class CShape;
 
 class CFreePcbDoc;
-class cpartlist;
-class cnetlist;
+class CPartList;
+class CNetList;
 
-class cundo_item 
+class CUndoItem 
 {
 	// THE BASE CLASS FOR ALL THE UNDO ("cu...") CLASSES.  
-	friend class cundo_record;
+	friend class CUndoRecord;
 	friend class CFreePcbDoc;
 protected:
 	int m_uid;
 	CFreePcbDoc *m_doc;
 	bool m_bWasCreated;							// If true, then this undo_item provides us with the uid of an object that got created during the
-												// user op.  This will be an instance of cundo_item plain and simple, not one of the derived classes.
-	cpcb_item *target;							// Used during the undo itself.  This is the item's corresponding object within the pcb (recently edited
+												// user op.  This will be an instance of CUndoItem plain and simple, not one of the derived classes.
+	CPcbItem *target;							// Used during the undo itself.  This is the item's corresponding object within the pcb (recently edited
 												// by the user but now getting reverted); it may be null if during the edit user deleted the object.
 protected:
-	cundo_item(CFreePcbDoc *doc, int uid, bool bWasCreated = false)
+	CUndoItem(CFreePcbDoc *doc, int uid, bool bWasCreated = false)
 		{ m_doc = doc; m_uid = uid; m_bWasCreated = bWasCreated; }
 public:
-	~cundo_item() { }							// Simple destructor since these classes contain essentially no pointers at all.
+	~CUndoItem() { }							// Simple destructor since these classes contain essentially no pointers at all.
 
 	int UID() { return m_uid; }
 
@@ -108,7 +108,7 @@ public:
 	virtual void AddToLists() { }
 };
 
-class cuvertex: public cundo_item
+class CUVertex: public CUndoItem
 {
 public:
 	int m_con;					// UID of parent connection
@@ -121,21 +121,21 @@ public:
 	int force_via_flag;
 	int via_w, via_hole_w;
 
-	cuvertex( cvertex2 *v );
+	CUVertex( CVertex *v );
 	virtual void CreateTarget();
 	virtual void FixTarget();
 	virtual void AddToLists();
 };
 
-class cutee: public cundo_item 
+class CUTee: public CUndoItem 
 {
-	// CPT2 new.  Basically a carray<cvertex2>, indicating the vertices that together join up to form a single tee junction.
+	// CPT2 new.  Basically a CHeap<CVertex>, indicating the vertices that together join up to form a single tee junction.
 public:
 	int nVtxs, *vtxs;
 	int via_w, via_hole_w;					// Could be recalculated on the basis of the constituent vtxs, but let's keep it simple and store the values.
 
-	cutee( ctee *t );
-	~cutee()
+	CUTee( CTee *t );
+	~CUTee()
 		{ free(vtxs); }
 	virtual void CreateTarget();
 	virtual void FixTarget();
@@ -143,7 +143,7 @@ public:
 };
 
 
-class cuseg: public cundo_item
+class CUSeg: public CUndoItem
 {
 public:
 	// static int m_array_step;
@@ -154,13 +154,13 @@ public:
 	int m_con;
 	int preVtx, postVtx;
 
-	cuseg( cseg2 *s );	
+	CUSeg( CSeg *s );	
 	virtual void CreateTarget();
 	virtual void FixTarget();
 	virtual void AddToLists();
 };
 
-class cuconnect: public cundo_item
+class CUConnect: public CUndoItem
 {
 public:
 	int m_net;
@@ -169,8 +169,8 @@ public:
 	int head, tail;	
 	bool locked;
 
-	cuconnect( cconnect2 *c );
-	~cuconnect()
+	CUConnect( CConnect *c );
+	~CUConnect()
 		{ free(segs); free(vtxs); }
 	virtual void CreateTarget();
 	virtual void FixTarget();
@@ -178,7 +178,7 @@ public:
 };
 
 
-class cutext: public cundo_item
+class CUText: public CUndoItem
 {
 public:
 	int m_x, m_y;
@@ -194,32 +194,32 @@ public:
 	int m_shape;
 	SMFontUtil * m_smfontutil;				// Worth the trouble?
 
-	cutext( ctext *t );
+	CUText( CText *t );
 	virtual void CreateTarget();
 	virtual void FixTarget();
 	virtual void AddToLists();
 };
 
-class cureftext: public cutext
+class CURefText: public CUText
 {
 public:
-	cureftext( creftext *t )
-		: cutext( (ctext*) t )
+	CURefText( CRefText *t )
+		: CUText( (CText*) t )
 		{ }
 	virtual void CreateTarget();
 };
 
-class cuvaluetext: public cutext
+class CUValueText: public CUText
 {
 public:
-	cuvaluetext( cvaluetext *t )
-		: cutext( (ctext*) t )
+	CUValueText( CValueText *t )
+		: CUText( (CText*) t )
 		{ }
 	virtual void CreateTarget();
 };
 
 
-class cupin : public cundo_item
+class CUPin : public CUndoItem
 {
 public:
 	CString pin_name;		
@@ -230,17 +230,17 @@ public:
 	int net;
 	bool bNeedsThermal;	
 
-	cupin( cpin2 *pin );
+	CUPin( CPin *pin );
 	virtual void CreateTarget();
 	virtual void FixTarget();
 	virtual void AddToLists();
 };
 
 
-class cupart: public cundo_item
+class CUPart: public CUndoItem
 {
 public:
-	cpartlist * m_pl;					// One pointer that I think we can rely on to remain constant 
+	CPartList * m_pl;					// One pointer that I think we can rely on to remain constant 
 	int nPins, *pins;
 	BOOL visible;
 	int x,y;
@@ -254,8 +254,8 @@ public:
 	int nTexts, *texts;
 	int shape;
 
-	cupart( cpart2 *p );
-	~cupart()
+	CUPart( CPart *p );
+	~CUPart()
 		{ free(pins); }
 	virtual void CreateTarget();
 	virtual void FixTarget();
@@ -263,33 +263,33 @@ public:
 };
 
 
-class cucorner: public cundo_item
+class CUCorner: public CUndoItem
 {
 public:
 	int x, y;
 	int contour;
 	int preSide, postSide;
 
-	cucorner(ccorner *c);
+	CUCorner(CCorner *c);
 	virtual void CreateTarget();
 	virtual void FixTarget();
 	virtual void AddToLists();
 };
 
-class cuside: public cundo_item
+class CUSide: public CUndoItem
 {
 public:
 	int m_style;
 	int contour;
 	int preCorner, postCorner;
 
-	cuside(cside *s);
+	CUSide(CSide *s);
 	virtual void CreateTarget();
 	virtual void FixTarget();
 	virtual void AddToLists();
 };
 
-class cucontour: public cundo_item
+class CUContour: public CUndoItem
 {
 public:
 	int nCorners, *corners;
@@ -297,15 +297,15 @@ public:
 	int head, tail;
 	int poly;
 
-	cucontour(ccontour *ctr);
-	~cucontour()
+	CUContour(CContour *ctr);
+	~CUContour()
 		{ free(corners); free(sides); }
 	virtual void CreateTarget();
 	virtual void FixTarget();
 	virtual void AddToLists();
 };
 
-class cupolyline: public cundo_item
+class CUPolyline: public CUndoItem
 {
 public:
 	int main;
@@ -315,53 +315,53 @@ public:
 	int m_sel_box;
 	int m_hatch;
 
-	cupolyline(cpolyline *poly);
-	~cupolyline()
+	CUPolyline(CPolyline *poly);
+	~CUPolyline()
 		{ free(contours); }
 	virtual void FixTarget();
 };
 
-class cuarea : public cupolyline
+class CUArea : public CUPolyline
 {
 public:
 	int m_net;
 
-	cuarea(carea2 *a);
+	CUArea(CArea *a);
 	virtual void CreateTarget();
 	virtual void FixTarget();
 	virtual void AddToLists();
 };
 
 
-class cusmcutout : public cupolyline
+class CUSmCutout : public CUPolyline
 {
 public:
-	cusmcutout(csmcutout *sm);
+	CUSmCutout(CSmCutout *sm);
 	virtual void CreateTarget();
 	virtual void AddToLists();
 };
 
 
-class cuboard : public cupolyline
+class CUBoard : public CUPolyline
 {
 public:
-	cuboard(cboard *b);
+	CUBoard(CBoard *b);
 	virtual void CreateTarget();
 	virtual void AddToLists();
 };
 
-class cuoutline : public cupolyline
+class CUOutline : public CUPolyline
 {
 public:
 	int shape; 
 
-	cuoutline(coutline *o);
+	CUOutline(COutline *o);
 	virtual void CreateTarget();
 	virtual void FixTarget();
-	// virtual void AddToLists();		// Not needed.  A cuoutline gets added to an undo record only if its parent cushape gets included to.
+	// virtual void AddToLists();		// Not needed.  A CUOutline gets added to an undo record only if its parent CUShape gets included to.
 };
 
-class cunet: public cundo_item
+class CUNet: public CUndoItem
 {
 public:
 	CString name;
@@ -373,17 +373,17 @@ public:
 	int def_via_w;
 	int def_via_hole_w;
 	bool bVisible;
-	cnetlist * m_nlist;			// One pointer that I think we can rely on to remain constant.  Probably don't need it anyway...
+	CNetList * m_nlist;			// One pointer that I think we can rely on to remain constant.  Probably don't need it anyway...
 
-	cunet(cnet2 *n);
-	~cunet()
+	CUNet(CNet *n);
+	~CUNet()
 		{ free(connects); free(pins); free(areas); free(tees); }
 	virtual void CreateTarget();
 	virtual void FixTarget();
 	virtual void AddToLists();
 };
 
-class cudre: public cundo_item
+class CUDre: public CUndoItem
 {
 public:
 	int index;					// It's probably not really necessary to store most of this stuff, other than str, x, y, and w.
@@ -394,13 +394,13 @@ public:
 	int w;
 	int layer;
 
-	cudre(cdre *d);
+	CUDre(CDre *d);
 	virtual void CreateTarget();
 	virtual void FixTarget();
 	virtual void AddToLists();
 };
 
-class cupadstack: public cundo_item
+class CUPadstack: public CUndoItem
 {
 public:
 	CString name;
@@ -408,23 +408,23 @@ public:
 	int x_rel, y_rel;
 	int angle;
 	int shape;
-	/* Bloody C++ compiler makes it near-impossible to do the following (cpad has to be defined, and trying to get the .h's included in the 
+	/* Bloody C++ compiler makes it near-impossible to do the following (CPad has to be defined, and trying to get the .h's included in the 
 	   right order defeated me).  When is C++ going to adopt a Java-style preprocessor so we can avoid this nonsense? 
-			cpad top, top_mask, top_paste;
-			cpad bottom, bottom_mask, bottom_paste;
-			cpad inner;
+			CPad top, top_mask, top_paste;
+			CPad bottom, bottom_mask, bottom_paste;
+			CPad inner;
 	Here's the stupid workaround: */
 	int top[6], top_mask[6], top_paste[6];
 	int bottom[6], bottom_mask[6], bottom_paste[6];
 	int inner[6];
 
-	cupadstack(cpadstack *ps);
+	CUPadstack(CPadstack *ps);
 	virtual void CreateTarget();
 	virtual void FixTarget();
-	// virtual void AddToLists();		// Not needed --- a cupadstack is added to an undo record only if its parent cushape is there too
+	// virtual void AddToLists();		// Not needed --- a CUPadstack is added to an undo record only if its parent CUShape is there too
 };
 
-class cucentroid: public cundo_item
+class CUCentroid: public CUndoItem
 {
 public:
 	CENTROID_TYPE m_type;
@@ -432,26 +432,26 @@ public:
 	int m_angle;
 	int m_shape;
 
-	cucentroid(ccentroid *c);
+	CUCentroid(CCentroid *c);
 	virtual void CreateTarget();
 	virtual void FixTarget();
 };
 
-class cuglue: public cundo_item
+class CUGlue: public CUndoItem
 {
 public:
 	GLUE_POS_TYPE type;
 	int w, x, y;
 	int shape;
 
-	cuglue(cglue *g);
+	CUGlue(CGlue *g);
 	virtual void CreateTarget();
 	virtual void FixTarget();
-	// virtual void AddToLists();		// Not needed -- a cuglue will only be added to an undo record if the parent cushape is present also
+	// virtual void AddToLists();		// Not needed -- a CUGlue will only be added to an undo record if the parent CUShape is present also
 };
 
 
-class cushape: public cundo_item
+class CUShape: public CUndoItem
 {
 public:
 	CString m_name;
@@ -468,7 +468,7 @@ public:
 	int m_nTexts, *m_texts;
 	int m_nGlues, *m_glues;
 
-	cushape(cshape *s);
+	CUShape(CShape *s);
 	virtual void CreateTarget();
 	virtual void FixTarget();
 	virtual void AddToLists();
@@ -476,7 +476,7 @@ public:
 
 
 
-class cundo_record 
+class CUndoRecord 
 {
 	// Corresponding to a single user operation, this is a bundle of undo items, including items with the bWasCreated bit set (such items
 	//  indicate a uid-value for objects created during the operation, but contain no other data).  CFreePcbDoc::FinishUndoRecord() is in charge
@@ -485,15 +485,15 @@ class cundo_record
 	friend class CFreePcbDoc;
 protected:
 	int nItems;
-	cundo_item **items;
+	CUndoItem **items;
 	int moveOriginDx, moveOriginDy;					// These are set if user does a move-origin operation, and are zero otherwise.
 													// Theoretically I should have a cmoveorigin_undo_record subclass, but screw it...
 public:
 	enum { OP_UNDO, OP_REDO, OP_UNDO_NO_REDO };
 
-	cundo_record( CArray<cundo_item*> *_items );
-	cundo_record( int _moveOriginDx, int _moveOriginDy );
-	~cundo_record()
+	CUndoRecord( CArray<CUndoItem*> *_items );
+	CUndoRecord( int _moveOriginDx, int _moveOriginDy );
+	~CUndoRecord()
 	{
 		for (int i=0; i<nItems; i++)
 			delete items[i];

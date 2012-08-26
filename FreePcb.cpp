@@ -276,13 +276,13 @@ BOOL CFreePcbApp::SwitchToView( CRuntimeClass * pNewViewClass )
 	if( bSwitchToPcb )
 	{
 		// first, see if we were editing the footprint of the selected part
-		cshape * temp_footprint = NULL;
+		CShape * temp_footprint = NULL;
 		bool bModifiedSelPartFootprint = m_view->m_cursor_mode == CUR_PART_SELECTED 
 											&& m_doc->m_edit_footprint
 											&& (m_doc->m_footprint_modified || m_doc->m_footprint_name_changed);
 		if (bModifiedSelPartFootprint)
 			// yes, make a copy of the footprint from the editor
-			temp_footprint = new cshape (m_view_fp->m_fp);
+			temp_footprint = new CShape (m_view_fp->m_fp);
 		// destroy old footprint view
 		pOldActiveView->DestroyWindow();
 		if( !m_doc->m_project_open )

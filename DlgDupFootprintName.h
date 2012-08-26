@@ -11,7 +11,7 @@ class CDlgDupFootprintName : public CDialog
 public:
 	CDlgDupFootprintName(CWnd* pParent = NULL);   // standard constructor
 	virtual ~CDlgDupFootprintName();
-	void Initialize( CString * message, cshapelist * cache_shapes );
+	void Initialize( CString * message, CShapeList * cache_shapes );
 	BOOL GetReplaceAllFlag(){ return m_replace_all_flag; };
 	CString * GetNewName(){ return &m_new_name_str; };
 
@@ -23,7 +23,7 @@ protected:
 
 	DECLARE_MESSAGE_MAP()
 public:
-	cshapelist * m_cache_shapes;
+	CShapeList * m_cache_shapes;
 	BOOL m_replace_all_flag;
 	CString m_new_name_str;
 	CString * m_str;

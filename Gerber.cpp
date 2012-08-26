@@ -12,25 +12,6 @@
 
 #define CLEARANCE_POLY_STROKE_MILS 1
 
-// CPT2 obsolete:
-/*
-class c_cutout {
-public:
-	cnet * net;
-	int ia;
-//	int ic;
-};
-
-
-class c_area {
-public:
-	carea2 *a;
-
-	cnet * net;
-	int ia;
-	CArray< c_cutout > containers;
-};
-*/
 
 // constructor
 CAperture::CAperture()
@@ -135,7 +116,7 @@ void WriteMoveTo( CStdioFile * f, int x, int y, int light_state )
 	f->WriteString( str );
 }
 
-// draw one side of a cpolyline by writing commands to Gerber file
+// draw one side of a CPolyline by writing commands to Gerber file
 // the side may be straight or an arc
 // arc is aproximated by straight-line segments
 // assumes that plotter already at x1, y1
@@ -152,13 +133,13 @@ void WritePolygonSide( CStdioFile * f, int x1, int y1, int x2, int y2, int style
 	a = fabs( (double)(x1 - x2) );
 	b = fabs( (double)(y1 - y2) );
 
-	if( style == cpolyline::STRAIGHT )
+	if( style == CPolyline::STRAIGHT )
 	{
 		// just draw a straight line with linear interpolation
 		WriteMoveTo( f, x2, y2, light_state );
 		return;
 	}
-	else if( style == cpolyline::ARC_CW )
+	else if( style == CPolyline::ARC_CW )
 	{
 		// clockwise arc (ie.quadrant of ellipse)
 		int i=0, j=0;
@@ -194,7 +175,7 @@ void WritePolygonSide( CStdioFile * f, int x1, int y1, int x2, int y2, int style
 			theta2 = 0.0;
 		}
 	}
-	else if( style == cpolyline::ARC_CCW )
+	else if( style == CPolyline::ARC_CCW )
 	{
 		// counter-clockwise arc
 		int i=0, j=0;
@@ -247,12 +228,12 @@ void WritePolygonSide( CStdioFile * f, int x1, int y1, int x2, int y2, int style
 // draw clearance for a pad or trace segment in intersecting areas in foreign nets
 // enter with shape = pad shape or -1 for trace segment
 //
-void DrawClearanceInForeignAreas( cnet2 *net, int shape,
+void DrawClearanceInForeignAreas( CNet *net, int shape,
 									int w, int xi, int yi, int xf, int yf,	// for line segment
 									int wid, int len, int radius, int angle, // for pad
 								    CStdioFile * f, int flags, int layer,
 									int fill_clearance,
-									carray<carea2> *area_list
+									CHeap<CArea> *area_list
 									)
 {
 	double seg_angle, cw;
@@ -268,8 +249,8 @@ void DrawClearanceInForeignAreas( cnet2 *net, int shape,
 	gpc_vertex_list gpc_contour;
 	gpc_polygon gpc_seg_poly;
 	// now loop through all areas in foreign nets
-	citer<carea2> ia (area_list);
-	for (carea2 *area = ia.First(); area; area = ia.Next())
+	CIter<CArea> ia (area_list);
+	for (CArea *area = ia.First(); area; area = ia.Next())
 	{
 		if (area->m_net == net)
 			continue;
@@ -288,13 +269,13 @@ void DrawClearanceInForeignAreas( cnet2 *net, int shape,
 			if( !bIntersection )
 			{
 				int min_d = fill_clearance;
-				citer<ccontour> ictr (&area->contours);
-				for (ccontour *ctr = ictr.First(); ctr && !bIntersection; ctr = ictr.Next())
+				CIter<CContour> ictr (&area->contours);
+				for (CContour *ctr = ictr.First(); ctr && !bIntersection; ctr = ictr.Next())
 				{
-					citer<cside> is (&ctr->sides);
-					for (cside *s = is.First(); s; s = is.Next())
+					CIter<CSide> is (&ctr->sides);
+					for (CSide *s = is.First(); s; s = is.Next())
 					{
-						int d = GetClearanceBetweenSegments( xi, yi, xf, yf, cpolyline::STRAIGHT, w,
+						int d = GetClearanceBetweenSegments( xi, yi, xf, yf, CPolyline::STRAIGHT, w,
 							s->preCorner->x, s->preCorner->y, s->postCorner->x, s->postCorner->y, s->m_style, 0, 
 							min_d, NULL, NULL );
 						if( d < min_d )
@@ -309,13 +290,13 @@ void DrawClearanceInForeignAreas( cnet2 *net, int shape,
 		else if( shape == PAD_ROUND || shape == PAD_OCTAGON  )
 		{
 			int min_d = wid/2 + fill_clearance;
-			citer<ccontour> ictr (&area->contours);
-			for (ccontour *ctr = ictr.First(); ctr && !bIntersection; ctr = ictr.Next())
+			CIter<CContour> ictr (&area->contours);
+			for (CContour *ctr = ictr.First(); ctr && !bIntersection; ctr = ictr.Next())
 			{
-				citer<cside> is (&ctr->sides);
-				for (cside *s = is.First(); s; s = is.Next())
+				CIter<CSide> is (&ctr->sides);
+				for (CSide *s = is.First(); s; s = is.Next())
 				{
-					int d = GetClearanceBetweenSegments( xi, yi, xi+10, yi+10, cpolyline::STRAIGHT, w,
+					int d = GetClearanceBetweenSegments( xi, yi, xi+10, yi+10, CPolyline::STRAIGHT, w,
 						s->preCorner->x, s->preCorner->y, s->postCorner->x, s->postCorner->y, s->m_style, 0, 
 						min_d, NULL, NULL );
 					if( d < min_d )
@@ -333,13 +314,13 @@ void DrawClearanceInForeignAreas( cnet2 *net, int shape,
 				min_d = sqrt((double)2.0*wid*wid)/2 + fill_clearance;
 			else
 				min_d = sqrt((double)wid*wid +(double)len*len)/2 + fill_clearance;
-			citer<ccontour> ictr (&area->contours);
-			for (ccontour *ctr = ictr.First(); ctr && !bIntersection; ctr = ictr.Next())
+			CIter<CContour> ictr (&area->contours);
+			for (CContour *ctr = ictr.First(); ctr && !bIntersection; ctr = ictr.Next())
 			{
-				citer<cside> is (&ctr->sides);
-				for (cside *s = is.First(); s; s = is.Next())
+				CIter<CSide> is (&ctr->sides);
+				for (CSide *s = is.First(); s; s = is.Next())
 				{
-					int d = GetClearanceBetweenSegments( xi, yi, xi+10, yi+10, cpolyline::STRAIGHT, w,
+					int d = GetClearanceBetweenSegments( xi, yi, xi+10, yi+10, CPolyline::STRAIGHT, w,
 						s->preCorner->x, s->preCorner->y, s->postCorner->x, s->postCorner->y, s->m_style, 0, 
 						min_d, NULL, NULL );
 					if( d < min_d )
@@ -535,8 +516,8 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 					int min_silkscreen_stroke_wid, int thermal_wid,
 					int outline_width, int hole_clearance,
 					int n_x, int n_y, int step_x, int step_y,
-					carray<cboard> * bd, carray<csmcutout> * sm, cpartlist * pl, 
-					cnetlist * nl, ctextlist * tl, CDisplayList * dl )
+					CHeap<CBoard> * bd, CHeap<CSmCutout> * sm, CPartList * pl, 
+					CNetList * nl, CTextList * tl, CDisplayList * dl )
 {
 #define LAYER_TEXT_HEIGHT			100*NM_PER_MIL	// for layer ID sring
 #define	LAYER_TEXT_STROKE_WIDTH		10*NM_PER_MIL
@@ -555,11 +536,11 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 	CString str;
 
 	// get boundaries of board outline (in nm)
-	citer<cboard> ib (bd);
-	for( cboard *b = ib.First(); b; b = ib.Next() ) 
+	CIter<CBoard> ib (bd);
+	for( CBoard *b = ib.First(); b; b = ib.Next() ) 
 	{
-		citer<ccorner> ic (&b->main->corners);
-		for (ccorner *c = ic.First(); c; c = ic.Next())
+		CIter<CCorner> ic (&b->main->corners);
+		for (CCorner *c = ic.First(); c; c = ic.Next())
 		{
 			if( c->x < bd_min_x )
 				bd_min_x = c->x;
@@ -735,7 +716,7 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 			}
 			if( layer > LAY_BOTTOM_COPPER )
 				str.Format( "Inner %d Copper Layer", layer - LAY_BOTTOM_COPPER );
-			ctext *t = new ctext (tl->m_doc, bd_min_x, bd_min_y-LAYER_TEXT_HEIGHT*2, 0, 0, 0, 
+			CText *t = new CText (tl->m_doc, bd_min_x, bd_min_y-LAYER_TEXT_HEIGHT*2, 0, 0, 0, 
 				LAY_SILK_TOP, LAYER_TEXT_HEIGHT, LAYER_TEXT_STROKE_WIDTH, tl->m_smfontutil, &str );
 			// draw text
 			int w = t->m_stroke_width;
@@ -773,14 +754,14 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 			ChangeAperture( &bd_ap, &current_ap, &ap_array, PASS0, f );
 			if( PASS1 )
 			{
-				citer<cboard> ib (bd);
-				for (cboard *b = ib.First(); b; b = ib.Next())
+				CIter<CBoard> ib (bd);
+				for (CBoard *b = ib.First(); b; b = ib.Next())
 				{
 					// turn on linear interpolation, move to first corner
-					ccorner *head = b->main->head;
+					CCorner *head = b->main->head;
 					::WriteMoveTo( f, head->x, head->y, LIGHT_OFF );
 					int index = 1;
-					for (cside *s = head->postSide; 1; s = s->postCorner->postSide)
+					for (CSide *s = head->postSide; 1; s = s->postCorner->postSide)
 					{
 						::WritePolygonSide( f, s->preCorner->x, s->preCorner->y,
 							s->postCorner->x, s->postCorner->y, s->m_style, 10, LIGHT_ON ); 
@@ -799,19 +780,19 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 		// 2. Loop through undrawn areas.  For each, see if there exists an undrawn area containing it.  Those which have no such container get 
 		//    marked with utility value 1 (drawn), and get added to "draw_list".    
 		// 3. If at the end there are remaining undrawn areas (contained within the cutout of some other area), go back to 2.
-		carray<cnet2> area_net_list;
-		carray<carea2> area_list;
-		carray<carea2> draw_list;
-		citer<cnet2> in (&nl->nets);
-		for (cnet2 *net = in.First(); net; net = in.Next())
+		CHeap<CNet> area_net_list;
+		CHeap<CArea> area_list;
+		CHeap<CArea> draw_list;
+		CIter<CNet> in (&nl->nets);
+		for (CNet *net = in.First(); net; net = in.Next())
 		{
-			citer<carea2> ia (&net->areas);
-			for (carea2 *a = ia.First(); a; a = ia.Next())
+			CIter<CArea> ia (&net->areas);
+			for (CArea *a = ia.First(); a; a = ia.Next())
 			{
 				if (a->m_layer != layer)
 					continue;
 				// area on this layer, add to lists
-				area_net_list.Add( net );				// NB takes advantage of carray::Add's uniqueness check
+				area_net_list.Add( net );				// NB takes advantage of CHeap::Add's uniqueness check
 				area_list.Add( a );
 				a->utility = 0;
 			}
@@ -823,8 +804,8 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 			do
 			{
 				bUndrawnAreas = false;
-				citer<carea2> ia1 (&area_list), ia2 (&area_list);
-				for (carea2 *a1 = ia1.First(); a1; a1 = ia1.Next())
+				CIter<CArea> ia1 (&area_list), ia2 (&area_list);
+				for (CArea *a1 = ia1.First(); a1; a1 = ia1.Next())
 				{
 					if (a1->utility)
 						continue;
@@ -832,12 +813,12 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 					int y = a1->main->head->y;
 					// Area not yet "drawn";  see if it lies within any other undrawn area.  If not, we can "draw" it now.
 					bool bContainedInUndrawn = false;
-					for (carea2 *a2 = ia2.First(); a2; a2 = ia2.Next())
+					for (CArea *a2 = ia2.First(); a2; a2 = ia2.Next())
 					{
 						if (a2==a1 || a2->utility)
 							continue;
-						citer<ccontour> ictr (&a2->contours);
-						for (ccontour *ctr = ictr.First(); ctr; ctr = ictr.Next())
+						CIter<CContour> ictr (&a2->contours);
+						for (CContour *ctr = ictr.First(); ctr; ctr = ictr.Next())
 							if (ctr!=a2->main && ctr->TestPointInside(x, y))
 								{ bContainedInUndrawn = true; goto testEnd; }
 					}
@@ -852,11 +833,11 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 			}
 			while (bUndrawnAreas);
 
-			// now actually draw copper areas and cutouts.  We rely on the fact that when we iterate through carray draw_list, we'll go in the order
+			// now actually draw copper areas and cutouts.  We rely on the fact that when we iterate through CHeap draw_list, we'll go in the order
 			// in which areas were added (this, because we've never removed any items from draw_list).
-			citer<carea2> ia (&draw_list);
+			CIter<CArea> ia (&draw_list);
 			BOOL bLastLayerNegative = FALSE;
-			for (carea2 *a = ia.First(); a; a = ia.Next())
+			for (CArea *a = ia.First(); a; a = ia.Next())
 			{
 				current_ap.m_type = CAperture::AP_NONE;	// force selection of aperture
 				// draw outline polygon
@@ -870,9 +851,9 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 					bLastLayerNegative = FALSE;
 				}
 				f->WriteString( "G36*\n" );
-				ccorner *head = a->main->head;
+				CCorner *head = a->main->head;
 				::WriteMoveTo( f, head->x, head->y, LIGHT_OFF );
-				for (cside *s = head->postSide; 1; s = s->postCorner->postSide )
+				for (CSide *s = head->postSide; 1; s = s->postCorner->postSide )
 				{
 					::WritePolygonSide( f, s->preCorner->x, s->preCorner->y, s->postCorner->x, s->postCorner->y,
 						s->m_style, 10, LIGHT_ON );
@@ -882,8 +863,8 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 				f->WriteString( "G37*\n" );
 
 				// Now draw the cutouts if any
-				citer<ccontour> ictr (&a->contours);
-				for (ccontour *ctr = ictr.First(); ctr; ctr = ictr.Next())
+				CIter<CContour> ictr (&a->contours);
+				for (CContour *ctr = ictr.First(); ctr; ctr = ictr.Next())
 				{
 					if (ctr == a->main)
 						continue;
@@ -895,9 +876,9 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 						bLastLayerNegative = TRUE;
 					}
 					f->WriteString( "G36*\n" );
-					ccorner *head = ctr->head;
+					CCorner *head = ctr->head;
 					::WriteMoveTo( f, head->x, head->y, LIGHT_OFF );
-					for (cside *s = head->postSide; 1; s = s->postCorner->postSide )
+					for (CSide *s = head->postSide; 1; s = s->postCorner->postSide )
 					{
 						::WritePolygonSide( f, s->preCorner->x, s->preCorner->y, s->postCorner->x, s->postCorner->y,
 							s->m_style, 10, LIGHT_ON );
@@ -914,8 +895,8 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 			// ********** draw pad, trace, and via clearances and thermals ***********
 			// CPT2 NB.  Old code had checks of the form "if (pl)" and "if (nl)".  I omitted them (really can't imagine when they'd be necessary)
 			// first, remove all GpcPolys
-			citer<carea2> ia (&area_list);
-			for (carea2 *a = ia.First(); a; a = ia.Next())
+			CIter<CArea> ia (&area_list);
+			for (CArea *a = ia.First(); a; a = ia.Next())
 				a->FreeGpcPoly();
 			if( PASS1 ) 
 			{
@@ -925,13 +906,13 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 				f->WriteString( "\nG04 Draw clearances for pads*\n" );
 			}
 
-			citer<cpart2> ip (&pl->parts);
-			for (cpart2 *part = ip.First(); part; part = ip.Next())
+			CIter<CPart> ip (&pl->parts);
+			for (CPart *part = ip.First(); part; part = ip.Next())
 			{
 				if (!part->shape)
 					continue;
-				citer<cpin2> ipin (&part->pins);
-				for (cpin2 *pin = ipin.First(); pin; pin = ipin.Next())
+				CIter<CPin> ipin (&part->pins);
+				for (CPin *pin = ipin.First(); pin; pin = ipin.Next())
 				{
 					// get pad info
 					int pad_type, pad_w, pad_l, pad_r, pad_hole;
@@ -954,7 +935,7 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 					if( pad_type == PAD_NONE && pad_hole > 0 )
 					{
 						// through-hole pin, no pad, just annular ring and hole
-						if( pad_connect_status & cpin2::AREA_CONNECT )
+						if( pad_connect_status & CPin::AREA_CONNECT )
 						{
 							// hole connects to copper area
 							if( flags & GERBER_NO_PIN_THERMALS || pad_connect_flag == PAD_CONNECT_NOTHERMAL )
@@ -993,7 +974,7 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 					}
 					else if( pad_type != PAD_NONE )
 					{
-						if( pad_connect_status & cpin2::AREA_CONNECT ) 
+						if( pad_connect_status & CPin::AREA_CONNECT ) 
 						{
 							// pad connects to copper area, make clearance or thermal
 							// see if we need to make a thermal
@@ -1137,14 +1118,14 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 			// the problem that vias at the head of a connect wouldn't get done.
 			if( PASS1 )
 				f->WriteString( "\nG04 Draw clearances for traces and vias*\n" );
-			citer<cnet2> in (&nl->nets);
-			for (cnet2 *net = in.First(); net; net = in.Next())
+			CIter<CNet> in (&nl->nets);
+			for (CNet *net = in.First(); net; net = in.Next())
 			{
-				citer<cconnect2> ic (&net->connects);
-				for (cconnect2 *c = ic.First(); c; c = ic.Next())
+				CIter<CConnect> ic (&net->connects);
+				for (CConnect *c = ic.First(); c; c = ic.Next())
 				{
-					citer<cseg2> is (&c->segs);
-					for (cseg2 *s = is.First(); s; s = is.Next())
+					CIter<CSeg> is (&c->segs);
+					for (CSeg *s = is.First(); s; s = is.Next())
 					{
 						if (s->m_layer != layer)
 							continue;
@@ -1167,22 +1148,22 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 						{
 							// test for segment intersection with area on own net
 							BOOL bIntOwnNet = FALSE;
-							citer<carea2> ia (&net->areas);
-							for (carea2 *a = ia.First(); a; a = ia.Next())
+							CIter<CArea> ia (&net->areas);
+							for (CArea *a = ia.First(); a; a = ia.Next())
 							{
 								if( a->TestPointInside( xi, yi ) || a->TestPointInside( xi, yi ) )
 									{ bIntOwnNet = TRUE; break; }
-								citer<ccontour> ictr (&a->contours);
-								for (ccontour *ctr = ictr.First(); ctr; ctr = ictr.Next())
+								CIter<CContour> ictr (&a->contours);
+								for (CContour *ctr = ictr.First(); ctr; ctr = ictr.Next())
 								{
-									citer<cside> is (&ctr->sides);
-									for (cside *sd = is.First(); sd; sd = is.Next())
+									CIter<CSide> is (&ctr->sides);
+									for (CSide *sd = is.First(); sd; sd = is.Next())
 									{
 										// test for clearance from area sides < fill_clearance
 										int x2i = sd->preCorner->x, y2i = sd->preCorner->y;
 										int x2f = sd->postCorner->x, y2f = sd->postCorner->y;
 										int style2 = sd->m_style;
-										int d = ::GetClearanceBetweenSegments( xi, yi, xf, yf, cpolyline::STRAIGHT, s->m_width,
+										int d = ::GetClearanceBetweenSegments( xi, yi, xf, yf, CPolyline::STRAIGHT, s->m_width,
 											x2i, y2i, x2f, y2f, style2, 0, fill_clearance, 0, 0 );
 										if( d < fill_clearance )
 											{ bIntOwnNet = TRUE; goto end_loop; }
@@ -1228,8 +1209,8 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 					}
 
 					// Now check connect's vias.  Note that vias on tees may have their clearances drawn repeatedly (oh well)
-					citer<cvertex2> iv (&c->vtxs);
-					for (cvertex2 *v = iv.First(); v; v = iv.Next())
+					CIter<CVertex> iv (&c->vtxs);
+					for (CVertex *v = iv.First(); v; v = iv.Next())
 					{
 						int test;
 						int pad_w;
@@ -1256,7 +1237,7 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 							type = CAperture::AP_CIRCLE;
 							size1 = hole_w + 2*hole_clearance;
 						}
-						else if( test & cvertex2::VIA_AREA )
+						else if( test & CVertex::VIA_AREA )
 						{
 							// inner layer and connected to copper area
 							if( flags & GERBER_NO_VIA_THERMALS )
@@ -1303,8 +1284,8 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 			// draw clearances for text
 			if( PASS1 )
 				f->WriteString( "\nG04 Draw clearances for text*\n" );
-			citer<ctext> it (&tl->texts);
-			for (ctext *t = it.First(); t; t = it.Next())
+			CIter<CText> it (&tl->texts);
+			for (CText *t = it.First(); t; t = it.Next())
 				if( t->m_layer == layer )
 				{
 					// draw text
@@ -1333,8 +1314,8 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 		}
 		// draw pads, silkscreen items, reference designators and value
 		// iterate through all parts and draw pads
-		citer<cpart2> ip (&pl->parts);
-		for (cpart2 *part = ip.First(); part; part = ip.Next())
+		CIter<CPart> ip (&pl->parts);
+		for (CPart *part = ip.First(); part; part = ip.Next())
 		{
 			if (!part->shape)
 				continue;
@@ -1343,8 +1324,8 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 				line.Format( "G04 Draw part %s*\n", part->ref_des ); 
 				f->WriteString( line );
 			}
-			citer<cpin2> ipin (&part->pins);
-			for (cpin2 *pin = ipin.First(); pin; pin = ipin.Next())
+			CIter<CPin> ipin (&part->pins);
+			for (CPin *pin = ipin.First(); pin; pin = ipin.Next())
 			{
 				// get pad info
 				int pad_w, pad_l, pad_r, pad_type, pad_hole, pad_connect;
@@ -1411,11 +1392,11 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 								part->m_outline_stroke[ips].yi, LIGHT_OFF );
 							int type;
 							if( part->m_outline_stroke[ips].type == DL_LINE )
-								type = cpolyline::STRAIGHT;
+								type = CPolyline::STRAIGHT;
 							else if( part->m_outline_stroke[ips].type == DL_ARC_CW )
-								type = cpolyline::ARC_CW;
+								type = CPolyline::ARC_CW;
 							else if( part->m_outline_stroke[ips].type == DL_ARC_CCW )
-								type = cpolyline::ARC_CCW;
+								type = CPolyline::ARC_CCW;
 							else
 								ASSERT(0);
 							::WritePolygonSide( f, 
@@ -1469,13 +1450,13 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 		// draw vias and traces
 		if( PASS1 )
 			f->WriteString( "\nG04 Draw traces*\n" );
-		for (cnet2 *net = in.First(); net; net = in.Next())
+		for (CNet *net = in.First(); net; net = in.Next())
 		{
-			citer<cconnect2> ic (&net->connects);
-			for (cconnect2 *c = ic.First(); c; c = ic.Next())
+			CIter<CConnect> ic (&net->connects);
+			for (CConnect *c = ic.First(); c; c = ic.Next())
 			{
-				citer<cseg2> is (&c->segs);
-				for (cseg2 *s = is.First(); s; s = is.Next())
+				CIter<CSeg> is (&c->segs);
+				for (CSeg *s = is.First(); s; s = is.Next())
 					if( s->m_layer == layer )
 					{
 						// segment is on this layer, draw it
@@ -1488,8 +1469,8 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 							WriteMoveTo( f, s->postVtx->x, s->postVtx->y, LIGHT_ON );
 						}
 					}
-				citer<cvertex2> iv (&c->vtxs);
-				for (cvertex2 *v = iv.First(); v; v = iv.Next())
+				CIter<CVertex> iv (&c->vtxs);
+				for (CVertex *v = iv.First(); v; v = iv.Next())
 				{
 					// get following via info
 					int test, pad_w, hole_w;
@@ -1524,8 +1505,8 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 		// draw text
 		if( PASS1 )
 			f->WriteString( "\nG04 Draw Text*\n" );
-		citer<ctext> it (&tl->texts);
-		for (ctext *t = it.First(); t; t = it.Next())
+		CIter<CText> it (&tl->texts);
+		for (CText *t = it.First(); t; t = it.Next())
 			if( !t->m_bNegative && t->m_font_size && t->m_layer == layer )
 			{
 				// draw text
@@ -1555,10 +1536,10 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 			if( !PASS1 )
 				continue;
 			f->WriteString( "\nG04 Draw solder mask cutouts*\n" );
-			carray<csmcutout> sm_list;
-			carray<csmcutout> draw_list;
-			citer<csmcutout> ism0 (sm);
-			for (csmcutout *sm0 = ism0.First(); sm0; sm0 = ism0.Next())
+			CHeap<CSmCutout> sm_list;
+			CHeap<CSmCutout> draw_list;
+			CIter<CSmCutout> ism0 (sm);
+			for (CSmCutout *sm0 = ism0.First(); sm0; sm0 = ism0.Next())
 			{
 				if (sm0->m_layer != layer)
 					continue;
@@ -1570,8 +1551,8 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 			do
 			{
 				bUndrawnSms = false;
-				citer<csmcutout> ism1 (&sm_list), ism2 (&sm_list);
-				for (csmcutout *sm1 = ism1.First(); sm1; sm1 = ism1.Next())
+				CIter<CSmCutout> ism1 (&sm_list), ism2 (&sm_list);
+				for (CSmCutout *sm1 = ism1.First(); sm1; sm1 = ism1.Next())
 				{
 					if (sm1->utility)
 						continue;
@@ -1579,12 +1560,12 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 					int y = sm1->main->head->y;
 					// Sm not yet "drawn";  see if it lies within any other undrawn sm.  If not, we can "draw" it now.
 					bool bContainedInUndrawn = false;
-					for (csmcutout *sm2 = ism2.First(); sm2; sm2 = ism2.Next())
+					for (CSmCutout *sm2 = ism2.First(); sm2; sm2 = ism2.Next())
 					{
 						if (sm2==sm1 || sm2->utility)
 							continue;
-						citer<ccontour> ictr (&sm2->contours);
-						for (ccontour *ctr = ictr.First(); ctr; ctr = ictr.Next())
+						CIter<CContour> ictr (&sm2->contours);
+						for (CContour *ctr = ictr.First(); ctr; ctr = ictr.Next())
 							if (ctr!=sm2->main && ctr->TestPointInside(x, y))
 								{ bContainedInUndrawn = true; goto testEnd2; }
 					}
@@ -1599,12 +1580,12 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 			}
 			while (bUndrawnSms);
 
-			// now actually draw smcutouts.  We rely on the fact that when we iterate through carray draw_list, we'll go in the order
+			// now actually draw smcutouts.  We rely on the fact that when we iterate through CHeap draw_list, we'll go in the order
 			// in which sm's were added (this, because we've never removed any items from draw_list).
 			// Note that positive and negative are opposite compared to the case of copper areas.
-			citer<csmcutout> ism1 (&draw_list);
+			CIter<CSmCutout> ism1 (&draw_list);
 			BOOL bLastLayerNegative = FALSE;
-			for (csmcutout *sm1 = ism1.First(); sm1; sm1 = ism1.Next())
+			for (CSmCutout *sm1 = ism1.First(); sm1; sm1 = ism1.Next())
 			{
 				current_ap.m_type = CAperture::AP_NONE;	// force selection of aperture
 				// draw outline polygon
@@ -1618,9 +1599,9 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 					bLastLayerNegative = true;
 				}
 				f->WriteString( "G36*\n" );
-				ccorner *head = sm1->main->head;
+				CCorner *head = sm1->main->head;
 				::WriteMoveTo( f, head->x, head->y, LIGHT_OFF );
-				for (cside *s = head->postSide; 1; s = s->postCorner->postSide )
+				for (CSide *s = head->postSide; 1; s = s->postCorner->postSide )
 				{
 					::WritePolygonSide( f, s->preCorner->x, s->preCorner->y, s->postCorner->x, s->postCorner->y,
 						s->m_style, 10, LIGHT_ON );
@@ -1630,8 +1611,8 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 				f->WriteString( "G37*\n" );
 
 				// Now draw the sub-cutouts if any
-				citer<ccontour> ictr (&sm1->contours);
-				for (ccontour *ctr = ictr.First(); ctr; ctr = ictr.Next())
+				CIter<CContour> ictr (&sm1->contours);
+				for (CContour *ctr = ictr.First(); ctr; ctr = ictr.Next())
 				{
 					if (ctr == sm1->main)
 						continue;
@@ -1643,9 +1624,9 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 						bLastLayerNegative = false;
 					}
 					f->WriteString( "G36*\n" );
-					ccorner *head = ctr->head;
+					CCorner *head = ctr->head;
 					::WriteMoveTo( f, head->x, head->y, LIGHT_OFF );
-					for (cside *s = head->postSide; 1; s = s->postCorner->postSide )
+					for (CSide *s = head->postSide; 1; s = s->postCorner->postSide )
 					{
 						::WritePolygonSide( f, s->preCorner->x, s->preCorner->y, s->postCorner->x, s->postCorner->y,
 							s->m_style, 10, LIGHT_ON );
@@ -1658,9 +1639,9 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 				// Draw main contour with aperature for clearance
 				if( !(flags & GERBER_NO_CLEARANCE_SMCUTOUTS) )
 				{
-					ccorner *head = sm1->main->head;
+					CCorner *head = sm1->main->head;
 					::WriteMoveTo( f, head->x, head->y, LIGHT_OFF );
-					for (cside *s = head->postSide; 1; s = s->postCorner->postSide )
+					for (CSide *s = head->postSide; 1; s = s->postCorner->postSide )
 					{
 						::WritePolygonSide( f, s->preCorner->x, s->preCorner->y, s->postCorner->x, s->postCorner->y,
 							s->m_style, 10, LIGHT_ON );
@@ -1681,8 +1662,8 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 				current_ap.m_type = CAperture::AP_NONE;	// force selection of aperture
 			}
 			// iterate through all parts
-			citer<cpart2> ip (&pl->parts);
-			for (cpart2 *part = ip.First(); part; part = ip.Next())
+			CIter<CPart> ip (&pl->parts);
+			for (CPart *part = ip.First(); part; part = ip.Next())
 			{
 				if (!part->shape)
 					continue;
@@ -1691,8 +1672,8 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 					line.Format( "G04 draw pilot holes for part %s*\n", part->ref_des ); 
 					f->WriteString( line );
 				}
-				citer<cpin2> ipin (&part->pins);
-				for (cpin2 *pin = ipin.First(); pin; pin = ipin.Next())
+				CIter<CPin> ipin (&part->pins);
+				for (CPin *pin = ipin.First(); pin; pin = ipin.Next())
 					if( pin->ps->hole_size )
 					{
 						// check current aperture and change if needed
@@ -1707,14 +1688,14 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 			// iterate through all nets
 			if( PASS1 )
 				f->WriteString( "\nG04 Draw pilot holes for vias*\n" );
-			citer<cnet2> in (&nl->nets);
-			for (cnet2 *net = in.First(); net; net = in.Next())
+			CIter<CNet> in (&nl->nets);
+			for (CNet *net = in.First(); net; net = in.Next())
 			{
-				citer<cconnect2> ic (&net->connects);
-				for (cconnect2 *c = ic.First(); c; c = ic.Next())
+				CIter<CConnect> ic (&net->connects);
+				for (CConnect *c = ic.First(); c; c = ic.Next())
 				{
-					citer<cvertex2> iv (&c->vtxs);
-					for (cvertex2 *v = iv.First(); v; v = iv.Next())
+					CIter<CVertex> iv (&c->vtxs);
+					for (CVertex *v = iv.First(); v; v = iv.Next())
 						if( v->via_w )
 						{
 							// via exists:  flash it
@@ -1764,31 +1745,31 @@ int CompareTriples(const Triple *t1, const Triple *t2)
 
 // write NC drill file
 //
-int WriteDrillFile( CStdioFile * file, cpartlist * pl, cnetlist * nl, carray<cboard> * bd,
+int WriteDrillFile( CStdioFile * file, CPartList * pl, CNetList * nl, CHeap<CBoard> * bd,
 				   int n_x, int n_y, int space_x, int space_y )
 {
 	CArray<Triple> data;
 
 	// first, find gather hole data for parts
-	citer<cpart2> ip (&pl->parts);
-	for (cpart2 *part = ip.First(); part; part = ip.Next())
+	CIter<CPart> ip (&pl->parts);
+	for (CPart *part = ip.First(); part; part = ip.Next())
 	{
 		if (!part->shape)
 			continue;
-		citer<cpin2> ipin (&part->pins);
-		for (cpin2 *pin = ipin.First(); pin; pin = ipin.Next())
+		CIter<CPin> ipin (&part->pins);
+		for (CPin *pin = ipin.First(); pin; pin = ipin.Next())
 			if( pin->ps->hole_size )
 				data.Add( Triple(pin->ps->hole_size, pin->x, pin->y) ) ;
 	}
 	// gather hole data for vias
-	citer<cnet2> in (&nl->nets);
-	for (cnet2 *net = in.First(); net; net = in.Next())
+	CIter<CNet> in (&nl->nets);
+	for (CNet *net = in.First(); net; net = in.Next())
 	{
-		citer<cconnect2> ic (&net->connects);
-		for (cconnect2 *c = ic.First(); c; c = ic.Next())
+		CIter<CConnect> ic (&net->connects);
+		for (CConnect *c = ic.First(); c; c = ic.Next())
 		{
-			citer<cvertex2> iv (&c->vtxs);
-			for (cvertex2 *v = iv.First(); v; v = iv.Next())
+			CIter<CVertex> iv (&c->vtxs);
+			for (CVertex *v = iv.First(); v; v = iv.Next())
 				if( v->via_w  && v->via_hole_w )
 					data.Add( Triple( v->via_hole_w, v->x, v->y ));
 		}
@@ -1829,11 +1810,11 @@ int WriteDrillFile( CStdioFile * file, cpartlist * pl, cnetlist * nl, carray<cbo
 	int bd_min_y = INT_MAX;
 	int bd_max_x = INT_MIN;
 	int bd_max_y = INT_MIN;
-	citer<cboard> ib (bd);
-	for (cboard *b = ib.First(); b; b = ib.Next())
+	CIter<CBoard> ib (bd);
+	for (CBoard *b = ib.First(); b; b = ib.Next())
 	{
-		citer<ccorner> ic (&b->main->corners);
-		for (ccorner *c = ic.First(); c; c = ic.Next())
+		CIter<CCorner> ic (&b->main->corners);
+		for (CCorner *c = ic.First(); c; c = ic.Next())
 		{
 			if( c->x < bd_min_x )
 				bd_min_x = c->x;

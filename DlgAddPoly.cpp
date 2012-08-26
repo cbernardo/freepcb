@@ -48,9 +48,9 @@ void CDlgAddPoly::DoDataExchange(CDataExchange* pDX)
 		for (int i=0; i<4; i++)
 			s.LoadStringA(IDS_TopSilk+i),
 			m_combo_layer.InsertString( i, s );
-		citer<cpadstack> ips (m_padstacks);
+		CIter<CPadstack> ips (m_padstacks);
 		int i = 0;
-		for (cpadstack *ps = ips.First(); ps; ps = ips.Next())
+		for (CPadstack *ps = ips.First(); ps; ps = ips.Next())
 			m_combo_pin_name.InsertString( i++, ps->name );
 		SetFields();
 	}
@@ -78,7 +78,7 @@ void CDlgAddPoly::DoDataExchange(CDataExchange* pDX)
 // if width == -1, use width used last time, or 10 mils
 // if bNewPoly, assume closed
 void CDlgAddPoly::Initialize( BOOL bNewPoly, int layer, int units, 
-							 int width, BOOL bClosed, carray<cpadstack> * padstack )
+							 int width, BOOL bClosed, CHeap<CPadstack> * padstack )
 {
 	m_bNewPoly = bNewPoly;
 	m_units = units;

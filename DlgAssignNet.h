@@ -11,7 +11,7 @@ public:
 	DlgAssignNet(CWnd* pParent = NULL);   // standard constructor
 	virtual ~DlgAssignNet();
 	CString m_net_str;
-	cnetlist *m_nlist;
+	CNetList *m_nlist;
 	CComboBox m_combo_net;
 
 // Dialog Data

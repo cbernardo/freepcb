@@ -1,5 +1,5 @@
-// Polyline.h --- header file for classes related most closely to polylines, all of which are descendants of cpcb_item:
-//  ccorner, cside, ccontour, cpolyline, carea, csmcutout, cboard, coutline
+// Polyline.h --- header file for classes related most closely to polylines, all of which are descendants of CPcbItem:
+//  CCorner, CSide, CContour, CPolyline, CArea, CSmCutout, CBoard, COutline
 
 #pragma once
 #include <afxcoll.h>
@@ -10,15 +10,15 @@
 #include "stdafx.h"
 
 
-class ccorner: public cpcb_item
+class CCorner: public CPcbItem
 {
 public:
 	int x, y;
-	ccontour *contour;				// CPT2.
-	cside *preSide, *postSide;		// CPT2
+	CContour *contour;				// CPT2.
+	CSide *preSide, *postSide;		// CPT2
 
-	ccorner(ccontour *_contour, int _x, int _y);
-	ccorner(CFreePcbDoc *_doc, int _uid);
+	CCorner(CContour *_contour, int _x, int _y);
+	CCorner(CFreePcbDoc *_doc, int _uid);
 
 	virtual bool IsOnPcb();	
 	bool IsCorner() { return true; }
@@ -26,13 +26,13 @@ public:
 	bool IsBoardCorner();
 	bool IsSmCorner(); 
 	bool IsOutlineCorner();
-	ccorner *ToCorner() { return this; }
+	CCorner *ToCorner() { return this; }
 	int GetTypeBit();
-	cnet2 *GetNet();
+	CNet *GetNet();
 	int GetLayer();
-	cpolyline *GetPolyline();
-	cundo_item *MakeUndoItem()
-		{ return new cucorner(this); }
+	CPolyline *GetPolyline();
+	CUndoItem *MakeUndoItem()
+		{ return new CUCorner(this); }
 
 	bool IsOnCutout();
 	void Highlight();
@@ -42,15 +42,15 @@ public:
 	void Remove();
 };
 
-class cside: public cpcb_item
+class CSide: public CPcbItem
 {
 public:
 	int m_style;
-	ccontour *contour;
-	ccorner *preCorner, *postCorner;
+	CContour *contour;
+	CCorner *preCorner, *postCorner;
 
-	cside(ccontour *_contour, int _style);
-	cside(CFreePcbDoc *_doc, int _uid);
+	CSide(CContour *_contour, int _style);
+	CSide(CFreePcbDoc *_doc, int _uid);
 
 	virtual bool IsOnPcb();
 	bool IsSide() { return true; }
@@ -58,18 +58,18 @@ public:
 	bool IsBoardSide();
 	bool IsSmSide();
 	bool IsOutlineSide();
-	cside *ToSide() { return this; }
+	CSide *ToSide() { return this; }
 	int GetTypeBit();
-	cnet2 *GetNet();
+	CNet *GetNet();
 	int GetLayer();	
-	cpolyline *GetPolyline();
+	CPolyline *GetPolyline();
 	bool IsOnCutout();
-	cundo_item *MakeUndoItem()
-		{ return new cuside(this); }
+	CUndoItem *MakeUndoItem()
+		{ return new CUSide(this); }
 	char GetDirectionLabel();
 
 	void InsertCorner(int x, int y);
-	bool Remove( carray<cpolyline> *arr );
+	bool Remove( CHeap<CPolyline> *arr );
 	void Highlight();
 	void SetVisible();
 	void SetStyle();
@@ -77,43 +77,43 @@ public:
 	void CancelDraggingNewCorner( );
 };
 
-class ccontour: public cpcb_item
+class CContour: public CPcbItem
 {
 public:
 	// All CPT2.
-	carray<ccorner> corners;	// Array of corners.  NB entries not necessarily in geometrical order
-	carray<cside> sides;		// Array of sides
-	ccorner *head, *tail;		// For when we need to trace thru geometrically.
-	cpolyline *poly;			// The parent polyline
+	CHeap<CCorner> corners;	// Array of corners.  NB entries not necessarily in geometrical order
+	CHeap<CSide> sides;		// Array of sides
+	CCorner *head, *tail;		// For when we need to trace thru geometrically.
+	CPolyline *poly;			// The parent polyline
 
-	ccontour(cpolyline *_poly, bool bMain);
-	ccontour(cpolyline *_poly, ccontour *src);								// Copy constructor
-	ccontour(CFreePcbDoc *_doc, int _uid);
+	CContour(CPolyline *_poly, bool bMain);
+	CContour(CPolyline *_poly, CContour *src);								// Copy constructor
+	CContour(CFreePcbDoc *_doc, int _uid);
 
 	virtual bool IsOnPcb();
 	bool IsContour() { return true; }
-	ccontour *ToContour() { return this; }
+	CContour *ToContour() { return this; }
 	int GetTypeBit() { return bitContour; }
 	int GetLayer();
-	cnet2 *GetNet();
-	cpolyline *GetPolyline() { return poly; }
-	cundo_item *MakeUndoItem()
-		{ return new cucontour(this); }
+	CNet *GetNet();
+	CPolyline *GetPolyline() { return poly; }
+	CUndoItem *MakeUndoItem()
+		{ return new CUContour(this); }
 	void SaveUndoInfo();
 
 	int NumCorners() { return corners.GetSize(); } 
-	void AppendSideAndCorner( cside *s, ccorner *c, ccorner *after );
+	void AppendSideAndCorner( CSide *s, CCorner *c, CCorner *after );
 	void AppendCorner(int x, int y, int style = STRAIGHT);
 	void Close(int style = STRAIGHT);
 	void Unclose();
 	CRect GetCornerBounds();
 	bool TestPointInside( int x, int y );
-	void SetPoly( cpolyline *_poly );
+	void SetPoly( CPolyline *_poly );
 	void Remove();
 };
 
 class CArc {
-	// Helper class for gpc conversion routines in cpolyline.
+	// Helper class for gpc conversion routines in CPolyline.
 public: 
 	enum{ MAX_STEP = 50*25400 };	// max step is 20 mils
 	enum{ MIN_STEPS = 18 };		// min step is 5 degrees
@@ -123,30 +123,30 @@ public:
 	BOOL bFound;
 };
 
-class cpolyline: public cpcb_item
+class CPolyline: public CPcbItem
 {
 public:
-	ccontour *main;							// CPT2.  The primary, outer contour.
-	carray<ccontour> contours;				// CPT2.  All contours, including main
+	CContour *main;							// CPT2.  The primary, outer contour.
+	CHeap<CContour> contours;				// CPT2.  All contours, including main
 	int m_layer;							// layer to draw on
 	int m_w;								// line width
 	int m_sel_box;							// corner selection box width/2
 	int m_hatch;							// hatch style, see enum above
 	int m_nhatch;							// number of hatch lines
-	CArray <dl_element*>  dl_hatch;			// hatch lines.  Note that we use CArray with dl-elements generally
+	CArray <CDLElement*>  dl_hatch;			// hatch lines.  Note that we use CArray with dl-elements generally
 	gpc_polygon * m_gpc_poly;				// polygon in gpc format
 
 public:
 	// constructors/destructor
-	cpolyline(CFreePcbDoc *_doc);
-	cpolyline(cpolyline *src, bool bCopyContours=true);
-	cpolyline(CFreePcbDoc *_doc, int _uid);
-	~cpolyline();
+	CPolyline(CFreePcbDoc *_doc);
+	CPolyline(CPolyline *src, bool bCopyContours=true);
+	CPolyline(CFreePcbDoc *_doc, int _uid);
+	~CPolyline();
 
 	bool IsPolyline() { return true; }
-	cpolyline *ToPolyline() { return this; }
+	CPolyline *ToPolyline() { return this; }
 	int GetLayer() { return m_layer; }
-	cpolyline *GetPolyline() { return this; }
+	CPolyline *GetPolyline() { return this; }
 
 	// functions for creating and modifying polyline
 	virtual void Remove() { }														// CPT2 new.  Check out the versions in derived classes.
@@ -166,7 +166,7 @@ public:
 	// access functions
 	int NumCorners();														// Total corners in all contours.
 	int NumSides();				
-	void GetSidesInRect( CRect *r, carray<cpcb_item> *arr );				// CPT2 new.
+	void GetSidesInRect( CRect *r, CHeap<CPcbItem> *arr );				// CPT2 new.
 	bool IsClosed();
 	int NumContours() { return contours.GetSize(); }
 	int W() { return m_w; }
@@ -182,114 +182,114 @@ public:
 		{ Undraw(); m_hatch = hatch; Draw(); }
 	bool SetClosed( bool bClosed );	
 	void Offset(int dx, int dy);
-	void Copy(cpolyline *src);
-	void AddSidesTo(carray<cpcb_item> *arr);
+	void Copy(CPolyline *src);
+	void AddSidesTo(CHeap<CPcbItem> *arr);
 
 	// Functions for normalizing and combining intersecting polylines
-	virtual void GetCompatiblePolylines( carray<cpolyline> *arr ) { }
-	virtual cpolyline *CreateCompatible() { return NULL; }
-	void MakeGpcPoly( ccontour *ctr = NULL, CArray<CArc> * arc_array=NULL );
+	virtual void GetCompatiblePolylines( CHeap<CPolyline> *arr ) { }
+	virtual CPolyline *CreateCompatible() { return NULL; }
+	void MakeGpcPoly( CContour *ctr = NULL, CArray<CArc> * arc_array=NULL );
 	void FreeGpcPoly();
-	void NormalizeWithGpc( bool bRetainArcs=false );									// First version was in class carea2, am now generalizing
+	void NormalizeWithGpc( bool bRetainArcs=false );									// First version was in class CArea, am now generalizing
 	int TestPolygon();
-	int TestIntersection( cpolyline * poly2, bool bTestArcIntersections=true );
-	bool TestIntersections();															// First version was in carea2, now generalizing
-	int CombinePolyline( cpolyline *poly2 );
-	void RestoreArcs( CArray<CArc> *arc_array, carray<cpolyline> *pa=NULL );
-	int ClipPolygon( bool bMessageBoxArc, bool bMessageBoxInt, bool bRetainArcs=true);	// Generalization of old carea2 func.
-	static void CombinePolylines( carray<cpolyline> *pa, BOOL bMessageBox );			// Generalization of old CNetList::CombineAllAreasInNet()
+	int TestIntersection( CPolyline * poly2, bool bTestArcIntersections=true );
+	bool TestIntersections();															// First version was in CArea, now generalizing
+	int CombinePolyline( CPolyline *poly2 );
+	void RestoreArcs( CArray<CArc> *arc_array, CHeap<CPolyline> *pa=NULL );
+	int ClipPolygon( bool bMessageBoxArc, bool bMessageBoxInt, bool bRetainArcs=true);	// Generalization of old CArea func.
+	static void CombinePolylines( CHeap<CPolyline> *pa, BOOL bMessageBox );			// Generalization of old CNetList::CombineAllAreasInNet()
 																						// Testing it out minus the old bUseUtility param.
-	virtual bool PolygonModified( bool bMessageBoxArc, bool bMessageBoxInt );			// Generalization of old carea2 func.
-																						// Virtual, because at least for now cboard is overriding it (to
+	virtual bool PolygonModified( bool bMessageBoxArc, bool bMessageBoxInt );			// Generalization of old CArea func.
+																						// Virtual, because at least for now CBoard is overriding it (to
 																						// do nothing)
 };
 
-// carea2: describes a copper area in a net.
-class carea2 : public cpolyline
+// CArea: describes a copper area in a net.
+class CArea : public CPolyline
 {
 public:
-	cnet2 * m_net;		// parent net
+	CNet * m_net;		// parent net
 
-	carea2(cnet2 *_net, int layer, int hatch, int w, int sel_box);
-	carea2(CFreePcbDoc *_doc, int _uid);
+	CArea(CNet *_net, int layer, int hatch, int w, int sel_box);
+	CArea(CFreePcbDoc *_doc, int _uid);
 
 	virtual bool IsOnPcb();
 	bool IsArea() { return true; }
-	carea2 *ToArea() { return this; }
+	CArea *ToArea() { return this; }
 	int GetTypeBit() { return bitArea; }
-	cnet2 *GetNet() { return m_net; }
-	cundo_item *MakeUndoItem()
-		{ return new cuarea(this); }
+	CNet *GetNet() { return m_net; }
+	CUndoItem *MakeUndoItem()
+		{ return new CUArea(this); }
 	void SaveUndoInfo();
 	
 	int Draw();
 
-	void GetCompatiblePolylines( carray<cpolyline> *arr );
-	cpolyline *CreateCompatible();
+	void GetCompatiblePolylines( CHeap<CPolyline> *arr );
+	CPolyline *CreateCompatible();
 	void Remove();
-	void SetNet( cnet2 *net );
+	void SetNet( CNet *net );
 };
 
 
-class csmcutout : public cpolyline
+class CSmCutout : public CPolyline
 {
 	// Represents solder-mask cutouts, which are always closed polylines
 public:
-	csmcutout(CFreePcbDoc *_doc, int layer, int hatch);
-	csmcutout(CFreePcbDoc *_doc, int _uid);
+	CSmCutout(CFreePcbDoc *_doc, int layer, int hatch);
+	CSmCutout(CFreePcbDoc *_doc, int _uid);
 
 	virtual bool IsOnPcb();
 	bool IsSmCutout() { return true; }
-	csmcutout *ToSmCutout() { return this; }
+	CSmCutout *ToSmCutout() { return this; }
 	int GetTypeBit() { return bitSmCutout; }
-	cundo_item *MakeUndoItem()
-		{ return new cusmcutout(this); }
+	CUndoItem *MakeUndoItem()
+		{ return new CUSmCutout(this); }
 	void SaveUndoInfo();
 	void Remove();
-	cpolyline *CreateCompatible();
-	void GetCompatiblePolylines( carray<cpolyline> *arr );
+	CPolyline *CreateCompatible();
+	void GetCompatiblePolylines( CHeap<CPolyline> *arr );
 };
 
 
-class cboard : public cpolyline
+class CBoard : public CPolyline
 {
 public:
 	// Represents board outlines.
-	cboard(CFreePcbDoc *_doc);
-	cboard(CFreePcbDoc *_doc, int _uid);
+	CBoard(CFreePcbDoc *_doc);
+	CBoard(CFreePcbDoc *_doc, int _uid);
 
 	virtual bool IsOnPcb();
 	bool IsBoard() { return true; }
-	cboard *ToBoard() { return this; }
+	CBoard *ToBoard() { return this; }
 	int GetTypeBit() { return bitBoard; }
-	cundo_item *MakeUndoItem()
-		{ return new cuboard(this); }
+	CUndoItem *MakeUndoItem()
+		{ return new CUBoard(this); }
 	void SaveUndoInfo();
 	void Remove();
-	void GetCompatiblePolylines( carray<cpolyline> *arr );
-	bool PolygonModified( bool bMessageBoxArc, bool bMessageBoxInt ) { return true; }	// Overriding virtual func in cpolyline.
+	void GetCompatiblePolylines( CHeap<CPolyline> *arr );
+	bool PolygonModified( bool bMessageBoxArc, bool bMessageBoxInt ) { return true; }	// Overriding virtual func in CPolyline.
 };
 
-class coutline : public cpolyline
+class COutline : public CPolyline
 {
 public:
 	// Represents outlines within footprints.  These don't have to be closed.
-	cshape *shape;
+	CShape *shape;
 
-	coutline(cshape *_shape, int layer, int w);
-	coutline(coutline *src, cshape *_shape);
-	coutline(CFreePcbDoc *_doc, int uid)
-		: cpolyline(_doc, uid) 
+	COutline(CShape *_shape, int layer, int w);
+	COutline(COutline *src, CShape *_shape);
+	COutline(CFreePcbDoc *_doc, int uid)
+		: CPolyline(_doc, uid) 
 		{ shape = NULL; }
 
 	virtual bool IsOnPcb();
 	bool IsOutline() { return true; }
-	coutline *ToOutline() { return this; }
+	COutline *ToOutline() { return this; }
 	int GetTypeBit() { return bitOutline; }
-	cundo_item *MakeUndoItem()
-		{ return new cuoutline(this); }
+	CUndoItem *MakeUndoItem()
+		{ return new CUOutline(this); }
 	void SaveUndoInfo();
-	cpolyline *CreateCompatible();
+	CPolyline *CreateCompatible();
 };
 
 

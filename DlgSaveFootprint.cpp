@@ -107,10 +107,10 @@ void CDlgSaveFootprint::DoDataExchange(CDataExchange* pDX)
 	}
 	m_edit_name.GetWindowText( m_name );
 	m_name.Replace( '\"', '\'' );			// replace any " with '
-	if( m_name.GetLength() > cshape::MAX_NAME_SIZE )
+	if( m_name.GetLength() > CShape::MAX_NAME_SIZE )
 	{
 		CString s ((LPCSTR) IDS_NameTooLong), mess;
-		mess.Format( s,	cshape::MAX_NAME_SIZE );
+		mess.Format( s,	CShape::MAX_NAME_SIZE );
 		AfxMessageBox( mess );
 		return;
 	}
@@ -314,10 +314,10 @@ void CDlgSaveFootprint::DoDataExchange(CDataExchange* pDX)
 }
 
 void CDlgSaveFootprint::Initialize( CString * name, 
-								    cshape * footprint,							 
+								    CShape * footprint,							 
 								    int units,	
 									LPCTSTR default_file_name,
-									cshapelist * cache_shapes,
+									CShapeList * cache_shapes,
 									CFootLibFolderMap * footlibfoldermap,
 									CDlgLog * log )
 

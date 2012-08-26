@@ -262,8 +262,8 @@ void CDlgAddPin::DoDataExchange(CDataExchange* pDX)
 		if( m_fp->GetNumPins() )
 		{
 			CArray<CString> pin_name;
-			citer<cpadstack> ips (&m_fp->m_padstacks);
-			for (cpadstack *ps = ips.First(); ps; ps = ips.Next())
+			CIter<CPadstack> ips (&m_fp->m_padstacks);
+			for (CPadstack *ps = ips.First(); ps; ps = ips.Next())
 				pin_name.Add(ps->name);
 			::SortByName( &pin_name );
 			int ipp = 0; 
@@ -506,8 +506,8 @@ void CDlgAddPin::DoDataExchange(CDataExchange* pDX)
 				pDX->Fail();
 			}
 			// check for conflicts
-			citer<cpadstack> ips (&m_fp->m_padstacks);
-			for (cpadstack *ps = ips.First(); ps; ps = ips.Next())
+			CIter<CPadstack> ips (&m_fp->m_padstacks);
+			for (CPadstack *ps = ips.First(); ps; ps = ips.Next())
 				if( astr==ps->name && ps!=m_ps0 )
 				{
 					conflict = TRUE;
@@ -529,8 +529,8 @@ void CDlgAddPin::DoDataExchange(CDataExchange* pDX)
 			{
 				CString pin_name;
 				pin_name.Format( "%s%d", astr, n+ip*m_increment );
-				citer<cpadstack> ips (&m_fp->m_padstacks);
-				for (cpadstack *ps = ips.First(); ps; ps = ips.Next())
+				CIter<CPadstack> ips (&m_fp->m_padstacks);
+				for (CPadstack *ps = ips.First(); ps; ps = ips.Next())
 					if( pin_name == ps->name && ps!=m_ps0 )
 					{
 						conflict = TRUE;
@@ -557,7 +557,7 @@ void CDlgAddPin::DoDataExchange(CDataExchange* pDX)
 		// check if we will be dragging
 		m_drag_flag = m_radio_drag.GetCheck();
 		// now insert padstacks
-		cpadstack *ps = new cpadstack (m_fp);
+		CPadstack *ps = new CPadstack (m_fp);
 		ps->hole_size = m_hole_diam;
 		if( m_padstack_type == 0 || m_padstack_type == 2 )
 			ps->hole_size = 0;
@@ -661,7 +661,7 @@ void CDlgAddPin::DoDataExchange(CDataExchange* pDX)
 				if( m_list_pins.GetSel( ip ) )
 				{
 					m_list_pins.GetText( ip, str );
-					cpadstack *sel_ps =  m_fp->GetPadstackByName( &str );
+					CPadstack *sel_ps =  m_fp->GetPadstackByName( &str );
 					if( sel_ps->hole_size == 0 )
 					{
 						if( sel_ps->top.shape != PAD_NONE )
@@ -683,7 +683,7 @@ void CDlgAddPin::DoDataExchange(CDataExchange* pDX)
 				if( m_list_pins.GetSel( ip ) )
 				{
 					m_list_pins.GetText( ip, str );
-					cpadstack *sel_ps = m_fp->GetPadstackByName( &str );
+					CPadstack *sel_ps = m_fp->GetPadstackByName( &str );
 					ASSERT( sel_ps );
 					sel_ps->angle = ps->angle;
 					sel_ps->hole_size = ps->hole_size;
@@ -729,7 +729,7 @@ void CDlgAddPin::DoDataExchange(CDataExchange* pDX)
 			{
 				m_fp->ShiftToInsertPadName( &astr, n+ip*m_increment );
 				if (ip>0)
-					ps = new cpadstack (ps, m_fp),
+					ps = new CPadstack (ps, m_fp),
 					ps->x_rel += dx,
 					ps->y_rel += dy;
 				ps->name.Format( "%s%d", astr, n+ip*m_increment );
@@ -787,7 +787,7 @@ BEGIN_MESSAGE_MAP(CDlgAddPin, CDialog)
 END_MESSAGE_MAP()
 
 
-void CDlgAddPin::InitDialog( cshape * fp, cpadstack *ps0, carray<cpadstack> *new_pins, int units )
+void CDlgAddPin::InitDialog( CShape * fp, CPadstack *ps0, CHeap<CPadstack> *new_pins, int units )
 {
 	ASSERT(fp);
 	m_fp = fp;
@@ -1070,7 +1070,7 @@ void CDlgAddPin::GetFields()
 	{
 		// set all parameters to be the same as another pin
 		m_combo_same_as_pin.GetWindowText( m_same_as_pin_name );
-		cpadstack *copy_ps = m_fp->GetPadstackByName( &m_same_as_pin_name );
+		CPadstack *copy_ps = m_fp->GetPadstackByName( &m_same_as_pin_name );
 		m_pad_orient = 0;
 		if( copy_ps->hole_size )
 			m_padstack_type = 1;

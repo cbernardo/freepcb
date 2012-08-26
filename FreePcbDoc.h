@@ -23,8 +23,8 @@
 
 class CFreePcbDoc;
 class CFreePcbView;
-class cpcb_item;
-template <class T> class carray;
+class CPcbItem;
+template <class T> class CHeap;
 
 struct undo_board_outline {
 	// undo_poly struct starts here 
@@ -49,16 +49,16 @@ public:
 	CDisplayList * m_dlist;		// current display list.  CPT2: new.  Sometimes this is equal to m_dlist_pcb, sometimes m_dlist_fp.
 	CDisplayList * m_dlist_pcb; // display list for main editor
 	CDisplayList * m_dlist_fp;	// display list for footprint editor
-	cnetlist *m_nlist;			// CPT2.  Was CNetList, now cnetlist
-	cpartlist *m_plist;			// CPT2.  Was CPartList, now cpartlist
-	ctextlist * m_tlist;		// CPT2.  Was CTextList, now ctextlist
-	carray<cboard> boards;
-	carray<csmcutout> smcutouts;
-	cshapelist *m_slist;
-	// carray<coutline> outlines;		// CPT2 maybe...  Still have to figure out the memory management of entities within CShapes.
-	cdrelist * m_drelist;			// CPT2.  Was DREList, now cdrelist
-	carray<cpcb_item> items;		// CPT2.  Master list of all created pcb-items.  GarbageCollect() will go through this list and clean up now and then.
-	carray<cpcb_item> redraw;		// CPT2 r313.  My latest-n-greatest system for undrawing and redrawing (see notes.txt).
+	CNetList *m_nlist;			// CPT2.  Was CNetList, now CNetList
+	CPartList *m_plist;			// CPT2.  Was CPartList, now CPartList
+	CTextList * m_tlist;		// CPT2.  Was CTextList, now CTextList
+	CHeap<CBoard> boards;
+	CHeap<CSmCutout> smcutouts;
+	CShapeList *m_slist;
+	// CHeap<COutline> outlines;		// CPT2 maybe...  Still have to figure out the memory management of entities within CShapes.
+	CDreList * m_drelist;			// CPT2.  Was DREList, now CDreList
+	CHeap<CPcbItem> items;		// CPT2.  Master list of all created pcb-items.  GarbageCollect() will go through this list and clean up now and then.
+	CHeap<CPcbItem> redraw;		// CPT2 r313.  My latest-n-greatest system for undrawing and redrawing (see notes.txt).
 
 	CFreePcbView * m_view;		// pointer to CFreePcbView 
 	CDlgLog * m_dlg_log;
@@ -73,7 +73,7 @@ public:
 	double m_read_version;		// the version from the project file
 	int m_WindowsMajorVersion;	// CPT2 added, seemed helpful 
 	BOOL bNoFilesOpened;		// TRUE if no files have been opened
-	cshape * m_edit_footprint;	// Set if we're editing the footprint of a selected part.  CPT2 was BOOL, made it more informative...
+	CShape * m_edit_footprint;	// Set if we're editing the footprint of a selected part.  CPT2 was BOOL, made it more informative...
 	BOOL m_project_open;		// FALSE if no project open
 	BOOL m_project_modified;	// FALSE if project not modified since loaded
 	BOOL m_project_modified_since_autosave;	// FALSE if project not modified since loaded
@@ -94,9 +94,9 @@ public:
 	CString m_netlist_full_path;	// last netlist loaded
 
 	// undo/redo list and state
-	CArray<cundo_item*> m_undo_items;		// CPT2 new undo system.  Altered items accumulate in here during a user operation, then get combined
-											// into a new cundo_record by FinishUndoRecord().
-	CArray<cundo_record*> m_undo_records;	// CPT2 The main list that both undo and redo operations refer to.
+	CArray<CUndoItem*> m_undo_items;		// CPT2 new undo system.  Altered items accumulate in here during a user operation, then get combined
+											// into a new CUndoRecord by FinishUndoRecord().
+	CArray<CUndoRecord*> m_undo_records;	// CPT2 The main list that both undo and redo operations refer to.
 	int m_undo_pos;							// CPT2 Offset into m_undo_items, marking the dividing line between undo and redo records.
 	int m_undo_last_uid;					// CPT2 FinishUndoRecord() refers to this to determine which cpcb_items are newly created since it was last invoked
 	enum { UNDO_MAX = 100 };
@@ -117,12 +117,12 @@ public:
 	int m_auto_ratline_min_pins;
 
 	// pseudo-clipboard.  CPT2 changed to the new object types:
-	cpartlist *clip_plist;
-	cnetlist *clip_nlist;
-	ctextlist *clip_tlist;
-	carray<csmcutout> clip_smcutouts;
-	carray<cboard> clip_boards;
-	cshapelist *clip_slist;											// CPT2 new in r336.
+	CPartList *clip_plist;
+	CNetList *clip_nlist;
+	CTextList *clip_tlist;
+	CHeap<CSmCutout> clip_smcutouts;
+	CHeap<CBoard> clip_boards;
+	CShapeList *clip_slist;											// CPT2 new in r336.
 
 	// define world units for CDisplayList
 	int m_pcbu_per_wu;
@@ -230,13 +230,13 @@ public:
 	void InitializeNewProject();
 	void SendInitialUpdate();
 	// void ReadFootprints( CStdioFile * pcb_file, CMapStringToPtr * cache_map=NULL, BOOL bFindSection=TRUE );
-	// int WriteFootprints( CStdioFile * file, CMapStringToPtr * cache_map=NULL ); // CPT2 replace with cshapelist::WriteShapes().
-	cshape * GetFootprintPtr( CString *name );
+	// int WriteFootprints( CStdioFile * file, CMapStringToPtr * cache_map=NULL ); // CPT2 replace with CShapeList::WriteShapes().
+	CShape * GetFootprintPtr( CString *name );
 	void MakeLibraryMaps( CString * fullpath );
 	void ReadBoardOutline( CStdioFile * pcb_file);
-	void WriteBoardOutline( CStdioFile * pcb_file, carray<cboard> *boards = NULL );
+	void WriteBoardOutline( CStdioFile * pcb_file, CHeap<CBoard> *boards = NULL );
 	void ReadSolderMaskCutouts( CStdioFile * pcb_file );
-	void WriteSolderMaskCutouts( CStdioFile * pcb_file, carray<csmcutout> *smcutouts = NULL );
+	void WriteSolderMaskCutouts( CStdioFile * pcb_file, CHeap<CSmCutout> *smcutouts = NULL );
 	void ReadOptions( CStdioFile * pcb_file );
 	void WriteOptions( CStdioFile * pcb_file );
 	int ImportNetlist( CStdioFile * file, UINT flags, 
@@ -269,15 +269,15 @@ public:
 
 	// CPT2 DRC() used to be in CPartList, but I thought it made more sense here.  I also broke DRC() into helper routines for readability.
 	void DRC( int units, BOOL check_unrouted, DesignRules * dr );
-	void DRCPin( cpin2 *pin, int units, DesignRules *dr );
-	void DRCPinsAndCopperGraphics( cpart2 *part1, cpart2 *part2, int units, DesignRules *dr );
-	void DRCPinAndPin( cpin2 *pin1, cpin2 *pin2, int units, DesignRules *dr, int clearance );
-	void DRCArea( carea2 *a, int units, DesignRules *dr );
-	void DRCConnect( cconnect2 *c, int units, DesignRules *dr );
-	void DRCConnectAndConnect( cconnect2 *c1, cconnect2 *c2, int units, DesignRules *dr, int clearance );
-	void DRCAreaAndArea( carea2 *a1, carea2 *a2, int units, DesignRules *dr );
-	void DRCSegmentAndVia( cseg2 *seg, cvertex2 *vtx, int units, DesignRules *dr );
-	void DRCViaAndVia(cvertex2 *vtx1, cvertex2 *vtx2, int units, DesignRules *dr);
+	void DRCPin( CPin *pin, int units, DesignRules *dr );
+	void DRCPinsAndCopperGraphics( CPart *part1, CPart *part2, int units, DesignRules *dr );
+	void DRCPinAndPin( CPin *pin1, CPin *pin2, int units, DesignRules *dr, int clearance );
+	void DRCArea( CArea *a, int units, DesignRules *dr );
+	void DRCConnect( CConnect *c, int units, DesignRules *dr );
+	void DRCConnectAndConnect( CConnect *c1, CConnect *c2, int units, DesignRules *dr, int clearance );
+	void DRCAreaAndArea( CArea *a1, CArea *a2, int units, DesignRules *dr );
+	void DRCSegmentAndVia( CSeg *seg, CVertex *vtx, int units, DesignRules *dr );
+	void DRCViaAndVia(CVertex *vtx1, CVertex *vtx2, int units, DesignRules *dr);
 	void DRCUnrouted(int units);
 
 #ifdef _DEBUG

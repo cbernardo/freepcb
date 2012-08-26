@@ -13,7 +13,7 @@ public:
 	CDlgImportFootprint(CWnd* pParent = NULL);   // standard constructor
 	virtual ~CDlgImportFootprint();
 	void InitPartLibTree();
-	void InitInstance( cshapelist * cache_shapes,
+	void InitInstance( CShapeList * cache_shapes,
 					   CFootLibFolderMap * foldermap,
 					   CDlgLog * log );
 
@@ -26,13 +26,13 @@ protected:
 	DECLARE_MESSAGE_MAP()
 public:
 	CDlgLog * m_dlg_log;
-	cshapelist * m_cache_shapes;
+	CShapeList * m_cache_shapes;
 	CFootLibFolderMap * m_foldermap;
 	CFootLibFolder * m_footlibfolder;
 	CString m_footprint_name;
 	CString m_footprint_filename;
 	CString m_footprint_folder;
-	cshape *m_shape;					// CPT2 was CShape, changed to cshape* (otherwise initialization doesn't work right)
+	CShape *m_shape;					// CPT2 was CShape, changed to CShape* (otherwise initialization doesn't work right)
 	BOOL m_in_cache;
 	int m_ilib;							// indices into libraries
 	int m_ihead;

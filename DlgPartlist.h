@@ -28,8 +28,8 @@ class CDlgPartlist : public CDialog
 public:
 	// Dialog Data
 	enum { IDD = IDD_PARTLIST };
-	cpartlist * m_plist;
-	cshapelist * m_cache_shapes;
+	CPartList * m_plist;
+	CShapeList * m_cache_shapes;
 	CFootLibFolderMap * m_footlibfoldermap;
 	int m_units;
 	int m_sort_type;
@@ -54,8 +54,8 @@ protected:
 public:
 	virtual BOOL OnInitDialog();
 	void DrawListCtrl(bool bSetup);						// CPT2 added arg
-	void Initialize( cpartlist * plist,
-			cshapelist * cache_shapes,
+	void Initialize( CPartList * plist,
+			CShapeList * cache_shapes,
 			CFootLibFolderMap * footlibfoldermap,
 			int units, CDlgLog * log );
 	void SaveSelections();

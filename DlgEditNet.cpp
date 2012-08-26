@@ -159,7 +159,7 @@ void CDlgEditNet::DoDataExchange(CDataExchange* pDX)
 
 void CDlgEditNet::Initialize( netlist_info * nli,
 							 int i,
-							 cpartlist * plist,
+							 CPartList * plist,
 							 BOOL new_net,
 							 BOOL visible,
 							 int units,
@@ -261,7 +261,7 @@ void CDlgEditNet::OnBnClickedButtonAdd()
 		if( dot_pos >= 2 && dot_pos < (len-1) )
 		{
 			CString refstr = str.Left( dot_pos );
-			cpart2 * part = m_plist->GetPartByName( &refstr );
+			CPart * part = m_plist->GetPartByName( &refstr );
 			if( !part )
 			{
 				CString s ((LPCSTR) IDS_PartDoesNotExist);
@@ -283,7 +283,7 @@ void CDlgEditNet::OnBnClickedButtonAdd()
 				AfxMessageBox( s1 );
 				return;
 			}
-			cpin2 *pin = part->GetPinByName( &pinstr );
+			CPin *pin = part->GetPinByName( &pinstr );
 			if( !pin )
 			{
 				CString s ((LPCSTR) IDS_PinNotFoundInFootprint);

@@ -26,11 +26,11 @@ public:
 	CArray<int> *m_w;		// array of default widths
 	CArray<int> *m_v_w;		// array of via widths (matching m_w[] entries)
 	CArray<int> *m_v_h_w;	// array of via hole widths
-	cnetlist * m_nlist;
-	cpartlist * m_plist;
+	CNetList * m_nlist;
+	CPartList * m_plist;
 	netlist_info * m_nli;
 
-	void Initialize( cnetlist * nlist, cpartlist * plist,
+	void Initialize( CNetList * nlist, CPartList * plist,
 		CArray<int> * w, CArray<int> * v_w, CArray<int> * v_h_w ); 
 private:
 	int m_sort_type;

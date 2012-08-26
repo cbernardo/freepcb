@@ -8,7 +8,7 @@
 #include "rgb.h"
 #include "smfontutil.h"
 
-class cnet2;
+class CNet;
 
 //#define DL_MAX_LAYERS 32
 #define DL_MAGIC		2674
@@ -101,11 +101,11 @@ struct CDrawInfo
 // CPT:  new system to replace Brian's "drawing jobs"
 class CDisplayLayer {
 public:
-	dl_element *elements;					// A doubly-linked list of display elements.
+	CDLElement *elements;					// A doubly-linked list of display elements.
 
 	CDisplayLayer()
 		{ elements = NULL; }
-	void Add(dl_element* el) {
+	void Add(CDLElement* el) {
 		// Add el to the head of the linked list.
 		if (elements) elements->prev = el;
 		el->next = elements;
@@ -120,7 +120,7 @@ class CHitInfo
 	// Was a struct within Brian's CDL_job class, for some reason.  Now it's an independent class.
 public:
 	int layer;
-	cpcb_item *item;			// CPT2.  TODO: get rid of ID and ptr
+	CPcbItem *item;			// CPT2.  TODO: get rid of ID and ptr
 	int priority;
 	double dist;			// CPT r294
 };
@@ -130,7 +130,7 @@ public:
 class CDisplayList
 {
 private:
-    friend dl_element;
+    friend CDLElement;
 
 	// display-list parameters for each layer
 	CDisplayLayer layers[MAX_LAYERS];	// CPT
@@ -232,7 +232,7 @@ private:
 	SMFontUtil * m_fontutil;
 
 
-    dl_element * CreateDLE( int gtype );
+    CDLElement * CreateDLE( int gtype );
 
 public:
 	CDisplayList( int pcbu_per_wu, SMFontUtil * fontutil );
@@ -250,40 +250,40 @@ public:
 	void Scale_pcbu_to_wu(CRect &rect);
 	void Scale_wu_to_pixels(CRect &rect);
 
-	/* dl_element * CreateDLE( id id, void * ptr, int layer, int gtype, int visible,
+	/* CDLElement * CreateDLE( id id, void * ptr, int layer, int gtype, int visible,
 	                        int w, int holew, int clearancew,
 	                        int x, int y, int xf, int yf, int xo, int yo, int radius,
 	                        int orig_layer );
 
-    // dl_element * MorphDLE( dl_element *pFrom, int to_gtype );
+    // CDLElement * MorphDLE( CDLElement *pFrom, int to_gtype );
 
     // Create and add elements
-	dl_element * Add( id id, void * ptr, int glayer, int gtype, int visible,
+	CDLElement * Add( id id, void * ptr, int glayer, int gtype, int visible,
 						int w, int holew, int clearancew,
 						int x, int y, int xf, int yf, int xo, int yo,
 						int radius=0,
 						int orig_layer=LAY_SELECTION );
-	dl_element * AddSelector( id id, void * ptr, int glayer, int gtype, int visible,
+	CDLElement * AddSelector( id id, void * ptr, int glayer, int gtype, int visible,
 								int w, int holew,
 								int x, int y, int xf, int yf, int xo, int yo,
 								int radius=0 );
 	*/
-	void Add( dl_element * element );
+	void Add( CDLElement * element );
 
-	// BEGIN CPT2.  Versions of the above routines that use cpcb_item pointers instead of id's.
-	dl_element * CreateDLE( cpcb_item *item, int usage, int layer, int gtype, int visible,					// CPT2 TODO dump the usage business?
+	// BEGIN CPT2.  Versions of the above routines that use CPcbItem pointers instead of id's.
+	CDLElement * CreateDLE( CPcbItem *item, int usage, int layer, int gtype, int visible,					// CPT2 TODO dump the usage business?
 	                        int w, int holew, int clearancew,
 	                        int x, int y, int xf, int yf, int xo, int yo, int radius,
 	                        int orig_layer );
-	dl_element * CDisplayList::Add( cpcb_item *item, int usage, int layer, int gtype, int visible,
+	CDLElement * CDisplayList::Add( CPcbItem *item, int usage, int layer, int gtype, int visible,
 	                            int w, int holew, int clearancew,
                                 int x, int y, int xf, int yf, int xo, int yo,
 	                            int radius=0, int orig_layer=LAY_SELECTION );
-	dl_element * CDisplayList::AddMain( cpcb_item *item, int layer, int gtype, int visible,
+	CDLElement * CDisplayList::AddMain( CPcbItem *item, int layer, int gtype, int visible,
 	                            int w, int holew, int clearancew,
                                 int x, int y, int xf, int yf, int xo, int yo,
 	                            int radius=0, int orig_layer=LAY_SELECTION );
-	dl_element * CDisplayList::AddSelector( cpcb_item *item, int layer, int gtype, int visible,
+	CDLElement * CDisplayList::AddSelector( CPcbItem *item, int layer, int gtype, int visible,
 							   int w, int holew, int x, int y, int xf, int yf, int xo, int yo,
 							   int radius=0 );
 	// END CPT2
@@ -291,7 +291,7 @@ public:
     // Remove elements
 	void RemoveAll();
 	void RemoveAllFromLayer( int layer );
-	void Remove( dl_element * element );
+	void Remove( CDLElement * element );
 
 	void Draw( CDC * pDC );
 	int Highlight( int gtype, int x, int y, int xf, int yf, int w, int orig_layer=LAY_SELECTION );
@@ -299,7 +299,7 @@ public:
 	// CPT r294.  Changed args quite a bit:  exclude-ids are out; hit_info is now a CArray; new bCtrl param added (depends on ctrl-key state).
 	// Now always sorts hit_info, and returns the number of hits, not the highest-priority index.
 	int TestSelect( int x, int y, CArray<CHitInfo> *hit_info, int maskBits, 
-		bool bCtrl=false, cnet2 *net=NULL, int layer=-1 );								// CPT2.  New mask bit system.  Also new args "net" & "layer"
+		bool bCtrl=false, CNet *net=NULL, int layer=-1 );								// CPT2.  New mask bit system.  Also new args "net" & "layer"
 	int StartDraggingArray( CDC * pDC, int x, int y, int vert, int layer, int crosshair = 1 );
 	int StartDraggingRatLine( CDC * pDC, int x, int y, int xf, int yf, int layer,
 		int w, int crosshair = 1 );
@@ -348,43 +348,43 @@ public:
 	void UpdateRatlineWidth( int width );
 
 	// set element parameters
-	void Set_visible( dl_element * el, int visible );
-	void Set_sel_vert( dl_element * el, int sel_vert );
-	void Set_w( dl_element * el, int w );
-	void Set_clearance( dl_element * el, int clearance );
-	void Set_holew( dl_element * el, int holew );
-	void Set_x_org( dl_element * el, int x_org );
-	void Set_y_org( dl_element * el, int y_org );
-	void Set_x( dl_element * el, int x );
-	void Set_y( dl_element * el, int y );
-	void Set_xf( dl_element * el, int xf );
-	void Set_yf( dl_element * el, int yf );
-	void Set_layer( dl_element * el, int layer );
-	void Set_radius( dl_element * el, int radius );
-	void Set_mode( dl_element * el, int mode );
-	void Set_pass( dl_element * el, int pass );
-	// void Set_gtype( dl_element * el, int gtype );			// CPT2 This no longer worked, given Brian's object-oriented system.  See comments 
+	void Set_visible( CDLElement * el, int visible );
+	void Set_sel_vert( CDLElement * el, int sel_vert );
+	void Set_w( CDLElement * el, int w );
+	void Set_clearance( CDLElement * el, int clearance );
+	void Set_holew( CDLElement * el, int holew );
+	void Set_x_org( CDLElement * el, int x_org );
+	void Set_y_org( CDLElement * el, int y_org );
+	void Set_x( CDLElement * el, int x );
+	void Set_y( CDLElement * el, int y );
+	void Set_xf( CDLElement * el, int xf );
+	void Set_yf( CDLElement * el, int yf );
+	void Set_layer( CDLElement * el, int layer );
+	void Set_radius( CDLElement * el, int radius );
+	void Set_mode( CDLElement * el, int mode );
+	void Set_pass( CDLElement * el, int pass );
+	// void Set_gtype( CDLElement * el, int gtype );			// CPT2 This no longer worked, given Brian's object-oriented system.  See comments 
 	//                                                          // next to the old function definition in DisplayList.cpp
-	void Move( dl_element * el, int dx, int dy );
+	void Move( CDLElement * el, int dx, int dy );
 
 	// get element parameters
-	void * Get_ptr( dl_element * el );
-	int Get_gtype( dl_element * el );
-	int Get_visible( dl_element * el );
-	int Get_sel_vert( dl_element * el );
-	int Get_w( dl_element * el );
-	int Get_holew( dl_element * el );
-	int Get_x_org( dl_element * el );
-	int Get_y_org( dl_element * el );
-	int Get_x( dl_element * el );
-	int Get_y( dl_element * el );
-	int Get_xf( dl_element * el );
-	int Get_yf( dl_element * el );
-	int Get_radius( dl_element * el );
-	int Get_layer( dl_element * el );
+	void * Get_ptr( CDLElement * el );
+	int Get_gtype( CDLElement * el );
+	int Get_visible( CDLElement * el );
+	int Get_sel_vert( CDLElement * el );
+	int Get_w( CDLElement * el );
+	int Get_holew( CDLElement * el );
+	int Get_x_org( CDLElement * el );
+	int Get_y_org( CDLElement * el );
+	int Get_x( CDLElement * el );
+	int Get_y( CDLElement * el );
+	int Get_xf( CDLElement * el );
+	int Get_yf( CDLElement * el );
+	int Get_radius( CDLElement * el );
+	int Get_layer( CDLElement * el );
 	COLORREF GetLayerColor( int layer );
-	int Get_mode( dl_element * el );
-	int Get_pass( dl_element * el );
+	int Get_mode( CDLElement * el );
+	int Get_pass( CDLElement * el );
 	void Get_Endpoints(CPoint *cpi, CPoint *cpf);
 
 	int TestForHits( double x, double y, CArray<CHitInfo> *hitInfo );			// CPT:  previously in Brian's CDL_job.  r294: altered args.

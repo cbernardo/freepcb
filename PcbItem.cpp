@@ -10,20 +10,20 @@
 #include "Text.h"
 
 class CFreePcbDoc;
-class cpcb_item;
+class CPcbItem;
 
-int cpcb_item::next_uid = 1;
-int cpcb_item::uid_hash_sz = 0x2000;
-cpcb_item **cpcb_item::uid_hash = NULL;
+int CPcbItem::next_uid = 1;
+int CPcbItem::uid_hash_sz = 0x2000;
+CPcbItem **CPcbItem::uid_hash = NULL;
 
-cpcb_item::cpcb_item(CFreePcbDoc *_doc)
+CPcbItem::CPcbItem(CFreePcbDoc *_doc)
 {
 	carray_list = NULL; 
 	if (!uid_hash)
 	{
 		// First ever item creation.  Initialize uid_hash table.
-		int sz = uid_hash_sz * sizeof(cpcb_item*);
-		uid_hash = (cpcb_item**) HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sz);
+		int sz = uid_hash_sz * sizeof(CPcbItem*);
+		uid_hash = (CPcbItem**) HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sz);
 	}
 	m_uid = next_uid++;
 	doc = _doc;
@@ -38,10 +38,10 @@ cpcb_item::cpcb_item(CFreePcbDoc *_doc)
 	uid_hash[hashVal] = this;
 }
 
-cpcb_item::cpcb_item(CFreePcbDoc *_doc, int _uid)
+CPcbItem::CPcbItem(CFreePcbDoc *_doc, int _uid)
 {
 	// Constructor used only during undo operations, for recreating items that user removed and that were subsequently garbage-collected.
-	// Creates an empty object with the specified uid.  See the constructors cvertex2::cvertex2(_doc, _uid), etc.
+	// Creates an empty object with the specified uid.  See the constructors CVertex::CVertex(_doc, _uid), etc.
 	carray_list = NULL;
 	m_uid = _uid;
 	doc = _doc;
@@ -55,15 +55,15 @@ cpcb_item::cpcb_item(CFreePcbDoc *_doc, int _uid)
 	uid_hash[hashVal] = this;
 }
 
-cpcb_item::~cpcb_item()
+CPcbItem::~CPcbItem()
 {
 	// When an item is destroyed, references to it are automatically removed from any carrays to which it belongs:
-	for (carray_link *link = carray_list, *next; link; link = next)
+	for (CHeapLink *link = carray_list, *next; link; link = next)
 	{
-		carray<cpcb_item> *arr = (carray<cpcb_item>*) link->arr;
+		CHeap<CPcbItem> *arr = (CHeap<CPcbItem>*) link->arr;
 		int off = link->off;
 		ASSERT(arr->heap[off]==this);				// For now...
-		arr->heap[off] = (cpcb_item*) arr->free;	// Add "off" to arr's free-offset list
+		arr->heap[off] = (CPcbItem*) arr->free;	// Add "off" to arr's free-offset list
 		arr->free = off;
 		arr->flags[off>>3] &= ~(1 << (off&7));
 		arr->nItems--;
@@ -71,7 +71,7 @@ cpcb_item::~cpcb_item()
 		delete link;
 	}
 	// Item is also removed from the uid-hash table.
-	cpcb_item *i, *prev = NULL;
+	CPcbItem *i, *prev = NULL;
 	int hashVal = m_uid & (uid_hash_sz-1);
 	for (i = uid_hash[hashVal]; i; i = i->uid_hash_next)
 	{
@@ -87,23 +87,23 @@ cpcb_item::~cpcb_item()
 	}
 }
 
-cpcb_item *cpcb_item::FindByUid(int uid)
+CPcbItem *CPcbItem::FindByUid(int uid)
 {
 	// CPT2 new.  Static function.  Looks in static uid_hash[], using an extremely simple hash function (extract lower few bits).
-	for (cpcb_item *i = uid_hash[uid & (uid_hash_sz-1)]; i; i = i->uid_hash_next)
+	for (CPcbItem *i = uid_hash[uid & (uid_hash_sz-1)]; i; i = i->uid_hash_next)
 		if (i->m_uid == uid)
 			return i;
 	return NULL;
 }
 
-void cpcb_item::MustRedraw()
+void CPcbItem::MustRedraw()
 {
 	Undraw();
 	if (doc)
 		doc->redraw.Add(this);
 }
 
-void cpcb_item::Undraw()
+void CPcbItem::Undraw()
 {
 	// Default behavior, often overridden
 	CDisplayList *dl = doc->m_dlist;
@@ -114,23 +114,23 @@ void cpcb_item::Undraw()
 	bDrawn = false;
 }
 
-void cpcb_item::SaveUndoInfo()
+void CPcbItem::SaveUndoInfo()
 {
-	// Default behavior, overridden in complex classes like cconnect2, cnet2, cpart2, and cshape
+	// Default behavior, overridden in complex classes like CConnect, CNet, CPart, and CShape
 	doc->m_undo_items.Add( this->MakeUndoItem() );
 }
 
-void cpcb_item::RemoveForUndo()
+void CPcbItem::RemoveForUndo()
 {
 	// On a prior editing operation, user created this object, but now undo needs to get rid of it.  It should suffice to detach the object
 	// from any carrays in which it exists (for instance, we remove a net from its netlist).  We can assume that any other pcb-items that 
 	// reference this now-defunct object will be getting revised by this same undo operation.
-	for (carray_link *link = carray_list, *next; link; link = next)
+	for (CHeapLink *link = carray_list, *next; link; link = next)
 	{
-		carray<cpcb_item> *arr = (carray<cpcb_item>*) link->arr;
+		CHeap<CPcbItem> *arr = (CHeap<CPcbItem>*) link->arr;
 		int off = link->off;
 		ASSERT(arr->heap[off]==this);				// For now...
-		arr->heap[off] = (cpcb_item*) arr->free;	// Add "off" to arr's free-offset list
+		arr->heap[off] = (CPcbItem*) arr->free;	// Add "off" to arr's free-offset list
 		arr->free = off;
 		arr->flags[off>>3] &= ~(1 << (off&7));
 		arr->nItems--;
@@ -143,7 +143,7 @@ void cpcb_item::RemoveForUndo()
 	doc->items.Add(this);
 }
 
-bool cpcb_item::IsHit(int x, int y)
+bool CPcbItem::IsHit(int x, int y)
 {
 	// CPT2 new.  Return true if this item's selector contains (x,y), which is in pcb units
 	if (!dl_sel || !dl_sel->visible) 
@@ -155,17 +155,17 @@ bool cpcb_item::IsHit(int x, int y)
 	return dl_sel->IsHit(xx, yy, d);
 }
 
-carea2 *cpcb_item::GetArea() 
+CArea *CPcbItem::GetArea() 
 {
-	if (cpolyline *p = GetPolyline())
+	if (CPolyline *p = GetPolyline())
 		return p->ToArea();
 	return NULL;
 }
 
-bool cpcb_item::IsFootItem() 
+bool CPcbItem::IsFootItem() 
 { 
 	if (GetTypeBit() & bitsFootItem) return true;
-	if (ctext *t = this->ToText())
+	if (CText *t = this->ToText())
 		return t->m_shape != NULL;
 	return false;
 }

@@ -209,9 +209,9 @@ void CDlgCAD::Initialize( double version, CString * folder, CString * project_fo
 						 int annular_ring_pins, int annular_ring_vias, int shrink_paste,
 						 int n_x, int n_y, int space_x, int space_y,
 						 int flags, int layers, int drill_file,
-						 carray<cboard> * bd, carray<csmcutout> * sm, 
+						 CHeap<CBoard> * bd, CHeap<CSmCutout> * sm, 
 						 BOOL * bShowMessageForClearance,
-						 cpartlist * pl, cnetlist * nl, ctextlist * tl, CDisplayList * dl,
+						 CPartList * pl, CNetList * nl, CTextList * tl, CDisplayList * dl,
 						 CDlgLog * log )
 {
 	m_bShowMessageForClearance = *bShowMessageForClearance;

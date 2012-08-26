@@ -139,12 +139,12 @@ CFreePcbDoc::CFreePcbDoc()
 		m_pcbu_per_wu = 2540;		// if Win2000 or XP or vista
 	m_dlist = m_dlist_pcb = new CDisplayList( m_pcbu_per_wu, m_smfontutil );
 	m_dlist_fp = new CDisplayList( m_pcbu_per_wu, m_smfontutil );
-	m_plist = new cpartlist( this );
-	m_nlist = new cnetlist( this );
+	m_plist = new CPartList( this );
+	m_nlist = new CNetList( this );
 	m_plist->UseNetList( m_nlist );
-	m_tlist = new ctextlist( this );
-	m_slist = new cshapelist( this );
-	m_drelist = new cdrelist( this );
+	m_tlist = new CTextList( this );
+	m_slist = new CShapeList( this );
+	m_drelist = new CDreList( this );
 	m_pcb_filename = "";
 	m_pcb_full_path = "";
 	m_project_open = FALSE;
@@ -168,11 +168,11 @@ CFreePcbDoc::CFreePcbDoc()
 	m_edit_footprint = NULL;											// CPT2
 
 	// initialize pseudo-clipboard
-	clip_plist = new cpartlist( this );
-	clip_nlist = new cnetlist( this );
+	clip_plist = new CPartList( this );
+	clip_nlist = new CNetList( this );
 	clip_plist->UseNetList( clip_nlist );
-	clip_tlist = new ctextlist( this );
-	clip_slist = new cshapelist( this );
+	clip_tlist = new CTextList( this );
+	clip_slist = new CShapeList( this );
 }
 
 CFreePcbDoc::~CFreePcbDoc()
@@ -985,8 +985,8 @@ void CFreePcbDoc::OnProjectNetlist()
 	if( ret != IDOK )
 		return;
 	// CPT2 new:  save undo info --- there's quite a lot of it
-	citer<cnet2> in (&m_nlist->nets);
-	for (cnet2 *net = in.First(); net; net = in.Next())
+	CIter<CNet> in (&m_nlist->nets);
+	for (CNet *net = in.First(); net; net = in.Next())
 		net->SaveUndoInfo();																// NB this saves pin info too...
 	m_nlist->ImportNetListInfo( dlg.m_nli, 0, NULL, m_trace_w, m_via_w, m_via_hole_w );
 	if( m_vis[LAY_RAT_LINE] && !m_auto_ratline_disable )
@@ -1000,10 +1000,10 @@ void CFreePcbDoc::OnProjectNetlist()
 // if necessary, make shape from library file and put into cache first
 // returns NULL if shape not found
 //
-cshape * CFreePcbDoc::GetFootprintPtr( CString *name )
+CShape * CFreePcbDoc::GetFootprintPtr( CString *name )
 {
 	// lookup shape, first in cache
-	cshape *s = m_slist->GetShapeByName( name );
+	CShape *s = m_slist->GetShapeByName( name );
 	if (s)
 		return s;
 	// not in cache, lookup in library file
@@ -1018,7 +1018,7 @@ cshape * CFreePcbDoc::GetFootprintPtr( CString *name )
 		return NULL;
 
 	// make shape from library file and put into cache
-	cshape * shape = new cshape(this);
+	CShape * shape = new CShape(this);
 	CString lib_name = *project_footlibfolder->GetFullPath();
 	int err = shape->MakeFromFile( NULL, *name, file_name, offset ); 
 	if( err )
@@ -1039,7 +1039,7 @@ cshape * CFreePcbDoc::GetFootprintPtr( CString *name )
 //
 // throws CString * exception on error
 //
-void CFreePcbDoc::WriteBoardOutline( CStdioFile * file, carray<cboard> *boards0 )
+void CFreePcbDoc::WriteBoardOutline( CStdioFile * file, CHeap<CBoard> *boards0 )
 {
 	// CPT2 converted
 	try
@@ -1049,13 +1049,13 @@ void CFreePcbDoc::WriteBoardOutline( CStdioFile * file, carray<cboard> *boards0 
 		CString line;
 		line.Format( "[board]\n" );
 		file->WriteString( line );
-		citer<cboard> ib (boards0);
+		CIter<CBoard> ib (boards0);
 		int i = 1;
-		for (cboard *b = ib.First(); b; b = ib.Next())
+		for (CBoard *b = ib.First(); b; b = ib.Next())
 		{
 			line.Format( "\noutline: %d %d\n", b->NumCorners(), i++ );
 			file->WriteString( line );
-			ccorner *c = b->main->head;
+			CCorner *c = b->main->head;
 			int icor = 1;
 			do 
 			{
@@ -1079,7 +1079,7 @@ void CFreePcbDoc::WriteBoardOutline( CStdioFile * file, carray<cboard> *boards0 
 		throw err_str;
 	}
 }
-void CFreePcbDoc::WriteSolderMaskCutouts( CStdioFile * file, carray<csmcutout> *smcutouts0 )
+void CFreePcbDoc::WriteSolderMaskCutouts( CStdioFile * file, CHeap<CSmCutout> *smcutouts0 )
 {
 	// CPT2 TODO converted.  NB note that corners now need to be output with the endcontour bit indicated.  Does this imply the need for a new
 	// file-version number?
@@ -1090,16 +1090,16 @@ void CFreePcbDoc::WriteSolderMaskCutouts( CStdioFile * file, carray<csmcutout> *
 		CString line;
 		line.Format( "[solder_mask_cutouts]\n\n" );
 		file->WriteString( line );
-		citer<csmcutout> ism (smcutouts0);
-		for (csmcutout *sm = ism.First(); sm; sm = ism.Next())
+		CIter<CSmCutout> ism (smcutouts0);
+		for (CSmCutout *sm = ism.First(); sm; sm = ism.Next())
 		{
 			line.Format( "sm_cutout: %d %d %d\n", sm->NumCorners(), sm->m_hatch, sm->m_layer );
 			file->WriteString( line );
 			int icor = 1;
-			citer<ccontour> ictr (&sm->contours);
-			for (ccontour *ctr = ictr.First(); ctr; ctr = ictr.Next())
+			CIter<CContour> ictr (&sm->contours);
+			for (CContour *ctr = ictr.First(); ctr; ctr = ictr.Next())
 			{
-				ccorner *c = ctr->head;
+				CCorner *c = ctr->head;
 				line.Format( "  corner: %d %d %d %d\n", icor++, c->x, c->y, c->postSide->m_style);
 				file->WriteString(line);
 				for (c = c->postSide->postCorner; c!=ctr->head; c = c->postSide->postCorner)
@@ -1133,7 +1133,7 @@ void CFreePcbDoc::ReadBoardOutline( CStdioFile * pcb_file )
 {
 	CString in_str, key_str;
 	CArray<CString> p;
-	int last_side_style = cpolyline::STRAIGHT;
+	int last_side_style = CPolyline::STRAIGHT;
 
 	try
 	{
@@ -1172,8 +1172,8 @@ void CFreePcbDoc::ReadBoardOutline( CStdioFile * pcb_file )
 			int ib = 0;
 			if( np == 3 )
 				ib = my_atoi( &p[1] );
-			cboard *b = new cboard(this);
-			ccontour *ctr = new ccontour(b, true);				// Adds ctr as b's main contour
+			CBoard *b = new CBoard(this);
+			CContour *ctr = new CContour(b, true);				// Adds ctr as b's main contour
 			for( int icor=0; icor<ncorners; icor++ )
 			{
 				if (!pcb_file->ReadString( in_str ))
@@ -1186,13 +1186,13 @@ void CFreePcbDoc::ReadBoardOutline( CStdioFile * pcb_file )
 					throw new CString((LPCSTR) IDS_ErrorParsingBoardSectionOfProjectFile);
 				int x = my_atoi( &p[1] );
 				int y = my_atoi( &p[2] );
-				last_side_style = np >= 5? my_atoi( &p[3] ): cpolyline::STRAIGHT;
+				last_side_style = np >= 5? my_atoi( &p[3] ): CPolyline::STRAIGHT;
 				bool bContourWasEmpty = ctr->corners.IsEmpty();
-				ccorner *c = new ccorner(ctr, x, y);			// Constructor adds corner to ctr->corners (and may also set ctr->head/tail if
+				CCorner *c = new CCorner(ctr, x, y);			// Constructor adds corner to ctr->corners (and may also set ctr->head/tail if
 																// it was previously empty)
 				if (!bContourWasEmpty)
 				{
-					cside *s = new cside(ctr, last_side_style);
+					CSide *s = new CSide(ctr, last_side_style);
 					ctr->AppendSideAndCorner(s, c, ctr->tail);
 				}
 				if( icor == (ncorners-1) )
@@ -1224,7 +1224,7 @@ void CFreePcbDoc::ReadSolderMaskCutouts( CStdioFile * pcb_file )
 {
 	CString in_str, key_str;
 	CArray<CString> p;
-	int last_side_style = cpolyline::STRAIGHT;
+	int last_side_style = CPolyline::STRAIGHT;
 
 	try
 	{
@@ -1262,8 +1262,8 @@ void CFreePcbDoc::ReadSolderMaskCutouts( CStdioFile * pcb_file )
 			int ncorners = my_atoi( &p[0] );
 			int hatch = my_atoi( &p[1] );
 			int lay = my_atoi( &p[2] );
-			csmcutout *sm = new csmcutout(this, lay, hatch);
-			ccontour *ctr = new ccontour(sm, true);				// Adds ctr as b's main contour
+			CSmCutout *sm = new CSmCutout(this, lay, hatch);
+			CContour *ctr = new CContour(sm, true);				// Adds ctr as b's main contour
 			for( int icor=0; icor<ncorners; icor++ )
 			{
 				if (!pcb_file->ReadString( in_str ))
@@ -1276,21 +1276,21 @@ void CFreePcbDoc::ReadSolderMaskCutouts( CStdioFile * pcb_file )
 					throw new CString((LPCSTR) IDS_ErrorParsingSolderMaskCutoutsSectionOfProjectFile);
 				int x = my_atoi( &p[1] );
 				int y = my_atoi( &p[2] );
-				last_side_style = np >= 5? my_atoi( &p[3] ): cpolyline::STRAIGHT;
+				last_side_style = np >= 5? my_atoi( &p[3] ): CPolyline::STRAIGHT;
 				int end_cont = np >= 6? my_atoi( &p[4] ): 0;
 				bool bContourWasEmpty = ctr->corners.IsEmpty();
-				ccorner *c = new ccorner(ctr, x, y);			// Constructor adds corner to ctr->corners (and may also set ctr->head/tail if
+				CCorner *c = new CCorner(ctr, x, y);			// Constructor adds corner to ctr->corners (and may also set ctr->head/tail if
 																// it was previously empty)
 				if (!bContourWasEmpty)
 				{
-					cside *s = new cside(ctr, last_side_style);
+					CSide *s = new CSide(ctr, last_side_style);
 					ctr->AppendSideAndCorner(s, c, ctr->tail);
 				}
 				if( icor == (ncorners-1) || end_cont )
 				{
 					ctr->Close(last_side_style);
 					if (icor<ncorners-1)
-						ctr = new ccontour(sm, false);			// Make a new secondary contour.  This is a CPT2 new option for sm-cutouts
+						ctr = new CContour(sm, false);			// Make a new secondary contour.  This is a CPT2 new option for sm-cutouts
 				}
 			}
 			if (ncorners<3)
@@ -2402,29 +2402,29 @@ void CFreePcbDoc::OnFileImport()
 
 		// CPT2.  Detach all connects and tees from the existing nets, but save the connects in a temporary array for potential 
 		// reattachment later (at which time tees may also get reinstated).  Areas remain in their nets no matter what (differs from the old version).
-		carray<cconnect2> oldConnects;
-		citer<cnet2> in (&m_nlist->nets);
-		for (cnet2 *net = in.First(); net; net = in.Next())
+		CHeap<CConnect> oldConnects;
+		CIter<CNet> in (&m_nlist->nets);
+		for (CNet *net = in.First(); net; net = in.Next())
 			net->MustRedraw(),
 			oldConnects.Add( &net->connects ),
 			net->connects.RemoveAll(),
 			net->tees.RemoveAll();
 		m_nlist->ImportNetListInfo( &nli, m_import_flags, m_dlg_log, 0, 0, 0 );
 		// Now reattach old connects where we can.
-		citer<cconnect2> ic (&oldConnects);
-		for (cconnect2 *c = ic.First(); c; c = ic.Next())
+		CIter<CConnect> ic (&oldConnects);
+		for (CConnect *c = ic.First(); c; c = ic.Next())
 		{
 			if (c->head->pin && c->tail->pin)
 			{
 				// Pin-to-pin connect:  if both pins are on the same (new) net, add the connect to that net;  otherwise dump it.
-				cnet2 *net = c->head->pin->net;
+				CNet *net = c->head->pin->net;
 				if (net && net == c->tail->pin->net)
 					net->AddConnect(c);
 			}
 			else if (c->head->pin && c->tail->tee)
 			{
 				// Pin-to-tee connect.  Keep only if the pin is still on c's original net.
-				cnet2 *net = c->head->pin->net;
+				CNet *net = c->head->pin->net;
 				if (net == c->m_net)
 					net->connects.Add(c),						// No need for net->AddConnect(), since c->m_net isn't changing
 					net->tees.Add(c->tail->tee);
@@ -2432,7 +2432,7 @@ void CFreePcbDoc::OnFileImport()
 			else if (c->tail->pin && c->head->tee)
 			{
 				// Tee-to-pin connect.  Keep only if the pin is still on c's original net.
-				cnet2 *net = c->tail->pin->net;
+				CNet *net = c->tail->pin->net;
 				if (net == c->m_net)
 					net->connects.Add(c),
 					net->tees.Add(c->head->tee);
@@ -2440,21 +2440,21 @@ void CFreePcbDoc::OnFileImport()
 			else if (c->head->pin)
 			{
 				// Pin-to-loose-end connect:  keep it if pin is on some (new) net
-				cnet2 *net = c->head->pin->net;
+				CNet *net = c->head->pin->net;
 				if (net)
 					net->AddConnect(c);
 			}
 			else if (c->tail->pin)
 			{
 				// Loose-end-to-pin connect:  keep if pin is on a net
-				cnet2 *net = c->tail->pin->net;
+				CNet *net = c->tail->pin->net;
 				if (net)
 					net->AddConnect(c);
 			}
 			else
 			{
 				// Tee-to-tee, tee-to-loose-end, or loose-end-to-loose-end.  Keep it on the net it had before, if that still exists.
-				cnet2 *net = c->m_net;
+				CNet *net = c->m_net;
 				if (net->IsOnPcb())
 				{
 					net->connects.Add(c);
@@ -2535,8 +2535,8 @@ void CFreePcbDoc::ImportSessionFile( CString * filepath, CDlgLog * log, BOOL bVe
 	int mult = 254; // default = 0.01 mil in nm.
 	CString net_name, layer_str, width_str, via_name, via_x_str, via_y_str;
 	BOOL bNewViaName = FALSE;
-	CArray<cnode> nodes;	// array of nodes in net
-	CArray<cpath> paths;	// array of paths in net
+	CArray<CNode> nodes;	// array of nodes in net
+	CArray<CPath> paths;	// array of paths in net
 	CMapStringToPtr via_map;
 	STATE state = IDLE;
 	while( file.ReadString( instr ) )
@@ -2668,7 +2668,7 @@ void CFreePcbDoc::ImportSessionFile( CString * filepath, CDlgLog * log, BOOL bVe
 				if( ENDSTATE )
 				{
 					// end of data for this net, route project
-					cnet2 *net = m_nlist->GetNetPtrByName( &net_name );
+					CNet *net = m_nlist->GetNetPtrByName( &net_name );
 					net->ImportRouting( &nodes, &paths, mult, log, bVerbose );
 					state = NETWORK_OUT;
 				}
@@ -2790,7 +2790,7 @@ int CFreePcbDoc::ImportNetlist( CStdioFile * file, UINT flags,
 					CString shape_str( mystrtok( NULL, "\n\r" ) );
 					shape_str.Trim();
 					// find footprint, get from library if necessary.  CPT2 TODO here are the null shapes.  Disable?
-					cshape * s = GetFootprintPtr( &shape_str );
+					CShape * s = GetFootprintPtr( &shape_str );
 					// add part to partlist_info
 					(*pli)[ipart].part = NULL;
 					(*pli)[ipart].ref_des = ref_str;
@@ -3086,15 +3086,15 @@ int CFreePcbDoc::ImportPADSPCBNetlist( CStdioFile * file, UINT flags,
 					SplitString( &shape_str, &value_str, &shape_str, '@' );
 					(*pli)[ipart].value = value_str;
 				}
-				if( shape_str.GetLength() > cshape::MAX_NAME_SIZE )
+				if( shape_str.GetLength() > CShape::MAX_NAME_SIZE )
 				{
 					CString mess, s ((LPCSTR) IDS_LinePackageNameTooLong);
 					mess.Format( s,	line, shape_str );
 					m_dlg_log->AddLine( mess );
-					shape_str = shape_str.Left(cshape::MAX_NAME_SIZE);
+					shape_str = shape_str.Left(CShape::MAX_NAME_SIZE);
 				}
 				// find footprint, get from library if necessary
-				cshape * s = GetFootprintPtr( &shape_str );
+				CShape * s = GetFootprintPtr( &shape_str );
 				if( s == NULL )
 				{
 					CString mess, s ((LPCSTR) IDS_LinePartFootprintNotFound);
@@ -3206,12 +3206,12 @@ int CFreePcbDoc::ImportPADSPCBNetlist( CStdioFile * file, UINT flags,
 							CString ref_des = pin_cstr.Left( dot );
 							CString pin_num_cstr = pin_cstr.Right( pin_cstr.GetLength()-dot-1 );
 							(*nli)[inet].ref_des.Add( ref_des );
-							if( pin_num_cstr.GetLength() > cshape::MAX_PIN_NAME_SIZE )
+							if( pin_num_cstr.GetLength() > CShape::MAX_PIN_NAME_SIZE )
 							{
 								CString mess, s ((LPCSTR) IDS_LinePinNameTooLong);
 								mess.Format( s,	line, pin_num_cstr );
 								m_dlg_log->AddLine( mess );
-								pin_num_cstr = pin_num_cstr.Left(cshape::MAX_PIN_NAME_SIZE);
+								pin_num_cstr = pin_num_cstr.Left(CShape::MAX_PIN_NAME_SIZE);
 							}
 							(*nli)[inet].pin_name.Add( pin_num_cstr );
 						}
@@ -3557,18 +3557,18 @@ void CFreePcbDoc::OnToolsCheckCopperAreas()
 	m_dlg_log->Clear();
 	m_dlg_log->UpdateWindow();
 	m_view->CancelSelection();
-	citer<cnet2> in (&m_nlist->nets);
-	for (cnet2 *net = in.First(); net; net = in.Next())
+	CIter<CNet> in (&m_nlist->nets);
+	for (CNet *net = in.First(); net; net = in.Next())
 	{
 		if( net->NumAreas() == 0 )
 			continue;
 		CString s ((LPCSTR) IDS_NetAreas);
 		str.Format( s, net->name, net->NumAreas() ); 
 		m_dlg_log->AddLine( str );
-		net->SaveUndoInfo( cnet2::SAVE_AREAS );
+		net->SaveUndoInfo( CNet::SAVE_AREAS );
 
-		citer<carea2> ia (&net->areas);
-		for (carea2 *a = ia.First(); a; a = ia.Next())
+		CIter<CArea> ia (&net->areas);
+		for (CArea *a = ia.First(); a; a = ia.Next())
 		{
 			// CPT2 in addition to giving messages, I'll have these errant areas removed:
 			int nc = a->NumCorners();
@@ -3589,7 +3589,7 @@ void CFreePcbDoc::OnToolsCheckCopperAreas()
 		}
 		// check all areas in net for self-intersection. CPT2 I like to think that, what with PolygonModified() getting called more often nowadays,
 		// these checks will be generally redundant.
-		for (carea2 *a = ia.First(); a; a = ia.Next())
+		for (CArea *a = ia.First(); a; a = ia.Next())
 		{
 			int ret = a->ClipPolygon( FALSE, FALSE );
 			if( ret == -1 )
@@ -3613,15 +3613,15 @@ void CFreePcbDoc::OnToolsCheckCopperAreas()
 		}
 		// check all areas in net for intersection. 
 		bool mod_a1;
-		citer<carea2> ia1 (&net->areas);
-		for (carea2 *a1 = ia1.First(); a1; a1 = ia1.Next())
+		CIter<CArea> ia1 (&net->areas);
+		for (CArea *a1 = ia1.First(); a1; a1 = ia1.Next())
 		{
 			do {
 				CRect b1 = a1->GetCornerBounds();
 				mod_a1 = FALSE;
-				citer<carea2> ia2 (&net->areas, a1);
+				CIter<CArea> ia2 (&net->areas, a1);
 				ia2.Next();														// Advance to polyline AFTER a1.
-				for (carea2 *a2 = ia2.Next(); a2; a2 = ia2.Next())
+				for (CArea *a2 = ia2.Next(); a2; a2 = ia2.Next())
 				{
 					CRect b2 = a2->GetCornerBounds();
 					if ( b1.left > b2.right || b1.right < b2.left
@@ -3735,12 +3735,12 @@ void CFreePcbDoc::OnEditPasteFromFile()
 		// CPT2 here's a sleazy way to deal with reading in the file to the clipboard:  transfer the current contents of the main lists
 		// (m_slist, m_plist, m_nlist, m_tlist, boards, smcutouts) to temporary locations.  Then read in the file to the main lists in the usual way,
 		// transfer from the main lists to the clipboard lists, and restore the original main lists.
-		carray<cshape> tmpShapes;
-		carray<cpart2> tmpParts;
-		carray<cnet2> tmpNets;
-		carray<ctext> tmpTexts;
-		carray<cboard> tmpBoards;
-		carray<csmcutout> tmpSms;
+		CHeap<CShape> tmpShapes;
+		CHeap<CPart> tmpParts;
+		CHeap<CNet> tmpNets;
+		CHeap<CText> tmpTexts;
+		CHeap<CBoard> tmpBoards;
+		CHeap<CSmCutout> tmpSms;
 		m_slist->shapes.TransferTo(&tmpShapes);
 		m_plist->parts.TransferTo(&tmpParts);
 		m_nlist->nets.TransferTo(&tmpNets);
@@ -3761,11 +3761,11 @@ void CFreePcbDoc::OnEditPasteFromFile()
 		boards.TransferTo(&clip_boards);
 		smcutouts.TransferTo(&clip_smcutouts);
 		// Better make sure that members of clip_plist and clip_nlist point to their parent lists correctly:
-		citer<cpart2> ip (&clip_plist->parts);
-		for (cpart2 *part = ip.First(); part; part = ip.Next())
+		CIter<CPart> ip (&clip_plist->parts);
+		for (CPart *part = ip.First(); part; part = ip.Next())
 			part->m_pl = clip_plist;
-		citer<cnet2> in (&clip_nlist->nets);
-		for (cnet2 *net = in.First(); net; net = in.Next())
+		CIter<CNet> in (&clip_nlist->nets);
+		for (CNet *net = in.First(); net; net = in.Next())
 			net->m_nlist = clip_nlist;
 		tmpShapes.TransferTo(&m_slist->shapes);
 		tmpParts.TransferTo(&m_plist->parts);
@@ -3790,8 +3790,8 @@ void CFreePcbDoc::OnEditPasteFromFile()
 //
 void CFreePcbDoc::PurgeFootprintCache()
 {
-	citer<cshape> is (&m_slist->shapes);
-	for (cshape *s = is.First(); s; s = is.Next())
+	CIter<CShape> is (&m_slist->shapes);
+	for (CShape *s = is.First(); s; s = is.Next())
 		if( m_plist->GetNumFootprintInstances( s ) == 0 && clip_plist->GetNumFootprintInstances( s ) == 0 )
 			s->SaveUndoInfo(),
 			m_slist->shapes.Remove(s);
@@ -4011,32 +4011,32 @@ void CFreePcbDoc::ResetUndoState()
 		delete m_undo_records[i];
 	m_undo_records.RemoveAll();
 	m_undo_pos = 0;
-	m_undo_last_uid = cpcb_item::GetNextUid();
+	m_undo_last_uid = CPcbItem::GetNextUid();
 }
 
 void CFreePcbDoc::FinishUndoRecord(bool bCombineWithPrevious)
 {
-	// The user operation has just finished.  Create a bundle containing all of the undo items that have been created by cpcb_item::SaveUndoInfo().
-	// We have to clear duplicates out of that CArray (unlike with carray's, that's not automatic).
+	// The user operation has just finished.  Create a bundle containing all of the undo items that have been created by CPcbItem::SaveUndoInfo().
+	// We have to clear duplicates out of that CArray (unlike with CHeap's, that's not automatic).
 	// If bCombineWithPrevious is true, we combine this operation's undo items with the items in the previously created undo record, so that
 	//   hitting ctrl-z jumps user all the way back to the state before this routine's previous invocation (useful e.g. with arrow keys).
 	// "uitems" will hold the culled-out list of items, possibly merged with the previous record's items:
-	CArray<cundo_item*> uitems;
+	CArray<CUndoItem*> uitems;
 	items.SetUtility(0);
 	if (m_undo_pos==0)
 		bCombineWithPrevious = false;
 	if (bCombineWithPrevious)
 	{
-		cundo_record *rec = m_undo_records[m_undo_pos-1];
+		CUndoRecord *rec = m_undo_records[m_undo_pos-1];
 		for (int i=0; i<rec->nItems; i++)
 		{
-			cundo_item *uitem = rec->items[i];
-			cpcb_item *item = cpcb_item::FindByUid( uitem->UID() );
+			CUndoItem *uitem = rec->items[i];
+			CPcbItem *item = CPcbItem::FindByUid( uitem->UID() );
 			uitems.Add(uitem);
-			// Set the utility of "item" so that another cundo_item for it (from m_undo_items) won't be added to uitems in the next loop.
+			// Set the utility of "item" so that another CUndoItem for it (from m_undo_items) won't be added to uitems in the next loop.
 			// It's _just_ possible that "item" will be null because the object got removed and then garbage-collected (e.g. with a group
 			//  selected, user is hitting arrow keys repeatedly, and an area in the group gets merged into some other area).  If so, we
-			//  can be confident that no cundo_item for the object is in m_undo_items, because SaveUndoInfo() won't have been invoked on a
+			//  can be confident that no CUndoItem for the object is in m_undo_items, because SaveUndoInfo() won't have been invoked on a
 			//  garbage-collected item.  Therefore don't worry about the utility bit in that case:
 			if (item)
 				item->utility = 1;
@@ -4044,9 +4044,9 @@ void CFreePcbDoc::FinishUndoRecord(bool bCombineWithPrevious)
 	}
 	for (int i=0; i<m_undo_items.GetSize(); i++) 
 	{
-		cundo_item *uitem = m_undo_items[i];
+		CUndoItem *uitem = m_undo_items[i];
 		int uid = uitem->UID();
-		cpcb_item *item = cpcb_item::FindByUid( uid );
+		CPcbItem *item = CPcbItem::FindByUid( uid );
 		ASSERT(item);
 		if (item->utility)
 			delete uitem;
@@ -4060,22 +4060,22 @@ void CFreePcbDoc::FinishUndoRecord(bool bCombineWithPrevious)
 	}
 	// Determine which objects have been created since the last time this routine was invoked.  They will get added to the record as cundo_items with
 	// the bWasCreated bit set.
-	int next_uid = cpcb_item::GetNextUid();
+	int next_uid = CPcbItem::GetNextUid();
 	for (int i = m_undo_last_uid; i < next_uid; i++)
 	{
 		// Calling IsOnPcb() ensures, for instance, that objects created on the clipboard are left out of account.  Also this way we
 		// ignore the substantial number of temporary cshapes that may get created (during the fp editor or the DlgAddPart, say).
-		cpcb_item *item = cpcb_item::FindByUid(i);
+		CPcbItem *item = CPcbItem::FindByUid(i);
 		ASSERT(item);
 		if (item->IsOnPcb())
-			uitems.Add( new cundo_item(this, i, true) );
+			uitems.Add( new CUndoItem(this, i, true) );
 	}
 	m_undo_last_uid = next_uid;					// For next time...
 	m_undo_items.RemoveAll();
 	if (uitems.GetSize()==0)
 		return;
 	// Create the record!
-	cundo_record *rec = new cundo_record (&uitems);
+	CUndoRecord *rec = new CUndoRecord (&uitems);
 	// Clear out any redo records from m_undo_records (those at or beyond position m_undo_pos), then add "rec" to the end of the reduced list.
 	if (bCombineWithPrevious)
 		m_undo_pos--,
@@ -4093,8 +4093,8 @@ void CFreePcbDoc::FinishUndoRecord(bool bCombineWithPrevious)
 
 void CFreePcbDoc::CreateMoveOriginUndoRecord( int dx, int dy )
 {
-	cundo_record *rec = new cundo_record (dx, dy);					// Theoretically we should have cmoveorigin_undo_record as a subclass of
-																	// cundo_record, but screw it...
+	CUndoRecord *rec = new CUndoRecord (dx, dy);					// Theoretically we should have cmoveorigin_undo_record as a subclass of
+																	// CUndoRecord, but screw it...
 	// Add record to the undo list just as in FinishUndoRecord
 	for (int i=m_undo_pos; i < m_undo_records.GetSize(); i++)
 		delete m_undo_records[i];
@@ -4109,7 +4109,7 @@ void CFreePcbDoc::CreateMoveOriginUndoRecord( int dx, int dy )
 
 void CFreePcbDoc::OnEditUndo()
 {
-	// CPT2 converted to the new system.  Routine hands off almost immediately to cundo_record::Execute()
+	// CPT2 converted to the new system.  Routine hands off almost immediately to CUndoRecord::Execute()
 	if (m_undo_items.GetSize() > 0)
 		// Maybe the programmer forgot to call FinishUndoRecord()???  Finish up the undo record now anyway
 		FinishUndoRecord();
@@ -4117,8 +4117,8 @@ void CFreePcbDoc::OnEditUndo()
 		// Silent failure
 		return;
 	m_view->CancelSelection();
-	cundo_record *rec = m_undo_records[m_undo_pos-1];
-	bool bMoveOrigin = rec->Execute( cundo_record::OP_UNDO );
+	CUndoRecord *rec = m_undo_records[m_undo_pos-1];
+	bool bMoveOrigin = rec->Execute( CUndoRecord::OP_UNDO );
 	// On exit, rec will have been converted to a redo record.
 	m_undo_pos--;
 	ProjectModified(true);
@@ -4131,8 +4131,8 @@ void CFreePcbDoc::OnEditRedo()
 	if (m_undo_pos >= m_undo_records.GetSize())
 		return;
 	m_view->CancelSelection();
-	cundo_record *rec = m_undo_records[m_undo_pos];
-	bool bMoveOrigin = rec->Execute( cundo_record::OP_REDO );
+	CUndoRecord *rec = m_undo_records[m_undo_pos];
+	bool bMoveOrigin = rec->Execute( CUndoRecord::OP_REDO );
 	// On exit, rec will have been converted back to an undo record.
 	m_undo_pos++;
 	ProjectModified(true);
@@ -4148,8 +4148,8 @@ void CFreePcbDoc::UndoNoRedo()
 	if (m_undo_pos <= 0) 
 		return;
 	m_view->CancelSelection();
-	cundo_record *rec = m_undo_records[m_undo_pos-1];
-	rec->Execute( cundo_record::OP_UNDO_NO_REDO );
+	CUndoRecord *rec = m_undo_records[m_undo_pos-1];
+	rec->Execute( CUndoRecord::OP_UNDO_NO_REDO );
 	// rec is unchanged on exit, but is now garbage.
 	delete rec;
 	m_undo_records.RemoveAt(m_undo_pos-1);
@@ -4251,7 +4251,7 @@ void CFreePcbDoc::FileLoadLibrary( LPCTSTR pathname )
 			p = (LPCSTR)key;
 			shape = (CShape*)ptr;
 			ref.Format( "LIB_%d", i );
-			cpart2 * part = m_plist->Add( shape, &ref, &val, NULL, x, y, 0, 0, 1, 0 );
+			CPart * part = m_plist->Add( shape, &ref, &val, NULL, x, y, 0, 0, 1, 0 );
 			// get bounding rectangle of pads and outline
 			CRect shape_r = part->shape->GetBounds();
 			int height = shape_r.top - shape_r.bottom;
@@ -4313,8 +4313,8 @@ void CFreePcbDoc::OnFileSaveLibrary()
 	// CPT2 TODO this has never been fully implemented (menu item is always grayed out).
 	CDlgSaveLib dlg;
 	CArray<CString> names;
-	citer<cpart2> ip (&m_plist->parts);
-	for (cpart2 *part = ip.First(); part; part = ip.Next())
+	CIter<CPart> ip (&m_plist->parts);
+	for (CPart *part = ip.First(); part; part = ip.Next())
 		names.Add( part->ref_des );								// CPT2 was "part->value" in the old code, which I can't imagine was right???
 	dlg.Initialize( &names );
 	int ret = dlg.DoModal();
@@ -4498,12 +4498,12 @@ void CFreePcbDoc::OnViewVisibleGrid() {
 void CFreePcbDoc::Redraw() 
 {
 	// CPT2 r313, latest-n-greatest system for drawing and redrawing.  An outer-level routine like CFreePcbView::OnLButtonUp() should call this
-	// routine after all the modifications of the cpcb_item hierarchy requested by user have been completed.  At that time, this routine 
-	// runs through carray this->redraw, a list that has been built up during the course of the modifications by routine cpcb_item::MustRedraw().
+	// routine after all the modifications of the CPcbItem hierarchy requested by user have been completed.  At that time, this routine 
+	// runs through CHeap this->redraw, a list that has been built up during the course of the modifications by routine CPcbItem::MustRedraw().
 	// After double-checking that each item is still valid, routine invokes Draw() on each one.  At the end redraw gets cleared out.
 	// Note that this routine is used only in the main editor.
-	citer<cpcb_item> ii (&redraw);
-	for (cpcb_item *i = ii.First(); i; i = ii.Next())
+	CIter<CPcbItem> ii (&redraw);
+	for (CPcbItem *i = ii.First(); i; i = ii.Next())
 		if (i->IsOnPcb() && !i->IsFootItem())
 			i->Draw();
 	redraw.RemoveAll();
@@ -4519,45 +4519,45 @@ void CFreePcbDoc::GarbageCollect() {
 	// At the end, items with clear utility bits can be deleted.
 	items.SetUtility(0);
 
-	citer<cnet2> in (&m_nlist->nets);
-	for (cnet2 *n = in.First(); n; n = in.Next()) 
+	CIter<CNet> in (&m_nlist->nets);
+	for (CNet *n = in.First(); n; n = in.Next()) 
 		n->MarkConstituents(1);
-	citer<cpart2> ip (&m_plist->parts);
-	for (cpart2 *p = ip.First(); p; p = ip.Next())
+	CIter<CPart> ip (&m_plist->parts);
+	for (CPart *p = ip.First(); p; p = ip.Next())
 		p->MarkConstituents(1);
 	m_tlist->texts.SetUtility(1);
-	citer<csmcutout> ism (&smcutouts);
-	for (csmcutout *sm = ism.First(); sm; sm = ism.Next())
+	CIter<CSmCutout> ism (&smcutouts);
+	for (CSmCutout *sm = ism.First(); sm; sm = ism.Next())
 		sm->MarkConstituents(1);
-	citer<cboard> ib (&boards);
-	for (cboard *b = ib.First(); b; b = ib.Next())
+	CIter<CBoard> ib (&boards);
+	for (CBoard *b = ib.First(); b; b = ib.Next())
 		b->MarkConstituents(1);
-	citer<cshape> is (&m_slist->shapes);
-	for (cshape *s = is.First(); s; s = is.Next())
+	CIter<CShape> is (&m_slist->shapes);
+	for (CShape *s = is.First(); s; s = is.Next())
 		s->MarkConstituents(1);
 
-	citer<cnet2> in2 (&clip_nlist->nets);
-	for (cnet2 *n2 = in2.First(); n2; n2 = in2.Next()) 
+	CIter<CNet> in2 (&clip_nlist->nets);
+	for (CNet *n2 = in2.First(); n2; n2 = in2.Next()) 
 		n2->MarkConstituents(1);
-	citer<cpart2> ip2 (&clip_plist->parts);
-	for (cpart2 *p2 = ip2.First(); p2; p2 = ip2.Next())
+	CIter<CPart> ip2 (&clip_plist->parts);
+	for (CPart *p2 = ip2.First(); p2; p2 = ip2.Next())
 		p2->MarkConstituents(1);
 	clip_tlist->texts.SetUtility(1);
-	citer<csmcutout> ism2 (&clip_smcutouts);
-	for (csmcutout *sm2 = ism2.First(); sm2; sm2 = ism2.Next())
+	CIter<CSmCutout> ism2 (&clip_smcutouts);
+	for (CSmCutout *sm2 = ism2.First(); sm2; sm2 = ism2.Next())
 		sm2->MarkConstituents(1);
-	citer<cboard> ib2 (&clip_boards);
-	for (cboard *b2 = ib2.First(); b2; b2 = ib2.Next())
+	CIter<CBoard> ib2 (&clip_boards);
+	for (CBoard *b2 = ib2.First(); b2; b2 = ib2.Next())
 		b2->MarkConstituents(1);
-	citer<cshape> is2 (&clip_slist->shapes);
-	for (cshape *s2 = is2.First(); s2; s2 = is2.Next())
+	CIter<CShape> is2 (&clip_slist->shapes);
+	for (CShape *s2 = is2.First(); s2; s2 = is2.Next())
 		s2->MarkConstituents(1);
 
 	// Do the deletions of unused items!
 	int dbgTotal = items.GetSize();
 	int dbgDeleted = 0;
-	citer<cpcb_item> ii (&items);
-	for (cpcb_item *i = ii.First(); i; i = ii.Next())
+	CIter<CPcbItem> ii (&items);
+	for (CPcbItem *i = ii.First(); i; i = ii.Next())
 		if (!i->utility)
 			delete i,
 			dbgDeleted++;
@@ -4586,8 +4586,8 @@ void CFreePcbDoc::DRC( int units, BOOL check_unrouted, DesignRules * dr )
 	str.LoadString( IDS_CheckingParts );
 	if( log )
 		log->AddLine( str );
-	citer<cpart2> ip (&m_plist->parts);
-	for (cpart2 *part = ip.First(); part; part = ip.Next())
+	CIter<CPart> ip (&m_plist->parts);
+	for (CPart *part = ip.First(); part; part = ip.Next())
 	{
 		if (!part->shape) continue;
 		// set DRC params for part
@@ -4595,8 +4595,8 @@ void CFreePcbDoc::DRC( int units, BOOL check_unrouted, DesignRules * dr )
 		part->GetDRCInfo();
 
 		// Check for errors involving each pin in turn
-		citer<cpin2> ipin (&part->pins);
-		for (cpin2 *pin = ipin.First(); pin; pin = ipin.Next())
+		CIter<CPin> ipin (&part->pins);
+		for (CPin *pin = ipin.First(); pin; pin = ipin.Next())
 			DRCPin(pin, units, dr);
 	}
 
@@ -4608,10 +4608,10 @@ void CFreePcbDoc::DRC( int units, BOOL check_unrouted, DesignRules * dr )
 	//	COPPERGRAPHIC_PAD,			
 	//	COPPERGRAPHIC_PADHOLE,
 	// CPT2 to ensure that no duplicate tests occur, only compare part1 with p2 if part1 has the lesser UID
-	citer<cpart2> ipart1 (&m_plist->parts);
-	citer<cpart2> ipart2 (&m_plist->parts);
-	for (cpart2 *part1 = ipart1.First(); part1; part1 = ipart1.Next())
-		for (cpart2 *part2 = ipart2.First(); part2; part2 = ipart2.Next())
+	CIter<CPart> ipart1 (&m_plist->parts);
+	CIter<CPart> ipart2 (&m_plist->parts);
+	for (CPart *part1 = ipart1.First(); part1; part1 = ipart1.Next())
+		for (CPart *part2 = ipart2.First(); part2; part2 = ipart2.Next())
 		{
 			if (!part1->shape || !part2->shape) continue;
 			if (part1->UID() >= part2->UID()) continue;
@@ -4637,10 +4637,10 @@ void CFreePcbDoc::DRC( int units, BOOL check_unrouted, DesignRules * dr )
 			// we need to test elements in these parts.  Compare pins with copper-graphics, then pins with pins.
 			DRCPinsAndCopperGraphics(part1, part2, units, dr);
 			DRCPinsAndCopperGraphics(part2, part1, units, dr);
-			citer<cpin2> ipin1 (&part1->pins);
-			citer<cpin2> ipin2 (&part2->pins);
-			for (cpin2 *pin1 = ipin1.First(); pin1; pin1 = ipin1.Next())
-				for (cpin2 *pin2 = ipin2.First(); pin2; pin2 = ipin2.Next())
+			CIter<CPin> ipin1 (&part1->pins);
+			CIter<CPin> ipin2 (&part2->pins);
+			for (CPin *pin1 = ipin1.First(); pin1; pin1 = ipin1.Next())
+				for (CPin *pin2 = ipin2.First(); pin2; pin2 = ipin2.Next())
 					DRCPinAndPin( pin1, pin2, units, dr, clr );
 		}
 	
@@ -4660,14 +4660,14 @@ void CFreePcbDoc::DRC( int units, BOOL check_unrouted, DesignRules * dr )
 	str.LoadStringA( IDS_CheckingNetsAndParts );
 	if( log )
 		log->AddLine( str );
-	citer<cnet2> in (&m_nlist->nets);
-	for (cnet2 *net = in.First(); net; net = in.Next())
+	CIter<CNet> in (&m_nlist->nets);
+	for (CNet *net = in.First(); net; net = in.Next())
 	{
-		citer<carea2> ia (&net->areas);
-		for (carea2 *a = ia.First(); a; a = ia.Next())
+		CIter<CArea> ia (&net->areas);
+		for (CArea *a = ia.First(); a; a = ia.Next())
 			DRCArea( a, units, dr );
-		citer<cconnect2> ic (&net->connects);
-		for (cconnect2 *c = ic.First(); c; c = ic.Next())
+		CIter<CConnect> ic (&net->connects);
+		for (CConnect *c = ic.First(); c; c = ic.Next())
 			DRCConnect(c, units, dr);
 	}
 
@@ -4688,24 +4688,24 @@ void CFreePcbDoc::DRC( int units, BOOL check_unrouted, DesignRules * dr )
 	int clr = max( dr->hole_copper, dr->hole_hole );
 	clr = max( clr, dr->trace_trace );
 	// iterate through all nets.  CPT2 reduce redundancy by only comparing net1 with net2 when net1 has the lesser UID
-	citer<cnet2> in1 (&m_nlist->nets);
-	citer<cnet2> in2 (&m_nlist->nets);
-	for (cnet2 *net1 = in1.First(); net1; net1 = in1.Next())
-		for (cnet2 *net2 = in2.First(); net2; net2 = in2.Next())
+	CIter<CNet> in1 (&m_nlist->nets);
+	CIter<CNet> in2 (&m_nlist->nets);
+	for (CNet *net1 = in1.First(); net1; net1 = in1.Next())
+		for (CNet *net2 = in2.First(); net2; net2 = in2.Next())
 		{
 			if (net1->UID() >= net2->UID())
 				continue;
-			citer<cconnect2> ic1 (&net1->connects);
-			citer<cconnect2> ic2 (&net2->connects);
-			for (cconnect2 *c1 = ic1.First(); c1; c1 = ic1.Next())
-				for (cconnect2 *c2 = ic2.First(); c2; c2 = ic2.Next())
+			CIter<CConnect> ic1 (&net1->connects);
+			CIter<CConnect> ic2 (&net2->connects);
+			for (CConnect *c1 = ic1.First(); c1; c1 = ic1.Next())
+				for (CConnect *c2 = ic2.First(); c2; c2 = ic2.Next())
 					DRCConnectAndConnect(c1, c2, units, dr, clr);
 
 			// now test areas in net1 versus areas in net2
-			citer<carea2> ia1 (&net1->areas);
-			citer<carea2> ia2 (&net2->areas);
-			for (carea2 *a1 = ia1.First(); a1; a1 = ia1.Next())
-				for (carea2 *a2 = ia2.First(); a2; a2 = ia2.Next())
+			CIter<CArea> ia1 (&net1->areas);
+			CIter<CArea> ia2 (&net2->areas);
+			for (CArea *a1 = ia1.First(); a1; a1 = ia1.Next())
+				for (CArea *a2 = ia2.First(); a2; a2 = ia2.Next())
 					DRCAreaAndArea(a1, a2, units, dr);
 		}
 
@@ -4718,13 +4718,13 @@ void CFreePcbDoc::DRC( int units, BOOL check_unrouted, DesignRules * dr )
 		log->AddLine( str );
 }
 
-void CFreePcbDoc::DRCPin( cpin2 *pin, int units, DesignRules *dr )
+void CFreePcbDoc::DRCPin( CPin *pin, int units, DesignRules *dr )
 {
 	// CPT2 new helper for DRC.  Set pin's DRC info and possibly update pin->part's DRC info as well.
 	// Then check for BOARDEDGE_PADHOLE, COPPERGRAPHIC_PADHOLE, RING_PAD, BOARDEDGE_PAD, and COPPERGRAPHIC_PAD errors
 	CString d_str, x_str, y_str, str;
 	drc_pin * drp = &pin->drc;
-	cpart2 *part = pin->part;
+	CPart *part = pin->part;
 	CDlgLog *log = m_dlg_log;
 	int x = pin->x, y = pin->y;
 	// CPT2.  Improved way of determining the diameter of dre circles that may need to be drawn:
@@ -4735,16 +4735,16 @@ void CFreePcbDoc::DRCPin( cpin2 *pin, int units, DesignRules *dr )
 	if (hole)
 	{
 		// test clearance to board edge
-		citer<cboard> ib (&boards);
-		for (cboard *b = ib.First(); b; b = ib.Next())
+		CIter<CBoard> ib (&boards);
+		for (CBoard *b = ib.First(); b; b = ib.Next())
 		{
-			citer<cside> is (&b->main->sides);
-			for (cside *s = is.First(); s; s = is.Next())
+			CIter<CSide> is (&b->main->sides);
+			for (CSide *s = is.First(); s; s = is.Next())
 			{
 				int x1 = s->preCorner->x, y1 = s->preCorner->y;
 				int x2 = s->postCorner->x, y2 = s->postCorner->y;
 				// for now, only works for straight board edge segments
-				if( s->m_style != cpolyline::STRAIGHT )
+				if( s->m_style != CPolyline::STRAIGHT )
 					continue;
 				int d = ::GetClearanceBetweenLineSegmentAndPad( x1, y1, x2, y2, 0,
 					PAD_ROUND, x, y, hole, 0, 0 );
@@ -4756,7 +4756,7 @@ void CFreePcbDoc::DRCPin( cpin2 *pin, int units, DesignRules *dr )
 					::MakeCStringFromDimension( &y_str, y, units, FALSE, TRUE, TRUE, 1 );
 					CString s0 ((LPCSTR) IDS_PadHoleToBoardEdgeEquals);
 					str.Format( s0, m_drelist->GetSize()+1, part->ref_des, pin->pin_name, d_str, x_str, y_str );
-					cdre * dre = m_drelist->Add( cdre::BOARDEDGE_PADHOLE, &str,	pin, NULL, x, y, 0, 0, dia, 0 );
+					CDre * dre = m_drelist->Add( CDre::BOARDEDGE_PADHOLE, &str,	pin, NULL, x, y, 0, 0, dia, 0 );
 					if( dre && log )
 						log->AddLine( str );
 				}
@@ -4779,7 +4779,7 @@ void CFreePcbDoc::DRCPin( cpin2 *pin, int units, DesignRules *dr )
 				CString s0 ((LPCSTR) IDS_PadHoleToCopperGraphics);
 				str.Format( s0, m_drelist->GetSize()+1, part->ref_des, pin->pin_name, 
 					part->ref_des, pin->pin_name, d_str, x_str, y_str );
-				cdre *dre = m_drelist->Add( cdre::COPPERGRAPHIC_PADHOLE, &str, pin, NULL, x, y, 0, 0, dia, 0 );
+				CDre *dre = m_drelist->Add( CDre::COPPERGRAPHIC_PADHOLE, &str, pin, NULL, x, y, 0, 0, dia, 0 );
 				if( dre && log)
 					log->AddLine( str );
 			}
@@ -4812,24 +4812,24 @@ void CFreePcbDoc::DRCPin( cpin2 *pin, int units, DesignRules *dr )
 				::MakeCStringFromDimension( &y_str, y, units, FALSE, TRUE, TRUE, 1 );
 				CString s0 ((LPCSTR) IDS_AnnularRingEquals);
 				str.Format( s0, m_drelist->GetSize()+1, part->ref_des, pin->pin_name, d_str, x_str, y_str );
-				cdre * dre = m_drelist->Add( cdre::RING_PAD, &str, pin, NULL, x, y, 0, 0, dia, 0 );
+				CDre * dre = m_drelist->Add( CDre::RING_PAD, &str, pin, NULL, x, y, 0, 0, dia, 0 );
 				if( dre && log)
 					log->AddLine( str );
 			}
 		}
 		// test clearance to board edge
-		citer<cboard> ib (&boards);
-		for (cboard *b = ib.First(); b; b = ib.Next())
+		CIter<CBoard> ib (&boards);
+		for (CBoard *b = ib.First(); b; b = ib.Next())
 		{
-			citer<ccorner> ic (&b->main->corners);
-			for (ccorner *c = ic.First(); c; c = ic.Next())
+			CIter<CCorner> ic (&b->main->corners);
+			for (CCorner *c = ic.First(); c; c = ic.Next())
 			{
 				int x1 = c->x;
 				int y1 = c->y;
 				int x2 = c->postSide->postCorner->x;
 				int y2 = c->postSide->postCorner->y;
 				// for now, only works for straight board edge segments
-				if( c->postSide->m_style != cpolyline::STRAIGHT )
+				if( c->postSide->m_style != CPolyline::STRAIGHT )
 					continue;
 				int d = ::GetClearanceBetweenLineSegmentAndPad( x1, y1, x2, y2, 0,
 					type, x, y, wid, len, r );
@@ -4841,7 +4841,7 @@ void CFreePcbDoc::DRCPin( cpin2 *pin, int units, DesignRules *dr )
 					::MakeCStringFromDimension( &y_str, y, units, FALSE, TRUE, TRUE, 1 );
 					CString s0 ((LPCSTR) IDS_PadToBoardEdgeEquals);
 					str.Format( s0, m_drelist->GetSize()+1, part->ref_des, pin->pin_name, d_str, x_str, y_str );
-					cdre * dre = m_drelist->Add( cdre::BOARDEDGE_PAD, &str, pin, NULL, x, y, 0, 0, dia, 0 );
+					CDre * dre = m_drelist->Add( CDre::BOARDEDGE_PAD, &str, pin, NULL, x, y, 0, 0, dia, 0 );
 					if( dre && log )
 						log->AddLine( str );
 				}
@@ -4864,7 +4864,7 @@ void CFreePcbDoc::DRCPin( cpin2 *pin, int units, DesignRules *dr )
 				CString s0 ((LPCSTR) IDS_PadToCopperGraphics);
 				str.Format( s0, m_drelist->GetSize()+1, part->ref_des, pin->pin_name, 
 					part->ref_des, pin->pin_name, d_str, x_str, y_str );
-				cdre * dre = m_drelist->Add( cdre::COPPERGRAPHIC_PAD, &str,
+				CDre * dre = m_drelist->Add( CDre::COPPERGRAPHIC_PAD, &str,
 					pin, NULL, x, y, 0, 0, dia, 0 );
 				if( dre && log )
 						log->AddLine( str );
@@ -4873,7 +4873,7 @@ void CFreePcbDoc::DRCPin( cpin2 *pin, int units, DesignRules *dr )
 	}
 }
 
-void CFreePcbDoc::DRCPinsAndCopperGraphics( cpart2 *part1, cpart2 *part2, int units, DesignRules *dr )
+void CFreePcbDoc::DRCPinsAndCopperGraphics( CPart *part1, CPart *part2, int units, DesignRules *dr )
 {
 	// CPT2 new helper routine.  Compare the pins on part1 with the copper graphics for part2.  UNFINISHED.
 	// First, iterate through copper graphic elements in part2 and get a mask of copper layers used.
@@ -4887,8 +4887,8 @@ void CFreePcbDoc::DRCPinsAndCopperGraphics( cpart2 *part1, cpart2 *part2, int un
 	if (graph_lay_mask==0) 
 		return;
 
-	citer<cpin2> ipin1 (&part1->pins);
-	for (cpin2 *pin1 = ipin1.First(); pin1; pin1 = ipin1.Next())
+	CIter<CPin> ipin1 (&part1->pins);
+	for (CPin *pin1 = ipin1.First(); pin1; pin1 = ipin1.Next())
 	{
 		drc_pin *drp1 = &pin1->drc;
 		// CPT2.  Improved way of determining the diameter of dre circles that may need to be drawn:
@@ -4918,11 +4918,11 @@ void CFreePcbDoc::DRCPinsAndCopperGraphics( cpart2 *part1, cpart2 *part2, int un
 	}
 }
 
-void CFreePcbDoc::DRCPinAndPin( cpin2 *pin1, cpin2 *pin2, int units, DesignRules *dr, int clearance )
+void CFreePcbDoc::DRCPinAndPin( CPin *pin1, CPin *pin2, int units, DesignRules *dr, int clearance )
 {
 	CString d_str, x_str, y_str, str;
 	drc_pin *drp1 = &pin1->drc, *drp2 = &pin2->drc;
-	cpart2 *part1 = pin1->part, *part2 = pin2->part;
+	CPart *part1 = pin1->part, *part2 = pin2->part;
 	CDlgLog *log = m_dlg_log;
 
 	if( drp1->hole_size && drp2->hole_size )
@@ -4939,7 +4939,7 @@ void CFreePcbDoc::DRCPinAndPin( cpin2 *pin1, cpin2 *pin2, int units, DesignRules
 			CString s0 ((LPCSTR) IDS_PadHoleToPadeHoleEquals);
 			str.Format( s0, m_drelist->GetSize(), part2->ref_des, pin2->pin_name, part1->ref_des, pin1->pin_name,
 				d_str, x_str, y_str );
-			cdre *dre = m_drelist->Add( cdre::PADHOLE_PADHOLE, &str, pin2, pin1, pin2->x, pin2->y, pin1->x, pin1->y, 0, 0 );
+			CDre *dre = m_drelist->Add( CDre::PADHOLE_PADHOLE, &str, pin2, pin1, pin2->x, pin2->y, pin1->x, pin1->y, 0, 0 );
 			if( dre && log )
 				log->AddLine( str );
 		}
@@ -4990,7 +4990,7 @@ void CFreePcbDoc::DRCPinAndPin( cpin2 *pin1, cpin2 *pin2, int units, DesignRules
 				CString s0 ((LPCSTR) IDS_PadHoleToPadEquals);
 				str.Format( s0, m_drelist->GetSize()+1, part2->ref_des, pin2->pin_name,
 					part1->ref_des, pin1->pin_name,	d_str, x_str, y_str );
-				cdre * dre = m_drelist->Add( cdre::PAD_PADHOLE, &str, pin2, pin1, 
+				CDre * dre = m_drelist->Add( CDre::PAD_PADHOLE, &str, pin2, pin1, 
 					pin2->x, pin2->y, pin1->x, pin1->y, 0, layer );
 				if( dre && log )
 					log->AddLine( str );
@@ -5009,7 +5009,7 @@ void CFreePcbDoc::DRCPinAndPin( cpin2 *pin1, cpin2 *pin2, int units, DesignRules
 			CString s0 ((LPCSTR) IDS_PadToPadEquals);
 			str.Format( s0, m_drelist->GetSize()+1, part2->ref_des, pin2->pin_name,
 				part1->ref_des, pin1->pin_name, d_str, x_str, y_str );
-			cdre * dre = m_drelist->Add( cdre::PAD_PAD, &str, pin2, pin1, 
+			CDre * dre = m_drelist->Add( CDre::PAD_PAD, &str, pin2, pin1, 
 				pin2->x, pin2->y, pin1->x, pin1->y, 0, layer );
 			if( dre && log )
 				log->AddLine( str );
@@ -5018,7 +5018,7 @@ void CFreePcbDoc::DRCPinAndPin( cpin2 *pin1, cpin2 *pin2, int units, DesignRules
 	}
 }
 
-void CFreePcbDoc::DRCArea(carea2 *a, int units, DesignRules *dr)
+void CFreePcbDoc::DRCArea(CArea *a, int units, DesignRules *dr)
 {
 	// CPT2 new helper for DRC.  Check a, and look for BOARDEDGE_COPPERAREA violations.  Also incorporates the old CPT routine
 	// CheckBrokenArea().
@@ -5027,22 +5027,22 @@ void CFreePcbDoc::DRCArea(carea2 *a, int units, DesignRules *dr)
 	CString d_str, x_str, y_str, str;
 	CDlgLog *log = m_dlg_log;
 	int layer = a->m_layer;
-	cnet2 *net = a->m_net;
+	CNet *net = a->m_net;
 
-	citer<ccontour> ictr (&a->contours);
-	for (ccontour *ctr = ictr.First(); ctr; ctr = ictr.Next())
+	CIter<CContour> ictr (&a->contours);
+	for (CContour *ctr = ictr.First(); ctr; ctr = ictr.Next())
 	{
-		citer<cside> is (&ctr->sides);
-		for (cside *s = is.First(); s; s = is.Next())
+		CIter<CSide> is (&ctr->sides);
+		for (CSide *s = is.First(); s; s = is.Next())
 		{
 			int x1 = s->preCorner->x, y1 = s->preCorner->y;
 			int x2 = s->postCorner->x, y2 = s->postCorner->y;
 			// iterate through board outlines
-			citer<cboard> ib (&boards);
-			for (cboard *b = ib.First(); b; b = ib.Next())
+			CIter<CBoard> ib (&boards);
+			for (CBoard *b = ib.First(); b; b = ib.Next())
 			{
-				citer<cside> ibs (&b->main->sides);
-				for (cside *bs = ibs.First(); bs; bs = ibs.Next())
+				CIter<CSide> ibs (&b->main->sides);
+				for (CSide *bs = ibs.First(); bs; bs = ibs.Next())
 				{
 					int bx1 = bs->preCorner->x, by1 = bs->postCorner->y;
 					int bx2 = bs->postCorner->x, by2 = bs->postCorner->y;
@@ -5057,7 +5057,7 @@ void CFreePcbDoc::DRCArea(carea2 *a, int units, DesignRules *dr)
 						::MakeCStringFromDimension( &y_str, y, units, FALSE, TRUE, TRUE, 1 );
 						CString str0 ((LPCSTR) IDS_CopperAreaToBoardEdgeEquals);
 						str.Format( str0, m_drelist->GetSize()+1, a->m_net->name, d_str, x_str, y_str );
-						cdre * dre = m_drelist->Add( cdre::BOARDEDGE_COPPERAREA, &str, s, NULL, x, y, 0, 0, 0, 0 );
+						CDre * dre = m_drelist->Add( CDre::BOARDEDGE_COPPERAREA, &str, s, NULL, x, y, 0, 0, 0, 0 );
 						if( dre && log )
 							log->AddLine( str );
 					}
@@ -5086,10 +5086,10 @@ void CFreePcbDoc::DRCArea(carea2 *a, int units, DesignRules *dr)
 	// (edges belonging to a's contour #0) or xHole for edges of the area's holes (contours 1, 2, ...)
 	#define xEdge 0x01
 	#define xHole 0x02
-	for (ccontour *ctr = ictr.First(); ctr; ctr = ictr.Next()) 
+	for (CContour *ctr = ictr.First(); ctr; ctr = ictr.Next()) 
 	{
-		citer<cside> is (&ctr->sides);
-		for (cside *s = is.First(); s; s = is.Next())
+		CIter<CSide> is (&ctr->sides);
+		for (CSide *s = is.First(); s; s = is.Next())
 		{
 			int x1 = s->preCorner->x, y1 = s->preCorner->y;
 			if (!xSample)
@@ -5099,25 +5099,25 @@ void CFreePcbDoc::DRCArea(carea2 *a, int units, DesignRules *dr)
 			x2 = (x2-x0)/gran, y2 = (y2-y0)/gran;
 			char val = ctr==a->main? xEdge: xHole;
 			int style = s->m_style;
-			if (style==cpolyline::STRAIGHT)
+			if (style==CPolyline::STRAIGHT)
 				bmp->Line(x1,y1, x2,y2, val);
 			else
-				bmp->Arc(x1,y1, x2,y2, style==cpolyline::ARC_CW, val);
+				bmp->Arc(x1,y1, x2,y2, style==CPolyline::ARC_CW, val);
 		}
 	}
 
 	// Now draw on the bitmap any segments that are in the correct layer but belong to nets other than a's.
 	#define xSeg 0x03
-	citer<cnet2> in (&m_nlist->nets);
-	for (cnet2 *net2 = in.First(); net2; net2 = in.Next())
+	CIter<CNet> in (&m_nlist->nets);
+	for (CNet *net2 = in.First(); net2; net2 = in.Next())
 	{
 		if (net2 == net) 
 			continue;
-		citer<cconnect2> ic (&net2->connects);
-		for (cconnect2 *c2 = ic.First(); c2; c2 = ic.Next())
+		CIter<CConnect> ic (&net2->connects);
+		for (CConnect *c2 = ic.First(); c2; c2 = ic.Next())
 		{
-			citer<cseg2> is (&c2->segs);
-			for (cseg2 *s = is.First(); s; s = is.Next())
+			CIter<CSeg> is (&c2->segs);
+			for (CSeg *s = is.First(); s; s = is.Next())
 			{
 				if (s->m_layer!=layer) 
 					continue;
@@ -5149,7 +5149,7 @@ void CFreePcbDoc::DRCArea(carea2 *a, int units, DesignRules *dr)
 		::MakeCStringFromDimension( &x_str, xSample, units, FALSE, TRUE, TRUE, 1 );
 		::MakeCStringFromDimension( &y_str, ySample, units, FALSE, TRUE, TRUE, 1 );
 		str.Format( s, m_drelist->GetSize()+1, net->name, x_str, y_str );
-		cdre * dre = m_drelist->Add( cdre::COPPERAREA_BROKEN, &str, a, NULL, xSample, ySample, xSample, ySample, 0, 0 );
+		CDre * dre = m_drelist->Add( CDre::COPPERAREA_BROKEN, &str, a, NULL, xSample, ySample, xSample, ySample, 0, 0 );
 		if (dre && log) 
 			log->AddLine( str );
 		delete(bmp);
@@ -5186,7 +5186,7 @@ void CFreePcbDoc::DRCArea(carea2 *a, int units, DesignRules *dr)
 			::MakeCStringFromDimension( &x_str, x2, units, FALSE, TRUE, TRUE, 1 );
 			::MakeCStringFromDimension( &y_str, y2, units, FALSE, TRUE, TRUE, 1 );
 			str.Format( s, m_drelist->GetSize()+1, net->name, x_str, y_str );
-			cdre * dre = m_drelist->Add( cdre::COPPERAREA_BROKEN, &str, a, NULL, x2, y2, x2, y2, 0, 0 );
+			CDre * dre = m_drelist->Add( CDre::COPPERAREA_BROKEN, &str, a, NULL, x2, y2, x2, y2, 0, 0 );
 			if ( dre && log )
 				log->AddLine( str );
 		}
@@ -5196,10 +5196,10 @@ void CFreePcbDoc::DRCArea(carea2 *a, int units, DesignRules *dr)
 }
 
 
-void CFreePcbDoc::DRCConnect(cconnect2 *c, int units, DesignRules *dr)
+void CFreePcbDoc::DRCConnect(CConnect *c, int units, DesignRules *dr)
 {
 	CString d_str, x_str, y_str, str;
-	cnet2 *net = c->m_net;
+	CNet *net = c->m_net;
 	CDlgLog *log = m_dlg_log;
 	int num_layers = LAY_TOP_COPPER + m_num_copper_layers;
 
@@ -5213,8 +5213,8 @@ void CFreePcbDoc::DRCConnect(cconnect2 *c, int units, DesignRules *dr)
 	int max_trace_w = 0;	// maximum trace width for connection
 
 	/*** iterate through connect's segs ***/
-	citer<cseg2> is (&c->segs);
-	for (cseg2 *s = is.First(); s; s = is.Next())
+	CIter<CSeg> is (&c->segs);
+	for (CSeg *s = is.First(); s; s = is.Next())
 	{
 		int x1 = s->preVtx->x, y1 = s->preVtx->y;
 		int x2 = s->postVtx->x, y2 = s->postVtx->y;
@@ -5246,22 +5246,22 @@ void CFreePcbDoc::DRCConnect(cconnect2 *c, int units, DesignRules *dr)
 			::MakeCStringFromDimension( &y_str, y, units, FALSE, TRUE, TRUE, 1 );
 			CString str0 ((LPCSTR) IDS_TraceWidthEquals);
 			str.Format( str0, m_drelist->GetSize()+1, net->name, d_str, x_str, y_str );
-			cdre * dre = m_drelist->Add( cdre::TRACE_WIDTH, &str, s, NULL, x, y, 0, 0, 0, layer );
+			CDre * dre = m_drelist->Add( CDre::TRACE_WIDTH, &str, s, NULL, x, y, 0, 0, 0, layer );
 			if( dre && log )
 				log->AddLine( str );
 		}
 		// test clearance to board edge
-		citer<cboard> ib (&boards);
-		for (cboard *b = ib.First(); b; b = ib.Next())
+		CIter<CBoard> ib (&boards);
+		for (CBoard *b = ib.First(); b; b = ib.Next())
 		{
-			citer<cside> ibs (&b->main->sides);
-			for (cside *bs = ibs.First(); bs; bs = ibs.Next())
+			CIter<CSide> ibs (&b->main->sides);
+			for (CSide *bs = ibs.First(); bs; bs = ibs.Next())
 			{
 				int bx1 = bs->preCorner->x, by1 = bs->preCorner->y;
 				int bx2 = bs->postCorner->x, by2 = bs->postCorner->y;
 				int x, y;
 				int d = ::GetClearanceBetweenSegments( bx1, by1, bx2, by2, bs->m_style, 0,
-					x1, y1, x2, y2, cpolyline::STRAIGHT, w, dr->board_edge_copper, &x, &y );
+					x1, y1, x2, y2, CPolyline::STRAIGHT, w, dr->board_edge_copper, &x, &y );
 				if( d < dr->board_edge_copper )
 				{
 					// BOARDEDGE_SEG error
@@ -5270,7 +5270,7 @@ void CFreePcbDoc::DRCConnect(cconnect2 *c, int units, DesignRules *dr)
 					::MakeCStringFromDimension( &y_str, y, units, FALSE, TRUE, TRUE, 1 );
 					CString str0 ((LPCSTR) IDS_TraceToBoardEdgeEquals);
 					str.Format( str0, m_drelist->GetSize()+1, net->name, d_str, x_str, y_str );
-					cdre * dre = m_drelist->Add( cdre::BOARDEDGE_SEG, &str, s, NULL, x, y, 0, 0, 0, layer );
+					CDre * dre = m_drelist->Add( CDre::BOARDEDGE_SEG, &str, s, NULL, x, y, 0, 0, 0, layer );
 					if( dre && log )
 						log->AddLine( str );
 				}
@@ -5279,8 +5279,8 @@ void CFreePcbDoc::DRCConnect(cconnect2 *c, int units, DesignRules *dr)
 	}
 
 	/*** iterate through connect's vertices (vias in particular) ***/
-	citer<cvertex2> iv (&c->vtxs);
-	for (cvertex2 *vtx = iv.First(); vtx; vtx = iv.Next())
+	CIter<CVertex> iv (&c->vtxs);
+	for (CVertex *vtx = iv.First(); vtx; vtx = iv.Next())
 	{
 		if (!vtx->via_w) 
 			continue;
@@ -5302,21 +5302,21 @@ void CFreePcbDoc::DRCConnect(cconnect2 *c, int units, DesignRules *dr)
 			::MakeCStringFromDimension( &y_str, vtx->y, units, FALSE, TRUE, TRUE, 1 );
 			CString s ((LPCSTR) IDS_ViaAnnularRingEquals);
 			str.Format( s, m_drelist->GetSize()+1, net->name, d_str, x_str, y_str );
-			cdre * dre = m_drelist->Add( cdre::RING_VIA, &str, vtx, NULL, vtx->x, vtx->y, 0, 0, dia, 0 );
+			CDre * dre = m_drelist->Add( CDre::RING_VIA, &str, vtx, NULL, vtx->x, vtx->y, 0, 0, dia, 0 );
 			if( dre && log )
 				log->AddLine( str );
 		}
 		// test clearance to board edge
-		citer<cboard> ib (&boards);
-		for (cboard *b = ib.First(); b; b = ib.Next())
+		CIter<CBoard> ib (&boards);
+		for (CBoard *b = ib.First(); b; b = ib.Next())
 		{
-			citer<cside> ibs (&b->main->sides);
-			for (cside *bs = ibs.First(); bs; bs = ibs.Next())
+			CIter<CSide> ibs (&b->main->sides);
+			for (CSide *bs = ibs.First(); bs; bs = ibs.Next())
 			{
 				int bx1 = bs->preCorner->x, by1 = bs->preCorner->y;
 				int bx2 = bs->postCorner->x, by2 = bs->postCorner->y;
 				//** for now, only works for straight board edge segments
-				if (bs->m_style != cpolyline::STRAIGHT )
+				if (bs->m_style != CPolyline::STRAIGHT )
 					continue;
 				int d = ::GetClearanceBetweenLineSegmentAndPad( bx1, by1, bx2, by2, 0,
 					PAD_ROUND, vtx->x, vtx->y, via_w, 0, 0 );
@@ -5328,7 +5328,7 @@ void CFreePcbDoc::DRCConnect(cconnect2 *c, int units, DesignRules *dr)
 					::MakeCStringFromDimension( &y_str, vtx->y, units, FALSE, TRUE, TRUE, 1 );
 					CString s ((LPCSTR) IDS_ViaToBoardEdgeEquals);
 					str.Format( s, m_drelist->GetSize()+1, net->name, d_str, x_str, y_str );
-					cdre * dre = m_drelist->Add( cdre::BOARDEDGE_VIA, &str, vtx, NULL,
+					CDre * dre = m_drelist->Add( CDre::BOARDEDGE_VIA, &str, vtx, NULL,
 						vtx->x, vtx->y, 0, 0, dia, 0 );
 					if( dre && log )
 						log->AddLine( str );
@@ -5343,7 +5343,7 @@ void CFreePcbDoc::DRCConnect(cconnect2 *c, int units, DesignRules *dr)
 					::MakeCStringFromDimension( &y_str, vtx->y, units, FALSE, TRUE, TRUE, 1 );
 					CString s ((LPCSTR) IDS_ViaHoleToBoardEdgeEquals);
 					str.Format( s, m_drelist->GetSize()+1, net->name, d_str, x_str, y_str );
-					cdre * dre = m_drelist->Add( cdre::BOARDEDGE_VIAHOLE, &str, vtx, NULL, 
+					CDre * dre = m_drelist->Add( CDre::BOARDEDGE_VIAHOLE, &str, vtx, NULL, 
 						vtx->x, vtx->y, 0, 0, dia, 0 );
 					if( dre && log )
 						log->AddLine( str );
@@ -5354,8 +5354,8 @@ void CFreePcbDoc::DRCConnect(cconnect2 *c, int units, DesignRules *dr)
 
 	/*** iterate through all parts, checking for
 			SEG_PAD, VIA_PAD, SEG_COPPERGRAPHIC, VIA_COPPERGRAPHIC errors  */
-	citer<cpart2> ip (&m_plist->parts);
-	for (cpart2 *part = ip.First(); part; part = ip.Next())
+	CIter<CPart> ip (&m_plist->parts);
+	for (CPart *part = ip.First(); part; part = ip.Next())
 	{
 		if (!part->shape) 
 			continue;										// CPT2 this wasn't there before, but surely it makes sense?
@@ -5374,8 +5374,8 @@ void CFreePcbDoc::DRCConnect(cconnect2 *c, int units, DesignRules *dr)
 			continue;
 
 		// OK, now we have to test each pad
-		citer<cpin2> ipin (&part->pins);
-		for (cpin2 *pin = ipin.First(); pin; pin = ipin.Next())
+		CIter<CPin> ipin (&part->pins);
+		for (CPin *pin = ipin.First(); pin; pin = ipin.Next())
 		{
 			drc_pin * drp = &pin->drc;
 			// if pin and connection bounds are separated enough, skip pin
@@ -5405,8 +5405,8 @@ void CFreePcbDoc::DRCConnect(cconnect2 *c, int units, DesignRules *dr)
 
 			// CPT2: old code did a single loop through segs, and checked each seg's postVtx for via violations.  But this had the
 			// effect that the head of a connect wouldn't get checked.  Therefore I've split it into 2 loops.
-			citer<cseg2> is (&c->segs);
-			for (cseg2 *s = is.First(); s; s = is.Next())
+			CIter<CSeg> is (&c->segs);
+			for (CSeg *s = is.First(); s; s = is.Next())
 			{
 				int layer = s->m_layer;
 				if (layer < LAY_TOP_COPPER)						// e.g., a ratline
@@ -5432,7 +5432,7 @@ void CFreePcbDoc::DRCConnect(cconnect2 *c, int units, DesignRules *dr)
 						CString str0 ((LPCSTR) IDS_TraceToPadHoleEquals);
 						str.Format( str0, m_drelist->GetSize()+1, net->name, part->ref_des, pin->pin_name,
 							d_str, x_str, y_str );
-						cdre * dre = m_drelist->Add( cdre::SEG_PAD, &str, s, pin, pin->x, pin->y, pin->x, pin->y, 
+						CDre * dre = m_drelist->Add( CDre::SEG_PAD, &str, s, pin, pin->x, pin->y, pin->x, pin->y, 
 							dia, layer );
 						if( dre && log )
 							log->AddLine( str );
@@ -5454,7 +5454,7 @@ void CFreePcbDoc::DRCConnect(cconnect2 *c, int units, DesignRules *dr)
 						CString str0 ((LPCSTR) IDS_TraceToPadEquals);
 						str.Format( str0, m_drelist->GetSize()+1, net->name, part->ref_des, pin->pin_name,
 							d_str, x_str, y_str );
-						cdre * dre = m_drelist->Add( cdre::SEG_PAD, &str, s, pin, pin->x, pin->y, pin->x, pin->y, 
+						CDre * dre = m_drelist->Add( CDre::SEG_PAD, &str, s, pin, pin->x, pin->y, pin->x, pin->y, 
 							dia, layer );
 						if( dre && log )
 							log->AddLine( str );
@@ -5462,8 +5462,8 @@ void CFreePcbDoc::DRCConnect(cconnect2 *c, int units, DesignRules *dr)
 				}
 			}		
 					
-			citer<cvertex2> iv (&c->vtxs);
-			for (cvertex2* v = iv.First(); v; v= iv.Next())
+			CIter<CVertex> iv (&c->vtxs);
+			for (CVertex* v = iv.First(); v; v= iv.Next())
 			{
 				if (!v->via_w) continue;
 				for (int layer = LAY_TOP_COPPER; layer < num_layers; layer++)
@@ -5487,7 +5487,7 @@ void CFreePcbDoc::DRCConnect(cconnect2 *c, int units, DesignRules *dr)
 							CString str0 ((LPCSTR) IDS_ViaPadToPadEquals);
 							str.Format( str0, m_drelist->GetSize()+1, net->name, part->ref_des, pin->pin_name,
 								d_str, x_str, y_str );
-							cdre * dre = m_drelist->Add( cdre::VIA_PAD, &str, v, pin, v->x, v->y, pin->x, pin->y, 0, layer );
+							CDre * dre = m_drelist->Add( CDre::VIA_PAD, &str, v, pin, v->x, v->y, pin->x, pin->y, 0, layer );
 							if( dre && log )
 								log->AddLine( str );
 							break;  // skip more layers
@@ -5504,7 +5504,7 @@ void CFreePcbDoc::DRCConnect(cconnect2 *c, int units, DesignRules *dr)
 							CString s ((LPCSTR) IDS_ViaHoleToPadEquals);
 							str.Format( s, m_drelist->GetSize()+1, net->name, part->ref_des, pin->pin_name,
 								d_str, x_str, y_str );
-							cdre * dre = m_drelist->Add( cdre::VIA_PAD, &str, v, pin, v->x, v->y, pin->x, pin->y, 0, layer );
+							CDre * dre = m_drelist->Add( CDre::VIA_PAD, &str, v, pin, v->x, v->y, pin->x, pin->y, 0, layer );
 							if( dre && log )
 								log->AddLine( str );
 							break;  // skip more layers
@@ -5524,7 +5524,7 @@ void CFreePcbDoc::DRCConnect(cconnect2 *c, int units, DesignRules *dr)
 							CString s ((LPCSTR) IDS_ViaPadToPadHoleEquals);
 							str.Format( s, m_drelist->GetSize()+1, net->name, part->ref_des, pin->pin_name,
 								d_str, x_str, y_str );
-							cdre * dre = m_drelist->Add( cdre::VIA_PAD, &str, v, pin, v->x, v->y, pin->x, pin->y, 0, layer );
+							CDre * dre = m_drelist->Add( CDre::VIA_PAD, &str, v, pin, v->x, v->y, pin->x, pin->y, 0, layer );
 							if( dre && log )
 								log->AddLine( str );
 							break;  // skip more layers
@@ -5545,7 +5545,7 @@ void CFreePcbDoc::DRCConnect(cconnect2 *c, int units, DesignRules *dr)
 						CString s ((LPCSTR) IDS_ViaHoleToPadHoleEquals);
 						str.Format( s, m_drelist->GetSize()+1, net->name, part->ref_des, pin->pin_name,
 							d_str, x_str, y_str );
-						cdre * dre = m_drelist->Add( cdre::VIA_PAD, &str, v, pin, v->x, v->y, pin->x, pin->y, 0, LAY_TOP_COPPER );
+						CDre * dre = m_drelist->Add( CDre::VIA_PAD, &str, v, pin, v->x, v->y, pin->x, pin->y, 0, LAY_TOP_COPPER );
 						if( dre && log )
 							log->AddLine( str );
 					}
@@ -5577,17 +5577,17 @@ void CFreePcbDoc::DRCConnect(cconnect2 *c, int units, DesignRules *dr)
 			int cgyf = test_stroke->yf;
 			int cgstyle;
 			if( test_stroke->type == DL_LINE )
-				cgstyle = cpolyline::STRAIGHT;
+				cgstyle = CPolyline::STRAIGHT;
 			else if( test_stroke->type == DL_ARC_CW )
-				cgstyle = cpolyline::ARC_CW;
+				cgstyle = CPolyline::ARC_CW;
 			else if( test_stroke->type == DL_ARC_CCW )
-				cgstyle = cpolyline::ARC_CCW;
+				cgstyle = CPolyline::ARC_CCW;
 			else
 				ASSERT(0);
 
 			// test against each segment in connection
-			citer<cseg2> is (&c->segs);
-			for (cseg2 *s = is.First(); s; s = is.Next())
+			CIter<CSeg> is (&c->segs);
+			for (CSeg *s = is.First(); s; s = is.Next())
 			{
 				if (s->m_layer != test_stroke->layer)
 					continue;
@@ -5601,7 +5601,7 @@ void CFreePcbDoc::DRCConnect(cconnect2 *c, int units, DesignRules *dr)
 				// check segment clearances
 				int x, y;
 				int d = ::GetClearanceBetweenSegments( cgxi, cgyi, cgxf, cgyf, cgstyle, 0,
-					xi, yi, xf, yf, cpolyline::STRAIGHT, w,	dr->board_edge_copper, &x, &y );
+					xi, yi, xf, yf, CPolyline::STRAIGHT, w,	dr->board_edge_copper, &x, &y );
 				if( d < dr->copper_copper )
 				{
 					// COPPERGRAPHIC_SEG error
@@ -5610,14 +5610,14 @@ void CFreePcbDoc::DRCConnect(cconnect2 *c, int units, DesignRules *dr)
 					::MakeCStringFromDimension( &y_str, y, units, FALSE, TRUE, TRUE, 1 );
 					CString s0 ((LPCSTR) IDS_TraceToCopperGraphic);
 					str.Format( s0, m_drelist->GetSize()+1, net->name, d_str, x_str, y_str );
-					cdre * dre = m_drelist->Add( cdre::COPPERGRAPHIC_SEG, &str, s, NULL, x, y, 0, 0, 0, cglayer );
+					CDre * dre = m_drelist->Add( CDre::COPPERGRAPHIC_SEG, &str, s, NULL, x, y, 0, 0, 0, cglayer );
 					if( dre && log )
 						log->AddLine( str );
 				}
 			}
 			// test against each via in connection
-			citer<cvertex2> iv (&c->vtxs);
-			for (cvertex2 *v = iv.First(); v; v = iv.Next())
+			CIter<CVertex> iv (&c->vtxs);
+			for (CVertex *v = iv.First(); v; v = iv.Next())
 			{
 				if (!v->via_w) 
 					continue;
@@ -5637,7 +5637,7 @@ void CFreePcbDoc::DRCConnect(cconnect2 *c, int units, DesignRules *dr)
 						::MakeCStringFromDimension( &y_str, v->y, units, FALSE, TRUE, TRUE, 1 );
 						CString s0 ((LPCSTR) IDS_ViaToCopperGraphic);
 						str.Format( s0,	m_drelist->GetSize()+1, net->name, d_str, x_str, y_str );
-						cdre * dre = m_drelist->Add( cdre::COPPERGRAPHIC_VIA, &str, v, NULL, v->x, v->y, 
+						CDre * dre = m_drelist->Add( CDre::COPPERGRAPHIC_VIA, &str, v, NULL, v->x, v->y, 
 							0, 0, dia, cglayer );
 						if( dre && log )
 							log->AddLine( str );
@@ -5656,7 +5656,7 @@ void CFreePcbDoc::DRCConnect(cconnect2 *c, int units, DesignRules *dr)
 						::MakeCStringFromDimension( &y_str, v->y, units, FALSE, TRUE, TRUE, 1 );
 						CString s0 ((LPCSTR) IDS_ViaHoleToCopperGraphic);
 						str.Format( s0, m_drelist->GetSize()+1, net->name, d_str, x_str, y_str );
-						cdre * dre = m_drelist->Add( cdre::COPPERGRAPHIC_VIAHOLE, &str, v, NULL, v->x, v->y,
+						CDre * dre = m_drelist->Add( CDre::COPPERGRAPHIC_VIAHOLE, &str, v, NULL, v->x, v->y,
 							0, 0, dia, cglayer );
 						if( dre && log )
 							log->AddLine( str );
@@ -5667,7 +5667,7 @@ void CFreePcbDoc::DRCConnect(cconnect2 *c, int units, DesignRules *dr)
 	}
 }
 
-void CFreePcbDoc::DRCConnectAndConnect( cconnect2 *c1, cconnect2 *c2, int units, DesignRules *dr, int clearance )
+void CFreePcbDoc::DRCConnectAndConnect( CConnect *c1, CConnect *c2, int units, DesignRules *dr, int clearance )
 {
 	// CPT2 new helper for DRC().  Look for DRC violations involving c1 and c2 (which will belong to different nets)
 	if( c1->min_x - c2->max_x > clearance )
@@ -5680,19 +5680,19 @@ void CFreePcbDoc::DRCConnectAndConnect( cconnect2 *c1, cconnect2 *c2, int units,
 		return;
 	CString d_str, x_str, y_str, str;
 	CDlgLog *log = m_dlg_log;
-	cnet2 *net1 = c1->m_net, *net2 = c2->m_net;
+	CNet *net1 = c1->m_net, *net2 = c2->m_net;
 
 	// now we have to compare all segments and vias in c1 against those in c2
-	citer<cseg2> is1 (&c1->segs);
-	citer<cseg2> is2 (&c2->segs);
-	for (cseg2 *s1 = is1.First(); s1; s1 = is1.Next())
+	CIter<CSeg> is1 (&c1->segs);
+	CIter<CSeg> is2 (&c2->segs);
+	for (CSeg *s1 = is1.First(); s1; s1 = is1.Next())
 	{
 		// Get bounding rect for seg, including the vias on its endpoints
 		CRect br1, br2;
 		s1->GetBoundingRect( &br1 );
 		int xi1 = s1->preVtx->x, yi1 = s1->preVtx->y;
 		int xf1 = s1->postVtx->x, yf1 = s1->postVtx->y;
-		for (cseg2 *s2 = is2.First(); s2; s2 = is2.Next())
+		for (CSeg *s2 = is2.First(); s2; s2 = is2.Next())
 		{
 			s2->GetBoundingRect( &br2 );
 			int xi2 = s2->preVtx->x, yi2 = s2->preVtx->y;
@@ -5711,8 +5711,8 @@ void CFreePcbDoc::DRCConnectAndConnect( cconnect2 *c1, cconnect2 *c2, int units,
 			{
 				// test clearances between segments on the same layer
 				int xx, yy; 
-				int d = ::GetClearanceBetweenSegments( xi1, yi1, xf1, yf1, cpolyline::STRAIGHT, s1->m_width, 
-					xi2, yi2, xf2, yf2, cpolyline::STRAIGHT, s2->m_width, dr->trace_trace, &xx, &yy );
+				int d = ::GetClearanceBetweenSegments( xi1, yi1, xf1, yf1, CPolyline::STRAIGHT, s1->m_width, 
+					xi2, yi2, xf2, yf2, CPolyline::STRAIGHT, s2->m_width, dr->trace_trace, &xx, &yy );
 				if( d < dr->trace_trace )
 				{
 					// SEG_SEG
@@ -5722,7 +5722,7 @@ void CFreePcbDoc::DRCConnectAndConnect( cconnect2 *c1, cconnect2 *c2, int units,
 					CString s0 ((LPCSTR) IDS_TraceToTraceEquals);
 					str.Format( s0, m_drelist->GetSize()+1, net1->name, net2->name,
 						d_str, x_str, y_str );
-					cdre * dre = m_drelist->Add( cdre::SEG_SEG, &str, s1, s2, xx, yy, xx, yy, 0, s1->m_layer );
+					CDre * dre = m_drelist->Add( CDre::SEG_SEG, &str, s1, s2, xx, yy, xx, yy, 0, s1->m_layer );
 					if( dre && log )
 						log->AddLine( str );
 				}
@@ -5750,7 +5750,7 @@ void CFreePcbDoc::DRCConnectAndConnect( cconnect2 *c1, cconnect2 *c2, int units,
 
 
 
-void CFreePcbDoc::DRCSegmentAndVia(cseg2 *seg, cvertex2 *vtx, int units, DesignRules *dr)
+void CFreePcbDoc::DRCSegmentAndVia(CSeg *seg, CVertex *vtx, int units, DesignRules *dr)
 {
 	// CPT2 new helper routine for DRC().  Compare seg and vtx (checking first that seg is not a ratline and vtx is a via), and generate
 	// any d-r errors that may come up.
@@ -5766,10 +5766,10 @@ void CFreePcbDoc::DRCSegmentAndVia(cseg2 *seg, cvertex2 *vtx, int units, DesignR
 	int test = vtx->GetViaConnectionStatus( layer );
 	int via_w  = vtx->via_w;											// normal via pad
 	int dia = via_w + 20*NM_PER_MIL;									// Diameter for displayed dre circles, should any be generated
-	if( layer > LAY_BOTTOM_COPPER && test == cvertex2::VIA_NO_CONNECT )
+	if( layer > LAY_BOTTOM_COPPER && test == CVertex::VIA_NO_CONNECT )
 		// inner layer and no trace or thermal, so no via pad
 		via_w = 0;
-	else if( layer > LAY_BOTTOM_COPPER && (test & cvertex2::VIA_AREA) && !(test & cvertex2::VIA_TRACE) )
+	else if( layer > LAY_BOTTOM_COPPER && (test & CVertex::VIA_AREA) && !(test & CVertex::VIA_TRACE) )
 		// inner layer with small thermal, use annular ring
 		via_w = vtx->via_hole_w + 2*dr->annular_ring_vias;
 
@@ -5788,7 +5788,7 @@ void CFreePcbDoc::DRCSegmentAndVia(cseg2 *seg, cvertex2 *vtx, int units, DesignR
 			CString s0 ((LPCSTR) IDS_TraceToViaPadEquals);
 			str.Format( s0, m_drelist->GetSize()+1, seg->m_net->name, vtx->m_net->name,
 				d_str, x_str, y_str );
-			cdre * dre = m_drelist->Add( cdre::SEG_VIA, &str, seg, vtx, vtx->x, vtx->y, vtx->x, vtx->y, dia, seg->m_layer );
+			CDre * dre = m_drelist->Add( CDre::SEG_VIA, &str, seg, vtx, vtx->x, vtx->y, vtx->x, vtx->y, dia, seg->m_layer );
 			if( dre && log )
 				log->AddLine( str );
 		}
@@ -5806,13 +5806,13 @@ void CFreePcbDoc::DRCSegmentAndVia(cseg2 *seg, cvertex2 *vtx, int units, DesignR
 		CString s0 ((LPCSTR) IDS_TraceToViaHoleEquals);
 		str.Format( s0, m_drelist->GetSize()+1, seg->m_net->name, vtx->m_net->name,
 			d_str, x_str, y_str );
-		cdre * dre = m_drelist->Add( cdre::SEG_VIAHOLE, &str, seg, vtx, vtx->x, vtx->y, vtx->x, vtx->y, dia, seg->m_layer );
+		CDre * dre = m_drelist->Add( CDre::SEG_VIAHOLE, &str, seg, vtx, vtx->x, vtx->y, vtx->x, vtx->y, dia, seg->m_layer );
 		if( dre && log )
 			log->AddLine( str );
 	}
 }
 
-void CFreePcbDoc::DRCViaAndVia(cvertex2 *vtx1, cvertex2 *vtx2, int units, DesignRules *dr)
+void CFreePcbDoc::DRCViaAndVia(CVertex *vtx1, CVertex *vtx2, int units, DesignRules *dr)
 {
 	if( !vtx1->via_w || !vtx2->via_w )
 		return;
@@ -5824,19 +5824,19 @@ void CFreePcbDoc::DRCViaAndVia(cvertex2 *vtx1, cvertex2 *vtx2, int units, Design
 		// get size of vtx1's via pad on this layer
 		int test = vtx1->GetViaConnectionStatus( layer );
 		int via_w1 = vtx1->via_w;	// normal via pad
-		if( layer > LAY_BOTTOM_COPPER && test == cvertex2::VIA_NO_CONNECT )
+		if( layer > LAY_BOTTOM_COPPER && test == CVertex::VIA_NO_CONNECT )
 			// inner layer and no trace or thermal, so no via pad
 			via_w1 = 0;
-		else if( layer > LAY_BOTTOM_COPPER && (test & cvertex2::VIA_AREA) && !(test & cvertex2::VIA_TRACE) )
+		else if( layer > LAY_BOTTOM_COPPER && (test & CVertex::VIA_AREA) && !(test & CVertex::VIA_TRACE) )
 			// inner layer with small thermal, use annular ring
 			via_w1 = vtx1->via_hole_w + 2*dr->annular_ring_vias;
 		// get size of vtx2's via pad on this layer
 		test = vtx2->GetViaConnectionStatus( layer );
 		int via_w2 = vtx2->via_w;	// normal via pad
-		if( layer > LAY_BOTTOM_COPPER && test == cvertex2::VIA_NO_CONNECT )
+		if( layer > LAY_BOTTOM_COPPER && test == CVertex::VIA_NO_CONNECT )
 			// inner layer and no trace or thermal, so no via pad
 			via_w2 = 0;
-		else if( layer > LAY_BOTTOM_COPPER && (test & cvertex2::VIA_AREA) && !(test & cvertex2::VIA_TRACE) )
+		else if( layer > LAY_BOTTOM_COPPER && (test & CVertex::VIA_AREA) && !(test & CVertex::VIA_TRACE) )
 			// inner layer with small thermal, use annular ring
 			via_w2 = vtx2->via_hole_w + 2*dr->annular_ring_vias;
 		if( !via_w1 || !via_w2 )
@@ -5854,7 +5854,7 @@ void CFreePcbDoc::DRCViaAndVia(cvertex2 *vtx1, cvertex2 *vtx2, int units, Design
 			CString s ((LPCSTR) IDS_ViaPadToViaPadEquals);
 			str.Format( s, m_drelist->GetSize()+1, vtx1->m_net->name, vtx2->m_net->name,
 				d_str, x_str, y_str );
-			cdre * dre = m_drelist->Add( cdre::VIA_VIA, &str, vtx1, vtx2, vtx1->x, vtx1->y, vtx2->x, vtx2->y, 0, layer );
+			CDre * dre = m_drelist->Add( CDre::VIA_VIA, &str, vtx1, vtx2, vtx1->x, vtx1->y, vtx2->x, vtx2->y, 0, layer );
 			if( dre && log )
 				log->AddLine( str );
 		}
@@ -5870,7 +5870,7 @@ void CFreePcbDoc::DRCViaAndVia(cvertex2 *vtx1, cvertex2 *vtx2, int units, Design
 			CString s ((LPCSTR) IDS_ViaPadToViaHoleEquals);
 			str.Format( s, m_drelist->GetSize()+1, vtx1->m_net->name, vtx2->m_net->name,
 				d_str, x_str, y_str );
-			cdre * dre = m_drelist->Add( cdre::VIA_VIAHOLE, &str, vtx1, vtx2, vtx1->x, vtx1->y, vtx2->x, vtx2->y, 0, layer );
+			CDre * dre = m_drelist->Add( CDre::VIA_VIAHOLE, &str, vtx1, vtx2, vtx1->x, vtx1->y, vtx2->x, vtx2->y, 0, layer );
 			if( dre && log )
 				log->AddLine( str );
 		}
@@ -5886,7 +5886,7 @@ void CFreePcbDoc::DRCViaAndVia(cvertex2 *vtx1, cvertex2 *vtx2, int units, Design
 			CString s ((LPCSTR) IDS_ViaPadToViaHoleEquals);
 			str.Format( s, m_drelist->GetSize()+1, vtx2->m_net->name, vtx1->m_net->name,
 				d_str, x_str, y_str );
-			cdre * dre = m_drelist->Add( cdre::VIA_VIAHOLE, &str, vtx2, vtx1, vtx2->x, vtx2->y, vtx1->x, vtx1->y, 0, layer );
+			CDre * dre = m_drelist->Add( CDre::VIA_VIAHOLE, &str, vtx2, vtx1, vtx2->x, vtx2->y, vtx1->x, vtx1->y, 0, layer );
 			if( dre && log )
 				log->AddLine( str );
 		}
@@ -5904,31 +5904,31 @@ void CFreePcbDoc::DRCViaAndVia(cvertex2 *vtx1, cvertex2 *vtx2, int units, Design
 		CString s ((LPCSTR) IDS_ViaHoleToViaHoleEquals);
 		str.Format( s, m_drelist->GetSize()+1, vtx1->m_net->name, vtx2->m_net->name,
 			d_str, x_str, y_str );
-		cdre * dre = m_drelist->Add( cdre::VIAHOLE_VIAHOLE, &str, vtx1, vtx2, vtx1->x, vtx1->y, vtx2->x, vtx2->y, 0, 0 );
+		CDre * dre = m_drelist->Add( CDre::VIAHOLE_VIAHOLE, &str, vtx1, vtx2, vtx1->x, vtx1->y, vtx2->x, vtx2->y, 0, 0 );
 		if( dre && log )
 			log->AddLine( str );
 	}
 }
 
-void CFreePcbDoc::DRCAreaAndArea( carea2 *a1, carea2 *a2, int units, DesignRules *dr )
+void CFreePcbDoc::DRCAreaAndArea( CArea *a1, CArea *a2, int units, DesignRules *dr )
 {
 	if (a1->m_layer!= a2->m_layer)
 		return;
 	CString d_str, x_str, y_str, str;
 	CDlgLog *log = m_dlg_log;
-	cnet2 *net1 = a1->m_net, *net2 = a2->m_net;
+	CNet *net1 = a1->m_net, *net2 = a2->m_net;
 
 	// Test spacing between areas.  Check all pairs of sides from all contours
 	bool bErrorFound = false;
-	citer<ccontour> ictr1 (&a1->contours);
-	citer<ccontour> ictr2 (&a2->contours);
-	for (ccontour *ctr1 = ictr1.First(); ctr1; ctr1 = ictr1.Next())
-		for (ccontour *ctr2 = ictr2.First(); ctr2; ctr2 = ictr2.Next())
+	CIter<CContour> ictr1 (&a1->contours);
+	CIter<CContour> ictr2 (&a2->contours);
+	for (CContour *ctr1 = ictr1.First(); ctr1; ctr1 = ictr1.Next())
+		for (CContour *ctr2 = ictr2.First(); ctr2; ctr2 = ictr2.Next())
 		{
-			citer<cside> is1 (&ctr1->sides);
-			citer<cside> is2 (&ctr2->sides);
-			for (cside *s1 = is1.First(); s1; s1 = is1.Next())
-				for (cside *s2 = is2.First(); s2; s2 = is2.Next())
+			CIter<CSide> is1 (&ctr1->sides);
+			CIter<CSide> is2 (&ctr2->sides);
+			for (CSide *s1 = is1.First(); s1; s1 = is1.Next())
+				for (CSide *s2 = is2.First(); s2; s2 = is2.Next())
 				{
 					int xi1 = s1->preCorner->x, yi1 = s1->preCorner->y;
 					int xf1 = s1->postCorner->x, yf1 = s1->postCorner->y;
@@ -5945,7 +5945,7 @@ void CFreePcbDoc::DRCAreaAndArea( carea2 *a1, carea2 *a2, int units, DesignRules
 						::MakeCStringFromDimension( &y_str, y, units, FALSE, TRUE, TRUE, 1 );
 						CString str0 ((LPCSTR) IDS_CopperAreaToCopperArea);
 						str.Format( str0, m_drelist->GetSize()+1, net1->name, net2->name, d_str, x_str, y_str );
-						cdre * dre = m_drelist->Add( cdre::COPPERAREA_COPPERAREA, &str, s1, s2, x, y, x, y, 0, 0 );
+						CDre * dre = m_drelist->Add( CDre::COPPERAREA_COPPERAREA, &str, s1, s2, x, y, x, y, 0, 0 );
 						if( dre && log )
 							log->AddLine( str );
 						bErrorFound = true;
@@ -5956,26 +5956,26 @@ void CFreePcbDoc::DRCAreaAndArea( carea2 *a1, carea2 *a2, int units, DesignRules
 	// For completeness, test if a1 has a main-contour point inside a2, or vice versa.  This covers cases where one area is totally
 	// contained within another.  CPT2 optimization:  Don't bother if a clearance error for a1 and a2 was already found.
 	if (bErrorFound) return;
-	citer<ccorner> ic1 (&a1->main->corners);
-	for (ccorner *c1 = ic1.First(); c1; c1 = ic1.Next())
+	CIter<CCorner> ic1 (&a1->main->corners);
+	for (CCorner *c1 = ic1.First(); c1; c1 = ic1.Next())
 		if( a2->TestPointInside( c1->x, c1->y ) )
 		{
 			// COPPERAREA_COPPERAREA error
 			CString s ((LPCSTR) IDS_CopperAreaInsideCopperArea);
 			str.Format( s, m_drelist->GetSize()+1, net1->name, net2->name );
-			cdre * dre = m_drelist->Add( cdre::COPPERAREA_INSIDE_COPPERAREA, &str, a1, a2, c1->x, c1->y, c1->x, c1->y, 0, 0 );
+			CDre * dre = m_drelist->Add( CDre::COPPERAREA_INSIDE_COPPERAREA, &str, a1, a2, c1->x, c1->y, c1->x, c1->y, 0, 0 );
 			if( dre && log )
 				log->AddLine( str );
 			break;								// One corner error of this sort suffices.
 		}
-	citer<ccorner> ic2 (&a2->main->corners);
-	for (ccorner *c2 = ic2.First(); c2; c2 = ic2.Next())
+	CIter<CCorner> ic2 (&a2->main->corners);
+	for (CCorner *c2 = ic2.First(); c2; c2 = ic2.Next())
 		if( a1->TestPointInside( c2->x, c2->y ) )
 		{
 			// COPPERAREA_COPPERAREA error
 			CString s ((LPCSTR) IDS_CopperAreaInsideCopperArea);
 			str.Format( s, m_drelist->GetSize()+1, net2->name, net1->name );
-			cdre * dre = m_drelist->Add( cdre::COPPERAREA_INSIDE_COPPERAREA, &str, a1, a2, c2->x, c2->y, c2->x, c2->y, 0, 0 );
+			CDre * dre = m_drelist->Add( CDre::COPPERAREA_INSIDE_COPPERAREA, &str, a1, a2, c2->x, c2->y, c2->x, c2->y, 0, 0 );
 			if( dre && log )
 				log->AddLine( str );
 			break;								// One corner error of this sort suffices.
@@ -5986,16 +5986,16 @@ void CFreePcbDoc::DRCUnrouted(int units)
 {
 	// CPT2 new helper for DRC().  Check for any unrouted connections
 	CDlgLog *log = m_dlg_log;
-	citer<cnet2> in (&m_nlist->nets);
-	for (cnet2 *net = in.First(); net; net = in.Next())
+	CIter<CNet> in (&m_nlist->nets);
+	for (CNet *net = in.First(); net; net = in.Next())
 	{
-		citer<cconnect2> ic (&net->connects);
-		for (cconnect2 *c = ic.First(); c; c = ic.Next())
+		CIter<CConnect> ic (&net->connects);
+		for (CConnect *c = ic.First(); c; c = ic.Next())
 		{
 			// check for unrouted or partially routed connection
 			bool bUnrouted = false;
-			citer<cseg2> is (&c->segs);
-			for (cseg2 *s = is.First(); s; s = is.Next())
+			CIter<CSeg> is (&c->segs);
+			for (CSeg *s = is.First(); s; s = is.Next())
 				if( s->m_layer == LAY_RAT_LINE )
 					{ bUnrouted = TRUE;	break; }
 			if( !bUnrouted )
@@ -6010,10 +6010,10 @@ void CFreePcbDoc::DRCUnrouted(int units)
 				str0.LoadStringA( IDS_UnroutedConnection );
 			str.Format( str0, m_drelist->GetSize()+1, net->name, from_str, to_str );
 			// Draw the dre circle halfway along the first seg:
-			cvertex2 *v1 = c->head, *v2 = v1->postSeg->postVtx;
+			CVertex *v1 = c->head, *v2 = v1->postSeg->postVtx;
 			int x = (v1->x + v2->x) / 2;
 			int y = (v1->y + v2->y) / 2;
-			cdre * dre = m_drelist->Add( cdre::UNROUTED, &str, c, NULL, x, y, x, y, 0, 0 );
+			CDre * dre = m_drelist->Add( CDre::UNROUTED, &str, c, NULL, x, y, x, y, 0, 0 );
 			if( dre && log )
 				log->AddLine( str );
 		}

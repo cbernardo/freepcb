@@ -67,7 +67,7 @@ END_MESSAGE_MAP()
 
 // initialize the dialog
 //
-void CDlgDupFootprintName::Initialize( CString * message, cshapelist * cache_shapes )
+void CDlgDupFootprintName::Initialize( CString * message, CShapeList * cache_shapes )
 {
 	m_str = message;
 	m_cache_shapes = cache_shapes;

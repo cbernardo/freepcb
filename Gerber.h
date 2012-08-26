@@ -52,8 +52,8 @@ int WriteGerberFile( CStdioFile * f, int flags, int layer,
 					int min_silkscreen_stroke_wid, int thermal_wid,
 					int outline_width, int hole_clearance,
 					int n_x, int n_y, int step_x, int step_y,
-					carray<cboard> * bd, carray<csmcutout> * sm, cpartlist * pl, 
-					cnetlist * nl, ctextlist * tl, CDisplayList * dl );
-int WriteDrillFile( CStdioFile * file, cpartlist * pl, cnetlist * nl, carray<cboard> * bd,
+					CHeap<CBoard> * bd, CHeap<CSmCutout> * sm, CPartList * pl, 
+					CNetList * nl, CTextList * tl, CDisplayList * dl );
+int WriteDrillFile( CStdioFile * file, CPartList * pl, CNetList * nl, CHeap<CBoard> * bd,
 				   int n_x=1, int n_y=1, int offset_x=0, int offset_y=0 );
 

@@ -12,10 +12,10 @@ public:
 	enum { ADD, EDIT };		// modes
 	CDlgAddPin(CWnd* pParent = NULL);   // standard constructor 
 	virtual ~CDlgAddPin();
-	void InitDialog( cshape * fp, cpadstack *ps0, carray<cpadstack> *new_pins, int units );
+	void InitDialog( CShape * fp, CPadstack *ps0, CHeap<CPadstack> *new_pins, int units );
 //	void EnableFields();
 
-	cshape * m_fp;	// original footprint
+	CShape * m_fp;	// original footprint
 
 // Dialog Data
 	enum { IDD = IDD_ADD_PIN };
@@ -28,8 +28,8 @@ protected:
 	DECLARE_MESSAGE_MAP()
 public:
 	int m_units;						// MIL or MM
-	cpadstack *m_ps0;					// CPT2.  Incoming pin if we're editing;  NULL if we're adding
-	carray<cpadstack> *m_new_pins;		// CPT2.  List to contain all the new pins on exit.
+	CPadstack *m_ps0;					// CPT2.  Incoming pin if we're editing;  NULL if we're adding
+	CHeap<CPadstack> *m_new_pins;		// CPT2.  List to contain all the new pins on exit.
 	CString m_pin_name;
 	int m_num_pins;
 	int m_increment;

@@ -4,7 +4,7 @@
 #include "DrawingElement.h"
 
 // X
-class CDLE_X : public dl_element
+class CDLE_X : public CDLElement
 {
 protected:
 	virtual void _Draw(CDrawInfo &di, bool);

@@ -68,12 +68,12 @@ public:
 	BOOL m_dragging_new_item;
 
 	// selected items
-	carray<cpcb_item> m_sel;	// CPT2.  Will replace the following 2 items
+	CHeap<CPcbItem> m_sel;	// CPT2.  Will replace the following 2 items
 	int m_sel_offset;		// CPT:  new system for processing repeated clicks in the same place --- see CDisplayList::TestSelect()
 	int m_cursor_mode_prev;	// CPT: ditto
-	cpcb_item *m_sel_prev;	// CPT2 was void*
+	CPcbItem *m_sel_prev;	// CPT2 was void*
 	int m_poly_drag_mode;	// CPT2.  Equal to CUR_ADD_AREA, CUR_ADD_AREA_CUTOUT, CUR_ADD_SMCUTOUT, CUR_ADD_BOARD
-	ccontour *m_drag_contour;	// When user drags out a new contour (main contour or cutout), this points to the contour in question.
+	CContour *m_drag_contour;	// When user drags out a new contour (main contour or cutout), this points to the contour in question.
 
 	// active layer for placement and (perhaps) routing
 	int m_active_layer;
@@ -123,7 +123,7 @@ public:
 	// selection mask
 	int m_sel_mask;							// CPT2.  As before, this indicates which buttons in the left pane are on and which off
 	int m_sel_mask_bits;					// CPT2.  This value is a function of the previous:  each left-pane button corresponds to 1 or more bits whose
-											// meanings are given in cpcb_item's enum of type-bits.  (See cpcb_item::GetTypeBit()).
+											// meanings are given in CPcbItem's enum of type-bits.  (See CPcbItem::GetTypeBit()).
 
 	// Constructor, low-level stuff:
 	CCommonView();
@@ -166,7 +166,7 @@ public:
 	void DrawLeftPane(CDC *pDC);
 	void DrawBottomPane(CDC *pDC);
 	// User input response:
-	void SelectItem(cpcb_item *item);
+	void SelectItem(CPcbItem *item);
 	virtual void CancelSelection() = 0;
 	bool CheckBottomPaneClick(CPoint &point);
 	bool CheckLeftPaneClick(CPoint &point);

@@ -3,14 +3,14 @@
 
 extern CFreePcbApp theApp;
 
-void dl_element::Draw (CDrawInfo &di)
+void CDLElement::Draw (CDrawInfo &di)
 	{ if( visible && dlist->m_vis[ orig_layer ] ) _Draw(di, false);	}
 
-void dl_element::DrawThermalRelief(CDrawInfo &di)
+void CDLElement::DrawThermalRelief(CDrawInfo &di)
 	{ if( visible && dlist->m_vis[ orig_layer ] ) _DrawThermalRelief(di); }
 
 
-int dl_element::IsHit(double x, double y, double &d) 
+int CDLElement::IsHit(double x, double y, double &d) 
 {
 	// don't select anything on an invisible layer or element
 	// CPT r294: changed args.
@@ -21,7 +21,7 @@ int dl_element::IsHit(double x, double y, double &d)
 }
 
 
-void dl_element::Unhook(void)
+void CDLElement::Unhook(void)
 {
 	// CPT.  New system replacing Brian's.  Element unhooks itself from its doubly linked list (the head of which is in this->displayLayer->elements).
 	if (displayLayer->elements==this)

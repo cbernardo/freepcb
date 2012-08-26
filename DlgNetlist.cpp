@@ -160,7 +160,7 @@ BEGIN_MESSAGE_MAP(CDlgNetlist, CDialog)
 END_MESSAGE_MAP()
 
 
-void CDlgNetlist::Initialize( cnetlist * nlist, cpartlist * plist,
+void CDlgNetlist::Initialize( CNetList * nlist, CPartList * plist,
 		CArray<int> * w, CArray<int> * v_w, CArray<int> * v_h_w )
 {
 	m_nlist = nlist;

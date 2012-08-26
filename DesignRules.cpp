@@ -1,11 +1,11 @@
-//  DesignRules.cpp.  Source file for classes related to design-rule checking, including cdre (which descends from cpcb_item), cdrelist, and DesignRules.
+//  DesignRules.cpp.  Source file for classes related to design-rule checking, including CDre (which descends from CPcbItem), CDreList, and DesignRules.
 
 #include "stdafx.h"
 
 
-cdre::cdre(CFreePcbDoc *_doc, int _index, int _type, CString *_str, cpcb_item *_item1, cpcb_item *_item2, 
+CDre::CDre(CFreePcbDoc *_doc, int _index, int _type, CString *_str, CPcbItem *_item1, CPcbItem *_item2, 
 		   int _x, int _y, int _w, int _layer) 
-	: cpcb_item(_doc)
+	: CPcbItem(_doc)
 { 
 	index = _index;
 	type = _type;
@@ -17,18 +17,18 @@ cdre::cdre(CFreePcbDoc *_doc, int _index, int _type, CString *_str, cpcb_item *_
 	layer = _layer;
 }
 
-cdre::cdre(CFreePcbDoc *_doc, int _uid):
-	cpcb_item(_doc, _uid)
+CDre::CDre(CFreePcbDoc *_doc, int _uid):
+	CPcbItem(_doc, _uid)
 { 
 	item1 = item2 = NULL;
 }
 
-bool cdre::IsOnPcb()
+bool CDre::IsOnPcb()
 {
 	return doc->m_drelist->dres.Contains(this);
 }
 
-int cdre::Draw()
+int CDre::Draw()
 {
 	CDisplayList *dl = doc->m_dlist;
 	if( !dl )
@@ -41,7 +41,7 @@ int cdre::Draw()
 	return NOERR;
 }
 
-void cdre::Highlight()
+void CDre::Highlight()
 {
 	CDisplayList *dl = doc->m_dlist;
 	if( !dl ) return;
@@ -52,7 +52,7 @@ void cdre::Highlight()
 		dl->Get_w( dl_sel ) );
 }
 
-cdre *cdrelist::Add( int type, CString * str, cpcb_item *item1, cpcb_item *item2,
+CDre *CDreList::Add( int type, CString * str, CPcbItem *item1, CPcbItem *item2,
 		int x1, int y1, int x2, int y2, int w, int layer )
 {
 	// CPT2 converted from DRErrorList function
@@ -66,10 +66,10 @@ cdre *cdrelist::Add( int type, CString * str, cpcb_item *item1, cpcb_item *item2
 	}
 
 	// first check for redundant error.  CPT: allow repeats of COPPERAREA_BROKEN errors
-	if( type != cdre::COPPERAREA_BROKEN )	
+	if( type != CDre::COPPERAREA_BROKEN )	
 	{
-		citer<cdre> id (&dres);
-		for (cdre *dre = id.First(); dre; dre = id.Next())
+		CIter<CDre> id (&dres);
+		for (CDre *dre = id.First(); dre; dre = id.Next())
 		{
 			// compare current error with error from list
 			if( dre->item1 == item1 && dre->item2 == item2 )
@@ -79,8 +79,8 @@ cdre *cdrelist::Add( int type, CString * str, cpcb_item *item1, cpcb_item *item2
 			// if same traces at same point, don't add it
 			if( item2 && dre->item2 )
 			{
-				cconnect2 *old1 = dre->item1->GetConnect(), *old2 = dre->item2->GetConnect();
-				cconnect2 *new1 = item1->GetConnect(), *new2 = item2->GetConnect();
+				CConnect *old1 = dre->item1->GetConnect(), *old2 = dre->item2->GetConnect();
+				CConnect *new1 = item1->GetConnect(), *new2 = item2->GetConnect();
 				if (old1==new1 && old2==new2 && dre->x==x && dre->y==y)
 					return NULL;
 				if (old1==new2 && old2==new1 && dre->x==x && dre->y==y)
@@ -88,39 +88,39 @@ cdre *cdrelist::Add( int type, CString * str, cpcb_item *item1, cpcb_item *item2
 			}
 
 			// if RING_PAD error on same pad, don't add it
-			if( type == cdre::RING_PAD && dre->type == cdre::RING_PAD )		// CPT2 second clause was dre->m_id.T3().  Check if I've translated right...
+			if( type == CDre::RING_PAD && dre->type == CDre::RING_PAD )		// CPT2 second clause was dre->m_id.T3().  Check if I've translated right...
 				if( item1 == dre->item1 )
 					return NULL;
 
 			// if BOARDEDGE_PAD or BOARDEDGE_PADHOLE error on same pad, don't add it
-			if( (type == cdre::BOARDEDGE_PAD || type == cdre::BOARDEDGE_PADHOLE)
-				&& (dre->type == cdre::BOARDEDGE_PAD || dre->type == cdre::BOARDEDGE_PADHOLE) )
+			if( (type == CDre::BOARDEDGE_PAD || type == CDre::BOARDEDGE_PADHOLE)
+				&& (dre->type == CDre::BOARDEDGE_PAD || dre->type == CDre::BOARDEDGE_PADHOLE) )
 					if( item1 == dre->item1 )
 						return NULL;
 
 			// if RING_VIA error on same via, don't add it
-			if( type == cdre::RING_VIA && dre->type == cdre::RING_VIA )
+			if( type == CDre::RING_VIA && dre->type == CDre::RING_VIA )
 				if( item1 == dre->item1 )
 					return NULL;
 
 			// if BOARDEDGE_VIA or BOARDEDGE_VIAHOLE error on same via, don't add it
-			if( (type == cdre::BOARDEDGE_VIA || type == cdre::BOARDEDGE_VIAHOLE)
-				&& (dre->type == cdre::BOARDEDGE_VIA || dre->type == cdre::BOARDEDGE_VIAHOLE) )
+			if( (type == CDre::BOARDEDGE_VIA || type == CDre::BOARDEDGE_VIAHOLE)
+				&& (dre->type == CDre::BOARDEDGE_VIA || dre->type == CDre::BOARDEDGE_VIAHOLE) )
 					if( item1 == dre->item1 )
 						return NULL;
 
 			// if BOARDEDGE_SEG on same trace at same point, don't add it
-			if( type == cdre::BOARDEDGE_SEG && dre->type == cdre::BOARDEDGE_SEG )
+			if( type == CDre::BOARDEDGE_SEG && dre->type == CDre::BOARDEDGE_SEG )
 				if( item1 == dre->item1 )													// Sufficient check?
 					return NULL;
 			
 			// if BOARDEDGE_COPPERAREA on same area at same point, don't add it
-			if( type == cdre::BOARDEDGE_COPPERAREA && dre->type == cdre::BOARDEDGE_COPPERAREA )
+			if( type == CDre::BOARDEDGE_COPPERAREA && dre->type == CDre::BOARDEDGE_COPPERAREA )
 				if( item1->GetPolyline() == dre->item1->GetPolyline()						// CPT2 Are the "->GetPolyline()" invocations essential?
 					&& x == dre->x  && y == dre->y ) 
 					return NULL;
 				
-			if( type == cdre::COPPERAREA_COPPERAREA && dre->type == cdre::COPPERAREA_COPPERAREA )		
+			if( type == CDre::COPPERAREA_COPPERAREA && dre->type == CDre::COPPERAREA_COPPERAREA )		
 				if( x == dre->x && y == dre->y)
 					if( item1 == dre->item1 && item2 == dre->item2 || 
 					    item1 == dre->item2 && item2 == dre->item1) 
@@ -134,35 +134,35 @@ cdre *cdrelist::Add( int type, CString * str, cpcb_item *item1, cpcb_item *item2
 	if( w )
 		d = max( d, w );
 
-	cdre *dre = new cdre(doc, GetSize(), type, str, item1, item2, x, y, d, layer);
+	CDre *dre = new CDre(doc, GetSize(), type, str, item1, item2, x, y, d, layer);
 	dres.Add(dre);
 	dre->MustRedraw();																				// CPT2 TODO maybe...
 	return dre;
 }
 
-void cdrelist::Remove(cdre *dre)
+void CDreList::Remove(CDre *dre)
 {
 	dre->SaveUndoInfo();
 	dre->Undraw();
 	dres.Remove(dre);
 }
 
-void cdrelist::Clear()
+void CDreList::Clear()
 {
 	// CPT2 new.  Undraw and then remove from "this" all design-rule-error objects.  NB also save undo info (it seemed best to incorporate
 	// dre's into the undo system).
-	citer<cdre> id (&dres);
-	for (cdre* d = id.First(); d; d = id.Next())
+	CIter<CDre> id (&dres);
+	for (CDre* d = id.First(); d; d = id.Next())
 		d->SaveUndoInfo(),
 		d->Undraw();
 	dres.RemoveAll();
 }
 
-void cdrelist::MakeSolidCircles()
+void CDreList::MakeSolidCircles()
 {
 	CDisplayList *dl = doc->m_dlist;
-	citer<cdre> id (&dres);
-	for (cdre *d = id.First(); d; d = id.Next())
+	CIter<CDre> id (&dres);
+	for (CDre *d = id.First(); d; d = id.Next())
 	{
 		if (!d->dl_el || d->dl_el->gtype != DL_HOLLOW_CIRC || d->dl_el->holew) 
 			continue;																// Weird...
@@ -172,12 +172,12 @@ void cdrelist::MakeSolidCircles()
 	}
 }
 
-void cdrelist::MakeHollowCircles()
+void CDreList::MakeHollowCircles()
 {
 	// Return dre symbol to normal (a hollow ring)
 	CDisplayList *dl = doc->m_dlist;
-	citer<cdre> id (&dres);
-	for (cdre *d = id.First(); d; d = id.Next())
+	CIter<CDre> id (&dres);
+	for (CDre *d = id.First(); d; d = id.Next())
 	{
 		if (!d->dl_el || d->dl_el->gtype != DL_HOLLOW_CIRC || !d->dl_el->holew) 
 			continue;																// Weird...

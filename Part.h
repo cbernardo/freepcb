@@ -1,5 +1,5 @@
-// Part.h --- header file for classes related most closely to parts, many of which are descendants of cpcb_item:
-//  cpart2, cpin2, cpartlist
+// Part.h --- header file for classes related most closely to parts, many of which are descendants of CPcbItem:
+//  CPart, CPin, CPartList
 
 #pragma once
 #include <afxcoll.h>
@@ -34,22 +34,22 @@ struct drc_pin {
 	int layers;		// bit mask of layers with pads
 };
 
-// cpin2: describes a pin on the main editor screen, associated with a particular part and possibly assigned to a net.
-class cpin2 : public cpcb_item
+// CPin: describes a pin on the main editor screen, associated with a particular part and possibly assigned to a net.
+class CPin : public CPcbItem
 {
 public:
 	// CString ref_des;		// reference designator such as 'U1'.  CPT2 READ OFF of part->ref_des
 	CString pin_name;		// pin name such as "1" or "A23"
-	cpart2 * part;			// pointer to part containing the pin.
+	CPart * part;			// pointer to part containing the pin.
 	int x, y;				// position on PCB
-	cpadstack *ps;			// CPT2. Seems useful to have this here.  Constructor sets it up
-	int pad_layer;			// CPT2. layer of pad on this pin (was in cvertex2).  
+	CPadstack *ps;			// CPT2. Seems useful to have this here.  Constructor sets it up
+	int pad_layer;			// CPT2. layer of pad on this pin (was in CVertex).  
 							// Constructor sets this based on ps. Possible values LAY_PAD_THRU, LAY_TOP_COPPER, LAY_BOTTOM_COPPER
-	cnet2 * net;			// pointer to net, or NULL if not assigned.
+	CNet * net;			// pointer to net, or NULL if not assigned.
 	bool bNeedsThermal;		// CPT2 new.  Set to true if there's an areas from the same network that occupies this same point.
-	dl_element * dl_hole;	// pointer to graphic element for hole
-	CArray<dl_element*> dl_els;	// array of pointers to graphic elements for pads
-	dl_element *dl_thermal; // CPT2 new.  The thermal drawn with this pin.
+	CDLElement * dl_hole;	// pointer to graphic element for hole
+	CArray<CDLElement*> dl_els;	// array of pointers to graphic elements for pads
+	CDLElement *dl_thermal; // CPT2 new.  The thermal drawn with this pin.
 	drc_pin drc;			// drc info.
 
 	enum {
@@ -61,20 +61,20 @@ public:
 	};
 
 
-	cpin2(cpart2 *_part, cpadstack *_ps, cnet2 *_net);					// CPT2. Added args.
-	cpin2(CFreePcbDoc *_doc, int _uid);
+	CPin(CPart *_part, CPadstack *_ps, CNet *_net);					// CPT2. Added args.
+	CPin(CFreePcbDoc *_doc, int _uid);
 
 	virtual bool IsOnPcb();
 	bool IsPin() { return true; }
-	cpin2 *ToPin() { return this; }
+	CPin *ToPin() { return this; }
 	int GetTypeBit() { return bitPin; }
-	cnet2 *GetNet() { return net; }
-	cundo_item *MakeUndoItem()
-		{ return new cupin(this); }
-	void MustRedraw();												// Overrides the default behavior of cpcb_item::MustRedraw()
+	CNet *GetNet() { return net; }
+	CUndoItem *MakeUndoItem()
+		{ return new CUPin(this); }
+	void MustRedraw();												// Overrides the default behavior of CPcbItem::MustRedraw()
 	int GetLayer() { return pad_layer; }
 	int GetWidth();	
-	void GetVtxs(carray<cvertex2> *vtxs);
+	void GetVtxs(CHeap<CVertex> *vtxs);
 
 	void Highlight();
 
@@ -82,7 +82,7 @@ public:
 	void SetPosition();	
 	bool SetNeedsThermal();
 	void Disconnect();
-	cseg2 *AddRatlineToPin( cpin2 *p2 );
+	CSeg *AddRatlineToPin( CPin *p2 );
 
 	bool GetDrawInfo(int layer,	bool bUse_TH_thermals, bool bUse_SMT_thermals,				// Used during DRC
 		  int mask_clearance, int paste_mask_shrink,
@@ -92,12 +92,12 @@ public:
 };
 
 
-// class cpart2 represents a part
-class cpart2: public cpcb_item
+// class CPart represents a part
+class CPart: public CPcbItem
 {
 public:
-	cpartlist * m_pl;	// parent partlist
-	carray<cpin2> pins;	// array of all pins in part
+	CPartList * m_pl;	// parent partlist
+	CHeap<CPin> pins;	// array of all pins in part
 	BOOL visible;		// 0 to hide part
 	int x,y;			// position of part origin on board
 	int side;			// 0=top, 1=bottom
@@ -105,14 +105,14 @@ public:
 	BOOL glued;
 
 	CString ref_des;		// ref designator such as "U3"
-	creftext *m_ref;		// CPT2 added. It's convenient to have an object for the ref-text on which we can invoke ctext methods.
+	CRefText *m_ref;		// CPT2 added. It's convenient to have an object for the ref-text on which we can invoke CText methods.
 							// Note that m_ref->m_x, m_ref->m_y, etc. will be _relative_ positions
 	CString value_text;
-	cvaluetext *m_value;	// CPT2 added.  Analogous to m_ref
-	ctextlist *m_tl;		// CPT2 added.  Objects for each of the texts derived from the footprint.
+	CValueText *m_value;	// CPT2 added.  Analogous to m_ref
+	CTextList *m_tl;		// CPT2 added.  Objects for each of the texts derived from the footprint.
 
 	CString package;						// package (from original imported netlist, may be "")
-	cshape * shape;							// pointer to the footprint of the part, may be NULL.  CPT2 I have yet to see a case where it is null, though.
+	CShape * shape;							// pointer to the footprint of the part, may be NULL.  CPT2 I have yet to see a case where it is null, though.
 	CArray<stroke> m_outline_stroke;		// array of outline strokes
 
 	// drc info
@@ -127,22 +127,22 @@ public:
 	BOOL bPreserve;	// preserve connections to this part
 
 
-	cpart2( cpartlist * pl );
-	cpart2(CFreePcbDoc *_doc, int _uid);
-	~cpart2();
+	CPart( CPartList * pl );
+	CPart(CFreePcbDoc *_doc, int _uid);
+	~CPart();
 
 	virtual bool IsOnPcb();
 	bool IsPart() { return true; }
-	cpart2 *ToPart() { return this; }
+	CPart *ToPart() { return this; }
 	int GetTypeBit() { return bitPart; }
 	void Remove(bool bEraseTraces, bool bErasePart=true);
-	cundo_item *MakeUndoItem()
-		{ return new cupart(this); }
+	CUndoItem *MakeUndoItem()
+		{ return new CUPart(this); }
 	void SaveUndoInfo(bool bSaveAttachedConnects = true);
 
 	void Move( int x, int y, int angle = -1, int side = -1);
 	void PartMoved( int dx=1, int dy=1 );
-	void SetData( cshape * shape, CString * ref_des, CString *value_txt, CString * package, 
+	void SetData( CShape * shape, CString * ref_des, CString *value_txt, CString * package, 
 	     		  int x, int y, int side, int angle, int visible, int glued );
 	void SetValue( CString * value, int x, int y, int angle, int size, 
 				  int w, BOOL vis, int layer );	
@@ -151,13 +151,13 @@ public:
 
 	int GetNumOutlineStrokes();
 	void OptimizeConnections( BOOL bLimitPinCount=TRUE, BOOL bVisibleNetsOnly=TRUE );
-	cpin2 *GetPinByName(CString *name);
+	CPin *GetPinByName(CString *name);
 	CPoint GetCentroidPoint();
-	CPoint GetGluePoint( cglue *g );
+	CPoint GetGluePoint( CGlue *g );
 	int GetBoundingRect( CRect * part_r );
 	CRect CalcSelectionRect();
 	bool IsAttachedToConnects();
-	void ChangeFootprint( cshape * shape );	
+	void ChangeFootprint( CShape * shape );	
 
 	int Draw();	
 	void Undraw();
@@ -171,14 +171,14 @@ public:
 };
 
 
-// partlist_info is used to hold digest of cpartlist 
+// partlist_info is used to hold digest of CPartList 
 // for editing in dialogs, or importing from netlist file
 // notes:
 //	package may be "" if no package assigned
 //	shape may be NULL if no footprint assigned
 //	may have package but no footprint, but not the reverse
 typedef struct {
-	cpart2 * part;		// pointer to original part, or NULL if new part added.
+	CPart * part;		// pointer to original part, or NULL if new part added.
 	CString ref_des;	// ref designator string
 	int ref_size;		// size of ref text characters
 	int ref_width;		// stroke width of ref text characters
@@ -190,7 +190,7 @@ typedef struct {
 	int value_layer;	// value layer
 	BOOL value_vis;		// visibility of value
 	CString package;	// package (from original imported netlist, don't edit)
-	cshape * shape;		// pointer to shape (may be edited)
+	CShape * shape;		// pointer to shape (may be edited)
 	bool bShapeChanged;	// Set if "part->shape" gets its internals modified.
 	CString shape_file_name;	// CPT2 new.  Indicates which library file the shape came from.  Most often "", signifying the local cache,
 						// but if user goes to the DlgAddPart it may change.
@@ -213,22 +213,22 @@ enum
 };
 
 
-class cpartlist
+class CPartList
 {
 public:
-	carray<cpart2> parts;
+	CHeap<CPart> parts;
 	CFreePcbDoc *m_doc;
-	cnetlist * m_nlist;
+	CNetList * m_nlist;
 	CDisplayList * m_dlist;
 
-	cpartlist( CFreePcbDoc *doc );
+	CPartList( CFreePcbDoc *doc );
 
-	void UseNetList( cnetlist * nlist ) { m_nlist = nlist; }
-	cpart2 * GetPartByName( CString *ref_des );	
-	cpin2 * GetPinByNames ( CString *ref_des, CString *pin_name );
-	cpart2 * Add( cshape * shape, CString * ref_des, CString *value_text, CString * package, 
+	void UseNetList( CNetList * nlist ) { m_nlist = nlist; }
+	CPart * GetPartByName( CString *ref_des );	
+	CPin * GetPinByNames ( CString *ref_des, CString *pin_name );
+	CPart * Add( CShape * shape, CString * ref_des, CString *value_text, CString * package, 
 		int x, int y, int side, int angle, int visible, int glued );
-	cpart2 * AddFromString( CString * str );
+	CPart * AddFromString( CString * str );
 	void MarkAllParts( int util );
 	void MoveOrigin( int dx, int dy );
 	static int FootprintLayer2Layer( int fp_layer );
@@ -237,8 +237,8 @@ public:
 	
 	int ReadParts( CStdioFile * file );	
 	int WriteParts( CStdioFile * file );
-	int GetNumFootprintInstances( cshape * shape );
-	int ExportPartListInfo( partlist_info * pli, cpart2 *part0 );
+	int GetNumFootprintInstances( CShape * shape );
+	int ExportPartListInfo( partlist_info * pli, CPart *part0 );
 	void ImportPartListInfo( partlist_info * pli, int flags, CDlgLog * log=NULL );
 	int CheckPartlist( CString * logstr );
 	bool CheckForProblemFootprints();

@@ -33,8 +33,8 @@ void DlgAssignNet::DoDataExchange(CDataExchange* pDX)
 		// incoming
 		if( m_nlist )
 		{
-			citer<cnet2> in (&m_nlist->nets);
-			for (cnet2 *net = in.First(); net; net = in.Next())	
+			CIter<CNet> in (&m_nlist->nets);
+			for (CNet *net = in.First(); net; net = in.Next())	
 				m_combo_net.AddString( net->name );
 		}
 		::ShowCursor( TRUE );	// force cursor

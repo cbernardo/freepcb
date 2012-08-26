@@ -12,7 +12,7 @@ class CDlgGroupPaste : public CDialog
 public:
 	CDlgGroupPaste(CWnd* pParent = NULL);   // standard constructor
 	virtual ~CDlgGroupPaste();
-	void Initialize( cnetlist *grp_nlist );
+	void Initialize( CNetList *grp_nlist );
 	void SetFields();
 
 	int m_units;
@@ -24,7 +24,7 @@ public:
 	int m_pin_net_option;	// 0=retain all, 1=only for pins with traces
 	double m_dx, m_dy;
 	int m_sort_type;
-	cnetlist *m_grp_nlist;
+	CNetList *m_grp_nlist;
 
 // Dialog Data
 	enum { IDD = IDD_GROUP_PASTE };

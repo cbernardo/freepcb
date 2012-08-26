@@ -1,5 +1,5 @@
-// Part.cpp --- source file for classes related most closely to parts, many of which are descendants of cpcb_item:
-//  cpart2, cpin2, cpartlist
+// Part.cpp --- source file for classes related most closely to parts, many of which are descendants of CPcbItem:
+//  CPart, CPin, CPartList
 
 #include "stdafx.h"
 #include <math.h>
@@ -14,8 +14,8 @@ BOOL g_bShow_header_28mil_hole_warning = TRUE;
 BOOL g_bShow_SIP_28mil_hole_warning = TRUE;							// CPT2 TODO used?
 
 
-cpin2::cpin2(cpart2 *_part, cpadstack *_ps, cnet2 *_net)					// CPT2. Added args
-	: cpcb_item (_part->doc)
+CPin::CPin(CPart *_part, CPadstack *_ps, CNet *_net)					// CPT2. Added args
+	: CPcbItem (_part->doc)
 {
 	part = _part;
 	part->pins.Add(this);
@@ -34,8 +34,8 @@ cpin2::cpin2(cpart2 *_part, cpadstack *_ps, cnet2 *_net)					// CPT2. Added args
 	bNeedsThermal = false;
 }
 
-cpin2::cpin2(CFreePcbDoc *_doc, int _uid):
-	cpcb_item(_doc, _uid)
+CPin::CPin(CFreePcbDoc *_doc, int _uid):
+	CPcbItem(_doc, _uid)
 {
 	part = NULL;
 	ps = NULL;
@@ -43,31 +43,31 @@ cpin2::cpin2(CFreePcbDoc *_doc, int _uid):
 	dl_hole = dl_thermal = NULL;
 }
 
-bool cpin2::IsOnPcb()
+bool CPin::IsOnPcb()
 {
 	if (!part || !part->IsOnPcb()) return false;
 	return part->pins.Contains(this);
 }
 
-void cpin2::MustRedraw()
-	// Override the default behavior of cpcb_item::MustRedraw()
+void CPin::MustRedraw()
+	// Override the default behavior of CPcbItem::MustRedraw()
 	{ part->MustRedraw(); }
 
-void cpin2::Disconnect() 
+void CPin::Disconnect() 
 {
 	// Detach pin from its part, and whichever net it's attached to.  Rip out any attached connections completely.
 	part->pins.Remove(this);
 	part = NULL;
 	if (!net) return;
-	citer<cconnect2> ic (&net->connects);
-	for (cconnect2 *c = ic.First(); c; c = ic.Next())
+	CIter<CConnect> ic (&net->connects);
+	for (CConnect *c = ic.First(); c; c = ic.Next())
 		if (c->head->pin == this || c->tail->pin == this)
 			c->Remove();
 	net->pins.Remove(this);
 	net = NULL;
 }
 
-int cpin2::GetWidth()													// CPT2. Derived from CPartList::GetPinWidth()
+int CPin::GetWidth()													// CPT2. Derived from CPartList::GetPinWidth()
 {
 	ASSERT(part->shape!=NULL);
 	int w = ps->top.size_h;
@@ -76,13 +76,13 @@ int cpin2::GetWidth()													// CPT2. Derived from CPartList::GetPinWidth()
 	return w;
 }
 
-void cpin2::GetVtxs(carray<cvertex2> *vtxs)
+void CPin::GetVtxs(CHeap<CVertex> *vtxs)
 {
 	// CPT2 new.  Fill "vtxs" with the vertices that are associated with this pin
 	vtxs->RemoveAll();
 	if (!net) return;
-	citer<cconnect2> ic (&net->connects);
-	for (cconnect2 *c = ic.First(); c; c = ic.Next())
+	CIter<CConnect> ic (&net->connects);
+	for (CConnect *c = ic.First(); c; c = ic.Next())
 	{
 		if (c->head->pin == this)
 			vtxs->Add(c->head);
@@ -91,7 +91,7 @@ void cpin2::GetVtxs(carray<cvertex2> *vtxs)
 	}
 }
 
-bool cpin2::TestHit( int _x, int _y, int _layer )
+bool CPin::TestHit( int _x, int _y, int _layer )
 {
 	// CPT2 Derived from CPartList::TestHitOnPad
 	if( !part )
@@ -99,7 +99,7 @@ bool cpin2::TestHit( int _x, int _y, int _layer )
 	if( !part->shape )
 		return FALSE;
 
-	cpad * p;
+	CPad * p;
 	if( ps->hole_size == 0 )
 	{
 		// SMT pad
@@ -153,7 +153,7 @@ bool cpin2::TestHit( int _x, int _y, int _layer )
 }
 
 
-void cpin2::SetPosition()												
+void CPin::SetPosition()												
 {
 	// CPT2 New, but derived from CPartList::GetPinPoint().
 	// Derives correct values for this->(x,y) based on the part's position and on the padstack position.
@@ -181,7 +181,7 @@ void cpin2::SetPosition()
 	SetNeedsThermal();
 }
 
-bool cpin2::SetNeedsThermal()
+bool CPin::SetNeedsThermal()
 {
 	// CPT2 new, but related to the old CNetList::SetAreaConnections.  Sets bNeedsThermal to true if some net area overlaps this pin.
 	// CPT2 TODO needs an SMT check?
@@ -189,8 +189,8 @@ bool cpin2::SetNeedsThermal()
 	bNeedsThermal = false;
 	if (net) 
 	{
-		citer<carea2> ia (&net->areas);
-		for (carea2 *a = ia.First(); a; a = ia.Next())
+		CIter<CArea> ia (&net->areas);
+		for (CArea *a = ia.First(); a; a = ia.Next())
 			if (a->TestPointInside(x, y))
 				{ bNeedsThermal = true; break; }
 	}
@@ -199,31 +199,31 @@ bool cpin2::SetNeedsThermal()
 	return bNeedsThermal;
 }
 
-void cpin2::Highlight()
+void CPin::Highlight()
 {
 	CDisplayList *dl = doc->m_dlist;
 	if( !dl ) return;
-	if( !dl_sel ) return;							// CPT2 Necessary check?  NB selector was created drawn by cpart2::Draw
+	if( !dl_sel ) return;							// CPT2 Necessary check?  NB selector was created drawn by CPart::Draw
 	dl->Highlight( DL_RECT_X, 
 				dl->Get_x(dl_sel), dl->Get_y(dl_sel),
 				dl->Get_xf(dl_sel), dl->Get_yf(dl_sel), 
 				1, pad_layer );
 }
 
-cseg2 *cpin2::AddRatlineToPin( cpin2 *p2 )
+CSeg *CPin::AddRatlineToPin( CPin *p2 )
 {
 	// Add new connection to net, consisting of one unrouted segment
 	// from this to p2.
 	// CPT2 Adapted from old cnet::AddConnectFromPinToPin.  NOW RETURNS THE RATLINE SEG, AND DOES NO DRAWING.
-	cpin2 *p1 = this;
+	CPin *p1 = this;
 	if (!p1->part || !p2->part)
 		return NULL;								// Seems mighty unlikely.
 	if (!p1->part->shape || !p2->part->shape)
 		return NULL;								// Ditto
 
 	// create connection with a single vertex
-	cconnect2 *c = new cconnect2 (net);
-	cvertex2 *v1 = new cvertex2 (c, p1->x, p1->y);
+	CConnect *c = new CConnect (net);
+	CVertex *v1 = new CVertex (c, p1->x, p1->y);
 	c->Start(v1);
 	c->AppendSegment(p2->x, p2->y, LAY_RAT_LINE, 0);
 	v1->pin = p1;
@@ -231,14 +231,14 @@ cseg2 *cpin2::AddRatlineToPin( cpin2 *p2 )
 	return c->head->postSeg;
 }
 
-bool cpin2::GetDrawInfo(int layer,	bool bUse_TH_thermals, bool bUse_SMT_thermals,  int mask_clearance, int paste_mask_shrink,
+bool CPin::GetDrawInfo(int layer,	bool bUse_TH_thermals, bool bUse_SMT_thermals,  int mask_clearance, int paste_mask_shrink,
 					  int * type, int * w, int * l, int * r, int * hole,
 					  int * connection_status, int * pad_connect_flag, int * clearance_type )
 {
 	// CPT2 derived from CPartList::GetPadDrawInfo().  Used during DRC to determine the pin's pad info on a particular layer.
 	// Got rid of some args that are no longer useful.  In particular got rid of "angle" and am just returning directly the
 	// correct width and length, depending on the angle.
-	cshape * s = part->shape;
+	CShape * s = part->shape;
 	if( !s )
 		return false;
 
@@ -257,7 +257,7 @@ bool cpin2::GetDrawInfo(int layer,	bool bUse_TH_thermals, bool bUse_SMT_thermals
 	int connect_flag = PAD_CONNECT_DEFAULT;
 
 	// get pad info
-	cpad * p = NULL;
+	CPad * p = NULL;
 	if( (layer == LAY_TOP_COPPER && part->side == 0 )
 		|| (layer == LAY_BOTTOM_COPPER && part->side == 1 ) ) 
 		// top copper pad is on this layer 
@@ -439,7 +439,7 @@ bool cpin2::GetDrawInfo(int layer,	bool bUse_TH_thermals, bool bUse_SMT_thermals
 
 }
 
-int cpin2::GetConnectionStatus( int layer )
+int CPin::GetConnectionStatus( int layer )
 {
 	// CPT2 derived from CPartList::GetPinConnectionStatus
 	// checks to see if a pin is connected to a trace or a copper area on a
@@ -455,8 +455,8 @@ int cpin2::GetConnectionStatus( int layer )
 	int status = ON_NET;
 
 	// now check for traces
-	citer<cconnect2> ic (&net->connects);
-	for (cconnect2 *c = ic.First(); c; c = ic.Next())
+	CIter<CConnect> ic (&net->connects);
+	for (CConnect *c = ic.First(); c; c = ic.Next())
 	{
 		if (c->head->pin == this && c->head->postSeg->m_layer == layer)
 			{ status |= TRACE_CONNECT; break; }
@@ -464,8 +464,8 @@ int cpin2::GetConnectionStatus( int layer )
 			{ status |= TRACE_CONNECT; break; }
 	}
 	// now check for connection to copper area
-	citer<carea2> ia (&net->areas);
-	for (carea2 *a = ia.First(); a; a = ia.Next())
+	CIter<CArea> ia (&net->areas);
+	for (CArea *a = ia.First(); a; a = ia.Next())
 		if (a->m_layer == layer && a->TestPointInside(x, y))
 			{ status |= AREA_CONNECT; break; }
 
@@ -473,56 +473,56 @@ int cpin2::GetConnectionStatus( int layer )
 }
 
 
-cpart2::cpart2( cpartlist * pl )			// CPT2 TODO.  Will probably add more args...
-	: cpcb_item (pl->m_doc)
+CPart::CPart( CPartList * pl )			// CPT2 TODO.  Will probably add more args...
+	: CPcbItem (pl->m_doc)
 { 
 	m_pl = pl;
 	if (pl)
 		pl->parts.Add(this);
 	x = y = side = angle = 0;
 	glued = false;
-	m_ref = new creftext(this, 0, 0, 0, false, false, 0, 0, 0, doc->m_smfontutil, &CString(""), true);
-	m_value = new cvaluetext(this, 0, 0, 0, false, false, 0, 0, 0, doc->m_smfontutil, &CString(""), false);
-	m_tl = new ctextlist(doc);
+	m_ref = new CRefText(this, 0, 0, 0, false, false, 0, 0, 0, doc->m_smfontutil, &CString(""), true);
+	m_value = new CValueText(this, 0, 0, 0, false, false, 0, 0, 0, doc->m_smfontutil, &CString(""), false);
+	m_tl = new CTextList(doc);
 	shape = NULL;
 }
 
-cpart2::cpart2(CFreePcbDoc *_doc, int _uid):
-	cpcb_item(_doc, _uid)
+CPart::CPart(CFreePcbDoc *_doc, int _uid):
+	CPcbItem(_doc, _uid)
 {
 	m_pl = NULL;
 	m_ref = NULL;
 	m_value = NULL;
-	m_tl = new ctextlist(doc);
+	m_tl = new CTextList(doc);
 	shape = NULL;
 }
 
-cpart2::~cpart2()
+CPart::~CPart()
 	// Because of garbage collection, we don't have to worry about calling destructors for any referenced cpcb_items.
 	{ delete m_tl; }
 
-bool cpart2::IsOnPcb()
+bool CPart::IsOnPcb()
 	{ return doc->m_plist->parts.Contains(this); }
 
-void cpart2::SaveUndoInfo(bool bSaveAttachedNets)
+void CPart::SaveUndoInfo(bool bSaveAttachedNets)
 {
-	doc->m_undo_items.Add( new cupart(this) );
-	citer<cpin2> ipin (&pins);
-	for (cpin2 *pin = ipin.First(); pin; pin = ipin.Next())
+	doc->m_undo_items.Add( new CUPart(this) );
+	CIter<CPin> ipin (&pins);
+	for (CPin *pin = ipin.First(); pin; pin = ipin.Next())
 	{
-		doc->m_undo_items.Add( new cupin(pin) );
+		doc->m_undo_items.Add( new CUPin(pin) );
 		// CPT2 TODO we can probably just save undo info for individual connects (including any terminal tees).
 		if (bSaveAttachedNets && pin->net)
-			pin->net->SaveUndoInfo( cnet2::SAVE_CONNECTS );
+			pin->net->SaveUndoInfo( CNet::SAVE_CONNECTS );
 	}
-	doc->m_undo_items.Add( new cureftext(m_ref) );
-	doc->m_undo_items.Add( new cuvaluetext(m_value) );
-	citer<ctext> it (&m_tl->texts);
-	for (ctext *t = it.First(); t; t = it.Next())
-		doc->m_undo_items.Add( new cutext(t) );
+	doc->m_undo_items.Add( new CURefText(m_ref) );
+	doc->m_undo_items.Add( new CUValueText(m_value) );
+	CIter<CText> it (&m_tl->texts);
+	for (CText *t = it.First(); t; t = it.Next())
+		doc->m_undo_items.Add( new CUText(t) );
 }
 
-void cpart2::Move( int _x, int _y, int _angle, int _side )
+void CPart::Move( int _x, int _y, int _angle, int _side )
 {
 	// Move part (includes resetting pin positions and undrawing).  If _angle and/or _side are -1 (the default values), don't change 'em.
 	MustRedraw();
@@ -536,8 +536,8 @@ void cpart2::Move( int _x, int _y, int _angle, int _side )
 	// calculate new pin positions
 	if( shape )
 	{
-		citer<cpin2> ip (&pins);
-		for (cpin2* p = ip.First(); p; p = ip.Next())
+		CIter<CPin> ip (&pins);
+		for (CPin* p = ip.First(); p; p = ip.Next())
 			p->SetPosition();
 	}
 }
@@ -548,7 +548,7 @@ void cpart2::Move( int _x, int _y, int _angle, int _side )
 // and an attached seg is vertical, then we don't have to unroute it.
 // CPT2:  Derived from CNetList::PartMoved.
 
-void cpart2::PartMoved( int dx, int dy )
+void CPart::PartMoved( int dx, int dy )
 {
 	// We need to ensure that the part is redrawn first, so that the pins have correct x/y values (critical in what follows):
 	doc->Redraw();
@@ -558,18 +558,18 @@ void cpart2::PartMoved( int dx, int dy )
 
 	// find nets that connect to this part, and unroute segments adjacent to pins.  
 	// CPT2 I'll let the subroutines take care of calling MustUndraw() for the appropriate objects.
-	citer<cpin2> ip (&pins);
-	for (cpin2 *pin = ip.First(); pin; pin = ip.Next())
+	CIter<CPin> ip (&pins);
+	for (CPin *pin = ip.First(); pin; pin = ip.Next())
 	{
-		cnet2 *net = pin->net;
+		CNet *net = pin->net;
 		if (!net || net->utility) continue;
-		citer<cconnect2> ic (&net->connects);
-		for (cconnect2 *c = ic.First(); c; c = ic.Next())
+		CIter<CConnect> ic (&net->connects);
+		for (CConnect *c = ic.First(); c; c = ic.Next())
 		{
 			if (c->segs.GetSize()==0) continue;				// Unlikely but hey...
 			if (c->head->pin && c->head->pin->part == this)
 			{
-				cvertex2 *head = c->head;
+				CVertex *head = c->head;
 				head->postSeg->Unroute( dx, dy, 0 );
 				head->postSeg->MustRedraw();				// Even if it wasn't unrouted...
 				head->x = head->pin->x;
@@ -594,7 +594,7 @@ void cpart2::PartMoved( int dx, int dy )
 			if (c->tail->pin && c->tail->pin->part == this)
 			{
 				// end pin is on part, unroute last segment
-				cvertex2 *tail = c->tail;
+				CVertex *tail = c->tail;
 				tail->preSeg->Unroute( dx, dy, 1 );
 				tail->preSeg->MustRedraw();
 				tail->x = tail->pin->x;
@@ -606,7 +606,7 @@ void cpart2::PartMoved( int dx, int dy )
 	}
 }
 
-void cpart2::Remove(bool bEraseTraces, bool bErasePart)
+void CPart::Remove(bool bEraseTraces, bool bErasePart)
 {
 	// CPT2 mostly new.  Implements my new system for deleting parts, where one can either erase all traces emanating from it, or not.
 	// Also added bErasePart param (true by default);  calling Remove(true, false) allows one to delete attached traces only.
@@ -617,17 +617,17 @@ void cpart2::Remove(bool bEraseTraces, bool bErasePart)
 	// Now go through the pins.  If bEraseTraces, rip out connects attached to each one.  Otherwise, gather a list of vertices associated
 	// with each one (such vertices will later get united into a tee).  TODO for each pin, consider maintaining a list of vtxs associated with it
 	// at all times?
-	citer<cpin2> ipin (&pins);
-	carray<cvertex2> vtxs;
-	for (cpin2 *pin = ipin.First(); pin; pin = ipin.Next())
+	CIter<CPin> ipin (&pins);
+	CHeap<CVertex> vtxs;
+	for (CPin *pin = ipin.First(); pin; pin = ipin.Next())
 	{
 		if (!pin->net) continue;
 		pin->net->pins.Remove(pin);							// CPT2 Prevent phantom pins in nets!
 		pin->net->MustRedraw();
 		if (bEraseTraces)
 		{
-			citer<cconnect2> ic (&pin->net->connects);
-			for (cconnect2 *c = ic.First(); c; c = ic.Next())
+			CIter<CConnect> ic (&pin->net->connects);
+			for (CConnect *c = ic.First(); c; c = ic.Next())
 				if (c->head->pin==pin || c->tail->pin==pin)
 					c->Remove();
 		}
@@ -640,8 +640,8 @@ void cpart2::Remove(bool bEraseTraces, bool bErasePart)
 			// Loop thru each vtx, and if the incoming seg is a ratline, erase it (and the vertex).  Otherwise, null out the vtx's "pin" member.
 			// Before r336 I tried some fancy business with combining left-over vtxs into a tee, but that caused many headaches and ultimately
 			// didn't seem  worth the trouble.
-			citer<cvertex2> iv (&vtxs);
-			for (cvertex2 *v = iv.First(); v; v = iv.Next())
+			CIter<CVertex> iv (&vtxs);
+			for (CVertex *v = iv.First(); v; v = iv.Next())
 				if (v->preSeg && v->preSeg->IsOnPcb() && v->preSeg->m_layer == LAY_RAT_LINE)
 					v->preSeg->RemoveBreak();
 				else if (v->postSeg && v->postSeg->IsOnPcb() && v->postSeg->m_layer == LAY_RAT_LINE)
@@ -652,7 +652,7 @@ void cpart2::Remove(bool bEraseTraces, bool bErasePart)
 	}
 }
 
-void cpart2::SetData(cshape * _shape, CString * _ref_des, CString * _value_text, CString * _package, 
+void CPart::SetData(CShape * _shape, CString * _ref_des, CString * _value_text, CString * _package, 
 					 int _x, int _y, int _side, int _angle, int _visible, int _glued  )
 {
 	// Derived from old CPartList::SetPartData.  Initializes data members, including "pins".  Ref and value-text related
@@ -692,18 +692,18 @@ void cpart2::SetData(cshape * _shape, CString * _ref_des, CString * _value_text,
 		InitPins();
 		Move( x, y, angle, side );	// force setting pin positions
 
-		ctext *txt = shape->m_ref;
-		int layer = cpartlist::FootprintLayer2Layer( txt->m_layer );
+		CText *txt = shape->m_ref;
+		int layer = CPartList::FootprintLayer2Layer( txt->m_layer );
 		m_ref->Move( txt->m_x, txt->m_y, txt->m_angle, 
 			false, false, layer, txt->m_font_size, txt->m_stroke_width );
 		txt = shape->m_value;
-		layer = cpartlist::FootprintLayer2Layer( txt->m_layer );
+		layer = CPartList::FootprintLayer2Layer( txt->m_layer );
 		m_value->Move( txt->m_x, txt->m_y, txt->m_angle, 
 			false, false, layer, txt->m_font_size, txt->m_stroke_width );
-		citer<ctext> it (&shape->m_tl->texts);
+		CIter<CText> it (&shape->m_tl->texts);
 		for (txt = it.First(); txt; txt = it.Next())
 		{
-			layer = cpartlist::FootprintLayer2Layer( txt->m_layer );
+			layer = CPartList::FootprintLayer2Layer( txt->m_layer );
 			m_tl->AddText(txt->m_x, txt->m_y, txt->m_angle, txt->m_bMirror, txt->m_bNegative, 
 							layer, txt->m_font_size, txt->m_stroke_width, &txt->m_str, this);
 		}
@@ -714,7 +714,7 @@ void cpart2::SetData(cshape * _shape, CString * _ref_des, CString * _value_text,
 	m_value->m_stroke.SetSize(0);
 }
 
-void cpart2::SetValue(CString *_value, int x, int y, int angle, int size, int w, 
+void CPart::SetValue(CString *_value, int x, int y, int angle, int size, int w, 
 						 BOOL vis, int layer )
 {
 	value_text = *_value;
@@ -724,14 +724,14 @@ void cpart2::SetValue(CString *_value, int x, int y, int angle, int size, int w,
 }
 
 /*
-void cpart2::ResizeRefText(int size, int width, BOOL vis )
+void CPart::ResizeRefText(int size, int width, BOOL vis )
 {
 	m_ref->Move(m_ref->m_x, m_ref->m_y, m_ref->m_angle, size, width);
 	m_ref->m_bShown = vis;
 }
 */
 
-CRect cpart2::CalcSelectionRect()
+CRect CPart::CalcSelectionRect()
 {
 	CRect sel;
 	if( !side )
@@ -759,7 +759,7 @@ CRect cpart2::CalcSelectionRect()
 	return sel;
 }
 
-void cpart2::MarkConstituents(int util)
+void CPart::MarkConstituents(int util)
 {
 	utility = util;
 	pins.SetUtility(util);
@@ -768,27 +768,27 @@ void cpart2::MarkConstituents(int util)
 	m_tl->texts.SetUtility(util);
 }
 
-void cpart2::InitPins()
+void CPart::InitPins()
 {
-	// CPT2 New.  Initialize pins carray based on the padstacks in the shape.
+	// CPT2 New.  Initialize pins CHeap based on the padstacks in the shape.
 	ASSERT(shape);
-	citer<cpadstack> ips (&shape->m_padstacks);
-	for (cpadstack *ps = ips.First(); ps; ps = ips.Next())
-		pins.Add( new cpin2(this, ps, NULL) );
+	CIter<CPadstack> ips (&shape->m_padstacks);
+	for (CPadstack *ps = ips.First(); ps; ps = ips.Next())
+		pins.Add( new CPin(this, ps, NULL) );
 }
 
-cpin2 *cpart2::GetPinByName(CString *name)
+CPin *CPart::GetPinByName(CString *name)
 {
 	// CPT2 new.
-	citer<cpin2> ip (&pins);
-	for (cpin2 *p = ip.First(); p; p = ip.Next())
+	CIter<CPin> ip (&pins);
+	for (CPin *p = ip.First(); p; p = ip.Next())
 		if (p->pin_name == *name)
 			return p;
 	return NULL;
 }
 
 
-int cpart2::GetBoundingRect( CRect * part_r )
+int CPart::GetBoundingRect( CRect * part_r )
 {
 	// CPT2 TODO this function is kind of a loser, since it only works for drawn parts.  Phase it out in favor of CalcSelectionRect()...
 	CRect r;
@@ -803,7 +803,7 @@ int cpart2::GetBoundingRect( CRect * part_r )
 	return 1;
 }
 
-CPoint cpart2::GetCentroidPoint()
+CPoint CPart::GetCentroidPoint()
 {
 	if( shape == NULL )
 		ASSERT(0);
@@ -828,7 +828,7 @@ CPoint cpart2::GetCentroidPoint()
 
 // Get glue spot info from part
 //
-CPoint cpart2::GetGluePoint( cglue *g )
+CPoint CPart::GetGluePoint( CGlue *g )
 {
 	if( shape == NULL )
 		ASSERT(0);
@@ -849,15 +849,15 @@ CPoint cpart2::GetGluePoint( cglue *g )
 	return pp;
 }
 
-bool cpart2::IsAttachedToConnects()
+bool CPart::IsAttachedToConnects()
 {
 	// CPT2 new.  Return true if there are connects attached to any of this part's pins.
-	citer<cpin2> ipin (&pins);
-	for (cpin2 *pin = ipin.First(); pin; pin = ipin.Next())
+	CIter<CPin> ipin (&pins);
+	for (CPin *pin = ipin.First(); pin; pin = ipin.Next())
 	{
 		if (!pin->net) continue;
-		citer<cconnect2> ic (&pin->net->connects);
-		for (cconnect2 *c = ic.First(); c; c = ic.Next())
+		CIter<CConnect> ic (&pin->net->connects);
+		for (CConnect *c = ic.First(); c; c = ic.Next())
 			if (c->head->pin && c->head->pin->part==this)
 				return true;
 			else if (c->tail->pin && c->tail->pin->part==this)
@@ -866,7 +866,7 @@ bool cpart2::IsAttachedToConnects()
 	return false;
 }
 
-void cpart2::ChangeFootprint(cshape *_shape)
+void CPart::ChangeFootprint(CShape *_shape)
 {
 	// CPT2.  Loosely derived from CPartList::PartFootprintChanged && CNetList::PartFootprintChanged.
 	// The passed-in shape is the one that will replace this->shape (NB might be the same pointer as before with different contents).  
@@ -875,9 +875,9 @@ void cpart2::ChangeFootprint(cshape *_shape)
 	MustRedraw();
 	SaveUndoInfo(true);									// For safety, save the part and its attached nets.  Caller must save undo info for shapes as
 														// needed.
-	carray<cnet2> nets;									// Maintain a list of attached nets so that we can redraw them afterwards
-	citer<cpin2> ip (&pins);
-	for (cpin2 *p = ip.First(); p; p = ip.Next())
+	CHeap<CNet> nets;									// Maintain a list of attached nets so that we can redraw them afterwards
+	CIter<CPin> ip (&pins);
+	for (CPin *p = ip.First(); p; p = ip.Next())
 		if (p->net)
 			nets.Add(p->net),
 			p->net->MustRedraw();
@@ -885,12 +885,12 @@ void cpart2::ChangeFootprint(cshape *_shape)
 	shape = _shape;
 	pins.SetUtility(0);
 	int cPins = shape->m_padstacks.GetSize();
-	carray<cvertex2> vtxs;
-	citer<cpadstack> ips (&shape->m_padstacks);
-	for (cpadstack *ps = ips.First(); ps; ps = ips.Next())
+	CHeap<CVertex> vtxs;
+	CIter<CPadstack> ips (&shape->m_padstacks);
+	for (CPadstack *ps = ips.First(); ps; ps = ips.Next())
 	{
-		cpin2 *old = GetPinByName(&ps->name);
-		cpin2 *p;
+		CPin *old = GetPinByName(&ps->name);
+		CPin *p;
 		int oldX, oldY, oldLayer;
 		if (old)
 		{
@@ -910,8 +910,8 @@ void cpart2::ChangeFootprint(cshape *_shape)
 			{
 				// Pin's position has changed.  Find vertices associated with it, and unroute their adjacent segs as needed
 				p->GetVtxs(&vtxs);
-				citer<cvertex2> iv (&vtxs);
-				for (cvertex2 *v = iv.First(); v; v = iv.Next()) 
+				CIter<CVertex> iv (&vtxs);
+				for (CVertex *v = iv.First(); v; v = iv.Next()) 
 				{
 					v->x = p->x, v->y = p->y;
 					if (v->preSeg && v->preSeg->m_layer!=LAY_RAT_LINE)
@@ -922,23 +922,23 @@ void cpart2::ChangeFootprint(cshape *_shape)
 			}
 		}
 		else
-			p = new cpin2(this, ps, NULL),
+			p = new CPin(this, ps, NULL),
 			p->SetPosition();
 		p->utility = 1;
 	}
 
 	// Look for disused pins (utility==0) and dump 'em.  NB Disconnect() rips out all attached traces completely.  TODO change or allow user an option to 
 	// keep traces?
-	for (cpin2 *p = ip.First(); p; p = ip.Next())
+	for (CPin *p = ip.First(); p; p = ip.Next())
 		if (!p->utility) 
 			p->Disconnect();
 
 	// Dump texts from the old footprint and add texts from the new one:
 	m_tl->texts.RemoveAll();
-	citer<ctext> it (&shape->m_tl->texts);
-	for (ctext *txt = it.First(); txt; txt = it.Next()) 
+	CIter<CText> it (&shape->m_tl->texts);
+	for (CText *txt = it.First(); txt; txt = it.Next()) 
 	{
-		int layer = cpartlist::FootprintLayer2Layer( txt->m_layer );
+		int layer = CPartList::FootprintLayer2Layer( txt->m_layer );
 		m_tl->AddText(txt->m_x, txt->m_y, txt->m_angle, txt->m_bMirror, txt->m_bNegative, 
 							layer, txt->m_font_size, txt->m_stroke_width, &txt->m_str, this);
 	}
@@ -950,24 +950,24 @@ void cpart2::ChangeFootprint(cshape *_shape)
 		m_value->m_font_size = shape->m_value->m_font_size;
 }
 
-void cpart2::OptimizeConnections(BOOL bLimitPinCount, BOOL bVisibleNetsOnly )
+void CPart::OptimizeConnections(BOOL bLimitPinCount, BOOL bVisibleNetsOnly )
 {
 	if (!shape) return;
 
 	// find nets which connect to this part, and mark them all unoptimized
-	citer<cpin2> ip (&pins);
-	for (cpin2 *pin = ip.First(); pin; pin = ip.Next())
+	CIter<CPin> ip (&pins);
+	for (CPin *pin = ip.First(); pin; pin = ip.Next())
 		if (pin->net)
 			pin->net->utility = 0;
 
 	// optimize each net and mark it optimized so it won't be repeated
-	for (cpin2 *pin = ip.First(); pin; pin = ip.Next())
+	for (CPin *pin = ip.First(); pin; pin = ip.Next())
 		if (pin->net && !pin->net->utility)
 			pin->net->OptimizeConnections(bLimitPinCount, bVisibleNetsOnly),
 			pin->net->utility = 1;
 }
 
-int cpart2::Draw()
+int CPart::Draw()
 {
 	// CPT2 TODO:  Think about the CDisplayList arg business
 	CDisplayList *dl = doc->m_dlist;
@@ -1000,22 +1000,22 @@ int cpart2::Draw()
 	else
 		m_value->Undraw();
 
-	// draw part outline (code similar to but sadly not identical to cpolyline::Draw())
+	// draw part outline (code similar to but sadly not identical to CPolyline::Draw())
 	CPoint si, sf;
 	m_outline_stroke.SetSize(0);
-	citer<coutline> io (&shape->m_outlines);
-	for (cpolyline *poly = io.First(); poly; poly = io.Next())
+	CIter<COutline> io (&shape->m_outlines);
+	for (CPolyline *poly = io.First(); poly; poly = io.Next())
 	{
 		int shape_layer = poly->GetLayer();
-		int poly_layer = cpartlist::FootprintLayer2Layer( shape_layer );
+		int poly_layer = CPartList::FootprintLayer2Layer( shape_layer );
 		poly_layer = FlipLayer( side, poly_layer );
 		int w = poly->W();
-		citer<ccontour> ictr (&poly->contours);
-		for (ccontour *ctr = ictr.First(); ctr; ctr = ictr.Next())
+		CIter<CContour> ictr (&poly->contours);
+		for (CContour *ctr = ictr.First(); ctr; ctr = ictr.Next())
 		{
 			// Draw polyline sides
-			citer<cside> is (&ctr->sides);
-			for (cside *s = is.First(); s; s = is.Next())
+			CIter<CSide> is (&ctr->sides);
+			for (CSide *s = is.First(); s; s = is.Next())
 			{
 				si.x = s->preCorner->x, si.y = s->preCorner->y;
 				sf.x = s->postCorner->x, sf.y = s->postCorner->y;
@@ -1058,8 +1058,8 @@ int cpart2::Draw()
 	}
 
 	// draw footprint texts
-	citer<ctext> it (&m_tl->texts);
-	for (ctext *t = it.First(); t; t = it.Next())
+	CIter<CText> it (&m_tl->texts);
+	for (CText *t = it.First(); t; t = it.Next())
 		t->DrawRelativeTo(this, false);
 
 	// draw padstacks and save absolute position of pins
@@ -1067,14 +1067,14 @@ int cpart2::Draw()
 	CPoint pad_pi;
 	CPoint pad_pf;
 	int nLayers = doc->m_num_copper_layers;
-	citer<cpin2> ipin (&pins);
-	for (cpin2 *pin = ipin.First(); pin; pin = ipin.Next()) 
+	CIter<CPin> ipin (&pins);
+	for (CPin *pin = ipin.First(); pin; pin = ipin.Next()) 
 	{
 		// CPT2 TODO check:  is pin->x/y always getting set correctly?
 		// set layer for pads
-		cpadstack * ps = pin->ps;
+		CPadstack * ps = pin->ps;
 		pin->dl_els.SetSize(nLayers);
-		cpad * p;
+		CPad * p;
 		int pad_layer;
 		// iterate through all copper layers 
 		for( int il=0; il<nLayers; il++ )
@@ -1084,7 +1084,7 @@ int cpart2::Draw()
 			pad_layer = il + LAY_TOP_COPPER;
 			pin->dl_els[il] = NULL;
 			// get appropriate pad
-			cpad * p = NULL;
+			CPad * p = NULL;
 			if( pad_layer == LAY_TOP_COPPER && side == 0 )
 				p = &ps->top;
 			else if( pad_layer == LAY_TOP_COPPER && side == 1 )
@@ -1101,7 +1101,7 @@ int cpart2::Draw()
 			if( p )
 			{
 				// draw pad
-				dl_element * pad_el = NULL;
+				CDLElement * pad_el = NULL;
 				if( p->shape == PAD_NONE )
 					;
 				else if( p->shape == PAD_ROUND )
@@ -1257,7 +1257,7 @@ int cpart2::Draw()
 			pin->dl_hole = NULL;
 
 		if (pin->bNeedsThermal)
-			pin->dl_thermal = dl->Add( this, dl_element::DL_OTHER, LAY_RAT_LINE, DL_X, 1,
+			pin->dl_thermal = dl->Add( this, CDLElement::DL_OTHER, LAY_RAT_LINE, DL_X, 1,
 				2*ps->hole_size/3, 0, 0, pin->x, pin->y, 0, 0, 0, 0 );
 		else
 			pin->dl_thermal = NULL;
@@ -1267,7 +1267,7 @@ int cpart2::Draw()
 	return NOERR;
 }
 
-void cpart2::Undraw()
+void CPart::Undraw()
 {
 	CDisplayList *dl = doc->m_dlist;
 	if( !dl || !IsDrawn() ) return;
@@ -1290,13 +1290,13 @@ void cpart2::Undraw()
 	}
 
 	// undraw footprint texts
-	citer<ctext> it (&m_tl->texts);
-	for (ctext *t = it.First(); t; t = it.Next())
+	CIter<CText> it (&m_tl->texts);
+	for (CText *t = it.First(); t; t = it.Next())
 		t->Undraw();
 
 	// undraw padstacks
-	citer<cpin2> ip (&pins);
-	for (cpin2 *pin = ip.First(); pin; pin = ip.Next())
+	CIter<CPin> ip (&pins);
+	for (CPin *pin = ip.First(); pin; pin = ip.Next())
 	{
 		if( pin->dl_els.GetSize()>0 )
 		{
@@ -1314,7 +1314,7 @@ void cpart2::Undraw()
 	bDrawn = false;
 }
 
-void cpart2::Highlight( )
+void CPart::Highlight( )
 {
 	CDisplayList *dl = doc->m_dlist;
 	if( !dl ) return;
@@ -1324,30 +1324,30 @@ void cpart2::Highlight( )
 				dl->Get_xf( dl_sel ), dl->Get_yf( dl_sel ), 1 );
 
 	// Also highlight ref and value texts if possible
-	if (dl_element *ref_sel = m_ref->dl_sel)
+	if (CDLElement *ref_sel = m_ref->dl_sel)
 		dl->Highlight( DL_HOLLOW_RECT, 
 				dl->Get_x( ref_sel ), dl->Get_y( ref_sel ),
 				dl->Get_xf( ref_sel ), dl->Get_yf( ref_sel ), 1 );
-	if (dl_element *val_sel = m_value->dl_sel)
+	if (CDLElement *val_sel = m_value->dl_sel)
 		dl->Highlight( DL_HOLLOW_RECT, 
 				dl->Get_x( val_sel ), dl->Get_y( val_sel ),
 				dl->Get_xf( val_sel ), dl->Get_yf( val_sel ), 1 );
 	
 }
 
-void cpart2::SetVisible(bool bVisible)
+void CPart::SetVisible(bool bVisible)
 {
 	// CPT2, derived from CPartList::MakePartVisible()
 	// Make part visible or invisible, including thermal reliefs
 	// outline strokes
 	for( int i=0; i<m_outline_stroke.GetSize(); i++ )
 	{
-		dl_element * el = m_outline_stroke[i].dl_el;
+		CDLElement * el = m_outline_stroke[i].dl_el;
 		el->visible = bVisible;
 	}
 	// pins
-	citer<cpin2> ipin (&pins);
-	for (cpin2 *pin = ipin.First(); pin; pin = ipin.Next())
+	CIter<CPin> ipin (&pins);
+	for (CPin *pin = ipin.First(); pin; pin = ipin.Next())
 	{
 		// pin pads
 		if (pin->dl_hole)
@@ -1364,7 +1364,7 @@ void cpart2::SetVisible(bool bVisible)
 }
 
 
-void cpart2::StartDragging( CDC * pDC, BOOL bRatlines, BOOL bBelowPinCount, int pin_count ) 
+void CPart::StartDragging( CDC * pDC, BOOL bRatlines, BOOL bBelowPinCount, int pin_count ) 
 {
 	// CPT2, derived from CPartList::StartDraggingPart
 	// make part invisible
@@ -1394,8 +1394,8 @@ void cpart2::StartDragging( CDC * pDC, BOOL bRatlines, BOOL bBelowPinCount, int 
 	dl->AddDragLine( p2, p3 ); 
 	dl->AddDragLine( p3, p4 ); 
 	dl->AddDragLine( p4, p1 );
-	citer<cpin2> ipin (&pins);
-	for (cpin2 *pin = ipin.First(); pin; pin = ipin.Next())
+	CIter<CPin> ipin (&pins);
+	for (CPin *pin = ipin.First(); pin; pin = ipin.Next())
 	{
 		// CPT2 old code used to recalculate pin's x/y-position.  I'm going to try relying on the pin's preexisting x/y member values.  Note
 		// that these values must be made relative to the part origin, however.
@@ -1417,14 +1417,14 @@ void cpart2::StartDragging( CDC * pDC, BOOL bRatlines, BOOL bBelowPinCount, int 
 		dl->MakeDragRatlineArray( 2*pins.GetSize(), 1 );
 		// CPT2 Make a list of segs that have an endpoint (or 2) attached to one of the part's pins.  For efficiency, don't scan any net more than once
 		m_pl->m_nlist->nets.SetUtility(0);
-		carray<cseg2> segs;
-		for (cpin2 *pin = ipin.First(); pin; pin = ipin.Next())
+		CHeap<CSeg> segs;
+		for (CPin *pin = ipin.First(); pin; pin = ipin.Next())
 		{
 			if (!pin->net) continue;
 			if (pin->net->utility) continue;
 			pin->net->utility = 1;
-			citer<cconnect2> ic (&pin->net->connects);
-			for (cconnect2 *c = ic.First(); c; c = ic.Next())
+			CIter<CConnect> ic (&pin->net->connects);
+			for (CConnect *c = ic.First(); c; c = ic.Next())
 			{
 				if (c->head->pin && c->head->pin->part == this)
 					segs.Add(c->head->postSeg);
@@ -1433,8 +1433,8 @@ void cpart2::StartDragging( CDC * pDC, BOOL bRatlines, BOOL bBelowPinCount, int 
 			}
 		}
 		// Loop through the new list of segs that are attached to part's pins:
-		citer<cseg2> is (&segs);
-		for (cseg2 *s = is.First(); s; s = is.Next())
+		CIter<CSeg> is (&segs);
+		for (CSeg *s = is.First(); s; s = is.Next())
 		{
 			s->SetVisible(false);
 			// CPT2 old code spent effort worrying about hiding vias on the end of the seg opposite from the pin.  
@@ -1461,7 +1461,7 @@ void cpart2::StartDragging( CDC * pDC, BOOL bRatlines, BOOL bBelowPinCount, int 
 	dl->StartDraggingArray( pDC, x, y, vert, LAY_SELECTION );
 }
 
-void cpart2::CancelDragging()
+void CPart::CancelDragging()
 {
 	// CPT2 derived from CPartList::CancelDraggingPart()
 	// make part visible again
@@ -1470,14 +1470,14 @@ void cpart2::CancelDragging()
 	// get any connecting segments and make visible
 	CDisplayList *dl = doc->m_dlist;
 	m_pl->m_nlist->nets.SetUtility(0);
-	citer<cpin2> ipin (&pins);
-	for (cpin2 *pin = ipin.First(); pin; pin = ipin.Next())
+	CIter<CPin> ipin (&pins);
+	for (CPin *pin = ipin.First(); pin; pin = ipin.Next())
 	{
 		if (!pin->net || !pin->net->bVisible || pin->net->utility)
 			continue;
 		pin->net->utility = 1;
-		citer<cconnect2> ic (&pin->net->connects);
-		for (cconnect2 *c = ic.First(); c; c = ic.Next())
+		CIter<CConnect> ic (&pin->net->connects);
+		for (CConnect *c = ic.First(); c; c = ic.Next())
 		{
 			if (c->head->pin && c->head->pin->part==this)
 				c->head->postSeg->SetVisible(true);
@@ -1488,7 +1488,7 @@ void cpart2::CancelDragging()
 	dl->StopDragging();
 }
 
-void cpart2::MakeString( CString * str )
+void CPart::MakeString( CString * str )
 {
 	// CPT2 derived from old CPartList::SetPartString().  Used when saving to file, etc.
 	CString line;
@@ -1525,7 +1525,7 @@ void cpart2::MakeString( CString * str )
 	str->Append( line );
 }
 
-void cpart2::GetDRCInfo()
+void CPart::GetDRCInfo()
 {
 	// CPT2 new, extracted from parts of the old CPartList::DRC().  Fill in the drc-related fields for this part and for all its pins.
 	if (!shape)
@@ -1557,8 +1557,8 @@ void cpart2::GetDRCInfo()
 		}
 	}
 
-	citer<cpin2> ipin (&pins);
-	for (cpin2 *pin = ipin.First(); pin; pin = ipin.Next())
+	CIter<CPin> ipin (&pins);
+	for (CPin *pin = ipin.First(); pin; pin = ipin.Next())
 	{
 		drc_pin * drp = &pin->drc;
 		int x = pin->x, y = pin->y;
@@ -1611,29 +1611,29 @@ void cpart2::GetDRCInfo()
 
 
 
-cpartlist::cpartlist( CFreePcbDoc *_doc )
+CPartList::CPartList( CFreePcbDoc *_doc )
 {
 	m_doc = _doc;
 	m_dlist = m_doc->m_dlist;
 	m_nlist = NULL;
 }
 
-cpart2 *cpartlist::GetPartByName( CString *ref_des )
+CPart *CPartList::GetPartByName( CString *ref_des )
 {
 	// Find part in partlist by ref-des
-	citer<cpart2> ip (&parts);
-	for (cpart2 *p = ip.First(); p; p = ip.Next())
+	CIter<CPart> ip (&parts);
+	for (CPart *p = ip.First(); p; p = ip.Next())
 		if (p->ref_des == *ref_des)
 			return p;
 	return NULL;
 }
 
-cpin2 * cpartlist::GetPinByNames ( CString *ref_des, CString *pin_name)
+CPin * CPartList::GetPinByNames ( CString *ref_des, CString *pin_name)
 {
-	cpart2 *part = GetPartByName(ref_des);
+	CPart *part = GetPartByName(ref_des);
 	if (!part) return NULL;
-	citer<cpin2> ip (&part->pins);
-	for (cpin2 *p = ip.First(); p; p = ip.Next())
+	CIter<CPin> ip (&part->pins);
+	for (CPin *p = ip.First(); p; p = ip.Next())
 		if (p->pin_name == *pin_name)
 			return p;
 	return NULL;
@@ -1642,7 +1642,7 @@ cpin2 * cpartlist::GetPinByNames ( CString *ref_des, CString *pin_name)
 // get bounding rectangle of parts
 // return 0 if no parts found, else return 1
 //
-int cpartlist::GetPartBoundaries( CRect * part_r )
+int CPartList::GetPartBoundaries( CRect * part_r )
 {
 	int min_x = INT_MAX;
 	int max_x = INT_MIN;
@@ -1650,8 +1650,8 @@ int cpartlist::GetPartBoundaries( CRect * part_r )
 	int max_y = INT_MIN;
 	int parts_found = 0;
 	
-	citer<cpart2> ip (&parts);
-	for (cpart2 *part = ip.First(); part; part = ip.Next())
+	CIter<CPart> ip (&parts);
+	for (CPart *part = ip.First(); part; part = ip.Next())
 	{
 		if( part->dl_sel )
 		{
@@ -1670,7 +1670,7 @@ int cpartlist::GetPartBoundaries( CRect * part_r )
 			min_y = min( y, min_y);
 			parts_found = 1;
 		}
-		if( dl_element *ref_sel = part->m_ref->dl_sel )
+		if( CDLElement *ref_sel = part->m_ref->dl_sel )
 		{
 			int x = m_dlist->Get_x( ref_sel );
 			int y = m_dlist->Get_y( ref_sel );
@@ -1695,31 +1695,31 @@ int cpartlist::GetPartBoundaries( CRect * part_r )
 }
 
 
-void cpartlist::SetThermals()
+void CPartList::SetThermals()
 {
 	// CPT2 new.  Updates the bNeedsThermal flags for all pins in all parts.
-	citer<cpart2> ip (&parts);
-	for (cpart2 *p = ip.First(); p; p = ip.Next())
+	CIter<CPart> ip (&parts);
+	for (CPart *p = ip.First(); p; p = ip.Next())
 	{
-		citer<cpin2> ipin (&p->pins);
-		for (cpin2 *pin = ipin.First(); pin; pin = ipin.Next())
+		CIter<CPin> ipin (&p->pins);
+		for (CPin *pin = ipin.First(); pin; pin = ipin.Next())
 			pin->SetNeedsThermal();
 	}
 }
 
-cpart2 *cpartlist::Add( cshape * shape, CString * ref_des, CString *value_text, CString * package, 
+CPart *CPartList::Add( CShape * shape, CString * ref_des, CString *value_text, CString * package, 
 	int x, int y, int side, int angle, int visible, int glued )
 {
-	// CPT2.  Derived from old cpartlist func.  Removed uid and ref_vis args.
-	cpart2 *part = new cpart2(this);
+	// CPT2.  Derived from old CPartList func.  Removed uid and ref_vis args.
+	CPart *part = new CPart(this);
 	part->SetData(shape, ref_des, value_text, package, x, y, side, angle, visible, glued);
 	return part;
 }
 
-cpart2 * cpartlist::AddFromString( CString * str )
+CPart * CPartList::AddFromString( CString * str )
 {
 	// set defaults
-	cshape * s = NULL;
+	CShape * s = NULL;
 	CString in_str, key_str;
 	CArray<CString> p;
 	int pos = 0;
@@ -1815,13 +1815,13 @@ cpart2 * cpartlist::AddFromString( CString * str )
 				package = p[0];
 			else
 				package = "";
-			package = package.Left(cshape::MAX_NAME_SIZE);
+			package = package.Left(CShape::MAX_NAME_SIZE);
 		}
 		else if( np >= 2 && key_str == "shape" )
 		{
 			// lookup shape in cache
 			CString name = p[0];
-			name = name.Left(cshape::MAX_NAME_SIZE);
+			name = name.Left(CShape::MAX_NAME_SIZE);
 			s = m_doc->m_slist->GetShapeByName( &name );
 		}
 		else if( key_str == "pos" )
@@ -1846,7 +1846,7 @@ cpart2 * cpartlist::AddFromString( CString * str )
 		in_str = str->Tokenize( "\n", pos );
 	}
 
-	cpart2 * part = new cpart2(this);
+	CPart * part = new CPart(this);
 	part->SetData( s, &ref_des, &value, &package, x, y, side, angle, 1, glued );			// CPT2.  Also initializes pins and puts ref and value
 																							// into the positions indicated by the shape
 	part->m_ref->m_bShown = ref_vis;
@@ -1862,7 +1862,7 @@ cpart2 * cpartlist::AddFromString( CString * str )
 }
 
 
-int cpartlist::ReadParts( CStdioFile * pcb_file )
+int CPartList::ReadParts( CStdioFile * pcb_file )
 {
 	int pos, err;
 	CString in_str, key_str;
@@ -1911,13 +1911,13 @@ int cpartlist::ReadParts( CStdioFile * pcb_file )
 			pcb_file->Seek( pos, CFile::begin );
 
 			// now add part to partlist.  (AddFromString() also calls MustRedraw().)
-			cpart2 * part = AddFromString( &str );
+			CPart * part = AddFromString( &str );
 		}
 	}
 	return 0;
 }
 
-int cpartlist::WriteParts( CStdioFile * file )
+int CPartList::WriteParts( CStdioFile * file )
 {
 	// CPT2. Converted.
 	// CPT: Sort the part lines.
@@ -1928,8 +1928,8 @@ int cpartlist::WriteParts( CStdioFile * file )
 		CArray<CString> lines;
 		line.Format( "[parts]\n\n" );
 		file->WriteString( line );
-		citer<cpart2> ip (&parts);
-		for (cpart2 * p = ip.First(); p; p = ip.Next())
+		CIter<CPart> ip (&parts);
+		for (CPart * p = ip.First(); p; p = ip.Next())
 			p->MakeString( &line ),
 			lines.Add(line);
 		extern int CompareNumeric(CString *s1, CString *s2);															// In utility.cpp
@@ -1952,18 +1952,18 @@ int cpartlist::WriteParts( CStdioFile * file )
 }
 
 
-int cpartlist::GetNumFootprintInstances( cshape * shape )
+int CPartList::GetNumFootprintInstances( CShape * shape )
 {
 	int n = 0;
-	citer<cpart2> ip (&parts);
-	for (cpart2 *part = ip.First(); part; part = ip.Next())
+	CIter<CPart> ip (&parts);
+	for (CPart *part = ip.First(); part; part = ip.Next())
 		if(  part->shape == shape  )
 			n++;
 	return n;
 }
 
 
-int cpartlist::FootprintLayer2Layer( int fp_layer )
+int CPartList::FootprintLayer2Layer( int fp_layer )
 {
 	int layer;
 	switch( fp_layer )
@@ -1977,15 +1977,15 @@ int cpartlist::FootprintLayer2Layer( int fp_layer )
 	return layer;
 }
 
-int cpartlist::ExportPartListInfo( partlist_info * pli, cpart2 *part0 )
+int CPartList::ExportPartListInfo( partlist_info * pli, CPart *part0 )
 {
 	// CPT2 converted.  
 	// export part list data into partlist_info structure for editing in dialog.
 	// Returns the index of part0's info within pli (-1 if not found)
 	pli->SetSize( parts.GetSize() );
 	int i = 0, ret = -1;
-	citer<cpart2> ip (&parts);
-	for (cpart2 *part = ip.First(); part; part = ip.Next())
+	CIter<CPart> ip (&parts);
+	for (CPart *part = ip.First(); part; part = ip.Next())
 	{
 		part_info *pi = &(*pli)[i];
 		pi->part = part;
@@ -2015,7 +2015,7 @@ int cpartlist::ExportPartListInfo( partlist_info * pli, cpart2 *part0 )
 	return ret;
 }
 
-void cpartlist::ImportPartListInfo( partlist_info * pli, int flags, CDlgLog * log )
+void CPartList::ImportPartListInfo( partlist_info * pli, int flags, CDlgLog * log )
 {
 	// CPT2 converted.  Routine relies on lower-level subroutines to call Undraw() or MustRedraw(), as appropriate, for individual parts and 
 	// attached nets.  Also saves undo info now as necessary, including undo info for shapes.
@@ -2073,7 +2073,7 @@ void cpartlist::ImportPartListInfo( partlist_info * pli, int flags, CDlgLog * lo
 			continue;
 		// See if there are other entries in pli that have a cache-shape with the same name as pi->shape
 		CString name = pi->shape->m_name, file_name = pi->shape_file_name;
-		cshape *cache_shape = NULL;											// One way or another this var will get filled eventually.
+		CShape *cache_shape = NULL;											// One way or another this var will get filled eventually.
 		bool bCacheShapeChanged = false;
 		for (int j=0; j<pli->GetSize(); j++)
 		{
@@ -2152,8 +2152,8 @@ void cpartlist::ImportPartListInfo( partlist_info * pli, int flags, CDlgLog * lo
 	}
 
 	// now find parts in project that are not in partlist_info
-	citer<cpart2> ip (&parts);
-	for (cpart2 *part = ip.First(); part; part = ip.Next())
+	CIter<CPart> ip (&parts);
+	for (CPart *part = ip.First(); part; part = ip.Next())
 	{
 		// loop through the partlist_info array
 		BOOL bFound = FALSE;
@@ -2242,7 +2242,7 @@ void cpartlist::ImportPartListInfo( partlist_info * pli, int flags, CDlgLog * lo
 		{
 			// the partlist_info does not include a pointer to an existing part
 			// the part might not exist in the project
-			cpart2 * old_part = GetPartByName( &pi->ref_des );
+			CPart * old_part = GetPartByName( &pi->ref_des );
 			if( old_part && old_part->shape)
 			{
 				// an existing part has the same ref_des as the new part, and has a footprint
@@ -2396,8 +2396,8 @@ void cpartlist::ImportPartListInfo( partlist_info * pli, int flags, CDlgLog * lo
 				pi->y -= pi->shape->m_sel_yi;
 			}
 			
-			cpart2 *part = new cpart2(this);
-			cshape *shape = pi->shape;
+			CPart *part = new CPart(this);
+			CShape *shape = pi->shape;
 			// The following line also positions ref and value according to "shape", if possible, and calls part->MustRedraw():
 			part->SetData( shape, &pi->ref_des, &pi->value, &pi->package, pi->x, pi->y,
 				pi->side, pi->angle, TRUE, FALSE );
@@ -2411,7 +2411,7 @@ void cpartlist::ImportPartListInfo( partlist_info * pli, int flags, CDlgLog * lo
 		else 
 		{
 			// part existed before but may have been modified
-			cpart2 *part = pi->part;
+			CPart *part = pi->part;
 			part->MustRedraw();
 			part->SaveUndoInfo();
 			if( part->shape != pi->shape || pi->bShapeChanged )
@@ -2458,11 +2458,11 @@ void cpartlist::ImportPartListInfo( partlist_info * pli, int flags, CDlgLog * lo
 	free( grid );
 }
 
-void cpartlist::MoveOrigin( int dx, int dy )
+void CPartList::MoveOrigin( int dx, int dy )
 {
 	// CPT2 derived from function of the same name in CPartlist.
-	citer<cpart2> ip (&parts);
-	for (cpart2 *p = ip.First(); p; p = ip.Next())
+	CIter<CPart> ip (&parts);
+	for (CPart *p = ip.First(); p; p = ip.Next())
 		if (p->shape)
 		{
 			p->MustRedraw();
@@ -2472,18 +2472,18 @@ void cpartlist::MoveOrigin( int dx, int dy )
 		}
 }
 
-void cpartlist::MarkAllParts( int util )
+void CPartList::MarkAllParts( int util )
 {
 	// CPT2 derived from old CPartList func.  But I also mark the pins within each part, just for completeness (worth it?)
-	citer<cpart2> ip (&parts);
-	for (cpart2 *p = ip.First(); p; p = ip.Next())
+	CIter<CPart> ip (&parts);
+	for (CPart *p = ip.First(); p; p = ip.Next())
 	{
 		p->utility = util;
 		p->pins.SetUtility(util);
 	}
 }
 
-int cpartlist::CheckPartlist( CString * logstr )
+int CPartList::CheckPartlist( CString * logstr )
 {
 	int nerrors = 0;
 	int nwarnings = 0;
@@ -2495,8 +2495,8 @@ int cpartlist::CheckPartlist( CString * logstr )
 	*logstr += s;
 
 	// first, check for duplicate parts
-	citer<cpart2> ip (&parts);
-	for (cpart2 *part = ip.First(); part; part = ip.Next())
+	CIter<CPart> ip (&parts);
+	for (CPart *part = ip.First(); part; part = ip.Next())
 	{
 		CString ref_des = part->ref_des;
 		BOOL test = map.Lookup( ref_des, ptr );
@@ -2513,7 +2513,7 @@ int cpartlist::CheckPartlist( CString * logstr )
 
 	// now check all parts.  CPT2 a lot of these errors seem very very unlikely under the new system.  The appropriate response to a lot of them
 	// should probably be ASSERT(0).
-	for (cpart2 *part = ip.First(); part; part = ip.Next())
+	for (CPart *part = ip.First(); part; part = ip.Next())
 	{
 		str = "";
 		CString * ref_des = &part->ref_des;
@@ -2527,8 +2527,8 @@ int cpartlist::CheckPartlist( CString * logstr )
 			continue;
 		}
 
-		citer<cpin2> ipin (&part->pins);
-		for (cpin2 *pin = ipin.First(); pin; pin = ipin.Next())
+		CIter<CPin> ipin (&part->pins);
+		for (CPin *pin = ipin.First(); pin; pin = ipin.Next())
 		{
 			// check this pin
 			if( !pin->net )
@@ -2564,13 +2564,13 @@ int cpartlist::CheckPartlist( CString * logstr )
 	return nerrors;
 }
 
-bool cpartlist::CheckForProblemFootprints()
+bool CPartList::CheckForProblemFootprints()
 {
 	BOOL bHeaders_28mil_holes = FALSE;   
-	citer<cpart2> ip (&parts);
-	for (cpart2 *part = ip.First(); part; part = ip.Next())
+	CIter<CPart> ip (&parts);
+	for (CPart *part = ip.First(); part; part = ip.Next())
 		if( part->shape && part->shape->m_name.Right(7) == "HDR-100")
-			if (cpadstack *ps = part->shape->m_padstacks.First())
+			if (CPadstack *ps = part->shape->m_padstacks.First())
 				if (ps->hole_size == 28*NM_PER_MIL )
 					{ bHeaders_28mil_holes = TRUE; break; }
 

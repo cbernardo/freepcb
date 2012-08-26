@@ -295,7 +295,7 @@ public:
 
 	// selected and highlighted items
 	static int sel_mask_btn_bits[16];	// CPT2.  New system for masking selections.  Each left-pane button corresponds to 1+ bits for types of pcb-items...
-	cnet2 *m_highlight_net;
+	CNet *m_highlight_net;
 
 	// Related to routing
 	int m_dir;						// routing direction: 0 = forward, 1 = back
@@ -331,7 +331,7 @@ public:
 	void ChangeTraceLayer( int mode, int old_layer=0 );
 	void MoveOrigin( int x_off, int y_off );
 	void SelectItemsInRect( CRect r, BOOL bAddToGroup );
-	void FinishRouting( cseg2 *rat );								// CPT2.  Helper for when user completes routing ratline
+	void FinishRouting( CSeg *rat );								// CPT2.  Helper for when user completes routing ratline
 	void StartDraggingGroup( BOOL bAdd=FALSE, int x=0, int y=0 );
 	void CancelDraggingGroup();
 	void MoveGroup( int dx, int dy );
@@ -348,7 +348,7 @@ public:
 	BOOL CurDraggingRouting();
 	BOOL CurDraggingPlacement();
 	void SnapCursorPoint( CPoint wp, UINT nFlags );
-	void OnExternalChangeFootprint( cshape * fp );
+	void OnExternalChangeFootprint( CShape * fp );
 	void FinishArrowKey(int x, int y, int dx, int dy);										// CPT2 new helper for HandleKeyPress().
 	void HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags);
 	void TryToReselectCorner( int x, int y );
@@ -488,7 +488,7 @@ public:
 	void RoutingGridUp();
 	void RoutingGridDown();
 	void UnitToggle(bool bShiftKeyDown);
-	void ToggleSelectionState(cpcb_item *item);					// CPT2 updated arg
+	void ToggleSelectionState(CPcbItem *item);					// CPT2 updated arg
 
 	// CPT:  virtual functions from CCommonView:
 	bool IsFreePcbView() { return true; }

@@ -191,7 +191,7 @@ void CDlgGroupPaste::DoDataExchange(CDataExchange* pDX)
 		{
 			int i = m_list_ctrl.GetItemData( iItem ); 
 			CString *net_name = &::gnl[i].name;
-			cnet2 *grp_net = m_grp_nlist->GetNetPtrByName( net_name );
+			CNet *grp_net = m_grp_nlist->GetNetPtrByName( net_name );
 			ASSERT( grp_net != NULL );
 			grp_net->utility = ListView_GetCheckState( m_list_ctrl, iItem );
 		}
@@ -216,7 +216,7 @@ BEGIN_MESSAGE_MAP(CDlgGroupPaste, CDialog)
 	ON_BN_CLICKED(IDC_CHECK_IGNORE_EMPTY_NETS, &CDlgGroupPaste::OnBnClickedCheckIgnoreEmptyNets)
 END_MESSAGE_MAP()
 
-void CDlgGroupPaste::Initialize( cnetlist *grp_nlist )
+void CDlgGroupPaste::Initialize( CNetList *grp_nlist )
 {
 	m_grp_nlist = grp_nlist;
 	m_ref_offset = 0;
