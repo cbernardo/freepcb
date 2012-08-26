@@ -159,17 +159,17 @@ public:
 	enum { NO_HATCH, DIAGONAL_FULL, DIAGONAL_EDGE }; // polyline hatch styles
 
 protected:
-	cpcb_item(CFreePcbDoc *_doc);				// Done in the .cpp.
-	cpcb_item(CFreePcbDoc *_doc, int _uid);		// Done in cpp.  Used only during undo operations.
-	virtual ~cpcb_item();						// Done in cpp.  When an item is destroyed, references to it are automatically
+	cpcb_item(CFreePcbDoc *_doc);
+	cpcb_item(CFreePcbDoc *_doc, int _uid);		// Used only during undo operations.
+	virtual ~cpcb_item();						// When an item is destroyed, references to it are automatically
 												// removed from any carrays to which it belongs.
 public:
 	int UID() { return m_uid; }
-	static cpcb_item *FindByUid(int uid);		// Done in cpp.
+	static cpcb_item *FindByUid(int uid);
 	static int GetNextUid() { return next_uid; }
-	bool IsHit(int x, int y);					// Done in cpp. 
+	bool IsHit(int x, int y);
 	bool IsDrawn() { return bDrawn; }
-	void RemoveForUndo();						// Done in cpp.
+	void RemoveForUndo();
 
 	// Virtual functions:
 	virtual	int Draw() { return NOERR; }
@@ -179,7 +179,7 @@ public:
 	virtual void Highlight() { }
 	virtual bool IsOnPcb() { return false; }		// Used to be called IsValid(), but this name seemed more descriptive.  E.g. items
 													// on the clipboard are perfectly "valid" (not subject to garbage-collection), but the
-													// drawing and undo routines should ignore them anyway.  NB particularly cshape::IsOnPcb().
+													// drawing and undo routines should ignore them anyway.  Check out particularly cshape::IsOnPcb().
 	virtual cundo_item *MakeUndoItem() { return NULL; }		
 	virtual void SaveUndoInfo();							// Most derived classes inherit the base-class version of the func.
 

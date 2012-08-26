@@ -220,10 +220,7 @@ void DlgDRC::CheckDesign()
 		if( ret == IDCANCEL )
 			return;
 		else if( ret == IDYES )
-		{
 			m_CAM_annular_ring_pins = m_dr_local.annular_ring_pins;
-			m_pl->SetPinAnnularRing( m_CAM_annular_ring_pins );
-		}
 	}
 	if( m_dr_local.annular_ring_vias > m_CAM_annular_ring_vias )
 	{
@@ -232,10 +229,7 @@ void DlgDRC::CheckDesign()
 		if( ret == IDCANCEL )
 			return;
 		else if( ret == IDYES )
-		{
 			m_CAM_annular_ring_vias = m_dr_local.annular_ring_vias;
-			m_nl->SetViaAnnularRing( m_CAM_annular_ring_vias );
-		}
 	}
 
 	if( !m_dlg_log )

@@ -61,35 +61,34 @@ public:
 	};
 
 
-	cpin2(cpart2 *_part, cpadstack *_ps, cnet2 *_net);					// CPT2. Added args. Done in cpp
+	cpin2(cpart2 *_part, cpadstack *_ps, cnet2 *_net);					// CPT2. Added args.
 	cpin2(CFreePcbDoc *_doc, int _uid);
 
-	virtual bool IsOnPcb();													// Done in cpp
+	virtual bool IsOnPcb();
 	bool IsPin() { return true; }
 	cpin2 *ToPin() { return this; }
 	int GetTypeBit() { return bitPin; }
 	cnet2 *GetNet() { return net; }
 	cundo_item *MakeUndoItem()
 		{ return new cupin(this); }
-	void MustRedraw();												// Override the default behavior of cpcb_item::MustRedraw()
+	void MustRedraw();												// Overrides the default behavior of cpcb_item::MustRedraw()
 	int GetLayer() { return pad_layer; }
-	int GetWidth();													// Done in cpp
-	void GetVtxs(carray<cvertex2> *vtxs);							// Done in cpp, CPT2 new.
+	int GetWidth();	
+	void GetVtxs(carray<cvertex2> *vtxs);
 
-	void Highlight();												// Done in cpp, derived from old CPartList::HighlightPad
+	void Highlight();
 
-	bool TestHit(int x, int y, int layer);							// Done in cpp, derived from CPartList::TestHitOnPad
-	void SetPosition();												// Done in cpp.  New, but related to CPartList::GetPinPoint
-	bool SetNeedsThermal();											// Done in cpp.  New, but related to CNetList::SetAreaConnections
-	// void SetThermalVisible(int layer, bool bVisible) { }			// CPT2.  TODO figure this out.
-	void Disconnect();												// Done in cpp
+	bool TestHit(int x, int y, int layer);
+	void SetPosition();	
+	bool SetNeedsThermal();
+	void Disconnect();
 	cseg2 *AddRatlineToPin( cpin2 *p2 );
 
-	bool GetDrawInfo(int layer,	bool bUse_TH_thermals, bool bUse_SMT_thermals,		// Done in cpp, derived from CPartList::GetPadDrawInfo().  Used during DRC
+	bool GetDrawInfo(int layer,	bool bUse_TH_thermals, bool bUse_SMT_thermals,				// Used during DRC
 		  int mask_clearance, int paste_mask_shrink,
-		  int * type=0, int * w=0, int * l=0, int * r=0, int * hole=0,										// CPT2 got rid of "x" and "y" args
+		  int * type=0, int * w=0, int * l=0, int * r=0, int * hole=0,						// CPT2 got rid of "x" and "y" args
 		  int * connection_status=0, int * pad_connect_flag=0, int * clearance_type=0 );
-	int GetConnectionStatus( int layer );											// Done in cpp, derived from CPartList::GetPinConnectionStatus().
+	int GetConnectionStatus( int layer );
 };
 
 
@@ -99,15 +98,15 @@ class cpart2: public cpcb_item
 public:
 	cpartlist * m_pl;	// parent partlist
 	carray<cpin2> pins;	// array of all pins in part
-	BOOL visible;		// 0 to hide part                                ?? TODO Put into base class?
+	BOOL visible;		// 0 to hide part
 	int x,y;			// position of part origin on board
 	int side;			// 0=top, 1=bottom
 	int angle;			// orientation, degrees CW
 	BOOL glued;
 
-	CString ref_des;	// ref designator such as "U3"
-	creftext *m_ref;	// CPT2 added. It's convenient to have an object for the ref-text on which we can invoke ctext methods.
-						// Note that m_ref->m_x, m_ref->m_y, etc. will be _relative_ positions
+	CString ref_des;		// ref designator such as "U3"
+	creftext *m_ref;		// CPT2 added. It's convenient to have an object for the ref-text on which we can invoke ctext methods.
+							// Note that m_ref->m_x, m_ref->m_y, etc. will be _relative_ positions
 	CString value_text;
 	cvaluetext *m_value;	// CPT2 added.  Analogous to m_ref
 	ctextlist *m_tl;		// CPT2 added.  Objects for each of the texts derived from the footprint.
@@ -128,46 +127,46 @@ public:
 	BOOL bPreserve;	// preserve connections to this part
 
 
-	cpart2( cpartlist * pl );										// Done in cpp.
+	cpart2( cpartlist * pl );
 	cpart2(CFreePcbDoc *_doc, int _uid);
 	~cpart2();
 
-	virtual bool IsOnPcb();													// Done in cpp
+	virtual bool IsOnPcb();
 	bool IsPart() { return true; }
 	cpart2 *ToPart() { return this; }
 	int GetTypeBit() { return bitPart; }
-	void Remove(bool bEraseTraces, bool bErasePart=true);			// Done in cpp.
+	void Remove(bool bEraseTraces, bool bErasePart=true);
 	cundo_item *MakeUndoItem()
 		{ return new cupart(this); }
 	void SaveUndoInfo(bool bSaveAttachedConnects = true);
 
-	void Move( int x, int y, int angle = -1, int side = -1);									// Done in cpp, derived from CPartList::Move
-	void PartMoved( int dx=1, int dy=1 );														// Done in cpp, derived from CNetList::PartMoved
+	void Move( int x, int y, int angle = -1, int side = -1);
+	void PartMoved( int dx=1, int dy=1 );
 	void SetData( cshape * shape, CString * ref_des, CString *value_txt, CString * package, 
-	     		  int x, int y, int side, int angle, int visible, int glued );					// Done in cpp, Derived from CPartList::SetPartData
+	     		  int x, int y, int side, int angle, int visible, int glued );
 	void SetValue( CString * value, int x, int y, int angle, int size, 
-				  int w, BOOL vis, int layer );													// Done in cpp, Derived from CPartList::SetValue
-	void InitPins();																			// Done in cpp. Basically all new
+				  int w, BOOL vis, int layer );	
+	void InitPins();
 	void MarkConstituents(int util);
 
 	int GetNumOutlineStrokes();
-	void OptimizeConnections( BOOL bLimitPinCount=TRUE, BOOL bVisibleNetsOnly=TRUE );	// Done in cpp, derived from old CNetList function
-	cpin2 *GetPinByName(CString *name);	// Done in cpp, new
-	CPoint GetCentroidPoint();			// Done in cpp, derived from CPartList::GetCentroidPoint
-	CPoint GetGluePoint( cglue *g );	// Done in cpp, derived from CPartList::GetGluePoint()
-	int GetBoundingRect( CRect * part_r );		// Done in cpp. Derived from CPartList::GetPartBoundingRect()
+	void OptimizeConnections( BOOL bLimitPinCount=TRUE, BOOL bVisibleNetsOnly=TRUE );
+	cpin2 *GetPinByName(CString *name);
+	CPoint GetCentroidPoint();
+	CPoint GetGluePoint( cglue *g );
+	int GetBoundingRect( CRect * part_r );
 	CRect CalcSelectionRect();
-	bool IsAttachedToConnects();				// Done in cpp
-	void ChangeFootprint( cshape * shape );		// Done in cpp, loosely derived from CPartList::PartFootprintChanged() & CNetList::PartFootprintChanged()
+	bool IsAttachedToConnects();
+	void ChangeFootprint( cshape * shape );	
 
-	int Draw();							// Done in cpp
-	void Undraw();						// Done in cpp
-	void Highlight();					// Done in cpp, derived from CPartList::HighlightPart()
-	void SetVisible(bool bVis);         // Done in cpp
-	void StartDragging( CDC * pDC, BOOL bRatlines, BOOL bBelowPinCount, int pin_count );		// Done in cpp, derived from CPartList::StartDraggingPart
+	int Draw();	
+	void Undraw();
+	void Highlight();
+	void SetVisible(bool bVis);
+	void StartDragging( CDC * pDC, BOOL bRatlines, BOOL bBelowPinCount, int pin_count );
 	void CancelDragging();
 
-	void MakeString( CString *str );	// Done in cpp, derived from old CPartList::SetPartString().
+	void MakeString( CString *str );
 	void GetDRCInfo();					// CPT2 new.  Extracted some of the code formerly in DRC().
 };
 
@@ -219,8 +218,6 @@ class cpartlist
 public:
 	carray<cpart2> parts;
 	CFreePcbDoc *m_doc;
-	int m_layers;
-	int m_annular_ring;
 	cnetlist * m_nlist;
 	CDisplayList * m_dlist;
 
@@ -233,18 +230,16 @@ public:
 		int x, int y, int side, int angle, int visible, int glued );
 	cpart2 * AddFromString( CString * str );
 	void MarkAllParts( int util );
-	void SetNumCopperLayers( int nlayers ) { m_layers = nlayers; }
 	void MoveOrigin( int dx, int dy );
 	static int FootprintLayer2Layer( int fp_layer );
-	void SetPinAnnularRing( int ring ) { m_annular_ring = ring; }
-	int GetPartBoundaries( CRect * part_r );										// Done in cpp  CPT2 TODO check, seems fishy.
-	void SetThermals();																// CPT2 new.  Updates the bNeedsThermal flags for all pins in all parts.
+	int GetPartBoundaries( CRect * part_r );									// CPT2 TODO check, seems fishy.
+	void SetThermals();															// CPT2 new.  Updates the bNeedsThermal flags for all pins in all parts.
 	
-	int ReadParts( CStdioFile * file );													// Done in cpp
-	int WriteParts( CStdioFile * file );												// Done in cpp
-	int GetNumFootprintInstances( cshape * shape );										// Done in cpp
-	int ExportPartListInfo( partlist_info * pli, cpart2 *part0 );						// Done in cpp.  Converted from old CPartList func.
-	void ImportPartListInfo( partlist_info * pli, int flags, CDlgLog * log=NULL );		// Done in cpp.  Converted from old CPartList func.
+	int ReadParts( CStdioFile * file );	
+	int WriteParts( CStdioFile * file );
+	int GetNumFootprintInstances( cshape * shape );
+	int ExportPartListInfo( partlist_info * pli, cpart2 *part0 );
+	void ImportPartListInfo( partlist_info * pli, int flags, CDlgLog * log=NULL );
 	int CheckPartlist( CString * logstr );
 	bool CheckForProblemFootprints();
 };

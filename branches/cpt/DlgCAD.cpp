@@ -397,8 +397,6 @@ void CDlgCAD::OnBnClickedGo()
 		if( !layer )
 			continue;					// Mighty mighty unlikely...
 		// write the gerber file
-		m_pl->m_annular_ring = m_annular_ring_pins;
-		m_nl->m_annular_ring = m_annular_ring_vias;
 		CString f_str = m_folder + "\\" + gerber_name;
 		CStdioFile f;
 		int ok = f.Open( f_str, CFile::modeCreate | CFile::modeWrite );

@@ -1066,7 +1066,7 @@ int cpart2::Draw()
 	CPoint pin_pt;
 	CPoint pad_pi;
 	CPoint pad_pf;
-	int nLayers = doc->m_plist->m_layers;
+	int nLayers = doc->m_num_copper_layers;
 	citer<cpin2> ipin (&pins);
 	for (cpin2 *pin = ipin.First(); pin; pin = ipin.Next()) 
 	{
@@ -1615,8 +1615,6 @@ cpartlist::cpartlist( CFreePcbDoc *_doc )
 {
 	m_doc = _doc;
 	m_dlist = m_doc->m_dlist;
-	m_layers = m_doc->m_num_copper_layers;
-	m_annular_ring = m_doc->m_annular_ring_pins;					// (CPT2 TODO check)
 	m_nlist = NULL;
 }
 
