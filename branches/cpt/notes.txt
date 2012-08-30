@@ -1,9 +1,9 @@
 // CPT2 notes and proposals
 
-NetListNew.h, PartListNew.h, and TextListNew.h contain evolving notes on which functions
+OBSOLETE: NetListNew.h, PartListNew.h, and TextListNew.h contain evolving notes on which functions
 are slated for moving into classes for lower-level objects (like CSeg, CNet, etc.)
 
-Functions that contain code that won't yet compile (still need translation into the new
+OBSOLETE: Functions that contain code that won't yet compile (still need translation into the new
 idiom) are marked off with #ifndef CPT2.  The goal is to bring these back to life bit by bit.
 
 I would propose that CFreePcbView::CancelSelection() always turn off net highlighting by default.  If caller really wants to rehighlight
@@ -76,7 +76,7 @@ altering UI elements accordingly, and am now offering the 'C' key as an alternat
 
 Group delete possibility:  should we invoke RemoveBreak() for each segment in the group, rather than unrouting them as is currently done?  At 
 the moment, I'm permitting ratlines to be members of the selected group, and in that case particularly the proposed behavior seems more
-natural.
+natural.  AS OF R336 THIS CHANGE WAS MADE.
 
 Group copy:  have lifted the restrictions that used to exist on copying from connects attached to pins not in the group. 
 
@@ -114,6 +114,22 @@ from the fp editor or the DlgPartlist (say), these changes can now be undone.
 
 In related moves, the code when exiting DlgAddPart and DlgPartlist has been rearranged.  Formerly DlgAddPart::DoDataExchange on exit had the
 responsibility to load in fp's from libraries and reconcile name conflicts.  These jobs are now handled in CPartList::ImportPartlistInfo().
+
+As of r339, have mocked up some code to implement my idea for netlist file synching.  The idea is to allow user to create a quasi-permanent link 
+between an .fpc file and an associated netlist file.  This can be done either from within Project>Options or during a File>Import-netlist.  The
+effects of having such a link:  (1) whenever a part is inserted/reinserted into the board, or whenever a part is assigned a new footprint, the
+program will check the (resident) netlist file for references to the part.  It will then assign pins from the part to the appropriate nets wherever 
+possible.    (2) Analogously, if a net is (re)introduced onto the board, the program will assign whatever pins it can to that net automatically, 
+based on the netlist file specs.  This feature I hope will provide the sort of functionality that was formerly provided by so-called phantom pins and 
+parts with null shapes (which I hope to phase out).
+
+Speaking of parts with null shapes, in an effort to discourage them, I now have the program automatically generate a dummy shape (currently
+just a little silkscreen circle) for parts whose footprints are not found during a netlist file import.  I find parts with null shapes 
+suboptimal for a couple of reasons:  they create great hazards for the programmer, and I think they can be puzzling to the user, who is unlikely
+to realize that these parts are actually present, lurking in the partlist but invisible on the board.  I would like ultimately to remove all the
+code that is already present and intended to handle these null shapes.
+
+
 
 // FreePCB : programming notes
 //

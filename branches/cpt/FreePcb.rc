@@ -785,7 +785,7 @@ BEGIN
     EDITTEXT        IDC_EDIT_VALUE,30,24,144,12,ES_AUTOHSCROLL
     CONTROL         "Value visible",IDC_CHECK1,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,187,26,55,10
     EDITTEXT        IDC_EDIT_ADD_PART_LIB,12,54,120,12,ES_AUTOHSCROLL | ES_READONLY
-    CONTROL         "",IDC_PART_LIB_TREE,"SysTreeView32",WS_BORDER | WS_TABSTOP,12,72,156,192
+    CONTROL         "",IDC_PART_LIB_TREE,"SysTreeView32",WS_BORDER | WS_HSCROLL | WS_TABSTOP,12,72,156,192
     CONTROL         "Drag to position",IDC_RADIO_DRAG,"Button",BS_AUTORADIOBUTTON | WS_GROUP,186,57,67,10
     COMBOBOX        IDC_COMBO_ADD_PART_UNITS,216,72,36,60,CBS_DROPDOWNLIST | CBS_SORT | WS_VSCROLL | WS_TABSTOP
     EDITTEXT        IDC_X,216,91,36,12,ES_AUTOHSCROLL
@@ -797,8 +797,8 @@ BEGIN
     EDITTEXT        IDC_EDIT_ADD_AUTHOR,38,276,314,12,ES_AUTOHSCROLL | ES_READONLY
     EDITTEXT        IDC_EDIT_ADD_SOURCE,38,294,314,12,ES_AUTOHSCROLL | ES_READONLY
     EDITTEXT        IDC_EDIT_ADD_DESC,49,312,303,12,ES_AUTOHSCROLL | ES_READONLY
-    DEFPUSHBUTTON   "OK",IDOK,90,332,50,14
-    PUSHBUTTON      "Cancel",IDCANCEL,228,332,50,14
+    DEFPUSHBUTTON   "OK",IDOK,72,332,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,246,332,50,14
     PUSHBUTTON      "Browse",IDC_BUTTON_ADD_PART_BROWSE,138,53,30,14
     LTEXT           "Side",IDC_STATIC,276,72,14,8
     LTEXT           "Angle",IDC_STATIC,318,72,19,8
@@ -816,6 +816,7 @@ BEGIN
     LTEXT           "Footprint",IDC_STATIC,215,8,30,8
     LTEXT           "Value",IDC_STATIC,6,25,18,8
     CONTROL         "Reference text visible",IDC_CHECK2,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,257,26,86,10
+    PUSHBUTTON      "&Compare with Netlist File",IDC_BUTTON_COMPARE_WITH_NETLIST,135,332,98,14
 END
 
 IDD_ADD_NET DIALOGEX 0, 0, 186, 70
@@ -985,41 +986,47 @@ BEGIN
     GROUPBOX        "Hatch pattern",IDC_STATIC,12,6,180,24
 END
 
-IDD_PROJECT_OPTIONS DIALOGEX 0, 0, 238, 352
+IDD_PROJECT_OPTIONS DIALOGEX 0, 0, 281, 368
 STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Project Options"
 FONT 8, "MS Shell Dlg", 400, 0, 0x1
 BEGIN
-    EDITTEXT        IDC_EDIT_NAME,54,6,126,12,ES_AUTOHSCROLL
-    EDITTEXT        IDC_EDIT_FOLDER,54,24,156,12,ES_AUTOHSCROLL
-    EDITTEXT        IDC_EDIT_LIBRARY_FOLDER,54,42,156,12,ES_AUTOHSCROLL
-    PUSHBUTTON      "...",IDC_BUTTON_LIB,215,42,18,12
-    EDITTEXT        IDC_EDIT_NUM_LAYERS,105,60,24,12,ES_AUTOHSCROLL
+    EDITTEXT        IDC_EDIT_NAME,78,6,166,12,ES_AUTOHSCROLL
+    EDITTEXT        IDC_EDIT_FOLDER,78,24,166,12,ES_AUTOHSCROLL
+    EDITTEXT        IDC_EDIT_LIBRARY_FOLDER,78,42,166,12,ES_AUTOHSCROLL
+    PUSHBUTTON      "...",IDC_BUTTON_LIB,252,42,18,12
+    EDITTEXT        IDC_EDIT_NUM_LAYERS,88,112,24,12,ES_AUTOHSCROLL
     CONTROL         "Connect SMT pads to copper areas on same layer",IDC_CHECK1,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,6,78,175,10
-    EDITTEXT        IDC_EDIT_GLUE_W,171,94,30,12,ES_AUTOHSCROLL
-    EDITTEXT        IDC_EDIT_DEF_TRACE_W,36,125,24,12,ES_AUTOHSCROLL
-    EDITTEXT        IDC_EDIT_DEF_VIA_W,101,125,24,12,ES_AUTOHSCROLL
-    EDITTEXT        IDC_EDIT_DEF_VIA_HOLE,167,125,24,12,ES_AUTOHSCROLL
-    CONTROL         "",IDC_LIST_WIDTH_MENU,"SysListView32",LVS_REPORT | LVS_SINGLESEL | LVS_SHOWSELALWAYS | LVS_ALIGNLEFT | WS_BORDER | WS_TABSTOP,18,162,198,102
-    PUSHBUTTON      "Add",IDC_BUTTON_ADD,36,270,24,12
-    PUSHBUTTON      "Edit",IDC_BUTTON_EDIT,108,270,24,12
-    PUSHBUTTON      "Delete",IDC_BUTTON_DELETE,175,270,29,12
-    DEFPUSHBUTTON   "OK",IDOK,52,323,50,14
-    PUSHBUTTON      "Cancel",IDCANCEL,136,323,50,14
-    LTEXT           "Name",IDC_STATIC,31,8,19,8
-    LTEXT           "Project Folder",IDC_STATIC,6,26,46,8
-    LTEXT           "Number of copper layers",IDC_STATIC,6,62,93,8
-    GROUPBOX        "Default trace and via widths (mils)",IDC_STATIC,6,114,222,30
-    LTEXT           "trace",IDC_STATIC,14,127,18,8
-    LTEXT           "via pad",IDC_STATIC,74,127,24,8
-    LTEXT           "via hole",IDC_STATIC,138,127,26,8
-    GROUPBOX        "Menu of trace and via widths",IDC_STATIC,6,149,222,140
-    LTEXT           "Library folder",IDC_STATIC,6,44,44,8
-    LTEXT           "Default adhesive dot diameter for SMT parts (mils)",IDC_STATIC,6,96,162,8
-    PUSHBUTTON      "...",IDC_BUTTON_PROJ,215,24,18,12
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,6,129,175,10
+    EDITTEXT        IDC_EDIT_GLUE_W,171,144,30,12,ES_AUTOHSCROLL
+    EDITTEXT        IDC_EDIT_DEF_TRACE_W,36,174,24,12,ES_AUTOHSCROLL
+    EDITTEXT        IDC_EDIT_DEF_VIA_W,101,174,24,12,ES_AUTOHSCROLL
+    EDITTEXT        IDC_EDIT_DEF_VIA_HOLE,167,174,24,12,ES_AUTOHSCROLL
+    CONTROL         "",IDC_LIST_WIDTH_MENU,"SysListView32",LVS_REPORT | LVS_SINGLESEL | LVS_SHOWSELALWAYS | LVS_ALIGNLEFT | WS_BORDER | WS_TABSTOP,18,211,211,102
+    PUSHBUTTON      "Add",IDC_BUTTON_ADD,238,223,29,12
+    PUSHBUTTON      "Edit",IDC_BUTTON_EDIT,238,250,29,12
+    PUSHBUTTON      "Delete",IDC_BUTTON_DELETE,238,277,29,12
+    DEFPUSHBUTTON   "OK",IDOK,73,347,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,157,347,50,14
+    LTEXT           "Name",IDC_STATIC,17,8,19,8
+    LTEXT           "Project Folder",IDC_STATIC,17,26,46,8
+    LTEXT           "Number of copper layers",IDC_STATIC,6,114,79,8
+    GROUPBOX        "Default trace and via widths (mils)",IDC_STATIC,6,163,269,30
+    LTEXT           "trace",IDC_STATIC,14,176,18,8
+    LTEXT           "via pad",IDC_STATIC,74,176,24,8
+    LTEXT           "via hole",IDC_STATIC,138,176,26,8
+    GROUPBOX        "Menu of trace and via widths",IDC_STATIC,6,198,269,124
+    LTEXT           "Library Folder",IDC_STATIC,17,43,45,8
+    LTEXT           "Default adhesive dot diameter for SMT parts (mils)",IDC_STATIC,6,146,162,8
+    PUSHBUTTON      "...",IDC_BUTTON_PROJ,252,24,18,12
     CONTROL         "Use these values for new projects by default",IDC_CHECK_OPTIONS_DEFAULT,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,38,304,160,10
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,60,328,160,10
+    EDITTEXT        IDC_EDIT_SYNC_FILE,84,61,160,12,ES_AUTOHSCROLL
+    PUSHBUTTON      "...",IDC_BUTTON_SYNC_FILE,251,61,18,12
+    CONTROL         "Synched Netlist File",IDC_CHECK_SYNC_FILE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,6,61,74,10
+    LTEXT           "If checked, this means that when you (re)insert parts or change their",IDC_STATIC,22,75,223,8
+    LTEXT           "footprints, their pins will be attached to nets in accordance with the file",IDC_STATIC,22,83,228,8
+    LTEXT           "wherever possible.  Similarly if you (re)introduce nets into the project.",IDC_STATIC,22,91,225,8
 END
 
 IDD_ADD_WIDTH_MENU_ITEM DIALOGEX 0, 0, 148, 95
@@ -1755,14 +1762,14 @@ BEGIN
     PUSHBUTTON      "Cancel",IDCANCEL,129,115,104,14
 END
 
-IDD_IMPORT_OPTIONS DIALOGEX 0, 0, 292, 271
+IDD_IMPORT_OPTIONS DIALOGEX 0, 0, 292, 307
 STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Import Options"
 FONT 8, "MS Shell Dlg", 400, 0, 0x1
 BEGIN
-    DEFPUSHBUTTON   "Import",IDOK,12,233,50,14
-    PUSHBUTTON      "Save project with these settings then import",ID_SAVE_AND_IMPORT,72,233,150,14
-    PUSHBUTTON      "Cancel",IDCANCEL,234,233,50,14
+    DEFPUSHBUTTON   "Import",IDOK,12,276,50,14
+    PUSHBUTTON      "Save project with these settings then import",ID_SAVE_AND_IMPORT,72,276,150,14
+    PUSHBUTTON      "Cancel",IDCANCEL,234,276,50,14
     GROUPBOX        "For parts in project but not in netlist file",IDC_STATIC,6,68,279,54
     CONTROL         "Remove parts",IDC_RADIO_REMOVE_PARTS,"Button",BS_AUTORADIOBUTTON | WS_GROUP,12,80,61,10
     CONTROL         "Keep parts but remove connections to nets",IDC_RADIO_KEEP_PARTS_NO_CONNECTIONS,
@@ -1774,7 +1781,6 @@ BEGIN
     CONTROL         "Keep footprints",IDC_RADIO3,"Button",BS_AUTORADIOBUTTON,12,152,65,10
     CONTROL         "Remove nets",IDC_RADIO6,"Button",BS_AUTORADIOBUTTON | WS_GROUP,12,188,58,10
     CONTROL         "Keep nets",IDC_RADIO5,"Button",BS_AUTORADIOBUTTON,12,200,48,10
-    CONTROL         "Parts only",IDC_RADIO_PARTS,"Button",BS_AUTORADIOBUTTON | WS_GROUP,12,18,48,10
     CONTROL         "Nets only",IDC_RADIO_NETS,"Button",BS_AUTORADIOBUTTON,12,30,46,10
     CONTROL         "Parts and Nets",IDC_RADIO_PARTSANDNETS,"Button",BS_AUTORADIOBUTTON,12,42,63,10
     CONTROL         "PADS-PCB",IDC_RADIO_PADSPCB,"Button",BS_AUTORADIOBUTTON | WS_GROUP,166,17,49,10
@@ -1782,6 +1788,12 @@ BEGIN
     GROUPBOX        "Format",IDC_STATIC,155,7,130,54
     CONTROL         "FreePCB",IDC_RADIO_FREEPCB,"Button",BS_AUTORADIOBUTTON | WS_DISABLED,166,30,43,10
     GROUPBOX        "For nets in project that are not in netlist file",IDC_STATIC,6,176,279,40
+    CONTROL         "Keep project synched with this netlist file",IDC_CHECK_SYNC,
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,12,224,147,10
+    CONTROL         "Parts only",IDC_RADIO_PARTS,"Button",BS_AUTORADIOBUTTON | WS_GROUP,12,18,48,10
+    LTEXT           "This means that if you (re)insert parts or change their footprints, their pins",IDC_STATIC,22,235,240,8
+    LTEXT           "will be attached to nets in accordance with the file wherever possible.",IDC_STATIC,22,244,224,8
+    LTEXT           "Similarly if you (re)introduce nets into the project.",IDC_STATIC,22,253,160,8
 END
 
 IDD_ADD_MASK_CUTOUT DIALOGEX 0, 0, 172, 95
@@ -2269,32 +2281,33 @@ BEGIN
     PUSHBUTTON      "Bottom",IDC_BUTTON10,18,108,54,12
 END
 
-IDD_PREFS DIALOGEX 0, 0, 270, 239
+IDD_PREFS DIALOGEX 0, 0, 270, 267
 STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Preferences"
 FONT 8, "MS Shell Dlg", 400, 0, 0x1
 BEGIN
     CONTROL         "Reverse PgUp and PgDn",IDC_REVERSE_PGUP_PGDN,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,22,16,94,10
-    DEFPUSHBUTTON   "OK",IDOK,45,208,50,14
-    PUSHBUTTON      "Cancel",IDCANCEL,174,208,50,14
-    CONTROL         "Enable",IDC_CHECK_AUTOSAVE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,22,124,37,10
-    EDITTEXT        IDC_EDIT_AUTO_INTERVAL,213,123,24,12,ES_AUTOHSCROLL
-    LTEXT           "pins",IDC_STATIC,173,91,14,8
-    LTEXT           "Interval (minutes)",IDC_STATIC,149,125,58,8
-    GROUPBOX        "Autosave",IDC_STATIC,10,113,248,30
-    GROUPBOX        "Automatic recalculation of ratlines after edits",IDC_STATIC,10,78,247,30
+    DEFPUSHBUTTON   "OK",IDOK,45,234,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,174,234,50,14
+    CONTROL         "Enable",IDC_CHECK_AUTOSAVE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,22,150,37,10
+    EDITTEXT        IDC_EDIT_AUTO_INTERVAL,213,149,24,12,ES_AUTOHSCROLL
+    LTEXT           "pins",IDC_STATIC,173,117,14,8
+    LTEXT           "Interval (minutes)",IDC_STATIC,149,151,58,8
+    GROUPBOX        "Autosave",IDC_STATIC,10,139,248,30
+    GROUPBOX        "Automatic recalculation of ratlines after edits",IDC_STATIC,10,104,247,30
     CONTROL         "Disable for nets with more than ",IDC_CHECK_AUTORAT_DISABLE,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,22,90,118,10
-    EDITTEXT        IDC_EDIT_MIN_PINS,140,89,29,12,ES_AUTOHSCROLL
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,22,116,118,10
+    EDITTEXT        IDC_EDIT_MIN_PINS,140,115,29,12,ES_AUTOHSCROLL
     CONTROL         "Left-handed mode (alters function-key assignments)",IDC_LEFTHAND_MODE,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,22,32,183,10
     CONTROL         "Highlight net on starting trace or ratline",IDC_CHECK_AUTO_HIGHLIGHT_NET,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,22,48,142,10
     LTEXT           "(can always toggle on and off with ""n"" while routing)",IDC_STATIC,47,60,168,8
-    EDITTEXT        IDC_EDIT_PREFS_DEFAULTCFG,21,175,180,12,ES_AUTOHSCROLL
-    PUSHBUTTON      "Browse",IDC_BUTTON_PREFS_BROWSE,208,174,30,14
-    GROUPBOX        "Folder for file ""default.cfg""",IDC_STATIC,9,148,249,50
-    LTEXT           "(Preferences are stored there;  avoid folders that are write-protected)",IDC_STATIC,14,158,228,8
+    EDITTEXT        IDC_EDIT_PREFS_DEFAULTCFG,21,201,180,12,ES_AUTOHSCROLL
+    PUSHBUTTON      "Browse",IDC_BUTTON_PREFS_BROWSE,208,200,30,14
+    GROUPBOX        "Folder for file ""default.cfg""",IDC_STATIC,9,174,249,50
+    LTEXT           "(Preferences are stored there;  avoid folders that are write-protected)",IDC_STATIC,14,184,228,8
+    CONTROL         "Beep for errors",IDC_ERROR_SOUND_ENABLED,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,22,75,65,10
 END
 
 IDD_GRIDVALS DIALOGEX 0, 0, 286, 321
@@ -2451,8 +2464,9 @@ BEGIN
     IDD_PROJECT_OPTIONS, DIALOG
     BEGIN
         LEFTMARGIN, 7
-        RIGHTMARGIN, 232
+        RIGHTMARGIN, 275
         TOPMARGIN, 7
+        BOTTOMMARGIN, 361
     END
 
     IDD_ADD_WIDTH_MENU_ITEM, DIALOG
@@ -2619,7 +2633,7 @@ BEGIN
         LEFTMARGIN, 7
         RIGHTMARGIN, 285
         TOPMARGIN, 7
-        BOTTOMMARGIN, 247
+        BOTTOMMARGIN, 290
     END
 
     IDD_ADD_MASK_CUTOUT, DIALOG
@@ -2800,6 +2814,7 @@ BEGIN
 
     IDD_PREFS, DIALOG
     BEGIN
+        BOTTOMMARGIN, 239
     END
 END
 #endif    // APSTUDIO_INVOKED
@@ -3622,7 +3637,7 @@ BEGIN
     IDS_ToolbarGridsVisible " Grids: Visible (alt-up/dn)"
     IDS_ToolbarPlacement    " Placement"
     IDS_ToolbarRouting      " Routing"
-    IDS_ToolbarAngle        " Angle"
+    IDS_ToolbarAngle        " Angle (ctrl-left/right)"
     IDS_Off                 "Off"
     IDS_NetStubTraceRemovingZeroLength 
                             "net %s: stub trace from %s.%s: removing zero-length segment\r\n"
@@ -4228,7 +4243,7 @@ END
 
 STRINGTABLE
 BEGIN
-    IDS_AppName             "CPT2.14"
+    IDS_AppName             "CPT2.17"
 END
 
 STRINGTABLE
@@ -4237,7 +4252,7 @@ BEGIN
     IDS_GridsVisibleWidth   "135"
     IDS_PlacementWidth      "120"
     IDS_RoutingWidth        "120"
-    IDS_AngleWidth          "50"
+    IDS_AngleWidth          "120"
     IDS_LeftPaneWidth       "125"
     IDS_FKeyWidth           "70"
 END
@@ -4466,6 +4481,35 @@ BEGIN
     IDS_NoticeConflictsWereFoundBetweenTheFootprints 
                             "\r\nNotice:  Conflicts were found between the footprints of parts you are\r\npasting and the footprints of parts already on the board.  Therefore new \r\nfootprint name(s) have been created for the following new part(s):\r\n"
     IDS_PartFootprint       "   %s - footprint ""%s""\r\n"
+    IDS_NoFootprintFoundForPartUsingDummyShape 
+                            "No footprint found for part %s:  using dummy shape"
+    IDS_SynchronizeWithNetListFile "Synchronize with netlist file:"
+END
+
+STRINGTABLE
+BEGIN
+    IDS_DoYouWishToImportFromTheNetlistFileNow 
+                            "Do you wish to import from the netlist file now?"
+    IDS_WarningTheReferencedNetlistFileDoesNotAppearToBeALegalPADSPCB 
+                            "Warning:  The referenced netlist file ""%s"" does not appear to be a legal PADS-PCB file."
+    IDS_UnableToOpenTheReferencedNetlistFile 
+                            "Warning: Unable to open the referenced netlist file ""%s"""
+    IDS_NoReferenceDesignatorHasBeenChosen 
+                            "No reference designator has been chosen."
+    IDS_FoundPartInNetlistFileWithFootprintName 
+                            "Found part ""%s"" in netlist file ""%s"" with footprint name ""%s""\r\n"
+    IDS_PartNotListedInNetlistFile 
+                            "Part ""%s"" not listed in netlist file ""%s""\r\n"
+    IDS_PinFoundInNetlistFileNotPresentWithTheFootprint 
+                            "Pin ""%s.%s"" found in netlist file: not present with the footprint ""%s""\r\n"
+    IDS_PinFoundInNetlistFilePresentWithTheNewFootprint 
+                            "Pin ""%s.%s"" found in netlist file:  present with the new footprint ""%s""\r\n"
+    IDS_PinFoundInNetlistFilePresentOnBoardButShouldBeAssignedToNet 
+                            "Pin ""%s.%s"" found in netlist file:  present on board but should be assigned to net ""%s""\r\n"
+    IDS_PinFoundInNetlistFilePresentOnBoardAndCorrectlyAssignedToNet 
+                            "Pin ""%s.%s"" found in netlist file:  present on board and correctly assigned to net ""%s""\r\n"
+    IDS_DoYouWantToFixThePinsThatAreOnTheWrongNets 
+                            "Do you want to fix the pins that are on the wrong nets (this will destroy any attached connections)?"
 END
 
 #endif    // English (United States) resources

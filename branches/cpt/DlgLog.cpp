@@ -83,4 +83,6 @@ BOOL CDlgLog::OnSetCursor(CWnd* pWnd, UINT nHitTest, UINT message)
 void CDlgLog::OnBnClickedHideMe()
 {
 	this->ShowWindow( SW_HIDE );
+	CMainFrame * frm = (CMainFrame*)AfxGetMainWnd();
+	frm->SetFocus();										// CPT2 added
 }

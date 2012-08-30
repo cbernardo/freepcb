@@ -18,12 +18,13 @@ CDlgPrefs::CDlgPrefs(CWnd* pParent /*=NULL*/)
 CDlgPrefs::~CDlgPrefs()
 	{ }
 
-void CDlgPrefs::Init(bool bReverse, bool bLefthanded, BOOL bHighlightNet,
-	int auto_interval, BOOL bAuto_Ratline_Disable, int auto_ratline_min_pins) 
+void CDlgPrefs::Init(bool bReverse, bool bLefthanded, bool bHighlightNet, bool bErrorSound,
+	int auto_interval, bool bAuto_Ratline_Disable, int auto_ratline_min_pins) 
 {
 	m_bReverse = bReverse;
 	m_bLefthanded = bLefthanded;
 	m_bHighlightNet = bHighlightNet;
+	m_bErrorSound = bErrorSound;
 	m_auto_interval = auto_interval;
 	m_bAuto_Ratline_Disable = bAuto_Ratline_Disable;
 	m_auto_ratline_min_pins = auto_ratline_min_pins;
@@ -37,6 +38,7 @@ void CDlgPrefs::DoDataExchange(CDataExchange* pDX) {
 	DDX_Control(pDX, IDC_REVERSE_PGUP_PGDN, m_check_reverse);
 	DDX_Control(pDX, IDC_LEFTHAND_MODE, m_check_lefthanded);
 	DDX_Control(pDX, IDC_CHECK_AUTO_HIGHLIGHT_NET, m_check_highlight_net);
+	DDX_Control(pDX, IDC_ERROR_SOUND_ENABLED, m_check_error_sound);
 	DDX_Control(pDX, IDC_CHECK_AUTOSAVE, m_check_autosave);
 	DDX_Control(pDX, IDC_EDIT_AUTO_INTERVAL, m_edit_auto_interval);
 	DDX_Text(pDX, IDC_EDIT_AUTO_INTERVAL, m_auto_interval );
@@ -52,6 +54,7 @@ void CDlgPrefs::DoDataExchange(CDataExchange* pDX) {
 		m_bReverse = m_check_reverse.GetCheck();
 		m_bLefthanded = m_check_lefthanded.GetCheck();
 		m_bAuto_Ratline_Disable = m_check_disable_auto_rats.GetCheck();
+		m_bErrorSound = m_check_error_sound.GetCheck();
 		m_bHighlightNet = m_check_highlight_net.GetCheck();
 		// convert minutes to seconds
 		m_auto_interval *= 60;
@@ -89,6 +92,7 @@ BOOL CDlgPrefs::OnInitDialog()
 	m_check_reverse.SetCheck(m_bReverse);
 	m_check_lefthanded.SetCheck(m_bLefthanded);
 	m_check_highlight_net.SetCheck(m_bHighlightNet);
+	m_check_error_sound.SetCheck(m_bErrorSound);
 	if( !m_auto_interval )
 	{
 		m_edit_auto_interval.EnableWindow( FALSE );

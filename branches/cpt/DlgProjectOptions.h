@@ -14,12 +14,14 @@ class CDlgProjectOptions : public CDialog
 public:
 	CDlgProjectOptions(CWnd* pParent = NULL);   // standard constructor
 	virtual ~CDlgProjectOptions();
-	void Init( BOOL new_flag,
+	void Init( bool new_flag,
 		CString * name,
 		CString * path_to_folder,
 		CString * lib_folder,
+		bool bSyncFile,
+		CString * sync_file,
 		int num_layers,
-		BOOL bSMT_connect_copper,
+		bool bSMT_connect_copper,
 		int glue_w,
 		int trace_w,
 		int via_w,
@@ -42,6 +44,16 @@ public:
 private:
 	virtual void DoDataExchange(CDataExchange* pDX);    // DDX/DDV support
 	virtual BOOL OnInitDialog();
+	afx_msg void OnBnClickedButtonAdd();
+	afx_msg void OnBnClickedButtonEdit();
+	afx_msg void OnBnClickedButtonDelete();
+	afx_msg void OnEnChangeEditName();
+	afx_msg void OnEnChangeEditFolder();
+	afx_msg void OnEnSetfocusEditFolder();
+	afx_msg void OnEnKillfocusEditFolder();
+	afx_msg void OnEnChangeEditSyncFile();			// CPT2 new
+	afx_msg void OnBnClickedButtonSyncFile();		// CPT2 new
+
 	BOOL m_new_project;
 	BOOL m_folder_changed;
 	BOOL m_folder_has_focus;
@@ -57,21 +69,18 @@ private:
 	CArray<int> *m_w;		
 	CArray<int> *m_v_w;	
 	CArray<int> *m_v_h_w;	
-	afx_msg void OnBnClickedButtonAdd();
-	afx_msg void OnBnClickedButtonEdit();
-	afx_msg void OnBnClickedButtonDelete();
-	afx_msg void OnEnChangeEditName();
-	afx_msg void OnEnChangeEditFolder();
 	int m_layers;
 	CEdit m_edit_name;
 	CEdit m_edit_folder;
-	afx_msg void OnEnSetfocusEditFolder();
-	afx_msg void OnEnKillfocusEditFolder();
 	CEdit m_edit_lib_folder;
+	CEdit m_edit_sync_file;					// CPT2 new
+	CButton m_check_sync_file;				// CPT2 new
 	CEdit m_edit_layers;
 	CButton m_button_proj;
 	CButton m_check_default;				// CPT;
 public:
+	CString m_sync_file;					// CPT2 new.  And to heck with making it private...
+	bool m_bSyncFile;						// CPT2 new
 	BOOL m_bSMT_connect_copper;
 	afx_msg void OnBnClickedButtonLib();
 	afx_msg void OnBnClickedButtonProj();

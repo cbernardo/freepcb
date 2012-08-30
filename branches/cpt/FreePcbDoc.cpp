@@ -108,24 +108,12 @@ END_MESSAGE_MAP()
 
 CFreePcbDoc::CFreePcbDoc()
 {
-	// get application directory
-	// (there must be a better way to do this!!!)
-	int token_start = 0;
-	CString delim = " ";
-	CString cmdline = GetCommandLine();
-	if( cmdline[0] == '\"' )
-	{
-		delim = "\"";
-		token_start = 1;
-	}
-	CString app_dir = cmdline.Tokenize( delim, token_start );
-	int pos = app_dir.ReverseFind( '\\' );
-	if( pos == -1 )
-		pos = app_dir.ReverseFind( ':' ); 
-	if( pos == -1 )
-		ASSERT(0);	// failed to find application folder
-	app_dir = app_dir.Left( pos );
-	m_app_dir = app_dir;
+	// get application directory.  (CPT2 altered the method)
+	TCHAR szPath[MAX_PATH];
+	GetModuleFileName( NULL, szPath, MAX_PATH ); 
+	CString exePath = szPath;
+	int pos = exePath.ReverseFind('\\');
+	m_app_dir = exePath.Left( pos );
 	m_app_dir.Trim();
 	int err = _chdir( m_app_dir );	// change to application folder
 	if( err )
@@ -165,6 +153,7 @@ CFreePcbDoc::CFreePcbDoc()
 	m_import_flags = IMPORT_PARTS | IMPORT_NETS | KEEP_FP | KEEP_NETS;
 	m_num_copper_layers = 1;
 	m_num_layers = m_num_copper_layers + LAY_TOP_COPPER;
+	m_snap_angle = m_fp_snap_angle = 45;								// CPT2 bugfix
 	m_edit_footprint = NULL;											// CPT2
 
 	// initialize pseudo-clipboard
@@ -282,133 +271,143 @@ void CFreePcbDoc::OnFileNew()
 	InitializeNewProject();
 	CDlgProjectOptions dlg;
 	// CPT: args have changed.  Including m_path_to_folder instead of m_parent_folder (don't really understand the point of m_parent_folder anyway).
-	dlg.Init( TRUE, &m_name, &m_path_to_folder, &m_lib_dir,
+	dlg.Init( TRUE, &m_name, &m_path_to_folder, &m_lib_dir, m_bSyncFile, &m_sync_file,
 		m_num_copper_layers, m_bSMT_copper_connect, m_default_glue_w,
 		m_trace_w, m_via_w, m_via_hole_w,
 		&m_w, &m_v_w, &m_v_h_w );
 	int ret = dlg.DoModal();
-	if( ret == IDOK )
-	{
-		// set up project file name and path
-		m_name = dlg.GetName();
-		m_pcb_filename = m_name + ".fpc";
-		CString fullpath;
-		char full[_MAX_PATH];
-		fullpath = _fullpath( full, (LPCSTR)dlg.GetPathToFolder(), MAX_PATH );
-		m_path_to_folder = (CString)fullpath;
+	if( ret != IDOK )
+		return;
+	// set up project file name and path
+	m_name = dlg.GetName();
+	m_pcb_filename = m_name + ".fpc";
+	CString fullpath;
+	char full[_MAX_PATH];
+	fullpath = _fullpath( full, (LPCSTR)dlg.GetPathToFolder(), MAX_PATH );
+	m_path_to_folder = (CString)fullpath;
 
-		// Check if project folder exists and create it if necessary
-		struct _stat buf;
-		int err = _stat( m_path_to_folder, &buf );
-		if( err )
+	// Check if project folder exists and create it if necessary
+	struct _stat buf;
+	int err = _stat( m_path_to_folder, &buf );
+	if( err )
+	{
+		CString str, s ((LPCSTR) IDS_FolderDoesntExistCreateIt);
+		str.Format( s, m_path_to_folder );
+		int ret = AfxMessageBox( str, MB_YESNO );
+		if( ret == IDYES )
 		{
-			CString str, s ((LPCSTR) IDS_FolderDoesntExistCreateIt);
-			str.Format( s, m_path_to_folder );
-			int ret = AfxMessageBox( str, MB_YESNO );
-			if( ret == IDYES )
+			err = _mkdir( m_path_to_folder );
+			if( err )
 			{
-				err = _mkdir( m_path_to_folder );
-				if( err )
-				{
-					CString s ((LPCSTR) IDS_UnableToCreateFolder);
-					str.Format( s, m_path_to_folder );
-					AfxMessageBox( str, MB_OK );
-				}
+				CString s ((LPCSTR) IDS_UnableToCreateFolder);
+				str.Format( s, m_path_to_folder );
+				AfxMessageBox( str, MB_OK );
 			}
 		}
-		if( err )
-			return;
+	}
+	if( err )
+		return;
 
-		CString str;
-		m_pcb_full_path = (CString)fullpath	+ "\\" + m_pcb_filename;
-		CString s1 ((LPCSTR) IDS_AppName);
-		m_window_title = s1 + " - " + m_pcb_filename;
-		CWnd* pMain = AfxGetMainWnd();
-		pMain->SetWindowText( m_window_title );
+	CString str;
+	m_pcb_full_path = (CString)fullpath	+ "\\" + m_pcb_filename;
+	CString s1 ((LPCSTR) IDS_AppName);
+	m_window_title = s1 + " - " + m_pcb_filename;
+	CWnd* pMain = AfxGetMainWnd();
+	pMain->SetWindowText( m_window_title );
 
-		// make path to library folder and index libraries
-		m_lib_dir = dlg.GetLibFolder();
-		fullpath = _fullpath( full, (LPCSTR)m_lib_dir, MAX_PATH );
-		if( fullpath[fullpath.GetLength()-1] == '\\' )	
-			fullpath = fullpath.Left(fullpath.GetLength()-1);
-		m_full_lib_dir = fullpath;
-		MakeLibraryMaps( &m_full_lib_dir );
-		CMenu* pMenu = pMain->GetMenu();
-		pMenu->EnableMenuItem( 1, MF_BYPOSITION | MF_ENABLED ); 
-		pMenu->EnableMenuItem( 2, MF_BYPOSITION | MF_ENABLED ); 
-		pMenu->EnableMenuItem( 3, MF_BYPOSITION | MF_ENABLED ); 
-		pMenu->EnableMenuItem( 4, MF_BYPOSITION | MF_ENABLED ); 
-		pMenu->EnableMenuItem( 5, MF_BYPOSITION | MF_ENABLED ); 
-		CMenu* submenu = pMenu->GetSubMenu(0);	// "File" submenu
-		submenu->EnableMenuItem( ID_FILE_SAVE, MF_BYCOMMAND | MF_ENABLED );	
-		submenu->EnableMenuItem( ID_FILE_SAVE_AS, MF_BYCOMMAND | MF_ENABLED );	
-		submenu->EnableMenuItem( ID_FILE_CLOSE, MF_BYCOMMAND | MF_ENABLED );	
-		submenu->EnableMenuItem( ID_FILE_IMPORT, MF_BYCOMMAND | MF_ENABLED );	
-		submenu->EnableMenuItem( ID_FILE_EXPORTNETLIST, MF_BYCOMMAND | MF_ENABLED );	
-		submenu->EnableMenuItem( ID_FILE_GENERATECADFILES, MF_BYCOMMAND | MF_ENABLED );	
-		submenu->EnableMenuItem( ID_FILE_GENERATEREPORTFILE, MF_BYCOMMAND | MF_ENABLED );	
-		submenu->EnableMenuItem( ID_DSN_FILE_EXPORT, MF_BYCOMMAND | MF_ENABLED );	
-		submenu->EnableMenuItem( ID_SES_FILE_IMPORT, MF_BYCOMMAND | MF_ENABLED );	
-		submenu = pMenu->GetSubMenu(1);	// "Edit" submenu
-		// CPT: Eliminated 2 lines:
-		// submenu->EnableMenuItem( ID_EDIT_COPY, MF_BYCOMMAND | MF_DISABLED | MF_GRAYED );	
-		// submenu->EnableMenuItem( ID_EDIT_CUT, MF_BYCOMMAND | MF_DISABLED | MF_GRAYED );	
-		submenu->EnableMenuItem( ID_EDIT_PASTE, MF_BYCOMMAND | MF_DISABLED | MF_GRAYED );	
-		submenu->EnableMenuItem( ID_EDIT_UNDO, MF_BYCOMMAND | MF_DISABLED | MF_GRAYED );	
-		submenu->EnableMenuItem( ID_EDIT_REDO, MF_BYCOMMAND | MF_DISABLED | MF_GRAYED );	
-		pMain->DrawMenuBar();
+	// make path to library folder and index libraries
+	m_lib_dir = dlg.GetLibFolder();
+	fullpath = _fullpath( full, (LPCSTR)m_lib_dir, MAX_PATH );
+	if( fullpath[fullpath.GetLength()-1] == '\\' )	
+		fullpath = fullpath.Left(fullpath.GetLength()-1);
+	m_full_lib_dir = fullpath;
+	MakeLibraryMaps( &m_full_lib_dir );
+	CMenu* pMenu = pMain->GetMenu();
+	pMenu->EnableMenuItem( 1, MF_BYPOSITION | MF_ENABLED ); 
+	pMenu->EnableMenuItem( 2, MF_BYPOSITION | MF_ENABLED ); 
+	pMenu->EnableMenuItem( 3, MF_BYPOSITION | MF_ENABLED ); 
+	pMenu->EnableMenuItem( 4, MF_BYPOSITION | MF_ENABLED ); 
+	pMenu->EnableMenuItem( 5, MF_BYPOSITION | MF_ENABLED ); 
+	CMenu* submenu = pMenu->GetSubMenu(0);	// "File" submenu
+	submenu->EnableMenuItem( ID_FILE_SAVE, MF_BYCOMMAND | MF_ENABLED );	
+	submenu->EnableMenuItem( ID_FILE_SAVE_AS, MF_BYCOMMAND | MF_ENABLED );	
+	submenu->EnableMenuItem( ID_FILE_CLOSE, MF_BYCOMMAND | MF_ENABLED );	
+	submenu->EnableMenuItem( ID_FILE_IMPORT, MF_BYCOMMAND | MF_ENABLED );	
+	submenu->EnableMenuItem( ID_FILE_EXPORTNETLIST, MF_BYCOMMAND | MF_ENABLED );	
+	submenu->EnableMenuItem( ID_FILE_GENERATECADFILES, MF_BYCOMMAND | MF_ENABLED );	
+	submenu->EnableMenuItem( ID_FILE_GENERATEREPORTFILE, MF_BYCOMMAND | MF_ENABLED );	
+	submenu->EnableMenuItem( ID_DSN_FILE_EXPORT, MF_BYCOMMAND | MF_ENABLED );	
+	submenu->EnableMenuItem( ID_SES_FILE_IMPORT, MF_BYCOMMAND | MF_ENABLED );	
+	submenu = pMenu->GetSubMenu(1);	// "Edit" submenu
+	// CPT: Eliminated 2 lines:
+	// submenu->EnableMenuItem( ID_EDIT_COPY, MF_BYCOMMAND | MF_DISABLED | MF_GRAYED );	
+	// submenu->EnableMenuItem( ID_EDIT_CUT, MF_BYCOMMAND | MF_DISABLED | MF_GRAYED );	
+	submenu->EnableMenuItem( ID_EDIT_PASTE, MF_BYCOMMAND | MF_DISABLED | MF_GRAYED );	
+	submenu->EnableMenuItem( ID_EDIT_UNDO, MF_BYCOMMAND | MF_DISABLED | MF_GRAYED );	
+	submenu->EnableMenuItem( ID_EDIT_REDO, MF_BYCOMMAND | MF_DISABLED | MF_GRAYED );	
+	pMain->DrawMenuBar();
 
-		// set options from dialog
-		m_num_copper_layers = dlg.GetNumCopperLayers();
-		m_nlist->SetSMTconnect( m_bSMT_copper_connect );
-		m_num_layers = m_num_copper_layers + LAY_TOP_COPPER;
-		m_trace_w = dlg.GetTraceWidth();
-		m_via_w = dlg.GetViaWidth();
-		m_via_hole_w = dlg.GetViaHoleWidth();
-		m_nlist->SetWidths( m_trace_w, m_via_w, m_via_hole_w );
-		for( int i=0; i<m_num_layers; i++ )
-		{
-			m_vis[i] = 1;
-			m_dlist->SetLayerRGB( i, C_RGB( m_rgb[i][0],m_rgb[i][1],m_rgb[i][2] ) );
-		}
+	// set options from dialog
+	m_num_copper_layers = dlg.GetNumCopperLayers();
+	m_nlist->SetSMTconnect( m_bSMT_copper_connect );
+	m_num_layers = m_num_copper_layers + LAY_TOP_COPPER;
+	m_trace_w = dlg.GetTraceWidth();
+	m_via_w = dlg.GetViaWidth();
+	m_via_hole_w = dlg.GetViaHoleWidth();
+	m_nlist->SetWidths( m_trace_w, m_via_w, m_via_hole_w );
+	for( int i=0; i<m_num_layers; i++ )
+	{
+		m_vis[i] = 1;
+		m_dlist->SetLayerRGB( i, C_RGB( m_rgb[i][0],m_rgb[i][1],m_rgb[i][2] ) );
+	}
+	// CPT2 new
+	m_bSyncFile = dlg.m_bSyncFile;
+	m_sync_file = dlg.m_sync_file;
 
-		// CPT: option to save dlg results to default.cfg:
-		if (dlg.m_default) 
-		{
-			CArray<CString> oldLines, newLines;
-			CString fn = m_defaultcfg_dir + "\\" + "default.cfg";
-			ReadFileLines(fn, oldLines);
-			CollectOptionsStrings(newLines);
-			ReplaceLines(oldLines, newLines, "path_to_folder");
-			ReplaceLines(oldLines, newLines, "library_folder");
-			ReplaceLines(oldLines, newLines, "n_copper_layers");
-			ReplaceLines(oldLines, newLines, "SMT_connect_copper");
-			ReplaceLines(oldLines, newLines, "default_glue_width");
-			ReplaceLines(oldLines, newLines, "default_trace_width");
-			ReplaceLines(oldLines, newLines, "default_via_pad_width");
-			ReplaceLines(oldLines, newLines, "default_via_hole_width");
-			ReplaceLines(oldLines, newLines, "n_width_menu");
-			ReplaceLines(oldLines, newLines, "width_menu_item");
-			WriteFileLines(fn, oldLines);
-		}
+	// CPT: option to save dlg results to default.cfg:
+	if (dlg.m_default) 
+	{
+		CArray<CString> oldLines, newLines;
+		CString fn = m_defaultcfg_dir + "\\" + "default.cfg";
+		ReadFileLines(fn, oldLines);
+		CollectOptionsStrings(newLines);
+		ReplaceLines(oldLines, newLines, "path_to_folder");
+		ReplaceLines(oldLines, newLines, "library_folder");
+		ReplaceLines(oldLines, newLines, "n_copper_layers");
+		ReplaceLines(oldLines, newLines, "SMT_connect_copper");
+		ReplaceLines(oldLines, newLines, "default_glue_width");
+		ReplaceLines(oldLines, newLines, "default_trace_width");
+		ReplaceLines(oldLines, newLines, "default_via_pad_width");
+		ReplaceLines(oldLines, newLines, "default_via_hole_width");
+		ReplaceLines(oldLines, newLines, "n_width_menu");
+		ReplaceLines(oldLines, newLines, "width_menu_item");
+		WriteFileLines(fn, oldLines);
+	}
 
+	// CPT:  fixed bug where m_view->m_dlist->SetMapping() didn't get called, with unpredictable results for the initial
+	// display
+	m_project_open = TRUE;
+	m_view->OnViewAllElements();
 
-		// CPT:  fixed bug where m_view->m_dlist->SetMapping() didn't get called, with unpredictable results for the initial
-		// display
-		m_project_open = TRUE;
-		m_view->OnViewAllElements();
+	// force redraw of function key text
+	m_view->m_cursor_mode = 999;
+	m_view->SetCursorMode( CUR_NONE_SELECTED );
 
-		// force redraw of function key text
-		m_view->m_cursor_mode = 999;
-		m_view->SetCursorMode( CUR_NONE_SELECTED );
+	// force redraw of window title
+	m_project_modified = FALSE;
+	m_project_modified_since_autosave = FALSE;
+	m_auto_elapsed = 0;
 
-		// force redraw of window title
-		m_project_modified = FALSE;
-		m_project_modified_since_autosave = FALSE;
-		m_auto_elapsed = 0;
-
-		// save project
-		OnFileSave();
+	// save project
+	OnFileSave();
+	
+	// CPT2 new:
+	if (m_bSyncFile)
+	{
+		CString s ((LPCSTR) IDS_DoYouWishToImportFromTheNetlistFileNow);
+		int ret = AfxMessageBox( s, MB_YESNO );
+		if (ret==IDYES)
+			FileImport(m_sync_file, true);
 	}
 }
 
@@ -606,6 +605,10 @@ BOOL CFreePcbDoc::FileOpen( LPCTSTR fn, BOOL bLibrary )
 			m_plist->SetThermals();
 			Redraw();											// pcb is loaded, so go ahead and draw the items added to this->redraw during the prior 6 lines
 
+			// CPT2 new: Load the synched netlist file info if that option is set
+			if (m_bSyncFile)
+				LoadSyncFile();
+
 			// make path to library folder and index libraries
 			if( m_full_lib_dir == "" )
 			{
@@ -700,6 +703,30 @@ BOOL CFreePcbDoc::FileOpen( LPCTSTR fn, BOOL bLibrary )
 	}
 }
 
+void CFreePcbDoc::LoadSyncFile()
+{
+	CStdioFile file;
+	if( !file.Open( m_sync_file, CFile::modeRead ) )
+	{
+		CString s0 ((LPCSTR) IDS_UnableToOpenTheReferencedNetlistFile), mess;
+		mess.Format(s0, m_sync_file);
+		AfxMessageBox( mess );
+		m_bSyncFile = false;
+		return;
+	}
+	m_import_flags = IMPORT_FROM_NETLIST_FILE | IMPORT_PARTS | IMPORT_NETS | DONT_LOAD_SHAPES;
+	// CPT2 TODO assuming for the time being a PADS-PCB format.
+	int err = ImportPADSPCBNetlist( &file, m_import_flags, &m_sync_file_pli, &m_sync_file_nli );
+	if( err == NOT_PADSPCB_FILE )
+	{
+		m_dlg_log->ShowWindow( SW_HIDE );
+		CString s0 ((LPCSTR) IDS_WarningTheReferencedNetlistFileDoesNotAppearToBeALegalPADSPCB), mess;
+		mess.Format(s0, m_sync_file);
+		AfxMessageBox( mess, MB_OK );
+		m_bSyncFile = false;
+	}
+}
+
 void CFreePcbDoc::OnFileClose()
 {
 	FileClose();
@@ -771,6 +798,8 @@ int CFreePcbDoc::FileClose()
 	m_project_open = FALSE;
 	ProjectModified( FALSE );
 	m_auto_elapsed = 0;
+	m_bSyncFile = false;			// CPT2 new
+	m_sync_file = "";				// ditto
 	// force redraw
 	m_view->m_cursor_mode = 999;
 	m_view->SetCursorMode( CUR_NONE_SELECTED );
@@ -989,6 +1018,10 @@ void CFreePcbDoc::OnProjectNetlist()
 	for (CNet *net = in.First(); net; net = in.Next())
 		net->SaveUndoInfo();																// NB this saves pin info too...
 	m_nlist->ImportNetListInfo( dlg.m_nli, 0, NULL, m_trace_w, m_via_w, m_via_hole_w );
+	// CPT2 Go through the modified netlist, and add pins to nets according to the synched netlist file where applicable
+	if (m_bSyncFile)
+		for (CNet *net = in.First(); net; net = in.Next())
+			net->AddPinsFromSyncFile();
 	if( m_vis[LAY_RAT_LINE] && !m_auto_ratline_disable )
 		m_nlist->OptimizeConnections();
 	view->CancelSelection();
@@ -1410,6 +1443,13 @@ void CFreePcbDoc::ReadOptions( CStdioFile * pcb_file )
 			// CPT.  The parent_folder vs path_to_folder distinction is unclear to me.
 			else if( np && key_str == "path_to_folder" )
 				m_path_to_folder = p[0];
+			// CPT2 the following two are new:
+			else if( np && key_str == "sync_file_on" )
+				m_bSyncFile = my_atoi( &p[0] );
+			else if( np && key_str == "sync_file" )
+				m_sync_file = p[0];
+			else if( np && key_str == "library_folder" )
+				m_lib_dir = p[0];
 			else if( np && key_str == "library_folder" )
 				m_lib_dir = p[0];
 			else if( np && key_str == "full_library_folder" )
@@ -1665,6 +1705,8 @@ void CFreePcbDoc::ReadOptions( CStdioFile * pcb_file )
 				m_bLefthanded = my_atoi(&p[0]);
 			else if (np && key_str == "highlight_net")
 				m_bHighlightNet = my_atoi(&p[0]);
+			else if (np && key_str == "error_sound")
+				m_bErrorSound = my_atoi(&p[0]);
 		}
 
 		if( m_fp_visible_grid.GetSize() == 0 )
@@ -1747,6 +1789,11 @@ void CFreePcbDoc::CollectOptionsStrings(CArray<CString> &arr) {
 	line.Format( "library_folder: \"%s\"\n", m_lib_dir );
 	arr.Add( line );
 	line.Format( "full_library_folder: \"%s\"\n", m_full_lib_dir );
+	arr.Add( line );
+	// CPT2 the following two options are new:
+	line.Format( "sync_file: \"%s\"\n", m_sync_file );
+	arr.Add( line );
+	line.Format( "sync_file_on: \"%d\"\n", m_bSyncFile );
 	arr.Add( line );
 	line.Format( "CAM_folder: \"%s\"\n", m_cam_full_path );
 	arr.Add( line );
@@ -1943,7 +1990,8 @@ void CFreePcbDoc::InitializeNewProject()
 	m_auto_interval = 0;
 	m_bReversePgupPgdn = 0;
 	m_bLefthanded = 0;
-	m_bHighlightNet = 0;	
+	m_bHighlightNet = 0;
+	m_bErrorSound = 1;
 
 	// CPT compacted the code for embedded default layer colors, visibility, etc.
 	static unsigned int defaultLayerColors[] = {
@@ -2163,6 +2211,7 @@ const int gGarbageCollectFreq = 50;
 
 void CFreePcbDoc::ProjectModified( BOOL flag, BOOL bCombineWithPreviousUndo )
 {
+	if (bNoFilesOpened) return;
 	CWnd* pMain = AfxGetMainWnd();
 	if( flag )
 	{
@@ -2342,33 +2391,60 @@ void CFreePcbDoc::OnFileImport()
 	if (ret != IDOK )
 		return;
 	CString str = dlg.GetPathName(); 
+	FileImport(str);
+}
+
+void CFreePcbDoc::FileImport(CString path, bool bForceFileSyncCheck)
+{
 	CStdioFile file;
-	if( !file.Open( str, CFile::modeRead ) )
+	if( !file.Open( path, CFile::modeRead ) )
 	{
 		CString s ((LPCSTR) IDS_UnableToOpenFile2);
 		AfxMessageBox( s );
 		return;
 	}
-	// CPT: Do the option dlg even if there are no parts and/or nets in project.
-	// CPT2 TODO.  Make sure dlg items are disabled if existing partlist/netlist are empty.
+	// CPT: Do the option dlg even if there are no parts and/or nets in project.  
+	// CPT2: But arrange for the appropriate controls to be disabled:
+	m_import_flags = 0;
+	if (m_plist->parts.IsEmpty())
+		m_import_flags |= NO_EXISTING_PARTS;
+	if (m_nlist->nets.IsEmpty())
+		m_import_flags |= NO_EXISTING_NETS;
+	if (bForceFileSyncCheck)
+		m_import_flags |= FORCE_FILE_SYNC_CHECK;
 	CDlgImportOptions dlg_options;
 	dlg_options.Initialize( m_import_flags );
-	ret = dlg_options.DoModal();
+	int ret = dlg_options.DoModal();
 	if( ret == IDCANCEL )
 		return;
-	m_netlist_full_path = str;	// save path for next time
+	m_netlist_full_path = path;	// save path for next time
 
 	// Go for it!  First read the netlist file into partlist_info + netlist_info structures.
 	m_import_flags = IMPORT_FROM_NETLIST_FILE | dlg_options.m_flags;
-	partlist_info pli;
-	netlist_info nli;
+	// show log dialog
+	m_dlg_log->ShowWindow( SW_SHOW );
+	m_dlg_log->BringWindowToTop();
+	m_dlg_log->Clear();
+	m_dlg_log->UpdateWindow();
+	// We will either read the file into a temporary partlist_info + netlist_info, or into the more permanent
+	// m_sync_file_pli + m_sync_file_nli, depending on whether user checked the "Sync netlist file" control
+	partlist_info pli0, *pli;
+	netlist_info nli0, *nli;
+	if (m_import_flags & SYNC_NETLIST_FILE)
+		m_bSyncFile = true,
+		m_sync_file = path,
+		pli = &m_sync_file_pli,
+		nli = &m_sync_file_nli;
+	else
+		pli = &pli0,					// Preexisting netlist sync file is unchanged (I guess...)
+		nli = &nli0;
 	CString line;
 	if( dlg_options.m_format == CMyFileDialog::PADSPCB )
 	{
 		CString s ((LPCSTR) IDS_ReadingNetlistFile);
-		line.Format( s, str ); 
+		line.Format( s, path ); 
 		m_dlg_log->AddLine( line );
-		int err = ImportPADSPCBNetlist( &file, m_import_flags, &pli, &nli );
+		int err = ImportPADSPCBNetlist( &file, m_import_flags, pli, nli );
 		if( err == NOT_PADSPCB_FILE )
 		{
 			m_dlg_log->ShowWindow( SW_HIDE );
@@ -2383,17 +2459,12 @@ void CFreePcbDoc::OnFileImport()
 	if( m_import_flags & SAVE_BEFORE_IMPORT )
 		// save project
 		OnFileSave();
-	// show log dialog
-	m_dlg_log->ShowWindow( SW_SHOW );
-	m_dlg_log->BringWindowToTop();
-	m_dlg_log->Clear();
-	m_dlg_log->UpdateWindow();
 
 	if( m_import_flags & IMPORT_PARTS )
 	{
 		line.LoadStringA(IDS_ImportingPartsIntoProject);
 		m_dlg_log->AddLine( line );
-		m_plist->ImportPartListInfo( &pli, m_import_flags, m_dlg_log );
+		m_plist->ImportPartListInfo( pli, m_import_flags, m_dlg_log );
 	}
 	if( m_import_flags & IMPORT_NETS )
 	{
@@ -2409,7 +2480,7 @@ void CFreePcbDoc::OnFileImport()
 			oldConnects.Add( &net->connects ),
 			net->connects.RemoveAll(),
 			net->tees.RemoveAll();
-		m_nlist->ImportNetListInfo( &nli, m_import_flags, m_dlg_log, 0, 0, 0 );
+		m_nlist->ImportNetListInfo( nli, m_import_flags, m_dlg_log, 0, 0, 0 );
 		// Now reattach old connects where we can.
 		CIter<CConnect> ic (&oldConnects);
 		for (CConnect *c = ic.First(); c; c = ic.Next())
@@ -2468,7 +2539,7 @@ void CFreePcbDoc::OnFileImport()
 	}
 
 	// clean up
-	str = "\r\n";
+	CString str = "\r\n";
 	m_nlist->CleanUpAllConnections( &str );
 	m_dlg_log->AddLine( str );
 	line.LoadStringA(IDS_Done);
@@ -2746,7 +2817,9 @@ void CFreePcbDoc::ImportSessionFile( CString * filepath, CDlgLog * log, BOOL bVe
 
 // import netlist 
 // enter with file already open
+// CPT2 TODO IS THIS DEFUNCT?
 //
+/*
 int CFreePcbDoc::ImportNetlist( CStdioFile * file, UINT flags, 
 							   partlist_info * pli, netlist_info * nli )
 {
@@ -2926,6 +2999,7 @@ int CFreePcbDoc::ImportNetlist( CStdioFile * file, UINT flags,
 		}
 	}
 }
+*/
 
 // export netlist in PADS-PCB format
 // enter with file already open
@@ -3009,18 +3083,17 @@ int CFreePcbDoc::ImportPADSPCBNetlist( CStdioFile * file, UINT flags,
 	CString instr, net_name, mess;
 	CMapStringToPtr part_map, net_map, pin_map;
 	void * ptr;
-	int npins, inet;
-	int err_flags = 0;
-	int line = 0;
+	int npins, inet = 0, ipart = 0;
+	int err_flags = 0, line = 0;
 	BOOL not_eof;
-	int ipart;
-	if( pli )
-		ipart = pli->GetSize();
-
 	// state machine
 	enum { IDLE, PARTS, NETS, SIGNAL };
 	int state = IDLE;
 	BOOL bLegal = FALSE;
+
+	// CPT2: Empty out preexisting contents of pli and nli
+	pli->RemoveAll();
+	nli->RemoveAll();
 
 	while( 1 )
 	{
@@ -3076,6 +3149,7 @@ int CFreePcbDoc::ImportPADSPCBNetlist( CStdioFile * file, UINT flags,
 				}
 				// new part
 				pli->SetSize( ipart+1 );
+				part_info *pi = &(*pli)[ipart];
 				CString shape_str( mystrtok( NULL, "\n\r" ) );
 				shape_str.Trim();
 				// check for "ssss@ffff" format
@@ -3084,7 +3158,7 @@ int CFreePcbDoc::ImportPADSPCBNetlist( CStdioFile * file, UINT flags,
 				{
 					CString value_str;
 					SplitString( &shape_str, &value_str, &shape_str, '@' );
-					(*pli)[ipart].value = value_str;
+					pi->value = value_str;
 				}
 				if( shape_str.GetLength() > CShape::MAX_NAME_SIZE )
 				{
@@ -3094,35 +3168,36 @@ int CFreePcbDoc::ImportPADSPCBNetlist( CStdioFile * file, UINT flags,
 					shape_str = shape_str.Left(CShape::MAX_NAME_SIZE);
 				}
 				// find footprint, get from library if necessary
-				CShape * s = GetFootprintPtr( &shape_str );
-				if( s == NULL )
+				CShape * s = NULL;
+				if (!(flags & DONT_LOAD_SHAPES))
 				{
-					CString mess, s ((LPCSTR) IDS_LinePartFootprintNotFound);
-					mess.Format( s,	line, ref_str, shape_str );
-					m_dlg_log->AddLine( mess );
+					s = GetFootprintPtr( &shape_str );
+					if( !s )
+					{
+						CString mess, s ((LPCSTR) IDS_LinePartFootprintNotFound);
+						mess.Format( s,	line, ref_str, shape_str );
+						m_dlg_log->AddLine( mess );
+					}
 				}
 				// add part to partlist_info
-				(*pli)[ipart].part = NULL;
-				(*pli)[ipart].ref_des = ref_str;
+				pi->part = NULL;
+				pi->ref_des = ref_str;
 				part_map.SetAt( ref_str, NULL );
 				if( s )
 				{
-					(*pli)[ipart].ref_size = s->m_ref->m_font_size;
-					(*pli)[ipart].ref_width = s->m_ref->m_stroke_width;
+					pi->ref_size = s->m_ref->m_font_size;
+					pi->ref_width = s->m_ref->m_stroke_width;
 				}
 				else
-				{
-					(*pli)[ipart].ref_size = 0;
-					(*pli)[ipart].ref_width = 0;
-				}
-				(*pli)[ipart].package = shape_str;
-				(*pli)[ipart].bOffBoard = TRUE;
-				(*pli)[ipart].shape = s;
-				(*pli)[ipart].angle = 0;
-				(*pli)[ipart].side = 0;
-				(*pli)[ipart].x = 0;
-				(*pli)[ipart].y = 0;
-				(*pli)[ipart].ref_vis = true;		// CPT
+					pi->ref_size = pi->ref_width = 0;
+				pi->package = shape_str;
+				pi->bOffBoard = TRUE;
+				pi->shape = s;
+				pi->shape_name = shape_str;		// CPT2 new
+				pi->angle = 0;
+				pi->side = 0;
+				pi->x = pi->y = 0;
+				pi->ref_vis = true;		// CPT
 				ipart++;
 			}
 		}
@@ -3165,24 +3240,25 @@ int CFreePcbDoc::ImportPADSPCBNetlist( CStdioFile * file, UINT flags,
 						net_map.SetAt( net_name, NULL );
 						inet = nli->GetSize();
 						nli->SetSize( inet+1 );
-						(*nli)[inet].name = net_name;
-						(*nli)[inet].net = NULL;
-						(*nli)[inet].apply_trace_width = FALSE;
-						(*nli)[inet].apply_via_width = FALSE;
-						(*nli)[inet].modified = TRUE;
-						(*nli)[inet].deleted = FALSE;
-						(*nli)[inet].visible = TRUE;
+						net_info *ni = &(*nli)[inet];
+						ni->name = net_name;
+						ni->net = NULL;
+						ni->apply_trace_width = FALSE;
+						ni->apply_via_width = FALSE;
+						ni->modified = TRUE;
+						ni->deleted = FALSE;
+						ni->visible = TRUE;
 						// mark widths as undefined
-						(*nli)[inet].w = -1;
-						(*nli)[inet].v_w = -1;
-						(*nli)[inet].v_h_w = -1;
+						ni->w = -1;
+						ni->v_w = -1;
+						ni->v_h_w = -1;
 						npins = 0;
 						state = SIGNAL;
 					}
 				}
 			}
 		}
-		else if( state == SIGNAL  && nli && (flags & IMPORT_NETS) )
+		else if( state == SIGNAL && nli && (flags & IMPORT_NETS) )
 		{
 			// add pins to net
 			char * pin = mystrtok( instr, " \t\n\r" );
@@ -3362,7 +3438,7 @@ void CFreePcbDoc::OnProjectOptions()
 			m_name = m_name.Left( m_name.GetLength()-4 );
 	}
 	// CPT: args have changed:
-	dlg.Init( FALSE, &m_name, &m_path_to_folder, &m_lib_dir,
+	dlg.Init( FALSE, &m_name, &m_path_to_folder, &m_lib_dir, m_bSyncFile, &m_sync_file,
 		m_num_copper_layers, m_bSMT_copper_connect, m_default_glue_w,
 		m_trace_w, m_via_w, m_via_hole_w,
 		&m_w, &m_v_w, &m_v_h_w );
@@ -3419,6 +3495,9 @@ void CFreePcbDoc::OnProjectOptions()
 	m_via_w = dlg.GetViaWidth();
 	m_via_hole_w = dlg.GetViaHoleWidth();
 	m_nlist->SetWidths( m_trace_w, m_via_w, m_via_hole_w );
+	// CPT2 new
+	m_bSyncFile = dlg.m_bSyncFile;
+	m_sync_file = dlg.m_sync_file;
 
 	// CPT: option to save dlg results to default.cfg:
 	if (dlg.m_default) 
@@ -3450,6 +3529,17 @@ void CFreePcbDoc::OnProjectOptions()
 	m_view->CancelSelection();
 	ProjectModified( TRUE );
 	ResetUndoState();
+	// CPT2 new:
+	if (m_bSyncFile)
+	{
+		CString s ((LPCSTR) IDS_DoYouWishToImportFromTheNetlistFileNow);
+		int ret = AfxMessageBox( s, MB_YESNO );
+		if (ret==IDYES)
+			FileImport(m_sync_file, true);
+		else
+			// Still need to load in the netlist file to m_sync_file_pli and m_sync_file_nli.
+			LoadSyncFile();
+	}
 }
 
 // come here from MainFrm on timer event
@@ -4379,7 +4469,7 @@ void CFreePcbDoc::OnToolsPreferences()
 {
 	CDlgPrefs dlg;
 	dlg.doc = this;
-	dlg.Init( m_bReversePgupPgdn, m_bLefthanded, m_bHighlightNet, m_auto_interval, 
+	dlg.Init( m_bReversePgupPgdn, m_bLefthanded, m_bHighlightNet, m_bErrorSound, m_auto_interval, 
 		m_auto_ratline_disable, m_auto_ratline_min_pins); 
 	int ret = dlg.DoModal();
 	if( ret != IDOK ) 
@@ -4387,6 +4477,7 @@ void CFreePcbDoc::OnToolsPreferences()
 	m_bReversePgupPgdn = dlg.m_bReverse;
 	m_bLefthanded = dlg.m_bLefthanded;
 	m_bHighlightNet = dlg.m_bHighlightNet;
+	m_bErrorSound = dlg.m_bErrorSound;
 	m_auto_interval = dlg.m_auto_interval;
 	m_auto_ratline_disable = dlg.m_bAuto_Ratline_Disable;
 	m_auto_ratline_min_pins = dlg.m_auto_ratline_min_pins;
@@ -4415,6 +4506,8 @@ void CFreePcbDoc::OnToolsPreferences()
 	newLines.Add( line );
 	line.Format( "highlight_net: \"%d\"\n", m_bHighlightNet);
 	newLines.Add( line );
+	line.Format( "error_sound: \"%d\"\n", m_bErrorSound);
+	newLines.Add( line );
 	ReadFileLines(oldFn, oldLines);
 	ReplaceLines(oldLines, newLines, "autosave_interval");
 	ReplaceLines(oldLines, newLines, "auto_ratline_disable");
@@ -4422,6 +4515,7 @@ void CFreePcbDoc::OnToolsPreferences()
 	ReplaceLines(oldLines, newLines, "reverse_pgup_pgdn");
 	ReplaceLines(oldLines, newLines, "lefthanded_mode");
 	ReplaceLines(oldLines, newLines, "highlight_net");
+	ReplaceLines(oldLines, newLines, "error_sound");
 	WriteFileLines(newFn, oldLines);
 	m_view->SetFKText(m_view->m_cursor_mode);					// In case user changed the left-handed mode...
 }

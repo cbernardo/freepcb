@@ -383,6 +383,7 @@ public:
 	void GetWidth( int *w, int *via_w=NULL, int *via_hole_w=NULL);
 	void CalcViaWidths(int w, int *via_w, int *via_hole_w);
 	void SetThermals();
+	void AddPinsFromSyncFile();										// CPT2 Experimental netlist file-synching
 	// connections
 	void AddConnect( CConnect *c );
 	void CleanUpConnections( CString * logstr=NULL );

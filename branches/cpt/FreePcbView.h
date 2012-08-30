@@ -248,6 +248,7 @@ const char fk_str[FK_NUM_OPTIONS*2+2][32] =
 #endif
 
 // snap modes
+// CPT2 TODO the code for implementing SM_GRID_LINES is totally dysfunctional, and since I don't really understand it I just disabled it
 enum {	SM_GRID_POINTS,	// snap to grid points
 		SM_GRID_LINES	// snap to grid lines
 };

@@ -811,6 +811,17 @@ void CCommonView::PlacementGridDown() {
 	frm->m_wndMyToolBar.PlacementGridDown();
 	}
 
+void CCommonView::AngleUp() {
+	CMainFrame * frm = (CMainFrame*)AfxGetMainWnd();
+	frm->m_wndMyToolBar.AngleUp();
+	}
+
+void CCommonView::AngleDown() {
+	CMainFrame * frm = (CMainFrame*)AfxGetMainWnd();
+	frm->m_wndMyToolBar.AngleDown();
+	}
+
+
 void CCommonView::SelectItem(CPcbItem *item) 
 {
 	// CPT2.  Convenience method that clears the selection array, adds "item" as its sole new member, then calls HighlightSelection()

@@ -57,6 +57,9 @@ void CDlgProjectOptions::DoDataExchange(CDataExchange* pDX)
 	DDX_Text(pDX, IDC_EDIT_FOLDER, m_path_to_folder );
 	DDX_Control(pDX, IDC_EDIT_LIBRARY_FOLDER, m_edit_lib_folder);
 	DDX_Text(pDX, IDC_EDIT_LIBRARY_FOLDER, m_lib_folder );
+	DDX_Control(pDX, IDC_EDIT_SYNC_FILE, m_edit_sync_file);			// CPT2 new
+	DDX_Text(pDX, IDC_EDIT_SYNC_FILE, m_sync_file);
+	DDX_Control(pDX, IDC_CHECK_SYNC_FILE, m_check_sync_file);		// CPT2 new
 	DDX_Control(pDX, IDC_EDIT_NUM_LAYERS, m_edit_layers );
 	DDX_Text(pDX, IDC_EDIT_NUM_LAYERS, m_layers );
 	DDV_MinMaxInt(pDX, m_layers, 1, 16 );
@@ -127,6 +130,8 @@ void CDlgProjectOptions::DoDataExchange(CDataExchange* pDX)
 		}
 		// CPT:
 		m_default = m_check_default.GetCheck();
+		m_bSyncFile = m_check_sync_file.GetCheck();
+		// CPT2 TODO at least a warning if file already exists!
 	}
 }
 
@@ -137,20 +142,24 @@ BEGIN_MESSAGE_MAP(CDlgProjectOptions, CDialog)
 	ON_BN_CLICKED(IDC_BUTTON_DELETE, OnBnClickedButtonDelete)
 	ON_EN_CHANGE(IDC_EDIT_NAME, OnEnChangeEditName)
 	ON_EN_CHANGE(IDC_EDIT_FOLDER, OnEnChangeEditFolder)
+	ON_EN_CHANGE(IDC_EDIT_SYNC_FILE, OnEnChangeEditSyncFile)		// CPT2 new
 	ON_EN_SETFOCUS(IDC_EDIT_FOLDER, OnEnSetfocusEditFolder)
 	ON_EN_KILLFOCUS(IDC_EDIT_FOLDER, OnEnKillfocusEditFolder)
 	ON_BN_CLICKED(IDC_BUTTON_LIB, OnBnClickedButtonLib)
 	ON_BN_CLICKED(IDC_BUTTON_PROJ, OnBnClickedButtonProj)
+	ON_BN_CLICKED(IDC_BUTTON_SYNC_FILE, OnBnClickedButtonSyncFile)	// CPT2 new
 END_MESSAGE_MAP()
 
 // initialize data
 //
-void CDlgProjectOptions::Init( BOOL new_project,
+void CDlgProjectOptions::Init( bool new_project,
 							  CString * name,
 							  CString * path_to_folder,
 							  CString * lib_folder,
+							  bool bSyncFile,
+							  CString * sync_file,
 							  int num_layers,
-							  BOOL bSMT_connect_copper,
+							  bool bSMT_connect_copper,
 							  int glue_w,
 							  int trace_w,
 							  int via_w,
@@ -163,6 +172,8 @@ void CDlgProjectOptions::Init( BOOL new_project,
 	m_name = *name;
 	m_path_to_folder = *path_to_folder;
 	m_lib_folder = *lib_folder;
+	m_sync_file = *sync_file;				// CPT2
+	m_bSyncFile = bSyncFile;				// CPT2
 	m_layers = num_layers;
 	m_bSMT_connect_copper = bSMT_connect_copper;
 	m_glue_w = glue_w;
@@ -180,6 +191,7 @@ BOOL CDlgProjectOptions::OnInitDialog()
 
 	// initialize strings
 	m_edit_folder.SetWindowText( m_path_to_folder );
+	m_edit_sync_file.SetWindowTextA( m_sync_file );				// CPT2 new
 	// set up list control
 	DWORD old_style = m_list_menu.GetExtendedStyle();
 	m_list_menu.SetExtendedStyle( LVS_EX_FULLROWSELECT | LVS_EX_FLATSB | old_style );
@@ -209,6 +221,7 @@ BOOL CDlgProjectOptions::OnInitDialog()
 		m_button_proj.EnableWindow(FALSE);
 	}
 	m_check_SMT_connect.SetCheck( m_bSMT_connect_copper );
+	m_check_sync_file.SetCheck( m_bSyncFile );					// CPT2 new
 	return TRUE;
 }
 
@@ -310,6 +323,13 @@ void CDlgProjectOptions::OnEnKillfocusEditFolder()
 	m_folder_has_focus = FALSE;
 }
 
+void CDlgProjectOptions::OnEnChangeEditSyncFile()
+{
+	// CPT2 new
+	CString str;
+	m_edit_sync_file.GetWindowText( str ); 
+	m_check_sync_file.SetCheck( str.GetLength()>0 );
+}
 
 void CDlgProjectOptions::OnBnClickedButtonLib()
 {
@@ -333,5 +353,28 @@ void CDlgProjectOptions::OnBnClickedButtonProj()
 		m_path_to_folder = dlg.GetPathName();
 		m_edit_folder.SetWindowText( m_path_to_folder );
 	}
+}
+
+void CDlgProjectOptions::OnBnClickedButtonSyncFile()
+{
+	// CPT2 new
+	CString s ((LPCSTR) IDS_AllFiles), s2 ((LPCSTR) IDS_SynchronizeWithNetListFile), s3;
+	m_edit_sync_file.GetWindowTextA( s3 );
+	if (s3=="")
+	{
+		s3 = m_path_to_folder;
+		if (s3.Right(1) != "\\") 
+			s3 += "\\";
+		s3 += m_name + ".txt";
+	}
+	CFileDialog dlg( TRUE , NULL, (LPCTSTR)s3, 0, 
+		s, NULL, OPENFILENAME_SIZE_VERSION_500 );
+	dlg.m_ofn.lpstrTitle = s2;
+	int ret = dlg.DoModal();
+	if (ret != IDOK )
+		return;
+	m_sync_file = dlg.GetPathName(); 
+	m_edit_sync_file.SetWindowTextA( m_sync_file );
+	m_check_sync_file.SetCheck( m_sync_file.GetLength() > 0 );
 }
 
