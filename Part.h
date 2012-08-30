@@ -192,6 +192,8 @@ typedef struct {
 	CString package;	// package (from original imported netlist, don't edit)
 	CShape * shape;		// pointer to shape (may be edited)
 	bool bShapeChanged;	// Set if "part->shape" gets its internals modified.
+	CString shape_name;			// CPT2 new.  Included separately from shape, in case we read from a netlist file and didn't find 
+								// a shape to put into "shape"
 	CString shape_file_name;	// CPT2 new.  Indicates which library file the shape came from.  Most often "", signifying the local cache,
 						// but if user goes to the DlgAddPart it may change.
 	BOOL deleted;		// flag to indicate that part was deleted

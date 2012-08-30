@@ -14,12 +14,13 @@ protected:
 	CEdit m_edit_auto_interval;
 	CButton m_check_reverse;
 	CButton m_check_lefthanded;
+	CButton m_check_error_sound;		// CPT2 new
 	CButton m_check_disable_auto_rats;
 	CEdit m_edit_min_pins;
 	CButton m_check_highlight_net;
 	CEdit m_edit_defaultcfg;
 public:
-	bool m_bReverse, m_bLefthanded, m_bHighlightNet;
+	bool m_bReverse, m_bLefthanded, m_bHighlightNet, m_bErrorSound;
 	int m_auto_interval;
 	BOOL m_bAuto_Ratline_Disable;
 	int m_auto_ratline_min_pins;
@@ -29,8 +30,8 @@ public:
 public:
 	CDlgPrefs(CWnd* pParent = NULL);   // standard constructor
 	virtual ~CDlgPrefs();
-	void Init(bool bReverse, bool bLefthanded, BOOL bHighlightNet, int auto_interval, 
-		BOOL bAuto_Ratline_Disable, int auto_ratline_min_pins);
+	void Init(bool bReverse, bool bLefthanded, bool bHighlightNet, bool bErrorSound, int auto_interval, 
+		bool bAuto_Ratline_Disable, int auto_ratline_min_pins);
 
 // Dialog Data
 	enum { IDD = IDD_PREFS };

@@ -28,11 +28,12 @@ protected:
 	DECLARE_MESSAGE_MAP()
 
 private:
+	CFreePcbDoc *m_doc;			// CPT2 added.
 	CString m_footprint_name;
 	int m_ilib;
 	int m_ihead;
 	int m_ifoot;
-	BOOL m_in_cache;	// true if new footprint selected from cache
+	BOOL m_in_cache;			// true if new footprint selected from cache
 	CShape *m_shape;			// CPT2 was CShape, now CShape*.  Set on entry if we're editing, null if we're adding;  
 								// set when "OK" is hit, either way
 	CString m_shape_file_name;	// CPT2 new.  Informs the caller about the selected shape's library file ("" => local cache)
@@ -69,9 +70,10 @@ private:
 	CEdit m_edit_lib;
 	CDlgLog * m_dlg_log;
 	CComboBox m_combo_angle;
-	int m_x_initial;				// CPT2.  Stores the initial value of m_x (we must take note if it changes)
-	int m_y_initial;				// CPT2.  Similar
-	int m_units_initial;			// CPT2.  Similar
+	CButton m_button_compare_with_netlist;		// CPT2 new
+	int m_x_initial;							// CPT2.  Stores the initial value of m_x (we must take note if it changes)
+	int m_y_initial;							// CPT2.  Similar
+	int m_units_initial;						// CPT2.  Similar
 
 public:
 	void Initialize( partlist_info * pli,
@@ -80,16 +82,13 @@ public:
 		BOOL new_part,
 		BOOL multiple,
 		int multiple_mask,
-		CShapeList * cache_shapes,
-		CFootLibFolderMap * footlibfoldermap,
-		int units,
-		CDlgLog * log );
+		CFreePcbDoc *doc,
+		int units );
 	void InitPartLibTree();
 	BOOL GetDragFlag();
 	void SetFields();
 	void GetFields();
 
-public:
 	int m_units;
 	int m_x, m_y;
 	int m_angle;
@@ -107,4 +106,5 @@ private:
 	afx_msg void OnBnClickedCancel();
 	afx_msg void OnBnClickedOk();
 public:
+	afx_msg void OnBnClickedButtonCompareWithNetlist();
 };

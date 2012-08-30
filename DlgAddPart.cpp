@@ -55,12 +55,15 @@ void CDlgAddPart::DoDataExchange(CDataExchange* pDX)
 	DDX_Control(pDX, IDC_CHECK1, m_check_value_visible);
 	DDX_Control(pDX, IDC_CHECK2, m_check_ref_visible);
 	DDX_Control(pDX, IDC_COMBO2, m_combo_angle);
+	DDX_Control(pDX, IDC_BUTTON_COMPARE_WITH_NETLIST, m_button_compare_with_netlist);
 	if( !pDX->m_bSaveAndValidate )
 	{
 		// incoming
 		m_combo_units.InsertString( 0, "MIL" );
 		m_combo_units.InsertString( 1, "MM" );
 		m_edit_lib.SetWindowText( *m_folder->GetFullPath() );
+		if (!m_doc->m_bSyncFile || m_multiple)
+			m_button_compare_with_netlist.ShowWindow(SW_HIDE);
 		return;
 	}
 
@@ -161,6 +164,7 @@ void CDlgAddPart::DoDataExchange(CDataExchange* pDX)
 			pi->value_size = m_shape->m_value->m_font_size,
 			pi->value_width = m_shape->m_value->m_stroke_width;
 		pi->shape = m_shape;
+		pi->shape_name = m_shape->m_name;
 		pi->shape_file_name = m_shape_file_name;
 	}
 	if( !m_multiple || (m_multiple_mask & MSK_PACKAGE) )
@@ -197,7 +201,6 @@ void CDlgAddPart::DoDataExchange(CDataExchange* pDX)
 }
 
 
-
 BEGIN_MESSAGE_MAP(CDlgAddPart, CDialog)
 	ON_NOTIFY(TVN_SELCHANGED, IDC_PART_LIB_TREE, OnTvnSelchangedPartLibTree)
 	ON_BN_CLICKED(IDC_RADIO_DRAG, OnBnClickedRadioDrag)
@@ -207,6 +210,7 @@ BEGIN_MESSAGE_MAP(CDlgAddPart, CDialog)
 	ON_CBN_SELCHANGE(IDC_COMBO_ADD_PART_UNITS, OnCbnSelchangeComboAddPartUnits)
 	ON_BN_CLICKED(IDC_BUTTON_ADD_PART_BROWSE, OnBnClickedButtonBrowse)
 	ON_BN_CLICKED(IDC_RADIO_OFFBOARD, OnBnClickedRadioOffBoard)
+	ON_BN_CLICKED(IDC_BUTTON_COMPARE_WITH_NETLIST, &CDlgAddPart::OnBnClickedButtonCompareWithNetlist)
 END_MESSAGE_MAP()
 
 
@@ -220,10 +224,8 @@ void CDlgAddPart::Initialize( partlist_info * pli,
 							 BOOL new_part,
 							 BOOL multiple,
 							 int multiple_mask,
-							 CShapeList * cache_shapes,
-							 CFootLibFolderMap * footlibfoldermap,
-							 int units,
-							 CDlgLog * log )
+							 CFreePcbDoc *doc,
+							 int units )
 {
 	m_pl = pli;
 	m_ip = i;
@@ -232,12 +234,13 @@ void CDlgAddPart::Initialize( partlist_info * pli,
 	m_new_part = new_part;
 	m_multiple = multiple;
 	m_multiple_mask = multiple_mask;
-	m_cache_shapes = cache_shapes;
-	m_footlibfoldermap = footlibfoldermap;
+	m_doc = doc;
+	m_cache_shapes = doc->m_slist;
+	m_footlibfoldermap = &doc->m_footlibfoldermap;
 	m_units = units;  
-	m_dlg_log = log;
+	m_dlg_log = doc->m_dlg_log;
 	CString * last_folder_path = m_footlibfoldermap->GetLastFolder();
-	m_folder = m_footlibfoldermap->GetFolder( last_folder_path, log );
+	m_folder = m_footlibfoldermap->GetFolder( last_folder_path, m_dlg_log );
 	m_in_cache = FALSE;
 }
 
@@ -637,6 +640,9 @@ void CDlgAddPart::OnBnClickedCancel()
 		item = part_tree.GetNextItem( item, TVGN_NEXT );
 		ilib++;
 	}
+	if (m_doc->m_undo_items.GetSize() > 0)
+		// CPT2 Could happen if user hit "Compare with netlist" and fixed pins.  So I guess we'll undo that...
+		m_doc->UndoNoRedo();
 	OnCancel();
 }
 
@@ -716,7 +722,6 @@ void CDlgAddPart::OnBnClickedButtonBrowse()
 		{
 			// if library folder not indexed, pop up log
 			m_dlg_log->ShowWindow( SW_SHOW );   
-			m_dlg_log->UpdateWindow();
 			m_dlg_log->BringWindowToTop();
 			m_dlg_log->Clear();
 			m_dlg_log->UpdateWindow(); 
@@ -731,3 +736,131 @@ void CDlgAddPart::OnBnClickedButtonBrowse()
 	}
 }
 
+void CDlgAddPart::OnBnClickedButtonCompareWithNetlist()
+{
+	// CPT2 new, part of the experimental synching-with-netlist-file system
+	m_edit_ref_des.GetWindowTextA( m_ref_des );
+	if (m_ref_des=="")
+	{
+		AfxMessageBox (CString ((LPCSTR)IDS_NoReferenceDesignatorHasBeenChosen));
+		return;
+	}
+
+	CString foot_str;
+	m_edit_footprint.GetWindowText( foot_str );
+	if (!m_shape || foot_str != m_shape->m_name)
+		// Look for the shape named "foot_str" within the cache
+		m_shape = m_cache_shapes->GetShapeByName( &foot_str ),
+		m_shape_file_name = "";
+	if (!m_shape)
+	{
+		CString str;
+		if (foot_str=="")
+			str.LoadStringA(IDS_ErrorNoFootprintSelected);
+		else
+			str.LoadStringA(IDS_ErrorCouldntLocateFootprintName);
+		AfxMessageBox( str );
+		return;
+	}
+
+	m_dlg_log->ShowWindow( SW_SHOW );   
+	m_dlg_log->BringWindowToTop();
+	m_dlg_log->Clear();
+	m_dlg_log->UpdateWindow(); 
+	CString line, str0;
+	CPart *part = m_ip>=0? (*m_pl)[m_ip].part: NULL;
+
+	// First check if ref des is found in the sync-file partlist
+	int sizePli = m_doc->m_sync_file_pli.GetSize();
+	bool bFound = false;
+	for (int i=0; i<sizePli; i++)
+	{
+		part_info *pi = &m_doc->m_sync_file_pli[i];
+		if (pi->ref_des == m_ref_des)
+		{
+			str0.LoadStringA( IDS_FoundPartInNetlistFileWithFootprintName );
+			line.Format(str0, m_ref_des, m_doc->m_sync_file, pi->shape_name);
+			m_dlg_log->AddLine(line);
+			bFound = true;
+			break;
+		}
+	}
+	if (!bFound)
+	{
+		str0.LoadStringA( IDS_PartNotListedInNetlistFile );
+		line.Format(str0, m_ref_des, m_doc->m_sync_file);
+		m_dlg_log->AddLine(line);
+	}
+
+	// Now see if part's pins are found among the nets in the sync-file netlist
+	// Also gather a list of pins that are on the wrong nets, and the corresponding correct nets
+	int sizeNli = m_doc->m_sync_file_nli.GetSize();
+	CArray<CString> correctPins, correctNets;
+	for (int i=0; i<sizeNli; i++)
+	{
+		net_info *ni = &m_doc->m_sync_file_nli[i];
+		for (int j=0; j<ni->ref_des.GetSize(); j++)
+		{
+			if (ni->ref_des[j] != m_ref_des)
+				continue;
+			CString pin_name = ni->pin_name[j];
+			CPadstack *ps = m_shape->GetPadstackByName( &pin_name );
+			if (!ps)
+			{
+				str0.LoadStringA( IDS_PinFoundInNetlistFileNotPresentWithTheFootprint );
+				line.Format(str0, m_ref_des, ni->pin_name[j], foot_str);
+				m_dlg_log->AddLine(line);
+			}
+			else
+			{
+				CPin *pin = part? part->GetPinByName( &pin_name ): NULL;
+				if (!pin)
+				{
+					// Hmm, user must have changed shape, and the new shape has pin_name while the old one doesn't
+					str0.LoadStringA( IDS_PinFoundInNetlistFilePresentWithTheNewFootprint );
+					line.Format(str0, m_ref_des, pin_name, foot_str);
+					m_dlg_log->AddLine(line);
+				}
+				else if (!pin->net || pin->net->name != ni->name)
+				{
+					str0.LoadStringA( IDS_PinFoundInNetlistFilePresentOnBoardButShouldBeAssignedToNet );
+					line.Format(str0, m_ref_des, pin_name, ni->name);
+					m_dlg_log->AddLine(line);
+					correctPins.Add(pin_name);
+					correctNets.Add(ni->name);
+				}
+				else
+				{
+					str0.LoadStringA( IDS_PinFoundInNetlistFilePresentOnBoardAndCorrectlyAssignedToNet );
+					line.Format(str0, m_ref_des, pin_name, ni->name);
+					m_dlg_log->AddLine(line);
+				}
+			}
+		}
+	}
+
+	if (correctPins.IsEmpty()) return;
+	CString s ((LPCSTR) IDS_DoYouWantToFixThePinsThatAreOnTheWrongNets);
+	int ret = m_dlg_log->MessageBox(s, "", MB_YESNO);
+	if (ret==IDNO) return;
+
+	m_dlg_log->ShowWindow(SW_HIDE);
+	m_doc->m_nlist->nets.SetUtility(0);
+	for (int i=0; i<correctPins.GetSize(); i++)
+	{
+		CPin *pin = part->GetPinByName( &correctPins[i] );
+		pin->SaveUndoInfo();
+		if (pin->net)
+			pin->net->SaveUndoInfo( CNet::SAVE_CONNECTS ),
+			pin->net->RemovePin(pin);
+		CNet *net = m_doc->m_nlist->GetNetPtrByName( &correctNets[i] );
+		if( !net )
+			net = new CNet(m_doc->m_nlist, correctNets[i], 0, 0, 0);
+		else
+			net->SaveUndoInfo( CNet::SAVE_NET_ONLY );
+		net->AddPin(pin);
+		if( m_doc->m_vis[LAY_RAT_LINE] && !net->utility)
+			net->OptimizeConnections(),
+			net->utility = 1;
+	}
+}

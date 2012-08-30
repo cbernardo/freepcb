@@ -948,6 +948,36 @@ void CPart::ChangeFootprint(CShape *_shape)
 		m_ref->m_font_size = shape->m_ref->m_font_size;
 	if (m_value->m_font_size == 0)
 		m_value->m_font_size = shape->m_value->m_font_size;
+
+	// CPT2 experimental netlist file synching
+	if (doc->m_bSyncFile)
+	{
+		int sizeNli = doc->m_sync_file_nli.GetSize();
+		for (int i=0; i<sizeNli; i++)
+		{
+			net_info *ni = &doc->m_sync_file_nli[i];
+			for (int j=0; j<ni->ref_des.GetSize(); j++)
+			{
+				if (ni->ref_des[j] != ref_des)
+					continue;
+				CString pin_name = ni->pin_name[j];
+				CPin *pin = GetPinByName( &pin_name );
+				if (!pin)
+					// Oh well, can't put a pin on the correct net if it's not present in the footprint...
+					continue;
+				if (pin->net && pin->net->name == ni->name)
+					// Pin is on the right net already!
+					continue;
+				// Change pin's net.  NB undo info is already saved.
+				if (pin->net)
+					pin->net->RemovePin(pin);
+				CNet *net = doc->m_nlist->GetNetPtrByName( &ni->name );
+				if( !net )
+					net = new CNet(doc->m_nlist, ni->name, 0, 0, 0);
+				net->AddPin(pin);
+			}
+		}
+	}
 }
 
 void CPart::OptimizeConnections(BOOL bLimitPinCount, BOOL bVisibleNetsOnly )
@@ -1644,6 +1674,7 @@ CPin * CPartList::GetPinByNames ( CString *ref_des, CString *pin_name)
 //
 int CPartList::GetPartBoundaries( CRect * part_r )
 {
+	// CPT2 fixed:  used to give incorrect results if not all parts had been drawn.
 	int min_x = INT_MAX;
 	int max_x = INT_MIN;
 	int min_y = INT_MAX;
@@ -1653,39 +1684,18 @@ int CPartList::GetPartBoundaries( CRect * part_r )
 	CIter<CPart> ip (&parts);
 	for (CPart *part = ip.First(); part; part = ip.Next())
 	{
-		if( part->dl_sel )
-		{
-			// TODO the ugly Get_x(), Get_y()... functions might be rethought some day
-			int x = m_dlist->Get_x( part->dl_sel );
-			int y = m_dlist->Get_y( part->dl_sel );
-			max_x = max( x, max_x);
-			min_x = min( x, min_x);
-			max_y = max( y, max_y);
-			min_y = min( y, min_y);
-			x = m_dlist->Get_xf( part->dl_sel );
-			y = m_dlist->Get_yf( part->dl_sel );
-			max_x = max( x, max_x);
-			min_x = min( x, min_x);
-			max_y = max( y, max_y);
-			min_y = min( y, min_y);
-			parts_found = 1;
-		}
-		if( CDLElement *ref_sel = part->m_ref->dl_sel )
-		{
-			int x = m_dlist->Get_x( ref_sel );
-			int y = m_dlist->Get_y( ref_sel );
-			max_x = max( x, max_x);
-			min_x = min( x, min_x);
-			max_y = max( y, max_y);
-			min_y = min( y, min_y);
-			x = m_dlist->Get_xf( ref_sel );
-			y = m_dlist->Get_yf( ref_sel );
-			max_x = max( x, max_x);
-			min_x = min( x, min_x);
-			max_y = max( y, max_y);
-			min_y = min( y, min_y);
-			parts_found = 1;
-		}
+		CRect r = part->CalcSelectionRect();
+		min_x = min(min_x, r.left);
+		max_x = max(max_x, r.right);
+		min_y = min(min_y, r.bottom);
+		max_y = max(max_y, r.top);
+		part->m_ref->GenerateStrokesRelativeTo(part);
+		CRect refR = part->m_ref->m_br;
+		min_x = min(min_x, refR.left);
+		max_x = max(max_x, refR.right);
+		min_y = min(min_y, refR.bottom);
+		max_y = max(max_y, refR.top);
+		parts_found = true;
 	}
 	part_r->left = min_x;
 	part_r->right = max_x;
@@ -1992,6 +2002,7 @@ int CPartList::ExportPartListInfo( partlist_info * pli, CPart *part0 )
 		if (part==part0) ret = i;
 		pi->shape = part->shape;
 		pi->bShapeChanged = false;
+		pi->shape_name = part->shape->m_name;
 		pi->shape_file_name = "";								// CPT2 added.  "" signifies that it's a shape from the cache.
 		pi->package = part->package;
 		pi->ref_des = part->ref_des;
@@ -2227,7 +2238,7 @@ void CPartList::ImportPartListInfo( partlist_info * pli, int flags, CDlgLog * lo
 			continue;
 		}
 
-		/* CPT2 I think this is dispensible.  Is the possibility of null-shaped parts even real any more??
+		/* CPT2 TODO I think this is dispensible.  I seriously want to phase out the possibility of parts with NULL shapes.
 		if( pi->part && !pi->part->shape && (pi->shape || pi->bShapeChanged == TRUE) )
 		{
 			// old part exists, but it had a null footprint that has now changed.
@@ -2238,10 +2249,21 @@ void CPartList::ImportPartListInfo( partlist_info * pli, int flags, CDlgLog * lo
 		}
 		*/
 
+		// CPT2 TODO I'm proposing that imported parts with no valid footprint be given a default dummy shape.
+		if (!pi->shape)
+		{
+			pi->shape = m_doc->m_slist->GetShapeByName( &CString("Dummy") );
+			if (!pi->shape)
+				pi->shape = new CShape(m_doc),
+				pi->shape->MakeDummy(),
+				m_doc->m_slist->shapes.Add( pi->shape );
+		}
+
 		if( pi->part == 0 )
 		{
 			// the partlist_info does not include a pointer to an existing part
 			// the part might not exist in the project
+			// CPT2 TODO get rid of all the null shape stuff...
 			CPart * old_part = GetPartByName( &pi->ref_des );
 			if( old_part && old_part->shape)
 			{
@@ -2403,9 +2425,30 @@ void CPartList::ImportPartListInfo( partlist_info * pli, int flags, CDlgLog * lo
 				pi->side, pi->angle, TRUE, FALSE );
 			part->m_ref->m_bShown = pi->ref_vis;
 			part->m_value->m_bShown = pi->value_vis;
-			// CPT2 TODO.  The point of the following line is to allow "phantom pins" (those within a net that refer to deleted parts)
-			// to be reattached when the part is reinstated.  Since I'm proposing that we drop phantom pins, I'm commenting it out.
-			// m_nlist->PartAdded( part );
+			// CPT2 experimental netlist-file synching:
+			if (m_doc->m_bSyncFile)
+			{
+				int sizeNli = m_doc->m_sync_file_nli.GetSize();
+				for (int i=0; i<sizeNli; i++)
+				{
+					net_info *ni = &m_doc->m_sync_file_nli[i];
+					for (int j=0; j<ni->ref_des.GetSize(); j++)
+					{
+						if (ni->ref_des[j] != part->ref_des)
+							continue;
+						CString pin_name = ni->pin_name[j];
+						CPin *pin = part->GetPinByName( &pin_name );
+						if (!pin)
+							// Oh well, can't put a pin on the correct net if it's not present in the footprint...
+							continue;
+						ASSERT(!pin->net);
+						CNet *net = m_doc->m_nlist->GetNetPtrByName( &ni->name );
+						if( !net )
+							net = new CNet(m_doc->m_nlist, ni->name, 0, 0, 0);
+						net->AddPin(pin);
+					}
+				}
+			}
 		}
 
 		else 

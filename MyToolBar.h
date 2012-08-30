@@ -35,6 +35,8 @@ public:
 	void PlacementGridDown();
 	void VisibleGridUp();
 	void VisibleGridDown();
+	void AngleUp();
+	void AngleDown();
 	void UnitToggle(bool bShiftKeyDown, CArray<double> * visible, CArray<double> * placement, CArray<double> * routing);
 
 	CStatic m_ctlStaticUnits;

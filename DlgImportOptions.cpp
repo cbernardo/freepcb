@@ -36,6 +36,7 @@ void CDlgImportOptions::DoDataExchange(CDataExchange* pDX)
 	DDX_Control( pDX, IDC_RADIO_PARTSANDNETS, m_radio_parts_and_nets );
 	DDX_Control( pDX, IDC_RADIO_PADSPCB, m_radio_padspcb );
 	DDX_Control( pDX, IDC_RADIO_FREEPCB, m_radio_freepcb );
+	DDX_Control( pDX, IDC_CHECK_SYNC, m_check_file_sync );
 	// end CPT
 
 	if( !pDX->m_bSaveAndValidate )
@@ -53,11 +54,22 @@ void CDlgImportOptions::DoDataExchange(CDataExchange* pDX)
 		if( m_flags & KEEP_FP )
 			m_radio_keep_fp.SetCheck( TRUE );
 		else
-		m_radio_change_fp.SetCheck( TRUE );
+			m_radio_change_fp.SetCheck( TRUE );
 		if( m_flags & KEEP_NETS )
 			m_radio_keep_nets.SetCheck( TRUE );
 		else
 			m_radio_remove_nets.SetCheck( TRUE );
+		if (m_flags & NO_EXISTING_PARTS)
+			m_radio_keep_parts_and_connections.EnableWindow(false),
+			m_radio_keep_parts_no_connections.EnableWindow(false),
+			m_radio_remove_parts.EnableWindow(false),
+			m_radio_keep_fp.EnableWindow(false),
+			m_radio_change_fp.EnableWindow(false);
+		if (m_flags & NO_EXISTING_NETS)
+			m_radio_keep_nets.EnableWindow(false),
+			m_radio_remove_nets.EnableWindow(false);
+		if (m_flags & FORCE_FILE_SYNC_CHECK)
+			m_check_file_sync.SetCheck(true);
 	}
 
 	else
@@ -83,6 +95,8 @@ void CDlgImportOptions::DoDataExchange(CDataExchange* pDX)
 			if( m_radio_keep_nets.GetCheck() )
 				m_flags |= KEEP_NETS;
 		}
+		if (m_check_file_sync.GetCheck())
+			m_flags |= SYNC_NETLIST_FILE;
 	}
 }
 // end CPT
@@ -90,9 +104,10 @@ void CDlgImportOptions::DoDataExchange(CDataExchange* pDX)
 BEGIN_MESSAGE_MAP(CDlgImportOptions, CDialog)
 	ON_BN_CLICKED(ID_SAVE_AND_IMPORT, OnBnClickedSaveAndImport)
 	ON_BN_CLICKED(IDOK, OnBnClickedOk)
-	ON_BN_CLICKED(IDC_RADIO_PARTS, OnBnClickedPartsAndNets)					// CPT
-	ON_BN_CLICKED(IDC_RADIO_NETS, OnBnClickedPartsAndNets)					// CPT
+	ON_BN_CLICKED(IDC_RADIO_PARTS, OnBnClickedParts)						// CPT
+	ON_BN_CLICKED(IDC_RADIO_NETS, OnBnClickedNets)							// CPT
 	ON_BN_CLICKED(IDC_RADIO_PARTSANDNETS, OnBnClickedPartsAndNets)			// CPT
+	ON_BN_CLICKED(IDC_CHECK_SYNC, OnBnClickedFileSync)						// CPT2
 END_MESSAGE_MAP()
 
 void CDlgImportOptions::Initialize( int flags )
@@ -118,7 +133,8 @@ void CDlgImportOptions::OnBnClickedOk()
 }
 
 // CPT:  All that follows:
-void CDlgImportOptions::SetPartsNetsFlags() {
+void CDlgImportOptions::SetPartsNetsFlags() 
+{
 	m_flags &= ~IMPORT_PARTS;
 	m_flags &= ~IMPORT_NETS;
 	if( m_radio_parts.GetCheck() || m_radio_parts_and_nets.GetCheck() )
@@ -127,9 +143,10 @@ void CDlgImportOptions::SetPartsNetsFlags() {
 		m_flags |= IMPORT_NETS;
 	if (!(m_flags & IMPORT_PARTS) && !(m_flags & IMPORT_NETS))
 		m_flags |= IMPORT_PARTS | IMPORT_NETS;
-	}
+}
 
-void CDlgImportOptions::EnableDisableButtons() {
+void CDlgImportOptions::EnableDisableButtons() 
+{
 	// Enable and disable buttons depending on the states of the IMPORT_PARTS and IMPORT_NETS flags.  Assumes at least one of those is set.
 	bool fPartsOnly = !(m_flags & IMPORT_NETS);
 	bool fNetsOnly = !(m_flags & IMPORT_PARTS);
@@ -139,33 +156,59 @@ void CDlgImportOptions::EnableDisableButtons() {
 	m_radio_nets.SetCheck(fNetsOnly);
 	m_radio_parts_and_nets.SetCheck(fPartsAndNets);
 
-	if( m_flags & IMPORT_PARTS )	{
+	if( (m_flags & IMPORT_PARTS) && !(m_flags & NO_EXISTING_PARTS) )	
+	{
 		m_radio_remove_parts.EnableWindow( 1 );
 		m_radio_keep_parts_no_connections.EnableWindow( 1 );
 		m_radio_keep_parts_and_connections.EnableWindow( 1 );
 		m_radio_keep_fp.EnableWindow( 1 );
 		m_radio_change_fp.EnableWindow( 1 );
-		}
-	else	{
+	}
+	else
+	{
 		m_radio_remove_parts.EnableWindow( 0 );
 		m_radio_keep_parts_no_connections.EnableWindow( 0 );
 		m_radio_keep_parts_and_connections.EnableWindow( 0 );
 		m_radio_keep_fp.EnableWindow( 0 );
 		m_radio_change_fp.EnableWindow( 0 );
-		}
-	if( m_flags & IMPORT_NETS ) {
+	}
+	if( (m_flags & IMPORT_NETS) && !(m_flags & NO_EXISTING_NETS) )
+	{
 		m_radio_keep_nets.EnableWindow( 1 );
 		m_radio_remove_nets.EnableWindow( 1 );
-		}
-	else {
+	}
+	else 
+	{
 		m_radio_keep_nets.EnableWindow( 0 );
 		m_radio_remove_nets.EnableWindow( 0 );
-		}
 	}
+}
 
-void CDlgImportOptions::OnBnClickedPartsAndNets() {
-	SetPartsNetsFlags();
+void CDlgImportOptions::OnBnClickedPartsAndNets() 
+{
+	m_flags |= IMPORT_PARTS | IMPORT_NETS;
 	EnableDisableButtons();
-	}
+}
 
+void CDlgImportOptions::OnBnClickedParts() 
+{
+	m_flags |= IMPORT_PARTS;
+	m_flags &= ~IMPORT_NETS;
+	EnableDisableButtons();
+}
+
+void CDlgImportOptions::OnBnClickedNets() 
+{
+	m_flags |= IMPORT_NETS;
+	m_flags &= ~IMPORT_PARTS;
+	EnableDisableButtons();
+}
+
+void CDlgImportOptions::OnBnClickedFileSync() 
+{
+	// CPT2 there are occasions when we don't want user to uncheck the file-sync checkbox (i.e., when we're exiting
+	// from DlgProjectOptions and user accepts the offer to import the synched netlist file)
+	if (m_flags & FORCE_FILE_SYNC_CHECK)
+		m_check_file_sync.SetCheck(true);
+}
 // end CPT

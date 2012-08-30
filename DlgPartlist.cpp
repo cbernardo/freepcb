@@ -178,6 +178,7 @@ void CDlgPartlist::Initialize( CPartList * plist,
 			CFootLibFolderMap * footlibfoldermap,
 			int units, CDlgLog * log )
 {
+	// CPT2 TODO simplify args, just include doc?
 	m_units = units;
 	m_plist = plist;
 	m_cache_shapes = cache_shapes;
@@ -216,9 +217,9 @@ void CDlgPartlist::OnBnClickedButtonEdit()
 	int i = m_list_ctrl.GetItemData( iItem );
 	CShape *oldShape = pli[i].shape;
 	CString oldPackage = pli[i].package;
+	extern CFreePcbApp theApp;
 	CDlgAddPart dlg;
-	dlg.Initialize( &pli, i, FALSE, FALSE, bMultiple, multiple_mask,
-		m_cache_shapes, m_footlibfoldermap, m_units, m_dlg_log );
+	dlg.Initialize( &pli, i, FALSE, FALSE, bMultiple, multiple_mask, theApp.m_doc,	m_units );
 	int ret = dlg.DoModal();
 	m_button_ok.SetFocus();
 	if( ret != IDOK )
@@ -283,8 +284,8 @@ void CDlgPartlist::OnBnClickedButtonAdd()
 	SaveSelections();
 	// now add part
 	CDlgAddPart dlg;
-	dlg.Initialize( &pli, -1, FALSE, TRUE, FALSE, 0,
-		m_cache_shapes, m_footlibfoldermap, m_units, m_dlg_log );
+	extern CFreePcbApp theApp;
+	dlg.Initialize( &pli, -1, FALSE, TRUE, FALSE, 0, theApp.m_doc, m_units );
 	int ret = dlg.DoModal();
 	m_button_ok.SetFocus();
 	if( ret == IDOK )

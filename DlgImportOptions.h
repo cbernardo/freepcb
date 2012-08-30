@@ -37,12 +37,15 @@ public:
 	CButton m_radio_parts_and_nets;
 	CButton m_radio_padspcb;
 	CButton m_radio_freepcb;
+	CButton m_check_file_sync;				// CPT2 added
 	int m_format;
 
 	void SetPartsNetsFlags();
 	void EnableDisableButtons();
 	afx_msg void OnBnClickedPartsAndNets();
-	// end CPT
+	afx_msg void OnBnClickedParts();
+	afx_msg void OnBnClickedNets();
+	afx_msg void OnBnClickedFileSync();
 	afx_msg void OnBnClickedSaveAndImport();
 	afx_msg void OnBnClickedOk();
 };

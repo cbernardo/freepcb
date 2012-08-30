@@ -257,6 +257,7 @@ CFreePcbView::CFreePcbView()
 	m_bLButtonDown = FALSE;
 	m_lastKeyWasArrow = m_lastKeyWasGroupRotate = FALSE;		// CPT
 	m_highlight_net = NULL;
+	m_units = MIL;
 
 	// CPT:  put the following into the constructor (was in InitInstance()).
 	// set up arrays of mask ids
@@ -1044,6 +1045,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 						net = new CNet(m_doc->m_nlist, name, 0, 0, 0);
 						net->AddPin(p0);
 						net->AddPin(p1);
+						net->AddPinsFromSyncFile();
 					}
 				}
 				m_doc->m_dlist->StopDragging();
@@ -1523,14 +1525,14 @@ void CFreePcbView::OnKeyUp(UINT nChar, UINT nRepCnt, UINT nFlags)
 		m_doc->m_drelist->MakeHollowCircles();
 		Invalidate( FALSE );
 	}
-	else if( nChar == 16 || nChar == 17 )
+	else if( nChar == VK_SHIFT || nChar == VK_CONTROL )
 	{
 		if( m_cursor_mode == CUR_DRAG_RAT || m_cursor_mode == CUR_DRAG_STUB )
 		{
 			// routing a trace segment, set mode
-			if( nChar == 17 )
+			if( nChar == VK_CONTROL )
 				m_snap_mode = SM_GRID_POINTS;
-			if( nChar == 16 && m_doc->m_snap_angle == 45 )
+			if( nChar == VK_SHIFT && m_doc->m_snap_angle == 45 )
 				m_inflection_mode = IM_90_45;
 			m_dlist->SetInflectionMode( m_inflection_mode );
 			Invalidate( FALSE );
@@ -1548,13 +1550,14 @@ void CFreePcbView::OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags)
 		m_doc->m_drelist->MakeSolidCircles();	// CPT2 TODO
 		Invalidate( FALSE );
 	}
-	else if( nChar == 16 || nChar == 17 )
+	else if( nChar == VK_SHIFT || nChar == VK_CONTROL )
 	{
 		if( m_cursor_mode == CUR_DRAG_RAT || m_cursor_mode == CUR_DRAG_STUB )
 		{
 			// routing a trace segment, set mode
-			if( nChar == 17 )	// ctrl
-				m_snap_mode = SM_GRID_LINES;
+			/* CPT2 disabled SM_GRID_LINES because its code is dysfunctional and I don't really get it.
+			if( nChar == VK_CONTROL )
+				m_snap_mode = SM_GRID_LINES; */
 			if( nChar == 16 && m_doc->m_snap_angle == 45 )	// shift
 				m_inflection_mode = IM_45_90;
 			m_dlist->SetInflectionMode( m_inflection_mode );
@@ -1562,9 +1565,7 @@ void CFreePcbView::OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags)
 		}
 	}
 	else
-	{
 		HandleKeyPress( nChar, nRepCnt, nFlags );
-	}
 
 	// don't pass through SysKey F10
 	if( nChar != 121 )
@@ -1865,6 +1866,16 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 				PlacementGridDown(); 
 			return;
 		}
+		else if (bCtrlKeyDown && nChar==VK_RIGHT)
+		{
+			AngleDown();
+			return;
+		}
+		else if (bCtrlKeyDown && nChar==VK_LEFT)
+		{
+			AngleUp();
+			return;
+		}
 		else if( m_sel.First() && m_sel.First()->IsNetItem() )
 			d = m_doc->m_routing_grid_spacing;
 		else
@@ -1995,7 +2006,8 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 			CSeg *seg = m_sel.First()->ToSeg();
 			if (seg->preVtx->pin || seg->postVtx->pin || seg->preVtx->tee || seg->postVtx->tee)
 			{
-				PlaySound( TEXT("CriticalStop"), 0, 0 );
+				if (m_doc->m_bErrorSound)
+					PlaySound( TEXT("CriticalStop"), 0, 0 );
 				break;
 			}
 			CancelHighlight();
@@ -2075,7 +2087,12 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 				seg->postVtx->Move( i_nudge_xf, i_nudge_yf );
 			}
 			else
-				{ seg->Highlight(); break; }
+			{
+				if (m_doc->m_bErrorSound)
+					PlaySound( TEXT("CriticalStop"), 0, 0 );
+				seg->Highlight(); 
+				break; 
+			}
 
 			// CPT2 TODO improve displayed values:
 			FinishArrowKey(seg->preVtx->x, seg->preVtx->y, dx, dy);
@@ -3843,8 +3860,7 @@ void CFreePcbView::OnPartProperties()
 	partlist_info pli;
 	int ip = part->m_pl->ExportPartListInfo( &pli, part );
 	CDlgAddPart dlg;
-	dlg.Initialize( &pli, ip, TRUE, FALSE, FALSE, 0, m_doc->m_slist, 
-		&m_doc->m_footlibfoldermap, m_units, m_doc->m_dlg_log );
+	dlg.Initialize( &pli, ip, TRUE, FALSE, FALSE, 0, m_doc, m_units );
 	int ret = dlg.DoModal();
 	if( ret != IDOK )
 		return;
@@ -3934,6 +3950,7 @@ void CFreePcbView::OnPadStartTrace()
 		else
 			net->SaveUndoInfo( CNet::SAVE_CONNECTS );
 		net->AddPin(pin);
+		net->AddPinsFromSyncFile();
 	}
 	else
 		net->SaveUndoInfo( CNet::SAVE_CONNECTS );
@@ -4001,6 +4018,7 @@ void CFreePcbView::OnPadAddToNet()
 	// assign pin to net
 	pin->SaveUndoInfo();
 	net->AddPin(pin);
+	net->AddPinsFromSyncFile();
 	if( m_doc->m_vis[LAY_RAT_LINE] )
 		net->OptimizeConnections();
 	SetFKText( m_cursor_mode );
@@ -4478,7 +4496,7 @@ void CFreePcbView::OnRatlineComplete()
 		seg->CancelDragging();
 		CancelSelection();
 	}
-	else
+	else if (m_doc->m_bErrorSound)
 		PlaySound( TEXT("CriticalStop"), 0, 0 );
 	m_doc->ProjectModified( TRUE );
 }
@@ -6875,10 +6893,12 @@ void CFreePcbView::OnGroupPaste()
 				new_name = net2->name + g_suffix;
 			// add new net
 			net = new CNet(nl, new_name, net2->def_w, net2->def_via_w, net2->def_via_hole_w );
+			net->AddPinsFromSyncFile();																// Mighty unlikely that this will do anything...
 		}
 		else if( !net )
 			// no project net with the same name, so create a new one
-			net = new CNet(nl, net2->name, net2->def_w, net2->def_via_w, net2->def_via_hole_w );
+			net = new CNet(nl, net2->name, net2->def_w, net2->def_via_w, net2->def_via_hole_w ),
+			net->AddPinsFromSyncFile();
 		else
 			// will merge clipboard net into existing project net...
 			;
@@ -7464,7 +7484,8 @@ void CFreePcbView::HandleNoShiftLayerKey(int layer, CDC *pDC)
 {
 	if( !m_doc->m_vis[layer] ) 
 	{
-		PlaySound( TEXT("CriticalStop"), 0, 0 );
+		if (m_doc->m_bErrorSound)
+			PlaySound( TEXT("CriticalStop"), 0, 0 );
 		CString s ((LPCSTR) IDS_CantRouteOnInvisibleLayer);
 		AfxMessageBox( s );
 		return;
@@ -7485,9 +7506,12 @@ void CFreePcbView::HandleNoShiftLayerKey(int layer, CDC *pDC)
 		start = m_dir==0? rat->preVtx: rat->postVtx;
 	}
 	if (start && start->pin && start->pin->pad_layer!=LAY_PAD_THRU)
+	{
 		// Changing layer while routing from an SMT pad is illegal
-		layer = -1,
-		PlaySound( TEXT("CriticalStop"), 0, 0 );
+		layer = -1;
+		if (m_doc->m_bErrorSound)
+			PlaySound( TEXT("CriticalStop"), 0, 0 );
+	}
 	else
 		m_dlist->ChangeRoutingLayer( pDC, layer, LAY_SELECTION, 0 ),
 		m_active_layer = layer,
@@ -7533,13 +7557,12 @@ void CFreePcbView::HandleShiftLayerKey(int layer, CDC *pDC) {
 
 void CFreePcbView::OnAddPart()
 {
-	// CPT2 was in CFreePcbDoc, but CFreePcbView seems more logical to me.  CPT2 TODO There's gotta be a more efficient way to do this.
+	// CPT2 was in CFreePcbDoc, but CFreePcbView seems more logical to me.
 	// invoke dialog
 	CDlgAddPart dlg;
 	partlist_info pli;
 	m_doc->m_plist->ExportPartListInfo( &pli, NULL );
-	dlg.Initialize( &pli, -1, TRUE, TRUE, FALSE, 0, m_doc->m_slist, 
-		&m_doc->m_footlibfoldermap, m_units, m_doc->m_dlg_log );
+	dlg.Initialize( &pli, -1, TRUE, TRUE, FALSE, 0, m_doc, m_units );
 	int ret = dlg.DoModal();
 	if( ret != IDOK ) return;
 

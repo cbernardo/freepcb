@@ -381,9 +381,9 @@ void CShape::Clear()
 {
 	// CPT2 converted
 	CString strRef ("REF");
-	m_ref = new CRefText(doc, 100*NM_PER_MIL, 200*NM_PER_MIL, 0, false, false, LAY_FP_SILK_TOP, 0, 0, 0, &strRef, true); 
+	m_ref = new CRefText(doc, 100*NM_PER_MIL, 200*NM_PER_MIL, 0, false, false, LAY_FP_SILK_TOP, 100*NM_PER_MIL, 10*NM_PER_MIL, 0, &strRef, true); 
 	CString strValue ("VALUE");
-	m_value = new CValueText(doc, -100*NM_PER_MIL, 200*NM_PER_MIL, 0, false, false, LAY_FP_SILK_TOP, 0, 0, 0, &strValue, true);
+	m_value = new CValueText(doc, 100*NM_PER_MIL, 0*NM_PER_MIL, 0, false, false, LAY_FP_SILK_TOP, 100*NM_PER_MIL, 10*NM_PER_MIL, 0, &strValue, true);
 	m_tl = new CTextList(doc);
 	m_centroid = new CCentroid(this);
 	m_author = "";
@@ -401,6 +401,24 @@ void CShape::Clear()
 	m_outlines.RemoveAll();
 	m_tl->texts.RemoveAll();
 	m_glues.RemoveAll();
+}
+
+void CShape::MakeDummy()
+{
+	// CPT2 experimental.  Create a dummy shape --- will be used when importing shapes without their own proper f.p.
+	// At this point, just a circle outline.
+	Clear();
+	COutline *o = new COutline(this, LAY_FP_SILK_TOP, 10*NM_PER_MIL);
+	CContour *c = new CContour(o, true);
+	c->AppendCorner(0, 50*NM_PER_MIL);
+	c->AppendCorner(50*NM_PER_MIL, 100*NM_PER_MIL, CPolyline::ARC_CW);
+	c->AppendCorner(100*NM_PER_MIL, 50*NM_PER_MIL, CPolyline::ARC_CW);
+	c->AppendCorner(50*NM_PER_MIL, 0, CPolyline::ARC_CW);
+	c->Close(CPolyline::ARC_CW);
+	m_name = "Dummy";
+	m_sel_xi = m_sel_yi = 0;
+	m_sel_xf = m_sel_yf = 100*NM_PER_MIL;
+	m_ref->m_y = 110*NM_PER_MIL;
 }
 
 void CShape::MarkConstituents(int util)

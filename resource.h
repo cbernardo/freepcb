@@ -5,6 +5,7 @@
 #define ID_GO                           3
 #define IDCANCEL2                       3
 #define ID_SAVE_AND_IMPORT              3
+#define IDC_BUTTON_COMPARE_WITH_NETLIST 4
 #define IDD_ABOUTBOX                    100
 #define IDR_HTML_DLGPARTLIST            103
 #define IDR_HTML_CDlgSetAreaHatch       104
@@ -261,6 +262,7 @@
 #define IDC_EDIT_DESC                   1005
 #define IDC_EDIT_IMPORT_DESC            1005
 #define IDC_EDIT5                       1005
+#define IDC_EDIT_SYNC_FILE              1005
 #define IDC_COMBO_NET                   1006
 #define IDC_EDIT_LAYER_5                1006
 #define IDC_EDIT6                       1006
@@ -615,6 +617,7 @@
 #define IDC_BUTTON_PROJ                 1352
 #define IDC_BUTTON_DEF                  1353
 #define IDC_STATIC_11                   1353
+#define IDC_BUTTON_SYNC_FILE            1353
 #define IDC_STATIC_12                   1354
 #define IDC_CHECK_VERBOSE               1355
 #define IDC_STATIC_13                   1355
@@ -747,8 +750,11 @@
 #define IDC_BUTTON_LAYER_18             1448
 #define IDC_EDIT_PREFS_DEFAULTCFG       1448
 #define IDC_BUTTON_LAYER_19             1449
+#define IDC_CHECK_SYNC                  1449
 #define IDC_BUTTON_LAYER_20             1450
+#define IDC_ERROR_SOUND_ENABLED         1450
 #define IDC_BUTTON_LAYER_21             1451
+#define IDC_CHECK_SYNC_FILE             1451
 #define IDC_BUTTON_LAYER_22             1452
 #define IDC_BUTTON_LAYER_23             1453
 #define IDC_BUTTON_LAYER_24             1454
@@ -1662,6 +1668,19 @@
 #define IDS_STRING62699                 62699
 #define IDS_NoticeConflictsWereFoundBetweenTheFootprints 62700
 #define IDS_PartFootprint               62701
+#define IDS_NoFootprintFoundForPartUsingDummyShape 62702
+#define IDS_SynchronizeWithNetListFile  62703
+#define IDS_DoYouWishToImportFromTheNetlistFileNow 62704
+#define IDS_WarningTheReferencedNetlistFileDoesNotAppearToBeALegalPADSPCB 62705
+#define IDS_UnableToOpenTheReferencedNetlistFile 62706
+#define IDS_NoReferenceDesignatorHasBeenChosen 62707
+#define IDS_FoundPartInNetlistFileWithFootprintName 62708
+#define IDS_PartNotListedInNetlistFile  62709
+#define IDS_PinFoundInNetlistFileNotPresentWithTheFootprint 62710
+#define IDS_PinFoundInNetlistFilePresentWithTheNewFootprint 62711
+#define IDS_PinFoundInNetlistFilePresentOnBoardButShouldBeAssignedToNet 62712
+#define IDS_PinFoundInNetlistFilePresentOnBoardAndCorrectlyAssignedToNet 62713
+#define IDS_DoYouWantToFixThePinsThatAreOnTheWrongNets 62714
 #define IDS_FkFpStr                     63000
 #define IDS_STRING63001                 63001
 #define IDS_STRING63002                 63002
@@ -2014,7 +2033,7 @@
 #define _APS_3D_CONTROLS                     1
 #define _APS_NEXT_RESOURCE_VALUE        353
 #define _APS_NEXT_COMMAND_VALUE         33019
-#define _APS_NEXT_CONTROL_VALUE         1449
+#define _APS_NEXT_CONTROL_VALUE         1452
 #define _APS_NEXT_SYMED_VALUE           106
 #endif
 #endif

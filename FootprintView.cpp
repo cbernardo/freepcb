@@ -693,14 +693,14 @@ void CFootprintView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 			d = 10000;		// 0.01 mm
 		else if( bShiftKeyDown && m_units == MIL )
 			d = 25400;		// 1 mil
-		else if (bCtrlKeyDown && nChar==VK_UP) {
-			PlacementGridUp(); 
-			return;
-			}
-		else if (bCtrlKeyDown && nChar==VK_DOWN) {
-			PlacementGridDown(); 
-			return;
-			}
+		else if (bCtrlKeyDown && nChar==VK_UP) 
+			{ PlacementGridUp(); return; }
+		else if (bCtrlKeyDown && nChar==VK_DOWN) 
+			{ PlacementGridDown(); return; }
+		else if (bCtrlKeyDown && nChar==VK_LEFT)
+			{ AngleUp(); return; }
+		else if (bCtrlKeyDown && nChar==VK_RIGHT)
+			{ AngleDown(); return; }
 		else
 			d = m_doc->m_fp_part_grid_spacing;
 		if( nChar == 37 )

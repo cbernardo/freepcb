@@ -172,17 +172,11 @@ void CMyToolBar::SetLists( CArray<double> * visible,
 	m_ctlComboPlacementGrid.ResetContent();
 	m_ctlComboRoutingGrid.ResetContent();
 	m_ctlComboSnapAngle.ResetContent();
-	/* CPT:  moved these into the loops below (works better if vg/pg/rg don't match entries in their respective lists)
-	m_ctlComboVisibleGrid.SetCurSel( 0 );
-	m_ctlComboPlacementGrid.SetCurSel( 0 );
-	m_ctlComboRoutingGrid.SetCurSel( 0 );
-	m_ctlComboSnapAngle.SetCurSel( 0 );
-	*/
 	int sel = 0;
 	for( int i=0; i<visible->GetSize(); i++ )
 	{
 		CString str;
-		double val = (*m_v)[i];
+		double val = (*visible)[i];
 		MakeCStringFromGridVal(&str, val);
 		m_ctlComboVisibleGrid.AddString( str );
 		if (fabs(val) == vg) sel = i;									// CPT
@@ -193,7 +187,7 @@ void CMyToolBar::SetLists( CArray<double> * visible,
 	for( int i=0; i<placement->GetSize(); i++ )
 	{
 		CString str;
-		double val = (*m_p)[i];
+		double val = (*placement)[i];
 		MakeCStringFromGridVal(&str, val); // CPT streamlined
 		m_ctlComboPlacementGrid.AddString(str); 
 		if (fabs(val) == pg) sel = i;
@@ -206,7 +200,7 @@ void CMyToolBar::SetLists( CArray<double> * visible,
 		for( int i=0; i<routing->GetSize(); i++ )
 		{
 			CString str;
-			double val = (*m_r)[i];
+			double val = (*routing)[i];
 			MakeCStringFromGridVal(&str, val); // CPT streamlined
 			m_ctlComboRoutingGrid.AddString(str); 
 			if (fabs(val) == rg) sel = i;
@@ -339,7 +333,24 @@ void CMyToolBar::VisibleGridUp() {
 	cur_sel = m_ctlComboVisibleGrid.GetCurSel();
 	AfxGetMainWnd()->SendMessage( WM_USER_VISIBLE_GRID, WM_BY_INDEX, cur_sel );
 	}
- 
+
+void CMyToolBar::AngleUp() {
+	int cur_sel = m_ctlComboSnapAngle.GetCurSel();
+	if (cur_sel==0) return;
+	cur_sel--;
+	m_ctlComboSnapAngle.SetCurSel(cur_sel);
+	cur_sel = m_ctlComboSnapAngle.GetCurSel();
+	AfxGetMainWnd()->SendMessage( WM_USER_SNAP_ANGLE, WM_BY_INDEX, cur_sel );
+	}
+
+void CMyToolBar::AngleDown() {
+	int cur_sel = m_ctlComboSnapAngle.GetCurSel();
+	cur_sel++;
+	m_ctlComboSnapAngle.SetCurSel(cur_sel);
+	cur_sel = m_ctlComboSnapAngle.GetCurSel();
+	AfxGetMainWnd()->SendMessage( WM_USER_SNAP_ANGLE, WM_BY_INDEX, cur_sel );
+	}
+
 void CMyToolBar::UnitToggle(bool bShiftKeyDown, CArray<double> * visible, CArray<double> * placement, CArray<double> * routing) {
 	int cur_sel = m_ctlComboUnits.GetCurSel();
 	cur_sel = !cur_sel;

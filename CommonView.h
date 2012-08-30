@@ -197,6 +197,8 @@ public:
 	afx_msg void OnSysKeyUp(UINT nChar, UINT nRepCnt, UINT nFlags);
 	void PlacementGridUp();
 	void PlacementGridDown();
+	void AngleUp();
+	void AngleDown();
 	void SnapToAngle(CPoint &wp, int grid_spacing);
 	void SnapToGridPoint(CPoint &wp, int grid_spacing);
 	void SnapToGridLine(CPoint &wp, int grid_spacing);

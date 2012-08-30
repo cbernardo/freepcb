@@ -2005,6 +2005,35 @@ void CNet::SetThermals()
 		p->SetNeedsThermal();
 }
 
+void CNet::AddPinsFromSyncFile()
+{
+	// CPT2.  Experimental netlist file synching feature.  Generally invoke this routine after creating a new CNet.  If synching is turned
+	// on with a resident netlist file, then we'll look through m_doc->m_sync_file_nli and see if this net is found in there.  If so,
+	// assign the pins indicated to this net where possible.  Not very aggressive --- won't reassign pins that already are on a net.  Saves undo
+	// info for any pins and (probably an unnecessary safety precaution) for this net too.
+	if (!doc->m_bSyncFile)
+		return;
+	bool bNetUndoSaved = false;
+	int numNli = doc->m_sync_file_nli.GetSize();
+	for (int i=0; i<numNli; i++)
+	{
+		net_info *ni = &doc->m_sync_file_nli[i];
+		if (ni->name != this->name) 
+			continue;
+		for (int j=0; j<ni->ref_des.GetSize(); j++)
+		{
+			CPin *pin = doc->m_plist->GetPinByNames( &ni->ref_des[j], &ni->pin_name[j] );
+			if (!pin || pin->net) 
+				continue;
+			if (!bNetUndoSaved)
+				SaveUndoInfo( SAVE_NET_ONLY ),
+				bNetUndoSaved = true;
+			pin->SaveUndoInfo();
+			AddPin(pin);
+		}
+		break;						// No need to look at later net-list info entries...
+	}
+}
 
 CVertex *CNet::TestHitOnVertex(int layer, int x, int y) 
 {

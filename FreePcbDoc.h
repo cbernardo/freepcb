@@ -65,7 +65,6 @@ public:
 	SMFontUtil * m_smfontutil;	// Hershey font utility
 	int m_file_close_ret;		// return value from OnFileClose() dialog
 	CFootLibFolderMap m_footlibfoldermap;
-	// CMapStringToPtr m_footprint_cache_map;	// map of footprints cached in memory
 
 	double m_version;			// version number, such as "1.105"
 	double m_file_version;		// the oldest version of FreePCB that can read
@@ -92,6 +91,10 @@ public:
 	CString m_pcb_full_path;	// full path to project file
 	CString m_cam_full_path;	// full path to CAM file folder
 	CString m_netlist_full_path;	// last netlist loaded
+	bool m_bSyncFile;				// CPT2 new:  is the project being synched with a netlist file?
+	CString m_sync_file;			// CPT2 new:  path to synched netlist file (may be set even if !m_bSyncFile)
+	netlist_info m_sync_file_nli;	// CPT2 new:  The netlist-info from the sync file
+	partlist_info m_sync_file_pli;	// CPT2 new:  The partlist-info from the sync file
 
 	// undo/redo list and state
 	CArray<CUndoItem*> m_undo_items;		// CPT2 new undo system.  Altered items accumulate in here during a user operation, then get combined
@@ -201,6 +204,7 @@ public:
 	bool m_bReversePgupPgdn;
 	bool m_bLefthanded;
 	bool m_bHighlightNet;	// AMW
+	bool m_bErrorSound;
 	// end CPT
 
 	//DRC limits
@@ -229,8 +233,6 @@ public:
 	void ProjectModified( BOOL flag, BOOL bCombineWithPreviousUndo = false );		// CPT2 changed second arg
 	void InitializeNewProject();
 	void SendInitialUpdate();
-	// void ReadFootprints( CStdioFile * pcb_file, CMapStringToPtr * cache_map=NULL, BOOL bFindSection=TRUE );
-	// int WriteFootprints( CStdioFile * file, CMapStringToPtr * cache_map=NULL ); // CPT2 replace with CShapeList::WriteShapes().
 	CShape * GetFootprintPtr( CString *name );
 	void MakeLibraryMaps( CString * fullpath );
 	void ReadBoardOutline( CStdioFile * pcb_file);
@@ -239,8 +241,9 @@ public:
 	void WriteSolderMaskCutouts( CStdioFile * pcb_file, CHeap<CSmCutout> *smcutouts = NULL );
 	void ReadOptions( CStdioFile * pcb_file );
 	void WriteOptions( CStdioFile * pcb_file );
-	int ImportNetlist( CStdioFile * file, UINT flags, 
-						partlist_info * pli, netlist_info * nli );
+	//  CPT2 apparently defunct:
+	// int ImportNetlist( CStdioFile * file, UINT flags, 
+	//					partlist_info * pli, netlist_info * nli );
 	int ImportPADSPCBNetlist( CStdioFile * file, UINT flags, 
 							   partlist_info * pli, netlist_info * nli );
 	int ExportPADSPCBNetlist( CStdioFile * file, UINT flags, 
@@ -251,11 +254,13 @@ public:
 		CString * old_folder, CString * old_filename,
 		BOOL bBackup=TRUE );
 	BOOL AutoSave(); 
+	void FileImport(CString str, bool bForceFileSyncCheck = false);			// CPT2 factored out
+	void LoadSyncFile();													// CPT2 new
 
-	// I created the following routine while struggling to understand the misbehavior of the CFileDialog interface.  (Turns out the solution is
+	// CPT2 I created the following routine while struggling to understand the misbehavior of the CFileDialog interface.  (Turns out the solution is
 	// just to build in release mode rather than debug mode --- debug object code and common control routines apparently conflict pretty badly.)
 	// Anyway, during the process I figured out (with considerable difficulty) how to use the new Vista-style common controls.  Though it turns out not
-	// to be necessary, I'm leaving the code in as a comment, so that we can potentially use it one day...
+	// to be necessary, I'm leaving the code in the .cpp as a comment, so that we can potentially use it one day...
 	// bool GetFileName(bool bSave, CString initial, int titleRsrc, int filterRsrc, WCHAR *defaultExt, WCHAR *result, int *offFileName = NULL);  
 	
 	void SetFileLayerMap( int file_layer, int layer );

@@ -211,6 +211,7 @@ public:
 	void SaveUndoInfo();
 
 	void Clear();
+	void MakeDummy();
 	void MarkConstituents(int util);
 	int MakeFromString( CString name, CString str );
 	int MakeFromFile( CStdioFile * in_file, CString name, CString file_path, int pos );
