@@ -40,6 +40,7 @@ static char THIS_FILE[] = __FILE__;
 
 #define ZOOM_RATIO 1.4
 
+bool g_bShowFpPasteMessage = true;			// CPT2 TODO another global to deal with ultimately by using some pref...
 extern CFreePcbApp theApp;
 
 // NB: these must be changed if context menu is edited
@@ -52,7 +53,8 @@ enum {
 	CONTEXT_FP_TEXT,
 	CONTEXT_FP_CENTROID,
 	CONTEXT_FP_ADHESIVE,
-	CONTEXT_FP_VALUE
+	CONTEXT_FP_VALUE,
+	CONTEXT_FP_GROUP
 };
 
 int CFootprintView::sel_mask_btn_bits[16] = { 0 };
@@ -65,6 +67,7 @@ IMPLEMENT_DYNCREATE(CFootprintView, CView)
 BEGIN_MESSAGE_MAP(CFootprintView, CView)
 	ON_WM_SIZE()
 	ON_WM_LBUTTONDOWN()
+	ON_WM_LBUTTONUP()
 	ON_WM_KEYDOWN()
 	ON_WM_MOUSEMOVE()
 	ON_WM_RBUTTONDOWN()
@@ -76,10 +79,8 @@ BEGIN_MESSAGE_MAP(CFootprintView, CView)
 	ON_COMMAND(ID_FILE_PRINT, CView::OnFilePrint)
 	ON_COMMAND(ID_FILE_PRINT_DIRECT, CView::OnFilePrint)
 	ON_COMMAND(ID_FILE_PRINT_PREVIEW, CView::OnFilePrintPreview)
-//	ON_WM_SYSCHAR()
-//ON_WM_SYSCOMMAND()
 ON_WM_CONTEXTMENU()
-ON_COMMAND(ID_ADD_PIN, OnAddPin)
+ON_COMMAND(ID_ADD_PIN, OnAddPadstack)
 ON_COMMAND(ID_FOOTPRINT_FILE_SAVE_AS, OnFootprintFileSaveAs)
 ON_COMMAND(ID_ADD_POLYLINE, OnAddOutline)
 ON_COMMAND(ID_FOOTPRINT_FILE_IMPORT, OnFootprintFileImport)
@@ -87,12 +88,11 @@ ON_COMMAND(ID_FOOTPRINT_FILE_CLOSE, OnFootprintFileClose)
 ON_COMMAND(ID_FOOTPRINT_FILE_NEW, OnFootprintFileNew)
 ON_COMMAND(ID_VIEW_ENTIREFOOTPRINT, OnViewEntireFootprint)
 ON_COMMAND(ID_VIEW_REVEALVALUETEXT, OnValueReveal)
-//ON_COMMAND(ID_FP_EDIT_UNDO, OnFpEditUndo)
 ON_WM_ERASEBKGND()
-ON_COMMAND(ID_FP_PAD_MOVE, OnPadMove)
-ON_COMMAND(ID_FP_PAD_ROTATE, OnPadRotate)
-ON_COMMAND(ID_FP_PAD_EDIT, OnPadEdit)
-ON_COMMAND(ID_FP_PAD_DELETE, OnPadDelete)
+ON_COMMAND(ID_FP_PAD_MOVE, OnPadstackMove)
+ON_COMMAND(ID_FP_PAD_ROTATE, OnPadstackRotate)
+ON_COMMAND(ID_FP_PAD_EDIT, OnPadstackEdit)
+ON_COMMAND(ID_FP_PAD_DELETE, OnPadstackDelete)
 ON_COMMAND(ID_FP_INSERTCORNER, OnOutlineSideAddCorner)
 ON_COMMAND(ID_FP_CONVERTTOSTRAIGHT, OnOutlineSideConvertToStraightLine)
 ON_COMMAND(ID_FP_CONVERTTOARC, OnOutlineSideConvertToArcCw)
@@ -112,7 +112,7 @@ ON_COMMAND(ID_FP_TEXT_EDIT, OnFpTextEdit)
 ON_COMMAND(ID_FP_TEXT_ROTATE, OnFpTextRotate)
 ON_COMMAND(ID_FP_TEXT_MOVE, OnFpTextMove)
 ON_COMMAND(ID_FP_TEXT_DELETE, OnFpTextDelete)
-ON_COMMAND(ID_FP_ADD_PIN, OnAddPin)
+ON_COMMAND(ID_FP_ADD_PIN, OnAddPadstack)
 ON_COMMAND(ID_FP_ADD_POLY, OnAddOutline)
 ON_COMMAND(ID_FP_ADD_TEXT, OnAddText)
 ON_COMMAND(ID_NONE_RETURNTOPCB, OnFootprintFileClose)
@@ -124,7 +124,6 @@ ON_COMMAND(ID_ADD_ADHESIVESPOT, OnAddAdhesive)
 ON_COMMAND(ID_CENTROID_SETPARAMETERS, OnCentroidEdit)
 ON_COMMAND(ID_CENTROID_MOVE, OnCentroidMove)
 ON_COMMAND(ID_ADD_SLOT, OnAddSlot)
-// ON_COMMAND(ID_ADD_VALUETEXT, OnAddValueText)
 ON_COMMAND(ID_ADD_HOLE, OnAddHole)
 ON_COMMAND(ID_FP_EDIT, OnFpTextEdit)
 ON_COMMAND(ID_FP_MOVE32923, OnFpTextMove)
@@ -135,6 +134,13 @@ ON_COMMAND(ID_CENTROID_ROTATEAXIS, OnCentroidRotateAxis)
 // CPT
 ON_COMMAND(ID_VIEW_FPVISIBLEGRIDVALUES, OnViewVisibleGrid)
 ON_COMMAND(ID_VIEW_FPPLACEMENTGRIDVALUES, OnViewPlacementGrid)
+ON_COMMAND(ID_FP_GROUP_MOVE, OnGroupMove)
+ON_COMMAND(ID_FP_GROUP_ROTATECW, OnGroupRotateCW)
+ON_COMMAND(ID_FP_GROUP_ROTATECCW, OnGroupRotateCCW)
+ON_COMMAND(ID_FP_GROUP_DELETE, OnGroupDelete)
+ON_COMMAND(ID_EDIT_COPY, OnGroupCopy)
+ON_COMMAND(ID_EDIT_PASTE, OnGroupPaste)
+ON_COMMAND(ID_EDIT_CUT, OnGroupCut)
 END_MESSAGE_MAP()
 
 /////////////////////////////////////////////////////////////////////////////
@@ -159,7 +165,8 @@ CFootprintView::CFootprintView()
 	sel_mask_btn_bits[FP_SEL_MASK_GLUE] = bitGlue;
 	m_sel_mask = 0xffffffff;
 	m_sel_mask_bits = 0xffffffff;
-	m_fp = NULL;							// CPT2 r317 new.
+	m_fp = m_clip_fp = NULL;							// CPT2 r317 new.
+	m_units = MM;
 }
 
 // Initialize data for view
@@ -190,6 +197,7 @@ void CFootprintView::InitInstance( CShape * fp )
 		CString s ((LPCSTR) IDS_Untitled);
 		m_fp = new CShape( theApp.m_doc, &s );
 	}
+	m_clip_fp = NULL;
 	m_doc->m_edit_footprint = m_fp;
 	SetWindowTitle( &m_fp->m_name );
 	EnableRevealValue();					// CPT
@@ -239,6 +247,19 @@ void CFootprintView::OnDraw(CDC* pDC)
 	// now draw the display list
 	SetDCToWorldCoords( pDC );
 	m_dlist->Draw( pDC );
+
+	// CPT After an autoscroll, this routine is called, and at the end we have to redraw the drag rectangle:
+	// Identical code is in CFreePcbView::OnDraw --- factor it out?
+	if (m_bDraggingRect) {
+		SIZE s1;
+		s1.cx = s1.cy = 1;
+		pDC->IntersectClipRect(m_left_pane_w, 0, m_client_r.right, m_client_r.bottom - m_bottom_pane_h);
+		pDC->DrawDragRect(m_drag_rect, s1, NULL, s1);
+		m_last_drag_rect = m_drag_rect;
+		m_bDontDrawDragRect = false;
+	}
+	// end CPT
+
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -260,14 +281,127 @@ void CFootprintView::OnEndPrinting(CDC* /*pDC*/, CPrintInfo* /*pInfo*/)
 	// TODO: add cleanup after printing
 }
 
-// Left mouse button pressed down, we should probably do something
-//
-void CFootprintView::OnLButtonDown(UINT nFlags, CPoint point) 
+void CFootprintView::SelectItemsInRect( CRect r, BOOL bAddToGroup )
 {
-	bool bShiftKeyDown = (nFlags & MK_SHIFT) != 0;
-	m_last_click = point;
-	CDC * pDC = NULL;						// !! remember to ReleaseDC() at end, if necessary
+	if( !bAddToGroup )
+		CancelSelection();
+	r.NormalizeRect();
+
+	// find outline sides in rect
+	if (m_sel_mask_bits & bitOutline)
+	{
+		CIter<COutline> io (&m_fp->m_outlines);
+		for (COutline *o = io.First(); o; o = io.Next())
+		{
+			CIter<CSide> is (&o->main->sides);
+			for (CSide *s = is.First(); s; s = is.Next())
+			{
+				CPoint p1 (s->preCorner->x, s->preCorner->y);
+				CPoint p2 (s->postCorner->x, s->postCorner->y);
+				if (r.PtInRect(p1) && r.PtInRect(p2))
+					m_sel.Add(s);
+			}
+		}
+	}
+	// find padstacks in rect
+	if (m_sel_mask_bits & bitPadstack)
+	{
+		CIter<CPadstack> ips (&m_fp->m_padstacks);
+		for (CPadstack *ps = ips.First(); ps; ps = ips.Next())
+		{
+			CRect psr = ps->GetBounds();
+			if (r.PtInRect(psr.TopLeft()) && r.PtInRect(psr.BottomRight()))
+				m_sel.Add(ps);
+		}
+	}
+	// find texts in rect
+	if( m_sel_mask_bits & bitText )
+	{
+		CIter<CText> it (&m_fp->m_tl->texts);
+		for (CText *t = it.First(); t; t = it.Next())
+			if (r.PtInRect(t->m_br.TopLeft()) && r.PtInRect(t->m_br.BottomRight()))
+				m_sel.Add(t);
+	}
+	// check if ref in rect
+	CText *t = m_fp->m_ref;
+	if (m_sel_mask_bits & bitRefText)
+		if (r.PtInRect(t->m_br.TopLeft()) && r.PtInRect(t->m_br.BottomRight()))
+			m_sel.Add(t);
+	// check if value in rect
+	t = m_fp->m_value;
+	if (m_sel_mask_bits & bitValueText)
+		if (r.PtInRect(t->m_br.TopLeft()) && r.PtInRect(t->m_br.BottomRight()))
+			m_sel.Add(t);
+	// check if centroid in rect
+	if (m_sel_mask_bits & bitCentroid)
+	{
+		CPoint pt (m_fp->m_centroid->m_x, m_fp->m_centroid->m_y);
+		if (r.PtInRect(pt))
+			m_sel.Add(m_fp->m_centroid);
+	}
+	// find glues in rect
+	CIter<CGlue> ig (&m_fp->m_glues);
+	for (CGlue *g = ig.First(); g; g = ig.Next())
+	{
+		CPoint pt (g->x, g->y);
+		if (r.PtInRect(pt))
+			m_sel.Add(g);
+	}
+
+	HighlightSelection();
+	m_lastKeyWasArrow = FALSE;
+	m_lastKeyWasGroupRotate = false;
+	// FindGroupCenter();						Put this into HighlightSelection()
+}
+
+
+// Left mouse button released, we should probably do something
+//
+void CFootprintView::OnLButtonUp(UINT nFlags, CPoint point) 
+{
+	ReleaseCapture();									// CPT
+	bool bCtrlKeyDown = (nFlags & MK_CONTROL) != 0;		// CPT
+	bool bShiftKeyDown = (nFlags & MK_SHIFT) != 0;		// CPT r294
+	m_last_click = point;								// CPT
+
+	if( !m_bLButtonDown )
+	{
+		// this avoids problems with opening a project with the button held down
+		CView::OnLButtonUp(nFlags, point);
+		return;
+	}
+
+	CDC * pDC = NULL;
 	// CPT:  not sure why we need pDC at all (some clauses below change its clipping, but does it really matter?). CPT2 TODO figure it out
+	CPoint tp = m_dlist->WindowToPCB( point );
+
+	m_bLButtonDown = FALSE;
+	m_lastKeyWasArrow = FALSE;		// cancel series of arrow keys
+	m_lastKeyWasGroupRotate=false;	// cancel series of group rotations
+
+	// CPT Begin:
+	if( m_bDraggingRect )
+	{
+		// we were dragging selection rect, handle it.  CPT modified:  formerly used m_last_drag_rect, which is no longer a 
+		//  reliable gauge of user's actual (auto-scrolled) rectangle 
+		m_drag_rect.TopLeft() = m_start_pt;
+		m_drag_rect.BottomRight() = point;
+		m_drag_rect.NormalizeRect();
+		CPoint tl = m_dlist->WindowToPCB( m_drag_rect.TopLeft() );
+		CPoint br = m_dlist->WindowToPCB( m_drag_rect.BottomRight() );
+		m_sel_rect = CRect( tl, br );
+		if( bCtrlKeyDown )
+			SelectItemsInRect( m_sel_rect, TRUE );
+		else
+			SelectItemsInRect( m_sel_rect, FALSE );
+		m_bDraggingRect = FALSE;
+		Invalidate( FALSE );
+		CView::OnLButtonUp(nFlags, point);
+		return;
+	}
+
+
+	m_last_click = point;
 	m_lastKeyWasArrow = FALSE;				// cancel series of arrow keys
 	if (CheckBottomPaneClick(point) || CheckLeftPaneClick(point)) 
 	{
@@ -281,14 +415,23 @@ void CFootprintView::OnLButtonDown(UINT nFlags, CPoint point)
 		// we are not dragging anything, see if new item selected
 		// CPT reworked so that we have masks, and also (r294) so that my feature #45 with repeated clicks works.
 		// CPT2 made adaptations parallel to those in CFreePcbView.  TODO allow groups one day?
-		m_sel.RemoveAll();
+		if (!bCtrlKeyDown)
+			m_sel.RemoveAll();
+		else if (m_sel_offset>=0) 
+			// User is doing multiple ctrl-clicks.  Reverse the selection state of the item that was affected by the previous click
+			ToggleSelectionState(m_sel_prev);
+		else if (m_sel.GetSize()==1 && !m_sel.First()->IsSelectableForGroup())
+			// E.g. if user clicks a corner, then ctrl-clicks something else, the corner can't be part of a group-select
+			m_sel.RemoveAll();
+
+		// Search for selectors overlapping the click point, and choose among them depending on user's number of multiple clicks
 		CPoint p = m_dlist->WindowToPCB( point );
 		int nHits = m_hit_info.GetCount();										// Might reuse the previous contents of m_hit_info...
 		if( bShiftKeyDown )
-		 	nHits = m_dlist->TestSelect(p.x, p.y, &m_hit_info, 0xffffffff, 0);	// NB: No masking of results
+			nHits = m_dlist->TestSelect(p.x, p.y, &m_hit_info, 0xffffffff, 0);	// NB: No masking of results
 		else if (m_sel_offset==-1)
 			// Series of clicks is just beginning: calculate m_hit_info, and select the zero-th of those (highest priority)
-			nHits = m_dlist->TestSelect(p.x, p.y, &m_hit_info, m_sel_mask_bits, false),
+			nHits = m_dlist->TestSelect(p.x, p.y, &m_hit_info, m_sel_mask_bits, bCtrlKeyDown),
 			m_sel_offset = nHits==0? -1: 0;
 		else if (nHits==1)
 			m_sel_offset = -1;					// Unselect if there's just one hit nearby, already selected.
@@ -307,42 +450,15 @@ void CFootprintView::OnLButtonDown(UINT nFlags, CPoint point)
 		{
 			// Something to select!
 			CPcbItem *item = m_hit_info[m_sel_offset].item;
-			m_sel_prev = item;											// CPT
-			if( item->IsFootItem() )									// Pretty unlikely that this test would fail...
-				SelectItem(item);
-			else
-				CancelSelection();
+			m_sel_prev = item;
+			if (item->IsFootItem())						// Pretty unlikely that this test would fail...
+				ToggleSelectionState(item);
 		}
+		else if (bCtrlKeyDown)
+			HighlightSelection();						// Apparently user ctrl-clicked an object twice; it's been unselected already, so no further changes...
 		else
-			// nothing selected.
+			// nothing selected
 			CancelSelection();
-	}
-
-	else if( m_cursor_mode == CUR_FP_DRAG_PAD )
-	{
-		// we were dragging pad, move it
-		if( !m_dragging_new_item )
-			PushUndo();
-		CPoint p = m_last_cursor_point;
-		m_dlist->StopDragging();
-		CPadstack *first = m_pad_row.First();
-		int dx = p.x - first->x_rel;
-		int dy = p.y - first->y_rel;
-		CIter<CPadstack> ips (&m_pad_row);
-		for (CPadstack *ps = ips.First(); ps; ps = ips.Next())
-			ps->x_rel += dx,
-			ps->y_rel += dy;
-		if( m_pad_row.GetSize() == 1 )
-		{
-			// only rotate if single pad (not row)
-			int old_angle = first->angle;
-			int angle = (old_angle + m_dlist->GetDragAngle()) % 360;
-			first->angle = angle;
-		}
-		m_dragging_new_item = FALSE;
-		FootprintModified( TRUE );
-		SetCursorMode( CUR_FP_PAD_SELECTED );
-		first->Highlight();
 	}
 
 	else if( m_cursor_mode == CUR_FP_DRAG_POLY_MOVE )
@@ -499,18 +615,29 @@ void CFootprintView::OnLButtonDown(UINT nFlags, CPoint point)
 
 	else if( m_cursor_mode == CUR_FP_DRAG_ADHESIVE )
 	{
+		if( !m_dragging_new_item )
+			PushUndo();	// if new item, PushUndo() has already been called
 		CPoint p = m_last_cursor_point;
 		CGlue *g = m_sel.First()->ToGlue();
 		g->CancelDragging();
-		PushUndo();
 		g->x = p.x, g->y = p.y;						// We can assumes that g->type is already GLUE_POS_DEFINED
 		FootprintModified( TRUE );
 		HighlightSelection();
 		m_dragging_new_item = FALSE;
 	}
 
-	ShowSelectStatus();
+	else if( m_cursor_mode == CUR_FP_DRAG_GROUP )
+	{
+		m_doc->m_dlist->StopDragging();
+		if (!m_dragging_new_item)
+			PushUndo();
+		MoveGroup( m_last_cursor_point.x - m_from_pt.x, m_last_cursor_point.y - m_from_pt.y );
+		FootprintModified( TRUE );
+		HighlightSelection();
+		m_dragging_new_item = false;
+	}
 
+	ShowSelectStatus();
 	Invalidate( FALSE );
 	if( pDC )
 		ReleaseDC( pDC );
@@ -525,24 +652,11 @@ void CFootprintView::OnLButtonDblClk(UINT nFlags, CPoint point)
 	CView::OnLButtonDblClk(nFlags, point);
 }
 
-// right mouse button
-//
-void CFootprintView::OnRButtonDown(UINT nFlags, CPoint point) 
+
+void CFootprintView::CancelDragging()
 {
-	// ALSO USED TO CANCEL DRAGGING WHEN THE ESC KEY IS HIT.  (Sub-optimal system?)
-	m_disable_context_menu = 1;
-	if( m_cursor_mode == CUR_FP_DRAG_PAD )	
-	{
-		m_fp->CancelDraggingPadRow( &m_pad_row );
-		if( m_dragging_new_item )
-		{
-			UndoNoRedo();
-			CancelSelection();
-		}
-		else
-			SelectItem( m_pad_row.First() );
-	}
-	else if( m_cursor_mode == CUR_FP_ADD_POLY )
+	m_disable_context_menu = true;
+	if( m_cursor_mode == CUR_FP_ADD_POLY )
 	{
 		m_dlist->StopDragging();
 		CancelSelection();
@@ -588,11 +702,8 @@ void CFootprintView::OnRButtonDown(UINT nFlags, CPoint point)
 		CText *t = m_sel.First()->ToText();
 		t->CancelDragging();
 		if( m_dragging_new_item )
-		{
-			m_fp->m_tl->texts.Remove(t);
-			m_fp->Draw();
+			UndoNoRedo(),
 			CancelSelection();
-		}
 		else
 			HighlightSelection();
 	}
@@ -610,18 +721,39 @@ void CFootprintView::OnRButtonDown(UINT nFlags, CPoint point)
 	{
 		CGlue *g = m_sel.First()->ToGlue();
 		g->CancelDragging();
-		UndoNoRedo();						// restore state before dragging
 		if( m_dragging_new_item )
+			UndoNoRedo(),
 			CancelSelection();
 		else
-			SelectItem(g);
+			HighlightSelection();
+	}
+	else if (m_cursor_mode == CUR_FP_DRAG_GROUP)
+	{
+		m_dlist->StopDragging();
+		CIter<CPcbItem> ii (&m_sel);
+		for (CPcbItem *i = ii.First(); i; i = ii.Next())
+			if (CSide *s = i->ToSide())
+				s->GetPolyline()->SetVisible(true);
+			else 
+				i->SetVisible(true);
+		if (m_dragging_new_item)
+			UndoNoRedo(),								// Axe the new group completely
+			CancelSelection();
+		else
+			HighlightSelection();
 	}
 	else
-	{
-		m_disable_context_menu = 0;
-	}
+		m_disable_context_menu = false;
 
 	m_dragging_new_item = FALSE;
+}
+
+// right mouse button
+//
+void CFootprintView::OnRButtonDown(UINT nFlags, CPoint point) 
+{
+	// ALSO USED TO CANCEL DRAGGING WHEN THE ESC KEY IS HIT.  (Sub-optimal system?)
+	CancelDragging();
 	m_sel_offset = -1;					// CPT2.  Sequence of left-clicks is over...
 	Invalidate( FALSE );
 	ShowSelectStatus();
@@ -633,12 +765,16 @@ void CFootprintView::OnRButtonDown(UINT nFlags, CPoint point)
 //
 void CFootprintView::OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags) 
 {
-	m_sel_offset = -1;							// CPT.  Indicates that user has interrupted a series of mouse clicks.
 	HandleKeyPress( nChar, nRepCnt, nFlags );
-
 	// don't pass through SysKey F10
 	if( nChar != 121 )
 		CView::OnKeyDown(nChar, nRepCnt, nFlags);
+}
+
+void CFootprintView::OnKeyUp(UINT nChar, UINT nRepCnt, UINT nFlags) 
+{
+	m_sel_offset = -1;												// Series of repeated mouse-clicks is over
+	CView::OnKeyUp(nChar, nRepCnt, nFlags);
 }
 
 void CFootprintView::FinishArrowKey(int x, int y, int dx, int dy) {
@@ -647,8 +783,9 @@ void CFootprintView::FinishArrowKey(int x, int y, int dx, int dy) {
 	m_dlist->CancelHighlight();
 	if (!m_lastKeyWasArrow)
 		m_totalArrowMoveX = 0,
-		m_totalArrowMoveY = 0,
-		m_lastKeyWasArrow = true;
+		m_totalArrowMoveY = 0;
+	FootprintModified( TRUE );
+	HighlightSelection();
 	m_totalArrowMoveX += dx;
 	m_totalArrowMoveY += dy;
 	if (x==INT_MAX)
@@ -656,8 +793,7 @@ void CFootprintView::FinishArrowKey(int x, int y, int dx, int dy) {
 		ShowRelativeDistance(m_totalArrowMoveX, m_totalArrowMoveY);
 	else
 		ShowRelativeDistance(x, y, m_totalArrowMoveX, m_totalArrowMoveY);
-	FootprintModified( TRUE );
-	m_sel.First()->Highlight();							// Works well enough since fp editor only allows single item selection (for now)
+	m_lastKeyWasArrow = true;
 }
 
 // Key on keyboard pressed down
@@ -729,7 +865,7 @@ void CFootprintView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 	{
 	case  CUR_FP_NONE_SELECTED:
 		if( fk == FK_FP_ADD_PAD )
-			OnAddPin();
+			OnAddPadstack();
 		else if( fk == FK_FP_ADD_TEXT )
 			OnAddText();
 		else if( fk == FK_FP_ADD_OUTLINE )
@@ -749,13 +885,13 @@ void CFootprintView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 				FinishArrowKey(ps->x_rel, ps->y_rel, dx, dy);
 			}
 			else if( fk == FK_FP_DELETE_PAD || nChar == 46 )
-				OnPadDelete();
+				OnPadstackDelete();
 			else if( fk == FK_FP_EDIT_PAD )
-				OnPadEdit();
+				OnPadstackEdit();
 			else if( fk == FK_FP_MOVE_PAD )
-				OnPadMove();
+				OnPadstackMove();
 			else if (fk == FK_FP_ROTATE_PAD)
-				OnPadRotate();
+				OnPadstackRotate();
 			break;
 		}
 
@@ -873,9 +1009,22 @@ void CFootprintView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 			OnAdhesiveDelete();
 		break;
 
-	case CUR_FP_DRAG_PAD:
-		if( fk == FK_FP_ROTATE_PAD )
-			m_dlist->IncrementDragAngle( pDC );
+	case CUR_FP_GROUP_SELECTED:
+		// CPT2 TODO have rotate keys while dragging a group
+		if (fk==FK_ARROW) 
+		{
+			PushUndo();
+			MoveGroup(dx, dy);
+			FinishArrowKey(INT_MAX, INT_MAX, dx, dy);
+		}
+		else if( fk == FK_FP_DELETE_GROUP || nChar == 46 )
+			OnGroupDelete();
+		else if (fk == FK_FP_ROTATE_CW)
+			OnGroupRotate(false);
+		else if (fk == FK_FP_ROTATE_CCW)
+			OnGroupRotate(true);
+		else if (fk == FK_FP_MOVE_GROUP)
+			OnGroupMove();
 		break;
 
 	case CUR_FP_DRAG_TEXT:
@@ -924,20 +1073,6 @@ void CFootprintView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 	if( !m_lastKeyWasArrow )
 		ShowSelectStatus();
 }
-
-// Mouse moved
-//
-void CFootprintView::OnMouseMove(UINT nFlags, CPoint point) 
-{
-	// CPT:  determine whether a series of mouse clicks by the user is truly over (see if we've moved away significantly from m_last_click).
-	// If so m_sel_offset is reset to -1.
-	if (m_sel_offset!=-1 && (abs(point.x-m_last_click.x) > 1 || abs(point.y-m_last_click.y) > 1))
-		m_sel_offset = -1;
-	// end CPT
-	m_last_mouse_point = m_dlist->WindowToPCB( point );
-	SnapCursorPoint( m_last_mouse_point, 0 );
-}
-
 
 // Set function key shortcut text
 //
@@ -1018,9 +1153,11 @@ void CFootprintView::SetFKText( int mode )
 		m_fkey_option[6] = FK_FP_DELETE_ADHESIVE;
 		break;
 
-	case CUR_FP_DRAG_PAD:
-		if( m_pad_row.GetSize() == 1 )						// CPT2 TODO. Remove this restriction?
-			m_fkey_option[2] = FK_FP_ROTATE_PAD;
+	case CUR_FP_GROUP_SELECTED:
+		m_fkey_option[3] = FK_FP_MOVE_GROUP;
+		m_fkey_option[4] = FK_FP_ROTATE_CW;
+		m_fkey_option[5] = FK_FP_ROTATE_CCW;
+		m_fkey_option[7] = FK_FP_DELETE_GROUP;
 		break;
 
 	case CUR_FP_DRAG_POLY_1:
@@ -1084,14 +1221,6 @@ int CFootprintView::ShowSelectStatus()
 			break;
 		}
 
-	case CUR_FP_DRAG_PAD:
-		{
-			CPadstack *ps = m_sel.First()->ToPadstack();
-			s0.LoadStringA(IDS_MovingPin);
-			str.Format( s0, ps->name );
-			break;
-		}
-
 	case CUR_FP_POLY_CORNER_SELECTED: 
 		{
 			CCorner *c = m_sel.First()->ToCorner();
@@ -1150,6 +1279,24 @@ int CFootprintView::ShowSelectStatus()
 				s0.LoadStringA(IDS_AdhesiveSpotWAtCentroid),
 				str.Format( s0, g->UID(), w_str );
 		}
+		break;
+
+	case CUR_FP_TEXT_SELECTED:
+	case CUR_FP_REF_SELECTED:
+	case CUR_FP_VALUE_SELECTED:
+		{
+			CText *t = m_sel.First()->ToText();
+			::MakeCStringFromDimension( &x_str, t->m_x, m_units, TRUE, TRUE, TRUE, 3 );
+			::MakeCStringFromDimension( &y_str, t->m_y, m_units, TRUE, TRUE, TRUE, 3 );
+			int id = m_cursor_mode==CUR_FP_TEXT_SELECTED? IDS_Text2:
+				     m_cursor_mode==CUR_FP_REF_SELECTED? IDS_ReferenceText2: IDS_ValueText2;
+			s0.LoadStringA(id);
+			str.Format( s0, x_str, y_str );
+		}
+		break;
+
+	case CUR_FP_GROUP_SELECTED:
+		str.LoadStringA(IDS_GroupSelected);
 		break;
 
 	case CUR_FP_DRAG_POLY_MOVE:
@@ -1263,6 +1410,10 @@ void CFootprintView::OnContextMenu(CWnd* pWnd, CPoint point )
 		pPopup = menu.GetSubMenu(CONTEXT_FP_ADHESIVE);
 		ASSERT(pPopup != NULL);
 		break;
+	case CUR_FP_GROUP_SELECTED:
+		pPopup = menu.GetSubMenu(CONTEXT_FP_GROUP);
+		ASSERT(pPopup != NULL);
+		break;
 	}
 
 	if (pPopup)
@@ -1272,7 +1423,7 @@ void CFootprintView::OnContextMenu(CWnd* pWnd, CPoint point )
 
 // Delete pad
 //
-void CFootprintView::OnPadDelete()
+void CFootprintView::OnPadstackDelete()
 {
 	CPadstack *ps = m_sel.First()->ToPadstack();
 	PushUndo();
@@ -1283,7 +1434,7 @@ void CFootprintView::OnPadDelete()
 
 // edit pad
 //
-void CFootprintView::OnPadEdit()
+void CFootprintView::OnPadstackEdit()
 {
 	// save original position and angle of pad, in case we decide
 	// to drag the pad, and then cancel dragging
@@ -1294,67 +1445,32 @@ void CFootprintView::OnPadEdit()
 	PushUndo();
 	// now launch dialog
 	CDlgAddPin dlg;
-	dlg.InitDialog( m_fp, ps, &m_pad_row, m_units );
+	dlg.InitDialog( m_fp, ps, &m_sel, m_units );
 	m_dlist->CancelHighlight();
 	int ret = dlg.DoModal();
 	if( ret == IDOK )
 	{
+		FootprintModified(true);
+		HighlightSelection();
 		if( dlg.m_drag_flag )
-		{
-			// if dragging, move pad back to original position and start
-			CPadstack *ps = m_pad_row.First();
-			ps->x_rel = orig_x; 
-			ps->y_rel = orig_y;
-			ps->angle = orig_angle;
-			m_fp->Draw();
-			OnPadMoveRow();
-			return;
-		}
-		else
-			// not dragging, just redraw and mark modified flag
-			FootprintModified( TRUE );
-		SelectItem( m_pad_row.First() );								// CPT2 TODO when group selection is enabled, this must change...
+			StartDraggingGroup(false);
 	}
 	else
-		Undo();	// restore to original state
+		UndoNoRedo();	// restore to original state
 	Invalidate( FALSE );
 }
 
 // move pad, don't push undo, this will be done when move completed
 //
-void CFootprintView::OnPadMove()
+void CFootprintView::OnPadstackMove()
 {
-	// CPT2 converted.  Piggybacks on OnPadMoveRow
-	CPadstack *ps = m_sel.First()->ToPadstack();
-	m_pad_row.RemoveAll();
-	m_pad_row.Add(ps);
-	OnPadMoveRow();
+	// CPT2 converted.  Now piggybacks on OnGroupMove().
+	OnGroupMove();
 }
 
-void CFootprintView::OnPadMoveRow() 
+void CFootprintView::OnPadstackRotate()
 {
-	// CPT2 new, takes over the job of the old OnPadMove(int i, int num).  Starts dragging the row of pad(s) contained in this->m_pad_row.
-	CDC *pDC = GetDC();
-	pDC->SelectClipRgn( &m_pcb_rgn );
-	SetDCToWorldCoords( pDC );
-	// move cursor to first pad
-	CPoint p;
-	p.x = m_pad_row.First()->x_rel;
-	p.y = m_pad_row.First()->y_rel;
-	CPoint cur_p = m_dlist->PCBToScreen( p );
-	SetCursorPos( cur_p.x, cur_p.y );
-	m_from_pt = p;
-	// start dragging
-	SelectItem(m_pad_row.First());
-	m_fp->StartDraggingPadRow( pDC, &m_pad_row );
-	SetCursorMode( CUR_FP_DRAG_PAD );
-	Invalidate( FALSE );
-	ReleaseDC( pDC );
-}
-
-void CFootprintView::OnPadRotate()
-{
-	// CPT2 done.  TODO add to context menu
+	// CPT2 done.
 	CPadstack *ps = m_sel.First()->ToPadstack();
 	PushUndo();
 	ps->angle = (ps->angle + 90) % 360;
@@ -1492,7 +1608,7 @@ BOOL CFootprintView::CurDragging()
 //
 BOOL CFootprintView::CurDraggingPlacement()
 {
-	return m_cursor_mode == CUR_FP_DRAG_PAD
+	return m_cursor_mode == CUR_FP_DRAG_GROUP
 		|| m_cursor_mode == CUR_FP_DRAG_TEXT 
 		|| m_cursor_mode == CUR_FP_DRAG_POLY_1 
 		|| m_cursor_mode == CUR_FP_DRAG_POLY 
@@ -1529,7 +1645,7 @@ void CFootprintView::SnapCursorPoint( CPoint wp, UINT nFlags )
 			ReleaseDC( pDC );
 		}
 
-		if( m_cursor_mode == CUR_FP_DRAG_PAD || 
+		if( m_cursor_mode == CUR_FP_DRAG_GROUP ||
 			m_cursor_mode == CUR_FP_DRAG_TEXT ||
 			m_cursor_mode == CUR_FP_DRAG_ADHESIVE ||
 			m_cursor_mode == CUR_FP_DRAG_POLY_MOVE || 
@@ -1538,7 +1654,6 @@ void CFootprintView::SnapCursorPoint( CPoint wp, UINT nFlags )
 					ShowRelativeDistance( wp.x - m_from_pt.x, wp.y - m_from_pt.y );
 	}
 	else
-//		m_dragging_new_item = FALSE;	// just in case
 		if( m_dragging_new_item )
 			ASSERT(0);	// debugging, this shouldn't happen
 	// update cursor position
@@ -1602,37 +1717,34 @@ LONG CFootprintView::OnChangeUnits( UINT wp, LONG lp )
 	return 0;
 }
 
-void CFootprintView::OnAddPin()
+void CFootprintView::OnAddPadstack()
 {
 	PushUndo();
 	CDlgAddPin dlg;
-	dlg.InitDialog( m_fp, NULL, &m_pad_row, m_units );
+	dlg.InitDialog( m_fp, NULL, &m_sel, m_units );
 	int ret = dlg.DoModal();
 	if (ret != IDOK)
 		return;
-	// if OK, footprint has been undrawn by dialog
-	// and new pin(s) added to footprint + m_pad_row
-	if( dlg.m_drag_flag )
+
+	// If OK, new pin(s) have been added to footprint and to m_sel
+	if (dlg.m_drag_flag)
 	{
-		// if dragging, move new pad(s) to cursor position
+		// Must displace pin(s) to the cursor point
 		CPoint p;
 		GetCursorPos( &p );		// cursor pos in screen coords
 		p = m_dlist->ScreenToPCB( p );	// convert to PCB coords
-		int dx = p.x - m_pad_row.First()->x_rel;
-		int dy = p.y - m_pad_row.First()->y_rel;
-		CIter<CPadstack> ips (&m_pad_row);
-		for (CPadstack *ps = ips.First(); ps; ps = ips.Next())
-			ps->x_rel += dx,
-			ps->y_rel += dy;
-		m_fp->Draw();
-		// now start dragging
-		m_dragging_new_item = TRUE;
-		OnPadMoveRow();
-		return;
+		CIter<CPcbItem> ii (&m_sel);
+		for (CPcbItem *i = ii.First(); i; i = ii.Next())
+			if (CPadstack *ps = i->ToPadstack())
+				ps->x_rel += p.x,
+				ps->y_rel += p.y;
+		m_from_pt = p;
 	}
-	else
-		FootprintModified( true ),
-		SelectItem( m_pad_row.First());			// CPT2 TODO when multi-selection is enabled, improve this...
+	FootprintModified(true);
+	HighlightSelection();
+
+	if( dlg.m_drag_flag )
+		StartDraggingGroup(true);
 }
 
 void CFootprintView::OnFootprintFileSaveAs()
@@ -1713,7 +1825,8 @@ void CFootprintView::OnFootprintFileImport()
 	if( ret == IDOK && dlg.m_footprint_name != "" && dlg.m_shape->m_name != "" )
 	{
 		m_dlist->CancelHighlight();					// CPT
-		m_fp->Copy( dlg.m_shape );
+		m_dlist->RemoveAll();
+		m_fp = m_doc->m_edit_footprint = dlg.m_shape;
 		m_fp->Draw();
 
 		// update window title and units
@@ -1733,6 +1846,8 @@ void CFootprintView::OnFootprintFileImport()
 
 void CFootprintView::OnFootprintFileClose()
 {
+	// Cancel dragging if we're in drag mode:
+	CancelDragging();
 	// set units
 	m_fp->m_units = m_units;
 
@@ -1780,12 +1895,14 @@ void CFootprintView::OnFootprintFileNew()
 			OnFootprintFileSaveAs();
 	}
 	m_dlist->CancelHighlight();
+	m_fp->Undraw();
 	m_fp->Clear();
 	m_fp->Draw();
 	SetWindowTitle( &m_fp->m_name );
 	FootprintModified( FALSE, TRUE );
 	ClearUndo();
 	ClearRedo();
+	OnViewEntireFootprint();
 	Invalidate( FALSE );
 }
 
@@ -2138,6 +2255,356 @@ void CFootprintView::OnValueReveal()
 	OnViewEntireFootprint();
 }
 
+void CFootprintView::MoveGroup( int dx, int dy )
+{
+	// First clear utility bits on all outline corners to indicate that they've not moved:
+	CIter<COutline> io (&m_fp->m_outlines);
+	for (COutline *o = io.First(); o; o = io.Next())
+		o->main->corners.SetUtility(0);
+	// Now do it.  Centroid will be done last (so that glues defined in relation to it come out right)
+	bool bCentroidSelected = false;
+	CIter<CPcbItem> ii (&m_sel);
+	for (CPcbItem *i = ii.First(); i; i = ii.Next())
+		if (CSide *s = i->ToSide())
+		{
+			if (!s->preCorner->utility)
+				s->preCorner->x += dx,
+				s->preCorner->y += dy,
+				s->preCorner->utility = 1;
+			if (!s->postCorner->utility)
+				s->postCorner->x += dx,
+				s->postCorner->y += dy,
+				s->postCorner->utility = 1;
+		}
+		else if (CPadstack *ps = i->ToPadstack())
+			ps->x_rel += dx,
+			ps->y_rel += dy;
+		else if (CCentroid *c = i->ToCentroid())
+			bCentroidSelected = true;
+		else if (CText *t = i->ToText())
+			t->m_x += dx,
+			t->m_y += dy;
+		else if (CGlue *g = i->ToGlue())
+		{
+			if (g->type == GLUE_POS_CENTROID)
+			{
+				CCentroid *c = m_fp->m_centroid;
+				g->type = GLUE_POS_DEFINED;
+				g->x = c->m_x; g->y = c->m_y;
+			}
+			g->x += dx,
+			g->y += dy;
+		}
+
+	if (bCentroidSelected)
+		m_fp->m_centroid->m_type = CENTROID_DEFINED,
+		m_fp->m_centroid->m_x += dx,
+		m_fp->m_centroid->m_y += dy;
+
+}
+
+void CFootprintView::OnGroupDelete()
+{
+	PushUndo();
+	CIter<CPcbItem> ii (&m_sel);
+	for (CPcbItem *i = ii.First(); i; i = ii.Next())
+		if (CSide *s = i->ToSide())
+			// NB the following typecast from CHeap<COutline>* to CHeap<CPolyline>* is distasteful but hopefully safe:
+			s->Remove( (CHeap<CPolyline>*) &m_fp->m_outlines );
+		else if (CPadstack *ps = i->ToPadstack())
+			m_fp->m_padstacks.Remove(ps);
+		else if (CCentroid *c = i->ToCentroid())
+			// Sorry, can't delete centroid
+			;
+		else if (CText *t = i->ToText())
+			if (t==m_fp->m_ref || t==m_fp->m_value)
+				// Sorry, can't delete ref or value
+				;
+			else
+				m_fp->m_tl->texts.Remove(t);
+		else if (CGlue *g = i->ToGlue())
+			m_fp->m_glues.Remove(g);
+
+	FootprintModified( TRUE );
+	CancelSelection();
+}
+
+void CFootprintView::OnGroupRotate(bool bCcw) 
+{
+	CancelHighlight();
+	PushUndo();
+	RotateGroup();
+	if (bCcw)
+		// A cheap-n-cheesy way to implement ccw rotation:
+		RotateGroup(),
+		RotateGroup();
+	// CPT2 HighlightSelection may be changing groupAverageX/Y slightly, but in the event of repeated rotations this is undesirable.  Therefore save
+	// and restore the current values.
+	int groupAverageXOld = groupAverageX, groupAverageYOld = groupAverageY;
+	FootprintModified( TRUE );
+	HighlightSelection();
+	groupAverageX = groupAverageXOld, groupAverageY = groupAverageYOld;
+}
+
+void CFootprintView::RotateGroup()
+{
+	// First clear utility bits on all outline corners to indicate that they've not moved:
+	CIter<COutline> io (&m_fp->m_outlines);
+	for (COutline *o = io.First(); o; o = io.Next())
+		o->main->corners.SetUtility(0);
+	// Now do it.  Centroid will be done last (so that glues defined in relation to it come out right)
+	bool bCentroidSelected = false;
+	int tmp;
+	int diff = groupAverageX - groupAverageY, sum = groupAverageX + groupAverageY;
+	CIter<CPcbItem> ii (&m_sel);
+	for (CPcbItem *i = ii.First(); i; i = ii.Next())
+		if (CText *t = i->ToText())
+			t->Move( groupAverageX + t->m_y - groupAverageY, groupAverageY - t->m_x + groupAverageX, (t->m_angle+90)%360,
+				t->m_bMirror, t->m_bNegative, t->m_layer );
+		else if (CSide *s = i->ToSide())
+		{
+			if (!s->preCorner->utility)
+				s->preCorner->Move( s->preCorner->y + diff, sum - s->preCorner->x ),
+				s->preCorner->utility = 1;
+			if (!s->postCorner->utility)
+				s->postCorner->Move( s->postCorner->y + diff, sum - s->postCorner->x ),
+				s->postCorner->utility = 1;
+		}
+		else if (CPadstack *ps = i->ToPadstack())
+			tmp = ps->x_rel,
+			ps->x_rel = ps->y_rel + diff,
+			ps->y_rel = sum - tmp,
+			ps->angle = (ps->angle + 270) % 360;
+		else if (CCentroid *c = i->ToCentroid())
+			bCentroidSelected = true;
+		else if (CGlue *g = i->ToGlue())
+		{
+			if (g->type == GLUE_POS_CENTROID)
+			{
+				CCentroid *c = m_fp->m_centroid;
+				g->type = GLUE_POS_DEFINED;
+				g->x = c->m_x; g->y = c->m_y;
+			}
+			tmp = g->x;
+			g->x = g->y + diff;
+			g->y = sum - tmp;
+		}
+
+	if (bCentroidSelected)
+	{
+		CCentroid *c = m_fp->m_centroid;
+		c->m_type = CENTROID_DEFINED;
+		tmp = c->m_x,
+		c->m_x = c->m_y + diff,
+		c->m_y = sum - tmp;
+		c->m_angle = (c->m_angle + 270) % 360;
+	}
+}
+
+void CFootprintView::OnGroupMove()
+{
+	StartDraggingGroup(false);
+}
+
+void CFootprintView::StartDraggingGroup( bool bAdd, int x, int y )			// CPT2 TODO remove x/y
+{
+	CancelHighlight();
+	m_dragging_new_item = bAdd;
+	m_cursor_mode = CUR_FP_DRAG_GROUP;
+	// If we're adding, m_from_pt is already set up.  Otherwise, make m_from_pt equal to the grid point nearest the most recent mouse pos.
+	if (!bAdd)
+		SnapCursorPoint(m_last_mouse_point, -1),							// Sets m_last_cursor_point
+	m_from_pt = m_last_cursor_point;
+
+	// make outlines, padstacks, texts, glues & centroid invisible as appropriate
+	int n_sides = 0;
+	int n_other = 0;
+
+	CIter<CPcbItem> ii (&m_sel);
+	for (CPcbItem *i = ii.First(); i; i = ii.Next())
+		if (CSide *s = i->ToSide())
+		{
+			CPolyline *p = s->GetPolyline();
+			p->SetVisible(false);
+			n_sides++;
+		}
+		else 
+			i->SetVisible(false),
+			n_other++;
+
+	// set up dragline array
+	m_dlist->MakeDragLineArray( n_other*4 + n_sides );
+	for (CPcbItem *i = ii.First(); i; i = ii.Next())
+		if (CSide *s = i->ToSide())
+		{
+			CCorner *c1 = s->preCorner, *c2 = s->postCorner;
+			CPoint p1( c1->x - m_from_pt.x, c1->y - m_from_pt.y );
+			CPoint p2( c2->x - m_from_pt.x, c2->y - m_from_pt.y );
+			m_dlist->AddDragLine( p1, p2 );
+		}
+		else
+		{
+			CPoint p1( m_dlist->Get_x( i->dl_sel ), m_dlist->Get_y( i->dl_sel ) );
+			CPoint p2( m_dlist->Get_xf( i->dl_sel ), m_dlist->Get_y( i->dl_sel ) );
+			CPoint p3( m_dlist->Get_xf( i->dl_sel ), m_dlist->Get_yf( i->dl_sel ) );
+			CPoint p4( m_dlist->Get_x( i->dl_sel ), m_dlist->Get_yf( i->dl_sel ) );
+			p1 -= m_from_pt;
+			p2 -= m_from_pt;
+			p3 -= m_from_pt;
+			p4 -= m_from_pt;
+			m_dlist->AddDragLine( p1, p2 );
+			m_dlist->AddDragLine( p2, p3 );
+			m_dlist->AddDragLine( p3, p4 );
+			m_dlist->AddDragLine( p4, p1 );
+		}
+
+	CDC *pDC = GetDC();
+	pDC->SelectClipRgn( &m_pcb_rgn );
+	SetDCToWorldCoords( pDC );
+	CPoint p = m_from_pt;
+	CPoint cur_p = m_dlist->PCBToScreen( p );
+	SetCursorPos( cur_p.x, cur_p.y );
+	m_dlist->StartDraggingArray( pDC, m_from_pt.x, m_from_pt.y, 0, LAY_SELECTION, TRUE );
+	Invalidate( FALSE );
+	ReleaseDC( pDC );
+}
+
+void CFootprintView::OnGroupCopy()
+{
+	// CPT2.  New clipboard abilities.  Here's how we do it:  First mark the utility bits of just those footprint items that are selected.
+	// Then make a new copy of m_fp, putting it in m_clip_fp.  Taking advantage of how CShape::Copy transfers over utility bits, cull through
+	// m_clip_fp, and eliminate all subcomponents that were not selected (back in the original m_fp).  (Throughout we ignore the centroid, 
+	// ref, and value, which can't be pasted). 
+	CIter<COutline> io (&m_fp->m_outlines);
+	for (COutline *o = io.First(); o; o = io.Next())
+		o->main->sides.SetUtility(0);
+	m_fp->m_padstacks.SetUtility(0);
+	m_fp->m_tl->texts.SetUtility(0);
+	m_fp->m_glues.SetUtility(0);
+	CIter<CPcbItem> ii (&m_sel);
+	for (CPcbItem *i = ii.First(); i; i = ii.Next())
+		i->utility = 1;
+
+	m_clip_fp = new CShape(m_fp);
+
+	// As in the CFreePcbView copy/paste routines, the digit "2" signifies objects over on the clipboard.
+	CHeap<CSide> allSides2;
+	CIter<COutline> io2 (&m_clip_fp->m_outlines);
+	for (COutline *o2 = io2.First(); o2; o2 = io2.Next())
+		allSides2.Add( &o2->main->sides);
+	CIter<CSide> is2 (&allSides2);
+	for (CSide *s2 = is2.First(); s2; s2 = is2.Next())
+		if (!s2->utility)
+			s2->Remove((CHeap<CPolyline>*) &m_clip_fp->m_outlines);
+	CIter<CPadstack> ips2 (&m_clip_fp->m_padstacks);
+	for (CPadstack *ps2 = ips2.First(); ps2; ps2 = ips2.Next())
+		if (!ps2->utility)
+			m_clip_fp->m_padstacks.Remove(ps2);
+	CIter<CText> it2 (&m_clip_fp->m_tl->texts);
+	for (CText *t2 = it2.First(); t2; t2 = it2.Next())
+		if (!t2->utility)
+			m_clip_fp->m_tl->texts.Remove(t2);
+	CIter<CGlue> ig2 (&m_clip_fp->m_glues);
+	for (CGlue *g2 = ig2.First(); g2; g2 = ig2.Next())
+		if (!g2->utility)
+			m_clip_fp->m_glues.Remove(g2);
+}
+
+void CFootprintView::OnGroupCut()
+{
+	OnGroupCopy();
+	OnGroupDelete();
+}
+
+int ComparePadstacksByName( CPadstack **ps1, CPadstack **ps2)
+	// Used in OnGroupPaste(), below.
+	{ return CompareNumeric( &(*ps1)->name, &(*ps2)->name); }
+
+void CFootprintView::OnGroupPaste()
+{
+	if (!m_clip_fp) 
+	{
+		AfxMessageBox( CString((LPCSTR) IDS_NoItemsCouldBePasted) );
+		return;
+	}
+
+	CancelSelection();
+	m_fp->Undraw();
+	// First off, determine the first purely numeric padstack name that is unused on the current f.p.
+	int max_ps = 0;
+	CIter<CPadstack> ips (&m_fp->m_padstacks);
+	for (CPadstack *ps = ips.First(); ps; ps = ips.Next())
+	{
+		int num = atoi(ps->name);
+		char buf[32];
+		itoa(num, buf, 10);
+		CString name2 (buf);
+		if (ps->name == name2 && num > max_ps)
+			max_ps = num;
+	}
+	// Also, sort the clipboard padstacks, comparing their names via CompareNumeric().
+	// As in the CFreePcbView copy/paste routines, the digit "2" signifies objects over on the clipboard.
+	int numPs2 = m_clip_fp->m_padstacks.GetSize();
+	CPadstack **tbl = (CPadstack**) HeapAlloc(GetProcessHeap(), 0, numPs2*sizeof(CPadstack*));
+	CIter<CPadstack> ips2 (&m_clip_fp->m_padstacks);
+	int i = 0;
+	for (CPadstack *ps2 = ips2.First(); ps2; ps2 = ips2.Next())
+		tbl[i++] = ps2;
+	qsort(tbl, numPs2, sizeof(CPadstack*), (int (*)(const void*,const void*)) ComparePadstacksByName);
+
+	// Start pasting from the clipboard, first doing padstacks in the order proscribed by "tbl" and assigning numeric names
+	// starting from max_ps+1.
+	for (int i=0; i < numPs2; i++)
+	{
+		CPadstack *ps = new CPadstack(tbl[i], m_fp);
+		ps->name.Format("%d", ++max_ps);
+		m_sel.Add(ps);
+	}
+	HeapFree(GetProcessHeap(), 0, tbl);
+	// Now do outlines, texts, and glues
+	CIter<COutline> io2 (&m_clip_fp->m_outlines);
+	for (COutline *o2 = io2.First(); o2; o2 = io2.Next())
+	{
+		COutline *o = new COutline(o2, m_fp);
+		m_sel.Add( (CHeap<CPcbItem>*) &o->main->sides );
+	}
+	CIter<CText> it2 (&m_clip_fp->m_tl->texts);
+	for (CText *t2 = it2.First(); t2; t2 = it2.Next())
+	{
+		CText *t = m_fp->m_tl->AddText( t2->m_x, t2->m_y, t2->m_angle, t2->m_bMirror, t2->m_bNegative, 
+			t2->m_layer, t2->m_font_size, t2->m_stroke_width, &t2->m_str, NULL, m_fp );
+		m_sel.Add(t);
+	}
+	CIter<CGlue> ig2 (&m_clip_fp->m_glues);
+	for (CGlue *g2 = ig2.First(); g2; g2 = ig2.Next())
+	{
+		CGlue *g = new CGlue(g2, m_fp);
+		m_sel.Add(g);
+	}
+
+	int numPasted = m_sel.GetSize();
+	if (numPasted==0)
+	{
+		AfxMessageBox( CString((LPCSTR) IDS_NoItemsCouldBePasted) );
+		m_fp->Draw();
+		Invalidate(false);
+		return;
+	}
+
+	if (g_bShowFpPasteMessage)
+	{
+		CString str0 ((LPCSTR) IDS_ItemsPastedUseTheArrowKeysOrF4ToMoveThem), mess;
+		mess.Format(str0, numPasted);
+		CDlgMyMessageBox dlg;
+		dlg.Initialize( mess );
+		dlg.DoModal();
+		g_bShowFpPasteMessage = !dlg.bDontShowBoxState;
+	}
+
+	FootprintModified(true);
+	HighlightSelection();
+	Invalidate(true);						// The little flicker onscreen may be nice on occasion if the message box was suppressed.
+}
 
 // display active layer in status bar and change layer order for DisplayList
 //
@@ -2329,7 +2796,7 @@ void CFootprintView::OnCentroidMove()
 	CPoint cur_p = m_dlist->PCBToScreen( p );
 	SetCursorPos( cur_p.x, cur_p.y );
 	// start dragging
-	m_dragging_new_item = 0;
+	m_dragging_new_item = false;
 	c->StartDragging( pDC );
 	SetCursorMode( CUR_FP_DRAG_CENTROID );
 	ReleaseDC( pDC );
@@ -2371,8 +2838,14 @@ void CFootprintView::OnAddAdhesive()
 	int ret = dlg.DoModal();
 	if( ret != IDOK )
 		return;
+
 	PushUndo();		// save state before creation of dot
-	CGlue *g = new CGlue(m_fp, dlg.m_pos_type, dlg.m_w, dlg.m_x, dlg.m_y);
+	CPoint p;
+	GetCursorPos( &p );		// cursor pos in screen coords
+	p = m_dlist->ScreenToPCB( p );	// convert to PCB coords
+	int x = dlg.m_bDrag? p.x: dlg.m_x;
+	int y = dlg.m_bDrag? p.y: dlg.m_y;
+	CGlue *g = new CGlue(m_fp, dlg.m_pos_type, dlg.m_w, x, y);
 	m_fp->m_glues.Add(g);
 	m_fp->Draw();
 	SelectItem(g);
@@ -2433,7 +2906,6 @@ void CFootprintView::OnAdhesiveEdit()
 //
 void CFootprintView::OnAdhesiveMove()
 {
-	PushUndo(); 
 	m_dragging_new_item = FALSE;
 	OnAdhesiveDrag();
 }
@@ -2552,8 +3024,9 @@ void CFootprintView::HighlightSelection()
 	CPcbItem *first = m_sel.First();
 	if (m_sel.GetSize()==0)
 		SetCursorMode( CUR_FP_NONE_SELECTED );
-	// else if (m_sel.GetSize()>=2)
-	//  SetCursorMode( CUR_FP_GROUP_SELECTED );				// CPT2 TODO one of these days?
+	else if (m_sel.GetSize()>=2)
+		FindGroupCenter(),
+	    SetCursorMode( CUR_FP_GROUP_SELECTED );
 	else if( first->IsPadstack() )
 		SetCursorMode( CUR_FP_PAD_SELECTED );
 	else if( first->IsRefText() )

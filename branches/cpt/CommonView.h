@@ -62,10 +62,6 @@ public:
 	int m_totalArrowMoveY;
 
 	int m_debug_flag;
-	// flag to indicate that a newly-created item is being dragged,
-	// as opposed to an existing item
-	// if so, right-clicking or ESC will delete item not restore it
-	BOOL m_dragging_new_item;
 
 	// selected items
 	CHeap<CPcbItem> m_sel;	// CPT2.  Will replace the following 2 items
@@ -74,6 +70,7 @@ public:
 	CPcbItem *m_sel_prev;	// CPT2 was void*
 	int m_poly_drag_mode;	// CPT2.  Equal to CUR_ADD_AREA, CUR_ADD_AREA_CUTOUT, CUR_ADD_SMCUTOUT, CUR_ADD_BOARD
 	CContour *m_drag_contour;	// When user drags out a new contour (main contour or cutout), this points to the contour in question.
+	long long groupAverageX, groupAverageY;
 
 	// active layer for placement and (perhaps) routing
 	int m_active_layer;
@@ -91,7 +88,17 @@ public:
 	CPoint m_last_mouse_point;	// last mouse position
 	CPoint m_last_cursor_point;	// last cursor position (may be different from mouse)
 	CPoint m_last_click;			// CPT:  last point where user clicked
+	BOOL m_bLButtonDown;
+	BOOL m_bDraggingRect;
+	CPoint m_start_pt;
+	CRect m_drag_rect, m_last_drag_rect;
+	BOOL m_bDontDrawDragRect;					// CPT true after an autoscroll but before repainting occurs
+	CRect m_sel_rect;							// rectangle used for selection
+	BOOL m_dragging_new_item;					// flag to indicate that a newly-created item is being dragged, as opposed to an existing item
+												// if so, right-clicking or ESC will delete item not restore it
+	DWORD m_last_autoscroll;					// Tick count when an autoscroll last occurred.
 	CArray<CHitInfo> m_hit_info;	// CPT r294: info about items near where user is clicking, now a member applicable throughout the class.
+	CNet *m_highlight_net;
 
 	// function key shortcuts
 	int m_fkey_option[12];
@@ -132,9 +139,6 @@ public:
 	virtual void AssertValid() const;
 	virtual void Dump(CDumpContext& dc) const;
 #endif
-	int SetDCToWorldCoords( CDC * pDC );
-	afx_msg void OnSize(UINT nType, int cx, int cy);
-
 	virtual bool IsFreePcbView() = 0;
 	// Initialization functions:
 	virtual BOOL PreCreateWindow(CREATESTRUCT& cs);
@@ -155,10 +159,10 @@ public:
 	virtual int GetLeftPaneKeyID() = 0;
 	// Masks:
 	virtual int GetNMasks() = 0;
-	// void SetSelMaskArray( int mask );				// CPT2 dumped
 	virtual int GetMaskNamesID() = 0;
 	virtual int GetMaskBtnBits(int i) = 0;				// CPT2
 	// Display:
+	int SetDCToWorldCoords( CDC * pDC );
 	void SetCursorMode( int mode );
 	int ShowCursor();
 	void ShowRelativeDistance( int dx, int dy );
@@ -167,7 +171,9 @@ public:
 	void DrawBottomPane(CDC *pDC);
 	// User input response:
 	void SelectItem(CPcbItem *item);
+	void ToggleSelectionState(CPcbItem *item);					// CPT2 updated arg
 	virtual void CancelSelection() = 0;
+	virtual void CancelHighlightNet() { }						// Overridden in CFreePcbView, but does nothing in CFootprintView.
 	bool CheckBottomPaneClick(CPoint &point);
 	bool CheckLeftPaneClick(CPoint &point);
 	void RightClickSelect(CPoint &point);
@@ -180,6 +186,7 @@ public:
 	void HandlePanAndZoom(int nChar, CPoint &p);
 	void HandleCtrlFKey(int nChar);
 	int SelectObjPopup( CPoint const &point );
+	void FindGroupCenter();
 
 	// CPT2 r317, made the following 10 virtual
 	virtual void SetFKText( int mode ) = 0;
@@ -193,8 +200,6 @@ public:
 	virtual	void HighlightSelection() = 0;
 	virtual void SetMainMenu() { }
 
-	afx_msg void OnSysKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags);
-	afx_msg void OnSysKeyUp(UINT nChar, UINT nRepCnt, UINT nFlags);
 	void PlacementGridUp();
 	void PlacementGridDown();
 	void AngleUp();
@@ -202,6 +207,11 @@ public:
 	void SnapToAngle(CPoint &wp, int grid_spacing);
 	void SnapToGridPoint(CPoint &wp, int grid_spacing);
 	void SnapToGridLine(CPoint &wp, int grid_spacing);
+	afx_msg void OnSysKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags);
+	afx_msg void OnSysKeyUp(UINT nChar, UINT nRepCnt, UINT nFlags);
+	afx_msg void OnLButtonDown(UINT nFlags, CPoint point);
+	afx_msg virtual void OnMouseMove(UINT nFlags, CPoint point);
+	afx_msg void OnSize(UINT nType, int cx, int cy);
 	};
 
 #ifndef _DEBUG  // debug version in FreePcbView.cpp

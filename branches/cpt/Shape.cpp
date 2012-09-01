@@ -165,6 +165,20 @@ void CPadstack::Copy( CPadstack *src, bool bCopyName )
 	inner = src->inner;
 	dl_el = dl_sel = top.dl_el = inner.dl_el = bottom.dl_el = top_mask.dl_el = 
 		top_paste.dl_el = bottom_mask.dl_el = bottom_paste.dl_el = NULL;
+	utility = src->utility;
+}
+
+void CPadstack::SetVisible(bool bVis)
+{
+	CDisplayList *dl = doc->m_dlist;
+	dl->Set_visible(top.dl_el, bVis);
+	dl->Set_visible(top_mask.dl_el, bVis);
+	dl->Set_visible(top_paste.dl_el, bVis);
+	dl->Set_visible(inner.dl_el, bVis);
+	dl->Set_visible(bottom.dl_el, bVis);
+	dl->Set_visible(bottom_mask.dl_el, bVis);
+	dl->Set_visible(bottom_paste.dl_el, bVis);
+	dl->Set_visible(dl_el, bVis);						// This is the hole (if any)
 }
 
 CCentroid::CCentroid(CShape *s)
@@ -223,27 +237,6 @@ void CCentroid::StartDragging( CDC * pDC )
 						-CENTROID_WIDTH/2, -CENTROID_WIDTH/2,
 						CENTROID_WIDTH/2, CENTROID_WIDTH/2,
 						0, LAY_FP_SELECTION );
-#if 0
-	// CPT2 the following old code produces results that look just like what StartDraggingRectangle() did, so I'd say go with the simpler option...
-	dl->MakeDragLineArray( 8 );
-	int w = CENTROID_WIDTH;
-	int xa = 0, ya = 0;
-	if( m_angle == 0 )
-		xa += w;
-	else if( m_angle == 90 )
-		ya -= w;
-	else if( m_angle == 180 )
-		xa -= w;
-	else if( m_angle == 270 )
-		ya += w;
-	dl->AddDragLine( CPoint(-w/2, -w/2), CPoint(+w/2, -w/2) );
-	dl->AddDragLine( CPoint(+w/2, -w/2), CPoint(+w/2, +w/2) );
-	dl->AddDragLine( CPoint(+w/2, +w/2), CPoint(-w/2, +w/2) );
-	dl->AddDragLine( CPoint(-w/2, +w/2), CPoint(-w/2, -w/2) );
-	dl->AddDragLine( CPoint(0, 0), CPoint(xa, ya) );
-	// drag
-	dl->StartDraggingArray( pDC, m_x, m_y, 0, LAY_FP_SELECTION );
-#endif
 }
 
 // Cancel dragging centroid
@@ -254,6 +247,12 @@ void CCentroid::CancelDragging()
 	dl->Set_visible( dl_el, 1 );
 	// stop dragging
 	dl->StopDragging();
+}
+
+void CCentroid::SetVisible(bool bVis)
+{
+	if (dl_el)
+		dl_el->visible = bVis;
 }
 
 
@@ -271,6 +270,7 @@ CGlue::CGlue(CGlue *src, CShape *_shape )
 { 
 	type = src->type; 
 	w = src->w; x = src->x; y = src->y;
+	utility = src->utility;
 	shape = _shape;
 	shape->m_glues.Add(this);
 }
@@ -337,6 +337,11 @@ void CGlue::CancelDragging()
 	dl->StopDragging();
 }
 
+void CGlue::SetVisible(bool bVis)
+{
+	if (dl_el)
+		dl_el->visible = bVis;
+}
 
 // class CShape
 // this constructor creates an empty shape
@@ -381,9 +386,11 @@ void CShape::Clear()
 {
 	// CPT2 converted
 	CString strRef ("REF");
-	m_ref = new CRefText(doc, 100*NM_PER_MIL, 200*NM_PER_MIL, 0, false, false, LAY_FP_SILK_TOP, 100*NM_PER_MIL, 10*NM_PER_MIL, 0, &strRef, true); 
+	m_ref = new CRefText(doc, 100*NM_PER_MIL, 200*NM_PER_MIL, 0, false, false, LAY_FP_SILK_TOP, 100*NM_PER_MIL, 10*NM_PER_MIL, 0, &strRef, true);
+	m_ref->m_shape = this;
 	CString strValue ("VALUE");
 	m_value = new CValueText(doc, 100*NM_PER_MIL, 0*NM_PER_MIL, 0, false, false, LAY_FP_SILK_TOP, 100*NM_PER_MIL, 10*NM_PER_MIL, 0, &strValue, true);
+	m_value->m_shape = this;
 	m_tl = new CTextList(doc);
 	m_centroid = new CCentroid(this);
 	m_author = "";
@@ -1816,6 +1823,7 @@ normal_return:
 
 // copy another shape into this shape.
 // CPT2 converted after changing CShape members a bit.  Ensures that copies all have correct CFreePcbDoc pointers.
+// New feature (used when making doing copy-to-clipboard operations in the fp editor):  copy utility bits over from each sub-object.
 //
 void CShape::Copy( CShape * src )
 {
@@ -1847,6 +1855,7 @@ void CShape::Copy( CShape * src )
 	m_centroid->m_y = src->m_centroid->m_y;
 	m_centroid->m_angle = src->m_centroid->m_angle;
 	m_centroid->m_shape = this;
+	m_centroid->utility = src->m_centroid->utility;
 	// padstacks
 	m_padstacks.RemoveAll();
 	CIter<CPadstack> ips (&src->m_padstacks);
@@ -1861,9 +1870,12 @@ void CShape::Copy( CShape * src )
 	m_tl->texts.RemoveAll();
 	CIter<CText> it (&src->m_tl->texts);
 	for (CText *t = it.First(); t; t = it.Next())
+	{
 		CText *t2 = m_tl->AddText( t->m_x, t->m_y, t->m_angle, t->m_bMirror, t->m_bNegative, 
 			t->m_layer, t->m_font_size, t->m_stroke_width, &t->m_str, NULL, this );
-	// glue spots.
+		t2->utility = t->utility;
+	}
+	// glue spots
 	m_glues.RemoveAll();
 	CIter<CGlue> ig (&src->m_glues);
 	for (CGlue *g = ig.First(); g; g = ig.Next())
@@ -2806,6 +2818,7 @@ void CShape::Undraw()
 
 // Start dragging row of pads
 //
+/* CPT2 obsolete, use CFootprintView::StartDraggingGroup
 void CShape::StartDraggingPadRow( CDC * pDC, CHeap<CPadstack> *row )
 {
 	CDisplayList *dl = doc->m_dlist;
@@ -2854,7 +2867,7 @@ void CShape::CancelDraggingPadRow( CHeap<CPadstack> *row )
 	}
 	dl->StopDragging();
 }
-
+*/
 
 void CShape::ShiftToInsertPadName( CString * astr, int n )
 {

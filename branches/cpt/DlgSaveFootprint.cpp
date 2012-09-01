@@ -389,7 +389,7 @@ void CDlgSaveFootprint::OnBnClickedButtonBrowse()
 }
 
 // initialize file list, selecting the last file name used
-// add "user_created.fpl" and last file name if necessary
+// add "user_created.fpl" and last file name if necessary.  CPT2 TODO fix this user_created business:  sometimes we get 2 of 'em.
 // uses global gLastFileName
 //
 void CDlgSaveFootprint::InitFileList()

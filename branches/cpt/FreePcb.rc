@@ -167,7 +167,7 @@ BEGIN
         MENUITEM "&Generate CAM files...",      ID_FILE_GENERATECADFILES
         MENUITEM "Generate &Report File...",    ID_FILE_GENERATEREPORTFILE
         MENUITEM SEPARATOR
-        MENUITEM "Open Footprint Editor...",    ID_FILE_OPENFOOTPRINTEDITOR
+        MENUITEM "Open &Footprint Editor...",   ID_FILE_OPENFOOTPRINTEDITOR
         MENUITEM SEPARATOR
         MENUITEM "Export .dsn file...",         32886
         MENUITEM "Import .ses file...",         ID_SES_FILE_IMPORT
@@ -357,9 +357,9 @@ IDR_FOOTPRINT MENU
 BEGIN
     POPUP "&File"
     BEGIN
-        MENUITEM "&New Footprint",              ID_FOOTPRINT_FILE_NEW
-        MENUITEM "&Import footprint...",        ID_FOOTPRINT_FILE_IMPORT
-        MENUITEM "Save Footprint &As...",       ID_FOOTPRINT_FILE_SAVE_AS
+        MENUITEM "&New Footprint\tCtrl+N",      ID_FOOTPRINT_FILE_NEW
+        MENUITEM "&Import footprint...\tCtrl+O", ID_FOOTPRINT_FILE_IMPORT
+        MENUITEM "Save Footprint &As...\tCtrl+S", ID_FOOTPRINT_FILE_SAVE_AS
         MENUITEM SEPARATOR
         MENUITEM "&Print...\tCtrl+P",           ID_FILE_PRINT, INACTIVE
         MENUITEM "Print Pre&view",              ID_FILE_PRINT_PREVIEW, INACTIVE
@@ -372,9 +372,9 @@ BEGIN
         MENUITEM "&Undo\tCtrl+Z",               ID_EDIT_UNDO
         MENUITEM "&Redo\tCtrl+Shift+Z",         ID_EDIT_REDO
         MENUITEM SEPARATOR
-        MENUITEM "Cu&t\tCtrl+X",                ID_EDIT_CUT, INACTIVE
-        MENUITEM "&Copy\tCtrl+C",               ID_EDIT_COPY, INACTIVE
-        MENUITEM "&Paste\tCtrl+V",              ID_EDIT_PASTE, INACTIVE
+        MENUITEM "Cu&t\tCtrl+X",                ID_EDIT_CUT
+        MENUITEM "&Copy\tCtrl+C",               ID_EDIT_COPY
+        MENUITEM "&Paste\tCtrl+V",              ID_EDIT_PASTE
     END
     POPUP "&View"
     BEGIN
@@ -485,17 +485,6 @@ BEGIN
         MENUITEM "Delete Segment",              ID_SEGMENT_DELETE
         MENUITEM "Delete Connection",           ID_DELETECONNECTION
     END
-    POPUP "Defunct"
-    BEGIN
-        MENUITEM "Move",                        ID_VERTEX_MOVE
-        MENUITEM "Set Position",                ID_VERTEX_PROPERITES
-        MENUITEM "Set Via Size",                ID_VERTEX_SETSIZE
-        MENUITEM SEPARATOR
-        MENUITEM "Connect To Pin",              ID_VERTEX_CONNECTTOPIN
-        MENUITEM SEPARATOR
-        MENUITEM "Delete Vertex",               ID_VERTEX_DELETE
-        MENUITEM "Unroute Trace",               ID_VERTEX_UNROUTETRACE
-    END
     POPUP "Text"
     BEGIN
         MENUITEM "Edit Properties",             ID_TEXT_EDIT
@@ -563,13 +552,6 @@ BEGIN
         MENUITEM "Delete Vertex",               ID_VERTEX_DELETE
         MENUITEM "Delete Connection",           ID_VERTEX_DELETECONNECTION
     END
-    POPUP "Defunct"
-    BEGIN
-        MENUITEM "Move",                        ID_FP_MOVE
-        MENUITEM "Edit properties",             ID_FP_EDITPROPERTIES
-        MENUITEM SEPARATOR
-        MENUITEM "Delete",                      ID_FP_DELETE
-    END
     POPUP "SM Corner"
     BEGIN
         MENUITEM "Move",                        ID_SMCORNER_MOVE
@@ -613,7 +595,7 @@ BEGIN
     END
     POPUP "Group"
     BEGIN
-        MENUITEM "Move",                        ID_GROUP_MOVE
+        MENUITEM "Move Group",                  ID_GROUP_MOVE
         MENUITEM "Rotate CW",                   ID_GROUP_ROTATE
         MENUITEM "Rotate CCW",                  ID_GROUP_ROTATE_CCW
         MENUITEM SEPARATOR
@@ -722,6 +704,13 @@ BEGIN
         MENUITEM "Rotate",                      ID_FP_TEXT_ROTATE
         MENUITEM "Move",                        ID_FP_TEXT_MOVE
     END
+    POPUP "Group"
+    BEGIN
+        MENUITEM "Move Group",                  ID_FP_GROUP_MOVE
+        MENUITEM "Rotate CW",                   ID_FP_GROUP_ROTATECW
+        MENUITEM "Rotate CCW",                  ID_FP_GROUP_ROTATECCW
+        MENUITEM "Delete",                      ID_FP_GROUP_DELETE
+    END
 END
 
 
@@ -746,6 +735,23 @@ BEGIN
     "S",            ID_FILE_SAVE,           VIRTKEY, CONTROL, NOINVERT
     "N",            ID_FILE_NEW,            VIRTKEY, CONTROL, NOINVERT
     "D",            ID_TOOLS_REPEATDRC,     VIRTKEY, CONTROL, NOINVERT
+END
+
+IDR_FOOTPRINT ACCELERATORS
+BEGIN
+    "C",            ID_EDIT_COPY,           VIRTKEY, CONTROL, NOINVERT
+    VK_INSERT,      ID_EDIT_COPY,           VIRTKEY, CONTROL, NOINVERT
+    VK_DELETE,      ID_EDIT_CUT,            VIRTKEY, SHIFT, NOINVERT
+    "X",            ID_EDIT_CUT,            VIRTKEY, CONTROL, NOINVERT
+    "V",            ID_EDIT_PASTE,          VIRTKEY, CONTROL, NOINVERT
+    VK_INSERT,      ID_EDIT_PASTE,          VIRTKEY, SHIFT, NOINVERT
+    "Z",            ID_EDIT_REDO,           VIRTKEY, SHIFT, CONTROL, NOINVERT
+    VK_BACK,        ID_EDIT_UNDO,           VIRTKEY, ALT, NOINVERT
+    "Z",            ID_EDIT_UNDO,           VIRTKEY, CONTROL, NOINVERT
+    "N",            ID_FOOTPRINT_FILE_NEW,  VIRTKEY, CONTROL, NOINVERT
+    "O",            ID_FOOTPRINT_FILE_IMPORT, VIRTKEY, CONTROL, NOINVERT
+    "P",            ID_FILE_PRINT,          VIRTKEY, CONTROL, NOINVERT
+    "S",            ID_FOOTPRINT_FILE_SAVE_AS, VIRTKEY, CONTROL, NOINVERT
 END
 
 
@@ -1843,12 +1849,12 @@ BEGIN
     LTEXT           "Y",IDC_STATIC,90,51,8,8
 END
 
-IDD_SHORTCUTS DIALOGEX 0, 0, 282, 258
+IDD_SHORTCUTS DIALOGEX 0, 0, 282, 262
 STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Keyboard Shortcuts"
 FONT 8, "MS Shell Dlg", 400, 0, 0x1
 BEGIN
-    PUSHBUTTON      "Cancel",IDCANCEL,120,240,50,12
+    PUSHBUTTON      "Cancel",IDCANCEL,120,242,50,12
     LTEXT           "space",IDC_STATIC,6,6,20,8
     LTEXT           "PgUp",IDC_STATIC,6,18,18,8
     LTEXT           "PgDn",IDC_STATIC,6,30,18,8
@@ -1857,7 +1863,7 @@ BEGIN
     LTEXT           "1234567890qwerty",IDC_STATIC,6,66,63,8
     LTEXT           "c",IDC_STATIC,6,90,8,8
     LTEXT           "n",IDC_STATIC,6,102,8,8
-    LTEXT           "SHIFT",IDC_STATIC,6,175,20,8
+    LTEXT           "SHIFT",IDC_STATIC,6,151,20,8
     LTEXT           "- center on cursor",IDC_STATIC,42,6,92,8
     LTEXT           "- center on cursor and zoom in",IDC_STATIC,42,18,117,8
     LTEXT           "- center on cursor and zoom out",IDC_STATIC,42,30,117,8
@@ -1866,25 +1872,25 @@ BEGIN
     LTEXT           "- set routing layer (1 to 16)",IDC_STATIC,72,66,138,8
     LTEXT           "- with segment or vertex selected, press to highlight entire connection",IDC_STATIC,42,90,231,8
     LTEXT           "- with pin, segment or vertex selected, press to highlight entire net",IDC_STATIC,42,102,230,8
-    LTEXT           "- when using arrows, hold down to move in steps of 1 mil or 0.01 mm",IDC_STATIC,42,175,240,8
-    LTEXT           "arrows",IDC_STATIC,6,163,23,8
-    LTEXT           "- move selected item(s) one grid step",IDC_STATIC,42,163,153,8
-    LTEXT           "CTRL",IDC_STATIC,6,210,18,8
-    LTEXT           "- hold down when selecting items to add/remove from group",IDC_STATIC,42,210,225,8
+    LTEXT           "- when using arrows, hold down to move in steps of 1 mil or 0.01 mm",IDC_STATIC,42,151,240,8
+    LTEXT           "arrows",IDC_STATIC,6,139,23,8
+    LTEXT           "- move selected item(s) one grid step",IDC_STATIC,42,139,153,8
+    LTEXT           "CTRL",IDC_STATIC,6,186,18,8
+    LTEXT           "- hold down when selecting items to add/remove from group",IDC_STATIC,42,186,225,8
     LTEXT           "d",IDC_STATIC,6,115,8,8
-    LTEXT           "- hold down to magnify DRC erors",IDC_STATIC,42,115,104,8
-    LTEXT           "Backspace",IDC_STATIC,6,222,34,8
-    LTEXT           "- while routing, back up one segment",IDC_STATIC,43,222,164,8
-    LTEXT           "f",IDC_STATIC,6,127,8,8
-    LTEXT           "- with vertex selected, force a via",IDC_STATIC,42,127,110,8
-    LTEXT           "u",IDC_STATIC,6,139,8,8
-    LTEXT           "- with vertex selected, unforce a via",IDC_STATIC,42,139,118,8
-    LTEXT           "- when routing from off-grid point, hold down to reverse trace angles",IDC_STATIC,42,185,234,8
-    LTEXT           "m",IDC_STATIC,6,152,8,8
-    LTEXT           "- press to enter ""measurement"" mode",IDC_STATIC,42,152,164,8
+    LTEXT           "- hold down to magnify design-rule errors",IDC_STATIC,42,115,158,8
+    LTEXT           "Backspace",IDC_STATIC,6,198,34,8
+    LTEXT           "- while routing, back up one segment",IDC_STATIC,43,198,164,8
+    LTEXT           "- when routing from off-grid point, hold down to reverse trace angles",IDC_STATIC,42,161,234,8
+    LTEXT           "m",IDC_STATIC,6,128,8,8
+    LTEXT           "- press to enter ""measurement"" mode",IDC_STATIC,42,128,164,8
     LTEXT           "SHIFT-1234567890qwerty",IDC_STATIC,6,78,86,8
     LTEXT           "- change layer of trace or copper area",IDC_STATIC,96,78,168,8
-    LTEXT           "- hold down when selecting items to see a menu of possibilities",IDC_STATIC,42,196,234,8
+    LTEXT           "- hold down when selecting items to see a menu of possibilities",IDC_STATIC,42,172,234,8
+    LTEXT           "/",IDC_STATIC,6,211,8,8
+    LTEXT           "- toggle mil/mm display",IDC_STATIC,43,211,164,8
+    LTEXT           "?",IDC_STATIC,6,224,8,8
+    LTEXT           "- toggle mil/mm, plus change grids accordingly",IDC_STATIC,43,224,164,8
 END
 
 IDD_MY_MESSAGE DIALOGEX 0, 0, 244, 101
@@ -2665,7 +2671,7 @@ BEGIN
         LEFTMARGIN, 7
         RIGHTMARGIN, 275
         TOPMARGIN, 7
-        BOTTOMMARGIN, 251
+        BOTTOMMARGIN, 255
     END
 
     IDD_MY_MESSAGE, DIALOG
@@ -3322,10 +3328,11 @@ BEGIN
     IDS_CornerPosition      "Corner Position"
     IDS_PolylineHasTooFewCorners "Polyline has too few corners"
     IDS_UnableToSaveEmptyFootprint "Unable to save: empty footprint"
-    IDS_SaveFootprintBeforeExiting "Save footprint before exiting ?"
-    IDS_SaveFootprint       "Save footprint ?"
+    IDS_SaveFootprintBeforeExiting 
+                            "Save footprint to a library before exiting ?"
+    IDS_SaveFootprint       "Save footprint to a library ?"
     IDS_SaveFootprintBeforeLaunchingWizard 
-                            "Save footprint before launching Wizard ?"
+                            "Save footprint to a library before launching Wizard ?"
     IDS_FootprintEditor     "Footprint Editor - "
     IDS_Top3                "Top"
     IDS_Inner               "Inner"
@@ -4014,8 +4021,12 @@ BEGIN
     63111                   " Outline"
     IDS_STRING130           " Delete"
     IDS_STRING63113         " Side"
-    63114                   " ****"
-    63115                   " ****"
+    63114                   " Move"
+    63115                   " Group"
+    63116                   " Rotate"
+    63117                   " CW"
+    63118                   " Rotate"
+    63119                   " CCW"
 END
 
 STRINGTABLE
@@ -4243,7 +4254,7 @@ END
 
 STRINGTABLE
 BEGIN
-    IDS_AppName             "CPT2.17"
+    IDS_AppName             "CPT2.18"
 END
 
 STRINGTABLE
@@ -4510,6 +4521,25 @@ BEGIN
                             "Pin ""%s.%s"" found in netlist file:  present on board and correctly assigned to net ""%s""\r\n"
     IDS_DoYouWantToFixThePinsThatAreOnTheWrongNets 
                             "Do you want to fix the pins that are on the wrong nets (this will destroy any attached connections)?"
+    IDS_Outline3            "OUTLINE"
+    IDS_Text2               "Text, x = %s, y = %s"
+    IDS_ReferenceText2      "Reference text, x = %s, y = %s"
+    IDS_ValueText2          "Value text, x = %s, y = %s"
+    IDS_NoItemsCouldBePasted "No items could be pasted"
+END
+
+STRINGTABLE
+BEGIN
+    63120                   " Delete"
+    63121                   " Group"
+    63122                   " ****"
+    63123                   " ****"
+END
+
+STRINGTABLE
+BEGIN
+    IDS_ItemsPastedUseTheArrowKeysOrF4ToMoveThem 
+                            "%d item(s) pasted.  Use the arrow keys or F4 to move them"
 END
 
 #endif    // English (United States) resources

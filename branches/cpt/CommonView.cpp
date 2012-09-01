@@ -821,6 +821,89 @@ void CCommonView::AngleDown() {
 	frm->m_wndMyToolBar.AngleDown();
 	}
 
+void CCommonView::OnLButtonDown(UINT nFlags, CPoint point)
+{
+	// save starting position in pixels
+	m_bLButtonDown = TRUE;
+	m_bDraggingRect = FALSE;
+	m_start_pt = point;
+	CView::OnLButtonDown(nFlags, point);
+	SetCapture();									// CPT
+	m_bDontDrawDragRect = false;					// CPT
+}
+
+void CCommonView::OnMouseMove(UINT nFlags, CPoint point)
+{
+	// Virtual function.  CFootprintView inherits it unchanged;  CFreePcbView invokes this code plus adds some other stuff.
+	// CPT r294:  determine whether a series of mouse clicks by the user is truly over (see if we've moved away significantly from m_last_click).
+	// If so m_sel_offset is reset to -1.
+	if (m_sel_offset!=-1 && (abs(point.x-m_last_click.x) > 1 || abs(point.y-m_last_click.y) > 1))
+		m_sel_offset = -1;
+
+	static BOOL bCursorOn = TRUE;
+
+	if( (nFlags & MK_LBUTTON) && m_bLButtonDown )
+	{
+		double d = abs(point.x-m_start_pt.x) + abs(point.y-m_start_pt.y);
+		if( m_bDraggingRect
+			|| (d > 10 && !CurDragging() ) )
+		{
+			// we are dragging a selection rect
+			// CPT: autoscrolling implemented
+			int w = m_client_r.right - m_left_pane_w;
+			int h = m_client_r.bottom - m_bottom_pane_h;
+			int dx = 0, dy = 0;
+			if (point.x < m_left_pane_w) dx = -w/4;
+			else if (point.x > m_client_r.right) dx = w/4;
+			if (point.y < 0) dy = h/4;
+			else if (point.y > h) dy = -h/4;
+			if (dx || dy) {
+				DWORD tick = GetTickCount();
+				if (tick-m_last_autoscroll > 500) {
+					// It's been a half-second plus since the last autoscroll.  Do another:
+					m_bDontDrawDragRect = true;						// Won't draw drag-rect again until after repaint finishes
+					m_last_autoscroll = tick;
+					m_org_x += dx*m_pcbu_per_pixel;
+					m_org_y += dy*m_pcbu_per_pixel;
+					m_start_pt.x -= dx;
+					m_start_pt.y += dy;
+					CRect screen_r;
+					GetWindowRect( &screen_r );
+					m_dlist->SetMapping( &m_client_r, &screen_r, m_left_pane_w, m_bottom_pane_h, m_pcbu_per_pixel,
+						m_org_x, m_org_y );
+					Invalidate( FALSE );
+				}
+			}
+			
+			SIZE s1;
+			s1.cx = s1.cy = 1;
+			m_drag_rect.TopLeft() = m_start_pt;
+			m_drag_rect.BottomRight() = point;
+			m_drag_rect.NormalizeRect();
+			// CPT Modify drag-rect if necessary to prevent messing up the bottom or left panes
+			if (m_drag_rect.top >= h) m_drag_rect.bottom = m_drag_rect.top = h-1;
+			else if (m_drag_rect.bottom >= h) m_drag_rect.bottom = h-1;
+			if (m_drag_rect.right <= m_left_pane_w) m_drag_rect.right = m_drag_rect.left = m_left_pane_w+1;
+			else if (m_drag_rect.left <= m_left_pane_w) m_drag_rect.left = m_left_pane_w+1;
+			// end CPT
+			
+			CDC * pDC = GetDC();
+			if (m_bDontDrawDragRect) 
+				;
+			else if( !m_bDraggingRect )
+				//start dragging rect
+				pDC->DrawDragRect( &m_drag_rect, s1, NULL, s1 );
+			else
+				// continue dragging rect
+				pDC->DrawDragRect( &m_drag_rect, s1, &m_last_drag_rect, s1 );
+			m_bDraggingRect  = TRUE;
+			m_last_drag_rect = m_drag_rect;
+			ReleaseDC( pDC );
+		}
+	}
+	m_last_mouse_point = m_dlist->WindowToPCB( point );
+	SnapCursorPoint( m_last_mouse_point, nFlags );
+}
 
 void CCommonView::SelectItem(CPcbItem *item) 
 {
@@ -828,6 +911,23 @@ void CCommonView::SelectItem(CPcbItem *item)
 	m_sel.RemoveAll();
 	m_sel.Add(item);
 	HighlightSelection();
+}
+
+void CCommonView::ToggleSelectionState(CPcbItem *item) 
+{
+	// CPT2 updated arg & rewrote.  Included a few things from the old version of SelectItem().
+	// If the item specified is part of the selection group, remove it from the selection group.  Otherwise,
+	// add it to the group.
+	if( m_highlight_net )
+		CancelHighlightNet();
+	if (m_sel.Contains(item))
+		m_sel.Remove(item);
+	else
+		m_sel.Add(item);
+	if (m_sel.GetSize()==0)
+		CancelSelection();
+	else
+		HighlightSelection();
 }
 
 // Set cursor mode, update function key menu if necessary
@@ -1338,6 +1438,9 @@ int CCommonView::SelectObjPopup( CPoint const &point )
 			str.LoadStringA(IDS_Cutout3);
 			str += CString ((LPCSTR) IDS_Corner3);
 		}
+		else if (item->IsOutlineCorner())
+			str.LoadStringA(IDS_Outline3),
+			str += CString ((LPCSTR) IDS_Corner3);
 		else if (CText *t = item->ToText())
 		{
 			CString s ((LPCSTR) IDS_Text3);
@@ -1381,3 +1484,51 @@ int CCommonView::SelectObjPopup( CPoint const &point )
 	return (sel - 1);
 }
 
+void CCommonView::FindGroupCenter()
+{
+	groupAverageX = groupAverageY = 0;
+	if (m_sel.GetSize()==0) return;
+	
+	// Old routine looped thru parts, then segments, then texts, looking for group members, but it should work just as well simply 
+	// to loop thru the group:
+	CIter<CPcbItem> ii (&m_sel);
+	for (CPcbItem *i = ii.First(); i; i = ii.Next())
+		if (CPart *p = i->ToPart())
+			groupAverageX += p->x,
+			groupAverageY += p->y;
+		else if (CSeg *s = i->ToSeg())
+			groupAverageX += (s->preVtx->x + s->postVtx->x) / 2,
+			groupAverageY += (s->preVtx->y + s->postVtx->y) / 2;
+		else if (CVertex *v = i->ToVertex())
+			groupAverageX += v->x,
+			groupAverageY += v->y;
+		else if (CTee *t = i->ToTee())
+			groupAverageX += t->vtxs.First()->x,
+			groupAverageY += t->vtxs.First()->y;
+		else if (CText *t = i->ToText())
+			groupAverageX += t->m_x,
+			groupAverageY += t->m_y;
+		else if (CSide *s = i->ToSide())
+			groupAverageX += (s->preCorner->x + s->postCorner->x) / 2,
+			groupAverageY += (s->preCorner->y + s->postCorner->y) / 2;
+		else if (CPadstack *ps = i->ToPadstack())
+		{
+			CRect psr = ps->GetBounds();
+			groupAverageX += (psr.left + psr.right) / 2;
+			groupAverageY += (psr.top + psr.bottom) / 2;
+		}
+		else if (CCentroid *c = i->ToCentroid())
+			groupAverageX += c->m_x,
+			groupAverageY += c->m_y;
+		else if (CGlue *g = i->ToGlue())
+			groupAverageX += g->x,
+			groupAverageY += g->y;
+
+	groupAverageX /= m_sel.GetSize();
+	groupAverageY /= m_sel.GetSize();
+
+	double x = floor(groupAverageX/m_doc->m_part_grid_spacing +.5);
+	groupAverageX = (long long)(m_doc->m_part_grid_spacing*x);
+	double y = floor(groupAverageY/m_doc->m_part_grid_spacing +.5);
+	groupAverageY = (long long)(m_doc->m_part_grid_spacing*y);
+}

@@ -399,12 +399,13 @@ CContour::CContour(CFreePcbDoc *_doc, int _uid):
 CContour::CContour(CPolyline *_poly, CContour *src)
 	: CPcbItem (_poly->doc)
 {
-	// Create a new contour with the same points/sides as "src", but belonging to poly "_poly"
+	// Create a new contour with the same points/sides as "src", but belonging to poly "_poly".  Copies utility values (occasionally useful)
 	poly = _poly;
 	poly->contours.Add(this);
 	corners.RemoveAll();
 	sides.RemoveAll();
 	head = tail = NULL;
+	utility = src->utility;
 	if (src->corners.GetSize()==0) 
 		return;
 
@@ -413,6 +414,7 @@ CContour::CContour(CPolyline *_poly, CContour *src)
 	for (CCorner *c = src->head; 1; c = c->postSide->postCorner)
 	{
 		CCorner *c2 = new CCorner(this, c->x, c->y);
+		c2->utility = c->utility;
 		corners.Add(c2);
 		c2->preSide = preSide;
 		if (preSide)
@@ -423,6 +425,7 @@ CContour::CContour(CPolyline *_poly, CContour *src)
 		if (!s) 
 			{ tail = c2; break; }
 		CSide *s2 = new CSide(this, s->m_style);
+		s2->utility = s->utility;
 		sides.Add(s2);
 		c2->postSide = s2;
 		s2->preCorner = c2;
@@ -626,6 +629,8 @@ CPolyline::CPolyline(CFreePcbDoc *_doc, int _uid):
 CPolyline::CPolyline(CPolyline *src, bool bCopyContours)
 	: CPcbItem (src->doc)
 {
+	// Copy constructor.  bCopyContours arg (true by default) indicates whether to recreate all the constituent contours.  Also copies
+	// utility value on this and all subconstituents (occasionally useful)
 	main = NULL;
 	m_layer = src->m_layer;
 	m_w = src->m_w;
@@ -634,6 +639,7 @@ CPolyline::CPolyline(CPolyline *src, bool bCopyContours)
 	m_nhatch = src->m_nhatch;					// CPT2.  I guess...
 	m_gpc_poly = new gpc_polygon;
 	m_gpc_poly->num_contours = 0;
+	utility = src->utility;
 	if (!src->main || !bCopyContours)
 		return;
 	CIter<CContour> ictr (&src->contours);
