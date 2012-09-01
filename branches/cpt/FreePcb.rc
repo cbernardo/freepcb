@@ -1893,16 +1893,6 @@ BEGIN
     LTEXT           "- toggle mil/mm, plus change grids accordingly",IDC_STATIC,43,224,164,8
 END
 
-IDD_MY_MESSAGE DIALOGEX 0, 0, 244, 101
-STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
-CAPTION "Message"
-FONT 8, "MS Shell Dlg", 400, 0, 0x1
-BEGIN
-    CONTROL         "Don't show this message again",IDC_CHECK1,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,24,69,114,10
-    DEFPUSHBUTTON   "OK",IDOK,90,83,50,14
-    LTEXT           "Static",IDC_STATIC_MYMESSAGE,24,12,198,54
-END
-
 IDD_VIA DIALOGEX 0, 0, 186, 150
 STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Vertex/Via Properties"
@@ -1923,15 +1913,15 @@ BEGIN
     LTEXT           "Y",IDC_STATIC,78,56,8,8
 END
 
-IDD_MY_MESSAGE2 DIALOGEX 0, 0, 310, 106
+IDD_MY_MESSAGE DIALOGEX 0, 0, 310, 106
 STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Message"
 FONT 8, "MS Shell Dlg", 400, 0, 0x1
 BEGIN
-    CONTROL         "Don't show this message again",IDC_CHECK1,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,24,69,114,10
-    DEFPUSHBUTTON   "OK",IDOK,60,84,50,14
-    PUSHBUTTON      "Cancel",IDCANCEL,204,84,50,14
-    LTEXT           "Static",IDC_STATIC_MYMESSAGE_2,24,12,276,54
+    CONTROL         "Don't show this message again",IDC_CHECK1,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,24,67,114,10
+    DEFPUSHBUTTON   "OK",IDOK,129,84,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,129,84,50,14
+    LTEXT           "Static",IDC_STATIC_MYMESSAGE,24,12,276,51
 END
 
 IDD_GROUP_PASTE DIALOGEX 0, 0, 298, 403
@@ -2287,33 +2277,36 @@ BEGIN
     PUSHBUTTON      "Bottom",IDC_BUTTON10,18,108,54,12
 END
 
-IDD_PREFS DIALOGEX 0, 0, 270, 267
+IDD_PREFS DIALOGEX 0, 0, 270, 288
 STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Preferences"
 FONT 8, "MS Shell Dlg", 400, 0, 0x1
 BEGIN
     CONTROL         "Reverse PgUp and PgDn",IDC_REVERSE_PGUP_PGDN,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,22,16,94,10
-    DEFPUSHBUTTON   "OK",IDOK,45,234,50,14
-    PUSHBUTTON      "Cancel",IDCANCEL,174,234,50,14
-    CONTROL         "Enable",IDC_CHECK_AUTOSAVE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,22,150,37,10
-    EDITTEXT        IDC_EDIT_AUTO_INTERVAL,213,149,24,12,ES_AUTOHSCROLL
-    LTEXT           "pins",IDC_STATIC,173,117,14,8
-    LTEXT           "Interval (minutes)",IDC_STATIC,149,151,58,8
-    GROUPBOX        "Autosave",IDC_STATIC,10,139,248,30
-    GROUPBOX        "Automatic recalculation of ratlines after edits",IDC_STATIC,10,104,247,30
+    DEFPUSHBUTTON   "OK",IDOK,45,263,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,174,263,50,14
+    CONTROL         "Enable",IDC_CHECK_AUTOSAVE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,22,173,37,10
+    EDITTEXT        IDC_EDIT_AUTO_INTERVAL,213,172,24,12,ES_AUTOHSCROLL
+    LTEXT           "pins",IDC_STATIC,173,140,14,8
+    LTEXT           "Interval (minutes)",IDC_STATIC,149,174,58,8
+    GROUPBOX        "Autosave",IDC_STATIC,10,162,248,30
+    GROUPBOX        "Automatic recalculation of ratlines after edits",IDC_STATIC,10,127,247,30
     CONTROL         "Disable for nets with more than ",IDC_CHECK_AUTORAT_DISABLE,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,22,116,118,10
-    EDITTEXT        IDC_EDIT_MIN_PINS,140,115,29,12,ES_AUTOHSCROLL
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,22,139,118,10
+    EDITTEXT        IDC_EDIT_MIN_PINS,140,138,29,12,ES_AUTOHSCROLL
     CONTROL         "Left-handed mode (alters function-key assignments)",IDC_LEFTHAND_MODE,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,22,32,183,10
     CONTROL         "Highlight net on starting trace or ratline",IDC_CHECK_AUTO_HIGHLIGHT_NET,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,22,48,142,10
-    LTEXT           "(can always toggle on and off with ""n"" while routing)",IDC_STATIC,47,60,168,8
-    EDITTEXT        IDC_EDIT_PREFS_DEFAULTCFG,21,201,180,12,ES_AUTOHSCROLL
-    PUSHBUTTON      "Browse",IDC_BUTTON_PREFS_BROWSE,208,200,30,14
-    GROUPBOX        "Folder for file ""default.cfg""",IDC_STATIC,9,174,249,50
-    LTEXT           "(Preferences are stored there;  avoid folders that are write-protected)",IDC_STATIC,14,184,228,8
+    LTEXT           "(can always toggle on and off with ""n"" while routing)",IDC_STATIC,36,59,168,8
+    EDITTEXT        IDC_EDIT_PREFS_DEFAULTCFG,21,224,180,12,ES_AUTOHSCROLL
+    PUSHBUTTON      "Browse",IDC_BUTTON_PREFS_BROWSE,208,223,30,14
+    GROUPBOX        "Folder for file ""default.cfg""",IDC_STATIC,9,197,249,50
+    LTEXT           "(Preferences are stored there;  avoid folders that are write-protected)",IDC_STATIC,14,207,228,8
     CONTROL         "Beep for errors",IDC_ERROR_SOUND_ENABLED,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,22,75,65,10
+    CONTROL         "Reinstate warning messages that have been turned off",IDC_REINSTATE_WARNINGS,
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,22,92,193,10
+    LTEXT           "(messages about: pasting in f.p. editor; combining copper areas; ...)",IDC_STATIC_WARNINGS,36,104,221,8
 END
 
 IDD_GRIDVALS DIALOGEX 0, 0, 286, 321
@@ -2674,14 +2667,6 @@ BEGIN
         BOTTOMMARGIN, 255
     END
 
-    IDD_MY_MESSAGE, DIALOG
-    BEGIN
-        LEFTMARGIN, 7
-        RIGHTMARGIN, 237
-        TOPMARGIN, 7
-        BOTTOMMARGIN, 94
-    END
-
     IDD_VIA, DIALOG
     BEGIN
         LEFTMARGIN, 7
@@ -2690,12 +2675,12 @@ BEGIN
         BOTTOMMARGIN, 143
     END
 
-    IDD_MY_MESSAGE2, DIALOG
+    IDD_MY_MESSAGE, DIALOG
     BEGIN
         LEFTMARGIN, 7
         RIGHTMARGIN, 303
         TOPMARGIN, 7
-        BOTTOMMARGIN, 99
+        BOTTOMMARGIN, 98
     END
 
     IDD_GROUP_PASTE, DIALOG
@@ -2820,7 +2805,7 @@ BEGIN
 
     IDD_PREFS, DIALOG
     BEGIN
-        BOTTOMMARGIN, 239
+        BOTTOMMARGIN, 283
     END
 END
 #endif    // APSTUDIO_INVOKED
@@ -3027,14 +3012,25 @@ BEGIN
     IDS_NetNotFoundInNetlist "Net ""%s"" not found in netlist.\nCreate it ?"
     IDS_FolderDoesntExist   "Folder ""%s"" doesn't exist, create it ?"
     IDS_UnableToCreateFolder "Unable to create folder ""%s"""
-    IDS_WarningYouHaveSetTheCopper 
-                            "WARNING: You have set the copper to copper-fill clearance to 0.\nThis will disable automatic generation of clearances for pads and vias in copper areas.\nAre you SURE that you don't need these clearances ?"
     IDS_ErrorUnableToOpenFile "ERROR: Unable to open file ""%s""\r\n"
     IDS_WritingFile         "Writing file: ""%s""\r\n"
     IDS_ErrorsOccurredDuringCreationOfGerber 
                             "****** ERRORS OCCURRED DURING CREATION OF GERBERS ******\r\n"
     IDS_AllGerbersCreatedSuccessfully 
                             "************ ALL GERBERS CREATED SUCCESSFULLY **********\r\n"
+END
+
+STRINGTABLE
+BEGIN
+    IDS_AreasOfNetIntersectAndWillBeCombined 
+                            "Polygons %d and %d intersect and will be combined.\nIf they are complex, this may take a few seconds."
+    IDS_AreasOfNetIntersectButSomeOfTheIntersectingSidesAreArcs 
+                            "Polygons %d and %d intersect, but some of the intersecting sides are arcs.\nTherefore, these areas can't be combined."
+    IDS_WarningYouAreLoadingFootprintsForThroughHoleHeaders 
+                            "WARNING: You are loading footprint(s) for through-hole headers with 100 mil pin spacing and 28 mil holes.\n\nThese may be from an obsolete version of the library ""th_header.fpl"" with holes that are too small for standard parts. Please check your design."
+    IDS_UnableToOpenLibraryFile "Unable to open library file\n\n"
+    IDS_WarningYouHaveSetTheCopper 
+                            "WARNING: You have set the copper to copper-fill clearance to 0.\nThis will disable automatic generation of clearances for pads and vias in copper areas.\nAre you SURE that you don't need these clearances ?"
 END
 
 STRINGTABLE
@@ -3295,7 +3291,6 @@ BEGIN
                             "Illegal pad shape for edge connector\nUse rectangle, rounded-rect or oval"
     IDS_CShapeMakeFromStringFailed 
                             "CShape::MakeFromString() failed to make footprint from:\n\n%s"
-    IDS_UnableToOpenLibraryFile "Unable to open library file\n\n ""%s"""
     IDS_IndexingLibrary     "Indexing library: ""%s""\r\n"
     IDS_Untitled            "untitled"
     IDS_DrilledHole         "drilled hole"
@@ -3486,8 +3481,6 @@ BEGIN
     62368                   "A1,A2,... ="
     62369                   "Alt-1,Alt-2... ="
     62370                   "toggle masks"
-    IDS_RatlinesTurnedBackOn 
-                            "Ratlines turned back on, but may not be up to date.\n\nPress F9 to recalculate."
     IDS_NoConnectionsToSwap "No connections to swap"
     IDS_SwapPins            "Swap %s.%s (""%s"") and %s.%s (""%s"") ?"
     IDS_ErrorUnableToClipPolygon 
@@ -3507,6 +3500,17 @@ BEGIN
                             "This group contains glued parts, do you want to unglue them ?  "
     IDS_SolderMaskCutoutCorner 
                             "Solder mask cutout %d (%s), corner %d, x %s, y %s"
+END
+
+STRINGTABLE
+BEGIN
+    IDS_WarningMessage0     "Ratlines turned back on, but may not be up to date.\n\nPress F9 to recalculate."
+    IDS_ItemsPastedUseTheArrowKeysOrF4ToMoveThem 
+                            "%d item(s) pasted.  Use the arrow keys or F4 to move them"
+    IDS_AreaOfNetIsSelfIntersectingAndWillBeClipped 
+                            "Polygon %d is self-intersecting and will be clipped.\nThis may result in splitting the area.\nIf the area is complex, this may take a few seconds."
+    IDS_AreaOfNetHasArcsIntersectingOtherSides 
+                            "Polygon %d has arcs intersecting other sides.\nThis may cause problems with other editing operations,\nsuch as adding cutouts. It can't be fixed automatically.\nManual correction is recommended.\n"
 END
 
 STRINGTABLE
@@ -3743,14 +3747,6 @@ END
 
 STRINGTABLE
 BEGIN
-    IDS_AreaOfNetHasArcsIntersectingOtherSides 
-                            "Polygon %d has arcs intersecting other sides.\nThis may cause problems with other editing operations,\nsuch as adding cutouts. It can't be fixed automatically.\nManual correction is recommended.\n"
-    IDS_AreaOfNetIsSelfIntersectingAndWillBeClipped 
-                            "Polygon %d is self-intersecting and will be clipped.\nThis may result in splitting the area.\nIf the area is complex, this may take a few seconds."
-    IDS_AreasOfNetIntersectAndWillBeCombined 
-                            "Polygons %d and %d intersect and will be combined.\nIf they are complex, this may take a few seconds."
-    IDS_AreasOfNetIntersectButSomeOfTheIntersectingSidesAreArcs 
-                            "Polygons %d and %d intersect, but some of the intersecting sides are arcs.\nTherefore, these areas can't be combined."
     IDS_NumNodes            "num nodes = %d\r\n"
     IDS_None                "none"
     IDS_Pin2                "pin"
@@ -3854,8 +3850,6 @@ BEGIN
     IDS_ErrorPartPinConnectedToNetButPinNotInNet 
                             "ERROR: Part ""%s"" pin ""%s"" connected to net ""%"" but pin not in net\r\n"
     IDS_ErrorsWarnings      "***** %d ERROR(S), %d WARNING(S) *****\r\n"
-    IDS_WarningYouAreLoadingFootprintsForThroughHoleHeaders 
-                            "WARNING: You are loading footprint(s) for through-hole headers with 100 mil pin spacing and 28 mil holes.\n\nThese may be from an obsolete version of the library ""th_header.fpl"" with holes that are too small for standard parts. Please check your design."
     IDS_TheFolderDoesNotExist 
                             "The folder:\n\n%s\n\ndoes not exist. Do you want the folder to be created?"
     IDS_TheFolderIsInvalid  "The folder:\n\n%s\n\nis invalid. Please reenter."
@@ -4254,7 +4248,7 @@ END
 
 STRINGTABLE
 BEGIN
-    IDS_AppName             "CPT2.18"
+    IDS_AppName             "CPT2.19"
 END
 
 STRINGTABLE
@@ -4538,8 +4532,24 @@ END
 
 STRINGTABLE
 BEGIN
-    IDS_ItemsPastedUseTheArrowKeysOrF4ToMoveThem 
-                            "%d item(s) pasted.  Use the arrow keys or F4 to move them"
+    IDS_ShortWarning0       "recalculating ratlines"
+    IDS_STRING65401         "pasting in f.p. editor"
+    IDS_STRING65402         "self-intersecting areas"
+    IDS_STRING65403         "intersecting arcs"
+    IDS_STRING65404         "combining areas"
+    IDS_STRING65405         "intersecting arcs"
+    IDS_STRING65406         "obsolete footprints"
+    IDS_STRING65407         "unopenable libraries"
+END
+
+STRINGTABLE
+BEGIN
+    IDS_STRING65408         "copper clearances"
+END
+
+STRINGTABLE
+BEGIN
+    IDS_MessagesAbout       "(messages about: "
 END
 
 #endif    // English (United States) resources

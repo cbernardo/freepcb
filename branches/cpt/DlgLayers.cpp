@@ -8,7 +8,6 @@
 #include "stdafx.h"
 #include "FreePcb.h"
 #include "DlgLayers.h"
-#include "layers.h"
 #include ".\dlglayers.h"
 
 

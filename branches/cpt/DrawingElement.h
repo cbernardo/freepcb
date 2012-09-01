@@ -2,8 +2,7 @@
 #define _DRAWINGELEMENT_H
 
 #include "afxwin.h"
-#include "layers.h"
-// #include "LinkList.h"
+#include "general.h"
 
 struct CDrawInfo;
 class CDisplayList;

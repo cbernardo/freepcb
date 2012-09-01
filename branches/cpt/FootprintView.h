@@ -182,7 +182,7 @@ public:
 	void SelectItemsInRect( CRect r, BOOL bAddToGroup );
 	void MoveGroup( int dx, int dy );
 	void RotateGroup();
-	void StartDraggingGroup(bool bAdd=false, int x=0, int y=0);
+	void StartDraggingGroup(bool bAdd=false);
 	void CancelDragging();
 
 // Generated message map functions

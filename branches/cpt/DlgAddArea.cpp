@@ -4,7 +4,6 @@
 #include "stdafx.h"
 #include "FreePcb.h"
 #include "DlgAddArea.h"
-#include "layers.h"
 
 // globals
 int gHatch = CPolyline::NO_HATCH;

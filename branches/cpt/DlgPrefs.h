@@ -19,12 +19,15 @@ protected:
 	CEdit m_edit_min_pins;
 	CButton m_check_highlight_net;
 	CEdit m_edit_defaultcfg;
+	CStatic m_static_warnings;
+	CButton m_check_warnings;
 public:
 	bool m_bReverse, m_bLefthanded, m_bHighlightNet, m_bErrorSound;
 	int m_auto_interval;
-	BOOL m_bAuto_Ratline_Disable;
+	bool m_bAuto_Ratline_Disable;
 	int m_auto_ratline_min_pins;
 	CString m_defaultcfg_dir;			// CPT2 new
+	bool m_bReinstateWarnings;
 	CFreePcbDoc *doc;
 
 public:

@@ -55,9 +55,10 @@ public:
 	int xi, yi, xf, yf; 
 };
 
-// map part angle to reported part angle
+// map part angle to reported part angle, and layer transformation (the latter formerly in layers.cpp)
 int GetReportedAngleForPart( int part_angle, int cent_angle, int side );
 int GetPartAngleForReportedAngle( int angle, int cent_angle, int side );
+int FlipLayer( int side, int layer );
 
 // handle strings
 char * mystrtok( LPCTSTR str, LPCTSTR delim );

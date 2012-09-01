@@ -11,19 +11,20 @@ class CDlgMyMessageBox : public CDialog
 public:
 	CDlgMyMessageBox(CWnd* pParent = NULL);   // standard constructor
 	virtual ~CDlgMyMessageBox();
-
-// Dialog Data
-	enum { IDD = IDD_MY_MESSAGE };
-
 protected:
 	virtual void DoDataExchange(CDataExchange* pDX);    // DDX/DDV support
-
-	DECLARE_MESSAGE_MAP()
 public:
+	bool Initialize( int warningId, bool bShowCancel=false, int arg1=0, int arg2=0 );
+
+
+	enum { IDD = IDD_MY_MESSAGE };
+	DECLARE_MESSAGE_MAP()
 	CStatic m_message;
+	int m_warningId;
+	bool m_bShowCancel;
 	CButton m_check_dont_show;
-	void Initialize( LPCTSTR mess );
 	BOOL bDontShowBoxState;
 	CString m_mess;
 	BOOL m_bHideCursor;
+	CButton m_button_cancel, m_button_ok;
 };

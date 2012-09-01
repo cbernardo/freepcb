@@ -193,10 +193,10 @@
 #define IDD_MOVE_ORIGIN                 326
 #define IDD_SHORTCUTS                   327
 #define IDD_DIALOG4                     328
-#define IDD_MY_MESSAGE                  328
 #define IDD_VIA                         329
 #define IDD_AREA_LAYER                  331
 #define IDD_MY_MESSAGE2                 332
+#define IDD_MY_MESSAGE                  332
 #define IDD_GROUP_PASTE                 333
 #define IDD_REASSIGN_LAYERS             334
 #define IDD_EXPORT_DSN                  335
@@ -575,7 +575,6 @@
 #define IDC_COMBO15                     1308
 #define IDC_LIST_PINS                   1309
 #define IDC_COMBO16                     1309
-#define IDC_STATIC_MYMESSAGE            1310
 #define IDC_VIA_WIDTH                   1311
 #define IDC_VIA_HOLE_WIDTH              1312
 #define IDC_RADIO_MOD_TV                1313
@@ -588,6 +587,7 @@
 #define IDC_RADIO_REVERT_TRACES         1317
 #define IDC_RADIO_SET_TRACE_WIDTH       1318
 #define IDC_STATIC_MYMESSAGE_2          1321
+#define IDC_STATIC_MYMESSAGE            1321
 #define IDC_RADIO_USE_SELECTED_NETS     1324
 #define IDC_RADIO_USE_GROUP_REF         1325
 #define IDC_RADIO_USE_NEXT_REF          1326
@@ -755,7 +755,10 @@
 #define IDC_ERROR_SOUND_ENABLED         1450
 #define IDC_BUTTON_LAYER_21             1451
 #define IDC_CHECK_SYNC_FILE             1451
+#define IDC_ERROR_SOUND_ENABLED2        1451
+#define IDC_REINSTATE_WARNINGS          1451
 #define IDC_BUTTON_LAYER_22             1452
+#define IDC_STATIC_WARNINGS             1452
 #define IDC_BUTTON_LAYER_23             1453
 #define IDC_BUTTON_LAYER_24             1454
 #define IDC_BUTTON_LAYER_25             1455
@@ -1086,7 +1089,6 @@
 #define IDS_NetNotFoundInNetlist        62055
 #define IDS_FolderDoesntExist           62056
 #define IDS_UnableToCreateFolder        62057
-#define IDS_WarningYouHaveSetTheCopper  62058
 #define IDS_ErrorUnableToOpenFile       62059
 #define IDS_WritingFile                 62060
 #define IDS_ErrorsOccurredDuringCreationOfGerber 62062
@@ -1233,7 +1235,6 @@
 #define IDS_IllegalDistanceBetweenLeftAndRightRows 62247
 #define IDS_IllegalPadShapeForEdgeConnector 62248
 #define IDS_CShapeMakeFromStringFailed  62249
-#define IDS_UnableToOpenLibraryFile     62250
 #define IDS_IndexingLibrary             62251
 #define IDS_Untitled                    62252
 #define IDS_DrilledHole                 62253
@@ -1355,7 +1356,6 @@
 #define IDS_A1A2                        62368
 #define IDS_Alt1Alt2                    62369
 #define IDS_ToggleMasks                 62370
-#define IDS_RatlinesTurnedBackOn        62371
 #define IDS_NoConnectionsToSwap         62372
 #define IDS_SwapPins                    62373
 #define IDS_ErrorUnableToClipPolygon    62374
@@ -1492,10 +1492,6 @@
 #define IDS_NetPartiallyRoutedStubTrace 62509
 #define IDS_NetUnroutedConnection       62510
 #define IDS_NetPartiallyRoutedConnection 62511
-#define IDS_AreaOfNetHasArcsIntersectingOtherSides 62512
-#define IDS_AreaOfNetIsSelfIntersectingAndWillBeClipped 62513
-#define IDS_AreasOfNetIntersectAndWillBeCombined 62515
-#define IDS_AreasOfNetIntersectButSomeOfTheIntersectingSidesAreArcs 62516
 #define IDS_NumNodes                    62517
 #define IDS_None                        62518
 #define IDS_Pin2                        62519
@@ -1557,7 +1553,6 @@
 #define IDS_ErrorPartPinConnectedToNetWhichDoesntExist 62575
 #define IDS_ErrorPartPinConnectedToNetButPinNotInNet 62576
 #define IDS_ErrorsWarnings              62577
-#define IDS_WarningYouAreLoadingFootprintsForThroughHoleHeaders 62578
 #define IDS_TheFolderDoesNotExist       62579
 #define IDS_TheFolderIsInvalid          62580
 #define IDS_TheFolderCanNotBeCreated    62581
@@ -1694,7 +1689,8 @@
 #define IDS_ReferenceText2              62717
 #define IDS_ValueText2                  62718
 #define IDS_NoItemsCouldBePasted        62719
-#define IDS_ItemsPastedUseTheArrowKeysOrF4ToMoveThem 62720
+#define IDS_WarningsAbout               62720
+#define IDS_MessagesAbout               62720
 #define IDS_FkFpStr                     63000
 #define IDS_STRING63001                 63001
 #define IDS_STRING63002                 63002
@@ -2039,6 +2035,25 @@
 #define IDS_AngleWidth                  65004
 #define IDS_LeftPaneWidth               65005
 #define IDS_FKeyWidth                   65006
+#define IDS_ShortWarning0               65400
+#define IDS_STRING65401                 65401
+#define IDS_STRING65402                 65402
+#define IDS_STRING65403                 65403
+#define IDS_STRING65404                 65404
+#define IDS_STRING65405                 65405
+#define IDS_STRING65406                 65406
+#define IDS_STRING65407                 65407
+#define IDS_STRING65408                 65408
+#define IDS_RatlinesTurnedBackOn        65500
+#define IDS_WarningMessage0             65500
+#define IDS_ItemsPastedUseTheArrowKeysOrF4ToMoveThem 65501
+#define IDS_AreaOfNetIsSelfIntersectingAndWillBeClipped 65502
+#define IDS_AreaOfNetHasArcsIntersectingOtherSides 65503
+#define IDS_AreasOfNetIntersectAndWillBeCombined 65504
+#define IDS_AreasOfNetIntersectButSomeOfTheIntersectingSidesAreArcs 65505
+#define IDS_WarningYouAreLoadingFootprintsForThroughHoleHeaders 65506
+#define IDS_UnableToOpenLibraryFile     65507
+#define IDS_WarningYouHaveSetTheCopper  65508
 
 // Next default values for new objects
 // 
@@ -2047,7 +2062,7 @@
 #define _APS_3D_CONTROLS                     1
 #define _APS_NEXT_RESOURCE_VALUE        354
 #define _APS_NEXT_COMMAND_VALUE         33029
-#define _APS_NEXT_CONTROL_VALUE         1452
+#define _APS_NEXT_CONTROL_VALUE         1453
 #define _APS_NEXT_SYMED_VALUE           106
 #endif
 #endif

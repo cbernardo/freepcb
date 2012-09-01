@@ -27,14 +27,6 @@
 
 // globals
 extern CFreePcbApp theApp;
-// CPT:  removed gShiftKeyDown global. Other globals moved into class CCommonView
-// BOOL gShiftKeyDown = FALSE;
-// int gTotalArrowMoveX = 0;
-// int gTotalArrowMoveY = 0;
-// BOOL gLastKeyWasArrow = FALSE;
-// BOOL gLastKeyWasGroupRotate = FALSE;
-// end CPT
-
 HCURSOR my_cursor = LoadCursor( NULL, IDC_CROSS );
 
 int CFreePcbView::sel_mask_btn_bits[16] = { 0 };

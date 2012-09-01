@@ -4,7 +4,6 @@
 #include "stdafx.h"
 #include "FreePcb.h"
 #include "DlgAddText.h"
-#include "layers.h"
 
 int gLastHeight = 100*NM_PER_MIL;
 int gLastWidth = 10*NM_PER_MIL;

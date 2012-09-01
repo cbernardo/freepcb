@@ -22,7 +22,6 @@ public:
 		int n_x, int n_y, int space_x, int space_y,
 		int flags, int layers, int drill_file,
 		CHeap<CBoard> * bd, CHeap<CSmCutout> * sm, 
-		BOOL * bShowMessageForClearance,
 		CPartList * pl, CNetList * nl, CTextList * tl, CDisplayList * dl,
 		CDlgLog * log );
 	void SetFields();
@@ -35,7 +34,6 @@ protected:
 
 	DECLARE_MESSAGE_MAP()
 public:
-	BOOL m_bShowMessageForClearance;
 	BOOL m_bSMT_connect;
 	double m_version;
 	double m_file_version;

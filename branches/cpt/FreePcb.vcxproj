@@ -167,7 +167,6 @@
     <ClCompile Include="Gerber.cpp" />
     <ClCompile Include="gpc_232.cpp" />
     <ClCompile Include="ivex_mod_file.cpp" />
-    <ClCompile Include="layers.cpp" />
     <ClCompile Include="MainFrm.cpp" />
     <ClCompile Include="MyToolBar.cpp" />
     <ClCompile Include="Net.cpp" />
@@ -233,7 +232,6 @@
     <ClCompile Include="DlgLog.cpp" />
     <ClCompile Include="DlgMoveOrigin.cpp" />
     <ClCompile Include="DlgMyMessageBox.cpp" />
-    <ClCompile Include="DlgMyMessageBox2.cpp" />
     <ClCompile Include="DlgNetCombine.cpp" />
     <ClCompile Include="DlgNetlist.cpp" />
     <ClCompile Include="DlgPartlist.cpp" />
@@ -265,16 +263,15 @@
     <ClInclude Include="DlgPrefs.h" />
     <ClInclude Include="DrawingElement.h" />
     <ClInclude Include="file_io.h" />
-    <ClInclude Include="flags.h" />
     <ClInclude Include="FootprintLib.h" />
     <ClInclude Include="FootprintView.h" />
     <ClInclude Include="FreePcb.h" />
     <ClInclude Include="FreePcbDoc.h" />
     <ClInclude Include="FreePcbView.h" />
+    <ClInclude Include="general.h" />
     <ClInclude Include="Gerber.h" />
     <ClInclude Include="gpc_232.h" />
     <ClInclude Include="ivex_mod_file.h" />
-    <ClInclude Include="layers.h" />
     <ClInclude Include="MainFrm.h" />
     <ClInclude Include="MyToolBar.h" />
     <ClInclude Include="Net.h" />
@@ -337,7 +334,6 @@
     <ClInclude Include="DlgLog.h" />
     <ClInclude Include="DlgMoveOrigin.h" />
     <ClInclude Include="DlgMyMessageBox.h" />
-    <ClInclude Include="DlgMyMessageBox2.h" />
     <ClInclude Include="DlgNetCombine.h" />
     <ClInclude Include="DlgNetlist.h" />
     <ClInclude Include="DlgPartlist.h" />

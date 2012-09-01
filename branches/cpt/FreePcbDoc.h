@@ -205,6 +205,7 @@ public:
 	bool m_bLefthanded;
 	bool m_bHighlightNet;	// AMW
 	bool m_bErrorSound;
+	bool m_bWarningDisable[NUM_WARNINGS];
 	// end CPT
 
 	//DRC limits

@@ -31,15 +31,19 @@ void CPathDialogSub::OnOK()
 	::GetWindowText(::GetDlgItem(m_hWnd, IDC_NEW_EDIT_PATH),
 		m_pPathDialog->m_szPathName, MAX_PATH);
 
+	// CPT2 added:  strip off any final backslash:
+	char *str = m_pPathDialog->m_szPathName;
+	int lgth = _tcslen(str);
+	if (lgth && str[lgth-1]=='\\')
+		str[lgth-1] = '\0';
+
 	if(CPathDialog::MakeSurePathExists(m_pPathDialog->m_szPathName)==0)
 	{
 		m_pPathDialog->m_bGetSuccess=TRUE;
 		::EndDialog(m_pPathDialog->m_hWnd, IDOK);
 	}
 	else
-	{
 		::SetFocus(::GetDlgItem(m_hWnd, IDC_NEW_EDIT_PATH));
-	}
 }
 
 void CPathDialogSub::OnChangeEditPath()
@@ -201,9 +205,7 @@ int CPathDialog::DoModal()
 	}
 
     if(m_bParentDisabled && (m_pParentWnd!=NULL))
-	{
 		m_pParentWnd->EnableWindow(TRUE);
-	}
     m_bParentDisabled=FALSE;
 
 	return iResult;
@@ -212,15 +214,11 @@ int CPathDialog::DoModal()
 BOOL CPathDialog::IsFileNameValid(LPCTSTR lpFileName)
 {
 	if(lpFileName==NULL)
-	{
 		return FALSE;
-	}
 
 	int nLen = _tcslen(lpFileName);
 	if(nLen<=0)
-	{
 		return FALSE;
-	}
 
 	//check first char
 	switch(lpFileName[0])
