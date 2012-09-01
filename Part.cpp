@@ -1689,6 +1689,8 @@ int CPartList::GetPartBoundaries( CRect * part_r )
 		max_x = max(max_x, r.right);
 		min_y = min(min_y, r.bottom);
 		max_y = max(max_y, r.top);
+		if (!part->m_ref->m_bShown)
+			continue;
 		part->m_ref->GenerateStrokesRelativeTo(part);
 		CRect refR = part->m_ref->m_br;
 		min_x = min(min_x, refR.left);

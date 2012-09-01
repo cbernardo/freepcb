@@ -27,8 +27,9 @@ enum {
 	CUR_FP_TEXT_SELECTED,		// text string selected
 	CUR_FP_CENTROID_SELECTED,	// centroid
 	CUR_FP_ADHESIVE_SELECTED,	// glue spot
+	CUR_FP_GROUP_SELECTED,		// fp-group
 	CUR_FP_NUM_SELECTED_MODES,	// number of selection modes
-	CUR_FP_DRAG_PAD,			// dragging pad to move it
+	// CUR_FP_DRAG_PAD,			// dragging pad to move it			// CPT2 Deprecated (use CUR_FP_DRAG_GROUP)
 	// CUR_FP_DRAG_REF,			// dragging ref text to move it     // CPT2 Deprecated (use CUR_FP_DRAG_TEXT)
 	// CUR_FP_DRAG_VALUE,		// dragging value text to move it	// CPT2 Deprecated (use CUR_FP_DRAG_TEXT)
 	CUR_FP_ADD_POLY,			// dragging first corner of new poly
@@ -40,6 +41,7 @@ enum {
 	CUR_FP_MOVE_ORIGIN,			// dragging origin
 	CUR_FP_DRAG_CENTROID,		// dragging centroid
 	CUR_FP_DRAG_ADHESIVE,		// dragging glue spot
+	CUR_FP_DRAG_GROUP,			// CPT2 new
 	CUR_FP_NUM_MODES			// number of cursor modes
 };
 
@@ -102,6 +104,10 @@ enum {
 	FK_FP_ADD_ADHESIVE,								// CPT2 added
 	FK_FP_EDIT_OUTLINE,								// CPT2 added
 	FK_FP_DELETE_SIDE,
+	FK_FP_MOVE_GROUP,
+	FK_FP_ROTATE_CW,
+	FK_FP_ROTATE_CCW,
+	FK_FP_DELETE_GROUP,
 	FK_FP_NUM_OPTIONS
 };
 
@@ -113,7 +119,7 @@ public: // create from serialization only
 
 // member variables
 public:
-	CHeap<CPadstack> m_pad_row;					// CPT2 new, gets filled by DlgAddPin with one or more new padstacks.
+	// CPT2 obsolete, use m_sel:  CHeap<CPadstack> m_pad_row;					// CPT2 new, gets filled by DlgAddPin with one or more new padstacks.
 
 	// mode for drawing new polyline segments
 	BOOL m_polyline_closed_flag;
@@ -129,7 +135,8 @@ public:
 	static int sel_mask_btn_bits[16];	// CPT2.  New system for masking selections.  Each left-pane button corresponds to 1+ bits for types of pcb-items...
 
 	// footprint
-	CShape *m_fp;	// footprint being edited
+	CShape *m_fp;						// footprint being edited
+	CShape *m_clip_fp;					// CPT2.  The "clipboard" shape, which gets created when user does a copy
 
 	// undo stack
 	CArray<CShape*> undo_stack;
@@ -171,23 +178,28 @@ public:
 	void Redo();
 	void EnableUndo( BOOL bEnable );
 	void EnableRedo( BOOL bEnable );
-	void EnableRevealValue();				// CPT
+	void EnableRevealValue();										// CPT
+	void SelectItemsInRect( CRect r, BOOL bAddToGroup );
+	void MoveGroup( int dx, int dy );
+	void RotateGroup();
+	void StartDraggingGroup(bool bAdd=false, int x=0, int y=0);
+	void CancelDragging();
 
 // Generated message map functions
 protected:
-	afx_msg void OnLButtonDown(UINT nFlags, CPoint point);
 	afx_msg void OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags);
-	afx_msg void OnMouseMove(UINT nFlags, CPoint point);
+	afx_msg void OnKeyUp(UINT nChar, UINT nRepCnt, UINT nFlags);
 	afx_msg void OnRButtonDown(UINT nFlags, CPoint point);
 	afx_msg void OnLButtonDblClk(UINT nFlags, CPoint point);
+	afx_msg void OnLButtonUp(UINT nFlags, CPoint point);
 	DECLARE_MESSAGE_MAP()
 public:
 	afx_msg void OnContextMenu(CWnd* /*pWnd*/, CPoint /*point*/);
-	afx_msg void OnPadMove();							// CPT2 changed args
-	void OnPadMoveRow();								// CPT2 new, takes care of dragging a row of padstacks
-	afx_msg void OnPadEdit();							// CPT2 changed arg
-	afx_msg void OnPadDelete();							// CPT2 changed arg
-	afx_msg void OnPadRotate();							// CPT2 new.
+	afx_msg void OnPadstackMove();						// CPT2 changed args
+	// void OnPadMoveRow();								// CPT2 new, takes care of dragging a row of padstacks.  Now deprecated in favor of OnGroupMove
+	afx_msg void OnPadstackEdit();						// CPT2 changed arg
+	afx_msg void OnPadstackDelete();					// CPT2 changed arg
+	afx_msg void OnPadstackRotate();					// CPT2 new.
 	afx_msg void OnOutlineCornerMove();
 	afx_msg void OnOutlineCornerEdit();
 	afx_msg void OnOutlineCornerDelete();
@@ -201,7 +213,7 @@ public:
 	afx_msg void OnOutlineSideConvertToArcCw();
 	afx_msg void OnOutlineSideConvertToArcCcw();
 	void OnOutlineSideConvert(int style);				// CPT2 factored out the common base of the previous 3 functions
-	afx_msg void OnAddPin();
+	afx_msg void OnAddPadstack();
 	afx_msg void OnFootprintFileSaveAs();
 	afx_msg void OnAddOutline();
 	afx_msg void OnOutlineEdit();
@@ -230,6 +242,16 @@ public:
 	afx_msg void OnAdhesiveDrag();
 	afx_msg void OnAdhesiveDelete();
 	afx_msg void OnCentroidRotateAxis();
+	afx_msg void OnGroupDelete();
+	void OnGroupRotate(bool bCcw);
+	afx_msg void OnGroupRotateCW()
+		{ OnGroupRotate(false); }
+	afx_msg void OnGroupRotateCCW()	
+		{ OnGroupRotate(true); }
+	afx_msg void OnGroupMove();
+	afx_msg void OnGroupCopy();
+	afx_msg void OnGroupPaste();
+	afx_msg void OnGroupCut();
 	// CPT
 	void UnitToggle(bool bShiftKeyDown);
 	afx_msg void OnViewPlacementGrid();

@@ -1029,6 +1029,14 @@
 #define ID_POLYSIDE_CONVERTTOSTRAIGHTLINE 33016
 #define ID_GROUP_ROTATECCW              33017
 #define ID_GROUP_ROTATE_CCW             33018
+#define ID_GROUP_MOVE33019              33019
+#define ID_GROUP_ROTATECW               33020
+#define ID_GROUP_ROTATECCW33021         33021
+#define ID_GROUP_DELETE33022            33022
+#define ID_FP_GROUP_MOVE                33023
+#define ID_FP_GROUP_ROTATECW            33024
+#define ID_FP_GROUP_ROTATECCW           33025
+#define ID_FP_GROUP_DELETE              33026
 #define IDS_AppName                     61999
 #define IDS_IllegalNetName              62000
 #define IDS_TopSolderMask               62001
@@ -1681,6 +1689,12 @@
 #define IDS_PinFoundInNetlistFilePresentOnBoardButShouldBeAssignedToNet 62712
 #define IDS_PinFoundInNetlistFilePresentOnBoardAndCorrectlyAssignedToNet 62713
 #define IDS_DoYouWantToFixThePinsThatAreOnTheWrongNets 62714
+#define IDS_Outline3                    62715
+#define IDS_Text2                       62716
+#define IDS_ReferenceText2              62717
+#define IDS_ValueText2                  62718
+#define IDS_NoItemsCouldBePasted        62719
+#define IDS_ItemsPastedUseTheArrowKeysOrF4ToMoveThem 62720
 #define IDS_FkFpStr                     63000
 #define IDS_STRING63001                 63001
 #define IDS_STRING63002                 63002
@@ -2031,8 +2045,8 @@
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_3D_CONTROLS                     1
-#define _APS_NEXT_RESOURCE_VALUE        353
-#define _APS_NEXT_COMMAND_VALUE         33019
+#define _APS_NEXT_RESOURCE_VALUE        354
+#define _APS_NEXT_COMMAND_VALUE         33029
 #define _APS_NEXT_CONTROL_VALUE         1452
 #define _APS_NEXT_SYMED_VALUE           106
 #endif

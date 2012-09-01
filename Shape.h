@@ -111,6 +111,7 @@ public:
 	CRect GetBounds();
 	void Highlight();
 	void Copy(CPadstack *src, bool bCopyName=true);
+	void SetVisible(bool bVis);
 };
 
 class CCentroid : public CPcbItem
@@ -137,6 +138,7 @@ public:
 	void Highlight();
 	void StartDragging( CDC *pDC );
 	void CancelDragging();
+	void SetVisible(bool bVis);
 };
 
 class CGlue : public CPcbItem
@@ -164,6 +166,7 @@ public:
 	void Highlight();
 	void StartDragging( CDC *pDC );
 	void CancelDragging();
+	void SetVisible(bool bVis);
 };
 
 
@@ -230,8 +233,8 @@ public:
 	
 	int Draw();														// CPT2 removed args.
 	void Undraw();
-	void StartDraggingPadRow( CDC * pDC, CHeap<CPadstack> *row );
-	void CancelDraggingPadRow( CHeap<CPadstack> *row );			// CPT2 converted (new arg)
+	// void StartDraggingPadRow( CDC * pDC, CHeap<CPadstack> *row );
+	// void CancelDraggingPadRow( CHeap<CPadstack> *row );			// CPT2 converted (new arg)
 	void ShiftToInsertPadName( CString * astr, int n );				// CPT2 converted
 	bool GenerateSelectionRectangle( CRect * r );
 };

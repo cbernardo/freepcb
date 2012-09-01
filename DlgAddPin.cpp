@@ -787,7 +787,7 @@ BEGIN_MESSAGE_MAP(CDlgAddPin, CDialog)
 END_MESSAGE_MAP()
 
 
-void CDlgAddPin::InitDialog( CShape * fp, CPadstack *ps0, CHeap<CPadstack> *new_pins, int units )
+void CDlgAddPin::InitDialog( CShape * fp, CPadstack *ps0, CHeap<CPcbItem> *new_pins, int units )
 {
 	ASSERT(fp);
 	m_fp = fp;

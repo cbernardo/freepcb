@@ -12,7 +12,7 @@ public:
 	enum { ADD, EDIT };		// modes
 	CDlgAddPin(CWnd* pParent = NULL);   // standard constructor 
 	virtual ~CDlgAddPin();
-	void InitDialog( CShape * fp, CPadstack *ps0, CHeap<CPadstack> *new_pins, int units );
+	void InitDialog( CShape * fp, CPadstack *ps0, CHeap<CPcbItem> *new_pins, int units );
 //	void EnableFields();
 
 	CShape * m_fp;	// original footprint
@@ -29,7 +29,7 @@ protected:
 public:
 	int m_units;						// MIL or MM
 	CPadstack *m_ps0;					// CPT2.  Incoming pin if we're editing;  NULL if we're adding
-	CHeap<CPadstack> *m_new_pins;		// CPT2.  List to contain all the new pins on exit.
+	CHeap<CPcbItem> *m_new_pins;		// CPT2.  List to contain all the new pins on exit.  This will just be CCommonView::m_sel
 	CString m_pin_name;
 	int m_num_pins;
 	int m_increment;

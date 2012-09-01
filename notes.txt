@@ -102,8 +102,7 @@ direction.
 Regarding phantom pins, as of r329 I no longer bail out with an error if they're found in a document being loaded.  Instead, the program just
 ignores them.
 
-As of r335 class CShape and the whole footprint machinery has been overhauled.  CShape 
-(formerly CShape) is now a descendant of CPcbItem, meaning that memory
+As of r335 class CShape and the whole footprint machinery has been overhauled.  CShape is now a descendant of CPcbItem, meaning that memory
 management for it and its constituents like CPadstack and CCentroid will adhere to the same system as everything else.  I decided I would make 
 this change prior to implementing the garbage collector, which I promise is soon.  The cache is no longer a 
 CMapStringToPtr type, but just a CShapeList, consisting basically of a CHeap<CShape> and
@@ -115,7 +114,7 @@ from the fp editor or the DlgPartlist (say), these changes can now be undone.
 In related moves, the code when exiting DlgAddPart and DlgPartlist has been rearranged.  Formerly DlgAddPart::DoDataExchange on exit had the
 responsibility to load in fp's from libraries and reconcile name conflicts.  These jobs are now handled in CPartList::ImportPartlistInfo().
 
-As of r339, have mocked up some code to implement my idea for netlist file synching.  The idea is to allow user to create a quasi-permanent link 
+As of r340, have mocked up some code to implement my idea for netlist file synching.  The idea is to allow user to create a quasi-permanent link 
 between an .fpc file and an associated netlist file.  This can be done either from within Project>Options or during a File>Import-netlist.  The
 effects of having such a link:  (1) whenever a part is inserted/reinserted into the board, or whenever a part is assigned a new footprint, the
 program will check the (resident) netlist file for references to the part.  It will then assign pins from the part to the appropriate nets wherever 

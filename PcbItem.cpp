@@ -170,3 +170,9 @@ bool CPcbItem::IsFootItem()
 	return false;
 }
 
+bool CPcbItem::IsSelectableForGroup() 
+{ 
+	if (CText *t = ToText())
+		if (t->m_shape) return true;								// Applies within the fp editor.
+	return (GetTypeBit() & bitsSelectableForGroup) != 0; 
+}

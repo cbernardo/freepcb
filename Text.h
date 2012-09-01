@@ -62,7 +62,7 @@ public:
 
 	void GenerateStrokes();														// CPT2 new.  Helper for Draw().
 	int Draw();
-	void GenerateStrokesRelativeTo( CPart *p );								// CPT2 new.  Helper for DrawRelativeTo().
+	void GenerateStrokesRelativeTo( CPart *p );									// CPT2 new.  Helper for DrawRelativeTo().
 	int DrawRelativeTo( CPart *p, bool bSelector=true );						// CPT2 new.
 	void Undraw();
 	void Highlight();

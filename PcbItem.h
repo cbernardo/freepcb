@@ -107,7 +107,8 @@ enum typebits {
 				  bitAreaCorner | bitAreaSide | bitArea,
 	bitsPartItem = bitPin | bitPart,
 	bitsFootItem = bitOutlineCorner | bitOutlineSide | bitOutline | bitCentroid | bitGlue | bitPadstack | bitShape,
-	bitsSelectableForGroup = bitVia | bitSeg | bitConnect | bitPart | bitText | bitAreaSide | bitSmSide | bitBoardSide
+	bitsSelectableForGroup = bitVia | bitSeg | bitConnect | bitPart | bitText | bitAreaSide | bitSmSide | bitBoardSide |
+	                         bitOutlineSide | bitCentroid | bitGlue | bitPadstack
 };
 
 class CPcbItem 
@@ -177,6 +178,7 @@ public:
 	virtual void MustRedraw();						// CPT2 r313.  My latest-n-greatest new system for drawing/undrawing (see notes.txt). Done in cpp
 													// Overridden in CPin [only?]
 	virtual void Highlight() { }
+	virtual void SetVisible(bool bVis) { }
 	virtual bool IsOnPcb() { return false; }		// Used to be called IsValid(), but this name seemed more descriptive.  E.g. items
 													// on the clipboard are perfectly "valid" (not subject to garbage-collection), but the
 													// drawing and undo routines should ignore them anyway.  Check out particularly CShape::IsOnPcb().
@@ -224,7 +226,7 @@ public:
 	virtual int GetTypeBit() { return 0; }				// See "enum typebits" above for return values from the various derived classes
 	bool IsPartItem() { return (GetTypeBit() & bitsPartItem) != 0; }
 	bool IsNetItem() { return (GetTypeBit() & bitsNetItem) != 0; }
-	bool IsSelectableForGroup() { return (GetTypeBit() & bitsSelectableForGroup) != 0; }
+	bool IsSelectableForGroup();
 	bool IsFootItem();
 
 	// Type casting functions.  All return null by default, but are overridden to return type-cast pointers in specified derived classes

@@ -76,6 +76,7 @@ void CText::Copy( CText *src )
 	m_bShown = src->m_bShown;
 	m_part = src->m_part;
 	m_shape = src->m_shape;
+	utility = src->utility;
 }
 
 void CText::Move( int x, int y, int angle, BOOL mirror, BOOL negative, int layer, int size, int w )

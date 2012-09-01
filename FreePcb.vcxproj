@@ -284,7 +284,6 @@
     <ClInclude Include="Polyline.h" />
     <ClInclude Include="QAFDebug.h" />
     <ClInclude Include="Resource.h" />
-    <ClInclude Include="resource1.h" />
     <ClInclude Include="RTcall.h" />
     <ClInclude Include="Shape.h" />
     <ClInclude Include="smcharacter.h" />

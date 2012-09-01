@@ -277,15 +277,6 @@ public:
 
 	// member variables
 	// parameters related to mouse motion and dragging
-	BOOL m_bLButtonDown;
-	BOOL m_bDraggingRect;
-	CPoint m_start_pt;
-	CRect m_drag_rect, m_last_drag_rect;
-	BOOL m_bDontDrawDragRect;					// CPT true after an autoscroll but before repainting occurs
-	CRect m_sel_rect;							// rectangle used for selection
-	BOOL m_dragging_new_item;					// flag to indicate that a newly-created item is being dragged, as opposed to an existing item
-												// if so, right-clicking or ESC will delete item not restore it
-	DWORD m_last_autoscroll;					// Tick count when an autoscroll last occurred.
 	CPoint m_to_pt;								// for dragging segment, endpoint of this segment
 	CPoint m_last_pt;							// for dragging segment
 	CPoint m_next_pt;							// for dragging segment
@@ -296,7 +287,6 @@ public:
 
 	// selected and highlighted items
 	static int sel_mask_btn_bits[16];	// CPT2.  New system for masking selections.  Each left-pane button corresponds to 1+ bits for types of pcb-items...
-	CNet *m_highlight_net;
 
 	// Related to routing
 	int m_dir;						// routing direction: 0 = forward, 1 = back
@@ -338,7 +328,6 @@ public:
 	void MoveGroup( int dx, int dy );
 	void RotateGroup();
 	void DeleteGroup();
-	void FindGroupCenter();
 	void SaveUndoInfoForGroup();														// CPT2 Preserved the name, but converted the func to the new system
 	BOOL GluedPartsInGroup();
 	void UngluePartsInGroup();
@@ -359,7 +348,6 @@ public:
 // Generated message map functions
 protected:
 	DECLARE_MESSAGE_MAP()
-	afx_msg void OnLButtonDown(UINT nFlags, CPoint point);
 	afx_msg void OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags);
 	afx_msg void OnMouseMove(UINT nFlags, CPoint point);
 	afx_msg void OnRButtonDown(UINT nFlags, CPoint point);
@@ -489,7 +477,6 @@ public:
 	void RoutingGridUp();
 	void RoutingGridDown();
 	void UnitToggle(bool bShiftKeyDown);
-	void ToggleSelectionState(CPcbItem *item);					// CPT2 updated arg
 
 	// CPT:  virtual functions from CCommonView:
 	bool IsFreePcbView() { return true; }
