@@ -8,12 +8,6 @@
 #include "Net.h"
 #include "Part.h"
 
-BOOL bDontShowSelfIntersectionWarning = false;		// CPT2 TODO make these "sticky" by putting settings into default.cfg.
-BOOL bDontShowSelfIntersectionArcsWarning = false;
-BOOL bDontShowIntersectionWarning = false;
-BOOL bDontShowIntersectionArcsWarning = false;
-
-
 CCorner::CCorner(CContour *_contour, int _x, int _y)
 	: CPcbItem (_contour->doc)
 {
@@ -1718,14 +1712,11 @@ int CPolyline::ClipPolygon( bool bMessageBoxArc, bool bMessageBoxInt, bool bReta
 	if( test == -1 )
 	{
 		// arc intersections, don't clip unless bRetainArcs == FALSE
-		if( bMessageBoxArc && !bDontShowSelfIntersectionArcsWarning )
+		if( bMessageBoxArc )
 		{
-			CString str, s ((LPCSTR) IDS_AreaOfNetHasArcsIntersectingOtherSides);		// CPT2 changed text to read "Polygon has arcs intersecting..."
-			str.Format( s, UID() );
 			CDlgMyMessageBox dlg;
-			dlg.Initialize( str );
-			dlg.DoModal();
-			bDontShowSelfIntersectionArcsWarning = dlg.bDontShowBoxState;
+			if (dlg.Initialize( SELF_INTERSECTION_ARC_WARNING, false, UID() ))
+				dlg.DoModal();
 		}
 		return -1;	// arcs intersect with other sides, error
 	}
@@ -1733,14 +1724,11 @@ int CPolyline::ClipPolygon( bool bMessageBoxArc, bool bMessageBoxInt, bool bReta
 	if( test == 1 )
 	{
 		// non-arc intersections, clip the polygon
-		if( bMessageBoxInt && bDontShowSelfIntersectionWarning == FALSE)
+		if( bMessageBoxInt )
 		{
-			CString str, s ((LPCSTR) IDS_AreaOfNetIsSelfIntersectingAndWillBeClipped);		// CPT2 changed text to read "Polygon is self-intersecting..."
-			str.Format( s, UID() );
 			CDlgMyMessageBox dlg;
-			dlg.Initialize( str );
-			dlg.DoModal();
-			bDontShowSelfIntersectionWarning = dlg.bDontShowBoxState;
+			if (dlg.Initialize( SELF_INTERSECTION_WARNING, false, UID() ))
+				dlg.DoModal();
 		}
 		NormalizeWithGpc( bRetainArcs );						// NB Routine will change "this", and will attach any new polylines in the appropriate places
 	}
@@ -1787,28 +1775,19 @@ void CPolyline::CombinePolylines( CHeap<CPolyline> *pa, BOOL bMessageBox )
 					if (ret == 0) continue;
 					pa->Remove( p2 );
 					p2->Remove();												// Virtual func. undraws and detaches polyline from the appropriate arrays.
-					if( ret == 1 && bMessageBox && !bDontShowIntersectionWarning )
+					if( ret == 1 && bMessageBox )
 					{
-						CString str, s ((LPCSTR) IDS_AreasOfNetIntersectAndWillBeCombined);	// Text now reads "Polylines %d and %d intersect and will be..."
-						str.Format( s, p1->UID(), p2->UID() );								// Just to provide a number, give 'em the uid's
 						CDlgMyMessageBox dlg;
-						dlg.Initialize( str );
-						dlg.DoModal();
-						bDontShowIntersectionWarning = dlg.bDontShowBoxState;
+						if (dlg.Initialize( INTERSECTION_WARNING, false, p1->UID(), p2->UID() ))
+							dlg.DoModal();
 					}
 					mod_p1 = TRUE;
 				}
-				else if( ret == 2 )
+				else if( ret == 2 && bMessageBox )
 				{
-					if( bMessageBox && !bDontShowIntersectionArcsWarning )
-					{
-						CString str, s ((LPCSTR) IDS_AreasOfNetIntersectButSomeOfTheIntersectingSidesAreArcs); // Now reads "Polylines %d and %d intersect but..."
-						str.Format( s, p1->UID(), p2->UID() );
-						CDlgMyMessageBox dlg;
-						dlg.Initialize( str );
+					CDlgMyMessageBox dlg;
+					if (dlg.Initialize( INTERSECTION_ARC_WARNING, false, p1->UID(), p2->UID() ))
 						dlg.DoModal();
-						bDontShowIntersectionArcsWarning = dlg.bDontShowBoxState;
-					}
 				}
 			}
 		}

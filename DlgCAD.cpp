@@ -6,7 +6,7 @@
 #include "DlgCAD.h"
 #include "Gerber.h"
 #include "DlgLog.h"
-#include "DlgMyMessageBox2.h"
+#include "DlgMyMessageBox.h"
 #include "PathDialog.h"
 #include "RTcall.h"
 #include ".\dlgcad.h"
@@ -210,11 +210,9 @@ void CDlgCAD::Initialize( double version, CString * folder, CString * project_fo
 						 int n_x, int n_y, int space_x, int space_y,
 						 int flags, int layers, int drill_file,
 						 CHeap<CBoard> * bd, CHeap<CSmCutout> * sm, 
-						 BOOL * bShowMessageForClearance,
 						 CPartList * pl, CNetList * nl, CTextList * tl, CDisplayList * dl,
 						 CDlgLog * log )
 {
-	m_bShowMessageForClearance = *bShowMessageForClearance;
 	m_bSMT_connect = bSMTconnect;
 	m_version = version;
 	m_folder = *folder;
@@ -283,16 +281,15 @@ void CDlgCAD::OnBnClickedGo()
 	GetFields();
 
 	// warn about copper-copper clearance
-	if( m_fill_clearance == 0 && m_bShowMessageForClearance )     
+	if( m_fill_clearance )     
 	{
-		CDlgMyMessageBox2 dlg;
-		CString mess ((LPCSTR) IDS_WarningYouHaveSetTheCopper);
-		dlg.Initialize( &mess );
-		int ret = dlg.DoModal();
-		if( ret == IDCANCEL )
-			return;
-		else
-			m_bShowMessageForClearance = !dlg.bDontShowBoxState;
+		CDlgMyMessageBox dlg;
+		if (dlg.Initialize( COPPER_CLEARANCE_WARNING, true ))
+		{
+			int ret = dlg.DoModal();
+			if( ret == IDCANCEL )
+				return;
+		}
 	}
 
 	if( m_hole_clearance < m_fill_clearance )

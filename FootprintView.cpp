@@ -40,7 +40,6 @@ static char THIS_FILE[] = __FILE__;
 
 #define ZOOM_RATIO 1.4
 
-bool g_bShowFpPasteMessage = true;			// CPT2 TODO another global to deal with ultimately by using some pref...
 extern CFreePcbApp theApp;
 
 // NB: these must be changed if context menu is edited
@@ -2406,7 +2405,7 @@ void CFootprintView::OnGroupMove()
 	StartDraggingGroup(false);
 }
 
-void CFootprintView::StartDraggingGroup( bool bAdd, int x, int y )			// CPT2 TODO remove x/y
+void CFootprintView::StartDraggingGroup( bool bAdd )
 {
 	CancelHighlight();
 	m_dragging_new_item = bAdd;
@@ -2530,15 +2529,14 @@ void CFootprintView::OnGroupPaste()
 
 	CancelSelection();
 	m_fp->Undraw();
-	// First off, determine the first purely numeric padstack name that is unused on the current f.p.
+	// First off, determine the highest purely numeric padstack name that is used on the current f.p.
 	int max_ps = 0;
 	CIter<CPadstack> ips (&m_fp->m_padstacks);
 	for (CPadstack *ps = ips.First(); ps; ps = ips.Next())
 	{
 		int num = atoi(ps->name);
-		char buf[32];
-		itoa(num, buf, 10);
-		CString name2 (buf);
+		CString name2;
+		name2.Format("%d", num);
 		if (ps->name == name2 && num > max_ps)
 			max_ps = num;
 	}
@@ -2591,15 +2589,9 @@ void CFootprintView::OnGroupPaste()
 		return;
 	}
 
-	if (g_bShowFpPasteMessage)
-	{
-		CString str0 ((LPCSTR) IDS_ItemsPastedUseTheArrowKeysOrF4ToMoveThem), mess;
-		mess.Format(str0, numPasted);
-		CDlgMyMessageBox dlg;
-		dlg.Initialize( mess );
+	CDlgMyMessageBox dlg;
+	if (dlg.Initialize( FP_PASTE_WARNING, false, numPasted ))
 		dlg.DoModal();
-		g_bShowFpPasteMessage = !dlg.bDontShowBoxState;
-	}
 
 	FootprintModified(true);
 	HighlightSelection();

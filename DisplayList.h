@@ -4,7 +4,7 @@
 #include <afxcoll.h>
 #include <afxtempl.h>
 #include "afxwin.h"
-#include "layers.h"
+#include "general.h"
 #include "rgb.h"
 #include "smfontutil.h"
 

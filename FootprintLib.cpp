@@ -6,8 +6,6 @@
 #include "DlgAddPart.h"
 #include "DlgMyMessageBox.h"
 
-BOOL bDisableMessageIfFileNotFound = FALSE;
-
 // index one library file
 // file_name is just the file name, not the complete path
 //
@@ -45,14 +43,11 @@ void CFootLibFolder::IndexLib( CString * file_name, CDlgLog * dlog )
 
 	CStdioFile file;
 	int OK = file.Open( m_footlib[nlib].m_full_path, CFile::modeRead );
-	if( !OK && !bDisableMessageIfFileNotFound )     
+	if( !OK )     
 	{
 		CDlgMyMessageBox dlg;
-		CString s ((LPCSTR) IDS_UnableToOpenLibraryFile), mess;
-		mess.Format(s, m_footlib[nlib].m_full_path);
-		dlg.Initialize( mess );
-		dlg.DoModal();
-		bDisableMessageIfFileNotFound = dlg.bDontShowBoxState;
+		if (dlg.Initialize( CANT_OPEN_LIBRARY_WARNING ));
+			dlg.DoModal();
 	}
 
 	CString instr;

@@ -44,8 +44,6 @@
 #define VSTEP 14
 
 extern CFreePcbApp theApp;
-BOOL g_bShow_Ratline_Warning = TRUE;
-
 
 CCommonView::CCommonView()
 {
@@ -504,13 +502,11 @@ bool CCommonView::CheckLeftPaneClick(CPoint &point) {
 			// clicked in color square
 			int vis = ToggleLayerVis(il);
 			m_dlist->SetLayerVisible( il, vis );
-			if( IsFreePcbView() && il == LAY_RAT_LINE && m_doc->m_vis[il] && g_bShow_Ratline_Warning )
+			if( IsFreePcbView() && il == LAY_RAT_LINE && m_doc->m_vis[il])
 			{
 				CDlgMyMessageBox dlg;
-				CString s ((LPCSTR) IDS_RatlinesTurnedBackOn);
-				dlg.Initialize( s );
-				dlg.DoModal();
-				g_bShow_Ratline_Warning = !dlg.bDontShowBoxState;
+				if (dlg.Initialize( RATLINE_WARNING ))
+					dlg.DoModal();
 			}
 			Invalidate( FALSE );
 			return true;

@@ -4,7 +4,6 @@
 #include "stdafx.h"
 #include "FreePcb.h"
 #include "DlgFpText.h"
-#include "layers.h"
 
 int gFpLastHeight = 100*NM_PER_MIL;
 int gFpLastWidth = 10*NM_PER_MIL;

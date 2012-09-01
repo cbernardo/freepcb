@@ -10,9 +10,6 @@
 #include "Text.h"
 #include "DlgDupFootprintName.h"
 
-BOOL g_bShow_header_28mil_hole_warning = TRUE;	
-BOOL g_bShow_SIP_28mil_hole_warning = TRUE;							// CPT2 TODO used?
-
 
 CPin::CPin(CPart *_part, CPadstack *_ps, CNet *_net)					// CPT2. Added args
 	: CPcbItem (_part->doc)
@@ -2619,13 +2616,11 @@ bool CPartList::CheckForProblemFootprints()
 				if (ps->hole_size == 28*NM_PER_MIL )
 					{ bHeaders_28mil_holes = TRUE; break; }
 
-	if( g_bShow_header_28mil_hole_warning && bHeaders_28mil_holes )   
+	if( bHeaders_28mil_holes )   
 	{
 		CDlgMyMessageBox dlg;
-		CString s ((LPCSTR) IDS_WarningYouAreLoadingFootprintsForThroughHoleHeaders);
-		dlg.Initialize( s );
-		dlg.DoModal();
-		g_bShow_header_28mil_hole_warning = !dlg.bDontShowBoxState;
+		if (dlg.Initialize( HEADER_28_MIL_WARNING ))
+			dlg.DoModal();
 	}
 	return bHeaders_28mil_holes;
 }

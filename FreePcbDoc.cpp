@@ -52,8 +52,6 @@ static char THIS_FILE[] = __FILE__;
 extern CFreePcbApp theApp;
 CFreePcbDoc * this_Doc;		// global for callback
 
-BOOL m_bShowMessageForClearance = TRUE;
-
 // global array to map file_layers to actual layers
 int m_layer_by_file_layer[MAX_LAYERS];
 
@@ -1707,6 +1705,12 @@ void CFreePcbDoc::ReadOptions( CStdioFile * pcb_file )
 				m_bHighlightNet = my_atoi(&p[0]);
 			else if (np && key_str == "error_sound")
 				m_bErrorSound = my_atoi(&p[0]);
+			else if (np && key_str == "warning_disable")
+			{
+				int index = my_atoi(&p[0]);
+				if (index>=0 && index<NUM_WARNINGS)
+					m_bWarningDisable[index] = my_atoi(&p[1]);
+			}
 		}
 
 		if( m_fp_visible_grid.GetSize() == 0 )
@@ -1974,7 +1978,6 @@ void CFreePcbDoc::WriteOptions( CStdioFile * file )
 void CFreePcbDoc::InitializeNewProject()
 {
 	m_dlist->RemoveAll();						// CPT2
-	m_bShowMessageForClearance = TRUE;
 
 	// these are the embedded defaults
 	m_name = "";
@@ -1992,6 +1995,7 @@ void CFreePcbDoc::InitializeNewProject()
 	m_bLefthanded = 0;
 	m_bHighlightNet = 0;
 	m_bErrorSound = 1;
+	ZeroMemory(&m_bWarningDisable, sizeof(m_bWarningDisable));
 
 	// CPT compacted the code for embedded default layer colors, visibility, etc.
 	static unsigned int defaultLayerColors[] = {
@@ -3364,7 +3368,6 @@ void CFreePcbDoc::OnFileGenerateCadFiles()
 		m_cam_drill_file,
 		&boards,
 		&smcutouts,
-		&m_bShowMessageForClearance,
 		m_plist, 
 		m_nlist, 
 		m_tlist, 
@@ -3411,7 +3414,6 @@ void CFreePcbDoc::OnFileGenerateCadFiles()
 		m_n_y = dlg.m_n_y;
 		m_space_x = dlg.m_space_x;
 		m_space_y = dlg.m_space_y;
-		m_bShowMessageForClearance = dlg.m_bShowMessageForClearance;
 	}
 }
 
@@ -4468,7 +4470,6 @@ void ReplaceLines(CArray<CString> &oldLines, CArray<CString> &newLines, char *ke
 void CFreePcbDoc::OnToolsPreferences() 
 {
 	CDlgPrefs dlg;
-	dlg.doc = this;
 	dlg.Init( m_bReversePgupPgdn, m_bLefthanded, m_bHighlightNet, m_bErrorSound, m_auto_interval, 
 		m_auto_ratline_disable, m_auto_ratline_min_pins); 
 	int ret = dlg.DoModal();
@@ -4481,6 +4482,9 @@ void CFreePcbDoc::OnToolsPreferences()
 	m_auto_interval = dlg.m_auto_interval;
 	m_auto_ratline_disable = dlg.m_bAuto_Ratline_Disable;
 	m_auto_ratline_min_pins = dlg.m_auto_ratline_min_pins;
+	if (dlg.m_bReinstateWarnings)
+		for (int i=0; i<NUM_WARNINGS; i++)
+			m_bWarningDisable[i] = false;
 
 	// CPT2.  Deal with changes to default.cfg directory.  This feature became necessary when good 'old MS decided with Win7 to write-protect 
 	// everything within the C:\Program Files folder.  Assumes that CDlgPrefs already did a check on the writeability of the new dir.
@@ -4508,6 +4512,9 @@ void CFreePcbDoc::OnToolsPreferences()
 	newLines.Add( line );
 	line.Format( "error_sound: \"%d\"\n", m_bErrorSound);
 	newLines.Add( line );
+	for (int i=0; i<NUM_WARNINGS; i++)
+		line.Format( "warning_disable: %d %d\n", i, m_bWarningDisable[i]),
+		newLines.Add(line);
 	ReadFileLines(oldFn, oldLines);
 	ReplaceLines(oldLines, newLines, "autosave_interval");
 	ReplaceLines(oldLines, newLines, "auto_ratline_disable");
@@ -4516,6 +4523,7 @@ void CFreePcbDoc::OnToolsPreferences()
 	ReplaceLines(oldLines, newLines, "lefthanded_mode");
 	ReplaceLines(oldLines, newLines, "highlight_net");
 	ReplaceLines(oldLines, newLines, "error_sound");
+	ReplaceLines(oldLines, newLines, "warning_disable");
 	WriteFileLines(newFn, oldLines);
 	m_view->SetFKText(m_view->m_cursor_mode);					// In case user changed the left-handed mode...
 }

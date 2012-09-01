@@ -1,5 +1,5 @@
 #pragma once
-#include "layers.h"
+#include "general.h"
 
 #define NUM_MAIN_LAYERS (LAY_TOP_COPPER + 16)
 #define NUM_DLG_LAYERS (LAY_TOP_COPPER + 20)	// CPT: Includes the 4 footprint layers
