@@ -460,8 +460,10 @@ int CVertex::Draw()
 		int sel_layer;
 		if( preSeg )
 			sel_layer = preSeg->m_layer;
-		else
+		else if (postSeg)
 			sel_layer = postSeg->m_layer;
+		else
+			sel_layer = LAY_TOP_COPPER;
 		dl_sel = dl->AddSelector( this, sel_layer, DL_HOLLOW_RECT, 
 			1, 0, 0, x-10*PCBU_PER_MIL, y-10*PCBU_PER_MIL, x+10*PCBU_PER_MIL, y+10*PCBU_PER_MIL, 0, 0 );
 	}
@@ -1662,6 +1664,18 @@ void CConnect::MergeUnroutedSegments()
 			this->Remove();
 		else if (head->tee && head->tee==tail->tee)
 			this->Remove();
+}
+
+void CConnect::ConnectHeadToLayer( int layer )
+{
+	// CPT2.  Used when user is dragging a stub from an area on a particular layer.  We need to check that the first seg really connects to that
+	// area's layer (force a via if it doesn't).
+	if (!head->postSeg)
+		return;													// ???
+	if (head->postSeg->m_layer == layer)
+		return;													// Nothing to do.
+	head->force_via_flag = true;
+	head->ReconcileVia();
 }
 
 int CConnect::Draw()

@@ -52,14 +52,14 @@ public:
 	CFreePcbDoc * m_doc;	// the document
 	CDisplayList * m_dlist;	// the display list
 
-	// Windows fonts
+	// Windows font
 	CFont m_small_font;
 	// cursor mode
 	int m_cursor_mode;
 	BOOL m_lastKeyWasArrow;	// (used to be globals)
 	BOOL m_lastKeyWasGroupRotate;
-	int m_totalArrowMoveX;
-	int m_totalArrowMoveY;
+	int m_totalArrowMoveX, m_totalArrowMoveY;
+	int m_lastArrowPosX, m_lastArrowPosY;			// CPT2 new:  each time an item is moved with arrow keys, save its position here
 
 	int m_debug_flag;
 
@@ -76,28 +76,28 @@ public:
 	int m_active_layer;
 
 	// display coordinate mapping
-	double m_pcbu_per_pixel;	// pcb units per pixel
-	double m_org_x;				// x-coord of left side of screen in pcb units
-	double m_org_y;				// y-coord of bottom of screen in pcb units
-
+	double m_pcbu_per_pixel;				// pcb units per pixel
+	double m_org_x;							// x-coord of left side of screen in pcb units
+	double m_org_y;							// y-coord of bottom of screen in pcb units
+	double m_lastSpaceDx, m_lastSpaceDy;	// CPT2:  How much did the screen move when space bar was last hit?
 	// grids
-	CPoint m_snap_angle_ref;		// reference point for snap angle
+	CPoint m_snap_angle_ref;				// reference point for snap angle
 
 	// mouse
-	CPoint m_from_pt;			// for dragging mode, origin
-	CPoint m_last_mouse_point;	// last mouse position
-	CPoint m_last_cursor_point;	// last cursor position (may be different from mouse)
+	CPoint m_from_pt;				// for dragging mode, origin
+	CPoint m_last_mouse_point;		// last mouse position
+	CPoint m_last_cursor_point;		// last cursor position (may be different from mouse because of snapping)
 	CPoint m_last_click;			// CPT:  last point where user clicked
 	BOOL m_bLButtonDown;
 	BOOL m_bDraggingRect;
 	CPoint m_start_pt;
 	CRect m_drag_rect, m_last_drag_rect;
-	BOOL m_bDontDrawDragRect;					// CPT true after an autoscroll but before repainting occurs
-	CRect m_sel_rect;							// rectangle used for selection
-	BOOL m_dragging_new_item;					// flag to indicate that a newly-created item is being dragged, as opposed to an existing item
-												// if so, right-clicking or ESC will delete item not restore it
-	DWORD m_last_autoscroll;					// Tick count when an autoscroll last occurred.
-	CArray<CHitInfo> m_hit_info;	// CPT r294: info about items near where user is clicking, now a member applicable throughout the class.
+	BOOL m_bDontDrawDragRect;				// CPT true after an autoscroll but before repainting occurs
+	DWORD m_last_autoscroll;				// Tick count when an autoscroll last occurred.
+	CRect m_sel_rect;						// rectangle used for selection
+	BOOL m_dragging_new_item;				// flag to indicate that a newly-created item is being dragged, as opposed to an existing item
+											// if so, right-clicking or ESC will delete item not restore it
+	CArray<CHitInfo> m_hit_info;			// CPT r294: info about items near where user is clicking, now a member applicable throughout the class.
 	CNet *m_highlight_net;
 
 	// function key shortcuts

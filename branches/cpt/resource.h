@@ -602,6 +602,8 @@
 #define IDC_COMBO_GROUP_UNITS           1335
 #define IDC_EDIT_GROUP_X                1336
 #define IDC_EDIT_GROUP_Y                1337
+#define IDC_EDIT_GROUP_X2               1338
+#define IDC_EDIT_NUM_COPIES             1338
 #define IDC_STATIC_1                    1343
 #define IDC_STATIC_2                    1344
 #define IDC_STATIC_3                    1345
@@ -747,6 +749,7 @@
 #define IDC_CHECK_IGNORE_EMPTY_NETS     1446
 #define IDC_BUTTON_LAYER_17             1447
 #define IDC_BUTTON_PREFS_BROWSE         1447
+#define IDC_CHECK_MULTIPLE              1447
 #define IDC_BUTTON_LAYER_18             1448
 #define IDC_EDIT_PREFS_DEFAULTCFG       1448
 #define IDC_BUTTON_LAYER_19             1449
@@ -1040,6 +1043,7 @@
 #define ID_FP_GROUP_ROTATECW            33024
 #define ID_FP_GROUP_ROTATECCW           33025
 #define ID_FP_GROUP_DELETE              33026
+#define ID_AREAEDGE_STARTTRACE          33029
 #define IDS_AppName                     61999
 #define IDS_IllegalNetName              62000
 #define IDS_TopSolderMask               62001
@@ -1689,8 +1693,8 @@
 #define IDS_ReferenceText2              62717
 #define IDS_ValueText2                  62718
 #define IDS_NoItemsCouldBePasted        62719
-#define IDS_WarningsAbout               62720
 #define IDS_MessagesAbout               62720
+#define IDS_StartingTraceFromAreaNet    62721
 #define IDS_FkFpStr                     63000
 #define IDS_STRING63001                 63001
 #define IDS_STRING63002                 63002
@@ -2061,7 +2065,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_3D_CONTROLS                     1
 #define _APS_NEXT_RESOURCE_VALUE        354
-#define _APS_NEXT_COMMAND_VALUE         33029
+#define _APS_NEXT_COMMAND_VALUE         33030
 #define _APS_NEXT_CONTROL_VALUE         1453
 #define _APS_NEXT_SYMED_VALUE           106
 #endif
