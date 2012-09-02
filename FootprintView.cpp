@@ -787,6 +787,7 @@ void CFootprintView::FinishArrowKey(int x, int y, int dx, int dy) {
 	HighlightSelection();
 	m_totalArrowMoveX += dx;
 	m_totalArrowMoveY += dy;
+	m_lastArrowPosX = x, m_lastArrowPosY = y;
 	if (x==INT_MAX)
 		// Show dx/dy only
 		ShowRelativeDistance(m_totalArrowMoveX, m_totalArrowMoveY);
@@ -878,7 +879,8 @@ void CFootprintView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 			if (fk==FK_ARROW) 
 			{
 				CPadstack *ps = m_sel.First()->ToPadstack();
-				PushUndo();
+				if (!m_lastKeyWasArrow)
+					PushUndo();
 				ps->x_rel += dx;
 				ps->y_rel += dy;
 				FinishArrowKey(ps->x_rel, ps->y_rel, dx, dy);
@@ -900,7 +902,8 @@ void CFootprintView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 		if (fk==FK_ARROW) 
 		{
 			CText *t = m_sel.First()->ToText();
-			PushUndo();
+			if (!m_lastKeyWasArrow)
+				PushUndo();
 			t->Move(t->m_x + dx, t->m_y + dy, t->m_angle);
 			FinishArrowKey(t->m_x, t->m_y, dx, dy);
 		}
@@ -918,7 +921,8 @@ void CFootprintView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 		if (fk==FK_ARROW) 
 		{
 			CCorner *c = m_sel.First()->ToCorner();
-			PushUndo();
+			if (!m_lastKeyWasArrow)
+				PushUndo();
 			c->Move( c->x + dx, c->y + dy );
 			FinishArrowKey(c->x, c->y, dx, dy);
 		}
@@ -944,7 +948,8 @@ void CFootprintView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 		if (fk==FK_ARROW) 
 		{
 			CSide *s = m_sel.First()->ToSide();
-			PushUndo();
+			if (!m_lastKeyWasArrow)
+				PushUndo();
 			int x1 = s->preCorner->x, y1 = s->preCorner->y;
 			int x2 = s->postCorner->x, y2 = s->postCorner->y;
 			s->preCorner->Move( x1+dx, y1+dy );
@@ -971,7 +976,8 @@ void CFootprintView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 		if (fk==FK_ARROW) 
 		{
 			CCentroid *c = m_sel.First()->ToCentroid();
-			PushUndo();
+			if (!m_lastKeyWasArrow)
+				PushUndo();
 			c->m_x += dx;
 			c->m_y += dy;
 			c->m_type = CENTROID_DEFINED;
@@ -989,7 +995,8 @@ void CFootprintView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 		if (fk==FK_ARROW) 
 		{
 			CGlue *g = m_sel.First()->ToGlue();
-			PushUndo();
+			if (!m_lastKeyWasArrow)
+				PushUndo();
 			if (g->type == GLUE_POS_CENTROID)
 			{
 				CCentroid *c = m_fp->m_centroid;
@@ -1012,7 +1019,8 @@ void CFootprintView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 		// CPT2 TODO have rotate keys while dragging a group
 		if (fk==FK_ARROW) 
 		{
-			PushUndo();
+			if (!m_lastKeyWasArrow)
+				PushUndo();
 			MoveGroup(dx, dy);
 			FinishArrowKey(INT_MAX, INT_MAX, dx, dy);
 		}
@@ -1711,6 +1719,17 @@ LONG CFootprintView::OnChangeUnits( UINT wp, LONG lp )
 	else
 		ASSERT(0);
 	// CPT: FootprintModified(TRUE);
+	SetFocus();
+	ShowCursor();
+	ShowSelectStatus();
+	if( m_cursor_mode == CUR_FP_DRAG_GROUP	|| m_cursor_mode == CUR_FP_DRAG_ADHESIVE || m_cursor_mode == CUR_FP_DRAG_CENTROID
+				|| m_cursor_mode == CUR_FP_DRAG_TEXT || m_cursor_mode ==  CUR_FP_DRAG_POLY_MOVE )
+		ShowRelativeDistance( m_last_cursor_point.x - m_from_pt.x, m_last_cursor_point.y - m_from_pt.y );
+	else if (m_lastKeyWasArrow)
+		ShowRelativeDistance(m_lastArrowPosX, m_lastArrowPosY, m_totalArrowMoveX, m_totalArrowMoveY);
+	else
+		ShowSelectStatus();
+
 	SetFocus();
 	Invalidate(false);
 	return 0;

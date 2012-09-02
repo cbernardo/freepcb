@@ -71,7 +71,6 @@ enum {
 IMPLEMENT_DYNCREATE(CFreePcbView, CView)
 
 BEGIN_MESSAGE_MAP(CFreePcbView, CView)
-	//{{AFX_MSG_MAP(CFreePcbView)
 	ON_WM_SIZE()
 	ON_WM_LBUTTONDOWN()
 	ON_WM_KEYDOWN()
@@ -81,7 +80,6 @@ BEGIN_MESSAGE_MAP(CFreePcbView, CView)
 	ON_WM_SYSKEYDOWN()
 	ON_WM_SYSKEYUP()
 	ON_WM_MOUSEWHEEL()
-	//}}AFX_MSG_MAP
 	// Standard printing commands
 //	ON_COMMAND(ID_FILE_PRINT, CView::OnFilePrint)
 //	ON_COMMAND(ID_FILE_PRINT_DIRECT, CView::OnFilePrint)
@@ -215,6 +213,7 @@ ON_COMMAND(ID_AREAEDGE_ADDNEWAREA, OnAddSimilarArea)
 ON_COMMAND(ID_AREAEDGE_EDITAREA, OnAreaEdit)
 ON_COMMAND(ID_AREAEDGE_APPLYCLEARANCES, OnAreaEdgeApplyClearances)
 ON_COMMAND(ID_AREAEDGE_DELETE, OnPolyDelete)
+ON_COMMAND(ID_AREAEDGE_STARTTRACE, OnAreaStartTrace)
 ON_COMMAND(ID_SMCORNER_MOVE, OnPolyCornerMove)
 ON_COMMAND(ID_SMCORNER_SETPOSITION, OnPolyCornerEdit)
 ON_COMMAND(ID_SMCORNER_EXCLUDEREGION, OnPolyAddCutout)
@@ -1149,7 +1148,8 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		HighlightSelection();
 	}
 
-	else if( m_cursor_mode == CUR_DRAG_STUB )			// CPT2 used to be called CUR_DRAG_TRACE, renamed (less confusing I think)
+	else if( m_cursor_mode == CUR_DRAG_STUB 			// CPT2 used to be called CUR_DRAG_TRACE, renamed (less confusing I think)
+			 || m_cursor_mode == CUR_DRAG_AREA_STUB )
 	{
 		CVertex *vtx0 = m_sel.First()->ToVertex();		// (The vertex where user first started the stub)
 		CConnect *con0 = vtx0->m_con;
@@ -1201,6 +1201,8 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 						con0->AppendSegment( pin_point.x, pin_point.y, m_active_layer, m_active_width );
 					con0->tail->pin = pin;
 					tail0->ReconcileVia();
+					if (m_cursor_mode == CUR_DRAG_AREA_STUB)
+						con0->ConnectHeadToLayer( m_start_layer );
 					// Cleanup
 					m_dlist->StopDragging();
 					m_doc->ProjectModified( TRUE );
@@ -1221,9 +1223,9 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 						goto goodbye;
 					}
 					*/
-					// CPT2 TODO dump message box?  Or give a turn-it-off option.
-					CString s ((LPCSTR) IDS_ConnectingTraceToVertex);
-					AfxMessageBox( s );
+					CDlgMyMessageBox dlg;
+					if (dlg.Initialize( CONNECT_TO_VTX_WARNING ))
+						dlg.DoModal();
 
 					// Ready to connect to vertex!
 					CPoint pi = m_snap_angle_ref;
@@ -1248,6 +1250,8 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 					vtx1->tee->Add(tail1);
 					vtx1->tee->Adjust();					// Also reconciles the via
 					tail0->ReconcileVia();
+					if (m_cursor_mode == CUR_DRAG_AREA_STUB)
+						con0->ConnectHeadToLayer( m_start_layer );
 					// Cleanup
 					m_dlist->StopDragging();
 					if( m_doc->m_vis[LAY_RAT_LINE] )
@@ -1271,6 +1275,8 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 			con0->AppendSegment( pp.x, pp.y, m_active_layer, m_active_width ) ;
 		con0->AppendSegment( pf.x, pf.y, m_active_layer, m_active_width );
 		tail0->ReconcileVia();
+		if (m_cursor_mode == CUR_DRAG_AREA_STUB)
+			con0->ConnectHeadToLayer( m_start_layer );
 		// Cleanup
 		m_dlist->StopDragging();
 		CPoint p0 = m_last_cursor_point;
@@ -1279,6 +1285,41 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		m_doc->ProjectModified( TRUE );
 		if( m_highlight_net )					// AMW r275 re-highlight net
 			m_highlight_net->Highlight();
+	}
+
+	else if (m_cursor_mode == CUR_AREA_START_TRACE)
+	{
+		CArea *area = m_sel.First()->GetArea();
+		CNet *net = area->m_net;
+		net->SaveUndoInfo( CNet::SAVE_NET_ONLY );
+		pDC = GetDC();
+		SetDCToWorldCoords( pDC );
+		pDC->SelectClipRgn( &m_pcb_rgn );
+		CPoint p = m_last_cursor_point;
+		m_snap_angle_ref = p;
+		m_start_layer = area->m_layer;
+		if (!area->TestPointInside(p.x, p.y))
+		{
+			CDlgMyMessageBox dlg;
+			if (dlg.Initialize( AREA_START_TRACE_WARNING ))
+				dlg.DoModal();
+		}
+		// now add new connection and first vertex.  The 1st vertex becomes the selection, which we refer to when we get to OnLButtonUp again
+		CConnect *new_c = new CConnect (net);
+		CVertex *new_v = new CVertex (new_c, p.x, p.y);
+		new_c->Start(new_v);
+		m_sel.RemoveAll();
+		m_sel.Add(new_v);
+		net->GetWidth( &m_active_width );
+		new_v->StartDraggingStub( pDC, p.x, p.y, m_active_layer, m_active_width, m_active_layer, 2, m_inflection_mode );
+		if( m_doc->m_bHighlightNet )
+			m_highlight_net = net,
+			net->Highlight();
+		SetCursorMode( CUR_DRAG_AREA_STUB );
+		ShowSelectStatus();
+		Invalidate( FALSE );
+		ReleaseDC( pDC );
+		// NB note that m_doc->ProjectModified() is not called.  So an undo record won't be saved until after the first seg is created.
 	}
 
 	else if( m_cursor_mode == CUR_DRAG_TEXT )
@@ -1398,7 +1439,7 @@ void CFreePcbView::OnRButtonDown(UINT nFlags, CPoint point)
 	else if( m_cursor_mode == CUR_DRAG_NEW_RAT )
 		m_dlist->StopDragging();
 
-	else if( m_cursor_mode == CUR_DRAG_STUB )
+	else if( m_cursor_mode == CUR_DRAG_STUB || m_cursor_mode == CUR_DRAG_AREA_STUB )
 	{
 		m_dlist->StopDragging();
 		CancelHighlight();
@@ -1492,6 +1533,11 @@ void CFreePcbView::OnRButtonDown(UINT nFlags, CPoint point)
 		m_dlist->StopDragging();
 		CancelSelection();
 	}
+	else if (m_cursor_mode == CUR_AREA_START_TRACE)
+	{
+		m_dlist->StopDragging();
+		CancelSelection();
+	}
 	else
 		m_disable_context_menu = 0;
 	HighlightSelection();
@@ -1514,7 +1560,7 @@ void CFreePcbView::OnKeyUp(UINT nChar, UINT nRepCnt, UINT nFlags)
 	}
 	else if( nChar == VK_SHIFT || nChar == VK_CONTROL )
 	{
-		if( m_cursor_mode == CUR_DRAG_RAT || m_cursor_mode == CUR_DRAG_STUB )
+		if( m_cursor_mode == CUR_DRAG_RAT || m_cursor_mode == CUR_DRAG_STUB || m_cursor_mode == CUR_DRAG_AREA_STUB)
 		{
 			// routing a trace segment, set mode
 			if( nChar == VK_CONTROL )
@@ -1539,7 +1585,7 @@ void CFreePcbView::OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags)
 	}
 	else if( nChar == VK_SHIFT || nChar == VK_CONTROL )
 	{
-		if( m_cursor_mode == CUR_DRAG_RAT || m_cursor_mode == CUR_DRAG_STUB )
+		if( m_cursor_mode == CUR_DRAG_RAT || m_cursor_mode == CUR_DRAG_STUB || m_cursor_mode == CUR_DRAG_AREA_STUB )
 		{
 			// routing a trace segment, set mode
 			/* CPT2 disabled SM_GRID_LINES because its code is dysfunctional and I don't really get it.
@@ -1568,6 +1614,7 @@ void CFreePcbView::FinishArrowKey(int x, int y, int dx, int dy)
 		m_totalArrowMoveY = 0;
 	m_totalArrowMoveX += dx;
 	m_totalArrowMoveY += dy;
+	m_lastArrowPosX = x, m_lastArrowPosY = y;
 	// CPT2:  The second arg in ProjectModified() means that repeated arrow hits get combined into a single undo event:
 	m_doc->ProjectModified( true, m_lastKeyWasArrow );		
 	HighlightSelection();
@@ -1678,7 +1725,8 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 				|| m_cursor_mode == CUR_AREA_CORNER_SELECTED 
 				|| m_cursor_mode == CUR_AREA_SIDE_SELECTED
 				|| m_cursor_mode == CUR_DRAG_RAT 
-				|| m_cursor_mode == CUR_DRAG_STUB 
+				|| m_cursor_mode == CUR_DRAG_STUB
+				|| m_cursor_mode == CUR_DRAG_AREA_STUB
 				|| m_cursor_mode == CUR_DRAG_NEW_RAT 
 				|| m_cursor_mode == CUR_DRAG_VTX 
 				|| m_cursor_mode == CUR_DRAG_VTX_INSERT )
@@ -1765,7 +1813,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 			}
 		}
 
-		else if( m_cursor_mode == CUR_DRAG_STUB )
+		else if( m_cursor_mode == CUR_DRAG_STUB || m_cursor_mode == CUR_DRAG_AREA_STUB )
 		{
 			// routing stub trace
 			CVertex *sel = m_sel.First()->ToVertex();
@@ -2263,6 +2311,8 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 			else
 				OnPolyDelete();
 		}
+		else if (fk == FK_START_TRACE)
+			OnAreaStartTrace();
 		break;
 
 	case CUR_AREA_CORNER_SELECTED:
@@ -2346,6 +2396,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 
 	case CUR_DRAG_RAT:
 	case CUR_DRAG_STUB:
+	case CUR_DRAG_AREA_STUB:
 		if( fk == FK_COMPLETE )
 			// CUR_DRAG_RAT only.
 			OnRatlineComplete();
@@ -2617,6 +2668,7 @@ void CFreePcbView::SetFKText( int mode )
 				m_fkey_option[4] = FK_EDIT_AREA;
 			else
 				m_fkey_option[4] = FK_EDIT_CUTOUT;
+			m_fkey_option[5] = FK_START_TRACE;
 			if( m_sel.First()->ToSide()->IsOnCutout() )
 				m_fkey_option[6] = FK_REMOVE_CONTOUR;
 			else
@@ -2773,6 +2825,7 @@ void CFreePcbView::SetFKText( int mode )
 		break;
 
 	case CUR_DRAG_STUB:
+	case CUR_DRAG_AREA_STUB:
         // CPT
         m_fkey_option[0] = FK_ACTIVE_WIDTH_DOWN;
         m_fkey_option[1] = FK_ACTIVE_WIDTH_UP;
@@ -2982,6 +3035,7 @@ int CFreePcbView::ShowSelectStatus()
 		}
 
 	case CUR_DRAG_STUB:
+	case CUR_DRAG_AREA_STUB:
 		{
 			// CPT2.  In this mode, the selected object is always the starting vertex.  Just show connection info, plus active width
 			CString con_str, w_str, str0;
@@ -3120,6 +3174,11 @@ int CFreePcbView::ShowSelectStatus()
 		else if( sel->IsVertex() )
 			str0.LoadStringA(IDS_AddingBranchToTrace),
 			str.Format( str0, sel->GetNet()->name,	sel->UID() );
+		break;
+
+	case CUR_AREA_START_TRACE:
+		str0.LoadStringA(IDS_StartingTraceFromAreaNet);
+		str.Format(str0, sel->GetArea()->UID(), sel->GetNet()->name);
 		break;
 
 	case CUR_DRAG_MEASURE_1:
@@ -4894,7 +4953,7 @@ void CFreePcbView::SnapCursorPoint( CPoint wp, UINT nFlags )
 	if( CurDragging() )
 	{
 		// yes, set snap modes based on cursor mode and SHIFT and CTRL keys
-		if( m_cursor_mode == CUR_DRAG_RAT || m_cursor_mode == CUR_DRAG_STUB )
+		if( m_cursor_mode == CUR_DRAG_RAT || m_cursor_mode == CUR_DRAG_STUB || m_cursor_mode == CUR_DRAG_AREA_STUB )
 		{
 			// routing a trace segment, set modes
 			if( nFlags != -1 )
@@ -4955,6 +5014,7 @@ void CFreePcbView::SnapCursorPoint( CPoint wp, UINT nFlags )
 		if( m_doc->m_snap_angle && (wp != m_snap_angle_ref)
 			&& ( m_cursor_mode == CUR_DRAG_RAT
 			|| m_cursor_mode == CUR_DRAG_STUB
+			|| m_cursor_mode == CUR_DRAG_AREA_STUB
 			|| m_cursor_mode == CUR_DRAG_POLY_1
 			|| m_cursor_mode == CUR_DRAG_POLY ))
 		{
@@ -5078,13 +5138,16 @@ LONG CFreePcbView::OnChangeUnits( UINT wp, LONG lp )
 		ASSERT(0);
 	// CPT: m_doc->ProjectModified( TRUE );
 	SetFocus();
+	ShowCursor();
 	ShowSelectStatus();
-	// CPT:
 	if( m_cursor_mode == CUR_DRAG_GROUP	|| m_cursor_mode == CUR_DRAG_GROUP_ADD || m_cursor_mode == CUR_DRAG_PART
 				|| m_cursor_mode == CUR_DRAG_VTX || m_cursor_mode ==  CUR_DRAG_POLY_MOVE 
 				|| m_cursor_mode ==  CUR_DRAG_MEASURE_2 || m_cursor_mode == CUR_MOVE_SEGMENT)
 		ShowRelativeDistance( m_last_cursor_point.x - m_from_pt.x, m_last_cursor_point.y - m_from_pt.y );
-	// End CPT
+	else if (m_lastKeyWasArrow)
+		ShowRelativeDistance(m_lastArrowPosX, m_lastArrowPosY, m_totalArrowMoveX, m_totalArrowMoveY);
+	else
+		ShowSelectStatus();
 	return 0;
 }
 
@@ -6417,11 +6480,14 @@ void CFreePcbView::OnGroupCopy()
 		}
 	}
 
-	// Go thru all the clipboard nets.  Within a net, scan through the connects, and call MergeUnroutedSegments() for each;
-	// then reconcile vias for all vertices.  At the end, adjust all tees within the net.
+	// Go thru all the clipboard nets.  First, adjust all tees within the net.  Then scan through the connects, and call MergeUnroutedSegments() 
+	// for each; finally reconcile vias for all vertices.
 	CIter<CNet> in2 (&nl2->nets);
 	for (CNet *net2 = in2.First(); net2; net2 = in2.Next())
 	{
+		CIter<CTee> it2 (&net2->tees);
+		for (CTee *t2 = it2.First(); t2; t2 = it2.Next())
+			t2->Adjust();
 		CIter<CConnect> ic2 (&net2->connects);
 		for (CConnect *c2 = ic2.First(); c2; c2 = ic2.Next())
 		{
@@ -6433,9 +6499,6 @@ void CFreePcbView::OnGroupCopy()
 			for (CVertex *v2 = iv2.First(); v2; v2 = iv2.Next())
 				v2->ReconcileVia();
 		}
-		CIter<CTee> it2 (&net2->tees);
-		for (CTee *t2 = it2.First(); t2; t2 = it2.Next())
-			t2->Adjust();
 	}
 
 	// CPT2 r336.  Gather a new list of clipboard shapes:  make copies from the main slist (footprint cache), for each footprint referenced by parts
@@ -6494,11 +6557,14 @@ void CFreePcbView::DeleteGroup()
 
 	// CPT2 r336.  I'm taking the plunge and ditching the old system, where selected segments were not truly deleted, but just got unrouted.
 	//  Instead let's do a RemoveBreak for each selected segment.   In this loop we'll also look for
-	//  selected vias, and unforce them.  (NB a via that is attached to a single selected seg is doomed to destruction by 
+	//  selected vias, and unforce them.  (NB a via that is attached only to a single selected seg is doomed to destruction by 
 	//  RemoveBreak(), regardless of whether it is selected.)
 	CIter<CPcbItem> ii (&m_sel);
 	for (CPcbItem *i = ii.First(); i; i = ii.Next())
-		if (CSeg *seg = i->ToSeg())
+		if (!i->IsOnPcb())
+			// Just possible that i was eliminated on an earlier iteration (it's probably a ratline)
+			;
+		else if (CSeg *seg = i->ToSeg())
 			seg->RemoveBreak();									// Takes care of all MustRedraw()'s
 		else if (CVertex *vtx = i->ToVertex())
 			vtx->force_via_flag = 0,
@@ -6541,19 +6607,10 @@ int GetGNumber(CString *s)
 void CFreePcbView::OnGroupPaste()
 {
 	// pointers to clipboard lists (all clipboard item variables are marked with '2')
-	CPartList *pl2 = m_doc->clip_plist;
-	CTextList *tl2 = m_doc->clip_tlist;
 	CNetList *nl2 = m_doc->clip_nlist;
-	CHeap<CSmCutout> *sm2 = &m_doc->clip_smcutouts;
-	CHeap<CBoard> *bd2 = &m_doc->clip_boards;
 	CShapeList *sl2 = m_doc->clip_slist;
-
 	// pointers to project lists
-	CPartList *pl = m_doc->m_plist;
 	CNetList *nl = m_doc->m_nlist;
-	CTextList *tl = m_doc->m_tlist;
-	CHeap<CSmCutout> *sm = &m_doc->smcutouts;
-	CHeap<CBoard> *bd = &m_doc->boards;
 	CShapeList *sl = m_doc->m_slist;
 
 	// get paste options
@@ -6572,24 +6629,25 @@ void CFreePcbView::OnGroupPaste()
 	// pasted).  
 	CString g_suffix;
 	// get highest group suffix already in project, checking both nets and shapes.  CPT2 r336 in fact, check numbers for both project and clipboard...
-	int max_g_num = 0, g;
+	int g_num = 0, g;
 	CIter<CNet> in (&nl->nets);
 	for (CNet *net = in.First(); net; net = in.Next())
 		g = GetGNumber(&net->name),
-		max_g_num = max(g, max_g_num);
+		g_num = max(g, g_num);
 	CIter<CNet> in2 (&nl2->nets);
 	for (CNet *net2 = in2.First(); net2; net2 = in2.Next())
 		g = GetGNumber(&net2->name),
-		max_g_num = max(g, max_g_num);
+		g_num = max(g, g_num);
 	CIter<CShape> is (&sl->shapes);
 	for (CShape *s = is.First(); s; s = is.Next())
 		g = GetGNumber(&s->m_name),
-		max_g_num = max(g, max_g_num);
+		g_num = max(g, g_num);
 	CIter<CShape> is2 (&sl2->shapes);
 	for (CShape *s2 = is2.First(); s2; s2 = is2.Next())
 		g = GetGNumber(&s2->m_name),
-		max_g_num = max(g, max_g_num);
-	g_suffix.Format( "_$G%d", max_g_num + 1 );
+		g_num = max(g, g_num);
+	g_num++;
+	g_suffix.Format( "_$G%d", g_num );
 	// Do the shape comparisons:
 	CMapPtrToPtr smap;
 	bool bFirstConflict = true;
@@ -6603,7 +6661,7 @@ void CFreePcbView::OnGroupPaste()
 			sl->shapes.Add(s),
 			smap.SetAt(s2, s);
 		else if (s->SameAs(s2))
-			// No need to change cache.  But parts on the clipboard will need to reference s rather than s2.
+			// No need to change cache.  But parts on the project will need to reference s rather than s2.
 			smap.SetAt(s2, s);
 		else 
 		{
@@ -6625,15 +6683,81 @@ void CFreePcbView::OnGroupPaste()
 	}
 
 	CancelSelection();
-	pl->MarkAllParts( 0 );										// newly added parts & pins will be distinguished by values >0 in "utility"
-	pl2->MarkAllParts( 0 );										// We also want to ensure that clipboard pins initially have 0 in "utility"
+	bool bDrag = (dlg.m_flags & PASTE_DRAG) != 0;
+	int dx = bDrag? 0: dlg.m_dx;
+	int dy = bDrag? 0: dlg.m_dy;
+	int nCopies = dlg.m_num_copies;
 	int min_x = INT_MAX;										// lowest-left point for dragging group
 	int min_y = INT_MAX;
 	int min_d = INT_MAX;										// CPT2 changed: min_d was double to prevent overflow, 
 																// but there was a bug (overflow was still possible in the old code)
 	CHeap<CPolyline> pastedPolys;								// Maintain a list of pasted-in areas/smcutouts.
+	// Here we go!
+	for (int i=0; i<nCopies; i++)
+		PasteSingle(dlg.m_flags, dx*(i+1), dy*(i+1), g_num+i, dlg.m_ref_offset*(i+1), smap,
+					min_x, min_y, min_d, pastedPolys);
+
+	// Mop up.
+	if (!bDrag)
+	{
+		// CPT2 new feature.  This paste involves no dragging (user specified dx/dy).  
+		// Therefore now's the time to check the newly pasted polylines (areas/smcutouts) for overlaps:
+		CIter<CPolyline> ip (&pastedPolys);
+		for (CPolyline *poly = ip.First(); poly; poly = ip.Next())
+			if (poly->IsOnPcb())
+				poly->PolygonModified(true, true);
+		if( m_doc->m_vis[LAY_RAT_LINE] )
+		{
+			CIter<CNet> in (&nl->nets);
+			for (CNet *net = in.First(); net; net = in.Next())
+				net->OptimizeConnections(); 
+		}
+	}
+	m_doc->ProjectModified(true);
+	HighlightSelection();
+	
+	if (bDrag)
+	{
+		if( min_x == INT_MAX || min_y == INT_MAX )
+			AfxMessageBox( CString((LPCSTR) IDS_NoItemsToDrag) );
+		else
+			StartDraggingGroup( TRUE, min_x, min_y );
+	}
+}
+
+void CFreePcbView::PasteSingle(int flags, int dx, int dy, int g_num, int ref_offset, CMapPtrToPtr &smap,
+	int &min_x, int &min_y, int &min_d, CHeap<CPolyline> &pastedPolys) 
+{
+	// CPT2 helper for OnGroupPaste(), which is now capable of multiple pastings.  This routine does a single one.  
+	//		flags are the pasting options returned from the CDlgGroupPaste.
+	//		dx/dy:  the amount to displace the pasted items.  Will be 0 in the event that flags & PASTE_DRAG.
+	//		g_num:  the number to suffix to the names of unmerged nets (in the form net_$Gxxx), if that's the option user wanted.
+	//		ref_offset: the constant to add to part reference names, if that's the option user wanted
+	//		smap: a map showing which main-project shapes correspond to given clipboard-shapes.
+	//		min_x, min_y, min_d:  outputs; provide a running tally of the minimal position for items in the paste.  Useful on return if flags&PASTE_DRAG.
+	//		pastedPolys:  output; a running tally of all new polylines that get pasted in.
+	// 1st, get pointers to clipboard lists (all clipboard item variables are marked with '2')
+	CPartList *pl2 = m_doc->clip_plist;
+	CTextList *tl2 = m_doc->clip_tlist;
+	CNetList *nl2 = m_doc->clip_nlist;
+	CHeap<CSmCutout> *sm2 = &m_doc->clip_smcutouts;
+	CHeap<CBoard> *bd2 = &m_doc->clip_boards;
+	CShapeList *sl2 = m_doc->clip_slist;
+
+	// pointers to project lists
+	CPartList *pl = m_doc->m_plist;
+	CNetList *nl = m_doc->m_nlist;
+	CTextList *tl = m_doc->m_tlist;
+	CHeap<CSmCutout> *sm = &m_doc->smcutouts;
+	CHeap<CBoard> *bd = &m_doc->boards;
+	CShapeList *sl = m_doc->m_slist;
+
+	pl->MarkAllParts( 0 );										// newly added parts & pins will be distinguished by values >0 in "utility"
+	pl2->MarkAllParts( 0 );										// We also want to ensure that clipboard pins initially have 0 in "utility"
 
 	// add parts from clipboard, renaming if necessary
+	CString g_suffix;
+	g_suffix.Format( "_$G%d", g_num );
 	CIter<CPart> ip2 (&pl2->parts);
 	int partId = 1;
 	for (CPart *part2 = ip2.First(); part2; part2 = ip2.Next(), partId++)
@@ -6644,16 +6768,16 @@ void CFreePcbView::OnGroupPaste()
 		BOOL bConflict = FALSE;
 		// make new ref
 		CString new_ref = part2->ref_des;
-		if( dlg.m_ref_option == 2 )
+		if( flags & PASTE_PARTS_OFFSET )
 			// add offset to ref
-			new_ref.Format( "%s%d", prefix2, num2 + dlg.m_ref_offset );
-		if( dlg.m_ref_option != 1 && pl->GetPartByName( &new_ref ) )
+			new_ref.Format( "%s%d", prefix2, num2 + ref_offset );
+		if( !(flags & PASTE_PARTS_NEXT_AVAIL) && pl->GetPartByName( &new_ref ) )
 		{
-			// new ref conflicts with existing ref in project
+			// Though user wanted a specific name, new ref conflicts with existing ref in project
 			conflicted_ref = new_ref;
 			bConflict = TRUE;
 		}
-		if( dlg.m_ref_option == 1 || bConflict )
+		if( (flags & PASTE_PARTS_NEXT_AVAIL) || bConflict )
 		{
 			// use next available ref
 			int max_num = 0;
@@ -6669,6 +6793,7 @@ void CFreePcbView::OnGroupPaste()
 		}
 		if( bConflict )
 		{
+			// CPT2 TODO:  display this in the log?
 			CString s ((LPCSTR) IDS_PartAlreadyExistsInProjectItWillBeRenamed), mess;
 			mess.Format(s, conflicted_ref, new_ref);
 			AfxMessageBox( mess );
@@ -6685,7 +6810,7 @@ void CFreePcbView::OnGroupPaste()
 			m_doc->m_dlg_log->AddLine(line);
 		}
 		CPart *part = pl->Add( shape, &new_ref, &part2->value_text, &part2->package, 
-					   part2->x + dlg.m_dx, part2->y + dlg.m_dy, part2->side, part2->angle, 
+					   part2->x + dx, part2->y + dy, part2->side, part2->angle, 
 					   1, 0 );
 		part->MustRedraw();
 		// set ref and value text parameters
@@ -6709,9 +6834,10 @@ void CFreePcbView::OnGroupPaste()
 
 
 	// now loop through all nets on clipboard and add or merge with project
+	CIter<CNet> in2 (&nl2->nets);
 	for (CNet *net2 = in2.First(); net2; net2 = in2.Next())
 	{
-		if( dlg.m_pin_net_option == 1 )
+		if( flags & PASTE_NETS_IGNORE_TRACELESS )
 		{
 			// If user chose option 1, check if there are routed segments in net2
 			bool bRouted = false;
@@ -6733,10 +6859,10 @@ void CFreePcbView::OnGroupPaste()
 		// utility flag is set in the Group Paste dialog for nets which
 		// should be merged (i.e. not renamed)
 		CNet *net = nl->GetNetPtrByName( &net2->name );
-		if( dlg.m_net_name_option == 1 && net2->utility == 0 )
+		if( (flags & PASTE_NETS_MERGE_SOME) && net2->utility == 0 )
 		{
 			CString new_name;
-			if( dlg.m_net_rename_option == 1 )
+			if( !(flags & PASTE_NETS_RENAME_G) )
 			{
 				// get next "Nnnnnn" net name
 				int max_num = 0;
@@ -6771,7 +6897,8 @@ void CFreePcbView::OnGroupPaste()
 		int pinId = 1;
 		for (CPin *pin2 = ipin2.First(); pin2; pin2 = ipin2.Next())
 		{
-			/* CPT2 TODO I propose that "dlg.m_pin_net_option==1" now simply means that group nets are not imported in at all if they have no
+			/* CPT2 TODO I propose that "dlg.m_pin_net_option==1" AKA "flags&PASTE_NETS_IGNORE_TRACELESS"
+			   now simply means that group nets are not imported in at all if they have no
 			   routed segs or areas.  That functionality was taken care of above.  The following additional condition is unnecessary under
 			   the new system: 
 			bool bAdd = true;
@@ -6808,7 +6935,6 @@ void CFreePcbView::OnGroupPaste()
 		}
 
 		// create connects for the project net, based on the clipboard connects.
-		int dx = dlg.m_dx, dy = dlg.m_dy;
 		CIter<CConnect> ic2 (&net2->connects);
 		for (CConnect *c2 = ic2.First(); c2; c2 = ic2.Next())
 		{
@@ -6887,7 +7013,7 @@ void CFreePcbView::OnGroupPaste()
 	{
 		CSmCutout *sm = new CSmCutout(m_doc, sm2->m_layer, sm2->m_hatch);
 		sm->Copy( sm2 );
-		sm->Offset(dlg.m_dx, dlg.m_dy);
+		sm->Offset(dx, dy);
 		sm->MustRedraw();
 		sm->AddSidesTo( &m_sel );
 		pastedPolys.Add(sm);
@@ -6907,7 +7033,7 @@ void CFreePcbView::OnGroupPaste()
 	{
 		CBoard *b = new CBoard(m_doc);
 		b->Copy( b2 );
-		b->Offset(dlg.m_dx, dlg.m_dy);
+		b->Offset(dx, dy);
 		b->MustRedraw();
 		b->AddSidesTo( &m_sel );
 		// Update lower-left corner
@@ -6926,7 +7052,7 @@ void CFreePcbView::OnGroupPaste()
 	CIter<CText> it2 (&tl2->texts);
 	for (CText *t2 = it2.First(); t2; t2 = it2.Next())
 	{
-		CText *t = tl->AddText( t2->m_x+dlg.m_dx, t2->m_y+dlg.m_dy, t2->m_angle, t2->m_bMirror, t2->m_bNegative, 
+		CText *t = tl->AddText( t2->m_x+dx, t2->m_y+dy, t2->m_angle, t2->m_bMirror, t2->m_bNegative, 
 			t2->m_layer, t2->m_font_size, t2->m_stroke_width, &t2->m_str );
 		t->MustRedraw();
 		m_sel.Add( t );
@@ -6937,34 +7063,6 @@ void CFreePcbView::OnGroupPaste()
 			min_d = d,
 			min_x = t->m_br.left,
 			min_y = t->m_br.bottom;
-	}
-
-	// Mop up.
-	if (dlg.m_position_option)
-	{
-		// CPT2 new feature.  This paste involves no dragging (user specified dx/dy).  
-		// Therefore now's the time to check the newly pasted polylines (areas/smcutouts) for overlaps:
-		CIter<CPolyline> ip (&pastedPolys);
-		for (CPolyline *poly = ip.First(); poly; poly = ip.Next())
-			if (poly->IsOnPcb())
-				poly->PolygonModified(true, true);
-		if( m_doc->m_vis[LAY_RAT_LINE] )
-		{
-			CIter<CNet> in (&nl->nets);
-			for (CNet *net = in.First(); net; net = in.Next())
-				net->OptimizeConnections(); 
-		}
-	}
-	m_doc->ProjectModified(true);
-	HighlightSelection();
-	
-	if (!dlg.m_position_option)
-	{
-		// User requested group dragging
-		if( min_x == INT_MAX || min_y == INT_MAX )
-			AfxMessageBox( CString((LPCSTR) IDS_NoItemsToDrag) );
-		else
-			StartDraggingGroup( TRUE, min_x, min_y );
 	}
 }
 
@@ -7125,6 +7223,27 @@ void CFreePcbView::OnAreaEdgeApplyClearances()
 	m_doc->ProjectModified( TRUE );
 	Invalidate( FALSE );
 #endif
+}
+
+void CFreePcbView::OnAreaStartTrace()
+{
+	// CPT2 new.  Thought it seemed useful to let user start a trace from within an arbitrary copper area (say if he wants to link two
+	// areas with a trace).
+	CDC *pDC = GetDC();
+	pDC->SelectClipRgn( &m_pcb_rgn );
+	SetDCToWorldCoords( pDC );
+	CancelHighlight();
+	SetCursorMode( CUR_AREA_START_TRACE );
+	// make layer visible
+	CArea *area = m_sel.First()->GetArea();
+	m_active_layer = area->GetLayer(),
+	m_doc->m_vis[m_active_layer] = TRUE,
+	m_dlist->SetLayerVisible( m_active_layer, TRUE ),
+	ShowActiveLayer();
+	m_dlist->StartDraggingArray( pDC, m_last_cursor_point.x,
+		m_last_cursor_point.y, 0, m_active_layer, 2 );
+	Invalidate( FALSE );
+	ReleaseDC( pDC );
 }
 
 void CFreePcbView::OnGroupRotate(bool bCcw) 
@@ -7335,7 +7454,7 @@ void CFreePcbView::HandleNoShiftLayerKey(int layer, CDC *pDC)
 		AfxMessageBox( s );
 		return;
 	}
-	if (m_cursor_mode != CUR_DRAG_STUB && m_cursor_mode != CUR_DRAG_RAT)
+	if (m_cursor_mode != CUR_DRAG_STUB && m_cursor_mode != CUR_DRAG_RAT && m_cursor_mode != CUR_DRAG_AREA_STUB)
 	{
 		m_active_layer = layer;
 		ShowActiveLayer();
@@ -7343,7 +7462,7 @@ void CFreePcbView::HandleNoShiftLayerKey(int layer, CDC *pDC)
 	}
 
 	CVertex *start = NULL;
-	if (m_cursor_mode == CUR_DRAG_STUB) 
+	if (m_cursor_mode == CUR_DRAG_STUB || m_cursor_mode == CUR_DRAG_AREA_STUB) 
 		start = m_sel.First()->GetConnect()->tail;
 	else if (m_cursor_mode == CUR_DRAG_RAT)
 	{

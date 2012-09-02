@@ -64,6 +64,8 @@ enum {
 	CUR_DRAG_MEASURE_1,	// dragging the start of measurement tool
 	CUR_DRAG_MEASURE_2,	// dragging the end of measurement tool
 	CUR_MOVE_SEGMENT,	// move a segment, leaving it connected to its ends
+	CUR_AREA_START_TRACE,	// CPT2 new, user is selecting a point to start a new stub trace from within an area
+	CUR_DRAG_AREA_STUB, // CPT2 new, user is now dragging a stub that starts from within an area.  Code is very similar to the CUR_DRAG_STUB case
 	CUR_NUM_MODES		// number of modes
 };
 
@@ -160,92 +162,6 @@ enum {
 	FK_ARROW
 };
 
-#if 0	// AMW r278: replaced by string table
-// function key menu strings
-const char fk_str[FK_NUM_OPTIONS*2+2][32] = 
-{ 
-	"",			"",
-	" Move",	" Part",
-	" Move",	" Ref Text",
-	" Move",	" Value",
-	" Rotate",	" Part CW",
-	" Rotate",	" Part CCW",
-	" Rotate",	" CW",
-	" Rotate",	" CCW",
-	" Rotate",	" CW",
-	" Rotate",	" CCW",
-	" Change",	" Side",
-	" Route",	" Segment",
-	" Unroute",	" Segment",
-	" Reroute",	" Segment",
-	" Complete"," Segment",
-	" Add",		" Part",
-	" Add",		" Net",
-	" Add",		" Text",
-	" Add",		" Graphics",
-	" Recalc.",	" Ratlines",
-	" Add",		" Area",
-	" Delete",  " Part",
-	" Delete",  " Vertex",
-	" Move",	" Vertex",
-	" Move",	" Corner",
-	" Add",		" Corner",
-	" Delete",	" Corner",
-	" Draw",	" Ratline",
-	" Detach",	" Net",
-	" Set",		" Net",
-	" Delete",	" Trace",  
-	" Force",	" Via",
-	" Set",		" Width",
-	" Lock",	" Connect",
-	" Unlock",	" Connect",
-	" Move",	" Text",
-	" Rotate",	" Text",
-	" Delete",	" Text",
-	" Straight"," Line",
-	" Arc",		" (CW)",
-	" Arc",		" (CCW)",
-	" Edit",	" Part",
-	" Edit",	" Footprint",
-	" Glue",	" Part",
-	" Unglue",	" Part",
-	" Undo",	"",
-	" Set",		" Size",
-	" Set",		" Params",
-	" Start",	" Trace",	
-	" Edit",	" Text",
-	" Set",		" Position",
-	" Delete",	" Outline",
-	" Delete",	" Area",
-	" Delete",	" Cutout",
-	" Start",	" Trace",	
-	" Add",		" Via",
-	" Delete",	" Via",
-	" Delete",	" Segment",
-	" Unroute",	" Trace",
-	" Change",	" Pin",
-	" Add",		" Cutout",
-	" Change",	" Layer",
-	" Edit",	" Net",
-	" Move",	" Group",
-	" Delete",	" Group",
-	" Rotate",	" Group",
-	" Edit Via"," Or Vertex",  
-	" Add",		" Vertex",
-	" Set Side"," Style",
-	" Edit",	" Area",
-	" Move",	" Segment",
-
-	// CPT
-    " Increase",    " Width",
-    " Decrease",    " Width",
-	" Increase",    " Grid",
-	" Decrease",    " Grid",
-	// end CPT
-
-	" ****",	" ****"
-};
-#endif
 
 // snap modes
 // CPT2 TODO the code for implementing SM_GRID_LINES is totally dysfunctional, and since I don't really understand it I just disabled it
@@ -253,28 +169,9 @@ enum {	SM_GRID_POINTS,	// snap to grid points
 		SM_GRID_LINES	// snap to grid lines
 };
 
-/* CPT: added to string rsrc table
-// selection mask menu strings
-const char sel_mask_str[NUM_SEL_MASKS][32] = 
-{
-	"parts",
-	"ref des",
-	"value",
-	"pins",
-	"traces/ratlines",
-	"vertices/vias",
-	"copper areas",
-	"text",
-	"sm cutouts",
-	"board outline",
-	"DRC errors"
-};
-*/
-
 class CFreePcbView : public CCommonView
 {
 public:
-
 	// member variables
 	// parameters related to mouse motion and dragging
 	CPoint m_to_pt;								// for dragging segment, endpoint of this segment
@@ -291,6 +188,7 @@ public:
 	// Related to routing
 	int m_dir;						// routing direction: 0 = forward, 1 = back
     int m_active_width;             // Width for upcoming segs during routing mode (in nm)
+	int m_start_layer;				// CPT2 new.  If user starts a stub from an area, this is the area's layer
 
 	// mode for drawing new polyline segments
 	int m_polyline_style;			// STRAIGHT, ARC_CW or ARC_CCW
@@ -331,6 +229,8 @@ public:
 	void SaveUndoInfoForGroup();														// CPT2 Preserved the name, but converted the func to the new system
 	BOOL GluedPartsInGroup();
 	void UngluePartsInGroup();
+	void PasteSingle(int flags, int dx, int dy, int g_num, int ref_off, CMapPtrToPtr &smap,
+		int &min_x, int &min_y, int &min_d, CHeap<CPolyline> &pastedPolys);				// Helper for OnGroupPaste().
 	int SegmentMovable();
 	BOOL CurNone();
 	BOOL CurSelected();
@@ -447,6 +347,7 @@ public:
 	LONG OnChangeUnits( UINT wp, LONG lp );
 	afx_msg void OnAreaEdit();
 	afx_msg void OnAreaEdgeApplyClearances();
+	afx_msg void OnAreaStartTrace();
 	afx_msg void OnGroupSaveToFile();
 	afx_msg void OnGroupCopy();
 	afx_msg void OnGroupCut();

@@ -509,8 +509,8 @@ BEGIN
     BEGIN
         MENUITEM "Insert Corner",               ID_POLYSIDE_INSERTCORNER
         MENUITEM "Convert to Straight",         ID_POLYSIDE_CONVERTTOSTRAIGHT
-        MENUITEM "Convert to Arc(cw)",          ID_POLYSIDE_CONVERTTOARC_CW
-        MENUITEM "Convert to Arc(ccw)",         ID_POLYSIDE_CONVERTTOARC_CCW
+        MENUITEM "Convert to Arc (cw)",         ID_POLYSIDE_CONVERTTOARC_CW
+        MENUITEM "Convert to Arc (ccw)",        ID_POLYSIDE_CONVERTTOARC_CCW
         MENUITEM SEPARATOR
         MENUITEM "Edit Area Params",            ID_AREAEDGE_EDITAREA
         MENUITEM "Add Similar Area",            ID_AREAEDGE_ADDNEWAREA
@@ -518,6 +518,8 @@ BEGIN
         MENUITEM "Exclude Region",              ID_POLYSIDE_EXCLUDEREGION
         MENUITEM "Remove Contour",              ID_POLYSIDE_REMOVECONTOUR
         MENUITEM "Delete Area",                 ID_AREAEDGE_DELETE
+        MENUITEM SEPARATOR
+        MENUITEM "Start Trace",                 ID_AREAEDGE_STARTTRACE
     END
     POPUP "Board Corner"
     BEGIN
@@ -1924,7 +1926,7 @@ BEGIN
     LTEXT           "Static",IDC_STATIC_MYMESSAGE,24,12,276,51
 END
 
-IDD_GROUP_PASTE DIALOGEX 0, 0, 298, 403
+IDD_GROUP_PASTE DIALOGEX 0, 0, 298, 416
 STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Paste Items from the Clipboard"
 FONT 8, "MS Shell Dlg", 400, 0, 0x1
@@ -1935,8 +1937,10 @@ BEGIN
                     "Button",BS_AUTORADIOBUTTON,24,54,233,10
     CONTROL         "Add fixed offset of",IDC_RADIO_ADD_REF_OFFSET,"Button",BS_AUTORADIOBUTTON,24,66,77,10
     EDITTEXT        IDC_EDIT_REF_OFFSET,101,66,30,12,ES_AUTOHSCROLL
-    CONTROL         "Merge clipboard nets with project nets of same name",IDC_RADIO_USE_GROUP_NETS,
-                    "Button",BS_AUTORADIOBUTTON | WS_GROUP,24,123,185,10
+    CONTROL         "Ignore clipboard nets that include no routed traces or areas",IDC_CHECK_IGNORE_EMPTY_NETS,
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,24,102,207,10
+    CONTROL         "Always merge clipboard nets with project nets of same name",IDC_RADIO_USE_GROUP_NETS,
+                    "Button",BS_AUTORADIOBUTTON | WS_GROUP,24,123,210,10
     CONTROL         "Use checkboxes in list below to select nets to merge, rename the rest",IDC_RADIO_USE_SELECTED_NETS,
                     "Button",BS_AUTORADIOBUTTON,24,135,238,10
     CONTROL         "",IDC_LIST_SELECT_GROUP_NETS,"SysListView32",LVS_REPORT | LVS_SHOWSELALWAYS | LVS_ALIGNLEFT | WS_BORDER | WS_TABSTOP,36,147,240,148
@@ -1946,21 +1950,23 @@ BEGIN
     CONTROL         "Generate new names with ""Nnnnnn"" format",IDC_RADIO_MAKE_NEW_NAMES,
                     "Button",BS_AUTORADIOBUTTON,36,320,155,10
     CONTROL         "Drag to position",IDC_RADIO_DRAG,"Button",BS_AUTORADIOBUTTON | WS_GROUP,12,339,67,10
-    CONTROL         "Offset from original position: X",IDC_RADIO_OFFSET,
-                    "Button",BS_AUTORADIOBUTTON,12,352,113,10
-    EDITTEXT        IDC_EDIT_GROUP_X,128,351,40,12,ES_AUTOHSCROLL
+    CONTROL         "Offset from original position:",IDC_RADIO_OFFSET,"Button",BS_AUTORADIOBUTTON,12,352,107,10
+    EDITTEXT        IDC_EDIT_GROUP_X,135,351,40,12,ES_AUTOHSCROLL
     EDITTEXT        IDC_EDIT_GROUP_Y,183,351,40,12,ES_AUTOHSCROLL
     COMBOBOX        IDC_COMBO_GROUP_UNITS,252,351,36,44,CBS_DROPDOWNLIST | CBS_SORT | WS_VSCROLL | WS_TABSTOP
-    DEFPUSHBUTTON   "OK",IDOK,54,372,50,14
-    PUSHBUTTON      "Cancel",IDCANCEL,192,372,50,14
+    CONTROL         "Multiple copies, regularly spaced:",IDC_CHECK_MULTIPLE,
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,12,369,122,10
+    EDITTEXT        IDC_EDIT_NUM_COPIES,135,368,40,12,ES_AUTOHSCROLL
+    DEFPUSHBUTTON   "OK",IDOK,54,394,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,192,394,50,14
     LTEXT           "You are pasting one or more items from the clipboard into the project.",IDC_STATIC,12,6,224,8
     GROUPBOX        "Clipboard parts",IDC_STATIC,12,30,276,53
     GROUPBOX        "Clipboard nets (pin connections, traces, copper areas)",IDC_STATIC,12,87,276,246
-    LTEXT           "Y",IDC_STATIC,174,353,8,8
+    LTEXT           "X",IDC_STATIC,128,353,8,8
     LTEXT           "Units",IDC_STATIC,233,353,17,8
     LTEXT           "You must choose how to handle the parts and nets that are being transfered.",IDC_STATIC,12,18,250,8
-    CONTROL         "Ignore clipboard nets that include no routed traces or areas",IDC_CHECK_IGNORE_EMPTY_NETS,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,24,102,207,10
+    LTEXT           "new copies",IDC_STATIC,179,369,50,8
+    LTEXT           "Y",IDC_STATIC,178,353,8,8
 END
 
 IDD_REASSIGN_LAYERS DIALOGEX 0, 0, 184, 346
@@ -2688,7 +2694,7 @@ BEGIN
         LEFTMARGIN, 7
         RIGHTMARGIN, 291
         TOPMARGIN, 7
-        BOTTOMMARGIN, 396
+        BOTTOMMARGIN, 409
     END
 
     IDD_REASSIGN_LAYERS, DIALOG
@@ -3031,6 +3037,8 @@ BEGIN
     IDS_UnableToOpenLibraryFile "Unable to open library file\n\n"
     IDS_WarningYouHaveSetTheCopper 
                             "WARNING: You have set the copper to copper-fill clearance to 0.\nThis will disable automatic generation of clearances for pads and vias in copper areas.\nAre you SURE that you don't need these clearances ?"
+    65509                   "WARNING:  Starting point for trace is not within the area you initially selected."
+    65510                   "Connecting trace to vertex."
 END
 
 STRINGTABLE
@@ -4545,11 +4553,14 @@ END
 STRINGTABLE
 BEGIN
     IDS_STRING65408         "copper clearances"
+    65409                   "routing from areas"
+    65410                   "routing to vertices"
 END
 
 STRINGTABLE
 BEGIN
     IDS_MessagesAbout       "(messages about: "
+    IDS_StartingTraceFromAreaNet "Starting trace from area %d (net ""%s"")"
 END
 
 #endif    // English (United States) resources

@@ -129,7 +129,6 @@ to realize that these parts are actually present, lurking in the partlist but in
 code that is already present and intended to handle these null shapes.
 
 
-
 // FreePCB : programming notes
 //
 

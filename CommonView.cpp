@@ -691,17 +691,30 @@ void CCommonView::HandlePanAndZoom(int nChar, CPoint &p) {
 
 	if( nChar == ' ' )
 	{
-		// space bar pressed, center window on cursor then center cursor
-		m_org_x = p.x - ((m_client_r.right-m_left_pane_w)*m_pcbu_per_pixel)/2;
-		m_org_y = p.y - ((m_client_r.bottom-m_bottom_pane_h)*m_pcbu_per_pixel)/2;
+		// space bar pressed, center window on cursor then center cursor.
+		// CPT2 enhanced.  If mouse hasn't moved since the last space, move the screen by the amount that it moved before.
+		CPoint center (m_client_r.Width()/2 + 32, m_client_r.Height()/2 + 16);
+		CPoint cursor;
+		GetCursorPos( &cursor );
+		if (cursor==center)
+			m_org_x += m_lastSpaceDx,
+			m_org_y += m_lastSpaceDy;
+		else
+		{
+			double org_x_last = m_org_x, org_y_last = m_org_y;
+			m_org_x = p.x - ((m_client_r.right-m_left_pane_w)*m_pcbu_per_pixel)/2;
+			m_org_y = p.y - ((m_client_r.bottom-m_bottom_pane_h)*m_pcbu_per_pixel)/2;
+			m_lastSpaceDx = m_org_x - org_x_last;
+			m_lastSpaceDy = m_org_y - org_y_last;
+		}
 		CRect screen_r;
 		GetWindowRect( &screen_r );
 		m_dlist->SetMapping( &m_client_r, &screen_r, m_left_pane_w, m_bottom_pane_h, m_pcbu_per_pixel, 
 			m_org_x, m_org_y );
 		Invalidate( FALSE );
-		p = m_dlist->PCBToScreen( p );
-		SetCursorPos( p.x, p.y - 4 );
+		SetCursorPos( center.x, center.y );
 	}
+
 	else if( nChar == 33 )
 	{
 		// PgUp pressed, zoom in

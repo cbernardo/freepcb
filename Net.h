@@ -278,6 +278,7 @@ public:
 	void CombineWith( CConnect *c2, CVertex *v1, CVertex *v2);
 	void MergeUnroutedSegments();
 	void SetWidth( int w, int via_w, int via_hole_w );
+	void ConnectHeadToLayer( int layer );
 };
 
 
