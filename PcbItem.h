@@ -146,7 +146,7 @@ class CPcbItem
 	CHeapLink *carray_list;	// List of CHeap's into which this item has been added
 	int m_uid;
 	static int next_uid;
-	static CPcbItem **uid_hash;			// Hash table (with an incredibly simple hash function).  Used by FindByUid(), qv.
+	static CPcbItem **uid_hash;				// Hash table (with an incredibly simple hash function).  Used by FindByUid(), qv.
 	static int uid_hash_sz;					// Size of uid_hash, initially 0x2000.  Must be a power of 2.
 	CPcbItem *uid_hash_next;				// Linked lists for hash conflicts.
 public:
@@ -155,9 +155,10 @@ public:
 	CDLElement *dl_sel;
 	int utility;
 	bool bDrawn;
+	bool bUndoInfoSaved;													// CPT2 r244 optimization
 	enum { NOERR = 0, NO_DLIST, NO_FOOTPRINT, ALREADY_DRAWN, EMPTY_TEXT };
-	enum { STRAIGHT, ARC_CW, ARC_CCW };	// polyline side styles
-	enum { NO_HATCH, DIAGONAL_FULL, DIAGONAL_EDGE }; // polyline hatch styles
+	enum { STRAIGHT, ARC_CW, ARC_CCW };										// polyline side styles
+	enum { NO_HATCH, DIAGONAL_FULL, DIAGONAL_EDGE };						// polyline hatch styles
 
 protected:
 	CPcbItem(CFreePcbDoc *_doc);

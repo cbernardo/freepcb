@@ -30,7 +30,7 @@ CPcbItem::CPcbItem(CFreePcbDoc *_doc)
 	doc->items.Add(this);
 	dl_el = dl_sel = NULL;
 	utility = 0;
-	bDrawn = false;
+	bDrawn = bUndoInfoSaved = false;
 	// Enter item into uid_hash table.  It's an incredibly simple hash function:  just extract the lower few bits, depending on uid_hash_sz, which
 	// must be a power of 2.  Given how objects are allocated and eventually die, this function should work as well as any.
 	int hashVal = m_uid & (uid_hash_sz-1);
@@ -48,7 +48,7 @@ CPcbItem::CPcbItem(CFreePcbDoc *_doc, int _uid)
 	doc->items.Add(this);
 	dl_el = dl_sel = NULL;
 	utility = 0;
-	bDrawn = false;
+	bDrawn = bUndoInfoSaved = false;
 	// Enter item into uid_hash table.
 	int hashVal = m_uid & (uid_hash_sz-1);
 	uid_hash_next = uid_hash[hashVal];
@@ -117,6 +117,8 @@ void CPcbItem::Undraw()
 void CPcbItem::SaveUndoInfo()
 {
 	// Default behavior, overridden in complex classes like CConnect, CNet, CPart, and CShape
+	if (bUndoInfoSaved) return;
+	bUndoInfoSaved = true;
 	doc->m_undo_items.Add( this->MakeUndoItem() );
 }
 

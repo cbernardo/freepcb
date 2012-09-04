@@ -253,6 +253,7 @@ END_MESSAGE_MAP()
 void CDlgGroupPaste::Initialize( CNetList *grp_nlist )
 {
 	m_grp_nlist = grp_nlist;
+	grp_nlist->nets.SetUtility(0);								// dlg will set utility bits for the nets in this list, in some cases
 	m_ref_offset = 0;
 	m_dx = 0;
 	m_dy = 0;

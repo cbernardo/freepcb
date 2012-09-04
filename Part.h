@@ -135,7 +135,7 @@ public:
 	bool IsPart() { return true; }
 	CPart *ToPart() { return this; }
 	int GetTypeBit() { return bitPart; }
-	void Remove(bool bEraseTraces, bool bErasePart=true);
+	void Remove(bool bEraseConnects, bool bErasePart=true);
 	CUndoItem *MakeUndoItem()
 		{ return new CUPart(this); }
 	void SaveUndoInfo(bool bSaveAttachedConnects = true);

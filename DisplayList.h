@@ -250,27 +250,8 @@ public:
 	void Scale_pcbu_to_wu(CRect &rect);
 	void Scale_wu_to_pixels(CRect &rect);
 
-	/* CDLElement * CreateDLE( id id, void * ptr, int layer, int gtype, int visible,
-	                        int w, int holew, int clearancew,
-	                        int x, int y, int xf, int yf, int xo, int yo, int radius,
-	                        int orig_layer );
-
-    // CDLElement * MorphDLE( CDLElement *pFrom, int to_gtype );
-
-    // Create and add elements
-	CDLElement * Add( id id, void * ptr, int glayer, int gtype, int visible,
-						int w, int holew, int clearancew,
-						int x, int y, int xf, int yf, int xo, int yo,
-						int radius=0,
-						int orig_layer=LAY_SELECTION );
-	CDLElement * AddSelector( id id, void * ptr, int glayer, int gtype, int visible,
-								int w, int holew,
-								int x, int y, int xf, int yf, int xo, int yo,
-								int radius=0 );
-	*/
 	void Add( CDLElement * element );
 
-	// BEGIN CPT2.  Versions of the above routines that use CPcbItem pointers instead of id's.
 	CDLElement * CreateDLE( CPcbItem *item, int usage, int layer, int gtype, int visible,					// CPT2 TODO dump the usage business?
 	                        int w, int holew, int clearancew,
 	                        int x, int y, int xf, int yf, int xo, int yo, int radius,
@@ -286,7 +267,6 @@ public:
 	CDLElement * CDisplayList::AddSelector( CPcbItem *item, int layer, int gtype, int visible,
 							   int w, int holew, int x, int y, int xf, int yf, int xo, int yo,
 							   int radius=0 );
-	// END CPT2
 
     // Remove elements
 	void RemoveAll();
@@ -344,6 +324,7 @@ public:
 	CPoint ScreenToPCB( CPoint point );
 	CPoint PCBToScreen( CPoint point );
 	CPoint WindowToPCB( CPoint point );
+	C_RGB GetDragColor(int layer=-1);											// CPT2 added
 
 	void UpdateRatlineWidth( int width );
 

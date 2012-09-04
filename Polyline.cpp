@@ -442,13 +442,15 @@ int CContour::GetLayer() { return poly->m_layer; }
 
 void CContour::SaveUndoInfo()
 {
+	if (bUndoInfoSaved) return;
+	bUndoInfoSaved = true;
 	doc->m_undo_items.Add( new CUContour(this) );
 	CIter<CCorner> ic (&corners);
 	for (CCorner *c = ic.First(); c; c = ic.Next())
-		doc->m_undo_items.Add( new CUCorner(c) );
+		c->SaveUndoInfo();
 	CIter<CSide> is (&sides);
 	for (CSide *s = is.First(); s; s = is.Next())
-		doc->m_undo_items.Add( new CUSide(s) );
+		s->SaveUndoInfo();
 }
 
 void CContour::AppendSideAndCorner( CSide *s, CCorner *c, CCorner *after )
@@ -827,9 +829,19 @@ bool CPolyline::TestPointInside(int x, int y)
 	return ncount%2 != 0;
 }
 
-void CPolyline::GetSidesInRect( CRect *r, CHeap<CPcbItem> *arr)
+void CPolyline::GetSidesInRect( CRect *r, CHeap<CPcbItem> *arr, bool bAllOrNothing )
 {
-	// CPT2 new, helper for CFreePcbView::SelectItemsInRect().
+	// CPT2 new, helper for CFreePcbView::SelectItemsInRect().  If bAllOrNothing is true, we either return all sides (polyline is completely
+	// within "r") or none.
+	bool bAddAll = false;
+	if (bAllOrNothing)
+	{
+		CRect r2 = GetCornerBounds();
+		bAddAll = r->PtInRect(r2.TopLeft())  && r->PtInRect(r2.BottomRight());
+		if (!bAddAll)
+			return;
+	}
+
 	CIter<CContour> ictr (&contours);
 	for (CContour *ctr = ictr.First(); ctr; ctr = ictr.Next())
 	{
@@ -838,7 +850,7 @@ void CPolyline::GetSidesInRect( CRect *r, CHeap<CPcbItem> *arr)
 		{
 			CPoint pre (s->preCorner->x, s->preCorner->y);
 			CPoint post (s->postCorner->x, s->postCorner->y);
-			if (r->PtInRect(pre) && r->PtInRect(post))
+			if (bAddAll || r->PtInRect(pre) && r->PtInRect(post))
 				arr->Add(s);
 		}
 	}
@@ -1938,6 +1950,8 @@ bool CArea::IsOnPcb()
 
 void CArea::SaveUndoInfo()
 {
+	if (bUndoInfoSaved) return;
+	bUndoInfoSaved = true;
 	doc->m_undo_items.Add( new CUArea(this) );
 	CIter<CContour> ictr (&contours);
 	for (CContour *ctr = ictr.First(); ctr; ctr = ictr.Next())
@@ -2004,6 +2018,8 @@ bool CSmCutout::IsOnPcb()
 
 void CSmCutout::SaveUndoInfo()
 {
+	if (bUndoInfoSaved) return;
+	bUndoInfoSaved = true;
 	doc->m_undo_items.Add( new CUSmCutout(this) );
 	CIter<CContour> ictr (&contours);
 	for (CContour *ctr = ictr.First(); ctr; ctr = ictr.Next())
@@ -2051,6 +2067,8 @@ bool CBoard::IsOnPcb()
 
 void CBoard::SaveUndoInfo()
 {
+	if (bUndoInfoSaved) return;
+	bUndoInfoSaved = true;
 	doc->m_undo_items.Add( new CUBoard(this) );
 	CIter<CContour> ictr (&contours);
 	for (CContour *ctr = ictr.First(); ctr; ctr = ictr.Next())
@@ -2097,6 +2115,8 @@ CPolyline *COutline::CreateCompatible()
 
 void COutline::SaveUndoInfo()
 {
+	if (bUndoInfoSaved) return;
+	bUndoInfoSaved = true;
 	doc->m_undo_items.Add( new CUOutline(this) );
 	CIter<CContour> ictr (&contours);
 	for (CContour *ctr = ictr.First(); ctr; ctr = ictr.Next())

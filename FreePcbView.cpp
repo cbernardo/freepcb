@@ -578,7 +578,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		m_dlist->SetLayerVisible( LAY_RAT_LINE, m_doc->m_vis[LAY_RAT_LINE] );
 		if( m_doc->m_vis[LAY_RAT_LINE] )
 			m_doc->m_nlist->OptimizeConnections();
-		m_doc->ProjectModified( TRUE );
+		m_doc->ProjectModified( TRUE, m_cursor_mode==CUR_DRAG_GROUP_ADD );
 		HighlightSelection();
 	}
 
@@ -2360,9 +2360,41 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 		if( nChar == 46 )
 		{
 			CDre *d = m_sel.First()->ToDRE();
-			m_doc->m_drelist->Remove( d );
+			d->Remove();
 			m_doc->ProjectModified(true);
 			CancelSelection();
+		}
+		else if (fk == FK_ARROW)
+		{
+			// CPT2 new: left and right arrows move us to the previous/next dre on the sorted list.  Up takes us to the first dre, and down to the last.
+			CDre *d = m_sel.First()->ToDRE();
+			int numDres = m_doc->m_drelist->GetSize();
+			CDre *d2 = NULL;
+			if (dx > 0)
+				d2 = d->next;
+			else if (dx < 0)
+				d2 = d->prev;
+			else if (dy < 0) 
+				d2 = m_doc->m_drelist->tail;
+			else if (dy > 0)
+				d2 = m_doc->m_drelist->head;
+			if (d2)
+			{
+				CancelSelection();
+				SelectItem(d2);
+				CDLElement * dl_sel = d2->dl_sel;
+				int xc = m_dlist->Get_x( dl_sel );
+				int yc = m_dlist->Get_y( dl_sel );
+				m_org_x = xc - ((m_client_r.right-m_left_pane_w)*m_pcbu_per_pixel)/2;
+				m_org_y = yc - ((m_client_r.bottom-m_bottom_pane_h)*m_pcbu_per_pixel)/2;
+				CRect screen_r;
+				GetWindowRect( &screen_r );
+				m_dlist->SetMapping( &m_client_r, &screen_r, m_left_pane_w, m_bottom_pane_h, m_pcbu_per_pixel,
+					m_org_x, m_org_y );
+				CPoint p(xc, yc);
+				p = m_dlist->PCBToScreen( p );
+				SetCursorPos( p.x, p.y - 4 );
+			}
 		}
 		break;
 
@@ -5764,7 +5796,7 @@ void CFreePcbView::SelectItemsInRect( CRect r, BOOL bAddToGroup )
 		{
 			CIter<CArea> ia (&net->areas);
 			for (CArea *a = ia.First(); a; a = ia.Next())
-				a->GetSidesInRect( &r, &m_sel );
+				a->GetSidesInRect( &r, &m_sel, m_doc->m_bDragNoSides );
 		}
 	}
 
@@ -5773,7 +5805,7 @@ void CFreePcbView::SelectItemsInRect( CRect r, BOOL bAddToGroup )
 	{
 		CIter<CSmCutout> ism (&m_doc->smcutouts);
 		for (CSmCutout *sm = ism.First(); sm; sm = ism.Next())
-			sm->GetSidesInRect( &r, &m_sel );
+			sm->GetSidesInRect( &r, &m_sel, m_doc->m_bDragNoSides );
 	}
 
 	// find board outline sides in rect
@@ -5781,7 +5813,7 @@ void CFreePcbView::SelectItemsInRect( CRect r, BOOL bAddToGroup )
 	{
 		CIter<CBoard> ib (&m_doc->boards);
 		for (CBoard *b = ib.First(); b; b = ib.Next())
-			b->GetSidesInRect( &r, &m_sel );
+			b->GetSidesInRect( &r, &m_sel, m_doc->m_bDragNoSides );
 	}
 
 	HighlightSelection();
@@ -5968,9 +6000,10 @@ void CFreePcbView::OnGroupMove()
 //
 void CFreePcbView::MoveGroup( int dx, int dy )
 {
+	SetCursor( LoadCursor( NULL, IDC_WAIT ) );
 	UngluePartsInGroup();
 
-	// Start by clearing utility flags for all pcb items.  NB not doing any undrawing yet.  CPT2 TODO hourglass cursor?
+	// Start by clearing utility flags for all pcb items.  NB not doing any undrawing yet.
 	// Also NB the old routine used both item->utility and item->utility2 flags.  I'm going to use 2 bits within item->utility instead:
 	enum { bitSel = 1, bitMoved = 2 };
 	m_doc->m_nlist->MarkAllNets(0);
@@ -6125,9 +6158,9 @@ void CFreePcbView::MoveGroup( int dx, int dy )
 	// I'm thinking this won't be necessary because HighlightSelection() does a validity check on the existing items (some polyline 
 	// sides could have disappeared, and I guess
 	// it's possible that MergeUnroutedSegments will have killed a selected item, though I'm not certain that would ever really happen)
-
 	groupAverageX+=dx;
 	groupAverageY+=dy;
+	SetCursor( LoadCursor( NULL, IDC_ARROW ) );
 }
 
 
@@ -6495,6 +6528,11 @@ void CFreePcbView::OnGroupCopy()
 			if (!net2->connects.Contains(c2)) 
 				// c2 got clobbered completely by MergeUnroutedSegments()
 				continue;
+			// If c2 consists of a single pin-to-pin ratline, there's no sense keeping it.  During pasting OptimizeConnections() will just axe it
+			// anyway.
+			if (c2->NumSegs()==1 && c2->head->postSeg->m_layer == LAY_RAT_LINE && 
+				c2->head->pin && c2->tail->pin)
+					net2->connects.Remove(c2);
 			CIter<CVertex> iv2 (&c2->vtxs);
 			for (CVertex *v2 = iv2.First(); v2; v2 = iv2.Next())
 				v2->ReconcileVia();
@@ -6550,32 +6588,68 @@ void CFreePcbView::OnGroupDelete()
 
 void CFreePcbView::DeleteGroup()
 {
-	// CPT2 TODO Hourglass cursor?  I'm proposing a new system with areas/smcutouts/board outlines.
+	// I'm proposing a new system with areas/smcutouts/board outlines.
 	// If any side on a main contour is selected, delete the whole polyline.  Otherwise, if a side on a secondary (cutout) contour is selected,
 	// delete that contour only.  More consistent with what happens when you select a single side.
+	SetCursor( LoadCursor( NULL, IDC_WAIT ) );
 	SaveUndoInfoForGroup();
 
 	// CPT2 r336.  I'm taking the plunge and ditching the old system, where selected segments were not truly deleted, but just got unrouted.
-	//  Instead let's do a RemoveBreak for each selected segment.   In this loop we'll also look for
-	//  selected vias, and unforce them.  (NB a via that is attached only to a single selected seg is doomed to destruction by 
-	//  RemoveBreak(), regardless of whether it is selected.)
+	//  Instead let's do a RemoveBreak for each selected segment.  
+	// r344:  experimental optimization.  Delete segments by connection, in geometrical order.  Detect it early if an entire connect is
+	//  selected (which is fairly likely), and just call Remove() on the whole connect in that case.  This should eliminate a lot of 
+	//  useless creation of temporary connects, as happened before when middle segs might get deleted first.
+	CHeap<CConnect> changedCons;
+	CHeap<CTee> changedTees;
 	CIter<CPcbItem> ii (&m_sel);
 	for (CPcbItem *i = ii.First(); i; i = ii.Next())
-		if (!i->IsOnPcb())
-			// Just possible that i was eliminated on an earlier iteration (it's probably a ratline)
-			;
-		else if (CSeg *seg = i->ToSeg())
-			seg->RemoveBreak();									// Takes care of all MustRedraw()'s
+		if (CSeg *seg = i->ToSeg())
+		{
+			CConnect *c = seg->m_con;
+			if (!changedCons.Contains(c))
+				changedCons.Add(c),
+				c->utility = 1,				// In c->utility we will track how many segs in c are selected
+				c->segs.SetUtility(0);
+			else
+				c->utility++;
+			seg->utility = 1;				// Also mark selected segs.
+			if (seg->preVtx->tee)
+				changedTees.Add( seg->preVtx->tee );
+			if (seg->postVtx->tee)
+				changedTees.Add( seg->postVtx->tee );
+		}
+	CHeap<CSeg> deleteSegs;
+	CIter<CConnect> ic (&changedCons);
+	for (CConnect *c = ic.First(); c; c = ic.Next())
+		if (c->utility==c->NumSegs())
+			// Whole connect is selected!  Note that we remove it without adjusting tees (we need the set of connects to remain stable)
+			c->Remove(false);
+		else
+			// Append selected segs to deleteSegs in geometrical order
+			for (CSeg *s = c->head->postSeg; s; s = s->postVtx->postSeg)
+				if (s->utility)
+					deleteSegs.Add(s);
+	CIter<CSeg> is (&deleteSegs);
+	for (CSeg *s = is.First(); s; s = is.Next())
+		// It's just possible that s was eliminated on an earlier iteration (if it was some sort of dangling ratline).  So we check:
+		if (s->IsOnPcb())
+			s->RemoveBreak();
+	// Double-check our tees:
+	CIter<CTee> it (&changedTees);
+	for (CTee *t = it.First(); t; t = it.Next())
+		if (t->IsOnPcb())
+			t->Adjust();
+
+	// The easy part:  remove vias, polylines or their subcontours, parts, and texts
+	for (CPcbItem *i = ii.First(); i; i = ii.Next())
+		if (i->IsSeg())
+			continue;
+		else if (!i->IsOnPcb())
+			// Presumably a side on a contour that's already been axed, or maybe a defunct via
+			continue;
 		else if (CVertex *vtx = i->ToVertex())
 			vtx->force_via_flag = 0,
 			vtx->ReconcileVia();								// Takes care of MustRedraw()
-	// I believe (fingers crossed) that the previous lines will have left things in a tidy state (no dangling or unmerged adjacent ratlines)
-
-	// remove polylines or their subcontours, parts, and texts
-	for (CPcbItem *i = ii.First(); i; i = ii.Next())
-		if (!i->IsOnPcb())
-			// Presumably a side on a contour that's already been axed
-			continue;
 		else if (CSide *s = i->ToSide())
 			if (s->IsOnCutout())
 				s->contour->Remove();
@@ -6588,6 +6662,8 @@ void CFreePcbView::DeleteGroup()
 			m_doc->m_tlist->texts.Remove(t);
 			t->Undraw();
 		}
+
+	SetCursor( LoadCursor( NULL, IDC_ARROW ) );
 }
 
 int GetGNumber(CString *s)
@@ -6616,10 +6692,11 @@ void CFreePcbView::OnGroupPaste()
 	// get paste options
 	CDlgGroupPaste dlg;
 	dlg.Initialize( nl2 );
-	nl2->MarkAllNets( 0 );										// dlg will mark utility bits for the nets in nl2, in some cases
 	int ret = dlg.DoModal();
 	if (ret != IDOK)
 		return;
+
+	SetCursor( LoadCursor( NULL, IDC_WAIT ) );
 
 	// First off, go through and compare the shapes in sl2 with the existing shapes in main shape-list sl.  If necessary, add new shapes to sl,
 	// and reconcile conflicts (different shapes, same name) as needed.  We may need new shape names, and for that we'll want a "g-suffix" 
@@ -6682,6 +6759,10 @@ void CFreePcbView::OnGroupPaste()
 		}
 	}
 
+	// Save undo info about all CNet structures in the main netlist.  It's quite possible that the structures' connects/areas/tees/pins 
+	// members will be changing (getting newly created subitems).
+	for (CNet *n = in.First(); n; n = in.Next())
+		n->SaveUndoInfo( CNet::SAVE_NET_ONLY );
 	CancelSelection();
 	bool bDrag = (dlg.m_flags & PASTE_DRAG) != 0;
 	int dx = bDrag? 0: dlg.m_dx;
@@ -6715,6 +6796,7 @@ void CFreePcbView::OnGroupPaste()
 	}
 	m_doc->ProjectModified(true);
 	HighlightSelection();
+	SetCursor( LoadCursor( NULL, IDC_ARROW ) );
 	
 	if (bDrag)
 	{

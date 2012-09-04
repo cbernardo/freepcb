@@ -64,12 +64,13 @@ public:
 	};
 	
 	int index;					// CPT2 new
-	int type;					// id, using subtypes above
+	int type;					// id, using subtypes above.  CPT2 TODO A lot of these fields are probably dispensible
 	CString str;				// descriptive string
 	CPcbItem *item1, *item2;	// items tested
 	int x, y;					// position of error
 	int w;						// width of circle (CPT2 new)
 	int layer;					// layer (if pad error)
+	CDre *prev, *next;			// CPT2 Will make a doubly linked list once they're sorted.
 
 	CDre(CFreePcbDoc *_doc, int _index, int _type, CString *_str, CPcbItem *_item1, CPcbItem *_item2, 
 		int _x, int _y, int _w, int _layer=0);
@@ -79,8 +80,10 @@ public:
 	CDre *ToDRE() { return this; }
 	int GetTypeBit() { return bitDRE; }
 	virtual bool IsOnPcb();
-	CUndoItem *MakeUndoItem()
-		{ return new CUDre(this); }
+	// CUndoItem *MakeUndoItem()								// CPT2 r345 phasing out
+	//  	{ return new CUDre(this); }
+	int GetLayer() { return LAY_DRC_ERROR; }
+	void Remove();												// Undraw a single member, then remove it.
 
 	int Draw();
 	void Highlight();
@@ -92,16 +95,18 @@ public:
 	// Updated version of class DRErrorList.
 	CFreePcbDoc *doc;
 	CHeap<CDre> dres;
+	CDre *head, *tail;											// For scanning in the sorted order.
 
 	CDreList(CFreePcbDoc *_doc)
 		{ doc = _doc; }
 	~CDreList() { }
 	CDre * Add( int type, CString * str, CPcbItem *item1, CPcbItem *item2,
 		int x1, int y1, int x2, int y2, int w, int layer );
-	void Remove( CDre *dre );									// Undraw a single member, then remove it.
 	void Clear();												// Undraw all members, then remove 'em.
 	int GetSize() 
 		{ return dres.GetSize(); }
 	void MakeHollowCircles();
 	void MakeSolidCircles();
+	void SetupQuads(struct quad *heap, struct cluster *clusters);	// CPT2 new sorting machinery (see .cpp for explanation)
+	void Sort();													// CPT2 ditto
 };

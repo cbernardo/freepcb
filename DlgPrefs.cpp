@@ -18,7 +18,7 @@ CDlgPrefs::CDlgPrefs(CWnd* pParent /*=NULL*/)
 CDlgPrefs::~CDlgPrefs()
 	{ }
 
-void CDlgPrefs::Init(bool bReverse, bool bLefthanded, bool bHighlightNet, bool bErrorSound,
+void CDlgPrefs::Init(bool bReverse, bool bLefthanded, bool bHighlightNet, bool bDragNoSides, bool bErrorSound,
 	int auto_interval, bool bAuto_Ratline_Disable, int auto_ratline_min_pins) 
 {
 	extern CFreePcbApp theApp;
@@ -26,6 +26,7 @@ void CDlgPrefs::Init(bool bReverse, bool bLefthanded, bool bHighlightNet, bool b
 	m_bReverse = bReverse;
 	m_bLefthanded = bLefthanded;
 	m_bHighlightNet = bHighlightNet;
+	m_bDragNoSides = bDragNoSides;
 	m_bErrorSound = bErrorSound;
 	m_auto_interval = auto_interval;
 	m_bAuto_Ratline_Disable = bAuto_Ratline_Disable;
@@ -38,6 +39,7 @@ void CDlgPrefs::DoDataExchange(CDataExchange* pDX) {
 	DDX_Control(pDX, IDC_LEFTHAND_MODE, m_check_lefthanded);
 	DDX_Control(pDX, IDC_CHECK_AUTO_HIGHLIGHT_NET, m_check_highlight_net);
 	DDX_Control(pDX, IDC_ERROR_SOUND_ENABLED, m_check_error_sound);
+	DDX_Control(pDX, IDC_DRAG_SELECT_NO_SIDES, m_check_drag_no_sides);
 	DDX_Control(pDX, IDC_CHECK_AUTOSAVE, m_check_autosave);
 	DDX_Control(pDX, IDC_EDIT_AUTO_INTERVAL, m_edit_auto_interval);
 	DDX_Control(pDX, IDC_CHECK_AUTORAT_DISABLE, m_check_disable_auto_rats);
@@ -90,8 +92,9 @@ void CDlgPrefs::DoDataExchange(CDataExchange* pDX) {
 		m_bReverse = m_check_reverse.GetCheck();
 		m_bLefthanded = m_check_lefthanded.GetCheck();
 		m_bAuto_Ratline_Disable = m_check_disable_auto_rats.GetCheck();
-		m_bErrorSound = m_check_error_sound.GetCheck();
 		m_bHighlightNet = m_check_highlight_net.GetCheck();
+		m_bDragNoSides = m_check_drag_no_sides.GetCheck();
+		m_bErrorSound = m_check_error_sound.GetCheck();
 		m_bReinstateWarnings = m_check_warnings.GetCheck();
 		DDX_Text(pDX, IDC_EDIT_AUTO_INTERVAL, m_auto_interval );
 		m_auto_interval *= 60;															// convert minutes to seconds
@@ -129,6 +132,7 @@ BOOL CDlgPrefs::OnInitDialog()
 	m_check_reverse.SetCheck(m_bReverse);
 	m_check_lefthanded.SetCheck(m_bLefthanded);
 	m_check_highlight_net.SetCheck(m_bHighlightNet);
+	m_check_drag_no_sides.SetCheck(m_bDragNoSides);
 	m_check_error_sound.SetCheck(m_bErrorSound);
 	if( !m_auto_interval )
 	{

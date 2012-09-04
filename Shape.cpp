@@ -450,22 +450,24 @@ bool CShape::IsOnPcb()
 
 void CShape::SaveUndoInfo()
 {
+	if (bUndoInfoSaved) return;
+	bUndoInfoSaved = true;
 	doc->m_undo_items.Add( new CUShape(this) );
 	CIter<CPadstack> ips (&m_padstacks);
 	for (CPadstack *ps = ips.First(); ps; ps = ips.Next())
-		doc->m_undo_items.Add( new CUPadstack(ps) );
-	doc->m_undo_items.Add( new CUText(m_ref) );
-	doc->m_undo_items.Add( new CUText(m_value) );
+		ps->SaveUndoInfo();
+	m_ref->SaveUndoInfo();
+	m_value->SaveUndoInfo();
 	CIter<CText> it (&m_tl->texts);
 	for (CText *t = it.First(); t; t = it.Next())
-		doc->m_undo_items.Add( new CUText(t) );
+		t->SaveUndoInfo();
 	CIter<COutline> io (&m_outlines);
 	for (COutline *o = io.First(); o; o = io.Next())
 		o->SaveUndoInfo();
 	CIter<CGlue> ig (&m_glues);
 	for (CGlue *g = ig.First(); g; g = ig.Next())
-		doc->m_undo_items.Add( new CUGlue(g) );
-	doc->m_undo_items.Add( new CUCentroid(m_centroid) );
+		g->SaveUndoInfo();
+	m_centroid->SaveUndoInfo();
 }
 
 // function to create shape from definition string

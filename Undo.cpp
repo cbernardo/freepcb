@@ -610,6 +610,8 @@ void CUNet::AddToLists()
 	n->m_nlist->nets.Add( n );
 }
 
+/* CPT2 phased out as of r345
+
 CUDre::CUDre( CDre *d )
 	: CUndoItem (d->doc, d->UID())
 {
@@ -644,6 +646,7 @@ void CUDre::AddToLists()
 	CDre *d = target->ToDRE();
 	m_doc->m_drelist->dres.Add( d );
 }
+*/
 
 CUPadstack::CUPadstack(CPadstack *ps)
 	: CUndoItem (ps->doc, ps->UID())
@@ -831,7 +834,7 @@ bool CUndoRecord::Execute( int op )
 	//          (if user removed it AND it was garbage-collected).  In both cases we will have to recreate it.
 	for (int i=0; i<nItems; i++)
 		items[i]->target = CPcbItem::FindByUid( items[i]->m_uid );
-	
+
 	// Step 2.  Gather items for the redo record.  At the end, the current contents of "this" will be replaced with the redo items.  
 	//  If op is OP_REDO, it's actually the same exact process:  the modified record on exit will be appropriate as an undo record if user
 	//  resumes hitting ctrl-z.  If op is OP_UNDO_NO_REDO, we don't bother.

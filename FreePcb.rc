@@ -2283,36 +2283,39 @@ BEGIN
     PUSHBUTTON      "Bottom",IDC_BUTTON10,18,108,54,12
 END
 
-IDD_PREFS DIALOGEX 0, 0, 270, 288
+IDD_PREFS DIALOGEX 0, 0, 284, 326
 STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Preferences"
 FONT 8, "MS Shell Dlg", 400, 0, 0x1
 BEGIN
-    CONTROL         "Reverse PgUp and PgDn",IDC_REVERSE_PGUP_PGDN,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,22,16,94,10
-    DEFPUSHBUTTON   "OK",IDOK,45,263,50,14
-    PUSHBUTTON      "Cancel",IDCANCEL,174,263,50,14
-    CONTROL         "Enable",IDC_CHECK_AUTOSAVE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,22,173,37,10
-    EDITTEXT        IDC_EDIT_AUTO_INTERVAL,213,172,24,12,ES_AUTOHSCROLL
-    LTEXT           "pins",IDC_STATIC,173,140,14,8
-    LTEXT           "Interval (minutes)",IDC_STATIC,149,174,58,8
-    GROUPBOX        "Autosave",IDC_STATIC,10,162,248,30
-    GROUPBOX        "Automatic recalculation of ratlines after edits",IDC_STATIC,10,127,247,30
+    CONTROL         "Reverse PgUp and PgDn",IDC_REVERSE_PGUP_PGDN,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,21,16,94,10
+    DEFPUSHBUTTON   "OK",IDOK,52,290,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,181,290,50,14
+    CONTROL         "Enable",IDC_CHECK_AUTOSAVE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,21,200,37,10
+    EDITTEXT        IDC_EDIT_AUTO_INTERVAL,233,199,24,12,ES_AUTOHSCROLL
+    LTEXT           "pins",IDC_STATIC,172,167,14,8
+    LTEXT           "Interval (minutes)",IDC_STATIC,169,201,58,8
+    GROUPBOX        "Autosave",IDC_STATIC,9,189,265,30
+    GROUPBOX        "Automatic recalculation of ratlines after edits",IDC_STATIC,9,154,265,30
     CONTROL         "Disable for nets with more than ",IDC_CHECK_AUTORAT_DISABLE,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,22,139,118,10
-    EDITTEXT        IDC_EDIT_MIN_PINS,140,138,29,12,ES_AUTOHSCROLL
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,21,166,118,10
+    EDITTEXT        IDC_EDIT_MIN_PINS,139,165,29,12,ES_AUTOHSCROLL
     CONTROL         "Left-handed mode (alters function-key assignments)",IDC_LEFTHAND_MODE,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,22,32,183,10
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,21,32,183,10
     CONTROL         "Highlight net on starting trace or ratline",IDC_CHECK_AUTO_HIGHLIGHT_NET,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,22,48,142,10
-    LTEXT           "(can always toggle on and off with ""n"" while routing)",IDC_STATIC,36,59,168,8
-    EDITTEXT        IDC_EDIT_PREFS_DEFAULTCFG,21,224,180,12,ES_AUTOHSCROLL
-    PUSHBUTTON      "Browse",IDC_BUTTON_PREFS_BROWSE,208,223,30,14
-    GROUPBOX        "Folder for file ""default.cfg""",IDC_STATIC,9,197,249,50
-    LTEXT           "(Preferences are stored there;  avoid folders that are write-protected)",IDC_STATIC,14,207,228,8
-    CONTROL         "Beep for errors",IDC_ERROR_SOUND_ENABLED,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,22,75,65,10
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,0,50,142,10
+    LTEXT           "(can always toggle on and off with ""n"" while routing)",IDC_STATIC,35,59,168,8
+    EDITTEXT        IDC_EDIT_PREFS_DEFAULTCFG,20,251,197,12,ES_AUTOHSCROLL
+    PUSHBUTTON      "Browse",IDC_BUTTON_PREFS_BROWSE,228,250,30,14
+    GROUPBOX        "Folder for file ""default.cfg""",IDC_STATIC,8,224,265,50
+    LTEXT           "(Preferences are stored there;  avoid folders that are write-protected)",IDC_STATIC,13,234,228,8
+    CONTROL         "Beep for errors",IDC_ERROR_SOUND_ENABLED,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,21,75,65,10
     CONTROL         "Reinstate warning messages that have been turned off",IDC_REINSTATE_WARNINGS,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,22,92,193,10
-    LTEXT           "(messages about: pasting in f.p. editor; combining copper areas; ...)",IDC_STATIC_WARNINGS,36,104,221,8
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,21,119,193,10
+    LTEXT           "(messages about: pasting in f.p. editor; combining copper areas; ...)",IDC_STATIC_WARNINGS,35,130,221,8
+    CONTROL         "When dragging to select groups, don't select copper area sides",IDC_DRAG_SELECT_NO_SIDES,
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,21,93,225,10
+    LTEXT           "(unless entire area is enclosed; similar for board edges and s.m. cutouts)",IDC_STATIC,35,104,234,8
 END
 
 IDD_GRIDVALS DIALOGEX 0, 0, 286, 321
@@ -2811,7 +2814,8 @@ BEGIN
 
     IDD_PREFS, DIALOG
     BEGIN
-        BOTTOMMARGIN, 283
+        RIGHTMARGIN, 270
+        BOTTOMMARGIN, 321
     END
 END
 #endif    // APSTUDIO_INVOKED
@@ -3785,64 +3789,61 @@ BEGIN
                             "  Changing footprint of part %s from ""%s"" to ""%s"" (not found)\r\n"
     IDS_CheckingParts       "Checking parts:\r\n"
     IDS_PadHoleToBoardEdgeEquals 
-                            "%ld: %s.%s pad hole to board edge = %s, x=%s, y=%s\r\n"
-    IDS_AnnularRingEquals   "%ld: %s.%s annular ring = %s, x=%s, y=%s\r\n"
-    IDS_PadToBoardEdgeEquals 
-                            "%ld: %s.%s pad to board edge = %s, x=%s, y=%s\r\n"
+                            "%s.%s pad hole to board edge = %s, x=%s, y=%s\r\n"
+    IDS_AnnularRingEquals   "%s.%s annular ring = %s, x=%s, y=%s\r\n"
+    IDS_PadToBoardEdgeEquals "%s.%s pad to board edge = %s, x=%s, y=%s\r\n"
     IDS_PadHoleToPadeHoleEquals 
-                            "%ld: %s.%s pad hole to %s.%s pad hole = %s, x=%s, y=%s\r\n"
-    IDS_PadHoleToPadEquals  "%ld: %s.%s pad hole to %s.%s pad = %s, x=%s, y=%s\r\n"
-    IDS_PadToPadEquals      "%ld: %s.%s pad to %s.%s pad = %s, x=%s, y=%s\r\n"
+                            "%s.%s pad hole to %s.%s pad hole = %s, x=%s, y=%s\r\n"
+    IDS_PadHoleToPadEquals  "%s.%s pad hole to %s.%s pad = %s, x=%s, y=%s\r\n"
+    IDS_PadToPadEquals      "%s.%s pad to %s.%s pad = %s, x=%s, y=%s\r\n"
 END
 
 STRINGTABLE
 BEGIN
-    IDS_CheckingNetsAndParts "\r\nChecking nets and parts:\r\n"
+    IDS_CheckingNetsAndParts "Checking nets and parts:\r\n"
     IDS_CopperAreaToBoardEdgeEquals 
-                            "%ld: ""%s"" copper area to board edge = %s, x=%s, y=%s\r\n"
-    IDS_TraceWidthEquals    "%ld: ""%s"" trace width = %s, x=%s, y=%s\r\n"
+                            """%s"" copper area to board edge = %s, x=%s, y=%s\r\n"
+    IDS_TraceWidthEquals    """%s"" trace width = %s, x=%s, y=%s\r\n"
     IDS_TraceToBoardEdgeEquals 
-                            "%ld: ""%s"" trace to board edge = %s, x=%s, y=%s\r\n"
-    IDS_ViaAnnularRingEquals 
-                            "%ld: ""%s"" via annular ring = %s, x=%s, y=%s\r\n"
-    IDS_ViaToBoardEdgeEquals 
-                            "%ld: ""%s"" via to board edge = %s, x=%s, y=%s\r\n"
+                            """%s"" trace to board edge = %s, x=%s, y=%s\r\n"
+    IDS_ViaAnnularRingEquals """%s"" via annular ring = %s, x=%s, y=%s\r\n"
+    IDS_ViaToBoardEdgeEquals """%s"" via to board edge = %s, x=%s, y=%s\r\n"
     IDS_ViaHoleToBoardEdgeEquals 
-                            "%ld: ""%s"" via hole to board edge = %s, x=%s, y=%s\r\n"
+                            """%s"" via hole to board edge = %s, x=%s, y=%s\r\n"
     IDS_TraceToPadHoleEquals 
-                            "%ld: ""%s"" trace to %s.%s pad hole = %s, x=%s, y=%s\r\n"
-    IDS_TraceToPadEquals    "%ld: ""%s"" trace to %s.%s pad = %s, x=%s, y=%s\r\n"
-    IDS_ViaPadToPadEquals   "%ld: ""%s"" via pad to %s.%s pad = %s, x=%s, y=%s\r\n"
+                            """%s"" trace to %s.%s pad hole = %s, x=%s, y=%s\r\n"
+    IDS_TraceToPadEquals    """%s"" trace to %s.%s pad = %s, x=%s, y=%s\r\n"
+    IDS_ViaPadToPadEquals   """%s"" via pad to %s.%s pad = %s, x=%s, y=%s\r\n"
     IDS_ViaPadToPadHoleEquals 
-                            "%ld: ""%s"" via pad to %s.%s pad hole = %s, x=%s, y=%s\r\n"
-    IDS_ViaHoleToPadEquals  "%ld: ""%s"" via hole to %s.%s pad = %s, x=%s, y=%s\r\n"
+                            """%s"" via pad to %s.%s pad hole = %s, x=%s, y=%s\r\n"
+    IDS_ViaHoleToPadEquals  """%s"" via hole to %s.%s pad = %s, x=%s, y=%s\r\n"
     IDS_ViaHoleToPadHoleEquals 
-                            "%ld: ""%s"" via hole to %s.%s pad hole = %s, x=%s, y=%s\r\n"
-    IDS_CheckingNets2       "\r\nChecking nets:\r\n"
-    IDS_TraceToTraceEquals  "%ld: ""%s"" trace to ""%s"" trace = %s, x=%s, y=%s\r\n"
-    IDS_TraceToViaPadEquals "%ld: ""%s"" trace to ""%s"" via pad = %s, x=%s, y=%s\r\n"
+                            """%s"" via hole to %s.%s pad hole = %s, x=%s, y=%s\r\n"
+    IDS_CheckingNets2       "Checking nets:\r\n"
+    IDS_TraceToTraceEquals  """%s"" trace to ""%s"" trace = %s, x=%s, y=%s\r\n"
+    IDS_TraceToViaPadEquals """%s"" trace to ""%s"" via pad = %s, x=%s, y=%s\r\n"
 END
 
 STRINGTABLE
 BEGIN
     IDS_TraceToViaHoleEquals 
-                            "%ld: ""%s"" trace to ""%s"" via hole = %s, x=%s, y=%s\r\n"
-    IDS_ViaPadToTraceEquals "%ld: ""%s"" via pad to ""%s"" trace = %s, x=%s, y=%s\r\n"
+                            """%s"" trace to ""%s"" via hole = %s, x=%s, y=%s\r\n"
+    IDS_ViaPadToTraceEquals """%s"" via pad to ""%s"" trace = %s, x=%s, y=%s\r\n"
     IDS_ViaPadToViaPadEquals 
-                            "%ld: ""%s"" via pad to ""%s"" via pad = %s, x=%s, y=%s\r\n"
+                            """%s"" via pad to ""%s"" via pad = %s, x=%s, y=%s\r\n"
     IDS_ViaPadToViaHoleEquals 
-                            "%ld: ""%s"" via pad to ""%s"" via hole = %s, x=%s, y=%s\r\n"
+                            """%s"" via pad to ""%s"" via hole = %s, x=%s, y=%s\r\n"
     IDS_ViaHoleToViaHoleEquals 
-                            "%ld: ""%s"" via hole to ""%s"" via hole = %s, x=%s, y=%s\r\n"
+                            """%s"" via hole to ""%s"" via hole = %s, x=%s, y=%s\r\n"
     IDS_CopperAreaInsideCopperArea 
-                            "%ld: ""%s"" copper area inside ""%s"" copper area\r\n"
+                            """%s"" copper area inside ""%s"" copper area\r\n"
     IDS_CopperAreaToCopperArea 
-                            "%ld: ""%s"" copper area to ""%s"" copper area = %s, x=%s, y=%s\r\n"
+                            """%s"" copper area to ""%s"" copper area = %s, x=%s, y=%s\r\n"
     IDS_PartiallyRoutedStubTrace 
-                            "%ld: ""%s"": partially routed stub trace from %s\r\n"
+                            """%s"": partially routed stub trace from %s\r\n"
     IDS_PartiallyRoutedConnection 
-                            "%ld: ""%s"": partially routed connection from %s to %s\r\n"
-    IDS_UnroutedConnection  "%ld: ""%s"": unrouted connection from %s to %s\r\n"
+                            """%s"": partially routed connection from %s to %s\r\n"
+    IDS_UnroutedConnection  """%s"": unrouted connection from %s to %s\r\n"
     IDS_Done4               "\r\n***** DONE *****\r\n"
     IDS_CheckingParts2      "***** Checking Parts *****\r\n"
     IDS_PartDuplicated      "ERROR: Part ""%s"" duplicated\r\n    ###   To fix this, delete one instance of the part, then save, close and re-open project\r\n"
@@ -4256,7 +4257,7 @@ END
 
 STRINGTABLE
 BEGIN
-    IDS_AppName             "CPT2.19"
+    IDS_AppName             "CPT2.20"
 END
 
 STRINGTABLE
@@ -4351,7 +4352,7 @@ BEGIN
     IDS_ToolbarPlacementCtrlUpDn " Placement (ctrl-up/dn)"
     IDS_ToolbarRoutingCtrlUpDn " Routing (ctrl-up/dn)"
     IDS_WarningCopperAreaIsTooNarrow 
-                            "%ld: Warning --- ""%s"" copper area is too narrow or is broken; x=%s, y=%s\r\n"
+                            "Warning --- ""%s"" copper area is too narrow or is broken; x=%s, y=%s\r\n"
     IDS_FpLeftPaneKey       "1,2,...: Use these"
     62603                   "keys to draw"
     62604                   "layers at the top"
@@ -4402,7 +4403,7 @@ BEGIN
     IDS_Vertex3             "VERTEX"
     IDS_Copper3             "COPPER"
     IDS_Text3               "TEXT: %s"
-    IDS_DRC3                "DRC"
+    IDS_DRC3                "DRC ERROR %d"
     IDS_Cutout3             "CUTOUT"
     IDS_Centroid3           "CENTROID"
     IDS_GlueSpot3           "GLUE SPOT"
@@ -4433,17 +4434,17 @@ BEGIN
                             "net %s: trace from %s to %s: combining colinear segments\r\n"
     IDS_XYNoVia             "%s, x %s, y %s, no via"
     IDS_PadHoleToCopperGraphics 
-                            "%ld: %s.%s pad hole to %s.%s copper graphics = %s, x=%s, y=%s\r\n"
-    IDS_PadToCopperGraphics "%ld: %s.%s pad to %s.%s copper graphics = %s, x=%s, y=%s\r\n"
+                            "%s.%s pad hole to %s.%s copper graphics = %s, x=%s, y=%s\r\n"
+    IDS_PadToCopperGraphics "%s.%s pad to %s.%s copper graphics = %s, x=%s, y=%s\r\n"
     IDS_TraceToCopperGraphic 
-                            "%ld: ""%s"" trace to copper graphic = %s, x=%s, y=%s\r\n"
+                            """%s"" trace to copper graphic = %s, x=%s, y=%s\r\n"
 END
 
 STRINGTABLE
 BEGIN
-    IDS_ViaToCopperGraphic  "%ld: ""%s"" via to copper graphic = %s, x=%s, y=%s\r\n"
+    IDS_ViaToCopperGraphic  """%s"" via to copper graphic = %s, x=%s, y=%s\r\n"
     IDS_ViaHoleToCopperGraphic 
-                            "%ld: ""%s"" via hole to copper graphic = %s, x=%s, y=%s\r\n"
+                            """%s"" via hole to copper graphic = %s, x=%s, y=%s\r\n"
     IDS_FontStrokeFileWasNotFound "Font stroke file was not found"
     IDS_FontTranslationFileWasNotFound "Font translation file was not found"
     IDS_FontTranslationFile "Font Translation File (*.csv)|*.csv||"
@@ -4561,6 +4562,8 @@ STRINGTABLE
 BEGIN
     IDS_MessagesAbout       "(messages about: "
     IDS_StartingTraceFromAreaNet "Starting trace from area %d (net ""%s"")"
+    IDS_Errors              "\r\n%d errors.\r\n"
+    IDS_CompleteList        "\r\nComplete List:\r\n"
 END
 
 #endif    // English (United States) resources
