@@ -763,6 +763,7 @@
 #define IDC_BUTTON_LAYER_22             1452
 #define IDC_STATIC_WARNINGS             1452
 #define IDC_BUTTON_LAYER_23             1453
+#define IDC_DRAG_SELECT_NO_SIDES        1453
 #define IDC_BUTTON_LAYER_24             1454
 #define IDC_BUTTON_LAYER_25             1455
 #define IDC_BUTTON_LAYER_26             1456
@@ -1695,6 +1696,8 @@
 #define IDS_NoItemsCouldBePasted        62719
 #define IDS_MessagesAbout               62720
 #define IDS_StartingTraceFromAreaNet    62721
+#define IDS_Errors                      62722
+#define IDS_CompleteList                62723
 #define IDS_FkFpStr                     63000
 #define IDS_STRING63001                 63001
 #define IDS_STRING63002                 63002

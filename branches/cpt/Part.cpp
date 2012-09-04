@@ -503,20 +503,24 @@ bool CPart::IsOnPcb()
 
 void CPart::SaveUndoInfo(bool bSaveAttachedNets)
 {
+	if (bUndoInfoSaved) return;
+	if (bSaveAttachedNets)
+		// Unfortunately, we'd better not preclude future invocations till we're sure _all_ possible info is saved
+		bUndoInfoSaved = true;
 	doc->m_undo_items.Add( new CUPart(this) );
 	CIter<CPin> ipin (&pins);
 	for (CPin *pin = ipin.First(); pin; pin = ipin.Next())
 	{
-		doc->m_undo_items.Add( new CUPin(pin) );
+		pin->SaveUndoInfo();
 		// CPT2 TODO we can probably just save undo info for individual connects (including any terminal tees).
 		if (bSaveAttachedNets && pin->net)
 			pin->net->SaveUndoInfo( CNet::SAVE_CONNECTS );
 	}
-	doc->m_undo_items.Add( new CURefText(m_ref) );
-	doc->m_undo_items.Add( new CUValueText(m_value) );
+	m_ref->SaveUndoInfo();
+	m_value->SaveUndoInfo();
 	CIter<CText> it (&m_tl->texts);
 	for (CText *t = it.First(); t; t = it.Next())
-		doc->m_undo_items.Add( new CUText(t) );
+		t->SaveUndoInfo();
 }
 
 void CPart::Move( int _x, int _y, int _angle, int _side )
@@ -603,7 +607,7 @@ void CPart::PartMoved( int dx, int dy )
 	}
 }
 
-void CPart::Remove(bool bEraseTraces, bool bErasePart)
+void CPart::Remove(bool bEraseConnects, bool bErasePart)
 {
 	// CPT2 mostly new.  Implements my new system for deleting parts, where one can either erase all traces emanating from it, or not.
 	// Also added bErasePart param (true by default);  calling Remove(true, false) allows one to delete attached traces only.
@@ -611,9 +615,8 @@ void CPart::Remove(bool bEraseTraces, bool bErasePart)
 		Undraw(),
 		m_pl->parts.Remove(this);
 
-	// Now go through the pins.  If bEraseTraces, rip out connects attached to each one.  Otherwise, gather a list of vertices associated
-	// with each one (such vertices will later get united into a tee).  TODO for each pin, consider maintaining a list of vtxs associated with it
-	// at all times?
+	// Now go through the pins.  If bEraseConnects, rip out connects attached to each one.  Otherwise, just make sure that references to each
+	// pin from incoming vertices are eliminated, and take care of any dangling ratline segs 
 	CIter<CPin> ipin (&pins);
 	CHeap<CVertex> vtxs;
 	for (CPin *pin = ipin.First(); pin; pin = ipin.Next())
@@ -621,7 +624,7 @@ void CPart::Remove(bool bEraseTraces, bool bErasePart)
 		if (!pin->net) continue;
 		pin->net->pins.Remove(pin);							// CPT2 Prevent phantom pins in nets!
 		pin->net->MustRedraw();
-		if (bEraseTraces)
+		if (bEraseConnects)
 		{
 			CIter<CConnect> ic (&pin->net->connects);
 			for (CConnect *c = ic.First(); c; c = ic.Next())
@@ -632,8 +635,6 @@ void CPart::Remove(bool bEraseTraces, bool bErasePart)
 		{
 			// Make a list of vertices that are attached to the current pin.
 			pin->GetVtxs(&vtxs);
-			int nVtxs = vtxs.GetSize();
-			if (nVtxs==0) continue;
 			// Loop thru each vtx, and if the incoming seg is a ratline, erase it (and the vertex).  Otherwise, null out the vtx's "pin" member.
 			// Before r336 I tried some fancy business with combining left-over vtxs into a tee, but that caused many headaches and ultimately
 			// didn't seem  worth the trouble.

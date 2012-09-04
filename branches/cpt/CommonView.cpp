@@ -704,8 +704,13 @@ void CCommonView::HandlePanAndZoom(int nChar, CPoint &p) {
 			double org_x_last = m_org_x, org_y_last = m_org_y;
 			m_org_x = p.x - ((m_client_r.right-m_left_pane_w)*m_pcbu_per_pixel)/2;
 			m_org_y = p.y - ((m_client_r.bottom-m_bottom_pane_h)*m_pcbu_per_pixel)/2;
+			// Save info for future repetitions of the space bar.  Show a preference for vertical and horizontal motion:
 			m_lastSpaceDx = m_org_x - org_x_last;
 			m_lastSpaceDy = m_org_y - org_y_last;
+			if (fabs(m_lastSpaceDx) < fabs(m_lastSpaceDy/2)) 
+				m_lastSpaceDx = 0;
+			else if (fabs(m_lastSpaceDy) < fabs(m_lastSpaceDx/2))
+				m_lastSpaceDy = 0;
 		}
 		CRect screen_r;
 		GetWindowRect( &screen_r );
@@ -1333,7 +1338,7 @@ int CCommonView::SelectObjPopup( CPoint const &point )
 	// Create bitmap array
 	CArray<CBitmap> bitmaps;
 	bitmaps.SetSize(num_hits);
-	CString str;
+	CString str, str0;
 	CMenu file_menu;
 	file_menu.CreatePopupMenu();
 
@@ -1455,8 +1460,9 @@ int CCommonView::SelectObjPopup( CPoint const &point )
 			CString s ((LPCSTR) IDS_Text3);
 			str.Format(s, t->m_str);
 		}
-		else if (item->IsDRE())
-			str.LoadStringA(IDS_DRC3);
+		else if (CDre *d = item->ToDRE())
+			str0.LoadStringA(IDS_DRC3),
+			str.Format(str0, d->index);
 		else if (item->IsCentroid())
 			str.LoadStringA(IDS_Centroid3);
 		else if (item->IsGlue())

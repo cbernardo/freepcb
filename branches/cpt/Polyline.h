@@ -164,9 +164,9 @@ public:
 	bool TestPointInside( int x, int y );
 
 	// access functions
-	int NumCorners();														// Total corners in all contours.
+	int NumCorners();																		// Total corners in all contours.
 	int NumSides();				
-	void GetSidesInRect( CRect *r, CHeap<CPcbItem> *arr );				// CPT2 new.
+	void GetSidesInRect( CRect *r, CHeap<CPcbItem> *arr, bool bAllOrNothing=false );		// CPT2 new.
 	bool IsClosed();
 	int NumContours() { return contours.GetSize(); }
 	int W() { return m_w; }

@@ -2547,6 +2547,7 @@ void CFootprintView::OnGroupPaste()
 	}
 
 	CancelSelection();
+	PushUndo();
 	m_fp->Undraw();
 	// First off, determine the highest purely numeric padstack name that is used on the current f.p.
 	int max_ps = 0;

@@ -41,7 +41,7 @@ class CUNet;
 class CUText;	
 class CURefText;
 class CUValueText;
-class CUDre;
+// class CUDre;
 class CUPadstack;
 class CUCentroid;
 class CUGlue;
@@ -383,6 +383,8 @@ public:
 	virtual void AddToLists();
 };
 
+/* CPT2 r345.  Decided having undo for DRE's was causing too many headaches and didn't seem terribly natural from user's point of view either.
+
 class CUDre: public CUndoItem
 {
 public:
@@ -399,6 +401,7 @@ public:
 	virtual void FixTarget();
 	virtual void AddToLists();
 };
+*/
 
 class CUPadstack: public CUndoItem
 {

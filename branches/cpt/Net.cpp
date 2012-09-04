@@ -669,10 +669,12 @@ void CTee::GetStatusStr( CString * str )
 
 void CTee::SaveUndoInfo()
 {
+	if (bUndoInfoSaved) return;
+	bUndoInfoSaved = true;
 	doc->m_undo_items.Add( new CUTee(this) );
 	CIter<CVertex> iv (&vtxs);
 	for (CVertex *v = iv.First(); v; v = iv.Next())
-		doc->m_undo_items.Add( new CUVertex(v) );
+		v->SaveUndoInfo();
 }
 
 void CTee::Remove(bool bRemoveVtxs)
@@ -788,7 +790,9 @@ void CTee::Remove(CVertex *v, bool fAdjust)
 	Undraw();
 	vtxs.Remove(v);
 	v->tee = NULL;
-	if (fAdjust)
+	if (vtxs.IsEmpty())
+		v->m_net->tees.Remove(this);
+	else if (fAdjust)
 		Adjust(),
 		ReconcileVia();
 }
@@ -1477,17 +1481,19 @@ void CConnect::SaveUndoInfo()
 {
 	// CPT2 In the case of higher-level entities like CConnect and CNet, save all the constituents as well (it might be possible to
 	// do something more economical, but this is simplest at least for now).
+	if (bUndoInfoSaved) return;
+	bUndoInfoSaved = true;
 	doc->m_undo_items.Add( new CUConnect(this) );
 	CIter<CSeg> is (&segs);
 	for (CSeg *s = is.First(); s; s = is.Next())
-		doc->m_undo_items.Add( new CUSeg(s) );			// NB CFreePcbDoc::FinishUndoRecord() will have to check for dupes.
+		s->SaveUndoInfo();
 	CIter<CVertex> iv (&vtxs);
 	for (CVertex *v = iv.First(); v; v = iv.Next())
-		doc->m_undo_items.Add( new CUVertex(v) );
+		v->SaveUndoInfo();
 	if (head->tee)
-		doc->m_undo_items.Add( new CUTee(head->tee) );
+		head->tee->SaveUndoInfo();
 	if (tail->tee)
-		doc->m_undo_items.Add( new CUTee(tail->tee) );
+		tail->tee->SaveUndoInfo();
 }
 
 void CConnect::SetWidth( int w, int via_w, int via_hole_w )
@@ -1497,7 +1503,7 @@ void CConnect::SetWidth( int w, int via_w, int via_hole_w )
 		s->SetWidth(w, via_w, via_hole_w);
 }
 
-void CConnect::Remove()
+void CConnect::Remove( bool bAdjustTees )
 {
 	// CPT2. User wants to delete connection, so detach it from the network (garbage collector will later delete this object and its
 	// constituents for good).
@@ -1510,9 +1516,9 @@ void CConnect::Remove()
 		// the calling of CTee::Adjust(), which might cause a crash
 		head->tee->Remove(head, false);					
 	else if (head->tee)
-		head->tee->Remove(head);
+		head->tee->Remove(head, bAdjustTees);
 	if (tail->tee)
-		tail->tee->Remove(tail);
+		tail->tee->Remove(tail, bAdjustTees);
 }
 
 
@@ -1760,7 +1766,11 @@ void CNet::GetStatusStr( CString * str )
 
 void CNet::SaveUndoInfo(int mode)
 {
-	// "mode", which is SAVE_ALL by default, can also have the value SAVE_CONNECTS, SAVE_AREAS, SAVE_NET_ONLY, 
+	// "mode", which is SAVE_ALL by default, can also have the value SAVE_CONNECTS, SAVE_AREAS, SAVE_NET_ONLY
+	if (bUndoInfoSaved) return;
+	if (mode==SAVE_ALL)
+		// We can't block future invocations of this routine if only partial info is saved.
+		bUndoInfoSaved = true;
 	doc->m_undo_items.Add( new CUNet(this) );
 	if (mode == SAVE_ALL || mode == SAVE_CONNECTS)
 	{

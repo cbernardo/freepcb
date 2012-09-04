@@ -269,7 +269,7 @@ public:
 
 	// modify segments and vertices. 
 	void Start( CVertex *v );
-	void Remove();
+	void Remove( bool bAdjustTees=true );
 	void AppendSegAndVertex( CSeg *s, CVertex *v, CVertex *after) ;
 	void PrependVertexAndSeg( CVertex *v, CSeg *s );
 	void AppendSegment( int x, int y, int layer, int width );

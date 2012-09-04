@@ -1703,6 +1703,8 @@ void CFreePcbDoc::ReadOptions( CStdioFile * pcb_file )
 				m_bLefthanded = my_atoi(&p[0]);
 			else if (np && key_str == "highlight_net")
 				m_bHighlightNet = my_atoi(&p[0]);
+			else if (np && key_str == "drag_no_sides")
+				m_bDragNoSides = my_atoi(&p[0]);
 			else if (np && key_str == "error_sound")
 				m_bErrorSound = my_atoi(&p[0]);
 			else if (np && key_str == "warning_disable")
@@ -1994,6 +1996,7 @@ void CFreePcbDoc::InitializeNewProject()
 	m_bReversePgupPgdn = 0;
 	m_bLefthanded = 0;
 	m_bHighlightNet = 0;
+	m_bDragNoSides = 0;
 	m_bErrorSound = 1;
 	ZeroMemory(&m_bWarningDisable, sizeof(m_bWarningDisable));
 
@@ -4134,12 +4137,14 @@ void CFreePcbDoc::FinishUndoRecord(bool bCombineWithPrevious)
 				item->utility = 1;
 		}
 	}
+
 	for (int i=0; i<m_undo_items.GetSize(); i++) 
 	{
 		CUndoItem *uitem = m_undo_items[i];
 		int uid = uitem->UID();
 		CPcbItem *item = CPcbItem::FindByUid( uid );
 		ASSERT(item);
+		item->bUndoInfoSaved = false;						// For next time...
 		if (item->utility)
 			delete uitem;
 		else if (uid < m_undo_last_uid)
@@ -4159,7 +4164,7 @@ void CFreePcbDoc::FinishUndoRecord(bool bCombineWithPrevious)
 		// ignore the substantial number of temporary cshapes that may get created (during the fp editor or the DlgAddPart, say).
 		CPcbItem *item = CPcbItem::FindByUid(i);
 		ASSERT(item);
-		if (item->IsOnPcb())
+		if (item->IsOnPcb() && !item->IsDRE())
 			uitems.Add( new CUndoItem(this, i, true) );
 	}
 	m_undo_last_uid = next_uid;					// For next time...
@@ -4470,7 +4475,7 @@ void ReplaceLines(CArray<CString> &oldLines, CArray<CString> &newLines, char *ke
 void CFreePcbDoc::OnToolsPreferences() 
 {
 	CDlgPrefs dlg;
-	dlg.Init( m_bReversePgupPgdn, m_bLefthanded, m_bHighlightNet, m_bErrorSound, m_auto_interval, 
+	dlg.Init( m_bReversePgupPgdn, m_bLefthanded, m_bHighlightNet, m_bDragNoSides, m_bErrorSound, m_auto_interval, 
 		m_auto_ratline_disable, m_auto_ratline_min_pins); 
 	int ret = dlg.DoModal();
 	if( ret != IDOK ) 
@@ -4478,6 +4483,7 @@ void CFreePcbDoc::OnToolsPreferences()
 	m_bReversePgupPgdn = dlg.m_bReverse;
 	m_bLefthanded = dlg.m_bLefthanded;
 	m_bHighlightNet = dlg.m_bHighlightNet;
+	m_bDragNoSides = dlg.m_bDragNoSides;
 	m_bErrorSound = dlg.m_bErrorSound;
 	m_auto_interval = dlg.m_auto_interval;
 	m_auto_ratline_disable = dlg.m_bAuto_Ratline_Disable;
@@ -4510,6 +4516,8 @@ void CFreePcbDoc::OnToolsPreferences()
 	newLines.Add( line );
 	line.Format( "highlight_net: \"%d\"\n", m_bHighlightNet);
 	newLines.Add( line );
+	line.Format( "drag_no_sides: \"%d\"\n", m_bDragNoSides);
+	newLines.Add( line );
 	line.Format( "error_sound: \"%d\"\n", m_bErrorSound);
 	newLines.Add( line );
 	for (int i=0; i<NUM_WARNINGS; i++)
@@ -4522,6 +4530,7 @@ void CFreePcbDoc::OnToolsPreferences()
 	ReplaceLines(oldLines, newLines, "reverse_pgup_pgdn");
 	ReplaceLines(oldLines, newLines, "lefthanded_mode");
 	ReplaceLines(oldLines, newLines, "highlight_net");
+	ReplaceLines(oldLines, newLines, "drag_no_sides");
 	ReplaceLines(oldLines, newLines, "error_sound");
 	ReplaceLines(oldLines, newLines, "warning_disable");
 	WriteFileLines(newFn, oldLines);
@@ -4618,6 +4627,7 @@ void CFreePcbDoc::GarbageCollect() {
 	// just unhook it from its parent entity or array.  When garbage collection time comes, we'll first clear the utility bits on all members of
 	// "items".  Then we'll scan through the doc's netlist (recursing through connects, segs, vtxs, tees, areas), partlist (recursing through pins), 
 	// textlist, smcutout-list, board-list and shape-list, marking utility bits as we go.  Also do the same for the clipboard lists.
+	// Also dre items!  (Almost forgot)
 	// At the end, items with clear utility bits can be deleted.
 	items.SetUtility(0);
 
@@ -4655,6 +4665,8 @@ void CFreePcbDoc::GarbageCollect() {
 	for (CShape *s2 = is2.First(); s2; s2 = is2.Next())
 		s2->MarkConstituents(1);
 
+	m_drelist->dres.SetUtility(1);
+
 	// Do the deletions of unused items!
 	int dbgTotal = items.GetSize();
 	int dbgDeleted = 0;
@@ -4672,6 +4684,10 @@ void CFreePcbDoc::GarbageCollect() {
 //
 void CFreePcbDoc::DRC( int units, BOOL check_unrouted, DesignRules * dr )
 {
+	// CPT2.  Formerly dre's we're assigned index numbers as soon as they were generated, and were printed to the log immediately too.
+	// Now, though, I'm sorting dre's in a geometrical way (see CDreList::Sort()) after they're created, and so the index #'s will only
+	// be generated after the sort.  And the detailed list on the log must be delayed till then also.  Accordingly, when dre's are first created, 
+	// I'll just send a "." to the log, plus periodic reports of the #'s of errors.
 	CString d_str, x_str, y_str;
 	CString str, str2;
 	CDlgLog *log = m_dlg_log;
@@ -4745,7 +4761,6 @@ void CFreePcbDoc::DRC( int units, BOOL check_unrouted, DesignRules * dr )
 				for (CPin *pin2 = ipin2.First(); pin2; pin2 = ipin2.Next())
 					DRCPinAndPin( pin1, pin2, units, dr, clr );
 		}
-	
 
 	// iterate through all nets
 	// check for following errors:
@@ -4759,9 +4774,14 @@ void CFreePcbDoc::DRC( int units, BOOL check_unrouted, DesignRules * dr )
 	//	VIA_PAD
 	//  SEG_COPPERGRAPHIC
 	//  VIA_COPPERGRAPHIC
-	str.LoadStringA( IDS_CheckingNetsAndParts );
 	if( log )
+		str.LoadStringA( IDS_Errors ),
+		str2.Format(str, m_drelist->GetSize()),
+		log->AddLine( str2 );
+		str.LoadStringA( IDS_CheckingNetsAndParts ),
 		log->AddLine( str );
+	int nErrorsLast = m_drelist->GetSize();
+
 	CIter<CNet> in (&m_nlist->nets);
 	for (CNet *net = in.First(); net; net = in.Next())
 	{
@@ -4783,9 +4803,14 @@ void CFreePcbDoc::DRC( int units, BOOL check_unrouted, DesignRules * dr )
 	//	VIAHOLE_VIAHOLE
 	//	COPPERAREA_INSIDE_COPPERAREA
 	//	COPPERAREA_COPPERAREA
-	str.LoadStringA( IDS_CheckingNets2 );
 	if( log )
+		str.LoadStringA( IDS_Errors ),
+		str2.Format(str, m_drelist->GetSize() - nErrorsLast),
+		log->AddLine( str2 ),
+		str.LoadStringA( IDS_CheckingNets2 ),
 		log->AddLine( str );
+	nErrorsLast = m_drelist->GetSize();
+
 	// get max clearance
 	int clr = max( dr->hole_copper, dr->hole_hole );
 	clr = max( clr, dr->trace_trace );
@@ -4815,9 +4840,22 @@ void CFreePcbDoc::DRC( int units, BOOL check_unrouted, DesignRules * dr )
 	if( check_unrouted )
 		DRCUnrouted(units);
 
-	str.LoadStringA(IDS_Done4);
-	if( log )
+	if (log)
+		str.LoadStringA( IDS_Errors ),
+		str2.Format(str, m_drelist->GetSize() - nErrorsLast),
+		log->AddLine( str2 ),
+		str.LoadStringA(IDS_Done4),
 		log->AddLine( str );
+
+	m_drelist->Sort();
+	// Now that we're sorted, output the complete list to the log
+	if (log)
+	{
+		str.LoadStringA( IDS_CompleteList );
+		log->AddLine(str);
+		for (CDre *dre = m_drelist->head; dre; dre = dre->next)
+			log->AddLine(dre->str);
+	}
 }
 
 void CFreePcbDoc::DRCPin( CPin *pin, int units, DesignRules *dr )
@@ -4857,10 +4895,10 @@ void CFreePcbDoc::DRCPin( CPin *pin, int units, DesignRules *dr )
 					::MakeCStringFromDimension( &x_str, x, units, FALSE, TRUE, TRUE, 1 );
 					::MakeCStringFromDimension( &y_str, y, units, FALSE, TRUE, TRUE, 1 );
 					CString s0 ((LPCSTR) IDS_PadHoleToBoardEdgeEquals);
-					str.Format( s0, m_drelist->GetSize()+1, part->ref_des, pin->pin_name, d_str, x_str, y_str );
+					str.Format( s0, part->ref_des, pin->pin_name, d_str, x_str, y_str );
 					CDre * dre = m_drelist->Add( CDre::BOARDEDGE_PADHOLE, &str,	pin, NULL, x, y, 0, 0, dia, 0 );
 					if( dre && log )
-						log->AddLine( str );
+						log->AddLine( "." );
 				}
 			}
 		}
@@ -4879,11 +4917,10 @@ void CFreePcbDoc::DRCPin( CPin *pin, int units, DesignRules *dr )
 				::MakeCStringFromDimension( &x_str, x, units, FALSE, TRUE, TRUE, 1 );
 				::MakeCStringFromDimension( &y_str, y, units, FALSE, TRUE, TRUE, 1 );
 				CString s0 ((LPCSTR) IDS_PadHoleToCopperGraphics);
-				str.Format( s0, m_drelist->GetSize()+1, part->ref_des, pin->pin_name, 
-					part->ref_des, pin->pin_name, d_str, x_str, y_str );
+				str.Format( s0, part->ref_des, pin->pin_name, part->ref_des, pin->pin_name, d_str, x_str, y_str );
 				CDre *dre = m_drelist->Add( CDre::COPPERGRAPHIC_PADHOLE, &str, pin, NULL, x, y, 0, 0, dia, 0 );
 				if( dre && log)
-					log->AddLine( str );
+					log->AddLine( "." );
 			}
 		}
 	}
@@ -4913,10 +4950,10 @@ void CFreePcbDoc::DRCPin( CPin *pin, int units, DesignRules *dr )
 				::MakeCStringFromDimension( &x_str, x, units, FALSE, TRUE, TRUE, 1 );
 				::MakeCStringFromDimension( &y_str, y, units, FALSE, TRUE, TRUE, 1 );
 				CString s0 ((LPCSTR) IDS_AnnularRingEquals);
-				str.Format( s0, m_drelist->GetSize()+1, part->ref_des, pin->pin_name, d_str, x_str, y_str );
+				str.Format( s0, part->ref_des, pin->pin_name, d_str, x_str, y_str );
 				CDre * dre = m_drelist->Add( CDre::RING_PAD, &str, pin, NULL, x, y, 0, 0, dia, 0 );
 				if( dre && log)
-					log->AddLine( str );
+					log->AddLine( "." );
 			}
 		}
 		// test clearance to board edge
@@ -4942,10 +4979,10 @@ void CFreePcbDoc::DRCPin( CPin *pin, int units, DesignRules *dr )
 					::MakeCStringFromDimension( &x_str, x, units, FALSE, TRUE, TRUE, 1 );
 					::MakeCStringFromDimension( &y_str, y, units, FALSE, TRUE, TRUE, 1 );
 					CString s0 ((LPCSTR) IDS_PadToBoardEdgeEquals);
-					str.Format( s0, m_drelist->GetSize()+1, part->ref_des, pin->pin_name, d_str, x_str, y_str );
+					str.Format( s0, part->ref_des, pin->pin_name, d_str, x_str, y_str );
 					CDre * dre = m_drelist->Add( CDre::BOARDEDGE_PAD, &str, pin, NULL, x, y, 0, 0, dia, 0 );
 					if( dre && log )
-						log->AddLine( str );
+						log->AddLine( "." );
 				}
 			}
 		}
@@ -4964,12 +5001,11 @@ void CFreePcbDoc::DRCPin( CPin *pin, int units, DesignRules *dr )
 				::MakeCStringFromDimension( &x_str, x, units, FALSE, TRUE, TRUE, 1 );
 				::MakeCStringFromDimension( &y_str, y, units, FALSE, TRUE, TRUE, 1 );
 				CString s0 ((LPCSTR) IDS_PadToCopperGraphics);
-				str.Format( s0, m_drelist->GetSize()+1, part->ref_des, pin->pin_name, 
-					part->ref_des, pin->pin_name, d_str, x_str, y_str );
+				str.Format( s0, part->ref_des, pin->pin_name, part->ref_des, pin->pin_name, d_str, x_str, y_str );
 				CDre * dre = m_drelist->Add( CDre::COPPERGRAPHIC_PAD, &str,
 					pin, NULL, x, y, 0, 0, dia, 0 );
 				if( dre && log )
-						log->AddLine( str );
+						log->AddLine( "." );
 			}
 		}
 	}
@@ -5039,11 +5075,11 @@ void CFreePcbDoc::DRCPinAndPin( CPin *pin1, CPin *pin2, int units, DesignRules *
 			::MakeCStringFromDimension( &x_str, pin2->x, units, FALSE, TRUE, TRUE, 1 );
 			::MakeCStringFromDimension( &y_str, pin2->y, units, FALSE, TRUE, TRUE, 1 );
 			CString s0 ((LPCSTR) IDS_PadHoleToPadeHoleEquals);
-			str.Format( s0, m_drelist->GetSize(), part2->ref_des, pin2->pin_name, part1->ref_des, pin1->pin_name,
+			str.Format( s0, part2->ref_des, pin2->pin_name, part1->ref_des, pin1->pin_name,
 				d_str, x_str, y_str );
 			CDre *dre = m_drelist->Add( CDre::PADHOLE_PADHOLE, &str, pin2, pin1, pin2->x, pin2->y, pin1->x, pin1->y, 0, 0 );
 			if( dre && log )
-				log->AddLine( str );
+				log->AddLine( "." );
 		}
 	}
 
@@ -5090,12 +5126,11 @@ void CFreePcbDoc::DRCPinAndPin( CPin *pin1, CPin *pin2, int units, DesignRules *
 				::MakeCStringFromDimension( &x_str, pin1->x, units, FALSE, TRUE, TRUE, 1 );
 				::MakeCStringFromDimension( &y_str, pin1->y, units, FALSE, TRUE, TRUE, 1 );
 				CString s0 ((LPCSTR) IDS_PadHoleToPadEquals);
-				str.Format( s0, m_drelist->GetSize()+1, part2->ref_des, pin2->pin_name,
-					part1->ref_des, pin1->pin_name,	d_str, x_str, y_str );
+				str.Format( s0, part2->ref_des, pin2->pin_name,	part1->ref_des, pin1->pin_name,	d_str, x_str, y_str );
 				CDre * dre = m_drelist->Add( CDre::PAD_PADHOLE, &str, pin2, pin1, 
 					pin2->x, pin2->y, pin1->x, pin1->y, 0, layer );
 				if( dre && log )
-					log->AddLine( str );
+					log->AddLine( "." );
 				return;							// skip any more layers, go to next pin
 			}
 		}
@@ -5109,12 +5144,11 @@ void CFreePcbDoc::DRCPinAndPin( CPin *pin1, CPin *pin2, int units, DesignRules *
 			::MakeCStringFromDimension( &x_str, pin1->x, units, FALSE, TRUE, TRUE, 1 );
 			::MakeCStringFromDimension( &y_str, pin1->y, units, FALSE, TRUE, TRUE, 1 );
 			CString s0 ((LPCSTR) IDS_PadToPadEquals);
-			str.Format( s0, m_drelist->GetSize()+1, part2->ref_des, pin2->pin_name,
-				part1->ref_des, pin1->pin_name, d_str, x_str, y_str );
+			str.Format( s0, part2->ref_des, pin2->pin_name,	part1->ref_des, pin1->pin_name, d_str, x_str, y_str );
 			CDre * dre = m_drelist->Add( CDre::PAD_PAD, &str, pin2, pin1, 
 				pin2->x, pin2->y, pin1->x, pin1->y, 0, layer );
 			if( dre && log )
-				log->AddLine( str );
+				log->AddLine( "." );
 			return;								// skip any more layers, go to next pin
 		}
 	}
@@ -5158,10 +5192,10 @@ void CFreePcbDoc::DRCArea(CArea *a, int units, DesignRules *dr)
 						::MakeCStringFromDimension( &x_str, x, units, FALSE, TRUE, TRUE, 1 );
 						::MakeCStringFromDimension( &y_str, y, units, FALSE, TRUE, TRUE, 1 );
 						CString str0 ((LPCSTR) IDS_CopperAreaToBoardEdgeEquals);
-						str.Format( str0, m_drelist->GetSize()+1, a->m_net->name, d_str, x_str, y_str );
+						str.Format( str0, a->m_net->name, d_str, x_str, y_str );
 						CDre * dre = m_drelist->Add( CDre::BOARDEDGE_COPPERAREA, &str, s, NULL, x, y, 0, 0, 0, 0 );
 						if( dre && log )
-							log->AddLine( str );
+							log->AddLine( "." );
 					}
 				}
 			}
@@ -5250,10 +5284,10 @@ void CFreePcbDoc::DRCArea(CArea *a, int units, DesignRules *dr)
 		CString s ((LPCSTR) IDS_WarningCopperAreaIsTooNarrow), str;
 		::MakeCStringFromDimension( &x_str, xSample, units, FALSE, TRUE, TRUE, 1 );
 		::MakeCStringFromDimension( &y_str, ySample, units, FALSE, TRUE, TRUE, 1 );
-		str.Format( s, m_drelist->GetSize()+1, net->name, x_str, y_str );
+		str.Format( s, net->name, x_str, y_str );
 		CDre * dre = m_drelist->Add( CDre::COPPERAREA_BROKEN, &str, a, NULL, xSample, ySample, xSample, ySample, 0, 0 );
 		if (dre && log) 
-			log->AddLine( str );
+			log->AddLine( "." );
 		delete(bmp);
 		return;
 	}
@@ -5287,10 +5321,10 @@ void CFreePcbDoc::DRCArea(CArea *a, int units, DesignRules *dr)
 			CString s ((LPCSTR) IDS_WarningCopperAreaIsTooNarrow), str;
 			::MakeCStringFromDimension( &x_str, x2, units, FALSE, TRUE, TRUE, 1 );
 			::MakeCStringFromDimension( &y_str, y2, units, FALSE, TRUE, TRUE, 1 );
-			str.Format( s, m_drelist->GetSize()+1, net->name, x_str, y_str );
+			str.Format( s, net->name, x_str, y_str );
 			CDre * dre = m_drelist->Add( CDre::COPPERAREA_BROKEN, &str, a, NULL, x2, y2, x2, y2, 0, 0 );
 			if ( dre && log )
-				log->AddLine( str );
+				log->AddLine( "." );
 		}
 	
 	// Done!
@@ -5347,10 +5381,10 @@ void CFreePcbDoc::DRCConnect(CConnect *c, int units, DesignRules *dr)
 			::MakeCStringFromDimension( &x_str, x, units, FALSE, TRUE, TRUE, 1 );
 			::MakeCStringFromDimension( &y_str, y, units, FALSE, TRUE, TRUE, 1 );
 			CString str0 ((LPCSTR) IDS_TraceWidthEquals);
-			str.Format( str0, m_drelist->GetSize()+1, net->name, d_str, x_str, y_str );
+			str.Format( str0, net->name, d_str, x_str, y_str );
 			CDre * dre = m_drelist->Add( CDre::TRACE_WIDTH, &str, s, NULL, x, y, 0, 0, 0, layer );
 			if( dre && log )
-				log->AddLine( str );
+				log->AddLine( "." );
 		}
 		// test clearance to board edge
 		CIter<CBoard> ib (&boards);
@@ -5371,10 +5405,10 @@ void CFreePcbDoc::DRCConnect(CConnect *c, int units, DesignRules *dr)
 					::MakeCStringFromDimension( &x_str, x, units, FALSE, TRUE, TRUE, 1 );
 					::MakeCStringFromDimension( &y_str, y, units, FALSE, TRUE, TRUE, 1 );
 					CString str0 ((LPCSTR) IDS_TraceToBoardEdgeEquals);
-					str.Format( str0, m_drelist->GetSize()+1, net->name, d_str, x_str, y_str );
+					str.Format( str0, net->name, d_str, x_str, y_str );
 					CDre * dre = m_drelist->Add( CDre::BOARDEDGE_SEG, &str, s, NULL, x, y, 0, 0, 0, layer );
 					if( dre && log )
-						log->AddLine( str );
+						log->AddLine( "." );
 				}
 			}
 		}
@@ -5403,10 +5437,10 @@ void CFreePcbDoc::DRCConnect(CConnect *c, int units, DesignRules *dr)
 			::MakeCStringFromDimension( &x_str, vtx->x, units, FALSE, TRUE, TRUE, 1 );
 			::MakeCStringFromDimension( &y_str, vtx->y, units, FALSE, TRUE, TRUE, 1 );
 			CString s ((LPCSTR) IDS_ViaAnnularRingEquals);
-			str.Format( s, m_drelist->GetSize()+1, net->name, d_str, x_str, y_str );
+			str.Format( s, net->name, d_str, x_str, y_str );
 			CDre * dre = m_drelist->Add( CDre::RING_VIA, &str, vtx, NULL, vtx->x, vtx->y, 0, 0, dia, 0 );
 			if( dre && log )
-				log->AddLine( str );
+				log->AddLine( "." );
 		}
 		// test clearance to board edge
 		CIter<CBoard> ib (&boards);
@@ -5429,11 +5463,11 @@ void CFreePcbDoc::DRCConnect(CConnect *c, int units, DesignRules *dr)
 					::MakeCStringFromDimension( &x_str, vtx->x, units, FALSE, TRUE, TRUE, 1 );
 					::MakeCStringFromDimension( &y_str, vtx->y, units, FALSE, TRUE, TRUE, 1 );
 					CString s ((LPCSTR) IDS_ViaToBoardEdgeEquals);
-					str.Format( s, m_drelist->GetSize()+1, net->name, d_str, x_str, y_str );
+					str.Format( s, net->name, d_str, x_str, y_str );
 					CDre * dre = m_drelist->Add( CDre::BOARDEDGE_VIA, &str, vtx, NULL,
 						vtx->x, vtx->y, 0, 0, dia, 0 );
 					if( dre && log )
-						log->AddLine( str );
+						log->AddLine( "." );
 				}
 				int dh = ::GetClearanceBetweenLineSegmentAndPad( bx1, by1, bx2, by2, 0,
 					PAD_ROUND, vtx->x, vtx->y, hole_w, 0, 0 );
@@ -5444,11 +5478,11 @@ void CFreePcbDoc::DRCConnect(CConnect *c, int units, DesignRules *dr)
 					::MakeCStringFromDimension( &x_str, vtx->x, units, FALSE, TRUE, TRUE, 1 );
 					::MakeCStringFromDimension( &y_str, vtx->y, units, FALSE, TRUE, TRUE, 1 );
 					CString s ((LPCSTR) IDS_ViaHoleToBoardEdgeEquals);
-					str.Format( s, m_drelist->GetSize()+1, net->name, d_str, x_str, y_str );
+					str.Format( s, net->name, d_str, x_str, y_str );
 					CDre * dre = m_drelist->Add( CDre::BOARDEDGE_VIAHOLE, &str, vtx, NULL, 
 						vtx->x, vtx->y, 0, 0, dia, 0 );
 					if( dre && log )
-						log->AddLine( str );
+						log->AddLine( "." );
 				}
 			}
 		}
@@ -5532,12 +5566,12 @@ void CFreePcbDoc::DRCConnect(CConnect *c, int units, DesignRules *dr)
 						::MakeCStringFromDimension( &x_str, pin->x, units, FALSE, TRUE, TRUE, 1 );
 						::MakeCStringFromDimension( &y_str, pin->y, units, FALSE, TRUE, TRUE, 1 );
 						CString str0 ((LPCSTR) IDS_TraceToPadHoleEquals);
-						str.Format( str0, m_drelist->GetSize()+1, net->name, part->ref_des, pin->pin_name,
+						str.Format( str0, net->name, part->ref_des, pin->pin_name,
 							d_str, x_str, y_str );
 						CDre * dre = m_drelist->Add( CDre::SEG_PAD, &str, s, pin, pin->x, pin->y, pin->x, pin->y, 
 							dia, layer );
 						if( dre && log )
-							log->AddLine( str );
+							log->AddLine( "." );
 					}
 				}
 
@@ -5554,12 +5588,12 @@ void CFreePcbDoc::DRCConnect(CConnect *c, int units, DesignRules *dr)
 						::MakeCStringFromDimension( &x_str, pin->x, units, FALSE, TRUE, TRUE, 1 );
 						::MakeCStringFromDimension( &y_str, pin->y, units, FALSE, TRUE, TRUE, 1 );
 						CString str0 ((LPCSTR) IDS_TraceToPadEquals);
-						str.Format( str0, m_drelist->GetSize()+1, net->name, part->ref_des, pin->pin_name,
+						str.Format( str0, net->name, part->ref_des, pin->pin_name,
 							d_str, x_str, y_str );
 						CDre * dre = m_drelist->Add( CDre::SEG_PAD, &str, s, pin, pin->x, pin->y, pin->x, pin->y, 
 							dia, layer );
 						if( dre && log )
-							log->AddLine( str );
+							log->AddLine( "." );
 					}
 				}
 			}		
@@ -5587,11 +5621,10 @@ void CFreePcbDoc::DRCConnect(CConnect *c, int units, DesignRules *dr)
 							::MakeCStringFromDimension( &x_str, pin->x, units, FALSE, TRUE, TRUE, 1 );
 							::MakeCStringFromDimension( &y_str, pin->y, units, FALSE, TRUE, TRUE, 1 );
 							CString str0 ((LPCSTR) IDS_ViaPadToPadEquals);
-							str.Format( str0, m_drelist->GetSize()+1, net->name, part->ref_des, pin->pin_name,
-								d_str, x_str, y_str );
+							str.Format( str0, net->name, part->ref_des, pin->pin_name, d_str, x_str, y_str );
 							CDre * dre = m_drelist->Add( CDre::VIA_PAD, &str, v, pin, v->x, v->y, pin->x, pin->y, 0, layer );
 							if( dre && log )
-								log->AddLine( str );
+								log->AddLine( "." );
 							break;  // skip more layers
 						}
 						// also check via-hole to pin-pad clearance (CPT2 moved this here from further below)
@@ -5604,11 +5637,11 @@ void CFreePcbDoc::DRCConnect(CConnect *c, int units, DesignRules *dr)
 							::MakeCStringFromDimension( &x_str, pin->x, units, FALSE, TRUE, TRUE, 1 );
 							::MakeCStringFromDimension( &y_str, pin->y, units, FALSE, TRUE, TRUE, 1 );
 							CString s ((LPCSTR) IDS_ViaHoleToPadEquals);
-							str.Format( s, m_drelist->GetSize()+1, net->name, part->ref_des, pin->pin_name,
+							str.Format( s, net->name, part->ref_des, pin->pin_name,
 								d_str, x_str, y_str );
 							CDre * dre = m_drelist->Add( CDre::VIA_PAD, &str, v, pin, v->x, v->y, pin->x, pin->y, 0, layer );
 							if( dre && log )
-								log->AddLine( str );
+								log->AddLine( "." );
 							break;  // skip more layers
 						}
 					}
@@ -5624,11 +5657,10 @@ void CFreePcbDoc::DRCConnect(CConnect *c, int units, DesignRules *dr)
 							::MakeCStringFromDimension( &x_str, pin->x, units, FALSE, TRUE, TRUE, 1 );
 							::MakeCStringFromDimension( &y_str, pin->y, units, FALSE, TRUE, TRUE, 1 );
 							CString s ((LPCSTR) IDS_ViaPadToPadHoleEquals);
-							str.Format( s, m_drelist->GetSize()+1, net->name, part->ref_des, pin->pin_name,
-								d_str, x_str, y_str );
+							str.Format( s, net->name, part->ref_des, pin->pin_name,	d_str, x_str, y_str );
 							CDre * dre = m_drelist->Add( CDre::VIA_PAD, &str, v, pin, v->x, v->y, pin->x, pin->y, 0, layer );
 							if( dre && log )
-								log->AddLine( str );
+								log->AddLine( "." );
 							break;  // skip more layers
 						}
 					}
@@ -5645,11 +5677,10 @@ void CFreePcbDoc::DRCConnect(CConnect *c, int units, DesignRules *dr)
 						::MakeCStringFromDimension( &x_str, pin->x, units, FALSE, TRUE, TRUE, 1 );
 						::MakeCStringFromDimension( &y_str, pin->y, units, FALSE, TRUE, TRUE, 1 );
 						CString s ((LPCSTR) IDS_ViaHoleToPadHoleEquals);
-						str.Format( s, m_drelist->GetSize()+1, net->name, part->ref_des, pin->pin_name,
-							d_str, x_str, y_str );
+						str.Format( s, net->name, part->ref_des, pin->pin_name, d_str, x_str, y_str );
 						CDre * dre = m_drelist->Add( CDre::VIA_PAD, &str, v, pin, v->x, v->y, pin->x, pin->y, 0, LAY_TOP_COPPER );
 						if( dre && log )
-							log->AddLine( str );
+							log->AddLine( "." );
 					}
 				}
 			}
@@ -5711,10 +5742,10 @@ void CFreePcbDoc::DRCConnect(CConnect *c, int units, DesignRules *dr)
 					::MakeCStringFromDimension( &x_str, x, units, FALSE, TRUE, TRUE, 1 );
 					::MakeCStringFromDimension( &y_str, y, units, FALSE, TRUE, TRUE, 1 );
 					CString s0 ((LPCSTR) IDS_TraceToCopperGraphic);
-					str.Format( s0, m_drelist->GetSize()+1, net->name, d_str, x_str, y_str );
+					str.Format( s0, net->name, d_str, x_str, y_str );
 					CDre * dre = m_drelist->Add( CDre::COPPERGRAPHIC_SEG, &str, s, NULL, x, y, 0, 0, 0, cglayer );
 					if( dre && log )
-						log->AddLine( str );
+						log->AddLine( "." );
 				}
 			}
 			// test against each via in connection
@@ -5738,11 +5769,11 @@ void CFreePcbDoc::DRCConnect(CConnect *c, int units, DesignRules *dr)
 						::MakeCStringFromDimension( &x_str, v->x, units, FALSE, TRUE, TRUE, 1 );
 						::MakeCStringFromDimension( &y_str, v->y, units, FALSE, TRUE, TRUE, 1 );
 						CString s0 ((LPCSTR) IDS_ViaToCopperGraphic);
-						str.Format( s0,	m_drelist->GetSize()+1, net->name, d_str, x_str, y_str );
+						str.Format( s0,	net->name, d_str, x_str, y_str );
 						CDre * dre = m_drelist->Add( CDre::COPPERGRAPHIC_VIA, &str, v, NULL, v->x, v->y, 
 							0, 0, dia, cglayer );
 						if( dre && log )
-							log->AddLine( str );
+							log->AddLine( "." );
 					}
 				}
 				if( via_hole_w )
@@ -5757,11 +5788,11 @@ void CFreePcbDoc::DRCConnect(CConnect *c, int units, DesignRules *dr)
 						::MakeCStringFromDimension( &x_str, v->x, units, FALSE, TRUE, TRUE, 1 );
 						::MakeCStringFromDimension( &y_str, v->y, units, FALSE, TRUE, TRUE, 1 );
 						CString s0 ((LPCSTR) IDS_ViaHoleToCopperGraphic);
-						str.Format( s0, m_drelist->GetSize()+1, net->name, d_str, x_str, y_str );
+						str.Format( s0, net->name, d_str, x_str, y_str );
 						CDre * dre = m_drelist->Add( CDre::COPPERGRAPHIC_VIAHOLE, &str, v, NULL, v->x, v->y,
 							0, 0, dia, cglayer );
 						if( dre && log )
-							log->AddLine( str );
+							log->AddLine( "." );
 					}
 				}
 			}
@@ -5822,11 +5853,10 @@ void CFreePcbDoc::DRCConnectAndConnect( CConnect *c1, CConnect *c2, int units, D
 					::MakeCStringFromDimension( &x_str, xx, units, FALSE, TRUE, TRUE, 1 );
 					::MakeCStringFromDimension( &y_str, yy, units, FALSE, TRUE, TRUE, 1 );
 					CString s0 ((LPCSTR) IDS_TraceToTraceEquals);
-					str.Format( s0, m_drelist->GetSize()+1, net1->name, net2->name,
-						d_str, x_str, y_str );
+					str.Format( s0, net1->name, net2->name, d_str, x_str, y_str );
 					CDre * dre = m_drelist->Add( CDre::SEG_SEG, &str, s1, s2, xx, yy, xx, yy, 0, s1->m_layer );
 					if( dre && log )
-						log->AddLine( str );
+						log->AddLine( "." );
 				}
 			}
 
@@ -5888,11 +5918,10 @@ void CFreePcbDoc::DRCSegmentAndVia(CSeg *seg, CVertex *vtx, int units, DesignRul
 			::MakeCStringFromDimension( &x_str, vtx->x, units, FALSE, TRUE, TRUE, 1 );
 			::MakeCStringFromDimension( &y_str, vtx->y, units, FALSE, TRUE, TRUE, 1 );
 			CString s0 ((LPCSTR) IDS_TraceToViaPadEquals);
-			str.Format( s0, m_drelist->GetSize()+1, seg->m_net->name, vtx->m_net->name,
-				d_str, x_str, y_str );
+			str.Format( s0, seg->m_net->name, vtx->m_net->name,	d_str, x_str, y_str );
 			CDre * dre = m_drelist->Add( CDre::SEG_VIA, &str, seg, vtx, vtx->x, vtx->y, vtx->x, vtx->y, dia, seg->m_layer );
 			if( dre && log )
-				log->AddLine( str );
+				log->AddLine( "." );
 		}
 	}
 
@@ -5906,11 +5935,10 @@ void CFreePcbDoc::DRCSegmentAndVia(CSeg *seg, CVertex *vtx, int units, DesignRul
 		::MakeCStringFromDimension( &x_str, vtx->x, units, FALSE, TRUE, TRUE, 1 );
 		::MakeCStringFromDimension( &y_str, vtx->y, units, FALSE, TRUE, TRUE, 1 );
 		CString s0 ((LPCSTR) IDS_TraceToViaHoleEquals);
-		str.Format( s0, m_drelist->GetSize()+1, seg->m_net->name, vtx->m_net->name,
-			d_str, x_str, y_str );
+		str.Format( s0, seg->m_net->name, vtx->m_net->name,	d_str, x_str, y_str );
 		CDre * dre = m_drelist->Add( CDre::SEG_VIAHOLE, &str, seg, vtx, vtx->x, vtx->y, vtx->x, vtx->y, dia, seg->m_layer );
 		if( dre && log )
-			log->AddLine( str );
+			log->AddLine( "." );
 	}
 }
 
@@ -5954,11 +5982,10 @@ void CFreePcbDoc::DRCViaAndVia(CVertex *vtx1, CVertex *vtx2, int units, DesignRu
 			::MakeCStringFromDimension( &x_str, vtx1->x, units, FALSE, TRUE, TRUE, 1 );
 			::MakeCStringFromDimension( &y_str, vtx1->y, units, FALSE, TRUE, TRUE, 1 );
 			CString s ((LPCSTR) IDS_ViaPadToViaPadEquals);
-			str.Format( s, m_drelist->GetSize()+1, vtx1->m_net->name, vtx2->m_net->name,
-				d_str, x_str, y_str );
+			str.Format( s, vtx1->m_net->name, vtx2->m_net->name, d_str, x_str, y_str );
 			CDre * dre = m_drelist->Add( CDre::VIA_VIA, &str, vtx1, vtx2, vtx1->x, vtx1->y, vtx2->x, vtx2->y, 0, layer );
 			if( dre && log )
-				log->AddLine( str );
+				log->AddLine( "." );
 		}
 		// check vtx1's pad versus vtx2's hole
 		d = GetClearanceBetweenPads( PAD_ROUND, vtx1->x, vtx1->y, vtx1->via_w, 0, 0, 
@@ -5970,11 +5997,10 @@ void CFreePcbDoc::DRCViaAndVia(CVertex *vtx1, CVertex *vtx2, int units, DesignRu
 			::MakeCStringFromDimension( &x_str, vtx1->x, units, FALSE, TRUE, TRUE, 1 );
 			::MakeCStringFromDimension( &y_str, vtx1->y, units, FALSE, TRUE, TRUE, 1 );
 			CString s ((LPCSTR) IDS_ViaPadToViaHoleEquals);
-			str.Format( s, m_drelist->GetSize()+1, vtx1->m_net->name, vtx2->m_net->name,
-				d_str, x_str, y_str );
+			str.Format( s, vtx1->m_net->name, vtx2->m_net->name, d_str, x_str, y_str );
 			CDre * dre = m_drelist->Add( CDre::VIA_VIAHOLE, &str, vtx1, vtx2, vtx1->x, vtx1->y, vtx2->x, vtx2->y, 0, layer );
 			if( dre && log )
-				log->AddLine( str );
+				log->AddLine( "." );
 		}
 		// check vtx2's pad versus vtx1's hole
 		d = GetClearanceBetweenPads( PAD_ROUND, vtx1->x, vtx1->y, vtx1->via_hole_w, 0, 0,
@@ -5986,11 +6012,10 @@ void CFreePcbDoc::DRCViaAndVia(CVertex *vtx1, CVertex *vtx2, int units, DesignRu
 			::MakeCStringFromDimension( &x_str, vtx2->x, units, FALSE, TRUE, TRUE, 1 );
 			::MakeCStringFromDimension( &y_str, vtx2->y, units, FALSE, TRUE, TRUE, 1 );
 			CString s ((LPCSTR) IDS_ViaPadToViaHoleEquals);
-			str.Format( s, m_drelist->GetSize()+1, vtx2->m_net->name, vtx1->m_net->name,
-				d_str, x_str, y_str );
+			str.Format( s, vtx2->m_net->name, vtx1->m_net->name, d_str, x_str, y_str );
 			CDre * dre = m_drelist->Add( CDre::VIA_VIAHOLE, &str, vtx2, vtx1, vtx2->x, vtx2->y, vtx1->x, vtx1->y, 0, layer );
 			if( dre && log )
-				log->AddLine( str );
+				log->AddLine( "." );
 		}
 	}
 
@@ -6004,11 +6029,10 @@ void CFreePcbDoc::DRCViaAndVia(CVertex *vtx1, CVertex *vtx2, int units, DesignRu
 		::MakeCStringFromDimension( &x_str, vtx1->x, units, FALSE, TRUE, TRUE, 1 );
 		::MakeCStringFromDimension( &y_str, vtx1->y, units, FALSE, TRUE, TRUE, 1 );
 		CString s ((LPCSTR) IDS_ViaHoleToViaHoleEquals);
-		str.Format( s, m_drelist->GetSize()+1, vtx1->m_net->name, vtx2->m_net->name,
-			d_str, x_str, y_str );
+		str.Format( s, vtx1->m_net->name, vtx2->m_net->name, d_str, x_str, y_str );
 		CDre * dre = m_drelist->Add( CDre::VIAHOLE_VIAHOLE, &str, vtx1, vtx2, vtx1->x, vtx1->y, vtx2->x, vtx2->y, 0, 0 );
 		if( dre && log )
-			log->AddLine( str );
+			log->AddLine( "." );
 	}
 }
 
@@ -6046,10 +6070,10 @@ void CFreePcbDoc::DRCAreaAndArea( CArea *a1, CArea *a2, int units, DesignRules *
 						::MakeCStringFromDimension( &x_str, x, units, FALSE, TRUE, TRUE, 1 );
 						::MakeCStringFromDimension( &y_str, y, units, FALSE, TRUE, TRUE, 1 );
 						CString str0 ((LPCSTR) IDS_CopperAreaToCopperArea);
-						str.Format( str0, m_drelist->GetSize()+1, net1->name, net2->name, d_str, x_str, y_str );
+						str.Format( str0, net1->name, net2->name, d_str, x_str, y_str );
 						CDre * dre = m_drelist->Add( CDre::COPPERAREA_COPPERAREA, &str, s1, s2, x, y, x, y, 0, 0 );
 						if( dre && log )
-							log->AddLine( str );
+							log->AddLine( "." );
 						bErrorFound = true;
 					}
 				}
@@ -6064,10 +6088,10 @@ void CFreePcbDoc::DRCAreaAndArea( CArea *a1, CArea *a2, int units, DesignRules *
 		{
 			// COPPERAREA_COPPERAREA error
 			CString s ((LPCSTR) IDS_CopperAreaInsideCopperArea);
-			str.Format( s, m_drelist->GetSize()+1, net1->name, net2->name );
+			str.Format( s, net1->name, net2->name );
 			CDre * dre = m_drelist->Add( CDre::COPPERAREA_INSIDE_COPPERAREA, &str, a1, a2, c1->x, c1->y, c1->x, c1->y, 0, 0 );
 			if( dre && log )
-				log->AddLine( str );
+				log->AddLine( "." );
 			break;								// One corner error of this sort suffices.
 		}
 	CIter<CCorner> ic2 (&a2->main->corners);
@@ -6076,10 +6100,10 @@ void CFreePcbDoc::DRCAreaAndArea( CArea *a1, CArea *a2, int units, DesignRules *
 		{
 			// COPPERAREA_COPPERAREA error
 			CString s ((LPCSTR) IDS_CopperAreaInsideCopperArea);
-			str.Format( s, m_drelist->GetSize()+1, net2->name, net1->name );
+			str.Format( s, net2->name, net1->name );
 			CDre * dre = m_drelist->Add( CDre::COPPERAREA_INSIDE_COPPERAREA, &str, a1, a2, c2->x, c2->y, c2->x, c2->y, 0, 0 );
 			if( dre && log )
-				log->AddLine( str );
+				log->AddLine( "." );
 			break;								// One corner error of this sort suffices.
 		}
 }
@@ -6110,14 +6134,14 @@ void CFreePcbDoc::DRCUnrouted(int units)
 				str0.LoadStringA( IDS_PartiallyRoutedConnection );
 			else
 				str0.LoadStringA( IDS_UnroutedConnection );
-			str.Format( str0, m_drelist->GetSize()+1, net->name, from_str, to_str );
+			str.Format( str0, net->name, from_str, to_str );
 			// Draw the dre circle halfway along the first seg:
 			CVertex *v1 = c->head, *v2 = v1->postSeg->postVtx;
 			int x = (v1->x + v2->x) / 2;
 			int y = (v1->y + v2->y) / 2;
 			CDre * dre = m_drelist->Add( CDre::UNROUTED, &str, c, NULL, x, y, x, y, 0, 0 );
 			if( dre && log )
-				log->AddLine( str );
+				log->AddLine( "." );
 		}
 	}
 }
