@@ -129,10 +129,9 @@ public:
 
 class CUTee: public CUndoItem 
 {
-	// CPT2 new.  Basically a CHeap<CVertex>, indicating the vertices that together join up to form a single tee junction.
 public:
 	int nVtxs, *vtxs;
-	int via_w, via_hole_w;					// Could be recalculated on the basis of the constituent vtxs, but let's keep it simple and store the values.
+	int via_w, via_hole_w;
 
 	CUTee( CTee *t );
 	~CUTee()
@@ -146,7 +145,6 @@ public:
 class CUSeg: public CUndoItem
 {
 public:
-	// static int m_array_step;
 	int m_layer;
 	int m_width;
 	int m_curve;
@@ -489,18 +487,21 @@ class CUndoRecord
 protected:
 	int nItems;
 	CUndoItem **items;
+	int nSel;										// CPT2 r345.  Created the ability to recreate
+	int *sel;										//   the previous selection
 	int moveOriginDx, moveOriginDy;					// These are set if user does a move-origin operation, and are zero otherwise.
-													// Theoretically I should have a cmoveorigin_undo_record subclass, but screw it...
+													// Theoretically I should have a CUndoRecordMoveOrigin, but screw it...
 public:
 	enum { OP_UNDO, OP_REDO, OP_UNDO_NO_REDO };
 
-	CUndoRecord( CArray<CUndoItem*> *_items );
-	CUndoRecord( int _moveOriginDx, int _moveOriginDy );
+	CUndoRecord( CArray<CUndoItem*> *_items, CHeap<CPcbItem> *sel );
+	CUndoRecord( int _moveOriginDx, int _moveOriginDy, CHeap<CPcbItem> *sel );
 	~CUndoRecord()
 	{
 		for (int i=0; i<nItems; i++)
 			delete items[i];
 		free(items); 
+		free(sel);
 	}
 
 	bool Execute( int op );							// The biggie!  Performs the actual undo/redo/undo-no-redo.

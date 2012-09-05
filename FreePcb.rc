@@ -4257,7 +4257,7 @@ END
 
 STRINGTABLE
 BEGIN
-    IDS_AppName             "CPT2.20"
+    IDS_AppName             "CPT2.22"
 END
 
 STRINGTABLE

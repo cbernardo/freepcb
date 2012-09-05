@@ -2354,8 +2354,6 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 			OnPolyDeleteCutout();
 		break;
 
-
-
 	case CUR_DRE_SELECTED:
 		if( nChar == 46 )
 		{
@@ -2368,7 +2366,6 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 		{
 			// CPT2 new: left and right arrows move us to the previous/next dre on the sorted list.  Up takes us to the first dre, and down to the last.
 			CDre *d = m_sel.First()->ToDRE();
-			int numDres = m_doc->m_drelist->GetSize();
 			CDre *d2 = NULL;
 			if (dx > 0)
 				d2 = d->next;

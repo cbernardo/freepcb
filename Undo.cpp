@@ -798,31 +798,43 @@ void CUShape::AddToLists()
 
 
 
-CUndoRecord::CUndoRecord( CArray<CUndoItem*> *_items )
+CUndoRecord::CUndoRecord( CArray<CUndoItem*> *_items, CHeap<CPcbItem> *_sel )
 {
 	nItems = _items->GetSize();
 	items = (CUndoItem**) malloc(nItems * sizeof(CUndoItem*));
 	for (int i=0; i<nItems; i++)
 		items[i] = (*_items)[i];
 	moveOriginDx = moveOriginDy = 0;
+	nSel = _sel->GetSize();
+	sel = (int*) malloc(nSel * sizeof(int));
+	CIter<CPcbItem> ii (_sel);
+	int j = 0;
+	for (CPcbItem *i = ii.First(); i; i = ii.Next())
+		sel[j++] = i->UID();
 }
 
-CUndoRecord::CUndoRecord( int _moveOriginDx, int _moveOriginDy )
+CUndoRecord::CUndoRecord( int _moveOriginDx, int _moveOriginDy, CHeap<CPcbItem> *_sel )
 {
 	nItems = 0;
 	items = NULL;
 	moveOriginDx = _moveOriginDx;
 	moveOriginDy = _moveOriginDy;
+	nSel = _sel->GetSize();
+	sel = (int*) malloc(nSel * sizeof(int));
+	CIter<CPcbItem> ii (_sel);
+	int j = 0;
+	for (CPcbItem *i = ii.First(); i; i = ii.Next())
+		sel[j++] = i->UID();
 }
 
 bool CUndoRecord::Execute( int op ) 
 {
 	// This is the biggie!  Performs an undo, redo, or undo-without-redo operation, depending on argument "op".
 	// Returns true if the operation was a move-origin op.
+	extern CFreePcbApp theApp;
+	CFreePcbView *view = theApp.m_view;
 	if (moveOriginDx || moveOriginDy)
 	{
-		extern CFreePcbApp theApp;
-		CFreePcbView *view = theApp.m_view;
 		view->MoveOrigin(-moveOriginDx, -moveOriginDy);
 		moveOriginDx = -moveOriginDx;							// Negating these turns an undo record into a redo, and vice-versa.
 		moveOriginDy = -moveOriginDy;
@@ -885,7 +897,25 @@ bool CUndoRecord::Execute( int op )
 		if (!items[i]->m_bWasCreated)
 			items[i]->AddToLists();
 
-	// Step 6.  Clean up.  If appropriate, replace the current contents of the record with redo items.
+	// Step 6 (new in r345).  Reselect items.  For the sake of the redo, alter the sel member of this CUndoRecord to reflect the current selection.
+	int nSel2 = view->m_sel.GetSize();
+	int *sel2 = (int*) malloc(nSel2 * sizeof(int));
+	CIter<CPcbItem> ii (&view->m_sel);
+	int j = 0;
+	for (CPcbItem *i = ii.First(); i; i = ii.Next())
+		sel2[j++] = i->UID();
+	view->m_sel.RemoveAll();
+	for (int i=0; i<nSel; i++)
+	{
+		CPcbItem *item = CPcbItem::FindByUid( sel[i] );
+		if (item && item->IsOnPcb())
+			view->m_sel.Add(item);
+	}
+	free(sel);
+	nSel = nSel2;
+	sel = sel2;
+
+	// Step 7.  Clean up.  If appropriate, replace the current contents of the record with redo items.
 	if (op == OP_UNDO_NO_REDO)
 		return false;						// Caller will "delete this", which cleans everything out...
 	for (int i=0; i<nItems; i++)

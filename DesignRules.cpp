@@ -209,7 +209,7 @@ void CDreList::MakeHollowCircles()
 //        get mapped into the range [0,0xfff] x [0,0xfff];  accordingly DRE's within 2**20 nm (~1 mm) of each other get assigned to the same cluster.
 // Routine SetupQuads() establishes a root quad representing the whole space, from -2**31 to 2**31 nm along each axis.  From there we have a tree 
 //   of subquadrants down to the aforementioned 2**20 nm granularity.  But note that leaf nodes may be larger than that if a DRE is in an uncrowded
-//   region.  The size of a given quad does not have to marked explicitly, as the routines can keep track themselves.
+//   region.  The size of a given quad does not have to be marked explicitly, as the routines can keep track themselves.
 
 struct quad 
 {
@@ -241,14 +241,6 @@ struct cluster
 	// Represents a cluster of DRE's that have the same position (relative to the usual 2**20 nm granularity).
 	int x, y;						// These are position values for the cluster, as mapped into the [0,0xfff] x [0,0xfff] range
 	int ct;							// Number of DRE's in the cluster
-};
-
-enum {
-	// values for cluster::quadrant
-	quadrantNW = 0,
-	quadrantNE = 1,
-	quadrantSW = 2,
-	quadrantSE = 3
 };
 
 // The coordinate mapping mentioned above, from [-2**31, 2**31) to the range [0, 0xfff].
@@ -393,11 +385,12 @@ inline int MinDist2(int x, int y, int qx0, int qx1, int qy0, int qy1)
 	}
 }
 
-int FindClosestCluster(int x, int y, quad *q, int qx0, int qx1, int qy0, int qy1, cluster **result)
+int FindClosestCluster(int x, int y, quad *q, int qx0, int qx1, int qy0, int qy1, int d2max, cluster **result)
 {
 	// Look within quad "q" (which has bounds [qx0,qx1] x [qy0,qy1]), for the cluster closest to (x,y).  (x,y) may be either inside or 
-	// outside of q's bounds.  The result cluster ptr is
-	// put into "result" (may be null if q is empty).  Returns the distance squared on success, or INT_MAX otherwise.
+	// outside of q's bounds.  Param d2max is included as an optimization: sometimes the routine can finish more quickly if we know that
+	// results outside that range are worthless.  The result cluster ptr is
+	// put into "result" (may be null on failure).  Returns the distance squared on success, or INT_MAX otherwise.
 	if (q->flags==0)
 		{ *result = NULL; return INT_MAX; }
 	// Determine the order in which we should examine q's quadrants.  This depends on (x,y)'s spatial relationship to the quadrants.  The
@@ -419,7 +412,7 @@ int FindClosestCluster(int x, int y, quad *q, int qx0, int qx1, int qy0, int qy1
 	minDist2[2] = MinDist2(x, y, qx0, qxMid, qy0, qyMid);
 	minDist2[3] = MinDist2(x, y, qxMid, qx1, qy0, qyMid);
 	// Now examine q's quadrants in order:
-	int d2min = INT_MAX;
+	int d2min = d2max;
 	cluster *best = NULL, *tmp;
 	for (int shift = 12; shift >= 0; shift -= 4)
 	{
@@ -447,7 +440,7 @@ int FindClosestCluster(int x, int y, quad *q, int qx0, int qx1, int qy0, int qy1
 		int d2;
 		if (q->flags & bitQuad[quadrant])
 			// Quadrant is a subquad, so must recurse
-			d2 = FindClosestCluster(x, y, (quad*) ptr, xMin, xMax, yMin, yMax, &tmp);
+			d2 = FindClosestCluster(x, y, (quad*) ptr, xMin, xMax, yMin, yMax, d2min, &tmp);
 		else if (q->flags & bitClstr[quadrant])
 		{
 			// Quadrant contains a cluster, so see how good that is:
@@ -557,7 +550,7 @@ void CDreList::Sort()
 		currOffset += ct;
 		DetachCluster( heap, c );
 		// Among the clusters that remain, find the one closest to c's position:
-		FindClosestCluster(c->x, c->y, heap, 0, 0x1000, 0, 0x1000, &c);
+		FindClosestCluster(c->x, c->y, heap, 0, 0x1000, 0, 0x1000, INT_MAX, &c);
 	}
 
 	// Now we can assign dre's to "sorted".

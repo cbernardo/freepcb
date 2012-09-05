@@ -4172,7 +4172,7 @@ void CFreePcbDoc::FinishUndoRecord(bool bCombineWithPrevious)
 	if (uitems.GetSize()==0)
 		return;
 	// Create the record!
-	CUndoRecord *rec = new CUndoRecord (&uitems);
+	CUndoRecord *rec = new CUndoRecord (&uitems, &m_view->m_sel);
 	// Clear out any redo records from m_undo_records (those at or beyond position m_undo_pos), then add "rec" to the end of the reduced list.
 	if (bCombineWithPrevious)
 		m_undo_pos--,
@@ -4190,7 +4190,7 @@ void CFreePcbDoc::FinishUndoRecord(bool bCombineWithPrevious)
 
 void CFreePcbDoc::CreateMoveOriginUndoRecord( int dx, int dy )
 {
-	CUndoRecord *rec = new CUndoRecord (dx, dy);					// Theoretically we should have cmoveorigin_undo_record as a subclass of
+	CUndoRecord *rec = new CUndoRecord (dx, dy, &m_view->m_sel);	// Theoretically we should have CUndoRecordMoveOrigin as a subclass of
 																	// CUndoRecord, but screw it...
 	// Add record to the undo list just as in FinishUndoRecord
 	for (int i=m_undo_pos; i < m_undo_records.GetSize(); i++)
@@ -4213,7 +4213,7 @@ void CFreePcbDoc::OnEditUndo()
 	if (m_undo_pos <= 0) 
 		// Silent failure
 		return;
-	m_view->CancelSelection();
+	m_view->CancelHighlight();
 	CUndoRecord *rec = m_undo_records[m_undo_pos-1];
 	bool bMoveOrigin = rec->Execute( CUndoRecord::OP_UNDO );
 	// On exit, rec will have been converted to a redo record.
@@ -4221,13 +4221,14 @@ void CFreePcbDoc::OnEditUndo()
 	ProjectModified(true);
 	if (bMoveOrigin)
 		m_view->OnViewAllElements();
+	m_view->HighlightSelection();
 }
 
 void CFreePcbDoc::OnEditRedo()
 {
 	if (m_undo_pos >= m_undo_records.GetSize())
 		return;
-	m_view->CancelSelection();
+	m_view->CancelHighlight();
 	CUndoRecord *rec = m_undo_records[m_undo_pos];
 	bool bMoveOrigin = rec->Execute( CUndoRecord::OP_REDO );
 	// On exit, rec will have been converted back to an undo record.
@@ -4235,6 +4236,7 @@ void CFreePcbDoc::OnEditRedo()
 	ProjectModified(true);
 	if (bMoveOrigin)
 		m_view->OnViewAllElements();
+	m_view->HighlightSelection();
 }
 
 void CFreePcbDoc::UndoNoRedo()
@@ -4849,7 +4851,7 @@ void CFreePcbDoc::DRC( int units, BOOL check_unrouted, DesignRules * dr )
 
 	m_drelist->Sort();
 	// Now that we're sorted, output the complete list to the log
-	if (log)
+	if (log && m_drelist->GetSize() > 0)
 	{
 		str.LoadStringA( IDS_CompleteList );
 		log->AddLine(str);
