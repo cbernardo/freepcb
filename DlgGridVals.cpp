@@ -167,11 +167,5 @@ BOOL CDlgGridVals::OnInitDialog() {
 	DrawListCtrl();
 	m_button_delete.EnableWindow(FALSE);
 
-	// initialize buttons
-	/* m_button_edit.EnableWindow(FALSE);
-	m_button_delete_single.EnableWindow(FALSE);
-	m_button_nl_width.EnableWindow(FALSE);
-	m_button_delete.EnableWindow(FALSE);
-	*/
 	return TRUE;  
 }

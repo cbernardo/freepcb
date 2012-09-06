@@ -128,7 +128,6 @@ void CDlgNetlist::DoDataExchange(CDataExchange* pDX)
 	DDX_Control(pDX, IDC_BUTTON_COMBINE, m_button_combine);
 	DDX_Control(pDX, IDOK, m_OK);
 	DDX_Control(pDX, IDCANCEL, m_cancel);
-	DDX_Control(pDX, IDC_BUTTON_DELETE2, m_button_delete_single);
 	if( pDX->m_bSaveAndValidate )
 	{
 		// update nli with visibility data before leaving
@@ -143,7 +142,6 @@ void CDlgNetlist::DoDataExchange(CDataExchange* pDX)
 
 
 BEGIN_MESSAGE_MAP(CDlgNetlist, CDialog)
-//	ON_NOTIFY(LVN_ITEMCHANGED, IDC_LIST_NET, OnLvnItemchangedListNet)
 	ON_NOTIFY(LVN_COLUMNCLICK, IDC_LIST_NET, OnLvnColumnclickListNet)
 	ON_BN_CLICKED(IDC_BUTTON_VISIBLE, OnBnClickedButtonVisible)
 	ON_BN_CLICKED(IDC_BUTTON_EDIT, OnBnClickedButtonEdit)
@@ -157,6 +155,7 @@ BEGIN_MESSAGE_MAP(CDlgNetlist, CDialog)
 	ON_BN_CLICKED(IDCANCEL, OnBnClickedCancel)
 	ON_BN_CLICKED(IDC_BUTTON_DELETE_NOPINS, OnBnClickedDeleteNetsWithNoPins)
 	ON_NOTIFY(NM_CLICK, IDC_LIST_NET, OnNMClickListNet)
+	ON_NOTIFY(NM_DBLCLK, IDC_LIST_NET, OnNMDblClickListNet)
 END_MESSAGE_MAP()
 
 
@@ -184,36 +183,45 @@ BOOL CDlgNetlist::OnInitDialog()
 	// initialize netlist control
 	m_item_selected = -1;
 	m_sort_type = 0;
-	DrawListCtrl();
+	DrawListCtrl(true);
 
 	// initialize buttons
 	m_button_edit.EnableWindow(FALSE);
-	m_button_delete_single.EnableWindow(FALSE);
 	m_button_nl_width.EnableWindow(FALSE);
 	m_button_delete.EnableWindow(FALSE);
 	m_button_combine.EnableWindow(FALSE);
+	m_button_visible.EnableWindow(FALSE);
 	return TRUE;  
 }
 
 // draw listview control and sort according to m_sort_type
 //
-void CDlgNetlist::DrawListCtrl()
+void CDlgNetlist::DrawListCtrl(bool bSetup)
 {
-	int nItem;
+	// set up listview control, or just refresh the display if bSetup is false.
+ 	int nItem;
 	CString str;
-	DWORD old_style = m_list_ctrl.GetExtendedStyle();
-	m_list_ctrl.SetExtendedStyle( LVS_EX_FULLROWSELECT | LVS_EX_FLATSB | LVS_EX_CHECKBOXES | old_style );
-	m_list_ctrl.DeleteAllItems();
-	CString colNames[6];
-	colNames[0].LoadStringA(IDS_Vis);
-	for (int i=1; i<6; i++)
-		colNames[i].LoadStringA(IDS_NetCombineCols+i-1);
-	m_list_ctrl.InsertColumn( COL_VIS, colNames[0], LVCFMT_LEFT, 25 );
-	m_list_ctrl.InsertColumn( COL_NAME, colNames[1], LVCFMT_LEFT, 140 );
-	m_list_ctrl.InsertColumn( COL_PINS, colNames[2], LVCFMT_LEFT, 40 );
-	m_list_ctrl.InsertColumn( COL_WIDTH, colNames[3], LVCFMT_LEFT, 40 );
-	m_list_ctrl.InsertColumn( COL_VIA_W, colNames[4], LVCFMT_LEFT, 40 );   
-	m_list_ctrl.InsertColumn( COL_HOLE_W, colNames[5], LVCFMT_LEFT, 40 );
+	// save scroll position
+	int idx = m_list_ctrl.GetScrollPos(SB_VERT);
+	if (bSetup) 
+	{
+		DWORD old_style = m_list_ctrl.GetExtendedStyle();
+		m_list_ctrl.SetExtendedStyle( LVS_EX_FULLROWSELECT | LVS_EX_FLATSB | LVS_EX_CHECKBOXES | old_style );
+		m_list_ctrl.DeleteAllItems();
+		CString colNames[6];
+		colNames[0].LoadStringA(IDS_Vis);
+		for (int i=1; i<6; i++)
+			colNames[i].LoadStringA(IDS_NetCombineCols+i-1);
+		m_list_ctrl.InsertColumn( COL_VIS, colNames[0], LVCFMT_LEFT, 25 );
+		m_list_ctrl.InsertColumn( COL_NAME, colNames[1], LVCFMT_LEFT, 140 );
+		m_list_ctrl.InsertColumn( COL_PINS, colNames[2], LVCFMT_LEFT, 40 );
+		m_list_ctrl.InsertColumn( COL_WIDTH, colNames[3], LVCFMT_LEFT, 40 );
+		m_list_ctrl.InsertColumn( COL_VIA_W, colNames[4], LVCFMT_LEFT, 40 );   
+		m_list_ctrl.InsertColumn( COL_HOLE_W, colNames[5], LVCFMT_LEFT, 40 );
+	}
+	else
+		m_list_ctrl.DeleteAllItems();
+
 
 	int iItem = 0;
 	for( int i=0; i<nli.GetSize(); i++ )
@@ -235,6 +243,9 @@ void CDlgNetlist::DrawListCtrl()
 		}
 	}
 	m_list_ctrl.SortItems( ::CompareNetlist, m_sort_type );
+	// CPT2. Restore the prior scroll position.  The API for this is truly retarded.
+	int spacing = HIWORD(ListView_GetItemSpacing( m_list_ctrl, true));
+	ListView_Scroll( m_list_ctrl, 0, idx*spacing );
 }
 
 void CDlgNetlist::OnLvnColumnclickListNet(NMHDR *pNMHDR, LRESULT *pResult)
@@ -287,16 +298,22 @@ void CDlgNetlist::OnLvnColumnclickListNet(NMHDR *pNMHDR, LRESULT *pResult)
 
 void CDlgNetlist::OnBnClickedButtonVisible()
 {
-	// CPT2 changed the logic slightly 
-	bool bAllSelected = true;
-	for( int i=0; i<m_list_ctrl.GetItemCount(); i++ )
-		if (!ListView_GetCheckState(m_list_ctrl, i))
-			{ bAllSelected = false; break; }
-	int newState = !bAllSelected;
-	for( int i=0; i<m_list_ctrl.GetItemCount(); i++ )
-		ListView_SetCheckState( m_list_ctrl, i, newState );
-	for( int i=0; i<nli.GetSize(); i++ )
-		nli[i].visible = newState;
+	// CPT2 changed the logic slightly.  If all selected items are checked, make 'em unchecked.  Otherwise make 'em all checked
+	bool bAllChecked = true;
+	POSITION pos = m_list_ctrl.GetFirstSelectedItemPosition();
+	while( pos )
+	{
+		int iItem = m_list_ctrl.GetNextSelectedItem( pos );
+		if (!ListView_GetCheckState(m_list_ctrl, iItem))
+			{ bAllChecked = false; break; }
+	}
+	int newState = !bAllChecked;
+	pos = m_list_ctrl.GetFirstSelectedItemPosition();
+	while( pos )
+	{
+		int iItem = m_list_ctrl.GetNextSelectedItem( pos );
+		ListView_SetCheckState( m_list_ctrl, iItem, newState );
+	}
 }
 
 void CDlgNetlist::OnBnClickedButtonEdit()
@@ -328,7 +345,7 @@ void CDlgNetlist::OnBnClickedButtonEdit()
 		if( ret == IDOK )
 		{
 			// implement edits into nli and update m_list_ctrl
-			DrawListCtrl();
+			DrawListCtrl(false);
 			OnNMClickListNet(NULL, NULL);			// CPT2, to ensure appropriate buttons are disabled.
 		}
 	}
@@ -346,7 +363,7 @@ void CDlgNetlist::OnBnClickedButtonAdd()
 	int ret = dlg.DoModal();
 	if( ret == IDOK )
 		// net added, update m_list_ctrl
-		DrawListCtrl();
+		DrawListCtrl(false);
 }
 
 void CDlgNetlist::OnBnClickedOk()
@@ -496,7 +513,7 @@ void CDlgNetlist::OnBnClickedButtonCombine()
 		nli[i].ref_des.RemoveAll();
 		nli[i].pin_name.RemoveAll();
 	}
-	DrawListCtrl();
+	DrawListCtrl(false);
 	OnNMClickListNet(NULL, NULL);			// CPT2, to ensure appropriate buttons are disabled.
 }
 
@@ -521,28 +538,32 @@ void CDlgNetlist::OnNMClickListNet(NMHDR *pNMHDR, LRESULT *pResult)
 	if( n_sel == 0 )
 	{
 		m_button_edit.EnableWindow(FALSE);
-		m_button_delete_single.EnableWindow(FALSE);
 		m_button_nl_width.EnableWindow(FALSE);
 		m_button_delete.EnableWindow(FALSE);
 		m_button_combine.EnableWindow(FALSE);
+		m_button_visible.EnableWindow(FALSE);
 	}
 	else if( n_sel == 1 )
 	{
 		m_button_edit.EnableWindow(TRUE);
-		m_button_delete_single.EnableWindow(TRUE);
-		m_button_nl_width.EnableWindow(FALSE);
-		m_button_delete.EnableWindow(FALSE);
+		m_button_nl_width.EnableWindow(TRUE);
+		m_button_delete.EnableWindow(TRUE);
 		m_button_combine.EnableWindow(FALSE);
+		m_button_visible.EnableWindow(TRUE);
 	}
 	else
 	{
 		m_button_edit.EnableWindow(FALSE);
-		m_button_delete_single.EnableWindow(FALSE);
 		m_button_nl_width.EnableWindow(TRUE);
 		m_button_delete.EnableWindow(TRUE);
 		m_button_combine.EnableWindow(TRUE);
+		m_button_visible.EnableWindow(TRUE);
 	}
 	if( pResult )
 		*pResult = 0;
 }
 
+void CDlgNetlist::OnNMDblClickListNet(NMHDR *pNMHDR, LRESULT *pResult)
+{
+	OnBnClickedButtonEdit();
+}

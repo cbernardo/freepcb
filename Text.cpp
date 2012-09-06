@@ -467,11 +467,21 @@ void CText::StartDragging( CDC * pDC )
 	SetVisible(false);
 	CDisplayList *dl = doc->m_dlist;
 	dl->CancelHighlight();
-	dl->StartDraggingRectangle( pDC, 
-		dl->Get_x(dl_sel), dl->Get_y(dl_sel),
-		dl->Get_x(dl_sel) - dl->Get_x_org(dl_sel), dl->Get_y(dl_sel) - dl->Get_y_org(dl_sel),
-		dl->Get_xf(dl_sel) - dl->Get_x_org(dl_sel), dl->Get_yf(dl_sel) - dl->Get_y_org(dl_sel), 
-		0, LAY_SELECTION );
+	// CPT2 r346 bugfix:  draw the rectangle so that the box for rotated text will match what you get when you click
+	int x = dl->Get_x(dl_sel), y = dl->Get_y(dl_sel);
+	int w = dl->Get_xf(dl_sel) - x, h = dl->Get_yf(dl_sel) - y;
+	int angle = m_angle;
+	if (m_part)
+		angle = (angle + m_part->angle) % 360;
+	if (angle==90)
+		h = -h;
+	else if (angle==180)
+		w = -w, h = -h;
+	else if (angle==270)
+		w = -w;
+	if (m_part && m_part->side)
+		w = -w;
+	dl->StartDraggingRectangle( pDC, x, y, 0, 0, w, h, 0, LAY_SELECTION );
 }
 
 void CText::CancelDragging()

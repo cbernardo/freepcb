@@ -65,10 +65,9 @@ public:
 	afx_msg void OnBnClickedButtonDelete();
 	afx_msg void OnLvnColumnClickList1(NMHDR *pNMHDR, LRESULT *pResult);
 	afx_msg void OnBnClickedValueVisible();
-	afx_msg void OnBnClickedValueInvisible();
 	afx_msg void OnBnClickedRefVisible();
-	afx_msg void OnBnClickedRefInvisible();
-	void OnVisibleButton(bool bVis, bool bValue);					// CPT2 The previous 4 are wrappers around this base routine
+	afx_msg void OnBnClickedButtonSelectAll();
+	void OnVisibleButton(bool bValue);								// CPT2 The previous 2 are wrappers around this base routine
 	afx_msg void OnNMClickList1(NMHDR *pNMHDR, LRESULT *pResult);
 	afx_msg void OnNMDblClickList1(NMHDR *pNMHDR, LRESULT *pResult);
 };

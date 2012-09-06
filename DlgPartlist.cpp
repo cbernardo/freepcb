@@ -110,9 +110,8 @@ BEGIN_MESSAGE_MAP(CDlgPartlist, CDialog)
 	ON_BN_CLICKED(IDC_BUTTON_DELETE, OnBnClickedButtonDelete)
 	ON_NOTIFY(LVN_COLUMNCLICK, IDC_LIST1, OnLvnColumnClickList1)
 	ON_BN_CLICKED(IDC_BUTTON_VAL_VIS, OnBnClickedValueVisible)
-	ON_BN_CLICKED(IDC_BUTTON_VAL_INVIS, OnBnClickedValueInvisible)
 	ON_BN_CLICKED(IDC_BUTTON_REF_VIS, OnBnClickedRefVisible)
-	ON_BN_CLICKED(IDC_BUTTON_REF_INVIS, OnBnClickedRefInvisible)
+	ON_BN_CLICKED(IDC_BUTTON_SELECT_ALL, OnBnClickedButtonSelectAll)
 	ON_NOTIFY(NM_CLICK, IDC_LIST1, OnNMClickList1)
 	ON_NOTIFY(NM_DBLCLK, IDC_LIST1, OnNMDblClickList1)
 END_MESSAGE_MAP()
@@ -135,6 +134,8 @@ void CDlgPartlist::DrawListCtrl(bool bSetup)
 	int nItem;
 	LVITEM lvitem;
 	CString str;
+	//save scroll position
+	int idx = m_list_ctrl.GetScrollPos(SB_VERT);
 	if (bSetup)
 	{
 		DWORD old_style = m_list_ctrl.GetExtendedStyle();
@@ -171,6 +172,9 @@ void CDlgPartlist::DrawListCtrl(bool bSetup)
 	}
 	m_list_ctrl.SortItems( ::ComparePartlist, m_sort_type );	// resort 
 	RestoreSelections();
+	// CPT2. Restore the prior scroll position.  The API for this is truly retarded.
+	int spacing = HIWORD(ListView_GetItemSpacing( m_list_ctrl, true));
+	ListView_Scroll( m_list_ctrl, 0, idx*spacing );
 }
 
 void CDlgPartlist::Initialize( CPartList * plist,
@@ -357,18 +361,30 @@ void CDlgPartlist::OnLvnColumnClickList1(NMHDR *pNMHDR, LRESULT *pResult)
 	*pResult = 0;
 }
 
-void CDlgPartlist::OnVisibleButton(bool bVis, bool bValue)
+void CDlgPartlist::OnVisibleButton(bool bValue)
 {
 	SaveSelections();
+	// CPT2 changed the logic slightly.  If all selected items are checked, make 'em unchecked.  Otherwise make 'em all checked
+	bool bAllChecked = true;
 	POSITION pos = m_list_ctrl.GetFirstSelectedItemPosition();
+	while( pos )
+	{
+		int iItem = m_list_ctrl.GetNextSelectedItem( pos );
+		int ip = m_list_ctrl.GetItemData( iItem );
+		bool bChecked = bValue? pli[ip].value_vis: pli[ip].ref_vis;
+		if (!bChecked)
+			{ bAllChecked = false; break; }
+	}
+	int newState = !bAllChecked;
+	pos = m_list_ctrl.GetFirstSelectedItemPosition();
 	while( pos )
 	{
 		int iItem = m_list_ctrl.GetNextSelectedItem(pos);
 		int ip = m_list_ctrl.GetItemData( iItem );
 		if (bValue)
-			pli[ip].value_vis = bVis;
+			pli[ip].value_vis = newState;
 		else
-			pli[ip].ref_vis = bVis;
+			pli[ip].ref_vis = newState;
 	}
 	DrawListCtrl(false);
 	RestoreSelections();
@@ -376,36 +392,42 @@ void CDlgPartlist::OnVisibleButton(bool bVis, bool bValue)
 }
 
 void CDlgPartlist::OnBnClickedValueVisible()
-	{ OnVisibleButton(true, true); }
+	{ OnVisibleButton(true); }
 
-void CDlgPartlist::OnBnClickedValueInvisible()
-	{ OnVisibleButton(false, true); }
 
 void CDlgPartlist::OnBnClickedRefVisible()
-	{ OnVisibleButton(true, false); }
+	{ OnVisibleButton(false); }
 
-void CDlgPartlist::OnBnClickedRefInvisible()
-	{ OnVisibleButton(false, false); }
+void CDlgPartlist::OnBnClickedButtonSelectAll()
+{
+	for( int i=0; i<pli.GetSize(); i++ )
+		m_list_ctrl.SetItemState( i, LVIS_SELECTED, LVIS_SELECTED );
+	OnNMClickList1( NULL, NULL );
+}
+
 
 
 void CDlgPartlist::OnNMClickList1(NMHDR *pNMHDR, LRESULT *pResult)
 {
-	// CPT2 first deal with clicks in my 2 custom checkbox columns (cols 0 and 1)
-	NMITEMACTIVATE *pIA = (NMITEMACTIVATE*)pNMHDR;
-	LVHITTESTINFO info;
-	info.pt = pIA->ptAction;
-	info.iItem = info.iSubItem = -1;
-	ListView_SubItemHitTest(pNMHDR->hwndFrom, &info);
-	int row = info.iItem, col = info.iSubItem;
-	if (col==0 || col==1)
+	if (pNMHDR)
 	{
-		int dataRow = m_list_ctrl.GetItemData(row);
-		if (info.iSubItem==0)
-			pli[dataRow].ref_vis = !pli[dataRow].ref_vis;
-		else
-			pli[dataRow].value_vis = !pli[dataRow].value_vis;
-		gDrawRow = row; gDrawCol = col;								// When we redraw in a sec, just do this row/col
-		m_list_ctrl.Invalidate(false);
+		// CPT2 first deal with clicks in my 2 custom checkbox columns (cols 0 and 1)
+		NMITEMACTIVATE *pIA = (NMITEMACTIVATE*)pNMHDR;
+		LVHITTESTINFO info;
+		info.pt = pIA->ptAction;
+		info.iItem = info.iSubItem = -1;
+		ListView_SubItemHitTest(pNMHDR->hwndFrom, &info);
+		int row = info.iItem, col = info.iSubItem;
+		if (col==0 || col==1)
+		{
+			int dataRow = m_list_ctrl.GetItemData(row);
+			if (info.iSubItem==0)
+				pli[dataRow].ref_vis = !pli[dataRow].ref_vis;
+			else
+				pli[dataRow].value_vis = !pli[dataRow].value_vis;
+			gDrawRow = row; gDrawCol = col;								// When we redraw in a sec, just do this row/col
+			m_list_ctrl.Invalidate(false);
+		}
 	}
 
 	static int last_n_sel = 0;
@@ -417,7 +439,8 @@ void CDlgPartlist::OnNMClickList1(NMHDR *pNMHDR, LRESULT *pResult)
 		m_check_value.EnableWindow( n_sel > 1 );
 	}
 	last_n_sel = n_sel;
-	*pResult = 0;
+	if (pResult)
+		*pResult = 0;
 }
 
 void CDlgPartlist::OnNMDblClickList1(NMHDR *pNMHDR, LRESULT *pResult)
