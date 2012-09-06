@@ -481,13 +481,13 @@ class CUndoRecord
 {
 	// Corresponding to a single user operation, this is a bundle of undo items, including items with the bWasCreated bit set (such items
 	//  indicate a uid-value for objects created during the operation, but contain no other data).  CFreePcbDoc::FinishUndoRecord() is in charge
-	//  of creating these cundo_records and adding them to the undo list.
+	//  of creating these CUndoRecords and adding them to the undo list.
 	// Method Execute() actually performs the undo, redo, or undo-without-redo!
 	friend class CFreePcbDoc;
 protected:
 	int nItems;
 	CUndoItem **items;
-	int nSel;										// CPT2 r345.  Created the ability to recreate
+	int nSel;										// CPT2 r345.  Implemented the ability to recreate
 	int *sel;										//   the previous selection
 	int moveOriginDx, moveOriginDy;					// These are set if user does a move-origin operation, and are zero otherwise.
 													// Theoretically I should have a CUndoRecordMoveOrigin, but screw it...
