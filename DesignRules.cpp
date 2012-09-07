@@ -153,14 +153,13 @@ CDre *CDreList::Add( int type, CString * str, CPcbItem *item1, CPcbItem *item2,
 
 	CDre *dre = new CDre(doc, GetSize(), type, str, item1, item2, x, y, d, layer);
 	dres.Add(dre);
-	dre->MustRedraw();																				// CPT2 TODO maybe...
+	dre->MustRedraw();
 	return dre;
 }
 
 void CDreList::Clear()
 {
-	// CPT2 new.  Undraw and then remove from "this" all design-rule-error objects.  NB also save undo info (it seemed best to incorporate
-	// dre's into the undo system).
+	// CPT2 new.  Undraw and then remove from "this" all design-rule-error objects.
 	CIter<CDre> id (&dres);
 	for (CDre* d = id.First(); d; d = id.Next())
 		d->Undraw();
@@ -198,7 +197,7 @@ void CDreList::MakeHollowCircles()
 
 
 // CPT2.  Thought it might be fun to cook up an algorithm for sorting DRE's, so that when users use arrow keys to move among them, they
-// proceed in a sort of geometrical order.  The order is, roughly:  start with the DRE closest to the NW corner of the PCB space;  after that
+// proceed in a sort of geometrical order.  The order is, roughly:  start with the DRE closest to the NW corner of the PCB space;  after that,
 // on each step just find the nearest DRE that has not already been assigned to the sorted list.  To implement this I use helper struct
 // quad, which represents the division of a variously-sized portion of the space into 4 quadrants, NW, NE, SW, and SE.  The quad structure
 // assigns each of its quadrants to one of the following categories: 
@@ -388,8 +387,8 @@ inline int MinDist2(int x, int y, int qx0, int qx1, int qy0, int qy1)
 int FindClosestCluster(int x, int y, quad *q, int qx0, int qx1, int qy0, int qy1, int d2max, cluster **result)
 {
 	// Look within quad "q" (which has bounds [qx0,qx1] x [qy0,qy1]), for the cluster closest to (x,y).  (x,y) may be either inside or 
-	// outside of q's bounds.  Param d2max is included as an optimization: sometimes the routine can finish more quickly if we know that
-	// results outside that range are worthless.  The result cluster ptr is
+	// outside of q's bounds.  Param d2max is included as an optimization: sometimes the routine can finish more quickly if it knows that
+	// results beyond that distance are worthless.  The result cluster ptr is
 	// put into "result" (may be null on failure).  Returns the distance squared on success, or INT_MAX otherwise.
 	if (q->flags==0)
 		{ *result = NULL; return INT_MAX; }
@@ -510,7 +509,7 @@ void CDreList::Sort()
 	if (cDres==0) 
 		{ head = tail = NULL; return; }
 
-	// Setup the whole tree structures based on the current set of DRE's.
+	// Setup the whole tree structure based on the current set of DRE's.
 	quad *heap = (quad*) HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, 6*cDres * sizeof(quad));			// Should be ample space
 	cluster *clusters = (cluster*) HeapAlloc(GetProcessHeap(), 0, cDres* sizeof(cluster));
 	SetupQuads(heap, clusters);
