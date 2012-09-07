@@ -1217,7 +1217,6 @@ void CFreePcbDoc::ReadBoardOutline( CStdioFile * pcb_file )
 					throw new CString((LPCSTR) IDS_ErrorParsingBoardSectionOfProjectFile);
 				int x = my_atoi( &p[1] );
 				int y = my_atoi( &p[2] );
-				last_side_style = np >= 5? my_atoi( &p[3] ): CPolyline::STRAIGHT;
 				bool bContourWasEmpty = ctr->corners.IsEmpty();
 				CCorner *c = new CCorner(ctr, x, y);			// Constructor adds corner to ctr->corners (and may also set ctr->head/tail if
 																// it was previously empty)
@@ -1226,6 +1225,7 @@ void CFreePcbDoc::ReadBoardOutline( CStdioFile * pcb_file )
 					CSide *s = new CSide(ctr, last_side_style);
 					ctr->AppendSideAndCorner(s, c, ctr->tail);
 				}
+				last_side_style = np >= 5? my_atoi( &p[3] ): CPolyline::STRAIGHT;
 				if( icor == (ncorners-1) )
 					ctr->Close(last_side_style);
 			}
@@ -1307,8 +1307,6 @@ void CFreePcbDoc::ReadSolderMaskCutouts( CStdioFile * pcb_file )
 					throw new CString((LPCSTR) IDS_ErrorParsingSolderMaskCutoutsSectionOfProjectFile);
 				int x = my_atoi( &p[1] );
 				int y = my_atoi( &p[2] );
-				last_side_style = np >= 5? my_atoi( &p[3] ): CPolyline::STRAIGHT;
-				int end_cont = np >= 6? my_atoi( &p[4] ): 0;
 				bool bContourWasEmpty = ctr->corners.IsEmpty();
 				CCorner *c = new CCorner(ctr, x, y);			// Constructor adds corner to ctr->corners (and may also set ctr->head/tail if
 																// it was previously empty)
@@ -1317,6 +1315,8 @@ void CFreePcbDoc::ReadSolderMaskCutouts( CStdioFile * pcb_file )
 					CSide *s = new CSide(ctr, last_side_style);
 					ctr->AppendSideAndCorner(s, c, ctr->tail);
 				}
+				last_side_style = np >= 5? my_atoi( &p[3] ): CPolyline::STRAIGHT;
+				int end_cont = np >= 6? my_atoi( &p[4] ): 0;
 				if( icor == (ncorners-1) || end_cont )
 				{
 					ctr->Close(last_side_style);

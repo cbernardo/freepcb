@@ -281,7 +281,7 @@ void CDlgCAD::OnBnClickedGo()
 	GetFields();
 
 	// warn about copper-copper clearance
-	if( m_fill_clearance )     
+	if( m_fill_clearance==0 )     
 	{
 		CDlgMyMessageBox dlg;
 		if (dlg.Initialize( COPPER_CLEARANCE_WARNING, true ))

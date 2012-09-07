@@ -1462,7 +1462,7 @@ int CCommonView::SelectObjPopup( CPoint const &point )
 		}
 		else if (CDre *d = item->ToDRE())
 			str0.LoadStringA(IDS_DRC3),
-			str.Format(str0, d->index);
+			str.Format(str0, d->index + 1);
 		else if (item->IsCentroid())
 			str.LoadStringA(IDS_Centroid3);
 		else if (item->IsGlue())

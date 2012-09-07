@@ -2938,8 +2938,6 @@ void CNetList::ReadNets( CStdioFile * pcb_file, double read_version, int * layer
 
 					int x = my_atoi( &p[1] );
 					int y = my_atoi( &p[2] );
-					last_side_style = np >= 5? my_atoi( &p[3] ): CPolyline::STRAIGHT;
-					int end_cont = np >= 6? my_atoi( &p[4] ): 0;
 					bool bContourWasEmpty = ctr->corners.IsEmpty();
 					CCorner *c = new CCorner(ctr, x, y);			// Constructor adds corner to ctr->corners (and may also set ctr->head/tail if
 																	// it was previously empty)
@@ -2948,6 +2946,8 @@ void CNetList::ReadNets( CStdioFile * pcb_file, double read_version, int * layer
 						CSide *s = new CSide(ctr, last_side_style);
 						ctr->AppendSideAndCorner(s, c, ctr->tail);
 					}
+					last_side_style = np >= 5? my_atoi( &p[3] ): CPolyline::STRAIGHT;
+					int end_cont = np >= 6? my_atoi( &p[4] ): 0;
 					if( icor == (ncorners-1) || end_cont )
 					{
 						ctr->Close(last_side_style);
@@ -3641,7 +3641,7 @@ int CNetList::CheckConnectivity( CString * logstr )
 					str0.LoadStringA(IDS_PartiallyRoutedConnection);
 				else
 					str0.LoadStringA(IDS_UnroutedConnection);
-				str.Format( str0, 1, net->name, from_str, to_str );
+				str.Format( str0, net->name, from_str, to_str );
 				*logstr += str;
 				nerrors++;
 			}
