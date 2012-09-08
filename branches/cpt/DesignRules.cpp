@@ -10,8 +10,8 @@ CDre::CDre(CFreePcbDoc *_doc, int _index, int _type, CString *_str, CPcbItem *_i
 	index = _index;
 	type = _type;
 	str = *_str;
-	item1 = _item1; 
-	item2 = _item2;
+	item1 = _item1? _item1->UID(): -1;
+	item2 = _item2? _item2->UID(): -1;
 	x = _x, y = _y;
 	w = _w;
 	layer = _layer;
@@ -88,59 +88,61 @@ CDre *CDreList::Add( int type, CString * str, CPcbItem *item1, CPcbItem *item2,
 		CIter<CDre> id (&dres);
 		for (CDre *dre = id.First(); dre; dre = id.Next())
 		{
+			CPcbItem *old1 = CPcbItem::FindByUid(dre->item1);
+			CPcbItem *old2 = CPcbItem::FindByUid(dre->item2);
 			// compare current error with error from list
-			if( dre->item1 == item1 && dre->item2 == item2 )
+			if( old1 == item1 && old2 == item2 )
 				return NULL;
-			if( dre->item1 == item2 && dre->item2 == item1 )
+			if( old1 == item2 && old2 == item1 )
 				return NULL;
 			// if same traces at same point, don't add it
-			if( item2 && dre->item2 )
+			if( item2 && old2 )
 			{
-				CConnect *old1 = dre->item1->GetConnect(), *old2 = dre->item2->GetConnect();
-				CConnect *new1 = item1->GetConnect(), *new2 = item2->GetConnect();
-				if (old1==new1 && old2==new2 && dre->x==x && dre->y==y)
+				CConnect *oldC1 = old1->GetConnect(), *oldC2 = old2->GetConnect();
+				CConnect *newC1 = item1->GetConnect(), *newC2 = item2->GetConnect();
+				if (oldC1==newC1 && oldC2==newC2 && dre->x==x && dre->y==y)
 					return NULL;
-				if (old1==new2 && old2==new1 && dre->x==x && dre->y==y)
+				if (oldC1==newC2 && oldC2==newC1 && dre->x==x && dre->y==y)
 					return NULL;
 			}
 
 			// if RING_PAD error on same pad, don't add it
 			if( type == CDre::RING_PAD && dre->type == CDre::RING_PAD )		// CPT2 second clause was dre->m_id.T3().  Check if I've translated right...
-				if( item1 == dre->item1 )
+				if( item1 == old1 )
 					return NULL;
 
 			// if BOARDEDGE_PAD or BOARDEDGE_PADHOLE error on same pad, don't add it
 			if( (type == CDre::BOARDEDGE_PAD || type == CDre::BOARDEDGE_PADHOLE)
 				&& (dre->type == CDre::BOARDEDGE_PAD || dre->type == CDre::BOARDEDGE_PADHOLE) )
-					if( item1 == dre->item1 )
+					if( item1 == old1 )
 						return NULL;
 
 			// if RING_VIA error on same via, don't add it
 			if( type == CDre::RING_VIA && dre->type == CDre::RING_VIA )
-				if( item1 == dre->item1 )
+				if( item1 == old1 )
 					return NULL;
 
 			// if BOARDEDGE_VIA or BOARDEDGE_VIAHOLE error on same via, don't add it
 			if( (type == CDre::BOARDEDGE_VIA || type == CDre::BOARDEDGE_VIAHOLE)
 				&& (dre->type == CDre::BOARDEDGE_VIA || dre->type == CDre::BOARDEDGE_VIAHOLE) )
-					if( item1 == dre->item1 )
+					if( item1 == old1 )
 						return NULL;
 
 			// if BOARDEDGE_SEG on same trace at same point, don't add it
 			if( type == CDre::BOARDEDGE_SEG && dre->type == CDre::BOARDEDGE_SEG )
-				if( item1 == dre->item1 )													// Sufficient check?
+				if( item1 == old1 )															// Sufficient check?
 					return NULL;
 			
 			// if BOARDEDGE_COPPERAREA on same area at same point, don't add it
 			if( type == CDre::BOARDEDGE_COPPERAREA && dre->type == CDre::BOARDEDGE_COPPERAREA )
-				if( item1->GetPolyline() == dre->item1->GetPolyline()						// CPT2 Are the "->GetPolyline()" invocations essential?
+				if( item1->GetPolyline() == old1->GetPolyline()								// CPT2 Are the "->GetPolyline()" invocations essential?
 					&& x == dre->x  && y == dre->y ) 
 					return NULL;
 				
 			if( type == CDre::COPPERAREA_COPPERAREA && dre->type == CDre::COPPERAREA_COPPERAREA )		
 				if( x == dre->x && y == dre->y)
-					if( item1 == dre->item1 && item2 == dre->item2 || 
-					    item1 == dre->item2 && item2 == dre->item1) 
+					if( item1 == old1 && item2 == old2 || 
+					    item1 == old2 && item2 == old1) 
 							return NULL;
 		}
 	}
