@@ -397,7 +397,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 	bool bShiftKeyDown = (nFlags & MK_SHIFT) != 0;		// CPT r294
 	m_last_click = point;								// CPT
 
-	if( !m_bLButtonDown )
+ 	if( !m_bLButtonDown )
 	{
 		// this avoids problems with opening a project with the button held down
 		CView::OnLButtonUp(nFlags, point);
@@ -627,7 +627,6 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		pDC = GetDC();
 		SetDCToWorldCoords( pDC );
 		pDC->SelectClipRgn( &m_pcb_rgn );
-//			m_dlist->StopDragging();
 
 		// test for reaching destination of ratline (which might be a pin-vtx, a tee-vtx, or any other vtx)
 		CVertex *start = m_dir==0? rat->preVtx: rat->postVtx;
@@ -701,6 +700,10 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		if (bRatlineFinished)
 			goto cancel_selection_and_goodbye;
 		m_doc->ProjectModified( TRUE );
+		// CPT2 Make sure cursor matches the snapped point:
+		CPoint p2 = m_dlist->PCBToScreen( m_last_cursor_point );
+		SetCursorPos( p2.x, p2.y );
+
 		rat->StartDragging( pDC, m_last_cursor_point.x, m_last_cursor_point.y, 
 							m_active_layer,	LAY_SELECTION, m_active_width, m_active_layer, m_dir, 2 );
 		if( highlight_net0 )							// AMW r274
@@ -1213,7 +1216,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 
 			else if( CVertex *vtx1 = hit->ToVertex() )
 			{
-				if (vtx1->m_net == net) 
+				if (vtx1->m_net == net && vtx1!=tail0) 
 				{
 					/* CPT2: Removed restriction
 					if( vtx1->m_con == con0 )
@@ -1677,7 +1680,7 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 		return;
 	}
 
-	if( nChar == 'U' && ( m_cursor_mode == CUR_VTX_SELECTED || CUR_TEE_SELECTED ) )
+	if( nChar == 'U' && ( m_cursor_mode == CUR_VTX_SELECTED || m_cursor_mode == CUR_TEE_SELECTED ) )
 	{
 		// unforce via
 		OnVertexRemoveVia();
@@ -2362,18 +2365,18 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 			m_doc->ProjectModified(true);
 			CancelSelection();
 		}
-		else if (fk == FK_ARROW)
+		else
 		{
-			// CPT2 new: left and right arrows move us to the previous/next dre on the sorted list.  Up takes us to the first dre, and down to the last.
+			// CPT2 new: arrow keys/function keys for moving through the sorted list of dre's.
 			CDre *d = m_sel.First()->ToDRE();
 			CDre *d2 = NULL;
-			if (dx > 0)
+			if (fk==FK_ARROW && dx>0 || fk==FK_NEXT_DRE)
 				d2 = d->next;
-			else if (dx < 0)
+			else if (fk==FK_ARROW && dx<0 || fk==FK_PREV_DRE)
 				d2 = d->prev;
-			else if (dy < 0) 
+			else if (fk==FK_ARROW && dy<0 || fk==FK_LAST_DRE) 
 				d2 = m_doc->m_drelist->tail;
-			else if (dy > 0)
+			else if (fk==FK_ARROW && dy>0 || fk==FK_FIRST_DRE)
 				d2 = m_doc->m_drelist->head;
 			if (d2)
 			{
@@ -2538,15 +2541,21 @@ void CFreePcbView::OnMouseMove(UINT nFlags, CPoint point)
 	CMainFrame * pMain = (CMainFrame*) AfxGetApp()->m_pMainWnd;
 	if( !pMain ) 
 		return;
-	CString pin_name = "", connect_to ((LPCSTR) IDS_ConnectTo);
+	CString pin_name = "", connect_to ((LPCSTR) IDS_ConnectTo), cant_connect ((LPCSTR) IDS_PinNetCantConnect);
 	CPoint p = m_dlist->WindowToPCB( point );
 	// CPT r294:  new args for TestSelect()...
 	CArray<CHitInfo> hit_info;
 	int num_hits = m_dlist->TestSelect( p.x, p.y, &hit_info, bitPin );
 	if( num_hits > 0 )
 	{
+		CNet *net = m_sel.First()->GetNet();
 		CPin *pin = hit_info[0].item->ToPin();			// hit_info[0] is the highest-priority hit
-		if (pin)
+		if (!pin)
+			;
+		else if (net && pin->net && pin->net!=net)
+			// it's a pin but we can't connect to it
+			pin_name.Format(cant_connect, pin->part->ref_des, pin->pin_name, net->name);
+		else
 			// hit on pin
 			pin_name = connect_to + pin->part->ref_des + "." + pin->pin_name + "?";
 	}
@@ -2819,6 +2828,14 @@ void CFreePcbView::SetFKText( int mode )
 		m_fkey_option[7] = FK_DELETE_GROUP;
 		break;
 
+	case CUR_DRE_SELECTED:
+		m_fkey_option[1] = FK_FIRST_DRE;
+		m_fkey_option[2] = FK_PREV_DRE;
+		m_fkey_option[3] = FK_NEXT_DRE;
+		m_fkey_option[4] = FK_LAST_DRE;
+		break;
+
+
 	case CUR_DRAG_PART:
 		m_fkey_option[1] = FK_SIDE;
 		m_fkey_option[2] = FK_ROTATE_CW;
@@ -3055,9 +3072,11 @@ int CFreePcbView::ShowSelectStatus()
 			CSeg *seg = sel->ToSeg();
 			CConnect *con = seg->m_con;
 			con->GetStatusStr( &str );
-			if (!(con->NumSegs() == 1 && con->segs.First()->m_layer == LAY_RAT_LINE))
+			if (m_cursor_mode != CUR_DRAG_RAT && con->NumSegs() == 1 && con->segs.First()->m_layer == LAY_RAT_LINE)
+				;
+			else
 			{
-				seg->GetStatusStr( &str0, width );			// CPT added arg
+				seg->GetStatusStr( &str0, width );
 				str += "; " + str0;
 			}
 			break;
@@ -3322,8 +3341,16 @@ void CFreePcbView::HighlightSelection()
 	else if (m_sel.GetSize()>=2)
 		FindGroupCenter(),
 		SetCursorMode( CUR_GROUP_SELECTED );
-	else if (first->IsDRE())
+	else if (CDre *dre = first->ToDRE())
+	{
 		SetCursorMode( CUR_DRE_SELECTED );
+		CPcbItem *item1 = CPcbItem::FindByUid(dre->item1);
+		CPcbItem *item2 = CPcbItem::FindByUid(dre->item2);
+		if (item1)
+			item1->Highlight();
+		if (item2)
+			item2->Highlight();
+	}
 	else if( first->IsBoardCorner() )
 		SetCursorMode( CUR_BOARD_CORNER_SELECTED );
 	else if( first->IsBoardSide() )

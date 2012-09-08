@@ -1698,6 +1698,7 @@
 #define IDS_StartingTraceFromAreaNet    62721
 #define IDS_Errors                      62722
 #define IDS_CompleteList                62723
+#define IDS_PinNetCantConnect           62724
 #define IDS_FkFpStr                     63000
 #define IDS_STRING63001                 63001
 #define IDS_STRING63002                 63002
@@ -1976,6 +1977,8 @@
 #define IDS_STRING63663                 63663
 #define IDS_STRING63664                 63664
 #define IDS_STRING63665                 63665
+#define IDS_STRING63674                 63674
+#define IDS_STRING63675                 63675
 #define IDS_SelMaskStr                  64000
 #define IDS_STRING64001                 64001
 #define IDS_STRING64002                 64002

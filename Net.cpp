@@ -1021,9 +1021,11 @@ void CSeg::SetWidth( int w, int via_w, int via_hole_w )
 	if( m_layer != LAY_RAT_LINE && w )
 		m_width = w;
 	if( preVtx->via_w && via_w )
+		preVtx->MustRedraw(),
 		preVtx->via_w = via_w,
 		preVtx->via_hole_w = via_hole_w;
 	if( postVtx->via_w && via_w )
+		postVtx->MustRedraw(),
 		postVtx->via_w = via_w,
 		postVtx->via_hole_w = via_hole_w;
 }

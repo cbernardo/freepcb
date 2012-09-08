@@ -453,6 +453,13 @@ void CContour::SaveUndoInfo()
 		s->SaveUndoInfo();
 }
 
+void CContour::Highlight()
+{
+	CIter<CSide> is (&sides);
+	for (CSide *s = is.First(); s; s = is.Next())
+		s->Highlight();
+}
+
 void CContour::AppendSideAndCorner( CSide *s, CCorner *c, CCorner *after )
 {
 	// Append s+c into this connection after corner "after".  Assumes that s+c were constructed so that they point to "this"

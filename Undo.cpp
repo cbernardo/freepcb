@@ -841,6 +841,14 @@ bool CUndoRecord::Execute( int op )
 		return true;
 	}
 
+	// Step 0 (since r~345).  Make a record of which items are currently selected (will be helpful when we finish the redo record in step 6)
+	int nSel2 = view->m_sel.GetSize();
+	int *sel2 = (int*) malloc(nSel2 * sizeof(int));
+	CIter<CPcbItem> ii (&view->m_sel);
+	int j = 0;
+	for (CPcbItem *i = ii.First(); i; i = ii.Next())
+		sel2[j++] = i->UID();
+
 	// Step 1.  For each undo-item in the record, including the creations, find the corresponding existing pcb-item and fill the
 	//			"target" field.  "target" may be an invalid object (if user removed it during the edit) or it may even be null
 	//          (if user removed it AND it was garbage-collected).  In both cases we will have to recreate it.
@@ -897,13 +905,8 @@ bool CUndoRecord::Execute( int op )
 		if (!items[i]->m_bWasCreated)
 			items[i]->AddToLists();
 
-	// Step 6 (new in r345).  Reselect items.  For the sake of the redo, alter the sel member of this CUndoRecord to reflect the current selection.
-	int nSel2 = view->m_sel.GetSize();
-	int *sel2 = (int*) malloc(nSel2 * sizeof(int));
-	CIter<CPcbItem> ii (&view->m_sel);
-	int j = 0;
-	for (CPcbItem *i = ii.First(); i; i = ii.Next())
-		sel2[j++] = i->UID();
+	// Step 6 (new in r345).  Reselect items.  For the sake of the redo, alter the sel member of this CUndoRecord afterwards to reflect the 
+	// current selection --- the uid's for the current selection were stored in sel2 during step 0.
 	view->m_sel.RemoveAll();
 	for (int i=0; i<nSel; i++)
 	{

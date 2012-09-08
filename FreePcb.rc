@@ -4254,7 +4254,7 @@ END
 
 STRINGTABLE
 BEGIN
-    IDS_AppName             "CPT2.23"
+    IDS_AppName             "CPT2.24"
 END
 
 STRINGTABLE
@@ -4466,10 +4466,16 @@ STRINGTABLE
 BEGIN
     IDS_STRING63664         " Edit SM"
     IDS_STRING63665         " Cutout"
-    63666                   " ****"
-    63667                   " ****"
-    63668                   " ****"
-    63669                   " ****"
+    63666                   " Next"
+    63667                   " DRE"
+    63668                   " Previous"
+    63669                   " DRE"
+    63670                   " First"
+    63671                   " DRE"
+    63672                   " Last"
+    63673                   " DRE"
+    63674                   " ****"
+    IDS_STRING63675         " ****"
 END
 
 STRINGTABLE
@@ -4561,6 +4567,7 @@ BEGIN
     IDS_StartingTraceFromAreaNet "Starting trace from area %d (net ""%s"")"
     IDS_Errors              "\r\n%d errors.\r\n"
     IDS_CompleteList        "\r\nComplete List:\r\n"
+    IDS_PinNetCantConnect   "Pin %s.%s, net ""%s"" (can't connect)"
 END
 
 #endif    // English (United States) resources

@@ -66,7 +66,7 @@ public:
 	int index;					// CPT2 new
 	int type;					// id, using subtypes above.  CPT2 TODO A lot of these fields are probably dispensible
 	CString str;				// descriptive string
-	CPcbItem *item1, *item2;	// items tested
+	int item1, item2;			// items tested.  CPT2 r347 now UID's
 	int x, y;					// position of error
 	int w;						// width of circle (CPT2 new)
 	int layer;					// layer (if pad error)

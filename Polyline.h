@@ -100,6 +100,7 @@ public:
 	CUndoItem *MakeUndoItem()
 		{ return new CUContour(this); }
 	void SaveUndoInfo();
+	void Highlight();
 
 	int NumCorners() { return corners.GetSize(); } 
 	void AppendSideAndCorner( CSide *s, CCorner *c, CCorner *after );
