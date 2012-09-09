@@ -133,19 +133,18 @@ void CText::MoveRelative( int _x, int _y, int _angle, int _size, int _w )
 CPoint CText::GetAbsolutePoint()
 {
 	// CPT2.  Used for reftexts and valuetexts, whose absolute position is computed relative to the parent part.
-	CPart *part = GetPart();
-	CPoint pt;
+	CPoint pt (m_x, m_y);
+	if (!m_part)
+		return pt;
 
 	// move origin of text box to position relative to part
-	pt.x = m_x;
-	pt.y = m_y;
 	// flip if part on bottom
-	if( part->side )
+	if( m_part->side )
 		pt.x = -pt.x;
 	// rotate with part about part origin
-	RotatePoint( &pt, part->angle, zero );
-	pt.x += part->x;
-	pt.y += part->y;
+	RotatePoint( &pt, m_part->angle, zero );
+	pt.x += m_part->x;
+	pt.y += m_part->y;
 	return pt;
 }
 
@@ -449,7 +448,7 @@ void CText::Undraw()
 void CText::Highlight()
 {
 	CDisplayList *dl = doc->m_dlist;
-	if (!dl) return;
+	if (!dl || !dl_sel) return;
 	dl->Highlight( DL_HOLLOW_RECT, 
 		dl->Get_x(dl_sel), dl->Get_y(dl_sel),
 		dl->Get_xf(dl_sel), dl->Get_yf(dl_sel), 1 );

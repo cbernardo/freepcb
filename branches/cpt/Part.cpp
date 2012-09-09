@@ -1347,6 +1347,7 @@ void CPart::Highlight( )
 	CDisplayList *dl = doc->m_dlist;
 	if( !dl ) return;
 	if (!shape) return;
+	if (!dl_sel) return;
 	dl->Highlight( DL_HOLLOW_RECT, 
 				dl->Get_x( dl_sel ), dl->Get_y( dl_sel ),
 				dl->Get_xf( dl_sel ), dl->Get_yf( dl_sel ), 1 );

@@ -1739,9 +1739,8 @@ void CFreePcbDoc::ReadOptions( CStdioFile * pcb_file )
 		frm->m_wndMyToolBar.SetLists( &m_visible_grid, &m_part_grid, &m_routing_grid,
 			m_visual_grid_spacing, m_part_grid_spacing, m_routing_grid_spacing, m_snap_angle, m_view->m_units );
 		m_dlist->SetVisibleGrid( TRUE, m_visual_grid_spacing );
-		// CPT2 TODO.  The best color choice for LAY_SELECTION & LAY_FP_SELECTION is a bit of a tricky issue.  Currently the only use for these
-		// colors is when user is dragging.  If, say, the background is white and the selection layer is black, then because of the
-		// XOR drawing that occurs during dragging, the result is invisible!  To overcome this sort of problem I have (for now) the following kludge:
+		// CPT2.  The best color choice for LAY_SELECTION & LAY_FP_SELECTION is a bit arbitrary.  Currently the only use for these
+		// colors is when user is dragging.  So, how about the ratline color:
 		for (int j=0; j<3; j++)
 			m_rgb[LAY_SELECTION][j] = m_rgb[LAY_RAT_LINE][j],
 			m_fp_rgb[LAY_FP_SELECTION][j] = m_rgb[LAY_RAT_LINE][j];
