@@ -97,6 +97,7 @@ ON_COMMAND(ID_ADD_PART, OnAddPart)							// CPT2 used to be in CFreePcbDoc, tryi
 ON_COMMAND(ID_ADD_BOARDOUTLINE, OnAddBoardOutline)
 ON_COMMAND(ID_ADD_AREA, OnAddArea)
 ON_COMMAND(ID_ADD_TEXT, OnTextAdd)
+ON_COMMAND(ID_ADD_NET, OnAddNet)
 ON_COMMAND(ID_ADD_SOLDERMASKCUTOUT, OnAddSoldermaskCutout)
 ON_COMMAND(ID_VIEW_ENTIREBOARD, OnViewEntireBoard)
 ON_COMMAND(ID_VIEW_ALLELEMENTS, OnViewAllElements)
@@ -1281,6 +1282,9 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		if (m_cursor_mode == CUR_DRAG_AREA_STUB)
 			con0->ConnectHeadToLayer( m_start_layer );
 		// Cleanup
+		// CPT2 Make sure cursor matches the snapped point:
+		CPoint p2 = m_dlist->PCBToScreen( m_last_cursor_point );
+		SetCursorPos( p2.x, p2.y );
 		m_dlist->StopDragging();
 		CPoint p0 = m_last_cursor_point;
 		con0->tail->StartDraggingStub( pDC, p0.x, p0.y, m_active_layer, m_active_width, m_active_layer, 2, m_inflection_mode );
@@ -3022,18 +3026,14 @@ int CFreePcbView::ShowSelectStatus()
 		break;
 
 	case CUR_REF_SELECTED:
-		{
-			CRefText *rt = sel->ToRefText();
-			str0.LoadStringA(IDS_RefText);
-			str.Format( str0, rt->m_str );
-			break;
-		}
-
 	case CUR_VALUE_SELECTED:
 		{
-			CValueText *vt = sel->ToValueText();
-			str0.LoadStringA(IDS_Value2);
-			str.Format( str0, vt->m_str );
+			CText *t = sel->ToText();
+			CPoint pt = t->GetAbsolutePoint();
+			::MakeCStringFromDimension( &x_str, pt.x, u, FALSE, FALSE, FALSE, u==MIL?1:3 );
+			::MakeCStringFromDimension( &y_str, pt.y, u, FALSE, FALSE, FALSE, u==MIL?1:3 );
+			str0.LoadStringA(m_cursor_mode==CUR_REF_SELECTED? IDS_ReferenceText2: IDS_ValueText2);
+			str.Format( str0, x_str, y_str );
 			break;
 		}
 
@@ -3141,8 +3141,11 @@ int CFreePcbView::ShowSelectStatus()
 			CString neg_str = "";
 			if( t->m_bNegative )
 				neg_str.LoadStringA(IDS_Neg);
-			CString str0 ((LPCSTR) IDS_Text);
-			str.Format( str0, t->m_str, neg_str );
+			::MakeCStringFromDimension( &x_str, t->m_x, u, FALSE, FALSE, FALSE, u==MIL?1:3 );
+			::MakeCStringFromDimension( &y_str, t->m_y, u, FALSE, FALSE, FALSE, u==MIL?1:3 );
+			CString str0 ((LPCSTR) IDS_Text2);
+			str.Format( str0, x_str, y_str );
+			str += neg_str;
 			break;
 		}
 
@@ -7653,6 +7656,20 @@ void CFreePcbView::OnAddPart()
 		m_dragging_new_item = TRUE;
 		OnPartMove();
 	}
+}
+
+void CFreePcbView::OnAddNet()
+{
+	CDlgEditNet dlg;
+	netlist_info nli;
+	m_doc->m_nlist->ExportNetListInfo( &nli );
+	dlg.Initialize( &nli, -1, m_doc->m_plist, TRUE, TRUE,
+						MIL, &m_doc->m_w, &m_doc->m_v_w, &m_doc->m_v_h_w );
+	// invoke dialog
+	int ret = dlg.DoModal();
+	if (ret!=IDOK)
+		return;
+	m_doc->m_nlist->ImportNetListInfo( &nli, 0, NULL, m_doc->m_trace_w, m_doc->m_via_w, m_doc->m_via_hole_w );
 }
 
 // end CPT

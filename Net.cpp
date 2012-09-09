@@ -1433,6 +1433,7 @@ void CSeg::Highlight( bool bThin )
 {
 	CDisplayList *dl = doc->m_dlist;
 	if (!dl) return;
+	if (!dl_el) return;
 	int w = bThin? 1: dl->Get_w(dl_el);
 	dl->Highlight( DL_LINE, dl->Get_x(dl_el), dl->Get_y(dl_el),
 							dl->Get_xf(dl_el), dl->Get_yf(dl_el),
@@ -1829,7 +1830,7 @@ void CNet::SetVisible( bool _bVisible )
 	}
 }
 
-void CNet::Highlight(CPcbItem *exclude)
+void CNet::Highlight(CPcbItem *exclude) 
 {
 	// CPT2 Derived from old CNetList::HighlightConnection(), plus areas get highlighted too.  (Didn't see a reason to separate out the connection highlighting
 	// routine at this point...)

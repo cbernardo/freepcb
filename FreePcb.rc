@@ -2300,7 +2300,7 @@ BEGIN
     CONTROL         "Left-handed mode (alters function-key assignments)",IDC_LEFTHAND_MODE,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,21,32,183,10
     CONTROL         "Highlight net on starting trace or ratline",IDC_CHECK_AUTO_HIGHLIGHT_NET,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,0,50,142,10
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,21,50,142,10
     LTEXT           "(can always toggle on and off with ""n"" while routing)",IDC_STATIC,35,59,168,8
     EDITTEXT        IDC_EDIT_PREFS_DEFAULTCFG,20,251,197,12,ES_AUTOHSCROLL
     PUSHBUTTON      "Browse",IDC_BUTTON_PREFS_BROWSE,228,250,30,14
@@ -3553,7 +3553,7 @@ BEGIN
     IDS_NetStub4            "net ""%s"" stub(%d) from %s.%s%s len=%s"
     IDS_NetTrace4           "net ""%s"" trace(%d) %s.%s-%s.%s%s len=%s"
     IDS_Net                 "net ""%s"""
-    IDS_Neg                 "(NEG)"
+    IDS_Neg                 " (NEG)"
     IDS_Text                "Text ""%s"" %s"
     IDS_CopperAreaCorner    """%s"" copper area %d corner %d, x %s, y %s"
     IDS_CopperAreaEdge      """%s"" copper area %d edge %d"
@@ -4254,7 +4254,7 @@ END
 
 STRINGTABLE
 BEGIN
-    IDS_AppName             "CPT2.24"
+    IDS_AppName             "CPT2.25"
 END
 
 STRINGTABLE

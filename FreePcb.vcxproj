@@ -163,13 +163,18 @@
     <ClCompile Include="FootprintView.cpp" />
     <ClCompile Include="FreePcb.cpp" />
     <ClCompile Include="FreePcbDoc.cpp" />
-    <ClCompile Include="FreePcbView.cpp" />
+    <ClCompile Include="FreePcbView.cpp">
+      <AssemblerOutput Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">AssemblyCode</AssemblerOutput>
+      <AssemblerOutput Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">AssemblyCode</AssemblerOutput>
+    </ClCompile>
     <ClCompile Include="Gerber.cpp" />
     <ClCompile Include="gpc_232.cpp" />
     <ClCompile Include="ivex_mod_file.cpp" />
     <ClCompile Include="MainFrm.cpp" />
     <ClCompile Include="MyToolBar.cpp" />
-    <ClCompile Include="Net.cpp" />
+    <ClCompile Include="Net.cpp">
+      <AssemblerOutput Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">AssemblyCode</AssemblerOutput>
+    </ClCompile>
     <ClCompile Include="Part.cpp" />
     <ClCompile Include="PathDialog.cpp" />
     <ClCompile Include="PcbItem.cpp" />
@@ -200,7 +205,6 @@
     <ClCompile Include="drawing_element\dle_x.cpp" />
     <ClCompile Include="DlgAddArea.cpp" />
     <ClCompile Include="DlgAddMaskCutout.cpp" />
-    <ClCompile Include="DlgAddNet.cpp" />
     <ClCompile Include="DlgAddPart.cpp" />
     <ClCompile Include="DlgAddPin.cpp" />
     <ClCompile Include="DlgAddPoly.cpp" />
@@ -303,7 +307,6 @@
     <ClInclude Include="drawing_element\dle_x.h" />
     <ClInclude Include="DlgAddArea.h" />
     <ClInclude Include="DlgAddMaskCutout.h" />
-    <ClInclude Include="DlgAddNet.h" />
     <ClInclude Include="DlgAddPart.h" />
     <ClInclude Include="DlgAddPin.h" />
     <ClInclude Include="DlgAddPoly.h" />

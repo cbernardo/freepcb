@@ -332,6 +332,7 @@ public:
 	afx_msg void OnSmEdit();					// CPT2 new
 	afx_msg void OnPartChangeSide();
 	afx_msg void OnPartRotateCW();
+	afx_msg void OnAddNet();
 	afx_msg void OnNetSetWidth();
 	afx_msg void OnConnectSetWidth();
 	afx_msg void OnConnectUnroutetrace();

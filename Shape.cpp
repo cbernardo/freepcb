@@ -94,6 +94,7 @@ void CPadstack::Highlight()
 {
 	// select it by making its selection rectangle visible
 	CDisplayList *dl = doc->m_dlist;
+	if (!dl || !dl_sel) return;
 	dl->Highlight( DL_RECT_X, 
 		dl->Get_x(dl_sel), dl->Get_y(dl_sel),
 		dl->Get_xf(dl_sel), dl->Get_yf(dl_sel), 
@@ -220,7 +221,7 @@ int CCentroid::Draw()
 void CCentroid::Highlight()
 {
 	CDisplayList *dl = doc->m_dlist;
-	if (!dl) return;
+	if (!dl || !dl_sel) return;
 	dl->Highlight( DL_HOLLOW_RECT, 
 		dl->Get_x(dl_sel), dl->Get_y(dl_sel),
 		dl->Get_xf(dl_sel), dl->Get_yf(dl_sel), 1 );
@@ -306,7 +307,7 @@ int CGlue::Draw()
 void CGlue::Highlight()
 {
 	CDisplayList *dl = doc->m_dlist;
-	if (!dl) return;
+	if (!dl || !dl_sel) return;
 	dl->Highlight( DL_HOLLOW_RECT, 
 		dl->Get_x(dl_sel), dl->Get_y(dl_sel),
 		dl->Get_xf(dl_sel), dl->Get_yf(dl_sel), 1 );
