@@ -14,7 +14,6 @@ public:
 	void Initialize( int via_w, int via_hole_w, CPoint pt, int units );
 	void GetFields();
 	void SetFields();
-	CPoint pt(){ return m_pt; };
 
 // Dialog Data
 	enum { IDD = IDD_VIA };

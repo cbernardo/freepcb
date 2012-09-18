@@ -1,5 +1,7 @@
 // DlgDRC.cpp : implementation file
-//
+//  CPT2 reworked slightly so that it coordinates better with the new logging feature.  Both the Check and OK buttons cause us to exit the dlg;
+//  but the former ensures that an actual DRC occurs after returning
+
 
 #include "stdafx.h"
 #include "FreePcb.h"
@@ -14,7 +16,6 @@ IMPLEMENT_DYNAMIC(DlgDRC, CDialog)
 DlgDRC::DlgDRC(CWnd* pParent /*=NULL*/)
 	: CDialog(DlgDRC::IDD, pParent)
 {
-	m_dlg_log = NULL;
 }
 
 DlgDRC::~DlgDRC()
@@ -67,126 +68,66 @@ void DlgDRC::Initialize( CFreePcbDoc *doc )
 	m_units = doc->m_view->m_units; 
 	m_dr = &doc->m_dr;
 	m_dr_local = doc->m_dr;
-	m_pl = doc->m_plist;
-	m_nl = doc->m_nlist;
-	m_copper_layers = doc->m_num_copper_layers;
-	m_board_outline = &doc->boards;
 	m_CAM_annular_ring_pins = doc->m_annular_ring_pins;
 	m_CAM_annular_ring_vias = doc->m_annular_ring_vias;
-	m_drelist = doc->m_drelist;
-	m_dlg_log = doc->m_dlg_log;
 }
 
 void DlgDRC::GetFields()
 {
 	CString str;
 	m_dr_local.bCheckUnrouted = m_check_show_unrouted.GetCheck();
-	if( m_units == MIL )
-	{
-		m_edit_trace_width.GetWindowText( str );
-		m_dr_local.trace_width = atof( str ) * nm_per_mil;
-		m_edit_pad_pad.GetWindowText( str );
-		m_dr_local.pad_pad = atof( str ) * nm_per_mil;
-		m_edit_pad_trace.GetWindowText( str );
-		m_dr_local.pad_trace = atof( str ) * nm_per_mil;
-		m_edit_trace_trace.GetWindowText( str );
-		m_dr_local.trace_trace = atof( str ) * nm_per_mil;
-		m_edit_hole_copper.GetWindowText( str );
-		m_dr_local.hole_copper = atof( str ) * nm_per_mil;
-		m_edit_annular_ring_pins.GetWindowText( str );
-		m_dr_local.annular_ring_pins = atof( str ) * nm_per_mil;
-		m_edit_annular_ring_vias.GetWindowText( str );
-		m_dr_local.annular_ring_vias = atof( str ) * nm_per_mil;
-		m_edit_board_edge_copper.GetWindowText( str );
-		m_dr_local.board_edge_copper = atof( str ) * nm_per_mil;
-		m_edit_board_edge_hole.GetWindowText( str );
-		m_dr_local.board_edge_hole = atof( str ) * nm_per_mil;
-		m_edit_hole_hole.GetWindowText( str );
-		m_dr_local.hole_hole = atof( str ) * nm_per_mil;
-		m_edit_copper_copper.GetWindowText( str );
-		m_dr_local.copper_copper = atof( str ) * nm_per_mil;
-	}
-	else
-	{
-		m_edit_trace_width.GetWindowText( str );
-		m_dr_local.trace_width = atof( str ) * 1000000.0;
-		m_edit_pad_pad.GetWindowText( str );
-		m_dr_local.pad_pad = atof( str ) * 1000000.0;
-		m_edit_pad_trace.GetWindowText( str );
-		m_dr_local.pad_trace = atof( str ) * 1000000.0;
-		m_edit_trace_trace.GetWindowText( str );
-		m_dr_local.trace_trace = atof( str ) * 1000000.0;
-		m_edit_hole_copper.GetWindowText( str );
-		m_dr_local.hole_copper = atof( str ) * 1000000.0;
-		m_edit_annular_ring_pins.GetWindowText( str );
-		m_dr_local.annular_ring_pins = atof( str ) * 1000000.0;
-		m_edit_annular_ring_vias.GetWindowText( str );
-		m_dr_local.annular_ring_vias = atof( str ) * 1000000.0;
-		m_edit_board_edge_copper.GetWindowText( str );
-		m_dr_local.board_edge_copper = atof( str ) * 1000000.0;
-		m_edit_board_edge_hole.GetWindowText( str );
-		m_dr_local.board_edge_hole = atof( str ) * 1000000.0;
-		m_edit_hole_hole.GetWindowText( str );
-		m_dr_local.hole_hole = atof( str ) * 1000000.0;
-		m_edit_copper_copper.GetWindowText( str );
-		m_dr_local.copper_copper = atof( str ) * 1000000.0;
-	}
+	double mult = m_units==MIL? nm_per_mil: 1000000.;
+	m_edit_trace_width.GetWindowText( str );
+	m_dr_local.trace_width = atof( str ) * mult;
+	m_edit_pad_pad.GetWindowText( str );
+	m_dr_local.pad_pad = atof( str ) * mult;
+	m_edit_pad_trace.GetWindowText( str );
+	m_dr_local.pad_trace = atof( str ) * mult;
+	m_edit_trace_trace.GetWindowText( str );
+	m_dr_local.trace_trace = atof( str ) * mult;
+	m_edit_hole_copper.GetWindowText( str );
+	m_dr_local.hole_copper = atof( str ) * mult;
+	m_edit_annular_ring_pins.GetWindowText( str );
+	m_dr_local.annular_ring_pins = atof( str ) * mult;
+	m_edit_annular_ring_vias.GetWindowText( str );
+	m_dr_local.annular_ring_vias = atof( str ) * mult;
+	m_edit_board_edge_copper.GetWindowText( str );
+	m_dr_local.board_edge_copper = atof( str ) * mult;
+	m_edit_board_edge_hole.GetWindowText( str );
+	m_dr_local.board_edge_hole = atof( str ) * mult;
+	m_edit_hole_hole.GetWindowText( str );
+	m_dr_local.hole_hole = atof( str ) * mult;
+	m_edit_copper_copper.GetWindowText( str );
+	m_dr_local.copper_copper = atof( str ) * mult;
 }
 
 void DlgDRC::SetFields()
 {
 	CString str;
 	m_check_show_unrouted.SetCheck( m_dr_local.bCheckUnrouted );
-	if( m_units == MIL )
-	{
-		MakeCStringFromDouble( &str, m_dr_local.trace_width/nm_per_mil );
-		m_edit_trace_width.SetWindowText( str );
-		MakeCStringFromDouble( &str, m_dr_local.pad_pad/nm_per_mil );
-		m_edit_pad_pad.SetWindowText( str );
-		MakeCStringFromDouble( &str, m_dr_local.pad_trace/nm_per_mil );
-		m_edit_pad_trace.SetWindowText( str );
-		MakeCStringFromDouble( &str, m_dr_local.trace_trace/nm_per_mil );
-		m_edit_trace_trace.SetWindowText( str );
-		MakeCStringFromDouble( &str, m_dr_local.hole_copper/nm_per_mil );
-		m_edit_hole_copper.SetWindowText( str );
-		MakeCStringFromDouble( &str, m_dr_local.annular_ring_pins/nm_per_mil );
-		m_edit_annular_ring_pins.SetWindowText( str );
-		MakeCStringFromDouble( &str, m_dr_local.annular_ring_vias/nm_per_mil );
-		m_edit_annular_ring_vias.SetWindowText( str );
-		MakeCStringFromDouble( &str, m_dr_local.board_edge_copper/nm_per_mil );
-		m_edit_board_edge_copper.SetWindowText( str );
-		MakeCStringFromDouble( &str, m_dr_local.board_edge_hole/nm_per_mil );
-		m_edit_board_edge_hole.SetWindowText( str );
-		MakeCStringFromDouble( &str, m_dr_local.hole_hole/nm_per_mil );
-		m_edit_hole_hole.SetWindowText( str );
-		MakeCStringFromDouble( &str, m_dr_local.copper_copper/nm_per_mil );
-		m_edit_copper_copper.SetWindowText( str );
-	}
-	else
-	{
-		MakeCStringFromDouble( &str, m_dr_local.trace_width/1000000.0 );
-		m_edit_trace_width.SetWindowText( str );
-		MakeCStringFromDouble( &str, m_dr_local.pad_pad/1000000.0 );
-		m_edit_pad_pad.SetWindowText( str );
-		MakeCStringFromDouble( &str, m_dr_local.pad_trace/1000000.0 );
-		m_edit_pad_trace.SetWindowText( str );
-		MakeCStringFromDouble( &str, m_dr_local.trace_trace/1000000.0 );
-		m_edit_trace_trace.SetWindowText( str );
-		MakeCStringFromDouble( &str, m_dr_local.hole_copper/1000000.0 );
-		m_edit_hole_copper.SetWindowText( str );
-		MakeCStringFromDouble( &str, m_dr_local.annular_ring_pins/1000000.0 );
-		m_edit_annular_ring_pins.SetWindowText( str );
-		MakeCStringFromDouble( &str, m_dr_local.annular_ring_vias/1000000.0 );
-		m_edit_annular_ring_vias.SetWindowText( str );
-		MakeCStringFromDouble( &str, m_dr_local.board_edge_copper/1000000.0 );
-		m_edit_board_edge_copper.SetWindowText( str );
-		MakeCStringFromDouble( &str, m_dr_local.board_edge_hole/1000000.0 );
-		m_edit_board_edge_hole.SetWindowText( str );
-		MakeCStringFromDouble( &str, m_dr_local.hole_hole/1000000.0 );
-		m_edit_hole_hole.SetWindowText( str );
-		MakeCStringFromDouble( &str, m_dr_local.copper_copper/1000000.0 );
-		m_edit_copper_copper.SetWindowText( str );
-	}
+	double div = m_units==MIL? nm_per_mil: 1000000.0;
+	MakeCStringFromDouble( &str, m_dr_local.trace_width/div );
+	m_edit_trace_width.SetWindowText( str );
+	MakeCStringFromDouble( &str, m_dr_local.pad_pad/div );
+	m_edit_pad_pad.SetWindowText( str );
+	MakeCStringFromDouble( &str, m_dr_local.pad_trace/div );
+	m_edit_pad_trace.SetWindowText( str );
+	MakeCStringFromDouble( &str, m_dr_local.trace_trace/div );
+	m_edit_trace_trace.SetWindowText( str );
+	MakeCStringFromDouble( &str, m_dr_local.hole_copper/div );
+	m_edit_hole_copper.SetWindowText( str );
+	MakeCStringFromDouble( &str, m_dr_local.annular_ring_pins/div );
+	m_edit_annular_ring_pins.SetWindowText( str );
+	MakeCStringFromDouble( &str, m_dr_local.annular_ring_vias/div );
+	m_edit_annular_ring_vias.SetWindowText( str );
+	MakeCStringFromDouble( &str, m_dr_local.board_edge_copper/div );
+	m_edit_board_edge_copper.SetWindowText( str );
+	MakeCStringFromDouble( &str, m_dr_local.board_edge_hole/div );
+	m_edit_board_edge_hole.SetWindowText( str );
+	MakeCStringFromDouble( &str, m_dr_local.hole_hole/div );
+	m_edit_hole_hole.SetWindowText( str );
+	MakeCStringFromDouble( &str, m_dr_local.copper_copper/div );
+	m_edit_copper_copper.SetWindowText( str );
 }
 
 // DlgDRC message handlers
@@ -203,22 +144,19 @@ void DlgDRC::OnCbnChangeUnits()
 	SetFields();
 }
 
-// the actual checker
-//
-void DlgDRC::CheckDesign()
+void DlgDRC::OnBnClickedCancel()
 {
-	CString str;
+	OnCancel();
+}
 
-	GetFields();
-
-	// warnings
-	CString mess;
+int DlgDRC::CamWarnings()
+{
 	if( m_dr_local.annular_ring_pins > m_CAM_annular_ring_pins )  
 	{
 		CString s ((LPCSTR) IDS_WarningYourDesignRule);
 		int ret = AfxMessageBox( s, MB_YESNOCANCEL );
 		if( ret == IDCANCEL )
-			return;
+			return IDCANCEL;
 		else if( ret == IDYES )
 			m_CAM_annular_ring_pins = m_dr_local.annular_ring_pins;
 	}
@@ -227,35 +165,33 @@ void DlgDRC::CheckDesign()
 		CString s ((LPCSTR) IDS_WarningYourDesignRuleVias);
 		int ret = AfxMessageBox( s, MB_YESNOCANCEL );
 		if( ret == IDCANCEL )
-			return;
+			return IDCANCEL;
 		else if( ret == IDYES )
 			m_CAM_annular_ring_vias = m_dr_local.annular_ring_vias;
 	}
-
-	if( !m_dlg_log )
-		ASSERT(0);
-	m_dlg_log->ShowWindow( SW_SHOW );
-	m_dlg_log->UpdateWindow();
-	m_dlg_log->BringWindowToTop();
-	m_dlg_log->Clear();
-	m_dlg_log->UpdateWindow();
-	m_doc->DRC( m_units, m_check_show_unrouted.GetCheck(), &m_dr_local ); 
-}
-
-void DlgDRC::OnBnClickedCancel()
-{
-	OnCancel();
+	return IDOK;
 }
 
 void DlgDRC::OnBnClickedOk()
 {
 	GetFields();
+	if (CamWarnings() == IDCANCEL)
+		return;
 	*m_dr = m_dr_local;
+	m_doc->m_annular_ring_pins = m_CAM_annular_ring_pins;
+	m_doc->m_annular_ring_vias = m_CAM_annular_ring_vias;
+	bCheckOnExit = false;
 	OnOK();
 }
 
 void DlgDRC::OnBnClickedCheck()
 {
-	CheckDesign();
-//	OnOK();
+	GetFields();
+	if (CamWarnings() == IDCANCEL)
+		return;
+	*m_dr = m_dr_local;
+	m_doc->m_annular_ring_pins = m_CAM_annular_ring_pins;
+	m_doc->m_annular_ring_vias = m_CAM_annular_ring_vias;
+	bCheckOnExit = true;
+	OnOK();
 }

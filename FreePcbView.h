@@ -199,6 +199,13 @@ public:
 	int m_polyline_hatch;			// NONE, DIAGONAL_FULL or DIAGONAL_EDGE
 	int m_polyline_layer;			// layer being drawn
 
+	// CPT2: logging stuff
+	bool m_bHandlingKeyPress;
+	bool m_bReplayMode, m_bReplaying;
+	CArray<CPoint> m_replay_uid_translate;
+	CStdioFile m_log_file;
+	CString m_log_status;
+	int m_replay_ct;
 
 public:
 	DECLARE_DYNCREATE(CFreePcbView)
@@ -248,6 +255,41 @@ public:
 	void TryToReselectCorner( int x, int y );
 	void OnVertexStartTrace(bool bResetActiveWidth);										// CPT2 versions with an extra param added
 	void OnRatlineRoute(bool bResetActiveWidth);											// CPT2 ditto
+
+#ifdef CPT2_LOG
+	void Log(int function, int *param1=0, int *param2=0, int *param3=0);
+	void Log(int function, long *param1, long *param2=0, long *param3=0);
+	void Log(CString line, bool bSaveState);
+	void LogXtra(int *xtra1, int *xtra2=0, int *xtra3=0, int *xtra4=0);
+	void LogXtra(long *xtra1, long *xtra2=0, long *xtra3=0, long *xtra4=0);
+	void LogXtra(double *xtra1, double *xtra2=0, double *xtra3=0, double *xtra4=0);
+	void LogXtra(bool *xtra1, bool *xtra2=0, bool *xtra3=0, bool *xtra4=0);
+	void LogXtra(CString *str);
+	void LogItem(CPcbItem **item);
+	void LogCancel();
+	void LogNetListInfo(netlist_info *nli);
+	void LogPartListInfo(partlist_info *pli);
+	void LogShape(CShape *fp);
+	void Replay();
+	void ReplayLoad();
+	int ReplayUidTranslate(int logUid);
+#else
+	void Log(int function, int *param1=0, int *param2=0, int *param3=0) { }
+	void Log(int function, long *param1, long *param2=0, long *param3=0) { }
+	void Log(CString line, bool bSaveState) { }
+	void LogXtra(int *xtra1, int *xtra2=0, int *xtra3=0, int *xtra4=0) { }
+	void LogXtra(long *xtra1, long *xtra2=0, long *xtra3=0, long *xtra4=0) { }
+	void LogXtra(double *xtra1, double *xtra2=0, double *xtra3=0, double *xtra4=0) { }
+	void LogXtra(bool *xtra1) { }
+	void LogXtra(CString *str) { }
+	void LogItem(CPcbItem **item) { }
+	void LogCancel() { }
+	void LogNetListInfo(netlist_info *nli) { }
+	void LogPartListInfo(partlist_info *pli) { }
+	void LogShape(CShape *fp) { }
+	void Replay() { }
+	void ReplayLoad() { }
+#endif
 
 // Generated message map functions
 protected:
@@ -324,9 +366,10 @@ public:
 	afx_msg void OnFootprintWizard();
 	afx_msg void OnFootprintEditor();
 	afx_msg void OnCheckPartsAndNets();
-	afx_msg void OnDrc();
-	afx_msg void OnClearDrc();
-	afx_msg void OnRepeatDrc();
+	afx_msg void OnToolsDrc();
+	afx_msg void OnToolsClearDrc();
+	afx_msg void OnToolsRepeatDrc();
+	afx_msg void OnToolsShowDRCErrorlist();
 	afx_msg void OnViewAll();
 	afx_msg void OnAddSoldermaskCutout();
 	afx_msg void OnSmEdit();					// CPT2 new
@@ -361,7 +404,7 @@ public:
 	afx_msg void OnEditCopy();
 	afx_msg void OnEditPaste();
 	afx_msg void OnEditCut();
-	void OnGroupRotate( bool bCcw );						// CPT2 newly implemented cw vs. ccw option
+	void OnGroupRotate( int bCcw );						// CPT2 newly implemented cw vs. ccw option
 	afx_msg void OnGroupRotate()
 		{ OnGroupRotate(false); }
 	afx_msg void OnGroupRotateCCW()	

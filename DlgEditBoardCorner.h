@@ -12,8 +12,6 @@ public:
 	DlgEditBoardCorner(CWnd* pParent = NULL);   // standard constructor
 	virtual ~DlgEditBoardCorner();
 	void Init( CString * str, int units, int x, int y );
-	int X(){ return m_x; };
-	int Y(){ return m_y; };
 
 // Dialog Data
 	enum { IDD = IDD_EDIT_BOARD_CORNER };
@@ -28,9 +26,9 @@ public:
 	CEdit m_edit_x;
 	CEdit m_edit_y;
 	afx_msg void OnCbnSelchangeComboCornerUnits();
-private:
 	int m_x;
 	int m_y;
+private:
 	int m_units;
 	void GetFields();
 	void SetFields();

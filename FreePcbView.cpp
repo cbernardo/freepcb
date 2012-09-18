@@ -107,7 +107,10 @@ ON_COMMAND(ID_EDIT_PASTE, OnEditPaste)
 ON_COMMAND(ID_EDIT_CUT, OnEditCut)
 ON_COMMAND(ID_EDIT_SAVEGROUPTOFILE, OnGroupSaveToFile)
 ON_COMMAND(ID_TOOLS_MOVEORIGIN, OnToolsMoveOrigin)
-ON_COMMAND(ID_TOOLS_REPEATDRC, OnRepeatDrc)
+ON_COMMAND(ID_TOOLS_DRC, OnToolsDrc)
+ON_COMMAND(ID_TOOLS_CLEAR_DRC, OnToolsClearDrc)
+ON_COMMAND(ID_TOOLS_SHOWDRCERRORLIST, OnToolsShowDRCErrorlist)
+ON_COMMAND(ID_TOOLS_REPEATDRC, OnToolsRepeatDrc)
 
 ON_COMMAND(ID_NONE_ADDPART, OnAddPart)
 ON_COMMAND(ID_NONE_ADDTEXT, OnTextAdd)
@@ -117,9 +120,9 @@ ON_COMMAND(ID_NONE_ADDCOPPERAREA, OnAddArea)
 ON_COMMAND(ID_NONE_FOOTPRINTWIZARD, OnFootprintWizard)
 ON_COMMAND(ID_NONE_FOOTPRINTEDITOR, OnFootprintEditor)
 ON_COMMAND(ID_NONE_CHECKPARTSANDNETS, OnCheckPartsAndNets)
-ON_COMMAND(ID_NONE_DRC, OnDrc)
-ON_COMMAND(ID_NONE_REPEATDRC, OnRepeatDrc)
-ON_COMMAND(ID_NONE_CLEARDRCERRORS, OnClearDrc)
+ON_COMMAND(ID_NONE_DRC, OnToolsDrc)
+ON_COMMAND(ID_NONE_REPEATDRC, OnToolsRepeatDrc)
+ON_COMMAND(ID_NONE_CLEARDRCERRORS, OnToolsClearDrc)
 ON_COMMAND(ID_NONE_VIEWALL, OnViewAll)
 ON_COMMAND(ID_TEXT_DELETE, OnTextDelete)
 ON_COMMAND(ID_TEXT_MOVE, OnTextMove)
@@ -246,6 +249,8 @@ CFreePcbView::CFreePcbView()
 	m_lastKeyWasArrow = m_lastKeyWasGroupRotate = FALSE;		// CPT
 	m_highlight_net = NULL;
 	m_units = MIL;
+	m_bHandlingKeyPress = false;								// CPT2 logging stuff
+	m_bReplayMode = m_bReplaying = false;						// ditto
 
 	// CPT:  put the following into the constructor (was in InitInstance()).
 	// set up arrays of mask ids
@@ -441,6 +446,13 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 	//end CPT
 
 	// clicked in PCB pane
+	if (CurDragging())
+	{
+		if (m_bReplayMode && !m_bReplaying)
+			return;
+		Log(LOG_LEFT_CLICK, &m_last_cursor_point.x, &m_last_cursor_point.y);
+		LogXtra(&m_from_pt.x, &m_from_pt.y);
+	}
 	if(	CurNone() || CurSelected() )
 	{
 		if (!bCtrlKeyDown)
@@ -1010,16 +1022,16 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 				else if( !p0->net && !p1->net )
 				{
 					// connecting 2 unassigned pins, select net
-					DlgAssignNet assign_net_dlg;
-					assign_net_dlg.m_nlist = m_doc->m_nlist;
-					int ret = assign_net_dlg.DoModal();
+					DlgAssignNet dlg;
+					dlg.m_nlist = m_doc->m_nlist;
+					int ret = dlg.DoModal();
 					if( ret != IDOK )
 					{
 						m_doc->m_dlist->StopDragging();
 						HighlightSelection();
 						goto goodbye;
 					}
-					CString name = assign_net_dlg.m_net_str;
+					CString name = dlg.m_net_str;
 					CNet *net = m_doc->m_nlist->GetNetPtrByName(&name);
 					p0->SaveUndoInfo();
 					p1->SaveUndoInfo();
@@ -1387,6 +1399,9 @@ void CFreePcbView::OnLButtonDblClk(UINT nFlags, CPoint point)
 void CFreePcbView::OnRButtonDown(UINT nFlags, CPoint point)
 {
 	// ALSO USED TO CANCEL DRAGGING WHEN THE ESC KEY IS HIT.  (Sub-optimal system?)
+	if (m_bReplayMode && !m_bReplaying)
+		return;
+	Log(LOG_RIGHT_CLICK);
 	m_sel_offset = -1;							// CPT r294:  the current series of left-clicks has been interrupted...
 	m_disable_context_menu = 1;
 	CPcbItem *sel0 = m_sel.First();
@@ -1585,9 +1600,10 @@ void CFreePcbView::OnKeyUp(UINT nChar, UINT nRepCnt, UINT nFlags)
 //
 void CFreePcbView::OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags)
 {
+	m_bHandlingKeyPress = true;
 	if( nChar == 'D' )
 	{
-		m_doc->m_drelist->MakeSolidCircles();	// CPT2 TODO
+		m_doc->m_drelist->MakeSolidCircles();
 		Invalidate( FALSE );
 	}
 	else if( nChar == VK_SHIFT || nChar == VK_CONTROL )
@@ -1598,7 +1614,7 @@ void CFreePcbView::OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags)
 			/* CPT2 disabled SM_GRID_LINES because its code is dysfunctional and I don't really get it.
 			if( nChar == VK_CONTROL )
 				m_snap_mode = SM_GRID_LINES; */
-			if( nChar == 16 && m_doc->m_snap_angle == 45 )	// shift
+			if( nChar == VK_SHIFT && m_doc->m_snap_angle == 45 )
 				m_inflection_mode = IM_45_90;
 			m_dlist->SetInflectionMode( m_inflection_mode );
 			Invalidate( FALSE );
@@ -1606,6 +1622,7 @@ void CFreePcbView::OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags)
 	}
 	else
 		HandleKeyPress( nChar, nRepCnt, nFlags );
+	m_bHandlingKeyPress = false;
 
 	// don't pass through SysKey F10
 	if( nChar != 121 )
@@ -1615,7 +1632,7 @@ void CFreePcbView::OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags)
 void CFreePcbView::FinishArrowKey(int x, int y, int dx, int dy) 
 {
 	// CPT2: Helper for HandleKeyPress() below.  When user hits an arrow key, that routine moves the
-	// relevant part, then calls here to redisplay and tidy up.
+	// relevant item, then calls here to redisplay and tidy up.
 	if (!m_lastKeyWasArrow)
 		m_totalArrowMoveX = 0,
 		m_totalArrowMoveY = 0;
@@ -1643,6 +1660,23 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 
 	bool bShiftKeyDown = (GetKeyState(VK_SHIFT)&0x8000) != 0;
 	bool bCtrlKeyDown = (GetKeyState(VK_CONTROL)&0x8000) != 0;
+
+	CPoint p;
+	GetCursorPos( &p );				// cursor pos in screen coords
+	p = m_dlist->ScreenToPCB( p );	// convert to PCB coords
+	if( nChar == VK_HOME )
+		{ OnViewAllElements(); return; }
+	else if (HandlePanAndZoom(nChar, p))
+		return;
+
+#ifdef CPT2_LOG
+	if (!m_bReplayMode && nChar==VK_F11)
+		{ ReplayLoad(); return; }
+	if (m_bReplayMode && !m_bReplaying)
+		{ Replay(); return; }
+	Log(LOG_KEY, (int*) &nChar);
+	LogXtra(&bShiftKeyDown, &bCtrlKeyDown);
+#endif
 
 #ifdef ALLOW_CURVED_SEGMENTS
 	if( nChar == 'C' && m_cursor_mode == CUR_SEG_SELECTED )
@@ -1859,10 +1893,6 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 	int dy = 0;
 
 	// get cursor position and convert to PCB coords
-	CPoint p;
-	GetCursorPos( &p );		// cursor pos in screen coords
-	p = m_dlist->ScreenToPCB( p );	// convert to PCB coords
-
 	// CPT
 	if (HandleLayerKey(nChar, bShiftKeyDown, bCtrlKeyDown, pDC)) 
 		{ ReleaseDC(pDC); return; }
@@ -2415,8 +2445,8 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 					if( ret != IDYES )
 						return;
 				}
-				SaveUndoInfoForGroup();
 			}
+			SaveUndoInfoForGroup();
 			MoveGroup( dx, dy );
 			FinishArrowKey(INT_MAX, INT_MAX, dx, dy);
 		}
@@ -2507,14 +2537,6 @@ void CFreePcbView::HandleKeyPress(UINT nChar, UINT nRepCnt, UINT nFlags)
 	default:
 		break;
 	}	// end switch
-
-	// CPT
-	if( nChar == VK_HOME )
-		// home key pressed, ViewAllElements
-		OnViewAllElements();
-	else
-		HandlePanAndZoom(nChar, p);
-	// end CPT
 
 	ReleaseDC( pDC );
 	if( !m_lastKeyWasArrow && !m_lastKeyWasGroupRotate )
@@ -3237,6 +3259,9 @@ int CFreePcbView::ShowSelectStatus()
 		break;
 
 	}
+
+	if (m_bReplaying)
+		str = m_log_status;
 	pMain->DrawStatus( 3, &str );
 	return 0;
 }
@@ -3417,46 +3442,49 @@ void CFreePcbView::CancelHighlightNet()
 //
 void CFreePcbView::SetWidth( int mode )
 {
-	// set parameters for dialog
-	DlgSetSegmentWidth dlg;
-	dlg.m_w = &m_doc->m_w;
-	dlg.m_v_w = &m_doc->m_v_w;
-	dlg.m_v_h_w = &m_doc->m_v_h_w;
-	dlg.m_init_w = m_doc->m_trace_w;
-	dlg.m_init_via_w = m_doc->m_via_w;
-	dlg.m_init_via_hole_w = m_doc->m_via_hole_w;
-
+	if (m_bReplayMode && !m_bReplaying)
+		return;
 	CNet *net = m_sel.First()->GetNet();
 	CConnect *c = m_sel.First()->GetConnect();
 	CSeg * seg = m_sel.First()->ToSeg();
-	if( mode == 0 )
+	DlgSetSegmentWidth dlg;
+	int w, via_w, via_hole_w;
+	if (!m_bReplaying)
 	{
-		int seg_w = seg->m_width;
-		if( seg_w )
-			dlg.m_init_w = seg_w;
+		// Set params for dialog, then launch it.  If we're doing a replay from a log file, the Log() statements below will load in the
+		// correct values.
+		dlg.m_w = &m_doc->m_w;
+		dlg.m_v_w = &m_doc->m_v_w;
+		dlg.m_v_h_w = &m_doc->m_v_h_w;
+		dlg.m_init_w = m_doc->m_trace_w;
+		dlg.m_init_via_w = m_doc->m_via_w;
+		dlg.m_init_via_hole_w = m_doc->m_via_hole_w;
+		if( mode == 0 )
+		{
+			int seg_w = seg->m_width;
+			if( seg_w )
+				dlg.m_init_w = seg_w;
+			else if( net->def_w )
+				dlg.m_init_w = net->def_w;
+		}
 		else if( net->def_w )
 			dlg.m_init_w = net->def_w;
+		dlg.m_mode = mode;
+		int ret = dlg.DoModal();
+		if (ret != IDOK) 
+			{ LogCancel(); return; }
+		w = dlg.m_width;
+		via_w = dlg.m_via_width;
+		via_hole_w = dlg.m_hole_width;
+		if( dlg.m_tv == 3 )
+			w = 0;
+		else if( dlg.m_tv == 2 )
+			via_w = 0;
 	}
-	else
-	{
-		if( net->def_w )
-			dlg.m_init_w = net->def_w;
-	}
+	Log(LOG_SET_WIDTH, &dlg.m_def, &dlg.m_apply);
+	LogXtra(&w, &via_w, &via_hole_w);
 
-	// launch dialog
-	dlg.m_mode = mode;
-	int ret = dlg.DoModal();
-	if (ret != IDOK) 
-		return;
-	int w = dlg.m_width;
-	int via_w = dlg.m_via_width;
-	int via_hole_w = dlg.m_hole_width;
-	if( dlg.m_tv == 3 )
-		w = 0;
-	else if( dlg.m_tv == 2 )
-		via_w = 0;
-
-	// Save undo info (for the whole net, the connect, or just the seg as appropriate)
+	// Save undo info (for the whole net, or just the connect as appropriate)
 	if (dlg.m_apply == 3 || dlg.m_def == 2)
 		net->SaveUndoInfo( CNet::SAVE_CONNECTS );
 	else
@@ -3707,15 +3735,18 @@ void CFreePcbView::OnContextMenu(CWnd* pWnd, CPoint point )
 //
 void CFreePcbView::OnPartMove()
 {
+	if (m_bReplayMode && !m_bReplaying)
+		return;
 	CPart *part = m_sel.First()->ToPart();
 	// check for glue
-	if( part->glued )
+	if( part->glued && !m_bReplaying)
 	{
 		CString s ((LPCSTR) IDS_ThisPartIsGluedDoYouWantToUnglueIt);
 		int ret = AfxMessageBox( s, MB_YESNO );
 		if( ret != IDYES )
-			return;
+			{ LogCancel(); return; }
 	}
+	Log(LOG_ON_PART_MOVE);
 	// drag part
 	CDC *pDC = GetDC();
 	pDC->SelectClipRgn( &m_pcb_rgn );
@@ -3739,30 +3770,39 @@ void CFreePcbView::OnPartMove()
 //
 void CFreePcbView::OnTextAdd()
 {
-	// create, initialize and show dialog
-	CDlgAddText add_text_dlg;
-	CString str = "";
-	add_text_dlg.Initialize( 0, m_doc->m_num_layers, 1, &str, m_units,
-			LAY_SILK_TOP, 0, 0, 0, 0, 0, 0, 0 );
-	add_text_dlg.m_num_layers = m_doc->m_num_layers;
-	add_text_dlg.m_bDrag = 1;
-	int ret = add_text_dlg.DoModal();
-	if( ret == IDCANCEL )
+	if (m_bReplayMode && !m_bReplaying)
 		return;
 
-	int x = add_text_dlg.m_x;
-	int y = add_text_dlg.m_y;
-	int mirror = add_text_dlg.m_bMirror;
-	BOOL bNegative = add_text_dlg.m_bNegative;
-	int angle = add_text_dlg.m_angle;
-	int font_size = add_text_dlg.m_height;
-	int stroke_width = add_text_dlg.m_width;
-	int layer = add_text_dlg.m_layer;
-	str = add_text_dlg.m_str;
+	// create, initialize and show dialog
+	CDlgAddText dlg;
+	if (!m_bReplaying)
+	{
+		dlg.Initialize( 0, m_doc->m_num_layers, 1, &CString(""), m_units,
+				LAY_SILK_TOP, 0, 0, 0, 0, 0, 0, 0 );
+		dlg.m_num_layers = m_doc->m_num_layers;
+		dlg.m_bDrag = 1;
+		int ret = dlg.DoModal();
+		if( ret == IDCANCEL )
+			{ LogCancel(); return; }
+	}
+	Log(LOG_ON_TEXT_ADD, &dlg.m_x, &dlg.m_y, &dlg.m_angle);
+	LogXtra(&dlg.m_bMirror, &dlg.m_bNegative, &dlg.m_height, &dlg.m_width);
+	LogXtra(&dlg.m_layer, &dlg.m_bDrag);
+	LogXtra(&dlg.m_str);
+
+	int x = dlg.m_x;
+	int y = dlg.m_y;
+	int mirror = dlg.m_bMirror;
+	BOOL bNegative = dlg.m_bNegative;
+	int angle = dlg.m_angle;
+	int font_size = dlg.m_height;
+	int stroke_width = dlg.m_width;
+	int layer = dlg.m_layer;
+	CString str = dlg.m_str;
 	m_doc->m_vis[layer] = TRUE;
 	m_dlist->SetLayerVisible( layer, TRUE );
 
-	if( add_text_dlg.m_bDrag )
+	if( dlg.m_bDrag )
 	{
 		CPoint p;
 		GetCursorPos( &p );		// cursor pos in screen coords
@@ -3776,7 +3816,7 @@ void CFreePcbView::OnTextAdd()
 	m_doc->ProjectModified(true);
 	SelectItem(t);
 
-	if( add_text_dlg.m_bDrag )
+	if( dlg.m_bDrag )
 	{
 		// set pDC to PCB coords
 		CDC *pDC = GetDC();
@@ -3793,6 +3833,9 @@ void CFreePcbView::OnTextAdd()
 //
 void CFreePcbView::OnTextDelete()
 {
+	if (m_bReplayMode && !m_bReplaying)
+		return;
+	Log(LOG_ON_TEXT_DELETE);
 	CText *t = m_sel.First()->ToText();
 	t->SaveUndoInfo();
 	m_doc->m_tlist->texts.Remove(t);
@@ -3805,6 +3848,9 @@ void CFreePcbView::OnTextDelete()
 //
 void CFreePcbView::OnTextMove()
 {
+	if (m_bReplayMode && !m_bReplaying)
+		return;
+	Log(LOG_ON_TEXT_MOVE);
 	CDC *pDC = GetDC();
 	pDC->SelectClipRgn( &m_pcb_rgn );
 	SetDCToWorldCoords( pDC );
@@ -3827,6 +3873,9 @@ void CFreePcbView::OnTextMove()
 //
 void CFreePcbView::OnPartGlue()
 {
+	if (m_bReplayMode && !m_bReplaying)
+		return;
+	Log(LOG_ON_PART_GLUE);
 	CPart *part = m_sel.First()->ToPart();
 	part->SaveUndoInfo(false);
 	part->glued = 1;
@@ -3838,6 +3887,9 @@ void CFreePcbView::OnPartGlue()
 //
 void CFreePcbView::OnPartUnglue()
 {
+	if (m_bReplayMode && !m_bReplaying)
+		return;
+	Log(LOG_ON_PART_UNGLUE);
 	CPart *part = m_sel.First()->ToPart();
 	part->SaveUndoInfo(false);
 	part->glued = 0;
@@ -3849,14 +3901,17 @@ void CFreePcbView::OnPartUnglue()
 //
 void CFreePcbView::OnPartDelete()
 {
+	if (m_bReplayMode && !m_bReplaying)
+		return;
 	CPart *part = m_sel.First()->ToPart();
-	if( part->glued )
+	if( part->glued && !m_bReplaying )
 	{
 		CString s ((LPCSTR) IDS_ThisPartIsGluedDoYouWantToUnglueIt);
 		int ret = AfxMessageBox( s, MB_YESNO );
 		if( ret == IDNO )
-			return;
+			{ LogCancel(); return; }
 	}
+	Log(LOG_ON_PART_DELETE);
 
 	// CPT2 TODO.  The distinction that was previously drawn between PartDeleted() and PartDisconnected() was hard for me to figure out.  The former
 	// seems to leave in place notional pins within nets that refer to parts no longer in existence.  I'm not clear why that would be useful, and I 
@@ -3885,6 +3940,9 @@ void CFreePcbView::OnPartDelete()
 //
 void CFreePcbView::OnPartOptimize()
 {
+	if (m_bReplayMode && !m_bReplaying)
+		return;
+	Log(LOG_ON_PART_OPTIMIZE);
 	CPart *part = m_sel.First()->ToPart();
 	part->OptimizeConnections( FALSE );
 	m_doc->ProjectModified( TRUE );
@@ -3892,18 +3950,25 @@ void CFreePcbView::OnPartOptimize()
 
 void CFreePcbView::OnPartProperties()
 {
-	// CPT2.  This used to be in class FreePcbDoc, but I'm thinking CFreePcbView is more logical.
+	// CPT2.  This used to be in class CFreePcbDoc, but I'm thinking CFreePcbView is more logical.
+	if (m_bReplayMode && !m_bReplaying)
+		return;
 	CPart *part = m_sel.First()->ToPart();
 	partlist_info pli;
-	int ip = part->m_pl->ExportPartListInfo( &pli, part );
 	CDlgAddPart dlg;
-	dlg.Initialize( &pli, ip, TRUE, FALSE, FALSE, 0, m_doc, m_units );
-	int ret = dlg.DoModal();
-	if( ret != IDOK )
-		return;
+	if (!m_bReplaying)
+	{
+		int ip = part->m_pl->ExportPartListInfo( &pli, part );
+		dlg.Initialize( &pli, ip, TRUE, FALSE, FALSE, 0, m_doc, m_units );
+		int ret = dlg.DoModal();
+		if( ret != IDOK )
+			{ LogCancel(); return; }
+	}
+	Log(LOG_ON_PART_PROPERTIES, &dlg.m_drag_flag);
+	LogPartListInfo( &pli );
 	part->SaveUndoInfo();
 	m_doc->m_plist->ImportPartListInfo( &pli, 0 );
-	if( dlg.GetDragFlag() )
+	if( dlg.m_drag_flag )
 		ASSERT(0);
 	if( m_doc->m_vis[LAY_RAT_LINE] && !m_doc->m_auto_ratline_disable )
 		m_doc->m_nlist->OptimizeConnections();
@@ -3914,6 +3979,9 @@ void CFreePcbView::OnPartProperties()
 void CFreePcbView::OnPartRefProperties()
 {
 	// CPT2 new.  For use in the part context menu
+	if (m_bReplayMode && !m_bReplaying)
+		return;
+	Log(LOG_ON_PART_REF_PROPERTIES);
 	CPart *part = m_sel.First()->ToPart();
 	part->MustRedraw();
 	part->m_ref->m_bShown = true;
@@ -3925,6 +3993,9 @@ void CFreePcbView::OnPartRefProperties()
 void CFreePcbView::OnPartValueProperties()
 {
 	// CPT2 new.  For use in the part context menu
+	if (m_bReplayMode && !m_bReplaying)
+		return;
+	Log(LOG_ON_PART_VALUE_PROPERTIES);
 	CPart *part = m_sel.First()->ToPart();
 	part->MustRedraw();
 	part->m_value->m_bShown = true;
@@ -3941,6 +4012,9 @@ void CFreePcbView::OnPartValueProperties()
 //
 void CFreePcbView::OnRefMove()
 {
+	if (m_bReplayMode && !m_bReplaying)
+		return;
+	Log(LOG_ON_REF_MOVE);
 	CText *t = m_sel.First()->ToText();
 	CDC *pDC = GetDC();
 	pDC->SelectClipRgn( &m_pcb_rgn );
@@ -3958,6 +4032,9 @@ void CFreePcbView::OnRefMove()
 //
 void CFreePcbView::OnPadOptimize()
 {
+	if (m_bReplayMode && !m_bReplaying)
+		return;
+	Log(LOG_ON_PAD_OPTIMIZE);
 	CPin *pin = m_sel.First()->ToPin();
 	if (!pin->net)
 		return;
@@ -3969,17 +4046,24 @@ void CFreePcbView::OnPadOptimize()
 // CPT2 converted.  Quite similar to OnVertexStartTrace().
 void CFreePcbView::OnPadStartTrace()
 {
+	if (m_bReplayMode && !m_bReplaying)
+		return;
+	Log(LOG_ON_PAD_START_TRACE);
 	CPin *pin = m_sel.First()->ToPin();
 	CNet *net = pin->net;
 	if( !net )
 	{
 		// CPT2 new.  User can pick the net now.
-		DlgAssignNet assign_net_dlg;
-		assign_net_dlg.m_nlist = m_doc->m_nlist;
-		int ret = assign_net_dlg.DoModal();
-		if( ret != IDOK )
-			return;
-		CString name = assign_net_dlg.m_net_str;
+		DlgAssignNet dlg;
+		if (!m_bReplaying)
+		{
+			dlg.m_nlist = m_doc->m_nlist;
+			int ret = dlg.DoModal();
+			if( ret != IDOK )
+				{ LogCancel(); return; }
+		}
+		LogXtra(&dlg.m_net_str);
+		CString name = dlg.m_net_str;
 		net = m_doc->m_nlist->GetNetPtrByName(&name);
 		if( !net )
 			// make new net
@@ -4025,14 +4109,21 @@ void CFreePcbView::OnPadStartTrace()
 //
 void CFreePcbView::OnPadAddToNet()
 {
-	CPin *pin = m_sel.First()->ToPin();
-	DlgAssignNet assign_net_dlg;
-	assign_net_dlg.m_nlist = m_doc->m_nlist;
-	int ret = assign_net_dlg.DoModal();
-	if (ret != IDOK)
+	if (m_bReplayMode && !m_bReplaying)
 		return;
+	CPin *pin = m_sel.First()->ToPin();
+	DlgAssignNet dlg;
+	if (!m_bReplaying)
+	{
+		dlg.m_nlist = m_doc->m_nlist;
+		int ret = dlg.DoModal();
+		if (ret != IDOK)
+			{ LogCancel(); return; }
+	}
+	Log( LOG_ON_PAD_ADD_TO_NET );
+	LogXtra( &dlg.m_net_str );
 
-	CString name = assign_net_dlg.m_net_str;
+	CString name = dlg.m_net_str;
 	name.Trim();
 	CNet *net = m_doc->m_nlist->GetNetPtrByName( &name );
 	if( !net )
@@ -4066,6 +4157,9 @@ void CFreePcbView::OnPadAddToNet()
 //
 void CFreePcbView::OnPadDetachFromNet()
 {
+	if (m_bReplayMode && !m_bReplaying)
+		return;
+	Log(LOG_ON_PAD_DETACH_FROM_NET);
 	CPin *pin = m_sel.First()->ToPin();
 	pin->SaveUndoInfo();
 	pin->net->SaveUndoInfo( CNet::SAVE_CONNECTS );
@@ -4079,6 +4173,9 @@ void CFreePcbView::OnPadDetachFromNet()
 //
 void CFreePcbView::OnPadStartRatline()
 {
+	if (m_bReplayMode && !m_bReplaying)
+		return;
+	Log(LOG_ON_PAD_START_RATLINE);
 	CPin *pin = m_sel.First()->ToPin();
 	CDC *pDC = GetDC();
 	pDC->SelectClipRgn( &m_pcb_rgn );
@@ -4098,6 +4195,9 @@ void CFreePcbView::OnPadStartRatline()
 //
 void CFreePcbView::OnVertexStartRatline()
 {
+	if (m_bReplayMode && !m_bReplaying)
+		return;
+	Log(LOG_ON_VERTEX_START_RATLINE);
 	CPcbItem *sel0 = m_sel.First();
 	CVertex *v = sel0->ToVertex();
 	if (sel0->IsTee())
@@ -4122,6 +4222,10 @@ void CFreePcbView::OnVertexStartTrace() { OnVertexStartTrace(true); }
 
 void CFreePcbView::OnVertexStartTrace(bool bResetActiveWidth)
 {
+	if (m_bReplayMode && !m_bReplaying)
+		return;
+	Log(LOG_ON_VERTEX_START_TRACE);
+	LogXtra(&bResetActiveWidth);
 	CPcbItem *sel0 = m_sel.First();
 	CVertex *v = sel0->ToVertex();
 	if (sel0->IsTee())
@@ -4189,9 +4293,11 @@ void CFreePcbView::OnSegmentSetWidth()
 //
 void CFreePcbView::OnSegmentUnroute()
 {
+	if (m_bReplayMode && !m_bReplaying)
+		return;
+	Log(LOG_ON_SEGMENT_UNROUTE);
 	CSeg *seg = m_sel.First()->ToSeg();
 	CConnect *c = seg->m_con;
-	// save undo info for connection
 	c->SaveUndoInfo();
 
 	// edit connection segment
@@ -4229,6 +4335,9 @@ void CFreePcbView::OnSegmentUnroute()
 //
 void CFreePcbView::OnSegmentDelete()
 {
+	if (m_bReplayMode && !m_bReplaying)
+		return;
+	Log(LOG_ON_SEGMENT_DELETE);
 	CSeg *seg = m_sel.First()->ToSeg();
 	seg->m_con->SaveUndoInfo();
 	seg->RemoveBreak();								// Takes care of undrawing
@@ -4242,6 +4351,10 @@ void CFreePcbView::OnRatlineRoute() { OnRatlineRoute(true); }			// CPT2.  Need a
 
 void CFreePcbView::OnRatlineRoute(bool bResetActiveWidth)
 {
+	if (m_bReplayMode && !m_bReplaying)
+		return;
+	Log(LOG_ON_RATLINE_ROUTE);
+	LogXtra(&bResetActiveWidth);
 	CSeg *seg = m_sel.First()->ToSeg();
 	CNet *net = seg->m_net;
 	CVertex *preVtx = seg->preVtx, *postVtx = seg->postVtx;
@@ -4307,6 +4420,9 @@ void CFreePcbView::OnRatlineRoute(bool bResetActiveWidth)
 void CFreePcbView::OnOptimize()
 {
 	// CPT2 used when a net-item (seg, vertex, etc.) is selected and user hits F9.
+	if (m_bReplayMode && !m_bReplaying)
+		return;
+	Log(LOG_ON_OPTIMIZE);
 	CNet *net = m_sel.First()->GetNet();
 	net->OptimizeConnections( FALSE );
 	if (!m_sel.First()->IsOnPcb())
@@ -4319,7 +4435,10 @@ void CFreePcbView::OnOptimize()
 //
 void CFreePcbView::OnRatlineChangeEndPin()
 {
-	// CPT2 converted.  Somewhat similar to OnVertexStartRatline
+	// CPT2 converted.  Somewhat similar to OnVertexStartRatline()
+	if (m_bReplayMode && !m_bReplaying)
+		return;
+	Log(LOG_ON_RATLINE_CHANGE_END_PIN);
 	CSeg *seg = m_sel.First()->ToSeg();
 	CVertex *pin_end, *no_pin_end;
 	if (seg->preVtx->pin)
@@ -4345,20 +4464,28 @@ void CFreePcbView::OnRatlineChangeEndPin()
 //
 void CFreePcbView::OnVertexProperties()
 {
+	if (m_bReplayMode && !m_bReplaying)
+		return;
 	CVertex *vtx = m_sel.First()->ToVertex();
 	CPoint v_pt( vtx->x, vtx->y );
-	CDlgVia dlg = new CDlgVia;
-	dlg.Initialize( vtx->via_w, vtx->via_hole_w, v_pt, m_units );
-	int ret = dlg.DoModal();
-	if( ret != IDOK )
-		return;
+	CDlgVia dlg;
+	if (!m_bReplaying)
+	{
+		dlg.Initialize( vtx->via_w, vtx->via_hole_w, v_pt, m_units );
+		int ret = dlg.DoModal();
+		if( ret != IDOK )
+			{ LogCancel(); return; }
+	}
+	Log(LOG_ON_VERTEX_PROPERTIES, &dlg.m_via_w, &dlg.m_via_hole_w);
+	LogXtra(&dlg.m_pt.x, &dlg.m_pt.y);
+
 	CancelHighlight();
 	vtx->m_con->SaveUndoInfo();
 	vtx->via_w = dlg.m_via_w;
 	vtx->via_hole_w = dlg.m_via_hole_w;
 	if (vtx->via_w)
 		vtx->force_via_flag = 1;					// So that ReconcileVia() won't tamper with the via.
-	vtx->Move( dlg.pt().x, dlg.pt().y );
+	vtx->Move( dlg.m_pt.x, dlg.m_pt.y );
 	m_doc->ProjectModified( TRUE );
 	HighlightSelection();
 }
@@ -4368,15 +4495,23 @@ void CFreePcbView::OnVertexProperties()
 //
 void CFreePcbView::OnTeeProperties()
 {
+	if (m_bReplayMode && !m_bReplaying)
+		return;
 	CTee *tee = m_sel.First()->ToTee();
 	if (tee->vtxs.GetSize()==0) return;				// Weird...
 	CNet *net = tee->GetNet();
 	CPoint v_pt( tee->vtxs.First()->x, tee->vtxs.First()->y );
-	CDlgVia dlg = new CDlgVia;
-	dlg.Initialize( tee->via_w, tee->via_hole_w, v_pt, m_units );
-	int ret = dlg.DoModal();
-	if( ret != IDOK )
-		return;
+	CDlgVia dlg;
+	if (!m_bReplaying)
+	{
+		dlg.Initialize( tee->via_w, tee->via_hole_w, v_pt, m_units );
+		int ret = dlg.DoModal();
+		if( ret != IDOK )
+			{ LogCancel(); return; }
+	}
+	Log(LOG_ON_TEE_PROPERTIES, &dlg.m_via_w, &dlg.m_via_hole_w);
+	LogXtra(&dlg.m_pt.x, &dlg.m_pt.y);
+
 	CancelHighlight();
 	net->SaveUndoInfo( CNet::SAVE_CONNECTS );
 	tee->MustRedraw();
@@ -4384,7 +4519,7 @@ void CFreePcbView::OnTeeProperties()
 	tee->via_hole_w = dlg.m_via_hole_w;
 	if (tee->via_w)
 		tee->ForceVia();						// So that ReconcileVia() won't tamper with the via.
-	tee->Move( dlg.pt().x, dlg.pt().y );
+	tee->Move( dlg.m_pt.x, dlg.m_pt.y );
 	m_doc->ProjectModified( TRUE );
 	tee->Highlight();
 }
@@ -4394,6 +4529,9 @@ void CFreePcbView::OnTeeProperties()
 //
 void CFreePcbView::OnVertexMove()
 {
+	if (m_bReplayMode && !m_bReplaying)
+		return;
+	Log(LOG_ON_VERTEX_MOVE);
 	CVertex *vtx = m_sel.First()->ToVertex();
 	CDC *pDC = GetDC();
 	pDC->SelectClipRgn( &m_pcb_rgn );
@@ -4410,6 +4548,9 @@ void CFreePcbView::OnVertexMove()
 
 void CFreePcbView::OnTeeMove()
 {
+	if (m_bReplayMode && !m_bReplaying)
+		return;
+	Log(LOG_ON_TEE_MOVE);
 	CTee *tee = m_sel.First()->ToTee();
 	if (tee->vtxs.GetSize()==0) return;					// Weird...
 	CDC *pDC = GetDC();
@@ -4430,8 +4571,10 @@ void CFreePcbView::OnTeeMove()
 //
 void CFreePcbView::OnVertexDelete()
 {
-	CPcbItem *sel0 = m_sel.First();
-	CVertex *v = sel0->ToVertex();
+	if (m_bReplayMode && !m_bReplaying)
+		return;
+	Log(LOG_ON_VERTEX_DELETE);
+	CVertex *v = m_sel.First()->ToVertex();
 	CConnect *c = v->m_con;
 	CNet *net = v->m_net;
 	c->SaveUndoInfo();
@@ -4447,13 +4590,19 @@ void CFreePcbView::OnVertexDelete()
 //
 void CFreePcbView::OnTeeDelete()
 {
+	if (m_bReplayMode && !m_bReplaying)
+		return;
 	CTee *tee = m_sel.First()->ToTee();
 	CNet *net = tee->GetNet();
-	// ask to confirm
-	CString s ((LPCSTR) IDS_YouAreDeletingATeeVertexContinue);
-	int ret = AfxMessageBox( s,	MB_OKCANCEL );
-	if( ret == IDCANCEL )
-		return;
+	if (!m_bReplaying)
+	{
+		// ask to confirm
+		CString s ((LPCSTR) IDS_YouAreDeletingATeeVertexContinue);
+		int ret = AfxMessageBox( s,	MB_OKCANCEL );
+		if( ret == IDCANCEL )
+			{ LogCancel(); return; }
+	}
+	Log(LOG_ON_TEE_DELETE);
 	net->SaveUndoInfo( CNet::SAVE_CONNECTS );
 	tee->Remove(true);
 	if( m_doc->m_vis[LAY_RAT_LINE] )
@@ -4467,6 +4616,9 @@ void CFreePcbView::OnTeeDelete()
 
 void CFreePcbView::OnVertexAddVia()
 {
+	if (m_bReplayMode && !m_bReplaying)
+		return;
+	Log(LOG_ON_VERTEX_ADD_VIA);
 	CPcbItem *sel = m_sel.First();
 	CNet *net = sel->GetNet();
 	sel->SaveUndoInfo();
@@ -4483,6 +4635,9 @@ void CFreePcbView::OnVertexAddVia()
 
 void CFreePcbView::OnVertexRemoveVia()
 {
+	if (m_bReplayMode && !m_bReplaying)
+		return;
+	Log(LOG_ON_VERTEX_REMOVE_VIA);
 	CPcbItem *sel = m_sel.First();
 	CNet *net = sel->GetNet();
 	sel->SaveUndoInfo();
@@ -4501,6 +4656,9 @@ void CFreePcbView::OnVertexRemoveVia()
 //
 void CFreePcbView::OnRatlineComplete()
 {
+	if (m_bReplayMode && !m_bReplaying)
+		return;
+	Log(LOG_ON_RATLINE_COMPLETE);
 	CSeg *seg = m_sel.First()->ToSeg();
 	CVertex *start = m_dir==0? seg->preVtx: seg->postVtx;
 	CVertex *end = m_dir==0? seg->postVtx: seg->preVtx;
@@ -4554,15 +4712,18 @@ void CFreePcbView::OnRatlineSetWidth()
 //
 void CFreePcbView::OnDeleteConnection()
 {
+	if (m_bReplayMode && !m_bReplaying)
+		return;
 	CConnect *c = m_sel.First()->GetConnect();
 	CNet *net = c->m_net;
-	if( c->locked )
+	if( c->locked && !m_bReplaying )
 	{
 		CString s ((LPCSTR) IDS_YouAreTryingToDeleteALockedConnection);
 		int ret = AfxMessageBox( s,	MB_YESNO );
 		if( ret == IDNO )
-			return;
+			{ LogCancel(); return; }
 	}
+	Log(LOG_ON_DELETE_CONNECTION);
 	net->SaveUndoInfo( CNet::SAVE_CONNECTS );
 	c->Remove();
 	m_doc->ProjectModified( TRUE );
@@ -4573,6 +4734,9 @@ void CFreePcbView::OnDeleteConnection()
 //
 void CFreePcbView::OnRatlineLockConnection()
 {
+	if (m_bReplayMode && !m_bReplaying)
+		return;
+	Log(LOG_ON_RATLINE_LOCK_CONNECTION);
 	CConnect *c = m_sel.First()->GetConnect();
 	c->SaveUndoInfo();
 	c->locked = 1;
@@ -4585,6 +4749,9 @@ void CFreePcbView::OnRatlineLockConnection()
 //
 void CFreePcbView::OnRatlineUnlockConnection()
 {
+	if (m_bReplayMode && !m_bReplaying)
+		return;
+	Log(LOG_ON_RATLINE_UNLOCK_CONNECTION);
 	CConnect *c = m_sel.First()->GetConnect();
 	c->SaveUndoInfo();
 	c->locked = 0;
@@ -4597,34 +4764,42 @@ void CFreePcbView::OnRatlineUnlockConnection()
 //
 void CFreePcbView::OnTextEdit()
 {
-	// create dialog and pass parameters
-	CText *t = m_sel.First()->ToText();
-	CDlgAddText add_text_dlg;
-	add_text_dlg.Initialize( 0, m_doc->m_num_layers, 0, &t->m_str,
-		m_units, t->m_layer, t->m_bMirror,
-			t->m_bNegative, t->m_angle, t->m_font_size,
-			t->m_stroke_width, t->m_x, t->m_y );
-	int ret = add_text_dlg.DoModal();
-	if( ret == IDCANCEL )
+	if (m_bReplayMode && !m_bReplaying)
 		return;
+	CText *t = m_sel.First()->ToText();
+	CDlgAddText dlg;
+	if (!m_bReplaying)
+	{
+		// create dialog and pass parameters
+		dlg.Initialize( 0, m_doc->m_num_layers, 0, &t->m_str,
+			m_units, t->m_layer, t->m_bMirror, t->m_bNegative, t->m_angle, t->m_font_size,
+			t->m_stroke_width, t->m_x, t->m_y );
+		int ret = dlg.DoModal();
+		if( ret == IDCANCEL )
+			{ LogCancel(); return; }
+	}
+	Log(LOG_ON_TEXT_EDIT, &dlg.m_x, &dlg.m_y, &dlg.m_angle);
+	LogXtra(&dlg.m_bMirror, &dlg.m_bNegative, &dlg.m_height, &dlg.m_width);
+	LogXtra(&dlg.m_layer, &dlg.m_bDrag);
+	LogXtra(&dlg.m_str);
 
 	// now replace old text with new one
 	t->SaveUndoInfo();
 	CancelHighlight();
 	t->MustRedraw();
-	t->m_x = add_text_dlg.m_x;
-	t->m_y = add_text_dlg.m_y;
-	t->m_bMirror = add_text_dlg.m_bMirror;
-	t->m_bNegative = add_text_dlg.m_bNegative;
-	t->m_angle = add_text_dlg.m_angle;
-	t->m_font_size = add_text_dlg.m_height;
-	t->m_stroke_width = add_text_dlg.m_width;
-	t->m_layer = add_text_dlg.m_layer;
-	t->m_str = add_text_dlg.m_str;
+	t->m_x = dlg.m_x;
+	t->m_y = dlg.m_y;
+	t->m_bMirror = dlg.m_bMirror;
+	t->m_bNegative = dlg.m_bNegative;
+	t->m_angle = dlg.m_angle;
+	t->m_font_size = dlg.m_height;
+	t->m_stroke_width = dlg.m_width;
+	t->m_layer = dlg.m_layer;
+	t->m_str = dlg.m_str;
 	m_doc->ProjectModified( TRUE );
 	HighlightSelection();
 	// start dragging if requested in dialog
-	if( add_text_dlg.m_bDrag )
+	if( dlg.m_bDrag )
 	{
 		CDC *pDC = GetDC();							// CPT2 TODO move this whole pDC business down into the StartDragging routines...
 		pDC->SelectClipRgn( &m_pcb_rgn );
@@ -4641,19 +4816,26 @@ void CFreePcbView::OnTextEdit()
 //
 void CFreePcbView::OnAddArea()
 {
+	if (m_bReplayMode && !m_bReplaying)
+		return;
 	CDlgAddArea dlg;
-	dlg.Initialize( m_doc->m_nlist, m_doc->m_num_layers, NULL, m_active_layer, -1 );
-	int ret = dlg.DoModal();
-	if( ret != IDOK ) 
-		return;
-
-	if( !dlg.m_net )
+	if (!m_bReplaying)
 	{
-		CString str, s ((LPCSTR) IDS_NetNotFound);
-		str.Format( s, dlg.m_net_name );
-		AfxMessageBox( str, MB_OK );
-		return;
+		dlg.Initialize( m_doc->m_nlist, m_doc->m_num_layers, NULL, m_active_layer, -1 );
+		int ret = dlg.DoModal();
+		if( ret != IDOK ) 
+			{ LogCancel(); return; }
+		if( !dlg.m_net )
+		{
+			CString str, s ((LPCSTR) IDS_NetNotFound);
+			str.Format( s, dlg.m_net_name );
+			AfxMessageBox( str, MB_OK );
+			LogCancel();
+			return;
+		}
 	}
+	Log( LOG_ON_ADD_AREA, &dlg.m_layer, &dlg.m_hatch );
+	LogItem( (CPcbItem**) &dlg.m_net );
 
 	CDC *pDC = GetDC();
 	pDC->SelectClipRgn( &m_pcb_rgn );
@@ -4676,6 +4858,9 @@ void CFreePcbView::OnAddArea()
 //
 void CFreePcbView::OnAddBoardOutline()
 {
+	if (m_bReplayMode && !m_bReplaying)
+		return;
+	Log(LOG_ON_ADD_BOARD_OUTLINE);
 	m_doc->m_vis[LAY_BOARD_OUTLINE] = TRUE;
 	m_dlist->SetLayerVisible( LAY_BOARD_OUTLINE, TRUE );
 	CDC *pDC = GetDC();
@@ -4693,11 +4878,18 @@ void CFreePcbView::OnAddBoardOutline()
 
 void CFreePcbView::OnAddSoldermaskCutout()
 {
-	CDlgAddMaskCutout dlg;
-	dlg.Initialize( LAY_SM_TOP, CPolyline::NO_HATCH );
-	int ret = dlg.DoModal();
-	if( ret != IDOK ) 
+	if (m_bReplayMode && !m_bReplaying)
 		return;
+	CDlgAddMaskCutout dlg;
+	if (!m_bReplaying)
+	{
+		dlg.Initialize( LAY_SM_TOP, CPolyline::NO_HATCH );
+		int ret = dlg.DoModal();
+		if( ret != IDOK ) 
+			{ LogCancel(); return; }
+	}
+	Log(LOG_ON_ADD_SOLDER_MASK_CUTOUT, &dlg.m_layer, &dlg.m_hatch);
+
 	// force layer visible
 	int il = dlg.m_layer;
 	m_doc->m_vis[il] = TRUE;
@@ -4719,6 +4911,9 @@ void CFreePcbView::OnAddSoldermaskCutout()
 // CPT2 converted and generalized, so that smcutout cutouts are now possible
 void CFreePcbView::OnPolyAddCutout()
 {
+	if (m_bReplayMode && !m_bReplaying)
+		return;
+	Log(LOG_ON_POLY_ADD_CUTOUT);
 	CDC *pDC = GetDC();
 	pDC->SelectClipRgn( &m_pcb_rgn );
 	SetDCToWorldCoords( pDC );
@@ -4779,6 +4974,9 @@ void CFreePcbView::FinishAddPolyCutout()
 void CFreePcbView::OnPolyDelete()
 {
 	// CPT2 generalized function used for areas, smcutouts and board outlines.  Works whether the current selection is a corner or a side.
+	if (m_bReplayMode && !m_bReplaying)
+		return;
+	Log(LOG_ON_POLY_DELETE);
 	CPolyline *poly = m_sel.First()->GetPolyline();
 	CNet *net = poly->GetNet();
 	poly->SaveUndoInfo();
@@ -4794,6 +4992,9 @@ void CFreePcbView::OnPolyDeleteCutout()
 {
 	// CPT2 generalized function.  Now both areas and smcutouts can have "cutouts" (new terminology for the user, hopefully less confusing: 
 	//  these are called "region exclusions" and the f-key that leads us here is called "remove contour")
+	if (m_bReplayMode && !m_bReplaying)
+		return;
+	Log(LOG_ON_POLY_DELETE_CUTOUT);
 	CPcbItem *first = m_sel.First();
 	CPolyline *poly = first->GetPolyline();
 	CNet *net = poly->GetNet();
@@ -4818,6 +5019,9 @@ void CFreePcbView::OnPolyDeleteCutout()
 void CFreePcbView::OnPolyCornerMove()
 {
 	// CPT2 consolidated function for moving the corner of any polyline object (area, smcutout, board outline)
+	if (m_bReplayMode && !m_bReplaying)
+		return;
+	Log(LOG_ON_POLY_CORNER_MOVE);
 	CDC *pDC = GetDC();
 	pDC->SelectClipRgn( &m_pcb_rgn );
 	SetDCToWorldCoords( pDC );
@@ -4834,6 +5038,9 @@ void CFreePcbView::OnPolyCornerMove()
 void CFreePcbView::OnPolyCornerDelete()
 {
 	// delete a polyline corner (for areas, smcutouts, and board-outlines)
+	if (m_bReplayMode && !m_bReplaying)
+		return;
+	Log(LOG_ON_POLY_CORNER_DELETE);
 	CCorner *c = m_sel.First()->ToCorner();
 	CPolyline *poly = c->GetPolyline();
 	CNet *net = c->GetNet();
@@ -4851,6 +5058,9 @@ void CFreePcbView::OnPolyCornerDelete()
 void CFreePcbView::OnPolySideAddCorner()
 {
 	// CPT2 consolidated function for inserting a corner on any polyline object (area, smcutout, board outline)
+	if (m_bReplayMode && !m_bReplaying)
+		return;
+	Log(LOG_ON_POLY_SIDE_ADD_CORNER);
 	CDC *pDC = GetDC();
 	pDC->SelectClipRgn( &m_pcb_rgn );
 	SetDCToWorldCoords( pDC );
@@ -4864,6 +5074,9 @@ void CFreePcbView::OnPolySideAddCorner()
 
 void CFreePcbView::OnPolySideConvert(int style)
 {
+	if (m_bReplayMode && !m_bReplaying)
+		return;
+	Log(LOG_ON_POLY_SIDE_CONVERT, &style);
 	CSide *s = m_sel.First()->ToSide();
 	if (s->m_style == style)
 		return;
@@ -4892,15 +5105,23 @@ void CFreePcbView::OnPolySideConvertToArcCcw()
 
 void CFreePcbView::OnPolyCornerEdit()
 {
+	if (m_bReplayMode && !m_bReplaying)
+		return;
 	CCorner *c = m_sel.First()->ToCorner();
 	CPolyline *poly = c->GetPolyline();
 	DlgEditBoardCorner dlg;
-	CString str ((LPCSTR) IDS_CornerPosition);
-	dlg.Init( &str, m_units, c->x, c->y );
-	int ret = dlg.DoModal();
-	if( ret != IDOK ) return;
+	if (!m_bReplaying)
+	{
+		CString str ((LPCSTR) IDS_CornerPosition);
+		dlg.Init( &str, m_units, c->x, c->y );
+		int ret = dlg.DoModal();
+		if( ret != IDOK ) 
+			{ LogCancel(); return; }
+	}
+	Log(LOG_ON_POLY_CORNER_EDIT, &dlg.m_x, &dlg.m_y);
+
 	poly->SaveUndoInfo();
-	int x = dlg.X(), y = dlg.Y();
+	int x = dlg.m_x, y = dlg.m_y;
 	c->Move( x, y );
 	if (!poly->PolygonModified(false, true))				// CPT2 TODO figure out the system regarding which arg-values this function gets handed.
 		m_doc->OnEditUndo();
@@ -4943,12 +5164,19 @@ void CFreePcbView::TryToReselectCorner( int x, int y )
 void CFreePcbView::OnSmEdit()
 {
 	// CPT2 new.  Lets user edit the sm-cutout's hatching and layer.  Reuses the CDlgAddMaskCutout interface.
+	if (m_bReplayMode && !m_bReplaying)
+		return;
 	CSmCutout *sm = m_sel.First()->GetPolyline()->ToSmCutout();
 	CDlgAddMaskCutout dlg;
-	dlg.Initialize(sm->m_layer, sm->m_hatch);
-	int ret = dlg.DoModal();
-	if( ret != IDOK ) 
-		return;
+	if (!m_bReplaying)
+	{
+		dlg.Initialize(sm->m_layer, sm->m_hatch);
+		int ret = dlg.DoModal();
+		if( ret != IDOK ) 
+			{ LogCancel(); return; }
+	}
+	Log(LOG_ON_SM_EDIT, &dlg.m_layer, &dlg.m_hatch);
+
 	// force layer visible
 	int il = dlg.m_layer;
 	m_doc->m_vis[il] = TRUE;
@@ -5213,13 +5441,22 @@ LONG CFreePcbView::OnChangeUnits( UINT wp, LONG lp )
 void CFreePcbView::OnRefProperties()
 {
 	// CPT2 converted.  This now works for value texts too.
+	if (m_bReplayMode && !m_bReplaying)
+		return;
 	CText *t = m_sel.First()->ToText();
 	CPart *part = t->GetPart();
 	CDlgRefText dlg;
-	dlg.Initialize( t, m_doc->m_slist );
-	int ret = dlg.DoModal();
-	if( ret != IDOK )
-		return;
+	if (!m_bReplaying)
+	{
+		dlg.Initialize( t, m_doc->m_slist );
+		int ret = dlg.DoModal();
+		if( ret != IDOK )
+			{ LogCancel(); return; }
+	}
+	Log(LOG_ON_REF_PROPERTIES, &dlg.m_height, &dlg.m_width, &dlg.m_layer);
+	LogXtra(&dlg.m_vis);
+	LogXtra(&dlg.m_str);
+
 	part->SaveUndoInfo(false);
 	CancelHighlight();
 	t->MustRedraw();
@@ -5243,6 +5480,9 @@ void CFreePcbView::OnRefProperties()
 //
 void CFreePcbView::OnUnrouteTrace()
 {
+	if (m_bReplayMode && !m_bReplaying)
+		return;
+	Log(LOG_ON_UNROUTE_TRACE);
 	CConnect *c = m_sel.First()->GetConnect();
 	c->SaveUndoInfo();
 	c->MustRedraw();
@@ -5403,6 +5643,8 @@ void CFreePcbView::OnPartEditFootprint()
 
 void CFreePcbView::OnPartEditThisFootprint()
 {
+	if (m_bReplayMode) 
+		{ HighlightSelection(); return; }
 	CPart *part = m_sel.First()->ToPart();
 	m_doc->m_edit_footprint = part->shape;
 	theApp.OnViewFootprint();
@@ -5412,12 +5654,20 @@ void CFreePcbView::OnPartEditThisFootprint()
 //
 void CFreePcbView::OnExternalChangeFootprint( CShape * fp )
 {
-	CPart *part = m_sel.First()->ToPart();
-	CString str, s ((LPCSTR) IDS_DoYouWishToReplaceTheFootprintOfPart);
-	str.Format( s, part->ref_des, fp->m_name );
-	int ret = AfxMessageBox( str, MB_YESNO );
-	if (ret != IDYES)
+	if (m_bReplayMode && !m_bReplaying)
 		return;
+	CPart *part = m_sel.First()->ToPart();
+	if (!m_bReplaying)
+	{
+		CString str, s ((LPCSTR) IDS_DoYouWishToReplaceTheFootprintOfPart);
+		str.Format( s, part->ref_des, fp->m_name );
+		int ret = AfxMessageBox( str, MB_YESNO );
+		if (ret != IDYES)
+			{ LogCancel(); return; }
+	}
+	Log(LOG_ON_EXTERNAL_CHANGE_FP);
+	LogShape(fp);
+
 	// OK, see if a footprint of the same name is already in the cache
 	CShape *cache_fp = m_doc->m_slist->GetShapeByName( &fp->m_name );
 	if( cache_fp )
@@ -5437,12 +5687,17 @@ void CFreePcbView::OnExternalChangeFootprint( CShape * fp )
 		{
 			// offer to overwrite or rename it
 			CDlgDupFootprintName dlg;
-			CString mess, s ((LPCSTR) IDS_WarningAFootprintNamedIsAlreadyInUse);
-			mess.Format( s, fp->m_name );
-			dlg.Initialize( &mess, m_doc->m_slist );
-			int ret = dlg.DoModal();
-			if( ret != IDOK )
-				return;
+			if (!m_bReplaying)
+			{
+				CString mess, s ((LPCSTR) IDS_WarningAFootprintNamedIsAlreadyInUse);
+				mess.Format( s, fp->m_name );
+				dlg.Initialize( &mess, m_doc->m_slist );
+				int ret = dlg.DoModal();
+				if( ret != IDOK )
+					{ LogCancel(); return; }
+			}
+			LogXtra( &dlg.m_replace_all_flag );
+			LogXtra( &dlg.m_new_name_str );
 			if( dlg.m_replace_all_flag )
 			{
 				// replace all instances of footprint.  CPT2 bugfix:  must invoke ChangeFootprint() explicitly for 
@@ -5458,7 +5713,7 @@ void CFreePcbView::OnExternalChangeFootprint( CShape * fp )
 			{
 				// assign new name to footprint and put in cache
 				CShape * shape = new CShape( fp );
-				shape->m_name = *dlg.GetNewName();
+				shape->m_name = dlg.m_new_name_str;
 				m_doc->m_slist->shapes.Add( shape );
 				part->ChangeFootprint( shape );
 			}
@@ -5521,16 +5776,85 @@ void CFreePcbView::OnFootprintEditor()
 	{ theApp.OnViewFootprint(); }
 
 void CFreePcbView::OnCheckPartsAndNets()
-	{ m_doc->OnToolsCheckPartsAndNets(); }
+{ 
+	if (m_bReplayMode && !m_bReplaying)
+		return;
+	Log(LOG_ON_CHECK_PARTS_AND_NETS);
+	m_doc->OnToolsCheckPartsAndNets(); 
+}
 
-void CFreePcbView::OnDrc()
-	{ m_doc->OnToolsDrc(); }
+void CFreePcbView::OnToolsDrc()
+{ 
+	if (m_bReplayMode && !m_bReplaying)
+		return;
+	CancelSelection();
+	DlgDRC dlg;
+	if (!m_bReplaying)
+	{
+		dlg.Initialize( m_doc );
+		int ret = dlg.DoModal();
+		if (ret==IDCANCEL)
+			{ LogCancel(); return; }
+		// If we get here, then m_doc->m_dr and m_doc->m_annular_ring values will have been updated.
+	}
+	DesignRules *dr = &m_doc->m_dr;
+	Log(LOG_ON_DRC);
+	LogXtra(&m_doc->m_annular_ring_pins, &m_doc->m_annular_ring_vias, &dr->bCheckUnrouted, &dr->trace_width);
+	LogXtra(&dr->pad_pad, &dr->pad_trace, &dr->trace_trace, &dr->hole_copper);
+	LogXtra(&dr->annular_ring_pins, &dr->annular_ring_vias, &dr->board_edge_copper);
+	LogXtra(&dr->board_edge_hole, &dr->hole_hole, &dr->copper_copper); 
+	LogXtra(&dlg.bCheckOnExit);
 
-void CFreePcbView::OnClearDrc()
-	{ m_doc->OnToolsClearDrc(); }
+	if (dlg.bCheckOnExit)
+	{
+		if( m_doc->m_vis[LAY_RAT_LINE] && !m_doc->m_auto_ratline_disable )
+			m_doc->m_nlist->OptimizeConnections();
+		m_doc->m_drelist->Clear();
+		BringWindowToTop();
+		CDlgLog *log = m_doc->m_dlg_log;
+		log->ShowWindow( SW_SHOW );
+		log->BringWindowToTop();
+		log->Clear();
+		log->UpdateWindow();
+		m_doc->DRC( m_units, dr ); 
+	}
+	m_doc->ProjectModified( TRUE );
+}
 
-void CFreePcbView::OnRepeatDrc()
-	{ m_doc->OnRepeatDrc(); }
+void CFreePcbView::OnToolsClearDrc()
+{ 
+	if (m_bReplayMode && !m_bReplaying)
+		return;
+	Log(LOG_ON_CLEAR_DRC);
+	CancelSelection();
+	if( m_cursor_mode == CUR_DRE_SELECTED )
+		CancelSelection();
+	m_doc->m_drelist->Clear();
+	m_doc->ProjectModified( true );
+}
+
+void CFreePcbView::OnToolsRepeatDrc()
+{ 
+	if (m_bReplayMode && !m_bReplaying)
+		return;
+	Log(LOG_ON_REPEAT_DRC);
+	CancelSelection();
+	if( m_doc->m_vis[LAY_RAT_LINE] && !m_doc->m_auto_ratline_disable )
+		m_doc->m_nlist->OptimizeConnections();
+	m_doc->m_drelist->Clear();
+	CDlgLog *log = m_doc->m_dlg_log;
+	log->ShowWindow( SW_SHOW );   
+	log->BringWindowToTop(); 
+	log->Clear();
+	log->UpdateWindow();
+	m_doc->DRC( m_units, &m_doc->m_dr );
+	m_doc->ProjectModified( true );
+}
+
+void CFreePcbView::OnToolsShowDRCErrorlist()
+{
+	// CPT2 TODO.  Apparently this was never implemented or was defunct.  Do we care?
+}
 
 void CFreePcbView::OnViewAll()
 	{ OnViewAllElements(); }
@@ -5538,6 +5862,9 @@ void CFreePcbView::OnViewAll()
 // change side of part
 void CFreePcbView::OnPartChangeSide()
 {
+	if (m_bReplayMode && !m_bReplaying)
+		return;
+	Log(LOG_ON_PART_CHANGE_SIDE);
 	CPart *part = m_sel.First()->ToPart();
 	part->SaveUndoInfo();
 	CancelHighlight();
@@ -5567,6 +5894,9 @@ void CFreePcbView::OnPartRotateCCW()
 	{ OnPartRotate(270); }
 
 void CFreePcbView::OnPartRotate( int angle ) {
+	if (m_bReplayMode && !m_bReplaying)
+		return;
+	Log(LOG_ON_PART_ROTATE, &angle);
 	CPart *part = m_sel.First()->ToPart();
 	part->SaveUndoInfo();
 	CancelHighlight();
@@ -5598,6 +5928,9 @@ void CFreePcbView::OnConnectSetWidth()
 
 void CFreePcbView::OnSegmentAddVertex()
 {
+	if (m_bReplayMode && !m_bReplaying)
+		return;
+	Log(LOG_ON_SEGMENT_ADD_VERTEX);
 	CDC *pDC = GetDC();
 	pDC->SelectClipRgn( &m_pcb_rgn );
 	SetDCToWorldCoords( pDC );
@@ -5624,13 +5957,20 @@ void CFreePcbView::OnNetChangeLayer()
 //
 void CFreePcbView::ChangeTraceLayer( int mode, int old_layer )
 {
+	if (m_bReplayMode && !m_bReplaying)
+		return;
 	CNet *net = m_sel.First()->GetNet();
 	CConnect *c = m_sel.First()->GetConnect();
 	CSeg *seg = m_sel.First()->ToSeg();
 	CDlgChangeLayer dlg;
-	dlg.Initialize( mode, old_layer, m_doc->m_num_copper_layers );
-	int ret = dlg.DoModal();
-	if( ret != IDOK ) return;
+	if (!m_bReplaying)
+	{
+		dlg.Initialize( mode, old_layer, m_doc->m_num_copper_layers );
+		int ret = dlg.DoModal();
+		if( ret != IDOK ) 
+			{ LogCancel(); return; }
+	}
+	Log(LOG_CHANGE_TRACE_LAYER, &mode, &dlg.m_apply_to, &dlg.m_new_layer);
 
 	int err = 0;
 	// CPT2 NB in the following SetLayer() calls MustRedraw() for the appropriate items
@@ -5638,7 +5978,7 @@ void CFreePcbView::ChangeTraceLayer( int mode, int old_layer )
 	{
 		c->SaveUndoInfo();
 		err = seg->SetLayer( dlg.m_new_layer );
-		if( err )
+		if( err && !m_bReplaying )
 		{
 			CString s ((LPCSTR) IDS_UnableToChangeLayerForThisSegment);
 			AfxMessageBox( s );
@@ -5651,7 +5991,7 @@ void CFreePcbView::ChangeTraceLayer( int mode, int old_layer )
 		for (CSeg *s = is.First(); s; s = is.Next())
 			if( s->m_layer >= LAY_TOP_COPPER )
 				err += s->SetLayer( dlg.m_new_layer );
-		if( err )
+		if( err && !m_bReplaying )
 		{
 			CString s ((LPCSTR) IDS_UnableToChangeLayerForAllSegments);
 			AfxMessageBox( s );
@@ -5668,7 +6008,7 @@ void CFreePcbView::ChangeTraceLayer( int mode, int old_layer )
 				if (s->m_layer >= LAY_TOP_COPPER)
 					err += s->SetLayer( dlg.m_new_layer );
 		}
-		if( err )
+		if( err && !m_bReplaying )
 		{
 			CString s ((LPCSTR) IDS_UnableToChangeLayerForAllSegments);
 			AfxMessageBox( s );
@@ -5711,11 +6051,18 @@ void CFreePcbView::OnNetEditnet()
 
 void CFreePcbView::OnToolsMoveOrigin()
 {
-	CDlgMoveOrigin dlg;
-	dlg.Initialize( m_units );
-	int ret = dlg.DoModal();
-	if( ret != IDOK )
+	if (m_bReplayMode && !m_bReplaying)
 		return;
+	CDlgMoveOrigin dlg;
+	if (!m_bReplaying)
+	{
+		dlg.Initialize( m_units );
+		int ret = dlg.DoModal();
+		if( ret != IDOK )
+			{ LogCancel(); return; }
+	}
+	Log(LOG_ON_TOOLS_MOVE_ORIGIN, &dlg.m_drag, &dlg.m_x, &dlg.m_y);
+
 	if( dlg.m_drag )
 	{
 		CDC *pDC = GetDC();
@@ -6011,20 +6358,21 @@ void CFreePcbView::CancelDraggingGroup()
 
 void CFreePcbView::OnGroupMove()
 {
-	if( GluedPartsInGroup() )
+	if (m_bReplayMode && !m_bReplaying)
+		return;
+	if( GluedPartsInGroup() && !m_bReplaying )
 	{
 		CString s ((LPCSTR) IDS_ThisGroupContainsGluedParts);
 		int ret = AfxMessageBox( s, MB_OKCANCEL );
 		if( ret != IDOK )
-			return;
+			{ LogCancel(); return; }
 	}
+	Log(LOG_ON_GROUP_MOVE);
 	m_dlist->SetLayerVisible( LAY_RAT_LINE, FALSE );
 	StartDraggingGroup();
 }
 
 
-// Move group of parts and trace segments
-//
 void CFreePcbView::MoveGroup( int dx, int dy )
 {
 	SetCursor( LoadCursor( NULL, IDC_WAIT ) );
@@ -6384,6 +6732,9 @@ void CFreePcbView::OnGroupCopy()
 	//   pins within the group or tees).  Also redid the copying of areas/smcutouts, so that if one side anywhere in the polyline is selected, the 
 	//   whole polyline gets copied:  more consistent with the way that, elsewhere in the program, one selects a polyline by clicking a single side.
 	//   At this point something is always copied, so the old inner routine DoGroupCopy with a boolean return value has been discarded.
+	if (m_bReplayMode && !m_bReplaying)
+		return;
+	Log(LOG_ON_GROUP_COPY);
 	// clear clipboard
 	m_doc->clip_nlist->nets.RemoveAll();
 	m_doc->clip_plist->parts.RemoveAll();
@@ -6600,6 +6951,9 @@ void CFreePcbView::OnGroupCopy()
 
 void CFreePcbView::OnGroupCut()
 {
+	if (m_bReplayMode && !m_bReplaying)
+		return;
+	Log(LOG_ON_GROUP_CUT);
 	OnGroupCopy();
 	OnGroupDelete();
 }
@@ -6608,6 +6962,9 @@ void CFreePcbView::OnGroupCut()
 //
 void CFreePcbView::OnGroupDelete()
 {
+	if (m_bReplayMode && !m_bReplaying)
+		return;
+	Log(LOG_ON_GROUP_DELETE);
 	DeleteGroup();
 	m_doc->ProjectModified( TRUE );
 	CancelSelection();
@@ -6709,6 +7066,8 @@ int GetGNumber(CString *s)
 
 void CFreePcbView::OnGroupPaste()
 {
+	if (m_bReplayMode && !m_bReplaying)
+		return;
 	// pointers to clipboard lists (all clipboard item variables are marked with '2')
 	CNetList *nl2 = m_doc->clip_nlist;
 	CShapeList *sl2 = m_doc->clip_slist;
@@ -6718,12 +7077,16 @@ void CFreePcbView::OnGroupPaste()
 
 	// get paste options
 	CDlgGroupPaste dlg;
-	dlg.Initialize( nl2 );
-	int ret = dlg.DoModal();
-	if (ret != IDOK)
-		return;
-
+	if (!m_bReplaying)
+	{
+		dlg.Initialize( nl2 );
+		int ret = dlg.DoModal();
+		if (ret != IDOK)
+			{ LogCancel(); return; }
+	}
 	SetCursor( LoadCursor( NULL, IDC_WAIT ) );
+	Log(LOG_ON_GROUP_PASTE, &dlg.m_flags, &dlg.m_ref_offset, &dlg.m_num_copies);
+	LogXtra(&dlg.m_dx, &dlg.m_dy);
 
 	// First off, go through and compare the shapes in sl2 with the existing shapes in main shape-list sl.  If necessary, add new shapes to sl,
 	// and reconcile conflicts (different shapes, same name) as needed.  We may need new shape names, and for that we'll want a "g-suffix" 
@@ -7178,7 +7541,11 @@ void CFreePcbView::PasteSingle(int flags, int dx, int dy, int g_num, int ref_off
 void CFreePcbView::OnGroupSaveToFile()
 {
 	// Copy group to pseudo-clipboard.
+	if (m_bReplayMode && !m_bReplaying)
+		return;
+	Log(LOG_ON_GROUP_SAVE_TO_FILE);
 	OnGroupCopy();
+	// A rare instance where we have a dialog box even when replaying:
 	CString s ((LPCSTR) IDS_PCBFiles);
 	CFileDialog dlg( 0, "fpc", NULL, 0,
 		s, NULL, OPENFILENAME_SIZE_VERSION_500 );
@@ -7238,12 +7605,13 @@ void CFreePcbView::OnEditCopy()
 	// CPT2 rewrote, but TODO I must rewrite OnGroupCopy (and preferably rename it)
 	if( !m_doc->m_project_open )
 		return;
-	if (m_sel.GetSize()==0) {
+	if (m_sel.GetSize()==0) 
+	{
 		CString str ((LPCSTR) IDS_UnableToCopyAnything);
 		AfxMessageBox(str);
-		}
+	}
 	else
-		OnGroupCopy();										
+		OnGroupCopy();			
 }
 
 void CFreePcbView::OnEditPaste()
@@ -7271,6 +7639,9 @@ void CFreePcbView::OnEditCut()
 
 void CFreePcbView::OnAddSimilarArea()
 {
+	if (m_bReplayMode && !m_bReplaying)
+		return;
+	Log(LOG_ON_ADD_SIMILAR_AREA);
 	CArea *a = m_sel.First()->GetArea();
 	CDC *pDC = GetDC();
 	pDC->SelectClipRgn( &m_pcb_rgn );
@@ -7292,14 +7663,21 @@ void CFreePcbView::OnAddSimilarArea()
 void CFreePcbView::OnAreaEdit()
 {
 	// CPT2 converted.
+	if (m_bReplayMode && !m_bReplaying)
+		return;
 	CArea *a = m_sel.First()->GetArea();
 	CNet *old_net = a->m_net;
 	CDlgAddArea dlg;
-	dlg.Initialize( m_doc->m_nlist, m_doc->m_num_layers, old_net, a->m_layer, a->m_hatch );
-	int ret = dlg.DoModal();
-	if( ret != IDOK ) 
-		return;
-	
+	if (!m_bReplaying)
+	{
+		dlg.Initialize( m_doc->m_nlist, m_doc->m_num_layers, old_net, a->m_layer, a->m_hatch );
+		int ret = dlg.DoModal();
+		if( ret != IDOK ) 
+			{ LogCancel(); return; }
+	}	
+	Log( LOG_ON_AREA_EDIT, &dlg.m_layer, &dlg.m_hatch );
+	LogItem( (CPcbItem**) &dlg.m_net );
+
 	a->SaveUndoInfo();
 	a->MustRedraw();
 	CNet *net = dlg.m_net;
@@ -7338,6 +7716,9 @@ void CFreePcbView::OnAreaStartTrace()
 {
 	// CPT2 new.  Thought it seemed useful to let user start a trace from within an arbitrary copper area (say if he wants to link two
 	// areas with a trace).
+	if (m_bReplayMode && !m_bReplaying)
+		return;
+	Log(LOG_ON_AREA_START_TRACE);
 	CDC *pDC = GetDC();
 	pDC->SelectClipRgn( &m_pcb_rgn );
 	SetDCToWorldCoords( pDC );
@@ -7355,21 +7736,22 @@ void CFreePcbView::OnAreaStartTrace()
 	ReleaseDC( pDC );
 }
 
-void CFreePcbView::OnGroupRotate(bool bCcw) 
+void CFreePcbView::OnGroupRotate(int bCcw) 
 {
+	if (m_bReplayMode && !m_bReplaying)
+		return;
 	CancelHighlight();
-	if( !m_lastKeyWasArrow && !m_lastKeyWasGroupRotate)
+	if( !m_lastKeyWasArrow && !m_lastKeyWasGroupRotate && GluedPartsInGroup() && !m_bReplaying )
 	{
-		if( GluedPartsInGroup() )
-		{
-			CString s ((LPCSTR) IDS_ThisGroupContainsGluedPartsUnglueAndRotate);
-			int ret = AfxMessageBox( s, MB_YESNO );
-			if( ret != IDYES )
-				return;
-		}
-		SaveUndoInfoForGroup();
-		m_lastKeyWasGroupRotate=true;
+		CString s ((LPCSTR) IDS_ThisGroupContainsGluedPartsUnglueAndRotate);
+		int ret = AfxMessageBox( s, MB_YESNO );
+		if( ret != IDYES )
+			{ LogCancel(); return; }
 	}
+	Log(LOG_ON_GROUP_ROTATE, &bCcw);
+
+	m_lastKeyWasGroupRotate=true;
+	SaveUndoInfoForGroup();
 	RotateGroup();
 	if (bCcw)
 		// A cheap-n-cheesy way to implement ccw rotation:
@@ -7378,7 +7760,7 @@ void CFreePcbView::OnGroupRotate(bool bCcw)
 	// CPT2 HighlightSelection may be changing groupAverageX/Y slightly, but in the event of repeated rotations this is undesirable.  Therefore save
 	// and restore the current values.
 	int groupAverageXOld = groupAverageX, groupAverageYOld = groupAverageY;
-	m_doc->ProjectModified( TRUE );
+	m_doc->ProjectModified( TRUE, m_lastKeyWasArrow || m_lastKeyWasGroupRotate );
 	HighlightSelection();
 	groupAverageX = groupAverageXOld, groupAverageY = groupAverageYOld;
 }
@@ -7440,6 +7822,9 @@ void CFreePcbView::OnRefRotateCCW()
 void CFreePcbView::OnRefRotate(int angle)
 {
 	// CPT2 converted.  This works for valuetexts also
+	if (m_bReplayMode && !m_bReplaying)
+		return;
+	Log(LOG_ON_REF_ROTATE, &angle);
 	CText *t = m_sel.First()->ToText();
 	t->SaveUndoInfo();
 	CancelHighlight();
@@ -7458,6 +7843,9 @@ void CFreePcbView::OnTextRotateCCW()
 void CFreePcbView::OnTextRotate(int angle)
 {
 	// CPT2 converted.  Barely different than OnRefRotate()
+	if (m_bReplayMode && !m_bReplaying)
+		return;
+	Log(LOG_ON_TEXT_ROTATE, &angle);
 	CText *t = m_sel.First()->ToText();
 	t->SaveUndoInfo();
 	t->MustRedraw();
@@ -7469,14 +7857,12 @@ void CFreePcbView::OnTextRotate(int angle)
 
 void CFreePcbView::OnSegmentMove()
 {
-//	m_doc->m_nlist->SetNetVisibility( m_sel_net, TRUE ); 
-	CDC *pDC = GetDC();										// CPT2 TODO next 3 lines???
-	pDC->SelectClipRgn( &m_pcb_rgn );
-	SetDCToWorldCoords( pDC );
-
+	if (m_bReplayMode && !m_bReplaying)
+		return;
+	Log(LOG_ON_SEGMENT_MOVE);
 	CSeg *seg = m_sel.First()->ToSeg();
 	m_dragging_new_item = 0;
-	// CPT2 NB before there was code to set m_last_pt and m_next_pt, but I'm letting cseg::StartMoving() deal with those variables instead.
+	// CPT2 NB before there was code to set m_last_pt and m_next_pt, but I'm letting CSeg::StartMoving() deal with those variables instead.
 	m_from_pt.x = seg->preVtx->x;
 	m_from_pt.y = seg->preVtx->y;
 	m_to_pt.x = seg->postVtx->x;
@@ -7485,6 +7871,9 @@ void CFreePcbView::OnSegmentMove()
 	p.x = (m_to_pt.x + m_from_pt.x) / 2;
 	p.y = (m_to_pt.y + m_from_pt.y) / 2;
 
+	CDC *pDC = GetDC();
+	pDC->SelectClipRgn( &m_pcb_rgn );
+	SetDCToWorldCoords( pDC );
 	seg->StartMoving( pDC, p.x, p.y, 2 );
 	SetCursorMode( CUR_MOVE_SEGMENT );
 	ReleaseDC( pDC );
@@ -7631,18 +8020,27 @@ void CFreePcbView::HandleShiftLayerKey(int layer, CDC *pDC) {
 void CFreePcbView::OnAddPart()
 {
 	// CPT2 was in CFreePcbDoc, but CFreePcbView seems more logical to me.
-	// invoke dialog
+	if (m_bReplayMode && !m_bReplaying)
+		return;
 	CDlgAddPart dlg;
 	partlist_info pli;
-	m_doc->m_plist->ExportPartListInfo( &pli, NULL );
-	dlg.Initialize( &pli, -1, TRUE, TRUE, FALSE, 0, m_doc, m_units );
-	int ret = dlg.DoModal();
-	if( ret != IDOK ) return;
+	if (!m_bReplaying)
+	{
+		// invoke dialog
+		m_doc->m_plist->ExportPartListInfo( &pli, NULL );
+		dlg.Initialize( &pli, -1, TRUE, TRUE, FALSE, 0, m_doc, m_units );
+		int ret = dlg.DoModal();
+		if( ret != IDOK ) 
+			{ LogCancel(); return; }
+	}
+	Log(LOG_ON_ADD_PART, &dlg.m_drag_flag);
+	LogXtra(&dlg.m_ref_des);
+	LogPartListInfo( &pli );
 
 	// Create part from the partlist generated by the dlg.  If we're going to be dragging, move part (and its pins) under user's cursor right away.
 	m_doc->m_plist->ImportPartListInfo( &pli, 0 );
 	CPart *part = m_doc->m_plist->GetPartByName( &dlg.m_ref_des );
-	if (dlg.GetDragFlag())
+	if (dlg.m_drag_flag)
 	{
 		CPoint p;
 		GetCursorPos( &p );				// cursor pos in screen coords
@@ -7651,7 +8049,7 @@ void CFreePcbView::OnAddPart()
 	}
 	m_doc->ProjectModified( TRUE );
 	SelectItem( part );
-	if( dlg.GetDragFlag() )
+	if( dlg.m_drag_flag )
 	{
 		m_dragging_new_item = TRUE;
 		OnPartMove();
@@ -7660,16 +8058,989 @@ void CFreePcbView::OnAddPart()
 
 void CFreePcbView::OnAddNet()
 {
+	if (m_bReplayMode && !m_bReplaying)
+		return;
 	CDlgEditNet dlg;
 	netlist_info nli;
-	m_doc->m_nlist->ExportNetListInfo( &nli );
-	dlg.Initialize( &nli, -1, m_doc->m_plist, TRUE, TRUE,
-						MIL, &m_doc->m_w, &m_doc->m_v_w, &m_doc->m_v_h_w );
-	// invoke dialog
-	int ret = dlg.DoModal();
-	if (ret!=IDOK)
-		return;
+	if (!m_bReplaying)
+	{
+		m_doc->m_nlist->ExportNetListInfo( &nli );
+		dlg.Initialize( &nli, -1, m_doc->m_plist, TRUE, TRUE,
+							MIL, &m_doc->m_w, &m_doc->m_v_w, &m_doc->m_v_h_w );
+		int ret = dlg.DoModal();
+		if (ret!=IDOK)
+			{ LogCancel(); return; }
+	}
+	Log(LOG_ON_ADD_NET);
+	LogNetListInfo( &nli );
 	m_doc->m_nlist->ImportNetListInfo( &nli, 0, NULL, m_doc->m_trace_w, m_doc->m_via_w, m_doc->m_via_hole_w );
 }
 
 // end CPT
+
+#ifdef CPT2_LOG
+
+// The logging functions are called from within each UI routine.  During normal operation, they simply add lines to the current log file
+// (a file with a name equal to current-fpc-file-name + ".log");  the lines indicate the user's operation, plus any parameters (typically
+// chosen by user from within dialog boxes).  During replay mode, however, the logging functions reverse this operation, reading in lines from
+// the current log file and filling the passed-in parameter pointers accordingly.
+
+void CFreePcbView::Log(int function, int *param1, int *param2, int *param3)
+{
+	if (!m_bReplayMode)
+	{
+		CString line;
+		int p1 = param1? *param1: 0;
+		int p2 = param2? *param2: 0;
+		int p3 = param3? *param3: 0;
+		line.Format("%d %d %d %d\r\n", function, p1, p2, p3);
+		Log(line, true);
+	}
+
+	else
+	{
+		CString line, cmdStr;
+		CArray<CString> params;
+		m_log_file.ReadString( line );
+		if (line[0]=='q')
+			throw new CString((LPCSTR) IDS_LoggerCancelledOperation);
+		int numParams = ParseKeyString(&line, &cmdStr, &params) - 1;			// ParseKeyString returns number of params + 1
+		int cmd = atoi(cmdStr);
+		if (cmd != function)
+			throw new CString((LPCSTR) IDS_CorruptLineInLogFile);
+		if (param1)
+			*param1 = numParams>0? atoi(params[0]): 0;
+		if (param2)
+			*param2 = numParams>1? atoi(params[1]): 0;
+		if (param3)
+			*param3 = numParams>2? atoi(params[2]): 0;
+		// Parse the incoming 'u' and 's' lines (the first for correlating future uid values, the second for getting the correct item selection)
+		m_log_file.ReadString( line );
+		if (line=="" || line[0]!='u')
+			throw new CString((LPCSTR) IDS_CorruptLineInLogFile);
+		line.TrimLeft("u ");
+		int uidLog = atoi(line), uidReplay = CPcbItem::GetNextUid();
+		m_replay_uid_translate.Add( CPoint(uidLog, uidReplay) );
+		m_log_file.ReadString( line );
+		numParams = ParseKeyString(&line, &cmdStr, &params) - 1;
+		if (numParams < 1 || cmdStr!="s")
+			throw new CString((LPCSTR) IDS_CorruptLineInLogFile);
+		m_cursor_mode = atoi(params[0]);
+		m_sel.RemoveAll();
+		for (int i=1; i<numParams; i++)
+		{
+			int uid = ReplayUidTranslate( atoi(params[i]) );
+			CPcbItem *item = CPcbItem::FindByUid(uid);
+			if (!item)
+				throw new CString((LPCSTR) IDS_CorruptItemUidInLogFile);
+			m_sel.Add(item);
+		}
+		SetFKText(m_cursor_mode);
+	}
+}
+
+void CFreePcbView::Log(int function, long *param1, long *param2, long *param3)
+{
+	Log(function, (int*) param1, (int*) param2, (int*) param3);
+}
+
+void CFreePcbView::LogXtra(int *xtra1, int *xtra2, int *xtra3, int *xtra4)
+{
+	if (!m_bReplayMode) 
+	{
+		CString line;
+		int x1 = xtra1? *xtra1: 0;
+		int x2 = xtra2? *xtra2: 0;
+		int x3 = xtra3? *xtra3: 0;
+		int x4 = xtra4? *xtra4: 0;
+		line.Format("x %d %d %d %d\r\n", x1, x2, x3, x4);
+		Log(line, false);
+	}
+
+	else
+	{
+		CString line, cmdStr;
+		CArray<CString> params;
+		m_log_file.ReadString( line );
+		int numParams = ParseKeyString(&line, &cmdStr, &params) - 1;			// ParseKeyString returns number of params + 1
+		if (numParams<1 || cmdStr!="x")
+			throw new CString((LPCSTR) IDS_CorruptLineInLogFile);
+		if (xtra1)
+			*xtra1 = numParams>0? atoi(params[0]): 0;
+		if (xtra2)
+			*xtra2 = numParams>1? atoi(params[1]): 0;
+		if (xtra3)
+			*xtra3 = numParams>2? atoi(params[2]): 0;
+		if (xtra4)
+			*xtra4 = numParams>2? atoi(params[3]): 0;
+	}
+}
+
+void CFreePcbView::LogXtra(long *xtra1, long *xtra2, long *xtra3, long *xtra4)
+{
+	LogXtra((int*) xtra1, (int*) xtra2, (int*) xtra3, (int*) xtra4);
+}
+
+void CFreePcbView::LogXtra(double *xtra1, double *xtra2, double *xtra3, double *xtra4)
+{
+	if (!m_bReplayMode) 
+	{
+		double zero = 0.;
+		if (!xtra2) xtra2 = &zero;
+		if (!xtra3) xtra3 = &zero;
+		if (!xtra4) xtra4 = &zero;
+		// To avoid rounding issues, output each double as a pair of ints.  DEPENDS ON HAVING 32-BIT ints & 64-BIT doubles
+		int *x1 = (int*) xtra1, *x2 = (int*) xtra2, *x3 = (int*) xtra3, *x4 = (int*) xtra4;
+		CString line;
+		line.Format("xd %d %d  %d %d  %d %d  %d %d\r\n", x1[0], x1[1], x2[0], x2[1], x3[0], x3[1], x4[0], x4[1]);
+		Log(line, false);
+	}
+
+	else
+	{
+		CString line, cmdStr;
+		CArray<CString> params;
+		m_log_file.ReadString( line );
+		int numParams = ParseKeyString(&line, &cmdStr, &params) - 1;			// ParseKeyString returns number of params + 1
+		if (numParams<1 || cmdStr!="xd")
+			throw new CString((LPCSTR) IDS_CorruptLineInLogFile);
+		// To avoid rounding issues, the logger output each double as a pair of ints.  DEPENDS ON HAVING 32-BIT ints & 64-BIT doubles
+		int *x1 = (int*) xtra1, *x2 = (int*) xtra2, *x3 = (int*) xtra3, *x4 = (int*) xtra4;
+		if (xtra1 && numParams>=2)
+			x1[0] = atoi(params[0]),
+			x1[1] = atoi(params[1]);
+		if (xtra2 && numParams>=4)
+			x2[0] = atoi(params[2]),
+			x2[1] = atoi(params[3]);
+		if (xtra3 && numParams>=6)
+			x3[0] = atoi(params[4]),
+			x3[1] = atoi(params[5]);
+		if (xtra4 && numParams>=8)
+			x4[0] = atoi(params[6]),
+			x4[1] = atoi(params[7]);
+	}
+}
+
+void CFreePcbView::LogXtra(bool *xtra1, bool *xtra2, bool *xtra3, bool *xtra4)
+{
+	if (!m_bReplayMode) 
+	{
+		CString line;
+		int x1 = *xtra1;
+		int x2 = xtra2? *xtra2: 0;
+		int x3 = xtra3? *xtra3: 0;
+		int x4 = xtra4? *xtra4: 0;
+		line.Format("x %d %d %d %d\r\n", x1, x2, x3, x4);
+		Log(line, false);
+	}
+
+	else
+	{
+		CString line, cmdStr;
+		CArray<CString> params;
+		m_log_file.ReadString( line );
+		int numParams = ParseKeyString(&line, &cmdStr, &params) - 1;			// ParseKeyString returns number of params + 1
+		if (numParams<1 || cmdStr!="x")
+			throw new CString((LPCSTR) IDS_CorruptLineInLogFile);
+		if (xtra1)
+			*xtra1 = numParams>0? atoi(params[0]): 0;
+		if (xtra2)
+			*xtra2 = numParams>1? atoi(params[1]): 0;
+		if (xtra3)
+			*xtra3 = numParams>2? atoi(params[2]): 0;
+		if (xtra4)
+			*xtra4 = numParams>2? atoi(params[3]): 0;
+	}
+}
+
+void CFreePcbView::LogXtra(CString *str)
+{
+	if (!m_bReplayMode)
+	{
+		CString line;
+		line.Format("x \"%s\"\r\n", *str);
+		Log(line, false);
+	}
+
+	else
+	{
+		CString line, cmdStr;
+		CArray<CString> params;
+		m_log_file.ReadString( line );
+		int numParams = ParseKeyString(&line, &cmdStr, &params) - 1;			// ParseKeyString returns number of params + 1
+		if (numParams<1 || cmdStr!="x")
+			throw new CString((LPCSTR) IDS_CorruptLineInLogFile);
+		*str = params[0];
+	}
+}
+
+void CFreePcbView::LogItem(CPcbItem **item)
+{
+	if (!m_bReplayMode)
+	{
+		CString line;
+		line.Format("x %d\r\n", (*item)->UID());
+		Log(line, false);
+	}
+
+	else
+	{
+		CString line, cmdStr;
+		CArray<CString> params;
+		m_log_file.ReadString( line );
+		int numParams = ParseKeyString(&line, &cmdStr, &params) - 1;			// ParseKeyString returns number of params + 1
+		if (numParams<1 || cmdStr!="x")
+			throw new CString((LPCSTR) IDS_CorruptLineInLogFile);
+		int uid = ReplayUidTranslate( atoi(params[0]) );
+		*item = CPcbItem::FindByUid( uid );
+		if (!*item)
+			throw new CString((LPCSTR) IDS_CorruptLineInLogFile);
+	}
+}
+
+void CFreePcbView::LogCancel()
+{
+	if (m_bReplayMode)
+		return;									// Shouldn't happen
+	CString line ("q\r\n");
+	Log(line, false);
+}
+
+void CFreePcbView::LogNetListInfo(netlist_info *nli)
+{
+	// In logging mode, save all the info required to reconstruct nli exactly.  In replay mode, reconstruct it.
+	// The amount of data saved is often excessive, but hey, let's keep the coding simple...
+	if (!m_bReplayMode)
+	{
+		CString logFilePath = m_doc->m_path_to_folder + "\\" + m_doc->m_pcb_filename + ".log";
+		CStdioFile logFile;
+		if (!logFile.Open( LPCSTR(logFilePath), CFile::modeCreate | CFile::modeNoTruncate | CFile::modeWrite | CFile::shareExclusive, NULL ))
+			return;
+		logFile.SeekToEnd();
+		for (int i=0; i<nli->GetSize(); i++)
+		{
+			net_info *ni = &(*nli)[i];
+			int numPins = ni->ref_des.GetSize();
+			int net = ni->net? ni->net->UID(): -1;
+			CString line, tmp;
+			line.Format("n \"%s\" %d %d %d %d %d %d %d %d %d %d %d ", 
+				ni->name, net, ni->visible, ni->w, ni->v_w, ni->v_h_w, 
+				ni->apply_trace_width, ni->apply_via_width, ni->deleted, ni->merge_into, ni->modified, numPins);
+			for (int j=0; j<numPins; j++)
+				tmp.Format("%s %s ", ni->ref_des[j], ni->pin_name[j]),
+				line += tmp;
+			line += "\r\n";
+			logFile.WriteString(line);
+		}
+		logFile.WriteString("@@@\r\n");
+		logFile.Close();
+	}
+
+	else
+	{
+		CString line, cmdStr;
+		CArray<CString> params;
+		int sz = 0;
+		while (1)
+		{
+			if (!m_log_file.ReadString( line ))
+				throw new CString((LPCSTR) IDS_EndOfLogFileReached);
+			if (line[0]=='@')
+				break;
+			int numParams = ParseKeyString(&line, &cmdStr, &params) - 1;			// ParseKeyString returns number of params + 1
+			if (numParams<12 || cmdStr!="n")
+				throw new CString((LPCSTR) IDS_CorruptLineInLogFile);
+			nli->SetSize( ++sz );
+			net_info *ni = &(*nli)[sz-1];
+			ni->name = params[0];
+			int uid = ReplayUidTranslate( atoi(params[1]) );
+			CPcbItem *net = CPcbItem::FindByUid(uid);
+			ni->net = net? net->ToNet(): NULL;
+			ni->visible = atoi(params[2]);
+			ni->w = atoi(params[3]);
+			ni->v_w = atoi(params[4]); 
+			ni->v_h_w = atoi(params[5]); 
+			ni->apply_trace_width = atoi(params[6]); 
+			ni->apply_via_width = atoi(params[7]);
+			ni->deleted = atoi(params[8]); 
+			ni->merge_into = atoi(params[9]); 
+			ni->modified = atoi(params[10]); 
+			int numPins = atoi(params[11]);
+			if (numParams != 12 + 2*numPins)
+				throw new CString((LPCSTR) IDS_CorruptLineInLogFile);
+			for (int i=0; i<numPins; i++)
+				ni->ref_des.Add( params[12+i*2] ),
+				ni->pin_name.Add( params[13+i*2] );
+		}
+	}
+}
+
+int ComparePointsByX(CPoint *p1, CPoint *p2) 
+{
+	// Helper used by LogPartListInfo(), for qsorting.
+	return p1->x < p2->x? -1: 1;
+}
+
+void CFreePcbView::LogPartListInfo(partlist_info *pli)
+{
+	// In logging mode, save all the info required to reconstruct pli exactly.  In replay mode, reconstruct it.
+	// This is the trickiest logging/replaying routine because of issues involving shapes that the logger may have loaded in during the editing of
+	// the partlist-info
+	if (!m_bReplayMode)
+	{
+		CString logFilePath = m_doc->m_path_to_folder + "\\" + m_doc->m_pcb_filename + ".log";
+		CStdioFile logFile;
+		if (!logFile.Open( LPCSTR(logFilePath), CFile::modeCreate | CFile::modeNoTruncate | CFile::modeWrite | CFile::shareExclusive, NULL ))
+			return;
+		logFile.SeekToEnd();
+		for (int i=0; i<pli->GetSize(); i++)
+		{
+			part_info *pi = &(*pli)[i];
+			int part = pi->part? pi->part->UID(): -1;
+			int shape = pi->shape? pi->shape->UID(): -1;
+			CString line;
+			line.Format("p \"%s\" \"%s\" \"%s\" \"%s\" \"%s\" %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d\r\n", 
+				pi->ref_des, pi->value, pi->package, pi->shape_name, pi->shape_file_name, 
+				part, shape, pi->x, pi->y, pi->angle, pi->side, 
+				pi->deleted, pi->bShapeChanged, pi->bOffBoard, 
+				pi->ref_size, pi->ref_width, pi->ref_layer, pi->ref_vis,
+				pi->value_size, pi->value_width, pi->value_layer, pi->value_vis);
+			logFile.WriteString(line);
+			if (pi->shape_file_name != "" && pi->shape)
+			{
+				// For shapes that do not come from the cache, we must log the info for reconstructing them
+				pi->shape->WriteFootprint(&logFile);
+				logFile.WriteString("end\r\n");
+			}
+		}
+		logFile.WriteString("@@@\r\n");
+		logFile.Close();
+	}
+
+	else
+	{
+		CString line, cmdStr;
+		CArray<CString> params;
+		CHeap<CShape> newShapes;
+		int sz = 0;
+		while (1)
+		{
+			if (!m_log_file.ReadString( line ))
+				throw new CString((LPCSTR) IDS_EndOfLogFileReached);
+			if (line[0]=='@')
+				break;
+			int numParams = ParseKeyString(&line, &cmdStr, &params) - 1;			// ParseKeyString returns number of params + 1
+			if (numParams<22 || cmdStr!="p")
+				throw new CString((LPCSTR) IDS_CorruptLineInLogFile);
+			pli->SetSize( ++sz );
+			part_info *pi = &(*pli)[sz-1];
+			pi->ref_des = params[0];
+			pi->value = params[1];
+			pi->package = params[2];
+			pi->shape_name = params[3];
+			pi->shape_file_name = params[4];
+			int partUid = ReplayUidTranslate( atoi(params[5]) );
+			CPcbItem *part = CPcbItem::FindByUid(partUid);
+			pi->part = part? part->ToPart(): NULL;
+			int shapeUid = atoi(params[6]);											// Will deal with translation issues below...
+			pi->x = atoi(params[7]);
+			pi->y = atoi(params[8]);
+			pi->angle = atoi(params[9]);
+			pi->side = atoi(params[10]);
+			pi->deleted = atoi(params[11]);
+			pi->bShapeChanged = atoi(params[12]);
+			pi->bOffBoard = atoi(params[13]);
+			pi->ref_size = atoi(params[14]);
+			pi->ref_width = atoi(params[15]);
+			pi->ref_layer = atoi(params[16]);
+			pi->ref_vis = atoi(params[17]);
+			pi->value_size = atoi(params[18]);
+			pi->value_width = atoi(params[19]);
+			pi->value_layer = atoi(params[20]);
+			pi->value_vis = atoi(params[21]);
+			// Deal with the shape.
+			if (shapeUid == -1)
+				pi->shape = NULL;
+			else if (pi->shape_file_name == "")
+			{
+				// Shape should be in the cache, so just translate the uid and get the object ptr.
+				CPcbItem *shape = CPcbItem::FindByUid(ReplayUidTranslate(shapeUid));
+				if (!shape)
+					throw new CString((LPCSTR) IDS_CorruptShapeInLogFile);
+				pi->shape = shape->ToShape();
+			}
+			else
+			{
+				// Create a new shape and get its specs from the log.  The created object's uid must be correlated with the shape-uid saved in the log.
+				pi->shape = new CShape(m_doc);
+				int err = pi->shape->MakeFromFile(&m_log_file, "", "", 0);
+				if (err)
+					throw new CString((LPCSTR) IDS_CorruptShapeInLogFile);
+				pi->shape->utility = shapeUid;
+				// Double check whether, on an earlier iteration, we already created a shape that corresponds to the logger's shapeUid.
+				CShape *prevShape = newShapes.FindByUtility( shapeUid );
+				if (prevShape)
+					pi->shape = prevShape;
+				else
+					newShapes.Add(pi->shape),
+					m_replay_uid_translate.Add( CPoint(shapeUid, pi->shape->UID()) );
+			}
+		}
+
+		// Given how the just-finished loop may have added correspondences to m_replay_uid_translate, we need to sort that table
+		// according to the first coordinate in each point.  This will ensure that ReplayUidTranslate() (q.v.) works correctly
+		int numTranslations = m_replay_uid_translate.GetSize();
+		qsort(m_replay_uid_translate.GetData(), numTranslations, sizeof(CPoint), (int (*)(const void*,const void*)) ComparePointsByX);
+		// The last entry in (sorted) m_replay_uid_translate, which was created during the Log() command that ran most recently, is supposed to
+		// translate the logger's next-uid value into the current replayer's next-uid.  But it may not contain the correct replay next-uid,
+		// because of shapes created during the just-finished loop.  Therefore correct that last entry.
+		CPoint *p = &m_replay_uid_translate[numTranslations-1];
+		p->y = CPcbItem::GetNextUid();
+	}
+}
+
+void CFreePcbView::LogShape(CShape *fp)
+{
+	if (!m_bReplayMode)
+	{
+		CString logFilePath = m_doc->m_path_to_folder + "\\" + m_doc->m_pcb_filename + ".log";
+		CStdioFile logFile;
+		if (!logFile.Open( LPCSTR(logFilePath), CFile::modeCreate | CFile::modeNoTruncate | CFile::modeWrite | CFile::shareExclusive, NULL ))
+			return;
+		logFile.SeekToEnd();
+		logFile.WriteString("f\r\n");
+		fp->WriteFootprint(&logFile);
+		logFile.WriteString("end\r\n");
+	}
+
+	else
+	{
+		CString line, cmdStr;
+		CArray<CString> params;
+		m_log_file.ReadString( line );
+		if (line[0]!='f')
+			throw new CString((LPCSTR) IDS_CorruptLineInLogFile);
+		int err = fp->MakeFromFile(&m_log_file, "", "", 0);
+		if (err)
+			throw new CString((LPCSTR) IDS_CorruptShapeInLogFile);
+	}
+}
+
+
+void CFreePcbView::Log(CString line, bool bSaveState) 
+{
+	// Inner routine that actually writes info to the log file.  If bSaveState is true, we write some additional info:
+	//  --- a "u" line that indicates the current value of CPcbItem::next_uid;
+	//  --- an "s" line that tells us the current cursor mode and the selected item(s)
+	if (!m_doc->m_project_open) 
+		return;
+	CString logFilePath = m_doc->m_path_to_folder + "\\" + m_doc->m_pcb_filename + ".log";
+	CStdioFile logFile;
+	if (!logFile.Open( LPCSTR(logFilePath), CFile::modeCreate | CFile::modeNoTruncate | CFile::modeWrite | CFile::shareExclusive, NULL ))
+		return;
+	logFile.SeekToEnd();
+	logFile.WriteString(line);
+	if (bSaveState)
+	{
+		line.Format("u %d\r\n", CPcbItem::GetNextUid());
+		logFile.WriteString(line);
+		line.Format("s %d ", m_cursor_mode);
+		CString tmp;
+		CIter<CPcbItem> ii (&m_sel);
+		for (CPcbItem *i = ii.First(); i; i = ii.Next())
+			tmp.Format("%d ", i->UID()),
+			line += tmp;
+		logFile.WriteString(line + "\r\n");
+	}
+	logFile.Close();
+}
+
+void CFreePcbView::Replay()
+{
+	// Replay a single instruction (or batch of instructions, e.g. a LOG_KEY followed by a LOG_ON_ADD_AREA if the logger did an F2 with nothing selected)
+	m_bReplaying = true;
+	CShape *fp;
+	CString str;
+	try
+	{
+		long pos = m_log_file.GetPosition();
+		CString line, cmdStr;
+		CArray<CString> params;
+		if (!m_log_file.ReadString( line ))
+			throw new CString((LPCSTR) IDS_EndOfLogFileReached);
+		if (line[0]=='q')
+			throw new CString((LPCSTR) IDS_LoggerCancelledOperation);
+		if (!isdigit(line[0]))
+			throw new CString((LPCSTR) IDS_CorruptLineInLogFile);
+		int numParams = ParseKeyString(&line, &cmdStr, &params);
+		int cmd = atoi(cmdStr);
+		int param0 = numParams>0? atoi(params[0]): 0;
+		m_log_file.Seek(pos, CFile::begin);				// Within whatever routine gets called, the first Log() command will need to parse "line" again
+		switch (cmd)
+		{
+		case LOG_KEY:
+			str.Format("Key press %d", param0);			// NB not bothering with the string table here
+			HandleKeyPress(0, 0, 0);
+			break;
+		case LOG_LEFT_CLICK:
+			str = "Left click";
+			m_bLButtonDown = true;
+			OnLButtonUp(0, CPoint(1000,0));				// Point (1000,0) will not be misinterpreted as a left-pane or bottom-pane click...
+			break;
+		case LOG_RIGHT_CLICK:
+			str = "Right click/Esc";
+			OnRButtonDown(0, CPoint(0,0));
+			break;
+		// Note that most of the following clauses will only get invoked if the logger did the operation via right-clicking or via menu items.
+		// If logger used F-keys, then we'll enter the replaying via the LOG_KEY clause above.
+		case LOG_ON_ADD_AREA:
+			str = "OnAddArea";
+			OnAddArea();
+			break;
+		case LOG_ON_ADD_BOARD_OUTLINE:
+			str = "OnAddBoardOutline";
+			OnAddBoardOutline();
+			break;
+		case LOG_ON_ADD_NET:
+			str = "OnAddNet";
+			OnAddNet();
+			break;
+		case LOG_ON_ADD_PART:
+			str = "OnAddPart";
+			OnAddPart();
+			break;
+		case LOG_ON_ADD_SIMILAR_AREA:
+			str = "OnAddSimilarArea";
+			OnAddSimilarArea();
+			break;
+		case LOG_ON_ADD_SOLDER_MASK_CUTOUT:
+			str = "OnAddSolderMaskCutout";
+			OnAddSoldermaskCutout();
+			break;
+		case LOG_ON_AREA_EDIT:
+			str = "OnAreaEdit";
+			OnAreaEdit();
+			break;
+		case LOG_ON_AREA_START_TRACE:
+			str = "OnAreaStartTrace";
+			OnAreaStartTrace();
+			break;
+		case LOG_ON_CHECK_PARTS_AND_NETS:
+			str = "OnCheckPartsAndNets";
+			OnCheckPartsAndNets();
+			break;
+		case LOG_ON_CLEAR_DRC:
+			str = "OnToolsClearDrc";
+			OnToolsClearDrc();
+			break;
+		case LOG_CHANGE_TRACE_LAYER:
+			str.Format("ChangeTraceLayer %d", param0);
+			ChangeTraceLayer(param0);
+			break;
+		case LOG_SET_WIDTH:
+			str.Format("SetWidth %d", param0);
+			SetWidth(param0);
+			break;
+		case LOG_ON_DELETE_CONNECTION:
+			str = "OnDeleteConnection";
+			OnDeleteConnection();
+			break;
+		case LOG_ON_DRC:
+			str = "OnToolsDrc";
+			OnToolsDrc();
+			break;
+		case LOG_ON_EXTERNAL_CHANGE_FP:
+			str = "OnExternalChangeFootprint";
+			fp = new CShape(m_doc);
+			OnExternalChangeFootprint(fp);
+			break;
+		case LOG_ON_GROUP_COPY:
+			str = "OnGroupCopy";
+			OnGroupCopy();
+			break;
+		case LOG_ON_GROUP_CUT:
+			str = "OnGroupCut";
+			OnGroupCut();
+			break;
+		case LOG_ON_GROUP_DELETE:
+			str = "OnGroupDelete";
+			OnGroupDelete();
+			break;
+		case LOG_ON_GROUP_MOVE:
+			str = "OnGroupMove";
+			OnGroupMove();
+			break;
+		case LOG_ON_GROUP_PASTE:
+			str = "OnGroupPaste";
+			OnGroupPaste();
+			break;
+		case LOG_ON_GROUP_ROTATE:
+			str = "OnGroupRotate";
+			OnGroupRotate();
+			break;
+		case LOG_ON_GROUP_SAVE_TO_FILE:
+			str = "OnGroupSaveToFile";
+			OnGroupSaveToFile();
+			break;
+		case LOG_ON_OPTIMIZE:
+			str = "OnOptimize";
+			OnOptimize();
+			break;
+		case LOG_ON_PAD_ADD_TO_NET:
+			str = "OnPadAddToNet";
+			OnPadAddToNet();
+			break;
+		case LOG_ON_PAD_DETACH_FROM_NET:
+			str = "OnPadDetachFromNet";
+			OnPadDetachFromNet();
+			break;
+		case LOG_ON_PAD_OPTIMIZE:
+			str = "OnPadOptimize";
+			OnPadOptimize();
+			break;
+		case LOG_ON_PAD_START_RATLINE:
+			str = "OnPadStartRatline";
+			OnPadStartRatline();
+			break;
+		case LOG_ON_PAD_START_TRACE:
+			str = "OnPadStartTrace";
+			OnPadStartTrace();
+			break;
+		case LOG_ON_PART_CHANGE_SIDE:
+			str = "OnPartChangeSide";
+			OnPartChangeSide();
+			break;
+		case LOG_ON_PART_DELETE:
+			str = "OnPartDelete";
+			OnPartDelete();
+			break;
+		case LOG_ON_PART_GLUE:
+			str = "OnPartGlue";
+			OnPartGlue();
+			break;
+		case LOG_ON_PART_MOVE:
+			str = "OnPartMove";
+			OnPartMove();
+			break;
+		case LOG_ON_PART_OPTIMIZE:
+			str = "OnPartOptimize";
+			OnPartOptimize();
+			break;
+		case LOG_ON_PART_PROPERTIES:
+			str = "OnPartProperties";
+			OnPartProperties();
+			break;
+		case LOG_ON_PART_REF_PROPERTIES:
+			str = "OnPartRefProperties";
+			OnPartRefProperties();
+			break;
+		case LOG_ON_PART_ROTATE:
+			str.Format("OnPartRotate %d", param0);
+			OnPartRotate(param0);
+			break;
+		case LOG_ON_PART_UNGLUE:
+			str = "OnPartUnglue";
+			OnPartUnglue();
+			break;
+		case LOG_ON_PART_VALUE_PROPERTIES:
+			str = "OnPartValueProperties";
+			OnPartValueProperties();
+			break;
+		case LOG_ON_POLY_ADD_CUTOUT:
+			str = "OnPolyAddCutout";
+			OnPolyAddCutout();
+			break;
+		case LOG_ON_POLY_CORNER_DELETE:
+			str = "OnPolyCornerDelete";
+			OnPolyCornerDelete();
+			break;
+		case LOG_ON_POLY_CORNER_EDIT:
+			str = "OnPolyCornerEdit";
+			OnPolyCornerEdit();
+			break;
+		case LOG_ON_POLY_CORNER_MOVE:
+			str = "OnPolyCornerMove";
+			OnPolyCornerMove();
+			break;
+		case LOG_ON_POLY_DELETE:
+			str = "OnPolyDelete";
+			OnPolyDelete();
+			break;
+		case LOG_ON_POLY_DELETE_CUTOUT:
+			str = "OnPolyDeleteCutout";
+			OnPolyDeleteCutout();
+			break;
+		case LOG_ON_POLY_SIDE_ADD_CORNER:
+			str = "OnPolySideAddCorner";
+			OnPolySideAddCorner();
+			break;
+		case LOG_ON_POLY_SIDE_CONVERT:
+			str.Format("OnPolySideConvert %d", param0);
+			OnPolySideConvert(param0);
+			break;
+		case LOG_ON_RATLINE_CHANGE_END_PIN:
+			str = "OnRatlineChangeEndPin";
+			OnRatlineChangeEndPin();
+			break;
+		case LOG_ON_RATLINE_COMPLETE:
+			str = "OnRatlineComplete";
+			OnRatlineComplete();
+			break;
+		case LOG_ON_RATLINE_LOCK_CONNECTION:
+			str = "OnRatlineLockConnection";
+			OnRatlineLockConnection();
+			break;
+		case LOG_ON_RATLINE_ROUTE:
+			str = "OnRatlineRoute";
+			OnRatlineRoute();
+			break;
+		case LOG_ON_RATLINE_UNLOCK_CONNECTION:
+			str = "OnRatlineUnlockConnection";
+			OnRatlineUnlockConnection();
+			break;
+		case LOG_ON_REF_MOVE:
+			str = "OnRefMove";
+			OnRefMove();
+			break;
+		case LOG_ON_REF_PROPERTIES:
+			str = "OnRefProperties";
+			OnRefProperties();
+			break;
+		case LOG_ON_REF_ROTATE:
+			str.Format("OnRefRotate %d", param0);
+			OnRefRotate(param0);
+			break;
+		case LOG_ON_REPEAT_DRC:
+			str = "OnToolsRepeatDrc";
+			OnToolsRepeatDrc();
+			break;
+		case LOG_ON_SEGMENT_ADD_VERTEX:
+			str = "OnSegmentAddVertex";
+			OnSegmentAddVertex();
+			break;
+		case LOG_ON_SEGMENT_DELETE:
+			str = "OnSegmentDelete";
+			OnSegmentDelete();
+			break;
+		case LOG_ON_SEGMENT_MOVE:
+			str = "OnSegmentMove";
+			OnSegmentMove();
+			break;
+		case LOG_ON_SEGMENT_UNROUTE:
+			str = "OnSegmentUnroute";
+			OnSegmentUnroute();
+			break;
+		case LOG_ON_SM_EDIT:
+			str = "OnSmEdit";
+			OnSmEdit();
+			break;
+		case LOG_ON_TEE_DELETE:
+			str = "OnTeeDelete";
+			OnTeeDelete();
+			break;
+		case LOG_ON_TEE_MOVE:
+			str = "OnTeeMove";
+			OnTeeMove();
+			break;
+		case LOG_ON_TEE_PROPERTIES:
+			str = "OnTeeProperties";
+			OnTeeProperties();
+			break;
+		case LOG_ON_TEXT_ADD:
+			str = "OnTextAdd";
+			OnTextAdd();
+			break;
+		case LOG_ON_TEXT_DELETE:
+			str = "OnTextDelete";
+			OnTextDelete();
+			break;
+		case LOG_ON_TEXT_EDIT:
+			str = "OnTextEdit";
+			OnTextEdit();
+			break;
+		case LOG_ON_TEXT_MOVE:
+			str = "OnTextMove";
+			OnTextMove();
+			break;
+		case LOG_ON_TEXT_ROTATE:
+			str.Format("OnTextRotate", param0);
+			OnTextRotate(param0);
+			break;
+		case LOG_ON_TOOLS_MOVE_ORIGIN:
+			str = "OnToolsMoveOrigin";
+			OnToolsMoveOrigin();
+			break;
+		case LOG_ON_UNROUTE_TRACE:
+			str = "OnUnrouteTrace";
+			OnUnrouteTrace();
+			break;
+		case LOG_ON_VERTEX_ADD_VIA:
+			str = "OnVertexAddVia";
+			OnVertexAddVia();
+			break;
+		case LOG_ON_VERTEX_DELETE:
+			str = "OnVertexDelete";
+			OnVertexDelete();
+			break;
+		case LOG_ON_VERTEX_MOVE:
+			str = "OnVertexMove";
+			OnVertexMove();
+			break;
+		case LOG_ON_VERTEX_PROPERTIES:
+			str = "OnVertexProperties";
+			OnVertexProperties();
+			break;
+		case LOG_ON_VERTEX_REMOVE_VIA:
+			str = "OnVertexRemoveVia";
+			OnVertexRemoveVia();
+			break;
+		case LOG_ON_VERTEX_START_RATLINE:
+			str = "OnVertexStartRatline";
+			OnVertexStartRatline();
+			break;
+		case LOG_ON_VERTEX_START_TRACE:
+			str = "OnVertexStartTrace";
+			OnVertexStartTrace();
+			break;
+		case LOG_ON_EDIT_PASTE_FROM_FILE:
+			str = "OnEditPasteFromFile";
+			m_doc->OnEditPasteFromFile();
+			break;
+		case LOG_ON_EDIT_REDO:
+			str = "OnEditRedo";
+			m_doc->OnEditRedo();
+			break;
+		case LOG_ON_EDIT_UNDO:
+			str = "OnEditUndo";
+			m_doc->OnEditUndo();
+			break;
+		case LOG_ON_PROJECT_NETLIST:
+			str = "OnProjectNetlist";
+			m_doc->OnProjectNetlist();
+			break;
+		case LOG_ON_PROJECT_PARTLIST:
+			str = "OnProjectPartlist";
+			m_doc->OnProjectPartlist();
+			break;
+		case LOG_ON_TOOLS_CHECK_CONNECTIVITY:
+			str = "OnToolsCheckConnectivity";
+			m_doc->OnToolsCheckConnectivity();
+			break;
+		case LOG_ON_TOOLS_CHECK_COPPER_AREAS:
+			str = "OnToolsCheckCopperAreas";
+			m_doc->OnToolsCheckCopperAreas();
+			break;
+		case LOG_ON_TOOLS_CHECK_PARTS_AND_NETS:
+			str = "OnToolsCheckPartsAndNets";
+			m_doc->OnToolsCheckPartsAndNets();
+			break;
+		case LOG_ON_TOOLS_CHECK_TRACES:
+			str = "OnToolsCheckTraces";
+			m_doc->OnToolsCheckTraces();
+			break;
+		}
+	}
+	catch (CString *e)
+	{
+		// If the log file contains a "q" line, meaning the logger cancelled from a dialog box, we wind up here.  Also for
+		// any other anomalies in the log file.
+		str = *e;
+		delete e;
+	}
+
+	m_log_status.Format("%d: %s", ++m_replay_ct, str);
+	ShowSelectStatus();
+	m_bReplaying = false;
+}
+
+void CFreePcbView::ReplayLoad()
+{
+	// When user hits F11, we come here:  load in a .log file, and start replay mode.  From now on, any key press (other than panning and
+	// zooming) will launch the replay of a single step from the log file
+	if( m_doc->FileClose() == IDCANCEL )
+		return;
+
+	CString s ((LPCSTR) IDS_LogFiles);
+	CFileDialog dlg( TRUE, NULL, NULL, OFN_HIDEREADONLY | OFN_EXPLORER, 
+		s, NULL, OPENFILENAME_SIZE_VERSION_500 );
+	s.LoadStringA(IDS_ReplayLogFile);
+	dlg.m_ofn.lpstrTitle = s; 
+	int ret = dlg.DoModal();
+	if( ret != IDOK )
+		return;
+
+	m_bReplayMode = true;
+	CString pathname = dlg.GetPathName();
+	int initialUid = CPcbItem::GetNextUid();
+	if (!m_doc->FileOpen(pathname, false))
+		{ m_bReplayMode = false; return; }
+
+	// open log file (again), this time so that we can read the logging info (below the document info)
+	if (!m_log_file.Open( pathname, CFile::modeRead, NULL ))
+	{
+		// bizarre...
+		CString mess, s ((LPCSTR) IDS_UnableToOpenFile);
+		mess.Format( s, pathname );
+		AfxMessageBox( mess );
+		m_bReplayMode = false;
+		return;
+	}
+
+	// find beginning of logging section, marked by a "@@@" line
+	CString line;
+	do
+	{
+		if( !m_log_file.ReadString( line ) )
+		{
+			CString mess ((LPCSTR) IDS_UnableToFindLoggingDataInFile);
+			AfxMessageBox( mess );
+			m_bReplayMode = false;
+			return;
+		}
+		line.Trim();
+	}
+	while( line != "@@@" );
+
+	// find the first "u" line, which gives us an initial mapping of the logger's uid values to the replayer's
+	do
+	{
+		if( !m_log_file.ReadString( line ) )
+		{
+			CString mess ((LPCSTR) IDS_UnableToFindLoggingDataInFile);
+			AfxMessageBox( mess );
+			m_bReplayMode = false;
+			return;
+		}
+		line.Trim();
+	}
+	while( line[0] != 'u' );
+	line.TrimLeft("u ");
+	int initialUidLog = atoi(line);
+	m_replay_uid_translate.RemoveAll();
+	m_replay_uid_translate.Add( CPoint(initialUidLog, initialUid) );
+	m_log_status.LoadStringA( IDS_HitAnyKeyToReplayLoggersFirstOperation );
+	m_replay_ct = 0;
+	m_bReplaying = true;					// Set this temporarily so that ShowSelectStatus will show the "Hit any key to replay..." msg
+	ShowSelectStatus();
+	m_bReplaying = false;
+}
+
+int CFreePcbView::ReplayUidTranslate(int logUid)
+{
+	// Given "logUid", a uid from the logger, translate it into a uid within the current replaying context.  Scans through m_replay_uid_translate,
+	// and finds the last translation point (x,y) such that x<=logUid.  The correct translation is then logUid-x + y.
+	if (logUid==-1)
+		return -1;													// A uid of -1 is often used to signify a null item
+	int lastX = -1, lastY = -1;
+	for (int i = 0; i < m_replay_uid_translate.GetSize(); i++)
+	{
+		CPoint p = m_replay_uid_translate[i];
+		if (p.x > logUid) break;
+		lastX = p.x, lastY = p.y;
+	}
+	if (lastX<=0 || lastY<=0)
+		throw new CString((LPCSTR) IDS_CorruptItemUidInLogFile);
+	return logUid-lastX + lastY;
+}
+
+#endif // #ifdef CPT2_LOG

@@ -1699,6 +1699,15 @@
 #define IDS_Errors                      62722
 #define IDS_CompleteList                62723
 #define IDS_PinNetCantConnect           62724
+#define IDS_LogFiles                    62725
+#define IDS_ReplayLogFile               62726
+#define IDS_UnableToFindLoggingDataInFile 62727
+#define IDS_HitAnyKeyToReplayLoggersFirstOperation 62728
+#define IDS_LoggerCancelledOperation    62729
+#define IDS_CorruptLineInLogFile        62730
+#define IDS_CorruptItemUidInLogFile     62731
+#define IDS_EndOfLogFileReached         62732
+#define IDS_CorruptShapeInLogFile       62733
 #define IDS_FkFpStr                     63000
 #define IDS_STRING63001                 63001
 #define IDS_STRING63002                 63002

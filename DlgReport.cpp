@@ -735,7 +735,7 @@ void CDlgReport::OnBnClickedOk()
 		DesignRules dr = m_doc->m_dr;
 		dr.bCheckUnrouted = bCon;
 		m_doc->m_drelist->Clear();
-		m_doc->DRC( m_units, TRUE, &dr );
+		m_doc->DRC( m_units, &dr );
 		if( bDrc )
 		{
 			CString s ((LPCSTR) IDS_DRCErrors);

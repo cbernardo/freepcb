@@ -684,7 +684,7 @@ bool CCommonView::HandleLayerKey(UINT nChar, bool bShiftKeyDown, bool bCtrlKeyDo
 	return true;
 }
 
-void CCommonView::HandlePanAndZoom(int nChar, CPoint &p) {
+bool CCommonView::HandlePanAndZoom(int nChar, CPoint &p) {
 	if (m_doc->m_bReversePgupPgdn)
 		if (nChar==33) nChar = 34;
 		else if (nChar==34) nChar = 33;
@@ -718,6 +718,7 @@ void CCommonView::HandlePanAndZoom(int nChar, CPoint &p) {
 			m_org_x, m_org_y );
 		Invalidate( FALSE );
 		SetCursorPos( center.x, center.y );
+		return true;
 	}
 
 	else if( nChar == 33 )
@@ -736,6 +737,7 @@ void CCommonView::HandlePanAndZoom(int nChar, CPoint &p) {
 			p = m_dlist->PCBToScreen( p );
 			SetCursorPos( p.x, p.y - 4 );
 		}
+		return true;
 	}
 	else if( nChar == 34 )
 	{
@@ -760,7 +762,10 @@ void CCommonView::HandlePanAndZoom(int nChar, CPoint &p) {
 			p = m_dlist->PCBToScreen( p );
 			SetCursorPos( p.x, p.y );
 		}
+		return true;
 	}
+
+	return false;
 }
 
 void CCommonView::HandleCtrlFKey(int nChar) {
