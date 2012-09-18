@@ -183,7 +183,7 @@ public:
 	bool HandleLayerKey(UINT nChar, bool bShiftKeyDown, bool bCtrlKeyDown, CDC *pDC);
 	virtual void HandleShiftLayerKey(int layer, CDC *pDC) { }
 	virtual void HandleNoShiftLayerKey(int layer, CDC *pDC) { }
-	void HandlePanAndZoom(int nChar, CPoint &p);
+	bool HandlePanAndZoom(int nChar, CPoint &p);
 	void HandleCtrlFKey(int nChar);
 	int SelectObjPopup( CPoint const &point );
 	void FindGroupCenter();

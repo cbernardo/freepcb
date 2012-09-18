@@ -13,7 +13,6 @@ public:
 	virtual ~CDlgDupFootprintName();
 	void Initialize( CString * message, CShapeList * cache_shapes );
 	BOOL GetReplaceAllFlag(){ return m_replace_all_flag; };
-	CString * GetNewName(){ return &m_new_name_str; };
 
 // Dialog Data
 	enum { IDD = IDD_DUP_FP_NAME };

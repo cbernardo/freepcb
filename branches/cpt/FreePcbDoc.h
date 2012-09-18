@@ -8,6 +8,7 @@
 
 #pragma once
 #define CPT2 0
+#define CPT2_LOG 0
 
 #include "PcbFont.h"
 #include "SMfontutil.h"
@@ -275,7 +276,8 @@ public:
 																	// like dragging a stub
 
 	// CPT2 DRC() used to be in CPartList, but I thought it made more sense here.  I also broke DRC() into helper routines for readability.
-	void DRC( int units, BOOL check_unrouted, DesignRules * dr );
+	// Also (r350) removed bCheckUnrouted param from DRC() --- just look at dr->bCheckUnrouted instead
+	void DRC( int units, DesignRules * dr );
 	void DRCPin( CPin *pin, int units, DesignRules *dr );
 	void DRCPinsAndCopperGraphics( CPart *part1, CPart *part2, int units, DesignRules *dr );
 	void DRCPinAndPin( CPin *pin1, CPin *pin2, int units, DesignRules *dr, int clearance );
@@ -317,9 +319,11 @@ public:
 	afx_msg void OnProjectOptions();
 	afx_msg void OnFileExport();
 	afx_msg void OnToolsCheckPartsAndNets();
-	afx_msg void OnToolsDrc();
-	afx_msg void OnToolsClearDrc(); 
-	afx_msg void OnToolsShowDRCErrorlist();
+	// CPT2 reorganized, moved the OnToolsDrc() family of functions entirely into CFreePcbView
+	// afx_msg void OnToolsDrc();
+	// afx_msg void OnToolsClearDrc(); 
+	// afx_msg void OnToolsShowDRCErrorlist();
+	// afx_msg void OnToolsRepeatDrc();
 	afx_msg void OnToolsCheckConnectivity();
 	afx_msg void OnViewLog();
 	afx_msg void OnToolsCheckCopperAreas();
@@ -329,7 +333,6 @@ public:
 	afx_msg void OnFileExportDsn();
 	afx_msg void OnFileImportSes();
 	afx_msg void OnEditRedo();
-	afx_msg void OnRepeatDrc();
 	afx_msg void OnFileGenerateReportFile();
 	afx_msg void OnFileLoadLibrary();
 	afx_msg void OnFileSaveLibrary();

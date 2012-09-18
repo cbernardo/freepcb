@@ -1882,10 +1882,8 @@ int CPartList::ReadParts( CStdioFile * pcb_file )
 	// find beginning of [parts] section
 	do
 	{
-		err = pcb_file->ReadString( in_str );
-		if( !err )
+		if( !pcb_file->ReadString( in_str ) )
 		{
-			// error reading pcb file
 			CString mess ((LPCSTR) IDS_UnableToFindPartsSectionInFile);
 			AfxMessageBox( mess );
 			return 0;
@@ -2032,6 +2030,8 @@ void CPartList::ImportPartListInfo( partlist_info * pli, int flags, CDlgLog * lo
 	// CPT2 converted.  Routine relies on lower-level subroutines to call Undraw() or MustRedraw(), as appropriate, for individual parts and 
 	// attached nets.  Also saves undo info now as necessary, including undo info for shapes.
 	CString mess; 
+	CFreePcbView *view = m_doc->m_view;
+	bool bReplaying = view->m_bReplaying;
 
 	// grid for positioning parts off-board
 	int pos_x = 0;
@@ -2065,7 +2065,10 @@ void CPartList::ImportPartListInfo( partlist_info * pli, int flags, CDlgLog * lo
 				pi->part->shape->utility = 1;
 				CString mess, mess0 ((LPCSTR) IDS_WarningSHasFewerPins);
 				mess.Format( mess0,	pi->shape->m_name, pi->part->shape->m_name );
-				int ret = AfxMessageBox( mess, MB_YESNO );
+				int ret;
+				if (!bReplaying)
+					ret = AfxMessageBox( mess, MB_YESNO );
+				view->LogXtra( &ret );
 				if( ret != IDYES)
 					return;
 			}
@@ -2100,10 +2103,17 @@ void CPartList::ImportPartListInfo( partlist_info * pli, int flags, CDlgLog * lo
 		{
 			// Conflict!  Display dialog to warn user about overwriting the old footprint
 			CDlgDupFootprintName dlg;
-			CString mess, w ((LPCSTR) IDS_WarningYouAreTryingToLoadAFootprint);
-			mess.Format( w, name, file_name );
-			dlg.Initialize( &mess, m_doc->m_slist );
-			int ret = dlg.DoModal();
+			int ret;
+			if (!bReplaying)
+			{
+				CString mess, w ((LPCSTR) IDS_WarningYouAreTryingToLoadAFootprint);
+				mess.Format( w, name, file_name );
+				dlg.Initialize( &mess, m_doc->m_slist );
+				int ret = dlg.DoModal();
+			}
+			view->LogXtra(&ret, &dlg.m_replace_all_flag);
+			view->LogXtra(&dlg.m_new_name_str);
+
 			if (ret == IDCANCEL)
 			{
 				// Ugh, it's possible user made some changes to the cache on a previous iteration and only now decides to bail out.  
@@ -2122,8 +2132,8 @@ void CPartList::ImportPartListInfo( partlist_info * pli, int flags, CDlgLog * lo
 			}
 			else
 			{
-				// assign new name to footprint and put in cache
-				pi->shape->m_name = *dlg.GetNewName();
+				// assign new name to footprint and put in cache.
+				pi->shape->m_name = dlg.m_new_name_str;
 				m_doc->m_slist->shapes.Add( pi->shape );
 				cache_shape = pi->shape;
 				pi->shape_file_name = "";

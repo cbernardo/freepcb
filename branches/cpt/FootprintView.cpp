@@ -1526,7 +1526,7 @@ void CFootprintView::OnOutlineCornerEdit()
 	if( ret != IDOK ) 
 		return;
 	PushUndo();
-	c->Move(dlg.X(), dlg.Y());
+	c->Move(dlg.m_x, dlg.m_y);
 	FootprintModified( TRUE );
 	HighlightSelection();
 }

@@ -77,11 +77,11 @@ int ParseStringFields( CString * str, CArray<CString> * field )
 // if param is a string, must be enclosed in " " if it includes spaces and must be first param
 //		then quotes are stripped
 // if unable to parse, returns -1
+// CPT2 r249.  Revised to allow multiple quoted params, including "" params --- can't see the harm in it, and it's nice for log files.
 //
 int ParseKeyString( CString * str, CString * key_str, CArray<CString> * param_str )
 {
 	int pos = 0;
-	int last_pos;
 	int np = 0;
 	for( int ip=0; ip<param_str->GetSize(); ip++ )
 		(*param_str)[ip] = "";
@@ -91,7 +91,6 @@ int ParseKeyString( CString * str, CString * key_str, CArray<CString> * param_st
 	if( str->GetLength() == 0 || c == '/' )
 		return 0;
 	CString keyword = str->Tokenize( " :\n\t", pos );
-	last_pos = pos;
 	if( keyword == "" )
 		return -1;
 	// keyword found
@@ -104,39 +103,26 @@ int ParseKeyString( CString * str, CString * key_str, CArray<CString> * param_st
 	CString right_str = str->Right( str->GetLength() - keyword.GetLength() - 1);
 	right_str.Trim();
 	pos = 0;
-	BOOL bQuotedStr = TRUE;
-	if( right_str.Left(2) == "\"\"" )
+	int lgth = right_str.GetLength();
+	while (pos<lgth)
 	{
-		// quoted string is blank
-		right_str = right_str.Right( right_str.GetLength()-2 );
-	}
-	else if( right_str[0] == '\"' )
-	{
-		// param starts with ", remove it and tokenize to following "
-		param = right_str.Tokenize( "\"", pos );
-	}
-	else
-	{
-		param = right_str.Tokenize( " \n\t", pos );
-		bQuotedStr = FALSE;
-	}
-	while( param != "" || bQuotedStr )
-	{
-		bQuotedStr = FALSE;
-		param.Trim();
+		if( right_str[pos] == '\"' )
+			// param starts with ", remove it and tokenize to following "
+			if (pos+1<lgth && right_str[pos+1]=='\"')
+				// NB Tokenize() is too stupid to do this correctly
+				pos+=2,
+				param = "";
+			else
+				param = right_str.Tokenize( "\"", pos );
+		else
+			param = right_str.Tokenize( " \n\t", pos );
+		param.Trim();												// CPT2 I guess...
 		param_str->SetAtGrow( np, param );
-		// now test for next parameter starting with "
-		last_pos = pos;
-		param = right_str.Tokenize( " \n\t", pos );
-		param.Trim();
-		if( param[0] == '\"' )
-		{
-			// retokenize to get rid of ""
-			pos = last_pos;
-			param = right_str.Tokenize( "\"", pos );
-			param = right_str.Tokenize( "\"", pos );
-		}
 		np++;
+		if (pos==-1) break;
+		// Advance pos to the next non-whitespace char
+		while (pos<lgth && isspace(right_str[pos]))
+			pos++;
 	}
 
 	return np+1;

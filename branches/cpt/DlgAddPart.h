@@ -37,7 +37,6 @@ private:
 	CShape *m_shape;			// CPT2 was CShape, now CShape*.  Set on entry if we're editing, null if we're adding;  
 								// set when "OK" is hit, either way
 	CString m_shape_file_name;	// CPT2 new.  Informs the caller about the selected shape's library file ("" => local cache)
-	BOOL m_drag_flag;
 	BOOL m_offboard_flag;
 	partlist_info * m_pl;
 	int m_ip;					// The index of the single pre-existing item being edited, if appropriate
@@ -85,7 +84,6 @@ public:
 		CFreePcbDoc *doc,
 		int units );
 	void InitPartLibTree();
-	BOOL GetDragFlag();
 	void SetFields();
 	void GetFields();
 
@@ -94,6 +92,7 @@ public:
 	int m_angle;
 	int m_multiple_mask;
 	CString m_ref_des;													// CPT2, used when a single part is being created/edited
+	BOOL m_drag_flag;
 
 private:
 	virtual BOOL OnInitDialog();

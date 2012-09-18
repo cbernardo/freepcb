@@ -1431,8 +1431,7 @@ int CShape::MakeFromFile( CStdioFile * in_file, CString name,
 	if( !in_file )
 	{
 		file = new CStdioFile;
-		err = file->Open( file_path, CFile::modeRead );
-		if( !err )
+		if (!file->Open( file_path, CFile::modeRead ))
 			return 1;
 	}
 	else
@@ -1826,7 +1825,7 @@ normal_return:
 
 // copy another shape into this shape.
 // CPT2 converted after changing CShape members a bit.  Ensures that copies all have correct CFreePcbDoc pointers.
-// New feature (used when making doing copy-to-clipboard operations in the fp editor):  copy utility bits over from each sub-object.
+// New feature (used when doing copy-to-clipboard operations in the fp editor):  copy utility bits over from each sub-object.
 //
 void CShape::Copy( CShape * src )
 {

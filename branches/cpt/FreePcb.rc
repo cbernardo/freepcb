@@ -1701,36 +1701,36 @@ BEGIN
     GROUPBOX        "Select Action",IDC_STATIC,6,66,242,66
 END
 
-IDD_DRC DIALOGEX 0, 0, 164, 282
+IDD_DRC DIALOGEX 0, 0, 179, 282
 STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Design Rule Check"
 FONT 8, "MS Shell Dlg", 400, 0, 0x1
 BEGIN
     CONTROL         "Show unrouted connections as errors",IDC_CHECK_SHOW_UNROUTED,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,9,9,135,10
-    COMBOBOX        IDC_COMBO1,114,39,36,48,CBS_DROPDOWNLIST | CBS_SORT | WS_VSCROLL | WS_TABSTOP
-    EDITTEXT        IDC_EDIT14,114,58,36,12,ES_AUTOHSCROLL
-    EDITTEXT        IDC_EDIT1,114,76,36,12,ES_AUTOHSCROLL
-    EDITTEXT        IDC_EDIT7,114,94,36,12,ES_AUTOHSCROLL
-    EDITTEXT        IDC_EDIT6,114,111,36,12,ES_AUTOHSCROLL
-    EDITTEXT        IDC_EDIT5,114,130,36,12,ES_AUTOHSCROLL
-    EDITTEXT        IDC_EDIT8,114,148,36,12,ES_AUTOHSCROLL
-    EDITTEXT        IDC_EDIT4,114,166,36,12,ES_AUTOHSCROLL
-    EDITTEXT        IDC_EDIT9,114,183,36,12,ES_AUTOHSCROLL
-    EDITTEXT        IDC_EDIT2,114,202,36,12,ES_AUTOHSCROLL
-    EDITTEXT        IDC_EDIT11,114,220,36,12,ES_AUTOHSCROLL
-    EDITTEXT        IDC_EDIT10,114,238,36,12,ES_AUTOHSCROLL
-    PUSHBUTTON      "Check",IDC_BUTTON1,16,262,33,14
-    PUSHBUTTON      "Done",IDOK,70,262,31,14
-    PUSHBUTTON      "Cancel",IDCANCEL,121,262,27,14
+    COMBOBOX        IDC_COMBO1,126,39,36,48,CBS_DROPDOWNLIST | CBS_SORT | WS_VSCROLL | WS_TABSTOP
+    EDITTEXT        IDC_EDIT14,126,58,36,12,ES_AUTOHSCROLL
+    EDITTEXT        IDC_EDIT1,126,76,36,12,ES_AUTOHSCROLL
+    EDITTEXT        IDC_EDIT7,126,94,36,12,ES_AUTOHSCROLL
+    EDITTEXT        IDC_EDIT6,126,111,36,12,ES_AUTOHSCROLL
+    EDITTEXT        IDC_EDIT5,126,130,36,12,ES_AUTOHSCROLL
+    EDITTEXT        IDC_EDIT8,126,148,36,12,ES_AUTOHSCROLL
+    EDITTEXT        IDC_EDIT4,126,166,36,12,ES_AUTOHSCROLL
+    EDITTEXT        IDC_EDIT9,126,183,36,12,ES_AUTOHSCROLL
+    EDITTEXT        IDC_EDIT2,126,202,36,12,ES_AUTOHSCROLL
+    EDITTEXT        IDC_EDIT11,126,220,36,12,ES_AUTOHSCROLL
+    EDITTEXT        IDC_EDIT10,126,238,36,12,ES_AUTOHSCROLL
+    PUSHBUTTON      "Check",IDC_BUTTON1,11,262,33,14
+    PUSHBUTTON      "Save settings and exit",IDOK,52,262,77,14
+    PUSHBUTTON      "Cancel",IDCANCEL,136,262,27,14
     LTEXT           "pad to pad",IDC_STATIC,12,79,36,8
     LTEXT           "pad to trace",IDC_STATIC,12,97,40,8
     LTEXT           "trace to trace",IDC_STATIC,12,114,45,8
     LTEXT           "hole to pad or trace",IDC_STATIC,12,132,64,8
     LTEXT           "annular ring (pins)",IDC_STATIC,12,169,59,8
     LTEXT           "board edge to any copper",IDC_STATIC,12,204,84,8
-    LTEXT           "Units",IDC_STATIC,90,42,17,8
-    GROUPBOX        "Minimum distance allowed",IDC_STATIC,6,28,152,227
+    LTEXT           "Units",IDC_STATIC,102,42,17,8
+    GROUPBOX        "Minimum distance allowed",IDC_STATIC,10,28,152,227
     LTEXT           "hole to hole",IDC_STATIC,12,151,38,8
     LTEXT           "annular ring (vias)",IDC_STATIC,12,186,59,8
     LTEXT           "copper area to copper area",IDC_STATIC,12,239,89,8
@@ -2612,7 +2612,7 @@ BEGIN
     IDD_DRC, DIALOG
     BEGIN
         LEFTMARGIN, 7
-        RIGHTMARGIN, 157
+        RIGHTMARGIN, 172
         TOPMARGIN, 7
         BOTTOMMARGIN, 275
     END
@@ -4254,7 +4254,7 @@ END
 
 STRINGTABLE
 BEGIN
-    IDS_AppName             "CPT2.25"
+    IDS_AppName             "CPT2.27"
 END
 
 STRINGTABLE
@@ -4568,6 +4568,16 @@ BEGIN
     IDS_Errors              "\r\n%d errors.\r\n"
     IDS_CompleteList        "\r\nComplete List:\r\n"
     IDS_PinNetCantConnect   "Pin %s.%s, net ""%s"" (can't connect)"
+    IDS_LogFiles            "Log Files (*.log)|*.log|All Files (*.*)|*.*||"
+    IDS_ReplayLogFile       "Replay Log File:"
+    IDS_UnableToFindLoggingDataInFile "Unable to find logging data in file"
+    IDS_HitAnyKeyToReplayLoggersFirstOperation 
+                            "Hit any key to replay logger's first operation"
+    IDS_LoggerCancelledOperation "Logger cancelled operation"
+    IDS_CorruptLineInLogFile "Corrupt line in log file"
+    IDS_CorruptItemUidInLogFile "Corrupt item uid in log file"
+    IDS_EndOfLogFileReached "End of log file reached"
+    IDS_CorruptShapeInLogFile "Corrupt shape in log file"
 END
 
 #endif    // English (United States) resources

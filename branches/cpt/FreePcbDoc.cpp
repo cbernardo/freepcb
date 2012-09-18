@@ -78,9 +78,6 @@ BEGIN_MESSAGE_MAP(CFreePcbDoc, CDocument)
 	ON_COMMAND(ID_PROJECT_OPTIONS, OnProjectOptions)
 	ON_COMMAND(ID_FILE_EXPORTNETLIST, OnFileExport)
 	ON_COMMAND(ID_TOOLS_CHECK_PARTS_NETS, OnToolsCheckPartsAndNets)
-	ON_COMMAND(ID_TOOLS_DRC, OnToolsDrc)
-	ON_COMMAND(ID_TOOLS_CLEAR_DRC, OnToolsClearDrc)
-	ON_COMMAND(ID_TOOLS_SHOWDRCERRORLIST, OnToolsShowDRCErrorlist)
 	ON_COMMAND(ID_TOOLS_CHECK_CONNECTIVITY, OnToolsCheckConnectivity)
 	ON_COMMAND(ID_VIEW_LOG, OnViewLog)
 	ON_COMMAND(ID_TOOLS_CHECKCOPPERAREAS, OnToolsCheckCopperAreas)
@@ -398,6 +395,14 @@ void CFreePcbDoc::OnFileNew()
 
 	// save project
 	OnFileSave();
+#ifdef CPT2_LOG
+	// CPT2 logging feature:  copy the file to a new log file, whose name is fn + ".log".
+	CString logFn = CString(m_pcb_full_path) + ".log";
+	CopyFile(m_pcb_full_path, logFn, false);
+	CString line;
+	line.Format( "@@@\r\nu %d\r\n", CPcbItem::next_uid);
+	m_view->Log(line, false);
+#endif
 	
 	// CPT2 new:
 	if (m_bSyncFile)
@@ -572,6 +577,14 @@ BOOL CFreePcbDoc::FileOpen( LPCTSTR fn, BOOL bLibrary )
 	m_view->CancelSelection();
 	InitializeNewProject();		// set defaults
 
+#ifdef CPT2_LOG
+	// CPT2 logging feature:  copy the file to a new log file, whose name is fn + ".log".  (Unless we're performing the initiation of replay mode.)
+	if (!m_view->m_bReplayMode)
+	{
+		CString logFn = CString(fn) + ".log";
+		CopyFile(fn, logFn, false);
+	}
+#endif
 	// now open it
 	CStdioFile pcb_file;
 	int err = pcb_file.Open( fn, CFile::modeRead, NULL );
@@ -586,9 +599,30 @@ BOOL CFreePcbDoc::FileOpen( LPCTSTR fn, BOOL bLibrary )
 
 	try
 	{
+		m_pcb_full_path = fn;
+		int fpl = m_pcb_full_path.GetLength();
+		int isep = m_pcb_full_path.ReverseFind( '\\' );
+		if( isep == -1 )
+			isep = m_pcb_full_path.ReverseFind( ':' );
+		if( isep == -1 )
+			ASSERT(0);		// unable to parse filename
+		m_pcb_filename = m_pcb_full_path.Right( fpl - isep - 1);
+		int fnl = m_pcb_filename.GetLength();
+		m_path_to_folder = m_pcb_full_path.Left( m_pcb_full_path.GetLength() - fnl - 1 );
+		m_project_open = TRUE;
+		theApp.AddMRUFile( &m_pcb_full_path );
+
 		if( !bLibrary )
 		{
-			// read project from file
+#ifdef CPT2_LOG
+			if (!m_view->m_bReplayMode)
+			{
+				CString line;
+				line.Format( "@@@\r\nu %d\r\n", CPcbItem::next_uid);
+				m_view->Log(line, false);
+			}
+#endif
+
 			CString key_str;
 			CString in_str;
 			CArray<CString> p;
@@ -622,16 +656,6 @@ BOOL CFreePcbDoc::FileOpen( LPCTSTR fn, BOOL bLibrary )
 		else
 			// read library as project
 			m_slist->ReadShapes( &pcb_file, false );
-		m_pcb_full_path = fn;
-		int fpl = m_pcb_full_path.GetLength();
-		int isep = m_pcb_full_path.ReverseFind( '\\' );
-		if( isep == -1 )
-			isep = m_pcb_full_path.ReverseFind( ':' );
-		if( isep == -1 )
-			ASSERT(0);		// unable to parse filename
-		m_pcb_filename = m_pcb_full_path.Right( fpl - isep - 1);
-		int fnl = m_pcb_filename.GetLength();
-		m_path_to_folder = m_pcb_full_path.Left( m_pcb_full_path.GetLength() - fnl - 1 );
 		CString s1 ((LPCSTR) IDS_AppName);
 		m_window_title = s1 + " - " + m_pcb_filename;
 		CWnd* pMain = AfxGetMainWnd();
@@ -669,8 +693,6 @@ BOOL CFreePcbDoc::FileOpen( LPCTSTR fn, BOOL bLibrary )
 			submenu->EnableMenuItem( ID_EDIT_REDO, MF_BYCOMMAND | MF_DISABLED | MF_GRAYED );	
 			pMain->DrawMenuBar();
 		}
-		m_project_open = TRUE;
-		theApp.AddMRUFile( &m_pcb_full_path );
 		// now set layer visibility
 		for( int i=0; i<m_num_layers; i++ )
 		{
@@ -697,6 +719,7 @@ BOOL CFreePcbDoc::FileOpen( LPCTSTR fn, BOOL bLibrary )
 		m_view->OnDraw( pDC );
 		m_view->ReleaseDC( pDC );
 		redraw.RemoveAll();						// CPT2 bug fix.  Clear out stuff from the corrupt file that was slated for drawing
+		m_project_open = false;
 		return FALSE;
 	}
 }
@@ -728,13 +751,14 @@ void CFreePcbDoc::LoadSyncFile()
 void CFreePcbDoc::OnFileClose()
 {
 	FileClose();
+	m_view->m_bReplayMode = false;
 }
 
 // return IDCANCEL if closing cancelled by user
 //
 int CFreePcbDoc::FileClose()
 {
-	if( m_project_open && m_project_modified )
+	if( m_project_open && m_project_modified && !m_view->m_bReplayMode)
 	{
 		CString s ((LPCSTR) IDS_ProjectModifiedSaveIt);
 		int ret = AfxMessageBox( s, MB_YESNOCANCEL );
@@ -743,6 +767,8 @@ int CFreePcbDoc::FileClose()
 		else if( ret == IDYES )
 			OnFileSave();
 	}
+	else if (m_view->m_bReplayMode && m_view->m_log_file.m_pStream)
+		m_view->m_log_file.Close();
 	m_view->CancelSelection();
 
 	// destroy existing project
@@ -1006,11 +1032,19 @@ void CFreePcbDoc::OnFileSaveAs()
 void CFreePcbDoc::OnProjectNetlist()
 {
 	CFreePcbView * view = m_view;
+	if (view->m_bReplayMode && !view->m_bReplaying)
+		return;
 	CDlgNetlist dlg;
 	dlg.Initialize( m_nlist, m_plist, &m_w, &m_v_w, &m_v_h_w );
-	int ret = dlg.DoModal();
-	if( ret != IDOK )
-		return;
+	if (!view->m_bReplaying)
+	{
+		int ret = dlg.DoModal();
+		if( ret != IDOK )
+			{ view->LogCancel(); return; }
+	}
+	view->Log(LOG_ON_PROJECT_NETLIST);
+	view->LogNetListInfo( dlg.m_nli );
+
 	// CPT2 new:  save undo info --- there's quite a lot of it
 	CIter<CNet> in (&m_nlist->nets);
 	for (CNet *net = in.First(); net; net = in.Next())
@@ -1158,7 +1192,6 @@ void CFreePcbDoc::WriteSolderMaskCutouts( CStdioFile * file, CHeap<CSmCutout> *s
 
 // read board outline from file
 // throws CString * exception on error
-// CPT2 converted
 //
 void CFreePcbDoc::ReadBoardOutline( CStdioFile * pcb_file )
 {
@@ -2337,16 +2370,25 @@ void CFreePcbDoc::OnViewLayers()
 
 void CFreePcbDoc::OnProjectPartlist()
 {
-	CDlgPartlist dlg;
-	dlg.Initialize( m_plist, m_slist, &m_footlibfoldermap, 
-		m_view->m_units, m_dlg_log );
-	int ret = dlg.DoModal();
-	if( ret != IDOK )
+	CFreePcbView * view = m_view;
+	if (view->m_bReplayMode && !view->m_bReplaying)
 		return;
+	CDlgPartlist dlg;
+	if (!view->m_bReplaying)
+	{
+		dlg.Initialize( m_plist, m_slist, &m_footlibfoldermap, 
+			m_view->m_units, m_dlg_log );
+		int ret = dlg.DoModal();
+		if( ret != IDOK )
+			{ view->LogCancel(); return; }
+	}
+	view->Log(LOG_ON_PROJECT_PARTLIST);
+	view->LogPartListInfo( &CDlgPartlist::pli );
+
 	// CPT2 we now call ImportPartListInfo from here (before it was done from CDlgPartlist::DoDataExchange).
 	// NB ImportPartListInfo now saves all the undo info we need.
 	m_plist->ImportPartListInfo( &CDlgPartlist::pli, 0 );
-	m_view->CancelSelection();
+	view->CancelSelection();
 	if( m_vis[LAY_RAT_LINE] && !m_auto_ratline_disable )
 		m_nlist->OptimizeConnections();
 	ProjectModified( TRUE );
@@ -3565,6 +3607,10 @@ void CFreePcbDoc::OnTimer()
 void CFreePcbDoc::OnToolsCheckPartsAndNets()
 {
 	// open log
+	CFreePcbView * view = m_view;
+	if (view->m_bReplayMode && !view->m_bReplaying)
+		return;
+	view->Log(LOG_ON_TOOLS_CHECK_PARTS_AND_NETS);
 	m_dlg_log->ShowWindow( SW_SHOW );
 	m_dlg_log->UpdateWindow();
 	m_dlg_log->BringWindowToTop();
@@ -3577,36 +3623,6 @@ void CFreePcbDoc::OnToolsCheckPartsAndNets()
 	m_dlg_log->AddLine( str );
 }
 
-void CFreePcbDoc::OnToolsDrc()
-{
-	m_view->CancelSelection();
-	DlgDRC dlg;
-	if( m_vis[LAY_RAT_LINE] && !m_auto_ratline_disable )
-		m_nlist->OptimizeConnections();
-	m_drelist->Clear();
-	dlg.Initialize( this );
-	int ret = dlg.DoModal();
-	m_annular_ring_pins = dlg.m_CAM_annular_ring_pins;
-	m_annular_ring_vias = dlg.m_CAM_annular_ring_vias;
-	ProjectModified( TRUE );
-	m_view->BringWindowToTop();
-}
-
-void CFreePcbDoc::OnToolsClearDrc()
-{
-	m_view->CancelSelection();
-	if( m_view->m_cursor_mode == CUR_DRE_SELECTED )
-	{
-		m_view->CancelSelection();
-		m_view->SetCursorMode( CUR_NONE_SELECTED );
-	}
-	m_drelist->Clear();
-	ProjectModified( true );
-}
-
-void CFreePcbDoc::OnToolsShowDRCErrorlist()
-{
-}
 
 void CFreePcbDoc::SetFileLayerMap( int file_layer, int layer )
 {
@@ -3616,7 +3632,10 @@ void CFreePcbDoc::SetFileLayerMap( int file_layer, int layer )
 
 void CFreePcbDoc::OnToolsCheckConnectivity()
 {
-	// open log
+	CFreePcbView * view = m_view;
+	if (view->m_bReplayMode && !view->m_bReplaying)
+		return;
+	view->Log(LOG_ON_TOOLS_CHECK_CONNECTIVITY);
 	m_dlg_log->ShowWindow( SW_SHOW );
 	m_dlg_log->UpdateWindow();
 	m_dlg_log->BringWindowToTop();
@@ -3643,6 +3662,10 @@ void CFreePcbDoc::OnViewLog()
 
 void CFreePcbDoc::OnToolsCheckCopperAreas()
 {
+	CFreePcbView * view = m_view;
+	if (view->m_bReplayMode && !view->m_bReplaying)
+		return;
+	view->Log(LOG_ON_TOOLS_CHECK_COPPER_AREAS);
 	CString str;
  
 	m_dlg_log->ShowWindow( SW_SHOW );   
@@ -3759,6 +3782,10 @@ void CFreePcbDoc::OnToolsCheckCopperAreas()
 
 void CFreePcbDoc::OnToolsCheckTraces()
 {
+	CFreePcbView * view = m_view;
+	if (view->m_bReplayMode && !view->m_bReplaying)
+		return;
+	view->Log(LOG_ON_TOOLS_CHECK_TRACES);
 	CString str;
 	m_view->CancelSelection();
 	m_dlg_log->ShowWindow( SW_SHOW );   
@@ -3778,23 +3805,33 @@ void CFreePcbDoc::OnToolsCheckTraces()
 
 void CFreePcbDoc::OnEditPasteFromFile()
 {
+	CFreePcbView * view = m_view;
+	if (view->m_bReplayMode && !view->m_bReplaying)
+		return;
 	CString s ((LPCSTR) IDS_AllFiles);
+	CString pathname, filename;
 	CFileDialog dlg( TRUE, NULL, NULL, OFN_HIDEREADONLY | OFN_EXPLORER, 
 		s, NULL, OPENFILENAME_SIZE_VERSION_500 );
 	s.LoadStringA(IDS_PasteGroupFromFile);
 	dlg.m_ofn.lpstrTitle = s; 
-	int ret = dlg.DoModal();
-	if( ret != IDOK )
-		return;
-	// read project file
-	ResetUndoState();									// CPT2 TODO ok to omit?
-	CString pathname = dlg.GetPathName();
-	CString filename = dlg.GetFileName();
-	CStdioFile pcb_file;
-	int err = pcb_file.Open( pathname, CFile::modeRead, NULL );
-	if( !err )
+	if (!view->m_bReplaying)
 	{
-		// error opening project file
+		int ret = dlg.DoModal();
+		if( ret != IDOK )
+			{ m_view->LogCancel(); return; }
+		pathname = dlg.GetPathName();
+		filename = dlg.GetFileName();
+	}
+	// Log records the path and file name, but not the contents of the incoming file...  If the need arises, will have to obtain a copy of the
+	// file before debugging.
+	m_view->Log(LOG_ON_EDIT_PASTE_FROM_FILE);
+	m_view->LogXtra( &pathname );
+	m_view->LogXtra( &filename );
+
+	ResetUndoState();									// CPT2 TODO ok to omit?
+	CStdioFile pcb_file;
+	if (!pcb_file.Open( pathname, CFile::modeRead, NULL ))
+	{
 		CString mess, s ((LPCSTR) IDS_UnableToOpenFile);
 		mess.Format( s, pathname );
 		AfxMessageBox( mess );
@@ -4206,36 +4243,44 @@ void CFreePcbDoc::CreateMoveOriginUndoRecord( int dx, int dy )
 void CFreePcbDoc::OnEditUndo()
 {
 	// CPT2 converted to the new system.  Routine hands off almost immediately to CUndoRecord::Execute()
+	CFreePcbView * view = m_view;
+	if (view->m_bReplayMode && !view->m_bReplaying)
+		return;
+	view->Log(LOG_ON_EDIT_UNDO);
 	if (m_undo_items.GetSize() > 0)
 		// Maybe the programmer forgot to call FinishUndoRecord()???  Finish up the undo record now anyway
 		FinishUndoRecord();
 	if (m_undo_pos <= 0) 
 		// Silent failure
 		return;
-	m_view->CancelHighlight();
+	view->CancelHighlight();
 	CUndoRecord *rec = m_undo_records[m_undo_pos-1];
 	bool bMoveOrigin = rec->Execute( CUndoRecord::OP_UNDO );
 	// On exit, rec will have been converted to a redo record.
 	m_undo_pos--;
 	ProjectModified(true);
 	if (bMoveOrigin)
-		m_view->OnViewAllElements();
-	m_view->HighlightSelection();
+		view->OnViewAllElements();
+	view->HighlightSelection();
 }
 
 void CFreePcbDoc::OnEditRedo()
 {
+	CFreePcbView * view = m_view;
+	if (view->m_bReplayMode && !view->m_bReplaying)
+		return;
+	view->Log(LOG_ON_EDIT_REDO);
 	if (m_undo_pos >= m_undo_records.GetSize())
 		return;
-	m_view->CancelHighlight();
+	view->CancelHighlight();
 	CUndoRecord *rec = m_undo_records[m_undo_pos];
 	bool bMoveOrigin = rec->Execute( CUndoRecord::OP_REDO );
 	// On exit, rec will have been converted back to an undo record.
 	m_undo_pos++;
 	ProjectModified(true);
 	if (bMoveOrigin)
-		m_view->OnViewAllElements();
-	m_view->HighlightSelection();
+		view->OnViewAllElements();
+	view->HighlightSelection();
 }
 
 void CFreePcbDoc::UndoNoRedo()
@@ -4255,21 +4300,6 @@ void CFreePcbDoc::UndoNoRedo()
 	ProjectModified(true);
 }
 
-
-void CFreePcbDoc::OnRepeatDrc()
-{
-	m_view->CancelSelection();
-	if( m_vis[LAY_RAT_LINE] && !m_auto_ratline_disable )
-		m_nlist->OptimizeConnections();
-	m_drelist->Clear();
-	m_dlg_log->ShowWindow( SW_SHOW );   
-	m_dlg_log->UpdateWindow();
-	m_dlg_log->BringWindowToTop(); 
-	m_dlg_log->Clear();
-	m_dlg_log->UpdateWindow();
-	DRC( m_view->m_units, m_dr.bCheckUnrouted, &m_dr );
-	ProjectModified( true );
-}
 
 void CFreePcbDoc::OnFileGenerateReportFile()
 {
@@ -4683,7 +4713,7 @@ void CFreePcbDoc::GarbageCollect() {
 
 // Design rule check.  CPT2:  was in CPartList, now here.
 //
-void CFreePcbDoc::DRC( int units, BOOL check_unrouted, DesignRules * dr )
+void CFreePcbDoc::DRC( int units, DesignRules * dr )
 {
 	// CPT2.  Formerly dre's we're assigned index numbers as soon as they were generated, and were printed to the log immediately too.
 	// Now, though, I'm sorting dre's in a geometrical way (see CDreList::Sort()) after they're created, and so the index #'s will only
@@ -4838,7 +4868,7 @@ void CFreePcbDoc::DRC( int units, BOOL check_unrouted, DesignRules * dr )
 		}
 
 	// now check for unrouted connections, if requested
-	if( check_unrouted )
+	if( dr->bCheckUnrouted )
 		DRCUnrouted(units);
 
 	if (log)

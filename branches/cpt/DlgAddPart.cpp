@@ -244,13 +244,6 @@ void CDlgAddPart::Initialize( partlist_info * pli,
 	m_in_cache = FALSE;
 }
 
-// get flag indicating that dragging was requested
-//
-BOOL CDlgAddPart::GetDragFlag()
-{
-	return m_drag_flag;
-}
-
 //***************** message handlers *******************
 
 BOOL CDlgAddPart::OnInitDialog()

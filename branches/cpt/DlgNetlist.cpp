@@ -167,6 +167,7 @@ void CDlgNetlist::Initialize( CNetList * nlist, CPartList * plist,
 	m_w = w;
 	m_v_w = v_w;
 	m_v_h_w = v_h_w;
+	m_nli = &nli;
 }
 
 // CDlgNetlist message handlers
@@ -174,7 +175,6 @@ void CDlgNetlist::Initialize( CNetList * nlist, CPartList * plist,
 BOOL CDlgNetlist::OnInitDialog()
 {
 	CDialog::OnInitDialog();
-	m_nli = &nli;
 
 	// make copy of netlist data so that it can be edited but user can still cancel
 	// use global netlist_info so it can be sorted in the list control

@@ -128,6 +128,12 @@ suboptimal for a couple of reasons:  they create great hazards for the programme
 to realize that these parts are actually present, lurking in the partlist but invisible on the board.  I would like ultimately to remove all the
 code that is already present and intended to handle these null shapes.
 
+As of r350, have added a new logging feature for debugging, which can be excluded from the build by removing the #define CPT2_LOG at the top of
+of FreePcbDoc.h.  Now, every time user opens fubar.fpc, an additional file fubar.fpc.log gets started, containing initially a complete copy of
+fubar.fpc.  Each time user performs an operation in the main editor, additional lines get added onto the bottom of fubar.fpc.log that record 
+the operation's details, including any data gathered from dlg boxes.  The log file is saved every time lines are appended, making it (one hopes)
+crash-proof.  A programmer in possession of a log file can start FreePcb, hit F11, open the log file, then hit (arbitrary) keys to replay the logger's 
+moves step by step.  During replay mode regular editing is disabled, but one can still pan and zoom and select objects to see their status info. 
 
 // FreePCB : programming notes
 //
@@ -427,72 +433,3 @@ CPT revisions:
 ...TortoiseSVN commit, version 249
 
 
-TODO:
-Check Undo hotkey merge.
-Fix ReconcileVia (step 1)
-Border line for left and bottom panes.
-
-void CFreePcbDoc::OnFileSaveAs() 
-{
-	// force old-style file dialog by setting size of OPENFILENAME struct
-	CString s ((LPCSTR) IDS_PCBFiles);
-	CFileDialog dlg( 0, "fpc", LPCTSTR(m_pcb_filename), OFN_OVERWRITEPROMPT,							// CPT changed arg
-		s, NULL, 0 /* CPT eliminated, doesn't work in VS 10.0: OPENFILENAME_SIZE_VERSION_400 */ );
-//	OPENFILENAME  * myOFN = dlg.m_pOFN;																	// CPT: this way of setting options was causing doModal() 
-																										// to fail if file had changed
-//	myOFN->Flags |= OFN_OVERWRITEPROMPT;
-
-etc.
-
-int CPartList::WriteParts( CStdioFile * file )
-{
-	// CPT: Sort the part lines.
-	CMapStringToPtr shape_map;
-	cpart * el = m_start.next;
-	CString line;
-	CString key;
-	CArray<CString> lines;
-	try
-	{
-		// now write all parts
-		line.Format( "[parts]\n\n" );
-		file->WriteString( line );
-		el = m_start.next;
-		while( el->next != 0 )
-		{
-			// test
-			CString test;
-			SetPartString( el, &test );
-			lines.Add(test);
-			el = el->next;
-		}
-		extern int CompareNumeric(CString *s1, CString *s2);				// In utility.cpp
-		qsort(lines.GetData(), lines.GetSize(), sizeof(CString), (int (*)(const void*,const void*)) CompareNumeric);			
-		for (int i=0; i<lines.GetSize(); i++)
-			file->WriteString( lines[i] );
-	}
-etc.
-
-	else if( m_cursor_mode == CUR_DRAG_END_VTX )
-	{
-		// move end-vertex of stub trace
-		m_doc->m_dlist->StopDragging();
-		SaveUndoInfoForNetAndConnections( m_sel_net, CNetList::UNDO_NET_MODIFY, TRUE, m_doc->m_undo_list );
-		CPoint p;
-		p = m_last_cursor_point;
-		int ic = m_sel_id.I2();
-		int ivtx = m_sel_id.I3();
-		m_doc->m_nlist->MoveVertex( m_sel_net, ic, ivtx, p.x, p.y );
-		SetCursorMode( CUR_END_VTX_SELECTED );
-		if( m_doc->m_vis[LAY_RAT_LINE] )
-		{
-			m_doc->m_nlist->OptimizeConnections( m_sel_net, m_sel_ic, m_doc->m_auto_ratline_disable,
-													m_doc->m_auto_ratline_min_pins, TRUE  );
-			if( m_sel_id.Resolve() )
-				SelectItem( m_sel_id );
-			else
-				CancelSelection();
-		}
-		m_doc->ProjectModified( TRUE );
-		Invalidate( FALSE );
-	}
