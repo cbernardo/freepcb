@@ -177,6 +177,7 @@ CFreePcbDoc::~CFreePcbDoc()
 	delete clip_nlist;
 	delete clip_plist;
 	delete clip_tlist;
+	delete clip_slist;		//** AMW3
 	clip_boards.DestroyAll();
 	clip_smcutouts.DestroyAll();
 
@@ -266,7 +267,9 @@ void CFreePcbDoc::OnFileNew()
 	InitializeNewProject();
 	CDlgProjectOptions dlg;
 	// CPT: args have changed.  Including m_path_to_folder instead of m_parent_folder (don't really understand the point of m_parent_folder anyway).
-	dlg.Init( TRUE, &m_name, &m_path_to_folder, &m_lib_dir, m_bSyncFile, &m_sync_file,
+	//** AMW3 restored original behavior, which I prefer
+	//** dlg.Init( TRUE, &m_name, &m_path_to_folder, &m_lib_dir, m_bSyncFile, &m_sync_file,
+	dlg.Init( TRUE, &m_name, &m_parent_folder, &m_lib_dir, m_bSyncFile, &m_sync_file,
 		m_num_copper_layers, m_bSMT_copper_connect, m_default_glue_w,
 		m_trace_w, m_via_w, m_via_hole_w,
 		&m_w, &m_v_w, &m_v_h_w );
@@ -984,9 +987,9 @@ void CFreePcbDoc::OnFileSaveAs()
 {
 	CString s ((LPCSTR) IDS_PCBFiles);
 	CFileDialog dlg( 0, "fpc", LPCTSTR(m_pcb_filename), OFN_OVERWRITEPROMPT,							// CPT changed arg
-		s, NULL, OPENFILENAME_SIZE_VERSION_500 );
-	// OPENFILENAME  * myOFN = dlg.m_pOFN;
-	// myOFN->Flags |= OFN_OVERWRITEPROMPT;																// CPT: this way of setting options was causing 
+		s, NULL, OPENFILENAME_SIZE_VERSION_500 );	
+//	OPENFILENAME  * myOFN = dlg.m_pOFN;
+//	myOFN->Flags |= OFN_OVERWRITEPROMPT;																// CPT: this way of setting options was causing 
 																										// doModal() to fail if file had changed
 	// get folder of most-recent file or project folder
 	CString MRFile = theApp.GetMRUFile();
@@ -1292,7 +1295,9 @@ void CFreePcbDoc::ReadSolderMaskCutouts( CStdioFile * pcb_file )
 
 	try
 	{
-		// find beginning of [board] section
+		// find beginning of [solder_mask_cutouts] section
+		//** AMW3 restored compatibility with version 1.2
+		int pos = pcb_file->GetPosition();
 		do
 		{
 			if (!pcb_file->ReadString( in_str ))
@@ -1303,7 +1308,14 @@ void CFreePcbDoc::ReadSolderMaskCutouts( CStdioFile * pcb_file )
 			}
 			in_str.Trim();
 		}
-		while( in_str != "[solder_mask_cutouts]" );
+		while( in_str[0] != '[' );
+
+		if( in_str != "[solder_mask_cutouts]" )
+		{
+			pcb_file->Seek( pos, CFile::begin );
+			return;
+		}
+		//** end AMW3
 
 		// get data
 		while( 1 )
@@ -2043,9 +2055,10 @@ void CFreePcbDoc::InitializeNewProject()
 
 	static unsigned int defaultFpLayerColors[] = {
 		0xff00ff, 0x000000, 0xffffff, 0xffffff, // selection VIOLET, backgrnd BLACK, vis grid WHITE, highlight WHITE
-		0xffff00, 0xffffff, 0xff8040, 0x0000ff, // silk top YELLOW, centroid WHITE, dot ORANGE, pad-thru BLUE
-		0x007f00, 0x007f00, 0x7f0000, 0x7f0000, // Top mask+paste DK GREEN, bottom mask+paste DK RED
-		0x00ff00, 0x5f5f5f, 0xff0000            // top copper GREEN, inner copper GRAY, bottom copper RED
+		0xffff00, 0xffc0c0, 0xffffff, 0xff8040, // silk top YELLOW, silk bottom pink, centroid WHITE, dot ORANGE
+		0x0000ff, 0x007f00, 0x007f00,			// pad-thru BLUE, Top mask+paste DK GREEN, 
+		0x7f0000, 0x7f0000, 0x00ff00, 0x5f5f5f,   // bottom mask+paste DK RED, top copper GREEN, inner copper GRAY, 
+		0xff0000								  // bottom copper RED
 	};
 
 	for( int i=0; i<MAX_LAYERS; i++ )
@@ -2057,7 +2070,7 @@ void CFreePcbDoc::InitializeNewProject()
 		m_rgb[i][0] = defaultLayerColors[i]>>16,
 		m_rgb[i][1] = defaultLayerColors[i]>>8 & 0xff,
 		m_rgb[i][2] = defaultLayerColors[i]&0xff;
-	for (int i=0; i<15; i++)
+	for (int i=0; i<16; i++)
 		m_fp_rgb[i][0] = defaultFpLayerColors[i]>>16,
 		m_fp_rgb[i][1] = defaultFpLayerColors[i]>>8 & 0xff,
 		m_fp_rgb[i][2] = defaultFpLayerColors[i]&0xff;
@@ -2209,10 +2222,13 @@ void CFreePcbDoc::InitializeNewProject()
 	// now try to find global options file
 	// CPT2 because Win7 now write-protects files in \Program Files (curse you, MS), we need to give user an option to change the location of
 	// default.cfg.  This is a setting that will have to go in the registry (no better choice, evidently).
-	m_defaultcfg_dir = theApp.GetProfileString(_T("Settings"),_T("DefaultCfgDir"));
-	if (m_defaultcfg_dir == "")
+	//** AMW3 This doesn't make sense to me. If the application folder is write-protected, then FreePCB can't be installed properly anyway,
+	//** because the user has to be able to put files into this folder. It would be better to prompt the user to write-enable the folder
+	//** also, if default.cfg is absent, CheckDefaultCfg() apparently creates an empty default.cfg file, which ReadOptions() then tries to read
+	//** m_defaultcfg_dir = theApp.GetProfileString(_T("Settings"),_T("DefaultCfgDir"));
+	//**	if (m_defaultcfg_dir == "")
 		m_defaultcfg_dir = m_app_dir;
-	CheckDefaultCfg();
+	//** CheckDefaultCfg();
 	CString fn = m_defaultcfg_dir + "\\default.cfg";
 	CStdioFile file;
 	if( !file.Open( fn, CFile::modeRead | CFile::typeText ) )
@@ -2246,7 +2262,7 @@ void CFreePcbDoc::InitializeNewProject()
 // calls Redraw().  Finally, it also launches garbage collection every so often.
 //
 int gGarbageCollectCt = 0;
-const int gGarbageCollectFreq = 50;
+const int gGarbageCollectFreq = 50;		
 
 void CFreePcbDoc::ProjectModified( BOOL flag, BOOL bCombineWithPreviousUndo )
 {
@@ -3573,8 +3589,13 @@ void CFreePcbDoc::OnProjectOptions()
 	// force redraw of function key text
 	m_view->m_cursor_mode = 999;
 	m_view->CancelSelection();
+	//** AMW3 force redraw of all parts if m_bSMT_copper_connect changed
+	if( bResetAreaConnections )
+		m_plist->SetThermals();
+	//** end AMW3
 	ProjectModified( TRUE );
 	ResetUndoState();
+
 	// CPT2 new:
 	if (m_bSyncFile)
 	{

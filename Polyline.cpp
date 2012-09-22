@@ -1232,6 +1232,8 @@ void CPolyline::SetVisible( BOOL visible )
 
 void TestGpc()
 {
+	//** AMW3 disabled
+#if 0
 	// CPT2 TODO.  For testing only.
 	gpc_polygon * gpc = new gpc_polygon;
 	gpc->num_contours = 0;
@@ -1254,6 +1256,7 @@ void TestGpc()
 	// now clip m_gpc_poly with gpc, put new poly into result
 	gpc_polygon * result = new gpc_polygon;
 	gpc_polygon_clip( GPC_UNION, gpc2, gpc, result );
+#endif
 }
 
 void CPolyline::MakeGpcPoly( CContour *ctr0, CArray<CArc> * arc_array )
@@ -1948,6 +1951,31 @@ CArea::CArea(CFreePcbDoc *_doc, int _uid):
 {
 	m_net = NULL;
 }
+
+//** AMW3 methods to manage connected pins, segments and vertices
+void CArea::AddConnectedVtx( CVertex * new_v )
+{
+	if( !m_vtxs.Contains( new_v ) )
+		m_vtxs.Add( new_v );
+}
+
+void CArea::AddConnectedSeg( CSeg * new_s )
+{
+	if( !m_segs.Contains( new_s ) )
+		m_segs.Add( new_s );
+}
+
+void CArea::AddConnectedPin( CPin * new_p )
+{
+	if( !m_pins.Contains( new_p ) )
+		m_pins.Add( new_p );
+}
+
+void CArea::SetAreaConnections()
+{
+}
+
+//** end AMW3
 
 bool CArea::IsOnPcb()
 {

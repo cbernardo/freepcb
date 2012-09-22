@@ -45,7 +45,7 @@ public:
 	CPadstack *ps;			// CPT2. Seems useful to have this here.  Constructor sets it up
 	int pad_layer;			// CPT2. layer of pad on this pin (was in CVertex).  
 							// Constructor sets this based on ps. Possible values LAY_PAD_THRU, LAY_TOP_COPPER, LAY_BOTTOM_COPPER
-	CNet * net;			// pointer to net, or NULL if not assigned.
+	CNet * net;				// pointer to net, or NULL if not assigned.
 	bool bNeedsThermal;		// CPT2 new.  Set to true if there's an areas from the same network that occupies this same point.
 	CDLElement * dl_hole;	// pointer to graphic element for hole
 	CArray<CDLElement*> dl_els;	// array of pointers to graphic elements for pads
@@ -141,7 +141,7 @@ public:
 	void SaveUndoInfo(bool bSaveAttachedConnects = true);
 
 	void Move( int x, int y, int angle = -1, int side = -1);
-	void PartMoved( int dx=1, int dy=1 );
+	void PartMoved( int dx=1, int dy=1, int d_angle=0, int d_side=0 );
 	void SetData( CShape * shape, CString * ref_des, CString *value_txt, CString * package, 
 	     		  int x, int y, int side, int angle, int visible, int glued );
 	void SetValue( CString * value, int x, int y, int angle, int size, 

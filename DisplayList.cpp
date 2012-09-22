@@ -6,7 +6,7 @@
 //
 #include "stdafx.h"
 #include <math.h>
-#include "memdc.h"
+//** AMW3 #include "memdc.h"	
 
 #include "dle_arc.h"
 #include "dle_centroid.h"

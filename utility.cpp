@@ -2520,6 +2520,7 @@ int FlipLayer( int side, int layer )
 	{
 		switch( layer )
 		{
+		case LAY_PAD_THRU: break;	//** AMW3
 		case LAY_SILK_TOP: lay = LAY_SILK_BOTTOM; break;
 		case LAY_SILK_BOTTOM: lay = LAY_SILK_TOP; break;
 		case LAY_TOP_COPPER: lay = LAY_BOTTOM_COPPER; break;

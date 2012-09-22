@@ -112,6 +112,7 @@ public:
 	void Highlight();
 	void Copy(CPadstack *src, bool bCopyName=true);
 	void SetVisible(bool bVis);
+	int CopperLayer( int side=0 );		//** AMW3
 };
 
 class CCentroid : public CPcbItem

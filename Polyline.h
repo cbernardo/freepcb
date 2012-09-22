@@ -211,6 +211,17 @@ class CArea : public CPolyline
 public:
 	CNet * m_net;		// parent net
 
+	//** AMW3 store connected vertices, segments and pins
+	CHeap< CVertex > m_vtxs;
+	CHeap< CSeg > m_segs;
+	CHeap< CPin > m_pins;
+
+	void AddConnectedVtx( CVertex * v );
+	void AddConnectedSeg( CSeg * v );
+	void AddConnectedPin( CPin * p );
+	void SetAreaConnections();
+	//** end AMW3
+
 	CArea(CNet *_net, int layer, int hatch, int w, int sel_box);
 	CArea(CFreePcbDoc *_doc, int _uid);
 

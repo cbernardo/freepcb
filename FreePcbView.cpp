@@ -573,7 +573,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		part->glued = 0;
 		int dx = m_last_cursor_point.x - m_from_pt.x, dy = m_last_cursor_point.y - m_from_pt.y;
 		part->Move( m_last_cursor_point.x, m_last_cursor_point.y, angle, side );
-		part->PartMoved( dx, dy );
+		part->PartMoved( dx, dy, m_dlist->GetDragAngle(), m_dlist->GetDragSide() );	//** AMW3 also needs to handle changes in side or angle
 		if( m_doc->m_vis[LAY_RAT_LINE] )
 			part->OptimizeConnections();
 		m_doc->ProjectModified( TRUE );
@@ -5878,14 +5878,14 @@ void CFreePcbView::OnPartChangeSide()
 	CRect bounds2 = part->CalcSelectionRect();
 	part->x += bounds1.left - bounds2.left;
 	part->y += bounds1.bottom - bounds2.bottom;
-	part->PartMoved();
+	part->PartMoved( 1, 1, 0, 1 );	//** AMW3
 	if( m_doc->m_vis[LAY_RAT_LINE] )
 		part->OptimizeConnections();
 	m_doc->ProjectModified( TRUE );
 	HighlightSelection();
 }
 
-// rotate part clockwise 90 degrees clockwise
+// rotate part
 //
 void CFreePcbView::OnPartRotateCW()
 	{ OnPartRotate(90); }
@@ -5902,7 +5902,7 @@ void CFreePcbView::OnPartRotate( int angle ) {
 	CancelHighlight();
 	part->MustRedraw();
 	part->angle = (part->angle + angle) % 360;
-	part->PartMoved(1, 1);
+	part->PartMoved( 1, 1, 1 );		//** AMW3
 	if( m_doc->m_vis[LAY_RAT_LINE] )
 		part->OptimizeConnections();
 	m_doc->ProjectModified( TRUE );

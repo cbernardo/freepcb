@@ -267,7 +267,9 @@ public:
 	int GetTopCopperLayer() 
 		{ return LAY_FP_TOP_COPPER; }
 	int GetLayerRGB(int layer, int i) 
-		{ return m_doc->m_fp_rgb[layer][i]; }
+	{ 
+		return m_doc->m_fp_rgb[layer][i]; 
+	}
 	int GetLayerVis(int layer)
 		{ return m_doc->m_fp_vis[layer]; }
 	void GetLayerLabel(int i, CString &label) {
