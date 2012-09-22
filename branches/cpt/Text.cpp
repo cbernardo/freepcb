@@ -272,11 +272,12 @@ void CText::GenerateStrokesRelativeTo(CPart *part) {
 	int partAngle = part? part->angle: 0;
 	// Adjust layer value if part is on bottom
 	int layer = m_layer;
-	int bMirror = m_bMirror, bOnBottom;
+	int bMirror = m_bMirror;
+	int bOnBottom;	// text on bottom of PCB
 	if (part) 
-		bOnBottom = layer==LAY_SILK_BOTTOM || layer==LAY_BOTTOM_COPPER;
+		bOnBottom = (layer==LAY_SILK_BOTTOM || layer==LAY_BOTTOM_COPPER);
 	else
-		bOnBottom = layer==LAY_FP_SILK_BOTTOM || layer==LAY_FP_BOTTOM_COPPER;
+		bOnBottom = (layer==LAY_FP_SILK_BOTTOM || layer==LAY_FP_BOTTOM_COPPER);
 	if (bOnBottom)
 		bMirror = !bMirror;
 	if (part && part->side)

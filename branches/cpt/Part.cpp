@@ -189,7 +189,16 @@ bool CPin::SetNeedsThermal()
 		CIter<CArea> ia (&net->areas);
 		for (CArea *a = ia.First(); a; a = ia.Next())
 			if (a->TestPointInside(x, y))
-				{ bNeedsThermal = true; break; }
+//** AMW3 check if SMT pad in copper area
+//**			{bNeedsThermal = true; break; }
+			{
+				if( pad_layer == LAY_PAD_THRU || ( pad_layer == a->GetLayer() && doc->m_bSMT_copper_connect == TRUE ) )
+				{
+					bNeedsThermal = true;
+					a->AddConnectedPin( this );
+				}
+			}
+//** end AMW3
 	}
 	if (bNeedsThermal!=bOldVal)
 		MustRedraw();
@@ -523,23 +532,29 @@ void CPart::SaveUndoInfo(bool bSaveAttachedNets)
 		t->SaveUndoInfo();
 }
 
+//** AMW3 modified to set pin layers for side
 void CPart::Move( int _x, int _y, int _angle, int _side )
 {
 	// Move part (includes resetting pin positions and undrawing).  If _angle and/or _side are -1 (the default values), don't change 'em.
+	bool bSideChanged = FALSE;	//* AMW3
 	MustRedraw();
 	// move part
 	x = _x;
 	y = _y;
 	if (_angle != -1)
 		angle = _angle % 360;
-	if (_side != -1)
+	if ( _side != -1 && _side != this->side )
+	{
 		side = _side;
-	// calculate new pin positions
+	}
 	if( shape )
 	{
 		CIter<CPin> ip (&pins);
 		for (CPin* p = ip.First(); p; p = ip.Next())
+		{
 			p->SetPosition();
+			p->pad_layer = p->ps->CopperLayer( side );	//** AMW3
+		}
 	}
 }
 
@@ -548,8 +563,9 @@ void CPart::Move( int _x, int _y, int _angle, int _side )
 // CPT:  added dx and dy params whereby caller may indicate how much the part moved (both are 1 by default).  If, say, dx==0
 // and an attached seg is vertical, then we don't have to unroute it.
 // CPT2:  Derived from CNetList::PartMoved.
+//** AMW3 also needs to handle changes in angle or side
 
-void CPart::PartMoved( int dx, int dy )
+void CPart::PartMoved( int dx, int dy, int d_angle, int d_side )
 {
 	// We need to ensure that the part is redrawn first, so that the pins have correct x/y values (critical in what follows):
 	doc->Redraw();
@@ -571,12 +587,14 @@ void CPart::PartMoved( int dx, int dy )
 			if (c->head->pin && c->head->pin->part == this)
 			{
 				CVertex *head = c->head;
+				if( head->GetLayer() != LAY_PAD_THRU )
 				head->postSeg->Unroute( dx, dy, 0 );
 				head->postSeg->MustRedraw();				// Even if it wasn't unrouted...
 				head->x = head->pin->x;
 				head->y = head->pin->y;
 				net->utility = 1;	// mark net modified
 				// CPT2 TODO decide if it's really safe to dump the following:
+				//** AMW3 now it should be OK to dump it, since I modified Move() to update pins
 				/*
 				if( part->shape->m_padstacks[pin_index1].hole_size )
 					// through-hole pad
@@ -1010,9 +1028,12 @@ int CPart::Draw()
 	CRect sel = CalcSelectionRect();
 	dl_sel = dl->AddSelector( this, LAY_SELECTION, DL_HOLLOW_RECT, 1,
 		0, 0, sel.left, sel.bottom, sel.right, sel.top, x, y );
-	/* dl->Set_sel_vert( dl_sel, 0 );											// CPT2 TODO this function appears axeable
+
+	// CPT2 TODO this function appears axeable
+	//** AMW3 no, it's not
+	dl->Set_sel_vert( dl_sel, 0 );											
 	if( angle == 90 || angle ==  270 )
-		dl->Set_sel_vert( dl_sel, 1 ); */
+		dl->Set_sel_vert( dl_sel, 1 ); 
 
 	// draw ref designator text
 	m_ref->dl_el = m_ref->dl_sel = NULL;
@@ -1095,6 +1116,9 @@ int CPart::Draw()
 	CPoint pad_pi;
 	CPoint pad_pf;
 	int nLayers = doc->m_num_copper_layers;
+	//** AMW3 need to get size for thermal
+	int thermal_size = 0;
+	//** end AMW3
 	CIter<CPin> ipin (&pins);
 	for (CPin *pin = ipin.First(); pin; pin = ipin.Next()) 
 	{
@@ -1147,6 +1171,7 @@ int CPart::Draw()
 						DL_CIRC, 1, 
 						p->size_h, 0, 0,
 						x + pin_pt.x, y + pin_pt.y, 0, 0, 0, 0 );
+					thermal_size = max( thermal_size, p->size_h );		//** AMW3
 					if( !pin->dl_sel )
 						pin->dl_sel = dl->AddSelector( pin, sel_layer, 
 							DL_HOLLOW_RECT, 1, 1, 0,
@@ -1169,6 +1194,7 @@ int CPart::Draw()
 						p->size_h,
 						0, 0,
 						pin->x, pin->y, 0, 0, 0, 0 );
+					thermal_size = max( thermal_size, p->size_h );
 					if( !pin->dl_sel )
 						pin->dl_sel = dl->AddSelector( pin, sel_layer, 
 							DL_HOLLOW_RECT, 1, 1, 0,
@@ -1221,6 +1247,7 @@ int CPart::Draw()
 						x + pad_pf.x, y + pad_pf.y, 
 						x + pin_pt.x, y + pin_pt.y, 
 						p->radius );
+					thermal_size = max( thermal_size, min( p->size_h, p->size_l + p->size_r ) );
 					if( !pin->dl_sel )
 						pin->dl_sel = dl->AddSelector( pin, sel_layer, 
 							DL_HOLLOW_RECT, 1, 1, 0,
@@ -1243,6 +1270,7 @@ int CPart::Draw()
 						DL_OCTAGON, 1, 
 						p->size_h, 0, 0,
 						pin->x, pin->y, 0, 0, 0, 0 );
+					thermal_size = max( thermal_size, p->size_h );
 					if( !pin->dl_sel )
 						pin->dl_sel = dl->AddSelector( pin, sel_layer, 
 							DL_HOLLOW_RECT, 1, 1, 0,
@@ -1273,6 +1301,7 @@ int CPart::Draw()
 								DL_HOLE, 1,	
 								ps->hole_size, 0, 0,
 								pin->x, pin->y, 0, 0, 0, 0 );  
+			thermal_size = max( thermal_size, ps->hole_size );	//** AMW3
 			if( !pin->dl_sel )
 				// make selector for pin with hole only
 				pin->dl_sel = dl->AddSelector( pin, LAY_SELECTION, 
@@ -1284,12 +1313,20 @@ int CPart::Draw()
 		else
 			pin->dl_hole = NULL;
 
+//** AMW3 thermals may also be needed by SMT pins
 		if (pin->bNeedsThermal)
+		{
 			pin->dl_thermal = dl->Add( this, CDLElement::DL_OTHER, LAY_RAT_LINE, DL_X, 1,
-				2*ps->hole_size/3, 0, 0, pin->x, pin->y, 0, 0, 0, 0 );
+				thermal_size, 0, 0, pin->x, pin->y, 0, 0, 0, 0 );
+		}
 		else
+		{
+			if( pin->dl_thermal )
+				dl->Remove( pin->dl_thermal );
 			pin->dl_thermal = NULL;
+		}
 	}
+//** end AMW3	}
 
 	bDrawn = true;
 	return NOERR;
@@ -1390,6 +1427,12 @@ void CPart::SetVisible(bool bVisible)
 	m_ref->SetVisible( bVisible );
 	m_value->SetVisible( bVisible );
 	// CPT2 TODO also set visibility for texts within footprint
+	//* AMW3
+	CIter< CText > it (&m_tl->texts);
+	for( CText * t=it.First(); t; t=it.Next() )
+	{
+		t->SetVisible( bVisible );
+	}
 }
 
 
@@ -2499,11 +2542,13 @@ void CPartList::ImportPartListInfo( partlist_info * pli, int flags, CDlgLog * lo
 			{
 				// part was moved
 				int dx = pi->x - part->x, dy = pi->y - part->y;
+				int d_angle = pi->angle - part->angle;			//** AMW3
+				int d_side = (pi->side - part->side)%1;
 				if (pi->angle != part->angle || pi->side != part->side)
 					// If angle/side has changed, we must ensure that attached traces are all unrouted by PartMoved():
 					dx = dy = 1;
 				part->Move( pi->x, pi->y, pi->angle, pi->side );
-				part->PartMoved( dx, dy );
+				part->PartMoved( dx, dy, d_angle, d_side );
 			}
 		}
 	}

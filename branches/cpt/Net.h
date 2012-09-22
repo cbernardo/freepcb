@@ -34,7 +34,7 @@ public:
 
 	CConnect * m_con;			// parent connection
 	CNet *m_net;				// CPT2.  Very likely useful.
-	CSeg *preSeg, *postSeg;	// Succeeding and following segs.  If either is null, this is an end seg.
+	CSeg *preSeg, *postSeg;		// Succeeding and following segs.  If either is null, this is an end seg.
 	CTee *tee;					// Points to a tee structure at tee-junctions, null otherwise
 	CPin *pin;					// If this vertex is at a pin, point to the said object
 	int x, y;					// coords

@@ -433,6 +433,7 @@ int CVertex::Draw()
 		return NOERR;
 
 	// draw via if via_w > 0
+	int vertex_size = 0;	//** AMW3
 	if( via_w )
 	{
 		int n_layers = doc->m_num_copper_layers;
@@ -448,15 +449,13 @@ int CVertex::Draw()
 		// CPT2.  Trying a wider selector for vias (depending on hole size)
 		dl_sel = dl->AddSelector( this, LAY_SELECTION, DL_HOLLOW_RECT, 
 			1, 0, 0, x-via_w/2, y-via_w/2, x+via_w/2, y+via_w/2, 0, 0 );
-		// CPT2.  Now draw a thermal, if the bNeedsThermal flag is set
-		if (bNeedsThermal)
-			dl_thermal = dl->Add( this, CDLElement::DL_OTHER, LAY_RAT_LINE, DL_X, 1,
-								2*via_w/3, 0, 0, x, y, 0, 0, 0, 0 );
+		vertex_size = via_w;
 	}
 	else
 	{
 		// draw selection box for vertex, using layer of adjacent
 		// segments.  CPT2 TODO figure out why the layer of the selector matters...
+		//** AMW3 ... the layer matters because the active layer has priority for selection
 		int sel_layer;
 		if( preSeg )
 			sel_layer = preSeg->m_layer;
@@ -466,8 +465,16 @@ int CVertex::Draw()
 			sel_layer = LAY_TOP_COPPER;
 		dl_sel = dl->AddSelector( this, sel_layer, DL_HOLLOW_RECT, 
 			1, 0, 0, x-10*PCBU_PER_MIL, y-10*PCBU_PER_MIL, x+10*PCBU_PER_MIL, y+10*PCBU_PER_MIL, 0, 0 );
+		vertex_size = 20*PCBU_PER_MIL;
 	}
-
+	//** AMW3 moved this code down so that it can place e thermal on any vertex, not just vias
+	// CPT2.  Now draw a thermal, if the bNeedsThermal flag is set
+	if (bNeedsThermal)
+	{
+		dl_thermal = dl->Add( this, CDLElement::DL_OTHER, LAY_RAT_LINE, DL_X, 1,
+							vertex_size, 0, 0, x, y, 0, 0, 0, 0 );
+	}
+	//** end AMW
 	bDrawn = true;
 	return NOERR;
 }
@@ -598,8 +605,22 @@ bool CVertex::SetNeedsThermal()
 	bNeedsThermal = false;
 	CIter<CArea> ia (&m_net->areas);
 	for (CArea *a = ia.First(); a; a = ia.Next())
-		if (a->TestPointInside(x, y))
-			{ bNeedsThermal = true; break; }
+	{
+		//** AMW3 draw thermals for all vertices, not just vias
+		if (a->TestPointInside(x, y) )
+		{
+			bNeedsThermal = IsVia();
+			if( preSeg )
+				if( preSeg->m_layer == a->GetLayer() )
+					bNeedsThermal = TRUE;
+			if( postSeg )
+				if( postSeg->m_layer == a->GetLayer() )
+					bNeedsThermal = TRUE;
+			if( bNeedsThermal )
+				a->AddConnectedVtx( this );
+
+		}
+	}
 	if (bNeedsThermal != oldVal)
 		MustRedraw();
 	return bNeedsThermal;

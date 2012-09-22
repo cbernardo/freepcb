@@ -182,6 +182,23 @@ void CPadstack::SetVisible(bool bVis)
 	dl->Set_visible(dl_el, bVis);						// This is the hole (if any)
 }
 
+//** AMW3 returns the copper layer of the padstack
+//** if side = 0, assumes footprint is on top of PCB, if side == 1, on bottom
+//** possible return values are LAY_PAD_THRU, LAY_TOP_COPPER, LAY_BOTTOM_COPPER
+//
+int CPadstack::CopperLayer( int side )
+{
+	if( hole_size )
+		return LAY_PAD_THRU;
+	else if( top.shape != PAD_NONE )
+		return FlipLayer( side, LAY_TOP_COPPER );
+	else if( bottom.shape != PAD_NONE )
+		return FlipLayer( side, LAY_BOTTOM_COPPER );
+	else
+		ASSERT(0);	// oops
+}
+
+
 CCentroid::CCentroid(CShape *s)
 	: CPcbItem (s->doc)
 {
