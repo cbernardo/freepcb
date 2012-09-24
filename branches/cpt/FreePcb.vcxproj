@@ -425,7 +425,7 @@
     <ClInclude Include="DlgWizQuad.h" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="bugs_and_comments_from_AMW.txt" />
+    <None Include="AMW3_notes.txt" />
     <None Include="CPT_merge_notes.txt" />
     <None Include="res\bga.bmp" />
     <None Include="res\bitmap_d.bmp" />

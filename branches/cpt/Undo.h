@@ -224,7 +224,7 @@ public:
 	int part;
 	int x, y;
 	int ps;					// CPT2 TODO think more about how padstacks and other footprint types will fit into this.
-	int pad_layer;
+//** AMW3	int pad_layer;
 	int net;
 	bool bNeedsThermal;	
 

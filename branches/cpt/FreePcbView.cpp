@@ -4090,8 +4090,8 @@ void CFreePcbView::OnPadStartTrace()
 	m_sel.RemoveAll();
 	m_sel.Add(new_v);
 	net->GetWidth( &m_active_width );								// AMW r267 added
-	if (pin->pad_layer != LAY_PAD_THRU)
-		m_active_layer = pin->pad_layer;							// CPT2 bug fix, added this
+	if (pin->GetLayer() != LAY_PAD_THRU)
+		m_active_layer = pin->GetLayer();							// CPT2 bug fix, added this
 	CPoint p = m_last_cursor_point;
 	new_v->StartDraggingStub( pDC, p.x, p.y, m_active_layer, m_active_width, m_active_layer, 2, m_inflection_mode );
 	if( m_doc->m_bHighlightNet )
@@ -4385,12 +4385,12 @@ void CFreePcbView::OnRatlineRoute(bool bResetActiveWidth)
 		m_snap_angle_ref.x = postVtx->x;
 		m_snap_angle_ref.y = postVtx->y;
 	}
-	if (m_dir==0 && preVtx->pin && preVtx->pin->pad_layer!=LAY_PAD_THRU)
+	if (m_dir==0 && preVtx->pin && preVtx->pin->GetLayer()!=LAY_PAD_THRU)
 		// Routing forward from an SMT pin. Force routing on pin's layer
-		m_active_layer = preVtx->pin->pad_layer;
-	else if (m_dir==1 && postVtx->pin && postVtx->pin->pad_layer!=LAY_PAD_THRU)
+		m_active_layer = preVtx->pin->GetLayer();
+	else if (m_dir==1 && postVtx->pin && postVtx->pin->GetLayer()!=LAY_PAD_THRU)
 		// Routing backward from an SMT:
-		m_active_layer = postVtx->pin->pad_layer;
+		m_active_layer = postVtx->pin->GetLayer();
 
     // CPT.  In drag mode, the width used will be m_active_width.  Initialize this value to the net's default value, unless bResetActiveWidth is false
 	if (bResetActiveWidth)
@@ -4670,13 +4670,13 @@ void CFreePcbView::OnRatlineComplete()
 	bool bValid = true;
 	if (start->pin)
 	{
-		int pad_layer = start->pin->pad_layer;
+		int pad_layer = start->pin->GetLayer();
 		if( pad_layer != LAY_PAD_THRU && m_active_layer != pad_layer )
 			bValid = false;
 	}
 	if (end->pin)
 	{
-		int pad_layer = end->pin->pad_layer;
+		int pad_layer = end->pin->GetLayer();
 		if( pad_layer != LAY_PAD_THRU && m_active_layer != pad_layer )
 			bValid = false;
 	}
@@ -7967,7 +7967,7 @@ void CFreePcbView::HandleNoShiftLayerKey(int layer, CDC *pDC)
 		CSeg *rat = m_sel.First()->ToSeg();
 		start = m_dir==0? rat->preVtx: rat->postVtx;
 	}
-	if (start && start->pin && start->pin->pad_layer!=LAY_PAD_THRU)
+	if (start && start->pin && start->pin->GetLayer()!=LAY_PAD_THRU)
 	{
 		// Changing layer while routing from an SMT pad is illegal
 		layer = -1;

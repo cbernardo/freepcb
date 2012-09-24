@@ -1059,11 +1059,11 @@ int CSeg::SetLayer( int layer )
 	// check layer settings of adjacent vertices to make sure this is legal
 
 	// check starting pad layer
-	int pad_layer = preVtx->pin? preVtx->pin->pad_layer: layer;
+	int pad_layer = preVtx->pin? preVtx->pin->GetLayer(): layer;
 	if( pad_layer != LAY_PAD_THRU && layer != pad_layer )
 		return 1;
 	// check destination pad layer
-	pad_layer = postVtx->pin? postVtx->pin->pad_layer: layer;
+	pad_layer = postVtx->pin? postVtx->pin->GetLayer(): layer;
 	if( pad_layer != LAY_PAD_THRU && layer != pad_layer )
 		return 1; 
 	// change segment layer
@@ -1151,13 +1151,13 @@ int CSeg::Route( int layer, int width )
 	// First check layer settings of adjacent vertices to make sure this is legal:
 	if (preVtx->pin)
 	{
-		int pad_layer = preVtx->pin->pad_layer;
+		int pad_layer = preVtx->pin->GetLayer();
 		if( pad_layer != LAY_PAD_THRU && layer != pad_layer )
 			return 1;
 	}
 	if (postVtx->pin)
 	{
-		int pad_layer = postVtx->pin->pad_layer;
+		int pad_layer = postVtx->pin->GetLayer();
 		if( pad_layer != LAY_PAD_THRU && layer != pad_layer )
 			return 1;
 	}
@@ -2207,7 +2207,7 @@ void CNet::OptimizeConnections( BOOL bLimitPinCount, BOOL bVisibleNetsOnly )
 	int *reassign = (int*) HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, comp*sizeof(int));
 	for (CPin *pin = ipin.First(); pin; pin = ipin.Next())
 		for (CArea *a = ia.First(); a; a = ia.Next())
-			if (pin->pad_layer==LAY_PAD_THRU || pin->pad_layer==a->m_layer)
+			if (pin->GetLayer()==LAY_PAD_THRU || pin->GetLayer()==a->m_layer)
 				if (a->TestPointInside(pin->x, pin->y))
 					// "pin" and "a" touch!  Reassign component numbers so that both get a shared (minimal) value
 					ReassignComponents(a, pin, reassign);
@@ -2368,7 +2368,7 @@ void CNet::CleanUpConnections( CString * logstr )
 			{
 				// first segment
 				if (s->preVtx->pin)
-					pre_layer = s->preVtx->pin->pad_layer,
+					pre_layer = s->preVtx->pin->GetLayer(),
 					pre_type = pre_layer==LAY_PAD_THRU? THRU_PIN: SMT_PIN;
 				else if (s->preVtx->tee)
 					pre_type = TEE;
@@ -2391,7 +2391,7 @@ void CNet::CleanUpConnections( CString * logstr )
 			{
 				// last segment
 				if (s->postVtx->pin)
-					post_layer = s->postVtx->pin->pad_layer,
+					post_layer = s->postVtx->pin->GetLayer(),
 					post_type = post_layer==LAY_PAD_THRU? THRU_PIN: SMT_PIN;
 				else if (s->postVtx->tee)
 					post_type = TEE;
@@ -2489,7 +2489,7 @@ void CNet::ImportRouting( CArray<CNode> * nodes, CArray<CPath> * paths,
 		int inode = nodes->GetSize();
 		nodes->SetSize( inode+1 );
 		CNode * node = &(*nodes)[inode];
-		node->layer = pin->pad_layer;
+		node->layer = pin->GetLayer();
 		node->type = NPIN;
 		node->x = pin->x;
 		node->y = pin->y;
@@ -3040,7 +3040,7 @@ void CNetList::WriteNets( CStdioFile * file )
 				for (CVertex *v = c->head; v!=c->tail; v = v->postSeg->postVtx, is++)
 				{
 					line.Format( "    vtx: %d %d %d %d %d %d %d %d\n", 
-						is+1, v->x, v->y, v->pin? v->pin->pad_layer: 0, v->force_via_flag, 
+						is+1, v->x, v->y, v->pin? v->pin->GetLayer(): 0, v->force_via_flag, 
 						v->via_w, v->via_hole_w, v->tee? v->tee->utility: 0 );
 					file->WriteString( line );
 					CSeg *s = v->postSeg;
@@ -3050,7 +3050,7 @@ void CNetList::WriteNets( CStdioFile * file )
 				// last vertex
 				CVertex *v = c->tail;
 				line.Format( "    vtx: %d %d %d %d %d %d %d %d\n", 
-					is+1, v->x, v->y, v->pin? v->pin->pad_layer: 0, v->force_via_flag, 
+					is+1, v->x, v->y, v->pin? v->pin->GetLayer(): 0, v->force_via_flag, 
 					v->via_w, v->via_hole_w, v->tee? v->tee->utility: 0 );
 				file->WriteString( line );
 			}
@@ -3729,11 +3729,11 @@ void CNetList::ReassignCopperLayers( int n_new_layers, int * layer )
 				}
 			}
 			// check for first or last segments connected to SMT pins
-			int pad_layer1 = c->head->pin? c->head->pin->pad_layer: LAY_PAD_THRU;
+			int pad_layer1 = c->head->pin? c->head->pin->GetLayer(): LAY_PAD_THRU;
 			CSeg *seg1 = c->head->postSeg;
 			if( pad_layer1 != LAY_PAD_THRU && seg1->m_layer != pad_layer1 )
 				seg1->UnrouteWithoutMerge();
-			int pad_layer2 = c->tail->pin? c->tail->pin->pad_layer: LAY_PAD_THRU;
+			int pad_layer2 = c->tail->pin? c->tail->pin->GetLayer(): LAY_PAD_THRU;
 			CSeg *seg2 = c->tail->preSeg;
 			if (pad_layer2 != LAY_PAD_THRU && seg2->m_layer != pad_layer2 )
 				seg2->UnrouteWithoutMerge();

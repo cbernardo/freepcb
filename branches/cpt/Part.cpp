@@ -17,12 +17,6 @@ CPin::CPin(CPart *_part, CPadstack *_ps, CNet *_net)					// CPT2. Added args
 	part = _part;
 	part->pins.Add(this);
 	ps = _ps;
-	if( ps->hole_size ) 
-		pad_layer = LAY_PAD_THRU;
-	else if( part->side == 0 && ps->top.shape != PAD_NONE || part->side == 1 && ps->bottom.shape != PAD_NONE )
-		pad_layer = LAY_TOP_COPPER;
-	else
-		pad_layer = LAY_BOTTOM_COPPER;
 	pin_name = ps->name;
 	net = _net;
 	if (net)
@@ -44,6 +38,11 @@ bool CPin::IsOnPcb()
 {
 	if (!part || !part->IsOnPcb()) return false;
 	return part->pins.Contains(this);
+}
+
+int CPin::GetLayer()
+{
+	return ps->CopperLayer( part->side );
 }
 
 void CPin::MustRedraw()
@@ -192,7 +191,7 @@ bool CPin::SetNeedsThermal()
 //** AMW3 check if SMT pad in copper area
 //**			{bNeedsThermal = true; break; }
 			{
-				if( pad_layer == LAY_PAD_THRU || ( pad_layer == a->GetLayer() && doc->m_bSMT_copper_connect == TRUE ) )
+				if( GetLayer() == LAY_PAD_THRU || ( GetLayer() == a->GetLayer() && doc->m_bSMT_copper_connect == TRUE ) )
 				{
 					bNeedsThermal = true;
 					a->AddConnectedPin( this );
@@ -213,7 +212,7 @@ void CPin::Highlight()
 	dl->Highlight( DL_RECT_X, 
 				dl->Get_x(dl_sel), dl->Get_y(dl_sel),
 				dl->Get_xf(dl_sel), dl->Get_yf(dl_sel), 
-				1, pad_layer );
+				1, GetLayer() );
 }
 
 CSeg *CPin::AddRatlineToPin( CPin *p2 )
@@ -532,7 +531,7 @@ void CPart::SaveUndoInfo(bool bSaveAttachedNets)
 		t->SaveUndoInfo();
 }
 
-//** AMW3 modified to set pin layers for side
+//** AMW3 modified to update pin layers for side
 void CPart::Move( int _x, int _y, int _angle, int _side )
 {
 	// Move part (includes resetting pin positions and undrawing).  If _angle and/or _side are -1 (the default values), don't change 'em.
@@ -553,7 +552,6 @@ void CPart::Move( int _x, int _y, int _angle, int _side )
 		for (CPin* p = ip.First(); p; p = ip.Next())
 		{
 			p->SetPosition();
-			p->pad_layer = p->ps->CopperLayer( side );	//** AMW3
 		}
 	}
 }
@@ -563,7 +561,8 @@ void CPart::Move( int _x, int _y, int _angle, int _side )
 // CPT:  added dx and dy params whereby caller may indicate how much the part moved (both are 1 by default).  If, say, dx==0
 // and an attached seg is vertical, then we don't have to unroute it.
 // CPT2:  Derived from CNetList::PartMoved.
-//** AMW3 also needs to handle changes in angle or side
+//** AMW3 modified so that traces are unrouted if side changes
+//** AMW3 also, if side doesn't change, traces are not unrouted
 
 void CPart::PartMoved( int dx, int dy, int d_angle, int d_side )
 {
@@ -587,14 +586,16 @@ void CPart::PartMoved( int dx, int dy, int d_angle, int d_side )
 			if (c->head->pin && c->head->pin->part == this)
 			{
 				CVertex *head = c->head;
-				if( head->GetLayer() != LAY_PAD_THRU )
-				head->postSeg->Unroute( dx, dy, 0 );
+				if( head->GetLayer() != LAY_PAD_THRU && head->GetLayer() != head->postSeg->GetLayer() )
+				{
+					head->postSeg->Unroute();
+				}
 				head->postSeg->MustRedraw();				// Even if it wasn't unrouted...
 				head->x = head->pin->x;
 				head->y = head->pin->y;
 				net->utility = 1;	// mark net modified
 				// CPT2 TODO decide if it's really safe to dump the following:
-				//** AMW3 now it should be OK to dump it, since I modified Move() to update pins
+				//** AMW3 now it should be OK to dump it, since I modified Move() to update pad layers
 				/*
 				if( part->shape->m_padstacks[pin_index1].hole_size )
 					// through-hole pad
@@ -612,9 +613,12 @@ void CPart::PartMoved( int dx, int dy, int d_angle, int d_side )
 			}
 			if (c->tail->pin && c->tail->pin->part == this)
 			{
-				// end pin is on part, unroute last segment
+				// end pin is on part, unroute last segment if 
 				CVertex *tail = c->tail;
-				tail->preSeg->Unroute( dx, dy, 1 );
+				if( tail->GetLayer() != LAY_PAD_THRU && tail->GetLayer() != tail->preSeg->GetLayer() )
+				{
+					tail->preSeg->Unroute();
+				}
 				tail->preSeg->MustRedraw();
 				tail->x = tail->pin->x;
 				tail->y = tail->pin->y;
@@ -911,17 +915,11 @@ void CPart::ChangeFootprint(CShape *_shape)
 		if (old)
 		{
 			oldX = old->x, oldY = old->y;
-			oldLayer = old->pad_layer;
+			oldLayer = old->GetLayer();
 			old->ps = ps;
 			p = old;
-			if( ps->hole_size ) 
-				p->pad_layer = LAY_PAD_THRU;
-			else if( side == 0 && ps->top.shape != PAD_NONE || side == 1 && ps->bottom.shape != PAD_NONE )
-				p->pad_layer = LAY_TOP_COPPER;
-			else
-				p->pad_layer = LAY_BOTTOM_COPPER;
 			p->SetPosition();
-			bool bLayerChange = p->pad_layer!=oldLayer && p->pad_layer!=LAY_PAD_THRU;
+			bool bLayerChange = p->GetLayer() != oldLayer && p->GetLayer() != LAY_PAD_THRU;
 			if (oldX != p->x || oldY != p->y || bLayerChange)
 			{
 				// Pin's position has changed.  Find vertices associated with it, and unroute their adjacent segs as needed
@@ -1116,12 +1114,10 @@ int CPart::Draw()
 	CPoint pad_pi;
 	CPoint pad_pf;
 	int nLayers = doc->m_num_copper_layers;
-	//** AMW3 need to get size for thermal
-	int thermal_size = 0;
-	//** end AMW3
 	CIter<CPin> ipin (&pins);
 	for (CPin *pin = ipin.First(); pin; pin = ipin.Next()) 
-	{
+	{		
+		int thermal_size = 0;	//** AMW3 need to get size for thermal
 		// CPT2 TODO check:  is pin->x/y always getting set correctly?
 		// set layer for pads
 		CPadstack * ps = pin->ps;
@@ -1171,7 +1167,7 @@ int CPart::Draw()
 						DL_CIRC, 1, 
 						p->size_h, 0, 0,
 						x + pin_pt.x, y + pin_pt.y, 0, 0, 0, 0 );
-					thermal_size = max( thermal_size, p->size_h );		//** AMW3
+					thermal_size = max( thermal_size, p->size_h/1.4 );		//** AMW3
 					if( !pin->dl_sel )
 						pin->dl_sel = dl->AddSelector( pin, sel_layer, 
 							DL_HOLLOW_RECT, 1, 1, 0,
@@ -1270,7 +1266,7 @@ int CPart::Draw()
 						DL_OCTAGON, 1, 
 						p->size_h, 0, 0,
 						pin->x, pin->y, 0, 0, 0, 0 );
-					thermal_size = max( thermal_size, p->size_h );
+					thermal_size = max( thermal_size, p->size_h/1.4 );
 					if( !pin->dl_sel )
 						pin->dl_sel = dl->AddSelector( pin, sel_layer, 
 							DL_HOLLOW_RECT, 1, 1, 0,
@@ -1301,7 +1297,7 @@ int CPart::Draw()
 								DL_HOLE, 1,	
 								ps->hole_size, 0, 0,
 								pin->x, pin->y, 0, 0, 0, 0 );  
-			thermal_size = max( thermal_size, ps->hole_size );	//** AMW3
+			thermal_size = max( thermal_size, ps->hole_size/1.4 );	//** AMW3
 			if( !pin->dl_sel )
 				// make selector for pin with hole only
 				pin->dl_sel = dl->AddSelector( pin, LAY_SELECTION, 

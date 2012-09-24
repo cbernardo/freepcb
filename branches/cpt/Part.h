@@ -34,6 +34,7 @@ struct drc_pin {
 	int layers;		// bit mask of layers with pads
 };
 
+
 // CPin: describes a pin on the main editor screen, associated with a particular part and possibly assigned to a net.
 class CPin : public CPcbItem
 {
@@ -43,7 +44,8 @@ public:
 	CPart * part;			// pointer to part containing the pin.
 	int x, y;				// position on PCB
 	CPadstack *ps;			// CPT2. Seems useful to have this here.  Constructor sets it up
-	int pad_layer;			// CPT2. layer of pad on this pin (was in CVertex).  
+	//** AMW3 since we now have ps, we don't really need to save the pad_layer
+	//**	int pad_layer;	// CPT2. layer of pad on this pin (was in CVertex).  
 							// Constructor sets this based on ps. Possible values LAY_PAD_THRU, LAY_TOP_COPPER, LAY_BOTTOM_COPPER
 	CNet * net;				// pointer to net, or NULL if not assigned.
 	bool bNeedsThermal;		// CPT2 new.  Set to true if there's an areas from the same network that occupies this same point.
@@ -65,14 +67,16 @@ public:
 	CPin(CFreePcbDoc *_doc, int _uid);
 
 	virtual bool IsOnPcb();
+	int PinLayer();		//** AMW3 replaces m_pad_layer (see above)			
 	bool IsPin() { return true; }
 	CPin *ToPin() { return this; }
 	int GetTypeBit() { return bitPin; }
 	CNet *GetNet() { return net; }
 	CUndoItem *MakeUndoItem()
 		{ return new CUPin(this); }
-	void MustRedraw();												// Overrides the default behavior of CPcbItem::MustRedraw()
-	int GetLayer() { return pad_layer; }
+	void MustRedraw();						// Overrides the default behavior of CPcbItem::MustRedraw()
+	int GetLayer();		//** AMW3 changed
+	//** { return pad_layer; }
 	int GetWidth();	
 	void GetVtxs(CHeap<CVertex> *vtxs);
 

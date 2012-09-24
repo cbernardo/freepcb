@@ -4,7 +4,7 @@
 // 
 #define WINVER 0x600
 #define _WIN32_IE 0x0600 
-#define OPENFILENAME_SIZE_VERSION_500 0,FALSE	// AMW3 disables Vista-style controls
+#define OPENFILENAME_SIZE_VERSION_500 0
 
 #define _CRT_SECURE_CPP_OVERLOAD_STANDARD_NAMES 1
 
