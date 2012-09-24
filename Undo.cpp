@@ -268,7 +268,7 @@ CUPin::CUPin( CPin *p )
 	x = p->x;
 	y = p->y;
 	ps = p->ps->UID();					// CPT2 TODO think more about how padstacks and other footprint types will fit into this.
-	pad_layer = p->pad_layer;
+//** AMW3	pad_layer = p->GetLayer();
 	net = p->net? p->net->UID(): -1;
 	bNeedsThermal = p->bNeedsThermal;	
 }
@@ -283,7 +283,6 @@ void CUPin::FixTarget()
 	p->part = PartFromUid(part);
 	p->x = x, p->y = y;
 	p->ps = PadstackFromUid(ps);
-	p->pad_layer = pad_layer;
 	p->net = NetFromUid(net);
 	p->bNeedsThermal = bNeedsThermal;
 }

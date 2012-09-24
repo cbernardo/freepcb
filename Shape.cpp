@@ -368,12 +368,14 @@ void CGlue::SetVisible(bool bVis)
 CShape::CShape(CFreePcbDoc *_doc)
 	: CPcbItem (_doc)
 {
+	m_tl = NULL;	//** AMW3 see Clear();
 	Clear();
 } 
 
 CShape::CShape( CShape *src )
 	: CPcbItem (src->doc)
 {
+	m_tl = NULL;	//** AMW3 see Clear();
 	Clear();
 	Copy(src);
 }
@@ -381,6 +383,7 @@ CShape::CShape( CShape *src )
 CShape::CShape(CFreePcbDoc *_doc, CString *_name)
 	: CPcbItem (_doc)
 {
+	m_tl = NULL;	//** AMW3 see Clear();
 	Clear();
 	m_name = *_name;
 } 
@@ -409,6 +412,8 @@ void CShape::Clear()
 	CString strValue ("VALUE");
 	m_value = new CValueText(doc, 100*NM_PER_MIL, 0*NM_PER_MIL, 0, false, false, LAY_FP_SILK_TOP, 100*NM_PER_MIL, 10*NM_PER_MIL, 0, &strValue, true);
 	m_value->m_shape = this;
+	if( m_tl )		//** AMW3 fixes memory leak
+		delete m_tl;
 	m_tl = new CTextList(doc);
 	m_centroid = new CCentroid(this);
 	m_author = "";
