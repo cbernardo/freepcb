@@ -904,7 +904,8 @@ int CDisplayList::TestSelect( int x, int y, CArray<CHitInfo> *hit_info, int mask
 		// OK, valid hit, now add to final array hit_info, and assign priority
 		// start with reversed layer drawing order * 10
 		// i.e. last drawn = highest priority
-		hit_info->Add(*this_hit);
+
+		//** AMW3 moved, see below  hit_info->Add(*this_hit);
 		int priority = (MAX_LAYERS - m_order_for_layer[this_hit->layer])*10;
 
 		// bump priority for small items which may be overlapped by larger items on same layer
@@ -918,6 +919,7 @@ int CDisplayList::TestSelect( int x, int y, CArray<CHitInfo> *hit_info, int mask
 			priority++;
 
 		this_hit->priority = priority;
+		hit_info->Add(*this_hit);	//** AMW3 moved to here, otherwise priority not passed
 	}
 
 	// Sort output array and return.

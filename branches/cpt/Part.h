@@ -127,6 +127,7 @@ public:
 	int max_y;
 	int max_r;		// max. radius of pads
 	int layers;		// bit mask for layers with pads
+	CArray<stroke*> m_all_graphic_strokes;
 	// flag used for importing
 	BOOL bPreserve;	// preserve connections to this part
 

@@ -734,6 +734,11 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		c->SaveUndoInfo();
 		seg->InsertSegment( m_last_cursor_point.x, m_last_cursor_point.y,
 			seg->m_layer, seg->m_width, 0 );
+		if( m_doc->m_vis[LAY_RAT_LINE] )
+		{
+			c->GetNet()->SetThermals();		//** AMW3 added
+			c->GetNet()->OptimizeConnections();
+		}
 		m_doc->ProjectModified( TRUE );
 		CancelSelection();
 	}
@@ -751,7 +756,10 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		if (!poly->PolygonModified( FALSE, TRUE ))
 			m_doc->OnEditUndo();
 		else if( poly->IsArea() && m_doc->m_vis[LAY_RAT_LINE] )
+		{
+			c->GetNet()->SetThermals();		//** AMW3 added
 			net->OptimizeConnections();
+		}
 		m_doc->ProjectModified( TRUE );
 		TryToReselectCorner( p.x, p.y );
 	}
@@ -769,7 +777,10 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		if (!poly->PolygonModified( FALSE, TRUE ))
 			m_doc->OnEditUndo();
 		else if( poly->IsArea() && m_doc->m_vis[LAY_RAT_LINE] )
+		{
+			poly->GetNet()->SetThermals();		//** AMW3 added
 			net->OptimizeConnections();
+		}
 		m_doc->ProjectModified( TRUE );
 		CancelSelection();
 	}
@@ -900,7 +911,10 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		CPoint p = m_last_cursor_point;
 		vtx->Move( p.x, p.y );
 		if( m_doc->m_vis[LAY_RAT_LINE] )
+		{
+			vtx->m_net->SetThermals();
 			vtx->m_net->OptimizeConnections();
+		}
 		m_doc->ProjectModified( TRUE );
 		HighlightSelection();
 	}
@@ -915,7 +929,10 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		CPoint p = m_last_cursor_point;
 		tee->Move( p.x, p.y );
 		if( m_doc->m_vis[LAY_RAT_LINE] )
+		{
+			net->SetThermals();
 			net->OptimizeConnections();
+		}
 		m_doc->ProjectModified( TRUE );
 		HighlightSelection();
 	}
@@ -933,6 +950,11 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		ASSERT(cpi != cpf);								// Should be at least one grid snap apart.
 		seg->preVtx->Move( cpi.x, cpi.y );
 		seg->postVtx->Move( cpf.x, cpf.y );
+		if( m_doc->m_vis[LAY_RAT_LINE] )
+		{
+			net->SetThermals();
+			net->OptimizeConnections();
+		}
 		m_doc->ProjectModified( TRUE );
 		CancelSelection();
 	}
@@ -983,6 +1005,11 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 					m_highlight_net = highlight_net0,
 					highlight_net0->Highlight();
 				*/
+				if( m_doc->m_vis[LAY_RAT_LINE] )
+				{
+					net->SetThermals();
+					net->OptimizeConnections();
+				}
 				m_doc->ProjectModified( TRUE );
 				SelectItem(rat_seg);
 			}
@@ -1059,6 +1086,11 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 					m_highlight_net = highlight_net0,
 					highlight_net0->Highlight();
 				*/
+				if( m_doc->m_vis[LAY_RAT_LINE] )
+				{
+					p0->net->SetThermals();
+					p0->net->OptimizeConnections();
+				}
 				m_doc->ProjectModified( TRUE );
 				SelectItem(rat_seg);
 			}
@@ -1114,6 +1146,11 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 					m_highlight_net = highlight_net0,
 					highlight_net0->Highlight(); 
 				*/
+				if( m_doc->m_vis[LAY_RAT_LINE] )
+				{
+					net->SetThermals();
+					net->OptimizeConnections();
+				}
 				m_doc->ProjectModified( TRUE );
 				SelectItem(rat_seg);
 			}
@@ -1160,6 +1197,11 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		}
 		m_dlist->Set_visible( rat->dl_el, TRUE );
 		m_dlist->StopDragging();
+		if( m_doc->m_vis[LAY_RAT_LINE] )
+		{
+			net->SetThermals();
+			net->OptimizeConnections();
+		}
 		m_doc->ProjectModified( TRUE );
 		HighlightSelection();
 	}
@@ -1301,6 +1343,11 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 		CPoint p0 = m_last_cursor_point;
 		con0->tail->StartDraggingStub( pDC, p0.x, p0.y, m_active_layer, m_active_width, m_active_layer, 2, m_inflection_mode );
 		m_snap_angle_ref = m_last_cursor_point;
+		if( m_doc->m_vis[LAY_RAT_LINE] )
+		{
+			net->SetThermals();
+			net->OptimizeConnections();
+		}
 		m_doc->ProjectModified( TRUE );
 		if( m_highlight_net )					// AMW r275 re-highlight net
 			m_highlight_net->Highlight();
@@ -1470,10 +1517,13 @@ void CFreePcbView::OnRButtonDown(UINT nFlags, CPoint point)
 		if (sel->m_con->NumSegs() > 0)
 		{
 			CVertex *tail = sel->m_con->tail;
+			//** AMW3 removed automatic generation of via on end of stub
+#if 0
 			if ( net->NetAreaFromPoint(tail->x, tail->y, LAY_PAD_THRU) )		// "LAY_PAD_THRU" so that we find areas on any layer at (tail->x,tail->y)
 				tail->ForceVia();
 			// if( m_doc->m_vis[LAY_RAT_LINE] )			
 			//	net->OptimizeConnections();										// CPT2 seems like this might cause trouble with undo?
+#endif
 			m_doc->Redraw();
 			SelectItem(tail);
 		}
@@ -4946,7 +4996,10 @@ void CFreePcbView::FinishAddPoly()
 	if (!poly->PolygonModified( FALSE, FALSE ))
 		m_doc->OnEditUndo();
 	else if( poly->IsArea() && m_doc->m_vis[LAY_RAT_LINE] )
+	{
+		poly->GetNet()->SetThermals();		//** AMW3 added
 		net->OptimizeConnections();
+	}
 	m_doc->ProjectModified(true, true);			// CPT2 takes care of creating an undo record, indicating that poly is a new creation.
 												// Second arg indicates that we combine the current changes (the final side creation) with the
 												// previous changes (the actual polyline creation) in a single undo record.
@@ -4966,7 +5019,10 @@ void CFreePcbView::FinishAddPolyCutout()
 	if (!poly->PolygonModified( FALSE, FALSE ))
 		m_doc->OnEditUndo();
 	else if( poly->IsArea() && m_doc->m_vis[LAY_RAT_LINE] )
+	{
+		poly->GetNet()->SetThermals();		//** AMW3 added
 		net->OptimizeConnections();
+	}
 	m_doc->ProjectModified( true, true );
 	CancelSelection();
 }
