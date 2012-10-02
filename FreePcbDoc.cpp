@@ -5070,9 +5070,10 @@ void CFreePcbDoc::DRCPinsAndCopperGraphics( CPart *part1, CPart *part2, int unit
 	// CPT2 new helper routine.  Compare the pins on part1 with the copper graphics for part2.  UNFINISHED.
 	// First, iterate through copper graphic elements in part2 and get a mask of copper layers used.
 	int graph_lay_mask = 0;
-	for( int igr=0; igr<part2->m_outline_stroke.GetSize(); igr++ )
+	//* AMW3 use m_all_graphic_strokes instead of m_outline_stroke
+	for( int igr=0; igr<part2->m_all_graphic_strokes.GetSize(); igr++ )
 	{
-		stroke * stk = &part2->m_outline_stroke[igr];
+		stroke * stk = part2->m_all_graphic_strokes[igr];
 		if (stk->layer >= LAY_TOP_COPPER)
 			graph_lay_mask |= 1<<stk->layer;
 	}

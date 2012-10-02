@@ -1,0 +1,42 @@
+Bugs and comments
+-----------------
+- doesn't handle missing default.cfg file properly, if default.cfg not present, empty file created which then fails to load
+- ? synching with netlist file: this seems like overkill, could just add option to remove footprint from part, without deleting part (this should be available anyway)
+- should go back to calling openings in copper areas "cutouts"
+- probably shouldn't automatically end stub trace with a via
+- when opening footprint editor with part selected, and then exiting without changing the footprint, should not be 
+prompted to save or replace footprint
+- should expand function keys to include F10-F12, change left-hand option to use them
+- ? re-enable pin-swapping (probably wasn't used much, but nice if you need it)
+- when pasting a group where copper areas overlap, they are not merged.
+- should add option to add "free vias", i.e. a connection consisting of a single via.
+- also add option of "free trace"
+- when moving a part, segments connecting to pins shouldn't be unrouted (or make this an option) - same when moving group
+- there are some changes in the code that depend on parts never having a NULL footprint
+- FileSaveAs sometimes fails in debug version if file name doesn't already exist
+- DRC crashes
+- need to add DRC check for text and polylines on the copper layers of the PCB
+- need to ad DRC check for copper text in footprints
+- should add warning when pressing F4 with pin selected, offer to move part instead
+- flashing window when resizing is annoying
+- when moving a trace segment between ratlines, ? should not be constrained by ratlines as if they were routed segments
+- nice feature to show direction of selected trace segments or polygon sides when shift-clicked, could be improved by using graphic line instead of "-|/|" characters
+- when saving project, all preferences are not saved (eg. not including polygon sides in selected group)
+
+Actions
+-------
+Fixed - incompatibility with version 1.2 project files
+Fixed - no "thermals" shown for SMT pads
+Fixed - "thermals" now shown for all vertices that connect to copper areas (not just vias)
+Changed - restored use of m_parent_folder on creating new project
+Fixed - footprint layer colors not initialized properly (didn't include bottom silk)
+Fixed - footprint text and polys now made invisible when dragging part
+Changed - disabled using location of default.cfg from registry (see above)
+In progress - don't unroute segments when moving part
+Fixed - CPin::pad_layer was not updated when part changed sides, replaced it with CPin::GetLayer()
+Fixed - memory leak in CShape::Clear()
+Changed - when a part is moved, connected traces are not unrouted unless part changes side
+Changed - garbage collection is now called on exiting the program
+Fixed - when clicking on a vertex, the vertex should be selected before the adjacent segments
+Fixed - similarly, when clicking on a polygon corner, the corner should be selected before the adjacent sides
+In progress - adding calls to SetThermals() and OptimizeConnections() for all editing operations that change them		

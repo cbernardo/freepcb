@@ -1028,7 +1028,7 @@ int CPart::Draw()
 		0, 0, sel.left, sel.bottom, sel.right, sel.top, x, y );
 
 	// CPT2 TODO this function appears axeable
-	//** AMW3 no, it's not
+	//** AMW3 it was used to handle changing sides while dragging
 	dl->Set_sel_vert( dl_sel, 0 );											
 	if( angle == 90 || angle ==  270 )
 		dl->Set_sel_vert( dl_sel, 1 ); 
@@ -1423,7 +1423,6 @@ void CPart::SetVisible(bool bVisible)
 	m_ref->SetVisible( bVisible );
 	m_value->SetVisible( bVisible );
 	// CPT2 TODO also set visibility for texts within footprint
-	//* AMW3
 	CIter< CText > it (&m_tl->texts);
 	for( CText * t=it.First(); t; t=it.Next() )
 	{
@@ -1607,10 +1606,28 @@ void CPart::GetDRCInfo()
 	// "-LAY_TOP_COPPER" business.  Since there are a max of 32 layers anyway, shouldn't be a problem with bit overflow.
 	layers = 0;
 
-	// iterate through copper graphics elements
+	//** AMW3 put all graphic strokes into single array for easier DRC testing
+	m_all_graphic_strokes.SetSize(0);
 	for( int igr = 0; igr < m_outline_stroke.GetSize(); igr++ )
+		m_all_graphic_strokes.Add( &m_outline_stroke[igr] );
+	for( int igr = 0; igr < m_ref->m_stroke.GetSize(); igr++ )
+		m_all_graphic_strokes.Add( &m_ref->m_stroke[igr] );
+	for( int igr = 0; igr < m_value->m_stroke.GetSize(); igr++ )
+		m_all_graphic_strokes.Add( &m_value->m_stroke[igr] );
+	CIter<CText> it (&m_tl->texts);
+	for( CText * t=it.First(); t; t=it.Next() )
 	{
-		stroke * stk = &m_outline_stroke[igr];
+		if( t->m_layer >= LAY_TOP_COPPER )
+		{
+			for( int igr = 0; igr < t->m_stroke.GetSize(); igr++ )
+				m_all_graphic_strokes.Add( &t->m_stroke[igr] );
+		}
+	}
+
+	// iterate through copper graphics elements
+	for( int igr = 0; igr < m_all_graphic_strokes.GetSize(); igr++ )
+	{
+		stroke * stk = m_all_graphic_strokes[igr];
 		if( stk->layer >= LAY_TOP_COPPER )
 		{
 			layers |= 1<<(stk->layer);
