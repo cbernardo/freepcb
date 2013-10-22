@@ -791,7 +791,13 @@ int CFreePcbDoc::FileClose()
 	clip_tlist->texts.RemoveAll();
 	clip_smcutouts.RemoveAll();
 	clip_boards.RemoveAll();
-	GarbageCollect();	//** AMW3
+	//** AMW3
+	GarbageCollect();	
+	CIter<CPcbItem> ii (&items);
+	for (CPcbItem *i = ii.First(); i; i = ii.Next())
+        delete i;
+	//** end AMW3
+
 
 	CWnd* pMain = AfxGetMainWnd();
 	if (pMain != NULL)
@@ -3383,7 +3389,6 @@ void CFreePcbDoc::OnAppExit()
 	if( FileClose() != IDCANCEL )
 	{
 //		m_view->SetHandleCmdMsgFlag( FALSE );
-		GarbageCollect();	//** AMW3
 		AfxGetMainWnd()->SendMessage( WM_CLOSE, 0, 0 );
 	}
 }
