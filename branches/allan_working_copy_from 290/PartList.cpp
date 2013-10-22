@@ -2153,18 +2153,21 @@ int CPartList::CancelDraggingPart( cpart * part )
 					cpin * pin1 = c->StartPin();
 					cpin * pin2 = c->EndPin();
 					int nsegs = c->NumSegs();
-					if( pin1->part == part )
+					if( pin1 )		//** AMW2 added check for unconnected start vertex
 					{
-						// start pin
-						cseg * first_seg = &c->SegByIndex(0);
-						cvertex * v = &first_seg->GetPostVtx();
-						first_seg->SetVisibility( 1 );
-						for( int i=0; i<v->dl_el.GetSize(); i++ )
-							m_dlist->Set_visible( v->dl_el[i], 1 );
-						if( v->dl_hole )
-							m_dlist->Set_visible( v->dl_hole, 1 );
+						if( pin1->part == part )
+						{
+							// start pin
+							cseg * first_seg = &c->SegByIndex(0);
+							cvertex * v = &first_seg->GetPostVtx();
+							first_seg->SetVisibility( 1 );
+							for( int i=0; i<v->dl_el.GetSize(); i++ )
+								m_dlist->Set_visible( v->dl_el[i], 1 );
+							if( v->dl_hole )
+								m_dlist->Set_visible( v->dl_hole, 1 );
+						}
 					}
-					if( pin2 != NULL )
+					if( pin2 )
 					{
 						if( pin2->part == part )
 						{

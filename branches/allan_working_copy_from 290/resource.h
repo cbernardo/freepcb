@@ -1883,6 +1883,7 @@
 #define IDS_STRING64612                 64612
 #define IDS_STRING64613                 64613
 #define IDS_STRING64614                 64614
+#define IDS_STRING64615                 64615
 #define IDS_UnitsWidth                  65000
 #define IDS_GridsVisibleWidth           65001
 #define IDS_PlacementWidth              65002

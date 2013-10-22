@@ -1996,57 +1996,60 @@ int CNetList::PartFootprintChanged( cpart * part )
 			{
 				int p1 = c->start_pin;
 				int p2 = c->end_pin;
-				if( net->pin[p1].part != part )
+				if( p1 != cconnect::NO_END )
 				{
-					// connection doesn't start on this part
-					if( p2 == cconnect::NO_END )
-						continue; // stub trace, ignore it
-					if( net->pin[p2].part != part )
-						continue;	// doesn't end on part, ignore it
-				}
-				CString pin_name1 = net->pin[p1].pin_name;
-				if( net->pin[p1].part == part )
-				{
-					// starting pin is on part, see if this pin still exists
-					int pin_index1 = part->shape->GetPinIndexByName( pin_name1 );
-					if( pin_index1 == -1 )
+					if( net->pin[p1].part != part )
 					{
-						// no, remove connection
-						RemoveNetConnect( net, ic, FALSE );
-						continue;
+						// connection doesn't start on this part
+						if( p2 == cconnect::NO_END )
+							continue; // stub trace, ignore it
+						if( net->pin[p2].part != part )
+							continue;	// doesn't end on part, ignore it
 					}
-					// yes, rehook pin to net
-					part->pin[pin_index1].net = net;
-					// see if position or pad type has changed
-					int old_x = c->vtx[0].x;
-					int old_y = c->vtx[0].y;
-					int old_layer = c->seg[0].m_layer;
-					int new_x = part->pin[pin_index1].x;
-					int new_y = part->pin[pin_index1].y;
-					int new_layer;
-					if( part->side == 0 )
-						new_layer = LAY_TOP_COPPER;
-					else
-						new_layer = LAY_BOTTOM_COPPER;
-					BOOL layer_ok = new_layer == old_layer || part->shape->m_padstack[pin_index1].hole_size > 0;
-					// see if pin position has changed
-					if( old_x != new_x || old_y != new_y || !layer_ok )
+					CString pin_name1 = net->pin[p1].pin_name;
+					if( net->pin[p1].part == part )
 					{
-						// yes, unroute if necessary and update connection
-						if( old_layer != LAY_RAT_LINE )
+						// starting pin is on part, see if this pin still exists
+						int pin_index1 = part->shape->GetPinIndexByName( pin_name1 );
+						if( pin_index1 == -1 )
 						{
-							UnrouteSegment( net, ic, 0 );
-							nsegs = c->NumSegs();
+							// no, remove connection
+							RemoveNetConnect( net, ic, FALSE );
+							continue;
 						}
-						// modify vertex position
-						c->vtx[0].x = new_x;
-						c->vtx[0].y = new_y;
-						m_dlist->Set_x( c->seg[0].dl_el, c->vtx[0].x );
-						m_dlist->Set_y( c->seg[0].dl_el, c->vtx[0].y );
-						m_dlist->Set_visible( c->seg[0].dl_el, net->visible );
-						m_dlist->Set_x( c->seg[0].dl_sel, c->vtx[0].x );
-						m_dlist->Set_y( c->seg[0].dl_sel, c->vtx[0].y );
-						m_dlist->Set_visible( c->seg[0].dl_sel, net->visible );
+						// yes, rehook pin to net
+						part->pin[pin_index1].net = net;
+						// see if position or pad type has changed
+						int old_x = c->vtx[0].x;
+						int old_y = c->vtx[0].y;
+						int old_layer = c->seg[0].m_layer;
+						int new_x = part->pin[pin_index1].x;
+						int new_y = part->pin[pin_index1].y;
+						int new_layer;
+						if( part->side == 0 )
+							new_layer = LAY_TOP_COPPER;
+						else
+							new_layer = LAY_BOTTOM_COPPER;
+						BOOL layer_ok = new_layer == old_layer || part->shape->m_padstack[pin_index1].hole_size > 0;
+						// see if pin position has changed
+						if( old_x != new_x || old_y != new_y || !layer_ok )
+						{
+							// yes, unroute if necessary and update connection
+							if( old_layer != LAY_RAT_LINE )
+							{
+								UnrouteSegment( net, ic, 0 );
+								nsegs = c->NumSegs();
+							}
+							// modify vertex position
+							c->vtx[0].x = new_x;
+							c->vtx[0].y = new_y;
+							m_dlist->Set_x( c->seg[0].dl_el, c->vtx[0].x );
+							m_dlist->Set_y( c->seg[0].dl_el, c->vtx[0].y );
+							m_dlist->Set_visible( c->seg[0].dl_el, net->visible );
+							m_dlist->Set_x( c->seg[0].dl_sel, c->vtx[0].x );
+							m_dlist->Set_y( c->seg[0].dl_sel, c->vtx[0].y );
+							m_dlist->Set_visible( c->seg[0].dl_sel, net->visible );
+						}
 					}
 				}
 				if( p2 == cconnect::NO_END )
@@ -2356,10 +2359,10 @@ int CNetList::OptimizeConnections( cnet * net, int ic_track, BOOL bBelowPinCount
 	// this was pretty easy to do since the levels of branching were limited.
 	// Now that traces can be routed between other traces and copper areas pretty much ad lib,
 	// it is more complicated. Probably the best approach would be some sort of recursive
-	// tree-following or grid-following algorithm, but since I am lazy and modifying existing
+	// tree-following or graph-following algorithm, but since I am lazy and modifying existing
 	// code, I am using a different method of starting with a pin,
-	// iterating through all the connections in the net (multiple times if necessary),
-	// and building maps of the connected pins, tees and copper areas, so I can eventually
+	// iterating through all the areas and cons in the net (multiple times if necessary),
+	// and building maps of the connected cons, pins, tees and copper areas, so I can eventually
 	// identify every connected pin. Hopefully, this won't be too inefficient.
 	int dummy;
 	CMap<int, int, int, int> pins_analyzed;  // list of all pins analyzed
@@ -2372,16 +2375,72 @@ int CNetList::OptimizeConnections( cnet * net, int ic_track, BOOL bBelowPinCount
 			continue;
 		pins_analyzed.SetAt( ipin, ipin );
 
-		// look for all connections to this pin, or to any pin, tee or area connected to this pin
-		CMap<int, int, int, int> cons_eliminated;  // list of connections that don't connect to this pin
-		CMap<int, int, int, int> cons_connected;   // list of connections that do connect to this pin
+		// look for all connections to this pin, or to any pin, con, vertex or area connected to this pin
+		CMap<int, int, int, int> cons_eliminated;  // list of cons that don't connect to this pin
+		CMap<int, int, int, int> cons_connected;   // list of cons that do connect to this pin
 		CMap<int, int, int, int> tee_ids_connected;	// list of tee_ids connected to this pin
 		CMap<int, int, int, int> pins_connected;	// list of pins connected to this pin
 		CMap<int, int, int, int> areas_connected;	// list of areas connected to this pin
-		int num_new_connections = 1;
-		while( num_new_connections )	// iterate as long as we are still finding new connections
+		// now check connections
+		int num_new_connected_items = 1;
+		while( num_new_connected_items )	// iterate as long as we are still finding new items
 		{
-			num_new_connections = 0;
+			num_new_connected_items = 0;
+			//** AMW2 added search of areas
+			for( int ia=0; ia<net->NumAreas(); ia++ )
+			{
+				carea * a = net->AreaByIndex(ia);
+				// see if area connects to this pin or any pins or vertices that connect to this pin
+				bool bAreaConnected = FALSE;
+				if( areas_connected.Lookup( ia, dummy ) )
+				{
+					// area already known to be connected
+					bAreaConnected = TRUE;
+				}
+				else
+				{
+					// check for pins
+					for( int iap=0; iap<a->NumPins(); iap++ )
+					{
+						cpin * apin = a->PinByIndex(iap);
+						int iapin = apin->Index();
+						if( iapin == ipin  || pins_connected.Lookup( iapin, dummy ) )
+						{
+							bAreaConnected = TRUE;
+							break;	
+						}
+					}
+					if( !bAreaConnected )
+					{
+						// check vertices
+						for( int iav=0; iav<a->NumVertices(); iav++ )
+						{
+							int icon = a->vcon[iav];
+							if( cons_connected.Lookup( icon, dummy ) )
+							{
+								bAreaConnected = TRUE;
+								break;
+							}
+						}
+					}
+				}
+				if( bAreaConnected )
+				{
+					if( !areas_connected.Lookup( ia, dummy) )
+					{
+						// new connected area, add area and all pins to list
+						num_new_connected_items++;
+						areas_connected.SetAt( ia, ia );
+						for( int iap=0; iap<a->NumPins(); iap++ )
+						{
+							cpin * apin = a->PinByIndex(iap);
+							int iapin = apin->Index();
+							pins_connected.SetAt( iapin, iapin );
+						}
+					}
+				}
+			}
+			//** end AMW2
 			for( cconnect * c=iter_con.GetFirst(); c; c=iter_con.GetNext() )
 			{
 				int ic = c->Index();
@@ -2449,7 +2508,7 @@ int CNetList::OptimizeConnections( cnet * net, int ic_track, BOOL bBelowPinCount
 				else if( bConConnected )
 				{
 					cons_connected.SetAt( ic, ic );
-					num_new_connections++;
+					num_new_connected_items++;
 					// add pins. tees and areas to maps of connected items
 					for( cvertex * v=iter_vtx.GetFirst(); v; v=iter_vtx.GetNext() )
 					{

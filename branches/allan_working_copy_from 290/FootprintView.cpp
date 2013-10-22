@@ -347,11 +347,8 @@ void CFootprintView::OnDraw(CDC* pDC)
 		r.right += 120;
 		r.bottom += 5;
 		CString s;
-		if( i == LAY_FP_PAD_THRU ) 
-			pDC->DrawText( "drilled hole", -1, &r, 0 );					// CPT:  will be replaced when feature #31 is merged.
-		else
-			s.LoadStringA( IDS_FpLayerStr + i ),
-			pDC->DrawText( s, -1, &r, 0 ); 
+		s.LoadStringA( IDS_FpLayerStr + i ),
+		pDC->DrawText( s, -1, &r, 0 ); 
 		if( i >= LAY_FP_TOP_COPPER && i <= LAY_FP_BOTTOM_COPPER ) 
 		{
 			CString num_str; 
