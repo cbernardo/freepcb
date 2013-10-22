@@ -4,7 +4,10 @@
 extern CFreePcbApp theApp;
 
 void dl_element::Draw (CDrawInfo &di)
-	{ if( visible && dlist->m_vis[ orig_layer ] ) _Draw(di, false);	}
+{ 
+	if( visible && dlist->m_vis[ orig_layer ] ) 
+		_Draw(di, false);	
+}
 
 void dl_element::DrawThermalRelief(CDrawInfo &di)
 	{ if( visible && dlist->m_vis[ orig_layer ] ) _DrawThermalRelief(di); }

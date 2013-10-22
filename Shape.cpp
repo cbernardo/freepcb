@@ -3221,10 +3221,9 @@ void CEditShape::Draw( CDisplayList * dlist, SMFontUtil * fontutil )
 					if( p->shape == PAD_OVAL )
 						gtype = DL_HOLLOW_OVAL;
 				}
+				//** AMW2 fixed bug where the following call didn't have the 8th parameter
 				*pad_el = dlist->Add( p_id, NULL, pad_lay, 
-					gtype, 1, 
-					0,
-					0, 
+					gtype, 1, 0, 0, 0,
 					pad_pi.x, pad_pi.y, 
 					pad_pf.x, pad_pf.y, 
 					pin.x, pin.y, p->radius );

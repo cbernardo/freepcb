@@ -54,8 +54,9 @@ CFreePcbDoc * this_Doc;		// global for callback
 
 BOOL m_bShowMessageForClearance = TRUE;
 
-// global array to map file_layers to actual layers
+// global arrays to map file_layers to actual layers
 int m_layer_by_file_layer[MAX_LAYERS];
+int m_fp_layer_by_file_layer[MAX_LAYERS];
 
 
 /////////////////////////////////////////////////////////////////////////////
@@ -1911,7 +1912,7 @@ void CFreePcbDoc::ReadOptions( CStdioFile * pcb_file )
 					CString layer_string = &layer_str[il][0];
 					if( file_layer_name == layer_string )
 					{
-						SetFileLayerMap( i, il );
+						m_layer_by_file_layer[i] = il;
 						layer = il;
 						break;
 					}
@@ -1930,17 +1931,23 @@ void CFreePcbDoc::ReadOptions( CStdioFile * pcb_file )
 					m_vis[layer] = my_atoi( &p[5] );
 				}
 			}
-			// CPT.  For footprint layer info, I don't bother with anything like the SetFileLayerMap business (don't see any point)
+			// AMW2 put translation table back in
 			else if( np && key_str == "fp_layer_info" )
 			{
 				CString file_layer_name = p[0];
-				int layer;
-				for( layer=0; layer<NUM_FP_LAYERS; layer++ )
+				int i = my_atoi( &p[1] ); 
+				int layer = -1;
+				for( int il=0; il<NUM_FP_LAYERS; il++ )
 				{
-					CString layer_string = &fp_layer_str[layer][0];
-					if( file_layer_name == layer_string ) break;
+					CString layer_string = &fp_layer_str[il][0];
+					if( file_layer_name == layer_string )
+					{
+						m_fp_layer_by_file_layer[i] = il;
+						layer = il;
+						break;
+					}
 				}
-				if( layer==NUM_FP_LAYERS )
+				if( layer < 0 )
 				{
 					CString s ((LPCSTR) IDS_WarningLayerNotSupported), mess;
 					mess.Format(s, file_layer_name);
@@ -1954,6 +1961,7 @@ void CFreePcbDoc::ReadOptions( CStdioFile * pcb_file )
 					m_fp_vis[layer] = my_atoi( &p[5] );
 				}
 			}
+			// end AMW2
 			else if (np && key_str == "reverse_pgup_pgdn")
 				m_bReversePgupPgdn = my_atoi(&p[0]);
 			else if (np && key_str == "lefthanded_mode")

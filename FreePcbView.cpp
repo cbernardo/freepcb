@@ -1248,6 +1248,7 @@ void CFreePcbView::OnLButtonUp(UINT nFlags, CPoint point)
 			angle, side );
 		m_Doc->m_plist->HighlightPart( m_sel_part );
 		m_Doc->m_nlist->PartMoved( m_sel_part, dx, dy );											// CPT bug fix #29
+		m_Doc->m_nlist->SetAreaConnections( m_sel_part );	//** AMW2 added this
 		if( m_Doc->m_vis[LAY_RAT_LINE] )
 			m_Doc->m_nlist->OptimizeConnections( m_sel_part, m_Doc->m_auto_ratline_disable, 
 									m_Doc->m_auto_ratline_min_pins );

@@ -4335,23 +4335,24 @@ STRINGTABLE
 BEGIN
     IDS_FpLayerStr          "selection"
     IDS_STRING64601         "background"
-    IDS_STRING64602         "visible grid. CF1"
-    IDS_STRING64603         "highlight. CF2"
-    IDS_STRING64604         "top silk. CF3"
-    IDS_STRING64605         "centroid. CF4"
-    IDS_STRING64606         "adhesive. CF5"
-    IDS_STRING64607         "drilled hole. CF6"
+    IDS_STRING64602         "visible grid"
+    IDS_STRING64603         "highlight"
+    IDS_STRING64604         "top silk"
+    IDS_STRING64605         "bottom silk"
+    IDS_STRING64606         "centroid"
+    IDS_STRING64607         "adhesive"
 END
 
 STRINGTABLE
 BEGIN
-    IDS_STRING64608         "top mask. CF7"
-    IDS_STRING64609         "top paste. CF8"
-    IDS_STRING64610         "bottom mask. CF9"
-    IDS_STRING64611         "bottom paste. CF10"
-    IDS_STRING64612         "top copper. 1,C1"
-    IDS_STRING64613         "inner. 2,C2"
-    IDS_STRING64614         "bottom. 3,C3"
+    IDS_STRING64608         "drilled hole"
+    IDS_STRING64609         "top mask"
+    IDS_STRING64610         "top paste"
+    IDS_STRING64611         "bottom mask"
+    IDS_STRING64612         "bottom paste"
+    IDS_STRING64613         "top copper"
+    IDS_STRING64614         "inner"
+    IDS_STRING64615         "bottom"
 END
 
 STRINGTABLE
