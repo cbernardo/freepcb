@@ -427,10 +427,16 @@ void CShape::Clear()
 	m_centroid->m_x = 0;
 	m_centroid->m_y = 0;
 	m_centroid->m_angle = 0;
-	m_padstacks.RemoveAll();
-	m_outlines.RemoveAll();
-	m_tl->texts.RemoveAll();
-	m_glues.RemoveAll();
+
+	// AMW3
+//	m_padstacks.RemoveAll();
+//	m_outlines.RemoveAll();
+//	m_tl->texts.RemoveAll();
+//	m_glues.RemoveAll();
+	m_padstacks.DestroyAll();
+	m_outlines.DestroyAll();
+	m_tl->texts.DestroyAll();
+	m_glues.DestroyAll();
 }
 
 void CShape::MakeDummy()

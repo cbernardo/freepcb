@@ -37,7 +37,11 @@
 #include <sys/stat.h>
 #define _USE_MATH_DEFINES
 #include <math.h>
+
+#define _CRTDBG_MAP_ALLOC
 #include <stdlib.h>
+#include <crtdbg.h>
+
 #include <Mmsystem.h>
 #include <sys/timeb.h>
 #include <time.h>

@@ -3,10 +3,14 @@
 //   belonging to derived classes, it was possible to supplant the old system of id's.
 // Also included are new template classes, CHeap<T> and CIter<T>;  we can rely mostly on them
 //   instead of CArray<T>/CArray<T*> and the various old CIter_XXX classes.  CHeap and CIter have a number of
-//   safety features, including: (1) if a member of a CHeap gets deleted, references to it 
-//   in the CHeap will be removed automatically;  (2) if a member of a CHeap gets detached or
-//   deleted in the midst of a loop, CIter can handle the situation gracefully;  (3) if a CHeap as
-//   a whole gets deleted in the midst of a loop, its members are detached and CIter handles that too;  (4) removal of items 
+//   safety features, including: 
+//	(1) if a member of a CHeap gets deleted, references to it 
+//   in the CHeap will be removed automatically;  
+//	(2) if a member of a CHeap gets detached or
+//   deleted in the midst of a loop, CIter can handle the situation gracefully;  
+//	(3) if a CHeap as
+//   a whole gets deleted in the midst of a loop, its members are detached and CIter handles that too;  
+//	(4) removal of items 
 //   from a CHeap, and detection of their presence in the CHeap, are quick.
 // The descendant classes are declared in Part.h, Net.h, Polyline.h, Text.h, Shape.h.
 
@@ -351,8 +355,13 @@ public:
 	{
 		// NB If item is null, we get a crash.  OK?
 		// Add item to this CHeap.  But first check if the item already belongs to this, and return silently if so
+
 		for (CHeapLink *link = item->carray_list; link; link = link->next)
 			if (link->arr==this) return;
+
+		// AMW3 DEBUG
+		TRACE( "Add item %x of type %x", item, item->GetTypeBit() );
+
 		// See if heap needs to expand.  It grows by a factor of ~1.5 each time:
 		if (nItems==nHeap)
 		{
@@ -378,6 +387,10 @@ public:
 		heap[off] = item;
 		flags[off>>3] |= 1<<(off&7);						// Set flag for "off"
 		CHeapLink *link = new CHeapLink();
+
+		// AMW3 DEBUG
+		TRACE( " with new link %x\n", link );
+
 		link->off = off;
 		link->arr = this;
 		link->next = item->carray_list;
@@ -420,7 +433,11 @@ public:
 		int off = link->off;
 		if (!prev) item->carray_list = link->next;
 		else       prev->next = link->next;
+
+		// AMW3 DEBUG
+		TRACE( "delete link %x to item %x\n", link, link->arr );
 		delete link;
+
 		// Remove item!
 		ASSERT(heap[off]==item);			// For now...
 		heap[off] = (T*) free;				// Add "off" to the free-offset list
