@@ -504,7 +504,9 @@ CPart::CPart(CFreePcbDoc *_doc, int _uid):
 
 CPart::~CPart()
 	// Because of garbage collection, we don't have to worry about calling destructors for any referenced cpcb_items.
-	{ delete m_tl; }
+	{ 
+		delete m_tl; 
+	}
 
 bool CPart::IsOnPcb()
 	{ return doc->m_plist->parts.Contains(this); }

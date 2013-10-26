@@ -69,5 +69,5 @@ Changed - when a part is moved, connected traces are not unrouted unless part ch
 Changed - garbage collection is now called on exiting the program
 Fixed - when clicking on a vertex, the vertex should be selected before the adjacent segments
 Fixed - similarly, when clicking on a polygon corner, the corner should be selected before the adjacent sides
-In progress - adding calls to SetThermals() and OptimizeConnections() for all editing operations that change them		
->>>>>>> .r353
+In progress - adding calls to SetThermals() and OptimizeConnections() for all editing operations that change them	
+In progress - tracing memory leaks due to faulty garbage collection	
